@@ -216,23 +216,21 @@ struct route_info {
 	uint32_t		scopeid;	/* Desired scope id to use */
 };
 
-int fib4_lookup_nh_ifp(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
-    struct nhop4_basic *pnh4);
-int fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
-    struct nhop4_basic *pnh4);
+#define	NHOP_LOOKUP_REF		0x01	/* reference objects in passed structure */
+#define	NHOP_LOOKUP_AIFP	0x02	/* return route "address" interface */
+
+int fib4_lookup_nh(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
+    uint32_t flags, struct nhop4_basic *pnh4);
 int fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst,
     uint32_t flowid, uint32_t flags, struct nhop4_extended *pnh4);
 void fib4_free_nh_ext(uint32_t fibnum, struct nhop4_extended *pnh4);
-#define	NHOP_LOOKUP_REF	0x01
 int rib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
     uint32_t flags, struct rt4_extended *prt4);
 void rib4_free_nh_ext(uint32_t fibnum, struct rt4_extended *prt4);
 
 
-int fib6_lookup_nh_ifp(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
-    uint32_t flowid, struct nhop6_basic *pnh6);
-int fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr *dst,
-    uint32_t scopeid, uint32_t flowid, struct nhop6_basic *pnh6);
+int fib6_lookup_nh(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
+    uint32_t flowid, uint32_t flags, struct nhop6_basic *pnh6);
 int fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst,
     uint32_t scopeid, uint32_t flowid, uint32_t flags,
     struct nhop6_extended *pnh6);

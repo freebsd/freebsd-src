@@ -203,7 +203,7 @@ gif_validate6(const struct ip6_hdr *ip6, struct gif_softc *sc,
 		fibnum = sc->gif_fibnum;
 		in6_splitscope(&ip6->ip6_src, &src, &scopeid);
 
-		if (fib6_lookup_nh_basic(fibnum, &src, scopeid, 0, &nh6) != 0)
+		if (fib6_lookup_nh(fibnum, &src, scopeid, 0, 0, &nh6) != 0)
 			return (0);
 		if (nh6.nh_ifp != ifp)
 			return (0);

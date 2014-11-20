@@ -797,7 +797,7 @@ in6_selectif(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 		 * XXX: Embedded form?
 		 */
 		in6_splitscope(&sin6_next->sin6_addr, &dst, &scopeid);
-		if (fib6_lookup_nh_basic(fibnum, &dst, scopeid, 0, &nh6) != 0) {
+		if (fib6_lookup_nh(fibnum, &dst, scopeid, 0, 0, &nh6) != 0) {
 			error = EHOSTUNREACH;
 			goto done;
 		}
@@ -815,7 +815,7 @@ in6_selectif(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 	}
 
 	/* Do route lookup */
-	if (fib6_lookup_nh_basic(fibnum, &dst, scopeid, 0, &nh6) != 0) {
+	if (fib6_lookup_nh(fibnum, &dst, scopeid, 0, 0, &nh6) != 0) {
 		error = EHOSTUNREACH;
 		goto done;
 	}
@@ -828,8 +828,6 @@ in6_selectif(uint32_t fibnum, struct sockaddr_in6 *dstsock,
 	 * Note that loopback interface is always okay.
 	 * (this may happen when we are sending a packet to one of
 	 *  our own addresses.)
-	 *
-	 * XXX: basic_ means we return "proper" interface address.
 	 *
 	 */
 	if (opts && opts->ip6po_pktinfo && opts->ip6po_pktinfo->ipi6_ifindex) {

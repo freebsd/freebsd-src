@@ -958,7 +958,7 @@ ipf_verifysrc(fin)
 	struct nhop4_basic nh4;
 
 	memset(&nh4, 0, sizeof(nh4));
-	if (fib4_lookup_nh_basic(RT_DEFAULT_FIB, fin->fin_src, 0, &nh4) != 0)
+	if (fib4_lookup_nh(RT_DEFAULT_FIB, fin->fin_src, 0, 0, &nh4) != 0)
 		return (0);
 
 	return (fin->fin_ifp == nh4.nh_ifp);

@@ -193,7 +193,7 @@ gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 
 		fibnum = sc->gif_fibnum;
 
-		if (fib4_lookup_nh_basic(fibnum, ip->ip_src, 0, &nh4) != 0)
+		if (fib4_lookup_nh(fibnum, ip->ip_src, 0, 0, &nh4) != 0)
 			return (0);
 		if (nh4.nh_ifp != ifp)
 			return (0);

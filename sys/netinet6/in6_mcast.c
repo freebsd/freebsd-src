@@ -1786,7 +1786,7 @@ in6p_lookup_mcast_ifp(const struct inpcb *in6p,
 
 	in6_splitscope(&gsin6->sin6_addr, &dst, &scopeid);
 	fibnum = in6p ? in6p->inp_inc.inc_fibnum : RT_DEFAULT_FIB;
-	if (fib6_lookup_nh_ifp(fibnum, &dst, scopeid, 0, &nh6) != 0)
+	if (fib6_lookup_nh(fibnum, &dst, scopeid, 0, 0, &nh6) != 0)
 		return (NULL);
 
 	return (nh6.nh_ifp);

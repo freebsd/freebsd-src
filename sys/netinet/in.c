@@ -1024,7 +1024,7 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	    ("sin_family %d", l3addr->sa_family));
 
 	dst = ((struct sockaddr_in *)l3addr)->sin_addr;
-	if (fib4_lookup_nh_ifp(ifp->if_fib, dst, 0, &nh4) != 0)
+	if (fib4_lookup_nh(ifp->if_fib, dst, 0, 0, &nh4) != 0)
 		return (EINVAL);
 
 	/*

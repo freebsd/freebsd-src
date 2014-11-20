@@ -1898,8 +1898,8 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 	} else {
 		struct nhop4_basic nh4;
 	
-		if (fib4_lookup_nh_basic(inp ? inp->inp_inc.inc_fibnum : 0,
-		    gsin->sin_addr, 0, &nh4) != 0) {
+		if (fib4_lookup_nh(inp ? inp->inp_inc.inc_fibnum : 0,
+		    gsin->sin_addr, 0, 0, &nh4) != 0) {
 			return (nh4.nh_ifp);
 		} else {
 			struct in_ifaddr *ia;

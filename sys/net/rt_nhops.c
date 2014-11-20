@@ -123,22 +123,22 @@ static inline uint16_t fib_rte_to_nh_flags(int rt_flags);
 static void rib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
     struct rt4_extended *prt4);
 static void fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
-    struct nhop4_extended *pnh4);
-static void fib4_rte_to_nh_basic(struct rtentry *rte, struct in_addr dst,
-    struct nhop4_basic *pnh4);
+    uint32_t flags, struct nhop4_extended *pnh4);
+static void fib4_rte_to_nh(struct rtentry *rte, struct in_addr dst,
+    uint32_t flags, struct nhop4_basic *pnh4);
 #endif
 #ifdef INET6
 static void fib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr *dst,
-    struct nhop6_extended *pnh6);
-static void fib6_rte_to_nh_basic(struct rtentry *rte, struct in6_addr *dst,
-    struct nhop6_basic *pnh6);
+    uint32_t flags, struct nhop6_extended *pnh6);
+static void fib6_rte_to_nh(struct rtentry *rte, struct in6_addr *dst,
+    uint32_t flags, struct nhop6_basic *pnh6);
 static int fib6_storelladdr(struct ifnet *ifp, struct in6_addr *dst,
     int mm_flags, u_char *desten);
 static uint16_t fib6_get_ifa(struct rtentry *rte);
 static int fib6_lla_to_nh_basic(struct in6_addr *dst, uint32_t scopeid,
-    struct nhop6_basic *pnh6);
+    uint32_t flags, struct nhop6_basic *pnh6);
 static int fib6_lla_to_nh_extended(struct in6_addr *dst, uint32_t scopeid,
-    struct nhop6_extended *pnh6);
+    uint32_t flags, struct nhop6_extended *pnh6);
 static int fib6_lla_to_nh(struct in6_addr *dst, uint32_t scopeid,
     struct nhop_prepend *nh, struct ifnet **lifp);
 #endif
@@ -321,7 +321,7 @@ fib4_lookup_prepend(uint32_t fibnum, struct in_addr dst, struct mbuf *m,
 
 	if (nh_ext != NULL) {
 		/* Fill in extended info */
-		fib4_rte_to_nh_extended(rte, dst, nh_ext);
+		fib4_rte_to_nh_extended(rte, dst, 0, nh_ext);
 	}
 
 	RIB_RUNLOCK(rh);
@@ -413,12 +413,15 @@ fib_rte_to_nh_flags(int rt_flags)
 }
 
 static void
-fib4_rte_to_nh_basic(struct rtentry *rte, struct in_addr dst,
-    struct nhop4_basic *pnh4)
+fib4_rte_to_nh(struct rtentry *rte, struct in_addr dst,
+    uint32_t flags, struct nhop4_basic *pnh4)
 {
 	struct sockaddr_in *gw;
 
-	pnh4->nh_ifp = rte->rt_ifa->ifa_ifp;
+	if ((flags & NHOP_LOOKUP_AIFP) == 0)
+		pnh4->nh_ifp = rte->rt_ifp;
+	else
+		pnh4->nh_ifp = rte->rt_ifa->ifa_ifp;
 	pnh4->nh_mtu = min(rte->rt_mtu, rte->rt_ifp->if_mtu);
 	if (rte->rt_flags & RTF_GATEWAY) {
 		gw = (struct sockaddr_in *)rte->rt_gateway;
@@ -435,12 +438,15 @@ fib4_rte_to_nh_basic(struct rtentry *rte, struct in_addr dst,
 
 static void
 fib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
-    struct nhop4_extended *pnh4)
+    uint32_t flags, struct nhop4_extended *pnh4)
 {
 	struct sockaddr_in *gw;
 	struct in_ifaddr *ia;
 
-	pnh4->nh_ifp = rte->rt_ifa->ifa_ifp;
+	if ((flags & NHOP_LOOKUP_AIFP) == 0)
+		pnh4->nh_ifp = rte->rt_ifp;
+	else
+		pnh4->nh_ifp = rte->rt_ifa->ifa_ifp;
 	pnh4->nh_mtu = min(rte->rt_mtu, rte->rt_ifp->if_mtu);
 	if (rte->rt_flags & RTF_GATEWAY) {
 		gw = (struct sockaddr_in *)rte->rt_gateway;
@@ -502,8 +508,8 @@ rib4_rte_to_nh_extended(struct rtentry *rte, struct in_addr dst,
  * - howewer mtu from "transmit" interface will be returned.
  */
 int
-fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
-    struct nhop4_basic *pnh4)
+fib4_lookup_nh(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
+    uint32_t flags, struct nhop4_basic *pnh4)
 {
 	struct rib_head *rh;
 	struct radix_node *rn;
@@ -511,7 +517,7 @@ fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 	struct rtentry *rte;
 	RIB_LOCK_READER;
 
-	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_basic: bad fibnum"));
+	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh: bad fibnum"));
 	rh = rt_tables_get_rnh(fibnum, AF_INET);
 	if (rh == NULL)
 		return (ENOENT);
@@ -527,46 +533,9 @@ fib4_lookup_nh_basic(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
-			fib4_rte_to_nh_basic(rte, dst, pnh4);
+			fib4_rte_to_nh(rte, dst, flags, pnh4);
 			RIB_RUNLOCK(rh);
 
-			return (0);
-		}
-	}
-	RIB_RUNLOCK(rh);
-
-	return (ENOENT);
-}
-
-int
-fib4_lookup_nh_ifp(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
-    struct nhop4_basic *pnh4)
-{
-	struct rib_head *rh;
-	struct radix_node *rn;
-	struct sockaddr_in sin;
-	struct rtentry *rte;
-	RIB_LOCK_READER;
-
-	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_ifp: bad fibnum"));
-	rh = rt_tables_get_rnh(fibnum, AF_INET);
-	if (rh == NULL)
-		return (ENOENT);
-
-	/* Prepare lookup key */
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_len = sizeof(struct sockaddr_in);
-	sin.sin_addr = dst;
-
-	RIB_RLOCK(rh);
-	rn = rh->rnh_matchaddr((void *)&sin, &rh->head);
-	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
-		rte = RNTORT(rn);
-		/* Ensure route & ifp is UP */
-		if (RT_LINK_IS_UP(rte->rt_ifp)) {
-			fib4_rte_to_nh_basic(rte, dst, pnh4);
-			RIB_RUNLOCK(rh);
-			pnh4->nh_ifp = rte->rt_ifp;
 			return (0);
 		}
 	}
@@ -610,7 +579,7 @@ fib4_lookup_nh_ext(uint32_t fibnum, struct in_addr dst, uint32_t flowid,
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
-			fib4_rte_to_nh_extended(rte, dst, pnh4);
+			fib4_rte_to_nh_extended(rte, dst, flags, pnh4);
 			if ((flags & NHOP_LOOKUP_REF) != 0) {
 				/* TODO: Do lwref on egress ifp's */
 			}
@@ -946,7 +915,7 @@ fib6_get_ifa(struct rtentry *rte)
 
 static int
 fib6_lla_to_nh_basic(struct in6_addr *dst, uint32_t scopeid,
-    struct nhop6_basic *pnh6)
+    uint32_t flags, struct nhop6_basic *pnh6)
 {
 	struct ifnet *ifp;
 
@@ -957,8 +926,13 @@ fib6_lla_to_nh_basic(struct in6_addr *dst, uint32_t scopeid,
 	/* Do explicit nexthop zero unless we're copying it */
 	memset(pnh6, 0, sizeof(*pnh6));
 
-	pnh6->nh_ifp = ifp;
 	pnh6->nh_mtu = IN6_LINKMTU(ifp);
+	pnh6->nh_ifp = ifp;
+	if ((flags & NHOP_LOOKUP_AIFP)!=0 && in6_ifawithifp_lla(ifp, dst) != 0){
+		if ((ifp = V_loif) != NULL)
+			pnh6->nh_ifp = ifp;
+	}
+
 	/* No flags set */
 	pnh6->nh_addr = *dst;
 
@@ -967,7 +941,7 @@ fib6_lla_to_nh_basic(struct in6_addr *dst, uint32_t scopeid,
 
 static int
 fib6_lla_to_nh_extended(struct in6_addr *dst, uint32_t scopeid,
-    struct nhop6_extended *pnh6)
+    uint32_t flags, struct nhop6_extended *pnh6)
 {
 	struct ifnet *ifp;
 
@@ -978,8 +952,12 @@ fib6_lla_to_nh_extended(struct in6_addr *dst, uint32_t scopeid,
 	/* Do explicit nexthop zero unless we're copying it */
 	memset(pnh6, 0, sizeof(*pnh6));
 
-	pnh6->nh_ifp = ifp;
 	pnh6->nh_mtu = IN6_LINKMTU(ifp);
+	pnh6->nh_ifp = ifp;
+	if ((flags & NHOP_LOOKUP_AIFP)!=0 && in6_ifawithifp_lla(ifp, dst) != 0){
+		if ((ifp = V_loif) != NULL)
+			pnh6->nh_ifp = ifp;
+	}
 	/* No flags set */
 	pnh6->nh_addr = *dst;
 
@@ -988,7 +966,7 @@ fib6_lla_to_nh_extended(struct in6_addr *dst, uint32_t scopeid,
 
 static int
 rib6_lla_to_nh_extended(struct in6_addr *dst, uint32_t scopeid,
-    struct rt6_extended *prt6)
+    uint32_t flags, struct rt6_extended *prt6)
 {
 	struct ifnet *ifp;
 
@@ -1047,15 +1025,18 @@ fib6_lla_to_nh(struct in6_addr *dst, uint32_t scopeid,
 
 
 static void
-fib6_rte_to_nh_basic(struct rtentry *rte, struct in6_addr *dst,
-    struct nhop6_basic *pnh6)
+fib6_rte_to_nh(struct rtentry *rte, struct in6_addr *dst,
+    uint32_t flags, struct nhop6_basic *pnh6)
 {
 	struct sockaddr_in6 *gw;
 
 	/* Do explicit nexthop zero unless we're copying it */
 	memset(pnh6, 0, sizeof(*pnh6));
 
-	pnh6->nh_ifp = ifnet_byindex(fib6_get_ifa(rte));
+	if ((flags & NHOP_LOOKUP_AIFP) == 0)
+		pnh6->nh_ifp = rte->rt_ifp;
+	else
+		pnh6->nh_ifp = ifnet_byindex(fib6_get_ifa(rte));
 
 	pnh6->nh_mtu = min(rte->rt_mtu, IN6_LINKMTU(rte->rt_ifp));
 	if (rte->rt_flags & RTF_GATEWAY) {
@@ -1073,7 +1054,7 @@ fib6_rte_to_nh_basic(struct rtentry *rte, struct in6_addr *dst,
 
 static void
 fib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr *dst,
-    struct nhop6_extended *pnh6)
+    uint32_t flags, struct nhop6_extended *pnh6)
 {
 	struct sockaddr_in6 *gw;
 	struct in6_ifaddr *ia;
@@ -1081,7 +1062,11 @@ fib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr *dst,
 	/* Do explicit nexthop zero unless we're copying it */
 	memset(pnh6, 0, sizeof(*pnh6));
 
-	pnh6->nh_ifp = ifnet_byindex(fib6_get_ifa(rte));
+	if ((flags & NHOP_LOOKUP_AIFP) == 0)
+		pnh6->nh_ifp = rte->rt_ifp;
+	else
+		pnh6->nh_ifp = ifnet_byindex(fib6_get_ifa(rte));
+
 	pnh6->nh_mtu = min(rte->rt_mtu, IN6_LINKMTU(rte->rt_ifp));
 	if (rte->rt_flags & RTF_GATEWAY) {
 		gw = (struct sockaddr_in6 *)rte->rt_gateway;
@@ -1104,7 +1089,7 @@ fib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr *dst,
 				bitcount32((x).__u6_addr.__u6_addr32[3])
 static void
 rib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr *dst,
-    struct rt6_extended *prt6)
+    uint32_t flags, struct rt6_extended *prt6)
 {
 	struct sockaddr_in6 *gw;
 
@@ -1130,8 +1115,8 @@ rib6_rte_to_nh_extended(struct rtentry *rte, struct in6_addr *dst,
 }
 
 int
-fib6_lookup_nh_ifp(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
-    uint32_t flowid, struct nhop6_basic *pnh6)
+fib6_lookup_nh(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
+    uint32_t flowid, uint32_t flags, struct nhop6_basic *pnh6)
 {
 	struct rib_head *rh;
 	struct radix_node *rn;
@@ -1141,11 +1126,10 @@ fib6_lookup_nh_ifp(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 
 	if (IN6_IS_SCOPE_LINKLOCAL(dst)) {
 		/* Do not lookup link-local addresses in rtable */
-		/* XXX: Check if dst is local */
-		return (fib6_lla_to_nh_basic(dst, scopeid, pnh6));
+		return (fib6_lla_to_nh_basic(dst, scopeid, flags, pnh6));
 	}
 
-	KASSERT((fibnum < rt_numfibs), ("fib6_lookup_nh_basic: bad fibnum"));
+	KASSERT((fibnum < rt_numfibs), ("fib6_lookup_nh: bad fibnum"));
 	rh = rt_tables_get_rnh(fibnum, AF_INET6);
 	if (rh == NULL)
 		return (ENOENT);
@@ -1162,50 +1146,7 @@ fib6_lookup_nh_ifp(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
-			fib6_rte_to_nh_basic(rte, dst, pnh6);
-			pnh6->nh_ifp = rte->rt_ifp;
-			RIB_RUNLOCK(rh);
-			return (0);
-		}
-	}
-	RIB_RUNLOCK(rh);
-
-	return (ENOENT);
-}
-
-int
-fib6_lookup_nh_basic(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
-    uint32_t flowid, struct nhop6_basic *pnh6)
-{
-	struct rib_head *rh;
-	struct radix_node *rn;
-	struct sockaddr_in6 sin6;
-	struct rtentry *rte;
-	RIB_LOCK_READER;
-
-	if (IN6_IS_SCOPE_LINKLOCAL(dst)) {
-		/* Do not lookup link-local addresses in rtable */
-		return (fib6_lla_to_nh_basic(dst, scopeid, pnh6));
-	}
-
-	KASSERT((fibnum < rt_numfibs), ("fib6_lookup_nh_basic: bad fibnum"));
-	rh = rt_tables_get_rnh(fibnum, AF_INET6);
-	if (rh == NULL)
-		return (ENOENT);
-
-	/* Prepare lookup key */
-	memset(&sin6, 0, sizeof(sin6));
-	sin6.sin6_addr = *dst;
-	sin6.sin6_scope_id = scopeid;
-	sa6_embedscope(&sin6, 0);
-
-	RIB_RLOCK(rh);
-	rn = rh->rnh_matchaddr((void *)&sin6, &rh->head);
-	if (rn != NULL && ((rn->rn_flags & RNF_ROOT) == 0)) {
-		rte = RNTORT(rn);
-		/* Ensure route & ifp is UP */
-		if (RT_LINK_IS_UP(rte->rt_ifp)) {
-			fib6_rte_to_nh_basic(rte, dst, pnh6);
+			fib6_rte_to_nh(rte, dst, flags, pnh6);
 			RIB_RUNLOCK(rh);
 			return (0);
 		}
@@ -1237,7 +1178,7 @@ fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	if (IN6_IS_SCOPE_LINKLOCAL(dst)) {
 		/* Do not lookup link-local addresses in rtable */
 		/* XXX: Do lwref on egress ifp */
-		return (fib6_lla_to_nh_extended(dst, scopeid, pnh6));
+		return (fib6_lla_to_nh_extended(dst, scopeid, flags, pnh6));
 	}
 
 	KASSERT((fibnum < rt_numfibs), ("fib4_lookup_nh_ext: bad fibnum"));
@@ -1258,7 +1199,7 @@ fib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
-			fib6_rte_to_nh_extended(rte, dst, pnh6);
+			fib6_rte_to_nh_extended(rte, dst, flags, pnh6);
 			if ((flags & NHOP_LOOKUP_REF) != 0) {
 				/* TODO: Do lwref on egress ifp's */
 			}
@@ -1291,7 +1232,7 @@ rib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	if (IN6_IS_SCOPE_LINKLOCAL(dst)) {
 		/* Do not lookup link-local addresses in rtable */
 		/* XXX: Do lwref on egress ifp */
-		return (rib6_lla_to_nh_extended(dst, scopeid, prt6));
+		return (rib6_lla_to_nh_extended(dst, scopeid, flags, prt6));
 	}
 
 	KASSERT((fibnum < rt_numfibs), ("rib6_lookup_nh_ext: bad fibnum"));
@@ -1312,7 +1253,7 @@ rib6_lookup_nh_ext(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 		rte = RNTORT(rn);
 		/* Ensure route & ifp is UP */
 		if (RT_LINK_IS_UP(rte->rt_ifp)) {
-			rib6_rte_to_nh_extended(rte, dst, prt6);
+			rib6_rte_to_nh_extended(rte, dst, flags, prt6);
 			if ((flags & NHOP_LOOKUP_REF) != 0) {
 				/* TODO: Do lwref on egress ifp's */
 			}
