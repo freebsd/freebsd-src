@@ -115,11 +115,6 @@ static int vn_access(struct vnode *vp, int user_flags, struct ucred *cred,
  */
 int async_io_version;
 
-#ifdef DEBUG
-static int syncprt = 0;
-SYSCTL_INT(_debug, OID_AUTO, syncprt, CTLFLAG_RW, &syncprt, 0, "");
-#endif
-
 /*
  * Sync each mounted filesystem.
  */
