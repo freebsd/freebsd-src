@@ -650,8 +650,8 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(struct ip6_hdr));
 
 	/* Save protocol */
-	prot = 0;
-	m_copydata(m, protoff, 1, (unsigned char *) &prot);
+	m_copydata(m, protoff, 1, &nxt8);
+	prot = nxt8;
 
 #ifdef DEV_ENC
 	encif->if_ipackets++;
@@ -669,9 +669,47 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 			return (error);
 #endif /* DEV_ENC */
 
+	/* IPv6-in-IP encapsulation */
+	if (prot == IPPROTO_IPV6 &&
+	    saidx->mode != IPSEC_MODE_TRANSPORT) {
+		if (m->m_pkthdr.len - skip < sizeof(struct ip6_hdr)) {
+			IPSEC_ISTAT(sproto, hdrops);
+			error = EINVAL;
+			goto bad;
+		}
+		/* ip6n will now contain the inner IPv6 header. */
+		m_striphdr(m, 0, skip);
+		skip = 0;
+#ifdef notyet
+		/*
+		 * Check that the inner source address is the same as
+		 * the proxy address, if available.
+		 */
+		if ((saidx->proxy.sa.sa_family == AF_INET6 &&
+		    !IN6_IS_ADDR_UNSPECIFIED(&saidx->proxy.sin6.sin6_addr) &&
+		    !IN6_ARE_ADDR_EQUAL(&ip6n.ip6_src,
+			&saidx->proxy.sin6.sin6_addr)) ||
+		    (saidx->proxy.sa.sa_family != AF_INET6 &&
+			saidx->proxy.sa.sa_family != 0)) {
+
+			DPRINTF(("%s: inner source address %s doesn't "
+			    "correspond to expected proxy source %s, "
+			    "SA %s/%08lx\n", __func__,
+			    ip6_sprintf(ip6buf, &ip6n.ip6_src),
+			    ipsec_address(&saidx->proxy),
+			    ipsec_address(&saidx->dst),
+			    (u_long) ntohl(sav->spi)));
+
+			IPSEC_ISTAT(sproto, pdrops);
+			error = EACCES;
+			goto bad;
+		}
+#endif /* notyet */
+	}
 #ifdef INET
 	/* IP-in-IP encapsulation */
-	if (prot == IPPROTO_IPIP) {
+	else if (prot == IPPROTO_IPIP &&
+	    saidx->mode != IPSEC_MODE_TRANSPORT) {
 		if (m->m_pkthdr.len - skip < sizeof(struct ip)) {
 			IPSEC_ISTAT(sproto, hdrops);
 			error = EINVAL;
@@ -706,41 +744,8 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 #endif /* notyet */
 	}
 #endif /* INET */
-	/* IPv6-in-IP encapsulation */
-	if (prot == IPPROTO_IPV6) {
-		if (m->m_pkthdr.len - skip < sizeof(struct ip6_hdr)) {
-			IPSEC_ISTAT(sproto, hdrops);
-			error = EINVAL;
-			goto bad;
-		}
-		/* ip6n will now contain the inner IPv6 header. */
-		m_striphdr(m, 0, skip);
-		skip = 0;
-#ifdef notyet
-		/*
-		 * Check that the inner source address is the same as
-		 * the proxy address, if available.
-		 */
-		if ((saidx->proxy.sa.sa_family == AF_INET6 &&
-		    !IN6_IS_ADDR_UNSPECIFIED(&saidx->proxy.sin6.sin6_addr) &&
-		    !IN6_ARE_ADDR_EQUAL(&ip6n.ip6_src,
-			&saidx->proxy.sin6.sin6_addr)) ||
-		    (saidx->proxy.sa.sa_family != AF_INET6 &&
-			saidx->proxy.sa.sa_family != 0)) {
-
-			DPRINTF(("%s: inner source address %s doesn't "
-			    "correspond to expected proxy source %s, "
-			    "SA %s/%08lx\n", __func__,
-			    ip6_sprintf(ip6buf, &ip6n.ip6_src),
-			    ipsec_address(&saidx->proxy),
-			    ipsec_address(&saidx->dst),
-			    (u_long) ntohl(sav->spi)));
-
-			IPSEC_ISTAT(sproto, pdrops);
-			error = EACCES;
-			goto bad;
-		}
-#endif /* notyet */
+	else {
+		prot = IPPROTO_IPV6; /* for correct BPF processing */
 	}
 
 	/*
@@ -792,10 +797,6 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_AFTER)) != 0)
 		return (error);
 #endif /* DEV_ENC */
-	/* Retrieve new protocol */
-	/* We have stripped the IP6 header from the mbuf, we have to use the backuped proto value instead */
-	nxt8 = prot;
-
 	/*
 	 * See the end of ip6_input for this logic.
 	 * IPPROTO_IPV[46] case will be processed just like other ones

@@ -486,12 +486,9 @@ ipip_output(
 		ip6o->ip6_flow = 0;
 		ip6o->ip6_vfc &= ~IPV6_VERSION_MASK;
 		ip6o->ip6_vfc |= IPV6_VERSION;
-		ip6o->ip6_plen = htons(m->m_pkthdr.len);
 		ip6o->ip6_hlim = IPV6_DEFHLIM;
 		ip6o->ip6_dst = saidx->dst.sin6.sin6_addr;
 		ip6o->ip6_src = saidx->src.sin6.sin6_addr;
-
-		/* Fix payload length */
 		ip6o->ip6_plen = htons(m->m_pkthdr.len - sizeof(*ip6));
 
 		switch (tp) {

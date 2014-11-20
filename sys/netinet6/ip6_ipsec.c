@@ -272,11 +272,7 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 				/*
 				 * No IPsec processing is needed, free
 				 * reference to SP.
-				 *
-				 * NB: null pointer to avoid free at
-				 *     done: below.
 				 */
-				KEY_FREESP(&sp), sp = NULL;
 				goto done;
 			}
 		}
