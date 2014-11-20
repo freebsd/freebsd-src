@@ -61,8 +61,9 @@
  * CCall/CReturn low-level exception handler; this code must be position-
  * independent, as it will be relocated into the vector table.
  *
- * NB: Our CCall/CReturn will always step on $at, even if the operation fails,
- * in order to give us a bit more register space than just $k0 and $k1.
+ * NB: Our CCall/CReturn will always step on $at, and CCall will treat on $t0,
+ * even if the operation fails, in order to give us a bit more register space
+ * than just $k0 and $k1.
  *
  * XXXRW: If we had separate vectors for CCall and CReturn, we might be able
  * to pull off CReturn without branching to a larger function elsewhere in
@@ -189,81 +190,91 @@ CHERICCall:
 	 * instruction?  Then we could run down all the pertinent registers
 	 * and simply branch once at the end.
 	 */
-	dli		AT, 1		/* Cleared if a failure. */
+	dli		AT, 0		/* Set if failure; will be regnum. */
 
 	cgettag		k0, $c1			/* k0 = tagged. */
 	cgetperm	k1, $c1			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
 	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
-	movn		AT, zero, k0		/* Clear if true. */
+	dli		t0, 1			/* $c1 */
+	movn		AT, t0, k0		/* Clear if true. */
 
 	cgettag		k0, $c2			/* k0 = tagged. */
 	cgetperm	k1, $c2			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
 	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
-	movn		AT, zero, k0		/* Clear if true. */
+	dli		t0, 2			/* $c2 */
+	movn		AT, t0, k0		/* Clear if true. */
 
 	cgettag		k0, $c3			/* k0 = tagged. */
 	cgetperm	k1, $c3			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
 	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
-	movn		AT, zero, k0		/* Clear if true. */
+	dli		t0, 3			/* $c3 */
+	movn		AT, t0, k0		/* Clear if true. */
 
 	cgettag		k0, $c4			/* k0 = tagged. */
 	cgetperm	k1, $c4			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
 	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
-	movn		AT, zero, k0		/* Clear if true. */
+	dli		t0, 4			/* $c4 */
+	movn		AT, t0, k0		/* Clear if true. */
 
 	cgettag		k0, $c5			/* k0 = tagged. */
 	cgetperm	k1, $c5			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
 	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
-	movn		AT, zero, k0		/* Clear if true. */
+	dli		t0, 5			/* $c5 */
+	movn		AT, t0, k0		/* Clear if true. */
 
 	cgettag		k0, $c6			/* k0 = tagged. */
 	cgetperm	k1, $c6			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
 	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
-	movn		AT, zero, k0		/* Clear if true. */
+	dli		t0, 6			/* $c6 */
+	movn		AT, t0, k0		/* Clear if true. */
 
 	cgettag		k0, $c7			/* k0 = tagged. */
 	cgetperm	k1, $c7			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
 	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
-	movn		AT, zero, k0		/* Clear if true. */
+	dli		t0, 7			/* $c7 */
+	movn		AT, t0, k0		/* Clear if true. */
 
 	cgettag		k0, $c8			/* k0 = tagged. */
 	cgetperm	k1, $c8			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
 	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
-	movn		AT, zero, k0		/* Clear if true. */
+	dli		t0, 8			/* $c8 */
+	movn		AT, t0, k0		/* Clear if true. */
 
 	cgettag		k0, $c9			/* k0 = tagged. */
 	cgetperm	k1, $c9			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
 	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
-	movn		AT, zero, k0		/* Clear if true. */
+	dli		t0, 9			/* $c9 */
+	movn		AT, t0, k0		/* Clear if true. */
 
 	cgettag		k0, $c10		/* k0 = tagged. */
 	cgetperm	k1, $c10		/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
 	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
-	movn		AT, zero, k0		/* Clear if true. */
+	dli		t0, 10			/* $c10 */
+	movn		AT, t0, k0		/* Clear if true. */
 
 	/* One branch to rule them all. */
-#if 0
-	beqz		AT, CCall_local_argument
+#if defined(NOTYET)
+	bnez		AT, CCall_local_argument
 #else
 	nop
 #endif
@@ -454,7 +465,8 @@ CCall_c1_range:
 	csetcause	k0		/* Branch-delay slot. */
 
 CCall_local_argument:
-	dli	k0, ((CHERI_EXCCODE_SW_LOCALARG << 8) | 1)
+	dli	k0, (CHERI_EXCCODE_SW_LOCALARG << 8)
+	or	k0, k0, AT
 	b	CCall_throw_exception
 	csetcause	k0		/* Branch-delay slot. */
 
@@ -488,8 +500,8 @@ CHERICReturn:
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
 	not		k1, k1			/* k1 = !global. */
 	and		k0, k0, k1		/* k0 = tagged && !global */
-#if 0
-	bnez		k1, CReturn_local_retval
+#if defined(NOTYET)
+	beqz		k1, CReturn_local_retval
 #else
 	nop
 #endif
@@ -614,7 +626,7 @@ CHERICReturn:
 	eret
 
 CReturn_local_retval:
-	dli	k0, ((CHERI_EXCCODE_SW_LOCALRET << 8) | 1)
+	dli	k0, ((CHERI_EXCCODE_SW_LOCALRET << 8) | 3)
 	b	CCall_throw_exception
 	csetcause	k0		/* Branch-delay slot. */
 
