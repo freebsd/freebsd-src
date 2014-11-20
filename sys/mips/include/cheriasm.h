@@ -135,6 +135,13 @@
 	cmove	CHERI_REG_C0, CHERI_REG_SEC0;	/* Branch-delay. */	\
 65:									\
 	/* If returning to kernelspace, reinstall kernel code PCC. */	\
+	/*								\
+	 * XXXRW: If requested PC has been adjusted by stack, similarly	\
+	 * adjust $epcc.offset, which will overwrite an earlier $epc	\
+	 * assignment.							\
+	 */								\
+	MFC0	reg, MIPS_COP_0_EXC_PC;					\
+	csetoffset	CHERI_REG_EPCC, CHERI_REG_EPCC, reg;		\
 	cmove	CHERI_REG_EPCC, CHERI_REG_KCC;				\
 66:
 
