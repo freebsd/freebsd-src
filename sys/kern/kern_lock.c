@@ -1341,9 +1341,14 @@ lockmgr_printinfo(const struct lock *lk)
 		    (uintmax_t)LK_SHARERS(lk->lk_lock));
 	else {
 		td = lockmgr_xholder(lk);
-		printf("lock type %s: EXCL by thread %p "
-		    "(pid %d, %s, tid %d)\n", lk->lock_object.lo_name, td,
-		    td->td_proc->p_pid, td->td_proc->p_comm, td->td_tid);
+		if (td == (struct thread *)LK_KERNPROC)
+			printf("lock type %s: EXCL by KERNPROC\n",
+			    lk->lock_object.lo_name);
+		else
+			printf("lock type %s: EXCL by thread %p "
+			    "(pid %d, %s, tid %d)\n", lk->lock_object.lo_name,
+			    td, td->td_proc->p_pid, td->td_proc->p_comm,
+			    td->td_tid);
 	}
 
 	x = lk->lk_lock;
