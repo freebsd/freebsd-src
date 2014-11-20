@@ -1868,8 +1868,8 @@ do { \
 				 * the outgoing interface.
 				 * TODO: embedded, Multipath
 				 */
-				if (fib6_lookup_nh_basic(so->so_fibnum,
-				    &in6p->in6p_faddr, 0, 0, &nh6) != 0) {
+				if (fib6_lookup_nh(so->so_fibnum,
+				    &in6p->in6p_faddr, 0, 0, 0, &nh6) != 0) {
 					error = EHOSTUNREACH;
 					break;
 				}

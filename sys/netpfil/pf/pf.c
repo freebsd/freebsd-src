@@ -2915,15 +2915,14 @@ pf_calc_mss(struct pf_addr *addr, sa_family_t af, int rtableid, u_int16_t offer)
 #ifdef INET
 	case AF_INET:
 		hlen = sizeof(struct ip);
-		if (fib4_lookup_nh_basic(rtableid, addr->v4, 0, &nh.u.nh4) == 0)
+		if (fib4_lookup_nh(rtableid, addr->v4, 0, 0, &nh.u.nh4) == 0)
 			mss = nh.u.nh4.nh_mtu - hlen - sizeof(struct tcphdr);
 		break;
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
 		hlen = sizeof(struct ip6_hdr);
-		if (fib6_lookup_nh_basic(rtableid, &addr->v6, 0, 0, &nh.u.nh6)
-		    == 0)
+		if (fib6_lookup_nh(rtableid, &addr->v6, 0, 0, 0, &nh.u.nh6)==0)
 			mss = nh.u.nh6.nh_mtu - hlen - sizeof(struct tcphdr);
 		break;
 #endif /* INET6 */
@@ -5100,14 +5099,13 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
 		 */
 		if (IN6_IS_SCOPE_EMBED(&addr->v6))
 			return (1);
-		if (fib6_lookup_nh_basic(rtableid, &addr->v6, 0, 0, &nh.u.nh6)
-		    != 0)
+		if (fib6_lookup_nh(rtableid, &addr->v6, 0, 0, 0, &nh.u.nh6)!=0)
 			return (0);
 		break;
 #endif
 #ifdef INET
 	case AF_INET:
-		if (fib4_lookup_nh_basic(rtableid, addr->v4, 0, &nh.u.nh4) != 0)
+		if (fib4_lookup_nh(rtableid, addr->v4, 0, 0, &nh.u.nh4) != 0)
 			return (0);
 		break;
 #endif

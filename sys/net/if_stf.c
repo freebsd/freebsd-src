@@ -574,7 +574,7 @@ stf_checkaddr4(sc, in, inifp)
 	if (sc && (STF2IFP(sc)->if_flags & IFF_LINK2) == 0 && inifp) {
 		struct nhop4_basic nh4;
 
-		if (fib4_lookup_nh_basic(sc->sc_fibnum, *in, 0, &nh4) != 0)
+		if (fib4_lookup_nh(sc->sc_fibnum, *in, 0, 0, &nh4) != 0)
 			return (-1);
 		if (nh4.nh_ifp != inifp)
 			return (-1);

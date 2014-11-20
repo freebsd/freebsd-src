@@ -2401,7 +2401,7 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	/* ip6->ip6_src must be equal to gw for icmp6->icmp6_reddst */
 	struct nhop6_basic nh6;
 
-	if (fib6_lookup_nh_basic(RT_DEFAULT_FIB, &reddst6, 0, 0, &nh6)==0) {
+	if (fib6_lookup_nh(RT_DEFAULT_FIB, &reddst6, 0, 0, 0, &nh6)==0) {
 		/* XXX: Think about AF_LINK GW */
 		if ((nh6.nh_flags & NHF_GATEWAY) == 0) {
 			nd6log((LOG_ERR,

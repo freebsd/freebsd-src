@@ -440,7 +440,7 @@ verify_path(struct in_addr src, struct ifnet *ifp, u_int fib)
 #else
 	struct nhop4_basic nh4;
 
-	if (fib4_lookup_nh_basic(fib, src, 0, &nh4) != 0)
+	if (fib4_lookup_nh(fib, src, 0, NHOP_LOOKUP_AIFP, &nh4) != 0)
 		return (0);
 
 	/*
@@ -519,7 +519,7 @@ verify_path6(struct in6_addr *src, struct ifnet *ifp, u_int fib)
 	struct nhop6_basic nh6;
 
 	/* XXX: unembed scope? */
-	if (fib6_lookup_nh_basic(fib, src, 0, 0, &nh6) != 0)
+	if (fib6_lookup_nh(fib, src, 0, 0, NHOP_LOOKUP_AIFP, &nh6) != 0)
 		return (0);
 
 	/* If ifp is provided, check for equality with route table. */

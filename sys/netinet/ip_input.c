@@ -1466,7 +1466,8 @@ ip_forward(struct mbuf *m, int srcrt)
 #endif
 
 	pnh4 = &nh4;
-	if (fib4_lookup_nh_basic(M_GETFIB(m), ip->ip_dst, 0, &nh4) != 0)
+	if (fib4_lookup_nh(M_GETFIB(m), ip->ip_dst, 0, NHOP_LOOKUP_AIFP,
+	    &nh4) != 0)
 		pnh4 = NULL;
 #ifndef IPSEC
 	/*

@@ -2188,7 +2188,7 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 	/* Our local addresses are always only installed on the default FIB. */
 
 	in6_splitscope(&((struct sockaddr_in6 *)l3addr)->sin6_addr, &dst, &scopeid);
-	error = fib6_lookup_nh_ifp(RT_DEFAULT_FIB, &dst, scopeid, 0, &nh6);
+	error = fib6_lookup_nh(RT_DEFAULT_FIB, &dst, scopeid, 0, 0, &nh6);
 	if (error != 0 || ((nh6.nh_flags & NHF_GATEWAY) != 0) || nh6.nh_ifp != ifp) {
 		struct ifaddr *ifa;
 		/*
