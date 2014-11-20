@@ -345,6 +345,7 @@ MAN=	accept_filter.9 \
 	vmem.9 \
 	vn_fullpath.9 \
 	vn_isdisk.9 \
+	vnet.9 \
 	vnode.9 \
 	VOP_ACCESS.9 \
 	VOP_ACLCHECK.9 \
