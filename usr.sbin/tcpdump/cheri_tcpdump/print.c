@@ -513,7 +513,6 @@ init_print(u_int32_t localnet, u_int32_t mask)
 	if (tcpdump_classp == NULL &&
 	    tcpdump_sandbox_object_setup() != 0)
 		error("failure setting up sandbox object");
-
 }
 
 int
