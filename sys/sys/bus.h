@@ -87,7 +87,7 @@ struct u_device {
 
 /**
  * @brief Old, static set of device information exported to userspace.
- * 
+ *
  * This definition exists to portably provide size information to
  * consumers of hw.bus.devices.
  */

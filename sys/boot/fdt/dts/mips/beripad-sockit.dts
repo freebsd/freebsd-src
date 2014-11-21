@@ -140,7 +140,7 @@
 /*
 		avgen@0x7f009000 {
 			compatible = "sri-cambridge,avgen";
-			reg = <0x7f009000 0x2>;	
+			reg = <0x7f009000 0x2>;
 			sri-cambridge,width = <1>;
 			sri-cambridge,fileio = "r";
 			sri-cambridge,devname = "de4bsw";

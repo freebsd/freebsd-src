@@ -139,7 +139,7 @@ static const char *cheri_cap_store_opname[8] = {
 static const char *cheri_flow_control_opname[16] = {
 	"invalid", "CSealCode", "CSealData", "CUnseal",
 	"invalid", "CCall", "CReturn", "cjalr",
-	"cjr", "invalid", "invalid", "invalid", 
+	"cjr", "invalid", "invalid", "invalid",
 	"invalid", "invalid", "invalid", "invalid"
 };
 static const char *cheri_cap_inspect_opname[8] = {
@@ -173,7 +173,7 @@ db_disasm(db_addr_t loc, boolean_t altfmt)
 	}
 
 	return (loc + sizeof(int));
-} 
+}
 
 /* ARGSUSED */
 static int
@@ -295,35 +295,35 @@ md_printins(int ins, int mdbdot)
 		const char *opcode = "invalid";
 		const char *operands[3] = { 0 };
 		switch (i.CType.fmt) {
-		case 0: 
+		case 0:
 			ops = 2;
 			opcode = cheri_cap_inspect_opname[i.CType.fmt2];
 			operands[0] = reg_name[i.CType.r1];
 			operands[1] = c2_reg[i.CType.r2];
 			break;
-		case 4: 
+		case 4:
 			ops = i.CType.fmt2 == 5 ? 0 : 3;
 			opcode = cheri_cap_modify_name[i.CType.fmt2];
 			operands[0] = reg_name[i.CType.r1];
 			operands[1] = c2_reg[i.CType.r2];
 			break;
-		case 1: 
-		case 5: 
+		case 1:
+		case 5:
 			ops = 2;
 			opcode = cheri_flow_control_opname[i.CType.fmt];
 			operands[0] = c2_reg[i.CType.r1];
 			operands[1] = c2_reg[i.CType.r2];
 			break;
-		case 2: 
-		case 3: 
+		case 2:
+		case 3:
 			ops = 3;
 			opcode = cheri_flow_control_opname[i.CType.fmt];
 			operands[0] = c2_reg[i.CType.r1];
 			operands[1] = c2_reg[i.CType.r2];
 			operands[2] = c2_reg[i.CType.r3];
 			break;
-		case 7: 
-		case 8: 
+		case 7:
+		case 8:
 			ops = 2;
 			opcode = cheri_flow_control_opname[i.CType.fmt];
 			operands[0] = c2_reg[i.CType.r2];

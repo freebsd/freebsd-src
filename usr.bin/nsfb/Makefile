@@ -64,7 +64,7 @@ SRCS=		\
 		throbber5.c \
 		throbber6.c \
 		throbber7.c \
-		throbber8.c 
+		throbber8.c
 
 .PATH:          ${NETSURF_DISTDIR}/netsurf
 
@@ -210,7 +210,7 @@ WARNS=1
 #WARNFLAGS=	-W -Wall -Wundef -Wpointer-arith -Wcast-align -Wwrite-strings \
 #		-Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations\
 #		-Wredundant-decls -Wnested-externs -Wuninitialized \
-#		-Wno-unused-parameter 
+#		-Wno-unused-parameter
 
 INCLUDES=	-I${NETSURF_DISTDIR}/libcss/include \
 		-I${NETSURF_DISTDIR}/libdom/include \
@@ -230,7 +230,7 @@ OPTIONS=	-Dnsframebuffer -DWITH_JPEG -DWITH_PNG -DWITH_BMP -DWITH_GIF \
 		'-DNETSURF_UA_FORMAT_STRING="NetSurf/%d.%d (%s)"' \
 		'-DNETSURF_HOMEPAGE="about:welcome"' \
 		'-DNETSURF_FB_RESPATH="${HOME}/.netsurf/:${NETSURFRES}:/usr/share/netsurf/:./framebuffer/res"'
-		
+
 TTFONTS=	'-DNETSURF_FB_FONTPATH="/usr/share/fonts/truetype/ttf-dejavu:/usr/share/fonts/truetype/msttcorefonts"' \
 		'-DNETSURF_FB_FONT_SANS_SERIF="DejaVuSans.ttf"' \
 		'-DNETSURF_FB_FONT_SANS_SERIF_BOLD="DejaVuSans-Bold.ttf"' \

@@ -30,7 +30,7 @@ SRCS=		src/stylesheet.c \
 		src/parse/properties/column_rule.c \
 		src/parse/properties/content.c \
 		src/parse/properties/cue.c \
- 		src/parse/properties/cursor.c \
+		src/parse/properties/cursor.c \
 		src/parse/properties/elevation.c \
 		src/parse/properties/font.c \
 		src/parse/properties/font_family.c \

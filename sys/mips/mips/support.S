@@ -93,7 +93,7 @@
 #include <machine/regnum.h>
 #include <machine/cpuregs.h>
 #include <machine/pcb.h>
-#ifdef CPU_CHERI 
+#ifdef CPU_CHERI
 #include <machine/cherireg.h>
 #endif
 

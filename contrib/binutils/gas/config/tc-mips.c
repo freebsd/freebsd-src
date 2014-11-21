@@ -1607,7 +1607,7 @@ struct regname {
     {"$c28",	RTYPE_CAP | 28}, \
     {"$c29",	RTYPE_CAP | 29}, \
     {"$c30",	RTYPE_CAP | 30}, \
-    {"$c31",	RTYPE_CAP | 31} 
+    {"$c31",	RTYPE_CAP | 31}
 
 /* TODO: Add symbolic names */
 
@@ -1718,7 +1718,7 @@ static const struct regname reg_names[] = {
   FPU_REGISTER_NAMES,
   FPU_CONDITION_CODE_NAMES,
   COPROC_CONDITION_CODE_NAMES,
-  
+
 
   /* The $txx registers depends on the abi,
      these will be added later into the symbol table from
@@ -9211,11 +9211,11 @@ do_msbd:
 
                 case 'o':
 	          my_getExpression (&imm_expr, s);
-	      	  check_absolute_expr (ip, &imm_expr);
-	      	  INSERT_OPERAND (CDELTA, *ip, imm_expr.X_add_number);
-	      	  imm_expr.X_op = O_absent;
-	      	  s = expr_end;
-	      	  continue;
+		  check_absolute_expr (ip, &imm_expr);
+		  INSERT_OPERAND (CDELTA, *ip, imm_expr.X_add_number);
+		  imm_expr.X_op = O_absent;
+		  s = expr_end;
+		  continue;
 
 		case 'O':
 		  my_getExpression (&imm_expr, s);

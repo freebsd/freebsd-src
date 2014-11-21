@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 .include <src.opts.mk>
- 
+
 SUBDIR=	minifile-capsicum-helper \
 	readpng-capsicum-helper
 

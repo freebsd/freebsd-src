@@ -10,7 +10,7 @@ LIB=	nsfb
 
 .PATH:		${NETSURF_DISTDIR}/libnsfb
 SRCS=		src/libnsfb.c \
- 		src/dump.c \
+		src/dump.c \
 		src/cursor.c \
 		src/palette.c \
 		src/plot/api.c \

@@ -96,7 +96,7 @@ _start1(char **ap,
 	/* Set up profiling support for the program, if we're being compiled
 	 * with profiling support enabled (-DGCRT).
 	 * See: http://sourceware.org/binutils/docs/gprof/Implementation.html
-	 */ 
+	 */
 	atexit(_mcleanup);
 	monstartup(&eprol, &etext);
 

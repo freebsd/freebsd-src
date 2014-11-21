@@ -92,7 +92,7 @@ OCTEON_VENDOR_GEFES		opt_cvmx.h
 OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h
 
 #
-# Options specific to the BERI and CHERI platform. 
+# Options specific to the BERI and CHERI platform.
 #
 BERI_LARGE_TLB			opt_global.h
 PLATFORM_INIT_SECONDARY		opt_global.h

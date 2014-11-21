@@ -150,7 +150,7 @@ VECTOR(_locore, unknown)
 	 * registers here?
 	 */
 	cmove	$c30, $c0		# Preserve $kdc
-	cmove	$c29, $c0		# Preserve $kcc	
+	cmove	$c29, $c0		# Preserve $kcc
 
 	/*
 	 * Initialise saved user $c0 so we can later restore it.
