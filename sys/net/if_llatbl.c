@@ -328,6 +328,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 
 		if (rtm->rtm_rmx.rmx_expire == 0) {
 			lle->la_flags |= LLE_STATIC;
+			lle->r_flags |= RLLE_VALID;
 			lle->la_expire = 0;
 		} else
 			lle->la_expire = rtm->rtm_rmx.rmx_expire;
