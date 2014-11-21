@@ -41,7 +41,7 @@
 
 #include <sys/cdefs.h>
 
-#ifdef PIC
+#ifdef __PIC__
 #define	PIC_PROLOGUE(r1, r2) \
 	sethi	%hi(_GLOBAL_OFFSET_TABLE_-4), r1 ; \
 	rd	%pc, r2 ; \

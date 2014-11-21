@@ -104,7 +104,7 @@
 
 #define	ASMSTR		.asciz
 
-#if defined(PIC)
+#if defined(__PIC__)
 #define	PLT_SYM(x)	PIC_SYM(x, PLT)
 #define	GOT_SYM(x)	PIC_SYM(x, GOT)
 #define	GOT_GET(x,got,sym)	\
@@ -131,7 +131,7 @@
 #define	GOT_INIT(got,gotsym,pclabel)
 #define	GOT_INITSYM(gotsym,pclabel)
 #define	PIC_SYM(x,y)	x
-#endif	/* PIC */
+#endif	/* __PIC__ */
 
 #undef __FBSDID
 #if !defined(lint) && !defined(STRIP_FBSDID)
