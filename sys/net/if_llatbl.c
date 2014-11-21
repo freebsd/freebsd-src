@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
+#include <sys/rmlock.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -142,6 +143,7 @@ llentry_alloc(struct ifnet *ifp, struct lltable *lt,
     struct sockaddr_storage *dst)
 {
 	struct llentry *la;
+	IF_AFDATA_TRACKER;
 
 	IF_AFDATA_RLOCK(ifp);
 	la = lla_lookup(lt, LLE_EXCLUSIVE, (struct sockaddr *)dst);

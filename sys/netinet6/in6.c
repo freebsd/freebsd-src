@@ -72,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/jail.h>
 #include <sys/malloc.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sockio.h>
