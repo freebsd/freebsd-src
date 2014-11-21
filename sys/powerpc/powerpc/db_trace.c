@@ -263,7 +263,7 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 		   print_trap:
 			lr = (db_addr_t) tf->srr0;
 			db_printsym(lr, DB_STGY_ANY);
-			db_printf(": srr1=%#x\n", tf->srr1);
+			db_printf(": srr1=%#zx\n", tf->srr1);
 			db_printf("%-10s  r1=%#zx cr=%#x xer=%#x ctr=%#zx",
 			    "", tf->fixreg[1], (uint32_t)tf->cr,
 			    (uint32_t)tf->xer, tf->ctr);
