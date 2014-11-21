@@ -425,7 +425,7 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		printf("%s: calling ctl_port_register() for %s%d\n",
 		       __func__, cpi->dev_name, cpi->unit_number);
 #endif
-		retval = ctl_port_register(port, /*master_SC*/ 1);
+		retval = ctl_port_register(port);
 		if (retval != 0) {
 			printf("%s: ctl_port_register() failed with "
 			       "error %d!\n", __func__, retval);
