@@ -70,6 +70,9 @@ struct fs_ops *file_system[] = {
 #ifdef LOADER_UFS_SUPPORT
 	&ufs_fsops,
 #endif
+#ifdef LOADER_GZIP_SUPPORT
+	&gzipfs_fsops,
+#endif
 	NULL
 };
 
