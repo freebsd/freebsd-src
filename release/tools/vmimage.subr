@@ -10,19 +10,22 @@ export PATH="/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin"
 trap "cleanup" INT QUIT TRAP ABRT TERM
 
 write_partition_layout() {
+	if [ -z "${NOSWAP}" ]; then
+		SWAPOPT="-p freebsd-swap/swapfs::1G"
+	fi
 
 	case "${TARGET}:${TARGET_ARCH}" in
 		amd64:amd64 | i386:i386)
 			mkimg -s gpt -b /boot/pmbr \
 				-p freebsd-boot/bootfs:=/boot/gptboot \
-				-p freebsd-swap/swapfs::1G \
+				${SWAPOPT} \
 				-p freebsd-ufs/rootfs:=${VMBASE} \
 				-o ${VMIMAGE}
 			;;
 		powerpc:powerpc*)
 			mkimg -s apm \
 				-p apple-boot/bootfs:=/boot/boot1.hfs \
-				-p freebsd-swap/swapfs::1G \
+				${SWAPOPT} \
 				-p freebsd-ufs/rootfs:=${VMBASE} \
 				-o ${VMIMAGE}
 			;;
@@ -76,8 +79,10 @@ vm_install_base() {
 		> ${DESTDIR}/etc/fstab
 	echo '/dev/gpt/rootfs   /       ufs     rw      1       1' \
 		>> ${DESTDIR}/etc/fstab
-	echo '/dev/gpt/swapfs  none    swap    sw      0       0' \
-		>> ${DESTDIR}/etc/fstab
+	if [ -z "${NOSWAP}" ]; then
+		echo '/dev/gpt/swapfs  none    swap    sw      0       0' \
+			>> ${DESTDIR}/etc/fstab
+	fi
 
 	mkdir -p ${DESTDIR}/dev
 	mount -t devfs devfs ${DESTDIR}/dev
