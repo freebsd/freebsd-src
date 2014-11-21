@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
  * The assembly-language code is not position-independent, so don't
  * try to use it in a shared library.
  */
-#ifdef PIC
+#ifdef __PIC__
 #undef SHA1_ASM
 #endif
 

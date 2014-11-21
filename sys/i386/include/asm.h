@@ -38,7 +38,7 @@
 
 #include <sys/cdefs.h>
 
-#ifdef PIC
+#ifdef __PIC__
 #define	PIC_PROLOGUE	\
 	pushl	%ebx;	\
 	call	1f;	\

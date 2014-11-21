@@ -31,7 +31,7 @@
 
 #include <sys/cdefs.h>
 
-#ifdef PIC
+#ifdef __PIC__
 /* If the main executable imports these, do not use its copy from libc.so. */
 extern const char *const __hidden_sys_errlist[] __hidden;
 extern const int __hidden_sys_nerr __hidden;
