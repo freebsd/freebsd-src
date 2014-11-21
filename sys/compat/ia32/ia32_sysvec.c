@@ -187,9 +187,25 @@ SYSINIT(kia32, SI_SUB_EXEC, SI_ORDER_ANY,
 	&kia32_brand_info);
 
 void
-elf32_dump_thread(struct thread *td __unused, void *dst __unused,
-    size_t *off __unused)
+elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 {
+	void *buf;
+	size_t len;
+
+	len = 0;
+	if (use_xsave) {
+		if (dst != NULL) {
+			fpugetregs(td);
+			len += elf32_populate_note(NT_X86_XSTATE,
+			    get_pcb_user_save_td(td), dst,
+			    cpu_max_ext_state_size, &buf);
+			*(uint64_t *)((char *)buf + X86_XSTATE_XCR0_OFFSET) =
+			    xsave_mask;
+		} else
+			len += elf32_populate_note(NT_X86_XSTATE, NULL, NULL,
+			    cpu_max_ext_state_size, NULL);
+	}
+	*off = len;
 }
 
 void
