@@ -34,6 +34,9 @@ Mkdirs= Mkdirs() { \
 # if MKOBJDIRS is set to auto (and NOOBJ isn't defined) do some magic...
 # This will automatically create objdirs as needed.
 # Skip it if we are just doing 'clean'.
+.if ${MK_AUTO_OBJ:Uno} == "yes"
+MKOBJDIRS= auto
+.endif
 .if !defined(NOOBJ) && !defined(NO_OBJ) && ${MKOBJDIRS:Uno} == auto
 # Use __objdir here so it is easier to tweak without impacting
 # the logic.
