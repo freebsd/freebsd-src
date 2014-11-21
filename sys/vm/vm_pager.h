@@ -108,7 +108,7 @@ void vm_pager_bufferinit(void);
 void vm_pager_deallocate(vm_object_t);
 static __inline int vm_pager_get_pages(vm_object_t, vm_page_t *, int, int);
 static inline int vm_pager_get_pages_async(vm_object_t, vm_page_t *, int,
-    int, void(*)(void *, vm_page_t *, int, int), void *);
+    int, pgo_getpages_iodone_t *, void *);
 static __inline boolean_t vm_pager_has_page(vm_object_t, vm_pindex_t, int *, int *);
 void vm_pager_init(void);
 vm_object_t vm_pager_object_lookup(struct pagerlst *, void *);
