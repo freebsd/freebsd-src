@@ -31,7 +31,7 @@
  * when statically linked.
  */
 
-#ifdef PIC
+#ifdef __PIC__
 
 #include <sys/types.h>
 #include <sys/iconv.h>
@@ -462,4 +462,4 @@ kiconv_add_xlat16_cspairs(const char *tocode __unused, const char *fromcode __un
 	return (-1);
 }
 
-#endif /* PIC */
+#endif /* __PIC__ */

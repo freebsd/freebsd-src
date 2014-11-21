@@ -100,7 +100,7 @@ TAILQ_HEAD(mutex_queue, pthread_mutex);
 #define THR_ASSERT(cond, msg)
 #endif
 
-#ifdef PIC
+#ifdef __PIC__
 # define STATIC_LIB_REQUIRE(name)
 #else
 # define STATIC_LIB_REQUIRE(name) __asm (".globl " #name)

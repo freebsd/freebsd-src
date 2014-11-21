@@ -1120,8 +1120,8 @@ siis_execute_transaction(struct siis_slot *slot)
 	ATA_OUTL(ch->r_mem, SIIS_P_CACTL(slot->slot), prb_bus);
 	ATA_OUTL(ch->r_mem, SIIS_P_CACTH(slot->slot), prb_bus >> 32);
 	/* Start command execution timeout */
-	callout_reset(&slot->timeout, (int)ccb->ccb_h.timeout * hz / 1000,
-	    (timeout_t*)siis_timeout, slot);
+	callout_reset_sbt(&slot->timeout, SBT_1MS * ccb->ccb_h.timeout, 0,
+	    (timeout_t*)siis_timeout, slot, 0);
 	return;
 }
 
@@ -1162,9 +1162,9 @@ siis_rearm_timeout(device_t dev)
 			continue;
 		if ((ch->toslots & (1 << i)) == 0)
 			continue;
-		callout_reset(&slot->timeout,
-		    (int)slot->ccb->ccb_h.timeout * hz / 1000,
-		    (timeout_t*)siis_timeout, slot);
+		callout_reset_sbt(&slot->timeout,
+		    SBT_1MS * slot->ccb->ccb_h.timeout, 0,
+		    (timeout_t*)siis_timeout, slot, 0);
 	}
 }
 

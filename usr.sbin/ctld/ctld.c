@@ -1662,6 +1662,16 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		 */
 		newtarg = target_find(newconf, oldtarg->t_name);
 		if (newtarg == NULL) {
+			error = kernel_port_remove(oldtarg);
+			if (error != 0) {
+				log_warnx("failed to remove target %s",
+				    oldtarg->t_name);
+				/*
+				 * XXX: Uncomment after fixing the root cause.
+				 *
+				 * cumulated_error++;
+				 */
+			}
 			TAILQ_FOREACH_SAFE(oldlun, &oldtarg->t_luns, l_next,
 			    tmplun) {
 				log_debugx("target %s not found in new "
@@ -1678,7 +1688,6 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 					cumulated_error++;
 				}
 			}
-			kernel_port_remove(oldtarg);
 			continue;
 		}
 
@@ -1812,8 +1821,18 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 				cumulated_error++;
 			}
 		}
-		if (oldtarg == NULL)
-			kernel_port_add(newtarg);
+		if (oldtarg == NULL) {
+			error = kernel_port_add(newtarg);
+			if (error != 0) {
+				log_warnx("failed to add target %s",
+				    oldtarg->t_name);
+				/*
+				 * XXX: Uncomment after fixing the root cause.
+				 *
+				 * cumulated_error++;
+				 */
+			}
+		}
 	}
 
 	/*

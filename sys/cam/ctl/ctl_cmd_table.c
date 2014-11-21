@@ -800,12 +800,18 @@ const struct ctl_cmd_entry ctl_cmd_table[256] =
 
 /* 3B WRITE BUFFER */
 {ctl_write_buffer, CTL_SERIDX_MD_SEL, CTL_CMD_FLAG_OK_ON_BOTH |
+				      CTL_CMD_FLAG_OK_ON_STOPPED |
+				      CTL_CMD_FLAG_OK_ON_INOPERABLE |
+				      CTL_CMD_FLAG_OK_ON_OFFLINE |
 				      CTL_FLAG_DATA_OUT,
  CTL_LUN_PAT_NONE,
  10, {0x1f, 0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x07}},
 
 /* 3C READ BUFFER */
 {ctl_read_buffer, CTL_SERIDX_MD_SNS, CTL_CMD_FLAG_OK_ON_BOTH |
+				     CTL_CMD_FLAG_OK_ON_STOPPED |
+				     CTL_CMD_FLAG_OK_ON_INOPERABLE |
+				     CTL_CMD_FLAG_OK_ON_OFFLINE |
 				     CTL_FLAG_DATA_IN |
 				     CTL_CMD_FLAG_ALLOW_ON_PR_WRESV,
  CTL_LUN_PAT_NONE,

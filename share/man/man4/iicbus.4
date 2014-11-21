@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2014
+.Dd November 17, 2014
 .Dt IICBUS 4
 .Os
 .Sh NAME
@@ -103,12 +103,59 @@ Some I2C interfaces are available:
 .It Sy lpbb Ta "parallel port specific bit-banging interface"
 .It Sy bktr Ta "Brooktree848 video chipset, hardware and software master-only interface"
 .El
+.Sh BUS FREQUENCY CONFIGURATION
+The operating frequency of an I2C bus may be fixed or configurable.
+The bus may be used as part of some larger standard interface, and that
+interface specification may require a fixed frequency.  
+The driver for that hardware would not honor an attempt to configure a 
+different speed.
+A general purpose I2C bus, such as those found in many embedded systems,
+will often support multiple bus frequencies.  
+.Pp
+When a system supports multiple I2C busses, a different frequency can
+be configured for each bus by number, represented by the
+.Va %d
+in the variable names below.
+Busses can be configured using any combination of device hints,
+Flattened Device Tree (FDT) data, tunables set via
+.Xr loader 8 ,
+or at runtime using
+.Xr sysctl 8 .
+When configuration is supplied using more than one method, FDT and
+hint data will be overridden by a tunable, which can be overriden by
+.Xr sysctl 8 .
+.Ss Device Hints
+Set
+.Va hint.iicbus.%d.frequency
+to the frequency in Hz, on systems that use device hints to configure
+I2C devices.
+The hint is also honored by systems that use FDT data if
+no frequency is configured using FDT.
+.Ss Flattened Device Tree Data
+Configure the I2C bus speed using the FDT standard
+.Va clock-frequency
+property of the node describing the I2C controller hardware.
+.Ss Sysctl and Tunable
+Set
+.Va dev.iicbus.%d.frequency
+in
+.Xr loader.conf 5 .
+The same variable can be changed at any time with
+.Xr sysctl 8 .
+Reset the bus using
+.Xr i2c 8
+or the
+.Xr iic 4 
+.Va I2CRSTCARD
+ioctl to make the change take effect.
 .Sh SEE ALSO
 .Xr bktr 4 ,
+.Xr fdt 4 ,
 .Xr iic 4 ,
 .Xr iicbb 4 ,
 .Xr lpbb 4 ,
-.Xr pcf 4
+.Xr pcf 4 ,
+.Xr i2c 8
 .Sh HISTORY
 The
 .Nm

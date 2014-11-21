@@ -357,7 +357,6 @@ static struct ctl_logical_block_provisioning_page lbp_page_changeable = {{
 static int rcv_sync_msg;
 static int persis_offset;
 static uint8_t ctl_pause_rtr;
-static int     ctl_is_single = 1;
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, ctl, CTLFLAG_RD, 0, "CAM Target Layer");
 static int worker_threads = -1;
@@ -970,12 +969,42 @@ ctl_copy_sense_data(union ctl_ha_msg *src, union ctl_io *dest)
 }
 
 static int
+ctl_ha_state_sysctl(SYSCTL_HANDLER_ARGS)
+{
+	struct ctl_softc *softc = (struct ctl_softc *)arg1;
+	struct ctl_lun *lun;
+	int error, value, i;
+
+	if (softc->flags & CTL_FLAG_ACTIVE_SHELF)
+		value = 0;
+	else
+		value = 1;
+
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if ((error != 0) || (req->newptr == NULL))
+		return (error);
+
+	mtx_lock(&softc->ctl_lock);
+	if (value == 0)
+		softc->flags |= CTL_FLAG_ACTIVE_SHELF;
+	else
+		softc->flags &= ~CTL_FLAG_ACTIVE_SHELF;
+	STAILQ_FOREACH(lun, &softc->lun_list, links) {
+		mtx_lock(&lun->lun_lock);
+		for (i = 0; i < CTL_MAX_INITIATORS; i++)
+			lun->pending_ua[i] |= CTL_UA_ASYM_ACC_CHANGE;
+		mtx_unlock(&lun->lun_lock);
+	}
+	mtx_unlock(&softc->ctl_lock);
+	return (0);
+}
+
+static int
 ctl_init(void)
 {
 	struct ctl_softc *softc;
 	struct ctl_io_pool *internal_pool, *emergency_pool, *other_pool;
 	struct ctl_port *port;
-        uint8_t sc_id =0;
 	int i, error, retval;
 	//int isc_retval;
 
@@ -1033,16 +1062,17 @@ ctl_init(void)
 	 * In Copan's HA scheme, the "master" and "slave" roles are
 	 * figured out through the slot the controller is in.  Although it
 	 * is an active/active system, someone has to be in charge.
- 	 */
-#ifdef NEEDTOPORT
-        scmicro_rw(SCMICRO_GET_SHELF_ID, &sc_id);
-#endif
-
-        if (sc_id == 0) {
-		softc->flags |= CTL_FLAG_MASTER_SHELF;
-		persis_offset = 0;
+	 */
+	SYSCTL_ADD_INT(&softc->sysctl_ctx, SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "ha_id", CTLFLAG_RDTUN, &softc->ha_id, 0,
+	    "HA head ID (0 - no HA)");
+	if (softc->ha_id == 0) {
+		softc->flags |= CTL_FLAG_ACTIVE_SHELF;
+		softc->is_single = 1;
+		softc->port_offset = 0;
 	} else
-		persis_offset = CTL_MAX_INITIATORS;
+		softc->port_offset = (softc->ha_id - 1) * CTL_MAX_PORTS;
+	persis_offset = softc->port_offset * CTL_MAX_INIT_PER_PORT;
 
 	/*
 	 * XXX KDM need to figure out where we want to get our target ID
@@ -1155,11 +1185,14 @@ ctl_init(void)
 	port->max_targets = 15;
 	port->max_target_id = 15;
 
-	if (ctl_port_register(&softc->ioctl_info.port,
-	                  (softc->flags & CTL_FLAG_MASTER_SHELF)) != 0) {
+	if (ctl_port_register(&softc->ioctl_info.port) != 0) {
 		printf("ctl: ioctl front end registration failed, will "
 		       "continue anyway\n");
 	}
+
+	SYSCTL_ADD_PROC(&softc->sysctl_ctx,SYSCTL_CHILDREN(softc->sysctl_tree),
+	    OID_AUTO, "ha_state", CTLTYPE_INT | CTLFLAG_RWTUN,
+	    softc, 0, ctl_ha_state_sysctl, "I", "HA state for this head");
 
 #ifdef CTL_IO_DELAY
 	if (sizeof(struct callout) > CTL_TIMER_BYTES) {
@@ -1262,10 +1295,10 @@ ctl_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 int
 ctl_port_enable(ctl_port_type port_type)
 {
-	struct ctl_softc *softc;
+	struct ctl_softc *softc = control_softc;
 	struct ctl_port *port;
 
-	if (ctl_is_single == 0) {
+	if (softc->is_single == 0) {
 		union ctl_ha_msg msg_info;
 		int isc_retval;
 
@@ -1289,8 +1322,6 @@ ctl_port_enable(ctl_port_type port_type)
 		        __func__);
 #endif
 	}
-
-	softc = control_softc;
 
 	STAILQ_FOREACH(port, &softc->port_list, links) {
 		if (port_type & port->port_type)
@@ -7376,13 +7407,10 @@ ctl_read_defect(struct ctl_scsiio *ctsio)
 	struct scsi_read_defect_data_12 *ccb12;
 	struct scsi_read_defect_data_hdr_10 *data10;
 	struct scsi_read_defect_data_hdr_12 *data12;
-	struct ctl_lun *lun;
 	uint32_t alloc_len, data_len;
 	uint8_t format;
 
 	CTL_DEBUG_PRINT(("ctl_read_defect\n"));
-
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	if (ctsio->cdb[0] == READ_DEFECT_DATA_10) {
 		ccb10 = (struct scsi_read_defect_data_10 *)&ctsio->cdb;
@@ -7440,8 +7468,8 @@ ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio)
 {
 	struct scsi_maintenance_in *cdb;
 	int retval;
-	int alloc_len, ext, total_len = 0, g, p, pc, pg;
-	int num_target_port_groups, num_target_ports, single;
+	int alloc_len, ext, total_len = 0, g, p, pc, pg, gs, os;
+	int num_target_port_groups, num_target_ports;
 	struct ctl_lun *lun;
 	struct ctl_softc *softc;
 	struct ctl_port *port;
@@ -7475,8 +7503,7 @@ ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio)
 		return(retval);
 	}
 
-	single = ctl_is_single;
-	if (single)
+	if (softc->is_single)
 		num_target_port_groups = 1;
 	else
 		num_target_port_groups = NUM_TARGET_PORT_GROUPS;
@@ -7532,18 +7559,26 @@ ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio)
 		tpg_desc = &rtg_ptr->groups[0];
 	}
 
-	pg = ctsio->io_hdr.nexus.targ_port / CTL_MAX_PORTS;
 	mtx_lock(&softc->ctl_lock);
+	pg = softc->port_offset / CTL_MAX_PORTS;
+	if (softc->flags & CTL_FLAG_ACTIVE_SHELF) {
+		if (softc->ha_mode == CTL_HA_MODE_ACT_STBY) {
+			gs = TPG_ASYMMETRIC_ACCESS_OPTIMIZED;
+			os = TPG_ASYMMETRIC_ACCESS_STANDBY;
+		} else if (lun->flags & CTL_LUN_PRIMARY_SC) {
+			gs = TPG_ASYMMETRIC_ACCESS_OPTIMIZED;
+			os = TPG_ASYMMETRIC_ACCESS_NONOPTIMIZED;
+		} else {
+			gs = TPG_ASYMMETRIC_ACCESS_NONOPTIMIZED;
+			os = TPG_ASYMMETRIC_ACCESS_OPTIMIZED;
+		}
+	} else {
+		gs = TPG_ASYMMETRIC_ACCESS_STANDBY;
+		os = TPG_ASYMMETRIC_ACCESS_OPTIMIZED;
+	}
 	for (g = 0; g < num_target_port_groups; g++) {
-		if (g == pg)
-			tpg_desc->pref_state = TPG_PRIMARY |
-			    TPG_ASYMMETRIC_ACCESS_OPTIMIZED;
-		else
-			tpg_desc->pref_state =
-			    TPG_ASYMMETRIC_ACCESS_NONOPTIMIZED;
-		tpg_desc->support = TPG_AO_SUP;
-		if (!single)
-			tpg_desc->support |= TPG_AN_SUP;
+		tpg_desc->pref_state = (g == pg) ? gs : os;
+		tpg_desc->support = TPG_AO_SUP | TPG_AN_SUP | TPG_S_SUP;
 		scsi_ulto2b(g + 1, tpg_desc->target_port_group);
 		tpg_desc->status = TPG_IMPLICIT;
 		pc = 0;
@@ -7746,7 +7781,6 @@ fill_one:
 int
 ctl_report_supported_tmf(struct ctl_scsiio *ctsio)
 {
-	struct ctl_lun *lun;
 	struct scsi_report_supported_tmf *cdb;
 	struct scsi_report_supported_tmf_data *data;
 	int retval;
@@ -7755,7 +7789,6 @@ ctl_report_supported_tmf(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_report_supported_tmf\n"));
 
 	cdb = (struct scsi_report_supported_tmf *)ctsio->cdb;
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	retval = CTL_RETVAL_COMPLETE;
 
@@ -7792,7 +7825,6 @@ ctl_report_supported_tmf(struct ctl_scsiio *ctsio)
 int
 ctl_report_timestamp(struct ctl_scsiio *ctsio)
 {
-	struct ctl_lun *lun;
 	struct scsi_report_timestamp *cdb;
 	struct scsi_report_timestamp_data *data;
 	struct timeval tv;
@@ -7803,7 +7835,6 @@ ctl_report_timestamp(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_report_timestamp\n"));
 
 	cdb = (struct scsi_report_timestamp *)ctsio->cdb;
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	retval = CTL_RETVAL_COMPLETE;
 
@@ -9807,14 +9838,8 @@ no_sense:
 int
 ctl_tur(struct ctl_scsiio *ctsio)
 {
-	struct ctl_lun *lun;
-
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	CTL_DEBUG_PRINT(("ctl_tur\n"));
-
-	if (lun == NULL)
-		return (EINVAL);
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 	ctsio->io_hdr.status = CTL_SUCCESS;
@@ -10192,12 +10217,11 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 	struct ctl_lun *lun;
 	struct ctl_port *port;
 	int data_len, num_target_ports, iid_len, id_len, g, pg, p;
-	int num_target_port_groups, single;
+	int num_target_port_groups;
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
-	single = ctl_is_single;
-	if (single)
+	if (softc->is_single)
 		num_target_port_groups = 1;
 	else
 		num_target_port_groups = NUM_TARGET_PORT_GROUPS;
@@ -10257,10 +10281,7 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 	pd = &sp->design[0];
 
 	mtx_lock(&softc->ctl_lock);
-	if (softc->flags & CTL_FLAG_MASTER_SHELF)
-		pg = 0;
-	else
-		pg = 1;
+	pg = softc->port_offset / CTL_MAX_PORTS;
 	for (g = 0; g < num_target_port_groups; g++) {
 		STAILQ_FOREACH(port, &softc->port_list, links) {
 			if ((port->status & CTL_PORT_STATUS_ONLINE) == 0)
@@ -10488,10 +10509,8 @@ static int
 ctl_inquiry_evpd(struct ctl_scsiio *ctsio)
 {
 	struct scsi_inquiry *cdb;
-	struct ctl_lun *lun;
 	int alloc_len, retval;
 
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	cdb = (struct scsi_inquiry *)ctsio->cdb;
 
 	retval = CTL_RETVAL_COMPLETE;
@@ -11342,15 +11361,12 @@ ctl_scsiio_lun_check(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
 	 * If this shelf is a secondary shelf controller, we have to reject
 	 * any media access commands.
 	 */
-#if 0
-	/* No longer needed for HA */
-	if (((ctl_softc->flags & CTL_FLAG_MASTER_SHELF) == 0)
-	 && ((entry->flags & CTL_CMD_FLAG_OK_ON_SECONDARY) == 0)) {
+	if ((ctl_softc->flags & CTL_FLAG_ACTIVE_SHELF) == 0 &&
+	    (entry->flags & CTL_CMD_FLAG_OK_ON_SECONDARY) == 0) {
 		ctl_set_lun_standby(ctsio);
 		retval = 1;
 		goto bailout;
 	}
-#endif
 
 	if (entry->pattern & CTL_LUN_PAT_WRITE) {
 		if (lun->flags & CTL_LUN_READONLY) {
@@ -11715,15 +11731,18 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 
 	targ_lun = ctsio->io_hdr.nexus.targ_mapped_lun;
 	if ((targ_lun < CTL_MAX_LUNS)
-	 && (ctl_softc->ctl_luns[targ_lun] != NULL)) {
-		lun = ctl_softc->ctl_luns[targ_lun];
+	 && ((lun = ctl_softc->ctl_luns[targ_lun]) != NULL)) {
 		/*
 		 * If the LUN is invalid, pretend that it doesn't exist.
 		 * It will go away as soon as all pending I/O has been
 		 * completed.
 		 */
+		mtx_lock(&lun->lun_lock);
 		if (lun->flags & CTL_LUN_DISABLED) {
+			mtx_unlock(&lun->lun_lock);
 			lun = NULL;
+			ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr = NULL;
+			ctsio->io_hdr.ctl_private[CTL_PRIV_BACKEND_LUN].ptr = NULL;
 		} else {
 			ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr = lun;
 			ctsio->io_hdr.ctl_private[CTL_PRIV_BACKEND_LUN].ptr =
@@ -11736,7 +11755,6 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 			 * Every I/O goes into the OOA queue for a
 			 * particular LUN, and stays there until completion.
 			 */
-			mtx_lock(&lun->lun_lock);
 			TAILQ_INSERT_TAIL(&lun->ooa_queue, &ctsio->io_hdr,
 			    ooa_links);
 		}
@@ -13679,7 +13697,7 @@ static int
 ctl_process_done(union ctl_io *io)
 {
 	struct ctl_lun *lun;
-	struct ctl_softc *ctl_softc;
+	struct ctl_softc *ctl_softc = control_softc;
 	void (*fe_done)(union ctl_io *io);
 	uint32_t targ_port = ctl_port_idx(io->io_hdr.nexus.targ_port);
 
@@ -13745,10 +13763,8 @@ ctl_process_done(union ctl_io *io)
 	if (lun == NULL) {
 		CTL_DEBUG_PRINT(("NULL LUN for lun %d\n",
 				 io->io_hdr.nexus.targ_mapped_lun));
-		fe_done(io);
 		goto bailout;
 	}
-	ctl_softc = lun->ctl_softc;
 
 	mtx_lock(&lun->lun_lock);
 
@@ -13819,6 +13835,8 @@ ctl_process_done(union ctl_io *io)
 		mtx_unlock(&ctl_softc->ctl_lock);
 	} else
 		mtx_unlock(&lun->lun_lock);
+
+bailout:
 
 	/*
 	 * If this command has been aborted, make sure we set the status
@@ -13901,8 +13919,6 @@ ctl_process_done(union ctl_io *io)
 		ctl_free_io(io);
 	} else 
 		fe_done(io);
-
-bailout:
 
 	return (CTL_RETVAL_COMPLETE);
 }
@@ -14405,7 +14421,7 @@ ctl_isc_start(struct ctl_ha_component *c, ctl_ha_state state)
 
 	// UNKNOWN->HA or UNKNOWN->SINGLE (bootstrap)
 	if (c->state == CTL_HA_STATE_UNKNOWN ) {
-		ctl_is_single = 0;
+		control_softc->is_single = 0;
 		if (ctl_ha_msg_create(CTL_HA_CHAN_CTL, ctl_isc_event_handler)
 		    != CTL_HA_STATUS_SUCCESS) {
 			printf("ctl_isc_start: ctl_ha_msg_create failed.\n");
@@ -14415,14 +14431,14 @@ ctl_isc_start(struct ctl_ha_component *c, ctl_ha_state state)
 		&& CTL_HA_STATE_IS_SINGLE(state)){
 		// HA->SINGLE transition
 	        ctl_failover();
-		ctl_is_single = 1;
+		control_softc->is_single = 1;
 	} else {
 		printf("ctl_isc_start:Invalid state transition %X->%X\n",
 		       c->state, state);
 		ret = CTL_HA_COMP_STATUS_ERROR;
 	}
 	if (CTL_HA_STATE_IS_SINGLE(state))
-		ctl_is_single = 1;
+		control_softc->is_single = 1;
 
 	c->state = state;
 	c->status = ret;
