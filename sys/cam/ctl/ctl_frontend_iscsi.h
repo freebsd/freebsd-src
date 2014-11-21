@@ -115,6 +115,7 @@ struct cfiscsi_softc {
 	unsigned int			last_session_id;
 	TAILQ_HEAD(, cfiscsi_target)	targets;
 	TAILQ_HEAD(, cfiscsi_session)	sessions;
+	struct cv			sessions_cv;
 #ifdef ICL_KERNEL_PROXY
 	struct icl_listen		*listener;
 	struct cv			accept_cv;

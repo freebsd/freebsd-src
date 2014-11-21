@@ -1274,6 +1274,7 @@ cfiscsi_session_delete(struct cfiscsi_session *cs)
 
 	mtx_lock(&softc->lock);
 	TAILQ_REMOVE(&softc->sessions, cs, cs_next);
+	cv_signal(&softc->sessions_cv);
 	mtx_unlock(&softc->lock);
 
 	free(cs, M_CFISCSI);
@@ -1290,6 +1291,7 @@ cfiscsi_init(void)
 	bzero(softc, sizeof(*softc));
 	mtx_init(&softc->lock, "cfiscsi", NULL, MTX_DEF);
 
+	cv_init(&softc->sessions_cv, "cfiscsi_sessions");
 #ifdef ICL_KERNEL_PROXY
 	cv_init(&softc->accept_cv, "cfiscsi_accept");
 #endif
@@ -1374,6 +1376,14 @@ cfiscsi_offline(void *arg)
 		if (cs->cs_target == ct)
 			cfiscsi_session_terminate(cs);
 	}
+	do {
+		TAILQ_FOREACH(cs, &softc->sessions, cs_next) {
+			if (cs->cs_target == ct)
+				break;
+		}
+		if (cs != NULL)
+			cv_wait(&softc->sessions_cv, &softc->lock);
+	} while (cs != NULL && ct->ct_online == 0);
 	mtx_unlock(&softc->lock);
 	if (online > 0)
 		return;
