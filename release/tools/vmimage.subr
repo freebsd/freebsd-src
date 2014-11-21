@@ -90,8 +90,6 @@ vm_install_base() {
 	chroot ${DESTDIR} /etc/rc.d/ldconfig forcestart
 	umount ${DESTDIR}/dev
 
-	cp /etc/resolv.conf ${DESTDIR}/etc/resolv.conf
-
 	return 0
 }
 
@@ -114,15 +112,18 @@ vm_extra_enable_services() {
 }
 
 vm_extra_install_packages() {
-	mkdir -p ${DESTDIR}/dev
-	mount -t devfs devfs ${DESTDIR}/dev
-	chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
-		/usr/sbin/pkg bootstrap -y
 	if [ ! -z "${VM_EXTRA_PACKAGES}" ]; then
-		chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
-			/usr/sbin/pkg install -y ${VM_EXTRA_PACKAGES}
+		PKGSDIR=`mktemp -d`
+		ABI=`/usr/sbin/pkg -c ${DESTDIR} config abi`
+		/usr/sbin/pkg -o ABI=${ABI} fetch -o ${PKGSDIR} -d -y ${VM_EXTRA_PACKAGES}
+		for PKG in ${PKGSDIR}/All/*; do
+			/usr/sbin/pkg -c ${DESTDIR} add -M - < ${PKG}
+		done
+		rm -r ${PKGSDIR}
+		if [ -z "${NOREPOSQLITE}" ]; then
+			cp /var/db/pkg/repo-FreeBSD.sqlite ${DESTDIR}/var/db/pkg
+		fi
 	fi
-	umount ${DESTDIR}/dev
 
 	return 0
 }
@@ -137,8 +138,6 @@ vm_extra_install_ports() {
 vm_extra_pre_umount() {
 	# Prototype.  When overridden, installs additional ports within the
 	# virtual machine environment.
-
-	rm -f ${DESTDIR}/etc/resolv.conf
 
 	return 0
 }
