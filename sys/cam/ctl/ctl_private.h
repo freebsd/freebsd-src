@@ -442,7 +442,7 @@ struct ctl_lun {
 
 typedef enum {
 	CTL_FLAG_REAL_SYNC	= 0x02,
-	CTL_FLAG_MASTER_SHELF	= 0x04
+	CTL_FLAG_ACTIVE_SHELF	= 0x04
 } ctl_gen_flags;
 
 #define CTL_MAX_THREADS		16
@@ -467,6 +467,10 @@ struct ctl_softc {
 	int num_luns;
 	ctl_gen_flags flags;
 	ctl_ha_mode ha_mode;
+	int ha_id;
+	int ha_state;
+	int is_single;
+	int port_offset;
 	int inquiry_pq_no_lun;
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
