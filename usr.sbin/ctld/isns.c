@@ -63,7 +63,7 @@ isns_req_alloc(void)
 	req->ir_buflen = sizeof(struct isns_hdr);
 	req->ir_usedlen = 0;
 	req->ir_buf = calloc(req->ir_buflen, 1);
-	if (req == NULL) {
+	if (req->ir_buf == NULL) {
 		free(req);
 		log_err(1, "calloc");
 		return (NULL);
