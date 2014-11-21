@@ -909,11 +909,11 @@ pprint() (
 usage () {
 	(
 	echo "Usage: $0 [-bfiKknqvw] [-c config_file]"
-	echo "	-K	suppress installkernel"
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-c	specify config file"
 	echo "	-f	suppress code slice extraction"
 	echo "	-i	suppress disk image build"
+	echo "	-K	suppress installkernel"
 	echo "	-k	suppress buildkernel"
 	echo "	-n	add -DNO_CLEAN to buildworld, buildkernel, etc"
 	echo "	-q	make output more quiet"
