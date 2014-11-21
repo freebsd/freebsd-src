@@ -51,7 +51,7 @@ unsigned char *start[BLOCKTYPES] = {
 };
 
 char result[100];
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 const char goodResult[] = "7b405d24bc03195474c70ddae9e1f8fb";
 #else
 const char goodResult[] = "217b4fbe456916bf62a2f85df752e4ab";
@@ -93,7 +93,7 @@ ATF_TC_BODY(memcpy_basic, tc)
 	start[2] = auto1;
 	start[3] = auto2;
 
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 	srandom(0L);
 #else
 	/*

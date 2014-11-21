@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/sysctl.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -179,63 +178,6 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 	return (ret);
 }
 
-struct rtqk_arg {
-	struct rib_head *rh;
-	int mode;
-	int draining;
-	int killed;
-	int found;
-};
-
-/*
- * Age old PMTUs.
- */
-struct mtuex_arg {
-	struct rib_head *rh;
-};
-static VNET_DEFINE(struct callout, rtq_mtutimer);
-#define	V_rtq_mtutimer			VNET(rtq_mtutimer)
-
-static int
-in6_mtuexpire(struct rtentry *rt, void *rock)
-{
-
-	if (rt->rt_expire && !(rt->rt_flags & RTF_PROBEMTU)) {
-		if (rt->rt_expire <= time_uptime) {
-			rt->rt_flags |= RTF_PROBEMTU;
-		}
-	}
-
-	return (0);
-}
-
-#define	MTUTIMO_DEFAULT	(60*1)
-
-static void
-in6_mtutimo_setwa(struct rib_head *rh, uint32_t fibum, int af, void *_arg)
-{
-	struct mtuex_arg *arg;
-
-	arg = (struct mtuex_arg *)_arg;
-
-	arg->rh = rh;
-}
-
-static void
-in6_mtutimo(void *rock)
-{
-	CURVNET_SET_QUIET((struct vnet *) rock);
-	struct timeval atv;
-	struct mtuex_arg arg;
-
-	rt_foreach_fib(AF_INET6, in6_mtutimo_setwa, in6_mtuexpire, &arg);
-
-	atv.tv_sec = MTUTIMO_DEFAULT;
-	atv.tv_usec = 0;
-	callout_reset(&V_rtq_mtutimer, tvtohz(&atv), in6_mtutimo, rock);
-	CURVNET_RESTORE();
-}
-
 /*
  * Initialize our routing tree.
  */
@@ -254,11 +196,8 @@ in6_inithead(void **head, int off)
 	rh->rnh_addaddr = in6_addroute;
 	*head = (void *)rh;
 
-	if (V__in6_rt_was_here == 0) {
-		callout_init(&V_rtq_mtutimer, CALLOUT_MPSAFE);
-		in6_mtutimo(curvnet);	/* kick off timeout first time */
+	if (V__in6_rt_was_here == 0)
 		V__in6_rt_was_here = 1;
-	}
 
 	return (1);
 }

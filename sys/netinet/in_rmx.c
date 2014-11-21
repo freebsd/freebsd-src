@@ -39,8 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/socket.h>
 #include <sys/mbuf.h>
-#include <sys/syslog.h>
-#include <sys/callout.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -58,13 +56,6 @@ extern int	in_inithead(void **head, int off);
 #ifdef VIMAGE
 extern int	in_detachhead(void **head, int off);
 #endif
-
-static void in_setifarnh(struct rib_head *rh, uint32_t fibnum,
-    int af, void *_arg);
-static void in_rtqtimo_setrnh(struct rib_head *rh, uint32_t fibnum,
-    int af, void *_arg);
-
-#define RTPRF_OURS		RTF_PROTO3	/* set on routes we manage */
 
 /*
  * Do what we need to do when inserting a route.
@@ -118,176 +109,6 @@ in_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 	return (rn_addroute(v_arg, n_arg, head, treenodes));
 }
 
-/*
- * This code is the inverse of in_clsroute: on first reference, if we
- * were managing the route, stop doing so and set the expiration timer
- * back off again.
- */
-static struct radix_node *
-in_matroute(void *v_arg, struct radix_head *head)
-{
-	struct radix_node *rn = rn_match(v_arg, head);
-	struct rtentry *rt = (struct rtentry *)rn;
-
-	if (rt) {
-		RT_LOCK(rt);
-		if (rt->rt_flags & RTPRF_OURS) {
-			rt->rt_flags &= ~RTPRF_OURS;
-			rt->rt_expire = 0;
-		}
-		RT_UNLOCK(rt);
-	}
-	return rn;
-}
-
-static VNET_DEFINE(int, rtq_reallyold) = 60*60; /* one hour is "really old" */
-#define	V_rtq_reallyold		VNET(rtq_reallyold)
-SYSCTL_INT(_net_inet_ip, IPCTL_RTEXPIRE, rtexpire, CTLFLAG_VNET | CTLFLAG_RW,
-    &VNET_NAME(rtq_reallyold), 0,
-    "Default expiration time on dynamically learned routes");
-
-/*
- * On last reference drop, mark the route as belong to us so that it can be
- * timed out.
- */
-static void
-in_clsroute(struct radix_node *rn, struct radix_head *head)
-{
-	struct rtentry *rt = (struct rtentry *)rn;
-	struct rib_head *rh = (struct rib_head *)head;
-
-	RT_LOCK_ASSERT(rt);
-
-	if (!(rt->rt_flags & RTF_UP))
-		return;			/* prophylactic measures */
-
-	if (rt->rt_flags & RTPRF_OURS)
-		return;
-
-	if (!(rt->rt_flags & RTF_DYNAMIC))
-		return;
-
-	/*
-	 * If rtq_reallyold is 0, just delete the route without
-	 * waiting for a timeout cycle to kill it.
-	 */
-	if (V_rtq_reallyold != 0) {
-		rt->rt_flags |= RTPRF_OURS;
-		rt->rt_expire = time_uptime + V_rtq_reallyold;
-	} else
-		rt_expunge(rh, rt);
-}
-
-struct rtqk_arg {
-	struct rib_head *rh;
-	int draining;
-	int killed;
-	int found;
-};
-
-/*
- * Get rid of old routes.  When draining, this deletes everything, even when
- * the timeout is not expired yet.
- */
-static int
-in_rtqkill(struct rtentry *rt, void *rock)
-{
-	struct rtqk_arg *ap = rock;
-	int err;
-
-	//RIB_WLOCK_ASSERT(ap->rh);
-
-	if (rt->rt_flags & RTPRF_OURS) {
-		ap->found++;
-
-		if (ap->draining || rt->rt_expire <= time_uptime) {
-			if (rt->rt_refcnt > 0)
-				panic("rtqkill route really not free");
-
-			err = in_rtrequest(RTM_DELETE,
-					(struct sockaddr *)rt_key(rt),
-					rt->rt_gateway, rt_mask(rt),
-					rt->rt_flags | RTF_RNH_LOCKED, 0,
-					rt->rt_fibnum);
-			if (err != 0) {
-				log(LOG_WARNING, "in_rtqkill: error %d\n", err);
-			} else
-				ap->killed++;
-		}
-	}
-
-	return 0;
-}
-
-#define RTQ_TIMEOUT	60*10	/* run no less than once every ten minutes */
-static VNET_DEFINE(int, rtq_timeout) = RTQ_TIMEOUT;
-static VNET_DEFINE(struct callout, rtq_timer);
-
-#define	V_rtq_timeout		VNET(rtq_timeout)
-#define	V_rtq_timer		VNET(rtq_timer)
-
-static void
-in_rtqtimo_setrnh(struct rib_head *rh, uint32_t fibnum, int af,
-    void *_arg)
-{
-	struct rtqk_arg *arg;
-	int draining;
-
-	arg = (struct rtqk_arg *)_arg;
-
-	draining = arg->draining;
-	memset(arg, 0, sizeof(*arg));
-	arg->rh = rh;
-	arg->draining = arg->draining;
-}
-
-static void
-in_rtqtimo(void *rock)
-{
-	CURVNET_SET((struct vnet *) rock);
-	struct rtqk_arg arg;
-	struct timeval atv;
-
-	memset(&arg, 0, sizeof(arg));
-	rt_foreach_fib(AF_INET, in_rtqtimo_setrnh, in_rtqkill, &arg);
-
-	atv.tv_usec = 0;
-	atv.tv_sec = V_rtq_timeout;
-	callout_reset(&V_rtq_timer, tvtohz(&atv), in_rtqtimo, rock);
-	CURVNET_RESTORE();
-}
-
-void
-in_rtqdrain(void)
-{
-	VNET_ITERATOR_DECL(vnet_iter);
-	struct rtqk_arg arg;
-
-	memset(&arg, 0, sizeof(arg));
-	arg.draining = 1;
-
-	VNET_LIST_RLOCK_NOSLEEP();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-
-		rt_foreach_fib(AF_INET, in_rtqtimo_setrnh, in_rtqkill, &arg);
-
-		CURVNET_RESTORE();
-	}
-	VNET_LIST_RUNLOCK_NOSLEEP();
-}
-
-void
-in_setmatchfunc(struct rib_head *rh, int val)
-{
-
-	RIB_CFG_WLOCK(rh);
-	RIB_WLOCK(rh);
-	rh->rnh_matchaddr = (val != 0) ?  rn_match : in_matroute;
-	RIB_WUNLOCK(rh);
-	RIB_CFG_WUNLOCK(rh);
-}
-
 static int _in_rt_was_here;
 /*
  * Initialize our routing tree.
@@ -302,13 +123,9 @@ in_inithead(void **head, int off)
 		return (0);
 
 	rh->rnh_addaddr = in_addroute;
-	in_setmatchfunc(rh, V_drop_redirect);
-	rh->rnh_close = in_clsroute;
 	*head = (void *)rh;
 
 	if (_in_rt_was_here == 0 ) {
-		callout_init(&V_rtq_timer, CALLOUT_MPSAFE);
-		callout_reset(&V_rtq_timer, 1, in_rtqtimo, curvnet);
 		_in_rt_was_here = 1;
 	}
 	return 1;
@@ -319,7 +136,6 @@ int
 in_detachhead(void **head, int off)
 {
 
-	callout_drain(&V_rtq_timer);
 	return (1);
 }
 #endif

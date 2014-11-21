@@ -1,6 +1,10 @@
-/*
- * Copyright (c) 2001-2002 Chris D. Faulhaber
+/*-
+ * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
+ *
+ * This software was developed by SRI International and the University of
+ * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
+ * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -14,7 +18,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -22,22 +26,18 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#define	PIO_DATA	0x00
+#define	PIO_DIR		0x04
+#define	 PIO_OUT(n)	(1 << n)
+#define	 PIO_OUT_ALL	0xffffffff
+#define	PIO_INT_MASK	0x08
+#define	 PIO_UNMASK(n)	(1 << n)
+#define	 PIO_UNMASK_ALL	0xffffffff
+#define	PIO_EDGECAPT	0x0c
+#define	PIO_OUTSET	0x10
+#define	PIO_OUTCLR	0x14
 
-#include <sys/types.h>
-#include "namespace.h"
-#include <sys/acl.h>
-#include "un-namespace.h"
-
-#include <errno.h>
-
-ssize_t
-acl_size(acl_t acl)
-{
-
-	errno = ENOSYS;
-	return (-1);
-}

@@ -61,11 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/proc.h>
-#include <net/if.h>
-#include <netinet/in.h>
-#include <nfs/nfsproto.h>
-#include <nfsclient/nfs.h>
-#include <nfs/nfsdiskless.h>
 #include <x86/apicreg.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>

@@ -208,7 +208,7 @@ struct xsocket {
 
 /* can we read something from so? */
 #define	soreadabledata(so) \
-    ((so)->so_rcv.sb_cc >= (so)->so_rcv.sb_lowat || \
+    (sbavail(&(so)->so_rcv) >= (so)->so_rcv.sb_lowat || \
 	!TAILQ_EMPTY(&(so)->so_comp) || (so)->so_error)
 #define	soreadable(so) \
 	(soreadabledata(so) || ((so)->so_rcv.sb_state & SBS_CANTRCVMORE))

@@ -169,12 +169,6 @@ rip6_input(struct mbuf **mp, int *offp, int proto)
 
 	RIP6STAT_INC(rip6s_ipackets);
 
-	if (faithprefix_p != NULL && (*faithprefix_p)(&ip6->ip6_dst)) {
-		/* XXX Send icmp6 host/port unreach? */
-		m_freem(m);
-		return (IPPROTO_DONE);
-	}
-
 	init_sin6(&fromsa, m); /* general init */
 
 	ifp = m->m_pkthdr.rcvif;

@@ -1432,11 +1432,6 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 	else if (PRC_IS_REDIRECT(cmd))
 		return;
 	/*
-	 * Source quench is depreciated.
-	 */
-	else if (cmd == PRC_QUENCH)
-		return;
-	/*
 	 * Hostdead is ugly because it goes linearly through all PCBs.
 	 * XXX: We never get this from ICMP, otherwise it makes an
 	 * excellent DoS attack on machines with many connections.
@@ -1540,9 +1535,6 @@ tcp6_ctlinput(int cmd, struct sockaddr *sa, void *d)
 		notify = tcp_mtudisc_notify;
 	else if (!PRC_IS_REDIRECT(cmd) &&
 		 ((unsigned)cmd >= PRC_NCMDS || inet6ctlerrmap[cmd] == 0))
-		return;
-	/* Source quench is depreciated. */
-	else if (cmd == PRC_QUENCH)
 		return;
 
 	/* if the parameter is from icmp6, decode it. */

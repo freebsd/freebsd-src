@@ -591,6 +591,7 @@ struct gdt_intr_ctx {
 /* softc structure */
 struct gdt_softc {
     device_t sc_devnode;
+    struct mtx sc_lock;
     int sc_hanum;
     int sc_class;               /* Controller class */
 #define GDT_MPR         0x05
@@ -608,9 +609,7 @@ struct gdt_softc {
 #define GDT_SHUTDOWN    0x02
 #define GDT_POLL_WAIT   0x80
     struct cdev *sc_dev;
-    bus_space_tag_t sc_dpmemt;
-    bus_space_handle_t sc_dpmemh;
-    bus_addr_t sc_dpmembase;
+    struct resource *sc_dpmem;
     bus_dma_tag_t sc_parent_dmat;
     bus_dma_tag_t sc_buffer_dmat;
     bus_dma_tag_t sc_gcscratch_dmat;
@@ -684,9 +683,8 @@ struct gdt_ccb {
     union ccb   *gc_ccb;
     gdt_ucmd_t  *gc_ucmd;
     bus_dmamap_t gc_dmamap;
-    struct callout_handle gc_timeout_ch;
+    struct callout gc_timeout;
     int         gc_map_flag;
-    int         gc_timeout;
     u_int8_t    gc_service;
     u_int8_t    gc_cmd_index;
     u_int8_t    gc_flags;
@@ -738,15 +736,14 @@ gdt_dec32(u_int8_t *addr)
 }
 #endif
 
-extern TAILQ_HEAD(gdt_softc_list, gdt_softc) gdt_softcs;
 extern u_int8_t gdt_polling;
 
-struct cdev *gdt_make_dev(int unit);
+struct cdev *gdt_make_dev(struct gdt_softc *gdt);
 void    gdt_destroy_dev(struct cdev *dev);
 void    gdt_next(struct gdt_softc *gdt);
 void gdt_free_ccb(struct gdt_softc *gdt, struct gdt_ccb *gccb);
 
-gdt_evt_str *gdt_store_event(u_int16_t source, u_int16_t idx,
+void gdt_store_event(u_int16_t source, u_int16_t idx,
                              gdt_evt_data *evt);
 int gdt_read_event(int handle, gdt_evt_str *estr);
 void gdt_readapp_event(u_int8_t app, gdt_evt_str *estr);

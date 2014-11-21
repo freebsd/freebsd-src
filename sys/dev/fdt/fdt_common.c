@@ -1,7 +1,9 @@
 /*-
- * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2009-2014 The FreeBSD Foundation
  * All rights reserved.
  *
+ * This software was developed by Andrew Turner under sponsorship from
+ * the FreeBSD Foundation.
  * This software was developed by Semihalf under sponsorship from
  * the FreeBSD Foundation.
  *
@@ -64,12 +66,84 @@ vm_offset_t fdt_immr_size;
 
 struct fdt_ic_list fdt_ic_list_head = SLIST_HEAD_INITIALIZER(fdt_ic_list_head);
 
+static int
+fdt_get_range_by_busaddr(phandle_t node, u_long addr, u_long *base,
+    u_long *size)
+{
+	pcell_t ranges[32], *rangesptr;
+	pcell_t addr_cells, size_cells, par_addr_cells;
+	u_long bus_addr, par_bus_addr, pbase, psize;
+	int err, i, len, tuple_size, tuples;
+
+	if ((fdt_addrsize_cells(node, &addr_cells, &size_cells)) != 0)
+		return (ENXIO);
+	/*
+	 * Process 'ranges' property.
+	 */
+	par_addr_cells = fdt_parent_addr_cells(node);
+	if (par_addr_cells > 2) {
+		return (ERANGE);
+	}
+
+	len = OF_getproplen(node, "ranges");
+	if (len < 0)
+		return (-1);
+	if (len > sizeof(ranges))
+		return (ENOMEM);
+	if (len == 0) {
+		*base = 0;
+		*size = ULONG_MAX;
+		return (0);
+	}
+
+	if (OF_getprop(node, "ranges", ranges, sizeof(ranges)) <= 0)
+		return (EINVAL);
+
+	tuple_size = addr_cells + par_addr_cells + size_cells;
+	tuples = len / (tuple_size * sizeof(cell_t));
+
+	if (fdt_ranges_verify(ranges, tuples, par_addr_cells,
+	    addr_cells, size_cells)) {
+		return (ERANGE);
+	}
+	*base = 0;
+	*size = 0;
+
+	for (i = 0; i < tuples; i++) {
+		rangesptr = &ranges[i * tuple_size];
+
+		bus_addr = fdt_data_get((void *)rangesptr, addr_cells);
+		if (bus_addr != addr)
+			continue;
+		rangesptr += addr_cells;
+
+		par_bus_addr = fdt_data_get((void *)rangesptr, par_addr_cells);
+		rangesptr += par_addr_cells;
+
+		err = fdt_get_range_by_busaddr(OF_parent(node), par_bus_addr,
+		    &pbase, &psize);
+		if (err > 0)
+			return (err);
+		if (err == 0)
+			*base = pbase;
+		else
+			*base = par_bus_addr;
+
+		*size = fdt_data_get((void *)rangesptr, size_cells);
+
+		return (0);
+	}
+
+	return (EINVAL);
+}
+
 int
 fdt_get_range(phandle_t node, int range_id, u_long *base, u_long *size)
 {
 	pcell_t ranges[6], *rangesptr;
 	pcell_t addr_cells, size_cells, par_addr_cells;
-	int len, tuple_size, tuples;
+	u_long par_bus_addr, pbase, psize;
+	int err, len, tuple_size, tuples;
 
 	if ((fdt_addrsize_cells(node, &addr_cells, &size_cells)) != 0)
 		return (ENXIO);
@@ -109,8 +183,17 @@ fdt_get_range(phandle_t node, int range_id, u_long *base, u_long *size)
 
 	*base = fdt_data_get((void *)rangesptr, addr_cells);
 	rangesptr += addr_cells;
-	*base += fdt_data_get((void *)rangesptr, par_addr_cells);
+
+	par_bus_addr = fdt_data_get((void *)rangesptr, par_addr_cells);
 	rangesptr += par_addr_cells;
+
+	err = fdt_get_range_by_busaddr(OF_parent(node), par_bus_addr,
+	   &pbase, &psize);
+	if (err == 0)
+		*base += pbase;
+	else
+		*base += par_bus_addr;
+
 	*size = fdt_data_get((void *)rangesptr, size_cells);
 	return (0);
 }
@@ -292,7 +375,7 @@ fdt_parent_addr_cells(phandle_t node)
 	/* Find out #address-cells of the superior bus. */
 	if (OF_searchprop(OF_parent(node), "#address-cells", &addr_cells,
 	    sizeof(addr_cells)) <= 0)
-		addr_cells = 2;
+		return (2);
 
 	return ((int)fdt32_to_cpu(addr_cells));
 }

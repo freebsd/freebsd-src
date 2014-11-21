@@ -59,10 +59,6 @@
 
 # include <sys/taskqueue.h>
 
-#ifndef INTR_ENTROPY
-# define INTR_ENTROPY 0
-#endif
-
 /********************************************************************************
  ********************************************************************************
                                                       Driver Variable Definitions
@@ -161,8 +157,6 @@ struct mly_softc {
     struct cdev *mly_dev_t;
     struct resource	*mly_regs_resource;	/* register interface window */
     int			mly_regs_rid;		/* resource ID */
-    bus_space_handle_t	mly_bhandle;		/* bus space handle */
-    bus_space_tag_t	mly_btag;		/* bus space tag */
     bus_dma_tag_t	mly_parent_dmat;	/* parent DMA tag */
     bus_dma_tag_t	mly_buffer_dmat;	/* data buffer/command DMA tag */
     struct resource	*mly_irq;		/* interrupt */
@@ -195,6 +189,7 @@ struct mly_softc {
     u_int32_t		mly_mmbox_status_index;		/* index we next expect status at */
 
     /* controller features, limits and status */
+    struct mtx		mly_lock;
     int			mly_state;
 #define	MLY_STATE_OPEN		(1<<1)
 #define MLY_STATE_INTERRUPTS_ON	(1<<2)
@@ -219,7 +214,7 @@ struct mly_softc {
     u_int32_t			mly_event_change;	/* event status change indicator */
     u_int32_t			mly_event_counter;	/* next event for which we anticpiate status */
     u_int32_t			mly_event_waiting;	/* next event the controller will post status for */
-    struct callout_handle	mly_periodic;		/* periodic event handling */
+    struct callout		mly_periodic;		/* periodic event handling */
 
     /* CAM connection */
     struct cam_devq		*mly_cam_devq;			/* CAM device queue */
@@ -230,29 +225,37 @@ struct mly_softc {
     /* command-completion task */
     struct task			mly_task_complete;	/* deferred-completion task */
     int				mly_qfrzn_cnt;		/* Track simq freezes */
+
+#ifdef MLY_DEBUG
+    struct callout		mly_timeout;
+#endif
 };
+
+#define	MLY_LOCK(sc)		mtx_lock(&(sc)->mly_lock)
+#define	MLY_UNLOCK(sc)		mtx_unlock(&(sc)->mly_lock)
+#define	MLY_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->mly_lock, MA_OWNED)
 
 /*
  * Register access helpers.
  */
-#define MLY_SET_REG(sc, reg, val)	bus_space_write_1(sc->mly_btag, sc->mly_bhandle, reg, val)
-#define MLY_GET_REG(sc, reg)		bus_space_read_1 (sc->mly_btag, sc->mly_bhandle, reg)
-#define MLY_GET_REG2(sc, reg)		bus_space_read_2 (sc->mly_btag, sc->mly_bhandle, reg)
-#define MLY_GET_REG4(sc, reg)		bus_space_read_4 (sc->mly_btag, sc->mly_bhandle, reg)
+#define MLY_SET_REG(sc, reg, val)	bus_write_1(sc->mly_regs_resource, reg, val)
+#define MLY_GET_REG(sc, reg)		bus_read_1 (sc->mly_regs_resource, reg)
+#define MLY_GET_REG2(sc, reg)		bus_read_2 (sc->mly_regs_resource, reg)
+#define MLY_GET_REG4(sc, reg)		bus_read_4 (sc->mly_regs_resource, reg)
 
 #define MLY_SET_MBOX(sc, mbox, ptr)									\
 	do {												\
-	    bus_space_write_4(sc->mly_btag, sc->mly_bhandle, mbox,      *((u_int32_t *)ptr));		\
-	    bus_space_write_4(sc->mly_btag, sc->mly_bhandle, mbox +  4, *((u_int32_t *)ptr + 1));	\
-	    bus_space_write_4(sc->mly_btag, sc->mly_bhandle, mbox +  8, *((u_int32_t *)ptr + 2));	\
-	    bus_space_write_4(sc->mly_btag, sc->mly_bhandle, mbox + 12, *((u_int32_t *)ptr + 3));	\
+	    bus_write_4(sc->mly_regs_resource, mbox,      *((u_int32_t *)ptr));		\
+	    bus_write_4(sc->mly_regs_resource, mbox +  4, *((u_int32_t *)ptr + 1));	\
+	    bus_write_4(sc->mly_regs_resource, mbox +  8, *((u_int32_t *)ptr + 2));	\
+	    bus_write_4(sc->mly_regs_resource, mbox + 12, *((u_int32_t *)ptr + 3));	\
 	} while(0);
 #define MLY_GET_MBOX(sc, mbox, ptr)									\
 	do {												\
-	    *((u_int32_t *)ptr) = bus_space_read_4(sc->mly_btag, sc->mly_bhandle, mbox);		\
-	    *((u_int32_t *)ptr + 1) = bus_space_read_4(sc->mly_btag, sc->mly_bhandle, mbox + 4);	\
-	    *((u_int32_t *)ptr + 2) = bus_space_read_4(sc->mly_btag, sc->mly_bhandle, mbox + 8);	\
-	    *((u_int32_t *)ptr + 3) = bus_space_read_4(sc->mly_btag, sc->mly_bhandle, mbox + 12);	\
+	    *((u_int32_t *)ptr) = bus_read_4(sc->mly_regs_resource, mbox);		\
+	    *((u_int32_t *)ptr + 1) = bus_read_4(sc->mly_regs_resource, mbox + 4);	\
+	    *((u_int32_t *)ptr + 2) = bus_read_4(sc->mly_regs_resource, mbox + 8);	\
+	    *((u_int32_t *)ptr + 3) = bus_read_4(sc->mly_regs_resource, mbox + 12);	\
 	} while(0);
 
 #define MLY_IDBR_TRUE(sc, mask)								\
@@ -315,46 +318,34 @@ mly_initq_ ## name (struct mly_softc *sc)				\
 static __inline void							\
 mly_enqueue_ ## name (struct mly_command *mc)				\
 {									\
-    int		s;							\
 									\
-    s = splcam();							\
     TAILQ_INSERT_TAIL(&mc->mc_sc->mly_ ## name, mc, mc_link);		\
     MLYQ_ADD(mc->mc_sc, index);						\
-    splx(s);								\
 }									\
 static __inline void							\
 mly_requeue_ ## name (struct mly_command *mc)				\
 {									\
-    int		s;							\
 									\
-    s = splcam();							\
     TAILQ_INSERT_HEAD(&mc->mc_sc->mly_ ## name, mc, mc_link);		\
     MLYQ_ADD(mc->mc_sc, index);						\
-    splx(s);								\
 }									\
 static __inline struct mly_command *					\
 mly_dequeue_ ## name (struct mly_softc *sc)				\
 {									\
     struct mly_command	*mc;						\
-    int			s;						\
 									\
-    s = splcam();							\
     if ((mc = TAILQ_FIRST(&sc->mly_ ## name)) != NULL) {		\
 	TAILQ_REMOVE(&sc->mly_ ## name, mc, mc_link);			\
 	MLYQ_REMOVE(sc, index);						\
     }									\
-    splx(s);								\
     return(mc);								\
 }									\
 static __inline void							\
 mly_remove_ ## name (struct mly_command *mc)				\
 {									\
-    int			s;						\
 									\
-    s = splcam();							\
     TAILQ_REMOVE(&mc->mc_sc->mly_ ## name, mc, mc_link);		\
     MLYQ_REMOVE(mc->mc_sc, index);					\
-    splx(s);								\
 }									\
 struct hack
 

@@ -434,7 +434,6 @@ VNET_DEFINE(int, ip6_rr_prune) = 5;	/* router renumbering prefix
 VNET_DEFINE(int, ip6_mcast_pmtu) = 0;	/* enable pMTU discovery for multicast? */
 VNET_DEFINE(int, ip6_v6only) = 1;
 
-VNET_DEFINE(int, ip6_keepfaith) = 0;
 VNET_DEFINE(time_t, ip6_log_time) = (time_t)0L;
 #ifdef IPSTEALTH
 VNET_DEFINE(int, ip6stealth) = 0;
@@ -543,8 +542,6 @@ SYSCTL_INT(_net_inet6_ip6, IPV6CTL_RFC6204W3, rfc6204w3,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_rfc6204w3), 0,
 	"Accept the default router list from ICMPv6 RA messages even "
 	"when packet forwarding enabled.");
-SYSCTL_INT(_net_inet6_ip6, IPV6CTL_KEEPFAITH, keepfaith,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_keepfaith), 0, "");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_LOG_INTERVAL, log_interval,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_log_interval), 0, "");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_HDRNESTLIMIT, hdrnestlimit,

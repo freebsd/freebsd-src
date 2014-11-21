@@ -68,3 +68,4 @@ device		miibus
 device		bpf
 device		md
 device		uart
+device		random

@@ -160,7 +160,7 @@ struct rtentry {
 /*			0x10000		   unused, was RTF_PRCLONING */
 /*			0x20000		   unused, was RTF_WASCLONED */
 #define RTF_PROTO3	0x40000		/* protocol specific routing flag */
-/*			0x80000		   unused */
+#define	RTF_FIXEDMTU	0x80000		/* MTU was explicitly specified */
 #define RTF_PINNED	0x100000	/* route is immutable */
 #define	RTF_LOCAL	0x200000 	/* route represents a local address */
 #define	RTF_BROADCAST	0x400000	/* route represents a bcast address */
@@ -332,6 +332,7 @@ int	rtsock_routemsg(int, struct ifnet *ifp, int, struct rtentry *, int);
 int	 rt_expunge(struct rib_head *, struct rtentry *);
 void	 rtfree(struct rtentry *);
 int	 rt_check(struct rtentry **, struct rtentry **, struct sockaddr *);
+void	rt_updatemtu(struct ifnet *);
 
 typedef int rt_walktree_f_t(struct rtentry *, void *);
 typedef void rt_setwarg_t(struct rib_head *, uint32_t, int, void *);
