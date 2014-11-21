@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 19, 2014
+.Dd November 21, 2014
 .Dt AUTO_MASTER 5
 .Os
 .Sh NAME
@@ -124,6 +124,12 @@ is the path component used by
 .Xr automountd 8
 to find the right map entry to use.
 It is also used to form the final mountpoint.
+A wildcard
+.Pq Ql *
+can be used for the key.
+It matches every directory that does not match other keys.
+Those directories will not be visible to the user
+until accessed.
 .Pp
 The
 .Ar options
@@ -155,9 +161,20 @@ for a single key.
 The
 .Ar location
 field specifies the filesystem to be mounted.
-To pass location that begins with
+Ampersands
+.Pq Ql &
+in the
+.Ar location
+field are replaced with the value of
+.Ar key .
+This is typically used with wildcards, like:
+.Bd -literal -offset indent
+.Li *	192.168.1.1:/share/&
+.Ed
+.Pp
+To pass a location that begins with
 .Li / ,
-prefix it with colon.
+prefix it with a colon.
 For example,
 .Li :/dev/cd0 .
 .Pp
