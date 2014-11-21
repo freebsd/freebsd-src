@@ -17,6 +17,7 @@ SRCS=	cheritest.c							\
 
 MAN=
 USE_CHERI=	yes
+WANT_DUMP=	yes
 
 #DPADD=  ${LIBDEVSTAT} ${LIBKVM} ${LIBMEMSTAT} ${LIBUTIL}
 LDADD=  -lcheri -lz
@@ -24,12 +25,6 @@ LDADD=  -lcheri -lz
 NO_SHARED?=	YES
 
 NO_WERROR=	YES
-
-FILES=	cheritest.dump
-CLEANFILES=	cheritest.dump
-
-cheritest.dump: cheritest
-	objdump -xsSD ${.ALLSRC} > ${.TARGET}
 
 .include <src.opts.mk>
 .include <bsd.prog.mk>

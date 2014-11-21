@@ -36,6 +36,7 @@ LDADD=	-lc_cheri
 
 USE_CHERI=	yes
 USE_CHERI_STACK=	yes
+WANT_DUMP=	yes
 
 NO_SHARED=	yes
 
@@ -43,14 +44,11 @@ FILESOWN=       ${LIBOWN}
 FILESGRP=       ${LIBGRP}
 FILESMODE=      ${LIBMODE}
 FILESDIR=       ${LIBEXECDIR}
-FILES=		libpng_sb-helper.bin libpng_sb-helper.dump
-CLEANFILES=	libpng_sb-helper.bin libpng_sb-helper.dump
+FILES=		libpng_sb-helper.bin
+CLEANFILES=	libpng_sb-helper.bin
 
 libpng_sb-helper.bin: libpng_sb-helper
 	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
-
-libpng_sb-helper.dump: libpng_sb-helper
-	objdump -xsSD ${.ALLSRC} > ${.TARGET}
 
 .include <src.opts.mk>
 .include <bsd.prog.mk>
