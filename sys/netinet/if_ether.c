@@ -1089,6 +1089,8 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 		IF_AFDATA_LOCK(ifp);
 		lle = lla_create(LLTABLE(ifp), LLE_IFADDR | LLE_STATIC,
 				 (struct sockaddr *)IA_SIN(ifa));
+		if (lle != NULL)
+			lle->r_flags |= RLLE_VALID;
 		IF_AFDATA_UNLOCK(ifp);
 		if (lle == NULL)
 			log(LOG_INFO, "arp_ifinit: cannot create arp "
