@@ -97,7 +97,7 @@
 			reg = <0x0 0x4000000>;		// 64M at 0x0
 		};
 
-		beripic: beripic@7f804000 {
+		beripic0: beripic@7f804000 {
 			compatible = "sri-cambridge,beri-pic";
 			interrupt-controller;
 			#address-cells = <0>;
@@ -115,7 +115,7 @@
 			compatible = "altera,jtag_uart-11_0";
 			reg = <0x7f000000 0x40>;
 			interrupts = <0>;
-			interrupt-parent = <&beripic>;
+			interrupt-parent = <&beripic0>;
 		};
 
 		serial@7f001000 {
