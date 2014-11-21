@@ -386,8 +386,12 @@ static STAILQ_HEAD(, Asr_softc) Asr_softc_list =
 	STAILQ_HEAD_INITIALIZER(Asr_softc_list);
 
 static __inline void
-set_ccb_timeout_ch(union asr_ccb *ccb, struct callout_handle ch)
+set_ccb_timeout_ch(union asr_ccb *ccb)
 {
+	struct callout_handle ch;
+
+	ch = timeout(asr_timeout, (caddr_t)ccb,
+	    (int)((u_int64_t)(ccb->ccb_h.timeout) * (u_int32_t)hz / 1000));
 	ccb->ccb_h.sim_priv.entries[0].ptr = ch.callout;
 }
 
@@ -812,8 +816,7 @@ ASR_ccbAdd(Asr_softc_t *sc, union asr_ccb *ccb)
 			 */
 			ccb->ccb_h.timeout = 6 * 60 * 1000;
 		}
-		set_ccb_timeout_ch(ccb, timeout(asr_timeout, (caddr_t)ccb,
-		  (ccb->ccb_h.timeout * hz) / 1000));
+		set_ccb_timeout_ch(ccb);
 	}
 	splx(s);
 } /* ASR_ccbAdd */
@@ -1337,9 +1340,7 @@ asr_timeout(void *arg)
 		  cam_sim_unit(xpt_path_sim(ccb->ccb_h.path)), s);
 		if (ASR_reset (sc) == ENXIO) {
 			/* Try again later */
-			set_ccb_timeout_ch(ccb, timeout(asr_timeout,
-			  (caddr_t)ccb,
-			  (ccb->ccb_h.timeout * hz) / 1000));
+			set_ccb_timeout_ch(ccb);
 		}
 		return;
 	}
@@ -1353,9 +1354,7 @@ asr_timeout(void *arg)
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_CMD_TIMEOUT) {
 		debug_asr_printf (" AGAIN\nreinitializing adapter\n");
 		if (ASR_reset (sc) == ENXIO) {
-			set_ccb_timeout_ch(ccb, timeout(asr_timeout,
-			  (caddr_t)ccb,
-			  (ccb->ccb_h.timeout * hz) / 1000));
+			set_ccb_timeout_ch(ccb);
 		}
 		splx(s);
 		return;
@@ -1364,8 +1363,7 @@ asr_timeout(void *arg)
 	/* If the BUS reset does not take, then an adapter reset is next! */
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	ccb->ccb_h.status |= CAM_CMD_TIMEOUT;
-	set_ccb_timeout_ch(ccb, timeout(asr_timeout, (caddr_t)ccb,
-	  (ccb->ccb_h.timeout * hz) / 1000));
+	set_ccb_timeout_ch(ccb);
 	ASR_resetBus (sc, cam_sim_bus(xpt_path_sim(ccb->ccb_h.path)));
 	xpt_async (AC_BUS_RESET, ccb->ccb_h.path, NULL);
 	splx(s);

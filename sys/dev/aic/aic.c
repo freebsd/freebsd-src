@@ -319,8 +319,8 @@ aic_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	TAILQ_INSERT_TAIL(&aic->pending_ccbs, &ccb->ccb_h, sim_links.tqe);
 
-	callout_reset(&scb->timer, (ccb->ccb_h.timeout * hz) / 1000,
-	    aic_timeout, scb);
+	callout_reset_sbt(&scb->timer, SBT_1MS * ccb->ccb_h.timeout, 0,
+	    aic_timeout, scb, 0);
 
 	aic_start(aic);
 }
@@ -1075,9 +1075,9 @@ aic_done(struct aic_softc *aic, struct aic_scb *scb)
 				    &pending_scb->ccb->ccb_h, sim_links.tqe);
 				aic_done(aic, pending_scb);
 			} else {
-				callout_reset(&pending_scb->timer,
-				    (ccb_h->timeout * hz) / 1000, aic_timeout,
-				    pending_scb);
+				callout_reset_sbt(&pending_scb->timer,
+				    SBT_1MS * ccb_h->timeout, 0, aic_timeout,
+				    pending_scb, 0);
 				ccb_h = TAILQ_NEXT(ccb_h, sim_links.tqe);
 			}
 		}
@@ -1094,9 +1094,9 @@ aic_done(struct aic_softc *aic, struct aic_scb *scb)
 				    &nexus_scb->ccb->ccb_h, sim_links.tqe);
 				aic_done(aic, nexus_scb);
 			} else {
-				callout_reset(&nexus_scb->timer,
-				    (ccb_h->timeout * hz) / 1000, aic_timeout,
-				    nexus_scb);
+				callout_reset_sbt(&nexus_scb->timer,
+				    SBT_1MS * ccb_h->timeout, 0, aic_timeout,
+				    nexus_scb, 0);
 				ccb_h = TAILQ_NEXT(ccb_h, sim_links.tqe);
 			}
 		}
