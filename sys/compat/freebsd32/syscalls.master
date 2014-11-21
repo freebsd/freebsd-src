@@ -1066,3 +1066,6 @@
 				    uint32_t id1, uint32_t id2, int com, \
 				    void *data); }
 #endif
+545	AUE_POLL	STD	{ int freebsd32_ppoll(struct pollfd *fds, \
+				    u_int nfds, const struct timespec32 *ts, \
+				    const sigset_t *set); }

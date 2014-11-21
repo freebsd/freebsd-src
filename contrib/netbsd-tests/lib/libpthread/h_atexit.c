@@ -47,9 +47,19 @@ __RCSID("$NetBSD: h_atexit.c,v 1.1 2010/07/16 15:42:53 jmmv Exp $");
 extern int __cxa_atexit(void (*func)(void *), void *, void *);
 extern void __cxa_finalize(void *);
 
+#ifdef __FreeBSD__
+/* 
+ * See comments in ../../lib/libc/stdlib/h_atexit.c about the deviation
+ * between FreeBSD and NetBSD with this helper program
+ */
+static void *dso_handle_1 = (void *)1;
+static void *dso_handle_2 = (void *)2;
+static void *dso_handle_3 = (void *)3;
+#else
 static int dso_handle_1;
 static int dso_handle_2;
 static int dso_handle_3;
+#endif
 
 static int arg_1;
 static int arg_2;
@@ -170,8 +180,17 @@ main(int argc, char *argv[])
 
 	exiting_state = 5;
 
+#ifdef __FreeBSD__
 	ASSERT(0 == atexit(normal_handler_0));
 	ASSERT(0 == atexit(normal_handler_1));
+	ASSERT(0 == __cxa_atexit(cxa_handler_4, &arg_1, dso_handle_1));
+	ASSERT(0 == __cxa_atexit(cxa_handler_5, &arg_1, dso_handle_1));
+	ASSERT(0 == __cxa_atexit(cxa_handler_3, &arg_2, dso_handle_2));
+	ASSERT(0 == __cxa_atexit(cxa_handler_2, &arg_3, dso_handle_3));
+
+	__cxa_finalize(dso_handle_1);
+	__cxa_finalize(dso_handle_2);
+#else
 	ASSERT(0 == __cxa_atexit(cxa_handler_4, &arg_1, &dso_handle_1));
 	ASSERT(0 == __cxa_atexit(cxa_handler_5, &arg_1, &dso_handle_1));
 	ASSERT(0 == __cxa_atexit(cxa_handler_3, &arg_2, &dso_handle_2));
@@ -179,5 +198,6 @@ main(int argc, char *argv[])
 
 	__cxa_finalize(&dso_handle_1);
 	__cxa_finalize(&dso_handle_2);
+#endif
 	exit(0);
 }

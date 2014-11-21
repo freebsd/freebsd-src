@@ -509,7 +509,7 @@ pr_header(time_t *nowp, int nusers)
 	}
 
 	/* Print number of users logged in to system */
-	xo_emit(" {:users/%d} user%s", nusers, nusers == 1 ? "" : "s");
+	xo_emit(" {:users/%d} {N:user%s}", nusers, nusers == 1 ? "" : "s");
 
 	/*
 	 * Print 1, 5, and 15 minute load averages.

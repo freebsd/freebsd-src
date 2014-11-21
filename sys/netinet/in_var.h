@@ -406,7 +406,6 @@ int	in_leavegroup_locked(struct in_multi *,
 	    /*const*/ struct in_mfilter *);
 int	in_control(struct socket *, u_long, caddr_t, struct ifnet *,
 	    struct thread *);
-void	in_rtqdrain(void);
 int	in_addprefix(struct in_ifaddr *, int);
 int	in_scrubprefix(struct in_ifaddr *, u_int);
 void	ip_input(struct mbuf *);
@@ -422,7 +421,6 @@ void	 in_rtredirect(struct sockaddr *, struct sockaddr *,
 	    struct sockaddr *, int, struct sockaddr *, u_int);
 int	 in_rtrequest(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **, u_int);
-void	in_setmatchfunc(struct rib_head *, int);
 
 #if 0
 int	 in_rt_getifa(struct rt_addrinfo *, u_int fibnum);

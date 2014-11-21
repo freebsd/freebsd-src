@@ -117,6 +117,9 @@ SYSCTL_UINT(_net_inet_icmp, OID_AUTO, maskfake, CTLFLAG_VNET | CTLFLAG_RW,
 	"Fake reply to ICMP Address Mask Request packets.");
 
 VNET_DEFINE(int, drop_redirect) = 0;
+#define	V_drop_redirect			VNET(drop_redirect)
+SYSCTL_INT(_net_inet_icmp, OID_AUTO, drop_redirect, CTLFLAG_VNET | CTLFLAG_RW,
+	&VNET_NAME(drop_redirect), 0, "Ignore ICMP redirects");
 
 static VNET_DEFINE(int, log_redirect) = 0;
 #define	V_log_redirect			VNET(log_redirect)
@@ -164,37 +167,6 @@ static void	icmp_reflect(struct mbuf *);
 static void	icmp_send(struct mbuf *, struct mbuf *);
 
 extern	struct protosw inetsw[];
-
-static int
-sysctl_net_icmp_drop_redir(SYSCTL_HANDLER_ARGS)
-{
-	int error, new;
-	int i;
-	struct rib_head *rh;
-
-	new = V_drop_redirect;
-	error = sysctl_handle_int(oidp, &new, 0, req);
-	if (error == 0 && req->newptr) {
-		new = (new != 0) ? 1 : 0;
-
-		if (new == V_drop_redirect)
-			return (0);
-
-		for (i = 0; i < rt_numfibs; i++) {
-			if ((rh = rt_tables_get_rnh(i, AF_INET)) == NULL)
-				continue;
-			in_setmatchfunc(rh, new);
-		}
-		
-		V_drop_redirect = new;
-	}
-
-	return (error);
-}
-
-SYSCTL_PROC(_net_inet_icmp, OID_AUTO, drop_redirect,
-    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW, 0, 0,
-    sysctl_net_icmp_drop_redir, "I", "Ignore ICMP redirects");
 
 /*
  * Kernel module interface for updating icmpstat.  The argument is an index
@@ -410,19 +382,6 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 	m->m_len += hlen;
 	m->m_data -= hlen;
 
-	if (m->m_pkthdr.rcvif && m->m_pkthdr.rcvif->if_type == IFT_FAITH) {
-		/*
-		 * Deliver very specific ICMP type only.
-		 */
-		switch (icp->icmp_type) {
-		case ICMP_UNREACH:
-		case ICMP_TIMXCEED:
-			break;
-		default:
-			goto freeit;
-		}
-	}
-
 #ifdef ICMPPRINTFS
 	if (icmpprintfs)
 		printf("icmp_input, type %d code %d\n", icp->icmp_type,
@@ -499,12 +458,6 @@ icmp_input(struct mbuf **mp, int *offp, int proto)
 		if (code > 1)
 			goto badcode;
 		code = PRC_PARAMPROB;
-		goto deliver;
-
-	case ICMP_SOURCEQUENCH:
-		if (code)
-			goto badcode;
-		code = PRC_QUENCH;
 	deliver:
 		/*
 		 * Problem with datagram; advise higher level routines.
@@ -683,6 +636,7 @@ reflect:
 	case ICMP_TSTAMPREPLY:
 	case ICMP_IREQREPLY:
 	case ICMP_MASKREPLY:
+	case ICMP_SOURCEQUENCH:
 	default:
 		break;
 	}

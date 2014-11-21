@@ -233,7 +233,7 @@ ATF_TC_BODY(poll_err, tc)
 	ATF_REQUIRE_ERRNO(EINVAL, poll(&pfd, 1, -2) == -1);
 }
 
-#if !defined(__FreeBSD__)
+#ifndef __FreeBSD__
 ATF_TC(pollts_basic);
 ATF_TC_HEAD(pollts_basic, tc)
 {
@@ -386,7 +386,7 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, poll_3way);
 	ATF_TP_ADD_TC(tp, poll_basic);
 	ATF_TP_ADD_TC(tp, poll_err);
-#if !defined(__FreeBSD__)
+#ifndef __FreeBSD__
 	ATF_TP_ADD_TC(tp, pollts_basic);
 	ATF_TP_ADD_TC(tp, pollts_err);
 	ATF_TP_ADD_TC(tp, pollts_sigmask);

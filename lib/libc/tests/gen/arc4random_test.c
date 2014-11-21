@@ -27,13 +27,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/wait.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <atf-c.h>
 
 /*
  * BUFSIZE is the number of bytes of rc4 output to compare.  The probability
@@ -45,7 +46,9 @@ __FBSDID("$FreeBSD$");
  * Test whether arc4random_buf() returns the same sequence of bytes in both
  * parent and child processes.  (Hint: It shouldn't.)
  */
-int main(int argc, char *argv[]) {
+ATF_TC_WITHOUT_HEAD(test_arc4random);
+ATF_TC_BODY(test_arc4random, tc)
+{
 	struct shared_page {
 		char parentbuf[BUFSIZE];
 		char childbuf[BUFSIZE];
@@ -65,10 +68,7 @@ int main(int argc, char *argv[]) {
 	arc4random_buf(&c, 1);
 
 	pid = fork();
-	if (pid < 0) {
-		printf("fail 1 - fork\n");
-		exit(1);
-	}
+	ATF_REQUIRE(0 <= pid);
 	if (pid == 0) {
 		/* child */
 		arc4random_buf(page->childbuf, BUFSIZE);
@@ -79,11 +79,14 @@ int main(int argc, char *argv[]) {
 		arc4random_buf(page->parentbuf, BUFSIZE);
 		wait(&status);
 	}
-	if (memcmp(page->parentbuf, page->childbuf, BUFSIZE) == 0) {
-		printf("fail 1 - sequences are the same\n");
-		exit(1);
-	}
+	ATF_CHECK_MSG(memcmp(page->parentbuf, page->childbuf, BUFSIZE) != 0,
+	    "sequences are the same");
+}
 
-	printf("ok 1 - sequences are different\n");
-	exit(0);
+ATF_TP_ADD_TCS(tp)
+{
+
+	ATF_TP_ADD_TC(tp, test_arc4random);
+
+	return (atf_no_error());
 }

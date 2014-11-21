@@ -1653,11 +1653,6 @@ in_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 			    inp->inp_lport != lport)
 				continue;
 
-			/* XXX inp locking */
-			if (ifp && ifp->if_type == IFT_FAITH &&
-			    (inp->inp_flags & INP_FAITH) == 0)
-				continue;
-
 			injail = prison_flag(inp->inp_cred, PR_IP4);
 			if (injail) {
 				if (prison_check_ip4(inp->inp_cred,
@@ -1730,11 +1725,6 @@ in_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 #endif
 			if (inp->inp_faddr.s_addr != INADDR_ANY ||
 			    inp->inp_lport != lport)
-				continue;
-
-			/* XXX inp locking */
-			if (ifp && ifp->if_type == IFT_FAITH &&
-			    (inp->inp_flags & INP_FAITH) == 0)
 				continue;
 
 			injail = prison_flag(inp->inp_cred, PR_IP4);
@@ -1875,11 +1865,6 @@ in_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 #endif
 			if (inp->inp_faddr.s_addr != INADDR_ANY ||
 			    inp->inp_lport != lport)
-				continue;
-
-			/* XXX inp locking */
-			if (ifp && ifp->if_type == IFT_FAITH &&
-			    (inp->inp_flags & INP_FAITH) == 0)
 				continue;
 
 			injail = prison_flag(inp->inp_cred, PR_IP4);
@@ -2474,10 +2459,6 @@ db_print_inpflags(int inp_flags)
 	}
 	if (inp_flags & INP_MTUDISC) {
 		db_printf("%sINP_MTUDISC", comma ? ", " : "");
-		comma = 1;
-	}
-	if (inp_flags & INP_FAITH) {
-		db_printf("%sINP_FAITH", comma ? ", " : "");
 		comma = 1;
 	}
 	if (inp_flags & INP_RECVTTL) {

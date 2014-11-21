@@ -552,23 +552,11 @@ void sDisInterrupts(CHANNEL_T *ChP,Word_t Flags)
   Begin FreeBsd-specific driver code
 **********************************************************************/
 
-struct callout_handle rp_callout_handle;
-
-static int	rp_num_ports_open = 0;
-static int	rp_ndevs = 0;
-
-static int rp_num_ports[4];	/* Number of ports on each controller */
-
-#define POLL_INTERVAL 1
+#define POLL_INTERVAL		(hz / 100)
 
 #define RP_ISMULTIPORT(dev)	((dev)->id_flags & 0x1)
 #define RP_MPMASTER(dev)	(((dev)->id_flags >> 8) & 0xff)
 #define RP_NOTAST4(dev) 	((dev)->id_flags & 0x04)
-
-static	struct	rp_port *p_rp_addr[4];
-static	struct	rp_port *p_rp_table[MAX_RP_PORTS];
-#define rp_addr(unit)	(p_rp_addr[unit])
-#define rp_table(port)	(p_rp_table[port])
 
 /*
  * The top-level routines begin here
@@ -676,46 +664,31 @@ static void rp_handle_port(struct rp_port *rp)
 */
 }
 
-static void rp_do_poll(void *not_used)
+static void rp_do_poll(void *arg)
 {
 	CONTROLLER_t	*ctl;
 	struct rp_port	*rp;
 	struct tty	*tp;
-	int	unit, aiop, ch, line, count;
+	int	count;
 	unsigned char	CtlMask, AiopMask;
 
-	for(unit = 0; unit < rp_ndevs; unit++) {
-	rp = rp_addr(unit);
+	rp = arg;
+	tp = rp->rp_tty;
+	tty_lock_assert(tp, MA_OWNED);
 	ctl = rp->rp_ctlp;
 	CtlMask = ctl->ctlmask(ctl);
-	for(aiop=0; CtlMask; CtlMask >>=1, aiop++) {
-		if(CtlMask & 1) {
-			AiopMask = sGetAiopIntStatus(ctl, aiop);
-			for(ch = 0; AiopMask; AiopMask >>=1, ch++) {
-				if(AiopMask & 1) {
-					line = (unit << 5) | (aiop << 3) | ch;
-					rp = rp_table(line);
-					rp_handle_port(rp);
-				}
-			}
+	if (CtlMask & (1 << rp->rp_aiop)) {
+		AiopMask = sGetAiopIntStatus(ctl, rp->rp_aiop);
+		if (AiopMask & (1 << rp->rp_chan)) {
+			rp_handle_port(rp);
 		}
 	}
 
-	for(line = 0, rp = rp_addr(unit); line < rp_num_ports[unit];
-			line++, rp++) {
-		tp = rp->rp_tty;
-		tty_lock(tp);
-		count = sGetTxCnt(&rp->rp_channel);
-		if (count >= 0  &&
-		    (count <= rp->rp_restart)) {
-			rpstart(tp);
-		}
-		tty_unlock(tp);
+	count = sGetTxCnt(&rp->rp_channel);
+	if (count >= 0  && (count <= rp->rp_restart)) {
+		rpstart(tp);
 	}
-	}
-	if(rp_num_ports_open)
-		rp_callout_handle = timeout(rp_do_poll, 
-					    (void *)NULL, POLL_INTERVAL);
+	callout_schedule(&rp->rp_timer, POLL_INTERVAL);
 }
 
 static struct ttydevsw rp_tty_class = {
@@ -745,7 +718,7 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 	int	unit;
 	int	num_chan;
 	int	aiop, chan, port;
-	int	ChanStatus, line, count;
+	int	ChanStatus;
 	int	retval;
 	struct	rp_port *rp;
 	struct tty *tp;
@@ -754,9 +727,8 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 
 	printf("RocketPort%d (Version %s) %d ports.\n", unit,
 		RocketPortVersion, num_ports);
-	rp_num_ports[unit] = num_ports;
-	callout_handle_init(&rp_callout_handle);
 
+	ctlp->num_ports = num_ports;
 	ctlp->rp = rp = (struct rp_port *)
 		malloc(sizeof(struct rp_port) * num_ports, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (rp == NULL) {
@@ -765,16 +737,12 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 		goto nogo;
 	}
 
-	count = unit * 32;      /* board times max ports per card SG */
-
-	bzero(rp, sizeof(struct rp_port) * num_ports);
-	rp_addr(unit) = rp;
-
 	port = 0;
 	for(aiop=0; aiop < num_aiops; aiop++) {
 		num_chan = sGetAiopNumChan(ctlp, aiop);
 		for(chan=0; chan < num_chan; chan++, port++, rp++) {
 			rp->rp_tty = tp = tty_alloc(&rp_tty_class, rp);
+			callout_init_mtx(&rp->rp_timer, tty_getlock(tp), 0);
 			rp->rp_port = port;
 			rp->rp_ctlp = ctlp;
 			rp->rp_unit = unit;
@@ -794,13 +762,10 @@ rp_attachcommon(CONTROLLER_T *ctlp, int num_aiops, int num_ports)
 			}
 			ChanStatus = sGetChanStatus(&rp->rp_channel);
 			rp->rp_cts = (ChanStatus & CTS_ACT) != 0;
-			line = (unit << 5) | (aiop << 3) | chan;
-			rp_table(line) = rp;
 			tty_makedev(tp, NULL, "R%r%r", unit, port);
 		}
 	}
 
-	rp_ndevs++;
 	mtx_init(&ctlp->hwmtx, "rp_hwmtx", NULL, MTX_DEF);
 	ctlp->hwmtx_init = 1;
 	return (0);
@@ -814,40 +779,26 @@ nogo:
 void
 rp_releaseresource(CONTROLLER_t *ctlp)
 {
-	int i, unit;
 	struct	rp_port *rp;
+	int i;
 
-
-	unit = device_get_unit(ctlp->dev);
-	if (rp_addr(unit) != NULL) {
-		for (i = 0; i < rp_num_ports[unit]; i++) {
-			rp = rp_addr(unit) + i;
+	if (ctlp->rp != NULL) {
+		for (i = 0; i < ctlp->num_ports; i++) {
+			rp = ctlp->rp + i;
 			atomic_add_32(&ctlp->free, 1);
 			tty_lock(rp->rp_tty);
 			tty_rel_gone(rp->rp_tty);
 		}
+                free(ctlp->rp, M_DEVBUF);
+                ctlp->rp = NULL;
 	}
 
 	while (ctlp->free != 0) {
 		pause("rpwt", hz / 10);
 	}
 
-	if (ctlp->rp != NULL) {
-		for (i = 0 ; i < sizeof(p_rp_addr) / sizeof(*p_rp_addr) ; i++)
-			if (p_rp_addr[i] == ctlp->rp)
-				p_rp_addr[i] = NULL;
-		for (i = 0 ; i < sizeof(p_rp_table) / sizeof(*p_rp_table) ; i++)
-			if (p_rp_table[i] == ctlp->rp)
-				p_rp_table[i] = NULL;
-                free(ctlp->rp, M_DEVBUF);
-                ctlp->rp = NULL;
-	}
-}
-
-void
-rp_untimeout(void)
-{
-	untimeout(rp_do_poll, (void *)NULL, rp_callout_handle);
+	if (ctlp->hwmtx_init)
+		mtx_destroy(&ctlp->hwmtx);
 }
 
 static int
@@ -893,15 +844,11 @@ rpopen(struct tty *tp)
 	sSetRTS(&rp->rp_channel);
 */
 
-	rp_num_ports_open++;
-
 	IntMask = sGetChanIntID(&rp->rp_channel);
 	IntMask = IntMask & rp->rp_intmask;
 	ChanStatus = sGetChanStatus(&rp->rp_channel);
 
-	if(rp_num_ports_open == 1)
-		rp_callout_handle = timeout(rp_do_poll, 
-					    (void *)NULL, POLL_INTERVAL);
+	callout_reset(&rp->rp_timer, POLL_INTERVAL, rp_do_poll, rp);
 
 	device_busy(rp->rp_ctlp->dev);
 	return(0);
@@ -913,6 +860,7 @@ rpclose(struct tty *tp)
 	struct	rp_port	*rp;
 
 	rp = tty_softc(tp);
+	callout_stop(&rp->rp_timer);
 	rphardclose(tp);
 	device_unbusy(rp->rp_ctlp->dev);
 }

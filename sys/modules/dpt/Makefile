@@ -20,7 +20,6 @@ opt_eisa.h:
 .else
 .if !defined(KERNBUILDDIR)
 SRCS+=	dpt_eisa.c eisa_if.h
-#SRCS+=	dpt_isa.c isa_if.h
 
 opt_eisa.h:
 	echo "#define DEV_EISA 1" > ${.TARGET}
@@ -29,7 +28,6 @@ DEV_EISA!= sed -n '/DEV_EISA/p' ${KERNBUILDDIR}/opt_eisa.h
 .if !empty(DEV_EISA)
 SRCS+=	dpt_eisa.c eisa_if.h
 .endif
-#SRCS+=	dpt_isa.c isa_if.h
 .endif
 .endif
 

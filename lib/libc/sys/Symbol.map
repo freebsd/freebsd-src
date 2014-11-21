@@ -399,6 +399,10 @@ FBSD_1.3 {
 	wait6;
 };
 
+FBSD_1.4 {
+	ppoll;
+};
+
 FBSDprivate_1.0 {
 	___acl_aclcheck_fd;
 	__sys___acl_aclcheck_fd;
@@ -821,6 +825,8 @@ FBSDprivate_1.0 {
 	__sys_pipe;
 	_poll;
 	__sys_poll;
+	_ppoll;
+	__sys_ppoll;
 	_preadv;
 	__sys_preadv;
 	_procctl;

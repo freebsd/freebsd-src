@@ -890,10 +890,7 @@ device		gre
 device		me
 options 	XBONEHACK
 
-#  The `faith' device captures packets sent to it and diverts them
-#  to the IPv4/IPv6 translation daemon.
 #  The `stf' device implements 6to4 encapsulation.
-device		faith
 device		stf
 
 # The pf packet filter consists of three devices:

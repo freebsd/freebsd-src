@@ -66,14 +66,12 @@ enum {
  */
 struct _ip6dn_args {
        struct ip6_pktopts *opt_or;
-       struct route_in6 ro_or;
        int flags_or;
        struct ip6_moptions *im6o_or;
        struct ifnet *origifp_or;
        struct ifnet *ifp_or;
        struct sockaddr_in6 dst_or;
        u_long mtu_or;
-       struct route_in6 ro_pmtu_or;
 };
 
 

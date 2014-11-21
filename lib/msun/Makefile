@@ -219,4 +219,8 @@ MLINKS+=tan.3 tanf.3 tan.3 tanl.3
 MLINKS+=tanh.3 tanhf.3 tanh.3 tanhl.3
 MLINKS+=trunc.3 truncf.3 trunc.3 truncl.3
 
+.include <src.opts.mk>
+
+.include <bsd.arch.inc.mk>
+
 .include <bsd.lib.mk>

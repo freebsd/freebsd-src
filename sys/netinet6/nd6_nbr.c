@@ -80,9 +80,12 @@ __FBSDID("$FreeBSD$");
 
 struct dadq;
 static struct dadq *nd6_dad_find(struct ifaddr *);
+static void nd6_dad_add(struct dadq *dp);
+static void nd6_dad_del(struct dadq *dp);
 static void nd6_dad_starttimer(struct dadq *, int);
 static void nd6_dad_stoptimer(struct dadq *);
 static void nd6_dad_timer(struct dadq *);
+static void nd6_dad_duplicated(struct ifaddr *, struct dadq *);
 static void nd6_dad_ns_output(struct dadq *, struct ifaddr *);
 static void nd6_dad_ns_input(struct ifaddr *);
 static void nd6_dad_na_input(struct ifaddr *);
@@ -1148,6 +1151,26 @@ static VNET_DEFINE(struct rwlock, dad_rwlock);
 #define	DADQ_WLOCK()		rw_wlock(&V_dad_rwlock)	
 #define	DADQ_WUNLOCK()		rw_wunlock(&V_dad_rwlock)	
 
+static void
+nd6_dad_add(struct dadq *dp)
+{
+
+	ifa_ref(dp->dad_ifa);	/* just for safety */
+	DADQ_WLOCK();
+	TAILQ_INSERT_TAIL(&V_dadq, (struct dadq *)dp, dad_list);
+	DADQ_WUNLOCK();
+}
+
+static void
+nd6_dad_del(struct dadq *dp)
+{
+
+	ifa_free(dp->dad_ifa);
+	DADQ_WLOCK();
+	TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
+	DADQ_WUNLOCK();
+}
+
 static struct dadq *
 nd6_dad_find(struct ifaddr *ifa)
 {
@@ -1239,10 +1262,6 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 #ifdef VIMAGE
 	dp->dad_vnet = curvnet;
 #endif
-	DADQ_WLOCK();
-	TAILQ_INSERT_TAIL(&V_dadq, (struct dadq *)dp, dad_list);
-	DADQ_WUNLOCK();
-
 	nd6log((LOG_DEBUG, "%s: starting DAD for %s\n", if_name(ifa->ifa_ifp),
 	    ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr)));
 
@@ -1253,10 +1272,10 @@ nd6_dad_start(struct ifaddr *ifa, int delay)
 	 * (re)initialization.
 	 */
 	dp->dad_ifa = ifa;
-	ifa_ref(ifa);	/* just for safety */
 	dp->dad_count = V_ip6_dad_count;
 	dp->dad_ns_icount = dp->dad_na_icount = 0;
 	dp->dad_ns_ocount = dp->dad_ns_tcount = 0;
+	nd6_dad_add(dp);
 	if (delay == 0) {
 		nd6_dad_ns_output(dp, ifa);
 		nd6_dad_starttimer(dp,
@@ -1284,12 +1303,8 @@ nd6_dad_stop(struct ifaddr *ifa)
 
 	nd6_dad_stoptimer(dp);
 
-	DADQ_WLOCK();
-	TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
-	DADQ_WUNLOCK();
+	nd6_dad_del(dp);
 	free(dp, M_IP6NDP);
-	dp = NULL;
-	ifa_free(ifa);
 }
 
 static void
@@ -1336,12 +1351,9 @@ nd6_dad_timer(struct dadq *dp)
 		nd6log((LOG_INFO, "%s: could not run DAD, driver problem?\n",
 		    if_name(ifa->ifa_ifp)));
 
-		DADQ_WLOCK();
-		TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
-		DADQ_WUNLOCK();
+		nd6_dad_del(dp);
 		free(dp, M_IP6NDP);
 		dp = NULL;
-		ifa_free(ifa);
 		goto done;
 	}
 
@@ -1377,8 +1389,8 @@ nd6_dad_timer(struct dadq *dp)
 
 		if (duplicate) {
 			/* (*dp) will be freed in nd6_dad_duplicated() */
+			nd6_dad_duplicated(ifa, dp);
 			dp = NULL;
-			nd6_dad_duplicated(ifa);
 		} else {
 			/*
 			 * We are done with DAD.  No NA came, no NS came.
@@ -1394,12 +1406,9 @@ nd6_dad_timer(struct dadq *dp)
 			    if_name(ifa->ifa_ifp),
 			    ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr)));
 
-			DADQ_WLOCK();
-			TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
-			DADQ_WUNLOCK();
+			nd6_dad_del(dp);
 			free(dp, M_IP6NDP);
 			dp = NULL;
-			ifa_free(ifa);
 		}
 	}
 
@@ -1408,18 +1417,11 @@ done:
 }
 
 void
-nd6_dad_duplicated(struct ifaddr *ifa)
+nd6_dad_duplicated(struct ifaddr *ifa, struct dadq *dp)
 {
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	struct ifnet *ifp;
-	struct dadq *dp;
 	char ip6buf[INET6_ADDRSTRLEN];
-
-	dp = nd6_dad_find(ifa);
-	if (dp == NULL) {
-		log(LOG_ERR, "nd6_dad_duplicated: DAD structure not found\n");
-		return;
-	}
 
 	log(LOG_ERR, "%s: DAD detected duplicate IPv6 address %s: "
 	    "NS in/out=%d/%d, NA in=%d\n",
@@ -1473,12 +1475,8 @@ nd6_dad_duplicated(struct ifaddr *ifa)
 		}
 	}
 
-	DADQ_WLOCK();
-	TAILQ_REMOVE(&V_dadq, (struct dadq *)dp, dad_list);
-	DADQ_WUNLOCK();
+	nd6_dad_del(dp);
 	free(dp, M_IP6NDP);
-	dp = NULL;
-	ifa_free(ifa);
 }
 
 static void
@@ -1537,8 +1535,8 @@ nd6_dad_ns_input(struct ifaddr *ifa)
 	/* XXX more checks for loopback situation - see nd6_dad_timer too */
 
 	if (duplicate) {
+		nd6_dad_duplicated(ifa, dp);
 		dp = NULL;	/* will be freed in nd6_dad_duplicated() */
-		nd6_dad_duplicated(ifa);
 	} else {
 		/*
 		 * not sure if I got a duplicate.
@@ -1562,5 +1560,5 @@ nd6_dad_na_input(struct ifaddr *ifa)
 		dp->dad_na_icount++;
 
 	/* remove the address. */
-	nd6_dad_duplicated(ifa);
+	nd6_dad_duplicated(ifa, dp);
 }

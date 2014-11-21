@@ -36,7 +36,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <libutil.h>
 #endif
 

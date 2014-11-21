@@ -636,7 +636,6 @@ fib6_selectroute(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 		} else
 			goto getroute;
 	}
-
 	/*
 	 * If the destination address is a multicast address and the outgoing
 	 * interface for the address is specified by the caller, use it.
@@ -645,6 +644,17 @@ fib6_selectroute(uint32_t fibnum, struct in6_addr *dst, uint32_t scopeid,
 	    mopts != NULL && (ifp = mopts->im6o_multicast_ifp) != NULL) {
 		fill_nhop = 1;
 		goto done; /* we do not need a route for multicast. */
+	}
+	/*
+	 * If destination address is LLA or link- or node-local multicast,
+	 * use it's embedded scope zone id to determine outgoing interface.
+	 */
+	if (IN6_IS_ADDR_MC_LINKLOCAL(dst) ||
+	    IN6_IS_ADDR_MC_NODELOCAL(dst)) {
+		if (scopeid > 0) {
+			ifp = in6_getlinkifnet(scopeid);
+			goto done;
+		}
 	}
 
   getroute:

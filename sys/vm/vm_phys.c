@@ -301,29 +301,19 @@ static void
 _vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind, int domain)
 {
 	struct vm_phys_seg *seg;
-#ifdef VM_PHYSSEG_SPARSE
-	long pages;
-	int segind;
 
-	pages = 0;
-	for (segind = 0; segind < vm_phys_nsegs; segind++) {
-		seg = &vm_phys_segs[segind];
-		pages += atop(seg->end - seg->start);
-	}
-#endif
 	KASSERT(vm_phys_nsegs < VM_PHYSSEG_MAX,
 	    ("vm_phys_create_seg: increase VM_PHYSSEG_MAX"));
 	KASSERT(domain < vm_ndomains,
 	    ("vm_phys_create_seg: invalid domain provided"));
 	seg = &vm_phys_segs[vm_phys_nsegs++];
+	while (seg > vm_phys_segs && (seg - 1)->start >= end) {
+		*seg = *(seg - 1);
+		seg--;
+	}
 	seg->start = start;
 	seg->end = end;
 	seg->domain = domain;
-#ifdef VM_PHYSSEG_SPARSE
-	seg->first_page = &vm_page_array[pages];
-#else
-	seg->first_page = PHYS_TO_VM_PAGE(start);
-#endif
 	seg->free_queues = &vm_phys_free_queues[domain][flind];
 }
 
@@ -357,47 +347,68 @@ vm_phys_create_seg(vm_paddr_t start, vm_paddr_t end, int flind)
 }
 
 /*
+ * Add a physical memory segment.
+ */
+void
+vm_phys_add_seg(vm_paddr_t start, vm_paddr_t end)
+{
+
+	KASSERT((start & PAGE_MASK) == 0,
+	    ("vm_phys_define_seg: start is not page aligned"));
+	KASSERT((end & PAGE_MASK) == 0,
+	    ("vm_phys_define_seg: end is not page aligned"));
+#ifdef	VM_FREELIST_ISADMA
+	if (start < 16777216) {
+		if (end > 16777216) {
+			vm_phys_create_seg(start, 16777216,
+			    VM_FREELIST_ISADMA);
+			vm_phys_create_seg(16777216, end, VM_FREELIST_DEFAULT);
+		} else
+			vm_phys_create_seg(start, end, VM_FREELIST_ISADMA);
+		if (VM_FREELIST_ISADMA >= vm_nfreelists)
+			vm_nfreelists = VM_FREELIST_ISADMA + 1;
+	} else
+#endif
+#ifdef	VM_FREELIST_HIGHMEM
+	if (end > VM_HIGHMEM_ADDRESS) {
+		if (start < VM_HIGHMEM_ADDRESS) {
+			vm_phys_create_seg(start, VM_HIGHMEM_ADDRESS,
+			    VM_FREELIST_DEFAULT);
+			vm_phys_create_seg(VM_HIGHMEM_ADDRESS, end,
+			    VM_FREELIST_HIGHMEM);
+		} else
+			vm_phys_create_seg(start, end, VM_FREELIST_HIGHMEM);
+		if (VM_FREELIST_HIGHMEM >= vm_nfreelists)
+			vm_nfreelists = VM_FREELIST_HIGHMEM + 1;
+	} else
+#endif
+	vm_phys_create_seg(start, end, VM_FREELIST_DEFAULT);
+}
+
+/*
  * Initialize the physical memory allocator.
  */
 void
 vm_phys_init(void)
 {
 	struct vm_freelist *fl;
-	int dom, flind, i, oind, pind;
+	struct vm_phys_seg *seg;
+#ifdef VM_PHYSSEG_SPARSE
+	long pages;
+#endif
+	int dom, flind, oind, pind, segind;
 
-	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
-#ifdef	VM_FREELIST_ISADMA
-		if (phys_avail[i] < 16777216) {
-			if (phys_avail[i + 1] > 16777216) {
-				vm_phys_create_seg(phys_avail[i], 16777216,
-				    VM_FREELIST_ISADMA);
-				vm_phys_create_seg(16777216, phys_avail[i + 1],
-				    VM_FREELIST_DEFAULT);
-			} else {
-				vm_phys_create_seg(phys_avail[i],
-				    phys_avail[i + 1], VM_FREELIST_ISADMA);
-			}
-			if (VM_FREELIST_ISADMA >= vm_nfreelists)
-				vm_nfreelists = VM_FREELIST_ISADMA + 1;
-		} else
+#ifdef VM_PHYSSEG_SPARSE
+	pages = 0;
 #endif
-#ifdef	VM_FREELIST_HIGHMEM
-		if (phys_avail[i + 1] > VM_HIGHMEM_ADDRESS) {
-			if (phys_avail[i] < VM_HIGHMEM_ADDRESS) {
-				vm_phys_create_seg(phys_avail[i],
-				    VM_HIGHMEM_ADDRESS, VM_FREELIST_DEFAULT);
-				vm_phys_create_seg(VM_HIGHMEM_ADDRESS,
-				    phys_avail[i + 1], VM_FREELIST_HIGHMEM);
-			} else {
-				vm_phys_create_seg(phys_avail[i],
-				    phys_avail[i + 1], VM_FREELIST_HIGHMEM);
-			}
-			if (VM_FREELIST_HIGHMEM >= vm_nfreelists)
-				vm_nfreelists = VM_FREELIST_HIGHMEM + 1;
-		} else
+	for (segind = 0; segind < vm_phys_nsegs; segind++) {
+		seg = &vm_phys_segs[segind];
+#ifdef VM_PHYSSEG_SPARSE
+		seg->first_page = &vm_page_array[pages];
+		pages += atop(seg->end - seg->start);
+#else
+		seg->first_page = PHYS_TO_VM_PAGE(seg->start);
 #endif
-		vm_phys_create_seg(phys_avail[i], phys_avail[i + 1],
-		    VM_FREELIST_DEFAULT);
 	}
 	for (dom = 0; dom < vm_ndomains; dom++) {
 		for (flind = 0; flind < vm_nfreelists; flind++) {

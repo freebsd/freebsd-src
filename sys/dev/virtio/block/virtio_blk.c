@@ -243,6 +243,8 @@ static driver_t vtblk_driver = {
 };
 static devclass_t vtblk_devclass;
 
+DRIVER_MODULE(virtio_blk, virtio_mmio, vtblk_driver, vtblk_devclass,
+    vtblk_modevent, 0);
 DRIVER_MODULE(virtio_blk, virtio_pci, vtblk_driver, vtblk_devclass,
     vtblk_modevent, 0);
 MODULE_VERSION(virtio_blk, 1);

@@ -1954,7 +1954,6 @@ OLD_FILES+=usr/share/man/man3/iconvlist.3.gz
 .if ${MK_INET6} == no
 OLD_FILES+=sbin/ping6
 OLD_FILES+=sbin/rtsol
-OLD_FILES+=usr/sbin/faithd
 OLD_FILES+=usr/sbin/ip6addrctl
 OLD_FILES+=usr/sbin/mld6query
 OLD_FILES+=usr/sbin/ndp

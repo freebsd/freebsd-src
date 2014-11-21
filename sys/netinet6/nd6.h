@@ -430,7 +430,6 @@ void nd6_ns_output(struct ifnet *, const struct in6_addr *,
 caddr_t nd6_ifptomac(struct ifnet *);
 void nd6_dad_start(struct ifaddr *, int);
 void nd6_dad_stop(struct ifaddr *);
-void nd6_dad_duplicated(struct ifaddr *);
 
 /* nd6_rtr.c */
 void nd6_rs_input(struct mbuf *, int, int);
