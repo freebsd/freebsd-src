@@ -51,8 +51,9 @@ typedef vm_object_t pgo_alloc_t(void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t,
     struct ucred *);
 typedef void pgo_dealloc_t(vm_object_t);
 typedef int pgo_getpages_t(vm_object_t, vm_page_t *, int, int);
+typedef void pgo_getpages_iodone_t(void *, vm_page_t *, int, int);
 typedef int pgo_getpages_async_t(vm_object_t, vm_page_t *, int, int,
-    void(*)(void *, vm_page_t *, int, int), void *);
+    pgo_getpages_iodone_t *, void *);
 typedef void pgo_putpages_t(vm_object_t, vm_page_t *, int, int, int *);
 typedef boolean_t pgo_haspage_t(vm_object_t, vm_pindex_t, int *, int *);
 typedef void pgo_pageunswapped_t(vm_page_t);
@@ -140,7 +141,7 @@ vm_pager_get_pages(
 
 static inline int
 vm_pager_get_pages_async(vm_object_t object, vm_page_t *m, int count,
-    int reqpage, void (*iodone)(void *, vm_page_t *, int, int), void *arg)
+    int reqpage, pgo_getpages_iodone_t iodone, void *arg)
 {
 	int r;
 

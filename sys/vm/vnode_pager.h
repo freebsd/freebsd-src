@@ -41,8 +41,7 @@
 #ifdef _KERNEL
 
 int vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m,
-    int count, int reqpage, void (*iodone)(void *, vm_page_t *, int, int),
-    void *arg);
+    int count, int reqpage, vop_getpages_iodone_t iodone, void *arg);
 int vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *m,
 					  int count, boolean_t sync,
 					  int *rtvals);
