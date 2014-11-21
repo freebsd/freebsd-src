@@ -13710,7 +13710,7 @@ static int
 ctl_process_done(union ctl_io *io)
 {
 	struct ctl_lun *lun;
-	struct ctl_softc *ctl_softc;
+	struct ctl_softc *ctl_softc = control_softc;
 	void (*fe_done)(union ctl_io *io);
 	uint32_t targ_port = ctl_port_idx(io->io_hdr.nexus.targ_port);
 
@@ -13776,10 +13776,8 @@ ctl_process_done(union ctl_io *io)
 	if (lun == NULL) {
 		CTL_DEBUG_PRINT(("NULL LUN for lun %d\n",
 				 io->io_hdr.nexus.targ_mapped_lun));
-		fe_done(io);
 		goto bailout;
 	}
-	ctl_softc = lun->ctl_softc;
 
 	mtx_lock(&lun->lun_lock);
 
@@ -13850,6 +13848,8 @@ ctl_process_done(union ctl_io *io)
 		mtx_unlock(&ctl_softc->ctl_lock);
 	} else
 		mtx_unlock(&lun->lun_lock);
+
+bailout:
 
 	/*
 	 * If this command has been aborted, make sure we set the status
@@ -13932,8 +13932,6 @@ ctl_process_done(union ctl_io *io)
 		ctl_free_io(io);
 	} else 
 		fe_done(io);
-
-bailout:
 
 	return (CTL_RETVAL_COMPLETE);
 }
