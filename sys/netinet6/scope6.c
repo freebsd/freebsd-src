@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/systm.h>
@@ -208,6 +209,7 @@ static int
 scope6_get(struct ifnet *ifp, struct scope6_id *idlist)
 {
 	struct scope6_id *sid;
+	IF_AFDATA_TRACKER;
 
 	/* We only need to lock the interface's afdata for SID() to work. */
 	IF_AFDATA_RLOCK(ifp);
@@ -410,6 +412,7 @@ in6_setscope(struct in6_addr *in6, struct ifnet *ifp, u_int32_t *ret_id)
 	int scope;
 	u_int32_t zoneid = 0;
 	struct scope6_id *sid;
+	IF_AFDATA_TRACKER;
 
 	/*
 	 * special case: the loopback address can only belong to a loopback
