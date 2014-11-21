@@ -86,6 +86,13 @@ NESTED(setjmp, SETJMP_FRAME_SIZE, ra)
 	REG_LI	v0, _JB_MAGIC_SETJMP
 	REG_S	v0, (_JB_MAGIC  * SZREG)(a0)
 	REG_S	ra, (_JB_REG_RA * SZREG)(a0)
+	/*
+	 * From "MIPSpro N32 ABI Handbook", Table 2-1:
+	 * Registers s0..s7 are callee-saved.
+	 * The sp register is callee-saved.
+	 * The fp (or s8) register is callee-saved.
+	 * The gp register is callee-saved (for n32/n64).
+	 */
 	REG_S	s0, (_JB_REG_S0 * SZREG)(a0)
 	REG_S	s1, (_JB_REG_S1 * SZREG)(a0)
 	REG_S	s2, (_JB_REG_S2 * SZREG)(a0)
@@ -99,6 +106,36 @@ NESTED(setjmp, SETJMP_FRAME_SIZE, ra)
 #if defined(__mips_n32) || defined(__mips_n64)
 	REG_S	gp, (_JB_REG_GP * SZREG)(a0)
 #endif
+#ifndef SOFTFLOAT
+	/*
+	 * From "MIPSpro N32 ABI Handbook", Table 2-1:
+	 * In N32, FP registers F20, F22, F24, F26, F28, F30 are callee-saved.
+	 * In N64, FP registers F24 .. F31 are callee-saved.
+	 * In O32, FP registers F20 .. F23 are callee-saved.
+	 */
+	cfc1	v0, $31
+	INT_S	v0, (_JB_FPREG_FCSR * SZREG)(a0)
+#if defined(__mips_o32) || defined(__mips_o64) || defined(__mips_n32)
+	FP_S	$f20, (_JB_FPREG_F20 * SZREG)(a0)
+	FP_S	$f22, (_JB_FPREG_F22 * SZREG)(a0)
+#endif
+#if defined(__mips_o32) || defined(__mips_o64)
+	FP_S	$f21, (_JB_FPREG_F21 * SZREG)(a0)
+	FP_S	$f23, (_JB_FPREG_F23 * SZREG)(a0)
+#endif
+#if defined(__mips_n32) || defined(__mips_n64)
+	FP_S	$f24, (_JB_FPREG_F24 * SZREG)(a0)
+	FP_S	$f26, (_JB_FPREG_F26 * SZREG)(a0)
+	FP_S	$f28, (_JB_FPREG_F28 * SZREG)(a0)
+	FP_S	$f30, (_JB_FPREG_F30 * SZREG)(a0)
+#endif
+#if defined(__mips_n64)
+	FP_S	$f25, (_JB_FPREG_F25 * SZREG)(a0)
+	FP_S	$f27, (_JB_FPREG_F27 * SZREG)(a0)
+	FP_S	$f29, (_JB_FPREG_F29 * SZREG)(a0)
+	FP_S	$f31, (_JB_FPREG_F31 * SZREG)(a0)
+#endif
+#endif	/* ! SOFTFLOAT */
 
 	move	v0, zero
 	jr	ra
@@ -133,6 +170,13 @@ NESTED(longjmp, LONGJMP_FRAME_SIZE, ra)
 	REG_L	a1, (CALLFRAME_SIZ + SZREG)(sp)	# restore return value
 
 	REG_L	ra, (_JB_REG_RA * SZREG)(a0)
+	/*
+	 * From "MIPSpro N32 ABI Handbook", Table 2-1:
+	 * Registers s0..s7 are callee-saved.
+	 * The sp register is callee-saved.
+	 * The fp (or s8) register is callee-saved.
+	 * The gp register is callee-saved (for n32/n64).
+	 */
 	REG_L	s0, (_JB_REG_S0 * SZREG)(a0)
 	REG_L	s1, (_JB_REG_S1 * SZREG)(a0)
 	REG_L	s2, (_JB_REG_S2 * SZREG)(a0)
@@ -146,6 +190,36 @@ NESTED(longjmp, LONGJMP_FRAME_SIZE, ra)
 #if defined(__mips_n32) || defined(__mips_n64)
 	REG_L	gp, (_JB_REG_GP * SZREG)(a0)
 #endif
+#ifndef SOFTFLOAT
+	/*
+	 * From "MIPSpro N32 ABI Handbook", Table 2-1:
+	 * In N32, FP registers F20, F22, F24, F26, F28, F30 are callee-saved.
+	 * In N64, FP registers F23 .. F31 are callee-saved.
+	 * In O32, FP registers F20 .. F23 are callee-saved.
+	 */
+        INT_L           v0, (_JB_FPREG_FCSR * SZREG)(a0)
+        ctc1            v0, $31
+#if defined(__mips_n64) || defined(__mips_n32)
+	FP_L	$f30, (_JB_FPREG_F30 * SZREG)(a0)
+	FP_L	$f28, (_JB_FPREG_F28 * SZREG)(a0)
+	FP_L	$f26, (_JB_FPREG_F26 * SZREG)(a0)
+	FP_L	$f24, (_JB_FPREG_F24 * SZREG)(a0)
+#endif
+#if defined(__mips_n32) || defined(__mips_o32) || defined(__mips_o64)
+	FP_L	$f22, (_JB_FPREG_F22 * SZREG)(a0)
+	FP_L	$f20, (_JB_FPREG_F20 * SZREG)(a0)
+#endif
+#if defined(__mips_o32) || defined(__mips_o64)
+	FP_L	$f21, (_JB_FPREG_F21 * SZREG)(a0)
+	FP_L	$f23, (_JB_FPREG_F23 * SZREG)(a0)
+#endif
+#if defined(__mips_n64)
+	FP_L	$f25, (_JB_FPREG_F25 * SZREG)(a0)
+	FP_L	$f27, (_JB_FPREG_F27 * SZREG)(a0)
+	FP_L	$f29, (_JB_FPREG_F29 * SZREG)(a0)
+	FP_L	$f31, (_JB_FPREG_F31 * SZREG)(a0)
+#endif
+#endif	/* ! SOFTFLOAT */
 
 	move	v0, a1
 	j	ra
