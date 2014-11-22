@@ -1,4 +1,4 @@
-/*	$Id: tbl_html.c,v 1.10 2012/05/27 17:54:54 schwarze Exp $ */
+/*	$Id: tbl_html.c,v 1.11 2014/04/20 16:46:05 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -31,15 +31,14 @@ static	void	 html_tblopen(struct html *, const struct tbl_span *);
 static	size_t	 html_tbl_len(size_t, void *);
 static	size_t	 html_tbl_strlen(const char *, void *);
 
-/* ARGSUSED */
+
 static size_t
 html_tbl_len(size_t sz, void *arg)
 {
-	
+
 	return(sz);
 }
 
-/* ARGSUSED */
 static size_t
 html_tbl_strlen(const char *p, void *arg)
 {
@@ -107,9 +106,9 @@ print_tbl(struct html *h, const struct tbl_span *sp)
 	tt = print_otag(h, TAG_TR, 0, NULL);
 
 	switch (sp->pos) {
-	case (TBL_SPAN_HORIZ):
+	case TBL_SPAN_HORIZ:
 		/* FALLTHROUGH */
-	case (TBL_SPAN_DHORIZ):
+	case TBL_SPAN_DHORIZ:
 		PAIR_INIT(&tag, ATTR_COLSPAN, "0");
 		print_otag(h, TAG_TD, 1, &tag);
 		break;

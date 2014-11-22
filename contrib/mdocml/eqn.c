@@ -1,4 +1,4 @@
-/*	$Id: eqn.c,v 1.38 2011/07/25 15:37:00 kristaps Exp $ */
+/*	$Id: eqn.c,v 1.44 2014/07/06 19:09:00 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -26,6 +26,7 @@
 #include <time.h>
 
 #include "mandoc.h"
+#include "mandoc_aux.h"
 #include "libmandoc.h"
 #include "libroff.h"
 
@@ -137,12 +138,11 @@ struct	eqnsym {
 	const char	*sym;
 };
 
-
 static	enum eqn_rest	 eqn_box(struct eqn_node *, struct eqn_box *);
-static	struct eqn_box	*eqn_box_alloc(struct eqn_node *, 
+static	struct eqn_box	*eqn_box_alloc(struct eqn_node *,
 				struct eqn_box *);
 static	void		 eqn_box_free(struct eqn_box *);
-static	struct eqn_def	*eqn_def_find(struct eqn_node *, 
+static	struct eqn_def	*eqn_def_find(struct eqn_node *,
 				const char *, size_t);
 static	int		 eqn_do_gfont(struct eqn_node *);
 static	int		 eqn_do_gsize(struct eqn_node *);
@@ -156,7 +156,7 @@ static	enum eqn_rest	 eqn_list(struct eqn_node *, struct eqn_box *);
 static	enum eqn_rest	 eqn_matrix(struct eqn_node *, struct eqn_box *);
 static	const char	*eqn_nexttok(struct eqn_node *, size_t *);
 static	const char	*eqn_nextrawtok(struct eqn_node *, size_t *);
-static	const char	*eqn_next(struct eqn_node *, 
+static	const char	*eqn_next(struct eqn_node *,
 				char, size_t *, int);
 static	void		 eqn_rewind(struct eqn_node *);
 
@@ -277,9 +277,9 @@ static	const struct eqnsym eqnsyms[EQNSYM__MAX] = {
 	{ { ">=", 2 }, ">=" }, /* EQNSYM_moreequal */
 };
 
-/* ARGSUSED */
+
 enum rofferr
-eqn_read(struct eqn_node **epp, int ln, 
+eqn_read(struct eqn_node **epp, int ln,
 		const char *p, int pos, int *offs)
 {
 	size_t		 sz;
@@ -298,9 +298,10 @@ eqn_read(struct eqn_node **epp, int ln,
 		p += 3;
 		while (' ' == *p || '\t' == *p)
 			p++;
-		if ('\0' == *p) 
+		if ('\0' == *p)
 			return(er);
-		mandoc_msg(MANDOCERR_ARGSLOST, ep->parse, ln, pos, NULL);
+		mandoc_vmsg(MANDOCERR_ARG_SKIP, ep->parse,
+		    ln, pos, "EN %s", p);
 		return(er);
 	}
 
@@ -413,11 +414,11 @@ eqn_matrix(struct eqn_node *ep, struct eqn_box *last)
 
 	while (EQN_OK == (c = eqn_box(ep, bp)))
 		switch (bp->last->pile) {
-		case (EQNPILE_LCOL):
+		case EQNPILE_LCOL:
 			/* FALLTHROUGH */
-		case (EQNPILE_CCOL):
+		case EQNPILE_CCOL:
 			/* FALLTHROUGH */
-		case (EQNPILE_RCOL):
+		case EQNPILE_RCOL:
 			continue;
 		default:
 			EQN_MSG(MANDOCERR_EQNSYNT, ep);
@@ -512,9 +513,8 @@ eqn_box(struct eqn_node *ep, struct eqn_box *last)
 	for (i = 0; i < (int)EQN__MAX; i++) {
 		if ( ! EQNSTREQ(&eqnparts[i].str, start, sz))
 			continue;
-		return((*eqnparts[i].fp)(ep) ? 
-				EQN_OK : EQN_ERR);
-	} 
+		return((*eqnparts[i].fp)(ep) ? EQN_OK : EQN_ERR);
+	}
 
 	if (STRNEQ(start, sz, "{", 1)) {
 		if (EQN_DESCOPE != (c = eqn_eqn(ep, last))) {
@@ -529,7 +529,7 @@ eqn_box(struct eqn_node *ep, struct eqn_box *last)
 			return(EQN_OK);
 		EQN_MSG(MANDOCERR_EQNBADSCOPE, ep);
 		return(EQN_ERR);
-	} 
+	}
 
 	for (i = 0; i < (int)EQNPILE__MAX; i++) {
 		if ( ! EQNSTREQ(&eqnpiles[i], start, sz))
@@ -575,7 +575,7 @@ eqn_box(struct eqn_node *ep, struct eqn_box *last)
 		if (NULL == last->last) {
 			EQN_MSG(MANDOCERR_EQNSYNT, ep);
 			return(EQN_ERR);
-		} 
+		}
 		last->last->pos = (enum eqn_post)i;
 		if (EQN_EOF == (c = eqn_box(ep, last))) {
 			EQN_MSG(MANDOCERR_EQNEOF, ep);
@@ -590,7 +590,7 @@ eqn_box(struct eqn_node *ep, struct eqn_box *last)
 		if (NULL == last->last) {
 			EQN_MSG(MANDOCERR_EQNSYNT, ep);
 			return(EQN_ERR);
-		} 
+		}
 		last->last->mark = (enum eqn_markt)i;
 		if (EQN_EOF == (c = eqn_box(ep, last))) {
 			EQN_MSG(MANDOCERR_EQNEOF, ep);
@@ -629,7 +629,7 @@ eqn_box(struct eqn_node *ep, struct eqn_box *last)
 	for (i = 0; i < (int)EQNSYM__MAX; i++)
 		if (EQNSTREQ(&eqnsyms[i].str, start, sz)) {
 			sym[63] = '\0';
-			snprintf(sym, 62, "\\[%s]", eqnsyms[i].sym);
+			(void)snprintf(sym, 62, "\\[%s]", eqnsyms[i].sym);
 			bp->text = mandoc_strdup(sym);
 			return(EQN_OK);
 		}
@@ -762,13 +762,13 @@ again:
 		if (q)
 			ep->cur++;
 		while (' ' == ep->data[(int)ep->cur] ||
-				'\t' == ep->data[(int)ep->cur] ||
-				'^' == ep->data[(int)ep->cur] ||
-				'~' == ep->data[(int)ep->cur])
+		    '\t' == ep->data[(int)ep->cur] ||
+		    '^' == ep->data[(int)ep->cur] ||
+		    '~' == ep->data[(int)ep->cur])
 			ep->cur++;
 	} else {
 		if (q)
-			EQN_MSG(MANDOCERR_BADQUOTE, ep);
+			EQN_MSG(MANDOCERR_ARG_QUOTE, ep);
 		next = strchr(start, '\0');
 		*sz = (size_t)(next - start);
 		ep->cur += *sz;
@@ -790,8 +790,8 @@ again:
 		}
 
 		diff = def->valsz - *sz;
-		memmove(start + *sz + diff, start + *sz, 
-				(strlen(start) - *sz) + 1);
+		memmove(start + *sz + diff, start + *sz,
+		    (strlen(start) - *sz) + 1);
 		memcpy(start, def->val, def->valsz);
 		goto again;
 	}
@@ -852,8 +852,8 @@ eqn_do_define(struct eqn_node *ep)
 		return(0);
 	}
 
-	/* 
-	 * Search for a key that already exists. 
+	/*
+	 * Search for a key that already exists.
 	 * Create a new key if none is found.
 	 */
 
@@ -865,15 +865,14 @@ eqn_do_define(struct eqn_node *ep)
 
 		if (i == (int)ep->defsz) {
 			ep->defsz++;
-			ep->defs = mandoc_realloc
-				(ep->defs, ep->defsz * 
-				 sizeof(struct eqn_def));
+			ep->defs = mandoc_reallocarray(ep->defs,
+			    ep->defsz, sizeof(struct eqn_def));
 			ep->defs[i].key = ep->defs[i].val = NULL;
 		}
 
 		ep->defs[i].keysz = sz;
-		ep->defs[i].key = mandoc_realloc
-			(ep->defs[i].key, sz + 1);
+		ep->defs[i].key = mandoc_realloc(
+		    ep->defs[i].key, sz + 1);
 
 		memcpy(ep->defs[i].key, start, sz);
 		ep->defs[i].key[(int)sz] = '\0';
@@ -901,7 +900,7 @@ eqn_do_gfont(struct eqn_node *ep)
 	if (NULL == eqn_nextrawtok(ep, NULL)) {
 		EQN_MSG(MANDOCERR_EQNEOF, ep);
 		return(0);
-	} 
+	}
 	return(1);
 }
 
@@ -914,7 +913,7 @@ eqn_do_gsize(struct eqn_node *ep)
 	if (NULL == (start = eqn_nextrawtok(ep, &sz))) {
 		EQN_MSG(MANDOCERR_EQNEOF, ep);
 		return(0);
-	} 
+	}
 	ep->gsize = mandoc_strntoi(start, sz, 10);
 	return(1);
 }
@@ -940,9 +939,9 @@ eqn_def_find(struct eqn_node *ep, const char *key, size_t sz)
 {
 	int		 i;
 
-	for (i = 0; i < (int)ep->defsz; i++) 
-		if (ep->defs[i].keysz && STRNEQ(ep->defs[i].key, 
-					ep->defs[i].keysz, key, sz))
+	for (i = 0; i < (int)ep->defsz; i++)
+		if (ep->defs[i].keysz && STRNEQ(ep->defs[i].key,
+		    ep->defs[i].keysz, key, sz))
 			return(&ep->defs[i]);
 
 	return(NULL);
