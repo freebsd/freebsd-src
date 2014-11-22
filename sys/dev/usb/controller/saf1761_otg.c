@@ -510,7 +510,10 @@ saf1761_host_bulk_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 			td->error_any = 1;
 			goto complete;
 		}
-		count = (status & SOTG_PTD_DW3_XFER_COUNT);
+		if (td->dw1_value & SOTG_PTD_DW1_ENABLE_SPLIT)
+			count = (status & SOTG_PTD_DW3_XFER_COUNT_SPLIT);
+		else
+			count = (status & SOTG_PTD_DW3_XFER_COUNT_HS);
 		got_short = 0;
 
 		/* verify the packet byte count */
@@ -700,7 +703,10 @@ saf1761_host_intr_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 			td->error_any = 1;
 			goto complete;
 		}
-		count = (status & SOTG_PTD_DW3_XFER_COUNT);
+		if (td->dw1_value & SOTG_PTD_DW1_ENABLE_SPLIT)
+			count = (status & SOTG_PTD_DW3_XFER_COUNT_SPLIT);
+		else
+			count = (status & SOTG_PTD_DW3_XFER_COUNT_HS);
 		got_short = 0;
 
 		/* verify the packet byte count */
@@ -895,7 +901,10 @@ saf1761_host_isoc_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 		} else if (status & SOTG_PTD_DW3_HALTED) {
 			goto complete;
 		}
-		count = (status & SOTG_PTD_DW3_XFER_COUNT);
+		if (td->dw1_value & SOTG_PTD_DW1_ENABLE_SPLIT)
+			count = (status & SOTG_PTD_DW3_XFER_COUNT_SPLIT);
+		else
+			count = (status & SOTG_PTD_DW3_XFER_COUNT_HS);
 
 		/* verify the packet byte count */
 		if (count != td->max_packet_size) {
