@@ -129,6 +129,7 @@ SUBDIR=	alias \
 	pathchk \
 	perror \
 	pr \
+	preconv \
 	printenv \
 	printf \
 	procstat \
