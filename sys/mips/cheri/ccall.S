@@ -137,6 +137,7 @@ CHERICCall:
 	 * handler.
 	 */
 
+#if !defined(CPU_CHERI_HW_CCALL_CHECKS)
 	/* First, test argument registers for tag validity. */
 	cbtu		CHERI_REG_CCALLCODE, CCall_c1_untagged
 	nop
@@ -176,6 +177,22 @@ CHERICCall:
 	sltu		k1, k1, k0
 	bnez		k1, CCall_c1_range
 	nop
+#else /* CPU_CHERI_HW_CCALL_CHECKS */
+	/*
+	 * When the processor performs checks for tags, sealing, type,
+	 * permissions, and range on registers, it does so for argument
+	 * registers specified in the instruction.  We must check that they
+	 * conform with our $c1/$c2 calling convention or we risk the checks
+	 * having been performed on the wrong registers.  We do this by
+	 * inspecting the exception-instruction CP0 register.
+	 */
+	dmfc0		k0, MIPS_COP_0_EXC_INS, 1	/* Get ins. encoding */
+	srl		k0, k0, 11	/* Shift register numbers to bottom */
+	and		k0, k0, 0x3ff	/* Mask everything but reg. numbers */
+	li		k1, ((1<<5) | 2)/* Check that arguments are c1 and c2 */
+	bne		k0, k1, CCall_wrong_regs
+	nop
+#endif /* CPU_CHERI_HW_CCALL_CHECKS */
 
 	/*
 	 * Sixth: check that all argument capabilities with tags have the
@@ -361,6 +378,7 @@ CHERICCall:
 	 */
 
 	/* Non-argument general-purpose registers (n64). */
+#if !defined(CPU_CHERI_HW_RCLEAR)
 	li		AT, 0
 	li		v0, 0
 	li		v1, 0
@@ -392,7 +410,13 @@ CHERICCall:
 	li		ra, 0
 	mtlo		zero
 	mthi		zero
+#else /* CPU_CHERI_HW_RCLEAR */
+	/* Hypothesise that clearregs would take two instructions. */
+	nop
+	nop
+#endif /* CPU_CHERI_HW_RCLEAR */
 
+#if !defined(CPU_CHERI_HW_CCLEAR)
 	/* Non-argument capability registers. */
 	cfromptr	$c0, $c0, zero
 	/* $c1 preserved as the passed code capability. */
@@ -420,9 +444,16 @@ CHERICCall:
 	cfromptr	$c23, $c23, zero
 	cfromptr	$c24, $c24, zero
 	cfromptr	$c25, $c25, zero
+#else /* CPU_CHERI_HW_CCLEAR */
+	/* Hypothesise that cclearregs would take two instructions. */
+	nop
+	nop
+#endif /* CPU_CHERI_HW_CCLEAR */
 
 	CHERI_EXCEPTION_RETURN(k0)
 	eret
+
+#if !defined(CPU_CHERI_HW_CCALL_CHECKS)
 
 CCall_c1_untagged:
 	dli	k0, ((CHERI_EXCCODE_TAG << 8) | 1)
@@ -463,6 +494,15 @@ CCall_c1_range:
 	dli	k0, ((CHERI_EXCCODE_LENGTH << 8) | 1)
 	b	CCall_throw_exception
 	csetcause	k0		/* Branch-delay slot. */
+
+#else /* CPU_CHERI_HW_CCALL_CHECKS */
+
+CCall_wrong_regs:
+	dli	k0, ((CHERI_EXCCODE_CCALL_WRONGREGS <<8) | 0)
+	b	CCall_throw_exception
+	csetcause	k0		/* Branch-delay slot. */
+
+#endif /* CPU_CHERI_HW_CCALL_CHECKS */
 
 CCall_local_argument:
 	dli	k0, (CHERI_EXCCODE_SW_LOCALARG << 8)
@@ -562,6 +602,7 @@ CHERICReturn:
 	 * practice.
 	 */
 
+#if !defined(CPU_CHERI_HW_RCLEAR)
 	/* Non-return-value general-purpose registers (n64). */
 	li		AT, 0
 	/* v0 handled by compiler. */
@@ -594,7 +635,13 @@ CHERICReturn:
 	li		ra, 0
 	mtlo		zero
 	mthi		zero
+#else /* CPU_CHERI_HW_CCALL_CHECKS */
+	/* Hypothesise that clearregs would take two instructions. */
+	nop
+	nop
+#endif /* CPU_CHERI_HW_CCALL_CHECKS */
 
+#if !defined(CPU_CHERI_HW_CCLEAR)
 	/* Non-return-value capability registers. */
 	cfromptr	$c0, $c0, zero
 	cfromptr	$c1, $c1, zero
@@ -622,6 +669,12 @@ CHERICReturn:
 	cfromptr	$c23, $c23, zero
 	cfromptr	$c24, $c24, zero
 	cfromptr	$c25, $c25, zero
+#else
+	/* Hypothesise that cclearregs would take two instructions. */
+	nop
+	nop
+#endif
+
 	CHERI_EXCEPTION_RETURN(k0)
 	eret
 

@@ -521,6 +521,11 @@
 #define	MIPS_COP_0_DATA_HI	_(29)
 #define	MIPS_COP_0_DESAVE	_(31)
 
+/* CHERI */
+#ifdef CPU_BERI
+#define	MIPS_COP_0_EXC_INS	_(8)	/* sel 1 */
+#endif
+
 /* MIPS32 Config register definitions */
 #define MIPS_MMU_NONE			0x00		/* No MMU present */
 #define MIPS_MMU_TLB			0x01		/* Standard TLB */

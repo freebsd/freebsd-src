@@ -97,6 +97,10 @@ OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h
 BERI_LARGE_TLB			opt_global.h
 PLATFORM_INIT_SECONDARY		opt_global.h
 
+CPU_CHERI_HW_RCLEAR	opt_global.h
+CPU_CHERI_HW_CCLEAR	opt_global.h
+CPU_CHERI_HW_CCALL_CHECKS	opt_global.h
+
 #
 # Options that control the NetFPGA-10G Embedded CPU Ethernet Core.
 #
