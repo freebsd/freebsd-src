@@ -1,4 +1,4 @@
-/*	$Id: arch.in,v 1.14 2013/09/16 22:12:57 schwarze Exp $ */
+/*	$Id: arch.in,v 1.15 2014/04/27 22:42:15 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -65,8 +65,8 @@ LINE("ibmnws",		"IBMNWS")
 LINE("iyonix",		"Iyonix")
 LINE("landisk",		"LANDISK")
 LINE("loongson",	"Loongson")
-LINE("luna68k",		"Luna68k")
-LINE("luna88k",		"Luna88k")
+LINE("luna68k",		"LUNA68K")
+LINE("luna88k",		"LUNA88K")
 LINE("m68k",		"m68k")
 LINE("mac68k",		"Mac68k")
 LINE("macppc",		"MacPPC")

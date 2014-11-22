@@ -1,7 +1,8 @@
-.\"	$Id: man.7,v 1.120 2013/09/16 22:58:57 schwarze Exp $
+.\"	$Id: man.7,v 1.127 2014/06/22 16:39:45 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
-.\" Copyright (c) 2011, 2012 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2011, 2012, 2013 Ingo Schwarze <schwarze@openbsd.org>
+.\" Copyright (c) 2010 Joerg Sonnenberger <joerg@netbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -15,7 +16,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: September 16 2013 $
+.Dd $Mdocdate: June 22 2014 $
 .Dt MAN 7
 .Os
 .Sh NAME
@@ -97,30 +98,32 @@ file for a utility
 .Bd -literal -offset indent
 \&.TH PROGNAME 1 2009-10-10
 \&.SH NAME
-\efBprogname\efR \e(en a description goes here
+\efBprogname\efR \e(en one line about what it does
 \&.\e\(dq .SH LIBRARY
-\&.\e\(dq For sections 2 & 3 only.
+\&.\e\(dq For sections 2, 3, and 9 only.
 \&.\e\(dq Not used in OpenBSD.
 \&.SH SYNOPSIS
-\efBprogname\efR [\efB\e-options\efR] arguments...
+\efBprogname\efR [\efB\e-options\efR] \efIfile ...\efR
 \&.SH DESCRIPTION
-The \efBfoo\efR utility processes files...
+The \efBfoo\efR utility processes files ...
+\&.\e\(dq .Sh CONTEXT
+\&.\e\(dq For section 9 functions only.
 \&.\e\(dq .SH IMPLEMENTATION NOTES
 \&.\e\(dq Not used in OpenBSD.
 \&.\e\(dq .SH RETURN VALUES
-\&.\e\(dq For sections 2, 3, & 9 only.
+\&.\e\(dq For sections 2, 3, and 9 function return values only.
 \&.\e\(dq .SH ENVIRONMENT
-\&.\e\(dq For sections 1, 6, 7, & 8 only.
+\&.\e\(dq For sections 1, 6, 7, and 8 only.
 \&.\e\(dq .SH FILES
 \&.\e\(dq .SH EXIT STATUS
-\&.\e\(dq For sections 1, 6, & 8 only.
+\&.\e\(dq For sections 1, 6, and 8 only.
 \&.\e\(dq .SH EXAMPLES
 \&.\e\(dq .SH DIAGNOSTICS
-\&.\e\(dq For sections 1, 4, 6, 7, & 8 only.
+\&.\e\(dq For sections 1, 4, 6, 7, 8, and 9 printf/stderr messages only.
 \&.\e\(dq .SH ERRORS
-\&.\e\(dq For sections 2, 3, & 9 only.
+\&.\e\(dq For sections 2, 3, 4, and 9 errno settings only.
 \&.\e\(dq .SH SEE ALSO
-\&.\e\(dq .BR foo ( 1 )
+\&.\e\(dq .BR foobar ( 1 )
 \&.\e\(dq .SH STANDARDS
 \&.\e\(dq .SH HISTORY
 \&.\e\(dq .SH AUTHORS
@@ -170,6 +173,9 @@ This expands upon the brief, one-line description in
 .Em NAME .
 It usually contains a break-down of the options (if documenting a
 command).
+.It Em CONTEXT
+This section lists the contexts in which functions can be called in section 9.
+The contexts are autoconf, process, or interrupt.
 .It Em IMPLEMENTATION NOTES
 Implementation-specific notes should be kept here.
 This is useful when implementing standard functions that may have side
@@ -196,13 +202,19 @@ well-tested invocations.
 Make sure that examples work properly!
 .It Em DIAGNOSTICS
 Documents error conditions.
-This is most useful in section 4 manuals.
+In section 4 and 9 manuals, these are usually messages
+printed by the kernel to the console and to the kernel log.
+In section 1, 6, 7, and 8, these are usually messages
+printed by userland programs to the standard error output.
+.Pp
 Historically, this section was used in place of
 .Em EXIT STATUS
 for manuals in sections 1, 6, and 8; however, this practise is
 discouraged.
 .It Em ERRORS
-Documents error handling in sections 2, 3, and 9.
+Documents
+.Xr errno 2
+settings in sections 2, 3, 4, and 9.
 .It Em SEE ALSO
 References other manuals with related topics.
 This section should exist for most manuals.
@@ -280,7 +292,7 @@ For the scoping of individual macros, see
 .Sx MACRO SYNTAX .
 .Ss \&AT
 Sets the volume for the footer for compatibility with man pages from
-.Tn AT&T UNIX
+.At
 releases.
 The optional arguments specify which release it is from.
 .Ss \&B
@@ -656,6 +668,20 @@ Sets the volume for the footer for compatibility with man pages from
 .Bx
 releases.
 The optional first argument specifies which release it is from.
+.Ss \&UE
+End a uniform resource identifier block.
+This is a non-standard GNU extension, included only for compatibility.
+See
+.Sx \&UE .
+.Ss \&UR
+Begin a uniform resource identifier block.
+This is a non-standard GNU extension, included only for compatibility.
+It has the following syntax:
+.Bd -literal -offset indent
+.Pf \. Sx \&UR Ar uri
+link description to be shown
+.Pf \. Sx UE
+.Ed
 .Ss \&br
 Breaks the current line.
 Consecutive invocations have no further effect.
@@ -665,11 +691,6 @@ See also
 .Ss \&fi
 End literal mode begun by
 .Sx \&nf .
-.Ss \&ft
-Change the current font mode.
-See
-.Sx Text Decoration
-for a listing of available font modes.
 .Ss \&in
 Indent relative to the current indentation:
 .Pp
@@ -750,10 +771,13 @@ The syntax is as follows:
 .It Sx \&BI  Ta    n         Ta    current   Ta    \&
 .It Sx \&BR  Ta    n         Ta    current   Ta    \&
 .It Sx \&DT  Ta    0         Ta    current   Ta    \&
+.It Sx \&EE  Ta    0         Ta    current   Ta    compat
+.It Sx \&EX  Ta    0         Ta    current   Ta    compat
 .It Sx \&I   Ta    n         Ta    next-line Ta    \&
 .It Sx \&IB  Ta    n         Ta    current   Ta    \&
 .It Sx \&IR  Ta    n         Ta    current   Ta    \&
 .It Sx \&OP  Ta    0, 1      Ta    current   Ta    compat
+.It Sx \&PD  Ta    1         Ta    current   Ta    \&
 .It Sx \&R   Ta    n         Ta    next-line Ta    \&
 .It Sx \&RB  Ta    n         Ta    current   Ta    \&
 .It Sx \&RI  Ta    n         Ta    current   Ta    \&
@@ -763,7 +787,6 @@ The syntax is as follows:
 .It Sx \&UC  Ta    <=1       Ta    current   Ta    \&
 .It Sx \&br  Ta    0         Ta    current   Ta    compat
 .It Sx \&fi  Ta    0         Ta    current   Ta    compat
-.It Sx \&ft  Ta    1         Ta    current   Ta    compat
 .It Sx \&in  Ta    1         Ta    current   Ta    compat
 .It Sx \&na  Ta    0         Ta    current   Ta    compat
 .It Sx \&nf  Ta    0         Ta    current   Ta    compat
@@ -823,6 +846,8 @@ implicitly closed, is syntactically incorrect.
 .It Sx \&SH  Ta    >0        Ta    next-line  Ta    section     Ta    \&
 .It Sx \&SS  Ta    >0        Ta    next-line  Ta    sub-section Ta    \&
 .It Sx \&TP  Ta    n         Ta    next-line  Ta    paragraph   Ta    \&
+.It Sx \&UE  Ta    0         Ta    current    Ta    none        Ta    compat
+.It Sx \&UR  Ta    1         Ta    current    Ta    part        Ta    compat
 .El
 .Pp
 Macros marked
@@ -848,10 +873,11 @@ Note that macros like
 .Sx \&BR
 open and close a font scope for each argument.
 .Sh COMPATIBILITY
-This section documents areas of questionable portability between
+This section mentions some areas of questionable portability between
 implementations of the
 .Nm
 language.
+More incompatibilities exist.
 .Pp
 .Bl -dash -compact
 .It
@@ -863,46 +889,11 @@ to close out a literal context opened with
 .Sx \&nf .
 This behaviour may not be portable.
 .It
-In quoted literals, GNU troff allowed pair-wise double-quotes to produce
-a standalone double-quote in formatted output.
-It is not known whether this behaviour is exhibited by other formatters.
-.It
 troff suppresses a newline before
 .Sq \(aq
 macro output; in mandoc, it is an alias for the standard
 .Sq \&.
 control character.
-.It
-The
-.Sq \eh
-.Pq horizontal position ,
-.Sq \ev
-.Pq vertical position ,
-.Sq \em
-.Pq text colour ,
-.Sq \eM
-.Pq text filling colour ,
-.Sq \ez
-.Pq zero-length character ,
-.Sq \ew
-.Pq string length ,
-.Sq \ek
-.Pq horizontal position marker ,
-.Sq \eo
-.Pq text overstrike ,
-and
-.Sq \es
-.Pq text size
-escape sequences are all discarded in mandoc.
-.It
-The
-.Sq \ef
-scaling unit is accepted by mandoc, but rendered as the default unit.
-.It
-The
-.Sx \&sp
-macro does not accept negative values in mandoc.
-In GNU troff, this would result in strange behaviour.
 .It
 In page header lines, GNU troff versions up to and including 1.21
 only print
@@ -919,8 +910,13 @@ is given, like in
 .El
 .Pp
 The
-.Sx OP
-macro is part of the extended
+.Sx EE ,
+.Sx EX ,
+.Sx OP ,
+.Sx UE ,
+and
+.Sx UR
+macros are part of the GNU extended
 .Nm
 macro set, and may not be portable to non-GNU troff implementations.
 .Sh SEE ALSO

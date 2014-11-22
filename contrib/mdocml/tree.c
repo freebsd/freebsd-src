@@ -1,7 +1,7 @@
-/*	$Id: tree.c,v 1.50 2013/12/24 19:11:46 schwarze Exp $ */
+/*	$Id: tree.c,v 1.53 2014/07/02 07:10:38 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2013 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -36,7 +36,6 @@ static	void	print_mdoc(const struct mdoc_node *, int);
 static	void	print_span(const struct tbl_span *, int);
 
 
-/* ARGSUSED */
 void
 tree_mdoc(void *arg, const struct mdoc *mdoc)
 {
@@ -44,15 +43,12 @@ tree_mdoc(void *arg, const struct mdoc *mdoc)
 	print_mdoc(mdoc_node(mdoc), 0);
 }
 
-
-/* ARGSUSED */
 void
 tree_man(void *arg, const struct man *man)
 {
 
 	print_man(man_node(man), 0);
 }
-
 
 static void
 print_mdoc(const struct mdoc_node *n, int indent)
@@ -67,33 +63,33 @@ print_mdoc(const struct mdoc_node *n, int indent)
 	t = p = NULL;
 
 	switch (n->type) {
-	case (MDOC_ROOT):
+	case MDOC_ROOT:
 		t = "root";
 		break;
-	case (MDOC_BLOCK):
+	case MDOC_BLOCK:
 		t = "block";
 		break;
-	case (MDOC_HEAD):
+	case MDOC_HEAD:
 		t = "block-head";
 		break;
-	case (MDOC_BODY):
+	case MDOC_BODY:
 		if (n->end)
 			t = "body-end";
 		else
 			t = "block-body";
 		break;
-	case (MDOC_TAIL):
+	case MDOC_TAIL:
 		t = "block-tail";
 		break;
-	case (MDOC_ELEM):
+	case MDOC_ELEM:
 		t = "elem";
 		break;
-	case (MDOC_TEXT):
+	case MDOC_TEXT:
 		t = "text";
 		break;
-	case (MDOC_TBL):
+	case MDOC_TBL:
 		/* FALLTHROUGH */
-	case (MDOC_EQN):
+	case MDOC_EQN:
 		break;
 	default:
 		abort();
@@ -101,37 +97,37 @@ print_mdoc(const struct mdoc_node *n, int indent)
 	}
 
 	switch (n->type) {
-	case (MDOC_TEXT):
+	case MDOC_TEXT:
 		p = n->string;
 		break;
-	case (MDOC_BODY):
+	case MDOC_BODY:
 		p = mdoc_macronames[n->tok];
 		break;
-	case (MDOC_HEAD):
+	case MDOC_HEAD:
 		p = mdoc_macronames[n->tok];
 		break;
-	case (MDOC_TAIL):
+	case MDOC_TAIL:
 		p = mdoc_macronames[n->tok];
 		break;
-	case (MDOC_ELEM):
-		p = mdoc_macronames[n->tok];
-		if (n->args) {
-			argv = n->args->argv;
-			argc = n->args->argc;
-		}
-		break;
-	case (MDOC_BLOCK):
+	case MDOC_ELEM:
 		p = mdoc_macronames[n->tok];
 		if (n->args) {
 			argv = n->args->argv;
 			argc = n->args->argc;
 		}
 		break;
-	case (MDOC_TBL):
+	case MDOC_BLOCK:
+		p = mdoc_macronames[n->tok];
+		if (n->args) {
+			argv = n->args->argv;
+			argc = n->args->argc;
+		}
+		break;
+	case MDOC_TBL:
 		/* FALLTHROUGH */
-	case (MDOC_EQN):
+	case MDOC_EQN:
 		break;
-	case (MDOC_ROOT):
+	case MDOC_ROOT:
 		p = "root";
 		break;
 	default:
@@ -164,7 +160,7 @@ print_mdoc(const struct mdoc_node *n, int indent)
 		putchar(' ');
 		if (MDOC_LINE & n->flags)
 			putchar('*');
-		printf("%d:%d", n->line, n->pos);
+		printf("%d:%d", n->line, n->pos + 1);
 		if (n->lastline != n->line)
 			printf("-%d", n->lastline);
 		putchar('\n');
@@ -176,7 +172,6 @@ print_mdoc(const struct mdoc_node *n, int indent)
 		print_mdoc(n->next, indent);
 }
 
-
 static void
 print_man(const struct man_node *n, int indent)
 {
@@ -186,30 +181,30 @@ print_man(const struct man_node *n, int indent)
 	t = p = NULL;
 
 	switch (n->type) {
-	case (MAN_ROOT):
+	case MAN_ROOT:
 		t = "root";
 		break;
-	case (MAN_ELEM):
+	case MAN_ELEM:
 		t = "elem";
 		break;
-	case (MAN_TEXT):
+	case MAN_TEXT:
 		t = "text";
 		break;
-	case (MAN_BLOCK):
+	case MAN_BLOCK:
 		t = "block";
 		break;
-	case (MAN_HEAD):
+	case MAN_HEAD:
 		t = "block-head";
 		break;
-	case (MAN_BODY):
+	case MAN_BODY:
 		t = "block-body";
 		break;
-	case (MAN_TAIL):
+	case MAN_TAIL:
 		t = "block-tail";
 		break;
-	case (MAN_TBL):
+	case MAN_TBL:
 		/* FALLTHROUGH */
-	case (MAN_EQN):
+	case MAN_EQN:
 		break;
 	default:
 		abort();
@@ -217,26 +212,26 @@ print_man(const struct man_node *n, int indent)
 	}
 
 	switch (n->type) {
-	case (MAN_TEXT):
+	case MAN_TEXT:
 		p = n->string;
 		break;
-	case (MAN_ELEM):
+	case MAN_ELEM:
 		/* FALLTHROUGH */
-	case (MAN_BLOCK):
+	case MAN_BLOCK:
 		/* FALLTHROUGH */
-	case (MAN_HEAD):
+	case MAN_HEAD:
 		/* FALLTHROUGH */
-	case (MAN_TAIL):
+	case MAN_TAIL:
 		/* FALLTHROUGH */
-	case (MAN_BODY):
+	case MAN_BODY:
 		p = man_macronames[n->tok];
 		break;
-	case (MAN_ROOT):
+	case MAN_ROOT:
 		p = "root";
 		break;
-	case (MAN_TBL):
+	case MAN_TBL:
 		/* FALLTHROUGH */
-	case (MAN_EQN):
+	case MAN_EQN:
 		break;
 	default:
 		abort();
@@ -252,7 +247,10 @@ print_man(const struct man_node *n, int indent)
 	} else {
 		for (i = 0; i < indent; i++)
 			putchar('\t');
-		printf("%s (%s) %d:%d\n", p, t, n->line, n->pos);
+		printf("%s (%s) ", p, t);
+		if (MAN_LINE & n->flags)
+			putchar('*');
+		printf("%d:%d\n", n->line, n->pos + 1);
 	}
 
 	if (n->child)
@@ -274,30 +272,30 @@ print_box(const struct eqn_box *ep, int indent)
 
 	t = NULL;
 	switch (ep->type) {
-	case (EQN_ROOT):
+	case EQN_ROOT:
 		t = "eqn-root";
 		break;
-	case (EQN_LIST):
+	case EQN_LIST:
 		t = "eqn-list";
 		break;
-	case (EQN_SUBEXPR):
+	case EQN_SUBEXPR:
 		t = "eqn-expr";
 		break;
-	case (EQN_TEXT):
+	case EQN_TEXT:
 		t = "eqn-text";
 		break;
-	case (EQN_MATRIX):
+	case EQN_MATRIX:
 		t = "eqn-matrix";
 		break;
 	}
 
 	assert(t);
-	printf("%s(%d, %d, %d, %d, %d, \"%s\", \"%s\") %s\n", 
-		t, EQN_DEFSIZE == ep->size ? 0 : ep->size,
-		ep->pos, ep->font, ep->mark, ep->pile, 
-		ep->left ? ep->left : "",
-		ep->right ? ep->right : "",
-		ep->text ? ep->text : "");
+	printf("%s(%d, %d, %d, %d, %d, \"%s\", \"%s\") %s\n",
+	    t, EQN_DEFSIZE == ep->size ? 0 : ep->size,
+	    ep->pos + 1, ep->font, ep->mark, ep->pile,
+	    ep->left ? ep->left : "",
+	    ep->right ? ep->right : "",
+	    ep->text ? ep->text : "");
 
 	print_box(ep->first, indent + 1);
 	print_box(ep->next, indent);
@@ -313,10 +311,10 @@ print_span(const struct tbl_span *sp, int indent)
 		putchar('\t');
 
 	switch (sp->pos) {
-	case (TBL_SPAN_HORIZ):
+	case TBL_SPAN_HORIZ:
 		putchar('-');
 		return;
-	case (TBL_SPAN_DHORIZ):
+	case TBL_SPAN_DHORIZ:
 		putchar('=');
 		return;
 	default:
@@ -325,14 +323,14 @@ print_span(const struct tbl_span *sp, int indent)
 
 	for (dp = sp->first; dp; dp = dp->next) {
 		switch (dp->pos) {
-		case (TBL_DATA_HORIZ):
+		case TBL_DATA_HORIZ:
 			/* FALLTHROUGH */
-		case (TBL_DATA_NHORIZ):
+		case TBL_DATA_NHORIZ:
 			putchar('-');
 			continue;
-		case (TBL_DATA_DHORIZ):
+		case TBL_DATA_DHORIZ:
 			/* FALLTHROUGH */
-		case (TBL_DATA_NDHORIZ):
+		case TBL_DATA_NDHORIZ:
 			putchar('=');
 			continue;
 		default:
