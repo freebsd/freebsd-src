@@ -139,6 +139,8 @@ vwarning(const char *msg, va_list ap)
 {
 	if (commandname)
 		outfmt(out2, "%s: ", commandname);
+	else if (arg0)
+		outfmt(out2, "%s: ", arg0);
 	doformat(out2, msg, ap);
 	out2fmt_flush("\n");
 }
