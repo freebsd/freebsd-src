@@ -48,6 +48,7 @@
 #define	MAX_NAME_LEN			223
 #define	MAX_DATA_SEGMENT_LENGTH		(128 * 1024)
 #define	MAX_BURST_LENGTH		16776192
+#define	SOCKBUF_SIZE			1048576
 
 struct auth {
 	TAILQ_ENTRY(auth)		a_next;

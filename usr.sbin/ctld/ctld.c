@@ -1602,7 +1602,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	struct portal *oldp, *newp;
 	struct isns *oldns, *newns;
 	pid_t otherpid;
-	int changed, cumulated_error = 0, error;
+	int changed, cumulated_error = 0, error, sockbuf;
 	int one = 1;
 
 	if (oldconf->conf_debug != newconf->conf_debug) {
@@ -1899,6 +1899,16 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 				cumulated_error++;
 				continue;
 			}
+			sockbuf = SOCKBUF_SIZE;
+			if (setsockopt(newp->p_socket, SOL_SOCKET, SO_RCVBUF,
+			    &sockbuf, sizeof(sockbuf)) == -1)
+				log_warn("setsockopt(SO_RCVBUF) failed "
+				    "for %s", newp->p_listen);
+			sockbuf = SOCKBUF_SIZE;
+			if (setsockopt(newp->p_socket, SOL_SOCKET, SO_SNDBUF,
+			    &sockbuf, sizeof(sockbuf)) == -1)
+				log_warn("setsockopt(SO_SNDBUF) failed "
+				    "for %s", newp->p_listen);
 			error = setsockopt(newp->p_socket, SOL_SOCKET,
 			    SO_REUSEADDR, &one, sizeof(one));
 			if (error != 0) {
