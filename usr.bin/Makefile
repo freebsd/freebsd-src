@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
 # $FreeBSD$
 
-.include <bsd.own.mk>
+.include <src.opts.mk>
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -165,6 +165,7 @@ SUBDIR=	alias \
 	${_tests} \
 	tftp \
 	time \
+	timeout \
 	tip \
 	top \
 	touch \
@@ -184,7 +185,6 @@ SUBDIR=	alias \
 	unvis \
 	uudecode \
 	uuencode \
-	vi \
 	vis \
 	vmstat \
 	w \
@@ -234,6 +234,10 @@ SUBDIR+=	calendar
 _clang=		clang
 .endif
 
+.if ${MK_FMAKE} != "no"
+SUBDIR+=	make
+.endif
+
 .if ${MK_GPL_DTC} != "yes"
 SUBDIR+=	dtc
 .endif
@@ -266,10 +270,6 @@ SUBDIR+=	drill
 SUBDIR+=	host
 .endif
 
-.if ${MK_LIBTHR} != "no"
-SUBDIR+=	csup
-.endif
-
 .if ${MK_LOCATE} != "no"
 SUBDIR+=	locate
 .endif
@@ -283,11 +283,7 @@ SUBDIR+=	msgs
 .endif
 
 .if ${MK_MAKE} != "no"
-.if ${MK_BMAKE} != "no"
 SUBDIR+=	bmake
-.else
-SUBDIR+=	make
-.endif
 .endif
 
 .if ${MK_MAN_UTILS} != "no"
@@ -361,6 +357,10 @@ SUBDIR+=	unifdef
 SUBDIR+=	xlint
 SUBDIR+=	xstr
 SUBDIR+=	yacc
+.endif
+
+.if ${MK_VI} != "no"
+SUBDIR+=	vi
 .endif
 
 .if ${MK_VT} != "no"
