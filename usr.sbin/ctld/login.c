@@ -613,8 +613,7 @@ login_negotiate(struct connection *conn, struct pdu *request)
 	struct pdu *response;
 	struct iscsi_bhs_login_response *bhslr2;
 	struct keys *request_keys, *response_keys;
-	char *portal_group_tag;
-	int i, rv;
+	int i;
 	bool skipped_security;
 
 	if (request == NULL) {
@@ -641,13 +640,8 @@ login_negotiate(struct connection *conn, struct pdu *request)
 		if (conn->conn_target->t_alias != NULL)
 			keys_add(response_keys,
 			    "TargetAlias", conn->conn_target->t_alias);
-		rv = asprintf(&portal_group_tag, "%d",
+		keys_add_int(response_keys, "TargetPortalGroupTag", 
 		    conn->conn_portal->p_portal_group->pg_tag);
-		if (rv <= 0)
-			log_err(1, "asprintf");
-		keys_add(response_keys,
-		    "TargetPortalGroupTag", portal_group_tag);
-		free(portal_group_tag);
 	}
 
 	for (i = 0; i < KEYS_MAX; i++) {
@@ -680,8 +674,6 @@ login(struct connection *conn)
 	struct auth_group *ag;
 	const char *initiator_name, *initiator_alias, *session_type,
 	    *target_name, *auth_method;
-	char *portal_group_tag;
-	int rv;
 
 	/*
 	 * Handle the initial Login Request - figure out required authentication
@@ -860,13 +852,8 @@ login(struct connection *conn)
 			if (conn->conn_target->t_alias != NULL)
 				keys_add(response_keys,
 				    "TargetAlias", conn->conn_target->t_alias);
-			rv = asprintf(&portal_group_tag, "%d",
+			keys_add_int(response_keys, "TargetPortalGroupTag", 
 			    conn->conn_portal->p_portal_group->pg_tag);
-			if (rv <= 0)
-				log_err(1, "asprintf");
-			keys_add(response_keys,
-			    "TargetPortalGroupTag", portal_group_tag);
-			free(portal_group_tag);
 		}
 		keys_save(response_keys, response);
 		pdu_send(response);
@@ -916,13 +903,8 @@ login(struct connection *conn)
 		if (conn->conn_target->t_alias != NULL)
 			keys_add(response_keys,
 			    "TargetAlias", conn->conn_target->t_alias);
-		rv = asprintf(&portal_group_tag, "%d",
+		keys_add_int(response_keys, "TargetPortalGroupTag", 
 		    conn->conn_portal->p_portal_group->pg_tag);
-		if (rv <= 0)
-			log_err(1, "asprintf");
-		keys_add(response_keys,
-		    "TargetPortalGroupTag", portal_group_tag);
-		free(portal_group_tag);
 	}
 	keys_save(response_keys, response);
 
