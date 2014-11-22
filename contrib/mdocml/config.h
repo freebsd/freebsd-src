@@ -2,20 +2,21 @@
 #define	MANDOC_CONFIG_H
 
 #if defined(__linux__) || defined(__MINT__)
-# define _GNU_SOURCE /* strptime(), getsubopt() */
+# define _GNU_SOURCE /* getsubopt(), strcasestr(), strptime() */
 #endif
 
+#include <sys/types.h>
 #include <stdio.h>
 
-#define VERSION "1.12.3"
+#define VERSION "1.13.1"
 #define HAVE_FGETLN
-#define HAVE_STRPTIME
 #define HAVE_GETSUBOPT
-#define HAVE_STRLCAT
 #define HAVE_MMAP
+#define HAVE_STRCASESTR
+#define HAVE_STRLCAT
 #define HAVE_STRLCPY
-
-#include <sys/types.h>
+#define HAVE_STRPTIME
+#define HAVE_STRSEP
 
 #if !defined(__BEGIN_DECLS)
 #  ifdef __cplusplus
@@ -32,30 +33,30 @@
 #  endif
 #endif
 
-#ifndef HAVE_BETOH64
-#  if defined(__APPLE__)
-#    define betoh64(x) OSSwapBigToHostInt64(x)
-#    define htobe64(x) OSSwapHostToBigInt64(x)
-#  elif defined(__sun)
-#    define betoh64(x) BE_64(x)
-#    define htobe64(x) BE_64(x)
-#  else
-#    define betoh64(x) be64toh(x)
-#  endif
+#ifndef HAVE_FGETLN
+extern	char	 *fgetln(FILE *, size_t *);
 #endif
-
+#ifndef HAVE_GETSUBOPT
+extern	int	  getsubopt(char **, char * const *, char **);
+extern	char	 *suboptarg;
+#endif
+#ifndef HAVE_REALLOCARRAY
+extern	void	 *reallocarray(void *, size_t, size_t);
+#endif
+#ifndef HAVE_SQLITE3_ERRSTR
+extern	const char *sqlite3_errstr(int);
+#endif
+#ifndef HAVE_STRCASESTR
+extern	char	 *strcasestr(const char *, const char *);
+#endif
 #ifndef HAVE_STRLCAT
 extern	size_t	  strlcat(char *, const char *, size_t);
 #endif
 #ifndef HAVE_STRLCPY
 extern	size_t	  strlcpy(char *, const char *, size_t);
 #endif
-#ifndef HAVE_GETSUBOPT
-extern	int	  getsubopt(char **, char * const *, char **);
-extern	char	 *suboptarg;
-#endif
-#ifndef HAVE_FGETLN
-extern	char	 *fgetln(FILE *, size_t *);
+#ifndef HAVE_STRSEP
+extern	char	 *strsep(char **, const char *);
 #endif
 
 #endif /* MANDOC_CONFIG_H */

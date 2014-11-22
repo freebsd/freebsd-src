@@ -1,4 +1,4 @@
-/*	$Id: man_hash.c,v 1.25 2011/07/24 18:15:14 kristaps Exp $ */
+/*	$Id: man_hash.c,v 1.27 2014/04/20 16:46:04 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -23,7 +23,6 @@
 #include <assert.h>
 #include <ctype.h>
 #include <limits.h>
-#include <stdlib.h>
 #include <string.h>
 
 #include "man.h"
@@ -49,6 +48,7 @@
  */
 static	unsigned char	 table[26 * HASH_DEPTH];
 
+
 /*
  * XXX - this hash has global scope, so if intended for use as a library
  * with multiple callers, it will need re-invocation protection.
@@ -60,8 +60,7 @@ man_hash_init(void)
 
 	memset(table, UCHAR_MAX, sizeof(table));
 
-	assert(/* LINTED */ 
-			MAN_MAX < UCHAR_MAX);
+	assert(MAN_MAX < UCHAR_MAX);
 
 	for (i = 0; i < (int)MAN_MAX; i++) {
 		x = man_macronames[i][0];
@@ -79,7 +78,6 @@ man_hash_init(void)
 		assert(j < HASH_DEPTH);
 	}
 }
-
 
 enum mant
 man_hash_find(const char *tmp)
