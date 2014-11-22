@@ -1,4 +1,4 @@
-/*	$Id: man_macro.c,v 1.79 2013/12/25 00:50:05 schwarze Exp $ */
+/*	$Id: man_macro.c,v 1.87 2014/07/30 23:01:39 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2012, 2013 Ingo Schwarze <schwarze@openbsd.org>
@@ -40,17 +40,15 @@ static	int		 blk_close(MACRO_PROT_ARGS);
 static	int		 blk_exp(MACRO_PROT_ARGS);
 static	int		 blk_imp(MACRO_PROT_ARGS);
 static	int		 in_line_eoln(MACRO_PROT_ARGS);
-static	int		 man_args(struct man *, int, 
+static	int		 man_args(struct man *, int,
 				int *, char *, char **);
 
-static	int		 rew_scope(enum man_type, 
+static	int		 rew_scope(enum man_type,
 				struct man *, enum mant);
-static	enum rew	 rew_dohalt(enum mant, enum man_type, 
+static	enum rew	 rew_dohalt(enum mant, enum man_type,
 				const struct man_node *);
-static	enum rew	 rew_block(enum mant, enum man_type, 
+static	enum rew	 rew_block(enum mant, enum man_type,
 				const struct man_node *);
-static	void		 rew_warn(struct man *, 
-				struct man_node *, enum mandocerr);
 
 const	struct man_macro __man_macros[MAN_MAX] = {
 	{ in_line_eoln, MAN_NSCOPED }, /* br */
@@ -91,85 +89,80 @@ const	struct man_macro __man_macros[MAN_MAX] = {
 	{ in_line_eoln, MAN_BSCOPE }, /* EE */
 	{ blk_exp, MAN_BSCOPE | MAN_EXPLICIT }, /* UR */
 	{ blk_close, 0 }, /* UE */
+	{ in_line_eoln, 0 }, /* ll */
 };
 
 const	struct man_macro * const man_macros = __man_macros;
 
 
-/*
- * Warn when "n" is an explicit non-roff macro.
- */
-static void
-rew_warn(struct man *man, struct man_node *n, enum mandocerr er)
-{
-
-	if (er == MANDOCERR_MAX || MAN_BLOCK != n->type)
-		return;
-	if (MAN_VALID & n->flags)
-		return;
-	if ( ! (MAN_EXPLICIT & man_macros[n->tok].flags))
-		return;
-
-	assert(er < MANDOCERR_FATAL);
-	man_nmsg(man, n, er);
-}
-
-
-/*
- * Rewind scope.  If a code "er" != MANDOCERR_MAX has been provided, it
- * will be used if an explicit block scope is being closed out.
- */
 int
-man_unscope(struct man *man, const struct man_node *to, 
-		enum mandocerr er)
+man_unscope(struct man *man, const struct man_node *to)
 {
 	struct man_node	*n;
 
-	assert(to);
-
 	man->next = MAN_NEXT_SIBLING;
+	to = to->parent;
+	n = man->last;
+	while (n != to) {
 
-	/* LINTED */
-	while (man->last != to) {
+		/* Reached the end of the document? */
+
+		if (to == NULL && ! (n->flags & MAN_VALID)) {
+			if (man->flags & (MAN_BLINE | MAN_ELINE) &&
+			    man_macros[n->tok].flags & MAN_SCOPED) {
+				mandoc_vmsg(MANDOCERR_BLK_LINE,
+				    man->parse, n->line, n->pos,
+				    "EOF breaks %s",
+				    man_macronames[n->tok]);
+				if (man->flags & MAN_ELINE)
+					man->flags &= ~MAN_ELINE;
+				else {
+					assert(n->type == MAN_HEAD);
+					n = n->parent;
+					man->flags &= ~MAN_BLINE;
+				}
+				man->last = n;
+				n = n->parent;
+				man_node_delete(man, man->last);
+				continue;
+			}
+			if (n->type == MAN_BLOCK &&
+			    man_macros[n->tok].flags & MAN_EXPLICIT)
+				mandoc_msg(MANDOCERR_BLK_NOEND,
+				    man->parse, n->line, n->pos,
+				    man_macronames[n->tok]);
+		}
+
 		/*
-		 * Save the parent here, because we may delete the
-		 * man->last node in the post-validation phase and reset
-		 * it to man->last->parent, causing a step in the closing
-		 * out to be lost.
+		 * We might delete the man->last node
+		 * in the post-validation phase.
+		 * Save a pointer to the parent such that
+		 * we know where to continue the iteration.
 		 */
-		n = man->last->parent;
-		rew_warn(man, man->last, er);
+		man->last = n;
+		n = n->parent;
 		if ( ! man_valid_post(man))
 			return(0);
-		man->last = n;
-		assert(man->last);
 	}
-
-	rew_warn(man, man->last, er);
-	if ( ! man_valid_post(man))
-		return(0);
-
 	return(1);
 }
-
 
 static enum rew
 rew_block(enum mant ntok, enum man_type type, const struct man_node *n)
 {
 
-	if (MAN_BLOCK == type && ntok == n->parent->tok && 
-			MAN_BODY == n->parent->type)
+	if (MAN_BLOCK == type && ntok == n->parent->tok &&
+	    MAN_BODY == n->parent->type)
 		return(REW_REWIND);
 	return(ntok == n->tok ? REW_HALT : REW_NOHALT);
 }
-
 
 /*
  * There are three scope levels: scoped to the root (all), scoped to the
  * section (all less sections), and scoped to subsections (all less
  * sections and subsections).
  */
-static enum rew 
+static enum rew
 rew_dohalt(enum mant tok, enum man_type type, const struct man_node *n)
 {
 	enum rew	 c;
@@ -196,20 +189,20 @@ rew_dohalt(enum mant tok, enum man_type type, const struct man_node *n)
 			return(REW_REWIND);
 	}
 
-	/* 
+	/*
 	 * Next follow the implicit scope-smashings as defined by man.7:
 	 * section, sub-section, etc.
 	 */
 
 	switch (tok) {
-	case (MAN_SH):
+	case MAN_SH:
 		break;
-	case (MAN_SS):
+	case MAN_SS:
 		/* Rewind to a section, if a block. */
 		if (REW_NOHALT != (c = rew_block(MAN_SH, type, n)))
 			return(c);
 		break;
-	case (MAN_RS):
+	case MAN_RS:
 		/* Preserve empty paragraphs before RS. */
 		if (0 == n->nchild && (MAN_P == n->tok ||
 		    MAN_PP == n->tok || MAN_LP == n->tok))
@@ -237,7 +230,6 @@ rew_dohalt(enum mant tok, enum man_type type, const struct man_node *n)
 	return(REW_NOHALT);
 }
 
-
 /*
  * Rewinding entails ascending the parse tree until a coherent point,
  * for example, the `SH' macro will close out any intervening `SS'
@@ -249,9 +241,8 @@ rew_scope(enum man_type type, struct man *man, enum mant tok)
 	struct man_node	*n;
 	enum rew	 c;
 
-	/* LINTED */
 	for (n = man->last; n; n = n->parent) {
-		/* 
+		/*
 		 * Whether we should stop immediately (REW_HALT), stop
 		 * and rewind until this point (REW_REWIND), or keep
 		 * rewinding (REW_NOHALT).
@@ -263,31 +254,30 @@ rew_scope(enum man_type type, struct man *man, enum mant tok)
 			break;
 	}
 
-	/* 
+	/*
 	 * Rewind until the current point.  Warn if we're a roff
 	 * instruction that's mowing over explicit scopes.
 	 */
 	assert(n);
 
-	return(man_unscope(man, n, MANDOCERR_MAX));
+	return(man_unscope(man, n));
 }
 
 
 /*
  * Close out a generic explicit macro.
  */
-/* ARGSUSED */
 int
 blk_close(MACRO_PROT_ARGS)
 {
-	enum mant	 	 ntok;
+	enum mant		 ntok;
 	const struct man_node	*nn;
 
 	switch (tok) {
-	case (MAN_RE):
+	case MAN_RE:
 		ntok = MAN_RS;
 		break;
-	case (MAN_UE):
+	case MAN_UE:
 		ntok = MAN_UR;
 		break;
 	default:
@@ -300,17 +290,16 @@ blk_close(MACRO_PROT_ARGS)
 			break;
 
 	if (NULL == nn) {
-		man_pmsg(man, line, ppos, MANDOCERR_NOSCOPE);
+		mandoc_msg(MANDOCERR_BLK_NOTOPEN, man->parse,
+		    line, ppos, man_macronames[tok]);
 		if ( ! rew_scope(MAN_BLOCK, man, MAN_PP))
 			return(0);
-	} else 
-		man_unscope(man, nn, MANDOCERR_MAX);
+	} else
+		man_unscope(man, nn);
 
 	return(1);
 }
 
-
-/* ARGSUSED */
 int
 blk_exp(MACRO_PROT_ARGS)
 {
@@ -343,14 +332,12 @@ blk_exp(MACRO_PROT_ARGS)
 		if (n->tok != tok)
 			continue;
 		assert(MAN_HEAD == n->type);
-		man_unscope(man, n, MANDOCERR_MAX);
+		man_unscope(man, n);
 		break;
 	}
 
 	return(man_body_alloc(man, line, ppos, tok));
 }
-
-
 
 /*
  * Parse an implicit-block macro.  These contain a MAN_HEAD and a
@@ -358,7 +345,6 @@ blk_exp(MACRO_PROT_ARGS)
  * scopes, such as `SH' closing out an `SS', are defined in the rew
  * routines.
  */
-/* ARGSUSED */
 int
 blk_imp(MACRO_PROT_ARGS)
 {
@@ -410,8 +396,6 @@ blk_imp(MACRO_PROT_ARGS)
 	return(man_body_alloc(man, line, ppos, tok));
 }
 
-
-/* ARGSUSED */
 int
 in_line_eoln(MACRO_PROT_ARGS)
 {
@@ -438,7 +422,7 @@ in_line_eoln(MACRO_PROT_ARGS)
 	 */
 
 	if (n != man->last &&
-	    mandoc_eos(man->last->string, strlen(man->last->string), 0))
+	    mandoc_eos(man->last->string, strlen(man->last->string)))
 		man->last->flags |= MAN_EOS;
 
 	/*
@@ -451,18 +435,11 @@ in_line_eoln(MACRO_PROT_ARGS)
 		assert( ! (MAN_NSCOPED & man_macros[tok].flags));
 		man->flags |= MAN_ELINE;
 		return(1);
-	} 
-
-	/* Set ignorable context, if applicable. */
-
-	if (MAN_NSCOPED & man_macros[tok].flags) {
-		assert( ! (MAN_SCOPED & man_macros[tok].flags));
-		man->flags |= MAN_ILINE;
 	}
 
 	assert(MAN_ROOT != man->last->type);
 	man->next = MAN_NEXT_SIBLING;
-	
+
 	/*
 	 * Rewind our element scope.  Note that when TH is pruned, we'll
 	 * be back at the root, so make sure that we don't clobber as
@@ -481,7 +458,7 @@ in_line_eoln(MACRO_PROT_ARGS)
 	assert(man->last);
 
 	/*
-	 * Same here regarding whether we're back at the root. 
+	 * Same here regarding whether we're back at the root.
 	 */
 
 	if (man->last->type != MAN_ROOT && ! man_valid_post(man))
@@ -495,7 +472,7 @@ int
 man_macroend(struct man *man)
 {
 
-	return(man_unscope(man, man->first, MANDOCERR_SCOPEEXIT));
+	return(man_unscope(man, man->first));
 }
 
 static int

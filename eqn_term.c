@@ -1,4 +1,4 @@
-/*	$Id: eqn_term.c,v 1.4 2011/07/24 10:09:03 kristaps Exp $ */
+/*	$Id: eqn_term.c,v 1.5 2014/04/20 16:46:04 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -37,6 +37,7 @@ static	const enum termfont fontmap[EQNFONT__MAX] = {
 
 static void	eqn_box(struct termp *, const struct eqn_box *);
 
+
 void
 term_eqn(struct termp *p, const struct eqn *ep)
 {
@@ -68,7 +69,7 @@ eqn_box(struct termp *p, const struct eqn_box *bp)
 		term_word(p, ")");
 	if (bp->right)
 		term_word(p, bp->right);
-	if (EQNFONT_NONE != bp->font) 
+	if (EQNFONT_NONE != bp->font)
 		term_fontpop(p);
 
 	if (bp->next)

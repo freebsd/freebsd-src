@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2013 Ingo Schwarze <schwarze@openbsd.org>
+# Copyright (c) 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -27,8 +27,11 @@ while [ -n "$1" ]; do
   file=$1
   shift
   echo " ========== $file ========== "
-  tbl $file | groff -mandoc -Tascii -P -c 2>&1 > /tmp/groff.out
-  mandoc -Ios='OpenBSD ports' -Werror $file 2>&1 > /tmp/mandoc.out
+  tbl $file | groff -mandoc -Tascii -P -c 2> /tmp/groff.err > /tmp/groff.out
+  mandoc -Ios='OpenBSD ports' -Werror $file 2> /tmp/mandoc.err > /tmp/mandoc.out
+  for i in groff mandoc; do
+    [[ -s /tmp/$i.err ]] && echo "$i errors:" && cat /tmp/$i.err
+  done
   diff -au /tmp/groff.out /tmp/mandoc.out 2>&1
 done
 

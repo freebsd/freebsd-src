@@ -2,7 +2,8 @@
 #define	MANDOC_CONFIG_H
 
 #if defined(__linux__) || defined(__MINT__)
-# define _GNU_SOURCE /* strptime(), getsubopt() */
+# define _GNU_SOURCE /* getsubopt(), strcasestr(), strptime() */
 #endif
 
+#include <sys/types.h>
 #include <stdio.h>

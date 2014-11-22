@@ -1,7 +1,7 @@
-/*	$Id: html.c,v 1.152 2013/08/08 20:07:47 schwarze Exp $ */
+/*	$Id: html.c,v 1.159 2014/07/23 15:00:08 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011, 2012, 2013 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011, 2012, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -31,6 +31,7 @@
 #include <unistd.h>
 
 #include "mandoc.h"
+#include "mandoc_aux.h"
 #include "libmandoc.h"
 #include "out.h"
 #include "html.h"
@@ -109,10 +110,12 @@ static	const char	*const roffscales[SCALE_MAX] = {
 
 static	void	 bufncat(struct html *, const char *, size_t);
 static	void	 print_ctag(struct html *, enum htmltag);
+static	int	 print_escape(char);
 static	int	 print_encode(struct html *, const char *, int);
 static	void	 print_metaf(struct html *, enum mandoc_esc);
 static	void	 print_attr(struct html *, const char *, const char *);
 static	void	 *ml_alloc(char *, enum htmltype);
+
 
 static void *
 ml_alloc(char *outopts, enum htmltype type)
@@ -135,16 +138,16 @@ ml_alloc(char *outopts, enum htmltype type)
 
 	while (outopts && *outopts)
 		switch (getsubopt(&outopts, UNCONST(toks), &v)) {
-		case (0):
+		case 0:
 			h->style = v;
 			break;
-		case (1):
+		case 1:
 			h->base_man = v;
 			break;
-		case (2):
+		case 2:
 			h->base_includes = v;
 			break;
-		case (3):
+		case 3:
 			h->oflags |= HTML_FRAGMENT;
 			break;
 		default:
@@ -161,14 +164,12 @@ html_alloc(char *outopts)
 	return(ml_alloc(outopts, HTML_HTML_4_01_STRICT));
 }
 
-
 void *
 xhtml_alloc(char *outopts)
 {
 
 	return(ml_alloc(outopts, HTML_XHTML_1_0_STRICT));
 }
-
 
 void
 html_free(void *p)
@@ -179,16 +180,15 @@ html_free(void *p)
 	h = (struct html *)p;
 
 	while ((tag = h->tags.head) != NULL) {
-		h->tags.head = tag->next;	
+		h->tags.head = tag->next;
 		free(tag);
 	}
-	
+
 	if (h->symtab)
 		mchars_free(h->symtab);
 
 	free(h);
 }
-
 
 void
 print_gen_head(struct html *h)
@@ -226,21 +226,21 @@ print_metaf(struct html *h, enum mandoc_esc deco)
 	enum htmlfont	 font;
 
 	switch (deco) {
-	case (ESCAPE_FONTPREV):
+	case ESCAPE_FONTPREV:
 		font = h->metal;
 		break;
-	case (ESCAPE_FONTITALIC):
+	case ESCAPE_FONTITALIC:
 		font = HTMLFONT_ITALIC;
 		break;
-	case (ESCAPE_FONTBOLD):
+	case ESCAPE_FONTBOLD:
 		font = HTMLFONT_BOLD;
 		break;
-	case (ESCAPE_FONTBI):
+	case ESCAPE_FONTBI:
 		font = HTMLFONT_BI;
 		break;
-	case (ESCAPE_FONT):
+	case ESCAPE_FONT:
 		/* FALLTHROUGH */
-	case (ESCAPE_FONTROMAN):
+	case ESCAPE_FONTROMAN:
 		font = HTMLFONT_NONE;
 		break;
 	default:
@@ -257,13 +257,13 @@ print_metaf(struct html *h, enum mandoc_esc deco)
 	h->metac = font;
 
 	switch (font) {
-	case (HTMLFONT_ITALIC):
+	case HTMLFONT_ITALIC:
 		h->metaf = print_otag(h, TAG_I, 0, NULL);
 		break;
-	case (HTMLFONT_BOLD):
+	case HTMLFONT_BOLD:
 		h->metaf = print_otag(h, TAG_B, 0, NULL);
 		break;
-	case (HTMLFONT_BI):
+	case HTMLFONT_BI:
 		h->metaf = print_otag(h, TAG_B, 0, NULL);
 		print_otag(h, TAG_I, 0, NULL);
 		break;
@@ -302,19 +302,19 @@ html_strlen(const char *cp)
 			break;
 		cp++;
 		switch (mandoc_escape(&cp, NULL, NULL)) {
-		case (ESCAPE_ERROR):
+		case ESCAPE_ERROR:
 			return(sz);
-		case (ESCAPE_UNICODE):
+		case ESCAPE_UNICODE:
 			/* FALLTHROUGH */
-		case (ESCAPE_NUMBERED):
+		case ESCAPE_NUMBERED:
 			/* FALLTHROUGH */
-		case (ESCAPE_SPECIAL):
+		case ESCAPE_SPECIAL:
 			if (skip)
 				skip = 0;
 			else
 				sz++;
 			break;
-		case (ESCAPE_SKIPCHAR):
+		case ESCAPE_SKIPCHAR:
 			skip = 1;
 			break;
 		default:
@@ -325,13 +325,45 @@ html_strlen(const char *cp)
 }
 
 static int
+print_escape(char c)
+{
+
+	switch (c) {
+	case '<':
+		printf("&lt;");
+		break;
+	case '>':
+		printf("&gt;");
+		break;
+	case '&':
+		printf("&amp;");
+		break;
+	case '"':
+		printf("&quot;");
+		break;
+	case ASCII_NBRSP:
+		putchar('-');
+		break;
+	case ASCII_HYPH:
+		putchar('-');
+		/* FALLTHROUGH */
+	case ASCII_BREAK:
+		break;
+	default:
+		return(0);
+	}
+	return(1);
+}
+
+static int
 print_encode(struct html *h, const char *p, int norecurse)
 {
 	size_t		 sz;
 	int		 c, len, nospace;
 	const char	*seq;
 	enum mandoc_esc	 esc;
-	static const char rejs[6] = { '\\', '<', '>', '&', ASCII_HYPH, '\0' };
+	static const char rejs[9] = { '\\', '<', '>', '&', '"',
+		ASCII_NBRSP, ASCII_HYPH, ASCII_BREAK, '\0' };
 
 	nospace = 0;
 
@@ -350,43 +382,29 @@ print_encode(struct html *h, const char *p, int norecurse)
 		if ('\0' == *p)
 			break;
 
-		switch (*p++) {
-		case ('<'):
-			printf("&lt;");
+		if (print_escape(*p++))
 			continue;
-		case ('>'):
-			printf("&gt;");
-			continue;
-		case ('&'):
-			printf("&amp;");
-			continue;
-		case (ASCII_HYPH):
-			putchar('-');
-			continue;
-		default:
-			break;
-		}
 
 		esc = mandoc_escape(&p, &seq, &len);
 		if (ESCAPE_ERROR == esc)
 			break;
 
 		switch (esc) {
-		case (ESCAPE_FONT):
+		case ESCAPE_FONT:
 			/* FALLTHROUGH */
-		case (ESCAPE_FONTPREV):
+		case ESCAPE_FONTPREV:
 			/* FALLTHROUGH */
-		case (ESCAPE_FONTBOLD):
+		case ESCAPE_FONTBOLD:
 			/* FALLTHROUGH */
-		case (ESCAPE_FONTITALIC):
+		case ESCAPE_FONTITALIC:
 			/* FALLTHROUGH */
-		case (ESCAPE_FONTBI):
+		case ESCAPE_FONTBI:
 			/* FALLTHROUGH */
-		case (ESCAPE_FONTROMAN):
+		case ESCAPE_FONTROMAN:
 			if (0 == norecurse)
 				print_metaf(h, esc);
 			continue;
-		case (ESCAPE_SKIPCHAR):
+		case ESCAPE_SKIPCHAR:
 			h->flags |= HTML_SKIPCHAR;
 			continue;
 		default:
@@ -399,25 +417,26 @@ print_encode(struct html *h, const char *p, int norecurse)
 		}
 
 		switch (esc) {
-		case (ESCAPE_UNICODE):
-			/* Skip passed "u" header. */
+		case ESCAPE_UNICODE:
+			/* Skip past "u" header. */
 			c = mchars_num2uc(seq + 1, len - 1);
 			if ('\0' != c)
 				printf("&#x%x;", c);
 			break;
-		case (ESCAPE_NUMBERED):
+		case ESCAPE_NUMBERED:
 			c = mchars_num2char(seq, len);
-			if ('\0' != c)
+			if ( ! ('\0' == c || print_escape(c)))
 				putchar(c);
 			break;
-		case (ESCAPE_SPECIAL):
+		case ESCAPE_SPECIAL:
 			c = mchars_spec2cp(h->symtab, seq, len);
 			if (c > 0)
 				printf("&#%d;", c);
-			else if (-1 == c && 1 == len)
+			else if (-1 == c && 1 == len &&
+			    !print_escape(*seq))
 				putchar((int)*seq);
 			break;
-		case (ESCAPE_NOSPACE):
+		case ESCAPE_NOSPACE:
 			if ('\0' == *p)
 				nospace = 1;
 			break;
@@ -429,7 +448,6 @@ print_encode(struct html *h, const char *p, int norecurse)
 	return(nospace);
 }
 
-
 static void
 print_attr(struct html *h, const char *key, const char *val)
 {
@@ -438,9 +456,8 @@ print_attr(struct html *h, const char *key, const char *val)
 	putchar('\"');
 }
 
-
 struct tag *
-print_otag(struct html *h, enum htmltag tag, 
+print_otag(struct html *h, enum htmltag tag,
 		int sz, const struct htmlpair *p)
 {
 	int		 i;
@@ -490,7 +507,7 @@ print_otag(struct html *h, enum htmltag tag,
 
 	if (HTML_AUTOCLOSE & htmltags[tag].flags)
 		switch (h->type) {
-		case (HTML_XHTML_1_0_STRICT):
+		case HTML_XHTML_1_0_STRICT:
 			putchar('/');
 			break;
 		default:
@@ -507,16 +524,15 @@ print_otag(struct html *h, enum htmltag tag,
 	return(t);
 }
 
-
 static void
 print_ctag(struct html *h, enum htmltag tag)
 {
-	
+
 	printf("</%s>", htmltags[tag].name);
 	if (HTML_CLRLINE & htmltags[tag].flags) {
 		h->flags |= HTML_NOSPACE;
 		putchar('\n');
-	} 
+	}
 }
 
 void
@@ -527,7 +543,7 @@ print_gen_decls(struct html *h)
 	const char	*name;
 
 	switch (h->type) {
-	case (HTML_HTML_4_01_STRICT):
+	case HTML_HTML_4_01_STRICT:
 		name = "HTML";
 		doctype = "-//W3C//DTD HTML 4.01//EN";
 		dtd = "http://www.w3.org/TR/html4/strict.dtd";
@@ -540,8 +556,8 @@ print_gen_decls(struct html *h)
 		break;
 	}
 
-	printf("<!DOCTYPE %s PUBLIC \"%s\" \"%s\">\n", 
-			name, doctype, dtd);
+	printf("<!DOCTYPE %s PUBLIC \"%s\" \"%s\">\n",
+	    name, doctype, dtd);
 }
 
 void
@@ -560,13 +576,13 @@ print_text(struct html *h, const char *word)
 
 	assert(NULL == h->metaf);
 	switch (h->metac) {
-	case (HTMLFONT_ITALIC):
+	case HTMLFONT_ITALIC:
 		h->metaf = print_otag(h, TAG_I, 0, NULL);
 		break;
-	case (HTMLFONT_BOLD):
+	case HTMLFONT_BOLD:
 		h->metaf = print_otag(h, TAG_B, 0, NULL);
 		break;
-	case (HTMLFONT_BI):
+	case HTMLFONT_BI:
 		h->metaf = print_otag(h, TAG_B, 0, NULL);
 		print_otag(h, TAG_I, 0, NULL);
 		break;
@@ -589,14 +605,13 @@ print_text(struct html *h, const char *word)
 	h->flags &= ~HTML_IGNDELIM;
 }
 
-
 void
 print_tagq(struct html *h, const struct tag *until)
 {
 	struct tag	*tag;
 
 	while ((tag = h->tags.head) != NULL) {
-		/* 
+		/*
 		 * Remember to close out and nullify the current
 		 * meta-font and table, if applicable.
 		 */
@@ -612,7 +627,6 @@ print_tagq(struct html *h, const struct tag *until)
 	}
 }
 
-
 void
 print_stagq(struct html *h, const struct tag *suntil)
 {
@@ -621,7 +635,7 @@ print_stagq(struct html *h, const struct tag *suntil)
 	while ((tag = h->tags.head) != NULL) {
 		if (suntil && tag == suntil)
 			return;
-		/* 
+		/*
 		 * Remember to close out and nullify the current
 		 * meta-font and table, if applicable.
 		 */
@@ -657,6 +671,12 @@ void
 bufcat(struct html *h, const char *p)
 {
 
+	/*
+	 * XXX This is broken and not easy to fix.
+	 * When using the -Oincludes option, buffmt_includes()
+	 * may pass in strings overrunning BUFSIZ, causing a crash.
+	 */
+
 	h->buflen = strlcat(h->buf, p, BUFSIZ);
 	assert(h->buflen < BUFSIZ);
 }
@@ -667,8 +687,8 @@ bufcat_fmt(struct html *h, const char *fmt, ...)
 	va_list		 ap;
 
 	va_start(ap, fmt);
-	(void)vsnprintf(h->buf + (int)h->buflen, 
-			BUFSIZ - h->buflen - 1, fmt, ap);
+	(void)vsnprintf(h->buf + (int)h->buflen,
+	    BUFSIZ - h->buflen - 1, fmt, ap);
 	va_end(ap);
 	h->buflen = strlen(h->buf);
 }
@@ -688,12 +708,12 @@ buffmt_includes(struct html *h, const char *name)
 	const char	*p, *pp;
 
 	pp = h->base_includes;
-	
+
 	bufinit(h);
 	while (NULL != (p = strchr(pp, '%'))) {
 		bufncat(h, pp, (size_t)(p - pp));
 		switch (*(p + 1)) {
-		case('I'):
+		case'I':
 			bufcat(h, name);
 			break;
 		default:
@@ -707,22 +727,21 @@ buffmt_includes(struct html *h, const char *name)
 }
 
 void
-buffmt_man(struct html *h, 
-		const char *name, const char *sec)
+buffmt_man(struct html *h, const char *name, const char *sec)
 {
 	const char	*p, *pp;
 
 	pp = h->base_man;
-	
+
 	bufinit(h);
 	while (NULL != (p = strchr(pp, '%'))) {
 		bufncat(h, pp, (size_t)(p - pp));
 		switch (*(p + 1)) {
-		case('S'):
+		case 'S':
 			bufcat(h, sec ? sec : "1");
 			break;
-		case('N'):
-			bufcat_fmt(h, name);
+		case 'N':
+			bufcat_fmt(h, "%s", name);
 			break;
 		default:
 			bufncat(h, p, 2);

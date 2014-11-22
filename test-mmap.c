@@ -1,10 +1,9 @@
 #include <sys/types.h>
 #include <sys/mman.h>
+#include <stddef.h>
 
 int
-main(int argc, char **argv)
+main(void)
 {
-
-	mmap(0, 0, PROT_READ, MAP_SHARED, -1, 0);
-	return 0;
+	return(MAP_FAILED != mmap(NULL, 1, PROT_READ, MAP_SHARED, -1, 0));
 }

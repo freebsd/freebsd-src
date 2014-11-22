@@ -1,4 +1,4 @@
-/*	$Id: lib.c,v 1.9 2011/03/22 14:33:05 kristaps Exp $ */
+/*	$Id: lib.c,v 1.10 2014/03/23 11:25:26 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -18,12 +18,9 @@
 #include "config.h"
 #endif
 
-#include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 #include "mdoc.h"
-#include "mandoc.h"
 #include "libmdoc.h"
 
 #define LINE(x, y) \

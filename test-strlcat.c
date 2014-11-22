@@ -1,8 +1,9 @@
 #include <string.h>
 
 int
-main(int argc, char **argv)
+main(void)
 {
-	strlcat(argv[0], argv[1], 10);
-	return 0;
+	char buf[3] = "a";
+	return( ! (2 == strlcat(buf, "b", sizeof(buf)) &&
+	    'a' == buf[0] && 'b' == buf[1] && '\0' == buf[2]));
 }

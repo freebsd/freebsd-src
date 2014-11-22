@@ -1,4 +1,4 @@
-/*	$Id: libroff.h,v 1.28 2013/05/31 21:37:17 schwarze Exp $ */
+/*	$Id: libroff.h,v 1.29 2014/04/20 16:46:04 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -66,7 +66,7 @@ struct tbl_node	*tbl_alloc(int, int, struct mparse *);
 void		 tbl_restart(int, int, struct tbl_node *);
 void		 tbl_free(struct tbl_node *);
 void		 tbl_reset(struct tbl_node *);
-enum rofferr 	 tbl_read(struct tbl_node *, int, const char *, int);
+enum rofferr	 tbl_read(struct tbl_node *, int, const char *, int);
 int		 tbl_option(struct tbl_node *, int, const char *);
 int		 tbl_layout(struct tbl_node *, int, const char *);
 int		 tbl_data(struct tbl_node *, int, const char *);
@@ -76,7 +76,7 @@ void		 tbl_end(struct tbl_node **);
 struct eqn_node	*eqn_alloc(const char *, int, int, struct mparse *);
 enum rofferr	 eqn_end(struct eqn_node **);
 void		 eqn_free(struct eqn_node *);
-enum rofferr 	 eqn_read(struct eqn_node **, int, 
+enum rofferr	 eqn_read(struct eqn_node **, int,
 			const char *, int, int *);
 
 __END_DECLS

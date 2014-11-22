@@ -1,8 +1,9 @@
 #include <string.h>
 
 int
-main(int argc, char **argv)
+main(void)
 {
-	strlcpy(argv[0], argv[1], 10);
-	return 0;
+	char buf[2] = "";
+	return( ! (1 == strlcpy(buf, "a", sizeof(buf)) &&
+	    'a' == buf[0] && '\0' == buf[1]));
 }
