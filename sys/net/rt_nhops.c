@@ -681,6 +681,7 @@ fib6_storelladdr(struct ifnet *ifp, struct in6_addr *dst, int mm_flags,
 {
 	struct llentry *ln;
 	struct sockaddr_in6 dst_sa;
+	IF_AFDATA_RUN_TRACKER;
 
 	if (mm_flags & M_MCAST) {
 		ETHER_MAP_IPV6_MULTICAST(&dst, desten);
@@ -697,7 +698,7 @@ fib6_storelladdr(struct ifnet *ifp, struct in6_addr *dst, int mm_flags,
 	/*
 	 * the entry should have been created in nd6_store_lladdr
 	 */
-	IF_AFDATA_RLOCK(ifp);
+	IF_AFDATA_RUN_RLOCK(ifp);
 	ln = lla_lookup(LLTABLE6(ifp), 0, (struct sockaddr *)&dst_sa);
 
 	/*
@@ -712,12 +713,12 @@ fib6_storelladdr(struct ifnet *ifp, struct in6_addr *dst, int mm_flags,
 	    ln->ln_state != ND6_LLINFO_DELAY)) {
 		if (ln != NULL)
 			LLE_RUNLOCK(ln);
-		IF_AFDATA_RUNLOCK(ifp);
+		IF_AFDATA_RUN_RUNLOCK(ifp);
 		return (1);
 	}
 	bcopy(&ln->ll_addr, desten, ifp->if_addrlen);
 	LLE_RUNLOCK(ln);
-	IF_AFDATA_RUNLOCK(ifp);
+	IF_AFDATA_RUN_RUNLOCK(ifp);
 
 	return (0);
 }
