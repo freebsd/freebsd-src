@@ -384,26 +384,6 @@ typedef struct Asr_softc {
 
 static STAILQ_HEAD(, Asr_softc) Asr_softc_list =
 	STAILQ_HEAD_INITIALIZER(Asr_softc_list);
-
-static __inline void
-set_ccb_timeout_ch(union asr_ccb *ccb)
-{
-	struct callout_handle ch;
-
-	ch = timeout(asr_timeout, (caddr_t)ccb,
-	    (int)((u_int64_t)(ccb->ccb_h.timeout) * (u_int32_t)hz / 1000));
-	ccb->ccb_h.sim_priv.entries[0].ptr = ch.callout;
-}
-
-static __inline struct callout_handle
-get_ccb_timeout_ch(union asr_ccb *ccb)
-{
-	struct callout_handle ch;
-
-	ch.callout = ccb->ccb_h.sim_priv.entries[0].ptr;
-	return ch;
-}
-
 /*
  *	Prototypes of the routines we have in this object.
  */
@@ -425,6 +405,25 @@ static int	ASR_acquireHrt(Asr_softc_t *sc);
 static void	asr_action(struct cam_sim *sim, union ccb *ccb);
 static void	asr_poll(struct cam_sim *sim);
 static int	ASR_queue(Asr_softc_t *sc, PI2O_MESSAGE_FRAME Message);
+
+static __inline void
+set_ccb_timeout_ch(union asr_ccb *ccb)
+{
+	struct callout_handle ch;
+
+	ch = timeout(asr_timeout, (caddr_t)ccb,
+	    (int)((u_int64_t)(ccb->ccb_h.timeout) * (u_int32_t)hz / 1000));
+	ccb->ccb_h.sim_priv.entries[0].ptr = ch.callout;
+}
+
+static __inline struct callout_handle
+get_ccb_timeout_ch(union asr_ccb *ccb)
+{
+	struct callout_handle ch;
+
+	ch.callout = ccb->ccb_h.sim_priv.entries[0].ptr;
+	return ch;
+}
 
 /*
  *	Here is the auto-probe structure used to nest our tests appropriately
