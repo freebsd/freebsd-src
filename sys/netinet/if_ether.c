@@ -47,8 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
-#include <sys/lock.h>
-#include <sys/rmlock.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
@@ -356,7 +354,6 @@ arpresolve_fast(struct ifnet *ifp, struct in_addr dst, u_int mflags,
 	struct llentry *la;
 	struct sockaddr_in sin;
 	const struct sockaddr *sa_dst;
-	IF_AFDATA_TRACKER;
 
 	if (mflags & M_BCAST) {
 		memcpy(dst_addr, ifp->if_broadcastaddr, ifp->if_addrlen);
@@ -440,7 +437,6 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	const struct sockaddr *dst, u_char *desten, struct llentry **lle)
 {
 	struct llentry *la = NULL;
-	IF_AFDATA_TRACKER;
 	int is_gw;
 
 	*lle = NULL;
@@ -483,7 +479,6 @@ arpresolve_slow(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	struct mbuf *curr = NULL;
 	struct mbuf *next = NULL;
 	int create, error;
-	IF_AFDATA_TRACKER;
 
 	create = 0;
 	*lle = NULL;
@@ -704,7 +699,6 @@ in_arpinput(struct mbuf *m)
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
 	sin.sin_addr.s_addr = 0;
-	IF_AFDATA_TRACKER;
 
 	if (ifp->if_bridge)
 		bridged = 1;

@@ -626,7 +626,6 @@ defrouter_select(void)
 {
 	struct nd_defrouter *dr, *selected_dr = NULL, *installed_dr = NULL;
 	struct llentry *ln = NULL;
-	IF_AFDATA_TRACKER;
 
 	/*
 	 * Let's handle easy case (3) first:
@@ -1300,7 +1299,6 @@ find_pfxlist_reachable_router(struct nd_prefix *pr)
 	struct nd_pfxrouter *pfxrtr;
 	struct llentry *ln;
 	int canreach;
-	IF_AFDATA_TRACKER;
 
 	LIST_FOREACH(pfxrtr, &pr->ndpr_advrtrs, pfr_entry) {
 		IF_AFDATA_RLOCK(pfxrtr->router->ifp);

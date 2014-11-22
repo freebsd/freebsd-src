@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/malloc.h>
-#include <sys/rmlock.h>
 #include <sys/priv.h>
 #include <sys/socket.h>
 #include <sys/jail.h>
@@ -1137,9 +1136,10 @@ in_lltable_delete(struct lltable *llt, u_int flags,
     const struct sockaddr *l3addr)
 {
 	const struct sockaddr_in *sin = (const struct sockaddr_in *)l3addr;
+	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
 
-	IF_AFDATA_LOCK_ASSERT(llt->llt_ifp);
+	IF_AFDATA_WLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
 
@@ -1249,10 +1249,11 @@ in_lltable_unlink(struct llentry *lle)
 static struct llentry *
 in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
 {
+	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
 	struct in_addr dst;
 
-	IF_AFDATA_LOCK_ASSERT(llt->llt_ifp);
+	IF_AFDATA_LOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
 

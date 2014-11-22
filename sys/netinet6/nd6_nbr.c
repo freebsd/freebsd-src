@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
-#include <sys/rmlock.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -610,7 +609,6 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	struct mbuf *chain = NULL;
 	struct m_tag *mtag;
 	struct sockaddr_in6 sin6;
-	IF_AFDATA_TRACKER;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
 	if (ip6->ip6_hlim != 255) {
