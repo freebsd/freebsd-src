@@ -118,15 +118,39 @@ VNET_DECLARE(u_long, in_ifaddrhmask);		/* mask for hash table */
 #define INADDR_HASH(x) \
 	(&V_in_ifaddrhashtbl[INADDR_HASHVAL(x) & V_in_ifaddrhmask])
 
-extern	struct rwlock in_ifaddr_lock;
+/* ifaddr lock: control plane */
+#define	IN_IFADDR_CFG_RLOCK()	in_ifaddr_cfg_rlock()
+#define	IN_IFADDR_CFG_RUNLOCK()	in_ifaddr_cfg_runlock()
+#define	IN_IFADDR_CFG_WLOCK()	in_ifaddr_cfg_wlock()
+#define	IN_IFADDR_CFG_WUNLOCK()	in_ifaddr_cfg_wunlock()
+#define	IN_IFADDR_CFG_LOCK_ASSERT()	in_ifaddr_cfg_lock_assert(RA_LOCKED)
+#define	IN_IFADDR_CFG_RLOCK_ASSERT()	in_ifaddr_cfg_lock_assert(RA_RLOCKED)
+#define	IN_IFADDR_CFG_WLOCK_ASSERT()	in_ifaddr_cfg_lock_assert(RA_WLOCKED)
+void in_ifaddr_cfg_rlock(void);
+void in_ifaddr_cfg_runlock(void);
+void in_ifaddr_cfg_wlock(void);
+void in_ifaddr_cfg_wunlock(void);
+void in_ifaddr_cfg_lock_assert(int what);
 
-#define	IN_IFADDR_LOCK_ASSERT()	rw_assert(&in_ifaddr_lock, RA_LOCKED)
-#define	IN_IFADDR_RLOCK()	rw_rlock(&in_ifaddr_lock)
-#define	IN_IFADDR_RLOCK_ASSERT()	rw_assert(&in_ifaddr_lock, RA_RLOCKED)
-#define	IN_IFADDR_RUNLOCK()	rw_runlock(&in_ifaddr_lock)
-#define	IN_IFADDR_WLOCK()	rw_wlock(&in_ifaddr_lock)
-#define	IN_IFADDR_WLOCK_ASSERT()	rw_assert(&in_ifaddr_lock, RA_WLOCKED)
-#define	IN_IFADDR_WUNLOCK()	rw_wunlock(&in_ifaddr_lock)
+/* ifaddr: wrappers  */
+#define	IN_IFADDR_RLOCK		IN_IFADDR_CFG_RLOCK
+#define	IN_IFADDR_RUNLOCK	IN_IFADDR_CFG_RUNLOCK
+#define	IN_IFADDR_WLOCK()	in_ifaddr_wlock()
+#define	IN_IFADDR_WUNLOCK()	in_ifaddr_wunlock()
+void in_ifaddr_wlock(void);
+void in_ifaddr_wunlock(void);
+
+/* ifaddr lock: fast path */
+#define	IN_IFADDR_FAST_LOCK_DECLARATION	extern struct rmlock in_ifaddr_lock
+
+#define	IN_IFADDR_RUN_RLOCK()	rm_rlock(&in_ifaddr_lock, &ifa_rm_tracker)
+#define	IN_IFADDR_RUN_RUNLOCK()	rm_runlock(&in_ifaddr_lock, &ifa_rm_tracker)
+#define	IN_IFADDR_RUN_WLOCK()	rm_wlock(&in_ifaddr_lock)
+#define	IN_IFADDR_RUN_WUNLOCK()	rm_wunlock(&in_ifaddr_lock)
+#define	IN_IFADDR_RUN_TRACKER	struct rm_priotracker ifa_rm_tracker
+#define	IN_IFADDR_RUN_LOCK_ASSERT()	rm_assert(&in_ifaddr_lock, RA_LOCKED)
+#define	IN_IFADDR_RUN_RLOCK_ASSERT()	rm_assert(&in_ifaddr_lock, RA_RLOCKED)
+#define	IN_IFADDR_RUN_WLOCK_ASSERT()	rm_assert(&in_ifaddr_lock, RA_WLOCKED)
 
 /*
  * Macro for finding the internet address structure (in_ifaddr)

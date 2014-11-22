@@ -90,9 +90,6 @@ __FBSDID("$FreeBSD$");
 CTASSERT(sizeof(struct ip) == 20);
 #endif
 
-struct	rwlock in_ifaddr_lock;
-RW_SYSINIT(in_ifaddr_lock, &in_ifaddr_lock, "in_ifaddr_lock");
-
 VNET_DEFINE(int, rsvp_on);
 
 VNET_DEFINE(int, ipforwarding);
@@ -646,7 +643,7 @@ passin:
 	/*
 	 * Check for exact addresses in the hash bucket.
 	 */
-	/* IN_IFADDR_RLOCK(); */
+	/* IN_IFADDR_RUN_RLOCK(); */
 	LIST_FOREACH(ia, INADDR_HASH(ip->ip_dst.s_addr), ia_hash) {
 		/*
 		 * If the address matches, verify that the packet
@@ -662,7 +659,7 @@ passin:
 			goto ours;
 		}
 	}
-	/* IN_IFADDR_RUNLOCK(); */
+	/* IN_IFADDR_RUN_RUNLOCK(); */
 
 	/*
 	 * Check for broadcast addresses.

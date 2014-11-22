@@ -92,6 +92,62 @@ VNET_DECLARE(struct inpcbinfo, ripcbinfo);
 static struct sx in_control_sx;
 SX_SYSINIT(in_control_sx, &in_control_sx, "in_control");
 
+struct rmlock in_ifaddr_lock;	/* XXX: padding ? */
+struct rwlock in_ifaddr_cfg_lock;
+RM_SYSINIT(in_ifaddr_lock, &in_ifaddr_lock, "in_ifaddr_lock");
+RW_SYSINIT(in_ifaddr_cfg_lock, &in_ifaddr_cfg_lock, "in_ifaddr_cfg_lock");
+
+void
+in_ifaddr_cfg_rlock()
+{
+
+	rw_rlock(&in_ifaddr_cfg_lock);
+}
+
+void
+in_ifaddr_cfg_runlock()
+{
+
+	rw_runlock(&in_ifaddr_cfg_lock);
+}
+
+void
+in_ifaddr_cfg_wlock()
+{
+
+	rw_wlock(&in_ifaddr_cfg_lock);
+}
+
+void
+in_ifaddr_cfg_wunlock()
+{
+
+	rw_wunlock(&in_ifaddr_cfg_lock);
+}
+
+void
+in_ifaddr_cfg_lock_assert(int what)
+{
+
+	rw_assert(&in_ifaddr_cfg_lock, what);
+}
+
+void
+in_ifaddr_wlock()
+{
+
+	in_ifaddr_cfg_wlock();
+	IN_IFADDR_RUN_WLOCK();
+}
+
+void
+in_ifaddr_wunlock()
+{
+
+	in_ifaddr_cfg_wunlock();
+	IN_IFADDR_RUN_WUNLOCK();
+}
+
 /*
  * Return 1 if an internet address is for a ``local'' host
  * (one to which we have a connection).
@@ -101,15 +157,16 @@ in_localaddr(struct in_addr in)
 {
 	register u_long i = ntohl(in.s_addr);
 	register struct in_ifaddr *ia;
+	IN_IFADDR_RUN_TRACKER;
 
-	IN_IFADDR_RLOCK();
+	IN_IFADDR_RUN_RLOCK();
 	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 		if ((i & ia->ia_subnetmask) == ia->ia_subnet) {
 			IN_IFADDR_RUNLOCK();
 			return (1);
 		}
 	}
-	IN_IFADDR_RUNLOCK();
+	IN_IFADDR_RUN_RUNLOCK();
 	return (0);
 }
 
@@ -121,15 +178,16 @@ int
 in_localip(struct in_addr in)
 {
 	struct in_ifaddr *ia;
+	IN_IFADDR_RUN_TRACKER;
 
-	IN_IFADDR_RLOCK();
+	IN_IFADDR_RUN_RLOCK();
 	LIST_FOREACH(ia, INADDR_HASH(in.s_addr), ia_hash) {
 		if (IA_SIN(ia)->sin_addr.s_addr == in.s_addr) {
 			IN_IFADDR_RUNLOCK();
 			return (1);
 		}
 	}
-	IN_IFADDR_RUNLOCK();
+	IN_IFADDR_RUN_RUNLOCK();
 	return (0);
 }
 
@@ -142,8 +200,9 @@ in_localip_more(struct in_ifaddr *ia)
 {
 	in_addr_t in = IA_SIN(ia)->sin_addr.s_addr;
 	struct in_ifaddr *it;
+	IN_IFADDR_RUN_TRACKER;
 
-	IN_IFADDR_RLOCK();
+	IN_IFADDR_RUN_RLOCK();
 	LIST_FOREACH(it, INADDR_HASH(in), ia_hash) {
 		if (it != ia && IA_SIN(it)->sin_addr.s_addr == in) {
 			ifa_ref(&it->ia_ifa);
@@ -151,7 +210,7 @@ in_localip_more(struct in_ifaddr *ia)
 			return (it);
 		}
 	}
-	IN_IFADDR_RUNLOCK();
+	IN_IFADDR_RUN_RUNLOCK();
 
 	return (NULL);
 }

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
@@ -85,6 +86,8 @@ static MALLOC_DEFINE(M_IPMADDR, "in_multi", "IPv4 multicast group");
 static MALLOC_DEFINE(M_IPMOPTS, "ip_moptions", "IPv4 multicast options");
 static MALLOC_DEFINE(M_IPMSOURCE, "ip_msource",
     "IPv4 multicast IGMP-layer source filter");
+
+IN_IFADDR_FAST_LOCK_DECLARATION;
 
 /*
  * Locking:
@@ -1887,6 +1890,7 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
     const struct sockaddr_in *gsin, const struct in_addr ina)
 {
 	struct ifnet *ifp;
+	IN_IFADDR_RUN_TRACKER;
 
 	KASSERT(gsin->sin_family == AF_INET, ("%s: not AF_INET", __func__));
 	KASSERT(IN_MULTICAST(ntohl(gsin->sin_addr.s_addr)),
@@ -1906,7 +1910,7 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 			struct ifnet *mifp;
 
 			mifp = NULL;
-			IN_IFADDR_RLOCK();
+			IN_IFADDR_RUN_RLOCK();
 			TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 				mifp = ia->ia_ifp;
 				if (!(mifp->if_flags & IFF_LOOPBACK) &&
@@ -1915,7 +1919,7 @@ inp_lookup_mcast_ifp(const struct inpcb *inp,
 					break;
 				}
 			}
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUN_RUNLOCK();
 		}
 	}
 
