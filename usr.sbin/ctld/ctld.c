@@ -1164,7 +1164,7 @@ conf_verify(struct conf *conf)
 	struct portal_group *pg;
 	struct target *targ;
 	struct lun *lun;
-	bool found_lun;
+	bool found;
 	int error;
 
 	if (conf->conf_pidfile_path == NULL)
@@ -1181,14 +1181,14 @@ conf_verify(struct conf *conf)
 			    "default");
 			assert(targ->t_portal_group != NULL);
 		}
-		found_lun = false;
+		found = false;
 		TAILQ_FOREACH(lun, &targ->t_luns, l_next) {
 			error = conf_verify_lun(lun);
 			if (error != 0)
 				return (error);
-			found_lun = true;
+			found = true;
 		}
-		if (!found_lun) {
+		if (!found) {
 			log_warnx("no LUNs defined for target \"%s\"",
 			    targ->t_name);
 		}
@@ -1219,11 +1219,20 @@ conf_verify(struct conf *conf)
 		else
 			assert(ag->ag_target == NULL);
 
+		found = false;
 		TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
-			if (targ->t_auth_group == ag)
+			if (targ->t_auth_group == ag) {
+				found = true;
 				break;
+			}
 		}
-		if (targ == NULL && ag->ag_name != NULL &&
+		TAILQ_FOREACH(pg, &conf->conf_portal_groups, pg_next) {
+			if (pg->pg_discovery_auth_group == ag) {
+				found = true;
+				break;
+			}
+		}
+		if (!found && ag->ag_name != NULL &&
 		    strcmp(ag->ag_name, "default") != 0 &&
 		    strcmp(ag->ag_name, "no-authentication") != 0 &&
 		    strcmp(ag->ag_name, "no-access") != 0) {
