@@ -255,7 +255,7 @@ auth_new_chap_mutual(struct auth_group *ag, const char *user,
 		if (ag->ag_name != NULL)
 			log_warnx("cannot mix \"chap-mutual\" authentication "
 			    "with other types for auth-group \"%s\"",
-			    ag->ag_name); 
+			    ag->ag_name);
 		else
 			log_warnx("cannot mix \"chap-mutual\" authentication "
 			    "with other types for target \"%s\"",
@@ -754,7 +754,7 @@ valid_iscsi_name(const char *name)
 		for (i = strlen("iqn."); name[i] != '\0'; i++) {
 			/*
 			 * XXX: We should verify UTF-8 normalisation, as defined
-			 * 	by 3.2.6.2: iSCSI Name Encoding.
+			 *      by 3.2.6.2: iSCSI Name Encoding.
 			 */
 			if (isalnum(name[i]))
 				continue;
@@ -1281,10 +1281,10 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 
 	/*
 	 * XXX: If target or lun removal fails, we should somehow "move"
-	 * 	the old lun or target into newconf, so that subsequent
-	 * 	conf_apply() would try to remove them again.  That would
-	 * 	be somewhat hairy, though, and lun deletion failures don't
-	 * 	really happen, so leave it as it is for now.
+	 *      the old lun or target into newconf, so that subsequent
+	 *      conf_apply() would try to remove them again.  That would
+	 *      be somewhat hairy, though, and lun deletion failures don't
+	 *      really happen, so leave it as it is for now.
 	 */
 	TAILQ_FOREACH_SAFE(oldtarg, &oldconf->conf_targets, t_next, tmptarg) {
 		/*
