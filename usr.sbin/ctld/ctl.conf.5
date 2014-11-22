@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 14, 2014
+.Dd October 22, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -157,13 +157,7 @@ address.
 .It Ic discovery-auth-group Ar name
 Assign a previously defined authentication group to the portal group,
 to be used for target discovery.
-By default, portal groups that do not specify their own auth settings,
-using clauses such as
-.Sy chap
-or
-.Sy initiator-name ,
-are assigned
-predefined
+By default, portal groups are assigned predefined
 .Sy auth-group
 .Qq Ar default ,
 which denies discovery.
