@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/priv.h>
@@ -100,6 +101,8 @@ __FBSDID("$FreeBSD$");
 #endif /* IPSEC */
 
 #include <security/mac/mac_framework.h>
+
+IN_IFADDR_FAST_LOCK_DECLARATION;
 
 static struct callout	ipport_tick_callout;
 
@@ -1006,6 +1009,7 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 	struct in_addr laddr, faddr;
 	u_short lport, fport;
 	int error;
+	IN_IFADDR_RUN_TRACKER;
 
 	/*
 	 * Because a global state change doesn't actually occur here, a read
@@ -1036,20 +1040,20 @@ in_pcbconnect_setup(struct inpcb *inp, struct sockaddr *nam,
 		 * choose the broadcast address for that interface.
 		 */
 		if (faddr.s_addr == INADDR_ANY) {
-			IN_IFADDR_RLOCK();
+			IN_IFADDR_RUN_RLOCK();
 			faddr =
 			    IA_SIN(TAILQ_FIRST(&V_in_ifaddrhead))->sin_addr;
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUN_RUNLOCK();
 			if (cred != NULL &&
 			    (error = prison_get_ip4(cred, &faddr)) != 0)
 				return (error);
 		} else if (faddr.s_addr == (u_long)INADDR_BROADCAST) {
-			IN_IFADDR_RLOCK();
+			IN_IFADDR_RUN_RLOCK();
 			if (TAILQ_FIRST(&V_in_ifaddrhead)->ia_ifp->if_flags &
 			    IFF_BROADCAST)
 				faddr = satosin(&TAILQ_FIRST(
 				    &V_in_ifaddrhead)->ia_broadaddr)->sin_addr;
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUN_RUNLOCK();
 		}
 	}
 	if (laddr.s_addr == INADDR_ANY) {
