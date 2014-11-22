@@ -124,6 +124,7 @@ CHERICCall:
         .set noat
 
 	/* Increment the exception counter for ccall, if enabled. */
+ccall_inc_exception_cnt:
 	INC_EXCEPTION_CNTR(CHERI_CCALL_CNT)
 
 	/*
@@ -138,6 +139,7 @@ CHERICCall:
 	 */
 
 #if !defined(CPU_CHERI_HW_CCALL_CHECKS)
+ccall_validate_args:
 	/* First, test argument registers for tag validity. */
 	cbtu		CHERI_REG_CCALLCODE, CCall_c1_untagged
 	nop
@@ -186,6 +188,7 @@ CHERICCall:
 	 * having been performed on the wrong registers.  We do this by
 	 * inspecting the exception-instruction CP0 register.
 	 */
+ccall_check_regs_nos:
 	dmfc0		k0, MIPS_COP_0_EXC_INS, 1	/* Get ins. encoding */
 	srl		k0, k0, 11	/* Shift register numbers to bottom */
 	and		k0, k0, 0x3ff	/* Mask everything but reg. numbers */
@@ -207,6 +210,7 @@ CHERICCall:
 	 * instruction?  Then we could run down all the pertinent registers
 	 * and simply branch once at the end.
 	 */
+ccall_check_globals:
 	dli		AT, 0		/* Set if failure; will be regnum. */
 
 	cgettag		k0, $c1			/* k0 = tagged. */
@@ -301,6 +305,7 @@ CHERICCall:
 	 * Now prepare to push IDC, PCC, PC+4 onto the trusted stack.  Begin
 	 * by retrieving the current PCB pointer to reach the trusted stack.
 	 */
+ccall_push_stack:
 	GET_CPU_PCPU(k1)   
 	PTR_L		k1, PC_CURPCB(k1)
 
@@ -345,6 +350,7 @@ CHERICCall:
 	 *
 	 * XXXRW: This is inefficient and (should be) unnecessary.
 	 */
+ccall_unseal_caps:
 	cgettype	k0, CHERI_REG_CCALLCODE
 	csetoffset	CHERI_REG_KDC, CHERI_REG_KDC, k0
 
@@ -359,6 +365,7 @@ CHERICCall:
 	csetoffset	CHERI_REG_KDC, CHERI_REG_KDC, k0
 
 	/* Install cs.offset as PC. */
+ccall_set_pc:
 	cgetoffset	k0, CHERI_REG_CCALLCODE
 	MTC0		k0, MIPS_COP_0_EXC_PC
 	COP0_SYNC
@@ -378,6 +385,7 @@ CHERICCall:
 	 */
 
 	/* Non-argument general-purpose registers (n64). */
+ccall_clear_regs:
 #if !defined(CPU_CHERI_HW_RCLEAR)
 	li		AT, 0
 	li		v0, 0
@@ -416,6 +424,7 @@ CHERICCall:
 	nop
 #endif /* CPU_CHERI_HW_RCLEAR */
 
+ccall_clear_caps:
 #if !defined(CPU_CHERI_HW_CCLEAR)
 	/* Non-argument capability registers. */
 	cfromptr	$c0, $c0, zero
@@ -535,6 +544,7 @@ CHERICReturn:
         .set noat
 
 	/* Check that return capability is global or untagged. */
+creturn_check_global:
 	cgettag		k0, $c3			/* k0 = tagged. */
 	cgetperm	k1, $c3			/* k1 = permissions. */
 	andi		k1, CHERI_PERM_GLOBAL	/* k1 = global. */
@@ -548,9 +558,11 @@ CHERICReturn:
 	nop
 
 	/* Increment the exception counter for creturn, if enabled. */
+creturn_inc_exception_cnt:
 	INC_EXCEPTION_CNTR(CHERI_CRETURN_CNT)
 
 	/* Retrieve current PCB pointer. */
+creturn_pop_stack:
 	GET_CPU_PCPU(k1)   		/* XXXss Redundant if
 					   INC_EXCEPTION_CNTR is enabled. */
 	PTR_L		k1, PC_CURPCB(k1)
@@ -602,6 +614,7 @@ CHERICReturn:
 	 * practice.
 	 */
 
+creturn_clear_regs:
 #if !defined(CPU_CHERI_HW_RCLEAR)
 	/* Non-return-value general-purpose registers (n64). */
 	li		AT, 0
@@ -641,6 +654,7 @@ CHERICReturn:
 	nop
 #endif /* CPU_CHERI_HW_CCALL_CHECKS */
 
+creturn_clear_caps:
 #if !defined(CPU_CHERI_HW_CCLEAR)
 	/* Non-return-value capability registers. */
 	cfromptr	$c0, $c0, zero

@@ -103,6 +103,7 @@ cheri_invoke:
 	# XXXRW: Possibly with the __ccall calling convention, the compiler
 	# should be doing this?
 	#
+cheri_invoke_save_regs:
 	daddiu	$sp, -96
 	sd	$s0, 0($sp)
 	sd	$s1, 8($sp)
@@ -123,6 +124,7 @@ cheri_invoke:
 	# XXXRW: Possibly with the __ccall calling convention, the compiler
 	# should be doing this?
 	#
+cheri_invoke_save_caps:
 	daddiu	$sp, -256
 	csc	$c17, $sp, 0($c11)
 	csc	$c18, $sp, 32($c11)
@@ -138,6 +140,7 @@ cheri_invoke:
 	# as CCall will protect its integrity.  No more stack use after this
 	# point until $c11 and $sp are restored.
 	#
+cheri_invoke_bundle_idc:
 	daddiu		$sp, -128
 	csd		$sp, $sp, 96($c11)	# Save MIPS stack pointer
 	csc		$c0, $sp, 64($c11)	# Save CHERI legacy capability
@@ -157,12 +160,14 @@ cheri_invoke:
 	# Invoke object capability.  CCall/CReturn will save and restore $sp
 	# and IDC, so we don't need to.
 	#
+cheri_invoke_ccall:
 	ccall	$c1, $c2
 
 	#
 	# Restore $idc-saved recovery state; $idc must be restored last.  The
 	# stack is usable again after this.
 	#
+cheri_invoke_unbundle_idc:
 	cld		$sp, $zero, 96($c26)	# Restore MIPS stack pointer
 	clc		$c0, $zero, 64($c26)	# Restore CHERI $c0
 	clc		$c11, $zero, 32($c26)	# Restore CHERI $c11
@@ -175,6 +180,7 @@ cheri_invoke:
 	# XXXRW: Possibly with the __ccall calling convention, the compiler
 	# should be doing this?
 	#
+cheri_invoke_restore_caps:
 	clc	$c17, $sp, 0($c11)
 	clc	$c18, $sp, 32($c11)
 	clc	$c19, $sp, 64($c11)
@@ -195,6 +201,7 @@ cheri_invoke:
 	# XXXRW: Possibly with the __ccall calling convention, the compiler
 	# should be doing this?
 	#
+cheri_invoke_restore_regs:
 	ld	$s0, 0($sp)
 	ld	$s1, 8($sp)
 	ld	$s2, 16($sp)
@@ -211,6 +218,7 @@ cheri_invoke:
 	#
 	# Return to C-language caller.
 	#
+cheri_invoke_return:
 	jr	$ra
 	nop				# Branch-delay slot
 
