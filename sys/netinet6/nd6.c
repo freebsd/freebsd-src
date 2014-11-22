@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
-#include <sys/rmlock.h>
 #include <sys/queue.h>
 #include <sys/sdt.h>
 #include <sys/sysctl.h>
@@ -998,7 +997,6 @@ nd6_is_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 {
 	struct llentry *lle;
 	int rc = 0;
-	IF_AFDATA_TRACKER;
 
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
 	if (nd6_is_new_addr_neighbor(addr, ifp))
@@ -1168,7 +1166,6 @@ nd6_nud_hint(struct rtentry *rt, struct in6_addr *dst6, int force)
 {
 	struct llentry *ln;
 	struct ifnet *ifp;
-	IF_AFDATA_TRACKER;
 
 	if ((dst6 == NULL) || (rt == NULL))
 		return;
@@ -1256,7 +1253,6 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	struct nd_defrouter *dr;
 	struct nd_prefix *pr;
 	int i = 0, error = 0;
-	IF_AFDATA_TRACKER;
 
 	if (ifp->if_afdata[AF_INET6] == NULL)
 		return (EPFNOSUPPORT);
@@ -1582,7 +1578,6 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	struct sockaddr_in6 sin6;
 	struct mbuf *chain = NULL;
 	int static_route = 0;
-	IF_AFDATA_TRACKER;
 
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
 
@@ -1872,7 +1867,6 @@ nd6_output(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 {
 	struct llentry *ln = NULL;
 	int error = 0;
-	IF_AFDATA_TRACKER;
 
 	/* discard the packet if IPv6 operation is disabled on the interface */
 	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)) {
@@ -1969,7 +1963,6 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 	int error = 0;
 	int has_lle = 0;
 	int ip6len;
-	IF_AFDATA_TRACKER;
 
 #ifdef INVARIANTS
 	if (lle != NULL) {
@@ -2311,7 +2304,6 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
     const struct sockaddr *dst, u_char *desten, struct llentry **lle)
 {
 	struct llentry *ln;
-	IF_AFDATA_TRACKER;
 
 	*lle = NULL;
 	IF_AFDATA_UNLOCK_ASSERT(ifp);

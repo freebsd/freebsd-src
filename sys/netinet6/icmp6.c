@@ -74,7 +74,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/rmlock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
@@ -2505,7 +2504,6 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 	struct sockaddr_in6 src_sa;
 	struct route_info ri;
 	struct nhop6_basic nh6;
-	IF_AFDATA_TRACKER;
 	int e;
 
 	icmp6_errcount(ND_REDIRECT, 0);

@@ -36,8 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
-#include <sys/lock.h>
-#include <sys/rmlock.h>
 #include <sys/types.h>
 #include <sys/sockopt.h>
 #include <sys/sysctl.h>
@@ -458,7 +456,6 @@ toe_nd6_resolve(struct ifnet *ifp, struct sockaddr *sa, uint8_t *lladdr)
 	struct llentry *lle;
 	struct sockaddr_in6 *sin6 = (void *)sa;
 	int rc, flags = 0;
-	IF_AFDATA_TRACKER;
 
 restart:
 	IF_AFDATA_RLOCK(ifp);
