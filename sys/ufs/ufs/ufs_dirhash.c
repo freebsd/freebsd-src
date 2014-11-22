@@ -1252,7 +1252,7 @@ ufsdirhash_lowmem()
 
 	ufs_dirhashlowmemcount++;
 	memfreed = 0;
-	memwanted = ufs_dirhashmem * ufs_dirhash_reclaimpercent / 100;
+	memwanted = ufs_dirhashmem * ufs_dirhashreclaimpercent / 100;
 
 	DIRHASHLIST_LOCK();
 
