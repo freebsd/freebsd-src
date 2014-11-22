@@ -148,7 +148,7 @@ typedef enum {
 	CTLADM_ARG_ONOFFLINE	= 0x0080000,
 	CTLADM_ARG_ONESHOT	= 0x0100000,
 	CTLADM_ARG_TIMEOUT	= 0x0200000,
-	CTLADM_ARG_INITIATOR 	= 0x0400000,
+	CTLADM_ARG_INITIATOR	= 0x0400000,
 	CTLADM_ARG_NOCOPY	= 0x0800000,
 	CTLADM_ARG_NEED_TL	= 0x1000000
 } ctladm_cmdargs;
@@ -237,7 +237,7 @@ static int cctl_sync_cache(int fd, int target, int lun, int iid, int retries,
 			   int argc, char **argv, char *combinedopt);
 static int cctl_start_stop(int fd, int target, int lun, int iid, int retries,
 			   int start, int argc, char **argv, char *combinedopt);
-static int cctl_mode_sense(int fd, int target, int lun, int iid, int retries, 
+static int cctl_mode_sense(int fd, int target, int lun, int iid, int retries,
 			   int argc, char **argv, char *combinedopt);
 static int cctl_read_capacity(int fd, int target, int lun, int iid,
 			      int retries, int argc, char **argv,
@@ -258,7 +258,7 @@ static int cctl_req_sense(int fd, int target, int lun, int iid, int retries);
 static int cctl_persistent_reserve_in(int fd, int target, int lun,
 				      int initiator, int argc, char **argv,
 				      char *combinedopt, int retry_count);
-static int cctl_persistent_reserve_out(int fd, int target, int lun, 
+static int cctl_persistent_reserve_out(int fd, int target, int lun,
 				       int initiator, int argc, char **argv,
 				       char *combinedopt, int retry_count);
 static int cctl_create_lun(int fd, int argc, char **argv, char *combinedopt);
@@ -394,7 +394,7 @@ retry:
 		cmd_latency = ts.tv_sec * 1000;
 		if (ts.tv_nsec > 0)
 			cmd_latency += ts.tv_nsec / 1000000;
-		
+
 		fprintf(stdout, "LUN %jd tag 0x%04x%s%s%s%s%s: %s. CDB: %s "
 			"(%0.0Lf ms)\n",
 			(intmax_t)entry->lun_num, entry->tag_num,
@@ -622,7 +622,7 @@ cctl_port(int fd, int argc, char **argv, char *combinedopt)
 		case 'o':
 			if (port_mode != CCTL_PORT_MODE_NONE)
 				goto bailout_badarg;
-			
+
 			if (strcasecmp(optarg, "on") == 0)
 				port_mode = CCTL_PORT_MODE_ON;
 			else if (strcasecmp(optarg, "off") == 0)
@@ -1041,7 +1041,7 @@ static struct ctladm_opts cctl_err_patterns[] = {
 };
 
 static int
-cctl_error_inject(int fd, uint32_t target, uint32_t lun, int argc, char **argv, 
+cctl_error_inject(int fd, uint32_t target, uint32_t lun, int argc, char **argv,
 		  char *combinedopt)
 {
 	int retval = 0;
@@ -1206,12 +1206,12 @@ cctl_error_inject(int fd, uint32_t target, uint32_t lun, int argc, char **argv,
         if (fd_sense == 1) {
 		ssize_t amt_read;
 		int amt_to_read = sense_len;
- 		u_int8_t *buf_ptr = (uint8_t *)&err_desc.custom_sense;
+		u_int8_t *buf_ptr = (uint8_t *)&err_desc.custom_sense;
 
 		for (amt_read = 0; amt_to_read > 0;
 		     amt_read = read(STDIN_FILENO, buf_ptr, amt_to_read)) {
 			if (amt_read == -1) {
-         			warn("error reading sense data from stdin");
+				warn("error reading sense data from stdin");
 				retval = 1;
 				goto bailout;
 			}
@@ -1617,7 +1617,7 @@ cctl_startup_shutdown(int fd, int target, int lun, int iid,
 			}
 
 			if (ooa_info.status != CTL_OOA_SUCCESS) {
-				printf("%s CTL_CHECK_OOA returned status %d\n", 
+				printf("%s CTL_CHECK_OOA returned status %d\n",
 				       scsi_path, ooa_info.status);
 				continue;
 			}
@@ -1629,7 +1629,7 @@ cctl_startup_shutdown(int fd, int target, int lun, int iid,
 				continue;
 			}
 		}
-		
+
 		ctl_scsi_start_stop(/*io*/ io,
 				    /*start*/(command == CTLADM_CMD_STARTUP) ?
 					      1 : 0,
@@ -1682,7 +1682,7 @@ cctl_sync_cache(int fd, int target, int lun, int iid, int retries,
 	int retval;
 	uint64_t our_lba = 0;
 	uint32_t our_block_count = 0;
-	int reladr = 0, immed = 0; 
+	int reladr = 0, immed = 0;
 	int c;
 
 	id.id = iid;
@@ -1830,7 +1830,7 @@ bailout:
 }
 
 static int
-cctl_mode_sense(int fd, int target, int lun, int iid, int retries, 
+cctl_mode_sense(int fd, int target, int lun, int iid, int retries,
 		int argc, char **argv, char *combinedopt)
 {
 	union ctl_io *io;
@@ -2048,8 +2048,8 @@ bailout:
 }
 
 static int
-cctl_read_capacity(int fd, int target, int lun, int iid, int retries, 
-           	   int argc, char **argv, char *combinedopt)
+cctl_read_capacity(int fd, int target, int lun, int iid, int retries,
+		   int argc, char **argv, char *combinedopt)
 {
 	union ctl_io *io;
 	struct ctl_id id;
@@ -2518,7 +2518,7 @@ cctl_tur(int fd, int target, int lun, int iid, int retries)
 }
 
 static int
-cctl_get_inquiry(int fd, int target, int lun, int iid, int retries, 
+cctl_get_inquiry(int fd, int target, int lun, int iid, int retries,
 		 char *path_str, int path_len,
 		 struct scsi_inquiry_data *inq_data)
 {
@@ -2669,7 +2669,7 @@ cctl_report_target_port_group(int fd, int target, int lun, int initiator)
 	dataptr = (uint8_t *)malloc(datalen);
 	if (dataptr == NULL) {
 		warn("%s: can't allocate %d bytes", __func__, datalen);
-	    	retval = 1;
+		retval = 1;
 		goto bailout;
 	}
 
@@ -2737,7 +2737,7 @@ cctl_inquiry_vpd_devid(int fd, int target, int lun, int initiator)
 	dataptr = (uint8_t *)malloc(datalen);
 	if (dataptr == NULL) {
 		warn("%s: can't allocate %d bytes", __func__, datalen);
-	    	retval = 1;
+		retval = 1;
 		goto bailout;
 	}
 
@@ -2784,7 +2784,7 @@ bailout:
 }
 
 static int
-cctl_persistent_reserve_in(int fd, int target, int lun, int initiator, 
+cctl_persistent_reserve_in(int fd, int target, int lun, int initiator,
                            int argc, char **argv, char *combinedopt,
 			   int retry_count)
 {
@@ -2827,7 +2827,7 @@ cctl_persistent_reserve_in(int fd, int target, int lun, int initiator,
 	dataptr = (uint8_t *)malloc(datalen);
 	if (dataptr == NULL) {
 		warn("%s: can't allocate %d bytes", __func__, datalen);
-	    	retval = 1;
+		retval = 1;
 		goto bailout;
 	}
 
@@ -2890,8 +2890,8 @@ bailout:
 }
 
 static int
-cctl_persistent_reserve_out(int fd, int target, int lun, int initiator, 
-			    int argc, char **argv, char *combinedopt, 
+cctl_persistent_reserve_out(int fd, int target, int lun, int initiator,
+			    int argc, char **argv, char *combinedopt,
 			    int retry_count)
 {
 	union ctl_io *io;
@@ -3835,7 +3835,7 @@ struct cctl_lun_nv {
 };
 
 /*
- * Backend LUN information.  
+ * Backend LUN information.
  */
 struct cctl_lun {
 	uint64_t lun_id;
@@ -3951,7 +3951,7 @@ cctl_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "lun") == 0) {
 		devlist->cur_lun = NULL;
 	} else if (strcmp(name, "ctllunlist") == 0) {
-		
+		/* Nothing. */
 	} else {
 		struct cctl_lun_nv *nv;
 
@@ -4216,7 +4216,7 @@ cctl_end_pelement(void *user_data, const char *name)
 	} else if (strcmp(name, "targ_port") == 0) {
 		portlist->cur_port = NULL;
 	} else if (strcmp(name, "ctlportlist") == 0) {
-		
+		/* Nothing. */
 	} else {
 		struct cctl_lun_nv *nv;
 
@@ -4575,7 +4575,7 @@ main(int argc, char **argv)
 	}
 
 	if (cmdargs & CTLADM_ARG_NEED_TL) {
-	 	if ((argc < 3)
+		if ((argc < 3)
 		 || (!isdigit(argv[2][0]))) {
 			warnx("option %s requires a target:lun argument",
 			      argv[1]);
@@ -4802,12 +4802,12 @@ main(int argc, char **argv)
 		retval = cctl_dump_structs(fd, cmdargs);
 		break;
 	case CTLADM_CMD_PRES_IN:
-		retval = cctl_persistent_reserve_in(fd, target, lun, initid, 
+		retval = cctl_persistent_reserve_in(fd, target, lun, initid,
 		                                    argc, argv, combinedopt,
 						    retries);
 		break;
 	case CTLADM_CMD_PRES_OUT:
-		retval = cctl_persistent_reserve_out(fd, target, lun, initid, 
+		retval = cctl_persistent_reserve_out(fd, target, lun, initid,
 						     argc, argv, combinedopt,
 						     retries);
 		break;
