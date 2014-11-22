@@ -865,7 +865,6 @@ vt_allocate_keyboard(struct vt_device *vd)
 	keyboard_info_t	 ki;
 
 	idx0 = kbd_allocate("kbdmux", -1, vd, vt_kbdevent, vd);
-	vd->vd_keyboard = idx0;
 	if (idx0 >= 0) {
 		DPRINTF(20, "%s: kbdmux allocated, idx = %d\n", __func__, idx0);
 		k0 = kbd_get_keyboard(idx0);
@@ -893,6 +892,7 @@ vt_allocate_keyboard(struct vt_device *vd)
 			return (-1);
 		}
 	}
+	vd->vd_keyboard = idx0;
 	DPRINTF(20, "%s: vd_keyboard = %d\n", __func__, vd->vd_keyboard);
 
 	return (idx0);
