@@ -35,6 +35,7 @@ SUBDIR=	alias \
 	csplit \
 	ctlstat \
 	cut \
+	demandoc \
 	dirname \
 	dpv \
 	du \
