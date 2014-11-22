@@ -47,6 +47,7 @@
 
 /* done */
 ENTRY(bzero)
+	PUSH_FRAME_POINTER
 	movq	%rsi,%rcx
 	xorl	%eax,%eax
 	shrq	$3,%rcx
@@ -57,11 +58,13 @@ ENTRY(bzero)
 	andq	$7,%rcx
 	rep
 	stosb
+	POP_FRAME_POINTER
 	ret
 END(bzero)
 
 /* Address: %rdi */
 ENTRY(pagezero)
+	PUSH_FRAME_POINTER
 	movq	$-PAGE_SIZE,%rdx
 	subq	%rdx,%rdi
 	xorl	%eax,%eax
@@ -73,10 +76,12 @@ ENTRY(pagezero)
 	addq	$32,%rdx
 	jne	1b
 	sfence
+	POP_FRAME_POINTER
 	ret
 END(pagezero)
 
 ENTRY(bcmp)
+	PUSH_FRAME_POINTER
 	movq	%rdx,%rcx
 	shrq	$3,%rcx
 	cld					/* compare forwards */
@@ -91,6 +96,7 @@ ENTRY(bcmp)
 1:
 	setne	%al
 	movsbl	%al,%eax
+	POP_FRAME_POINTER
 	ret
 END(bcmp)
 
@@ -100,6 +106,7 @@ END(bcmp)
  *  ws@tools.de     (Wolfgang Solfrank, TooLs GmbH) +49-228-985800
  */
 ENTRY(bcopy)
+	PUSH_FRAME_POINTER
 	xchgq	%rsi,%rdi
 	movq	%rdx,%rcx
 
@@ -116,6 +123,7 @@ ENTRY(bcopy)
 	andq	$7,%rcx				/* any bytes left? */
 	rep
 	movsb
+	POP_FRAME_POINTER
 	ret
 
 	/* ALIGN_TEXT */
@@ -135,6 +143,7 @@ ENTRY(bcopy)
 	rep
 	movsq
 	cld
+	POP_FRAME_POINTER
 	ret
 END(bcopy)
 
@@ -142,6 +151,7 @@ END(bcopy)
  * Note: memcpy does not support overlapping copies
  */
 ENTRY(memcpy)
+	PUSH_FRAME_POINTER
 	movq	%rdx,%rcx
 	shrq	$3,%rcx				/* copy by 64-bit words */
 	cld					/* copy forwards */
@@ -151,6 +161,7 @@ ENTRY(memcpy)
 	andq	$7,%rcx				/* any bytes left? */
 	rep
 	movsb
+	POP_FRAME_POINTER
 	ret
 END(memcpy)
 
@@ -158,6 +169,7 @@ END(memcpy)
  * pagecopy(%rdi=from, %rsi=to)
  */
 ENTRY(pagecopy)
+	PUSH_FRAME_POINTER
 	movq	$-PAGE_SIZE,%rax
 	movq	%rax,%rdx
 	subq	%rax,%rdi
@@ -178,18 +190,21 @@ ENTRY(pagecopy)
 	addq	$32,%rdx
 	jne	2b
 	sfence
+	POP_FRAME_POINTER
 	ret
 END(pagecopy)
 
 /* fillw(pat, base, cnt) */
 /*       %rdi,%rsi, %rdx */
 ENTRY(fillw)
+	PUSH_FRAME_POINTER
 	movq	%rdi,%rax
 	movq	%rsi,%rdi
 	movq	%rdx,%rcx
 	cld
 	rep
 	stosw
+	POP_FRAME_POINTER
 	ret
 END(fillw)
 
@@ -210,6 +225,7 @@ END(fillw)
  *         %rdi,        %rsi,    %rdx
  */
 ENTRY(copyout)
+	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%rax
 	movq	$copyout_fault,PCB_ONFAULT(%rax)
 	testq	%rdx,%rdx			/* anything to do? */
@@ -255,6 +271,7 @@ done_copyout:
 	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rdx
 	movq	%rax,PCB_ONFAULT(%rdx)
+	POP_FRAME_POINTER
 	ret
 
 	ALIGN_TEXT
@@ -262,6 +279,7 @@ copyout_fault:
 	movq	PCPU(CURPCB),%rdx
 	movq	$0,PCB_ONFAULT(%rdx)
 	movq	$EFAULT,%rax
+	POP_FRAME_POINTER
 	ret
 END(copyout)
 
@@ -270,6 +288,7 @@ END(copyout)
  *        %rdi,      %rsi,      %rdx
  */
 ENTRY(copyin)
+	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%rax
 	movq	$copyin_fault,PCB_ONFAULT(%rax)
 	testq	%rdx,%rdx			/* anything to do? */
@@ -301,6 +320,7 @@ done_copyin:
 	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rdx
 	movq	%rax,PCB_ONFAULT(%rdx)
+	POP_FRAME_POINTER
 	ret
 
 	ALIGN_TEXT
@@ -308,6 +328,7 @@ copyin_fault:
 	movq	PCPU(CURPCB),%rdx
 	movq	$0,PCB_ONFAULT(%rdx)
 	movq	$EFAULT,%rax
+	POP_FRAME_POINTER
 	ret
 END(copyin)
 
@@ -317,6 +338,7 @@ END(copyin)
  *        dst = %rdi, old = %esi, oldp = %rdx, new = %ecx
  */
 ENTRY(casueword32)
+	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%r8
 	movq	$fusufault,PCB_ONFAULT(%r8)
 
@@ -345,6 +367,7 @@ ENTRY(casueword32)
 	 * catch corrupted pointer.
 	 */
 	movl	%esi,(%rdx)			/* oldp = %rdx */
+	POP_FRAME_POINTER
 	ret
 END(casueword32)
 
@@ -354,6 +377,7 @@ END(casueword32)
  *        dst = %rdi, old = %rsi, oldp = %rdx, new = %rcx
  */
 ENTRY(casueword)
+	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%r8
 	movq	$fusufault,PCB_ONFAULT(%r8)
 
@@ -376,6 +400,7 @@ ENTRY(casueword)
 	xorl	%eax,%eax
 	movq	%rax,PCB_ONFAULT(%r8)
 	movq	%rsi,(%rdx)
+	POP_FRAME_POINTER
 	ret
 END(casueword)
 
@@ -387,6 +412,7 @@ END(casueword)
 
 ALTENTRY(fueword64)
 ENTRY(fueword)
+	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
 
@@ -398,11 +424,13 @@ ENTRY(fueword)
 	movq	(%rdi),%r11
 	movq	%rax,PCB_ONFAULT(%rcx)
 	movq	%r11,(%rsi)
+	POP_FRAME_POINTER
 	ret
 END(fuword64)
 END(fuword)
 
 ENTRY(fueword32)
+	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
 
@@ -414,6 +442,7 @@ ENTRY(fueword32)
 	movl	(%rdi),%r11d
 	movq	%rax,PCB_ONFAULT(%rcx)
 	movl	%r11d,(%rsi)
+	POP_FRAME_POINTER
 	ret
 END(fueword32)
 
@@ -432,6 +461,7 @@ END(suswintr)
 END(fuswintr)
 
 ENTRY(fuword16)
+	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
 
@@ -441,10 +471,12 @@ ENTRY(fuword16)
 
 	movzwl	(%rdi),%eax
 	movq	$0,PCB_ONFAULT(%rcx)
+	POP_FRAME_POINTER
 	ret
 END(fuword16)
 
 ENTRY(fubyte)
+	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
 
@@ -454,6 +486,7 @@ ENTRY(fubyte)
 
 	movzbl	(%rdi),%eax
 	movq	$0,PCB_ONFAULT(%rcx)
+	POP_FRAME_POINTER
 	ret
 END(fubyte)
 
@@ -463,6 +496,7 @@ fusufault:
 	xorl	%eax,%eax
 	movq	%rax,PCB_ONFAULT(%rcx)
 	decq	%rax
+	POP_FRAME_POINTER
 	ret
 
 /*
@@ -472,6 +506,7 @@ fusufault:
  */
 ALTENTRY(suword64)
 ENTRY(suword)
+	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
 
@@ -483,11 +518,13 @@ ENTRY(suword)
 	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
+	POP_FRAME_POINTER
 	ret
 END(suword64)
 END(suword)
 
 ENTRY(suword32)
+	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
 
@@ -499,10 +536,12 @@ ENTRY(suword32)
 	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rcx
 	movq	%rax,PCB_ONFAULT(%rcx)
+	POP_FRAME_POINTER
 	ret
 END(suword32)
 
 ENTRY(suword16)
+	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
 
@@ -514,10 +553,12 @@ ENTRY(suword16)
 	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rcx		/* restore trashed register */
 	movq	%rax,PCB_ONFAULT(%rcx)
+	POP_FRAME_POINTER
 	ret
 END(suword16)
 
 ENTRY(subyte)
+	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
 
@@ -530,6 +571,7 @@ ENTRY(subyte)
 	xorl	%eax,%eax
 	movq	PCPU(CURPCB),%rcx		/* restore trashed register */
 	movq	%rax,PCB_ONFAULT(%rcx)
+	POP_FRAME_POINTER
 	ret
 END(subyte)
 
@@ -543,6 +585,7 @@ END(subyte)
  *	return the actual length in *lencopied.
  */
 ENTRY(copyinstr)
+	PUSH_FRAME_POINTER
 	movq	%rdx,%r8			/* %r8 = maxlen */
 	movq	%rcx,%r9			/* %r9 = *len */
 	xchgq	%rdi,%rsi			/* %rdi = from, %rsi = to */
@@ -599,6 +642,7 @@ cpystrflt_x:
 	subq	%rdx,%r8
 	movq	%r8,(%r9)
 1:
+	POP_FRAME_POINTER
 	ret
 END(copyinstr)
 
@@ -607,6 +651,7 @@ END(copyinstr)
  *         %rdi, %rsi, %rdx, %rcx
  */
 ENTRY(copystr)
+	PUSH_FRAME_POINTER
 	movq	%rdx,%r8			/* %r8 = maxlen */
 
 	xchgq	%rdi,%rsi
@@ -636,6 +681,7 @@ ENTRY(copystr)
 	subq	%rdx,%r8
 	movq	%r8,(%rcx)
 7:
+	POP_FRAME_POINTER
 	ret
 END(copystr)
 
@@ -705,6 +751,7 @@ END(longjmp)
  */
 ENTRY(rdmsr_safe)
 /* int rdmsr_safe(u_int msr, uint64_t *data) */
+	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%r8
 	movq	$msr_onfault,PCB_ONFAULT(%r8)
 	movl	%edi,%ecx
@@ -716,6 +763,7 @@ ENTRY(rdmsr_safe)
 	movq	%rax,(%rsi)
 	xorq	%rax,%rax
 	movq	%rax,PCB_ONFAULT(%r8)
+	POP_FRAME_POINTER
 	ret
 
 /*
@@ -723,6 +771,7 @@ ENTRY(rdmsr_safe)
  */
 ENTRY(wrmsr_safe)
 /* int wrmsr_safe(u_int msr, uint64_t data) */
+	PUSH_FRAME_POINTER
 	movq	PCPU(CURPCB),%r8
 	movq	$msr_onfault,PCB_ONFAULT(%r8)
 	movl	%edi,%ecx
@@ -733,6 +782,7 @@ ENTRY(wrmsr_safe)
 				   hi byte in edx, lo in %eax. */
 	xorq	%rax,%rax
 	movq	%rax,PCB_ONFAULT(%r8)
+	POP_FRAME_POINTER
 	ret
 
 /*
@@ -742,4 +792,5 @@ ENTRY(wrmsr_safe)
 msr_onfault:
 	movq	$0,PCB_ONFAULT(%r8)
 	movl	$EFAULT,%eax
+	POP_FRAME_POINTER
 	ret
