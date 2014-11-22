@@ -756,10 +756,14 @@ saf1761_host_intr_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW7, 0);
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW6, 0);
 
-	temp = (0xFC << td->uframe) & 0xFF;	/* complete split */
+	if (td->dw1_value & SOTG_PTD_DW1_ENABLE_SPLIT) {
+		temp = (0xFC << td->uframe) & 0xFF;	/* complete split */
+	} else {
+		temp = 0;
+	}
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW5, temp);
 
-	temp = (1U << td->uframe);		/* start split */
+	temp = (1U << td->uframe);		/* start mask or start split */
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW4, temp);
 
 	temp = SOTG_PTD_DW3_ACTIVE | (td->toggle << 25) | SOTG_PTD_DW3_CERR_3;
@@ -846,10 +850,14 @@ saf1761_host_intr_data_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW7, 0);
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW6, 0);
 
-	temp = (0xFC << td->uframe) & 0xFF;	/* complete split */
+	if (td->dw1_value & SOTG_PTD_DW1_ENABLE_SPLIT) {
+		temp = (0xFC << td->uframe) & 0xFF;	/* complete split */
+	} else {
+		temp = 0;
+	}
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW5, temp);
 
-	temp = (1U << td->uframe);		/* start split */
+	temp = (1U << td->uframe);		/* start mask or start split */
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW4, temp);
 
 	temp = SOTG_PTD_DW3_ACTIVE | (td->toggle << 25) | SOTG_PTD_DW3_CERR_3;
@@ -939,16 +947,21 @@ saf1761_host_isoc_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW7, 0);
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW6, 0);
 
-	temp = (0xFC << td->uframe) & 0xFF;	/* complete split */
+	if (td->dw1_value & SOTG_PTD_DW1_ENABLE_SPLIT) {
+		temp = (0xFC << (td->uframe & 7)) & 0xFF;	/* complete split */
+	} else {
+		temp = 0;
+	}
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW5, temp);
 
-	temp = (1U << td->uframe);		/* start split */
+	temp = (1U << (td->uframe & 7));	/* start mask or start split */
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW4, temp);
 
 	temp = SOTG_PTD_DW3_ACTIVE | SOTG_PTD_DW3_CERR_3;
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW3, temp);
 
-	temp = (SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8);
+	temp = (SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8) |
+	    (td->uframe & 0xF8);
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW2, temp);
 
 	temp = td->dw1_value | (1 << 10) /* IN-PID */ | (td->ep_index >> 1);
@@ -991,7 +1004,6 @@ saf1761_host_isoc_data_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 		} else if (status & SOTG_PTD_DW3_HALTED) {
 			goto complete;
 		}
-
 		goto complete;
 	}
 	if (saf1761_host_channel_alloc(sc, td))
@@ -1014,13 +1026,14 @@ saf1761_host_isoc_data_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW6, 0);
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW5, 0);
 
-	temp = (1U << td->uframe);		/* start split */
+	temp = (1U << (td->uframe & 7));	/* start mask or start split */
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW4, temp);
 
 	temp = SOTG_PTD_DW3_ACTIVE | SOTG_PTD_DW3_CERR_3;
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW3, temp);
 
-	temp = (SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8);
+	temp = (SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8) |
+	    (td->uframe & 0xF8);
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW2, temp);
 
 	temp = td->dw1_value | (0 << 10) /* OUT-PID */ | (td->ep_index >> 1);
@@ -1685,6 +1698,8 @@ saf1761_otg_setup_standard_chain(struct usb_xfer *xfer)
 	uint8_t ep_type;
 	uint8_t need_sync;
 	uint8_t is_host;
+	uint8_t uframe_start;
+	uint8_t uframe_interval;
 
 	DPRINTFN(9, "addr=%d endpt=%d sumlen=%d speed=%d\n",
 	    xfer->address, UE_GET_ADDR(xfer->endpointno),
@@ -1738,15 +1753,25 @@ saf1761_otg_setup_standard_chain(struct usb_xfer *xfer)
 		x = 0;
 	}
 
+	uframe_start = 0;
+	uframe_interval = 0;
+
 	if (x != xfer->nframes) {
 		if (xfer->endpointno & UE_DIR_IN) {
 			if (is_host) {
-				if (ep_type == UE_INTERRUPT)
+				if (ep_type == UE_INTERRUPT) {
 					temp.func = &saf1761_host_intr_data_rx;
-				else if (ep_type == UE_ISOCHRONOUS)
+				} else if (ep_type == UE_ISOCHRONOUS) {
 					temp.func = &saf1761_host_isoc_data_rx;
-				else
+					uframe_start = (SAF1761_READ_LE_4(sc, SOTG_FRINDEX) + 8) &
+					    (SOTG_FRINDEX_MASK & ~7);
+					if (xfer->xroot->udev->speed == USB_SPEED_HIGH)
+						uframe_interval = 1U << xfer->fps_shift;
+					else
+						uframe_interval = 8U;
+				} else {
 					temp.func = &saf1761_host_bulk_data_rx;
+				}
 				need_sync = 0;
 			} else {
 				temp.func = &saf1761_device_data_tx;
@@ -1754,12 +1779,19 @@ saf1761_otg_setup_standard_chain(struct usb_xfer *xfer)
 			}
 		} else {
 			if (is_host) {
-				if (ep_type == UE_INTERRUPT)
+				if (ep_type == UE_INTERRUPT) {
 					temp.func = &saf1761_host_intr_data_tx;
-				else if (ep_type == UE_ISOCHRONOUS)
+				} else if (ep_type == UE_ISOCHRONOUS) {
 					temp.func = &saf1761_host_isoc_data_tx;
-				else
+					uframe_start = (SAF1761_READ_LE_4(sc, SOTG_FRINDEX) + 8) &
+					    (SOTG_FRINDEX_MASK & ~7);
+					if (xfer->xroot->udev->speed == USB_SPEED_HIGH)
+						uframe_interval = 1U << xfer->fps_shift;
+					else
+						uframe_interval = 8U;
+				} else {
 					temp.func = &saf1761_host_bulk_data_tx;
+				}
 				need_sync = 0;
 			} else {
 				temp.func = &saf1761_device_data_rx;
@@ -1807,6 +1839,12 @@ saf1761_otg_setup_standard_chain(struct usb_xfer *xfer)
 
 		if (xfer->flags_int.isochronous_xfr) {
 			temp.offset += temp.len;
+
+			/* stamp the starting point for this transaction */
+			temp.td->uframe = uframe_start;
+
+			/* advance to next */
+			uframe_start += uframe_interval;
 		} else {
 			/* get next Page Cache pointer */
 			temp.pc = xfer->frbuffers + x;
@@ -3404,17 +3442,8 @@ saf1761_otg_xfer_setup(struct usb_setup_params *parm)
 			td->ep_index = ep_no;
 			td->ep_type = ep_type;
 			td->dw1_value = dw1;
-			if (ep_type == UE_ISOCHRONOUS) {
-				if (parm->udev->speed == USB_SPEED_HIGH) {
-					uint8_t uframe_index = (ntd - 1 - n);
-					uframe_index <<= usbd_xfer_get_fps_shift(xfer);
-					td->uframe = (uframe_index & 7);
-				} else {
-					td->uframe = 0;
-				}
-			} else {
-				td->uframe = 0;
-			}
+			td->uframe = 0;
+
 			if (ep_type == UE_INTERRUPT) {
 				if (xfer->interval > 32)
 					td->interval = (32 / 2) << 3;
