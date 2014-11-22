@@ -1269,11 +1269,24 @@ static int
 swap_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
     int reqpage, pgo_getpages_iodone_t *iodone, void *arg)
 {
-	int r;
+	int r, error;
 
 	r = swap_pager_getpages(object, m, count, reqpage);
 	VM_OBJECT_WUNLOCK(object);
-	(iodone)(arg, m, count, r);
+	switch (r) {
+	case VM_PAGER_OK:
+		error = 0;
+		break;
+	case VM_PAGER_ERROR:
+		error = EIO;
+		break;
+	case VM_PAGER_FAIL:
+		error = EINVAL;
+		break;
+	default:
+		error = EDOOFUS;
+	}
+	(iodone)(arg, m, count, error);
 	VM_OBJECT_WLOCK(object);
 
 	return (r);
