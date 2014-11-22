@@ -1,5 +1,3 @@
-#include <sys/types.h>
-
 #if !defined(__BEGIN_DECLS)
 #  ifdef __cplusplus
 #  define	__BEGIN_DECLS		extern "C" {
@@ -15,30 +13,30 @@
 #  endif
 #endif
 
-#ifndef HAVE_BETOH64
-#  if defined(__APPLE__)
-#    define betoh64(x) OSSwapBigToHostInt64(x)
-#    define htobe64(x) OSSwapHostToBigInt64(x)
-#  elif defined(__sun)
-#    define betoh64(x) BE_64(x)
-#    define htobe64(x) BE_64(x)
-#  else
-#    define betoh64(x) be64toh(x)
-#  endif
+#ifndef HAVE_FGETLN
+extern	char	 *fgetln(FILE *, size_t *);
 #endif
-
+#ifndef HAVE_GETSUBOPT
+extern	int	  getsubopt(char **, char * const *, char **);
+extern	char	 *suboptarg;
+#endif
+#ifndef HAVE_REALLOCARRAY
+extern	void	 *reallocarray(void *, size_t, size_t);
+#endif
+#ifndef HAVE_SQLITE3_ERRSTR
+extern	const char *sqlite3_errstr(int);
+#endif
+#ifndef HAVE_STRCASESTR
+extern	char	 *strcasestr(const char *, const char *);
+#endif
 #ifndef HAVE_STRLCAT
 extern	size_t	  strlcat(char *, const char *, size_t);
 #endif
 #ifndef HAVE_STRLCPY
 extern	size_t	  strlcpy(char *, const char *, size_t);
 #endif
-#ifndef HAVE_GETSUBOPT
-extern	int	  getsubopt(char **, char * const *, char **);
-extern	char	 *suboptarg;
-#endif
-#ifndef HAVE_FGETLN
-extern	char	 *fgetln(FILE *, size_t *);
+#ifndef HAVE_STRSEP
+extern	char	 *strsep(char **, const char *);
 #endif
 
 #endif /* MANDOC_CONFIG_H */

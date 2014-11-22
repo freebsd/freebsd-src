@@ -1,4 +1,4 @@
-/*	$Id: main.h,v 1.15 2011/10/06 22:29:12 kristaps Exp $ */
+/*	$Id: main.h,v 1.16 2014/04/20 16:46:04 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -25,7 +25,7 @@ struct	man;
 #define	UNCONST(a)	((void *)(uintptr_t)(const void *)(a))
 
 
-/* 
+/*
  * Definitions for main.c-visible output device functions, e.g., -Thtml
  * and -Tascii.  Note that ascii_alloc() is named as such in
  * anticipation of latin1_alloc() and so on, all of which map into the

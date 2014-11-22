@@ -1,4 +1,4 @@
-/*	$Id: arch.c,v 1.9 2011/03/22 14:33:05 kristaps Exp $ */
+/*	$Id: arch.c,v 1.11 2014/04/20 16:46:04 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -18,22 +18,20 @@
 #include "config.h"
 #endif
 
-#include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 #include "mdoc.h"
-#include "mandoc.h"
 #include "libmdoc.h"
 
 #define LINE(x, y) \
 	if (0 == strcmp(p, x)) return(y);
 
+
 const char *
 mdoc_a2arch(const char *p)
 {
 
-#include "arch.in" 
+#include "arch.in"
 
 	return(NULL);
 }

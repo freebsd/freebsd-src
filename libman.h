@@ -1,4 +1,4 @@
-/*	$Id: libman.h,v 1.56 2012/11/17 00:26:33 schwarze Exp $ */
+/*	$Id: libman.h,v 1.63 2014/08/01 21:24:17 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -24,13 +24,11 @@ enum	man_next {
 
 struct	man {
 	struct mparse	*parse; /* parse pointer */
+	int		 quick; /* abort parse early */
 	int		 flags; /* parse flags */
-#define	MAN_HALT	(1 << 0) /* badness happened: die */
 #define	MAN_ELINE	(1 << 1) /* Next-line element scope. */
 #define	MAN_BLINE	(1 << 2) /* Next-line block scope. */
-#define	MAN_ILINE	(1 << 3) /* Ignored in next-line scope. */
 #define	MAN_LITERAL	(1 << 4) /* Literal input. */
-#define	MAN_BPLINE	(1 << 5)
 #define	MAN_NEWLINE	(1 << 6) /* first macro/text in a line */
 	enum man_next	 next; /* where to put the next node */
 	struct man_node	*last; /* the last parsed node */
@@ -61,10 +59,6 @@ extern	const struct man_macro *const man_macros;
 
 __BEGIN_DECLS
 
-#define		  man_pmsg(man, l, p, t) \
-		  mandoc_msg((t), (man)->parse, (l), (p), NULL)
-#define		  man_nmsg(man, n, t) \
-		  mandoc_msg((t), (man)->parse, (n)->line, (n)->pos, NULL)
 int		  man_word_alloc(struct man *, int, int, const char *);
 int		  man_block_alloc(struct man *, int, int, enum mant);
 int		  man_head_alloc(struct man *, int, int, enum mant);
@@ -76,9 +70,7 @@ void		  man_hash_init(void);
 enum mant	  man_hash_find(const char *);
 int		  man_macroend(struct man *);
 int		  man_valid_post(struct man *);
-int		  man_valid_pre(struct man *, struct man_node *);
-int		  man_unscope(struct man *, 
-			const struct man_node *, enum mandocerr);
+int		  man_unscope(struct man *, const struct man_node *);
 
 __END_DECLS
 

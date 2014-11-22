@@ -1,4 +1,4 @@
-/*	$Id: eqn_html.c,v 1.2 2011/07/24 10:09:03 kristaps Exp $ */
+/*	$Id: eqn_html.c,v 1.3 2014/04/20 16:46:04 schwarze Exp $ */
 /*
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -35,8 +35,8 @@ static	const enum htmltag fontmap[EQNFONT__MAX] = {
 	TAG_I /* EQNFONT_ITALIC */
 };
 
-
 static void	eqn_box(struct html *, const struct eqn_box *);
+
 
 void
 print_eqn(struct html *p, const struct eqn *ep)
@@ -59,12 +59,12 @@ eqn_box(struct html *p, const struct eqn_box *bp)
 {
 	struct tag	*t;
 
-	t = EQNFONT_NONE == bp->font ? NULL : 
-		print_otag(p, fontmap[(int)bp->font], 0, NULL);
+	t = EQNFONT_NONE == bp->font ? NULL :
+	    print_otag(p, fontmap[(int)bp->font], 0, NULL);
 
 	if (bp->left)
 		print_text(p, bp->left);
-	
+
 	if (bp->text)
 		print_text(p, bp->text);
 

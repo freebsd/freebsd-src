@@ -1,4 +1,4 @@
-/*	$Id: html.h,v 1.49 2013/08/08 20:07:47 schwarze Exp $ */
+/*	$Id: html.h,v 1.51 2014/04/20 16:46:04 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -105,7 +105,7 @@ struct	htmlpair {
 #define	PAIR_STYLE_INIT(p, h)	PAIR_INIT(p, ATTR_STYLE, (h)->buf)
 #define	PAIR_SUMMARY_INIT(p, v)	PAIR_INIT(p, ATTR_SUMMARY, v)
 
-enum	htmltype { 
+enum	htmltype {
 	HTML_HTML_4_01_STRICT,
 	HTML_XHTML_1_0_STRICT
 };
@@ -127,7 +127,7 @@ struct	html {
 	char		 *base_includes; /* base for include href */
 	char		 *style; /* style-sheet URI */
 	char		  buf[BUFSIZ]; /* see bufcat and friends */
-	size_t		  buflen; 
+	size_t		  buflen;
 	struct tag	 *metaf; /* current open font scope */
 	enum htmlfont	  metal; /* last used font */
 	enum htmlfont	  metac; /* current font mode */
@@ -138,7 +138,7 @@ struct	html {
 
 void		  print_gen_decls(struct html *);
 void		  print_gen_head(struct html *);
-struct tag	 *print_otag(struct html *, enum htmltag, 
+struct tag	 *print_otag(struct html *, enum htmltag,
 				int, const struct htmlpair *);
 void		  print_tagq(struct html *, const struct tag *);
 void		  print_stagq(struct html *, const struct tag *);
@@ -147,15 +147,18 @@ void		  print_tblclose(struct html *);
 void		  print_tbl(struct html *, const struct tbl_span *);
 void		  print_eqn(struct html *, const struct eqn *);
 
+#if __GNUC__ - 0 >= 4
+__attribute__((__format__ (__printf__, 2, 3)))
+#endif
 void		  bufcat_fmt(struct html *, const char *, ...);
 void		  bufcat(struct html *, const char *);
 void		  bufcat_id(struct html *, const char *);
-void		  bufcat_style(struct html *, 
+void		  bufcat_style(struct html *,
 			const char *, const char *);
-void		  bufcat_su(struct html *, const char *, 
+void		  bufcat_su(struct html *, const char *,
 			const struct roffsu *);
 void		  bufinit(struct html *);
-void		  buffmt_man(struct html *, 
+void		  buffmt_man(struct html *,
 			const char *, const char *);
 void		  buffmt_includes(struct html *, const char *);
 
