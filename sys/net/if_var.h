@@ -192,7 +192,7 @@ struct ifnet {
 	int	if_amcount;		/* number of all-multicast requests */
 	struct	ifaddr	*if_addr;	/* pointer to link-level address */
 	const u_int8_t *if_broadcastaddr; /* linklevel broadcast bytestring */
-	struct	rwlock if_afdata_lock;
+	struct	rmlock if_afdata_run_lock;
 	void	*if_afdata[AF_MAX];
 	int	if_afdata_initialized;
 
@@ -253,6 +253,7 @@ struct ifnet {
 	u_int	if_hw_tsomaxsegcount;	/* TSO maximum segment count */
 	u_int	if_hw_tsomaxsegsize;	/* TSO maximum segment size in bytes */
 
+	struct	rwlock if_afdata_cfg_lock;
 	/*
 	 * Spare fields to be added before branching a stable branch, so
 	 * that structure can be enhanced without changing the kernel
@@ -339,22 +340,59 @@ typedef void (*group_change_event_handler_t)(void *, const char *);
 EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 #endif /* _SYS_EVENTHANDLER_H_ */
 
-#define	IF_AFDATA_LOCK_INIT(ifp)	\
-	rw_init(&(ifp)->if_afdata_lock, "if_afdata")
+#define	IF_AFDATA_LOCK_INIT(ifp)	do {			\
+	rw_init(&(ifp)->if_afdata_cfg_lock, "if_afdata_cfg");	\
+	rm_init(&(ifp)->if_afdata_run_lock, "if_afdata_run");	\
+} while (0)
 
-#define	IF_AFDATA_WLOCK(ifp)	rw_wlock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_RLOCK(ifp)	rw_rlock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_WUNLOCK(ifp)	rw_wunlock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_RUNLOCK(ifp)	rw_runlock(&(ifp)->if_afdata_lock)
+#define	IF_AFDATA_DESTROY(ifp)		do {	\
+	rw_destroy(&(ifp)->if_afdata_cfg_lock);	\
+	rm_destroy(&(ifp)->if_afdata_run_lock);	\
+} while(0)
+
+/* if_afdata lock: control plane functions */
+#define	IF_AFDATA_CFG_RLOCK(ifp)	if_afdata_cfg_rlock(ifp)
+#define	IF_AFDATA_CFG_RUNLOCK(ifp)	if_afdata_cfg_runlock(ifp)
+#define	IF_AFDATA_CFG_WLOCK(ifp)	if_afdata_cfg_wlock(ifp)
+#define	IF_AFDATA_CFG_WUNLOCK(ifp)	if_afdata_cfg_wunlock(ifp)
+
+#define	IF_AFDATA_CFG_LOCK_ASSERT(i)	if_afdata_cfg_lock_assert(i, RA_LOCKED)
+#define	IF_AFDATA_CFG_RLOCK_ASSERT(i)	if_afdata_cfg_lock_assert(i, RA_RLOCKED)
+#define	IF_AFDATA_CFG_WLOCK_ASSERT(i)	if_afdata_cfg_lock_assert(i, RA_WLOCKED)
+#define	IF_AFDATA_CFG_UNLOCK_ASSERT(i)	if_afdata_cfg_lock_assert(i,RA_UNLOCKED)
+
+void if_afdata_cfg_rlock(struct ifnet *ifp);
+void if_afdata_cfg_runlock(struct ifnet *ifp);
+void if_afdata_cfg_wlock(struct ifnet *ifp);
+void if_afdata_cfg_wunlock(struct ifnet *ifp);
+void if_afdata_cfg_lock_assert(struct ifnet *ifp, int what);
+
+/* if_afdata lock: fast path */
+#define	IF_AFDATA_RUN_WLOCK(ifp)	rm_wlock(&(ifp)->if_afdata_run_lock)
+#define	IF_AFDATA_RUN_WUNLOCK(ifp)	rm_wunlock(&(ifp)->if_afdata_run_lock)
+#define	IF_AFDATA_RUN_RLOCK(ifp)	\
+	rm_rlock(&(ifp)->if_afdata_run_lock, &if_afdata_tracker)
+#define	IF_AFDATA_RUN_RUNLOCK(ifp)	\
+	rm_runlock(&(ifp)->if_afdata_run_lock, &if_afdata_tracker)
+#define	IF_AFDATA_RUN_TRACKER		struct rm_priotracker if_afdata_tracker
+
+/* Common wrappers */
+#define	IF_AFDATA_RLOCK(ifp)	IF_AFDATA_CFG_RLOCK(ifp)
+#define	IF_AFDATA_RUNLOCK(ifp)	IF_AFDATA_CFG_RUNLOCK(ifp)
+#define	IF_AFDATA_WLOCK(ifp)	if_afdata_wlock(ifp)
+#define	IF_AFDATA_WUNLOCK(ifp)	if_afdata_wunlock(ifp)
+
+#define	IF_AFDATA_TRY_WLOCK(ifp)	if_afdata_try_wlock(ifp)
 #define	IF_AFDATA_LOCK(ifp)	IF_AFDATA_WLOCK(ifp)
 #define	IF_AFDATA_UNLOCK(ifp)	IF_AFDATA_WUNLOCK(ifp)
-#define	IF_AFDATA_TRYLOCK(ifp)	rw_try_wlock(&(ifp)->if_afdata_lock)
-#define	IF_AFDATA_DESTROY(ifp)	rw_destroy(&(ifp)->if_afdata_lock)
+void if_afdata_wlock(struct ifnet *ifp);
+void if_afdata_wunlock(struct ifnet *ifp);
+int if_afdata_try_wlock(struct ifnet *ifp); 
 
-#define	IF_AFDATA_LOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_LOCKED)
-#define	IF_AFDATA_RLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_RLOCKED)
-#define	IF_AFDATA_WLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_WLOCKED)
-#define	IF_AFDATA_UNLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_UNLOCKED)
+#define	IF_AFDATA_LOCK_ASSERT(ifp)	IF_AFDATA_CFG_LOCK_ASSERT(ifp)
+#define	IF_AFDATA_RLOCK_ASSERT(ifp)	IF_AFDATA_CFG_RLOCK_ASSERT(ifp)
+#define	IF_AFDATA_WLOCK_ASSERT(ifp)	IF_AFDATA_CFG_WLOCK_ASSERT(ifp)
+#define	IF_AFDATA_UNLOCK_ASSERT(ifp)	IF_AFDATA_CFG_UNLOCK_ASSERT(ifp)
 
 /*
  * 72 was chosen below because it is the size of a TCP/IP

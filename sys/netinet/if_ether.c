@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/rmlock.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
@@ -354,6 +356,7 @@ arpresolve_fast(struct ifnet *ifp, struct in_addr dst, u_int mflags,
 	struct llentry *la;
 	struct sockaddr_in sin;
 	const struct sockaddr *sa_dst;
+	IF_AFDATA_RUN_TRACKER;
 
 	if (mflags & M_BCAST) {
 		memcpy(dst_addr, ifp->if_broadcastaddr, ifp->if_addrlen);
@@ -370,17 +373,17 @@ arpresolve_fast(struct ifnet *ifp, struct in_addr dst, u_int mflags,
 	sin.sin_len = sizeof(sin);
 	sa_dst = (const struct sockaddr *)&sin;
 
-	IF_AFDATA_RLOCK(ifp);
+	IF_AFDATA_RUN_RLOCK(ifp);
 	la = lla_lookup(LLTABLE(ifp), LLE_UNLOCKED, sa_dst);
 	if (la != NULL && (la->r_flags & RLLE_VALID) != 0) {
 		/* Entry found, let's copy lle info */
 		bcopy(&la->ll_addr, dst_addr, ifp->if_addrlen);
 		if (la->r_kick != 0)
 			la->r_kick = 0; /* Notify that entry was used */
-		IF_AFDATA_RUNLOCK(ifp);
+		IF_AFDATA_RUN_RUNLOCK(ifp);
 		return (0);
 	}
-	IF_AFDATA_RUNLOCK(ifp);
+	IF_AFDATA_RUN_RUNLOCK(ifp);
 
 	return (EAGAIN);
 
@@ -438,6 +441,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 {
 	struct llentry *la = NULL;
 	int is_gw;
+	IF_AFDATA_RUN_TRACKER;
 
 	*lle = NULL;
 	if (m != NULL) {
@@ -454,18 +458,18 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 		}
 	}
 
-	IF_AFDATA_RLOCK(ifp);
+	IF_AFDATA_RUN_RLOCK(ifp);
 	la = lla_lookup(LLTABLE(ifp), LLE_UNLOCKED, dst);
 	if (la != NULL && (la->r_flags & RLLE_VALID) != 0) {
 		/* Entry found, let's copy lle info */
 		bcopy(&la->ll_addr, desten, ifp->if_addrlen);
 		if (la->r_kick != 0)
 			la->r_kick = 0; /* Notify that entry was used */
-		IF_AFDATA_RUNLOCK(ifp);
+		IF_AFDATA_RUN_RUNLOCK(ifp);
 		*lle = la;
 		return (0);
 	}
-	IF_AFDATA_RUNLOCK(ifp);
+	IF_AFDATA_RUN_RUNLOCK(ifp);
 
 	is_gw = (rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY)) ? 1 : 0;
 	return (arpresolve_slow(ifp, is_gw, m, dst, desten, lle));

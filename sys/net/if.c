@@ -51,6 +51,7 @@
 #include <sys/lock.h>
 #include <sys/refcount.h>
 #include <sys/module.h>
+#include <sys/rmlock.h>
 #include <sys/rwlock.h>
 #include <sys/sockio.h>
 #include <sys/syslog.h>
@@ -773,7 +774,7 @@ if_attachdomain1(struct ifnet *ifp)
 	 * Since dp->dom_ifattach calls malloc() with M_WAITOK, we
 	 * cannot lock ifp->if_afdata initialization, entirely.
 	 */
-	if (IF_AFDATA_TRYLOCK(ifp) == 0)
+	if (IF_AFDATA_TRY_WLOCK(ifp) == 0)
 		return;
 	if (ifp->if_afdata_initialized >= domain_init_status) {
 		IF_AFDATA_UNLOCK(ifp);
@@ -3937,3 +3938,65 @@ drbr_enqueue_drv(if_t ifh, struct buf_ring *br, struct mbuf *m)
 	return drbr_enqueue(ifh, br, m);
 
 }
+
+void
+if_afdata_cfg_rlock(struct ifnet *ifp)
+{
+
+	rw_rlock(&ifp->if_afdata_cfg_lock);
+}
+
+void
+if_afdata_cfg_runlock(struct ifnet *ifp)
+{
+
+	rw_runlock(&ifp->if_afdata_cfg_lock);
+}
+
+void
+if_afdata_cfg_wlock(struct ifnet *ifp)
+{
+
+	rw_wlock(&ifp->if_afdata_cfg_lock);
+}
+
+void
+if_afdata_cfg_wunlock(struct ifnet *ifp)
+{
+
+	rw_wunlock(&ifp->if_afdata_cfg_lock);
+}
+
+void
+if_afdata_cfg_lock_assert(struct ifnet *ifp, int what)
+{
+
+	rw_assert(&ifp->if_afdata_cfg_lock, what);
+}
+
+void
+if_afdata_wlock(struct ifnet *ifp)
+{
+
+	if_afdata_cfg_wlock(ifp);
+	IF_AFDATA_RUN_WLOCK(ifp);
+}
+
+void
+if_afdata_wunlock(struct ifnet *ifp)
+{
+
+	if_afdata_cfg_wunlock(ifp);
+	IF_AFDATA_RUN_WUNLOCK(ifp);
+}
+
+int
+if_afdata_try_wlock(struct ifnet *ifp)
+{
+	if (rw_try_wlock(&ifp->if_afdata_cfg_lock) == 0)
+		return (0);
+
+	IF_AFDATA_RUN_WLOCK(ifp);
+	return (1);
+}
+
