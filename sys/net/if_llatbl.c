@@ -92,6 +92,42 @@ done:
 	return (error);
 }
 
+
+void
+llentry_link(struct lltable *llt, struct llentry *lle)
+{
+	struct llentries *lleh;
+	uint32_t hashkey;
+
+	hashkey = llt->llt_hash(lle);
+	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
+
+	lle->lle_tbl  = llt;
+	lle->lle_head = lleh;
+	lle->la_flags |= LLE_LINKED;
+	LIST_INSERT_HEAD(lleh, lle, lle_next);
+}
+
+void
+llentry_unlink(struct llentry *lle)
+{
+
+	LIST_REMOVE(lle, lle_next);
+	lle->la_flags &= ~(LLE_VALID | LLE_LINKED);
+	lle->lle_tbl = NULL;
+	lle->lle_head = NULL;
+}
+
+void
+llentries_unlink(struct llentries *head)
+{
+	struct llentry *lle, *next;
+
+	LIST_FOREACH_SAFE(lle, head, lle_chain, next) {
+		llentry_unlink(lle);
+	}
+}
+
 /*
  * Deletes an address from the address table.
  * This function is called by the timer functions

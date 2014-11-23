@@ -149,9 +149,6 @@ static int in6_update_ifa_internal(struct ifnet *, struct in6_aliasreq *,
 static int in6_broadcast_ifa(struct ifnet *, struct in6_aliasreq *,
     struct in6_ifaddr *, int);
 
-static void in6_lltable_link(struct lltable *llt, struct llentry *lle);
-static void in6_lltable_unlink(struct llentry *lle);
-
 #define ifa2ia6(ifa)	((struct in6_ifaddr *)(ifa))
 #define ia62ifa(ia6)	(&((ia6)->ia_ifa))
 
@@ -2094,6 +2091,7 @@ in6_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
 {
 	const struct sockaddr_in6 *pfx = (const struct sockaddr_in6 *)prefix;
 	const struct sockaddr_in6 *msk = (const struct sockaddr_in6 *)mask;
+	struct llentries dchain;
 	struct llentry *lle, *next;
 	int i;
 
@@ -2101,6 +2099,7 @@ in6_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
 	 * (flags & LLE_STATIC) means deleting all entries
 	 * including static ND6 entries.
 	 */
+	LIST_INIT(&dchain);
 	IF_AFDATA_WLOCK(llt->llt_ifp);
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
@@ -2114,10 +2113,13 @@ in6_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
 					LLE_REMREF(lle);
 					lle->la_flags &= ~LLE_CALLOUTREF;
 				}
-				llentry_free(lle);
+				LIST_INSERT_HEAD(&dchain, lle, lle_chain);
 			}
 		}
 	}
+	llentries_unlink(&dchain);
+	LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next)
+		llentry_free(lle);
 	IF_AFDATA_WUNLOCK(llt->llt_ifp);
 }
 
@@ -2158,6 +2160,20 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 	return 0;
 }
 
+static inline uint32_t
+in6_lltable_hash_dst(const struct in6_addr *dst)
+{
+
+	return (dst->s6_addr32[3]);
+}
+
+static uint32_t
+in6_lltable_hash(const struct llentry *lle)
+{
+	
+	return (in6_lltable_hash_dst(&lle->r_l3addr.addr6));
+}
+
 static inline struct llentry *
 in6_lltable_find_dst(struct lltable *llt, const struct in6_addr *dst)
 {
@@ -2165,7 +2181,7 @@ in6_lltable_find_dst(struct lltable *llt, const struct in6_addr *dst)
 	struct llentries *lleh;
 	u_int hashkey;
 
-	hashkey = dst->s6_addr32[3];
+	hashkey = in6_lltable_hash_dst(dst);
 	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
 	LIST_FOREACH(lle, lleh, lle_next) {
 		if (IN6_ARE_ADDR_EQUAL(&lle->r_l3addr.addr6, dst) != 0)
@@ -2194,7 +2210,7 @@ in6_lltable_delete(struct lltable *llt, u_int flags,
 	if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
 		LLE_WLOCK(lle);
 		lle->la_flags |= LLE_DELETED;
-		in6_lltable_unlink(lle);
+		llentry_unlink(lle);
 #ifdef DIAGNOSTIC
 		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
@@ -2246,40 +2262,11 @@ in6_lltable_create(struct lltable *llt, u_int flags,
 		lle->la_flags |= (LLE_VALID | LLE_STATIC);
 	}
 
-	in6_lltable_link(llt, lle);
+	llentry_link(llt, lle);
 	LLE_WLOCK(lle);
 
 	return (lle);
 }
-
-static void
-in6_lltable_link(struct lltable *llt, struct llentry *lle)
-{
-	struct in6_addr dst;
-	struct llentries *lleh;
-	u_int hashkey;
-
-	dst = lle->r_l3addr.addr6;;
-	hashkey = dst.s6_addr32[3];
-	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
-
-	lle->lle_tbl  = llt;
-	lle->lle_head = lleh;
-	lle->la_flags |= LLE_LINKED;
-	LIST_INSERT_HEAD(lleh, lle, lle_next);
-
-}
-
-static void
-in6_lltable_unlink(struct llentry *lle)
-{
-
-	LIST_REMOVE(lle, lle_next);
-	lle->la_flags &= ~(LLE_VALID | LLE_LINKED);
-	lle->lle_tbl = NULL;
-	lle->lle_head = NULL;
-}
-
 
 static struct llentry *
 in6_lltable_lookup(struct lltable *llt, u_int flags,
@@ -2421,6 +2408,7 @@ in6_domifattach(struct ifnet *ifp)
 		ext->lltable->llt_create = in6_lltable_create;
 		ext->lltable->llt_delete = in6_lltable_delete;
 		ext->lltable->llt_dump = in6_lltable_dump;
+		ext->lltable->llt_hash = in6_lltable_hash;
 	}
 
 	ext->mld_ifinfo = mld_domifattach(ifp);

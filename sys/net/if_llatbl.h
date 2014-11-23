@@ -80,6 +80,7 @@ struct llentry {
 	uint16_t		 ln_router;
 	time_t			 ln_ntick;
 	int			 lle_refcnt;
+	LIST_ENTRY(llentry)	lle_chain;	/* chain of deleted items */
 	struct rwlock		 lle_lock;
 
 	/* XXX af-private? */
@@ -94,8 +95,6 @@ struct llentry {
 #define	LLE_RLOCK(lle)		rw_rlock(&(lle)->lle_lock)
 #define	LLE_WUNLOCK(lle)	rw_wunlock(&(lle)->lle_lock)
 #define	LLE_RUNLOCK(lle)	rw_runlock(&(lle)->lle_lock)
-#define	LLE_DOWNGRADE(lle)	rw_downgrade(&(lle)->lle_lock)
-#define	LLE_TRY_UPGRADE(lle)	rw_try_upgrade(&(lle)->lle_lock)
 #define	LLE_LOCK_INIT(lle)	rw_init_flags(&(lle)->lle_lock, "lle", RW_DUPOK)
 #define	LLE_LOCK_DESTROY(lle)	rw_destroy(&(lle)->lle_lock)
 #define	LLE_WLOCK_ASSERT(lle)	rw_assert(&(lle)->lle_lock, RA_WLOCKED)
@@ -157,6 +156,7 @@ typedef	int (llt_delete_t)(struct lltable *, u_int flags,
 typedef void (llt_prefix_free_t)(struct lltable *,
     const struct sockaddr *prefix, const struct sockaddr *mask, u_int flags);
 typedef int (llt_dump_t)(struct lltable *, struct sysctl_req *);
+typedef uint32_t (llt_hash_t)(const struct llentry *);
 
 struct lltable {
 	SLIST_ENTRY(lltable)	llt_link;
@@ -169,6 +169,7 @@ struct lltable {
 	llt_delete_t		*llt_delete;
 	llt_prefix_free_t	*llt_prefix_free;
 	llt_dump_t		*llt_dump;
+	llt_hash_t		*llt_hash;
 };
 
 MALLOC_DECLARE(M_LLTABLE);
@@ -204,6 +205,9 @@ void		lltable_drain(int);
 #endif
 int		lltable_sysctl_dumparp(int, struct sysctl_req *);
 
+void		llentry_link(struct lltable *, struct llentry *);
+void		llentry_unlink(struct llentry *);
+void		llentries_unlink(struct llentries *);
 size_t		llentry_free(struct llentry *);
 struct llentry  *llentry_alloc(struct ifnet *, struct lltable *,
 		    struct sockaddr_storage *);
