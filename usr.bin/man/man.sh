@@ -276,6 +276,8 @@ man_check_for_so() {
 	return 0
 }
 
+# Usage: man_display_page
+# Display either the manpage or catpage depending on the use_cat variable
 man_display_page() {
 	local IFS pipeline preconv_enc testline
 
@@ -346,8 +348,8 @@ man_display_page() {
 	fi
 }
 
-# Usage: man_display_page
-# Display either the manpage or catpage depending on the use_cat variable
+# Usage: man_display_page_groff
+# Display the manpage using groff
 man_display_page_groff() {
 	local EQN NROFF PIC TBL TROFF REFER VGRIND
 	local IFS l nroff_dev pipeline preproc_arg tool
