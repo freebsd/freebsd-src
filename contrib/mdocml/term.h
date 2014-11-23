@@ -1,7 +1,7 @@
-/*	$Id: term.h,v 1.97 2013/12/25 00:39:31 schwarze Exp $ */
+/*	$Id: term.h,v 1.101 2014/04/20 16:46:05 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2011, 2012, 2013 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011, 2012, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -57,6 +57,7 @@ struct	termp {
 	int		  mdocstyle;	/* imitate mdoc(7) output */
 	size_t		  defindent;	/* Default indent for text. */
 	size_t		  defrmargin;	/* Right margin of the device. */
+	size_t		  lastrmargin;	/* Right margin before the last ll. */
 	size_t		  rmargin;	/* Current right margin. */
 	size_t		  maxrmargin;	/* Max right margin. */
 	size_t		  maxcols;	/* Max size of buf. */
@@ -76,11 +77,12 @@ struct	termp {
 #define	TERMP_PREKEEP	 (1 << 6)	/* ...starting with the next one. */
 #define	TERMP_SKIPCHAR	 (1 << 7)	/* Skip the next character. */
 #define	TERMP_NOBREAK	 (1 << 8)	/* See term_flushln(). */
-#define	TERMP_DANGLE	 (1 << 9)	/* See term_flushln(). */
-#define	TERMP_HANG	 (1 << 10)	/* See term_flushln(). */
-#define	TERMP_NOSPLIT	 (1 << 11)	/* See termp_an_pre/post(). */
-#define	TERMP_SPLIT	 (1 << 12)	/* See termp_an_pre/post(). */
-#define	TERMP_ANPREC	 (1 << 13)	/* See termp_an_pre(). */
+#define	TERMP_BRIND	 (1 << 9)	/* See term_flushln(). */
+#define	TERMP_DANGLE	 (1 << 10)	/* See term_flushln(). */
+#define	TERMP_HANG	 (1 << 11)	/* See term_flushln(). */
+#define	TERMP_NOSPLIT	 (1 << 12)	/* See termp_an_pre/post(). */
+#define	TERMP_SPLIT	 (1 << 13)	/* See termp_an_pre/post(). */
+#define	TERMP_ANPREC	 (1 << 14)	/* See termp_an_pre(). */
 	int		 *buf;		/* Output buffer. */
 	enum termenc	  enc;		/* Type of encoding. */
 	struct mchars	 *symtab;	/* Encoded-symbol table. */
@@ -94,6 +96,7 @@ struct	termp {
 	void		(*end)(struct termp *);
 	void		(*endline)(struct termp *);
 	void		(*advance)(struct termp *, size_t);
+	void		(*setwidth)(struct termp *, int, size_t);
 	size_t		(*width)(const struct termp *, int);
 	double		(*hspan)(const struct termp *,
 				const struct roffsu *);
@@ -108,11 +111,12 @@ void		  term_newln(struct termp *);
 void		  term_vspace(struct termp *);
 void		  term_word(struct termp *, const char *);
 void		  term_flushln(struct termp *);
-void		  term_begin(struct termp *, term_margin, 
+void		  term_begin(struct termp *, term_margin,
 			term_margin, const void *);
 void		  term_end(struct termp *);
 
-size_t		  term_hspan(const struct termp *, 
+void		  term_setwidth(struct termp *, const char *);
+size_t		  term_hspan(const struct termp *,
 			const struct roffsu *);
 size_t		  term_vspan(const struct termp *,
 			const struct roffsu *);
