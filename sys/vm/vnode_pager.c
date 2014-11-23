@@ -675,17 +675,17 @@ static int
 vnode_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
     int reqpage, vop_getpages_iodone_t iodone, void *arg)
 {
-	int rtval;
 	struct vnode *vp;
-	int bytes = count * PAGE_SIZE;
+	int rtval;
 
 	vp = object->handle;
 	VM_OBJECT_WUNLOCK(object);
-	rtval = VOP_GETPAGES_ASYNC(vp, m, bytes, reqpage, 0, iodone, arg);
+	rtval = VOP_GETPAGES_ASYNC(vp, m, count * PAGE_SIZE, reqpage, 0,
+	    iodone, arg);
 	KASSERT(rtval != EOPNOTSUPP,
 	    ("vnode_pager: FS getpages_async not implemented\n"));
 	VM_OBJECT_WLOCK(object);
-	return rtval;
+	return (rtval);
 }
 
 /*
@@ -981,7 +981,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 	/* do the input */
 	bp->b_iooffset = dbtob(bp->b_blkno);
 
-	if (iodone) { /* async */
+	if (iodone != NULL) { /* async */
 		bp->b_pager.pg_iodone = iodone;
 		bp->b_caller1 = arg;
 		bp->b_iodone = vnode_pager_generic_getpages_done_async;
@@ -1022,14 +1022,12 @@ vnode_pager_generic_getpages_done_async(struct buf *bp)
 static int
 vnode_pager_generic_getpages_done(struct buf *bp)
 {
-	vm_object_t object = bp->b_vp->v_object;
+	vm_object_t object;
 	off_t tfoff, nextoff;
 	int i, error;
 
-	if ((bp->b_ioflags & BIO_ERROR) != 0)
-		error = EIO;
-	else
-		error = 0;
+	error = (bp->b_ioflags & BIO_ERROR) != 0 ? EIO : 0;
+	object = bp->b_vp->v_object;
 
 	if (error == 0 && bp->b_bcount != bp->b_npages * PAGE_SIZE) {
 		if ((bp->b_flags & B_UNMAPPED) != 0) {
@@ -1084,7 +1082,7 @@ vnode_pager_generic_getpages_done(struct buf *bp)
 			vm_page_readahead_finish(mt);
 	}
 	VM_OBJECT_WUNLOCK(object);
-	if (error)
+	if (error != 0)
 		printf("%s: I/O read error %d\n", __func__, error);
 
 	return (error);

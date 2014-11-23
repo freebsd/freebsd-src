@@ -143,12 +143,10 @@ static inline int
 vm_pager_get_pages_async(vm_object_t object, vm_page_t *m, int count,
     int reqpage, pgo_getpages_iodone_t iodone, void *arg)
 {
-	int r;
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	r = (*pagertab[object->type]->pgo_getpages_async)(object, m, count,
-	    reqpage, iodone, arg);
-	return (r);
+	return ((*pagertab[object->type]->pgo_getpages_async)(object, m,
+	    count, reqpage, iodone, arg));
 }
 
 static __inline void
