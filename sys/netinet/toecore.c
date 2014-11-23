@@ -462,9 +462,9 @@ restart:
 	lle = lla_lookup(LLTABLE6(ifp), flags, sa);
 	IF_AFDATA_RUNLOCK(ifp);
 	if (lle == NULL) {
-		IF_AFDATA_LOCK(ifp);
+		IF_AFDATA_CFG_WLOCK(ifp);
 		lle = nd6_create(&sin6->sin6_addr, 0, ifp);
-		IF_AFDATA_UNLOCK(ifp);
+		IF_AFDATA_CFG_WUNLOCK(ifp);
 		if (lle == NULL)
 			return (ENOMEM); /* Couldn't create entry in cache. */
 		lle->ln_state = ND6_LLINFO_INCOMPLETE;

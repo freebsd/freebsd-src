@@ -355,17 +355,26 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 #define	IF_AFDATA_CFG_RUNLOCK(ifp)	if_afdata_cfg_runlock(ifp)
 #define	IF_AFDATA_CFG_WLOCK(ifp)	if_afdata_cfg_wlock(ifp)
 #define	IF_AFDATA_CFG_WUNLOCK(ifp)	if_afdata_cfg_wunlock(ifp)
+#define	IF_AFDATA_CFG_TRY_WLOCK(ifp)	if_afdata_cfg_try_wlock(ifp)
 
 #define	IF_AFDATA_CFG_LOCK_ASSERT(i)	if_afdata_cfg_lock_assert(i, RA_LOCKED)
 #define	IF_AFDATA_CFG_RLOCK_ASSERT(i)	if_afdata_cfg_lock_assert(i, RA_RLOCKED)
 #define	IF_AFDATA_CFG_WLOCK_ASSERT(i)	if_afdata_cfg_lock_assert(i, RA_WLOCKED)
 #define	IF_AFDATA_CFG_UNLOCK_ASSERT(i)	if_afdata_cfg_lock_assert(i,RA_UNLOCKED)
 
+#define	if_afdata_cfg_lock_assert(ifp, what)	\
+	rw_assert(&(ifp)->if_afdata_cfg_lock, what)
+
 void if_afdata_cfg_rlock(struct ifnet *ifp);
 void if_afdata_cfg_runlock(struct ifnet *ifp);
 void if_afdata_cfg_wlock(struct ifnet *ifp);
 void if_afdata_cfg_wunlock(struct ifnet *ifp);
-void if_afdata_cfg_lock_assert(struct ifnet *ifp, int what);
+int if_afdata_cfg_try_wlock(struct ifnet *ifp);
+
+/* Wrappers */
+#define	IF_AFDATA_RLOCK		IF_AFDATA_CFG_RLOCK
+#define	IF_AFDATA_RUNLOCK	IF_AFDATA_CFG_RUNLOCK
+
 
 /* if_afdata lock: fast path */
 #define	IF_AFDATA_RUN_WLOCK(ifp)	rm_wlock(&(ifp)->if_afdata_run_lock)
@@ -376,23 +385,8 @@ void if_afdata_cfg_lock_assert(struct ifnet *ifp, int what);
 	rm_runlock(&(ifp)->if_afdata_run_lock, &if_afdata_tracker)
 #define	IF_AFDATA_RUN_TRACKER		struct rm_priotracker if_afdata_tracker
 
-/* Common wrappers */
-#define	IF_AFDATA_RLOCK(ifp)	IF_AFDATA_CFG_RLOCK(ifp)
-#define	IF_AFDATA_RUNLOCK(ifp)	IF_AFDATA_CFG_RUNLOCK(ifp)
-#define	IF_AFDATA_WLOCK(ifp)	if_afdata_wlock(ifp)
-#define	IF_AFDATA_WUNLOCK(ifp)	if_afdata_wunlock(ifp)
-
-#define	IF_AFDATA_TRY_WLOCK(ifp)	if_afdata_try_wlock(ifp)
-#define	IF_AFDATA_LOCK(ifp)	IF_AFDATA_WLOCK(ifp)
-#define	IF_AFDATA_UNLOCK(ifp)	IF_AFDATA_WUNLOCK(ifp)
-void if_afdata_wlock(struct ifnet *ifp);
-void if_afdata_wunlock(struct ifnet *ifp);
-int if_afdata_try_wlock(struct ifnet *ifp); 
-
-#define	IF_AFDATA_LOCK_ASSERT(ifp)	IF_AFDATA_CFG_LOCK_ASSERT(ifp)
-#define	IF_AFDATA_RLOCK_ASSERT(ifp)	IF_AFDATA_CFG_RLOCK_ASSERT(ifp)
-#define	IF_AFDATA_WLOCK_ASSERT(ifp)	IF_AFDATA_CFG_WLOCK_ASSERT(ifp)
-#define	IF_AFDATA_UNLOCK_ASSERT(ifp)	IF_AFDATA_CFG_UNLOCK_ASSERT(ifp)
+#define	IF_AFDATA_RUN_WLOCK_ASSERT(ifp)	\
+	rm_assert(&(ifp)->if_afdata_run_lock, RA_WLOCKED)
 
 /*
  * 72 was chosen below because it is the size of a TCP/IP

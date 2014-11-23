@@ -148,11 +148,11 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 	int error = 0;
 	struct scope6_id *sid = NULL;
 
-	IF_AFDATA_WLOCK(ifp);
+	IF_AFDATA_CFG_WLOCK(ifp);
 	sid = SID(ifp);
 
 	if (!sid) {	/* paranoid? */
-		IF_AFDATA_WUNLOCK(ifp);
+		IF_AFDATA_CFG_WUNLOCK(ifp);
 		return (EINVAL);
 	}
 
@@ -175,7 +175,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 			 */
 			if (i == IPV6_ADDR_SCOPE_INTFACELOCAL &&
 			    idlist->s6id_list[i] != ifp->if_index) {
-				IF_AFDATA_WUNLOCK(ifp);
+				IF_AFDATA_CFG_WUNLOCK(ifp);
 				return (EINVAL);
 			}
 
@@ -187,7 +187,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 				 * IDs, but we check the consistency for
 				 * safety in later use.
 				 */
-				IF_AFDATA_WUNLOCK(ifp);
+				IF_AFDATA_CFG_WUNLOCK(ifp);
 				return (EINVAL);
 			}
 
@@ -196,10 +196,11 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 			 * but we simply set the new value in this initial
 			 * implementation.
 			 */
+			/* XXX: Use runtime lock? */
 			sid->s6id_list[i] = idlist->s6id_list[i];
 		}
 	}
-	IF_AFDATA_WUNLOCK(ifp);
+	IF_AFDATA_CFG_WUNLOCK(ifp);
 
 	return (error);
 }

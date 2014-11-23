@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/rwlock.h>
+#include <sys/rmlock.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -99,6 +100,11 @@ llentry_link(struct lltable *llt, struct llentry *lle)
 	struct llentries *lleh;
 	uint32_t hashkey;
 
+	if ((lle->la_flags & LLE_LINKED) != 0)
+		return;
+
+	IF_AFDATA_RUN_WLOCK_ASSERT(llt->llt_ifp);
+
 	hashkey = llt->llt_hash(lle);
 	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
 
@@ -112,10 +118,13 @@ void
 llentry_unlink(struct llentry *lle)
 {
 
-	LIST_REMOVE(lle, lle_next);
-	lle->la_flags &= ~(LLE_VALID | LLE_LINKED);
-	lle->lle_tbl = NULL;
-	lle->lle_head = NULL;
+	if ((lle->la_flags & LLE_LINKED) != 0) {
+		IF_AFDATA_RUN_WLOCK_ASSERT(lle->lle_tbl->llt_ifp);
+		LIST_REMOVE(lle, lle_next);
+		lle->la_flags &= ~(LLE_VALID | LLE_LINKED);
+		lle->lle_tbl = NULL;
+		lle->lle_head = NULL;
+	}
 }
 
 void
@@ -143,12 +152,7 @@ llentry_free(struct llentry *lle)
 	struct mbuf *next;
 
 	LLE_WLOCK_ASSERT(lle);
-
-	if ((lle->la_flags & LLE_LINKED) != 0) {
-		IF_AFDATA_WLOCK_ASSERT(lle->lle_tbl->llt_ifp);
-		LIST_REMOVE(lle, lle_next);
-		lle->la_flags &= ~(LLE_VALID | LLE_LINKED);
-	}
+	KASSERT((lle->la_flags & LLE_LINKED) == 0, ("Freeing linked lle"));
 
 	pkts_dropped = 0;
 	while ((lle->la_numheld > 0) && (lle->la_hold != NULL)) {
@@ -172,6 +176,8 @@ llentry_free(struct llentry *lle)
  * (al)locate an llentry for address dst (equivalent to rtalloc for new-arp).
  *
  * If found the llentry * is returned referenced and unlocked.
+ *
+ * XXX: Remove after converting flowtable
  */
 struct llentry *
 llentry_alloc(struct ifnet *ifp, struct lltable *lt,
@@ -184,9 +190,14 @@ llentry_alloc(struct ifnet *ifp, struct lltable *lt,
 	IF_AFDATA_RUNLOCK(ifp);
 	if ((la == NULL) &&
 	    (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
-		IF_AFDATA_WLOCK(ifp);
+		IF_AFDATA_CFG_WLOCK(ifp);
 		la = lla_create(lt, 0, (struct sockaddr *)dst);
-		IF_AFDATA_WUNLOCK(ifp);
+		if (la != NULL) {
+			IF_AFDATA_RUN_WLOCK(ifp);
+			llentry_link(lt, la);
+			IF_AFDATA_RUN_WUNLOCK(ifp);
+		}
+		IF_AFDATA_CFG_WUNLOCK(ifp);
 	}
 
 	if (la != NULL) {
@@ -204,6 +215,7 @@ void
 lltable_free(struct lltable *llt)
 {
 	struct llentry *lle, *next;
+	struct llentries dchain;
 	int i;
 
 	KASSERT(llt != NULL, ("%s: llt is NULL", __func__));
@@ -212,7 +224,8 @@ lltable_free(struct lltable *llt)
 	SLIST_REMOVE(&V_lltables, llt, lltable, llt_link);
 	LLTABLE_WUNLOCK();
 
-	IF_AFDATA_WLOCK(llt->llt_ifp);
+	LIST_INIT(&dchain);
+	IF_AFDATA_CFG_WLOCK(llt->llt_ifp);
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 			LLE_WLOCK(lle);
@@ -220,10 +233,15 @@ lltable_free(struct lltable *llt)
 				LLE_REMREF(lle);
 				lle->la_flags &= ~LLE_CALLOUTREF;
 			}
-			llentry_free(lle);
+			LIST_INSERT_HEAD(&dchain, lle, lle_chain);
 		}
 	}
-	IF_AFDATA_WUNLOCK(llt->llt_ifp);
+	IF_AFDATA_RUN_WLOCK(llt->llt_ifp);
+	llentries_unlink(&dchain);
+	IF_AFDATA_RUN_WUNLOCK(llt->llt_ifp);
+	LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next)
+		llentry_free(lle);
+	IF_AFDATA_CFG_WUNLOCK(llt->llt_ifp);
 
 	free(llt, M_LLTABLE);
 }
@@ -337,14 +355,15 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	switch (rtm->rtm_type) {
 	case RTM_ADD:
 		/* Add static LLE */
-		IF_AFDATA_WLOCK(ifp);
+		IF_AFDATA_CFG_WLOCK(ifp);
 		lle = lla_create(llt, 0, dst);
 		if (lle == NULL) {
-			IF_AFDATA_WUNLOCK(ifp);
+			IF_AFDATA_CFG_WUNLOCK(ifp);
 			return (ENOMEM);
 		}
 
 
+		IF_AFDATA_RUN_WLOCK(ifp);
 		bcopy(LLADDR(dl), &lle->ll_addr, ifp->if_addrlen);
 		if ((rtm->rtm_flags & RTF_ANNOUNCE))
 			lle->la_flags |= LLE_PUB;
@@ -366,9 +385,11 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 			lle->la_expire = 0;
 		} else
 			lle->la_expire = rtm->rtm_rmx.rmx_expire;
+		llentry_link(llt, lle);
+		IF_AFDATA_RUN_WUNLOCK(ifp);
 		laflags = lle->la_flags;
 		LLE_WUNLOCK(lle);
-		IF_AFDATA_WUNLOCK(ifp);
+		IF_AFDATA_CFG_WUNLOCK(ifp);
 #ifdef INET
 		/* gratuitous ARP */
 		if ((laflags & LLE_PUB) && dst->sa_family == AF_INET)
@@ -381,9 +402,9 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 		break;
 
 	case RTM_DELETE:
-		IF_AFDATA_WLOCK(ifp);
+		IF_AFDATA_CFG_WLOCK(ifp);
 		error = lla_delete(llt, 0, dst);
-		IF_AFDATA_WUNLOCK(ifp);
+		IF_AFDATA_CFG_WUNLOCK(ifp);
 		return (error == 0 ? 0 : ENOENT);
 
 	default:
