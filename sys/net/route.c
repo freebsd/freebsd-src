@@ -1505,6 +1505,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		if (rn == NULL) {
 			ifa_free(rt->rt_ifa);
 			Free(rt_key(rt));
+			RT_LOCK_DESTROY(rt);
 			uma_zfree(V_rtzone, rt);
 #ifdef FLOWTABLE
 			if (rt0 != NULL)
