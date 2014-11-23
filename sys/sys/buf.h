@@ -107,7 +107,6 @@ struct buf {
 	off_t	b_offset;		/* Offset into file. */
 	TAILQ_ENTRY(buf) b_bobufs;	/* (V) Buffer's associated vnode. */
 	uint32_t	b_vflags;	/* (V) BV_* flags */
-	TAILQ_ENTRY(buf) b_freelist;	/* (Q) Free list position inactive. */
 	unsigned short b_qindex;	/* (Q) buffer queue index */
 	uint32_t	b_flags;	/* B_* flags. */
 	b_xflags_t b_xflags;		/* extra flags */
@@ -124,9 +123,15 @@ struct buf {
 	struct	ucred *b_rcred;		/* Read credentials reference. */
 	struct	ucred *b_wcred;		/* Write credentials reference. */
 	void	*b_saveaddr;		/* Original b_addr for physio. */
-	union	pager_info {
-		int	pg_reqpage;
-	} b_pager;
+	union {
+		TAILQ_ENTRY(buf) bu_freelist; /* (Q) */
+		struct {
+			void	(*pg_iodone)(void *, vm_page_t *, int, int);
+			int	pg_reqpage;
+		} bu_pager;
+	} b_union;
+#define	b_freelist	b_union.bu_freelist
+#define	b_pager         b_union.bu_pager
 	union	cluster_info {
 		TAILQ_HEAD(cluster_list_head, buf) cluster_head;
 		TAILQ_ENTRY(buf) cluster_entry;
