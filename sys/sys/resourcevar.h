@@ -102,7 +102,9 @@ struct uidinfo {
 	long	ui_kqcnt;		/* (b) number of kqueues */
 	uid_t	ui_uid;			/* (a) uid */
 	u_int	ui_ref;			/* (b) reference count */
+#ifdef	RACCT
 	struct racct *ui_racct;		/* (a) resource accounting */
+#endif
 };
 
 #define	UIDINFO_VMSIZE_LOCK(ui)		mtx_lock(&((ui)->ui_vmsize_mtx))
@@ -148,8 +150,10 @@ struct uidinfo
 void	 uifree(struct uidinfo *uip);
 void	 uihashinit(void);
 void	 uihold(struct uidinfo *uip);
+#ifdef	RACCT
 void	 ui_racct_foreach(void (*callback)(struct racct *racct,
 	    void *arg2, void *arg3), void *arg2, void *arg3);
+#endif
 
 #endif /* _KERNEL */
 #endif /* !_SYS_RESOURCEVAR_H_ */

@@ -1334,6 +1334,7 @@ uifree(struct uidinfo *uip)
 	free(uip, M_UIDINFO);
 }
 
+#ifdef RACCT
 void
 ui_racct_foreach(void (*callback)(struct racct *racct,
     void *arg2, void *arg3), void *arg2, void *arg3)
@@ -1349,6 +1350,7 @@ ui_racct_foreach(void (*callback)(struct racct *racct,
 	}
 	rw_runlock(&uihashtbl_lock);
 }
+#endif
 
 /*
  * Change the count associated with number of processes
