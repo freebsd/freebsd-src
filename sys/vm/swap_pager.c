@@ -362,7 +362,7 @@ static vm_object_t
 static void	swap_pager_dealloc(vm_object_t object);
 static int	swap_pager_getpages(vm_object_t, vm_page_t *, int, int);
 static int	swap_pager_getpages_async(vm_object_t, vm_page_t *, int, int,
-    pgo_getpages_iodone_t *, void *);
+    pgo_getpages_iodone_t, void *);
 static void	swap_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
 static boolean_t
 		swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *after);
@@ -1267,7 +1267,7 @@ swap_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
  */
 static int
 swap_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
-    int reqpage, pgo_getpages_iodone_t *iodone, void *arg)
+    int reqpage, pgo_getpages_iodone_t iodone, void *arg)
 {
 	int r, error;
 
