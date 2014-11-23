@@ -189,6 +189,7 @@ struct uaudio_chan_alt {
 	uint8_t	iface_index;
 	uint8_t	iface_alt_index;
 	uint8_t channels;
+	uint8_t enable_sync;
 };
 
 struct uaudio_chan {
@@ -1798,6 +1799,14 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		chan_alt->iface_index = curidx;
 		chan_alt->iface_alt_index = alt_index;
 
+		if (UEP_HAS_SYNCADDR(ed1) && ed1->bSynchAddress != 0) {
+			DPRINTF("Sync endpoint will be used, if present\n");
+			chan_alt->enable_sync = 1;
+		} else {
+			DPRINTF("Sync endpoint will not be used\n");
+			chan_alt->enable_sync = 0;
+		}
+
 		usbd_set_parent_iface(sc->sc_udev, curidx,
 		    sc->sc_mixer_iface_index);
 
@@ -2074,8 +2083,10 @@ tr_transferred:
 		chn_intr(ch->pcm_ch);
 
 		/* start SYNC transfer, if any */
-		if ((ch->last_sync_time++ & 7) == 0)
-			usbd_transfer_start(ch->xfer[UAUDIO_NCHANBUFS]);
+		if (ch->usb_alt[ch->cur_alt].enable_sync != 0) {
+			if ((ch->last_sync_time++ & 7) == 0)
+				usbd_transfer_start(ch->xfer[UAUDIO_NCHANBUFS]);
+		}
 
 	case USB_ST_SETUP:
 		mfl = usbd_xfer_max_framelen(xfer);
