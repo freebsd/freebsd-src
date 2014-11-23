@@ -711,13 +711,10 @@ fib6_storelladdr(struct ifnet *ifp, struct in6_addr *dst, int mm_flags,
 	 */
 	if (ln == NULL || (ln->ln_state != ND6_LLINFO_REACHABLE &&
 	    ln->ln_state != ND6_LLINFO_DELAY)) {
-		if (ln != NULL)
-			LLE_RUNLOCK(ln);
 		IF_AFDATA_RUN_RUNLOCK(ifp);
 		return (1);
 	}
 	bcopy(&ln->ll_addr, desten, ifp->if_addrlen);
-	LLE_RUNLOCK(ln);
 	IF_AFDATA_RUN_RUNLOCK(ifp);
 
 	return (0);
