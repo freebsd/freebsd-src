@@ -326,7 +326,7 @@ man_display_page() {
 	pipeline="$pipeline mandoc -Tlocale | $MANPAGER"
 
 	if ! eval "$cattool $manpage | $testline" ;then
-		if which -s groff2; then
+		if which -s groff; then
 			man_display_page_groff
 		else
 			echo "This manpage needs groff(1) to be rendered" >&2
