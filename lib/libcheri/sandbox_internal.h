@@ -75,8 +75,21 @@ struct sandbox_object {
 	register_t		 sbo_sandboxlen;
 	register_t		 sbo_heapbase;
 	register_t		 sbo_heaplen;
-	struct cheri_object	 sbo_cheri_object;
-	struct cheri_object	 sbo_cheri_system_object;
+
+	/*
+	 * The object's own code and data capabilities.
+	 */
+	struct cheri_object	 sbo_cheri_object_rtld;
+	struct cheri_object	 sbo_cheri_object_invoke;
+
+	/*
+	 * System-object capabilities that can be passed to the object.
+	 */
+	struct cheri_object	 sbo_cheri_object_system;
+
+	/*
+	 * Sandbox statistics.
+	 */
 	struct sandbox_object_stat	*sbo_sandbox_object_statp;
 };
 

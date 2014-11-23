@@ -29,21 +29,36 @@
  */
 
 /*
- * Linker definition for a relocatable sandbox.  Each one begins with a
- * 0x1000 byte "guard" region to catch NULL pointer dereferences, followed by
- * some amount of metadata.  The binary is linked at 0x8000.
+ * Linker definition for a relocatable sandbox binary.
+ *
+ * The bottom 0x8000 bytes is owned by the sandbox runtime, but will normally
+ * start with a guard page at 0x0, followed by metadata at 0x1000.  Code
+ * linkage begins with a series of entry vectors, followed by the proper body
+ * of the code segment.  Each vector has room for 128 instructions.
  */
+__vector_base__ = 0x8000;
+__vector_size__ = 0x200;
 
-__code_base__ = 0x8000;
+__rtld_vector__ = __vector_base__ + __vector_size__ * 0;
+__invoke_vector__ = __vector_base__ + __vector_size__ * 1;
+__reserved0_vector__ = __vector_base__ + __vector_size__ * 2;
+__reserved1_vector__ = __vector_base__ + __vector_size__ * 3;
+
+__code_body__ = __vector_base__ + __vector_size__ * 4;
+
 CAP_ALIGN = 0x20;
 
 SECTIONS
 {
-	. = __code_base__;
-
-	.text ALIGN(CAP_ALIGN): {
-		crt_sb.o(.text .data .bss)
+	. = __rtld_vector__;
+	.text.rtld_vector : {
+		crt_rtld.o(.text .data .bss)
 	}
+	. = __invoke_vector__;
+	.text.invoke_vector : {
+		crt_invoke.o(.text .data .bss)
+	}
+	.= __code_body__;
 	.MIPS.options ALIGN(CAP_ALIGN): {
 		*(.MIPS.options)
 	}

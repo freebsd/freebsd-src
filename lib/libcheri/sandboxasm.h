@@ -48,9 +48,13 @@
 #define	SANDBOX_METADATA_OFFSET_HEAPBASE	0
 #define	SANDBOX_METADATA_OFFSET_HEAPLEN		8
 
+#define	SANDBOX_BINARY_BASE	0x8000
+#define	SANDBOX_VECTOR_SIZE	0x200
+
 /*
- * This is the code entry point for sandboxes, and should match their linking.
+ * These are the (defined) entry vectors for sandbox
  */
-#define	SANDBOX_ENTRY	0x8000
+#define	SANDBOX_RTLD_VECTOR	(SANDBOX_BINARY_BASE + SANDBOX_VECTOR_SIZE * 0)
+#define	SANDBOX_INVOKE_VECTOR	(SANDBOX_BINARY_BASE + SANDBOX_VECTOR_SIZE * 1)
 
 #endif /* !_SANDBOXASM_H_ */

@@ -120,9 +120,9 @@ int
 cheri_system_free(const void *ptr)
 {
 
-	cheri_invoke(cheri_system_object,
+	return (cheri_invoke(cheri_system_object,
 	    cheri_system_methodnum_free, 0, 0, 0, 0, 0, 0, 0, ptr,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap());
+	    cheri_zerocap()));
 }

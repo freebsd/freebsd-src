@@ -91,7 +91,11 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * K          [guard page]
 	 * J + 0x1000 [heap]
 	 * J          [guard page]
-	 * 0x8000     [memory mapped binary] (SANDBOX_ENTRY)
+	 *  +0x600      Reserved vector
+	 *  +0x400      Reserved vector
+	 *  +0x200      Object-capability invocation vector
+	 *  +0x0        Run-time linker vector
+	 * 0x8000     [memory mapped binary]
 	 * 0x2000     [guard page]
 	 * 0x1000     [read-only sandbox metadata page]
 	 * 0x0000     [guard page]
@@ -131,9 +135,10 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * the sandbox entry address.  This address is hard to change as it is
 	 * the address used in static linking for sandboxed code.
 	 */
-	assert((register_t)base - (register_t)sbop->sbo_mem < SANDBOX_ENTRY);
-	base = (void *)((register_t)sbop->sbo_mem + SANDBOX_ENTRY);
-	length = sbcp->sbc_sandboxlen - SANDBOX_ENTRY;
+	assert((register_t)base - (register_t)sbop->sbo_mem <
+	    SANDBOX_BINARY_BASE);
+	base = (void *)((register_t)sbop->sbo_mem + SANDBOX_BINARY_BASE);
+	length = sbcp->sbc_sandboxlen - SANDBOX_BINARY_BASE;
 
 	/*
 	 * Map program binary.
@@ -217,25 +222,42 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	typecap = cheri_type_alloc();
 
 	/*
-	 * Construct code capability.
+	 * Construct capabilities for run-time linker vector.
 	 *
-	 * XXXRW: Do we really need CHERI_PERM_LOAD?
+	 * NB: Currently, the only difference between the rtld vector and the
+	 * ccall vector is the vector address.
+	 *
+	 * XXXRW: We use the same type for both the run-time linker vector and
+	 * the CCall vector.  Is this OK?
 	 */
 	codecap = cheri_ptrperm(sbop->sbo_mem, sbcp->sbc_sandboxlen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
-	codecap = cheri_setoffset(codecap, SANDBOX_ENTRY);
-	sbop->sbo_cheri_object.co_codecap = cheri_seal(codecap, typecap);
+	codecap = cheri_setoffset(codecap, SANDBOX_RTLD_VECTOR);
+	sbop->sbo_cheri_object_rtld.co_codecap = cheri_seal(codecap, typecap);
 
-	/*
-	 * Construct data capability.  For now, allow storing local
-	 * capabilities ... but we will stop doing this once the stack
-	 * capability stops being derived from the data capability on entry.
-	 */
 	datacap = cheri_ptrperm(sbop->sbo_mem, sbcp->sbc_sandboxlen,
 	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
 	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |
 	    CHERI_PERM_STORE_LOCAL_CAP);
-	sbop->sbo_cheri_object.co_datacap = cheri_seal(datacap, typecap);
+	sbop->sbo_cheri_object_rtld.co_datacap = cheri_seal(datacap, typecap);
+
+	/*
+	 * Construct capabilities for CCall vector.
+	 *
+	 * XXXRW: Does the code capability need CHERI_PERM_LOAD?
+	 */
+	codecap = cheri_ptrperm(sbop->sbo_mem, sbcp->sbc_sandboxlen,
+	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_EXECUTE);
+	codecap = cheri_setoffset(codecap, SANDBOX_INVOKE_VECTOR);
+	sbop->sbo_cheri_object_invoke.co_codecap =
+	    cheri_seal(codecap, typecap);
+
+	datacap = cheri_ptrperm(sbop->sbo_mem, sbcp->sbc_sandboxlen,
+	    CHERI_PERM_GLOBAL | CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP |
+	    CHERI_PERM_STORE | CHERI_PERM_STORE_CAP |
+	    CHERI_PERM_STORE_LOCAL_CAP);
+	sbop->sbo_cheri_object_invoke.co_datacap =
+	    cheri_seal(datacap, typecap);
 
 	/*
 	 * Construct an object capability for the system-class instance that
@@ -253,7 +275,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	codecap = cheri_getpcc();
 	codecap = cheri_setoffset(codecap,
 	    (register_t)CHERI_CLASS_ENTRY(libcheri_system));
-	sbop->sbo_cheri_system_object.co_codecap = cheri_seal(codecap,
+	sbop->sbo_cheri_object_system.co_codecap = cheri_seal(codecap,
 	    typecap);
 
 	/*
@@ -264,7 +286,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	datacap = cheri_ptrperm(sbop, sizeof(*sbop), CHERI_PERM_GLOBAL |
 	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE |
 	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP);
-	sbop->sbo_cheri_system_object.co_datacap = cheri_seal(datacap,
+	sbop->sbo_cheri_object_system.co_datacap = cheri_seal(datacap,
 	    typecap);
 	return (0);
 

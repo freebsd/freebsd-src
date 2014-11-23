@@ -57,7 +57,7 @@
 #    $c11 will have have the global bit cleared
 #    $sp, $fp will point into an in-sandbox stack, relative to $c11
 #
-# __ccall_enter will jump to the 'invoke' symbol and arrange a CReturn when
+# __invoke_vector will jump to the 'invoke' symbol and arrange a CReturn when
 # that function returns.  This code also implements 'abort' and '_exit'
 # symbols that can be used to fall back out quickly and efficiently.
 #
@@ -77,9 +77,9 @@
 #     must change before we can run Clang-compiled CHERI code.
 #
 	.text
-	.global __ccall_enter
-	.ent __ccall_enter
-__ccall_enter:
+	.global __invoke_vector
+	.ent __invoke_vector
+__invoke_vector:
 
 	#
 	# Set up in-sandbox stack; assume that suitable space for a stack has
@@ -116,43 +116,13 @@ __ccall_enter:
 	dla	$gp, _gp
 
 	#
-	# Extract heap base and length from sandbox metadata.  These must
-	# match sandboxasm.h.
-	#
-	# XXXRW: I'm having trouble using the C preprocessor to provide these
-	# values in assembly, so hard-coded for now.  We could also just defer
-	# these calculations to C.
-	#
-	dli	$t0, 0x1000
-	ld	$t1, 0($t0)
-	dla	$t2, _sb_heapbase;
-	sd	$t1, 0($t2)
-
-	ld	$t1, 8($t0)
-	dla	$t2, _sb_heaplen;
-	sd	$t1, 0($t2)
-
-	#-
-	# The sandbox runtime intercepts specific reserved methods; this comes
-	# at a cost on every method invocation, so we might wish to introduce
-	# a separate entry point for this.  Another advantage to a separate
-	# entry point is that we could choose not to delegate the ability to
-	# invoke that entry point outside of the sandbox library.
-	#
-	# -1 Constructors
-	# -2 Destructors (unimplemented)
-	#
-	dli	$at, -1
-	beq	$a0, $at, constructors
-
-	#
 	# Call the MIPS/CHERI-ABI C "invoke" function.
 	#
 	dla	$t9, invoke
 	jalr	$t9
 	nop			# Branch-delay slot
 
-abort_target:
+creturn_target:
 	#
 	# The compiler is responsible for scrubbing unused return-value
 	# registers # (since only it has the information required to do so).
@@ -163,7 +133,7 @@ abort_target:
 	# Return to caller.
 	#
 	creturn
-	.end __ccall_enter
+	.end __invoke_vector
 
 	.global abort
 	.ent abort
@@ -175,37 +145,18 @@ abort:
 	# set $v0, and clear $v1/$c3.
 	#
 	cfromptr	$c3, $c3, $zero
-
 	dli	$v0, -2
-	dli	$v1, 0
-	b	abort_target
-	nop
+	b	creturn_target
+	dli	$v1, 0		# Branch-delay slot
 	.end abort
 
 	.global _exit
 	.ent _exit
 _exit:
-	move	$v0, $a0
-	b	abort_target
-	nop
-	.end _exit
-
-constructors:
-	#
-	# Perform constructor intialisation from C; the C code must be very
-	# careful not to depend on the outcome of any constructors!  Here, as
-	# above, set $v0 to indicate success, and scrub $v1/$c3 before
-	# returning.
-	#
-	# XXXRW: Really, this should be another entry point not available via
-	# the general invocation method.
-	#
-	dla	$t9, crt_sb_constructors
-	jalr	$t9
-	nop
 	cfromptr	$c3, $c3, $zero
-	dli	$v0, 0
-	b	abort_target
+	move	$v0, $a0
+	b	creturn_target
 	dli	$v1, 0		# Branch-delay slot
+	.end _exit
 
 	.data

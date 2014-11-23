@@ -210,7 +210,7 @@ sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 	 *
 	 * NB: Should we be passing in a system-class reference...?
 	 */
-	(void)cheri_invoke(sbop->sbo_cheri_object,
+	(void)cheri_invoke(sbop->sbo_cheri_object_rtld,
 	    SANDBOX_RUNTIME_CONSTRUCTORS, 0, 0, 0, 0, 0, 0, 0,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
@@ -248,8 +248,8 @@ sandbox_object_cinvoke(struct sandbox_object *sbop, u_int methodnum,
 		SANDBOX_METHOD_INVOKE(sbcp->sbc_sandbox_method_nonamep);
 	SANDBOX_OBJECT_INVOKE(sbop->sbo_sandbox_object_statp);
 	start = cheri_get_cyclecount();
-	v0 = cheri_invoke(sbop->sbo_cheri_object, methodnum, a1, a2, a3, a4,
-	    a5, a6, a7, c3, c4, c5, c6, c7, c8, c9, c10);
+	v0 = cheri_invoke(sbop->sbo_cheri_object_invoke, methodnum, a1, a2,
+	    a3, a4, a5, a6, a7, c3, c4, c5, c6, c7, c8, c9, c10);
 	sample = cheri_get_cyclecount() - start;
 	SANDBOX_METHOD_TIME_SAMPLE(sbcp->sbc_sandbox_methods[methodnum],
 	    sample);
@@ -336,14 +336,14 @@ struct cheri_object
 sandbox_object_getobject(struct sandbox_object *sbop)
 {
 
-	return (sbop->sbo_cheri_object);
+	return (sbop->sbo_cheri_object_invoke);
 }
 
 struct cheri_object
 sandbox_object_getsystemobject(struct sandbox_object *sbop)
 {
 
-	return (sbop->sbo_cheri_system_object);
+	return (sbop->sbo_cheri_object_system);
 }
 
 int
