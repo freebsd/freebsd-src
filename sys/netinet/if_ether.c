@@ -164,9 +164,9 @@ arp_ifscrub(struct ifnet *ifp, uint32_t addr)
 	addr4.sin_len    = sizeof(addr4);
 	addr4.sin_family = AF_INET;
 	addr4.sin_addr.s_addr = addr;
-	IF_AFDATA_WLOCK(ifp);
+	IF_AFDATA_CFG_WLOCK(ifp);
 	lla_delete(LLTABLE(ifp), LLE_IFADDR, (struct sockaddr *)&addr4);
-	IF_AFDATA_WUNLOCK(ifp);
+	IF_AFDATA_CFG_WUNLOCK(ifp);
 }
 #endif
 
@@ -247,7 +247,7 @@ arptimer(void *arg)
 
 	/* XXX: LOR avoidance. We still have ref on lle. */
 	LLE_WUNLOCK(lle);
-	IF_AFDATA_LOCK(ifp);
+	IF_AFDATA_CFG_WLOCK(ifp);
 	LLE_WLOCK(lle);
 
 	/*
@@ -262,7 +262,7 @@ arptimer(void *arg)
 	pkts_dropped = llentry_free(lle);
 	ARPSTAT_ADD(dropped, pkts_dropped);
 
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_CFG_WUNLOCK(ifp);
 
 	ARPSTAT_INC(timeouts);
 
@@ -492,9 +492,14 @@ arpresolve_slow(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	IF_AFDATA_RUNLOCK(ifp);
 	if (la == NULL && (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
 		create = 1;
-		IF_AFDATA_WLOCK(ifp);
+		IF_AFDATA_CFG_WLOCK(ifp);
 		la = lla_create(LLTABLE(ifp), 0, dst);
-		IF_AFDATA_WUNLOCK(ifp);
+		if (la != NULL) {
+			IF_AFDATA_RUN_WLOCK(ifp);
+			llentry_link(LLTABLE(ifp), la);
+			IF_AFDATA_RUN_WUNLOCK(ifp);
+		}
+		IF_AFDATA_CFG_WUNLOCK(ifp);
 	}
 	if (la == NULL) {
 		if (create != 0)
@@ -508,6 +513,7 @@ arpresolve_slow(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	if ((la->la_flags & LLE_VALID) &&
 	    ((la->la_flags & LLE_STATIC) || la->la_expire > time_uptime)) {
 		bcopy(&la->ll_addr, desten, ifp->if_addrlen);
+#if 0
 		/*
 		 * If entry has an expiry time and it is approaching,
 		 * see if we need to send an ARP request within this
@@ -518,7 +524,7 @@ arpresolve_slow(struct ifnet *ifp, int is_gw, struct mbuf *m,
 			arprequest(ifp, NULL, &SIN(dst)->sin_addr, NULL);
 			la->la_preempt--;
 		}
-
+#endif
 		*lle = la;
 		error = 0;
 		goto done;
@@ -851,15 +857,15 @@ match:
 	sin.sin_addr = isaddr;
 	create = (itaddr.s_addr == myaddr.s_addr) ? 1 : 0;
 	flags = LLE_EXCLUSIVE;
-	IF_AFDATA_LOCK(ifp);
-	if (create != 0)
+	IF_AFDATA_CFG_WLOCK(ifp);
+	if (create != 0) {
 		la = lla_create(LLTABLE(ifp), 0, (struct sockaddr *)&sin);
-	else
+	} else
 		la = lla_lookup(LLTABLE(ifp), flags, (struct sockaddr *)&sin);
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_CFG_WUNLOCK(ifp);
 	if (la != NULL) {
 		/* the following is not an error when doing bridging */
-		if (!bridged && la->lle_tbl->llt_ifp != ifp) {
+		if (!bridged && la->lle_tbl && la->lle_tbl->llt_ifp != ifp) {
 			if (log_arp_wrong_iface)
 				ARP_LOG(LOG_WARNING, "%s is on %s "
 				    "but got reply from %*D on %s\n",
@@ -910,17 +916,20 @@ match:
 			/* use afdata WLOCK to update fields */
 			LLE_ADDREF(la);
 			LLE_WUNLOCK(la);
-			IF_AFDATA_WLOCK(ifp);
+			IF_AFDATA_CFG_WLOCK(ifp);
 			LLE_WLOCK(la);
 
 			/* Update data */
+			IF_AFDATA_RUN_WLOCK(ifp);
 			memcpy(&la->ll_addr, ar_sha(ah), ifp->if_addrlen);
 			la->la_flags |= LLE_VALID;
 			la->r_flags |= RLLE_VALID;
 			if ((la->la_flags & LLE_STATIC) == 0)
 				la->la_expire = time_uptime + V_arpt_keep;
+			llentry_link(LLTABLE(ifp), la);
+			IF_AFDATA_RUN_WUNLOCK(ifp);
 
-			IF_AFDATA_WUNLOCK(ifp);
+			IF_AFDATA_CFG_WUNLOCK(ifp);
 			LLE_REMREF(la);
 		}
 
@@ -1084,12 +1093,18 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 		 * because the output of the arp utility shows
 		 * that L2 entry as permanent
 		 */
-		IF_AFDATA_LOCK(ifp);
+		IF_AFDATA_CFG_WLOCK(ifp);
 		lle = lla_create(LLTABLE(ifp), LLE_IFADDR | LLE_STATIC,
 				 (struct sockaddr *)IA_SIN(ifa));
-		if (lle != NULL)
+		if (lle != NULL) {
+			IF_AFDATA_RUN_WLOCK(ifp);
+			bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
+			lle->la_flags |= (LLE_VALID | LLE_STATIC);
 			lle->r_flags |= RLLE_VALID;
-		IF_AFDATA_UNLOCK(ifp);
+			llentry_link(LLTABLE(ifp), lle);
+			IF_AFDATA_RUN_WUNLOCK(ifp);
+		}
+		IF_AFDATA_CFG_WUNLOCK(ifp);
 		if (lle == NULL)
 			log(LOG_INFO, "arp_ifinit: cannot create arp "
 			    "entry for interface address\n");

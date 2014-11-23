@@ -774,16 +774,16 @@ if_attachdomain1(struct ifnet *ifp)
 	 * Since dp->dom_ifattach calls malloc() with M_WAITOK, we
 	 * cannot lock ifp->if_afdata initialization, entirely.
 	 */
-	if (IF_AFDATA_TRY_WLOCK(ifp) == 0)
+	if (IF_AFDATA_CFG_TRY_WLOCK(ifp) == 0)
 		return;
 	if (ifp->if_afdata_initialized >= domain_init_status) {
-		IF_AFDATA_UNLOCK(ifp);
+		IF_AFDATA_CFG_WUNLOCK(ifp);
 		log(LOG_WARNING, "%s called more than once on %s\n",
 		    __func__, ifp->if_xname);
 		return;
 	}
 	ifp->if_afdata_initialized = domain_init_status;
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_CFG_WUNLOCK(ifp);
 
 	/* address family dependent data region */
 	bzero(ifp->if_afdata, sizeof(ifp->if_afdata));
@@ -961,10 +961,10 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 	 * sleep, for example trying to drain a callout, thus open up the
 	 * theoretical race with re-attaching.
 	 */
-	IF_AFDATA_LOCK(ifp);
+	IF_AFDATA_CFG_WLOCK(ifp);
 	i = ifp->if_afdata_initialized;
 	ifp->if_afdata_initialized = 0;
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_CFG_WUNLOCK(ifp);
 	for (dp = domains; i > 0 && dp; dp = dp->dom_next) {
 		if (dp->dom_ifdetach && ifp->if_afdata[dp->dom_family])
 			(*dp->dom_ifdetach)(ifp,
@@ -3967,36 +3967,10 @@ if_afdata_cfg_wunlock(struct ifnet *ifp)
 	rw_wunlock(&ifp->if_afdata_cfg_lock);
 }
 
-void
-if_afdata_cfg_lock_assert(struct ifnet *ifp, int what)
-{
-
-	rw_assert(&ifp->if_afdata_cfg_lock, what);
-}
-
-void
-if_afdata_wlock(struct ifnet *ifp)
-{
-
-	if_afdata_cfg_wlock(ifp);
-	IF_AFDATA_RUN_WLOCK(ifp);
-}
-
-void
-if_afdata_wunlock(struct ifnet *ifp)
-{
-
-	if_afdata_cfg_wunlock(ifp);
-	IF_AFDATA_RUN_WUNLOCK(ifp);
-}
-
 int
-if_afdata_try_wlock(struct ifnet *ifp)
+if_afdata_cfg_try_wlock(struct ifnet *ifp)
 {
-	if (rw_try_wlock(&ifp->if_afdata_cfg_lock) == 0)
-		return (0);
 
-	IF_AFDATA_RUN_WLOCK(ifp);
-	return (1);
+	return (rw_try_wlock(&ifp->if_afdata_cfg_lock));
 }
 

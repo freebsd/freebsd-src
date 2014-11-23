@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
+#include <sys/rmlock.h>
 #include <sys/queue.h>
 #include <sys/sdt.h>
 #include <sys/sysctl.h>
@@ -854,7 +855,9 @@ nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 	sin6.sin6_family = AF_INET6;
 	sin6.sin6_addr = *addr6;
 
-	IF_AFDATA_LOCK_ASSERT(ifp);
+	/*
+	 * IF_AFDATA_LOCK_ASSERT(ifp);
+	*/
 
 	llflags = (flags & ND6_EXCLUSIVE) ? LLE_EXCLUSIVE : 0;
 	ln = lla_lookup(LLTABLE6(ifp), llflags, (struct sockaddr *)&sin6);
@@ -877,11 +880,15 @@ nd6_create(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 	sin6.sin6_family = AF_INET6;
 	sin6.sin6_addr = *addr6;
 
-	IF_AFDATA_WLOCK_ASSERT(ifp);
+	IF_AFDATA_CFG_WLOCK_ASSERT(ifp);
 
 	ln = lla_create(LLTABLE6(ifp), 0, (struct sockaddr *)&sin6);
-	if (ln != NULL)
+	if (ln != NULL) {
+		IF_AFDATA_RUN_WLOCK(ifp);
 		ln->ln_state = ND6_LLINFO_NOSTATE;
+		llentry_link(LLTABLE6(ifp), ln);
+		IF_AFDATA_RUN_WUNLOCK(ifp);
+	}
 	
 	return (ln);
 }
@@ -998,7 +1005,7 @@ nd6_is_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 	struct llentry *lle;
 	int rc = 0;
 
-	IF_AFDATA_UNLOCK_ASSERT(ifp);
+	IF_AFDATA_CFG_UNLOCK_ASSERT(ifp);
 	if (nd6_is_new_addr_neighbor(addr, ifp))
 		return (1);
 
@@ -1137,7 +1144,7 @@ nd6_free(struct llentry *ln, int gc)
 	 * free(9) in llentry_free() if someone else holds one as well.
 	 */
 	LLE_WUNLOCK(ln);
-	IF_AFDATA_LOCK(ifp);
+	IF_AFDATA_CFG_WLOCK(ifp);
 	LLE_WLOCK(ln);
 
 	/*
@@ -1149,9 +1156,13 @@ nd6_free(struct llentry *ln, int gc)
 		ln->la_flags &= ~LLE_CALLOUTREF;
 	}
 
+	IF_AFDATA_RUN_WLOCK(ifp);
+	llentry_unlink(ln);
+	IF_AFDATA_RUN_WUNLOCK(ifp);
+
 	llentry_free(ln);
 
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_CFG_WUNLOCK(ifp);
 
 	return (next);
 }
@@ -1579,7 +1590,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	struct mbuf *chain = NULL;
 	int static_route = 0;
 
-	IF_AFDATA_UNLOCK_ASSERT(ifp);
+	IF_AFDATA_CFG_UNLOCK_ASSERT(ifp);
 
 	KASSERT(ifp != NULL, ("%s: ifp == NULL", __func__));
 	KASSERT(from != NULL, ("%s: from == NULL", __func__));
@@ -1598,14 +1609,14 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	 * description on it in NS section (RFC 2461 7.2.3).
 	 */
 	flags = lladdr ? ND6_EXCLUSIVE : 0;
-	IF_AFDATA_RLOCK(ifp);
+	IF_AFDATA_CFG_RLOCK(ifp);
 	ln = nd6_lookup(from, flags, ifp);
-	IF_AFDATA_RUNLOCK(ifp);
+	IF_AFDATA_CFG_RUNLOCK(ifp);
 	if (ln == NULL) {
 		flags |= ND6_EXCLUSIVE;
-		IF_AFDATA_LOCK(ifp);
+		IF_AFDATA_CFG_WLOCK(ifp);
 		ln = nd6_create(from, 0, ifp);
-		IF_AFDATA_UNLOCK(ifp);
+		IF_AFDATA_CFG_WUNLOCK(ifp);
 		is_newentry = 1;
 	} else {
 		/* do nothing if static ndp is set */
@@ -2004,9 +2015,9 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 			 * the condition below is not very efficient.  But we believe
 			 * it is tolerable, because this should be a rare case.
 			 */
-			IF_AFDATA_LOCK(ifp);
+			IF_AFDATA_CFG_WLOCK(ifp);
 			lle = nd6_create(&dst->sin6_addr, 0, ifp);
-			IF_AFDATA_UNLOCK(ifp);
+			IF_AFDATA_CFG_WUNLOCK(ifp);
 		}
 	} 
 	if (lle == NULL) {
@@ -2257,14 +2268,23 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 	struct llentry *ln;
 
 	ifp = ia->ia_ifa.ifa_ifp;
-	IF_AFDATA_LOCK(ifp);
-	ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
+	IF_AFDATA_CFG_WLOCK(ifp);
 	ln = lla_create(LLTABLE6(ifp), LLE_IFADDR,
 	    (struct sockaddr *)&ia->ia_addr);
-	IF_AFDATA_UNLOCK(ifp);
 	if (ln != NULL) {
+		IF_AFDATA_RUN_WLOCK(ifp);
+		bcopy(IF_LLADDR(ifp), &ln->ll_addr, ifp->if_addrlen);
+		ln->la_flags |= (LLE_VALID | LLE_STATIC);
+		ln->r_flags |= RLLE_VALID;
 		ln->la_expire = 0;  /* for IPv6 this means permanent */
 		ln->ln_state = ND6_LLINFO_REACHABLE;
+		llentry_link(LLTABLE6(ifp), ln);
+		IF_AFDATA_RUN_WUNLOCK(ifp);
+	}
+
+	ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
+	IF_AFDATA_CFG_WUNLOCK(ifp);
+	if (ln != NULL) {
 		LLE_WUNLOCK(ln);
 		in6_newaddrmsg(ia, RTM_ADD);
 		return (0);
@@ -2306,7 +2326,7 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
 	struct llentry *ln;
 
 	*lle = NULL;
-	IF_AFDATA_UNLOCK_ASSERT(ifp);
+	IF_AFDATA_CFG_UNLOCK_ASSERT(ifp);
 	if (m != NULL && m->m_flags & M_MCAST) {
 		int i;
 

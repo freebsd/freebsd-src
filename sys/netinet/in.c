@@ -1050,7 +1050,7 @@ in_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
 	size_t pkts_dropped;
 
 	LIST_INIT(&dchain);
-	IF_AFDATA_WLOCK(llt->llt_ifp);
+	IF_AFDATA_CFG_WLOCK(llt->llt_ifp);
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 			/*
@@ -1070,12 +1070,14 @@ in_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
 		}
 	}
 	/* Unlink chain */
+	IF_AFDATA_RUN_WLOCK(llt->llt_ifp);
 	llentries_unlink(&dchain);
+	IF_AFDATA_RUN_WUNLOCK(llt->llt_ifp);
 	LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next) {
 		pkts_dropped = llentry_free(lle);
 		ARPSTAT_ADD(dropped, pkts_dropped);
 	}
-	IF_AFDATA_WUNLOCK(llt->llt_ifp);
+	IF_AFDATA_CFG_WUNLOCK(llt->llt_ifp);
 }
 
 
@@ -1159,7 +1161,7 @@ in_lltable_delete(struct lltable *llt, u_int flags,
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
 
-	IF_AFDATA_WLOCK_ASSERT(ifp);
+	IF_AFDATA_CFG_WLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
 
@@ -1175,7 +1177,9 @@ in_lltable_delete(struct lltable *llt, u_int flags,
 		LLE_WLOCK(lle);
 		lle->la_flags |= LLE_DELETED;
 		EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
+		IF_AFDATA_RUN_WLOCK(ifp);
 		llentry_unlink(lle);
+		IF_AFDATA_RUN_WUNLOCK(ifp);
 #ifdef DIAGNOSTIC
 		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
@@ -1195,7 +1199,7 @@ in_lltable_create(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
 
-	IF_AFDATA_WLOCK_ASSERT(ifp);
+	IF_AFDATA_CFG_WLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
 
@@ -1223,12 +1227,6 @@ in_lltable_create(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 		return (NULL);
 	}
 	lle->la_flags = flags;
-	if ((flags & LLE_IFADDR) == LLE_IFADDR) {
-		bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
-		lle->la_flags |= (LLE_VALID | LLE_STATIC);
-	}
-
-	llentry_link(llt, lle);
 	LLE_WLOCK(lle);
 
 	return (lle);

@@ -72,6 +72,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/jail.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sockio.h>
@@ -2100,7 +2102,7 @@ in6_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
 	 * including static ND6 entries.
 	 */
 	LIST_INIT(&dchain);
-	IF_AFDATA_WLOCK(llt->llt_ifp);
+	IF_AFDATA_CFG_WLOCK(llt->llt_ifp);
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 			if (IN6_ARE_MASKED_ADDR_EQUAL(
@@ -2117,10 +2119,12 @@ in6_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
 			}
 		}
 	}
+	IF_AFDATA_RUN_WLOCK(llt->llt_ifp);
 	llentries_unlink(&dchain);
+	IF_AFDATA_RUN_WUNLOCK(llt->llt_ifp);
 	LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next)
 		llentry_free(lle);
-	IF_AFDATA_WUNLOCK(llt->llt_ifp);
+	IF_AFDATA_CFG_WUNLOCK(llt->llt_ifp);
 }
 
 static int
@@ -2198,7 +2202,7 @@ in6_lltable_delete(struct lltable *llt, u_int flags,
 	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
 	struct llentry *lle;
 
-	IF_AFDATA_LOCK_ASSERT(llt->llt_ifp);
+	IF_AFDATA_CFG_WLOCK_ASSERT(llt->llt_ifp);
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
 
@@ -2210,7 +2214,9 @@ in6_lltable_delete(struct lltable *llt, u_int flags,
 	if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
 		LLE_WLOCK(lle);
 		lle->la_flags |= LLE_DELETED;
+		IF_AFDATA_RUN_WLOCK(llt->llt_ifp);
 		llentry_unlink(lle);
+		IF_AFDATA_RUN_WUNLOCK(llt->llt_ifp);
 #ifdef DIAGNOSTIC
 		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
@@ -2231,7 +2237,7 @@ in6_lltable_create(struct lltable *llt, u_int flags,
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
 
-	IF_AFDATA_WLOCK_ASSERT(ifp);
+	IF_AFDATA_CFG_WLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
 
@@ -2257,12 +2263,6 @@ in6_lltable_create(struct lltable *llt, u_int flags,
 		return NULL;
 	}
 	lle->la_flags = flags;
-	if ((flags & LLE_IFADDR) == LLE_IFADDR) {
-		bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
-		lle->la_flags |= (LLE_VALID | LLE_STATIC);
-	}
-
-	llentry_link(llt, lle);
 	LLE_WLOCK(lle);
 
 	return (lle);
@@ -2290,7 +2290,7 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 
 	if (flags & LLE_EXCLUSIVE)
 		LLE_WLOCK(lle);
-	else
+	else if ((flags & LLE_UNLOCKED) == 0)
 		LLE_RLOCK(lle);
 	return (lle);
 }
