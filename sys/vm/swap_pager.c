@@ -1284,7 +1284,7 @@ swap_pager_getpages_async(vm_object_t object, vm_page_t *m, int count,
 		error = EINVAL;
 		break;
 	default:
-		panic("unhandled swap_pager_getpages() error %d\n", r);
+		panic("unhandled swap_pager_getpages() error %d", r);
 	}
 	(iodone)(arg, m, count, error);
 	VM_OBJECT_WLOCK(object);
