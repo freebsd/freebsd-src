@@ -160,7 +160,7 @@ in_localaddr(struct in_addr in)
 	IN_IFADDR_RUN_RLOCK();
 	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
 		if ((i & ia->ia_subnetmask) == ia->ia_subnet) {
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUN_RUNLOCK();
 			return (1);
 		}
 	}
@@ -181,7 +181,7 @@ in_localip(struct in_addr in)
 	IN_IFADDR_RUN_RLOCK();
 	LIST_FOREACH(ia, INADDR_HASH(in.s_addr), ia_hash) {
 		if (IA_SIN(ia)->sin_addr.s_addr == in.s_addr) {
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUN_RUNLOCK();
 			return (1);
 		}
 	}
@@ -204,7 +204,7 @@ in_localip_more(struct in_ifaddr *ia)
 	LIST_FOREACH(it, INADDR_HASH(in), ia_hash) {
 		if (it != ia && IA_SIN(it)->sin_addr.s_addr == in) {
 			ifa_ref(&it->ia_ifa);
-			IN_IFADDR_RUNLOCK();
+			IN_IFADDR_RUN_RUNLOCK();
 			return (it);
 		}
 	}
