@@ -545,7 +545,7 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 			return;
 		}
 
-		io = ctl_alloc_io(softc->port.ctl_pool_ref);
+		io = ctl_alloc_io_nowait(softc->port.ctl_pool_ref);
 		if (io == NULL) {
 			printf("%s: can't allocate ctl_io\n", __func__);
 			ccb->ccb_h.status = CAM_BUSY | CAM_DEV_QFRZN;
@@ -642,7 +642,7 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 			return;
 		}
 
-		io = ctl_alloc_io(softc->port.ctl_pool_ref);
+		io = ctl_alloc_io_nowait(softc->port.ctl_pool_ref);
 		if (io == NULL) {
 			ccb->ccb_h.status = CAM_BUSY | CAM_DEV_QFRZN;
 			xpt_freeze_devq(ccb->ccb_h.path, 1);
@@ -737,7 +737,7 @@ cfcs_action(struct cam_sim *sim, union ccb *ccb)
 			return;
 		}
 
-		io = ctl_alloc_io(softc->port.ctl_pool_ref);
+		io = ctl_alloc_io_nowait(softc->port.ctl_pool_ref);
 		if (io == NULL) {
 			ccb->ccb_h.status = CAM_BUSY | CAM_DEV_QFRZN;
 			xpt_freeze_devq(ccb->ccb_h.path, 1);
