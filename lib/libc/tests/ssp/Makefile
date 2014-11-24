@@ -9,7 +9,10 @@ WARNS?=	2
 
 CFLAGS.h_raw+=	-fstack-protector-all -Wstack-protector
 .if ${COMPILER_TYPE} == "clang"
+# Disable -fsanitize=bounds until runtime support is done for clang 3.5.0.
+.if ${COMPILER_VERSION} < 30500
 CFLAGS.h_raw+=	-fsanitize=bounds
+.endif
 .elif ${COMPILER_TYPE} == "gcc"
 CFLAGS.h_raw+=	--param ssp-buffer-size=1
 DPADD+=		${LIBSSP}
