@@ -44,6 +44,8 @@ OLD_FILES+=usr/share/man/man4/faith.4.gz
 OLD_FILES+=usr/share/man/man4/if_faith.4.gz
 OLD_FILES+=usr/sbin/faithd
 OLD_FILES+=usr/share/man/man8/faithd.8.gz
+# 20141107: overhaul if_gre(4)
+OLD_FILES+=usr/include/netinet/ip_gre.h
 # 20141102: postrandom obsoleted by new /dev/random code
 OLD_FILES+=etc/rc.d/postrandom
 # 20141031: initrandom obsoleted by new /dev/random code
