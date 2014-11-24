@@ -7,7 +7,182 @@
 .error src.libnames.mk cannot be included directly.
 .endif
 
-ROOTOBJDIR=	${.OBJDIR:S/${.CURDIR}//}${.MAKE.MAKEFILES:M*/src.libnames.mk:H:H:H}
+.include <src.opts.mk>
+
+ROOTSRCDIR=	${.MAKE.MAKEFILES:M*/src.libnames.mk:H:H:H}
+ROOTOBJDIR=	${.OBJDIR:S/${.CURDIR}//}${ROOTSRCDIR}
+_PRIVATELIBS=	\
+		atf_c \
+		atf_cxx \
+		bsdstat \
+		ldns \
+		sqlite3 \
+		ssh \
+		ucl \
+		unbound
+_INTERNALIBS=	\
+		libmandoc \
+		ohash \
+		readline \
+		sm
+
+_LIBRARIES=	\
+		archive \
+		atf_c \
+		atf_cxx \
+		bsdxml \
+		bsnmp \
+		bz2 \
+		cam \
+		capsicum \
+		casper \
+		cft \
+		crypt \
+		crypto \
+		cuse \
+		cxxrt \
+		devstat \
+		dialog \
+		dpv \
+		dwarf \
+		edit \
+		elf \
+		event \
+		execinfo \
+		fetch \
+		figpar \
+		geom \
+		gssapi \
+		ipsec \
+		jail \
+		kiconv \
+		kvm \
+		l \
+		ldns \
+		lzma \
+		m \
+		magic \
+		mandoc \
+		md \
+		memstat \
+		mp \
+		nandfs \
+		ncursesw \
+		nv \
+		opie \
+		pam \
+		pcap \
+		pjdlog \
+		proc \
+		procstat \
+		pthread \
+		radius \
+		readline \
+		rpcsec_gss \
+		rt \
+		sbuf \
+		sm \
+		smb \
+		ssh \
+		ssl \
+		stdthreads \
+		supcplusplus \
+		tacplus \
+		termcapw \
+		ucl \
+		ufs \
+		ulog \
+		usb \
+		util \
+		wrap \
+		y \
+		z
+
+_DP_archive=	z bz2 lzma bsdxml
+.if ${MK_OPENSSL} != "no"
+_DP_archive+=	crypto
+.else
+_DP_archive+=	md
+.endif
+_DP_ssl=	crypto
+_DP_ssh=	crypto crypt
+_DP_edit=	edit
+.if ${MK_OPENSSL} != "no"
+_DP_bsnmp=	crypto
+.endif
+_DP_grom=	bsdxml sbuf
+_DP_cam=	sbuf
+_DP_casper=	capsicum nv pjdlog
+_DP_capsicum=	nv
+_DP_pjdlog=	util
+_DP_opie=	md
+_DP_usb=	pthread
+_DP_unbound=	pthread
+_DP_rt=	pthread
+.if ${MK_OPENSSL} == "no"
+_DP_radius=	md
+.else
+_DP_radius=	crypto
+.endif
+_DP_procstat=	kvm util elf
+.if ${MK_CXX} == "yes"
+.if ${MK_LIBCPLUSPLUS} != "no"
+_DP_proc=	cxxrt
+.else
+_DP_proc=	supcplusplus
+.endif
+.endif
+.if ${MK_CDDL} != "no"
+_DP_proc+=	cft
+.endif
+_DP_mp=	crypto
+_DP_memstat=	kvm
+_DP_magic=	z
+_DP_ldns=	crypto
+.if ${MK_OPENSSL} != "no"
+_DP_fetch=	ssl crypto
+.else
+_DP_fetch=	md
+.endif
+_DP_execinfo=	elf
+_DP_dwarf=	elf
+_DP_dpv=	dialog figpar util
+_DP_dialog=	ncursesw m
+_DP_cuse=	pthread
+_DP_atf_cxx=	atf_c
+_DP_devstat=	kvm
+
+# Define spacial cases
+LDADD_supcplusplus=	-lsupc++
+
+.for _l in ${_LIBRARIES}
+.if ${_PRIVATELIBS:M${_l}}
+LDADD+=		-L${LIB${_l:tu}DIR}
+.endif
+.if ${_INTERNALIBS:M${_l}}
+LDADD+=		-L${LIB${_l:tu}DIR}
+.endif
+DPADD_${_l}?=	${LIB${_l:tu}}
+LDADD_${_l}?=	-l${_l}
+.if defined(${_l}_depend) && defined(NO_SHARED)
+.for _d in ${_DP_${_l}}
+DPADD_${_l}+=	${DPADD_${_d}}
+LDADD_${_l}+=	${LDADD_${_d}}
+.endfor
+.endif
+.endfor
+
+# ucl needs and exposes libm
+DPADD_ucl+=	${DPADD_m}
+LDADD_ucl+=	${LDADD_m}
+
+.for _l in ${LIBADD}
+.if ${_PRIVATELIBS:M${_l}}
+USEPRIVATELIB+=	${_l}
+.endif
+DPADD+=		${DPADD_${_l}}
+LDADD+=		${LDADD_${_l}}
+.endfor
 
 LIBATF_CDIR=	${ROOTOBJDIR}/lib/atf/libatf-c
 LDATF_C?=	${LIBATF_CDIR}/libatf-c.so
@@ -22,7 +197,7 @@ LDBSDSTAT?=	${LIBBSDSTATDIR}/libbsdstat.so
 LIBBSDSTAT?=	${LIBBSDSTATDIR}/libbsdstat.a
 
 LIBEVENTDIR=	${ROOTOBJDIR}/lib/libevent
-LDEVENT?=	${LIBEVENTDIR}/libevent.so
+LDEVENT?=	${LIBEVENTDIR}/libevent.a
 LIBEVENT?=	${LIBEVENTDIR}/libevent.a
 
 LIBHEIMIPCCDIR=	${ROOTOBJDIR}/kerberos5/lib/libheimipcc
@@ -64,3 +239,7 @@ LIBSQLITE3?=	${LIBSQLITE3DIR}/libsqlite3.a
 LIBMANDOCDIR=	${ROOTOBJDIR}/lib/libmandoc
 LDMANDOC?=	${LIBMANDOCDIR}/libmandoc.a
 LIBMANDOC?=	${LIBMANDOCDIR}/libmandoc.a
+
+LIBSMDIR=	${ROOTOBJDIR}/lib/libsm
+LDSM?=		${LIBSMDIR}/libsm.a
+LIBSM?=		${LIBSMDIR}/libsm.a
