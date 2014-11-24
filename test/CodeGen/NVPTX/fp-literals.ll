@@ -1,4 +1,7 @@
-; RUN: llc < %s -march=nvptx -mcpu=sm_20 | FileCheck %s
+; RUN: llc < %s -march=nvptx -mcpu=sm_20 -fp-contract=fast | FileCheck %s
+
+target triple = "nvptx64-unknown-cuda"
+target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v16:16:16-v32:32:32-v64:64:64-v128:128:128-n16:32:64"
 
 ; Make sure we can properly differentiate between single-precision and
 ; double-precision FP literals.
@@ -11,7 +14,7 @@ define float @myaddf(float %a) {
 }
 
 ; CHECK: myaddd
-; CHECK: add.f64 %fl{{[0-9]+}}, %fl{{[0-9]+}}, 0d3FF0000000000000
+; CHECK: add.f64 %fd{{[0-9]+}}, %fd{{[0-9]+}}, 0d3FF0000000000000
 define double @myaddd(double %a) {
   %ret = fadd double %a, 1.0
   ret double %ret

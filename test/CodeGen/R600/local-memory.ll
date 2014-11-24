@@ -2,7 +2,7 @@
 ; RUN: llc < %s -march=r600 -mcpu=verde -verify-machineinstrs | FileCheck --check-prefix=SI-CHECK %s
 ; RUN: llc < %s -march=r600 -mcpu=bonaire -verify-machineinstrs | FileCheck --check-prefix=CI-CHECK %s
 
-@local_memory.local_mem = internal addrspace(3) unnamed_addr global [128 x i32] zeroinitializer, align 4
+@local_memory.local_mem = internal unnamed_addr addrspace(3) global [128 x i32] zeroinitializer, align 4
 
 ; EG-CHECK-LABEL: @local_memory
 ; SI-CHECK-LABEL: @local_memory
@@ -17,8 +17,8 @@
 ; CI-CHECK-NEXT: .long 32768
 
 ; EG-CHECK: LDS_WRITE
-; SI-CHECK_NOT: S_WQM_B64
-; SI-CHECK: DS_WRITE_B32 0
+; SI-CHECK-NOT: S_WQM_B64
+; SI-CHECK: DS_WRITE_B32
 
 ; GROUP_BARRIER must be the last instruction in a clause
 ; EG-CHECK: GROUP_BARRIER
@@ -26,7 +26,7 @@
 ; SI-CHECK: S_BARRIER
 
 ; EG-CHECK: LDS_READ_RET
-; SI-CHECK: DS_READ_B32 {{v[0-9]+}}, 0
+; SI-CHECK: DS_READ_B32 {{v[0-9]+}},
 
 define void @local_memory(i32 addrspace(1)* %out) {
 entry:

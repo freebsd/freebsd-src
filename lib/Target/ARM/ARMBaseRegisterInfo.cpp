@@ -38,20 +38,29 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 
+#define DEBUG_TYPE "arm-register-info"
+
 #define GET_REGINFO_TARGET_DESC
 #include "ARMGenRegisterInfo.inc"
 
 using namespace llvm;
 
 ARMBaseRegisterInfo::ARMBaseRegisterInfo(const ARMSubtarget &sti)
-  : ARMGenRegisterInfo(ARM::LR, 0, 0, ARM::PC), STI(sti),
-    FramePtr((STI.isTargetDarwin() || STI.isThumb()) ? ARM::R7 : ARM::R11),
-    BasePtr(ARM::R6) {
+    : ARMGenRegisterInfo(ARM::LR, 0, 0, ARM::PC), STI(sti), BasePtr(ARM::R6) {
+  if (STI.isTargetMachO()) {
+    if (STI.isTargetDarwin() || STI.isThumb1Only())
+      FramePtr = ARM::R7;
+    else
+      FramePtr = ARM::R11;
+  } else if (STI.isTargetWindows())
+    FramePtr = ARM::R11;
+  else // ARM EABI
+    FramePtr = STI.isThumb() ? ARM::R7 : ARM::R11;
 }
 
-const uint16_t*
+const MCPhysReg*
 ARMBaseRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
-  const uint16_t *RegList = (STI.isTargetIOS() && !STI.isAAPCS_ABI())
+  const MCPhysReg *RegList = (STI.isTargetIOS() && !STI.isAAPCS_ABI())
                                 ? CSR_iOS_SaveList
                                 : CSR_AAPCS_SaveList;
 
@@ -107,7 +116,7 @@ ARMBaseRegisterInfo::getThisReturnPreservedMask(CallingConv::ID CC) const {
   // should return NULL
   if (CC == CallingConv::GHC)
     // This is academic becase all GHC calls are (supposed to be) tail calls
-    return NULL;
+    return nullptr;
   return (STI.isTargetIOS() && !STI.isAAPCS_ABI())
     ? CSR_iOS_ThisReturn_RegMask : CSR_AAPCS_ThisReturn_RegMask;
 }
@@ -173,7 +182,7 @@ ARMBaseRegisterInfo::getPointerRegClass(const MachineFunction &MF, unsigned Kind
 const TargetRegisterClass *
 ARMBaseRegisterInfo::getCrossCopyRegClass(const TargetRegisterClass *RC) const {
   if (RC == &ARM::CCRRegClass)
-    return 0;  // Can't copy CCR registers.
+    return nullptr;  // Can't copy CCR registers.
   return RC;
 }
 
@@ -408,6 +417,11 @@ emitLoadConstPool(MachineBasicBlock &MBB,
     .setMIFlags(MIFlags);
 }
 
+bool ARMBaseRegisterInfo::mayOverrideLocalAssignment() const {
+  // The native linux build hits a downstream codegen bug when this is enabled.
+  return STI.isTargetDarwin();
+}
+
 bool ARMBaseRegisterInfo::
 requiresRegisterScavenging(const MachineFunction &MF) const {
   return true;
@@ -590,10 +604,8 @@ materializeFrameBaseRegister(MachineBasicBlock *MBB,
     AddDefaultCC(MIB);
 }
 
-void
-ARMBaseRegisterInfo::resolveFrameIndex(MachineBasicBlock::iterator I,
-                                       unsigned BaseReg, int64_t Offset) const {
-  MachineInstr &MI = *I;
+void ARMBaseRegisterInfo::resolveFrameIndex(MachineInstr &MI, unsigned BaseReg,
+                                            int64_t Offset) const {
   MachineBasicBlock &MBB = *MI.getParent();
   MachineFunction &MF = *MBB.getParent();
   const ARMBaseInstrInfo &TII =
@@ -764,4 +776,61 @@ ARMBaseRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
     // Update the original instruction to use the scratch register.
     MI.getOperand(FIOperandNum).ChangeToRegister(ScratchReg, false, false,true);
   }
+}
+
+bool ARMBaseRegisterInfo::shouldCoalesce(MachineInstr *MI,
+                                  const TargetRegisterClass *SrcRC,
+                                  unsigned SubReg,
+                                  const TargetRegisterClass *DstRC,
+                                  unsigned DstSubReg,
+                                  const TargetRegisterClass *NewRC) const {
+  auto MBB = MI->getParent();
+  auto MF = MBB->getParent();
+  const MachineRegisterInfo &MRI = MF->getRegInfo();
+  // If not copying into a sub-register this should be ok because we shouldn't
+  // need to split the reg.
+  if (!DstSubReg)
+    return true;
+  // Small registers don't frequently cause a problem, so we can coalesce them.
+  if (NewRC->getSize() < 32 && DstRC->getSize() < 32 && SrcRC->getSize() < 32)
+    return true;
+
+  auto NewRCWeight =
+              MRI.getTargetRegisterInfo()->getRegClassWeight(NewRC);
+  auto SrcRCWeight =
+              MRI.getTargetRegisterInfo()->getRegClassWeight(SrcRC);
+  auto DstRCWeight =
+              MRI.getTargetRegisterInfo()->getRegClassWeight(DstRC);
+  // If the source register class is more expensive than the destination, the
+  // coalescing is probably profitable.
+  if (SrcRCWeight.RegWeight > NewRCWeight.RegWeight)
+    return true;
+  if (DstRCWeight.RegWeight > NewRCWeight.RegWeight)
+    return true;
+
+  // If the register allocator isn't constrained, we can always allow coalescing
+  // unfortunately we don't know yet if we will be constrained.
+  // The goal of this heuristic is to restrict how many expensive registers
+  // we allow to coalesce in a given basic block.
+  auto AFI = MF->getInfo<ARMFunctionInfo>();
+  auto It = AFI->getCoalescedWeight(MBB);
+
+  DEBUG(dbgs() << "\tARM::shouldCoalesce - Coalesced Weight: "
+    << It->second << "\n");
+  DEBUG(dbgs() << "\tARM::shouldCoalesce - Reg Weight: "
+    << NewRCWeight.RegWeight << "\n");
+
+  // This number is the largest round number that which meets the criteria:
+  //  (1) addresses PR18825
+  //  (2) generates better code in some test cases (like vldm-shed-a9.ll)
+  //  (3) Doesn't regress any test cases (in-tree, test-suite, and SPEC)
+  // In practice the SizeMultiplier will only factor in for straight line code
+  // that uses a lot of NEON vectors, which isn't terribly common.
+  unsigned SizeMultiplier = MBB->size()/100;
+  SizeMultiplier = SizeMultiplier ? SizeMultiplier : 1;
+  if (It->second < NewRCWeight.WeightLimit * SizeMultiplier) {
+    It->second += NewRCWeight.RegWeight;
+    return true;
+  }
+  return false;
 }

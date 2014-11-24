@@ -1,11 +1,11 @@
-; RUN: llc -verify-machineinstrs < %s -mtriple=aarch64-none-linux-gnu | FileCheck %s
+; RUN: llc -verify-machineinstrs -o - %s -mtriple=arm64-apple-ios7.0 | FileCheck %s
 
 define i64 @ror_i64(i64 %in) {
 ; CHECK-LABEL: ror_i64:
     %left = shl i64 %in, 19
     %right = lshr i64 %in, 45
     %val5 = or i64 %left, %right
-; CHECK: extr {{x[0-9]+}}, x0, x0, #45
+; CHECK: ror {{x[0-9]+}}, x0, #45
     ret i64 %val5
 }
 
@@ -14,7 +14,7 @@ define i32 @ror_i32(i32 %in) {
     %left = shl i32 %in, 9
     %right = lshr i32 %in, 23
     %val5 = or i32 %left, %right
-; CHECK: extr {{w[0-9]+}}, w0, w0, #23
+; CHECK: ror {{w[0-9]+}}, w0, #23
     ret i32 %val5
 }
 

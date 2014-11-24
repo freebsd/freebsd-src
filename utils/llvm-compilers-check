@@ -149,6 +149,10 @@ def add_options(parser):
                       help=("Do not do installs"))
     parser.add_option("--keep-going", default=False, action="store_true",
                       help=("Keep going after failures"))
+    parser.add_option("--no-flavor-prefix", default=False, action="store_true",
+                      help=("Do not append the build flavor to the install path"))
+    parser.add_option("--enable-werror", default=False, action="store_true",
+                      help=("Build with -Werror"))
     return
 
 def check_options(parser, options, valid_builds):
@@ -346,7 +350,9 @@ class Builder(threading.Thread):
         ssabbrev = get_short_abbrevs([ab for ab in self.source_abbrev.values()])
 
         prefix = "[" + ssabbrev[self.source_abbrev[source]] + "-" + self.build_abbrev[build] + "]"
-        self.install_prefix += "/" + self.source_abbrev[source] + "/" + build
+        if (not self.options.no_flavor_prefix):
+            self.install_prefix += "/" + self.source_abbrev[source] + "/" + build
+
         build_suffix += "/" + self.source_abbrev[source] + "/" + build
 
         self.logger = logging.getLogger(prefix)
@@ -361,16 +367,13 @@ class Builder(threading.Thread):
 
         configure_flags = dict(
             llvm=dict(debug=["--prefix=" + self.install_prefix,
-                             "--enable-werror",
                              "--enable-assertions",
                              "--disable-optimized",
                              "--with-gcc-toolchain=" + cxxroot],
                       release=["--prefix=" + self.install_prefix,
-                               "--enable-werror",
                                "--enable-optimized",
                                "--with-gcc-toolchain=" + cxxroot],
                       paranoid=["--prefix=" + self.install_prefix,
-                                "--enable-werror",
                                 "--enable-assertions",
                                 "--enable-expensive-checks",
                                 "--disable-optimized",
@@ -378,6 +381,11 @@ class Builder(threading.Thread):
             dragonegg=dict(debug=[],
                            release=[],
                            paranoid=[]))
+
+        if (self.options.enable_werror):
+            configure_flags["llvm"]["debug"].append("--enable-werror")
+            configure_flags["llvm"]["release"].append("--enable-werror")
+            configure_flags["llvm"]["paranoid"].append("--enable-werror")
 
         configure_env = dict(
             llvm=dict(debug=dict(CC=self.cc,
@@ -528,10 +536,6 @@ class Builder(threading.Thread):
 
             if not os.path.exists(conf):
                 self.logger.info("[" + prefix + "] Configure failed, no configure script " + conf)
-                return -1
-
-            if not os.path.exists(mf):
-                self.logger.info("[" + prefix + "] Configure failed, no makefile " + mf)
                 return -1
 
             if os.path.exists(conf) and os.path.exists(mf):

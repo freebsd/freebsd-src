@@ -16,23 +16,6 @@ using namespace llvm;
 MCDisassembler::~MCDisassembler() {
 }
 
-void
-MCDisassembler::setupForSymbolicDisassembly(
-    LLVMOpInfoCallback GetOpInfo,
-    LLVMSymbolLookupCallback SymbolLookUp,
-    void *DisInfo,
-    MCContext *Ctx,
-    OwningPtr<MCRelocationInfo> &RelInfo) {
-  this->GetOpInfo = GetOpInfo;
-  this->SymbolLookUp = SymbolLookUp;
-  this->DisInfo = DisInfo;
-  this->Ctx = Ctx;
-  assert(Ctx != 0 && "No MCContext given for symbolic disassembly");
-  if (!Symbolizer)
-    Symbolizer.reset(new MCExternalSymbolizer(*Ctx, RelInfo, GetOpInfo,
-                                              SymbolLookUp, DisInfo));
-}
-
 bool MCDisassembler::tryAddingSymbolicOperand(MCInst &Inst, int64_t Value,
                                               uint64_t Address, bool IsBranch,
                                               uint64_t Offset,
@@ -51,6 +34,6 @@ void MCDisassembler::tryAddingPcLoadReferenceComment(int64_t Value,
     Symbolizer->tryAddingPcLoadReferenceComment(cStream, Value, Address);
 }
 
-void MCDisassembler::setSymbolizer(OwningPtr<MCSymbolizer> &Symzer) {
-  Symbolizer.reset(Symzer.take());
+void MCDisassembler::setSymbolizer(std::unique_ptr<MCSymbolizer> Symzer) {
+  Symbolizer = std::move(Symzer);
 }

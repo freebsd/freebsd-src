@@ -58,12 +58,17 @@
 // CHECK-NEXT:     0x94         R_386_GOTPC      _GLOBAL_OFFSET_TABLE_ 0x0
 // Relocation 26 (und_symbol-bar2) is of type R_386_PC32
 // CHECK-NEXT:     0x9A         R_386_PC32       und_symbol 0x0
+// Relocation 27 (und_symbol-bar2) is of type R_386_PC16
+// CHECK-NEXT:     0x9E         R_386_PC16       und_symbol 0x0
+// Relocation 28 (und_symbol-bar2) is of type R_386_PC8
+// CHECK-NEXT:     0xA0         R_386_PC8        und_symbol 0x0
+// CHECK-NEXT:     0xA3         R_386_GOTOFF     und_symbol 0x0
 // CHECK-NEXT:   }
 // CHECK-NEXT: ]
 
 // Symbol 4 is zed
 // CHECK:        Symbol {
-// CHECK:          Name: zed (53)
+// CHECK:          Name: zed
 // CHECK-NEXT:     Value: 0x0
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Local
@@ -120,6 +125,10 @@ bar2:
         addl foo@GOTTPOFF(%edx), %eax
         subl    _GLOBAL_OFFSET_TABLE_-bar2, %ebx
         leal und_symbol-bar2(%edx),%ecx
+        .word und_symbol-bar2
+        .byte und_symbol-bar2
+
+        leal 1 + und_symbol@GOTOFF, %edi
 
         .section        zedsec,"awT",@progbits
 zed:

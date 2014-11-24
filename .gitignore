@@ -18,6 +18,8 @@
 # vim swap files
 .*.swp
 .sw?
+#OS X specific files.
+.DS_store
 
 #==============================================================================#
 # Explicit files to ignore (only matches one).
@@ -35,7 +37,6 @@ compile_commands.json
 #==============================================================================#
 # External projects that are tracked independently.
 projects/*
-!projects/sample
 !projects/CMakeLists.txt
 !projects/Makefile
 # Clang, which is tracked independently.
@@ -44,5 +45,7 @@ tools/clang
 tools/lldb
 # lld, which is tracked independently.
 tools/lld
+# Polly, which is tracked independently.
+tools/polly
 # Sphinx build tree, if building in-source dir.
 docs/_build

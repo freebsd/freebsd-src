@@ -8,9 +8,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/Casting.h"
+#include "llvm/IR/User.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/IR/User.h"
 #include "gtest/gtest.h"
 #include <cstdlib>
 
@@ -18,7 +18,7 @@ namespace llvm {
 // Used to test illegal cast. If a cast doesn't match any of the "real" ones,
 // it will match this one.
 struct IllegalCast;
-template <typename T> IllegalCast *cast(...) { return 0; }
+template <typename T> IllegalCast *cast(...) { return nullptr; }
 
 // set up two example classes
 // with conversion facility
@@ -77,16 +77,20 @@ using namespace llvm;
 
 
 // Test the peculiar behavior of Use in simplify_type.
-int Check1[is_same<simplify_type<Use>::SimpleType, Value *>::value ? 1 : -1];
-int Check2[is_same<simplify_type<Use *>::SimpleType, Value *>::value ? 1 : -1];
+static_assert(std::is_same<simplify_type<Use>::SimpleType, Value *>::value,
+              "Use doesn't simplify correctly!");
+static_assert(std::is_same<simplify_type<Use *>::SimpleType, Value *>::value,
+              "Use doesn't simplify correctly!");
 
 // Test that a regular class behaves as expected.
-int Check3[is_same<simplify_type<foo>::SimpleType, int>::value ? 1 : -1];
-int Check4[is_same<simplify_type<foo *>::SimpleType, foo *>::value ? 1 : -1];
+static_assert(std::is_same<simplify_type<foo>::SimpleType, int>::value,
+              "Unexpected simplify_type result!");
+static_assert(std::is_same<simplify_type<foo *>::SimpleType, foo *>::value,
+              "Unexpected simplify_type result!");
 
 namespace {
 
-const foo *null_foo = NULL;
+const foo *null_foo = nullptr;
 
 bar B;
 extern bar &B1;
@@ -171,7 +175,7 @@ TEST(CastingTest, dyn_cast_or_null) {
 const bar *B2 = &B;
 }  // anonymous namespace
 
-bar *llvm::fub() { return 0; }
+bar *llvm::fub() { return nullptr; }
 
 namespace {
 namespace inferred_upcasting {
@@ -199,7 +203,7 @@ TEST(CastingTest, UpcastIsInferred) {
   Derived D;
   EXPECT_TRUE(isa<Base>(D));
   Base *BP = dyn_cast<Base>(&D);
-  EXPECT_TRUE(BP != NULL);
+  EXPECT_TRUE(BP != nullptr);
 }
 
 

@@ -1,4 +1,5 @@
 ; RUN: llc -mtriple=x86_64-linux -O0 -o - -filetype=obj < %s | llvm-dwarfdump -debug-dump=info -| FileCheck %s
+; RUN: llc -mtriple=x86_64-linux -dwarf-version=2 -O0 -o - -filetype=obj < %s | llvm-dwarfdump -debug-dump=info -| FileCheck -check-prefix=DWARF2 %s
 
 ; Generated from Clang with the following source:
 ;
@@ -17,6 +18,14 @@
 ; CHECK-NOT: DW_TAG
 ; CHECK: DW_AT_data_member_location {{.*}} (0x04)
 
+; DWARF2: DW_AT_name {{.*}} "c"
+; DWARF2-NOT: DW_TAG
+; DWARF2: DW_AT_data_member_location {{.*}} (<0x02> 23 00 )
+
+; DWARF2: DW_AT_name {{.*}} "i"
+; DWARF2-NOT: DW_TAG
+; DWARF2: DW_AT_data_member_location {{.*}} (<0x02> 23 04 )
+
 %struct.foo = type { i8, i32 }
 
 @f = global %struct.foo zeroinitializer, align 4
@@ -27,7 +36,7 @@
 
 !0 = metadata !{i32 786449, metadata !1, i32 4, metadata !"clang version 3.4 ", i1 false, metadata !"", i32 0, metadata !2, metadata !3, metadata !2, metadata !10, metadata !2, metadata !""} ; [ DW_TAG_compile_unit ] [/tmp/dbginfo/data_member_location.cpp] [DW_LANG_C_plus_plus]
 !1 = metadata !{metadata !"data_member_location.cpp", metadata !"/tmp/dbginfo"}
-!2 = metadata !{i32 0}
+!2 = metadata !{}
 !3 = metadata !{metadata !4}
 !4 = metadata !{i32 786451, metadata !1, null, metadata !"foo", i32 1, i64 64, i64 32, i32 0, i32 0, null, metadata !5, i32 0, null, null, metadata !"_ZTS3foo"} ; [ DW_TAG_structure_type ] [foo] [line 1, size 64, align 32, offset 0] [def] [from ]
 !5 = metadata !{metadata !6, metadata !8}

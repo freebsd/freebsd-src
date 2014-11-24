@@ -86,8 +86,8 @@ LLVM primarily uses the following types of components:
   libraries that they build on top of.
 - *Build Tools* - Build tools are applications which are designed to be run
   as part of the build process (typically to generate other source files).
-  Currently, LLVM uses one main build tool called :doc:`TableGen
-  <TableGenFundamentals>` to generate a variety of source files.
+  Currently, LLVM uses one main build tool called :doc:`TableGen/index`
+  to generate a variety of source files.
 - *Tools* - Command line applications which are built using the LLVM
   component libraries. Most LLVM tools are small and are primarily
   frontends to the library interfaces.
@@ -315,7 +315,7 @@ the properties which are associated with that component.
 
    ``BuildTool`` components are like ``Tool`` components, except that the
    tool is supposed to be built for the platform where the build is running
-   (instead of that platform being targetted). Build systems are expected
+   (instead of that platform being targeted). Build systems are expected
    to handle the fact that required libraries may need to be built for
    multiple platforms in order to be able to link this tool.
 

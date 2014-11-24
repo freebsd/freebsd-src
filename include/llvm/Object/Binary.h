@@ -14,11 +14,13 @@
 #ifndef LLVM_OBJECT_BINARY_H
 #define LLVM_OBJECT_BINARY_H
 
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Object/Error.h"
+#include "llvm/Support/ErrorOr.h"
+#include "llvm/Support/FileSystem.h"
 
 namespace llvm {
 
+class LLVMContext;
 class MemoryBuffer;
 class StringRef;
 
@@ -32,13 +34,15 @@ private:
   unsigned int TypeID;
 
 protected:
-  MemoryBuffer *Data;
+  std::unique_ptr<MemoryBuffer> Data;
 
-  Binary(unsigned int Type, MemoryBuffer *Source);
+  Binary(unsigned int Type, std::unique_ptr<MemoryBuffer> Source);
 
   enum {
     ID_Archive,
     ID_MachOUniversalBinary,
+    ID_IR, // LLVM IR
+
     // Object and children.
     ID_StartObjects,
     ID_COFF,
@@ -74,6 +78,7 @@ public:
   virtual ~Binary();
 
   StringRef getData() const;
+  MemoryBuffer *releaseBuffer() { return Data.release(); }
   StringRef getFileName() const;
 
   // Cast methods.
@@ -82,6 +87,10 @@ public:
   // Convenience methods
   bool isObject() const {
     return TypeID > ID_StartObjects && TypeID < ID_EndObjects;
+  }
+
+  bool isSymbolic() const {
+    return isIR() || isObject();
   }
 
   bool isArchive() const {
@@ -104,6 +113,10 @@ public:
     return TypeID == ID_COFF;
   }
 
+  bool isIR() const {
+    return TypeID == ID_IR;
+  }
+
   bool isLittleEndian() const {
     return !(TypeID == ID_ELF32B || TypeID == ID_ELF64B ||
              TypeID == ID_MachO32B || TypeID == ID_MachO64B);
@@ -112,14 +125,11 @@ public:
 
 /// @brief Create a Binary from Source, autodetecting the file type.
 ///
-/// @param Source The data to create the Binary from. Ownership is transferred
-///        to Result if successful. If an error is returned, Source is destroyed
-///        by createBinary before returning.
-/// @param Result A pointer to the resulting Binary if no error occured.
-error_code createBinary(MemoryBuffer *Source, OwningPtr<Binary> &Result);
+/// @param Source The data to create the Binary from.
+ErrorOr<Binary *> createBinary(std::unique_ptr<MemoryBuffer> Source,
+                               LLVMContext *Context = nullptr);
 
-error_code createBinary(StringRef Path, OwningPtr<Binary> &Result);
-
+ErrorOr<Binary *> createBinary(StringRef Path);
 }
 }
 

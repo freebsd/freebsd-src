@@ -15,6 +15,8 @@
 /// CCIfSubtarget - Match if the current subtarget has a feature F.
 class CCIfSubtarget<string F, CCAction A>
  : CCIf<!strconcat("State.getTarget().getSubtarget<PPCSubtarget>().", F), A>;
+class CCIfNotSubtarget<string F, CCAction A>
+ : CCIf<!strconcat("!State.getTarget().getSubtarget<PPCSubtarget>().", F), A>;
 
 //===----------------------------------------------------------------------===//
 // Return Value Calling Convention
@@ -23,17 +25,24 @@ class CCIfSubtarget<string F, CCAction A>
 // Return-value convention for PowerPC
 def RetCC_PPC : CallingConv<[
   // On PPC64, integer return values are always promoted to i64
-  CCIfType<[i32], CCIfSubtarget<"isPPC64()", CCPromoteToType<i64>>>,
+  CCIfType<[i32, i1], CCIfSubtarget<"isPPC64()", CCPromoteToType<i64>>>,
+  CCIfType<[i1], CCIfNotSubtarget<"isPPC64()", CCPromoteToType<i32>>>,
 
   CCIfType<[i32], CCAssignToReg<[R3, R4, R5, R6, R7, R8, R9, R10]>>,
   CCIfType<[i64], CCAssignToReg<[X3, X4, X5, X6]>>,
   CCIfType<[i128], CCAssignToReg<[X3, X4, X5, X6]>>,
+
+  // Floating point types returned as "direct" go into F1 .. F8; note that
+  // only the ELFv2 ABI fully utilizes all these registers.
+  CCIfType<[f32], CCAssignToReg<[F1, F2, F3, F4, F5, F6, F7, F8]>>,
+  CCIfType<[f64], CCAssignToReg<[F1, F2, F3, F4, F5, F6, F7, F8]>>,
   
-  CCIfType<[f32], CCAssignToReg<[F1, F2]>>,
-  CCIfType<[f64], CCAssignToReg<[F1, F2, F3, F4]>>,
-  
-  // Vector types are always returned in V2.
-  CCIfType<[v16i8, v8i16, v4i32, v4f32], CCAssignToReg<[V2]>>
+  // Vector types returned as "direct" go into V2 .. V9; note that only the
+  // ELFv2 ABI fully utilizes all these registers.
+  CCIfType<[v16i8, v8i16, v4i32, v4f32],
+           CCAssignToReg<[V2, V3, V4, V5, V6, V7, V8, V9]>>,
+  CCIfType<[v2f64, v2i64],
+           CCAssignToReg<[VSH2, VSH3, VSH4, VSH5, VSH6, VSH7, VSH8, VSH9]>>
 ]>;
 
 
@@ -46,6 +55,7 @@ def RetCC_PPC : CallingConv<[
 // Only handle ints and floats.  All ints are promoted to i64.
 // Vector types and quadword ints are not handled.
 def CC_PPC64_ELF_FIS : CallingConv<[
+  CCIfType<[i1],  CCPromoteToType<i64>>,
   CCIfType<[i8],  CCPromoteToType<i64>>,
   CCIfType<[i16], CCPromoteToType<i64>>,
   CCIfType<[i32], CCPromoteToType<i64>>,
@@ -58,14 +68,18 @@ def CC_PPC64_ELF_FIS : CallingConv<[
 // and multiple register returns are "supported" to avoid compile
 // errors, but none are handled by the fast selector.
 def RetCC_PPC64_ELF_FIS : CallingConv<[
+  CCIfType<[i1],   CCPromoteToType<i64>>,
   CCIfType<[i8],   CCPromoteToType<i64>>,
   CCIfType<[i16],  CCPromoteToType<i64>>,
   CCIfType<[i32],  CCPromoteToType<i64>>,
   CCIfType<[i64],  CCAssignToReg<[X3, X4]>>,
   CCIfType<[i128], CCAssignToReg<[X3, X4, X5, X6]>>,
-  CCIfType<[f32],  CCAssignToReg<[F1, F2]>>,
-  CCIfType<[f64],  CCAssignToReg<[F1, F2, F3, F4]>>,
-  CCIfType<[v16i8, v8i16, v4i32, v4f32], CCAssignToReg<[V2]>>
+  CCIfType<[f32],  CCAssignToReg<[F1, F2, F3, F4, F5, F6, F7, F8]>>,
+  CCIfType<[f64],  CCAssignToReg<[F1, F2, F3, F4, F5, F6, F7, F8]>>,
+  CCIfType<[v16i8, v8i16, v4i32, v4f32],
+           CCAssignToReg<[V2, V3, V4, V5, V6, V7, V8, V9]>>,
+  CCIfType<[v2f64, v2i64],
+           CCAssignToReg<[VSH2, VSH3, VSH4, VSH5, VSH6, VSH7, VSH8, VSH9]>>
 ]>;
 
 //===----------------------------------------------------------------------===//
@@ -73,6 +87,8 @@ def RetCC_PPC64_ELF_FIS : CallingConv<[
 //===----------------------------------------------------------------------===//
 
 def CC_PPC32_SVR4_Common : CallingConv<[
+  CCIfType<[i1], CCPromoteToType<i32>>,
+
   // The ABI requires i64 to be passed in two adjacent registers with the first
   // register having an odd register number.
   CCIfType<[i32], CCIfSplit<CCCustom<"CC_PPC32_SVR4_Custom_AlignArgRegs">>>,
@@ -97,7 +113,7 @@ def CC_PPC32_SVR4_Common : CallingConv<[
   CCIfType<[f32,f64], CCAssignToStack<8, 8>>,  
 
   // Vectors get 16-byte stack slots that are 16-byte aligned.
-  CCIfType<[v16i8, v8i16, v4i32, v4f32], CCAssignToStack<16, 16>>
+  CCIfType<[v16i8, v8i16, v4i32, v4f32, v2f64, v2i64], CCAssignToStack<16, 16>>
 ]>;
 
 // This calling convention puts vector arguments always on the stack. It is used
@@ -113,6 +129,9 @@ def CC_PPC32_SVR4 : CallingConv<[
   // The first 12 Vector arguments are passed in AltiVec registers.
   CCIfType<[v16i8, v8i16, v4i32, v4f32],
            CCAssignToReg<[V2, V3, V4, V5, V6, V7, V8, V9, V10, V11, V12, V13]>>,
+  CCIfType<[v2f64, v2i64],
+           CCAssignToReg<[VSH2, VSH3, VSH4, VSH5, VSH6, VSH7, VSH8, VSH9,
+                          VSH10, VSH11, VSH12, VSH13]>>,
            
   CCDelegateTo<CC_PPC32_SVR4_Common>
 ]>;  

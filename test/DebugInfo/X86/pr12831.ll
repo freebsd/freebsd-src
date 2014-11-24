@@ -79,7 +79,7 @@ entry:
 !llvm.module.flags = !{!162}
 
 !0 = metadata !{i32 786449, metadata !161, i32 4, metadata !"clang version 3.2 ", i1 false, metadata !"", i32 0, metadata !1, metadata !1, metadata !3, metadata !128, null, metadata !""} ; [ DW_TAG_compile_unit ]
-!1 = metadata !{i32 0}
+!1 = metadata !{}
 !3 = metadata !{metadata !5, metadata !106, metadata !107, metadata !126, metadata !127}
 !5 = metadata !{i32 786478, metadata !6, null, metadata !"writeExpr", metadata !"writeExpr", metadata !"_ZN17BPLFunctionWriter9writeExprEv", i32 19, metadata !7, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, void (%class.BPLFunctionWriter*)* @_ZN17BPLFunctionWriter9writeExprEv, null, metadata !103, metadata !1, i32 19} ; [ DW_TAG_subprogram ]
 !6 = metadata !{i32 786473, metadata !160} ; [ DW_TAG_file_type ]
@@ -212,7 +212,7 @@ entry:
 !134 = metadata !{i32 786447, null, null, null, i32 0, i64 64, i64 64, i64 0, i32 0, metadata !10} ; [ DW_TAG_pointer_type ]
 !135 = metadata !{i32 19, i32 39, metadata !5, null}
 !136 = metadata !{i32 20, i32 17, metadata !137, null}
-!137 = metadata !{i32 786443, metadata !5, i32 19, i32 51, metadata !6, i32 0} ; [ DW_TAG_lexical_block ]
+!137 = metadata !{i32 786443, metadata !6, metadata !5, i32 19, i32 51, i32 0} ; [ DW_TAG_lexical_block ]
 !138 = metadata !{i32 23, i32 17, metadata !137, null}
 !139 = metadata !{i32 26, i32 15, metadata !137, null}
 !140 = metadata !{i32 786689, metadata !106, metadata !"this", metadata !6, i32 16777224, metadata !141, i32 64, i32 0} ; [ DW_TAG_arg_variable ]
@@ -221,19 +221,19 @@ entry:
 !143 = metadata !{i32 786689, metadata !106, metadata !"__f", metadata !6, i32 33554440, metadata !61, i32 0, i32 0} ; [ DW_TAG_arg_variable ]
 !144 = metadata !{i32 8, i32 63, metadata !106, null}
 !145 = metadata !{i32 9, i32 9, metadata !146, null}
-!146 = metadata !{i32 786443, metadata !106, i32 8, i32 81, metadata !6, i32 1} ; [ DW_TAG_lexical_block ]
+!146 = metadata !{i32 786443, metadata !6, metadata !106, i32 8, i32 81, i32 1} ; [ DW_TAG_lexical_block ]
 !147 = metadata !{i32 10, i32 13, metadata !146, null}
 !148 = metadata !{i32 4, i32 5, metadata !149, null}
-!149 = metadata !{i32 786443, metadata !107, i32 3, i32 105, metadata !6, i32 2} ; [ DW_TAG_lexical_block ]
+!149 = metadata !{i32 786443, metadata !6, metadata !107, i32 3, i32 105, i32 2} ; [ DW_TAG_lexical_block ]
 !150 = metadata !{i32 786689, metadata !126, metadata !"this", metadata !6, i32 16777224, metadata !141, i32 64, i32 0} ; [ DW_TAG_arg_variable ]
 !151 = metadata !{i32 8, i32 45, metadata !126, null}
 !152 = metadata !{i32 786689, metadata !126, metadata !"__f", metadata !6, i32 33554440, metadata !26, i32 0, i32 0} ; [ DW_TAG_arg_variable ]
 !153 = metadata !{i32 8, i32 63, metadata !126, null}
 !154 = metadata !{i32 9, i32 9, metadata !155, null}
-!155 = metadata !{i32 786443, metadata !126, i32 8, i32 81, metadata !6, i32 3} ; [ DW_TAG_lexical_block ]
+!155 = metadata !{i32 786443, metadata !6, metadata !126, i32 8, i32 81, i32 3} ; [ DW_TAG_lexical_block ]
 !156 = metadata !{i32 10, i32 13, metadata !155, null}
 !157 = metadata !{i32 4, i32 5, metadata !158, null}
-!158 = metadata !{i32 786443, metadata !127, i32 3, i32 105, metadata !6, i32 4} ; [ DW_TAG_lexical_block ]
+!158 = metadata !{i32 786443, metadata !6, metadata !127, i32 3, i32 105, i32 4} ; [ DW_TAG_lexical_block ]
 !159 = metadata !{i32 786473, metadata !161} ; [ DW_TAG_file_type ]
 !160 = metadata !{metadata !"BPLFunctionWriter2.ii", metadata !"/home/peter/crashdelta"}
 !161 = metadata !{metadata !"BPLFunctionWriter.cpp", metadata !"/home/peter/crashdelta"}

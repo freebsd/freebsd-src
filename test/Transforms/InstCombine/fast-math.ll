@@ -140,6 +140,42 @@ define float @fold13(float %x) {
 ; CHECK: ret
 }
 
+; -x + y => y - x
+define float @fold14(float %x, float %y) {
+  %neg = fsub fast float -0.0, %x
+  %add = fadd fast float %neg, %y
+  ret float %add
+; CHECK: fold14
+; CHECK: fsub fast float %y, %x
+; CHECK: ret
+}
+
+; x + -y => x - y
+define float @fold15(float %x, float %y) {
+  %neg = fsub fast float -0.0, %y
+  %add = fadd fast float %x, %neg
+  ret float %add
+; CHECK: fold15
+; CHECK: fsub fast float %x, %y
+; CHECK: ret
+}
+
+; (select X+Y, X-Y) => X + (select Y, -Y)
+define float @fold16(float %x, float %y) {
+  %cmp = fcmp ogt float %x, %y
+  %plus = fadd fast float %x, %y
+  %minus = fsub fast float %x, %y
+  %r = select i1 %cmp, float %plus, float %minus
+  ret float %r
+; CHECK: fold16
+; CHECK: fsub fast float
+; CHECK: select
+; CHECK: fadd fast float
+; CHECK: ret
+}
+
+
+
 ; =========================================================================
 ;
 ;   Testing-cases about fmul begin
@@ -221,6 +257,14 @@ define float @fmul3(float %f1, float %f2) {
   ret float %t3
 ; CHECK-LABEL: @fmul3(
 ; CHECK: fmul fast float %f1, 3.000000e+00
+}
+
+define <4 x float> @fmul3_vec(<4 x float> %f1, <4 x float> %f2) {
+  %t1 = fdiv <4 x float> %f1, <float 2.0e+3, float 3.0e+3, float 2.0e+3, float 1.0e+3>
+  %t3 = fmul fast <4 x float> %t1, <float 6.0e+3, float 6.0e+3, float 2.0e+3, float 1.0e+3>
+  ret <4 x float> %t3
+; CHECK-LABEL: @fmul3_vec(
+; CHECK: fmul fast <4 x float> %f1, <float 3.000000e+00, float 2.000000e+00, float 1.000000e+00, float 1.000000e+00>
 }
 
 ; Rule "X/C1 * C2 => X * (C2/C1) is not applicable if C2/C1 is either a special
@@ -307,6 +351,15 @@ define float @fdiv2(float %x) {
 ; 0x3FE0B21660000000 = 0.52173918485641479492
 ; CHECK-LABEL: @fdiv2(
 ; CHECK: fmul fast float %x, 0x3FE0B21660000000
+}
+
+define <2 x float> @fdiv2_vec(<2 x float> %x) {
+  %mul = fmul <2 x float> %x, <float 6.0, float 9.0>
+  %div1 = fdiv fast <2 x float> %mul, <float 2.0, float 3.0>
+  ret <2 x float> %div1
+
+; CHECK-LABEL: @fdiv2_vec(
+; CHECK: fmul fast <2 x float> %x, <float 3.000000e+00, float 3.000000e+00>
 }
 
 ; "X/C1 / C2 => X * (1/(C2*C1))" is disabled (for now) is C2/C1 is a denormal

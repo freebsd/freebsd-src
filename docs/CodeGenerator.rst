@@ -70,7 +70,7 @@ different pieces of this will be useful to you.  In any case, you should be
 familiar with the `target description`_ and `machine code representation`_
 classes.  If you want to add a backend for a new target, you will need to
 `implement the target description`_ classes for your new target and understand
-the `LLVM code representation <LangRef.html>`_.  If you are interested in
+the :doc:`LLVM code representation <LangRef>`.  If you are interested in
 implementing a new `code generation algorithm`_, it should only depend on the
 target-description and machine code representation classes, ensuring that it is
 portable.
@@ -172,7 +172,7 @@ architecture.  These target descriptions often have a large amount of common
 information (e.g., an ``add`` instruction is almost identical to a ``sub``
 instruction).  In order to allow the maximum amount of commonality to be
 factored out, the LLVM code generator uses the
-:doc:`TableGen <TableGenFundamentals>` tool to describe big chunks of the
+:doc:`TableGen/index` tool to describe big chunks of the
 target machine, which allows the use of domain-specific and target-specific
 abstractions to reduce the amount of repetition.
 
@@ -277,7 +277,7 @@ an associated register class.  When the register allocator runs, it replaces
 virtual registers with a physical register in the set.
 
 The target-specific implementations of these classes is auto-generated from a
-`TableGen <TableGenFundamentals.html>`_ description of the register file.
+:doc:`TableGen/index` description of the register file.
 
 .. _TargetInstrInfo:
 
@@ -434,12 +434,12 @@ For example, consider this simple LLVM example:
 .. code-block:: llvm
 
   define i32 @test(i32 %X, i32 %Y) {
-    %Z = udiv i32 %X, %Y
+    %Z = sdiv i32 %X, %Y
     ret i32 %Z
   }
 
-The X86 instruction selector produces this machine code for the ``div`` and
-``ret`` (use "``llc X.bc -march=x86 -print-machineinstrs``" to get this):
+The X86 instruction selector might produce this machine code for the ``div`` and
+``ret``:
 
 .. code-block:: llvm
 
@@ -454,8 +454,8 @@ The X86 instruction selector produces this machine code for the ``div`` and
   %EAX = mov %reg1026           ;; 32-bit return value goes in EAX
   ret
 
-By the end of code generation, the register allocator has coalesced the
-registers and deleted the resultant identity moves producing the following
+By the end of code generation, the register allocator would coalesce the
+registers and delete the resultant identity moves producing the following
 code:
 
 .. code-block:: llvm
@@ -1228,7 +1228,7 @@ used. Each virtual register can only be mapped to physical registers of a
 particular class. For instance, in the X86 architecture, some virtuals can only
 be allocated to 8 bit registers.  A register class is described by
 ``TargetRegisterClass`` objects.  To discover if a virtual register is
-compatible with a given physical, this code can be used:</p>
+compatible with a given physical, this code can be used:
 
 .. code-block:: c++
 
@@ -1683,7 +1683,7 @@ ones supported by the matcher), through a Requires clause:
   def : MnemonicAlias<"pushf", "pushfq">, Requires<[In64BitMode]>;
   def : MnemonicAlias<"pushf", "pushfl">, Requires<[In32BitMode]>;
 
-In this example, the mnemonic gets mapped into different a new one depending on
+In this example, the mnemonic gets mapped into a different one depending on
 the current instruction set.
 
 Instruction Aliases
@@ -1993,7 +1993,7 @@ Tail Calls
 
 This box indicates whether the target supports guaranteed tail calls.  These are
 calls marked "`tail <LangRef.html#i_call>`_" and use the fastcc calling
-convention.  Please see the `tail call section more more details`_.
+convention.  Please see the `tail call section`_ for more details.
 
 .. _feat_segstacks:
 
@@ -2011,7 +2011,7 @@ Basic support exists on the X86 backend. Currently vararg doesn't work and the
 object files are not marked the way the gold linker expects, but simple Go
 programs can be built by dragonegg.
 
-.. _tail call section more more details:
+.. _tail call section:
 
 Tail call optimization
 ----------------------
@@ -2027,7 +2027,7 @@ supported on x86/x86-64 and PowerPC. It is performed if:
 
 * Option ``-tailcallopt`` is enabled.
 
-* Platform specific constraints are met.
+* Platform-specific constraints are met.
 
 x86/x86-64 constraints:
 

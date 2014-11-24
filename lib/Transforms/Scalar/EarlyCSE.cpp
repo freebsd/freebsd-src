@@ -12,22 +12,23 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "early-cse"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/ScopedHashTable.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/RecyclingAllocator.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Transforms/Utils/Local.h"
-#include <deque>
+#include <vector>
 using namespace llvm;
+
+#define DEBUG_TYPE "early-cse"
 
 STATISTIC(NumSimplify, "Number of instructions simplified or DCE'd");
 STATISTIC(NumCSE,      "Number of instructions CSE'd");
@@ -207,7 +208,7 @@ namespace {
         return false;
 
       CallInst *CI = dyn_cast<CallInst>(Inst);
-      if (CI == 0 || !CI->onlyReadsMemory())
+      if (!CI || !CI->onlyReadsMemory())
         return false;
       return true;
     }
@@ -262,7 +263,7 @@ namespace {
 /// cases.
 class EarlyCSE : public FunctionPass {
 public:
-  const DataLayout *TD;
+  const DataLayout *DL;
   const TargetLibraryInfo *TLI;
   DominatorTree *DT;
   typedef RecyclingAllocator<BumpPtrAllocator,
@@ -303,7 +304,7 @@ public:
     initializeEarlyCSEPass(*PassRegistry::getPassRegistry());
   }
 
-  bool runOnFunction(Function &F);
+  bool runOnFunction(Function &F) override;
 
 private:
 
@@ -376,8 +377,8 @@ private:
   bool processNode(DomTreeNode *Node);
 
   // This transformation requires dominator postdominator info
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-    AU.addRequired<DominatorTree>();
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<DominatorTreeWrapperPass>();
     AU.addRequired<TargetLibraryInfo>();
     AU.setPreservesCFG();
   }
@@ -392,7 +393,7 @@ FunctionPass *llvm::createEarlyCSEPass() {
 }
 
 INITIALIZE_PASS_BEGIN(EarlyCSE, "early-cse", "Early CSE", false, false)
-INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
 INITIALIZE_PASS_END(EarlyCSE, "early-cse", "Early CSE", false, false)
 
@@ -405,14 +406,14 @@ bool EarlyCSE::processNode(DomTreeNode *Node) {
   // have invalidated the live-out memory values of our parent value.  For now,
   // just be conservative and invalidate memory if this block has multiple
   // predecessors.
-  if (BB->getSinglePredecessor() == 0)
+  if (!BB->getSinglePredecessor())
     ++CurrentGeneration;
 
   /// LastStore - Keep track of the last non-volatile store that we saw... for
   /// as long as there in no instruction that reads memory.  If we see a store
   /// to the same location, we delete the dead store.  This zaps trivial dead
   /// stores which can occur in bitfield code among other things.
-  StoreInst *LastStore = 0;
+  StoreInst *LastStore = nullptr;
 
   bool Changed = false;
 
@@ -432,7 +433,7 @@ bool EarlyCSE::processNode(DomTreeNode *Node) {
 
     // If the instruction can be simplified (e.g. X+0 = X) then replace it with
     // its simpler value.
-    if (Value *V = SimplifyInstruction(Inst, TD, TLI, DT)) {
+    if (Value *V = SimplifyInstruction(Inst, DL, TLI, DT)) {
       DEBUG(dbgs() << "EarlyCSE Simplify: " << *Inst << "  to: " << *V << '\n');
       Inst->replaceAllUsesWith(V);
       Inst->eraseFromParent();
@@ -462,7 +463,7 @@ bool EarlyCSE::processNode(DomTreeNode *Node) {
     if (LoadInst *LI = dyn_cast<LoadInst>(Inst)) {
       // Ignore volatile loads.
       if (!LI->isSimple()) {
-        LastStore = 0;
+        LastStore = nullptr;
         continue;
       }
 
@@ -470,7 +471,7 @@ bool EarlyCSE::processNode(DomTreeNode *Node) {
       // generation, replace this instruction.
       std::pair<Value*, unsigned> InVal =
         AvailableLoads->lookup(Inst->getOperand(0));
-      if (InVal.first != 0 && InVal.second == CurrentGeneration) {
+      if (InVal.first != nullptr && InVal.second == CurrentGeneration) {
         DEBUG(dbgs() << "EarlyCSE CSE LOAD: " << *Inst << "  to: "
               << *InVal.first << '\n');
         if (!Inst->use_empty()) Inst->replaceAllUsesWith(InVal.first);
@@ -483,20 +484,20 @@ bool EarlyCSE::processNode(DomTreeNode *Node) {
       // Otherwise, remember that we have this instruction.
       AvailableLoads->insert(Inst->getOperand(0),
                           std::pair<Value*, unsigned>(Inst, CurrentGeneration));
-      LastStore = 0;
+      LastStore = nullptr;
       continue;
     }
 
     // If this instruction may read from memory, forget LastStore.
     if (Inst->mayReadFromMemory())
-      LastStore = 0;
+      LastStore = nullptr;
 
     // If this is a read-only call, process it.
     if (CallValue::canHandle(Inst)) {
       // If we have an available version of this call, and if it is the right
       // generation, replace this instruction.
       std::pair<Value*, unsigned> InVal = AvailableCalls->lookup(Inst);
-      if (InVal.first != 0 && InVal.second == CurrentGeneration) {
+      if (InVal.first != nullptr && InVal.second == CurrentGeneration) {
         DEBUG(dbgs() << "EarlyCSE CSE CALL: " << *Inst << "  to: "
                      << *InVal.first << '\n');
         if (!Inst->use_empty()) Inst->replaceAllUsesWith(InVal.first);
@@ -528,7 +529,7 @@ bool EarlyCSE::processNode(DomTreeNode *Node) {
           LastStore->eraseFromParent();
           Changed = true;
           ++NumDSE;
-          LastStore = 0;
+          LastStore = nullptr;
           continue;
         }
 
@@ -552,11 +553,15 @@ bool EarlyCSE::processNode(DomTreeNode *Node) {
 
 
 bool EarlyCSE::runOnFunction(Function &F) {
-  std::deque<StackNode *> nodesToProcess;
+  if (skipOptnoneFunction(F))
+    return false;
 
-  TD = getAnalysisIfAvailable<DataLayout>();
+  std::vector<StackNode *> nodesToProcess;
+
+  DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
+  DL = DLP ? &DLP->getDataLayout() : nullptr;
   TLI = &getAnalysis<TargetLibraryInfo>();
-  DT = &getAnalysis<DominatorTree>();
+  DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
 
   // Tables that the pass uses when walking the domtree.
   ScopedHTType AVTable;
@@ -570,7 +575,7 @@ bool EarlyCSE::runOnFunction(Function &F) {
   bool Changed = false;
 
   // Process the root node.
-  nodesToProcess.push_front(
+  nodesToProcess.push_back(
       new StackNode(AvailableValues, AvailableLoads, AvailableCalls,
                     CurrentGeneration, DT->getRootNode(),
                     DT->getRootNode()->begin(),
@@ -583,7 +588,7 @@ bool EarlyCSE::runOnFunction(Function &F) {
   while (!nodesToProcess.empty()) {
     // Grab the first item off the stack. Set the current generation, remove
     // the node from the stack, and process it.
-    StackNode *NodeToProcess = nodesToProcess.front();
+    StackNode *NodeToProcess = nodesToProcess.back();
 
     // Initialize class members.
     CurrentGeneration = NodeToProcess->currentGeneration();
@@ -597,7 +602,7 @@ bool EarlyCSE::runOnFunction(Function &F) {
     } else if (NodeToProcess->childIter() != NodeToProcess->end()) {
       // Push the next child onto the stack.
       DomTreeNode *child = NodeToProcess->nextChild();
-      nodesToProcess.push_front(
+      nodesToProcess.push_back(
           new StackNode(AvailableValues,
                         AvailableLoads,
                         AvailableCalls,
@@ -607,7 +612,7 @@ bool EarlyCSE::runOnFunction(Function &F) {
       // It has been processed, and there are no more children to process,
       // so delete it and pop it off the stack.
       delete NodeToProcess;
-      nodesToProcess.pop_front();
+      nodesToProcess.pop_back();
     }
   } // while (!nodes...)
 

@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Assembly/Parser.h"
+#include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -34,7 +34,7 @@ TEST(ValueTest, UsedInBasicBlock) {
                              "  ret void\n"
                              "}\n";
   SMDiagnostic Err;
-  Module *M = ParseAssemblyString(ModuleString, NULL, Err, C);
+  Module *M = ParseAssemblyString(ModuleString, nullptr, Err, C);
 
   Function *F = M->getFunction("f");
 
@@ -45,7 +45,7 @@ TEST(ValueTest, UsedInBasicBlock) {
 
 TEST(GlobalTest, CreateAddressSpace) {
   LLVMContext &Ctx = getGlobalContext();
-  OwningPtr<Module> M(new Module("TestModule", Ctx));
+  std::unique_ptr<Module> M(new Module("TestModule", Ctx));
   Type *Int8Ty = Type::getInt8Ty(Ctx);
   Type *Int32Ty = Type::getInt32Ty(Ctx);
 
@@ -56,7 +56,7 @@ TEST(GlobalTest, CreateAddressSpace) {
                          GlobalValue::ExternalLinkage,
                          Constant::getAllOnesValue(Int32Ty),
                          "dummy",
-                         0,
+                         nullptr,
                          GlobalVariable::NotThreadLocal,
                          1);
 
@@ -74,7 +74,7 @@ TEST(GlobalTest, CreateAddressSpace) {
                          GlobalValue::ExternalLinkage,
                          Constant::getAllOnesValue(Int32Ty),
                          "dummy_cast",
-                         0,
+                         nullptr,
                          GlobalVariable::NotThreadLocal,
                          1);
 

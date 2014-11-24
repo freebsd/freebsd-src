@@ -7,6 +7,7 @@ target triple = "x86_64-unknown-linux-gnu"
 ; module ctor/dtor
 
 ; CHECK: llvm.global_ctors
+; CHECK: @__asan_gen_ = private constant [8 x i8] c"<stdin>\00", align 1
 ; CHECK: llvm.global_dtors
 
 ; Test that we don't instrument global arrays with static initializer
@@ -67,8 +68,8 @@ entry:
 }
 
 
-!llvm.asan.dynamically_initialized_globals = !{!0}
-!0 = metadata !{[10 x i32]* @GlobDy}
+!llvm.asan.globals = !{!0}
+!0 = metadata !{[10 x i32]* @GlobDy, null, null, i1 true, i1 false}
 
 ; CHECK-LABEL: define internal void @asan.module_ctor
 ; CHECK-NOT: ret

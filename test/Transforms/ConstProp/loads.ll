@@ -36,6 +36,19 @@ define i16 @test2() {
 ; BE: ret i16 -8531
 }
 
+define i16 @test2_addrspacecast() {
+  %r = load i16 addrspace(1)* addrspacecast(i32* getelementptr ({{i32,i8},i32}* @g1, i32 0, i32 0, i32 0) to i16 addrspace(1)*)
+  ret i16 %r
+
+; 0xBEEF
+; LE-LABEL: @test2_addrspacecast(
+; LE: ret i16 -16657
+
+; 0xDEAD
+; BE-LABEL: @test2_addrspacecast(
+; BE: ret i16 -8531
+}
+
 ; Load of second 16 bits of 32-bit value.
 define i16 @test3() {
   %r = load i16* getelementptr(i16* bitcast(i32* getelementptr ({{i32,i8},i32}* @g1, i32 0, i32 0, i32 0) to i16*), i32 1)
@@ -218,4 +231,38 @@ entry:
 
 ; BE-LABEL: @test15(
 ; BE: ret i64 2
+}
+
+@gv7 = constant [4 x i8*] [i8* null, i8* inttoptr (i64 -14 to i8*), i8* null, i8* null]
+define i64 @test16.1() {
+  %v = load i64* bitcast ([4 x i8*]* @gv7 to i64*), align 8
+  ret i64 %v
+
+; LE-LABEL: @test16.1(
+; LE: ret i64 0
+
+; BE-LABEL: @test16.1(
+; BE: ret i64 0
+}
+
+define i64 @test16.2() {
+  %v = load i64* bitcast (i8** getelementptr inbounds ([4 x i8*]* @gv7, i64 0, i64 1) to i64*), align 8
+  ret i64 %v
+
+; LE-LABEL: @test16.2(
+; LE: ret i64 -14
+
+; BE-LABEL: @test16.2(
+; BE: ret i64 -14
+}
+
+define i64 @test16.3() {
+  %v = load i64* bitcast (i8** getelementptr inbounds ([4 x i8*]* @gv7, i64 0, i64 2) to i64*), align 8
+  ret i64 %v
+
+; LE-LABEL: @test16.3(
+; LE: ret i64 0
+
+; BE-LABEL: @test16.3(
+; BE: ret i64 0
 }

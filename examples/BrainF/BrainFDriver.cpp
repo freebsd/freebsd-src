@@ -25,12 +25,13 @@
 //===--------------------------------------------------------------------===//
 
 #include "BrainF.h"
-#include "llvm/Analysis/Verifier.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/ExecutionEngine/JIT.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
@@ -108,7 +109,7 @@ int main(int argc, char **argv) {
     if (OutputFilename != "-") {
       std::string ErrInfo;
       out = new raw_fd_ostream(OutputFilename.c_str(), ErrInfo,
-                               sys::fs::F_Binary);
+                               sys::fs::F_None);
     }
   }
 

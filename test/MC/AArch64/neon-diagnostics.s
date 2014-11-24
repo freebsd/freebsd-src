@@ -587,10 +587,11 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fcmgt v0.2d, v31.2s, v16.2s
 // CHECK-ERROR:                         ^
-// CHECK-ERROR: error: expected floating-point constant #0.0 or invalid register type
+
+// CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fcmgt v4.4s, v7.4s, v15.4h
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: expected floating-point constant #0.0 or invalid register type
+// CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fcmlt v29.2d, v5.2d, v2.16b
 // CHECK-ERROR:                                ^
 
@@ -680,12 +681,15 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fcmeq v0.16b, v1.16b, #0.0
 // CHECK-ERROR:                 ^
-// CHECK-ERROR: error: invalid operand for instruction
+
+
+// CHECK-ERROR: error: expected floating-point constant #0.0
 // CHECK-ERROR:        fcmeq v0.8b, v1.4h, #1.0
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error:  Expected floating-point immediate
+// CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fcmeq v0.8b, v1.4h, #1
 // CHECK-ERROR:                             ^
+
 //----------------------------------------------------------------------
 // Vector Compare Mask Greater Than or Equal to Zero (Floating Point)
 //----------------------------------------------------------------------
@@ -694,7 +698,7 @@
          fcmge v31.4s, v29.2s, #0.0
          fcmge v3.8b, v8.2s, #0.0
          fcmle v17.8h, v15.2d, #-1.0
-         fcmle v17.8h, v15.2d, #0
+         fcmle v17.8h, v15.2d, #2
 
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fcmge v31.4s, v29.2s, #0.0
@@ -702,12 +706,15 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fcmge v3.8b, v8.2s, #0.0
 // CHECK-ERROR:                 ^
-// CHECK-ERROR: error: invalid operand for instruction
+
+
+// CHECK-ERROR: error: expected floating-point constant #0.0
 // CHECK-ERROR:        fcmle v17.8h, v15.2d, #-1.0
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error:  Expected floating-point immediate
-// CHECK-ERROR:        fcmle v17.8h, v15.2d, #0
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:        fcmle v17.8h, v15.2d, #2
 // CHECK-ERROR:                               ^
+
 //----------------------------------------------------------------------
 // Vector Compare Mask Greater Than Zero (Floating Point)
 //----------------------------------------------------------------------
@@ -723,10 +730,12 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fcmgt v4.4s, v7.4h, #0.0
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected floating-point constant #0.0 or invalid register type
+
+
+// CHECK-ERROR: error: expected floating-point constant #0.0
 // CHECK-ERROR:        fcmlt v29.2d, v5.2d, #255.0
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error:  Expected floating-point immediate
+// CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fcmlt v29.2d, v5.2d, #255
 // CHECK-ERROR:                              ^
 
@@ -745,10 +754,12 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fcmge v3.8b, v8.2s, #0.0
 // CHECK-ERROR:                 ^
-// CHECK-ERROR: error: expected floating-point constant #0.0 or invalid register type
+
+
+// CHECK-ERROR: error: expected floating-point constant #0.0
 // CHECK-ERROR:        fcmle v17.2d, v15.2d, #15.0
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error:  Expected floating-point immediate
+// CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fcmle v17.2d, v15.2d, #15
 // CHECK-ERROR:                              ^
 
@@ -767,10 +778,12 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fcmgt v4.4s, v7.4h, #0.0
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected floating-point constant #0.0 or invalid register type
+
+
+// CHECK-ERROR: error: expected floating-point constant #0.0
 // CHECK-ERROR:        fcmlt v29.2d, v5.2d, #16.0
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error:  Expected floating-point immediate
+// CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fcmlt v29.2d, v5.2d, #2
 // CHECK-ERROR:                              ^
 
@@ -1285,22 +1298,24 @@
          shl v0.4s, v21.4s, #32
          shl v0.2d, v1.2d, #64
 
-// CHECK-ERROR: error: expected comma before next operand
+
+// CHECK-ERROR: error: unexpected token in argument list
 // CHECK-ERROR:         shl v0.4s, v15,2s, #3
 // CHECK-ERROR:                         ^
+
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         shl v0.2d, v17.4s, #3
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected integer in range [0, 7]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 7]
 // CHECK-ERROR:         shl v0.8b, v31.8b, #-1
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [0, 7]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 7]
 // CHECK-ERROR:         shl v0.8b, v31.8b, #8
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [0, 31]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 31]
 // CHECK-ERROR:         shl v0.4s, v21.4s, #32
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [0, 63]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 63]
 // CHECK-ERROR:         shl v0.2d, v1.2d, #64
 // CHECK-ERROR:                           ^
 
@@ -1334,25 +1349,25 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        ushll2 v1.4s, v25.4s, #7
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [0, 7]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 7]
 // CHECK-ERROR:        sshll v0.8h, v1.8b, #-1
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [0, 7]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 7]
 // CHECK-ERROR:        sshll v0.8h, v1.8b, #9
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [0, 15]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 15]
 // CHECK-ERROR:        ushll v0.4s, v1.4h, #17
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [0, 31]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 31]
 // CHECK-ERROR:        ushll v0.2d, v1.2s, #33
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [0, 7]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 7]
 // CHECK-ERROR:        sshll2 v0.8h, v1.16b, #9
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error: expected integer in range [0, 15]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 15]
 // CHECK-ERROR:        sshll2 v0.4s, v1.8h, #17
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [0, 31]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 31]
 // CHECK-ERROR:        ushll2 v0.2d, v1.4s, #33
 // CHECK-ERROR:                             ^
 
@@ -1377,16 +1392,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         sshr v0.2s, v1.2d, #3
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         sshr v0.16b, v1.16b, #9
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         sshr v0.8h, v1.8h, #17
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         sshr v0.4s, v1.4s, #33
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:         sshr v0.2d, v1.2d, #65
 // CHECK-ERROR:                            ^
 
@@ -1410,16 +1425,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         ushr v0.2s, v1.2d, #3
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         ushr v0.16b, v1.16b, #9
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         ushr v0.8h, v1.8h, #17
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         ushr v0.4s, v1.4s, #33
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:         ushr v0.2d, v1.2d, #65
 // CHECK-ERROR:                            ^
 
@@ -1443,16 +1458,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         ssra v0.2s, v1.2d, #3
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         ssra v0.16b, v1.16b, #9
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         ssra v0.8h, v1.8h, #17
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         ssra v0.4s, v1.4s, #33
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:         ssra v0.2d, v1.2d, #65
 // CHECK-ERROR:                            ^
 
@@ -1476,16 +1491,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         usra v0.2s, v1.2d, #3
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         usra v0.16b, v1.16b, #9
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         usra v0.8h, v1.8h, #17
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         usra v0.4s, v1.4s, #33
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:         usra v0.2d, v1.2d, #65
 // CHECK-ERROR:                            ^
 
@@ -1509,16 +1524,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         srshr v0.2s, v1.2d, #3
 // CHECK-ERROR:                         ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         srshr v0.16b, v1.16b, #9
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         srshr v0.8h, v1.8h, #17
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         srshr v0.4s, v1.4s, #33
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:         srshr v0.2d, v1.2d, #65
 // CHECK-ERROR:                             ^
 
@@ -1542,16 +1557,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         urshr v0.2s, v1.2d, #3
 // CHECK-ERROR:                         ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         urshr v0.16b, v1.16b, #9
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         urshr v0.8h, v1.8h, #17
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         urshr v0.4s, v1.4s, #33
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:         urshr v0.2d, v1.2d, #65
 // CHECK-ERROR:                             ^
 
@@ -1575,16 +1590,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         srsra v0.2s, v1.2d, #3
 // CHECK-ERROR:                         ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         srsra v0.16b, v1.16b, #9
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         srsra v0.8h, v1.8h, #17
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         srsra v0.4s, v1.4s, #33
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:         srsra v0.2d, v1.2d, #65
 // CHECK-ERROR:                             ^
 
@@ -1608,16 +1623,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         ursra v0.2s, v1.2d, #3
 // CHECK-ERROR:                         ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         ursra v0.16b, v1.16b, #9
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         ursra v0.8h, v1.8h, #17
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         ursra v0.4s, v1.4s, #33
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:         ursra v0.2d, v1.2d, #65
 // CHECK-ERROR:                             ^
 
@@ -1641,16 +1656,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         sri v0.2s, v1.2d, #3
 // CHECK-ERROR:                       ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         sri v0.16b, v1.16b, #9
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         sri v0.8h, v1.8h, #17
 // CHECK-ERROR:                           ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         sri v0.4s, v1.4s, #33
 // CHECK-ERROR:                           ^
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:         sri v0.2d, v1.2d, #65
 // CHECK-ERROR:                           ^
 
@@ -1674,16 +1689,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         sli v0.2s, v1.2d, #3
 // CHECK-ERROR:                       ^
-// CHECK-ERROR: error: expected integer in range [0, 7]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 7]
 // CHECK-ERROR:         sli v0.16b, v1.16b, #8
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [0, 15]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 15]
 // CHECK-ERROR:         sli v0.8h, v1.8h, #16
 // CHECK-ERROR:                           ^
-// CHECK-ERROR: error: expected integer in range [0, 31]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 31]
 // CHECK-ERROR:         sli v0.4s, v1.4s, #32
 // CHECK-ERROR:                           ^
-// CHECK-ERROR: error: expected integer in range [0, 63]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 63]
 // CHECK-ERROR:         sli v0.2d, v1.2d, #64
 // CHECK-ERROR:                           ^
 
@@ -1707,16 +1722,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         sqshlu v0.2s, v1.2d, #3
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [0, 7]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 7]
 // CHECK-ERROR:         sqshlu v0.16b, v1.16b, #8
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: expected integer in range [0, 15]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 15]
 // CHECK-ERROR:         sqshlu v0.8h, v1.8h, #16
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error: expected integer in range [0, 31]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 31]
 // CHECK-ERROR:         sqshlu v0.4s, v1.4s, #32
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error: expected integer in range [0, 63]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 63]
 // CHECK-ERROR:         sqshlu v0.2d, v1.2d, #64
 // CHECK-ERROR:                              ^
 
@@ -1740,16 +1755,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         sqshl v0.2s, v1.2d, #3
 // CHECK-ERROR:                         ^
-// CHECK-ERROR: error: expected integer in range [0, 7]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 7]
 // CHECK-ERROR:         sqshl v0.16b, v1.16b, #8
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: expected integer in range [0, 15]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 15]
 // CHECK-ERROR:         sqshl v0.8h, v1.8h, #16
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [0, 31]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 31]
 // CHECK-ERROR:         sqshl v0.4s, v1.4s, #32
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [0, 63]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 63]
 // CHECK-ERROR:         sqshl v0.2d, v1.2d, #64
 // CHECK-ERROR:                             ^
 
@@ -1773,16 +1788,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         uqshl v0.2s, v1.2d, #3
 // CHECK-ERROR:                         ^
-// CHECK-ERROR: error: expected integer in range [0, 7]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 7]
 // CHECK-ERROR:         uqshl v0.16b, v1.16b, #8
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: expected integer in range [0, 15]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 15]
 // CHECK-ERROR:         uqshl v0.8h, v1.8h, #16
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [0, 31]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 31]
 // CHECK-ERROR:         uqshl v0.4s, v1.4s, #32
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [0, 63]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 63]
 // CHECK-ERROR:         uqshl v0.2d, v1.2d, #64
 // CHECK-ERROR:                             ^
 
@@ -1805,13 +1820,13 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         shrn v0.2s, v1.2s, #3
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         shrn2 v0.16b, v1.8h, #17
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         shrn2 v0.8h, v1.4s, #33
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         shrn2 v0.4s, v1.2d, #65
 // CHECK-ERROR:                             ^
 
@@ -1834,13 +1849,13 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         sqshrun v0.2s, v1.2s, #3
 // CHECK-ERROR:                           ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         sqshrun2 v0.16b, v1.8h, #17
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         sqshrun2 v0.8h, v1.4s, #33
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         sqshrun2 v0.4s, v1.2d, #65
 // CHECK-ERROR:                                ^
 
@@ -1863,13 +1878,13 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         rshrn v0.2s, v1.2s, #3
 // CHECK-ERROR:                         ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         rshrn2 v0.16b, v1.8h, #17
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         rshrn2 v0.8h, v1.4s, #33
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         rshrn2 v0.4s, v1.2d, #65
 // CHECK-ERROR:                              ^
 
@@ -1892,13 +1907,13 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         sqrshrun v0.2s, v1.2s, #3
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         sqrshrun2 v0.16b, v1.8h, #17
 // CHECK-ERROR:                                  ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         sqrshrun2 v0.8h, v1.4s, #33
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         sqrshrun2 v0.4s, v1.2d, #65
 // CHECK-ERROR:                                 ^
 
@@ -1921,13 +1936,13 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         sqshrn v0.2s, v1.2s, #3
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         sqshrn2 v0.16b, v1.8h, #17
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         sqshrn2 v0.8h, v1.4s, #33
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         sqshrn2 v0.4s, v1.2d, #65
 // CHECK-ERROR:                               ^
 
@@ -1950,13 +1965,13 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         uqshrn v0.2s, v1.2s, #3
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         uqshrn2 v0.16b, v1.8h, #17
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         uqshrn2 v0.8h, v1.4s, #33
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         uqshrn2 v0.4s, v1.2d, #65
 // CHECK-ERROR:                               ^
 
@@ -1979,13 +1994,13 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         sqrshrn v0.2s, v1.2s, #3
 // CHECK-ERROR:                           ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         sqrshrn2 v0.16b, v1.8h, #17
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         sqrshrn2 v0.8h, v1.4s, #33
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         sqrshrn2 v0.4s, v1.2d, #65
 // CHECK-ERROR:                                ^
 
@@ -2008,13 +2023,13 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         uqrshrn v0.2s, v1.2s, #3
 // CHECK-ERROR:                           ^
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:         uqrshrn2 v0.16b, v1.8h, #17
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:         uqrshrn2 v0.8h, v1.4s, #33
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         uqrshrn2 v0.4s, v1.2d, #65
 // CHECK-ERROR:                                ^
 
@@ -2037,13 +2052,13 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         scvtf v0.2d, v1.2s, #3
 // CHECK-ERROR:                         ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         ucvtf v0.2s, v1.2s, #33
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         ucvtf v0.4s, v1.4s, #33
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:         ucvtf v0.2d, v1.2d, #65
 // CHECK-ERROR:                             ^
 
@@ -2066,13 +2081,13 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:         fcvtzs v0.2d, v1.2s, #3
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         fcvtzu v0.2s, v1.2s, #33
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:         fcvtzu v0.4s, v1.4s, #33
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:         fcvtzu v0.2d, v1.2d, #65
 // CHECK-ERROR:                              ^
 
@@ -2616,9 +2631,11 @@
         pmull2 v0.4s, v1.8h v2.8h
         pmull2 v0.2d, v1.4s, v2.4s
 
-// CHECK-ERROR: error: expected comma before next operand
+
+// CHECK-ERROR: error: unexpected token in argument list
 // CHECK-ERROR:        pmull2 v0.4s, v1.8h v2.8h
 // CHECK-ERROR:                            ^
+
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        pmull2 v0.2d, v1.4s, v2.4s
 // CHECK-ERROR:                  ^
@@ -2941,19 +2958,19 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        mla v0.2d, v1.2d, v16.d[1]
 // CHECK-ERROR:               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        mla v0.2s, v1.2s, v2.s[4]
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        mla v0.4s, v1.4s, v2.s[4]
 // CHECK-ERROR:                               ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        mla v0.2h, v1.2h, v2.h[1]
 // CHECK-ERROR:            ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        mla v0.4h, v1.4h, v2.h[8]
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        mla v0.8h, v1.8h, v2.h[8]
 // CHECK-ERROR:                               ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -2975,19 +2992,19 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        mls v0.2d, v1.2d, v16.d[1]
 // CHECK-ERROR:               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        mls v0.2s, v1.2s, v2.s[4]
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        mls v0.4s, v1.4s, v2.s[4]
 // CHECK-ERROR:                               ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        mls v0.2h, v1.2h, v2.h[1]
 // CHECK-ERROR:            ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        mls v0.4h, v1.4h, v2.h[8]
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        mls v0.8h, v1.8h, v2.h[8]
 // CHECK-ERROR:                               ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3012,22 +3029,22 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fmla v0.8h, v1.8h, v2.h[2]
 // CHECK-ERROR:                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmla v0.2s, v1.2s, v2.s[4]
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmla v0.2s, v1.2s, v22.s[4]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmla v3.4s, v8.4s, v2.s[4]
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmla v3.4s, v8.4s, v22.s[4]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmla v0.2d, v1.2d, v2.d[2]
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmla v0.2d, v1.2d, v22.d[2]
 // CHECK-ERROR:                                 ^
 
@@ -3046,29 +3063,29 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fmls v0.8h, v1.8h, v2.h[2]
 // CHECK-ERROR:                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmls v0.2s, v1.2s, v2.s[4]
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmls v0.2s, v1.2s, v22.s[4]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmls v3.4s, v8.4s, v2.s[4]
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmls v3.4s, v8.4s, v22.s[4]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmls v0.2d, v1.2d, v2.d[2]
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmls v0.2d, v1.2d, v22.d[2]
 // CHECK-ERROR:                                 ^
 
       smlal v0.4h, v1.4h, v2.h[2]
       smlal v0.4s, v1.4h, v2.h[8]
       smlal v0.4s, v1.4h, v16.h[2]
-      smlal v0.2s, v1.2s, v2.s[4]
+      smlal v0.2s, v1.2s, v2.s[1]
       smlal v0.2d, v1.2s, v2.s[4]
       smlal v0.2d, v1.2s, v22.s[4]
       smlal2 v0.4h, v1.8h, v1.h[2]
@@ -3081,25 +3098,25 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        smlal v0.4h, v1.4h, v2.h[2]
 // CHECK-ERROR:              ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smlal v0.4s, v1.4h, v2.h[8]
 // CHECK-ERROR:                                 ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        smlal v0.4s, v1.4h, v16.h[2]
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: lane number incompatible with layout
-// CHECK-ERROR:        smlal v0.2s, v1.2s, v2.s[4]
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:        smlal v0.2s, v1.2s, v2.s[1]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smlal v0.2d, v1.2s, v2.s[4]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smlal v0.2d, v1.2s, v22.s[4]
 // CHECK-ERROR:                                  ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        smlal2 v0.4h, v1.8h, v1.h[2]
 // CHECK-ERROR:               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smlal2 v0.4s, v1.8h, v1.h[8]
 // CHECK-ERROR:                                  ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3108,17 +3125,17 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        smlal2 v0.2s, v1.4s, v1.s[2]
 // CHECK-ERROR:               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smlal2 v0.2d, v1.4s, v1.s[4]
 // CHECK-ERROR:                                  ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smlal2 v0.2d, v1.4s, v22.s[4]
 // CHECK-ERROR:                                   ^
 
       smlsl v0.4h, v1.4h, v2.h[2]
       smlsl v0.4s, v1.4h, v2.h[8]
       smlsl v0.4s, v1.4h, v16.h[2]
-      smlsl v0.2s, v1.2s, v2.s[4]
+      smlsl v0.2s, v1.2s, v2.s[1]
       smlsl v0.2d, v1.2s, v2.s[4]
       smlsl v0.2d, v1.2s, v22.s[4]
       smlsl2 v0.4h, v1.8h, v1.h[2]
@@ -3131,25 +3148,25 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        smlsl v0.4h, v1.4h, v2.h[2]
 // CHECK-ERROR:              ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smlsl v0.4s, v1.4h, v2.h[8]
 // CHECK-ERROR:                                 ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        smlsl v0.4s, v1.4h, v16.h[2]
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: lane number incompatible with layout
-// CHECK-ERROR:        smlsl v0.2s, v1.2s, v2.s[4]
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:        smlsl v0.2s, v1.2s, v2.s[1]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smlsl v0.2d, v1.2s, v2.s[4]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smlsl v0.2d, v1.2s, v22.s[4]
 // CHECK-ERROR:                                  ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        smlsl2 v0.4h, v1.8h, v1.h[2]
 // CHECK-ERROR:               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smlsl2 v0.4s, v1.8h, v1.h[8]
 // CHECK-ERROR:                                  ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3158,17 +3175,17 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        smlsl2 v0.2s, v1.4s, v1.s[2]
 // CHECK-ERROR:               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smlsl2 v0.2d, v1.4s, v1.s[4]
 // CHECK-ERROR:                                  ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smlsl2 v0.2d, v1.4s, v22.s[4]
 // CHECK-ERROR:                                   ^
 
       umlal v0.4h, v1.4h, v2.h[2]
       umlal v0.4s, v1.4h, v2.h[8]
       umlal v0.4s, v1.4h, v16.h[2]
-      umlal v0.2s, v1.2s, v2.s[4]
+      umlal v0.2s, v1.2s, v2.s[1]
       umlal v0.2d, v1.2s, v2.s[4]
       umlal v0.2d, v1.2s, v22.s[4]
       umlal2 v0.4h, v1.8h, v1.h[2]
@@ -3181,25 +3198,25 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        umlal v0.4h, v1.4h, v2.h[2]
 // CHECK-ERROR:              ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umlal v0.4s, v1.4h, v2.h[8]
 // CHECK-ERROR:                                 ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        umlal v0.4s, v1.4h, v16.h[2]
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: lane number incompatible with layout
-// CHECK-ERROR:        umlal v0.2s, v1.2s, v2.s[4]
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:        umlal v0.2s, v1.2s, v2.s[1]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umlal v0.2d, v1.2s, v2.s[4]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umlal v0.2d, v1.2s, v22.s[4]
 // CHECK-ERROR:                                  ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        umlal2 v0.4h, v1.8h, v1.h[2]
 // CHECK-ERROR:               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umlal2 v0.4s, v1.8h, v1.h[8]
 // CHECK-ERROR:                                  ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3208,17 +3225,17 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        umlal2 v0.2s, v1.4s, v1.s[2]
 // CHECK-ERROR:               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umlal2 v0.2d, v1.4s, v1.s[4]
 // CHECK-ERROR:                                  ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umlal2 v0.2d, v1.4s, v22.s[4]
 // CHECK-ERROR:                                   ^
 
       umlsl v0.4h, v1.4h, v2.h[2]
       umlsl v0.4s, v1.4h, v2.h[8]
       umlsl v0.4s, v1.4h, v16.h[2]
-      umlsl v0.2s, v1.2s, v2.s[4]
+      umlsl v0.2s, v1.2s, v2.s[3]
       umlsl v0.2d, v1.2s, v2.s[4]
       umlsl v0.2d, v1.2s, v22.s[4]
       umlsl2 v0.4h, v1.8h, v1.h[2]
@@ -3231,25 +3248,25 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        umlsl v0.4h, v1.4h, v2.h[2]
 // CHECK-ERROR:              ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umlsl v0.4s, v1.4h, v2.h[8]
 // CHECK-ERROR:                                 ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        umlsl v0.4s, v1.4h, v16.h[2]
 // CHECK-ERROR:                            ^
-// CHECK-ERROR: error: lane number incompatible with layout
-// CHECK-ERROR:        umlsl v0.2s, v1.2s, v2.s[4]
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:        umlsl v0.2s, v1.2s, v2.s[3]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umlsl v0.2d, v1.2s, v2.s[4]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umlsl v0.2d, v1.2s, v22.s[4]
 // CHECK-ERROR:                                  ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        umlsl2 v0.4h, v1.8h, v1.h[2]
 // CHECK-ERROR:               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umlsl2 v0.4s, v1.8h, v1.h[8]
 // CHECK-ERROR:                                  ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3258,17 +3275,17 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        umlsl2 v0.2s, v1.4s, v1.s[2]
 // CHECK-ERROR:               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umlsl2 v0.2d, v1.4s, v1.s[4]
 // CHECK-ERROR:                                  ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umlsl2 v0.2d, v1.4s, v22.s[4]
 // CHECK-ERROR:                                   ^
 
       sqdmlal v0.4h, v1.4h, v2.h[2]
       sqdmlal v0.4s, v1.4h, v2.h[8]
       sqdmlal v0.4s, v1.4h, v16.h[2]
-      sqdmlal v0.2s, v1.2s, v2.s[4]
+      sqdmlal v0.2s, v1.2s, v2.s[3]
       sqdmlal v0.2d, v1.2s, v2.s[4]
       sqdmlal v0.2d, v1.2s, v22.s[4]
       sqdmlal2 v0.4h, v1.8h, v1.h[2]
@@ -3281,25 +3298,25 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmlal v0.4h, v1.4h, v2.h[2]
 // CHECK-ERROR:                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmlal v0.4s, v1.4h, v2.h[8]
 // CHECK-ERROR:                                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmlal v0.4s, v1.4h, v16.h[2]
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error: lane number incompatible with layout
-// CHECK-ERROR:        sqdmlal v0.2s, v1.2s, v2.s[4]
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:        sqdmlal v0.2s, v1.2s, v2.s[3]
 // CHECK-ERROR:                                   ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmlal v0.2d, v1.2s, v2.s[4]
 // CHECK-ERROR:                                   ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmlal v0.2d, v1.2s, v22.s[4]
 // CHECK-ERROR:                                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmlal2 v0.4h, v1.8h, v1.h[2]
 // CHECK-ERROR:                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmlal2 v0.4s, v1.8h, v1.h[8]
 // CHECK-ERROR:                                    ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3308,17 +3325,17 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmlal2 v0.2s, v1.4s, v1.s[2]
 // CHECK-ERROR:                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmlal2 v0.2d, v1.4s, v1.s[4]
 // CHECK-ERROR:                                    ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmlal2 v0.2d, v1.4s, v22.s[4]
 // CHECK-ERROR:                                     ^
 
       sqdmlsl v0.4h, v1.4h, v2.h[2]
       sqdmlsl v0.4s, v1.4h, v2.h[8]
       sqdmlsl v0.4s, v1.4h, v16.h[2]
-      sqdmlsl v0.2s, v1.2s, v2.s[4]
+      sqdmlsl v0.2s, v1.2s, v2.s[3]
       sqdmlsl v0.2d, v1.2s, v2.s[4]
       sqdmlsl v0.2d, v1.2s, v22.s[4]
       sqdmlsl2 v0.4h, v1.8h, v1.h[2]
@@ -3331,25 +3348,25 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmlsl v0.4h, v1.4h, v2.h[2]
 // CHECK-ERROR:                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmlsl v0.4s, v1.4h, v2.h[8]
 // CHECK-ERROR:                                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmlsl v0.4s, v1.4h, v16.h[2]
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error: lane number incompatible with layout
-// CHECK-ERROR:        sqdmlsl v0.2s, v1.2s, v2.s[4]
+// CHECK-ERROR: error: invalid operand for instruction
+// CHECK-ERROR:        sqdmlsl v0.2s, v1.2s, v2.s[3]
 // CHECK-ERROR:                                   ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmlsl v0.2d, v1.2s, v2.s[4]
 // CHECK-ERROR:                                   ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmlsl v0.2d, v1.2s, v22.s[4]
 // CHECK-ERROR:                                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmlsl2 v0.4h, v1.8h, v1.h[2]
 // CHECK-ERROR:                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmlsl2 v0.4s, v1.8h, v1.h[8]
 // CHECK-ERROR:                                    ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3358,10 +3375,10 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmlsl2 v0.2s, v1.4s, v1.s[2]
 // CHECK-ERROR:                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmlsl2 v0.2d, v1.4s, v1.s[4]
 // CHECK-ERROR:                                    ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmlsl2 v0.2d, v1.4s, v22.s[4]
 // CHECK-ERROR:                                     ^
 
@@ -3375,28 +3392,28 @@
       mul v0.4s, v1.4s, v22.s[4]
       mul v0.2d, v1.2d, v2.d[1]
 
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        mul v0.4h, v1.4h, v2.h[8]
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        mul v0.4h, v1.4h, v16.h[8]
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        mul v0.8h, v1.8h, v2.h[8]
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: invalid operand for instruction
 // CHECK-ERROR:        mul v0.8h, v1.8h, v16.h[8]
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        mul v0.2s, v1.2s, v2.s[4]
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        mul v0.2s, v1.2s, v22.s[4]
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        mul v0.4s, v1.4s, v2.s[4]
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        mul v0.4s, v1.4s, v22.s[4]
 // CHECK-ERROR:                                ^
 
@@ -3414,22 +3431,22 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fmul v0.4h, v1.4h, v2.h[4]
 // CHECK-ERROR:                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmul v0.2s, v1.2s, v2.s[4]
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmul v0.2s, v1.2s, v22.s[4]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmul v0.4s, v1.4s, v2.s[4]
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmul v0.4s, v1.4s, v22.s[4]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmul v0.2d, v1.2d, v2.d[2]
 // CHECK-ERROR:                                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmul v0.2d, v1.2d, v22.d[2]
 // CHECK-ERROR:                                 ^
 
@@ -3444,22 +3461,22 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        fmulx v0.4h, v1.4h, v2.h[4]
 // CHECK-ERROR:                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmulx v0.2s, v1.2s, v2.s[4]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmulx v0.2s, v1.2s, v22.s[4]
 // CHECK-ERROR:                                  ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmulx v0.4s, v1.4s, v2.s[4]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmulx v0.4s, v1.4s, v22.s[4]
 // CHECK-ERROR:                                  ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmulx v0.2d, v1.2d, v2.d[2]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        fmulx v0.2d, v1.2d, v22.d[2]
 // CHECK-ERROR:                                  ^
 
@@ -3479,7 +3496,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        smull v0.4h, v1.4h, v2.h[2]
 // CHECK-ERROR:              ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smull v0.4s, v1.4h, v2.h[8]
 // CHECK-ERROR:                                 ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3488,16 +3505,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        smull v0.2s, v1.2s, v2.s[2]
 // CHECK-ERROR:              ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smull v0.2d, v1.2s, v2.s[4]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smull v0.2d, v1.2s, v22.s[4]
 // CHECK-ERROR:                                  ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        smull2 v0.4h, v1.8h, v2.h[2]
 // CHECK-ERROR:               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smull2 v0.4s, v1.8h, v2.h[8]
 // CHECK-ERROR:                                  ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3506,10 +3523,10 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        smull2 v0.2s, v1.4s, v2.s[2]
 // CHECK-ERROR:               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smull2 v0.2d, v1.4s, v2.s[4]
 // CHECK-ERROR:                                  ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        smull2 v0.2d, v1.4s, v22.s[4]
 // CHECK-ERROR:                                   ^
 
@@ -3529,7 +3546,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        umull v0.4h, v1.4h, v2.h[2]
 // CHECK-ERROR:              ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umull v0.4s, v1.4h, v2.h[8]
 // CHECK-ERROR:                                 ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3538,16 +3555,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        umull v0.2s, v1.2s, v2.s[2]
 // CHECK-ERROR:              ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umull v0.2d, v1.2s, v2.s[4]
 // CHECK-ERROR:                                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umull v0.2d, v1.2s, v22.s[4]
 // CHECK-ERROR:                                  ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        umull2 v0.4h, v1.8h, v2.h[2]
 // CHECK-ERROR:               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umull2 v0.4s, v1.8h, v2.h[8]
 // CHECK-ERROR:                                  ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3556,10 +3573,10 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        umull2 v0.2s, v1.4s, v2.s[2]
 // CHECK-ERROR:               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umull2 v0.2d, v1.4s, v2.s[4]
 // CHECK-ERROR:                                  ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        umull2 v0.2d, v1.4s, v22.s[4]
 // CHECK-ERROR:                                   ^
 
@@ -3579,7 +3596,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmull v0.4h, v1.4h, v2.h[2]
 // CHECK-ERROR:                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmull v0.4s, v1.4h, v2.h[8]
 // CHECK-ERROR:                                   ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3588,16 +3605,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmull v0.2s, v1.2s, v2.s[2]
 // CHECK-ERROR:                ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmull v0.2d, v1.2s, v2.s[4]
 // CHECK-ERROR:                                   ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmull v0.2d, v1.2s, v22.s[4]
 // CHECK-ERROR:                                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmull2 v0.4h, v1.8h, v2.h[2]
 // CHECK-ERROR:                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmull2 v0.4s, v1.8h, v2.h[8]
 // CHECK-ERROR:                                    ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3606,10 +3623,10 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmull2 v0.2s, v1.4s, v2.s[2]
 // CHECK-ERROR:                 ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmull2 v0.2d, v1.4s, v2.s[4]
 // CHECK-ERROR:                                    ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmull2 v0.2d, v1.4s, v22.s[4]
 // CHECK-ERROR:                                     ^
 
@@ -3623,28 +3640,28 @@
       sqdmulh v0.4s, v1.4s, v22.s[4]
       sqdmulh v0.2d, v1.2d, v22.d[1]
 
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmulh v0.4h, v1.4h, v2.h[8]
 // CHECK-ERROR:                                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmulh v0.4h, v1.4h, v16.h[2]
 // CHECK-ERROR:                              ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmulh v0.8h, v1.8h, v2.h[8]
 // CHECK-ERROR:                                   ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmulh v0.8h, v1.8h, v16.h[2]
 // CHECK-ERROR:                                  ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmulh v0.2s, v1.2s, v2.s[4]
 // CHECK-ERROR:                                   ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmulh v0.2s, v1.2s, v22.s[4]
 // CHECK-ERROR:                                    ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmulh v0.4s, v1.4s, v2.s[4]
 // CHECK-ERROR:                                   ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqdmulh v0.4s, v1.4s, v22.s[4]
 // CHECK-ERROR:                                    ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3661,28 +3678,28 @@
       sqrdmulh v0.4s, v1.4s, v22.s[4]
       sqrdmulh v0.2d, v1.2d, v22.d[1]
 
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqrdmulh v0.4h, v1.4h, v2.h[8]
 // CHECK-ERROR:                                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqrdmulh v0.4h, v1.4h, v16.h[2]
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqrdmulh v0.8h, v1.8h, v2.h[8]
 // CHECK-ERROR:                                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqrdmulh v0.8h, v1.8h, v16.h[2]
 // CHECK-ERROR:                                   ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqrdmulh v0.2s, v1.2s, v2.s[4]
 // CHECK-ERROR:                                    ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqrdmulh v0.2s, v1.2s, v22.s[4]
 // CHECK-ERROR:                                     ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqrdmulh v0.4s, v1.4s, v2.s[4]
 // CHECK-ERROR:                                    ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:        sqrdmulh v0.4s, v1.4s, v22.s[4]
 // CHECK-ERROR:                                     ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3900,13 +3917,13 @@
          ld1 {v4}, [x0]
          ld1 {v32.16b}, [x0]
          ld1 {v15.8h}, [x32]
-// CHECK-ERROR: error: expected vector type register
+// CHECK-ERROR: error: vector register expected
 // CHECK-ERROR:        ld1 {x3}, [x2]
 // CHECK-ERROR:             ^
-// CHECK-ERROR: error: expected vector type register
+// CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        ld1 {v4}, [x0]
 // CHECK-ERROR:             ^
-// CHECK-ERROR: error: expected vector type register
+// CHECK-ERROR: error: vector register expected
 // CHECK-ERROR:        ld1 {v32.16b}, [x0]
 // CHECK-ERROR:             ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3920,13 +3937,13 @@
          ld1 {v1.8h-v1.8h}, [x0]
          ld1 {v15.8h-v17.4h}, [x15]
          ld1 {v0.8b-v2.8b, [x0]
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: registers must be sequential
 // CHECK-ERROR:        ld1 {v0.16b, v2.16b}, [x0]
 // CHECK-ERROR:                     ^
 // CHECK-ERROR: error: invalid number of vectors
 // CHECK-ERROR:        ld1 {v0.8h, v1.8h, v2.8h, v3.8h, v4.8h}, [x0]
 // CHECK-ERROR:                                         ^
-// CHECK-ERROR: error: '{' expected
+// CHECK-ERROR: error: unexpected token in argument list
 // CHECK-ERROR:        ld1 v0.8b, v1.8b}, [x0]
 // CHECK-ERROR:            ^
 // CHECK-ERROR: error: invalid number of vectors
@@ -3935,7 +3952,7 @@
 // CHECK-ERROR: error: invalid number of vectors
 // CHECK-ERROR:        ld1 {v1.8h-v1.8h}, [x0]
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: expected the same vector layout
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        ld1 {v15.8h-v17.4h}, [x15]
 // CHECK-ERROR:                        ^
 // CHECK-ERROR: error: '}' expected
@@ -3947,16 +3964,15 @@
          ld2 {v15.4h, v16.4h, v17.4h}, [x32]
          ld2 {v15.8h-v16.4h}, [x15]
          ld2 {v0.2d-v2.2d}, [x0]
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        ld2 {v15.8h, v16.4h}, [x15]
 // CHECK-ERROR:                     ^
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: registers must be sequential
 // CHECK-ERROR:        ld2 {v0.8b, v2.8b}, [x0]
 // CHECK-ERROR:                    ^
-// CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        ld2 {v15.4h, v16.4h, v17.4h}, [x32]
 // CHECK-ERROR:            ^
-// CHECK-ERROR: error: expected the same vector layout
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        ld2 {v15.8h-v16.4h}, [x15]
 // CHECK-ERROR:                        ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3968,16 +3984,16 @@
          ld3 {v0.8b, v2.8b, v3.8b}, [x0]
          ld3 {v15.8h-v17.4h}, [x15]
          ld3 {v31.4s-v2.4s}, [sp]
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        ld3 {v15.8h, v16.8h, v17.4h}, [x15]
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected vector type register
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        ld3 {v0.8b, v1,8b, v2.8b, v3.8b}, [x0]
 // CHECK-ERROR:                    ^
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: registers must be sequential
 // CHECK-ERROR:        ld3 {v0.8b, v2.8b, v3.8b}, [x0]
 // CHECK-ERROR:                    ^
-// CHECK-ERROR: error: expected the same vector layout
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        ld3 {v15.8h-v17.4h}, [x15]
 // CHECK-ERROR:                        ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -3989,16 +4005,16 @@
          ld4 {v15.4h, v16.4h, v17.4h, v18.4h, v19.4h}, [x31]
          ld4 {v15.8h-v18.4h}, [x15]
          ld4 {v31.2s-v1.2s}, [x31]
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        ld4 {v15.8h, v16.8h, v17.4h, v18.8h}, [x15]
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: registers must be sequential
 // CHECK-ERROR:        ld4 {v0.8b, v2.8b, v3.8b, v4.8b}, [x0]
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid number of vectors
 // CHECK-ERROR:        ld4 {v15.4h, v16.4h, v17.4h, v18.4h, v19.4h}, [x31]
 // CHECK-ERROR:                                             ^
-// CHECK-ERROR: error: expected the same vector layout
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        ld4 {v15.8h-v18.4h}, [x15]
 // CHECK-ERROR:                        ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -4009,13 +4025,13 @@
          st1 {v4}, [x0]
          st1 {v32.16b}, [x0]
          st1 {v15.8h}, [x32]
-// CHECK-ERROR: error: expected vector type register
+// CHECK-ERROR: error: vector register expected
 // CHECK-ERROR:        st1 {x3}, [x2]
 // CHECK-ERROR:             ^
-// CHECK-ERROR: error: expected vector type register
+// CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        st1 {v4}, [x0]
 // CHECK-ERROR:             ^
-// CHECK-ERROR: error: expected vector type register
+// CHECK-ERROR: error: vector register expected
 // CHECK-ERROR:        st1 {v32.16b}, [x0]
 // CHECK-ERROR:             ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -4029,13 +4045,13 @@
          st1 {v1.8h-v1.8h}, [x0]
          st1 {v15.8h-v17.4h}, [x15]
          st1 {v0.8b-v2.8b, [x0]
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: registers must be sequential
 // CHECK-ERROR:        st1 {v0.16b, v2.16b}, [x0]
 // CHECK-ERROR:                     ^
 // CHECK-ERROR: error: invalid number of vectors
 // CHECK-ERROR:        st1 {v0.8h, v1.8h, v2.8h, v3.8h, v4.8h}, [x0]
 // CHECK-ERROR:                                         ^
-// CHECK-ERROR: error: '{' expected
+// CHECK-ERROR: error: unexpected token in argument list
 // CHECK-ERROR:        st1 v0.8b, v1.8b}, [x0]
 // CHECK-ERROR:            ^
 // CHECK-ERROR: error: invalid number of vectors
@@ -4044,7 +4060,7 @@
 // CHECK-ERROR: error: invalid number of vectors
 // CHECK-ERROR:        st1 {v1.8h-v1.8h}, [x0]
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: expected the same vector layout
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        st1 {v15.8h-v17.4h}, [x15]
 // CHECK-ERROR:                        ^
 // CHECK-ERROR: error: '}' expected
@@ -4056,16 +4072,16 @@
          st2 {v15.4h, v16.4h, v17.4h}, [x30]
          st2 {v15.8h-v16.4h}, [x15]
          st2 {v0.2d-v2.2d}, [x0]
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        st2 {v15.8h, v16.4h}, [x15]
 // CHECK-ERROR:                     ^
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: registers must be sequential
 // CHECK-ERROR:        st2 {v0.8b, v2.8b}, [x0]
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        st2 {v15.4h, v16.4h, v17.4h}, [x30]
 // CHECK-ERROR:            ^
-// CHECK-ERROR: error: expected the same vector layout
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        st2 {v15.8h-v16.4h}, [x15]
 // CHECK-ERROR:                        ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -4077,16 +4093,16 @@
          st3 {v0.8b, v2.8b, v3.8b}, [x0]
          st3 {v15.8h-v17.4h}, [x15]
          st3 {v31.4s-v2.4s}, [sp]
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        st3 {v15.8h, v16.8h, v17.4h}, [x15]
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: expected vector type register
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        st3 {v0.8b, v1,8b, v2.8b, v3.8b}, [x0]
 // CHECK-ERROR:                    ^
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: registers must be sequential
 // CHECK-ERROR:        st3 {v0.8b, v2.8b, v3.8b}, [x0]
 // CHECK-ERROR:                    ^
-// CHECK-ERROR: error: expected the same vector layout
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        st3 {v15.8h-v17.4h}, [x15]
 // CHECK-ERROR:                        ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -4098,16 +4114,16 @@
          st4 {v15.4h, v16.4h, v17.4h, v18.4h, v19.4h}, [x31]
          st4 {v15.8h-v18.4h}, [x15]
          st4 {v31.2s-v1.2s}, [x31]
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        st4 {v15.8h, v16.8h, v17.4h, v18.8h}, [x15]
 // CHECK-ERROR:                             ^
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: registers must be sequential
 // CHECK-ERROR:        st4 {v0.8b, v2.8b, v3.8b, v4.8b}, [x0]
 // CHECK-ERROR:                    ^
 // CHECK-ERROR: error: invalid number of vectors
 // CHECK-ERROR:        st4 {v15.4h, v16.4h, v17.4h, v18.4h, v19.4h}, [x31]
 // CHECK-ERROR:                                             ^
-// CHECK-ERROR: error: expected the same vector layout
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:        st4 {v15.8h-v18.4h}, [x15]
 // CHECK-ERROR:                        ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -4124,7 +4140,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:          ld1 {v0.16b}, [x0], #8
 // CHECK-ERROR:                              ^
-// CHECK-ERROR:  error: expected vector type register
+// CHECK-ERROR: error: invalid vector kind qualifier
 // CHECK-ERROR:          ld1 {v0.8h, v1.16h}, [x0], x1
 // CHECK-ERROR:                      ^
 // CHECK-ERROR:  error: invalid operand for instruction
@@ -4140,7 +4156,7 @@
 // CHECK-ERROR:  error: invalid operand for instruction
 // CHECK-ERROR:          ld3 {v5.2s, v6.2s, v7.2s}, [x1], #48
 // CHECK-ERROR:                                           ^
-// CHECK-ERROR:  error: invalid space between two vectors
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:          ld4 {v31.2d, v0.2d, v1.2d, v2.1d}, [x3], x1
 // CHECK-ERROR:                                     ^
 
@@ -4150,7 +4166,7 @@
 // CHECK-ERROR:  error: invalid operand for instruction
 // CHECK-ERROR:          st1 {v0.16b}, [x0], #8
 // CHECK-ERROR:                              ^
-// CHECK-ERROR:  error: expected vector type register
+// CHECK-ERROR: error: invalid vector kind qualifier
 // CHECK-ERROR:          st1 {v0.8h, v1.16h}, [x0], x1
 // CHECK-ERROR:                      ^
 // CHECK-ERROR:  error: invalid operand for instruction
@@ -4166,7 +4182,7 @@
 // CHECK-ERROR:  error: invalid operand for instruction
 // CHECK-ERROR:          st3 {v5.2s, v6.2s, v7.2s}, [x1], #48
 // CHECK-ERROR:                                           ^
-// CHECK-ERROR:  error: invalid space between two vectors
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR:          st4 {v31.2d, v0.2d, v1.2d, v2.1d}, [x3], x1
 // CHECK-ERROR:                                     ^
 
@@ -4178,16 +4194,16 @@
          ld2r {v31.4s, v0.2s}, [sp]
          ld3r {v0.8b, v1.8b, v2.8b, v3.8b}, [x0]
          ld4r {v31.2s, v0.2s, v1.2d, v2.2s}, [sp]
-// CHECK-ERROR: error: expected vector type register
+// CHECK-ERROR: error: vector register expected
 // CHECK-ERROR: ld1r {x1}, [x0]
 // CHECK-ERROR:       ^
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR: ld2r {v31.4s, v0.2s}, [sp]
 // CHECK-ERROR:               ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR: ld3r {v0.8b, v1.8b, v2.8b, v3.8b}, [x0]
 // CHECK-ERROR:      ^
-// CHECK-ERROR: error: invalid space between two vectors
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR: ld4r {v31.2s, v0.2s, v1.2d, v2.2s}, [sp]
 // CHECK-ERROR:                      ^
 
@@ -4199,16 +4215,16 @@
          ld2 {v15.h, v16.h}[8], [x15]
          ld3 {v31.s, v0.s, v1.s}[-1], [sp]
          ld4 {v0.d, v1.d, v2.d, v3.d}[2], [x0]
-// CHECK-ERROR:: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR: ld1 {v0.b}[16], [x0]
 // CHECK-ERROR:            ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR: ld2 {v15.h, v16.h}[8], [x15]
 // CHECK-ERROR:                    ^
-// CHECK-ERROR: error: expected lane number
+// CHECK-ERROR: error: vector lane must be an integer in range
 // CHECK-ERROR: ld3 {v31.s, v0.s, v1.s}[-1], [sp]
 // CHECK-ERROR:                         ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR: ld4 {v0.d, v1.d, v2.d, v3.d}[2], [x0]
 // CHECK-ERROR:                              ^
 
@@ -4216,16 +4232,16 @@
          st2 {v31.s, v0.s}[3], [8]
          st3 {v15.h, v16.h, v17.h}[-1], [x15]
          st4 {v0.d, v1.d, v2.d, v3.d}[2], [x0]
-// CHECK-ERROR:: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR: st1 {v0.d}[16], [x0]
 // CHECK-ERROR:            ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR: st2 {v31.s, v0.s}[3], [8]
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected lane number
+// CHECK-ERROR: error: vector lane must be an integer in range
 // CHECK-ERROR: st3 {v15.h, v16.h, v17.h}[-1], [x15]
 // CHECK-ERROR:                           ^
-// CHECK-ERROR: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR: st4 {v0.d, v1.d, v2.d, v3.d}[2], [x0]
 // CHECK-ERROR:                              ^
 
@@ -4264,7 +4280,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR: ld2 {v15.h, v16.h}[0], [x15], #3
 // CHECK-ERROR:                               ^
-// CHECK-ERROR: error: expected the same vector layout
+// CHECK-ERROR: error: mismatched register size suffix
 // CHECK-ERROR: ld3 {v31.s, v0.s, v1.d}[0], [sp], x9
 // CHECK-ERROR:                      ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -4298,16 +4314,16 @@
          ins v20.s[1], s30
          ins v1.d[0], d7
 
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:         ins v2.b[16], w1
 // CHECK-ERROR:                  ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:         ins v7.h[8], w14
 // CHECK-ERROR:                  ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:         ins v20.s[5], w30
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:         ins v1.d[2], x7
 // CHECK-ERROR:                  ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -4334,19 +4350,19 @@
          smov x14, v6.d[1]
          smov x20, v9.d[0]
 
-// CHECK-ERROR error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR         smov w1, v0.b[16]
 // CHECK-ERROR                       ^
-// CHECK-ERROR error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR         smov w14, v6.h[8]
 // CHECK-ERROR                        ^
-// CHECK-ERROR error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR         smov x1, v0.b[16]
 // CHECK-ERROR                       ^
-// CHECK-ERROR error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR         smov x14, v6.h[8]
 // CHECK-ERROR                        ^
-// CHECK-ERROR error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR         smov x20, v9.s[5]
 // CHECK-ERROR                        ^
 // CHECK-ERROR error: invalid operand for instruction
@@ -4373,16 +4389,16 @@
          umov s20, v9.s[2]
          umov d7, v18.d[1]
 
-// CHECK-ERROR error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR         umov w1, v0.b[16]
 // CHECK-ERROR                       ^
-// CHECK-ERROR error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR         umov w14, v6.h[8]
 // CHECK-ERROR                        ^
-// CHECK-ERROR error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR         umov w20, v9.s[5]
 // CHECK-ERROR                        ^
-// CHECK-ERROR error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR         umov x7, v18.d[3]
 // CHECK-ERROR                        ^
 // CHECK-ERROR error: invalid operand for instruction
@@ -4798,7 +4814,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmlal s17, h27, s12
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: too few operands for instruction
+// CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmlal d19, s24, d12
 // CHECK-ERROR:                          ^
 
@@ -4812,7 +4828,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmlsl s14, h12, s25
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: too few operands for instruction
+// CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmlsl d12, s23, d13
 // CHECK-ERROR:                          ^
 
@@ -4826,7 +4842,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmull s12, h22, s12
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: too few operands for instruction
+// CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:        sqdmull d15, s22, d12
 // CHECK-ERROR:                          ^
 
@@ -4890,7 +4906,7 @@
 //----------------------------------------------------------------------
         sshr d15, d16, #99
 
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:        sshr d15, d16, #99
 // CHECK-ERROR:                       ^
 
@@ -4906,7 +4922,7 @@
 
         ushr d10, d17, #99
 
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:        ushr d10, d17, #99
 // CHECK-ERROR:                       ^
 
@@ -4916,7 +4932,7 @@
 
         srshr d19, d18, #99
 
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:        srshr d19, d18, #99
 // CHECK-ERROR:                        ^
 
@@ -4926,7 +4942,7 @@
 
         urshr d20, d23, #99
 
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:        urshr d20, d23, #99
 // CHECK-ERROR:                        ^
 
@@ -4936,7 +4952,7 @@
 
         ssra d18, d12, #99
 
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:        ssra d18, d12, #99
 // CHECK-ERROR:                       ^
 
@@ -4946,7 +4962,7 @@
 
         usra d20, d13, #99
 
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:        usra d20, d13, #99
 // CHECK-ERROR:                       ^
 
@@ -4956,7 +4972,7 @@
 
         srsra d15, d11, #99
 
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:        srsra d15, d11, #99
 // CHECK-ERROR:                        ^
 
@@ -4966,7 +4982,7 @@
 
         ursra d18, d10, #99
 
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:        ursra d18, d10, #99
 // CHECK-ERROR:                        ^
 
@@ -4976,7 +4992,7 @@
 
         shl d7, d10, #99
 
-// CHECK-ERROR: error: expected integer in range [0, 63]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 63]
 // CHECK-ERROR:        shl d7, d10, #99
 // CHECK-ERROR:                     ^
 
@@ -4995,16 +5011,16 @@
         sqshl s14, s17, #99
         sqshl d15, d16, #99
 
-// CHECK-ERROR: error: expected integer in range [0, 7]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 7]
 // CHECK-ERROR:        sqshl b11, b19, #99
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected integer in range [0, 15]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 15]
 // CHECK-ERROR:        sqshl h13, h18, #99
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected integer in range [0, 31]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 31]
 // CHECK-ERROR:        sqshl s14, s17, #99
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected integer in range [0, 63]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 63]
 // CHECK-ERROR:        sqshl d15, d16, #99
 // CHECK-ERROR:                        ^
 
@@ -5017,16 +5033,16 @@
         uqshl s14, s19, #99
         uqshl d15, d12, #99
 
-// CHECK-ERROR: error: expected integer in range [0, 7]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 7]
 // CHECK-ERROR:        uqshl b18, b15, #99
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected integer in range [0, 15]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 15]
 // CHECK-ERROR:        uqshl h11, h18, #99
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected integer in range [0, 31]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 31]
 // CHECK-ERROR:        uqshl s14, s19, #99
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected integer in range [0, 63]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 63]
 // CHECK-ERROR:        uqshl d15, d12, #99
 // CHECK-ERROR:                        ^
 
@@ -5039,16 +5055,16 @@
         sqshlu s16, s14, #99
         sqshlu d11, d13, #99
 
-// CHECK-ERROR: error: expected integer in range [0, 7]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 7]
 // CHECK-ERROR:        sqshlu  b15, b18, #99
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [0, 15]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 15]
 // CHECK-ERROR:        sqshlu  h19, h17, #99
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [0, 31]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 31]
 // CHECK-ERROR:        sqshlu  s16, s14, #99
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [0, 63]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 63]
 // CHECK-ERROR:        sqshlu  d11, d13, #99
 // CHECK-ERROR:                          ^
 
@@ -5058,7 +5074,7 @@
 
         sri d10, d12, #99
 
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:        sri d10, d12, #99
 // CHECK-ERROR:                      ^
 
@@ -5068,7 +5084,7 @@
 
         sli d10, d14, #99
 
-// CHECK-ERROR: error: expected integer in range [0, 63]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [0, 63]
 // CHECK-ERROR:        sli d10, d14, #99
 // CHECK-ERROR:                      ^
 
@@ -5080,13 +5096,13 @@
         sqshrn h17, s10, #99
         sqshrn s18, d10, #99
 
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:        sqshrn  b10, h15, #99
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:        sqshrn  h17, s10, #99
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:        sqshrn  s18, d10, #99
 // CHECK-ERROR:                          ^
         
@@ -5098,13 +5114,13 @@
         uqshrn h10, s14, #99
         uqshrn s10, d12, #99
 
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:        uqshrn  b12, h10, #99
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:        uqshrn  h10, s14, #99
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:        uqshrn  s10, d12, #99
 // CHECK-ERROR:                          ^
         
@@ -5116,13 +5132,13 @@
         sqrshrn h15, s10, #99
         sqrshrn s15, d12, #99
 
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:        sqrshrn b10, h13, #99
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:        sqrshrn h15, s10, #99
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:        sqrshrn s15, d12, #99
 // CHECK-ERROR:                          ^
         
@@ -5134,13 +5150,13 @@
         uqrshrn h12, s10, #99
         uqrshrn s10, d10, #99
 
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:        uqrshrn b10, h12, #99
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:        uqrshrn h12, s10, #99
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:        uqrshrn s10, d10, #99
 // CHECK-ERROR:                          ^
 
@@ -5152,13 +5168,13 @@
         sqshrun h20, s14, #99
         sqshrun s10, d15, #99
 
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:        sqshrun b15, h10, #99
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:        sqshrun h20, s14, #99
 // CHECK-ERROR:                          ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:        sqshrun s10, d15, #99
 // CHECK-ERROR:                          ^
 
@@ -5170,13 +5186,13 @@
         sqrshrun h10, s13, #99
         sqrshrun s22, d16, #99
 
-// CHECK-ERROR: error: expected integer in range [1, 8]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 8]
 // CHECK-ERROR:        sqrshrun b17, h10, #99
 // CHECK-ERROR:                           ^
-// CHECK-ERROR: error: expected integer in range [1, 16]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 16]
 // CHECK-ERROR:        sqrshrun h10, s13, #99
 // CHECK-ERROR:                           ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:        sqrshrun s22, d16, #99
 // CHECK-ERROR:                           ^
 
@@ -5189,13 +5205,13 @@
     scvtf d21, d12, #65
     scvtf d21, s12, #31
         
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:        scvtf s22, s13, #0
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:        scvtf s22, s13, #33
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:        scvtf d21, d12, #65
 // CHECK-ERROR:                        ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -5210,10 +5226,10 @@
     ucvtf d21, d14, #65
     ucvtf d21, s14, #64
         
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:        ucvtf s22, s13, #34
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:        ucvtf d21, d14, #65
 // CHECK-ERROR:                        ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -6262,10 +6278,10 @@
     fcvtzs d21, d12, #65
     fcvtzs s21, d12, #1
 
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:        fcvtzs s21, s12, #0
 // CHECK-ERROR:                         ^
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:        fcvtzs d21, d12, #65
 // CHECK-ERROR:                         ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -6280,10 +6296,10 @@
     fcvtzu d21, d12, #0
     fcvtzu s21, d12, #1
 
-// CHECK-ERROR: error: expected integer in range [1, 32]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 32]
 // CHECK-ERROR:        fcvtzu s21, s12, #33
 // CHECK-ERROR:                         ^
-// CHECK-ERROR: error: expected integer in range [1, 64]
+// CHECK-ERROR: error: {{expected|immediate must be an}} integer in range [1, 64]
 // CHECK-ERROR:        fcvtzu d21, d12, #0
 // CHECK-ERROR:                         ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -6868,7 +6884,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:          fmul    h0, h1, v1.s[0]
 // CHECK-ERROR:                  ^
-// CHECK-ERROR: error:  lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:          fmul    s2, s29, v10.s[4]
 // CHECK-ERROR:                                 ^
 
@@ -6887,7 +6903,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:          fmulx    h0, h1, v1.d[0]
 // CHECK-ERROR:                   ^
-// CHECK-ERROR: error:  lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:          fmulx    d2, d29, v10.d[3]
 // CHECK-ERROR:                                  ^
 
@@ -6906,7 +6922,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:          fmla    d30, s11, v1.d[1]
 // CHECK-ERROR:                       ^
-// CHECK-ERROR: error:  lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:          fmla    s16, s22, v16.s[5]
 // CHECK-ERROR:                                  ^
 
@@ -6925,7 +6941,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:          fmls    h7, h17, v26.s[2]
 // CHECK-ERROR:                  ^
-// CHECK-ERROR: error:  expected lane number
+// CHECK-ERROR: error: vector lane must be an integer in range [0, 1]
 // CHECK-ERROR:          fmls    d16, d22, v16.d[-1]
 // CHECK-ERROR:                                  ^
 
@@ -6937,7 +6953,7 @@
     sqdmlal s0, h0, v0.s[0]
     sqdmlal s8, s9, v14.s[1]
     // invalid lane
-    sqdmlal s4, s5, v1.s[5]
+    sqdmlal d4, s5, v1.s[5]
     // invalid vector index
     sqdmlal s0, h0, v17.h[0]
 
@@ -6947,8 +6963,8 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:          sqdmlal s8, s9, v14.s[1]
 // CHECK-ERROR:                  ^
-// CHECK-ERROR: error: lane number incompatible with layout
-// CHECK-ERROR:          sqdmlal s4, s5, v1.s[5]
+// CHECK-ERROR: vector lane must be an integer in range
+// CHECK-ERROR:          sqdmlal d4, s5, v1.s[5]
 // CHECK-ERROR:                               ^
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:          sqdmlal s0, h0, v17.h[0]
@@ -6972,7 +6988,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:          sqdmlsl d1, h1, v13.s[0]
 // CHECK-ERROR:                      ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:          sqdmlsl d1, s1, v13.s[4]
 // CHECK-ERROR:                                ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -6999,7 +7015,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:          sqdmull s1, s1, v4.s[0]
 // CHECK-ERROR:                  ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:          sqdmull s12, h17, v9.h[9]
 // CHECK-ERROR:                                 ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -7024,7 +7040,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:          sqdmulh s25, s26, v27.h[3]
 // CHECK-ERROR:                  ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:          sqdmulh s25, s26, v27.s[4]
 // CHECK-ERROR:                                  ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -7049,7 +7065,7 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:          sqrdmulh s5, h6, v7.s[2]
 // CHECK-ERROR:                       ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:          sqrdmulh h31, h30, v14.h[9]
 // CHECK-ERROR:                                 ^
 // CHECK-ERROR: error: invalid operand for instruction
@@ -7081,16 +7097,16 @@
 // CHECK-ERROR: error: invalid operand for instruction
 // CHECK-ERROR:          dup d0, v17.s[3]
 // CHECK-ERROR:                      ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:          dup d0, v17.d[4]
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:          dup s0, v1.s[7]
 // CHECK-ERROR:                       ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:          dup h0, v31.h[16]
 // CHECK-ERROR:                        ^
-// CHECK-ERROR: error: lane number incompatible with layout
+// CHECK-ERROR: vector lane must be an integer in range
 // CHECK-ERROR:          dup b1, v3.b[16]
 // CHECK-ERROR:                       ^
 

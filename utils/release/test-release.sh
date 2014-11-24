@@ -26,7 +26,6 @@ Base_url="http://llvm.org/svn/llvm-project"
 Release=""
 Release_no_dot=""
 RC=""
-DOT=""
 Triple=""
 use_gzip="no"
 do_checkout="yes"
@@ -46,7 +45,6 @@ function usage() {
     echo ""
     echo " -release X.Y      The release number to test."
     echo " -rc NUM           The pre-release candidate number."
-    echo " -dot NUM          The dot release to test e.g. X.Y.DOT_NUM [default: 0]"
     echo " -final            The final release candidate."
     echo " -triple TRIPLE    The target triple for this machine."
     echo " -j NUM            Number of compile jobs to run. [default: 3]"
@@ -69,7 +67,7 @@ while [ $# -gt 0 ]; do
         -release | --release )
             shift
             Release="$1"
-            Release_no_dot="`echo $1 | sed -e 's,\.,,'`"
+            Release_no_dot="`echo $1 | sed -e 's,\.,,g'`"
             ;;
         -rc | --rc | -RC | --RC )
             shift
@@ -77,13 +75,6 @@ while [ $# -gt 0 ]; do
             ;;
         -final | --final )
             RC=final
-            ;;
-        -dot | --dot )
-            shift
-            DOT="$1"
-            if [ $DOT -eq 0 ]; then
-                DOT=""
-            fi
             ;;
         -triple | --triple )
             shift
@@ -145,10 +136,6 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
-
-if [ -n "$DOT" ]; then
-    Release="$Release.$DOT"
-fi
 
 # Check required arguments.
 if [ -z "$Release" ]; then
@@ -230,30 +217,13 @@ if [ `uname -s` != "Darwin" ]; then
   check_program_exists 'objdump'
 fi
 
-function get_svn_tag() {
-    case $1 in
-        # llvm and clang are the only projects currently doing dot releases.
-        llvm | cfe)
-            if [ -z $DOT ]; then
-                SvnTag="$RC"
-            else
-                SvnTag="dot$DOT-$RC"
-            fi
-            ;;
-        *)
-            SvnTag="$RC"
-            ;;
-    esac
-}
-
 # Make sure that the URLs are valid.
 function check_valid_urls() {
     for proj in $projects ; do
         echo "# Validating $proj SVN URL"
 
-        get_svn_tag "$proj"
-        if ! svn ls $Base_url/$proj/tags/RELEASE_$Release_no_dot/$SvnTag > /dev/null 2>&1 ; then
-            echo "llvm $Release release candidate $RC doesn't exist!"
+        if ! svn ls $Base_url/$proj/tags/RELEASE_$Release_no_dot/$RC > /dev/null 2>&1 ; then
+            echo "$proj $Release release candidate $RC doesn't exist!"
             exit 1
         fi
     done
@@ -264,9 +234,8 @@ function export_sources() {
     check_valid_urls
 
     for proj in $projects ; do
-        echo "# Exporting $proj $Release-RC$RC sources"
-        get_svn_tag "$proj"
-        if ! svn export -q $Base_url/$proj/tags/RELEASE_$Release_no_dot/$SvnTag $proj.src ; then
+        echo "# Exporting $proj $Release-$RC sources"
+        if ! svn export -q $Base_url/$proj/tags/RELEASE_$Release_no_dot/$RC $proj.src ; then
             echo "error: failed to export $proj project"
             exit 1
         fi

@@ -1,12 +1,12 @@
-; RUN: llc < %s -march=sparcv9 -disable-sparc-delay-filler -disable-sparc-leaf-proc | FileCheck %s
-; RUN: llc < %s -march=sparcv9  | FileCheck %s -check-prefix=OPT
+; RUN: llc < %s -march=sparcv9 -mattr=+popc -disable-sparc-delay-filler -disable-sparc-leaf-proc | FileCheck %s
+; RUN: llc < %s -march=sparcv9 -mattr=+popc | FileCheck %s -check-prefix=OPT
 
 ; CHECK-LABEL: ret2:
-; CHECK: or %g0, %i1, %i0
+; CHECK: mov %i1, %i0
 
 ; OPT-LABEL: ret2:
-; OPT: jmp %o7+8
-; OPT: or %g0, %o1, %o0
+; OPT: retl
+; OPT: mov %o1, %o0
 define i64 @ret2(i64 %a, i64 %b) {
   ret i64 %b
 }
@@ -15,7 +15,7 @@ define i64 @ret2(i64 %a, i64 %b) {
 ; CHECK: sllx %i0, 7, %i0
 
 ; OPT-LABEL: shl_imm:
-; OPT: jmp %o7+8
+; OPT: retl
 ; OPT: sllx %o0, 7, %o0
 define i64 @shl_imm(i64 %a) {
   %x = shl i64 %a, 7
@@ -26,7 +26,7 @@ define i64 @shl_imm(i64 %a) {
 ; CHECK: srax %i0, %i1, %i0
 
 ; OPT-LABEL: sra_reg:
-; OPT: jmp %o7+8
+; OPT: retl
 ; OPT: srax %o0, %o1, %o0
 define i64 @sra_reg(i64 %a, i64 %b) {
   %x = ashr i64 %a, %b
@@ -39,21 +39,21 @@ define i64 @sra_reg(i64 %a, i64 %b) {
 ;     restore %g0, %g0, %o0
 ;
 ; CHECK: ret_imm0
-; CHECK: or %g0, 0, %i0
+; CHECK: mov 0, %i0
 
 ; OPT: ret_imm0
-; OPT: jmp %o7+8
-; OPT: or %g0, 0, %o0
+; OPT: retl
+; OPT: mov 0, %o0
 define i64 @ret_imm0() {
   ret i64 0
 }
 
 ; CHECK: ret_simm13
-; CHECK: or %g0, -4096, %i0
+; CHECK: mov -4096, %i0
 
 ; OPT:   ret_simm13
-; OPT:   jmp %o7+8
-; OPT:   or %g0, -4096, %o0
+; OPT:   retl
+; OPT:   mov -4096, %o0
 define i64 @ret_simm13() {
   ret i64 -4096
 }
@@ -64,7 +64,7 @@ define i64 @ret_simm13() {
 ; CHECK: restore
 
 ; OPT:  ret_sethi
-; OPT:  jmp %o7+8
+; OPT:  retl
 ; OPT:  sethi 4, %o0
 define i64 @ret_sethi() {
   ret i64 4096
@@ -76,7 +76,7 @@ define i64 @ret_sethi() {
 
 ; OPT: ret_sethi_or
 ; OPT: sethi 4, [[R:%[go][0-7]]]
-; OPT: jmp %o7+8
+; OPT: retl
 ; OPT: or [[R]], 1, %o0
 
 define i64 @ret_sethi_or() {
@@ -89,7 +89,7 @@ define i64 @ret_sethi_or() {
 
 ; OPT: ret_nimm33
 ; OPT: sethi 4, [[R:%[go][0-7]]]
-; OPT: jmp %o7+8
+; OPT: retl
 ; OPT: xor [[R]], -4, %o0
 
 define i64 @ret_nimm33() {

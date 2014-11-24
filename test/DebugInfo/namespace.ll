@@ -1,6 +1,6 @@
 ; REQUIRES: object-emission
 
-; RUN: llc -O0 -filetype=obj < %s > %t
+; RUN: %llc_dwarf -O0 -filetype=obj < %s > %t
 ; RUN: llvm-dwarfdump %t | FileCheck %s
 ; CHECK: debug_info contents
 ; CHECK: [[NS1:0x[0-9a-f]*]]:{{ *}}DW_TAG_namespace
@@ -16,14 +16,6 @@
 ; CHECK: [[I:0x[0-9a-f]*]]:{{ *}}DW_TAG_variable
 ; CHECK-NEXT: DW_AT_name{{.*}}= "i"
 ; CHECK-NOT: NULL
-; CHECK: DW_TAG_subprogram
-; CHECK-NEXT: DW_AT_MIPS_linkage_name
-; CHECK-NEXT: DW_AT_name{{.*}}= "f1"
-; CHECK: [[FUNC1:0x[0-9a-f]*]]:{{ *}}DW_TAG_subprogram
-; CHECK-NEXT: DW_AT_MIPS_linkage_name
-; CHECK-NEXT: DW_AT_name{{.*}}= "f1"
-; CHECK: NULL
-; CHECK-NOT: NULL
 ; CHECK: [[FOO:0x[0-9a-f]*]]:{{ *}}DW_TAG_structure_type
 ; CHECK-NEXT: DW_AT_name{{.*}}= "foo"
 ; CHECK-NEXT: DW_AT_declaration
@@ -31,7 +23,16 @@
 ; CHECK: [[BAR:0x[0-9a-f]*]]:{{ *}}DW_TAG_structure_type
 ; CHECK-NEXT: DW_AT_name{{.*}}= "bar"
 ; CHECK: NULL
-; CHECK: NULL
+; CHECK: [[FUNC1:.*]]: DW_TAG_subprogram
+; CHECK-NOT: DW_TAG
+; CHECK: DW_AT_MIPS_linkage_name
+; CHECK-NOT: DW_TAG
+; CHECK: DW_AT_name{{.*}}= "f1"
+; CHECK: DW_TAG_subprogram
+; CHECK-NOT: DW_TAG
+; CHECK: DW_AT_MIPS_linkage_name
+; CHECK-NOT: DW_TAG
+; CHECK: DW_AT_name{{.*}}= "f1"
 ; CHECK: NULL
 
 ; CHECK-NOT: NULL
@@ -44,9 +45,18 @@
 ; CHECK: NULL
 ; CHECK-NOT: NULL
 
+; CHECK: DW_TAG_imported_module
+; Same bug as above, this should be F2, not F1
+; CHECK-NEXT: DW_AT_decl_file{{.*}}(0x0[[F1]])
+; CHECK-NEXT: DW_AT_decl_line{{.*}}(0x0b)
+; CHECK-NEXT: DW_AT_import{{.*}}=> {[[NS1]]})
+; CHECK-NOT: NULL
+
 ; CHECK: DW_TAG_subprogram
-; CHECK-NEXT: DW_AT_MIPS_linkage_name
-; CHECK-NEXT: DW_AT_name{{.*}}= "func"
+; CHECK-NOT: DW_TAG
+; CHECK: DW_AT_MIPS_linkage_name
+; CHECK-NOT: DW_TAG
+; CHECK: DW_AT_name{{.*}}= "func"
 ; CHECK-NOT: NULL
 ; CHECK: DW_TAG_imported_module
 ; CHECK-NEXT: DW_AT_decl_file{{.*}}(0x0[[F2]])
@@ -73,13 +83,13 @@
 ; CHECK-NEXT: DW_AT_decl_line{{.*}}(0x16)
 ; CHECK-NEXT: DW_AT_import{{.*}}=> {[[I]]})
 ; CHECK-NOT: NULL
-; CHECK: [[X:0x[0-9a-f]*]]:{{ *}}DW_TAG_imported_module
+; CHECK: [[X:0x[0-9a-f]*]]:{{ *}}DW_TAG_imported_declaration
 ; CHECK-NEXT: DW_AT_decl_file{{.*}}(0x0[[F2]])
 ; CHECK-NEXT: DW_AT_decl_line{{.*}}(0x18)
 ; CHECK-NEXT: DW_AT_import{{.*}}=> {[[NS1]]})
 ; CHECK-NEXT: DW_AT_name{{.*}}"X"
 ; CHECK-NOT: NULL
-; CHECK: DW_TAG_imported_module
+; CHECK: DW_TAG_imported_declaration
 ; CHECK-NEXT: DW_AT_decl_file{{.*}}(0x0[[F2]])
 ; CHECK-NEXT: DW_AT_decl_line{{.*}}(0x19)
 ; CHECK-NEXT: DW_AT_import{{.*}}=> {[[X]]})
@@ -93,13 +103,7 @@
 ; CHECK-NEXT: DW_AT_import{{.*}}=> {[[NS2]]})
 ; CHECK: NULL
 ; CHECK: NULL
-; CHECK-NOT: NULL
-
-; CHECK: DW_TAG_imported_module
-; Same bug as above, this should be F2, not F1
-; CHECK-NEXT: DW_AT_decl_file{{.*}}(0x0[[F1]])
-; CHECK-NEXT: DW_AT_decl_line{{.*}}(0x0b)
-; CHECK-NEXT: DW_AT_import{{.*}}=> {[[NS1]]})
+; CHECK: NULL
 
 ; CHECK: file_names[  [[F1]]]{{.*}}debug-info-namespace.cpp
 ; CHECK: file_names[  [[F2]]]{{.*}}foo.cpp
@@ -199,7 +203,7 @@ attributes #1 = { nounwind readnone }
 
 !0 = metadata !{i32 786449, metadata !1, i32 4, metadata !"clang version 3.4 ", i1 false, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !19, metadata !21, metadata !""} ; [ DW_TAG_compile_unit ] [/usr/local/google/home/blaikie/dev/llvm/build/clang/debug//usr/local/google/home/blaikie/dev/llvm/src/tools/clang/test/CodeGenCXX/debug-info-namespace.cpp] [DW_LANG_C_plus_plus]
 !1 = metadata !{metadata !"/usr/local/google/home/blaikie/dev/llvm/src/tools/clang/test/CodeGenCXX/debug-info-namespace.cpp", metadata !"/usr/local/google/home/blaikie/dev/llvm/build/clang/debug"}
-!2 = metadata !{i32 0}
+!2 = metadata !{}
 !3 = metadata !{metadata !4, metadata !10, metadata !14}
 !4 = metadata !{i32 786478, metadata !5, metadata !6, metadata !"f1", metadata !"f1", metadata !"_ZN1A1B2f1Ev", i32 3, metadata !8, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, void ()* @_ZN1A1B2f1Ev, null, null, metadata !2, i32 3} ; [ DW_TAG_subprogram ] [line 3] [def] [f1]
 !5 = metadata !{metadata !"foo.cpp", metadata !"/usr/local/google/home/blaikie/dev/llvm/build/clang/debug"}
@@ -236,8 +240,8 @@ attributes #1 = { nounwind readnone }
 !36 = metadata !{i32 786468}
 !37 = metadata !{i32 786440, metadata !14, metadata !10, i32 21} ; [ DW_TAG_imported_declaration ]
 !38 = metadata !{i32 786440, metadata !14, metadata !20, i32 22} ; [ DW_TAG_imported_declaration ]
-!39 = metadata !{i32 786490, metadata !14, metadata !7, i32 24, metadata !"X"} ; [ DW_TAG_imported_module ]
-!40 = metadata !{i32 786490, metadata !14, metadata !39, i32 25, metadata !"Y"} ; [ DW_TAG_imported_module ]
+!39 = metadata !{i32 786440, metadata !14, metadata !7, i32 24, metadata !"X"} ; [ DW_TAG_imported_declaration ]
+!40 = metadata !{i32 786440, metadata !14, metadata !39, i32 25, metadata !"Y"} ; [ DW_TAG_imported_declaration ]
 !41 = metadata !{i32 3, i32 0, metadata !4, null}
 !42 = metadata !{i32 786689, metadata !10, metadata !"", metadata !15, i32 16777220, metadata !13, i32 0, i32 0} ; [ DW_TAG_arg_variable ] [line 4]
 !43 = metadata !{i32 4, i32 0, metadata !10, null}

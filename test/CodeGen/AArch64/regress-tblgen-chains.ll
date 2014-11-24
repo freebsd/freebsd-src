@@ -1,4 +1,4 @@
-; RUN: llc -verify-machineinstrs -mtriple=aarch64-none-linux-gnu < %s | FileCheck %s
+; RUN: llc -verify-machineinstrs -mtriple=arm64-apple-ios7.0 -o - %s | FileCheck %s
 
 ; When generating DAG selection tables, TableGen used to only flag an
 ; instruction as needing a chain on its own account if it had a built-in pattern
@@ -17,17 +17,18 @@ define i64 @test_chains() {
   %locvar = alloca i8
 
   call void @bar(i8* %locvar)
-; CHECK: bl bar
+; CHECK: bl {{_?bar}}
 
   %inc.1 = load i8* %locvar
   %inc.2 = zext i8 %inc.1 to i64
   %inc.3 = add i64 %inc.2, 1
   %inc.4 = trunc i64 %inc.3 to i8
   store i8 %inc.4, i8* %locvar
-; CHECK: ldrb {{w[0-9]+}}, [sp, [[LOCADDR:#[0-9]+]]]
-; CHECK: add {{x[0-9]+}}, {{x[0-9]+}}, #1
-; CHECK: strb {{w[0-9]+}}, [sp, [[LOCADDR]]]
-; CHECK: ldrb {{w[0-9]+}}, [sp, [[LOCADDR]]]
+
+; CHECK: ldurb {{w[0-9]+}}, [x29, [[LOCADDR:#-?[0-9]+]]]
+; CHECK: add {{w[0-9]+}}, {{w[0-9]+}}, #1
+; CHECK: sturb {{w[0-9]+}}, [x29, [[LOCADDR]]]
+; CHECK: ldurb {{w[0-9]+}}, [x29, [[LOCADDR]]]
 
   %ret.1 = load i8* %locvar
   %ret.2 = zext i8 %ret.1 to i64

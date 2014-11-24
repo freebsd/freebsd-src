@@ -12,9 +12,8 @@
 //
 //===---------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "jit"
 #include "Sparc.h"
-#include "MCTargetDesc/SparcBaseInfo.h"
+#include "MCTargetDesc/SparcMCExpr.h"
 #include "SparcRelocations.h"
 #include "SparcTargetMachine.h"
 #include "llvm/ADT/Statistic.h"
@@ -24,6 +23,8 @@
 #include "llvm/Support/Debug.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "jit"
 
 STATISTIC(NumEmitted, "Number of machine instructions emitted");
 
@@ -39,7 +40,7 @@ class SparcCodeEmitter : public MachineFunctionPass {
   const std::vector<MachineConstantPoolEntry> *MCPEs;
   bool IsPIC;
 
-  void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.addRequired<MachineModuleInfo> ();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
@@ -48,13 +49,13 @@ class SparcCodeEmitter : public MachineFunctionPass {
 
 public:
   SparcCodeEmitter(TargetMachine &tm, JITCodeEmitter &mce)
-    : MachineFunctionPass(ID), JTI(0), II(0), TD(0),
-      TM(tm), MCE(mce), MCPEs(0),
+    : MachineFunctionPass(ID), JTI(nullptr), II(nullptr), TD(nullptr),
+      TM(tm), MCE(mce), MCPEs(nullptr),
       IsPIC(TM.getRelocationModel() == Reloc::PIC_) {}
 
-  bool runOnMachineFunction(MachineFunction &MF);
+  bool runOnMachineFunction(MachineFunction &MF) override;
 
-  virtual const char *getPassName() const {
+  const char *getPassName() const override {
     return "Sparc Machine Code Emitter";
   }
 
@@ -71,6 +72,15 @@ private:
   /// operand requires relocation, record the relocation and return zero.
   unsigned getMachineOpValue(const MachineInstr &MI,
                              const MachineOperand &MO) const;
+
+  unsigned getCallTargetOpValue(const MachineInstr &MI,
+                                unsigned) const;
+  unsigned getBranchTargetOpValue(const MachineInstr &MI,
+                                  unsigned) const;
+  unsigned getBranchPredTargetOpValue(const MachineInstr &MI,
+                                      unsigned) const;
+  unsigned getBranchOnRegTargetOpValue(const MachineInstr &MI,
+                                       unsigned) const;
 
   void emitWord(unsigned Word);
 
@@ -136,7 +146,8 @@ void SparcCodeEmitter::emitInstruction(MachineBasicBlock::instr_iterator MI,
     }
     break;
   }
-  case TargetOpcode::PROLOG_LABEL:
+  case TargetOpcode::CFI_INSTRUCTION:
+    break;
   case TargetOpcode::EH_LABEL: {
     MCE.emitLabel(MI->getOperand(0).getMCSymbol());
     break;
@@ -181,20 +192,44 @@ unsigned SparcCodeEmitter::getMachineOpValue(const MachineInstr &MI,
     llvm_unreachable("Unable to encode MachineOperand!");
   return 0;
 }
+unsigned SparcCodeEmitter::getCallTargetOpValue(const MachineInstr &MI,
+                                                unsigned opIdx) const {
+  const MachineOperand MO = MI.getOperand(opIdx);
+  return getMachineOpValue(MI, MO);
+}
+
+unsigned SparcCodeEmitter::getBranchTargetOpValue(const MachineInstr &MI,
+                                                  unsigned opIdx) const {
+  const MachineOperand MO = MI.getOperand(opIdx);
+  return getMachineOpValue(MI, MO);
+}
+
+unsigned SparcCodeEmitter::getBranchPredTargetOpValue(const MachineInstr &MI,
+                                                      unsigned opIdx) const {
+  const MachineOperand MO = MI.getOperand(opIdx);
+  return getMachineOpValue(MI, MO);
+}
+
+unsigned SparcCodeEmitter::getBranchOnRegTargetOpValue(const MachineInstr &MI,
+                                                       unsigned opIdx) const {
+  const MachineOperand MO = MI.getOperand(opIdx);
+  return getMachineOpValue(MI, MO);
+}
+
 unsigned SparcCodeEmitter::getRelocation(const MachineInstr &MI,
                                          const MachineOperand &MO) const {
 
   unsigned TF = MO.getTargetFlags();
   switch (TF) {
   default:
-  case SPII::MO_NO_FLAG: break;
-  case SPII::MO_LO: return SP::reloc_sparc_lo;
-  case SPII::MO_HI: return SP::reloc_sparc_hi;
-  case SPII::MO_H44:
-  case SPII::MO_M44:
-  case SPII::MO_L44:
-  case SPII::MO_HH:
-  case SPII::MO_HM: assert(0 && "FIXME: Implement Medium/Large code model.");
+  case SparcMCExpr::VK_Sparc_None:  break;
+  case SparcMCExpr::VK_Sparc_LO:    return SP::reloc_sparc_lo;
+  case SparcMCExpr::VK_Sparc_HI:    return SP::reloc_sparc_hi;
+  case SparcMCExpr::VK_Sparc_H44:   return SP::reloc_sparc_h44;
+  case SparcMCExpr::VK_Sparc_M44:   return SP::reloc_sparc_m44;
+  case SparcMCExpr::VK_Sparc_L44:   return SP::reloc_sparc_l44;
+  case SparcMCExpr::VK_Sparc_HH:    return SP::reloc_sparc_hh;
+  case SparcMCExpr::VK_Sparc_HM:    return SP::reloc_sparc_hm;
   }
 
   unsigned Opc = MI.getOpcode();

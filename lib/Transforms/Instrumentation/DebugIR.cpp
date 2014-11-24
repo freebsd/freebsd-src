@@ -16,33 +16,31 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "debug-ir"
-
-#include "llvm/ADT/ValueMap.h"
-#include "llvm/Assembly/AssemblyAnnotationWriter.h"
-#include "llvm/DebugInfo.h"
-#include "llvm/DIBuilder.h"
-#include "llvm/InstVisitor.h"
+#include "llvm/IR/ValueMap.h"
+#include "DebugIR.h"
+#include "llvm/IR/AssemblyAnnotationWriter.h"
+#include "llvm/IR/DIBuilder.h"
 #include "llvm/IR/DataLayout.h"
+#include "llvm/IR/DebugInfo.h"
+#include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/FormattedStream.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/ToolOutputFile.h"
 #include "llvm/Transforms/Instrumentation.h"
 #include "llvm/Transforms/Utils/Cloning.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/ToolOutputFile.h"
-#include "llvm/Support/FormattedStream.h"
-#include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Path.h"
-
-#include "DebugIR.h"
-
 #include <string>
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
 
 using namespace llvm;
+
+#define DEBUG_TYPE "debug-ir"
 
 namespace {
 
@@ -69,11 +67,12 @@ public:
 
   // This function is called after an Instruction, GlobalValue, or GlobalAlias
   // is printed.
-  void printInfoComment(const Value &V, formatted_raw_ostream &Out) {
+  void printInfoComment(const Value &V, formatted_raw_ostream &Out) override {
     addEntry(&V, Out);
   }
 
-  void emitFunctionAnnot(const Function *F, formatted_raw_ostream &Out) {
+  void emitFunctionAnnot(const Function *F,
+                         formatted_raw_ostream &Out) override {
     addEntry(F, Out);
   }
 
@@ -119,7 +118,7 @@ public:
 
   void visitInstruction(Instruction &I) {
     if (I.getMetadata(LLVMContext::MD_dbg))
-      I.setMetadata(LLVMContext::MD_dbg, 0);
+      I.setMetadata(LLVMContext::MD_dbg, nullptr);
   }
 
   void run(Module *M) {
@@ -169,11 +168,11 @@ class DIUpdater : public InstVisitor<DIUpdater> {
 
 public:
   DIUpdater(Module &M, StringRef Filename = StringRef(),
-            StringRef Directory = StringRef(), const Module *DisplayM = 0,
-            const ValueToValueMapTy *VMap = 0)
+            StringRef Directory = StringRef(), const Module *DisplayM = nullptr,
+            const ValueToValueMapTy *VMap = nullptr)
       : Builder(M), Layout(&M), LineTable(DisplayM ? DisplayM : &M), VMap(VMap),
-        Finder(), Filename(Filename), Directory(Directory), FileNode(0),
-        LexicalBlockFileNode(0), CUNode(0) {
+        Finder(), Filename(Filename), Directory(Directory), FileNode(nullptr),
+        LexicalBlockFileNode(nullptr), CUNode(nullptr) {
     Finder.processModule(M);
     visit(&M);
   }
@@ -184,8 +183,8 @@ public:
     if (Finder.compile_unit_count() > 1)
       report_fatal_error("DebugIR pass supports only a signle compile unit per "
                          "Module.");
-    createCompileUnit(
-        Finder.compile_unit_count() == 1 ? *Finder.compile_unit_begin() : 0);
+    createCompileUnit(Finder.compile_unit_count() == 1 ?
+                      (MDNode*)*Finder.compile_units().begin() : nullptr);
   }
 
   void visitFunction(Function &F) {
@@ -233,7 +232,7 @@ public:
     /// If a ValueToValueMap is provided, use it to get the real instruction as
     /// the line table was generated on a clone of the module on which we are
     /// operating.
-    Value *RealInst = 0;
+    Value *RealInst = nullptr;
     if (VMap)
       RealInst = VMap->lookup(&I);
 
@@ -257,7 +256,7 @@ public:
       NewLoc = DebugLoc::get(Line, Col, Loc.getScope(RealInst->getContext()),
                              Loc.getInlinedAt(RealInst->getContext()));
     else if (MDNode *scope = findScope(&I))
-      NewLoc = DebugLoc::get(Line, Col, scope, 0);
+      NewLoc = DebugLoc::get(Line, Col, scope, nullptr);
     else {
       DEBUG(dbgs() << "WARNING: no valid scope for instruction " << &I
                    << ". no DebugLoc will be present."
@@ -326,19 +325,16 @@ private:
                  << " subprogram nodes"
                  << "\n");
 
-    for (DebugInfoFinder::iterator i = Finder.subprogram_begin(),
-                                   e = Finder.subprogram_end();
-         i != e; ++i) {
-      DISubprogram S(*i);
+    for (DISubprogram S : Finder.subprograms()) {
       if (S.getFunction() == F) {
-        DEBUG(dbgs() << "Found DISubprogram " << *i << " for function "
+        DEBUG(dbgs() << "Found DISubprogram " << S << " for function "
                      << S.getFunction() << "\n");
-        return *i;
+        return S;
       }
     }
     DEBUG(dbgs() << "unable to find DISubprogram node for function "
                  << F->getName().str() << "\n");
-    return 0;
+    return nullptr;
   }
 
   /// Sets Line to the line number on which V appears and returns true. If a
@@ -358,7 +354,10 @@ private:
   std::string getTypeName(Type *T) {
     std::string TypeName;
     raw_string_ostream TypeStream(TypeName);
-    T->print(TypeStream);
+    if (T)
+      T->print(TypeStream);
+    else
+      TypeStream << "Printing <null> Type";
     TypeStream.flush();
     return TypeName;
   }
@@ -370,7 +369,7 @@ private:
     TypeNodeIter i = TypeDescriptors.find(T);
     if (i != TypeDescriptors.end())
       return i->second;
-    return 0;
+    return nullptr;
   }
 
   /// Returns a DebugInfo type from an LLVM type T.
@@ -379,12 +378,12 @@ private:
     if (N)
       return DIDerivedType(N);
     else if (T->isVoidTy())
-      return DIDerivedType(0);
+      return DIDerivedType(nullptr);
     else if (T->isStructTy()) {
       N = Builder.createStructType(
           DIScope(LexicalBlockFileNode), T->getStructName(), DIFile(FileNode),
           0, Layout.getTypeSizeInBits(T), Layout.getABITypeAlignment(T), 0,
-          DIType(0), DIArray(0)); // filled in later
+          DIType(nullptr), DIArray(nullptr)); // filled in later
 
       // N is added to the map (early) so that element search below can find it,
       // so as to avoid infinite recursion for structs that contain pointers to
@@ -504,7 +503,7 @@ bool DebugIR::updateExtension(StringRef NewExtension) {
   return true;
 }
 
-void DebugIR::generateFilename(OwningPtr<int> &fd) {
+void DebugIR::generateFilename(std::unique_ptr<int> &fd) {
   SmallVector<char, 16> PathVec;
   fd.reset(new int);
   sys::fs::createTemporaryFile("debug-ir", "ll", *fd, PathVec);
@@ -525,12 +524,12 @@ std::string DebugIR::getPath() {
 }
 
 void DebugIR::writeDebugBitcode(const Module *M, int *fd) {
-  OwningPtr<raw_fd_ostream> Out;
+  std::unique_ptr<raw_fd_ostream> Out;
   std::string error;
 
   if (!fd) {
     std::string Path = getPath();
-    Out.reset(new raw_fd_ostream(Path.c_str(), error));
+    Out.reset(new raw_fd_ostream(Path.c_str(), error, sys::fs::F_Text));
     DEBUG(dbgs() << "WRITING debug bitcode from Module " << M << " to file "
                  << Path << "\n");
   } else {
@@ -539,16 +538,16 @@ void DebugIR::writeDebugBitcode(const Module *M, int *fd) {
     Out.reset(new raw_fd_ostream(*fd, true));
   }
 
-  M->print(*Out, 0);
+  M->print(*Out, nullptr);
   Out->close();
 }
 
-void DebugIR::createDebugInfo(Module &M, OwningPtr<Module> &DisplayM) {
+void DebugIR::createDebugInfo(Module &M, std::unique_ptr<Module> &DisplayM) {
   if (M.getFunctionList().size() == 0)
     // no functions -- no debug info needed
     return;
 
-  OwningPtr<ValueToValueMapTy> VMap;
+  std::unique_ptr<ValueToValueMapTy> VMap;
 
   if (WriteSourceToDisk && (HideDebugIntrinsics || HideDebugMetadata)) {
     VMap.reset(new ValueToValueMapTy);
@@ -567,7 +566,7 @@ void DebugIR::createDebugInfo(Module &M, OwningPtr<Module> &DisplayM) {
 bool DebugIR::isMissingPath() { return Filename.empty() || Directory.empty(); }
 
 bool DebugIR::runOnModule(Module &M) {
-  OwningPtr<int> fd;
+  std::unique_ptr<int> fd;
 
   if (isMissingPath() && !getSourceInfo(M)) {
     if (!WriteSourceToDisk)
@@ -586,7 +585,7 @@ bool DebugIR::runOnModule(Module &M) {
   // file name from the DICompileUnit descriptor.
   DebugMetadataRemover::process(M, !ParsedPath);
 
-  OwningPtr<Module> DisplayM;
+  std::unique_ptr<Module> DisplayM;
   createDebugInfo(M, DisplayM);
   if (WriteSourceToDisk) {
     Module *OutputM = DisplayM.get() ? DisplayM.get() : &M;

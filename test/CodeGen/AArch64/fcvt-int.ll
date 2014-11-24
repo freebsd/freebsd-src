@@ -1,4 +1,4 @@
-; RUN: llc -verify-machineinstrs < %s -mtriple=aarch64-none-linux-gnu | FileCheck %s
+; RUN: llc -verify-machineinstrs -o - %s -mtriple=arm64-apple-ios7.0 | FileCheck %s
 
 define i32 @test_floattoi32(float %in) {
 ; CHECK-LABEL: test_floattoi32:
@@ -69,7 +69,7 @@ define float @test_i32tofloat(i32 %in) {
 ; CHECK-DAG: scvtf [[SIG:s[0-9]+]], {{w[0-9]+}}
 
   %res = fsub float %signed, %unsigned
-; CHECL: fsub {{s[0-9]+}}, [[SIG]], [[UNSIG]]
+; CHECK: fsub {{s[0-9]+}}, [[SIG]], [[UNSIG]]
   ret float %res
 ; CHECK: ret
 }

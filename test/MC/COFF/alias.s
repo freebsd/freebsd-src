@@ -1,4 +1,5 @@
-// RUN: llvm-mc -filetype=obj -triple i686-pc-win32 %s -o - | llvm-readobj -t -r | FileCheck %s
+// RUN: llvm-mc -filetype=obj -triple i686-pc-win32 %s -o - \
+// RUN:   | llvm-readobj -t -r | FileCheck %s
 
 local1:
 external_aliased_to_local = local1
@@ -36,7 +37,7 @@ weak_aliased_to_external = external2
 // CHECK-NEXT:     AuxSymbolCount: 1
 // CHECK:        }
 // CHECK:        Symbol {
-// CHECK-NEXT:     Name: local1
+// CHECK:          Name: local1
 // CHECK-NEXT:     Value: 0
 // CHECK-NEXT:     Section: .text (1)
 // CHECK-NEXT:     BaseType: Null (0x0)
@@ -45,7 +46,7 @@ weak_aliased_to_external = external2
 // CHECK-NEXT:     AuxSymbolCount: 0
 // CHECK-NEXT:   }
 // CHECK-NEXT:   Symbol {
-// CHECK-NEXT:     Name: global_aliased_to_external
+// CHECK:          Name: global_aliased_to_external
 // CHECK-NEXT:     Value: 0
 // CHECK-NEXT:     Section:  (0)
 // CHECK-NEXT:     BaseType: Null (0x0)
@@ -68,7 +69,7 @@ weak_aliased_to_external = external2
 // CHECK-NEXT:     Section: .text (1)
 // CHECK-NEXT:     BaseType: Null (0x0)
 // CHECK-NEXT:     ComplexType: Null (0x0)
-// CHECK-NEXT:     StorageClass: Static (0x3)
+// CHECK-NEXT:     StorageClass: External (0x2)
 // CHECK-NEXT:     AuxSymbolCount: 0
 // CHECK-NEXT:   }
 // CHECK-NEXT:   Symbol {
@@ -89,7 +90,7 @@ weak_aliased_to_external = external2
 // CHECK-NEXT:     StorageClass: WeakExternal (0x69)
 // CHECK-NEXT:     AuxSymbolCount: 1
 // CHECK-NEXT:     AuxWeakExternal {
-// CHECK-NEXT:       Linked: external2 (9)
+// CHECK-NEXT:       Linked: external2
 // CHECK-NEXT:       Search: Library (0x2)
 // CHECK-NEXT:       Unused: (00 00 00 00 00 00 00 00 00 00)
 // CHECK-NEXT:     }

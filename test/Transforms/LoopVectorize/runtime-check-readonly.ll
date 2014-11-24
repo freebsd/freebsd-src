@@ -5,13 +5,16 @@ target triple = "x86_64-apple-macosx10.8.0"
 
 ;CHECK-LABEL: @add_ints(
 ;CHECK: br
+;CHECK: br
 ;CHECK: getelementptr
-;CHECK-NEXT: getelementptr
-;CHECK-NEXT: icmp uge
-;CHECK-NEXT: icmp uge
-;CHECK-NEXT: icmp uge
-;CHECK-NEXT: icmp uge
-;CHECK-NEXT: and
+;CHECK-DAG: getelementptr
+;CHECK-DAG: icmp uge
+;CHECK-DAG: icmp uge
+;CHECK-DAG: icmp uge
+;CHECK-DAG: icmp uge
+;CHECK-DAG: and
+;CHECK-DAG: and
+;CHECK: br
 ;CHECK: ret
 define void @add_ints(i32* nocapture %A, i32* nocapture %B, i32* nocapture %C) {
 entry:

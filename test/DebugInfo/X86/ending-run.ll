@@ -1,12 +1,12 @@
-; RUN: llc -mtriple=x86_64-apple-darwin %s -o %t -filetype=obj
+; RUN: llc -mtriple=x86_64-apple-darwin -filetype=obj %s -o %t
 ; RUN: llvm-dwarfdump -debug-dump=line %t | FileCheck %s
 
 ; Check that the line table starts at 7, not 4, but that the first
 ; statement isn't until line 8.
 
-; CHECK-NOT: 0x0000000000000000      7      0      1   0  is_stmt
+; CHECK-NOT: 0x0000000000000000      7      0      1   0  0  is_stmt
 ; CHECK: 0x0000000000000000      7      0      1   0
-; CHECK: 0x0000000000000004      8     18      1   0  is_stmt prologue_end
+; CHECK: 0x0000000000000004      8     18      1   0  0  is_stmt prologue_end
 
 define i32 @callee(i32 %x) nounwind uwtable ssp {
 entry:
@@ -30,15 +30,13 @@ declare void @llvm.dbg.declare(metadata, metadata) nounwind readnone
 !llvm.module.flags = !{!20}
 
 !0 = metadata !{i32 786449, metadata !19, i32 12, metadata !"clang version 3.1 (trunk 153921) (llvm/trunk 153916)", i1 false, metadata !"", i32 0, metadata !1, metadata !1, metadata !3, metadata !1,  metadata !1, metadata !""} ; [ DW_TAG_compile_unit ]
-!1 = metadata !{i32 0}
+!1 = metadata !{}
 !3 = metadata !{metadata !5}
-!5 = metadata !{i32 786478, metadata !19, metadata !6, metadata !"callee", metadata !"callee", metadata !"", i32 4, metadata !7, i1 false, i1 true, i32 0, i32 0, null, i32 0, i1 false, i32 (i32)* @callee, null, null, metadata !10, i32 7} ; [ DW_TAG_subprogram ]
+!5 = metadata !{i32 786478, metadata !19, metadata !6, metadata !"callee", metadata !"callee", metadata !"", i32 4, metadata !7, i1 false, i1 true, i32 0, i32 0, null, i32 0, i1 false, i32 (i32)* @callee, null, null, null, i32 7} ; [ DW_TAG_subprogram ]
 !6 = metadata !{i32 786473, metadata !19} ; [ DW_TAG_file_type ]
 !7 = metadata !{i32 786453, i32 0, null, i32 0, i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !8, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
 !8 = metadata !{metadata !9, metadata !9}
 !9 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ]
-!10 = metadata !{metadata !11}
-!11 = metadata !{i32 786468}                      ; [ DW_TAG_base_type ]
 !12 = metadata !{i32 786689, metadata !5, metadata !"x", metadata !6, i32 16777221, metadata !9, i32 0, i32 0} ; [ DW_TAG_arg_variable ]
 !13 = metadata !{i32 5, i32 5, metadata !5, null}
 !14 = metadata !{i32 786688, metadata !15, metadata !"y", metadata !6, i32 8, metadata !9, i32 0, i32 0} ; [ DW_TAG_auto_variable ]

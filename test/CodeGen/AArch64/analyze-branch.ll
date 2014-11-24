@@ -168,7 +168,7 @@ define void @test_TBZ_fallthrough_nottaken(i64 %in) nounwind {
   %tst = icmp eq i64 %bit, 0
   br i1 %tst, label %true, label %false, !prof !1
 
-; CHECK: tbz {{x[0-9]+}}, #15, [[TRUE:.LBB[0-9]+_[0-9]+]]
+; CHECK: tbz {{[wx][0-9]+}}, #15, [[TRUE:.LBB[0-9]+_[0-9]+]]
 ; CHECK-NEXT: // BB#
 ; CHECK-NEXT: bl test_false
 
@@ -213,7 +213,7 @@ define void @test_TBNZ_fallthrough_nottaken(i64 %in) nounwind {
   %tst = icmp ne i64 %bit, 0
   br i1 %tst, label %true, label %false, !prof !1
 
-; CHECK: tbnz {{x[0-9]+}}, #15, [[TRUE:.LBB[0-9]+_[0-9]+]]
+; CHECK: tbnz {{[wx][0-9]+}}, #15, [[TRUE:.LBB[0-9]+_[0-9]+]]
 ; CHECK-NEXT: // BB#
 ; CHECK-NEXT: bl test_false
 

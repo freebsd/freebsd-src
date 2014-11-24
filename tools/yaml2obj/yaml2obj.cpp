@@ -15,14 +15,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "yaml2obj.h"
-#include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Signals.h"
+#include "llvm/Support/ToolOutputFile.h"
+#include "llvm/Support/YAMLTraits.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/system_error.h"
+#include <system_error>
 
 using namespace llvm;
 
@@ -50,6 +53,26 @@ cl::opt<YAMLObjectFormat> Format(
     clEnumValN(YOF_ELF, "elf", "ELF object file format"),
   clEnumValEnd));
 
+cl::opt<unsigned>
+DocNum("docnum", cl::init(1),
+       cl::desc("Read specified document from input (default = 1)"));
+
+static cl::opt<std::string> OutputFilename("o", cl::desc("Output filename"),
+                                           cl::value_desc("filename"));
+
+typedef int (*ConvertFuncPtr)(yaml::Input & YIn, raw_ostream &Out);
+
+int convertYAML(yaml::Input & YIn, raw_ostream &Out, ConvertFuncPtr Convert) {
+  unsigned CurDocNum = 0;
+  do {
+    if (++CurDocNum == DocNum)
+      return Convert(YIn, Out);
+  } while (YIn.nextDocument());
+
+  errs() << "yaml2obj: Cannot find the " << DocNum
+         << llvm::getOrdinalSuffix(DocNum) << " document\n";
+  return 1;
+}
 
 int main(int argc, char **argv) {
   cl::ParseCommandLineOptions(argc, argv);
@@ -57,15 +80,37 @@ int main(int argc, char **argv) {
   PrettyStackTraceProgram X(argc, argv);
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
 
-  OwningPtr<MemoryBuffer> Buf;
-  if (MemoryBuffer::getFileOrSTDIN(Input, Buf))
+  if (OutputFilename.empty())
+    OutputFilename = "-";
+
+  std::string ErrorInfo;
+  std::unique_ptr<tool_output_file> Out(
+      new tool_output_file(OutputFilename.c_str(), ErrorInfo, sys::fs::F_None));
+  if (!ErrorInfo.empty()) {
+    errs() << ErrorInfo << '\n';
     return 1;
-  if (Format == YOF_COFF) {
-    return yaml2coff(outs(), Buf.get());
-  } else if (Format == YOF_ELF) {
-    return yaml2elf(outs(), Buf.get());
-  } else {
+  }
+
+  ErrorOr<std::unique_ptr<MemoryBuffer>> Buf =
+      MemoryBuffer::getFileOrSTDIN(Input);
+  if (!Buf)
+    return 1;
+
+  ConvertFuncPtr Convert = nullptr;
+  if (Format == YOF_COFF)
+    Convert = yaml2coff;
+  else if (Format == YOF_ELF)
+    Convert = yaml2elf;
+  else {
     errs() << "Not yet implemented\n";
     return 1;
   }
+
+  yaml::Input YIn(Buf.get()->getBuffer());
+
+  int Res = convertYAML(YIn, Out->os(), Convert);
+  if (Res == 0)
+    Out->keep();
+
+  return Res;
 }

@@ -16,7 +16,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
@@ -28,11 +27,11 @@
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/SourceMgr.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/system_error.h"
 #include <algorithm>
 #include <cctype>
 #include <map>
 #include <string>
+#include <system_error>
 #include <vector>
 using namespace llvm;
 
@@ -50,6 +49,13 @@ CheckPrefixes("check-prefix",
 static cl::opt<bool>
 NoCanonicalizeWhiteSpace("strict-whitespace",
               cl::desc("Do not treat all horizontal whitespace as equivalent"));
+
+static cl::list<std::string> ImplicitCheckNot(
+    "implicit-check-not",
+    cl::desc("Add an implicit negative check with this pattern to every\n"
+             "positive check. This can be used to ensure that no instances of\n"
+             "this pattern occur which are not matched by a positive pattern"),
+    cl::value_desc("pattern"));
 
 typedef cl::list<std::string>::const_iterator prefix_iterator;
 
@@ -136,7 +142,6 @@ public:
   Check::CheckType getCheckTy() const { return CheckTy; }
 
 private:
-  static void AddFixedStringToRegEx(StringRef FixedStr, std::string &TheStr);
   bool AddRegExToRegEx(StringRef RS, unsigned &CurParen, SourceMgr &SM);
   void AddBackrefToRegEx(unsigned BackrefNum);
 
@@ -155,7 +160,7 @@ private:
   /// (right after the opening sequence).
   /// \return offset of the closing sequence within Str, or npos if it was not
   /// found.
-  size_t FindRegexVarEnd(StringRef Str);
+  size_t FindRegexVarEnd(StringRef Str, SourceMgr &SM);
 };
 
 
@@ -228,7 +233,7 @@ bool Pattern::ParsePattern(StringRef PatternStr,
     if (PatternStr.startswith("[[")) {
       // Find the closing bracket pair ending the match.  End is going to be an
       // offset relative to the beginning of the match string.
-      size_t End = FindRegexVarEnd(PatternStr.substr(2));
+      size_t End = FindRegexVarEnd(PatternStr.substr(2), SM);
 
       if (End == StringRef::npos) {
         SM.PrintMessage(SMLoc::getFromPointer(PatternStr.data()),
@@ -314,38 +319,11 @@ bool Pattern::ParsePattern(StringRef PatternStr,
     // Find the end, which is the start of the next regex.
     size_t FixedMatchEnd = PatternStr.find("{{");
     FixedMatchEnd = std::min(FixedMatchEnd, PatternStr.find("[["));
-    AddFixedStringToRegEx(PatternStr.substr(0, FixedMatchEnd), RegExStr);
+    RegExStr += Regex::escape(PatternStr.substr(0, FixedMatchEnd));
     PatternStr = PatternStr.substr(FixedMatchEnd);
   }
 
   return false;
-}
-
-void Pattern::AddFixedStringToRegEx(StringRef FixedStr, std::string &TheStr) {
-  // Add the characters from FixedStr to the regex, escaping as needed.  This
-  // avoids "leaning toothpicks" in common patterns.
-  for (unsigned i = 0, e = FixedStr.size(); i != e; ++i) {
-    switch (FixedStr[i]) {
-    // These are the special characters matched in "p_ere_exp".
-    case '(':
-    case ')':
-    case '^':
-    case '$':
-    case '|':
-    case '*':
-    case '+':
-    case '?':
-    case '.':
-    case '[':
-    case '\\':
-    case '{':
-      TheStr += '\\';
-      // FALL THROUGH.
-    default:
-      TheStr += FixedStr[i];
-      break;
-    }
-  }
 }
 
 bool Pattern::AddRegExToRegEx(StringRef RS, unsigned &CurParen,
@@ -428,8 +406,8 @@ size_t Pattern::Match(StringRef Buffer, size_t &MatchLen,
         if (it == VariableTable.end())
           return StringRef::npos;
 
-        // Look up the value and escape it so that we can plop it into the regex.
-        AddFixedStringToRegEx(it->second, Value);
+        // Look up the value and escape it so that we can put it into the regex.
+        Value += Regex::escape(it->second);
       }
 
       // Plop it into the regex at the adjusted offset.
@@ -560,7 +538,7 @@ void Pattern::PrintFailureInfo(const SourceMgr &SM, StringRef Buffer,
   }
 }
 
-size_t Pattern::FindRegexVarEnd(StringRef Str) {
+size_t Pattern::FindRegexVarEnd(StringRef Str, SourceMgr &SM) {
   // Offset keeps track of the current offset within the input Str
   size_t Offset = 0;
   // [...] Nesting depth
@@ -581,7 +559,12 @@ size_t Pattern::FindRegexVarEnd(StringRef Str) {
           BracketDepth++;
           break;
         case ']':
-          assert(BracketDepth > 0 && "Invalid regex");
+          if (BracketDepth == 0) {
+            SM.PrintMessage(SMLoc::getFromPointer(Str.data()),
+                            SourceMgr::DK_Error,
+                            "missing closing \"]\" for regex variable");
+            exit(1);
+          }
           BracketDepth--;
           break;
       }
@@ -795,10 +778,11 @@ static StringRef FindFirstCandidateMatch(StringRef &Buffer,
     // it. This should also prevent matching the wrong prefix when one is a
     // substring of another.
     if (PrefixLoc != 0 && IsPartOfWord(Buffer[PrefixLoc - 1]))
-      continue;
+      FirstTy = Check::CheckNone;
+    else
+      FirstTy = FindCheckType(Rest, Prefix);
 
     FirstLoc = PrefixLoc;
-    FirstTy = FindCheckType(Rest, Prefix);
     FirstPrefix = Prefix;
   }
 
@@ -843,24 +827,43 @@ static StringRef FindFirstMatchingPrefix(StringRef &Buffer,
 /// Returns true in case of an error, false otherwise.
 static bool ReadCheckFile(SourceMgr &SM,
                           std::vector<CheckString> &CheckStrings) {
-  OwningPtr<MemoryBuffer> File;
-  if (error_code ec =
-        MemoryBuffer::getFileOrSTDIN(CheckFilename, File)) {
-    errs() << "Could not open check file '" << CheckFilename << "': "
-           << ec.message() << '\n';
+  ErrorOr<std::unique_ptr<MemoryBuffer>> FileOrErr =
+      MemoryBuffer::getFileOrSTDIN(CheckFilename);
+  if (std::error_code EC = FileOrErr.getError()) {
+    errs() << "Could not open check file '" << CheckFilename
+           << "': " << EC.message() << '\n';
     return true;
   }
 
   // If we want to canonicalize whitespace, strip excess whitespace from the
   // buffer containing the CHECK lines. Remove DOS style line endings.
-  MemoryBuffer *F =
-    CanonicalizeInputFile(File.take(), NoCanonicalizeWhiteSpace);
+  MemoryBuffer *F = CanonicalizeInputFile(FileOrErr.get().release(),
+                                          NoCanonicalizeWhiteSpace);
 
   SM.AddNewSourceBuffer(F, SMLoc());
 
   // Find all instances of CheckPrefix followed by : in the file.
   StringRef Buffer = F->getBuffer();
-  std::vector<Pattern> DagNotMatches;
+
+  std::vector<Pattern> ImplicitNegativeChecks;
+  for (const auto &PatternString : ImplicitCheckNot) {
+    // Create a buffer with fake command line content in order to display the
+    // command line option responsible for the specific implicit CHECK-NOT.
+    std::string Prefix = std::string("-") + ImplicitCheckNot.ArgStr + "='";
+    std::string Suffix = "'";
+    MemoryBuffer *CmdLine = MemoryBuffer::getMemBufferCopy(
+        Prefix + PatternString + Suffix, "command line");
+    StringRef PatternInBuffer =
+        CmdLine->getBuffer().substr(Prefix.size(), PatternString.size());
+    SM.AddNewSourceBuffer(CmdLine, SMLoc());
+
+    ImplicitNegativeChecks.push_back(Pattern(Check::CheckNot));
+    ImplicitNegativeChecks.back().ParsePattern(PatternInBuffer,
+                                               "IMPLICIT-CHECK", SM, 0);
+  }
+
+
+  std::vector<Pattern> DagNotMatches = ImplicitNegativeChecks;
 
   // LineNumber keeps track of the line on which CheckPrefix instances are
   // found.
@@ -933,6 +936,7 @@ static bool ReadCheckFile(SourceMgr &SM,
                                        PatternLoc,
                                        CheckTy));
     std::swap(DagNotMatches, CheckStrings.back().DagNotStrings);
+    DagNotMatches = ImplicitNegativeChecks;
   }
 
   // Add an EOF pattern for any trailing CHECK-DAG/-NOTs, and use the first
@@ -988,7 +992,8 @@ static void PrintCheckFailed(const SourceMgr &SM, const CheckString &CheckStr,
 
 /// CountNumNewlinesBetween - Count the number of newlines in the specified
 /// range.
-static unsigned CountNumNewlinesBetween(StringRef Range) {
+static unsigned CountNumNewlinesBetween(StringRef Range,
+                                        const char *&FirstNewLine) {
   unsigned NumNewLines = 0;
   while (1) {
     // Scan for newline.
@@ -1003,6 +1008,9 @@ static unsigned CountNumNewlinesBetween(StringRef Range) {
         (Range[0] != Range[1]))
       Range = Range.substr(1);
     Range = Range.substr(1);
+
+    if (NumNewLines == 1)
+      FirstNewLine = Range.begin();
   }
 }
 
@@ -1062,7 +1070,8 @@ bool CheckString::CheckNext(const SourceMgr &SM, StringRef Buffer) const {
              SMLoc::getFromPointer(Buffer.data())))->getBufferStart() &&
          "CHECK-NEXT can't be the first check in a file");
 
-  unsigned NumNewLines = CountNumNewlinesBetween(Buffer);
+  const char *FirstNewLine = nullptr;
+  unsigned NumNewLines = CountNumNewlinesBetween(Buffer, FirstNewLine);
 
   if (NumNewLines == 0) {
     SM.PrintMessage(Loc, SourceMgr::DK_Error, Prefix +
@@ -1081,6 +1090,8 @@ bool CheckString::CheckNext(const SourceMgr &SM, StringRef Buffer) const {
                     SourceMgr::DK_Note, "'next' match was here");
     SM.PrintMessage(SMLoc::getFromPointer(Buffer.data()), SourceMgr::DK_Note,
                     "previous match ended here");
+    SM.PrintMessage(SMLoc::getFromPointer(FirstNewLine), SourceMgr::DK_Note,
+                    "non-matching line after previous match is here");
     return true;
   }
 
@@ -1240,13 +1251,14 @@ int main(int argc, char **argv) {
     return 2;
 
   // Open the file to check and add it to SourceMgr.
-  OwningPtr<MemoryBuffer> File;
-  if (error_code ec =
-        MemoryBuffer::getFileOrSTDIN(InputFilename, File)) {
-    errs() << "Could not open input file '" << InputFilename << "': "
-           << ec.message() << '\n';
+  ErrorOr<std::unique_ptr<MemoryBuffer>> FileOrErr =
+      MemoryBuffer::getFileOrSTDIN(InputFilename);
+  if (std::error_code EC = FileOrErr.getError()) {
+    errs() << "Could not open input file '" << InputFilename
+           << "': " << EC.message() << '\n';
     return 2;
   }
+  std::unique_ptr<MemoryBuffer> File = std::move(FileOrErr.get());
 
   if (File->getBufferSize() == 0) {
     errs() << "FileCheck error: '" << InputFilename << "' is empty.\n";
@@ -1256,7 +1268,7 @@ int main(int argc, char **argv) {
   // Remove duplicate spaces in the input file if requested.
   // Remove DOS style line endings.
   MemoryBuffer *F =
-    CanonicalizeInputFile(File.take(), NoCanonicalizeWhiteSpace);
+    CanonicalizeInputFile(File.release(), NoCanonicalizeWhiteSpace);
 
   SM.AddNewSourceBuffer(F, SMLoc());
 

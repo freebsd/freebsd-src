@@ -9,7 +9,7 @@
 LEVEL = ../../../..
 LIBRARYNAME = LLVMAArch64AsmPrinter
 
-# Hack: we need to include 'main' target directory to grab private headers
+# Hack: we need to include 'main' arm target directory to grab private headers
 CPP.Flags += -I$(PROJ_OBJ_DIR)/.. -I$(PROJ_SRC_DIR)/..
 
 include $(LEVEL)/Makefile.common

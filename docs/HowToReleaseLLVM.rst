@@ -22,12 +22,15 @@ create the binary packages, please refer to the :doc:`ReleaseProcess` instead.
 Release Timeline
 ================
 
-LLVM is released on a time based schedule --- roughly every 6 months.  We do
-not normally have dot releases because of the nature of LLVM's incremental
-development philosophy.  That said, the only thing preventing dot releases for
-critical bug fixes from happening is a lack of resources --- testers,
-machines, time, etc.  And, because of the high quality we desire for LLVM
-releases, we cannot allow for a truncated form of release qualification.
+LLVM is released on a time based schedule --- with major releases roughly
+every 6 months.  In between major releases there may be dot releases.
+The release manager will determine if and when to make a dot release based
+on feedback from the community.  Typically, dot releases should be made if
+there are large number of bug-fixes in the stable branch or a critical bug
+has been discovered that affects a large number of users.
+
+Unless otherwise stated, dot releases will follow the same procedure as
+major releases.
 
 The release process is roughly as follows:
 
@@ -50,6 +53,10 @@ The release process is roughly as follows:
 * The release notes are updated.
 
 * Finally, release!
+
+The release process will be accelerated for dot releases.  If the first round
+of testing finds no critical bugs and no regressions since the last major release,
+then additional rounds of testing will not be required.
 
 Release Process
 ===============
@@ -139,25 +146,25 @@ following commands:
 
 ::
 
-  $ svn mkdir https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_XY
+  $ svn mkdir https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_XYZ
   $ svn copy https://llvm.org/svn/llvm-project/llvm/branches/release_XY \
-             https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_XY/rc1
+             https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_XYZ/rc1
 
-  $ svn mkdir https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_XY
+  $ svn mkdir https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_XYZ
   $ svn copy https://llvm.org/svn/llvm-project/cfe/branches/release_XY \
-             https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_XY/rc1
+             https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_XYZ/rc1
 
-  $ svn mkdir https://llvm.org/svn/llvm-project/dragonegg/tags/RELEASE_XY
+  $ svn mkdir https://llvm.org/svn/llvm-project/dragonegg/tags/RELEASE_XYZ
   $ svn copy https://llvm.org/svn/llvm-project/dragonegg/branches/release_XY \
-             https://llvm.org/svn/llvm-project/dragonegg/tags/RELEASE_XY/rc1
+             https://llvm.org/svn/llvm-project/dragonegg/tags/RELEASE_XYZ/rc1
 
-  $ svn mkdir https://llvm.org/svn/llvm-project/test-suite/tags/RELEASE_XY
+  $ svn mkdir https://llvm.org/svn/llvm-project/test-suite/tags/RELEASE_XYZ
   $ svn copy https://llvm.org/svn/llvm-project/test-suite/branches/release_XY \
-             https://llvm.org/svn/llvm-project/test-suite/tags/RELEASE_XY/rc1
+             https://llvm.org/svn/llvm-project/test-suite/tags/RELEASE_XYZ/rc1
 
 Similarly, **Release Candidate 2** would be named ``RC2`` and so on.  This keeps
 a permanent copy of the release candidate around for people to export and build
-as they wish.  The final released sources will be tagged in the ``RELEASE_XY``
+as they wish.  The final released sources will be tagged in the ``RELEASE_XYZ``
 directory as ``Final`` (c.f. :ref:`tag`).
 
 The Release Manager may supply pre-packaged source tarballs for users.  This can
@@ -165,10 +172,10 @@ be done with the following commands:
 
 ::
 
-  $ svn export https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_XY/rc1 llvm-X.Yrc1
-  $ svn export https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_XY/rc1 clang-X.Yrc1
-  $ svn export https://llvm.org/svn/llvm-project/dragonegg/tags/RELEASE_XY/rc1 dragonegg-X.Yrc1
-  $ svn export https://llvm.org/svn/llvm-project/test-suite/tags/RELEASE_XY/rc1 llvm-test-X.Yrc1
+  $ svn export https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_XYZ/rc1 llvm-X.Yrc1
+  $ svn export https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_XYZ/rc1 clang-X.Yrc1
+  $ svn export https://llvm.org/svn/llvm-project/dragonegg/tags/RELEASE_XYZ/rc1 dragonegg-X.Yrc1
+  $ svn export https://llvm.org/svn/llvm-project/test-suite/tags/RELEASE_XYZ/rc1 llvm-test-X.Yrc1
 
   $ tar -cvf - llvm-X.Yrc1        | gzip > llvm-X.Yrc1.src.tar.gz
   $ tar -cvf - clang-X.Yrc1       | gzip > clang-X.Yrc1.src.tar.gz
@@ -238,6 +245,8 @@ when qualifying the build of ``llvm``, ``clang``, and ``dragonegg``.
 +--------------+---------------+----------------------+
 | x86-64       | FreeBSD       | gcc 4.2.X            |
 +--------------+---------------+----------------------+
+| ARMv7        | Linux         | gcc 4.6.X, gcc 4.7.X |
++--------------+---------------+----------------------+
 
 Release Qualification Criteria
 ------------------------------
@@ -298,6 +307,10 @@ Specific Target Qualification Details
 |              |             |                | clang regression tests,     |
 |              |             |                | test-suite                  |
 +--------------+-------------+----------------+-----------------------------+
+| ARMv7A       | Linux       | last release   | llvm regression tests,      |
+|              |             |                | clang regression tests,     |
+|              |             |                | test-suite                  |
++--------------+-------------+----------------+-----------------------------+
 
 Community Testing
 -----------------
@@ -346,6 +359,9 @@ Below are the rules regarding patching the release branch:
 #. During the remaining rounds of testing, only patches that fix critical
    regressions may be applied.
 
+#. For dot releases all patches must mantain both API and ABI compatibility with
+   the previous major release.  Only bugfixes will be accepted.
+
 Release Final Tasks
 -------------------
 
@@ -373,16 +389,16 @@ Tag the final release sources using the following procedure:
 ::
 
   $ svn copy https://llvm.org/svn/llvm-project/llvm/branches/release_XY \
-             https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_XY/Final
+             https://llvm.org/svn/llvm-project/llvm/tags/RELEASE_XYZ/Final
 
   $ svn copy https://llvm.org/svn/llvm-project/cfe/branches/release_XY \
-             https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_XY/Final
+             https://llvm.org/svn/llvm-project/cfe/tags/RELEASE_XYZ/Final
 
   $ svn copy https://llvm.org/svn/llvm-project/dragonegg/branches/release_XY \
-             https://llvm.org/svn/llvm-project/dragonegg/tags/RELEASE_XY/Final
+             https://llvm.org/svn/llvm-project/dragonegg/tags/RELEASE_XYZ/Final
 
   $ svn copy https://llvm.org/svn/llvm-project/test-suite/branches/release_XY \
-             https://llvm.org/svn/llvm-project/test-suite/tags/RELEASE_XY/Final
+             https://llvm.org/svn/llvm-project/test-suite/tags/RELEASE_XYZ/Final
 
 Update the LLVM Demo Page
 -------------------------

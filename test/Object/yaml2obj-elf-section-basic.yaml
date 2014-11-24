@@ -1,4 +1,7 @@
 # RUN: yaml2obj -format=elf %s | llvm-readobj -sections -section-data - | FileCheck %s
+# RUN: yaml2obj -format=elf -o %t %s
+# RUN: llvm-readobj -sections -section-data %t | FileCheck %s
+
 !ELF
 FileHeader:
   Class: ELFCLASS64
@@ -12,6 +15,14 @@ Sections:
     Address: 0xCAFEBABE
     Link: .text # Doesn't make sense for SHT_PROGBITS, but good enough for test.
     Content: EBFE
+    AddressAlign: 2
+
+  - Name: .data
+    Type: SHT_PROGBITS
+    Flags: [ SHF_ALLOC ]
+    Address: 0xCAFECAFE
+    Content: FEBF
+    Size: 8
     AddressAlign: 2
 
 # CHECK:        Section {
@@ -33,3 +44,33 @@ Sections:
 # CHECK:          SectionData (
 # CHECK-NEXT:       0000: EBFE
 # CHECK-NEXT:     )
+#
+# CHECK:        Section {
+# CHECK:          Name: .data
+# CHECK-NEXT:     Type: SHT_PROGBITS (0x1)
+# CHECK-NEXT:     Flags [ (0x2)
+# CHECK-NEXT:       SHF_ALLOC (0x2)
+# CHECK-NEXT:     ]
+# CHECK-NEXT:     Address: 0xCAFECAFE
+# CHECK-NEXT:     Offset: 0x1D0
+# CHECK-NEXT:     Size: 8
+# CHECK-NEXT:     Link: 0
+# CHECK-NEXT:     Info: 0
+# CHECK-NEXT:     AddressAlignment: 2
+# CHECK-NEXT:     EntrySize: 0
+# CHECK-NEXT:     SectionData (
+# CHECK-NEXT:       0000: FEBF0000 00000000 |........|
+# CHECK-NEXT:     )
+#
+# CHECK:        Section {
+# CHECK:          Name: .symtab (25)
+# CHECK:          Type: SHT_SYMTAB (0x2)
+# CHECK:        }
+# CHECK:        Section {
+# CHECK:          Name: .strtab (17)
+# CHECK:          Type: SHT_STRTAB (0x3)
+# CHECK:        }
+# CHECK:        Section {
+# CHECK:          Name: .shstrtab (7)
+# CHECK:          Type: SHT_STRTAB (0x3)
+# CHECK:        }

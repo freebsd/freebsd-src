@@ -1,6 +1,4 @@
-# RUN: llvm-mc %s -triple=mipsel-unknown-linux -show-encoding -mcpu=mips32r2 -mattr=+msa -arch=mips | FileCheck %s
-#
-# RUN: llvm-mc %s -triple=mipsel-unknown-linux -mcpu=mips32r2 -mattr=+msa -arch=mips -filetype=obj -o - | llvm-objdump -d -triple=mipsel-unknown-linux -mattr=+msa -arch=mips - | FileCheck %s -check-prefix=CHECKOBJDUMP
+# RUN: llvm-mc %s -arch=mips -mcpu=mips32r2 -mattr=+msa -show-encoding | FileCheck %s
 #
 #CHECK:  cfcmsa       $1, $0                  # encoding: [0x78,0x7e,0x00,0x59]
 #CHECK:  cfcmsa       $1, $0                  # encoding: [0x78,0x7e,0x00,0x59]
@@ -35,40 +33,6 @@
 #CHECK:  ctcmsa       $6, $7                  # encoding: [0x78,0x3e,0x39,0x99]
 #CHECK:  ctcmsa       $7, $8                  # encoding: [0x78,0x3e,0x41,0xd9]
 #CHECK:  ctcmsa       $7, $8                  # encoding: [0x78,0x3e,0x41,0xd9]
-
-#CHECKOBJDUMP:  cfcmsa       $1, $0
-#CHECKOBJDUMP:  cfcmsa       $1, $0
-#CHECKOBJDUMP:  cfcmsa       $2, $1
-#CHECKOBJDUMP:  cfcmsa       $2, $1
-#CHECKOBJDUMP:  cfcmsa       $3, $2
-#CHECKOBJDUMP:  cfcmsa       $3, $2
-#CHECKOBJDUMP:  cfcmsa       $4, $3
-#CHECKOBJDUMP:  cfcmsa       $4, $3
-#CHECKOBJDUMP:  cfcmsa       $5, $4
-#CHECKOBJDUMP:  cfcmsa       $5, $4
-#CHECKOBJDUMP:  cfcmsa       $6, $5
-#CHECKOBJDUMP:  cfcmsa       $6, $5
-#CHECKOBJDUMP:  cfcmsa       $7, $6
-#CHECKOBJDUMP:  cfcmsa       $7, $6
-#CHECKOBJDUMP:  cfcmsa       $8, $7
-#CHECKOBJDUMP:  cfcmsa       $8, $7
-
-#CHECKOBJDUMP:  ctcmsa       $0, $1
-#CHECKOBJDUMP:  ctcmsa       $0, $1
-#CHECKOBJDUMP:  ctcmsa       $1, $2
-#CHECKOBJDUMP:  ctcmsa       $1, $2
-#CHECKOBJDUMP:  ctcmsa       $2, $3
-#CHECKOBJDUMP:  ctcmsa       $2, $3
-#CHECKOBJDUMP:  ctcmsa       $3, $4
-#CHECKOBJDUMP:  ctcmsa       $3, $4
-#CHECKOBJDUMP:  ctcmsa       $4, $5
-#CHECKOBJDUMP:  ctcmsa       $4, $5
-#CHECKOBJDUMP:  ctcmsa       $5, $6
-#CHECKOBJDUMP:  ctcmsa       $5, $6
-#CHECKOBJDUMP:  ctcmsa       $6, $7
-#CHECKOBJDUMP:  ctcmsa       $6, $7
-#CHECKOBJDUMP:  ctcmsa       $7, $8
-#CHECKOBJDUMP:  ctcmsa       $7, $8
 
 cfcmsa       $1, $msair
 cfcmsa       $1, $0

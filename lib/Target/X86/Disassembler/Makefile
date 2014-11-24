@@ -10,7 +10,9 @@
 LEVEL = ../../../..
 LIBRARYNAME = LLVMX86Disassembler
 
-# Hack: we need to include 'main' x86 target directory to grab private headers
+# Hack: we need to include 'main' x86 target directory to grab private headers.
 CPP.Flags += -I$(PROJ_OBJ_DIR)/.. -I$(PROJ_SRC_DIR)/..
 
 include $(LEVEL)/Makefile.common
+
+.PHONY: $(PROJ_SRC_DIR)/X86DisassemblerDecoder.c

@@ -46,8 +46,8 @@ if.end:                                           ; preds = %entry
   tail call void @llvm.dbg.value(metadata !{i32 %call}, i64 0, metadata !17), !dbg !30
   %cmp1 = icmp sgt i32 %call, 100, !dbg !35
   br i1 %cmp1, label %for.body, label %if.end6, !dbg !35
-; CHECK: edge if.end -> for.body probability is 2243 / 2244 = 99.9554% [HOT edge]
-; CHECK: edge if.end -> if.end6 probability is 1 / 2244 = 0.0445633%
+; CHECK: edge if.end -> for.body probability is 1 / 2 = 50%
+; CHECK: edge if.end -> if.end6 probability is 1 / 2 = 50%
 
 for.body:                                         ; preds = %if.end, %for.body
   %u.016 = phi i32 [ %inc, %for.body ], [ 0, %if.end ]
@@ -65,8 +65,8 @@ for.body:                                         ; preds = %if.end, %for.body
   tail call void @llvm.dbg.value(metadata !{i32 %inc}, i64 0, metadata !21), !dbg !38
   %exitcond = icmp eq i32 %inc, %call, !dbg !38
   br i1 %exitcond, label %if.end6, label %for.body, !dbg !38
-; CHECK: edge for.body -> if.end6 probability is 1 / 2244 = 0.0445633%
-; CHECK: edge for.body -> for.body probability is 2243 / 2244 = 99.9554% [HOT edge]
+; CHECK: edge for.body -> if.end6 probability is 1 / 10227 = 0.00977804
+; CHECK: edge for.body -> for.body probability is 10226 / 10227 = 99.9902% [HOT edge]
 
 if.end6:                                          ; preds = %for.body, %if.end
   %result.0 = phi double [ 0.000000e+00, %if.end ], [ %sub, %for.body ]
@@ -117,17 +117,17 @@ attributes #4 = { nounwind readonly }
 !16 = metadata !{i32 786468, null, null, metadata !"double", i32 0, i64 64, i64 64, i64 0, i32 0, i32 4} ; [ DW_TAG_base_type ] [double] [line 0, size 64, align 64, offset 0, enc DW_ATE_float]
 !17 = metadata !{i32 786688, metadata !4, metadata !"limit", metadata !5, i32 8, metadata !8, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [limit] [line 8]
 !18 = metadata !{i32 786688, metadata !19, metadata !"s", metadata !5, i32 10, metadata !16, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [s] [line 10]
-!19 = metadata !{i32 786443, metadata !1, metadata !20, i32 9, i32 0, i32 2} ; [ DW_TAG_lexical_block ] [./branch.cc]
-!20 = metadata !{i32 786443, metadata !1, metadata !4, i32 9, i32 0, i32 1} ; [ DW_TAG_lexical_block ] [./branch.cc]
+!19 = metadata !{i32 786443, metadata !1, metadata !20, i32 9, i32 0, i32 0, i32 2} ; [ DW_TAG_lexical_block ] [./branch.cc]
+!20 = metadata !{i32 786443, metadata !1, metadata !4, i32 9, i32 0, i32 0, i32 1} ; [ DW_TAG_lexical_block ] [./branch.cc]
 !21 = metadata !{i32 786688, metadata !22, metadata !"u", metadata !5, i32 11, metadata !8, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [u] [line 11]
-!22 = metadata !{i32 786443, metadata !1, metadata !19, i32 11, i32 0, i32 3} ; [ DW_TAG_lexical_block ] [./branch.cc]
+!22 = metadata !{i32 786443, metadata !1, metadata !19, i32 11, i32 0, i32 0, i32 3} ; [ DW_TAG_lexical_block ] [./branch.cc]
 !23 = metadata !{i32 786688, metadata !24, metadata !"x", metadata !5, i32 12, metadata !16, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [x] [line 12]
-!24 = metadata !{i32 786443, metadata !1, metadata !22, i32 11, i32 0, i32 4} ; [ DW_TAG_lexical_block ] [./branch.cc]
+!24 = metadata !{i32 786443, metadata !1, metadata !22, i32 11, i32 0, i32 0, i32 4} ; [ DW_TAG_lexical_block ] [./branch.cc]
 !25 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
 !26 = metadata !{metadata !"clang version 3.4 (trunk 192896) (llvm/trunk 192895)"}
 !27 = metadata !{i32 4, i32 0, metadata !4, null}
 !28 = metadata !{i32 5, i32 0, metadata !29, null}
-!29 = metadata !{i32 786443, metadata !1, metadata !4, i32 5, i32 0, i32 0} ; [ DW_TAG_lexical_block ] [./branch.cc]
+!29 = metadata !{i32 786443, metadata !1, metadata !4, i32 5, i32 0, i32 0, i32 0} ; [ DW_TAG_lexical_block ] [./branch.cc]
 !30 = metadata !{i32 8, i32 0, metadata !4, null} ; [ DW_TAG_imported_declaration ]
 !31 = metadata !{metadata !32, metadata !32, i64 0}
 !32 = metadata !{metadata !"any pointer", metadata !33, i64 0}

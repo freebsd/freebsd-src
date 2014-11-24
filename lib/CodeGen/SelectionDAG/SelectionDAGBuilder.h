@@ -18,9 +18,8 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
-#include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
-#include "llvm/Support/CallSite.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <vector>
 
@@ -57,6 +56,7 @@ class MachineBasicBlock;
 class MachineInstr;
 class MachineRegisterInfo;
 class MDNode;
+class MVT;
 class PHINode;
 class PtrToIntInst;
 class ReturnInst;
@@ -96,7 +96,7 @@ class SelectionDAGBuilder {
     DebugLoc dl;
     unsigned SDNodeOrder;
   public:
-    DanglingDebugInfo() : DI(0), dl(DebugLoc()), SDNodeOrder(0) { }
+    DanglingDebugInfo() : DI(nullptr), dl(DebugLoc()), SDNodeOrder(0) { }
     DanglingDebugInfo(const DbgValueInst *di, DebugLoc DL, unsigned SDNO) :
       DI(di), dl(DL), SDNodeOrder(SDNO) { }
     const DbgValueInst* getDI() { return DI; }
@@ -135,7 +135,7 @@ private:
     MachineBasicBlock* BB;
     uint32_t ExtraWeight;
 
-    Case() : Low(0), High(0), BB(0), ExtraWeight(0) { }
+    Case() : Low(nullptr), High(nullptr), BB(nullptr), ExtraWeight(0) { }
     Case(const Constant *low, const Constant *high, MachineBasicBlock *bb,
          uint32_t extraweight) : Low(low), High(high), BB(bb),
          ExtraWeight(extraweight) { }
@@ -320,7 +320,7 @@ private:
   ///   1. Preserve the architecture independence of stack protector generation.
   ///
   ///   2. Preserve the normal IR level stack protector check for platforms like
-  ///      OpenBSD for which we support platform specific stack protector
+  ///      OpenBSD for which we support platform-specific stack protector
   ///      generation.
   ///
   /// The main problem that guided the present solution is that one can not
@@ -338,7 +338,7 @@ private:
   ///      basic block (where the return inst is placed) and then move it back
   ///      later at SelectionDAG/MI time before the stack protector check if the
   ///      tail call optimization failed. The MI level option was nixed
-  ///      immediately since it would require platform specific pattern
+  ///      immediately since it would require platform-specific pattern
   ///      matching. The SelectionDAG level option was nixed because
   ///      SelectionDAG only processes one IR level basic block at a time
   ///      implying one could not create a DAG Combine to move the callinst.
@@ -396,8 +396,8 @@ private:
   ///        the same function, use the same failure basic block).
   class StackProtectorDescriptor {
   public:
-    StackProtectorDescriptor() : ParentMBB(0), SuccessMBB(0), FailureMBB(0),
-                                 Guard(0) { }
+    StackProtectorDescriptor() : ParentMBB(nullptr), SuccessMBB(nullptr),
+                                 FailureMBB(nullptr), Guard(nullptr) { }
     ~StackProtectorDescriptor() { }
 
     /// Returns true if all fields of the stack protector descriptor are
@@ -432,8 +432,8 @@ private:
     /// parent mbb after we create the stack protector check (SuccessMBB). This
     /// BB is visited only on stack protector check success.
     void resetPerBBState() {
-      ParentMBB = 0;
-      SuccessMBB = 0;
+      ParentMBB = nullptr;
+      SuccessMBB = nullptr;
     }
 
     /// Reset state that only changes when we switch functions.
@@ -446,8 +446,8 @@ private:
     /// 2.The guard variable since the guard variable we are checking against is
     /// always the same.
     void resetPerFunctionState() {
-      FailureMBB = 0;
-      Guard = 0;
+      FailureMBB = nullptr;
+      Guard = nullptr;
     }
 
     MachineBasicBlock *getParentMBB() { return ParentMBB; }
@@ -482,14 +482,18 @@ private:
     /// block will be created.
     MachineBasicBlock *AddSuccessorMBB(const BasicBlock *BB,
                                        MachineBasicBlock *ParentMBB,
-                                       MachineBasicBlock *SuccMBB = 0);
+                                       MachineBasicBlock *SuccMBB = nullptr);
   };
 
 private:
   const TargetMachine &TM;
 public:
+  /// Lowest valid SDNodeOrder. The special case 0 is reserved for scheduling
+  /// nodes without a corresponding SDNode.
+  static const unsigned LowestSDNodeOrder = 1;
+
   SelectionDAG &DAG;
-  const DataLayout *TD;
+  const DataLayout *DL;
   AliasAnalysis *AA;
   const TargetLibraryInfo *LibInfo;
 
@@ -534,7 +538,7 @@ public:
 
   SelectionDAGBuilder(SelectionDAG &dag, FunctionLoweringInfo &funcinfo,
                       CodeGenOpt::Level ol)
-    : CurInst(NULL), SDNodeOrder(0), TM(dag.getTarget()),
+    : CurInst(nullptr), SDNodeOrder(LowestSDNodeOrder), TM(dag.getTarget()),
       DAG(dag), FuncInfo(funcinfo), OptLevel(ol),
       HasTailCall(false) {
   }
@@ -596,29 +600,31 @@ public:
 
   void setValue(const Value *V, SDValue NewN) {
     SDValue &N = NodeMap[V];
-    assert(N.getNode() == 0 && "Already set a value for this node!");
+    assert(!N.getNode() && "Already set a value for this node!");
     N = NewN;
   }
 
   void setUnusedArgValue(const Value *V, SDValue NewN) {
     SDValue &N = UnusedArgNodeMap[V];
-    assert(N.getNode() == 0 && "Already set a value for this node!");
+    assert(!N.getNode() && "Already set a value for this node!");
     N = NewN;
   }
 
   void FindMergedConditions(const Value *Cond, MachineBasicBlock *TBB,
                             MachineBasicBlock *FBB, MachineBasicBlock *CurBB,
-                            MachineBasicBlock *SwitchBB, unsigned Opc);
+                            MachineBasicBlock *SwitchBB, unsigned Opc,
+                            uint32_t TW, uint32_t FW);
   void EmitBranchForMergedCondition(const Value *Cond, MachineBasicBlock *TBB,
                                     MachineBasicBlock *FBB,
                                     MachineBasicBlock *CurBB,
-                                    MachineBasicBlock *SwitchBB);
+                                    MachineBasicBlock *SwitchBB,
+                                    uint32_t TW, uint32_t FW);
   bool ShouldEmitAsBranches(const std::vector<CaseBlock> &Cases);
   bool isExportableFromCurrentBlock(const Value *V, const BasicBlock *FromBB);
   void CopyToExportRegsIfNeeded(const Value *V);
   void ExportFromCurrentBlock(const Value *V);
   void LowerCallTo(ImmutableCallSite CS, SDValue Callee, bool IsTailCall,
-                   MachineBasicBlock *LandingPad = NULL);
+                   MachineBasicBlock *LandingPad = nullptr);
 
   std::pair<SDValue, SDValue> LowerCallOperands(const CallInst &CI,
                                                 unsigned ArgIdx,
@@ -627,7 +633,7 @@ public:
                                                 bool useVoidTy = false);
 
   /// UpdateSplitBlock - When an MBB was split during scheduling, update the
-  /// references that ned to refer to the last resulting block.
+  /// references that need to refer to the last resulting block.
   void UpdateSplitBlock(MachineBasicBlock *First, MachineBasicBlock *Last);
 
 private:
@@ -636,7 +642,7 @@ private:
   void visitBr(const BranchInst &I);
   void visitSwitch(const SwitchInst &I);
   void visitIndirectBr(const IndirectBrInst &I);
-  void visitUnreachable(const UnreachableInst &I) { /* noop */ }
+  void visitUnreachable(const UnreachableInst &I);
 
   // Helpers for visitSwitch
   bool handleSmallSwitchRange(CaseRec& CR,
@@ -779,7 +785,8 @@ private:
   /// corresponding DBG_VALUE machine instruction for it now. At the end of
   /// instruction selection, they will be inserted to the entry BB.
   bool EmitFuncArgumentDbgValue(const Value *V, MDNode *Variable,
-                                int64_t Offset, const SDValue &N);
+                                int64_t Offset, bool IsIndirect,
+                                const SDValue &N);
 };
 
 } // end namespace llvm

@@ -1,7 +1,7 @@
 import os
 import sys
 
-PY2 = sys.version_info[0] < 3
+OldPy = sys.version_info[0] == 2 and sys.version_info[1] < 7
 
 class TestingConfig:
     """"
@@ -38,7 +38,7 @@ class TestingConfig:
         # The option to preserve TEMP, TMP, and TMPDIR.
         # This is intended to check how many temporary files would be generated
         # (and be not cleaned up) in automated builders.
-        if os.environ.has_key('LIT_PRESERVES_TMP'):
+        if 'LIT_PRESERVES_TMP' in os.environ:
             environment.update({
                     'TEMP' : os.environ.get('TEMP',''),
                     'TMP' : os.environ.get('TMP',''),
@@ -74,12 +74,14 @@ class TestingConfig:
         """
 
         # Load the config script data.
-        f = open(path)
-        try:
-            data = f.read()
-        except:
-            litConfig.fatal('unable to load config file: %r' % (path,))
-        f.close()
+        data = None
+        if not OldPy:
+            f = open(path)
+            try:
+                data = f.read()
+            except:
+                litConfig.fatal('unable to load config file: %r' % (path,))
+            f.close()
 
         # Execute the config script to initialize the object.
         cfg_globals = dict(globals())
@@ -87,10 +89,10 @@ class TestingConfig:
         cfg_globals['lit_config'] = litConfig
         cfg_globals['__file__'] = path
         try:
-            if PY2:
-                exec("exec data in cfg_globals")
+            if OldPy:
+                execfile(path, cfg_globals)
             else:
-                exec(data, cfg_globals)
+                exec(compile(data, path, 'exec'), cfg_globals, None)
             if litConfig.debug:
                 litConfig.note('... loaded config %r' % path)
         except SystemExit:

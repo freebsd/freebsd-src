@@ -116,7 +116,7 @@ public:
     ColFields = MapRec->getValueAsListInit("ColFields");
 
     // Values for the fields/attributes listed in 'ColFields'.
-    // Ex: KeyCol = 'noPred' -- key instruction is non predicated
+    // Ex: KeyCol = 'noPred' -- key instruction is non-predicated
     KeyCol = MapRec->getValueAsListInit("KeyCol");
 
     // List of values for the fields/attributes listed in 'ColFields', one for
@@ -326,7 +326,7 @@ Record *MapTableEmitter::getInstrForColumn(Record *KeyInstr,
   const std::vector<Record*> &RelatedInstrVec = RowInstrMap[KeyValue];
 
   ListInit *ColFields = InstrMapDesc.getColFields();
-  Record *MatchInstr = NULL;
+  Record *MatchInstr = nullptr;
 
   for (unsigned i = 0, e = RelatedInstrVec.size(); i < e; i++) {
     bool MatchFound = true;
@@ -378,13 +378,13 @@ unsigned MapTableEmitter::emitBinSearchTable(raw_ostream &OS) {
     unsigned RelExists = 0;
     if (ColInstrs.size()) {
       for (unsigned j = 0; j < NumCol; j++) {
-        if (ColInstrs[j] != NULL) {
+        if (ColInstrs[j] != nullptr) {
           RelExists = 1;
           OutStr += ", ";
           OutStr += TargetName;
           OutStr += "::";
           OutStr += ColInstrs[j]->getName();
-        } else { OutStr += ", -1";}
+        } else { OutStr += ", (uint16_t)-1U";}
       }
 
       if (RelExists) {

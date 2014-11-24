@@ -105,6 +105,15 @@ define void @test9(%struct.x* byval  %a) nounwind  {
 ; CHECK-NEXT: ret void
 }
 
+; Test for inalloca handling.
+define void @test9_2(%struct.x* inalloca  %a) nounwind  {
+	%tmp2 = getelementptr %struct.x* %a, i32 0, i32 0
+	store i32 1, i32* %tmp2, align 4
+	ret void
+; CHECK-LABEL: @test9_2(
+; CHECK-NEXT: ret void
+}
+
 ; va_arg has fuzzy dependence, the store shouldn't be zapped.
 define double @test10(i8* %X) {
         %X_addr = alloca i8*
@@ -160,6 +169,23 @@ define i32* @test13() {
 ; CHECK: @test13()
 ; CHECK-NEXT: malloc
 ; CHECK-NEXT: bitcast
+; CHECK-NEXT: call void
+}
+
+define i32 addrspace(1)* @test13_addrspacecast() {
+  %p = tail call i8* @malloc(i32 4)
+  %p.bc = bitcast i8* %p to i32*
+  %P = addrspacecast i32* %p.bc to i32 addrspace(1)*
+  %DEAD = load i32 addrspace(1)* %P
+  %DEAD2 = add i32 %DEAD, 1
+  store i32 %DEAD2, i32 addrspace(1)* %P
+  call void @test13f( )
+  store i32 0, i32 addrspace(1)* %P
+  ret i32 addrspace(1)* %P
+; CHECK: @test13_addrspacecast()
+; CHECK-NEXT: malloc
+; CHECK-NEXT: bitcast
+; CHECK-NEXT: addrspacecast
 ; CHECK-NEXT: call void
 }
 

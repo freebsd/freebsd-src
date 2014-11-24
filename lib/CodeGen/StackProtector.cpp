@@ -14,14 +14,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "stack-protector"
 #include "llvm/CodeGen/StackProtector.h"
-#include "llvm/CodeGen/Analysis.h"
-#include "llvm/CodeGen/Passes.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/ValueTracking.h"
+#include "llvm/CodeGen/Analysis.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
@@ -37,6 +35,8 @@
 #include "llvm/Support/CommandLine.h"
 #include <cstdlib>
 using namespace llvm;
+
+#define DEBUG_TYPE "stack-protector"
 
 STATISTIC(NumFunProtected, "Number of functions protected");
 STATISTIC(NumAddrTaken, "Number of local variables that have their address"
@@ -58,19 +58,43 @@ StackProtector::getSSPLayout(const AllocaInst *AI) const {
   return AI ? Layout.lookup(AI) : SSPLK_None;
 }
 
+void StackProtector::adjustForColoring(const AllocaInst *From,
+                                       const AllocaInst *To) {
+  // When coloring replaces one alloca with another, transfer the SSPLayoutKind
+  // tag from the remapped to the target alloca. The remapped alloca should
+  // have a size smaller than or equal to the replacement alloca.
+  SSPLayoutMap::iterator I = Layout.find(From);
+  if (I != Layout.end()) {
+    SSPLayoutKind Kind = I->second;
+    Layout.erase(I);
+
+    // Transfer the tag, but make sure that SSPLK_AddrOf does not overwrite
+    // SSPLK_SmallArray or SSPLK_LargeArray, and make sure that
+    // SSPLK_SmallArray does not overwrite SSPLK_LargeArray.
+    I = Layout.find(To);
+    if (I == Layout.end())
+      Layout.insert(std::make_pair(To, Kind));
+    else if (I->second != SSPLK_LargeArray && Kind != SSPLK_AddrOf)
+      I->second = Kind;
+  }
+}
+
 bool StackProtector::runOnFunction(Function &Fn) {
   F = &Fn;
   M = F->getParent();
-  DT = getAnalysisIfAvailable<DominatorTree>();
+  DominatorTreeWrapperPass *DTWP =
+      getAnalysisIfAvailable<DominatorTreeWrapperPass>();
+  DT = DTWP ? &DTWP->getDomTree() : nullptr;
   TLI = TM->getTargetLowering();
-
-  if (!RequiresStackProtector())
-    return false;
 
   Attribute Attr = Fn.getAttributes().getAttribute(
       AttributeSet::FunctionIndex, "stack-protector-buffer-size");
-  if (Attr.isStringAttribute())
-    Attr.getValueAsString().getAsInteger(10, SSPBufferSize);
+  if (Attr.isStringAttribute() &&
+      Attr.getValueAsString().getAsInteger(10, SSPBufferSize))
+      return false; // Invalid integer string
+
+  if (!RequiresStackProtector())
+    return false;
 
   ++NumFunProtected;
   return InsertStackProtectors();
@@ -127,9 +151,7 @@ bool StackProtector::ContainsProtectableArray(Type *Ty, bool &IsLarge,
 }
 
 bool StackProtector::HasAddressTaken(const Instruction *AI) {
-  for (Value::const_use_iterator UI = AI->use_begin(), UE = AI->use_end();
-       UI != UE; ++UI) {
-    const User *U = *UI;
+  for (const User *U : AI->users()) {
     if (const StoreInst *SI = dyn_cast<StoreInst>(U)) {
       if (AI == SI->getValueOperand())
         return true;
@@ -261,8 +283,7 @@ static CallInst *FindPotentialTailCall(BasicBlock *BB, ReturnInst *RI,
   const unsigned MaxSearch = 4;
   bool NoInterposingChain = true;
 
-  for (BasicBlock::reverse_iterator I = llvm::next(BB->rbegin()),
-                                    E = BB->rend();
+  for (BasicBlock::reverse_iterator I = std::next(BB->rbegin()), E = BB->rend();
        I != E && SearchCounter < MaxSearch; ++I) {
     Instruction *Inst = &*I;
 
@@ -299,7 +320,7 @@ static CallInst *FindPotentialTailCall(BasicBlock *BB, ReturnInst *RI,
     SearchCounter++;
   }
 
-  return 0;
+  return nullptr;
 }
 
 /// Insert code into the entry block that stores the __stack_chk_guard
@@ -334,7 +355,7 @@ static bool CreatePrologue(Function *F, Module *M, ReturnInst *RI,
   }
 
   IRBuilder<> B(&F->getEntryBlock().front());
-  AI = B.CreateAlloca(PtrTy, 0, "StackGuardSlot");
+  AI = B.CreateAlloca(PtrTy, nullptr, "StackGuardSlot");
   LoadInst *LI = B.CreateLoad(StackGuardVar, "StackGuard");
   B.CreateCall2(Intrinsic::getDeclaration(M, Intrinsic::stackprotector), LI,
                 AI);
@@ -352,8 +373,8 @@ bool StackProtector::InsertStackProtectors() {
   bool HasPrologue = false;
   bool SupportsSelectionDAGSP =
       EnableSelectionDAGSP && !TM->Options.EnableFastISel;
-  AllocaInst *AI = 0;       // Place on stack that stores the stack guard.
-  Value *StackGuardVar = 0; // The stack guard variable.
+  AllocaInst *AI = nullptr;       // Place on stack that stores the stack guard.
+  Value *StackGuardVar = nullptr; // The stack guard variable.
 
   for (Function::iterator I = F->begin(), E = F->end(); I != E;) {
     BasicBlock *BB = I++;
@@ -370,14 +391,14 @@ bool StackProtector::InsertStackProtectors() {
     if (SupportsSelectionDAGSP) {
       // Since we have a potential tail call, insert the special stack check
       // intrinsic.
-      Instruction *InsertionPt = 0;
+      Instruction *InsertionPt = nullptr;
       if (CallInst *CI = FindPotentialTailCall(BB, RI, TLI)) {
         InsertionPt = CI;
       } else {
         InsertionPt = RI;
         // At this point we know that BB has a return statement so it *DOES*
         // have a terminator.
-        assert(InsertionPt != 0 && "BB must have a terminator instruction at "
+        assert(InsertionPt != nullptr && "BB must have a terminator instruction at "
                                    "this point.");
       }
 

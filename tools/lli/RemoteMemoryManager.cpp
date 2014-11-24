@@ -12,7 +12,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "lli"
 #include "RemoteMemoryManager.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/ObjectImage.h"
@@ -20,6 +19,8 @@
 #include "llvm/Support/Format.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "lli"
 
 RemoteMemoryManager::~RemoteMemoryManager() {
   for (SmallVector<Allocation, 2>::iterator
@@ -60,7 +61,7 @@ allocateDataSection(uintptr_t Size, unsigned Alignment,
 }
 
 sys::MemoryBlock RemoteMemoryManager::allocateSection(uintptr_t Size) {
-  error_code ec;
+  std::error_code ec;
   sys::MemoryBlock MB = sys::Memory::allocateMappedMemory(Size,
                                                           &Near,
                                                           sys::Memory::MF_READ |
@@ -109,7 +110,7 @@ void RemoteMemoryManager::notifyObjectLoaded(ExecutionEngine *EE,
       CurOffset += Size;
     }
   }
-  // Adjust to keep code and data aligned on seperate pages.
+  // Adjust to keep code and data aligned on separate pages.
   CurOffset = (CurOffset + MaxAlign - 1) / MaxAlign * MaxAlign;
   for (size_t i = 0, e = NumSections; i != e; ++i) {
     Allocation &Section = UnmappedSections[i];
@@ -129,7 +130,7 @@ void RemoteMemoryManager::notifyObjectLoaded(ExecutionEngine *EE,
 
   // Allocate space in the remote target.
   uint64_t RemoteAddr;
-  if (Target->allocateSpace(CurOffset, MaxAlign, RemoteAddr))
+  if (!Target->allocateSpace(CurOffset, MaxAlign, RemoteAddr))
     report_fatal_error(Target->getErrorMsg());
 
   // Map the section addresses so relocations will get updated in the local
@@ -155,13 +156,13 @@ bool RemoteMemoryManager::finalizeMemory(std::string *ErrMsg) {
     uint64_t RemoteAddr = I->first;
     const Allocation &Section = I->second;
     if (Section.IsCode) {
-      Target->loadCode(RemoteAddr, Section.MB.base(), Section.MB.size());
-
+      if (!Target->loadCode(RemoteAddr, Section.MB.base(), Section.MB.size()))
+        report_fatal_error(Target->getErrorMsg());
       DEBUG(dbgs() << "  loading code: " << Section.MB.base()
             << " to remote: 0x" << format("%llx", RemoteAddr) << "\n");
     } else {
-      Target->loadData(RemoteAddr, Section.MB.base(), Section.MB.size());
-
+      if (!Target->loadData(RemoteAddr, Section.MB.base(), Section.MB.size()))
+        report_fatal_error(Target->getErrorMsg());
       DEBUG(dbgs() << "  loading data: " << Section.MB.base()
             << " to remote: 0x" << format("%llx", RemoteAddr) << "\n");
     }
@@ -178,16 +179,16 @@ void RemoteMemoryManager::setPoisonMemory(bool poison) { llvm_unreachable("Unexp
 void RemoteMemoryManager::AllocateGOT() { llvm_unreachable("Unexpected!"); }
 uint8_t *RemoteMemoryManager::getGOTBase() const {
   llvm_unreachable("Unexpected!");
-  return 0;
+  return nullptr;
 }
 uint8_t *RemoteMemoryManager::startFunctionBody(const Function *F, uintptr_t &ActualSize){
   llvm_unreachable("Unexpected!");
-  return 0;
+  return nullptr;
 }
 uint8_t *RemoteMemoryManager::allocateStub(const GlobalValue* F, unsigned StubSize,
                                               unsigned Alignment) {
   llvm_unreachable("Unexpected!");
-  return 0;
+  return nullptr;
 }
 void RemoteMemoryManager::endFunctionBody(const Function *F, uint8_t *FunctionStart,
                                              uint8_t *FunctionEnd) {
@@ -195,11 +196,11 @@ void RemoteMemoryManager::endFunctionBody(const Function *F, uint8_t *FunctionSt
 }
 uint8_t *RemoteMemoryManager::allocateSpace(intptr_t Size, unsigned Alignment) {
   llvm_unreachable("Unexpected!");
-  return 0;
+  return nullptr;
 }
 uint8_t *RemoteMemoryManager::allocateGlobal(uintptr_t Size, unsigned Alignment) {
   llvm_unreachable("Unexpected!");
-  return 0;
+  return nullptr;
 }
 void RemoteMemoryManager::deallocateFunctionBody(void *Body) {
   llvm_unreachable("Unexpected!");

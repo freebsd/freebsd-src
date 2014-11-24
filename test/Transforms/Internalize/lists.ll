@@ -1,7 +1,7 @@
 ; No arguments means internalize everything
 ; RUN: opt < %s -internalize -S | FileCheck --check-prefix=ALL %s
 
-; Non existent files should be treated as if they were empty (so internalize
+; Non-existent files should be treated as if they were empty (so internalize
 ; everything)
 ; RUN: opt < %s -internalize -internalize-public-api-file /nonexistent/file 2> /dev/null -S | FileCheck --check-prefix=ALL %s
 
@@ -48,3 +48,12 @@ define void @foo() {
 define available_externally void @bar() {
   ret void
 }
+
+; ALL: define dllexport void @export_foo() {
+; FOO_AND_J: define dllexport void @export_foo() {
+; FOO_AND_BAR: define dllexport void @export_foo() {
+; FOO_J_AND_BAR: define dllexport void @export_foo() {
+define dllexport void @export_foo() {
+  ret void
+}
+

@@ -37,34 +37,36 @@ entry:
 
 define i32 @Cmpxchg(i32* %p, i32 %a, i32 %b) sanitize_memory {
 entry:
-  %0 = cmpxchg i32* %p, i32 %a, i32 %b seq_cst
+  %pair = cmpxchg i32* %p, i32 %a, i32 %b seq_cst seq_cst
+  %0 = extractvalue { i32, i1 } %pair, 0
   ret i32 %0
 }
 
 ; CHECK: @Cmpxchg
-; CHECK: store i32 0,
+; CHECK: store { i32, i1 } zeroinitializer,
 ; CHECK: icmp
 ; CHECK: br
 ; CHECK: @__msan_warning
-; CHECK: cmpxchg {{.*}} seq_cst
+; CHECK: cmpxchg {{.*}} seq_cst seq_cst
 ; CHECK: store i32 0, {{.*}} @__msan_retval_tls
 ; CHECK: ret i32
 
 
-; relaxed cmpxchg: bump up to "release"
+; relaxed cmpxchg: bump up to "release monotonic"
 
 define i32 @CmpxchgMonotonic(i32* %p, i32 %a, i32 %b) sanitize_memory {
 entry:
-  %0 = cmpxchg i32* %p, i32 %a, i32 %b monotonic
+  %pair = cmpxchg i32* %p, i32 %a, i32 %b monotonic monotonic
+  %0 = extractvalue { i32, i1 } %pair, 0
   ret i32 %0
 }
 
 ; CHECK: @CmpxchgMonotonic
-; CHECK: store i32 0,
+; CHECK: store { i32, i1 } zeroinitializer,
 ; CHECK: icmp
 ; CHECK: br
 ; CHECK: @__msan_warning
-; CHECK: cmpxchg {{.*}} release
+; CHECK: cmpxchg {{.*}} release monotonic
 ; CHECK: store i32 0, {{.*}} @__msan_retval_tls
 ; CHECK: ret i32
 

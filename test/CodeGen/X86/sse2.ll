@@ -9,10 +9,10 @@ define void @test1(<2 x double>* %r, <2 x double>* %A, double %B) nounwind  {
 	ret void
 
 ; CHECK-LABEL: test1:
-; CHECK: 	movl	8(%esp), %eax
-; CHECK-NEXT: 	movapd	(%eax), %xmm0
+; CHECK: 	movl	4(%esp), %eax
+; CHECK-NEXT: 	movl	8(%esp), %ecx
+; CHECK-NEXT: 	movapd	(%ecx), %xmm0
 ; CHECK-NEXT: 	movlpd	12(%esp), %xmm0
-; CHECK-NEXT: 	movl	4(%esp), %eax
 ; CHECK-NEXT: 	movapd	%xmm0, (%eax)
 ; CHECK-NEXT: 	ret
 }
@@ -220,4 +220,22 @@ define <4 x float> @f(<4 x double>) nounwind {
 entry:
  %double2float.i = fptrunc <4 x double> %0 to <4 x float>
  ret <4 x float> %double2float.i
+}
+
+define <2 x i64> @test_insert_64_zext(<2 x i64> %i) {
+; CHECK-LABEL: test_insert_64_zext
+; CHECK-NOT: xor
+; CHECK: movq
+  %1 = shufflevector <2 x i64> %i, <2 x i64> <i64 0, i64 undef>, <2 x i32> <i32 0, i32 2>
+  ret <2 x i64> %1
+}
+
+define <4 x i32> @PR19721(<4 x i32> %i) {
+  %bc = bitcast <4 x i32> %i to i128
+  %insert = and i128 %bc, -4294967296
+  %bc2 = bitcast i128 %insert to <4 x i32>
+  ret <4 x i32> %bc2
+
+; CHECK-LABEL: PR19721
+; CHECK: punpckldq
 }

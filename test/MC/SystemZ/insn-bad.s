@@ -386,6 +386,16 @@
 	cdb	%f0, -1
 	cdb	%f0, 4096
 
+#CHECK: error: {{(instruction requires: fp-extension)?}}
+#CHECK: cdlfbr	%f0, 0, %r0, 0
+
+	cdlfbr	%f0, 0, %r0, 0
+
+#CHECK: error: {{(instruction requires: fp-extension)?}}
+#CHECK: cdlgbr	%f0, 0, %r0, 0
+
+	cdlgbr	%f0, 0, %r0, 0
+
 #CHECK: error: invalid operand
 #CHECK: ceb	%f0, -1
 #CHECK: error: invalid operand
@@ -393,6 +403,16 @@
 
 	ceb	%f0, -1
 	ceb	%f0, 4096
+
+#CHECK: error: {{(instruction requires: fp-extension)?}}
+#CHECK: celfbr	%f0, 0, %r0, 0
+
+	celfbr	%f0, 0, %r0, 0
+
+#CHECK: error: {{(instruction requires: fp-extension)?}}
+#CHECK: celgbr	%f0, 0, %r0, 0
+
+	celgbr	%f0, 0, %r0, 0
 
 #CHECK: error: invalid operand
 #CHECK: cfdbr	%r0, -1, %f0
@@ -784,6 +804,16 @@
 
 	clhf	%r0, 0
 
+#CHECK: error: {{(instruction requires: fp-extension)?}}
+#CHECK: clfdbr	%r0, 0, %f0, 0
+
+	clfdbr	%r0, 0, %f0, 0
+
+#CHECK: error: {{(instruction requires: fp-extension)?}}
+#CHECK: clfebr	%r0, 0, %f0, 0
+
+	clfebr	%r0, 0, %f0, 0
+
 #CHECK: error: invalid operand
 #CHECK: clfhsi	-1, 0
 #CHECK: error: invalid operand
@@ -809,6 +839,11 @@
 	clfi	%r0, -1
 	clfi	%r0, (1 << 32)
 
+#CHECK: error: {{(instruction requires: fp-extension)?}}
+#CHECK: clfxbr	%r0, 0, %f0, 0
+
+	clfxbr	%r0, 0, %f0, 0
+
 #CHECK: error: invalid operand
 #CHECK: clg	%r0, -524289
 #CHECK: error: invalid operand
@@ -816,6 +851,16 @@
 
 	clg	%r0, -524289
 	clg	%r0, 524288
+
+#CHECK: error: {{(instruction requires: fp-extension)?}}
+#CHECK: clgdbr	%r0, 0, %f0, 0
+
+	clgdbr	%r0, 0, %f0, 0
+
+#CHECK: error: {{(instruction requires: fp-extension)?}}
+#CHECK: clgebr	%r0, 0, %f0, 0
+
+	clgebr	%r0, 0, %f0, 0
 
 #CHECK: error: invalid operand
 #CHECK: clgf	%r0, -524289
@@ -935,6 +980,11 @@
 	clgrl	%r0, -1
 	clgrl	%r0, 1
 	clgrl	%r0, 0x100000000
+
+#CHECK: error: {{(instruction requires: fp-extension)?}}
+#CHECK: clgxbr	%r0, 0, %f0, 0
+
+	clgxbr	%r0, 0, %f0, 0
 
 #CHECK: error: invalid operand
 #CHECK: clhhsi	-1, 0
@@ -1167,6 +1217,16 @@
 
 	cxgbr	%f2, %r0
 
+#CHECK: error: {{(instruction requires: fp-extension)?}}
+#CHECK: cxlfbr	%f0, 0, %r0, 0
+
+	cxlfbr	%f0, 0, %r0, 0
+
+#CHECK: error: {{(instruction requires: fp-extension)?}}
+#CHECK: cxlgbr	%f0, 0, %r0, 0
+
+	cxlgbr	%f0, 0, %r0, 0
+
 #CHECK: error: invalid operand
 #CHECK: cy	%r0, -524289
 #CHECK: error: invalid operand
@@ -1393,6 +1453,46 @@
 	la	%r0, -1
 	la	%r0, 4096
 
+#CHECK: error: {{(instruction requires: interlocked-access1)?}}
+#CHECK: laa	%r1, %r2, 100(%r3)
+	laa	%r1, %r2, 100(%r3)
+
+#CHECK: error: {{(instruction requires: interlocked-access1)?}}
+#CHECK: laag	%r1, %r2, 100(%r3)
+	laag	%r1, %r2, 100(%r3)
+
+#CHECK: error: {{(instruction requires: interlocked-access1)?}}
+#CHECK: laal	%r1, %r2, 100(%r3)
+	laal	%r1, %r2, 100(%r3)
+
+#CHECK: error: {{(instruction requires: interlocked-access1)?}}
+#CHECK: laalg	%r1, %r2, 100(%r3)
+	laalg	%r1, %r2, 100(%r3)
+
+#CHECK: error: {{(instruction requires: interlocked-access1)?}}
+#CHECK: lan	%r1, %r2, 100(%r3)
+	lan	%r1, %r2, 100(%r3)
+
+#CHECK: error: {{(instruction requires: interlocked-access1)?}}
+#CHECK: lang	%r1, %r2, 100(%r3)
+	lang	%r1, %r2, 100(%r3)
+
+#CHECK: error: {{(instruction requires: interlocked-access1)?}}
+#CHECK: lao	%r1, %r2, 100(%r3)
+	lao	%r1, %r2, 100(%r3)
+
+#CHECK: error: {{(instruction requires: interlocked-access1)?}}
+#CHECK: laog	%r1, %r2, 100(%r3)
+	laog	%r1, %r2, 100(%r3)
+
+#CHECK: error: {{(instruction requires: interlocked-access1)?}}
+#CHECK: lax	%r1, %r2, 100(%r3)
+	lax	%r1, %r2, 100(%r3)
+
+#CHECK: error: {{(instruction requires: interlocked-access1)?}}
+#CHECK: laxg	%r1, %r2, 100(%r3)
+	laxg	%r1, %r2, 100(%r3)
+
 #CHECK: error: offset out of range
 #CHECK: larl	%r0, -0x1000000002
 #CHECK: error: offset out of range
@@ -1460,6 +1560,11 @@
 	ldxbr	%f0, %f2
 	ldxbr	%f2, %f0
 
+#CHECK: error: {{(instruction requires: fp-extension)?}}
+#CHECK: ldxbra	%f0, 0, %f0, 0
+
+	ldxbra	%f0, 0, %f0, 0
+
 #CHECK: error: invalid operand
 #CHECK: ldy	%f0, -524289
 #CHECK: error: invalid operand
@@ -1476,6 +1581,11 @@
 	le	%f0, -1
 	le	%f0, 4096
 
+#CHECK: error: {{(instruction requires: fp-extension)?}}
+#CHECK: ledbra	%f0, 0, %f0, 0
+
+	ledbra	%f0, 0, %f0, 0
+
 #CHECK: error: invalid register pair
 #CHECK: lexbr	%f0, %f2
 #CHECK: error: invalid register pair
@@ -1483,6 +1593,11 @@
 
 	lexbr	%f0, %f2
 	lexbr	%f2, %f0
+
+#CHECK: error: {{(instruction requires: fp-extension)?}}
+#CHECK: lexbra	%f0, 0, %f0, 0
+
+	lexbra	%f0, 0, %f0, 0
 
 #CHECK: error: invalid operand
 #CHECK: ley	%f0, -524289

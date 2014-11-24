@@ -1,6 +1,11 @@
 ; Test that the pow library call simplifier works correctly.
 ;
 ; RUN: opt < %s -instcombine -S | FileCheck %s
+; RUN: opt -instcombine -S < %s -mtriple=x86_64-apple-macosx10.9 | FileCheck %s --check-prefix=CHECK-EXP10
+; RUN: opt -instcombine -S < %s -mtriple=arm-apple-ios7.0 | FileCheck %s --check-prefix=CHECK-EXP10
+; RUN: opt -instcombine -S < %s -mtriple=x86_64-apple-macosx10.8 | FileCheck %s --check-prefix=CHECK-NO-EXP10
+; RUN: opt -instcombine -S < %s -mtriple=arm-apple-ios6.0 | FileCheck %s --check-prefix=CHECK-NO-EXP10
+; RUN: opt -instcombine -S < %s -mtriple=x86_64-netbsd | FileCheck %s --check-prefix=CHECK-NO-EXP10
 ; rdar://7251832
 
 ; NOTE: The readonly attribute on the pow call should be preserved
@@ -155,12 +160,32 @@ declare double @llvm.pow.f64(double %Val, double %Power)
 define double @test_simplify17(double %x) {
 ; CHECK-LABEL: @test_simplify17(
   %retval = call double @llvm.pow.f64(double %x, double 0.5)
-; CHECK-NEXT: [[SQRT:%[a-z0-9]+]] = call double @sqrt(double %x) [[NUW_RO]]
-; CHECK-NEXT: [[FABS:%[a-z0-9]+]] = call double @fabs(double [[SQRT]]) [[NUW_RO]]
+; CHECK-NEXT: [[SQRT:%[a-z0-9]+]] = call double @sqrt(double %x)
+; CHECK-NEXT: [[FABS:%[a-z0-9]+]] = call double @fabs(double [[SQRT]])
 ; CHECK-NEXT: [[FCMP:%[a-z0-9]+]] = fcmp oeq double %x, 0xFFF0000000000000
 ; CHECK-NEXT: [[SELECT:%[a-z0-9]+]] = select i1 [[FCMP]], double 0x7FF0000000000000, double [[FABS]]
   ret double %retval
 ; CHECK-NEXT: ret double [[SELECT]]
+}
+
+; Check pow(10.0, x) -> __exp10(x) on OS X 10.9+ and iOS 7.0+.
+
+define float @test_simplify18(float %x) {
+; CHECK-LABEL: @test_simplify18(
+  %retval = call float @powf(float 10.0, float %x)
+; CHECK-EXP10: [[EXP10F:%[_a-z0-9]+]] = call float @__exp10f(float %x) [[NUW_RO:#[0-9]+]]
+  ret float %retval
+; CHECK-EXP10: ret float [[EXP10F]]
+; CHECK-NO-EXP10: call float @powf
+}
+
+define double @test_simplify19(double %x) {
+; CHECK-LABEL: @test_simplify19(
+  %retval = call double @pow(double 10.0, double %x)
+; CHECK-EXP10: [[EXP10:%[_a-z0-9]+]] = call double @__exp10(double %x) [[NUW_RO]]
+  ret double %retval
+; CHECK-EXP10: ret double [[EXP10]]
+; CHECK-NO-EXP10: call double @pow
 }
 
 ; CHECK: attributes [[NUW_RO]] = { nounwind readonly }

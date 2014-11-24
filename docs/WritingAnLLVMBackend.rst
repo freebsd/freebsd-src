@@ -51,7 +51,7 @@ These essential documents must be read before reading this document:
   Formation, SSA-based Optimization, Register Allocation, Prolog/Epilog Code
   Insertion, Late Machine Code Optimizations, and Code Emission.
 
-* :doc:`TableGenFundamentals` --- a document that describes the TableGen
+* :doc:`TableGen/index` --- a document that describes the TableGen
   (``tblgen``) application that manages domain-specific information to support
   LLVM code generation.  TableGen processes input from a target description
   file (``.td`` suffix) and generates C++ code that can be used for code
@@ -237,6 +237,12 @@ For some targets, you also need to support the following methods:
 
 * ``getTargetLowering()``
 * ``getJITInfo()``
+
+Some architectures, such as GPUs, do not support jumping to an arbitrary
+program location and implement branching using masked execution and loop using
+special instructions around the loop body. In order to avoid CFG modifications
+that introduce irreducible control flow not handled by such hardware, a target
+must call `setRequiresStructuredCFG(true)` when being initialized.
 
 In addition, the ``XXXTargetMachine`` constructor should specify a
 ``TargetDescription`` string that determines the data layout for the target

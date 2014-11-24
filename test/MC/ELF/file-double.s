@@ -11,24 +11,24 @@ foo.c:
 bar.c:
 
 // CHECK:        Symbol {
-// CHECK:          Name: foo.c (1)
+// CHECK:          Name: foo.c
 // CHECK-NEXT:     Value: 0x0
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Local
 // CHECK-NEXT:     Type: File
 // CHECK-NEXT:     Other: 0
-// CHECK-NEXT:     Section: (0xFFF1)
+// CHECK-NEXT:     Section: Absolute (0xFFF1)
 // CHECK-NEXT:   }
-// CHECK:          Name: bar.c (7)
+// CHECK:          Name: bar.c
 // CHECK-NEXT:     Value: 0x0
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Local
 // CHECK-NEXT:     Type: File
 // CHECK-NEXT:     Other: 0
-// CHECK-NEXT:     Section: (0xFFF1)
+// CHECK-NEXT:     Section: Absolute (0xFFF1)
 // CHECK-NEXT:   }
 // CHECK:        Symbol {
-// CHECK:        Name: bar.c (7)
+// CHECK:        Name: bar.c
 // CHECK-NEXT:     Value: 0x0
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Global
@@ -37,7 +37,7 @@ bar.c:
 // CHECK-NEXT:     Section: .text (0x1)
 // CHECK-NEXT:   }
 // CHECK:        Symbol {
-// CHECK:        Name: foo.c (1)
+// CHECK:        Name: foo.c
 // CHECK-NEXT:     Value: 0x0
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Global

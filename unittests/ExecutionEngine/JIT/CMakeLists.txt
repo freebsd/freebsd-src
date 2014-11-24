@@ -1,8 +1,12 @@
 set(LLVM_LINK_COMPONENTS
-  asmparser
-  bitreader
-  bitwriter
-  jit
+  AsmParser
+  BitReader
+  BitWriter
+  Core
+  ExecutionEngine
+  JIT
+  MC
+  Support
   nativecodegen
   )
 
@@ -47,6 +51,9 @@ set(JITTestsSources
 if(MSVC)
   list(APPEND JITTestsSources JITTests.def)
 endif()
+
+# The JIT tests need to dlopen things.
+set(LLVM_NO_DEAD_STRIP 1)
 
 add_llvm_unittest(JITTests
   ${JITTestsSources}

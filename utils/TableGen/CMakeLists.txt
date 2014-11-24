@@ -26,9 +26,7 @@ add_tablegen(llvm-tblgen LLVM
   OptParserEmitter.cpp
   PseudoLoweringEmitter.cpp
   RegisterInfoEmitter.cpp
-  SetTheory.cpp
   SubtargetEmitter.cpp
-  TGValueTypes.cpp
   TableGen.cpp
   X86DisassemblerTables.cpp
   X86ModRMFilters.cpp

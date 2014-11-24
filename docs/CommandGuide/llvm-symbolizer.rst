@@ -10,7 +10,9 @@ DESCRIPTION
 -----------
 
 :program:`llvm-symbolizer` reads object file names and addresses from standard
-input and prints corresponding source code locations to standard output. This
+input and prints corresponding source code locations to standard output.
+If object file is specified in command line, :program:`llvm-symbolizer` reads
+only addresses from standard input. This
 program uses debug info sections and symbol table in the object files.
 
 EXAMPLE
@@ -45,13 +47,28 @@ EXAMPLE
 
   _main
   /tmp/source_x86_64.cc:8
+  $ cat addr2.txt
+  0x4004f4
+  0x401000
+  $ llvm-symbolizer -obj=a.out < addr2.txt
+  main
+  /tmp/a.cc:4
+
+  foo(int)
+  /tmp/a.cc:12
 
 OPTIONS
 -------
 
-.. option:: -functions
+.. option:: -obj
 
-  Print function names as well as source file/line locations. Defaults to true.
+  Path to object file to be symbolized.
+
+.. option:: -functions=[none|short|linkage]
+
+  Specify the way function names are printed (omit function name,
+  print short function name, or print full linkage name, respectively).
+  Defaults to ``linkage``.
 
 .. option:: -use-symbol-table
 

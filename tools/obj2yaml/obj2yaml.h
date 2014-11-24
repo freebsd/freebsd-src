@@ -13,10 +13,13 @@
 #ifndef LLVM_TOOLS_OBJ2YAML_H
 #define LLVM_TOOLS_OBJ2YAML_H
 
-#include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Object/COFF.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/system_error.h"
+#include <system_error>
 
-llvm::error_code coff2yaml(llvm::raw_ostream &Out, llvm::MemoryBuffer *TheObj);
+std::error_code coff2yaml(llvm::raw_ostream &Out,
+                          const llvm::object::COFFObjectFile &Obj);
+std::error_code elf2yaml(llvm::raw_ostream &Out,
+                         const llvm::object::ObjectFile &Obj);
 
 #endif

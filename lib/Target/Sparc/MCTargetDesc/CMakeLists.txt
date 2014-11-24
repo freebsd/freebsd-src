@@ -1,6 +1,9 @@
 add_llvm_library(LLVMSparcDesc
-  SparcMCTargetDesc.cpp
+  SparcAsmBackend.cpp
+  SparcELFObjectWriter.cpp
   SparcMCAsmInfo.cpp
+  SparcMCCodeEmitter.cpp
+  SparcMCTargetDesc.cpp
+  SparcMCExpr.cpp
+  SparcTargetStreamer.cpp
   )
-
-add_dependencies(LLVMSparcDesc SparcCommonTableGen)

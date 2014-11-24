@@ -19,8 +19,6 @@
 #include "llvm/Analysis/CallGraphSCCPass.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
-#include "llvm/Analysis/Verifier.h"
-#include "llvm/Assembly/PrintModulePass.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/CallingConv.h"
 #include "llvm/IR/Constants.h"
@@ -28,10 +26,12 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/IRPrintingPasses.h"
 #include "llvm/IR/InlineAsm.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
@@ -99,7 +99,7 @@ namespace llvm {
         initializeModuleNDMPass(*PassRegistry::getPassRegistry());
       }
       virtual bool runOnModule(Module &M) {
-        EXPECT_TRUE(getAnalysisIfAvailable<DataLayout>());
+        EXPECT_TRUE(getAnalysisIfAvailable<DataLayoutPass>());
         run++;
         return false;
       }
@@ -176,7 +176,7 @@ namespace llvm {
         initializeCGPassPass(*PassRegistry::getPassRegistry());
       }
       virtual bool runOnSCC(CallGraphSCC &SCMM) {
-        EXPECT_TRUE(getAnalysisIfAvailable<DataLayout>());
+        EXPECT_TRUE(getAnalysisIfAvailable<DataLayoutPass>());
         run();
         return false;
       }
@@ -215,7 +215,7 @@ namespace llvm {
         return false;
       }
       virtual bool runOnLoop(Loop *L, LPPassManager &LPM) {
-        EXPECT_TRUE(getAnalysisIfAvailable<DataLayout>());
+        EXPECT_TRUE(getAnalysisIfAvailable<DataLayoutPass>());
         run();
         return false;
       }
@@ -252,7 +252,7 @@ namespace llvm {
         return false;
       }
       virtual bool runOnBasicBlock(BasicBlock &BB) {
-        EXPECT_TRUE(getAnalysisIfAvailable<DataLayout>());
+        EXPECT_TRUE(getAnalysisIfAvailable<DataLayoutPass>());
         run();
         return false;
       }
@@ -277,7 +277,7 @@ namespace llvm {
         initializeFPassPass(*PassRegistry::getPassRegistry());
       }
       virtual bool runOnModule(Module &M) {
-        EXPECT_TRUE(getAnalysisIfAvailable<DataLayout>());
+        EXPECT_TRUE(getAnalysisIfAvailable<DataLayoutPass>());
         for (Module::iterator I=M.begin(),E=M.end(); I != E; ++I) {
           Function &F = *I;
           {
@@ -303,7 +303,7 @@ namespace llvm {
       mNDM->run = mNDNM->run = mDNM->run = mNDM2->run = 0;
 
       PassManager Passes;
-      Passes.add(new DataLayout(&M));
+      Passes.add(new DataLayoutPass(&M));
       Passes.add(mNDM2);
       Passes.add(mNDM);
       Passes.add(mNDNM);
@@ -327,7 +327,7 @@ namespace llvm {
       mNDM->run = mNDNM->run = mDNM->run = mNDM2->run = 0;
 
       PassManager Passes;
-      Passes.add(new DataLayout(&M));
+      Passes.add(new DataLayoutPass(&M));
       Passes.add(mNDM);
       Passes.add(mNDNM);
       Passes.add(mNDM2);// invalidates mNDM needed by mDNM
@@ -346,10 +346,10 @@ namespace llvm {
 
     template<typename T>
     void MemoryTestHelper(int run) {
-      OwningPtr<Module> M(makeLLVMModule());
+      std::unique_ptr<Module> M(makeLLVMModule());
       T *P = new T();
       PassManager Passes;
-      Passes.add(new DataLayout(M.get()));
+      Passes.add(new DataLayoutPass(M.get()));
       Passes.add(P);
       Passes.run(*M);
       T::finishedOK(run);
@@ -360,7 +360,7 @@ namespace llvm {
       Module *M = makeLLVMModule();
       T *P = new T();
       PassManager Passes;
-      Passes.add(new DataLayout(M));
+      Passes.add(new DataLayoutPass(M));
       Passes.add(P);
       Passes.run(*M);
       T::finishedOK(run, N);
@@ -398,7 +398,7 @@ namespace llvm {
         SCOPED_TRACE("Running OnTheFlyTest");
         struct OnTheFlyTest *O = new OnTheFlyTest();
         PassManager Passes;
-        Passes.add(new DataLayout(M));
+        Passes.add(new DataLayoutPass(M));
         Passes.add(O);
         Passes.run(*M);
 
@@ -412,7 +412,7 @@ namespace llvm {
       Module* mod = new Module("test-mem", getGlobalContext());
       mod->setDataLayout("e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-"
                          "i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-"
-                         "a0:0:64-s0:64:64-f80:128:128");
+                         "a:0:64-s:64:64-f80:128:128");
       mod->setTargetTriple("x86_64-unknown-linux-gnu");
 
       // Type Definitions
@@ -476,7 +476,7 @@ namespace llvm {
       // Function: test1 (func_test1)
       {
 
-        BasicBlock* label_entry = BasicBlock::Create(getGlobalContext(), "entry",func_test1,0);
+        BasicBlock* label_entry = BasicBlock::Create(getGlobalContext(), "entry",func_test1,nullptr);
 
         // Block entry (label_entry)
         CallInst* int32_3 = CallInst::Create(func_test2, "", label_entry);
@@ -491,7 +491,7 @@ namespace llvm {
       // Function: test2 (func_test2)
       {
 
-        BasicBlock* label_entry_5 = BasicBlock::Create(getGlobalContext(), "entry",func_test2,0);
+        BasicBlock* label_entry_5 = BasicBlock::Create(getGlobalContext(), "entry",func_test2,nullptr);
 
         // Block entry (label_entry_5)
         CallInst* int32_6 = CallInst::Create(func_test3, "", label_entry_5);
@@ -506,7 +506,7 @@ namespace llvm {
       // Function: test3 (func_test3)
       {
 
-        BasicBlock* label_entry_8 = BasicBlock::Create(getGlobalContext(), "entry",func_test3,0);
+        BasicBlock* label_entry_8 = BasicBlock::Create(getGlobalContext(), "entry",func_test3,nullptr);
 
         // Block entry (label_entry_8)
         CallInst* int32_9 = CallInst::Create(func_test1, "", label_entry_8);
@@ -524,10 +524,10 @@ namespace llvm {
         Value* int1_f = args++;
         int1_f->setName("f");
 
-        BasicBlock* label_entry_11 = BasicBlock::Create(getGlobalContext(), "entry",func_test4,0);
-        BasicBlock* label_bb = BasicBlock::Create(getGlobalContext(), "bb",func_test4,0);
-        BasicBlock* label_bb1 = BasicBlock::Create(getGlobalContext(), "bb1",func_test4,0);
-        BasicBlock* label_return = BasicBlock::Create(getGlobalContext(), "return",func_test4,0);
+        BasicBlock* label_entry_11 = BasicBlock::Create(getGlobalContext(), "entry",func_test4,nullptr);
+        BasicBlock* label_bb = BasicBlock::Create(getGlobalContext(), "bb",func_test4,nullptr);
+        BasicBlock* label_bb1 = BasicBlock::Create(getGlobalContext(), "bb1",func_test4,nullptr);
+        BasicBlock* label_return = BasicBlock::Create(getGlobalContext(), "return",func_test4,nullptr);
 
         // Block entry (label_entry_11)
         BranchInst::Create(label_bb, label_entry_11);
@@ -550,7 +550,7 @@ namespace llvm {
 
 INITIALIZE_PASS(ModuleNDM, "mndm", "mndm", false, false)
 INITIALIZE_PASS_BEGIN(CGPass, "cgp","cgp", false, false)
-INITIALIZE_PASS_DEPENDENCY(CallGraph)
+INITIALIZE_PASS_DEPENDENCY(CallGraphWrapperPass)
 INITIALIZE_PASS_END(CGPass, "cgp","cgp", false, false)
 INITIALIZE_PASS(FPass, "fp","fp", false, false)
 INITIALIZE_PASS_BEGIN(LPass, "lp","lp", false, false)

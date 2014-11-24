@@ -61,10 +61,14 @@ inline static const char *NVPTXCondCodeToString(NVPTXCC::CondCodes CC) {
 
 FunctionPass *
 createNVPTXISelDag(NVPTXTargetMachine &TM, llvm::CodeGenOpt::Level OptLevel);
+ModulePass *createNVPTXAssignValidGlobalNamesPass();
 ModulePass *createGenericToNVVMPass();
+FunctionPass *createNVPTXFavorNonGenericAddrSpacesPass();
 ModulePass *createNVVMReflectPass();
 ModulePass *createNVVMReflectPass(const StringMap<int>& Mapping);
 MachineFunctionPass *createNVPTXPrologEpilogPass();
+MachineFunctionPass *createNVPTXReplaceImageHandlesPass();
+FunctionPass *createNVPTXImageOptimizerPass();
 
 bool isImageOrSamplerVal(const Value *, const Module *);
 

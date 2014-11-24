@@ -1,4 +1,4 @@
-; RUN: llc -mtriple=aarch64-none-linux-gnu -verify-machineinstrs < %s | FileCheck %s
+; RUN: llc -mtriple=aarch64-none-linux-gnu -aarch64-atomic-cfg-tidy=0 -verify-machineinstrs -o - %s | FileCheck %s
 
 ; LLVM should be able to cope with multiple uses of the same flag-setting
 ; instruction at different points of a routine. Either by rematerializing the
@@ -15,7 +15,7 @@ define i32 @test_multiflag(i32 %n, i32 %m, i32 %o) {
 ; CHECK: cmp [[LHS:w[0-9]+]], [[RHS:w[0-9]+]]
 
   %val = zext i1 %test to i32
-; CHECK: csinc {{[xw][0-9]+}}, {{xzr|wzr}}, {{xzr|wzr}}, eq
+; CHECK: cset {{[xw][0-9]+}}, ne
 
   store i32 %val, i32* @var
 

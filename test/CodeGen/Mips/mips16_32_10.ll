@@ -4,7 +4,7 @@ define void @foo() #0 {
 entry:
   ret void
 }
-; 16: 	.set	nomips16                  # @foo
+; 16: 	.set	nomips16
 ; 16: 	.ent	foo
 ; 16:	.set	noreorder
 ; 16:	.set	nomacro
@@ -21,11 +21,10 @@ entry:
   ret void
 }
 
-; 16: 	.set	mips16                  # @nofoo
+; 16: 	.set	mips16
 ; 16: 	.ent	nofoo
 
-; 16:	save	{{.+}}
-; 16:	restore	{{.+}} 
+; 16:	jrc $ra
 ; 16:	.end	nofoo
 
 define i32 @main() #2 {
@@ -33,7 +32,7 @@ entry:
   ret i32 0
 }
 
-; 16: 	.set	nomips16                  # @main
+; 16: 	.set	nomips16
 ; 16: 	.ent	main
 ; 16:	.set	noreorder
 ; 16:	.set	nomacro

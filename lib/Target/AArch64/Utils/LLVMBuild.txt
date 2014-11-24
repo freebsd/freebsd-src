@@ -1,4 +1,4 @@
-;===- ./lib/Target/AArch646/Utils/LLVMBuild.txt ----------------*- Conf -*--===;
+;===- ./lib/Target/AArch64/Utils/LLVMBuild.txt ----------------*- Conf -*--===;
 ;
 ;                     The LLVM Compiler Infrastructure
 ;
@@ -19,5 +19,5 @@
 type = Library
 name = AArch64Utils
 parent = AArch64
-required_libraries = Core Support
+required_libraries = Support
 add_to_library_groups = AArch64

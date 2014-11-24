@@ -22,12 +22,13 @@ Basic Commands
    llvm-link
    llvm-ar
    llvm-nm
-   llvm-prof
    llvm-config
    llvm-diff
    llvm-cov
+   llvm-profdata
    llvm-stress
    llvm-symbolizer
+   llvm-dwarfdump
 
 Debugging Tools
 ~~~~~~~~~~~~~~~

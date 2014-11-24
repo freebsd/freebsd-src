@@ -48,6 +48,9 @@ type llbuilder
     See the [llvm::MemoryBuffer] class. *)
 type llmemorybuffer
 
+(** The kind id of metadata attached to an instruction. *)
+type llmdkind
+
 (** The kind of an [lltype], the result of [classify_type ty]. See the
     [llvm::Type::TypeID] enumeration. *)
 module TypeKind : sig
@@ -154,38 +157,40 @@ end
     See the [llvm::ICmpInst::Predicate] enumeration. *)
 module Icmp : sig
   type t =
-  | Eq
-  | Ne
-  | Ugt
-  | Uge
-  | Ult
-  | Ule
-  | Sgt
-  | Sge
-  | Slt
-  | Sle
+  | Eq  (* Equal *)
+  | Ne  (* Not equal *)
+  | Ugt (* Unsigned greater than *)
+  | Uge (* Unsigned greater or equal *)
+  | Ult (* Unsigned less than *)
+  | Ule (* Unsigned less or equal *)
+  | Sgt (* Signed greater than *)
+  | Sge (* Signed greater or equal *)
+  | Slt (* Signed less than *)
+  | Sle (* Signed less or equal *)
 end
 
 (** The predicate for a floating-point comparison ([fcmp]) instruction.
+    Ordered means that neither operand is a QNAN while unordered means
+    that either operand may be a QNAN.
     See the [llvm::FCmpInst::Predicate] enumeration. *)
 module Fcmp : sig
   type t =
-  | False
-  | Oeq
-  | Ogt
-  | Oge
-  | Olt
-  | Ole
-  | One
-  | Ord
-  | Uno
-  | Ueq
-  | Ugt
-  | Uge
-  | Ult
-  | Ule
-  | Une
-  | True
+  | False (* Always false *)
+  | Oeq   (* Ordered and equal *)
+  | Ogt   (* Ordered and greater than *)
+  | Oge   (* Ordered and greater or equal *)
+  | Olt   (* Ordered and less than *)
+  | Ole   (* Ordered and less or equal *)
+  | One   (* Ordered and not equal *)
+  | Ord   (* Ordered (no operand is NaN) *)
+  | Uno   (* Unordered (one operand at least is NaN) *)
+  | Ueq   (* Unordered and equal *)
+  | Ugt   (* Unordered and greater than *)
+  | Uge   (* Unordered and greater or equal *)
+  | Ult   (* Unordered and less than *)
+  | Ule   (* Unordered and less or equal *)
+  | Une   (* Unordered and not equal *)
+  | True  (* Always true *)
 end
 
 (** The opcodes for LLVM instructions and constant expressions. *)
@@ -392,7 +397,7 @@ val global_context : unit -> llcontext
 (** [mdkind_id context name] returns the MDKind ID that corresponds to the
     name [name] in the context [context].  See the function
     [llvm::LLVMContext::getMDKindID]. *)
-val mdkind_id : llcontext -> string -> int
+val mdkind_id : llcontext -> string -> llmdkind
 
 
 (** {6 Modules} *)
@@ -770,15 +775,15 @@ val has_metadata : llvalue -> bool
 (** [metadata i kind] optionally returns the metadata associated with the
     kind [kind] in the instruction [i] See the function
     [llvm::Instruction::getMetadata]. *)
-val metadata : llvalue -> int -> llvalue option
+val metadata : llvalue -> llmdkind -> llvalue option
 
 (** [set_metadata i kind md] sets the metadata [md] of kind [kind] in the
     instruction [i]. See the function [llvm::Instruction::setMetadata]. *)
-val set_metadata : llvalue -> int -> llvalue -> unit
+val set_metadata : llvalue -> llmdkind -> llvalue -> unit
 
 (** [clear_metadata i kind] clears the metadata of kind [kind] in the
     instruction [i]. See the function [llvm::Instruction::setMetadata]. *)
-val clear_metadata : llvalue -> int -> unit
+val clear_metadata : llvalue -> llmdkind -> unit
 
 
 (** {7 Operations on metadata} *)
@@ -1048,12 +1053,12 @@ val const_lshr : llvalue -> llvalue -> llvalue
     See the method [llvm::ConstantExpr::getAShr]. *)
 val const_ashr : llvalue -> llvalue -> llvalue
 
-(** [const_gep pc indices] returns the constant [getElementPtr] of [p1] with the
+(** [const_gep pc indices] returns the constant [getElementPtr] of [pc] with the
     constant integers indices from the array [indices].
     See the method [llvm::ConstantExpr::getGetElementPtr]. *)
 val const_gep : llvalue -> llvalue array -> llvalue
 
-(** [const_in_bounds_gep pc indices] returns the constant [getElementPtr] of [p1]
+(** [const_in_bounds_gep pc indices] returns the constant [getElementPtr] of [pc]
     with the constant integers indices from the array [indices].
     See the method [llvm::ConstantExpr::getInBoundsGetElementPtr]. *)
 val const_in_bounds_gep : llvalue -> llvalue array -> llvalue
@@ -2357,7 +2362,7 @@ val build_insertelement : llvalue -> llvalue -> llvalue -> string ->
 val build_shufflevector : llvalue -> llvalue -> llvalue -> string ->
                                llbuilder -> llvalue
 
-(** [build_insertvalue agg idx name b] creates a
+(** [build_extractvalue agg idx name b] creates a
     [%name = extractvalue %agg, %idx]
     instruction at the position specified by the instruction builder [b].
     See the method [llvm::LLVMBuilder::CreateExtractValue]. *)

@@ -9,8 +9,8 @@
 
 LEVEL := ../..
 
-LIBRARYNAME = LLVM-$(LLVMVersion)
-LIBRARYALIASNAME = LLVM-$(LLVM_VERSION_MAJOR).$(LLVM_VERSION_MINOR)$(LLVM_VERSION_SUFFIX)
+LIBRARYNAME = LLVM-$(LLVM_VERSION_MAJOR).$(LLVM_VERSION_MINOR)$(LLVM_VERSION_SUFFIX)
+LIBRARYALIASNAME = LLVM-$(LLVMVersion)
 
 NO_BUILD_ARCHIVE := 1
 LINK_LIBS_IN_SHARED := 1
@@ -51,17 +51,6 @@ ifeq ($(HOST_OS),Darwin)
     endif
     # Include everything from the .a's into the shared library.
     LLVMLibsOptions    := $(LLVMLibsOptions) -all_load
-    # extra options to override libtool defaults 
-    LLVMLibsOptions    := $(LLVMLibsOptions)  \
-                         -Wl,-dead_strip
-
-    # Mac OS X 10.4 and earlier tools do not allow a second -install_name on command line
-    DARWIN_VERS := $(shell echo $(TARGET_TRIPLE) | sed 's/.*darwin\([0-9]*\).*/\1/')
-    ifneq ($(DARWIN_VERS),8)
-       LLVMLibsOptions    := $(LLVMLibsOptions)  \
-                            -Wl,-install_name \
-                            -Wl,"@rpath/lib$(LIBRARYNAME)$(SHLIBEXT)"
-    endif
 endif
 
 ifeq ($(HOST_OS), $(filter $(HOST_OS), DragonFly Linux FreeBSD GNU/kFreeBSD OpenBSD GNU Bitrig))

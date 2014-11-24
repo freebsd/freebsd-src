@@ -29,6 +29,10 @@ N: Evan Cheng
 E: evan.cheng@apple.com
 D: ARM target, parts of code generator not covered by someone else
 
+N: Renato Golin
+E: renato.golin@linaro.org
+D: ARM Linux support
+
 N: Eric Christopher
 E: echristo@gmail.com
 D: Debug Information, autotools/configure/make build, inline assembly
@@ -45,7 +49,7 @@ D: Hexagon Backend
 
 N: Hal Finkel
 E: hfinkel@anl.gov
-D: BBVectorize and the PowerPC target
+D: BBVectorize, the loop reroller and the PowerPC target
 
 N: Venkatraman Govindaraju
 E: venkatra@cs.wisc.edu
@@ -58,15 +62,16 @@ N: James Grosbach
 E: grosbach@apple.com
 D: MC layer
 
-N: Howard Hinnant
+N: Marshall Clow
+E: mclow.lists@gmail.com
 D: libc++
 
 N: Justin Holewinski
 E: jholewinski@nvidia.com
 D: NVPTX Target (lib/Target/NVPTX/*)
 
-N: Andy Kaylor
-E: andrew.kaylor@intel.com
+N: Lang Hames
+E: lhames@gmail.com
 D: MCJIT, RuntimeDyld and JIT event listeners
 
 N: Galina Kistanova
@@ -91,7 +96,7 @@ W: http://nondot.org/~sabre/
 D: Everything not covered by someone else
 
 N: Tim Northover
-E: Tim.Northover@arm.com
+E: t.p.northover@gmail.com
 D: AArch64 backend
 
 N: Jakob Olesen

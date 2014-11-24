@@ -15,7 +15,7 @@ entry:
   %call = call i32 (i8*, ...)* @printf(i8* getelementptr inbounds ([13 x i8]* @.str, i32 0, i32 0))
   ret i32 0
 
-; SR: 	.set	mips16                  # @main
+; SR: 	.set	mips16
 
 ; SR32: .set nomips16
 ; SR32: .ent main
@@ -25,10 +25,9 @@ entry:
 ; SR32:  .set noreorder
 ; SR32:  .set nomacro
 ; SR32:  .set noat
-; SR:	save 	$ra, $s0, $s1, $s2, [[FS:[0-9]+]]
+; SR:	save 	$ra, 24 # 16 bit inst
 ; PE:    .ent main
-; PE:    .align  2
-; PE-NEXT:	li	$[[T1:[0-9]+]], %hi(_gp_disp)
+; PE:	li	$[[T1:[0-9]+]], %hi(_gp_disp)
 ; PE-NEXT: 	addiu	$[[T2:[0-9]+]], $pc, %lo(_gp_disp)
 ; PE:	        sll	$[[T3:[0-9]+]], $[[T1]], 16
 ; C1:	lw	${{[0-9]+}}, %got($.str)(${{[0-9]+}})
@@ -37,7 +36,7 @@ entry:
 ; C2:	move	$25, ${{[0-9]+}}
 ; C1:	move 	$gp, ${{[0-9]+}}
 ; C1:	jalrc 	${{[0-9]+}}
-; SR:	restore 	$ra, $s0, $s1, $s2, [[FS]]
+; SR:	restore $ra,	24 # 16 bit inst
 ; PE:	li	$2, 0
 ; PE:	jrc 	$ra
 

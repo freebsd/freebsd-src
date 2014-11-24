@@ -14,9 +14,9 @@
 
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constant.h"
+#include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Type.h"
-#include "llvm/InstVisitor.h"
 #include "llvm/Pass.h"
 
 using namespace llvm;
@@ -29,11 +29,11 @@ namespace {
     static char ID; // Pass ID, replacement for typeid
     CrashOnCalls() : BasicBlockPass(ID) {}
   private:
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();
     }
 
-    bool runOnBasicBlock(BasicBlock &BB) {
+    bool runOnBasicBlock(BasicBlock &BB) override {
       for (BasicBlock::iterator I = BB.begin(), E = BB.end(); I != E; ++I)
         if (isa<CallInst>(*I))
           abort();
@@ -56,7 +56,7 @@ namespace {
     static char ID; // Pass ID, replacement for typeid
     DeleteCalls() : BasicBlockPass(ID) {}
   private:
-    bool runOnBasicBlock(BasicBlock &BB) {
+    bool runOnBasicBlock(BasicBlock &BB) override {
       for (BasicBlock::iterator I = BB.begin(), E = BB.end(); I != E; ++I)
         if (CallInst *CI = dyn_cast<CallInst>(I)) {
           if (!CI->use_empty())

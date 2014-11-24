@@ -3,13 +3,19 @@
 target datalayout = "e-p:32:32:32-i1:8:32-i8:8:32-i16:16:32-i32:32:32-i64:32:32-f32:32:32-f64:32:32-v64:32:64-v128:32:128-a0:0:32-n32"
 target triple = "thumbv7-apple-macosx10.6.7"
 
-;CHECK: Ldebug_loc0:
-;CHECK-NEXT:        .long   Ltmp0
-;CHECK-NEXT:        .long   Ltmp1
+;CHECK-LABEL: Lfunc_begin0:
+;CHECK: Ltmp[[K:[0-9]+]]:
+;CHECK: Ltmp[[L:[0-9]+]]:
+;CHECK-LABEL: Ldebug_loc0:
+;CHECK-NEXT:        .long   Ltmp[[K]]
+;CHECK-NEXT:        .long   Ltmp[[L]]
 ;CHECK-NEXT: Lset[[N:[0-9]+]] = Ltmp{{[0-9]+}}-Ltmp[[M:[0-9]+]]        @ Loc expr size
 ;CHECK-NEXT:        .short  Lset[[N]]
 ;CHECK-NEXT: Ltmp[[M]]:
-;CHECK-NEXT:        .byte   144                     @ DW_OP_regx for S register
+;CHECK-NEXT:        .byte   144                     @ super-register
+;CHECK-NEXT:                                        @ DW_OP_regx
+;CHECK-NEXT:        .ascii
+;CHECK-NEXT:        .byte   {{[0-9]+}}              @ DW_OP_{{.*}}piece
 
 define void @_Z3foov() optsize ssp {
 entry:

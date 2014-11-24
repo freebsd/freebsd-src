@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "thumb2-it"
 #include "ARM.h"
 #include "ARMMachineFunctionInfo.h"
 #include "Thumb2InstrInfo.h"
@@ -18,6 +17,8 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineInstrBundle.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "thumb2-it"
 
 STATISTIC(NumITs,        "Number of IT blocks inserted");
 STATISTIC(NumMovedInsts, "Number of predicated instructions moved");
@@ -33,9 +34,9 @@ namespace {
     const TargetRegisterInfo *TRI;
     ARMFunctionInfo *AFI;
 
-    virtual bool runOnMachineFunction(MachineFunction &Fn);
+    bool runOnMachineFunction(MachineFunction &Fn) override;
 
-    virtual const char *getPassName() const {
+    const char *getPassName() const override {
       return "Thumb IT blocks insertion pass";
     }
 
@@ -242,7 +243,7 @@ bool Thumb2ITBlockPass::InsertITInstructions(MachineBasicBlock &MBB) {
 
     // Finalize the bundle.
     MachineBasicBlock::instr_iterator LI = LastITMI;
-    finalizeBundle(MBB, InsertPos.getInstrIterator(), llvm::next(LI));
+    finalizeBundle(MBB, InsertPos.getInstrIterator(), std::next(LI));
 
     Modified = true;
     ++NumITs;

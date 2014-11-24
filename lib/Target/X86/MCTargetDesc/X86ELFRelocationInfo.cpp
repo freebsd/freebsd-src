@@ -11,8 +11,8 @@
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
-#include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCRelocationInfo.h"
+#include "llvm/MC/MCSymbol.h"
 #include "llvm/Object/ELFObjectFile.h"
 #include "llvm/Support/ELF.h"
 
@@ -25,7 +25,7 @@ class X86_64ELFRelocationInfo : public MCRelocationInfo {
 public:
   X86_64ELFRelocationInfo(MCContext &Ctx) : MCRelocationInfo(Ctx) {}
 
-  const MCExpr *createExprForRelocation(RelocationRef Rel) {
+  const MCExpr *createExprForRelocation(RelocationRef Rel) override {
     uint64_t RelType; Rel.getType(RelType);
     symbol_iterator SymI = Rel.getSymbol();
 
@@ -39,7 +39,7 @@ public:
     if (Sym->isVariable() == false)
       Sym->setVariableValue(MCConstantExpr::Create(SymAddr, Ctx));
 
-    const MCExpr *Expr = 0;
+    const MCExpr *Expr = nullptr;
     // If hasAddend is true, then we need to add Addend (r_addend) to Expr.
     bool hasAddend = false;
 

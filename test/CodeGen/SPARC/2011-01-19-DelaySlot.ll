@@ -1,13 +1,14 @@
-;RUN: llc -march=sparc < %s | FileCheck %s
-;RUN: llc -march=sparc -O0 < %s | FileCheck %s -check-prefix=UNOPT
+;RUN: llc -march=sparc < %s -verify-machineinstrs | FileCheck %s
+;RUN: llc -march=sparc -O0 < %s -verify-machineinstrs | FileCheck %s -check-prefix=UNOPT
 
+target triple = "sparc-unknown-linux-gnu"
 
 define i32 @test(i32 %a) nounwind {
 entry:
 ; CHECK: test
 ; CHECK: call bar
 ; CHECK-NOT: nop
-; CHECK: jmp
+; CHECK: ret
 ; CHECK-NEXT: restore
   %0 = tail call i32 @bar(i32 %a) nounwind
   ret i32 %0
@@ -18,7 +19,7 @@ entry:
 ; CHECK:      test_jmpl
 ; CHECK:      call
 ; CHECK-NOT:  nop
-; CHECK:      jmp
+; CHECK:      ret
 ; CHECK-NEXT: restore
   %0 = tail call i32 %f(i32 %a, i32 %b) nounwind
   ret i32 %0
@@ -47,7 +48,7 @@ bb:                                               ; preds = %entry, %bb
 
 bb5:                                              ; preds = %bb, %entry
   %a_addr.1.lcssa = phi i32 [ %a, %entry ], [ %a_addr.0, %bb ]
-;CHECK:      jmp
+;CHECK:      retl
 ;CHECK-NOT: restore
   ret i32 %a_addr.1.lcssa
 }
@@ -59,7 +60,7 @@ entry:
 ;CHECK:      !NO_APP
 ;CHECK-NEXT: cmp
 ;CHECK-NEXT: bg
-;CHECK-NEXT: or
+;CHECK-NEXT: mov
   tail call void asm sideeffect "sethi 0, %g0", ""() nounwind
   %0 = icmp slt i32 %a, 0
   br i1 %0, label %bb, label %bb1
@@ -110,7 +111,7 @@ declare i32 @func(i32*)
 define i32 @restore_add(i32 %a, i32 %b) {
 entry:
 ;CHECK-LABEL:  restore_add:
-;CHECK:  jmp %i7+8
+;CHECK:  ret
 ;CHECK:  restore %o0, %i1, %o0
   %0 = tail call i32 @bar(i32 %a) nounwind
   %1 = add nsw i32 %0, %b
@@ -120,7 +121,7 @@ entry:
 define i32 @restore_add_imm(i32 %a) {
 entry:
 ;CHECK-LABEL:  restore_add_imm:
-;CHECK:  jmp %i7+8
+;CHECK:  ret
 ;CHECK:  restore %o0, 20, %o0
   %0 = tail call i32 @bar(i32 %a) nounwind
   %1 = add nsw i32 %0, 20
@@ -130,7 +131,7 @@ entry:
 define i32 @restore_or(i32 %a) {
 entry:
 ;CHECK-LABEL:  restore_or:
-;CHECK:  jmp %i7+8
+;CHECK:  ret
 ;CHECK:  restore %g0, %o0, %o0
   %0 = tail call i32 @bar(i32 %a) nounwind
   ret i32 %0
@@ -140,8 +141,9 @@ define i32 @restore_or_imm(i32 %a) {
 entry:
 ;CHECK-LABEL:  restore_or_imm:
 ;CHECK:  or %o0, 20, %i0
-;CHECK:  jmp %i7+8
-;CHECK:  restore %g0, %g0, %g0
+;CHECK:  ret
+;CHECK-NOT:  restore %g0, %g0, %g0
+;CHECK:  restore
   %0 = tail call i32 @bar(i32 %a) nounwind
   %1 = or i32 %0, 20
   ret i32 %1
@@ -174,7 +176,8 @@ define i32 @restore_sethi_large(i32 %a) {
 entry:
 ;CHECK-LABEL: restore_sethi_large:
 ;CHECK: sethi  4000, %i0
-;CHECK: restore %g0, %g0, %g0
+;CHECK-NOT: restore %g0, %g0, %g0
+;CHECK:     restore
   %0 = tail call i32 @bar(i32 %a) nounwind
   %1 = icmp ne i32 %0, 0
   %2 = select i1 %1, i32 4096000, i32 0

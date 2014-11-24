@@ -51,11 +51,22 @@ entry:
 ; R600-CHECK: -KC0[2].Z
 ; SI-CHECK-LABEL: @fneg_free
 ; XXX: We could use V_ADD_F32_e64 with the negate bit here instead.
-; SI-CHECK: V_SUB_F32_e64 v{{[0-9]}}, 0.000000e+00, s{{[0-9]}}, 0, 0, 0, 0
+; SI-CHECK: V_SUB_F32_e64 v{{[0-9]}}, 0.000000e+00, s{{[0-9]}}, 0, 0
 define void @fneg_free(float addrspace(1)* %out, i32 %in) {
 entry:
   %0 = bitcast i32 %in to float
   %1 = fsub float 0.0, %0
+  store float %1, float addrspace(1)* %out
+  ret void
+}
+
+; SI-CHECK-LABEL: @fneg_fold
+; SI-CHECK-NOT: V_XOR_B32
+; SI-CHECK: V_MUL_F32_e64 v{{[0-9]+}}, s{{[0-9]+}}, -v{{[0-9]+}}
+define void @fneg_fold(float addrspace(1)* %out, float %in) {
+entry:
+  %0 = fsub float -0.0, %in
+  %1 = fmul float %0, %in
   store float %1, float addrspace(1)* %out
   ret void
 }

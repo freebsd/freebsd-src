@@ -1,14 +1,16 @@
-; RUN: llc < %s -O1 -mtriple=i386-apple-darwin | FileCheck %s
+; RUN: llc < %s -O1 -mtriple=i386-apple-darwin -x86-asm-syntax=intel | FileCheck %s
 ;
 ; Interesting test case where %tmp1220 = xor i32 %tmp862, %tmp592 and
 ; %tmp1676 = xor i32 %tmp1634, %tmp1530 have zero demanded bits after
 ; DAGCombiner optimization pass.  These are changed to undef and in turn
 ; the successor shl(s) become shl undef, 1.  This pattern then matches
-; shl x, 1 -> add x, x.  add undef, undef doesn't guarentee the low
+; shl x, 1 -> add x, x.  add undef, undef doesn't guarantee the low
 ; order bit is zero and is incorrect.
 ;
 ; See rdar://9453156 and rdar://9487392.
 ;
+
+; Use intel syntax, or "shl" might hit "pushl".
 
 ; CHECK-NOT: shl
 define i32 @foo(i8* %a0, i32* %a2) nounwind {

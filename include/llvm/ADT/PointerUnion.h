@@ -15,8 +15,9 @@
 #ifndef LLVM_ADT_POINTERUNION_H
 #define LLVM_ADT_POINTERUNION_H
 
-#include "llvm/Support/Compiler.h"
+#include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/ADT/PointerIntPair.h"
+#include "llvm/Support/Compiler.h"
 
 namespace llvm {
 
@@ -152,6 +153,12 @@ namespace llvm {
       assert(get<PT1>() == Val.getPointer() &&
          "Can't get the address because PointerLikeTypeTraits changes the ptr");
       return (PT1 *)Val.getAddrOfPointer();
+    }
+
+    /// \brief Assignment from nullptr which just clears the union.
+    const PointerUnion &operator=(std::nullptr_t) {
+      Val.initWithPointer(nullptr);
+      return *this;
     }
     
     /// Assignment operators - Allow assigning into this union from either
@@ -297,6 +304,12 @@ namespace llvm {
       if (is<T>()) return get<T>();
       return T();
     }
+
+    /// \brief Assignment from nullptr which just clears the union.
+    const PointerUnion3 &operator=(std::nullptr_t) {
+      Val = nullptr;
+      return *this;
+    }
     
     /// Assignment operators - Allow assigning into this union from either
     /// pointer type, setting the discriminator to remember what it came from.
@@ -406,6 +419,12 @@ namespace llvm {
       if (is<T>()) return get<T>();
       return T();
     }
+
+    /// \brief Assignment from nullptr which just clears the union.
+    const PointerUnion4 &operator=(std::nullptr_t) {
+      Val = nullptr;
+      return *this;
+    }
     
     /// Assignment operators - Allow assigning into this union from either
     /// pointer type, setting the discriminator to remember what it came from.
@@ -454,6 +473,33 @@ namespace llvm {
         PointerLikeTypeTraits<typename PointerUnion4<PT1, PT2, PT3, PT4>::ValTy>
           ::NumLowBitsAvailable
     };
+  };
+
+  // Teach DenseMap how to use PointerUnions as keys.
+  template<typename T, typename U>
+  struct DenseMapInfo<PointerUnion<T, U> > {
+    typedef PointerUnion<T, U> Pair;
+    typedef DenseMapInfo<T> FirstInfo;
+    typedef DenseMapInfo<U> SecondInfo;
+
+    static inline Pair getEmptyKey() {
+      return Pair(FirstInfo::getEmptyKey());
+    }
+    static inline Pair getTombstoneKey() {
+      return Pair(FirstInfo::getTombstoneKey());
+    }
+    static unsigned getHashValue(const Pair &PairVal) {
+      intptr_t key = (intptr_t)PairVal.getOpaqueValue();
+      return DenseMapInfo<intptr_t>::getHashValue(key);
+    }
+    static bool isEqual(const Pair &LHS, const Pair &RHS) {
+      return LHS.template is<T>() == RHS.template is<T>() &&
+             (LHS.template is<T>() ?
+              FirstInfo::isEqual(LHS.template get<T>(),
+                                 RHS.template get<T>()) :
+              SecondInfo::isEqual(LHS.template get<U>(),
+                                  RHS.template get<U>()));
+    }
   };
 }
 

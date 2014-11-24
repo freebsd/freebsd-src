@@ -1,4 +1,4 @@
-; RUN: opt < %s -debug-only=loop-vectorize -O3 -S 2>&1 | FileCheck %s
+; RUN: opt < %s -disable-loop-unrolling -debug-only=loop-vectorize -O3 -S 2>&1 | FileCheck %s
 ; REQUIRES: asserts
 ; We want to make sure that we don't even try to vectorize loops again
 ; The vectorizer used to mark the un-vectorized loop only as already vectorized
@@ -40,7 +40,7 @@ for.end:                                          ; preds = %for.body
 
 ; Now, we check for the Hint metadata
 ; CHECK: [[vect]] = metadata !{metadata [[vect]], metadata [[width:![0-9]+]], metadata [[unroll:![0-9]+]]}
-; CHECK: [[width]] = metadata !{metadata !"llvm.vectorizer.width", i32 1}
-; CHECK: [[unroll]] = metadata !{metadata !"llvm.vectorizer.unroll", i32 1}
+; CHECK: [[width]] = metadata !{metadata !"llvm.loop.vectorize.width", i32 1}
+; CHECK: [[unroll]] = metadata !{metadata !"llvm.loop.interleave.count", i32 1}
 ; CHECK: [[scalar]] = metadata !{metadata [[scalar]], metadata [[width]], metadata [[unroll]]}
 

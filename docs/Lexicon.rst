@@ -50,7 +50,7 @@ C
     Common Subexpression Elimination. An optimization that removes common
     subexpression compuation. For example ``(a+b)*(a+b)`` has two subexpressions
     that are the same: ``(a+b)``. This optimization would perform the addition
-    only once and then perform the multiply (but only if it's compulationally
+    only once and then perform the multiply (but only if it's computationally
     correct/safe).
 
 D
@@ -159,7 +159,7 @@ R
     ``Constant::replaceUsesOfWithOnConstant()`` implement the replacement of one
     Value with another by iterating over its def/use chain and fixing up all of
     the pointers to point to the new value.  See
-    also `def/use chains <ProgrammersManual.html#iterate_chains>`_.
+    also `def/use chains <ProgrammersManual.html#iterating-over-def-use-use-def-chains>`_.
 
 **Reassociation**
     Rearranging associative expressions to promote better redundancy elimination

@@ -1,7 +1,8 @@
-set(LLVM_LINK_COMPONENTS object)
-
-add_llvm_utility(obj2yaml
-  obj2yaml.cpp coff2yaml.cpp
+set(LLVM_LINK_COMPONENTS
+  Object
+  Support
   )
 
-target_link_libraries(obj2yaml LLVMSupport)
+add_llvm_utility(obj2yaml
+  obj2yaml.cpp coff2yaml.cpp elf2yaml.cpp Error.cpp
+  )

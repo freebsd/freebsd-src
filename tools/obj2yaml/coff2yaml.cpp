@@ -31,7 +31,7 @@ public:
 
 }
 
-static void check(error_code ec) {
+static void check(std::error_code ec) {
   if (ec)
     report_fatal_error(ec.message());
 }
@@ -51,11 +51,8 @@ void COFFDumper::dumpHeader(const object::coff_file_header *Header) {
 
 void COFFDumper::dumpSections(unsigned NumSections) {
   std::vector<COFFYAML::Section> &Sections = YAMLObj.Sections;
-  error_code ec;
-  for (object::section_iterator iter = Obj.begin_sections();
-       iter != Obj.end_sections(); iter.increment(ec)) {
-    check(ec);
-    const object::coff_section *Sect = Obj.getCOFFSection(iter);
+  for (const auto &Section : Obj.sections()) {
+    const object::coff_section *Sect = Obj.getCOFFSection(Section);
     COFFYAML::Section Sec;
     Sec.Name = Sect->Name; // FIXME: check the null termination!
     uint32_t Characteristics = Sect->Characteristics;
@@ -64,14 +61,13 @@ void COFFDumper::dumpSections(unsigned NumSections) {
 
     ArrayRef<uint8_t> sectionData;
     Obj.getSectionContents(Sect, sectionData);
-    Sec.SectionData = object::yaml::BinaryRef(sectionData);
+    Sec.SectionData = yaml::BinaryRef(sectionData);
 
     std::vector<COFFYAML::Relocation> Relocations;
-    for (object::relocation_iterator rIter = iter->begin_relocations();
-                       rIter != iter->end_relocations(); rIter.increment(ec)) {
-      const object::coff_relocation *reloc = Obj.getCOFFRelocation(rIter);
+    for (const auto &Reloc : Section.relocations()) {
+      const object::coff_relocation *reloc = Obj.getCOFFRelocation(Reloc);
       COFFYAML::Relocation Rel;
-      object::symbol_iterator Sym = rIter->getSymbol();
+      object::symbol_iterator Sym = Reloc.getSymbol();
       Sym->getName(Rel.SymbolName);
       Rel.VirtualAddress = reloc->VirtualAddress;
       Rel.Type = reloc->Type;
@@ -82,13 +78,65 @@ void COFFDumper::dumpSections(unsigned NumSections) {
   }
 }
 
+static void
+dumpFunctionDefinition(COFFYAML::Symbol *Sym,
+                       const object::coff_aux_function_definition *ObjFD) {
+  COFF::AuxiliaryFunctionDefinition YAMLFD;
+  YAMLFD.TagIndex = ObjFD->TagIndex;
+  YAMLFD.TotalSize = ObjFD->TotalSize;
+  YAMLFD.PointerToLinenumber = ObjFD->PointerToLinenumber;
+  YAMLFD.PointerToNextFunction = ObjFD->PointerToNextFunction;
+
+  Sym->FunctionDefinition = YAMLFD;
+}
+
+static void
+dumpbfAndEfLineInfo(COFFYAML::Symbol *Sym,
+                    const object::coff_aux_bf_and_ef_symbol *ObjBES) {
+  COFF::AuxiliarybfAndefSymbol YAMLAAS;
+  YAMLAAS.Linenumber = ObjBES->Linenumber;
+  YAMLAAS.PointerToNextFunction = ObjBES->PointerToNextFunction;
+
+  Sym->bfAndefSymbol = YAMLAAS;
+}
+
+static void dumpWeakExternal(COFFYAML::Symbol *Sym,
+                             const object::coff_aux_weak_external *ObjWE) {
+  COFF::AuxiliaryWeakExternal YAMLWE;
+  YAMLWE.TagIndex = ObjWE->TagIndex;
+  YAMLWE.Characteristics = ObjWE->Characteristics;
+
+  Sym->WeakExternal = YAMLWE;
+}
+
+static void
+dumpSectionDefinition(COFFYAML::Symbol *Sym,
+                      const object::coff_aux_section_definition *ObjSD) {
+  COFF::AuxiliarySectionDefinition YAMLASD;
+  YAMLASD.Length = ObjSD->Length;
+  YAMLASD.NumberOfRelocations = ObjSD->NumberOfRelocations;
+  YAMLASD.NumberOfLinenumbers = ObjSD->NumberOfLinenumbers;
+  YAMLASD.CheckSum = ObjSD->CheckSum;
+  YAMLASD.Number = ObjSD->Number;
+  YAMLASD.Selection = ObjSD->Selection;
+
+  Sym->SectionDefinition = YAMLASD;
+}
+
+static void
+dumpCLRTokenDefinition(COFFYAML::Symbol *Sym,
+                       const object::coff_aux_clr_token *ObjCLRToken) {
+  COFF::AuxiliaryCLRToken YAMLCLRToken;
+  YAMLCLRToken.AuxType = ObjCLRToken->AuxType;
+  YAMLCLRToken.SymbolTableIndex = ObjCLRToken->SymbolTableIndex;
+
+  Sym->CLRToken = YAMLCLRToken;
+}
+
 void COFFDumper::dumpSymbols(unsigned NumSymbols) {
-  error_code ec;
   std::vector<COFFYAML::Symbol> &Symbols = YAMLObj.Symbols;
-  for (object::symbol_iterator iter = Obj.begin_symbols();
-       iter != Obj.end_symbols(); iter.increment(ec)) {
-    check(ec);
-    const object::coff_symbol *Symbol = Obj.getCOFFSymbol(iter);
+  for (const auto &S : Obj.symbols()) {
+    const object::coff_symbol *Symbol = Obj.getCOFFSymbol(S);
     COFFYAML::Symbol Sym;
     Obj.getSymbolName(Symbol, Sym.Name);
     Sym.SimpleType = COFF::SymbolBaseType(Symbol->getBaseType());
@@ -97,7 +145,63 @@ void COFFDumper::dumpSymbols(unsigned NumSymbols) {
     Sym.Header.Value = Symbol->Value;
     Sym.Header.SectionNumber = Symbol->SectionNumber;
     Sym.Header.NumberOfAuxSymbols = Symbol->NumberOfAuxSymbols;
-    Sym.AuxiliaryData = object::yaml::BinaryRef(Obj.getSymbolAuxData(Symbol));
+
+    if (Symbol->NumberOfAuxSymbols > 0) {
+      ArrayRef<uint8_t> AuxData = Obj.getSymbolAuxData(Symbol);
+      if (Symbol->isFunctionDefinition()) {
+        // This symbol represents a function definition.
+        assert(Symbol->NumberOfAuxSymbols == 1 &&
+               "Expected a single aux symbol to describe this function!");
+
+        const object::coff_aux_function_definition *ObjFD =
+            reinterpret_cast<const object::coff_aux_function_definition *>(
+                AuxData.data());
+        dumpFunctionDefinition(&Sym, ObjFD);
+      } else if (Symbol->isFunctionLineInfo()) {
+        // This symbol describes function line number information.
+        assert(Symbol->NumberOfAuxSymbols == 1 &&
+               "Exepected a single aux symbol to describe this section!");
+
+        const object::coff_aux_bf_and_ef_symbol *ObjBES =
+            reinterpret_cast<const object::coff_aux_bf_and_ef_symbol *>(
+                AuxData.data());
+        dumpbfAndEfLineInfo(&Sym, ObjBES);
+      } else if (Symbol->isWeakExternal()) {
+        // This symbol represents a weak external definition.
+        assert(Symbol->NumberOfAuxSymbols == 1 &&
+               "Exepected a single aux symbol to describe this section!");
+
+        const object::coff_aux_weak_external *ObjWE =
+            reinterpret_cast<const object::coff_aux_weak_external *>(
+                AuxData.data());
+        dumpWeakExternal(&Sym, ObjWE);
+      } else if (Symbol->isFileRecord()) {
+        // This symbol represents a file record.
+        Sym.File = StringRef(reinterpret_cast<const char *>(AuxData.data()),
+                             Symbol->NumberOfAuxSymbols * COFF::SymbolSize)
+                       .rtrim(StringRef("\0", /*length=*/1));
+      } else if (Symbol->isSectionDefinition()) {
+        // This symbol represents a section definition.
+        assert(Symbol->NumberOfAuxSymbols == 1 &&
+               "Expected a single aux symbol to describe this section!");
+
+        const object::coff_aux_section_definition *ObjSD =
+            reinterpret_cast<const object::coff_aux_section_definition *>(
+                AuxData.data());
+        dumpSectionDefinition(&Sym, ObjSD);
+      } else if (Symbol->isCLRToken()) {
+        // This symbol represents a CLR token definition.
+        assert(Symbol->NumberOfAuxSymbols == 1 &&
+               "Expected a single aux symbol to describe this CLR Token");
+
+        const object::coff_aux_clr_token *ObjCLRToken =
+            reinterpret_cast<const object::coff_aux_clr_token *>(
+                AuxData.data());
+        dumpCLRTokenDefinition(&Sym, ObjCLRToken);
+      } else {
+        llvm_unreachable("Unhandled auxiliary symbol!");
+      }
+    }
     Symbols.push_back(Sym);
   }
 }
@@ -106,10 +210,7 @@ COFFYAML::Object &COFFDumper::getYAMLObj() {
   return YAMLObj;
 }
 
-error_code coff2yaml(raw_ostream &Out, MemoryBuffer *Buff) {
-  error_code ec;
-  object::COFFObjectFile Obj(Buff, ec);
-  check(ec);
+std::error_code coff2yaml(raw_ostream &Out, const object::COFFObjectFile &Obj) {
   COFFDumper Dumper(Obj);
 
   yaml::Output Yout(Out);

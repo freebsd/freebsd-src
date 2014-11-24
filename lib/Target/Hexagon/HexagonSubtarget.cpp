@@ -18,6 +18,8 @@
 #include "llvm/Support/ErrorHandling.h"
 using namespace llvm;
 
+#define DEBUG_TYPE "hexagon-subtarget"
+
 #define GET_SUBTARGETINFO_CTOR
 #define GET_SUBTARGETINFO_TARGET_DESC
 #include "HexagonGenSubtargetInfo.inc"
@@ -46,10 +48,8 @@ EnableIEEERndNear(
     cl::Hidden, cl::ZeroOrMore, cl::init(false),
     cl::desc("Generate non-chopped conversion from fp to int."));
 
-HexagonSubtarget::HexagonSubtarget(StringRef TT, StringRef CPU, StringRef FS):
-  HexagonGenSubtargetInfo(TT, CPU, FS),
-  CPUString(CPU.str()) {
-
+HexagonSubtarget &
+HexagonSubtarget::initializeSubtargetDependencies(StringRef CPU, StringRef FS) {
   // If the programmer has not specified a Hexagon version, default to -mv4.
   if (CPUString.empty())
     CPUString = "hexagonv4";
@@ -68,6 +68,15 @@ HexagonSubtarget::HexagonSubtarget(StringRef TT, StringRef CPU, StringRef FS):
   }
 
   ParseSubtargetFeatures(CPUString, FS);
+  return *this;
+}
+
+HexagonSubtarget::HexagonSubtarget(StringRef TT, StringRef CPU, StringRef FS,
+                                   const TargetMachine &TM)
+    : HexagonGenSubtargetInfo(TT, CPU, FS), CPUString(CPU.str()),
+      DL("e-m:e-p:32:32-i1:32-i64:64-a:0-n32"),
+      InstrInfo(initializeSubtargetDependencies(CPU, FS)), TLInfo(TM),
+      TSInfo(DL), FrameLowering() {
 
   // Initialize scheduling itinerary for the specified CPU.
   InstrItins = getInstrItineraryForCPU(CPUString);

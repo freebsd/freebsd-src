@@ -34,6 +34,7 @@ add_llvm_target(ARMCodeGen
   ARMMCInstLower.cpp
   ARMMachineFunctionInfo.cpp
   ARMRegisterInfo.cpp
+  ARMOptimizeBarriersPass.cpp
   ARMSelectionDAGInfo.cpp
   ARMSubtarget.cpp
   ARMTargetMachine.cpp
@@ -48,16 +49,6 @@ add_llvm_target(ARMCodeGen
   Thumb2RegisterInfo.cpp
   Thumb2SizeReduction.cpp
   )
-
-add_dependencies(LLVMARMCodeGen ARMCommonTableGen intrinsics_gen)
-
-# workaround for hanging compilation on MSVC9, 10
-if( MSVC_VERSION EQUAL 1600 OR MSVC_VERSION EQUAL 1500 )
-set_property(
-  SOURCE ARMISelLowering.cpp
-  PROPERTY COMPILE_FLAGS "/Od"
-  )
-endif()
 
 add_subdirectory(TargetInfo)
 add_subdirectory(AsmParser)

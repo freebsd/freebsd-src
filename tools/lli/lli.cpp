@@ -13,10 +13,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "lli"
 #include "llvm/IR/LLVMContext.h"
 #include "RemoteMemoryManager.h"
 #include "RemoteTarget.h"
+#include "RemoteTargetExternal.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/CodeGen/LinkAllCodegenComponents.h"
@@ -26,12 +26,15 @@
 #include "llvm/ExecutionEngine/JITEventListener.h"
 #include "llvm/ExecutionEngine/JITMemoryManager.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
+#include "llvm/ExecutionEngine/ObjectCache.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/TypeBuilder.h"
 #include "llvm/IRReader/IRReader.h"
+#include "llvm/Object/Archive.h"
+#include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/DynamicLibrary.h"
@@ -59,6 +62,8 @@
 #endif
 
 using namespace llvm;
+
+#define DEBUG_TYPE "lli"
 
 namespace {
   cl::opt<std::string>
@@ -91,12 +96,11 @@ namespace {
   // execution. The child process will be executed and will communicate with
   // lli via stdin/stdout pipes.
   cl::opt<std::string>
-  MCJITRemoteProcess("mcjit-remote-process",
-            cl::desc("Specify the filename of the process to launch "
-                     "for remote MCJIT execution.  If none is specified,"
-                     "\n\tremote execution will be simulated in-process."),
-            cl::value_desc("filename"),
-            cl::init(""));
+  ChildExecPath("mcjit-remote-process",
+                cl::desc("Specify the filename of the process to launch "
+                         "for remote MCJIT execution.  If none is specified,"
+                         "\n\tremote execution will be simulated in-process."),
+                cl::value_desc("filename"), cl::init(""));
 
   // Determine optimization level.
   cl::opt<char>
@@ -137,6 +141,27 @@ namespace {
   ExtraModules("extra-module",
          cl::desc("Extra modules to be loaded"),
          cl::value_desc("input bitcode"));
+
+  cl::list<std::string>
+  ExtraObjects("extra-object",
+         cl::desc("Extra object files to be loaded"),
+         cl::value_desc("input object"));
+
+  cl::list<std::string>
+  ExtraArchives("extra-archive",
+         cl::desc("Extra archive files to be loaded"),
+         cl::value_desc("input archive"));
+
+  cl::opt<bool>
+  EnableCacheManager("enable-cache-manager",
+        cl::desc("Use cache manager to save/load mdoules"),
+        cl::init(false));
+
+  cl::opt<std::string>
+  ObjectCacheDir("object-cache-dir",
+                  cl::desc("Directory to store cached object files "
+                           "(must be user writable)"),
+                  cl::init(""));
 
   cl::opt<std::string>
   FakeArgv0("fake-argv0",
@@ -219,12 +244,91 @@ namespace {
     cl::init(false));
 }
 
-static ExecutionEngine *EE = 0;
+//===----------------------------------------------------------------------===//
+// Object cache
+//
+// This object cache implementation writes cached objects to disk to the
+// directory specified by CacheDir, using a filename provided in the module
+// descriptor. The cache tries to load a saved object using that path if the
+// file exists. CacheDir defaults to "", in which case objects are cached
+// alongside their originating bitcodes.
+//
+class LLIObjectCache : public ObjectCache {
+public:
+  LLIObjectCache(const std::string& CacheDir) : CacheDir(CacheDir) {
+    // Add trailing '/' to cache dir if necessary.
+    if (!this->CacheDir.empty() &&
+        this->CacheDir[this->CacheDir.size() - 1] != '/')
+      this->CacheDir += '/';
+  }
+  virtual ~LLIObjectCache() {}
+
+  void notifyObjectCompiled(const Module *M, const MemoryBuffer *Obj) override {
+    const std::string ModuleID = M->getModuleIdentifier();
+    std::string CacheName;
+    if (!getCacheFilename(ModuleID, CacheName))
+      return;
+    std::string errStr;
+    if (!CacheDir.empty()) { // Create user-defined cache dir.
+      SmallString<128> dir(CacheName);
+      sys::path::remove_filename(dir);
+      sys::fs::create_directories(Twine(dir));
+    }
+    raw_fd_ostream outfile(CacheName.c_str(), errStr, sys::fs::F_None);
+    outfile.write(Obj->getBufferStart(), Obj->getBufferSize());
+    outfile.close();
+  }
+
+  MemoryBuffer* getObject(const Module* M) override {
+    const std::string ModuleID = M->getModuleIdentifier();
+    std::string CacheName;
+    if (!getCacheFilename(ModuleID, CacheName))
+      return nullptr;
+    // Load the object from the cache filename
+    ErrorOr<std::unique_ptr<MemoryBuffer>> IRObjectBuffer =
+        MemoryBuffer::getFile(CacheName.c_str(), -1, false);
+    // If the file isn't there, that's OK.
+    if (!IRObjectBuffer)
+      return nullptr;
+    // MCJIT will want to write into this buffer, and we don't want that
+    // because the file has probably just been mmapped.  Instead we make
+    // a copy.  The filed-based buffer will be released when it goes
+    // out of scope.
+    return MemoryBuffer::getMemBufferCopy(IRObjectBuffer.get()->getBuffer());
+  }
+
+private:
+  std::string CacheDir;
+
+  bool getCacheFilename(const std::string &ModID, std::string &CacheName) {
+    std::string Prefix("file:");
+    size_t PrefixLength = Prefix.length();
+    if (ModID.substr(0, PrefixLength) != Prefix)
+      return false;
+        std::string CacheSubdir = ModID.substr(PrefixLength);
+#if defined(_WIN32)
+        // Transform "X:\foo" => "/X\foo" for convenience.
+        if (isalpha(CacheSubdir[0]) && CacheSubdir[1] == ':') {
+          CacheSubdir[1] = CacheSubdir[0];
+          CacheSubdir[0] = '/';
+        }
+#endif
+    CacheName = CacheDir + CacheSubdir;
+    size_t pos = CacheName.rfind('.');
+    CacheName.replace(pos, CacheName.length() - pos, ".o");
+    return true;
+  }
+};
+
+static ExecutionEngine *EE = nullptr;
+static LLIObjectCache *CacheManager = nullptr;
 
 static void do_shutdown() {
   // Cygwin-1.5 invokes DLL's dtors before atexit handler.
 #ifndef DO_NOTHING_ATEXIT
   delete EE;
+  if (CacheManager)
+    delete CacheManager;
   llvm_shutdown();
 #endif
 }
@@ -300,12 +404,20 @@ int main(int argc, char **argv, char * const *envp) {
     return 1;
   }
 
+  if (EnableCacheManager) {
+    if (UseMCJIT) {
+      std::string CacheName("file:");
+      CacheName.append(InputFile);
+      Mod->setModuleIdentifier(CacheName);
+    } else
+      errs() << "warning: -enable-cache-manager can only be used with MCJIT.";
+  }
+
   // If not jitting lazily, load the whole bitcode file eagerly too.
-  std::string ErrorMsg;
   if (NoLazyCompilation) {
-    if (Mod->MaterializeAllPermanently(&ErrorMsg)) {
+    if (std::error_code EC = Mod->materializeAllPermanently()) {
       errs() << argv[0] << ": bitcode didn't read correctly.\n";
-      errs() << "Reason: " << ErrorMsg << "\n";
+      errs() << "Reason: " << EC.message() << "\n";
       exit(1);
     }
   }
@@ -321,6 +433,7 @@ int main(int argc, char **argv, char * const *envp) {
     DebugIRPass->runOnModule(*Mod);
   }
 
+  std::string ErrorMsg;
   EngineBuilder builder(Mod);
   builder.setMArch(MArch);
   builder.setMCPU(MCPU);
@@ -337,7 +450,7 @@ int main(int argc, char **argv, char * const *envp) {
     Mod->setTargetTriple(Triple::normalize(TargetTriple));
 
   // Enable MCJIT if desired.
-  RTDyldMemoryManager *RTDyldMM = 0;
+  RTDyldMemoryManager *RTDyldMM = nullptr;
   if (UseMCJIT && !ForceInterpreter) {
     builder.setUseMCJIT(true);
     if (RemoteMCJIT)
@@ -350,7 +463,7 @@ int main(int argc, char **argv, char * const *envp) {
       errs() << "error: Remote process execution requires -use-mcjit\n";
       exit(1);
     }
-    builder.setJITMemoryManager(ForceInterpreter ? 0 :
+    builder.setJITMemoryManager(ForceInterpreter ? nullptr :
                                 JITMemoryManager::CreateDefaultMemManager());
   }
 
@@ -391,6 +504,11 @@ int main(int argc, char **argv, char * const *envp) {
     exit(1);
   }
 
+  if (EnableCacheManager) {
+    CacheManager = new LLIObjectCache(ObjectCacheDir);
+    EE->setObjectCache(CacheManager);
+  }
+
   // Load any additional modules specified on the command line.
   for (unsigned i = 0, e = ExtraModules.size(); i != e; ++i) {
     Module *XMod = ParseIRFile(ExtraModules[i], Err, Context);
@@ -398,7 +516,41 @@ int main(int argc, char **argv, char * const *envp) {
       Err.print(argv[0], errs());
       return 1;
     }
+    if (EnableCacheManager) {
+      if (UseMCJIT) {
+        std::string CacheName("file:");
+        CacheName.append(ExtraModules[i]);
+        XMod->setModuleIdentifier(CacheName);
+      }
+      // else, we already printed a warning above.
+    }
     EE->addModule(XMod);
+  }
+
+  for (unsigned i = 0, e = ExtraObjects.size(); i != e; ++i) {
+    ErrorOr<object::ObjectFile *> Obj =
+        object::ObjectFile::createObjectFile(ExtraObjects[i]);
+    if (!Obj) {
+      Err.print(argv[0], errs());
+      return 1;
+    }
+    EE->addObjectFile(std::unique_ptr<object::ObjectFile>(Obj.get()));
+  }
+
+  for (unsigned i = 0, e = ExtraArchives.size(); i != e; ++i) {
+    ErrorOr<std::unique_ptr<MemoryBuffer>> ArBuf =
+        MemoryBuffer::getFileOrSTDIN(ExtraArchives[i]);
+    if (!ArBuf) {
+      Err.print(argv[0], errs());
+      return 1;
+    }
+    std::error_code EC;
+    object::Archive *Ar = new object::Archive(std::move(ArBuf.get()), EC);
+    if (EC || !Ar) {
+      Err.print(argv[0], errs());
+      return 1;
+    }
+    EE->addArchive(Ar);
   }
 
   // If the target is Cygwin/MingW and we are generating remote code, we
@@ -472,7 +624,7 @@ int main(int argc, char **argv, char * const *envp) {
       }
     }
 
-    // Trigger compilation separately so code regions that need to be 
+    // Trigger compilation separately so code regions that need to be
     // invalidated will be known.
     (void)EE->getPointerToFunction(EntryFn);
     // Clear instruction cache before code will be executed.
@@ -511,30 +663,35 @@ int main(int argc, char **argv, char * const *envp) {
     // address space, assign the section addresses to resolve any relocations,
     // and send it to the target.
 
-    OwningPtr<RemoteTarget> Target;
-    if (!MCJITRemoteProcess.empty()) { // Remote execution on a child process
-      if (!RemoteTarget::hostSupportsExternalRemoteTarget()) {
-        errs() << "Warning: host does not support external remote targets.\n"
-               << "  Defaulting to simulated remote execution\n";
-        Target.reset(RemoteTarget::createRemoteTarget());
-      } else {
-        std::string ChildEXE = sys::FindProgramByName(MCJITRemoteProcess);
-        if (ChildEXE == "") {
-          errs() << "Unable to find child target: '\''" << MCJITRemoteProcess << "\'\n";
-          return -1;
-        }
-        Target.reset(RemoteTarget::createExternalRemoteTarget(ChildEXE));
+    std::unique_ptr<RemoteTarget> Target;
+    if (!ChildExecPath.empty()) { // Remote execution on a child process
+#ifndef LLVM_ON_UNIX
+      // FIXME: Remove this pointless fallback mode which causes tests to "pass"
+      // on platforms where they should XFAIL.
+      errs() << "Warning: host does not support external remote targets.\n"
+             << "  Defaulting to simulated remote execution\n";
+      Target.reset(new RemoteTarget);
+#else
+      if (!sys::fs::can_execute(ChildExecPath)) {
+        errs() << "Unable to find usable child executable: '" << ChildExecPath
+               << "'\n";
+        return -1;
       }
+      Target.reset(new RemoteTargetExternal(ChildExecPath));
+#endif
     } else {
       // No child process name provided, use simulated remote execution.
-      Target.reset(RemoteTarget::createRemoteTarget());
+      Target.reset(new RemoteTarget);
     }
 
     // Give the memory manager a pointer to our remote target interface object.
     MM->setRemoteTarget(Target.get());
 
     // Create the remote target.
-    Target->create();
+    if (!Target->create()) {
+      errs() << "ERROR: " << Target->getErrorMsg() << "\n";
+      return EXIT_FAILURE;
+    }
 
     // Since we're executing in a (at least simulated) remote address space,
     // we can't use the ExecutionEngine::runFunctionAsMain(). We have to
@@ -551,7 +708,7 @@ int main(int argc, char **argv, char * const *envp) {
     DEBUG(dbgs() << "Executing '" << EntryFn->getName() << "' at 0x"
                  << format("%llx", Entry) << "\n");
 
-    if (Target->executeCode(Entry, Result))
+    if (!Target->executeCode(Entry, Result))
       errs() << "ERROR: " << Target->getErrorMsg() << "\n";
 
     // Like static constructors, the remote target MCJIT support doesn't handle

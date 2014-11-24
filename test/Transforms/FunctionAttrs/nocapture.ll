@@ -68,7 +68,7 @@ define i1* @lookup_bit(i32* %q, i32 %bitno) readnone nounwind {
 	ret i1* %lookup
 }
 
-; CHECK: define i1 @c7(i32* readnone %q, i32 %bitno)
+; CHECK: define i1 @c7(i32* readonly %q, i32 %bitno)
 define i1 @c7(i32* %q, i32 %bitno) {
 	%ptr = call i1* @lookup_bit(i32* %q, i32 %bitno)
 	%val = load i1* %ptr
@@ -84,6 +84,21 @@ l:
 	%x = phi i32* [ %p, %e ]
 	%y = phi i32* [ %q, %e ]
 	%tmp = bitcast i32* %x to i32*		; <i32*> [#uses=2]
+	%tmp2 = select i1 %b, i32* %tmp, i32* %y
+	%val = load i32* %tmp2		; <i32> [#uses=1]
+	store i32 0, i32* %tmp
+	store i32* %y, i32** @g
+	ret i32 %val
+}
+
+; CHECK: define i32 @nc1_addrspace(i32* %q, i32 addrspace(1)* nocapture %p, i1 %b)
+define i32 @nc1_addrspace(i32* %q, i32 addrspace(1)* %p, i1 %b) {
+e:
+	br label %l
+l:
+	%x = phi i32 addrspace(1)* [ %p, %e ]
+	%y = phi i32* [ %q, %e ]
+	%tmp = addrspacecast i32 addrspace(1)* %x to i32*		; <i32*> [#uses=2]
 	%tmp2 = select i1 %b, i32* %tmp, i32* %y
 	%val = load i32* %tmp2		; <i32> [#uses=1]
 	store i32 0, i32* %tmp
