@@ -21,6 +21,7 @@ _PRIVATELIBS=	\
 		ssh \
 		ucl \
 		unbound
+
 _INTERNALIBS=	\
 		mandoc \
 		netbsd \
@@ -29,10 +30,10 @@ _INTERNALIBS=	\
 		sm
 
 _LIBRARIES=	\
+		${_PRIVATELIBS} \
+		${_INTERNALIBS} \
 		archive \
 		asn1 \
-		atf_c \
-		atf_cxx \
 		bsdxml \
 		bsnmp \
 		bz2 \
@@ -58,7 +59,6 @@ _LIBRARIES=	\
 		geom \
 		gssapi \
 		heimbase \
-		heimipcc \
 		hx509 \
 		ipsec \
 		jail \
@@ -66,7 +66,6 @@ _LIBRARIES=	\
 		kvm \
 		krb5 \
 		l \
-		ldns \
 		lzma \
 		m \
 		magic \
@@ -76,7 +75,6 @@ _LIBRARIES=	\
 		mp \
 		nandfs \
 		ncursesw \
-		netbsd \
 		nv \
 		opie \
 		pam \
@@ -93,13 +91,11 @@ _LIBRARIES=	\
 		sbuf \
 		sm \
 		smb \
-		ssh \
 		ssl \
 		stdthreads \
 		supcplusplus \
 		tacplus \
 		termcapw \
-		ucl \
 		ufs \
 		ulog \
 		usb \
