@@ -2,9 +2,9 @@
 
 .include <bsd.own.mk>
 
-LIB=	clangrewritecore
+LIB=	clangrewrite
 
-SRCDIR=	tools/clang/lib/Rewrite/Core
+SRCDIR=	tools/clang/lib/Rewrite
 SRCS=	DeltaTree.cpp \
 	HTMLRewrite.cpp \
 	RewriteRope.cpp \

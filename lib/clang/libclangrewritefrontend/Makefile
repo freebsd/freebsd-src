@@ -4,7 +4,7 @@
 
 LIB=	clangrewritefrontend
 
-SRCDIR=	tools/clang/lib/Rewrite/Frontend
+SRCDIR=	tools/clang/lib/Frontend/Rewrite
 SRCS=	FixItRewriter.cpp \
 	FrontendActions.cpp \
 	HTMLPrint.cpp \

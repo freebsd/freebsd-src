@@ -24,6 +24,7 @@ SRCS=	A15SDOptimizer.cpp \
 	ARMMCInstLower.cpp \
 	ARMMachineFunctionInfo.cpp \
 	ARMRegisterInfo.cpp \
+	ARMOptimizeBarriersPass.cpp \
 	ARMSelectionDAGInfo.cpp \
 	ARMSubtarget.cpp \
 	ARMTargetMachine.cpp \
