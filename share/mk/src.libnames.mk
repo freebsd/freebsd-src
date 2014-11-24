@@ -171,7 +171,7 @@ LDADD_${_l}_L+=		-L${LIB${_l:tu}DIR}
 .endif
 DPADD_${_l}?=	${LIB${_l:tu}}
 LDADD_${_l}?=	${LDADD_${_l}_L} -l${_l}
-.if defined(${_l}_depend) && defined(NO_SHARED)
+.if defined(_DP_${_l}) && defined(NO_SHARED)
 .for _d in ${_DP_${_l}}
 DPADD_${_l}+=	${DPADD_${_d}}
 LDADD_${_l}+=	${LDADD_${_d}}
