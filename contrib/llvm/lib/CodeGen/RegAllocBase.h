@@ -37,7 +37,6 @@
 #ifndef LLVM_CODEGEN_REGALLOCBASE
 #define LLVM_CODEGEN_REGALLOCBASE
 
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/CodeGen/LiveInterval.h"
 #include "llvm/CodeGen/RegisterClassInfo.h"
 
@@ -66,7 +65,8 @@ protected:
   LiveRegMatrix *Matrix;
   RegisterClassInfo RegClassInfo;
 
-  RegAllocBase(): TRI(0), MRI(0), VRM(0), LIS(0), Matrix(0) {}
+  RegAllocBase()
+    : TRI(nullptr), MRI(nullptr), VRM(nullptr), LIS(nullptr), Matrix(nullptr) {}
 
   virtual ~RegAllocBase() {}
 

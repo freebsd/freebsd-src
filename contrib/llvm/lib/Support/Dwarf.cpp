@@ -84,6 +84,9 @@ const char *llvm::dwarf::TagString(unsigned Tag) {
   case DW_TAG_arg_variable:              return "DW_TAG_arg_variable";
   case DW_TAG_rvalue_reference_type:     return "DW_TAG_rvalue_reference_type";
   case DW_TAG_template_alias:            return "DW_TAG_template_alias";
+  case DW_TAG_coarray_type:              return "DW_TAG_coarray_type";
+  case DW_TAG_generic_subrange:          return "DW_TAG_generic_subrange";
+  case DW_TAG_dynamic_type:              return "DW_TAG_dynamic_type";
   case DW_TAG_MIPS_loop:                 return "DW_TAG_MIPS_loop";
   case DW_TAG_type_unit:                 return "DW_TAG_type_unit";
   case DW_TAG_format_label:              return "DW_TAG_format_label";
@@ -97,7 +100,7 @@ const char *llvm::dwarf::TagString(unsigned Tag) {
     return "DW_TAG_GNU_formal_parameter_pack";
   case DW_TAG_APPLE_property:            return "DW_TAG_APPLE_property";
   }
-  return 0;
+  return nullptr;
 }
 
 /// ChildrenString - Return the string for the specified children flag.
@@ -107,7 +110,7 @@ const char *llvm::dwarf::ChildrenString(unsigned Children) {
   case DW_CHILDREN_no:                   return "DW_CHILDREN_no";
   case DW_CHILDREN_yes:                  return "DW_CHILDREN_yes";
   }
-  return 0;
+  return nullptr;
 }
 
 /// AttributeString - Return the string for the specified attribute.
@@ -206,6 +209,16 @@ const char *llvm::dwarf::AttributeString(unsigned Attribute) {
   case DW_AT_const_expr:                 return "DW_AT_const_expr";
   case DW_AT_enum_class:                 return "DW_AT_enum_class";
   case DW_AT_linkage_name:               return "DW_AT_linkage_name";
+  case DW_AT_string_length_bit_size:     return "DW_AT_string_length_bit_size";
+  case DW_AT_string_length_byte_size:    return "DW_AT_string_length_byte_size";
+  case DW_AT_rank:                       return "DW_AT_rank";
+  case DW_AT_str_offsets_base:           return "DW_AT_str_offsets_base";
+  case DW_AT_addr_base:                  return "DW_AT_addr_base";
+  case DW_AT_ranges_base:                return "DW_AT_ranges_base";
+  case DW_AT_dwo_id:                     return "DW_AT_dwo_id";
+  case DW_AT_dwo_name:                   return "DW_AT_dwo_name";
+  case DW_AT_reference:                  return "DW_AT_reference";
+  case DW_AT_rvalue_reference:           return "DW_AT_rvalue_reference";
   case DW_AT_MIPS_loop_begin:            return "DW_AT_MIPS_loop_begin";
   case DW_AT_MIPS_tail_loop_begin:       return "DW_AT_MIPS_tail_loop_begin";
   case DW_AT_MIPS_epilog_begin:          return "DW_AT_MIPS_epilog_begin";
@@ -258,7 +271,7 @@ const char *llvm::dwarf::AttributeString(unsigned Attribute) {
   case DW_AT_GNU_pubnames:               return "DW_AT_GNU_pubnames";
   case DW_AT_GNU_pubtypes:               return "DW_AT_GNU_pubtypes";
   }
-  return 0;
+  return nullptr;
 }
 
 /// FormEncodingString - Return the string for the specified form encoding.
@@ -295,7 +308,7 @@ const char *llvm::dwarf::FormEncodingString(unsigned Encoding) {
   case DW_FORM_GNU_addr_index:           return "DW_FORM_GNU_addr_index";
   case DW_FORM_GNU_str_index:            return "DW_FORM_GNU_str_index";
   }
-  return 0;
+  return nullptr;
 }
 
 /// OperationEncodingString - Return the string for the specified operation
@@ -464,7 +477,7 @@ const char *llvm::dwarf::OperationEncodingString(unsigned Encoding) {
   case DW_OP_GNU_addr_index:             return "DW_OP_GNU_addr_index";
   case DW_OP_GNU_const_index:            return "DW_OP_GNU_const_index";
   }
-  return 0;
+  return nullptr;
 }
 
 /// AttributeEncodingString - Return the string for the specified attribute
@@ -490,7 +503,7 @@ const char *llvm::dwarf::AttributeEncodingString(unsigned Encoding) {
   case DW_ATE_lo_user:                   return "DW_ATE_lo_user";
   case DW_ATE_hi_user:                   return "DW_ATE_hi_user";
   }
-  return 0;
+  return nullptr;
 }
 
 /// DecimalSignString - Return the string for the specified decimal sign
@@ -503,7 +516,7 @@ const char *llvm::dwarf::DecimalSignString(unsigned Sign) {
   case DW_DS_leading_separate:           return "DW_DS_leading_separate";
   case DW_DS_trailing_separate:          return "DW_DS_trailing_separate";
   }
-  return 0;
+  return nullptr;
 }
 
 /// EndianityString - Return the string for the specified endianity.
@@ -516,7 +529,7 @@ const char *llvm::dwarf::EndianityString(unsigned Endian) {
   case DW_END_lo_user:                   return "DW_END_lo_user";
   case DW_END_hi_user:                   return "DW_END_hi_user";
   }
-  return 0;
+  return nullptr;
 }
 
 /// AccessibilityString - Return the string for the specified accessibility.
@@ -528,7 +541,7 @@ const char *llvm::dwarf::AccessibilityString(unsigned Access) {
   case DW_ACCESS_protected:              return "DW_ACCESS_protected";
   case DW_ACCESS_private:                return "DW_ACCESS_private";
   }
-  return 0;
+  return nullptr;
 }
 
 /// VisibilityString - Return the string for the specified visibility.
@@ -539,7 +552,7 @@ const char *llvm::dwarf::VisibilityString(unsigned Visibility) {
   case DW_VIS_exported:                  return "DW_VIS_exported";
   case DW_VIS_qualified:                 return "DW_VIS_qualified";
   }
-  return 0;
+  return nullptr;
 }
 
 /// VirtualityString - Return the string for the specified virtuality.
@@ -550,7 +563,7 @@ const char *llvm::dwarf::VirtualityString(unsigned Virtuality) {
   case DW_VIRTUALITY_virtual:            return "DW_VIRTUALITY_virtual";
   case DW_VIRTUALITY_pure_virtual:       return "DW_VIRTUALITY_pure_virtual";
   }
-  return 0;
+  return nullptr;
 }
 
 /// LanguageString - Return the string for the specified language.
@@ -576,10 +589,18 @@ const char *llvm::dwarf::LanguageString(unsigned Language) {
   case DW_LANG_ObjC_plus_plus:           return "DW_LANG_ObjC_plus_plus";
   case DW_LANG_UPC:                      return "DW_LANG_UPC";
   case DW_LANG_D:                        return "DW_LANG_D";
+  case DW_LANG_Python:                   return "DW_LANG_Python";
+  case DW_LANG_OpenCL:                   return "DW_LANG_OpenCL";
+  case DW_LANG_Go:                       return "DW_LANG_Go";
+  case DW_LANG_Modula3:                  return "DW_LANG_Modula3";
+  case DW_LANG_Haskell:                  return "DW_LANG_Haskell";
+  case DW_LANG_C_plus_plus_03:           return "DW_LANG_C_plus_plus_03";
+  case DW_LANG_C_plus_plus_11:           return "DW_LANG_C_plus_plus_11";
+  case DW_LANG_OCaml:                    return "DW_LANG_OCaml";
   case DW_LANG_lo_user:                  return "DW_LANG_lo_user";
   case DW_LANG_hi_user:                  return "DW_LANG_hi_user";
   }
-  return 0;
+  return nullptr;
 }
 
 /// CaseString - Return the string for the specified identifier case.
@@ -591,7 +612,7 @@ const char *llvm::dwarf::CaseString(unsigned Case) {
   case DW_ID_down_case:                  return "DW_ID_down_case";
   case DW_ID_case_insensitive:           return "DW_ID_case_insensitive";
   }
-  return 0;
+  return nullptr;
 }
 
 /// ConventionString - Return the string for the specified calling convention.
@@ -604,7 +625,7 @@ const char *llvm::dwarf::ConventionString(unsigned Convention) {
    case DW_CC_lo_user:                    return "DW_CC_lo_user";
    case DW_CC_hi_user:                    return "DW_CC_hi_user";
   }
-  return 0;
+  return nullptr;
 }
 
 /// InlineCodeString - Return the string for the specified inline code.
@@ -616,7 +637,7 @@ const char *llvm::dwarf::InlineCodeString(unsigned Code) {
   case DW_INL_declared_not_inlined:      return "DW_INL_declared_not_inlined";
   case DW_INL_declared_inlined:          return "DW_INL_declared_inlined";
   }
-  return 0;
+  return nullptr;
 }
 
 /// ArrayOrderString - Return the string for the specified array order.
@@ -626,7 +647,7 @@ const char *llvm::dwarf::ArrayOrderString(unsigned Order) {
   case DW_ORD_row_major:                 return "DW_ORD_row_major";
   case DW_ORD_col_major:                 return "DW_ORD_col_major";
   }
-  return 0;
+  return nullptr;
 }
 
 /// DiscriminantString - Return the string for the specified discriminant
@@ -636,7 +657,7 @@ const char *llvm::dwarf::DiscriminantString(unsigned Discriminant) {
   case DW_DSC_label:                     return "DW_DSC_label";
   case DW_DSC_range:                     return "DW_DSC_range";
   }
-  return 0;
+  return nullptr;
 }
 
 /// LNStandardString - Return the string for the specified line number standard.
@@ -656,7 +677,7 @@ const char *llvm::dwarf::LNStandardString(unsigned Standard) {
   case DW_LNS_set_epilogue_begin:        return "DW_LNS_set_epilogue_begin";
   case DW_LNS_set_isa:                   return "DW_LNS_set_isa";
   }
-  return 0;
+  return nullptr;
 }
 
 /// LNExtendedString - Return the string for the specified line number extended
@@ -671,7 +692,7 @@ const char *llvm::dwarf::LNExtendedString(unsigned Encoding) {
   case DW_LNE_lo_user:                   return "DW_LNE_lo_user";
   case DW_LNE_hi_user:                   return "DW_LNE_hi_user";
   }
-  return 0;
+  return nullptr;
 }
 
 /// MacinfoString - Return the string for the specified macinfo type encodings.
@@ -685,7 +706,7 @@ const char *llvm::dwarf::MacinfoString(unsigned Encoding) {
   case DW_MACINFO_end_file:              return "DW_MACINFO_end_file";
   case DW_MACINFO_vendor_ext:            return "DW_MACINFO_vendor_ext";
   }
-  return 0;
+  return nullptr;
 }
 
 /// CallFrameString - Return the string for the specified call frame instruction
@@ -724,7 +745,7 @@ const char *llvm::dwarf::CallFrameString(unsigned Encoding) {
   case DW_CFA_lo_user:                   return "DW_CFA_lo_user";
   case DW_CFA_hi_user:                   return "DW_CFA_hi_user";
   }
-  return 0;
+  return nullptr;
 }
 
 const char *llvm::dwarf::AtomTypeString(unsigned AT) {
@@ -740,7 +761,7 @@ const char *llvm::dwarf::AtomTypeString(unsigned AT) {
   case DW_ATOM_type_flags:
     return "DW_ATOM_type_flags";
   }
-  return 0;
+  return nullptr;
 }
 
 const char *llvm::dwarf::GDBIndexEntryKindString(GDBIndexEntryKind Kind) {

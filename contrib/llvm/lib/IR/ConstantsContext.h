@@ -24,6 +24,9 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include <map>
+#include <tuple>
+
+#define DEBUG_TYPE "ir"
 
 namespace llvm {
 template<class ValType>
@@ -32,7 +35,7 @@ struct ConstantTraits;
 /// UnaryConstantExpr - This class is private to Constants.cpp, and is used
 /// behind the scenes to implement unary constant exprs.
 class UnaryConstantExpr : public ConstantExpr {
-  virtual void anchor();
+  void anchor() override;
   void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly one operand
@@ -49,7 +52,7 @@ public:
 /// BinaryConstantExpr - This class is private to Constants.cpp, and is used
 /// behind the scenes to implement binary constant exprs.
 class BinaryConstantExpr : public ConstantExpr {
-  virtual void anchor();
+  void anchor() override;
   void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly two operands
@@ -70,7 +73,7 @@ public:
 /// SelectConstantExpr - This class is private to Constants.cpp, and is used
 /// behind the scenes to implement select constant exprs.
 class SelectConstantExpr : public ConstantExpr {
-  virtual void anchor();
+  void anchor() override;
   void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly three operands
@@ -91,7 +94,7 @@ public:
 /// Constants.cpp, and is used behind the scenes to implement
 /// extractelement constant exprs.
 class ExtractElementConstantExpr : public ConstantExpr {
-  virtual void anchor();
+  void anchor() override;
   void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly two operands
@@ -112,7 +115,7 @@ public:
 /// Constants.cpp, and is used behind the scenes to implement
 /// insertelement constant exprs.
 class InsertElementConstantExpr : public ConstantExpr {
-  virtual void anchor();
+  void anchor() override;
   void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly three operands
@@ -134,7 +137,7 @@ public:
 /// Constants.cpp, and is used behind the scenes to implement
 /// shufflevector constant exprs.
 class ShuffleVectorConstantExpr : public ConstantExpr {
-  virtual void anchor();
+  void anchor() override;
   void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly three operands
@@ -159,7 +162,7 @@ public:
 /// Constants.cpp, and is used behind the scenes to implement
 /// extractvalue constant exprs.
 class ExtractValueConstantExpr : public ConstantExpr {
-  virtual void anchor();
+  void anchor() override;
   void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly one operand
@@ -185,7 +188,7 @@ public:
 /// Constants.cpp, and is used behind the scenes to implement
 /// insertvalue constant exprs.
 class InsertValueConstantExpr : public ConstantExpr {
-  virtual void anchor();
+  void anchor() override;
   void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly one operand
@@ -212,7 +215,7 @@ public:
 /// GetElementPtrConstantExpr - This class is private to Constants.cpp, and is
 /// used behind the scenes to implement getelementpr constant exprs.
 class GetElementPtrConstantExpr : public ConstantExpr {
-  virtual void anchor();
+  void anchor() override;
   GetElementPtrConstantExpr(Constant *C, ArrayRef<Constant*> IdxList,
                             Type *DestTy);
 public:
@@ -233,7 +236,7 @@ public:
 // behind the scenes to implement ICmp and FCmp constant expressions. This is
 // needed in order to store the predicate value for these instructions.
 class CompareConstantExpr : public ConstantExpr {
-  virtual void anchor();
+  void anchor() override;
   void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
 public:
   // allocate space for exactly two operands
@@ -334,14 +337,10 @@ struct ExprMapKeyType {
            this->indices == that.indices;
   }
   bool operator<(const ExprMapKeyType & that) const {
-    if (this->opcode != that.opcode) return this->opcode < that.opcode;
-    if (this->operands != that.operands) return this->operands < that.operands;
-    if (this->subclassdata != that.subclassdata)
-      return this->subclassdata < that.subclassdata;
-    if (this->subclassoptionaldata != that.subclassoptionaldata)
-      return this->subclassoptionaldata < that.subclassoptionaldata;
-    if (this->indices != that.indices) return this->indices < that.indices;
-    return false;
+    return std::tie(opcode, operands, subclassdata, subclassoptionaldata,
+                    indices) <
+           std::tie(that.opcode, that.operands, that.subclassdata,
+                    that.subclassoptionaldata, that.indices);
   }
 
   bool operator!=(const ExprMapKeyType& that) const {
@@ -369,17 +368,10 @@ struct InlineAsmKeyType {
            this->asm_dialect == that.asm_dialect;
   }
   bool operator<(const InlineAsmKeyType& that) const {
-    if (this->asm_string != that.asm_string)
-      return this->asm_string < that.asm_string;
-    if (this->constraints != that.constraints)
-      return this->constraints < that.constraints;
-    if (this->has_side_effects != that.has_side_effects)
-      return this->has_side_effects < that.has_side_effects;
-    if (this->is_align_stack != that.is_align_stack)
-      return this->is_align_stack < that.is_align_stack;
-    if (this->asm_dialect != that.asm_dialect)
-      return this->asm_dialect < that.asm_dialect;
-    return false;
+    return std::tie(asm_string, constraints, has_side_effects, is_align_stack,
+                    asm_dialect) <
+           std::tie(that.asm_string, that.constraints, that.has_side_effects,
+                    that.is_align_stack, that.asm_dialect);
   }
 
   bool operator!=(const InlineAsmKeyType& that) const {
@@ -595,7 +587,7 @@ public:
   /// necessary.
   ConstantClass *getOrCreate(TypeClass *Ty, ValRefType V) {
     MapKey Lookup(Ty, V);
-    ConstantClass* Result = 0;
+    ConstantClass* Result = nullptr;
     
     typename MapTy::iterator I = Map.find(Lookup);
     // Is it in the map?  
@@ -731,7 +723,7 @@ public:
   /// necessary.
   ConstantClass *getOrCreate(TypeClass *Ty, Operands V) {
     LookupKey Lookup(Ty, V);
-    ConstantClass* Result = 0;
+    ConstantClass* Result = nullptr;
 
     typename MapTy::iterator I = Map.find_as(Lookup);
     // Is it in the map?

@@ -20,29 +20,26 @@
 
 namespace llvm {
 
-class AMDGPUTargetMachine;
-
 struct SIRegisterInfo : public AMDGPURegisterInfo {
-  AMDGPUTargetMachine &TM;
 
-  SIRegisterInfo(AMDGPUTargetMachine &tm);
+  SIRegisterInfo(const AMDGPUSubtarget &st);
 
-  virtual BitVector getReservedRegs(const MachineFunction &MF) const;
+  BitVector getReservedRegs(const MachineFunction &MF) const override;
 
-  virtual unsigned getRegPressureLimit(const TargetRegisterClass *RC,
-                                       MachineFunction &MF) const;
+  unsigned getRegPressureLimit(const TargetRegisterClass *RC,
+                               MachineFunction &MF) const override;
 
-  /// \param RC is an AMDIL reg class.
-  ///
-  /// \returns the SI register class that is equivalent to \p RC.
-  virtual const TargetRegisterClass *
-    getISARegClass(const TargetRegisterClass *RC) const;
+  bool requiresRegisterScavenging(const MachineFunction &Fn) const override;
+
+  void eliminateFrameIndex(MachineBasicBlock::iterator MI, int SPAdj,
+                           unsigned FIOperandNum,
+                           RegScavenger *RS) const override;
 
   /// \brief get the register class of the specified type to use in the
   /// CFGStructurizer
-  virtual const TargetRegisterClass * getCFGStructurizerRegClass(MVT VT) const;
+  const TargetRegisterClass * getCFGStructurizerRegClass(MVT VT) const override;
 
-  virtual unsigned getHWRegIndex(unsigned Reg) const;
+  unsigned getHWRegIndex(unsigned Reg) const override;
 
   /// \brief Return the 'base' register class for this register.
   /// e.g. SGPR0 => SReg_32, VGPR => VReg_32 SGPR0_SGPR1 -> SReg_32, etc.
@@ -63,6 +60,33 @@ struct SIRegisterInfo : public AMDGPURegisterInfo {
   /// be returned.
   const TargetRegisterClass *getSubRegClass(const TargetRegisterClass *RC,
                                             unsigned SubIdx) const;
+
+  /// \p Channel This is the register channel (e.g. a value from 0-16), not the
+  ///            SubReg index.
+  /// \returns The sub-register of Reg that is in Channel.
+  unsigned getPhysRegSubReg(unsigned Reg, const TargetRegisterClass *SubRC,
+                            unsigned Channel) const;
+
+  /// \returns True if operands defined with this register class can accept
+  /// inline immediates.
+  bool regClassCanUseImmediate(int RCID) const;
+
+  /// \returns True if operands defined with this register class can accept
+  /// inline immediates.
+  bool regClassCanUseImmediate(const TargetRegisterClass *RC) const;
+
+  enum PreloadedValue {
+    TGID_X,
+    TGID_Y,
+    TGID_Z,
+    SCRATCH_WAVE_OFFSET,
+    SCRATCH_PTR
+  };
+
+  /// \brief Returns the physical register that \p Value is stored in.
+  unsigned getPreloadedValue(const MachineFunction &MF,
+                             enum PreloadedValue Value) const;
+
 };
 
 } // End namespace llvm

@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "asm-printer"
 #include "PPCInstPrinter.h"
 #include "MCTargetDesc/PPCMCTargetDesc.h"
 #include "MCTargetDesc/PPCPredicates.h"
@@ -23,6 +22,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetOpcodes.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "asm-printer"
 
 // FIXME: Once the integrated assembler supports full register names, tie this
 // to the verbose-asm setting.
@@ -150,6 +151,9 @@ void PPCInstPrinter::printPredicateOperand(const MCInst *MI, unsigned OpNo,
     case PPC::PRED_NU:
       O << "nu";
       return;
+    case PPC::PRED_BIT_SET:
+    case PPC::PRED_BIT_UNSET:
+      llvm_unreachable("Invalid use of bit predicate code");
     }
     llvm_unreachable("Invalid predicate code");
   }
@@ -185,6 +189,9 @@ void PPCInstPrinter::printPredicateOperand(const MCInst *MI, unsigned OpNo,
     case PPC::PRED_NU_PLUS:
       O << "+";
       return;
+    case PPC::PRED_BIT_SET:
+    case PPC::PRED_BIT_UNSET:
+      llvm_unreachable("Invalid use of bit predicate code");
     }
     llvm_unreachable("Invalid predicate code");
   }
@@ -192,6 +199,13 @@ void PPCInstPrinter::printPredicateOperand(const MCInst *MI, unsigned OpNo,
   assert(StringRef(Modifier) == "reg" &&
          "Need to specify 'cc', 'pm' or 'reg' as predicate op modifier!");
   printOperand(MI, OpNo+1, O);
+}
+
+void PPCInstPrinter::printU2ImmOperand(const MCInst *MI, unsigned OpNo,
+                                       raw_ostream &O) {
+  unsigned int Value = MI->getOperand(OpNo).getImm();
+  assert(Value <= 3 && "Invalid u2imm argument!");
+  O << (unsigned int)Value;
 }
 
 void PPCInstPrinter::printS5ImmOperand(const MCInst *MI, unsigned OpNo,
@@ -317,7 +331,10 @@ static const char *stripRegisterPrefix(const char *RegName) {
   switch (RegName[0]) {
   case 'r':
   case 'f':
-  case 'v': return RegName + 1;
+  case 'v':
+    if (RegName[1] == 's')
+      return RegName + 2;
+    return RegName + 1;
   case 'c': if (RegName[1] == 'r') return RegName + 2;
   }
   

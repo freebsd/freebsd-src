@@ -7,13 +7,16 @@
 //
 //===----------------------------------------------------------------------===//
 //
-//  This header file implements the operating system Process concept.
+//  This file implements the operating system Process concept.
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Config/config.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Process.h"
+#include "llvm/Support/Program.h"
 
 using namespace llvm;
 using namespace sys;
@@ -33,14 +36,6 @@ self_process *process::get_self() {
 
   return SP;
 }
-
-#if defined(_MSC_VER)
-// Visual Studio complains that the self_process destructor never exits. This
-// doesn't make much sense, as that's the whole point of calling abort... Just
-// silence this warning.
-#pragma warning(push)
-#pragma warning(disable:4722)
-#endif
 
 // The destructor for the self_process subclass must never actually be
 // executed. There should be at most one instance of this class, and that
@@ -74,10 +69,32 @@ TimeValue self_process::get_wall_time() const {
   return getElapsedWallTime();
 }
 
+Optional<std::string> Process::FindInEnvPath(const std::string& EnvName,
+                                             const std::string& FileName)
+{
+  Optional<std::string> FoundPath;
+  Optional<std::string> OptPath = Process::GetEnv(EnvName);
+  if (!OptPath.hasValue())
+    return FoundPath;
 
-#if defined(_MSC_VER)
-#pragma warning(pop)
-#endif
+  const char EnvPathSeparatorStr[] = {EnvPathSeparator, '\0'};
+  SmallVector<StringRef, 8> Dirs;
+  SplitString(OptPath.getValue(), Dirs, EnvPathSeparatorStr);
+
+  for (const auto &Dir : Dirs) {
+    if (Dir.empty())
+      continue;
+
+    SmallString<128> FilePath(Dir);
+    path::append(FilePath, FileName);
+    if (fs::exists(Twine(FilePath))) {
+      FoundPath = FilePath.str();
+      break;
+    }
+  }
+
+  return FoundPath;
+}
 
 
 #define COLOR(FGBG, CODE, BOLD) "\033[0;" BOLD FGBG CODE "m"

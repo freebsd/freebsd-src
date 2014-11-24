@@ -85,10 +85,12 @@ public:
   void printInstruction(const MCInst *MI, raw_ostream &O);
   static const char *getRegisterName(unsigned RegNo);
 
-  virtual void printRegName(raw_ostream &OS, unsigned RegNo) const;
-  virtual void printInst(const MCInst *MI, raw_ostream &O, StringRef Annot);
+  void printRegName(raw_ostream &OS, unsigned RegNo) const override;
+  void printInst(const MCInst *MI, raw_ostream &O, StringRef Annot) override;
 
   bool printAliasInstr(const MCInst *MI, raw_ostream &OS);
+  void printCustomAliasOperand(const MCInst *MI, unsigned OpIdx,
+                               unsigned PrintMethodIdx, raw_ostream &O);
 
 private:
   void printOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
@@ -104,6 +106,7 @@ private:
   bool printAlias(const char *Str, const MCInst &MI, unsigned OpNo0,
                   unsigned OpNo1, raw_ostream &OS);
   bool printAlias(const MCInst &MI, raw_ostream &OS);
+  void printSaveRestore(const MCInst *MI, raw_ostream &O);
 };
 } // end namespace llvm
 

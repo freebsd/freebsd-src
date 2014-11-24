@@ -15,7 +15,6 @@
 #ifndef LLVM_BITCODE_BITSTREAMREADER_H
 #define LLVM_BITCODE_BITSTREAMREADER_H
 
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Bitcode/BitCodes.h"
 #include "llvm/Support/Endian.h"
 #include "llvm/Support/StreamableMemoryObject.h"
@@ -44,7 +43,7 @@ public:
     std::vector<std::pair<unsigned, std::string> > RecordNames;
   };
 private:
-  OwningPtr<StreamableMemoryObject> BitcodeBytes;
+  std::unique_ptr<StreamableMemoryObject> BitcodeBytes;
 
   std::vector<BlockInfo> BlockInfoRecords;
 
@@ -112,7 +111,7 @@ public:
          i != e; ++i)
       if (BlockInfoRecords[i].BlockID == BlockID)
         return &BlockInfoRecords[i];
-    return 0;
+    return nullptr;
   }
 
   BlockInfo &getOrCreateBlockInfo(unsigned BlockID) {
@@ -201,9 +200,9 @@ class BitstreamCursor {
 
 
 public:
-  BitstreamCursor() : BitStream(0), NextChar(0) {
-  }
-  BitstreamCursor(const BitstreamCursor &RHS) : BitStream(0), NextChar(0) {
+  BitstreamCursor() : BitStream(nullptr), NextChar(0) {}
+  BitstreamCursor(const BitstreamCursor &RHS)
+      : BitStream(nullptr), NextChar(0) {
     operator=(RHS);
   }
 
@@ -491,7 +490,7 @@ public:
 
   /// EnterSubBlock - Having read the ENTER_SUBBLOCK abbrevid, enter
   /// the block, and return true if the block has an error.
-  bool EnterSubBlock(unsigned BlockID, unsigned *NumWordsP = 0);
+  bool EnterSubBlock(unsigned BlockID, unsigned *NumWordsP = nullptr);
 
   bool ReadBlockEnd() {
     if (BlockScope.empty()) return true;
@@ -542,7 +541,7 @@ public:
   void skipRecord(unsigned AbbrevID);
 
   unsigned readRecord(unsigned AbbrevID, SmallVectorImpl<uint64_t> &Vals,
-                      StringRef *Blob = 0);
+                      StringRef *Blob = nullptr);
 
   //===--------------------------------------------------------------------===//
   // Abbrev Processing

@@ -182,6 +182,10 @@ namespace llvm {
       assert(isValid() && "Invalid twine!");
     }
 
+    /// Since the intended use of twines is as temporary objects, assignments
+    /// when concatenating might cause undefined behavior or stack corruptions
+    Twine &operator=(const Twine &Other) LLVM_DELETED_FUNCTION;
+
     /// isNull - Check for the null twine.
     bool isNull() const {
       return getLHSKind() == NullKind;
@@ -374,7 +378,7 @@ namespace llvm {
     static Twine utohexstr(const uint64_t &Val) {
       Child LHS, RHS;
       LHS.uHex = &Val;
-      RHS.twine = 0;
+      RHS.twine = nullptr;
       return Twine(LHS, UHexKind, RHS, EmptyKind);
     }
 

@@ -14,11 +14,13 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 
+#define DEBUG_TYPE "mips-isel"
+
 namespace llvm {
 
 bool MipsModuleDAGToDAGISel::runOnMachineFunction(MachineFunction &MF) {
   DEBUG(errs() << "In MipsModuleDAGToDAGISel::runMachineFunction\n");
-  const_cast<MipsSubtarget&>(Subtarget).resetSubtarget(&MF);
+  TM.resetSubtarget(&MF);
   return false;
 }
 

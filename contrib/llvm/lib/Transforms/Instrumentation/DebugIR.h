@@ -16,7 +16,6 @@
 #ifndef LLVM_TRANSFORMS_INSTRUMENTATION_DEBUGIR_H
 #define LLVM_TRANSFORMS_INSTRUMENTATION_DEBUGIR_H
 
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/Pass.h"
 
 namespace llvm {
@@ -43,7 +42,7 @@ class DebugIR : public llvm::ModulePass {
 public:
   static char ID;
 
-  const char *getPassName() const { return "DebugIR"; }
+  const char *getPassName() const override { return "DebugIR"; }
 
   /// Generate a file on disk to be displayed in a debugger. If Filename and
   /// Directory are empty, a temporary path will be generated.
@@ -62,7 +61,7 @@ public:
 
   /// Run pass on M and set Path to the source file path in the output module.
   bool runOnModule(llvm::Module &M, std::string &Path);
-  bool runOnModule(llvm::Module &M);
+  bool runOnModule(llvm::Module &M) override;
 
 private:
 
@@ -79,11 +78,11 @@ private:
   bool updateExtension(llvm::StringRef NewExtension);
 
   /// Generate a temporary filename and open an fd
-  void generateFilename(llvm::OwningPtr<int> &fd);
+  void generateFilename(std::unique_ptr<int> &fd);
 
   /// Creates DWARF CU/Subroutine metadata
   void createDebugInfo(llvm::Module &M,
-                       llvm::OwningPtr<llvm::Module> &DisplayM);
+                       std::unique_ptr<llvm::Module> &DisplayM);
 
   /// Returns true if either Directory or Filename is missing, false otherwise.
   bool isMissingPath();
@@ -91,7 +90,7 @@ private:
   /// Write M to disk, optionally passing in an fd to an open file which is
   /// closed by this function after writing. If no fd is specified, a new file
   /// is opened, written, and closed.
-  void writeDebugBitcode(const llvm::Module *M, int *fd = 0);
+  void writeDebugBitcode(const llvm::Module *M, int *fd = nullptr);
 };
 
 } // llvm namespace

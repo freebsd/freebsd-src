@@ -60,10 +60,10 @@ class HexagonExpandPredSpillCode : public MachineFunctionPass {
       initializeHexagonExpandPredSpillCodePass(Registry);
     }
 
-    const char *getPassName() const {
+    const char *getPassName() const override {
       return "Hexagon Expand Predicate Spill Code";
     }
-    bool runOnMachineFunction(MachineFunction &Fn);
+    bool runOnMachineFunction(MachineFunction &Fn) override;
 };
 
 
@@ -187,7 +187,7 @@ static void initializePassOnce(PassRegistry &Registry) {
   const char *Name = "Hexagon Expand Predicate Spill Code";
   PassInfo *PI = new PassInfo(Name, "hexagon-spill-pred",
                               &HexagonExpandPredSpillCode::ID,
-                              0, false, false);
+                              nullptr, false, false);
   Registry.registerPass(*PI, true);
 }
 
