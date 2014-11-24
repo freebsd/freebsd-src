@@ -138,7 +138,7 @@ ctl_frontend_find(char *frontend_name)
 int
 ctl_port_register(struct ctl_port *port)
 {
-	struct ctl_io_pool *pool;
+	void *pool;
 	int port_num;
 	int retval;
 
@@ -176,7 +176,7 @@ ctl_port_register(struct ctl_port *port)
 	 * pending sense queue on the next command, whether or not it is
 	 * a REQUEST SENSE.
 	 */
-	retval = ctl_pool_create(control_softc, CTL_POOL_FETD,
+	retval = ctl_pool_create(control_softc, port->port_name,
 				 port->num_requested_ctl_io + 20, &pool);
 	if (retval != 0) {
 		free(port->wwpn_iid, M_CTL);
