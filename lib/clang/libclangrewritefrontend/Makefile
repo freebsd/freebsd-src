@@ -10,8 +10,6 @@ SRCS=	FixItRewriter.cpp \
 	HTMLPrint.cpp \
 	InclusionRewriter.cpp \
 	RewriteMacros.cpp \
-	RewriteModernObjC.cpp \
-	RewriteObjC.cpp \
 	RewriteTest.cpp
 
 TGHDRS=	AttrList \
