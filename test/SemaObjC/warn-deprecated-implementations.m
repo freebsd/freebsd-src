@@ -11,13 +11,13 @@
 @end
 
 @interface A()
-- (void) E __attribute__((deprecated)); // expected-note {{method 'E' declared here}}
+- (void) E __attribute__((deprecated));
 @end
 
 @implementation A
 + (void)F { }	// No warning, implementing its own deprecated method
 - (void) D {} //  expected-warning {{Implementing deprecated method}}
-- (void) E {} //  expected-warning {{Implementing deprecated method}}
+- (void) E {} // No warning, implementing deprecated method in its class extension.
 @end
 
 @interface A(CAT)
@@ -29,7 +29,7 @@
 @end
 
 __attribute__((deprecated))
-@interface CL // expected-note 2 {{class declared here}} // expected-note 2 {{declared here}}
+@interface CL // expected-note 2 {{class declared here}} // expected-note 2 {{'CL' has been explicitly marked deprecated here}}
 @end
 
 @implementation CL // expected-warning {{Implementing deprecated class}}
@@ -53,3 +53,15 @@ __attribute__((deprecated))
 - (void) B {} // expected-warning {{Implementing deprecated method}}
 @end
 
+@interface Test
+@end
+
+@interface Test()
+- (id)initSpecialInPrivateHeader __attribute__((deprecated));
+@end
+
+@implementation Test
+- (id)initSpecialInPrivateHeader {
+  return (void *)0;
+}
+@end

@@ -81,7 +81,7 @@ namespace odr_tmpl {
     template<typename T> T v; // expected-note {{previous definition is here}}
     template<typename T> int v; // expected-error {{redefinition of 'v'}}
     
-    template<typename T> int v1; // expected-note {{previous template declaration is here}}
+    template<typename T> extern int v1; // expected-note {{previous template declaration is here}}
     template<int I> int v1;      // expected-error {{template parameter has a different kind in template redeclaration}}
   }
   namespace pvt_use {
@@ -90,11 +90,8 @@ namespace odr_tmpl {
   }
 
   namespace pvt_diff_params {
-    // FIXME: (?) Redefinitions should simply be not allowed, whether the
-    // template parameters match or not. However, this current behaviour also
-    // matches that of class templates...
-    template<typename T, typename> T v;   // expected-note 2{{previous template declaration is here}}
-    template<typename T> T v;   // expected-error {{too few template parameters in template redeclaration}}
+    template<typename T, typename> T v;   // expected-note {{previous template declaration is here}}
+    template<typename T> T v;   // expected-error {{too few template parameters in template redeclaration}} expected-note {{previous template declaration is here}}
     template<typename T, typename, typename> T v; // expected-error {{too many template parameters in template redeclaration}}
   }
 
@@ -327,7 +324,7 @@ namespace narrowing {
   template<typename T> T v = {1234};  // expected-warning {{implicit conversion from 'int' to 'char' changes value from 1234 to}}
 #ifndef PRECXX11
   // expected-error@-2 {{constant expression evaluates to 1234 which cannot be narrowed to type 'char'}}\
-  // expected-note@-2 {{override this message by inserting an explicit cast}}
+  // expected-note@-2 {{insert an explicit cast to silence this issue}}
 #endif
   int k = v<char>;        // expected-note {{in instantiation of variable template specialization 'narrowing::v<char>' requested here}}
 }
@@ -391,7 +388,7 @@ namespace nested {
   
   namespace n1 {
     template<typename T> 
-    T pi1a = T(3.1415926535897932385);
+    T pi1a = T(3.1415926535897932385); // expected-note {{explicitly specialized declaration is here}}
 #ifndef PRECXX11
 // expected-note@-2 {{explicit instantiation refers here}}
 #endif
@@ -413,7 +410,7 @@ namespace nested {
 #endif
     float f1 = pi1a<float>;
     
-    template<> double pi1a<double> = 5.2;  // expected-error {{no variable template matches specialization}}
+    template<> double pi1a<double> = 5.2;  // expected-error {{variable template specialization of 'pi1a' must originally be declared in namespace 'n1'}}
     double d1 = pi1a<double>;
   }
   
@@ -430,5 +427,34 @@ namespace nested {
                                                // expected-error {{variable template specialization of 'pi1b' must originally be declared in namespace 'n1'}}
     double d1 = n1::pi1b<double>;
   }
+}
+
+namespace nested_name {
+  template<typename T> int a; // expected-note {{variable template 'a' declared here}}
+  a<int>::b c; // expected-error {{qualified name refers into a specialization of variable template 'a'}}
+
+  class a<int> {}; // expected-error {{identifier followed by '<' indicates a class template specialization but 'a' refers to a variable template}}
+  enum a<int> {}; // expected-error {{expected identifier or '{'}} expected-warning {{does not declare anything}}
+}
+
+namespace PR18530 {
+  template<typename T> int a;
+  int a<int>; // expected-error {{requires 'template<>'}}
+}
+
+namespace PR19152 {
+#ifndef PRECXX11
+  template<typename T> const auto x = 1;
+  static_assert(x<int> == 1, "");
+#endif
+}
+
+namespace PR19169 {
+  template <typename T> int* f();
+  template <typename T> void f();
+  template<> int f<double>; // expected-error {{no variable template matches specialization; did you mean to use 'f' as function template instead?}}
+  
+  template <typename T> void g();
+  template<> int g<double>; // expected-error {{no variable template matches specialization; did you mean to use 'g' as function template instead?}}
 }
 

@@ -19,8 +19,8 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Compiler.h"
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace clang {
 namespace cxstring {
@@ -96,6 +96,10 @@ CXStringBuf *getCXStringBuf(CXTranslationUnit TU);
 /// \brief Returns true if the CXString data is managed by a pool.
 bool isManagedByPool(CXString str);
 
+}
+
+static inline StringRef getContents(const CXUnsavedFile &UF) {
+  return StringRef(UF.Contents, UF.Length);
 }
 }
 

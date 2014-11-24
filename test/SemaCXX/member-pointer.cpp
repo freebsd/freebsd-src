@@ -7,12 +7,13 @@ struct D : A {};
 struct E : A {};
 struct F : D, E {};
 struct G : virtual D {};
+class H : A {}; // expected-note 2{{implicitly declared private here}}
 
 int A::*pdi1;
 int (::A::*pdi2);
 int (A::*pfi)(int);
 
-int B::*pbi; // expected-error {{expected a class or namespace}}
+int B::*pbi; // expected-error {{'B' is not a class, namespace, or scoped enumeration}}
 int C::*pci; // expected-error {{'pci' does not point into a class}}
 void A::*pdv; // expected-error {{'pdv' declared as a member pointer to void}}
 int& A::*pdr; // expected-error {{'pdr' declared as a member pointer to a reference}}
@@ -115,8 +116,11 @@ void h() {
   (void)(d.*pai);
   (void)(pd->*pai);
   F f, *ptrf = &f;
-  (void)(f.*pai); // expected-error {{left hand operand to .* must be a class compatible with the right hand operand, but is 'F'}}
-  (void)(ptrf->*pai); // expected-error {{left hand operand to ->* must be a pointer to class compatible with the right hand operand, but is 'F *'}}
+  (void)(f.*pai); // expected-error {{ambiguous conversion from derived class 'F' to base class 'A'}}
+  (void)(ptrf->*pai); // expected-error {{ambiguous conversion from derived class 'F' to base class 'A'}}
+  H h, *ptrh = &h;
+  (void)(h.*pai); // expected-error {{cannot cast 'H' to its private base class 'A'}}
+  (void)(ptrh->*pai); // expected-error {{cannot cast 'H' to its private base class 'A'}}
 
   (void)(hm.*i); // expected-error {{pointer-to-member}}
   (void)(phm->*i); // expected-error {{pointer-to-member}}

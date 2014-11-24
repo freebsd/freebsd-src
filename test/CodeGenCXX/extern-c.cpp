@@ -1,17 +1,20 @@
-// RUN: %clang_cc1 -emit-llvm %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple %itanium_abi_triple -emit-llvm %s -o - | FileCheck %s
 namespace foo {
 
-// CHECK-NOT: @a = global i32
+// CHECK-NOT: @a = global
 extern "C" int a;
 
-// CHECK-NOT: @_ZN3foo1bE = global i32
+// CHECK-NOT: @_ZN3foo1bE = global
 extern int b;
 
-// CHECK: @_ZN3foo1cE = global i32
+// CHECK: @_ZN3foo1cE = global
 int c = 5;
 
 // CHECK-NOT: @_ZN3foo1dE
 extern "C" struct d;
+
+// CHECK-NOT: should_not_appear
+extern "C++" int should_not_appear;
 
 }
 
@@ -62,4 +65,11 @@ extern "C" {
   // CHECK: @internal_fn = alias internal i32 ()* @_Z11internal_fnv
   // CHECK-NOT: @unused
   // CHECK-NOT: @duplicate_internal
+}
+
+namespace PR19411 {
+  struct A { void f(); };
+  extern "C" void A::f() { void g(); g(); }
+  // CHECK-LABEL: @_ZN7PR194111A1fEv(
+  // CHECK: call void @g()
 }

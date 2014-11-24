@@ -22,9 +22,9 @@ namespace tooling {
 
 static void expectFailure(StringRef JSONDatabase, StringRef Explanation) {
   std::string ErrorMessage;
-  EXPECT_EQ(NULL, JSONCompilationDatabase::loadFromBuffer(JSONDatabase,
-                                                          ErrorMessage))
-    << "Expected an error because of: " << Explanation;
+  EXPECT_EQ(nullptr, JSONCompilationDatabase::loadFromBuffer(JSONDatabase,
+                                                             ErrorMessage))
+    << "Expected an error because of: " << Explanation.str();
 }
 
 TEST(JSONCompilationDatabase, ErrsOnInvalidFormat) {
@@ -42,7 +42,7 @@ TEST(JSONCompilationDatabase, ErrsOnInvalidFormat) {
 
 static std::vector<std::string> getAllFiles(StringRef JSONDatabase,
                                             std::string &ErrorMessage) {
-  OwningPtr<CompilationDatabase> Database(
+  std::unique_ptr<CompilationDatabase> Database(
       JSONCompilationDatabase::loadFromBuffer(JSONDatabase, ErrorMessage));
   if (!Database) {
     ADD_FAILURE() << ErrorMessage;
@@ -53,7 +53,7 @@ static std::vector<std::string> getAllFiles(StringRef JSONDatabase,
 
 static std::vector<CompileCommand> getAllCompileCommands(StringRef JSONDatabase,
                                                     std::string &ErrorMessage) {
-  OwningPtr<CompilationDatabase> Database(
+  std::unique_ptr<CompilationDatabase> Database(
       JSONCompilationDatabase::loadFromBuffer(JSONDatabase, ErrorMessage));
   if (!Database) {
     ADD_FAILURE() << ErrorMessage;
@@ -115,7 +115,7 @@ TEST(JSONCompilationDatabase, GetAllCompileCommands) {
 static CompileCommand findCompileArgsInJsonDatabase(StringRef FileName,
                                                     StringRef JSONDatabase,
                                                     std::string &ErrorMessage) {
-  OwningPtr<CompilationDatabase> Database(
+  std::unique_ptr<CompilationDatabase> Database(
       JSONCompilationDatabase::loadFromBuffer(JSONDatabase, ErrorMessage));
   if (!Database)
     return CompileCommand();
@@ -433,8 +433,8 @@ TEST(FixedCompilationDatabase, GetAllCompileCommands) {
 
 TEST(ParseFixedCompilationDatabase, ReturnsNullOnEmptyArgumentList) {
   int Argc = 0;
-  OwningPtr<FixedCompilationDatabase> Database(
-      FixedCompilationDatabase::loadFromCommandLine(Argc, NULL));
+  std::unique_ptr<FixedCompilationDatabase> Database(
+      FixedCompilationDatabase::loadFromCommandLine(Argc, nullptr));
   EXPECT_FALSE(Database);
   EXPECT_EQ(0, Argc);
 }
@@ -442,7 +442,7 @@ TEST(ParseFixedCompilationDatabase, ReturnsNullOnEmptyArgumentList) {
 TEST(ParseFixedCompilationDatabase, ReturnsNullWithoutDoubleDash) {
   int Argc = 2;
   const char *Argv[] = { "1", "2" };
-  OwningPtr<FixedCompilationDatabase> Database(
+  std::unique_ptr<FixedCompilationDatabase> Database(
       FixedCompilationDatabase::loadFromCommandLine(Argc, Argv));
   EXPECT_FALSE(Database);
   EXPECT_EQ(2, Argc);
@@ -453,9 +453,9 @@ TEST(ParseFixedCompilationDatabase, ReturnsArgumentsAfterDoubleDash) {
   const char *Argv[] = {
     "1", "2", "--\0no-constant-folding", "-DDEF3", "-DDEF4"
   };
-  OwningPtr<FixedCompilationDatabase> Database(
+  std::unique_ptr<FixedCompilationDatabase> Database(
       FixedCompilationDatabase::loadFromCommandLine(Argc, Argv));
-  ASSERT_TRUE(Database.isValid());
+  ASSERT_TRUE((bool)Database);
   std::vector<CompileCommand> Result =
     Database->getCompileCommands("source");
   ASSERT_EQ(1ul, Result.size());
@@ -472,9 +472,9 @@ TEST(ParseFixedCompilationDatabase, ReturnsArgumentsAfterDoubleDash) {
 TEST(ParseFixedCompilationDatabase, ReturnsEmptyCommandLine) {
   int Argc = 3;
   const char *Argv[] = { "1", "2", "--\0no-constant-folding" };
-  OwningPtr<FixedCompilationDatabase> Database(
+  std::unique_ptr<FixedCompilationDatabase> Database(
       FixedCompilationDatabase::loadFromCommandLine(Argc, Argv));
-  ASSERT_TRUE(Database.isValid());
+  ASSERT_TRUE((bool)Database);
   std::vector<CompileCommand> Result =
     Database->getCompileCommands("source");
   ASSERT_EQ(1ul, Result.size());
@@ -489,9 +489,9 @@ TEST(ParseFixedCompilationDatabase, ReturnsEmptyCommandLine) {
 TEST(ParseFixedCompilationDatabase, HandlesPositionalArgs) {
   const char *Argv[] = {"1", "2", "--", "-c", "somefile.cpp", "-DDEF3"};
   int Argc = sizeof(Argv) / sizeof(char*);
-  OwningPtr<FixedCompilationDatabase> Database(
+  std::unique_ptr<FixedCompilationDatabase> Database(
       FixedCompilationDatabase::loadFromCommandLine(Argc, Argv));
-  ASSERT_TRUE(Database.isValid());
+  ASSERT_TRUE((bool)Database);
   std::vector<CompileCommand> Result =
     Database->getCompileCommands("source");
   ASSERT_EQ(1ul, Result.size());
@@ -508,9 +508,9 @@ TEST(ParseFixedCompilationDatabase, HandlesPositionalArgs) {
 TEST(ParseFixedCompilationDatabase, HandlesArgv0) {
   const char *Argv[] = {"1", "2", "--", "mytool", "somefile.cpp"};
   int Argc = sizeof(Argv) / sizeof(char*);
-  OwningPtr<FixedCompilationDatabase> Database(
+  std::unique_ptr<FixedCompilationDatabase> Database(
       FixedCompilationDatabase::loadFromCommandLine(Argc, Argv));
-  ASSERT_TRUE(Database.isValid());
+  ASSERT_TRUE((bool)Database);
   std::vector<CompileCommand> Result =
     Database->getCompileCommands("source");
   ASSERT_EQ(1ul, Result.size());

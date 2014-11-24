@@ -36,7 +36,7 @@ namespace variadic_expansion {
 namespace odr_use_within_init_capture {
 
 int test() {
-
+  
   { // no captures
     const int x = 10;
     auto L = [z = x + 2](int a) {

@@ -106,7 +106,7 @@ _Bool fi4a(int *i) {
 
 _Bool fi4b(int *i) {
   // CHECK: @fi4
-  // CHECK: cmpxchg i32*
+  // CHECK: cmpxchg weak i32*
   int cmp = 0;
   return __atomic_compare_exchange_n(i, &cmp, 1, 1, memory_order_acquire, memory_order_acquire);
 }
@@ -309,15 +309,6 @@ void atomic_init_foo()
 
   // CHECK-NOT: atomic
   // CHECK: }
-}
-
-// CHECK: @invalid_atomic
-void invalid_atomic(_Atomic(int) *i) {
-  __c11_atomic_store(i, 1, memory_order_consume);
-  __c11_atomic_store(i, 1, memory_order_acquire);
-  __c11_atomic_store(i, 1, memory_order_acq_rel);
-  __c11_atomic_load(i, memory_order_release);
-  __c11_atomic_load(i, memory_order_acq_rel);
 }
 
 #endif

@@ -118,3 +118,20 @@ void test3() {
   (void)s1.foo();
   (void)s2.foo();
 }
+
+namespace pr16992 {
+  typedef int T;
+  unsigned getsz() {
+    return (sizeof T());
+  }
+}
+
+void test4() {
+  #define X 0
+  #define Y 1
+  bool r1 = X || Y;
+
+  #define Y2 2
+  bool r2 = X || Y2; // expected-warning {{use of logical '||' with constant operand}} \
+                     // expected-note {{use '|' for a bitwise operation}}
+}

@@ -66,7 +66,7 @@ COMPILERRT_SRC_ROOT := $(LLVM_SRC_ROOT)/projects/compiler-rt
 #  3. Come up with an alternate mechanism to define all the toolchain
 #     information that compiler-rt would need to build libraries for all the
 #     requested targets. This might be a simple short term solution, but is
-#     likely to be unwieldly and irritating to maintain in the long term.
+#     likely to be unwieldy and irritating to maintain in the long term.
 ifneq ($(LLVM_CROSS_COMPILING),1)
 ifneq ($(CLANG_NO_RUNTIME),1)
 ifeq ($(shell test -d $(COMPILERRT_SRC_ROOT) && echo OK),OK)
@@ -78,14 +78,19 @@ ifeq ($(shell test -d $(COMPILERRT_SRC_ROOT) && echo OK),OK)
 # support.
 RuntimeDirs :=
 ifeq ($(OS),Darwin)
-RuntimeDirs += darwin darwin_embedded
+RuntimeDirs += darwin macho_embedded
 RuntimeLibrary.darwin.Configs := \
 	eprintf.a 10.4.a osx.a ios.a cc_kext.a cc_kext_ios5.a \
 	asan_osx_dynamic.dylib \
 	profile_osx.a profile_ios.a \
 	ubsan_osx.a
-RuntimeLibrary.darwin_embedded.Configs := \
-	soft_static.a hard_static.a soft_pic.a hard_pic.a
+
+RuntimeLibrary.macho_embedded.Configs := \
+	hard_static.a hard_pic.a
+ifneq (,$(findstring ARM,$(TARGETS_TO_BUILD)))
+RuntimeLibrary.macho_embedded.Configs += \
+	soft_static.a soft_pic.a
+endif
 
 # Support building compiler-rt with relocatable SDKs.
 #
@@ -121,8 +126,8 @@ TryCompile = \
 
 # We try to build 32-bit runtimes both on 32-bit hosts and 64-bit hosts.
 Runtime32BitConfigs = \
-	full-i386.a profile-i386.a san-i386.a asan-i386.a ubsan-i386.a \
-	ubsan_cxx-i386.a
+	builtins-i386.a profile-i386.a san-i386.a asan-i386.a asan_cxx-i386.a \
+	ubsan-i386.a ubsan_cxx-i386.a
 
 # We currently only try to generate runtime libraries on x86.
 ifeq ($(ARCH),x86)
@@ -131,9 +136,9 @@ endif
 
 ifeq ($(ARCH),x86_64)
 RuntimeLibrary.linux.Configs += \
-	full-x86_64.a profile-x86_64.a san-x86_64.a asan-x86_64.a \
-	tsan-x86_64.a msan-x86_64.a ubsan-x86_64.a ubsan_cxx-x86_64.a \
-	dfsan-x86_64.a lsan-x86_64.a
+	builtins-x86_64.a profile-x86_64.a san-x86_64.a asan-x86_64.a \
+	asan_cxx-x86_64.a tsan-x86_64.a msan-x86_64.a ubsan-x86_64.a \
+	ubsan_cxx-x86_64.a dfsan-x86_64.a lsan-x86_64.a
 # We need to build 32-bit ASan/UBsan libraries on 64-bit platform, and add them
 # to the list of runtime libraries to make
 # "clang -fsanitize=(address|undefined) -m32" work.
@@ -164,6 +169,7 @@ BuildRuntimeLibraries:
 	  ProjSrcRoot=$(COMPILERRT_SRC_ROOT) \
 	  ProjObjRoot=$(PROJ_OBJ_DIR) \
 	  CC="$(ToolDir)/clang" \
+	  VERBOSE=$(VERBOSE) \
 	  LLVM_ANDROID_TOOLCHAIN_DIR="$(LLVM_ANDROID_TOOLCHAIN_DIR)" \
 	  $(COMPILERRT_MAKE_FLAGS) \
 	  $(RuntimeDirs:%=clang_%)
@@ -172,6 +178,7 @@ CleanRuntimeLibraries:
 	$(Verb) $(MAKE) -C $(COMPILERRT_SRC_ROOT) \
 	  ProjSrcRoot=$(COMPILERRT_SRC_ROOT) \
 	  ProjObjRoot=$(PROJ_OBJ_DIR) \
+	  VERBOSE=$(VERBOSE) \
 	  $(COMPILERRT_MAKE_FLAGS) \
 	  clean
 .PHONY: CleanRuntimeLibraries

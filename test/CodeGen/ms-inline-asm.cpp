@@ -1,5 +1,5 @@
-// REQUIRES: x86-64-registered-target
-// RUN: %clang_cc1 -x c++ %s -triple i386-apple-darwin10 -fasm-blocks -emit-llvm -o - | FileCheck %s
+// REQUIRES: x86-registered-target
+// RUN: %clang_cc1 -x c++ %s -triple i386-apple-darwin10 -fasm-blocks -emit-llvm -o - -std=c++11 | FileCheck %s
 
 // rdar://13645930
 
@@ -97,7 +97,7 @@ void test5() {
   // CHECK: [[Y:%.*]] = alloca i32
   int x, y;
   __asm push y
-  // CHECK: call void asm sideeffect inteldialect "push dword ptr $0", "=*m,~{dirflag},~{fpsr},~{flags}"(i32* [[Y]])
+  // CHECK: call void asm sideeffect inteldialect "push dword ptr $0", "=*m,~{esp},~{dirflag},~{fpsr},~{flags}"(i32* [[Y]])
   __asm call T5<int>::create<float>
   // CHECK: call void asm sideeffect inteldialect "call $0", "r,~{dirflag},~{fpsr},~{flags}"(i32 (float)* @_ZN2T5IiE6createIfEEiT_)
   __asm mov x, eax
@@ -110,4 +110,34 @@ void test6() {
    a:
    jmp a
   }
+}
+
+void t7_struct() {
+  struct A {
+    int a;
+    int b;
+  };
+  __asm mov eax, [eax].A.b
+  // CHECK-LABEL: define void @_Z9t7_structv
+  // CHECK: call void asm sideeffect inteldialect "mov eax, [eax].4", "~{eax},~{dirflag},~{fpsr},~{flags}"()
+}
+
+void t7_typedef() {
+  typedef struct {
+    int a;
+    int b;
+  } A;
+  __asm mov eax, [eax].A.b
+  // CHECK-LABEL: define void @_Z10t7_typedefv
+  // CHECK: call void asm sideeffect inteldialect "mov eax, [eax].4", "~{eax},~{dirflag},~{fpsr},~{flags}"()
+}
+
+void t7_using() {
+  using A = struct {
+    int a;
+    int b;
+  };
+  __asm mov eax, [eax].A.b
+  // CHECK-LABEL: define void @_Z8t7_usingv
+  // CHECK: call void asm sideeffect inteldialect "mov eax, [eax].4", "~{eax},~{dirflag},~{fpsr},~{flags}"()
 }

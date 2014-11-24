@@ -9,8 +9,8 @@
 
 
 #include "clang/AST/ASTTypeTraits.h"
-#include "gtest/gtest.h"
 #include "MatchVerifier.h"
+#include "gtest/gtest.h"
 
 using namespace clang::ast_matchers;
 
@@ -32,6 +32,19 @@ TEST(ASTNodeKind, Bases) {
   EXPECT_FALSE(DNT<VarDecl>().isBaseOf(DNT<Decl>()));
 
   EXPECT_TRUE(DNT<Decl>().isSame(DNT<Decl>()));
+}
+
+TEST(ASTNodeKind, BaseDistances) {
+  unsigned Distance = 1;
+  EXPECT_TRUE(DNT<Expr>().isBaseOf(DNT<Expr>(), &Distance));
+  EXPECT_EQ(0u, Distance);
+
+  EXPECT_TRUE(DNT<Stmt>().isBaseOf(DNT<IfStmt>(), &Distance));
+  EXPECT_EQ(1u, Distance);
+
+  Distance = 3;
+  EXPECT_TRUE(DNT<DeclaratorDecl>().isBaseOf(DNT<ParmVarDecl>(), &Distance));
+  EXPECT_EQ(2u, Distance);
 }
 
 TEST(ASTNodeKind, SameBase) {

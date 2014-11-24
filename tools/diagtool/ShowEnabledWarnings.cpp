@@ -44,6 +44,7 @@ static char getCharForLevel(DiagnosticsEngine::Level Level) {
   switch (Level) {
   case DiagnosticsEngine::Ignored: return ' ';
   case DiagnosticsEngine::Note:    return '-';
+  case DiagnosticsEngine::Remark:  return 'R';
   case DiagnosticsEngine::Warning: return 'W';
   case DiagnosticsEngine::Error:   return 'E';
   case DiagnosticsEngine::Fatal:   return 'F';
@@ -63,18 +64,18 @@ createDiagnostics(unsigned int argc, char **argv) {
     new DiagnosticsEngine(DiagIDs, new DiagnosticOptions(), DiagsBuffer));
 
   // Try to build a CompilerInvocation.
-  OwningPtr<CompilerInvocation> Invocation(
-    createInvocationFromCommandLine(ArrayRef<const char *>(argv, argc),
-                                    InterimDiags));
+  std::unique_ptr<CompilerInvocation> Invocation(
+      createInvocationFromCommandLine(ArrayRef<const char *>(argv, argc),
+                                      InterimDiags));
   if (!Invocation)
-    return NULL;
+    return nullptr;
 
   // Build the diagnostics parser
   IntrusiveRefCntPtr<DiagnosticsEngine> FinalDiags =
     CompilerInstance::createDiagnostics(&Invocation->getDiagnosticOpts());
   if (!FinalDiags)
-    return NULL;
-  
+    return nullptr;
+
   // Flush any errors created when initializing everything. This could happen
   // for invalid command lines, which will probably give non-sensical results.
   DiagsBuffer->FlushDiagnostics(*FinalDiags);

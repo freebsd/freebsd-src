@@ -8,10 +8,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "TestVisitor.h"
-
 #include <stack>
 
-namespace clang {
+using namespace clang;
+
+namespace {
 
 class TypeLocVisitor : public ExpectedLocationVisitor<TypeLocVisitor> {
 public:
@@ -530,6 +531,15 @@ TEST(RecursiveASTVisitor, VisitsCompoundLiteralType) {
       TypeLocVisitor::Lang_C));
 }
 
+TEST(RecursiveASTVisitor, VisitsObjCPropertyType) {
+  TypeLocVisitor Visitor;
+  Visitor.ExpectMatch("NSNumber", 2, 33);
+  EXPECT_TRUE(Visitor.runOver(
+      "@class NSNumber; \n"
+      "@interface A @property (retain) NSNumber *x; @end\n",
+      TypeLocVisitor::Lang_OBJC));
+}
+
 TEST(RecursiveASTVisitor, VisitsLambdaExpr) {
   LambdaExprVisitor Visitor;
   Visitor.ExpectMatch("", 1, 12);
@@ -549,6 +559,16 @@ TEST(RecursiveASTVisitor, HasCaptureDefaultLoc) {
   Visitor.ExpectMatch("", 1, 20);
   EXPECT_TRUE(Visitor.runOver("void f() { int a; [=]{a;}; }",
                               LambdaDefaultCaptureVisitor::Lang_CXX11));
+}
+
+TEST(RecursiveASTVisitor, VisitsCopyExprOfBlockDeclCapture) {
+  DeclRefExprVisitor Visitor;
+  Visitor.ExpectMatch("x", 3, 24);
+  EXPECT_TRUE(Visitor.runOver("void f(int(^)(int)); \n"
+                              "void g() { \n"
+                              "  f([&](int x){ return x; }); \n"
+                              "}",
+                              DeclRefExprVisitor::Lang_OBJCXX11));
 }
 
 // Checks for lambda classes that are not marked as implicitly-generated.
@@ -577,4 +597,42 @@ TEST(RecursiveASTVisitor, LambdaClosureTypesAreImplicit) {
   EXPECT_TRUE(Visitor.sawOnlyImplicitLambdaClasses());
 }
 
-} // end namespace clang
+
+
+// Check to ensure that attributes and expressions within them are being
+// visited.
+class AttrVisitor : public ExpectedLocationVisitor<AttrVisitor> {
+public:
+  bool VisitMemberExpr(MemberExpr *ME) {
+    Match(ME->getMemberDecl()->getNameAsString(), ME->getLocStart());
+    return true;
+  }
+  bool VisitAttr(Attr *A) {
+    Match("Attr", A->getLocation());
+    return true;
+  }
+  bool VisitGuardedByAttr(GuardedByAttr *A) {
+    Match("guarded_by", A->getLocation());
+    return true;
+  }
+};
+
+
+TEST(RecursiveASTVisitor, AttributesAreVisited) {
+  AttrVisitor Visitor;
+  Visitor.ExpectMatch("Attr", 4, 24);
+  Visitor.ExpectMatch("guarded_by", 4, 24);
+  Visitor.ExpectMatch("mu1",  4, 35);
+  Visitor.ExpectMatch("Attr", 5, 29);
+  Visitor.ExpectMatch("mu1",  5, 54);
+  Visitor.ExpectMatch("mu2",  5, 59);
+  EXPECT_TRUE(Visitor.runOver(
+    "class Foo {\n"
+    "  int mu1;\n"
+    "  int mu2;\n"
+    "  int a __attribute__((guarded_by(mu1)));\n"
+    "  void bar() __attribute__((exclusive_locks_required(mu1, mu2)));\n"
+    "};\n"));
+}
+
+} // end anonymous namespace

@@ -33,3 +33,30 @@ void triggerPendingInstantiation() {
 void redeclDefinitionEmit(){}
 
 typedef Outer<int>::Inner OuterIntInner_left;
+
+int defineListDoubleLeft() {
+  List<double> ld;
+  ld.push_back(0.0);
+  return ld.size;
+}
+
+template<typename T> struct MergePatternDecl;
+
+extern template struct ExplicitInstantiation<false, false>;
+extern template struct ExplicitInstantiation<false, true>;
+extern template struct ExplicitInstantiation<true, false>;
+extern template struct ExplicitInstantiation<true, true>;
+
+void useExplicitInstantiation() {
+  ExplicitInstantiation<true, false>().f();
+  ExplicitInstantiation<true, true>().f();
+}
+
+template<typename> struct DelayUpdates;
+template<> struct DelayUpdates<int>;
+template<typename T> struct DelayUpdates<T*>;
+template<typename T> void testDelayUpdates(DelayUpdates<T> *p = 0) {}
+
+void outOfLineInlineUseLeftF(void (OutOfLineInline<int>::*)() = &OutOfLineInline<int>::f);
+void outOfLineInlineUseLeftG(void (OutOfLineInline<int>::*)() = &OutOfLineInline<int>::g);
+void outOfLineInlineUseLeftH(void (OutOfLineInline<int>::*)() = &OutOfLineInline<int>::h);

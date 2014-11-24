@@ -284,6 +284,67 @@ namespace lambdas_in_NSDMIs {
   }
 }
 
+// PR18477: don't try to capture 'this' from an NSDMI encountered while parsing
+// a lambda.
+namespace NSDMIs_in_lambdas {
+  template<typename T> struct S { int a = 0; int b = a; };
+  void f() { []() { S<int> s; }; }
+
+  auto x = []{ struct S { int n, m = n; }; };
+  auto y = [&]{ struct S { int n, m = n; }; }; // expected-error {{non-local lambda expression cannot have a capture-default}}
+  void g() { auto z = [&]{ struct S { int n, m = n; }; }; }
+}
+
+namespace CaptureIncomplete {
+  struct Incomplete; // expected-note 2{{forward decl}}
+  void g(const Incomplete &a);
+  void f(Incomplete &a) {
+    (void) [a] {}; // expected-error {{incomplete}}
+    (void) [&a] {};
+
+    (void) [=] { g(a); }; // expected-error {{incomplete}}
+    (void) [&] { f(a); };
+  }
+}
+
+namespace CaptureAbstract {
+  struct S {
+    virtual void f() = 0; // expected-note {{unimplemented}}
+    int n = 0;
+  };
+  struct T : S {
+    constexpr T() {}
+    void f();
+  };
+  void f() {
+    constexpr T t = T();
+    S &s = const_cast<T&>(t);
+    // FIXME: Once we properly compute odr-use per DR712, this should be
+    // accepted (and should not capture 's').
+    [=] { return s.n; }; // expected-error {{abstract}}
+  }
+}
+
+namespace PR18128 {
+  auto l = [=]{}; // expected-error {{non-local lambda expression cannot have a capture-default}}
+
+  struct S {
+    int n;
+    int (*f())[true ? 1 : ([=]{ return n; }(), 0)];
+    // expected-error@-1 {{non-local lambda expression cannot have a capture-default}}
+    // expected-error@-2 {{invalid use of non-static data member 'n'}}
+    // expected-error@-3 {{a lambda expression may not appear inside of a constant expression}}
+    int g(int k = ([=]{ return n; }(), 0));
+    // expected-error@-1 {{non-local lambda expression cannot have a capture-default}}
+    // expected-error@-2 {{invalid use of non-static data member 'n'}}
+
+    int a = [=]{ return n; }(); // ok
+    int b = [=]{ return [=]{ return n; }(); }(); // ok
+    int c = []{ int k = 0; return [=]{ return k; }(); }(); // ok
+    int d = []{ return [=]{ return n; }(); }(); // expected-error {{'this' cannot be implicitly captured in this context}}
+  };
+}
+
 namespace PR18473 {
   template<typename T> void f() {
     T t(0);
@@ -297,4 +358,8 @@ namespace PR18473 {
     operator int() const;
   };
   template void f<NoCopy>(); // expected-note {{instantiation}}
+}
+
+void PR19249() {
+  auto x = [&x]{}; // expected-error {{cannot appear in its own init}}
 }

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -Wno-unused-value -emit-llvm %s -o - | FileCheck %s
+// RUN: %clang_cc1 -Wno-unused-value -triple %itanium_abi_triple -emit-llvm %s -o - | FileCheck %s
 
 // CHECK: @i = global [[INT:i[0-9]+]] 0
 volatile int i, j, k;
@@ -248,11 +248,11 @@ void test() {
   // gcc.
 
   // Not a use.  gcc forgets to do the assignment.
-  // CHECK-NEXT: call
+  // CHECK-NEXT: call {{.*}}void
   ((a=a),a);
 
   // Not a use.  gcc gets this wrong, it doesn't emit the copy!  
-  // CHECK-NEXT: call
+  // CHECK-NEXT: call {{.*}}void
   (void)(a=a);
 
   // Not a use.  gcc got this wrong in 4.2 and omitted the side effects

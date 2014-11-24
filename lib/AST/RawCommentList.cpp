@@ -95,10 +95,9 @@ StringRef RawComment::getRawTextSlow(const SourceManager &SourceMgr) const {
   unsigned BeginOffset;
   unsigned EndOffset;
 
-  llvm::tie(BeginFileID, BeginOffset) =
+  std::tie(BeginFileID, BeginOffset) =
       SourceMgr.getDecomposedLoc(Range.getBegin());
-  llvm::tie(EndFileID, EndOffset) =
-      SourceMgr.getDecomposedLoc(Range.getEnd());
+  std::tie(EndFileID, EndOffset) = SourceMgr.getDecomposedLoc(Range.getEnd());
 
   const unsigned Length = EndOffset - BeginOffset;
   if (Length < 2)
@@ -252,3 +251,15 @@ void RawCommentList::addComment(const RawComment &RC,
     Comments.push_back(new (Allocator) RawComment(RC));
   }
 }
+
+void RawCommentList::addDeserializedComments(ArrayRef<RawComment *> DeserializedComments) {
+  std::vector<RawComment *> MergedComments;
+  MergedComments.reserve(Comments.size() + DeserializedComments.size());
+
+  std::merge(Comments.begin(), Comments.end(),
+             DeserializedComments.begin(), DeserializedComments.end(),
+             std::back_inserter(MergedComments),
+             BeforeThanCompare<RawComment>(SourceMgr));
+  std::swap(Comments, MergedComments);
+}
+

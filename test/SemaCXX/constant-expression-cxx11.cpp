@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -triple i686-linux -Wno-string-plus-int -Wno-pointer-arith -Wno-zero-length-array -fsyntax-only -fcxx-exceptions -verify -std=c++11 -pedantic %s -Wno-comment
+// RUN: %clang_cc1 -triple i686-linux -Wno-string-plus-int -Wno-pointer-arith -Wno-zero-length-array -fsyntax-only -fcxx-exceptions -verify -std=c++11 -pedantic %s -Wno-comment -Wno-tautological-pointer-compare -Wno-bool-conversion
 
 namespace StaticAssertFoldTest {
 
@@ -823,6 +823,19 @@ static_assert(X() == 0, "");
 
 }
 
+struct This {
+  constexpr int f() const { return 0; }
+  static constexpr int g() { return 0; }
+  void h() {
+    constexpr int x = f(); // expected-error {{must be initialized by a constant}}
+    // expected-note@-1 {{implicit use of 'this' pointer is only allowed within the evaluation of a call to a 'constexpr' member function}}
+    constexpr int y = this->f(); // expected-error {{must be initialized by a constant}}
+    // expected-note-re@-1 {{{{^}}use of 'this' pointer}}
+    constexpr int z = g();
+    static_assert(z == 0, "");
+  }
+};
+
 }
 
 namespace Temporaries {
@@ -859,6 +872,12 @@ static_assert(f(T(5)) == 5, "");
 
 constexpr bool b(int n) { return &n; }
 static_assert(b(0), "");
+
+struct NonLiteral {
+  NonLiteral();
+  int f();
+};
+constexpr int k = NonLiteral().f(); // expected-error {{constant expression}} expected-note {{non-literal type 'Temporaries::NonLiteral'}}
 
 }
 

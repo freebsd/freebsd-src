@@ -1,19 +1,9 @@
-// RUN: %clang_cc1 -fno-rtti -emit-llvm -fdump-vtable-layouts %s -o %t.ll -cxx-abi microsoft -triple=i386-pc-win32 >%t
-// RUN: FileCheck --check-prefix=VTABLE-SIMPLE-A %s < %t
-// RUN: FileCheck --check-prefix=VTABLE-SIMPLE-B %s < %t
-// RUN: FileCheck --check-prefix=VTABLE-SIMPLE-C %s < %t
-// RUN: FileCheck --check-prefix=VTABLE-EXTENDED-A %s < %t
-// RUN: FileCheck --check-prefix=VTABLE-EXTENDED-B %s < %t
-// RUN: FileCheck --check-prefix=VTABLE-EXTENDED-C %s < %t
-// RUN: FileCheck --check-prefix=VTABLE-EXTENDED-E %s < %t
-// RUN: FileCheck --check-prefix=VTABLE-EXTENDED-F %s < %t
-// RUN: FileCheck --check-prefix=VTABLE-EXTENDED-G %s < %t
-// RUN: FileCheck --check-prefix=VTABLE-EXTENDED-H %s < %t
-// RUN: FileCheck --check-prefix=VTABLE-PR17738-A %s < %t
+// RUN: %clang_cc1 -fno-rtti -emit-llvm -fdump-vtable-layouts %s -o %t.ll -triple=i386-pc-win32 > %t
+// RUN: FileCheck %s < %t
 // RUN: FileCheck --check-prefix=MANGLING %s < %t.ll
 
 // For now, just make sure x86_64 doesn't crash.
-// RUN: %clang_cc1 -fno-rtti -emit-llvm-only -fdump-vtable-layouts %s -cxx-abi microsoft -triple=x86_64-pc-win32 >/dev/null
+// RUN: %clang_cc1 -fno-rtti -emit-llvm-only -fdump-vtable-layouts %s -triple=x86_64-pc-win32 > /dev/null
 
 struct V1 {
   virtual void f();
@@ -64,11 +54,17 @@ namespace simple {
 //   jmp Method@Class
 
 struct A : virtual V1 {
-  // VTABLE-SIMPLE-A: VFTable for 'V1' in 'simple::A' (2 entries).
-  // VTABLE-SIMPLE-A-NEXT: 0 | void simple::A::f()
-  // VTABLE-SIMPLE-A-NEXT:     [this adjustment: vtordisp at -4, 0 non-virtual]
-  // VTABLE-SIMPLE-A-NEXT: 1 | simple::A::~A() [scalar deleting]
-  // VTABLE-SIMPLE-A-NEXT:     [this adjustment: vtordisp at -4, 0 non-virtual]
+  // CHECK-LABEL: VFTable for 'V1' in 'simple::A' (2 entries).
+  // CHECK-NEXT: 0 | void simple::A::f()
+  // CHECK-NEXT:     [this adjustment: vtordisp at -4, 0 non-virtual]
+  // CHECK-NEXT: 1 | simple::A::~A() [scalar deleting]
+  // CHECK-NEXT:     [this adjustment: vtordisp at -4, 0 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'simple::A::~A()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -4, 0 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'void simple::A::f()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -4, 0 non-virtual]
 
   virtual void f();
   // MANGLING-DAG: @"\01?f@A@simple@@$4PPPPPPPM@A@AEXXZ"
@@ -78,18 +74,28 @@ struct A : virtual V1 {
 };
 
 A a;
+void use(A *obj) { obj->f(); }
 
 struct B : virtual V3 {
-  // VTABLE-SIMPLE-B: VFTable for 'Z' in 'V3' in 'simple::B' (2 entries).
-  // VTABLE-SIMPLE-B-NEXT: 0 | void Z::g()
-  // VTABLE-SIMPLE-B-NEXT: 1 | simple::B::~B() [scalar deleting]
-  // VTABLE-SIMPLE-B-NEXT:     [this adjustment: vtordisp at -4, 0 non-virtual]
+  // CHECK-LABEL: VFTable for 'Z' in 'V3' in 'simple::B' (2 entries).
+  // CHECK-NEXT: 0 | void Z::g()
+  // CHECK-NEXT: 1 | simple::B::~B() [scalar deleting]
+  // CHECK-NEXT:     [this adjustment: vtordisp at -4, 0 non-virtual]
 
-  // VTABLE-SIMPLE-B: VFTable for 'V2' in 'V3' in 'simple::B' (2 entries).
-  // VTABLE-SIMPLE-B-NEXT: 0 | void simple::B::f()
-  // VTABLE-SIMPLE-B-NEXT:     [this adjustment: vtordisp at -12, 0 non-virtual]
-  // VTABLE-SIMPLE-B-NEXT: 1 | simple::B::~B() [scalar deleting]
-  // VTABLE-SIMPLE-B-NEXT:     [this adjustment: vtordisp at -12, -8 non-virtual]
+  // CHECK-LABEL: Thunks for 'simple::B::~B()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -4, 0 non-virtual]
+
+  // CHECK-LABEL: VFTable for 'V2' in 'V3' in 'simple::B' (2 entries).
+  // CHECK-NEXT: 0 | void simple::B::f()
+  // CHECK-NEXT:     [this adjustment: vtordisp at -12, 0 non-virtual]
+  // CHECK-NEXT: 1 | simple::B::~B() [scalar deleting]
+  // CHECK-NEXT:     [this adjustment: vtordisp at -12, -8 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'simple::B::~B()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -12, -8 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'void simple::B::f()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -12, 0 non-virtual]
 
   // FIXME: The vtordisp thunk should only get emitted for a constructor
   // if "this" leaves scope.
@@ -104,24 +110,40 @@ struct B : virtual V3 {
 };
 
 B b;
+void use(B *obj) { obj->f(); }
 
 struct C : virtual V4 {
-  // VTABLE-SIMPLE-C: VFTable for 'Z' in 'V4' in 'simple::C' (2 entries).
-  // VTABLE-SIMPLE-C-NEXT: 0 | void Z::g()
-  // VTABLE-SIMPLE-C-NEXT: 1 | simple::C::~C() [scalar deleting]
-  // VTABLE-SIMPLE-C-NEXT:     [this adjustment: vtordisp at -4, 0 non-virtual]
+  // CHECK-LABEL: VFTable for 'Z' in 'V4' in 'simple::C' (2 entries).
+  // CHECK-NEXT: 0 | void Z::g()
+  // CHECK-NEXT: 1 | simple::C::~C() [scalar deleting]
+  // CHECK-NEXT:     [this adjustment: vtordisp at -4, 0 non-virtual]
 
-  // VTABLE-SIMPLE-C: VFTable for 'V1' in 'V4' in 'simple::C' (2 entries).
-  // VTABLE-SIMPLE-C-NEXT: 0 | void simple::C::f()
-  // VTABLE-SIMPLE-C-NEXT:     [this adjustment: vtordisp at -12, 0 non-virtual]
-  // VTABLE-SIMPLE-C-NEXT: 1 | simple::C::~C() [scalar deleting]
-  // VTABLE-SIMPLE-C-NEXT:     [this adjustment: vtordisp at -12, -8 non-virtual]
+  // CHECK-LABEL: Thunks for 'simple::C::~C()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -4, 0 non-virtual]
 
-  // VTABLE-SIMPLE-C: VFTable for 'V2' in 'V4' in 'simple::C' (2 entries).
-  // VTABLE-SIMPLE-C-NEXT: 0 | void simple::C::f()
-  // VTABLE-SIMPLE-C-NEXT:     [this adjustment: vtordisp at -16, -4 non-virtual]
-  // VTABLE-SIMPLE-C-NEXT: 1 | simple::C::~C() [scalar deleting]
-  // VTABLE-SIMPLE-C-NEXT:     [this adjustment: vtordisp at -16, -12 non-virtual]
+  // CHECK-LABEL: VFTable for 'V1' in 'V4' in 'simple::C' (2 entries).
+  // CHECK-NEXT: 0 | void simple::C::f()
+  // CHECK-NEXT:     [this adjustment: vtordisp at -12, 0 non-virtual]
+  // CHECK-NEXT: 1 | simple::C::~C() [scalar deleting]
+  // CHECK-NEXT:     [this adjustment: vtordisp at -12, -8 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'simple::C::~C()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -12, -8 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'void simple::C::f()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -12, 0 non-virtual]
+
+  // CHECK-LABEL: VFTable for 'V2' in 'V4' in 'simple::C' (2 entries).
+  // CHECK-NEXT: 0 | void simple::C::f()
+  // CHECK-NEXT:     [this adjustment: vtordisp at -16, -4 non-virtual]
+  // CHECK-NEXT: 1 | simple::C::~C() [scalar deleting]
+  // CHECK-NEXT:     [this adjustment: vtordisp at -16, -12 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'simple::C::~C()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -16, -12 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'void simple::C::f()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -16, -4 non-virtual]
 
   int x;
   virtual void f();
@@ -134,6 +156,68 @@ struct C : virtual V4 {
 };
 
 C c;
+void use(C *obj) { obj->f(); }
+
+class D : B {
+  // CHECK-LABEL: VFTable for 'V2' in 'V3' in 'simple::B' in 'simple::D' (2 entries).
+  // CHECK-NEXT: 0 | void simple::B::f()
+  // CHECK-NEXT:     [this adjustment: vtordisp at -12, -4 non-virtual]
+  // CHECK-NEXT: 1 | simple::D::~D() [scalar deleting]
+  // CHECK-NEXT:     [this adjustment: vtordisp at -12, -8 non-virtual]
+  D();
+  int z;
+
+  // MANGLING-DAG: @"\01?f@B@simple@@$4PPPPPPPE@3AEXXZ"
+};
+
+D::D() {}
+
+struct E : V3 {
+  virtual void f();
+};
+
+struct F : virtual E {
+  // CHECK-LABEL: VFTable for 'Z' in 'V3' in 'simple::E' in 'simple::F' (2 entries).
+  // CHECK-NEXT:   0 | void simple::F::g()
+  // CHECK-NEXT:       [this adjustment: vtordisp at -4, 0 non-virtual]
+  // CHECK-NEXT:   1 | simple::F::~F() [scalar deleting]
+  // CHECK-NEXT:       [this adjustment: vtordisp at -4, 0 non-virtual]
+
+  // CHECK-LABEL: VFTable for 'V2' in 'V3' in 'simple::E' in 'simple::F' (2 entries).
+  // CHECK-NEXT:   0 | void simple::E::f()
+  // CHECK-NEXT:   1 | simple::F::~F() [scalar deleting]
+  // CHECK-NEXT:       [this adjustment: vtordisp at -12, -8 non-virtual]
+
+  F();
+  virtual void g();  // Force a vtordisp.
+  int f;
+
+  // MANGLING-DAG: @"\01?g@F@simple@@$4PPPPPPPM@A@AEXXZ"{{.*}}??_EF@simple@@$4PPPPPPPM@A@AEPAXI@Z
+  // MANGLING-DAG: ?f@E@simple@@UAEXXZ{{.*}}??_EF@simple@@$4PPPPPPPE@7AEPAXI@Z
+};
+
+F::F() {}
+
+struct G : F {
+  // CHECK-LABEL: VFTable for 'Z' in 'V3' in 'simple::E' in 'simple::F' in 'simple::G' (2 entries).
+  // CHECK-NEXT:   0 | void simple::F::g()
+  // CHECK-NEXT:       [this adjustment: vtordisp at -4, -4 non-virtual]
+  // CHECK-NEXT:   1 | simple::G::~G() [scalar deleting]
+  // CHECK-NEXT:       [this adjustment: vtordisp at -4, 0 non-virtual]
+
+  // CHECK-LABEL: VFTable for 'V2' in 'V3' in 'simple::E' in 'simple::F' in 'simple::G' (2 entries).
+  // CHECK-NEXT:   0 | void simple::E::f()
+  // CHECK-NEXT:   1 | simple::G::~G() [scalar deleting]
+  // CHECK-NEXT:       [this adjustment: vtordisp at -12, -8 non-virtual]
+
+  G();
+  int g;
+
+  // MANGLING-DAG: @"\01?g@F@simple@@$4PPPPPPPM@3AEXXZ"{{.*}}@"\01??_EG@simple@@$4PPPPPPPM@A@AEPAXI@Z"
+  // MANGLING-DAG: @"\01?f@E@simple@@UAEXXZ"{{.*}}@"\01??_EG@simple@@$4PPPPPPPE@7AEPAXI@Z"
+};
+
+G::G() {}
 }
 
 namespace extended {
@@ -152,12 +236,16 @@ namespace extended {
 //   jmp Method@Class
 
 struct A : virtual simple::A {
-  // VTABLE-EXTENDED-A: VFTable for 'V1' in 'simple::A' in 'extended::A' (2 entries).
-  // VTABLE-EXTENDED-A-NEXT: 0 | void simple::A::f()
-  // VTABLE-EXTENDED-A-NEXT:     [this adjustment: vtordisp at -4, vbptr at 8 to the left,
-  // VTABLE-EXTENDED-A-NEXT:      vboffset at 8 in the vbtable, 8 non-virtual]
-  // VTABLE-EXTENDED-A-NEXT: 1 | extended::A::~A() [scalar deleting]
-  // VTABLE-EXTENDED-A-NEXT:     [this adjustment: vtordisp at -4, 0 non-virtual]
+  // CHECK-LABEL: VFTable for 'V1' in 'simple::A' in 'extended::A' (2 entries).
+  // CHECK-NEXT: 0 | void simple::A::f()
+  // CHECK-NEXT:     [this adjustment: vtordisp at -4, vbptr at 8 to the left,
+  // CHECK-NEXT:      vboffset at 8 in the vbtable, 8 non-virtual]
+  // CHECK-NEXT: 1 | extended::A::~A() [scalar deleting]
+  // CHECK-NEXT:     [this adjustment: vtordisp at -4, 0 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'void simple::A::f()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -4, vbptr at 8 to the left,
+  // CHECK-NEXT:      vboffset at 8 in the vbtable, 8 non-virtual]
 
   // `vtordispex{8,8,4294967292,8}'
   // MANGLING-DAG: @"\01?f@A@simple@@$R477PPPPPPPM@7AEXXZ"
@@ -168,28 +256,38 @@ struct A : virtual simple::A {
 };
 
 A a;
+void use(A *obj) { delete obj; }
 
 struct B : virtual simple::A {
   // This class has an implicit dtor.  Vdtors don't require vtordispex thunks
   // as the most derived class always has an implicit dtor,
   // which is a final overrider.
 
-  // VTABLE-EXTENDED-B: VFTable for 'V1' in 'simple::A' in 'extended::B' (2 entries).
+  // CHECK-LABEL: VFTable for 'V1' in 'simple::A' in 'extended::B' (2 entries).
   //  ...
-  // VTABLE-EXTENDED-B: 1 | extended::B::~B() [scalar deleting]
-  // VTABLE-EXTENDED-B-NEXT: [this adjustment: vtordisp at -4, 0 non-virtual]
+  // CHECK: 1 | extended::B::~B() [scalar deleting]
+  // CHECK-NEXT: [this adjustment: vtordisp at -4, 0 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'void simple::A::f()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -4, vbptr at 8 to the left,
+  // CHECK-NEXT:      vboffset at 8 in the vbtable, 8 non-virtual]
 
   // vtordisp{4294967292,0}
   // MANGLING-DAG: @"\01??_EB@extended@@$4PPPPPPPM@A@AEPAXI@Z"
 };
 
 B b;
+void use(B *obj) { delete obj; }
 
 struct C : virtual simple::A {
-  // VTABLE-EXTENDED-C: VFTable for 'V1' in 'simple::A' in 'extended::C' (2 entries).
-  // VTABLE-EXTENDED-C-NEXT: 0 | void simple::A::f()
-  // VTABLE-EXTENDED-C-NEXT:     [this adjustment: vtordisp at -4, vbptr at 12 to the left,
-  // VTABLE-EXTENDED-C-NEXT:      vboffset at 8 in the vbtable, 8 non-virtual]
+  // CHECK-LABEL: VFTable for 'V1' in 'simple::A' in 'extended::C' (2 entries).
+  // CHECK-NEXT: 0 | void simple::A::f()
+  // CHECK-NEXT:     [this adjustment: vtordisp at -4, vbptr at 12 to the left,
+  // CHECK-NEXT:      vboffset at 8 in the vbtable, 8 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'void simple::A::f()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -4, vbptr at 12 to the left,
+  // CHECK-NEXT:      vboffset at 8 in the vbtable, 8 non-virtual]
 
   // `vtordispex{12,8,4294967292,8}'
   // MANGLING-DAG: @"\01?f@A@simple@@$R4M@7PPPPPPPM@7AEXXZ"
@@ -199,6 +297,7 @@ struct C : virtual simple::A {
 };
 
 C c;
+void use(C *obj) { delete obj; }
 
 struct D : virtual V2 {
   virtual void f();
@@ -207,10 +306,14 @@ struct D : virtual V2 {
 };
 
 struct E : virtual D {
-  // VTABLE-EXTENDED-E: VFTable for 'V2' in 'extended::D' in 'extended::E' (2 entries).
-  // VTABLE-EXTENDED-E-NEXT: 0 | void extended::D::f()
-  // VTABLE-EXTENDED-E-NEXT:     [this adjustment: vtordisp at -4, vbptr at 8 to the left,
-  // VTABLE-EXTENDED-E-NEXT:      vboffset at 8 in the vbtable, 12 non-virtual]
+  // CHECK-LABEL: VFTable for 'V2' in 'extended::D' in 'extended::E' (2 entries).
+  // CHECK-NEXT: 0 | void extended::D::f()
+  // CHECK-NEXT:     [this adjustment: vtordisp at -4, vbptr at 8 to the left,
+  // CHECK-NEXT:      vboffset at 8 in the vbtable, 12 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'void extended::D::f()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -4, vbptr at 8 to the left,
+  // CHECK-NEXT:      vboffset at 8 in the vbtable, 12 non-virtual]
 
   // `vtordispex{8,8,4294967292,12}'
   // MANGLING-DAG: @"\01?f@D@extended@@$R477PPPPPPPM@M@AEXXZ"
@@ -220,12 +323,17 @@ struct E : virtual D {
 };
 
 E e;
+void use(E *obj) { delete obj; } 
 
 struct F : virtual Z, virtual D {
-  // VTABLE-EXTENDED-F: VFTable for 'V2' in 'extended::D' in 'extended::F' (2 entries).
-  // VTABLE-EXTENDED-F-NEXT: 0 | void extended::D::f()
-  // VTABLE-EXTENDED-F-NEXT:     [this adjustment: vtordisp at -4, vbptr at 20 to the left,
-  // VTABLE-EXTENDED-F-NEXT:      vboffset at 12 in the vbtable, 12 non-virtual]
+  // CHECK-LABEL: VFTable for 'V2' in 'extended::D' in 'extended::F' (2 entries).
+  // CHECK-NEXT: 0 | void extended::D::f()
+  // CHECK-NEXT:     [this adjustment: vtordisp at -4, vbptr at 20 to the left,
+  // CHECK-NEXT:      vboffset at 12 in the vbtable, 12 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'void extended::D::f()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -4, vbptr at 20 to the left,
+  // CHECK-NEXT:      vboffset at 12 in the vbtable, 12 non-virtual]
 
   // `vtordispex{20,12,4294967292,12}'
   // MANGLING-DAG: @"\01?f@D@extended@@$R4BE@M@PPPPPPPM@M@AEXXZ"
@@ -235,17 +343,22 @@ struct F : virtual Z, virtual D {
 };
 
 F f;
+void use(F *obj) { delete obj; }
 
 struct G : virtual simple::A {
-  // VTABLE-EXTENDED-G: VFTable for 'extended::G' (1 entries).
-  // VTABLE-EXTENDED-G-NEXT: 0 | void extended::G::g()
+  // CHECK-LABEL: VFTable for 'extended::G' (1 entry).
+  // CHECK-NEXT: 0 | void extended::G::g()
 
-  // VTABLE-EXTENDED-G: VFTable for 'V1' in 'simple::A' in 'extended::G' (2 entries).
-  // VTABLE-EXTENDED-G-NEXT: 0 | void simple::A::f()
-  // VTABLE-EXTENDED-G-NEXT:     [this adjustment: vtordisp at -4, vbptr at 8 to the left,
-  // VTABLE-EXTENDED-G-NEXT:      vboffset at 8 in the vbtable, 8 non-virtual]
-  // VTABLE-EXTENDED-G-NEXT: 1 | extended::G::~G() [scalar deleting]
-  // VTABLE-EXTENDED-G-NEXT:     [this adjustment: vtordisp at -4, 0 non-virtual]
+  // CHECK-LABEL: VFTable for 'V1' in 'simple::A' in 'extended::G' (2 entries).
+  // CHECK-NEXT: 0 | void simple::A::f()
+  // CHECK-NEXT:     [this adjustment: vtordisp at -4, vbptr at 8 to the left,
+  // CHECK-NEXT:      vboffset at 8 in the vbtable, 8 non-virtual]
+  // CHECK-NEXT: 1 | extended::G::~G() [scalar deleting]
+  // CHECK-NEXT:     [this adjustment: vtordisp at -4, 0 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'void simple::A::f()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -4, vbptr at 8 to the left,
+  // CHECK-NEXT:      vboffset at 8 in the vbtable, 8 non-virtual]
 
   // Emits a G's own vfptr, thus moving the vbptr in the layout.
   virtual void g();
@@ -256,22 +369,28 @@ struct G : virtual simple::A {
 };
 
 G g;
+void use(G *obj) { obj->g(); }
 
 struct H : Z, A {
-  // VTABLE-EXTENDED-H: VFTable for 'Z' in 'extended::H' (2 entries).
-  // VTABLE-EXTENDED-H-NEXT: 0 | void Z::g()
-  // VTABLE-EXTENDED-H-NEXT: 1 | extended::H::~H() [scalar deleting]
+  // CHECK-LABEL: VFTable for 'Z' in 'extended::H' (2 entries).
+  // CHECK-NEXT: 0 | void Z::g()
+  // CHECK-NEXT: 1 | extended::H::~H() [scalar deleting]
 
-  // VTABLE-EXTENDED-H: VFTable for 'V1' in 'simple::A' in 'extended::A' in 'extended::H' (2 entries).
-  // VTABLE-EXTENDED-H-NEXT: 0 | void simple::A::f()
-  // VTABLE-EXTENDED-H-NEXT:     [this adjustment: vtordisp at -4, vbptr at 8 to the left,
-  // VTABLE-EXTENDED-H-NEXT:      vboffset at 8 in the vbtable, 8 non-virtual]
+  // CHECK-LABEL: VFTable for 'V1' in 'simple::A' in 'extended::A' in 'extended::H' (2 entries).
+  // CHECK-NEXT: 0 | void simple::A::f()
+  // CHECK-NEXT:     [this adjustment: vtordisp at -4, vbptr at 8 to the left,
+  // CHECK-NEXT:      vboffset at 8 in the vbtable, 8 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'void simple::A::f()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -4, vbptr at 8 to the left,
+  // CHECK-NEXT:      vboffset at 8 in the vbtable, 8 non-virtual]
 
   // MANGLING-DAG: @"\01?f@A@simple@@$R477PPPPPPPM@7AEXXZ"
   // MANGLING-DAG: @"\01??_EH@extended@@$4PPPPPPPM@BA@AEPAXI@Z"
 };
 
 H h;
+void use(H *obj) { delete obj; }
 }
 
 namespace pr17738 {
@@ -279,10 +398,14 @@ namespace pr17738 {
 // Just do the right thing.
 
 struct A : virtual simple::B {
-  // VTABLE-PR17738-A: VFTable for 'V2' in 'V3' in 'simple::B' in 'pr17738::A' (2 entries).
-  // VTABLE-PR17738-A-NEXT: 0 | void simple::B::f()
-  // VTABLE-PR17738-A-NEXT:     [this adjustment: vtordisp at -12, vbptr at 20 to the left,
-  // VTABLE-PR17738-A-NEXT:      vboffset at 8 in the vbtable, 16 non-virtual]
+  // CHECK-LABEL: VFTable for 'V2' in 'V3' in 'simple::B' in 'pr17738::A' (2 entries).
+  // CHECK-NEXT: 0 | void simple::B::f()
+  // CHECK-NEXT:     [this adjustment: vtordisp at -12, vbptr at 20 to the left,
+  // CHECK-NEXT:      vboffset at 8 in the vbtable, 16 non-virtual]
+
+  // CHECK-LABEL: Thunks for 'void simple::B::f()' (1 entry).
+  // CHECK-NEXT: 0 | [this adjustment: vtordisp at -12, vbptr at 20 to the left,
+  // CHECK-NEXT:      vboffset at 8 in the vbtable, 16 non-virtual]
 
   // MANGLING-DAG: @"\01?f@B@simple@@$R4BE@7PPPPPPPE@BA@AEXXZ"
   int a;
@@ -290,6 +413,41 @@ struct A : virtual simple::B {
 };
 
 A a;
+void use(A *obj) { delete obj; }
+}
+
+namespace pr19408 {
+// In this test, the vptr used to vcall D::f() is located in the A vbase.
+// The offset of A in different in C and D, so the D vtordisp thunk should
+// adjust "this" so C::f gets the right value.
+struct A {
+  A();
+  virtual void f();
+  int a;
+};
+
+struct B : virtual A {
+  B();
+  int b;
+};
+
+struct C : B {
+  C();
+  virtual void f();
+  int c;
+};
+
+struct D : C {
+  // CHECK-LABEL: VFTable for 'pr19408::A' in 'pr19408::B' in 'pr19408::C' in 'pr19408::D' (1 entry).
+  // CHECK-NEXT:   0 | void pr19408::C::f()
+  // CHECK-NEXT:       [this adjustment: vtordisp at -4, -4 non-virtual]
+
+  // MANGLING-DAG: @"\01?f@C@pr19408@@$4PPPPPPPM@3AEXXZ"
+  D();
+  int d;
+};
+
+D::D() {}
 }
 
 namespace access {
@@ -321,4 +479,91 @@ struct C : virtual B {
 };
 
 C c;
+}
+
+namespace pr19505 {
+struct A {
+  virtual void f();
+  virtual void z();
+};
+
+struct B : A {
+  virtual void f();
+};
+
+struct C : A, B {
+  virtual void g();
+};
+
+struct X : B, virtual C {
+  X() {}
+  virtual void g();
+
+  // CHECK-LABEL: VFTable for 'pr19505::A' in 'pr19505::B' in 'pr19505::C' in 'pr19505::X' (2 entries).
+  // CHECK-NEXT:   0 | void pr19505::B::f()
+  // CHECK-NEXT:   1 | void pr19505::A::z()
+
+  // MANGLING-DAG: @"\01??_7X@pr19505@@6BB@1@@" = {{.*}}@"\01?f@B@pr19505@@UAEXXZ"
+} x;
+
+void build_vftable(X *obj) { obj->g(); }
+}
+
+namespace pr19506 {
+struct A {
+  virtual void f();
+  virtual void g();
+};
+
+struct B : A {
+  virtual void f();
+};
+
+struct C : B {};
+
+struct X : C, virtual B {
+  virtual void g();
+  X() {}
+
+  // CHECK-LABEL: VFTable for 'pr19506::A' in 'pr19506::B' in 'pr19506::X' (2 entries).
+  // CHECK-NEXT:   0 | void pr19506::B::f()
+  // CHECK-NEXT:   1 | void pr19506::X::g()
+  // CHECK-NEXT:       [this adjustment: vtordisp at -4, -12 non-virtual]
+
+  // MANGLING-DAG: @"\01??_7X@pr19506@@6BB@1@@" = {{.*}}@"\01?f@B@pr19506@@UAEXXZ"
+} x;
+
+void build_vftable(X *obj) { obj->g(); }
+}
+
+namespace pr19519 {
+// VS2013 CL miscompiles this, just make sure we don't regress.
+
+struct A {
+  virtual void f();
+  virtual void g();
+};
+
+struct B : virtual A {
+  virtual void f();
+  B();
+};
+
+struct C : virtual A {
+  virtual void g();
+};
+
+struct X : B, C {
+  X();
+
+  // CHECK-LABEL: VFTable for 'pr19519::A' in 'pr19519::B' in 'pr19519::X' (2 entries).
+  // CHECK-NEXT:   0 | void pr19519::B::f()
+  // CHECK-NEXT:       [this adjustment: vtordisp at -4, -4 non-virtual]
+  // CHECK-NEXT:   1 | void pr19519::C::g()
+  // CHECK-NEXT:       [this adjustment: vtordisp at -4, -4 non-virtual]
+
+  // MANGLING-DAG: @"\01??_7X@pr19519@@6B@" = {{.*}}@"\01?g@C@pr19519@@$4PPPPPPPM@3AEXXZ"
+};
+
+X::X() {}
 }

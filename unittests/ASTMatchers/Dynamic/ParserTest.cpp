@@ -7,14 +7,14 @@
 //
 //===-------------------------------------------------------------------===//
 
-#include <string>
-#include <vector>
-
 #include "../ASTMatchersTest.h"
 #include "clang/ASTMatchers/Dynamic/Parser.h"
 #include "clang/ASTMatchers/Dynamic/Registry.h"
-#include "gtest/gtest.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringMap.h"
+#include "gtest/gtest.h"
+#include <string>
+#include <vector>
 
 namespace clang {
 namespace ast_matchers {
@@ -39,15 +39,22 @@ public:
     Errors.push_back(Error.toStringFull());
   }
 
-  VariantMatcher actOnMatcherExpression(StringRef MatcherName,
+  llvm::Optional<MatcherCtor> lookupMatcherCtor(StringRef MatcherName) {
+    const ExpectedMatchersTy::value_type *Matcher =
+        &*ExpectedMatchers.find(MatcherName);
+    return reinterpret_cast<MatcherCtor>(Matcher);
+  }
+
+  VariantMatcher actOnMatcherExpression(MatcherCtor Ctor,
                                         const SourceRange &NameRange,
                                         StringRef BindID,
                                         ArrayRef<ParserValue> Args,
                                         Diagnostics *Error) {
-    MatcherInfo ToStore = { MatcherName, NameRange, Args, BindID };
+    const ExpectedMatchersTy::value_type *Matcher =
+        reinterpret_cast<const ExpectedMatchersTy::value_type *>(Ctor);
+    MatcherInfo ToStore = { Matcher->first, NameRange, Args, BindID };
     Matchers.push_back(ToStore);
-    return VariantMatcher::SingleMatcher(
-        ExpectedMatchers.find(MatcherName)->second);
+    return VariantMatcher::SingleMatcher(Matcher->second);
   }
 
   struct MatcherInfo {
@@ -60,8 +67,9 @@ public:
   std::vector<std::string> Errors;
   std::vector<VariantValue> Values;
   std::vector<MatcherInfo> Matchers;
-  std::map<std::string, ast_matchers::internal::Matcher<Stmt> >
-  ExpectedMatchers;
+  typedef std::map<std::string, ast_matchers::internal::Matcher<Stmt> >
+  ExpectedMatchersTy;
+  ExpectedMatchersTy ExpectedMatchers;
 };
 
 TEST(ParserTest, ParseUnsigned) {
@@ -165,6 +173,29 @@ TEST(ParserTest, FullParserTest) {
   EXPECT_TRUE(matches("void f(int a, int x);", M));
   EXPECT_FALSE(matches("void f(int x, int a);", M));
 
+  // Test named values.
+  struct NamedSema : public Parser::RegistrySema {
+   public:
+    virtual VariantValue getNamedValue(StringRef Name) {
+      if (Name == "nameX")
+        return std::string("x");
+      if (Name == "param0")
+        return VariantMatcher::SingleMatcher(hasParameter(0, hasName("a")));
+      return VariantValue();
+    }
+  };
+  NamedSema Sema;
+  llvm::Optional<DynTypedMatcher> HasParameterWithNamedValues(
+      Parser::parseMatcherExpression(
+          "functionDecl(param0, hasParameter(1, hasName(nameX)))", &Sema,
+          &Error));
+  EXPECT_EQ("", Error.toStringFull());
+  M = HasParameterWithNamedValues->unconditionalConvertTo<Decl>();
+
+  EXPECT_TRUE(matches("void f(int a, int x);", M));
+  EXPECT_FALSE(matches("void f(int x, int a);", M));
+
+
   EXPECT_TRUE(!Parser::parseMatcherExpression(
                    "hasInitializer(\n    binaryOperator(hasLHS(\"A\")))",
                    &Error).hasValue());
@@ -194,16 +225,23 @@ TEST(ParserTest, Errors) {
       "1:5: Error parsing matcher. Found token <123> while looking for '('.",
       ParseWithError("Foo 123"));
   EXPECT_EQ(
+      "1:1: Matcher not found: Foo\n"
       "1:9: Error parsing matcher. Found token <123> while looking for ','.",
       ParseWithError("Foo(\"A\" 123)"));
   EXPECT_EQ(
+      "1:1: Error parsing argument 1 for matcher stmt.\n"
+      "1:6: Value not found: someValue",
+      ParseWithError("stmt(someValue)"));
+  EXPECT_EQ(
+      "1:1: Matcher not found: Foo\n"
       "1:4: Error parsing matcher. Found end-of-code while looking for ')'.",
       ParseWithError("Foo("));
   EXPECT_EQ("1:1: End of code found while looking for token.",
             ParseWithError(""));
   EXPECT_EQ("Input value is not a matcher expression.",
             ParseMatcherWithError("\"A\""));
-  EXPECT_EQ("1:1: Error parsing argument 1 for matcher Foo.\n"
+  EXPECT_EQ("1:1: Matcher not found: Foo\n"
+            "1:1: Error parsing argument 1 for matcher Foo.\n"
             "1:5: Invalid token <(> found when looking for a value.",
             ParseWithError("Foo(("));
   EXPECT_EQ("1:7: Expected end of code.", ParseWithError("expr()a"));
@@ -219,7 +257,7 @@ TEST(ParserTest, Errors) {
             "1:1: Matcher does not support binding.",
             ParseWithError("isArrow().bind(\"foo\")"));
   EXPECT_EQ("Input value has unresolved overloaded type: "
-            "Matcher<DoStmt|ForStmt|WhileStmt>",
+            "Matcher<DoStmt|ForStmt|WhileStmt|CXXForRangeStmt>",
             ParseMatcherWithError("hasBody(stmt())"));
 }
 
@@ -230,6 +268,20 @@ TEST(ParserTest, OverloadErrors) {
             "1:8: Candidate 2: Incorrect type for arg 1. "
             "(Expected = Matcher<Decl>) != (Actual = String)",
             ParseWithError("callee(\"A\")"));
+}
+
+TEST(ParserTest, Completion) {
+  std::vector<MatcherCompletion> Comps =
+      Parser::completeExpression("while", 5);
+  ASSERT_EQ(1u, Comps.size());
+  EXPECT_EQ("Stmt(", Comps[0].TypedText);
+  EXPECT_EQ("Matcher<Stmt> whileStmt(Matcher<WhileStmt>...)",
+            Comps[0].MatcherDecl);
+
+  Comps = Parser::completeExpression("whileStmt().", 12);
+  ASSERT_EQ(1u, Comps.size());
+  EXPECT_EQ("bind(\"", Comps[0].TypedText);
+  EXPECT_EQ("bind", Comps[0].MatcherDecl);
 }
 
 }  // end anonymous namespace

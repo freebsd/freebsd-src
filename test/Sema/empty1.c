@@ -1,4 +1,6 @@
-// RUN: %clang_cc1 %s -fsyntax-only -verify -Wc++-compat
+// RUN: %clang_cc1 %s -triple %itanium_abi_triple -fsyntax-only -verify -Wc++-compat
+
+// Note: Empty C structs are 4 bytes in the Microsoft ABI.
 
 struct emp_1 { // expected-warning {{empty struct has size 0 in C, size 1 in C++}}
 };

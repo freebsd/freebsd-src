@@ -5,12 +5,9 @@ add_clang_library(clangDynamicASTMatchers
   VariantValue.cpp
   Parser.cpp
   Registry.cpp
-  )
 
-add_dependencies(clangDynamicASTMatchers
+  LINK_LIBS
+  clangAST
   clangASTMatchers
-  )
-
-target_link_libraries(clangDynamicASTMatchers
-  clangASTMatchers
+  clangBasic
   )

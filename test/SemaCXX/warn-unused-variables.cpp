@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -Wunused-variable -Wunused-label -verify %s
+// RUN: %clang_cc1 -fsyntax-only -Wunused-variable -Wunused-label -Wno-c++1y-extensions -verify %s
 template<typename T> void f() {
   T t;
   t = 17;
@@ -115,6 +115,28 @@ namespace PR11550 {
   }
 }
 
+namespace PR19305 {
+  template<typename T> int n = 0; // no warning
+  int a = n<int>;
+
+  template<typename T> const int l = 0; // no warning
+  int b = l<int>;
+
+  // PR19558
+  template<typename T> const int o = 0; // no warning
+  template<typename T> const int o<T*> = 0; // no warning
+  int c = o<int*>;
+
+  template<> int o<void> = 0; // no warning
+  int d = o<void>;
+
+  // FIXME: It'd be nice to warn here.
+  template<typename T> int m = 0;
+  template<typename T> int m<T*> = 0;
+
+  template<> const int m<void> = 0; // expected-warning {{unused variable}}
+}
+
 namespace ctor_with_cleanups {
   struct S1 {
     ~S1();
@@ -128,26 +150,3 @@ namespace ctor_with_cleanups {
 }
 
 #include "Inputs/warn-unused-variables.h"
-
-namespace PR8455 {
-  void f() {
-    A: // expected-warning {{unused label 'A'}}
-      __attribute__((unused)) int i; // attribute applies to variable
-    B: // attribute applies to label
-      __attribute__((unused)); int j; // expected-warning {{unused variable 'j'}}
-  }
-
-  void g() {
-    C: // unused label 'C' will not appear here because an error occurs
-      __attribute__((unused))
-      #pragma weak unused_local_static  // expected-error {{expected ';' after __attribute__}}
-      ;
-  }
-
-  void h() {
-    D: // expected-warning {{unused label 'D'}}
-      #pragma weak unused_local_static
-      __attribute__((unused))  // expected-warning {{declaration does not declare anything}}
-      ;
-  }
-}

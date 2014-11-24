@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,deadcode,alpha.deadcode.IdempotentOperations,alpha.core -std=gnu99 -analyzer-store=region -analyzer-constraints=range -analyzer-purge=none -verify %s -Wno-error=return-type
-// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,deadcode,alpha.deadcode.IdempotentOperations,alpha.core -std=gnu99 -analyzer-store=region -analyzer-constraints=range -verify %s -Wno-error=return-type 
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,deadcode,alpha.core -std=gnu99 -analyzer-store=region -analyzer-constraints=range -analyzer-purge=none -verify %s -Wno-error=return-type
+// RUN: %clang_cc1 -triple i386-apple-darwin10 -analyze -analyzer-checker=core,deadcode,alpha.core -std=gnu99 -analyzer-store=region -analyzer-constraints=range -verify %s -Wno-error=return-type 
 
 typedef unsigned uintptr_t;
 
@@ -64,7 +64,7 @@ int f4_b() {
   short *p = x; // expected-warning{{incompatible integer to pointer conversion}}
 
   // The following branch should be infeasible.
-  if (!(p == &array[0])) { // expected-warning{{Both operands to '==' always have the same value}}
+  if (!(p == &array[0])) {
     p = 0;
     *p = 1; // no-warning
   }
@@ -297,7 +297,7 @@ typedef void (*NoConstType)(int*);
 int foo10595327(int b) {
   void (*fp)(int *);
   // We use path sensitivity to get the function declaration. Even when the
-  // function pointer is cast to non pointer-to-const parameter type, we can
+  // function pointer is cast to non-pointer-to-const parameter type, we can
   // find the right function declaration.
   if (b > 5)
     fp = (NoConstType)ttt2;

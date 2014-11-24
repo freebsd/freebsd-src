@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -fsyntax-only -Wno-unused-value -Wmicrosoft -verify -fms-extensions
+// RUN: %clang_cc1 -triple i686-windows %s -fsyntax-only -Wno-unused-value -Wmicrosoft -verify -fms-extensions
 
 
 struct A
@@ -20,10 +20,7 @@ struct D {
    int D[];
 };
 
-
-
-
-
+struct __declspec(uuid("00000000-0000-0000-C000-000000000046")) IUnknown {}; /* expected-error {{'uuid' attribute is not supported in C}} */
 
 typedef struct notnested {
   long bad1;
@@ -90,11 +87,11 @@ typedef struct {
   AA; // expected-warning {{anonymous structs are a Microsoft extension}}
 } BB;
 
-__declspec(deprecated("This is deprecated")) enum DE1 { one, two } e1; // expected-note {{'e1' declared here}}
-struct __declspec(deprecated) DS1 { int i; float f; }; // expected-note {{declared here}}
+__declspec(deprecated("This is deprecated")) enum DE1 { one, two } e1; // expected-note {{'e1' has been explicitly marked deprecated here}}
+struct __declspec(deprecated) DS1 { int i; float f; }; // expected-note {{'DS1' has been explicitly marked deprecated here}}
 
 #define MY_TEXT		"This is also deprecated"
-__declspec(deprecated(MY_TEXT)) void Dfunc1( void ) {} // expected-note {{'Dfunc1' declared here}}
+__declspec(deprecated(MY_TEXT)) void Dfunc1( void ) {} // expected-note {{'Dfunc1' has been explicitly marked deprecated here}}
 
 struct __declspec(deprecated(123)) DS2 {};	// expected-error {{'deprecated' attribute requires a string}}
 
@@ -134,3 +131,17 @@ int *(__ptr32 __sptr wrong9); // expected-error {{'__sptr' attribute only applie
 
 typedef int *T;
 T __ptr32 wrong10; // expected-error {{'__ptr32' attribute only applies to pointer arguments}}
+
+typedef char *my_va_list;
+void __va_start(my_va_list *ap, ...); // expected-note {{passing argument to parameter 'ap' here}}
+void vmyprintf(const char *f, my_va_list ap);
+void myprintf(const char *f, ...) {
+  my_va_list ap;
+  if (1) {
+    __va_start(&ap, f);
+    vmyprintf(f, ap);
+    ap = 0;
+  } else {
+    __va_start(ap, f); // expected-warning {{incompatible pointer types passing 'my_va_list'}}
+  }
+}

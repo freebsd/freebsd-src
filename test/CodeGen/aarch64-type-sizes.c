@@ -1,6 +1,8 @@
-// RUN: %clang_cc1 -triple aarch64-none-linux-gnu -emit-llvm -w -o - %s | FileCheck %s
-
+// RUN: %clang_cc1 -triple arm64_be-none-linux-gnu -emit-llvm -w -o - %s | FileCheck --check-prefix=CHECK --check-prefix=CHECK-BE %s
 // char by definition has size 1
+
+// CHECK-LE: target datalayout = "e-m:e-i64:64-i128:128-n32:64-S128"
+// CHECK-BE: target datalayout = "E-m:e-i64:64-i128:128-n32:64-S128"
 
 int check_short() {
   return sizeof(short);

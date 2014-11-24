@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -O1 -emit-llvm -o - -fvisibility hidden %s | FileCheck %s
+// RUN: %clang_cc1 -O1 -triple %itanium_abi_triple -emit-llvm -o - -fvisibility hidden %s | FileCheck %s
 
 template<typename T>
 struct X {
@@ -14,13 +14,13 @@ extern template struct X<char>;
 
 // <rdar://problem/8109763>
 void test_X(X<int> xi, X<char> xc) {
-  // CHECK-LABEL: define weak_odr hidden void @_ZN1XIiE1fEv
+  // CHECK-LABEL: define weak_odr hidden {{.*}}void @_ZN1XIiE1fEv
   xi.f();
-  // CHECK-LABEL: define weak_odr hidden void @_ZN1XIiE1gEv
+  // CHECK-LABEL: define weak_odr hidden {{.*}}void @_ZN1XIiE1gEv
   xi.g();
-  // CHECK: declare void @_ZN1XIcE1fEv
+  // CHECK: declare {{.*}}void @_ZN1XIcE1fEv
   xc.f();
-  // CHECK-LABEL: define available_externally void @_ZN1XIcE1gEv
+  // CHECK-LABEL: define available_externally {{.*}}void @_ZN1XIcE1gEv
   xc.g();
 }
 

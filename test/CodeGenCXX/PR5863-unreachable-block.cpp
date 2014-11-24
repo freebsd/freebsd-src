@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fcxx-exceptions -fexceptions -emit-llvm-only %s
+// RUN: %clang_cc1 -triple %itanium_abi_triple -fcxx-exceptions -fexceptions -emit-llvm-only %s
 
 // PR5863
 class E { };

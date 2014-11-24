@@ -11,12 +11,6 @@ CLANG_LEVEL := ../..
 TOOLNAME = clang
 TOOLALIAS = clang++
 
-# We don't currently expect production Clang builds to be interested in
-# plugins. This is important for startup performance.
-ifdef CLANG_IS_PRODUCTION
-TOOL_NO_EXPORTS := 1
-endif
-
 ifdef CLANG_ORDER_FILE
 TOOL_ORDER_FILE := $(CLANG_ORDER_FILE)
 endif
@@ -29,10 +23,20 @@ TOOL_INFO_PLIST := Info.plist
 # LINK_COMPONENTS before including Makefile.rules
 include $(CLANG_LEVEL)/../../Makefile.config
 
+# Have the option of not supporting plugins. This is important for startup
+# performance.
+ifeq ($(CLANG_PLUGIN_SUPPORT), 1)
+NO_DEAD_STRIP := 1
+else
+TOOL_NO_EXPORTS := 1
+endif
+
 LINK_COMPONENTS := $(TARGETS_TO_BUILD) asmparser bitreader bitwriter codegen \
-                   instrumentation ipo irreader linker selectiondag option
+                   instrumentation ipo irreader linker objcarcopts option \
+                   profiledata selectiondag
 USEDLIBS = clangFrontendTool.a clangFrontend.a clangDriver.a \
-           clangSerialization.a clangCodeGen.a clangParse.a clangSema.a
+           clangSerialization.a clangCodeGen.a clangParse.a clangSema.a \
+           clangRewriteFrontend.a clangRewrite.a
 
 ifeq ($(ENABLE_CLANG_STATIC_ANALYZER),1)
 USEDLIBS += clangStaticAnalyzerFrontend.a clangStaticAnalyzerCheckers.a \
@@ -43,11 +47,7 @@ ifeq ($(ENABLE_CLANG_ARCMT),1)
 USEDLIBS += clangARCMigrate.a
 endif
 
-ifeq ($(ENABLE_CLANG_REWRITER),1)
-USEDLIBS += clangRewriteFrontend.a clangRewriteCore.a
-endif
-
-USEDLIBS += clangAnalysis.a clangEdit.a clangAST.a clangBasic.a clangLex.a
+USEDLIBS += clangAnalysis.a clangEdit.a clangAST.a clangLex.a clangBasic.a
 
 include $(CLANG_LEVEL)/Makefile
 

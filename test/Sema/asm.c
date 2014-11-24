@@ -1,5 +1,7 @@
 // RUN: %clang_cc1 %s -Wno-private-extern -triple i386-pc-linux-gnu -verify -fsyntax-only
 
+
+
 void f() {
   int i;
 
@@ -13,6 +15,9 @@ void f() {
   asm ("foo\n" : "=a" (i) : "[" (i)); // expected-error {{invalid input constraint '[' in asm}}
   asm ("foo\n" : "=a" (i) : "[foo" (i)); // expected-error {{invalid input constraint '[foo' in asm}}
   asm ("foo\n" : "=a" (i) : "[symbolic_name]" (i)); // expected-error {{invalid input constraint '[symbolic_name]' in asm}}
+
+  asm ("foo\n" : : "" (i)); // expected-error {{invalid input constraint '' in asm}}
+  asm ("foo\n" : "=a" (i) : "" (i)); // expected-error {{invalid input constraint '' in asm}}
 }
 
 void clobbers() {
@@ -92,8 +97,6 @@ void test9(int i) {
   asm("" : [foo] "=r" (i), "=r"(i) : "[foo]1"(i)); // expected-error{{invalid input constraint '[foo]1' in asm}}
 }
 
-register int g asm("dx"); // expected-error{{global register variables are not supported}}
-
 void test10(void){
   static int g asm ("g_asm") = 0;
   extern int gg asm ("gg_asm");
@@ -145,4 +148,18 @@ double test15() {
   __asm("0.0":"=,g"(ret)); // no-error
   __asm("0.0":"=g"(ret)); // no-error
   return ret;
+}
+
+// PR19837
+struct foo {
+  int a;
+  char b;
+};
+register struct foo bar asm("sp"); // expected-error {{bad type for named register variable}}
+register float baz asm("sp"); // expected-error {{bad type for named register variable}}
+
+double f_output_constraint(void) {
+  double result;
+  __asm("foo1": "=f" (result)); // expected-error {{invalid output constraint '=f' in asm}}
+  return result;
 }

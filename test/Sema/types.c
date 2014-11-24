@@ -53,7 +53,7 @@ _Decimal32 x;  // expected-error {{GNU decimal type extension not supported}}
 int __attribute__ ((vector_size (8), vector_size (8))) v;  // expected-error {{invalid vector element type}}
 
 void test(int i) {
-  char c = (char __attribute__((align(8)))) i; // expected-warning {{'align' attribute ignored when parsing type}}
+  char c = (char __attribute__((aligned(8)))) i; // expected-warning {{'aligned' attribute ignored when parsing type}}
 }
 
 // http://llvm.org/PR11082
@@ -72,3 +72,12 @@ typedef int __attribute__ ((ext_vector_type(8192))) x2; // expected-error {{vect
 // no support for vector enum type
 enum { e_2 } x3 __attribute__((vector_size(64))); // expected-error {{invalid vector element type}}
 
+int x4 __attribute__((ext_vector_type(64)));  // expected-error {{'ext_vector_type' attribute only applies to types}}
+
+// rdar://16492792
+typedef __attribute__ ((ext_vector_type(32),__aligned__(32))) unsigned char uchar32;
+
+void convert() {
+    uchar32 r = 0;
+    r.s[ 1234 ] = 1; // expected-error {{illegal vector component name 's'}}
+}

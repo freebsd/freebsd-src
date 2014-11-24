@@ -4,7 +4,7 @@
 @class ABGroupImportFilesScope; // expected-note {{forward declaration of class here}}
 
 @interface I1
-- (id) filenames __attribute__((deprecated));
+- (id) filenames __attribute__((deprecated)); // expected-note {{'filenames' has been explicitly marked deprecated here}}
 @end
 
 @interface I2
@@ -16,7 +16,7 @@
 @implementation I2
 - (id) Meth : (ABGroupImportFilesScope*) scope
 {
-  id p =  [self initWithAccount : 0 filenames :[scope filenames]]; // expected-warning {{'filenames' maybe deprecated because receiver type is unknown}}
+  id p =  [self initWithAccount : 0 filenames :[scope filenames]]; // expected-warning {{'filenames' may be deprecated because the receiver type is unknown}}
   return 0;
 }
 - (id) filenames { return 0; }

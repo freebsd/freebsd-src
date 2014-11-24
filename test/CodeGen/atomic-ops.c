@@ -15,13 +15,13 @@ typedef enum memory_order {
 } memory_order;
 
 int fi1(_Atomic(int) *i) {
-  // CHECK: @fi1
+  // CHECK-LABEL: @fi1
   // CHECK: load atomic i32* {{.*}} seq_cst
   return __c11_atomic_load(i, memory_order_seq_cst);
 }
 
 int fi1a(int *i) {
-  // CHECK: @fi1a
+  // CHECK-LABEL: @fi1a
   // CHECK: load atomic i32* {{.*}} seq_cst
   int v;
   __atomic_load(i, &v, memory_order_seq_cst);
@@ -29,60 +29,60 @@ int fi1a(int *i) {
 }
 
 int fi1b(int *i) {
-  // CHECK: @fi1b
+  // CHECK-LABEL: @fi1b
   // CHECK: load atomic i32* {{.*}} seq_cst
   return __atomic_load_n(i, memory_order_seq_cst);
 }
 
 void fi2(_Atomic(int) *i) {
-  // CHECK: @fi2
+  // CHECK-LABEL: @fi2
   // CHECK: store atomic i32 {{.*}} seq_cst
   __c11_atomic_store(i, 1, memory_order_seq_cst);
 }
 
 void fi2a(int *i) {
-  // CHECK: @fi2a
+  // CHECK-LABEL: @fi2a
   // CHECK: store atomic i32 {{.*}} seq_cst
   int v = 1;
   __atomic_store(i, &v, memory_order_seq_cst);
 }
 
 void fi2b(int *i) {
-  // CHECK: @fi2b
+  // CHECK-LABEL: @fi2b
   // CHECK: store atomic i32 {{.*}} seq_cst
   __atomic_store_n(i, 1, memory_order_seq_cst);
 }
 
 int fi3(_Atomic(int) *i) {
-  // CHECK: @fi3
+  // CHECK-LABEL: @fi3
   // CHECK: atomicrmw and
   // CHECK-NOT: and
   return __c11_atomic_fetch_and(i, 1, memory_order_seq_cst);
 }
 
 int fi3a(int *i) {
-  // CHECK: @fi3a
+  // CHECK-LABEL: @fi3a
   // CHECK: atomicrmw xor
   // CHECK-NOT: xor
   return __atomic_fetch_xor(i, 1, memory_order_seq_cst);
 }
 
 int fi3b(int *i) {
-  // CHECK: @fi3b
+  // CHECK-LABEL: @fi3b
   // CHECK: atomicrmw add
   // CHECK: add
   return __atomic_add_fetch(i, 1, memory_order_seq_cst);
 }
 
 int fi3c(int *i) {
-  // CHECK: @fi3c
+  // CHECK-LABEL: @fi3c
   // CHECK: atomicrmw nand
   // CHECK-NOT: and
   return __atomic_fetch_nand(i, 1, memory_order_seq_cst);
 }
 
 int fi3d(int *i) {
-  // CHECK: @fi3d
+  // CHECK-LABEL: @fi3d
   // CHECK: atomicrmw nand
   // CHECK: and
   // CHECK: xor
@@ -90,35 +90,47 @@ int fi3d(int *i) {
 }
 
 _Bool fi4(_Atomic(int) *i) {
-  // CHECK: @fi4
-  // CHECK: cmpxchg i32*
+  // CHECK-LABEL: @fi4
+  // CHECK: [[PAIR:%[.0-9A-Z_a-z]+]] = cmpxchg i32* [[PTR:%[.0-9A-Z_a-z]+]], i32 [[EXPECTED:%[.0-9A-Z_a-z]+]], i32 [[DESIRED:%[.0-9A-Z_a-z]+]]
+  // CHECK: [[OLD:%[.0-9A-Z_a-z]+]] = extractvalue { i32, i1 } [[PAIR]], 0
+  // CHECK: [[CMP:%[.0-9A-Z_a-z]+]] = extractvalue { i32, i1 } [[PAIR]], 1
+  // CHECK: br i1 [[CMP]], label %[[STORE_EXPECTED:[.0-9A-Z_a-z]+]], label %[[CONTINUE:[.0-9A-Z_a-z]+]]
+  // CHECK: store i32 [[OLD]]
   int cmp = 0;
   return __c11_atomic_compare_exchange_strong(i, &cmp, 1, memory_order_acquire, memory_order_acquire);
 }
 
 _Bool fi4a(int *i) {
-  // CHECK: @fi4
-  // CHECK: cmpxchg i32*
+  // CHECK-LABEL: @fi4
+  // CHECK: [[PAIR:%[.0-9A-Z_a-z]+]] = cmpxchg i32* [[PTR:%[.0-9A-Z_a-z]+]], i32 [[EXPECTED:%[.0-9A-Z_a-z]+]], i32 [[DESIRED:%[.0-9A-Z_a-z]+]]
+  // CHECK: [[OLD:%[.0-9A-Z_a-z]+]] = extractvalue { i32, i1 } [[PAIR]], 0
+  // CHECK: [[CMP:%[.0-9A-Z_a-z]+]] = extractvalue { i32, i1 } [[PAIR]], 1
+  // CHECK: br i1 [[CMP]], label %[[STORE_EXPECTED:[.0-9A-Z_a-z]+]], label %[[CONTINUE:[.0-9A-Z_a-z]+]]
+  // CHECK: store i32 [[OLD]]
   int cmp = 0;
   int desired = 1;
   return __atomic_compare_exchange(i, &cmp, &desired, 0, memory_order_acquire, memory_order_acquire);
 }
 
 _Bool fi4b(int *i) {
-  // CHECK: @fi4
-  // CHECK: cmpxchg i32*
+  // CHECK-LABEL: @fi4
+  // CHECK: [[PAIR:%[.0-9A-Z_a-z]+]] = cmpxchg weak i32* [[PTR:%[.0-9A-Z_a-z]+]], i32 [[EXPECTED:%[.0-9A-Z_a-z]+]], i32 [[DESIRED:%[.0-9A-Z_a-z]+]]
+  // CHECK: [[OLD:%[.0-9A-Z_a-z]+]] = extractvalue { i32, i1 } [[PAIR]], 0
+  // CHECK: [[CMP:%[.0-9A-Z_a-z]+]] = extractvalue { i32, i1 } [[PAIR]], 1
+  // CHECK: br i1 [[CMP]], label %[[STORE_EXPECTED:[.0-9A-Z_a-z]+]], label %[[CONTINUE:[.0-9A-Z_a-z]+]]
+  // CHECK: store i32 [[OLD]]
   int cmp = 0;
   return __atomic_compare_exchange_n(i, &cmp, 1, 1, memory_order_acquire, memory_order_acquire);
 }
 
 float ff1(_Atomic(float) *d) {
-  // CHECK: @ff1
+  // CHECK-LABEL: @ff1
   // CHECK: load atomic i32* {{.*}} monotonic
   return __c11_atomic_load(d, memory_order_relaxed);
 }
 
 void ff2(_Atomic(float) *d) {
-  // CHECK: @ff2
+  // CHECK-LABEL: @ff2
   // CHECK: store atomic i32 {{.*}} release
   __c11_atomic_store(d, 1, memory_order_release);
 }
@@ -128,20 +140,20 @@ float ff3(_Atomic(float) *d) {
 }
 
 int* fp1(_Atomic(int*) *p) {
-  // CHECK: @fp1
+  // CHECK-LABEL: @fp1
   // CHECK: load atomic i32* {{.*}} seq_cst
   return __c11_atomic_load(p, memory_order_seq_cst);
 }
 
 int* fp2(_Atomic(int*) *p) {
-  // CHECK: @fp2
+  // CHECK-LABEL: @fp2
   // CHECK: store i32 4
   // CHECK: atomicrmw add {{.*}} monotonic
   return __c11_atomic_fetch_add(p, 1, memory_order_relaxed);
 }
 
 int *fp2a(int **p) {
-  // CHECK: @fp2a
+  // CHECK-LABEL: @fp2a
   // CHECK: store i32 4
   // CHECK: atomicrmw sub {{.*}} monotonic
   // Note, the GNU builtins do not multiply by sizeof(T)!
@@ -149,20 +161,20 @@ int *fp2a(int **p) {
 }
 
 _Complex float fc(_Atomic(_Complex float) *c) {
-  // CHECK: @fc
+  // CHECK-LABEL: @fc
   // CHECK: atomicrmw xchg i64*
   return __c11_atomic_exchange(c, 2, memory_order_seq_cst);
 }
 
 typedef struct X { int x; } X;
 X fs(_Atomic(X) *c) {
-  // CHECK: @fs
+  // CHECK-LABEL: @fs
   // CHECK: atomicrmw xchg i32*
   return __c11_atomic_exchange(c, (X){2}, memory_order_seq_cst);
 }
 
 X fsa(X *c, X *d) {
-  // CHECK: @fsa
+  // CHECK-LABEL: @fsa
   // CHECK: atomicrmw xchg i32*
   X ret;
   __atomic_exchange(c, d, &ret, memory_order_seq_cst);
@@ -170,7 +182,7 @@ X fsa(X *c, X *d) {
 }
 
 _Bool fsb(_Bool *c) {
-  // CHECK: @fsb
+  // CHECK-LABEL: @fsb
   // CHECK: atomicrmw xchg i8*
   return __atomic_exchange_n(c, 1, memory_order_seq_cst);
 }
@@ -196,7 +208,7 @@ struct Seventeen {
 } seventeen;
 
 int lock_free(struct Incomplete *incomplete) {
-  // CHECK: @lock_free
+  // CHECK-LABEL: @lock_free
 
   // CHECK: call i32 @__atomic_is_lock_free(i32 3, i8* null)
   __c11_atomic_is_lock_free(3);
@@ -244,7 +256,7 @@ struct foo bigThing;
 _Atomic(struct foo) bigAtomic;
 
 void structAtomicStore() {
-  // CHECK: @structAtomicStore
+  // CHECK-LABEL: @structAtomicStore
   struct foo f = {0};
   struct bar b = {0};
   __atomic_store(&smallThing, &b, 5);
@@ -254,7 +266,7 @@ void structAtomicStore() {
   // CHECK: call void @__atomic_store(i32 512, i8* {{.*}} @bigThing
 }
 void structAtomicLoad() {
-  // CHECK: @structAtomicLoad
+  // CHECK-LABEL: @structAtomicLoad
   struct bar b;
   __atomic_load(&smallThing, &b, 5);
   // CHECK: call void @__atomic_load(i32 3, i8* {{.*}} @smallThing
@@ -264,7 +276,7 @@ void structAtomicLoad() {
   // CHECK: call void @__atomic_load(i32 512, i8* {{.*}} @bigThing
 }
 struct foo structAtomicExchange() {
-  // CHECK: @structAtomicExchange
+  // CHECK-LABEL: @structAtomicExchange
   struct foo f = {0};
   struct foo old;
   __atomic_exchange(&f, &bigThing, &old, 5);
@@ -274,7 +286,7 @@ struct foo structAtomicExchange() {
   // CHECK: call void @__atomic_exchange(i32 512, i8* bitcast ({{.*}} @bigAtomic to i8*),
 }
 int structAtomicCmpExchange() {
-  // CHECK: @structAtomicCmpExchange
+  // CHECK-LABEL: @structAtomicCmpExchange
   _Bool x = __atomic_compare_exchange(&smallThing, &thing1, &thing2, 1, 5, 5);
   // CHECK: call zeroext i1 @__atomic_compare_exchange(i32 3, {{.*}} @smallThing{{.*}} @thing1{{.*}} @thing2
 
@@ -289,7 +301,7 @@ int structAtomicCmpExchange() {
 // types.
 _Atomic(int) atomic_init_i = 42;
 
-// CHECK: @atomic_init_foo
+// CHECK-LABEL: @atomic_init_foo
 void atomic_init_foo()
 {
   // CHECK-NOT: }
@@ -306,13 +318,133 @@ void atomic_init_foo()
   // CHECK: }
 }
 
-// CHECK: @invalid_atomic
-void invalid_atomic(_Atomic(int) *i) {
-  __c11_atomic_store(i, 1, memory_order_consume);
-  __c11_atomic_store(i, 1, memory_order_acquire);
-  __c11_atomic_store(i, 1, memory_order_acq_rel);
-  __c11_atomic_load(i, memory_order_release);
-  __c11_atomic_load(i, memory_order_acq_rel);
+// CHECK-LABEL: @failureOrder
+void failureOrder(_Atomic(int) *ptr, int *ptr2) {
+  __c11_atomic_compare_exchange_strong(ptr, ptr2, 43, memory_order_acquire, memory_order_relaxed);
+  // CHECK: cmpxchg i32* {{%[0-9A-Za-z._]+}}, i32 {{%[0-9A-Za-z._]+}}, i32 {{%[0-9A-Za-z_.]+}} acquire monotonic
+
+  __c11_atomic_compare_exchange_weak(ptr, ptr2, 43, memory_order_seq_cst, memory_order_acquire);
+  // CHECK: cmpxchg weak i32* {{%[0-9A-Za-z._]+}}, i32 {{%[0-9A-Za-z._]+}}, i32 {{%[0-9A-Za-z_.]+}} seq_cst acquire
+
+  // Unknown ordering: conservatively pick strongest valid option (for now!).
+  __atomic_compare_exchange(ptr2, ptr2, ptr2, 0, memory_order_acq_rel, *ptr2);
+  // CHECK: cmpxchg i32* {{%[0-9A-Za-z._]+}}, i32 {{%[0-9A-Za-z._]+}}, i32 {{%[0-9A-Za-z_.]+}} acq_rel acquire
+
+  // Undefined behaviour: don't really care what that last ordering is so leave
+  // it out:
+  __atomic_compare_exchange_n(ptr2, ptr2, 43, 1, memory_order_seq_cst, 42);
+  // CHECK: cmpxchg weak i32* {{%[0-9A-Za-z._]+}}, i32 {{%[0-9A-Za-z._]+}}, i32 {{%[0-9A-Za-z_.]+}} seq_cst
+}
+
+// CHECK-LABEL: @generalFailureOrder
+void generalFailureOrder(_Atomic(int) *ptr, int *ptr2, int success, int fail) {
+  __c11_atomic_compare_exchange_strong(ptr, ptr2, 42, success, fail);
+  // CHECK: switch i32 {{.*}}, label %[[MONOTONIC:[0-9a-zA-Z._]+]] [
+  // CHECK-NEXT: i32 1, label %[[ACQUIRE:[0-9a-zA-Z._]+]]
+  // CHECK-NEXT: i32 2, label %[[ACQUIRE]]
+  // CHECK-NEXT: i32 3, label %[[RELEASE:[0-9a-zA-Z._]+]]
+  // CHECK-NEXT: i32 4, label %[[ACQREL:[0-9a-zA-Z._]+]]
+  // CHECK-NEXT: i32 5, label %[[SEQCST:[0-9a-zA-Z._]+]]
+
+  // CHECK: [[MONOTONIC]]
+  // CHECK: switch {{.*}}, label %[[MONOTONIC_MONOTONIC:[0-9a-zA-Z._]+]] [
+  // CHECK-NEXT: ]
+
+  // CHECK: [[ACQUIRE]]
+  // CHECK: switch {{.*}}, label %[[ACQUIRE_MONOTONIC:[0-9a-zA-Z._]+]] [
+  // CHECK-NEXT: i32 1, label %[[ACQUIRE_ACQUIRE:[0-9a-zA-Z._]+]]
+  // CHECK-NEXT: i32 2, label %[[ACQUIRE_ACQUIRE:[0-9a-zA-Z._]+]]
+  // CHECK-NEXT: ]
+
+  // CHECK: [[RELEASE]]
+  // CHECK: switch {{.*}}, label %[[RELEASE_MONOTONIC:[0-9a-zA-Z._]+]] [
+  // CHECK-NEXT: ]
+
+  // CHECK: [[ACQREL]]
+  // CHECK: switch {{.*}}, label %[[ACQREL_MONOTONIC:[0-9a-zA-Z._]+]] [
+  // CHECK-NEXT: i32 1, label %[[ACQREL_ACQUIRE:[0-9a-zA-Z._]+]]
+  // CHECK-NEXT: i32 2, label %[[ACQREL_ACQUIRE:[0-9a-zA-Z._]+]]
+  // CHECK-NEXT: ]
+
+  // CHECK: [[SEQCST]]
+  // CHECK: switch {{.*}}, label %[[SEQCST_MONOTONIC:[0-9a-zA-Z._]+]] [
+  // CHECK-NEXT: i32 1, label %[[SEQCST_ACQUIRE:[0-9a-zA-Z._]+]]
+  // CHECK-NEXT: i32 2, label %[[SEQCST_ACQUIRE:[0-9a-zA-Z._]+]]
+  // CHECK-NEXT: i32 5, label %[[SEQCST_SEQCST:[0-9a-zA-Z._]+]]
+  // CHECK-NEXT: ]
+
+  // CHECK: [[MONOTONIC_MONOTONIC]]
+  // CHECK: cmpxchg {{.*}} monotonic monotonic
+  // CHECK: br
+
+  // CHECK: [[ACQUIRE_MONOTONIC]]
+  // CHECK: cmpxchg {{.*}} acquire monotonic
+  // CHECK: br
+
+  // CHECK: [[ACQUIRE_ACQUIRE]]
+  // CHECK: cmpxchg {{.*}} acquire acquire
+  // CHECK: br
+
+  // CHECK: [[ACQREL_MONOTONIC]]
+  // CHECK: cmpxchg {{.*}} acq_rel monotonic
+  // CHECK: br
+
+  // CHECK: [[ACQREL_ACQUIRE]]
+  // CHECK: cmpxchg {{.*}} acq_rel acquire
+  // CHECK: br
+
+  // CHECK: [[SEQCST_MONOTONIC]]
+  // CHECK: cmpxchg {{.*}} seq_cst monotonic
+  // CHECK: br
+
+  // CHECK: [[SEQCST_ACQUIRE]]
+  // CHECK: cmpxchg {{.*}} seq_cst acquire
+  // CHECK: br
+
+  // CHECK: [[SEQCST_SEQCST]]
+  // CHECK: cmpxchg {{.*}} seq_cst seq_cst
+  // CHECK: br
+}
+
+void generalWeakness(int *ptr, int *ptr2, _Bool weak) {
+  __atomic_compare_exchange_n(ptr, ptr2, 42, weak, memory_order_seq_cst, memory_order_seq_cst);
+  // CHECK: switch i1 {{.*}}, label %[[WEAK:[0-9a-zA-Z._]+]] [
+  // CHECK-NEXT: i1 false, label %[[STRONG:[0-9a-zA-Z._]+]]
+
+  // CHECK: [[STRONG]]
+  // CHECK-NOT: br
+  // CHECK: cmpxchg {{.*}} seq_cst seq_cst
+  // CHECK: br
+
+  // CHECK: [[WEAK]]
+  // CHECK-NOT: br
+  // CHECK: cmpxchg weak {{.*}} seq_cst seq_cst
+  // CHECK: br
+}
+
+// Having checked the flow in the previous two cases, we'll trust clang to
+// combine them sanely.
+void EMIT_ALL_THE_THINGS(int *ptr, int *ptr2, int new, _Bool weak, int success, int fail) {
+  __atomic_compare_exchange(ptr, ptr2, &new, weak, success, fail);
+
+  // CHECK: = cmpxchg {{.*}} monotonic monotonic
+  // CHECK: = cmpxchg weak {{.*}} monotonic monotonic
+  // CHECK: = cmpxchg {{.*}} acquire monotonic
+  // CHECK: = cmpxchg {{.*}} acquire acquire
+  // CHECK: = cmpxchg weak {{.*}} acquire monotonic
+  // CHECK: = cmpxchg weak {{.*}} acquire acquire
+  // CHECK: = cmpxchg {{.*}} release monotonic
+  // CHECK: = cmpxchg weak {{.*}} release monotonic
+  // CHECK: = cmpxchg {{.*}} acq_rel monotonic
+  // CHECK: = cmpxchg {{.*}} acq_rel acquire
+  // CHECK: = cmpxchg weak {{.*}} acq_rel monotonic
+  // CHECK: = cmpxchg weak {{.*}} acq_rel acquire
+  // CHECK: = cmpxchg {{.*}} seq_cst monotonic
+  // CHECK: = cmpxchg {{.*}} seq_cst acquire
+  // CHECK: = cmpxchg {{.*}} seq_cst seq_cst
+  // CHECK: = cmpxchg weak {{.*}} seq_cst monotonic
+  // CHECK: = cmpxchg weak {{.*}} seq_cst acquire
+  // CHECK: = cmpxchg weak {{.*}} seq_cst seq_cst
 }
 
 #endif

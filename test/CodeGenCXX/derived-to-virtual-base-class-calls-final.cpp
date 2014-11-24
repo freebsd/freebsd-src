@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 %s -triple %itanium_abi_triple -emit-llvm -o - | FileCheck %s
 
 struct A { int i; };
 struct B { char j; };
@@ -9,7 +9,7 @@ struct D final : virtual C {
   virtual void f();
 };
 
-// CHECK-LABEL: define %struct.B* @_Z1fR1D
+// CHECK-LABEL: define dereferenceable({{[0-9]+}}) %struct.B* @_Z1fR1D
 B &f(D &d) {
   // CHECK-NOT: load i8**
   return d;

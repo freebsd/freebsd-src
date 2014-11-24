@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 %s -emit-pch -o %t.pch
-// RUN: %clang_cc1 %s -emit-llvm -include-pch %t.pch -o - | FileCheck %s
+// RUN: %clang_cc1 %s -triple %itanium_abi_triple -emit-pch -o %t.pch
+// RUN: %clang_cc1 %s -triple %itanium_abi_triple -emit-llvm -include-pch %t.pch -o - | FileCheck %s
 
 #ifndef HEADER
 #define HEADER

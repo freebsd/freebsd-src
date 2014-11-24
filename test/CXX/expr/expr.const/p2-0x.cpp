@@ -138,7 +138,7 @@ namespace UndefinedBehavior {
     case (int)(unsigned)(long long)4.4e9: // ok
     case (int)(float)1e300: // expected-error {{constant expression}} expected-note {{value 1.0E+300 is outside the range of representable values of type 'float'}} expected-error {{duplicate case value '2147483647'}} expected-note {{previous case defined here}}
     case (int)((float)1e37 / 1e30): // ok
-    case (int)(__fp16)65536: // expected-error {{constant expression}} expected-note {{value 65536 is outside the range of representable values of type 'half'}} expected-error {{duplicate case value '2147483647'}}
+    case (int)(__fp16)65536: // expected-error {{constant expression}} expected-note {{value 65536 is outside the range of representable values of type '__fp16'}} expected-error {{duplicate case value '2147483647'}}
       break;
     }
   }
@@ -202,7 +202,9 @@ namespace UndefinedBehavior {
     static_assert((A*)nb == 0, "");
     static_assert((B*)na == 0, "");
     constexpr const int &nf = nb->n; // expected-error {{constant expression}} expected-note {{cannot access field of null pointer}}
-    constexpr const int &np = (*(int(*)[4])nullptr)[2]; // expected-error {{constant expression}} expected-note {{cannot access array element of null pointer}}
+    constexpr const int *np1 = (int*)nullptr + 0; // ok
+    constexpr const int *np2 = &(*(int(*)[4])nullptr)[0]; // ok
+    constexpr const int *np3 = &(*(int(*)[4])nullptr)[2]; // expected-error {{constant expression}} expected-note {{cannot perform pointer arithmetic on null pointer}}
 
     struct C {
       constexpr int f() const { return 0; }

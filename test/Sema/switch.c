@@ -109,14 +109,14 @@ void test7() {
   switch(a) {
     case A:
     case B:
-    case 3: // expected-warning{{case value not in enumerated type 'enum <anonymous enum}}
+    case 3: // expected-warning{{case value not in enumerated type 'enum (anonymous enum}}
       break;
   }
   switch(a) {
     case A:
     case B:
-    case 3 ... //expected-warning{{case value not in enumerated type 'enum <anonymous enum}}
-        4: //expected-warning{{case value not in enumerated type 'enum <anonymous enum}}
+    case 3 ... //expected-warning{{case value not in enumerated type 'enum (anonymous enum}}
+        4: //expected-warning{{case value not in enumerated type 'enum (anonymous enum}}
       break;
   }
   switch(a) {
@@ -124,16 +124,16 @@ void test7() {
       break;
   }
   switch(a) {
-    case 0 ... 2: //expected-warning{{case value not in enumerated type 'enum <anonymous enum}}
+    case 0 ... 2: //expected-warning{{case value not in enumerated type 'enum (anonymous enum}}
       break;
   }
   switch(a) {
-    case 1 ... 3: //expected-warning{{case value not in enumerated type 'enum <anonymous enum}}
+    case 1 ... 3: //expected-warning{{case value not in enumerated type 'enum (anonymous enum}}
       break;
   }
   switch(a) {
-    case 0 ...  //expected-warning{{case value not in enumerated type 'enum <anonymous enum}}
-      3:  //expected-warning{{case value not in enumerated type 'enum <anonymous enum}}
+    case 0 ...  //expected-warning{{case value not in enumerated type 'enum (anonymous enum}}
+      3:  //expected-warning{{case value not in enumerated type 'enum (anonymous enum}}
       break;
   }
 
@@ -167,11 +167,11 @@ void test9() {
     C = 1
   } a;
   switch(a) {
-    case 0: //expected-warning{{case value not in enumerated type 'enum <anonymous enum}}
+    case 0: //expected-warning{{case value not in enumerated type 'enum (anonymous enum}}
     case 1:
-    case 2: //expected-warning{{case value not in enumerated type 'enum <anonymous enum}}
+    case 2: //expected-warning{{case value not in enumerated type 'enum (anonymous enum}}
     case 3:
-    case 4: //expected-warning{{case value not in enumerated type 'enum <anonymous enum}}
+    case 4: //expected-warning{{case value not in enumerated type 'enum (anonymous enum}}
       break;
   }
 }
@@ -184,14 +184,14 @@ void test10() {
     D = 12
   } a;
   switch(a) {
-    case 0 ...  //expected-warning{{case value not in enumerated type 'enum <anonymous enum}}
-	    1:  //expected-warning{{case value not in enumerated type 'enum <anonymous enum}}
+    case 0 ...  //expected-warning{{case value not in enumerated type 'enum (anonymous enum}}
+	    1:  //expected-warning{{case value not in enumerated type 'enum (anonymous enum}}
     case 2 ... 4:
-    case 5 ...  //expected-warning{{case value not in enumerated type 'enum <anonymous enum}}	
-	      9:  //expected-warning{{case value not in enumerated type 'enum <anonymous enum}}
+    case 5 ...  //expected-warning{{case value not in enumerated type 'enum (anonymous enum}}	
+	      9:  //expected-warning{{case value not in enumerated type 'enum (anonymous enum}}
     case 10 ... 12:
-    case 13 ...  //expected-warning{{case value not in enumerated type 'enum <anonymous enum}}
-              16: //expected-warning{{case value not in enumerated type 'enum <anonymous enum}}
+    case 13 ...  //expected-warning{{case value not in enumerated type 'enum (anonymous enum}}
+              16: //expected-warning{{case value not in enumerated type 'enum (anonymous enum}}
       break;
   }
 }
@@ -349,3 +349,29 @@ void test19(int i) {
       break;
   }
 }
+
+// Allow the warning 'case value not in enumerated type' to be silenced with
+// the following pattern.
+//
+// If 'case' expression refers to a static const variable of the correct enum
+// type, then we count this as a sufficient declaration of intent by the user,
+// so we silence the warning.
+enum ExtendedEnum1 {
+  EE1_a,
+  EE1_b
+};
+
+enum ExtendedEnum1_unrelated { EE1_misc };
+
+static const enum ExtendedEnum1 EE1_c = 100;
+static const enum ExtendedEnum1_unrelated EE1_d = 101;
+
+void switch_on_ExtendedEnum1(enum ExtendedEnum1 e) {
+  switch(e) {
+  case EE1_a: break;
+  case EE1_b: break;
+  case EE1_c: break; // no-warning
+  case EE1_d: break; // expected-warning {{case value not in enumerated type 'enum ExtendedEnum1'}}
+  }
+}
+

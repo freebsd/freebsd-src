@@ -8,19 +8,19 @@
 //===----------------------------------------------------------------------===//
 
 #include "IndexingContext.h"
-#include "RecursiveASTVisitor.h"
+#include "clang/AST/DataRecursiveASTVisitor.h"
 
 using namespace clang;
 using namespace cxindex;
 
 namespace {
 
-class BodyIndexer : public cxindex::RecursiveASTVisitor<BodyIndexer> {
+class BodyIndexer : public DataRecursiveASTVisitor<BodyIndexer> {
   IndexingContext &IndexCtx;
   const NamedDecl *Parent;
   const DeclContext *ParentDC;
 
-  typedef RecursiveASTVisitor<BodyIndexer> base;
+  typedef DataRecursiveASTVisitor<BodyIndexer> base;
 public:
   BodyIndexer(IndexingContext &indexCtx,
               const NamedDecl *Parent, const DeclContext *DC)
@@ -149,13 +149,13 @@ public:
     return true;
   }
 
-  bool TraverseLambdaCapture(LambdaExpr::Capture C) {
-    if (C.capturesThis())
+  bool TraverseLambdaCapture(LambdaExpr *LE, const LambdaCapture *C) {
+    if (C->capturesThis())
       return true;
 
-    if (C.capturesVariable() && IndexCtx.shouldIndexFunctionLocalSymbols())
-      IndexCtx.handleReference(C.getCapturedVar(), C.getLocation(),
-                               Parent, ParentDC);
+    if (C->capturesVariable() && IndexCtx.shouldIndexFunctionLocalSymbols())
+      IndexCtx.handleReference(C->getCapturedVar(), C->getLocation(), Parent,
+                               ParentDC);
 
     // FIXME: Lambda init-captures.
     return true;
@@ -170,7 +170,7 @@ void IndexingContext::indexBody(const Stmt *S, const NamedDecl *Parent,
   if (!S)
     return;
 
-  if (DC == 0)
+  if (!DC)
     DC = Parent->getLexicalDeclContext();
   BodyIndexer(*this, Parent, DC).TraverseStmt(const_cast<Stmt*>(S));
 }

@@ -133,6 +133,31 @@ class TestCXXDestructorDecl {
 // CHECK:      CXXDestructorDecl{{.*}} ~TestCXXDestructorDecl 'void (void) noexcept'
 // CHECK-NEXT:   CompoundStmt
 
+// Test that the range of a defaulted members is computed correctly.
+// FIXME: This should include the "= default".
+class TestMemberRanges {
+public:
+  TestMemberRanges() = default;
+  TestMemberRanges(const TestMemberRanges &Other) = default;
+  TestMemberRanges(TestMemberRanges &&Other) = default;
+  ~TestMemberRanges() = default;
+  TestMemberRanges &operator=(const TestMemberRanges &Other) = default;
+  TestMemberRanges &operator=(TestMemberRanges &&Other) = default;
+};
+void SomeFunction() {
+  TestMemberRanges A;
+  TestMemberRanges B(A);
+  B = A;
+  A = static_cast<TestMemberRanges &&>(B);
+  TestMemberRanges C(static_cast<TestMemberRanges &&>(A));
+}
+// CHECK:      CXXConstructorDecl{{.*}} <line:{{.*}}:3, col:20>
+// CHECK:      CXXConstructorDecl{{.*}} <line:{{.*}}:3, col:49>
+// CHECK:      CXXConstructorDecl{{.*}} <line:{{.*}}:3, col:44>
+// CHECK:      CXXDestructorDecl{{.*}} <line:{{.*}}:3, col:21>
+// CHECK:      CXXMethodDecl{{.*}} <line:{{.*}}:3, col:60>
+// CHECK:      CXXMethodDecl{{.*}} <line:{{.*}}:3, col:55>
+
 class TestCXXConversionDecl {
   operator int() { return 0; }
 };
@@ -143,7 +168,7 @@ namespace TestStaticAssertDecl {
   static_assert(true, "msg");
 }
 // CHECK:      NamespaceDecl{{.*}} TestStaticAssertDecl
-// CHECK-NEXT:   StaticAssertDecl{{.*>$}}
+// CHECK-NEXT:   StaticAssertDecl{{.*> .*$}}
 // CHECK-NEXT:     CXXBoolLiteralExpr
 // CHECK-NEXT:     StringLiteral
 
@@ -273,7 +298,7 @@ namespace testCanonicalTemplate {
   // CHECK-NEXT:   FunctionDecl{{.*}} TestFunctionTemplate 'void (T)'
   // CHECK-NEXT:     ParmVarDecl{{.*}} 'T'
   // CHECK-NEXT:   Function{{.*}} 'TestFunctionTemplate'
-  // CHECK-NEXT-NOT: TemplateArgument
+  // CHECK-NOT:      TemplateArgument
 
   template<typename T1> class TestClassTemplate {
     template<typename T2> friend class TestClassTemplate;
@@ -308,7 +333,8 @@ namespace TestTemplateTypeParmDecl {
 // CHECK:      NamespaceDecl{{.*}} TestTemplateTypeParmDecl
 // CHECK-NEXT:   FunctionTemplateDecl
 // CHECK-NEXT:     TemplateTypeParmDecl{{.*}} typename ... T
-// CHECK-NEXT:     TemplateTypeParmDecl{{.*}} class U 'int'
+// CHECK-NEXT:     TemplateTypeParmDecl{{.*}} class U
+// CHECK-NEXT:       TemplateArgument type 'int'
 
 namespace TestNonTypeTemplateParmDecl {
   template<int I = 1, int ... J> void foo();
@@ -316,7 +342,8 @@ namespace TestNonTypeTemplateParmDecl {
 // CHECK:      NamespaceDecl{{.*}} TestNonTypeTemplateParmDecl
 // CHECK-NEXT:   FunctionTemplateDecl
 // CHECK-NEXT:     NonTypeTemplateParmDecl{{.*}} 'int' I
-// CHECK-NEXT:       IntegerLiteral{{.*}} 'int' 1
+// CHECK-NEXT:       TemplateArgument expr
+// CHECK-NEXT:         IntegerLiteral{{.*}} 'int' 1
 // CHECK-NEXT:     NonTypeTemplateParmDecl{{.*}} 'int' ... J
 
 namespace TestTemplateTemplateParmDecl {
@@ -443,7 +470,7 @@ namespace TestFileScopeAsmDecl {
   asm("ret");
 }
 // CHECK:      NamespaceDecl{{.*}} TestFileScopeAsmDecl{{$}}
-// CHECK:        FileScopeAsmDecl{{.*>$}}
+// CHECK:        FileScopeAsmDecl{{.*> .*$}}
 // CHECK-NEXT:     StringLiteral
 
 namespace TestFriendDecl2 {
@@ -452,12 +479,12 @@ namespace TestFriendDecl2 {
     friend void f();
   };
 }
-// CHECK: NamespaceDecl [[TestFriendDecl2:0x.*]] <{{.*}}> TestFriendDecl2
-// CHECK: |-FunctionDecl [[TestFriendDecl2_f:0x.*]] <{{.*}}> f 'void (void)'
+// CHECK: NamespaceDecl [[TestFriendDecl2:0x.*]] <{{.*}}> {{.*}} TestFriendDecl2
+// CHECK: |-FunctionDecl [[TestFriendDecl2_f:0x.*]] <{{.*}}> {{.*}} f 'void (void)'
 // CHECK: `-CXXRecordDecl {{.*}} struct S
 // CHECK:   |-CXXRecordDecl {{.*}} struct S
 // CHECK:   `-FriendDecl
-// CHECK:     `-FunctionDecl {{.*}} parent [[TestFriendDecl2]] prev [[TestFriendDecl2_f]] <{{.*}}> f 'void (void)'
+// CHECK:     `-FunctionDecl {{.*}} parent [[TestFriendDecl2]] prev [[TestFriendDecl2_f]] <{{.*}}> {{.*}} f 'void (void)'
 
 namespace Comment {
   extern int Test;

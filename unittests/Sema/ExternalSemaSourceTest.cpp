@@ -49,7 +49,7 @@ class NamespaceDiagnosticWatcher : public clang::DiagnosticConsumer {
 
 public:
   NamespaceDiagnosticWatcher(StringRef From, StringRef To)
-      : Chained(NULL), FromNS(From), ToNS("'"), SeenCount(0) {
+      : Chained(nullptr), FromNS(From), ToNS("'"), SeenCount(0) {
     ToNS.append(To);
     ToNS.append("'");
   }
@@ -95,11 +95,11 @@ class NamespaceTypoProvider : public clang::ExternalSemaSource {
 
 public:
   NamespaceTypoProvider(StringRef From, StringRef To)
-      : CorrectFrom(From), CorrectTo(To), CurrentSema(NULL), CallCount(0) {}
+      : CorrectFrom(From), CorrectTo(To), CurrentSema(nullptr), CallCount(0) {}
 
   virtual void InitializeSema(Sema &S) { CurrentSema = &S; }
 
-  virtual void ForgetSema() { CurrentSema = NULL; }
+  virtual void ForgetSema() { CurrentSema = nullptr; }
 
   virtual TypoCorrection CorrectTypo(const DeclarationNameInfo &Typo,
                                      int LookupKind, Scope *S, CXXScopeSpec *SS,
@@ -109,17 +109,17 @@ public:
                                      const ObjCObjectPointerType *OPT) {
     ++CallCount;
     if (CurrentSema && Typo.getName().getAsString() == CorrectFrom) {
-      DeclContext *DestContext = NULL;
+      DeclContext *DestContext = nullptr;
       ASTContext &Context = CurrentSema->getASTContext();
-      if (SS != NULL)
+      if (SS)
         DestContext = CurrentSema->computeDeclContext(*SS, EnteringContext);
-      if (DestContext == NULL)
+      if (!DestContext)
         DestContext = Context.getTranslationUnitDecl();
       IdentifierInfo *ToIdent =
           CurrentSema->getPreprocessor().getIdentifierInfo(CorrectTo);
       NamespaceDecl *NewNamespace =
           NamespaceDecl::Create(Context, DestContext, false, Typo.getBeginLoc(),
-                                Typo.getLoc(), ToIdent, NULL);
+                                Typo.getLoc(), ToIdent, nullptr);
       DestContext->addDecl(NewNamespace);
       TypoCorrection Correction(ToIdent);
       Correction.addCorrectionDecl(NewNamespace);
@@ -137,7 +137,7 @@ public:
 class ExternalSemaSourceInstaller : public clang::ASTFrontendAction {
   std::vector<NamespaceDiagnosticWatcher *> Watchers;
   std::vector<clang::ExternalSemaSource *> Sources;
-  llvm::OwningPtr<DiagnosticConsumer> OwnedClient;
+  std::unique_ptr<DiagnosticConsumer> OwnedClient;
 
 protected:
   virtual clang::ASTConsumer *
@@ -149,7 +149,7 @@ protected:
   virtual void ExecuteAction() {
     CompilerInstance &CI = getCompilerInstance();
     ASSERT_FALSE(CI.hasSema());
-    CI.createSema(getTranslationUnitKind(), NULL);
+    CI.createSema(getTranslationUnitKind(), nullptr);
     ASSERT_TRUE(CI.hasDiagnostics());
     DiagnosticsEngine &Diagnostics = CI.getDiagnostics();
     DiagnosticConsumer *Client = Diagnostics.getClient();
@@ -178,20 +178,20 @@ public:
 
 // Make sure that the NamespaceDiagnosticWatcher is not miscounting.
 TEST(ExternalSemaSource, SanityCheck) {
-  llvm::OwningPtr<ExternalSemaSourceInstaller> Installer(
+  std::unique_ptr<ExternalSemaSourceInstaller> Installer(
       new ExternalSemaSourceInstaller);
   NamespaceDiagnosticWatcher Watcher("AAB", "BBB");
   Installer->PushWatcher(&Watcher);
   std::vector<std::string> Args(1, "-std=c++11");
   ASSERT_TRUE(clang::tooling::runToolOnCodeWithArgs(
-      Installer.take(), "namespace AAA { } using namespace AAB;", Args));
+      Installer.release(), "namespace AAA { } using namespace AAB;", Args));
   ASSERT_EQ(0, Watcher.SeenCount);
 }
 
 // Check that when we add a NamespaceTypeProvider, we use that suggestion
 // instead of the usual suggestion we would use above.
 TEST(ExternalSemaSource, ExternalTypoCorrectionPrioritized) {
-  llvm::OwningPtr<ExternalSemaSourceInstaller> Installer(
+  std::unique_ptr<ExternalSemaSourceInstaller> Installer(
       new ExternalSemaSourceInstaller);
   NamespaceTypoProvider Provider("AAB", "BBB");
   NamespaceDiagnosticWatcher Watcher("AAB", "BBB");
@@ -199,7 +199,7 @@ TEST(ExternalSemaSource, ExternalTypoCorrectionPrioritized) {
   Installer->PushWatcher(&Watcher);
   std::vector<std::string> Args(1, "-std=c++11");
   ASSERT_TRUE(clang::tooling::runToolOnCodeWithArgs(
-      Installer.take(), "namespace AAA { } using namespace AAB;", Args));
+      Installer.release(), "namespace AAA { } using namespace AAB;", Args));
   ASSERT_LE(0, Provider.CallCount);
   ASSERT_EQ(1, Watcher.SeenCount);
 }
@@ -207,7 +207,7 @@ TEST(ExternalSemaSource, ExternalTypoCorrectionPrioritized) {
 // Check that we use the first successful TypoCorrection returned from an
 // ExternalSemaSource.
 TEST(ExternalSemaSource, ExternalTypoCorrectionOrdering) {
-  llvm::OwningPtr<ExternalSemaSourceInstaller> Installer(
+  std::unique_ptr<ExternalSemaSourceInstaller> Installer(
       new ExternalSemaSourceInstaller);
   NamespaceTypoProvider First("XXX", "BBB");
   NamespaceTypoProvider Second("AAB", "CCC");
@@ -219,7 +219,7 @@ TEST(ExternalSemaSource, ExternalTypoCorrectionOrdering) {
   Installer->PushWatcher(&Watcher);
   std::vector<std::string> Args(1, "-std=c++11");
   ASSERT_TRUE(clang::tooling::runToolOnCodeWithArgs(
-      Installer.take(), "namespace AAA { } using namespace AAB;", Args));
+      Installer.release(), "namespace AAA { } using namespace AAB;", Args));
   ASSERT_LE(1, First.CallCount);
   ASSERT_LE(1, Second.CallCount);
   ASSERT_EQ(0, Third.CallCount);
@@ -229,7 +229,7 @@ TEST(ExternalSemaSource, ExternalTypoCorrectionOrdering) {
 // We should only try MaybeDiagnoseMissingCompleteType if we can't otherwise
 // solve the problem.
 TEST(ExternalSemaSource, TryOtherTacticsBeforeDiagnosing) {
-  llvm::OwningPtr<ExternalSemaSourceInstaller> Installer(
+  std::unique_ptr<ExternalSemaSourceInstaller> Installer(
       new ExternalSemaSourceInstaller);
   CompleteTypeDiagnoser Diagnoser(false);
   Installer->PushSource(&Diagnoser);
@@ -237,7 +237,7 @@ TEST(ExternalSemaSource, TryOtherTacticsBeforeDiagnosing) {
   // This code hits the class template specialization/class member of a class
   // template specialization checks in Sema::RequireCompleteTypeImpl.
   ASSERT_TRUE(clang::tooling::runToolOnCodeWithArgs(
-      Installer.take(),
+      Installer.release(),
       "template <typename T> struct S { class C { }; }; S<char>::C SCInst;",
       Args));
   ASSERT_EQ(0, Diagnoser.CallCount);
@@ -246,7 +246,7 @@ TEST(ExternalSemaSource, TryOtherTacticsBeforeDiagnosing) {
 // The first ExternalSemaSource where MaybeDiagnoseMissingCompleteType returns
 // true should be the last one called.
 TEST(ExternalSemaSource, FirstDiagnoserTaken) {
-  llvm::OwningPtr<ExternalSemaSourceInstaller> Installer(
+  std::unique_ptr<ExternalSemaSourceInstaller> Installer(
       new ExternalSemaSourceInstaller);
   CompleteTypeDiagnoser First(false);
   CompleteTypeDiagnoser Second(true);
@@ -256,7 +256,7 @@ TEST(ExternalSemaSource, FirstDiagnoserTaken) {
   Installer->PushSource(&Third);
   std::vector<std::string> Args(1, "-std=c++11");
   ASSERT_FALSE(clang::tooling::runToolOnCodeWithArgs(
-      Installer.take(), "class Incomplete; Incomplete IncompleteInstance;",
+      Installer.release(), "class Incomplete; Incomplete IncompleteInstance;",
       Args));
   ASSERT_EQ(1, First.CallCount);
   ASSERT_EQ(1, Second.CallCount);

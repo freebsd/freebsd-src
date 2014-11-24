@@ -55,12 +55,12 @@ protected:
 
 FullComment *CommentParserTest::parseString(const char *Source) {
   MemoryBuffer *Buf = MemoryBuffer::getMemBuffer(Source);
-  FileID File = SourceMgr.createFileIDForMemBuffer(Buf);
+  FileID File = SourceMgr.createFileID(Buf);
   SourceLocation Begin = SourceMgr.getLocForStartOfFile(File);
 
   Lexer L(Allocator, Diags, Traits, Begin, Source, Source + strlen(Source));
 
-  Sema S(Allocator, SourceMgr, Diags, Traits, /*PP=*/ NULL);
+  Sema S(Allocator, SourceMgr, Diags, Traits, /*PP=*/ nullptr);
   Parser P(L, S, Allocator, SourceMgr, Diags, Traits);
   FullComment *FC = P.parseFullComment();
 
@@ -74,7 +74,7 @@ FullComment *CommentParserTest::parseString(const char *Source) {
   if (Tok.is(tok::eof))
     return FC;
   else
-    return NULL;
+    return nullptr;
 }
 
 ::testing::AssertionResult HasChildCount(const Comment *C, size_t Count) {
@@ -1416,6 +1416,26 @@ TEST_F(CommentParserTest, VerbatimLine2) {
       VerbatimLineComment *VLC;
       ASSERT_TRUE(HasVerbatimLineAt(FC, Traits, 1, VLC, "fn",
                   " void *foo(const char *zzz = \"\\$\");"));
+    }
+  }
+}
+
+TEST_F(CommentParserTest, Deprecated) {
+  const char *Sources[] = {
+    "/** @deprecated*/",
+    "/// @deprecated\n"
+  };
+
+  for (size_t i = 0, e = array_lengthof(Sources); i != e; i++) {
+    FullComment *FC = parseString(Sources[i]);
+    ASSERT_TRUE(HasChildCount(FC, 2));
+
+    ASSERT_TRUE(HasParagraphCommentAt(FC, 0, " "));
+    {
+      BlockCommandComment *BCC;
+      ParagraphComment *PC;
+      ASSERT_TRUE(HasBlockCommandAt(FC, Traits, 1, BCC, "deprecated", PC));
+      ASSERT_TRUE(HasChildCount(PC, 0));
     }
   }
 }

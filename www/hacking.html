@@ -97,30 +97,19 @@
   <h3 id="debuggingVisualStudio">Debugging using Visual Studio</h3>
   <!--=====================================================================-->
 
-  <p>The file <tt>utils/clangVisualizers.txt</tt> provides debugger visualizers that make debugging
-  of more complex data types much easier.</p>
-  <p>There are two ways to install them:</p>
-  
-  <ul>
-      <li>Put the path to <tt>clangVisualizers.txt</tt> in the environment variable called
-      <tt>_vcee_autoexp</tt>. This method should work for Visual Studio 2008 and above.
-      </li>
-      <li>Edit your local <tt>autoexp.dat</tt> (make sure you make a backup first!), 
-      located in <tt>Visual Studio Directory\Common7\Packages\Debugger</tt> and append 
-      the contents of <tt>clangVisuailzers.txt</tt> to it. This method should work for 
-      Visual Studio 2008 and above.
-       </li>
-  </ul>
-
-  <p><i>[Note: To disable the visualizer for any specific variable, type 
-  <tt>variable_name,!</tt> inside the watch window.]</i></p>
+  <p>The files 
+    <a href="http://llvm.org/svn/llvm-project/llvm/trunk/utils/llvm.natvis">
+      <tt>utils/llvm.natvis</tt></a> and 
+    <a href="http://llvm.org/svn/llvm-project/cfe/trunk/utils/clang.natvis">
+      <tt>utils/clang.natvis</tt></a> provide debugger visualizers 
+      that make debugging of more complex data types much easier.</p>
+  <p>Put the files into 
+    <tt>%USERPROFILE%\Documents\Visual Studio 2012\Visualizers</tt> or 
+    create a symbolic link so they update automatically.</p>
 
   <!--=====================================================================-->
   <h2 id="testing">Testing</h2>
   <!--=====================================================================-->
-
-  <p><i>[Note: The test running mechanism is currently under revision, so the
-  following might change shortly.]</i></p>
 
   <!--=====================================================================-->
   <h3 id="testingNonWindows">Testing on Unix-like Systems</h3>
@@ -287,9 +276,10 @@ Testing Time: 81.52s
   <p>To return changes to the Clang team, unless you have checkin
   privileges, the preferred way is to send patch files to the
   cfe-commits mailing list, with an explanation of what the patch is
-  for.  If your patch requires a wider discussion (for example,
-  because it is an architectural change), you can use the cfe-dev
-  mailing list.  </p>
+  for.  clang follows <a
+  href="http://llvm.org/docs/DeveloperPolicy.html">LLVM's developer policy</a>.
+  If your patch requires a wider discussion (for example, because it is an
+  architectural change), you can use the cfe-dev mailing list.</p>
 
   <p>To create these patch files, change directory
   to the llvm/tools/clang root and run:</p>

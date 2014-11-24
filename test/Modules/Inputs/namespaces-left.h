@@ -1,4 +1,17 @@
+namespace RedeclAcrossImport {
+  enum E { e };
+}
+
+namespace AddAndReexportBeforeImport {
+  struct S {};
+  extern struct S t;
+}
+
 @import namespaces_top;
+
+namespace RedeclAcrossImport {
+  E x = e;
+}
 
 float &global(float);
 float &global2(float);

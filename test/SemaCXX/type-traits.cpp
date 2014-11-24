@@ -112,6 +112,14 @@ struct HasNoThrowConstructor { HasNoThrowConstructor() throw(); };
 struct HasNoThrowConstructorWithArgs {
   HasNoThrowConstructorWithArgs(HasCons i = HasCons(0)) throw();
 };
+struct HasMultipleDefaultConstructor1 {
+  HasMultipleDefaultConstructor1() throw();
+  HasMultipleDefaultConstructor1(int i = 0);
+};
+struct HasMultipleDefaultConstructor2 {
+  HasMultipleDefaultConstructor2(int i = 0);
+  HasMultipleDefaultConstructor2() throw();
+};
 
 struct HasNoThrowCopy { HasNoThrowCopy(const HasNoThrowCopy&) throw(); };
 struct HasMultipleCopy {
@@ -1475,6 +1483,10 @@ void has_nothrow_move_assign() {
   { int arr[F(__has_nothrow_move_assign(NoDefaultMoveAssignDueToUDCopyCtor))]; }
   { int arr[F(__has_nothrow_move_assign(NoDefaultMoveAssignDueToUDCopyAssign))]; }
   { int arr[F(__has_nothrow_move_assign(NoDefaultMoveAssignDueToDtor))]; }
+
+
+  { int arr[T(__is_nothrow_assignable(HasNoThrowMoveAssign, HasNoThrowMoveAssign))]; }
+  { int arr[F(__is_nothrow_assignable(HasThrowMoveAssign, HasThrowMoveAssign))]; }
 }
 
 void has_trivial_move_assign() {
@@ -1562,6 +1574,9 @@ void has_nothrow_constructor() {
   { int arr[F(__has_nothrow_constructor(void))]; }
   { int arr[F(__has_nothrow_constructor(cvoid))]; }
   { int arr[F(__has_nothrow_constructor(HasTemplateCons))]; }
+
+  { int arr[F(__has_nothrow_constructor(HasMultipleDefaultConstructor1))]; }
+  { int arr[F(__has_nothrow_constructor(HasMultipleDefaultConstructor2))]; }
 }
 
 void has_virtual_destructor() {
@@ -1931,6 +1946,30 @@ void trivial_checks()
                                          TrivialMoveButNotCopy&&)))]; }
 }
 
+void constructible_checks() {
+  { int arr[T(__is_constructible(HasNoThrowConstructorWithArgs))]; }
+  { int arr[F(__is_nothrow_constructible(HasNoThrowConstructorWithArgs))]; } // MSVC doesn't look into default args and gets this wrong.
+
+  { int arr[T(__is_constructible(HasNoThrowConstructorWithArgs, HasCons))]; }
+  { int arr[T(__is_nothrow_constructible(HasNoThrowConstructorWithArgs, HasCons))]; }
+
+  { int arr[T(__is_constructible(NonTrivialDefault))]; }
+  { int arr[F(__is_nothrow_constructible(NonTrivialDefault))]; }
+
+  { int arr[T(__is_constructible(int))]; }
+  { int arr[T(__is_nothrow_constructible(int))]; }
+
+  { int arr[F(__is_constructible(NonPOD))]; }
+  { int arr[F(__is_nothrow_constructible(NonPOD))]; }
+
+  { int arr[T(__is_constructible(NonPOD, int))]; }
+  { int arr[F(__is_nothrow_constructible(NonPOD, int))]; }
+
+  // PR19178
+  { int arr[F(__is_constructible(Abstract))]; }
+  { int arr[F(__is_nothrow_constructible(Abstract))]; }
+}
+
 // Instantiation of __is_trivially_constructible
 template<typename T, typename ...Args>
 struct is_trivially_constructible {
@@ -1956,6 +1995,7 @@ void is_trivially_constructible_test() {
   { int arr[F((is_trivially_constructible<int, int*>::value))]; }
   { int arr[F((is_trivially_constructible<NonTrivialDefault>::value))]; }
   { int arr[F((is_trivially_constructible<ThreeArgCtor, int*, char*, int&>::value))]; }
+  { int arr[F((is_trivially_constructible<Abstract>::value))]; } // PR19178
 }
 
 void array_rank() {

@@ -1,5 +1,4 @@
 // RUN: %clang_cc1 -arcmt-check -verify -triple x86_64-apple-darwin10 -fblocks -Werror %s
-// DISABLE: mingw32
 
 #if __has_feature(objc_arc)
 #define NS_AUTOMATED_REFCOUNT_UNAVAILABLE __attribute__((unavailable("not available in automatic reference counting mode")))
@@ -45,9 +44,9 @@ struct UnsafeS {
 };
 
 @interface A : NSObject
-- (id)retain; // expected-note {{declaration has been explicitly marked unavailable here}}
-- (id)retainCount; // expected-note {{declaration has been explicitly marked unavailable here}}
-- (id)autorelease; // expected-note 2 {{declaration has been explicitly marked unavailable here}}
+- (id)retain; // expected-note {{'retain' has been explicitly marked unavailable here}}
+- (id)retainCount; // expected-note {{'retainCount' has been explicitly marked unavailable here}}
+- (id)autorelease; // expected-note 2 {{'autorelease' has been explicitly marked unavailable here}}
 - (id)init;
 - (oneway void)release;
 - (void)dealloc;

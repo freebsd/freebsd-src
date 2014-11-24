@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -emit-llvm %s -o - | FileCheck %s
+// RUN: %clang_cc1 -emit-llvm -triple %itanium_abi_triple %s -o - | FileCheck %s
 template<typename T, typename U>
 T* next(T* ptr, const U& diff);
 

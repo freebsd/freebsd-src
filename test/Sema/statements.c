@@ -36,7 +36,7 @@ bar:
 
 // PR6034
 void test11(int bit) {
-  switch (bit) // expected-warning {{switch statement has empty body}} expected-note {{put the semicolon on a separate line to silence this warning}}
+  switch (bit)
   switch (env->fpscr)  // expected-error {{use of undeclared identifier 'env'}}
   {
   }
@@ -90,9 +90,6 @@ void foo(enum x X) {
   }
 }
 
-// PR 8880
-// FIXME: Clang should reject this, since GCC does.  Previously this
-// was causing a crash in the CFG builder.
 int test_pr8880() {
   int first = 1;
   for ( ; ({ if (first) { first = 0; continue; } 0; }); )

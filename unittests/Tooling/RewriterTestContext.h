@@ -48,12 +48,11 @@ class RewriterTestContext {
   ~RewriterTestContext() {}
 
   FileID createInMemoryFile(StringRef Name, StringRef Content) {
-    const llvm::MemoryBuffer *Source =
-      llvm::MemoryBuffer::getMemBuffer(Content);
+    llvm::MemoryBuffer *Source = llvm::MemoryBuffer::getMemBuffer(Content);
     const FileEntry *Entry =
       Files.getVirtualFile(Name, Source->getBufferSize(), 0);
-    Sources.overrideFileContents(Entry, Source, true);
-    assert(Entry != NULL);
+    Sources.overrideFileContents(Entry, Source);
+    assert(Entry != nullptr);
     return Sources.createFileID(Entry, SourceLocation(), SrcMgr::C_User);
   }
 
@@ -62,8 +61,7 @@ class RewriterTestContext {
   FileID createOnDiskFile(StringRef Name, StringRef Content) {
     SmallString<1024> Path;
     int FD;
-    llvm::error_code EC =
-        llvm::sys::fs::createTemporaryFile(Name, "", FD, Path);
+    std::error_code EC = llvm::sys::fs::createTemporaryFile(Name, "", FD, Path);
     assert(!EC);
     (void)EC;
 
@@ -71,7 +69,7 @@ class RewriterTestContext {
     OutStream << Content;
     OutStream.close();
     const FileEntry *File = Files.getFile(Path);
-    assert(File != NULL);
+    assert(File != nullptr);
 
     StringRef Found = TemporaryFiles.GetOrCreateValue(Name, Path.str()).second;
     assert(Found == Path);
@@ -102,7 +100,9 @@ class RewriterTestContext {
     // descriptor, which might not see the changes made.
     // FIXME: Figure out whether there is a way to get the SourceManger to
     // reopen the file.
-    return Files.getBufferForFile(Path, NULL)->getBuffer();
+    std::unique_ptr<const llvm::MemoryBuffer> FileBuffer(
+        Files.getBufferForFile(Path, nullptr));
+    return FileBuffer->getBuffer();
   }
 
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;

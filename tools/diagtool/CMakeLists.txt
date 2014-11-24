@@ -1,9 +1,5 @@
 set(LLVM_LINK_COMPONENTS
-  ${LLVM_TARGETS_TO_BUILD}
-  asmparser
-  bitreader
-  support
-  mc
+  Support
   )
 
 add_clang_executable(diagtool
@@ -15,14 +11,8 @@ add_clang_executable(diagtool
   TreeView.cpp
 )
 
-add_dependencies(diagtool
-  ClangDiagnosticIndexName
-  )
-
 target_link_libraries(diagtool
   clangBasic
-  clangLex
-  clangSema
   clangFrontend
   )
 

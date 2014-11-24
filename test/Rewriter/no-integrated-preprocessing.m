@@ -1,4 +1,4 @@
-// RUN: %clang -arch i386 -fms-extensions -rewrite-objc %s -o %t-rw.cpp
+// RUN: %clang -target i386-unknown-unknown -fms-extensions -rewrite-objc %s -o %t-rw.cpp
 // RUN: FileCheck %s < %t-rw.cpp
 // rdar://12189793
 
@@ -23,4 +23,4 @@ int main() {
 // CHECK: static struct _class_ro_t _OBJC_CLASS_RO_$_MYINTF
 // CHECK-NEXT: 0, 0, 0,
 // CHECK-NEXT: 0,
-// CHECK-NEST: "MYINTF",
+// CHECK-NEXT: "MYINTF",

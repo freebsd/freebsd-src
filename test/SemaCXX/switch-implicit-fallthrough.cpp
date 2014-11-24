@@ -229,6 +229,59 @@ int fallthrough_covered_enums(Enum e) {
   return n;
 }
 
+// Fallthrough annotations in local classes used to generate "fallthrough
+// annotation does not directly precede switch label" warning.
+void fallthrough_in_local_class() {
+  class C {
+    void f(int x) {
+      switch (x) {
+        case 0:
+          x++;
+          [[clang::fallthrough]]; // no diagnostics
+        case 1:
+          x++;
+        default: // \
+            expected-warning{{unannotated fall-through between switch labels}} \
+            expected-note{{insert 'break;' to avoid fall-through}}
+          break;
+      }
+    }
+  };
+}
+
+// Fallthrough annotations in lambdas used to generate "fallthrough
+// annotation does not directly precede switch label" warning.
+void fallthrough_in_lambda() {
+  (void)[] {
+    int x = 0;
+    switch (x) {
+    case 0:
+      x++;
+      [[clang::fallthrough]]; // no diagnostics
+    case 1:
+      x++;
+    default: // \
+        expected-warning{{unannotated fall-through between switch labels}} \
+        expected-note{{insert 'break;' to avoid fall-through}}
+      break;
+    }
+  };
+}
+
+namespace PR18983 {
+  void fatal() __attribute__((noreturn));
+  int num();
+  void test() {
+    switch (num()) {
+    case 1:
+      fatal();
+      // Don't issue a warning.
+    case 2:
+      break;
+    }
+  }
+}
+
 int fallthrough_targets(int n) {
   [[clang::fallthrough]]; // expected-error{{fallthrough annotation is outside switch statement}}
 
@@ -247,21 +300,3 @@ int fallthrough_targets(int n) {
   }
   return n;
 }
-
-// Fallthrough annotations in local classes used to generate "fallthrough
-// annotation does not directly precede switch label" warning.
-void fallthrough_in_local_class() {
-  class C {
-    void f(int x) {
-      switch (x) {
-        case 0:
-          x++;
-          [[clang::fallthrough]]; // no diagnostics
-        case 1:
-          x++;
-          break;
-      }
-    }
-  };
-}
-

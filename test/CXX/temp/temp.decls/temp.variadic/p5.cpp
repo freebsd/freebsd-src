@@ -310,10 +310,10 @@ void test_unexpanded_exprs(Types ...values) {
   t.~Types(); // expected-error{{expression contains unexpanded parameter pack 'Types'}}
   t.Types::~T(); // expected-error{{expression contains unexpanded parameter pack 'Types'}}
 
-  // UnaryTypeTraitExpr
+  // Unary TypeTraitExpr
   __is_pod(Types); // expected-error{{expression contains unexpanded parameter pack 'Types'}}
 
-  // BinaryTypeTraitExpr
+  // Binary TypeTraitExpr
   __is_base_of(Types, T); // expected-error{{expression contains unexpanded parameter pack 'Types'}}
   __is_base_of(T, Types); // expected-error{{expression contains unexpanded parameter pack 'Types'}}
 

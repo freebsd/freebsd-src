@@ -16,7 +16,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Signals.h"
-#include "llvm/Support/system_error.h"
+#include <system_error>
 
 using namespace clang;
 using namespace arcmt;
@@ -81,19 +81,19 @@ class PrintTransforms : public MigrationProcess::RewriteListener {
 
 public:
   PrintTransforms(raw_ostream &OS)
-    : Ctx(0), OS(OS) { }
+    : Ctx(nullptr), OS(OS) {}
 
-  virtual void start(ASTContext &ctx) { Ctx = &ctx; }
-  virtual void finish() { Ctx = 0; }
+  void start(ASTContext &ctx) override { Ctx = &ctx; }
+  void finish() override { Ctx = nullptr; }
 
-  virtual void insert(SourceLocation loc, StringRef text) {
+  void insert(SourceLocation loc, StringRef text) override {
     assert(Ctx);
     OS << "Insert: ";
     printSourceLocation(loc, *Ctx, OS);
     OS << " \"" << text << "\"\n";
   }
 
-  virtual void remove(CharSourceRange range) {
+  void remove(CharSourceRange range) override {
     assert(Ctx);
     OS << "Remove: ";
     printSourceRange(range, *Ctx, OS);
@@ -112,7 +112,7 @@ static bool checkForMigration(StringRef resourcesPath,
   IntrusiveRefCntPtr<DiagnosticsEngine> Diags(
       new DiagnosticsEngine(DiagID, &*DiagOpts, DiagClient));
   // Chain in -verify checker, if requested.
-  VerifyDiagnosticConsumer *verifyDiag = 0;
+  VerifyDiagnosticConsumer *verifyDiag = nullptr;
   if (VerifyDiags) {
     verifyDiag = new VerifyDiagnosticConsumer(*Diags);
     Diags->setClient(verifyDiag);
@@ -139,10 +139,8 @@ static void printResult(FileRemapper &remapper, raw_ostream &OS) {
   PreprocessorOptions PPOpts;
   remapper.applyMappings(PPOpts);
   // The changed files will be in memory buffers, print them.
-  for (unsigned i = 0, e = PPOpts.RemappedFileBuffers.size(); i != e; ++i) {
-    const llvm::MemoryBuffer *mem = PPOpts.RemappedFileBuffers[i].second;
-    OS << mem->getBuffer();
-  }
+  for (const auto &RB : PPOpts.RemappedFileBuffers)
+    OS << RB.second->getBuffer();
 }
 
 static bool performTransformations(StringRef resourcesPath,
@@ -178,7 +176,7 @@ static bool performTransformations(StringRef resourcesPath,
                                  origCI.getMigratorOpts().NoFinalizeRemoval);
   assert(!transforms.empty());
 
-  OwningPtr<PrintTransforms> transformPrinter;
+  std::unique_ptr<PrintTransforms> transformPrinter;
   if (OutputTransformations)
     transformPrinter.reset(new PrintTransforms(llvm::outs()));
 
@@ -207,17 +205,15 @@ static bool performTransformations(StringRef resourcesPath,
 static bool filesCompareEqual(StringRef fname1, StringRef fname2) {
   using namespace llvm;
 
-  OwningPtr<MemoryBuffer> file1;
-  MemoryBuffer::getFile(fname1, file1);
+  ErrorOr<std::unique_ptr<MemoryBuffer>> file1 = MemoryBuffer::getFile(fname1);
   if (!file1)
     return false;
-  
-  OwningPtr<MemoryBuffer> file2;
-  MemoryBuffer::getFile(fname2, file2);
+
+  ErrorOr<std::unique_ptr<MemoryBuffer>> file2 = MemoryBuffer::getFile(fname2);
   if (!file2)
     return false;
 
-  return file1->getBuffer() == file2->getBuffer();
+  return file1.get()->getBuffer() == file2.get()->getBuffer();
 }
 
 static bool verifyTransformedFiles(ArrayRef<std::string> resultFiles) {
@@ -238,18 +234,19 @@ static bool verifyTransformedFiles(ArrayRef<std::string> resultFiles) {
     resultMap[sys::path::stem(fname)] = fname;
   }
 
-  OwningPtr<MemoryBuffer> inputBuf;
+  ErrorOr<std::unique_ptr<MemoryBuffer>> inputBuf = std::error_code();
   if (RemappingsFile.empty())
-    MemoryBuffer::getSTDIN(inputBuf);
+    inputBuf = MemoryBuffer::getSTDIN();
   else
-    MemoryBuffer::getFile(RemappingsFile, inputBuf);
+    inputBuf = MemoryBuffer::getFile(RemappingsFile);
   if (!inputBuf) {
     errs() << "error: could not read remappings input\n";
     return true;
   }
 
   SmallVector<StringRef, 8> strs;
-  inputBuf->getBuffer().split(strs, "\n", /*MaxSplit=*/-1, /*KeepEmpty=*/false);
+  inputBuf.get()->getBuffer().split(strs, "\n", /*MaxSplit=*/-1,
+                                    /*KeepEmpty=*/false);
 
   if (strs.empty()) {
     errs() << "error: no files to verify from stdin\n";

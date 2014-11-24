@@ -24,17 +24,17 @@ namespace std {
   }
 } // end namespace std
 // CHECK-ELIDE-NOTREE: no matching function for call to 'f'
-// CHECK-ELIDE-NOTREE: candidate function not viable: no known conversion from 'vector<class std::basic_string>' to 'vector<class versa_string>' for 1st argument 
+// CHECK-ELIDE-NOTREE: candidate function not viable: no known conversion from 'vector<std::basic_string>' to 'vector<versa_string>' for 1st argument
 // CHECK-NOELIDE-NOTREE: no matching function for call to 'f'
-// CHECK-NOELIDE-NOTREE: candidate function not viable: no known conversion from 'vector<class std::basic_string>' to 'vector<class versa_string>' for 1st argument
+// CHECK-NOELIDE-NOTREE: candidate function not viable: no known conversion from 'vector<std::basic_string>' to 'vector<versa_string>' for 1st argument
 // CHECK-ELIDE-TREE: no matching function for call to 'f'
 // CHECK-ELIDE-TREE: candidate function not viable: no known conversion from argument type to parameter type for 1st argument
 // CHECK-ELIDE-TREE:   vector<
-// CHECK-ELIDE-TREE:     [class std::basic_string != class versa_string]>
+// CHECK-ELIDE-TREE:     [std::basic_string != versa_string]>
 // CHECK-NOELIDE-TREE: no matching function for call to 'f'
 // CHECK-NOELIDE-TREE: candidate function not viable: no known conversion from argument type to parameter type for 1st argument
 // CHECK-NOELIDE-TREE:   vector<
-// CHECK-NOELIDE-TREE:     [class std::basic_string != class versa_string]>
+// CHECK-NOELIDE-TREE:     [std::basic_string != versa_string]>
 
 template <int... A>
 class I1{};
@@ -1047,7 +1047,7 @@ namespace DependentInt {
     using T2 = M<C<N>>;
     T2 p;
     T1 x = p;
-    // CHECK-ELIDE-NOTREE: no viable conversion from 'M<C<struct DependentInt::N, INT<1>>>' to 'M<C<int, INT<0>>>'
+    // CHECK-ELIDE-NOTREE: no viable conversion from 'M<C<DependentInt::N, INT<1>>>' to 'M<C<int, INT<0>>>'
   }
 }
 
@@ -1064,8 +1064,187 @@ template <typename T, typename A = allocator<const Atom *> > class vector {};
 void foo() {
   vector<Atom *> v;
   AtomVector v2(v);
-  // CHECK-ELIDE-NOTREE: no known conversion from 'vector<class PR17510::Atom *, [...]>' to 'const vector<const class PR17510::Atom *, [...]>'
+  // CHECK-ELIDE-NOTREE: no known conversion from 'vector<PR17510::Atom *, [...]>' to 'const vector<const PR17510::Atom *, [...]>'
 }
+}
+
+namespace PR15677 {
+template <bool>
+struct A{};
+
+template <typename T>
+using B = A<T::value>;
+
+template <typename T>
+using B = A<!T::value>;
+// CHECK-ELIDE-NOTREE: type alias template redefinition with different types ('A<!T::value>' vs 'A<T::value>')
+
+template <int>
+struct C{};
+
+template <typename T>
+using D = C<T::value>;
+
+template <typename T>
+using D = C<T::value + 1>;
+// CHECK-ELIDE-NOTREE: type alias template redefinition with different types ('C<T::value + 1>' vs 'C<T::value>')
+
+template <typename T>
+using E = C<T::value>;
+
+template <typename T>
+using E = C<42>;
+// CHECK-ELIDE-NOTREE: type alias template redefinition with different types ('C<42>' vs 'C<T::value>')
+
+template <typename T>
+using F = C<T::value>;
+
+template <typename T>
+using F = C<21 + 21>;
+// CHECK-ELIDE-NOTREE: type alias template redefinition with different types ('C<21 + 21 aka 42>' vs 'C<T::value>')
+}
+}
+
+namespace AddressOf {
+template <int*>
+struct S {};
+
+template <class T>
+struct Wrapper {};
+
+template <class T>
+Wrapper<T> MakeWrapper();
+int global, global2;
+constexpr int * ptr = nullptr;
+Wrapper<S<ptr>> W = MakeWrapper<S<&global>>();
+// Don't print an extra '&' for 'ptr'
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<&global>>' to 'Wrapper<S<ptr>>'
+
+// Handle parens correctly
+Wrapper<S<(&global2)>> W2 = MakeWrapper<S<&global>>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<&global>>' to 'Wrapper<S<&global2>>'
+Wrapper<S<&global2>> W3 = MakeWrapper<S<(&global)>>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<&global>>' to 'Wrapper<S<&global2>>'
+Wrapper<S<(&global2)>> W4 = MakeWrapper<S<(&global)>>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<&global>>' to 'Wrapper<S<&global2>>'
+}
+
+namespace NullPtr {
+template <int*, int*>
+struct S {};
+
+template <class T>
+struct Wrapper {};
+
+template <class T>
+Wrapper<T> MakeWrapper();
+int global, global2;
+constexpr int * ptr = nullptr;
+constexpr int * ptr2 = static_cast<int*>(0);
+
+S<&global> s1 = S<&global, ptr>();
+S<&global, nullptr> s2 = S<&global, ptr>();
+
+S<&global, nullptr> s3 = S<&global, &global>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'S<[...], &global>' to 'S<[...], nullptr>'
+S<&global, ptr> s4 = S<&global, &global>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'S<[...], &global>' to 'S<[...], ptr>
+
+Wrapper<S<&global, nullptr>> W1 = MakeWrapper<S<&global, ptr>>();
+Wrapper<S<&global, static_cast<int*>(0)>> W2 = MakeWrapper<S<&global, ptr>>();
+
+Wrapper<S<&global, nullptr>> W3 = MakeWrapper<S<&global, &global>>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<[...], &global>>' to 'Wrapper<S<[...], nullptr>>'
+Wrapper<S<&global, ptr>> W4 = MakeWrapper<S<&global, &global>>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<[...], &global>>' to 'Wrapper<S<[...], ptr>>'
+
+Wrapper<S<&global2, ptr>> W5 = MakeWrapper<S<&global, nullptr>>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<&global, [...]>>' to 'Wrapper<S<&global2, [...]>>'
+Wrapper<S<&global2, nullptr>> W6 = MakeWrapper<S<&global, nullptr>>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<&global, [...]>>' to 'Wrapper<S<&global2, [...]>>'
+Wrapper<S<&global2, ptr2>> W7 = MakeWrapper<S<&global, nullptr>>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<&global, [...]>>' to 'Wrapper<S<&global2, [...]>>'
+Wrapper<S<&global2, nullptr>> W8 = MakeWrapper<S<&global, ptr2>>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<&global, [...]>>' to 'Wrapper<S<&global2, [...]>>'
+Wrapper<S<&global2, ptr>> W9 = MakeWrapper<S<&global, ptr2>>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<&global, [...]>>' to 'Wrapper<S<&global2, [...]>>'
+Wrapper<S<&global2, ptr2>> W10 = MakeWrapper<S<&global, ptr>>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<&global, [...]>>' to 'Wrapper<S<&global2, [...]>>'
+Wrapper<S<&global2, static_cast<int *>(0)>> W11 =
+    MakeWrapper<S<&global, nullptr>>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<&global, [...]>>' to 'Wrapper<S<&global2, [...]>>'
+Wrapper<S<&global2, nullptr>> W12 =
+    MakeWrapper<S<&global, static_cast<int *>(0)>>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<&global, [...]>>' to 'Wrapper<S<&global2, [...]>>'
+
+Wrapper<S<&global, &global>> W13 = MakeWrapper<S<&global, ptr>>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<[...], nullptr>>' to 'Wrapper<S<[...], &global>>'
+Wrapper<S<&global, ptr>> W14 = MakeWrapper<S<&global, &global>>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'Wrapper<S<[...], &global>>' to 'Wrapper<S<[...], ptr>>'
+}
+
+namespace TemplateTemplateDefault {
+template <class> class A{};
+template <class> class B{};
+template <class> class C{};
+template <template <class> class, template <class> class = A>
+        class T {};
+
+T<A> t1 = T<A, C>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'T<[...], template C>' to 'T<[...], (default) template A>'
+T<A, C> t2 = T<A>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'T<[...], (default) template A>' to 'T<[...], template C>'
+T<A> t3 = T<B>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'T<template B>' to 'T<template A>'
+T<B, C> t4 = T<C, B>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'T<template C, template B>' to 'T<template B, template C>'
+T<A, A> t5 = T<B>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'T<template B, [...]>' to 'T<template A, [...]>'
+T<B> t6 = T<A, A>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'T<template A, [...]>' to 'T<template B, [...]>'
+}
+
+namespace Bool {
+template <class> class A{};
+A<bool> a1 = A<int>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'A<int>' to 'A<bool>'
+A<int> a2 = A<bool>();
+// CHECK-ELIDE-NOTREE: no viable conversion from 'A<bool>' to 'A<int>'
+}
+
+namespace TypeAlias {
+template <int, int = 0> class A {};
+
+template <class T> using a = A<T::num, 0>;
+template <class T> using a = A<T::num>;
+
+template <class T> using A1 = A<T::num>;
+template <class T> using A1 = A<T::num + 0>;
+// CHECK-ELIDE-NOTREE: type alias template redefinition with different types ('A<T::num + 0>' vs 'A<T::num>')
+
+template <class T> using A2 = A<1 + T::num>;
+template <class T> using A2 = A<T::num + 1>;
+// CHECK-ELIDE-NOTREE: type alias template redefinition with different types ('A<T::num + 1>' vs 'A<1 + T::num>')
+
+template <class T> using A3 = A<(T::num)>;
+template <class T> using A3 = A<T::num>;
+// CHECK-ELIDE-NOTREE: error: type alias template redefinition with different types ('A<T::num>' vs 'A<(T::num)>')
+
+          template <class T> using A4 = A<(T::num)>;
+template <class T> using A4 = A<((T::num))>;
+// CHECK-ELIDE-NOTREE: type alias template redefinition with different types ('A<((T::num))>' vs 'A<(T::num)>')
+
+template <class T> using A5 = A<T::num, 1>;
+template <class T> using A5 = A<T::num>;
+// CHECK-ELIDE-NOTREE: type alias template redefinition with different types ('A<[...], (default) 0>' vs 'A<[...], 1>')
+
+template <class T> using A6 = A<T::num + 5, 1>;
+template <class T> using A6 = A<T::num + 5>;
+// CHECK-ELIDE-NOTREE: type alias template redefinition with different types ('A<[...], (default) 0>' vs 'A<[...], 1>')
+
+template <class T> using A7 = A<T::num, 1>;
+template <class T> using A7 = A<(T::num)>;
+// CHECK-ELIDE-NOTREE: type alias template redefinition with different types ('A<(T::num), (default) 0>' vs 'A<T::num, 1>')
 }
 
 // CHECK-ELIDE-NOTREE: {{[0-9]*}} errors generated.

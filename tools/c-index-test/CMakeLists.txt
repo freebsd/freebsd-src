@@ -1,8 +1,3 @@
-set( LLVM_LINK_COMPONENTS
-  support
-  mc
-  )
-
 add_clang_executable(c-index-test
   c-index-test.c
   )
@@ -10,7 +5,7 @@ add_clang_executable(c-index-test
 if(NOT MSVC)
   set_property(
     SOURCE c-index-test.c
-    PROPERTY COMPILE_FLAGS "-std=c89"
+    PROPERTY COMPILE_FLAGS "-std=gnu89"
     )
 endif()
 

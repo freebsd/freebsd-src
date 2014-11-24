@@ -43,13 +43,14 @@
 
 LANGOPT(C99               , 1, 0, "C99")
 LANGOPT(C11               , 1, 0, "C11")
-LANGOPT(MicrosoftExt      , 1, 0, "Microsoft extensions")
-LANGOPT(MicrosoftMode     , 1, 0, "Microsoft compatibility mode")
+LANGOPT(MSVCCompat        , 1, 0, "Microsoft Visual C++ full compatibility mode")
+LANGOPT(MicrosoftExt      , 1, 0, "Microsoft C++ extensions")
 LANGOPT(AsmBlocks         , 1, 0, "Microsoft inline asm blocks")
 LANGOPT(Borland           , 1, 0, "Borland extensions")
 LANGOPT(CPlusPlus         , 1, 0, "C++")
-LANGOPT(CPlusPlus11       , 1, 0, "C++0x")
+LANGOPT(CPlusPlus11       , 1, 0, "C++11")
 LANGOPT(CPlusPlus1y       , 1, 0, "C++1y")
+LANGOPT(CPlusPlus1z       , 1, 0, "C++1z")
 LANGOPT(ObjC1             , 1, 0, "Objective-C 1")
 LANGOPT(ObjC2             , 1, 0, "Objective-C 2")
 BENIGN_LANGOPT(ObjCDefaultSynthProperties , 1, 0,
@@ -61,6 +62,7 @@ BENIGN_LANGOPT(ObjCInferRelatedResultType , 1, 1,
 LANGOPT(Trigraphs         , 1, 0,"trigraphs")
 LANGOPT(LineComment       , 1, 0, "'//' comments")
 LANGOPT(Bool              , 1, 0, "bool, true, and false keywords")
+LANGOPT(Half              , 1, 0, "half keyword")
 LANGOPT(WChar             , 1, CPlusPlus, "wchar_t keyword")
 BENIGN_LANGOPT(DollarIdents   , 1, 1, "'$' in identifiers")
 BENIGN_LANGOPT(AsmPreprocessor, 1, 0, "preprocessor in asm mode")
@@ -82,6 +84,7 @@ LANGOPT(CXXExceptions     , 1, 0, "C++ exceptions")
 LANGOPT(SjLjExceptions    , 1, 0, "setjmp-longjump exception handling")
 LANGOPT(TraditionalCPP    , 1, 0, "traditional CPP emulation")
 LANGOPT(RTTI              , 1, 1, "run-time type information")
+LANGOPT(RTTIData          , 1, 1, "emit run-time type information data")
 LANGOPT(MSBitfields       , 1, 0, "Microsoft-compatible structure layout")
 LANGOPT(Freestanding, 1, 0, "freestanding implementation")
 LANGOPT(NoBuiltin         , 1, 0, "disable builtin functions")
@@ -95,6 +98,9 @@ LANGOPT(MathErrno         , 1, 1, "errno support for math functions")
 BENIGN_LANGOPT(HeinousExtensions , 1, 0, "Extensions that we really don't like and may be ripped out at any time")
 LANGOPT(Modules           , 1, 0, "modules extension to C")
 LANGOPT(ModulesDeclUse    , 1, 0, "require declaration of module uses")
+LANGOPT(ModulesSearchAll  , 1, 1, "search even non-imported modules to find unresolved references")
+LANGOPT(ModulesStrictDeclUse, 1, 0, "require declaration of module uses and all headers to be in modules")
+LANGOPT(ModulesErrorRecovery, 1, 1, "automatically import modules as needed when performing error recovery")
 LANGOPT(Optimize          , 1, 0, "__OPTIMIZE__ predefined macro")
 LANGOPT(OptimizeSize      , 1, 0, "__OPTIMIZE_SIZE__ predefined macro")
 LANGOPT(Static            , 1, 0, "__STATIC__ predefined macro (as opposed to __DYNAMIC__)")
@@ -113,6 +119,7 @@ BENIGN_LANGOPT(ObjCGCBitmapPrint , 1, 0, "printing of GC's bitmap layout for __w
 BENIGN_LANGOPT(AccessControl     , 1, 1, "C++ access control")
 LANGOPT(CharIsSigned      , 1, 1, "signed char")
 LANGOPT(ShortWChar        , 1, 0, "unsigned short wchar_t")
+ENUM_LANGOPT(MSPointerToMemberRepresentationMethod, PragmaMSPointersToMembersKind, 2, PPTMK_BestCase, "member-pointer representation method")
 
 LANGOPT(ShortEnums        , 1, 0, "short enum types")
 
@@ -173,12 +180,12 @@ BENIGN_LANGOPT(BracketDepth, 32, 256,
                "maximum bracket nesting depth")
 BENIGN_LANGOPT(NumLargeByValueCopy, 32, 0,
         "if non-zero, warn about parameter or return Warn if parameter/return value is larger in bytes than this setting. 0 is no check.")
-VALUE_LANGOPT(MSCVersion, 32, 0,
-              "version of Microsoft Visual C/C++")
+VALUE_LANGOPT(MSCompatibilityVersion, 32, 0, "Microsoft Visual C/C++ Version")
+VALUE_LANGOPT(VtorDispMode, 2, 1, "How many vtordisps to insert")
 
 LANGOPT(ApplePragmaPack, 1, 0, "Apple gcc-compatible #pragma pack handling")
 
-BENIGN_LANGOPT(RetainCommentsFromSystemHeaders, 1, 0, "retain documentation comments from system headers in the AST")
+LANGOPT(RetainCommentsFromSystemHeaders, 1, 0, "retain documentation comments from system headers in the AST")
 
 #undef LANGOPT
 #undef VALUE_LANGOPT

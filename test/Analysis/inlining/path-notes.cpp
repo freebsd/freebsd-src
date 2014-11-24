@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core -analyzer-output=text -analyzer-config c++-inlining=destructors -std=c++11 -verify %s
-// RUN: %clang_cc1 -analyze -analyzer-checker=core -analyzer-output=plist-multi-file -analyzer-config c++-inlining=destructors -std=c++11 -analyzer-config path-diagnostics-alternate=false %s -o %t.plist
+// RUN: %clang_cc1 -analyze -analyzer-checker=core -analyzer-output=text -analyzer-config c++-inlining=destructors -std=c++11 -verify -Wno-tautological-undefined-compare %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core -analyzer-output=plist-multi-file -analyzer-config c++-inlining=destructors -std=c++11 -analyzer-config path-diagnostics-alternate=false %s -o %t.plist -Wno-tautological-undefined-compare
 // RUN: FileCheck --input-file=%t.plist %s
 
 class Foo {
@@ -1506,7 +1506,7 @@ namespace PR17746 {
 // CHECK-NEXT:         </dict>
 // CHECK-NEXT:         <dict>
 // CHECK-NEXT:          <key>line</key><integer>120</integer>
-// CHECK-NEXT:          <key>col</key><integer>19</integer>
+// CHECK-NEXT:          <key>col</key><integer>20</integer>
 // CHECK-NEXT:          <key>file</key><integer>0</integer>
 // CHECK-NEXT:         </dict>
 // CHECK-NEXT:        </array>
@@ -1535,7 +1535,7 @@ namespace PR17746 {
 // CHECK-NEXT:         </dict>
 // CHECK-NEXT:         <dict>
 // CHECK-NEXT:          <key>line</key><integer>120</integer>
-// CHECK-NEXT:          <key>col</key><integer>19</integer>
+// CHECK-NEXT:          <key>col</key><integer>20</integer>
 // CHECK-NEXT:          <key>file</key><integer>0</integer>
 // CHECK-NEXT:         </dict>
 // CHECK-NEXT:        </array>
@@ -1787,7 +1787,7 @@ namespace PR17746 {
 // CHECK-NEXT:         </dict>
 // CHECK-NEXT:         <dict>
 // CHECK-NEXT:          <key>line</key><integer>128</integer>
-// CHECK-NEXT:          <key>col</key><integer>32</integer>
+// CHECK-NEXT:          <key>col</key><integer>33</integer>
 // CHECK-NEXT:          <key>file</key><integer>0</integer>
 // CHECK-NEXT:         </dict>
 // CHECK-NEXT:        </array>
@@ -2452,12 +2452,12 @@ namespace PR17746 {
 // CHECK-NEXT:          <array>
 // CHECK-NEXT:           <dict>
 // CHECK-NEXT:            <key>line</key><integer>105</integer>
-// CHECK-NEXT:            <key>col</key><integer>21</integer>
+// CHECK-NEXT:            <key>col</key><integer>53</integer>
 // CHECK-NEXT:            <key>file</key><integer>0</integer>
 // CHECK-NEXT:           </dict>
 // CHECK-NEXT:           <dict>
 // CHECK-NEXT:            <key>line</key><integer>105</integer>
-// CHECK-NEXT:            <key>col</key><integer>28</integer>
+// CHECK-NEXT:            <key>col</key><integer>53</integer>
 // CHECK-NEXT:            <key>file</key><integer>0</integer>
 // CHECK-NEXT:           </dict>
 // CHECK-NEXT:          </array>
@@ -2469,7 +2469,7 @@ namespace PR17746 {
 // CHECK-NEXT:      <key>location</key>
 // CHECK-NEXT:      <dict>
 // CHECK-NEXT:       <key>line</key><integer>105</integer>
-// CHECK-NEXT:       <key>col</key><integer>21</integer>
+// CHECK-NEXT:       <key>col</key><integer>53</integer>
 // CHECK-NEXT:       <key>file</key><integer>0</integer>
 // CHECK-NEXT:      </dict>
 // CHECK-NEXT:      <key>ranges</key>
@@ -2477,12 +2477,12 @@ namespace PR17746 {
 // CHECK-NEXT:        <array>
 // CHECK-NEXT:         <dict>
 // CHECK-NEXT:          <key>line</key><integer>105</integer>
-// CHECK-NEXT:          <key>col</key><integer>21</integer>
+// CHECK-NEXT:          <key>col</key><integer>53</integer>
 // CHECK-NEXT:          <key>file</key><integer>0</integer>
 // CHECK-NEXT:         </dict>
 // CHECK-NEXT:         <dict>
 // CHECK-NEXT:          <key>line</key><integer>105</integer>
-// CHECK-NEXT:          <key>col</key><integer>28</integer>
+// CHECK-NEXT:          <key>col</key><integer>53</integer>
 // CHECK-NEXT:          <key>file</key><integer>0</integer>
 // CHECK-NEXT:         </dict>
 // CHECK-NEXT:        </array>

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -pedantic %s
+// RUN: %clang_cc1 -fsyntax-only -verify -pedantic -fcxx-exceptions %s
 class C;
 class C {
 public:
@@ -111,6 +111,32 @@ namespace PR13775 {
   {
     baz x(); // expected-error 3{{}}
   }
+}
+
+class pr16989 {
+  void tpl_mem(int *) {
+    return;
+    class C2 {
+      void f();
+    };
+    void C2::f() {} // expected-error{{function definition is not allowed here}}
+  };
+};
+
+namespace CtorErrors {
+  struct A {
+    A(NonExistent); // expected-error {{unknown type name 'NonExistent'}}
+  };
+  struct B {
+    B(NonExistent) : n(0) {} // expected-error {{unknown type name 'NonExistent'}}
+    int n;
+  };
+  struct C {
+    C(NonExistent) try {} catch (...) {} // expected-error {{unknown type name 'NonExistent'}}
+  };
+  struct D {
+    D(NonExistent) {} // expected-error {{unknown type name 'NonExistent'}}
+  };
 }
 
 // PR11109 must appear at the end of the source file

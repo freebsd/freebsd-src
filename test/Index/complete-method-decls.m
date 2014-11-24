@@ -72,6 +72,19 @@
 - (oneway void)method:(in id x) {}
 @end
 
+typedef A MyObject;
+typedef A *MyObjectRef;
+
+@interface I1
+-(Class<P1>)meth;
+-(MyObject <P1> *)meth2;
+-(MyObjectRef)meth3;
+@end
+
+@implementation I1
+-
+@end
+
 // RUN: c-index-test -code-completion-at=%s:17:3 %s | FileCheck -check-prefix=CHECK-CC1 %s
 // CHECK-CC1: ObjCInstanceMethodDecl:{LeftParen (}{Text id}{RightParen )}{TypedText abc} (40)
 // CHECK-CC1: ObjCInstanceMethodDecl:{LeftParen (}{Text int}{RightParen )}{TypedText getInt} (40)
@@ -182,3 +195,9 @@
 
 // RUN: c-index-test -code-completion-at=%s:72:2 %s | FileCheck -check-prefix=CHECK-ONEWAY %s
 // CHECK-ONEWAY: ObjCInstanceMethodDecl:{LeftParen (}{Text oneway }{Text void}{RightParen )}{TypedText method}{TypedText :}{LeftParen (}{Text in }{Text id}{RightParen )}{Text x} (40)
+
+// RUN: c-index-test -code-completion-at=%s:85:2 %s | FileCheck -check-prefix=CHECK-CLASSTY %s
+// CHECK-CLASSTY: ObjCInstanceMethodDecl:{LeftParen (}{Text Class<P1>}{RightParen )}{TypedText meth}
+// FIXME: It should be "MyObject <P1> *""
+// CHECK-CLASSTY: ObjCInstanceMethodDecl:{LeftParen (}{Text A<P1> *}{RightParen )}{TypedText meth2}
+// CHECK-CLASSTY: ObjCInstanceMethodDecl:{LeftParen (}{Text MyObjectRef}{RightParen )}{TypedText meth3}

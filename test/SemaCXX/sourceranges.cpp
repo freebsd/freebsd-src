@@ -12,7 +12,7 @@ enum B {};
 typedef int C;
 }
 
-// CHECK: VarDecl {{0x[0-9a-fA-F]+}} <line:16:1, col:36> ImplicitConstrArray 'foo::A [2]'
+// CHECK: VarDecl {{0x[0-9a-fA-F]+}} <line:16:1, col:36> col:15 ImplicitConstrArray 'foo::A [2]'
 static foo::A ImplicitConstrArray[2];
 
 int main() {
@@ -27,4 +27,13 @@ int main() {
 foo::A getName() {
   // CHECK: CXXConstructExpr {{0x[0-9a-fA-F]+}} <col:10, col:17> 'foo::A'
   return foo::A();
+}
+
+void destruct(foo::A *a1, foo::A *a2, P<int> *p1) {
+  // CHECK: MemberExpr {{0x[0-9a-fA-F]+}} <col:3, col:8> '<bound member function type>' ->~A
+  a1->~A();
+  // CHECK: MemberExpr {{0x[0-9a-fA-F]+}} <col:3, col:16> '<bound member function type>' ->~A
+  a2->foo::A::~A();
+  // CHECK: MemberExpr {{0x[0-9a-fA-F]+}} <col:3, col:13> '<bound member function type>' ->~P
+  p1->~P<int>();
 }

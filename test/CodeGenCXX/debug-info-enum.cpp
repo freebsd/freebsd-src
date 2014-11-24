@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -emit-llvm -g %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple %itanium_abi_triple -emit-llvm -g %s -o - | FileCheck %s
 
 // CHECK: [[ENUMS:![0-9]*]], {{[^,]*}}, {{[^,]*}}, {{[^,]*}}, {{[^,]*}}, {{[^,]*}}} ; [ DW_TAG_compile_unit ]
 // CHECK: [[ENUMS]] = metadata !{metadata [[E1:![0-9]*]], metadata [[E2:![0-9]*]], metadata [[E3:![0-9]*]]}
@@ -33,4 +33,13 @@ enum e { E = -1 };
 void func() {
   e x;
 }
+}
+
+namespace test4 {
+// Don't try to build debug info for a dependent enum.
+// CHECK-NOT: test4
+template <typename T>
+struct S {
+  enum e { E = T::v };
+};
 }

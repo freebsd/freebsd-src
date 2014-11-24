@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fblocks -emit-llvm %s -o - -cxx-abi microsoft -triple=i386-pc-win32 | FileCheck %s
+// RUN: %clang_cc1 -fblocks -emit-llvm %s -o - -triple=i386-pc-win32 | FileCheck %s
 
 template<typename Signature>
 class C;
@@ -70,3 +70,20 @@ void call_bar() {
 // CHECK: "\01??$bar@P_EAHH@Z@@YAXP_EAHH@Z@Z"
 // FYI blocks are not present in MSVS, so we're free to choose the spec.
 }
+
+template <void (*Fn)()> void WrapFnPtr() { Fn(); }
+template <void (&Fn)()> void WrapFnRef() { Fn(); }
+struct Thing {
+  static void VoidStaticMethod();
+};
+void VoidFn();
+void CallWrapper() {
+  WrapFnPtr<VoidFn>();
+  WrapFnRef<VoidFn>();
+  WrapFnPtr<Thing::VoidStaticMethod>();
+  WrapFnRef<Thing::VoidStaticMethod>();
+}
+// CHECK: call {{.*}} @"\01??$WrapFnPtr@$1?VoidFn@@YAXXZ@@YAXXZ"
+// CHECK: call {{.*}} @"\01??$WrapFnRef@$1?VoidFn@@YAXXZ@@YAXXZ"
+// CHECK: call {{.*}} @"\01??$WrapFnPtr@$1?VoidStaticMethod@Thing@@SAXXZ@@YAXXZ"
+// CHECK: call {{.*}} @"\01??$WrapFnRef@$1?VoidStaticMethod@Thing@@SAXXZ@@YAXXZ"

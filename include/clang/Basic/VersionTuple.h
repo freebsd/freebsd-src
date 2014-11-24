@@ -18,6 +18,7 @@
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/Optional.h"
 #include <string>
+#include <tuple>
 
 namespace clang {
 
@@ -87,13 +88,8 @@ public:
   /// If not provided, minor and subminor version numbers are considered to be
   /// zero.
   friend bool operator<(const VersionTuple &X, const VersionTuple &Y) {
-    if (X.Major != Y.Major)
-      return X.Major < Y.Major;
-
-    if (X.Minor != Y.Minor)
-      return X.Minor < Y.Minor;
-
-    return X.Subminor < Y.Subminor;
+    return std::tie(X.Major, X.Minor, X.Subminor) <
+           std::tie(Y.Major, Y.Minor, Y.Subminor);
   }
 
   /// \brief Determine whether one version number follows another.

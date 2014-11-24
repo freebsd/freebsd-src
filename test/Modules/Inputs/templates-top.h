@@ -9,6 +9,8 @@ public:
   unsigned size;
 };
 
+extern List<double> *instantiateListDoubleDeclaration;
+
 namespace A {
   class Y {
     template <typename T> friend class WhereAmI;
@@ -23,3 +25,18 @@ public:
 template<typename T> struct Outer {
   struct Inner {};
 };
+
+template<bool, bool> struct ExplicitInstantiation {
+  void f() {}
+};
+
+template<typename> struct DelayUpdates {};
+
+template<typename T> struct OutOfLineInline {
+  void f();
+  void g();
+  void h();
+};
+template<typename T> inline void OutOfLineInline<T>::f() {}
+template<typename T> inline void OutOfLineInline<T>::g() {}
+template<typename T> inline void OutOfLineInline<T>::h() {}

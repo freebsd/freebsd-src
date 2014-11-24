@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 %s -triple %itanium_abi_triple -emit-llvm -o - | FileCheck %s
 // PR5967
 
 extern void* foo;
@@ -11,6 +11,6 @@ void* bar() { return a; }
 // CHECK: load i8** @foo
 // CHECK: ret void
 
-// CHECK-LABEL: define internal void @_GLOBAL__I_a
+// CHECK-LABEL: define internal void @_GLOBAL__sub_I_deferred_global_init.cpp
 // CHECK: call void @__cxx_global_var_init()
 // CHECK: ret void

@@ -32,8 +32,9 @@ using namespace tooling;
 namespace {
 
 void PrintStmt(raw_ostream &Out, const ASTContext *Context, const Stmt *S) {
+  assert(S != nullptr && "Expected non-null Stmt");
   PrintingPolicy Policy = Context->getPrintingPolicy();
-  S->printPretty(Out, /*Helper*/ 0, Policy);
+  S->printPretty(Out, /*Helper*/ nullptr, Policy);
 }
 
 class PrintMatch : public MatchFinder::MatchCallback {
@@ -64,19 +65,20 @@ public:
   }
 };
 
-::testing::AssertionResult PrintedStmtMatches(
-                                        StringRef Code,
-                                        const std::vector<std::string> &Args,
-                                        const DeclarationMatcher &NodeMatch,
-                                        StringRef ExpectedPrinted) {
+template <typename T>
+::testing::AssertionResult
+PrintedStmtMatches(StringRef Code, const std::vector<std::string> &Args,
+                   const T &NodeMatch, StringRef ExpectedPrinted) {
 
   PrintMatch Printer;
   MatchFinder Finder;
   Finder.addMatcher(NodeMatch, &Printer);
-  OwningPtr<FrontendActionFactory> Factory(newFrontendActionFactory(&Finder));
+  std::unique_ptr<FrontendActionFactory> Factory(
+      newFrontendActionFactory(&Finder));
 
   if (!runToolOnCodeWithArgs(Factory->create(), Code, Args))
-    return testing::AssertionFailure() << "Parsing error in \"" << Code << "\"";
+    return testing::AssertionFailure()
+      << "Parsing error in \"" << Code.str() << "\"";
 
   if (Printer.getNumFoundStmts() == 0)
     return testing::AssertionFailure()
@@ -89,10 +91,19 @@ public:
 
   if (Printer.getPrinted() != ExpectedPrinted)
     return ::testing::AssertionFailure()
-      << "Expected \"" << ExpectedPrinted << "\", "
-         "got \"" << Printer.getPrinted() << "\"";
+      << "Expected \"" << ExpectedPrinted.str() << "\", "
+         "got \"" << Printer.getPrinted().str() << "\"";
 
   return ::testing::AssertionSuccess();
+}
+
+::testing::AssertionResult
+PrintedStmtCXX98Matches(StringRef Code, const StatementMatcher &NodeMatch,
+                        StringRef ExpectedPrinted) {
+  std::vector<std::string> Args;
+  Args.push_back("-std=c++98");
+  Args.push_back("-Wno-unused-value");
+  return PrintedStmtMatches(Code, Args, NodeMatch, ExpectedPrinted);
 }
 
 ::testing::AssertionResult PrintedStmtCXX98Matches(
@@ -109,11 +120,22 @@ public:
                             ExpectedPrinted);
 }
 
+::testing::AssertionResult
+PrintedStmtCXX11Matches(StringRef Code, const StatementMatcher &NodeMatch,
+                        StringRef ExpectedPrinted) {
+  std::vector<std::string> Args;
+  Args.push_back("-std=c++11");
+  Args.push_back("-Wno-unused-value");
+  return PrintedStmtMatches(Code, Args, NodeMatch, ExpectedPrinted);
+}
+
 ::testing::AssertionResult PrintedStmtMSMatches(
                                               StringRef Code,
                                               StringRef ContainingFunction,
                                               StringRef ExpectedPrinted) {
   std::vector<std::string> Args;
+  Args.push_back("-target");
+  Args.push_back("i686-pc-win32");
   Args.push_back("-std=c++98");
   Args.push_back("-fms-extensions");
   Args.push_back("-Wno-unused-value");
@@ -149,9 +171,9 @@ TEST(StmtPrinter, TestMSIntegerLiteral) {
     "  1i64, -1i64, 1ui64;"
     "}",
     "A",
+    "1i8 , -1i8 , 1Ui8 , "
+    "1i16 , -1i16 , 1Ui16 , "
     "1 , -1 , 1U , "
-    "1 , -1 , 1U , "
-    "1L , -1L , 1UL , "
     "1LL , -1LL , 1ULL"));
     // Should be: with semicolon
 }
@@ -162,4 +184,33 @@ TEST(StmtPrinter, TestFloatingPointLiteral) {
     "A",
     "1.F , -1.F , 1. , -1. , 1.L , -1.L"));
     // Should be: with semicolon
+}
+
+TEST(StmtPrinter, TestCXXConversionDeclImplicit) {
+  ASSERT_TRUE(PrintedStmtCXX98Matches(
+    "struct A {"
+      "operator void *();"
+      "A operator&(A);"
+    "};"
+    "void bar(void *);"
+    "void foo(A a, A b) {"
+    "  bar(a & b);"
+    "}",
+    memberCallExpr(anything()).bind("id"),
+    "a & b"));
+}
+
+TEST(StmtPrinter, TestCXXConversionDeclExplicit) {
+  ASSERT_TRUE(PrintedStmtCXX11Matches(
+    "struct A {"
+      "operator void *();"
+      "A operator&(A);"
+    "};"
+    "void bar(void *);"
+    "void foo(A a, A b) {"
+    "  auto x = (a & b).operator void *();"
+    "}",
+    memberCallExpr(anything()).bind("id"),
+    "(a & b)"));
+    // WRONG; Should be: (a & b).operator void *()
 }
