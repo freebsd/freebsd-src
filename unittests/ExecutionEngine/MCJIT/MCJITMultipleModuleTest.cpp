@@ -90,12 +90,12 @@ TEST_F(MCJITMultipleModuleTest, multiple_empty_modules) {
 TEST_F(MCJITMultipleModuleTest, two_module_case) {
   SKIP_UNSUPPORTED_PLATFORM;
 
-  OwningPtr<Module> A, B;
+  std::unique_ptr<Module> A, B;
   Function *FA, *FB;
   createTwoModuleCase(A, FA, B, FB);
 
-  createJIT(A.take());
-  TheJIT->addModule(B.take());
+  createJIT(A.release());
+  TheJIT->addModule(B.release());
 
   uint64_t ptr = TheJIT->getFunctionAddress(FA->getName().str());
   checkAdd(ptr);
@@ -110,12 +110,12 @@ TEST_F(MCJITMultipleModuleTest, two_module_case) {
 TEST_F(MCJITMultipleModuleTest, two_module_reverse_case) {
   SKIP_UNSUPPORTED_PLATFORM;
 
-  OwningPtr<Module> A, B;
+  std::unique_ptr<Module> A, B;
   Function *FA, *FB;
   createTwoModuleCase(A, FA, B, FB);
 
-  createJIT(A.take());
-  TheJIT->addModule(B.take());
+  createJIT(A.release());
+  TheJIT->addModule(B.release());
 
   uint64_t ptr = TheJIT->getFunctionAddress(FB->getName().str());
   TheJIT->finalizeObject();
@@ -131,12 +131,12 @@ TEST_F(MCJITMultipleModuleTest, two_module_reverse_case) {
 TEST_F(MCJITMultipleModuleTest, two_module_extern_reverse_case) {
   SKIP_UNSUPPORTED_PLATFORM;
 
-  OwningPtr<Module> A, B;
+  std::unique_ptr<Module> A, B;
   Function *FA, *FB;
   createTwoModuleExternCase(A, FA, B, FB);
 
-  createJIT(A.take());
-  TheJIT->addModule(B.take());
+  createJIT(A.release());
+  TheJIT->addModule(B.release());
 
   uint64_t ptr = TheJIT->getFunctionAddress(FB->getName().str());
   TheJIT->finalizeObject();
@@ -152,12 +152,12 @@ TEST_F(MCJITMultipleModuleTest, two_module_extern_reverse_case) {
 TEST_F(MCJITMultipleModuleTest, two_module_extern_case) {
   SKIP_UNSUPPORTED_PLATFORM;
 
-  OwningPtr<Module> A, B;
+  std::unique_ptr<Module> A, B;
   Function *FA, *FB;
   createTwoModuleExternCase(A, FA, B, FB);
 
-  createJIT(A.take());
-  TheJIT->addModule(B.take());
+  createJIT(A.release());
+  TheJIT->addModule(B.release());
 
   uint64_t ptr = TheJIT->getFunctionAddress(FA->getName().str());
   checkAdd(ptr);
@@ -172,13 +172,13 @@ TEST_F(MCJITMultipleModuleTest, two_module_extern_case) {
 TEST_F(MCJITMultipleModuleTest, two_module_consecutive_call_case) {
   SKIP_UNSUPPORTED_PLATFORM;
 
-  OwningPtr<Module> A, B;
+  std::unique_ptr<Module> A, B;
   Function *FA1, *FA2, *FB;
   createTwoModuleExternCase(A, FA1, B, FB);
   FA2 = insertSimpleCallFunction<int32_t(int32_t, int32_t)>(A.get(), FA1);
 
-  createJIT(A.take());
-  TheJIT->addModule(B.take());
+  createJIT(A.release());
+  TheJIT->addModule(B.release());
 
   uint64_t ptr = TheJIT->getFunctionAddress(FB->getName().str());
   TheJIT->finalizeObject();
@@ -199,7 +199,7 @@ TEST_F(MCJITMultipleModuleTest, two_module_consecutive_call_case) {
 TEST_F(MCJITMultipleModuleTest, two_module_global_variables_case) {
   SKIP_UNSUPPORTED_PLATFORM;
 
-  OwningPtr<Module> A, B;
+  std::unique_ptr<Module> A, B;
   Function *FA, *FB;
   GlobalVariable *GVA, *GVB;
   A.reset(createEmptyModule("A"));
@@ -213,8 +213,8 @@ TEST_F(MCJITMultipleModuleTest, two_module_global_variables_case) {
   FB = startFunction<int32_t(void)>(B.get(), "FB");
   endFunctionWithRet(FB, Builder.CreateLoad(GVB));
 
-  createJIT(A.take());
-  TheJIT->addModule(B.take());
+  createJIT(A.release());
+  TheJIT->addModule(B.release());
 
   uint64_t FBPtr = TheJIT->getFunctionAddress(FB->getName().str());
   TheJIT->finalizeObject();
@@ -237,13 +237,13 @@ TEST_F(MCJITMultipleModuleTest, two_module_global_variables_case) {
 TEST_F(MCJITMultipleModuleTest, three_module_case) {
   SKIP_UNSUPPORTED_PLATFORM;
 
-  OwningPtr<Module> A, B, C;
+  std::unique_ptr<Module> A, B, C;
   Function *FA, *FB, *FC;
   createThreeModuleCase(A, FA, B, FB, C, FC);
 
-  createJIT(A.take());
-  TheJIT->addModule(B.take());
-  TheJIT->addModule(C.take());
+  createJIT(A.release());
+  TheJIT->addModule(B.release());
+  TheJIT->addModule(C.release());
 
   uint64_t ptr = TheJIT->getFunctionAddress(FC->getName().str());
   checkAdd(ptr);
@@ -262,13 +262,13 @@ TEST_F(MCJITMultipleModuleTest, three_module_case) {
 TEST_F(MCJITMultipleModuleTest, three_module_case_reverse_order) {
   SKIP_UNSUPPORTED_PLATFORM;
 
-  OwningPtr<Module> A, B, C;
+  std::unique_ptr<Module> A, B, C;
   Function *FA, *FB, *FC;
   createThreeModuleCase(A, FA, B, FB, C, FC);
 
-  createJIT(A.take());
-  TheJIT->addModule(B.take());
-  TheJIT->addModule(C.take());
+  createJIT(A.release());
+  TheJIT->addModule(B.release());
+  TheJIT->addModule(C.release());
 
   uint64_t ptr = TheJIT->getFunctionAddress(FA->getName().str());
   checkAdd(ptr);
@@ -287,13 +287,13 @@ TEST_F(MCJITMultipleModuleTest, three_module_case_reverse_order) {
 TEST_F(MCJITMultipleModuleTest, three_module_chain_case) {
   SKIP_UNSUPPORTED_PLATFORM;
 
-  OwningPtr<Module> A, B, C;
+  std::unique_ptr<Module> A, B, C;
   Function *FA, *FB, *FC;
   createThreeModuleChainedCallsCase(A, FA, B, FB, C, FC);
 
-  createJIT(A.take());
-  TheJIT->addModule(B.take());
-  TheJIT->addModule(C.take());
+  createJIT(A.release());
+  TheJIT->addModule(B.release());
+  TheJIT->addModule(C.release());
 
   uint64_t ptr = TheJIT->getFunctionAddress(FC->getName().str());
   checkAdd(ptr);
@@ -312,13 +312,13 @@ TEST_F(MCJITMultipleModuleTest, three_module_chain_case) {
 TEST_F(MCJITMultipleModuleTest, three_modules_chain_case_reverse_order) {
   SKIP_UNSUPPORTED_PLATFORM;
 
-  OwningPtr<Module> A, B, C;
+  std::unique_ptr<Module> A, B, C;
   Function *FA, *FB, *FC;
   createThreeModuleChainedCallsCase(A, FA, B, FB, C, FC);
 
-  createJIT(A.take());
-  TheJIT->addModule(B.take());
-  TheJIT->addModule(C.take());
+  createJIT(A.release());
+  TheJIT->addModule(B.release());
+  TheJIT->addModule(C.release());
 
   uint64_t ptr = TheJIT->getFunctionAddress(FA->getName().str());
   checkAdd(ptr);
@@ -337,12 +337,12 @@ TEST_F(MCJITMultipleModuleTest, three_modules_chain_case_reverse_order) {
 TEST_F(MCJITMultipleModuleTest, cross_module_dependency_case) {
   SKIP_UNSUPPORTED_PLATFORM;
 
-  OwningPtr<Module> A, B;
+  std::unique_ptr<Module> A, B;
   Function *FA, *FB1, *FB2;
   createCrossModuleRecursiveCase(A, FA, B, FB1, FB2);
 
-  createJIT(A.take());
-  TheJIT->addModule(B.take());
+  createJIT(A.release());
+  TheJIT->addModule(B.release());
 
   uint64_t ptr = TheJIT->getFunctionAddress(FA->getName().str());
   checkAccumulate(ptr);
@@ -358,12 +358,12 @@ TEST_F(MCJITMultipleModuleTest, cross_module_dependency_case) {
 TEST_F(MCJITMultipleModuleTest, cross_module_dependency_case_reverse_order) {
   SKIP_UNSUPPORTED_PLATFORM;
 
-  OwningPtr<Module> A, B;
+  std::unique_ptr<Module> A, B;
   Function *FA, *FB1, *FB2;
   createCrossModuleRecursiveCase(A, FA, B, FB1, FB2);
 
-  createJIT(A.take());
-  TheJIT->addModule(B.take());
+  createJIT(A.release());
+  TheJIT->addModule(B.release());
 
   uint64_t ptr = TheJIT->getFunctionAddress(FB1->getName().str());
   checkAccumulate(ptr);
@@ -379,12 +379,12 @@ TEST_F(MCJITMultipleModuleTest, cross_module_dependency_case_reverse_order) {
 TEST_F(MCJITMultipleModuleTest, cross_module_dependency_case3) {
   SKIP_UNSUPPORTED_PLATFORM;
 
-  OwningPtr<Module> A, B;
+  std::unique_ptr<Module> A, B;
   Function *FA, *FB1, *FB2;
   createCrossModuleRecursiveCase(A, FA, B, FB1, FB2);
 
-  createJIT(A.take());
-  TheJIT->addModule(B.take());
+  createJIT(A.release());
+  TheJIT->addModule(B.release());
 
   uint64_t ptr = TheJIT->getFunctionAddress(FB1->getName().str());
   checkAccumulate(ptr);

@@ -19,7 +19,7 @@ end:
 
 ; CHECK-LABEL: @test1
 ; CHECK: mfcr [[REG1:[0-9]+]]
-; CHECK-DAG: cmpld
+; CHECK-DAG: cmpd
 ; CHECK-DAG: mfocrf [[REG2:[0-9]+]],
 ; CHECK-DAG: stw [[REG1]], 8(1)
 ; CHECK-DAG: stw [[REG2]], -4(1)
@@ -52,7 +52,7 @@ end:
 
 ; CHECK-LABEL: @test2
 ; CHECK: mfcr [[REG1:[0-9]+]]
-; CHECK-DAG: cmpld
+; CHECK-DAG: cmpd
 ; CHECK-DAG: mfocrf [[REG2:[0-9]+]],
 ; CHECK-DAG: stw [[REG1]], 8(1)
 ; CHECK-DAG: stw [[REG2]], -4(1)

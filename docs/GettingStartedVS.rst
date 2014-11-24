@@ -34,7 +34,7 @@ Most of the tools build and work.  ``bugpoint`` does build, but does
 not work.
 
 Additional information about the LLVM directory structure and tool chain
-can be found on the main `Getting Started <GettingStarted.html>`_ page.
+can be found on the main :doc:`GettingStarted` page.
 
 
 Requirements
@@ -45,15 +45,13 @@ and software you will need.
 
 Hardware
 --------
-Any system that can adequately run Visual Studio 2010 is fine. The LLVM
+Any system that can adequately run Visual Studio 2012 is fine. The LLVM
 source tree and object files, libraries and executables will consume
 approximately 3GB.
 
 Software
 --------
-You will need Visual Studio 2010 or higher.  Earlier versions of Visual
-Studio have bugs, are not completely compatible, or do not support the C++
-standard well enough.
+You will need Visual Studio 2012 or higher.
 
 You will also need the `CMake <http://www.cmake.org/>`_ build system since it
 generates the project files you will use to build with.
@@ -99,8 +97,11 @@ Here's the short story for getting up and running quickly with LLVM:
      using LLVM.  Another important option is ``LLVM_TARGETS_TO_BUILD``,
      which controls the LLVM target architectures that are included on the
      build.
-   * See the `LLVM CMake guide <CMake.html>`_ for detailed information about
+   * See the :doc:`LLVM CMake guide <CMake>` for detailed information about
      how to configure the LLVM build.
+   * CMake generates project files for all build types. To select a specific
+     build type, use the Configuration manager from the VS IDE or the 
+     ``/property:Configuration`` command line option when using MSBuild.
 
 6. Start Visual Studio
 
@@ -121,16 +122,14 @@ Here's the short story for getting up and running quickly with LLVM:
      or run it from the command line.  The program will print the
      corresponding fibonacci value.
 
-8. Test LLVM on Visual Studio:
+8. Test LLVM in Visual Studio:
 
    * If ``%PATH%`` does not contain GnuWin32, you may specify
      ``LLVM_LIT_TOOLS_DIR`` on CMake for the path to GnuWin32.
    * You can run LLVM tests by merely building the project "check". The test
      results will be shown in the VS output window.
 
-.. FIXME: Is it up-to-date?
-
-9. Test LLVM:
+9. Test LLVM on the command line:
 
    * The LLVM tests can be run by changing directory to the llvm source
      directory and running:
@@ -219,8 +218,8 @@ An Example Using the LLVM Tool Chain
 Common Problems
 ===============
 If you are having problems building or using LLVM, or if you have any other
-general questions about LLVM, please consult the `Frequently Asked Questions
-<FAQ.html>`_ page.
+general questions about LLVM, please consult the :doc:`Frequently Asked Questions
+<FAQ>` page.
 
 
 Links

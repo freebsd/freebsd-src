@@ -203,7 +203,7 @@ define void @f34()
 ; CHECK: define void @f34()
 {
         call void @nobuiltin() nobuiltin
-; CHECK: call void @nobuiltin() #24
+; CHECK: call void @nobuiltin() #25
         ret void;
 }
 
@@ -211,6 +211,32 @@ define void @f35() optnone noinline
 ; CHECK: define void @f35() #23
 {
         ret void;
+}
+
+define void @f36(i8* inalloca) {
+; CHECK: define void @f36(i8* inalloca) {
+        ret void
+}
+
+define nonnull i8* @f37(i8* nonnull %a) {
+; CHECK: define nonnull i8* @f37(i8* nonnull %a) {
+        ret i8* %a
+}
+
+define void @f38() unnamed_addr jumptable {
+; CHECK: define void @f38() unnamed_addr #24
+    call void bitcast (void (i8*)* @f36 to void ()*)()
+    unreachable
+}
+
+define dereferenceable(2) i8* @f39(i8* dereferenceable(1) %a) {
+; CHECK: define dereferenceable(2) i8* @f39(i8* dereferenceable(1) %a) {
+        ret i8* %a
+}
+
+define dereferenceable(18446744073709551606) i8* @f40(i8* dereferenceable(18446744073709551615) %a) {
+; CHECK: define dereferenceable(18446744073709551606) i8* @f40(i8* dereferenceable(18446744073709551615) %a) {
+        ret i8* %a
 }
 
 ; CHECK: attributes #0 = { noreturn }
@@ -237,5 +263,5 @@ define void @f35() optnone noinline
 ; CHECK: attributes #21 = { sspstrong }
 ; CHECK: attributes #22 = { minsize }
 ; CHECK: attributes #23 = { noinline optnone }
-; CHECK: attributes #24 = { nobuiltin }
-
+; CHECK: attributes #24 = { jumptable }
+; CHECK: attributes #25 = { nobuiltin }

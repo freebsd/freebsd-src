@@ -1,7 +1,7 @@
 ; RUN: llc < %s -march=r600 | FileCheck %s
 
 ;CHECK: DOT4 * T{{[0-9]\.W}} (MASKED)
-;CHECK: MAX T{{[0-9].[XYZW]}}, 0.0, PV.X
+;CHECK: MAX T{{[0-9].[XYZW]}}, PV.X, 0.0
 
 define void @main(<4 x float> inreg %reg0, <4 x float> inreg %reg1, <4 x float> inreg %reg2, <4 x float> inreg %reg3, <4 x float> inreg %reg4, <4 x float> inreg %reg5, <4 x float> inreg %reg6, <4 x float> inreg %reg7) #0 {
 main_body:
@@ -103,7 +103,7 @@ main_body:
   %95 = insertelement <4 x float> %94, float 0.000000e+00, i32 3
   %96 = call float @llvm.AMDGPU.dp4(<4 x float> %91, <4 x float> %95)
   %97 = call float @fabs(float %96)
-  %98 = call float @llvm.AMDGPU.rsq(float %97)
+  %98 = call float @llvm.AMDGPU.rsq.f32(float %97)
   %99 = fmul float %4, %98
   %100 = fmul float %5, %98
   %101 = fmul float %6, %98
@@ -225,7 +225,7 @@ declare float @llvm.AMDGPU.dp4(<4 x float>, <4 x float>) #1
 declare float @fabs(float) #2
 
 ; Function Attrs: readnone
-declare float @llvm.AMDGPU.rsq(float) #1
+declare float @llvm.AMDGPU.rsq.f32(float) #1
 
 ; Function Attrs: readnone
 declare float @llvm.AMDIL.clamp.(float, float, float) #1

@@ -17,15 +17,16 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Bitcode/BitstreamReader.h"
 #include "llvm/Bitcode/LLVMBitCodes.h"
-#include "llvm/GVMaterializer.h"
 #include "llvm/IR/Attributes.h"
+#include "llvm/IR/GVMaterializer.h"
 #include "llvm/IR/OperandTraits.h"
 #include "llvm/IR/Type.h"
-#include "llvm/Support/system_error.h"
-#include "llvm/Support/ValueHandle.h"
+#include "llvm/IR/ValueHandle.h"
+#include <system_error>
 #include <vector>
 
 namespace llvm {
+  class Comdat;
   class MemoryBuffer;
   class LLVMContext;
 
@@ -125,9 +126,8 @@ public:
 class BitcodeReader : public GVMaterializer {
   LLVMContext &Context;
   Module *TheModule;
-  MemoryBuffer *Buffer;
-  bool BufferOwned;
-  OwningPtr<BitstreamReader> StreamFile;
+  std::unique_ptr<MemoryBuffer> Buffer;
+  std::unique_ptr<BitstreamReader> StreamFile;
   BitstreamCursor Stream;
   DataStreamer *LazyStreamer;
   uint64_t NextUnreadBit;
@@ -136,6 +136,7 @@ class BitcodeReader : public GVMaterializer {
   std::vector<Type*> TypeList;
   BitcodeReaderValueList ValueList;
   BitcodeReaderMDValueList MDValueList;
+  std::vector<Comdat *> ComdatList;
   SmallVector<Instruction *, 64> InstructionList;
   SmallVector<SmallVector<uint64_t, 64>, 64> UseListRecords;
 
@@ -193,7 +194,7 @@ class BitcodeReader : public GVMaterializer {
   /// not need this flag.
   bool UseRelativeIDs;
 
-  static const error_category &BitcodeErrorCategory();
+  static const std::error_category &BitcodeErrorCategory();
 
 public:
   enum ErrorType {
@@ -219,47 +220,39 @@ public:
     InvalidValue // Invalid version, inst number, attr number, etc
   };
 
-  error_code Error(ErrorType E) {
-    return error_code(E, BitcodeErrorCategory());
+  std::error_code Error(ErrorType E) {
+    return std::error_code(E, BitcodeErrorCategory());
   }
 
   explicit BitcodeReader(MemoryBuffer *buffer, LLVMContext &C)
-    : Context(C), TheModule(0), Buffer(buffer), BufferOwned(false),
-      LazyStreamer(0), NextUnreadBit(0), SeenValueSymbolTable(false),
-      ValueList(C), MDValueList(C),
-      SeenFirstFunctionBody(false), UseRelativeIDs(false) {
-  }
+      : Context(C), TheModule(nullptr), Buffer(buffer), LazyStreamer(nullptr),
+        NextUnreadBit(0), SeenValueSymbolTable(false), ValueList(C),
+        MDValueList(C), SeenFirstFunctionBody(false), UseRelativeIDs(false) {}
   explicit BitcodeReader(DataStreamer *streamer, LLVMContext &C)
-    : Context(C), TheModule(0), Buffer(0), BufferOwned(false),
-      LazyStreamer(streamer), NextUnreadBit(0), SeenValueSymbolTable(false),
-      ValueList(C), MDValueList(C),
-      SeenFirstFunctionBody(false), UseRelativeIDs(false) {
-  }
-  ~BitcodeReader() {
-    FreeState();
-  }
+      : Context(C), TheModule(nullptr), Buffer(nullptr), LazyStreamer(streamer),
+        NextUnreadBit(0), SeenValueSymbolTable(false), ValueList(C),
+        MDValueList(C), SeenFirstFunctionBody(false), UseRelativeIDs(false) {}
+  ~BitcodeReader() { FreeState(); }
 
   void materializeForwardReferencedFunctions();
 
   void FreeState();
 
-  /// setBufferOwned - If this is true, the reader will destroy the MemoryBuffer
-  /// when the reader is destroyed.
-  void setBufferOwned(bool Owned) { BufferOwned = Owned; }
+  void releaseBuffer() override;
 
-  virtual bool isMaterializable(const GlobalValue *GV) const;
-  virtual bool isDematerializable(const GlobalValue *GV) const;
-  virtual error_code Materialize(GlobalValue *GV);
-  virtual error_code MaterializeModule(Module *M);
-  virtual void Dematerialize(GlobalValue *GV);
+  bool isMaterializable(const GlobalValue *GV) const override;
+  bool isDematerializable(const GlobalValue *GV) const override;
+  std::error_code Materialize(GlobalValue *GV) override;
+  std::error_code MaterializeModule(Module *M) override;
+  void Dematerialize(GlobalValue *GV) override;
 
   /// @brief Main interface to parsing a bitcode buffer.
   /// @returns true if an error occurred.
-  error_code ParseBitcodeInto(Module *M);
+  std::error_code ParseBitcodeInto(Module *M);
 
   /// @brief Cheap mechanism to just extract module triple
   /// @returns true if an error occurred.
-  error_code ParseTriple(std::string &Triple);
+  ErrorOr<std::string> parseTriple();
 
   static uint64_t decodeSignRotatedValue(uint64_t V);
 
@@ -271,7 +264,7 @@ private:
     return ValueList.getValueFwdRef(ID, Ty);
   }
   BasicBlock *getBasicBlock(unsigned ID) const {
-    if (ID >= FunctionBBs.size()) return 0; // Invalid ID
+    if (ID >= FunctionBBs.size()) return nullptr; // Invalid ID
     return FunctionBBs[ID];
   }
   AttributeSet getAttributes(unsigned i) const {
@@ -293,15 +286,15 @@ private:
     if (ValNo < InstNum) {
       // If this is not a forward reference, just return the value we already
       // have.
-      ResVal = getFnValueByID(ValNo, 0);
-      return ResVal == 0;
+      ResVal = getFnValueByID(ValNo, nullptr);
+      return ResVal == nullptr;
     } else if (Slot == Record.size()) {
       return true;
     }
 
     unsigned TypeNo = (unsigned)Record[Slot++];
     ResVal = getFnValueByID(ValNo, getTypeByID(TypeNo));
-    return ResVal == 0;
+    return ResVal == nullptr;
   }
 
   /// popValue - Read a value out of the specified record from slot 'Slot'.
@@ -320,14 +313,14 @@ private:
   bool getValue(SmallVectorImpl<uint64_t> &Record, unsigned Slot,
                 unsigned InstNum, Type *Ty, Value *&ResVal) {
     ResVal = getValue(Record, Slot, InstNum, Ty);
-    return ResVal == 0;
+    return ResVal == nullptr;
   }
 
   /// getValue -- Version of getValue that returns ResVal directly,
   /// or 0 if there is an error.
   Value *getValue(SmallVectorImpl<uint64_t> &Record, unsigned Slot,
                   unsigned InstNum, Type *Ty) {
-    if (Slot == Record.size()) return 0;
+    if (Slot == Record.size()) return nullptr;
     unsigned ValNo = (unsigned)Record[Slot];
     // Adjust the ValNo, if it was encoded relative to the InstNum.
     if (UseRelativeIDs)
@@ -338,7 +331,7 @@ private:
   /// getValueSigned -- Like getValue, but decodes signed VBRs.
   Value *getValueSigned(SmallVectorImpl<uint64_t> &Record, unsigned Slot,
                         unsigned InstNum, Type *Ty) {
-    if (Slot == Record.size()) return 0;
+    if (Slot == Record.size()) return nullptr;
     unsigned ValNo = (unsigned)decodeSignRotatedValue(Record[Slot]);
     // Adjust the ValNo, if it was encoded relative to the InstNum.
     if (UseRelativeIDs)
@@ -346,28 +339,29 @@ private:
     return getFnValueByID(ValNo, Ty);
   }
 
-  error_code ParseAttrKind(uint64_t Code, Attribute::AttrKind *Kind);
-  error_code ParseModule(bool Resume);
-  error_code ParseAttributeBlock();
-  error_code ParseAttributeGroupBlock();
-  error_code ParseTypeTable();
-  error_code ParseTypeTableBody();
+  std::error_code ParseAttrKind(uint64_t Code, Attribute::AttrKind *Kind);
+  std::error_code ParseModule(bool Resume);
+  std::error_code ParseAttributeBlock();
+  std::error_code ParseAttributeGroupBlock();
+  std::error_code ParseTypeTable();
+  std::error_code ParseTypeTableBody();
 
-  error_code ParseValueSymbolTable();
-  error_code ParseConstants();
-  error_code RememberAndSkipFunctionBody();
-  error_code ParseFunctionBody(Function *F);
-  error_code GlobalCleanup();
-  error_code ResolveGlobalAndAliasInits();
-  error_code ParseMetadata();
-  error_code ParseMetadataAttachment();
-  error_code ParseModuleTriple(std::string &Triple);
-  error_code ParseUseLists();
-  error_code InitStream();
-  error_code InitStreamFromBuffer();
-  error_code InitLazyStream();
-  error_code FindFunctionInStream(Function *F,
-         DenseMap<Function*, uint64_t>::iterator DeferredFunctionInfoIterator);
+  std::error_code ParseValueSymbolTable();
+  std::error_code ParseConstants();
+  std::error_code RememberAndSkipFunctionBody();
+  std::error_code ParseFunctionBody(Function *F);
+  std::error_code GlobalCleanup();
+  std::error_code ResolveGlobalAndAliasInits();
+  std::error_code ParseMetadata();
+  std::error_code ParseMetadataAttachment();
+  ErrorOr<std::string> parseModuleTriple();
+  std::error_code ParseUseLists();
+  std::error_code InitStream();
+  std::error_code InitStreamFromBuffer();
+  std::error_code InitLazyStream();
+  std::error_code FindFunctionInStream(
+      Function *F,
+      DenseMap<Function *, uint64_t>::iterator DeferredFunctionInfoIterator);
 };
 
 } // End llvm namespace

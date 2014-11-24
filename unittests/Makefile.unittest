@@ -11,12 +11,22 @@
 #
 ##===----------------------------------------------------------------------===##
 
-# Set up variables for building a unit test.
-ifdef TESTNAME
-
 ifndef MAKEFILE_UNITTEST_NO_INCLUDE_COMMON
 include $(LEVEL)/Makefile.common
 endif
+
+# Clean up out-of-tree stray unittests for Lit not to pick one up.
+.PHONY: cleanup-local
+cleanup-local:
+	-$(Verb) $(FIND) $(filter-out $(PARALLEL_DIRS), $(wildcard *)) -type f \
+	  -path '*/$(BuildMode)/*Tests$(EXEEXT)' \
+	  -exec rm -f '{}' \;
+
+all:: cleanup-local
+clean:: cleanup-local
+
+# Set up variables for building a unit test.
+ifdef TESTNAME
 
 LLVMUnitTestExe = $(BuildMode)/$(TESTNAME)Tests$(EXEEXT)
 
@@ -42,9 +52,6 @@ ifeq ($(ENABLE_SHARED), 1)
     # we'll never install unittests.
     LD.Flags += $(RPATH) -Wl,$(SharedLibDir)
   endif
-  # Also set {DYLD,LD}_LIBRARY_PATH because OSX ignores the rpath most
-  # of the time.
-  Run.Shared := $(SHLIBPATH_VAR)="$(SharedLibDir)$${$(SHLIBPATH_VAR):+:}$$$(SHLIBPATH_VAR)"
 endif
 
 $(LLVMUnitTestExe): $(ObjectsO) $(ProjLibsPaths) $(LLVMLibsPaths)
@@ -57,6 +64,6 @@ $(LLVMUnitTestExe): $(ObjectsO) $(ProjLibsPaths) $(LLVMLibsPaths)
 all:: $(LLVMUnitTestExe)
 
 unitcheck:: $(LLVMUnitTestExe)
-	$(Run.Shared) $(LLVMUnitTestExe)
+	$(LLVMUnitTestExe)
 
 endif

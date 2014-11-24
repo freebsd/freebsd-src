@@ -37,7 +37,7 @@ X86/COFF-Dependent
 Relocations
 ^^^^^^^^^^^
 
-The following additional relocation type is supported:
+The following additional relocation types are supported:
 
 **@IMGREL** (AT&T syntax only) generates an image-relative relocation that
 corresponds to the COFF relocation types ``IMAGE_REL_I386_DIR32NB`` (32-bit) or
@@ -54,13 +54,29 @@ corresponds to the COFF relocation types ``IMAGE_REL_I386_DIR32NB`` (32-bit) or
     .long (fun@imgrel + 0x3F)
     .long $unwind$fun@imgrel
 
+**.secrel32** generates a relocation that corresponds to the COFF relocation
+types ``IMAGE_REL_I386_SECREL`` (32-bit) or ``IMAGE_REL_AMD64_SECREL`` (64-bit).
+
+**.secidx** relocation generates an index of the section that contains
+the target.  It corresponds to the COFF relocation types
+``IMAGE_REL_I386_SECTION`` (32-bit) or ``IMAGE_REL_AMD64_SECTION`` (64-bit).
+
+.. code-block:: gas
+
+  .section .debug$S,"rn"
+    .long 4
+    .long 242
+    .long 40
+    .secrel32 _function_name
+    .secidx   _function_name
+    ...
 
 ``.linkonce`` Directive
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Syntax:
 
-   ``.linkonce [ comdat type [ section identifier ] ]``
+   ``.linkonce [ comdat type ]``
 
 Supported COMDAT types:
 
@@ -79,16 +95,6 @@ Supported COMDAT types:
    Duplicates are discarded, but the linker issues an error if any duplicates
    do not have exactly the same content.
 
-``associative``
-   Links the section if a certain other COMDAT section is linked. This other
-   section is indicated by its section identifier following the comdat type.
-   The following restrictions apply to the associated section:
-
-   1. It must be the name of a section already defined.
-   2. It must differ from the current section.
-   3. It must be a COMDAT section.
-   4. It cannot be another associative COMDAT section.
-
 ``largest``
    Links the largest section from among the duplicates.
 
@@ -100,10 +106,6 @@ Supported COMDAT types:
 
   .section .text$foo
   .linkonce
-    ...
-
-  .section .xdata$foo
-  .linkonce associative .text$foo
     ...
 
 ``.section`` Directive
@@ -127,9 +129,9 @@ MC supports passing the information in ``.linkonce`` at the end of
   Symbol1:
   .long 1
 
-Note that in the combined form the COMDAT symbol is explict. This
-extension exits to support multiple sections with the same name in
-different comdats:
+Note that in the combined form the COMDAT symbol is explicit. This
+extension exists to support multiple sections with the same name in
+different COMDATs:
 
 
 .. code-block:: gas
@@ -143,3 +145,67 @@ different comdats:
   .globl Symbol2
   Symbol2:
   .long 1
+
+In addition to the types allowed with ``.linkonce``, ``.section`` also accepts
+``associative``. The meaning is that the section is linked  if a certain other
+COMDAT section is linked. This other section is indicated by the comdat symbol
+in this directive. It can be any symbol defined in the associated section, but
+is usually the associated section's comdat.
+
+   The following restrictions apply to the associated section:
+
+   1. It must be a COMDAT section.
+   2. It cannot be another associative COMDAT section.
+
+In the following example the symobl ``sym`` is the comdat symbol of ``.foo``
+and ``.bar`` is associated to ``.foo``.
+
+.. code-block:: gas
+
+	.section	.foo,"bw",discard, "sym"
+	.section	.bar,"rd",associative, "sym"
+
+Target Specific Behaviour
+=========================
+
+Windows on ARM
+--------------
+
+Stack Probe Emission
+^^^^^^^^^^^^^^^^^^^^
+
+The reference implementation (Microsoft Visual Studio 2012) emits stack probes
+in the following fashion:
+
+.. code-block:: gas
+
+  movw r4, #constant
+  bl __chkstk
+  sub.w sp, sp, r4
+
+However, this has the limitation of 32 MiB (±16MiB).  In order to accommodate
+larger binaries, LLVM supports the use of ``-mcode-model=large`` to allow a 4GiB
+range via a slight deviation.  It will generate an indirect jump as follows:
+
+.. code-block:: gas
+
+  movw r4, #constant
+  movw r12, :lower16:__chkstk
+  movt r12, :upper16:__chkstk
+  blx r12
+  sub.w sp, sp, r4
+
+Variable Length Arrays
+^^^^^^^^^^^^^^^^^^^^^^
+
+The reference implementation (Microsoft Visual Studio 2012) does not permit the
+emission of Variable Length Arrays (VLAs).
+
+The Windows ARM Itanium ABI extends the base ABI by adding support for emitting
+a dynamic stack allocation.  When emitting a variable stack allocation, a call
+to ``__chkstk`` is emitted unconditionally to ensure that guard pages are setup
+properly.  The emission of this stack probe emission is handled similar to the
+standard stack probe emission.
+
+The MSVC environment does not emit code for VLAs currently.
+

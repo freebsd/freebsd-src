@@ -42,6 +42,39 @@ entry:
   ret float %call
 }
 
+; Test FMA3 variant selection
+; CHECK-FMA-INST: fma3_select231ssX:
+; CHECK-FMA-INST: vfmadd231ss %xmm
+define float @fma3_select231ssX(float %x, float %y) #0 {
+entry:
+  br label %while.body
+while.body:                                       ; preds = %while.body, %while.body
+  %acc.01 = phi float [ 0.000000e+00, %entry ], [ %acc, %while.body ]
+  %acc = tail call float @llvm.fma.f32(float %x, float %y, float %acc.01) nounwind readnone
+  %b = fcmp ueq float %acc, 0.0
+  br i1 %b, label %while.body, label %while.end
+while.end:                                        ; preds = %while.body, %entry
+  ret float %acc
+}
+
+; Test FMA3 variant selection
+; CHECK-FMA-INST: fma3_select231pdY:
+; CHECK-FMA-INST: vfmadd231pd %ymm
+define <4 x double> @fma3_select231pdY(<4 x double> %x, <4 x double> %y) #0 {
+entry:
+  br label %while.body
+while.body:                                       ; preds = %entry, %while.body
+  %acc.04 = phi <4 x double> [ zeroinitializer, %entry ], [ %add, %while.body ]
+  %add = tail call <4 x double> @llvm.fma.v4f64(<4 x double> %x, <4 x double> %y, <4 x double> %acc.04)
+  %vecext = extractelement <4 x double> %add, i32 0
+  %cmp = fcmp oeq double %vecext, 0.000000e+00
+  br i1 %cmp, label %while.body, label %while.end
+
+while.end:                                        ; preds = %while.body
+  ret <4 x double> %add
+}
+
 declare float @llvm.fma.f32(float, float, float) nounwind readnone
 declare double @llvm.fma.f64(double, double, double) nounwind readnone
 declare x86_fp80 @llvm.fma.f80(x86_fp80, x86_fp80, x86_fp80) nounwind readnone
+declare <4 x double> @llvm.fma.v4f64(<4 x double>, <4 x double>, <4 x double>) nounwind readnone

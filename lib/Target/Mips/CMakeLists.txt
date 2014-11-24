@@ -7,6 +7,7 @@ tablegen(LLVM MipsGenCodeEmitter.inc -gen-emitter)
 tablegen(LLVM MipsGenMCCodeEmitter.inc -gen-emitter -mc-emitter)
 tablegen(LLVM MipsGenAsmWriter.inc -gen-asm-writer)
 tablegen(LLVM MipsGenDAGISel.inc -gen-dag-isel)
+tablegen(LLVM MipsGenFastISel.inc -gen-fast-isel)
 tablegen(LLVM MipsGenCallingConv.inc -gen-callingconv)
 tablegen(LLVM MipsGenSubtargetInfo.inc -gen-subtarget)
 tablegen(LLVM MipsGenAsmMatcher.inc -gen-asm-matcher)
@@ -16,6 +17,7 @@ add_public_tablegen_target(MipsCommonTableGen)
 add_llvm_target(MipsCodeGen
   Mips16FrameLowering.cpp
   Mips16HardFloat.cpp
+  Mips16HardFloatInfo.cpp
   Mips16InstrInfo.cpp
   Mips16ISelDAGToDAG.cpp
   Mips16ISelLowering.cpp
@@ -25,6 +27,7 @@ add_llvm_target(MipsCodeGen
   MipsCodeEmitter.cpp
   MipsConstantIslandPass.cpp
   MipsDelaySlotFiller.cpp
+  MipsFastISel.cpp
   MipsJITInfo.cpp
   MipsInstrInfo.cpp
   MipsISelDAGToDAG.cpp
@@ -34,6 +37,7 @@ add_llvm_target(MipsCodeGen
   MipsMCInstLower.cpp
   MipsMachineFunction.cpp
   MipsModuleISelDAGToDAG.cpp
+  MipsOptimizePICCall.cpp
   MipsOs16.cpp
   MipsRegisterInfo.cpp
   MipsSEFrameLowering.cpp
@@ -46,8 +50,6 @@ add_llvm_target(MipsCodeGen
   MipsTargetObjectFile.cpp
   MipsSelectionDAGInfo.cpp
   )
-
-add_dependencies(LLVMMipsCodeGen MipsCommonTableGen intrinsics_gen)
 
 add_subdirectory(InstPrinter)
 add_subdirectory(Disassembler)

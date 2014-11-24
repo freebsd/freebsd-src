@@ -7,8 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Analysis/Dominators.h"
-#include "llvm/Assembly/Parser.h"
+#include "llvm/IR/Dominators.h"
+#include "llvm/Analysis/PostDominators.h"
+#include "llvm/AsmParser/Parser.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
@@ -25,7 +26,9 @@ namespace llvm {
     struct DPass : public FunctionPass {
       static char ID;
       virtual bool runOnFunction(Function &F) {
-        DominatorTree *DT = &getAnalysis<DominatorTree>();
+        DominatorTree *DT =
+            &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+        PostDominatorTree *PDT = &getAnalysis<PostDominatorTree>();
         Function::iterator FI = F.begin();
 
         BasicBlock *BB0 = FI++;
@@ -148,10 +151,34 @@ namespace llvm {
 
         EXPECT_TRUE(DT->dominates(Y6, BB3));
 
+        // Post dominance.
+        EXPECT_TRUE(PDT->dominates(BB0, BB0));
+        EXPECT_FALSE(PDT->dominates(BB1, BB0));
+        EXPECT_FALSE(PDT->dominates(BB2, BB0));
+        EXPECT_FALSE(PDT->dominates(BB3, BB0));
+        EXPECT_TRUE(PDT->dominates(BB4, BB1));
+
+        // Dominance descendants.
+        SmallVector<BasicBlock *, 8> DominatedBBs, PostDominatedBBs;
+
+        DT->getDescendants(BB0, DominatedBBs);
+        PDT->getDescendants(BB0, PostDominatedBBs);
+        EXPECT_EQ(DominatedBBs.size(), 4UL);
+        EXPECT_EQ(PostDominatedBBs.size(), 1UL);
+
+        // BB3 is unreachable. It should have no dominators nor postdominators.
+        DominatedBBs.clear();
+        PostDominatedBBs.clear();
+        DT->getDescendants(BB3, DominatedBBs);
+        DT->getDescendants(BB3, PostDominatedBBs);
+        EXPECT_EQ(DominatedBBs.size(), 0UL);
+        EXPECT_EQ(PostDominatedBBs.size(), 0UL);
+
         return false;
       }
       virtual void getAnalysisUsage(AnalysisUsage &AU) const {
-        AU.addRequired<DominatorTree>();
+        AU.addRequired<DominatorTreeWrapperPass>();
+        AU.addRequired<PostDominatorTree>();
       }
       DPass() : FunctionPass(ID) {
         initializeDPassPass(*PassRegistry::getPassRegistry());
@@ -186,12 +213,12 @@ namespace llvm {
         "}\n";
       LLVMContext &C = getGlobalContext();
       SMDiagnostic Err;
-      return ParseAssemblyString(ModuleStrig, NULL, Err, C);
+      return ParseAssemblyString(ModuleStrig, nullptr, Err, C);
     }
 
     TEST(DominatorTree, Unreachable) {
       DPass *P = new DPass();
-      OwningPtr<Module> M(makeLLVMModule(P));
+      std::unique_ptr<Module> M(makeLLVMModule(P));
       PassManager Passes;
       Passes.add(P);
       Passes.run(*M);
@@ -200,5 +227,6 @@ namespace llvm {
 }
 
 INITIALIZE_PASS_BEGIN(DPass, "dpass", "dpass", false, false)
-INITIALIZE_PASS_DEPENDENCY(DominatorTree)
+INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
+INITIALIZE_PASS_DEPENDENCY(PostDominatorTree)
 INITIALIZE_PASS_END(DPass, "dpass", "dpass", false, false)

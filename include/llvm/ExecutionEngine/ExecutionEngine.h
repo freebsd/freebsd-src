@@ -18,11 +18,11 @@
 #include "llvm-c/ExecutionEngine.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/ValueMap.h"
+#include "llvm/IR/ValueHandle.h"
+#include "llvm/IR/ValueMap.h"
 #include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Mutex.h"
-#include "llvm/Support/ValueHandle.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include <map>
@@ -48,8 +48,13 @@ class RTDyldMemoryManager;
 class Triple;
 class Type;
 
+namespace object {
+  class Archive;
+  class ObjectFile;
+}
+
 /// \brief Helper class for helping synchronize access to the global address map
-/// table.
+/// table.  Access to this class should be serialized under a mutex.
 class ExecutionEngineState {
 public:
   struct AddressMapConfig : public ValueMapConfig<const GlobalValue*> {
@@ -79,19 +84,19 @@ private:
 public:
   ExecutionEngineState(ExecutionEngine &EE);
 
-  GlobalAddressMapTy &getGlobalAddressMap(const MutexGuard &) {
+  GlobalAddressMapTy &getGlobalAddressMap() {
     return GlobalAddressMap;
   }
 
   std::map<void*, AssertingVH<const GlobalValue> > &
-  getGlobalAddressReverseMap(const MutexGuard &) {
+  getGlobalAddressReverseMap() {
     return GlobalAddressReverseMap;
   }
 
   /// \brief Erase an entry from the mapping table.
   ///
   /// \returns The address that \p ToUnmap was happed to.
-  void *RemoveMapping(const MutexGuard &, const GlobalValue *ToUnmap);
+  void *RemoveMapping(const GlobalValue *ToUnmap);
 };
 
 /// \brief Abstract interface for implementation execution of LLVM modules,
@@ -106,7 +111,7 @@ class ExecutionEngine {
   ExecutionEngineState EEState;
 
   /// The target data for the platform for which execution is being performed.
-  const DataLayout *TD;
+  const DataLayout *DL;
 
   /// Whether lazy JIT compilation is enabled.
   bool CompilingLazily;
@@ -118,6 +123,9 @@ class ExecutionEngine {
   /// using dlsym).
   bool SymbolSearchingDisabled;
 
+  /// Whether the JIT should verify IR modules during compilation.
+  bool VerifyModules;
+
   friend class EngineBuilder;  // To allow access to JITCtor and InterpCtor.
 
 protected:
@@ -125,7 +133,7 @@ protected:
   /// optimize for the case where there is only one module.
   SmallVector<Module*, 1> Modules;
 
-  void setDataLayout(const DataLayout *td) { TD = td; }
+  void setDataLayout(const DataLayout *Val) { DL = Val; }
 
   /// getMemoryforGV - Allocate memory for a global variable.
   virtual char *getMemoryForGV(const GlobalVariable *GV);
@@ -176,7 +184,7 @@ public:
   /// freeMachineCodeForFunction works.
   static ExecutionEngine *create(Module *M,
                                  bool ForceInterpreter = false,
-                                 std::string *ErrorStr = 0,
+                                 std::string *ErrorStr = nullptr,
                                  CodeGenOpt::Level OptLevel =
                                  CodeGenOpt::Default,
                                  bool GVsWithCode = true);
@@ -188,8 +196,8 @@ public:
   /// Clients should make sure to initialize targets prior to calling this
   /// function.
   static ExecutionEngine *createJIT(Module *M,
-                                    std::string *ErrorStr = 0,
-                                    JITMemoryManager *JMM = 0,
+                                    std::string *ErrorStr = nullptr,
+                                    JITMemoryManager *JMM = nullptr,
                                     CodeGenOpt::Level OptLevel =
                                     CodeGenOpt::Default,
                                     bool GVsWithCode = true,
@@ -204,9 +212,33 @@ public:
     Modules.push_back(M);
   }
 
+  /// addObjectFile - Add an ObjectFile to the execution engine.
+  ///
+  /// This method is only supported by MCJIT.  MCJIT will immediately load the
+  /// object into memory and adds its symbols to the list used to resolve
+  /// external symbols while preparing other objects for execution.
+  ///
+  /// Objects added using this function will not be made executable until
+  /// needed by another object.
+  ///
+  /// MCJIT will take ownership of the ObjectFile.
+  virtual void addObjectFile(std::unique_ptr<object::ObjectFile> O);
+
+  /// addArchive - Add an Archive to the execution engine.
+  ///
+  /// This method is only supported by MCJIT.  MCJIT will use the archive to
+  /// resolve external symbols in objects it is loading.  If a symbol is found
+  /// in the Archive the contained object file will be extracted (in memory)
+  /// and loaded for possible execution.
+  ///
+  /// MCJIT will take ownership of the Archive.
+  virtual void addArchive(object::Archive *A) {
+    llvm_unreachable("ExecutionEngine subclass doesn't implement addArchive.");
+  }
+
   //===--------------------------------------------------------------------===//
 
-  const DataLayout *getDataLayout() const { return TD; }
+  const DataLayout *getDataLayout() const { return DL; }
 
   /// removeModule - Remove a Module from the list of modules.  Returns true if
   /// M is found.
@@ -232,7 +264,7 @@ public:
   ///
   /// This function is deprecated for the MCJIT execution engine.
   ///
-  /// FIXME: the JIT and MCJIT interfaces should be disentangled or united 
+  /// FIXME: the JIT and MCJIT interfaces should be disentangled or united
   /// again, if possible.
   ///
   virtual void *getPointerToNamedFunction(const std::string &Name,
@@ -379,7 +411,7 @@ public:
   }
 
   // The JIT overrides a version that actually does this.
-  virtual void runJITOnFunction(Function *, MachineCodeInfo * = 0) { }
+  virtual void runJITOnFunction(Function *, MachineCodeInfo * = nullptr) { }
 
   /// getGlobalValueAtAddress - Return the LLVM global value object that starts
   /// at the specified address.
@@ -430,6 +462,24 @@ public:
     llvm_unreachable("No support for an object cache");
   }
 
+  /// setProcessAllSections (MCJIT Only): By default, only sections that are
+  /// "required for execution" are passed to the RTDyldMemoryManager, and other
+  /// sections are discarded. Passing 'true' to this method will cause
+  /// RuntimeDyld to pass all sections to its RTDyldMemoryManager regardless
+  /// of whether they are "required to execute" in the usual sense.
+  ///
+  /// Rationale: Some MCJIT clients want to be able to inspect metadata
+  /// sections (e.g. Dwarf, Stack-maps) to enable functionality or analyze
+  /// performance. Passing these sections to the memory manager allows the
+  /// client to make policy about the relevant sections, rather than having
+  /// MCJIT do it.
+  virtual void setProcessAllSections(bool ProcessAllSections) {
+    llvm_unreachable("No support for ProcessAllSections option");
+  }
+
+  /// Return the target machine (if available).
+  virtual TargetMachine *getTargetMachine() { return nullptr; }
+
   /// DisableLazyCompilation - When lazy compilation is off (the default), the
   /// JIT will eagerly compile every function reachable from the argument to
   /// getPointerToFunction.  If lazy compilation is turned on, the JIT will only
@@ -473,6 +523,17 @@ public:
   }
   bool isSymbolSearchingDisabled() const {
     return SymbolSearchingDisabled;
+  }
+
+  /// Enable/Disable IR module verification.
+  ///
+  /// Note: Module verification is enabled by default in Debug builds, and
+  /// disabled by default in Release. Use this method to override the default.
+  void setVerifyModules(bool Verify) {
+    VerifyModules = Verify;
+  }
+  bool getVerifyModules() const {
+    return VerifyModules;
   }
 
   /// InstallLazyFunctionCreator - If an unknown function is needed, the
@@ -522,20 +583,10 @@ private:
   std::string MCPU;
   SmallVector<std::string, 4> MAttrs;
   bool UseMCJIT;
+  bool VerifyModules;
 
   /// InitEngine - Does the common initialization of default options.
-  void InitEngine() {
-    WhichEngine = EngineKind::Either;
-    ErrorStr = NULL;
-    OptLevel = CodeGenOpt::Default;
-    MCJMM = NULL;
-    JMM = NULL;
-    Options = TargetOptions();
-    AllocateGVsWithCode = false;
-    RelocModel = Reloc::Default;
-    CMModel = CodeModel::JITDefault;
-    UseMCJIT = false;
-  }
+  void InitEngine();
 
 public:
   /// EngineBuilder - Constructor for EngineBuilder.  If create() is called and
@@ -550,7 +601,7 @@ public:
     WhichEngine = w;
     return *this;
   }
-  
+
   /// setMCJITMemoryManager - Sets the MCJIT memory manager to use. This allows
   /// clients to customize their memory allocation policies for the MCJIT. This
   /// is only appropriate for the MCJIT; setting this and configuring the builder
@@ -560,7 +611,7 @@ public:
   /// the setJITMemoryManager() option.
   EngineBuilder &setMCJITMemoryManager(RTDyldMemoryManager *mcjmm) {
     MCJMM = mcjmm;
-    JMM = NULL;
+    JMM = nullptr;
     return *this;
   }
 
@@ -572,7 +623,7 @@ public:
   /// memory manager.  This option defaults to NULL. This option overrides
   /// setMCJITMemoryManager() as well.
   EngineBuilder &setJITMemoryManager(JITMemoryManager *jmm) {
-    MCJMM = NULL;
+    MCJMM = nullptr;
     JMM = jmm;
     return *this;
   }
@@ -641,6 +692,13 @@ public:
   /// (experimental).
   EngineBuilder &setUseMCJIT(bool Value) {
     UseMCJIT = Value;
+    return *this;
+  }
+
+  /// setVerifyModules - Set whether the JIT implementation should verify
+  /// IR modules during compilation.
+  EngineBuilder &setVerifyModules(bool Verify) {
+    VerifyModules = Verify;
     return *this;
   }
 

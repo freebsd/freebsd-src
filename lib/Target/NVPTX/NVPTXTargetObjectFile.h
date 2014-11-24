@@ -22,31 +22,31 @@ class NVPTXTargetObjectFile : public TargetLoweringObjectFile {
 
 public:
   NVPTXTargetObjectFile() {
-    TextSection = 0;
-    DataSection = 0;
-    BSSSection = 0;
-    ReadOnlySection = 0;
+    TextSection = nullptr;
+    DataSection = nullptr;
+    BSSSection = nullptr;
+    ReadOnlySection = nullptr;
 
-    StaticCtorSection = 0;
-    StaticDtorSection = 0;
-    LSDASection = 0;
-    EHFrameSection = 0;
-    DwarfAbbrevSection = 0;
-    DwarfInfoSection = 0;
-    DwarfLineSection = 0;
-    DwarfFrameSection = 0;
-    DwarfPubTypesSection = 0;
-    DwarfDebugInlineSection = 0;
-    DwarfStrSection = 0;
-    DwarfLocSection = 0;
-    DwarfARangesSection = 0;
-    DwarfRangesSection = 0;
-    DwarfMacroInfoSection = 0;
+    StaticCtorSection = nullptr;
+    StaticDtorSection = nullptr;
+    LSDASection = nullptr;
+    EHFrameSection = nullptr;
+    DwarfAbbrevSection = nullptr;
+    DwarfInfoSection = nullptr;
+    DwarfLineSection = nullptr;
+    DwarfFrameSection = nullptr;
+    DwarfPubTypesSection = nullptr;
+    DwarfDebugInlineSection = nullptr;
+    DwarfStrSection = nullptr;
+    DwarfLocSection = nullptr;
+    DwarfARangesSection = nullptr;
+    DwarfRangesSection = nullptr;
+    DwarfMacroInfoSection = nullptr;
   }
 
   virtual ~NVPTXTargetObjectFile();
 
-  virtual void Initialize(MCContext &ctx, const TargetMachine &TM) {
+  void Initialize(MCContext &ctx, const TargetMachine &TM) override {
     TargetLoweringObjectFile::Initialize(ctx, TM);
     TextSection = new NVPTXSection(MCSection::SV_ELF, SectionKind::getText());
     DataSection =
@@ -87,13 +87,14 @@ public:
         new NVPTXSection(MCSection::SV_ELF, SectionKind::getMetadata());
   }
 
-  virtual const MCSection *getSectionForConstant(SectionKind Kind) const {
+  const MCSection *getSectionForConstant(SectionKind Kind,
+                                         const Constant *C) const override {
     return ReadOnlySection;
   }
 
-  virtual const MCSection *
-  getExplicitSectionGlobal(const GlobalValue *GV, SectionKind Kind,
-                           Mangler *Mang, const TargetMachine &TM) const {
+  const MCSection *getExplicitSectionGlobal(const GlobalValue *GV,
+                                       SectionKind Kind, Mangler &Mang,
+                                       const TargetMachine &TM) const override {
     return DataSection;
   }
 

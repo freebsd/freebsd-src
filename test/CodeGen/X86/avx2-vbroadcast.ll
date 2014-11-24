@@ -98,7 +98,7 @@ entry:
   %qf = insertelement <16 x i16> %qe, i16 %q, i32 15
   ret <16 x i16> %qf
 }
-; CHECK: vpbroadcastd (%
+; CHECK: vbroadcastss (%
 define <4 x i32> @D32(i32* %ptr) nounwind uwtable readnone ssp {
 entry:
   %q = load i32* %ptr, align 4
@@ -108,7 +108,7 @@ entry:
   %q3 = insertelement <4 x i32> %q2, i32 %q, i32 3
   ret <4 x i32> %q3
 }
-; CHECK: vpbroadcastd (%
+; CHECK: vbroadcastss (%
 define <8 x i32> @DD32(i32* %ptr) nounwind uwtable readnone ssp {
 entry:
   %q = load i32* %ptr, align 4
@@ -130,7 +130,7 @@ entry:
   %q1 = insertelement <2 x i64> %q0, i64 %q, i32 1
   ret <2 x i64> %q1
 }
-; CHECK: vpbroadcastq (%
+; CHECK: vbroadcastsd (%
 define <4 x i64> @QQ64(i64* %ptr) nounwind uwtable readnone ssp {
 entry:
   %q = load i64* %ptr, align 4
@@ -293,7 +293,7 @@ define   <8 x i16> @_inreg8xi16(<8 x i16> %a) {
 
 
 ;CHECK-LABEL: _inreg4xi64:
-;CHECK: vpbroadcastq
+;CHECK: vbroadcastsd
 ;CHECK: ret
 define   <4 x i64> @_inreg4xi64(<4 x i64> %a) {
   %b = shufflevector <4 x i64> %a, <4 x i64> undef, <4 x i32> zeroinitializer
@@ -325,7 +325,7 @@ define   <2 x double> @_inreg2xdouble(<2 x double> %a) {
 }
 
 ;CHECK-LABEL: _inreg8xi32:
-;CHECK: vpbroadcastd
+;CHECK: vbroadcastss
 ;CHECK: ret
 define   <8 x i32> @_inreg8xi32(<8 x i32> %a) {
   %b = shufflevector <8 x i32> %a, <8 x i32> undef, <8 x i32> zeroinitializer
@@ -333,7 +333,7 @@ define   <8 x i32> @_inreg8xi32(<8 x i32> %a) {
 }
 
 ;CHECK-LABEL: _inreg4xi32:
-;CHECK: vpbroadcastd
+;CHECK: vbroadcastss
 ;CHECK: ret
 define   <4 x i32> @_inreg4xi32(<4 x i32> %a) {
   %b = shufflevector <4 x i32> %a, <4 x i32> undef, <4 x i32> zeroinitializer
@@ -354,4 +354,220 @@ define   <32 x i8> @_inreg32xi8(<32 x i8> %a) {
 define   <16 x i8> @_inreg16xi8(<16 x i8> %a) {
   %b = shufflevector <16 x i8> %a, <16 x i8> undef, <16 x i32> zeroinitializer
   ret <16 x i8> %b
+}
+
+; These tests check that a vbroadcast instruction is used when we have a splat
+; formed from a concat_vectors (via the shufflevector) of two BUILD_VECTORs
+; (via the insertelements).
+
+; CHECK-LABEL: splat_concat1
+; CHECK-NOT: vinsertf128
+; CHECK: vbroadcastss
+; CHECK-NEXT: ret
+define <8 x float> @splat_concat1(float %f) {
+  %1 = insertelement <4 x float> undef, float %f, i32 0
+  %2 = insertelement <4 x float> %1, float %f, i32 1
+  %3 = insertelement <4 x float> %2, float %f, i32 2
+  %4 = insertelement <4 x float> %3, float %f, i32 3
+  %5 = shufflevector <4 x float> %4, <4 x float> undef, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 0, i32 1, i32 2, i32 3>
+  ret <8 x float> %5
+}
+
+; CHECK-LABEL: splat_concat2
+; CHECK-NOT: vinsertf128
+; CHECK: vbroadcastss
+; CHECK-NEXT: ret
+define <8 x float> @splat_concat2(float %f) {
+  %1 = insertelement <4 x float> undef, float %f, i32 0
+  %2 = insertelement <4 x float> %1, float %f, i32 1
+  %3 = insertelement <4 x float> %2, float %f, i32 2
+  %4 = insertelement <4 x float> %3, float %f, i32 3
+  %5 = insertelement <4 x float> undef, float %f, i32 0
+  %6 = insertelement <4 x float> %5, float %f, i32 1
+  %7 = insertelement <4 x float> %6, float %f, i32 2
+  %8 = insertelement <4 x float> %7, float %f, i32 3
+  %9 = shufflevector <4 x float> %4, <4 x float> %8, <8 x i32> <i32 0, i32 1, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7>
+  ret <8 x float> %9
+}
+
+; CHECK-LABEL: splat_concat3
+; CHECK-NOT: vinsertf128
+; CHECK: vbroadcastsd
+; CHECK-NEXT: ret
+define <4 x double> @splat_concat3(double %d) {
+  %1 = insertelement <2 x double> undef, double %d, i32 0
+  %2 = insertelement <2 x double> %1, double %d, i32 1
+  %3 = shufflevector <2 x double> %2, <2 x double> undef, <4 x i32> <i32 0, i32 1, i32 0, i32 1>
+  ret <4 x double> %3
+}
+
+; CHECK-LABEL: splat_concat4
+; CHECK-NOT: vinsertf128
+; CHECK: vbroadcastsd
+; CHECK-NEXT: ret
+define <4 x double> @splat_concat4(double %d) {
+  %1 = insertelement <2 x double> undef, double %d, i32 0
+  %2 = insertelement <2 x double> %1, double %d, i32 1
+  %3 = insertelement <2 x double> undef, double %d, i32 0
+  %4 = insertelement <2 x double> %3, double %d, i32 1
+  %5 = shufflevector <2 x double> %2, <2 x double> %4, <4 x i32> <i32 0, i32 1, i32 2, i32 3>
+  ret <4 x double> %5
+}
+
+; Test cases for <rdar://problem/16074331>.
+; Instruction selection for broacast instruction fails if
+; the load cannot be folded into the broadcast.
+; This happens if the load has initial one use but other uses are
+; created later, or if selection DAG cannot prove that folding the
+; load will not create a cycle in the DAG.
+; Those test cases exerce the latter.
+
+; CHECK-LABEL: isel_crash_16b
+; CHECK: vpbroadcastb {{[^,]+}}, %xmm{{[0-9]+}}
+; CHECK: ret
+define void @isel_crash_16b(i8* %cV_R.addr) {
+eintry:
+  %__a.addr.i = alloca <2 x i64>, align 16
+  %__b.addr.i = alloca <2 x i64>, align 16
+  %vCr = alloca <2 x i64>, align 16
+  store <2 x i64> zeroinitializer, <2 x i64>* %vCr, align 16
+  %tmp = load <2 x i64>* %vCr, align 16
+  %tmp2 = load i8* %cV_R.addr, align 4
+  %splat.splatinsert = insertelement <16 x i8> undef, i8 %tmp2, i32 0
+  %splat.splat = shufflevector <16 x i8> %splat.splatinsert, <16 x i8> undef, <16 x i32> zeroinitializer
+  %tmp3 = bitcast <16 x i8> %splat.splat to <2 x i64>
+  store <2 x i64> %tmp, <2 x i64>* %__a.addr.i, align 16
+  store <2 x i64> %tmp3, <2 x i64>* %__b.addr.i, align 16
+  ret void
+}
+
+; CHECK-LABEL: isel_crash_32b
+; CHECK: vpbroadcastb {{[^,]+}}, %ymm{{[0-9]+}}
+; CHECK: ret
+define void @isel_crash_32b(i8* %cV_R.addr) {
+eintry:
+  %__a.addr.i = alloca <4 x i64>, align 16
+  %__b.addr.i = alloca <4 x i64>, align 16
+  %vCr = alloca <4 x i64>, align 16
+  store <4 x i64> zeroinitializer, <4 x i64>* %vCr, align 16
+  %tmp = load <4 x i64>* %vCr, align 16
+  %tmp2 = load i8* %cV_R.addr, align 4
+  %splat.splatinsert = insertelement <32 x i8> undef, i8 %tmp2, i32 0
+  %splat.splat = shufflevector <32 x i8> %splat.splatinsert, <32 x i8> undef, <32 x i32> zeroinitializer
+  %tmp3 = bitcast <32 x i8> %splat.splat to <4 x i64>
+  store <4 x i64> %tmp, <4 x i64>* %__a.addr.i, align 16
+  store <4 x i64> %tmp3, <4 x i64>* %__b.addr.i, align 16
+  ret void
+}
+
+; CHECK-LABEL: isel_crash_8w
+; CHECK: vpbroadcastw {{[^,]+}}, %xmm{{[0-9]+}}
+; CHECK: ret
+define void @isel_crash_8w(i16* %cV_R.addr) {
+entry:
+  %__a.addr.i = alloca <2 x i64>, align 16
+  %__b.addr.i = alloca <2 x i64>, align 16
+  %vCr = alloca <2 x i64>, align 16
+  store <2 x i64> zeroinitializer, <2 x i64>* %vCr, align 16
+  %tmp = load <2 x i64>* %vCr, align 16
+  %tmp2 = load i16* %cV_R.addr, align 4
+  %splat.splatinsert = insertelement <8 x i16> undef, i16 %tmp2, i32 0
+  %splat.splat = shufflevector <8 x i16> %splat.splatinsert, <8 x i16> undef, <8 x i32> zeroinitializer
+  %tmp3 = bitcast <8 x i16> %splat.splat to <2 x i64>
+  store <2 x i64> %tmp, <2 x i64>* %__a.addr.i, align 16
+  store <2 x i64> %tmp3, <2 x i64>* %__b.addr.i, align 16
+  ret void
+}
+
+; CHECK-LABEL: isel_crash_16w
+; CHECK: vpbroadcastw {{[^,]+}}, %ymm{{[0-9]+}}
+; CHECK: ret
+define void @isel_crash_16w(i16* %cV_R.addr) {
+eintry:
+  %__a.addr.i = alloca <4 x i64>, align 16
+  %__b.addr.i = alloca <4 x i64>, align 16
+  %vCr = alloca <4 x i64>, align 16
+  store <4 x i64> zeroinitializer, <4 x i64>* %vCr, align 16
+  %tmp = load <4 x i64>* %vCr, align 16
+  %tmp2 = load i16* %cV_R.addr, align 4
+  %splat.splatinsert = insertelement <16 x i16> undef, i16 %tmp2, i32 0
+  %splat.splat = shufflevector <16 x i16> %splat.splatinsert, <16 x i16> undef, <16 x i32> zeroinitializer
+  %tmp3 = bitcast <16 x i16> %splat.splat to <4 x i64>
+  store <4 x i64> %tmp, <4 x i64>* %__a.addr.i, align 16
+  store <4 x i64> %tmp3, <4 x i64>* %__b.addr.i, align 16
+  ret void
+}
+
+; CHECK-LABEL: isel_crash_4d
+; CHECK: vbroadcastss {{[^,]+}}, %xmm{{[0-9]+}}
+; CHECK: ret
+define void @isel_crash_4d(i32* %cV_R.addr) {
+entry:
+  %__a.addr.i = alloca <2 x i64>, align 16
+  %__b.addr.i = alloca <2 x i64>, align 16
+  %vCr = alloca <2 x i64>, align 16
+  store <2 x i64> zeroinitializer, <2 x i64>* %vCr, align 16
+  %tmp = load <2 x i64>* %vCr, align 16
+  %tmp2 = load i32* %cV_R.addr, align 4
+  %splat.splatinsert = insertelement <4 x i32> undef, i32 %tmp2, i32 0
+  %splat.splat = shufflevector <4 x i32> %splat.splatinsert, <4 x i32> undef, <4 x i32> zeroinitializer
+  %tmp3 = bitcast <4 x i32> %splat.splat to <2 x i64>
+  store <2 x i64> %tmp, <2 x i64>* %__a.addr.i, align 16
+  store <2 x i64> %tmp3, <2 x i64>* %__b.addr.i, align 16
+  ret void
+}
+
+; CHECK-LABEL: isel_crash_8d
+; CHECK: vbroadcastss {{[^,]+}}, %ymm{{[0-9]+}}
+; CHECK: ret
+define void @isel_crash_8d(i32* %cV_R.addr) {
+eintry:
+  %__a.addr.i = alloca <4 x i64>, align 16
+  %__b.addr.i = alloca <4 x i64>, align 16
+  %vCr = alloca <4 x i64>, align 16
+  store <4 x i64> zeroinitializer, <4 x i64>* %vCr, align 16
+  %tmp = load <4 x i64>* %vCr, align 16
+  %tmp2 = load i32* %cV_R.addr, align 4
+  %splat.splatinsert = insertelement <8 x i32> undef, i32 %tmp2, i32 0
+  %splat.splat = shufflevector <8 x i32> %splat.splatinsert, <8 x i32> undef, <8 x i32> zeroinitializer
+  %tmp3 = bitcast <8 x i32> %splat.splat to <4 x i64>
+  store <4 x i64> %tmp, <4 x i64>* %__a.addr.i, align 16
+  store <4 x i64> %tmp3, <4 x i64>* %__b.addr.i, align 16
+  ret void
+}
+
+; CHECK-LABEL: isel_crash_2q
+; CHECK: vpbroadcastq {{[^,]+}}, %xmm{{[0-9]+}}
+; CHECK: ret
+define void @isel_crash_2q(i64* %cV_R.addr) {
+entry:
+  %__a.addr.i = alloca <2 x i64>, align 16
+  %__b.addr.i = alloca <2 x i64>, align 16
+  %vCr = alloca <2 x i64>, align 16
+  store <2 x i64> zeroinitializer, <2 x i64>* %vCr, align 16
+  %tmp = load <2 x i64>* %vCr, align 16
+  %tmp2 = load i64* %cV_R.addr, align 4
+  %splat.splatinsert = insertelement <2 x i64> undef, i64 %tmp2, i32 0
+  %splat.splat = shufflevector <2 x i64> %splat.splatinsert, <2 x i64> undef, <2 x i32> zeroinitializer
+  store <2 x i64> %tmp, <2 x i64>* %__a.addr.i, align 16
+  store <2 x i64> %splat.splat, <2 x i64>* %__b.addr.i, align 16
+  ret void
+}
+
+; CHECK-LABEL: isel_crash_4q
+; CHECK: vbroadcastsd {{[^,]+}}, %ymm{{[0-9]+}}
+; CHECK: ret
+define void @isel_crash_4q(i64* %cV_R.addr) {
+eintry:
+  %__a.addr.i = alloca <4 x i64>, align 16
+  %__b.addr.i = alloca <4 x i64>, align 16
+  %vCr = alloca <4 x i64>, align 16
+  store <4 x i64> zeroinitializer, <4 x i64>* %vCr, align 16
+  %tmp = load <4 x i64>* %vCr, align 16
+  %tmp2 = load i64* %cV_R.addr, align 4
+  %splat.splatinsert = insertelement <4 x i64> undef, i64 %tmp2, i32 0
+  %splat.splat = shufflevector <4 x i64> %splat.splatinsert, <4 x i64> undef, <4 x i32> zeroinitializer
+  store <4 x i64> %tmp, <4 x i64>* %__a.addr.i, align 16
+  store <4 x i64> %splat.splat, <4 x i64>* %__b.addr.i, align 16
+  ret void
 }

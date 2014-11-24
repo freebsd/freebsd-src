@@ -16,8 +16,8 @@ namespace {
 
 TEST(TimeValue, time_t) {
   sys::TimeValue now = sys::TimeValue::now();
-  time_t now_t = time(NULL);
-  EXPECT_TRUE(abs(static_cast<long>(now_t - now.toEpochTime())) < 2);
+  time_t now_t = time(nullptr);
+  EXPECT_TRUE(std::abs(static_cast<long>(now_t - now.toEpochTime())) < 2);
 }
 
 TEST(TimeValue, Win32FILETIME) {
@@ -30,7 +30,8 @@ TEST(TimeValue, Win32FILETIME) {
   epoch.fromWin32Time(ft1970);
 
   // The "seconds" part in Posix time may be expected as zero.
-  EXPECT_EQ(ns / 100, epoch.toPosixTime());
+  EXPECT_EQ(0u, epoch.toEpochTime());
+  EXPECT_EQ(ns, static_cast<uint32_t>(epoch.nanoseconds()));
 
   // Confirm it reversible.
   EXPECT_EQ(ft1970, epoch.toWin32Time());

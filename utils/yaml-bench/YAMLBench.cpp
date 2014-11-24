@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This program executes the YAMLParser on differntly sized YAML texts and
+// This program executes the YAMLParser on differently sized YAML texts and
 // outputs the run time.
 //
 //===----------------------------------------------------------------------===//
@@ -21,7 +21,7 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/YAMLParser.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/system_error.h"
+#include <system_error>
 
 using namespace llvm;
 
@@ -69,7 +69,7 @@ static std::string prettyTag(yaml::Node *N) {
   if (StringRef(Tag).startswith("tag:yaml.org,2002:")) {
     std::string Ret = "!!";
     Ret += StringRef(Tag).substr(18);
-    return llvm_move(Ret);
+    return std::move(Ret);
   }
   std::string Ret = "!<";
   Ret += Tag;
@@ -188,9 +188,11 @@ static std::string createJSONText(size_t MemoryMB, unsigned ValueSize) {
 int main(int argc, char **argv) {
   llvm::cl::ParseCommandLineOptions(argc, argv);
   if (Input.getNumOccurrences()) {
-    OwningPtr<MemoryBuffer> Buf;
-    if (MemoryBuffer::getFileOrSTDIN(Input, Buf))
+    ErrorOr<std::unique_ptr<MemoryBuffer>> BufOrErr =
+        MemoryBuffer::getFileOrSTDIN(Input);
+    if (!BufOrErr)
       return 1;
+    std::unique_ptr<MemoryBuffer> Buf = std::move(BufOrErr.get());
 
     llvm::SourceMgr sm;
     if (DumpTokens) {

@@ -17,6 +17,7 @@
 #ifndef MCJIT_TEST_BASE_H
 #define MCJIT_TEST_BASE_H
 
+#include "MCJITTestAPICommon.h"
 #include "llvm/Config/config.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
@@ -26,7 +27,6 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/TypeBuilder.h"
 #include "llvm/Support/CodeGen.h"
-#include "MCJITTestAPICommon.h"
 
 namespace llvm {
 
@@ -185,11 +185,9 @@ protected:
   // Populates Modules A and B:
   // Module A { Extern FB1, Function FA which calls FB1 },
   // Module B { Extern FA, Function FB1, Function FB2 which calls FA },
-  void createCrossModuleRecursiveCase(OwningPtr<Module> &A,
-                                      Function *&FA,
-                                      OwningPtr<Module> &B,
-                                      Function *&FB1,
-                                      Function *&FB2) {
+  void createCrossModuleRecursiveCase(std::unique_ptr<Module> &A, Function *&FA,
+                                      std::unique_ptr<Module> &B,
+                                      Function *&FB1, Function *&FB2) {
     // Define FB1 in B.
     B.reset(createEmptyModule("B"));
     FB1 = insertAccumulateFunction(B.get(), 0, "FB1");
@@ -211,12 +209,10 @@ protected:
   // Module A { Function FA },
   // Module B { Extern FA, Function FB which calls FA },
   // Module C { Extern FB, Function FC which calls FB },
-  void createThreeModuleChainedCallsCase(OwningPtr<Module> &A,
-                             Function *&FA,
-                             OwningPtr<Module> &B,
-                             Function *&FB,
-                             OwningPtr<Module> &C,
-                             Function *&FC) {
+  void
+  createThreeModuleChainedCallsCase(std::unique_ptr<Module> &A, Function *&FA,
+                                    std::unique_ptr<Module> &B, Function *&FB,
+                                    std::unique_ptr<Module> &C, Function *&FC) {
     A.reset(createEmptyModule("A"));
     FA = insertAddFunction(A.get());
 
@@ -233,8 +229,8 @@ protected:
   // Module A { Function FA },
   // Populates Modules A and B:
   // Module B { Function FB }
-  void createTwoModuleCase(OwningPtr<Module> &A, Function *&FA,
-                           OwningPtr<Module> &B, Function *&FB) {
+  void createTwoModuleCase(std::unique_ptr<Module> &A, Function *&FA,
+                           std::unique_ptr<Module> &B, Function *&FB) {
     A.reset(createEmptyModule("A"));
     FA = insertAddFunction(A.get());
 
@@ -244,8 +240,8 @@ protected:
 
   // Module A { Function FA },
   // Module B { Extern FA, Function FB which calls FA }
-  void createTwoModuleExternCase(OwningPtr<Module> &A, Function *&FA,
-                                 OwningPtr<Module> &B, Function *&FB) {
+  void createTwoModuleExternCase(std::unique_ptr<Module> &A, Function *&FA,
+                                 std::unique_ptr<Module> &B, Function *&FB) {
     A.reset(createEmptyModule("A"));
     FA = insertAddFunction(A.get());
 
@@ -258,12 +254,9 @@ protected:
   // Module A { Function FA },
   // Module B { Extern FA, Function FB which calls FA },
   // Module C { Extern FB, Function FC which calls FA },
-  void createThreeModuleCase(OwningPtr<Module> &A,
-                             Function *&FA,
-                             OwningPtr<Module> &B,
-                             Function *&FB,
-                             OwningPtr<Module> &C,
-                             Function *&FC) {
+  void createThreeModuleCase(std::unique_ptr<Module> &A, Function *&FA,
+                             std::unique_ptr<Module> &B, Function *&FB,
+                             std::unique_ptr<Module> &C, Function *&FC) {
     A.reset(createEmptyModule("A"));
     FA = insertAddFunction(A.get());
 
@@ -311,6 +304,8 @@ protected:
     // should be kept in sync.
     UnsupportedOSs.push_back(Triple::Cygwin);
     UnsupportedOSs.push_back(Triple::Darwin);
+
+    UnsupportedEnvironments.push_back(Triple::Cygnus);
   }
 
   void createJIT(Module *M) {
@@ -342,10 +337,10 @@ protected:
   CodeModel::Model CodeModel;
   StringRef MArch;
   SmallVector<std::string, 1> MAttrs;
-  OwningPtr<ExecutionEngine> TheJIT;
+  std::unique_ptr<ExecutionEngine> TheJIT;
   RTDyldMemoryManager *MM;
 
-  OwningPtr<Module> M;
+  std::unique_ptr<Module> M;
 };
 
 } // namespace llvm

@@ -67,8 +67,8 @@ namespace llvm {
       memcpy_chk,
       /// double __sincospi_stret(double x);
       sincospi_stret,
-      /// float __sincospi_stretf(float x);
-      sincospi_stretf,
+      /// float __sincospif_stret(float x);
+      sincospif_stret,
       /// double __sinpi(double x);
       sinpi,
       /// float __sinpif(float x);
@@ -251,6 +251,18 @@ namespace llvm {
       floorf,
       /// long double floorl(long double x);
       floorl,
+      /// double fmax(double x, double y);
+      fmax,
+      /// float fmaxf(float x, float y);
+      fmaxf,
+      /// long double fmaxl(long double x, long double y);
+      fmaxl,
+      /// double fmin(double x, double y);
+      fmin,
+      /// float fminf(float x, float y);
+      fminf,
+      /// long double fminl(long double x, long double y);
+      fminl,
       /// double fmod(double x, double y);
       fmod,
       /// float fmodf(float x, float y);
@@ -340,6 +352,12 @@ namespace llvm {
       labs,
       /// int lchown(const char *path, uid_t owner, gid_t group);
       lchown,
+      /// double ldexp(double x, int n);
+      ldexp,
+      /// float ldexpf(float x, int n);
+      ldexpf,
+      /// long double ldexpl(long double x, int n);
+      ldexpl,
       /// long long int llabs(long long int j);
       llabs,
       /// double log(double x);
@@ -703,6 +721,8 @@ public:
     case LibFunc::sqrt:      case LibFunc::sqrtf:      case LibFunc::sqrtl:
     case LibFunc::sqrt_finite: case LibFunc::sqrtf_finite:
                                                   case LibFunc::sqrtl_finite:
+    case LibFunc::fmax:      case LibFunc::fmaxf:      case LibFunc::fmaxl:
+    case LibFunc::fmin:      case LibFunc::fminf:      case LibFunc::fminl:
     case LibFunc::floor:     case LibFunc::floorf:     case LibFunc::floorl:
     case LibFunc::nearbyint: case LibFunc::nearbyintf: case LibFunc::nearbyintl:
     case LibFunc::ceil:      case LibFunc::ceilf:      case LibFunc::ceill:

@@ -85,11 +85,11 @@ let test_target () =
   end;
   
   begin group "layout";
-    let layout = "bogus" in
+    let layout = "e" in
     set_data_layout layout m;
     insist (layout = data_layout m)
   end
-  (* CHECK: target datalayout = "bogus"
+  (* CHECK: target datalayout = "e"
    * CHECK: target triple = "i686-apple-darwin8"
    *)
 
@@ -413,7 +413,7 @@ let test_global_values () =
 
 let test_global_variables () =
   let (++) x f = f x; x in
-  let fourty_two32 = const_int i32_type 42 in
+  let forty_two32 = const_int i32_type 42 in
 
   group "declarations"; begin
     (* CHECK: @GVar01 = external global i32
@@ -444,16 +444,16 @@ let test_global_variables () =
      * CHECK: @QGVar02 = addrspace(3) global i32 42
      * CHECK: @QGVar03 = addrspace(3) global i32 42
      *)
-    let g = define_global "GVar02" fourty_two32 m in
+    let g = define_global "GVar02" forty_two32 m in
     let g2 = declare_global i32_type "GVar03" m ++
-           set_initializer fourty_two32 in
+           set_initializer forty_two32 in
     insist (not (is_declaration g));
     insist (not (is_declaration g2));
     insist ((global_initializer g) == (global_initializer g2));
 
-    let g = define_qualified_global "QGVar02" fourty_two32 3 m in
+    let g = define_qualified_global "QGVar02" forty_two32 3 m in
     let g2 = declare_qualified_global i32_type "QGVar03" 3 m ++
-           set_initializer fourty_two32 in
+           set_initializer forty_two32 in
     insist (not (is_declaration g));
     insist (not (is_declaration g2));
     insist ((global_initializer g) == (global_initializer g2));
@@ -462,34 +462,34 @@ let test_global_variables () =
   (* CHECK: GVar04{{.*}}thread_local
    *)
   group "threadlocal";
-  let g = define_global "GVar04" fourty_two32 m ++
+  let g = define_global "GVar04" forty_two32 m ++
           set_thread_local true in
   insist (is_thread_local g);
 
   (* CHECK: GVar05{{.*}}thread_local(initialexec)
    *)
   group "threadlocal_mode";
-  let g = define_global "GVar05" fourty_two32 m ++
+  let g = define_global "GVar05" forty_two32 m ++
           set_thread_local_mode ThreadLocalMode.InitialExec in
   insist ((thread_local_mode g) = ThreadLocalMode.InitialExec);
 
   (* CHECK: GVar06{{.*}}externally_initialized
    *)
   group "externally_initialized";
-  let g = define_global "GVar06" fourty_two32 m ++
+  let g = define_global "GVar06" forty_two32 m ++
           set_externally_initialized true in
   insist (is_externally_initialized g);
 
   (* CHECK-NOWHERE-NOT: GVar07
    *)
   group "delete";
-  let g = define_global "GVar07" fourty_two32 m in
+  let g = define_global "GVar07" forty_two32 m in
   delete_global g;
 
   (* CHECK: ConstGlobalVar{{.*}}constant
    *)
   group "constant";
-  let g = define_global "ConstGlobalVar" fourty_two32 m in
+  let g = define_global "ConstGlobalVar" forty_two32 m in
   insist (not (is_global_constant g));
   set_global_constant true g;
   insist (is_global_constant g);
@@ -581,7 +581,8 @@ let test_users () =
 let test_aliases () =
   (* CHECK: @alias = alias i32* @aliasee
    *)
-  let v = declare_global i32_type "aliasee" m in
+  let forty_two32 = const_int i32_type 42 in
+  let v = define_global "aliasee" forty_two32 m in
   ignore (add_alias m (pointer_type i32_type) v "alias")
 
 

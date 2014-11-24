@@ -1,5 +1,55 @@
 ; RUN: llc -split-dwarf=Enable -O0 %s -mtriple=x86_64-unknown-linux-gnu -filetype=obj -o %t
-; RUN: llvm-dwarfdump -debug-dump=all %t | FileCheck %s
+; RUN: llvm-dwarfdump %t | FileCheck %s
+; RUN: llvm-objdump -h %t | FileCheck --check-prefix=HDR %s
+
+; CHECK: .debug_info contents:
+; CHECK: DW_TAG_compile_unit
+; CHECK-NEXT: DW_AT_stmt_list
+; CHECK-NEXT: DW_AT_GNU_dwo_name
+; CHECK-NEXT: DW_AT_comp_dir
+; CHECK-NEXT: DW_AT_GNU_dwo_id
+; CHECK-NEXT: DW_AT_GNU_addr_base [DW_FORM_sec_offset]                   (0x00000000)
+
+
+; CHECK: .debug_info.dwo contents:
+; CHECK: DW_AT_location [DW_FORM_sec_offset]   ([[A:0x[0-9a-z]*]])
+; CHECK: DW_AT_location [DW_FORM_sec_offset]   ([[E:0x[0-9a-z]*]])
+; CHECK: DW_AT_location [DW_FORM_sec_offset]   ([[B:0x[0-9a-z]*]])
+; CHECK: DW_AT_location [DW_FORM_sec_offset]   ([[D:0x[0-9a-z]*]])
+; CHECK: DW_AT_ranges [DW_FORM_sec_offset]   (0x000000a0)
+; CHECK: .debug_loc contents:
+; CHECK-NOT: Beginning address offset
+; CHECK: .debug_loc.dwo contents:
+
+; Don't assume these locations are entirely correct - feel free to update them
+; if they've changed due to a bugfix, change in register allocation, etc.
+
+; CHECK: [[A]]: Beginning address index: 2
+; CHECK-NEXT:                    Length: 199
+; CHECK-NEXT:      Location description: 11 00
+; CHECK-NEXT: {{^$}}
+; CHECK-NEXT:   Beginning address index: 3
+; CHECK-NEXT:                    Length: 23
+; CHECK-NEXT:      Location description: 50 93 04
+; CHECK: [[E]]: Beginning address index: 4
+; CHECK-NEXT:                    Length: 21
+; CHECK-NEXT:      Location description: 50 93 04
+; CHECK: [[B]]: Beginning address index: 5
+; CHECK-NEXT:                    Length: 19
+; CHECK-NEXT:      Location description: 50 93 04
+; CHECK: [[D]]: Beginning address index: 6
+; CHECK-NEXT:                    Length: 23
+; CHECK-NEXT:      Location description: 50 93 04
+
+; Make sure we don't produce any relocations in any .dwo section (though in particular, debug_info.dwo)
+; HDR-NOT: .rela.{{.*}}.dwo
+
+; Make sure we have enough stuff in the debug_addr to cover the address indexes
+; (6 is the last index in debug_loc.dwo, making 7 entries of 8 bytes each, 7 * 8
+; == 56 base 10 == 38 base 16)
+
+; HDR: .debug_addr 00000038
+; HDR-NOT: .rela.{{.*}}.dwo
 
 ; From the code:
 
@@ -29,8 +79,6 @@
 
 ; clang -g -S -gsplit-dwarf -O1 small.c
 
-; CHECK: DW_AT_GNU_ranges_base
-
 @c = external global i32
 
 ; Function Attrs: nounwind uwtable
@@ -44,7 +92,7 @@ entry:
 define internal fastcc void @foo() #0 {
 entry:
   tail call void @llvm.dbg.value(metadata !29, i64 0, metadata !13), !dbg !30
-  tail call void @llvm.dbg.value(metadata !2, i64 0, metadata !14), !dbg !31
+  tail call void @llvm.dbg.value(metadata !44, i64 0, metadata !14), !dbg !31
   %c.promoted9 = load i32* @c, align 4, !dbg !32, !tbaa !33
   br label %for.cond1.preheader, !dbg !31
 
@@ -107,7 +155,7 @@ attributes #1 = { nounwind readnone }
 
 !0 = metadata !{i32 786449, metadata !1, i32 12, metadata !"clang version 3.4 (trunk 191700) (llvm/trunk 191710)", i1 true, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !"small.dwo"} ; [ DW_TAG_compile_unit ] [/usr/local/google/home/echristo/tmp/small.c] [DW_LANG_C99]
 !1 = metadata !{metadata !"small.c", metadata !"/usr/local/google/home/echristo/tmp"}
-!2 = metadata !{i32 0}
+!2 = metadata !{}
 !3 = metadata !{metadata !4, metadata !8}
 !4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"bar", metadata !"bar", metadata !"", i32 18, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 0, i1 true, void ()* @bar, null, null, metadata !2, i32 19} ; [ DW_TAG_subprogram ] [line 18] [def] [scope 19] [bar]
 !5 = metadata !{i32 786473, metadata !1}          ; [ DW_TAG_file_type ] [/usr/local/google/home/echristo/tmp/small.c]
@@ -149,3 +197,4 @@ attributes #1 = { nounwind readnone }
 !41 = metadata !{i32* @c}
 !42 = metadata !{i32 15, i32 0, metadata !8, null}
 !43 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
+!44 = metadata !{i32 0}

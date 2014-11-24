@@ -101,11 +101,6 @@ class MachineFrameInfo {
     // cannot alias any other memory objects.
     bool isSpillSlot;
 
-    // MayNeedSP - If true the stack object triggered the creation of the stack
-    // protector. We should allocate this object right after the stack
-    // protector.
-    bool MayNeedSP;
-
     /// Alloca - If this stack object is originated from an Alloca instruction
     /// this value saves the original IR allocation. Can be NULL.
     const AllocaInst *Alloca;
@@ -115,9 +110,9 @@ class MachineFrameInfo {
     bool PreAllocated;
 
     StackObject(uint64_t Sz, unsigned Al, int64_t SP, bool IM,
-                bool isSS, bool NSP, const AllocaInst *Val)
+                bool isSS, const AllocaInst *Val)
       : SPOffset(SP), Size(Sz), Alignment(Al), isImmutable(IM),
-        isSpillSlot(isSS), MayNeedSP(NSP), Alloca(Val), PreAllocated(false) {}
+        isSpillSlot(isSS), Alloca(Val), PreAllocated(false) {}
   };
 
   const TargetMachine &TM;
@@ -144,6 +139,14 @@ class MachineFrameInfo {
   /// ReturnAddressTaken - This boolean keeps track of whether there is a call
   /// to builtin \@llvm.returnaddress.
   bool ReturnAddressTaken;
+
+  /// HasStackMap - This boolean keeps track of whether there is a call
+  /// to builtin \@llvm.experimental.stackmap.
+  bool HasStackMap;
+
+  /// HasPatchPoint - This boolean keeps track of whether there is a call
+  /// to builtin \@llvm.experimental.patchpoint.
+  bool HasPatchPoint;
 
   /// StackSize - The prolog/epilog code inserter calculates the final stack
   /// offsets for all of the fixed size objects, updating the Objects list
@@ -223,6 +226,10 @@ class MachineFrameInfo {
   /// Whether the "realign-stack" option is on.
   bool RealignOption;
 
+  /// True if the function includes inline assembly that adjusts the stack
+  /// pointer.
+  bool HasInlineAsmWithSPAdjust;
+
   const TargetFrameLowering *getFrameLowering() const;
 public:
     explicit MachineFrameInfo(const TargetMachine &TM, bool RealignOpt)
@@ -231,6 +238,8 @@ public:
     HasVarSizedObjects = false;
     FrameAddressTaken = false;
     ReturnAddressTaken = false;
+    HasStackMap = false;
+    HasPatchPoint = false;
     AdjustsStack = false;
     HasCalls = false;
     StackProtectorIdx = -1;
@@ -240,6 +249,7 @@ public:
     LocalFrameSize = 0;
     LocalFrameMaxAlign = 0;
     UseLocalStackAllocationBlock = false;
+    HasInlineAsmWithSPAdjust = false;
   }
 
   /// hasStackObjects - Return true if there are any stack objects in this
@@ -275,6 +285,18 @@ public:
   /// \@llvm.returnaddress in this function.
   bool isReturnAddressTaken() const { return ReturnAddressTaken; }
   void setReturnAddressIsTaken(bool s) { ReturnAddressTaken = s; }
+
+  /// hasStackMap - This method may be called any time after instruction
+  /// selection is complete to determine if there is a call to builtin
+  /// \@llvm.experimental.stackmap.
+  bool hasStackMap() const { return HasStackMap; }
+  void setHasStackMap(bool s = true) { HasStackMap = s; }
+
+  /// hasPatchPoint - This method may be called any time after instruction
+  /// selection is complete to determine if there is a call to builtin
+  /// \@llvm.experimental.patchpoint.
+  bool hasPatchPoint() const { return HasPatchPoint; }
+  void setHasPatchPoint(bool s = true) { HasPatchPoint = s; }
 
   /// getObjectIndexBegin - Return the minimum frame object index.
   ///
@@ -380,14 +402,6 @@ public:
     return Objects[ObjectIdx+NumFixedObjects].Alloca;
   }
 
-  /// NeedsStackProtector - Returns true if the object may need stack
-  /// protectors.
-  bool MayNeedStackProtector(int ObjectIdx) const {
-    assert(unsigned(ObjectIdx+NumFixedObjects) < Objects.size() &&
-           "Invalid Object Idx!");
-    return Objects[ObjectIdx+NumFixedObjects].MayNeedSP;
-  }
-
   /// getObjectOffset - Return the assigned stack offset of the specified object
   /// from the incoming stack pointer.
   ///
@@ -451,6 +465,10 @@ public:
   bool hasCalls() const { return HasCalls; }
   void setHasCalls(bool V) { HasCalls = V; }
 
+  /// Returns true if the function contains any stack-adjusting inline assembly.
+  bool hasInlineAsmWithSPAdjust() const { return HasInlineAsmWithSPAdjust; }
+  void setHasInlineAsmWithSPAdjust(bool B) { HasInlineAsmWithSPAdjust = B; }
+
   /// getMaxCallFrameSize - Return the maximum size of a call frame that must be
   /// allocated for an outgoing function call.  This is only available if
   /// CallFrameSetup/Destroy pseudo instructions are used by the target, and
@@ -466,6 +484,9 @@ public:
   ///
   int CreateFixedObject(uint64_t Size, int64_t SPOffset, bool Immutable);
 
+  /// CreateFixedSpillStackObject - Create a spill slot at a fixed location
+  /// on the stack.  Returns an index with a negative value.
+  int CreateFixedSpillStackObject(uint64_t Size, int64_t SPOffset);
 
   /// isFixedObjectIndex - Returns true if the specified index corresponds to a
   /// fixed stack object.
@@ -501,7 +522,7 @@ public:
   /// a nonnegative identifier to represent it.
   ///
   int CreateStackObject(uint64_t Size, unsigned Alignment, bool isSS,
-                        bool MayNeedSP = false, const AllocaInst *Alloca = 0);
+                        const AllocaInst *Alloca = nullptr);
 
   /// CreateSpillStackObject - Create a new statically sized stack object that
   /// represents a spill slot, returning a nonnegative identifier to represent
@@ -521,7 +542,7 @@ public:
   /// variable sized object is created, whether or not the index returned is
   /// actually used.
   ///
-  int CreateVariableSizedObject(unsigned Alignment);
+  int CreateVariableSizedObject(unsigned Alignment, const AllocaInst *Alloca);
 
   /// getCalleeSavedInfo - Returns a reference to call saved info vector for the
   /// current function.

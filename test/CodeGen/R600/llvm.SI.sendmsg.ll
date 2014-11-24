@@ -1,10 +1,10 @@
 ;RUN: llc < %s -march=r600 -mcpu=verde -verify-machineinstrs | FileCheck %s
 
 ; CHECK-LABEL: @main
-; CHECK: S_SENDMSG 34
-; CHECK: S_SENDMSG 274
-; CHECK: S_SENDMSG 562
-; CHECK: S_SENDMSG 3
+; CHECK: S_SENDMSG Gs(emit stream 0)
+; CHECK: S_SENDMSG Gs(cut stream 1)
+; CHECK: S_SENDMSG Gs(emit-cut stream 2)
+; CHECK: S_SENDMSG Gs_done(nop)
 
 define void @main() {
 main_body:

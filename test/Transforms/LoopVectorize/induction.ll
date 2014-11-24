@@ -75,7 +75,7 @@ loopexit:
 ; PR17532
 
 ; CHECK-LABEL: i8_loop
-; CHECK; icmp eq i32 {{.*}}, 256
+; CHECK: icmp eq i32 {{.*}}, 256
 define i32 @i8_loop() nounwind readnone ssp uwtable {
   br label %1
 
@@ -92,7 +92,7 @@ define i32 @i8_loop() nounwind readnone ssp uwtable {
 }
 
 ; CHECK-LABEL: i16_loop
-; CHECK; icmp eq i32 {{.*}}, 65536
+; CHECK: icmp eq i32 {{.*}}, 65536
 
 define i32 @i16_loop() nounwind readnone ssp uwtable {
   br label %1
@@ -107,4 +107,65 @@ define i32 @i16_loop() nounwind readnone ssp uwtable {
 
 ; <label>:5                                       ; preds = %1
   ret i32 %2
+}
+
+; This loop has a backedge taken count of i32_max. We need to check for this
+; condition and branch directly to the scalar loop.
+
+; CHECK-LABEL: max_i32_backedgetaken
+; CHECK:  %backedge.overflow = icmp eq i32 -1, -1
+; CHECK:  br i1 %backedge.overflow, label %scalar.ph, label %overflow.checked
+
+; CHECK: scalar.ph:
+; CHECK:  %bc.resume.val = phi i32 [ %resume.val, %middle.block ], [ 0, %0 ]
+; CHECK:  %bc.merge.rdx = phi i32 [ 1, %0 ], [ %5, %middle.block ]
+
+define i32 @max_i32_backedgetaken() nounwind readnone ssp uwtable {
+
+  br label %1
+
+; <label>:1                                       ; preds = %1, %0
+  %a.0 = phi i32 [ 1, %0 ], [ %2, %1 ]
+  %b.0 = phi i32 [ 0, %0 ], [ %3, %1 ]
+  %2 = and i32 %a.0, 4
+  %3 = add i32 %b.0, -1
+  %4 = icmp eq i32 %3, 0
+  br i1 %4, label %5, label %1
+
+; <label>:5                                       ; preds = %1
+  ret i32 %2
+}
+
+; When generating the overflow check we must sure that the induction start value
+; is defined before the branch to the scalar preheader.
+
+; CHECK-LABEL: testoverflowcheck
+; CHECK: entry
+; CHECK: %[[LOAD:.*]] = load i8
+; CHECK: %[[VAL:.*]] =  zext i8 %[[LOAD]] to i32
+; CHECK: br
+
+; CHECK: scalar.ph
+; CHECK: phi i32 [ %{{.*}}, %middle.block ], [ %[[VAL]], %entry ]
+
+@e = global i8 1, align 1
+@d = common global i32 0, align 4
+@c = common global i32 0, align 4
+define i32 @testoverflowcheck() {
+entry:
+  %.pr.i = load i8* @e, align 1
+  %0 = load i32* @d, align 4
+  %c.promoted.i = load i32* @c, align 4
+  br label %cond.end.i
+
+cond.end.i:
+  %inc4.i = phi i8 [ %.pr.i, %entry ], [ %inc.i, %cond.end.i ]
+  %and3.i = phi i32 [ %c.promoted.i, %entry ], [ %and.i, %cond.end.i ]
+  %and.i = and i32 %0, %and3.i
+  %inc.i = add i8 %inc4.i, 1
+  %tobool.i = icmp eq i8 %inc.i, 0
+  br i1 %tobool.i, label %loopexit, label %cond.end.i
+
+loopexit:
+  ret i32 %and.i
 }

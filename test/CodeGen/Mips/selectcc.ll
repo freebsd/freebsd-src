@@ -1,5 +1,7 @@
-; RUN: llc -march=mipsel < %s
-; RUN: llc -march=mipsel -pre-RA-sched=source < %s | FileCheck %s --check-prefix=SOURCE-SCHED
+; RUN: llc -march=mipsel -mcpu=mips32 < %s
+; RUN: llc -march=mipsel -mcpu=mips32 -pre-RA-sched=source < %s | FileCheck %s --check-prefix=SOURCE-SCHED
+; RUN: llc -march=mipsel -mcpu=mips32r2 < %s
+; RUN: llc -march=mipsel -mcpu=mips32r2 -pre-RA-sched=source < %s | FileCheck %s --check-prefix=SOURCE-SCHED
 
 @gf0 = external global float
 @gf1 = external global float
@@ -16,13 +18,11 @@ entry:
 ; SOURCE-SCHED: lw
 ; SOURCE-SCHED: lui
 ; SOURCE-SCHED: sw
-; SOURCE-SCHED: addiu
-; SOURCE-SCHED: addiu
-; SOURCE-SCHED: c.olt.s
-; SOURCE-SCHED: movt
+; SOURCE-SCHED: lw
+; SOURCE-SCHED: lwc1
 ; SOURCE-SCHED: mtc1
+; SOURCE-SCHED: c.olt.s
 ; SOURCE-SCHED: jr
-
   store float 0.000000e+00, float* @gf0, align 4
   store float 1.000000e+00, float* @gf1, align 4
   %cmp = fcmp olt float %a, %b

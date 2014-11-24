@@ -14,7 +14,7 @@ add_public_tablegen_target(X86CommonTableGen)
 
 set(sources
   X86AsmPrinter.cpp
-  X86COFFMachineModuleInfo.cpp
+  X86AtomicExpandPass.cpp
   X86CodeEmitter.cpp
   X86FastISel.cpp
   X86FloatingPoint.cpp
@@ -37,11 +37,6 @@ set(sources
   )
 
 if( CMAKE_CL_64 )
-  # A workaround for a bug in cmake 2.8.3. See PR 8885.
-  if( CMAKE_VERSION STREQUAL "2.8.3" )
-    include(CMakeDetermineCompilerId)
-  endif()
-  # end of workaround.
   enable_language(ASM_MASM)
   ADD_CUSTOM_COMMAND(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/X86CompilationCallback_Win64.obj
@@ -52,8 +47,6 @@ if( CMAKE_CL_64 )
 endif()
 
 add_llvm_target(X86CodeGen ${sources})
-
-add_dependencies(LLVMX86CodeGen X86CommonTableGen intrinsics_gen)
 
 add_subdirectory(AsmParser)
 add_subdirectory(Disassembler)

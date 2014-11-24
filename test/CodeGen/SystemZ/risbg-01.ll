@@ -269,12 +269,12 @@ define i64 @f23(i64 %foo) {
 ; mask and rotate.
 define i32 @f24(i32 %foo) {
 ; CHECK-LABEL: f24:
-; CHECK: nilf %r2, 14
-; CHECK: rll %r2, %r2, 3
+; CHECK: nilf %r2, 254
+; CHECK: rll %r2, %r2, 29
 ; CHECK: br %r14
-  %and = and i32 %foo, 14
-  %parta = shl i32 %and, 3
-  %partb = lshr i32 %and, 29
+  %and = and i32 %foo, 254
+  %parta = lshr i32 %and, 3
+  %partb = shl i32 %and, 29
   %rotl = or i32 %parta, %partb
   ret i32 %rotl
 }
@@ -295,7 +295,6 @@ define i64 @f25(i64 %foo) {
 ; This again needs a separate mask and rotate.
 define i32 @f26(i32 %foo) {
 ; CHECK-LABEL: f26:
-; CHECK: nill %r2, 65487
 ; CHECK: rll %r2, %r2, 5
 ; CHECK: br %r14
   %and = and i32 %foo, -49
@@ -457,11 +456,22 @@ define i64 @f40(i64 %foo, i64 *%dest) {
   ret i64 %and
 }
 
+; Check a case where the result is zero-extended.
+define i64 @f41(i32 %a) {
+; CHECK-LABEL: f41
+; CHECK: risbg %r2, %r2, 36, 191, 62
+; CHECK: br %r14
+  %shl = shl i32 %a, 2
+  %shr = lshr i32 %shl, 4
+  %ext = zext i32 %shr to i64
+  ret i64 %ext
+}
+
 ; In this case the sign extension is converted to a pair of 32-bit shifts,
 ; which is then extended to 64 bits.  We previously used the wrong bit size
 ; when testing whether the shifted-in bits of the shift right were significant.
-define i64 @f41(i1 %x) {
-; CHECK-LABEL: f41:
+define i64 @f42(i1 %x) {
+; CHECK-LABEL: f42:
 ; CHECK: sll %r2, 31
 ; CHECK: sra %r2, 31
 ; CHECK: llgcr %r2, %r2

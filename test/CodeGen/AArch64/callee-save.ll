@@ -1,14 +1,14 @@
-; RUN: llc -verify-machineinstrs < %s -mtriple=aarch64-none-linux-gnu | FileCheck %s
+; RUN: llc -verify-machineinstrs -o - %s -mtriple=arm64-apple-ios7.0 | FileCheck %s
 
 @var = global float 0.0
 
 define void @foo() {
 ; CHECK-LABEL: foo:
 
-; CHECK: stp d14, d15, [sp
-; CHECK: stp d12, d13, [sp
-; CHECK: stp d10, d11, [sp
-; CHECK: stp d8, d9, [sp
+; CHECK: stp d15, d14, [sp
+; CHECK: stp d13, d12, [sp
+; CHECK: stp d11, d10, [sp
+; CHECK: stp d9, d8, [sp
 
   ; Create lots of live variables to exhaust the supply of
   ; caller-saved registers
@@ -78,9 +78,9 @@ define void @foo() {
   store volatile float %val31, float* @var
   store volatile float %val32, float* @var
 
-; CHECK: ldp     d8, d9, [sp
-; CHECK: ldp     d10, d11, [sp
-; CHECK: ldp     d12, d13, [sp
-; CHECK: ldp     d14, d15, [sp
+; CHECK: ldp     d9, d8, [sp
+; CHECK: ldp     d11, d10, [sp
+; CHECK: ldp     d13, d12, [sp
+; CHECK: ldp     d15, d14, [sp
   ret void
 }

@@ -1,4 +1,4 @@
-; RUN: llc -verify-machineinstrs < %s -mtriple=aarch64-none-linux-gnu | FileCheck %s
+; RUN: llc -verify-machineinstrs %s -o - -mtriple=arm64-apple-ios7.0 | FileCheck %s
 
 @var32 = global i32 0
 @var64 = global i64 0
@@ -35,7 +35,7 @@ define void @test_lsl_arith(i32 %lhs32, i32 %rhs32, i64 %lhs64, i64 %rhs64) {
   %shift4a = shl i32 %lhs4a, 15
   %val4a = sub i32 0, %shift4a
   store volatile i32 %val4a, i32* @var32
-; CHECK: sub {{w[0-9]+}}, wzr, {{w[0-9]+}}, lsl #15
+; CHECK: neg {{w[0-9]+}}, {{w[0-9]+}}, lsl #15
 
   %rhs5 = load volatile i64* @var64
   %shift5 = shl i64 %rhs5, 18
@@ -66,7 +66,7 @@ define void @test_lsl_arith(i32 %lhs32, i32 %rhs32, i64 %lhs64, i64 %rhs64) {
   %shift8a = shl i64 %lhs8a, 60
   %val8a = sub i64 0, %shift8a
   store volatile i64 %val8a, i64* @var64
-; CHECK: sub {{x[0-9]+}}, xzr, {{x[0-9]+}}, lsl #60
+; CHECK: neg {{x[0-9]+}}, {{x[0-9]+}}, lsl #60
 
   ret void
 ; CHECK: ret
@@ -99,7 +99,7 @@ define void @test_lsr_arith(i32 %lhs32, i32 %rhs32, i64 %lhs64, i64 %rhs64) {
   %shift4a = lshr i32 %lhs32, 15
   %val4a = sub i32 0, %shift4a
   store volatile i32 %val4a, i32* @var32
-; CHECK: sub {{w[0-9]+}}, wzr, {{w[0-9]+}}, lsr #15
+; CHECK: neg {{w[0-9]+}}, {{w[0-9]+}}, lsr #15
 
   %shift5 = lshr i64 %rhs64, 18
   %val5 = add i64 %lhs64, %shift5
@@ -125,7 +125,7 @@ define void @test_lsr_arith(i32 %lhs32, i32 %rhs32, i64 %lhs64, i64 %rhs64) {
   %shift8a = lshr i64 %lhs64, 45
   %val8a = sub i64 0, %shift8a
   store volatile i64 %val8a, i64* @var64
-; CHECK: sub {{x[0-9]+}}, xzr, {{x[0-9]+}}, lsr #45
+; CHECK: neg {{x[0-9]+}}, {{x[0-9]+}}, lsr #45
 
   ret void
 ; CHECK: ret
@@ -158,7 +158,7 @@ define void @test_asr_arith(i32 %lhs32, i32 %rhs32, i64 %lhs64, i64 %rhs64) {
   %shift4a = ashr i32 %lhs32, 15
   %val4a = sub i32 0, %shift4a
   store volatile i32 %val4a, i32* @var32
-; CHECK: sub {{w[0-9]+}}, wzr, {{w[0-9]+}}, asr #15
+; CHECK: neg {{w[0-9]+}}, {{w[0-9]+}}, asr #15
 
   %shift5 = ashr i64 %rhs64, 18
   %val5 = add i64 %lhs64, %shift5
@@ -184,7 +184,7 @@ define void @test_asr_arith(i32 %lhs32, i32 %rhs32, i64 %lhs64, i64 %rhs64) {
   %shift8a = ashr i64 %lhs64, 45
   %val8a = sub i64 0, %shift8a
   store volatile i64 %val8a, i64* @var64
-; CHECK: sub {{x[0-9]+}}, xzr, {{x[0-9]+}}, asr #45
+; CHECK: neg {{x[0-9]+}}, {{x[0-9]+}}, asr #45
 
   ret void
 ; CHECK: ret
@@ -245,7 +245,7 @@ define i32 @test_cmn(i32 %lhs32, i32 %rhs32, i64 %lhs64, i64 %rhs64) {
   br i1 %tst1, label %t2, label %end
   ; Important that this isn't lowered to a cmn instruction because if %rhs32 ==
   ; 0 then the results will differ.
-; CHECK: sub [[RHS:w[0-9]+]], wzr, {{w[0-9]+}}, lsl #13
+; CHECK: neg [[RHS:w[0-9]+]], {{w[0-9]+}}, lsl #13
 ; CHECK: cmp {{w[0-9]+}}, [[RHS]]
 
 t2:
@@ -268,7 +268,7 @@ t4:
   %tst4 = icmp slt i64 %lhs64, %val4
   br i1 %tst4, label %t5, label %end
   ; Again, it's important that cmn isn't used here in case %rhs64 == 0.
-; CHECK: sub [[RHS:x[0-9]+]], xzr, {{x[0-9]+}}, lsl #43
+; CHECK: neg [[RHS:x[0-9]+]], {{x[0-9]+}}, lsl #43
 ; CHECK: cmp {{x[0-9]+}}, [[RHS]]
 
 t5:

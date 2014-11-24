@@ -43,12 +43,10 @@ let machine = TargetMachine.create (Target.default_triple ()) target
 
 let test_target_data () =
   let module DL = DataLayout in
-  let layout = "e-p:32:32:32-S32-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-" ^
-               "f16:16:16-f32:32:32-f64:32:64-f128:128:128-v64:32:64-v128:32:128-" ^
-               "a0:0:64-n32" in
+  let layout = "e-p:32:32-f64:32:64-v64:32:64-v128:32:128-n32-S32" in
   let dl     = DL.of_string layout in
   let sty    = struct_type context [| i32_type; i64_type |] in
-  
+
   assert_equal (DL.as_string dl) layout;
   assert_equal (DL.byte_order dl) Endian.Little;
   assert_equal (DL.pointer_size dl) 4;
@@ -88,7 +86,8 @@ let test_target_machine () =
   assert_equal (TM.triple machine) (Target.default_triple ());
   assert_equal (TM.cpu machine) "";
   assert_equal (TM.features machine) "";
-  ignore (TM.data_layout machine)
+  ignore (TM.data_layout machine);
+  TM.set_verbose_asm true machine
 
 
 (*===-- Code Emission -----------------------------------------------------===*)

@@ -18,6 +18,7 @@ RUN: llvm-nm %t2 | FileCheck %s -check-prefix BITCODE
 BITCODE:          U SomeOtherFunction
 BITCODE-NEXT:          T main
 BITCODE-NEXT:          U puts
+BITCODE-NEXT:          D var
 
 
 Test we don't error with an archive with no symtab.
@@ -28,8 +29,14 @@ Or in an archive with no symtab or string table.
 RUN: llvm-nm %p/Inputs/archive-test.a-gnu-minimal
 
 
-And don't crash when asked to print a non existing symtab.
-RUN: llvm-nm -s %p/Inputs/archive-test.a-gnu-minimal
+And don't crash when asked to print a non-existing symtab.
+RUN: llvm-nm -M %p/Inputs/archive-test.a-gnu-minimal
 
 Don't reject an empty archive.
 RUN: llvm-nm %p/Inputs/archive-test.a-empty
+
+This archive has an unaligned member and a unknown format member.
+GNU AR is able to parse the unaligned member and warns about the member with
+the unknown format. We should probably simply warn on both. For now just check
+that we don't produce an error.
+RUN: llvm-nm %p/Inputs/corrupt-archive.a

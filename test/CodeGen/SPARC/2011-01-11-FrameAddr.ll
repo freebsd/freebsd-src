@@ -2,19 +2,28 @@
 ;RUN: llc -march=sparc -mattr=v9 < %s | FileCheck %s -check-prefix=V9
 ;RUN: llc -march=sparc -regalloc=basic < %s | FileCheck %s -check-prefix=V8
 ;RUN: llc -march=sparc -regalloc=basic -mattr=v9 < %s | FileCheck %s -check-prefix=V9
+;RUN: llc -march=sparcv9  < %s | FileCheck %s -check-prefix=SPARC64
 
 
 define i8* @frameaddr() nounwind readnone {
 entry:
 ;V8-LABEL: frameaddr:
 ;V8: save %sp, -96, %sp
-;V8: jmp %i7+8
+;V8: ret
 ;V8: restore %g0, %fp, %o0
 
 ;V9-LABEL: frameaddr:
 ;V9: save %sp, -96, %sp
-;V9: jmp %i7+8
+;V9: ret
 ;V9: restore %g0, %fp, %o0
+
+;SPARC64-LABEL: frameaddr
+;SPARC64:       save %sp, -128, %sp
+;SPARC64:       add  %fp, 2047, %i0
+;SPARC64:       ret
+;SPARC64-NOT:   restore %g0, %g0, %g0
+;SPARC64:       restore
+
   %0 = tail call i8* @llvm.frameaddress(i32 0)
   ret i8* %0
 }
@@ -32,6 +41,14 @@ entry:
 ;V9: ld [%fp+56], {{.+}}
 ;V9: ld [{{.+}}+56], {{.+}}
 ;V9: ld [{{.+}}+56], {{.+}}
+
+;SPARC64-LABEL: frameaddr2
+;SPARC64: flushw
+;SPARC64: ldx [%fp+2159],     %[[R0:[goli][0-7]]]
+;SPARC64: ldx [%[[R0]]+2159], %[[R1:[goli][0-7]]]
+;SPARC64: ldx [%[[R1]]+2159], %[[R2:[goli][0-7]]]
+;SPARC64: add %[[R2]], 2047, {{.+}}
+
   %0 = tail call i8* @llvm.frameaddress(i32 3)
   ret i8* %0
 }
@@ -43,10 +60,13 @@ declare i8* @llvm.frameaddress(i32) nounwind readnone
 define i8* @retaddr() nounwind readnone {
 entry:
 ;V8-LABEL: retaddr:
-;V8: or %g0, %o7, {{.+}}
+;V8: mov %o7, {{.+}}
 
 ;V9-LABEL: retaddr:
-;V9: or %g0, %o7, {{.+}}
+;V9: mov %o7, {{.+}}
+
+;SPARC64-LABEL: retaddr
+;SPARC64:       mov %o7, {{.+}}
 
   %0 = tail call i8* @llvm.returnaddress(i32 0)
   ret i8* %0
@@ -66,17 +86,11 @@ entry:
 ;V9: ld [{{.+}}+56], {{.+}}
 ;V9: ld [{{.+}}+60], {{.+}}
 
-;V8LEAF-LABEL: retaddr2:
-;V8LEAF: ta 3
-;V8LEAF: ld [%fp+56], %[[R:[goli][0-7]]]
-;V8LEAF: ld [%[[R]]+56], %[[R1:[goli][0-7]]]
-;V8LEAF: ld [%[[R1]]+60], {{.+}}
-
-;V9LEAF-LABEL: retaddr2:
-;V9LEAF: flushw
-;V9LEAF: ld [%fp+56], %[[R:[goli][0-7]]]
-;V9LEAF: ld [%[[R]]+56], %[[R1:[goli][0-7]]]
-;V9LEAF: ld [%[[R1]]+60], {{.+}}
+;SPARC64-LABEL: retaddr2
+;SPARC64:       flushw
+;SPARC64: ldx [%fp+2159],     %[[R0:[goli][0-7]]]
+;SPARC64: ldx [%[[R0]]+2159], %[[R1:[goli][0-7]]]
+;SPARC64: ldx [%[[R1]]+2167], {{.+}}
 
   %0 = tail call i8* @llvm.returnaddress(i32 3)
   ret i8* %0

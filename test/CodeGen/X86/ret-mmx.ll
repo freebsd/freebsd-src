@@ -34,6 +34,7 @@ define double @t4() nounwind {
 	ret double bitcast (<2 x i32> <i32 1, i32 0> to double)
 ; CHECK-LABEL: t4:
 ; CHECK: movl $1
+; CHECK-NOT: pshufd
 ; CHECK: movd {{.*}}, %xmm0
 }
 

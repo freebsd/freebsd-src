@@ -1,8 +1,12 @@
-# NOTE: The tools are organized into groups of four consisting of one large and
-# three small executables. This is done to minimize memory load in parallel
-# builds.  Please retain this ordering.
-
 add_llvm_tool_subdirectory(llvm-config)
+
+# Build polly before the tools: the tools link against polly when
+# LINK_POLLY_INTO_TOOLS is set.
+if(WITH_POLLY)
+  add_llvm_external_project(polly)
+else(WITH_POLLY)
+  list(APPEND LLVM_IMPLICIT_PROJECT_IGNORE "${LLVM_MAIN_SRC_DIR}/tools/polly")
+endif(WITH_POLLY)
 
 add_llvm_tool_subdirectory(opt)
 add_llvm_tool_subdirectory(llvm-as)
@@ -15,6 +19,7 @@ add_llvm_tool_subdirectory(llvm-nm)
 add_llvm_tool_subdirectory(llvm-size)
 
 add_llvm_tool_subdirectory(llvm-cov)
+add_llvm_tool_subdirectory(llvm-profdata)
 add_llvm_tool_subdirectory(llvm-link)
 add_llvm_tool_subdirectory(lli)
 
@@ -44,7 +49,7 @@ add_llvm_tool_subdirectory(llvm-c-test)
 add_llvm_tool_subdirectory(obj2yaml)
 add_llvm_tool_subdirectory(yaml2obj)
 
-if( NOT CYGWIN )
+if(NOT CYGWIN AND LLVM_ENABLE_PIC)
   add_llvm_tool_subdirectory(lto)
   add_llvm_tool_subdirectory(llvm-lto)
 else()
@@ -69,7 +74,6 @@ add_llvm_external_project(clang)
 if( NOT LLVM_INCLUDE_TOOLS STREQUAL "bootstrap-only" )
   add_llvm_external_project(lld)
   add_llvm_external_project(lldb)
-  add_llvm_external_project(polly)
 
   # Automatically add remaining sub-directories containing a 'CMakeLists.txt'
   # file as external projects.

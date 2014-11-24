@@ -127,7 +127,7 @@ define i64 @test14(i64 %x, i32 %y) {
 ; CHECK-LABEL: @test14(
 ; CHECK-NEXT: [[SHL:%.*]] = shl i32 1, %y
 ; CHECK-NEXT: [[ZEXT:%.*]] = zext i32 [[SHL]] to i64
-; CHECK-NEXT: [[ADD:%.*]] = add i64 [[ZEXT]], -1
+; CHECK-NEXT: [[ADD:%.*]] = add nsw i64 [[ZEXT]], -1
 ; CHECK-NEXT: [[AND:%.*]] = and i64 [[ADD]], %x
 ; CHECK-NEXT: ret i64 [[AND]]
 	%shl = shl i32 1, %y
@@ -203,4 +203,13 @@ define i32 @test19(i32 %x, i32 %y) {
 	%D = add i32 %C, %A
 	%E = urem i32 %y, %D
 	ret i32 %E
+}
+
+define <2 x i64> @test20(<2 x i64> %X, <2 x i1> %C) {
+; CHECK-LABEL: @test20(
+; CHECK-NEXT: select <2 x i1> %C, <2 x i64> <i64 1, i64 2>, <2 x i64> zeroinitializer
+; CHECK-NEXT: ret <2 x i64>
+	%V = select <2 x i1> %C, <2 x i64> <i64 1, i64 2>, <2 x i64> <i64 8, i64 9>
+	%R = urem <2 x i64> %V, <i64 2, i64 3>
+	ret <2 x i64> %R
 }

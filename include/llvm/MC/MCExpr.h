@@ -15,11 +15,13 @@
 #include "llvm/Support/DataTypes.h"
 
 namespace llvm {
+class MCAsmInfo;
 class MCAsmLayout;
 class MCAssembler;
 class MCContext;
 class MCSection;
 class MCSectionData;
+class MCStreamer;
 class MCSymbol;
 class MCValue;
 class raw_ostream;
@@ -52,8 +54,9 @@ protected:
 
   bool EvaluateAsRelocatableImpl(MCValue &Res, const MCAssembler *Asm,
                                  const MCAsmLayout *Layout,
-                                 const SectionAddrMap *Addrs,
-                                 bool InSet) const;
+                                 const SectionAddrMap *Addrs, bool InSet,
+                                 bool ForceVarExpansion) const;
+
 public:
   /// @name Accessors
   /// @{
@@ -90,7 +93,15 @@ public:
   /// @param Res - The relocatable value, if evaluation succeeds.
   /// @param Layout - The assembler layout object to use for evaluating values.
   /// @result - True on success.
-  bool EvaluateAsRelocatable(MCValue &Res, const MCAsmLayout &Layout) const;
+  bool EvaluateAsRelocatable(MCValue &Res, const MCAsmLayout *Layout) const;
+
+  /// \brief Try to evaluate the expression to the form (a - b + constant) where
+  /// neither a nor b are variables.
+  ///
+  /// This is a more aggressive variant of EvaluateAsRelocatable. The intended
+  /// use is for when relocations are not available, like the symbol value in
+  /// the symbol table.
+  bool EvaluateAsValue(MCValue &Res, const MCAsmLayout *Layout) const;
 
   /// FindAssociatedSection - Find the "associated section" for this expression,
   /// which is currently defined as the absolute section for constants, or
@@ -157,19 +168,24 @@ public:
     VK_TLSLDM,
     VK_TPOFF,
     VK_DTPOFF,
-    VK_TLVP,      // Mach-O thread local variable relocation
+    VK_TLVP,      // Mach-O thread local variable relocations
+    VK_TLVPPAGE,
+    VK_TLVPPAGEOFF,
+    VK_PAGE,
+    VK_PAGEOFF,
+    VK_GOTPAGE,
+    VK_GOTPAGEOFF,
     VK_SECREL,
-    // FIXME: We'd really like to use the generic Kinds listed above for these.
+    VK_WEAKREF,   // The link between the symbols in .weakref foo, bar
+
     VK_ARM_NONE,
-    VK_ARM_PLT,   // ARM-style PLT references. i.e., (PLT) instead of @PLT
-    VK_ARM_TLSGD, //   ditto for TLSGD, GOT, GOTOFF, TPOFF and GOTTPOFF
-    VK_ARM_GOT,
-    VK_ARM_GOTOFF,
-    VK_ARM_TPOFF,
-    VK_ARM_GOTTPOFF,
     VK_ARM_TARGET1,
     VK_ARM_TARGET2,
     VK_ARM_PREL31,
+    VK_ARM_TLSLDO,         // symbol(tlsldo)
+    VK_ARM_TLSCALL,        // symbol(tlscall)
+    VK_ARM_TLSDESC,        // symbol(tlsdesc)
+    VK_ARM_TLSDESCSEQ,
 
     VK_PPC_LO,             // symbol@l
     VK_PPC_HI,             // symbol@h
@@ -247,6 +263,8 @@ public:
     VK_Mips_GOT_LO16,
     VK_Mips_CALL_HI16,
     VK_Mips_CALL_LO16,
+    VK_Mips_PCREL_HI16,
+    VK_Mips_PCREL_LO16,
 
     VK_COFF_IMGREL32 // symbol@imgrel (image-relative)
   };
@@ -258,9 +276,14 @@ private:
   /// The symbol reference modifier.
   const VariantKind Kind;
 
-  explicit MCSymbolRefExpr(const MCSymbol *_Symbol, VariantKind _Kind)
-    : MCExpr(MCExpr::SymbolRef), Symbol(_Symbol), Kind(_Kind) {
+  /// MCAsmInfo that is used to print symbol variants correctly.
+  const MCAsmInfo *MAI;
+
+  explicit MCSymbolRefExpr(const MCSymbol *_Symbol, VariantKind _Kind,
+                           const MCAsmInfo *_MAI)
+    : MCExpr(MCExpr::SymbolRef), Symbol(_Symbol), Kind(_Kind), MAI(_MAI) {
     assert(Symbol);
+    assert(MAI);
   }
 
 public:
@@ -281,6 +304,7 @@ public:
   /// @{
 
   const MCSymbol &getSymbol() const { return *Symbol; }
+  const MCAsmInfo &getMCAsmInfo() const { return *MAI; }
 
   VariantKind getKind() const { return Kind; }
 
@@ -501,7 +525,7 @@ public:
   virtual void PrintImpl(raw_ostream &OS) const = 0;
   virtual bool EvaluateAsRelocatableImpl(MCValue &Res,
                                          const MCAsmLayout *Layout) const = 0;
-  virtual void AddValueSymbols(MCAssembler *) const = 0;
+  virtual void visitUsedExpr(MCStreamer& Streamer) const = 0;
   virtual const MCSection *FindAssociatedSection() const = 0;
 
   virtual void fixELFSymbolsInTLSFixups(MCAssembler &) const = 0;

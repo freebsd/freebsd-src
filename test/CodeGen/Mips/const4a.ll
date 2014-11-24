@@ -15,14 +15,14 @@ define void @t() #0 {
 entry:
   store i32 -559023410, i32* @i, align 4
   %0 = load i32* @b, align 4
-; no-load-relax	lw	${{[0-9]+}}, $CPI0_1	# 16 bit inst
+; no-load-relax:	lw	${{[0-9]+}}, $CPI0_1	# 16 bit inst
   %tobool = icmp ne i32 %0, 0
   br i1 %tobool, label %if.then, label %if.else
 ; no-load-relax:	beqz	${{[0-9]+}}, $BB0_3
 ; no-load-relax:	lw	${{[0-9]+}}, %call16(foo)(${{[0-9]+}})
 ; no-load-relax:	b	$BB0_4
 ; no-load-relax:	.align	2
-; no-load-relax: $CPI0_0:
+; no-load-relax: $CPI0_1:
 ; no-load-relax:	.4byte	3735943886
 ; no-load-relax: $BB0_3:
 ; no-load-relax:	lw	${{[0-9]+}}, %call16(goo)(${{[0-9]+}})

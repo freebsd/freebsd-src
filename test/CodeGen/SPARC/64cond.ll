@@ -80,7 +80,7 @@ entry:
 ; CHECK: selectf32_xcc
 ; CHECK: cmp %i0, %i1
 ; CHECK: fmovsg %xcc, %f5, %f7
-; CHECK: fmovs %f7, %f1
+; CHECK: fmovs %f7, %f0
 define float @selectf32_xcc(i64 %x, i64 %y, float %a, float %b) {
 entry:
   %tobool = icmp sgt i64 %x, %y
@@ -111,6 +111,11 @@ entry:
 }
 
 ; CHECK-LABEL: setcc_resultty
+; CHECK-DAG:       srax %i0, 63, %o0
+; CHECK-DAG:       mov %i0, %o1
+; CHECK-DAG:       mov 0, %o2
+; CHECK-DAG:       mov 32, %o3
+; CHECK-DAG:       call __multi3
 ; CHECK:       cmp
 ; CHECK:       movne %xcc, 1, [[R:%[gilo][0-7]]]
 ; CHECK:       or [[R]], %i1, %i0

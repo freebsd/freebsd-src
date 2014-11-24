@@ -44,7 +44,7 @@ define <8 x i64> @test4(<8 x i64> %x) nounwind {
 }
 
 ;CHECK-LABEL: test5:
-;CHECK: vextractpsz
+;CHECK: vextractps
 ;CHECK: ret
 define i32 @test5(<4 x float> %x) nounwind {
   %ef = extractelement <4 x float> %x, i32 3
@@ -53,7 +53,7 @@ define i32 @test5(<4 x float> %x) nounwind {
 }
 
 ;CHECK-LABEL: test6:
-;CHECK: vextractpsz {{.*}}, (%rdi)
+;CHECK: vextractps {{.*}}, (%rdi)
 ;CHECK: ret
 define void @test6(<4 x float> %x, float* %out) nounwind {
   %ef = extractelement <4 x float> %x, i32 3
@@ -62,7 +62,7 @@ define void @test6(<4 x float> %x, float* %out) nounwind {
 }
 
 ;CHECK-LABEL: test7
-;CHECK: vmovdz
+;CHECK: vmovd
 ;CHECK: vpermps %zmm
 ;CHECK: ret
 define float @test7(<16 x float> %x, i32 %ind) nounwind {
@@ -71,7 +71,7 @@ define float @test7(<16 x float> %x, i32 %ind) nounwind {
 }
 
 ;CHECK-LABEL: test8
-;CHECK: vmovqz
+;CHECK: vmovq
 ;CHECK: vpermpd %zmm
 ;CHECK: ret
 define double @test8(<8 x double> %x, i32 %ind) nounwind {
@@ -89,9 +89,9 @@ define float @test9(<8 x float> %x, i32 %ind) nounwind {
 }
 
 ;CHECK-LABEL: test10
-;CHECK: vmovdz
+;CHECK: vmovd
 ;CHECK: vpermd %zmm
-;CHEKK: vmovdz  %xmm0, %eax
+;CHECK: vmovd  %xmm0, %eax
 ;CHECK: ret
 define i32 @test10(<16 x i32> %x, i32 %ind) nounwind {
   %e = extractelement <16 x i32> %x, i32 %ind
@@ -99,27 +99,100 @@ define i32 @test10(<16 x i32> %x, i32 %ind) nounwind {
 }
 
 ;CHECK-LABEL: test11
-;CHECK: movl    $260
-;CHECK: bextrl
-;CHECK: movl    $268
-;CHECK: bextrl
+;CHECK: vpcmpltud
+;CHECK: kshiftlw $11
+;CHECK: kshiftrw $15
+;CHECK: kortestw
+;CHECK: je
+;CHECK: ret
 ;CHECK: ret
 define <16 x i32> @test11(<16 x i32>%a, <16 x i32>%b) {
   %cmp_res = icmp ult <16 x i32> %a, %b
   %ia = extractelement <16 x i1> %cmp_res, i32 4
-  %ib = extractelement <16 x i1> %cmp_res, i32 12
-
   br i1 %ia, label %A, label %B
-
   A:
     ret <16 x i32>%b
   B:
    %c = add <16 x i32>%b, %a
-  br i1 %ib, label %C, label %D
-  C:
-   %c1 = sub <16 x i32>%c, %a
-   ret <16 x i32>%c1
-  D:
-   %c2 = mul <16 x i32>%c, %a
-   ret <16 x i32>%c2
+   ret <16 x i32>%c
 }
+
+;CHECK-LABEL: test12
+;CHECK: vpcmpgtq
+;CHECK: kshiftlw $15
+;CHECK: kshiftrw $15
+;CHECK: kortestw
+;CHECK: ret
+
+define i64 @test12(<16 x i64>%a, <16 x i64>%b, i64 %a1, i64 %b1) {
+
+  %cmpvector_func.i = icmp slt <16 x i64> %a, %b
+  %extract24vector_func.i = extractelement <16 x i1> %cmpvector_func.i, i32 0
+  %res = select i1 %extract24vector_func.i, i64 %a1, i64 %b1
+  ret i64 %res
+}
+
+;CHECK-LABEL: test13
+;CHECK: cmpl
+;CHECK: sbbl
+;CHECK: orl $65532
+;CHECK: ret
+define i16 @test13(i32 %a, i32 %b) {
+  %cmp_res = icmp ult i32 %a, %b
+  %maskv = insertelement <16 x i1> <i1 true, i1 false, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true, i1 true>, i1 %cmp_res, i32 0
+  %res = bitcast <16 x i1> %maskv to i16
+  ret i16 %res
+}
+
+;CHECK-LABEL: test14
+;CHECK: vpcmpgtq
+;CHECK: kshiftlw $11
+;CHECK: kshiftrw $15
+;CHECK: kortestw
+;CHECK: ret
+
+define i64 @test14(<8 x i64>%a, <8 x i64>%b, i64 %a1, i64 %b1) {
+
+  %cmpvector_func.i = icmp slt <8 x i64> %a, %b
+  %extract24vector_func.i = extractelement <8 x i1> %cmpvector_func.i, i32 4
+  %res = select i1 %extract24vector_func.i, i64 %a1, i64 %b1
+  ret i64 %res
+}
+
+;CHECK-LABEL: test15
+;CHECK: kshiftlw
+;CHECK: kmovw
+;CHECK: ret
+define i16 @test15(i1 *%addr) {
+  %x = load i1 * %addr, align 128
+  %x1 = insertelement <16 x i1> undef, i1 %x, i32 10
+  %x2 = bitcast <16 x i1>%x1 to i16
+  ret i16 %x2
+}
+
+;CHECK-LABEL: test16
+;CHECK: kshiftlw
+;CHECK: kshiftrw
+;CHECK: korw
+;CHECK: ret
+define i16 @test16(i1 *%addr, i16 %a) {
+  %x = load i1 * %addr, align 128
+  %a1 = bitcast i16 %a to <16 x i1>
+  %x1 = insertelement <16 x i1> %a1, i1 %x, i32 10
+  %x2 = bitcast <16 x i1>%x1 to i16
+  ret i16 %x2
+}
+
+;CHECK-LABEL: test17
+;CHECK: kshiftlw
+;CHECK: kshiftrw
+;CHECK: korw
+;CHECK: ret
+define i8 @test17(i1 *%addr, i8 %a) {
+  %x = load i1 * %addr, align 128
+  %a1 = bitcast i8 %a to <8 x i1>
+  %x1 = insertelement <8 x i1> %a1, i1 %x, i32 10
+  %x2 = bitcast <8 x i1>%x1 to i8
+  ret i8 %x2
+}
+

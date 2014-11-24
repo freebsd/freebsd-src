@@ -80,8 +80,9 @@ R600
 SPARC
 -----
 
-* `SPARC resources <http://www.sparc.org/resource.htm>`_
-* `SPARC standards <http://www.sparc.org/standards.html>`_
+* `SPARC standards <http://sparc.org/standards>`_
+* `SPARC V9 ABI <http://sparc.org/standards/64.psabi.1.35.ps.Z>`_
+* `SPARC V8 ABI <http://sparc.org/standards/psABI3rd.pdf>`_
 
 SystemZ
 -------
@@ -107,6 +108,12 @@ Other x86-specific information
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * `Calling conventions for different C++ compilers and operating systems  <http://www.agner.org/optimize/calling_conventions.pdf>`_
+
+XCore
+-----
+
+* `The XMOS XS1 Architecture (ISA) <https://www.xmos.com/en/download/public/The-XMOS-XS1-Architecture%28X7879A%29.pdf>`_
+* `Tools Development Guide (includes ABI) <https://www.xmos.com/download/public/Tools-Development-Guide%28X9114A%29.pdf>`_
 
 Other relevant lists
 --------------------

@@ -10,17 +10,22 @@
 #ifndef LLVM_MC_TARGETPARSER_H
 #define LLVM_MC_TARGETPARSER_H
 
-#include "llvm/MC/MCParser/MCAsmParserExtension.h"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCParser/MCAsmParserExtension.h"
+#include "llvm/MC/MCTargetOptions.h"
+
+#include <memory>
 
 namespace llvm {
-class MCStreamer;
-class StringRef;
-class SMLoc;
 class AsmToken;
-class MCParsedAsmOperand;
 class MCInst;
+class MCParsedAsmOperand;
+class MCStreamer;
+class SMLoc;
+class StringRef;
 template <typename T> class SmallVectorImpl;
+
+typedef SmallVectorImpl<std::unique_ptr<MCParsedAsmOperand>> OperandVector;
 
 enum AsmRewriteKind {
   AOK_Delete = 0,     // Rewrite should be ignored.
@@ -63,7 +68,7 @@ struct ParseInstructionInfo {
 
   SmallVectorImpl<AsmRewrite> *AsmRewrites;
 
-  ParseInstructionInfo() : AsmRewrites(0) {}
+  ParseInstructionInfo() : AsmRewrites(nullptr) {}
   ParseInstructionInfo(SmallVectorImpl<AsmRewrite> *rewrites)
     : AsmRewrites(rewrites) {}
 
@@ -97,6 +102,9 @@ protected: // Can only create subclasses.
   /// ms-style inline assembly.
   MCAsmParserSemaCallback *SemaCallback;
 
+  /// Set of options which affects instrumentation of inline assembly.
+  MCTargetOptions MCOptions;
+
 public:
   virtual ~MCTargetAsmParser();
 
@@ -127,8 +135,7 @@ public:
   ///        ownership of them to the caller.
   /// \return True on failure.
   virtual bool ParseInstruction(ParseInstructionInfo &Info, StringRef Name,
-                                SMLoc NameLoc,
-                            SmallVectorImpl<MCParsedAsmOperand*> &Operands) = 0;
+                                SMLoc NameLoc, OperandVector &Operands) = 0;
 
   /// ParseDirective - Parse a target specific assembler directive
   ///
@@ -152,17 +159,19 @@ public:
   ///
   /// On failure, the target parser is responsible for emitting a diagnostic
   /// explaining the match failure.
-  virtual bool
-  MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
-                          SmallVectorImpl<MCParsedAsmOperand*> &Operands,
-                          MCStreamer &Out, unsigned &ErrorInfo,
-                          bool MatchingInlineAsm) = 0;
+  virtual bool MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
+                                       OperandVector &Operands, MCStreamer &Out,
+                                       unsigned &ErrorInfo,
+                                       bool MatchingInlineAsm) = 0;
+
+  /// Allows targets to let registers opt out of clobber lists.
+  virtual bool OmitRegisterFromClobberLists(unsigned RegNo) { return false; }
 
   /// Allow a target to add special case operand matching for things that
   /// tblgen doesn't/can't handle effectively. For example, literal
   /// immediates on ARM. TableGen expects a token operand, but the parser
   /// will recognize them as immediates.
-  virtual unsigned validateTargetOperandClass(MCParsedAsmOperand *Op,
+  virtual unsigned validateTargetOperandClass(MCParsedAsmOperand &Op,
                                               unsigned Kind) {
     return Match_InvalidOperand;
   }
@@ -174,12 +183,12 @@ public:
   }
 
   virtual void convertToMapAndConstraints(unsigned Kind,
-                      const SmallVectorImpl<MCParsedAsmOperand*> &Operands) = 0;
+                                          const OperandVector &Operands) = 0;
 
   virtual const MCExpr *applyModifierToExpr(const MCExpr *E,
                                             MCSymbolRefExpr::VariantKind,
                                             MCContext &Ctx) {
-    return 0;
+    return nullptr;
   }
 
   virtual void onLabelParsed(MCSymbol *Symbol) { };

@@ -1,10 +1,18 @@
-; RUN: llc < %s -march=r600 -mcpu=redwood | FileCheck --check-prefix=EG-CHECK %s
-; RUN: llc < %s -march=r600 -mcpu=cayman | FileCheck --check-prefix=CM-CHECK %s
-; RUN: llc < %s -march=r600 -mcpu=verde -verify-machineinstrs | FileCheck --check-prefix=SI-CHECK %s
+; RUN: llc < %s -march=r600 -mcpu=redwood | FileCheck --check-prefix=EG-CHECK --check-prefix=FUNC %s
+; RUN: llc < %s -march=r600 -mcpu=cayman | FileCheck --check-prefix=CM-CHECK --check-prefix=FUNC %s
+; RUN: llc < %s -march=r600 -mcpu=verde -verify-machineinstrs | FileCheck --check-prefix=SI-CHECK --check-prefix=FUNC %s
 
 ;===------------------------------------------------------------------------===;
 ; Global Address Space
 ;===------------------------------------------------------------------------===;
+; FUNC-LABEL: @store_i1
+; EG-CHECK: MEM_RAT MSKOR
+; SI-CHECK: BUFFER_STORE_BYTE
+define void @store_i1(i1 addrspace(1)* %out) {
+entry:
+  store i1 true, i1 addrspace(1)* %out
+  ret void
+}
 
 ; i8 store
 ; EG-CHECK-LABEL: @store_i8
@@ -169,9 +177,38 @@ entry:
   ret void
 }
 
+; FUNC-LABEL: @store_i64_i8
+; EG-CHECK: MEM_RAT MSKOR
+; SI-CHECK: BUFFER_STORE_BYTE
+define void @store_i64_i8(i8 addrspace(1)* %out, i64 %in) {
+entry:
+  %0 = trunc i64 %in to i8
+  store i8 %0, i8 addrspace(1)* %out
+  ret void
+}
+
+; FUNC-LABEL: @store_i64_i16
+; EG-CHECK: MEM_RAT MSKOR
+; SI-CHECK: BUFFER_STORE_SHORT
+define void @store_i64_i16(i16 addrspace(1)* %out, i64 %in) {
+entry:
+  %0 = trunc i64 %in to i16
+  store i16 %0, i16 addrspace(1)* %out
+  ret void
+}
+
 ;===------------------------------------------------------------------------===;
 ; Local Address Space
 ;===------------------------------------------------------------------------===;
+
+; FUNC-LABEL: @store_local_i1
+; EG-CHECK: LDS_BYTE_WRITE
+; SI-CHECK: DS_WRITE_B8
+define void @store_local_i1(i1 addrspace(3)* %out) {
+entry:
+  store i1 true, i1 addrspace(3)* %out
+  ret void
+}
 
 ; EG-CHECK-LABEL: @store_local_i8
 ; EG-CHECK: LDS_BYTE_WRITE
@@ -226,8 +263,7 @@ entry:
 ; CM-CHECK: LDS_WRITE
 ; CM-CHECK: LDS_WRITE
 ; SI-CHECK-LABEL: @store_local_v2i32
-; SI-CHECK: DS_WRITE_B32
-; SI-CHECK: DS_WRITE_B32
+; SI-CHECK: DS_WRITE_B64
 define void @store_local_v2i32(<2 x i32> addrspace(3)* %out, <2 x i32> %in) {
 entry:
   store <2 x i32> %in, <2 x i32> addrspace(3)* %out
@@ -252,6 +288,26 @@ entry:
 define void @store_local_v4i32(<4 x i32> addrspace(3)* %out, <4 x i32> %in) {
 entry:
   store <4 x i32> %in, <4 x i32> addrspace(3)* %out
+  ret void
+}
+
+; FUNC-LABEL: @store_local_i64_i8
+; EG-CHECK: LDS_BYTE_WRITE
+; SI-CHECK: DS_WRITE_B8
+define void @store_local_i64_i8(i8 addrspace(3)* %out, i64 %in) {
+entry:
+  %0 = trunc i64 %in to i8
+  store i8 %0, i8 addrspace(3)* %out
+  ret void
+}
+
+; FUNC-LABEL: @store_local_i64_i16
+; EG-CHECK: LDS_SHORT_WRITE
+; SI-CHECK: DS_WRITE_B16
+define void @store_local_i64_i16(i16 addrspace(3)* %out, i64 %in) {
+entry:
+  %0 = trunc i64 %in to i16
+  store i16 %0, i16 addrspace(3)* %out
   ret void
 }
 
@@ -280,3 +336,29 @@ entry:
 }
 
 attributes #0 = { nounwind "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "unsafe-fp-math"="false" "use-soft-float"="false" }
+
+; When i128 was a legal type this program generated cannot select errors:
+
+; FUNC-LABEL: @i128-const-store
+; FIXME: We should be able to to this with one store instruction
+; EG-CHECK: STORE_RAW
+; EG-CHECK: STORE_RAW
+; EG-CHECK: STORE_RAW
+; EG-CHECK: STORE_RAW
+; CM-CHECK: STORE_DWORD
+; CM-CHECK: STORE_DWORD
+; CM-CHECK: STORE_DWORD
+; CM-CHECK: STORE_DWORD
+; SI: BUFFER_STORE_DWORDX2
+; SI: BUFFER_STORE_DWORDX2
+define void @i128-const-store(i32 addrspace(1)* %out) {
+entry:
+  store i32 1, i32 addrspace(1)* %out, align 4
+  %arrayidx2 = getelementptr inbounds i32 addrspace(1)* %out, i64 1
+  store i32 1, i32 addrspace(1)* %arrayidx2, align 4
+  %arrayidx4 = getelementptr inbounds i32 addrspace(1)* %out, i64 2
+  store i32 2, i32 addrspace(1)* %arrayidx4, align 4
+  %arrayidx6 = getelementptr inbounds i32 addrspace(1)* %out, i64 3
+  store i32 2, i32 addrspace(1)* %arrayidx6, align 4
+  ret void
+}

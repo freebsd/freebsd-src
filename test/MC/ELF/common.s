@@ -9,7 +9,7 @@
 	.comm	common1,1,1
 
 // CHECK:        Symbol {
-// CHECK:          Name: common1 (1)
+// CHECK:          Name: common1
 // CHECK-NEXT:     Value: 0x0
 // CHECK-NEXT:     Size: 1
 // CHECK-NEXT:     Binding: Local
@@ -25,7 +25,7 @@
 	.comm	common2,1,1
 
 // CHECK:        Symbol {
-// CHECK:          Name: common2 (9)
+// CHECK:          Name: common2
 // CHECK-NEXT:     Value: 0x1
 // CHECK-NEXT:     Size: 1
 // CHECK-NEXT:     Binding: Local
@@ -39,7 +39,7 @@
         .comm	common6,8,16
 
 // CHECK:        Symbol {
-// CHECK:          Name: common6 (17)
+// CHECK:          Name: common6
 // CHECK-NEXT:     Value: 0x10
 // CHECK-NEXT:     Size: 8
 // CHECK-NEXT:     Binding: Local
@@ -54,13 +54,13 @@
 	.comm	common3,4,4
 
 // CHECK:        Symbol {
-// CHECK:          Name: common3 (25)
+// CHECK:          Name: common3
 // CHECK-NEXT:     Value: 0x4
 // CHECK-NEXT:     Size: 4
 // CHECK-NEXT:     Binding: Global
 // CHECK-NEXT:     Type: Object
 // CHECK-NEXT:     Other: 0
-// CHECK-NEXT:     Section: (0xFFF2)
+// CHECK-NEXT:     Section: Common (0xFFF2)
 // CHECK-NEXT:   }
 
 
@@ -76,24 +76,24 @@ foo:
 	.comm	common4,40,16
 
 // CHECK:        Symbol {
-// CHECK:          Name: common4 (37)
+// CHECK:          Name: common4
 // CHECK-NEXT:     Value: 0x10
 // CHECK-NEXT:     Size: 40
 // CHECK-NEXT:     Binding: Global
 // CHECK-NEXT:     Type: Object
 // CHECK-NEXT:     Other: 0
-// CHECK-NEXT:     Section: (0xFFF2)
+// CHECK-NEXT:     Section: Common (0xFFF2)
 // CHECK-NEXT:   }
 
 
         .comm	common5,4,4
 
 // CHECK:        Symbol {
-// CHECK:          Name: common5 (45)
+// CHECK:          Name: common5
 // CHECK-NEXT:     Value: 0x4
 // CHECK-NEXT:     Size: 4
 // CHECK-NEXT:     Binding: Global
 // CHECK-NEXT:     Type: Object
 // CHECK-NEXT:     Other: 0
-// CHECK-NEXT:     Section: (0xFFF2)
+// CHECK-NEXT:     Section: Common (0xFFF2)
 // CHECK-NEXT:   }

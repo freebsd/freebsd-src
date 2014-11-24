@@ -26,32 +26,56 @@ namespace {
 class Constructable {
 private:
   static int numConstructorCalls;
+  static int numMoveConstructorCalls;
+  static int numCopyConstructorCalls;
   static int numDestructorCalls;
   static int numAssignmentCalls;
+  static int numMoveAssignmentCalls;
+  static int numCopyAssignmentCalls;
 
+  bool constructed;
   int value;
 
 public:
-  Constructable() : value(0) {
+  Constructable() : constructed(true), value(0) {
     ++numConstructorCalls;
   }
 
-  Constructable(int val) : value(val) {
+  Constructable(int val) : constructed(true), value(val) {
     ++numConstructorCalls;
   }
 
-  Constructable(const Constructable & src) {
+  Constructable(const Constructable & src) : constructed(true) {
     value = src.value;
     ++numConstructorCalls;
+    ++numCopyConstructorCalls;
+  }
+
+  Constructable(Constructable && src) : constructed(true) {
+    value = src.value;
+    ++numConstructorCalls;
+    ++numMoveConstructorCalls;
   }
 
   ~Constructable() {
+    EXPECT_TRUE(constructed);
     ++numDestructorCalls;
+    constructed = false;
   }
 
   Constructable & operator=(const Constructable & src) {
+    EXPECT_TRUE(constructed);
     value = src.value;
     ++numAssignmentCalls;
+    ++numCopyAssignmentCalls;
+    return *this;
+  }
+
+  Constructable & operator=(Constructable && src) {
+    EXPECT_TRUE(constructed);
+    value = src.value;
+    ++numAssignmentCalls;
+    ++numMoveAssignmentCalls;
     return *this;
   }
 
@@ -61,16 +85,40 @@ public:
 
   static void reset() {
     numConstructorCalls = 0;
+    numMoveConstructorCalls = 0;
+    numCopyConstructorCalls = 0;
     numDestructorCalls = 0;
     numAssignmentCalls = 0;
+    numMoveAssignmentCalls = 0;
+    numCopyAssignmentCalls = 0;
   }
 
   static int getNumConstructorCalls() {
     return numConstructorCalls;
   }
 
+  static int getNumMoveConstructorCalls() {
+    return numMoveConstructorCalls;
+  }
+
+  static int getNumCopyConstructorCalls() {
+    return numCopyConstructorCalls;
+  }
+
   static int getNumDestructorCalls() {
     return numDestructorCalls;
+  }
+
+  static int getNumAssignmentCalls() {
+    return numAssignmentCalls;
+  }
+
+  static int getNumMoveAssignmentCalls() {
+    return numMoveAssignmentCalls;
+  }
+
+  static int getNumCopyAssignmentCalls() {
+    return numCopyAssignmentCalls;
   }
 
   friend bool operator==(const Constructable & c0, const Constructable & c1) {
@@ -84,8 +132,26 @@ public:
 };
 
 int Constructable::numConstructorCalls;
+int Constructable::numCopyConstructorCalls;
+int Constructable::numMoveConstructorCalls;
 int Constructable::numDestructorCalls;
 int Constructable::numAssignmentCalls;
+int Constructable::numCopyAssignmentCalls;
+int Constructable::numMoveAssignmentCalls;
+
+struct NonCopyable {
+  NonCopyable() {}
+  NonCopyable(NonCopyable &&) {}
+  NonCopyable &operator=(NonCopyable &&) { return *this; }
+private:
+  NonCopyable(const NonCopyable &) LLVM_DELETED_FUNCTION;
+  NonCopyable &operator=(const NonCopyable &) LLVM_DELETED_FUNCTION;
+};
+
+LLVM_ATTRIBUTE_USED void CompileTest() {
+  SmallVector<NonCopyable, 0> V;
+  V.resize(42);
+}
 
 // Test fixture class
 template <typename VectorT>
@@ -132,7 +198,8 @@ protected:
 typedef ::testing::Types<SmallVector<Constructable, 0>,
                          SmallVector<Constructable, 1>,
                          SmallVector<Constructable, 2>,
-                         SmallVector<Constructable, 4>
+                         SmallVector<Constructable, 4>,
+                         SmallVector<Constructable, 5>
                          > SmallVectorTestTypes;
 TYPED_TEST_CASE(SmallVectorTest, SmallVectorTestTypes);
 
@@ -224,11 +291,24 @@ TYPED_TEST(SmallVectorTest, ResizeGrowTest) {
 
   this->theVector.resize(2);
 
-  // The extra constructor/destructor calls come from the temporary object used
-  // to initialize the contents of the resized array (via copy construction).
-  EXPECT_EQ(3, Constructable::getNumConstructorCalls());
-  EXPECT_EQ(1, Constructable::getNumDestructorCalls());
+  EXPECT_EQ(2, Constructable::getNumConstructorCalls());
+  EXPECT_EQ(0, Constructable::getNumDestructorCalls());
   EXPECT_EQ(2u, this->theVector.size());
+}
+
+TYPED_TEST(SmallVectorTest, ResizeWithElementsTest) {
+  this->theVector.resize(2);
+
+  Constructable::reset();
+
+  this->theVector.resize(4);
+
+  size_t Ctors = Constructable::getNumConstructorCalls();
+  EXPECT_TRUE(Ctors == 2 || Ctors == 4);
+  size_t MoveCtors = Constructable::getNumMoveConstructorCalls();
+  EXPECT_TRUE(MoveCtors == 0 || MoveCtors == 2);
+  size_t Dtors = Constructable::getNumDestructorCalls();
+  EXPECT_TRUE(Dtors == 0 || Dtors == 2);
 }
 
 // Resize with fill value.
@@ -338,6 +418,36 @@ TYPED_TEST(SmallVectorTest, AssignTest) {
   this->assertValuesInOrder(this->theVector, 2u, 77, 77);
 }
 
+// Move-assign test
+TYPED_TEST(SmallVectorTest, MoveAssignTest) {
+  SCOPED_TRACE("MoveAssignTest");
+
+  // Set up our vector with a single element, but enough capacity for 4.
+  this->theVector.reserve(4);
+  this->theVector.push_back(Constructable(1));
+  
+  // Set up the other vector with 2 elements.
+  this->otherVector.push_back(Constructable(2));
+  this->otherVector.push_back(Constructable(3));
+
+  // Move-assign from the other vector.
+  this->theVector = std::move(this->otherVector);
+
+  // Make sure we have the right result.
+  this->assertValuesInOrder(this->theVector, 2u, 2, 3);
+
+  // Make sure the # of constructor/destructor calls line up. There
+  // are two live objects after clearing the other vector.
+  this->otherVector.clear();
+  EXPECT_EQ(Constructable::getNumConstructorCalls()-2, 
+            Constructable::getNumDestructorCalls());
+
+  // There shouldn't be any live objects any more.
+  this->theVector.clear();
+  EXPECT_EQ(Constructable::getNumConstructorCalls(), 
+            Constructable::getNumDestructorCalls());
+}
+
 // Erase a single element
 TYPED_TEST(SmallVectorTest, EraseTest) {
   SCOPED_TRACE("EraseTest");
@@ -367,22 +477,67 @@ TYPED_TEST(SmallVectorTest, InsertTest) {
   this->assertValuesInOrder(this->theVector, 4u, 1, 77, 2, 3);
 }
 
+// Insert a copy of a single element.
+TYPED_TEST(SmallVectorTest, InsertCopy) {
+  SCOPED_TRACE("InsertTest");
+
+  this->makeSequence(this->theVector, 1, 3);
+  Constructable C(77);
+  typename TypeParam::iterator I =
+      this->theVector.insert(this->theVector.begin() + 1, C);
+  EXPECT_EQ(this->theVector.begin() + 1, I);
+  this->assertValuesInOrder(this->theVector, 4u, 1, 77, 2, 3);
+}
+
 // Insert repeated elements.
 TYPED_TEST(SmallVectorTest, InsertRepeatedTest) {
   SCOPED_TRACE("InsertRepeatedTest");
 
-  this->makeSequence(this->theVector, 10, 15);
-  typename TypeParam::iterator I =
-    this->theVector.insert(this->theVector.begin() + 1, 2, Constructable(16));
+  this->makeSequence(this->theVector, 1, 4);
+  Constructable::reset();
+  auto I =
+      this->theVector.insert(this->theVector.begin() + 1, 2, Constructable(16));
+  // Move construct the top element into newly allocated space, and optionally
+  // reallocate the whole buffer, move constructing into it.
+  // FIXME: This is inefficient, we shouldn't move things into newly allocated
+  // space, then move them up/around, there should only be 2 or 4 move
+  // constructions here.
+  EXPECT_TRUE(Constructable::getNumMoveConstructorCalls() == 2 ||
+              Constructable::getNumMoveConstructorCalls() == 6);
+  // Move assign the next two to shift them up and make a gap.
+  EXPECT_EQ(1, Constructable::getNumMoveAssignmentCalls());
+  // Copy construct the two new elements from the parameter.
+  EXPECT_EQ(2, Constructable::getNumCopyAssignmentCalls());
+  // All without any copy construction.
+  EXPECT_EQ(0, Constructable::getNumCopyConstructorCalls());
   EXPECT_EQ(this->theVector.begin() + 1, I);
-  this->assertValuesInOrder(this->theVector, 8u,
-                      10, 16, 16, 11, 12, 13, 14, 15);
+  this->assertValuesInOrder(this->theVector, 6u, 1, 16, 16, 2, 3, 4);
+}
 
-  // Insert at end.
-  I = this->theVector.insert(this->theVector.end(), 2, Constructable(16));
-  EXPECT_EQ(this->theVector.begin() + 8, I);
-  this->assertValuesInOrder(this->theVector, 10u,
-                      10, 16, 16, 11, 12, 13, 14, 15, 16, 16);
+
+TYPED_TEST(SmallVectorTest, InsertRepeatedAtEndTest) {
+  SCOPED_TRACE("InsertRepeatedTest");
+
+  this->makeSequence(this->theVector, 1, 4);
+  Constructable::reset();
+  auto I = this->theVector.insert(this->theVector.end(), 2, Constructable(16));
+  // Just copy construct them into newly allocated space
+  EXPECT_EQ(2, Constructable::getNumCopyConstructorCalls());
+  // Move everything across if reallocation is needed.
+  EXPECT_TRUE(Constructable::getNumMoveConstructorCalls() == 0 ||
+              Constructable::getNumMoveConstructorCalls() == 4);
+  // Without ever moving or copying anything else.
+  EXPECT_EQ(0, Constructable::getNumCopyAssignmentCalls());
+  EXPECT_EQ(0, Constructable::getNumMoveAssignmentCalls());
+
+  EXPECT_EQ(this->theVector.begin() + 4, I);
+  this->assertValuesInOrder(this->theVector, 6u, 1, 2, 3, 4, 16, 16);
+}
+
+TYPED_TEST(SmallVectorTest, InsertRepeatedEmptyTest) {
+  SCOPED_TRACE("InsertRepeatedTest");
+
+  this->makeSequence(this->theVector, 10, 15);
 
   // Empty insert.
   EXPECT_EQ(this->theVector.end(),
@@ -401,16 +556,53 @@ TYPED_TEST(SmallVectorTest, InsertRangeTest) {
     { Constructable(77), Constructable(77), Constructable(77) };
 
   this->makeSequence(this->theVector, 1, 3);
-  typename TypeParam::iterator I =
-    this->theVector.insert(this->theVector.begin() + 1, Arr, Arr+3);
+  Constructable::reset();
+  auto I = this->theVector.insert(this->theVector.begin() + 1, Arr, Arr + 3);
+  // Move construct the top 3 elements into newly allocated space.
+  // Possibly move the whole sequence into new space first.
+  // FIXME: This is inefficient, we shouldn't move things into newly allocated
+  // space, then move them up/around, there should only be 2 or 3 move
+  // constructions here.
+  EXPECT_TRUE(Constructable::getNumMoveConstructorCalls() == 2 ||
+              Constructable::getNumMoveConstructorCalls() == 5);
+  // Copy assign the lower 2 new elements into existing space.
+  EXPECT_EQ(2, Constructable::getNumCopyAssignmentCalls());
+  // Copy construct the third element into newly allocated space.
+  EXPECT_EQ(1, Constructable::getNumCopyConstructorCalls());
   EXPECT_EQ(this->theVector.begin() + 1, I);
   this->assertValuesInOrder(this->theVector, 6u, 1, 77, 77, 77, 2, 3);
+}
+
+
+TYPED_TEST(SmallVectorTest, InsertRangeAtEndTest) {
+  SCOPED_TRACE("InsertRangeTest");
+
+  Constructable Arr[3] =
+    { Constructable(77), Constructable(77), Constructable(77) };
+
+  this->makeSequence(this->theVector, 1, 3);
 
   // Insert at end.
-  I = this->theVector.insert(this->theVector.end(), Arr, Arr+3);
-  EXPECT_EQ(this->theVector.begin() + 6, I);
-  this->assertValuesInOrder(this->theVector, 9u,
-                            1, 77, 77, 77, 2, 3, 77, 77, 77);
+  Constructable::reset();
+  auto I = this->theVector.insert(this->theVector.end(), Arr, Arr+3);
+  // Copy construct the 3 elements into new space at the top.
+  EXPECT_EQ(3, Constructable::getNumCopyConstructorCalls());
+  // Don't copy/move anything else.
+  EXPECT_EQ(0, Constructable::getNumCopyAssignmentCalls());
+  // Reallocation might occur, causing all elements to be moved into the new
+  // buffer.
+  EXPECT_TRUE(Constructable::getNumMoveConstructorCalls() == 0 ||
+              Constructable::getNumMoveConstructorCalls() == 3);
+  EXPECT_EQ(0, Constructable::getNumMoveAssignmentCalls());
+  EXPECT_EQ(this->theVector.begin() + 3, I);
+  this->assertValuesInOrder(this->theVector, 6u,
+                            1, 2, 3, 77, 77, 77);
+}
+
+TYPED_TEST(SmallVectorTest, InsertEmptyRangeTest) {
+  SCOPED_TRACE("InsertRangeTest");
+
+  this->makeSequence(this->theVector, 1, 3);
 
   // Empty insert.
   EXPECT_EQ(this->theVector.end(),
@@ -455,13 +647,12 @@ TYPED_TEST(SmallVectorTest, DirectVectorTest) {
   this->theVector.reserve(4);
   EXPECT_LE(4u, this->theVector.capacity());
   EXPECT_EQ(0, Constructable::getNumConstructorCalls());
-  this->theVector.end()[0] = 1;
-  this->theVector.end()[1] = 2;
-  this->theVector.end()[2] = 3;
-  this->theVector.end()[3] = 4;
-  this->theVector.set_size(4);
+  this->theVector.push_back(1);
+  this->theVector.push_back(2);
+  this->theVector.push_back(3);
+  this->theVector.push_back(4);
   EXPECT_EQ(4u, this->theVector.size());
-  EXPECT_EQ(4, Constructable::getNumConstructorCalls());
+  EXPECT_EQ(8, Constructable::getNumConstructorCalls());
   EXPECT_EQ(1, this->theVector[0].getValue());
   EXPECT_EQ(2, this->theVector[1].getValue());
   EXPECT_EQ(3, this->theVector[2].getValue());
@@ -484,6 +675,28 @@ TEST(SmallVectorCustomTest, NoAssignTest) {
   vec.push_back(notassignable(x));
   x = 42;
   EXPECT_EQ(42, vec.pop_back_val().x);
+}
+
+struct MovedFrom {
+  bool hasValue;
+  MovedFrom() : hasValue(true) {
+  }
+  MovedFrom(MovedFrom&& m) : hasValue(m.hasValue) {
+    m.hasValue = false;
+  }
+  MovedFrom &operator=(MovedFrom&& m) {
+    hasValue = m.hasValue;
+    m.hasValue = false;
+    return *this;
+  }
+};
+
+TEST(SmallVectorTest, MidInsert) {
+  SmallVector<MovedFrom, 3> v;
+  v.push_back(MovedFrom());
+  v.insert(v.begin(), MovedFrom());
+  for (MovedFrom &m : v)
+    EXPECT_TRUE(m.hasValue);
 }
 
 }

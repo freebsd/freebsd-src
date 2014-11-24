@@ -18,10 +18,10 @@ namespace llvm {
 class GlobalValue;
 
 namespace SystemZCP {
-  enum SystemZCPModifier {
-    NTPOFF
-  };
-}
+enum SystemZCPModifier {
+  NTPOFF
+};
+} // end namespace SystemZCP
 
 /// A SystemZ-specific constant pool value.  At present, the only
 /// defined constant pool values are offsets of thread-local variables
@@ -39,17 +39,17 @@ public:
     Create(const GlobalValue *GV, SystemZCP::SystemZCPModifier Modifier);
 
   // Override MachineConstantPoolValue.
-  virtual unsigned getRelocationInfo() const LLVM_OVERRIDE;
-  virtual int getExistingMachineCPValue(MachineConstantPool *CP,
-                                        unsigned Alignment) LLVM_OVERRIDE;
-  virtual void addSelectionDAGCSEId(FoldingSetNodeID &ID) LLVM_OVERRIDE;
-  virtual void print(raw_ostream &O) const LLVM_OVERRIDE;
+  unsigned getRelocationInfo() const override;
+  int getExistingMachineCPValue(MachineConstantPool *CP,
+                                unsigned Alignment) override;
+  void addSelectionDAGCSEId(FoldingSetNodeID &ID) override;
+  void print(raw_ostream &O) const override;
 
   // Access SystemZ-specific fields.
   const GlobalValue *getGlobalValue() const { return GV; }
   SystemZCP::SystemZCPModifier getModifier() const { return Modifier; }
 };
 
-} // End llvm namespace
+} // end namespace llvm
 
 #endif

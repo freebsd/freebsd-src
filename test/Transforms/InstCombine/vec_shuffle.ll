@@ -228,3 +228,189 @@ define <4 x float> @test15b(<4 x float> %LHS, <4 x float> %RHS) {
   ret <4 x float> %tmp5
 }
 
+define <1 x i32> @test16a(i32 %ele) {
+; CHECK-LABEL: @test16a(
+; CHECK-NEXT: ret <1 x i32> <i32 2>
+  %tmp0 = insertelement <2 x i32> <i32 1, i32 undef>, i32 %ele, i32 1
+  %tmp1 = shl <2 x i32> %tmp0, <i32 1, i32 1>
+  %tmp2 = shufflevector <2 x i32> %tmp1, <2 x i32> undef, <1 x i32> <i32 0>
+  ret <1 x i32> %tmp2
+}
+
+define <4 x i8> @test16b(i8 %ele) {
+; CHECK-LABEL: @test16b(
+; CHECK-NEXT: ret <4 x i8> <i8 2, i8 2, i8 2, i8 2>
+  %tmp0 = insertelement <8 x i8> <i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 undef, i8 1>, i8 %ele, i32 6
+  %tmp1 = shl <8 x i8> %tmp0, <i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1, i8 1>
+  %tmp2 = shufflevector <8 x i8> %tmp1, <8 x i8> undef, <4 x i32> <i32 1, i32 2, i32 3, i32 4>
+  ret <4 x i8> %tmp2
+}
+
+; If composition of two shuffles is identity, shuffles can be removed.
+define <4 x i32> @shuffle_17ident(<4 x i32> %v) nounwind uwtable {
+; CHECK-LABEL: @shuffle_17ident(
+; CHECK-NOT: shufflevector
+  %shuffle = shufflevector <4 x i32> %v, <4 x i32> zeroinitializer,
+                           <4 x i32> <i32 1, i32 2, i32 3, i32 0>
+  %shuffle2 = shufflevector <4 x i32> %shuffle, <4 x i32> zeroinitializer,
+                            <4 x i32> <i32 3, i32 0, i32 1, i32 2>
+  ret <4 x i32> %shuffle2
+}
+
+; swizzle can be put after operation
+define <4 x i32> @shuffle_17and(<4 x i32> %v1, <4 x i32> %v2) nounwind uwtable {
+; CHECK-LABEL: @shuffle_17and(
+; CHECK-NOT: shufflevector
+; CHECK: and <4 x i32> %v1, %v2
+; CHECK: shufflevector
+  %t1 = shufflevector <4 x i32> %v1, <4 x i32> zeroinitializer,
+                      <4 x i32> <i32 1, i32 2, i32 3, i32 0>
+  %t2 = shufflevector <4 x i32> %v2, <4 x i32> zeroinitializer,
+                      <4 x i32> <i32 1, i32 2, i32 3, i32 0>
+  %r = and <4 x i32> %t1, %t2
+  ret <4 x i32> %r
+}
+
+define <4 x i32> @shuffle_17add(<4 x i32> %v1, <4 x i32> %v2) nounwind uwtable {
+; CHECK-LABEL: @shuffle_17add(
+; CHECK-NOT: shufflevector
+; CHECK: add <4 x i32> %v1, %v2
+; CHECK: shufflevector
+  %t1 = shufflevector <4 x i32> %v1, <4 x i32> zeroinitializer,
+                      <4 x i32> <i32 1, i32 2, i32 3, i32 0>
+  %t2 = shufflevector <4 x i32> %v2, <4 x i32> zeroinitializer,
+                      <4 x i32> <i32 1, i32 2, i32 3, i32 0>
+  %r = add <4 x i32> %t1, %t2
+  ret <4 x i32> %r
+}
+
+define <4 x i32> @shuffle_17addnsw(<4 x i32> %v1, <4 x i32> %v2) nounwind uwtable {
+; CHECK-LABEL: @shuffle_17addnsw(
+; CHECK-NOT: shufflevector
+; CHECK: add nsw <4 x i32> %v1, %v2
+; CHECK: shufflevector
+  %t1 = shufflevector <4 x i32> %v1, <4 x i32> zeroinitializer,
+                      <4 x i32> <i32 1, i32 2, i32 3, i32 0>
+  %t2 = shufflevector <4 x i32> %v2, <4 x i32> zeroinitializer,
+                      <4 x i32> <i32 1, i32 2, i32 3, i32 0>
+  %r = add nsw <4 x i32> %t1, %t2
+  ret <4 x i32> %r
+}
+
+define <4 x i32> @shuffle_17addnuw(<4 x i32> %v1, <4 x i32> %v2) nounwind uwtable {
+; CHECK-LABEL: @shuffle_17addnuw(
+; CHECK-NOT: shufflevector
+; CHECK: add nuw <4 x i32> %v1, %v2
+; CHECK: shufflevector
+  %t1 = shufflevector <4 x i32> %v1, <4 x i32> zeroinitializer,
+                      <4 x i32> <i32 1, i32 2, i32 3, i32 0>
+  %t2 = shufflevector <4 x i32> %v2, <4 x i32> zeroinitializer,
+                      <4 x i32> <i32 1, i32 2, i32 3, i32 0>
+  %r = add nuw <4 x i32> %t1, %t2
+  ret <4 x i32> %r
+}
+
+define <4 x float> @shuffle_17fsub(<4 x float> %v1, <4 x float> %v2) nounwind uwtable {
+; CHECK-LABEL: @shuffle_17fsub(
+; CHECK-NOT: shufflevector
+; CHECK: fsub <4 x float> %v1, %v2
+; CHECK: shufflevector
+  %t1 = shufflevector <4 x float> %v1, <4 x float> zeroinitializer,
+                      <4 x i32> <i32 1, i32 2, i32 3, i32 0>
+  %t2 = shufflevector <4 x float> %v2, <4 x float> zeroinitializer,
+                      <4 x i32> <i32 1, i32 2, i32 3, i32 0>
+  %r = fsub <4 x float> %t1, %t2
+  ret <4 x float> %r
+}
+
+define <4 x i32> @shuffle_17addconst(<4 x i32> %v1, <4 x i32> %v2) {
+; CHECK-LABEL: @shuffle_17addconst(
+; CHECK-NOT: shufflevector
+; CHECK: [[VAR1:%[a-zA-Z0-9.]+]] = add <4 x i32> %v1, <i32 4, i32 1, i32 2, i32 3>
+; CHECK: [[VAR2:%[a-zA-Z0-9.]+]] = shufflevector <4 x i32> [[VAR1]], <4 x i32> undef, <4 x i32> <i32 1, i32 2, i32 3, i32 0>
+; CHECK: ret <4 x i32> [[VAR2]]
+  %t1 = shufflevector <4 x i32> %v1, <4 x i32> zeroinitializer,
+                      <4 x i32> <i32 1, i32 2, i32 3, i32 0>
+  %r = add <4 x i32> %t1, <i32 1, i32 2, i32 3, i32 4>
+  ret <4 x i32> %r
+}
+
+define <4 x i32> @shuffle_17add2(<4 x i32> %v) {
+; CHECK-LABEL: @shuffle_17add2(
+; CHECK-NOT: shufflevector
+; CHECK: [[VAR:%[a-zA-Z0-9.]+]] = shl <4 x i32> %v, <i32 1, i32 1, i32 1, i32 1>
+; CHECK: ret <4 x i32> [[VAR]]
+  %t1 = shufflevector <4 x i32> %v, <4 x i32> zeroinitializer,
+                      <4 x i32> <i32 3, i32 2, i32 1, i32 0>
+  %t2 = add <4 x i32> %t1, %t1
+  %r = shufflevector <4 x i32> %t2, <4 x i32> zeroinitializer,
+                     <4 x i32> <i32 3, i32 2, i32 1, i32 0>
+  ret <4 x i32> %r
+}
+
+define <4 x i32> @shuffle_17mulsplat(<4 x i32> %v) {
+; CHECK-LABEL: @shuffle_17mulsplat(
+; CHECK-NOT: shufflevector
+; CHECK: [[VAR1:%[a-zA-Z0-9.]+]] = mul <4 x i32> %v, %v
+; CHECK: [[VAR2:%[a-zA-Z0-9.]+]] = shufflevector <4 x i32> [[VAR1]], <4 x i32> undef, <4 x i32> zeroinitializer
+; CHECK: ret <4 x i32> [[VAR2]]
+  %s1 = shufflevector <4 x i32> %v,
+                      <4 x i32> zeroinitializer,
+                      <4 x i32> zeroinitializer
+  %m1 = mul <4 x i32> %s1, %s1
+  %s2 = shufflevector <4 x i32> %m1,
+                      <4 x i32> zeroinitializer,
+                      <4 x i32> <i32 1, i32 1, i32 1, i32 1>
+  ret <4 x i32> %s2
+}
+
+; Do not reorder shuffle and binop if LHS of shuffles are of different size
+define <2 x i32> @pr19717(<4 x i32> %in0, <2 x i32> %in1) {
+; CHECK-LABEL: @pr19717(
+; CHECK: shufflevector
+; CHECK: shufflevector
+; CHECK: mul
+  %shuffle = shufflevector <4 x i32> %in0, <4 x i32> %in0, <2 x i32> zeroinitializer
+  %shuffle4 = shufflevector <2 x i32> %in1, <2 x i32> %in1, <2 x i32> zeroinitializer
+  %mul = mul <2 x i32> %shuffle, %shuffle4
+  ret <2 x i32> %mul
+}
+
+define <4 x i16> @pr19717a(<8 x i16> %in0, <8 x i16> %in1) {
+; CHECK-LABEL: @pr19717a(
+; CHECK: [[VAR1:%[a-zA-Z0-9.]+]] = mul <8 x i16> %in0, %in1
+; CHECK: [[VAR2:%[a-zA-Z0-9.]+]] = shufflevector <8 x i16> [[VAR1]], <8 x i16> undef, <4 x i32> <i32 5, i32 5, i32 5, i32 5>
+; CHECK: ret <4 x i16> [[VAR2]]
+  %shuffle = shufflevector <8 x i16> %in0, <8 x i16> %in0, <4 x i32> <i32 5, i32 5, i32 5, i32 5>
+  %shuffle1 = shufflevector <8 x i16> %in1, <8 x i16> %in1, <4 x i32> <i32 5, i32 5, i32 5, i32 5>
+  %mul = mul <4 x i16> %shuffle, %shuffle1
+  ret <4 x i16> %mul
+}
+
+define <8 x i8> @pr19730(<16 x i8> %in0) {
+; CHECK-LABEL: @pr19730(
+; CHECK: shufflevector
+  %shuffle = shufflevector <16 x i8> %in0, <16 x i8> undef, <8 x i32> <i32 7, i32 6, i32 5, i32 4, i32 3, i32 2, i32 1, i32 0>
+  %shuffle1 = shufflevector <8 x i8> %shuffle, <8 x i8> undef, <8 x i32> <i32 7, i32 6, i32 5, i32 4, i32 3, i32 2, i32 1, i32 0>
+  ret <8 x i8> %shuffle1
+}
+
+define i32 @pr19737(<4 x i32> %in0) {
+; CHECK-LABEL: @pr19737(
+; CHECK: [[VAR:%[a-zA-Z0-9.]+]] = extractelement <4 x i32> %in0, i32 0
+; CHECK: ret i32 [[VAR]]
+  %shuffle.i = shufflevector <4 x i32> zeroinitializer, <4 x i32> %in0, <4 x i32> <i32 0, i32 4, i32 2, i32 6>
+  %neg.i = xor <4 x i32> %shuffle.i, <i32 -1, i32 -1, i32 -1, i32 -1>
+  %and.i = and <4 x i32> %in0, %neg.i
+  %rv = extractelement <4 x i32> %and.i, i32 0
+  ret i32 %rv
+}
+
+define <4 x i32> @pr20114(<4 x i32> %__mask) {
+; CHECK-LABEL: @pr20114
+; CHECK: shufflevector
+; CHECK: and
+  %mask01.i = shufflevector <4 x i32> %__mask, <4 x i32> undef, <4 x i32> <i32 0, i32 0, i32 1, i32 1>
+  %masked_new.i.i.i = and <4 x i32> bitcast (<2 x i64> <i64 ptrtoint (<4 x i32> (<4 x i32>)* @pr20114 to i64), i64 ptrtoint (<4 x i32> (<4 x i32>)* @pr20114 to i64)> to <4 x i32>), %mask01.i
+  ret <4 x i32> %masked_new.i.i.i
+}

@@ -3,20 +3,14 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+/* Exported configuration */
+#include "llvm/Config/llvm-config.h"
+
+/* Patch version of the LLVM API */
+#cmakedefine LLVM_VERSION_PATCH ${LLVM_VERSION_PATCH}
+
 /* Bug report URL. */
 #define BUG_REPORT_URL "${BUG_REPORT_URL}"
-
-/* Define if we have libxml2 */
-#cmakedefine CLANG_HAVE_LIBXML ${CLANG_HAVE_LIBXML}
-
-/* Relative directory for resource files */
-#define CLANG_RESOURCE_DIR "${CLANG_RESOURCE_DIR}"
-
-/* Directories clang will search for headers */
-#define C_INCLUDE_DIRS "${C_INCLUDE_DIRS}"
-
-/* Default <path> to all compiler invocations for --sysroot=<path>. */
-#undef DEFAULT_SYSROOT
 
 /* Define if you want backtraces on crash */
 #cmakedefine ENABLE_BACKTRACES
@@ -30,11 +24,8 @@
 /* Define if timestamp information (e.g., __DATE__) is allowed */
 #cmakedefine ENABLE_TIMESTAMPS ${ENABLE_TIMESTAMPS}
 
-/* Directory where gcc is installed. */
-#undef GCC_INSTALL_PREFIX
-
 /* Define to 1 if you have the `arc4random' function. */
-#cmakedefine HAVE_ARC4RANDOM
+#cmakedefine HAVE_DECL_ARC4RANDOM ${HAVE_DECL_ARC4RANDOM}
 
 /* Define to 1 if you have the `backtrace' function. */
 #cmakedefine HAVE_BACKTRACE ${HAVE_BACKTRACE}
@@ -44,9 +35,6 @@
 
 /* Define to 1 if you have the `ceilf' function. */
 #cmakedefine HAVE_CEILF ${HAVE_CEILF}
-
-/* Define if the neat program is available */
-#cmakedefine HAVE_CIRCO ${HAVE_CIRCO}
 
 /* Define to 1 if you have the `closedir' function. */
 #cmakedefine HAVE_CLOSEDIR ${HAVE_CLOSEDIR}
@@ -80,12 +68,6 @@
 /* Define if dlopen() is available on this platform. */
 #cmakedefine HAVE_DLOPEN ${HAVE_DLOPEN}
 
-/* Define if the dot program is available */
-#cmakedefine HAVE_DOT ${HAVE_DOT}
-
-/* Define if the dotty program is available */
-#cmakedefine HAVE_DOTTY ${HAVE_DOTTY}
-
 /* Define if you have the _dyld_func_lookup function. */
 #undef HAVE_DYLD
 
@@ -97,9 +79,6 @@
 
 /* Define to 1 if you have the <fcntl.h> header file. */
 #cmakedefine HAVE_FCNTL_H ${HAVE_FCNTL_H}
-
-/* Define if the neat program is available */
-#cmakedefine HAVE_FDP ${HAVE_FDP}
 
 /* Define to 1 if you have the <fenv.h> header file. */
 #cmakedefine HAVE_FENV_H ${HAVE_FENV_H}
@@ -161,12 +140,6 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 #cmakedefine HAVE_GETTIMEOFDAY ${HAVE_GETTIMEOFDAY}
 
-/* Define if the Graphviz program is available */
-#cmakedefine HAVE_GRAPHVIZ ${HAVE_GRAPHVIZ}
-
-/* Define if the gv program is available */
-#cmakedefine HAVE_GV ${HAVE_GV}
-
 /* Define to 1 if the system has the type `int64_t'. */
 #cmakedefine HAVE_INT64_T ${HAVE_INT64_T}
 
@@ -206,11 +179,11 @@
 /* Define to 1 if you have the `shell32' library (-lshell32). */
 #cmakedefine HAVE_LIBSHELL32 ${HAVE_LIBSHELL32}
 
-/* Define to 1 if you have the `udis86' library (-ludis86). */
-#undef HAVE_LIBUDIS86
-
 /* Define to 1 if you have the 'z' library (-lz). */
 #cmakedefine HAVE_LIBZ ${HAVE_LIBZ}
+
+/* Define to 1 if you have the 'edit' library (-ledit). */
+#cmakedefine HAVE_LIBEDIT ${HAVE_LIBEDIT}
 
 /* Define to 1 if you have the <limits.h> header file. */
 #cmakedefine HAVE_LIMITS_H ${HAVE_LIMITS_H}
@@ -267,9 +240,6 @@
 
 /* Define to 1 if you have the `nearbyintf' function. */
 #cmakedefine HAVE_NEARBYINTF ${HAVE_NEARBYINTF}
-
-/* Define if the neat program is available */
-#cmakedefine HAVE_NEATO ${HAVE_NEATO}
 
 /* Define to 1 if you have the `opendir' function. */
 #cmakedefine HAVE_OPENDIR ${HAVE_OPENDIR}
@@ -414,9 +384,6 @@
 /* Define to 1 if you have the <termios.h> header file. */
 #cmakedefine HAVE_TERMIOS_H ${HAVE_TERMIOS_H}
 
-/* Define if the neat program is available */
-#cmakedefine HAVE_TWOPI ${HAVE_TWOPI}
-
 /* Define to 1 if the system has the type `uint64_t'. */
 #cmakedefine HAVE_UINT64_T ${HAVE_UINT64_T}
 
@@ -434,9 +401,6 @@
 
 /* Define to 1 if you have the `writev' function. */
 #cmakedefine HAVE_WRITEV ${HAVE_WRITEV}
-
-/* Define if the xdot.py program is available */
-#cmakedefine HAVE_XDOT ${HAVE_XDOT}
 
 /* Define to 1 if you have the <zlib.h> header file. */
 #cmakedefine HAVE_ZLIB_H ${HAVE_ZLIB_H}
@@ -495,113 +459,11 @@
 /* Linker version detected at compile time. */
 #undef HOST_LINK_VERSION
 
-/* Installation directory for binary executables */
-#cmakedefine LLVM_BINDIR "${LLVM_BINDIR}"
-
-/* Time at which LLVM was configured */
-#cmakedefine LLVM_CONFIGTIME "${LLVM_CONFIGTIME}"
-
-/* Installation directory for data files */
-#cmakedefine LLVM_DATADIR "${LLVM_DATADIR}"
-
-/* Target triple LLVM will generate code for by default */
-#cmakedefine LLVM_DEFAULT_TARGET_TRIPLE "${LLVM_DEFAULT_TARGET_TRIPLE}"
-
-/* Installation directory for documentation */
-#cmakedefine LLVM_DOCSDIR "${LLVM_DOCSDIR}"
-
-/* Define if threads enabled */
-#cmakedefine01 LLVM_ENABLE_THREADS
+/* Define if we link Polly to the tools */
+#cmakedefine LINK_POLLY_INTO_TOOLS
 
 /* Define if zlib compression is available */
 #cmakedefine01 LLVM_ENABLE_ZLIB
-
-/* Installation directory for config files */
-#cmakedefine LLVM_ETCDIR "${LLVM_ETCDIR}"
-
-/* Has gcc/MSVC atomic intrinsics */
-#cmakedefine01 LLVM_HAS_ATOMICS
-
-/* Host triple LLVM will be executed on */
-#cmakedefine LLVM_HOST_TRIPLE "${LLVM_HOST_TRIPLE}"
-
-/* Installation directory for include files */
-#cmakedefine LLVM_INCLUDEDIR "${LLVM_INCLUDEDIR}"
-
-/* Installation directory for .info files */
-#cmakedefine LLVM_INFODIR "${LLVM_INFODIR}"
-
-/* Installation directory for man pages */
-#cmakedefine LLVM_MANDIR "${LLVM_MANDIR}"
-
-/* LLVM architecture name for the native architecture, if available */
-#cmakedefine LLVM_NATIVE_ARCH ${LLVM_NATIVE_ARCH}
-
-/* LLVM name for the native AsmParser init function, if available */
-#cmakedefine LLVM_NATIVE_ASMPARSER LLVMInitialize${LLVM_NATIVE_ARCH}AsmParser
-
-/* LLVM name for the native AsmPrinter init function, if available */
-#cmakedefine LLVM_NATIVE_ASMPRINTER LLVMInitialize${LLVM_NATIVE_ARCH}AsmPrinter
-
-/* LLVM name for the native Disassembler init function, if available */
-#cmakedefine LLVM_NATIVE_DISASSEMBLER LLVMInitialize${LLVM_NATIVE_ARCH}Disassembler
-
-/* LLVM name for the native Target init function, if available */
-#cmakedefine LLVM_NATIVE_TARGET LLVMInitialize${LLVM_NATIVE_ARCH}Target
-
-/* LLVM name for the native TargetInfo init function, if available */
-#cmakedefine LLVM_NATIVE_TARGETINFO LLVMInitialize${LLVM_NATIVE_ARCH}TargetInfo
-
-/* LLVM name for the native target MC init function, if available */
-#cmakedefine LLVM_NATIVE_TARGETMC LLVMInitialize${LLVM_NATIVE_ARCH}TargetMC
-
-/* Define if this is Unixish platform */
-#cmakedefine LLVM_ON_UNIX ${LLVM_ON_UNIX}
-
-/* Define if this is Win32ish platform */
-#cmakedefine LLVM_ON_WIN32 ${LLVM_ON_WIN32}
-
-/* Define to path to circo program if found or 'echo circo' otherwise */
-#cmakedefine LLVM_PATH_CIRCO "${LLVM_PATH_CIRCO}"
-
-/* Define to path to dot program if found or 'echo dot' otherwise */
-#cmakedefine LLVM_PATH_DOT "${LLVM_PATH_DOT}"
-
-/* Define to path to dotty program if found or 'echo dotty' otherwise */
-#cmakedefine LLVM_PATH_DOTTY "${LLVM_PATH_DOTTY}"
-
-/* Define to path to fdp program if found or 'echo fdp' otherwise */
-#cmakedefine LLVM_PATH_FDP "${LLVM_PATH_FDP}"
-
-/* Define to path to Graphviz program if found or 'echo Graphviz' otherwise */
-#cmakedefine LLVM_PATH_GRAPHVIZ "${LLVM_PATH_GRAPHVIZ}"
-
-/* Define to path to gv program if found or 'echo gv' otherwise */
-#cmakedefine LLVM_PATH_GV "${LLVM_PATH_GV}"
-
-/* Define to path to neato program if found or 'echo neato' otherwise */
-#cmakedefine LLVM_PATH_NEATO "${LLVM_PATH_NEATO}"
-
-/* Define to path to twopi program if found or 'echo twopi' otherwise */
-#cmakedefine LLVM_PATH_TWOPI "${LLVM_PATH_TWOPI}"
-
-/* Define to path to xdot.py program if found or 'echo xdot' otherwise */
-#cmakedefine LLVM_PATH_XDOT "${LLVM_PATH_XDOT}"
-
-/* Installation prefix directory */
-#cmakedefine LLVM_PREFIX "${LLVM_PREFIX}"
-
-/* Define if we have the Intel JIT API runtime support library */
-#cmakedefine LLVM_USE_INTEL_JITEVENTS 1
-
-/* Define if we have the oprofile JIT-support library */
-#cmakedefine LLVM_USE_OPROFILE 1
-
-/* Major version of the LLVM API */
-#cmakedefine LLVM_VERSION_MAJOR ${LLVM_VERSION_MAJOR}
-
-/* Minor version of the LLVM API */
-#cmakedefine LLVM_VERSION_MINOR ${LLVM_VERSION_MINOR}
 
 /* Define if the OS needs help to load dependent libraries for dlopen(). */
 #cmakedefine LTDL_DLOPEN_DEPLIBS ${LTDL_DLOPEN_DEPLIBS}
@@ -653,9 +515,6 @@
 /* Define to 1 if your <sys/time.h> declares `struct tm'. */
 #undef TM_IN_SYS_TIME
 
-/* Define if use udis86 library */
-#undef USE_UDIS86
-
 /* Type of 1st arg on ELM Callback */
 #cmakedefine WIN32_ELMCB_PCSTR ${WIN32_ELMCB_PCSTR}
 
@@ -683,7 +542,7 @@
 /* Define to 1 if you have the `_chsize_s' function. */
 #cmakedefine HAVE__CHSIZE_S ${HAVE__CHSIZE_S}
 
-/* Added by Kevin -- Maximum path length */
+/* Maximum path length */
 #cmakedefine MAXPATHLEN ${MAXPATHLEN}
 
 #endif

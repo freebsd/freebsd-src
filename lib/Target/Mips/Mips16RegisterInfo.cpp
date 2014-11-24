@@ -12,7 +12,6 @@
 //===----------------------------------------------------------------------===//
 
 #include "Mips16RegisterInfo.h"
-#include "Mips16InstrInfo.h"
 #include "Mips.h"
 #include "Mips16InstrInfo.h"
 #include "MipsAnalyzeImmediate.h"
@@ -25,9 +24,8 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/ValueTypes.h"
-#include "llvm/DebugInfo.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Support/CommandLine.h"
@@ -40,6 +38,8 @@
 #include "llvm/Target/TargetOptions.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "mips16-registerinfo"
 
 Mips16RegisterInfo::Mips16RegisterInfo(const MipsSubtarget &ST)
   : MipsRegisterInfo(ST) {}

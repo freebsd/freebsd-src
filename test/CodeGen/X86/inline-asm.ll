@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=x86
+; RUN: llc < %s -march=x86 -no-integrated-as
 
 define i32 @test1() nounwind {
 	; Dest is AX, dest type = i32.
@@ -58,4 +58,19 @@ define i32 @pr14376() nounwind noinline {
 entry:
   %asm = tail call i32 asm sideeffect "", "={ax},i,~{eax},~{flags},~{rax}"(i64 61) nounwind
   ret i32 %asm
+}
+
+@test8_v = global i32 42
+
+define void @test8() {
+  call void asm sideeffect "${0:P}", "i"( i32* @test8_v )
+  ret void
+}
+
+define void @test9() {
+  call void asm sideeffect "${0:P}", "X"( i8* blockaddress(@test9, %bb) )
+  br label %bb
+
+bb:
+  ret void
 }

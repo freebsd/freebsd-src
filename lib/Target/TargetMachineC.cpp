@@ -18,33 +18,17 @@
 #include "llvm/IR/Module.h"
 #include "llvm/PassManager.h"
 #include "llvm/Support/CodeGen.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FormattedStream.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Host.h"
 #include "llvm/Target/TargetMachine.h"
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
 
 using namespace llvm;
-
-inline DataLayout *unwrap(LLVMTargetDataRef P) {
-  return reinterpret_cast<DataLayout*>(P);
-}
-
-inline LLVMTargetDataRef wrap(const DataLayout *P) {
-  return reinterpret_cast<LLVMTargetDataRef>(const_cast<DataLayout*>(P));
-}
-
-inline TargetLibraryInfo *unwrap(LLVMTargetLibraryInfoRef P) {
-  return reinterpret_cast<TargetLibraryInfo*>(P);
-}
-
-inline LLVMTargetLibraryInfoRef wrap(const TargetLibraryInfo *P) {
-  TargetLibraryInfo *X = const_cast<TargetLibraryInfo*>(P);
-  return reinterpret_cast<LLVMTargetLibraryInfoRef>(X);
-}
 
 inline TargetMachine *unwrap(LLVMTargetMachineRef P) {
   return reinterpret_cast<TargetMachine*>(P);
@@ -62,7 +46,7 @@ inline LLVMTargetRef wrap(const Target * P) {
 
 LLVMTargetRef LLVMGetFirstTarget() {
   if(TargetRegistry::begin() == TargetRegistry::end()) {
-    return NULL;
+    return nullptr;
   }
 
   const Target* target = &*TargetRegistry::begin();
@@ -80,7 +64,7 @@ LLVMTargetRef LLVMGetTargetFromName(const char *Name) {
       return wrap(&*IT);
   }
   
-  return NULL;
+  return nullptr;
 }
 
 LLVMBool LLVMGetTargetFromTriple(const char* TripleStr, LLVMTargetRef *T,
@@ -212,7 +196,8 @@ static LLVMBool LLVMTargetMachineEmit(LLVMTargetMachineRef T, LLVMModuleRef M,
     *ErrorMessage = strdup(error.c_str());
     return true;
   }
-  pass.add(new DataLayout(*td));
+  Mod->setDataLayout(td);
+  pass.add(new DataLayoutPass(Mod));
 
   TargetMachine::CodeGenFileType ft;
   switch (codegen) {
@@ -238,7 +223,7 @@ static LLVMBool LLVMTargetMachineEmit(LLVMTargetMachineRef T, LLVMModuleRef M,
 LLVMBool LLVMTargetMachineEmitToFile(LLVMTargetMachineRef T, LLVMModuleRef M,
   char* Filename, LLVMCodeGenFileType codegen, char** ErrorMessage) {
   std::string error;
-  raw_fd_ostream dest(Filename, error, sys::fs::F_Binary);
+  raw_fd_ostream dest(Filename, error, sys::fs::F_None);
   if (!error.empty()) {
     *ErrorMessage = strdup(error.c_str());
     return true;
@@ -266,4 +251,8 @@ LLVMBool LLVMTargetMachineEmitToMemoryBuffer(LLVMTargetMachineRef T,
 
 char *LLVMGetDefaultTargetTriple(void) {
   return strdup(sys::getDefaultTargetTriple().c_str());
+}
+
+void LLVMAddAnalysisPasses(LLVMTargetMachineRef T, LLVMPassManagerRef PM) {
+  unwrap(T)->addAnalysisPasses(*unwrap(PM));
 }

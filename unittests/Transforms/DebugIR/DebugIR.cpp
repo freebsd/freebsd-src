@@ -13,16 +13,16 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/Triple.h"
+#include "../lib/Transforms/Instrumentation/DebugIR.h"
 #include "llvm/Config/config.h"
-#include "llvm/DebugInfo.h"
-#include "llvm/DIBuilder.h"
+#include "llvm/IR/DIBuilder.h"
+#include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Support/Host.h"
+#include "llvm/Support/Errc.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Transforms/Instrumentation.h"
-
-#include "../lib/Transforms/Instrumentation/DebugIR.h"
 
 // These tests do not depend on MCJIT, but we use the TrivialModuleBuilder
 // helper class to construct some trivial Modules.
@@ -56,16 +56,17 @@ void insertCUDescriptor(Module *M, StringRef File, StringRef Dir,
 /// Attempts to remove file at Path and returns true if it existed, or false if
 /// it did not.
 bool removeIfExists(StringRef Path) {
-  bool existed = false;
-  sys::fs::remove(Path, existed);
-  return existed;
+  // This is an approximation, on error we don't know in general if the file
+  // existed or not.
+  std::error_code EC = sys::fs::remove(Path, false);
+  return EC != llvm::errc::no_such_file_or_directory;
 }
 
 char * current_dir() {
 #if defined(LLVM_ON_WIN32) || defined(HAVE_GETCWD)
   // calling getcwd (or _getcwd() on windows) with a null buffer makes it
   // allocate a sufficiently sized buffer to store the current working dir.
-  return getcwd_impl(0, 0);
+  return getcwd_impl(nullptr, 0);
 #else
   return 0;
 #endif
@@ -90,8 +91,8 @@ protected:
 
   LLVMContext Context;
   char *cwd;
-  OwningPtr<Module> M;
-  OwningPtr<DebugIR> D;
+  std::unique_ptr<Module> M;
+  std::unique_ptr<DebugIR> D;
 };
 
 // Test empty named Module that is not supposed to be output to disk.
@@ -278,7 +279,7 @@ TEST_F(TestDebugIR, ExistingMetadataRetained) {
   // verify DebugIR did not generate a file
   ASSERT_FALSE(removeIfExists(Path)) << "Unexpected file " << Path;
 
-  DICompileUnit CU(*Finder.compile_unit_begin());
+  DICompileUnit CU(*Finder.compile_units().begin());
 
   // Verify original CU information is retained
   ASSERT_EQ(Filename, CU.getFilename());

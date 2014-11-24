@@ -1,8 +1,11 @@
 add_llvm_library(LLVMTransformUtils
+  AddDiscriminators.cpp
+  ASanStackFrameLayout.cpp
   BasicBlockUtils.cpp
   BreakCriticalEdges.cpp
   BuildLibCalls.cpp
   BypassSlowDivision.cpp
+  CtorUtils.cpp
   CloneFunction.cpp
   CloneModule.cpp
   CmpInstAnalysis.cpp
@@ -30,7 +33,6 @@ add_llvm_library(LLVMTransformUtils
   SimplifyIndVar.cpp
   SimplifyInstructions.cpp
   SimplifyLibCalls.cpp
-  SpecialCaseList.cpp
   UnifyFunctionExitNodes.cpp
   Utils.cpp
   ValueMapper.cpp

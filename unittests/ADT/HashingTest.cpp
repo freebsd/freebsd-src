@@ -41,7 +41,7 @@ struct NonPOD {
 
 namespace hashing {
 namespace detail {
-template <> struct is_hashable_data<LargeTestInteger> : true_type {};
+template <> struct is_hashable_data<LargeTestInteger> : std::true_type {};
 } // namespace detail
 } // namespace hashing
 
@@ -58,7 +58,7 @@ enum TestEnumeration {
 
 TEST(HashingTest, HashValueBasicTest) {
   int x = 42, y = 43, c = 'x';
-  void *p = 0;
+  void *p = nullptr;
   uint64_t i = 71;
   const unsigned ci = 71;
   volatile int vi = 71;

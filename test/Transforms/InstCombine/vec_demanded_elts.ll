@@ -1,4 +1,5 @@
 ; RUN: opt < %s -instcombine -S | FileCheck %s
+target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 
 define i16 @test1(float %f) {
 entry:
@@ -209,4 +210,369 @@ define <4 x float> @test_select(float %f, float %g) {
   ret <4 x float> %ret
 }
 
+; We should optimize these two redundant insertqi into one
+; CHECK: define <2 x i64> @testInsertTwice(<2 x i64> %v, <2 x i64> %i)
+define <2 x i64> @testInsertTwice(<2 x i64> %v, <2 x i64> %i) {
+; CHECK: call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 32, i8 32)
+; CHECK-NOT: insertqi
+  %1 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 32, i8 32)
+  %2 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %1, <2 x i64> %i, i8 32, i8 32)
+  ret <2 x i64> %2
+}
 
+; The result of this insert is the second arg, since the top 64 bits of
+; the result are undefined, and we copy the bottom 64 bits from the
+; second arg
+; CHECK: define <2 x i64> @testInsert64Bits(<2 x i64> %v, <2 x i64> %i)
+define <2 x i64> @testInsert64Bits(<2 x i64> %v, <2 x i64> %i) {
+; CHECK: ret <2 x i64> %i
+  %1 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 64, i8 0)
+  ret <2 x i64> %1
+}
+
+; Test the several types of ranges and ordering that exist for two insertqi
+; CHECK: define <2 x i64> @testInsertContainedRange(<2 x i64> %v, <2 x i64> %i)
+define <2 x i64> @testInsertContainedRange(<2 x i64> %v, <2 x i64> %i) {
+; CHECK: %[[RES:.*]] = call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 32, i8 0)
+; CHECK: ret <2 x i64> %[[RES]]
+  %1 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 32, i8 0)
+  %2 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %1, <2 x i64> %i, i8 16, i8 16)
+  ret <2 x i64> %2
+}
+
+; CHECK: define <2 x i64> @testInsertContainedRange_2(<2 x i64> %v, <2 x i64> %i)
+define <2 x i64> @testInsertContainedRange_2(<2 x i64> %v, <2 x i64> %i) {
+; CHECK: %[[RES:.*]] = call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 32, i8 0)
+; CHECK: ret <2 x i64> %[[RES]]
+  %1 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 16, i8 16)
+  %2 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %1, <2 x i64> %i, i8 32, i8 0)
+  ret <2 x i64> %2
+}
+
+; CHECK: define <2 x i64> @testInsertOverlappingRange(<2 x i64> %v, <2 x i64> %i)
+define <2 x i64> @testInsertOverlappingRange(<2 x i64> %v, <2 x i64> %i) {
+; CHECK: %[[RES:.*]] = call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 48, i8 0)
+; CHECK: ret <2 x i64> %[[RES]]
+  %1 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 32, i8 0)
+  %2 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %1, <2 x i64> %i, i8 32, i8 16)
+  ret <2 x i64> %2
+}
+
+; CHECK: define <2 x i64> @testInsertOverlappingRange_2(<2 x i64> %v, <2 x i64> %i)
+define <2 x i64> @testInsertOverlappingRange_2(<2 x i64> %v, <2 x i64> %i) {
+; CHECK: %[[RES:.*]] = call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 48, i8 0)
+; CHECK: ret <2 x i64> %[[RES]]
+  %1 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 32, i8 16)
+  %2 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %1, <2 x i64> %i, i8 32, i8 0)
+  ret <2 x i64> %2
+}
+
+; CHECK: define <2 x i64> @testInsertAdjacentRange(<2 x i64> %v, <2 x i64> %i)
+define <2 x i64> @testInsertAdjacentRange(<2 x i64> %v, <2 x i64> %i) {
+; CHECK: %[[RES:.*]] = call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 48, i8 0)
+; CHECK: ret <2 x i64> %[[RES]]
+  %1 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 32, i8 0)
+  %2 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %1, <2 x i64> %i, i8 16, i8 32)
+  ret <2 x i64> %2
+}
+
+; CHECK: define <2 x i64> @testInsertAdjacentRange_2(<2 x i64> %v, <2 x i64> %i)
+define <2 x i64> @testInsertAdjacentRange_2(<2 x i64> %v, <2 x i64> %i) {
+; CHECK: %[[RES:.*]] = call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 48, i8 0)
+; CHECK: ret <2 x i64> %[[RES]]
+  %1 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 16, i8 32)
+  %2 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %1, <2 x i64> %i, i8 32, i8 0)
+  ret <2 x i64> %2
+}
+
+; CHECK: define <2 x i64> @testInsertDisjointRange(<2 x i64> %v, <2 x i64> %i)
+define <2 x i64> @testInsertDisjointRange(<2 x i64> %v, <2 x i64> %i) {
+; CHECK: tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 16, i8 0)
+; CHECK: tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %1, <2 x i64> %i, i8 16, i8 32)
+  %1 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 16, i8 0)
+  %2 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %1, <2 x i64> %i, i8 16, i8 32)
+  ret <2 x i64> %2
+}
+
+; CHECK: define <2 x i64> @testInsertDisjointRange_2(<2 x i64> %v, <2 x i64> %i)
+define <2 x i64> @testInsertDisjointRange_2(<2 x i64> %v, <2 x i64> %i) {
+; CHECK:  tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 16, i8 0)
+; CHECK:  tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %1, <2 x i64> %i, i8 16, i8 32)
+  %1 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %v, <2 x i64> %i, i8 16, i8 0)
+  %2 = tail call <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64> %1, <2 x i64> %i, i8 16, i8 32)
+  ret <2 x i64> %2
+}
+
+
+; CHECK: declare <2 x i64> @llvm.x86.sse4a.insertqi
+declare <2 x i64> @llvm.x86.sse4a.insertqi(<2 x i64>, <2 x i64>, i8, i8) nounwind
+
+declare <4 x float> @llvm.x86.avx.vpermilvar.ps(<4 x float>, <4 x i32>)
+define <4 x float> @test_vpermilvar_ps(<4 x float> %v) {
+; CHECK-LABEL: @test_vpermilvar_ps(
+; CHECK: shufflevector <4 x float> %v, <4 x float> undef, <4 x i32> <i32 3, i32 2, i32 1, i32 0>
+  %a = tail call <4 x float> @llvm.x86.avx.vpermilvar.ps(<4 x float> %v, <4 x i32> <i32 3, i32 2, i32 1, i32 0>)
+  ret <4 x float> %a
+}
+
+declare <8 x float> @llvm.x86.avx.vpermilvar.ps.256(<8 x float>, <8 x i32>)
+define <8 x float> @test_vpermilvar_ps_256(<8 x float> %v) {
+; CHECK-LABEL: @test_vpermilvar_ps_256(
+; CHECK: shufflevector <8 x float> %v, <8 x float> undef, <8 x i32> <i32 3, i32 2, i32 1, i32 0, i32 7, i32 6, i32 5, i32 4>
+  %a = tail call <8 x float> @llvm.x86.avx.vpermilvar.ps.256(<8 x float> %v, <8 x i32> <i32 7, i32 6, i32 5, i32 4, i32 3, i32 2, i32 1, i32 0>)
+  ret <8 x float> %a
+}
+
+declare <2 x double> @llvm.x86.avx.vpermilvar.pd(<2 x double>, <2 x i32>)
+define <2 x double> @test_vpermilvar_pd(<2 x double> %v) {
+; CHECK-LABEL: @test_vpermilvar_pd(
+; CHECK: shufflevector <2 x double> %v, <2 x double> undef, <2 x i32> <i32 1, i32 0>
+  %a = tail call <2 x double> @llvm.x86.avx.vpermilvar.pd(<2 x double> %v, <2 x i32> <i32 2, i32 0>)
+  ret <2 x double> %a
+}
+
+declare <4 x double> @llvm.x86.avx.vpermilvar.pd.256(<4 x double>, <4 x i32>)
+define <4 x double> @test_vpermilvar_pd_256(<4 x double> %v) {
+; CHECK-LABEL: @test_vpermilvar_pd_256(
+; CHECK: shufflevector <4 x double> %v, <4 x double> undef, <4 x i32> <i32 1, i32 0, i32 3, i32 2>
+  %a = tail call <4 x double> @llvm.x86.avx.vpermilvar.pd.256(<4 x double> %v, <4 x i32> <i32 3, i32 1, i32 2, i32 0>)
+  ret <4 x double> %a
+}
+
+define <4 x float> @test_vpermilvar_ps_zero(<4 x float> %v) {
+; CHECK-LABEL: @test_vpermilvar_ps_zero(
+; CHECK: shufflevector <4 x float> %v, <4 x float> undef, <4 x i32> zeroinitializer
+  %a = tail call <4 x float> @llvm.x86.avx.vpermilvar.ps(<4 x float> %v, <4 x i32> zeroinitializer)
+  ret <4 x float> %a
+}
+
+define <8 x float> @test_vpermilvar_ps_256_zero(<8 x float> %v) {
+; CHECK-LABEL: @test_vpermilvar_ps_256_zero(
+; CHECK: shufflevector <8 x float> %v, <8 x float> undef, <8 x i32> <i32 0, i32 0, i32 0, i32 0, i32 4, i32 4, i32 4, i32 4>
+  %a = tail call <8 x float> @llvm.x86.avx.vpermilvar.ps.256(<8 x float> %v, <8 x i32> zeroinitializer)
+  ret <8 x float> %a
+}
+
+define <2 x double> @test_vpermilvar_pd_zero(<2 x double> %v) {
+; CHECK-LABEL: @test_vpermilvar_pd_zero(
+; CHECK: shufflevector <2 x double> %v, <2 x double> undef, <2 x i32> zeroinitializer
+  %a = tail call <2 x double> @llvm.x86.avx.vpermilvar.pd(<2 x double> %v, <2 x i32> zeroinitializer)
+  ret <2 x double> %a
+}
+
+define <4 x double> @test_vpermilvar_pd_256_zero(<4 x double> %v) {
+; CHECK-LABEL: @test_vpermilvar_pd_256_zero(
+; CHECK: shufflevector <4 x double> %v, <4 x double> undef, <4 x i32> <i32 0, i32 0, i32 2, i32 2>
+  %a = tail call <4 x double> @llvm.x86.avx.vpermilvar.pd.256(<4 x double> %v, <4 x i32> zeroinitializer)
+  ret <4 x double> %a
+}
+
+define <2 x i64> @test_sse2_1() nounwind readnone uwtable {
+  %S = bitcast i32 1 to i32
+  %1 = zext i32 %S to i64
+  %2 = insertelement <2 x i64> undef, i64 %1, i32 0
+  %3 = insertelement <2 x i64> %2, i64 0, i32 1
+  %4 = bitcast <2 x i64> %3 to <8 x i16>
+  %5 = tail call <8 x i16> @llvm.x86.sse2.psll.w(<8 x i16> <i16 1, i16 2, i16 3, i16 4, i16 5, i16 6, i16 7, i16 8>, <8 x i16> %4)
+  %6 = bitcast <8 x i16> %5 to <4 x i32>
+  %7 = bitcast <2 x i64> %3 to <4 x i32>
+  %8 = tail call <4 x i32> @llvm.x86.sse2.psll.d(<4 x i32> %6, <4 x i32> %7)
+  %9 = bitcast <4 x i32> %8 to <2 x i64>
+  %10 = tail call <2 x i64> @llvm.x86.sse2.psll.q(<2 x i64> %9, <2 x i64> %3)
+  %11 = bitcast <2 x i64> %10 to <8 x i16>
+  %12 = tail call <8 x i16> @llvm.x86.sse2.pslli.w(<8 x i16> %11, i32 %S)
+  %13 = bitcast <8 x i16> %12 to <4 x i32>
+  %14 = tail call <4 x i32> @llvm.x86.sse2.pslli.d(<4 x i32> %13, i32 %S)
+  %15 = bitcast <4 x i32> %14 to <2 x i64>
+  %16 = tail call <2 x i64> @llvm.x86.sse2.pslli.q(<2 x i64> %15, i32 %S)
+  ret <2 x i64> %16
+; CHECK: test_sse2_1
+; CHECK: ret <2 x i64> <i64 72058418680037440, i64 144117112246370624>
+}
+
+define <4 x i64> @test_avx2_1() nounwind readnone uwtable {
+  %S = bitcast i32 1 to i32
+  %1 = zext i32 %S to i64
+  %2 = insertelement <2 x i64> undef, i64 %1, i32 0
+  %3 = insertelement <2 x i64> %2, i64 0, i32 1
+  %4 = bitcast <2 x i64> %3 to <8 x i16>
+  %5 = tail call <16 x i16> @llvm.x86.avx2.psll.w(<16 x i16> <i16 1, i16 0, i16 0, i16 0, i16 2, i16 0, i16 0, i16 0, i16 3, i16 0, i16 0, i16 0, i16 4, i16 0, i16 0, i16 0>, <8 x i16> %4)
+  %6 = bitcast <16 x i16> %5 to <8 x i32>
+  %7 = bitcast <2 x i64> %3 to <4 x i32>
+  %8 = tail call <8 x i32> @llvm.x86.avx2.psll.d(<8 x i32> %6, <4 x i32> %7)
+  %9 = bitcast <8 x i32> %8 to <4 x i64>
+  %10 = tail call <4 x i64> @llvm.x86.avx2.psll.q(<4 x i64> %9, <2 x i64> %3)
+  %11 = bitcast <4 x i64> %10 to <16 x i16>
+  %12 = tail call <16 x i16> @llvm.x86.avx2.pslli.w(<16 x i16> %11, i32 %S)
+  %13 = bitcast <16 x i16> %12 to <8 x i32>
+  %14 = tail call <8 x i32> @llvm.x86.avx2.pslli.d(<8 x i32> %13, i32 %S)
+  %15 = bitcast <8 x i32> %14 to <4 x i64>
+  %16 = tail call <4 x i64> @llvm.x86.avx2.pslli.q(<4 x i64> %15, i32 %S)
+  ret <4 x i64> %16
+; CHECK: test_avx2_1
+; CHECK: ret <4 x i64> <i64 64, i64 128, i64 192, i64 256>
+}
+
+define <2 x i64> @test_sse2_0() nounwind readnone uwtable {
+  %S = bitcast i32 128 to i32
+  %1 = zext i32 %S to i64
+  %2 = insertelement <2 x i64> undef, i64 %1, i32 0
+  %3 = insertelement <2 x i64> %2, i64 0, i32 1
+  %4 = bitcast <2 x i64> %3 to <8 x i16>
+  %5 = tail call <8 x i16> @llvm.x86.sse2.psll.w(<8 x i16> <i16 1, i16 2, i16 3, i16 4, i16 5, i16 6, i16 7, i16 8>, <8 x i16> %4)
+  %6 = bitcast <8 x i16> %5 to <4 x i32>
+  %7 = bitcast <2 x i64> %3 to <4 x i32>
+  %8 = tail call <4 x i32> @llvm.x86.sse2.psll.d(<4 x i32> %6, <4 x i32> %7)
+  %9 = bitcast <4 x i32> %8 to <2 x i64>
+  %10 = tail call <2 x i64> @llvm.x86.sse2.psll.q(<2 x i64> %9, <2 x i64> %3)
+  %11 = bitcast <2 x i64> %10 to <8 x i16>
+  %12 = tail call <8 x i16> @llvm.x86.sse2.pslli.w(<8 x i16> %11, i32 %S)
+  %13 = bitcast <8 x i16> %12 to <4 x i32>
+  %14 = tail call <4 x i32> @llvm.x86.sse2.pslli.d(<4 x i32> %13, i32 %S)
+  %15 = bitcast <4 x i32> %14 to <2 x i64>
+  %16 = tail call <2 x i64> @llvm.x86.sse2.pslli.q(<2 x i64> %15, i32 %S)
+  ret <2 x i64> %16
+; CHECK: test_sse2_0
+; CHECK: ret <2 x i64> zeroinitializer
+}
+
+define <4 x i64> @test_avx2_0() nounwind readnone uwtable {
+  %S = bitcast i32 128 to i32
+  %1 = zext i32 %S to i64
+  %2 = insertelement <2 x i64> undef, i64 %1, i32 0
+  %3 = insertelement <2 x i64> %2, i64 0, i32 1
+  %4 = bitcast <2 x i64> %3 to <8 x i16>
+  %5 = tail call <16 x i16> @llvm.x86.avx2.psll.w(<16 x i16> <i16 1, i16 0, i16 0, i16 0, i16 2, i16 0, i16 0, i16 0, i16 3, i16 0, i16 0, i16 0, i16 4, i16 0, i16 0, i16 0>, <8 x i16> %4)
+  %6 = bitcast <16 x i16> %5 to <8 x i32>
+  %7 = bitcast <2 x i64> %3 to <4 x i32>
+  %8 = tail call <8 x i32> @llvm.x86.avx2.psll.d(<8 x i32> %6, <4 x i32> %7)
+  %9 = bitcast <8 x i32> %8 to <4 x i64>
+  %10 = tail call <4 x i64> @llvm.x86.avx2.psll.q(<4 x i64> %9, <2 x i64> %3)
+  %11 = bitcast <4 x i64> %10 to <16 x i16>
+  %12 = tail call <16 x i16> @llvm.x86.avx2.pslli.w(<16 x i16> %11, i32 %S)
+  %13 = bitcast <16 x i16> %12 to <8 x i32>
+  %14 = tail call <8 x i32> @llvm.x86.avx2.pslli.d(<8 x i32> %13, i32 %S)
+  %15 = bitcast <8 x i32> %14 to <4 x i64>
+  %16 = tail call <4 x i64> @llvm.x86.avx2.pslli.q(<4 x i64> %15, i32 %S)
+  ret <4 x i64> %16
+; CHECK: test_avx2_0
+; CHECK: ret <4 x i64> zeroinitializer
+}
+define <2 x i64> @test_sse2_psrl_1() nounwind readnone uwtable {
+  %S = bitcast i32 1 to i32
+  %1 = zext i32 %S to i64
+  %2 = insertelement <2 x i64> undef, i64 %1, i32 0
+  %3 = insertelement <2 x i64> %2, i64 0, i32 1
+  %4 = bitcast <2 x i64> %3 to <8 x i16>
+  %5 = tail call <8 x i16> @llvm.x86.sse2.psrl.w(<8 x i16> <i16 16, i16 32, i16 64, i16 128, i16 256, i16 512, i16 1024, i16 2048>, <8 x i16> %4)
+  %6 = bitcast <8 x i16> %5 to <4 x i32>
+  %7 = bitcast <2 x i64> %3 to <4 x i32>
+  %8 = tail call <4 x i32> @llvm.x86.sse2.psrl.d(<4 x i32> %6, <4 x i32> %7)
+  %9 = bitcast <4 x i32> %8 to <2 x i64>
+  %10 = tail call <2 x i64> @llvm.x86.sse2.psrl.q(<2 x i64> %9, <2 x i64> %3)
+  %11 = bitcast <2 x i64> %10 to <8 x i16>
+  %12 = tail call <8 x i16> @llvm.x86.sse2.psrli.w(<8 x i16> %11, i32 %S)
+  %13 = bitcast <8 x i16> %12 to <4 x i32>
+  %14 = tail call <4 x i32> @llvm.x86.sse2.psrli.d(<4 x i32> %13, i32 %S)
+  %15 = bitcast <4 x i32> %14 to <2 x i64>
+  %16 = tail call <2 x i64> @llvm.x86.sse2.psrli.q(<2 x i64> %15, i32 %S)
+  ret <2 x i64> %16
+; CHECK: test_sse2_psrl_1
+; CHECK: ret <2 x i64> <i64 562954248421376, i64 9007267974742020>
+}
+
+define <4 x i64> @test_avx2_psrl_1() nounwind readnone uwtable {
+  %S = bitcast i32 1 to i32
+  %1 = zext i32 %S to i64
+  %2 = insertelement <2 x i64> undef, i64 %1, i32 0
+  %3 = insertelement <2 x i64> %2, i64 0, i32 1
+  %4 = bitcast <2 x i64> %3 to <8 x i16>
+  %5 = tail call <16 x i16> @llvm.x86.avx2.psrl.w(<16 x i16> <i16 1024, i16 0, i16 0, i16 0, i16 2048, i16 0, i16 0, i16 0, i16 4096, i16 0, i16 0, i16 0, i16 8192, i16 0, i16 0, i16 0>, <8 x i16> %4)
+  %6 = bitcast <16 x i16> %5 to <8 x i32>
+  %7 = bitcast <2 x i64> %3 to <4 x i32>
+  %8 = tail call <8 x i32> @llvm.x86.avx2.psrl.d(<8 x i32> %6, <4 x i32> %7)
+  %9 = bitcast <8 x i32> %8 to <4 x i64>
+  %10 = tail call <4 x i64> @llvm.x86.avx2.psrl.q(<4 x i64> %9, <2 x i64> %3)
+  %11 = bitcast <4 x i64> %10 to <16 x i16>
+  %12 = tail call <16 x i16> @llvm.x86.avx2.psrli.w(<16 x i16> %11, i32 %S)
+  %13 = bitcast <16 x i16> %12 to <8 x i32>
+  %14 = tail call <8 x i32> @llvm.x86.avx2.psrli.d(<8 x i32> %13, i32 %S)
+  %15 = bitcast <8 x i32> %14 to <4 x i64>
+  %16 = tail call <4 x i64> @llvm.x86.avx2.psrli.q(<4 x i64> %15, i32 %S)
+  ret <4 x i64> %16
+; CHECK: test_avx2_psrl_1
+; CHECK: ret <4 x i64> <i64 16, i64 32, i64 64, i64 128>
+}
+
+define <2 x i64> @test_sse2_psrl_0() nounwind readnone uwtable {
+  %S = bitcast i32 128 to i32
+  %1 = zext i32 %S to i64
+  %2 = insertelement <2 x i64> undef, i64 %1, i32 0
+  %3 = insertelement <2 x i64> %2, i64 0, i32 1
+  %4 = bitcast <2 x i64> %3 to <8 x i16>
+  %5 = tail call <8 x i16> @llvm.x86.sse2.psrl.w(<8 x i16> <i16 32, i16 64, i16 128, i16 256, i16 512, i16 1024, i16 2048, i16 4096>, <8 x i16> %4)
+  %6 = bitcast <8 x i16> %5 to <4 x i32>
+  %7 = bitcast <2 x i64> %3 to <4 x i32>
+  %8 = tail call <4 x i32> @llvm.x86.sse2.psrl.d(<4 x i32> %6, <4 x i32> %7)
+  %9 = bitcast <4 x i32> %8 to <2 x i64>
+  %10 = tail call <2 x i64> @llvm.x86.sse2.psrl.q(<2 x i64> %9, <2 x i64> %3)
+  %11 = bitcast <2 x i64> %10 to <8 x i16>
+  %12 = tail call <8 x i16> @llvm.x86.sse2.psrli.w(<8 x i16> %11, i32 %S)
+  %13 = bitcast <8 x i16> %12 to <4 x i32>
+  %14 = tail call <4 x i32> @llvm.x86.sse2.psrli.d(<4 x i32> %13, i32 %S)
+  %15 = bitcast <4 x i32> %14 to <2 x i64>
+  %16 = tail call <2 x i64> @llvm.x86.sse2.psrli.q(<2 x i64> %15, i32 %S)
+  ret <2 x i64> %16
+; CHECK: test_sse2_psrl_0
+; CHECK: ret <2 x i64> zeroinitializer
+}
+
+define <4 x i64> @test_avx2_psrl_0() nounwind readnone uwtable {
+  %S = bitcast i32 128 to i32
+  %1 = zext i32 %S to i64
+  %2 = insertelement <2 x i64> undef, i64 %1, i32 0
+  %3 = insertelement <2 x i64> %2, i64 0, i32 1
+  %4 = bitcast <2 x i64> %3 to <8 x i16>
+  %5 = tail call <16 x i16> @llvm.x86.avx2.psrl.w(<16 x i16> <i16 1024, i16 0, i16 0, i16 0, i16 2048, i16 0, i16 0, i16 0, i16 4096, i16 0, i16 0, i16 0, i16 8192, i16 0, i16 0, i16 0>, <8 x i16> %4)
+  %6 = bitcast <16 x i16> %5 to <8 x i32>
+  %7 = bitcast <2 x i64> %3 to <4 x i32>
+  %8 = tail call <8 x i32> @llvm.x86.avx2.psrl.d(<8 x i32> %6, <4 x i32> %7)
+  %9 = bitcast <8 x i32> %8 to <4 x i64>
+  %10 = tail call <4 x i64> @llvm.x86.avx2.psrl.q(<4 x i64> %9, <2 x i64> %3)
+  %11 = bitcast <4 x i64> %10 to <16 x i16>
+  %12 = tail call <16 x i16> @llvm.x86.avx2.psrli.w(<16 x i16> %11, i32 %S)
+  %13 = bitcast <16 x i16> %12 to <8 x i32>
+  %14 = tail call <8 x i32> @llvm.x86.avx2.psrli.d(<8 x i32> %13, i32 %S)
+  %15 = bitcast <8 x i32> %14 to <4 x i64>
+  %16 = tail call <4 x i64> @llvm.x86.avx2.psrli.q(<4 x i64> %15, i32 %S)
+  ret <4 x i64> %16
+; CHECK: test_avx2_psrl_0
+; CHECK: ret <4 x i64> zeroinitializer
+}
+
+declare <4 x i64> @llvm.x86.avx2.pslli.q(<4 x i64>, i32) #1
+declare <8 x i32> @llvm.x86.avx2.pslli.d(<8 x i32>, i32) #1
+declare <16 x i16> @llvm.x86.avx2.pslli.w(<16 x i16>, i32) #1
+declare <4 x i64> @llvm.x86.avx2.psll.q(<4 x i64>, <2 x i64>) #1
+declare <8 x i32> @llvm.x86.avx2.psll.d(<8 x i32>, <4 x i32>) #1
+declare <16 x i16> @llvm.x86.avx2.psll.w(<16 x i16>, <8 x i16>) #1
+declare <2 x i64> @llvm.x86.sse2.pslli.q(<2 x i64>, i32) #1
+declare <4 x i32> @llvm.x86.sse2.pslli.d(<4 x i32>, i32) #1
+declare <8 x i16> @llvm.x86.sse2.pslli.w(<8 x i16>, i32) #1
+declare <2 x i64> @llvm.x86.sse2.psll.q(<2 x i64>, <2 x i64>) #1
+declare <4 x i32> @llvm.x86.sse2.psll.d(<4 x i32>, <4 x i32>) #1
+declare <8 x i16> @llvm.x86.sse2.psll.w(<8 x i16>, <8 x i16>) #1
+declare <4 x i64> @llvm.x86.avx2.psrli.q(<4 x i64>, i32) #1
+declare <8 x i32> @llvm.x86.avx2.psrli.d(<8 x i32>, i32) #1
+declare <16 x i16> @llvm.x86.avx2.psrli.w(<16 x i16>, i32) #1
+declare <4 x i64> @llvm.x86.avx2.psrl.q(<4 x i64>, <2 x i64>) #1
+declare <8 x i32> @llvm.x86.avx2.psrl.d(<8 x i32>, <4 x i32>) #1
+declare <16 x i16> @llvm.x86.avx2.psrl.w(<16 x i16>, <8 x i16>) #1
+declare <2 x i64> @llvm.x86.sse2.psrli.q(<2 x i64>, i32) #1
+declare <4 x i32> @llvm.x86.sse2.psrli.d(<4 x i32>, i32) #1
+declare <8 x i16> @llvm.x86.sse2.psrli.w(<8 x i16>, i32) #1
+declare <2 x i64> @llvm.x86.sse2.psrl.q(<2 x i64>, <2 x i64>) #1
+declare <4 x i32> @llvm.x86.sse2.psrl.d(<4 x i32>, <4 x i32>) #1
+declare <8 x i16> @llvm.x86.sse2.psrl.w(<8 x i16>, <8 x i16>) #1
+
+attributes #1 = { nounwind readnone }

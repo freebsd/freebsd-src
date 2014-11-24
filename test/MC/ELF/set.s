@@ -5,13 +5,13 @@
 .set kernbase,0xffffffff80000000
 
 // CHECK:        Symbol {
-// CHECK:          Name: kernbase (1)
+// CHECK:          Name: kernbase
 // CHECK-NEXT:     Value: 0xFFFFFFFF80000000
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Local
 // CHECK-NEXT:     Type: None
 // CHECK-NEXT:     Other: 0
-// CHECK-NEXT:     Section: (0xFFF1)
+// CHECK-NEXT:     Section: Absolute (0xFFF1)
 // CHECK-NEXT:   }
 
 // Test that we accept .set of a symbol after it has been used in a statement.
@@ -26,11 +26,11 @@
 
 // Test that there is an undefined reference to bar
 // CHECK:        Symbol {
-// CHECK:          Name: bar (10)
+// CHECK:          Name: bar
 // CHECK-NEXT:     Value: 0x0
 // CHECK-NEXT:     Size: 0
 // CHECK-NEXT:     Binding: Global
 // CHECK-NEXT:     Type: None
 // CHECK-NEXT:     Other: 0
-// CHECK-NEXT:     Section: (0x0)
+// CHECK-NEXT:     Section: Undefined (0x0)
 // CHECK-NEXT:   }

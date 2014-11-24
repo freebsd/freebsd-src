@@ -585,6 +585,12 @@ fsubr ST(1)
 fdiv ST(1)
 fdivr ST(1)
 
+
+// CHECK: fxsaveq (%rax)
+// CHECK: fxrstorq (%rax)
+fxsave64 opaque ptr [rax]
+fxrstor64 opaque ptr [rax]
+
 .bss
 .globl _g0
 .text
@@ -593,3 +599,11 @@ fdivr ST(1)
 // CHECK: movq _g0+8, %rcx
 mov rbx, qword ptr [_g0]
 mov rcx, qword ptr [_g0 + 8]
+
+"?half@?0??bar@@YAXXZ@4NA":
+	.quad   4602678819172646912
+
+fadd   "?half@?0??bar@@YAXXZ@4NA"
+fadd   "?half@?0??bar@@YAXXZ@4NA"@IMGREL
+// CHECK: fadds   "?half@?0??bar@@YAXXZ@4NA"
+// CHECK: fadds   "?half@?0??bar@@YAXXZ@4NA"@IMGREL32

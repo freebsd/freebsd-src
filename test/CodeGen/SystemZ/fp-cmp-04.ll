@@ -1,4 +1,4 @@
-; Test that floating-point compares are ommitted if CC already has the
+; Test that floating-point compares are omitted if CC already has the
 ; right value.
 ;
 ; RUN: llc < %s -mtriple=s390x-linux-gnu -mcpu=z10 | FileCheck %s
@@ -345,4 +345,63 @@ store:
 
 exit:
   ret double %val
+}
+
+; Repeat f2 with a comparison against -0.
+define float @f17(float %a, float %b, float *%dest) {
+; CHECK-LABEL: f17:
+; CHECK: aebr %f0, %f2
+; CHECK-NEXT: jl .L{{.*}}
+; CHECK: br %r14
+entry:
+  %res = fadd float %a, %b
+  %cmp = fcmp olt float %res, -0.0
+  br i1 %cmp, label %exit, label %store
+
+store:
+  store float %b, float *%dest
+  br label %exit
+
+exit:
+  ret float %res
+}
+
+; Test another form of f7 in which the condition is based on the unnegated
+; result.  This is what InstCombine would produce.
+define float @f18(float %dummy, float %a, float *%dest) {
+; CHECK-LABEL: f18:
+; CHECK: lnebr %f0, %f2
+; CHECK-NEXT: jl .L{{.*}}
+; CHECK: br %r14
+entry:
+  %abs = call float @llvm.fabs.f32(float %a)
+  %res = fsub float -0.0, %abs
+  %cmp = fcmp ogt float %abs, 0.0
+  br i1 %cmp, label %exit, label %store
+
+store:
+  store float %res, float *%dest
+  br label %exit
+
+exit:
+  ret float %res
+}
+
+; Similarly for f8.
+define float @f19(float %dummy, float %a, float *%dest) {
+; CHECK-LABEL: f19:
+; CHECK: lcebr %f0, %f2
+; CHECK-NEXT: jle .L{{.*}}
+; CHECK: br %r14
+entry:
+  %res = fsub float -0.0, %a
+  %cmp = fcmp oge float %a, 0.0
+  br i1 %cmp, label %exit, label %store
+
+store:
+  store float %res, float *%dest
+  br label %exit
+
+exit:
+  ret float %res
 }

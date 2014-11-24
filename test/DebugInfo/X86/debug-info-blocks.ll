@@ -5,32 +5,40 @@
 ; rdar://problem/9279956
 ; test that the DW_AT_location of self is at ( fbreg +{{[0-9]+}}, deref, +{{[0-9]+}} )
 
+; CHECK: [[A:.*]]:   DW_TAG_structure_type
+; CHECK-NEXT: DW_AT_APPLE_objc_complete_type
+; CHECK-NEXT: DW_AT_name{{.*}}"A"
+
 ; CHECK: DW_TAG_subprogram
+; CHECK: DW_TAG_subprogram
+; CHECK: DW_TAG_subprogram
+; CHECK-NOT: DW_TAG
+; CHECK: DW_AT_object_pointer
+; CHECK-NOT: DW_TAG
 ; CHECK: DW_AT_name{{.*}}_block_invoke
 
-; CHECK-NOT: DW_TAG_subprogram
+; CHECK-NOT: {{DW_TAG|NULL}}
 ; CHECK: DW_TAG_formal_parameter
-; CHECK-NEXT: DW_AT_name{{.*}}.block_descriptor
 ; CHECK-NOT: DW_TAG
 ; CHECK: DW_AT_location
+; CHECK-NOT: DW_TAG
+; CHECK: DW_AT_name{{.*}}.block_descriptor
 
-; CHECK-NOT: DW_TAG_subprogram
+; CHECK-NOT: {{DW_TAG|NULL}}
 ; CHECK: DW_TAG_variable
-; CHECK-NEXT: DW_AT_name{{.*}}"self"
-; CHECK-NOT: DW_TAG
-; CHECK: DW_AT_type{{.*}}{[[APTR:.*]]}
-; CHECK-NOT: DW_TAG
-; CHECK: DW_AT_artificial
 ; CHECK-NOT: DW_TAG
 ; 0x06 = DW_OP_deref
 ; 0x23 = DW_OP_uconst
 ; 0x91 = DW_OP_fbreg
 ; CHECK: DW_AT_location{{.*}}91 {{[0-9]+}} 06 23 {{[0-9]+}} )
+; CHECK-NOT: DW_TAG
+; CHECK: DW_AT_name{{.*}}"self"
+; CHECK-NOT: DW_TAG
+; CHECK: DW_AT_type{{.*}}{[[APTR:.*]]}
+; CHECK-NOT: DW_TAG
+; CHECK: DW_AT_artificial
 
-; CHECK: [[A:.*]]:   DW_TAG_structure_type
-; CHECK-NEXT: DW_AT_APPLE_objc_complete_type
-; CHECK-NEXT: DW_AT_name{{.*}}"A"
-; CHECK: [[APTR]]:   DW_TAG_pointer_type [5]
+; CHECK: [[APTR]]:   DW_TAG_pointer_type
 ; CHECK-NEXT: {[[A]]}
 
 
@@ -264,7 +272,7 @@ attributes #3 = { nounwind }
 
 !0 = metadata !{i32 786449, metadata !1, i32 16, metadata !"clang version 3.3 ", i1 false, metadata !"", i32 2, metadata !2, metadata !3, metadata !12, metadata !2,  metadata !2, metadata !""} ; [ DW_TAG_compile_unit ] [llvm/tools/clang/test/CodeGenObjC/<unknown>] [DW_LANG_ObjC]
 !1 = metadata !{metadata !"llvm/tools/clang/test/CodeGenObjC/<unknown>", metadata !"llvm/_build.ninja.Debug"}
-!2 = metadata !{i32 0}
+!2 = metadata !{}
 !3 = metadata !{metadata !4}
 !4 = metadata !{i32 786451, metadata !5, metadata !6, metadata !"A", i32 33, i64 32, i64 32, i32 0, i32 512, null, metadata !7, i32 16, null, null, null} ; [ DW_TAG_structure_type ] [A] [line 33, size 32, align 32, offset 0] [def] [from ]
 !5 = metadata !{metadata !"llvm/tools/clang/test/CodeGenObjC/debug-info-blocks.m", metadata !"llvm/_build.ninja.Debug"}
@@ -351,7 +359,7 @@ attributes #3 = { nounwind }
 !86 = metadata !{i32 786451, metadata !1, null, metadata !"__block_descriptor_withcopydispose", i32 49, i64 0, i64 0, i32 0, i32 4, null, null, i32 0, null, null, null} ; [ DW_TAG_structure_type ] [__block_descriptor_withcopydispose] [line 49, size 0, align 0, offset 0] [decl] [from ]
 !87 = metadata !{i32 786445, metadata !5, metadata !6, metadata !"self", i32 49, i64 64, i64 64, i64 256, i32 0, metadata !61} ; [ DW_TAG_member ] [self] [line 49, size 64, align 64, offset 256] [from ]
 !88 = metadata !{i32 49, i32 0, metadata !27, null}
-!89 = metadata !{i32 786688, metadata !27, metadata !"self", metadata !32, i32 52, metadata !23, i32 0, i32 0, i64 2, i64 1, i64 32} ; [ DW_TAG_auto_variable ] [self] [line 52]
+!89 = metadata !{i32 786688, metadata !27, metadata !"self", metadata !32, i32 52, metadata !23, i32 0, i32 0, metadata !111} ; [ DW_TAG_auto_variable ] [self] [line 52]
 !90 = metadata !{i32 52, i32 0, metadata !27, null}
 !91 = metadata !{i32 786688, metadata !92, metadata !"d", metadata !6, i32 50, metadata !93, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [d] [line 50]
 !92 = metadata !{i32 786443, metadata !5, metadata !27, i32 49, i32 0, i32 2} ; [ DW_TAG_lexical_block ] [llvm/tools/clang/test/CodeGenObjC/debug-info-blocks.m]
@@ -373,3 +381,4 @@ attributes #3 = { nounwind }
 !108 = metadata !{i32 61, i32 0, metadata !36, null}
 !109 = metadata !{i32 62, i32 0, metadata !36, null}
 !110 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
+!111 = metadata !{i64 2, i64 1, i64 32}

@@ -13,22 +13,24 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Config/config.h" // plugin-api.h requires HAVE_STDINT_H
-#include "plugin-api.h"
 #include "llvm-c/lto.h"
 #include "llvm/ADT/StringSet.h"
-#include "llvm/ADT/OwningPtr.h"
+#include "llvm/CodeGen/CommandFlags.h"
+#include "llvm/LTO/LTOCodeGenerator.h"
+#include "llvm/LTO/LTOModule.h"
 #include "llvm/Support/Errno.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Program.h"
+#include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/ToolOutputFile.h"
-#include "llvm/Support/system_error.h"
 #include <cerrno>
 #include <cstdlib>
 #include <cstring>
-#include <fstream>
 #include <list>
+#include <plugin-api.h>
+#include <system_error>
 #include <vector>
 
 // Support Windows/MinGW crazyness.
@@ -38,38 +40,40 @@
 # define read _read
 #endif
 
+#ifndef LDPO_PIE
+// FIXME: remove this declaration when we stop maintaining Ubuntu Quantal and
+// Precise and Debian Wheezy (binutils 2.23 is required)
+# define LDPO_PIE 3
+#endif
+
 using namespace llvm;
 
 namespace {
-  ld_plugin_status discard_message(int level, const char *format, ...) {
-    // Die loudly. Recent versions of Gold pass ld_plugin_message as the first
-    // callback in the transfer vector. This should never be called.
-    abort();
-  }
-
-  ld_plugin_add_symbols add_symbols = NULL;
-  ld_plugin_get_symbols get_symbols = NULL;
-  ld_plugin_add_input_file add_input_file = NULL;
-  ld_plugin_add_input_library add_input_library = NULL;
-  ld_plugin_set_extra_library_path set_extra_library_path = NULL;
-  ld_plugin_get_view get_view = NULL;
-  ld_plugin_message message = discard_message;
-
-  int api_version = 0;
-  int gold_version = 0;
-
-  struct claimed_file {
-    void *handle;
-    std::vector<ld_plugin_symbol> syms;
-  };
-
-  lto_codegen_model output_type = LTO_CODEGEN_PIC_MODEL_STATIC;
-  std::string output_name = "";
-  std::list<claimed_file> Modules;
-  std::vector<std::string> Cleanup;
-  lto_code_gen_t code_gen = NULL;
-  StringSet<> CannotBeHidden;
+struct claimed_file {
+  void *handle;
+  std::vector<ld_plugin_symbol> syms;
+};
 }
+
+static ld_plugin_status discard_message(int level, const char *format, ...) {
+  // Die loudly. Recent versions of Gold pass ld_plugin_message as the first
+  // callback in the transfer vector. This should never be called.
+  abort();
+}
+
+static ld_plugin_add_symbols add_symbols = NULL;
+static ld_plugin_get_symbols get_symbols = NULL;
+static ld_plugin_add_input_file add_input_file = NULL;
+static ld_plugin_set_extra_library_path set_extra_library_path = NULL;
+static ld_plugin_get_view get_view = NULL;
+static ld_plugin_message message = discard_message;
+static lto_codegen_model output_type = LTO_CODEGEN_PIC_MODEL_STATIC;
+static std::string output_name = "";
+static std::list<claimed_file> Modules;
+static std::vector<std::string> Cleanup;
+static LTOCodeGenerator *CodeGen = nullptr;
+static StringSet<> CannotBeHidden;
+static llvm::TargetOptions TargetOpts;
 
 namespace options {
   enum generate_bc { BC_NO, BC_ALSO, BC_ONLY };
@@ -130,6 +134,12 @@ static ld_plugin_status cleanup_hook(void);
 
 extern "C" ld_plugin_status onload(ld_plugin_tv *tv);
 ld_plugin_status onload(ld_plugin_tv *tv) {
+  InitializeAllTargetInfos();
+  InitializeAllTargets();
+  InitializeAllTargetMCs();
+  InitializeAllAsmParsers();
+  InitializeAllAsmPrinters();
+
   // We're given a pointer to the first transfer vector. We read through them
   // until we find one where tv_tag == LDPT_NULL. The REGISTER_* tagged values
   // contain pointers to functions that we need to call to register our own
@@ -137,15 +147,10 @@ ld_plugin_status onload(ld_plugin_tv *tv) {
   // for services.
 
   bool registeredClaimFile = false;
+  bool RegisteredAllSymbolsRead = false;
 
   for (; tv->tv_tag != LDPT_NULL; ++tv) {
     switch (tv->tv_tag) {
-      case LDPT_API_VERSION:
-        api_version = tv->tv_u.tv_val;
-        break;
-      case LDPT_GOLD_VERSION:  // major * 100 + minor
-        gold_version = tv->tv_u.tv_val;
-        break;
       case LDPT_OUTPUT_NAME:
         output_name = tv->tv_u.tv_string;
         break;
@@ -153,8 +158,7 @@ ld_plugin_status onload(ld_plugin_tv *tv) {
         switch (tv->tv_u.tv_val) {
           case LDPO_REL:  // .o
           case LDPO_DYN:  // .so
-          // FIXME: Replace 3 with LDPO_PIE once that is in a released binutils.
-          case 3: // position independent executable
+          case LDPO_PIE:  // position independent executable
             output_type = LTO_CODEGEN_PIC_MODEL_DYNAMIC;
             break;
           case LDPO_EXEC:  // .exe
@@ -165,8 +169,6 @@ ld_plugin_status onload(ld_plugin_tv *tv) {
                        tv->tv_u.tv_val);
             return LDPS_ERR;
         }
-        // TODO: add an option to disable PIC.
-        //output_type = LTO_CODEGEN_PIC_MODEL_DYNAMIC_NO_PIC;
         break;
       case LDPT_OPTION:
         options::process_plugin_option(tv->tv_u.tv_string);
@@ -187,7 +189,7 @@ ld_plugin_status onload(ld_plugin_tv *tv) {
         if ((*callback)(all_symbols_read_hook) != LDPS_OK)
           return LDPS_ERR;
 
-        code_gen = lto_codegen_create();
+        RegisteredAllSymbolsRead = true;
       } break;
       case LDPT_REGISTER_CLEANUP_HOOK: {
         ld_plugin_register_cleanup callback;
@@ -204,9 +206,6 @@ ld_plugin_status onload(ld_plugin_tv *tv) {
         break;
       case LDPT_ADD_INPUT_FILE:
         add_input_file = tv->tv_u.tv_add_input_file;
-        break;
-      case LDPT_ADD_INPUT_LIBRARY:
-        add_input_library = tv->tv_u.tv_add_input_file;
         break;
       case LDPT_SET_EXTRA_LIBRARY_PATH:
         set_extra_library_path = tv->tv_u.tv_set_extra_library_path;
@@ -231,17 +230,43 @@ ld_plugin_status onload(ld_plugin_tv *tv) {
     return LDPS_ERR;
   }
 
+  if (!RegisteredAllSymbolsRead)
+    return LDPS_OK;
+
+  CodeGen = new LTOCodeGenerator();
+
+  // Pass through extra options to the code generator.
+  if (!options::extra.empty()) {
+    for (std::vector<std::string>::iterator it = options::extra.begin();
+         it != options::extra.end(); ++it) {
+      CodeGen->setCodeGenDebugOptions((*it).c_str());
+    }
+  }
+
+  CodeGen->parseCodeGenDebugOptions();
+  if (MAttrs.size()) {
+    std::string Attrs;
+    for (unsigned I = 0; I < MAttrs.size(); ++I) {
+      if (I > 0)
+        Attrs.append(",");
+      Attrs.append(MAttrs[I]);
+    }
+    CodeGen->setAttr(Attrs.c_str());
+  }
+
+  TargetOpts = InitTargetOptionsFromCodeGenFlags();
+  CodeGen->setTargetOptions(TargetOpts);
+
   return LDPS_OK;
 }
 
-/// claim_file_hook - called by gold to see whether this file is one that
-/// our plugin can handle. We'll try to open it and register all the symbols
-/// with add_symbol if possible.
+/// Called by gold to see whether this file is one that our plugin can handle.
+/// We'll try to open it and register all the symbols with add_symbol if
+/// possible.
 static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
                                         int *claimed) {
-  lto_module_t M;
   const void *view;
-  OwningPtr<MemoryBuffer> buffer;
+  std::unique_ptr<MemoryBuffer> buffer;
   if (get_view) {
     if (get_view(file->handle, &view) != LDPS_OK) {
       (*message)(LDPL_ERROR, "Failed to get a view of %s", file->name);
@@ -254,25 +279,27 @@ static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
     if (file->offset) {
       offset = file->offset;
     }
-    if (error_code ec = MemoryBuffer::getOpenFileSlice(
-            file->fd, file->name, buffer, file->filesize, offset)) {
-      (*message)(LDPL_ERROR, ec.message().c_str());
+    ErrorOr<std::unique_ptr<MemoryBuffer>> BufferOrErr =
+        MemoryBuffer::getOpenFileSlice(file->fd, file->name, file->filesize,
+                                       offset);
+    if (std::error_code EC = BufferOrErr.getError()) {
+      (*message)(LDPL_ERROR, EC.message().c_str());
       return LDPS_ERR;
     }
+    buffer = std::move(BufferOrErr.get());
     view = buffer->getBufferStart();
   }
 
-  if (!lto_module_is_object_file_in_memory(view, file->filesize))
+  if (!LTOModule::isBitcodeFile(view, file->filesize))
     return LDPS_OK;
 
-  M = lto_module_create_from_memory(view, file->filesize);
+  std::string Error;
+  LTOModule *M =
+      LTOModule::createFromBuffer(view, file->filesize, TargetOpts, Error);
   if (!M) {
-    if (const char* msg = lto_get_error_message()) {
-      (*message)(LDPL_ERROR,
-                 "LLVM gold plugin has failed to create LTO module: %s",
-                 msg);
-      return LDPS_ERR;
-    }
+    (*message)(LDPL_ERROR,
+               "LLVM gold plugin has failed to create LTO module: %s",
+               Error.c_str());
     return LDPS_OK;
   }
 
@@ -281,21 +308,20 @@ static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
   claimed_file &cf = Modules.back();
 
   if (!options::triple.empty())
-    lto_module_set_target_triple(M, options::triple.c_str());
+    M->setTargetTriple(options::triple.c_str());
 
   cf.handle = file->handle;
-  unsigned sym_count = lto_module_get_num_symbols(M);
+  unsigned sym_count = M->getSymbolCount();
   cf.syms.reserve(sym_count);
 
   for (unsigned i = 0; i != sym_count; ++i) {
-    lto_symbol_attributes attrs = lto_module_get_symbol_attribute(M, i);
+    lto_symbol_attributes attrs = M->getSymbolAttributes(i);
     if ((attrs & LTO_SYMBOL_SCOPE_MASK) == LTO_SYMBOL_SCOPE_INTERNAL)
       continue;
 
     cf.syms.push_back(ld_plugin_symbol());
     ld_plugin_symbol &sym = cf.syms.back();
-    sym.name = const_cast<char *>(lto_module_get_symbol_name(M, i));
-    sym.name = strdup(sym.name);
+    sym.name = strdup(M->getSymbolName(i));
     sym.version = NULL;
 
     int scope = attrs & LTO_SYMBOL_SCOPE_MASK;
@@ -357,15 +383,15 @@ static ld_plugin_status claim_file_hook(const ld_plugin_input_file *file,
     }
   }
 
-  if (code_gen) {
-    if (lto_codegen_add_module(code_gen, M)) {
-      (*message)(LDPL_ERROR, "Error linking module: %s",
-                 lto_get_error_message());
+  if (CodeGen) {
+    std::string Error;
+    if (!CodeGen->addModule(M, Error)) {
+      (*message)(LDPL_ERROR, "Error linking module: %s", Error.c_str());
       return LDPS_ERR;
     }
   }
 
-  lto_module_dispose(M);
+  delete M;
 
   return LDPS_OK;
 }
@@ -383,15 +409,17 @@ static bool mustPreserve(const claimed_file &F, int i) {
 /// been overridden by a native object file. Then, perform optimization and
 /// codegen.
 static ld_plugin_status all_symbols_read_hook(void) {
-  std::ofstream api_file;
-  assert(code_gen);
+  // FIXME: raw_fd_ostream should be able to represent an unopened file.
+  std::unique_ptr<raw_fd_ostream> api_file;
+
+  assert(CodeGen);
 
   if (options::generate_api_file) {
-    api_file.open("apifile.txt", std::ofstream::out | std::ofstream::trunc);
-    if (!api_file.is_open()) {
-      (*message)(LDPL_FATAL, "Unable to open apifile.txt for writing.");
-      abort();
-    }
+    std::string Error;
+    api_file.reset(new raw_fd_ostream("apifile.txt", Error, sys::fs::F_None));
+    if (!Error.empty())
+      (*message)(LDPL_FATAL, "Unable to open apifile.txt for writing: %s",
+                 Error.c_str());
   }
 
   for (std::list<claimed_file>::iterator I = Modules.begin(),
@@ -401,29 +429,18 @@ static ld_plugin_status all_symbols_read_hook(void) {
     (*get_symbols)(I->handle, I->syms.size(), &I->syms[0]);
     for (unsigned i = 0, e = I->syms.size(); i != e; i++) {
       if (mustPreserve(*I, i)) {
-        lto_codegen_add_must_preserve_symbol(code_gen, I->syms[i].name);
+        CodeGen->addMustPreserveSymbol(I->syms[i].name);
 
         if (options::generate_api_file)
-          api_file << I->syms[i].name << "\n";
+          (*api_file) << I->syms[i].name << "\n";
       }
     }
   }
 
-  if (options::generate_api_file)
-    api_file.close();
-
-  lto_codegen_set_pic_model(code_gen, output_type);
-  lto_codegen_set_debug_model(code_gen, LTO_DEBUG_MODEL_DWARF);
+  CodeGen->setCodePICModel(output_type);
+  CodeGen->setDebugInfo(LTO_DEBUG_MODEL_DWARF);
   if (!options::mcpu.empty())
-    lto_codegen_set_cpu(code_gen, options::mcpu.c_str());
-
-  // Pass through extra options to the code generator.
-  if (!options::extra.empty()) {
-    for (std::vector<std::string>::iterator it = options::extra.begin();
-         it != options::extra.end(); ++it) {
-      lto_codegen_debug_options(code_gen, (*it).c_str());
-    }
-  }
+    CodeGen->setCpu(options::mcpu.c_str());
 
   if (options::generate_bc_file != options::BC_NO) {
     std::string path;
@@ -433,11 +450,11 @@ static ld_plugin_status all_symbols_read_hook(void) {
       path = options::bc_path;
     else
       path = output_name + ".bc";
-    bool err = lto_codegen_write_merged_modules(code_gen, path.c_str());
-    if (err)
+    std::string Error;
+    if (!CodeGen->writeMergedModules(path.c_str(), Error))
       (*message)(LDPL_FATAL, "Failed to write the output file.");
     if (options::generate_bc_file == options::BC_ONLY) {
-      lto_codegen_dispose(code_gen);
+      delete CodeGen;
       exit(0);
     }
   }
@@ -445,13 +462,14 @@ static ld_plugin_status all_symbols_read_hook(void) {
   std::string ObjPath;
   {
     const char *Temp;
-    if (lto_codegen_compile_to_file(code_gen, &Temp)) {
+    std::string Error;
+    if (!CodeGen->compile_to_file(&Temp, /*DisableOpt*/ false, /*DisableInline*/
+                                  false, /*DisableGVNLoadPRE*/ false, Error))
       (*message)(LDPL_ERROR, "Could not produce a combined object file\n");
-    }
     ObjPath = Temp;
   }
 
-  lto_codegen_dispose(code_gen);
+  delete CodeGen;
   for (std::list<claimed_file>::iterator I = Modules.begin(),
          E = Modules.end(); I != E; ++I) {
     for (unsigned i = 0; i != I->syms.size(); ++i) {
@@ -480,7 +498,7 @@ static ld_plugin_status all_symbols_read_hook(void) {
 
 static ld_plugin_status cleanup_hook(void) {
   for (int i = 0, e = Cleanup.size(); i != e; ++i) {
-    error_code EC = sys::fs::remove(Cleanup[i]);
+    std::error_code EC = sys::fs::remove(Cleanup[i]);
     if (EC)
       (*message)(LDPL_ERROR, "Failed to delete '%s': %s", Cleanup[i].c_str(),
                  EC.message().c_str());

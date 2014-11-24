@@ -16,7 +16,30 @@
 
 using namespace llvm;
 
-// SmallPtrSet swapping test.
+TEST(SmallPtrSetTest, Assignment) {
+  int buf[8];
+  for (int i = 0; i < 8; ++i)
+    buf[i] = 0;
+
+  SmallPtrSet<int *, 4> s1;
+  s1.insert(&buf[0]);
+  s1.insert(&buf[1]);
+
+  SmallPtrSet<int *, 4> s2;
+  (s2 = s1).insert(&buf[2]);
+
+  // Self assign as well.
+  (s2 = s2).insert(&buf[3]);
+
+  s1 = s2;
+  EXPECT_EQ(4U, s1.size());
+  for (int i = 0; i < 8; ++i)
+    if (i < 4)
+      EXPECT_TRUE(s1.count(&buf[i]));
+    else
+      EXPECT_FALSE(s1.count(&buf[i]));
+}
+
 TEST(SmallPtrSetTest, GrowthTest) {
   int i;
   int buf[8];
@@ -71,6 +94,68 @@ TEST(SmallPtrSetTest, GrowthTest) {
       EXPECT_EQ(1,buf[i]);
 }
 
+TEST(SmallPtrSetTest, CopyAndMoveTest) {
+  int buf[8];
+  for (int i = 0; i < 8; ++i)
+    buf[i] = 0;
+
+  SmallPtrSet<int *, 4> s1;
+  s1.insert(&buf[0]);
+  s1.insert(&buf[1]);
+  s1.insert(&buf[2]);
+  s1.insert(&buf[3]);
+  EXPECT_EQ(4U, s1.size());
+  for (int i = 0; i < 8; ++i)
+    if (i < 4)
+      EXPECT_TRUE(s1.count(&buf[i]));
+    else
+      EXPECT_FALSE(s1.count(&buf[i]));
+
+  SmallPtrSet<int *, 4> s2(s1);
+  EXPECT_EQ(4U, s2.size());
+  for (int i = 0; i < 8; ++i)
+    if (i < 4)
+      EXPECT_TRUE(s2.count(&buf[i]));
+    else
+      EXPECT_FALSE(s2.count(&buf[i]));
+
+  s1 = s2;
+  EXPECT_EQ(4U, s1.size());
+  EXPECT_EQ(4U, s2.size());
+  for (int i = 0; i < 8; ++i)
+    if (i < 4)
+      EXPECT_TRUE(s1.count(&buf[i]));
+    else
+      EXPECT_FALSE(s1.count(&buf[i]));
+
+  SmallPtrSet<int *, 4> s3(std::move(s1));
+  EXPECT_EQ(4U, s3.size());
+  EXPECT_TRUE(s1.empty());
+  for (int i = 0; i < 8; ++i)
+    if (i < 4)
+      EXPECT_TRUE(s3.count(&buf[i]));
+    else
+      EXPECT_FALSE(s3.count(&buf[i]));
+
+  // Move assign into the moved-from object. Also test move of a non-small
+  // container.
+  s3.insert(&buf[4]);
+  s3.insert(&buf[5]);
+  s3.insert(&buf[6]);
+  s3.insert(&buf[7]);
+  s1 = std::move(s3);
+  EXPECT_EQ(8U, s1.size());
+  EXPECT_TRUE(s3.empty());
+  for (int i = 0; i < 8; ++i)
+    EXPECT_TRUE(s1.count(&buf[i]));
+
+  // Copy assign into a moved-from object.
+  s3 = s1;
+  EXPECT_EQ(8U, s3.size());
+  EXPECT_EQ(8U, s1.size());
+  for (int i = 0; i < 8; ++i)
+    EXPECT_TRUE(s3.count(&buf[i]));
+}
 
 TEST(SmallPtrSetTest, SwapTest) {
   int buf[10];

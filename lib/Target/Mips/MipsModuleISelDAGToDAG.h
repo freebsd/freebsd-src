@@ -37,25 +37,17 @@ public:
   static char ID;
 
   explicit MipsModuleDAGToDAGISel(MipsTargetMachine &TM_)
-    : MachineFunctionPass(ID),
-      TM(TM_), Subtarget(TM.getSubtarget<MipsSubtarget>()) {}
+      : MachineFunctionPass(ID), TM(TM_) {}
 
   // Pass Name
-  virtual const char *getPassName() const {
+  const char *getPassName() const override {
     return "MIPS DAG->DAG Pattern Instruction Selection";
   }
 
-  virtual bool runOnMachineFunction(MachineFunction &MF);
-
-  virtual SDNode *Select(SDNode *N) {
-    llvm_unreachable("unexpected");
-  }
+  bool runOnMachineFunction(MachineFunction &MF) override;
 
 protected:
-  /// Keep a pointer to the MipsSubtarget around so that we can make the right
-  /// decision when generating code for different targets.
-  const TargetMachine &TM;
-  const MipsSubtarget &Subtarget;
+  MipsTargetMachine &TM;
 };
 
 /// createMipsISelDag - This pass converts a legalized DAG into a

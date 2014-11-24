@@ -7,7 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
@@ -68,7 +67,8 @@ const char *Args[] = {
 TEST(Option, OptionParsing) {
   TestOptTable T;
   unsigned MAI, MAC;
-  OwningPtr<InputArgList> AL(T.ParseArgs(Args, array_endof(Args), MAI, MAC));
+  std::unique_ptr<InputArgList> AL(
+      T.ParseArgs(std::begin(Args), std::end(Args), MAI, MAC));
 
   // Check they all exist.
   EXPECT_TRUE(AL->hasArg(OPT_A));
@@ -111,10 +111,10 @@ TEST(Option, OptionParsing) {
 TEST(Option, ParseWithFlagExclusions) {
   TestOptTable T;
   unsigned MAI, MAC;
-  OwningPtr<InputArgList> AL;
+  std::unique_ptr<InputArgList> AL;
 
   // Exclude flag3 to avoid parsing as OPT_SLASH_C.
-  AL.reset(T.ParseArgs(Args, array_endof(Args), MAI, MAC,
+  AL.reset(T.ParseArgs(std::begin(Args), std::end(Args), MAI, MAC,
                        /*FlagsToInclude=*/0,
                        /*FlagsToExclude=*/OptFlag3));
   EXPECT_TRUE(AL->hasArg(OPT_A));
@@ -122,7 +122,7 @@ TEST(Option, ParseWithFlagExclusions) {
   EXPECT_FALSE(AL->hasArg(OPT_SLASH_C));
 
   // Exclude flag1 to avoid parsing as OPT_C.
-  AL.reset(T.ParseArgs(Args, array_endof(Args), MAI, MAC,
+  AL.reset(T.ParseArgs(std::begin(Args), std::end(Args), MAI, MAC,
                        /*FlagsToInclude=*/0,
                        /*FlagsToExclude=*/OptFlag1));
   EXPECT_TRUE(AL->hasArg(OPT_B));
@@ -130,7 +130,7 @@ TEST(Option, ParseWithFlagExclusions) {
   EXPECT_TRUE(AL->hasArg(OPT_SLASH_C));
 
   const char *NewArgs[] = { "/C", "foo", "--C=bar" };
-  AL.reset(T.ParseArgs(NewArgs, array_endof(NewArgs), MAI, MAC));
+  AL.reset(T.ParseArgs(std::begin(NewArgs), std::end(NewArgs), MAI, MAC));
   EXPECT_TRUE(AL->hasArg(OPT_SLASH_C));
   EXPECT_TRUE(AL->hasArg(OPT_C));
   EXPECT_EQ(AL->getLastArgValue(OPT_SLASH_C), "foo");
@@ -142,7 +142,8 @@ TEST(Option, ParseAliasInGroup) {
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-I" };
-  OwningPtr<InputArgList> AL(T.ParseArgs(MyArgs, array_endof(MyArgs), MAI, MAC));
+  std::unique_ptr<InputArgList> AL(
+      T.ParseArgs(std::begin(MyArgs), std::end(MyArgs), MAI, MAC));
   EXPECT_TRUE(AL->hasArg(OPT_H));
 }
 
@@ -151,7 +152,8 @@ TEST(Option, AliasArgs) {
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-J", "-Joo" };
-  OwningPtr<InputArgList> AL(T.ParseArgs(MyArgs, array_endof(MyArgs), MAI, MAC));
+  std::unique_ptr<InputArgList> AL(
+      T.ParseArgs(std::begin(MyArgs), std::end(MyArgs), MAI, MAC));
   EXPECT_TRUE(AL->hasArg(OPT_B));
   EXPECT_EQ(AL->getAllArgValues(OPT_B)[0], "foo");
   EXPECT_EQ(AL->getAllArgValues(OPT_B)[1], "bar");
@@ -162,7 +164,8 @@ TEST(Option, IgnoreCase) {
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-a", "-joo" };
-  OwningPtr<InputArgList> AL(T.ParseArgs(MyArgs, array_endof(MyArgs), MAI, MAC));
+  std::unique_ptr<InputArgList> AL(
+      T.ParseArgs(std::begin(MyArgs), std::end(MyArgs), MAI, MAC));
   EXPECT_TRUE(AL->hasArg(OPT_A));
   EXPECT_TRUE(AL->hasArg(OPT_B));
 }
@@ -172,7 +175,8 @@ TEST(Option, DoNotIgnoreCase) {
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-a", "-joo" };
-  OwningPtr<InputArgList> AL(T.ParseArgs(MyArgs, array_endof(MyArgs), MAI, MAC));
+  std::unique_ptr<InputArgList> AL(
+      T.ParseArgs(std::begin(MyArgs), std::end(MyArgs), MAI, MAC));
   EXPECT_FALSE(AL->hasArg(OPT_A));
   EXPECT_FALSE(AL->hasArg(OPT_B));
 }
@@ -182,7 +186,8 @@ TEST(Option, SlurpEmpty) {
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-A", "-slurp" };
-  OwningPtr<InputArgList> AL(T.ParseArgs(MyArgs, array_endof(MyArgs), MAI, MAC));
+  std::unique_ptr<InputArgList> AL(
+      T.ParseArgs(std::begin(MyArgs), std::end(MyArgs), MAI, MAC));
   EXPECT_TRUE(AL->hasArg(OPT_A));
   EXPECT_TRUE(AL->hasArg(OPT_Slurp));
   EXPECT_EQ(AL->getAllArgValues(OPT_Slurp).size(), 0U);
@@ -193,7 +198,8 @@ TEST(Option, Slurp) {
   unsigned MAI, MAC;
 
   const char *MyArgs[] = { "-A", "-slurp", "-B", "--", "foo" };
-  OwningPtr<InputArgList> AL(T.ParseArgs(MyArgs, array_endof(MyArgs), MAI, MAC));
+  std::unique_ptr<InputArgList> AL(
+      T.ParseArgs(std::begin(MyArgs), std::end(MyArgs), MAI, MAC));
   EXPECT_EQ(AL->size(), 2U);
   EXPECT_TRUE(AL->hasArg(OPT_A));
   EXPECT_FALSE(AL->hasArg(OPT_B));

@@ -8,7 +8,7 @@
 ; CHECK-NOT: ALU clause
 ; CHECK: MOV * T{{[0-9]\.[XYZW]}}, OQAP
 
-@local_mem = internal addrspace(3) unnamed_addr global [2 x i32] [i32 1, i32 2], align 4
+@local_mem = internal unnamed_addr addrspace(3) global [2 x i32] [i32 1, i32 2], align 4
 
 define void @lds_input_queue(i32 addrspace(1)* %out, i32 addrspace(1)* %in, i32 %index) {
 entry:
@@ -87,7 +87,7 @@ declare void @llvm.AMDGPU.barrier.local()
 ; CHECK-LABEL: @local_global_alias
 ; CHECK: LDS_READ_RET
 ; CHECK-NOT: ALU clause
-; CHECK MOV * T{{[0-9]\.[XYZW]}}, OQAP
+; CHECK: MOV * T{{[0-9]\.[XYZW]}}, OQAP
 define void @local_global_alias(i32 addrspace(1)* %out, i32 addrspace(1)* %in) {
 entry:
   %0 = getelementptr inbounds [2 x i32] addrspace(3)* @local_mem, i32 0, i32 0

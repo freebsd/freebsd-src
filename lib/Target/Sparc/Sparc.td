@@ -29,10 +29,19 @@ def FeatureV8Deprecated
 def FeatureVIS
   : SubtargetFeature<"vis", "IsVIS", "true",
                      "Enable UltraSPARC Visual Instruction Set extensions">;
+def FeatureVIS2
+  : SubtargetFeature<"vis2", "IsVIS2", "true",
+                     "Enable Visual Instruction Set extensions II">;
+def FeatureVIS3
+  : SubtargetFeature<"vis3", "IsVIS3", "true",
+                     "Enable Visual Instruction Set extensions III">;
 
 def FeatureHardQuad
   : SubtargetFeature<"hard-quad-float", "HasHardQuad", "true",
                      "Enable quad-word floating point instructions">;
+
+def UsePopc : SubtargetFeature<"popc", "UsePopc", "true",
+                               "Use the popc (population count) instruction">;
 
 //===----------------------------------------------------------------------===//
 // Register File, Calling Conv, Instruction Descriptions
@@ -44,6 +53,10 @@ include "SparcInstrInfo.td"
 
 def SparcInstrInfo : InstrInfo;
 
+def SparcAsmParser : AsmParser {
+  bit ShouldEmitMatchRegisterName = 0;
+}
+
 //===----------------------------------------------------------------------===//
 // SPARC processors supported.
 //===----------------------------------------------------------------------===//
@@ -52,6 +65,7 @@ class Proc<string Name, list<SubtargetFeature> Features>
  : Processor<Name, NoItineraries, Features>;
 
 def : Proc<"generic",         []>;
+def : Proc<"v7",              []>;
 def : Proc<"v8",              []>;
 def : Proc<"supersparc",      []>;
 def : Proc<"sparclite",       []>;
@@ -61,9 +75,17 @@ def : Proc<"sparclite86x",    []>;
 def : Proc<"sparclet",        []>;
 def : Proc<"tsc701",          []>;
 def : Proc<"v9",              [FeatureV9]>;
-def : Proc<"ultrasparc",      [FeatureV9, FeatureV8Deprecated]>;
-def : Proc<"ultrasparc3",     [FeatureV9, FeatureV8Deprecated]>;
-def : Proc<"ultrasparc3-vis", [FeatureV9, FeatureV8Deprecated, FeatureVIS]>;
+def : Proc<"ultrasparc",      [FeatureV9, FeatureV8Deprecated, FeatureVIS]>;
+def : Proc<"ultrasparc3",     [FeatureV9, FeatureV8Deprecated, FeatureVIS,
+                               FeatureVIS2]>;
+def : Proc<"niagara",         [FeatureV9, FeatureV8Deprecated, FeatureVIS,
+                               FeatureVIS2]>;
+def : Proc<"niagara2",        [FeatureV9, FeatureV8Deprecated, UsePopc,
+                               FeatureVIS, FeatureVIS2]>;
+def : Proc<"niagara3",        [FeatureV9, FeatureV8Deprecated, UsePopc,
+                               FeatureVIS, FeatureVIS2]>;
+def : Proc<"niagara4",        [FeatureV9, FeatureV8Deprecated, UsePopc,
+                               FeatureVIS, FeatureVIS2, FeatureVIS3]>;
 
 
 //===----------------------------------------------------------------------===//
@@ -73,4 +95,5 @@ def : Proc<"ultrasparc3-vis", [FeatureV9, FeatureV8Deprecated, FeatureVIS]>;
 def Sparc : Target {
   // Pull in Instruction Info:
   let InstructionSet = SparcInstrInfo;
+  let AssemblyParsers  = [SparcAsmParser];
 }

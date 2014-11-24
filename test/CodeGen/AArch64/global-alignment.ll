@@ -1,8 +1,9 @@
-; RUN: llc -mtriple=aarch64-none-linux-gnu -verify-machineinstrs < %s | FileCheck %s
+; RUN: llc -mtriple=aarch64-linux-gnu -verify-machineinstrs -o - %s | FileCheck %s
 
 @var32 = global [3 x i32] zeroinitializer
 @var64 = global [3 x i64] zeroinitializer
 @var32_align64 = global [3 x i32] zeroinitializer, align 8
+@alias = alias [3 x i32]* @var32_align64
 
 define i64 @test_align32() {
 ; CHECK-LABEL: test_align32:
@@ -12,7 +13,7 @@ define i64 @test_align32() {
   ; emit an "LDR x0, [x0, #:lo12:var32] instruction to implement this load.
   %val = load i64* %addr
 ; CHECK: adrp [[HIBITS:x[0-9]+]], var32
-; CHECK: add x[[ADDR:[0-9]+]], [[HIBITS]], #:lo12:var32
+; CHECK: add x[[ADDR:[0-9]+]], [[HIBITS]], {{#?}}:lo12:var32
 ; CHECK: ldr x0, [x[[ADDR]]]
 
   ret i64 %val
@@ -27,7 +28,7 @@ define i64 @test_align64() {
   %val = load i64* %addr
 ; CHECK: adrp x[[HIBITS:[0-9]+]], var64
 ; CHECK-NOT: add x[[HIBITS]]
-; CHECK: ldr x0, [x[[HIBITS]], #:lo12:var64]
+; CHECK: ldr x0, [x[[HIBITS]], {{#?}}:lo12:var64]
 
   ret i64 %val
 }
@@ -41,7 +42,20 @@ define i64 @test_var32_align64() {
   %val = load i64* %addr
 ; CHECK: adrp x[[HIBITS:[0-9]+]], var32_align64
 ; CHECK-NOT: add x[[HIBITS]]
-; CHECK: ldr x0, [x[[HIBITS]], #:lo12:var32_align64]
+; CHECK: ldr x0, [x[[HIBITS]], {{#?}}:lo12:var32_align64]
+
+  ret i64 %val
+}
+
+define i64 @test_var32_alias() {
+; CHECK-LABEL: test_var32_alias:
+  %addr = bitcast [3 x i32]* @alias to i64*
+
+  ; Test that we can find the alignment for aliases.
+  %val = load i64* %addr
+; CHECK: adrp x[[HIBITS:[0-9]+]], alias
+; CHECK-NOT: add x[[HIBITS]]
+; CHECK: ldr x0, [x[[HIBITS]], {{#?}}:lo12:alias]
 
   ret i64 %val
 }
@@ -56,7 +70,7 @@ define i64 @test_yet_another_var() {
   ; so we can't fold the load.
   %val = load i64* bitcast({i32, i32}* @yet_another_var to i64*)
 ; CHECK: adrp [[HIBITS:x[0-9]+]], yet_another_var
-; CHECK: add x[[ADDR:[0-9]+]], [[HIBITS]], #:lo12:yet_another_var
+; CHECK: add x[[ADDR:[0-9]+]], [[HIBITS]], {{#?}}:lo12:yet_another_var
 ; CHECK: ldr x0, [x[[ADDR]]]
   ret i64 %val
 }
@@ -65,5 +79,5 @@ define i64()* @test_functions() {
 ; CHECK-LABEL: test_functions:
   ret i64()* @test_yet_another_var
 ; CHECK: adrp [[HIBITS:x[0-9]+]], test_yet_another_var
-; CHECK: add x0, [[HIBITS]], #:lo12:test_yet_another_var
+; CHECK: add x0, [[HIBITS]], {{#?}}:lo12:test_yet_another_var
 }

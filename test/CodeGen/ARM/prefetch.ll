@@ -1,8 +1,10 @@
-; RUN: llc < %s -march=thumb -mattr=-thumb2 | not grep pld
-; RUN: llc < %s -march=thumb -mattr=+v7         | FileCheck %s -check-prefix=THUMB2
-; RUN: llc < %s -march=arm   -mattr=+v7         | FileCheck %s -check-prefix=ARM
-; RUN: llc < %s -march=arm   -mcpu=cortex-a9-mp | FileCheck %s -check-prefix=ARM-MP
+; RUN: llc -mtriple=thumb-eabi -mattr=-thumb2 %s -o - | FileCheck %s -check-prefix CHECK-T1
+; RUN: llc -mtriple=thumb-eabi -mattr=+v7 %s -o - | FileCheck %s -check-prefix=THUMB2
+; RUN: llc -mtriple=arm-eabi -mattr=+v7 %s -o - | FileCheck %s -check-prefix=ARM
+; RUN: llc -mtriple=arm-eabi -mcpu=cortex-a9-mp %s -o - | FileCheck %s -check-prefix=ARM-MP
 ; rdar://8601536
+
+; CHECK-T1-NOT: pld
 
 define void @t1(i8* %ptr) nounwind  {
 entry:
@@ -74,4 +76,22 @@ entry:
 ; THUMB2: pli [r0]
   tail call void @llvm.prefetch( i8* %ptr, i32 0, i32 3, i32 0 )
   ret void
+}
+
+define void @t6() {
+entry:
+;ARM-LABEL: t6:
+;ARM: pld [sp]
+;ARM: pld [sp, #50]
+
+;THUMB2-LABEL: t6:
+;THUMB2: pld [sp]
+;THUMB2: pld [sp, #50]
+
+%red = alloca [100 x i8], align 1
+%0 = getelementptr inbounds [100 x i8]* %red, i32 0, i32 0
+%1 = getelementptr inbounds [100 x i8]* %red, i32 0, i32 50
+call void @llvm.prefetch(i8* %0, i32 0, i32 3, i32 1)
+call void @llvm.prefetch(i8* %1, i32 0, i32 3, i32 1)
+ret void
 }

@@ -78,6 +78,12 @@ LLVMBuildTool	:= $(PROJ_SRC_ROOT)/utils/llvm-build/llvm-build
 
 # The files we are going to generate using llvm-build.
 LLVMBuildMakeFrag := $(PROJ_OBJ_ROOT)/Makefile.llvmbuild
+LLVMBuildCMakeFrag := $(PROJ_OBJ_ROOT)/LLVMBuild.cmake
+LLVMBuildCMakeExportsFrag := $(PROJ_OBJ_ROOT)/cmake/modules/LLVMBuildExports.cmake
+LLVMBuildMakeFrags := \
+	$(LLVMBuildMakeFrag) \
+	$(LLVMBuildCMakeFrag) \
+	$(LLVMBuildCMakeExportsFrag)
 LLVMConfigLibraryDependenciesInc := \
 	$(PROJ_OBJ_ROOT)/tools/llvm-config/LibraryDependencies.inc
 
@@ -94,18 +100,20 @@ endif
 #
 # We include a dependency on this Makefile to ensure that changes to the
 # generation command get picked up.
-$(LLVMBuildMakeFrag): $(PROJ_SRC_ROOT)/Makefile.rules \
-		      $(PROJ_OBJ_ROOT)/Makefile.config
+$(LLVMBuildMakeFrags): $(PROJ_SRC_ROOT)/Makefile.rules \
+		       $(PROJ_OBJ_ROOT)/Makefile.config
 	$(Echo) Constructing LLVMBuild project information.
 	$(Verb)$(PYTHON) $(LLVMBuildTool) \
 	  --native-target "$(TARGET_NATIVE_ARCH)" \
 	  --enable-targets "$(TARGETS_TO_BUILD)" \
 	  --enable-optional-components "$(OPTIONAL_COMPONENTS)" \
 	  --write-library-table $(LLVMConfigLibraryDependenciesInc) \
-	  --write-make-fragment $(LLVMBuildMakeFrag)
+	  --write-make-fragment $(LLVMBuildMakeFrag) \
+	  --write-cmake-fragment $(LLVMBuildCMakeFrag) \
+	  --write-cmake-exports-fragment $(LLVMBuildCMakeExportsFrag)
 
 # For completeness, let Make know how the extra files are generated.
-$(LLVMConfigLibraryDependenciesInc): $(LLVMBuildMakeFrag)
+$(LLVMConfigLibraryDependenciesInc): $(LLVMBuildMakeFrags)
 
 # Include the generated Makefile fragment.
 #
@@ -120,7 +128,7 @@ LLVMBUILD_INCLUDE_DEPENDENCIES := 1
 
 # Clean the generated makefile fragment at the top-level.
 clean-local::
-	-$(Verb) $(RM) -f $(LLVMBuildMakeFrag)
+	-$(Verb) $(RM) -f $(LLVMBuildMakeFrags)
 endif
 -include $(LLVMBuildMakeFrag)
 
@@ -311,8 +319,16 @@ ifeq ($(ENABLE_LIBCPP),1)
   LD.Flags +=  -stdlib=libc++
 endif
 
-ifeq ($(ENABLE_CXX11),1)
-  CXX.Flags += -std=c++11
+ifeq ($(ENABLE_CXX1Y),1)
+  CXX.Flags += -std=c++1y
+else
+  ifeq ($(HOST_OS), $(filter $(HOST_OS), Cygwin MingW))
+    # MinGW and Cygwin are a bit stricter and lack things like
+    # 'strdup', 'stricmp', etc in c++11 mode.
+    CXX.Flags += -std=gnu++11
+ else
+    CXX.Flags += -std=c++11
+ endif
 endif
 
 ifeq ($(ENABLE_WERROR),1)
@@ -361,6 +377,7 @@ ifeq ($(ENABLE_COVERAGE),1)
   BuildMode := $(BuildMode)+Coverage
   CXX.Flags += -ftest-coverage -fprofile-arcs
   C.Flags   += -ftest-coverage -fprofile-arcs
+  LD.Flags   += -ftest-coverage -fprofile-arcs
 endif
 
 # If DISABLE_ASSERTIONS=1 is specified (make command line or configured),
@@ -581,6 +598,8 @@ ifdef SHARED_LIBRARY
 ifneq ($(HOST_OS), $(filter $(HOST_OS), Cygwin MingW))
 ifneq ($(HOST_OS),Darwin)
   LD.Flags += $(RPATH) -Wl,'$$ORIGIN'
+else
+  LD.Flags += -Wl,-install_name  -Wl,"@rpath/lib$(LIBRARYNAME)$(SHLIBEXT)"
 endif
 endif
 endif
@@ -606,6 +625,24 @@ ifndef KEEP_SYMBOLS
   Strip := $(PLATFORMSTRIPOPTS)
   StripWarnMsg := "(without symbols)"
   Install.StripFlag += -s
+endif
+
+# By default, strip dead symbols at link time
+ifneq ($(HOST_OS), $(filter $(HOST_OS), Cygwin MingW))
+ifneq ($(HOST_OS),Darwin)
+ifneq ($(HOST_ARCH),Mips)
+  CXX.Flags += -ffunction-sections -fdata-sections
+endif
+endif
+endif
+ifndef NO_DEAD_STRIP
+  ifeq ($(HOST_OS),Darwin)
+    LD.Flags += -Wl,-dead_strip
+  else
+    ifneq ($(HOST_OS), $(filter $(HOST_OS), Cygwin MingW))
+      LD.Flags += -Wl,--gc-sections
+    endif
+  endif
 endif
 
 # Adjust linker flags for building an executable
@@ -651,13 +688,13 @@ ifeq ($(HOST_OS),HP-UX)
   CompileCommonOpts := -D_REENTRANT -D_HPUX_SOURCE
 endif
 
-# If we are building a universal binary on Mac OS/X, pass extra options.  This
+# If we are building a universal binary on Mac OS X, pass extra options.  This
 # is useful to people that want to link the LLVM libraries into their universal
 # apps.
 #
 # The following can be optionally specified:
 #   UNIVERSAL_SDK_PATH variable can be specified as a path to the SDK to use.
-#      For Mac OS/X 10.4 Intel machines, the traditional one is:
+#      For Mac OS X 10.4 Intel machines, the traditional one is:
 #      UNIVERSAL_SDK_PATH=/Developer/SDKs/MacOSX10.4u.sdk/
 #   UNIVERSAL_ARCH can be optionally specified to be a list of architectures
 #      to build for, e.g. UNIVERSAL_ARCH="i386 ppc ppc64".  This defaults to
@@ -1027,8 +1064,9 @@ ifeq ($(HOST_OS), $(filter $(HOST_OS), Cygwin MingW))
 LLVMLibsOptions += -Wl,--enable-auto-import,--enable-runtime-pseudo-reloc \
                    -L $(SharedLibDir)
 endif
-LLVMLibsOptions += -lLLVM-$(LLVMVersion)
-LLVMLibsPaths += $(SharedLibDir)/$(SharedPrefix)LLVM-$(LLVMVersion)$(SHLIBEXT)
+LLVM_SO_NAME = LLVM-$(LLVM_VERSION_MAJOR).$(LLVM_VERSION_MINOR)$(LLVM_VERSION_SUFFIX)
+LLVMLibsOptions += -l$(LLVM_SO_NAME)
+LLVMLibsPaths += $(SharedLibDir)/$(SharedPrefix)$(LLVM_SO_NAME)$(SHLIBEXT)
 else
 
 ifndef NO_LLVM_CONFIG
@@ -1144,7 +1182,12 @@ LibName.O  := $(LibDir)/$(LIBRARYNAME).o
 #---------------------------------------------------------
 ifdef SHARED_LIBRARY
 
-all-local:: $(LibName.SO)
+all-local:: $(AliasName.SO)
+
+$(AliasName.SO): $(LibName.SO)
+ifdef SHARED_ALIAS
+	$(Verb) $(AliasTool) $(BaseLibName.SO) $(AliasName.SO)
+endif
 
 ifdef EXPORTED_SYMBOL_FILE
 $(LibName.SO): $(NativeExportsFile)
@@ -1196,12 +1239,15 @@ $(DestSharedLib): $(LibName.SO) $(DestSharedLibDir)
 	$(Verb) $(INSTALL) $(LibName.SO) $(DestSharedLib)
 ifdef SHARED_ALIAS
 	$(Echo) Creating alias from $(DestSharedLib) to $(DestSharedAlias)
-	$(Verb) $(AliasTool) $(DestSharedLib) $(DestSharedAlias)
+	$(Verb) $(AliasTool) $(BaseLibName.SO) $(DestSharedAlias)
 endif
 
 uninstall-local::
 	$(Echo) Uninstalling $(BuildMode) Shared Library $(DestSharedLib)
 	-$(Verb) $(RM) -f $(DestSharedLib)
+ifdef SHARED_ALIAS
+	-$(Verb) $(RM) -f $(DestSharedAlias)
+endif
 endif
 endif
 
@@ -1677,8 +1723,14 @@ $(ObjDir)/%GenDFAPacketizer.inc.tmp : %.td $(ObjDir)/.dir $(LLVM_TBLGEN)
 	$(Echo) "Building $(<F) DFA packetizer tables with tblgen"
 	$(Verb) $(LLVMTableGen) -gen-dfa-packetizer -o $(call SYSPATH, $@) $<
 
+# Dump all the records to <target>.td.expanded.  This is useful for debugging.
+$(TARGET:%=%.td.expanded): \
+%.td.expanded : %.td $(LLVM_TBLGEN) $(TDFiles)
+	$(Echo) "Building a fully expanded version of $(<F)"
+	$(Verb) $(LLVMTableGen) -o $(call SYSPATH, $@) $<
+
 clean-local::
-	-$(Verb) $(RM) -f $(INCFiles)
+	-$(Verb) $(RM) -f $(INCFiles) $(TARGET).td.expanded
 
 endif # TARGET
 

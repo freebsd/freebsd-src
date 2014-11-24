@@ -40,14 +40,15 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Signals.h"
+#include "llvm/Support/WindowsError.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/system_error.h"
 #include "llvm/Support/type_traits.h"
 #include <algorithm>
 #include <cerrno>
 #include <cstdlib>
 #include <map>
 #include <string>
+#include <system_error>
 
 // These includes must be last.
 #include <Windows.h>
@@ -169,8 +170,10 @@ namespace {
   typedef ScopedHandle<FileHandle>              FileScopedHandle;
 }
 
-static error_code GetFileNameFromHandle(HANDLE FileHandle,
-                                        std::string& Name) {
+static std::error_code windows_error(DWORD E) { return mapWindowsError(E); }
+
+static std::error_code GetFileNameFromHandle(HANDLE FileHandle,
+                                             std::string &Name) {
   char Filename[MAX_PATH+1];
   bool Success = false;
   Name.clear();
@@ -210,7 +213,7 @@ static error_code GetFileNameFromHandle(HANDLE FileHandle,
     return windows_error(::GetLastError());
   else {
     Name = Filename;
-    return windows_error::success;
+    return std::error_code();
   }
 }
 
@@ -220,7 +223,8 @@ static error_code GetFileNameFromHandle(HANDLE FileHandle,
 ///        extension is present, try all extensions in PATHEXT.
 /// @return If ec == errc::success, The absolute path to the program. Otherwise
 ///         the return value is undefined.
-static std::string FindProgram(const std::string &Program, error_code &ec) {
+static std::string FindProgram(const std::string &Program,
+                               std::error_code &ec) {
   char PathName[MAX_PATH + 1];
   typedef SmallVector<StringRef, 12> pathext_t;
   pathext_t pathext;
@@ -245,11 +249,11 @@ static std::string FindProgram(const std::string &Program, error_code &ec) {
       ec = windows_error(::GetLastError());
     else if (length > array_lengthof(PathName)) {
       // This may have been the file, return with error.
-      ec = windows_error::buffer_overflow;
+      ec = windows_error(ERROR_BUFFER_OVERFLOW);
       break;
     } else {
       // We found the path! Return it.
-      ec = windows_error::success;
+      ec = std::error_code();
       break;
     }
   }
@@ -312,7 +316,7 @@ int main(int argc, char **argv) {
 
   std::string CommandLine(ProgramToRun);
 
-  error_code ec;
+  std::error_code ec;
   ProgramToRun = FindProgram(ProgramToRun, ec);
   if (ec) {
     errs() << ToolName << ": Failed to find program: '" << CommandLine
@@ -356,8 +360,8 @@ int main(int argc, char **argv) {
                                   &StartupInfo,
                                   &ProcessInfo);
   if (!success) {
-    errs() << ToolName << ": Failed to run program: '" << ProgramToRun
-           << "': " << error_code(windows_error(::GetLastError())).message()
+    errs() << ToolName << ": Failed to run program: '" << ProgramToRun << "': "
+           << std::error_code(windows_error(::GetLastError())).message()
            << '\n';
     return -1;
   }
@@ -420,9 +424,10 @@ int main(int argc, char **argv) {
     success = WaitForDebugEvent(&DebugEvent, TimeLeft);
 
     if (!success) {
-      ec = windows_error(::GetLastError());
+      DWORD LastError = ::GetLastError();
+      ec = windows_error(LastError);
 
-      if (ec == errc::timed_out) {
+      if (LastError == ERROR_SEM_TIMEOUT || LastError == WSAETIMEDOUT) {
         errs() << ToolName << ": Process timed out.\n";
         ::TerminateProcess(ProcessInfo.hProcess, -1);
         // Otherwise other stuff starts failing...

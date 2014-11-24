@@ -45,14 +45,14 @@ entry:
 ; HARD:       std %f{{.+}}, [%[[S1:.+]]]
 ; HARD-DAG:   ldd [%[[S0]]], %f{{.+}}
 ; HARD-DAG:   ldd [%[[S1]]], %f{{.+}}
-; HARD:       jmp
+; HARD:       jmp %o7+12
 
 ; SOFT-LABEL: f128_spill
 ; SOFT:       std %f{{.+}}, [%[[S0:.+]]]
 ; SOFT:       std %f{{.+}}, [%[[S1:.+]]]
 ; SOFT-DAG:   ldd [%[[S0]]], %f{{.+}}
 ; SOFT-DAG:   ldd [%[[S1]]], %f{{.+}}
-; SOFT:       jmp
+; SOFT:       jmp %o7+12
 
 define void @f128_spill(fp128* noalias sret %scalar.result, fp128* byval %a) {
 entry:
@@ -132,13 +132,13 @@ entry:
 ; HARD:       ldub
 ; HARD:       faddq
 ; HARD:       stb
-; HARD:       jmp
+; HARD:       ret
 
 ; SOFT-LABEL: fp128_unaligned
 ; SOFT:       ldub
 ; SOFT:       call _Q_add
 ; SOFT:       stb
-; SOFT:       jmp
+; SOFT:       ret
 
 define void @fp128_unaligned(fp128* %a, fp128* %b, fp128* %c) {
 entry:
@@ -230,5 +230,16 @@ entry:
   %3 = fptoui fp128 %2 to i32
   %4 = bitcast i64* %ptr0 to i32*
   store  i32 %3, i32* %4, align 8
+  ret void
+}
+
+; SOFT-LABEL:     f128_neg
+; SOFT:           fnegs
+
+define void @f128_neg(fp128* noalias sret %scalar.result, fp128* byval %a) {
+entry:
+  %0 = load fp128* %a, align 8
+  %1 = fsub fp128 0xL00000000000000008000000000000000, %0
+  store fp128 %1, fp128* %scalar.result, align 8
   ret void
 }

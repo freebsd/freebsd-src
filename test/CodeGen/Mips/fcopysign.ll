@@ -1,5 +1,6 @@
 ; RUN: llc  < %s -march=mipsel -mcpu=mips32 | FileCheck %s -check-prefix=32
 ; RUN: llc  < %s -march=mipsel -mcpu=mips32r2 | FileCheck %s -check-prefix=32R2
+; RUN: llc  < %s -march=mips64el -mcpu=mips4 -mattr=n64 | FileCheck %s -check-prefix=64
 ; RUN: llc  < %s -march=mips64el -mcpu=mips64 -mattr=n64 | FileCheck %s -check-prefix=64
 ; RUN: llc  < %s -march=mips64el -mcpu=mips64r2 -mattr=n64 | FileCheck %s -check-prefix=64R2
 
@@ -16,7 +17,7 @@ entry:
 
 ; 32R2: ext  $[[EXT:[0-9]+]], ${{[0-9]+}}, 31, 1
 ; 32R2: ins  $[[INS:[0-9]+]], $[[EXT]], 31, 1
-; 32R2: mtc1 $[[INS]], $f1
+; 32R2: mthc1 $[[INS]], $f0
 
 ; 64: daddiu $[[T0:[0-9]+]], $zero, 1
 ; 64: dsll   $[[MSK1:[0-9]+]], $[[T0]], 63

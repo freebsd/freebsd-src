@@ -122,6 +122,7 @@ HOST_ARCH=@HOST_ARCH@
 # Target hardware architecture
 ARCH=@ARCH@
 TARGET_NATIVE_ARCH := $(ARCH)
+LLVM_NATIVE_ARCH := @LLVM_NATIVE_ARCH@
 
 # Indicates, whether we're cross-compiling LLVM or not
 LLVM_CROSS_COMPILING=@LLVM_CROSS_COMPILING@
@@ -211,12 +212,21 @@ POD2MAN    := @POD2MAN@
 PDFROFF    := @PDFROFF@
 ZIP        := @ZIP@
 
+HAVE_LIBZ  := @HAVE_LIBZ@
+HAVE_DLOPEN := @HAVE_DLOPEN@
 HAVE_PTHREAD := @HAVE_PTHREAD@
+HAVE_TERMINFO := @HAVE_TERMINFO@
 
 LIBS       := @LIBS@
 
+# Targets that are possible to build
+ALL_TARGETS := @ALL_TARGETS@
+
 # Targets that we should build
 TARGETS_TO_BUILD=@TARGETS_TO_BUILD@
+
+# Targets supporting JIT
+TARGETS_WITH_JIT := @TARGETS_WITH_JIT@
 
 # Path to directory where object files should be stored during a build.
 # Set OBJ_ROOT to "." if you do not want to use a separate place for
@@ -236,23 +246,27 @@ RDYNAMIC := @RDYNAMIC@
 #ENABLE_LIBCPP = 0
 ENABLE_LIBCPP = @ENABLE_LIBCPP@
 
-# When ENABLE_CXX11 is enabled, LLVM uses c++11 mode by default to build.
-ENABLE_CXX11 = @ENABLE_CXX11@
+# When ENABLE_CXX1Y is enabled, LLVM uses c++1y mode by default to build.
+# Otherwise it uses the baseline c++11.
+ENABLE_CXX1Y = @ENABLE_CXX1Y@
 
 # When ENABLE_SPLIT_DWARF is enabled, LLVM uses -gfission to build in debug mode.
 ENABLE_SPLIT_DWARF = @ENABLE_SPLIT_DWARF@
 
+# When enabled, clang will have plugin support.
+CLANG_PLUGIN_SUPPORT = @CLANG_PLUGIN_SUPPORT@
+
 # When ENABLE_CLANG_ARCMT is enabled, clang will have ARCMigrationTool.
 ENABLE_CLANG_ARCMT = @ENABLE_CLANG_ARCMT@
-
-# When ENABLE_CLANG_REWRITER is enabled, clang will have Rewriter.
-ENABLE_CLANG_REWRITER = @ENABLE_CLANG_REWRITER@
 
 # When ENABLE_CLANG_STATIC_ANALYZER is enabled, clang will have StaticAnalyzer.
 ENABLE_CLANG_STATIC_ANALYZER = @ENABLE_CLANG_STATIC_ANALYZER@
 
 # When ENABLE_WERROR is enabled, we'll pass -Werror on the command line
 ENABLE_WERROR = @ENABLE_WERROR@
+
+# When ENABLE_TERMINFO is enabled, we use terminfo.
+ENABLE_TERMINFO = @ENABLE_TERMINFO@
 
 # When ENABLE_OPTIMIZED is enabled, LLVM code is optimized and output is put
 # into the "Release" directories. Otherwise, LLVM code is not optimized and
@@ -333,9 +347,6 @@ ENABLE_TIMESTAMPS := @ENABLE_TIMESTAMPS@
 
 # Enable JIT for this platform
 TARGET_HAS_JIT = @TARGET_HAS_JIT@
-
-# Environment variable to set to change the runtime shared library search path.
-SHLIBPATH_VAR = @SHLIBPATH_VAR@
 
 # Shared library extension for host platform.
 SHLIBEXT = @SHLIBEXT@

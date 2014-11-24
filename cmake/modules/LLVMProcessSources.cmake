@@ -1,4 +1,5 @@
 include(AddFileDependencies)
+include(CMakeParseArguments)
 
 function(llvm_replace_compiler_option var old new)
   # Replaces a compiler option or switch `old' in `var' by `new'.
@@ -38,48 +39,24 @@ endmacro(add_header_files)
 
 
 function(llvm_process_sources OUT_VAR)
-  set( sources ${ARGN} )
+  cmake_parse_arguments(ARG "" "" "ADDITIONAL_HEADERS" ${ARGN})
+  set(sources ${ARG_UNPARSED_ARGUMENTS})
   llvm_check_source_file_list( ${sources} )
-  # Create file dependencies on the tablegenned files, if any.  Seems
-  # that this is not strictly needed, as dependencies of the .cpp
-  # sources on the tablegenned .inc files are detected and handled,
-  # but just in case...
-  foreach( s ${sources} )
-    set( f ${CMAKE_CURRENT_SOURCE_DIR}/${s} )
-    add_file_dependencies( ${f} ${TABLEGEN_OUTPUT} )
-  endforeach(s)
   if( MSVC_IDE OR XCODE )
     # This adds .td and .h files to the Visual Studio solution:
-    # FIXME: Shall we handle *.def here?
     add_td_sources(sources)
     add_header_files(sources)
+    set_source_files_properties(${ARG_ADDITIONAL_HEADERS} PROPERTIES HEADER_FILE_ONLY ON)
+    list(APPEND sources ${ARG_ADDITIONAL_HEADERS})
   endif()
 
-  # Set common compiler options:
-  if( NOT LLVM_REQUIRES_EH )
-    if( LLVM_COMPILER_IS_GCC_COMPATIBLE )
-      add_definitions( -fno-exceptions )
-    elseif( MSVC )
-      llvm_replace_compiler_option(CMAKE_CXX_FLAGS "/EHsc" "/EHs-c-")
-      add_definitions( /D_HAS_EXCEPTIONS=0 )
-    endif()
-  endif()
-  if( NOT LLVM_REQUIRES_RTTI )
-    if( LLVM_COMPILER_IS_GCC_COMPATIBLE )
-      llvm_replace_compiler_option(CMAKE_CXX_FLAGS "-frtti" "-fno-rtti")
-    elseif( MSVC )
-      llvm_replace_compiler_option(CMAKE_CXX_FLAGS "/GR" "/GR-")
-    endif()
-  endif()
-
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" PARENT_SCOPE )
   set( ${OUT_VAR} ${sources} PARENT_SCOPE )
 endfunction(llvm_process_sources)
 
 
 function(llvm_check_source_file_list)
   set(listed ${ARGN})
-  file(GLOB globbed *.cpp)
+  file(GLOB globbed *.c *.cpp)
   foreach(g ${globbed})
     get_filename_component(fn ${g} NAME)
     list(FIND LLVM_OPTIONAL_SOURCES ${fn} idx)
@@ -87,7 +64,7 @@ function(llvm_check_source_file_list)
       list(FIND listed ${fn} idx)
       if( idx LESS 0 )
         message(SEND_ERROR "Found unknown source file ${g}
-Please update ${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt\n")
+Please update ${CMAKE_CURRENT_LIST_FILE}\n")
       endif()
     endif()
   endforeach()

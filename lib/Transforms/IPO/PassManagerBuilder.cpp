@@ -17,7 +17,7 @@
 #include "llvm-c/Transforms/PassManagerBuilder.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/Passes.h"
-#include "llvm/Analysis/Verifier.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/PassManager.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -31,11 +31,6 @@ using namespace llvm;
 static cl::opt<bool>
 RunLoopVectorization("vectorize-loops", cl::Hidden,
                      cl::desc("Run the Loop vectorization passes"));
-
-static cl::opt<bool>
-LateVectorization("late-vectorize", cl::init(true), cl::Hidden,
-                  cl::desc("Run the vectorization pasess late in the pass "
-                           "pipeline (after the inliner)"));
 
 static cl::opt<bool>
 RunSLPVectorization("vectorize-slp", cl::Hidden,
@@ -58,18 +53,23 @@ static cl::opt<bool>
 RunLoopRerolling("reroll-loops", cl::Hidden,
                  cl::desc("Run the loop rerolling pass"));
 
+static cl::opt<bool> RunLoadCombine("combine-loads", cl::init(false),
+                                    cl::Hidden,
+                                    cl::desc("Run the load combining pass"));
+
 PassManagerBuilder::PassManagerBuilder() {
     OptLevel = 2;
     SizeLevel = 0;
-    LibraryInfo = 0;
-    Inliner = 0;
+    LibraryInfo = nullptr;
+    Inliner = nullptr;
+    DisableTailCalls = false;
     DisableUnitAtATime = false;
     DisableUnrollLoops = false;
     BBVectorize = RunBBVectorization;
     SLPVectorize = RunSLPVectorization;
     LoopVectorize = RunLoopVectorization;
-    LateVectorize = LateVectorization;
     RerollLoops = RunLoopRerolling;
+    LoadCombine = RunLoadCombine;
 }
 
 PassManagerBuilder::~PassManagerBuilder() {
@@ -134,7 +134,7 @@ void PassManagerBuilder::populateModulePassManager(PassManagerBase &MPM) {
   if (OptLevel == 0) {
     if (Inliner) {
       MPM.add(Inliner);
-      Inliner = 0;
+      Inliner = nullptr;
     }
 
     // FIXME: This is a HACK! The inliner pass above implicitly creates a CGSCC
@@ -156,12 +156,13 @@ void PassManagerBuilder::populateModulePassManager(PassManagerBase &MPM) {
   if (!DisableUnitAtATime) {
     addExtensionsToPM(EP_ModuleOptimizerEarly, MPM);
 
+    MPM.add(createIPSCCPPass());              // IP SCCP
     MPM.add(createGlobalOptimizerPass());     // Optimize out global vars
 
-    MPM.add(createIPSCCPPass());              // IP SCCP
     MPM.add(createDeadArgEliminationPass());  // Dead argument elimination
 
     MPM.add(createInstructionCombiningPass());// Clean up after IPCP & DAE
+    addExtensionsToPM(EP_Peephole, MPM);
     MPM.add(createCFGSimplificationPass());   // Clean up after IPCP & DAE
   }
 
@@ -170,7 +171,7 @@ void PassManagerBuilder::populateModulePassManager(PassManagerBase &MPM) {
     MPM.add(createPruneEHPass());             // Remove dead EH info
   if (Inliner) {
     MPM.add(Inliner);
-    Inliner = 0;
+    Inliner = nullptr;
   }
   if (!DisableUnitAtATime)
     MPM.add(createFunctionAttrsPass());       // Set readonly/readnone attrs
@@ -188,8 +189,10 @@ void PassManagerBuilder::populateModulePassManager(PassManagerBase &MPM) {
   MPM.add(createCorrelatedValuePropagationPass()); // Propagate conditionals
   MPM.add(createCFGSimplificationPass());     // Merge & remove BBs
   MPM.add(createInstructionCombiningPass());  // Combine silly seq's
+  addExtensionsToPM(EP_Peephole, MPM);
 
-  MPM.add(createTailCallEliminationPass());   // Eliminate tail calls
+  if (!DisableTailCalls)
+    MPM.add(createTailCallEliminationPass()); // Eliminate tail calls
   MPM.add(createCFGSimplificationPass());     // Merge & remove BBs
   MPM.add(createReassociatePass());           // Reassociate expressions
   MPM.add(createLoopRotatePass());            // Rotate Loop
@@ -200,21 +203,21 @@ void PassManagerBuilder::populateModulePassManager(PassManagerBase &MPM) {
   MPM.add(createLoopIdiomPass());             // Recognize idioms like memset.
   MPM.add(createLoopDeletionPass());          // Delete dead loops
 
-  if (!LateVectorize && LoopVectorize)
-      MPM.add(createLoopVectorizePass(DisableUnrollLoops));
-
   if (!DisableUnrollLoops)
-    MPM.add(createLoopUnrollPass());          // Unroll small loops
+    MPM.add(createSimpleLoopUnrollPass());    // Unroll small loops
   addExtensionsToPM(EP_LoopOptimizerEnd, MPM);
 
-  if (OptLevel > 1)
+  if (OptLevel > 1) {
+    MPM.add(createMergedLoadStoreMotionPass()); // Merge load/stores in diamond
     MPM.add(createGVNPass());                 // Remove redundancies
+  }
   MPM.add(createMemCpyOptPass());             // Remove memcpy / form memset
   MPM.add(createSCCPPass());                  // Constant prop with SCCP
 
   // Run instcombine after redundancy elimination to exploit opportunities
   // opened up by them.
   MPM.add(createInstructionCombiningPass());
+  addExtensionsToPM(EP_Peephole, MPM);
   MPM.add(createJumpThreadingPass());         // Thread jumps
   MPM.add(createCorrelatedValuePropagationPass());
   MPM.add(createDeadStoreEliminationPass());  // Delete dead stores
@@ -229,6 +232,7 @@ void PassManagerBuilder::populateModulePassManager(PassManagerBase &MPM) {
   if (BBVectorize) {
     MPM.add(createBBVectorizePass());
     MPM.add(createInstructionCombiningPass());
+    addExtensionsToPM(EP_Peephole, MPM);
     if (OptLevel > 1 && UseGVNAfterVectorization)
       MPM.add(createGVNPass());           // Remove redundancies
     else
@@ -239,25 +243,30 @@ void PassManagerBuilder::populateModulePassManager(PassManagerBase &MPM) {
       MPM.add(createLoopUnrollPass());
   }
 
+  if (LoadCombine)
+    MPM.add(createLoadCombinePass());
+
   MPM.add(createAggressiveDCEPass());         // Delete dead instructions
   MPM.add(createCFGSimplificationPass()); // Merge & remove BBs
   MPM.add(createInstructionCombiningPass());  // Clean up after everything.
+  addExtensionsToPM(EP_Peephole, MPM);
 
-  // As an experimental mode, run any vectorization passes in a separate
-  // pipeline from the CGSCC pass manager that runs iteratively with the
-  // inliner.
-  if (LateVectorize && LoopVectorize) {
-    // FIXME: This is a HACK! The inliner pass above implicitly creates a CGSCC
-    // pass manager that we are specifically trying to avoid. To prevent this
-    // we must insert a no-op module pass to reset the pass manager.
-    MPM.add(createBarrierNoopPass());
+  // FIXME: This is a HACK! The inliner pass above implicitly creates a CGSCC
+  // pass manager that we are specifically trying to avoid. To prevent this
+  // we must insert a no-op module pass to reset the pass manager.
+  MPM.add(createBarrierNoopPass());
+  MPM.add(createLoopVectorizePass(DisableUnrollLoops, LoopVectorize));
+  // FIXME: Because of #pragma vectorize enable, the passes below are always
+  // inserted in the pipeline, even when the vectorizer doesn't run (ex. when
+  // on -O1 and no #pragma is found). Would be good to have these two passes
+  // as function calls, so that we can only pass them when the vectorizer
+  // changed the code.
+  MPM.add(createInstructionCombiningPass());
+  addExtensionsToPM(EP_Peephole, MPM);
+  MPM.add(createCFGSimplificationPass());
 
-    // Add the various vectorization passes and relevant cleanup passes for
-    // them since we are no longer in the middle of the main scalar pipeline.
-    MPM.add(createLoopVectorizePass(DisableUnrollLoops));
-    MPM.add(createInstructionCombiningPass());
-    MPM.add(createCFGSimplificationPass());
-  }
+  if (!DisableUnrollLoops)
+    MPM.add(createLoopUnrollPass());    // Unroll small loops
 
   if (!DisableUnitAtATime) {
     // FIXME: We shouldn't bother with this anymore.
@@ -306,6 +315,7 @@ void PassManagerBuilder::populateLTOPassManager(PassManagerBase &PM,
   // function pointers.  When this happens, we often have to resolve varargs
   // calls, etc, so let instcombine do this.
   PM.add(createInstructionCombiningPass());
+  addExtensionsToPM(EP_Peephole, PM);
 
   // Inline small functions
   if (RunInliner)
@@ -324,6 +334,7 @@ void PassManagerBuilder::populateLTOPassManager(PassManagerBase &PM,
 
   // The IPO passes may leave cruft around.  Clean up after them.
   PM.add(createInstructionCombiningPass());
+  addExtensionsToPM(EP_Peephole, PM);
   PM.add(createJumpThreadingPass());
 
   // Break up allocas
@@ -337,14 +348,27 @@ void PassManagerBuilder::populateLTOPassManager(PassManagerBase &PM,
   PM.add(createGlobalsModRefPass()); // IP alias analysis.
 
   PM.add(createLICMPass());                 // Hoist loop invariants.
+  PM.add(createMergedLoadStoreMotionPass()); // Merge load/stores in diamonds
   PM.add(createGVNPass(DisableGVNLoadPRE)); // Remove redundancies.
   PM.add(createMemCpyOptPass());            // Remove dead memcpys.
 
   // Nuke dead stores.
   PM.add(createDeadStoreEliminationPass());
 
+  // More loops are countable; try to optimize them.
+  PM.add(createIndVarSimplifyPass());
+  PM.add(createLoopDeletionPass());
+  PM.add(createLoopVectorizePass(true, true));
+
+  // More scalar chains could be vectorized due to more alias information
+  PM.add(createSLPVectorizerPass()); // Vectorize parallel scalar chains.
+
+  if (LoadCombine)
+    PM.add(createLoadCombinePass());
+
   // Cleanup and simplify the code after the scalar optimizations.
   PM.add(createInstructionCombiningPass());
+  addExtensionsToPM(EP_Peephole, PM);
 
   PM.add(createJumpThreadingPass());
 

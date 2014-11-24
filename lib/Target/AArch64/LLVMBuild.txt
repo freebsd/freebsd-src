@@ -1,4 +1,4 @@
-;===- ./lib/Target/AArch64/LLVMBuild.txt -----------------------*- Conf -*--===;
+;===- ./lib/Target/AArch64/LLVMBuild.txt -------------------------*- Conf -*--===;
 ;
 ;                     The LLVM Compiler Infrastructure
 ;
@@ -31,6 +31,5 @@ has_jit = 1
 type = Library
 name = AArch64CodeGen
 parent = AArch64
-required_libraries = AArch64AsmPrinter AArch64Desc AArch64Info AsmPrinter CodeGen Core MC SelectionDAG Support Target
+required_libraries = AArch64AsmPrinter AArch64Desc AArch64Info AArch64Utils Analysis AsmPrinter CodeGen Core MC Scalar SelectionDAG Support Target
 add_to_library_groups = AArch64
-

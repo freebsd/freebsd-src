@@ -1,8 +1,11 @@
-; RUN: llc < %s -march=r600 -mcpu=redwood | FileCheck %s
+; RUN: llc -march=r600 -mcpu=SI < %s | FileCheck -check-prefix=SI -check-prefix=FUNC %s
+; RUN: llc -march=r600 -mcpu=redwood < %s | FileCheck -check-prefix=EG -check-prefix=FUNC %s
 
-; CHECK: GROUP_BARRIER
+; FUNC-LABEL: @test_barrier_local
+; EG: GROUP_BARRIER
+; SI: S_BARRIER
 
-define void @test(i32 addrspace(1)* %out) {
+define void @test_barrier_local(i32 addrspace(1)* %out) {
 entry:
   %0 = call i32 @llvm.r600.read.tidig.x()
   %1 = getelementptr i32 addrspace(1)* %out, i32 %0
@@ -17,8 +20,9 @@ entry:
   ret void
 }
 
-declare i32 @llvm.r600.read.tidig.x() #0
 declare void @llvm.AMDGPU.barrier.local()
+
+declare i32 @llvm.r600.read.tidig.x() #0
 declare i32 @llvm.r600.read.local.size.x() #0
 
 attributes #0 = { readnone }

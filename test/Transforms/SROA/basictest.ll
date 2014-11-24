@@ -1,7 +1,7 @@
 ; RUN: opt < %s -sroa -S | FileCheck %s
 ; RUN: opt < %s -sroa -force-ssa-updater -S | FileCheck %s
 
-target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-n8:16:32:64"
+target datalayout = "e-p:64:64:64-p1:16:16:16-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:32:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-n8:16:32:64"
 
 declare void @llvm.lifetime.start(i64, i8* nocapture)
 declare void @llvm.lifetime.end(i64, i8* nocapture)
@@ -404,6 +404,7 @@ entry:
 }
 
 declare void @llvm.memcpy.p0i8.p0i8.i32(i8* nocapture, i8* nocapture, i32, i32, i1) nounwind
+declare void @llvm.memcpy.p1i8.p0i8.i32(i8 addrspace(1)* nocapture, i8* nocapture, i32, i32, i1) nounwind
 declare void @llvm.memmove.p0i8.p0i8.i32(i8* nocapture, i8* nocapture, i32, i32, i1) nounwind
 declare void @llvm.memset.p0i8.i32(i8* nocapture, i8, i32, i32, i1) nounwind
 
@@ -1150,6 +1151,24 @@ entry:
 ; CHECK: ret
 }
 
+define void @PR14105_as1({ [16 x i8] } addrspace(1)* %ptr) {
+; Make sure this the right address space pointer is used for type check.
+; CHECK-LABEL: @PR14105_as1(
+
+entry:
+  %a = alloca { [16 x i8] }, align 8
+; CHECK: alloca [16 x i8], align 8
+
+  %gep = getelementptr inbounds { [16 x i8] } addrspace(1)* %ptr, i64 -1
+; CHECK-NEXT: getelementptr inbounds { [16 x i8] } addrspace(1)* %ptr, i16 -1, i32 0, i16 0
+
+  %cast1 = bitcast { [16 x i8 ] } addrspace(1)* %gep to i8 addrspace(1)*
+  %cast2 = bitcast { [16 x i8 ] }* %a to i8*
+  call void @llvm.memcpy.p1i8.p0i8.i32(i8 addrspace(1)* %cast1, i8* %cast2, i32 16, i32 8, i1 true)
+  ret void
+; CHECK: ret
+}
+
 define void @PR14465() {
 ; Ensure that we don't crash when analyzing a alloca larger than the maximum
 ; integer type width (MAX_INT_BITS) supported by llvm (1048576*32 > (1<<23)-1).
@@ -1317,6 +1336,28 @@ define void @PR15805(i1 %a, i1 %b) {
   ret void
 }
 
+define void @PR15805.1(i1 %a, i1 %b) {
+; Same as the normal PR15805, but rigged to place the use before the def inside
+; of looping unreachable code. This helps ensure that we aren't sensitive to the
+; order in which the uses of the alloca are visited.
+;
+; CHECK-LABEL: @PR15805.1(
+; CHECK-NOT: alloca
+; CHECK: ret void
+
+  %c = alloca i64, align 8
+  br label %exit
+
+loop:
+  %cond.in = select i1 undef, i64* %c, i64* %p.0.c
+  %p.0.c = select i1 undef, i64* %c, i64* %c
+  %cond = load i64* %cond.in, align 8
+  br i1 undef, label %loop, label %exit
+
+exit:
+  ret void
+}
+
 define void @PR16651.1(i8* %a) {
 ; This test case caused a crash due to the volatile memcpy in combination with
 ; lowering to integer loads and stores of a width other than that of the original
@@ -1356,3 +1397,46 @@ entry:
   %cond105.i.i = load float* %cond105.in.i.i, align 8
   ret void
 }
+
+define void @test23(i32 %x) {
+; CHECK-LABEL: @test23(
+; CHECK-NOT: alloca
+; CHECK: ret void
+entry:
+  %a = alloca i32, align 4
+  store i32 %x, i32* %a, align 4
+  %gep1 = getelementptr inbounds i32* %a, i32 1
+  %gep0 = getelementptr inbounds i32* %a, i32 0
+  %cast1 = bitcast i32* %gep1 to i8*
+  %cast0 = bitcast i32* %gep0 to i8*
+  call void @llvm.memcpy.p0i8.p0i8.i32(i8* %cast1, i8* %cast0, i32 4, i32 1, i1 false)
+  ret void
+}
+
+define void @PR18615() {
+; CHECK-LABEL: @PR18615(
+; CHECK-NOT: alloca
+; CHECK: ret void
+entry:
+  %f = alloca i8
+  %gep = getelementptr i8* %f, i64 -1
+  call void @llvm.memcpy.p0i8.p0i8.i32(i8* undef, i8* %gep, i32 1, i32 1, i1 false)
+  ret void
+}
+
+define void @test24(i8* %src, i8* %dst) {
+; CHECK-LABEL: @test24(
+; CHECK: alloca i64, align 16
+; CHECK: load volatile i64* %{{[^,]*}}, align 1
+; CHECK: store volatile i64 %{{[^,]*}}, i64* %{{[^,]*}}, align 16
+; CHECK: load volatile i64* %{{[^,]*}}, align 16
+; CHECK: store volatile i64 %{{[^,]*}}, i64* %{{[^,]*}}, align 1
+
+entry:
+  %a = alloca i64, align 16
+  %ptr = bitcast i64* %a to i8*
+  call void @llvm.memcpy.p0i8.p0i8.i32(i8* %ptr, i8* %src, i32 8, i32 1, i1 true)
+  call void @llvm.memcpy.p0i8.p0i8.i32(i8* %dst, i8* %ptr, i32 8, i32 1, i1 true)
+  ret void
+}
+

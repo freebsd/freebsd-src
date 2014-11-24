@@ -7,8 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/ValueMap.h"
-#include "llvm/ADT/OwningPtr.h"
+#include "llvm/IR/ValueMap.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
@@ -24,8 +23,8 @@ template<typename T>
 class ValueMapTest : public testing::Test {
 protected:
   Constant *ConstantV;
-  OwningPtr<BitCastInst> BitcastV;
-  OwningPtr<BinaryOperator> AddV;
+  std::unique_ptr<BitCastInst> BitcastV;
+  std::unique_ptr<BinaryOperator> AddV;
 
   ValueMapTest() :
     ConstantV(ConstantInt::get(Type::getInt32Ty(getGlobalContext()), 0)),
@@ -41,21 +40,21 @@ TYPED_TEST_CASE(ValueMapTest, KeyTypes);
 
 TYPED_TEST(ValueMapTest, Null) {
   ValueMap<TypeParam*, int> VM1;
-  VM1[NULL] = 7;
-  EXPECT_EQ(7, VM1.lookup(NULL));
+  VM1[nullptr] = 7;
+  EXPECT_EQ(7, VM1.lookup(nullptr));
 }
 
 TYPED_TEST(ValueMapTest, FollowsValue) {
   ValueMap<TypeParam*, int> VM;
   VM[this->BitcastV.get()] = 7;
   EXPECT_EQ(7, VM.lookup(this->BitcastV.get()));
-  EXPECT_EQ(0, VM.count(this->AddV.get()));
+  EXPECT_EQ(0u, VM.count(this->AddV.get()));
   this->BitcastV->replaceAllUsesWith(this->AddV.get());
   EXPECT_EQ(7, VM.lookup(this->AddV.get()));
-  EXPECT_EQ(0, VM.count(this->BitcastV.get()));
+  EXPECT_EQ(0u, VM.count(this->BitcastV.get()));
   this->AddV.reset();
-  EXPECT_EQ(0, VM.count(this->AddV.get()));
-  EXPECT_EQ(0, VM.count(this->BitcastV.get()));
+  EXPECT_EQ(0u, VM.count(this->AddV.get()));
+  EXPECT_EQ(0u, VM.count(this->BitcastV.get()));
   EXPECT_EQ(0U, VM.size());
 }
 
@@ -91,7 +90,7 @@ TYPED_TEST(ValueMapTest, OperationsWork) {
   EXPECT_EQ(this->AddV.get(), InsertResult1.first->first);
   EXPECT_EQ(3, InsertResult1.first->second);
   EXPECT_TRUE(InsertResult1.second);
-  EXPECT_EQ(true, VM.count(this->AddV.get()));
+  EXPECT_EQ(1u, VM.count(this->AddV.get()));
   std::pair<typename ValueMap<TypeParam*, int>::iterator, bool> InsertResult2 =
     VM.insert(std::make_pair(this->AddV.get(), 5));
   EXPECT_EQ(this->AddV.get(), InsertResult2.first->first);
@@ -117,7 +116,8 @@ TYPED_TEST(ValueMapTest, OperationsWork) {
 
 template<typename ExpectedType, typename VarType>
 void CompileAssertHasType(VarType) {
-  typedef char assert[is_same<ExpectedType, VarType>::value ? 1 : -1];
+  static_assert(std::is_same<ExpectedType, VarType>::value,
+                "Not the same type");
 }
 
 TYPED_TEST(ValueMapTest, Iteration) {
@@ -169,7 +169,7 @@ TYPED_TEST(ValueMapTest, DefaultCollisionBehavior) {
   VM[this->BitcastV.get()] = 7;
   VM[this->AddV.get()] = 9;
   this->BitcastV->replaceAllUsesWith(this->AddV.get());
-  EXPECT_EQ(0, VM.count(this->BitcastV.get()));
+  EXPECT_EQ(0u, VM.count(this->BitcastV.get()));
   EXPECT_EQ(9, VM.lookup(this->AddV.get()));
 }
 
@@ -177,10 +177,10 @@ TYPED_TEST(ValueMapTest, ConfiguredCollisionBehavior) {
   // TODO: Implement this when someone needs it.
 }
 
-template<typename KeyT>
-struct LockMutex : ValueMapConfig<KeyT> {
+template<typename KeyT, typename MutexT>
+struct LockMutex : ValueMapConfig<KeyT, MutexT> {
   struct ExtraData {
-    sys::Mutex *M;
+    MutexT *M;
     bool *CalledRAUW;
     bool *CalledDeleted;
   };
@@ -192,15 +192,15 @@ struct LockMutex : ValueMapConfig<KeyT> {
     *Data.CalledDeleted = true;
     EXPECT_FALSE(Data.M->tryacquire()) << "Mutex should already be locked.";
   }
-  static sys::Mutex *getMutex(const ExtraData &Data) { return Data.M; }
+  static MutexT *getMutex(const ExtraData &Data) { return Data.M; }
 };
 #if LLVM_ENABLE_THREADS
 TYPED_TEST(ValueMapTest, LocksMutex) {
   sys::Mutex M(false);  // Not recursive.
   bool CalledRAUW = false, CalledDeleted = false;
-  typename LockMutex<TypeParam*>::ExtraData Data =
-    {&M, &CalledRAUW, &CalledDeleted};
-  ValueMap<TypeParam*, int, LockMutex<TypeParam*> > VM(Data);
+  typedef LockMutex<TypeParam*, sys::Mutex> ConfigType;
+  typename ConfigType::ExtraData Data = {&M, &CalledRAUW, &CalledDeleted};
+  ValueMap<TypeParam*, int, ConfigType> VM(Data);
   VM[this->BitcastV.get()] = 7;
   this->BitcastV->replaceAllUsesWith(this->AddV.get());
   this->AddV.reset();
@@ -218,7 +218,7 @@ TYPED_TEST(ValueMapTest, NoFollowRAUW) {
   ValueMap<TypeParam*, int, NoFollow<TypeParam*> > VM;
   VM[this->BitcastV.get()] = 7;
   EXPECT_EQ(7, VM.lookup(this->BitcastV.get()));
-  EXPECT_EQ(0, VM.count(this->AddV.get()));
+  EXPECT_EQ(0u, VM.count(this->AddV.get()));
   this->BitcastV->replaceAllUsesWith(this->AddV.get());
   EXPECT_EQ(7, VM.lookup(this->BitcastV.get()));
   EXPECT_EQ(0, VM.lookup(this->AddV.get()));
@@ -284,11 +284,11 @@ TYPED_TEST(ValueMapTest, SurvivesModificationByConfig) {
   // Now the ModifyingConfig can modify the Map inside a callback.
   VM[this->BitcastV.get()] = 7;
   this->BitcastV->replaceAllUsesWith(this->AddV.get());
-  EXPECT_FALSE(VM.count(this->BitcastV.get()));
-  EXPECT_FALSE(VM.count(this->AddV.get()));
+  EXPECT_EQ(0u, VM.count(this->BitcastV.get()));
+  EXPECT_EQ(0u, VM.count(this->AddV.get()));
   VM[this->AddV.get()] = 7;
   this->AddV.reset();
-  EXPECT_FALSE(VM.count(this->AddV.get()));
+  EXPECT_EQ(0u, VM.count(this->AddV.get()));
 }
 
 }

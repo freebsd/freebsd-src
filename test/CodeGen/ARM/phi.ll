@@ -1,4 +1,6 @@
-; RUN: llc -march=arm -mattr=+v4t < %s | FileCheck %s
+; RUN: llc -mtriple=arm-eabi -mattr=+v4t %s -o - | FileCheck %s
+; RUN: llc -mtriple=arm-eabi -mattr=+v4t -addr-sink-using-gep=1 %s -o - | FileCheck %s
+
 ; <rdar://problem/8686347>
 
 define i32 @test1(i1 %a, i32* %b) {

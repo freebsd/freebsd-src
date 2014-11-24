@@ -4,7 +4,7 @@
 define i32 @test1(i32 %sum, i32 %x) nounwind readnone ssp {
 entry:
 ; CHECK-LABEL: test1:
-; CHECK: cmpl %ecx, %eax
+; CHECK: cmpl %ecx, %eax 
 ; CHECK-NOT: addl
 ; CHECK: adcl $0, %eax
   %add4 = add i32 %x, %sum

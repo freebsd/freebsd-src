@@ -34,12 +34,18 @@ class TestingProgressDisplay(object):
 
     def update(self, test):
         self.completed += 1
+
+        if self.opts.incremental:
+            update_incremental_cache(test)
+
         if self.progressBar:
             self.progressBar.update(float(self.completed)/self.numTests,
                                     test.getFullName())
 
-        if not test.result.code.isFailure and \
-                (self.opts.quiet or self.opts.succinct):
+        shouldShow = test.result.code.isFailure or \
+            (self.opts.show_unsupported and test.result.code.name == 'UNSUPPORTED') or \
+            (not self.opts.quiet and not self.opts.succinct)
+        if not shouldShow:
             return
 
         if self.progressBar:
@@ -108,6 +114,21 @@ def write_test_results(run, lit_config, testing_time, output_path):
     finally:
         f.close()
 
+def update_incremental_cache(test):
+    if not test.result.code.isFailure:
+        return
+    fname = test.getFilePath()
+    os.utime(fname, None)
+
+def sort_by_incremental_cache(run):
+    def sortIndex(test):
+        fname = test.getFilePath()
+        try:
+            return -os.path.getmtime(fname)
+        except:
+            return 0
+    run.tests.sort(key = lambda t: sortIndex(t))
+
 def main(builtinParameters = {}):
     # Use processes by default on Unix platforms.
     isWindows = platform.system() == 'Windows'
@@ -117,6 +138,9 @@ def main(builtinParameters = {}):
     from optparse import OptionParser, OptionGroup
     parser = OptionParser("usage: %prog [options] {file-or-path}")
 
+    parser.add_option("", "--version", dest="show_version",
+                      help="Show version and exit",
+                      action="store_true", default=False)
     parser.add_option("-j", "--threads", dest="numThreads", metavar="N",
                       help="Number of testing threads",
                       type=int, action="store", default=None)
@@ -146,6 +170,9 @@ def main(builtinParameters = {}):
     group.add_option("", "--no-progress-bar", dest="useProgressBar",
                      help="Do not use curses based progress bar",
                      action="store_false", default=True)
+    group.add_option("", "--show-unsupported", dest="show_unsupported",
+                     help="Show unsupported tests",
+                     action="store_true", default=False)
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "Test Execution")
@@ -179,6 +206,10 @@ def main(builtinParameters = {}):
     group.add_option("", "--shuffle", dest="shuffle",
                      help="Run tests in random order",
                      action="store_true", default=False)
+    group.add_option("-i", "--incremental", dest="incremental",
+                     help="Run modified and failing tests first (updates "
+                     "mtimes)",
+                     action="store_true", default=False)
     group.add_option("", "--filter", dest="filter", metavar="REGEX",
                      help=("Only run tests with paths matching the given "
                            "regular expression"),
@@ -204,6 +235,10 @@ def main(builtinParameters = {}):
     parser.add_option_group(group)
 
     (opts, args) = parser.parse_args()
+
+    if opts.show_version:
+        print("lit %s" % (lit.__version__,))
+        return
 
     if not args:
         parser.error('No inputs specified')
@@ -292,6 +327,8 @@ def main(builtinParameters = {}):
     # Then select the order.
     if opts.shuffle:
         random.shuffle(run.tests)
+    elif opts.incremental:
+        sort_by_incremental_cache(run)
     else:
         run.tests.sort(key = lambda t: t.getFullName())
 

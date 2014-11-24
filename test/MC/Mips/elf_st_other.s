@@ -1,13 +1,26 @@
 // RUN: llvm-mc -filetype=obj -triple mipsel-unknown-linux %s -o -| llvm-readobj -t | FileCheck %s
 
-        .text
-        .globl  main
-        .align  2
-        .type   main,@function
-        .set    nomips16                # @main
-        .ent    main
-        .mips_hack_stocg main, 128
-main:
 
-// CHECK:     Name: main
-// CHECK:     Other: 128
+.globl f1
+.type f1, @function
+.set micromips
+f1:
+	nop
+
+.globl d1
+.type d1, @object
+d1:
+.word 42
+
+.globl f2
+.type f2, @function
+.set nomicromips
+f2:
+	nop
+
+// CHECK-LABEL: Name: d1
+// CHECK:       Other: 0
+// CHECK-LABEL: Name: f1
+// CHECK:       Other: 128
+// CHECK-LABEL: Name: f2
+// CHECK:       Other: 0

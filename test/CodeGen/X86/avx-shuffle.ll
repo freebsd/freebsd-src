@@ -5,8 +5,10 @@ define <4 x float> @test1(<4 x float> %a) nounwind {
   %b = shufflevector <4 x float> zeroinitializer, <4 x float> %a, <4 x i32> <i32 2, i32 5, i32 undef, i32 undef>
   ret <4 x float> %b
 ; CHECK-LABEL: test1:
-; CHECK: vshufps
-; CHECK: vpshufd
+;; TODO: This test could be improved by removing the xor instruction and
+;; having vinsertps zero out the needed elements.
+; CHECK: vxorps
+; CHECK: vinsertps
 }
 
 ; rdar://10538417
@@ -23,7 +25,7 @@ define <4 x i64> @test3(<4 x i64> %a, <4 x i64> %b) nounwind {
   %c = shufflevector <4 x i64> %a, <4 x i64> %b, <4 x i32> <i32 4, i32 5, i32 2, i32 undef>
   ret <4 x i64> %c
 ; CHECK-LABEL: test3:
-; CHECK: vperm2f128
+; CHECK: vblendpd
 ; CHECK: ret
 }
 
@@ -297,3 +299,38 @@ entry:
 }
 declare <2 x double> @llvm.x86.avx.vextractf128.pd.256(<4 x double>, i8) nounwind readnone
 declare <4 x double> @llvm.x86.avx.vinsertf128.pd.256(<4 x double>, <2 x double>, i8) nounwind readnone
+
+; this test case just should not fail
+define void @test20() {
+  %a0 = insertelement <3 x double> <double 0.000000e+00, double 0.000000e+00, double undef>, double 0.000000e+00, i32 2
+  store <3 x double> %a0, <3 x double>* undef, align 1
+  %a1 = insertelement <3 x double> <double 0.000000e+00, double 0.000000e+00, double undef>, double undef, i32 2
+  store <3 x double> %a1, <3 x double>* undef, align 1
+  ret void
+}
+
+define <2 x i64> @test_insert_64_zext(<2 x i64> %i) {
+; CHECK-LABEL: test_insert_64_zext
+; CHECK-NOT: xor
+; CHECK: vmovq
+  %1 = shufflevector <2 x i64> %i, <2 x i64> <i64 0, i64 undef>, <2 x i32> <i32 0, i32 2>
+  ret <2 x i64> %1
+}
+
+;; Ensure we don't use insertps from non v4x32 vectors.
+;; On SSE4.1 it works because bigger vectors use more than 1 register.
+;; On AVX they get passed in a single register.
+;; FIXME: We could probably optimize this case, if we're only using the
+;; first 4 indices.
+define <4 x i32> @insert_from_diff_size(<8 x i32> %x) {
+; CHECK-LABEL: insert_from_diff_size:
+; CHECK-NOT: insertps
+; CHECK: ret
+  %vecext = extractelement <8 x i32> %x, i32 0
+  %vecinit = insertelement <4 x i32> undef, i32 %vecext, i32 0
+  %vecinit1 = insertelement <4 x i32> %vecinit, i32 0, i32 1
+  %vecinit2 = insertelement <4 x i32> %vecinit1, i32 0, i32 2
+  %a.0 = extractelement <8 x i32> %x, i32 0
+  %vecinit3 = insertelement <4 x i32> %vecinit2, i32 %a.0, i32 3
+  ret <4 x i32> %vecinit3
+}

@@ -16,10 +16,10 @@
 ;===------------------------------------------------------------------------===;
 
 [common]
-subdirectories = MCDisassembler MCParser
+subdirectories = MCAnalysis MCDisassembler MCParser
 
 [component_0]
 type = Library
 name = MC
 parent = Libraries
-required_libraries = Object Support
+required_libraries = Support

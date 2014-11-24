@@ -45,7 +45,7 @@ End-user Options
 
  Generate code at different optimization levels.  These correspond to the
  ``-O0``, ``-O1``, ``-O2``, and ``-O3`` optimization levels used by
- :program:`llvm-gcc` and :program:`clang`.
+ :program:`clang`.
 
 .. option:: -mtriple=<target triple>
 
@@ -111,11 +111,6 @@ End-user Options
  addition is associative) or may not work for all input ranges.  These
  optimizations allow the code generator to make use of some instructions which
  would otherwise not be usable (such as ``fsin`` on X86).
-
-.. option:: --enable-correct-eh-support
-
- Instruct the **lowerinvoke** pass to insert code for correct exception
- handling support.  This is expensive and is by default omitted for efficiency.
 
 .. option:: --stats
 

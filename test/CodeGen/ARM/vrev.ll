@@ -1,4 +1,4 @@
-; RUN: llc < %s -march=arm -mattr=+neon | FileCheck %s
+; RUN: llc -mtriple=arm-eabi -mattr=+neon %s -o - | FileCheck %s
 
 define <8 x i8> @test_vrev64D8(<8 x i8>* %A) nounwind {
 ;CHECK-LABEL: test_vrev64D8:
@@ -178,3 +178,11 @@ entry:
   ret void
 }
 
+define <4 x i32> @test_vrev32_bswap(<4 x i32> %source) nounwind {
+; CHECK-LABEL: test_vrev32_bswap:
+; CHECK: vrev32.8
+  %bswap = call <4 x i32> @llvm.bswap.v4i32(<4 x i32> %source)
+  ret <4 x i32> %bswap
+}
+
+declare <4 x i32> @llvm.bswap.v4i32(<4 x i32>) nounwind readnone

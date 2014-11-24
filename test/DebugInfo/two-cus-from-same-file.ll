@@ -5,7 +5,7 @@
 
 ; REQUIRES: object-emission
 
-; RUN: llc %s -o %t -filetype=obj -O0
+; RUN: %llc_dwarf %s -o %t -filetype=obj -O0
 ; RUN: llvm-dwarfdump -debug-dump=info %t | FileCheck %s
 
 ; ModuleID = 'test.bc'
@@ -36,7 +36,7 @@ declare void @llvm.dbg.value(metadata, i64, metadata) nounwind readnone
 !llvm.module.flags = !{!33}
 
 !0 = metadata !{i32 786449, metadata !32, i32 12, metadata !"clang version 3.2 (trunk 156513)", i1 true, metadata !"", i32 0, metadata !1, metadata !1, metadata !3, metadata !1, metadata !1, metadata !""} ; [ DW_TAG_compile_unit ]
-!1 = metadata !{i32 0}
+!1 = metadata !{}
 !3 = metadata !{metadata !5}
 !5 = metadata !{i32 786478, metadata !32, metadata !6, metadata !"foo", metadata !"foo", metadata !"", i32 5, metadata !7, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 true, void ()* @foo, null, null, metadata !1, i32 5} ; [ DW_TAG_subprogram ]
 !6 = metadata !{i32 786473, metadata !32} ; [ DW_TAG_file_type ]
@@ -51,8 +51,7 @@ declare void @llvm.dbg.value(metadata, i64, metadata) nounwind readnone
 !16 = metadata !{i32 786447, null, null, metadata !"", i32 0, i64 32, i64 32, i64 0, i32 0, metadata !17} ; [ DW_TAG_pointer_type ]
 !17 = metadata !{i32 786447, null, null, metadata !"", i32 0, i64 32, i64 32, i64 0, i32 0, metadata !18} ; [ DW_TAG_pointer_type ]
 !18 = metadata !{i32 786468, null, null, metadata !"char", i32 0, i64 8, i64 8, i64 0, i32 0, i32 6} ; [ DW_TAG_base_type ]
-!19 = metadata !{metadata !20}
-!20 = metadata !{metadata !21, metadata !22}
+!19 = metadata !{metadata !21, metadata !22}
 !21 = metadata !{i32 786689, metadata !12, metadata !"argc", metadata !6, i32 16777227, metadata !15, i32 0, i32 0} ; [ DW_TAG_arg_variable ]
 !22 = metadata !{i32 786689, metadata !12, metadata !"argv", metadata !6, i32 33554443, metadata !16, i32 0, i32 0} ; [ DW_TAG_arg_variable ]
 !23 = metadata !{i32 6, i32 3, metadata !24, null}

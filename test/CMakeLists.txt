@@ -15,9 +15,11 @@ endif()
 # Set the depends list as a variable so that it can grow conditionally.
 # NOTE: Sync the substitutions in test/lit.cfg when adding to this list.
 set(LLVM_TEST_DEPENDS
+          llvm-config
           UnitTests
           BugpointPasses
           LLVMHello
+          bugpoint
           llc
           lli
           lli-child-target
@@ -35,13 +37,15 @@ set(LLVM_TEST_DEPENDS
           llvm-mc
           llvm-mcmarkup
           llvm-nm
+          llvm-size
           llvm-objdump
+          llvm-profdata
           llvm-readobj
           llvm-rtdyld
           llvm-symbolizer
+          llvm-tblgen
           macho-dump
           opt
-          profile_rt-shared
           FileCheck
           count
           not
