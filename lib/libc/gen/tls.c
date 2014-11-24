@@ -78,7 +78,7 @@ void __libc_free_tls(void *tls, size_t tcbsize, size_t tcbalign);
 #define TLS_VARIANT_II
 #endif
 
-#ifndef PIC
+#ifndef __PIC__
 
 #define round(size, align) \
 	(((size) + (align) - 1) & ~((align) - 1))
@@ -107,7 +107,7 @@ __libc_tls_get_addr(void *ti __unused)
 	return (0);
 }
 
-#ifndef PIC
+#ifndef __PIC__
 
 #ifdef TLS_VARIANT_I
 
@@ -264,14 +264,14 @@ __libc_free_tls(void *tcb __unused, size_t tcbsize __unused,
 {
 }
 
-#endif /* PIC */
+#endif /* __PIC__ */
 
 extern char **environ;
 
 void
 _init_tls()
 {
-#ifndef PIC
+#ifndef __PIC__
 	Elf_Addr *sp;
 	Elf_Auxinfo *aux, *auxp;
 	Elf_Phdr *phdr;

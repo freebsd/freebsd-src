@@ -63,15 +63,7 @@ struct save87 {
 	struct env87	sv_env;		/* floating point control/status */
 	struct fpacc87	sv_ac[8];	/* accumulator contents, 0-7 */
 	uint8_t		sv_pad0[4];	/* saved status word (now unused) */
-	/*
-	 * Bogus padding for emulators.  Emulators should use their own
-	 * struct and arrange to store into this struct (ending here)
-	 * before it is inspected for ptracing or for core dumps.  Some
-	 * emulators overwrite the whole struct.  We have no good way of
-	 * knowing how much padding to leave.  Leave just enough for the
-	 * GPL emulator's i387_union (176 bytes total).
-	 */
-	uint8_t		sv_pad[64];	/* padding; used by emulators */
+	uint8_t		sv_pad[64];
 };
 
 /* Contents of each SSE extended accumulator. */
@@ -214,5 +206,12 @@ struct savefpu_ymm {
 #define	__INITIAL_NPXCW__	__INITIAL_FPUCW_I386__
 #define	__INITIAL_MXCSR__	0x1F80
 #define	__INITIAL_MXCSR_MASK__	0xFFBF
+
+/*
+ * The current value of %xcr0 is saved in the sv_pad[] field of the FPU
+ * state in the NT_X86_XSTATE note in core dumps.  This offset is chosen
+ * to match the offset used by NT_X86_XSTATE in other systems.
+ */
+#define	X86_XSTATE_XCR0_OFFSET	464
 
 #endif /* !_X86_FPU_H_ */

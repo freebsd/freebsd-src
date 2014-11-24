@@ -32,13 +32,14 @@ LDADD=	-L${LIBSVN_RADIR} -lsvn_ra \
 	-L${LIBAPR_UTILDIR} -lapr-util \
 	-lbsdxml \
 	-L${LIBAPRDIR} -lapr \
-	-L${LIBSQLITEDIR} -lsqlite3 \
+	${LDSQLITE3} \
 	-lz -lcrypt -lmagic -lcrypto -lssl -lpthread
 
 DPADD=	${LIBSVN_RA} ${LIBSVN_RA_LOCAL} ${LIBSVN_RA_SVN} ${LIBSVN_RA_SERF} \
 	${LIBSVN_REPOS} ${LIBSVN_FS} ${LIBSVN_FS_FS} ${LIBSVN_FS_UTIL} \
 	${LIBSVN_DELTA} ${LIBSVN_SUBR} ${LIBSERF} ${LIBAPR_UTIL} \
-	${LIBBSDXML} ${LIBAPR} ${LIBSQLITE} ${LIBZ} ${LIBCRYPT} ${LIBMAGIC} \
+	${LIBBSDXML} ${LIBAPR} ${LIBSQLITE3} ${LIBZ} ${LIBCRYPT} ${LIBMAGIC} \
 	${LIBCRYPTO} ${LIBSSL} ${LIBPTHREAD}
+USEPRIVATELIB=	sqlite3
 
 .include <bsd.prog.mk>

@@ -576,6 +576,12 @@
  * (See "MIPS Architecture for Programmers Volume III", MD00091, Table 9.40)
  */
 #define	MIPS_CONFIG2_M		0x80000000	/* Flag: Config3 is present. */
+#define MIPS_CONFIG2_SA_SHIFT		0		/* Secondary cache associativity */
+#define MIPS_CONFIG2_SA_MASK		0xf
+#define MIPS_CONFIG2_SL_SHIFT		4		/* Secondary cache line size */
+#define MIPS_CONFIG2_SL_MASK		0xf
+#define MIPS_CONFIG2_SS_SHIFT		8		/* Secondary cache sets per way */
+#define MIPS_CONFIG2_SS_MASK		0xf
 
 /*
  * Config3 Register Fields

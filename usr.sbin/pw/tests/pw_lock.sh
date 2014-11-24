@@ -7,11 +7,11 @@
 atf_test_case user_locking cleanup
 user_locking_body() {
 	populate_etc_skel
-	pw -V ${HOME} useradd test || atf_fail "Creating test user"
-	pw -V ${HOME} lock test || atf_fail "Locking the user"
+	${PW} useradd test || atf_fail "Creating test user"
+	${PW} lock test || atf_fail "Locking the user"
 	atf_check -s exit:0 -o match:"^test:\*LOCKED\*\*:1001:" \
 		grep "^test:\*LOCKED\*\*:1001:" $HOME/master.passwd
-	pw -V ${HOME} unlock test || atf_fail "Locking the user"
+	${PW} unlock test || atf_fail "Locking the user"
 	atf_check -s exit:0 -o match:"^test:\*:1001:" \
 		grep "^test:\*:1001:" $HOME/master.passwd
 }

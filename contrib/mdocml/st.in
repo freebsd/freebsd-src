@@ -1,4 +1,4 @@
-/*	$Id: st.in,v 1.22 2013/12/25 14:09:32 schwarze Exp $ */
+/*	$Id: st.in,v 1.24 2014/04/20 16:46:05 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -22,7 +22,7 @@
  * the formatted output string.
  *
  * Be sure to escape strings.
- * The non-breaking blanks prevent ending an output line right before 
+ * The non-breaking blanks prevent ending an output line right before
  * a number.  Groff prevent line breaks at the same places.
  *
  * REMEMBER TO ADD NEW STANDARDS TO MDOC.7!
@@ -34,6 +34,7 @@ LINE("-p1003.1-96",	"ISO/IEC 9945-1:1996 (\\(lqPOSIX.1\\(rq)")
 LINE("-p1003.1-2001",	"IEEE Std 1003.1-2001 (\\(lqPOSIX.1\\(rq)")
 LINE("-p1003.1-2004",	"IEEE Std 1003.1-2004 (\\(lqPOSIX.1\\(rq)")
 LINE("-p1003.1-2008",	"IEEE Std 1003.1-2008 (\\(lqPOSIX.1\\(rq)")
+LINE("-p1003.1-2013",	"IEEE Std 1003.1-2008/Cor 1-2013 (\\(lqPOSIX.1\\(rq)")
 LINE("-p1003.1",	"IEEE Std 1003.1 (\\(lqPOSIX.1\\(rq)")
 LINE("-p1003.1b",	"IEEE Std 1003.1b (\\(lqPOSIX.1b\\(rq)")
 LINE("-p1003.1b-93",	"IEEE Std 1003.1b-1993 (\\(lqPOSIX.1b\\(rq)")

@@ -1,6 +1,7 @@
-/*	$Id: chars.in,v 1.43 2013/06/20 22:39:30 schwarze Exp $ */
+/*	$Id: chars.in,v 1.46 2014/04/20 16:46:04 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +17,7 @@
  */
 
 /*
- * The ASCII translation tables.  
+ * The ASCII translation tables.
  *
  * The left-hand side corresponds to the input sequence (\x, \(xx, \*(xx
  * and so on) whose length is listed second element.  The right-hand
@@ -27,39 +28,42 @@
  * XXX - update LINES_MAX if adding more!
  */
 
-/* Non-breaking, non-collapsing space uses unit separator. */
+/* Special break control characters. */
 static const char ascii_nbrsp[2] = { ASCII_NBRSP, '\0' };
+static const char ascii_break[2] = { ASCII_BREAK, '\0' };
 
 CHAR_TBL_START
 
 /* Spacing. */
-CHAR("c",			"",		0)
-CHAR("0",			" ",		8194)
 CHAR(" ",			ascii_nbrsp,	160)
 CHAR("~",			ascii_nbrsp,	160)
-CHAR("%",			"",		0)
-CHAR("&",			"",		0)
-CHAR("^",			"",		0)
+CHAR("0",			" ",		8194)
 CHAR("|",			"",		0)
-CHAR("}",			"",		0)
+CHAR("^",			"",		0)
+CHAR("&",			"",		0)
+CHAR("%",			"",		0)
+CHAR(":",			ascii_break,	0)
+/* XXX The following three do not really belong into this file. */
 CHAR("t",			"",		0)
+CHAR("c",			"",		0)
+CHAR("}",			"",		0)
 
 /* Accents. */
-CHAR("a\"",			"\"",		779)
+CHAR("a\"",			"\"",		733)
 CHAR("a-",			"-",		175)
 CHAR("a.",			".",		729)
-CHAR("a^",			"^",		770)
-CHAR("\'",			"\'",		769)
-CHAR("aa",			"\'",		769)
-CHAR("ga",			"`",		768)
-CHAR("`",			"`",		768)
-CHAR("ab",			"`",		774)
-CHAR("ac",			",",		807)
-CHAR("ad",			"\"",		776)
+CHAR("a^",			"^",		94)
+CHAR("\'",			"\'",		180)
+CHAR("aa",			"\'",		180)
+CHAR("ga",			"`",		96)
+CHAR("`",			"`",		96)
+CHAR("ab",			"`",		728)
+CHAR("ac",			",",		184)
+CHAR("ad",			"\"",		168)
 CHAR("ah",			"v",		711)
 CHAR("ao",			"o",		730)
-CHAR("a~",			"~",		771)
-CHAR("ho",			",",		808)
+CHAR("a~",			"~",		126)
+CHAR("ho",			",",		731)
 CHAR("ha",			"^",		94)
 CHAR("ti",			"~",		126)
 

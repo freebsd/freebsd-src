@@ -421,7 +421,7 @@ setup_nanobsd ( ) (
 	echo "mount -o ro /dev/${NANO_DRIVE}s3" > conf/default/etc/remount
 
 	# Put /tmp on the /var ramdisk (could be symlink already)
-	test -d tmp && rmdir tmp || nano_rm -f tmp
+	nano_rm -rf tmp
 	ln -s var/tmp tmp
 
 	) > ${NANO_OBJ}/_.dl 2>&1
@@ -909,11 +909,11 @@ pprint() (
 usage () {
 	(
 	echo "Usage: $0 [-bfiKknqvw] [-c config_file]"
-	echo "	-K	suppress installkernel"
 	echo "	-b	suppress builds (both kernel and world)"
 	echo "	-c	specify config file"
 	echo "	-f	suppress code slice extraction"
 	echo "	-i	suppress disk image build"
+	echo "	-K	suppress installkernel"
 	echo "	-k	suppress buildkernel"
 	echo "	-n	add -DNO_CLEAN to buildworld, buildkernel, etc"
 	echo "	-q	make output more quiet"

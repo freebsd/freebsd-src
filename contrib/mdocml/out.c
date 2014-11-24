@@ -1,4 +1,4 @@
-/*	$Id: out.c,v 1.46 2013/10/05 20:30:05 schwarze Exp $ */
+/*	$Id: out.c,v 1.49 2014/08/01 19:25:52 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011 Ingo Schwarze <schwarze@openbsd.org>
@@ -28,6 +28,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "mandoc_aux.h"
 #include "mandoc.h"
 #include "out.h"
 
@@ -38,7 +39,8 @@ static	void	tblcalc_literal(struct rofftbl *, struct roffcol *,
 static	void	tblcalc_number(struct rofftbl *, struct roffcol *,
 			const struct tbl_opts *, const struct tbl_dat *);
 
-/* 
+
+/*
  * Convert a `scaling unit' to a consistent form, or fail.  Scaling
  * units are documented in groff.7, mdoc.7, man.7.
  */
@@ -55,10 +57,10 @@ a2roffsu(const char *src, struct roffsu *dst, enum roffscale def)
 	i = hasd = 0;
 
 	switch (*src) {
-	case ('+'):
+	case '+':
 		src++;
 		break;
-	case ('-'):
+	case '-':
 		buf[i++] = *src++;
 		break;
 	default:
@@ -86,39 +88,39 @@ a2roffsu(const char *src, struct roffsu *dst, enum roffscale def)
 	buf[i] = '\0';
 
 	switch (*src) {
-	case ('c'):
+	case 'c':
 		unit = SCALE_CM;
 		break;
-	case ('i'):
+	case 'i':
 		unit = SCALE_IN;
 		break;
-	case ('P'):
+	case 'P':
 		unit = SCALE_PC;
 		break;
-	case ('p'):
+	case 'p':
 		unit = SCALE_PT;
 		break;
-	case ('f'):
+	case 'f':
 		unit = SCALE_FS;
 		break;
-	case ('v'):
+	case 'v':
 		unit = SCALE_VS;
 		break;
-	case ('m'):
+	case 'm':
 		unit = SCALE_EM;
 		break;
-	case ('\0'):
+	case '\0':
 		if (SCALE_MAX == def)
 			return(0);
 		unit = SCALE_BU;
 		break;
-	case ('u'):
+	case 'u':
 		unit = SCALE_BU;
 		break;
-	case ('M'):
+	case 'M':
 		unit = SCALE_MM;
 		break;
-	case ('n'):
+	case 'n':
 		unit = SCALE_EN;
 		break;
 	default:
@@ -126,8 +128,8 @@ a2roffsu(const char *src, struct roffsu *dst, enum roffscale def)
 	}
 
 	/* FIXME: do this in the caller. */
-	if ((dst->scale = atof(buf)) < 0)
-		dst->scale = 0;
+	if ((dst->scale = atof(buf)) < 0.0)
+		dst->scale = 0.0;
 	dst->unit = unit;
 	return(1);
 }
@@ -152,8 +154,8 @@ tblcalc(struct rofftbl *tbl, const struct tbl_span *sp)
 	 */
 
 	assert(NULL == tbl->cols);
-	tbl->cols = mandoc_calloc
-		((size_t)sp->opts->cols, sizeof(struct roffcol));
+	tbl->cols = mandoc_calloc((size_t)sp->opts->cols,
+	    sizeof(struct roffcol));
 
 	for ( ; sp; sp = sp->next) {
 		if (TBL_SPAN_DATA != sp->pos)
@@ -186,26 +188,26 @@ tblcalc_data(struct rofftbl *tbl, struct roffcol *col,
 	/* Branch down into data sub-types. */
 
 	switch (dp->layout->pos) {
-	case (TBL_CELL_HORIZ):
+	case TBL_CELL_HORIZ:
 		/* FALLTHROUGH */
-	case (TBL_CELL_DHORIZ):
+	case TBL_CELL_DHORIZ:
 		sz = (*tbl->len)(1, tbl->arg);
 		if (col->width < sz)
 			col->width = sz;
 		break;
-	case (TBL_CELL_LONG):
+	case TBL_CELL_LONG:
 		/* FALLTHROUGH */
-	case (TBL_CELL_CENTRE):
+	case TBL_CELL_CENTRE:
 		/* FALLTHROUGH */
-	case (TBL_CELL_LEFT):
+	case TBL_CELL_LEFT:
 		/* FALLTHROUGH */
-	case (TBL_CELL_RIGHT):
+	case TBL_CELL_RIGHT:
 		tblcalc_literal(tbl, col, dp);
 		break;
-	case (TBL_CELL_NUMBER):
+	case TBL_CELL_NUMBER:
 		tblcalc_number(tbl, col, opts, dp);
 		break;
-	case (TBL_CELL_DOWN):
+	case TBL_CELL_DOWN:
 		break;
 	default:
 		abort();
@@ -231,7 +233,7 @@ static void
 tblcalc_number(struct rofftbl *tbl, struct roffcol *col,
 		const struct tbl_opts *opts, const struct tbl_dat *dp)
 {
-	int 		 i;
+	int		 i;
 	size_t		 sz, psz, ssz, d;
 	const char	*str;
 	char		*cp;

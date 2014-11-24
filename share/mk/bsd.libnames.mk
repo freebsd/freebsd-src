@@ -168,3 +168,13 @@ LIBZPOOL?=	${DESTDIR}${LIBDIR}/libzpool.a
 
 DPADD+=	${LIBADD:@L@${LIB${L:tu}:U"No LIB${L:tu} variable defined"}@}
 LDADD+=	${LIBADD:@L@${MINUSL${L:tu}:U${L:S/^/-l/}}@}
+
+# enforce the 2 -lpthread and -lc to always be the last in that exact order
+.if defined(LDADD)
+.if ${LDADD:M-lpthread}
+LDADD:=	${LDADD:N-lpthread} -lpthread
+.endif
+.if ${LDADD:M-lc}
+LDADD:=	${LDADD:N-lc} -lc
+.endif
+.endif

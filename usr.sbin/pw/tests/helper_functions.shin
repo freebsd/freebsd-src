@@ -1,5 +1,8 @@
 # $FreeBSD$
 
+# The pw command
+PW="pw -V ${HOME}"
+
 # Workdir to run tests in
 TESTDIR=$(atf_get_srcdir)
 
