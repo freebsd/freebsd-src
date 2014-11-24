@@ -40,7 +40,7 @@ _LIBRARIES=	\
 		cam \
 		capsicum \
 		casper \
-		cft \
+		ctf \
 		com_err \
 		crypt \
 		crypto \
@@ -140,7 +140,7 @@ _DP_proc=	supcplusplus
 .endif
 .endif
 .if ${MK_CDDL} != "no"
-_DP_proc+=	cft
+_DP_proc+=	ctf
 .endif
 _DP_mp=	crypto
 _DP_memstat=	kvm
