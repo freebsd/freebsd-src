@@ -15,6 +15,7 @@ _PRIVATELIBS=	\
 		atf_c \
 		atf_cxx \
 		bsdstat \
+		heimipcc \
 		ldns \
 		sqlite3 \
 		ssh \
@@ -29,6 +30,7 @@ _INTERNALIBS=	\
 
 _LIBRARIES=	\
 		archive \
+		asn1 \
 		atf_c \
 		atf_cxx \
 		bsdxml \
@@ -38,6 +40,7 @@ _LIBRARIES=	\
 		capsicum \
 		casper \
 		cft \
+		com_err \
 		crypt \
 		crypto \
 		cuse \
@@ -54,10 +57,14 @@ _LIBRARIES=	\
 		figpar \
 		geom \
 		gssapi \
+		heimbase \
+		heimipcc \
+		hx509 \
 		ipsec \
 		jail \
 		kiconv \
 		kvm \
+		krb5 \
 		l \
 		ldns \
 		lzma \
@@ -80,6 +87,7 @@ _LIBRARIES=	\
 		pthread \
 		radius \
 		readline \
+		roken \
 		rpcsec_gss \
 		rt \
 		sbuf \
@@ -96,6 +104,7 @@ _LIBRARIES=	\
 		ulog \
 		usb \
 		util \
+		wind \
 		wrap \
 		y \
 		z
@@ -178,6 +187,9 @@ LDADD_${_l}+=	${LDADD_${_d}}
 DPADD_ucl+=	${DPADD_m}
 LDADD_ucl+=	${LDADD_m}
 
+DPADD_sqlite3+=	${DPADD_pthread}
+DPADD_sqlite3+=	${LDADD_pthread}
+
 .for _l in ${LIBADD}
 .if ${_PRIVATELIBS:M${_l}}
 USEPRIVATELIB+=	${_l}
@@ -185,6 +197,10 @@ USEPRIVATELIB+=	${_l}
 DPADD+=		${DPADD_${_l}}
 LDADD+=		${LDADD_${_l}}
 .endfor
+
+.if defined(USEPRIVATELIB)
+LDFLAGS+=	-rpath ${LIBPRIVATEDIR}
+.endif
 
 LIBATF_CDIR=	${ROOTOBJDIR}/lib/atf/libatf-c
 LDATF_C?=	${LIBATF_CDIR}/libatf-c.so
