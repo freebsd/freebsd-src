@@ -19,6 +19,7 @@
 
 namespace llvm {
 
+class BasicBlockPass;
 class FunctionPass;
 class Pass;
 class GetElementPtrInst;
@@ -122,7 +123,7 @@ Pass *createLICMPass();
 //
 Pass *createLoopStrengthReducePass();
 
-Pass *createGlobalMergePass(const TargetMachine *TM = 0);
+Pass *createGlobalMergePass(const TargetMachine *TM = nullptr);
 
 //===----------------------------------------------------------------------===//
 //
@@ -142,6 +143,8 @@ Pass *createLoopInstSimplifyPass();
 //
 Pass *createLoopUnrollPass(int Threshold = -1, int Count = -1,
                            int AllowPartial = -1, int Runtime = -1);
+// Create an unrolling pass for full unrolling only.
+Pass *createSimpleLoopUnrollPass();
 
 //===----------------------------------------------------------------------===//
 //
@@ -153,14 +156,14 @@ Pass *createLoopRerollPass();
 //
 // LoopRotate - This pass is a simple loop rotating pass.
 //
-Pass *createLoopRotatePass();
+Pass *createLoopRotatePass(int MaxHeaderSize = -1);
 
 //===----------------------------------------------------------------------===//
 //
 // LoopIdiom - This pass recognizes and replaces idioms in loops.
 //
 Pass *createLoopIdiomPass();
-  
+
 //===----------------------------------------------------------------------===//
 //
 // PromoteMemoryToRegister - This pass is used to promote memory references to
@@ -199,7 +202,7 @@ FunctionPass *createReassociatePass();
 // preds always go to some succ.
 //
 FunctionPass *createJumpThreadingPass();
-  
+
 //===----------------------------------------------------------------------===//
 //
 // CFGSimplification - Merge basic blocks, eliminate unreachable blocks,
@@ -262,16 +265,10 @@ extern char &LowerSwitchID;
 
 //===----------------------------------------------------------------------===//
 //
-// LowerInvoke - This pass converts invoke and unwind instructions to use sjlj
-// exception handling mechanisms.  Note that after this pass runs the CFG is not
-// entirely accurate (exceptional control flow edges are not correct anymore) so
-// only very simple things should be done after the lowerinvoke pass has run
-// (like generation of native code).  This should *NOT* be used as a general
-// purpose "my LLVM-to-LLVM pass doesn't support the invoke instruction yet"
-// lowering pass.
+// LowerInvoke - This pass removes invoke instructions, converting them to call
+// instructions.
 //
-FunctionPass *createLowerInvokePass(const TargetMachine *TM = 0,
-                                    bool useExpensiveEHSupport = false);
+FunctionPass *createLowerInvokePass();
 extern char &LowerInvokePassID;
 
 //===----------------------------------------------------------------------===//
@@ -288,10 +285,17 @@ extern char &LCSSAID;
 // tree.
 //
 FunctionPass *createEarlyCSEPass();
-  
+
 //===----------------------------------------------------------------------===//
 //
-// GVN - This pass performs global value numbering and redundant load 
+// MergedLoadStoreMotion - This pass merges loads and stores in diamonds. Loads
+// are hoisted into the header, while stores sink into the footer.
+//
+FunctionPass *createMergedLoadStoreMotionPass();
+
+//===----------------------------------------------------------------------===//
+//
+// GVN - This pass performs global value numbering and redundant load
 // elimination cotemporaneously.
 //
 FunctionPass *createGVNPass(bool NoLoads = false);
@@ -309,12 +313,12 @@ FunctionPass *createMemCpyOptPass();
 // can prove are dead.
 //
 Pass *createLoopDeletionPass();
-  
+
 //===----------------------------------------------------------------------===//
 //
-// CodeGenPrepare - This pass prepares a function for instruction selection.
+// ConstantHoisting - This pass prepares a function for expensive constants.
 //
-FunctionPass *createCodeGenPreparePass(const TargetMachine *TM = 0);
+FunctionPass *createConstantHoistingPass();
 
 //===----------------------------------------------------------------------===//
 //
@@ -322,7 +326,7 @@ FunctionPass *createCodeGenPreparePass(const TargetMachine *TM = 0);
 //
 FunctionPass *createInstructionNamerPass();
 extern char &InstructionNamerID;
-  
+
 //===----------------------------------------------------------------------===//
 //
 // Sink - Code Sinking
@@ -348,13 +352,11 @@ Pass *createCorrelatedValuePropagationPass();
 FunctionPass *createInstructionSimplifierPass();
 extern char &InstructionSimplifierID;
 
-
 //===----------------------------------------------------------------------===//
 //
 // LowerExpectIntrinsics - Removes llvm.expect intrinsics and creates
 // "block_weights" metadata.
 FunctionPass *createLowerExpectIntrinsicPass();
-
 
 //===----------------------------------------------------------------------===//
 //
@@ -369,6 +371,29 @@ FunctionPass *createPartiallyInlineLibCallsPass();
 // IR metadata to reflect the profile.
 FunctionPass *createSampleProfileLoaderPass();
 FunctionPass *createSampleProfileLoaderPass(StringRef Name);
+
+//===----------------------------------------------------------------------===//
+//
+// ScalarizerPass - Converts vector operations into scalar operations
+//
+FunctionPass *createScalarizerPass();
+
+//===----------------------------------------------------------------------===//
+//
+// AddDiscriminators - Add DWARF path discriminators to the IR.
+FunctionPass *createAddDiscriminatorsPass();
+
+//===----------------------------------------------------------------------===//
+//
+// SeparateConstOffsetFromGEP - Split GEPs for better CSE
+//
+FunctionPass *createSeparateConstOffsetFromGEPPass();
+
+//===----------------------------------------------------------------------===//
+//
+// LoadCombine - Combine loads into bigger loads.
+//
+BasicBlockPass *createLoadCombinePass();
 
 } // End llvm namespace
 

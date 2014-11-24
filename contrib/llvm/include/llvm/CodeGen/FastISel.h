@@ -16,23 +16,28 @@
 #define LLVM_CODEGEN_FASTISEL_H
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
-#include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/Target/TargetLowering.h"
+#include "llvm/IR/CallingConv.h"
 
 namespace llvm {
 
 class AllocaInst;
 class Constant;
 class ConstantFP;
+class CallInst;
+class DataLayout;
 class FunctionLoweringInfo;
 class Instruction;
+class IntrinsicInst;
 class LoadInst;
+class MVT;
 class MachineConstantPool;
+class MachineFrameInfo;
 class MachineFunction;
 class MachineInstr;
-class MachineFrameInfo;
 class MachineRegisterInfo;
-class DataLayout;
 class TargetInstrInfo;
 class TargetLibraryInfo;
 class TargetLowering;
@@ -45,15 +50,154 @@ class Value;
 /// This is a fast-path instruction selection class that generates poor code and
 /// doesn't support illegal types or non-trivial lowering, but runs quickly.
 class FastISel {
+  public:
+  struct ArgListEntry {
+    Value *Val;
+    Type *Ty;
+    bool isSExt     : 1;
+    bool isZExt     : 1;
+    bool isInReg    : 1;
+    bool isSRet     : 1;
+    bool isNest     : 1;
+    bool isByVal    : 1;
+    bool isInAlloca : 1;
+    bool isReturned : 1;
+    uint16_t Alignment;
+
+    ArgListEntry()
+      : Val(nullptr), Ty(nullptr), isSExt(false), isZExt(false), isInReg(false),
+        isSRet(false), isNest(false), isByVal(false), isInAlloca(false),
+        isReturned(false), Alignment(0) { }
+
+    void setAttributes(ImmutableCallSite *CS, unsigned AttrIdx);
+  };
+  typedef std::vector<ArgListEntry> ArgListTy;
+
+  struct CallLoweringInfo {
+    Type *RetTy;
+    bool RetSExt           : 1;
+    bool RetZExt           : 1;
+    bool IsVarArg          : 1;
+    bool IsInReg           : 1;
+    bool DoesNotReturn     : 1;
+    bool IsReturnValueUsed : 1;
+
+    // IsTailCall should be modified by implementations of
+    // FastLowerCall that perform tail call conversions.
+    bool IsTailCall;
+
+    unsigned NumFixedArgs;
+    CallingConv::ID CallConv;
+    const Value *Callee;
+    const char *SymName;
+    ArgListTy Args;
+    ImmutableCallSite *CS;
+    MachineInstr *Call;
+    unsigned ResultReg;
+    unsigned NumResultRegs;
+
+    SmallVector<Value *, 16> OutVals;
+    SmallVector<ISD::ArgFlagsTy, 16> OutFlags;
+    SmallVector<unsigned, 16> OutRegs;
+    SmallVector<ISD::InputArg, 4> Ins;
+    SmallVector<unsigned, 4> InRegs;
+
+    CallLoweringInfo()
+      : RetTy(nullptr), RetSExt(false), RetZExt(false), IsVarArg(false),
+        IsInReg(false), DoesNotReturn(false), IsReturnValueUsed(true),
+        IsTailCall(false), NumFixedArgs(-1), CallConv(CallingConv::C),
+        Callee(nullptr), SymName(nullptr), CS(nullptr), Call(nullptr),
+        ResultReg(0), NumResultRegs(0)
+    {}
+
+    CallLoweringInfo &setCallee(Type *ResultTy, FunctionType *FuncTy,
+                                const Value *Target, ArgListTy &&ArgsList,
+                                ImmutableCallSite &Call) {
+      RetTy = ResultTy;
+      Callee = Target;
+
+      IsInReg = Call.paramHasAttr(0, Attribute::InReg);
+      DoesNotReturn = Call.doesNotReturn();
+      IsVarArg = FuncTy->isVarArg();
+      IsReturnValueUsed = !Call.getInstruction()->use_empty();
+      RetSExt = Call.paramHasAttr(0, Attribute::SExt);
+      RetZExt = Call.paramHasAttr(0, Attribute::ZExt);
+
+      CallConv = Call.getCallingConv();
+      NumFixedArgs = FuncTy->getNumParams();
+      Args = std::move(ArgsList);
+
+      CS = &Call;
+
+      return *this;
+    }
+
+    CallLoweringInfo &setCallee(Type *ResultTy, FunctionType *FuncTy,
+                                const char *Target, ArgListTy &&ArgsList,
+                                ImmutableCallSite &Call,
+                                unsigned FixedArgs = ~0U) {
+      RetTy = ResultTy;
+      Callee = Call.getCalledValue();
+      SymName = Target;
+
+      IsInReg = Call.paramHasAttr(0, Attribute::InReg);
+      DoesNotReturn = Call.doesNotReturn();
+      IsVarArg = FuncTy->isVarArg();
+      IsReturnValueUsed = !Call.getInstruction()->use_empty();
+      RetSExt = Call.paramHasAttr(0, Attribute::SExt);
+      RetZExt = Call.paramHasAttr(0, Attribute::ZExt);
+
+      CallConv = Call.getCallingConv();
+      NumFixedArgs = (FixedArgs == ~0U) ? FuncTy->getNumParams() : FixedArgs;
+      Args = std::move(ArgsList);
+
+      CS = &Call;
+
+      return *this;
+    }
+
+    CallLoweringInfo &setCallee(CallingConv::ID CC, Type *ResultTy,
+                                const Value *Target, ArgListTy &&ArgsList,
+                                unsigned FixedArgs = ~0U) {
+      RetTy = ResultTy;
+      Callee = Target;
+      CallConv = CC;
+      NumFixedArgs = (FixedArgs == ~0U) ? Args.size() : FixedArgs;
+      Args = std::move(ArgsList);
+      return *this;
+    }
+
+    CallLoweringInfo &setTailCall(bool Value = true) {
+      IsTailCall = Value;
+      return *this;
+    }
+
+    ArgListTy &getArgs() {
+      return Args;
+    }
+
+    void clearOuts() {
+      OutVals.clear();
+      OutFlags.clear();
+      OutRegs.clear();
+    }
+
+    void clearIns() {
+      Ins.clear();
+      InRegs.clear();
+    }
+  };
+
 protected:
   DenseMap<const Value *, unsigned> LocalValueMap;
   FunctionLoweringInfo &FuncInfo;
+  MachineFunction *MF;
   MachineRegisterInfo &MRI;
   MachineFrameInfo &MFI;
   MachineConstantPool &MCP;
-  DebugLoc DL;
+  DebugLoc DbgLoc;
   const TargetMachine &TM;
-  const DataLayout &TD;
+  const DataLayout &DL;
   const TargetInstrInfo &TII;
   const TargetLowering &TLI;
   const TargetRegisterInfo &TRI;
@@ -87,7 +231,7 @@ public:
   void startNewBlock();
 
   /// Return current debug location information.
-  DebugLoc getCurDebugLoc() const { return DL; }
+  DebugLoc getCurDebugLoc() const { return DbgLoc; }
   
   /// Do "fast" instruction selection for function arguments and append machine
   /// instructions to the current block. Return true if it is successful.
@@ -170,12 +314,19 @@ protected:
   /// process fails to select an instruction.  This gives targets a chance to
   /// emit code for anything that doesn't fit into FastISel's framework. It
   /// returns true if it was successful.
-  virtual bool
-  TargetSelectInstruction(const Instruction *I) = 0;
+  virtual bool TargetSelectInstruction(const Instruction *I) = 0;
   
   /// This method is called by target-independent code to do target specific
   /// argument lowering. It returns true if it was successful.
   virtual bool FastLowerArguments();
+
+  /// \brief This method is called by target-independent code to do target
+  /// specific call lowering. It returns true if it was successful.
+  virtual bool FastLowerCall(CallLoweringInfo &CLI);
+
+  /// \brief This method is called by target-independent code to do target
+  /// specific intrinsic lowering. It returns true if it was successful.
+  virtual bool FastLowerIntrinsicCall(const IntrinsicInst *II);
 
   /// This method is called by target-independent code to request that an
   /// instruction with the given type and opcode be emitted.
@@ -343,6 +494,12 @@ protected:
 
   unsigned createResultReg(const TargetRegisterClass *RC);
 
+  /// Try to constrain Op so that it is usable by argument OpNum of the provided
+  /// MCInstrDesc. If this fails, create a new virtual register in the correct
+  /// class and COPY the value there.
+  unsigned constrainOperandRegClass(const MCInstrDesc &II, unsigned Op,
+                                    unsigned OpNum);
+
   /// Emit a constant in a register using target-specific logic, such as
   /// constant pool loads.
   virtual unsigned TargetMaterializeConstant(const Constant* C) {
@@ -367,6 +524,15 @@ protected:
   /// - \c Add has a constant operand.
   bool canFoldAddIntoGEP(const User *GEP, const Value *Add);
 
+  /// Test whether the given value has exactly one use.
+  bool hasTrivialKill(const Value *V) const;
+
+  /// \brief Create a machine mem operand from the given instruction.
+  MachineMemOperand *createMachineMemOperandFor(const Instruction *I) const;
+
+  bool LowerCallTo(const CallInst *CI, const char *SymName, unsigned NumArgs);
+  bool LowerCallTo(CallLoweringInfo &CLI);
+
 private:
   bool SelectBinaryOp(const User *I, unsigned ISDOpcode);
 
@@ -374,7 +540,11 @@ private:
 
   bool SelectGetElementPtr(const User *I);
 
-  bool SelectCall(const User *I);
+  bool SelectStackmap(const CallInst *I);
+  bool SelectPatchpoint(const CallInst *I);
+  bool LowerCall(const CallInst *I);
+  bool SelectCall(const User *Call);
+  bool SelectIntrinsicCall(const IntrinsicInst *II);
 
   bool SelectBitCast(const User *I);
 
@@ -403,8 +573,11 @@ private:
   /// heavy instructions like calls.
   void flushLocalValueMap();
 
-  /// Test whether the given value has exactly one use.
-  bool hasTrivialKill(const Value *V) const;
+  bool addStackMapLiveVars(SmallVectorImpl<MachineOperand> &Ops,
+                           const CallInst *CI, unsigned StartIdx);
+  bool lowerCallOperands(const CallInst *CI, unsigned ArgIdx, unsigned NumArgs,
+                         const Value *Callee, bool ForceRetVoidTy,
+                         CallLoweringInfo &CLI);
 };
 
 }

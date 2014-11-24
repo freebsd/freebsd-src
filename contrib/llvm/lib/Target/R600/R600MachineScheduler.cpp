@@ -12,9 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "misched"
-
 #include "R600MachineScheduler.h"
+#include "AMDGPUSubtarget.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Pass.h"
@@ -23,9 +22,11 @@
 
 using namespace llvm;
 
-void R600SchedStrategy::initialize(ScheduleDAGMI *dag) {
+#define DEBUG_TYPE "misched"
 
-  DAG = dag;
+void R600SchedStrategy::initialize(ScheduleDAGMI *dag) {
+  assert(dag->hasVRegLiveness() && "R600SchedStrategy needs vreg liveness");
+  DAG = static_cast<ScheduleDAGMILive*>(dag);
   TII = static_cast<const R600InstrInfo*>(DAG->TII);
   TRI = static_cast<const R600RegisterInfo*>(DAG->TRI);
   VLIW5 = !DAG->MF.getTarget().getSubtarget<AMDGPUSubtarget>().hasCaymanISA();
@@ -56,7 +57,7 @@ unsigned getWFCountLimitedByGPR(unsigned GPRCount) {
 }
 
 SUnit* R600SchedStrategy::pickNode(bool &IsTopNode) {
-  SUnit *SU = 0;
+  SUnit *SU = nullptr;
   NextInstKind = IDOther;
 
   IsTopNode = false;
@@ -72,7 +73,7 @@ SUnit* R600SchedStrategy::pickNode(bool &IsTopNode) {
     // OpenCL Programming Guide :
     // The approx. number of WF that allows TEX inst to hide ALU inst is :
     // 500 (cycles for TEX) / (AluFetchRatio * 8 (cycles for ALU))
-    float ALUFetchRationEstimate = 
+    float ALUFetchRationEstimate =
         (AluInstCount + AvailablesAluCount() + Pending[IDAlu].size()) /
         (FetchInstCount + Available[IDFetch].size());
     unsigned NeededWF = 62.5f / ALUFetchRationEstimate;
@@ -316,7 +317,7 @@ int R600SchedStrategy::getInstKind(SUnit* SU) {
 
 SUnit *R600SchedStrategy::PopInst(std::vector<SUnit *> &Q, bool AnyALU) {
   if (Q.empty())
-    return NULL;
+    return nullptr;
   for (std::vector<SUnit *>::reverse_iterator It = Q.rbegin(), E = Q.rend();
       It != E; ++It) {
     SUnit *SU = *It;
@@ -331,7 +332,7 @@ SUnit *R600SchedStrategy::PopInst(std::vector<SUnit *> &Q, bool AnyALU) {
       InstructionsGroupCandidate.pop_back();
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 void R600SchedStrategy::LoadAlu() {
@@ -448,11 +449,11 @@ SUnit* R600SchedStrategy::pickAlu() {
     }
     PrepareNextSlot();
   }
-  return NULL;
+  return nullptr;
 }
 
 SUnit* R600SchedStrategy::pickOther(int QID) {
-  SUnit *SU = 0;
+  SUnit *SU = nullptr;
   std::vector<SUnit *> &AQ = Available[QID];
 
   if (AQ.empty()) {
@@ -464,4 +465,3 @@ SUnit* R600SchedStrategy::pickOther(int QID) {
   }
   return SU;
 }
-

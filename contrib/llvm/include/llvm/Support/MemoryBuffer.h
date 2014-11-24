@@ -14,17 +14,16 @@
 #ifndef LLVM_SUPPORT_MEMORYBUFFER_H
 #define LLVM_SUPPORT_MEMORYBUFFER_H
 
+#include "llvm-c/Support.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/DataTypes.h"
-#include "llvm-c/Core.h"
+#include "llvm/Support/ErrorOr.h"
+#include <memory>
+#include <system_error>
 
 namespace llvm {
-
-class error_code;
-template<class T> class OwningPtr;
-
 /// MemoryBuffer - This interface provides simple read-only access to a block
 /// of memory, and provides simple methods for reading files and standard input
 /// into a memory buffer.  In addition to basic access to the characters in the
@@ -62,27 +61,38 @@ public:
     return "Unknown buffer";
   }
 
-  /// getFile - Open the specified file as a MemoryBuffer, returning a new
-  /// MemoryBuffer if successful, otherwise returning null.  If FileSize is
-  /// specified, this means that the client knows that the file exists and that
-  /// it has the specified size.
-  static error_code getFile(Twine Filename, OwningPtr<MemoryBuffer> &result,
-                            int64_t FileSize = -1,
-                            bool RequiresNullTerminator = true);
+  /// Open the specified file as a MemoryBuffer, returning a new MemoryBuffer
+  /// if successful, otherwise returning null. If FileSize is specified, this
+  /// means that the client knows that the file exists and that it has the
+  /// specified size.
+  ///
+  /// \param IsVolatileSize Set to true to indicate that the file size may be
+  /// changing, e.g. when libclang tries to parse while the user is
+  /// editing/updating the file.
+  static ErrorOr<std::unique_ptr<MemoryBuffer>>
+  getFile(Twine Filename, int64_t FileSize = -1,
+          bool RequiresNullTerminator = true, bool IsVolatileSize = false);
 
   /// Given an already-open file descriptor, map some slice of it into a
   /// MemoryBuffer. The slice is specified by an \p Offset and \p MapSize.
   /// Since this is in the middle of a file, the buffer is not null terminated.
-  static error_code getOpenFileSlice(int FD, const char *Filename,
-                                     OwningPtr<MemoryBuffer> &Result,
-                                     uint64_t MapSize, int64_t Offset);
+  ///
+  /// \param IsVolatileSize Set to true to indicate that the file size may be
+  /// changing, e.g. when libclang tries to parse while the user is
+  /// editing/updating the file.
+  static ErrorOr<std::unique_ptr<MemoryBuffer>>
+  getOpenFileSlice(int FD, const char *Filename, uint64_t MapSize,
+                   int64_t Offset, bool IsVolatileSize = false);
 
   /// Given an already-open file descriptor, read the file and return a
   /// MemoryBuffer.
-  static error_code getOpenFile(int FD, const char *Filename,
-                                OwningPtr<MemoryBuffer> &Result,
-                                uint64_t FileSize,
-                                bool RequiresNullTerminator = true);
+  ///
+  /// \param IsVolatileSize Set to true to indicate that the file size may be
+  /// changing, e.g. when libclang tries to parse while the user is
+  /// editing/updating the file.
+  static ErrorOr<std::unique_ptr<MemoryBuffer>>
+  getOpenFile(int FD, const char *Filename, uint64_t FileSize,
+              bool RequiresNullTerminator = true, bool IsVolatileSize = false);
 
   /// getMemBuffer - Open the specified memory range as a MemoryBuffer.  Note
   /// that InputData must be null terminated if RequiresNullTerminator is true.
@@ -109,17 +119,13 @@ public:
   static MemoryBuffer *getNewUninitMemBuffer(size_t Size,
                                              StringRef BufferName = "");
 
-  /// getSTDIN - Read all of stdin into a file buffer, and return it.
-  /// If an error occurs, this returns null and sets ec.
-  static error_code getSTDIN(OwningPtr<MemoryBuffer> &result);
+  /// Read all of stdin into a file buffer, and return it.
+  static ErrorOr<std::unique_ptr<MemoryBuffer>> getSTDIN();
 
-
-  /// getFileOrSTDIN - Open the specified file as a MemoryBuffer, or open stdin
-  /// if the Filename is "-".  If an error occurs, this returns null and sets
-  /// ec.
-  static error_code getFileOrSTDIN(StringRef Filename,
-                                   OwningPtr<MemoryBuffer> &result,
-                                   int64_t FileSize = -1);
+  /// Open the specified file as a MemoryBuffer, or open stdin if the Filename
+  /// is "-".
+  static ErrorOr<std::unique_ptr<MemoryBuffer>>
+  getFileOrSTDIN(StringRef Filename, int64_t FileSize = -1);
 
   //===--------------------------------------------------------------------===//
   // Provided for performance analysis.

@@ -27,7 +27,8 @@ using namespace llvm;
 
 /// CastToCStr - Return V if it is an i8*, otherwise cast it to i8*.
 Value *llvm::CastToCStr(Value *V, IRBuilder<> &B) {
-  return B.CreateBitCast(V, B.getInt8PtrTy(), "cstr");
+  unsigned AS = V->getType()->getPointerAddressSpace();
+  return B.CreateBitCast(V, B.getInt8PtrTy(AS), "cstr");
 }
 
 /// EmitStrLen - Emit a call to the strlen function to the builder, for the
@@ -35,7 +36,7 @@ Value *llvm::CastToCStr(Value *V, IRBuilder<> &B) {
 Value *llvm::EmitStrLen(Value *Ptr, IRBuilder<> &B, const DataLayout *TD,
                         const TargetLibraryInfo *TLI) {
   if (!TLI->has(LibFunc::strlen))
-    return 0;
+    return nullptr;
 
   Module *M = B.GetInsertBlock()->getParent()->getParent();
   AttributeSet AS[2];
@@ -64,7 +65,7 @@ Value *llvm::EmitStrLen(Value *Ptr, IRBuilder<> &B, const DataLayout *TD,
 Value *llvm::EmitStrNLen(Value *Ptr, Value *MaxLen, IRBuilder<> &B,
                          const DataLayout *TD, const TargetLibraryInfo *TLI) {
   if (!TLI->has(LibFunc::strnlen))
-    return 0;
+    return nullptr;
 
   Module *M = B.GetInsertBlock()->getParent()->getParent();
   AttributeSet AS[2];
@@ -94,7 +95,7 @@ Value *llvm::EmitStrNLen(Value *Ptr, Value *MaxLen, IRBuilder<> &B,
 Value *llvm::EmitStrChr(Value *Ptr, char C, IRBuilder<> &B,
                         const DataLayout *TD, const TargetLibraryInfo *TLI) {
   if (!TLI->has(LibFunc::strchr))
-    return 0;
+    return nullptr;
 
   Module *M = B.GetInsertBlock()->getParent()->getParent();
   Attribute::AttrKind AVs[2] = { Attribute::ReadOnly, Attribute::NoUnwind };
@@ -120,7 +121,7 @@ Value *llvm::EmitStrNCmp(Value *Ptr1, Value *Ptr2, Value *Len,
                          IRBuilder<> &B, const DataLayout *TD,
                          const TargetLibraryInfo *TLI) {
   if (!TLI->has(LibFunc::strncmp))
-    return 0;
+    return nullptr;
 
   Module *M = B.GetInsertBlock()->getParent()->getParent();
   AttributeSet AS[3];
@@ -153,7 +154,7 @@ Value *llvm::EmitStrCpy(Value *Dst, Value *Src, IRBuilder<> &B,
                         const DataLayout *TD, const TargetLibraryInfo *TLI,
                         StringRef Name) {
   if (!TLI->has(LibFunc::strcpy))
-    return 0;
+    return nullptr;
 
   Module *M = B.GetInsertBlock()->getParent()->getParent();
   AttributeSet AS[2];
@@ -177,7 +178,7 @@ Value *llvm::EmitStrNCpy(Value *Dst, Value *Src, Value *Len,
                          IRBuilder<> &B, const DataLayout *TD,
                          const TargetLibraryInfo *TLI, StringRef Name) {
   if (!TLI->has(LibFunc::strncpy))
-    return 0;
+    return nullptr;
 
   Module *M = B.GetInsertBlock()->getParent()->getParent();
   AttributeSet AS[2];
@@ -204,7 +205,7 @@ Value *llvm::EmitMemCpyChk(Value *Dst, Value *Src, Value *Len, Value *ObjSize,
                            IRBuilder<> &B, const DataLayout *TD,
                            const TargetLibraryInfo *TLI) {
   if (!TLI->has(LibFunc::memcpy_chk))
-    return 0;
+    return nullptr;
 
   Module *M = B.GetInsertBlock()->getParent()->getParent();
   AttributeSet AS;
@@ -232,7 +233,7 @@ Value *llvm::EmitMemChr(Value *Ptr, Value *Val,
                         Value *Len, IRBuilder<> &B, const DataLayout *TD,
                         const TargetLibraryInfo *TLI) {
   if (!TLI->has(LibFunc::memchr))
-    return 0;
+    return nullptr;
 
   Module *M = B.GetInsertBlock()->getParent()->getParent();
   AttributeSet AS;
@@ -260,7 +261,7 @@ Value *llvm::EmitMemCmp(Value *Ptr1, Value *Ptr2,
                         Value *Len, IRBuilder<> &B, const DataLayout *TD,
                         const TargetLibraryInfo *TLI) {
   if (!TLI->has(LibFunc::memcmp))
-    return 0;
+    return nullptr;
 
   Module *M = B.GetInsertBlock()->getParent()->getParent();
   AttributeSet AS[3];
@@ -286,6 +287,21 @@ Value *llvm::EmitMemCmp(Value *Ptr1, Value *Ptr2,
   return CI;
 }
 
+/// Append a suffix to the function name according to the type of 'Op'.
+static void AppendTypeSuffix(Value *Op, StringRef &Name, SmallString<20> &NameBuffer) {
+  if (!Op->getType()->isDoubleTy()) {
+      NameBuffer += Name;
+
+    if (Op->getType()->isFloatTy())
+      NameBuffer += 'f';
+    else
+      NameBuffer += 'l';
+
+    Name = NameBuffer;
+  }  
+  return;
+}
+
 /// EmitUnaryFloatFnCall - Emit a call to the unary function named 'Name' (e.g.
 /// 'floor').  This function is known to take a single of type matching 'Op' and
 /// returns one value with the same type.  If 'Op' is a long double, 'l' is
@@ -293,15 +309,7 @@ Value *llvm::EmitMemCmp(Value *Ptr1, Value *Ptr2,
 Value *llvm::EmitUnaryFloatFnCall(Value *Op, StringRef Name, IRBuilder<> &B,
                                   const AttributeSet &Attrs) {
   SmallString<20> NameBuffer;
-  if (!Op->getType()->isDoubleTy()) {
-    // If we need to add a suffix, copy into NameBuffer.
-    NameBuffer += Name;
-    if (Op->getType()->isFloatTy())
-      NameBuffer += 'f'; // floorf
-    else
-      NameBuffer += 'l'; // floorl
-    Name = NameBuffer;
-  }
+  AppendTypeSuffix(Op, Name, NameBuffer);   
 
   Module *M = B.GetInsertBlock()->getParent()->getParent();
   Value *Callee = M->getOrInsertFunction(Name, Op->getType(),
@@ -314,12 +322,33 @@ Value *llvm::EmitUnaryFloatFnCall(Value *Op, StringRef Name, IRBuilder<> &B,
   return CI;
 }
 
+/// EmitBinaryFloatFnCall - Emit a call to the binary function named 'Name'
+/// (e.g. 'fmin').  This function is known to take type matching 'Op1' and 'Op2'
+/// and return one value with the same type.  If 'Op1/Op2' are long double, 'l'
+/// is added as the suffix of name, if 'Op1/Op2' is a float, we add a 'f'
+/// suffix.
+Value *llvm::EmitBinaryFloatFnCall(Value *Op1, Value *Op2, StringRef Name,
+                                  IRBuilder<> &B, const AttributeSet &Attrs) {
+  SmallString<20> NameBuffer;
+  AppendTypeSuffix(Op1, Name, NameBuffer);   
+
+  Module *M = B.GetInsertBlock()->getParent()->getParent();
+  Value *Callee = M->getOrInsertFunction(Name, Op1->getType(),
+                                         Op1->getType(), Op2->getType(), NULL);
+  CallInst *CI = B.CreateCall2(Callee, Op1, Op2, Name);
+  CI->setAttributes(Attrs);
+  if (const Function *F = dyn_cast<Function>(Callee->stripPointerCasts()))
+    CI->setCallingConv(F->getCallingConv());
+
+  return CI;
+}
+
 /// EmitPutChar - Emit a call to the putchar function.  This assumes that Char
 /// is an integer.
 Value *llvm::EmitPutChar(Value *Char, IRBuilder<> &B, const DataLayout *TD,
                          const TargetLibraryInfo *TLI) {
   if (!TLI->has(LibFunc::putchar))
-    return 0;
+    return nullptr;
 
   Module *M = B.GetInsertBlock()->getParent()->getParent();
   Value *PutChar = M->getOrInsertFunction("putchar", B.getInt32Ty(),
@@ -341,7 +370,7 @@ Value *llvm::EmitPutChar(Value *Char, IRBuilder<> &B, const DataLayout *TD,
 Value *llvm::EmitPutS(Value *Str, IRBuilder<> &B, const DataLayout *TD,
                       const TargetLibraryInfo *TLI) {
   if (!TLI->has(LibFunc::puts))
-    return 0;
+    return nullptr;
 
   Module *M = B.GetInsertBlock()->getParent()->getParent();
   AttributeSet AS[2];
@@ -365,7 +394,7 @@ Value *llvm::EmitPutS(Value *Str, IRBuilder<> &B, const DataLayout *TD,
 Value *llvm::EmitFPutC(Value *Char, Value *File, IRBuilder<> &B,
                        const DataLayout *TD, const TargetLibraryInfo *TLI) {
   if (!TLI->has(LibFunc::fputc))
-    return 0;
+    return nullptr;
 
   Module *M = B.GetInsertBlock()->getParent()->getParent();
   AttributeSet AS[2];
@@ -398,7 +427,7 @@ Value *llvm::EmitFPutC(Value *Char, Value *File, IRBuilder<> &B,
 Value *llvm::EmitFPutS(Value *Str, Value *File, IRBuilder<> &B,
                        const DataLayout *TD, const TargetLibraryInfo *TLI) {
   if (!TLI->has(LibFunc::fputs))
-    return 0;
+    return nullptr;
 
   Module *M = B.GetInsertBlock()->getParent()->getParent();
   AttributeSet AS[3];
@@ -431,7 +460,7 @@ Value *llvm::EmitFWrite(Value *Ptr, Value *Size, Value *File,
                         IRBuilder<> &B, const DataLayout *TD,
                         const TargetLibraryInfo *TLI) {
   if (!TLI->has(LibFunc::fwrite))
-    return 0;
+    return nullptr;
 
   Module *M = B.GetInsertBlock()->getParent()->getParent();
   AttributeSet AS[3];

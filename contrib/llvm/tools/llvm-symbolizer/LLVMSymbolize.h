@@ -13,17 +13,18 @@
 #ifndef LLVM_SYMBOLIZE_H
 #define LLVM_SYMBOLIZE_H
 
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/DebugInfo/DIContext.h"
 #include "llvm/Object/MachOUniversal.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include <map>
+#include <memory>
 #include <string>
 
 namespace llvm {
 
+typedef DILineInfoSpecifier::FunctionNameKind FunctionNameKind;
 using namespace object;
 
 namespace symbolize {
@@ -34,17 +35,17 @@ class LLVMSymbolizer {
 public:
   struct Options {
     bool UseSymbolTable : 1;
-    bool PrintFunctions : 1;
+    FunctionNameKind PrintFunctions;
     bool PrintInlining : 1;
     bool Demangle : 1;
     std::string DefaultArch;
-    Options(bool UseSymbolTable = true, bool PrintFunctions = true,
+    Options(bool UseSymbolTable = true,
+            FunctionNameKind PrintFunctions = FunctionNameKind::LinkageName,
             bool PrintInlining = true, bool Demangle = true,
             std::string DefaultArch = "")
         : UseSymbolTable(UseSymbolTable), PrintFunctions(PrintFunctions),
           PrintInlining(PrintInlining), Demangle(Demangle),
-          DefaultArch(DefaultArch) {
-    }
+          DefaultArch(DefaultArch) {}
   };
 
   LLVMSymbolizer(const Options &Opts = Options()) : Opts(Opts) {}
@@ -71,10 +72,9 @@ private:
   ObjectFile *getObjectFileFromBinary(Binary *Bin, const std::string &ArchName);
 
   std::string printDILineInfo(DILineInfo LineInfo) const;
-  static std::string DemangleGlobalName(const std::string &Name);
 
   // Owns all the parsed binaries and object files.
-  SmallVector<Binary*, 4> ParsedBinariesAndObjects;
+  SmallVector<std::unique_ptr<Binary>, 4> ParsedBinariesAndObjects;
   // Owns module info objects.
   typedef std::map<std::string, ModuleInfo *> ModuleMapTy;
   ModuleMapTy Modules;
@@ -103,8 +103,9 @@ private:
   bool getNameFromSymbolTable(SymbolRef::Type Type, uint64_t Address,
                               std::string &Name, uint64_t &Addr,
                               uint64_t &Size) const;
+  void addSymbol(const SymbolRef &Symbol);
   ObjectFile *Module;
-  OwningPtr<DIContext> DebugInfoContext;
+  std::unique_ptr<DIContext> DebugInfoContext;
 
   struct SymbolDesc {
     uint64_t Addr;

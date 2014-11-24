@@ -14,16 +14,16 @@
 
 #include "Sparc.h"
 #include "MCTargetDesc/SparcMCExpr.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineOperand.h"
-#include "llvm/MC/MCContext.h"
+#include "llvm/IR/Mangler.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
-#include "llvm/Target/Mangler.h"
-#include "llvm/ADT/SmallString.h"
 
 using namespace llvm;
 
@@ -34,7 +34,7 @@ static MCOperand LowerSymbolOperand(const MachineInstr *MI,
 
   SparcMCExpr::VariantKind Kind =
     (SparcMCExpr::VariantKind)MO.getTargetFlags();
-  const MCSymbol *Symbol = 0;
+  const MCSymbol *Symbol = nullptr;
 
   switch(MO.getType()) {
   default: llvm_unreachable("Unknown type in LowerSymbolOperand");

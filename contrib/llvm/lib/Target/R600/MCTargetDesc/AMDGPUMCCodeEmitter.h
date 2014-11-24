@@ -1,4 +1,4 @@
-//===-- AMDGPUCodeEmitter.h - AMDGPU Code Emitter interface -----------------===//
+//===-- AMDGPUCodeEmitter.h - AMDGPU Code Emitter interface -----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -22,16 +22,25 @@ namespace llvm {
 
 class MCInst;
 class MCOperand;
+class MCSubtargetInfo;
 
 class AMDGPUMCCodeEmitter : public MCCodeEmitter {
   virtual void anchor();
 public:
 
   uint64_t getBinaryCodeForInstr(const MCInst &MI,
-                                 SmallVectorImpl<MCFixup> &Fixups) const;
+                                 SmallVectorImpl<MCFixup> &Fixups,
+                                 const MCSubtargetInfo &STI) const;
 
   virtual uint64_t getMachineOpValue(const MCInst &MI, const MCOperand &MO,
-                                     SmallVectorImpl<MCFixup> &Fixups) const {
+                                     SmallVectorImpl<MCFixup> &Fixups,
+                                     const MCSubtargetInfo &STI) const {
+    return 0;
+  }
+
+  virtual unsigned getSOPPBrEncoding(const MCInst &MI, unsigned OpNo,
+                                     SmallVectorImpl<MCFixup> &Fixups,
+                                     const MCSubtargetInfo &STI) const {
     return 0;
   }
 };

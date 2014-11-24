@@ -14,6 +14,7 @@
 #include "CodeGenIntrinsics.h"
 #include "CodeGenTarget.h"
 #include "SequenceToOffsetTable.h"
+#include "TableGenBackends.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Record.h"
@@ -45,8 +46,6 @@ public:
                                 raw_ostream &OS);
   void EmitIntrinsicToOverloadTable(const std::vector<CodeGenIntrinsic> &Ints,
                                     raw_ostream &OS);
-  void EmitVerifier(const std::vector<CodeGenIntrinsic> &Ints,
-                    raw_ostream &OS);
   void EmitGenerator(const std::vector<CodeGenIntrinsic> &Ints,
                      raw_ostream &OS);
   void EmitAttributes(const std::vector<CodeGenIntrinsic> &Ints,
@@ -55,6 +54,8 @@ public:
                           raw_ostream &OS);
   void EmitIntrinsicToGCCBuiltinMap(const std::vector<CodeGenIntrinsic> &Ints,
                                     raw_ostream &OS);
+  void EmitIntrinsicToMSBuiltinMap(const std::vector<CodeGenIntrinsic> &Ints,
+                                   raw_ostream &OS);
   void EmitSuffix(raw_ostream &OS);
 };
 } // End anonymous namespace
@@ -97,6 +98,9 @@ void IntrinsicEmitter::run(raw_ostream &OS) {
   // Emit code to translate GCC builtins into LLVM intrinsics.
   EmitIntrinsicToGCCBuiltinMap(Ints, OS);
 
+  // Emit code to translate MS builtins into LLVM intrinsics.
+  EmitIntrinsicToMSBuiltinMap(Ints, OS);
+
   EmitSuffix(OS);
 }
 
@@ -125,25 +129,12 @@ void IntrinsicEmitter::EmitEnumInfo(const std::vector<CodeGenIntrinsic> &Ints,
   for (unsigned i = 0, e = Ints.size(); i != e; ++i) {
     OS << "    " << Ints[i].EnumName;
     OS << ((i != e-1) ? ", " : "  ");
-    OS << std::string(40-Ints[i].EnumName.size(), ' ')
-      << "// " << Ints[i].Name << "\n";
+    if (Ints[i].EnumName.size() < 40)
+      OS << std::string(40-Ints[i].EnumName.size(), ' ');
+    OS << " // " << Ints[i].Name << "\n";
   }
   OS << "#endif\n\n";
 }
-
-struct IntrinsicNameSorter {
-  IntrinsicNameSorter(const std::vector<CodeGenIntrinsic> &I)
-  : Ints(I) {}
-
-  // Sort in reverse order of intrinsic name so "abc.def" appears after
-  // "abd.def.ghi" in the overridden name matcher
-  bool operator()(unsigned i, unsigned j) {
-    return Ints[i].Name > Ints[j].Name;
-  }
-
-private:
-  const std::vector<CodeGenIntrinsic> &Ints;
-};
 
 void IntrinsicEmitter::
 EmitFnNameRecognizer(const std::vector<CodeGenIntrinsic> &Ints,
@@ -158,15 +149,17 @@ EmitFnNameRecognizer(const std::vector<CodeGenIntrinsic> &Ints,
   OS << "  StringRef NameR(Name+6, Len-6);   // Skip over 'llvm.'\n";
   OS << "  switch (Name[5]) {                  // Dispatch on first letter.\n";
   OS << "  default: break;\n";
-  IntrinsicNameSorter Sorter(Ints);
   // Emit the intrinsic matching stuff by first letter.
   for (std::map<char, std::vector<unsigned> >::iterator I = IntMapping.begin(),
        E = IntMapping.end(); I != E; ++I) {
     OS << "  case '" << I->first << "':\n";
     std::vector<unsigned> &IntList = I->second;
 
-    // Sort intrinsics in reverse order of their names
-    std::sort(IntList.begin(), IntList.end(), Sorter);
+    // Sort in reverse order of intrinsic name so "abc.def" appears after
+    // "abd.def.ghi" in the overridden name matcher
+    std::sort(IntList.begin(), IntList.end(), [&](unsigned i, unsigned j) {
+      return Ints[i].Name > Ints[j].Name;
+    });
 
     // Emit all the overloaded intrinsics first, build a table of the
     // non-overloaded ones.
@@ -258,18 +251,19 @@ enum IIT_Info {
   IIT_STRUCT3 = 20,
   IIT_STRUCT4 = 21,
   IIT_STRUCT5 = 22,
-  IIT_EXTEND_VEC_ARG = 23,
-  IIT_TRUNC_VEC_ARG = 24,
+  IIT_EXTEND_ARG = 23,
+  IIT_TRUNC_ARG = 24,
   IIT_ANYPTR = 25,
   IIT_V1   = 26,
-  IIT_VARARG = 27
+  IIT_VARARG = 27,
+  IIT_HALF_VEC_ARG = 28
 };
 
 
 static void EncodeFixedValueType(MVT::SimpleValueType VT,
                                  std::vector<unsigned char> &Sig) {
-  if (EVT(VT).isInteger()) {
-    unsigned BitWidth = EVT(VT).getSizeInBits();
+  if (MVT(VT).isInteger()) {
+    unsigned BitWidth = MVT(VT).getSizeInBits();
     switch (BitWidth) {
     default: PrintFatalError("unhandled integer type width in intrinsic!");
     case 1: return Sig.push_back(IIT_I1);
@@ -304,10 +298,12 @@ static void EncodeFixedType(Record *R, std::vector<unsigned char> &ArgCodes,
   if (R->isSubClassOf("LLVMMatchType")) {
     unsigned Number = R->getValueAsInt("Number");
     assert(Number < ArgCodes.size() && "Invalid matching number!");
-    if (R->isSubClassOf("LLVMExtendedElementVectorType"))
-      Sig.push_back(IIT_EXTEND_VEC_ARG);
-    else if (R->isSubClassOf("LLVMTruncatedElementVectorType"))
-      Sig.push_back(IIT_TRUNC_VEC_ARG);
+    if (R->isSubClassOf("LLVMExtendedType"))
+      Sig.push_back(IIT_EXTEND_ARG);
+    else if (R->isSubClassOf("LLVMTruncatedType"))
+      Sig.push_back(IIT_TRUNC_ARG);
+    else if (R->isSubClassOf("LLVMHalfElementsVectorType"))
+      Sig.push_back(IIT_HALF_VEC_ARG);
     else
       Sig.push_back(IIT_ARG);
     return Sig.push_back((Number << 2) | ArgCodes[Number]);
@@ -350,8 +346,8 @@ static void EncodeFixedType(Record *R, std::vector<unsigned char> &ArgCodes,
   }
   }
 
-  if (EVT(VT).isVector()) {
-    EVT VVT = VT;
+  if (MVT(VT).isVector()) {
+    MVT VVT = VT;
     switch (VVT.getVectorNumElements()) {
     default: PrintFatalError("unhandled vector type width in intrinsic!");
     case 1: Sig.push_back(IIT_V1); break;
@@ -362,8 +358,7 @@ static void EncodeFixedType(Record *R, std::vector<unsigned char> &ArgCodes,
     case 32: Sig.push_back(IIT_V32); break;
     }
 
-    return EncodeFixedValueType(VVT.getVectorElementType().
-                                getSimpleVT().SimpleTy, Sig);
+    return EncodeFixedValueType(VVT.getVectorElementType().SimpleTy, Sig);
   }
 
   EncodeFixedValueType(VT, Sig);
@@ -391,7 +386,7 @@ static void ComputeFixedEncoding(const CodeGenIntrinsic &Int,
       case 3: TypeSig.push_back(IIT_STRUCT3); break;
       case 4: TypeSig.push_back(IIT_STRUCT4); break;
       case 5: TypeSig.push_back(IIT_STRUCT5); break;
-      default: assert(0 && "Unhandled case in struct");
+      default: llvm_unreachable("Unhandled case in struct");
     }
 
     for (unsigned i = 0, e = Int.IS.RetVTs.size(); i != e; ++i)
@@ -488,11 +483,13 @@ void IntrinsicEmitter::EmitGenerator(const std::vector<CodeGenIntrinsic> &Ints,
   OS << "#endif\n\n";  // End of GET_INTRINSIC_GENERATOR_GLOBAL
 }
 
+namespace {
 enum ModRefKind {
   MRK_none,
   MRK_readonly,
   MRK_readnone
 };
+}
 
 static ModRefKind getModRefKind(const CodeGenIntrinsic &intrinsic) {
   switch (intrinsic.ModRef) {
@@ -514,6 +511,9 @@ struct AttributeComparator {
     // Sort throwing intrinsics after non-throwing intrinsics.
     if (L->canThrow != R->canThrow)
       return R->canThrow;
+
+    if (L->isNoDuplicate != R->isNoDuplicate)
+      return R->isNoDuplicate;
 
     if (L->isNoReturn != R->isNoReturn)
       return R->isNoReturn;
@@ -629,7 +629,8 @@ EmitAttributes(const std::vector<CodeGenIntrinsic> &Ints, raw_ostream &OS) {
 
     ModRefKind modRef = getModRefKind(intrinsic);
 
-    if (!intrinsic.canThrow || modRef || intrinsic.isNoReturn) {
+    if (!intrinsic.canThrow || modRef || intrinsic.isNoReturn ||
+        intrinsic.isNoDuplicate) {
       OS << "      const Attribute::AttrKind Atts[] = {";
       bool addComma = false;
       if (!intrinsic.canThrow) {
@@ -640,6 +641,12 @@ EmitAttributes(const std::vector<CodeGenIntrinsic> &Ints, raw_ostream &OS) {
         if (addComma)
           OS << ",";
         OS << "Attribute::NoReturn";
+        addComma = true;
+      }
+      if (intrinsic.isNoDuplicate) {
+        if (addComma)
+          OS << ",";
+        OS << "Attribute::NoDuplicate";
         addComma = true;
       }
 
@@ -667,6 +674,7 @@ EmitAttributes(const std::vector<CodeGenIntrinsic> &Ints, raw_ostream &OS) {
       OS << "      }\n";
     } else {
       OS << "      return AttributeSet();\n";
+      OS << "      }\n";
     }
   }
 
@@ -788,10 +796,55 @@ EmitIntrinsicToGCCBuiltinMap(const std::vector<CodeGenIntrinsic> &Ints,
   OS << "#endif\n\n";
 }
 
-namespace llvm {
+void IntrinsicEmitter::
+EmitIntrinsicToMSBuiltinMap(const std::vector<CodeGenIntrinsic> &Ints,
+                            raw_ostream &OS) {
+  std::map<std::string, std::map<std::string, std::string>> TargetBuiltins;
 
-void EmitIntrinsics(RecordKeeper &RK, raw_ostream &OS, bool TargetOnly = false) {
-  IntrinsicEmitter(RK, TargetOnly).run(OS);
+  for (const auto &Intrinsic : Ints) {
+    if (Intrinsic.MSBuiltinName.empty())
+      continue;
+
+    auto &Builtins = TargetBuiltins[Intrinsic.TargetPrefix];
+    if (!Builtins.insert(std::make_pair(Intrinsic.MSBuiltinName,
+                                        Intrinsic.EnumName)).second)
+      PrintFatalError("Intrinsic '" + Intrinsic.TheDef->getName() + "': "
+                      "duplicate MS builtin name!");
+  }
+
+  OS << "// Get the LLVM intrinsic that corresponds to a MS builtin.\n"
+        "// This is used by the C front-end.  The MS builtin name is passed\n"
+        "// in as a BuiltinName, and a target prefix (e.g. 'arm') is passed\n"
+        "// in as a TargetPrefix.  The result is assigned to 'IntrinsicID'.\n"
+        "#ifdef GET_LLVM_INTRINSIC_FOR_MS_BUILTIN\n";
+
+  OS << (TargetOnly ? "static " + TargetPrefix : "") << "Intrinsic::ID "
+     << (TargetOnly ? "" : "Intrinsic::")
+     << "getIntrinsicForMSBuiltin(const char *TP, const char *BN) {\n";
+  OS << "  StringRef BuiltinName(BN);\n"
+        "  StringRef TargetPrefix(TP);\n"
+        "\n";
+
+  for (const auto &Builtins : TargetBuiltins) {
+    OS << "  ";
+    if (Builtins.first.empty())
+      OS << "/* Target Independent Builtins */ ";
+    else
+      OS << "if (TargetPrefix == \"" << Builtins.first << "\") ";
+    OS << "{\n";
+    EmitTargetBuiltins(Builtins.second, TargetPrefix, OS);
+    OS << "}";
+  }
+
+  OS << "  return ";
+  if (!TargetPrefix.empty())
+    OS << "(" << TargetPrefix << "Intrinsic::ID)";
+  OS << "Intrinsic::not_intrinsic;\n";
+  OS << "}\n";
+
+  OS << "#endif\n\n";
 }
 
-} // End llvm namespace
+void llvm::EmitIntrinsics(RecordKeeper &RK, raw_ostream &OS, bool TargetOnly) {
+  IntrinsicEmitter(RK, TargetOnly).run(OS);
+}

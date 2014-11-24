@@ -10,16 +10,19 @@
 // Subclass of MipsTargetLowering specialized for mips16.
 //
 //===----------------------------------------------------------------------===//
-#define DEBUG_TYPE "mips-lower"
 #include "Mips16ISelLowering.h"
+#include "MCTargetDesc/MipsBaseInfo.h"
 #include "MipsRegisterInfo.h"
 #include "MipsTargetMachine.h"
-#include "MCTargetDesc/MipsBaseInfo.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetInstrInfo.h"
+#include <string>
 
 using namespace llvm;
+
+#define DEBUG_TYPE "mips-lower"
 
 static cl::opt<bool> DontExpandCondPseudos16(
   "mips16-dont-expand-cond-pseudo",
@@ -115,20 +118,14 @@ static const Mips16IntrinsicHelperType Mips16IntrinsicHelper[] = {
   {"truncf", "__mips16_call_stub_sf_1"},
 };
 
-Mips16TargetLowering::Mips16TargetLowering(MipsTargetMachine &TM)
-  : MipsTargetLowering(TM) {
-  //
-  // set up as if mips32 and then revert so we can test the mechanism
-  // for switching
-  addRegisterClass(MVT::i32, &Mips::GPR32RegClass);
-  addRegisterClass(MVT::f32, &Mips::FGR32RegClass);
-  computeRegisterProperties();
-  clearRegisterClasses();
+Mips16TargetLowering::Mips16TargetLowering(MipsTargetMachine &TM,
+                                           const MipsSubtarget &STI)
+    : MipsTargetLowering(TM, STI) {
 
   // Set up the register classes
   addRegisterClass(MVT::i32, &Mips::CPU16RegsRegClass);
 
-  if (Subtarget->inMips16HardFloat())
+  if (!TM.Options.UseSoftFloat)
     setMips16HardFloatLibCalls();
 
   setOperationAction(ISD::ATOMIC_FENCE,       MVT::Other, Expand);
@@ -154,12 +151,15 @@ Mips16TargetLowering::Mips16TargetLowering(MipsTargetMachine &TM)
 }
 
 const MipsTargetLowering *
-llvm::createMips16TargetLowering(MipsTargetMachine &TM) {
-  return new Mips16TargetLowering(TM);
+llvm::createMips16TargetLowering(MipsTargetMachine &TM,
+                                 const MipsSubtarget &STI) {
+  return new Mips16TargetLowering(TM, STI);
 }
 
 bool
-Mips16TargetLowering::allowsUnalignedMemoryAccesses(EVT VT, bool *Fast) const {
+Mips16TargetLowering::allowsUnalignedMemoryAccesses(EVT VT,
+                                                    unsigned,
+                                                    bool *Fast) const {
   return false;
 }
 
@@ -349,7 +349,7 @@ unsigned int Mips16TargetLowering::getMips16HelperFunctionStubNumber
 #define T P "0" , T1
 #define P P_
 static char const * vMips16Helper[MAX_STUB_NUMBER+1] =
-  {0, T1 };
+  {nullptr, T1 };
 #undef P
 #define P P_ "sf_"
 static char const * sfMips16Helper[MAX_STUB_NUMBER+1] =
@@ -426,11 +426,10 @@ getOpndList(SmallVectorImpl<SDValue> &Ops,
   SelectionDAG &DAG = CLI.DAG;
   MachineFunction &MF = DAG.getMachineFunction();
   MipsFunctionInfo *FuncInfo = MF.getInfo<MipsFunctionInfo>();
-  const char* Mips16HelperFunction = 0;
+  const char* Mips16HelperFunction = nullptr;
   bool NeedMips16Helper = false;
 
-  if (getTargetMachine().Options.UseSoftFloat &&
-      Subtarget->inMips16HardFloat()) {
+  if (Subtarget.inMips16HardFloat()) {
     //
     // currently we don't have symbols tagged with the mips16 or mips32
     // qualifier so we will assume that we don't know what kind it is.
@@ -440,19 +439,40 @@ getOpndList(SmallVectorImpl<SDValue> &Ops,
     if (ExternalSymbolSDNode *S = dyn_cast<ExternalSymbolSDNode>(CLI.Callee)) {
       Mips16Libcall Find = { RTLIB::UNKNOWN_LIBCALL, S->getSymbol() };
 
-      if (std::binary_search(HardFloatLibCalls, array_endof(HardFloatLibCalls),
-                             Find))
+      if (std::binary_search(std::begin(HardFloatLibCalls),
+                             std::end(HardFloatLibCalls), Find))
         LookupHelper = false;
       else {
-        Mips16IntrinsicHelperType IntrinsicFind = {S->getSymbol(), ""};
+        const char *Symbol = S->getSymbol();
+        Mips16IntrinsicHelperType IntrinsicFind = { Symbol, "" };
+        const Mips16HardFloatInfo::FuncSignature *Signature =
+            Mips16HardFloatInfo::findFuncSignature(Symbol);
+        if (!IsPICCall && (Signature && (FuncInfo->StubsNeeded.find(Symbol) ==
+                                         FuncInfo->StubsNeeded.end()))) {
+          FuncInfo->StubsNeeded[Symbol] = Signature;
+          //
+          // S2 is normally saved if the stub is for a function which
+          // returns a float or double value and is not otherwise. This is
+          // because more work is required after the function the stub
+          // is calling completes, and so the stub cannot directly return
+          // and the stub has no stack space to store the return address so
+          // S2 is used for that purpose.
+          // In order to take advantage of not saving S2, we need to also
+          // optimize the call in the stub and this requires some further
+          // functionality in MipsAsmPrinter which we don't have yet.
+          // So for now we always save S2. The optimization will be done
+          // in a follow-on patch.
+          //
+          if (1 || (Signature->RetSig != Mips16HardFloatInfo::NoFPRet))
+            FuncInfo->setSaveS2();
+        }
         // one more look at list of intrinsics
-        if (std::binary_search(Mips16IntrinsicHelper,
-            array_endof(Mips16IntrinsicHelper),
-                                     IntrinsicFind)) {
-          const Mips16IntrinsicHelperType *h =(std::find(Mips16IntrinsicHelper,
-              array_endof(Mips16IntrinsicHelper),
-                                       IntrinsicFind));
-          Mips16HelperFunction = h->Helper;
+        const Mips16IntrinsicHelperType *Helper =
+            std::lower_bound(std::begin(Mips16IntrinsicHelper),
+                             std::end(Mips16IntrinsicHelper), IntrinsicFind);
+        if (Helper != std::end(Mips16IntrinsicHelper) &&
+            *Helper == IntrinsicFind) {
+          Mips16HelperFunction = Helper->Helper;
           NeedMips16Helper = true;
           LookupHelper = false;
         }
@@ -463,13 +483,13 @@ getOpndList(SmallVectorImpl<SDValue> &Ops,
       Mips16Libcall Find = { RTLIB::UNKNOWN_LIBCALL,
                              G->getGlobal()->getName().data() };
 
-      if (std::binary_search(HardFloatLibCalls, array_endof(HardFloatLibCalls),
-                             Find))
+      if (std::binary_search(std::begin(HardFloatLibCalls),
+                             std::end(HardFloatLibCalls), Find))
         LookupHelper = false;
     }
-    if (LookupHelper) Mips16HelperFunction =
-      getMips16HelperFunction(CLI.RetTy, CLI.Args, NeedMips16Helper);
-
+    if (LookupHelper)
+      Mips16HelperFunction =
+        getMips16HelperFunction(CLI.RetTy, CLI.getArgs(), NeedMips16Helper);
   }
 
   SDValue JumpTarget = Callee;
@@ -524,8 +544,7 @@ emitSel16(unsigned Opc, MachineInstr *MI, MachineBasicBlock *BB) const {
 
   // Transfer the remainder of BB and its successor edges to sinkMBB.
   sinkMBB->splice(sinkMBB->begin(), BB,
-                  llvm::next(MachineBasicBlock::iterator(MI)),
-                  BB->end());
+                  std::next(MachineBasicBlock::iterator(MI)), BB->end());
   sinkMBB->transferSuccessorsAndUpdatePHIs(BB);
 
   // Next, add the true and fallthrough blocks as its successors.
@@ -587,8 +606,7 @@ MachineBasicBlock *Mips16TargetLowering::emitSelT16
 
   // Transfer the remainder of BB and its successor edges to sinkMBB.
   sinkMBB->splice(sinkMBB->begin(), BB,
-                  llvm::next(MachineBasicBlock::iterator(MI)),
-                  BB->end());
+                  std::next(MachineBasicBlock::iterator(MI)), BB->end());
   sinkMBB->transferSuccessorsAndUpdatePHIs(BB);
 
   // Next, add the true and fallthrough blocks as its successors.
@@ -652,8 +670,7 @@ MachineBasicBlock *Mips16TargetLowering::emitSeliT16
 
   // Transfer the remainder of BB and its successor edges to sinkMBB.
   sinkMBB->splice(sinkMBB->begin(), BB,
-                  llvm::next(MachineBasicBlock::iterator(MI)),
-                  BB->end());
+                  std::next(MachineBasicBlock::iterator(MI)), BB->end());
   sinkMBB->transferSuccessorsAndUpdatePHIs(BB);
 
   // Next, add the true and fallthrough blocks as its successors.
@@ -747,8 +764,8 @@ MachineBasicBlock *Mips16TargetLowering::emitFEXT_CCRX16_ins(
   unsigned CC = MI->getOperand(0).getReg();
   unsigned regX = MI->getOperand(1).getReg();
   unsigned regY = MI->getOperand(2).getReg();
-  BuildMI(*BB, MI, MI->getDebugLoc(),
-		  TII->get(SltOpc)).addReg(regX).addReg(regY);
+  BuildMI(*BB, MI, MI->getDebugLoc(), TII->get(SltOpc)).addReg(regX).addReg(
+      regY);
   BuildMI(*BB, MI, MI->getDebugLoc(),
           TII->get(Mips::MoveR3216), CC).addReg(Mips::T8);
   MI->eraseFromParent();   // The pseudo instruction is gone now.

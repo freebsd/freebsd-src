@@ -20,10 +20,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "execution-fix"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/ADT/PostOrderIterator.h"
-#include "llvm/CodeGen/LiveRegUnits.h"
+#include "llvm/CodeGen/LivePhysRegs.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Support/Allocator.h"
@@ -32,6 +31,8 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "execution-fix"
 
 /// A DomainValue is a bit like LiveIntervals' ValNo, but it also keeps track
 /// of execution domains.
@@ -100,7 +101,7 @@ struct DomainValue {
   // Clear this DomainValue and point to next which has all its data.
   void clear() {
     AvailableDomains = 0;
-    Next = 0;
+    Next = nullptr;
     Instrs.clear();
   }
 };
@@ -141,7 +142,7 @@ class ExeDepsFix : public MachineFunctionPass {
   std::vector<std::pair<MachineInstr*, unsigned> > UndefReads;
 
   /// Storage for register unit liveness.
-  LiveRegUnits LiveUnits;
+  LivePhysRegs LiveRegSet;
 
   /// Current instruction number.
   /// The first instruction in each basic block is 0.
@@ -155,14 +156,14 @@ public:
   ExeDepsFix(const TargetRegisterClass *rc)
     : MachineFunctionPass(ID), RC(rc), NumRegs(RC->getNumRegs()) {}
 
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesAll();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
-  virtual bool runOnMachineFunction(MachineFunction &MF);
+  bool runOnMachineFunction(MachineFunction &MF) override;
 
-  virtual const char *getPassName() const {
+  const char *getPassName() const override {
     return "Execution dependency fix";
   }
 
@@ -275,7 +276,7 @@ void ExeDepsFix::kill(int rx) {
     return;
 
   release(LiveRegs[rx].Value);
-  LiveRegs[rx].Value = 0;
+  LiveRegs[rx].Value = nullptr;
 }
 
 /// Force register rx into domain.
@@ -352,7 +353,7 @@ void ExeDepsFix::enterBasicBlock(MachineBasicBlock *MBB) {
 
   // Set up UndefReads to track undefined register reads.
   UndefReads.clear();
-  LiveUnits.clear();
+  LiveRegSet.clear();
 
   // Set up LiveRegs to represent registers entering MBB.
   if (!LiveRegs)
@@ -360,7 +361,7 @@ void ExeDepsFix::enterBasicBlock(MachineBasicBlock *MBB) {
 
   // Default values are 'nothing happened a long time ago'.
   for (unsigned rx = 0; rx != NumRegs; ++rx) {
-    LiveRegs[rx].Value = 0;
+    LiveRegs[rx].Value = nullptr;
     LiveRegs[rx].Def = -(1 << 20);
   }
 
@@ -404,7 +405,7 @@ void ExeDepsFix::enterBasicBlock(MachineBasicBlock *MBB) {
 
       // We have a live DomainValue from more than one predecessor.
       if (LiveRegs[rx].Value->isCollapsed()) {
-        // We are already collapsed, but predecessor is not. Force him.
+        // We are already collapsed, but predecessor is not. Force it.
         unsigned Domain = LiveRegs[rx].Value->getFirstDomain();
         if (!pdv->isCollapsed() && pdv->hasDomain(Domain))
           collapse(pdv, Domain);
@@ -440,7 +441,7 @@ void ExeDepsFix::leaveBasicBlock(MachineBasicBlock *MBB) {
       release(LiveRegs[i].Value);
     delete[] LiveRegs;
   }
-  LiveRegs = 0;
+  LiveRegs = nullptr;
 }
 
 void ExeDepsFix::visitInstr(MachineInstr *MI) {
@@ -547,21 +548,19 @@ void ExeDepsFix::processUndefReads(MachineBasicBlock *MBB) {
     return;
 
   // Collect this block's live out register units.
-  LiveUnits.init(TRI);
-  for (MachineBasicBlock::const_succ_iterator SI = MBB->succ_begin(),
-         SE = MBB->succ_end(); SI != SE; ++SI) {
-    LiveUnits.addLiveIns(*SI, *TRI);
-  }
+  LiveRegSet.init(TRI);
+  LiveRegSet.addLiveOuts(MBB);
+
   MachineInstr *UndefMI = UndefReads.back().first;
   unsigned OpIdx = UndefReads.back().second;
 
   for (MachineBasicBlock::reverse_iterator I = MBB->rbegin(), E = MBB->rend();
        I != E; ++I) {
-    // Update liveness, including the current instrucion's defs.
-    LiveUnits.stepBackward(*I, *TRI);
+    // Update liveness, including the current instruction's defs.
+    LiveRegSet.stepBackward(*I);
 
     if (UndefMI == &*I) {
-      if (!LiveUnits.contains(UndefMI->getOperand(OpIdx).getReg(), *TRI))
+      if (!LiveRegSet.contains(UndefMI->getOperand(OpIdx).getReg()))
         TII->breakPartialRegDependency(UndefMI, OpIdx, TRI);
 
       UndefReads.pop_back();
@@ -666,7 +665,7 @@ void ExeDepsFix::visitSoftInstr(MachineInstr *mi, unsigned mask) {
 
   // doms are now sorted in order of appearance. Try to merge them all, giving
   // priority to the latest ones.
-  DomainValue *dv = 0;
+  DomainValue *dv = nullptr;
   while (!Regs.empty()) {
     if (!dv) {
       dv = Regs.pop_back_val().Value;
@@ -716,7 +715,7 @@ bool ExeDepsFix::runOnMachineFunction(MachineFunction &mf) {
   MF = &mf;
   TII = MF->getTarget().getInstrInfo();
   TRI = MF->getTarget().getRegisterInfo();
-  LiveRegs = 0;
+  LiveRegs = nullptr;
   assert(NumRegs == RC->getNumRegs() && "Bad regclass");
 
   DEBUG(dbgs() << "********** FIX EXECUTION DEPENDENCIES: "

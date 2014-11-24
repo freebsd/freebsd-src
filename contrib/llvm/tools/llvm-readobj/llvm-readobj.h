@@ -18,10 +18,8 @@ namespace llvm {
     class RelocationRef;
   }
 
-  class error_code;
-
   // Various helper functions.
-  bool error(error_code ec);
+  bool error(std::error_code ec);
   bool relocAddressLess(object::RelocationRef A,
                         object::RelocationRef B);
 } // namespace llvm
@@ -38,6 +36,9 @@ namespace opts {
   extern llvm::cl::opt<bool> DynamicSymbols;
   extern llvm::cl::opt<bool> UnwindInfo;
   extern llvm::cl::opt<bool> ExpandRelocs;
+  extern llvm::cl::opt<bool> CodeViewLineTables;
+  extern llvm::cl::opt<bool> ARMAttributes;
+  extern llvm::cl::opt<bool> MipsPLTGOT;
 } // namespace opts
 
 #define LLVM_READOBJ_ENUM_ENT(ns, enum) \

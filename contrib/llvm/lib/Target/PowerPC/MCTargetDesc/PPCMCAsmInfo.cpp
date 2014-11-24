@@ -18,24 +18,6 @@ using namespace llvm;
 
 void PPCMCAsmInfoDarwin::anchor() { }
 
-/// This version of the constructor is here to maintain ABI compatibility with
-/// LLVM 3.4.0
-PPCMCAsmInfoDarwin::PPCMCAsmInfoDarwin(bool is64Bit) {
-  if (is64Bit) {
-    PointerSize = CalleeSaveStackSlotSize = 8;
-  }
-  IsLittleEndian = false;
-
-  CommentString = ";";
-  ExceptionsType = ExceptionHandling::DwarfCFI;
-
-  if (!is64Bit)
-    Data64bitsDirective = 0;      // We can't emit a 64-bit unit in PPC32 mode.
-
-  AssemblerDialect = 1;           // New-Style mnemonics.
-  SupportsDebugInformation= true; // Debug information.
-}
-
 PPCMCAsmInfoDarwin::PPCMCAsmInfoDarwin(bool is64Bit, const Triple& T) {
   if (is64Bit) {
     PointerSize = CalleeSaveStackSlotSize = 8;
@@ -46,32 +28,32 @@ PPCMCAsmInfoDarwin::PPCMCAsmInfoDarwin(bool is64Bit, const Triple& T) {
   ExceptionsType = ExceptionHandling::DwarfCFI;
 
   if (!is64Bit)
-    Data64bitsDirective = 0;      // We can't emit a 64-bit unit in PPC32 mode.
+    Data64bitsDirective = nullptr; // We can't emit a 64-bit unit in PPC32 mode.
 
   AssemblerDialect = 1;           // New-Style mnemonics.
   SupportsDebugInformation= true; // Debug information.
 
-  // old assembler lacks some directives
+  // The installed assembler for OSX < 10.6 lacks some directives.
   // FIXME: this should really be a check on the assembler characteristics
   // rather than OS version
   if (T.isMacOSX() && T.isMacOSXVersionLT(10, 6))
     HasWeakDefCanBeHiddenDirective = false;
+
+  UseIntegratedAssembler = true;
 }
 
 void PPCLinuxMCAsmInfo::anchor() { }
 
-PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit) {
+PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit, const Triple& T) {
   if (is64Bit) {
     PointerSize = CalleeSaveStackSlotSize = 8;
   }
-  IsLittleEndian = false;
+  IsLittleEndian = T.getArch() == Triple::ppc64le;
 
   // ".comm align is in bytes but .align is pow-2."
   AlignmentIsInBytes = false;
 
   CommentString = "#";
-  GlobalPrefix = "";
-  PrivateGlobalPrefix = ".L";
 
   // Uses '.section' before '.bss' directive
   UsesELFSectionDirectiveForBSS = true;  
@@ -89,7 +71,12 @@ PPCLinuxMCAsmInfo::PPCLinuxMCAsmInfo(bool is64Bit) {
   ExceptionsType = ExceptionHandling::DwarfCFI;
     
   ZeroDirective = "\t.space\t";
-  Data64bitsDirective = is64Bit ? "\t.quad\t" : 0;
+  Data64bitsDirective = is64Bit ? "\t.quad\t" : nullptr;
   AssemblerDialect = 1;           // New-Style mnemonics.
+
+  if (T.getOS() == llvm::Triple::FreeBSD ||
+      (T.getOS() == llvm::Triple::NetBSD && !is64Bit) ||
+      (T.getOS() == llvm::Triple::OpenBSD && !is64Bit))
+    UseIntegratedAssembler = true;
 }
 

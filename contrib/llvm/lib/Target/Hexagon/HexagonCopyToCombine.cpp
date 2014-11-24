@@ -11,31 +11,30 @@
 // to move them together. If we can move them next to each other we do so and
 // replace them with a combine instruction.
 //===----------------------------------------------------------------------===//
-#define DEBUG_TYPE "hexagon-copy-combine"
-
 #include "llvm/PassSupport.h"
-#include "llvm/ADT/DenseSet.h"
+#include "Hexagon.h"
+#include "HexagonInstrInfo.h"
+#include "HexagonMachineFunctionInfo.h"
+#include "HexagonRegisterInfo.h"
+#include "HexagonSubtarget.h"
+#include "HexagonTargetMachine.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/CodeGen/Passes.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/CodeGen/Passes.h"
 #include "llvm/Support/CodeGen.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-
-#include "Hexagon.h"
-#include "HexagonInstrInfo.h"
-#include "HexagonRegisterInfo.h"
-#include "HexagonSubtarget.h"
-#include "HexagonTargetMachine.h"
-#include "HexagonMachineFunctionInfo.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "hexagon-copy-combine"
 
 static
 cl::opt<bool> IsCombinesDisabled("disable-merge-into-combines",
@@ -69,15 +68,15 @@ public:
     initializeHexagonCopyToCombinePass(*PassRegistry::getPassRegistry());
   }
 
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     MachineFunctionPass::getAnalysisUsage(AU);
   }
 
-  const char *getPassName() const {
+  const char *getPassName() const override {
     return "Hexagon Copy-To-Combine Pass";
   }
 
-  virtual bool runOnMachineFunction(MachineFunction &Fn);
+  bool runOnMachineFunction(MachineFunction &Fn) override;
 
 private:
   MachineInstr *findPairable(MachineInstr *I1, bool &DoInsertAtI1);
@@ -263,7 +262,7 @@ bool HexagonCopyToCombine::isSafeToMoveTogether(MachineInstr *I1,
     unsigned KilledOperand = 0;
     if (I2->killsRegister(I2UseReg))
       KilledOperand = I2UseReg;
-    MachineInstr *KillingInstr = 0;
+    MachineInstr *KillingInstr = nullptr;
 
     for (; I != End; ++I) {
       // If the intervening instruction I:
@@ -286,7 +285,7 @@ bool HexagonCopyToCombine::isSafeToMoveTogether(MachineInstr *I1,
       // Update the intermediate instruction to with the kill flag.
       if (KillingInstr) {
         bool Added = KillingInstr->addRegisterKilled(KilledOperand, TRI, true);
-        (void)Added; // supress compiler warning
+        (void)Added; // suppress compiler warning
         assert(Added && "Must successfully update kill flag");
         removeKillInfo(I2, KilledOperand);
       }
@@ -301,13 +300,13 @@ bool HexagonCopyToCombine::isSafeToMoveTogether(MachineInstr *I1,
     MachineBasicBlock::iterator I(I1), End(I2);
     // At O3 we got better results (dhrystone) by being more conservative here.
     if (!ShouldCombineAggressively)
-      End = llvm::next(MachineBasicBlock::iterator(I2));
+      End = std::next(MachineBasicBlock::iterator(I2));
     IsImmUseReg = I1->getOperand(1).isImm() || I1->getOperand(1).isGlobal();
     unsigned I1UseReg = IsImmUseReg ? 0 : I1->getOperand(1).getReg();
     // Track killed operands. If we move across an instruction that kills our
     // operand, we need to update the kill information on the moved I1. It kills
     // the operand now.
-    MachineInstr *KillingInstr = 0;
+    MachineInstr *KillingInstr = nullptr;
     unsigned KilledOperand = 0;
 
     while(++I != End) {
@@ -334,7 +333,7 @@ bool HexagonCopyToCombine::isSafeToMoveTogether(MachineInstr *I1,
 
       // Check for an exact kill (registers match).
       if (I1UseReg && I->killsRegister(I1UseReg)) {
-        assert(KillingInstr == 0 && "Should only see one killing instruction");
+        assert(!KillingInstr && "Should only see one killing instruction");
         KilledOperand = I1UseReg;
         KillingInstr = &*I;
       }
@@ -344,7 +343,7 @@ bool HexagonCopyToCombine::isSafeToMoveTogether(MachineInstr *I1,
       // Update I1 to set the kill flag. This flag will later be picked up by
       // the new COMBINE instruction.
       bool Added = I1->addRegisterKilled(KilledOperand, TRI);
-      (void)Added; // supress compiler warning
+      (void)Added; // suppress compiler warning
       assert(Added && "Must successfully update kill flag");
     }
     DoInsertAtI1 = false;
@@ -465,7 +464,7 @@ bool HexagonCopyToCombine::runOnMachineFunction(MachineFunction &MF) {
 /// false if the combine must be inserted at the returned instruction.
 MachineInstr *HexagonCopyToCombine::findPairable(MachineInstr *I1,
                                                  bool &DoInsertAtI1) {
-  MachineBasicBlock::iterator I2 = llvm::next(MachineBasicBlock::iterator(I1));
+  MachineBasicBlock::iterator I2 = std::next(MachineBasicBlock::iterator(I1));
   unsigned I1DestReg = I1->getOperand(0).getReg();
 
   for (MachineBasicBlock::iterator End = I1->getParent()->end(); I2 != End;
@@ -507,7 +506,7 @@ MachineInstr *HexagonCopyToCombine::findPairable(MachineInstr *I1,
     // Not safe. Stop searching.
     break;
   }
-  return 0;
+  return nullptr;
 }
 
 void HexagonCopyToCombine::combine(MachineInstr *I1, MachineInstr *I2,

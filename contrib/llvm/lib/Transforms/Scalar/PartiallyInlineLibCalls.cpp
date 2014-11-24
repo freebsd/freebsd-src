@@ -13,7 +13,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "partially-inline-libcalls"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Intrinsics.h"
@@ -25,6 +24,8 @@
 
 using namespace llvm;
 
+#define DEBUG_TYPE "partially-inline-libcalls"
+
 namespace {
   class PartiallyInlineLibCalls : public FunctionPass {
   public:
@@ -35,8 +36,8 @@ namespace {
       initializePartiallyInlineLibCallsPass(*PassRegistry::getPassRegistry());
     }
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const;
-    virtual bool runOnFunction(Function &F);
+    void getAnalysisUsage(AnalysisUsage &AU) const override;
+    bool runOnFunction(Function &F) override;
 
   private:
     /// Optimize calls to sqrt.

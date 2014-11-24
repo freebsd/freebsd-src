@@ -235,7 +235,8 @@ def UDIVXri : F3_2<2, 0b001101,
 let Predicates = [Is64Bit] in {
 
 // 64-bit loads.
-defm LDX   : Load<"ldx", 0b001011, load, I64Regs, i64>;
+let DecoderMethod = "DecodeLoadInt" in
+  defm LDX   : Load<"ldx", 0b001011, load, I64Regs, i64>;
 
 let mayLoad = 1, isCodeGenOnly = 1, isAsmParserOnly = 1 in
   def TLS_LDXrr : F3_1<3, 0b001011,
@@ -270,10 +271,12 @@ def : Pat<(i64 (extloadi32 ADDRrr:$addr)),  (LDrr ADDRrr:$addr)>;
 def : Pat<(i64 (extloadi32 ADDRri:$addr)),  (LDri ADDRri:$addr)>;
 
 // Sign-extending load of i32 into i64 is a new SPARC v9 instruction.
-defm LDSW   : Load<"ldsw", 0b001000, sextloadi32, I64Regs, i64>;
+let DecoderMethod = "DecodeLoadInt" in
+  defm LDSW   : Load<"ldsw", 0b001000, sextloadi32, I64Regs, i64>;
 
 // 64-bit stores.
-defm STX    : Store<"stx", 0b001110, store,  I64Regs, i64>;
+let DecoderMethod = "DecodeStoreInt" in
+  defm STX    : Store<"stx", 0b001110, store,  I64Regs, i64>;
 
 // Truncating stores from i64 are identical to the i32 stores.
 def : Pat<(truncstorei8  i64:$src, ADDRrr:$addr), (STBrr ADDRrr:$addr, $src)>;
@@ -294,14 +297,6 @@ def : Pat<(store (i64 0), ADDRri:$dst), (STXri ADDRri:$dst, (i64 G0))>;
 // 64-bit Conditionals.
 //===----------------------------------------------------------------------===//
 
-// Conditional branch class on %xcc:
-class XBranchSP<dag ins, string asmstr, list<dag> pattern>
-  : F2_3<0b001, 0b10, (outs), ins, asmstr, pattern> {
-  let isBranch = 1;
-  let isTerminator = 1;
-  let hasDelaySlot = 1;
-}
-
 //
 // Flag-setting instructions like subcc and addcc set both icc and xcc flags.
 // The icc flags correspond to the 32-bit result, and the xcc are for the
@@ -312,14 +307,12 @@ class XBranchSP<dag ins, string asmstr, list<dag> pattern>
 
 let Predicates = [Is64Bit] in {
 
-let Uses = [ICC] in
-def BPXCC : XBranchSP<(ins brtarget:$imm19, CCOp:$cond),
-                     "b$cond %xcc, $imm19",
-                     [(SPbrxcc bb:$imm19, imm:$cond)]>;
+let Uses = [ICC], cc = 0b10 in
+  defm BPX : IPredBranch<"%xcc", [(SPbrxcc bb:$imm19, imm:$cond)]>;
 
 // Conditional moves on %xcc.
 let Uses = [ICC], Constraints = "$f = $rd" in {
-let cc = 0b110 in {
+let intcc = 1, cc = 0b10 in {
 def MOVXCCrr : F4_1<0b101100, (outs IntRegs:$rd),
                       (ins IntRegs:$rs2, IntRegs:$f, CCOp:$cond),
                       "mov$cond %xcc, $rs2, $rd",
@@ -332,7 +325,7 @@ def MOVXCCri : F4_2<0b101100, (outs IntRegs:$rd),
                        (SPselectxcc simm11:$simm11, i32:$f, imm:$cond))]>;
 } // cc
 
-let opf_cc = 0b110 in {
+let intcc = 1, opf_cc = 0b10 in {
 def FMOVS_XCC : F4_3<0b110101, 0b000001, (outs FPRegs:$rd),
                       (ins FPRegs:$rs2, FPRegs:$f, CCOp:$cond),
                       "fmovs$cond %xcc, $rs2, $rd",
@@ -350,6 +343,84 @@ def FMOVQ_XCC : F4_3<0b110101, 0b000011, (outs QFPRegs:$rd),
                        (SPselectxcc f128:$rs2, f128:$f, imm:$cond))]>;
 } // opf_cc
 } // Uses, Constraints
+
+// Branch On integer register with Prediction (BPr).
+let isBranch = 1, isTerminator = 1, hasDelaySlot = 1 in
+multiclass BranchOnReg<bits<3> cond, string OpcStr> {
+  def napt : F2_4<cond, 0, 1, (outs), (ins I64Regs:$rs1, bprtarget16:$imm16),
+             !strconcat(OpcStr, " $rs1, $imm16"), []>;
+  def apt  : F2_4<cond, 1, 1, (outs), (ins I64Regs:$rs1, bprtarget16:$imm16),
+             !strconcat(OpcStr, ",a $rs1, $imm16"), []>;
+  def napn  : F2_4<cond, 0, 0, (outs), (ins I64Regs:$rs1, bprtarget16:$imm16),
+             !strconcat(OpcStr, ",pn $rs1, $imm16"), []>;
+  def apn : F2_4<cond, 1, 0, (outs), (ins I64Regs:$rs1, bprtarget16:$imm16),
+             !strconcat(OpcStr, ",a,pn $rs1, $imm16"), []>;
+}
+
+multiclass bpr_alias<string OpcStr, Instruction NAPT, Instruction APT> {
+  def : InstAlias<!strconcat(OpcStr, ",pt $rs1, $imm16"),
+                  (NAPT I64Regs:$rs1, bprtarget16:$imm16), 0>;
+  def : InstAlias<!strconcat(OpcStr, ",a,pt $rs1, $imm16"),
+                  (APT I64Regs:$rs1, bprtarget16:$imm16), 0>;
+}
+
+defm BPZ   : BranchOnReg<0b001, "brz">;
+defm BPLEZ : BranchOnReg<0b010, "brlez">;
+defm BPLZ  : BranchOnReg<0b011, "brlz">;
+defm BPNZ  : BranchOnReg<0b101, "brnz">;
+defm BPGZ  : BranchOnReg<0b110, "brgz">;
+defm BPGEZ : BranchOnReg<0b111, "brgez">;
+
+defm : bpr_alias<"brz",   BPZnapt,   BPZapt  >;
+defm : bpr_alias<"brlez", BPLEZnapt, BPLEZapt>;
+defm : bpr_alias<"brlz",  BPLZnapt,  BPLZapt >;
+defm : bpr_alias<"brnz",  BPNZnapt,  BPNZapt >;
+defm : bpr_alias<"brgz",  BPGZnapt,  BPGZapt >;
+defm : bpr_alias<"brgez", BPGEZnapt, BPGEZapt>;
+
+// Move integer register on register condition (MOVr).
+multiclass MOVR< bits<3> rcond,  string OpcStr> {
+  def rr : F4_4r<0b101111, 0b00000, rcond, (outs I64Regs:$rd),
+                   (ins I64Regs:$rs1, IntRegs:$rs2),
+                   !strconcat(OpcStr, " $rs1, $rs2, $rd"), []>;
+
+  def ri : F4_4i<0b101111, rcond, (outs I64Regs:$rd),
+                   (ins I64Regs:$rs1, i64imm:$simm10),
+                   !strconcat(OpcStr, " $rs1, $simm10, $rd"), []>;
+}
+
+defm MOVRRZ  : MOVR<0b001, "movrz">;
+defm MOVRLEZ : MOVR<0b010, "movrlez">;
+defm MOVRLZ  : MOVR<0b011, "movrlz">;
+defm MOVRNZ  : MOVR<0b101, "movrnz">;
+defm MOVRGZ  : MOVR<0b110, "movrgz">;
+defm MOVRGEZ : MOVR<0b111, "movrgez">;
+
+// Move FP register on integer register condition (FMOVr).
+multiclass FMOVR<bits<3> rcond, string OpcStr> {
+
+  def S : F4_4r<0b110101, 0b00101, rcond,
+                (outs FPRegs:$rd), (ins I64Regs:$rs1, FPRegs:$rs2),
+                !strconcat(!strconcat("fmovrs", OpcStr)," $rs1, $rs2, $rd"),
+                []>;
+  def D : F4_4r<0b110101, 0b00110, rcond,
+                (outs FPRegs:$rd), (ins I64Regs:$rs1, FPRegs:$rs2),
+                !strconcat(!strconcat("fmovrd", OpcStr)," $rs1, $rs2, $rd"),
+                []>;
+  def Q : F4_4r<0b110101, 0b00111, rcond,
+                (outs FPRegs:$rd), (ins I64Regs:$rs1, FPRegs:$rs2),
+                !strconcat(!strconcat("fmovrq", OpcStr)," $rs1, $rs2, $rd"),
+                []>, Requires<[HasHardQuad]>;
+}
+
+let Predicates = [HasV9] in {
+  defm FMOVRZ   : FMOVR<0b001, "z">;
+  defm FMOVRLEZ : FMOVR<0b010, "lez">;
+  defm FMOVRLZ  : FMOVR<0b011, "lz">;
+  defm FMOVRNZ  : FMOVR<0b101, "nz">;
+  defm FMOVRGZ  : FMOVR<0b110, "gz">;
+  defm FMOVRGEZ : FMOVR<0b111, "gez">;
+}
 
 //===----------------------------------------------------------------------===//
 // 64-bit Floating Point Conversions.
@@ -470,6 +541,9 @@ def ATOMIC_SWAP_64 : Pseudo<(outs I64Regs:$rd),
                             (ins ptr_rc:$addr, I64Regs:$rs2), "",
                             [(set i64:$rd,
                                   (atomic_swap_64 iPTR:$addr, i64:$rs2))]>;
+
+let Predicates = [Is64Bit], hasSideEffects = 1, Uses = [ICC], cc = 0b10 in
+ defm TXCC : TRAP<"%xcc">;
 
 // Global addresses, constant pool entries
 let Predicates = [Is64Bit] in {

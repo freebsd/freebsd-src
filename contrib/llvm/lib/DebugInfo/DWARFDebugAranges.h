@@ -10,9 +10,9 @@
 #ifndef LLVM_DEBUGINFO_DWARFDEBUGARANGES_H
 #define LLVM_DEBUGINFO_DWARFDEBUGARANGES_H
 
-#include "DWARFDebugArangeSet.h"
 #include "llvm/ADT/DenseSet.h"
-#include <list>
+#include "llvm/Support/DataExtractor.h"
+#include <vector>
 
 namespace llvm {
 
@@ -20,21 +20,16 @@ class DWARFContext;
 
 class DWARFDebugAranges {
 public:
-  void clear() {
-    Aranges.clear();
-    ParsedCUOffsets.clear();
-  }
-
   void generate(DWARFContext *CTX);
-
-  // Use appendRange multiple times and then call sortAndMinimize.
-  void appendRange(uint32_t CUOffset, uint64_t LowPC, uint64_t HighPC);
-
   uint32_t findAddress(uint64_t Address) const;
 
 private:
+  void clear();
   void extract(DataExtractor DebugArangesData);
-  void sortAndMinimize();
+
+  // Call appendRange multiple times and then call construct.
+  void appendRange(uint32_t CUOffset, uint64_t LowPC, uint64_t HighPC);
+  void construct();
 
   struct Range {
     explicit Range(uint64_t LowPC = -1ULL, uint64_t HighPC = -1ULL,
@@ -52,18 +47,12 @@ private:
         return LowPC + Length;
       return -1ULL;
     }
+
     bool containsAddress(uint64_t Address) const {
       return LowPC <= Address && Address < HighPC();
     }
-
-    bool operator <(const Range &other) const {
+    bool operator<(const Range &other) const {
       return LowPC < other.LowPC;
-    }
-
-    static bool SortedOverlapCheck(const Range &Left, const Range &Right) {
-      if (Left.CUOffset != Right.CUOffset)
-        return false;
-      return Left.HighPC() >= Right.LowPC;
     }
 
     uint64_t LowPC; // Start of address range.
@@ -71,12 +60,26 @@ private:
     uint32_t CUOffset; // Offset of the compile unit or die.
   };
 
+  struct RangeEndpoint {
+    uint64_t Address;
+    uint32_t CUOffset;
+    bool IsRangeStart;
+
+    RangeEndpoint(uint64_t Address, uint32_t CUOffset, bool IsRangeStart)
+        : Address(Address), CUOffset(CUOffset), IsRangeStart(IsRangeStart) {}
+
+    bool operator<(const RangeEndpoint &Other) const {
+      return Address < Other.Address;
+    }
+  };
+
+
   typedef std::vector<Range>              RangeColl;
   typedef RangeColl::const_iterator       RangeCollIterator;
-  typedef DenseSet<uint32_t>              ParsedCUOffsetColl;
 
+  std::vector<RangeEndpoint> Endpoints;
   RangeColl Aranges;
-  ParsedCUOffsetColl ParsedCUOffsets;
+  DenseSet<uint32_t> ParsedCUOffsets;
 };
 
 }

@@ -14,7 +14,6 @@
 #ifndef HEXAGONASMPRINTER_H
 #define HEXAGONASMPRINTER_H
 
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/PriorityQueue.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
@@ -57,7 +56,7 @@ class VLIWResourceModel {
 public:
 VLIWResourceModel(const TargetMachine &TM, const TargetSchedModel *SM) :
     SchedModel(SM), TotalPackets(0) {
-    ResourcesModel = TM.getInstrInfo()->CreateTargetScheduleState(&TM,NULL);
+    ResourcesModel = TM.getInstrInfo()->CreateTargetScheduleState(&TM, nullptr);
 
     // This hard requirement could be relaxed,
     // but for now do not let it proceed.
@@ -92,15 +91,16 @@ VLIWResourceModel(const TargetMachine &TM, const TargetSchedModel *SM) :
 
 /// Extend the standard ScheduleDAGMI to provide more context and override the
 /// top-level schedule() driver.
-class VLIWMachineScheduler : public ScheduleDAGMI {
+class VLIWMachineScheduler : public ScheduleDAGMILive {
 public:
-  VLIWMachineScheduler(MachineSchedContext *C, MachineSchedStrategy *S):
-    ScheduleDAGMI(C, S) {}
+  VLIWMachineScheduler(MachineSchedContext *C,
+                       std::unique_ptr<MachineSchedStrategy> S)
+      : ScheduleDAGMILive(C, std::move(S)) {}
 
   /// Schedule - This is called back from ScheduleDAGInstrs::Run() when it's
   /// time to do some work.
-  virtual void schedule();
-  /// Perform platform specific DAG postprocessing.
+  virtual void schedule() override;
+  /// Perform platform-specific DAG postprocessing.
   void postprocessDAG();
 };
 
@@ -120,7 +120,7 @@ class ConvergingVLIWScheduler : public MachineSchedStrategy {
     // Best scheduling cost.
     int SCost;
 
-    SchedCandidate(): SU(NULL), SCost(0) {}
+    SchedCandidate(): SU(nullptr), SCost(0) {}
   };
   /// Represent the type of SchedCandidate found within a single queue.
   enum CandResult {
@@ -130,7 +130,7 @@ class ConvergingVLIWScheduler : public MachineSchedStrategy {
   /// Each Scheduling boundary is associated with ready queues. It tracks the
   /// current cycle in whichever direction at has moved, and maintains the state
   /// of "hazards" and other interlocks at the current cycle.
-  struct SchedBoundary {
+  struct VLIWSchedBoundary {
     VLIWMachineScheduler *DAG;
     const TargetSchedModel *SchedModel;
 
@@ -152,14 +152,14 @@ class ConvergingVLIWScheduler : public MachineSchedStrategy {
 
     /// Pending queues extend the ready queues with the same ID and the
     /// PendingFlag set.
-    SchedBoundary(unsigned ID, const Twine &Name):
-      DAG(0), SchedModel(0), Available(ID, Name+".A"),
+    VLIWSchedBoundary(unsigned ID, const Twine &Name):
+      DAG(nullptr), SchedModel(nullptr), Available(ID, Name+".A"),
       Pending(ID << ConvergingVLIWScheduler::LogMaxQID, Name+".P"),
-      CheckPending(false), HazardRec(0), ResourceModel(0),
+      CheckPending(false), HazardRec(nullptr), ResourceModel(nullptr),
       CurrCycle(0), IssueCount(0),
       MinReadyCycle(UINT_MAX), MaxMinLatency(0) {}
 
-    ~SchedBoundary() {
+    ~VLIWSchedBoundary() {
       delete ResourceModel;
       delete HazardRec;
     }
@@ -192,8 +192,8 @@ class ConvergingVLIWScheduler : public MachineSchedStrategy {
   const TargetSchedModel *SchedModel;
 
   // State of the top and bottom scheduled instruction boundaries.
-  SchedBoundary Top;
-  SchedBoundary Bot;
+  VLIWSchedBoundary Top;
+  VLIWSchedBoundary Bot;
 
 public:
   /// SUnit::NodeQueueId: 0 (none), 1 (top), 2 (bot), 3 (both)
@@ -203,18 +203,19 @@ public:
     LogMaxQID = 2
   };
 
-  ConvergingVLIWScheduler():
-    DAG(0), SchedModel(0), Top(TopQID, "TopQ"), Bot(BotQID, "BotQ") {}
+  ConvergingVLIWScheduler()
+    : DAG(nullptr), SchedModel(nullptr), Top(TopQID, "TopQ"),
+      Bot(BotQID, "BotQ") {}
 
-  virtual void initialize(ScheduleDAGMI *dag);
+  virtual void initialize(ScheduleDAGMI *dag) override;
 
-  virtual SUnit *pickNode(bool &IsTopNode);
+  virtual SUnit *pickNode(bool &IsTopNode) override;
 
-  virtual void schedNode(SUnit *SU, bool IsTopNode);
+  virtual void schedNode(SUnit *SU, bool IsTopNode) override;
 
-  virtual void releaseTopNode(SUnit *SU);
+  virtual void releaseTopNode(SUnit *SU) override;
 
-  virtual void releaseBottomNode(SUnit *SU);
+  virtual void releaseBottomNode(SUnit *SU) override;
 
   unsigned ReportPackets() {
     return Top.ResourceModel->getTotalPackets() +

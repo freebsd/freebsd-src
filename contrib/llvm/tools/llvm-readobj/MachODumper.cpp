@@ -15,8 +15,8 @@
 #include "Error.h"
 #include "ObjDumper.h"
 #include "StreamWriter.h"
-
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Object/MachO.h"
 #include "llvm/Support/Casting.h"
 
@@ -31,20 +31,19 @@ public:
     : ObjDumper(Writer)
     , Obj(Obj) { }
 
-  virtual void printFileHeaders() LLVM_OVERRIDE;
-  virtual void printSections() LLVM_OVERRIDE;
-  virtual void printRelocations() LLVM_OVERRIDE;
-  virtual void printSymbols() LLVM_OVERRIDE;
-  virtual void printDynamicSymbols() LLVM_OVERRIDE;
-  virtual void printUnwindInfo() LLVM_OVERRIDE;
+  virtual void printFileHeaders() override;
+  virtual void printSections() override;
+  virtual void printRelocations() override;
+  virtual void printSymbols() override;
+  virtual void printDynamicSymbols() override;
+  virtual void printUnwindInfo() override;
 
 private:
-  void printSymbol(symbol_iterator SymI);
+  void printSymbol(const SymbolRef &Symbol);
 
-  void printRelocation(section_iterator SecI, relocation_iterator RelI);
+  void printRelocation(const RelocationRef &Reloc);
 
-  void printRelocation(const MachOObjectFile *Obj,
-                       section_iterator SecI, relocation_iterator RelI);
+  void printRelocation(const MachOObjectFile *Obj, const RelocationRef &Reloc);
 
   void printSections(const MachOObjectFile *Obj);
 
@@ -56,9 +55,9 @@ private:
 
 namespace llvm {
 
-error_code createMachODumper(const object::ObjectFile *Obj,
-                             StreamWriter& Writer,
-                             OwningPtr<ObjDumper> &Result) {
+std::error_code createMachODumper(const object::ObjectFile *Obj,
+                                  StreamWriter &Writer,
+                                  std::unique_ptr<ObjDumper> &Result) {
   const MachOObjectFile *MachOObj = dyn_cast<MachOObjectFile>(Obj);
   if (!MachOObj)
     return readobj_error::unsupported_obj_file_format;
@@ -126,19 +125,13 @@ static const EnumEntry<unsigned> MachOSymbolFlags[] = {
 
 static const EnumEntry<unsigned> MachOSymbolTypes[] = {
   { "Undef",           0x0 },
-  { "External",        0x1 },
   { "Abs",             0x2 },
   { "Indirect",        0xA },
   { "PreboundUndef",   0xC },
-  { "Section",         0xE },
-  { "PrivateExternal", 0x10 }
+  { "Section",         0xE }
 };
 
 namespace {
-  enum {
-    N_STAB = 0xE0
-  };
-
   struct MachOSection {
     ArrayRef<char> Name;
     ArrayRef<char> SegmentName;
@@ -223,21 +216,16 @@ void MachODumper::printSections(const MachOObjectFile *Obj) {
   ListScope Group(W, "Sections");
 
   int SectionIndex = -1;
-  error_code EC;
-  for (section_iterator SecI = Obj->begin_sections(),
-                        SecE = Obj->end_sections();
-                        SecI != SecE; SecI.increment(EC)) {
-    if (error(EC)) break;
-
+  for (const SectionRef &Section : Obj->sections()) {
     ++SectionIndex;
 
-    MachOSection Section;
-    getSection(Obj, SecI->getRawDataRefImpl(), Section);
-    DataRefImpl DR = SecI->getRawDataRefImpl();
+    MachOSection MOSection;
+    getSection(Obj, Section.getRawDataRefImpl(), MOSection);
+    DataRefImpl DR = Section.getRawDataRefImpl();
 
     StringRef Name;
-    if (error(SecI->getName(Name)))
-        Name = "";
+    if (error(Section.getName(Name)))
+      Name = "";
 
     ArrayRef<char> RawName = Obj->getSectionRawName(DR);
     StringRef SegmentName = Obj->getSectionFinalSegmentName(DR);
@@ -247,48 +235,40 @@ void MachODumper::printSections(const MachOObjectFile *Obj) {
     W.printNumber("Index", SectionIndex);
     W.printBinary("Name", Name, RawName);
     W.printBinary("Segment", SegmentName, RawSegmentName);
-    W.printHex   ("Address", Section.Address);
-    W.printHex   ("Size", Section.Size);
-    W.printNumber("Offset", Section.Offset);
-    W.printNumber("Alignment", Section.Alignment);
-    W.printHex   ("RelocationOffset", Section.RelocationTableOffset);
-    W.printNumber("RelocationCount", Section.NumRelocationTableEntries);
-    W.printEnum  ("Type", Section.Flags & 0xFF,
-                  makeArrayRef(MachOSectionAttributes));
-    W.printFlags ("Attributes", Section.Flags >> 8,
-                  makeArrayRef(MachOSectionAttributes));
-    W.printHex   ("Reserved1", Section.Reserved1);
-    W.printHex   ("Reserved2", Section.Reserved2);
+    W.printHex("Address", MOSection.Address);
+    W.printHex("Size", MOSection.Size);
+    W.printNumber("Offset", MOSection.Offset);
+    W.printNumber("Alignment", MOSection.Alignment);
+    W.printHex("RelocationOffset", MOSection.RelocationTableOffset);
+    W.printNumber("RelocationCount", MOSection.NumRelocationTableEntries);
+    W.printEnum("Type", MOSection.Flags & 0xFF,
+                makeArrayRef(MachOSectionAttributes));
+    W.printFlags("Attributes", MOSection.Flags >> 8,
+                 makeArrayRef(MachOSectionAttributes));
+    W.printHex("Reserved1", MOSection.Reserved1);
+    W.printHex("Reserved2", MOSection.Reserved2);
 
     if (opts::SectionRelocations) {
       ListScope D(W, "Relocations");
-      for (relocation_iterator RelI = SecI->begin_relocations(),
-                               RelE = SecI->end_relocations();
-                               RelI != RelE; RelI.increment(EC)) {
-        if (error(EC)) break;
-
-        printRelocation(SecI, RelI);
-      }
+      for (const RelocationRef &Reloc : Section.relocations())
+        printRelocation(Reloc);
     }
 
     if (opts::SectionSymbols) {
       ListScope D(W, "Symbols");
-      for (symbol_iterator SymI = Obj->begin_symbols(),
-                           SymE = Obj->end_symbols();
-                           SymI != SymE; SymI.increment(EC)) {
-        if (error(EC)) break;
-
+      for (const SymbolRef &Symbol : Obj->symbols()) {
         bool Contained = false;
-        if (SecI->containsSymbol(*SymI, Contained) || !Contained)
+        if (Section.containsSymbol(Symbol, Contained) || !Contained)
           continue;
 
-        printSymbol(SymI);
+        printSymbol(Symbol);
       }
     }
 
     if (opts::SectionData) {
       StringRef Data;
-      if (error(SecI->getContents(Data))) break;
+      if (error(Section.getContents(Data)))
+        break;
 
       W.printBinaryBlock("SectionData", Data);
     }
@@ -298,29 +278,21 @@ void MachODumper::printSections(const MachOObjectFile *Obj) {
 void MachODumper::printRelocations() {
   ListScope D(W, "Relocations");
 
-  error_code EC;
-  for (section_iterator SecI = Obj->begin_sections(),
-                        SecE = Obj->end_sections();
-                        SecI != SecE; SecI.increment(EC)) {
-    if (error(EC)) break;
-
+  std::error_code EC;
+  for (const SectionRef &Section : Obj->sections()) {
     StringRef Name;
-    if (error(SecI->getName(Name)))
+    if (error(Section.getName(Name)))
       continue;
 
     bool PrintedGroup = false;
-    for (relocation_iterator RelI = SecI->begin_relocations(),
-                             RelE = SecI->end_relocations();
-                             RelI != RelE; RelI.increment(EC)) {
-      if (error(EC)) break;
-
+    for (const RelocationRef &Reloc : Section.relocations()) {
       if (!PrintedGroup) {
         W.startLine() << "Section " << Name << " {\n";
         W.indent();
         PrintedGroup = true;
       }
 
-      printRelocation(SecI, RelI);
+      printRelocation(Reloc);
     }
 
     if (PrintedGroup) {
@@ -330,27 +302,37 @@ void MachODumper::printRelocations() {
   }
 }
 
-void MachODumper::printRelocation(section_iterator SecI,
-                                  relocation_iterator RelI) {
-  return printRelocation(Obj, SecI, RelI);
+void MachODumper::printRelocation(const RelocationRef &Reloc) {
+  return printRelocation(Obj, Reloc);
 }
 
 void MachODumper::printRelocation(const MachOObjectFile *Obj,
-                                  section_iterator SecI,
-                                  relocation_iterator RelI) {
+                                  const RelocationRef &Reloc) {
   uint64_t Offset;
   SmallString<32> RelocName;
-  StringRef SymbolName;
-  if (error(RelI->getOffset(Offset))) return;
-  if (error(RelI->getTypeName(RelocName))) return;
-  symbol_iterator Symbol = RelI->getSymbol();
-  if (Symbol != Obj->end_symbols() &&
-      error(Symbol->getName(SymbolName)))
+  if (error(Reloc.getOffset(Offset)))
+    return;
+  if (error(Reloc.getTypeName(RelocName)))
     return;
 
-  DataRefImpl DR = RelI->getRawDataRefImpl();
+  DataRefImpl DR = Reloc.getRawDataRefImpl();
   MachO::any_relocation_info RE = Obj->getRelocation(DR);
   bool IsScattered = Obj->isRelocationScattered(RE);
+  SmallString<32> SymbolNameOrOffset("0x");
+  if (IsScattered) {
+    // Scattered relocations don't really have an associated symbol
+    // for some reason, even if one exists in the symtab at the correct address.
+    SymbolNameOrOffset += utohexstr(Obj->getScatteredRelocationValue(RE));
+  } else {
+    symbol_iterator Symbol = Reloc.getSymbol();
+    if (Symbol != Obj->symbol_end()) {
+      StringRef SymbolName;
+      if (error(Symbol->getName(SymbolName)))
+        return;
+      SymbolNameOrOffset = SymbolName;
+    } else
+      SymbolNameOrOffset += utohexstr(Obj->getPlainRelocationSymbolNum(RE));
+  }
 
   if (opts::ExpandRelocs) {
     DictScope Group(W, "Relocation");
@@ -362,7 +344,7 @@ void MachODumper::printRelocation(const MachOObjectFile *Obj,
     else
       W.printNumber("Extern", Obj->getPlainRelocationExternal(RE));
     W.printNumber("Type", RelocName, Obj->getAnyRelocationType(RE));
-    W.printString("Symbol", SymbolName.size() > 0 ? SymbolName : "-");
+    W.printString("Symbol", SymbolNameOrOffset);
     W.printNumber("Scattered", IsScattered);
   } else {
     raw_ostream& OS = W.startLine();
@@ -375,7 +357,7 @@ void MachODumper::printRelocation(const MachOObjectFile *Obj,
       OS << " " << Obj->getPlainRelocationExternal(RE);
     OS << " " << RelocName
        << " " << IsScattered
-       << " " << (SymbolName.size() > 0 ? SymbolName : "-")
+       << " " << SymbolNameOrOffset
        << "\n";
   }
 }
@@ -383,13 +365,8 @@ void MachODumper::printRelocation(const MachOObjectFile *Obj,
 void MachODumper::printSymbols() {
   ListScope Group(W, "Symbols");
 
-  error_code EC;
-  for (symbol_iterator SymI = Obj->begin_symbols(),
-                       SymE = Obj->end_symbols();
-                       SymI != SymE; SymI.increment(EC)) {
-    if (error(EC)) break;
-
-    printSymbol(SymI);
+  for (const SymbolRef &Symbol : Obj->symbols()) {
+    printSymbol(Symbol);
   }
 }
 
@@ -397,33 +374,37 @@ void MachODumper::printDynamicSymbols() {
   ListScope Group(W, "DynamicSymbols");
 }
 
-void MachODumper::printSymbol(symbol_iterator SymI) {
+void MachODumper::printSymbol(const SymbolRef &Symbol) {
   StringRef SymbolName;
-  if (SymI->getName(SymbolName))
+  if (Symbol.getName(SymbolName))
     SymbolName = "";
 
-  MachOSymbol Symbol;
-  getSymbol(Obj, SymI->getRawDataRefImpl(), Symbol);
+  MachOSymbol MOSymbol;
+  getSymbol(Obj, Symbol.getRawDataRefImpl(), MOSymbol);
 
   StringRef SectionName = "";
-  section_iterator SecI(Obj->end_sections());
-  if (!error(SymI->getSection(SecI)) &&
-      SecI != Obj->end_sections())
-      error(SecI->getName(SectionName));
+  section_iterator SecI(Obj->section_begin());
+  if (!error(Symbol.getSection(SecI)) && SecI != Obj->section_end())
+    error(SecI->getName(SectionName));
 
   DictScope D(W, "Symbol");
-  W.printNumber("Name", SymbolName, Symbol.StringIndex);
-  if (Symbol.Type & N_STAB) {
-    W.printHex ("Type", "SymDebugTable", Symbol.Type);
+  W.printNumber("Name", SymbolName, MOSymbol.StringIndex);
+  if (MOSymbol.Type & MachO::N_STAB) {
+    W.printHex("Type", "SymDebugTable", MOSymbol.Type);
   } else {
-    W.printEnum("Type", Symbol.Type, makeArrayRef(MachOSymbolTypes));
+    if (MOSymbol.Type & MachO::N_PEXT)
+      W.startLine() << "PrivateExtern\n";
+    if (MOSymbol.Type & MachO::N_EXT)
+      W.startLine() << "Extern\n";
+    W.printEnum("Type", uint8_t(MOSymbol.Type & MachO::N_TYPE),
+                makeArrayRef(MachOSymbolTypes));
   }
-  W.printHex   ("Section", SectionName, Symbol.SectionIndex);
-  W.printEnum  ("RefType", static_cast<uint16_t>(Symbol.Flags & 0xF),
-                  makeArrayRef(MachOSymbolRefTypes));
-  W.printFlags ("Flags", static_cast<uint16_t>(Symbol.Flags & ~0xF),
-                  makeArrayRef(MachOSymbolFlags));
-  W.printHex   ("Value", Symbol.Value);
+  W.printHex("Section", SectionName, MOSymbol.SectionIndex);
+  W.printEnum("RefType", static_cast<uint16_t>(MOSymbol.Flags & 0xF),
+              makeArrayRef(MachOSymbolRefTypes));
+  W.printFlags("Flags", static_cast<uint16_t>(MOSymbol.Flags & ~0xF),
+               makeArrayRef(MachOSymbolFlags));
+  W.printHex("Value", MOSymbol.Value);
 }
 
 void MachODumper::printUnwindInfo() {

@@ -205,7 +205,7 @@ def SDTPrefetch : SDTypeProfile<0, 4, [     // prefetch
   SDTCisPtrTy<0>, SDTCisSameAs<1, 2>, SDTCisSameAs<1, 3>, SDTCisInt<1>
 ]>;
 
-def SDTMemBarrier : SDTypeProfile<0, 5, [   // memory barier
+def SDTMemBarrier : SDTypeProfile<0, 5, [   // memory barrier
   SDTCisSameAs<0,1>,  SDTCisSameAs<0,2>,  SDTCisSameAs<0,3>, SDTCisSameAs<0,4>,
   SDTCisInt<0>
 ]>;
@@ -362,7 +362,6 @@ def bitconvert : SDNode<"ISD::BITCAST"    , SDTUnaryOp>;
 def extractelt : SDNode<"ISD::EXTRACT_VECTOR_ELT", SDTVecExtract>;
 def insertelt  : SDNode<"ISD::INSERT_VECTOR_ELT", SDTVecInsert>;
 
-
 def fadd       : SDNode<"ISD::FADD"       , SDTFPBinOp, [SDNPCommutative]>;
 def fsub       : SDNode<"ISD::FSUB"       , SDTFPBinOp>;
 def fmul       : SDNode<"ISD::FMUL"       , SDTFPBinOp, [SDNPCommutative]>;
@@ -393,8 +392,8 @@ def sint_to_fp : SDNode<"ISD::SINT_TO_FP" , SDTIntToFPOp>;
 def uint_to_fp : SDNode<"ISD::UINT_TO_FP" , SDTIntToFPOp>;
 def fp_to_sint : SDNode<"ISD::FP_TO_SINT" , SDTFPToIntOp>;
 def fp_to_uint : SDNode<"ISD::FP_TO_UINT" , SDTFPToIntOp>;
-def f16_to_f32 : SDNode<"ISD::FP16_TO_FP32", SDTIntToFPOp>;
-def f32_to_f16 : SDNode<"ISD::FP32_TO_FP16", SDTFPToIntOp>;
+def f16_to_fp  : SDNode<"ISD::FP16_TO_FP" , SDTIntToFPOp>;
+def fp_to_f16  : SDNode<"ISD::FP_TO_FP16" , SDTFPToIntOp>;
 
 def setcc      : SDNode<"ISD::SETCC"      , SDTSetCC>;
 def select     : SDNode<"ISD::SELECT"     , SDTSelect>;
@@ -466,7 +465,7 @@ def vector_extract : SDNode<"ISD::EXTRACT_VECTOR_ELT",
 def vector_insert : SDNode<"ISD::INSERT_VECTOR_ELT",
     SDTypeProfile<1, 3, [SDTCisSameAs<0, 1>, SDTCisPtrTy<3>]>, []>;
 def concat_vectors : SDNode<"ISD::CONCAT_VECTORS",
-    SDTypeProfile<1, 2, [SDTCisVec<0>, SDTCisVec<1>, SDTCisSameAs<1, 2>]>,[]>;
+    SDTypeProfile<1, 2, [SDTCisSubVecOfVec<1, 0>, SDTCisSameAs<1, 2>]>,[]>;
 
 // This operator does not do subvector type checking.  The ARM
 // backend, at least, needs it.
@@ -491,6 +490,12 @@ def intrinsic_wo_chain : SDNode<"ISD::INTRINSIC_WO_CHAIN",
 
 // Do not use cvt directly. Use cvt forms below
 def cvt : SDNode<"ISD::CONVERT_RNDSAT", SDTConvertOp>;
+
+def SDT_assertext : SDTypeProfile<1, 1,
+  [SDTCisInt<0>, SDTCisInt<1>, SDTCisSameAs<1, 0>]>;
+def assertsext : SDNode<"ISD::AssertSext", SDT_assertext>;
+def assertzext : SDNode<"ISD::AssertZext", SDT_assertext>;
+
 
 //===----------------------------------------------------------------------===//
 // Selection DAG Condition Codes
@@ -553,6 +558,12 @@ class PatFrag<dag ops, dag frag, code pred = [{}],
   code ImmediateCode = [{}];
   SDNodeXForm OperandTransform = xform;
 }
+
+// OutPatFrag is a pattern fragment that is used as part of an output pattern
+// (not an input pattern). These do not have predicates or transforms, but are
+// used to avoid repeated subexpressions in output patterns.
+class OutPatFrag<dag ops, dag frag>
+ : PatFrag<ops, frag, [{}], NOOP_SDNodeXForm>;
 
 // PatLeaf's are pattern fragments that have no operands.  This is just a helper
 // to define immediates and other common things concisely.

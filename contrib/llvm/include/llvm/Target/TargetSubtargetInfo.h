@@ -66,6 +66,16 @@ public:
   /// scheduler. It does not yet disable the postRA scheduler.
   virtual bool enableMachineScheduler() const;
 
+  /// \brief True if the subtarget should run PostMachineScheduler.
+  ///
+  /// This only takes effect if the target has configured the
+  /// PostMachineScheduler pass to run, or if the global cl::opt flag,
+  /// MISchedPostRA, is set.
+  virtual bool enablePostMachineScheduler() const;
+
+  /// \brief True if the subtarget should run the atomic expansion pass.
+  virtual bool enableAtomicExpandLoadLinked() const;
+
   /// \brief Override generic scheduling policy within a region.
   ///
   /// This is a convenient way for targets that don't provide any custom
@@ -76,25 +86,46 @@ public:
                                    MachineInstr *end,
                                    unsigned NumRegionInstrs) const {}
 
-  // enablePostRAScheduler - If the target can benefit from post-regalloc
-  // scheduling and the specified optimization level meets the requirement
-  // return true to enable post-register-allocation scheduling. In
-  // CriticalPathRCs return any register classes that should only be broken
-  // if on the critical path.
-  virtual bool enablePostRAScheduler(CodeGenOpt::Level OptLevel,
-                                     AntiDepBreakMode& Mode,
-                                     RegClassVector& CriticalPathRCs) const;
-  // adjustSchedDependency - Perform target specific adjustments to
-  // the latency of a schedule dependency.
+  // \brief Perform target specific adjustments to the latency of a schedule
+  // dependency.
   virtual void adjustSchedDependency(SUnit *def, SUnit *use,
                                      SDep& dep) const { }
+  
+  // For use with PostRAScheduling: get the anti-dependence breaking that should
+  // be performed before post-RA scheduling.
+  virtual AntiDepBreakMode getAntiDepBreakMode() const {
+    return ANTIDEP_NONE;
+  }
+  
+  // For use with PostRAScheduling: in CriticalPathRCs, return any register
+  // classes that should only be considered for anti-dependence breaking if they
+  // are on the critical path.
+  virtual void getCriticalPathRCs(RegClassVector &CriticalPathRCs) const {
+    return CriticalPathRCs.clear();
+  }
+  
+  // For use with PostRAScheduling: get the minimum optimization level needed
+  // to enable post-RA scheduling.
+  virtual CodeGenOpt::Level getOptLevelToEnablePostRAScheduler() const {
+    return CodeGenOpt::Default;
+  }
+  
+  /// \brief True if the subtarget should run the local reassignment
+  /// heuristic of the register allocator.
+  /// This heuristic may be compile time intensive, \p OptLevel provides
+  /// a finer grain to tune the register allocator.
+  virtual bool enableRALocalReassignment(CodeGenOpt::Level OptLevel) const;
 
   /// \brief Enable use of alias analysis during code generation (during MI
   /// scheduling, DAGCombine, etc.).
   virtual bool useAA() const;
 
+  /// \brief Enable the use of the early if conversion pass.
+  virtual bool enableEarlyIfConversion() const { return false; }
+
   /// \brief Reset the features for the subtarget.
   virtual void resetSubtargetFeatures(const MachineFunction *MF) { }
+
 };
 
 } // End llvm namespace

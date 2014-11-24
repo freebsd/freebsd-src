@@ -24,9 +24,6 @@
 #include "llvm/Support/MemoryObject.h"
 #include "llvm/Support/TargetRegistry.h"
 
-namespace llvm {
-class Target;
-} // namespace llvm
 using namespace llvm;
 
 // LLVMCreateDisasm() creates a disassembler for the TripleName.  Symbolic
@@ -44,20 +41,20 @@ LLVMDisasmContextRef LLVMCreateDisasmCPU(const char *Triple, const char *CPU,
   std::string Error;
   const Target *TheTarget = TargetRegistry::lookupTarget(Triple, Error);
   if (!TheTarget)
-    return 0;
+    return nullptr;
 
   const MCRegisterInfo *MRI = TheTarget->createMCRegInfo(Triple);
   if (!MRI)
-    return 0;
+    return nullptr;
 
   // Get the assembler info needed to setup the MCContext.
   const MCAsmInfo *MAI = TheTarget->createMCAsmInfo(*MRI, Triple);
   if (!MAI)
-    return 0;
+    return nullptr;
 
   const MCInstrInfo *MII = TheTarget->createMCInstrInfo();
   if (!MII)
-    return 0;
+    return nullptr;
 
   // Package up features to be passed to target/subtarget
   std::string FeaturesStr;
@@ -65,42 +62,40 @@ LLVMDisasmContextRef LLVMCreateDisasmCPU(const char *Triple, const char *CPU,
   const MCSubtargetInfo *STI = TheTarget->createMCSubtargetInfo(Triple, CPU,
                                                                 FeaturesStr);
   if (!STI)
-    return 0;
+    return nullptr;
 
   // Set up the MCContext for creating symbols and MCExpr's.
-  MCContext *Ctx = new MCContext(MAI, MRI, 0);
+  MCContext *Ctx = new MCContext(MAI, MRI, nullptr);
   if (!Ctx)
-    return 0;
+    return nullptr;
 
   // Set up disassembler.
-  MCDisassembler *DisAsm = TheTarget->createMCDisassembler(*STI);
+  MCDisassembler *DisAsm = TheTarget->createMCDisassembler(*STI, *Ctx);
   if (!DisAsm)
-    return 0;
+    return nullptr;
 
-  OwningPtr<MCRelocationInfo> RelInfo(
-    TheTarget->createMCRelocationInfo(Triple, *Ctx));
+  std::unique_ptr<MCRelocationInfo> RelInfo(
+      TheTarget->createMCRelocationInfo(Triple, *Ctx));
   if (!RelInfo)
-    return 0;
+    return nullptr;
 
-  OwningPtr<MCSymbolizer> Symbolizer(
-    TheTarget->createMCSymbolizer(Triple, GetOpInfo, SymbolLookUp, DisInfo,
-                                  Ctx, RelInfo.take()));
-  DisAsm->setSymbolizer(Symbolizer);
-  DisAsm->setupForSymbolicDisassembly(GetOpInfo, SymbolLookUp, DisInfo,
-                                      Ctx, RelInfo);
+  std::unique_ptr<MCSymbolizer> Symbolizer(TheTarget->createMCSymbolizer(
+      Triple, GetOpInfo, SymbolLookUp, DisInfo, Ctx, RelInfo.release()));
+  DisAsm->setSymbolizer(std::move(Symbolizer));
+
   // Set up the instruction printer.
   int AsmPrinterVariant = MAI->getAssemblerDialect();
   MCInstPrinter *IP = TheTarget->createMCInstPrinter(AsmPrinterVariant,
                                                      *MAI, *MII, *MRI, *STI);
   if (!IP)
-    return 0;
+    return nullptr;
 
   LLVMDisasmContext *DC = new LLVMDisasmContext(Triple, DisInfo, TagType,
                                                 GetOpInfo, SymbolLookUp,
                                                 TheTarget, MAI, MRI,
                                                 STI, MII, Ctx, DisAsm, IP);
   if (!DC)
-    return 0;
+    return nullptr;
 
   DC->setCPU(CPU);
   return DC;
@@ -132,11 +127,11 @@ class DisasmMemoryObject : public MemoryObject {
 public:
   DisasmMemoryObject(uint8_t *bytes, uint64_t size, uint64_t basePC) :
                      Bytes(bytes), Size(size), BasePC(basePC) {}
- 
-  uint64_t getBase() const { return BasePC; }
-  uint64_t getExtent() const { return Size; }
 
-  int readByte(uint64_t Addr, uint8_t *Byte) const {
+  uint64_t getBase() const override { return BasePC; }
+  uint64_t getExtent() const override { return Size; }
+
+  int readByte(uint64_t Addr, uint8_t *Byte) const override {
     if (Addr - BasePC >= Size)
       return -1;
     *Byte = Bytes[Addr - BasePC];
@@ -298,6 +293,7 @@ size_t LLVMDisasmInstruction(LLVMDisasmContextRef DCR, uint8_t *Bytes,
       emitLatency(DC, Inst);
 
     emitComments(DC, FormattedOS);
+    OS.flush();
 
     assert(OutStringSize != 0 && "Output buffer cannot be zero size");
     size_t OutputSize = std::min(OutStringSize-1, InsnStr.size());

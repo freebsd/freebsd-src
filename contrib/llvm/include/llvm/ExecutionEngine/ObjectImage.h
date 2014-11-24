@@ -1,6 +1,6 @@
 //===---- ObjectImage.h - Format independent executuable object image -----===//
 //
-//		       The LLVM Compiler Infrastructure
+//                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
@@ -28,7 +28,7 @@ class ObjectImage {
   virtual void anchor();
 
 protected:
-  OwningPtr<ObjectBuffer> Buffer;
+  std::unique_ptr<ObjectBuffer> Buffer;
 
 public:
   ObjectImage(ObjectBuffer *Input) : Buffer(Input) {}
@@ -36,18 +36,26 @@ public:
 
   virtual object::symbol_iterator begin_symbols() const = 0;
   virtual object::symbol_iterator end_symbols() const = 0;
+  iterator_range<object::symbol_iterator> symbols() const {
+    return iterator_range<object::symbol_iterator>(begin_symbols(),
+                                                   end_symbols());
+  }
 
   virtual object::section_iterator begin_sections() const = 0;
   virtual object::section_iterator end_sections() const  = 0;
+  iterator_range<object::section_iterator> sections() const {
+    return iterator_range<object::section_iterator>(begin_sections(),
+                                                    end_sections());
+  }
 
   virtual /* Triple::ArchType */ unsigned getArch() const = 0;
 
   // Subclasses can override these methods to update the image with loaded
   // addresses for sections and common symbols
   virtual void updateSectionAddress(const object::SectionRef &Sec,
-				    uint64_t Addr) = 0;
+                                    uint64_t Addr) = 0;
   virtual void updateSymbolAddress(const object::SymbolRef &Sym,
-				   uint64_t Addr) = 0;
+                                   uint64_t Addr) = 0;
 
   virtual StringRef getData() const = 0;
 
@@ -61,4 +69,3 @@ public:
 } // end namespace llvm
 
 #endif // LLVM_EXECUTIONENGINE_OBJECTIMAGE_H
-

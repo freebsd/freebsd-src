@@ -284,12 +284,10 @@ public:
       initSlowCase(that);
   }
 
-#if LLVM_HAS_RVALUE_REFERENCES
   /// \brief Move Constructor.
   APInt(APInt &&that) : BitWidth(that.BitWidth), VAL(that.VAL) {
     that.BitWidth = 0;
   }
-#endif
 
   /// \brief Destructor.
   ~APInt() {
@@ -656,7 +654,6 @@ public:
     return AssignSlowCase(RHS);
   }
 
-#if LLVM_HAS_RVALUE_REFERENCES
   /// @brief Move assignment operator.
   APInt &operator=(APInt &&that) {
     if (!isSingleWord())
@@ -669,7 +666,6 @@ public:
 
     return *this;
   }
-#endif
 
   /// \brief Assignment operator.
   ///
@@ -1265,7 +1261,7 @@ public:
   /// \returns the number of words to hold the integer value with a given bit
   /// width.
   static unsigned getNumWords(unsigned BitWidth) {
-    return (BitWidth + APINT_BITS_PER_WORD - 1) / APINT_BITS_PER_WORD;
+    return ((uint64_t)BitWidth + APINT_BITS_PER_WORD - 1) / APINT_BITS_PER_WORD;
   }
 
   /// \brief Compute the number of active bits in the value
@@ -1502,6 +1498,35 @@ public:
   /// \returns the ceil log base 2 of this APInt.
   unsigned ceilLogBase2() const {
     return BitWidth - (*this - 1).countLeadingZeros();
+  }
+
+  /// \returns the nearest log base 2 of this APInt. Ties round up.
+  ///
+  /// NOTE: When we have a BitWidth of 1, we define:
+  /// 
+  ///   log2(0) = UINT32_MAX
+  ///   log2(1) = 0
+  ///
+  /// to get around any mathematical concerns resulting from
+  /// referencing 2 in a space where 2 does no exist.
+  unsigned nearestLogBase2() const {
+    // Special case when we have a bitwidth of 1. If VAL is 1, then we
+    // get 0. If VAL is 0, we get UINT64_MAX which gets truncated to
+    // UINT32_MAX.
+    if (BitWidth == 1)
+      return VAL - 1;
+
+    // Handle the zero case.
+    if (!getBoolValue())
+      return UINT32_MAX;
+
+    // The non-zero case is handled by computing:
+    //
+    //   nearestLogBase2(x) = logBase2(x) + x[logBase2(x)-1].
+    //
+    // where x[i] is referring to the value of the ith bit of x.
+    unsigned lg = logBase2();
+    return lg + unsigned((*this)[lg - 1]);
   }
 
   /// \returns the log base 2 of this APInt if its an exact power of two, -1
