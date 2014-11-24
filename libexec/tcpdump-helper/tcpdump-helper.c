@@ -62,6 +62,7 @@
 #include <machine/cheric.h>
 
 #include <cheri/cheri_system.h>
+#include <cheri/cheri_invoke.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -77,6 +78,7 @@
 struct print_info printinfo;
 netdissect_options Gndo;
 netdissect_options *gndo = &Gndo;
+struct cheri_object *gpso;
 
 const char *program_name;
 
@@ -86,7 +88,8 @@ int	invoke(register_t op, register_t localnet, register_t netmask,
 	    const netdissect_options *ndo,
 	    const char *ndo_espsecret,
 	    const struct pcap_pkthdr *h,
-	    const u_char *sp);
+	    const u_char *sp,
+	    struct cheri_object *proto_sandbox_objects);
 
 static int
 invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
@@ -162,10 +165,23 @@ int
 invoke(register_t op, register_t arg1, register_t arg2,
     const netdissect_options *ndo,
     const char *ndo_espsecret,
-    const struct pcap_pkthdr *h, const u_char *sp)
+    const struct pcap_pkthdr *h, const u_char *sp,
+    struct cheri_object *proto_sandbox_objects)
 {
 	int ret;
 
+	gpso = proto_sandbox_objects;
+	
+	if (gpso != NULL &&
+	    cheri_getlen(gpso) != 0) {
+		CHERI_PRINT_PTR(gpso);
+		printf("invoking a protocol sandbox\n");
+		return (cheri_invoke(*gpso,
+		    op, arg1, arg2, 0, 0, 0, 0, 0,
+		    (void *)ndo, (void *)ndo_espsecret, (void *)h, (void *)sp,
+		    cheri_incbase(gpso, sizeof(struct cheri_object)),
+		    NULL, NULL, NULL));
+	}
 	ret = 0;
 
 	switch (op) {

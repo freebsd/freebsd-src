@@ -63,7 +63,7 @@ usage(void)
 "	-C			do not colorize flows\n"
 "	-f <file>		config file\n"
 "	-l <seconds>		max sandbox lifetime\n"
-"	-m <mode>		none, one, local, ip-hash\n"
+"	-m <mode>		none, one, local, ip-hash, per-proto\n"
 "	-p <packets>		max packets per sandbox\n"
 "	-s <sandboxes>		number of sandboxes (mode dependent)\n"
 );
@@ -109,6 +109,8 @@ main(int argc, char *argv[])
 				ctdc.ctdc_sb_mode = CTDC_MODE_ONE_SANDBOX;
 			else if (strcmp(optarg, "local") == 0)
 				ctdc.ctdc_sb_mode = CTDC_MODE_SEPARATE_LOCAL;
+			else if (strcmp(optarg, "per-proto") == 0)
+				ctdc.ctdc_sb_mode = CTDC_MODE_PER_PROTOCOL;
 			else if (strcmp(optarg, "ip-hash") == 0)
 				ctdc.ctdc_sb_mode = CTDC_MODE_HASH_TCP;
 			else {

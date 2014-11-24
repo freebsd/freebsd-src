@@ -77,6 +77,10 @@ struct tcpdump_sandbox {
 	sandbox_selector	 tds_selector;
 	void			*tds_selector_data;	/* free()'d */
 
+	struct tcpdump_sandbox	**tds_proto_sandboxes;
+	int			 tds_num_proto_sandboxes;
+	__capability struct cheri_object *tds_proto_sandbox_objects;
+
 	/* Lifetime stats for sandboxs matching selector */
 	int		 tds_faults;	/* Number of times the sandbox has
 					 * faulted. */
@@ -96,6 +100,7 @@ STAILQ_HEAD(tcpdump_sandbox_list, tcpdump_sandbox);
 
 #define	TDS_MODE_ONE_SANDBOX	CTDC_MODE_ONE_SANDBOX
 #define	TDS_MODE_SEPARATE_LOCAL	CTDC_MODE_SEPARATE_LOCAL
+#define	TDS_MODE_PER_PROTOCOL	CTDC_MODE_PER_PROTOCOL
 #define	TDS_MODE_HASH_TCP	CTDC_MODE_HASH_TCP
 
 #define	DEFAULT_COLOR		"\x1b[1;37;40m"
@@ -133,6 +138,7 @@ static const char *hash_colors[] = {
 
 #define	MAX_SANDBOXES	64
 static char *hash_names[MAX_SANDBOXES];
+static char *proto_names[MAX_SANDBOXES];
 
 static struct cheri_tcpdump_control _ctdc;
 static volatile struct cheri_tcpdump_control *ctdc;
@@ -175,7 +181,14 @@ tcpdump_sandbox_new(const char * name, const char * color,
 static void
 tcpdump_sandbox_destroy(struct tcpdump_sandbox *sb)
 {
+	int i;
 
+	if (sb->tds_proto_sandboxes != NULL) {
+		for (i = 0; i < sb->tds_num_proto_sandboxes; i++)
+			tcpdump_sandbox_destroy(sb->tds_proto_sandboxes[i]);
+		free(sb->tds_proto_sandboxes);
+		free((void *)sb->tds_proto_sandbox_objects);
+	}
 	sandbox_object_destroy(sb->tds_sandbox_object);
 	free(sb);
 }
@@ -183,6 +196,7 @@ tcpdump_sandbox_destroy(struct tcpdump_sandbox *sb)
 static int
 tcpdump_sandbox_reset(struct tcpdump_sandbox *sb)
 {
+	int i;
 
 	/* XXX: should have a cheap reset based on ELF loader */
 	sandbox_object_destroy(sb->tds_sandbox_object);
@@ -190,6 +204,13 @@ tcpdump_sandbox_reset(struct tcpdump_sandbox *sb)
 		fprintf(stderr, "failed to create sandbox object: %s",
 		    strerror(errno));
 		return (-1);
+	}
+	if (sb->tds_proto_sandboxes != NULL) {
+		for (i = 0; i < sb->tds_num_proto_sandboxes; i++) {
+			tcpdump_sandbox_reset(sb->tds_proto_sandboxes[i]);
+			sb->tds_proto_sandbox_objects[i] =
+			    sandbox_object_getobject(sb->tds_proto_sandboxes[i]->tds_sandbox_object);
+		}
 	}
 	sb->tds_resets++;
 	sb->tds_current_invokes = 0;
@@ -293,6 +314,27 @@ tcpdump_sandboxes_init(struct tcpdump_sandbox_list *list, int mode)
 		STAILQ_INSERT_TAIL(list, sb, tds_entry);
 		default_sandbox = sb;
 		break;
+	case TDS_MODE_PER_PROTOCOL:
+		sb = tcpdump_sandbox_new("per-protocol", SB_YELLOW,
+		    tds_select_all, NULL);
+		STAILQ_INSERT_TAIL(list, sb, tds_entry);
+		default_sandbox = sb;
+
+		sb->tds_num_proto_sandboxes = g_sandboxes - 1;
+		sb->tds_proto_sandboxes = calloc(sb->tds_num_proto_sandboxes,
+		    sizeof(*sb->tds_proto_sandboxes));
+		sb->tds_proto_sandbox_objects =
+		    (__capability void *)calloc(sb->tds_num_proto_sandboxes,
+		    sizeof(*sb->tds_proto_sandbox_objects));
+		for (i = 0; i < sb->tds_num_proto_sandboxes; i++) {
+			sb->tds_proto_sandboxes[i] =
+			    tcpdump_sandbox_new(proto_names[i],
+			    hash_colors[i % N_HASH_COLORS], NULL, NULL);
+			sb->tds_proto_sandbox_objects[i] =
+			    sandbox_object_getobject(
+			    sb->tds_proto_sandboxes[i]->tds_sandbox_object);
+		}
+		break;
 	case TDS_MODE_HASH_TCP:
 		for (i = 0; i < g_sandboxes; i++) {
 			sb = tcpdump_sandbox_new(hash_names[i],
@@ -339,7 +381,7 @@ static int
 tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
     const struct pcap_pkthdr *hdr, packetbody_t data)
 {
-	int ret;
+	int i, ret;
 	struct timeval now;
 	packetbody_t save_packetp, save_snapend;
 
@@ -370,11 +412,26 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 			CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 		    (__capability void*)gndo->ndo_espsecret,
 		    NULL, NULL, NULL, NULL, NULL, NULL);
-		gndo->ndo_snapend = save_snapend;
-		gndo->ndo_packetp = save_packetp;
 		if (ret != 0)
 			error("failed to initialize sandbox: %d \n",
 			    ret);
+		if (sb->tds_proto_sandboxes != NULL) {
+			for (i = 0; i < sb->tds_num_proto_sandboxes; i++) {
+				ret = sandbox_object_cinvoke(
+				    sb->tds_proto_sandboxes[i]->tds_sandbox_object,
+				    TCPDUMP_HELPER_OP_INIT, g_localnet, g_mask,
+				    0, 0, 0, 0, 0,
+				    cheri_ptrperm(gndo, sizeof(netdissect_options),
+					CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
+				    (__capability void*)gndo->ndo_espsecret,
+				    NULL, NULL, NULL, NULL, NULL, NULL);
+				if (ret != 0)
+					error("failed to initialize sandbox: %d \n",
+					    ret);
+			}
+		}
+		gndo->ndo_snapend = save_snapend;
+		gndo->ndo_packetp = save_packetp;
 	}
 
 	/* Invoke */
@@ -387,7 +444,7 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 	    cheri_ptrperm((void *)data, hdr->caplen,
 		CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
-	    NULL, NULL, NULL, NULL);
+	    sb->tds_proto_sandbox_objects, NULL, NULL, NULL);
 
 	/* If it fails, reset it */
 	if (ret < 0) {
@@ -502,6 +559,8 @@ init_print(u_int32_t localnet, u_int32_t mask)
 	/* XXX: check returns */
 	for (i = 0; i < MAX_SANDBOXES; i++)
 		asprintf(&hash_names[i], "hash%02d", i);
+	for (i = 0; i < MAX_SANDBOXES; i++)
+		asprintf(&proto_names[i], "proto%02d", i);
 
 	cheri_system_user_register_fn(&cheri_tcpdump_system);
 
