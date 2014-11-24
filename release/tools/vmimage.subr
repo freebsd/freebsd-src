@@ -114,14 +114,15 @@ vm_extra_enable_services() {
 }
 
 vm_extra_install_packages() {
+	if [ -z "${VM_EXTRA_PACKAGES}" ]; then
+		return 0
+	fi
 	mkdir -p ${DESTDIR}/dev
 	mount -t devfs devfs ${DESTDIR}/dev
 	chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
 		/usr/sbin/pkg bootstrap -y
-	if [ ! -z "${VM_EXTRA_PACKAGES}" ]; then
 		chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
 			/usr/sbin/pkg install -y ${VM_EXTRA_PACKAGES}
-	fi
 	umount ${DESTDIR}/dev
 
 	return 0
@@ -138,6 +139,10 @@ vm_extra_pre_umount() {
 	# Prototype.  When overridden, installs additional ports within the
 	# virtual machine environment.
 
+	if [ -e ${DESTDIR}/usr/local/sbin/pkg ]; then
+		chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
+			/usr/local/sbin/pkg clean -y -a
+	fi
 	rm -f ${DESTDIR}/etc/resolv.conf
 
 	return 0
