@@ -812,7 +812,6 @@ tpc_process_b2b(struct tpc_list *list)
 	uint32_t srcblock, dstblock;
 
 	if (list->stage == 1) {
-complete:
 		while ((tior = TAILQ_FIRST(&list->allio)) != NULL) {
 			TAILQ_REMOVE(&list->allio, tior, links);
 			ctl_free_io(tior->io);
@@ -886,10 +885,6 @@ complete:
 		tior->list = list;
 		TAILQ_INSERT_TAIL(&list->allio, tior, links);
 		tior->io = tpcl_alloc_io();
-		if (tior->io == NULL) {
-			list->error = 1;
-			goto complete;
-		}
 		ctl_scsi_read_write(tior->io,
 				    /*data_ptr*/ &list->buf[donebytes],
 				    /*data_len*/ roundbytes,
@@ -909,10 +904,6 @@ complete:
 		tiow->list = list;
 		TAILQ_INSERT_TAIL(&list->allio, tiow, links);
 		tiow->io = tpcl_alloc_io();
-		if (tiow->io == NULL) {
-			list->error = 1;
-			goto complete;
-		}
 		ctl_scsi_read_write(tiow->io,
 				    /*data_ptr*/ &list->buf[donebytes],
 				    /*data_len*/ roundbytes,
@@ -951,7 +942,6 @@ tpc_process_verify(struct tpc_list *list)
 	uint64_t sl;
 
 	if (list->stage == 1) {
-complete:
 		while ((tio = TAILQ_FIRST(&list->allio)) != NULL) {
 			TAILQ_REMOVE(&list->allio, tio, links);
 			ctl_free_io(tio->io);
@@ -990,10 +980,6 @@ complete:
 	tio->list = list;
 	TAILQ_INSERT_TAIL(&list->allio, tio, links);
 	tio->io = tpcl_alloc_io();
-	if (tio->io == NULL) {
-		list->error = 1;
-		goto complete;
-	}
 	ctl_scsi_tur(tio->io, /*tag_type*/ CTL_TAG_SIMPLE, /*control*/ 0);
 	tio->io->io_hdr.retries = 3;
 	tio->lun = sl;
@@ -1013,7 +999,6 @@ tpc_process_register_key(struct tpc_list *list)
 	int datalen;
 
 	if (list->stage == 1) {
-complete:
 		while ((tio = TAILQ_FIRST(&list->allio)) != NULL) {
 			TAILQ_REMOVE(&list->allio, tio, links);
 			ctl_free_io(tio->io);
@@ -1050,10 +1035,6 @@ complete:
 	tio->list = list;
 	TAILQ_INSERT_TAIL(&list->allio, tio, links);
 	tio->io = tpcl_alloc_io();
-	if (tio->io == NULL) {
-		list->error = 1;
-		goto complete;
-	}
 	datalen = sizeof(struct scsi_per_res_out_parms);
 	list->buf = malloc(datalen, M_CTL, M_WAITOK);
 	ctl_scsi_persistent_res_out(tio->io,
@@ -1112,7 +1093,6 @@ tpc_process_wut(struct tpc_list *list)
 	uint32_t srcblock, dstblock;
 
 	if (list->stage > 0) {
-complete:
 		/* Cleanup after previous rounds. */
 		while ((tio = TAILQ_FIRST(&list->allio)) != NULL) {
 			TAILQ_REMOVE(&list->allio, tio, links);
@@ -1184,10 +1164,6 @@ complete:
 		tior->list = list;
 		TAILQ_INSERT_TAIL(&list->allio, tior, links);
 		tior->io = tpcl_alloc_io();
-		if (tior->io == NULL) {
-			list->error = 1;
-			goto complete;
-		}
 		ctl_scsi_read_write(tior->io,
 				    /*data_ptr*/ &list->buf[donebytes],
 				    /*data_len*/ roundbytes,
@@ -1207,10 +1183,6 @@ complete:
 		tiow->list = list;
 		TAILQ_INSERT_TAIL(&list->allio, tiow, links);
 		tiow->io = tpcl_alloc_io();
-		if (tiow->io == NULL) {
-			list->error = 1;
-			goto complete;
-		}
 		ctl_scsi_read_write(tiow->io,
 				    /*data_ptr*/ &list->buf[donebytes],
 				    /*data_len*/ roundbytes,
@@ -1289,10 +1261,6 @@ complete:
 		tiow->list = list;
 		TAILQ_INSERT_TAIL(&list->allio, tiow, links);
 		tiow->io = tpcl_alloc_io();
-		if (tiow->io == NULL) {
-			list->error = 1;
-			goto complete;
-		}
 		ctl_scsi_write_same(tiow->io,
 				    /*data_ptr*/ list->buf,
 				    /*data_len*/ dstblock,
