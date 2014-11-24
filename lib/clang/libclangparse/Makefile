@@ -16,15 +16,14 @@ SRCS=	ParseAST.cpp \
 	ParseOpenMP.cpp \
 	ParsePragma.cpp \
 	ParseStmt.cpp \
+	ParseStmtAsm.cpp \
 	ParseTemplate.cpp \
 	ParseTentative.cpp \
 	Parser.cpp
 
-TGHDRS=	AttrIdentifierArg \
-	AttrLateParsed \
-	AttrList \
+TGHDRS=	AttrList \
 	AttrParsedAttrList \
-	AttrTypeArg \
+	AttrParserStringSwitches \
 	Attrs \
 	CommentCommandList \
 	CommentNodes \

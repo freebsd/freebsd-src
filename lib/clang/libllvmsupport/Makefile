@@ -8,12 +8,14 @@ SRCDIR=	lib/Support
 SRCS=	APFloat.cpp \
 	APInt.cpp \
 	APSInt.cpp \
+	ARMBuildAttrs.cpp \
+	ARMWinEH.cpp \
 	Allocator.cpp \
 	Atomic.cpp \
 	BlockFrequency.cpp \
 	BranchProbability.cpp \
 	CommandLine.cpp \
-	ConstantRange.cpp \
+	Compression.cpp \
 	ConvertUTF.c \
 	ConvertUTFWrapper.cpp \
 	CrashRecoveryContext.cpp \
@@ -37,6 +39,8 @@ SRCS=	APFloat.cpp \
 	IntrusiveRefCntPtr.cpp \
 	IsInf.cpp \
 	IsNAN.cpp \
+	LEB128.cpp \
+	LineIterator.cpp \
 	Locale.cpp \
 	LockFileManager.cpp \
 	MD5.cpp \
@@ -51,12 +55,15 @@ SRCS=	APFloat.cpp \
 	Process.cpp \
 	Program.cpp \
 	RWMutex.cpp \
+	RandomNumberGenerator.cpp \
 	Regex.cpp \
+	ScaledNumber.cpp \
 	SearchForAddressOfSpecialSymbol.cpp \
 	Signals.cpp \
 	SmallPtrSet.cpp \
 	SmallVector.cpp \
 	SourceMgr.cpp \
+	SpecialCaseList.cpp \
 	Statistic.cpp \
 	StreamableMemoryObject.cpp \
 	StringExtras.cpp \
@@ -84,16 +91,10 @@ SRCS=	APFloat.cpp \
 	regerror.c \
 	regexec.c \
 	regfree.c \
-	regstrlcpy.c \
-	system_error.cpp
-
-.if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
-SRCS+=	Disassembler.cpp
-.endif
+	regstrlcpy.c
 
 .if ${MK_CLANG_EXTRAS} != "no"
-SRCS+=	Compression.cpp \
-	DataStream.cpp \
+SRCS+=	DataStream.cpp \
 	FileUtilities.cpp \
 	SystemUtils.cpp
 .endif
