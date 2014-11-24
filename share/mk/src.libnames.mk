@@ -22,6 +22,7 @@ _PRIVATELIBS=	\
 		unbound
 _INTERNALIBS=	\
 		mandoc \
+		netbsd \
 		ohash \
 		readline \
 		sm
@@ -68,6 +69,7 @@ _LIBRARIES=	\
 		mp \
 		nandfs \
 		ncursesw \
+		netbsd \
 		nv \
 		opie \
 		pam \
@@ -242,3 +244,6 @@ LIBMANDOC?=	${LIBMANDOCDIR}/libmandoc.a
 LIBSMDIR=	${ROOTOBJDIR}/lib/libsm
 LDSM?=		${LIBSMDIR}/libsm.a
 LIBSM?=		${LIBSMDIR}/libsm.a
+
+LIBNETBSDDIR=	${ROOTOBJDIR}/lib/libnetbsd
+LIBNETBSD=	${ROOTOBJDIR}/libnetbsd.a
