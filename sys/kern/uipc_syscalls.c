@@ -2468,8 +2468,10 @@ retry_space:
 		else
 			npages = howmany(space, PAGE_SIZE);
 
+		rhpages = SF_READAHEAD(flags) ?
+		    SF_READAHEAD(flags) : roundup2(rem - space, PAGE_SIZE);
 		rhpages = min(howmany(obj_size - (off & ~PAGE_MASK) -
-		    (npages * PAGE_SIZE), PAGE_SIZE), SF_READAHEAD(flags));
+		    (npages * PAGE_SIZE), PAGE_SIZE), rhpages);
 
 		sfio = malloc(sizeof(struct sf_io) +
 		    (rhpages + npages) * sizeof(vm_page_t), M_TEMP, M_WAITOK);
