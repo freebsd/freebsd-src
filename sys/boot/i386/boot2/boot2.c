@@ -323,7 +323,8 @@ load(void)
     caddr_t p;
     ufs_ino_t ino;
     uint32_t addr;
-    int i, j;
+    uint8_t i, j;
+    int k;
 
     if (!(ino = lookup(kname))) {
 	if (!ls)
@@ -344,7 +345,7 @@ load(void)
 	    return;
     } else if (IS_ELF(hdr.eh)) {
 	fs_off = hdr.eh.e_phoff;
-	for (j = i = 0; i < hdr.eh.e_phnum && j < 2; i++) {
+	for (j = k = 0; k < hdr.eh.e_phnum && j < 2; k++) {
 	    if (xfsread(ino, ep + j, sizeof(ep[0])))
 		return;
 	    if (ep[j].p_type == PT_LOAD)
@@ -393,7 +394,9 @@ parse()
     char *ep, *p, *q;
     const char *cp;
     unsigned int drv;
-    int c, i, j;
+    uint8_t i;
+    int c, j;
+    size_t k;
 
     while ((c = *arg++)) {
 	if (c == ' ' || c == '\t' || c == '\n')
@@ -416,7 +419,7 @@ parse()
 #if SERIAL
 		} else if (c == 'S') {
 		    j = 0;
-		    while ((unsigned int)(i = *arg++ - '0') <= 9)
+		    while ((i = *arg++ - '0') <= 9)
 			j = j * 10 + i;
 		    if (j > 0 && i == -'0') {
 			comspeed = j;
@@ -479,10 +482,10 @@ parse()
 			     ? DRV_HARD : 0) + drv;
 		dsk_meta = 0;
 	    }
-	    if ((i = ep - arg)) {
-		if ((size_t)i >= sizeof(knamebuf))
+	    if (k = ep - arg) {
+		if (k >= sizeof(knamebuf))
 		    return -1;
-		memcpy(knamebuf, arg, i + 1);
+		memcpy(knamebuf, arg, k + 1);
 		kname = knamebuf;
 	    }
 	}
@@ -605,8 +608,10 @@ drvread(void *buf, unsigned lba, unsigned nblk)
 {
     static unsigned c = 0x2d5c7c2f;
 
-    if (!OPT_CHECK(RBX_QUIET))
-	printf("%c\b", c = c << 8 | c >> 24);
+    if (!OPT_CHECK(RBX_QUIET)) {
+	xputc(c = c << 8 | c >> 24);
+	xputc('\b');
+    }
     v86.ctl = V86_ADDR | V86_CALLF | V86_FLAGS;
     v86.addr = XREADORG;		/* call to xread in boot1 */
     v86.es = VTOPSEG(buf);
