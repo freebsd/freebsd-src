@@ -18,13 +18,14 @@
 ///
 /// \code
 /// Grammar for the expressions supported:
-/// <Expression>        := <Literal> | <MatcherExpression>
+/// <Expression>        := <Literal> | <NamedValue> | <MatcherExpression>
 /// <Literal>           := <StringLiteral> | <Unsigned>
 /// <StringLiteral>     := "quoted string"
 /// <Unsigned>          := [0-9]+
-/// <MatcherExpression> := <MatcherName>(<ArgumentList>) |
-///                        <MatcherName>(<ArgumentList>).bind(<StringLiteral>)
-/// <MatcherName>       := [a-zA-Z]+
+/// <NamedValue>        := <Identifier>
+/// <MatcherExpression> := <Identifier>(<ArgumentList>) |
+///                        <Identifier>(<ArgumentList>).bind(<StringLiteral>)
+/// <Identifier>        := [a-zA-Z]+
 /// <ArgumentList>      := <Expression> | <Expression>,<ArgumentList>
 /// \endcode
 ///
@@ -34,6 +35,7 @@
 #define LLVM_CLANG_AST_MATCHERS_DYNAMIC_PARSER_H
 
 #include "clang/ASTMatchers/Dynamic/Diagnostics.h"
+#include "clang/ASTMatchers/Dynamic/Registry.h"
 #include "clang/ASTMatchers/Dynamic/VariantValue.h"
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/ArrayRef.h"
@@ -61,11 +63,22 @@ public:
   public:
     virtual ~Sema();
 
+    /// \brief Lookup a value by name.
+    ///
+    /// This can be used in the Sema layer to declare known constants or to
+    /// allow to split an expression in pieces.
+    ///
+    /// \param Name The name of the value to lookup.
+    ///
+    /// \return The named value. It could be any type that VariantValue
+    ///   supports. An empty value means that the name is not recognized.
+    virtual VariantValue getNamedValue(StringRef Name);
+
     /// \brief Process a matcher expression.
     ///
     /// All the arguments passed here have already been processed.
     ///
-    /// \param MatcherName The matcher name found by the parser.
+    /// \param Ctor A matcher constructor looked up by lookupMatcherCtor.
     ///
     /// \param NameRange The location of the name in the matcher source.
     ///   Useful for error reporting.
@@ -78,11 +91,36 @@ public:
     /// \return The matcher objects constructed by the processor, or a null
     ///   matcher if an error occurred. In that case, \c Error will contain a
     ///   description of the error.
-    virtual VariantMatcher actOnMatcherExpression(StringRef MatcherName,
+    virtual VariantMatcher actOnMatcherExpression(MatcherCtor Ctor,
                                                   const SourceRange &NameRange,
                                                   StringRef BindID,
                                                   ArrayRef<ParserValue> Args,
                                                   Diagnostics *Error) = 0;
+
+    /// \brief Look up a matcher by name.
+    ///
+    /// \param MatcherName The matcher name found by the parser.
+    ///
+    /// \return The matcher constructor, or Optional<MatcherCtor>() if not
+    /// found.
+    virtual llvm::Optional<MatcherCtor>
+    lookupMatcherCtor(StringRef MatcherName) = 0;
+  };
+
+  /// \brief Sema implementation that uses the matcher registry to process the
+  ///   tokens.
+  class RegistrySema : public Parser::Sema {
+   public:
+    virtual ~RegistrySema();
+
+    llvm::Optional<MatcherCtor>
+    lookupMatcherCtor(StringRef MatcherName) override;
+
+    VariantMatcher actOnMatcherExpression(MatcherCtor Ctor,
+                                          const SourceRange &NameRange,
+                                          StringRef BindID,
+                                          ArrayRef<ParserValue> Args,
+                                          Diagnostics *Error) override;
   };
 
   /// \brief Parse a matcher expression, creating matchers from the registry.
@@ -129,19 +167,37 @@ public:
   static bool parseExpression(StringRef Code, Sema *S,
                               VariantValue *Value, Diagnostics *Error);
 
+  /// \brief Complete an expression at the given offset.
+  ///
+  /// \return The list of completions, which may be empty if there are no
+  /// available completions or if an error occurred.
+  static std::vector<MatcherCompletion>
+  completeExpression(StringRef Code, unsigned CompletionOffset);
+
 private:
   class CodeTokenizer;
+  struct ScopedContextEntry;
   struct TokenInfo;
 
   Parser(CodeTokenizer *Tokenizer, Sema *S,
          Diagnostics *Error);
 
   bool parseExpressionImpl(VariantValue *Value);
-  bool parseMatcherExpressionImpl(VariantValue *Value);
+  bool parseMatcherExpressionImpl(const TokenInfo &NameToken,
+                                  VariantValue *Value);
+  bool parseIdentifierPrefixImpl(VariantValue *Value);
+
+  void addCompletion(const TokenInfo &CompToken, StringRef TypedText,
+                     StringRef Decl);
+  void addExpressionCompletions();
 
   CodeTokenizer *const Tokenizer;
   Sema *const S;
   Diagnostics *const Error;
+
+  typedef std::vector<std::pair<MatcherCtor, unsigned> > ContextStackTy;
+  ContextStackTy ContextStack;
+  std::vector<MatcherCompletion> Completions;
 };
 
 }  // namespace dynamic

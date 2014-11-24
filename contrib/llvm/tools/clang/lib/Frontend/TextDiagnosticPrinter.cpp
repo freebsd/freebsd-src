@@ -43,7 +43,7 @@ void TextDiagnosticPrinter::BeginSourceFile(const LangOptions &LO,
 }
 
 void TextDiagnosticPrinter::EndSourceFile() {
-  TextDiag.reset(0);
+  TextDiag.reset();
 }
 
 /// \brief Print any diagnostic option information to a raw_ostream.
@@ -81,7 +81,11 @@ static void printDiagnosticOptions(raw_ostream &OS,
 
     StringRef Opt = DiagnosticIDs::getWarningOptionForDiag(Info.getID());
     if (!Opt.empty()) {
-      OS << (Started ? "," : " [") << "-W" << Opt;
+      OS << (Started ? "," : " [")
+         << (Level == DiagnosticsEngine::Remark ? "-R" : "-W") << Opt;
+      StringRef OptValue = Info.getDiags()->getFlagValue();
+      if (!OptValue.empty())
+        OS << "=" << OptValue;
       Started = true;
     }
   }
@@ -150,8 +154,7 @@ void TextDiagnosticPrinter::HandleDiagnostic(DiagnosticsEngine::Level Level,
 
   TextDiag->emitDiagnostic(Info.getLocation(), Level, DiagMessageStream.str(),
                            Info.getRanges(),
-                           llvm::makeArrayRef(Info.getFixItHints(),
-                                              Info.getNumFixItHints()),
+                           Info.getFixItHints(),
                            &Info.getSourceManager());
 
   OS.flush();

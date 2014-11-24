@@ -89,6 +89,9 @@ public:
   /// \brief The directory used for the module cache.
   std::string ModuleCachePath;
 
+  /// \brief The directory used for a user build.
+  std::string ModuleUserBuildPath;
+
   /// \brief Whether we should disable the use of the hash string within the
   /// module cache.
   ///
@@ -116,12 +119,21 @@ public:
   /// regenerated often.
   unsigned ModuleCachePruneAfter;
 
+  /// \brief The time in seconds when the build session started.
+  ///
+  /// This time is used by other optimizations in header search and module
+  /// loading.
+  uint64_t BuildSessionTimestamp;
+
   /// \brief The set of macro names that should be ignored for the purposes
   /// of computing the module hash.
   llvm::SetVector<std::string> ModulesIgnoreMacros;
 
   /// \brief The set of user-provided module-map-files.
   llvm::SetVector<std::string> ModuleMapFiles;
+
+  /// \brief The set of user-provided virtual filesystem overlay files.
+  std::vector<std::string> VFSOverlayFiles;
 
   /// Include the compiler builtin includes.
   unsigned UseBuiltinIncludes : 1;
@@ -138,14 +150,25 @@ public:
   /// Whether header search information should be output as for -v.
   unsigned Verbose : 1;
 
+  /// \brief If true, skip verifying input files used by modules if the
+  /// module was already verified during this build session (see
+  /// \c BuildSessionTimestamp).
+  unsigned ModulesValidateOncePerBuildSession : 1;
+
+  /// \brief Whether to validate system input files when a module is loaded.
+  unsigned ModulesValidateSystemHeaders : 1;
+
 public:
   HeaderSearchOptions(StringRef _Sysroot = "/")
     : Sysroot(_Sysroot), DisableModuleHash(0), ModuleMaps(0),
       ModuleCachePruneInterval(7*24*60*60),
       ModuleCachePruneAfter(31*24*60*60),
+      BuildSessionTimestamp(0),
       UseBuiltinIncludes(true),
       UseStandardSystemIncludes(true), UseStandardCXXIncludes(true),
-      UseLibcxx(false), Verbose(false) {}
+      UseLibcxx(false), Verbose(false),
+      ModulesValidateOncePerBuildSession(false),
+      ModulesValidateSystemHeaders(false) {}
 
   /// AddPath - Add the \p Path path to the specified \p Group list.
   void AddPath(StringRef Path, frontend::IncludeDirGroup Group,
@@ -158,6 +181,10 @@ public:
   /// header.
   void AddSystemHeaderPrefix(StringRef Prefix, bool IsSystemHeader) {
     SystemHeaderPrefixes.push_back(SystemHeaderPrefix(Prefix, IsSystemHeader));
+  }
+
+  void AddVFSOverlayFile(StringRef Name) {
+    VFSOverlayFiles.push_back(Name);
   }
 };
 

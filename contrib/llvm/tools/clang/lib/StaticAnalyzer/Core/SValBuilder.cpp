@@ -362,7 +362,7 @@ SVal SValBuilder::evalBinOp(ProgramStateRef state, BinaryOperator::Opcode op,
 DefinedOrUnknownSVal SValBuilder::evalEQ(ProgramStateRef state,
                                          DefinedOrUnknownSVal lhs,
                                          DefinedOrUnknownSVal rhs) {
-  return evalBinOp(state, BO_EQ, lhs, rhs, Context.IntTy)
+  return evalBinOp(state, BO_EQ, lhs, rhs, getConditionType())
       .castAs<DefinedOrUnknownSVal>();
 }
 
@@ -376,7 +376,7 @@ static bool shouldBeModeledWithNoOp(ASTContext &Context, QualType ToTy,
     ToTy = Context.getUnqualifiedArrayType(ToTy, Quals1);
     FromTy = Context.getUnqualifiedArrayType(FromTy, Quals2);
 
-    // Make sure that non cvr-qualifiers the other qualifiers (e.g., address
+    // Make sure that non-cvr-qualifiers the other qualifiers (e.g., address
     // spaces) are identical.
     Quals1.removeCVRQualifiers();
     Quals2.removeCVRQualifiers();
