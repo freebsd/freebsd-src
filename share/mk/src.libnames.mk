@@ -157,13 +157,13 @@ LDADD_supcplusplus=	-lsupc++
 
 .for _l in ${_LIBRARIES}
 .if ${_PRIVATELIBS:M${_l}}
-LDADD+=		-L${LIB${_l:tu}DIR}
+LDADD_${_l}_L+=		-L${LIB${_l:tu}DIR}
 .endif
 .if ${_INTERNALIBS:M${_l}}
-LDADD+=		-L${LIB${_l:tu}DIR}
+LDADD_${_l}_L+=		-L${LIB${_l:tu}DIR}
 .endif
 DPADD_${_l}?=	${LIB${_l:tu}}
-LDADD_${_l}?=	-l${_l}
+LDADD_${_l}?=	${LDADD_${_l}_L} -l${_l}
 .if defined(${_l}_depend) && defined(NO_SHARED)
 .for _d in ${_DP_${_l}}
 DPADD_${_l}+=	${DPADD_${_d}}
