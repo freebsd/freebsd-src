@@ -21,7 +21,7 @@ _PRIVATELIBS=	\
 		ucl \
 		unbound
 _INTERNALIBS=	\
-		libmandoc \
+		mandoc \
 		ohash \
 		readline \
 		sm
@@ -237,7 +237,6 @@ LDSQLITE3?=	${LIBSQLITE3DIR}/libsqlite3.so
 LIBSQLITE3?=	${LIBSQLITE3DIR}/libsqlite3.a
 
 LIBMANDOCDIR=	${ROOTOBJDIR}/lib/libmandoc
-LDMANDOC?=	${LIBMANDOCDIR}/libmandoc.a
 LIBMANDOC?=	${LIBMANDOCDIR}/libmandoc.a
 
 LIBSMDIR=	${ROOTOBJDIR}/lib/libsm
