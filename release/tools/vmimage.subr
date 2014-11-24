@@ -121,8 +121,8 @@ vm_extra_install_packages() {
 	mount -t devfs devfs ${DESTDIR}/dev
 	chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
 		/usr/sbin/pkg bootstrap -y
-		chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
-			/usr/sbin/pkg install -y ${VM_EXTRA_PACKAGES}
+	chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
+		/usr/sbin/pkg install -y ${VM_EXTRA_PACKAGES}
 	umount ${DESTDIR}/dev
 
 	return 0
