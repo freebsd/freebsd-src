@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 MDOCMLDIR=	${.CURDIR}/../../contrib/mdocml
-LIBMANDOC=	${.OBJDIR}/../../lib/libmandoc/libmandoc.a
 .PATH: ${MDOCMLDIR}
 
 PROG=	mandoc
@@ -33,7 +32,6 @@ SRCS=		${HTML_SRCS} \
 
 WARNS?=	3
 CFLAGS+= -DHAVE_CONFIG_H
-DPADD=	${LIBMANDOC}
-LDADD=	${LIBMANDOC}
+LIBADD=	mandoc
 
 .include <bsd.prog.mk>
