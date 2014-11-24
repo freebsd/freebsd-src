@@ -170,3 +170,22 @@ void TEST() {
   (void)GetExceptionInformation(); // expected-error{{only allowed in __except filter expression}}
   (void)AbnormalTermination();  // expected-error{{only allowed in __finally block}}
 }
+
+void test_seh_leave_stmt() {
+  __leave; // expected-error{{'__leave' statement not in __try block}}
+
+  __try {
+    __leave;
+    __leave 4; // expected-error{{expected ';' after __leave statement}}
+  } __except(1) {
+    __leave; // expected-error{{'__leave' statement not in __try block}}
+  }
+
+  __try {
+    __leave;
+  } __finally {
+    __leave; // expected-error{{'__leave' statement not in __try block}}
+  }
+  __leave; // expected-error{{'__leave' statement not in __try block}}
+}
+

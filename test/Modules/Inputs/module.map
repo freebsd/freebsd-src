@@ -1,3 +1,6 @@
+module c_library [extern_c] { module inner { header "c-header.h" } }
+module cxx_library { header "cxx-header.h" requires cplusplus }
+module c_library_bad [extern_c] { header "c-header-bad.h" }
 module diamond_top { header "diamond_top.h" }
 module diamond_left { 
   header "diamond_left.h" 
@@ -12,6 +15,9 @@ module diamond_bottom {
   export *
 }
 module irgen { header "irgen.h" }
+module cxx_irgen_top { header "cxx-irgen-top.h" }
+module cxx_irgen_left { header "cxx-irgen-left.h" }
+module cxx_irgen_right { header "cxx-irgen-right.h" }
 module lookup_left_objc { header "lookup_left.h" }
 module lookup_right_objc { header "lookup_right.h" }
 module lookup_left_cxx { header "lookup_left.hpp" }
@@ -20,6 +26,8 @@ module module_private_left { header "module_private_left.h" }
 module module_private_right { header "module_private_right.h" }
 module macros_top { 
   header "macros_top.h" 
+  explicit module b { header "macros_top_b.h" }
+  explicit module c { header "macros_top_c.h" }
 }
 module macros_left { 
   header "macros_left.h" 
@@ -33,6 +41,7 @@ module macros_right {
   }
 }
 module macros { header "macros.h" }
+module macros_other { header "macros_other.h" }
 module category_top { header "category_top.h" }
 module category_left { 
   header "category_left.h" 
@@ -60,6 +69,9 @@ module redeclarations_left { header "redeclarations_left.h" }
 module redeclarations_right { header "redeclarations_right.h" }
 module redecl_namespaces_left { header "redecl_namespaces_left.h" }
 module redecl_namespaces_right { header "redecl_namespaces_right.h" }
+module redecl_add_after_load_top { header "redecl-add-after-load-top.h" }
+module redecl_add_after_load_decls { header "redecl-add-after-load-decls.h" }
+module redecl_add_after_load { header "redecl-add-after-load.h" }
 module load_failure { header "load_failure.h" }
 
 module decldef {
@@ -166,6 +178,11 @@ module autolink {
     header "autolink-sub2.h"
     link framework "autolink_framework"
   }
+
+  explicit module sub3 {
+    header "autolink-sub3.h"
+    link "autolink_from_pch"
+  }
 }
 
 module weird_objc {
@@ -182,6 +199,10 @@ module cxx_many_overloads {
 
 module cxx_inline_namespace {
   header "cxx-inline-namespace.h"
+}
+
+module cxx_inline_namespace_b {
+  header "cxx-inline-namespace-b.h"
 }
 
 module cxx_linkage_cache {
@@ -215,6 +236,10 @@ module cxx_decls {
   module imported {
     header "cxx-decls-imported.h"
   }
+}
+
+module cxx_decls_merged {
+  header "cxx-decls-merged.h"
 }
 
 module config {
@@ -280,4 +305,10 @@ module recursive_visibility_b {
 }
 module recursive_visibility_c {
   header "recursive_visibility_c.h"
+}
+module recursive1 {
+  header "recursive1.h"
+}
+module recursive2 {
+  header "recursive2.h"
 }

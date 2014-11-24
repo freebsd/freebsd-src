@@ -34,7 +34,7 @@ using namespace cxcursor;
 
 CXCursor cxcursor::MakeCXCursorInvalid(CXCursorKind K, CXTranslationUnit TU) {
   assert(K >= CXCursor_FirstInvalid && K <= CXCursor_LastInvalid);
-  CXCursor C = { K, 0, { 0, 0, TU } };
+  CXCursor C = { K, 0, { nullptr, nullptr, TU } };
   return C;
 }
 
@@ -50,6 +50,13 @@ static CXCursorKind GetCursorKind(const Attr *A) {
     case attr::Annotate: return CXCursor_AnnotateAttr;
     case attr::AsmLabel: return CXCursor_AsmLabelAttr;
     case attr::Packed: return CXCursor_PackedAttr;
+    case attr::Pure: return CXCursor_PureAttr;
+    case attr::Const: return CXCursor_ConstAttr;
+    case attr::NoDuplicate: return CXCursor_NoDuplicateAttr;
+    case attr::CUDAConstant: return CXCursor_CUDAConstantAttr;
+    case attr::CUDADevice: return CXCursor_CUDADeviceAttr;
+    case attr::CUDAGlobal: return CXCursor_CUDAGlobalAttr;
+    case attr::CUDAHost: return CXCursor_CUDAHostAttr;
   }
 
   return CXCursor_UnexposedAttr;
@@ -208,12 +215,15 @@ CXCursor cxcursor::MakeCXCursor(const Stmt *S, const Decl *Parent,
   case Stmt::SEHFinallyStmtClass:
     K = CXCursor_SEHFinallyStmt;
     break;
+
+  case Stmt::SEHLeaveStmtClass:
+    K = CXCursor_SEHLeaveStmt;
+    break;
   
   case Stmt::ArrayTypeTraitExprClass:
   case Stmt::AsTypeExprClass:
   case Stmt::AtomicExprClass:
   case Stmt::BinaryConditionalOperatorClass:
-  case Stmt::BinaryTypeTraitExprClass:
   case Stmt::TypeTraitExprClass:
   case Stmt::CXXBindTemporaryExprClass:
   case Stmt::CXXDefaultArgExprClass:
@@ -236,7 +246,6 @@ CXCursor cxcursor::MakeCXCursor(const Stmt *S, const Decl *Parent,
   case Stmt::ShuffleVectorExprClass:
   case Stmt::ConvertVectorExprClass:
   case Stmt::UnaryExprOrTypeTraitExprClass:
-  case Stmt::UnaryTypeTraitExprClass:
   case Stmt::VAArgExprClass:
   case Stmt::ObjCArrayLiteralClass:
   case Stmt::ObjCDictionaryLiteralClass:
@@ -511,9 +520,50 @@ CXCursor cxcursor::MakeCXCursor(const Stmt *S, const Decl *Parent,
   case Stmt::OMPParallelDirectiveClass:
     K = CXCursor_OMPParallelDirective;
     break;
-  
+  case Stmt::OMPSimdDirectiveClass:
+    K = CXCursor_OMPSimdDirective;
+    break;
+  case Stmt::OMPForDirectiveClass:
+    K = CXCursor_OMPForDirective;
+    break;
+  case Stmt::OMPSectionsDirectiveClass:
+    K = CXCursor_OMPSectionsDirective;
+    break;
+  case Stmt::OMPSectionDirectiveClass:
+    K = CXCursor_OMPSectionDirective;
+    break;
+  case Stmt::OMPSingleDirectiveClass:
+    K = CXCursor_OMPSingleDirective;
+    break;
+  case Stmt::OMPMasterDirectiveClass:
+    K = CXCursor_OMPMasterDirective;
+    break;
+  case Stmt::OMPCriticalDirectiveClass:
+    K = CXCursor_OMPCriticalDirective;
+    break;
+  case Stmt::OMPParallelForDirectiveClass:
+    K = CXCursor_OMPParallelForDirective;
+    break;
+  case Stmt::OMPParallelSectionsDirectiveClass:
+    K = CXCursor_OMPParallelSectionsDirective;
+    break;
+  case Stmt::OMPTaskDirectiveClass:
+    K = CXCursor_OMPTaskDirective;
+    break;
+  case Stmt::OMPTaskyieldDirectiveClass:
+    K = CXCursor_OMPTaskyieldDirective;
+    break;
+  case Stmt::OMPBarrierDirectiveClass:
+    K = CXCursor_OMPBarrierDirective;
+    break;
+  case Stmt::OMPTaskwaitDirectiveClass:
+    K = CXCursor_OMPTaskwaitDirective;
+    break;
+  case Stmt::OMPFlushDirectiveClass:
+    K = CXCursor_OMPFlushDirective;
+    break;
   }
-  
+
   CXCursor C = { K, 0, { Parent, S, TU } };
   return C;
 }
@@ -652,7 +702,7 @@ cxcursor::getCursorMemberRef(CXCursor C) {
 
 CXCursor cxcursor::MakeCursorCXXBaseSpecifier(const CXXBaseSpecifier *B,
                                               CXTranslationUnit TU){
-  CXCursor C = { CXCursor_CXXBaseSpecifier, 0, { B, 0, TU } };
+  CXCursor C = { CXCursor_CXXBaseSpecifier, 0, { B, nullptr, TU } };
   return C;  
 }
 
@@ -681,7 +731,7 @@ SourceRange cxcursor::getCursorPreprocessingDirective(CXCursor C) {
 
 CXCursor cxcursor::MakeMacroDefinitionCursor(const MacroDefinition *MI,
                                              CXTranslationUnit TU) {
-  CXCursor C = { CXCursor_MacroDefinition, 0, { MI, 0, TU } };
+  CXCursor C = { CXCursor_MacroDefinition, 0, { MI, nullptr, TU } };
   return C;
 }
 
@@ -692,7 +742,7 @@ const MacroDefinition *cxcursor::getCursorMacroDefinition(CXCursor C) {
 
 CXCursor cxcursor::MakeMacroExpansionCursor(MacroExpansion *MI, 
                                             CXTranslationUnit TU) {
-  CXCursor C = { CXCursor_MacroExpansion, 0, { MI, 0, TU } };
+  CXCursor C = { CXCursor_MacroExpansion, 0, { MI, nullptr, TU } };
   return C;
 }
 
@@ -722,7 +772,7 @@ SourceRange cxcursor::MacroExpansionCursor::getSourceRange() const {
 
 CXCursor cxcursor::MakeInclusionDirectiveCursor(InclusionDirective *ID, 
                                                 CXTranslationUnit TU) {
-  CXCursor C = { CXCursor_InclusionDirective, 0, { ID, 0, TU } };
+  CXCursor C = { CXCursor_InclusionDirective, 0, { ID, nullptr, TU } };
   return C;
 }
 
@@ -805,7 +855,7 @@ const Stmt *cxcursor::getCursorStmt(CXCursor Cursor) {
   if (Cursor.kind == CXCursor_ObjCSuperClassRef ||
       Cursor.kind == CXCursor_ObjCProtocolRef ||
       Cursor.kind == CXCursor_ObjCClassRef)
-    return 0;
+    return nullptr;
 
   return static_cast<const Stmt *>(Cursor.data[1]);
 }
@@ -825,7 +875,7 @@ ASTContext &cxcursor::getCursorContext(CXCursor Cursor) {
 ASTUnit *cxcursor::getCursorASTUnit(CXCursor Cursor) {
   CXTranslationUnit TU = getCursorTU(Cursor);
   if (!TU)
-    return 0;
+    return nullptr;
   return cxtu::getASTUnit(TU);
 }
 
@@ -899,7 +949,7 @@ CXCursor cxcursor::getTypeRefCursor(CXCursor cursor) {
     return cursor;
 
   const Expr *E = getCursorExpr(cursor);
-  TypeSourceInfo *Type = 0;
+  TypeSourceInfo *Type = nullptr;
   if (const CXXUnresolvedConstructExpr *
         UnCtor = dyn_cast<CXXUnresolvedConstructExpr>(E)) {
     Type = UnCtor->getTypeSourceInfo();
@@ -982,11 +1032,11 @@ CXCursor clang_Cursor_getArgument(CXCursor C, unsigned i) {
     const Decl *D = cxcursor::getCursorDecl(C);
     if (const ObjCMethodDecl *MD = dyn_cast_or_null<ObjCMethodDecl>(D)) {
       if (i < MD->param_size())
-        return cxcursor::MakeCXCursor(MD->param_begin()[i],
+        return cxcursor::MakeCXCursor(MD->parameters()[i],
                                       cxcursor::getCursorTU(C));
     } else if (const FunctionDecl *FD = dyn_cast_or_null<FunctionDecl>(D)) {
       if (i < FD->param_size())
-        return cxcursor::MakeCXCursor(FD->param_begin()[i],
+        return cxcursor::MakeCXCursor(FD->parameters()[i],
                                       cxcursor::getCursorTU(C));
     }
   }
@@ -1100,7 +1150,7 @@ CXCompletionString clang_getCursorCompletionString(CXCursor cursor) {
                                  false);
     return String;
   }
-  return NULL;
+  return nullptr;
 }
 } // end: extern C.
 
@@ -1132,7 +1182,7 @@ void clang_getOverriddenCursors(CXCursor cursor,
                                 CXCursor **overridden,
                                 unsigned *num_overridden) {
   if (overridden)
-    *overridden = 0;
+    *overridden = nullptr;
   if (num_overridden)
     *num_overridden = 0;
   
@@ -1146,9 +1196,9 @@ void clang_getOverriddenCursors(CXCursor cursor,
     
   OverridenCursorsPool &pool =
     *static_cast<OverridenCursorsPool*>(TU->OverridenCursorsPool);
-  
-  OverridenCursorsPool::CursorVec *Vec = 0;
-  
+
+  OverridenCursorsPool::CursorVec *Vec = nullptr;
+
   if (!pool.AvailableCursors.empty()) {
     Vec = pool.AvailableCursors.back();
     pool.AvailableCursors.pop_back();
@@ -1206,7 +1256,7 @@ void clang_disposeOverriddenCursors(CXCursor *overridden) {
 }
 
 int clang_Cursor_isDynamicCall(CXCursor C) {
-  const Expr *E = 0;
+  const Expr *E = nullptr;
   if (clang_isExpression(C.kind))
     E = getCursorExpr(C);
   if (!E)
@@ -1215,7 +1265,7 @@ int clang_Cursor_isDynamicCall(CXCursor C) {
   if (const ObjCMessageExpr *MsgE = dyn_cast<ObjCMessageExpr>(E))
     return MsgE->getReceiverKind() == ObjCMessageExpr::Instance;
 
-  const MemberExpr *ME = 0;
+  const MemberExpr *ME = nullptr;
   if (isa<MemberExpr>(E))
     ME = cast<MemberExpr>(E);
   else if (const CallExpr *CE = dyn_cast<CallExpr>(E))
@@ -1232,7 +1282,7 @@ int clang_Cursor_isDynamicCall(CXCursor C) {
 
 CXType clang_Cursor_getReceiverType(CXCursor C) {
   CXTranslationUnit TU = cxcursor::getCursorTU(C);
-  const Expr *E = 0;
+  const Expr *E = nullptr;
   if (clang_isExpression(C.kind))
     E = getCursorExpr(C);
 

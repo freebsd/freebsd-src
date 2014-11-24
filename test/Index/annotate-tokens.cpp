@@ -28,7 +28,16 @@ struct TS {
 template <bool (*tfn)(X*)>
 void TS<tfn>::foo() {}
 
-// RUN: c-index-test -test-annotate-tokens=%s:1:1:30:1 %s -fno-delayed-template-parsing | FileCheck %s
+void test4() {
+  if (int p = 0)
+    return;
+}
+
+class C {
+  ~C();
+};
+
+// RUN: c-index-test -test-annotate-tokens=%s:1:1:38:1 %s -fno-delayed-template-parsing | FileCheck %s
 // CHECK: Keyword: "struct" [1:1 - 1:7] StructDecl=bonk:1:8 (Definition)
 // CHECK: Identifier: "bonk" [1:8 - 1:12] StructDecl=bonk:1:8 (Definition)
 // CHECK: Punctuation: "{" [1:13 - 1:14] StructDecl=bonk:1:8 (Definition)
@@ -66,8 +75,8 @@ void TS<tfn>::foo() {}
 // CHECK: Keyword: "operator" [9:5 - 9:13] CXXMethod=operator++:9:5
 // CHECK: Punctuation: "++" [9:13 - 9:15] CXXMethod=operator++:9:5
 // CHECK: Punctuation: "(" [9:15 - 9:16] CXXMethod=operator++:9:5
-// CHECK: Keyword: "int" [9:16 - 9:19] ParmDecl=:9:19 (Definition)
-// CHECK: Punctuation: ")" [9:19 - 9:20] ParmDecl=:9:19 (Definition)
+// CHECK: Keyword: "int" [9:16 - 9:19] ParmDecl=:9:19 (Definition
+// CHECK: Punctuation: ")" [9:19 - 9:20] CXXMethod=operator++:9:5
 // CHECK: Punctuation: ";" [9:20 - 9:21] StructDecl=X:7:8 (Definition)
 // CHECK: Punctuation: "}" [10:1 - 10:2] StructDecl=X:7:8 (Definition)
 // CHECK: Punctuation: ";" [10:2 - 10:3]
@@ -138,7 +147,7 @@ void TS<tfn>::foo() {}
 // CHECK: Punctuation: "(" [23:22 - 23:23] NonTypeTemplateParameter=tfn:23:18 (Definition)
 // CHECK: Identifier: "X" [23:23 - 23:24] TypeRef=struct X:7:8
 // CHECK: Punctuation: "*" [23:24 - 23:25] ParmDecl=:23:25 (Definition)
-// CHECK: Punctuation: ")" [23:25 - 23:26] ParmDecl=:23:25 (Definition)
+// CHECK: Punctuation: ")" [23:25 - 23:26] NonTypeTemplateParameter=tfn:23:18 (Definition)
 // CHECK: Punctuation: ">" [23:26 - 23:27] ClassTemplate=TS:24:8 (Definition)
 // CHECK: Keyword: "struct" [24:1 - 24:7] ClassTemplate=TS:24:8 (Definition)
 // CHECK: Identifier: "TS" [24:8 - 24:10] ClassTemplate=TS:24:8 (Definition)
@@ -160,7 +169,7 @@ void TS<tfn>::foo() {}
 // CHECK: Punctuation: "(" [28:22 - 28:23] NonTypeTemplateParameter=tfn:28:18 (Definition)
 // CHECK: Identifier: "X" [28:23 - 28:24] TypeRef=struct X:7:8
 // CHECK: Punctuation: "*" [28:24 - 28:25] ParmDecl=:28:25 (Definition)
-// CHECK: Punctuation: ")" [28:25 - 28:26] ParmDecl=:28:25 (Definition)
+// CHECK: Punctuation: ")" [28:25 - 28:26] NonTypeTemplateParameter=tfn:28:18 (Definition)
 // CHECK: Punctuation: ">" [28:26 - 28:27] CXXMethod=foo:29:15 (Definition)
 // CHECK: Keyword: "void" [29:1 - 29:5] CXXMethod=foo:29:15 (Definition)
 // CHECK: Identifier: "TS" [29:6 - 29:8] TemplateRef=TS:24:8
@@ -173,3 +182,12 @@ void TS<tfn>::foo() {}
 // CHECK: Punctuation: ")" [29:19 - 29:20] CXXMethod=foo:29:15 (Definition)
 // CHECK: Punctuation: "{" [29:21 - 29:22] CompoundStmt=
 // CHECK: Punctuation: "}" [29:22 - 29:23] CompoundStmt=
+// CHECK: Punctuation: "~" [37:3 - 37:4] CXXDestructor=~C:37:3
+// CHECK: Identifier: "C" [37:4 - 37:5] CXXDestructor=~C:37:3
+
+// RUN: env LIBCLANG_DISABLE_CRASH_RECOVERY=1 c-index-test -test-annotate-tokens=%s:32:1:32:13 %s | FileCheck %s -check-prefix=CHECK2
+// CHECK2: Keyword: "if" [32:3 - 32:5] IfStmt=
+// CHECK2: Punctuation: "(" [32:6 - 32:7] IfStmt=
+// CHECK2: Keyword: "int" [32:7 - 32:10] VarDecl=p:32:11 (Definition)
+// CHECK2: Identifier: "p" [32:11 - 32:12] VarDecl=p:32:11 (Definition)
+// CHECK2: Punctuation: "=" [32:13 - 32:14] VarDecl=p:32:11 (Definition)

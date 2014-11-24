@@ -2,7 +2,8 @@
 
 @interface MyClass1 @end
 
-@protocol p1,p2,p3;
+@protocol p1,p2,p3; // expected-note {{protocol 'p1' has no definition}} \
+                    // expected-note {{protocol 'p2' has no definition}}
 
 @interface MyClass1 (Category1)  <p1> // expected-warning {{cannot find protocol definition for 'p1'}} expected-note {{previous definition is here}}
 @end
@@ -65,13 +66,13 @@
 -(void) im0; // expected-note {{method 'im0' declared here}}
 @end
 
-@interface MultipleCat_I @end // expected-note {{required for direct or indirect protocol 'MultipleCat_P'}}
+@interface MultipleCat_I @end
 
 @interface MultipleCat_I()  @end
 
 @interface MultipleCat_I() <MultipleCat_P>  @end
 
-@implementation MultipleCat_I // expected-warning {{method 'im0' in protocol not implemented}}
+@implementation MultipleCat_I // expected-warning {{method 'im0' in protocol 'MultipleCat_P' not implemented}}
 @end
 
 // <rdar://problem/7680391> - Handle nameless categories with no name that refer

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -emit-llvm %s -o - | FileCheck %s
+// RUN: %clang_cc1 -triple %itanium_abi_triple -emit-llvm %s -o - | FileCheck %s
 
 #pragma weak zex
 int zex;
@@ -10,7 +10,7 @@ int zex;
 #pragma weak foo
 struct S {  void foo(); };
 void S::foo() {}
-// CHECK-LABEL: define void @_ZN1S3fooEv(
+// CHECK-LABEL: define {{.*}}void @_ZN1S3fooEv(
 
 #pragma weak zed
 namespace bar {  void zed() {} }

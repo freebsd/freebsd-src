@@ -144,7 +144,7 @@ namespace std {
   public:
     void pop_front() {
       // Fake use-after-free.
-      // No warning is expected as we are suppressing warning comming
+      // No warning is expected as we are suppressing warning coming
       // out of std::list.
       int z = 0;
       z = 5/z;
@@ -155,24 +155,47 @@ namespace std {
   // basic_string
   template<class _CharT, class _Alloc = allocator<_CharT> >
   class __attribute__ ((__type_visibility__("default"))) basic_string {
-    _CharT localStorage[4];
+    bool isLong;
+    union {
+      _CharT localStorage[4];
+      _CharT *externalStorage;
+
+      void assignExternal(_CharT *newExternal) {
+        externalStorage = newExternal;
+      }
+    } storage;
 
     typedef allocator_traits<_Alloc> __alloc_traits;
 
   public:
+    basic_string();
+
     void push_back(int c) {
       // Fake error trigger.
-      // No warning is expected as we are suppressing warning comming
+      // No warning is expected as we are suppressing warning coming
       // out of std::basic_string.
       int z = 0;
       z = 5/z;
     }
 
+    _CharT *getBuffer() {
+      return isLong ? storage.externalStorage : storage.localStorage;
+    }
+
     basic_string &operator +=(int c) {
       // Fake deallocate stack-based storage.
       // No warning is expected as we are suppressing warnings within
-      // allocators being used by std::basic_string.
-      __alloc_traits::deallocate(&localStorage);
+      // std::basic_string.
+      __alloc_traits::deallocate(getBuffer());
+    }
+
+    basic_string &operator =(const basic_string &other) {
+      // Fake deallocate stack-based storage, then use the variable in the
+      // same union.
+      // No warning is expected as we are suppressing warnings within
+      // std::basic_string.
+      __alloc_traits::deallocate(getBuffer());
+      storage.assignExternal(new _CharT[4]);
     }
   };
 }

@@ -119,9 +119,9 @@ def add_matcher(result_type, name, args, comment, is_dyncast=False):
   # arguments.
   elif ('Matcher<' not in args or
         name in ['allOf', 'anyOf', 'anything', 'unless']):
-    narrowing_matchers[result_type + name] = matcher_html
+    narrowing_matchers[result_type + name + esc(args)] = matcher_html
   else:
-    traversal_matchers[result_type + name] = matcher_html
+    traversal_matchers[result_type + name + esc(args)] = matcher_html
 
 def act_on_decl(declaration, comment, allowed_types):
   """Parse the matcher out of the given declaration and comment.
@@ -204,6 +204,25 @@ def act_on_decl(declaration, comment, allowed_types):
         add_matcher(result_type, name, args, comment)
       return
 
+    m = re.match(r"""^\s*AST_MATCHER_FUNCTION(_P)?(.?)(?:_OVERLOAD)?\(
+                       (?:\s*([^\s,]+)\s*,)?
+                          \s*([^\s,]+)\s*
+                       (?:,\s*([^\s,]+)\s*
+                          ,\s*([^\s,]+)\s*)?
+                       (?:,\s*([^\s,]+)\s*
+                          ,\s*([^\s,]+)\s*)?
+                       (?:,\s*\d+\s*)?
+                      \)\s*{\s*$""", declaration, flags=re.X)
+    if m:
+      p, n, result, name = m.groups()[0:4]
+      args = m.groups()[4:]
+      if n not in ['', '2']:
+        raise Exception('Cannot parse "%s"' % declaration)
+      args = ', '.join('%s %s' % (args[i], args[i+1])
+                       for i in range(0, len(args), 2) if args[i])
+      add_matcher(result, name, args, comment)
+      return
+
     m = re.match(r"""^\s*AST_MATCHER(_P)?(.?)(?:_OVERLOAD)?\(
                        (?:\s*([^\s,]+)\s*,)?
                           \s*([^\s,]+)\s*
@@ -242,12 +261,17 @@ def act_on_decl(declaration, comment, allowed_types):
 
     # Parse Variadic operator matchers.
     m = re.match(
-        r"""^.*VariadicOperatorMatcherFunc\s*([a-zA-Z]*)\s*=\s*{.*};$""",
+        r"""^.*VariadicOperatorMatcherFunc\s*<\s*([^,]+),\s*([^\s>]+)\s*>\s*
+              ([a-zA-Z]*)\s*=\s*{.*};$""",
         declaration, flags=re.X)
     if m:
-      name = m.groups()[0]
-      add_matcher('*', name, 'Matcher<*>, ..., Matcher<*>', comment)
-      return
+      min_args, max_args, name = m.groups()[:3]
+      if max_args == '1':
+        add_matcher('*', name, 'Matcher<*>', comment)
+        return
+      elif max_args == 'UINT_MAX':
+        add_matcher('*', name, 'Matcher<*>, ..., Matcher<*>', comment)
+        return
 
 
     # Parse free standing matcher functions, like:

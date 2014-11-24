@@ -218,7 +218,7 @@ public:
                                                 E = TemporaryFiles.end();
          I != E; ++I) {
       llvm::StringRef Name = I->second;
-      llvm::error_code EC = llvm::sys::fs::remove(Name);
+      std::error_code EC = llvm::sys::fs::remove(Name);
       (void)EC;
       assert(!EC);
     }
@@ -227,8 +227,7 @@ public:
   FileID createFile(llvm::StringRef Name, llvm::StringRef Content) {
     SmallString<1024> Path;
     int FD;
-    llvm::error_code EC =
-        llvm::sys::fs::createTemporaryFile(Name, "", FD, Path);
+    std::error_code EC = llvm::sys::fs::createTemporaryFile(Name, "", FD, Path);
     assert(!EC);
     (void)EC;
 
@@ -236,7 +235,7 @@ public:
     OutStream << Content;
     OutStream.close();
     const FileEntry *File = Context.Files.getFile(Path);
-    assert(File != NULL);
+    assert(File != nullptr);
 
     StringRef Found = TemporaryFiles.GetOrCreateValue(Name, Path.str()).second;
     assert(Found == Path);
@@ -252,7 +251,9 @@ public:
     // descriptor, which might not see the changes made.
     // FIXME: Figure out whether there is a way to get the SourceManger to
     // reopen the file.
-    return Context.Files.getBufferForFile(Path, NULL)->getBuffer();
+    std::unique_ptr<const llvm::MemoryBuffer> FileBuffer(
+        Context.Files.getBufferForFile(Path, nullptr));
+    return FileBuffer->getBuffer();
   }
 
   llvm::StringMap<std::string> TemporaryFiles;

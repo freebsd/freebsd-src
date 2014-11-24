@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -verify -fopenmp -ferror-limit 100 -std=c++11 -o - %s
+// RUN: %clang_cc1 -verify -fopenmp=libiomp5 -ferror-limit 100 -std=c++11 -o - %s
 
 void foo() {
 }
@@ -6,8 +6,21 @@ void foo() {
 #pragma omp parallel // expected-error {{unexpected OpenMP directive '#pragma omp parallel'}}
 
 int main(int argc, char **argv) {
+  #pragma omp parallel { // expected-warning {{extra tokens at the end of '#pragma omp parallel' are ignored}}
+  foo();
+  #pragma omp parallel ( // expected-warning {{extra tokens at the end of '#pragma omp parallel' are ignored}}
+  foo();
+  #pragma omp parallel [ // expected-warning {{extra tokens at the end of '#pragma omp parallel' are ignored}}
+  foo();
+  #pragma omp parallel ] // expected-warning {{extra tokens at the end of '#pragma omp parallel' are ignored}}
+  foo();
+  #pragma omp parallel ) // expected-warning {{extra tokens at the end of '#pragma omp parallel' are ignored}}
+  foo();
+  #pragma omp parallel } // expected-warning {{extra tokens at the end of '#pragma omp parallel' are ignored}}
+  foo();
   #pragma omp parallel
-  #pragma omp parallel unknown() // expected-warning {{extra tokens at the end of '#pragma omp parallel' are ignored}}
+  // expected-warning@+1 {{extra tokens at the end of '#pragma omp parallel' are ignored}}
+  #pragma omp parallel unknown()
   foo();
   L1:
     foo();

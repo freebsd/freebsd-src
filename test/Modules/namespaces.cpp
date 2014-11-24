@@ -36,6 +36,9 @@ void test() {
   double &dr3 = global(1.0);
   double &dr4 = ::global2(1.0);
   double &dr5 = LookupBeforeImport::f(1.0);
+
+  struct AddAndReexportBeforeImport::S s;
+  int k = AddAndReexportBeforeImport::S;
 }
 
 // Test namespaces merged without a common first declaration.
@@ -69,8 +72,8 @@ void testMergedMerged() {
 // Test merging when using anonymous namespaces, which does not
 // actually perform any merging.
 void testAnonymousNotMerged() {
-  N11::consumeFoo(N11::getFoo()); // expected-error{{cannot initialize a parameter of type 'N11::<anonymous>::Foo *' with an rvalue of type 'N11::<anonymous>::Foo *'}}
-  N12::consumeFoo(N12::getFoo()); // expected-error{{cannot initialize a parameter of type 'N12::<anonymous>::Foo *' with an rvalue of type 'N12::<anonymous>::Foo *'}}  
+  N11::consumeFoo(N11::getFoo()); // expected-error{{cannot initialize a parameter of type 'N11::(anonymous namespace)::Foo *' with an rvalue of type 'N11::(anonymous namespace)::Foo *'}}
+  N12::consumeFoo(N12::getFoo()); // expected-error{{cannot initialize a parameter of type 'N12::(anonymous namespace)::Foo *' with an rvalue of type 'N12::(anonymous namespace)::Foo *'}}
 }
 
 // expected-note@Inputs/namespaces-right.h:60 {{passing argument to parameter here}}

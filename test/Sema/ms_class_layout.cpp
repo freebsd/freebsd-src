@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -emit-llvm-only -triple i686-pc-win32 -fdump-record-layouts -cxx-abi microsoft %s 2>&1 \
+// RUN: %clang_cc1 -emit-llvm-only -triple i686-pc-win32 -fdump-record-layouts %s 2>/dev/null \
 // RUN:            | FileCheck %s
 
 #pragma pack(push, 8)
@@ -289,7 +289,7 @@ int main() {
 // CHECK-NEXT:  8 |     (D vftable pointer)
 // CHECK-NEXT: 16 |     double a
 // CHECK-NEXT: sizeof=24, align=8
-// CHECK-NEXT: nvsize=8, nvalign=4
+// CHECK-NEXT: nvsize=8, nvalign=8
 
 // CHECK: %struct.H = type { %struct.G, i32*, %class.D }
 
@@ -354,7 +354,7 @@ int main() {
 // CHECK-NEXT:    | [sizeof=40, align=8
 // CHECK-NEXT:    |  nvsize=24, nvalign=8]
 
-// CHECK: struct.O = type { i32 (...)**, [4 x i8], %struct.H.base, %struct.G, [4 x i8], %class.D }
+// CHECK: struct.O = type { i32 (...)**, [4 x i8], %struct.H.base, %struct.G, %class.D }
 // CHECK: struct.O.base = type { i32 (...)**, [4 x i8], %struct.H.base, %struct.G, [4 x i8] }
 
 
@@ -428,10 +428,10 @@ int main() {
 // CHECK-NEXT: nvsize=12, nvalign=4
 
 // CHECK: %struct.f = type { i32 (...)** }
-// CHECK: %struct.s = type { i32 (...)**, i32*, i32, [4 x i8], %struct.f }
+// CHECK: %struct.s = type { i32 (...)**, i32*, i32, i32, %struct.f }
 // CHECK: %class.IA = type { i32 (...)** }
-// CHECK: %class.ICh = type { i32 (...)**, i32*, [4 x i8], %class.IA }
-// CHECK: %struct.sd = type { i32*, i32, i8, [7 x i8], %struct.f, %struct.s.base, [4 x i8], %class.IA, %class.ICh.base }
+// CHECK: %class.ICh = type { i32 (...)**, i32*, i32, %class.IA }
+// CHECK: %struct.sd = type { i32*, i32, i8, i32, %struct.f, %struct.s.base, i32, %class.IA, %class.ICh.base }
 
 // CHECK:       0 | struct AV
 // CHECK-NEXT:  0 |   (AV vftable pointer)
@@ -457,7 +457,7 @@ int main() {
 
 // CHECK: %struct.AV = type { i32 (...)** }
 // CHECK: %struct.BV = type { %struct.AV }
-// CHECK: %struct.CV = type { i32*, [4 x i8], %struct.BV }
+// CHECK: %struct.CV = type { i32*, i32, %struct.BV }
 // CHECK: %struct.CV.base = type { i32* }
 
 // CHECK:       0 | struct DV
@@ -470,12 +470,12 @@ int main() {
 // CHECK: %struct.DV = type { %struct.BV }
 
 // CHECK:       0 | struct EV
-// CHECK-NEXT:  4 |   struct CV (base)
-// CHECK-NEXT:  4 |     (CV vbtable pointer)
 // CHECK-NEXT:  0 |   struct DV (primary base)
 // CHECK-NEXT:  0 |     struct BV (primary base)
 // CHECK-NEXT:  0 |       struct AV (primary base)
 // CHECK-NEXT:  0 |         (AV vftable pointer)
+// CHECK-NEXT:  4 |   struct CV (base)
+// CHECK-NEXT:  4 |     (CV vbtable pointer)
 // CHECK-NEXT:  8 |   (vtordisp for vbase BV)
 // CHECK-NEXT: 12 |   struct BV (virtual base)
 // CHECK-NEXT: 12 |     struct AV (primary base)
@@ -483,7 +483,7 @@ int main() {
 // CHECK-NEXT: sizeof=16, align=4
 // CHECK-NEXT: nvsize=8, nvalign=4
 
-// CHECK: %struct.EV = type { %struct.DV, %struct.CV.base, [4 x i8], %struct.BV }
+// CHECK: %struct.EV = type { %struct.DV, %struct.CV.base, i32, %struct.BV }
 // CHECK: %struct.EV.base = type { %struct.DV, %struct.CV.base }
 
 // Overriding a method means that all the vbases containing that

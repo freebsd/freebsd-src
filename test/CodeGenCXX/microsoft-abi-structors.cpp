@@ -1,10 +1,12 @@
-// RUN: %clang_cc1 -emit-llvm %s -o - -mconstructor-aliases -cxx-abi microsoft -triple=i386-pc-win32 -fno-rtti > %t
+// RUN: %clang_cc1 -emit-llvm -fno-rtti %s -std=c++11 -o - -mconstructor-aliases -triple=i386-pc-win32 -fno-rtti > %t
 // RUN: FileCheck %s < %t
 // vftables are emitted very late, so do another pass to try to keep the checks
 // in source order.
 // RUN: FileCheck --check-prefix DTORS %s < %t
+// RUN: FileCheck --check-prefix DTORS2 %s < %t
+// RUN: FileCheck --check-prefix DTORS3 %s < %t
 //
-// RUN: %clang_cc1 -emit-llvm %s -o - -mconstructor-aliases -cxx-abi microsoft -triple=x86_64-pc-win32 -fno-rtti | FileCheck --check-prefix DTORS-X64 %s
+// RUN: %clang_cc1 -emit-llvm %s -o - -mconstructor-aliases -triple=x86_64-pc-win32 -fno-rtti | FileCheck --check-prefix DTORS-X64 %s
 
 namespace basic {
 
@@ -121,6 +123,79 @@ void use_D() { D c; }
 
 } // end namespace basic
 
+namespace dtor_in_second_nvbase {
+
+struct A {
+  virtual void f();  // A needs vftable to be primary.
+};
+struct B {
+  virtual ~B();
+};
+struct C : A, B {
+  virtual ~C();
+};
+
+C::~C() {
+// CHECK-LABEL: define x86_thiscallcc void @"\01??1C@dtor_in_second_nvbase@@UAE@XZ"
+// CHECK:       (%"struct.dtor_in_second_nvbase::C"* %this)
+//      No this adjustment!
+// CHECK-NOT: getelementptr
+// CHECK:   load %"struct.dtor_in_second_nvbase::C"** %{{.*}}
+//      Now we this-adjust before calling ~B.
+// CHECK:   bitcast %"struct.dtor_in_second_nvbase::C"* %{{.*}} to i8*
+// CHECK:   getelementptr inbounds i8* %{{.*}}, i64 4
+// CHECK:   bitcast i8* %{{.*}} to %"struct.dtor_in_second_nvbase::B"*
+// CHECK:   call x86_thiscallcc void @"\01??1B@dtor_in_second_nvbase@@UAE@XZ"
+// CHECK:       (%"struct.dtor_in_second_nvbase::B"* %{{.*}})
+// CHECK:   ret void
+}
+
+void foo() {
+  C c;
+}
+// DTORS2-LABEL: define linkonce_odr x86_thiscallcc void @"\01??_EC@dtor_in_second_nvbase@@W3AEPAXI@Z"
+// DTORS2:       (%"struct.dtor_in_second_nvbase::C"* %this, i32 %should_call_delete)
+//      Do an adjustment from B* to C*.
+// DTORS2:   getelementptr i8* %{{.*}}, i32 -4
+// DTORS2:   bitcast i8* %{{.*}} to %"struct.dtor_in_second_nvbase::C"*
+// DTORS2:   call x86_thiscallcc void @"\01??_GC@dtor_in_second_nvbase@@UAEPAXI@Z"
+// DTORS2:   ret void
+
+}
+
+namespace test2 {
+// Just like dtor_in_second_nvbase, except put that in a vbase of a diamond.
+
+// C's dtor is in the non-primary base.
+struct A { virtual void f(); };
+struct B { virtual ~B(); };
+struct C : A, B { virtual ~C(); int c; };
+
+// Diamond hierarchy, with C as the shared vbase.
+struct D : virtual C { int d; };
+struct E : virtual C { int e; };
+struct F : D, E { ~F(); int f; };
+
+F::~F() {
+// CHECK-LABEL: define x86_thiscallcc void @"\01??1F@test2@@UAE@XZ"(%"struct.test2::F"*)
+//      Do an adjustment from C vbase subobject to F as though F was the
+//      complete type.
+// CHECK:   getelementptr inbounds i8* %{{.*}}, i32 -20
+// CHECK:   bitcast i8* %{{.*}} to %"struct.test2::F"*
+// CHECK:   store %"struct.test2::F"*
+}
+
+void foo() {
+  F f;
+}
+// DTORS3-LABEL: define linkonce_odr x86_thiscallcc void @"\01??_DF@test2@@UAE@XZ"
+//      Do an adjustment from C* to F*.
+// DTORS3:   getelementptr i8* %{{.*}}, i32 20
+// DTORS3:   bitcast i8* %{{.*}} to %"struct.test2::F"*
+// DTORS3:   call x86_thiscallcc void @"\01??1F@test2@@UAE@XZ"
+// DTORS3:   ret void
+
+}
 
 namespace constructors {
 
@@ -299,3 +374,69 @@ void call_nv_deleting_dtor(D *d) {
 }
 
 }
+
+namespace test1 {
+struct A { };
+struct B : virtual A {
+  B(int *a);
+  B(const char *a, ...);
+  __cdecl B(short *a);
+};
+B::B(int *a) {}
+B::B(const char *a, ...) {}
+B::B(short *a) {}
+// CHECK: define x86_thiscallcc %"struct.test1::B"* @"\01??0B@test1@@QAE@PAH@Z"
+// CHECK:               (%"struct.test1::B"* returned %this, i32* %a, i32 %is_most_derived)
+// CHECK: define %"struct.test1::B"* @"\01??0B@test1@@QAA@PBDZZ"
+// CHECK:               (%"struct.test1::B"* returned %this, i32 %is_most_derived, i8* %a, ...)
+
+// FIXME: This should be x86_thiscallcc.  MSVC ignores explicit CCs on structors.
+// CHECK: define %"struct.test1::B"* @"\01??0B@test1@@QAA@PAF@Z"
+// CHECK:               (%"struct.test1::B"* returned %this, i16* %a, i32 %is_most_derived)
+
+void construct_b() {
+  int a;
+  B b1(&a);
+  B b2("%d %d", 1, 2);
+}
+// CHECK-LABEL: define void @"\01?construct_b@test1@@YAXXZ"()
+// CHECK: call x86_thiscallcc %"struct.test1::B"* @"\01??0B@test1@@QAE@PAH@Z"
+// CHECK:               (%"struct.test1::B"* {{.*}}, i32* {{.*}}, i32 1)
+// CHECK: call %"struct.test1::B"* (%"struct.test1::B"*, i32, i8*, ...)* @"\01??0B@test1@@QAA@PBDZZ"
+// CHECK:               (%"struct.test1::B"* {{.*}}, i32 1, i8* {{.*}}, i32 1, i32 2)
+}
+
+namespace implicit_copy_vtable {
+// This was a crash that only reproduced in ABIs without key functions.
+struct ImplicitCopy {
+  // implicit copy ctor
+  virtual ~ImplicitCopy();
+};
+void CreateCopy(ImplicitCopy *a) {
+  new ImplicitCopy(*a);
+}
+// CHECK: store {{.*}} @"\01??_7ImplicitCopy@implicit_copy_vtable@@6B@"
+
+struct MoveOnly {
+  MoveOnly(MoveOnly &&o) = default;
+  virtual ~MoveOnly();
+};
+MoveOnly &&f();
+void g() { new MoveOnly(f()); }
+// CHECK: store {{.*}} @"\01??_7MoveOnly@implicit_copy_vtable@@6B@"
+}
+
+// Dtor thunks for classes in anonymous namespaces should be internal, not
+// linkonce_odr.
+namespace {
+struct A {
+  virtual ~A() { }
+};
+}
+void *getA() {
+  return (void*)new A();
+}
+// CHECK: define internal x86_thiscallcc void @"\01??_GA@?A@@UAEPAXI@Z"
+// CHECK:               (%"struct.(anonymous namespace)::A"* %this, i32 %should_call_delete)
+// CHECK: define internal x86_thiscallcc void @"\01??1A@?A@@UAE@XZ"
+// CHECK:               (%"struct.(anonymous namespace)::A"* %this)

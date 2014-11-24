@@ -124,3 +124,20 @@ namespace test3 {
   struct Y { bool b; X x; }; // expected-error {{field has incomplete type 'test3::X'}}
   int f() { return Y().b; }
 }
+
+// PR18283
+namespace test4 {
+  template <int> struct A {};
+  int const i = { 42 };
+  // i can be used as non-type template-parameter as "const int x = { 42 };" is
+  // equivalent to "const int x = 42;" as per C++03 8.5/p13.
+  typedef A<i> Ai; // ok
+}
+
+// rdar://16064952
+namespace rdar16064952 {
+  template < typename T > void fn1() {
+   T b;
+   unsigned w = ({int a = b.val[sizeof(0)]; 0; }); // expected-warning {{use of GNU statement expression extension}}
+  }
+}

@@ -30,13 +30,13 @@
 #include "clang/Sema/Sema.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/Support/Atomic.h"
 #include "llvm/Support/CrashRecoveryContext.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Program.h"
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
+#include <atomic>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -153,7 +153,7 @@ clang_getCompletionChunkCompletionString(CXCompletionString completion_string,
                                          unsigned chunk_number) {
   CodeCompletionString *CCStr = (CodeCompletionString *)completion_string;
   if (!CCStr || chunk_number >= CCStr->size())
-    return 0;
+    return nullptr;
 
   switch ((*CCStr)[chunk_number].Kind) {
   case CodeCompletionString::CK_TypedText:
@@ -176,7 +176,7 @@ clang_getCompletionChunkCompletionString(CXCompletionString completion_string,
   case CodeCompletionString::CK_Equal:
   case CodeCompletionString::CK_HorizontalSpace:
   case CodeCompletionString::CK_VerticalSpace:
-    return 0;
+    return nullptr;
 
   case CodeCompletionString::CK_Optional:
     // Note: treated as an empty text block.
@@ -249,11 +249,14 @@ namespace {
 /// AllocatedCXCodeCompleteResults outlives the CXTranslationUnit, so we can
 /// not rely on the StringPool in the TU.
 struct AllocatedCXCodeCompleteResults : public CXCodeCompleteResults {
-  AllocatedCXCodeCompleteResults(const FileSystemOptions& FileSystemOpts);
+  AllocatedCXCodeCompleteResults(IntrusiveRefCntPtr<FileManager> FileMgr);
   ~AllocatedCXCodeCompleteResults();
   
   /// \brief Diagnostics produced while performing code completion.
   SmallVector<StoredDiagnostic, 8> Diagnostics;
+
+  /// \brief Allocated API-exposed wrappters for Diagnostics.
+  SmallVector<CXStoredDiagnostic *, 8> DiagnosticsWrappers;
 
   IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;
   
@@ -262,8 +265,6 @@ struct AllocatedCXCodeCompleteResults : public CXCodeCompleteResults {
   
   /// \brief Language options used to adjust source locations.
   LangOptions LangOpts;
-
-  FileSystemOptions FileSystemOpts;
 
   /// \brief File manager, used for diagnostics.
   IntrusiveRefCntPtr<FileManager> FileMgr;
@@ -315,30 +316,25 @@ struct AllocatedCXCodeCompleteResults : public CXCodeCompleteResults {
 /// currently active.
 ///
 /// Used for debugging purposes only.
-static llvm::sys::cas_flag CodeCompletionResultObjects;
+static std::atomic<unsigned> CodeCompletionResultObjects;
   
 AllocatedCXCodeCompleteResults::AllocatedCXCodeCompleteResults(
-                                      const FileSystemOptions& FileSystemOpts)
-  : CXCodeCompleteResults(),
-    DiagOpts(new DiagnosticOptions),
-    Diag(new DiagnosticsEngine(
-                   IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs),
-                   &*DiagOpts)),
-    FileSystemOpts(FileSystemOpts),
-    FileMgr(new FileManager(FileSystemOpts)),
-    SourceMgr(new SourceManager(*Diag, *FileMgr)),
-    CodeCompletionAllocator(new clang::GlobalCodeCompletionAllocator),
-    Contexts(CXCompletionContext_Unknown),
-    ContainerKind(CXCursor_InvalidCode),
-    ContainerIsIncomplete(1)
-{ 
-  if (getenv("LIBCLANG_OBJTRACKING")) {
-    llvm::sys::AtomicIncrement(&CodeCompletionResultObjects);
-    fprintf(stderr, "+++ %d completion results\n", CodeCompletionResultObjects);
-  }    
+    IntrusiveRefCntPtr<FileManager> FileMgr)
+    : CXCodeCompleteResults(),
+      DiagOpts(new DiagnosticOptions),
+      Diag(new DiagnosticsEngine(
+          IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs), &*DiagOpts)),
+      FileMgr(FileMgr), SourceMgr(new SourceManager(*Diag, *FileMgr)),
+      CodeCompletionAllocator(new clang::GlobalCodeCompletionAllocator),
+      Contexts(CXCompletionContext_Unknown),
+      ContainerKind(CXCursor_InvalidCode), ContainerIsIncomplete(1) {
+  if (getenv("LIBCLANG_OBJTRACKING"))
+    fprintf(stderr, "+++ %u completion results\n",
+            ++CodeCompletionResultObjects);
 }
   
 AllocatedCXCodeCompleteResults::~AllocatedCXCodeCompleteResults() {
+  llvm::DeleteContainerPointers(DiagnosticsWrappers);
   delete [] Results;
 
   for (unsigned I = 0, N = TemporaryFiles.size(); I != N; ++I)
@@ -346,10 +342,9 @@ AllocatedCXCodeCompleteResults::~AllocatedCXCodeCompleteResults() {
   for (unsigned I = 0, N = TemporaryBuffers.size(); I != N; ++I)
     delete TemporaryBuffers[I];
 
-  if (getenv("LIBCLANG_OBJTRACKING")) {
-    llvm::sys::AtomicDecrement(&CodeCompletionResultObjects);
-    fprintf(stderr, "--- %d completion results\n", CodeCompletionResultObjects);
-  }    
+  if (getenv("LIBCLANG_OBJTRACKING"))
+    fprintf(stderr, "--- %u completion results\n",
+            --CodeCompletionResultObjects);
 }
   
 } // end extern "C"
@@ -539,11 +534,11 @@ namespace {
         AllocatedResults(Results), CCTUInfo(Results.CodeCompletionAllocator),
         TU(TranslationUnit) { }
     ~CaptureCompletionResults() { Finish(); }
-    
-    virtual void ProcessCodeCompleteResults(Sema &S, 
-                                            CodeCompletionContext Context,
-                                            CodeCompletionResult *Results,
-                                            unsigned NumResults) {
+
+    void ProcessCodeCompleteResults(Sema &S, 
+                                    CodeCompletionContext Context,
+                                    CodeCompletionResult *Results,
+                                    unsigned NumResults) override {
       StoredResults.reserve(StoredResults.size() + NumResults);
       for (unsigned I = 0; I != NumResults; ++I) {
         CodeCompletionString *StoredCompletion        
@@ -573,8 +568,8 @@ namespace {
       }
       
       QualType baseType = Context.getBaseType();
-      NamedDecl *D = NULL;
-      
+      NamedDecl *D = nullptr;
+
       if (!baseType.isNull()) {
         // Get the declaration for a class/struct/union/enum type
         if (const TagType *Tag = baseType->getAs<TagType>())
@@ -592,8 +587,8 @@ namespace {
                  baseType->getAs<InjectedClassNameType>())
           D = Injected->getDecl();
       }
-      
-      if (D != NULL) {
+
+      if (D != nullptr) {
         CXCursor cursor = cxcursor::MakeCXCursor(D, *TU);
 
         AllocatedResults.ContainerKind = clang_getCursorKind(cursor);
@@ -603,7 +598,7 @@ namespace {
         clang_disposeString(CursorUSR);
 
         const Type *type = baseType.getTypePtrOrNull();
-        if (type != NULL) {
+        if (type) {
           AllocatedResults.ContainerIsIncomplete = type->isIncompleteType();
         }
         else {
@@ -616,10 +611,10 @@ namespace {
         AllocatedResults.ContainerIsIncomplete = 1;
       }
     }
-    
-    virtual void ProcessOverloadCandidates(Sema &S, unsigned CurrentArg,
-                                           OverloadCandidate *Candidates,
-                                           unsigned NumCandidates) {
+
+    void ProcessOverloadCandidates(Sema &S, unsigned CurrentArg,
+                                   OverloadCandidate *Candidates,
+                                   unsigned NumCandidates) override {
       StoredResults.reserve(StoredResults.size() + NumCandidates);
       for (unsigned I = 0; I != NumCandidates; ++I) {
         CodeCompletionString *StoredCompletion
@@ -632,13 +627,13 @@ namespace {
         StoredResults.push_back(R);
       }
     }
-    
-    virtual CodeCompletionAllocator &getAllocator() { 
+
+    CodeCompletionAllocator &getAllocator() override {
       return *AllocatedResults.CodeCompletionAllocator;
     }
 
-    virtual CodeCompletionTUInfo &getCodeCompletionTUInfo() { return CCTUInfo; }
-    
+    CodeCompletionTUInfo &getCodeCompletionTUInfo() override { return CCTUInfo;}
+
   private:
     void Finish() {
       AllocatedResults.Results = new CXCompletionResult [StoredResults.size()];
@@ -656,8 +651,7 @@ struct CodeCompleteAtInfo {
   const char *complete_filename;
   unsigned complete_line;
   unsigned complete_column;
-  struct CXUnsavedFile *unsaved_files;
-  unsigned num_unsaved_files;
+  ArrayRef<CXUnsavedFile> unsaved_files;
   unsigned options;
   CXCodeCompleteResults *result;
 };
@@ -667,11 +661,9 @@ void clang_codeCompleteAt_Impl(void *UserData) {
   const char *complete_filename = CCAI->complete_filename;
   unsigned complete_line = CCAI->complete_line;
   unsigned complete_column = CCAI->complete_column;
-  struct CXUnsavedFile *unsaved_files = CCAI->unsaved_files;
-  unsigned num_unsaved_files = CCAI->num_unsaved_files;
   unsigned options = CCAI->options;
   bool IncludeBriefComments = options & CXCodeComplete_IncludeBriefComments;
-  CCAI->result = 0;
+  CCAI->result = nullptr;
 
 #ifdef UDP_CODE_COMPLETION_LOGGER
 #ifdef UDP_CODE_COMPLETION_LOGGER_PORT
@@ -679,8 +671,13 @@ void clang_codeCompleteAt_Impl(void *UserData) {
 #endif
 #endif
 
-  bool EnableLogging = getenv("LIBCLANG_CODE_COMPLETION_LOGGING") != 0;
-  
+  bool EnableLogging = getenv("LIBCLANG_CODE_COMPLETION_LOGGING") != nullptr;
+
+  if (cxtu::isNotUsableTU(TU)) {
+    LOG_BAD_TU(TU);
+    return;
+  }
+
   ASTUnit *AST = cxtu::getASTUnit(TU);
   if (!AST)
     return;
@@ -693,22 +690,21 @@ void clang_codeCompleteAt_Impl(void *UserData) {
 
   // Perform the remapping of source files.
   SmallVector<ASTUnit::RemappedFile, 4> RemappedFiles;
-  for (unsigned I = 0; I != num_unsaved_files; ++I) {
-    StringRef Data(unsaved_files[I].Contents, unsaved_files[I].Length);
-    const llvm::MemoryBuffer *Buffer
-      = llvm::MemoryBuffer::getMemBufferCopy(Data, unsaved_files[I].Filename);
-    RemappedFiles.push_back(std::make_pair(unsaved_files[I].Filename,
-                                           Buffer));
+
+  for (auto &UF : CCAI->unsaved_files) {
+    llvm::MemoryBuffer *MB =
+        llvm::MemoryBuffer::getMemBufferCopy(getContents(UF), UF.Filename);
+    RemappedFiles.push_back(std::make_pair(UF.Filename, MB));
   }
-  
+
   if (EnableLogging) {
     // FIXME: Add logging.
   }
 
   // Parse the resulting source file to find code-completion results.
-  AllocatedCXCodeCompleteResults *Results = 
-        new AllocatedCXCodeCompleteResults(AST->getFileSystemOpts());
-  Results->Results = 0;
+  AllocatedCXCodeCompleteResults *Results = new AllocatedCXCodeCompleteResults(
+      &AST->getFileManager());
+  Results->Results = nullptr;
   Results->NumResults = 0;
   
   // Create a code-completion consumer to capture the results.
@@ -718,7 +714,7 @@ void clang_codeCompleteAt_Impl(void *UserData) {
 
   // Perform completion.
   AST->CodeComplete(complete_filename, complete_line, complete_column,
-                    RemappedFiles.data(), RemappedFiles.size(), 
+                    RemappedFiles,
                     (options & CXCodeComplete_IncludeMacros),
                     (options & CXCodeComplete_IncludeCodePatterns),
                     IncludeBriefComments,
@@ -726,7 +722,9 @@ void clang_codeCompleteAt_Impl(void *UserData) {
                     *Results->Diag, Results->LangOpts, *Results->SourceMgr,
                     *Results->FileMgr, Results->Diagnostics,
                     Results->TemporaryBuffers);
-  
+
+  Results->DiagnosticsWrappers.resize(Results->Diagnostics.size());
+
   // Keep a reference to the allocator used for cached global completions, so
   // that we can be sure that the memory used by our code completion strings
   // doesn't get freed due to subsequent reparses (while the code completion
@@ -821,9 +819,12 @@ CXCodeCompleteResults *clang_codeCompleteAt(CXTranslationUnit TU,
          << complete_filename << ':' << complete_line << ':' << complete_column;
   }
 
-  CodeCompleteAtInfo CCAI = { TU, complete_filename, complete_line,
-                              complete_column, unsaved_files, num_unsaved_files,
-                              options, 0 };
+  if (num_unsaved_files && !unsaved_files)
+    return nullptr;
+
+  CodeCompleteAtInfo CCAI = {TU, complete_filename, complete_line,
+    complete_column, llvm::makeArrayRef(unsaved_files, num_unsaved_files),
+    options, nullptr};
 
   if (getenv("LIBCLANG_NOTHREADS")) {
     clang_codeCompleteAt_Impl(&CCAI);
@@ -835,7 +836,7 @@ CXCodeCompleteResults *clang_codeCompleteAt(CXTranslationUnit TU,
   if (!RunSafely(CRC, clang_codeCompleteAt_Impl, &CCAI)) {
     fprintf(stderr, "libclang: crash detected in code completion\n");
     cxtu::getASTUnit(TU)->setUnsafeToFree(true);
-    return 0;
+    return nullptr;
   } else if (getenv("LIBCLANG_RESOURCE_USAGE"))
     PrintLibclangResourceUsage(TU);
 
@@ -871,9 +872,13 @@ clang_codeCompleteGetDiagnostic(CXCodeCompleteResults *ResultsIn,
   AllocatedCXCodeCompleteResults *Results
     = static_cast<AllocatedCXCodeCompleteResults*>(ResultsIn);
   if (!Results || Index >= Results->Diagnostics.size())
-    return 0;
+    return nullptr;
 
-  return new CXStoredDiagnostic(Results->Diagnostics[Index], Results->LangOpts);
+  CXStoredDiagnostic *Diag = Results->DiagnosticsWrappers[Index];
+  if (!Diag)
+    Results->DiagnosticsWrappers[Index] = Diag =
+        new CXStoredDiagnostic(Results->Diagnostics[Index], Results->LangOpts);
+  return Diag;
 }
 
 unsigned long long
@@ -893,8 +898,8 @@ enum CXCursorKind clang_codeCompleteGetContainerKind(
     static_cast<AllocatedCXCodeCompleteResults *>(ResultsIn);
   if (!Results)
     return CXCursor_InvalidCode;
-  
-  if (IsIncomplete != NULL) {
+
+  if (IsIncomplete != nullptr) {
     *IsIncomplete = Results->ContainerIsIncomplete;
   }
   

@@ -108,12 +108,28 @@ LANGSTANDARD(gnucxx11, "gnu++11",
              LineComment | CPlusPlus | CPlusPlus11 | Digraphs | GNUMode)
 
 LANGSTANDARD(cxx1y, "c++1y",
-             "Working draft for ISO C++ 2014",
+             "ISO C++ 2014 with amendments",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus1y | Digraphs)
+LANGSTANDARD(cxx14, "c++14",
+             "ISO C++ 2014 with amendments",
              LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus1y | Digraphs)
 LANGSTANDARD(gnucxx1y, "gnu++1y",
-             "Working draft for ISO C++ 2014 with GNU extensions",
+             "ISO C++ 2014 with amendments and GNU extensions",
              LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus1y | Digraphs |
              GNUMode)
+LANGSTANDARD(gnucxx14, "gnu++14",
+             "ISO C++ 2014 with amendments and GNU extensions",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus1y | Digraphs |
+             GNUMode)
+
+LANGSTANDARD(cxx1z, "c++1z",
+             "Working draft for ISO C++ 2017",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus1y | CPlusPlus1z |
+             Digraphs)
+LANGSTANDARD(gnucxx1z, "gnu++1z",
+             "Working draft for ISO C++ 2017 with GNU extensions",
+             LineComment | CPlusPlus | CPlusPlus11 | CPlusPlus1y | CPlusPlus1z |
+             Digraphs | GNUMode)
 
 // OpenCL
 LANGSTANDARD(opencl, "cl",

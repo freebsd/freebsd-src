@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===/
 
 #include "clang/Sema/Sema.h"
+#include "TypeLocBuilder.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/TypeLoc.h"
@@ -18,7 +19,6 @@
 #include "clang/Sema/ScopeInfo.h"
 #include "clang/Sema/SemaInternal.h"
 #include "clang/Sema/Template.h"
-#include "TypeLocBuilder.h"
 
 using namespace clang;
 
@@ -223,7 +223,7 @@ Sema::DiagnoseUnexpandedParameterPacks(SourceLocation Loc,
   llvm::SmallPtrSet<IdentifierInfo *, 4> NamesKnown;
 
   for (unsigned I = 0, N = Unexpanded.size(); I != N; ++I) {
-    IdentifierInfo *Name = 0;
+    IdentifierInfo *Name = nullptr;
     if (const TemplateTypeParmType *TTP
           = Unexpanded[I].first.dyn_cast<const TemplateTypeParmType *>())
       Name = TTP->getIdentifier();
@@ -463,7 +463,7 @@ Sema::CheckPackExpansion(TypeSourceInfo *Pattern, SourceLocation EllipsisLoc,
                                        Pattern->getTypeLoc().getSourceRange(),
                                        EllipsisLoc, NumExpansions);
   if (Result.isNull())
-    return 0;
+    return nullptr;
 
   TypeLocBuilder TLB;
   TLB.pushFullCopy(Pattern->getTypeLoc());
@@ -509,8 +509,8 @@ ExprResult Sema::CheckPackExpansion(Expr *Pattern, SourceLocation EllipsisLoc,
   }
   
   // Create the pack expansion expression and source-location information.
-  return Owned(new (Context) PackExpansionExpr(Context.DependentTy, Pattern,
-                                               EllipsisLoc, NumExpansions));
+  return new (Context)
+    PackExpansionExpr(Context.DependentTy, Pattern, EllipsisLoc, NumExpansions);
 }
 
 /// \brief Retrieve the depth and index of a parameter pack.
@@ -554,8 +554,8 @@ bool Sema::CheckParameterPacksForExpansion(
       if (isa<ParmVarDecl>(ND))
         IsFunctionParameterPack = true;
       else
-        llvm::tie(Depth, Index) = getDepthAndIndex(ND);        
-      
+        std::tie(Depth, Index) = getDepthAndIndex(ND);
+
       Name = ND->getIdentifier();
     }
     
@@ -599,7 +599,7 @@ bool Sema::CheckParameterPacksForExpansion(
       if (NamedDecl *PartialPack 
                     = CurrentInstantiationScope->getPartiallySubstitutedPack()){
         unsigned PartialDepth, PartialIndex;
-        llvm::tie(PartialDepth, PartialIndex) = getDepthAndIndex(PartialPack);
+        std::tie(PartialDepth, PartialIndex) = getDepthAndIndex(PartialPack);
         if (PartialDepth == Depth && PartialIndex == Index)
           RetainExpansion = true;
       }
@@ -669,8 +669,8 @@ Optional<unsigned> Sema::getNumArgumentsInExpansion(QualType T,
         Result = Size;
         continue;
       }
-      
-      llvm::tie(Depth, Index) = getDepthAndIndex(ND);        
+
+      std::tie(Depth, Index) = getDepthAndIndex(ND);
     }
     if (Depth >= TemplateArgs.getNumLevels() ||
         !TemplateArgs.hasTemplateArgument(Depth, Index))
@@ -730,14 +730,6 @@ bool Sema::containsUnexpandedParameterPacks(Declarator &D) {
   case TST_auto:
   case TST_decltype_auto:
   case TST_unknown_anytype:
-  case TST_image1d_t:
-  case TST_image1d_array_t:
-  case TST_image1d_buffer_t:
-  case TST_image2d_t:
-  case TST_image2d_array_t:
-  case TST_image3d_t:
-  case TST_sampler_t:
-  case TST_event_t:
   case TST_error:
     break;
   }
@@ -775,7 +767,7 @@ namespace {
 // Callback to only accept typo corrections that refer to parameter packs.
 class ParameterPackValidatorCCC : public CorrectionCandidateCallback {
  public:
-  virtual bool ValidateCandidate(const TypoCorrection &candidate) {
+  bool ValidateCandidate(const TypoCorrection &candidate) override {
     NamedDecl *ND = candidate.getCorrectionDecl();
     return ND && ND->isParameterPack();
   }
@@ -806,8 +798,8 @@ ExprResult Sema::ActOnSizeofParameterPackExpr(Scope *S,
   //   The identifier in a sizeof... expression shall name a parameter pack.
   LookupResult R(*this, &Name, NameLoc, LookupOrdinaryName);
   LookupName(R, S);
-  
-  NamedDecl *ParameterPack = 0;
+
+  NamedDecl *ParameterPack = nullptr;
   ParameterPackValidatorCCC Validator;
   switch (R.getResultKind()) {
   case LookupResult::Found:
@@ -817,8 +809,8 @@ ExprResult Sema::ActOnSizeofParameterPackExpr(Scope *S,
   case LookupResult::NotFound:
   case LookupResult::NotFoundInCurrentInstantiation:
     if (TypoCorrection Corrected = CorrectTypo(R.getLookupNameInfo(),
-                                               R.getLookupKind(), S, 0,
-                                               Validator)) {
+                                               R.getLookupKind(), S, nullptr,
+                                               Validator, CTK_ErrorRecovery)) {
       diagnoseTypo(Corrected,
                    PDiag(diag::err_sizeof_pack_no_pack_name_suggest) << &Name,
                    PDiag(diag::note_parameter_pack_here));

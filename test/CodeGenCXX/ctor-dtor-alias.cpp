@@ -1,7 +1,7 @@
 // RUN: %clang_cc1 %s -triple i686-linux -emit-llvm -o - -mconstructor-aliases -O1 -disable-llvm-optzns | FileCheck %s
 // RUN: %clang_cc1 %s -triple i686-linux -emit-llvm -o - -mconstructor-aliases | FileCheck --check-prefix=NOOPT %s
 
-// RUN: %clang_cc1 -cc1 -triple x86_64--netbsd -emit-llvm \
+// RUN: %clang_cc1 -triple x86_64--netbsd -emit-llvm \
 // RUN: -mconstructor-aliases -O2 %s -o - | FileCheck --check-prefix=CHECK-RAUW %s
 
 namespace test1 {
@@ -61,7 +61,7 @@ namespace test4 {
   // test that we don't do this optimization at -O0 so that the debugger can
   // see both destructors.
   // NOOPT-DAG: call i32 @__cxa_atexit{{.*}}@_ZN5test41BD2Ev
-  // NOOOPT-DAG: define linkonce_odr void @_ZN5test41BD2Ev
+  // NOOPT-DAG: define linkonce_odr void @_ZN5test41BD2Ev
   struct A {
     virtual ~A() {}
   };

@@ -136,7 +136,7 @@ void DeclInfo::fill() {
   IsInstanceMethod = false;
   IsClassMethod = false;
   ParamVars = None;
-  TemplateParameters = NULL;
+  TemplateParameters = nullptr;
 
   if (!CommentDecl) {
     // If there is no declaration, the defaults is our only guess.
@@ -159,7 +159,7 @@ void DeclInfo::fill() {
     Kind = FunctionKind;
     ParamVars = ArrayRef<const ParmVarDecl *>(FD->param_begin(),
                                               FD->getNumParams());
-    ResultType = FD->getResultType();
+    ReturnType = FD->getReturnType();
     unsigned NumLists = FD->getNumTemplateParameterLists();
     if (NumLists != 0) {
       TemplateKind = TemplateSpecialization;
@@ -180,7 +180,7 @@ void DeclInfo::fill() {
     Kind = FunctionKind;
     ParamVars = ArrayRef<const ParmVarDecl *>(MD->param_begin(),
                                               MD->param_size());
-    ResultType = MD->getResultType();
+    ReturnType = MD->getReturnType();
     IsObjCMethod = true;
     IsInstanceMethod = MD->isInstanceMethod();
     IsClassMethod = !IsInstanceMethod;
@@ -193,7 +193,7 @@ void DeclInfo::fill() {
     const FunctionDecl *FD = FTD->getTemplatedDecl();
     ParamVars = ArrayRef<const ParmVarDecl *>(FD->param_begin(),
                                               FD->getNumParams());
-    ResultType = FD->getResultType();
+    ReturnType = FD->getReturnType();
     TemplateParameters = FTD->getTemplateParameters();
     break;
   }
@@ -251,6 +251,16 @@ void DeclInfo::fill() {
         TL = PointerTL.getPointeeLoc().getUnqualifiedLoc();
         continue;
       }
+      // Look through reference types.
+      if (ReferenceTypeLoc ReferenceTL = TL.getAs<ReferenceTypeLoc>()) {
+        TL = ReferenceTL.getPointeeLoc().getUnqualifiedLoc();
+        continue;
+      }
+      // Look through adjusted types.
+      if (AdjustedTypeLoc ATL = TL.getAs<AdjustedTypeLoc>()) {
+        TL = ATL.getOriginalLoc();
+        continue;
+      }
       if (BlockPointerTypeLoc BlockPointerTL =
               TL.getAs<BlockPointerTypeLoc>()) {
         TL = BlockPointerTL.getPointeeLoc().getUnqualifiedLoc();
@@ -261,13 +271,39 @@ void DeclInfo::fill() {
         TL = MemberPointerTL.getPointeeLoc().getUnqualifiedLoc();
         continue;
       }
+      if (ElaboratedTypeLoc ETL = TL.getAs<ElaboratedTypeLoc>()) {
+        TL = ETL.getNamedTypeLoc();
+        continue;
+      }
       // Is this a typedef for a function type?
       if (FunctionTypeLoc FTL = TL.getAs<FunctionTypeLoc>()) {
         Kind = FunctionKind;
         ArrayRef<ParmVarDecl *> Params = FTL.getParams();
         ParamVars = ArrayRef<const ParmVarDecl *>(Params.data(),
                                                   Params.size());
-        ResultType = FTL.getResultLoc().getType();
+        ReturnType = FTL.getReturnLoc().getType();
+        break;
+      }
+      if (TemplateSpecializationTypeLoc STL =
+              TL.getAs<TemplateSpecializationTypeLoc>()) {
+        // If we have a typedef to a template specialization with exactly one
+        // template argument of a function type, this looks like std::function,
+        // boost::function, or other function wrapper.  Treat these typedefs as
+        // functions.
+        if (STL.getNumArgs() != 1)
+          break;
+        TemplateArgumentLoc MaybeFunction = STL.getArgLoc(0);
+        if (MaybeFunction.getArgument().getKind() != TemplateArgument::Type)
+          break;
+        TypeSourceInfo *MaybeFunctionTSI = MaybeFunction.getTypeSourceInfo();
+        TypeLoc TL = MaybeFunctionTSI->getTypeLoc().getUnqualifiedLoc();
+        if (FunctionTypeLoc FTL = TL.getAs<FunctionTypeLoc>()) {
+          Kind = FunctionKind;
+          ArrayRef<ParmVarDecl *> Params = FTL.getParams();
+          ParamVars = ArrayRef<const ParmVarDecl *>(Params.data(),
+                                                    Params.size());
+          ReturnType = FTL.getReturnLoc().getType();
+        }
         break;
       }
       break;

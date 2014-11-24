@@ -1,3 +1,10 @@
+/* This generated file is for internal use. Do not include it from headers. */
+
+#ifdef CONFIG_H
+#error config.h can only be included once
+#else
+#define CONFIG_H
+
 /* Bug report URL. */
 #define BUG_REPORT_URL "${BUG_REPORT_URL}"
 
@@ -12,3 +19,11 @@
 
 /* Directory where gcc is installed. */
 #define GCC_INSTALL_PREFIX "${GCC_INSTALL_PREFIX}"
+
+/* Define if we have libxml2 */
+#cmakedefine CLANG_HAVE_LIBXML ${CLANG_HAVE_LIBXML}
+
+/* The LLVM product name and version */
+#define BACKEND_PACKAGE_STRING "${BACKEND_PACKAGE_STRING}"
+
+#endif

@@ -74,10 +74,12 @@ public:
   PrintMatch Printer;
   MatchFinder Finder;
   Finder.addMatcher(NodeMatch, &Printer);
-  OwningPtr<FrontendActionFactory> Factory(newFrontendActionFactory(&Finder));
+  std::unique_ptr<FrontendActionFactory> Factory(
+      newFrontendActionFactory(&Finder));
 
   if (!runToolOnCodeWithArgs(Factory->create(), Code, Args, FileName))
-    return testing::AssertionFailure() << "Parsing error in \"" << Code << "\"";
+    return testing::AssertionFailure()
+      << "Parsing error in \"" << Code.str() << "\"";
 
   if (Printer.getNumFoundDecls() == 0)
     return testing::AssertionFailure()
@@ -90,8 +92,8 @@ public:
 
   if (Printer.getPrinted() != ExpectedPrinted)
     return ::testing::AssertionFailure()
-      << "Expected \"" << ExpectedPrinted << "\", "
-         "got \"" << Printer.getPrinted() << "\"";
+      << "Expected \"" << ExpectedPrinted.str() << "\", "
+         "got \"" << Printer.getPrinted().str() << "\"";
 
   return ::testing::AssertionSuccess();
 }
@@ -142,6 +144,19 @@ public:
                             "input.cc");
 }
 
+::testing::AssertionResult PrintedDeclCXX11nonMSCMatches(
+                                  StringRef Code,
+                                  const DeclarationMatcher &NodeMatch,
+                                  StringRef ExpectedPrinted) {
+  std::vector<std::string> Args(1, "-std=c++11");
+  Args.push_back("-fno-delayed-template-parsing");
+  return PrintedDeclMatches(Code,
+                            Args,
+                            NodeMatch,
+                            ExpectedPrinted,
+                            "input.cc");
+}
+
 ::testing::AssertionResult PrintedDeclObjCMatches(
                                   StringRef Code,
                                   const DeclarationMatcher &NodeMatch,
@@ -155,6 +170,40 @@ public:
 }
 
 } // unnamed namespace
+
+TEST(DeclPrinter, TestTypedef1) {
+  ASSERT_TRUE(PrintedDeclCXX98Matches(
+    "typedef int A;",
+    "A",
+    "typedef int A"));
+    // Should be: with semicolon
+}
+
+TEST(DeclPrinter, TestTypedef2) {
+  ASSERT_TRUE(PrintedDeclCXX98Matches(
+    "typedef const char *A;",
+    "A",
+    "typedef const char *A"));
+    // Should be: with semicolon
+}
+
+TEST(DeclPrinter, TestTypedef3) {
+  ASSERT_TRUE(PrintedDeclCXX98Matches(
+    "template <typename Y> class X {};"
+    "typedef X<int> A;",
+    "A",
+    "typedef X<int> A"));
+    // Should be: with semicolon
+}
+
+TEST(DeclPrinter, TestTypedef4) {
+  ASSERT_TRUE(PrintedDeclCXX98Matches(
+    "namespace X { class Y {}; }"
+    "typedef X::Y A;",
+    "A",
+    "typedef X::Y A"));
+    // Should be: with semicolon
+}
 
 TEST(DeclPrinter, TestNamespace1) {
   ASSERT_TRUE(PrintedDeclCXX98Matches(
@@ -340,8 +389,8 @@ TEST(DeclPrinter, TestFunctionDecl7) {
   ASSERT_TRUE(PrintedDeclCXX11Matches(
     "constexpr int A(int a);",
     "A",
-    "int A(int a)"));
-    // WRONG; Should be: "constexpr int A(int a);"
+    "constexpr int A(int a)"));
+    // Should be: with semicolon
 }
 
 TEST(DeclPrinter, TestFunctionDecl8) {
@@ -370,11 +419,11 @@ TEST(DeclPrinter, TestFunctionDecl10) {
 
 TEST(DeclPrinter, TestFunctionDecl11) {
   ASSERT_TRUE(PrintedDeclCXX98Matches(
-    "typedef long size_t;"
+    "typedef long ssize_t;"
     "typedef int *pInt;"
-    "void A(int a, pInt b, size_t c);",
+    "void A(int a, pInt b, ssize_t c);",
     "A",
-    "void A(int a, pInt b, size_t c)"));
+    "void A(int a, pInt b, ssize_t c)"));
     // Should be: with semicolon
 }
 
@@ -466,8 +515,7 @@ TEST(DeclPrinter, TestCXXConstructorDecl7) {
     "  constexpr A();"
     "};",
     constructorDecl(ofClass(hasName("A"))).bind("id"),
-    "A()"));
-    // WRONG; Should be: "constexpr A();"
+    "constexpr A()"));
 }
 
 TEST(DeclPrinter, TestCXXConstructorDecl8) {
@@ -498,18 +546,16 @@ TEST(DeclPrinter, TestCXXConstructorDecl10) {
     "A<T...>(const A<T...> &a)"));
 }
 
-#if !defined(_MSC_VER)
 TEST(DeclPrinter, TestCXXConstructorDecl11) {
-  ASSERT_TRUE(PrintedDeclCXX11Matches(
+  ASSERT_TRUE(PrintedDeclCXX11nonMSCMatches(
     "template<typename... T>"
     "struct A : public T... {"
     "  A(T&&... ts) : T(ts)... {}"
     "};",
     constructorDecl(ofClass(hasName("A"))).bind("id"),
-    "A<T...>(T &&ts...) : T(ts)"));
+    "A<T...>(T &&ts...) : T(ts)..."));
     // WRONG; Should be: "A(T&&... ts) : T(ts)..."
 }
-#endif
 
 TEST(DeclPrinter, TestCXXDestructorDecl1) {
   ASSERT_TRUE(PrintedDeclCXX98Matches(
@@ -517,8 +563,7 @@ TEST(DeclPrinter, TestCXXDestructorDecl1) {
     "  ~A();"
     "};",
     destructorDecl(ofClass(hasName("A"))).bind("id"),
-    "void ~A()"));
-    // WRONG; Should be: "~A();"
+    "~A()"));
 }
 
 TEST(DeclPrinter, TestCXXDestructorDecl2) {
@@ -527,8 +572,7 @@ TEST(DeclPrinter, TestCXXDestructorDecl2) {
     "  virtual ~A();"
     "};",
     destructorDecl(ofClass(hasName("A"))).bind("id"),
-    "virtual void ~A()"));
-    // WRONG; Should be: "virtual ~A();"
+    "virtual ~A()"));
 }
 
 TEST(DeclPrinter, TestCXXConversionDecl1) {
@@ -537,8 +581,7 @@ TEST(DeclPrinter, TestCXXConversionDecl1) {
     "  operator int();"
     "};",
     methodDecl(ofClass(hasName("A"))).bind("id"),
-    "int operator int()"));
-    // WRONG; Should be: "operator int();"
+    "operator int()"));
 }
 
 TEST(DeclPrinter, TestCXXConversionDecl2) {
@@ -547,8 +590,7 @@ TEST(DeclPrinter, TestCXXConversionDecl2) {
     "  operator bool();"
     "};",
     methodDecl(ofClass(hasName("A"))).bind("id"),
-    "bool operator _Bool()"));
-    // WRONG; Should be: "operator bool();"
+    "operator bool()"));
 }
 
 TEST(DeclPrinter, TestCXXConversionDecl3) {
@@ -558,8 +600,7 @@ TEST(DeclPrinter, TestCXXConversionDecl3) {
     "  operator Z();"
     "};",
     methodDecl(ofClass(hasName("A"))).bind("id"),
-    "Z operator struct Z()"));
-    // WRONG; Should be: "operator Z();"
+    "operator Z()"));
 }
 
 TEST(DeclPrinter, TestCXXMethodDecl_AllocationFunction1) {
@@ -756,8 +797,8 @@ TEST(DeclPrinter, TestCXXMethodDecl_RefQualifier1) {
     "  void A(int a) &;"
     "};",
     "A",
-    "void A(int a)"));
-    // WRONG; Should be: "void A(int a) &;"
+    "void A(int a) &"));
+    // Should be: with semicolon
 }
 
 TEST(DeclPrinter, TestCXXMethodDecl_RefQualifier2) {
@@ -766,8 +807,8 @@ TEST(DeclPrinter, TestCXXMethodDecl_RefQualifier2) {
     "  void A(int a) &&;"
     "};",
     "A",
-    "void A(int a)"));
-    // WRONG; Should be: "void A(int a) &&;"
+    "void A(int a) &&"));
+    // Should be: with semicolon
 }
 
 TEST(DeclPrinter, TestFunctionDecl_ExceptionSpecification1) {

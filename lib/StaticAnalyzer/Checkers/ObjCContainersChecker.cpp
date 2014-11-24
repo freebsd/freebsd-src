@@ -30,10 +30,10 @@ using namespace ento;
 namespace {
 class ObjCContainersChecker : public Checker< check::PreStmt<CallExpr>,
                                              check::PostStmt<CallExpr> > {
-  mutable OwningPtr<BugType> BT;
+  mutable std::unique_ptr<BugType> BT;
   inline void initBugType() const {
     if (!BT)
-      BT.reset(new BugType("CFArray API",
+      BT.reset(new BugType(this, "CFArray API",
                            categories::CoreFoundationObjectiveC));
   }
 

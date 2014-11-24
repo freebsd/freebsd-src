@@ -272,7 +272,7 @@ class SourceRange(Structure):
             return False
         if other.file is None and self.start.file is None:
             pass
-        elif ( self.start.file.name != other.file.name or 
+        elif ( self.start.file.name != other.file.name or
                other.file.name != self.end.file.name):
             # same file name
             return False
@@ -361,13 +361,13 @@ class Diagnostic(object):
 
     @property
     def category_number(self):
-        """The category number for this diagnostic."""
+        """The category number for this diagnostic or 0 if unavailable."""
         return conf.lib.clang_getDiagnosticCategory(self)
 
     @property
     def category_name(self):
         """The string name of the category for this diagnostic."""
-        return conf.lib.clang_getDiagnosticCategoryName(self.category_number)
+        return conf.lib.clang_getDiagnosticCategoryText(self)
 
     @property
     def option(self):
@@ -748,7 +748,7 @@ CursorKind.LABEL_REF = CursorKind(48)
 # that has not yet been resolved to a specific function or function template.
 CursorKind.OVERLOADED_DECL_REF = CursorKind(49)
 
-# A reference to a variable that occurs in some non-expression 
+# A reference to a variable that occurs in some non-expression
 # context, e.g., a C++ lambda capture list.
 CursorKind.VARIABLE_REF = CursorKind(50)
 
@@ -937,7 +937,7 @@ CursorKind.SIZE_OF_PACK_EXPR = CursorKind(143)
 
 # Represents a C++ lambda expression that produces a local function
 # object.
-# 
+#
 #  \code
 #  void abssort(float *x, unsigned N) {
 #    std::sort(x, x + N,
@@ -947,7 +947,7 @@ CursorKind.SIZE_OF_PACK_EXPR = CursorKind(143)
 #  }
 #  \endcode
 CursorKind.LAMBDA_EXPR = CursorKind(144)
-  
+
 # Objective-c Boolean Literal.
 CursorKind.OBJ_BOOL_LITERAL_EXPR = CursorKind(145)
 
@@ -1079,6 +1079,13 @@ CursorKind.CXX_OVERRIDE_ATTR = CursorKind(405)
 CursorKind.ANNOTATE_ATTR = CursorKind(406)
 CursorKind.ASM_LABEL_ATTR = CursorKind(407)
 CursorKind.PACKED_ATTR = CursorKind(408)
+CursorKind.PURE_ATTR = CursorKind(409)
+CursorKind.CONST_ATTR = CursorKind(410)
+CursorKind.NODUPLICATE_ATTR = CursorKind(411)
+CursorKind.CUDACONSTANT_ATTR = CursorKind(412)
+CursorKind.CUDADEVICE_ATTR = CursorKind(413)
+CursorKind.CUDAGLOBAL_ATTR = CursorKind(414)
+CursorKind.CUDAHOST_ATTR = CursorKind(415)
 
 ###
 # Preprocessing
@@ -1159,10 +1166,6 @@ class Cursor(Structure):
     @property
     def spelling(self):
         """Return the spelling of the entity pointed at by the cursor."""
-        if not self.kind.is_declaration():
-            # FIXME: clang_getCursorSpelling should be fixed to not assert on
-            # this, for consistency with clang_getCursorUSR.
-            return None
         if not hasattr(self, '_spelling'):
             self._spelling = conf.lib.clang_getCursorSpelling(self)
 
@@ -1203,6 +1206,17 @@ class Cursor(Structure):
             self._extent = conf.lib.clang_getCursorExtent(self)
 
         return self._extent
+
+    @property
+    def access_specifier(self):
+        """
+        Retrieves the access specifier (if any) of the entity pointed at by the
+        cursor.
+        """
+        if not hasattr(self, '_access_specifier'):
+            self._access_specifier = conf.lib.clang_getCXXAccessSpecifier(self)
+
+        return AccessSpecifier.from_id(self._access_specifier)
 
     @property
     def type(self):
@@ -1331,7 +1345,7 @@ class Cursor(Structure):
     @property
     def referenced(self):
         """
-        For a cursor that is a reference, returns a cursor 
+        For a cursor that is a reference, returns a cursor
         representing the entity that it references.
         """
         if not hasattr(self, '_referenced'):
@@ -1343,7 +1357,7 @@ class Cursor(Structure):
     def brief_comment(self):
         """Returns the brief comment text associated with that Cursor"""
         return conf.lib.clang_Cursor_getBriefCommentText(self)
-    
+
     @property
     def raw_comment(self):
         """Returns the raw comment text associated with that Cursor"""
@@ -1372,6 +1386,16 @@ class Cursor(Structure):
         conf.lib.clang_visitChildren(self, callbacks['cursor_visit'](visitor),
             children)
         return iter(children)
+
+    def walk_preorder(self):
+        """Depth-first preorder walk over the cursor and its descendants.
+
+        Yields cursors.
+        """
+        yield self
+        for child in self.get_children():
+            for descendant in child.walk_preorder():
+                yield descendant
 
     def get_tokens(self):
         """Obtain Token instances formulating that compose this Cursor.
@@ -1425,6 +1449,54 @@ class Cursor(Structure):
 
         res._tu = args[0]._tu
         return res
+
+### C++ access specifiers ###
+
+class AccessSpecifier(object):
+    """
+    Describes the access of a C++ class member
+    """
+
+    # The unique kind objects, index by id.
+    _kinds = []
+    _name_map = None
+
+    def __init__(self, value):
+        if value >= len(AccessSpecifier._kinds):
+            AccessSpecifier._kinds += [None] * (value - len(AccessSpecifier._kinds) + 1)
+        if AccessSpecifier._kinds[value] is not None:
+            raise ValueError,'AccessSpecifier already loaded'
+        self.value = value
+        AccessSpecifier._kinds[value] = self
+        AccessSpecifier._name_map = None
+
+    def from_param(self):
+        return self.value
+
+    @property
+    def name(self):
+        """Get the enumeration name of this access specifier."""
+        if self._name_map is None:
+            self._name_map = {}
+            for key,value in AccessSpecifier.__dict__.items():
+                if isinstance(value,AccessSpecifier):
+                    self._name_map[value] = key
+        return self._name_map[self]
+
+    @staticmethod
+    def from_id(id):
+        if id >= len(AccessSpecifier._kinds) or not AccessSpecifier._kinds[id]:
+            raise ValueError,'Unknown access specifier %d' % id
+        return AccessSpecifier._kinds[id]
+
+    def __repr__(self):
+        return 'AccessSpecifier.%s' % (self.name,)
+
+AccessSpecifier.INVALID = AccessSpecifier(0)
+AccessSpecifier.PUBLIC = AccessSpecifier(1)
+AccessSpecifier.PROTECTED = AccessSpecifier(2)
+AccessSpecifier.PRIVATE = AccessSpecifier(3)
+AccessSpecifier.NONE = AccessSpecifier(4)
 
 ### Type Kinds ###
 
@@ -1820,7 +1892,7 @@ SpellingCache = {
             # 5 : CompletionChunk.Kind("CurrentParameter"),
             6: '(',   # CompletionChunk.Kind("LeftParen"),
             7: ')',   # CompletionChunk.Kind("RightParen"),
-            8: ']',   # CompletionChunk.Kind("LeftBracket"),
+            8: '[',   # CompletionChunk.Kind("LeftBracket"),
             9: ']',   # CompletionChunk.Kind("RightBracket"),
             10: '{',  # CompletionChunk.Kind("LeftBrace"),
             11: '}',  # CompletionChunk.Kind("RightBrace"),
@@ -1934,7 +2006,7 @@ class CompletionString(ClangObject):
             return "<Availability: %s>" % self
 
     def __len__(self):
-        self.num_chunks
+        return self.num_chunks
 
     @CachedProperty
     def num_chunks(self):
@@ -2501,7 +2573,7 @@ class CompilationDatabaseError(Exception):
     constants in this class.
     """
 
-    # An unknown error occured
+    # An unknown error occurred
     ERROR_UNKNOWN = 0
 
     # The database could not be loaded
@@ -2607,6 +2679,14 @@ class CompilationDatabase(ClangObject):
         return conf.lib.clang_CompilationDatabase_getCompileCommands(self,
                                                                      filename)
 
+    def getAllCompileCommands(self):
+        """
+        Get an iterable object providing all the CompileCommands available from
+        the database.
+        """
+        return conf.lib.clang_CompilationDatabase_getAllCompileCommands(self)
+
+
 class Token(Structure):
     """Represents a single token from the preprocessor.
 
@@ -2672,6 +2752,11 @@ functionList = [
    [c_char_p, POINTER(c_uint)],
    c_object_p,
    CompilationDatabase.from_result),
+
+  ("clang_CompilationDatabase_getAllCompileCommands",
+   [c_object_p],
+   c_object_p,
+   CompileCommands.from_result),
 
   ("clang_CompilationDatabase_getCompileCommands",
    [c_object_p, c_char_p],
@@ -2909,8 +2994,8 @@ functionList = [
    [Diagnostic],
    c_uint),
 
-  ("clang_getDiagnosticCategoryName",
-   [c_uint],
+  ("clang_getDiagnosticCategoryText",
+   [Diagnostic],
    _CXString,
    _CXString.from_result),
 
@@ -3329,8 +3414,8 @@ class Config:
         python bindings can disable the compatibility check. This will cause
         the python bindings to load, even though they are written for a newer
         version of libclang. Failures now arise if unsupported or incompatible
-        features are accessed. The user is required to test himself if the
-        features he is using are available and compatible between different
+        features are accessed. The user is required to test themselves if the
+        features they are using are available and compatible between different
         libclang versions.
         """
         if Config.loaded:

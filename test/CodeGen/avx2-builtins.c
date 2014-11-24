@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -O3 -triple=x86_64-apple-darwin -target-feature +avx2 -emit-llvm -o - -Werror | FileCheck %s
+// RUN: %clang_cc1 %s -O0 -triple=x86_64-apple-darwin -target-feature +avx2 -emit-llvm -o - -Werror | FileCheck %s
 
 // Don't include mm_malloc.h, it's system specific.
 #define __MM_MALLOC_H
@@ -176,8 +176,13 @@ __m256i test_mm256_blendv_epi8(__m256i a, __m256i b, __m256i m) {
   return _mm256_blendv_epi8(a, b, m);
 }
 
+// FIXME: We should also lower the __builtin_ia32_pblendw128 (and similar)
+// functions to this IR. In the future we could delete the corresponding
+// intrinsic in LLVM if it's not being used anymore.
 __m256i test_mm256_blend_epi16(__m256i a, __m256i b) {
-  // CHECK: @llvm.x86.avx2.pblendw(<16 x i16> %{{.*}}, <16 x i16> %{{.*}}, i32 2)
+  // CHECK-LABEL: test_mm256_blend_epi16
+  // CHECK-NOT: @llvm.x86.avx2.pblendw
+  // CHECK: shufflevector <16 x i16> %{{.*}}, <16 x i16> %{{.*}}, <16 x i32> <i32 0, i32 17, i32 2, i32 3, i32 4, i32 5, i32 6, i32 7, i32 8, i32 25, i32 10, i32 11, i32 12, i32 13, i32 14, i32 15>
   return _mm256_blend_epi16(a, b, 2);
 }
 
@@ -427,17 +432,17 @@ __m256i test_mm256_shuffle_epi8(__m256i a, __m256i b) {
 }
 
 __m256i test_mm256_shuffle_epi32(__m256i a) {
-  // CHECK: shufflevector <8 x i32> %{{.*}}, <8 x i32> undef, <8 x i32> <i32 3, i32 3, i32 0, i32 0, i32 7, i32 7, i32 4, i32 4>
+  // CHECK: shufflevector <8 x i32> %{{.*}}, <8 x i32> %{{.*}}, <8 x i32> <i32 3, i32 3, i32 0, i32 0, i32 7, i32 7, i32 4, i32 4>
   return _mm256_shuffle_epi32(a, 15);
 }
 
 __m256i test_mm256_shufflehi_epi16(__m256i a) {
-  // CHECK: shufflevector <16 x i16> %{{.*}}, <16 x i16> undef, <16 x i32> <i32 0, i32 1, i32 2, i32 3, i32 7, i32 6, i32 6, i32 5, i32 8, i32 9, i32 10, i32 11, i32 15, i32 14, i32 14, i32 13>
+  // CHECK: shufflevector <16 x i16> %{{.*}}, <16 x i16> %{{.*}}, <16 x i32> <i32 0, i32 1, i32 2, i32 3, i32 7, i32 6, i32 6, i32 5, i32 8, i32 9, i32 10, i32 11, i32 15, i32 14, i32 14, i32 13>
   return _mm256_shufflehi_epi16(a, 107);
 }
 
 __m256i test_mm256_shufflelo_epi16(__m256i a) {
-  // CHECK: shufflevector <16 x i16> %{{.*}}, <16 x i16> undef, <16 x i32> <i32 3, i32 0, i32 1, i32 1, i32 4, i32 5, i32 6, i32 7, i32 11, i32 8, i32 9, i32 9, i32 12, i32 13, i32 14, i32 15>
+  // CHECK: shufflevector <16 x i16> %{{.*}}, <16 x i16> %{{.*}}, <16 x i32> <i32 3, i32 0, i32 1, i32 1, i32 4, i32 5, i32 6, i32 7, i32 11, i32 8, i32 9, i32 9, i32 12, i32 13, i32 14, i32 15>
   return _mm256_shufflelo_epi16(a, 83);
 }
 
@@ -612,13 +617,17 @@ __m256i test_mm256_broadcastsi128_si256(__m128i a) {
 }
 
 __m128i test_mm_blend_epi32(__m128i a, __m128i b) {
-  // CHECK: @llvm.x86.avx2.pblendd.128
-  return _mm_blend_epi32(a, b, 57);
+  // CHECK-LABEL: test_mm_blend_epi32
+  // CHECK-NOT: @llvm.x86.avx2.pblendd.128
+  // CHECK: shufflevector <4 x i32> %{{.*}}, <4 x i32> %{{.*}}, <4 x i32> <i32 4, i32 1, i32 6, i32 3>
+  return _mm_blend_epi32(a, b, 0x35);
 }
 
 __m256i test_mm256_blend_epi32(__m256i a, __m256i b) {
-  // CHECK: @llvm.x86.avx2.pblendd.256
-  return _mm256_blend_epi32(a, b, 57);
+  // CHECK-LABEL: test_mm256_blend_epi32
+  // CHECK-NOT: @llvm.x86.avx2.pblendd.256
+  // CHECK: shufflevector <8 x i32> %{{.*}}, <8 x i32> %{{.*}}, <8 x i32> <i32 8, i32 1, i32 10, i32 3, i32 12, i32 13, i32 6, i32 7>
+  return _mm256_blend_epi32(a, b, 0x35);
 }
 
 __m256i test_mm256_broadcastb_epi8(__m128i a) {

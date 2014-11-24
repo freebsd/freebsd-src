@@ -232,7 +232,7 @@ namespace PR10053 {
       struct Data {};
     }
 
-    std::ostream &print(std::ostream &out, int); // expected-note-re {{should be declared prior to the call site$}}
+    std::ostream &print(std::ostream &out, int); // expected-note-re {{should be declared prior to the call site{{$}}}}
     std::ostream &print(std::ostream &out, ns::Data); // expected-note {{should be declared prior to the call site or in namespace 'PR10053::my_file2_a::ns'}}
     std::ostream &print(std::ostream &out, std::vector<ns2::Data>); // expected-note {{should be declared prior to the call site or in namespace 'PR10053::my_file2_a::ns2'}}
     std::ostream &print(std::ostream &out, std::pair<ns::Data, ns2::Data>); // expected-note {{should be declared prior to the call site or in an associated namespace of one of its arguments}}
@@ -397,5 +397,20 @@ namespace OperatorNew {
   struct X {};
 };
 using size_t = decltype(sizeof(0));
-void *operator new(size_t, OperatorNew::X); // expected-note-re {{should be declared prior to the call site$}}
+void *operator new(size_t, OperatorNew::X); // expected-note-re {{should be declared prior to the call site{{$}}}}
 template void OperatorNew::f(OperatorNew::X); // expected-note {{instantiation of}}
+
+namespace PR19936 {
+  template<typename T> decltype(*T()) f() {} // expected-note {{previous}}
+  template<typename T> decltype(T() * T()) g() {} // expected-note {{previous}}
+
+  // Create some overloaded operators so we build an overload operator call
+  // instead of a builtin operator call for the dependent expression.
+  enum E {};
+  int operator*(E);
+  int operator*(E, E);
+
+  // Check that they still profile the same.
+  template<typename T> decltype(*T()) f() {} // expected-error {{redefinition}}
+  template<typename T> decltype(T() * T()) g() {} // expected-error {{redefinition}}
+}

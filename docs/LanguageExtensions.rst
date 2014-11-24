@@ -12,7 +12,7 @@ Clang Language Extensions
    ObjectiveCLiterals
    BlockLanguageSpec
    Block-ABI-Apple
-   AutomaticReferenceCounting   
+   AutomaticReferenceCounting
 
 Introduction
 ============
@@ -91,7 +91,7 @@ feature) or 0 if not.  They can be used like this:
 
 .. _langext-has-feature-back-compat:
 
-For backwards compatibility reasons, ``__has_feature`` can also be used to test
+For backward compatibility, ``__has_feature`` can also be used to test
 for support for non-standardized features, i.e. features not prefixed ``c_``,
 ``cxx_`` or ``objc_``.
 
@@ -113,8 +113,8 @@ of ``cxx_rvalue_references``.
 -------------------
 
 This function-like macro takes a single identifier argument that is the name of
-an attribute.  It evaluates to 1 if the attribute is supported or 0 if not.  It
-can be used like this:
+an attribute.  It evaluates to 1 if the attribute is supported by the current
+compilation target, or 0 if not.  It can be used like this:
 
 .. code-block:: c++
 
@@ -133,6 +133,27 @@ can be used like this:
 The attribute name can also be specified with a preceding and following ``__``
 (double underscore) to avoid interference from a macro with the same name.  For
 instance, ``__always_inline__`` can be used instead of ``always_inline``.
+
+``__is_identifier``
+-------------------
+
+This function-like macro takes a single identifier argument that might be either
+a reserved word or a regular identifier. It evaluates to 1 if the argument is just
+a regular identifier and not a reserved word, in the sense that it can then be
+used as the name of a user-defined function or variable. Otherwise it evaluates
+to 0.  It can be used like this:
+
+.. code-block:: c++
+
+  ...
+  #ifdef __is_identifier          // Compatibility with non-clang compilers.
+    #if __is_identifier(__wchar_t)
+      typedef wchar_t __wchar_t;
+    #endif
+  #endif
+
+  __wchar_t WideCharacter;
+  ...
 
 Include File Checking Macros
 ============================
@@ -424,103 +445,6 @@ Clang will treat the presence of this file as an indicator that the framework
 should be treated as a system framework, regardless of how it was found in the
 framework search path.  For consistency, we recommend that such files never be
 included in installed versions of the framework.
-
-Availability attribute
-======================
-
-Clang introduces the ``availability`` attribute, which can be placed on
-declarations to describe the lifecycle of that declaration relative to
-operating system versions.  Consider the function declaration for a
-hypothetical function ``f``:
-
-.. code-block:: c++
-
-  void f(void) __attribute__((availability(macosx,introduced=10.4,deprecated=10.6,obsoleted=10.7)));
-
-The availability attribute states that ``f`` was introduced in Mac OS X 10.4,
-deprecated in Mac OS X 10.6, and obsoleted in Mac OS X 10.7.  This information
-is used by Clang to determine when it is safe to use ``f``: for example, if
-Clang is instructed to compile code for Mac OS X 10.5, a call to ``f()``
-succeeds.  If Clang is instructed to compile code for Mac OS X 10.6, the call
-succeeds but Clang emits a warning specifying that the function is deprecated.
-Finally, if Clang is instructed to compile code for Mac OS X 10.7, the call
-fails because ``f()`` is no longer available.
-
-The availability attribute is a comma-separated list starting with the
-platform name and then including clauses specifying important milestones in the
-declaration's lifetime (in any order) along with additional information.  Those
-clauses can be:
-
-introduced=\ *version*
-  The first version in which this declaration was introduced.
-
-deprecated=\ *version*
-  The first version in which this declaration was deprecated, meaning that
-  users should migrate away from this API.
-
-obsoleted=\ *version*
-  The first version in which this declaration was obsoleted, meaning that it
-  was removed completely and can no longer be used.
-
-unavailable
-  This declaration is never available on this platform.
-
-message=\ *string-literal*
-  Additional message text that Clang will provide when emitting a warning or
-  error about use of a deprecated or obsoleted declaration.  Useful to direct
-  users to replacement APIs.
-
-Multiple availability attributes can be placed on a declaration, which may
-correspond to different platforms.  Only the availability attribute with the
-platform corresponding to the target platform will be used; any others will be
-ignored.  If no availability attribute specifies availability for the current
-target platform, the availability attributes are ignored.  Supported platforms
-are:
-
-``ios``
-  Apple's iOS operating system.  The minimum deployment target is specified by
-  the ``-mios-version-min=*version*`` or ``-miphoneos-version-min=*version*``
-  command-line arguments.
-
-``macosx``
-  Apple's Mac OS X operating system.  The minimum deployment target is
-  specified by the ``-mmacosx-version-min=*version*`` command-line argument.
-
-A declaration can be used even when deploying back to a platform version prior
-to when the declaration was introduced.  When this happens, the declaration is
-`weakly linked
-<https://developer.apple.com/library/mac/#documentation/MacOSX/Conceptual/BPFrameworks/Concepts/WeakLinking.html>`_,
-as if the ``weak_import`` attribute were added to the declaration.  A
-weakly-linked declaration may or may not be present a run-time, and a program
-can determine whether the declaration is present by checking whether the
-address of that declaration is non-NULL.
-
-If there are multiple declarations of the same entity, the availability
-attributes must either match on a per-platform basis or later
-declarations must not have availability attributes for that
-platform. For example:
-
-.. code-block:: c
-
-  void g(void) __attribute__((availability(macosx,introduced=10.4)));
-  void g(void) __attribute__((availability(macosx,introduced=10.4))); // okay, matches
-  void g(void) __attribute__((availability(ios,introduced=4.0))); // okay, adds a new platform
-  void g(void); // okay, inherits both macosx and ios availability from above.
-  void g(void) __attribute__((availability(macosx,introduced=10.5))); // error: mismatch
-
-When one method overrides another, the overriding method can be more widely available than the overridden method, e.g.,:
-
-.. code-block:: objc
-
-  @interface A
-  - (id)method __attribute__((availability(macosx,introduced=10.4)));
-  - (id)method2 __attribute__((availability(macosx,introduced=10.4)));
-  @end
-
-  @interface B : A
-  - (id)method __attribute__((availability(macosx,introduced=10.3))); // okay: method moved into base class later
-  - (id)method __attribute__((availability(macosx,introduced=10.5))); // error: this method was available via the base class in 10.4
-  @end
 
 Checks for Standard Language Features
 =====================================
@@ -826,20 +750,18 @@ for default initializers in aggregate members is enabled.
 C++1y generalized lambda capture
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Use ``__has_feature(cxx_init_capture)`` or
-``__has_extension(cxx_init_capture)`` to determine if support for
+Use ``__has_feature(cxx_init_captures)`` or
+``__has_extension(cxx_init_captures)`` to determine if support for
 lambda captures with explicit initializers is enabled
 (for instance, ``[n(0)] { return ++n; }``).
-Clang does not yet support this feature.
 
 C++1y generic lambdas
 ^^^^^^^^^^^^^^^^^^^^^
 
-Use ``__has_feature(cxx_generic_lambda)`` or
-``__has_extension(cxx_generic_lambda)`` to determine if support for generic
+Use ``__has_feature(cxx_generic_lambdas)`` or
+``__has_extension(cxx_generic_lambdas)`` to determine if support for generic
 (polymorphic) lambdas is enabled
 (for instance, ``[] (auto x) { return x + 1; }``).
-Clang does not yet support this feature.
 
 C++1y relaxed constexpr
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -872,7 +794,6 @@ C++1y variable templates
 Use ``__has_feature(cxx_variable_templates)`` or
 ``__has_extension(cxx_variable_templates)`` to determine if support for
 templated variable declarations is enabled.
-Clang does not yet support this feature.
 
 C11
 ---
@@ -924,15 +845,33 @@ C11 ``_Thread_local``
 Use ``__has_feature(c_thread_local)`` or ``__has_extension(c_thread_local)``
 to determine if support for ``_Thread_local`` variables is enabled.
 
-Checks for Type Traits
-======================
+Checks for Type Trait Primitives
+================================
+
+Type trait primitives are special builtin constant expressions that can be used
+by the standard C++ library to facilitate or simplify the implementation of
+user-facing type traits in the <type_traits> header.
+
+They are not intended to be used directly by user code because they are
+implementation-defined and subject to change -- as such they're tied closely to
+the supported set of system headers, currently:
+
+* LLVM's own libc++
+* GNU libstdc++
+* The Microsoft standard C++ library
 
 Clang supports the `GNU C++ type traits
 <http://gcc.gnu.org/onlinedocs/gcc/Type-Traits.html>`_ and a subset of the
 `Microsoft Visual C++ Type traits
-<http://msdn.microsoft.com/en-us/library/ms177194(v=VS.100).aspx>`_.  For each
-supported type trait ``__X``, ``__has_extension(X)`` indicates the presence of
-the type trait.  For example:
+<http://msdn.microsoft.com/en-us/library/ms177194(v=VS.100).aspx>`_.
+
+Feature detection is supported only for some of the primitives at present. User
+code should not use these checks because they bear no direct relation to the
+actual set of type traits supported by the C++ standard library.
+
+For type trait ``__X``, ``__has_extension(X)`` indicates the presence of the
+type trait primitive in the compiler. A simplistic usage example as might be
+seen in standard C++ headers follows:
 
 .. code-block:: c++
 
@@ -942,10 +881,10 @@ the type trait.  For example:
     static const bool value = __is_convertible_to(From, To);
   };
   #else
-  // Emulate type trait
+  // Emulate type trait for compatibility with other compilers.
   #endif
 
-The following type traits are supported by Clang:
+The following type trait primitives are supported by Clang:
 
 * ``__has_nothrow_assign`` (GNU, Microsoft)
 * ``__has_nothrow_copy`` (GNU, Microsoft)
@@ -980,6 +919,11 @@ The following type traits are supported by Clang:
   ``argtypes...`` such that no non-trivial functions are called as part of
   that initialization.  This trait is required to implement the C++11 standard
   library.
+* ``__is_destructible`` (MSVC 2013): partially implemented
+* ``__is_nothrow_destructible`` (MSVC 2013): partially implemented
+* ``__is_nothrow_assignable`` (MSVC 2013, clang)
+* ``__is_constructible`` (MSVC 2013, clang)
+* ``__is_nothrow_constructible`` (MSVC 2013, clang)
 
 Blocks
 ======
@@ -1174,77 +1118,6 @@ feature, clang provides default synthesis of those properties not declared
 ``__has_feature(objc_default_synthesize_properties)`` checks for availability
 of this feature in version of clang being used.
 
-.. _langext-objc_method_family:
-
-
-Objective-C requiring a call to ``super`` in an override
---------------------------------------------------------
-
-Some Objective-C classes allow a subclass to override a particular method in a
-parent class but expect that the overriding method also calls the overridden
-method in the parent class. For these cases, we provide an attribute to
-designate that a method requires a "call to ``super``" in the overriding
-method in the subclass.
-
-**Usage**: ``__attribute__((objc_requires_super))``.  This attribute can only
-be placed at the end of a method declaration:
-
-.. code-block:: objc
-
-  - (void)foo __attribute__((objc_requires_super));
-
-This attribute can only be applied the method declarations within a class, and
-not a protocol.  Currently this attribute does not enforce any placement of
-where the call occurs in the overriding method (such as in the case of
-``-dealloc`` where the call must appear at the end).  It checks only that it
-exists.
-
-Note that on both OS X and iOS that the Foundation framework provides a
-convenience macro ``NS_REQUIRES_SUPER`` that provides syntactic sugar for this
-attribute:
-
-.. code-block:: objc
-
-  - (void)foo NS_REQUIRES_SUPER;
-
-This macro is conditionally defined depending on the compiler's support for
-this attribute.  If the compiler does not support the attribute the macro
-expands to nothing.
-
-Operationally, when a method has this annotation the compiler will warn if the
-implementation of an override in a subclass does not call super.  For example:
-
-.. code-block:: objc
-
-   warning: method possibly missing a [super AnnotMeth] call
-   - (void) AnnotMeth{};
-                      ^
-
-Objective-C Method Families
----------------------------
-
-Many methods in Objective-C have conventional meanings determined by their
-selectors. It is sometimes useful to be able to mark a method as having a
-particular conventional meaning despite not having the right selector, or as
-not having the conventional meaning that its selector would suggest. For these
-use cases, we provide an attribute to specifically describe the "method family"
-that a method belongs to.
-
-**Usage**: ``__attribute__((objc_method_family(X)))``, where ``X`` is one of
-``none``, ``alloc``, ``copy``, ``init``, ``mutableCopy``, or ``new``.  This
-attribute can only be placed at the end of a method declaration:
-
-.. code-block:: objc
-
-  - (NSString *)initMyStringValue __attribute__((objc_method_family(none)));
-
-Users who do not wish to change the conventional meaning of a method, and who
-merely want to document its non-standard retain and release semantics, should
-use the :ref:`retaining behavior attributes <langext-objc-retain-release>`
-described below.
-
-Query for this feature with ``__has_attribute(objc_method_family)``.
-
 .. _langext-objc-retain-release:
 
 Objective-C retaining behavior attributes
@@ -1257,8 +1130,7 @@ conventions for ownership of object arguments and
 return values. However, there are exceptions, and so Clang provides attributes
 to allow these exceptions to be documented. This are used by ARC and the
 `static analyzer <http://clang-analyzer.llvm.org>`_ Some exceptions may be
-better described using the :ref:`objc_method_family
-<langext-objc_method_family>` attribute instead.
+better described using the ``objc_method_family`` attribute instead.
 
 **Usage**: The ``ns_returns_retained``, ``ns_returns_not_retained``,
 ``ns_returns_autoreleased``, ``cf_returns_retained``, and
@@ -1315,87 +1187,7 @@ parameters of protocol-qualified type.
 Query the presence of this new mangling with
 ``__has_feature(objc_protocol_qualifier_mangling)``.
 
-Function Overloading in C
-=========================
-
-Clang provides support for C++ function overloading in C.  Function overloading
-in C is introduced using the ``overloadable`` attribute.  For example, one
-might provide several overloaded versions of a ``tgsin`` function that invokes
-the appropriate standard function computing the sine of a value with ``float``,
-``double``, or ``long double`` precision:
-
-.. code-block:: c
-
-  #include <math.h>
-  float __attribute__((overloadable)) tgsin(float x) { return sinf(x); }
-  double __attribute__((overloadable)) tgsin(double x) { return sin(x); }
-  long double __attribute__((overloadable)) tgsin(long double x) { return sinl(x); }
-
-Given these declarations, one can call ``tgsin`` with a ``float`` value to
-receive a ``float`` result, with a ``double`` to receive a ``double`` result,
-etc.  Function overloading in C follows the rules of C++ function overloading
-to pick the best overload given the call arguments, with a few C-specific
-semantics:
-
-* Conversion from ``float`` or ``double`` to ``long double`` is ranked as a
-  floating-point promotion (per C99) rather than as a floating-point conversion
-  (as in C++).
-
-* A conversion from a pointer of type ``T*`` to a pointer of type ``U*`` is
-  considered a pointer conversion (with conversion rank) if ``T`` and ``U`` are
-  compatible types.
-
-* A conversion from type ``T`` to a value of type ``U`` is permitted if ``T``
-  and ``U`` are compatible types.  This conversion is given "conversion" rank.
-
-The declaration of ``overloadable`` functions is restricted to function
-declarations and definitions.  Most importantly, if any function with a given
-name is given the ``overloadable`` attribute, then all function declarations
-and definitions with that name (and in that scope) must have the
-``overloadable`` attribute.  This rule even applies to redeclarations of
-functions whose original declaration had the ``overloadable`` attribute, e.g.,
-
-.. code-block:: c
-
-  int f(int) __attribute__((overloadable));
-  float f(float); // error: declaration of "f" must have the "overloadable" attribute
-
-  int g(int) __attribute__((overloadable));
-  int g(int) { } // error: redeclaration of "g" must also have the "overloadable" attribute
-
-Functions marked ``overloadable`` must have prototypes.  Therefore, the
-following code is ill-formed:
-
-.. code-block:: c
-
-  int h() __attribute__((overloadable)); // error: h does not have a prototype
-
-However, ``overloadable`` functions are allowed to use a ellipsis even if there
-are no named parameters (as is permitted in C++).  This feature is particularly
-useful when combined with the ``unavailable`` attribute:
-
-.. code-block:: c++
-
-  void honeypot(...) __attribute__((overloadable, unavailable)); // calling me is an error
-
-Functions declared with the ``overloadable`` attribute have their names mangled
-according to the same rules as C++ function names.  For example, the three
-``tgsin`` functions in our motivating example get the mangled names
-``_Z5tgsinf``, ``_Z5tgsind``, and ``_Z5tgsine``, respectively.  There are two
-caveats to this use of name mangling:
-
-* Future versions of Clang may change the name mangling of functions overloaded
-  in C, so you should not depend on an specific mangling.  To be completely
-  safe, we strongly urge the use of ``static inline`` with ``overloadable``
-  functions.
-
-* The ``overloadable`` attribute has almost no meaning when used in C++,
-  because names will already be mangled and functions are already overloadable.
-  However, when an ``overloadable`` function occurs within an ``extern "C"``
-  linkage specification, it's name *will* be mangled in the same way as it
-  would in C.
-
-Query for this feature with ``__has_extension(attribute_overloadable)``.
+.. _langext-overloading:
 
 Initializer lists for complex numbers in C
 ==========================================
@@ -1654,6 +1446,24 @@ object that overloads ``operator&``.
     return __builtin_addressof(value);
   }
 
+``__builtin_operator_new`` and ``__builtin_operator_delete``
+------------------------------------------------------------
+
+``__builtin_operator_new`` allocates memory just like a non-placement non-class
+*new-expression*. This is exactly like directly calling the normal
+non-placement ``::operator new``, except that it allows certain optimizations
+that the C++ standard does not permit for a direct function call to
+``::operator new`` (in particular, removing ``new`` / ``delete`` pairs and
+merging allocations).
+
+Likewise, ``__builtin_operator_delete`` deallocates memory just like a
+non-class *delete-expression*, and is exactly like directly calling the normal
+``::operator delete``, except that it permits optimizations. Only the unsized
+form of ``__builtin_operator_delete`` is currently available.
+
+These builtins are intended for use in the implementation of ``std::allocator``
+and other similar allocation libraries, and are only available in C++.
+
 Multiprecision Arithmetic Builtins
 ----------------------------------
 
@@ -1770,20 +1580,22 @@ instructions for implementing atomic operations.
 .. code-block:: c
 
   T __builtin_arm_ldrex(const volatile T *addr);
+  T __builtin_arm_ldaex(const volatile T *addr);
   int __builtin_arm_strex(T val, volatile T *addr);
+  int __builtin_arm_stlex(T val, volatile T *addr);
   void __builtin_arm_clrex(void);
 
 The types ``T`` currently supported are:
-* Integer types with width at most 64 bits.
+* Integer types with width at most 64 bits (or 128 bits on AArch64).
 * Floating-point types
 * Pointer types.
 
 Note that the compiler does not guarantee it will not insert stores which clear
-the exclusive monitor in between an ``ldrex`` and its paired ``strex``. In
-practice this is only usually a risk when the extra store is on the same cache
-line as the variable being modified and Clang will only insert stack stores on
-its own, so it is best not to use these operations on variables with automatic
-storage duration.
+the exclusive monitor in between an ``ldrex`` type operation and its paired
+``strex``. In practice this is only usually a risk when the extra store is on
+the same cache line as the variable being modified and Clang will only insert
+stack stores on its own, so it is best not to use these operations on variables
+with automatic storage duration.
 
 Also, loads and stores may be implicit in code written between the ``ldrex`` and
 ``strex``. Clang will not necessarily mitigate the effects of these either, so
@@ -1798,55 +1610,7 @@ Non-standard C++11 Attributes
 Clang's non-standard C++11 attributes live in the ``clang`` attribute
 namespace.
 
-The ``clang::fallthrough`` attribute
-------------------------------------
-
-The ``clang::fallthrough`` attribute is used along with the
-``-Wimplicit-fallthrough`` argument to annotate intentional fall-through
-between switch labels.  It can only be applied to a null statement placed at a
-point of execution between any statement and the next switch label.  It is
-common to mark these places with a specific comment, but this attribute is
-meant to replace comments with a more strict annotation, which can be checked
-by the compiler.  This attribute doesn't change semantics of the code and can
-be used wherever an intended fall-through occurs.  It is designed to mimic
-control-flow statements like ``break;``, so it can be placed in most places
-where ``break;`` can, but only if there are no statements on the execution path
-between it and the next switch label.
-
-Here is an example:
-
-.. code-block:: c++
-
-  // compile with -Wimplicit-fallthrough
-  switch (n) {
-  case 22:
-  case 33:  // no warning: no statements between case labels
-    f();
-  case 44:  // warning: unannotated fall-through
-    g();
-    [[clang::fallthrough]];
-  case 55:  // no warning
-    if (x) {
-      h();
-      break;
-    }
-    else {
-      i();
-      [[clang::fallthrough]];
-    }
-  case 66:  // no warning
-    p();
-    [[clang::fallthrough]]; // warning: fallthrough annotation does not
-                            //          directly precede case label
-    q();
-  case 77:  // warning: unannotated fall-through
-    r();
-  }
-
-``gnu::`` attributes
---------------------
-
-Clang also supports GCC's ``gnu`` attribute namespace. All GCC attributes which
+Clang supports GCC's ``gnu`` attribute namespace. All GCC attributes which
 are accepted with the ``__attribute__((foo))`` syntax are also accepted as
 ``[[gnu::foo]]``. This only extends to attributes which are specified by GCC
 (see the list of `GCC function attributes
@@ -1869,6 +1633,19 @@ Target-Specific Extensions
 ==========================
 
 Clang supports some language features conditionally on some targets.
+
+ARM/AArch64 Language Extensions
+-------------------------------
+
+Memory Barrier Intrinsics
+^^^^^^^^^^^^^^^^^^^^^^^^^
+Clang implements the ``__dmb``, ``__dsb`` and ``__isb`` intrinsics as defined
+in the `ARM C Language Extensions Release 2.0
+<http://infocenter.arm.com/help/topic/com.arm.doc.ihi0053c/IHI0053C_acle_2_0.pdf>`_.
+Note that these intrinsics are implemented as motion barriers that block
+reordering of memory accesses and side effect instructions. Other instructions
+like simple arithmatic may be reordered around the intrinsic. If you expect to
+have no reordering at all, use inline assembly instead.
 
 X86/X86-64 Language Extensions
 ------------------------------
@@ -1902,48 +1679,6 @@ Which compiles to (on X86-32):
           movl    %gs:(%eax), %eax
           ret
 
-ARM Language Extensions
------------------------
-
-Interrupt attribute
-^^^^^^^^^^^^^^^^^^^
-
-Clang supports the GNU style ``__attribute__((interrupt("TYPE")))`` attribute on
-ARM targets. This attribute may be attached to a function definition and
-instructs the backend to generate appropriate function entry/exit code so that
-it can be used directly as an interrupt service routine.
-
- The parameter passed to the interrupt attribute is optional, but if
-provided it must be a string literal with one of the following values: "IRQ",
-"FIQ", "SWI", "ABORT", "UNDEF".
-
-The semantics are as follows:
-
-- If the function is AAPCS, Clang instructs the backend to realign the stack to
-  8 bytes on entry. This is a general requirement of the AAPCS at public
-  interfaces, but may not hold when an exception is taken. Doing this allows
-  other AAPCS functions to be called.
-- If the CPU is M-class this is all that needs to be done since the architecture
-  itself is designed in such a way that functions obeying the normal AAPCS ABI
-  constraints are valid exception handlers.
-- If the CPU is not M-class, the prologue and epilogue are modified to save all
-  non-banked registers that are used, so that upon return the user-mode state
-  will not be corrupted. Note that to avoid unnecessary overhead, only
-  general-purpose (integer) registers are saved in this way. If VFP operations
-  are needed, that state must be saved manually.
-
-  Specifically, interrupt kinds other than "FIQ" will save all core registers
-  except "lr" and "sp". "FIQ" interrupts will save r0-r7.
-- If the CPU is not M-class, the return instruction is changed to one of the
-  canonical sequences permitted by the architecture for exception return. Where
-  possible the function itself will make the necessary "lr" adjustments so that
-  the "preferred return address" is selected.
-
-  Unfortunately the compiler is unable to make this guarantee for an "UNDEF"
-  handler, where the offset from "lr" to the preferred return address depends on
-  the execution state of the code which generated the exception. In this case
-  a sequence equivalent to "movs pc, lr" will be used.
-
 Extensions for Static Analysis
 ==============================
 
@@ -1957,450 +1692,156 @@ in the analyzer's `list of source-level annotations
 Extensions for Dynamic Analysis
 ===============================
 
-.. _langext-address_sanitizer:
-
-AddressSanitizer
-----------------
-
 Use ``__has_feature(address_sanitizer)`` to check if the code is being built
 with :doc:`AddressSanitizer`.
-
-Use ``__attribute__((no_sanitize_address))``
-on a function declaration
-to specify that address safety instrumentation (e.g. AddressSanitizer) should
-not be applied to that function.
-
-.. _langext-thread_sanitizer:
-
-ThreadSanitizer
-----------------
 
 Use ``__has_feature(thread_sanitizer)`` to check if the code is being built
 with :doc:`ThreadSanitizer`.
 
-Use ``__attribute__((no_sanitize_thread))`` on a function declaration
-to specify that checks for data races on plain (non-atomic) memory accesses
-should not be inserted by ThreadSanitizer.
-The function is still instrumented by the tool to avoid false positives and
-provide meaningful stack traces.
-
-.. _langext-memory_sanitizer:
-
-MemorySanitizer
-----------------
 Use ``__has_feature(memory_sanitizer)`` to check if the code is being built
 with :doc:`MemorySanitizer`.
 
-Use ``__attribute__((no_sanitize_memory))`` on a function declaration
-to specify that checks for uninitialized memory should not be inserted 
-(e.g. by MemorySanitizer). The function may still be instrumented by the tool
-to avoid false positives in other places.
 
+Extensions for selectively disabling optimization
+=================================================
 
-Thread-Safety Annotation Checking
-=================================
+Clang provides a mechanism for selectively disabling optimizations in functions
+and methods.
 
-Clang supports additional attributes for checking basic locking policies in
-multithreaded programs.  Clang currently parses the following list of
-attributes, although **the implementation for these annotations is currently in
-development.** For more details, see the `GCC implementation
-<http://gcc.gnu.org/wiki/ThreadSafetyAnnotation>`_.
-
-``no_thread_safety_analysis``
------------------------------
-
-Use ``__attribute__((no_thread_safety_analysis))`` on a function declaration to
-specify that the thread safety analysis should not be run on that function.
-This attribute provides an escape hatch (e.g. for situations when it is
-difficult to annotate the locking policy).
-
-``lockable``
-------------
-
-Use ``__attribute__((lockable))`` on a class definition to specify that it has
-a lockable type (e.g. a Mutex class).  This annotation is primarily used to
-check consistency.
-
-``scoped_lockable``
--------------------
-
-Use ``__attribute__((scoped_lockable))`` on a class definition to specify that
-it has a "scoped" lockable type.  Objects of this type will acquire the lock
-upon construction and release it upon going out of scope.  This annotation is
-primarily used to check consistency.
-
-``guarded_var``
----------------
-
-Use ``__attribute__((guarded_var))`` on a variable declaration to specify that
-the variable must be accessed while holding some lock.
-
-``pt_guarded_var``
-------------------
-
-Use ``__attribute__((pt_guarded_var))`` on a pointer declaration to specify
-that the pointer must be dereferenced while holding some lock.
-
-``guarded_by(l)``
------------------
-
-Use ``__attribute__((guarded_by(l)))`` on a variable declaration to specify
-that the variable must be accessed while holding lock ``l``.
-
-``pt_guarded_by(l)``
---------------------
-
-Use ``__attribute__((pt_guarded_by(l)))`` on a pointer declaration to specify
-that the pointer must be dereferenced while holding lock ``l``.
-
-``acquired_before(...)``
-------------------------
-
-Use ``__attribute__((acquired_before(...)))`` on a declaration of a lockable
-variable to specify that the lock must be acquired before all attribute
-arguments.  Arguments must be lockable type, and there must be at least one
-argument.
-
-``acquired_after(...)``
------------------------
-
-Use ``__attribute__((acquired_after(...)))`` on a declaration of a lockable
-variable to specify that the lock must be acquired after all attribute
-arguments.  Arguments must be lockable type, and there must be at least one
-argument.
-
-``exclusive_lock_function(...)``
---------------------------------
-
-Use ``__attribute__((exclusive_lock_function(...)))`` on a function declaration
-to specify that the function acquires all listed locks exclusively.  This
-attribute takes zero or more arguments: either of lockable type or integers
-indexing into function parameters of lockable type.  If no arguments are given,
-the acquired lock is implicitly ``this`` of the enclosing object.
-
-``shared_lock_function(...)``
------------------------------
-
-Use ``__attribute__((shared_lock_function(...)))`` on a function declaration to
-specify that the function acquires all listed locks, although the locks may be
-shared (e.g. read locks).  This attribute takes zero or more arguments: either
-of lockable type or integers indexing into function parameters of lockable
-type.  If no arguments are given, the acquired lock is implicitly ``this`` of
-the enclosing object.
-
-``exclusive_trylock_function(...)``
------------------------------------
-
-Use ``__attribute__((exclusive_lock_function(...)))`` on a function declaration
-to specify that the function will try (without blocking) to acquire all listed
-locks exclusively.  This attribute takes one or more arguments.  The first
-argument is an integer or boolean value specifying the return value of a
-successful lock acquisition.  The remaining arugments are either of lockable
-type or integers indexing into function parameters of lockable type.  If only
-one argument is given, the acquired lock is implicitly ``this`` of the
-enclosing object.
-
-``shared_trylock_function(...)``
---------------------------------
-
-Use ``__attribute__((shared_lock_function(...)))`` on a function declaration to
-specify that the function will try (without blocking) to acquire all listed
-locks, although the locks may be shared (e.g. read locks).  This attribute
-takes one or more arguments.  The first argument is an integer or boolean value
-specifying the return value of a successful lock acquisition.  The remaining
-arugments are either of lockable type or integers indexing into function
-parameters of lockable type.  If only one argument is given, the acquired lock
-is implicitly ``this`` of the enclosing object.
-
-``unlock_function(...)``
-------------------------
-
-Use ``__attribute__((unlock_function(...)))`` on a function declaration to
-specify that the function release all listed locks.  This attribute takes zero
-or more arguments: either of lockable type or integers indexing into function
-parameters of lockable type.  If no arguments are given, the acquired lock is
-implicitly ``this`` of the enclosing object.
-
-``lock_returned(l)``
---------------------
-
-Use ``__attribute__((lock_returned(l)))`` on a function declaration to specify
-that the function returns lock ``l`` (``l`` must be of lockable type).  This
-annotation is used to aid in resolving lock expressions.
-
-``locks_excluded(...)``
------------------------
-
-Use ``__attribute__((locks_excluded(...)))`` on a function declaration to
-specify that the function must not be called with the listed locks.  Arguments
-must be lockable type, and there must be at least one argument.
-
-``exclusive_locks_required(...)``
----------------------------------
-
-Use ``__attribute__((exclusive_locks_required(...)))`` on a function
-declaration to specify that the function must be called while holding the
-listed exclusive locks.  Arguments must be lockable type, and there must be at
-least one argument.
-
-``shared_locks_required(...)``
-------------------------------
-
-Use ``__attribute__((shared_locks_required(...)))`` on a function declaration
-to specify that the function must be called while holding the listed shared
-locks.  Arguments must be lockable type, and there must be at least one
-argument.
-
-Consumed Annotation Checking
-============================
-
-Clang supports additional attributes for checking basic resource management
-properties, specifically for unique objects that have a single owning reference.
-The following attributes are currently supported, although **the implementation
-for these annotations is currently in development and are subject to change.**
-
-``consumable``
---------------
-
-Each class that uses any of the following annotations must first be marked
-using the consumable attribute.  Failure to do so will result in a warning.
-
-``set_typestate(new_state)``
-----------------------------
-
-Annotate methods that transition an object into a new state with
-``__attribute__((set_typestate(new_state)))``.  The new new state must be
-unconsumed, consumed, or unknown.
-
-``callable_when(...)``
-----------------------
-
-Use ``__attribute__((callable_when(...)))`` to indicate what states a method
-may be called in.  Valid states are unconsumed, consumed, or unknown.  Each
-argument to this attribute must be a quoted string.  E.g.:
-
-``__attribute__((callable_when("unconsumed", "unknown")))``
-
-``tests_typestate(tested_state)``
----------------------------------
-
-Use ``__attribute__((tests_typestate(tested_state)))`` to indicate that a method
-returns true if the object is in the specified state..
-
-``param_typestate(expected_state)``
------------------------------------
-
-This attribute specifies expectations about function parameters.  Calls to an
-function with annotated parameters will issue a warning if the corresponding
-argument isn't in the expected state.  The attribute is also used to set the
-initial state of the parameter when analyzing the function's body.
-
-``return_typestate(ret_state)``
--------------------------------
-
-The ``return_typestate`` attribute can be applied to functions or parameters.
-When applied to a function the attribute specifies the state of the returned
-value.  The function's body is checked to ensure that it always returns a value
-in the specified state.  On the caller side, values returned by the annotated
-function are initialized to the given state.
-
-If the attribute is applied to a function parameter it modifies the state of
-an argument after a call to the function returns.  The function's body is
-checked to ensure that the parameter is in the expected state before returning. 
-
-Type Safety Checking
-====================
-
-Clang supports additional attributes to enable checking type safety properties
-that can't be enforced by the C type system.  Use cases include:
-
-* MPI library implementations, where these attributes enable checking that
-  the buffer type matches the passed ``MPI_Datatype``;
-* for HDF5 library there is a similar use case to MPI;
-* checking types of variadic functions' arguments for functions like
-  ``fcntl()`` and ``ioctl()``.
-
-You can detect support for these attributes with ``__has_attribute()``.  For
-example:
+To disable optimizations in a single function definition, the GNU-style or C++11
+non-standard attribute ``optnone`` can be used.
 
 .. code-block:: c++
 
-  #if defined(__has_attribute)
-  #  if __has_attribute(argument_with_type_tag) && \
-        __has_attribute(pointer_with_type_tag) && \
-        __has_attribute(type_tag_for_datatype)
-  #    define ATTR_MPI_PWT(buffer_idx, type_idx) __attribute__((pointer_with_type_tag(mpi,buffer_idx,type_idx)))
-  /* ... other macros ...  */
-  #  endif
-  #endif
+  // The following functions will not be optimized.
+  // GNU-style attribute
+  __attribute__((optnone)) int foo() {
+    // ... code
+  }
+  // C++11 attribute
+  [[clang::optnone]] int bar() {
+    // ... code
+  }
 
-  #if !defined(ATTR_MPI_PWT)
-  # define ATTR_MPI_PWT(buffer_idx, type_idx)
-  #endif
+To facilitate disabling optimization for a range of function definitions, a
+range-based pragma is provided. Its syntax is ``#pragma clang optimize``
+followed by ``off`` or ``on``.
 
-  int MPI_Send(void *buf, int count, MPI_Datatype datatype /*, other args omitted */)
-      ATTR_MPI_PWT(1,3);
-
-``argument_with_type_tag(...)``
--------------------------------
-
-Use ``__attribute__((argument_with_type_tag(arg_kind, arg_idx,
-type_tag_idx)))`` on a function declaration to specify that the function
-accepts a type tag that determines the type of some other argument.
-``arg_kind`` is an identifier that should be used when annotating all
-applicable type tags.
-
-This attribute is primarily useful for checking arguments of variadic functions
-(``pointer_with_type_tag`` can be used in most non-variadic cases).
-
-For example:
+All function definitions in the region between an ``off`` and the following
+``on`` will be decorated with the ``optnone`` attribute unless doing so would
+conflict with explicit attributes already present on the function (e.g. the
+ones that control inlining).
 
 .. code-block:: c++
 
-  int fcntl(int fd, int cmd, ...)
-      __attribute__(( argument_with_type_tag(fcntl,3,2) ));
+  #pragma clang optimize off
+  // This function will be decorated with optnone.
+  int foo() {
+    // ... code
+  }
 
-``pointer_with_type_tag(...)``
-------------------------------
+  // optnone conflicts with always_inline, so bar() will not be decorated.
+  __attribute__((always_inline)) int bar() {
+    // ... code
+  }
+  #pragma clang optimize on
 
-Use ``__attribute__((pointer_with_type_tag(ptr_kind, ptr_idx, type_tag_idx)))``
-on a function declaration to specify that the function accepts a type tag that
-determines the pointee type of some other pointer argument.
+If no ``on`` is found to close an ``off`` region, the end of the region is the
+end of the compilation unit.
 
-For example:
+Note that a stray ``#pragma clang optimize on`` does not selectively enable
+additional optimizations when compiling at low optimization levels. This feature
+can only be used to selectively disable optimizations.
+
+The pragma has an effect on functions only at the point of their definition; for
+function templates, this means that the state of the pragma at the point of an
+instantiation is not necessarily relevant. Consider the following example:
 
 .. code-block:: c++
 
-  int MPI_Send(void *buf, int count, MPI_Datatype datatype /*, other args omitted */)
-      __attribute__(( pointer_with_type_tag(mpi,1,3) ));
+  template<typename T> T twice(T t) {
+    return 2 * t;
+  }
 
-``type_tag_for_datatype(...)``
-------------------------------
+  #pragma clang optimize off
+  template<typename T> T thrice(T t) {
+    return 3 * t;
+  }
 
-Clang supports annotating type tags of two forms.
+  int container(int a, int b) {
+    return twice(a) + thrice(b);
+  }
+  #pragma clang optimize on
 
-* **Type tag that is an expression containing a reference to some declared
-  identifier.** Use ``__attribute__((type_tag_for_datatype(kind, type)))`` on a
-  declaration with that identifier:
+In this example, the definition of the template function ``twice`` is outside
+the pragma region, whereas the definition of ``thrice`` is inside the region.
+The ``container`` function is also in the region and will not be optimized, but
+it causes the instantiation of ``twice`` and ``thrice`` with an ``int`` type; of
+these two instantiations, ``twice`` will be optimized (because its definition
+was outside the region) and ``thrice`` will not be optimized.
 
-  .. code-block:: c++
+.. _langext-pragma-loop:
 
-    extern struct mpi_datatype mpi_datatype_int
-        __attribute__(( type_tag_for_datatype(mpi,int) ));
-    #define MPI_INT ((MPI_Datatype) &mpi_datatype_int)
+Extensions for loop hint optimizations
+======================================
 
-* **Type tag that is an integral literal.** Introduce a ``static const``
-  variable with a corresponding initializer value and attach
-  ``__attribute__((type_tag_for_datatype(kind, type)))`` on that declaration,
-  for example:
+The ``#pragma clang loop`` directive is used to specify hints for optimizing the
+subsequent for, while, do-while, or c++11 range-based for loop. The directive
+provides options for vectorization and interleaving. Loop hints can be specified
+before any loop and will be ignored if the optimization is not safe to apply.
 
-  .. code-block:: c++
+A vectorized loop performs multiple iterations of the original loop
+in parallel using vector instructions. The instruction set of the target
+processor determines which vector instructions are available and their vector
+widths. This restricts the types of loops that can be vectorized. The vectorizer
+automatically determines if the loop is safe and profitable to vectorize. A
+vector instruction cost model is used to select the vector width.
 
-    #define MPI_INT ((MPI_Datatype) 42)
-    static const MPI_Datatype mpi_datatype_int
-        __attribute__(( type_tag_for_datatype(mpi,int) )) = 42
+Interleaving multiple loop iterations allows modern processors to further
+improve instruction-level parallelism (ILP) using advanced hardware features,
+such as multiple execution units and out-of-order execution. The vectorizer uses
+a cost model that depends on the register pressure and generated code size to
+select the interleaving count.
 
-The attribute also accepts an optional third argument that determines how the
-expression is compared to the type tag.  There are two supported flags:
+Vectorization is enabled by ``vectorize(enable)`` and interleaving is enabled
+by ``interleave(enable)``. This is useful when compiling with ``-Os`` to
+manually enable vectorization or interleaving.
 
-* ``layout_compatible`` will cause types to be compared according to
-  layout-compatibility rules (C++11 [class.mem] p 17, 18).  This is
-  implemented to support annotating types like ``MPI_DOUBLE_INT``.
+.. code-block:: c++
 
-  For example:
+  #pragma clang loop vectorize(enable)
+  #pragma clang loop interleave(enable)
+  for(...) {
+    ...
+  }
 
-  .. code-block:: c++
+The vector width is specified by ``vectorize_width(_value_)`` and the interleave
+count is specified by ``interleave_count(_value_)``, where
+_value_ is a positive integer. This is useful for specifying the optimal
+width/count of the set of target architectures supported by your application.
 
-    /* In mpi.h */
-    struct internal_mpi_double_int { double d; int i; };
-    extern struct mpi_datatype mpi_datatype_double_int
-        __attribute__(( type_tag_for_datatype(mpi, struct internal_mpi_double_int, layout_compatible) ));
+.. code-block:: c++
 
-    #define MPI_DOUBLE_INT ((MPI_Datatype) &mpi_datatype_double_int)
+  #pragma clang loop vectorize_width(2)
+  #pragma clang loop interleave_count(2)
+  for(...) {
+    ...
+  }
 
-    /* In user code */
-    struct my_pair { double a; int b; };
-    struct my_pair *buffer;
-    MPI_Send(buffer, 1, MPI_DOUBLE_INT /*, ...  */); // no warning
+Specifying a width/count of 1 disables the optimization, and is equivalent to
+``vectorize(disable)`` or ``interleave(disable)``.
 
-    struct my_int_pair { int a; int b; }
-    struct my_int_pair *buffer2;
-    MPI_Send(buffer2, 1, MPI_DOUBLE_INT /*, ...  */); // warning: actual buffer element
-                                                      // type 'struct my_int_pair'
-                                                      // doesn't match specified MPI_Datatype
+For convenience multiple loop hints can be specified on a single line.
 
-* ``must_be_null`` specifies that the expression should be a null pointer
-  constant, for example:
+.. code-block:: c++
 
-  .. code-block:: c++
+  #pragma clang loop vectorize_width(4) interleave_count(8)
+  for(...) {
+    ...
+  }
 
-    /* In mpi.h */
-    extern struct mpi_datatype mpi_datatype_null
-        __attribute__(( type_tag_for_datatype(mpi, void, must_be_null) ));
-
-    #define MPI_DATATYPE_NULL ((MPI_Datatype) &mpi_datatype_null)
-
-    /* In user code */
-    MPI_Send(buffer, 1, MPI_DATATYPE_NULL /*, ...  */); // warning: MPI_DATATYPE_NULL
-                                                        // was specified but buffer
-                                                        // is not a null pointer
-
-Format String Checking
-======================
-
-Clang supports the ``format`` attribute, which indicates that the function
-accepts a ``printf`` or ``scanf``-like format string and corresponding
-arguments or a ``va_list`` that contains these arguments.
-
-Please see `GCC documentation about format attribute
-<http://gcc.gnu.org/onlinedocs/gcc/Function-Attributes.html>`_ to find details
-about attribute syntax.
-
-Clang implements two kinds of checks with this attribute.
-
-#. Clang checks that the function with the ``format`` attribute is called with
-   a format string that uses format specifiers that are allowed, and that
-   arguments match the format string.  This is the ``-Wformat`` warning, it is
-   on by default.
-
-#. Clang checks that the format string argument is a literal string.  This is
-   the ``-Wformat-nonliteral`` warning, it is off by default.
-
-   Clang implements this mostly the same way as GCC, but there is a difference
-   for functions that accept a ``va_list`` argument (for example, ``vprintf``).
-   GCC does not emit ``-Wformat-nonliteral`` warning for calls to such
-   fuctions.  Clang does not warn if the format string comes from a function
-   parameter, where the function is annotated with a compatible attribute,
-   otherwise it warns.  For example:
-
-   .. code-block:: c
-
-     __attribute__((__format__ (__scanf__, 1, 3)))
-     void foo(const char* s, char *buf, ...) {
-       va_list ap;
-       va_start(ap, buf);
-
-       vprintf(s, ap); // warning: format string is not a string literal
-     }
-
-   In this case we warn because ``s`` contains a format string for a
-   ``scanf``-like function, but it is passed to a ``printf``-like function.
-
-   If the attribute is removed, clang still warns, because the format string is
-   not a string literal.
-
-   Another example:
-
-   .. code-block:: c
-
-     __attribute__((__format__ (__printf__, 1, 3)))
-     void foo(const char* s, char *buf, ...) {
-       va_list ap;
-       va_start(ap, buf);
-
-       vprintf(s, ap); // warning
-     }
-
-   In this case Clang does not warn because the format string ``s`` and
-   the corresponding arguments are annotated.  If the arguments are
-   incorrect, the caller of ``foo`` will receive a warning.
+If an optimization cannot be applied any hints that apply to it will be ignored.
+For example, the hint ``vectorize_width(4)`` is ignored if the loop is not
+proven safe to vectorize. To identify and diagnose optimization issues use
+`-Rpass`, `-Rpass-missed`, and `-Rpass-analysis` command line options. See the
+user guide for details.

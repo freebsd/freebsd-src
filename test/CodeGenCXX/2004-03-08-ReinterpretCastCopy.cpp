@@ -1,4 +1,5 @@
-// RUN: %clang_cc1 -emit-llvm %s -o -
+// RUN: %clang_cc1 -triple %itanium_abi_triple -emit-llvm %s -o -
+// RUN: %clang_cc1 -triple %ms_abi_triple -fno-rtti -emit-llvm %s -o -
 
 struct A {
   virtual void Method() = 0;

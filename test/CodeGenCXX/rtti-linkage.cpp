@@ -1,56 +1,75 @@
-// RUN: %clang_cc1 %s -I%S -triple=x86_64-apple-darwin10 -fhidden-weak-vtables -emit-llvm -o - | FileCheck %s
-// RUN: %clang_cc1 %s -I%S -triple=x86_64-apple-darwin10 -fvisibility hidden -fhidden-weak-vtables -emit-llvm -o - | FileCheck -check-prefix=CHECK-WITH-HIDDEN %s
+// RUN: %clang_cc1 %s -I%S -triple=x86_64-apple-darwin10 -emit-llvm -o - | FileCheck %s -check-prefix=CHECK -check-prefix=CHECK-BOTH
+// RUN: %clang_cc1 %s -I%S -triple=x86_64-apple-darwin10 -fvisibility hidden -emit-llvm -o - | FileCheck -check-prefix=CHECK-WITH-HIDDEN -check-prefix=CHECK-BOTH %s
 
 #include <typeinfo>
+
+// CHECK-BOTH: _ZTSP1C = internal constant
+// CHECK-BOTH: _ZTS1C = internal constant
+// CHECK-BOTH: _ZTI1C = internal constant
+// CHECK-BOTH: _ZTIP1C = internal constant
+// CHECK-BOTH: _ZTSPP1C = internal constant
+// CHECK-BOTH: _ZTIPP1C = internal constant
+// CHECK-BOTH: _ZTSM1Ci = internal constant
+// CHECK-BOTH: _ZTIM1Ci = internal constant
+// CHECK-BOTH: _ZTSPM1Ci = internal constant
+// CHECK-BOTH: _ZTIPM1Ci = internal constant
+// CHECK-BOTH: _ZTSM1CS_ = internal constant
+// CHECK-BOTH: _ZTIM1CS_ = internal constant
+// CHECK-BOTH: _ZTSM1CPS_ = internal constant
+// CHECK-BOTH: _ZTIM1CPS_ = internal constant
+// CHECK-BOTH: _ZTSM1A1C = internal constant
+// CHECK: _ZTS1A = linkonce_odr constant
+// CHECK-WITH-HIDDEN: _ZTS1A = linkonce_odr hidden constant
+// CHECK: _ZTI1A = linkonce_odr constant
+// CHECK-WITH-HIDDEN: _ZTI1A = linkonce_odr hidden constant
+// CHECK-BOTH: _ZTIM1A1C = internal constant
+// CHECK-BOTH: _ZTSM1AP1C = internal constant
+// CHECK-BOTH: _ZTIM1AP1C = internal constant
 
 // CHECK-WITH-HIDDEN: _ZTSFN12_GLOBAL__N_11DEvE = internal constant
 // CHECK-WITH-HIDDEN: @_ZTSPK2T4 = linkonce_odr hidden constant 
 // CHECK-WITH-HIDDEN: @_ZTS2T4 = linkonce_odr hidden constant 
-// CHECK-WITH-HIDDEN: @_ZTI2T4 = linkonce_odr hidden unnamed_addr constant 
-// CHECK-WITH-HIDDEN: @_ZTIPK2T4 = linkonce_odr hidden unnamed_addr constant 
+// CHECK-WITH-HIDDEN: @_ZTI2T4 = linkonce_odr hidden constant 
+// CHECK-WITH-HIDDEN: @_ZTIPK2T4 = linkonce_odr hidden constant 
+// CHECK-WITH-HIDDEN: @_ZTSZ2t5vE1A = internal constant
+// CHECK-WITH-HIDDEN: @_ZTIZ2t5vE1A = internal constant
+// CHECK-WITH-HIDDEN: @_ZTSPZ2t7vE1A = linkonce_odr hidden constant
+// CHECK-WITH-HIDDEN: @_ZTSZ2t7vE1A = linkonce_odr hidden constant
+// CHECK-WITH-HIDDEN: @_ZTIZ2t7vE1A = linkonce_odr hidden constant
+// CHECK-WITH-HIDDEN: @_ZTIPZ2t7vE1A = linkonce_odr hidden constant
+// CHECK-WITH-HIDDEN: @_ZTSZ2t6vE1A = linkonce_odr hidden constant
+// CHECK-WITH-HIDDEN: @_ZTIZ2t6vE1A = linkonce_odr hidden constant
 
-// CHECK: _ZTSP1C = internal constant
-// CHECK: _ZTS1C = internal constant
-// CHECK: _ZTI1C = internal unnamed_addr constant
-// CHECK: _ZTIP1C = internal unnamed_addr constant
-// CHECK: _ZTSPP1C = internal constant
-// CHECK: _ZTIPP1C = internal unnamed_addr constant
-// CHECK: _ZTSM1Ci = internal constant
-// CHECK: _ZTIM1Ci = internal unnamed_addr constant
-// CHECK: _ZTSPM1Ci = internal constant
-// CHECK: _ZTIPM1Ci = internal unnamed_addr constant
-// CHECK: _ZTSM1CS_ = internal constant
-// CHECK: _ZTIM1CS_ = internal unnamed_addr constant
-// CHECK: _ZTSM1CPS_ = internal constant
-// CHECK: _ZTIM1CPS_ = internal unnamed_addr constant
-// CHECK: _ZTSM1A1C = internal constant
-// CHECK: _ZTS1A = linkonce_odr constant
-// CHECK: _ZTI1A = linkonce_odr hidden unnamed_addr constant
-// CHECK: _ZTIM1A1C = internal unnamed_addr constant
-// CHECK: _ZTSM1AP1C = internal constant
-// CHECK: _ZTIM1AP1C = internal unnamed_addr constant
 // CHECK: _ZTSN12_GLOBAL__N_11DE = internal constant
-// CHECK: _ZTIN12_GLOBAL__N_11DE = internal unnamed_addr constant
+// CHECK: _ZTIN12_GLOBAL__N_11DE = internal constant
 // CHECK: _ZTSPN12_GLOBAL__N_11DE = internal constant
-// CHECK: _ZTIPN12_GLOBAL__N_11DE = internal unnamed_addr constant
+// CHECK: _ZTIPN12_GLOBAL__N_11DE = internal constant
 // CHECK: _ZTSFN12_GLOBAL__N_11DEvE = internal constant
-// CHECK: _ZTIFN12_GLOBAL__N_11DEvE = internal unnamed_addr constant
+// CHECK: _ZTIFN12_GLOBAL__N_11DEvE = internal constant
 // CHECK: _ZTSFvN12_GLOBAL__N_11DEE = internal constant
-// CHECK: _ZTIFvN12_GLOBAL__N_11DEE = internal unnamed_addr constant
+// CHECK: _ZTIFvN12_GLOBAL__N_11DEE = internal constant
 // CHECK: _ZTSPFvvE = linkonce_odr constant
 // CHECK: _ZTSFvvE = linkonce_odr constant
-// CHECK: _ZTIFvvE = linkonce_odr hidden unnamed_addr constant
-// CHECK: _ZTIPFvvE = linkonce_odr hidden unnamed_addr constant
+// CHECK: _ZTIFvvE = linkonce_odr constant
+// CHECK: _ZTIPFvvE = linkonce_odr constant
 // CHECK: _ZTSN12_GLOBAL__N_11EE = internal constant
-// CHECK: _ZTIN12_GLOBAL__N_11EE = internal unnamed_addr constant
+// CHECK: _ZTIN12_GLOBAL__N_11EE = internal constant
 // CHECK: _ZTSA10_i = linkonce_odr constant
-// CHECK: _ZTIA10_i = linkonce_odr hidden unnamed_addr constant
-// CHECK: _ZTI1TILj0EE = linkonce_odr unnamed_addr constant
-// CHECK: _ZTI1TILj1EE = weak_odr unnamed_addr constant
+// CHECK: _ZTIA10_i = linkonce_odr constant
+// CHECK: _ZTI1TILj0EE = linkonce_odr constant
+// CHECK: _ZTI1TILj1EE = weak_odr constant
 // CHECK: _ZTI1TILj2EE = external constant
+// CHECK: _ZTSZ2t5vE1A = internal constant
+// CHECK: _ZTIZ2t5vE1A = internal constant
 // CHECK: _ZTS1B = constant
-// CHECK: _ZTI1B = unnamed_addr constant
+// CHECK: _ZTI1B = constant
 // CHECK: _ZTS1F = linkonce_odr constant
+// CHECK: _ZTSPZ2t7vE1A = linkonce_odr constant
+// CHECK: _ZTSZ2t7vE1A = linkonce_odr constant
+// CHECK: _ZTIZ2t7vE1A = linkonce_odr constant
+// CHECK: _ZTIPZ2t7vE1A = linkonce_odr constant
+// CHECK: _ZTSZ2t6vE1A = linkonce_odr constant
+// CHECK: _ZTIZ2t6vE1A = linkonce_odr constant
 
 // CHECK: _ZTIN12_GLOBAL__N_11DE to
 
@@ -137,4 +156,26 @@ void t3() {
 struct T4 {};
 void t4(const T4 *ptr) {
   const void *value = &typeid(ptr);
+}
+
+// rdar://16265084
+void t5() {
+  struct A {};
+  const void *value = &typeid(A);
+}
+
+inline void t6() {
+  struct A {};
+  const void *value = &typeid(A);
+}
+void t6_helper() {
+  t6();
+}
+
+inline void t7() {
+  struct A {};
+  const void *value = &typeid(A*);
+}
+void t7_helper() {
+  t7();
 }

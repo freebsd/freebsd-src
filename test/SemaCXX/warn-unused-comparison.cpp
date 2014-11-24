@@ -3,6 +3,10 @@
 struct A {
   bool operator==(const A&);
   bool operator!=(const A&);
+  bool operator<(const A&);
+  bool operator>(const A&);
+  bool operator<=(const A&);
+  bool operator>=(const A&);
   A operator|=(const A&);
   operator bool();
 };
@@ -15,6 +19,11 @@ void test() {
           // expected-note {{use '=' to turn this equality comparison into an assignment}}
   x != 7; // expected-warning {{inequality comparison result unused}} \
           // expected-note {{use '|=' to turn this inequality comparison into an or-assignment}}
+  x < 7;  // expected-warning {{relational comparison result unused}}
+  x > 7;  // expected-warning {{relational comparison result unused}}
+  x <= 7; // expected-warning {{relational comparison result unused}}
+  x >= 7; // expected-warning {{relational comparison result unused}}
+
   7 == x; // expected-warning {{equality comparison result unused}}
   p == p; // expected-warning {{equality comparison result unused}} \
           // expected-note {{use '=' to turn this equality comparison into an assignment}} \
@@ -25,6 +34,11 @@ void test() {
           // expected-note {{use '=' to turn this equality comparison into an assignment}}
   a != b; // expected-warning {{inequality comparison result unused}} \
           // expected-note {{use '|=' to turn this inequality comparison into an or-assignment}}
+  a < b;  // expected-warning {{relational comparison result unused}}
+  a > b;  // expected-warning {{relational comparison result unused}}
+  a <= b; // expected-warning {{relational comparison result unused}}
+  a >= b; // expected-warning {{relational comparison result unused}}
+
   A() == b; // expected-warning {{equality comparison result unused}}
   if (42) x == 7; // expected-warning {{equality comparison result unused}} \
                   // expected-note {{use '=' to turn this equality comparison into an assignment}}
@@ -91,4 +105,31 @@ namespace PR10291 {
   };
 
   X<int> x;
+}
+
+namespace PR19724 {
+class stream {
+} cout, cin;
+
+stream &operator<(stream &s, int);
+bool operator<(stream &s, stream &s2);
+
+void test() {
+  cout < 5;    // no warning, operator returns a reference
+  cout < cin;  // expected-warning {{relational comparison result unused}}
+}
+}
+
+namespace PR19791 {
+struct S {
+  void operator!=(int);
+  int operator==(int);
+};
+
+void test() {
+  S s;
+  s != 1;
+  s == 1;  // expected-warning{{equality comparison result unused}}
+           // expected-note@-1{{use '=' to turn this equality comparison into an assignment}}
+}
 }

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fms-extensions -fno-rtti -emit-llvm %s -o - -cxx-abi microsoft -triple=i386-pc-win32 | FileCheck %s
+// RUN: %clang_cc1 -fms-extensions -fno-rtti -emit-llvm %s -o - -triple=i386-pc-win32 | FileCheck %s
 
 // CHECK: @"\01??_7D@C@?1??foo@@YAXXZ@6B@" =
 // CHECK: @"\01??_7B@?1??foo@A@@QAEXH@Z@6B@" =
@@ -11,7 +11,7 @@ struct A {
     B();
   }
 };
-void foo () {
+inline void foo () {
   struct C {
     struct D { virtual ~D() {} };
     void bar () {
@@ -25,4 +25,6 @@ void foo () {
   C::D();
   C().bar();
 }
-
+void call () {
+  foo();
+}

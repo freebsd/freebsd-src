@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 %s -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 %s -emit-llvm -triple %itanium_abi_triple -o - | FileCheck %s
 // rdar://10246395
 
 #define WEAK __attribute__ ((weak)) 
@@ -32,16 +32,16 @@ void V1::foo() { }
 void V2::foo() { }
 
 // CHECK: @_ZTS1A = weak_odr constant
-// CHECK: @_ZTI1A = weak_odr unnamed_addr constant
+// CHECK: @_ZTI1A = weak_odr constant
 // CHECK: @_ZTS1B = weak_odr constant
-// CHECK: @_ZTI1B = weak_odr unnamed_addr constant
+// CHECK: @_ZTI1B = weak_odr constant
 // CHECK: @_ZTS1C = weak_odr constant
 // CHECK: @_ZTS2T1 = linkonce_odr constant
-// CHECK: @_ZTI2T1 = linkonce_odr unnamed_addr constant
+// CHECK: @_ZTI2T1 = linkonce_odr constant
 // CHECK: @_ZTS1T = linkonce_odr constant
-// CHECK: @_ZTI1T = linkonce_odr unnamed_addr constant
-// CHECK: @_ZTI1C = weak_odr unnamed_addr constant
+// CHECK: @_ZTI1T = linkonce_odr constant
+// CHECK: @_ZTI1C = weak_odr constant
 // CHECK: @_ZTS2V1 = weak_odr constant
-// CHECK: @_ZTI2V1 = weak_odr unnamed_addr constant
+// CHECK: @_ZTI2V1 = weak_odr constant
 // CHECK: @_ZTS2V2 = weak_odr constant
-// CHECK: @_ZTI2V2 = weak_odr unnamed_addr constant
+// CHECK: @_ZTI2V2 = weak_odr constant

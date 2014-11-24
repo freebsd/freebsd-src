@@ -9,6 +9,8 @@ struct F : public C1 {};            // Single path to B with virtual.
 struct G1 : public B {};
 struct G2 : public B {};
 struct H : public G1, public G2 {}; // Ambiguous path to B.
+struct I;                           // Incomplete.
+struct J;                           // Incomplete.
 
 enum Enum { En1, En2 };
 enum Onom { On1, On2 };
@@ -131,6 +133,7 @@ void t_529_9()
   // Bad code below
   (void)static_cast<int A::*>((int H::*)0); // expected-error {{ambiguous conversion from pointer to member of derived class 'H' to pointer to member of base class 'A':}}
   (void)static_cast<int A::*>((int F::*)0); // expected-error {{conversion from pointer to member of class 'F' to pointer to member of class 'A' via virtual base 'B' is not allowed}}
+  (void)static_cast<int I::*>((int J::*)0); // expected-error {{static_cast from 'int J::*' to 'int I::*' is not allowed}}
 }
 
 // PR 5261 - static_cast should instantiate template if possible
@@ -192,6 +195,6 @@ namespace PR6072 {
     (void)static_cast<void (A::*)()>(&B::f);
     (void)static_cast<void (B::*)()>(&B::f);
     (void)static_cast<void (C::*)()>(&B::f);
-    (void)static_cast<void (D::*)()>(&B::f); // expected-error{{address of overloaded function 'f' cannot be static_cast to type 'void (PR6072::D::*)()'}}
+    (void)static_cast<void (D::*)()>(&B::f); // expected-error-re{{address of overloaded function 'f' cannot be static_cast to type 'void (PR6072::D::*)(){{( __attribute__\(\(thiscall\)\))?}}'}}
   }
 }

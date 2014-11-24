@@ -25,14 +25,7 @@ add_clang_library(clangLex
   ScratchBuffer.cpp
   TokenConcatenation.cpp
   TokenLexer.cpp
-  )
 
-add_dependencies(clangLex
-  ClangAttrSpellings
-  ClangDiagnosticCommon
-  ClangDiagnosticLex
-  )
-
-target_link_libraries(clangLex
+  LINK_LIBS
   clangBasic
   )

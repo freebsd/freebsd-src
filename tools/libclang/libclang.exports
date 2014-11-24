@@ -2,6 +2,7 @@ clang_CXCursorSet_contains
 clang_CXCursorSet_insert
 clang_CXIndex_getGlobalOptions
 clang_CXIndex_setGlobalOptions
+clang_CXXMethod_isConst
 clang_CXXMethod_isPureVirtual
 clang_CXXMethod_isStatic
 clang_CXXMethod_isVirtual
@@ -29,6 +30,7 @@ clang_Module_getName
 clang_Module_getFullName
 clang_Module_getNumTopLevelHeaders
 clang_Module_getTopLevelHeader
+clang_Module_isSystem
 clang_IndexAction_create
 clang_IndexAction_dispose
 clang_Range_isNull
@@ -64,6 +66,8 @@ clang_Type_getAlignOf
 clang_Type_getClassType
 clang_Type_getSizeOf
 clang_Type_getOffsetOf
+clang_Type_getNumTemplateArguments
+clang_Type_getTemplateArgumentAsType
 clang_Type_getCXXRefQualifier
 clang_VerbatimBlockLineComment_getText
 clang_VerbatimLineComment_getText
@@ -87,6 +91,7 @@ clang_constructUSR_ObjCProtocol
 clang_createCXCursorSet
 clang_createIndex
 clang_createTranslationUnit
+clang_createTranslationUnit2
 clang_createTranslationUnitFromSourceFile
 clang_defaultCodeCompleteOptions
 clang_defaultDiagnosticDisplayOptions
@@ -101,6 +106,7 @@ clang_disposeDiagnosticSet
 clang_disposeIndex
 clang_disposeOverriddenCursors
 clang_disposeCXPlatformAvailability
+clang_disposeSourceRangeList
 clang_disposeString
 clang_disposeTokens
 clang_disposeTranslationUnit
@@ -118,6 +124,7 @@ clang_formatDiagnostic
 clang_getArgType
 clang_getArrayElementType
 clang_getArraySize
+clang_getBuildSessionTimestamp
 clang_getCString
 clang_getCXTUResourceUsage
 clang_getCXXAccessSpecifier
@@ -188,6 +195,7 @@ clang_getInclusions
 clang_getInstantiationLocation
 clang_getLocation
 clang_getLocationForOffset
+clang_getModuleForFile
 clang_getNullCursor
 clang_getNullLocation
 clang_getNullRange
@@ -207,6 +215,7 @@ clang_getRangeStart
 clang_getRemappings
 clang_getRemappingsFromFileList
 clang_getResultType
+clang_getSkippedRanges
 clang_getSpecializedCursorTemplate
 clang_getSpellingLocation
 clang_getTUResourceUsageName
@@ -259,6 +268,7 @@ clang_loadDiagnostics
 clang_Location_isInSystemHeader
 clang_Location_isFromMainFile
 clang_parseTranslationUnit
+clang_parseTranslationUnit2
 clang_remap_dispose
 clang_remap_getFilenames
 clang_remap_getNumFiles
@@ -279,3 +289,13 @@ clang_CompileCommand_getNumArgs
 clang_CompileCommand_getArg
 clang_visitChildren
 clang_visitChildrenWithBlock
+clang_ModuleMapDescriptor_create
+clang_ModuleMapDescriptor_dispose
+clang_ModuleMapDescriptor_setFrameworkModuleName
+clang_ModuleMapDescriptor_setUmbrellaHeader
+clang_ModuleMapDescriptor_writeToBuffer
+clang_VirtualFileOverlay_addFileMapping
+clang_VirtualFileOverlay_create
+clang_VirtualFileOverlay_dispose
+clang_VirtualFileOverlay_setCaseSensitivity
+clang_VirtualFileOverlay_writeToBuffer

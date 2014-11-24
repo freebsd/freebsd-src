@@ -1,14 +1,86 @@
 // This test verifies that the correct macros are predefined.
 //
 // RUN: %clang_cc1 %s -E -dM -triple i686-pc-win32 -fms-extensions -fms-compatibility \
-// RUN:     -fmsc-version=1300 -o - | FileCheck %s --check-prefix=CHECK-MS
+// RUN:     -fms-compatibility-version=13.00 -o - | FileCheck %s --check-prefix=CHECK-MS
 // CHECK-MS: #define _INTEGRAL_MAX_BITS 64
 // CHECK-MS: #define _MSC_EXTENSIONS 1
 // CHECK-MS: #define _MSC_VER 1300
 // CHECK-MS: #define _M_IX86 600
 // CHECK-MS: #define _M_IX86_FP
 // CHECK-MS: #define _WIN32 1
-// CHECK-MS-NOT: #define __GNUC__
+// CHECK-MS-NOT: #define __STRICT_ANSI__
+// CHECK-MS-NOT: GCC
+// CHECK-MS-NOT: GNU
+// CHECK-MS-NOT: GXX
+//
+// RUN: %clang_cc1 %s -E -dM -triple x86_64-pc-win32 -fms-extensions -fms-compatibility \
+// RUN:     -fms-compatibility-version=13.00 -o - | FileCheck %s --check-prefix=CHECK-MS64
+// CHECK-MS64: #define _INTEGRAL_MAX_BITS 64
+// CHECK-MS64: #define _MSC_EXTENSIONS 1
+// CHECK-MS64: #define _MSC_VER 1300
+// CHECK-MS64: #define _M_AMD64 1
+// CHECK-MS64: #define _M_X64 1
+// CHECK-MS64: #define _WIN64 1
+// CHECK-MS64-NOT: #define __STRICT_ANSI__
+// CHECK-MS64-NOT: GCC
+// CHECK-MS64-NOT: GNU
+// CHECK-MS64-NOT: GXX
+//
+// RUN: %clang_cc1 %s -E -dM -triple i686-pc-win32 -fms-compatibility \
+// RUN:     -o - | FileCheck %s --check-prefix=CHECK-MS-STDINT
+// CHECK-MS-STDINT-NOT:#define __INT16_MAX__ 32767
+// CHECK-MS-STDINT-NOT:#define __INT32_MAX__ 2147483647
+// CHECK-MS-STDINT-NOT:#define __INT64_MAX__ 9223372036854775807LL
+// CHECK-MS-STDINT-NOT:#define __INT8_MAX__ 127
+// CHECK-MS-STDINT-NOT:#define __INTPTR_MAX__ 2147483647
+// CHECK-MS-STDINT-NOT:#define __INT_FAST16_MAX__ 32767
+// CHECK-MS-STDINT-NOT:#define __INT_FAST16_TYPE__ short
+// CHECK-MS-STDINT-NOT:#define __INT_FAST32_MAX__ 2147483647
+// CHECK-MS-STDINT-NOT:#define __INT_FAST32_TYPE__ int
+// CHECK-MS-STDINT-NOT:#define __INT_FAST64_MAX__ 9223372036854775807LL
+// CHECK-MS-STDINT-NOT:#define __INT_FAST64_TYPE__ long long int
+// CHECK-MS-STDINT-NOT:#define __INT_FAST8_MAX__ 127
+// CHECK-MS-STDINT-NOT:#define __INT_FAST8_TYPE__ char
+// CHECK-MS-STDINT-NOT:#define __INT_LEAST16_MAX__ 32767
+// CHECK-MS-STDINT-NOT:#define __INT_LEAST16_TYPE__ short
+// CHECK-MS-STDINT-NOT:#define __INT_LEAST32_MAX__ 2147483647
+// CHECK-MS-STDINT-NOT:#define __INT_LEAST32_TYPE__ int
+// CHECK-MS-STDINT-NOT:#define __INT_LEAST64_MAX__ 9223372036854775807LL
+// CHECK-MS-STDINT-NOT:#define __INT_LEAST64_TYPE__ long long int
+// CHECK-MS-STDINT-NOT:#define __INT_LEAST8_MAX__ 127
+// CHECK-MS-STDINT-NOT:#define __INT_LEAST8_TYPE__ char
+// CHECK-MS-STDINT-NOT:#define __UINT16_C_SUFFIX__ U
+// CHECK-MS-STDINT-NOT:#define __UINT16_MAX__ 65535U
+// CHECK-MS-STDINT-NOT:#define __UINT16_TYPE__ unsigned short
+// CHECK-MS-STDINT-NOT:#define __UINT32_C_SUFFIX__ U
+// CHECK-MS-STDINT-NOT:#define __UINT32_MAX__ 4294967295U
+// CHECK-MS-STDINT-NOT:#define __UINT32_TYPE__ unsigned int
+// CHECK-MS-STDINT-NOT:#define __UINT64_C_SUFFIX__ ULL
+// CHECK-MS-STDINT-NOT:#define __UINT64_MAX__ 18446744073709551615ULL
+// CHECK-MS-STDINT-NOT:#define __UINT64_TYPE__ long long unsigned int
+// CHECK-MS-STDINT-NOT:#define __UINT8_C_SUFFIX__ U
+// CHECK-MS-STDINT-NOT:#define __UINT8_MAX__ 255U
+// CHECK-MS-STDINT-NOT:#define __UINT8_TYPE__ unsigned char
+// CHECK-MS-STDINT-NOT:#define __UINTMAX_MAX__ 18446744073709551615ULL
+// CHECK-MS-STDINT-NOT:#define __UINTPTR_MAX__ 4294967295U
+// CHECK-MS-STDINT-NOT:#define __UINTPTR_TYPE__ unsigned int
+// CHECK-MS-STDINT-NOT:#define __UINTPTR_WIDTH__ 32
+// CHECK-MS-STDINT-NOT:#define __UINT_FAST16_MAX__ 65535U
+// CHECK-MS-STDINT-NOT:#define __UINT_FAST16_TYPE__ unsigned short
+// CHECK-MS-STDINT-NOT:#define __UINT_FAST32_MAX__ 4294967295U
+// CHECK-MS-STDINT-NOT:#define __UINT_FAST32_TYPE__ unsigned int
+// CHECK-MS-STDINT-NOT:#define __UINT_FAST64_MAX__ 18446744073709551615ULL
+// CHECK-MS-STDINT-NOT:#define __UINT_FAST64_TYPE__ long long unsigned int
+// CHECK-MS-STDINT-NOT:#define __UINT_FAST8_MAX__ 255U
+// CHECK-MS-STDINT-NOT:#define __UINT_FAST8_TYPE__ unsigned char
+// CHECK-MS-STDINT-NOT:#define __UINT_LEAST16_MAX__ 65535U
+// CHECK-MS-STDINT-NOT:#define __UINT_LEAST16_TYPE__ unsigned short
+// CHECK-MS-STDINT-NOT:#define __UINT_LEAST32_MAX__ 4294967295U
+// CHECK-MS-STDINT-NOT:#define __UINT_LEAST32_TYPE__ unsigned int
+// CHECK-MS-STDINT-NOT:#define __UINT_LEAST64_MAX__ 18446744073709551615ULL
+// CHECK-MS-STDINT-NOT:#define __UINT_LEAST64_TYPE__ long long unsigned int
+// CHECK-MS-STDINT-NOT:#define __UINT_LEAST8_MAX__ 255U
+// CHECK-MS-STDINT-NOT:#define __UINT_LEAST8_TYPE__ unsigned char
 //
 // RUN: %clang_cc1 %s -E -dM -ffast-math -o - \
 // RUN:   | FileCheck %s --check-prefix=CHECK-FAST-MATH

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -pedantic -verify %s
+// RUN: %clang_cc1 -pedantic -verify %s
 int* f(int) { return 0; }
 float* f(float) { return 0; }
 void f();
@@ -579,4 +579,32 @@ namespace PR12931 {
   void f(const int &, ...);
   void f(const volatile int &, int);
   void g() { f(0, 0); }
+}
+
+void test5() {
+  struct {
+    typedef void F1(int);
+    typedef void F2(double);
+    operator F1*();  // expected-note{{conversion candidate}}
+    operator F2*();  // expected-note{{conversion candidate}}
+  } callable;
+  callable();  // expected-error{{no matching function for call}}
+}
+
+namespace PR20218 {
+  void f(void (*const &)()); // expected-note 2{{candidate}}
+  void f(void (&&)()) = delete; // expected-note 2{{candidate}} expected-warning 2{{extension}}
+  void g(void (&&)()) = delete; // expected-note 2{{candidate}} expected-warning 2{{extension}}
+  void g(void (*const &)()); // expected-note 2{{candidate}}
+
+  void x();
+  typedef void (&fr)();
+  struct Y { operator fr(); } y;
+
+  void h() {
+    f(x); // expected-error {{ambiguous}}
+    g(x); // expected-error {{ambiguous}}
+    f(y); // expected-error {{ambiguous}}
+    g(y); // expected-error {{ambiguous}}
+  }
 }

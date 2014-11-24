@@ -15,13 +15,13 @@
 #include "CXString.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/FileManager.h"
+#include "clang/Basic/LLVM.h"
 #include "clang/Frontend/SerializedDiagnosticPrinter.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
-#include "llvm/ADT/Optional.h"
-#include "clang/Basic/LLVM.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Bitcode/BitstreamReader.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
 using namespace clang;
 
@@ -67,13 +67,21 @@ CXLoadedDiagnostic::~CXLoadedDiagnostic() {}
 //===----------------------------------------------------------------------===//
 
 CXDiagnosticSeverity CXLoadedDiagnostic::getSeverity() const {
-  // FIXME: possibly refactor with logic in CXStoredDiagnostic.
-  switch (severity) {
-    case DiagnosticsEngine::Ignored: return CXDiagnostic_Ignored;
-    case DiagnosticsEngine::Note:    return CXDiagnostic_Note;
-    case DiagnosticsEngine::Warning: return CXDiagnostic_Warning;
-    case DiagnosticsEngine::Error:   return CXDiagnostic_Error;
-    case DiagnosticsEngine::Fatal:   return CXDiagnostic_Fatal;
+  // FIXME: Fail more softly if the diagnostic level is unknown?
+  auto severityAsLevel = static_cast<serialized_diags::Level>(severity);
+  assert(severity == static_cast<unsigned>(severityAsLevel) &&
+         "unknown serialized diagnostic level");
+
+  switch (severityAsLevel) {
+#define CASE(X) case serialized_diags::X: return CXDiagnostic_##X;
+  CASE(Ignored)
+  CASE(Note)
+  CASE(Warning)
+  CASE(Error)
+  CASE(Fatal)
+#undef CASE
+  // The 'Remark' level isn't represented in the stable API.
+  case serialized_diags::Remark: return CXDiagnostic_Warning;
   }
   
   llvm_unreachable("Invalid diagnostic level");
@@ -84,7 +92,7 @@ static CXSourceLocation makeLocation(const CXLoadedDiagnostic::Location *DLoc) {
   // is a persistent diagnostic.
   uintptr_t V = (uintptr_t) DLoc;
   V |= 0x1;
-  CXSourceLocation Loc = { {  (void*) V, 0 }, 0 };
+  CXSourceLocation Loc = { {  (void*) V, nullptr }, 0 };
   return Loc;
 }  
 
@@ -175,7 +183,7 @@ void CXLoadedDiagnostic::decodeLocation(CXSourceLocation location,
 // Deserialize diagnostics.
 //===----------------------------------------------------------------------===//
 
-enum { MaxSupportedVersion = 1 };
+enum { MaxSupportedVersion = 2 };
 typedef SmallVector<uint64_t, 64> RecordData;
 enum LoadResult { Failure = 1, Success = 0 };
 enum StreamResult { Read_EndOfStream,
@@ -252,12 +260,12 @@ CXDiagnosticSet DiagLoader::load(const char *file) {
   FileSystemOptions FO;
   FileManager FileMgr(FO);
 
-  OwningPtr<llvm::MemoryBuffer> Buffer;
+  std::unique_ptr<llvm::MemoryBuffer> Buffer;
   Buffer.reset(FileMgr.getBufferForFile(file));
 
   if (!Buffer) {
     reportBad(CXLoadDiag_CannotLoad, ErrStr);
-    return 0;
+    return nullptr;
   }
 
   llvm::BitstreamReader StreamFile;
@@ -274,10 +282,11 @@ CXDiagnosticSet DiagLoader::load(const char *file) {
       Stream.Read(8) != 'G') {
     reportBad(CXLoadDiag_InvalidFile,
               "Bad header in diagnostics file");
-    return 0;
+    return nullptr;
   }
 
-  OwningPtr<CXLoadedDiagnosticSetImpl> Diags(new CXLoadedDiagnosticSetImpl());
+  std::unique_ptr<CXLoadedDiagnosticSetImpl> Diags(
+      new CXLoadedDiagnosticSetImpl());
 
   while (true) {
     unsigned BlockID = 0;
@@ -285,9 +294,9 @@ CXDiagnosticSet DiagLoader::load(const char *file) {
                                                BlockID, true);
     switch (Res) {
       case Read_EndOfStream:
-        return (CXDiagnosticSet) Diags.take();
+        return (CXDiagnosticSet)Diags.release();
       case Read_Failure:
-        return 0;
+        return nullptr;
       case Read_Record:
         llvm_unreachable("Top-level does not have records");
       case Read_BlockEnd:
@@ -299,16 +308,16 @@ CXDiagnosticSet DiagLoader::load(const char *file) {
     switch (BlockID) {
       case serialized_diags::BLOCK_META:
         if (readMetaBlock(Stream))
-          return 0;
+          return nullptr;
         break;
       case serialized_diags::BLOCK_DIAG:
         if (readDiagnosticBlock(Stream, *Diags.get(), *Diags.get()))
-          return 0;
+          return nullptr;
         break;
       default:
         if (!Stream.SkipBlock()) {
           reportInvalidFile("Malformed block at top-level of diagnostics file");
-          return 0;
+          return nullptr;
         }
         break;
     }
@@ -486,7 +495,7 @@ LoadResult DiagLoader::readLocation(CXLoadedDiagnosticSetImpl &TopDiags,
   unsigned fileID = Record[offset++];
   if (fileID == 0) {
     // Sentinel value.
-    Loc.file = 0;
+    Loc.file = nullptr;
     Loc.line = 0;
     Loc.column = 0;
     Loc.offset = 0;
@@ -532,8 +541,8 @@ LoadResult DiagLoader::readDiagnosticBlock(llvm::BitstreamCursor &Stream,
     reportInvalidFile("malformed diagnostic block");
     return Failure;
   }
-  
-  OwningPtr<CXLoadedDiagnostic> D(new CXLoadedDiagnostic());
+
+  std::unique_ptr<CXLoadedDiagnostic> D(new CXLoadedDiagnostic());
   RecordData Record;
   
   while (true) {
@@ -560,7 +569,7 @@ LoadResult DiagLoader::readDiagnosticBlock(llvm::BitstreamCursor &Stream,
         continue;
       }
       case Read_BlockEnd:
-        Diags.appendDiagnostic(D.take());        
+        Diags.appendDiagnostic(D.release());
         return Success;
       case Read_Record:
         break;

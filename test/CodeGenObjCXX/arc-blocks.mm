@@ -2,7 +2,7 @@
 
 // CHECK: [[A:.*]] = type { i64, [10 x i8*] }
 
-// CHECK: [[LAYOUT0:@.*]] = internal global [3 x i8] c" 9\00"
+// CHECK: [[LAYOUT0:@.*]] = private global [3 x i8] c" 9\00"
 
 // rdar://13045269
 // If a __block variable requires extended layout information *and*
@@ -38,7 +38,7 @@ namespace test0 {
   // CHECK-NEXT: load
   // CHECK-NEXT: [[T2:%.*]] = bitcast i8* {{.*}} to [[BYREF_A]]*
   // CHECK-NEXT: [[T3:%.*]] = getelementptr inbounds [[BYREF_A]]* [[T2]], i32 0, i32 7
-  // CHECK-NEXT: call void @_ZN5test01AC1ERKS0_([[A]]* [[T1]], [[A]]* [[T3]])
+  // CHECK-NEXT: call void @_ZN5test01AC1ERKS0_([[A]]* [[T1]], [[A]]* dereferenceable({{[0-9]+}}) [[T3]])
   // CHECK-NEXT: ret void
 
   // CHECK:    define internal void [[DISPOSE_HELPER]](

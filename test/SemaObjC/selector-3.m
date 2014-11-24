@@ -14,7 +14,7 @@
 - (void) foo
 {
   SEL a,b,c;
-  a = @selector(b1ar);  // expected-warning {{creating selector for nonexistent method 'b1ar'}}
+  a = @selector(b1ar);
   b = @selector(bar);
 }
 @end
@@ -25,7 +25,7 @@
 
 SEL func()
 {
-    return  @selector(length);  // expected-warning {{creating selector for nonexistent method 'length'}}
+    return  @selector(length);  // expected-warning {{no method with selector 'length' is implemented in this translation unit}}
 }
 
 // rdar://9545564
@@ -69,7 +69,7 @@ extern SEL MySelector(SEL s);
 
 @implementation INTF
 - (void) Meth {
-  if( [cnx respondsToSelector:MySelector(@selector( _setQueue: ))] ) // expected-warning {{creating selector for nonexistent method '_setQueue:'}} 
+  if( [cnx respondsToSelector:MySelector(@selector( _setQueue: ))] )
   {
   }
 
@@ -84,23 +84,23 @@ extern SEL MySelector(SEL s);
 
 // rdar://14007194
 @interface UxTechTest : NSObject
-- (int) invalidate : (id)Arg; // expected-warning {{multiple selectors named 'invalidate:' found}}
-+ (int) C_invalidate : (int)arg; // expected-warning {{multiple selectors named 'C_invalidate:' found}}
+- (int) invalidate : (id)Arg;
++ (int) C_invalidate : (int)arg;
 @end
 
 @interface UxTechTest(CAT)
-- (char) invalidate : (int)arg; // expected-note {{also found}}
-+ (int) C_invalidate : (char)arg; // expected-note {{also found}}
+- (char) invalidate : (int)arg;
++ (int) C_invalidate : (char)arg;
 @end
 
 @interface NSPort : NSObject
-- (double) invalidate : (void*)Arg1; // expected-note {{also found}}
-+ (int) C_invalidate : (id*)arg; // expected-note {{also found}}
+- (double) invalidate : (void*)Arg1;
++ (int) C_invalidate : (id*)arg;
 @end
 
 
 @interface USEText : NSPort
-- (int) invalidate : (int)arg; // expected-note {{also found}}
+- (int) invalidate : (int)arg;
 @end
 
 @implementation USEText
@@ -110,3 +110,27 @@ extern SEL MySelector(SEL s);
 @interface USETextSub : USEText
 - (int) invalidate : (id)arg;
 @end
+
+// rdar://16428638
+@interface I16428638
+- (int) compare: (I16428638 *) arg1; // commenting out this line avoids the warning
+@end
+
+@interface J16428638
+- (int) compare: (J16428638 *) arg1;
+@end
+
+@implementation J16428638
+- (void)method {
+    SEL s = @selector(compare:); // spurious warning
+    (void)s;
+}
+- (int) compare: (J16428638 *) arg1 {
+    return 0;
+}
+@end
+
+void test16428638() {
+    SEL s = @selector(compare:);
+    (void)s;
+}

@@ -16,7 +16,6 @@
 #include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/JIT.h"
@@ -27,6 +26,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
+#include <memory>
 using namespace clang;
 using namespace clang::driver;
 
@@ -46,8 +46,8 @@ static int Execute(llvm::Module *Mod, char * const *envp) {
   llvm::InitializeNativeTarget();
 
   std::string Error;
-  OwningPtr<llvm::ExecutionEngine> EE(
-    llvm::ExecutionEngine::createJIT(Mod, &Error));
+  std::unique_ptr<llvm::ExecutionEngine> EE(
+      llvm::ExecutionEngine::create(Mod, /*ForceInterpreter*/ false, &Error));
   if (!EE) {
     llvm::errs() << "unable to make execution engine: " << Error << "\n";
     return 255;
@@ -75,15 +75,16 @@ int main(int argc, const char **argv, char * const *envp) {
 
   IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
   DiagnosticsEngine Diags(DiagID, &*DiagOpts, DiagClient);
-  Driver TheDriver(Path, llvm::sys::getProcessTriple(), "a.out", Diags);
+  Driver TheDriver(Path, llvm::sys::getProcessTriple(), Diags);
   TheDriver.setTitle("clang interpreter");
+  TheDriver.setCheckInputsExist(false);
 
   // FIXME: This is a hack to try to force the driver to do something we can
   // recognize. We need to extend the driver library to support this use model
   // (basically, exactly one input, and the operation mode is hard wired).
   SmallVector<const char *, 16> Args(argv, argv + argc);
   Args.push_back("-fsyntax-only");
-  OwningPtr<Compilation> C(TheDriver.BuildCompilation(Args));
+  std::unique_ptr<Compilation> C(TheDriver.BuildCompilation(Args));
   if (!C)
     return 0;
 
@@ -108,7 +109,7 @@ int main(int argc, const char **argv, char * const *envp) {
 
   // Initialize a compiler invocation object from the clang (-cc1) arguments.
   const driver::ArgStringList &CCArgs = Cmd->getArguments();
-  OwningPtr<CompilerInvocation> CI(new CompilerInvocation);
+  std::unique_ptr<CompilerInvocation> CI(new CompilerInvocation);
   CompilerInvocation::CreateFromArgs(*CI,
                                      const_cast<const char **>(CCArgs.data()),
                                      const_cast<const char **>(CCArgs.data()) +
@@ -126,7 +127,7 @@ int main(int argc, const char **argv, char * const *envp) {
 
   // Create a compiler instance to handle the actual work.
   CompilerInstance Clang;
-  Clang.setInvocation(CI.take());
+  Clang.setInvocation(CI.release());
 
   // Create the compilers actual diagnostics engine.
   Clang.createDiagnostics();
@@ -140,7 +141,7 @@ int main(int argc, const char **argv, char * const *envp) {
       CompilerInvocation::GetResourcesPath(argv[0], MainAddr);
 
   // Create and execute the frontend to generate an LLVM bitcode module.
-  OwningPtr<CodeGenAction> Act(new EmitLLVMOnlyAction());
+  std::unique_ptr<CodeGenAction> Act(new EmitLLVMOnlyAction());
   if (!Clang.ExecuteAction(*Act))
     return 1;
 

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -std=c++0x -fsyntax-only -verify %s
+// RUN: %clang_cc1 -std=c++0x -fsyntax-only -fexceptions -verify %s
 
 struct one { char c[1]; };
 struct two { char c[2]; };
@@ -75,8 +75,8 @@ namespace objects {
     { F<0> f = {}; }
     // Narrowing conversions don't affect viability. The next two choose
     // the initializer_list constructor.
-    { F<3> f{1, 1.0}; } // expected-error {{type 'double' cannot be narrowed to 'int' in initializer list}} expected-note {{override}}
-    { F<3> f = {1, 1.0}; } // expected-error {{type 'double' cannot be narrowed to 'int' in initializer list}} expected-note {{override}}
+    { F<3> f{1, 1.0}; } // expected-error {{type 'double' cannot be narrowed to 'int' in initializer list}} expected-note {{silence}}
+    { F<3> f = {1, 1.0}; } // expected-error {{type 'double' cannot be narrowed to 'int' in initializer list}} expected-note {{silence}}
     { F<3> f{1, 2, 3, 4, 5, 6, 7, 8}; }
     { F<3> f = {1, 2, 3, 4, 5, 6, 7, 8}; }
     { F<3> f{1, 2, 3, 4, 5, 6, 7, 8}; }
@@ -304,7 +304,6 @@ namespace init_list_default {
   B b {}; // calls default constructor
 }
 
-
 // PR13470, <rdar://problem/11974632>
 namespace PR13470 {
   struct W {
@@ -364,4 +363,43 @@ namespace PR13470 {
     yi.f();
     yi.h(); // ok, all diagnostics produced in template definition
   }
+}
+
+namespace PR19729 {
+  struct A {
+    A(int);
+    A(const A&) = delete;
+  };
+  struct B {
+    void *operator new(std::size_t, A);
+  };
+  B *p = new ({123}) B;
+}
+
+namespace PR11410 {
+  struct A {
+    A() = delete; // expected-note 2{{deleted here}}
+    A(int);
+  };
+
+  A a[3] = {
+    {1}, {2}
+  }; // expected-error {{call to deleted constructor}} \
+        expected-note {{in implicit initialization of array element 2 with omitted initializer}}
+
+  struct B {
+    A a; // expected-note {{in implicit initialization of field 'a'}}
+  } b = {
+  }; // expected-error {{call to deleted constructor}}
+
+  struct C {
+    C(int = 0); // expected-note 2{{candidate}}
+    C(float = 0); // expected-note 2{{candidate}}
+  };
+  C c[3] = {
+    0, 1
+  }; // expected-error {{ambiguous}} expected-note {{in implicit initialization of array element 2}}
+  C c2[3] = {
+    [0] = 1, [2] = 3
+  }; // expected-error {{ambiguous}} expected-note {{in implicit initialization of array element 1}}
 }

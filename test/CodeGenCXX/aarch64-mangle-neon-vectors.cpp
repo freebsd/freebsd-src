@@ -1,12 +1,11 @@
-// REQUIRES: aarch64-registered-target
-// RUN: %clang_cc1 -triple aarch64-none-linux-gnu -target-feature +neon %s -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 -triple arm64-none-linux-gnu -target-feature +neon %s -emit-llvm -o - | FileCheck %s
 
 typedef unsigned char uint8_t;
 typedef unsigned short uint16_t;
 typedef signed char int8_t;
 typedef signed short int16_t;
-typedef signed long long int64_t;
-typedef unsigned long long uint64_t;
+typedef signed long int64_t;
+typedef unsigned long uint64_t;
 typedef unsigned char poly8_t;
 typedef unsigned short poly16_t;
 typedef __fp16 float16_t;

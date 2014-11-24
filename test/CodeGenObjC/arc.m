@@ -180,7 +180,7 @@ id test4() {
   // CHECK-NEXT: [[ALLOC:%.*]] = bitcast
   // CHECK-NEXT: [[INIT:%.*]] = call i8* bitcast (i8* (i8*, i8*, ...)* @objc_msgSend to i8* (i8*, i8*, i32)*)(i8* [[ALLOC]],
 
-  // Initialization of return value, occuring within full-expression.
+  // Initialization of return value, occurring within full-expression.
   // Retain/release elided.
   // CHECK-NEXT: bitcast
   // CHECK-NEXT: [[INIT:%.*]] = bitcast
@@ -581,11 +581,11 @@ void test21(unsigned n) {
 // rdar://problem/12492434
 //   Note that we set the flag saying that we need destruction *and*
 //   the flag saying that we don't also need construction.
-// CHECK-GLOBALS: @"\01l_OBJC_CLASS_RO_$_Test23" = internal global [[RO_T:%.*]] { i32 390,
+// CHECK-GLOBALS: @"\01l_OBJC_CLASS_RO_$_Test23" = private global [[RO_T:%.*]] { i32 390,
 @interface Test23 { id x; } @end
 @implementation Test23 @end
 
-// CHECK-GLOBALS: @"\01l_OBJC_CLASS_RO_$_Test24" = internal global [[RO_T:%.*]] { i32 130,
+// CHECK-GLOBALS: @"\01l_OBJC_CLASS_RO_$_Test24" = private global [[RO_T:%.*]] { i32 130,
 @interface Test24 {} @end
 @implementation Test24 @end
 
@@ -1004,7 +1004,7 @@ void test37(void) {
 @synthesize x;
 @end
 // CHECK:    define internal i8* @"\01-[Test45 x]"(
-// CHECK:      [[CALL:%.*]] = call i8* @objc_getProperty(
+// CHECK:      [[CALL:%.*]] = tail call i8* @objc_getProperty(
 // CHECK-NEXT: ret i8* [[CALL]]
 
 // rdar://problem/9315552
@@ -1352,7 +1352,7 @@ void test62(void) {
 @implementation Person
 @synthesize address;
 @end
-// CHECK: call i8* @objc_getProperty
+// CHECK: tail call i8* @objc_getProperty
 // CHECK: call void @objc_setProperty 
 
 // Verify that we successfully parse and preserve this attribute in

@@ -1,4 +1,6 @@
 // RUN: %clang_cc1 -std=c++11 -fsanitize=signed-integer-overflow,integer-divide-by-zero,float-divide-by-zero,shift,unreachable,return,vla-bound,alignment,null,vptr,object-size,float-cast-overflow,bool,enum,array-bounds,function -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s
+// RUN: %clang_cc1 -std=c++11 -fsanitize=vptr,address -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s --check-prefix=CHECK-ASAN
+// RUN: %clang_cc1 -std=c++11 -fsanitize=vptr -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s --check-prefix=DOWNCAST-NULL
 
 struct S {
   double d;
@@ -6,9 +8,15 @@ struct S {
   virtual int f();
 };
 
+// Check that type descriptor global is not modified by ASan.
+// CHECK-ASAN: [[TYPE_DESCR:@[0-9]+]] = private unnamed_addr constant { i16, i16, [4 x i8] } { i16 -1, i16 0, [4 x i8] c"'S'\00" }
+
+// Check that type mismatch handler is not modified by ASan.
+// CHECK-ASAN: private unnamed_addr global { { [{{.*}} x i8]*, i32, i32 }, { i16, i16, [4 x i8] }*, i8*, i8 } { {{.*}}, { i16, i16, [4 x i8] }* [[TYPE_DESCR]], {{.*}} }
+
 struct T : S {};
 
-// CHECK: @_Z17reference_binding
+// CHECK-LABEL: @_Z17reference_binding
 void reference_binding(int *p, S *q) {
   // C++ core issue 453: If an lvalue to which a reference is directly bound
   // designates neither an existing object or function of an appropriate type,
@@ -30,7 +38,8 @@ void reference_binding(int *p, S *q) {
   S &r2 = *q;
 }
 
-// CHECK: @_Z13member_access
+// CHECK-LABEL: @_Z13member_access
+// CHECK-ASAN-LABEL: @_Z13member_access
 void member_access(S *p) {
   // (1a) Check 'p' is appropriately sized and aligned for member access.
 
@@ -117,7 +126,7 @@ void member_access(S *p) {
   k = p->f();
 }
 
-// CHECK: @_Z12lsh_overflow
+// CHECK-LABEL: @_Z12lsh_overflow
 int lsh_overflow(int a, int b) {
   // CHECK: %[[INBOUNDS:.*]] = icmp ule i32 %[[RHS:.*]], 31
   // CHECK-NEXT: br i1 %[[INBOUNDS]]
@@ -142,13 +151,13 @@ int lsh_overflow(int a, int b) {
   return a << b;
 }
 
-// CHECK: @_Z9no_return
+// CHECK-LABEL: @_Z9no_return
 int no_return() {
   // CHECK:      call void @__ubsan_handle_missing_return(i8* bitcast ({{.*}}* @{{.*}} to i8*)) [[NR_NUW:#[0-9]+]]
   // CHECK-NEXT: unreachable
 }
 
-// CHECK: @_Z9sour_bool
+// CHECK-LABEL: @_Z9sour_bool
 bool sour_bool(bool *p) {
   // CHECK: %[[OK:.*]] = icmp ule i8 {{.*}}, 1
   // CHECK: br i1 %[[OK]]
@@ -160,7 +169,7 @@ enum E1 { e1a = 0, e1b = 127 } e1;
 enum E2 { e2a = -1, e2b = 64 } e2;
 enum E3 { e3a = (1u << 31) - 1 } e3;
 
-// CHECK: @_Z14bad_enum_value
+// CHECK-LABEL: @_Z14bad_enum_value
 int bad_enum_value() {
   // CHECK: %[[E1:.*]] = icmp ule i32 {{.*}}, 127
   // CHECK: br i1 %[[E1]]
@@ -181,10 +190,15 @@ int bad_enum_value() {
   return a + b + c;
 }
 
-// CHECK: @_Z20bad_downcast_pointer
+// CHECK-LABEL: @_Z20bad_downcast_pointer
+// DOWNCAST-NULL-LABEL: @_Z20bad_downcast_pointer
 void bad_downcast_pointer(S *p) {
   // CHECK: %[[NONNULL:.*]] = icmp ne {{.*}}, null
   // CHECK: br i1 %[[NONNULL]],
+
+  // A null poiner access is guarded without -fsanitize=null.
+  // DOWNCAST-NULL: %[[NONNULL:.*]] = icmp ne {{.*}}, null
+  // DOWNCAST-NULL: br i1 %[[NONNULL]],
 
   // CHECK: %[[SIZE:.*]] = call i64 @llvm.objectsize.i64.p0i8(
   // CHECK: %[[E1:.*]] = icmp uge i64 %[[SIZE]], 24
@@ -203,7 +217,7 @@ void bad_downcast_pointer(S *p) {
   (void) static_cast<T*>(p);
 }
 
-// CHECK: @_Z22bad_downcast_reference
+// CHECK-LABEL: @_Z22bad_downcast_reference
 void bad_downcast_reference(S &p) {
   // CHECK: %[[E1:.*]] = icmp ne {{.*}}, null
   // CHECK-NOT: br i1
@@ -225,7 +239,7 @@ void bad_downcast_reference(S &p) {
   (void) static_cast<T&>(p);
 }
 
-// CHECK: @_Z11array_index
+// CHECK-LABEL: @_Z11array_index
 int array_index(const int (&a)[4], int n) {
   // CHECK: %[[K1_OK:.*]] = icmp ult i64 %{{.*}}, 4
   // CHECK: br i1 %[[K1_OK]]
@@ -250,7 +264,7 @@ int array_index(const int (&a)[4], int n) {
   return k1 + *r1 + k2;
 }
 
-// CHECK: @_Z17multi_array_index
+// CHECK-LABEL: @_Z17multi_array_index
 int multi_array_index(int n, int m) {
   int arr[4][6];
 
@@ -264,7 +278,7 @@ int multi_array_index(int n, int m) {
   return arr[n][m];
 }
 
-// CHECK: @_Z11array_arith
+// CHECK-LABEL: @_Z11array_arith
 int array_arith(const int (&a)[4], int n) {
   // CHECK: %[[K1_OK:.*]] = icmp ule i64 %{{.*}}, 4
   // CHECK: br i1 %[[K1_OK]]
@@ -283,7 +297,7 @@ struct ArrayMembers {
   int a1[5];
   int a2[1];
 };
-// CHECK: @_Z18struct_array_index
+// CHECK-LABEL: @_Z18struct_array_index
 int struct_array_index(ArrayMembers *p, int n) {
   // CHECK: %[[IDX_OK:.*]] = icmp ult i64 %{{.*}}, 5
   // CHECK: br i1 %[[IDX_OK]]
@@ -291,21 +305,21 @@ int struct_array_index(ArrayMembers *p, int n) {
   return p->a1[n];
 }
 
-// CHECK: @_Z16flex_array_index
+// CHECK-LABEL: @_Z16flex_array_index
 int flex_array_index(ArrayMembers *p, int n) {
   // CHECK-NOT: call void @__ubsan_handle_out_of_bounds(
   return p->a2[n];
 }
 
 extern int incomplete[];
-// CHECK: @_Z22incomplete_array_index
+// CHECK-LABEL: @_Z22incomplete_array_index
 int incomplete_array_index(int n) {
   // CHECK-NOT: call void @__ubsan_handle_out_of_bounds(
   return incomplete[n];
 }
 
 typedef __attribute__((ext_vector_type(4))) int V4I;
-// CHECK: @_Z12vector_index
+// CHECK-LABEL: @_Z12vector_index
 int vector_index(V4I v, int n) {
   // CHECK: %[[IDX_OK:.*]] = icmp ult i64 %{{.*}}, 4
   // CHECK: br i1 %[[IDX_OK]]
@@ -313,7 +327,7 @@ int vector_index(V4I v, int n) {
   return v[n];
 }
 
-// CHECK: @_Z12string_index
+// CHECK-LABEL: @_Z12string_index
 char string_index(int n) {
   // CHECK: %[[IDX_OK:.*]] = icmp ult i64 %{{.*}}, 6
   // CHECK: br i1 %[[IDX_OK]]
@@ -357,7 +371,7 @@ void downcast_pointer(B *b) {
   // CHECK-NEXT: br i1 [[AND]]
 }
 
-// CHECK-LABEL: define void @_Z18downcast_referenceR1B(%class.B* %b)
+// CHECK-LABEL: define void @_Z18downcast_referenceR1B(%class.B* dereferenceable({{[0-9]+}}) %b)
 void downcast_reference(B &b) {
   (void) static_cast<C&>(b);
   // Alignment check from EmitTypeCheck(TCK_DowncastReference, ...)

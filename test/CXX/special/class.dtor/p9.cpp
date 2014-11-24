@@ -1,4 +1,5 @@
-// RUN: %clang_cc1 -fsyntax-only -verify %s
+// RUN: %clang_cc1 -fsyntax-only -triple %itanium_abi_triple -verify %s
+// RUN: %clang_cc1 -fsyntax-only -triple %ms_abi_triple -DMSABI -verify %s
 
 typedef typeof(sizeof(int)) size_t;
 
@@ -74,7 +75,13 @@ namespace test2 {
 // PR7346
 namespace test3 {
   struct A {
+#ifdef MSABI
+    // expected-error@+2 {{no suitable member 'operator delete' in 'A'}}
+#endif
     virtual ~A();
+#ifdef MSABI
+    // expected-note@+2 {{declared here}}
+#endif
     static void operator delete(void*, const int &);
   };
 

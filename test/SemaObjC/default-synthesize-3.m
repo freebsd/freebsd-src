@@ -37,7 +37,7 @@ __attribute ((objc_requires_property_definitions))
 @interface Deep(CAT)  // expected-error {{attributes may not be specified on a category}}
 @end
 
-__attribute ((objc_requires_property_definitions)) // expected-error {{objc_requires_property_definitions attribute may only be specified on a class}} 
+__attribute ((objc_requires_property_definitions)) // expected-error {{'objc_requires_property_definitions' attribute only applies to Objective-C interfaces}}
 @protocol P @end
 
 // rdar://13388503
@@ -172,12 +172,44 @@ typedef NSObject<Fooing> FooObject;
 @interface Okay : NSObject<Fooing>
 @end
 
-@implementation Okay // expected-warning 2 {{auto property synthesis will not synthesize property declared in a protocol}}
+@implementation Okay // expected-warning {{auto property synthesis will not synthesize property 'muahahaha' declared in protocol 'Fooing'}} expected-warning {{auto property synthesis will not synthesize property 'hoho' declared in protocol 'SubFooling'}}
 @end
 
 @interface Fail : FooObject
 @end
 
-@implementation Fail // expected-warning 2 {{auto property synthesis will not synthesize property declared in a protocol}}
+@implementation Fail // expected-warning {{auto property synthesis will not synthesize property 'muahahaha' declared in protocol 'Fooing'}} expected-warning {{auto property synthesis will not synthesize property 'hoho' declared in protocol 'SubFooling'}}
 @end
 
+// rdar://16089191
+@class NSURL;
+
+@interface Root
+- (void)setFileURL : (NSURL *) arg;
+- (void)setFile : (NSURL *) arg;
+- (NSURL *)fileSys;
+- (void)setFileSys : (NSURL *) arg;
+- (NSURL *)fileKerl;
+@end
+
+@interface SuperClass : Root
+- (NSURL *)fileURL;
+- (NSURL *)file;
+- (NSURL *)fileLog;
+- (void)setFileLog : (NSURL *) arg;
+- (void)setFileKerl : (NSURL *) arg;
+@end
+
+@protocol r16089191Protocol
+@property (readonly) NSURL *fileURL;
+@property (copy) NSURL *file;
+@property (copy) NSURL *fileSys;
+@property (copy) NSURL *fileLog;
+@property (copy) NSURL *fileKerl;
+@end
+
+@interface SubClass : SuperClass <r16089191Protocol>
+@end
+
+@implementation SubClass
+@end

@@ -8,23 +8,9 @@ add_clang_library(clangFormat
   TokenAnnotator.cpp
   UnwrappedLineParser.cpp
   WhitespaceManager.cpp
-  )
 
-add_dependencies(clangFormat
-  ClangAttrClasses
-  ClangAttrList
-  ClangDeclNodes
-  ClangDiagnosticCommon
-  ClangDiagnosticFrontend
-  ClangStmtNodes
-  )
-
-target_link_libraries(clangFormat
+  LINK_LIBS
   clangBasic
-  clangFrontend
-  clangAST
-  clangASTMatchers
-  clangRewriteCore
-  clangRewriteFrontend
+  clangLex
   clangTooling
   )

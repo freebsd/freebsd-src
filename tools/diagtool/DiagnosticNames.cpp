@@ -50,11 +50,11 @@ static bool orderByID(const DiagnosticRecord &Left,
 }
 
 const DiagnosticRecord &diagtool::getDiagnosticForID(short DiagID) {
-  DiagnosticRecord Key = {0, DiagID, 0};
+  DiagnosticRecord Key = {nullptr, DiagID, 0};
 
   const DiagnosticRecord *Result =
-    std::lower_bound(BuiltinDiagnosticsByID,
-                     llvm::array_endof(BuiltinDiagnosticsByID),
+    std::lower_bound(std::begin(BuiltinDiagnosticsByID),
+                     std::end(BuiltinDiagnosticsByID),
                      Key, orderByID);
   assert(Result && "diagnostic not found; table may be out of date");
   return *Result;
@@ -81,7 +81,7 @@ GroupRecord::subgroup_iterator GroupRecord::subgroup_begin() const {
 }
 
 GroupRecord::subgroup_iterator GroupRecord::subgroup_end() const {
-  return 0;
+  return nullptr;
 }
 
 GroupRecord::diagnostics_iterator GroupRecord::diagnostics_begin() const {
@@ -89,7 +89,7 @@ GroupRecord::diagnostics_iterator GroupRecord::diagnostics_begin() const {
 }
 
 GroupRecord::diagnostics_iterator GroupRecord::diagnostics_end() const {
-  return 0;
+  return nullptr;
 }
 
 llvm::ArrayRef<GroupRecord> diagtool::getDiagnosticGroups() {

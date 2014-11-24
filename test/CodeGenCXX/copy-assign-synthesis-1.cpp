@@ -1,4 +1,3 @@
-// REQUIRES: x86-registered-target,x86-64-registered-target
 // RUN: %clang_cc1 -triple x86_64-apple-darwin -std=c++11 -emit-llvm %s -o - | \
 // RUN: FileCheck %s
 // RUN: %clang_cc1 -triple i386-apple-darwin -std=c++11 -emit-llvm %s -o - | \
@@ -93,5 +92,4 @@ int main() {
   dstY.pr();
 }
 
-// CHECK: define linkonce_odr %struct.X* @_ZN1XaSERKS_
-
+// CHECK: define linkonce_odr dereferenceable({{[0-9]+}}) %struct.X* @_ZN1XaSERKS_

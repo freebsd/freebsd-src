@@ -41,7 +41,7 @@ static bool isASTUnitSourceLocation(const CXSourceLocation &L) {
 extern "C" {
   
 CXSourceLocation clang_getNullLocation() {
-  CXSourceLocation Result = { { 0, 0 }, 0 };
+  CXSourceLocation Result = { { nullptr, nullptr }, 0 };
   return Result;
 }
 
@@ -52,7 +52,7 @@ unsigned clang_equalLocations(CXSourceLocation loc1, CXSourceLocation loc2) {
 }
 
 CXSourceRange clang_getNullRange() {
-  CXSourceRange Result = { { 0, 0 }, 0, 0 };
+  CXSourceRange Result = { { nullptr, nullptr }, 0, 0 };
   return Result;
 }
 
@@ -89,7 +89,7 @@ int clang_Range_isNull(CXSourceRange range) {
 CXSourceLocation clang_getRangeStart(CXSourceRange range) {
   // Special decoding for CXSourceLocations for CXLoadedDiagnostics.
   if ((uintptr_t)range.ptr_data[0] & 0x1) {
-    CXSourceLocation Result = { { range.ptr_data[0], 0 }, 0 };
+    CXSourceLocation Result = { { range.ptr_data[0], nullptr }, 0 };
     return Result;    
   }
   
@@ -101,7 +101,7 @@ CXSourceLocation clang_getRangeStart(CXSourceRange range) {
 CXSourceLocation clang_getRangeEnd(CXSourceRange range) {
   // Special decoding for CXSourceLocations for CXLoadedDiagnostics.
   if ((uintptr_t)range.ptr_data[0] & 0x1) {
-    CXSourceLocation Result = { { range.ptr_data[1], 0 }, 0 };
+    CXSourceLocation Result = { { range.ptr_data[1], nullptr }, 0 };
     return Result;    
   }
 
@@ -122,7 +122,11 @@ CXSourceLocation clang_getLocation(CXTranslationUnit TU,
                                    CXFile file,
                                    unsigned line,
                                    unsigned column) {
-  if (!TU || !file)
+  if (cxtu::isNotUsableTU(TU)) {
+    LOG_BAD_TU(TU);
+    return clang_getNullLocation();
+  }
+  if (!file)
     return clang_getNullLocation();
   if (line == 0 || column == 0)
     return clang_getNullLocation();
@@ -151,9 +155,13 @@ CXSourceLocation clang_getLocation(CXTranslationUnit TU,
 CXSourceLocation clang_getLocationForOffset(CXTranslationUnit TU,
                                             CXFile file,
                                             unsigned offset) {
-  if (!TU || !file)
+  if (cxtu::isNotUsableTU(TU)) {
+    LOG_BAD_TU(TU);
     return clang_getNullLocation();
-  
+  }
+  if (!file)
+    return clang_getNullLocation();
+
   ASTUnit *CXXUnit = cxtu::getASTUnit(TU);
 
   SourceLocation SLoc 
@@ -175,7 +183,7 @@ CXSourceLocation clang_getLocationForOffset(CXTranslationUnit TU,
 static void createNullLocation(CXFile *file, unsigned *line,
                                unsigned *column, unsigned *offset) {
   if (file)
-    *file = 0;
+    *file = nullptr;
   if (line)
     *line = 0;
   if (column)
@@ -186,7 +194,7 @@ static void createNullLocation(CXFile *file, unsigned *line,
 }
 
 static void createNullLocation(CXString *filename, unsigned *line,
-                               unsigned *column, unsigned *offset = 0) {
+                               unsigned *column, unsigned *offset = nullptr) {
   if (filename)
     *filename = cxstring::createEmpty();
   if (line)

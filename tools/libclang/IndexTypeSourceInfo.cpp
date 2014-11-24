@@ -8,14 +8,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "IndexingContext.h"
-#include "RecursiveASTVisitor.h"
+#include "clang/AST/DataRecursiveASTVisitor.h"
 
 using namespace clang;
 using namespace cxindex;
 
 namespace {
 
-class TypeIndexer : public cxindex::RecursiveASTVisitor<TypeIndexer> {
+class TypeIndexer : public DataRecursiveASTVisitor<TypeIndexer> {
   IndexingContext &IndexCtx;
   const NamedDecl *Parent;
   const DeclContext *ParentDC;
@@ -108,7 +108,7 @@ void IndexingContext::indexTypeLoc(TypeLoc TL,
   if (TL.isNull())
     return;
 
-  if (DC == 0)
+  if (!DC)
     DC = Parent->getLexicalDeclContext();
   TypeIndexer(*this, Parent, DC).TraverseTypeLoc(TL);
 }
@@ -122,7 +122,7 @@ void IndexingContext::indexNestedNameSpecifierLoc(NestedNameSpecifierLoc NNS,
   if (NestedNameSpecifierLoc Prefix = NNS.getPrefix())
     indexNestedNameSpecifierLoc(Prefix, Parent, DC);
 
-  if (DC == 0)
+  if (!DC)
     DC = Parent->getLexicalDeclContext();
   SourceLocation Loc = NNS.getSourceRange().getBegin();
 

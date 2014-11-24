@@ -5,10 +5,19 @@
 // attempt within a single file (which is to avoid having very broken files take
 // minutes to finally be rejected by the parser).
 
+namespace PR12951 {
+// If there are two corrections that have the same identifier and edit distance
+// and only differ by their namespaces, don't suggest either as a correction
+// since both are equally likely corrections.
+namespace foobar { struct Thing {}; }
+namespace bazquux { struct Thing {}; }
+void f() { Thing t; } // expected-error{{unknown type name 'Thing'}}
+}
+
 namespace bogus_keyword_suggestion {
 void test() {
-   status = "OK";  // expected-error-re {{use of undeclared identifier 'status'$}}
-   return status;  // expected-error-re {{use of undeclared identifier 'status'$}}
+   status = "OK";  // expected-error-re {{use of undeclared identifier 'status'{{$}}}}
+   return status;  // expected-error-re {{use of undeclared identifier 'status'{{$}}}}
  }
 }
 
@@ -33,7 +42,7 @@ struct T {
 };
 // should be void T::f();
 void f() {
- data_struct->foo();  // expected-error-re{{use of undeclared identifier 'data_struct'$}}
+ data_struct->foo();  // expected-error-re{{use of undeclared identifier 'data_struct'{{$}}}}
 }
 
 namespace PR12287 {
@@ -116,9 +125,9 @@ public:
 void testAccess() {
   Figure obj;
   switch (obj.type()) {  // expected-warning {{enumeration values 'SQUARE', 'TRIANGLE', and 'CIRCLE' not handled in switch}}
-  case SQUARE:  // expected-error-re {{use of undeclared identifier 'SQUARE'$}}
-  case TRIANGLE:  // expected-error-re {{use of undeclared identifier 'TRIANGLE'$}}
-  case CIRCE:  // expected-error-re {{use of undeclared identifier 'CIRCE'$}}
+  case SQUARE:  // expected-error-re {{use of undeclared identifier 'SQUARE'{{$}}}}
+  case TRIANGLE:  // expected-error-re {{use of undeclared identifier 'TRIANGLE'{{$}}}}
+  case CIRCE:  // expected-error-re {{use of undeclared identifier 'CIRCE'{{$}}}}
     break;
   }
 }
@@ -126,13 +135,13 @@ void testAccess() {
 
 long readline(const char *, char *, unsigned long);
 void assign_to_unknown_var() {
-    deadline_ = 1;  // expected-error-re {{use of undeclared identifier 'deadline_'$}}
+    deadline_ = 1;  // expected-error-re {{use of undeclared identifier 'deadline_'{{$}}}}
 }
 
 namespace no_ns_before_dot {
 namespace re2 {}
 void test() {
-    req.set_check(false);  // expected-error-re {{use of undeclared identifier 'req'$}}
+    req.set_check(false);  // expected-error-re {{use of undeclared identifier 'req'{{$}}}}
 }
 }
 
@@ -198,4 +207,96 @@ template <typename T> struct Wrappable {
 template <>
 PR18213::WrapperInfo ::PR18213::Wrappable<int>::kWrapperInfo = { 0 };  // expected-error {{no member named 'PR18213' in 'PR18213::WrapperInfo'; did you mean simply 'PR18213'?}} \
                                                                        // expected-error {{C++ requires a type specifier for all declarations}}
+}
+
+namespace PR18651 {
+struct {
+  int x;
+} a, b;
+
+int y = x;  // expected-error-re {{use of undeclared identifier 'x'{{$}}}}
+}
+
+namespace PR18685 {
+template <class C, int I, int J>
+class SetVector {
+ public:
+  SetVector() {}
+};
+
+template <class C, int I>
+class SmallSetVector : public SetVector<C, I, 8> {};
+
+class foo {};
+SmallSetVector<foo*, 2> fooSet;
+}
+
+PR18685::BitVector Map;  // expected-error-re {{no type named 'BitVector' in namespace 'PR18685'{{$}}}}
+
+namespace shadowed_template {
+template <typename T> class Fizbin {};  // expected-note {{'::shadowed_template::Fizbin' declared here}}
+class Baz {
+   int Fizbin();
+   // TODO: Teach the parser to recover from the typo correction instead of
+   // continuing to treat the template name as an implicit-int declaration.
+   Fizbin<int> qux;  // expected-error {{unknown type name 'Fizbin'; did you mean '::shadowed_template::Fizbin'?}} \
+                     // expected-error {{expected member name or ';' after declaration specifiers}}
+};
+}
+
+namespace PR18852 {
+void func() {
+  struct foo {
+    void bar() {}
+  };
+  bar();  // expected-error-re {{use of undeclared identifier 'bar'{{$}}}}
+}
+
+class Thread {
+ public:
+  void Start();
+  static void Stop();  // expected-note {{'Thread::Stop' declared here}}
+};
+
+class Manager {
+ public:
+  void Start(int);  // expected-note {{'Start' declared here}}
+  void Stop(int);  // expected-note {{'Stop' declared here}}
+};
+
+void test(Manager *m) {
+  // Don't suggest Thread::Start as a correction just because it has the same
+  // (unqualified) name and accepts the right number of args; this is a method
+  // call on an object in an unrelated class.
+  m->Start();  // expected-error-re {{too few arguments to function call, expected 1, have 0{{$}}}}
+  m->Stop();  // expected-error-re {{too few arguments to function call, expected 1, have 0{{$}}}}
+  Stop();  // expected-error {{use of undeclared identifier 'Stop'; did you mean 'Thread::Stop'?}}
+}
+
+}
+
+namespace std {
+class bernoulli_distribution {
+ public:
+  double p() const;
+};
+}
+void test() {
+  // Make sure that typo correction doesn't suggest changing 'p' to
+  // 'std::bernoulli_distribution::p' as that is most likely wrong.
+  if (p)  // expected-error-re {{use of undeclared identifier 'p'{{$}}}}
+    return;
+}
+
+namespace PR19681 {
+  struct TypoA {};
+  struct TypoB {
+    void test();
+  private:
+    template<typename T> void private_memfn(T);  // expected-note{{declared here}}
+  };
+  void TypoB::test() {
+    // FIXME: should suggest 'PR19681::TypoB::private_memfn' instead of '::PR19681::TypoB::private_memfn'
+    (void)static_cast<void(TypoB::*)(int)>(&TypoA::private_memfn);  // expected-error{{no member named 'private_memfn' in 'PR19681::TypoA'; did you mean '::PR19681::TypoB::private_memfn'?}}
+  }
 }

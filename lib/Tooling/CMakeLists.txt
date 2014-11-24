@@ -9,22 +9,13 @@ add_clang_library(clangTooling
   Refactoring.cpp
   RefactoringCallbacks.cpp
   Tooling.cpp
-  )
 
-add_dependencies(clangTooling
-  ClangAttrClasses
-  ClangAttrList
-  ClangDeclNodes
-  ClangDiagnosticCommon
-  ClangDiagnosticFrontend
-  ClangStmtNodes
-  )
-
-target_link_libraries(clangTooling
-  clangBasic
-  clangFrontend
+  LINK_LIBS
   clangAST
   clangASTMatchers
-  clangRewriteCore
-  clangRewriteFrontend
+  clangBasic
+  clangDriver
+  clangFrontend
+  clangLex
+  clangRewrite
   )
