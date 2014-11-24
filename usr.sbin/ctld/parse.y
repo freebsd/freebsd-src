@@ -61,6 +61,7 @@ extern void	yyrestart(FILE *);
 %token CLOSING_BRACKET DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP INITIATOR_NAME
 %token INITIATOR_PORTAL LISTEN LISTEN_ISER LUN MAXPROC NUM OPENING_BRACKET
 %token OPTION PATH PIDFILE PORTAL_GROUP SERIAL SIZE STR TARGET TIMEOUT
+%token ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
 
 %union
 {
@@ -86,6 +87,12 @@ statement:
 	maxproc
 	|
 	pidfile
+	|
+	isns_server
+	|
+	isns_period
+	|
+	isns_timeout
 	|
 	auth_group
 	|
@@ -120,6 +127,29 @@ pidfile:	PIDFILE STR
 			return (1);
 		}
 		conf->conf_pidfile_path = $2;
+	}
+	;
+
+isns_server:	ISNS_SERVER STR
+	{
+		int error;
+
+		error = isns_new(conf, $2);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
+isns_period:	ISNS_PERIOD NUM
+	{
+		conf->conf_isns_period = $2;
+	}
+	;
+
+isns_timeout:	ISNS_TIMEOUT NUM
+	{
+		conf->conf_isns_timeout = $2;
 	}
 	;
 
