@@ -54,6 +54,7 @@ LIBFIGPAR?=	${DESTDIR}${LIBDIR}/libfigpar.a
 LIBFL?=		"don't use LIBFL, use LIBL"
 LIBFORM?=	${DESTDIR}${LIBDIR}/libform.a
 LIBG2C?=	${DESTDIR}${LIBDIR}/libg2c.a
+LIBGPIO?=	${DESTDIR}${LIBDIR}/libgpio.a
 LIBGEOM?=	${DESTDIR}${LIBDIR}/libgeom.a
 LIBGNUREGEX?=	${DESTDIR}${LIBDIR}/libgnuregex.a
 LIBGSSAPI?=	${DESTDIR}${LIBDIR}/libgssapi.a
