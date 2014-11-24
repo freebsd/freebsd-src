@@ -672,6 +672,7 @@ login(struct connection *conn)
 	struct iscsi_bhs_login_response *bhslr2;
 	struct keys *request_keys, *response_keys;
 	struct auth_group *ag;
+	struct portal_group *pg;
 	const char *initiator_name, *initiator_alias, *session_type,
 	    *target_name, *auth_method;
 
@@ -687,6 +688,8 @@ login(struct connection *conn)
 		login_send_error(request, 0x02, 0x0a);
 		log_errx(1, "received Login PDU with non-zero TSIH");
 	}
+
+	pg = conn->conn_portal->p_portal_group;
 
 	memcpy(conn->conn_initiator_isid, bhslr->bhslr_isid,
 	    sizeof(conn->conn_initiator_isid));
@@ -741,9 +744,7 @@ login(struct connection *conn)
 			log_errx(1, "received Login PDU without TargetName");
 		}
 
-		conn->conn_target =
-		    target_find(conn->conn_portal->p_portal_group->pg_conf,
-		    target_name);
+		conn->conn_target = target_find(pg->pg_conf, target_name);
 		if (conn->conn_target == NULL) {
 			login_send_error(request, 0x02, 0x03);
 			log_errx(1, "requested target \"%s\" not found",
@@ -760,14 +761,14 @@ login(struct connection *conn)
 			log_debugx("initiator requests to connect "
 			    "to target \"%s\"; auth-group \"%s\"",
 			    conn->conn_target->t_name,
-			    conn->conn_target->t_auth_group->ag_name);
+			    ag->ag_name);
 		} else {
 			log_debugx("initiator requests to connect "
 			    "to target \"%s\"", conn->conn_target->t_name);
 		}
 	} else {
 		assert(conn->conn_session_type == CONN_SESSION_TYPE_DISCOVERY);
-		ag = conn->conn_portal->p_portal_group->pg_discovery_auth_group;
+		ag = pg->pg_discovery_auth_group;
 		if (ag->ag_name != NULL) {
 			log_debugx("initiator requests "
 			    "discovery session; auth-group \"%s\"", ag->ag_name);
@@ -837,8 +838,7 @@ login(struct connection *conn)
 		response = login_new_response(request);
 		bhslr2 = (struct iscsi_bhs_login_response *)response->pdu_bhs;
 		bhslr2->bhslr_flags |= BHSLR_FLAGS_TRANSIT;
-		login_set_nsg(response,
-		    BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
+		login_set_nsg(response, BHSLR_STAGE_OPERATIONAL_NEGOTIATION);
 		response_keys = keys_new();
 		/*
 		 * Required by Linux initiator.
@@ -852,8 +852,8 @@ login(struct connection *conn)
 			if (conn->conn_target->t_alias != NULL)
 				keys_add(response_keys,
 				    "TargetAlias", conn->conn_target->t_alias);
-			keys_add_int(response_keys, "TargetPortalGroupTag",
-			    conn->conn_portal->p_portal_group->pg_tag);
+			keys_add_int(response_keys,
+			    "TargetPortalGroupTag", pg->pg_tag);
 		}
 		keys_save(response_keys, response);
 		pdu_send(response);
@@ -903,8 +903,8 @@ login(struct connection *conn)
 		if (conn->conn_target->t_alias != NULL)
 			keys_add(response_keys,
 			    "TargetAlias", conn->conn_target->t_alias);
-		keys_add_int(response_keys, "TargetPortalGroupTag",
-		    conn->conn_portal->p_portal_group->pg_tag);
+		keys_add_int(response_keys,
+		    "TargetPortalGroupTag", pg->pg_tag);
 	}
 	keys_save(response_keys, response);
 
