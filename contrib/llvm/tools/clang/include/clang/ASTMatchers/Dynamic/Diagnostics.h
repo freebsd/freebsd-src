@@ -15,15 +15,14 @@
 #ifndef LLVM_CLANG_AST_MATCHERS_DYNAMIC_DIAGNOSTICS_H
 #define LLVM_CLANG_AST_MATCHERS_DYNAMIC_DIAGNOSTICS_H
 
-#include <string>
-#include <vector>
-
 #include "clang/ASTMatchers/Dynamic/VariantValue.h"
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/raw_ostream.h"
+#include <string>
+#include <vector>
 
 namespace clang {
 namespace ast_matchers {
@@ -61,11 +60,12 @@ public:
   enum ErrorType {
     ET_None = 0,
 
-    ET_RegistryNotFound = 1,
+    ET_RegistryMatcherNotFound = 1,
     ET_RegistryWrongArgCount = 2,
     ET_RegistryWrongArgType = 3,
     ET_RegistryNotBindable = 4,
     ET_RegistryAmbiguousOverload = 5,
+    ET_RegistryValueNotFound = 6,
 
     ET_ParserStringError = 100,
     ET_ParserNoOpenParen = 101,

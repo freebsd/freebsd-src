@@ -33,11 +33,16 @@ namespace {
 /// literals within a particular context.
 class ItaniumNumberingContext : public MangleNumberingContext {
   llvm::DenseMap<IdentifierInfo*, unsigned> VarManglingNumbers;
+  llvm::DenseMap<IdentifierInfo*, unsigned> TagManglingNumbers;
 
 public:
   /// Variable decls are numbered by identifier.
-  virtual unsigned getManglingNumber(const VarDecl *VD) {
+  unsigned getManglingNumber(const VarDecl *VD, unsigned) override {
     return ++VarManglingNumbers[VD->getIdentifier()];
+  }
+
+  unsigned getManglingNumber(const TagDecl *TD, unsigned) override {
+    return ++TagManglingNumbers[TD->getIdentifier()];
   }
 };
 
@@ -48,7 +53,7 @@ public:
   ItaniumCXXABI(ASTContext &Ctx) : Context(Ctx) { }
 
   std::pair<uint64_t, unsigned>
-  getMemberPointerWidthAndAlign(const MemberPointerType *MPT) const {
+  getMemberPointerWidthAndAlign(const MemberPointerType *MPT) const override {
     const TargetInfo &Target = Context.getTargetInfo();
     TargetInfo::IntType PtrDiff = Target.getPtrDiffType(0);
     uint64_t Width = Target.getTypeWidth(PtrDiff);
@@ -58,13 +63,17 @@ public:
     return std::make_pair(Width, Align);
   }
 
-  CallingConv getDefaultMethodCallConv(bool isVariadic) const {
+  CallingConv getDefaultMethodCallConv(bool isVariadic) const override {
+    const llvm::Triple &T = Context.getTargetInfo().getTriple();
+    if (!isVariadic && T.isWindowsGNUEnvironment() &&
+        T.getArch() == llvm::Triple::x86)
+      return CC_X86ThisCall;
     return CC_C;
   }
 
   // We cheat and just check that the class has a vtable pointer, and that it's
   // only big enough to have a vtable pointer and nothing more (or less).
-  bool isNearlyEmpty(const CXXRecordDecl *RD) const {
+  bool isNearlyEmpty(const CXXRecordDecl *RD) const override {
 
     // Check that the class has a vtable pointer.
     if (!RD->isDynamicClass())
@@ -76,21 +85,12 @@ public:
     return Layout.getNonVirtualSize() == PointerSize;
   }
 
-  virtual MangleNumberingContext *createMangleNumberingContext() const {
+  MangleNumberingContext *createMangleNumberingContext() const override {
     return new ItaniumNumberingContext();
   }
-};
-
-class ARMCXXABI : public ItaniumCXXABI {
-public:
-  ARMCXXABI(ASTContext &Ctx) : ItaniumCXXABI(Ctx) { }
 };
 }
 
 CXXABI *clang::CreateItaniumCXXABI(ASTContext &Ctx) {
   return new ItaniumCXXABI(Ctx);
-}
-
-CXXABI *clang::CreateARMCXXABI(ASTContext &Ctx) {
-  return new ARMCXXABI(Ctx);
 }

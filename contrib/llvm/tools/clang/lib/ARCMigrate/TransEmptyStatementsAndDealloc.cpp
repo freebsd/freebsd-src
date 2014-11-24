@@ -89,9 +89,8 @@ public:
   bool VisitCompoundStmt(CompoundStmt *S) {
     if (S->body_empty())
       return false; // was already empty, not because of transformations.
-    for (CompoundStmt::body_iterator
-           I = S->body_begin(), E = S->body_end(); I != E; ++I)
-      if (!Visit(*I))
+    for (auto *I : S->body())
+      if (!Visit(I))
         return false;
     return true;
   }
@@ -167,9 +166,8 @@ public:
   }
 
   bool VisitCompoundStmt(CompoundStmt *S) {
-    for (CompoundStmt::body_iterator
-           I = S->body_begin(), E = S->body_end(); I != E; ++I)
-      check(*I);
+    for (auto *I : S->body())
+      check(I);
     return true;
   }
 
@@ -189,9 +187,8 @@ private:
 
 static bool isBodyEmpty(CompoundStmt *body, ASTContext &Ctx,
                         std::vector<SourceLocation> &MacroLocs) {
-  for (CompoundStmt::body_iterator
-         I = body->body_begin(), E = body->body_end(); I != E; ++I)
-    if (!EmptyChecker(Ctx, MacroLocs).Visit(*I))
+  for (auto *I : body->body())
+    if (!EmptyChecker(Ctx, MacroLocs).Visit(I))
       return false;
 
   return true;
@@ -208,12 +205,9 @@ static void cleanupDeallocOrFinalize(MigrationPass &pass) {
     impl_iterator;
   for (impl_iterator I = impl_iterator(DC->decls_begin()),
                      E = impl_iterator(DC->decls_end()); I != E; ++I) {
-    ObjCMethodDecl *DeallocM = 0;
-    ObjCMethodDecl *FinalizeM = 0;
-    for (ObjCImplementationDecl::instmeth_iterator
-           MI = I->instmeth_begin(),
-           ME = I->instmeth_end(); MI != ME; ++MI) {
-      ObjCMethodDecl *MD = *MI;
+    ObjCMethodDecl *DeallocM = nullptr;
+    ObjCMethodDecl *FinalizeM = nullptr;
+    for (auto *MD : I->instance_methods()) {
       if (!MD->hasBody())
         continue;
   

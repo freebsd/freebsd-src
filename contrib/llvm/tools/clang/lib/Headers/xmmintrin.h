@@ -34,8 +34,8 @@ typedef int __v4si __attribute__((__vector_size__(16)));
 typedef float __v4sf __attribute__((__vector_size__(16)));
 typedef float __m128 __attribute__((__vector_size__(16)));
 
-// This header should only be included in a hosted environment as it depends on
-// a standard library to provide allocation routines.
+/* This header should only be included in a hosted environment as it depends on
+ * a standard library to provide allocation routines. */
 #if __STDC_HOSTED__
 #include <mm_malloc.h>
 #endif
@@ -589,7 +589,7 @@ _mm_set1_ps(float __w)
   return (__m128){ __w, __w, __w, __w };
 }
 
-// Microsoft specific.
+/* Microsoft specific. */
 static __inline__ __m128 __attribute__((__always_inline__, __nodebug__))
 _mm_set_ps1(float __w)
 {
@@ -672,10 +672,12 @@ _mm_storer_ps(float *__p, __m128 __a)
 #define _MM_HINT_T2 1
 #define _MM_HINT_NTA 0
 
+#ifndef _MSC_VER
 /* FIXME: We have to #define this because "sel" must be a constant integer, and
    Sema doesn't do any form of constant propagation yet. */
 
 #define _mm_prefetch(a, sel) (__builtin_prefetch((void *)(a), 0, (sel)))
+#endif
 
 static __inline__ void __attribute__((__always_inline__, __nodebug__))
 _mm_stream_pi(__m64 *__p, __m64 __a)

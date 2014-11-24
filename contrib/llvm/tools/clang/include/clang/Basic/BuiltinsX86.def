@@ -59,6 +59,7 @@ BUILTIN(__builtin_ia32_pswapdsi, "V2iV2i", "nc")
 // All MMX instructions will be generated via builtins. Any MMX vector
 // types (<1 x i64>, <2 x i32>, etc.) that aren't used by these builtins will be
 // expanded by the back-end.
+BUILTIN(_mm_prefetch, "vcC*i", "nc")
 BUILTIN(__builtin_ia32_emms, "v", "")
 BUILTIN(__builtin_ia32_paddb, "V8cV8cV8c", "")
 BUILTIN(__builtin_ia32_paddw, "V4sV4sV4s", "")
@@ -452,9 +453,6 @@ BUILTIN(__builtin_ia32_movmskpd256, "iV4d", "")
 BUILTIN(__builtin_ia32_movmskps256, "iV8f", "")
 BUILTIN(__builtin_ia32_vzeroall, "v", "")
 BUILTIN(__builtin_ia32_vzeroupper, "v", "")
-BUILTIN(__builtin_ia32_vbroadcastss, "V4ffC*", "")
-BUILTIN(__builtin_ia32_vbroadcastsd256, "V4ddC*", "")
-BUILTIN(__builtin_ia32_vbroadcastss256, "V8ffC*", "")
 BUILTIN(__builtin_ia32_vbroadcastf128_pd256, "V4dV2dC*", "")
 BUILTIN(__builtin_ia32_vbroadcastf128_ps256, "V8fV4fC*", "")
 BUILTIN(__builtin_ia32_storeupd256, "vd*V4d", "")
@@ -759,5 +757,8 @@ BUILTIN(__builtin_ia32_xbegin, "i", "")
 BUILTIN(__builtin_ia32_xend, "v", "")
 BUILTIN(__builtin_ia32_xabort, "vIc", "")
 BUILTIN(__builtin_ia32_xtest, "i", "")
+BUILTIN(__builtin_ia32_rdpmc, "ULLii", "")
+BUILTIN(__builtin_ia32_rdtsc, "ULLi", "")
+BUILTIN(__builtin_ia32_rdtscp, "ULLiUi*", "")
 
 #undef BUILTIN

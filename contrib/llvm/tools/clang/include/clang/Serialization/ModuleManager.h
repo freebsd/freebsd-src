@@ -18,6 +18,7 @@
 #include "clang/Basic/FileManager.h"
 #include "clang/Serialization/Module.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallPtrSet.h"
 
 namespace clang { 
 
@@ -65,7 +66,7 @@ class ModuleManager {
   /// calls to visit().
   struct VisitState {
     explicit VisitState(unsigned N)
-      : VisitNumber(N, 0), NextVisitNumber(1), NextState(0)
+      : VisitNumber(N, 0), NextVisitNumber(1), NextState(nullptr)
     {
       Stack.reserve(N);
     }
@@ -194,6 +195,7 @@ public:
 
   /// \brief Remove the given set of modules.
   void removeModules(ModuleIterator first, ModuleIterator last,
+                     llvm::SmallPtrSetImpl<ModuleFile *> &LoadedSuccessfully,
                      ModuleMap *modMap);
 
   /// \brief Add an in-memory buffer the list of known buffers
@@ -230,7 +232,7 @@ public:
   /// Any module that is known to both the global module index and the module
   /// manager that is *not* in this set can be skipped.
   void visit(bool (*Visitor)(ModuleFile &M, void *UserData), void *UserData,
-             llvm::SmallPtrSet<ModuleFile *, 4> *ModuleFilesHit = 0);
+             llvm::SmallPtrSet<ModuleFile *, 4> *ModuleFilesHit = nullptr);
   
   /// \brief Visit each of the modules with a depth-first traversal.
   ///

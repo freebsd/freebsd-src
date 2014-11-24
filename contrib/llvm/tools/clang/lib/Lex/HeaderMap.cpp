@@ -14,12 +14,12 @@
 #include "clang/Lex/HeaderMap.h"
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/FileManager.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include <cstdio>
+#include <memory>
 using namespace clang;
 
 //===----------------------------------------------------------------------===//
@@ -79,10 +79,10 @@ static inline unsigned HashHMapKey(StringRef Str) {
 const HeaderMap *HeaderMap::Create(const FileEntry *FE, FileManager &FM) {
   // If the file is too small to be a header map, ignore it.
   unsigned FileSize = FE->getSize();
-  if (FileSize <= sizeof(HMapHeader)) return 0;
+  if (FileSize <= sizeof(HMapHeader)) return nullptr;
 
-  OwningPtr<const llvm::MemoryBuffer> FileBuffer(FM.getBufferForFile(FE));
-  if (!FileBuffer) return 0;  // Unreadable file?
+  std::unique_ptr<const llvm::MemoryBuffer> FileBuffer(FM.getBufferForFile(FE));
+  if (!FileBuffer) return nullptr;  // Unreadable file?
   const char *FileStart = FileBuffer->getBufferStart();
 
   // We know the file is at least as big as the header, check it now.
@@ -98,12 +98,12 @@ const HeaderMap *HeaderMap::Create(const FileEntry *FE, FileManager &FM) {
            Header->Version == llvm::ByteSwap_16(HMAP_HeaderVersion))
     NeedsByteSwap = true;  // Mixed endianness headermap.
   else
-    return 0;  // Not a header map.
+    return nullptr;  // Not a header map.
 
-  if (Header->Reserved != 0) return 0;
+  if (Header->Reserved != 0) return nullptr;
 
   // Okay, everything looks good, create the header map.
-  return new HeaderMap(FileBuffer.take(), NeedsByteSwap);
+  return new HeaderMap(FileBuffer.release(), NeedsByteSwap);
 }
 
 HeaderMap::~HeaderMap() {
@@ -165,7 +165,7 @@ const char *HeaderMap::getString(unsigned StrTabIdx) const {
 
   // Check for invalid index.
   if (StrTabIdx >= FileBuffer->getBufferSize())
-    return 0;
+    return nullptr;
 
   // Otherwise, we have a valid pointer into the file.  Just return it.  We know
   // that the "string" can not overrun the end of the file, because the buffer
@@ -201,18 +201,29 @@ void HeaderMap::dump() const {
 /// this HeaderMap.  If so, open it and return its FileEntry.
 const FileEntry *HeaderMap::LookupFile(
     StringRef Filename, FileManager &FM) const {
+
+  SmallString<1024> Path;
+  StringRef Dest = lookupFilename(Filename, Path);
+  if (Dest.empty())
+    return nullptr;
+
+  return FM.getFile(Dest);
+}
+
+StringRef HeaderMap::lookupFilename(StringRef Filename,
+                                    SmallVectorImpl<char> &DestPath) const {
   const HMapHeader &Hdr = getHeader();
   unsigned NumBuckets = getEndianAdjustedWord(Hdr.NumBuckets);
 
   // If the number of buckets is not a power of two, the headermap is corrupt.
   // Don't probe infinitely.
   if (NumBuckets & (NumBuckets-1))
-    return 0;
+    return StringRef();
 
   // Linearly probe the hash table.
   for (unsigned Bucket = HashHMapKey(Filename);; ++Bucket) {
     HMapBucket B = getBucket(Bucket & (NumBuckets-1));
-    if (B.Key == HMAP_EmptyBucketKey) return 0; // Hash miss.
+    if (B.Key == HMAP_EmptyBucketKey) return StringRef(); // Hash miss.
 
     // See if the key matches.  If not, probe on.
     if (!Filename.equals_lower(getString(B.Key)))
@@ -220,9 +231,11 @@ const FileEntry *HeaderMap::LookupFile(
 
     // If so, we have a match in the hash table.  Construct the destination
     // path.
-    SmallString<1024> DestPath;
-    DestPath += getString(B.Prefix);
-    DestPath += getString(B.Suffix);
-    return FM.getFile(DestPath.str());
+    StringRef Prefix = getString(B.Prefix);
+    StringRef Suffix = getString(B.Suffix);
+    DestPath.clear();
+    DestPath.append(Prefix.begin(), Prefix.end());
+    DestPath.append(Suffix.begin(), Suffix.end());
+    return StringRef(DestPath.begin(), DestPath.size());
   }
 }

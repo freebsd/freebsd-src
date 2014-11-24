@@ -37,7 +37,7 @@ public:
   SimpleFormatContext(LangOptions Options)
       : DiagOpts(new DiagnosticOptions()),
         Diagnostics(new DiagnosticsEngine(new DiagnosticIDs,
-                                          DiagOpts.getPtr())),
+                                          DiagOpts.get())),
         Files((FileSystemOptions())),
         Sources(*Diagnostics, Files),
         Rewrite(Sources, Options) {
@@ -47,12 +47,11 @@ public:
   ~SimpleFormatContext() { }
 
   FileID createInMemoryFile(StringRef Name, StringRef Content) {
-    const llvm::MemoryBuffer *Source =
-        llvm::MemoryBuffer::getMemBuffer(Content);
+    llvm::MemoryBuffer *Source = llvm::MemoryBuffer::getMemBuffer(Content);
     const FileEntry *Entry =
         Files.getVirtualFile(Name, Source->getBufferSize(), 0);
-    Sources.overrideFileContents(Entry, Source, true);
-    assert(Entry != NULL);
+    Sources.overrideFileContents(Entry, Source);
+    assert(Entry != nullptr);
     return Sources.createFileID(Entry, SourceLocation(), SrcMgr::C_User);
   }
 
