@@ -38,6 +38,42 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20141124: new clang import which bumps version from 3.4.1 to 3.5.0.
+OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.4.1/altivec.h
+OLD_FILES+=usr/include/clang/3.4.1/ammintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/arm_neon.h
+OLD_FILES+=usr/include/clang/3.4.1/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/avxintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/cpuid.h
+OLD_FILES+=usr/include/clang/3.4.1/emmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/immintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.4.1/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.4.1/mmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/module.map
+OLD_FILES+=usr/include/clang/3.4.1/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/prfchwintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/rdseedintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/shaintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/smmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/tbmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/x86intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/xopintrin.h
+OLD_DIRS+=usr/include/clang/3.4.1
 # 20141109: faith/faithd removal
 OLD_FILES+=etc/rc.d/faith
 OLD_FILES+=usr/share/man/man4/faith.4.gz
