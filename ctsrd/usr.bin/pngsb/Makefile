@@ -4,6 +4,9 @@ PROG=	pngsb
 
 MAN=
 
+NO_SHARED=no
+WANT_DUMP=yes
+
 WARNS=	6
 
 CFLAGS+=	-I${.CURDIR}/../../ctsrd-lib/libimagebox/ \
