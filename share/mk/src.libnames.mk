@@ -217,7 +217,9 @@ _DP_pam+=	ssh
 .if ${MK_NIS} != "no"
 _DP_pam+=	ypclnt
 .endif
-_DP_krb5+=	asn1 com_err crypt crypto hx509 roken wind heimbase heimipcc
+_DP_krb5+=	asn1 com_err crypt crypto hx509 roken wind heimbase heimipcc \
+		pthread
+_DP_gssapi_krb5+=	gssapi krb5 crypto roken asn1 com_err
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
@@ -259,6 +261,10 @@ DPADD_hdb+=	${DPADD_pthread}
 LDADD_hdb+=	${LDADD_pthread}
 DPADD_kadm5srv+=	${DPADD_pthread}
 LDADD_kadm5srv+=	${LDADD_pthread}
+DPADD_krb5+=	${DPADD_pthread}
+LDADD_krb5+=	${LDADD_pthread}
+DPADD_gssapi_krb5+=	${DPADD_pthread}
+LDADD_gssapi_krb5+=	${LDADD_pthread}
 
 .for _l in ${LIBADD}
 .if ${_PRIVATELIBS:M${_l}}
