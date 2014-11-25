@@ -23,6 +23,7 @@ _PRIVATELIBS=	\
 		unbound
 
 _INTERNALIBS=	\
+		event \
 		mandoc \
 		netbsd \
 		ohash \
@@ -52,7 +53,6 @@ _LIBRARIES=	\
 		dwarf \
 		edit \
 		elf \
-		event \
 		execinfo \
 		fetch \
 		figpar \
