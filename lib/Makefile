@@ -22,6 +22,7 @@
 # libsbuf must be built before libcam.
 # libtacplus must be built before libpam.
 # libutil must be built before libpam.
+# libfigpar must be built before libdpv (but after ncurses and libutil).
 # libypclnt must be built before libpam.
 # libgssapi must be built before librpcsec_gss
 #
@@ -48,6 +49,7 @@ SUBDIR_ORDERED=	${_csu} \
 	libsbuf \
 	libtacplus \
 	libutil \
+	libfigpar \
 	${_libypclnt} \
 	${_libcxxrt} \
 	${_libcplusplus}
@@ -67,12 +69,12 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libdevinfo \
 	libdevstat \
 	libdisk \
+	libdpv \
 	libdwarf \
 	libedit \
 	${_libefi} \
 	libexpat \
 	libfetch \
-	libfigpar \
 	libftpio \
 	libgeom \
 	${_libgpib} \
