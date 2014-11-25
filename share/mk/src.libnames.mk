@@ -45,10 +45,11 @@ _LIBRARIES=	\
 		cam \
 		capsicum \
 		casper \
-		ctf \
 		com_err \
+		compiler_rt \
 		crypt \
 		crypto \
+		ctf \
 		cuse \
 		cxxrt \
 		devstat \
@@ -106,6 +107,7 @@ _LIBRARIES=	\
 		ssl \
 		stdthreads \
 		supcplusplus \
+		ssp_nonshared \
 		tacplus \
 		termcapw \
 		ufs \
@@ -115,6 +117,7 @@ _LIBRARIES=	\
 		wind \
 		wrap \
 		y \
+		ypclnt \
 		z
 
 _DP_archive=	z bz2 lzma bsdxml
