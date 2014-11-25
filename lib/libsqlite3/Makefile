@@ -3,7 +3,7 @@
 PRIVATELIB=	yes
 LIB=	sqlite3
 SHLIB_MAJOR?=	0
-LIBADD+=	pthreads
+LIBADD+=	pthread
 
 SRCS=	sqlite3.c
 
