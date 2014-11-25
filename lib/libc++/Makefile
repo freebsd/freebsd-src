@@ -62,8 +62,7 @@ CFLAGS+=	-I${HDRDIR} -I${LIBCXXRTDIR} -nostdlib -DLIBCXXRT
 CXXFLAGS+=	-std=c++11
 .endif
 
-DPADD=		${LIBCXXRT}
-LDADD=		-lcxxrt
+LIBADD+=	cxxrt
 LDFLAGS+=	--verbose
 INCSGROUPS=	STD EXP EXT
 
