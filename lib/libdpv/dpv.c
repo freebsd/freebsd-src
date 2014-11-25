@@ -77,8 +77,8 @@ char *msg_pending = NULL;	/* dpv_config.msg_pending */
 char *pprompt = NULL;		/* dpv_config.pprompt */
 
 /* Status-Line format for when using dialog(3) */
-const char *status_format_custom = NULL;
-char status_format_default[DPV_STATUS_FORMAT_MAX];
+static const char *status_format_custom = NULL;
+static char status_format_default[DPV_STATUS_FORMAT_MAX];
 
 /*
  * Takes a pointer to a dpv_config structure containing layout details and
