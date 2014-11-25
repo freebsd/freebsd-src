@@ -24,11 +24,19 @@ _PRIVATELIBS=	\
 		unbound
 
 _INTERNALIBS=	\
+		amu \
+		bsnmptools \
+		cron \
 		event \
+		fifolog \
 		ipf \
+		lpr \
 		mandoc \
 		netbsd \
+		ntp \
 		ohash \
+		opts \
+		parse \
 		readline \
 		sl \
 		sm \
@@ -43,6 +51,7 @@ _LIBRARIES=	\
 		alias \
 		archive \
 		asn1 \
+		auditd \
 		begemot \
 		bluetooth \
 		bsdxml \
@@ -60,6 +69,7 @@ _LIBRARIES=	\
 		ctf \
 		cuse \
 		cxxrt \
+		devinfo \
 		devstat \
 		dialog \
 		dpv \
@@ -103,7 +113,9 @@ _LIBRARIES=	\
 		opie \
 		pam \
 		pcap \
+		pcsclite \
 		pjdlog \
+		pmc \
 		proc \
 		procstat \
 		pthread \
@@ -123,11 +135,13 @@ _LIBRARIES=	\
 		ssp_nonshared \
 		tacplus \
 		termcapw \
+		ugidfw \
 		ufs \
 		ulog \
 		usb \
 		usbhid \
 		util \
+		vmmapi \
 		wind \
 		wrap \
 		xo \
@@ -332,3 +346,27 @@ LIBIPF?=	${LIBIPFDIR}/libipf.a
 
 LIBTELNETDIR=	${ROOTOBJDIR}/lib/libtelnet
 LIBTELNET?=	${LIBIPFDIR}/libtelnet.a
+
+LIBCRONDIR=	${ROOTOBJDIR}/usr.sbin/cron/lib
+LIBCRON?=	${LIBCRONDIR}/libcron.a
+
+LIBNTPDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libntp
+LIBNTP?=	${LIBNTPDIR}/libntp.a
+
+LIBOPTSDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libopts
+LIBOTPS?=	${LIBOPTSDIR}/libopts.a
+
+LIBPARSEDIR=	${ROOTOBJDIR}/usr.sbin/ntp/libparse
+LIBPARSE?=	${LIBOPTSDIR}/libparse.a
+
+LIBLPRDIR=	${ROOTOBJDIR}/usr.sbin/lpr/common_source
+LIBLPR?=	${LIBOPTSDIR}/liblpr.a
+
+LIBFIFOLOGDIR=	${ROOTOBJDIR}/usr.sbin/fifolog/lib
+LIBFIFOLOG?=	${LIBOPTSDIR}/libfifolog.a
+
+LIBBSNMPTOOLSDIR=	${ROOTOBJDIR}/usr.sbin/bsnmpd/tools/libbsnmptools
+LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
+
+LIBAMUDIR=	${ROOTOBJDIR}/usr.sbin/amd/libamu
+LIBAMU?=	${LIBAMUDIR}/libamu/libamu.a
