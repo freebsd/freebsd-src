@@ -26,3 +26,5 @@ dev/mmc/host/dwmmc.c				optional dwmmc
 # BERI specific
 dev/beri/beri_ring.c				optional beri_ring
 dev/beri/beri_mem.c				optional beri_mem
+dev/beri/virtio/virtio.c			optional beri_vtblk
+dev/beri/virtio/virtio_block.c			optional beri_vtblk
