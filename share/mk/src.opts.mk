@@ -57,6 +57,7 @@ __DEFAULT_YES_OPTIONS = \
     BLUETOOTH \
     BOOT \
     BSD_CPIO \
+    BSDINSTALL \
     BSNMP \
     BZIP2 \
     CALENDAR \
