@@ -31,7 +31,7 @@
  * when statically linked.
  */
 
-#ifdef __PIC__
+#ifdef PIC
 
 /*
  * Why do we need quirks?
@@ -193,4 +193,4 @@ kiconv_quirkcs(const char* base __unused, int vendor __unused)
 	return (base);
 }
 
-#endif /* __PIC__ */
+#endif /* PIC */

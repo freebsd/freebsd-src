@@ -37,7 +37,7 @@
 
 #include <sys/cdefs.h>
 
-#if defined(__PIC__) && !defined(__powerpc64__)
+#if defined(PIC) && !defined(__powerpc64__)
 #define	PIC_PROLOGUE	XXX
 #define	PIC_EPILOGUE	XXX
 #define	PIC_PLT(x)	x@plt
