@@ -394,9 +394,9 @@ parse()
     char *ep, *p, *q;
     const char *cp;
     unsigned int drv;
-    uint8_t i;
     int c, j;
     size_t k;
+    uint8_t i;
 
     while ((c = *arg++)) {
 	if (c == ' ' || c == '\t' || c == '\n')
