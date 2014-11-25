@@ -21,8 +21,6 @@ CFLAGS+=	-DHAVE_LDNS=1
 #USEPRIVATELIB+= ldns
 .endif
 
-LIBADD+=	crypto crypto z
-
 .include <bsd.prog.mk>
 
 .PATH:	${SSHDIR}
