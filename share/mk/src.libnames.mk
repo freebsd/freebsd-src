@@ -94,7 +94,6 @@ _LIBRARIES=	\
 		kafs5 \
 		kdc \
 		kiconv \
-		krb5 \
 		kvm \
 		krb5 \
 		l \
