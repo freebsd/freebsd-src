@@ -163,15 +163,17 @@ RegisterContextLLDB::InitializeZerothFrame()
         UnwindLogMsg ("using architectural default unwind method");
     }
 
-    // We require that eSymbolContextSymbol be successfully filled in or this context is of no use to us.
+    // We require either a symbol or function in the symbols context to be successfully
+    // filled in or this context is of no use to us.
+    const uint32_t resolve_scope = eSymbolContextFunction | eSymbolContextSymbol;
     if (pc_module_sp.get()
-        && (pc_module_sp->ResolveSymbolContextForAddress (m_current_pc, eSymbolContextFunction| eSymbolContextSymbol, m_sym_ctx) & eSymbolContextSymbol) == eSymbolContextSymbol)
+        && (pc_module_sp->ResolveSymbolContextForAddress (m_current_pc, resolve_scope, m_sym_ctx) & resolve_scope))
     {
         m_sym_ctx_valid = true;
     }
 
     AddressRange addr_range;
-    m_sym_ctx.GetAddressRange (eSymbolContextFunction | eSymbolContextSymbol, 0, false, addr_range);
+    m_sym_ctx.GetAddressRange (resolve_scope, 0, false, addr_range);
 
     if (IsTrapHandlerSymbol (process, m_sym_ctx))
     {
@@ -216,7 +218,7 @@ RegisterContextLLDB::InitializeZerothFrame()
 
     UnwindPlan::RowSP active_row;
     int cfa_offset = 0;
-    int row_register_kind = -1;
+    lldb::RegisterKind row_register_kind = eRegisterKindGeneric;
     if (m_full_unwind_plan_sp && m_full_unwind_plan_sp->PlanValidAtAddress (m_current_pc))
     {
         active_row = m_full_unwind_plan_sp->GetRowForFunctionOffset (m_current_offset);
@@ -362,7 +364,7 @@ RegisterContextLLDB::InitializeNonZerothFrame()
             m_current_offset = -1;
             m_current_offset_backed_up_one = -1;
             addr_t cfa_regval = LLDB_INVALID_ADDRESS;
-            int row_register_kind = m_full_unwind_plan_sp->GetRegisterKind ();
+            RegisterKind row_register_kind = m_full_unwind_plan_sp->GetRegisterKind ();
             UnwindPlan::RowSP row = m_full_unwind_plan_sp->GetRowForFunctionOffset(0);
             if (row.get())
             {
@@ -417,18 +419,20 @@ RegisterContextLLDB::InitializeNonZerothFrame()
                                            // a function/symbol because it is beyond the bounds of the correct
                                            // function and there's no symbol there.  ResolveSymbolContextForAddress
                                            // will fail to find a symbol, back up the pc by 1 and re-search.
+    const uint32_t resolve_scope = eSymbolContextFunction | eSymbolContextSymbol;
     uint32_t resolved_scope = pc_module_sp->ResolveSymbolContextForAddress (m_current_pc,
-                                                                            eSymbolContextFunction | eSymbolContextSymbol,
+                                                                            resolve_scope,
                                                                             m_sym_ctx, resolve_tail_call_address);
 
-    // We require that eSymbolContextSymbol be successfully filled in or this context is of no use to us.
-    if ((resolved_scope & eSymbolContextSymbol) == eSymbolContextSymbol)
+    // We require either a symbol or function in the symbols context to be successfully
+    // filled in or this context is of no use to us.
+    if (resolve_scope & resolved_scope)
     {
         m_sym_ctx_valid = true;
     }
 
     AddressRange addr_range;
-    if (!m_sym_ctx.GetAddressRange (eSymbolContextFunction | eSymbolContextSymbol, 0, false, addr_range))
+    if (!m_sym_ctx.GetAddressRange (resolve_scope, 0, false, addr_range))
     {
         m_sym_ctx_valid = false;
     }
@@ -461,13 +465,12 @@ RegisterContextLLDB::InitializeNonZerothFrame()
         temporary_pc.SetOffset(m_current_pc.GetOffset() - 1);
         m_sym_ctx.Clear(false);
         m_sym_ctx_valid = false;
-        if ((pc_module_sp->ResolveSymbolContextForAddress (temporary_pc, eSymbolContextFunction| eSymbolContextSymbol, m_sym_ctx) & eSymbolContextSymbol) == eSymbolContextSymbol)
+        uint32_t resolve_scope = eSymbolContextFunction | eSymbolContextSymbol;
+        
+        if (pc_module_sp->ResolveSymbolContextForAddress (temporary_pc, resolve_scope, m_sym_ctx) & resolve_scope)
         {
-            m_sym_ctx_valid = true;
-        }
-        if (!m_sym_ctx.GetAddressRange (eSymbolContextFunction | eSymbolContextSymbol, 0, false,  addr_range))
-        {
-            m_sym_ctx_valid = false;
+            if (m_sym_ctx.GetAddressRange (resolve_scope, 0, false,  addr_range))
+                m_sym_ctx_valid = true;
         }
     }
 
@@ -510,7 +513,7 @@ RegisterContextLLDB::InitializeNonZerothFrame()
 
     UnwindPlan::RowSP active_row;
     int cfa_offset = 0;
-    int row_register_kind = -1;
+    RegisterKind row_register_kind = eRegisterKindGeneric;
 
     // Try to get by with just the fast UnwindPlan if possible - the full UnwindPlan may be expensive to get
     // (e.g. if we have to parse the entire eh_frame section of an ObjectFile for the first time.)
@@ -591,7 +594,7 @@ RegisterContextLLDB::InitializeNonZerothFrame()
                 repeating_frames = true;
             }
         }
-        if (repeating_frames && abi->FunctionCallsChangeCFA())
+        if (repeating_frames && abi && abi->FunctionCallsChangeCFA())
         {
             UnwindLogMsg ("same CFA address as next frame, assuming the unwind is looping - stopping");
             m_frame_type = eNotAValidFrame;
@@ -707,7 +710,7 @@ RegisterContextLLDB::GetFullUnwindPlanForFrame ()
     // Note, if we have a symbol context & a symbol, we don't want to follow this code path.  This is
     // for jumping to memory regions without any information available.
 
-    if ((!m_sym_ctx_valid || m_sym_ctx.symbol == NULL) && behaves_like_zeroth_frame && m_current_pc.IsValid())
+    if ((!m_sym_ctx_valid || (m_sym_ctx.function == NULL && m_sym_ctx.symbol == NULL)) && behaves_like_zeroth_frame && m_current_pc.IsValid())
     {
         uint32_t permissions;
         addr_t current_pc_addr = m_current_pc.GetLoadAddress (exe_ctx.GetTargetPtr());
@@ -791,7 +794,7 @@ RegisterContextLLDB::GetFullUnwindPlanForFrame ()
     // Typically the NonCallSite UnwindPlan is the unwind created by inspecting the assembly language instructions
     if (behaves_like_zeroth_frame)
     {
-        unwind_plan_sp = func_unwinders_sp->GetUnwindPlanAtNonCallSite (m_thread);
+        unwind_plan_sp = func_unwinders_sp->GetUnwindPlanAtNonCallSite (process->GetTarget(), m_thread, m_current_offset_backed_up_one);
         if (unwind_plan_sp && unwind_plan_sp->PlanValidAtAddress (m_current_pc))
         {
             if (unwind_plan_sp->GetSourcedFromCompiler() == eLazyBoolNo)
@@ -819,8 +822,8 @@ RegisterContextLLDB::GetFullUnwindPlanForFrame ()
 
     // We'd prefer to use an UnwindPlan intended for call sites when we're at a call site but if we've
     // struck out on that, fall back to using the non-call-site assembly inspection UnwindPlan if possible.
-    unwind_plan_sp = func_unwinders_sp->GetUnwindPlanAtNonCallSite (m_thread);
-    if (unwind_plan_sp->GetSourcedFromCompiler() == eLazyBoolNo)
+    unwind_plan_sp = func_unwinders_sp->GetUnwindPlanAtNonCallSite (process->GetTarget(), m_thread, m_current_offset_backed_up_one);
+    if (unwind_plan_sp && unwind_plan_sp->GetSourcedFromCompiler() == eLazyBoolNo)
     {
         // We probably have an UnwindPlan created by inspecting assembly instructions, and we probably
         // don't have any eh_frame instructions available.
@@ -889,7 +892,7 @@ RegisterContextLLDB::GetRegisterSet (size_t reg_set)
 }
 
 uint32_t
-RegisterContextLLDB::ConvertRegisterKindToRegisterNumber (uint32_t kind, uint32_t num)
+RegisterContextLLDB::ConvertRegisterKindToRegisterNumber (lldb::RegisterKind kind, uint32_t num)
 {
     return m_thread.GetRegisterContext()->ConvertRegisterKindToRegisterNumber (kind, num);
 }
@@ -1415,7 +1418,7 @@ RegisterContextLLDB::TryFallbackUnwindPlan ()
 //  where frame 0 (the "next" frame) saved that and retrieve the value.
 
 bool
-RegisterContextLLDB::ReadGPRValue (int register_kind, uint32_t regnum, addr_t &value)
+RegisterContextLLDB::ReadGPRValue (lldb::RegisterKind register_kind, uint32_t regnum, addr_t &value)
 {
     if (!IsValid())
         return false;

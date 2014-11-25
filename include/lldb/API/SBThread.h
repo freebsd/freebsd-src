@@ -41,6 +41,9 @@ public:
 
    ~SBThread();
 
+    lldb::SBQueue
+    GetQueue () const;
+
     bool
     IsValid() const;
 
@@ -97,6 +100,9 @@ public:
     lldb::queue_id_t
     GetQueueID() const;
 
+    bool
+    GetInfoItemByPathAsString ( const char *path, SBStream &strm);
+
     void
     StepOver (lldb::RunMode stop_other_threads = lldb::eOnlyDuringStepping);
 
@@ -136,8 +142,8 @@ public:
     /// the other threads in a process are allowed to run. So when 
     /// SBProcess::Continue() is called, any threads that aren't suspended will
     /// be allowed to run. If any of the SBThread functions for stepping are 
-    /// called (StepOver, StepInto, StepOut, StepInstruction, RunToAddres), the
-    /// thread will not be allowed to run and these funtions will simply return.
+    /// called (StepOver, StepInto, StepOut, StepInstruction, RunToAddress), the
+    /// thread will not be allowed to run and these functions will simply return.
     ///
     /// Eventually we plan to add support for thread centric debugging where
     /// each thread is controlled individually and each thread would broadcast
@@ -206,6 +212,9 @@ public:
 
     uint32_t
     GetExtendedBacktraceOriginatingIndexID ();
+
+    bool
+    SafeToCallFunctions ();
 
 protected:
     friend class SBBreakpoint;

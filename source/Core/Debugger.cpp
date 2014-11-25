@@ -15,6 +15,7 @@
 
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/Type.h"
+#include "llvm/ADT/StringRef.h"
 
 #include "lldb/lldb-private.h"
 #include "lldb/Core/ConnectionFileDescriptor.h"
@@ -26,12 +27,14 @@
 #include "lldb/Core/StreamCallback.h"
 #include "lldb/Core/StreamFile.h"
 #include "lldb/Core/StreamString.h"
+#include "lldb/Core/StructuredData.h"
 #include "lldb/Core/Timer.h"
 #include "lldb/Core/ValueObject.h"
 #include "lldb/Core/ValueObjectVariable.h"
 #include "lldb/DataFormatters/DataVisualization.h"
 #include "lldb/DataFormatters/FormatManager.h"
-#include "lldb/Host/DynamicLibrary.h"
+#include "lldb/DataFormatters/TypeSummary.h"
+#include "lldb/Host/HostInfo.h"
 #include "lldb/Host/Terminal.h"
 #include "lldb/Interpreter/CommandInterpreter.h"
 #include "lldb/Interpreter/OptionValueSInt64.h"
@@ -49,6 +52,8 @@
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 #include "lldb/Utility/AnsiTerminal.h"
+
+#include "llvm/Support/DynamicLibrary.h"
 
 using namespace lldb;
 using namespace lldb_private;
@@ -72,7 +77,7 @@ static DebuggerList &
 GetDebuggerList()
 {
     // hide the static debugger list inside a singleton accessor to avoid
-    // global init contructors
+    // global init constructors
     static DebuggerList g_list;
     return g_list;
 }
@@ -104,8 +109,11 @@ g_language_enumerators[] =
     FILE_AND_LINE\
     "{, name = '${thread.name}'}"\
     "{, queue = '${thread.queue}'}"\
+    "{, activity = '${thread.info.activity.name}'}" \
+    "{, ${thread.info.trace_messages} messages}" \
     "{, stop reason = ${thread.stop-reason}}"\
     "{\\nReturn value: ${thread.return-value}}"\
+    "{\\nCompleted expression: ${thread.completed-expression}}"\
     "\\n"
 
 #define DEFAULT_FRAME_FORMAT "frame #${frame.index}: ${frame.pc}"\
@@ -406,10 +414,10 @@ Debugger::LoadPlugin (const FileSpec& spec, Error& error)
 {
     if (g_load_plugin_callback)
     {
-        lldb::DynamicLibrarySP dynlib_sp = g_load_plugin_callback (shared_from_this(), spec, error);
-        if (dynlib_sp)
+        llvm::sys::DynamicLibrary dynlib = g_load_plugin_callback (shared_from_this(), spec, error);
+        if (dynlib.isValid())
         {
-            m_loaded_plugins.push_back(dynlib_sp);
+            m_loaded_plugins.push_back(dynlib);
             return true;
         }
     }
@@ -470,7 +478,7 @@ LoadPluginCallback
     {
         // Try and recurse into anything that a directory or symbolic link.
         // We must also do this for unknown as sometimes the directory enumeration
-        // might be enurating a file system that doesn't have correct file type
+        // might be enumerating a file system that doesn't have correct file type
         // information.
         return FileSpec::eEnumerateDirectoryResultEnter;
     }
@@ -486,7 +494,7 @@ Debugger::InstanceInitialize ()
     const bool find_files = true;
     const bool find_other = true;
     char dir_path[PATH_MAX];
-    if (Host::GetLLDBPath (ePathTypeLLDBSystemPlugins, dir_spec))
+    if (HostInfo::GetLLDBPath(ePathTypeLLDBSystemPlugins, dir_spec))
     {
         if (dir_spec.Exists() && dir_spec.GetPath(dir_path, sizeof(dir_path)))
         {
@@ -498,8 +506,8 @@ Debugger::InstanceInitialize ()
                                           this);
         }
     }
-    
-    if (Host::GetLLDBPath (ePathTypeLLDBUserPlugins, dir_spec))
+
+    if (HostInfo::GetLLDBPath(ePathTypeLLDBUserPlugins, dir_spec))
     {
         if (dir_spec.Exists() && dir_spec.GetPath(dir_path, sizeof(dir_path)))
         {
@@ -629,8 +637,7 @@ Debugger::Debugger (lldb::LogOutputCallback log_callback, void *baton) :
     m_instance_name (),
     m_loaded_plugins (),
     m_event_handler_thread (LLDB_INVALID_HOST_THREAD),
-    m_io_handler_thread (LLDB_INVALID_HOST_THREAD),
-    m_event_handler_thread_alive(false)
+    m_io_handler_thread (LLDB_INVALID_HOST_THREAD)
 {
     char instance_cstr[256];
     snprintf(instance_cstr, sizeof(instance_cstr), "debugger_%d", (int)GetID());
@@ -696,6 +703,8 @@ Debugger::Clear()
     m_terminal_state.Clear();
     if (m_input_file_sp)
         m_input_file_sp->GetFile().Close ();
+    
+    m_command_interpreter_ap->Clear();
 }
 
 bool
@@ -896,9 +905,29 @@ Debugger::RunIOHandler (const IOHandlerSP& reader_sp)
 {
     Mutex::Locker locker (m_input_reader_stack.GetMutex());
     PushIOHandler (reader_sp);
-    reader_sp->Activate();
-    reader_sp->Run();
-    PopIOHandler (reader_sp);
+    
+    IOHandlerSP top_reader_sp = reader_sp;
+    while (top_reader_sp)
+    {
+        top_reader_sp->Activate();
+        top_reader_sp->Run();
+        top_reader_sp->Deactivate();
+        
+        if (top_reader_sp.get() == reader_sp.get())
+        {
+            if (PopIOHandler (reader_sp))
+                break;
+        }
+        
+        while (1)
+        {
+            top_reader_sp = m_input_reader_stack.Top();
+            if (top_reader_sp && top_reader_sp->GetIsDone())
+                m_input_reader_stack.Pop();
+            else
+                break;
+        }
+    }
 }
 
 void
@@ -960,13 +989,17 @@ Debugger::PushIOHandler (const IOHandlerSP& reader_sp)
     // Got the current top input reader...
     IOHandlerSP top_reader_sp (m_input_reader_stack.Top());
     
-    // Push our new input reader
-    m_input_reader_stack.Push (reader_sp);
+    // Don't push the same IO handler twice...
+    if (reader_sp.get() != top_reader_sp.get())
+    {
+        // Push our new input reader
+        m_input_reader_stack.Push (reader_sp);
 
-    // Interrupt the top input reader to it will exit its Run() function
-    // and let this new input reader take over
-    if (top_reader_sp)
-        top_reader_sp->Deactivate();
+        // Interrupt the top input reader to it will exit its Run() function
+        // and let this new input reader take over
+        if (top_reader_sp)
+            top_reader_sp->Deactivate();
+    }
 }
 
 bool
@@ -977,7 +1010,7 @@ Debugger::PopIOHandler (const IOHandlerSP& pop_reader_sp)
     Mutex::Locker locker (m_input_reader_stack.GetMutex());
 
     // The reader on the stop of the stack is done, so let the next
-    // read on the stack referesh its prompt and if there is one...
+    // read on the stack refresh its prompt and if there is one...
     if (!m_input_reader_stack.IsEmpty())
     {
         IOHandlerSP reader_sp(m_input_reader_stack.Top());
@@ -985,6 +1018,7 @@ Debugger::PopIOHandler (const IOHandlerSP& pop_reader_sp)
         if (!pop_reader_sp || pop_reader_sp.get() == reader_sp.get())
         {
             reader_sp->Deactivate();
+            reader_sp->Cancel();
             m_input_reader_stack.Pop ();
             
             reader_sp = m_input_reader_stack.Top();
@@ -1085,6 +1119,7 @@ Debugger::FindDebuggerWithID (lldb::user_id_t id)
     return debugger_sp;
 }
 
+#if 0
 static void
 TestPromptFormats (StackFrame *frame)
 {
@@ -1145,6 +1180,7 @@ TestPromptFormats (StackFrame *frame)
         printf ("what we got: %s\n", s.GetData());
     }
 }
+#endif
 
 static bool
 ScanFormatDescriptor (const char* var_name_begin,
@@ -1421,6 +1457,96 @@ IsTokenWithFormat(const char *var_name_begin, const char *var, std::string &form
     return false;
 }
 
+// Find information for the "thread.info.*" specifiers in a format string
+static bool
+FormatThreadExtendedInfoRecurse
+(
+    const char *var_name_begin,
+    StructuredData::ObjectSP thread_info_dictionary,
+    const SymbolContext *sc,
+    const ExecutionContext *exe_ctx,
+    Stream &s
+)
+{
+    bool var_success = false;
+    std::string token_format;
+
+    llvm::StringRef var_name(var_name_begin);
+    size_t percent_idx = var_name.find('%');
+    size_t close_curly_idx = var_name.find('}');
+    llvm::StringRef path = var_name;
+    llvm::StringRef formatter = var_name;
+
+    // 'path' will be the dot separated list of objects to transverse up until we hit
+    // a close curly brace, a percent sign, or an end of string.
+    if (percent_idx != llvm::StringRef::npos || close_curly_idx != llvm::StringRef::npos)
+    {
+        if (percent_idx != llvm::StringRef::npos && close_curly_idx != llvm::StringRef::npos)
+        {
+            if (percent_idx < close_curly_idx)
+            {
+                path = var_name.slice(0, percent_idx);
+                formatter = var_name.substr (percent_idx);
+            }
+            else
+            {
+                path = var_name.slice(0, close_curly_idx);
+                formatter = var_name.substr (close_curly_idx);
+            }
+        }
+        else if (percent_idx != llvm::StringRef::npos)
+        {
+            path = var_name.slice(0, percent_idx);
+            formatter = var_name.substr (percent_idx);
+        }
+        else if (close_curly_idx != llvm::StringRef::npos)
+        {
+            path = var_name.slice(0, close_curly_idx);
+            formatter = var_name.substr (close_curly_idx);
+        }
+    }
+
+    StructuredData::ObjectSP value = thread_info_dictionary->GetObjectForDotSeparatedPath (path);
+
+    if (value.get())
+    {
+        if (value->GetType() == StructuredData::Type::eTypeInteger)
+        {
+            if (IsTokenWithFormat (formatter.str().c_str(), "", token_format, "0x%4.4" PRIx64, exe_ctx, sc))
+            {
+                s.Printf(token_format.c_str(), value->GetAsInteger()->GetValue());
+                var_success = true;
+            }
+        }
+        else if (value->GetType() == StructuredData::Type::eTypeFloat)
+        {
+            s.Printf ("%f", value->GetAsFloat()->GetValue());
+            var_success = true;
+        }
+        else if (value->GetType() == StructuredData::Type::eTypeString)
+        {
+            s.Printf("%s", value->GetAsString()->GetValue().c_str());
+            var_success = true;
+        }
+        else if (value->GetType() == StructuredData::Type::eTypeArray)
+        {
+            if (value->GetAsArray()->GetSize() > 0)
+            {
+                s.Printf ("%zu", value->GetAsArray()->GetSize());
+                var_success = true;
+            }
+        }
+        else if (value->GetType() == StructuredData::Type::eTypeDictionary)
+        {
+            s.Printf ("%zu", value->GetAsDictionary()->GetKeys()->GetAsArray()->GetSize());
+            var_success = true;
+        }
+    }
+
+    return var_success;
+}
+
+
 static bool
 FormatPromptRecurse
 (
@@ -1676,6 +1802,13 @@ FormatPromptRecurse
                                         break;
                                     }
                                     do_deref_pointer = false;
+                                }
+                                
+                                if (!target)
+                                {
+                                    if (log)
+                                        log->Printf("[Debugger::FormatPrompt] could not calculate target for prompt expression");
+                                    break;
                                 }
                                 
                                 // we do not want to use the summary for a bitfield of type T:n
@@ -1945,6 +2078,19 @@ FormatPromptRecurse
                                                 }
                                             }
                                         }
+                                        else if (IsToken (var_name_begin, "completed-expression}"))
+                                        {
+                                            StopInfoSP stop_info_sp = thread->GetStopInfo ();
+                                            if (stop_info_sp && stop_info_sp->IsValid())
+                                            {
+                                                ClangExpressionVariableSP expression_var_sp = StopInfo::GetExpressionVariable (stop_info_sp);
+                                                if (expression_var_sp && expression_var_sp->GetValueObject())
+                                                {
+                                                    expression_var_sp->GetValueObject()->Dump(s);
+                                                    var_success = true;
+                                                }
+                                            }
+                                        }
                                         else if (IsToken (var_name_begin, "script:"))
                                         {
                                             var_name_begin += ::strlen("script:");
@@ -1952,6 +2098,15 @@ FormatPromptRecurse
                                             ScriptInterpreter* script_interpreter = thread->GetProcess()->GetTarget().GetDebugger().GetCommandInterpreter().GetScriptInterpreter();
                                             if (RunScriptFormatKeyword (s, script_interpreter, thread, script_name))
                                                 var_success = true;
+                                        }
+                                        else if (IsToken (var_name_begin, "info."))
+                                        {
+                                            var_name_begin += ::strlen("info.");
+                                            StructuredData::ObjectSP object_sp = thread->GetExtendedInfo();
+                                            if (object_sp && object_sp->GetType() == StructuredData::Type::eTypeDictionary)
+                                            {
+                                                var_success = FormatThreadExtendedInfoRecurse (var_name_begin, object_sp, sc, exe_ctx, s);
+                                            }
                                         }
                                     }
                                 }
@@ -2205,7 +2360,29 @@ FormatPromptRecurse
                                                 if (args.GetSize() > 0)
                                                 {
                                                     const char *open_paren = strchr (cstr, '(');
-                                                    const char *close_paren = NULL;
+                                                    const char *close_paren = nullptr;
+                                                    const char *generic = strchr(cstr, '<');
+                                                    // if before the arguments list begins there is a template sign
+                                                    // then scan to the end of the generic args before you try to find
+                                                    // the arguments list
+                                                    if (generic && open_paren && generic < open_paren)
+                                                    {
+                                                        int generic_depth = 1;
+                                                        ++generic;
+                                                        for (;
+                                                             *generic && generic_depth > 0;
+                                                             generic++)
+                                                        {
+                                                            if (*generic == '<')
+                                                                generic_depth++;
+                                                            if (*generic == '>')
+                                                                generic_depth--;
+                                                        }
+                                                        if (*generic)
+                                                            open_paren = strchr(generic, '(');
+                                                        else
+                                                            open_paren = nullptr;
+                                                    }
                                                     if (open_paren)
                                                     {
                                                         if (IsToken (open_paren, "(anonymous namespace)"))
@@ -2228,16 +2405,30 @@ FormatPromptRecurse
                                                     const size_t num_args = args.GetSize();
                                                     for (size_t arg_idx = 0; arg_idx < num_args; ++arg_idx)
                                                     {
+                                                        std::string buffer;
+                                                        
                                                         VariableSP var_sp (args.GetVariableAtIndex (arg_idx));
                                                         ValueObjectSP var_value_sp (ValueObjectVariable::Create (exe_scope, var_sp));
+                                                        const char *var_representation = nullptr;
                                                         const char *var_name = var_value_sp->GetName().GetCString();
-                                                        const char *var_value = var_value_sp->GetValueAsCString();
+                                                        if (var_value_sp->GetClangType().IsAggregateType() &&
+                                                            DataVisualization::ShouldPrintAsOneLiner(*var_value_sp.get()))
+                                                        {
+                                                            static StringSummaryFormat format(TypeSummaryImpl::Flags()
+                                                                                              .SetHideItemNames(false)
+                                                                                              .SetShowMembersOneLiner(true),
+                                                                                              "");
+                                                            format.FormatObject(var_value_sp.get(), buffer);
+                                                            var_representation = buffer.c_str();
+                                                        }
+                                                        else
+                                                            var_representation = var_value_sp->GetValueAsCString();
                                                         if (arg_idx > 0)
                                                             s.PutCString (", ");
                                                         if (var_value_sp->GetError().Success())
                                                         {
-                                                            if (var_value)
-                                                                s.Printf ("%s=%s", var_name, var_value);
+                                                            if (var_representation)
+                                                                s.Printf ("%s=%s", var_name, var_representation);
                                                             else
                                                                 s.Printf ("%s=%s at %s", var_name, var_value_sp->GetTypeName().GetCString(), var_value_sp->GetLocationAsCString());
                                                         }
@@ -2769,36 +2960,30 @@ Debugger::HandleProcessEvent (const EventSP &event_sp)
     const uint32_t event_type = event_sp->GetType();
     ProcessSP process_sp = Process::ProcessEventData::GetProcessFromEvent(event_sp.get());
     
+    StreamString output_stream;
+    StreamString error_stream;
     const bool gui_enabled = IsForwardingEvents();
-    bool top_io_handler_hid = false;
-    if (gui_enabled == false)
-        top_io_handler_hid = HideTopIOHandler();
 
-    assert (process_sp);
+    if (!gui_enabled)
+    {
+        bool pop_process_io_handler = false;
+        assert (process_sp);
     
-    if (event_type & Process::eBroadcastBitSTDOUT)
-    {
-        // The process has stdout available, get it and write it out to the
-        // appropriate place.
-        if (top_io_handler_hid)
-            GetProcessSTDOUT (process_sp.get(), NULL);
-    }
-    else if (event_type & Process::eBroadcastBitSTDERR)
-    {
-        // The process has stderr available, get it and write it out to the
-        // appropriate place.
-        if (top_io_handler_hid)
-            GetProcessSTDERR (process_sp.get(), NULL);
-    }
-    else if (event_type & Process::eBroadcastBitStateChanged)
-    {
-        // Drain all stout and stderr so we don't see any output come after
-        // we print our prompts
-        if (top_io_handler_hid)
+        if (event_type & Process::eBroadcastBitSTDOUT || event_type & Process::eBroadcastBitStateChanged)
         {
-            StreamFileSP stream_sp (GetOutputFile());
-            GetProcessSTDOUT (process_sp.get(), stream_sp.get());
-            GetProcessSTDERR (process_sp.get(), NULL);
+            GetProcessSTDOUT (process_sp.get(), &output_stream);
+        }
+        
+        if (event_type & Process::eBroadcastBitSTDERR || event_type & Process::eBroadcastBitStateChanged)
+        {
+            GetProcessSTDERR (process_sp.get(), &error_stream);
+        }
+    
+        if (event_type & Process::eBroadcastBitStateChanged)
+        {
+
+            // Drain all stout and stderr so we don't see any output come after
+            // we print our prompts
             // Something changed in the process;  get the event and report the process's current status and location to
             // the user.
             StateType event_state = Process::ProcessEventData::GetStateFromEvent (event_sp.get());
@@ -2815,9 +3000,12 @@ Debugger::HandleProcessEvent (const EventSP &event_sp)
                 case eStateStepping:
                 case eStateDetached:
                     {
-                        stream_sp->Printf("Process %" PRIu64 " %s\n",
-                                          process_sp->GetID(),
-                                          StateAsCString (event_state));
+                        output_stream.Printf("Process %" PRIu64 " %s\n",
+                                             process_sp->GetID(),
+                                             StateAsCString (event_state));
+                        
+                        if (event_state == eStateDetached)
+                            pop_process_io_handler = true;
                     }
                     break;
                     
@@ -2826,7 +3014,8 @@ Debugger::HandleProcessEvent (const EventSP &event_sp)
                     break;
                     
                 case eStateExited:
-                    process_sp->GetStatus(*stream_sp);
+                    process_sp->GetStatus(output_stream);
+                    pop_process_io_handler = true;
                     break;
                     
                 case eStateStopped:
@@ -2842,86 +3031,91 @@ Debugger::HandleProcessEvent (const EventSP &event_sp)
                             if (num_reasons == 1)
                             {
                                 const char *reason = Process::ProcessEventData::GetRestartedReasonAtIndex (event_sp.get(), 0);
-                                stream_sp->Printf("Process %" PRIu64 " stopped and restarted: %s\n",
-                                                  process_sp->GetID(),
-                                                  reason ? reason : "<UNKNOWN REASON>");
+                                output_stream.Printf("Process %" PRIu64 " stopped and restarted: %s\n",
+                                                     process_sp->GetID(),
+                                                     reason ? reason : "<UNKNOWN REASON>");
                             }
                             else
                             {
-                                stream_sp->Printf("Process %" PRIu64 " stopped and restarted, reasons:\n",
-                                                   process_sp->GetID());
+                                output_stream.Printf("Process %" PRIu64 " stopped and restarted, reasons:\n",
+                                                     process_sp->GetID());
                                 
 
                                 for (size_t i = 0; i < num_reasons; i++)
                                 {
                                     const char *reason = Process::ProcessEventData::GetRestartedReasonAtIndex (event_sp.get(), i);
-                                    stream_sp->Printf("\t%s\n", reason ? reason : "<UNKNOWN REASON>");
+                                    output_stream.Printf("\t%s\n", reason ? reason : "<UNKNOWN REASON>");
                                 }
                             }
                         }
                     }
                     else
                     {
-                        // Lock the thread list so it doesn't change on us
-                        ThreadList &thread_list = process_sp->GetThreadList();
-                        Mutex::Locker locker (thread_list.GetMutex());
-                        
-                        ThreadSP curr_thread (thread_list.GetSelectedThread());
-                        ThreadSP thread;
-                        StopReason curr_thread_stop_reason = eStopReasonInvalid;
-                        if (curr_thread)
-                            curr_thread_stop_reason = curr_thread->GetStopReason();
-                        if (!curr_thread ||
-                            !curr_thread->IsValid() ||
-                            curr_thread_stop_reason == eStopReasonInvalid ||
-                            curr_thread_stop_reason == eStopReasonNone)
+                        // Lock the thread list so it doesn't change on us, this is the scope for the locker:
                         {
-                            // Prefer a thread that has just completed its plan over another thread as current thread.
-                            ThreadSP plan_thread;
-                            ThreadSP other_thread;
-                            const size_t num_threads = thread_list.GetSize();
-                            size_t i;
-                            for (i = 0; i < num_threads; ++i)
+                            ThreadList &thread_list = process_sp->GetThreadList();
+                            Mutex::Locker locker (thread_list.GetMutex());
+                            
+                            ThreadSP curr_thread (thread_list.GetSelectedThread());
+                            ThreadSP thread;
+                            StopReason curr_thread_stop_reason = eStopReasonInvalid;
+                            if (curr_thread)
+                                curr_thread_stop_reason = curr_thread->GetStopReason();
+                            if (!curr_thread ||
+                                !curr_thread->IsValid() ||
+                                curr_thread_stop_reason == eStopReasonInvalid ||
+                                curr_thread_stop_reason == eStopReasonNone)
                             {
-                                thread = thread_list.GetThreadAtIndex(i);
-                                StopReason thread_stop_reason = thread->GetStopReason();
-                                switch (thread_stop_reason)
+                                // Prefer a thread that has just completed its plan over another thread as current thread.
+                                ThreadSP plan_thread;
+                                ThreadSP other_thread;
+                                const size_t num_threads = thread_list.GetSize();
+                                size_t i;
+                                for (i = 0; i < num_threads; ++i)
                                 {
-                                    case eStopReasonInvalid:
-                                    case eStopReasonNone:
-                                        break;
-                                        
-                                    case eStopReasonTrace:
-                                    case eStopReasonBreakpoint:
-                                    case eStopReasonWatchpoint:
-                                    case eStopReasonSignal:
-                                    case eStopReasonException:
-                                    case eStopReasonExec:
-                                    case eStopReasonThreadExiting:
-                                        if (!other_thread)
-                                            other_thread = thread;
-                                        break;
-                                    case eStopReasonPlanComplete:
-                                        if (!plan_thread)
-                                            plan_thread = thread;
-                                        break;
+                                    thread = thread_list.GetThreadAtIndex(i);
+                                    StopReason thread_stop_reason = thread->GetStopReason();
+                                    switch (thread_stop_reason)
+                                    {
+                                        case eStopReasonInvalid:
+                                        case eStopReasonNone:
+                                            break;
+                                            
+                                        case eStopReasonTrace:
+                                        case eStopReasonBreakpoint:
+                                        case eStopReasonWatchpoint:
+                                        case eStopReasonSignal:
+                                        case eStopReasonException:
+                                        case eStopReasonExec:
+                                        case eStopReasonThreadExiting:
+                                            if (!other_thread)
+                                                other_thread = thread;
+                                            break;
+                                        case eStopReasonPlanComplete:
+                                            if (!plan_thread)
+                                                plan_thread = thread;
+                                            break;
+                                    }
+                                }
+                                if (plan_thread)
+                                    thread_list.SetSelectedThreadByID (plan_thread->GetID());
+                                else if (other_thread)
+                                    thread_list.SetSelectedThreadByID (other_thread->GetID());
+                                else
+                                {
+                                    if (curr_thread && curr_thread->IsValid())
+                                        thread = curr_thread;
+                                    else
+                                        thread = thread_list.GetThreadAtIndex(0);
+                                    
+                                    if (thread)
+                                        thread_list.SetSelectedThreadByID (thread->GetID());
                                 }
                             }
-                            if (plan_thread)
-                                thread_list.SetSelectedThreadByID (plan_thread->GetID());
-                            else if (other_thread)
-                                thread_list.SetSelectedThreadByID (other_thread->GetID());
-                            else
-                            {
-                                if (curr_thread && curr_thread->IsValid())
-                                    thread = curr_thread;
-                                else
-                                    thread = thread_list.GetThreadAtIndex(0);
-                                
-                                if (thread)
-                                    thread_list.SetSelectedThreadByID (thread->GetID());
-                            }
                         }
+                        // Drop the ThreadList mutex by here, since GetThreadStatus below might have to run code,
+                        // e.g. for Data formatters, and if we hold the ThreadList mutex, then the process is going to
+                        // have a hard time restarting the process.
 
                         if (GetTargetList().GetSelectedTarget().get() == &process_sp->GetTarget())
                         {
@@ -2929,8 +3123,8 @@ Debugger::HandleProcessEvent (const EventSP &event_sp)
                             const uint32_t start_frame = 0;
                             const uint32_t num_frames = 1;
                             const uint32_t num_frames_with_source = 1;
-                            process_sp->GetStatus(*stream_sp);
-                            process_sp->GetThreadStatus (*stream_sp,
+                            process_sp->GetStatus(output_stream);
+                            process_sp->GetThreadStatus (output_stream,
                                                          only_threads_with_stop_reason,
                                                          start_frame,
                                                          num_frames,
@@ -2940,20 +3134,49 @@ Debugger::HandleProcessEvent (const EventSP &event_sp)
                         {
                             uint32_t target_idx = GetTargetList().GetIndexOfTarget(process_sp->GetTarget().shared_from_this());
                             if (target_idx != UINT32_MAX)
-                                stream_sp->Printf ("Target %d: (", target_idx);
+                                output_stream.Printf ("Target %d: (", target_idx);
                             else
-                                stream_sp->Printf ("Target <unknown index>: (");
-                            process_sp->GetTarget().Dump (stream_sp.get(), eDescriptionLevelBrief);
-                            stream_sp->Printf (") stopped.\n");
+                                output_stream.Printf ("Target <unknown index>: (");
+                            process_sp->GetTarget().Dump (&output_stream, eDescriptionLevelBrief);
+                            output_stream.Printf (") stopped.\n");
                         }
+                        
+                        // Pop the process IO handler
+                        pop_process_io_handler = true;
                     }
                     break;
             }
         }
-    }
     
-    if (top_io_handler_hid)
-        RefreshTopIOHandler();
+        if (output_stream.GetSize() || error_stream.GetSize())
+        {
+            StreamFileSP error_stream_sp (GetOutputFile());
+            bool top_io_handler_hid = false;
+            
+            if (process_sp->ProcessIOHandlerIsActive() == false)
+                top_io_handler_hid = HideTopIOHandler();
+
+            if (output_stream.GetSize())
+            {
+                StreamFileSP output_stream_sp (GetOutputFile());
+                if (output_stream_sp)
+                    output_stream_sp->Write (output_stream.GetData(), output_stream.GetSize());
+            }
+
+            if (error_stream.GetSize())
+            {
+                StreamFileSP error_stream_sp (GetErrorFile());
+                if (error_stream_sp)
+                    error_stream_sp->Write (error_stream.GetData(), error_stream.GetSize());
+            }
+
+            if (top_io_handler_hid)
+                RefreshTopIOHandler();
+        }
+
+        if (pop_process_io_handler)
+            process_sp->PopProcessIOHandler();
+    }
 }
 
 void

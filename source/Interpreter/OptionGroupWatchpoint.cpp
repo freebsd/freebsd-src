@@ -25,7 +25,7 @@ static OptionEnumValueElement g_watch_type[] =
     { OptionGroupWatchpoint::eWatchRead,      "read",       "Watch for read"},
     { OptionGroupWatchpoint::eWatchWrite,     "write",      "Watch for write"},
     { OptionGroupWatchpoint::eWatchReadWrite, "read_write", "Watch for read/write"},
-    { 0, NULL, NULL }
+    { 0, nullptr, nullptr }
 };
 
 static OptionEnumValueElement g_watch_size[] =
@@ -34,14 +34,14 @@ static OptionEnumValueElement g_watch_size[] =
     { 2, "2", "Watch for byte size of 2"},
     { 4, "4", "Watch for byte size of 4"},
     { 8, "8", "Watch for byte size of 8"},
-    { 0, NULL, NULL }
+    { 0, nullptr, nullptr }
 };
 
 static OptionDefinition
 g_option_table[] =
 {
-    { LLDB_OPT_SET_1, false, "watch", 'w', OptionParser::eRequiredArgument, g_watch_type, 0, eArgTypeWatchType, "Specify the type of watching to perform."},
-    { LLDB_OPT_SET_1, false, "xsize", 'x', OptionParser::eRequiredArgument, g_watch_size, 0, eArgTypeByteSize, "Number of bytes to use to watch a region."}
+    { LLDB_OPT_SET_1, false, "watch", 'w', OptionParser::eRequiredArgument, nullptr, g_watch_type, 0, eArgTypeWatchType, "Specify the type of watching to perform."},
+    { LLDB_OPT_SET_1, false, "xsize", 'x', OptionParser::eRequiredArgument, nullptr, g_watch_size, 0, eArgTypeByteSize, "Number of bytes to use to watch a region."}
 };
 
 
