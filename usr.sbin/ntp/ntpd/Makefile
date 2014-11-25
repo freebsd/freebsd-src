@@ -32,12 +32,10 @@ SRCS=	cmd_args.c	ntp_config.c \
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../ \
 	-I${.CURDIR}/../../../contrib/ntp/libopts -I${.CURDIR}
 
-DPADD=	${LIBPARSE} ${LIBNTP} ${LIBM} ${LIBMD} ${LIBRT} ${LIBOPTS}
-LDADD=	${LIBPARSE} ${LIBNTP} -lm -lmd -lrt ${LIBOPTS}
+LIBADD=	parse ntp m rt opts md
 
 .if ${MK_OPENSSL} != "no"
-DPADD+=	${LIBCRYPTO}
-LDADD+=	-lcrypto
+LIBADD+=	crypto
 .endif
 
 CLEANFILES+= .version version.c

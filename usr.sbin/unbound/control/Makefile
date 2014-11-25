@@ -10,9 +10,7 @@ PROG=	unbound-control
 SCRIPTS=	unbound-control-setup.sh
 SRCS=	unbound-control.c worker_cb.c
 CFLAGS=	-I${UNBOUNDDIR} -I${LDNSDIR}
-DPADD=	${LIBUNBOUND} ${LIBLDNS} ${LIBUTIL} ${LIBSSL} ${LIBCRYPTO} ${LIBPTHREAD}
-LDADD=	${LDUNBOUND} ${LDLDNS} -lutil -lssl -lcrypto -lpthread
-USEPRIVATELIB=	ldns
+LIBADD=	unbound crypto ssl pthread
 MAN=	unbound-control.8
 
 .include <bsd.prog.mk>
