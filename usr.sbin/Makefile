@@ -34,7 +34,6 @@ SUBDIR=	adduser \
 	gstat \
 	i2c \
 	ifmcstat \
-	inetd \
 	iostat \
 	iscsid \
 	kldxref \
@@ -173,6 +172,10 @@ SUBDIR+=	rtadvctl
 SUBDIR+=	rtadvd
 SUBDIR+=	rtsold
 SUBDIR+=	traceroute6
+.endif
+
+.if ${MK_INETD} != "no"
+SUBDIR+=	inetd
 .endif
 
 .if ${MK_IPFW} != "no"
