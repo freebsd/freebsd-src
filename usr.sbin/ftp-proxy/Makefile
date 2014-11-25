@@ -9,8 +9,7 @@ SRCS=	ftp-proxy.c filter.c
 
 CFLAGS+=-I${.CURDIR}/../../contrib/pf/libevent
 
-LDADD+=	${LIBEVENT}
-DPADD+=	${LIBEVENT}
+LIBADD=	event
 
 WARNS?=	3
 
