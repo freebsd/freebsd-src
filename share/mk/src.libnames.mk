@@ -129,7 +129,7 @@ _DP_archive+=	md
 .endif
 _DP_ssl=	crypto
 _DP_ssh=	crypto crypt
-_DP_edit=	edit
+_DP_edit=	ncursesw
 .if ${MK_OPENSSL} != "no"
 _DP_bsnmp=	crypto
 .endif
