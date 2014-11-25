@@ -161,6 +161,8 @@ _DP_devstat=	kvm
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
+LDADD_atf_c=	-L${LIBATF_CDIR} -latf-c
+LDADD_atf_cxx=	-L${LIBATF_CXXDIR} -latf-c++
 
 .for _l in ${_LIBRARIES}
 .if ${_PRIVATELIBS:M${_l}}
