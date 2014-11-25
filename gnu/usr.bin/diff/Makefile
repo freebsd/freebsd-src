@@ -26,8 +26,7 @@ CFLAGS+=-I${DESTDIR}/usr/include/gnu
 
 SUBDIR+=doc
 
-DPADD=	${LIBGNUREGEX}
-LDADD=	-lgnuregex
+LIBADD+=	gnuregex
 
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests
