@@ -15,6 +15,7 @@ CFLAGS+=	-I${.CURDIR}/../../contrib/mknod
 .PATH:		${.CURDIR}/../../contrib/mknod
 SRCS+=		pack_dev.c
 
+CFLAGS+=	-I${.CURDIR}/../../lib/libnetbsd
 LIBADD=		netbsd
 
 LINKS=		${BINDIR}/mtree ${BINDIR}/nmtree
