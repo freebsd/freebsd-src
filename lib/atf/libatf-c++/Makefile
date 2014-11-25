@@ -33,8 +33,7 @@ PRIVATELIB=	true
 SHLIB_MAJOR=	2
 
 # libatf-c++ depends on the C version of the ATF library to build.
-DPADD=		${LIBATF_C}
-LDADD=		-latf-c
+LIBADD+=	atf_c
 
 LDFLAGS+=	-L${.OBJDIR}/../libatf-c
 
