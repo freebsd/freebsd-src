@@ -280,4 +280,4 @@ LDSM?=		${LIBSMDIR}/libsm.a
 LIBSM?=		${LIBSMDIR}/libsm.a
 
 LIBNETBSDDIR?=	${ROOTOBJDIR}/lib/libnetbsd
-LIBNETBSD?=	${ROOTOBJDIR}/libnetbsd.a
+LIBNETBSD?=	${LIBNETBSDDIR}/libnetbsd.a
