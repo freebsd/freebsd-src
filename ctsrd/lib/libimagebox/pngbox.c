@@ -86,9 +86,8 @@ pthr_png_read_start(int pfd, uint32_t width, uint32_t height, enum sbtype sb)
 	struct ibox_decode_state	*ids = NULL;
 	struct pthr_decode_private	*pdp;
 
-	if ((is = malloc(sizeof(struct iboxstate))) == NULL)
+	if ((is = calloc(1, sizeof(struct iboxstate))) == NULL)
 		goto error;
-	memset(is, 0, sizeof(struct iboxstate));
 	is->sb = sb;
 	is->width = width;
 	is->height = height;
@@ -97,15 +96,14 @@ pthr_png_read_start(int pfd, uint32_t width, uint32_t height, enum sbtype sb)
 
 	if ((pdp = malloc(sizeof(*pdp))) == NULL)
 		goto error;
-	is->private = pdp;
+	is->private = (__capability struct pthr_decode_private *)pdp;
 
-	if ((ids = malloc(sizeof(*ids))) == NULL)
+	if ((ids = calloc(1, sizeof(*ids))) == NULL)
 		goto error;
-	memset(ids, 0, sizeof(*ids));
-	ids->is = is;
+	ids->is = (__capability struct iboxstate *)is;
 	ids->fd = pfd;
 
-	if ((ids->buffer = malloc(is->width * is->height *
+	if ((ids->buffer = (__capability void *)calloc(is->width * is->height,
 	    sizeof(*ids->buffer))) == NULL)
 		goto error;
 	is->buffer = ids->buffer;
@@ -157,13 +155,13 @@ capsicum_png_read_start(int pfd, uint32_t width, uint32_t height,
 		goto error;
 	if (ftruncate(bfd, width * height * sizeof(uint32_t)) == -1)
 		goto error;
-	if ((is->buffer = mmap(NULL, width * height * sizeof(uint32_t),
+	if ((is->buffer = (__capability void *)mmap(NULL, width * height * sizeof(uint32_t),
 	    PROT_READ | PROT_WRITE, MAP_SHARED, bfd, 0)) == MAP_FAILED)
 		goto error;
 
 	if ((fdp = malloc(sizeof(struct fork_decode_private))) == NULL)
 		goto error;
-	is->private = fdp;
+	is->private = (__capability struct fork_decode_private*)fdp;
 
 	if ((fdp->pid = fork()) == 0) {
 		/*
@@ -241,7 +239,7 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 	is->passes_remaining = UINT32_MAX;
 	is->times[0] = mips_cycle_counter_read();
 
-        if ((is->buffer = malloc(is->width * is->height *
+        if ((is->buffer = (__capability void *)malloc(is->width * is->height *
             sizeof(*is->buffer))) == NULL)
                 goto error;
 
@@ -260,13 +258,16 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 	    0, 0, 0, 0, 0,
 	    sandbox_object_getsystemobject(sandbox_object).co_codecap,
 	    sandbox_object_getsystemobject(sandbox_object).co_datacap,
-            cheri_ptrperm((void *)is->buffer,
-	     is->width * is->height * sizeof(uint32_t),
-	     CHERI_PERM_STORE),
-	    cheri_ptrperm(pngbuffer, pnglen, CHERI_PERM_LOAD),
+            (__capability void *)is->buffer,
+	    cheri_ptrperm(pngbuffer, pnglen,
+	       CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 	    cheri_ptrperm((void *)(is->times + 1), sizeof(uint32_t) * 2,
 	     CHERI_PERM_STORE),
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
+	    NULL, NULL, NULL);
+	if (v != 0) {
+		printf("sandbox returned %ju\n", (intmax_t)v);
+		goto error;
+	}
 	if (ibox_verbose)
 		printf("%s: sandbox returned %ju\n", __func__, (intmax_t)v);
 	is->valid_rows = height;
@@ -366,7 +367,7 @@ png_read_finish(struct iboxstate *is)
 		is->private = NULL;
 		break;
 	case SB_CAPSICUM:
-		fdp = is->private;
+		fdp = (struct fork_decode_private *)is->private;
 		waitpid(fdp->pid, &status, 0);
 		free(fdp);
 		is->private = NULL;

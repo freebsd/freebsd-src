@@ -79,22 +79,17 @@ cheri_read_row_callback(png_structp png_ptr __unused, png_uint_32 row __unused,
 
 /*
  * Sandboxed imagebox png reader.  
- * 
- * XXX The output buffer is passed in c1.  The pngfile is accessable via c2.
- * XXX a0 holds the image width, a1 the height, and a2 holds the length of the
- * XXX pngfile (currently unused).
  */
 int
 invoke(uint32_t width, uint32_t height, size_t pnglen __unused,
-    struct cheri_object system_object, __capability uint8_t *png_out,
-    __capability uint8_t *png_in, __capability uint32_t *times)
+    struct cheri_object system_object, uint8_t *png_out,
+    uint8_t *png_in, uint32_t *times)
 {
 	struct ibox_decode_state	ids;
 	struct iboxstate		is;
 
 	cheri_system_setup(system_object);
 	printf("in the sandbox\n");
-
 
 	pngwidth = width;
 
@@ -118,9 +113,9 @@ invoke(uint32_t width, uint32_t height, size_t pnglen __unused,
 
 	/* Copy the whole image out */
 	if (is.error == 0)
-		memcpy_c_tocap(png_out, ids.buffer, sizeof(uint32_t) * width * height);
+		memcpy_c(png_out, ids.buffer, sizeof(uint32_t) * width * height);
 
-	memcpy_c_tocap(times, __DEVOLATILE(void *, is.times + 1), sizeof(uint32_t) * 2);
+	memcpy_c(times, (void *)(is.times + 1), sizeof(uint32_t) * 2);
 
 	return (is.error);
 }

@@ -1,16 +1,11 @@
 # $FreeBSD$
 
-USE_CHERI=	yes
-.include <src.opts.mk>
-
 PROG=	readpng-cheri-helper
 SRCS=	readpng-cheri.c				\
-	chsbrt.S				\
 	execve.S				\
-	setjmp.S				\
 	sysarch.S
 
-USE_CHERI=      yes
+USE_CHERI=	yes
 USE_CHERI_STACK=yes
 WANT_DUMP=	yes
 
@@ -19,7 +14,8 @@ SRCS+=	decode_png.c
 
 MAN=
 
-LDFLAGS+=	-Wl,--script=${.CURDIR}/sandbox.ld -nostdlib
+LDFLAGS+=	-Wl,--script=${.CURDIR}/../../../lib/libc_cheri/sandbox.ld \
+		-nostdlib
 NO_MAN=
 #STRIP=
 CFLAGS+=	-I${.CURDIR}/../../lib/libimagebox
@@ -39,9 +35,6 @@ FILESMODE=      ${LIBMODE}
 FILESDIR=       ${LIBEXECDIR}
 FILES=		${PROG}.bin
 CLEANFILES=	${PROG}.bin
-
-chsbrt.o:
-	${AS} -G0 -o ${.TARGET} ${.ALLSRC}
 
 ${PROG}.bin: ${PROG}
 	objcopy -S -O binary ${.ALLSRC} ${.TARGET}

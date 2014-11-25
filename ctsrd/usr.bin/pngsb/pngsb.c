@@ -322,7 +322,7 @@ main(int argc, char **argv)
 	if ((pfd = open(argv[1], O_RDONLY)) < -1)
 		err(1, "open(%s)", argv[1]);
 
-	if ((ps = png_read_start(pfd, 800, 480, SB_NONE)) == NULL)
+	if ((ps = png_read_start(pfd, 800, 480, SB_CHERI)) == NULL)
 		err(1, "failed to initialize read of %s", argv[1]);
 
 	/* XXX: do something with the valid parts of the image as it decodes. */

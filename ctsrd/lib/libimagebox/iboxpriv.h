@@ -35,6 +35,9 @@
 
 #include <machine/sysarch.h>
 
+#if __has_feature(capabilities)
+#pragma pointer_interpretation capability
+#endif
 struct ibox_decode_state
 {
 	int			 fd;
@@ -47,6 +50,9 @@ struct ibox_decode_state
 #endif
 
 };
+#if __has_feature(capabilities)
+#pragma pointer_interpretation default
+#endif
 
 void decode_png(struct ibox_decode_state *ids,
     png_rw_ptr user_read_fn, png_read_status_ptr read_row_fn);
