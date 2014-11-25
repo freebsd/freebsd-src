@@ -124,9 +124,10 @@ typedef enum {
 	CTL_FLAG_FAILOVER	= 0x04000000,	/* Killed by a failover */
 	CTL_FLAG_IO_ACTIVE	= 0x08000000,	/* I/O active on this SC */
 	CTL_FLAG_RDMA_MASK	= CTL_FLAG_NO_DATASYNC | CTL_FLAG_BUS_ADDR |
-				  CTL_FLAG_AUTO_MIRROR | CTL_FLAG_REDIR_DONE
+				  CTL_FLAG_AUTO_MIRROR | CTL_FLAG_REDIR_DONE,
 						/* Flags we care about for
 						   remote DMA */
+	CTL_FLAG_STATUS_SENT	= 0x10000000	/* Status sent by datamove */
 } ctl_io_flags;
 
 
