@@ -58,6 +58,8 @@ _LIBRARIES=	\
 		bsm \
 		bsnmp \
 		bz2 \
+		c \
+		c_pic \
 		calendar \
 		cam \
 		capsicum \
@@ -82,6 +84,7 @@ _LIBRARIES=	\
 		geom \
 		gnuregex \
 		gssapi \
+		gssapi_krb5 \
 		hdb \
 		heimbase \
 		heimntlm \
