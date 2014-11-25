@@ -188,6 +188,9 @@ LDADD_ucl+=	${LDADD_m}
 DPADD_sqlite3+=	${DPADD_pthread}
 LDADD_sqlite3+=	${LDADD_pthread}
 
+DPADD_atf_cxx+=	${DPADD_atf_c}
+LDADD_atf_cxx+=	${LDADD_atf_c}
+
 .for _l in ${LIBADD}
 .if ${_PRIVATELIBS:M${_l}}
 USEPRIVATELIB+=	${_l}
