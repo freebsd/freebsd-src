@@ -70,6 +70,7 @@ struct sandbox_class {
  *   capability out of sandbox_object into sandbox_class.
  */
 struct sandbox_object {
+	CHERI_SYSTEM_OBJECT_FIELDS;
 	struct sandbox_class	*sbo_sandbox_classp;
 	void			*sbo_mem;
 	register_t		 sbo_sandboxlen;

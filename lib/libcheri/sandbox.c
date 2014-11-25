@@ -53,6 +53,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "cheri_class.h"
 #include "cheri_enter.h"
 #include "cheri_invoke.h"
 #include "libcheri_stat.h"
@@ -194,6 +195,7 @@ sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 	sbop = calloc(1, sizeof(*sbop));
 	if (sbop == NULL)
 		return (-1);
+	CHERI_SYSTEM_OBJECT_INIT(sbop);
 	sbop->sbo_sandbox_classp = sbcp;
 
 	error = sandbox_object_load(sbcp, sbop);

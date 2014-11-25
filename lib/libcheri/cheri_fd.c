@@ -74,7 +74,8 @@ static __capability void	*cheri_fd_type;
  * Data segment for a cheri_fd.
  */
 struct cheri_fd {
-	int	cf_fd;		/* Underlying file descriptor. */
+	CHERI_SYSTEM_OBJECT_FIELDS;
+	int	cf_fd;	/* Underlying file descriptor. */
 };
 
 static __attribute__ ((constructor)) void
@@ -98,6 +99,7 @@ cheri_fd_new(int fd, struct cheri_object *cop)
 		errno = ENOMEM;
 		return (-1);
 	}
+	CHERI_SYSTEM_OBJECT_INIT(cfp);
 	cfp->cf_fd = fd;
 
 	/*

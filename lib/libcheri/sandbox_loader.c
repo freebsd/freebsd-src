@@ -281,7 +281,8 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	/*
 	 * Construct a data capability describing the sandbox structure
 	 * itself, which allows the system class to identify the sandbox a
-	 * request is being issued from.
+	 * request is being issued from.  Embed saved $c0 as first field to
+	 * allow the ambient MIPS environment to be installed.
 	 */
 	datacap = cheri_ptrperm(sbop, sizeof(*sbop), CHERI_PERM_GLOBAL |
 	    CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP | CHERI_PERM_STORE |

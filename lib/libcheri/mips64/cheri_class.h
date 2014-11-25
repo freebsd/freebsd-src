@@ -29,6 +29,17 @@
  */
 
 /*
+ * Fields to insert at the front of data structures embedded in $idc for CHERI
+ * system objects.  Currently, just an ambient $c0 to restore, since we can't
+ * use the saved $idc for this.
+ */
+#define	CHERI_SYSTEM_OBJECT_FIELDS					\
+	__capability void	*__cheri_system_object_field_c0
+
+#define	CHERI_SYSTEM_OBJECT_INIT(x)					\
+	(x)->__cheri_system_object_field_c0 = cheri_getdefault()
+
+/*
  * CHERI system class CCall landing pad code: catches CCalls inbound from
  * sandboxes seeking system services, and bootstraps C code.  A number of
  * differences from sandboxed code, including how $c0 is handled, and not
@@ -70,15 +81,11 @@ __cheri_ ## class ## _entry:						\
 	/*								\
 	 * Normally in a CHERI sandbox, we would install $c26 ($idc)	\
 	 * into $c0 for MIPS load/store instructions.  For the system	\
-	 * class, we instead use $pcc so that we can have an executable	\
-	 * version of $c0; as $pcc.offset contains the entry address,	\
-	 * we must clear that in $c0.  Also install as the stack	\
-	 * capability.							\
-	 *								\
-	 * XXXRW: Should we clearing CHERI_PERM_EXECUTE on $c0?		\
+	 * class, a suitable capability is stored at the front of the	\
+	 * data structure referenced by $idc.  For now, also use as     \
+	 * stack capability.						\
 	 */								\
-	cgetpcc $c0;							\
-	csetoffset	$c0, $c0, $zero;				\
+	clc	$c0, $zero, 0($c26);					\
 	cmove	$c11, $c0;						\
 									\
 	/*								\
