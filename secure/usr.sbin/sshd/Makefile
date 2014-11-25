@@ -25,7 +25,8 @@ SRCS+=	gss-genr.c
 MAN=	sshd.8 sshd_config.5
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 
-LIBADD=	ssh util wrap pam
+# pam should always happen before ssh here for static linking
+LIBADD=	pam ssh util wrap
 
 .if ${MK_LDNS} != "no"
 CFLAGS+=	-DHAVE_LDNS=1
@@ -41,25 +42,14 @@ LIBADD+=	bsm
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -include krb5_config.h
-LIBADD+=	gssapi_krb5 gssapi krb5 hx509 asn1 com_err roken wind heimbase \
-		heimipcc
+LIBADD+=	gssapi_krb5 gssapi krb5
 .endif
 
 .if ${MK_OPENSSH_NONE_CIPHER} != "no"
 CFLAGS+= -DNONE_CIPHER_ENABLED
 .endif
 
-LIBADD+= crypt crypto z
-
-# Fix the order of NEEDED entries for libthr and libc. The libthr
-# needs to interpose libc symbols, leaving the libthr loading as
-# dependency of krb causes reversed order and broken interposing. Put
-# the threading library last on the linker command line, just before
-# the -lc added by a compiler driver.
-# XXX In theory the framework now takes care of that, it needs to be checked
-.if ${MK_KERBEROS_SUPPORT} != "no"
-LIBADD+=	pthread
-.endif
+LIBADD+=	crypto
 
 .if defined(LOCALBASE)
 CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE}/bin/xauth\"
