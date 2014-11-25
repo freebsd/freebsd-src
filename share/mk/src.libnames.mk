@@ -159,6 +159,9 @@ _DP_archive+=	md
 .endif
 _DP_ssl=	crypto
 _DP_ssh=	crypto crypt
+.if ${MK_LDNS} != "no"
+_DP_ssh+=	ldns z
+.endif
 _DP_edit=	ncursesw
 .if ${MK_OPENSSL} != "no"
 _DP_bsnmp=	crypto
@@ -372,3 +375,4 @@ LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 
 LIBAMUDIR=	${ROOTOBJDIR}/usr.sbin/amd/libamu
 LIBAMU?=	${LIBAMUDIR}/libamu/libamu.a
+
