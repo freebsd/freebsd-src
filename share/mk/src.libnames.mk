@@ -32,6 +32,9 @@ _INTERNALIBS=	\
 		readline \
 		sl \
 		sm \
+		smdb \
+		smutil \
+		telnet \
 		vers
 
 _LIBRARIES=	\
@@ -40,9 +43,13 @@ _LIBRARIES=	\
 		alias \
 		archive \
 		asn1 \
+		begemot \
+		bluetooth \
 		bsdxml \
 		bsnmp \
+		bsm \
 		bz2 \
+		calendar \
 		cam \
 		capsicum \
 		casper \
@@ -63,6 +70,7 @@ _LIBRARIES=	\
 		fetch \
 		figpar \
 		geom \
+		gnuregex \
 		gssapi \
 		hdb \
 		heimbase \
@@ -88,6 +96,8 @@ _LIBRARIES=	\
 		memstat \
 		mp \
 		nandfs \
+		netgraph \
+		ngatm \
 		ncursesw \
 		nv \
 		opie \
@@ -101,8 +111,10 @@ _LIBRARIES=	\
 		readline \
 		roken \
 		rpcsec_gss \
+		rpcsvc \
 		rt \
 		sbuf \
+		sdp \
 		sm \
 		smb \
 		ssl \
@@ -114,6 +126,7 @@ _LIBRARIES=	\
 		ufs \
 		ulog \
 		usb \
+		usbhid \
 		util \
 		wind \
 		wrap \
@@ -175,6 +188,17 @@ _DP_dialog=	ncursesw m
 _DP_cuse=	pthread
 _DP_atf_cxx=	atf_c
 _DP_devstat=	kvm
+_DP_pam=	radius tacplus opie md util
+.if ${MK_KERBEROS} != "no"
+_DP_pam+=	krb5
+.endif
+.if ${MK_OPENSSH} != "no"
+_DP_pam+=	ssh
+.endif
+.if ${MK_NIS} != "no"
+_DP_pam+=	ypclnt
+.endif
+_DP_krb5+=	asn1 com_err crypt crypto hx509 roken wind heimbase heimipcc
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
@@ -288,6 +312,12 @@ LIBSMDIR=	${ROOTOBJDIR}/lib/libsm
 LDSM?=		${LIBSMDIR}/libsm.a
 LIBSM?=		${LIBSMDIR}/libsm.a
 
+LIBSMDBDIR=	${ROOTOBJDIR}/lib/libsmdb
+LIBSMDB?=	${LIBSMDBDIR}/libsmdb.a
+
+LIBSMUTILDIR=	${ROOTOBJDIR}/lib/libsmutil
+LIBSMUTIL?=	${LIBSMDBDIR}/libsmutil.a
+
 LIBNETBSDDIR?=	${ROOTOBJDIR}/lib/libnetbsd
 LIBNETBSD?=	${LIBNETBSDDIR}/libnetbsd.a
 
@@ -299,3 +329,6 @@ LIBSL?=		${LIBSLDIR}/libsl.a
 
 LIBIPFDIR=	${ROOTOBJDIR}/sbin/ipf/libipf
 LIBIPF?=	${LIBIPFDIR}/libipf.a
+
+LIBTELNETDIR=	${ROOTOBJDIR}/lib/libtelnet
+LIBTELNET?=	${LIBIPFDIR}/libtelnet.a
