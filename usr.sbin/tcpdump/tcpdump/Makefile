@@ -25,16 +25,13 @@ CFLAGS+= -D_U_="__attribute__((unused))"
 CFLAGS+=	-DLBL_ALIGN
 .endif
 
-DPADD=	${LIBL} ${LIBPCAP}
-LDADD=	-ll -lpcap
+LIBADD=	l pcap
 .if ${MK_CASPER} != "no"
-DPADD+=	${LIBCAPSICUM} ${LIBNV}
-LDADD+=	-lcapsicum -lnv
+LIBADD+=	capsicum
 CFLAGS+=-DHAVE_LIBCAPSICUM
 .endif
 .if ${MK_OPENSSL} != "no"
-DPADD+= ${LIBCRYPTO}
-LDADD+= -lcrypto
+LIBADD+=	crypto
 CFLAGS+= -I${DESTDIR}/usr/include/openssl
 CFLAGS+= -DHAVE_LIBCRYPTO -DHAVE_OPENSSL_EVP_H
 .endif

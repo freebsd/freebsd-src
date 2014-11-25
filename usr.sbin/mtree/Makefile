@@ -11,8 +11,7 @@ SRCS=	compare.c crc.c create.c excludes.c misc.c mtree.c spec.c verify.c
 SRCS+=	specspec.c
 
 CFLAGS+= -DMD5 -DSHA1 -DRMD160 -DSHA256
-DPADD=	${LIBMD}
-LDADD=	-lmd
+LIBADD=	md
 
 CLEANFILES+=	fmtree.8
 
