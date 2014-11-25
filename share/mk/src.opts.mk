@@ -91,7 +91,6 @@ __DEFAULT_YES_OPTIONS = \
     GPL_DTC \
     GROFF \
     HTML \
-    HYPERV \
     ICONV \
     INET \
     INET6 \
@@ -211,6 +210,13 @@ __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
 # If clang is not cc, then build gcc by default
 __DEFAULT_NO_OPTIONS+=CLANG_IS_CC CLANG CLANG_BOOTSTRAP
 __DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
+.endif
+
+# hyperv is only supported on amd64 and i386/i386
+.if ${__T} == "amd64" || (${__T} == "i386" && ${__TT} == "i386")
+__DEFAULT_YES_OPTIONS+=HYPERV
+.else
+MK_HYPERV:=	no
 .endif
 
 .include <bsd.mkopt.mk>
