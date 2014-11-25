@@ -27,7 +27,7 @@ FILES=	DAEMON \
 	${_bluetooth} \
 	bootparams \
 	bridge \
-	bsnmpd \
+	${_bsnmpd} \
 	${_bthidd} \
 	${_casperd} \
 	ccd \
@@ -169,6 +169,10 @@ _bluetooth=	bluetooth
 _bthidd=	bthidd
 _hcsecd=	hcsecd
 _ubthidhci=	ubthidhci
+.endif
+
+.if ${MK_BSNMP} != "no"
+_bsnmpd=	bsnmpd
 .endif
 
 .if ${MK_CASPER} != "no"
