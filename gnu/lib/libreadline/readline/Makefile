@@ -23,7 +23,6 @@ ${.OBJDIR}/${_h}:	${SRCDIR}/${_h}
 	${INSTALL} ${.ALLSRC} ${.TARGET}
 .endfor
 
-DPADD=	${LIBTERMCAPW}
-LDADD=	-ltermcapw
+LIBADD=	ncursesw
 
 .include <bsd.lib.mk>
