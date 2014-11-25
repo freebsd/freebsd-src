@@ -29,7 +29,9 @@ _INTERNALIBS=	\
 		netbsd \
 		ohash \
 		readline \
-		sm
+		sl \
+		sm \
+		vers
 
 _LIBRARIES=	\
 		${_PRIVATELIBS} \
@@ -110,7 +112,6 @@ _LIBRARIES=	\
 		ulog \
 		usb \
 		util \
-		vers \
 		wind \
 		wrap \
 		y \
@@ -281,3 +282,9 @@ LIBSM?=		${LIBSMDIR}/libsm.a
 
 LIBNETBSDDIR?=	${ROOTOBJDIR}/lib/libnetbsd
 LIBNETBSD?=	${LIBNETBSDDIR}/libnetbsd.a
+
+LIBVERSDIR?=	${ROOTOBJDIR}/kerberos5/lib/libvers
+LIBVERS?=	${LIBVERSDIR}/libvers.a
+
+LIBSLDIR=	${ROOTOBJDIR}/kerberos5/lib/libsl
+LIBSL?=		${LIBSLDIR}/libsl.a
