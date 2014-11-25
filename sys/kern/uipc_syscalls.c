@@ -2462,16 +2462,18 @@ retry_space:
 		if (space > rem)
 			space = rem;
 
-		if (off & PAGE_MASK)
-			npages = 1 + howmany(space -
-			    (PAGE_SIZE - (off & PAGE_MASK)), PAGE_SIZE);
-		else
-			npages = howmany(space, PAGE_SIZE);
+		npages = howmany(space + (off & PAGE_MASK), PAGE_SIZE);
 
-		rhpages = SF_READAHEAD(flags) ?
-		    SF_READAHEAD(flags) : roundup2(rem - space, PAGE_SIZE);
-		rhpages = min(howmany(obj_size - (off & ~PAGE_MASK) -
-		    (npages * PAGE_SIZE), PAGE_SIZE), rhpages);
+		/*
+		 * Calculate maximum allowed number of pages for readahead
+		 * at this iteration.  First, we allow readahead up to "rem".
+		 * If application wants more, let it be. But check against
+		 * "obj_size", since vm_pager_has_page() can hint beyond EOF.
+		 */
+		rhpages = howmany(rem + (off & PAGE_MASK), PAGE_SIZE) - npages;
+		rhpages = max(SF_READAHEAD(flags), rhpages);
+		rhpages = min(howmany(obj_size - trunc_page(off), PAGE_SIZE) -
+		    npages, rhpages);
 
 		sfio = malloc(sizeof(struct sf_io) +
 		    (rhpages + npages) * sizeof(vm_page_t), M_TEMP, M_WAITOK);
