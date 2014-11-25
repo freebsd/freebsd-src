@@ -55,8 +55,8 @@ _LIBRARIES=	\
 		begemot \
 		bluetooth \
 		bsdxml \
-		bsnmp \
 		bsm \
+		bsnmp \
 		bz2 \
 		calendar \
 		cam \
@@ -94,8 +94,8 @@ _LIBRARIES=	\
 		kafs5 \
 		kdc \
 		kiconv \
-		kvm \
 		krb5 \
+		kvm \
 		l \
 		lzma \
 		m \
@@ -105,9 +105,9 @@ _LIBRARIES=	\
 		memstat \
 		mp \
 		nandfs \
+		ncursesw \
 		netgraph \
 		ngatm \
-		ncursesw \
 		nv \
 		opie \
 		pam \
@@ -129,13 +129,13 @@ _LIBRARIES=	\
 		sm \
 		smb \
 		ssl \
+		ssp_nonshared \
 		stdthreads \
 		supcplusplus \
-		ssp_nonshared \
 		tacplus \
 		termcapw \
-		ugidfw \
 		ufs \
+		ugidfw \
 		ulog \
 		usb \
 		usbhid \
