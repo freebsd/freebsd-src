@@ -274,6 +274,39 @@ OLD_FILES+=usr/share/man/man8/sdpd.8.gz
 # to be filled in
 #.endif
 
+.if ${MK_BSDINSTALL} == no
+OLD_FILES+=usr/libexec/bsdinstall/adduser
+OLD_FILES+=usr/libexec/bsdinstall/auto
+OLD_FILES+=usr/libexec/bsdinstall/autopart
+OLD_FILES+=usr/libexec/bsdinstall/checksum
+OLD_FILES+=usr/libexec/bsdinstall/config
+OLD_FILES+=usr/libexec/bsdinstall/distextract
+OLD_FILES+=usr/libexec/bsdinstall/distfetch
+OLD_FILES+=usr/libexec/bsdinstall/docsinstall
+OLD_FILES+=usr/libexec/bsdinstall/entropy
+OLD_FILES+=usr/libexec/bsdinstall/hostname
+OLD_FILES+=usr/libexec/bsdinstall/jail
+OLD_FILES+=usr/libexec/bsdinstall/keymap
+OLD_FILES+=usr/libexec/bsdinstall/mirrorselect
+OLD_FILES+=usr/libexec/bsdinstall/mount
+OLD_FILES+=usr/libexec/bsdinstall/netconfig
+OLD_FILES+=usr/libexec/bsdinstall/netconfig_ipv4
+OLD_FILES+=usr/libexec/bsdinstall/netconfig_ipv6
+OLD_FILES+=usr/libexec/bsdinstall/partedit
+OLD_FILES+=usr/libexec/bsdinstall/rootpass
+OLD_FILES+=usr/libexec/bsdinstall/script
+OLD_FILES+=usr/libexec/bsdinstall/scriptedpart
+OLD_FILES+=usr/libexec/bsdinstall/services
+OLD_FILES+=usr/libexec/bsdinstall/time
+OLD_FILES+=usr/libexec/bsdinstall/umount
+OLD_FILES+=usr/libexec/bsdinstall/wlanconfig
+OLD_FILES+=usr/libexec/bsdinstall/zfsboot
+OLD_FILES+=usr/sbin/bsdinstall
+OLD_FILES+=usr/share/man/man8/bsdinstall.8.gz
+OLD_FILES+=usr/share/man/man8/sade.8.gz
+OLD_DIRS+=usr/libexec/bsdinstall
+.endif
+
 .if ${MK_CALENDAR} == no
 OLD_FILES+=etc/periodic/daily/300.calendar
 OLD_FILES+=usr/bin/calendar
