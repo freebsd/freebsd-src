@@ -835,7 +835,6 @@ _xnb.4=		xnb.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64"
-_bhyve.4=	bhyve.4
 _if_ntb.4=	if_ntb.4
 _ntb.4=		ntb.4
 _ntb_hw.4=	ntb_hw.4
@@ -856,6 +855,10 @@ _nvram2env.4=	nvram2env.4
 
 .if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
 SUBDIR=	man4.${MACHINE_CPUARCH}
+.endif
+
+.if ${MK_BHYVE} != "no"
+_bhyve.4=	bhyve.4
 .endif
 
 .if ${MK_TESTS} != "no"

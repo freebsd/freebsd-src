@@ -7,7 +7,6 @@
 LDIRS=	BSD_daemon \
 	FreeBSD_version \
 	IPv6 \
-	bhyve \
 	bootforth \
 	csh \
 	diskless \
@@ -42,7 +41,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	FreeBSD_version/Makefile \
 	FreeBSD_version/README \
 	IPv6/USAGE \
-	bhyve/vmrun.sh \
 	bootforth/README \
 	bootforth/boot.4th \
 	bootforth/frames.4th \
@@ -206,6 +204,11 @@ NO_OBJ=
 # source (``symlinks''), or a separate copy (``copies''); (latter useful
 # in environments where it's not possible to keep /sys publicly readable)
 SHARED?=	copies
+
+.if ${MK_BHYVE} != "no"
+LDIRS+=		bhyve
+XFILES+=	bhyve/vmrun.sh
+.endif
 
 beforeinstall: ${SHARED} etc-examples
 .ORDER: ${SHARED} etc-examples
