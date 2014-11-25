@@ -107,7 +107,7 @@ FILES=	DAEMON \
 	ntpd \
 	ntpdate \
 	${_opensm} \
-	othermta \
+	${_othermta} \
 	pf \
 	pflog \
 	pfsync \
@@ -184,6 +184,10 @@ _kadmind=	kadmind
 _kdc=		kdc
 _kfd=		kfd
 _kpasswdd=	kpasswdd
+.endif
+
+.if ${MK_MAIL} != "no"
+_othermta=	othermta
 .endif
 
 .if ${MK_OFED} != "no"
