@@ -1817,7 +1817,7 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     objtmp.path = NULL;
     objtmp.rtld = true;
     objtmp.mapbase = mapbase;
-#ifdef __PIC__
+#ifdef PIC
     objtmp.relocbase = mapbase;
 #endif
     if (RTLD_IS_DYNAMIC()) {
