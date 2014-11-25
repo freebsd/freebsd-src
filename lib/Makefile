@@ -39,12 +39,14 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcrypt \
 	libdevinfo \
 	libdevstat \
+	libdpv \
 	libdwarf \
 	libedit \
 	${_libefi} \
 	libexecinfo \
 	libexpat \
 	libfetch \
+	libfigpar \
 	libgeom \
 	${_libgpib} \
 	${_libgssapi} \
@@ -121,7 +123,7 @@ SUBDIR_DEPEND_libc++= libcxxrt
 SUBDIR_DEPEND_libc= libcompiler_rt
 SUBDIR_DEPEND_libcam= libsbuf
 SUBDIR_DEPEND_libdevstat= libkvm
-SUBDIR_DEPEND_libdiaglog= ncurses
+SUBDIR_DEPEND_libdpv= libfigpar ncurses libutil
 SUBDIR_DEPEND_libedit= ncurses
 SUBDIR_DEPEND_libg++= msun
 SUBDIR_DEPEND_libgeom= libexpat libsbuf
