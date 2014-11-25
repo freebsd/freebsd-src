@@ -2206,9 +2206,6 @@ nd6_need_cache(struct ifnet *ifp)
 	case IFT_IEEE80211:
 #endif
 	case IFT_INFINIBAND:
-	case IFT_GIF:		/* XXX need more cases? */
-	case IFT_PPP:
-	case IFT_TUNNEL:
 	case IFT_BRIDGE:
 	case IFT_PROPVIRTUAL:
 		return (1);
@@ -2235,6 +2232,8 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 	struct llentry *ln;
 
 	ifp = ia->ia_ifa.ifa_ifp;
+	if (nd6_need_cache(ifp) == 0)
+		return (0);
 	IF_AFDATA_LOCK(ifp);
 	ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
 	ln = lla_lookup(LLTABLE6(ifp), (LLE_CREATE | LLE_IFADDR |

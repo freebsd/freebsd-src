@@ -8,7 +8,7 @@ __FBSDID("$FreeBSD$");
 
 void __stack_chk_fail(void);
 
-#ifdef __PIC__
+#ifdef PIC
 void
 __stack_chk_fail_local_hidden(void)
 {

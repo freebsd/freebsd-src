@@ -6,8 +6,7 @@ CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/../../sys/dev/iscsi
 MAN=		iscsictl.8
 
-DPADD=		${LIBCAM} ${LIBUTIL}
-LDADD=		-lcam -lutil
+LIBADD=		cam util
 
 YFLAGS+=	-v
 LFLAGS+=	-i
