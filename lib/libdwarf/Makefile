@@ -96,8 +96,7 @@ sys/elf32.h sys/elf64.h sys/elf_common.h: ${.CURDIR}/../../sys/${.TARGET}
 	mkdir -p ${.OBJDIR}/sys
 	ln -sf ${.CURDIR}/../../sys/${.TARGET} ${.TARGET}
 
-LDADD+=		-lelf
-DPADD+=		${LIBELF}
+LIBADD+=	elf
 
 SHLIB_MAJOR=	4
 
