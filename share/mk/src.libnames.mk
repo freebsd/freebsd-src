@@ -287,54 +287,42 @@ LDATF_CXX?=	${LIBATF_CXXDIR}/libatf-c++.so
 LIBATF_CXX?=	${LIBATF_CXXDIR}/libatf-c++.a
 
 LIBBSDSTATDIR=	${ROOTOBJDIR}/lib/libbsdstat
-LDBSDSTAT?=	${LIBBSDSTATDIR}/libbsdstat.so
 LIBBSDSTAT?=	${LIBBSDSTATDIR}/libbsdstat.a
 
 LIBEVENTDIR=	${ROOTOBJDIR}/lib/libevent
-LDEVENT?=	${LIBEVENTDIR}/libevent.a
 LIBEVENT?=	${LIBEVENTDIR}/libevent.a
 
 LIBHEIMIPCCDIR=	${ROOTOBJDIR}/kerberos5/lib/libheimipcc
-LDHEIMIPCC?=	${LIBHEIMIPCCDIR}/libheimipcc.so
 LIBHEIMIPCC?=	${LIBHEIMIPCCDIR}/libheimipcc.a
 
 LIBHEIMIPCSDIR=	${ROOTOBJDIR}/kerberos5/lib/libheimipcs
-LDHEIMIPCS?=	${LIBHEIMIPCSDIR}/libheimipcs.so
 LIBHEIMIPCS?=	${LIBHEIMIPCSDIR}/libheimipcs.a
 
 LIBLDNSDIR=	${ROOTOBJDIR}/lib/libldns
-LDLDNS?=	${LIBLDNSDIR}/libldns.so
 LIBLDNS?=	${LIBLDNSDIR}/libldns.a
 
 LIBSSHDIR=	${ROOTOBJDIR}/secure/lib/libssh
-LDSSH?=		${LIBSSHDIR}/libssh.so
 LIBSSH?=	${LIBSSHDIR}/libssh.a
 
 LIBUNBOUNDDIR=	${ROOTOBJDIR}/lib/libunbound
-LDUNBOUND?=	${LIBUNBOUNDDIR}/libunbound.so
 LIBUNBOUND?=	${LIBUNBOUNDDIR}/libunbound.a
 
 LIBUCLDIR=	${ROOTOBJDIR}/lib/libucl
-LDUCL?=		${LIBUCLDIR}/libucl.so
 LIBUCL?=	${LIBUCLDIR}/libucl.a
 
 LIBREADLINEDIR=	${ROOTOBJDIR}/gnu/lib/libreadline/readline
-LDREADLINE?=	${LIBREADLINEDIR}/libreadline.a
 LIBREADLINE?=	${LIBREADLINEDIR}/libreadline.a
 
 LIBOHASHDIR=	${ROOTOBJDIR}/lib/libohash
-LDOHASH?=	${LIBOHASHDIR}/libohash.a
 LIBOHASH?=	${LIBOHASHDIR}/libohash.a
 
 LIBSQLITE3DIR=	${ROOTOBJDIR}/lib/libsqlite3
-LDSQLITE3?=	${LIBSQLITE3DIR}/libsqlite3.so
 LIBSQLITE3?=	${LIBSQLITE3DIR}/libsqlite3.a
 
 LIBMANDOCDIR=	${ROOTOBJDIR}/lib/libmandoc
 LIBMANDOC?=	${LIBMANDOCDIR}/libmandoc.a
 
 LIBSMDIR=	${ROOTOBJDIR}/lib/libsm
-LDSM?=		${LIBSMDIR}/libsm.a
 LIBSM?=		${LIBSMDIR}/libsm.a
 
 LIBSMDBDIR=	${ROOTOBJDIR}/lib/libsmdb
