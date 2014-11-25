@@ -4,7 +4,6 @@
 
 GEOM_CLASS=	raid
 
-DPADD=	${LIBMD}
-LDADD=	-lmd
+LIBADD=	md
 
 .include <bsd.lib.mk>
