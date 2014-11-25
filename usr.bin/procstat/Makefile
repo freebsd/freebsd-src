@@ -17,7 +17,6 @@ SRCS=	procstat.c		\
 	procstat_threads.c	\
 	procstat_vm.c
 
-LDADD+=	-lutil -lprocstat -lkvm
-DPADD+=	${LIBUTIL} ${LIBPROCSTAT} ${LIBKVM}
+LIBADD+=	util procstat
 
 .include <bsd.prog.mk>
