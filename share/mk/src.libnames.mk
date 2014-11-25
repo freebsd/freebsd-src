@@ -25,6 +25,7 @@ _PRIVATELIBS=	\
 
 _INTERNALIBS=	\
 		event \
+		ipf \
 		mandoc \
 		netbsd \
 		ohash \
@@ -207,6 +208,9 @@ LDADD_sqlite3+=	${LDADD_pthread}
 DPADD_atf_cxx+=	${DPADD_atf_c}
 LDADD_atf_cxx+=	${LDADD_atf_c}
 
+DPADD_ipf+=	${DPADD_kvm}
+LDADD_ipf+=	${LDADD_kvm}
+
 # The following depends on libraries which are using pthread
 DPADD_hdb+=	${DPADD_pthread}
 LDADD_hdb+=	${LDADD_pthread}
@@ -292,3 +296,6 @@ LIBVERS?=	${LIBVERSDIR}/libvers.a
 
 LIBSLDIR=	${ROOTOBJDIR}/kerberos5/lib/libsl
 LIBSL?=		${LIBSLDIR}/libsl.a
+
+LIBIPFDIR=	${ROOTOBJDIR}/sbin/ipf/libipf
+LIBIPF?=	${LIBIPFDIR}/libipf.a
