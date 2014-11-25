@@ -39,7 +39,7 @@
 #define WRITE4(_sc, _reg, _val) \
 	bus_write_4((_sc)->res[0], _reg, _val)
 
-#define PAGE_SHIFT		12
+#define	PAGE_SHIFT		12
 #define	VRING_ALIGN		4096
 #define	NUM_QUEUES		1
 
