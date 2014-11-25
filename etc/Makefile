@@ -389,8 +389,8 @@ distrib-dirs: ${MTREES:N/*}
 		if [ "${MK_OPENSSL}" != "no" ]; then \
 			${INSTALL_SYMLINK} "$$2" \
 			    "${DESTDIR}/usr/share/openssl/man/$$1"; \
-			shift; shift; \
 		fi; \
+		shift; shift; \
 	done
 .if ${MK_NLS} != "no"
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/nls.alias`; \
