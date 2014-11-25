@@ -44,13 +44,11 @@ CFLAGS+=${CANCELPOINTS_CFLAGS}
 #
 # Link with static libcompiler_rt.a.
 #
-DPADD+=	${LIBCOMPILER_RT}
 LDFLAGS+= -nodefaultlibs
-LDADD+= -lcompiler_rt
+LIBADD+=	compiler_rt
 
 .if ${MK_SSP} != "no"
-DPADD+= ${LIBSSP_NONSHARED}
-LDADD+= -lssp_nonshared
+LIBADD+=	ssp_nonshared
 .endif
 
 # Extras that live in either libc.a or libc_nonshared.a
