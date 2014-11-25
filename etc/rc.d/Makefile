@@ -56,7 +56,7 @@ FILES=	DAEMON \
 	hostid \
 	hostid_save \
 	hostname \
-	inetd \
+	${_inetd} \
 	ip6addrctl \
 	ipfilter \
 	ipfs \
@@ -173,6 +173,10 @@ _ubthidhci=	ubthidhci
 
 .if ${MK_CASPER} != "no"
 _casperd=	casperd
+.endif
+
+.if ${MK_INETD} != "no"
+_inetd=		inetd
 .endif
 
 .if ${MK_NS_CACHING} != "no"
