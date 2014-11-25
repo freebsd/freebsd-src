@@ -119,7 +119,7 @@ __asm(	"	.text				\n" \
 	"	blr				\n");
 #else
 
-#ifdef __PIC__
+#ifdef PIC
 #define _PLT "@plt"
 #else
 #define _PLT

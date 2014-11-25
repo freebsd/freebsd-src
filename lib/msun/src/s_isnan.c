@@ -31,7 +31,7 @@
 #include "fpmath.h"
 
 /* Provided by libc.so */
-#ifndef __PIC__
+#ifndef PIC
 #undef isnan
 int
 isnan(double d)
@@ -41,7 +41,7 @@ isnan(double d)
 	u.d = d;
 	return (u.bits.exp == 2047 && (u.bits.manl != 0 || u.bits.manh != 0));
 }
-#endif /* !__PIC__ */
+#endif /* !PIC */
 
 int
 __isnanf(float f)
