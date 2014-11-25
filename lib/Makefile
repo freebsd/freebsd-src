@@ -167,6 +167,10 @@ _csu=csu
 _libngatm=	libngatm
 .endif
 
+.if ${MK_BHYVE} != "no"
+_libvmmapi=	libvmmapi
+.endif
+
 .if ${MK_BLUETOOTH} != "no"
 _libbluetooth=	libbluetooth
 _libsdp=	libsdp
@@ -240,10 +244,6 @@ _libsmb=	libsmb
 _libvgl=	libvgl
 _libproc=	libproc
 _librtld_db=	librtld_db
-.endif
-
-.if ${MACHINE_CPUARCH} == "amd64"
-_libvmmapi=	libvmmapi
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
