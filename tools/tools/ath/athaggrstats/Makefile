@@ -12,8 +12,7 @@ CLEANFILES+=	opt_ah.h
 
 CFLAGS+=-DATH_SUPPORT_ANI
 CFLAGS+=-DATH_SUPPORT_TDMA
-USEPRIVATELIB=  bsdstat
-LDADD=	${LDBSDSTAT}
+LIBADD+=	bsdstat
 
 opt_ah.h:
 	echo "#define AH_DEBUG 1" > opt_ah.h
