@@ -12,6 +12,7 @@
 
 #include <string>
 
+#include "lldb/Core/StructuredData.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Thread.h"
 
@@ -40,6 +41,12 @@ public:
 
     virtual lldb::queue_id_t
     GetQueueID ();
+
+    virtual lldb::QueueSP
+    GetQueue ();
+
+    lldb::addr_t
+    GetQueueLibdispatchQueueAddress ();
 
     virtual lldb::RegisterContextSP
     GetRegisterContext ();
@@ -79,6 +86,9 @@ public:
     {
         m_thread_dispatch_qaddr = thread_dispatch_qaddr;
     }
+
+    lldb_private::StructuredData::ObjectSP
+    FetchThreadExtendedInfo ();
 
 protected:
     

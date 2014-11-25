@@ -57,13 +57,7 @@ CommandObjectArgs::CommandOptions::SetOptionValue (uint32_t option_idx, const ch
     Error error;
     
     const int short_option = m_getopt_table[option_idx].val;
-    
-    switch (short_option)
-    {
-        default:
-            error.SetErrorStringWithFormat("invalid short option character '%c'", short_option);
-            break;
-    }
+    error.SetErrorStringWithFormat("invalid short option character '%c'", short_option);
     
     return error;
 }
@@ -255,7 +249,7 @@ CommandObjectArgs::DoExecute (Args& args, CommandReturnObject &result)
 
     for (arg_index = 0; arg_index < num_args; ++arg_index)
     {
-        result.GetOutputStream ().Printf ("%zu (%s): ", arg_index, args.GetArgumentAtIndex (arg_index));
+        result.GetOutputStream ().Printf ("%" PRIu64 " (%s): ", (uint64_t)arg_index, args.GetArgumentAtIndex (arg_index));
         value_list.GetValueAtIndex (arg_index)->Dump (&result.GetOutputStream ());
         result.GetOutputStream ().Printf("\n");
     }
@@ -266,7 +260,7 @@ CommandObjectArgs::DoExecute (Args& args, CommandReturnObject &result)
 OptionDefinition
 CommandObjectArgs::CommandOptions::g_option_table[] =
 {
-    { LLDB_OPT_SET_1, false, "debug", 'g', OptionParser::eNoArgument, NULL, 0, eArgTypeNone, "Enable verbose debug logging of the expression parsing and evaluation."},
-    { 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
+    { LLDB_OPT_SET_1, false, "debug", 'g', OptionParser::eNoArgument, NULL, NULL, 0, eArgTypeNone, "Enable verbose debug logging of the expression parsing and evaluation."},
+    { 0, false, NULL, 0, 0, NULL, NULL, 0, eArgTypeNone, NULL }
 };
 

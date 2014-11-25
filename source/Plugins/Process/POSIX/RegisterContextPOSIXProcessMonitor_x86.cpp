@@ -53,7 +53,7 @@ size_and_rw_bits(size_t size, bool read, bool write)
 
 RegisterContextPOSIXProcessMonitor_x86_64::RegisterContextPOSIXProcessMonitor_x86_64(Thread &thread,
                                                                                      uint32_t concrete_frame_idx,
-                                                                                     RegisterInfoInterface *register_info)
+                                                                                     lldb_private::RegisterInfoInterface *register_info)
     : RegisterContextPOSIX_x86(thread, concrete_frame_idx, register_info)
 {
 }
@@ -347,12 +347,12 @@ RegisterContextPOSIXProcessMonitor_x86_64::ReadAllRegisterValues(DataBufferSP &d
 
         if (success)
         {
-            ::memcpy (dst, &m_gpr_x86_64, GetGPRSize());
-            dst += GetGPRSize();
+          ::memcpy (dst, &m_gpr_x86_64, GetGPRSize());
+          dst += GetGPRSize();
+          if (GetFPRType() == eFXSAVE)
+              ::memcpy (dst, &m_fpr.xstate.fxsave, sizeof(m_fpr.xstate.fxsave));
         }
-        if (GetFPRType() == eFXSAVE)
-            ::memcpy (dst, &m_fpr.xstate.fxsave, sizeof(m_fpr.xstate.fxsave));
-        
+
         if (GetFPRType() == eXSAVE)
         {
             ByteOrder byte_order = GetByteOrder();

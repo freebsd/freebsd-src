@@ -105,40 +105,6 @@ typedef enum SortOrder
     eSortOrderByName
 } SortOrder;
 
-
-//----------------------------------------------------------------------
-// Used in conjunction with Host::GetLLDBPath () to find files that
-// are related to 
-//----------------------------------------------------------------------
-typedef enum PathType
-{
-    ePathTypeLLDBShlibDir,          // The directory where the lldb.so (unix) or LLDB mach-o file in LLDB.framework (MacOSX) exists
-    ePathTypeSupportExecutableDir,  // Find LLDB support executable directory (debugserver, etc)
-    ePathTypeHeaderDir,             // Find LLDB header file directory
-    ePathTypePythonDir,             // Find Python modules (PYTHONPATH) directory
-    ePathTypeLLDBSystemPlugins,     // System plug-ins directory
-    ePathTypeLLDBUserPlugins,       // User plug-ins directory
-    ePathTypeLLDBTempSystemDir      // The LLDB temp directory for this system
-
-} PathType;
-
-
-//----------------------------------------------------------------------
-// We can execute ThreadPlans on one thread with various fall-back modes 
-// (try other threads after timeout, etc.) This enum gives the result of 
-// thread plan executions.
-//----------------------------------------------------------------------
-typedef enum ExecutionResults
-{
-    eExecutionSetupError,
-    eExecutionCompleted,
-    eExecutionDiscarded,
-    eExecutionInterrupted,
-    eExecutionHitBreakpoint,
-    eExecutionTimedOut,
-    eExecutionStoppedForDebug
-} ExecutionResults;
-
 typedef enum ObjCRuntimeVersions {
     eObjC_VersionUnknown = 0,
     eAppleObjC_V1 = 1,
@@ -178,7 +144,7 @@ typedef enum NameMatchType
 typedef enum InstructionType
 {
     eInstructionTypeAny,                // Support for any instructions at all (at least one)
-    eInstructionTypePrologueEpilogue,   // All prologue and epilogue instructons that push and pop register values and modify sp/fp
+    eInstructionTypePrologueEpilogue,   // All prologue and epilogue instructions that push and pop register values and modify sp/fp
     eInstructionTypePCModifying,        // Any instruction that modifies the program counter/instruction pointer
     eInstructionTypeAll                 // All instructions of any kind
 
@@ -261,6 +227,16 @@ enum class LineStatus {
     Error,      // There is an error with the current line and it needs to be re-edited before it can be accepted
     Done        // Lines are complete
 };
+
+//----------------------------------------------------------------------
+// Exit Type for inferior processes
+//----------------------------------------------------------------------
+typedef enum ExitType {
+    eExitTypeInvalid,
+    eExitTypeExit,    // The exit status represents the return code from normal program exit (i.e. WIFEXITED() was true)
+    eExitTypeSignal,  // The exit status represents the signal number that caused the program to exit (i.e. WIFSIGNALED() was true)
+    eExitTypeStop,    // The exit status represents the stop signal that caused the program to exit (i.e. WIFSTOPPED() was true)
+} ExitType;
 
 } // namespace lldb_private
 

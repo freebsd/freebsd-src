@@ -49,36 +49,45 @@ namespace lldb
     typedef void*               mutex_t;
     typedef void*               condition_t;
     typedef void*               rwlock_t;
+    typedef void*               process_t;                  // Process type is HANDLE
     typedef uintptr_t           thread_t;                   // Host thread type
     typedef uint32_t            thread_key_t;
     typedef void *              thread_arg_t;               // Host thread argument type
     typedef unsigned            thread_result_t;            // Host thread result type
     typedef thread_result_t     (*thread_func_t)(void *);   // Host thread function type
-    typedef void                (*LogOutputCallback) (const char *, void *baton);
-    typedef bool                (*CommandOverrideCallback)(void *baton, const char **argv);
 }
 
 #else
 
 #include <pthread.h>
 
-namespace lldb {
-        //----------------------------------------------------------------------
-        // MacOSX Types
-        //----------------------------------------------------------------------
-        typedef ::pthread_mutex_t   mutex_t;
-        typedef pthread_cond_t      condition_t;
-        typedef pthread_rwlock_t    rwlock_t;
-        typedef pthread_t           thread_t;                   // Host thread type
-        typedef pthread_key_t       thread_key_t;
-        typedef void *              thread_arg_t;               // Host thread argument type
-        typedef void *              thread_result_t;            // Host thread result type
-        typedef void *              (*thread_func_t)(void *);   // Host thread function type
-        typedef void                (*LogOutputCallback) (const char *, void *baton);
-        typedef bool                (*CommandOverrideCallback)(void *baton, const char **argv);
+namespace lldb
+{
+    //----------------------------------------------------------------------
+    // MacOSX Types
+    //----------------------------------------------------------------------
+    typedef ::pthread_mutex_t   mutex_t;
+    typedef pthread_cond_t      condition_t;
+    typedef pthread_rwlock_t    rwlock_t;
+    typedef uint64_t            process_t;                  // Process type is just a pid.
+    typedef pthread_t           thread_t;                   // Host thread type
+    typedef pthread_key_t       thread_key_t;
+    typedef void *              thread_arg_t;               // Host thread argument type
+    typedef void *              thread_result_t;            // Host thread result type
+    typedef void *              (*thread_func_t)(void *);   // Host thread function type
 } // namespace lldb
 
 #endif
+
+namespace lldb
+{
+    typedef void                (*LogOutputCallback) (const char *, void *baton);
+    typedef bool                (*CommandOverrideCallback)(void *baton, const char **argv);
+    typedef bool                (*CommandOverrideCallbackWithResult)(void *baton,
+                                                                     const char **argv,
+                                                                     lldb_private::CommandReturnObject &result);
+    typedef bool                (*ExpressionCancelCallback) (ExpressionEvaluationPhase phase, void *baton);
+}
 
 #define LLDB_INVALID_HOST_THREAD         ((lldb::thread_t)NULL)
 #define IS_VALID_LLDB_HOST_THREAD(t)     ((t) != LLDB_INVALID_HOST_THREAD)

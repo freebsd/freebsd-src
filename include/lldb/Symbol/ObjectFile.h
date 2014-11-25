@@ -21,6 +21,36 @@
 #include "lldb/Symbol/UnwindTable.h"
 
 namespace lldb_private {
+    
+class ObjectFileJITDelegate
+{
+public:
+    ObjectFileJITDelegate ()
+    {
+    }
+    
+    virtual
+    ~ObjectFileJITDelegate()
+    {
+    }
+    
+    virtual lldb::ByteOrder
+    GetByteOrder () const = 0;
+    
+    virtual uint32_t
+    GetAddressByteSize () const = 0;
+    
+    virtual void
+    PopulateSymtab (lldb_private::ObjectFile *obj_file,
+                    lldb_private::Symtab &symtab) = 0;
+    
+    virtual void
+    PopulateSectionList (lldb_private::ObjectFile *obj_file,
+                         lldb_private::SectionList &section_list) = 0;
+    
+    virtual bool
+    GetArchitecture (lldb_private::ArchSpec &arch) = 0;
+};
 
 //----------------------------------------------------------------------
 /// @class ObjectFile ObjectFile.h "lldb/Symbol/ObjectFile.h"
@@ -32,23 +62,11 @@ namespace lldb_private {
 /// for an object file.
 ///
 /// Object files can be represented by the entire file, or by part of a
-/// file. Examples of object files that are part of a file include
-/// object files that contain information for multiple architectures in
-/// the same file, or archive files that contain multiple objects
-/// (ranlib archives) (possibly for multiple architectures as well).
+/// file. An example of a partial file ObjectFile is one that contains
+/// information for one of multiple architectures in the same file.
 ///
-/// Object archive files (e.g. ranlib archives) can contain 
-/// multiple .o (object) files that must be selected by index or by name. 
-/// The number of objects that an ObjectFile contains can be determined 
-/// using the ObjectFile::GetNumObjects() const
-/// function, and followed by a call to
-/// ObjectFile::SelectObjectAtIndex (uint32_t) to change the currently
-/// selected object. Objects can also be selected by name using the
-/// ObjectFile::SelectObject(const char *) function.
-///
-/// Once an architecture is selected (and an object is selected for
-/// for archives), the object file information can be extracted from
-/// this abstract class.
+/// Once an architecture is selected the object file information can be
+/// extracted from this abstract class.
 //----------------------------------------------------------------------
 class ObjectFile:
     public std::enable_shared_from_this<ObjectFile>,
@@ -68,6 +86,7 @@ public:
         eTypeObjectFile,    /// An intermediate object file
         eTypeSharedLibrary, /// A shared library that can be used during execution
         eTypeStubLibrary,   /// A library that can be linked against but not used for execution
+        eTypeJIT,           /// JIT code that has symbols, sections and possibly debug info
         eTypeUnknown
     } Type;
 
@@ -77,7 +96,8 @@ public:
         eStrataUnknown,
         eStrataUser,
         eStrataKernel,
-        eStrataRawImage
+        eStrataRawImage,
+        eStrataJIT
     } Strata;
 
     //------------------------------------------------------------------
@@ -91,7 +111,7 @@ public:
                 const FileSpec *file_spec_ptr, 
                 lldb::offset_t file_offset,
                 lldb::offset_t length,
-                lldb::DataBufferSP& data_sp,
+                const lldb::DataBufferSP& data_sp,
                 lldb::offset_t data_offset);
 
     ObjectFile (const lldb::ModuleSP &module_sp, 
@@ -117,7 +137,7 @@ public:
     /// if it has been parsed.
     ///
     /// @param[in] s
-    ///     The stream to which to dump the object descripton.
+    ///     The stream to which to dump the object description.
     //------------------------------------------------------------------
     virtual void
     Dump (Stream *s) = 0;
@@ -354,6 +374,16 @@ public:
     virtual void
     CreateSections (SectionList &unified_section_list) = 0;
 
+
+    //------------------------------------------------------------------
+    /// Notify the ObjectFile that the file addresses in the Sections
+    /// for this module have been changed.
+    //------------------------------------------------------------------
+    virtual void
+    SectionFileAddressesChanged ()
+    {
+    }
+
     //------------------------------------------------------------------
     /// Gets the symbol table for the currently selected architecture
     /// (and object for archives).
@@ -439,7 +469,7 @@ public:
     /// Gets the symbol file spec list for this object file.
     ///
     /// If the object file format contains a debug symbol file link,
-    /// the values will be return in the FileSpecList.
+    /// the values will be returned in the FileSpecList.
     ///
     /// @return
     ///     Returns filespeclist.
@@ -450,6 +480,21 @@ public:
         return FileSpecList();
     }
 
+    //------------------------------------------------------------------
+    /// Gets the file spec list of libraries re-exported by this object file.
+    ///
+    /// If the object file format has the notion of one library re-exporting the symbols from another,
+    /// the re-exported libraries will be returned in the FileSpecList.
+    ///
+    /// @return
+    ///     Returns filespeclist.
+    //------------------------------------------------------------------
+    virtual lldb_private::FileSpecList
+    GetReExportedLibraries ()
+    {
+        return FileSpecList();
+    }
+    
     //------------------------------------------------------------------
     /// Sets the load address for an entire module, assuming a rigid
     /// slide of sections, if possible in the implementation.
@@ -486,7 +531,7 @@ public:
     /// and the next plug-in can attempt to parse an object file.
     ///
     /// @return
-    ///     Returns \b true if the header was parsed succesfully, \b
+    ///     Returns \b true if the header was parsed successfully, \b
     ///     false otherwise.
     //------------------------------------------------------------------
     virtual bool
@@ -751,17 +796,17 @@ public:
                 size_t byte_size);
 
     size_t
-    GetData (off_t offset, size_t length, DataExtractor &data) const;
+    GetData (lldb::offset_t offset, size_t length, DataExtractor &data) const;
     
     size_t
-    CopyData (off_t offset, size_t length, void *dst) const;
+    CopyData (lldb::offset_t offset, size_t length, void *dst) const;
     
-    size_t
+    virtual size_t
     ReadSectionData (const Section *section, 
-                     off_t section_offset, 
+                     lldb::offset_t section_offset, 
                      void *dst, 
                      size_t dst_len) const;
-    size_t
+    virtual size_t
     ReadSectionData (const Section *section, 
                      DataExtractor& section_data) const;
     

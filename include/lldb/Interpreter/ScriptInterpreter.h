@@ -254,16 +254,20 @@ public:
         return error;
     }
 
-    virtual bool
+    virtual Error
     ExportFunctionDefinitionToInterpreter (StringList &function_def)
     {
-        return false;
+        Error error;
+        error.SetErrorString("not implemented");
+        return error;
     }
 
-    virtual bool
+    virtual Error
     GenerateBreakpointCommandCallbackData (StringList &input, std::string& output)
     {
-        return false;
+        Error error;
+        error.SetErrorString("not implemented");
+        return error;
     }
     
     virtual bool
@@ -359,24 +363,44 @@ public:
         return lldb::ScriptInterpreterObjectSP();
     }
 
-    virtual bool
+    virtual Error
     GenerateFunction(const char *signature, const StringList &input)
     {
-        return false;
+        Error error;
+        error.SetErrorString("unimplemented");
+        return error;
     }
 
     virtual void 
-    CollectDataForBreakpointCommandCallback (BreakpointOptions *bp_options,
+    CollectDataForBreakpointCommandCallback (std::vector<BreakpointOptions *> &options,
                                              CommandReturnObject &result);
 
     virtual void 
     CollectDataForWatchpointCommandCallback (WatchpointOptions *wp_options,
                                              CommandReturnObject &result);
 
+    /// Set the specified text as the callback for the breakpoint.
+    Error
+    SetBreakpointCommandCallback (std::vector<BreakpointOptions *> &bp_options_vec,
+                                  const char *callback_text);
+
+    virtual Error
+    SetBreakpointCommandCallback (BreakpointOptions *bp_options,
+                                  const char *callback_text)
+    {
+        Error error;
+        error.SetErrorString("unimplemented");
+        return error;
+    }
+    
+    void
+    SetBreakpointCommandCallbackFunction (std::vector<BreakpointOptions *> &bp_options_vec,
+                                  const char *function_name);
+
     /// Set a one-liner as the callback for the breakpoint.
     virtual void 
-    SetBreakpointCommandCallback (BreakpointOptions *bp_options,
-                                  const char *oneliner)
+    SetBreakpointCommandCallbackFunction (BreakpointOptions *bp_options,
+                                  const char *function_name)
     {
         return;
     }
@@ -396,6 +420,12 @@ public:
                         std::string& retval)
     {
         return false;
+    }
+    
+    virtual void
+    Clear ()
+    {
+        // Clean up any ref counts to SBObjects that might be in global variables
     }
     
     virtual size_t
@@ -544,9 +574,6 @@ public:
                            SWIGPythonScriptKeyword_Target swig_run_script_keyword_target,
                            SWIGPythonScriptKeyword_Frame swig_run_script_keyword_frame,
                            SWIGPython_GetDynamicSetting swig_plugin_get);
-
-    static void
-    TerminateInterpreter ();
 
     virtual void
     ResetOutputFileHandle (FILE *new_fh) { } //By default, do nothing.
