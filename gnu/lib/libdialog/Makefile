@@ -13,6 +13,9 @@ SRCS=		argv.c arrows.c buttons.c calendar.c checklist.c columns.c \
 INCS=		dialog.h dlg_colors.h dlg_config.h dlg_keys.h
 MAN=		dialog.3
 
+DPADD=		${LIBNCURSESW} ${LIBM}
+LDADD=		-lncursesw -lm
+
 CFLAGS+= 	-I${.CURDIR} -I${DIALOG} -D_XOPEN_SOURCE_EXTENDED
 .PATH:		${DIALOG}
 WARNS?=		1
