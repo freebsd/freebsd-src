@@ -323,8 +323,8 @@ load(void)
     caddr_t p;
     ufs_ino_t ino;
     uint32_t addr;
-    uint8_t i, j;
     int k;
+    uint8_t i, j;
 
     if (!(ino = lookup(kname))) {
 	if (!ls)
