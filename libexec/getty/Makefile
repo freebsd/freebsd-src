@@ -3,8 +3,7 @@
 
 PROG=	getty
 SRCS=	main.c init.c subr.c chat.c
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 MAN=	gettytab.5 ttys.5 getty.8
 
 WARNS?=	1
