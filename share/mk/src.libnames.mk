@@ -116,6 +116,7 @@ _LIBRARIES=	\
 		util \
 		wind \
 		wrap \
+		xo \
 		y \
 		ypclnt \
 		z
