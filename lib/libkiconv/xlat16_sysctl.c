@@ -37,7 +37,7 @@
  * when statically linked.
  */
 
-#ifdef __PIC__
+#ifdef PIC
 
 #include <sys/types.h>
 #include <sys/iconv.h>
@@ -82,4 +82,4 @@ kiconv_add_xlat16_table(const char *to __unused, const char *from __unused,
 	return (EINVAL);
 }
 
-#endif /* __PIC__ */
+#endif /* PIC */

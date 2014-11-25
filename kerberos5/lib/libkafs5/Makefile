@@ -1,9 +1,8 @@
 # $FreeBSD$
 
 LIB=	kafs5
-LDADD=	-lasn1 -lroken -lkrb5
 LDFLAGS=	-Wl,--no-undefined
-DPADD=	${LIBASN1} ${LIBKRB5} ${LIBROKEN}
+LIBADD=	asn1 krb5 roken
 INCS=	kafs.h
 MAN=	kafs5.3
 VERSION_MAP=	${.CURDIR}/version.map

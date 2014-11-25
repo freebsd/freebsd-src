@@ -2,7 +2,6 @@
 
 PROG=	bsdiff
 
-DPADD=	${LIBBZ2}
-LDADD=	-lbz2
+LIBADD=	bz2
 
 .include <bsd.prog.mk>

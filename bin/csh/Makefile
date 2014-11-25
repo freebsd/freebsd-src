@@ -40,8 +40,7 @@ MLINKS= csh.1 tcsh.1
 # utilities of the same name are handled with the associated manpage,
 # builtin.1 in share/man/man1/.
 
-DPADD=	${LIBTERMCAPW} ${LIBCRYPT}
-LDADD=	-ltermcapw -lcrypt
+LIBADD=	termcapw crypt
 
 LINKS=	${BINDIR}/csh ${BINDIR}/tcsh
 

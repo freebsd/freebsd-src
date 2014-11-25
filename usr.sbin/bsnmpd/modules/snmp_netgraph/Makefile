@@ -11,7 +11,6 @@ BMIBS=	BEGEMOT-NETGRAPH.txt
 DEFS=	${MOD}_tree.def
 INCS=	snmp_${MOD}.h
 
-DPADD=	${LIBNETGRAPH}
-LDADD=	-lnetgraph
+LIBADD=	netgraph
 
 .include <bsd.snmpmod.mk>

@@ -16,8 +16,7 @@ CFLAGS+=-I${.CURDIR}/../../sys/fs/autofs
 
 MAN=	automount.8 automountd.8 autounmountd.8 auto_master.5
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 
 # Needed for getmntopts.c
 MOUNT=  ${.CURDIR}/../../sbin/mount

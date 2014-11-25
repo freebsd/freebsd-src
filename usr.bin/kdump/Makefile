@@ -11,12 +11,11 @@ SFX=		32
 
 PROG=		kdump
 SRCS=		kdump_subr.c kdump.c ioctl.c subr.c
-DPSRCS=		kdump_subr.h 
+DPSRCS=		kdump_subr.h
 CFLAGS+=	-I${.CURDIR}/../ktrace -I${.CURDIR} -I${.CURDIR}/../.. -I.
 
 .if ${MK_CASPER} != "no"
-DPADD+=	${LIBCAPSICUM} ${LIBNV}
-LDADD+=	-lcapsicum -lnv
+LIBADD=	capsicum
 CFLAGS+=-DHAVE_LIBCAPSICUM
 .endif
 

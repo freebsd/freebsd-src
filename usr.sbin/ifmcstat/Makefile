@@ -17,8 +17,7 @@ CFLAGS+=-DINET6
 
 .if ${MK_KVM_SUPPORT} != "no"
 CFLAGS+=-DWITH_KVM
-DPADD=	${LIBKVM}
-LDADD=	-lkvm
+LIBADD=	kvm
 .endif
 
 .include <bsd.prog.mk>

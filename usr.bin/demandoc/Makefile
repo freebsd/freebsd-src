@@ -4,9 +4,8 @@
 
 PROG=	demandoc
 
-LDADD=	${LDMANDOC}
-DPADD=	${LIBMANDOC}
-
 WARNS?=	5
+
+LIBADD=	mandoc
 
 .include <bsd.prog.mk>

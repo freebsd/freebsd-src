@@ -19,11 +19,10 @@ CFLAGS+=-I${.CURDIR}/../mount
 SRCS+=  debug.c
 .endif  
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 
 .if ${MK_TESTS} != "no"
 SUBDIR+=    tests
 .endif
 
-.include <bsd.prog.mk>      
+.include <bsd.prog.mk>

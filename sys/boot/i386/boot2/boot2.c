@@ -323,8 +323,8 @@ load(void)
     caddr_t p;
     ufs_ino_t ino;
     uint32_t addr;
-    uint8_t i, j;
     int k;
+    uint8_t i, j;
 
     if (!(ino = lookup(kname))) {
 	if (!ls)
@@ -394,9 +394,9 @@ parse()
     char *ep, *p, *q;
     const char *cp;
     unsigned int drv;
-    uint8_t i;
     int c, j;
     size_t k;
+    uint8_t i;
 
     while ((c = *arg++)) {
 	if (c == ' ' || c == '\t' || c == '\n')
