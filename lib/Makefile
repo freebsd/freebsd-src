@@ -202,13 +202,15 @@ _libc_cheri=	libc_cheri
 _libcheri=	libcheri
 _libmd_cheri=	libmd_cheri
 _libz_cheri=	libz-cheri
+.if ${MK_NETSURF} != no
 # XXXBD: not really CHERI specific, but currently using USE_CHERI to get
 # clang on mips.
 _libcurl=	libcurl
 _libjpeg=	libjpeg
+_netsurf=	netsurf
+.endif
 _libpng=	libpng
 _libpng_sb=	libpng_sb
-_netsurf=	netsurf
 .endif
 
 .if ${MK_CLANG} != "no" && !defined(COMPAT_32BIT)

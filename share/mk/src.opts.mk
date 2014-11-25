@@ -116,6 +116,7 @@ __DEFAULT_YES_OPTIONS = \
     NDIS \
     NETCAT \
     NETGRAPH \
+    NETSURF \
     NLS_CATALOGS \
     NS_CACHING \
     NTP \

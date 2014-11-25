@@ -39,7 +39,9 @@ _snmp=		snmp
 .endif
 
 .if ${MK_CHERI} != "no"
+.if ${MK_NETSURF} != "no"
 _netsurf=	netsurf
+.endif
 .endif
 
 .if ${MK_DICT} != "no"
