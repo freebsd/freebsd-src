@@ -2,8 +2,7 @@
 # $FreeBSD$
 
 PROG=	badsect
-DPADD=	${LIBUFS}
-LDADD=	-lufs
+LIBADD=	ufs
 MAN=	badsect.8
 WARNS?=	2
 
