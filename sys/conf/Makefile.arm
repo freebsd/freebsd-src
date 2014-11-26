@@ -47,8 +47,10 @@ CFLAGS.clang += -mfpu=none
 
 .if !empty(DDB_ENABLED)
 CFLAGS += -funwind-tables
-# clang requires us to tell it to emit assembly with unwind information
-CFLAGS.clang += -mllvm -arm-enable-ehabi
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 30500
+# clang < 3.5.0 requires us to tell it to emit assembly with unwind information
+CFLAGS += -mllvm -arm-enable-ehabi
+.endif
 .endif
 
 # hack because genassym.c includes sys/bus.h which includes these.
