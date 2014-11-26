@@ -867,7 +867,7 @@ MAN+=	\
 	usb_quirk.4 \
 	usb_template.4 \
 	usfs.4 \
-	uslcom.4
+	uslcom.4 \
 	utopia.4 \
 	uvisor.4 \
 	uvscom.4 \
