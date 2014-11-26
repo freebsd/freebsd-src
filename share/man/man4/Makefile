@@ -481,7 +481,6 @@ MAN=	aac.4 \
 	sym.4 \
 	syncache.4 \
 	syncer.4 \
-	syscons.4 \
 	sysmouse.4 \
 	tap.4 \
 	targ.4 \
@@ -817,6 +816,10 @@ _atf_test_case.4=	atf-test-case.4
 _pf.4=		pf.4
 _pflog.4=	pflog.4
 _pfsync.4=	pfsync.4
+.endif
+
+.if ${MK_SYSCONS} != "no"
+MAN+=		syscons.4
 .endif
 
 .if ${MK_USB} != "no"

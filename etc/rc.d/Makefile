@@ -80,7 +80,6 @@ FILES=	DAEMON \
 	mdconfig \
 	mdconfig2 \
 	mountd \
-	moused \
 	mroute6d \
 	mrouted \
 	msgs \
@@ -134,7 +133,6 @@ FILES=	DAEMON \
 	stf \
 	swap \
 	swaplate \
-	syscons \
 	sysctl \
 	syslogd \
 	tmp \
@@ -198,6 +196,11 @@ _inetd=		inetd
 .if ${MK_ISCSI} != "no"
 FILES+=	iscsictl
 FILES+=	iscsid
+.endif
+
+.if ${MK_LEGACY_CONSOLE} != "no"
+FILES+=		moused
+FILES+=		syscons
 .endif
 
 .if ${MK_NS_CACHING} != "no"
