@@ -47,8 +47,11 @@
  * updating.  See also sandbox.c and sandboxasm.h.
  */
 struct sandbox_metadata {
-	register_t	sbm_heapbase;		/* Offset: 0 */
-	register_t	sbm_heaplen;		/* Offset: 8 */
+	register_t	sbm_heapbase;			/* Offset: 0 */
+	register_t	sbm_heaplen;			/* Offset: 8 */
+	uint64_t	_sbm_reserved0;			/* Offset: 16 */
+	uint64_t	_sbm_reserved1;			/* Offset: 24 */
+	struct cheri_object	sbm_system_object;	/* Offset: 32 */
 };
 
 /*
@@ -91,6 +94,8 @@ void	sandbox_class_destroy(struct sandbox_class *sbcp);
 struct sandbox_object;
 int	sandbox_object_new(struct sandbox_class *sbcp,
 	    struct sandbox_object **sbopp);
+int	sandbox_object_new_flags(struct sandbox_class *sbcp, uint flags,
+	    struct sandbox_object **sbopp);
 void	*sandbox_object_getbase(struct sandbox_object *sbop);
 #if __has_feature(capabilities)
 register_t	sandbox_object_cinvoke(struct sandbox_object *sbop,
@@ -111,6 +116,13 @@ register_t	sandbox_object_invoke(struct sandbox_object *sbop,
 		    struct chericap *c8p, struct chericap *c9p,
 		    struct chericap *c10p);
 void	sandbox_object_destroy(struct sandbox_object *sbop);
+
+/*
+ * Flags for sandbox_object_new_flags():
+ */
+#define	SANDBOX_OBJECT_FLAG_CONSOLE	0x00000001	/* printf(), etc. */
+#define	SANDBOX_OBJECT_FLAG_ALLOCFREE	0x00000002	/* calloc(), free(). */
+#define	SANDBOX_OBJECT_FLAG_USERFN	0x00000004	/* User callbacks. */
 
 /*
  * API to query the object-capability pair for the sandbox itself

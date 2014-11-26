@@ -289,6 +289,14 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	    CHERI_PERM_STORE_CAP | CHERI_PERM_STORE_LOCAL_CAP);
 	sbop->sbo_cheri_object_system.co_datacap = cheri_seal(datacap,
 	    typecap);
+
+	/*
+	 * Install a reference to the system object in the class.
+	 *
+	 * XXXRW: Possibly, this should be !CHERI_PERM_GLOBAL -- but we do not
+	 * currently support invoking non-global objects.
+	 */
+	sbm->sbm_system_object = sbop->sbo_cheri_object_system;
 	return (0);
 
 error:

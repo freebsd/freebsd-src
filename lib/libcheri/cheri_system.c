@@ -32,6 +32,7 @@
 #include <sys/types.h>
 
 #include <machine/cheri.h>
+#include <machine/cheric.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -40,6 +41,9 @@
 #include "cheri_enter.h"
 #include "cheri_system.h"
 #include "cheri_type.h"
+
+#include "sandbox.h"
+#include "sandbox_internal.h"
 
 /*
  * This C file implements the CHERI system class.  Currently, pretty
@@ -155,6 +159,41 @@ cheri_system_enter(register_t methodnum, register_t a1, register_t a2,
     __capability void *c4, __capability void *c5, __capability void *c6,
     __capability void *c7)
 {
+	__capability struct sandbox_object *sbop = cheri_getidc();
+
+	/* Check system permissions for this object. */
+	switch (methodnum) {
+	case CHERI_SYSTEM_METHOD_HELLOWORLD:
+	case CHERI_SYSTEM_METHOD_PUTS:
+	case CHERI_SYSTEM_METHOD_PUTCHAR:
+		/* Console-I/O permission. */
+		if (!(sbop->sbo_flags & SANDBOX_OBJECT_FLAG_CONSOLE))
+			return (-1);
+		break;
+
+	case CHERI_SYSTEM_CALLOC:
+	case CHERI_SYSTEM_FREE:
+		/* Memory-allocator permission. */
+		if (!(sbop->sbo_flags & SANDBOX_OBJECT_FLAG_ALLOCFREE))
+			return (-1);
+		break;
+
+	case CHERI_SYSTEM_CLOCK_GETTIME:
+		/* No permission required. */
+		return (0);
+
+	default:
+		if (methodnum >= CHERI_SYSTEM_USER_BASE &&
+		    methodnum < CHERI_SYSTEM_USER_CEILING &&
+		    (sbop->sbo_flags & SANDBOX_OBJECT_FLAG_USERFN))
+			break;
+
+		/*
+		 * All new methods must have a permission assigned; fail
+		 * closed if a new method is added without a permission entry.
+		 */
+		return (-1);
+	}
 
 	switch (methodnum) {
 	case CHERI_SYSTEM_METHOD_HELLOWORLD:
@@ -172,9 +211,10 @@ cheri_system_enter(register_t methodnum, register_t a1, register_t a2,
 	case CHERI_SYSTEM_CALLOC:
 		return (cheri_system_calloc(a1, a2,
 		    (void __capability * __capability *)c3));
+
 	case CHERI_SYSTEM_FREE:
 		free((void *)c3);
-		return 0;
+		return (0);
 
 	default:
 		if (methodnum >= CHERI_SYSTEM_USER_BASE &&

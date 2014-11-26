@@ -115,8 +115,8 @@ creturn_target:
 
 constructors:
 	#
-	# Extract heap base and length from sandbox metadata.  These must
-	# match sandboxasm.h.
+	# Extract heap base, heap length, and CHERI system object reference
+	# from sandbox metadata.  These must match sandboxasm.h.
 	#
 	# XXXRW: I'm having trouble using the C preprocessor to provide these
 	# values in assembly, so hard-coded for now.  We could also just defer
@@ -130,6 +130,16 @@ constructors:
 	ld	$t1, 8($t0)
 	dla	$t2, _sb_heaplen;
 	sd	$t1, 0($t2)
+
+	# Code capability
+	clc	$c12, $t0, 32($c0)
+	dla	$t2, _cheri_system_object;
+	csc	$c12, $t2, 0($c0)
+
+	# Data capability
+	clc	$c12, $t0, 64($c0)
+	dla	$t2, _cheri_system_object;
+	csc	$c12, $t2, 32($c0)
 
 	#
 	# Perform constructor intialisation from C; the C code must be very

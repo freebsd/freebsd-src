@@ -186,8 +186,15 @@ sandbox_class_destroy(struct sandbox_class *sbcp)
 	free(sbcp);
 }
 
+/*
+ * XXXRW: I'm not really happy with this approach of limiting access to system
+ * resources via flags passed here.  We should use a more general security
+ * model based on capability permissions.  However, this does allow us to more
+ * generally get up and running.
+ */
 int
-sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
+sandbox_object_new_flags(struct sandbox_class *sbcp, uint flags,
+    struct sandbox_object **sbopp)
 {
 	struct sandbox_object *sbop;
 	int error;
@@ -197,6 +204,7 @@ sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 		return (-1);
 	CHERI_SYSTEM_OBJECT_INIT(sbop);
 	sbop->sbo_sandbox_classp = sbcp;
+	sbop->sbo_flags = flags;
 
 	error = sandbox_object_load(sbcp, sbop);
 	if (error) {
@@ -223,6 +231,16 @@ sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
 	 */
 	*sbopp = sbop;
 	return (0);
+}
+
+#define	SANDBOX_OBJECT_FLAG_DEFAULT	(SANDBOX_OBJECT_FLAG_CONSOLE |	\
+	    SANDBOX_OBJECT_FLAG_ALLOCFREE | SANDBOX_OBJECT_FLAG_USERFN)
+int
+sandbox_object_new(struct sandbox_class *sbcp, struct sandbox_object **sbopp)
+{
+
+	return (sandbox_object_new_flags(sbcp, SANDBOX_OBJECT_FLAG_DEFAULT,
+	    sbopp));
 }
 
 register_t

@@ -31,6 +31,10 @@
 #ifndef _SANDBOX_INTERNAL_H_
 #define	_SANDBOX_INTERNAL_H_
 
+#include <sys/stat.h>
+
+#include "cheri_class.h"
+
 extern int	sb_verbose;
 
 /*
@@ -76,6 +80,7 @@ struct sandbox_object {
 	register_t		 sbo_sandboxlen;
 	register_t		 sbo_heapbase;
 	register_t		 sbo_heaplen;
+	uint			 sbo_flags;	/* Sandbox flags. */
 
 	/*
 	 * The object's own code and data capabilities.
