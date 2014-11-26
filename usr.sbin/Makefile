@@ -7,7 +7,6 @@ SUBDIR=	adduser \
 	arp \
 	autofs \
 	binmiscctl \
-	bootparamd \
 	bsdconfig \
 	cdcontrol \
 	chkgrp \
@@ -35,7 +34,6 @@ SUBDIR=	adduser \
 	i2c \
 	ifmcstat \
 	iostat \
-	iscsid \
 	kldxref \
 	mailwrapper \
 	makefs \
@@ -82,8 +80,6 @@ SUBDIR=	adduser \
 	spray \
 	syslogd \
 	sysrc \
-	tcpdchk \
-	tcpdmatch \
 	tcpdrop \
 	tcpdump \
 	timed \
@@ -124,6 +120,10 @@ SUBDIR+=	authpf
 
 .if ${MK_BLUETOOTH} != "no"
 SUBDIR+=	bluetooth
+.endif
+
+.if ${MK_BOOTPARAMD} != "no"
+SUBDIR+=	bootparamd
 .endif
 
 .if ${MK_BSDINSTALL} != "no"
@@ -180,6 +180,10 @@ SUBDIR+=	inetd
 
 .if ${MK_IPFW} != "no"
 SUBDIR+=	ipfwpcap
+.endif
+
+.if ${MK_ISCSI} != "no"
+SUBDIR+=	iscsid
 .endif
 
 .if ${MK_JAIL} != "no"
@@ -292,6 +296,11 @@ SUBDIR+=	mailstats
 SUBDIR+=	makemap
 SUBDIR+=	praliases
 SUBDIR+=	sendmail
+.endif
+
+.if ${MK_TCP_WRAPPERS} != "no"
+SUBDIR+=	tcpdchk
+SUBDIR+=	tcpdmatch
 .endif
 
 .if ${MK_TESTS} != "no"
