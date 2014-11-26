@@ -389,6 +389,10 @@ SUBDIR=	\
 	${_zfs} \
 	zlib
 
+.if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
+_vmm=		vmm
+.endif
+
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../opencrypto)
 _crypto=	crypto
@@ -397,6 +401,10 @@ _cryptodev=	cryptodev
 .if exists(${.CURDIR}/../crypto)
 _random=	random
 .endif
+.endif
+
+.if ${MK_HYPERV} != "no" || defined(ALL_MODULES)
+_hyperv=	hyperv
 .endif
 
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
@@ -550,7 +558,6 @@ _hptmv=		hptmv
 _hptnr=		hptnr
 _hptrr=		hptrr
 .endif
-_hyperv=	hyperv
 _ichwd=		ichwd
 _ida=		ida
 _iir=		iir
@@ -612,7 +619,6 @@ _qlxge=		qlxge
 _qlxgb=		qlxgb
 _qlxgbe=	qlxgbe
 _sfxge=		sfxge
-_vmm=		vmm
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"
