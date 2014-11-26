@@ -9,6 +9,7 @@ SRCS=	readpng-cheri.c				\
 
 USE_CHERI=      yes
 USE_CHERI_STACK=yes
+WANT_DUMP=	yes
 
 .PATH: ${.CURDIR}/../../lib/libimagebox
 SRCS+=	decode_png.c
@@ -33,17 +34,14 @@ FILESOWN=       ${LIBOWN}
 FILESGRP=       ${LIBGRP}
 FILESMODE=      ${LIBMODE}
 FILESDIR=       ${LIBEXECDIR}
-FILES=		${PROG}.bin ${PROG}.dump
-CLEANFILES=	${PROG}.bin ${PROG}.dump
+FILES=		${PROG}.bin
+CLEANFILES=	${PROG}.bin
 
 chsbrt.o:
 	${AS} -G0 -o ${.TARGET} ${.ALLSRC}
 
 ${PROG}.bin: ${PROG}
 	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
-
-${PROG}.dump: ${PROG}
-	objdump -xsSD ${.ALLSRC} > ${.TARGET}
 
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 .PATH: ${.CURDIR}/../../../lib/libc/${MACHINE}/gen

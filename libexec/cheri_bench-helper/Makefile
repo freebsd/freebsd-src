@@ -14,6 +14,7 @@ LIBADD=	c_cheri
 
 USE_CHERI=	yes
 USE_CHERI_STACK=	yes
+WANT_DUMP=	yes
 
 NO_SHARED=	yes
 
@@ -21,14 +22,11 @@ FILESOWN=       ${LIBOWN}
 FILESGRP=       ${LIBGRP}
 FILESMODE=      ${LIBMODE}
 FILESDIR=       ${LIBEXECDIR}
-FILES=		cheri_bench-helper.bin cheri_bench-helper.dump
-CLEANFILES=	cheri_bench-helper.bin cheri_bench-helper.dump
+FILES=		cheri_bench-helper.bin
+CLEANFILES=	cheri_bench-helper.bin
 
 cheri_bench-helper.bin: cheri_bench-helper
 	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
-
-cheri_bench-helper.dump: cheri_bench-helper
-	objdump -xsSD ${.ALLSRC} > ${.TARGET}
 
 .include <src.opts.mk>
 .include <bsd.prog.mk>

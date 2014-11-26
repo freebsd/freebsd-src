@@ -24,6 +24,7 @@ NO_SHARED=	yes
 
 USE_CHERI=	yes
 USE_CHERI_STACK=yes
+WANT_DUMP=	yes
 
 WARNS=4
 
@@ -44,9 +45,6 @@ chsbrt.o:
 
 ${PROG}.bin: ${PROG}
 	${OBJCOPY} -S -O binary ${.ALLSRC} ${.TARGET}
-
-${PROG}.dump: ${PROG}
-	objdump -xsSD ${.ALLSRC} > ${.TARGET}
 
 .include <src.opts.mk>
 .include <bsd.prog.mk>
