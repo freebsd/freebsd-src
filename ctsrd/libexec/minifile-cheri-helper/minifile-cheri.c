@@ -39,6 +39,7 @@
 
 #include <magic.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "minifile.h"
 
