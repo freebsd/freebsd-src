@@ -91,33 +91,7 @@ LIBNGATM?=	${DESTDIR}${LIBDIR}/libngatm.a
 LIBNV?=		${DESTDIR}${LIBDIR}/libnv.a
 LIBNVPAIR?=	${DESTDIR}${LIBDIR}/libnvpair.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
-
-# The static PAM library doesn't know its secondary dependencies,
-# so we have to specify them explicitly. Ths is an unfortunate,
-# but necessary departure from testing MK_ flags to define
-# values here.
 LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a
-MINUSLPAM=	-lpam
-.if defined(LDFLAGS) && !empty(LDFLAGS:M-static)
-.if ${MK_KERBEROS} != "no"
-LIBPAM+=	${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
-		${LIBROKEN} ${LIBCOM_ERR}
-MINUSLPAM+=	-lkrb5 -lhx509 -lasn1 -lcrypto -lcrypt -lroken -lcom_err
-.endif
-LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBCRYPT} \
-		${LIBUTIL} ${LIBOPIE} ${LIBMD}
-MINUSLPAM+=	-lradius -ltacplus -lcrypt \
-		-lutil -lopie -lmd
-.if ${MK_OPENSSH} != "no"
-LIBPAM+=	${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT}
-MINUSLPAM+=	-lssh -lcrypto -lcrypt
-.endif
-.if ${MK_NIS} != "no"
-LIBPAM+=	${LIBYPCLNT}
-MINUSLPAM+=	-lypclnt
-.endif
-.endif
-
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
 LIBPJDLOG?=	${DESTDIR}${LIBDIR}/libpjdlog.a
