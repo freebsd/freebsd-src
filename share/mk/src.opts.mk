@@ -157,6 +157,7 @@ __DEFAULT_YES_OPTIONS = \
     TESTS \
     TEXTPROC \
     TFTP \
+    TIMED \
     UNBOUND \
     USB \
     UTMPX \
