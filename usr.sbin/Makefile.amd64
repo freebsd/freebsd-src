@@ -32,4 +32,6 @@ SUBDIR+=	ndiscvt
 .endif
 SUBDIR+=	sicontrol
 SUBDIR+=	spkrtest
+.if ${MK_ACPI} != "no" || ${MK_APM} != "no"
 SUBDIR+=	zzz
+.endif
