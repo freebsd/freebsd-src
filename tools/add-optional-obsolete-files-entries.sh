@@ -44,6 +44,6 @@ done
 (cd $DESTDIR;
  find -s . -type f -mindepth 1 | sed -e 's,^,OLD_FILES+=,';
  find -s . -type d -mindepth 1 -and \! -empty | \
-    egrep -v '^\./(s*bin|libexec|usr|usr/include|usr/lib|usr/libexec|usr/s*bin|usr/share|usr/share/man|usr/share/man/man[0-9])$' | \
+    egrep -v '^\./(s*bin|libexec|usr|usr/include|usr/lib|usr/lib/private|usr/libexec|usr/s*bin|usr/share|usr/share/man|usr/share/man/man[0-9])$' | \
     sed -e 's,^,OLD_DIRS+=,'
 ) | sed -e 's,+=\./,+=,'
