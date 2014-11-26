@@ -23,7 +23,9 @@ SUBDIR+=	ndiscvt
 SUBDIR+=	pnpinfo
 SUBDIR+=	sicontrol
 SUBDIR+=	spkrtest
+.if ${MK_ACPI} != "no" || ${MK_APM} != "no"
 SUBDIR+=	zzz
+.endif
 
 # Differentiate between FreeBSD/i386 and FreeBSD/pc98
 .if ${MACHINE} == "i386"
