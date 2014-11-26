@@ -17,6 +17,6 @@ LDADD+=		-L/usr/local/lib -lpng -lm
 #CFLAGS+=	-I${.CURDIR}/../../lib/libvuln_png
 LDADD+=		-lvuln_png
 .endif
-LDADD+=		-lz
+LIBADD+=	z
 
 .include <bsd.prog.mk>

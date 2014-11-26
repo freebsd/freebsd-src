@@ -9,6 +9,8 @@ SRCS=	minifile-capsicum.c
 MAN=
 
 CFLAGS+=	-I${.CURDIR}/../../usr.bin/minifile
-LDADD+=		-lvuln_magic -lz
+
+LDADD+=		-lvuln_magic
+LIBADD+=	z
 
 .include <bsd.prog.mk>

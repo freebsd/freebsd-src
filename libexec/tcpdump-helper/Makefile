@@ -40,8 +40,8 @@ CFLAGS+=	-DLBL_ALIGN
 
 MAN=
 #STRIP=
-DPADD=	${LIBC_CHERI}
-LDADD=	-lc_cheri
+
+LIBADD=	c_cheri
 
 NO_SHARED=	yes
 

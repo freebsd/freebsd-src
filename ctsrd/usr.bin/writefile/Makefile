@@ -7,6 +7,6 @@ SRCS=	writefile.c eav.c
 MAN=
 
 CFLAGS+=	-DMD5_SUPPORT
-LDADD+=		-lbz2 -lmd -lutil
+LIBADD+= 	bz2 md util
 
 .include <bsd.prog.mk>

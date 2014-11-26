@@ -4,6 +4,7 @@ PROG=	mtlctl
 
 MAN=
 
-LDADD+=	-lterasic_mtl -lvuln_png -lz -lm
+LDADD+=	-lterasic_mtl
+LIBADD=	png z
 
 .include <bsd.prog.mk>

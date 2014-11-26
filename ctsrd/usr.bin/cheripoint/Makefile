@@ -6,6 +6,7 @@ PROG=	cheripoint
 
 MAN=
 
-LDADD+=	-lterasic_mtl -limagebox -lvuln_png -lz -lm -lutil -lpthread -lcheri
+LDADD+=		-lterasic_mtl -limagebox -lvuln_png
+LIBADD+=	cheri util z pthread
 
 .include <bsd.prog.mk>

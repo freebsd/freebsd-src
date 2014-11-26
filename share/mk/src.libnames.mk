@@ -59,11 +59,13 @@ _LIBRARIES=	\
 		bsnmp \
 		bz2 \
 		c \
+		c_cheri \
 		c_pic \
 		calendar \
 		cam \
 		capsicum \
 		casper \
+		cheri \
 		com_err \
 		compiler_rt \
 		crypt \
@@ -105,6 +107,7 @@ _LIBRARIES=	\
 		magic \
 		mandoc \
 		md \
+		md_cheri \
 		memstat \
 		mp \
 		nandfs \
@@ -118,6 +121,7 @@ _LIBRARIES=	\
 		pcsclite \
 		pjdlog \
 		pmc \
+		png \
 		proc \
 		procstat \
 		pthread \

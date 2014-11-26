@@ -18,8 +18,8 @@ INCS=	cheritest-helper.h
 LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
 MAN=
-DPADD=	${LIBMD_CHERI} ${LIBC_CHERI}
-LDADD=	-lmd_cheri -lc_cheri
+
+LIBADD=	md_cheri c_cheri
 
 USE_CHERI=	yes
 USE_CHERI_STACK=	yes

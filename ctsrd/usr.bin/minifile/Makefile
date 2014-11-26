@@ -9,11 +9,11 @@ WARNS=	0
 .include <src.opts.mk>
 
 .if ${MK_CHERI} != "no"
-LDADD+=	-lcheri	-lvuln_magic
+LDADD+=		-lvuln_magic
+LIBADD+=	cheri
 CFLAGS+=	-DCHERI
 .else
-DPADD+=	${LIBMAGIC}
-LDADD+= -lmagic
+LIBADD+=	magic
 .endif
 
 .include <bsd.prog.mk>

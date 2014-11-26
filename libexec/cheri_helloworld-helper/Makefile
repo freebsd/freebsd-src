@@ -9,8 +9,7 @@ INCS=	cheri_helloworld-helper.h
 LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
 MAN=
-DPADD=	${LIBC_CHERI}
-LDADD=	-lc_cheri
+LIBADD=	c_cheri
 
 USE_CHERI=	yes
 USE_CHERI_STACK=	yes

@@ -7,8 +7,7 @@ MAN=
 USE_CHERI=	yes
 WANT_DUMP=	yes
 
-DPADD=	${LIBCHERI}
-LDADD=  -lcheri
+LIBADD=  cheri
 
 NO_SHARED?=	YES
 

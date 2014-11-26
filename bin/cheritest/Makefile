@@ -19,8 +19,7 @@ MAN=
 USE_CHERI=	yes
 WANT_DUMP=	yes
 
-#DPADD=  ${LIBDEVSTAT} ${LIBKVM} ${LIBMEMSTAT} ${LIBUTIL}
-LDADD=  -lcheri -lz
+LIBADD=  cheri z
 
 NO_SHARED?=	YES
 

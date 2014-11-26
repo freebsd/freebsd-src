@@ -8,6 +8,7 @@ MAN=
 
 WARNS=	6
 
-LDADD+=	-lterasic_mtl -lvuln_png -lz -lm -lvuln_magic -lutil
+LDADD+=		-lterasic_mtl -lvuln_png -lvuln_magic
+LIBADD+=	z util
 
 .include <bsd.prog.mk>

@@ -17,7 +17,8 @@ CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/../../../lib/libc/include
 CFLAGS+=	-I${.CURDIR}/../../../lib/libc/mips
 CFLAGS+=	-I${.CURDIR}/../../usr.bin/minifile
-LDADD+=		-lvuln_magic -lz -lc_cheri
+LDADD+=		-lvuln_magic
+LIBADD+=	z c_cheri
 
 NO_SHARED=	yes
 
