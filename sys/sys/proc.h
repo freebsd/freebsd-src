@@ -148,6 +148,8 @@ struct pargs {
  *      q - td_contested lock
  *      r - p_peers lock
  *      t - thread lock
+ *	u - process stat lock
+ *	w - process timer lock
  *      x - created at fork, only changes during single threading in exec
  *      y - created at first aio, doesn't change until exit or exec at which
  *          point we are single-threaded and only curthread changes it
@@ -183,14 +185,14 @@ struct turnstile;
  * userland asks for rusage info.  Backwards compatibility prevents putting
  * this directly in the user-visible rusage struct.
  *
- * Locking for p_rux: (cj) means (j) for p_rux and (c) for p_crux.
+ * Locking for p_rux: (cu) means (u) for p_rux and (c) for p_crux.
  * Locking for td_rux: (t) for all fields.
  */
 struct rusage_ext {
-	uint64_t	rux_runtime;    /* (cj) Real time. */
-	uint64_t	rux_uticks;     /* (cj) Statclock hits in user mode. */
-	uint64_t	rux_sticks;     /* (cj) Statclock hits in sys mode. */
-	uint64_t	rux_iticks;     /* (cj) Statclock hits in intr mode. */
+	uint64_t	rux_runtime;    /* (cu) Real time. */
+	uint64_t	rux_uticks;     /* (cu) Statclock hits in user mode. */
+	uint64_t	rux_sticks;     /* (cu) Statclock hits in sys mode. */
+	uint64_t	rux_iticks;     /* (cu) Statclock hits in intr mode. */
 	uint64_t	rux_uu;         /* (c) Previous user time in usec. */
 	uint64_t	rux_su;         /* (c) Previous sys time in usec. */
 	uint64_t	rux_tu;         /* (c) Previous total time in usec. */
@@ -512,6 +514,9 @@ struct proc {
 	LIST_ENTRY(proc) p_sibling;	/* (e) List of sibling processes. */
 	LIST_HEAD(, proc) p_children;	/* (e) Pointer to list of children. */
 	struct mtx	p_mtx;		/* (n) Lock for this struct. */
+	struct mtx	p_statmtx;	/* Lock for the stats */
+	struct mtx	p_itimmtx;	/* Lock for the virt/prof timers */
+	struct mtx	p_profmtx;	/* Lock for the profiling */
 	struct ksiginfo *p_ksi;	/* Locked by parent proc lock */
 	sigqueue_t	p_sigqueue;	/* (c) Sigs not delivered to a td. */
 #define p_siglist	p_sigqueue.sq_signals
@@ -523,7 +528,7 @@ struct proc {
 	u_int		p_swtick;	/* (c) Tick when swapped in or out. */
 	struct itimerval p_realtimer;	/* (c) Alarm timer. */
 	struct rusage	p_ru;		/* (a) Exit information. */
-	struct rusage_ext p_rux;	/* (cj) Internal resource usage. */
+	struct rusage_ext p_rux;	/* (cu) Internal resource usage. */
 	struct rusage_ext p_crux;	/* (c) Internal child resource usage. */
 	int		p_profthreads;	/* (c) Num threads in addupc_task. */
 	volatile int	p_exitthreads;	/* (j) Number of threads exiting */
@@ -608,6 +613,18 @@ struct proc {
 #define	PROC_SLOCK(p)	mtx_lock_spin(&(p)->p_slock)
 #define	PROC_SUNLOCK(p)	mtx_unlock_spin(&(p)->p_slock)
 #define	PROC_SLOCK_ASSERT(p, type)	mtx_assert(&(p)->p_slock, (type))
+
+#define	PROC_STATLOCK(p)	mtx_lock_spin(&(p)->p_statmtx)
+#define	PROC_STATUNLOCK(p)	mtx_unlock_spin(&(p)->p_statmtx)
+#define	PROC_STATLOCK_ASSERT(p, type)	mtx_assert(&(p)->p_statmtx, (type))
+
+#define	PROC_ITIMLOCK(p)	mtx_lock_spin(&(p)->p_itimmtx)
+#define	PROC_ITIMUNLOCK(p)	mtx_unlock_spin(&(p)->p_itimmtx)
+#define	PROC_ITIMLOCK_ASSERT(p, type)	mtx_assert(&(p)->p_itimmtx, (type))
+
+#define	PROC_PROFLOCK(p)	mtx_lock_spin(&(p)->p_profmtx)
+#define	PROC_PROFUNLOCK(p)	mtx_unlock_spin(&(p)->p_profmtx)
+#define	PROC_PROFLOCK_ASSERT(p, type)	mtx_assert(&(p)->p_profmtx, (type))
 
 /* These flags are kept in p_flag. */
 #define	P_ADVLOCK	0x00001	/* Process may hold a POSIX advisory lock. */
