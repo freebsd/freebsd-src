@@ -23,7 +23,9 @@
 #include "lldb/Core/Error.h"
 #include "lldb/Core/StreamString.h"
 #include "lldb/Core/StringList.h"
+#include "lldb/Core/StructuredData.h"
 #include "lldb/Core/ThreadSafeValue.h"
+#include "lldb/lldb-private-forward.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Thread.h"
 
@@ -113,7 +115,7 @@ public:
                                const lldb_private::ProcessAttachInfo &attach_info);
 
     virtual void
-    DidAttach ();
+    DidAttach (lldb_private::ArchSpec &process_arch);
 
     //------------------------------------------------------------------
     // PluginInterface protocol
@@ -221,12 +223,17 @@ public:
         return m_gdb_comm;
     }
     
+    virtual lldb_private::Error
+    SendEventData(const char *data);
+
     //----------------------------------------------------------------------
     // Override SetExitStatus so we can disconnect from the remote GDB server
     //----------------------------------------------------------------------
     virtual bool
     SetExitStatus (int exit_status, const char *cstr);
 
+    void
+    SetUserSpecifiedMaxMemoryTransferSize (uint64_t user_specified_max);
 
 protected:
     friend class ThreadGDBRemote;
@@ -299,6 +306,15 @@ protected:
     bool
     ParseRegisters(lldb_private::ScriptInterpreterObject *registers_array);
 
+    const lldb::DataBufferSP
+    GetAuxvData() override;
+
+    lldb_private::StructuredData::ObjectSP
+    GetExtendedInfoForThread (lldb::tid_t tid);
+
+    void
+    GetMaxMemorySize();
+
     //------------------------------------------------------------------
     /// Broadcaster event bits definitions.
     //------------------------------------------------------------------
@@ -334,14 +350,15 @@ protected:
     tid_sig_collection m_continue_C_tids; // 'C' for continue with signal
     tid_collection m_continue_s_tids;                  // 's' for step
     tid_sig_collection m_continue_S_tids; // 'S' for step with signal
-    size_t m_max_memory_size;       // The maximum number of bytes to read/write when reading and writing memory
+    uint64_t m_max_memory_size;       // The maximum number of bytes to read/write when reading and writing memory
+    uint64_t m_remote_stub_max_memory_size;    // The maximum memory size the remote gdb stub can handle
     MMapMap m_addr_to_mmap_size;
     lldb::BreakpointSP m_thread_create_bp_sp;
     bool m_waiting_for_attach;
     bool m_destroy_tried_resuming;
     lldb::CommandObjectSP m_command_sp;
     int64_t m_breakpoint_pc_offset;
-    
+
     bool
     StartAsyncThread ();
 
@@ -368,7 +385,7 @@ protected:
     UpdateThreadIDList ();
 
     void
-    DidLaunchOrAttach ();
+    DidLaunchOrAttach (lldb_private::ArchSpec& process_arch);
 
     lldb_private::Error
     ConnectToDebugserver (const char *host_port);

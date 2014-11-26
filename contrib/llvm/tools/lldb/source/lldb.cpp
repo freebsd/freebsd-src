@@ -18,28 +18,40 @@
 #include "lldb/Core/RegularExpression.h"
 #include "lldb/Core/Timer.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/HostInfo.h"
 #include "lldb/Host/Mutex.h"
 #include "lldb/Interpreter/ScriptInterpreterPython.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Target/Thread.h"
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Support/TargetSelect.h"
 
+#include "Plugins/ABI/MacOSX-arm64/ABIMacOSX_arm64.h"
 #include "Plugins/ABI/SysV-x86_64/ABISysV_x86_64.h"
 #include "Plugins/Disassembler/llvm/DisassemblerLLVMC.h"
+#include "Plugins/DynamicLoader/POSIX-DYLD/DynamicLoaderPOSIXDYLD.h"
 #include "Plugins/Instruction/ARM/EmulateInstructionARM.h"
-#include "Plugins/SymbolVendor/ELF/SymbolVendorELF.h"
+#include "Plugins/Instruction/ARM64/EmulateInstructionARM64.h"
+#include "Plugins/JITLoader/GDB/JITLoaderGDB.h"
+#include "Plugins/LanguageRuntime/CPlusPlus/ItaniumABI/ItaniumABILanguageRuntime.h"
 #include "Plugins/ObjectContainer/BSD-Archive/ObjectContainerBSDArchive.h"
 #include "Plugins/ObjectFile/ELF/ObjectFileELF.h"
+#include "Plugins/ObjectFile/PECOFF/ObjectFilePECOFF.h"
+#include "Plugins/Platform/FreeBSD/PlatformFreeBSD.h"
+#include "Plugins/Platform/Linux/PlatformLinux.h"
+#include "Plugins/Platform/POSIX/PlatformPOSIX.h"
+#include "Plugins/Platform/Windows/PlatformWindows.h"
+#include "Plugins/Platform/Kalimba/PlatformKalimba.h"
+#include "Plugins/Process/elf-core/ProcessElfCore.h"
+#include "Plugins/SymbolVendor/MacOSX/SymbolVendorMacOSX.h"
+#include "Plugins/SymbolVendor/ELF/SymbolVendorELF.h"
 #include "Plugins/SymbolFile/DWARF/SymbolFileDWARF.h"
 #include "Plugins/SymbolFile/DWARF/SymbolFileDWARFDebugMap.h"
 #include "Plugins/SymbolFile/Symtab/SymbolFileSymtab.h"
 #include "Plugins/UnwindAssembly/x86/UnwindAssembly-x86.h"
 #include "Plugins/UnwindAssembly/InstEmulation/UnwindAssemblyInstEmulation.h"
-#include "Plugins/DynamicLoader/POSIX-DYLD/DynamicLoaderPOSIXDYLD.h"
-#include "Plugins/Platform/FreeBSD/PlatformFreeBSD.h"
-#include "Plugins/Platform/POSIX/PlatformPOSIX.h"
-#include "Plugins/LanguageRuntime/CPlusPlus/ItaniumABI/ItaniumABILanguageRuntime.h"
+
 #ifndef LLDB_DISABLE_PYTHON
 #include "Plugins/OperatingSystem/Python/OperatingSystemPython.h"
 #endif
@@ -58,12 +70,13 @@
 #include "Plugins/SystemRuntime/MacOSX/SystemRuntimeMacOSX.h"
 #endif
 
-#if defined(__linux__) || defined(__FreeBSD__)
-#include "Plugins/Process/elf-core/ProcessElfCore.h"
-#endif
 
 #if defined (__linux__)
 #include "Plugins/Process/Linux/ProcessLinux.h"
+#endif
+
+#if defined (_WIN32)
+#include "Plugins/Process/Windows/ProcessWindows.h"
 #endif
 
 #if defined (__FreeBSD__)
@@ -78,6 +91,12 @@
 using namespace lldb;
 using namespace lldb_private;
 
+static void fatal_error_handler(void *user_data, const std::string& reason,
+                                bool gen_crash_diag) {
+    Host::SetCrashDescription(reason.c_str());
+    ::abort();
+}
+
 void
 lldb_private::Initialize ()
 {
@@ -90,9 +109,19 @@ lldb_private::Initialize ()
     {
         g_inited = true;
         Log::Initialize();
+        HostInfo::Initialize();
         Timer::Initialize ();
         Timer scoped_timer (__PRETTY_FUNCTION__, __PRETTY_FUNCTION__);
-        
+
+        // Initialize LLVM and Clang
+        llvm::InitializeAllTargets();
+        llvm::InitializeAllAsmPrinters();
+        llvm::InitializeAllTargetMCs();
+        llvm::InitializeAllDisassemblers();
+        llvm::install_fatal_error_handler(fatal_error_handler, 0);
+
+        // Initialize plug-ins
+        ABIMacOSX_arm64::Initialize();
         ABISysV_x86_64::Initialize();
         DisassemblerLLVMC::Initialize();
         ObjectContainerBSDArchive::Initialize();
@@ -103,15 +132,19 @@ lldb_private::Initialize ()
         UnwindAssemblyInstEmulation::Initialize();
         UnwindAssembly_x86::Initialize();
         EmulateInstructionARM::Initialize ();
+        EmulateInstructionARM64::Initialize ();
         DynamicLoaderPOSIXDYLD::Initialize ();
         PlatformFreeBSD::Initialize();
+        PlatformKalimba::Initialize();
         SymbolFileDWARFDebugMap::Initialize();
         ItaniumABILanguageRuntime::Initialize();
 #ifndef LLDB_DISABLE_PYTHON
         ScriptInterpreterPython::InitializePrivate();
         OperatingSystemPython::Initialize();
 #endif
-
+        JITLoaderGDB::Initialize();
+        ProcessElfCore::Initialize();
+        
 #if defined (__APPLE__)
         //----------------------------------------------------------------------
         // Apple/Darwin hosted plugins
@@ -135,13 +168,13 @@ lldb_private::Initialize ()
         //----------------------------------------------------------------------
         ProcessLinux::Initialize();
 #endif
+#if defined(_WIN32)
+        ProcessWindows::Initialize();
+#endif
 #if defined (__FreeBSD__)
         ProcessFreeBSD::Initialize();
 #endif
 
-#if defined(__linux__) || defined(__FreeBSD__)
-        ProcessElfCore::Initialize();
-#endif
         //----------------------------------------------------------------------
         // Platform agnostic plugins
         //----------------------------------------------------------------------
@@ -172,6 +205,7 @@ lldb_private::Terminate ()
     
     // Terminate and unload and loaded system or user LLDB plug-ins
     PluginManager::Terminate();
+    ABIMacOSX_arm64::Terminate();
     ABISysV_x86_64::Terminate();
     DisassemblerLLVMC::Terminate();
     ObjectContainerBSDArchive::Terminate();
@@ -182,14 +216,18 @@ lldb_private::Terminate ()
     UnwindAssembly_x86::Terminate();
     UnwindAssemblyInstEmulation::Terminate();
     EmulateInstructionARM::Terminate ();
+    EmulateInstructionARM64::Terminate ();
     DynamicLoaderPOSIXDYLD::Terminate ();
     PlatformFreeBSD::Terminate();
+    PlatformKalimba::Terminate();
     SymbolFileDWARFDebugMap::Terminate();
     ItaniumABILanguageRuntime::Terminate();
 #ifndef LLDB_DISABLE_PYTHON
     OperatingSystemPython::Terminate();
 #endif
-
+    JITLoaderGDB::Terminate();
+    ProcessElfCore::Terminate();
+    
 #if defined (__APPLE__)
     DynamicLoaderMacOSXDYLD::Terminate();
     DynamicLoaderDarwinKernel::Terminate();
@@ -215,9 +253,6 @@ lldb_private::Terminate ()
     ProcessFreeBSD::Terminate();
 #endif
 
-#if defined(__linux__) || defined(__FreeBSD__)
-    ProcessElfCore::Terminate();
-#endif
     ProcessGDBRemote::Terminate();
     DynamicLoaderStatic::Terminate();
 
@@ -270,7 +305,8 @@ lldb_private::GetVersion ()
         
         size_t version_len = sizeof(g_version_string);
         
-        if (newline_loc && (newline_loc - version_string < version_len))
+        if (newline_loc &&
+            (newline_loc - version_string < static_cast<ptrdiff_t>(version_len)))
             version_len = newline_loc - version_string;
         
         ::strncpy(g_version_string, version_string, version_len);

@@ -237,28 +237,25 @@ ValueObject::UpdateFormatsIfNeeded()
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_TYPES));
     if (log)
         log->Printf("[%s %p] checking for FormatManager revisions. ValueObject rev: %d - Global rev: %d",
-           GetName().GetCString(),
-           this,
-           m_last_format_mgr_revision,
-           DataVisualization::GetCurrentRevision());
-    
+                    GetName().GetCString(), static_cast<void*>(this),
+                    m_last_format_mgr_revision,
+                    DataVisualization::GetCurrentRevision());
+
     bool any_change = false;
-    
+
     if ( (m_last_format_mgr_revision != DataVisualization::GetCurrentRevision()))
     {
+        m_last_format_mgr_revision = DataVisualization::GetCurrentRevision();
+        any_change = true;
+        
         SetValueFormat(DataVisualization::GetFormat (*this, eNoDynamicValues));
         SetSummaryFormat(DataVisualization::GetSummaryFormat (*this, GetDynamicValueType()));
 #ifndef LLDB_DISABLE_PYTHON
         SetSyntheticChildren(DataVisualization::GetSyntheticChildren (*this, GetDynamicValueType()));
 #endif
-
-        m_last_format_mgr_revision = DataVisualization::GetCurrentRevision();
-        
-        any_change = true;
     }
-    
+
     return any_change;
-    
 }
 
 void
@@ -796,7 +793,6 @@ ValueObject::CreateChildAtIndex (size_t idx, bool synthetic_array_member, int32_
     ExecutionContext exe_ctx (GetExecutionContextRef());
     
     child_clang_type = GetClangType().GetChildClangTypeAtIndex (&exe_ctx,
-                                                                GetName().GetCString(),
                                                                 idx,
                                                                 transparent_pointers,
                                                                 omit_empty_base_classes,
@@ -807,7 +803,8 @@ ValueObject::CreateChildAtIndex (size_t idx, bool synthetic_array_member, int32_
                                                                 child_bitfield_bit_size,
                                                                 child_bitfield_bit_offset,
                                                                 child_is_base_class,
-                                                                child_is_deref_of_parent);
+                                                                child_is_deref_of_parent,
+                                                                this);
     if (child_clang_type)
     {
         if (synthetic_index)
@@ -978,14 +975,15 @@ ValueObject::GetPointeeData (DataExtractor& data,
             ValueObjectSP pointee_sp = Dereference(error);
             if (error.Fail() || pointee_sp.get() == NULL)
                 return 0;
-            return pointee_sp->GetData(data);
+            return pointee_sp->GetData(data, error);
         }
         else
         {
             ValueObjectSP child_sp = GetChildAtIndex(0, true);
             if (child_sp.get() == NULL)
                 return 0;
-            return child_sp->GetData(data);
+            Error error;
+            return child_sp->GetData(data, error);
         }
         return true;
     }
@@ -1059,11 +1057,11 @@ ValueObject::GetPointeeData (DataExtractor& data,
 }
 
 uint64_t
-ValueObject::GetData (DataExtractor& data)
+ValueObject::GetData (DataExtractor& data, Error &error)
 {
     UpdateValueIfNeeded(false);
     ExecutionContext exe_ctx (GetExecutionContextRef());
-    Error error = m_value.GetValueAsData(&exe_ctx, data, 0, GetModule().get());
+    error = m_value.GetValueAsData(&exe_ctx, data, 0, GetModule().get());
     if (error.Fail())
     {
         if (m_data.GetByteSize())
@@ -1707,7 +1705,7 @@ ValueObject::DumpPrintableRepresentation(Stream& s,
                 break;
                 
             case eValueObjectRepresentationStyleChildrenCount:
-                strm.Printf("%zu", GetNumChildren());
+                strm.Printf("%" PRIu64 "", (uint64_t)GetNumChildren());
                 cstr = strm.GetString().c_str();
                 break;
                 
@@ -1955,6 +1953,12 @@ ValueObject::GetTypeName()
 }
 
 ConstString
+ValueObject::GetDisplayTypeName()
+{
+    return GetTypeName();
+}
+
+ConstString
 ValueObject::GetQualifiedTypeName()
 {
     return GetClangType().GetConstQualifiedTypeName();
@@ -2063,7 +2067,7 @@ ValueObject::GetSyntheticArrayMemberFromPointer (size_t index, bool can_create)
     if (IsPointerType ())
     {
         char index_str[64];
-        snprintf(index_str, sizeof(index_str), "[%zu]", index);
+        snprintf(index_str, sizeof(index_str), "[%" PRIu64 "]", (uint64_t)index);
         ConstString index_const_str(index_str);
         // Check if we have already created a synthetic array member in this
         // valid object. If we have we will re-use it.
@@ -2106,7 +2110,7 @@ ValueObject::GetSyntheticArrayMemberFromArray (size_t index, bool can_create)
     if (IsArrayType ())
     {
         char index_str[64];
-        snprintf(index_str, sizeof(index_str), "[%zu]", index);
+        snprintf(index_str, sizeof(index_str), "[%" PRIu64 "]", (uint64_t)index);
         ConstString index_const_str(index_str);
         // Check if we have already created a synthetic array member in this
         // valid object. If we have we will re-use it.
@@ -2210,6 +2214,47 @@ ValueObject::GetSyntheticChildAtOffset(uint32_t offset, const ClangASTType& type
     }
     return synthetic_child_sp;
 }
+
+ValueObjectSP
+ValueObject::GetSyntheticBase (uint32_t offset, const ClangASTType& type, bool can_create)
+{
+    ValueObjectSP synthetic_child_sp;
+    
+    char name_str[64];
+    snprintf(name_str, sizeof(name_str), "%s", type.GetTypeName().AsCString("<unknown>"));
+    ConstString name_const_str(name_str);
+    
+    // Check if we have already created a synthetic array member in this
+    // valid object. If we have we will re-use it.
+    synthetic_child_sp = GetSyntheticChild (name_const_str);
+    
+    if (synthetic_child_sp.get())
+        return synthetic_child_sp;
+    
+    if (!can_create)
+        return ValueObjectSP();
+    
+    const bool is_base_class = true;
+    
+    ValueObjectChild *synthetic_child = new ValueObjectChild(*this,
+                                                             type,
+                                                             name_const_str,
+                                                             type.GetByteSize(),
+                                                             offset,
+                                                             0,
+                                                             0,
+                                                             is_base_class,
+                                                             false,
+                                                             eAddressTypeInvalid);
+    if (synthetic_child)
+    {
+        AddSyntheticChild(name_const_str, synthetic_child);
+        synthetic_child_sp = synthetic_child->GetSP();
+        synthetic_child_sp->SetName(name_const_str);
+    }
+    return synthetic_child_sp;
+}
+
 
 // your expression path needs to have a leading . or ->
 // (unless it somehow "looks like" an array, in which case it has
@@ -2390,6 +2435,26 @@ ValueObject::GetNonBaseClassParent()
             return GetParent();
     }
     return NULL;
+}
+
+
+bool
+ValueObject::IsBaseClass (uint32_t& depth)
+{
+    if (!IsBaseClass())
+    {
+        depth = 0;
+        return false;
+    }
+    if (GetParent())
+    {
+        GetParent()->IsBaseClass(depth);
+        depth = depth + 1;
+        return true;
+    }
+    // TODO: a base of no parent? weird..
+    depth = 1;
+    return true;
 }
 
 void
@@ -3464,6 +3529,38 @@ ValueObject::CreateConstantValue (const ConstString &name)
     return valobj_sp;
 }
 
+lldb::addr_t
+ValueObject::GetCPPVTableAddress (AddressType &address_type)
+{
+    ClangASTType pointee_type;
+    ClangASTType this_type(GetClangType());
+    uint32_t type_info = this_type.GetTypeInfo(&pointee_type);
+    if (type_info)
+    {
+        bool ptr_or_ref = false;
+        if (type_info & (ClangASTType::eTypeIsPointer | ClangASTType::eTypeIsReference))
+        {
+            ptr_or_ref = true;
+            type_info = pointee_type.GetTypeInfo();
+        }
+        
+        const uint32_t cpp_class = ClangASTType::eTypeIsClass | ClangASTType::eTypeIsCPlusPlus;
+        if ((type_info & cpp_class) == cpp_class)
+        {
+            if (ptr_or_ref)
+            {
+                address_type = GetAddressTypeOfChildren();
+                return GetValueAsUnsigned(LLDB_INVALID_ADDRESS);
+            }
+            else
+                return GetAddressOf (false, &address_type);
+        }
+    }
+
+    address_type = eAddressTypeInvalid;
+    return LLDB_INVALID_ADDRESS;
+}
+
 ValueObjectSP
 ValueObject::Dereference (Error &error)
 {
@@ -3490,7 +3587,6 @@ ValueObject::Dereference (Error &error)
         ExecutionContext exe_ctx (GetExecutionContextRef());
         
         child_clang_type = clang_type.GetChildClangTypeAtIndex (&exe_ctx,
-                                                                GetName().GetCString(),
                                                                 0,
                                                                 transparent_pointers,
                                                                 omit_empty_base_classes,
@@ -3501,7 +3597,8 @@ ValueObject::Dereference (Error &error)
                                                                 child_bitfield_bit_size,
                                                                 child_bitfield_bit_offset,
                                                                 child_is_base_class,
-                                                                child_is_deref_of_parent);
+                                                                child_is_deref_of_parent,
+                                                                this);
         if (child_clang_type && child_byte_size)
         {
             ConstString child_name;
@@ -3881,7 +3978,7 @@ ValueObject::CreateValueObjectFromAddress (const char* name,
 
 lldb::ValueObjectSP
 ValueObject::CreateValueObjectFromData (const char* name,
-                                        DataExtractor& data,
+                                        const DataExtractor& data,
                                         const ExecutionContext& exe_ctx,
                                         ClangASTType type)
 {
