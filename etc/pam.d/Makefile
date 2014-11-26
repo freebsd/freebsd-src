@@ -2,6 +2,8 @@
 
 NO_OBJ=
 
+.include <src.opts.mk>
+
 FILES=	README \
 	atrun \
 	cron \
@@ -10,10 +12,16 @@ FILES=	README \
 	login \
 	other \
 	passwd pop3 \
-	rsh \
 	sshd su system \
-	telnetd \
 	xdm
+
+.if ${MK_RCMDS} != "no"
+FILES+=	rsh
+.endif
+
+.if ${MK_TELNET} != "no"
+FILES+=	telnetd
+.endif
 
 FILESDIR=	/etc/pam.d
 FILESMODE=	644

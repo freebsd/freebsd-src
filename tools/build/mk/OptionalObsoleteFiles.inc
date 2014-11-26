@@ -3913,6 +3913,7 @@ OLD_FILES+=usr/lib/private/libssh_p.a
 
 .if ${MK_RCMDS} == no
 OLD_FILES+=bin/rcp
+OLD_FILES+=etc/pam.d/rsh
 OLD_FILES+=etc/rc.d/rwho
 OLD_FILES+=etc/periodic/daily/140.clean-rwho 
 OLD_FILES+=etc/periodic/daily/430.status-rwho
@@ -4279,6 +4280,7 @@ OLD_FILES+=usr/share/nls/uk_UA.UTF-8/tcsh.cat
 .endif
 
 .if ${MK_TELNET} == no
+OLD_FILES+=etc/pam.d/telnetd
 OLD_FILES+=usr/bin/telnet
 OLD_FILES+=usr/libexec/telnetd
 OLD_FILES+=usr/share/man/man1/telnet.1.gz
