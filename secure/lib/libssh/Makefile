@@ -41,7 +41,6 @@ CFLAGS+= -I${SSHDIR} -include ssh_namespace.h
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -include krb5_config.h
-LIBADD+=	gssapi krb5 hx509 asn1 com_err md roken
 .endif
 
 .if ${MK_OPENSSH_NONE_CIPHER} != "no"
