@@ -137,7 +137,6 @@ FILES=	DAEMON \
 	syscons \
 	sysctl \
 	syslogd \
-	timed \
 	tmp \
 	${_ubthidhci} \
 	ugidfw \
@@ -234,6 +233,10 @@ FILES+=		ftp-proxy
 
 .if ${MK_RCMDS} != "no"
 FILES+=		rwho
+.endif
+
+.if ${MK_TIMED} != "no"
+FILES+=		timed
 .endif
 
 .if ${MK_UNBOUND} != "no"

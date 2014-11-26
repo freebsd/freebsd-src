@@ -82,7 +82,6 @@ SUBDIR=	adduser \
 	sysrc \
 	tcpdrop \
 	tcpdump \
-	timed \
 	traceroute \
 	trpt \
 	tzsetup \
@@ -305,6 +304,10 @@ SUBDIR+=	tcpdmatch
 
 .if ${MK_TESTS} != "no"
 SUBDIR+=	tests
+.endif
+
+.if ${MK_TIMED} != "no"
+SUBDIR+=	timed
 .endif
 
 .if ${MK_TOOLCHAIN} != "no"

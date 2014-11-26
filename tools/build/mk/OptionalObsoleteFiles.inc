@@ -4911,6 +4911,14 @@ OLD_FILES+=${TESTS_FILES}
 . endif
 .endif	# Test suite.
 
+.if ${MK_TIMED} == no
+OLD_FILES+=etc/rc.d/timed
+OLD_FILES+=usr/sbin/timed
+OLD_FILES+=usr/sbin/timedc
+OLD_FILES+=usr/share/man/man8/timed.8.gz
+OLD_FILES+=usr/share/man/man8/timedc.8.gz
+.endif
+
 #.if ${MK_TOOLCHAIN} == no
 # to be filled in
 #.endif
