@@ -201,6 +201,7 @@ static struct ibv_context *mlx4_alloc_context(struct ibv_device *ibdev, int cmd_
 		context->bf_buf_size = 0;
 	}
 
+	context->cqe_size = resp.cqe_size;
 	pthread_spin_init(&context->uar_lock, PTHREAD_PROCESS_PRIVATE);
 
 	context->ibv_ctx.ops = mlx4_ctx_ops;
