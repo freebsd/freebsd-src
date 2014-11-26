@@ -4925,9 +4925,10 @@ OLD_FILES+=usr/share/examples/dma/mailer.conf
 
 .if ${MK_HYPERV} == no
 OLD_FILES+=etc/devd/hyperv.conf
-OLD_FILES+=usr/libexec/hyperv/hv_set_ifconfig
-OLD_FILES+=usr/libexec/hyperv/hv_get_dns_info
 OLD_FILES+=usr/libexec/hyperv/hv_get_dhcp_info
+OLD_FILES+=usr/libexec/hyperv/hv_get_dns_info
+OLD_FILES+=usr/libexec/hyperv/hv_set_ifconfig
 OLD_FILES+=usr/sbin/hv_kvp_daemon
 OLD_FILES+=usr/share/man/man8/hv_kvp_daemon.8.gz
+OLD_DIRS+=usr/libexec/hyperv
 .endif
