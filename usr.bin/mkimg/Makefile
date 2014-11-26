@@ -31,8 +31,7 @@ SRCS+=	\
 
 BINDIR?=/usr/bin
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 
 WARNS?=	6
 

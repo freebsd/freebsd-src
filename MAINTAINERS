@@ -48,7 +48,6 @@ cd(4)		ken	Pre-commit review requested.
 pass(4)		ken	Pre-commit review requested.
 ch(4)		ken	Pre-commit review requested.
 em(4)		jfv	Pre-commit review requested.
-tdfx(4)		cokane  Just keep me informed of changes, try not to break it.
 sendmail	gshapiro	Pre-commit review requested.
 etc/mail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
@@ -118,7 +117,6 @@ lib/libc/stdtime	edwin   Heads-up appreciated, since parts of this code
 				is maintained by a third party source.
 sbin/routed	bms	Pre-commit review; notify vendor at rhyolite.com
 isci(4)		jimharris	Pre-commit review requested.
-3dfx		cokane		Pre-commit review preferred.
 cmx		daniel@roe.ch	Pre-commit review preferred.
 filemon		obrien		Pre-commit review preferred.
 sysdoc		trhodes		Pre-commit review preferred.

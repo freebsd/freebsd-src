@@ -2,8 +2,7 @@
 
 LIB=	kadm5clnt
 LDFLAGS=	-Wl,--no-undefined
-LDADD=	-lcom_err -lkrb5 -lroken
-DPADD=	${LIBCOM_ERR} ${LIBKRB5} ${LIBROKEN}
+LIBADD=	com_err krb5 roken
 
 INCS=	admin.h \
 	kadm5-private.h \

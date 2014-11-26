@@ -38,7 +38,7 @@
 
 #include <sys/cdefs.h>
 
-#ifdef __PIC__
+#ifdef PIC
 #define	PIC_PLT(x)	x@PLT
 #define	PIC_GOT(x)	x@GOTPCREL(%rip)
 #else

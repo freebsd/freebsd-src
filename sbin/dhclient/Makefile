@@ -41,8 +41,7 @@ PROG=	dhclient
 SCRIPTS=dhclient-script
 MAN=	dhclient.8 dhclient.conf.5 dhclient.leases.5 dhcp-options.5 \
 	dhclient-script.8
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 
 WARNS?=	2
 

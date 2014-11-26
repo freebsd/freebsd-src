@@ -652,7 +652,9 @@ ffec_txstart_locked(struct ffec_softc *sc)
 	}
 
 	if (enqueued != 0) {
+		bus_dmamap_sync(sc->txdesc_tag, sc->txdesc_map, BUS_DMASYNC_PREWRITE);
 		WR4(sc, FEC_TDAR_REG, FEC_TDAR_TDAR);
+		bus_dmamap_sync(sc->txdesc_tag, sc->txdesc_map, BUS_DMASYNC_POSTWRITE);
 		sc->tx_watchdog_count = WATCHDOG_TIMEOUT_SECS;
 	}
 }
@@ -677,6 +679,9 @@ ffec_txfinish_locked(struct ffec_softc *sc)
 
 	FFEC_ASSERT_LOCKED(sc);
 
+	/* XXX Can't set PRE|POST right now, but we need both. */
+	bus_dmamap_sync(sc->txdesc_tag, sc->txdesc_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->txdesc_tag, sc->txdesc_map, BUS_DMASYNC_POSTREAD);
 	ifp = sc->ifp;
 	retired_buffer = false;
 	while (sc->tx_idx_tail != sc->tx_idx_head) {
@@ -841,6 +846,9 @@ ffec_rxfinish_locked(struct ffec_softc *sc)
 
 	FFEC_ASSERT_LOCKED(sc);
 
+	/* XXX Can't set PRE|POST right now, but we need both. */
+	bus_dmamap_sync(sc->rxdesc_tag, sc->rxdesc_map, BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(sc->rxdesc_tag, sc->rxdesc_map, BUS_DMASYNC_POSTREAD);
 	produced_empty_buffer = false;
 	for (;;) {
 		desc = &sc->rxdesc_ring[sc->rx_idx];
@@ -888,7 +896,9 @@ ffec_rxfinish_locked(struct ffec_softc *sc)
 	}
 
 	if (produced_empty_buffer) {
+		bus_dmamap_sync(sc->rxdesc_tag, sc->txdesc_map, BUS_DMASYNC_PREWRITE);
 		WR4(sc, FEC_RDAR_REG, FEC_RDAR_RDAR);
+		bus_dmamap_sync(sc->rxdesc_tag, sc->txdesc_map, BUS_DMASYNC_POSTWRITE);
 	}
 }
 

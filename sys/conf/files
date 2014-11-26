@@ -660,6 +660,8 @@ dev/altera/sdcard/altera_sdcard_disk.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_io.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_fdt.c	optional altera_sdcard fdt
 dev/altera/sdcard/altera_sdcard_nexus.c	optional altera_sdcard
+dev/altera/pio/pio.c		optional altera_pio
+dev/altera/pio/pio_if.m		optional altera_pio
 dev/amdpm/amdpm.c		optional amdpm pci | nfpm pci
 dev/amdsmb/amdsmb.c		optional amdsmb pci
 dev/amr/amr.c			optional amr
@@ -2570,6 +2572,19 @@ dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
 dev/vge/if_vge.c		optional vge
 dev/viapm/viapm.c		optional viapm pci
+dev/virtio/virtio.c			optional	virtio
+dev/virtio/virtqueue.c			optional	virtio
+dev/virtio/virtio_bus_if.m		optional	virtio
+dev/virtio/virtio_if.m			optional	virtio
+dev/virtio/pci/virtio_pci.c		optional	virtio_pci
+dev/virtio/mmio/virtio_mmio.c		optional	virtio_mmio
+dev/virtio/mmio/virtio_mmio_if.m	optional	virtio_mmio
+dev/virtio/network/if_vtnet.c		optional	vtnet
+dev/virtio/block/virtio_blk.c		optional	virtio_blk
+dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon
+dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi
+dev/virtio/random/virtio_random.c	optional	virtio_random
+dev/virtio/console/virtio_console.c	optional	virtio_console
 dev/vkbd/vkbd.c			optional vkbd
 dev/vr/if_vr.c			optional vr pci
 dev/vt/colors/vt_termcolors.c	optional vt

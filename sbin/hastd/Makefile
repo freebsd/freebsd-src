@@ -30,11 +30,9 @@ CFLAGS+=-DINET
 CFLAGS+=-DINET6
 .endif
 
-DPADD=	${LIBGEOM} ${LIBBSDXML} ${LIBSBUF} ${LIBPTHREAD} ${LIBUTIL}
-LDADD=	-lgeom -lbsdxml -lsbuf -lpthread -lutil
+LIBADD=	geom pthread util
 .if ${MK_OPENSSL} != "no"
-DPADD+=	${LIBCRYPTO}
-LDADD+=	-lcrypto
+LIBADD+=	crypto
 CFLAGS+=-DHAVE_CRYPTO
 .endif
 

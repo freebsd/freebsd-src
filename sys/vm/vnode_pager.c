@@ -994,7 +994,7 @@ vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m, int bytecount,
 		bstrategy(bp);
 		bwait(bp, PVM, "vnread");
 		error = vnode_pager_generic_getpages_done(bp);
-		for (int i = 0; i < bp->b_npages; i++)
+		for (i = 0; i < bp->b_npages; i++)
 			bp->b_pages[i] = NULL;
 		bp->b_vp = NULL;
 		pbrelbo(bp);

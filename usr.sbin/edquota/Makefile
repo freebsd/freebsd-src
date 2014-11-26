@@ -7,7 +7,6 @@ MAN=	edquota.8
 CSTD=	gnu99
 WARNS?=	4
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 
 .include <bsd.prog.mk>

@@ -15,8 +15,7 @@ SRCS+=	wr_bparam.c wr_dumpset.c wr_exportfs.c wr_fstab.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/amd/fsinfo
 
-DPADD=	${LIBAMU}
-LDADD=	${LIBAMU}
+LIBADD=	amu
 
 CLEANFILES+=	fsi_gram.c fsi_gram.h fsi_lex.c
 

@@ -40,12 +40,10 @@ MLINKS= grep.1 egrep.1 \
 	grep.1 lzfgrep.1
 .endif
 
-LDADD=	-lz
-DPADD=	${LIBZ}
+LIBADD=	z
 
 .if ${MK_LZMA_SUPPORT} != "no"
-LDADD+=	-llzma
-DPADD+=	${LIBLZMA}
+LIBADD+=	lzma
 
 LINKS+=	${BINDIR}/${PROG} ${BINDIR}/xzgrep \
 	${BINDIR}/${PROG} ${BINDIR}/xzegrep \
@@ -58,8 +56,7 @@ CFLAGS+= -DWITHOUT_LZMA
 .endif
 
 .if ${MK_BZIP2_SUPPORT} != "no"
-LDADD+=	-lbz2
-DPADD+=	${LIBBZ2}
+LIBADD+=	bz2
 
 .if ${MK_BSD_GREP} == "yes"
 LINKS+= ${BINDIR}/grep ${BINDIR}/bzgrep \
@@ -75,8 +72,7 @@ CFLAGS+= -DWITHOUT_BZIP2
 
 .if ${MK_GNU_GREP_COMPAT} != "no"
 CFLAGS+= -I${DESTDIR}/usr/include/gnu
-LDADD+=	-lgnuregex
-DPADD+=	${LIBGNUREGEX}
+LIBADD+=	gnuregex
 .endif
 
 .if ${MK_NLS} != "no"

@@ -12,9 +12,7 @@ CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 SRCS+=	roaming_dummy.c
 .endif
 
-DPADD=	${LIBSSH}
-LDADD=  ${LDSSH}
-USEPRIVATELIB= ssh
+LIBADD=	ssh
 
 .if ${MK_LDNS} != "no"
 CFLAGS+=	-DHAVE_LDNS=1
@@ -22,9 +20,6 @@ CFLAGS+=	-DHAVE_LDNS=1
 #LDADD+=	-lldns
 #USEPRIVATELIB+= ldns
 .endif
-
-DPADD+=	${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
-LDADD+=	-lcrypt -lcrypto -lz
 
 .include <bsd.prog.mk>
 

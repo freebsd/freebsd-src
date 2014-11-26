@@ -14,8 +14,7 @@ SRCS=  	ctm.c ctm_input.c ctm_pass1.c ctm_pass2.c ctm_pass3.c \
 
 NOTYET=	ctm_ed.c
 
-LDADD=	-lmd
-DPADD=	${LIBMD}
+LIBADD=	md
 
 WARNS?=	2
 
