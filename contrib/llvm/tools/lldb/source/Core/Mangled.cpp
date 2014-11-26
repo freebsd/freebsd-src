@@ -20,6 +20,14 @@
 
 #ifdef LLDB_USE_BUILTIN_DEMANGLER
 
+// Provide a fast-path demangler implemented in FastDemangle.cpp until it can
+// replace the existing C++ demangler with a complete implementation
+namespace lldb_private
+{
+    extern char * FastDemangle (const char * mangled_name,
+                                long mangled_name_length);
+}
+
 //----------------------------------------------------------------------
 // Inlined copy of:
 // http://llvm.org/svn/llvm-project/libcxxabi/trunk/src/cxa_demangle.cpp
@@ -3932,15 +3940,15 @@ parse_nested_name(const char* first, const char* last, C& db)
         const char* t0 = parse_cv_qualifiers(first+1, last, cv);
         if (t0 == last)
             return first;
-        db.ref = 0;
+        unsigned ref = 0;
         if (*t0 == 'R')
         {
-            db.ref = 1;
+            ref = 1;
             ++t0;
         }
         else if (*t0 == 'O')
         {
-            db.ref = 2;
+            ref = 2;
             ++t0;
         }
         db.names.emplace_back();
@@ -4054,6 +4062,7 @@ parse_nested_name(const char* first, const char* last, C& db)
             }
         }
         first = t0 + 1;
+        db.ref = ref;
         db.cv = cv;
         if (pop_subs && !db.subs.empty())
             db.subs.pop_back();
@@ -4413,7 +4422,7 @@ parse_special_name(const char* first, const char* last, C& db)
                 {
                     if (db.names.empty())
                         return first;
-                    if (first[2] == 'v')
+                    if (first[1] == 'v')
                     {
                         db.names.back().first.insert(0, "virtual thunk to ");
                         first = t;
@@ -5128,7 +5137,6 @@ Mangled::SetValue (const ConstString &name)
     }
 }
 
-
 //----------------------------------------------------------------------
 // Generate the demangled name on demand using this accessor. Code in
 // this class will need to use this accessor if it wishes to decode
@@ -5157,7 +5165,13 @@ Mangled::GetDemangledName () const
                 // We didn't already mangle this name, demangle it and if all goes well
                 // add it to our map.
 #ifdef LLDB_USE_BUILTIN_DEMANGLER
-                char *demangled_name = __cxa_demangle (mangled_cstr, NULL, NULL, NULL);
+                // Try to use the fast-path demangler first for the
+                // performance win, falling back to the full demangler only
+                // when necessary
+                char *demangled_name = FastDemangle (mangled_cstr,
+                                                     m_mangled.GetLength());
+                if (!demangled_name)
+                    demangled_name = __cxa_demangle (mangled_cstr, NULL, NULL, NULL);
 #elif defined(_MSC_VER)
                 // Cannot demangle on msvc.
                 char *demangled_name = nullptr;
@@ -5242,7 +5256,8 @@ Mangled::Dump (Stream *s) const
 void
 Mangled::DumpDebug (Stream *s) const
 {
-    s->Printf("%*p: Mangled mangled = ", (int)sizeof(void*) * 2, this);
+    s->Printf("%*p: Mangled mangled = ", static_cast<int>(sizeof(void*) * 2),
+              static_cast<const void*>(this));
     m_mangled.DumpDebug(s);
     s->Printf(", demangled = ");
     m_demangled.DumpDebug(s);

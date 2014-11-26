@@ -10,7 +10,7 @@
 #ifndef liblldb_RegisterContextPOSIXProcessMonitor_x86_H_
 #define liblldb_RegisterContextPOSIXProcessMonitor_x86_H_
 
-#include "Plugins/Process/POSIX/RegisterContextPOSIX_x86.h"
+#include "Plugins/Process/Utility/RegisterContextPOSIX_x86.h"
 
 class RegisterContextPOSIXProcessMonitor_x86_64:
     public RegisterContextPOSIX_x86,
@@ -19,7 +19,7 @@ class RegisterContextPOSIXProcessMonitor_x86_64:
 public:
     RegisterContextPOSIXProcessMonitor_x86_64(lldb_private::Thread &thread,
                                               uint32_t concrete_frame_idx,
-                                              RegisterInfoInterface *register_info);
+                                              lldb_private::RegisterInfoInterface *register_info);
 
 protected:
     bool

@@ -20,6 +20,8 @@
 using namespace lldb;
 using namespace lldb_private;
 
+// Constructor 
+
 HistoryUnwind::HistoryUnwind (Thread &thread,
                               std::vector<lldb::addr_t> pcs,
                               uint32_t stop_id,
@@ -30,6 +32,8 @@ HistoryUnwind::HistoryUnwind (Thread &thread,
         m_stop_id_is_valid (stop_id_is_valid)
 {
 }
+
+// Destructor
 
 HistoryUnwind::~HistoryUnwind ()
 {
@@ -62,7 +66,7 @@ HistoryUnwind::DoCreateRegisterContextForFrame (StackFrame *frame)
 bool
 HistoryUnwind::DoGetFrameInfoAtIndex (uint32_t frame_idx, lldb::addr_t& cfa, lldb::addr_t& pc)
 {
-    Mutex::Locker (m_unwind_mutex);
+    Mutex::Locker (m_unwind_mutex);   // FIXME do not throw away the lock after we acquire it..
     if (frame_idx < m_pcs.size())
     {
         cfa = frame_idx;

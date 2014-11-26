@@ -55,7 +55,7 @@ DWARFCallFrameInfo::GetUnwindPlan (Address addr, UnwindPlan& unwind_plan)
     // Make sure that the Address we're searching for is the same object file
     // as this DWARFCallFrameInfo, we only store File offsets in m_fde_index.
     ModuleSP module_sp = addr.GetModule();
-    if (module_sp.get() == NULL || module_sp->GetObjectFile() == NULL || module_sp->GetObjectFile() != &m_objfile)
+    if (module_sp.get() == nullptr || module_sp->GetObjectFile() == nullptr || module_sp->GetObjectFile() != &m_objfile)
         return false;
 
     if (GetFDEEntryByFileAddress (addr.GetFileAddress(), fde_entry) == false)
@@ -70,10 +70,10 @@ DWARFCallFrameInfo::GetAddressRange (Address addr, AddressRange &range)
     // Make sure that the Address we're searching for is the same object file
     // as this DWARFCallFrameInfo, we only store File offsets in m_fde_index.
     ModuleSP module_sp = addr.GetModule();
-    if (module_sp.get() == NULL || module_sp->GetObjectFile() == NULL || module_sp->GetObjectFile() != &m_objfile)
+    if (module_sp.get() == nullptr || module_sp->GetObjectFile() == nullptr || module_sp->GetObjectFile() != &m_objfile)
         return false;
 
-    if (m_section_sp.get() == NULL || m_section_sp->IsEncrypted())
+    if (m_section_sp.get() == nullptr || m_section_sp->IsEncrypted())
         return false;
     GetFDEIndex();
     FDEEntryMap::Entry *fde_entry = m_fde_index.FindEntryThatContains (addr.GetFileAddress());
@@ -87,7 +87,7 @@ DWARFCallFrameInfo::GetAddressRange (Address addr, AddressRange &range)
 bool
 DWARFCallFrameInfo::GetFDEEntryByFileAddress (addr_t file_addr, FDEEntryMap::Entry &fde_entry)
 {
-    if (m_section_sp.get() == NULL || m_section_sp->IsEncrypted())
+    if (m_section_sp.get() == nullptr || m_section_sp->IsEncrypted())
         return false;
 
     GetFDEIndex();
@@ -97,7 +97,7 @@ DWARFCallFrameInfo::GetFDEEntryByFileAddress (addr_t file_addr, FDEEntryMap::Ent
 
     FDEEntryMap::Entry *fde = m_fde_index.FindEntryThatContains (file_addr);
 
-    if (fde == NULL)
+    if (fde == nullptr)
         return false;
 
     fde_entry = *fde;
@@ -131,12 +131,12 @@ DWARFCallFrameInfo::GetCIE(dw_offset_t cie_offset)
     if (pos != m_cie_map.end())
     {
         // Parse and cache the CIE
-        if (pos->second.get() == NULL)
+        if (pos->second.get() == nullptr)
             pos->second = ParseCIE (cie_offset);
 
         return pos->second.get();
     }
-    return NULL;
+    return nullptr;
 }
 
 DWARFCallFrameInfo::CIESP
@@ -146,9 +146,17 @@ DWARFCallFrameInfo::ParseCIE (const dw_offset_t cie_offset)
     lldb::offset_t offset = cie_offset;
     if (m_cfi_data_initialized == false)
         GetCFIData();
-    const uint32_t length = m_cfi_data.GetU32(&offset);
-    const dw_offset_t cie_id = m_cfi_data.GetU32(&offset);
-    const dw_offset_t end_offset = cie_offset + length + 4;
+    uint32_t length = m_cfi_data.GetU32(&offset);
+    dw_offset_t cie_id, end_offset;
+    bool is_64bit = (length == UINT32_MAX);
+    if (is_64bit) {
+        length = m_cfi_data.GetU64(&offset);
+        cie_id = m_cfi_data.GetU64(&offset);
+        end_offset = cie_offset + length + 12;
+    } else {
+        cie_id = m_cfi_data.GetU32(&offset);
+        end_offset = cie_offset + length + 4;
+    }
     if (length > 0 && ((!m_is_eh_frame && cie_id == UINT32_MAX) || (m_is_eh_frame && cie_id == 0ul)))
     {
         size_t i;
@@ -318,7 +326,7 @@ DWARFCallFrameInfo::GetCFIData()
 void
 DWARFCallFrameInfo::GetFDEIndex ()
 {
-    if (m_section_sp.get() == NULL || m_section_sp->IsEncrypted())
+    if (m_section_sp.get() == nullptr || m_section_sp->IsEncrypted())
         return;
     
     if (m_fde_index_initialized)
@@ -337,9 +345,19 @@ DWARFCallFrameInfo::GetFDEIndex ()
     while (m_cfi_data.ValidOffsetForDataOfSize (offset, 8))
     {
         const dw_offset_t current_entry = offset;
+        dw_offset_t cie_id, next_entry, cie_offset;
         uint32_t len = m_cfi_data.GetU32 (&offset);
-        dw_offset_t next_entry = current_entry + len + 4;
-        dw_offset_t cie_id = m_cfi_data.GetU32 (&offset);
+        bool is_64bit = (len == UINT32_MAX);
+        if (is_64bit) {
+            len = m_cfi_data.GetU64 (&offset);
+            cie_id = m_cfi_data.GetU64 (&offset);
+            next_entry = current_entry + len + 12;
+            cie_offset = current_entry + 12 - cie_id;
+        } else {
+            cie_id = m_cfi_data.GetU32 (&offset);
+            next_entry = current_entry + len + 4;
+            cie_offset = current_entry + 4 - cie_id;
+        }
 
         if (cie_id == 0 || cie_id == UINT32_MAX || len == 0)
         {
@@ -348,7 +366,6 @@ DWARFCallFrameInfo::GetFDEIndex ()
             continue;
         }
 
-        const dw_offset_t cie_offset = current_entry + 4 - cie_id;
         const CIE *cie = GetCIE (cie_offset);
         if (cie)
         {
@@ -381,14 +398,21 @@ DWARFCallFrameInfo::FDEToUnwindPlan (dw_offset_t dwarf_offset, Address startaddr
     lldb::offset_t offset = dwarf_offset;
     lldb::offset_t current_entry = offset;
 
-    if (m_section_sp.get() == NULL || m_section_sp->IsEncrypted())
+    if (m_section_sp.get() == nullptr || m_section_sp->IsEncrypted())
         return false;
 
     if (m_cfi_data_initialized == false)
         GetCFIData();
 
     uint32_t length = m_cfi_data.GetU32 (&offset);
-    dw_offset_t cie_offset = m_cfi_data.GetU32 (&offset);
+    dw_offset_t cie_offset;
+    bool is_64bit = (length == UINT32_MAX);
+    if (is_64bit) {
+        length = m_cfi_data.GetU64 (&offset);
+        cie_offset = m_cfi_data.GetU64 (&offset);
+    } else {
+        cie_offset = m_cfi_data.GetU32 (&offset);
+    }
 
     assert (cie_offset != 0 && cie_offset != UINT32_MAX);
 
@@ -398,7 +422,7 @@ DWARFCallFrameInfo::FDEToUnwindPlan (dw_offset_t dwarf_offset, Address startaddr
     if (m_is_eh_frame)
     {
         unwind_plan.SetSourceName ("eh_frame CFI");
-        cie_offset = current_entry + 4 - cie_offset;
+        cie_offset = current_entry + (is_64bit ? 12 : 4) - cie_offset;
         unwind_plan.SetUnwindPlanValidAtAllInstructions (eLazyBoolNo);
     }
     else
@@ -413,9 +437,9 @@ DWARFCallFrameInfo::FDEToUnwindPlan (dw_offset_t dwarf_offset, Address startaddr
     unwind_plan.SetSourcedFromCompiler (eLazyBoolYes);
 
     const CIE *cie = GetCIE (cie_offset);
-    assert (cie != NULL);
+    assert (cie != nullptr);
 
-    const dw_offset_t end_offset = current_entry + length + 4;
+    const dw_offset_t end_offset = current_entry + length + (is_64bit ? 12 : 4);
 
     const lldb::addr_t pc_rel_addr = m_section_sp->GetFileAddress();
     const lldb::addr_t text_addr = LLDB_INVALID_ADDRESS;

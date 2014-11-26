@@ -19,7 +19,9 @@
 #include "lldb/Core/ModuleSpec.h"
 #include "lldb/Core/PluginManager.h"
 #include "lldb/Host/FileSpec.h"
+#include "lldb/Host/FileSystem.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/HostInfo.h"
 #include "lldb/Target/Process.h"
 #include "lldb/Target/Target.h"
 #include "lldb/Utility/Utils.h"
@@ -91,7 +93,7 @@ Platform::GetFileWithUUID (const FileSpec &platform_file,
 }
 
 FileSpecList
-Platform::LocateExecutableScriptingResources (Target *target, Module &module)
+Platform::LocateExecutableScriptingResources (Target *target, Module &module, Stream* feedback_stream)
 {
     return FileSpecList();
 }
@@ -257,11 +259,12 @@ Platform::Platform (bool is_host) :
     m_ssh_opts (),
     m_ignores_remote_hostname (false),
     m_trap_handlers(),
-    m_calculated_trap_handlers (false)
+    m_calculated_trap_handlers (false),
+    m_trap_handler_mutex()
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_OBJECT));
     if (log)
-        log->Printf ("%p Platform::Platform()", this);
+        log->Printf ("%p Platform::Platform()", static_cast<void*>(this));
 }
 
 //------------------------------------------------------------------
@@ -274,7 +277,7 @@ Platform::~Platform()
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_OBJECT));
     if (log)
-        log->Printf ("%p Platform::~Platform()", this);
+        log->Printf ("%p Platform::~Platform()", static_cast<void*>(this));
 }
 
 void
@@ -347,9 +350,7 @@ Platform::GetOSVersion (uint32_t &major,
         if (!success)
         {
             // We have a local host platform
-            success = Host::GetOSVersion (m_major_os_version, 
-                                          m_minor_os_version, 
-                                          m_update_os_version);
+            success = HostInfo::GetOSVersion(m_major_os_version, m_minor_os_version, m_update_os_version);
             m_os_version_set_while_connected = success;
         }
     }
@@ -396,8 +397,14 @@ Platform::GetOSVersion (uint32_t &major,
 bool
 Platform::GetOSBuildString (std::string &s)
 {
+    s.clear();
+
     if (IsHost())
-        return Host::GetOSBuildString (s);
+#if !defined(__linux__)
+        return HostInfo::GetOSBuildString(s);
+#else
+        return false;
+#endif
     else
         return GetRemoteOSBuildString (s);
 }
@@ -406,7 +413,11 @@ bool
 Platform::GetOSKernelDescription (std::string &s)
 {
     if (IsHost())
-        return Host::GetOSKernelDescription (s);
+#if !defined(__linux__)
+        return HostInfo::GetOSKernelDescription(s);
+#else
+        return false;
+#endif
     else
         return GetRemoteOSKernelDescription (s);
 }
@@ -493,8 +504,8 @@ RecurseCopy_Callback (void *baton,
                     dst_file.GetFilename() = src.GetFilename();
                 
                 char buf[PATH_MAX];
-                
-                rc_baton->error = Host::Readlink (src.GetPath().c_str(), buf, sizeof(buf));
+
+                rc_baton->error = FileSystem::Readlink(src.GetPath().c_str(), buf, sizeof(buf));
 
                 if (rc_baton->error.Fail())
                     return FileSpec::eEnumerateDirectoryResultQuit; // got an error, bail out
@@ -526,6 +537,7 @@ RecurseCopy_Callback (void *baton,
         case FileSpec::eFileTypeInvalid:
         case FileSpec::eFileTypeOther:
         case FileSpec::eFileTypeUnknown:
+        default:
             rc_baton->error.SetErrorStringWithFormat("invalid file detected during copy: %s", src.GetPath().c_str());
             return FileSpec::eEnumerateDirectoryResultQuit; // got an error, bail out
             break;
@@ -647,7 +659,7 @@ Platform::Install (const FileSpec& src, const FileSpec& dst)
                     if (GetFileExists (fixed_dst))
                         Unlink (fixed_dst.GetPath().c_str());
                     char buf[PATH_MAX];
-                    error = Host::Readlink(src.GetPath().c_str(), buf, sizeof(buf));
+                    error = FileSystem::Readlink(src.GetPath().c_str(), buf, sizeof(buf));
                     if (error.Success())
                         error = CreateSymlink(dst.GetPath().c_str(), buf);
                 }
@@ -699,7 +711,7 @@ Error
 Platform::MakeDirectory (const char *path, uint32_t permissions)
 {
     if (IsHost())
-        return Host::MakeDirectory (path, permissions);
+        return FileSystem::MakeDirectory(path, permissions);
     else
     {
         Error error;
@@ -712,7 +724,7 @@ Error
 Platform::GetFilePermissions (const char *path, uint32_t &file_permissions)
 {
     if (IsHost())
-        return Host::GetFilePermissions(path, file_permissions);
+        return FileSystem::GetFilePermissions(path, file_permissions);
     else
     {
         Error error;
@@ -725,7 +737,7 @@ Error
 Platform::SetFilePermissions (const char *path, uint32_t file_permissions)
 {
     if (IsHost())
-        return Host::SetFilePermissions(path, file_permissions);
+        return FileSystem::SetFilePermissions(path, file_permissions);
     else
     {
         Error error;
@@ -744,7 +756,7 @@ const char *
 Platform::GetHostname ()
 {
     if (IsHost())
-        return "localhost";
+        return "127.0.0.1";
 
     if (m_name.empty())        
         return NULL;
@@ -764,30 +776,34 @@ Platform::SetRemoteWorkingDirectory(const ConstString &path)
 const char *
 Platform::GetUserName (uint32_t uid)
 {
+#if !defined(LLDB_DISABLE_POSIX)
     const char *user_name = GetCachedUserName(uid);
     if (user_name)
         return user_name;
     if (IsHost())
     {
         std::string name;
-        if (Host::GetUserName(uid, name))
+        if (HostInfo::LookupUserName(uid, name))
             return SetCachedUserName (uid, name.c_str(), name.size());
     }
+#endif
     return NULL;
 }
 
 const char *
 Platform::GetGroupName (uint32_t gid)
 {
+#if !defined(LLDB_DISABLE_POSIX)
     const char *group_name = GetCachedGroupName(gid);
     if (group_name)
         return group_name;
     if (IsHost())
     {
         std::string name;
-        if (Host::GetGroupName(gid, name))
+        if (HostInfo::LookupGroupName(gid, name))
             return SetCachedGroupName (gid, name.c_str(), name.size());
     }
+#endif
     return NULL;
 }
 
@@ -798,8 +814,8 @@ Platform::SetOSVersion (uint32_t major,
 {
     if (IsHost())
     {
-        // We don't need anyone setting the OS version for the host platform, 
-        // we should be able to figure it out by calling Host::GetOSVersion(...).
+        // We don't need anyone setting the OS version for the host platform,
+        // we should be able to figure it out by calling HostInfo::GetOSVersion(...).
         return false; 
     }
     else
@@ -902,7 +918,7 @@ Platform::GetSystemArchitecture()
         if (!m_system_arch.IsValid())
         {
             // We have a local host platform
-            m_system_arch = Host::GetArchitecture();
+            m_system_arch = HostInfo::GetArchitecture();
             m_system_arch_set_while_connected = m_system_arch.IsValid();
         }
     }
@@ -1180,9 +1196,30 @@ Platform::CalculateMD5 (const FileSpec& file_spec,
                         uint64_t &high)
 {
     if (IsHost())
-        return Host::CalculateMD5(file_spec, low, high);
+        return FileSystem::CalculateMD5(file_spec, low, high);
     else
         return false;
+}
+
+Error
+Platform::LaunchNativeProcess (
+    ProcessLaunchInfo &launch_info,
+    lldb_private::NativeProcessProtocol::NativeDelegate &native_delegate,
+    NativeProcessProtocolSP &process_sp)
+{
+    // Platforms should override this implementation if they want to
+    // support lldb-gdbserver.
+    return Error("unimplemented");
+}
+
+Error
+Platform::AttachNativeProcess (lldb::pid_t pid,
+                               lldb_private::NativeProcessProtocol::NativeDelegate &native_delegate,
+                               NativeProcessProtocolSP &process_sp)
+{
+    // Platforms should override this implementation if they want to
+    // support lldb-gdbserver.
+    return Error("unimplemented");
 }
 
 void
@@ -1200,23 +1237,23 @@ Platform::GetLocalCacheDirectory ()
 static OptionDefinition
 g_rsync_option_table[] =
 {
-    {   LLDB_OPT_SET_ALL, false, "rsync"                  , 'r', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone         , "Enable rsync." },
-    {   LLDB_OPT_SET_ALL, false, "rsync-opts"             , 'R', OptionParser::eRequiredArgument, NULL, 0, eArgTypeCommandName  , "Platform-specific options required for rsync to work." },
-    {   LLDB_OPT_SET_ALL, false, "rsync-prefix"           , 'P', OptionParser::eRequiredArgument, NULL, 0, eArgTypeCommandName  , "Platform-specific rsync prefix put before the remote path." },
-    {   LLDB_OPT_SET_ALL, false, "ignore-remote-hostname" , 'i', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone         , "Do not automatically fill in the remote hostname when composing the rsync command." },
+    {   LLDB_OPT_SET_ALL, false, "rsync"                  , 'r', OptionParser::eNoArgument,       NULL, NULL, 0, eArgTypeNone         , "Enable rsync." },
+    {   LLDB_OPT_SET_ALL, false, "rsync-opts"             , 'R', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeCommandName  , "Platform-specific options required for rsync to work." },
+    {   LLDB_OPT_SET_ALL, false, "rsync-prefix"           , 'P', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeCommandName  , "Platform-specific rsync prefix put before the remote path." },
+    {   LLDB_OPT_SET_ALL, false, "ignore-remote-hostname" , 'i', OptionParser::eNoArgument,       NULL, NULL, 0, eArgTypeNone         , "Do not automatically fill in the remote hostname when composing the rsync command." },
 };
 
 static OptionDefinition
 g_ssh_option_table[] =
 {
-    {   LLDB_OPT_SET_ALL, false, "ssh"                    , 's', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone         , "Enable SSH." },
-    {   LLDB_OPT_SET_ALL, false, "ssh-opts"               , 'S', OptionParser::eRequiredArgument, NULL, 0, eArgTypeCommandName  , "Platform-specific options required for SSH to work." },
+    {   LLDB_OPT_SET_ALL, false, "ssh"                    , 's', OptionParser::eNoArgument,       NULL, NULL, 0, eArgTypeNone         , "Enable SSH." },
+    {   LLDB_OPT_SET_ALL, false, "ssh-opts"               , 'S', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeCommandName  , "Platform-specific options required for SSH to work." },
 };
 
 static OptionDefinition
 g_caching_option_table[] =
 {
-    {   LLDB_OPT_SET_ALL, false, "local-cache-dir"        , 'c', OptionParser::eRequiredArgument, NULL, 0, eArgTypePath         , "Path in which to store local copies of files." },
+    {   LLDB_OPT_SET_ALL, false, "local-cache-dir"        , 'c', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypePath         , "Path in which to store local copies of files." },
 };
 
 OptionGroupPlatformRSync::OptionGroupPlatformRSync ()
@@ -1398,8 +1435,12 @@ Platform::GetTrapHandlerSymbolNames ()
 {
     if (!m_calculated_trap_handlers)
     {
-        CalculateTrapHandlerSymbolNames();
-        m_calculated_trap_handlers = true;
+        Mutex::Locker locker (m_trap_handler_mutex);
+        if (!m_calculated_trap_handlers)
+        {
+            CalculateTrapHandlerSymbolNames();
+            m_calculated_trap_handlers = true;
+        }
     }
     return m_trap_handlers;
 }

@@ -19,6 +19,7 @@
 
 #ifdef _WIN32
 #include "lldb/Host/windows/win32.h"
+typedef uint32_t pid_t;
 // empty functions
 int posix_openpt(int flag) { return 0; }
 
@@ -47,7 +48,7 @@ PseudoTerminal::PseudoTerminal () :
 // Destructor
 //
 // The destructor will close the master and slave file descriptors
-// if they are valid and ownwership has not been released using the
+// if they are valid and ownership has not been released using the
 // ReleaseMasterFileDescriptor() or the ReleaseSaveFileDescriptor()
 // member functions.
 //----------------------------------------------------------------------
@@ -155,7 +156,7 @@ PseudoTerminal::OpenSlave (int oflag, char *error_str, size_t error_len)
     // Open the master side of a pseudo terminal
     const char *slave_name = GetSlaveName (error_str, error_len);
 
-    if (slave_name == NULL)
+    if (slave_name == nullptr)
         return false;
 
     m_slave_fd = ::open (slave_name, oflag);
@@ -193,11 +194,11 @@ PseudoTerminal::GetSlaveName (char *error_str, size_t error_len) const
     {
         if (error_str)
             ::snprintf (error_str, error_len, "%s", "master file descriptor is invalid");
-        return NULL;
+        return nullptr;
     }
     const char *slave_name = ::ptsname (m_master_fd);
 
-    if (error_str && slave_name == NULL)
+    if (error_str && slave_name == nullptr)
         ::strerror_r (errno, error_str, error_len);
 
     return slave_name;

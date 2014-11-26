@@ -99,11 +99,11 @@ CompileUnit::GetDescription(Stream *s, lldb::DescriptionLevel level) const
 void
 CompileUnit::Dump(Stream *s, bool show_context) const
 {
-    s->Printf("%p: ", this);
+    s->Printf("%p: ", static_cast<const void*>(this));
     s->Indent();
-    *s << "CompileUnit" << (const UserID&)*this
-        << ", language = \"" << (const Language&)*this
-        << "\", file = '" << (const FileSpec&)*this << "'\n";
+    *s << "CompileUnit" << static_cast<const UserID&>(*this)
+       << ", language = \"" << reinterpret_cast<const Language&>(*this)
+       << "\", file = '" << static_cast<const FileSpec&>(*this) << "'\n";
 
 //  m_types.Dump(s);
 
@@ -237,7 +237,7 @@ CompileUnit::GetLanguage()
 LineTable*
 CompileUnit::GetLineTable()
 {
-    if (m_line_table_ap.get() == NULL)
+    if (m_line_table_ap.get() == nullptr)
     {
         if (m_flags.IsClear(flagsParsedLineTable))
         {
@@ -257,7 +257,7 @@ CompileUnit::GetLineTable()
 void
 CompileUnit::SetLineTable(LineTable* line_table)
 {
-    if (line_table == NULL)
+    if (line_table == nullptr)
         m_flags.Clear(flagsParsedLineTable);
     else
         m_flags.Set(flagsParsedLineTable);
@@ -267,7 +267,7 @@ CompileUnit::SetLineTable(LineTable* line_table)
 VariableListSP
 CompileUnit::GetVariableList(bool can_create)
 {
-    if (m_variables.get() == NULL && can_create)
+    if (m_variables.get() == nullptr && can_create)
     {
         SymbolContext sc;
         CalculateSymbolContext(&sc);
@@ -353,7 +353,7 @@ CompileUnit::ResolveSymbolContext
     {
         LineTable *line_table = sc.comp_unit->GetLineTable();
 
-        if (line_table != NULL)
+        if (line_table != nullptr)
         {
             uint32_t found_line;
             uint32_t line_idx;
