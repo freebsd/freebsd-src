@@ -173,6 +173,8 @@ HostInfoPosix::ComputeHeaderDirectory(FileSpec &file_spec)
 bool
 HostInfoPosix::ComputePythonDirectory(FileSpec &file_spec)
 {
+    return false; // No Python in FreeBSD base system
+#if 0
     FileSpec lldb_file_spec;
     if (!GetLLDBPath(lldb::ePathTypeLLDBShlibDir, lldb_file_spec))
         return false;
@@ -190,4 +192,5 @@ HostInfoPosix::ComputePythonDirectory(FileSpec &file_spec)
 
     file_spec.GetDirectory().SetCString(raw_path);
     return true;
+#endif
 }
