@@ -44,10 +44,6 @@ ${PROG}.bin: ${PROG}
 	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
 
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
-.PATH: ${.CURDIR}/../../../lib/libc/${MACHINE}/gen
-.PATH: ${.CURDIR}/../../../lib/libc/${MACHINE}/string
-.PATH: ${.CURDIR}/../../../lib/libc/${MACHINE}/sys
-.PATH: ${.CURDIR}/../../../lib/libc/string
 
 .include <src.opts.mk>
 .include <bsd.prog.mk>
