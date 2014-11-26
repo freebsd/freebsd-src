@@ -233,8 +233,8 @@ SUBDIR+=	calendar
 .endif
 
 .if ${MK_CHERI} != "no"
-SUBDIR+=	nsfb
-SUBDIR+=	nsfb_sb
+#SUBDIR+=	nsfb
+#SUBDIR+=	nsfb_sb
 SUBDIR+=	libpng_sb_test
 .endif
 
