@@ -128,7 +128,6 @@ lldb_private::Initialize ()
         EmulateInstructionARM64::Initialize ();
         DynamicLoaderPOSIXDYLD::Initialize ();
         PlatformFreeBSD::Initialize();
-        PlatformKalimba::Initialize();
         SymbolFileDWARFDebugMap::Initialize();
         ItaniumABILanguageRuntime::Initialize();
 #ifndef LLDB_DISABLE_PYTHON
@@ -211,7 +210,6 @@ lldb_private::Terminate ()
     EmulateInstructionARM64::Terminate ();
     DynamicLoaderPOSIXDYLD::Terminate ();
     PlatformFreeBSD::Terminate();
-    PlatformKalimba::Terminate();
     SymbolFileDWARFDebugMap::Terminate();
     ItaniumABILanguageRuntime::Terminate();
 #ifndef LLDB_DISABLE_PYTHON

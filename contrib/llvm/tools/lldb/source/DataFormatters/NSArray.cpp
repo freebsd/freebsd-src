@@ -19,7 +19,6 @@
 #include "lldb/Host/Endian.h"
 #include "lldb/Symbol/ClangASTContext.h"
 #include "lldb/Target/ObjCLanguageRuntime.h"
-#include "Plugins/LanguageRuntime/ObjC/AppleObjCRuntime/AppleObjCRuntime.h"
 #include "lldb/Target/Target.h"
 
 #include "clang/AST/ASTContext.h"
