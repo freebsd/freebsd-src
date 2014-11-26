@@ -6,20 +6,26 @@ LIB=	lldbHostCommon
 
 SRCDIR=	tools/lldb/source/Host/common
 SRCS=	Condition.cpp \
-	DynamicLibrary.cpp \
 	Editline.cpp \
 	File.cpp \
 	FileSpec.cpp \
 	Host.cpp \
+	HostInfoBase.cpp \
+	IOObject.cpp \
 	Mutex.cpp \
 	OptionParser.cpp \
+	Pipe.cpp \
 	ProcessRunLock.cpp \
+	Socket.cpp \
 	SocketAddress.cpp \
+	SoftwareBreakpoint.cpp \
 	Symbols.cpp \
 	Terminal.cpp \
 	TimeValue.cpp
 
-TGHDRS=	DiagnosticCommonKinds \
+TGHDRS=	AttrList \
+	Attrs \
+	DiagnosticCommonKinds \
 	DeclNodes \
 	StmtNodes \
 	CommentCommandList
