@@ -112,6 +112,7 @@ SUBDIR+=liblldb \
 	liblldbExpression \
 	liblldbHostCommon \
 	liblldbHostFreeBSD \
+	liblldbHostPOSIX \
 	liblldbInterpreter \
 	liblldbSymbol \
 	liblldbTarget \
@@ -123,8 +124,11 @@ SUBDIR+=liblldb \
 	liblldbPluginDynamicLoaderStatic \
 	liblldbPluginDynamicLoaderPosixDYLD \
 	liblldbPluginInstructionARM \
+	liblldbPluginInstructionARM64 \
+	liblldbPluginJITLoaderGDB \
 	liblldbPluginObjectContainerBSDArchive \
 	liblldbPluginObjectFileELF \
+	liblldbPluginObjectFileJIT \
 	liblldbPluginPlatformFreeBSD \
 	liblldbPluginPlatformGDB \
 	liblldbPluginProcessElfCore \

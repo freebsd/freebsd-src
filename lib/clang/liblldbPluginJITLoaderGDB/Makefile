@@ -2,11 +2,10 @@
 
 .include <bsd.own.mk>
 
-LIB=	lldbHostFreeBSD
+LIB=	lldbPluginJITLoaderGDB
 
-SRCDIR=	tools/lldb/source/Host/freebsd
-SRCS=	Host.cpp \
-	HostInfoFreeBSD.cpp
+SRCDIR=	tools/lldb/source/Plugins/JITLoader/GDB
+SRCS=	JITLoaderGDB.cpp
 
 TGHDRS=	DiagnosticCommonKinds \
 	DeclNodes \

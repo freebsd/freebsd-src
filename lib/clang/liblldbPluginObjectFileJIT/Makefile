@@ -2,13 +2,10 @@
 
 .include <bsd.own.mk>
 
-LIB=	lldb
+LIB=	lldbPluginObjectFileJIT
 
-CFLAGS+=-I${.CURDIR}/../../../contrib/llvm/tools/lldb/source/Plugins/Process/POSIX
-
-SRCDIR=	tools/lldb/source
-SRCS=	lldb.cpp \
-	lldb-log.cpp
+SRCDIR=	tools/lldb/source/Plugins/ObjectFile/JIT
+SRCS=	ObjectFileJIT.cpp
 
 TGHDRS=	AttrList \
 	Attrs \
