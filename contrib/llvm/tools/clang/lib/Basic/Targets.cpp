@@ -6036,6 +6036,8 @@ static TargetInfo *AllocateTarget(const llvm::Triple &Triple) {
       return new DarwinAArch64TargetInfo(Triple);
 
     switch (os) {
+    case llvm::Triple::FreeBSD:
+      return new FreeBSDTargetInfo<AArch64leTargetInfo>(Triple);
     case llvm::Triple::Linux:
       return new LinuxTargetInfo<AArch64leTargetInfo>(Triple);
     case llvm::Triple::NetBSD:
@@ -6047,6 +6049,8 @@ static TargetInfo *AllocateTarget(const llvm::Triple &Triple) {
   case llvm::Triple::aarch64_be:
   case llvm::Triple::arm64_be:
     switch (os) {
+    case llvm::Triple::FreeBSD:
+      return new FreeBSDTargetInfo<AArch64beTargetInfo>(Triple);
     case llvm::Triple::Linux:
       return new LinuxTargetInfo<AArch64beTargetInfo>(Triple);
     case llvm::Triple::NetBSD:
