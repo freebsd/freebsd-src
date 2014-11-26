@@ -316,6 +316,7 @@ OLD_DIRS+=usr/libexec/bsdinstall
 .endif
 
 .if ${MK_BSNMP} == no
+OLD_FILES+=etc/snmpd.config
 OLD_FILES+=etc/rc.d/bsnmpd
 OLD_FILES+=usr/bin/bsnmpget
 OLD_FILES+=usr/bin/bsnmpset
