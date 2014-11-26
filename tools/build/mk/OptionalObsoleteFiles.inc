@@ -58,6 +58,11 @@ OLD_FILES+=usr/share/man/man8/amd64/apm.8.gz
 OLD_FILES+=usr/share/man/man8/amd64/apmconf.8.gz
 .endif
 
+.if ${MK_APM} == no && ${MK_ACPI} == no
+OLD_FILES+=usr/sbin/zzz
+OLD_FILES+=usr/share/man/man8/zzz.8.gz
+.endif
+
 .if ${MK_AT} == no
 OLD_FILES+=usr/bin/at
 OLD_FILES+=usr/bin/atq
