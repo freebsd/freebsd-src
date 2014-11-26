@@ -3985,6 +3985,7 @@ OLD_FILES+=usr/share/man/man8/rbootd.8.gz
 .endif
 
 .if ${MK_RCMDS} == no
+OLD_FILES+=usr/include/protocols/rwhod.h
 OLD_FILES+=bin/rcp
 OLD_FILES+=etc/pam.d/rsh
 OLD_FILES+=etc/rc.d/rwho
@@ -4040,6 +4041,7 @@ OLD_FILES+=usr/share/man/man8/etcupdate.8.gz
 #.endif
 
 .if ${MK_ROUTED} == no
+OLD_FILES+=usr/include/protocols/routed.h
 OLD_FILES+=sbin/routed
 OLD_FILES+=sbin/rtquery
 OLD_FILES+=usr/share/man/man8/routed.8.gz
