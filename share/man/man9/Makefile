@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 MAN=	accept_filter.9 \
 	accf_data.9 \
 	accf_dns.9 \
@@ -272,7 +274,6 @@ MAN=	accept_filter.9 \
 	uidinfo.9 \
 	uio.9 \
 	unr.9 \
-	usbdi.9 \
 	utopia.9 \
 	vaccess.9 \
 	vaccess_acl_nfs4.9 \
@@ -1600,6 +1601,9 @@ MLINKS+=uidinfo.9 uifind.9 \
 	uidinfo.9 uihold.9
 MLINKS+=uio.9 uiomove.9 \
 	uio.9 uiomove_nofault.9
+
+.if ${MK_USB} != "no"
+MAN+=	usbdi.9
 MLINKS+=usbdi.9 usbd_do_request.9 \
 	usbdi.9 usbd_do_request_flags.9 \
 	usbdi.9 usbd_errstr.9 \
@@ -1651,6 +1655,7 @@ MLINKS+=usbdi.9 usbd_do_request.9 \
 	usbdi.9 usb_fifo_reset.9 \
 	usbdi.9 usb_fifo_softc.9 \
 	usbdi.9 usb_fifo_wakeup.9
+.endif
 MLINKS+=vcount.9 count_dev.9
 MLINKS+=vfsconf.9 vfs_modevent.9 \
 	vfsconf.9 vfs_register.9 \
