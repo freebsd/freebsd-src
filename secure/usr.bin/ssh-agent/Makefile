@@ -20,7 +20,7 @@ CFLAGS+=	-DHAVE_LDNS=1
 #USEPRIVATELIB+= ldns
 .endif
 
-LIBADD+=	crypt crypto z
+LIBADD+=	crypto
 
 .include <bsd.prog.mk>
 

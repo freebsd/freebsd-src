@@ -5,8 +5,7 @@
 PROG=	wlanstats
 BINDIR=	/usr/local/bin
 MAN=
-USEPRIVATELIB=  bsdstat
-LDADD=  ${LDBSDSTAT}
+LIBADD=	bsdstat
 
 SRCS=	wlanstats.c main.c
 

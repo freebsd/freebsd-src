@@ -159,6 +159,9 @@ _DP_archive+=	md
 .endif
 _DP_ssl=	crypto
 _DP_ssh=	crypto crypt
+.if ${MK_LDNS} != "no"
+_DP_ssh+=	ldns z
+.endif
 _DP_edit=	ncursesw
 .if ${MK_OPENSSL} != "no"
 _DP_bsnmp=	crypto
@@ -214,7 +217,9 @@ _DP_pam+=	ssh
 .if ${MK_NIS} != "no"
 _DP_pam+=	ypclnt
 .endif
-_DP_krb5+=	asn1 com_err crypt crypto hx509 roken wind heimbase heimipcc
+_DP_krb5+=	asn1 com_err crypt crypto hx509 roken wind heimbase heimipcc \
+		pthread
+_DP_gssapi_krb5+=	gssapi krb5 crypto roken asn1 com_err
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
@@ -256,6 +261,10 @@ DPADD_hdb+=	${DPADD_pthread}
 LDADD_hdb+=	${LDADD_pthread}
 DPADD_kadm5srv+=	${DPADD_pthread}
 LDADD_kadm5srv+=	${LDADD_pthread}
+DPADD_krb5+=	${DPADD_pthread}
+LDADD_krb5+=	${LDADD_pthread}
+DPADD_gssapi_krb5+=	${DPADD_pthread}
+LDADD_gssapi_krb5+=	${LDADD_pthread}
 
 .for _l in ${LIBADD}
 .if ${_PRIVATELIBS:M${_l}}
@@ -278,54 +287,42 @@ LDATF_CXX?=	${LIBATF_CXXDIR}/libatf-c++.so
 LIBATF_CXX?=	${LIBATF_CXXDIR}/libatf-c++.a
 
 LIBBSDSTATDIR=	${ROOTOBJDIR}/lib/libbsdstat
-LDBSDSTAT?=	${LIBBSDSTATDIR}/libbsdstat.so
 LIBBSDSTAT?=	${LIBBSDSTATDIR}/libbsdstat.a
 
 LIBEVENTDIR=	${ROOTOBJDIR}/lib/libevent
-LDEVENT?=	${LIBEVENTDIR}/libevent.a
 LIBEVENT?=	${LIBEVENTDIR}/libevent.a
 
 LIBHEIMIPCCDIR=	${ROOTOBJDIR}/kerberos5/lib/libheimipcc
-LDHEIMIPCC?=	${LIBHEIMIPCCDIR}/libheimipcc.so
 LIBHEIMIPCC?=	${LIBHEIMIPCCDIR}/libheimipcc.a
 
 LIBHEIMIPCSDIR=	${ROOTOBJDIR}/kerberos5/lib/libheimipcs
-LDHEIMIPCS?=	${LIBHEIMIPCSDIR}/libheimipcs.so
 LIBHEIMIPCS?=	${LIBHEIMIPCSDIR}/libheimipcs.a
 
 LIBLDNSDIR=	${ROOTOBJDIR}/lib/libldns
-LDLDNS?=	${LIBLDNSDIR}/libldns.so
 LIBLDNS?=	${LIBLDNSDIR}/libldns.a
 
 LIBSSHDIR=	${ROOTOBJDIR}/secure/lib/libssh
-LDSSH?=		${LIBSSHDIR}/libssh.so
 LIBSSH?=	${LIBSSHDIR}/libssh.a
 
 LIBUNBOUNDDIR=	${ROOTOBJDIR}/lib/libunbound
-LDUNBOUND?=	${LIBUNBOUNDDIR}/libunbound.so
 LIBUNBOUND?=	${LIBUNBOUNDDIR}/libunbound.a
 
 LIBUCLDIR=	${ROOTOBJDIR}/lib/libucl
-LDUCL?=		${LIBUCLDIR}/libucl.so
 LIBUCL?=	${LIBUCLDIR}/libucl.a
 
 LIBREADLINEDIR=	${ROOTOBJDIR}/gnu/lib/libreadline/readline
-LDREADLINE?=	${LIBREADLINEDIR}/libreadline.a
 LIBREADLINE?=	${LIBREADLINEDIR}/libreadline.a
 
 LIBOHASHDIR=	${ROOTOBJDIR}/lib/libohash
-LDOHASH?=	${LIBOHASHDIR}/libohash.a
 LIBOHASH?=	${LIBOHASHDIR}/libohash.a
 
 LIBSQLITE3DIR=	${ROOTOBJDIR}/lib/libsqlite3
-LDSQLITE3?=	${LIBSQLITE3DIR}/libsqlite3.so
 LIBSQLITE3?=	${LIBSQLITE3DIR}/libsqlite3.a
 
 LIBMANDOCDIR=	${ROOTOBJDIR}/lib/libmandoc
 LIBMANDOC?=	${LIBMANDOCDIR}/libmandoc.a
 
 LIBSMDIR=	${ROOTOBJDIR}/lib/libsm
-LDSM?=		${LIBSMDIR}/libsm.a
 LIBSM?=		${LIBSMDIR}/libsm.a
 
 LIBSMDBDIR=	${ROOTOBJDIR}/lib/libsmdb
@@ -372,3 +369,4 @@ LIBBSNMPTOOLS?=	${LIBBSNMPTOOLSDIR}/libbsnmptools.a
 
 LIBAMUDIR=	${ROOTOBJDIR}/usr.sbin/amd/libamu
 LIBAMU?=	${LIBAMUDIR}/libamu/libamu.a
+
