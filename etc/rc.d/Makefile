@@ -22,7 +22,6 @@ FILES=	DAEMON \
 	autounmountd \
 	bgfsck \
 	${_bluetooth} \
-	bootparams \
 	bridge \
 	${_bsnmpd} \
 	${_bthidd} \
@@ -40,14 +39,12 @@ FILES=	DAEMON \
 	dmesg \
 	dumpon \
 	fsck \
-	ftpd \
 	gbde \
 	geli \
 	geli2 \
 	gptboot \
 	growfs \
 	gssd \
-	hastd \
 	${_hcsecd} \
 	hostapd \
 	hostid \
@@ -63,8 +60,6 @@ FILES=	DAEMON \
 	ipropd_master \
 	ipropd_slave \
 	ipsec \
-	iscsictl \
-	iscsid \
 	jail \
 	${_kadmind} \
 	${_kdc} \
@@ -177,6 +172,10 @@ _hcsecd=	hcsecd
 _ubthidhci=	ubthidhci
 .endif
 
+.if ${MK_BOOTPARAMD} != "no"
+FILES+=		bootparams
+.endif
+
 .if ${MK_BSNMP} != "no"
 _bsnmpd=	bsnmpd
 .endif
@@ -185,8 +184,21 @@ _bsnmpd=	bsnmpd
 _casperd=	casperd
 .endif
 
+.if ${MK_FTP} != "no"
+FILES+=		ftpd
+.endif
+
+.if ${MK_HAST} != "no"
+FILES+=		hastd
+.endif
+
 .if ${MK_INETD} != "no"
 _inetd=		inetd
+.endif
+
+.if ${MK_ISCSI} != "no"
+FILES+=	iscsictl
+FILES+=	iscsid
 .endif
 
 .if ${MK_NS_CACHING} != "no"

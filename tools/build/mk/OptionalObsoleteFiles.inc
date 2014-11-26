@@ -285,6 +285,26 @@ OLD_FILES+=usr/share/man/man8/sdpd.8.gz
 # to be filled in
 #.endif
 
+.if ${MK_BOOTPARAMD} == no
+OLD_FILES+=rc.d/bootparams
+OLD_FILES+=usr/sbin/bootparamd
+OLD_FILES+=usr/sbin/callbootd
+OLD_FILES+=usr/share/man/man5/bootparams.5.gz
+OLD_FILES+=usr/share/man/man8/bootparamd.8.gz
+.endif
+
+.if ${MK_BOOTPD} == no
+OLD_FILES+=usr/libexec/bootpd
+OLD_FILES+=usr/libexec/bootpgw
+OLD_FILES+=usr/sbin/bootpef
+OLD_FILES+=usr/sbin/bootptest
+OLD_FILES+=usr/share/man/man5/bootptab.5.gz
+OLD_FILES+=usr/share/man/man8/bootpd.8.gz
+OLD_FILES+=usr/share/man/man8/bootpef.8.gz
+OLD_FILES+=usr/share/man/man8/bootpgw.8.gz
+OLD_FILES+=usr/share/man/man8/bootptest.8.gz
+.endif
+
 .if ${MK_BSDINSTALL} == no
 OLD_FILES+=usr/libexec/bsdinstall/adduser
 OLD_FILES+=usr/libexec/bsdinstall/auto
@@ -740,6 +760,14 @@ OLD_FILES+=usr/bin/gperf
 OLD_FILES+=usr/share/info/gperf.info.gz
 OLD_FILES+=usr/share/man/man1/gperf.1.gz
 .endif
+.endif
+
+.if ${MK_FINGER} == no
+OLD_FILES+=usr/bin/finger
+OLD_FILES+=usr/libexec/fingerd
+OLD_FILES+=usr/share/man/man1/finger.1.gz
+OLD_FILES+=usr/share/man/man5/finger.conf.5.gz
+OLD_FILES+=usr/share/man/man8/fingerd.8.gz
 .endif
 
 .if ${MK_FMTREE} == no
@@ -1356,6 +1384,18 @@ OLD_FILES+=usr/sbin/freebsd-update
 OLD_FILES+=usr/share/examples/etc/freebsd-update.conf
 OLD_FILES+=usr/share/man/man5/freebsd-update.conf.5.gz
 OLD_FILES+=usr/share/man/man8/freebsd-update.8.gz
+.endif
+
+.if ${MK_FTP} == no
+OLD_FILES+=usr/bin/ftp
+OLD_FILES+=usr/bin/gate-ftp
+OLD_FILES+=usr/bin/pftp
+OLD_FILES+=usr/libexec/ftpd
+OLD_FILES+=usr/share/man/man1/ftp.1.gz
+OLD_FILES+=usr/share/man/man1/gate-ftp.1.gz
+OLD_FILES+=usr/share/man/man1/pftp.1.gz
+OLD_FILES+=usr/share/man/man5/ftpchroot.5.gz
+OLD_FILES+=usr/share/man/man8/ftpd.8.gz
 .endif
 
 .if ${MK_GAMES} == no
@@ -2053,6 +2093,20 @@ OLD_FILES+=usr/share/man/man5/qop.5.gz
 OLD_FILES+=usr/share/man/man8/gssd.8.gz
 .endif
 
+.if ${MK_HAST} == no
+OLD_FILES+=sbin/hastctl
+OLD_FILES+=sbin/hastd
+OLD_FILES+=usr/share/examples/hast/ucarp.sh
+OLD_FILES+=usr/share/examples/hast/ucarp_down.sh
+OLD_FILES+=usr/share/examples/hast/ucarp_up.sh
+OLD_FILES+=usr/share/examples/hast/vip-down.sh
+OLD_FILES+=usr/share/examples/hast/vip-up.sh
+OLD_FILES+=usr/share/man/man5/hast.conf.5.gz
+OLD_FILES+=usr/share/man/man8/hastctl.8.gz
+OLD_FILES+=usr/share/man/man8/hastd.8.gz
+OLD_DIRS+=usr/share/examples/hast
+.endif
+
 .if ${MK_HESIOD} == no
 OLD_FILES+=usr/bin/hesinfo
 OLD_FILES+=usr/include/hesiod.h
@@ -2250,6 +2304,20 @@ OLD_FILES+=usr/sbin/ipfwpcap
 OLD_FILES+=usr/share/man/man8/ipfw.8.gz
 OLD_FILES+=usr/share/man/man8/ipfwpcap.8.gz
 OLD_FILES+=usr/share/man/man8/natd.8.gz
+.endif
+
+.if ${MK_ISCSI} == no
+OLD_FILES+=etc/rc.d/iscsictl
+OLD_FILES+=etc/rc.d/iscsid
+OLD_FILES+=sbin/iscontrol
+OLD_FILES+=usr/bin/iscsictl
+OLD_FILES+=usr/sbin/iscsid
+OLD_FILES+=usr/share/man/man4/iscsi.4.gz
+OLD_FILES+=usr/share/man/man4/iscsi_initiator.4.gz
+OLD_FILES+=usr/share/man/man5/iscsi.conf.5.gz
+OLD_FILES+=usr/share/man/man8/iscontrol.8.gz
+OLD_FILES+=usr/share/man/man8/iscsictl.8.gz
+OLD_FILES+=usr/share/man/man8/iscsid.8.gz
 .endif
 
 .if ${MK_JAIL} == no
@@ -3911,6 +3979,11 @@ OLD_FILES+=usr/lib/private/libldns_p.a
 OLD_FILES+=usr/lib/private/libssh_p.a
 .endif
 
+.if ${MK_RBOOTD} == no
+OLD_FILES+=usr/libexec/rbootd
+OLD_FILES+=usr/share/man/man8/rbootd.8.gz
+.endif
+
 .if ${MK_RCMDS} == no
 OLD_FILES+=bin/rcp
 OLD_FILES+=etc/pam.d/rsh
@@ -4219,6 +4292,23 @@ OLD_DIRS+=usr/share/doc/pjdfstest
 # to be filled in
 #.endif
 
+.if ${MK_TALK} == no
+OLD_FILES+=usr/bin/talk
+OLD_FILES+=usr/include/protocols/talkd.h
+OLD_FILES+=usr/libexec/ntalkd
+OLD_FILES+=usr/share/man/man1/talk.1.gz
+OLD_FILES+=usr/share/man/man8/talkd.8.gz
+.endif
+
+.if ${MK_TCP_WRAPPERS} == no
+OLD_FILES+=usr/libexec/tcpd
+OLD_FILES+=usr/sbin/tcpdchk
+OLD_FILES+=usr/sbin/tcpdmatch
+OLD_FILES+=usr/share/man/man8/tcpd.8.gz
+OLD_FILES+=usr/share/man/man8/tcpdchk.8.gz
+OLD_FILES+=usr/share/man/man8/tcpdmatch.8.gz
+.endif
+
 .if ${MK_TCSH} == no
 OLD_FILES+=bin/csh
 OLD_FILES+=bin/tcsh
@@ -4285,6 +4375,13 @@ OLD_FILES+=usr/bin/telnet
 OLD_FILES+=usr/libexec/telnetd
 OLD_FILES+=usr/share/man/man1/telnet.1.gz
 OLD_FILES+=usr/share/man/man8/telnetd.8.gz
+.endif
+
+.if ${MK_TFTP} == no
+OLD_FILES+=usr/bin/tftp
+OLD_FILES+=usr/libexec/tftpd
+OLD_FILES+=usr/share/man/man1/tftp.1.gz
+OLD_FILES+=usr/share/man/man8/tftpd.8.gz
 .endif
 
 .if ${MK_TESTS} == yes
