@@ -611,6 +611,8 @@ lldb_private::formatters::NSArrayISyntheticFrontEnd::GetChildAtIndex (size_t idx
 
 SyntheticChildrenFrontEnd* lldb_private::formatters::NSArraySyntheticFrontEndCreator (CXXSyntheticChildren*, lldb::ValueObjectSP valobj_sp)
 {
+    return nullptr; // Avoid need for AppleObjCRuntime on FreeBSD
+#if 0
     if (!valobj_sp)
         return nullptr;
     
@@ -657,6 +659,7 @@ SyntheticChildrenFrontEnd* lldb_private::formatters::NSArraySyntheticFrontEndCre
     {
         return (new NSArrayCodeRunningSyntheticFrontEnd(valobj_sp));
     }
+#endif
 }
 
 lldb_private::formatters::NSArrayCodeRunningSyntheticFrontEnd::NSArrayCodeRunningSyntheticFrontEnd (lldb::ValueObjectSP valobj_sp) :
