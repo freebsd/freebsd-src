@@ -27,7 +27,6 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/TargetSelect.h"
 
-#include "Plugins/ABI/MacOSX-arm64/ABIMacOSX_arm64.h"
 #include "Plugins/ABI/SysV-x86_64/ABISysV_x86_64.h"
 #include "Plugins/Disassembler/llvm/DisassemblerLLVMC.h"
 #include "Plugins/DynamicLoader/POSIX-DYLD/DynamicLoaderPOSIXDYLD.h"
@@ -37,14 +36,9 @@
 #include "Plugins/LanguageRuntime/CPlusPlus/ItaniumABI/ItaniumABILanguageRuntime.h"
 #include "Plugins/ObjectContainer/BSD-Archive/ObjectContainerBSDArchive.h"
 #include "Plugins/ObjectFile/ELF/ObjectFileELF.h"
-#include "Plugins/ObjectFile/PECOFF/ObjectFilePECOFF.h"
 #include "Plugins/Platform/FreeBSD/PlatformFreeBSD.h"
-#include "Plugins/Platform/Linux/PlatformLinux.h"
 #include "Plugins/Platform/POSIX/PlatformPOSIX.h"
-#include "Plugins/Platform/Windows/PlatformWindows.h"
-#include "Plugins/Platform/Kalimba/PlatformKalimba.h"
 #include "Plugins/Process/elf-core/ProcessElfCore.h"
-#include "Plugins/SymbolVendor/MacOSX/SymbolVendorMacOSX.h"
 #include "Plugins/SymbolVendor/ELF/SymbolVendorELF.h"
 #include "Plugins/SymbolFile/DWARF/SymbolFileDWARF.h"
 #include "Plugins/SymbolFile/DWARF/SymbolFileDWARFDebugMap.h"
@@ -121,7 +115,6 @@ lldb_private::Initialize ()
         llvm::install_fatal_error_handler(fatal_error_handler, 0);
 
         // Initialize plug-ins
-        ABIMacOSX_arm64::Initialize();
         ABISysV_x86_64::Initialize();
         DisassemblerLLVMC::Initialize();
         ObjectContainerBSDArchive::Initialize();
@@ -205,7 +198,6 @@ lldb_private::Terminate ()
     
     // Terminate and unload and loaded system or user LLDB plug-ins
     PluginManager::Terminate();
-    ABIMacOSX_arm64::Terminate();
     ABISysV_x86_64::Terminate();
     DisassemblerLLVMC::Terminate();
     ObjectContainerBSDArchive::Terminate();
