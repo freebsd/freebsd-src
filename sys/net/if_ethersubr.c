@@ -154,11 +154,18 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	struct pf_mtag *t;
 	int loop_copy = 1;
 	int hlen;	/* link layer header length */
+	int is_gw = 0;
+	uint32_t pflags = 0;
 
 	if (ro != NULL) {
-		if (!(m->m_flags & (M_BCAST | M_MCAST)))
+		if (!(m->m_flags & (M_BCAST | M_MCAST))) {
 			lle = ro->ro_lle;
+			if (lle != NULL)
+				pflags = lle->la_flags;
+		}
 		rt0 = ro->ro_rt;
+		if (rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) != 0)
+			is_gw = 1;
 	}
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
@@ -177,10 +184,10 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
-		if (lle != NULL && (lle->la_flags & LLE_VALID))
+		if (lle != NULL && (pflags & LLE_VALID) != 0)
 			memcpy(edst, &lle->ll_addr.mac16, sizeof(edst));
 		else
-			error = arpresolve(ifp, rt0, m, dst, edst, &lle);
+			error = arpresolve(ifp, is_gw, m, dst, edst, &pflags);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
 		type = htons(ETHERTYPE_IP);
@@ -215,10 +222,11 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		if (lle != NULL && (lle->la_flags & LLE_VALID))
+		if (lle != NULL && (pflags & LLE_VALID))
 			memcpy(edst, &lle->ll_addr.mac16, sizeof(edst));
 		else
-			error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, &lle);
+			error = nd6_storelladdr(ifp, m, dst, (u_char *)edst,
+			    &pflags);
 		if (error)
 			return error;
 		type = htons(ETHERTYPE_IPV6);
@@ -241,7 +249,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		senderr(EAFNOSUPPORT);
 	}
 
-	if (lle != NULL && (lle->la_flags & LLE_IFADDR)) {
+	if ((pflags & LLE_IFADDR) != 0) {
 		update_mbuf_csumflags(m, m);
 		return (if_simloop(ifp, m, dst->sa_family, 0));
 	}

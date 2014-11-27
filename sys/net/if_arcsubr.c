@@ -103,9 +103,7 @@ arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	u_int8_t		atype, adst;
 	int			loop_copy = 0;
 	int			isphds;
-#if defined(INET) || defined(INET6)
-	struct llentry		*lle;
-#endif
+	int			is_gw;
 
 	if (!((ifp->if_flags & IFF_UP) &&
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
@@ -125,8 +123,11 @@ arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		else if (ifp->if_flags & IFF_NOARP)
 			adst = ntohl(SIN(dst)->sin_addr.s_addr) & 0xFF;
 		else {
-			error = arpresolve(ifp, ro ? ro->ro_rt : NULL,
-			                   m, dst, &adst, &lle);
+			is_gw = 0;
+			if (ro != NULL && ro->ro_rt != NULL &&
+			    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
+				is_gw = 1;
+			error = arpresolve(ifp, is_gw, m, dst, &adst, NULL);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
 		}
@@ -164,7 +165,7 @@ arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, m, dst, (u_char *)&adst, &lle);
+		error = nd6_storelladdr(ifp, m, dst, (u_char *)&adst, NULL);
 		if (error)
 			return (error);
 		atype = ARCTYPE_INET6;
