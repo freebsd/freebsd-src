@@ -123,6 +123,7 @@ __DEFAULT_YES_OPTIONS = \
     NDIS \
     NETCAT \
     NETGRAPH \
+    NETGRAPH_SUPPORT \
     NLS_CATALOGS \
     NS_CACHING \
     NTP \
@@ -306,6 +307,7 @@ MK_DMAGENT:=	no
 .if ${MK_NETGRAPH} == "no"
 MK_ATM:=	no
 MK_BLUETOOTH:=	no
+MK_NETGRAPH_SUPPORT:=	no
 .endif
 
 .if ${MK_OPENSSL} == "no"
