@@ -290,65 +290,7 @@ MAN=	aac.4 \
 	netmap.4 \
 	${_nfe.4} \
 	${_nfsmb.4} \
-	ng_async.4 \
-	ng_atm.4 \
-	ngatmbase.4 \
-	ng_atmllc.4 \
-	ng_bluetooth.4 \
-	ng_bpf.4 \
-	ng_bridge.4 \
-	ng_bt3c.4 \
-	ng_btsocket.4 \
-	ng_car.4 \
-	ng_ccatm.4 \
-	ng_cisco.4 \
-	ng_deflate.4 \
-	ng_device.4 \
 	nge.4 \
-	ng_echo.4 \
-	ng_eiface.4 \
-	ng_etf.4 \
-	ng_ether.4 \
-	ng_ether_echo.4 \
-	ng_frame_relay.4 \
-	ng_gif.4 \
-	ng_gif_demux.4 \
-	ng_h4.4 \
-	ng_hci.4 \
-	ng_hole.4 \
-	ng_hub.4 \
-	ng_iface.4 \
-	ng_ipfw.4 \
-	ng_ip_input.4 \
-	ng_ksocket.4 \
-	ng_l2cap.4 \
-	ng_l2tp.4 \
-	ng_lmi.4 \
-	ng_mppc.4 \
-	ng_nat.4 \
-	ng_netflow.4 \
-	ng_one2many.4 \
-	ng_patch.4 \
-	ng_ppp.4 \
-	ng_pppoe.4 \
-	ng_pptpgre.4 \
-	ng_pred1.4 \
-	ng_rfc1490.4 \
-	ng_socket.4 \
-	ng_source.4 \
-	ng_split.4 \
-	ng_sppp.4 \
-	ng_sscfu.4 \
-	ng_sscop.4 \
-	ng_tag.4 \
-	ng_tcpmss.4 \
-	ng_tee.4 \
-	ng_tty.4 \
-	ng_ubt.4 \
-	ng_UI.4 \
-	ng_uni.4 \
-	ng_vjc.4 \
-	ng_vlan.4 \
 	nmdm.4 \
 	nsp.4 \
 	${_ntb.4} \
@@ -804,6 +746,68 @@ _bhyve.4=	bhyve.4
 .if ${MK_ISCSI} != "no"
 MAN+=		iscsi.4
 MAN+=		iscsi_initiator.4
+.endif
+
+.if ${MK_NETGRAPH} != "no"
+MAN+=	\
+	ng_async.4 \
+	ng_atm.4 \
+	ngatmbase.4 \
+	ng_atmllc.4 \
+	ng_bluetooth.4 \
+	ng_bpf.4 \
+	ng_bridge.4 \
+	ng_bt3c.4 \
+	ng_btsocket.4 \
+	ng_car.4 \
+	ng_ccatm.4 \
+	ng_cisco.4 \
+	ng_deflate.4 \
+	ng_device.4 \
+	ng_echo.4 \
+	ng_eiface.4 \
+	ng_etf.4 \
+	ng_ether.4 \
+	ng_ether_echo.4 \
+	ng_frame_relay.4 \
+	ng_gif.4 \
+	ng_gif_demux.4 \
+	ng_h4.4 \
+	ng_hci.4 \
+	ng_hole.4 \
+	ng_hub.4 \
+	ng_iface.4 \
+	ng_ipfw.4 \
+	ng_ip_input.4 \
+	ng_ksocket.4 \
+	ng_l2cap.4 \
+	ng_l2tp.4 \
+	ng_lmi.4 \
+	ng_mppc.4 \
+	ng_nat.4 \
+	ng_netflow.4 \
+	ng_one2many.4 \
+	ng_patch.4 \
+	ng_ppp.4 \
+	ng_pppoe.4 \
+	ng_pptpgre.4 \
+	ng_pred1.4 \
+	ng_rfc1490.4 \
+	ng_socket.4 \
+	ng_source.4 \
+	ng_split.4 \
+	ng_sppp.4 \
+	ng_sscfu.4 \
+	ng_sscop.4 \
+	ng_tag.4 \
+	ng_tcpmss.4 \
+	ng_tee.4 \
+	ng_tty.4 \
+	ng_ubt.4 \
+	ng_UI.4 \
+	ng_uni.4 \
+	ng_vjc.4 \
+	ng_vlan.4
 .endif
 
 .if ${MK_TESTS} != "no"
