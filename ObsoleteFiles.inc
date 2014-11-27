@@ -140,10 +140,12 @@ OLD_FILES+=usr/include/readline/chardefs.h
 OLD_FILES+=usr/include/readline/history.h
 OLD_FILES+=usr/include/readline/keymaps.h
 OLD_FILES+=usr/include/readline/readline.h
+OLD_FILES+=usr/include/readline/tilde.h
 OLD_FILES+=usr/include/readline/rlconf.h
 OLD_FILES+=usr/include/readline/rlstdc.h
 OLD_FILES+=usr/include/readline/rltypedefs.h
 OLD_FILES+=usr/include/readline/rltypedefs.h
+OLD_DIRS+=usr/include/readline
 OLD_FILES+=usr/share/info/readline.info.gz
 OLD_FILES+=usr/share/man/man3/readline.3.gz
 # 20140625: csup removal
