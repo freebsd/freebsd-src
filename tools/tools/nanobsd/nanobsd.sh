@@ -213,12 +213,13 @@ clean_build ( ) (
 		chflags -R noschg ${MAKEOBJDIRPREFIX}/
 		nano_rm -r ${MAKEOBJDIRPREFIX}/
 	fi
-	mkdir -p ${MAKEOBJDIRPREFIX}
-	printenv > ${MAKEOBJDIRPREFIX}/_.env
 )
 
 make_conf_build ( ) (
 	pprint 2 "Construct build make.conf ($NANO_MAKE_CONF_BUILD)"
+
+	mkdir -p ${MAKEOBJDIRPREFIX}
+	printenv > ${MAKEOBJDIRPREFIX}/_.env
 
 	echo "${CONF_WORLD}" > ${NANO_MAKE_CONF_BUILD}
 	echo "${CONF_BUILD}" >> ${NANO_MAKE_CONF_BUILD}
