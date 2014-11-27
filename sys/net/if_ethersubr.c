@@ -234,12 +234,14 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 #endif
 	case pseudo_AF_HDRCMPLT:
 	    {
+		const struct ether_header *eh;
+
 		hdrcmplt = 1;
 		/* FALLTHROUGH */
 
 	case AF_UNSPEC:
 		loop_copy = 0; /* if this is for us, don't do it */
-		eh = (struct ether_header *)dst->sa_data;
+		eh = (const struct ether_header *)dst->sa_data;
 		(void)memcpy(edst, eh->ether_dhost, sizeof (edst));
 		type = eh->ether_type;
 		break;
