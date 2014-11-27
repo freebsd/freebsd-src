@@ -101,21 +101,45 @@ statement:
 	target
 	;
 
-debug:		DEBUG NUM
+debug:		DEBUG STR
 	{
-		conf->conf_debug = $2;
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			log_warnx("invalid numeric value \"%s\"", $2);
+			free($2);
+			return (1);
+		}
+			
+		conf->conf_debug = tmp;
 	}
 	;
 
-timeout:	TIMEOUT NUM
+timeout:	TIMEOUT STR
 	{
-		conf->conf_timeout = $2;
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			log_warnx("invalid numeric value \"%s\"", $2);
+			free($2);
+			return (1);
+		}
+
+		conf->conf_timeout = tmp;
 	}
 	;
 
-maxproc:	MAXPROC NUM
+maxproc:	MAXPROC STR
 	{
-		conf->conf_maxproc = $2;
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			log_warnx("invalid numeric value \"%s\"", $2);
+			free($2);
+			return (1);
+		}
+
+		conf->conf_maxproc = tmp;
 	}
 	;
 
@@ -583,9 +607,17 @@ target_lun:	LUN lun_number
 	}
 	;
 
-lun_number:	NUM
+lun_number:	STR
 	{
-		lun = lun_new(target, $1);
+		uint64_t tmp;
+
+		if (expand_number($1, &tmp) != 0) {
+			log_warnx("invalid numeric value \"%s\"", $1);
+			free($1);
+			return (1);
+		}
+
+		lun = lun_new(target, tmp);
 		if (lun == NULL)
 			return (1);
 	}
@@ -626,15 +658,23 @@ lun_backend:	BACKEND STR
 	}
 	;
 
-lun_blocksize:	BLOCKSIZE NUM
+lun_blocksize:	BLOCKSIZE STR
 	{
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			log_warnx("invalid numeric value \"%s\"", $2);
+			free($2);
+			return (1);
+		}
+
 		if (lun->l_blocksize != 0) {
 			log_warnx("blocksize for lun %d, target \"%s\" "
 			    "specified more than once",
 			    lun->l_lun, target->t_name);
 			return (1);
 		}
-		lun_set_blocksize(lun, $2);
+		lun_set_blocksize(lun, tmp);
 	}
 	;
 
@@ -689,31 +729,26 @@ lun_serial:	SERIAL STR
 		}
 		lun_set_serial(lun, $2);
 		free($2);
-	} |	SERIAL NUM
-	{
-		char *str = NULL;
-
-		if (lun->l_serial != NULL) {
-			log_warnx("serial for lun %d, target \"%s\" "
-			    "specified more than once",
-			    lun->l_lun, target->t_name);
-			return (1);
-		}
-		asprintf(&str, "%ju", $2);
-		lun_set_serial(lun, str);
-		free(str);
 	}
 	;
 
-lun_size:	SIZE NUM
+lun_size:	SIZE STR
 	{
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			log_warnx("invalid numeric value \"%s\"", $2);
+			free($2);
+			return (1);
+		}
+
 		if (lun->l_size != 0) {
 			log_warnx("size for lun %d, target \"%s\" "
 			    "specified more than once",
 			    lun->l_lun, target->t_name);
 			return (1);
 		}
-		lun_set_size(lun, $2);
+		lun_set_size(lun, tmp);
 	}
 	;
 %%
