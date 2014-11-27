@@ -5,9 +5,7 @@
 
 SUBDIR=	adduser \
 	arp \
-	autofs \
 	binmiscctl \
-	bsdconfig \
 	cdcontrol \
 	chkgrp \
 	chown \
@@ -79,7 +77,6 @@ SUBDIR=	adduser \
 	snapinfo \
 	spray \
 	syslogd \
-	sysrc \
 	tcpdrop \
 	tcpdump \
 	traceroute \
@@ -117,12 +114,21 @@ SUBDIR+=	praudit
 SUBDIR+=	authpf
 .endif
 
+.if ${MK_AUTOFS} != "no"
+SUBDIR+=	autofs
+.endif
+
 .if ${MK_BLUETOOTH} != "no"
 SUBDIR+=	bluetooth
 .endif
 
 .if ${MK_BOOTPARAMD} != "no"
 SUBDIR+=	bootparamd
+.endif
+
+.if ${MK_BSDCONFIG} != "no"
+SUBDIR+=	bsdconfig
+SUBDIR+=	sysrc
 .endif
 
 .if ${MK_BSDINSTALL} != "no"
