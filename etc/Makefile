@@ -53,10 +53,6 @@ BIN1=	auto_master \
 	syslog.conf \
 	termcap.small
 
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "powerpc64"
-BIN1+=	libmap32.conf
-.endif
-
 .if exists(${.CURDIR}/etc.${MACHINE}/ttys)
 BIN1+=	etc.${MACHINE}/ttys
 .elif exists(${.CURDIR}/etc.${MACHINE_ARCH}/ttys)
@@ -103,6 +99,10 @@ BIN1+= inetd.conf
 
 .if ${MK_LOCATE} != "no"
 BIN1+=	${.CURDIR}/../usr.bin/locate/locate/locate.rc
+.endif
+
+.if ${MK_LIB32} != "no"
+BIN1+=	libmap32.conf
 .endif
 
 .if ${MK_LPR} != "no"
