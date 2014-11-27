@@ -36,8 +36,8 @@ PHDRS=	sched.h _semaphore.h
 LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
 	syslog.h ucontext.h
 
-LDIRS=	bsm cam geom net net80211 netgraph netinet netinet6 \
-	netipsec netnatm netsmb nfs nfsclient nfsserver sys vm
+LDIRS=	bsm cam geom net net80211 netinet netinet6 \
+	netipsec netsmb nfs nfsclient nfsserver sys vm
 
 LSUBDIRS=	cam/ata cam/scsi \
 	dev/acpica dev/agp dev/an dev/bktr dev/ciss dev/filemon dev/firewire \
@@ -45,23 +45,39 @@ LSUBDIRS=	cam/ata cam/scsi \
 	dev/ic dev/iicbus ${_dev_ieee488} dev/io dev/lmc dev/mfi dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/utopia dev/vkbd dev/wi \
-	fs/cuse \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
 	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/mountver geom/multipath geom/nop \
 	geom/raid geom/raid3 geom/shsec geom/stripe geom/virstor \
-	netgraph/atm netgraph/netflow \
 	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \
 	security/mac_mls security/mac_partition \
 	ufs/ffs ufs/ufs
 
+LSUBSUBDIRS=	dev/mpt/mpilib
+
+.if ${MK_ATM} != "no"
+LDIRS+=		netnatm
+LSUBDIRS+=	netgraph/atm
+.endif
+
+.if ${MK_BLUETOOTH} != "no"
+LSUBSUBDIRS+=	netgraph/bluetooth/include
+.endif
+
+.if ${MK_CUSE} != "no"
+LSUBDIRS+=	fs/cuse
+.endif
+
+.if ${MK_NETGRAPH_SUPPORT} != "no"
+LDIRS+=		netgraph
+LSUBDIRS+=	netgraph/netflow
+.endif
+
 .if ${MK_USB} != "no"
 LSUBDIRS+=	dev/usb
 .endif
-
-LSUBSUBDIRS=	dev/mpt/mpilib
 
 .if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
 _dev_powermac_nvram=	dev/powermac_nvram
@@ -78,10 +94,6 @@ INCS+=		gssapi.h
 
 .if ${MK_HESIOD} != "no"
 INCS+=	hesiod.h
-.endif
-
-.if ${MK_BLUETOOTH} != "no"
-LSUBSUBDIRS+=	netgraph/bluetooth/include
 .endif
 
 # Handle the #define aliases for libiconv
