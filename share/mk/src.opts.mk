@@ -52,6 +52,7 @@ __DEFAULT_YES_OPTIONS = \
     ATM \
     AUDIT \
     AUTHPF \
+    AUTOFS \
     BINUTILS \
     BINUTILS_BOOTSTRAP \
     BLUETOOTH \
@@ -59,6 +60,7 @@ __DEFAULT_YES_OPTIONS = \
     BOOTPD \
     BOOTPARAMD \
     BSD_CPIO \
+    BSDCONFIG \
     BSDINSTALL \
     BSNMP \
     BZIP2 \
