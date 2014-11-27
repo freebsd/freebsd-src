@@ -24,8 +24,6 @@
     dev             mode=0555
     ..
     etc
-        X11
-        ..
         autofs
         ..
         bluetooth
