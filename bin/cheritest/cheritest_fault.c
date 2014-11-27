@@ -217,10 +217,9 @@ test_sandbox_op(int op)
 
 	alarm(10);
 	return (sandbox_object_cinvoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap()));
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap()));
 }
 
 static void

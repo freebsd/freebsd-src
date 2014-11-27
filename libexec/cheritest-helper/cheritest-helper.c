@@ -53,9 +53,9 @@
 int	invoke(__capability void *sealedcodecap,
 	    __capability void *sealeddatacap,
 	    register_t op, register_t arg, size_t len,
-	    struct cheri_object system_object, __capability char *data_input,
-	    __capability char *data_output, struct cheri_object fd_object,
-	    struct zstream_proxy *zspp) __attribute__((cheri_ccall));
+	    __capability char *data_input, __capability char *data_output,
+	    struct cheri_object fd_object, struct zstream_proxy *zspp)
+	    __attribute__((cheri_ccall));
 
 static int
 invoke_md5(size_t len, __capability char *data_input,
@@ -161,11 +161,11 @@ invoke_syscall(void)
 }
 
 static int
-invoke_syscap(struct cheri_object system_object)
+invoke_syscap(void)
 {
 
-	return (cheri_invoke(system_object, 0, 0, 0, 0, 0, 0, 0, 0, NULL,
-	    NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+	return (cheri_invoke(_cheri_system_object, 0, 0, 0, 0, 0, 0, 0, 0,
+	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
 }
 
 static int
@@ -255,21 +255,19 @@ invoke_clock_gettime(void)
 }
 
 static int
-invoke_libcheri_userfn(register_t arg __unused, size_t len __unused,
-    struct cheri_object system_object __unused)
+invoke_libcheri_userfn(register_t arg, size_t len)
 {
 
 	/*
 	 * Argument passed to the cheritest-helper method turns into the
 	 * method number for the underlying system class invocation.
 	 */
-	return (cheri_invoke(system_object, arg, len, 0, 0, 0, 0, 0, 0,
+	return (cheri_invoke(_cheri_system_object, arg, len, 0, 0, 0, 0, 0, 0,
 	    NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
 }
 
 static int
-invoke_libcheri_userfn_setstack(register_t arg,
-    struct cheri_object system_object)
+invoke_libcheri_userfn_setstack(register_t arg)
 {
 	int v;
 
@@ -277,8 +275,9 @@ invoke_libcheri_userfn_setstack(register_t arg,
 	 * In the setstack test, ensure that execution of the return path via
 	 * the sandbox has a visible effect that can be tested for.
 	 */
-	v = (cheri_invoke(system_object, CHERITEST_USERFN_SETSTACK, arg, 0, 0,
-	    0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL));
+	v = (cheri_invoke(_cheri_system_object, CHERITEST_USERFN_SETSTACK,
+	    arg, 0, 0, 0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	    NULL));
 	v += 10;
 	return (v);
 }
@@ -378,12 +377,9 @@ int
 invoke(__capability void *sealedcodecap __unused,
     __capability void *sealeddatacap __unused,
     register_t op, register_t arg, size_t len,
-    struct cheri_object system_object, __capability char *data_input,
-    __capability char *data_output, struct cheri_object fd_object,
-    struct zstream_proxy* zspp)
+    __capability char *data_input, __capability char *data_output,
+    struct cheri_object fd_object, struct zstream_proxy* zspp)
 {
-
-	cheri_system_setup(system_object);
 
 	switch (op) {
 	case CHERITEST_HELPER_OP_MD5:
@@ -414,7 +410,7 @@ invoke(__capability void *sealedcodecap __unused,
 		return (1/(zero));
 
 	case CHERITEST_HELPER_OP_SYSCAP:
-		return (invoke_syscap(system_object));
+		return (invoke_syscap());
 
 	case CHERITEST_HELPER_OP_CS_HELLOWORLD:
 		return (cheri_system_helloworld());
@@ -451,10 +447,10 @@ invoke(__capability void *sealedcodecap __unused,
 		return (invoke_clock_gettime());
 
 	case CHERITEST_HELPER_LIBCHERI_USERFN:
-		return (invoke_libcheri_userfn(arg, len, system_object));
+		return (invoke_libcheri_userfn(arg, len));
 
 	case CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK:
-		return (invoke_libcheri_userfn_setstack(arg, system_object));
+		return (invoke_libcheri_userfn_setstack(arg));
 
 	case CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP:
 		return (invoke_libcheri_save_capability_in_heap(data_input));

@@ -67,6 +67,14 @@ int	cheri_system_calloc(size_t number, size_t size,
 int	cheri_system_free(__capability const void *ptr);
 
 /*
+ * For now, expose the symbol for the system-object reference in each sandbox
+ * as a public symbol.  At some point we will want to find a better way to do
+ * this -- largely for the purposes of handling user-defined system-class
+ * extensions.
+ */
+extern struct cheri_object _cheri_system_object;
+
+/*
  * Method numbers, which can be modified to override the bottom layer of the
  * system class stub to invoke alternative methods.
  */

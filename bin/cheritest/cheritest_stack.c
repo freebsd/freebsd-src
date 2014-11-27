@@ -116,9 +116,7 @@ test_sandbox_getstack(const struct cheri_test *ctp __unused)
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_LIBCHERI_USERFN, CHERITEST_USERFN_GETSTACK,
 	    0, 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
-	    cclear, cclear, cclear, cclear, cclear, cclear);
+	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	if (v != 0)
 		cheritest_failure_errx("Incorrect return value 0x%ld"
 		    " (expected 0)\n", v);
@@ -194,7 +192,7 @@ test_sandbox_setstack(const struct cheri_test *ctp __unused)
 
 	/*
 	 * Note use of CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK here: this
-	 * method adds 10 to thr system-class return value.  We can detect
+	 * method adds 10 to the system-class return value.  We can detect
 	 * whether stack rewrite worked to elide that return path by
 	 * inspecting the return value.
 	 *
@@ -204,9 +202,7 @@ test_sandbox_setstack(const struct cheri_test *ctp __unused)
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK,
 	    CHERITEST_USERFN_SETSTACK, 1, 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
-	    cclear, cclear, cclear, cclear, cclear, cclear);
+	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	if (v == CHERITEST_SETSTACK_CONSTANT + 10)
 		cheritest_failure_errx("sandbox return path improperly "
 		    "executed");
@@ -226,9 +222,7 @@ test_sandbox_setstack_nop(const struct cheri_test *ctp __unused)
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_LIBCHERI_USERFN_SETSTACK,
 	    CHERITEST_USERFN_SETSTACK, 0, 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
-	    cclear, cclear, cclear, cclear, cclear, cclear);
+	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	if (v != CHERITEST_SETSTACK_CONSTANT)
 		cheritest_failure_errx("unexpected return value (%ld)", v);
 	cheritest_success();

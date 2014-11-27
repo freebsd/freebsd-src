@@ -71,9 +71,7 @@ test_sandbox_save_global(const struct cheri_test *ctp __unused)
 	cclear = cheri_zerocap();
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP, 0, 0, 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
-	    carg, cclear, cclear, cclear, cclear, cclear);
+	    carg, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	if (v != 0)
 		cheritest_failure_errx("Incorrect return value 0x%lx "
 		    "(expected 0)\n", v);
@@ -91,9 +89,7 @@ test_sandbox_save_local(const struct cheri_test *ctp __unused)
 	cclear = cheri_zerocap();
 	(void)sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_SAVE_CAPABILITY_IN_HEAP, 0, 0, 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
-	    carg, cclear, cclear, cclear, cclear, cclear);
+	    carg, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	cheritest_failure_errx("Method failed to properly fail\n");
 }
 
@@ -106,9 +102,7 @@ test_sandbox_var_bss(const struct cheri_test *ctp __unused)
 	cclear = cheri_zerocap();
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_GET_VAR_BSS, 0, 0, 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
-	    cclear, cclear, cclear, cclear, cclear, cclear);
+	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	if (v != CHERITEST_VALUE_BSS)
 		cheritest_failure_errx(".bss returned 0x%lx (expected 0x%lx)",
 		    v, CHERITEST_VALUE_BSS);
@@ -124,9 +118,7 @@ test_sandbox_var_data(const struct cheri_test *ctp __unused)
 	cclear = cheri_zerocap();
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_GET_VAR_DATA, 0, 0, 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
-	    cclear, cclear, cclear, cclear, cclear, cclear);
+	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	if (v != CHERITEST_VALUE_DATA)
 		cheritest_failure_errx(".data returned 0x%lx (expected 0x%lx)",
 		    v, CHERITEST_VALUE_DATA);
@@ -143,9 +135,7 @@ test_sandbox_var_constructor(const struct cheri_test *ctp __unused)
 	cclear = cheri_zerocap();
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_GET_VAR_CONSTRUCTOR, 0, 0, 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
-	    cclear, cclear, cclear, cclear, cclear, cclear);
+	    cclear, cclear, cclear, cclear, cclear, cclear, cclear, cclear);
 	if (v != CHERITEST_VALUE_CONSTRUCTOR)
 		cheritest_failure_errx(
 		    "Constructor returned 0x%lx (expected 0x%lx)",

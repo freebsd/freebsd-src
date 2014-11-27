@@ -78,10 +78,9 @@ test_sandbox_simple_op(const struct cheri_test *ctp __unused, int op)
 	alarm(10);
 
 	v = sandbox_object_cinvoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
 	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap());
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap(), cheri_zerocap());
 
 	/*
 	 * XXXRW: Pretty soon we'll want to break this one function out into
@@ -108,9 +107,7 @@ test_sandbox_md5(const struct cheri_test *ctp __unused)
 
 	v = sandbox_object_cinvoke(cheritest_objectp, CHERITEST_HELPER_OP_MD5,
 	    0, strlen(string_to_md5), 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
-	    md5cap, bufcap, cclear, cclear, cclear, cclear);
+	    md5cap, bufcap, cclear, cclear, cclear, cclear, cclear, cclear);
 
 	buf[32] = '\0';
 	if (strcmp(buf, string_md5) != 0)
@@ -163,9 +160,8 @@ test_sandbox_userfn(const struct cheri_test *ctp __unused)
 		v = sandbox_object_cinvoke(cheritest_objectp,
 		    CHERITEST_HELPER_LIBCHERI_USERFN,
 		    CHERITEST_USERFN_RETURNARG, i, 0, 0, 0, 0, 0,
-		   sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-		   sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
-		    cclear, cclear, cclear, cclear, cclear, cclear);
+		    cclear, cclear, cclear, cclear, cclear, cclear, cclear,
+		    cclear);
 		if (v != i)
 			cheritest_failure_errx("Incorrect return value "
 			    "0x%lx (expected 0x%lx)\n", v, i);

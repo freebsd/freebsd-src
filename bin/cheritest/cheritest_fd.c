@@ -71,11 +71,10 @@ test_sandbox_fd_op(const struct cheri_test *ctp __unused, int op)
 	register_t v;
 
 	v = sandbox_object_cinvoke(cheritest_objectp, op, 0, 0, 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
 	    cheri_zerocap(), cheri_zerocap(),
 	    zero_fd_object.co_codecap, zero_fd_object.co_datacap,
-	    cheri_zerocap(), cheri_zerocap());
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap());
 
 	/*
 	 * XXXRW: Pretty soon we'll want to break this one function out into
@@ -97,11 +96,10 @@ test_sandbox_fd_read(const struct cheri_test *ctp)
 	    CHERI_PERM_STORE);
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_OP_FD_READ_C, 0, 0, 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
 	    /* data_input */ cheri_zerocap(), /* data_output */ stringc,
 	    stdin_fd_object.co_codecap, stdin_fd_object.co_datacap,
-	    cheri_zerocap(), cheri_zerocap());
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap());
 	if (v != (ssize_t)strlen(ctp->ct_stdin_string))
 		cheritest_failure_errx("invoke returned %lu; expected %d\n",
 		    v, strlen(read_string));
@@ -123,11 +121,10 @@ test_sandbox_fd_read_revoke(const struct cheri_test *ctp __unused)
 	    CHERI_PERM_STORE);
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_OP_FD_READ_C, 0, 0, 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
 	    /* data_input */ cheri_zerocap(), /* data_output */ stringc,
 	    stdin_fd_object.co_codecap, stdin_fd_object.co_datacap,
-	    cheri_zerocap(), cheri_zerocap());
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap());
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %lu; expected %d\n",
 		    v, -1);
@@ -144,11 +141,10 @@ test_sandbox_fd_write(const struct cheri_test *ctp __unused)
 	    strlen(ctp->ct_stdout_string), CHERI_PERM_LOAD);
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_OP_FD_WRITE_C, 0, 0, 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
 	    /* data_input */ stringc, /* data_output */ cheri_zerocap(),
 	    stdout_fd_object.co_codecap, stdout_fd_object.co_datacap,
-	    cheri_zerocap(), cheri_zerocap());
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap());
 	if (v != (ssize_t)strlen(ctp->ct_stdout_string))
 		cheritest_failure_errx("invoke returned %lu; expected %d\n",
 		    v, strlen(ctp->ct_stdout_string));
@@ -170,11 +166,10 @@ test_sandbox_fd_write_revoke(const struct cheri_test *ctp __unused)
 	    strlen(ctp->ct_stdout_string), CHERI_PERM_LOAD);
 	v = sandbox_object_cinvoke(cheritest_objectp,
 	    CHERITEST_HELPER_OP_FD_WRITE_C, 0, 0, 0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_codecap,
-	    sandbox_object_getsystemobject(cheritest_objectp).co_datacap,
 	    /* data_input */ stringc, /* data_output */ cheri_zerocap(),
 	    stdout_fd_object.co_codecap, stdout_fd_object.co_datacap,
-	    cheri_zerocap(), cheri_zerocap());
+	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
+	    cheri_zerocap());
 	if (v != -1)
 		cheritest_failure_errx("invoke returned %lu; expected %d\n",
 		    v, -1);
