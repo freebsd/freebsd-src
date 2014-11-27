@@ -1,10 +1,11 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 SUBDIR=	console \
 	diskmgmt \
 	docsinstall \
 	dot \
-	examples \
 	include \
 	includes \
 	mouse \
@@ -24,5 +25,9 @@ FILES=		USAGE
 SCRIPTS= bsdconfig
 
 MAN= bsdconfig.8
+
+.if ${MK_EXAMPLES} != "no"
+SUBDIR+=	examples
+.endif
 
 .include <bsd.prog.mk>
