@@ -147,7 +147,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 {
 	short type;
 	int error = 0, hdrcmplt = 0;
-	u_char esrc[ETHER_ADDR_LEN], edst[ETHER_ADDR_LEN];
+	u_char edst[ETHER_ADDR_LEN];
 	struct llentry *lle = NULL;
 	struct rtentry *rt0 = NULL;
 	struct ether_header *eh;
@@ -226,16 +226,12 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 #endif
 	case pseudo_AF_HDRCMPLT:
 	    {
-		const struct ether_header *eh;
-		
 		hdrcmplt = 1;
-		eh = (const struct ether_header *)dst->sa_data;
-		(void)memcpy(esrc, eh->ether_shost, sizeof (esrc));
 		/* FALLTHROUGH */
 
 	case AF_UNSPEC:
 		loop_copy = 0; /* if this is for us, don't do it */
-		eh = (const struct ether_header *)dst->sa_data;
+		eh = (struct ether_header *)dst->sa_data;
 		(void)memcpy(edst, eh->ether_dhost, sizeof (edst));
 		type = eh->ether_type;
 		break;
@@ -258,15 +254,11 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	if (m == NULL)
 		senderr(ENOBUFS);
 	eh = mtod(m, struct ether_header *);
-	(void)memcpy(&eh->ether_type, &type,
-		sizeof(eh->ether_type));
-	(void)memcpy(eh->ether_dhost, edst, sizeof (edst));
-	if (hdrcmplt)
-		(void)memcpy(eh->ether_shost, esrc,
-			sizeof(eh->ether_shost));
-	else
-		(void)memcpy(eh->ether_shost, IF_LLADDR(ifp),
-			sizeof(eh->ether_shost));
+	if (hdrcmplt == 0) {
+		memcpy(&eh->ether_type, &type, sizeof(eh->ether_type));
+		memcpy(eh->ether_dhost, edst, sizeof (edst));
+		memcpy(eh->ether_shost, IF_LLADDR(ifp),sizeof(eh->ether_shost));
+	}
 
 	/*
 	 * If a simplex interface, and the packet is being sent to our
