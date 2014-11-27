@@ -7,7 +7,9 @@ MODULES		+= pam_chroot
 MODULES		+= pam_deny
 MODULES		+= pam_echo
 MODULES		+= pam_exec
+.if ${MK_FTP} != "no"
 MODULES		+= pam_ftpusers
+.endif
 MODULES		+= pam_group
 MODULES		+= pam_guest
 .if ${MK_KERBEROS} != "no"
@@ -21,7 +23,9 @@ MODULES		+= pam_opie
 MODULES		+= pam_opieaccess
 MODULES		+= pam_passwdqc
 MODULES		+= pam_permit
+.if ${MK_RADIUS} != "no
 MODULES		+= pam_radius
+.endif
 MODULES		+= pam_rhosts
 MODULES		+= pam_rootok
 MODULES		+= pam_securetty

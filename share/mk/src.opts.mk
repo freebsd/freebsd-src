@@ -136,6 +136,7 @@ __DEFAULT_YES_OPTIONS = \
     PORTSNAP \
     PPP \
     QUOTAS \
+    RADIUS_SUPPORT \
     RCMDS \
     RBOOTD \
     RCS \
@@ -308,6 +309,10 @@ MK_DMAGENT:=	no
 MK_ATM:=	no
 MK_BLUETOOTH:=	no
 MK_NETGRAPH_SUPPORT:=	no
+.endif
+
+.if ${MK_NETGRAPH_SUPPORT} == "no"
+MK_RADIUS_SUPPORT:=	no
 .endif
 
 .if ${MK_OPENSSL} == "no"
