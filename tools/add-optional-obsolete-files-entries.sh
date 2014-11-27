@@ -6,6 +6,12 @@
 #
 # $FreeBSD$
 
+# NO_ROOT doesn't seem to work at a non-installworld, etc level yet
+if [ $(id -u) -ne 0 ]; then
+	echo "${0##*/}: ERROR: this script must be run as root"
+	exit 1
+fi
+
 : ${TMPDIR=/tmp}
 
 DESTDIR=$(mktemp -d $TMPDIR/tmp.XXXXXX) || exit
