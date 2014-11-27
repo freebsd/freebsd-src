@@ -48,7 +48,7 @@ SUBDIR=	\
 	ata \
 	ath \
 	ath_pci \
-	autofs \
+	${_autofs} \
 	${_auxio} \
 	${_bce} \
 	bfe \
@@ -386,6 +386,10 @@ SUBDIR=	\
 	xl \
 	${_zfs} \
 	zlib
+
+.if ${MK_AUTOFS} != "no" || defined(ALL_MODULES)
+_autofs=	autofs
+.endif
 
 .if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm
