@@ -345,7 +345,6 @@ OLD_FILES+=usr/share/man/man8/version.4th.8.gz
 OLD_FILES+=usr/share/man/man8/zfsboot.8.gz
 OLD_FILES+=usr/share/man/man8/zfsloader.8.gz
 OLD_DIRS+=boot/defaults
-OLD_DIRS+=boot
 .endif
 
 .if ${MK_BOOTPARAMD} == no
