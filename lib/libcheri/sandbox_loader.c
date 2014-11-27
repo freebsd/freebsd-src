@@ -74,7 +74,7 @@ int
 sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 {
 	__capability void *codecap, *datacap, *typecap;
-	struct sandbox_metadata *sbm;
+	struct sandbox_metadata *sbmp;
 	size_t length;
 	int saved_errno;
 	uint8_t *base;
@@ -122,7 +122,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * Map metadata structure -- but can't fill it out until we have
 	 * calculated all the other addresses involved.
 	 */
-	if ((sbm = mmap(base, METADATA_SIZE, PROT_READ | PROT_WRITE,
+	if ((sbmp = mmap(base, METADATA_SIZE, PROT_READ | PROT_WRITE,
 	    MAP_ANON | MAP_FIXED, -1, 0)) == MAP_FAILED) {
 		saved_errno = errno;
 		warn("%s: mmap metadata", __func__);
@@ -203,8 +203,8 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * Now that addresses are known, write out metadata for in-sandbox
 	 * use; then mprotect() so that it can't be modified by the sandbox.
 	 */
-	sbm->sbm_heapbase = sbop->sbo_heapbase;
-	sbm->sbm_heaplen = sbop->sbo_heaplen;
+	sbmp->sbm_heapbase = sbop->sbo_heapbase;
+	sbmp->sbm_heaplen = sbop->sbo_heaplen;
 	if (mprotect(base, METADATA_SIZE, PROT_READ) < 0) {
 		saved_errno = errno;
 		warn("%s: mprotect metadata", __func__);
@@ -296,7 +296,7 @@ sandbox_object_load(struct sandbox_class *sbcp, struct sandbox_object *sbop)
 	 * XXXRW: Possibly, this should be !CHERI_PERM_GLOBAL -- but we do not
 	 * currently support invoking non-global objects.
 	 */
-	sbm->sbm_system_object = sbop->sbo_cheri_object_system;
+	sbmp->sbm_system_object = sbop->sbo_cheri_object_system;
 	return (0);
 
 error:
