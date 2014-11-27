@@ -20,7 +20,6 @@ LDIRS=	BSD_daemon \
 	kld \
 	libvgl \
 	mdoc \
-	netgraph \
 	perfmon \
 	ppi \
 	ppp \
@@ -99,13 +98,6 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	mdoc/example.3 \
 	mdoc/example.4 \
 	mdoc/example.9 \
-	netgraph/ether.bridge \
-	netgraph/frame_relay \
-	netgraph/ngctl \
-	netgraph/raw \
-	netgraph/udp.tunnel \
-	netgraph/virtual.chain \
-	netgraph/virtual.lan \
 	perfmon/Makefile \
 	perfmon/README \
 	perfmon/perfmon.c \
@@ -204,6 +196,17 @@ XFILES+=	hast/ucarp.sh \
 		hast/ucarp_up.sh \
 		hast/vip-down.sh \
 		hast/vip-up.sh
+.endif
+
+.if ${MK_NETGRAPH} != "no"
+LDIRS+=		netgraph
+XFILES+=	netgraph/ether.bridge \
+		netgraph/frame_relay \
+		netgraph/ngctl \
+		netgraph/raw \
+		netgraph/udp.tunnel \
+		netgraph/virtual.chain \
+		netgraph/virtual.lan
 .endif
 
 .if ${MK_USB} != "no"
