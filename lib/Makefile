@@ -269,7 +269,7 @@ _libmp=		libmp
 _libpmc=	libpmc
 .endif
 
-.if ${MK_RADIUS} != "no"
+.if ${MK_RADIUS_SUPPORT} != "no"
 _libradius=	libradius
 .endif
 
