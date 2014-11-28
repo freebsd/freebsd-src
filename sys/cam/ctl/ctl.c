@@ -7378,13 +7378,10 @@ ctl_read_defect(struct ctl_scsiio *ctsio)
 	struct scsi_read_defect_data_12 *ccb12;
 	struct scsi_read_defect_data_hdr_10 *data10;
 	struct scsi_read_defect_data_hdr_12 *data12;
-	struct ctl_lun *lun;
 	uint32_t alloc_len, data_len;
 	uint8_t format;
 
 	CTL_DEBUG_PRINT(("ctl_read_defect\n"));
-
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	if (ctsio->cdb[0] == READ_DEFECT_DATA_10) {
 		ccb10 = (struct scsi_read_defect_data_10 *)&ctsio->cdb;
@@ -7748,7 +7745,6 @@ fill_one:
 int
 ctl_report_supported_tmf(struct ctl_scsiio *ctsio)
 {
-	struct ctl_lun *lun;
 	struct scsi_report_supported_tmf *cdb;
 	struct scsi_report_supported_tmf_data *data;
 	int retval;
@@ -7757,7 +7753,6 @@ ctl_report_supported_tmf(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_report_supported_tmf\n"));
 
 	cdb = (struct scsi_report_supported_tmf *)ctsio->cdb;
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	retval = CTL_RETVAL_COMPLETE;
 
@@ -7794,7 +7789,6 @@ ctl_report_supported_tmf(struct ctl_scsiio *ctsio)
 int
 ctl_report_timestamp(struct ctl_scsiio *ctsio)
 {
-	struct ctl_lun *lun;
 	struct scsi_report_timestamp *cdb;
 	struct scsi_report_timestamp_data *data;
 	struct timeval tv;
@@ -7805,7 +7799,6 @@ ctl_report_timestamp(struct ctl_scsiio *ctsio)
 	CTL_DEBUG_PRINT(("ctl_report_timestamp\n"));
 
 	cdb = (struct scsi_report_timestamp *)ctsio->cdb;
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	retval = CTL_RETVAL_COMPLETE;
 
@@ -9809,14 +9802,8 @@ no_sense:
 int
 ctl_tur(struct ctl_scsiio *ctsio)
 {
-	struct ctl_lun *lun;
-
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	CTL_DEBUG_PRINT(("ctl_tur\n"));
-
-	if (lun == NULL)
-		return (EINVAL);
 
 	ctsio->scsi_status = SCSI_STATUS_OK;
 	ctsio->io_hdr.status = CTL_SUCCESS;
@@ -10490,10 +10477,8 @@ static int
 ctl_inquiry_evpd(struct ctl_scsiio *ctsio)
 {
 	struct scsi_inquiry *cdb;
-	struct ctl_lun *lun;
 	int alloc_len, retval;
 
-	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	cdb = (struct scsi_inquiry *)ctsio->cdb;
 
 	retval = CTL_RETVAL_COMPLETE;
