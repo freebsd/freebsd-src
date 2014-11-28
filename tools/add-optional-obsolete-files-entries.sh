@@ -52,6 +52,6 @@ done
     sed -e 's,^,OLD_FILES+=,' \
         -e '/lib\/.*\.so\.[0-9]\.*/s/OLD_FILES+=/OLD_LIBS+=/g';
  find -d -s . -type d -mindepth 1 -and \! -empty | \
-    egrep -v '^\./(boot|s*bin|lib|libexec|usr|usr/include|usr/lib(32|data|exec)?|usr/libdata/pkgconfig|usr/lib/private|usr/s*bin|usr/share|usr/share/(examples|man)|usr/share/man/man[0-9])$' | \
+    egrep -v '^\./(boot|s*bin|lib|libexec|usr|usr/include|usr/lib(32|data|exec)?|usr/libdata/pkgconfig|usr/lib/private|usr/s*bin|usr/share|usr/share/(examples|man|nls)|usr/share/man/man[0-9])$' | \
     sed -e 's,^,OLD_DIRS+=,'
 ) | sed -e 's,+=\./,+=,'
