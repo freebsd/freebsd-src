@@ -101,7 +101,9 @@ fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	int loop_copy = 0, error = 0, hdrcmplt = 0;
  	u_char esrc[FDDI_ADDR_LEN], edst[FDDI_ADDR_LEN];
 	struct fddi_header *fh;
+#ifdef INET
 	int is_gw;
+#endif
 
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
