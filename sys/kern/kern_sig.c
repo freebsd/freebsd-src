@@ -998,8 +998,12 @@ kern_sigprocmask(struct thread *td, int how, sigset_t *set, sigset_t *oset,
 	int error;
 
 	p = td->td_proc;
-	if (!(flags & SIGPROCMASK_PROC_LOCKED))
+	if ((flags & SIGPROCMASK_PROC_LOCKED) != 0)
+		PROC_LOCK_ASSERT(p, MA_OWNED);
+	else
 		PROC_LOCK(p);
+	mtx_assert(&p->p_sigacts->ps_mtx, (flags & SIGPROCMASK_PS_LOCKED) != 0
+	    ? MA_OWNED : MA_NOTOWNED);
 	if (oset != NULL)
 		*oset = td->td_sigmask;
 
@@ -2510,9 +2514,11 @@ reschedule_signals(struct proc *p, sigset_t block, int flags)
 	int sig;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	ps = p->p_sigacts;
+	mtx_assert(&ps->ps_mtx, (flags & SIGPROCMASK_PS_LOCKED) != 0 ?
+	    MA_OWNED : MA_NOTOWNED);
 	if (SIGISEMPTY(p->p_siglist))
 		return;
-	ps = p->p_sigacts;
 	SIGSETAND(block, p->p_siglist);
 	while ((sig = sig_ffs(&block)) != 0) {
 		SIGDELSET(block, sig);
