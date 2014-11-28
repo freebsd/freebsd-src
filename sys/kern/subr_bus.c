@@ -56,6 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/interrupt.h>
 #include <sys/cpuset.h>
 
+#include <sys/syslog.h>
+
 #include <net/vnet.h>
 
 #include <machine/cpu.h>
@@ -5030,4 +5032,19 @@ bus_free_resource(device_t dev, int type, struct resource *r)
 	if (r == NULL)
 		return (0);
 	return (bus_release_resource(dev, type, rman_get_rid(r), r));
+}
+
+int
+device_getenv_int(device_t dev, const char *knob, int *iptr)
+{
+	char env[128];
+	int sz;
+
+	sz = snprintf(env, sizeof(env), "hw.%s.%d.%s", device_get_name(dev), device_get_unit(dev), knob);
+	if (sz >= sizeof(env)) {
+		/* XXX: log? return error? bump sysctl error? */
+		log(LOG_ERR, "device_getenv_int: knob too long: '%s'", knob);
+		return 0;
+	}
+	return (getenv_int(env, iptr));
 }
