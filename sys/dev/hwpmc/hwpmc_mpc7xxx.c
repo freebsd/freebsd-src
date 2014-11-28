@@ -578,9 +578,9 @@ mpc7xxx_pcpu_init(struct pmc_mdep *md, int cpu)
 	}
 
 	/* Clear the MMCRs, and set FC, to disable all PMCs. */
-	mtspr(SPR_MMCR0, SPR_MMCR0_FC | SPR_MMCR0_PMXE | SPR_MMCR0_PMC1CE | SPR_MMCR0_PMCNCE);
+	mtspr(SPR_MMCR0, SPR_MMCR0_FC | SPR_MMCR0_PMXE |
+	    SPR_MMCR0_FCECE | SPR_MMCR0_PMC1CE | SPR_MMCR0_PMCNCE);
 	mtspr(SPR_MMCR1, 0);
-	mtmsr(mfmsr() | PSL_PMM);
 
 	return 0;
 }
@@ -667,7 +667,6 @@ mpc7xxx_intr(int cpu, struct trapframe *tf)
 	uint32_t config;
 	struct pmc *pm;
 	struct powerpc_cpu *pac;
-	pmc_value_t v;
 
 	KASSERT(cpu >= 0 && cpu < pmc_cpu_max(),
 	    ("[powerpc,%d] out of range CPU %d", __LINE__, cpu));
@@ -679,8 +678,7 @@ mpc7xxx_intr(int cpu, struct trapframe *tf)
 
 	pac = powerpc_pcpu[cpu];
 
-	config  = mfspr(SPR_MMCR0);
-	mtspr(SPR_MMCR0, config | SPR_MMCR0_FC);
+	config  = mfspr(SPR_MMCR0) & ~SPR_MMCR0_FC;
 
 	/*
 	 * look for all PMCs that have interrupted:
@@ -704,22 +702,22 @@ mpc7xxx_intr(int cpu, struct trapframe *tf)
 		if (pm->pm_state != PMC_STATE_RUNNING)
 			continue;
 
-		/* Stop the PMC, reload count. */
-		v       = pm->pm_sc.pm_reloadcount;
-		mpc7xxx_pmcn_write(i, v);
-
-		/* Restart the counter if logging succeeded. */
+		/* Stop the counter if logging fails. */
 		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
 		    TRAPF_USERMODE(tf));
 		if (error != 0)
 			mpc7xxx_stop_pmc(cpu, i);
-		atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
-				&pmc_stats.pm_intr_ignored, 1);
 
+		/* reload count. */
+		mpc7xxx_write_pmc(cpu, i, pm->pm_sc.pm_reloadcount);
 	}
 
+	atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
+	    &pmc_stats.pm_intr_ignored, 1);
+
 	/* Re-enable PERF exceptions. */
-	mtspr(SPR_MMCR0, config | SPR_MMCR0_PMXE);
+	if (retval)
+		mtspr(SPR_MMCR0, config | SPR_MMCR0_PMXE);
 
 	return (retval);
 }

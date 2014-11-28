@@ -2278,11 +2278,12 @@ nd6_rem_ifa_lle(struct in6_ifaddr *ia)
  */
 int
 nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
-    const struct sockaddr *dst, u_char *desten, struct llentry **lle)
+    const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
 {
 	struct llentry *ln;
 
-	*lle = NULL;
+	if (pflags != NULL)
+		*pflags = 0;
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
 	if (m != NULL && m->m_flags & M_MCAST) {
 		int i;
@@ -2334,7 +2335,8 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
 	}
 
 	bcopy(&ln->ll_addr, desten, ifp->if_addrlen);
-	*lle = ln;
+	if (pflags != NULL)
+		*pflags = ln->la_flags;
 	LLE_RUNLOCK(ln);
 	/*
 	 * A *small* use after free race exists here
