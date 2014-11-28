@@ -11717,15 +11717,18 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 
 	targ_lun = ctsio->io_hdr.nexus.targ_mapped_lun;
 	if ((targ_lun < CTL_MAX_LUNS)
-	 && (ctl_softc->ctl_luns[targ_lun] != NULL)) {
-		lun = ctl_softc->ctl_luns[targ_lun];
+	 && ((lun = ctl_softc->ctl_luns[targ_lun]) != NULL)) {
 		/*
 		 * If the LUN is invalid, pretend that it doesn't exist.
 		 * It will go away as soon as all pending I/O has been
 		 * completed.
 		 */
+		mtx_lock(&lun->lun_lock);
 		if (lun->flags & CTL_LUN_DISABLED) {
+			mtx_unlock(&lun->lun_lock);
 			lun = NULL;
+			ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr = NULL;
+			ctsio->io_hdr.ctl_private[CTL_PRIV_BACKEND_LUN].ptr = NULL;
 		} else {
 			ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr = lun;
 			ctsio->io_hdr.ctl_private[CTL_PRIV_BACKEND_LUN].ptr =
@@ -11738,7 +11741,6 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 			 * Every I/O goes into the OOA queue for a
 			 * particular LUN, and stays there until completion.
 			 */
-			mtx_lock(&lun->lun_lock);
 			TAILQ_INSERT_TAIL(&lun->ooa_queue, &ctsio->io_hdr,
 			    ooa_links);
 		}
