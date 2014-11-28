@@ -1062,7 +1062,7 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 {
 	struct cfiscsi_data_wait *cdw;
 	union ctl_io *io;
-	int error, last;
+	int error, last, wait;
 
 	io = ctl_alloc_io(cs->cs_target->ct_port.ctl_pool_ref);
 	if (io == NULL) {
@@ -1078,6 +1078,7 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 	io->io_hdr.nexus.targ_lun = 0;
 	io->taskio.tag_type = CTL_TAG_SIMPLE; /* XXX */
 	io->taskio.task_action = CTL_TASK_I_T_NEXUS_RESET;
+	wait = cs->cs_outstanding_ctl_pdus;
 	refcount_acquire(&cs->cs_outstanding_ctl_pdus);
 	error = ctl_queue(io);
 	if (error != CTL_RETVAL_COMPLETE) {
@@ -1105,16 +1106,19 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 	/*
 	 * Wait for CTL to terminate all the tasks.
 	 */
+	if (wait > 0)
+		CFISCSI_SESSION_WARN(cs,
+		    "waiting for CTL to terminate %d tasks", wait);
 	for (;;) {
 		refcount_acquire(&cs->cs_outstanding_ctl_pdus);
 		last = refcount_release(&cs->cs_outstanding_ctl_pdus);
 		if (last != 0)
 			break;
-		CFISCSI_SESSION_WARN(cs, "waiting for CTL to terminate tasks, "
-		    "%d remaining", cs->cs_outstanding_ctl_pdus);
 		tsleep(__DEVOLATILE(void *, &cs->cs_outstanding_ctl_pdus),
 		    0, "cfiscsi_terminate", hz / 100);
 	}
+	if (wait > 0)
+		CFISCSI_SESSION_WARN(cs, "tasks terminated");
 }
 
 static void
