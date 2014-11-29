@@ -31,6 +31,9 @@
 
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
+
+.syntax	unified
+
 /*
  * This is one fun bit of code ...
  * Some easy listening music is suggested while trying to understand this
@@ -91,8 +94,8 @@ ENTRY(memcpy)
 	bge	.Lmemcpy_loop32
 
 	cmn	r2, #0x10
-	ldmgeia	r1!, {r3, r4, r12, lr}	/* blat a remaining 16 bytes */
-	stmgeia	r0!, {r3, r4, r12, lr}
+	ldmiage	r1!, {r3, r4, r12, lr}	/* blat a remaining 16 bytes */
+	stmiage	r0!, {r3, r4, r12, lr}
 	subge	r2, r2, #0x10         
 	ldmia	sp!, {r4}		/* return r4 */
 
@@ -101,9 +104,9 @@ ENTRY(memcpy)
 
 	/* blat 12 bytes at a time */
 .Lmemcpy_loop12:
-	ldmgeia	r1!, {r3, r12, lr}
-	stmgeia	r0!, {r3, r12, lr}
-	subges	r2, r2, #0x0c         
+	ldmiage	r1!, {r3, r12, lr}
+	stmiage	r0!, {r3, r12, lr}
+	subsge	r2, r2, #0x0c         
 	bge	.Lmemcpy_loop12
 
 .Lmemcpy_l12:
@@ -113,26 +116,26 @@ ENTRY(memcpy)
 	subs	r2, r2, #4
 	ldrlt	r3, [r1], #4
 	strlt	r3, [r0], #4
-	ldmgeia	r1!, {r3, r12}
-	stmgeia	r0!, {r3, r12}
+	ldmiage	r1!, {r3, r12}
+	stmiage	r0!, {r3, r12}
 	subge	r2, r2, #4
 
 .Lmemcpy_l4:
 	/* less than 4 bytes to go */
 	adds	r2, r2, #4
 #ifdef __APCS_26_
-	ldmeqia sp!, {r0, pc}^		/* done */
+	ldmiaeq sp!, {r0, pc}^		/* done */
 #else
-	ldmeqia	sp!, {r0, pc}		/* done */
+	ldmiaeq	sp!, {r0, pc}		/* done */
 #endif
 	/* copy the crud byte at a time */
 	cmp	r2, #2
 	ldrb	r3, [r1], #1
 	strb	r3, [r0], #1
-	ldrgeb	r3, [r1], #1
-	strgeb	r3, [r0], #1
-	ldrgtb	r3, [r1], #1
-	strgtb	r3, [r0], #1
+	ldrbge	r3, [r1], #1
+	strbge	r3, [r0], #1
+	ldrbgt	r3, [r1], #1
+	strbgt	r3, [r0], #1
 	ldmia	sp!, {r0, pc}
 
 	/* erg - unaligned destination */
@@ -143,10 +146,10 @@ ENTRY(memcpy)
 	/* align destination with byte copies */
 	ldrb	r3, [r1], #1
 	strb	r3, [r0], #1
-	ldrgeb	r3, [r1], #1
-	strgeb	r3, [r0], #1
-	ldrgtb	r3, [r1], #1
-	strgtb	r3, [r0], #1
+	ldrbge	r3, [r1], #1
+	strbge	r3, [r0], #1
+	ldrbgt	r3, [r1], #1
+	strbgt	r3, [r0], #1
 	subs	r2, r2, r12
 	blt	.Lmemcpy_l4		/* less the 4 bytes */
 
