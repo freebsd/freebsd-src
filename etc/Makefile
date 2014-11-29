@@ -292,7 +292,7 @@ distribution:
 	cd ${.CURDIR}/ppp; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 600 \
 	    ${PPPCNF} ${DESTDIR}/etc/ppp
 .endif
-.if ${MK_SENDMAIL} != "no"
+.if ${MK_MAIL} != "no"
 	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${ETCMAIL} ${DESTDIR}/etc/mail
 	if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
