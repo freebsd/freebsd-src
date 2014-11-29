@@ -238,7 +238,7 @@ auth_group_auth_type:	AUTH_TYPE STR
 	{
 		int error;
 
-		error = auth_group_set_type_str(auth_group, $2);
+		error = auth_group_set_type(auth_group, $2);
 		free($2);
 		if (error != 0)
 			return (1);
@@ -358,7 +358,7 @@ portal_group_discovery_filter:	DISCOVERY_FILTER STR
 	{
 		int error;
 
-		error = portal_group_set_filter_str(portal_group, $2);
+		error = portal_group_set_filter(portal_group, $2);
 		free($2);
 		if (error != 0)
 			return (1);
@@ -480,7 +480,7 @@ target_auth_type:	AUTH_TYPE STR
 			}
 			target->t_auth_group->ag_target = target;
 		}
-		error = auth_group_set_type_str(target->t_auth_group, $2);
+		error = auth_group_set_type(target->t_auth_group, $2);
 		free($2);
 		if (error != 0)
 			return (1);

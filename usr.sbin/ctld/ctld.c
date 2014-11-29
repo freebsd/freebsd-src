@@ -522,25 +522,10 @@ auth_group_find(const struct conf *conf, const char *name)
 	return (NULL);
 }
 
-static int
-auth_group_set_type(struct auth_group *ag, int type)
-{
-
-	if (ag->ag_type == AG_TYPE_UNKNOWN) {
-		ag->ag_type = type;
-		return (0);
-	}
-
-	if (ag->ag_type == type)
-		return (0);
-
-	return (1);
-}
-
 int
-auth_group_set_type_str(struct auth_group *ag, const char *str)
+auth_group_set_type(struct auth_group *ag, const char *str)
 {
-	int error, type;
+	int type;
 
 	if (strcmp(str, "none") == 0) {
 		type = AG_TYPE_NO_AUTHENTICATION;
@@ -560,20 +545,22 @@ auth_group_set_type_str(struct auth_group *ag, const char *str)
 		return (1);
 	}
 
-	error = auth_group_set_type(ag, type);
-	if (error != 0) {
-		if (ag->ag_name != NULL)
+	if (ag->ag_type != AG_TYPE_UNKNOWN && ag->ag_type != type) {
+		if (ag->ag_name != NULL) {
 			log_warnx("cannot set auth-type to \"%s\" for "
 			    "auth-group \"%s\"; already has a different "
 			    "type", str, ag->ag_name);
-		else
+		} else {
 			log_warnx("cannot set auth-type to \"%s\" for target "
 			    "\"%s\"; already has a different type",
 			    str, ag->ag_target->t_name);
+		}
 		return (1);
 	}
 
-	return (error);
+	ag->ag_type = type;
+
+	return (0);
 }
 
 static struct portal *
@@ -979,25 +966,10 @@ isns_deregister(struct isns *isns)
 	set_timeout(0, false);
 }
 
-static int
-portal_group_set_filter(struct portal_group *pg, int filter)
-{
-
-	if (pg->pg_discovery_filter == PG_FILTER_UNKNOWN) {
-		pg->pg_discovery_filter = filter;
-		return (0);
-	}
-
-	if (pg->pg_discovery_filter == filter)
-		return (0);
-
-	return (1);
-}
-
 int
-portal_group_set_filter_str(struct portal_group *pg, const char *str)
+portal_group_set_filter(struct portal_group *pg, const char *str)
 {
-	int error, filter;
+	int filter;
 
 	if (strcmp(str, "none") == 0) {
 		filter = PG_FILTER_NONE;
@@ -1015,15 +987,17 @@ portal_group_set_filter_str(struct portal_group *pg, const char *str)
 		return (1);
 	}
 
-	error = portal_group_set_filter(pg, filter);
-	if (error != 0) {
+	if (pg->pg_discovery_filter != PG_FILTER_UNKNOWN &&
+	    pg->pg_discovery_filter != filter) {
 		log_warnx("cannot set discovery-filter to \"%s\" for "
 		    "portal-group \"%s\"; already has a different "
 		    "value", str, pg->pg_name);
 		return (1);
 	}
 
-	return (error);
+	pg->pg_discovery_filter = filter;
+
+	return (0);
 }
 
 static bool
