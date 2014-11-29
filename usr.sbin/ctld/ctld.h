@@ -266,7 +266,7 @@ struct auth_group	*auth_group_new(struct conf *conf, const char *name);
 void			auth_group_delete(struct auth_group *ag);
 struct auth_group	*auth_group_find(const struct conf *conf,
 			    const char *name);
-int			auth_group_set_type_str(struct auth_group *ag,
+int			auth_group_set_type(struct auth_group *ag,
 			    const char *type);
 
 const struct auth	*auth_new_chap(struct auth_group *ag,
@@ -299,7 +299,7 @@ struct portal_group	*portal_group_find(const struct conf *conf,
 			    const char *name);
 int			portal_group_add_listen(struct portal_group *pg,
 			    const char *listen, bool iser);
-int			portal_group_set_filter_str(struct portal_group *pg,
+int			portal_group_set_filter(struct portal_group *pg,
 			    const char *filter);
 
 int			isns_new(struct conf *conf, const char *addr);
