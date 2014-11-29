@@ -966,8 +966,13 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 			ifp->if_capabilities |= IFCAP_VLAN_HWTSO;
 	}
 
-	if (virtio_with_feature(dev, VIRTIO_NET_F_GUEST_CSUM))
+	if (virtio_with_feature(dev, VIRTIO_NET_F_GUEST_CSUM)) {
 		ifp->if_capabilities |= IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+
+		if (virtio_with_feature(dev, VIRTIO_NET_F_GUEST_TSO4) ||
+		    virtio_with_feature(dev, VIRTIO_NET_F_GUEST_TSO6))
+			ifp->if_capabilities |= IFCAP_LRO;
+	}
 
 	if (ifp->if_capabilities & IFCAP_HWCSUM) {
 		/*
@@ -985,12 +990,6 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	/*
 	 * Capabilities after here are not enabled by default.
 	 */
-
-	if (ifp->if_capabilities & IFCAP_RXCSUM) {
-		if (virtio_with_feature(dev, VIRTIO_NET_F_GUEST_TSO4) ||
-		    virtio_with_feature(dev, VIRTIO_NET_F_GUEST_TSO6))
-			ifp->if_capabilities |= IFCAP_LRO;
-	}
 
 	if (sc->vtnet_flags & VTNET_FLAG_VLAN_FILTER) {
 		ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
