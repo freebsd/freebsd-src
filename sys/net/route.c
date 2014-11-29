@@ -512,6 +512,94 @@ done:
 	RT_UNLOCK(rt);
 }
 
+/*
+ * Route entry get/set methods for external consumers.
+ */
+
+const struct sockaddr *
+rte_get_dst(struct rtentry *rte)
+{
+
+	return ((const struct sockaddr *)rt_key(rte));
+}
+
+const struct sockaddr *
+rte_get_mask(struct rtentry *rte)
+{
+
+	return ((const struct sockaddr *)rt_mask(rte));
+}
+
+struct sockaddr *
+rte_get_gw(struct rtentry *rte)
+{
+
+	return ((struct sockaddr *)rte->rt_gateway);
+}
+
+struct ifnet *
+rte_get_lifp(struct rtentry *rte)
+{
+
+	return (rte->rt_ifp);
+}
+
+struct ifaddr *
+rte_get_ifa(struct rtentry *rte)
+{
+
+	return (rte->rt_ifa);
+}
+
+void
+rte_set_ifa(struct rtentry *rte, struct ifaddr *ifa)
+{
+
+	rte->rt_ifa = ifa;
+}
+
+unsigned int
+rte_get_flags(struct rtentry *rte)
+{
+
+	return ((unsigned int)rte->rt_flags);
+}
+
+void
+rte_set_flags(struct rtentry *rte, unsigned int rt_flags)
+{
+
+	rte->rt_flags = rt_flags;
+}
+
+unsigned long
+rte_get_mtu(struct rtentry *rte)
+{
+
+	return ((unsigned int)rte->rt_mtu);
+}
+
+void
+rte_set_mtu(struct rtentry *rte, unsigned long mtu)
+{
+
+	rte->rt_mtu = (u_long)mtu;
+}
+
+unsigned long
+rte_get_weight(struct rtentry *rte)
+{
+
+	return ((uint32_t)rte->rt_weight);
+}
+
+void
+rte_set_weight(struct rtentry *rte, unsigned long weight)
+{
+
+	rte->rt_weight = weight;
+}
+
 
 /*
  * Force a routing table entry to the specified

@@ -178,6 +178,19 @@ struct rtentry {
 	(RTF_PROTO1 | RTF_PROTO2 | RTF_PROTO3 | RTF_BLACKHOLE | \
 	 RTF_REJECT | RTF_STATIC | RTF_STICKY)
 
+const struct sockaddr *rte_get_dst(struct rtentry *rte);
+const struct sockaddr *rte_get_mask(struct rtentry *rte);
+struct sockaddr *rte_get_gw(struct rtentry *rte);
+struct ifnet *rte_get_lifp(struct rtentry *rte);
+struct ifaddr *rte_get_ifa(struct rtentry *rte);
+void rte_set_ifa(struct rtentry *rte, struct ifaddr *ifa);
+unsigned int rte_get_flags(struct rtentry *rte);
+void rte_set_flags(struct rtentry *rte, unsigned int rt_flags);
+unsigned long rte_get_mtu(struct rtentry *rte);
+void rte_set_mtu(struct rtentry *rte, unsigned long mtu);
+unsigned long rte_get_weight(struct rtentry *rte);
+void rte_set_weight(struct rtentry *rte, unsigned long weight);;
+
 /*
  * Routing statistics.
  */

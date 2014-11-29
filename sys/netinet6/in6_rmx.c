@@ -106,12 +106,22 @@ static struct radix_node *
 in6_addroute(void *v_arg, void *n_arg, struct radix_head *head,
     struct radix_node *treenodes)
 {
-	struct rtentry *rt = (struct rtentry *)treenodes;
-	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)rt_key(rt);
+	unsigned int mtu, rt_flags;
+	struct rtentry *rt;
+	const struct sockaddr_in6 *sin6;
+	struct ifnet *ifp;
+	struct ifaddr *ifa;
+
+	rt = (struct rtentry *)treenodes;
+	sin6 = (const struct sockaddr_in6 *)rte_get_dst(rt);
+	rt_flags = rte_get_flags(rt);
+	ifp = rte_get_lifp(rt);
+	ifa = rte_get_ifa(rt);
+	
 	struct radix_node *ret;
 
 	if (IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
-		rt->rt_flags |= RTF_MULTICAST;
+		rt_flags |= RTF_MULTICAST;
 
 	/*
 	 * A little bit of help for both IPv6 output and input:
@@ -127,30 +137,33 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 	 * XXX
 	 * should elaborate the code.
 	 */
-	if (rt->rt_flags & RTF_HOST) {
-		if (IN6_ARE_ADDR_EQUAL(&satosin6(rt->rt_ifa->ifa_addr)
-					->sin6_addr,
-				       &sin6->sin6_addr)) {
-			rt->rt_flags |= RTF_LOCAL;
+	if (rt_flags & RTF_HOST) {
+		if (IN6_ARE_ADDR_EQUAL(&satosin6(ifa->ifa_addr)->sin6_addr,
+		    &sin6->sin6_addr)) {
+			rt_flags |= RTF_LOCAL;
 		}
 	}
 
-	if (rt->rt_ifp != NULL) {
+	rte_set_flags(rt, rt_flags);
+
+	if (ifp != NULL) {
 
 		/*
 		 * Check route MTU:
 		 * inherit interface MTU if not set or
 		 * check if MTU is too large.
 		 */
-		if (rt->rt_mtu == 0) {
-			rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
-		} else if (rt->rt_mtu > IN6_LINKMTU(rt->rt_ifp))
-			rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
+		mtu = rte_get_mtu(rt);
+		if (mtu == 0) {
+			rte_set_mtu(rt, IN6_LINKMTU(rt->rt_ifp));
+		} else if (mtu > IN6_LINKMTU(rt->rt_ifp))
+			rte_set_mtu(rt, IN6_LINKMTU(rt->rt_ifp));
 	}
 
 	ret = rn_addroute(v_arg, n_arg, head, treenodes);
 	if (ret == NULL) {
 		struct rtentry *rt2;
+		struct sockaddr *gw;
 		/*
 		 * We are trying to add a net route, but can't.
 		 * The following case should be allowed, so we'll make a
@@ -166,10 +179,13 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_head *head,
 		rt2 = in6_rtalloc1((struct sockaddr *)sin6, 0, RTF_RNH_LOCKED,
 		    rt->rt_fibnum);
 		if (rt2) {
-			if (((rt2->rt_flags & (RTF_HOST|RTF_GATEWAY)) == 0)
-			 && rt2->rt_gateway
-			 && rt2->rt_gateway->sa_family == AF_LINK
-			 && rt2->rt_ifp == rt->rt_ifp) {
+			rt_flags = rte_get_flags(rt2);
+			ifp = rte_get_lifp(rt2);
+			gw = rte_get_gw(rt2);
+			if (((rt_flags & (RTF_HOST|RTF_GATEWAY)) == 0)
+			 && gw != NULL 
+			 && gw->sa_family == AF_LINK
+			 && ifp == rte_get_lifp(rt)) {
 				ret = rt2->rt_nodes;
 			}
 			RTFREE_LOCKED(rt2);
