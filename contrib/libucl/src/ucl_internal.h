@@ -163,6 +163,7 @@ struct ucl_chunk {
 	size_t remain;
 	unsigned int line;
 	unsigned int column;
+	unsigned priority;
 	struct ucl_chunk *next;
 };
 
@@ -182,7 +183,7 @@ struct ucl_variable {
 	char *value;
 	size_t var_len;
 	size_t value_len;
-	struct ucl_variable *next;
+	struct ucl_variable *prev, *next;
 };
 
 struct ucl_parser {
@@ -192,6 +193,7 @@ struct ucl_parser {
 	int flags;
 	ucl_object_t *top_obj;
 	ucl_object_t *cur_obj;
+	char *cur_file;
 	struct ucl_macro *macroes;
 	struct ucl_stack *stack;
 	struct ucl_chunk *chunks;
@@ -200,6 +202,12 @@ struct ucl_parser {
 	ucl_variable_handler var_handler;
 	void *var_data;
 	UT_string *err;
+};
+
+struct ucl_object_userdata {
+	ucl_object_t obj;
+	ucl_userdata_dtor dtor;
+	ucl_userdata_emitter emitter;
 };
 
 /**
@@ -216,9 +224,11 @@ size_t ucl_unescape_json_string (char *str, size_t len);
  * @param err error ptr
  * @return
  */
-bool ucl_include_handler (const unsigned char *data, size_t len, void* ud);
+bool ucl_include_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, void* ud);
 
-bool ucl_try_include_handler (const unsigned char *data, size_t len, void* ud);
+bool ucl_try_include_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, void* ud);
 
 /**
  * Handle includes macro
@@ -228,7 +238,8 @@ bool ucl_try_include_handler (const unsigned char *data, size_t len, void* ud);
  * @param err error ptr
  * @return
  */
-bool ucl_includes_handler (const unsigned char *data, size_t len, void* ud);
+bool ucl_includes_handler (const unsigned char *data, size_t len,
+		const ucl_object_t *args, void* ud);
 
 size_t ucl_strlcpy (char *dst, const char *src, size_t siz);
 size_t ucl_strlcpy_unsafe (char *dst, const char *src, size_t siz);
@@ -264,7 +275,7 @@ ucl_create_err (UT_string **err, const char *fmt, ...)
 static inline bool
 ucl_maybe_parse_boolean (ucl_object_t *obj, const unsigned char *start, size_t len)
 {
-	const unsigned char *p = start;
+	const char *p = (const char *)start;
 	bool ret = false, val = false;
 
 	if (len == 5) {
@@ -351,11 +362,20 @@ const struct ucl_emitter_context *
 ucl_emit_get_standard_context (enum ucl_emitter emit_type);
 
 /**
- * Serialise string
+ * Serialize string as JSON string
  * @param str string to emit
  * @param buf target buffer
  */
 void ucl_elt_string_write_json (const char *str, size_t size,
+		struct ucl_emitter_context *ctx);
+
+/**
+ * Write multiline string using `EOD` as string terminator
+ * @param str
+ * @param size
+ * @param ctx
+ */
+void ucl_elt_string_write_multiline (const char *str, size_t size,
 		struct ucl_emitter_context *ctx);
 
 /**
@@ -364,5 +384,13 @@ void ucl_elt_string_write_json (const char *str, size_t size,
  * @return
  */
 unsigned char * ucl_object_emit_single_json (const ucl_object_t *obj);
+
+/**
+ * Check whether a specified string is long and should be likely printed in
+ * multiline mode
+ * @param obj
+ * @return
+ */
+bool ucl_maybe_long_string (const ucl_object_t *obj);
 
 #endif /* UCL_INTERNAL_H_ */
