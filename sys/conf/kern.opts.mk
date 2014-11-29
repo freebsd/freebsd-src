@@ -23,10 +23,12 @@
 # src tree.
 
 __DEFAULT_YES_OPTIONS = \
+    AUTOFS \
     BLUETOOTH \
     CDDL \
     CRYPT \
     FORMAT_EXTENSIONS \
+    ISCSI \
     INET \
     INET6 \
     IPFILTER \
@@ -42,6 +44,42 @@ __DEFAULT_NO_OPTIONS = \
     EISA \
     NAND \
     OFED
+
+# expanded inline from src.opts.mk to avoid share/mk dependency
+
+#
+# Default behaviour of some options depends on the architecture.  Unfortunately
+# this means that we have to test TARGET_ARCH (the buildworld case) as well
+# as MACHINE_ARCH (the non-buildworld case).  Normally TARGET_ARCH is not
+# used at all in bsd.*.mk, but we have to make an exception here if we want
+# to allow defaults for some things like clang to vary by target architecture.
+# Additional, per-target behavior should be rarely added only after much
+# gnashing of teeth and grinding of gears.
+#
+.if defined(TARGET_ARCH)
+__T=${TARGET_ARCH}
+.else
+__T=${MACHINE_ARCH}
+.endif
+.if defined(TARGET)
+__TT=${TARGET}
+.else
+__TT=${MACHINE}
+.endif
+
+# bhyve is only supported on amd64
+.if ${__T} == "amd64"
+__DEFAULT_YES_OPTIONS+=BHYVE
+.else
+MK_BHYVE:=      no
+.endif
+
+# hyperv is only supported on amd64 and i386/i386
+.if ${__T} == "amd64" || (${__T} == "i386" && ${__TT} == "i386")
+__DEFAULT_YES_OPTIONS+=HYPERV
+.else
+MK_HYPERV:=	no
+.endif
 
 # expanded inline from bsd.mkopt.mk to avoid share/mk dependency
 
