@@ -76,7 +76,6 @@
 #include <net/if_vlan_var.h>
 #include <net/radix.h>
 #include <net/route.h>
-#include <net/route_internal.h>
 #include <net/vnet.h>
 
 #if defined(INET) || defined(INET6)
@@ -1893,8 +1892,6 @@ ifa_preferred(struct ifaddr *cur, struct ifaddr *next)
 	    ((*carp_master_p)(next) && !(*carp_master_p)(cur))));
 }
 
-#include <net/if_llatbl.h>
-
 /*
  * Default action when installing a route with a Link Level gateway.
  * Lookup an appropriate real ifa to point to.
@@ -1904,16 +1901,18 @@ static void
 link_rtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 {
 	struct ifaddr *ifa, *oifa;
-	struct sockaddr *dst;
+	const struct sockaddr *dst;
 	struct ifnet *ifp;
 
-	if (cmd != RTM_ADD || ((ifa = rt->rt_ifa) == 0) ||
-	    ((ifp = ifa->ifa_ifp) == 0) || ((dst = rt_key(rt)) == 0))
+	ifp = rte_get_lifp(rt);
+	oifa = rte_get_ifa(rt);
+	dst = rte_get_dst(rt);
+
+	if (cmd != RTM_ADD || oifa == NULL || ifp == NULL || dst == NULL)
 		return;
-	ifa = ifaof_ifpforaddr(dst, ifp);
+	ifa = ifaof_ifpforaddr(__DECONST(struct sockaddr *, dst), ifp);
 	if (ifa) {
-		oifa = rt->rt_ifa;
-		rt->rt_ifa = ifa;
+		rte_set_ifa(rt, ifa);
 		ifa_free(oifa);
 		if (ifa->ifa_rtrequest && ifa->ifa_rtrequest != link_rtrequest)
 			ifa->ifa_rtrequest(cmd, rt, info);

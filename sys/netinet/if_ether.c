@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_llc.h>
 #include <net/ethernet.h>
 #include <net/route.h>
-#include <net/route_internal.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -471,7 +470,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	}
 	IF_AFDATA_RUN_RUNLOCK(ifp);
 
-	is_gw = (rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY)) ? 1 : 0;
+	is_gw = (rt0 != NULL) ? (rte_get_flags(rt0) & RTF_GATEWAY) : 0;
 	return (arpresolve_slow(ifp, is_gw, m, dst, desten, lle));
 }
 
