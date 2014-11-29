@@ -220,6 +220,7 @@ _DP_pam+=	ypclnt
 _DP_krb5+=	asn1 com_err crypt crypto hx509 roken wind heimbase heimipcc \
 		pthread
 _DP_gssapi_krb5+=	gssapi krb5 crypto roken asn1 com_err
+_DP_ucl=	m
 
 # Define spacial cases
 LDADD_supcplusplus=	-lsupc++
@@ -242,10 +243,6 @@ LDADD_${_l}+=	${LDADD_${_d}}
 .endfor
 .endif
 .endfor
-
-# ucl needs and exposes libm
-DPADD_ucl+=	${DPADD_m}
-LDADD_ucl+=	${LDADD_m}
 
 DPADD_sqlite3+=	${DPADD_pthread}
 LDADD_sqlite3+=	${LDADD_pthread}
