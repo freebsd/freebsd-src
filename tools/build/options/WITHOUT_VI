@@ -1,2 +1,6 @@
 .\" $FreeBSD$
-Set to not build and install vi, view, ex and related programs.
+Set to not build and install
+.Xr vi 1 ,
+.Xr view 1 ,
+.Xr ex 1 ,
+and related programs.
