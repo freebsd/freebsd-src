@@ -13,8 +13,8 @@ Introduced here: http://svnweb.freebsd.org/changeset/base/275160
 
 Index: lib/Transforms/InstCombine/InstCombineSelect.cpp
 ===================================================================
---- lib/Transforms/InstCombine/InstCombineSelect.cpp	(revision 17)
-+++ lib/Transforms/InstCombine/InstCombineSelect.cpp	(revision 18)
+--- lib/Transforms/InstCombine/InstCombineSelect.cpp
++++ lib/Transforms/InstCombine/InstCombineSelect.cpp
 @@ -387,15 +387,7 @@ static Value *SimplifyWithOpReplaced(Value *V, Val
  /// 1. The icmp predicate is inverted
  /// 2. The select operands are reversed
@@ -60,8 +60,8 @@ Index: lib/Transforms/InstCombine/InstCombineSelect.cpp
    if (!OrOnFalseVal)
 Index: test/Transforms/InstCombine/select.ll
 ===================================================================
---- test/Transforms/InstCombine/select.ll	(revision 17)
-+++ test/Transforms/InstCombine/select.ll	(revision 18)
+--- test/Transforms/InstCombine/select.ll
++++ test/Transforms/InstCombine/select.ll
 @@ -996,111 +996,6 @@ define <2 x i32> @select_icmp_eq_and_1_0_or_vector
    ret <2 x i32> %select
  }

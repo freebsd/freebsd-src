@@ -14,8 +14,8 @@ Introduced here: http://svnweb.freebsd.org/changeset/base/275153
 
 Index: include/llvm/Support/DynamicLibrary.h
 ===================================================================
---- include/llvm/Support/DynamicLibrary.h	(revision 15)
-+++ include/llvm/Support/DynamicLibrary.h	(revision 16)
+--- include/llvm/Support/DynamicLibrary.h
++++ include/llvm/Support/DynamicLibrary.h
 @@ -43,10 +43,11 @@ namespace sys {
      // Opaque data used to interface with OS-specific dynamic library handling.
      void *Data;
