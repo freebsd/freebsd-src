@@ -979,6 +979,53 @@ isns_deregister(struct isns *isns)
 	set_timeout(0, false);
 }
 
+static int
+portal_group_set_filter(struct portal_group *pg, int filter)
+{
+
+	if (pg->pg_discovery_filter == PG_FILTER_UNKNOWN) {
+		pg->pg_discovery_filter = filter;
+		return (0);
+	}
+
+	if (pg->pg_discovery_filter == filter)
+		return (0);
+
+	return (1);
+}
+
+int
+portal_group_set_filter_str(struct portal_group *pg, const char *str)
+{
+	int error, filter;
+
+	if (strcmp(str, "none") == 0) {
+		filter = PG_FILTER_NONE;
+	} else if (strcmp(str, "portal") == 0) {
+		filter = PG_FILTER_PORTAL;
+	} else if (strcmp(str, "portal-name") == 0) {
+		filter = PG_FILTER_PORTAL_NAME;
+	} else if (strcmp(str, "portal-name-auth") == 0) {
+		filter = PG_FILTER_PORTAL_NAME_AUTH;
+	} else {
+		log_warnx("invalid discovery-filter \"%s\" for portal-group "
+		    "\"%s\"; valid values are \"none\", \"portal\", "
+		    "\"portal-name\", and \"portal-name-auth\"",
+		    str, pg->pg_name);
+		return (1);
+	}
+
+	error = portal_group_set_filter(pg, filter);
+	if (error != 0) {
+		log_warnx("cannot set discovery-filter to \"%s\" for "
+		    "portal-group \"%s\"; already has a different "
+		    "value", str, pg->pg_name);
+		return (1);
+	}
+
+	return (error);
+}
+
 static bool
 valid_hex(const char ch)
 {
@@ -1477,6 +1524,9 @@ conf_verify(struct conf *conf)
 			    auth_group_find(conf, "default");
 			assert(pg->pg_discovery_auth_group != NULL);
 		}
+
+		if (pg->pg_discovery_filter == PG_FILTER_UNKNOWN)
+			pg->pg_discovery_filter = PG_FILTER_NONE;
 
 		TAILQ_FOREACH(targ, &conf->conf_targets, t_next) {
 			if (targ->t_portal_group == pg)
