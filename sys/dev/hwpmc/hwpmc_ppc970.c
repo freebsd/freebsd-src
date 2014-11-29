@@ -481,7 +481,6 @@ ppc970_intr(int cpu, struct trapframe *tf)
 {
 	struct pmc *pm;
 	struct powerpc_cpu *pac;
-	pmc_value_t v;
 	uint32_t config;
 	int i, error, retval;
 
@@ -503,8 +502,7 @@ ppc970_intr(int cpu, struct trapframe *tf)
 	 * If found, we call a helper to process the interrupt.
 	 */
 
-	config  = mfspr(SPR_970MMCR0);
-	mtspr(SPR_970MMCR0, config | SPR_MMCR0_FC);
+	config  = mfspr(SPR_970MMCR0) & ~SPR_MMCR0_FC;
 	for (i = 0; i < PPC970_MAX_PMCS; i++) {
 		if ((pm = pac->pc_ppcpmcs[i].phw_pmc) == NULL ||
 		    !PMC_IS_SAMPLING_MODE(PMC_TO_MODE(pm))) {
@@ -519,24 +517,21 @@ ppc970_intr(int cpu, struct trapframe *tf)
 		if (pm->pm_state != PMC_STATE_RUNNING)
 			continue;
 
-		/* Stop the PMC, reload count. */
-		v       = pm->pm_sc.pm_reloadcount;
-
-		ppc970_pmcn_write(i, v);
-
-		/* Restart the counter if logging succeeded. */
 		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
 		    TRAPF_USERMODE(tf));
-		mtspr(SPR_970MMCR0, config);
 		if (error != 0)
 			ppc970_stop_pmc(cpu, i);
-		atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
-				&pmc_stats.pm_intr_ignored, 1);
 
+		/* reload sampling count. */
+		ppc970_write_pmc(cpu, i, pm->pm_sc.pm_reloadcount);
 	}
 
+	atomic_add_int(retval ? &pmc_stats.pm_intr_processed :
+	    &pmc_stats.pm_intr_ignored, 1);
+
 	/* Re-enable PERF exceptions. */
-	mtspr(SPR_970MMCR0, mfspr(SPR_970MMCR0) | SPR_MMCR0_PMXE);
+	if (retval)
+		mtspr(SPR_970MMCR0, config | SPR_MMCR0_PMXE);
 
 	return (retval);
 }
@@ -572,10 +567,10 @@ ppc970_pcpu_init(struct pmc_mdep *md, int cpu)
 
 	/* Clear the MMCRs, and set FC, to disable all PMCs. */
 	/* 970 PMC is not counted when set to 0x08 */
-	mtspr(SPR_970MMCR0, SPR_MMCR0_FC | SPR_MMCR0_PMXE | SPR_MMCR0_PMC1CE |
-	    SPR_MMCR0_PMCNCE | SPR_970MMCR0_PMC1SEL(0x8) | SPR_970MMCR0_PMC2SEL(0x8));
+	mtspr(SPR_970MMCR0, SPR_MMCR0_FC | SPR_MMCR0_PMXE |
+	    SPR_MMCR0_FCECE | SPR_MMCR0_PMC1CE | SPR_MMCR0_PMCNCE |
+	    SPR_970MMCR0_PMC1SEL(0x8) | SPR_970MMCR0_PMC2SEL(0x8));
 	mtspr(SPR_970MMCR1, 0x4218420);
-	mtmsr(mfmsr() | PSL_PMM);
 
 	return 0;
 }
@@ -585,7 +580,6 @@ ppc970_pcpu_fini(struct pmc_mdep *md, int cpu)
 {
 	register_t mmcr0 = mfspr(SPR_MMCR0);
 
-	mtmsr(mfmsr() & ~PSL_PMM);
 	mmcr0 |= SPR_MMCR0_FC;
 	mmcr0 &= ~SPR_MMCR0_PMXE;
 	mtspr(SPR_MMCR0, mmcr0);

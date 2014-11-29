@@ -103,6 +103,7 @@ static char    *ixgbe_strings[] = {
 /*********************************************************************
  *  Function prototypes
  *********************************************************************/
+static int	ixgbe_per_unit_num_queues(SYSCTL_HANDLER_ARGS);
 static int      ixgbe_probe(device_t);
 static int      ixgbe_attach(device_t);
 static int      ixgbe_detach(device_t);
@@ -472,6 +473,11 @@ ixgbe_attach(device_t dev)
 			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 			OID_AUTO, "advertise_speed", CTLTYPE_INT | CTLFLAG_RW,
 			adapter, 0, ixgbe_set_advertise, "I", "Link Speed");
+
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+			OID_AUTO, "num_queues", CTLTYPE_INT | CTLFLAG_RD,
+			adapter, 0, ixgbe_per_unit_num_queues, "I", "Number of Queues");
 
 	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
@@ -2516,6 +2522,7 @@ ixgbe_setup_msix(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
 	int rid, want, queues, msgs;
+	int n_queues;
 
 	/* Override by tuneable */
 	if (ixgbe_enable_msix == 0)
@@ -2548,14 +2555,28 @@ ixgbe_setup_msix(struct adapter *adapter)
 		queues = rss_getnumbuckets();
 #endif
 
-	if (ixgbe_num_queues != 0)
-		queues = ixgbe_num_queues;
+	/* try more specific tunable, then global, then finally default to boot time tunable if set. */
+	if (device_getenv_int(dev, "num_queues", &n_queues) != 0) {
+		device_printf(dev, "using specific tunable numqueues=%d", n_queues);
+	} else if (TUNABLE_INT_FETCH("hw.ix.num_queues", &n_queues) != 0) {
+		if (ixgbe_num_queues != n_queues) {
+			device_printf(dev, "using global tunable num_queues=%d", n_queues);
+			ixgbe_num_queues = n_queues;
+		}
+	} else {
+		n_queues = ixgbe_num_queues;
+	}
+
+	if (n_queues < 0) {
+		device_printf(dev, "tunable < 0, resetting to default");
+		n_queues = 0;
+	}
+
+	if (n_queues != 0)
+		queues = n_queues;
 	/* Set max queues to 8 when autoconfiguring */
 	else if ((ixgbe_num_queues == 0) && (queues > 8))
 		queues = 8;
-
-	/* reflect correct sysctl value */
-	ixgbe_num_queues = queues;
 
 	/*
 	** Want one vector (RX/TX pair) per queue
@@ -5941,6 +5962,16 @@ ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS)
 	adapter->hw.fc.disable_fc_autoneg = TRUE;
 	ixgbe_fc_enable(&adapter->hw);
 	return error;
+}
+
+static int
+ixgbe_per_unit_num_queues(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter		*adapter;
+
+	adapter = (struct adapter *) arg1;
+
+	return sysctl_handle_int(oidp, &adapter->num_queues, 0, req);
 }
 
 /*
