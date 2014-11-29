@@ -74,6 +74,20 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
+/*
+ * The following macro defines how many bytes will be allocated from
+ * the stack instead of memory allocated when passing the IOCTL data
+ * structures from userspace and to the kernel. Some IOCTLs having
+ * small data structures are used very frequently and this small
+ * buffer on the stack gives a significant speedup improvement for
+ * those requests. The value of this define should be greater or equal
+ * to 64 bytes and should also be power of two. The data structure is
+ * currently hard-aligned to a 8-byte boundary on the stack. This
+ * should currently be sufficient for all supported platforms.
+ */
+#define	SYS_IOCTL_SMALL_SIZE	128	/* bytes */
+#define	SYS_IOCTL_SMALL_ALIGN	8	/* bytes */
+
 int iosize_max_clamp = 1;
 SYSCTL_INT(_debug, OID_AUTO, iosize_max_clamp, CTLFLAG_RW,
     &iosize_max_clamp, 0, "Clamp max i/o size to INT_MAX");
@@ -640,6 +654,7 @@ struct ioctl_args {
 int
 sys_ioctl(struct thread *td, struct ioctl_args *uap)
 {
+	u_char smalldata[SYS_IOCTL_SMALL_SIZE] __aligned(SYS_IOCTL_SMALL_ALIGN);
 	u_long com;
 	int arg, error;
 	u_int size;
@@ -674,17 +689,18 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 			arg = (intptr_t)uap->data;
 			data = (void *)&arg;
 			size = 0;
-		} else
-			data = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
+		} else {
+			if (size > SYS_IOCTL_SMALL_SIZE)
+				data = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
+			else
+				data = smalldata;
+		}
 	} else
 		data = (void *)&uap->data;
 	if (com & IOC_IN) {
 		error = copyin(uap->data, data, (u_int)size);
-		if (error) {
-			if (size > 0)
-				free(data, M_IOCTLOPS);
-			return (error);
-		}
+		if (error != 0)
+			goto out;
 	} else if (com & IOC_OUT) {
 		/*
 		 * Zero the buffer so the user always
@@ -698,7 +714,8 @@ sys_ioctl(struct thread *td, struct ioctl_args *uap)
 	if (error == 0 && (com & IOC_OUT))
 		error = copyout(data, uap->data, (u_int)size);
 
-	if (size > 0)
+out:
+	if (size > SYS_IOCTL_SMALL_SIZE)
 		free(data, M_IOCTLOPS);
 	return (error);
 }
