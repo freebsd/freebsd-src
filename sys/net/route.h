@@ -338,6 +338,7 @@ typedef int rt_walktree_f_t(struct rtentry *, void *);
 typedef void rt_setwarg_t(struct rib_head *, uint32_t, int, void *);
 void	rt_foreach_fib(int af, rt_setwarg_t *, rt_walktree_f_t *, void *);
 void	rt_flushifroutes(struct ifnet *ifp);
+int	rt_switch_loopback_route(uint32_t, struct sockaddr *, struct ifnet *);
 
 /* XXX MRT COMPAT VERSIONS THAT SET UNIVERSE to 0 */
 /* Thes are used by old code not yet converted to use multiple FIBS */
