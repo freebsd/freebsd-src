@@ -7,8 +7,11 @@
 
 LIB=	zfs
 DPADD=	${LIBMD} ${LIBPTHREAD} ${LIBUMEM} ${LIBUTIL} ${LIBM} ${LIBNVPAIR} \
-	${LIBAVL} ${LIBZFS_CORE}
-LDADD=	-lmd -lpthread -lumem -lutil -lm -lnvpair -lavl -lzfs_core
+	${LIBAVL} ${LIBZFS_CORE} ${LIBUUTIL} ${LIBBSDXML} ${LIBGEOM} \
+	${LIBNVPAIR}
+
+LDADD=	-lmd -lpthread -lumem -lutil -luutil -lm -lnvpair -lavl \
+	-lbsdxml -lgeom -lnvpair -lzfs_core
 
 SRCS=	deviceid.c \
 	fsshare.c \
