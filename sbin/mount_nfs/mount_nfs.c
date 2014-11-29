@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
 #include "mounttab.h"
 
 /* Table for af,sotype -> netid conversions. */
-struct nc_protos {
+static struct nc_protos {
 	const char *netid;
 	int af;
 	int sotype;
@@ -102,20 +102,21 @@ struct nfhret {
 #define	ISBGRND	2
 #define	OF_NOINET4	4
 #define	OF_NOINET6	8
-int retrycnt = -1;
-int opflags = 0;
-int nfsproto = IPPROTO_TCP;
-int mnttcp_ok = 1;
-int noconn = 0;
-char *portspec = NULL;	/* Server nfs port; NULL means look up via rpcbind. */
-struct sockaddr *addr;
-int addrlen = 0;
-u_char *fh = NULL;
-int fhsize = 0;
-int secflavor = -1;
-int got_principal = 0;
+static int retrycnt = -1;
+static int opflags = 0;
+static int nfsproto = IPPROTO_TCP;
+static int mnttcp_ok = 1;
+static int noconn = 0;
+/* The 'portspec' is the server nfs port; NULL means look up via rpcbind. */
+static const char *portspec = NULL;
+static struct sockaddr *addr;
+static int addrlen = 0;
+static u_char *fh = NULL;
+static int fhsize = 0;
+static int secflavor = -1;
+static int got_principal = 0;
 
-enum mountmode {
+static enum mountmode {
 	ANY,
 	V2,
 	V3,
@@ -130,8 +131,8 @@ enum tryret {
 	TRYRET_LOCALERR		/* Local failure. */
 };
 
-static int	sec_name_to_num(char *sec);
-static char	*sec_num_to_name(int num);
+static int	sec_name_to_num(const char *sec);
+static const char	*sec_num_to_name(int num);
 static int	getnfsargs(char *, struct iovec **iov, int *iovlen);
 /* void	set_rpc_maxgrouplist(int); */
 static struct netconfig *getnetconf_cached(const char *netid);
@@ -149,9 +150,10 @@ main(int argc, char *argv[])
 	int c;
 	struct iovec *iov;
 	int num, iovlen;
-	char *name, *p, *spec, *fstype;
+	char *mntname, *p, *spec, *tmp;
 	char mntpath[MAXPATHLEN], errmsg[255];
-	char hostname[MAXHOSTNAMELEN + 1], *gssname, gssn[MAXHOSTNAMELEN + 50];
+	char hostname[MAXHOSTNAMELEN + 1], gssn[MAXHOSTNAMELEN + 50];
+	const char *fstype, *gssname;
 
 	iov = NULL;
 	iovlen = 0;
@@ -226,7 +228,7 @@ main(int argc, char *argv[])
 			while (opt) {
 				char *pval = NULL;
 				char *pnextopt = NULL;
-				char *val = "";
+				const char *val = "";
 				pass_flag_to_nmount = 1;
 				pnextopt = strchr(opt, ',');
 				if (pnextopt != NULL) {
@@ -276,10 +278,10 @@ main(int argc, char *argv[])
 						portspec = "2049";
 				} else if (strcmp(opt, "port") == 0) {
 					pass_flag_to_nmount=0;
-					asprintf(&portspec, "%d",
-					    atoi(val));
-					if (portspec == NULL)
+					asprintf(&tmp, "%d", atoi(val));
+					if (tmp == NULL)
 						err(1, "asprintf");
+					portspec = tmp;
 				} else if (strcmp(opt, "principal") == 0) {
 					got_principal = 1;
 				} else if (strcmp(opt, "proto") == 0) {
@@ -364,9 +366,11 @@ main(int argc, char *argv[])
 					}
 					pass_flag_to_nmount=0;
 				}
-				if (pass_flag_to_nmount)
-					build_iovec(&iov, &iovlen, opt, val,
+				if (pass_flag_to_nmount) {
+					build_iovec(&iov, &iovlen, opt,
+					    __DECONST(void *, val),
 					    strlen(val) + 1);
+				}
 				opt = pnextopt;
 			}
 			}
@@ -426,7 +430,7 @@ main(int argc, char *argv[])
 	}
 
 	spec = *argv++;
-	name = *argv;
+	mntname = *argv;
 
 	if (retrycnt == -1)
 		/* The default is to keep retrying forever. */
@@ -455,18 +459,19 @@ main(int argc, char *argv[])
 			    hostname);
 			gssname = gssn;
 		}
-		build_iovec(&iov, &iovlen, "gssname", gssname,
-		    strlen(gssname) + 1);
+		build_iovec(&iov, &iovlen, "gssname",
+		    __DECONST(void *, gssname), strlen(gssname) + 1);
 	}
 
 	if (!getnfsargs(spec, &iov, &iovlen))
 		exit(1);
 
 	/* resolve the mountpoint with realpath(3) */
-	if (checkpath(name, mntpath) != 0)
+	if (checkpath(mntname, mntpath) != 0)
 		err(1, "%s", mntpath);
 
-	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
+	build_iovec(&iov, &iovlen, "fstype", 
+	    __DECONST(void *, fstype), (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
 	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
 
@@ -477,7 +482,7 @@ main(int argc, char *argv[])
 }
 
 static int
-sec_name_to_num(char *sec)
+sec_name_to_num(const char *sec)
 {
 	if (!strcmp(sec, "krb5"))
 		return (RPCSEC_GSS_KRB5);
@@ -490,7 +495,7 @@ sec_name_to_num(char *sec)
 	return (-1);
 }
 
-static char *
+static const char *
 sec_num_to_name(int flavor)
 {
 	switch (flavor) {
@@ -674,10 +679,9 @@ nfs_tryproto(struct addrinfo *ai, char *hostp, char *spec, char **errstr,
 	struct rpc_err rpcerr;
 	CLIENT *clp;
 	struct netconfig *nconf, *nconf_mnt;
-	const char *netid, *netid_mnt;
-	char *secname;
+	const char *netid, *netid_mnt, *secname;
 	int doconnect, nfsvers, mntvers, sotype;
-	enum clnt_stat stat;
+	enum clnt_stat clntstat;
 	enum mountmode trymntmode;
 
 	sotype = 0;
@@ -721,6 +725,7 @@ nfs_tryproto(struct addrinfo *ai, char *hostp, char *spec, char **errstr,
 tryagain:
 	if (trymntmode == V4) {
 		nfsvers = 4;
+		mntvers = 3; /* Workaround for GCC. */
 	} else if (trymntmode == V2) {
 		nfsvers = 2;
 		mntvers = 1;
@@ -780,10 +785,10 @@ tryagain:
 
 	try.tv_sec = 10;
 	try.tv_usec = 0;
-	stat = clnt_call(clp, NFSPROC_NULL, (xdrproc_t)xdr_void, NULL,
+	clntstat = clnt_call(clp, NFSPROC_NULL, (xdrproc_t)xdr_void, NULL,
 			 (xdrproc_t)xdr_void, NULL, try);
-	if (stat != RPC_SUCCESS) {
-		if (stat == RPC_PROGVERSMISMATCH && trymntmode == ANY) {
+	if (clntstat != RPC_SUCCESS) {
+		if (clntstat == RPC_PROGVERSMISMATCH && trymntmode == ANY) {
 			clnt_destroy(clp);
 			trymntmode = V2;
 			goto tryagain;
@@ -792,7 +797,7 @@ tryagain:
 		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid,
 		    hostp, spec, clnt_sperror(clp, "NFSPROC_NULL"));
 		clnt_destroy(clp);
-		return (returncode(stat, &rpcerr));
+		return (returncode(clntstat, &rpcerr));
 	}
 	clnt_destroy(clp);
 
@@ -812,8 +817,10 @@ tryagain:
 
 		build_iovec(iov, iovlen, "addr", addr, addrlen);
 		secname = sec_num_to_name(secflavor);
-		if (secname != NULL)
-			build_iovec(iov, iovlen, "sec", secname, (size_t)-1);
+		if (secname != NULL) {
+			build_iovec(iov, iovlen, "sec",
+			    __DECONST(void *, secname), (size_t)-1);
+		}
 		build_iovec(iov, iovlen, "nfsv4", NULL, 0);
 		build_iovec(iov, iovlen, "dirpath", spec, (size_t)-1);
 
@@ -833,12 +840,12 @@ tryagain:
 	clp->cl_auth = authsys_create_default();
 	nfhret.auth = secflavor;
 	nfhret.vers = mntvers;
-	stat = clnt_call(clp, MOUNTPROC_MNT, (xdrproc_t)xdr_dir, spec, 
+	clntstat = clnt_call(clp, MOUNTPROC_MNT, (xdrproc_t)xdr_dir, spec, 
 			 (xdrproc_t)xdr_fh, &nfhret,
 	    try);
 	auth_destroy(clp->cl_auth);
-	if (stat != RPC_SUCCESS) {
-		if (stat == RPC_PROGVERSMISMATCH && trymntmode == ANY) {
+	if (clntstat != RPC_SUCCESS) {
+		if (clntstat == RPC_PROGVERSMISMATCH && trymntmode == ANY) {
 			clnt_destroy(clp);
 			trymntmode = V2;
 			goto tryagain;
@@ -847,7 +854,7 @@ tryagain:
 		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid_mnt,
 		    hostp, spec, clnt_sperror(clp, "RPCPROG_MNT"));
 		clnt_destroy(clp);
-		return (returncode(stat, &rpcerr));
+		return (returncode(clntstat, &rpcerr));
 	}
 	clnt_destroy(clp);
 
@@ -873,8 +880,10 @@ tryagain:
 	build_iovec(iov, iovlen, "addr", addr, addrlen);
 	build_iovec(iov, iovlen, "fh", fh, fhsize);
 	secname = sec_num_to_name(nfhret.auth);
-	if (secname)
-		build_iovec(iov, iovlen, "sec", secname, (size_t)-1);
+	if (secname) {
+		build_iovec(iov, iovlen, "sec",
+		    __DECONST(void *, secname), (size_t)-1);
+	}
 	if (nfsvers == 3)
 		build_iovec(iov, iovlen, "nfsv3", NULL, 0);
 
@@ -886,9 +895,10 @@ tryagain:
  * return code.
  */
 static enum tryret
-returncode(enum clnt_stat stat, struct rpc_err *rpcerr)
+returncode(enum clnt_stat clntstat, struct rpc_err *rpcerr)
 {
-	switch (stat) {
+
+	switch (clntstat) {
 	case RPC_TIMEDOUT:
 		return (TRYRET_TIMEOUT);
 	case RPC_PMAPFAILURE:
