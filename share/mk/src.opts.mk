@@ -78,6 +78,7 @@ __DEFAULT_YES_OPTIONS = \
     DMAGENT \
     DYNAMICROOT \
     ED_CRYPTO \
+    EE \
     EXAMPLES \
     FDT \
     FINGER \
