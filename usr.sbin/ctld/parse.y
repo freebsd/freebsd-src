@@ -60,7 +60,7 @@ extern void	yyrestart(FILE *);
 %token ALIAS AUTH_GROUP AUTH_TYPE BACKEND BLOCKSIZE CHAP CHAP_MUTUAL
 %token CLOSING_BRACKET DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP DISCOVERY_FILTER
 %token INITIATOR_NAME INITIATOR_PORTAL LISTEN LISTEN_ISER LUN MAXPROC
-%token OPENING_BRACKET OPTION PATH PIDFILE PORTAL_GROUP SERIAL SIZE STR
+%token OPENING_BRACKET OPTION PATH PIDFILE PORTAL_GROUP SEMICOLON SERIAL SIZE STR
 %token TARGET TIMEOUT ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
 
 %union
@@ -75,6 +75,8 @@ extern void	yyrestart(FILE *);
 statements:
 	|
 	statements statement
+	|
+	statements statement SEMICOLON
 	;
 
 statement:
@@ -220,6 +222,8 @@ auth_group_name:	STR
 auth_group_entries:
 	|
 	auth_group_entries auth_group_entry
+	|
+	auth_group_entries auth_group_entry SEMICOLON
 	;
 
 auth_group_entry:
@@ -322,6 +326,8 @@ portal_group_name:	STR
 portal_group_entries:
 	|
 	portal_group_entries portal_group_entry
+	|
+	portal_group_entries portal_group_entry SEMICOLON
 	;
 
 portal_group_entry:
@@ -406,6 +412,8 @@ target_name:	STR
 target_entries:
 	|
 	target_entries target_entry
+	|
+	target_entries target_entry SEMICOLON
 	;
 
 target_entry:
@@ -653,6 +661,8 @@ lun_number:	STR
 lun_entries:
 	|
 	lun_entries lun_entry
+	|
+	lun_entries lun_entry SEMICOLON
 	;
 
 lun_entry:
