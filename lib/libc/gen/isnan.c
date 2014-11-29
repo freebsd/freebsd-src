@@ -40,7 +40,7 @@
  * time, when calling both functions.
  */
 
-#ifdef __PIC__
+#ifdef PIC
 __weak_reference(__isnan, isnan);
 __weak_reference(__isnanf, isnanf);
 
@@ -61,4 +61,4 @@ __isnanf(float f)
 	u.f = f;
 	return (u.bits.exp == 255 && u.bits.man != 0);
 }
-#endif /* __PIC__ */
+#endif /* PIC */

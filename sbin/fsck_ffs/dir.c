@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <sys/sysctl.h>
 
 #include <ufs/ufs/dinode.h>

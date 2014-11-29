@@ -115,6 +115,6 @@ __chk_fail(void)
 	__fail("buffer overflow detected; terminated");
 }
 
-#ifndef __PIC__
+#ifndef PIC
 __weak_reference(__stack_chk_fail, __stack_chk_fail_local);
 #endif

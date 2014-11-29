@@ -158,7 +158,7 @@ const char *const sys_errlist[] = {
 };
 const int sys_nerr = sizeof(sys_errlist) / sizeof(sys_errlist[0]);
 
-#ifdef __PIC__
+#ifdef PIC
 __strong_reference(sys_errlist, __hidden_sys_errlist);
 __strong_reference(sys_nerr, __hidden_sys_nerr);
 #endif
