@@ -501,6 +501,7 @@ dskread(void *buf, unsigned lba, unsigned nblk)
     char *sec;
     unsigned i;
     uint8_t sl;
+    const char *reason;
 
     if (!dsk_meta) {
 	sec = dmadat->secbuf;
@@ -525,8 +526,8 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 	    if (sl != COMPATIBILITY_SLICE)
 		dp += sl - BASE_SLICE;
 	    if (dp->dp_typ != DOSPTYP_386BSD) {
-		printf("Invalid %s\n", "slice");
-		return -1;
+		reason = "slice";
+		goto error;
 	    }
 	    dsk.start = dp->dp_start;
 	}
@@ -535,8 +536,8 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 	d = (void *)(sec + LABELOFFSET);
 	if (d->d_magic != DISKMAGIC || d->d_magic2 != DISKMAGIC) {
 	    if (dsk.part != RAW_PART) {
-		printf("Invalid %s\n", "label");
-		return -1;
+		reason = "label";
+		goto error;
 	    }
 	} else {
 	    if (!dsk.init) {
@@ -546,14 +547,17 @@ dskread(void *buf, unsigned lba, unsigned nblk)
 	    }
 	    if (dsk.part >= d->d_npartitions ||
 		!d->d_partitions[dsk.part].p_size) {
-		printf("Invalid %s\n", "partition");
-		return -1;
+		reason = "partition";
+		goto error;
 	    }
 	    dsk.start += d->d_partitions[dsk.part].p_offset;
 	    dsk.start -= d->d_partitions[RAW_PART].p_offset;
 	}
     }
     return drvread(buf, dsk.start + lba, nblk);
+error:
+    printf("Invalid %s\n", reason);
+    return -1;
 }
 
 static void
