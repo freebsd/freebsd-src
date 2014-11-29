@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2014
+.Dd October 29, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -175,6 +175,43 @@ Another predefined
 .Qq Ar no-authentication ,
 may be used
 to permit discovery without authentication.
+.It Ic discovery-filter Ar filter
+Determines which targets are returned during discovery.
+Filter can be either
+.Qq Ar none ,
+.Qq Ar portal ,
+.Qq Ar portal-name ,
+or
+.Qq Ar portal-name-auth .
+When set to
+.Qq Ar none ,
+discovery will return all targets assigned to that portal group.
+When set to
+.Qq Ar portal ,
+discovery will not return targets that cannot be accessed by the
+initiator because of their
+.Sy initiator-portal .
+When set to
+.Qq Ar portal-name ,
+the check will include both
+.Sy initiator-portal
+and
+.Sy initiator-name .
+When set to
+.Qq Ar portal-name-auth ,
+the check will include
+.Sy initiator-portal ,
+.Sy initiator-name ,
+and authentication credentials, ie. if the target does not require
+CHAP authentication, or if CHAP user and secret used during discovery
+match CHAP user and secret required to access the target.
+Note that when using
+.Qq Ar portal-name-auth ,
+targets that require CHAP authentication will only be returned if
+.Sy discovery-auth-group
+requires CHAP.
+The default is
+.Qq Ar none .
 .It Ic listen Ar address
 An IPv4 or IPv6 address and port to listen on for incoming connections.
 .\".It Ic listen-iser Ar address
