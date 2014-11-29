@@ -82,6 +82,7 @@ timeout			{ return TIMEOUT; }
 \{			{ return OPENING_BRACKET; }
 \}			{ return CLOSING_BRACKET; }
 #.*$			/* ignore comments */;
+\r\n			{ lineno++; }
 \n			{ lineno++; }
 ;			{ return SEMICOLON; }
 [ \t]+			/* ignore whitespace */;
