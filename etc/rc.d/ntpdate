@@ -5,6 +5,7 @@
 
 # PROVIDE: ntpdate
 # REQUIRE: NETWORKING syslogd
+# BEFORE: rpcbind
 # KEYWORD: nojail
 
 . /etc/rc.subr
