@@ -228,6 +228,7 @@ void *linker_hwpmc_list_objects(void);
 #endif
 
 #define	LINKER_HINTS_VERSION	1		/* linker.hints file version */
+#define	LINKER_HINTS_MAX	(1 << 20)	/* Allow at most 1MB for linker.hints */
 
 #ifdef _KERNEL
 
