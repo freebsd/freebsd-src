@@ -147,7 +147,8 @@ typedef enum ucl_emitter {
 typedef enum ucl_parser_flags {
 	UCL_PARSER_KEY_LOWERCASE = 0x1, /**< Convert all keys to lower case */
 	UCL_PARSER_ZEROCOPY = 0x2, /**< Parse input in zero-copy mode if possible */
-	UCL_PARSER_NO_TIME = 0x4 /**< Do not parse time and treat time values as strings */
+	UCL_PARSER_NO_TIME = 0x4, /**< Do not parse time and treat time values as strings */
+	UCL_PARSER_NO_IMPLICIT_ARRAYS = 0x8 /** Create explicit arrays instead of implicit ones */
 } ucl_parser_flags_t;
 
 /**
@@ -171,9 +172,12 @@ typedef enum ucl_string_flags {
  * Basic flags for an object
  */
 typedef enum ucl_object_flags {
-	UCL_OBJECT_ALLOCATED_KEY = 1, /**< An object has key allocated internally */
-	UCL_OBJECT_ALLOCATED_VALUE = 2, /**< An object has a string value allocated internally */
-	UCL_OBJECT_NEED_KEY_ESCAPE = 4 /**< The key of an object need to be escaped on output */
+	UCL_OBJECT_ALLOCATED_KEY = 0x1, /**< An object has key allocated internally */
+	UCL_OBJECT_ALLOCATED_VALUE = 0x2, /**< An object has a string value allocated internally */
+	UCL_OBJECT_NEED_KEY_ESCAPE = 0x4, /**< The key of an object need to be escaped on output */
+	UCL_OBJECT_EPHEMERAL = 0x8, /**< Temporary object that does not need to be freed really */
+	UCL_OBJECT_MULTILINE = 0x10, /**< String should be displayed as multiline string */
+	UCL_OBJECT_MULTIVALUE = 0x20 /**< Object is a key with multiple values */
 } ucl_object_flags_t;
 
 /**
@@ -195,13 +199,20 @@ typedef struct ucl_object_s {
 	const char *key;						/**< Key of an object		*/
 	struct ucl_object_s *next;				/**< Array handle			*/
 	struct ucl_object_s *prev;				/**< Array handle			*/
-	unsigned char* trash_stack[2];			/**< Pointer to allocated chunks */
-	unsigned keylen;						/**< Lenght of a key		*/
-	unsigned len;							/**< Size of an object		*/
-	enum ucl_type type;						/**< Real type				*/
-	uint16_t ref;							/**< Reference count		*/
+	uint32_t keylen;						/**< Lenght of a key		*/
+	uint32_t len;							/**< Size of an object		*/
+	uint32_t ref;							/**< Reference count		*/
 	uint16_t flags;							/**< Object flags			*/
+	uint16_t type;							/**< Real type				*/
+	unsigned char* trash_stack[2];			/**< Pointer to allocated chunks */
 } ucl_object_t;
+
+/**
+ * Destructor type for userdata objects
+ * @param ud user specified data pointer
+ */
+typedef void (*ucl_userdata_dtor)(void *ud);
+typedef const char* (*ucl_userdata_emitter)(void *ud);
 
 /** @} */
 
@@ -237,6 +248,31 @@ UCL_EXTERN ucl_object_t* ucl_object_new (void) UCL_WARN_UNUSED_RESULT;
  * @return new object
  */
 UCL_EXTERN ucl_object_t* ucl_object_typed_new (ucl_type_t type) UCL_WARN_UNUSED_RESULT;
+
+/**
+ * Create new object with type and priority specified
+ * @param type type of a new object
+ * @param priority priority of an object
+ * @return new object
+ */
+UCL_EXTERN ucl_object_t* ucl_object_new_full (ucl_type_t type, unsigned priority)
+	UCL_WARN_UNUSED_RESULT;
+
+/**
+ * Create new object with userdata dtor
+ * @param dtor destructor function
+ * @return new object
+ */
+UCL_EXTERN ucl_object_t* ucl_object_new_userdata (ucl_userdata_dtor dtor,
+		ucl_userdata_emitter emitter) UCL_WARN_UNUSED_RESULT;
+
+/**
+ * Perform deep copy of an object copying everything
+ * @param other object to copy
+ * @return new object with refcount equal to 1
+ */
+UCL_EXTERN ucl_object_t * ucl_object_copy (const ucl_object_t *other)
+	UCL_WARN_UNUSED_RESULT;
 
 /**
  * Return the type of an object
@@ -293,7 +329,7 @@ UCL_EXTERN ucl_object_t* ucl_object_frombool (bool bv) UCL_WARN_UNUSED_RESULT;
 
 /**
  * Insert a object 'elt' to the hash 'top' and associate it with key 'key'
- * @param top destination object (will be created automatically if top is NULL)
+ * @param top destination object (must be of type UCL_OBJECT)
  * @param elt element to insert (must NOT be NULL)
  * @param key key to associate with this object (either const or preallocated)
  * @param keylen length of the key (or 0 for NULL terminated keys)
@@ -306,7 +342,7 @@ UCL_EXTERN bool ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
 /**
  * Replace a object 'elt' to the hash 'top' and associate it with key 'key', old object will be unrefed,
  * if no object has been found this function works like ucl_object_insert_key()
- * @param top destination object (will be created automatically if top is NULL)
+ * @param top destination object (must be of type UCL_OBJECT)
  * @param elt element to insert (must NOT be NULL)
  * @param key key to associate with this object (either const or preallocated)
  * @param keylen length of the key (or 0 for NULL terminated keys)
@@ -315,6 +351,15 @@ UCL_EXTERN bool ucl_object_insert_key (ucl_object_t *top, ucl_object_t *elt,
  */
 UCL_EXTERN bool ucl_object_replace_key (ucl_object_t *top, ucl_object_t *elt,
 		const char *key, size_t keylen, bool copy_key);
+
+/**
+ * Merge the keys from one object to another object. Overwrite on conflict
+ * @param top destination object (must be of type UCL_OBJECT)
+ * @param elt element to insert (must be of type UCL_OBJECT)
+ * @param copy copy rather than reference the elements
+ * @return true if all keys have been merged
+ */
+UCL_EXTERN bool ucl_object_merge (ucl_object_t *top, ucl_object_t *elt, bool copy);
 
 /**
  * Delete a object associated with key 'key', old object will be unrefered,
@@ -335,8 +380,9 @@ UCL_EXTERN bool ucl_object_delete_key (ucl_object_t *top,
 
 
 /**
- * Delete key from `top` object returning the object deleted. This object is not
- * released
+ * Removes `key` from `top` object, returning the object that was removed. This
+ * object is not released, caller must unref the returned object when it is no
+ * longer needed.
  * @param top object
  * @param key key to remove
  * @param keylen length of the key (or 0 for NULL terminated keys)
@@ -346,8 +392,9 @@ UCL_EXTERN ucl_object_t* ucl_object_pop_keyl (ucl_object_t *top, const char *key
 		size_t keylen) UCL_WARN_UNUSED_RESULT;
 
 /**
- * Delete key from `top` object returning the object deleted. This object is not
- * released
+ * Removes `key` from `top` object returning the object that was removed. This
+ * object is not released, caller must unref the returned object when it is no
+ * longer needed.
  * @param top object
  * @param key key to remove
  * @return removed object or NULL if object has not been found
@@ -356,9 +403,9 @@ UCL_EXTERN ucl_object_t* ucl_object_pop_key (ucl_object_t *top, const char *key)
 	UCL_WARN_UNUSED_RESULT;
 
 /**
- * Insert a object 'elt' to the hash 'top' and associate it with key 'key', if the specified key exist,
- * try to merge its content
- * @param top destination object (will be created automatically if top is NULL)
+ * Insert a object 'elt' to the hash 'top' and associate it with key 'key', if
+ * the specified key exist, try to merge its content
+ * @param top destination object (must be of type UCL_OBJECT)
  * @param elt element to insert (must NOT be NULL)
  * @param key key to associate with this object (either const or preallocated)
  * @param keylen length of the key (or 0 for NULL terminated keys)
@@ -369,8 +416,8 @@ UCL_EXTERN bool ucl_object_insert_key_merged (ucl_object_t *top, ucl_object_t *e
 		const char *key, size_t keylen, bool copy_key);
 
 /**
- * Append an element to the front of array object
- * @param top destination object (will be created automatically if top is NULL)
+ * Append an element to the end of array object
+ * @param top destination object (must NOT be NULL)
  * @param elt element to append (must NOT be NULL)
  * @return true if value has been inserted
  */
@@ -379,7 +426,7 @@ UCL_EXTERN bool ucl_array_append (ucl_object_t *top,
 
 /**
  * Append an element to the start of array object
- * @param top destination object (will be created automatically if top is NULL)
+ * @param top destination object (must NOT be NULL)
  * @param elt element to append (must NOT be NULL)
  * @return true if value has been inserted
  */
@@ -387,8 +434,19 @@ UCL_EXTERN bool ucl_array_prepend (ucl_object_t *top,
 		ucl_object_t *elt);
 
 /**
- * Removes an element `elt` from the array `top`. Caller must unref the returned object when it is not
- * needed.
+ * Merge all elements of second array into the first array
+ * @param top destination array (must be of type UCL_ARRAY)
+ * @param elt array to copy elements from (must be of type UCL_ARRAY)
+ * @param copy copy elements instead of referencing them
+ * @return true if arrays were merged
+ */
+UCL_EXTERN bool ucl_array_merge (ucl_object_t *top, ucl_object_t *elt,
+		bool copy);
+
+/**
+ * Removes an element `elt` from the array `top`, returning the object that was
+ * removed. This object is not released, caller must unref the returned object
+ * when it is no longer needed.
  * @param top array ucl object
  * @param elt element to remove
  * @return removed element or NULL if `top` is NULL or not an array
@@ -411,35 +469,50 @@ UCL_EXTERN const ucl_object_t* ucl_array_head (const ucl_object_t *top);
 UCL_EXTERN const ucl_object_t* ucl_array_tail (const ucl_object_t *top);
 
 /**
- * Removes the last element from the array `top`. Caller must unref the returned object when it is not
- * needed.
+ * Removes the last element from the array `top`, returning the object that was
+ * removed. This object is not released, caller must unref the returned object
+ * when it is no longer needed.
  * @param top array ucl object
  * @return removed element or NULL if `top` is NULL or not an array
  */
 UCL_EXTERN ucl_object_t* ucl_array_pop_last (ucl_object_t *top);
 
 /**
- * Return object identified by an index of the array `top`
- * @param obj object to get a key from (must be of type UCL_ARRAY)
- * @param index index to return
- * @return object at the specified index or NULL if index is not found
- */
-UCL_EXTERN const ucl_object_t* ucl_array_find_index (const ucl_object_t *top,
-		unsigned int index);
-
-/**
- * Removes the first element from the array `top`. Caller must unref the returned object when it is not
- * needed.
+ * Removes the first element from the array `top`, returning the object that was
+ * removed. This object is not released, caller must unref the returned object
+ * when it is no longer needed.
  * @param top array ucl object
  * @return removed element or NULL if `top` is NULL or not an array
  */
 UCL_EXTERN ucl_object_t* ucl_array_pop_first (ucl_object_t *top);
 
 /**
+ * Return object identified by index of the array `top`
+ * @param top object to get a key from (must be of type UCL_ARRAY)
+ * @param index array index to return
+ * @return object at the specified index or NULL if index is not found
+ */
+UCL_EXTERN const ucl_object_t* ucl_array_find_index (const ucl_object_t *top,
+		unsigned int index);
+
+/**
+ * Replace an element in an array with a different element, returning the object
+ * that was replaced. This object is not released, caller must unref the
+ * returned object when it is no longer needed.
+ * @param top destination object (must be of type UCL_ARRAY)
+ * @param elt element to append (must NOT be NULL)
+ * @param index array index in destination to overwrite with elt
+ * @return object that was replaced or NULL if index is not found
+ */
+ucl_object_t *
+ucl_array_replace_index (ucl_object_t *top, ucl_object_t *elt,
+	unsigned int index);
+
+/**
  * Append a element to another element forming an implicit array
  * @param head head to append (may be NULL)
  * @param elt new element
- * @return true if element has been inserted
+ * @return the new implicit array
  */
 UCL_EXTERN ucl_object_t * ucl_elt_append (ucl_object_t *head,
 		ucl_object_t *elt);
@@ -533,7 +606,7 @@ UCL_EXTERN const char* ucl_object_tolstring (const ucl_object_t *obj, size_t *tl
  * Return object identified by a key in the specified object
  * @param obj object to get a key from (must be of type UCL_OBJECT)
  * @param key key to search
- * @return object matched the specified key or NULL if key is not found
+ * @return object matching the specified key or NULL if key was not found
  */
 UCL_EXTERN const ucl_object_t* ucl_object_find_key (const ucl_object_t *obj,
 		const char *key);
@@ -543,7 +616,7 @@ UCL_EXTERN const ucl_object_t* ucl_object_find_key (const ucl_object_t *obj,
  * @param obj object to get a key from (must be of type UCL_OBJECT)
  * @param key key to search
  * @param klen length of a key
- * @return object matched the specified key or NULL if key is not found
+ * @return object matching the specified key or NULL if key was not found
  */
 UCL_EXTERN const ucl_object_t* ucl_object_find_keyl (const ucl_object_t *obj,
 		const char *key, size_t klen);
@@ -575,6 +648,7 @@ UCL_EXTERN const char* ucl_object_keyl (const ucl_object_t *obj, size_t *len);
 /**
  * Increase reference count for an object
  * @param obj object to ref
+ * @return the referenced object
  */
 UCL_EXTERN ucl_object_t* ucl_object_ref (const ucl_object_t *obj);
 
@@ -612,6 +686,21 @@ UCL_EXTERN void ucl_object_array_sort (ucl_object_t *ar,
 		int (*cmp)(const ucl_object_t *o1, const ucl_object_t *o2));
 
 /**
+ * Get the priority for specific UCL object
+ * @param obj any ucl object
+ * @return priority of an object
+ */
+UCL_EXTERN unsigned int ucl_object_get_priority (const ucl_object_t *obj);
+
+/**
+ * Set explicit priority of an object.
+ * @param obj any ucl object
+ * @param priority new priroity value (only 4 least significant bits are considred)
+ */
+UCL_EXTERN void ucl_object_set_priority (ucl_object_t *obj,
+		unsigned int priority);
+
+/**
  * Opaque iterator object
  */
 typedef void* ucl_object_iter_t;
@@ -640,11 +729,14 @@ UCL_EXTERN const ucl_object_t* ucl_iterate_object (const ucl_object_t *obj,
  * Macro handler for a parser
  * @param data the content of macro
  * @param len the length of content
+ * @param arguments arguments object
  * @param ud opaque user data
  * @param err error pointer
  * @return true if macro has been parsed
  */
-typedef bool (*ucl_macro_handler) (const unsigned char *data, size_t len, void* ud);
+typedef bool (*ucl_macro_handler) (const unsigned char *data, size_t len,
+		const ucl_object_t *arguments,
+		void* ud);
 
 /* Opaque parser */
 struct ucl_parser;
@@ -702,11 +794,22 @@ UCL_EXTERN void ucl_parser_set_variables_handler (struct ucl_parser *parser,
  * @param parser parser structure
  * @param data the pointer to the beginning of a chunk
  * @param len the length of a chunk
- * @param err if *err is NULL it is set to parser error
  * @return true if chunk has been added and false in case of error
  */
 UCL_EXTERN bool ucl_parser_add_chunk (struct ucl_parser *parser,
 		const unsigned char *data, size_t len);
+
+/**
+ * Load new chunk to a parser with the specified priority
+ * @param parser parser structure
+ * @param data the pointer to the beginning of a chunk
+ * @param len the length of a chunk
+ * @param priority the desired priority of a chunk (only 4 least significant bits
+ * are considered for this parameter)
+ * @return true if chunk has been added and false in case of error
+ */
+UCL_EXTERN bool ucl_parser_add_chunk_priority (struct ucl_parser *parser,
+		const unsigned char *data, size_t len, unsigned priority);
 
 /**
  * Load ucl object from a string
@@ -835,7 +938,7 @@ struct ucl_emitter_context {
 	/** A set of output operations */
 	const struct ucl_emitter_operations *ops;
 	/** Current amount of indent tabs */
-	unsigned int ident;
+	unsigned int indent;
 	/** Top level object */
 	const ucl_object_t *top;
 	/** The rest of context */

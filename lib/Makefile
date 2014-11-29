@@ -52,6 +52,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libfigpar \
 	libgeom \
 	${_libgpib} \
+	libgpio \
 	${_libgssapi} \
 	${_librpcsec_gss} \
 	${_libiconv_modules} \

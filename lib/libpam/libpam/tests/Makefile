@@ -13,7 +13,6 @@ SRCS.${test} = ${test}.c ${COMMONSRC}
 CFLAGS +=-I${OPENPAM}/include -I${OPENPAM}/lib/libpam -I${OPENPAM}/t
 WARNS ?= 6
 
-DPADD = ${LIBPAM}
-LDADD = ${MINUSLPAM}
+LIBADD =	pam
 
 .include <bsd.test.mk>

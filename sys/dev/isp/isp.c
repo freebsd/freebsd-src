@@ -1219,7 +1219,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 	 * work for them).
 	 */
 	if (IS_FC(isp) && isp->isp_nchan > 1) {
-		if (!IS_24XX(isp) || (fwt & ISP2400_FW_ATTR_MULTIID) == 0) {
+		if (!ISP_CAP_MULTI_ID(isp)) {
 			isp_prt(isp, ISP_LOGWARN, "non-MULTIID f/w loaded, only can enable 1 of %d channels", isp->isp_nchan);
 			isp->isp_nchan = 1;
 		}

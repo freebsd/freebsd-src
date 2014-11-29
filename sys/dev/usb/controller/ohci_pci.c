@@ -175,6 +175,8 @@ ohci_pci_match(device_t self)
 
 	case 0x0019106b:
 		return ("Apple KeyLargo USB controller");
+	case 0x003f106b:
+		return ("Apple KeyLargo/Intrepid USB controller");
 
 	default:
 		break;

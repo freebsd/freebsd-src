@@ -10,8 +10,7 @@ MAN=	pam_passwdqc.8
 WARNS?=	2
 CFLAGS+= -I${SRCDIR}
 
-DPADD=	${LIBCRYPT}
-LDADD=	-lcrypt
+LIBADD+=	crypt
 
 .include <bsd.lib.mk>
 

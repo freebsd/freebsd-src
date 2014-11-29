@@ -10,8 +10,7 @@ CFLAGS+=	-I${OPENBSMDIR}
 PROG=	auditreduce
 MAN=	auditreduce.1
 
-DPADD=	${LIBBSM}
-LDADD=	-lbsm
+LIBADD=	bsm
 
 WARNS?=	3
 

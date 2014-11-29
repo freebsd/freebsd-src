@@ -54,7 +54,7 @@ __weak_reference(_pthread_exit, pthread_exit);
 static int message_printed;
 
 static void thread_unwind(void) __dead2;
-#ifdef __PIC__
+#ifdef PIC
 static void thread_uw_init(void);
 static _Unwind_Reason_Code thread_unwind_stop(int version,
 	_Unwind_Action actions,
@@ -114,7 +114,7 @@ _Unwind_GetCFA(struct _Unwind_Context *context)
 #else
 #pragma weak _Unwind_GetCFA
 #pragma weak _Unwind_ForcedUnwind
-#endif /* __PIC__ */
+#endif /* PIC */
 
 static void
 thread_unwind_cleanup(_Unwind_Reason_Code code, struct _Unwind_Exception *e)
@@ -222,11 +222,11 @@ _pthread_exit_mask(void *status, sigset_t *mask)
 	curthread->ret = status;
 #ifdef _PTHREAD_FORCED_UNWIND
 
-#ifdef __PIC__
+#ifdef PIC
 	thread_uw_init();
-#endif /* __PIC__ */
+#endif /* PIC */
 
-#ifdef __PIC__
+#ifdef PIC
 	if (uwl_forcedunwind != NULL) {
 #else
 	if (_Unwind_ForcedUnwind != NULL) {
