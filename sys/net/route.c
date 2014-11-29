@@ -2027,6 +2027,52 @@ rtinit(struct ifaddr *ifa, int cmd, int flags)
 }
 
 /*
+ * Switches 'real' interface index inside rt_gateway
+ * for address in @dst to interface @ifp.
+ *
+ * Returns 0 on success/
+ */
+int
+rt_switch_loopback_route(uint32_t fibnum, struct sockaddr *dst,
+    struct ifnet *ifp)
+{
+	struct rib_head *rh;
+	struct radix_node *rn;
+	struct rtentry *rt;
+	struct sockaddr_dl *sdl;
+
+	KASSERT((fibnum < rt_numfibs), ("rtalloc1_fib: bad fibnum"));
+	rh = rt_tables_get_rnh(fibnum, dst->sa_family);
+	if (rh == NULL)
+		return (EHOSTUNREACH);
+
+	RIB_CFG_WLOCK(rh);
+	rn = rh->rnh_matchaddr(dst, &rh->head);
+	if (rn == NULL && ((rn->rn_flags & RNF_ROOT) != 0)) {
+		RIB_CFG_WUNLOCK(rh);
+		return (EHOSTUNREACH);
+	}
+	rt = RNTORT(rn);
+
+	/* Ensure we have found host route */
+	if (rt_mask(rt) == NULL) {
+		sdl = (struct sockaddr_dl *)rt->rt_gateway;
+		RIB_WLOCK(rh);
+		sdl->sdl_type = ifp->if_type;
+		sdl->sdl_index = ifp->if_index;
+		RIB_WUNLOCK(rh);
+	} else
+		rt = NULL;
+
+	RIB_CFG_WUNLOCK(rh);
+
+	if (rt == NULL)
+		return (EHOSTUNREACH);
+
+	return (0);
+}
+
+/*
  * Announce interface address arrival/withdraw
  * Returns 0 on success.
  */
