@@ -17,8 +17,8 @@ Cannot display: file marked as a binary type.
 svn:mime-type = application/x-object
 Index: test/tools/llvm-readobj/Inputs/relocs.py
 ===================================================================
---- test/tools/llvm-readobj/Inputs/relocs.py	(revision 14)
-+++ test/tools/llvm-readobj/Inputs/relocs.py	(revision 15)
+--- test/tools/llvm-readobj/Inputs/relocs.py
++++ test/tools/llvm-readobj/Inputs/relocs.py
 @@ -617,6 +617,8 @@ class Relocs_Elf_AArch64(Enum):
    R_AARCH64_LDST32_ABS_LO12_NC          = 0x11d
    R_AARCH64_LDST64_ABS_LO12_NC          = 0x11e
@@ -46,8 +46,8 @@ Index: test/tools/llvm-readobj/Inputs/relocs.py
    R_ARM_NONE                  = 0x00
 Index: test/tools/llvm-readobj/reloc-types.test
 ===================================================================
---- test/tools/llvm-readobj/reloc-types.test	(revision 14)
-+++ test/tools/llvm-readobj/reloc-types.test	(revision 15)
+--- test/tools/llvm-readobj/reloc-types.test
++++ test/tools/llvm-readobj/reloc-types.test
 @@ -179,6 +179,8 @@ ELF-AARCH64: Type: R_AARCH64_LDST16_ABS_LO12_NC (2
  ELF-AARCH64: Type: R_AARCH64_LDST32_ABS_LO12_NC (285)
  ELF-AARCH64: Type: R_AARCH64_LDST64_ABS_LO12_NC (286)
@@ -75,8 +75,8 @@ Index: test/tools/llvm-readobj/reloc-types.test
  ELF-ARM: Type: R_ARM_PC24 (1)
 Index: include/llvm/Support/ELF.h
 ===================================================================
---- include/llvm/Support/ELF.h	(revision 14)
-+++ include/llvm/Support/ELF.h	(revision 15)
+--- include/llvm/Support/ELF.h
++++ include/llvm/Support/ELF.h
 @@ -653,6 +653,9 @@ enum {
  
    R_AARCH64_LDST128_ABS_LO12_NC         = 0x12b,
@@ -108,8 +108,8 @@ Index: include/llvm/Support/ELF.h
  // ARM Specific e_flags
 Index: lib/Object/ELF.cpp
 ===================================================================
---- lib/Object/ELF.cpp	(revision 14)
-+++ lib/Object/ELF.cpp	(revision 15)
+--- lib/Object/ELF.cpp
++++ lib/Object/ELF.cpp
 @@ -223,6 +223,8 @@ StringRef getELFRelocationTypeName(uint32_t Machin
        LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_AARCH64_LDST32_ABS_LO12_NC);
        LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_AARCH64_LDST64_ABS_LO12_NC);

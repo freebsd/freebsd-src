@@ -6,8 +6,8 @@ Introduced here: http://svnweb.freebsd.org/changeset/base/274968
 
 Index: lib/Transforms/IPO/PassManagerBuilder.cpp
 ===================================================================
---- lib/Transforms/IPO/PassManagerBuilder.cpp	(revision 12)
-+++ lib/Transforms/IPO/PassManagerBuilder.cpp	(revision 13)
+--- lib/Transforms/IPO/PassManagerBuilder.cpp
++++ lib/Transforms/IPO/PassManagerBuilder.cpp
 @@ -57,6 +57,10 @@ static cl::opt<bool> RunLoadCombine("combine-loads
                                      cl::Hidden,
                                      cl::desc("Run the load combining pass"));

@@ -8,8 +8,8 @@ Introduced here: http://svnweb.freebsd.org/changeset/base/275154
 
 Index: tools/clang/test/Driver/freebsd.c
 ===================================================================
---- tools/clang/test/Driver/freebsd.c	(revision 16)
-+++ tools/clang/test/Driver/freebsd.c	(revision 17)
+--- tools/clang/test/Driver/freebsd.c
++++ tools/clang/test/Driver/freebsd.c
 @@ -1,4 +1,12 @@
  // RUN: %clang -no-canonical-prefixes \
 +// RUN:   -target aarch64-pc-freebsd11 %s                              \
@@ -25,8 +25,8 @@ Index: tools/clang/test/Driver/freebsd.c
  // RUN:   | FileCheck --check-prefix=CHECK-PPC %s
 Index: tools/clang/test/Preprocessor/init.c
 ===================================================================
---- tools/clang/test/Preprocessor/init.c	(revision 16)
-+++ tools/clang/test/Preprocessor/init.c	(revision 17)
+--- tools/clang/test/Preprocessor/init.c
++++ tools/clang/test/Preprocessor/init.c
 @@ -802,6 +802,199 @@
  // AARCH64-NETBSD:#define __WINT_TYPE__ int
  // AARCH64-NETBSD:#define __WINT_WIDTH__ 32
@@ -229,8 +229,8 @@ Index: tools/clang/test/Preprocessor/init.c
  //
 Index: tools/clang/lib/Basic/Targets.cpp
 ===================================================================
---- tools/clang/lib/Basic/Targets.cpp	(revision 16)
-+++ tools/clang/lib/Basic/Targets.cpp	(revision 17)
+--- tools/clang/lib/Basic/Targets.cpp
++++ tools/clang/lib/Basic/Targets.cpp
 @@ -6036,6 +6036,8 @@ static TargetInfo *AllocateTarget(const llvm::Trip
        return new DarwinAArch64TargetInfo(Triple);
  

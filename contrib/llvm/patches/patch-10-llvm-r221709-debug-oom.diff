@@ -24,8 +24,8 @@ Introduced here: http://svnweb.freebsd.org/changeset/base/274442
 
 Index: include/llvm/CodeGen/SelectionDAG.h
 ===================================================================
---- include/llvm/CodeGen/SelectionDAG.h	(revision 10)
-+++ include/llvm/CodeGen/SelectionDAG.h	(revision 11)
+--- include/llvm/CodeGen/SelectionDAG.h
++++ include/llvm/CodeGen/SelectionDAG.h
 @@ -126,6 +126,10 @@ class SDDbgInfo {
        DbgValMap[Node].push_back(V);
    }
@@ -39,8 +39,8 @@ Index: include/llvm/CodeGen/SelectionDAG.h
      DbgValues.clear();
 Index: lib/CodeGen/SelectionDAG/SelectionDAG.cpp
 ===================================================================
---- lib/CodeGen/SelectionDAG/SelectionDAG.cpp	(revision 10)
-+++ lib/CodeGen/SelectionDAG/SelectionDAG.cpp	(revision 11)
+--- lib/CodeGen/SelectionDAG/SelectionDAG.cpp
++++ lib/CodeGen/SelectionDAG/SelectionDAG.cpp
 @@ -686,6 +686,15 @@ void SelectionDAG::DeleteNodeNotInCSEMaps(SDNode *
    DeallocateNode(N);
  }

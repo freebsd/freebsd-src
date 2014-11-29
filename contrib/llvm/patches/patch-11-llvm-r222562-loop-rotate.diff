@@ -8,8 +8,8 @@ Introduced here: http://svnweb.freebsd.org/changeset/base/274968
 
 Index: lib/Transforms/IPO/PassManagerBuilder.cpp
 ===================================================================
---- lib/Transforms/IPO/PassManagerBuilder.cpp	(revision 11)
-+++ lib/Transforms/IPO/PassManagerBuilder.cpp	(revision 12)
+--- lib/Transforms/IPO/PassManagerBuilder.cpp
++++ lib/Transforms/IPO/PassManagerBuilder.cpp
 @@ -195,7 +195,8 @@ void PassManagerBuilder::populateModulePassManager
      MPM.add(createTailCallEliminationPass()); // Eliminate tail calls
    MPM.add(createCFGSimplificationPass());     // Merge & remove BBs

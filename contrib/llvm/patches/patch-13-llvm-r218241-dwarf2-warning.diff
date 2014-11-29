@@ -15,8 +15,8 @@ Introduced here: http://svnweb.freebsd.org/changeset/base/274968
 
 Index: lib/MC/MCDwarf.cpp
 ===================================================================
---- lib/MC/MCDwarf.cpp	(revision 13)
-+++ lib/MC/MCDwarf.cpp	(revision 14)
+--- lib/MC/MCDwarf.cpp
++++ lib/MC/MCDwarf.cpp
 @@ -519,7 +519,8 @@ static void EmitGenDwarfAbbrev(MCStreamer *MCOS) {
    MCOS->EmitULEB128IntValue(dwarf::DW_TAG_compile_unit);
    MCOS->EmitIntValue(dwarf::DW_CHILDREN_yes, 1);
@@ -44,8 +44,8 @@ Index: lib/MC/MCDwarf.cpp
    MCOS->SwitchSection(context.getObjectFileInfo()->getDwarfInfoSection());
 Index: lib/MC/MCParser/ELFAsmParser.cpp
 ===================================================================
---- lib/MC/MCParser/ELFAsmParser.cpp	(revision 13)
-+++ lib/MC/MCParser/ELFAsmParser.cpp	(revision 14)
+--- lib/MC/MCParser/ELFAsmParser.cpp
++++ lib/MC/MCParser/ELFAsmParser.cpp
 @@ -555,7 +555,7 @@ EndStmt:
          std::make_pair(ELFSection, std::make_pair(nullptr, nullptr)));
      if (InsertResult.second) {
@@ -57,8 +57,8 @@ Index: lib/MC/MCParser/ELFAsmParser.cpp
        getStreamer().EmitLabel(SectionStartSymbol);
 Index: test/MC/ARM/dwarf-asm-multiple-sections-dwarf-2.s
 ===================================================================
---- test/MC/ARM/dwarf-asm-multiple-sections-dwarf-2.s	(revision 0)
-+++ test/MC/ARM/dwarf-asm-multiple-sections-dwarf-2.s	(revision 14)
+--- test/MC/ARM/dwarf-asm-multiple-sections-dwarf-2.s
++++ test/MC/ARM/dwarf-asm-multiple-sections-dwarf-2.s
 @@ -0,0 +1,66 @@
 +// RUN: llvm-mc < %s -triple=armv7-linux-gnueabi -filetype=obj -o %t -g -fdebug-compilation-dir=/tmp -dwarf-version 2 2>&1 | FileCheck -check-prefix MESSAGES %s
 +// RUN: llvm-dwarfdump %t | FileCheck -check-prefix DWARF %s
@@ -128,8 +128,8 @@ Index: test/MC/ARM/dwarf-asm-multiple-sections-dwarf-2.s
 +// RELOC-NEXT: 00000018 R_ARM_ABS32 foo
 Index: test/MC/ARM/dwarf-asm-multiple-sections.s
 ===================================================================
---- test/MC/ARM/dwarf-asm-multiple-sections.s	(revision 13)
-+++ test/MC/ARM/dwarf-asm-multiple-sections.s	(revision 14)
+--- test/MC/ARM/dwarf-asm-multiple-sections.s
++++ test/MC/ARM/dwarf-asm-multiple-sections.s
 @@ -1,7 +1,7 @@
  // RUN: llvm-mc < %s -triple=armv7-linux-gnueabi -filetype=obj -o %t -g -fdebug-compilation-dir=/tmp
  // RUN: llvm-dwarfdump %t | FileCheck -check-prefix DWARF %s
