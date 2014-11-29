@@ -66,6 +66,12 @@ void ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj, const char *
 		unsigned keylen);
 
 /**
+ * Replace element in the hash
+ */
+void ucl_hash_replace (ucl_hash_t* hashlin, const ucl_object_t *old,
+		const ucl_object_t *new);
+
+/**
  * Delete an element from the the hashtable.
  */
 void ucl_hash_delete (ucl_hash_t* hashlin, const ucl_object_t *obj);
