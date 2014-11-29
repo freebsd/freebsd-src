@@ -271,7 +271,9 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		-DNO_LINT \
-		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no MK_CLANG_FULL=no MK_LLDB=no MK_TESTS=no
+		-DNO_CPU_CFLAGS \
+		MK_WARNS=no MK_CTF=no MK_CLANG_FULL=no MK_LLDB=no MK_MAN=no \
+		MK_SHAREDOCS=no MK_TESTS=no
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
@@ -1385,6 +1387,14 @@ build-tools: .MAKE
 		${MAKE} DIRPRFX=${_tool}/ obj && \
 		${MAKE} DIRPRFX=${_tool}/ depend && \
 		${MAKE} DIRPRFX=${_tool}/ all
+.endfor
+.for _tool in \
+    usr.bin/vi
+	${_+_}@${ECHODIR} "===> ${_tool} (obj,build-tools,install)"; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
+		${MAKE} DIRPRFX=${_tool}/ build-tools DESTDIR=${WORLDTMP}/ \
+		MK_MAN=no
 .endfor
 
 #
