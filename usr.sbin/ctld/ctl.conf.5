@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 29, 2014
+.Dd November 8, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -202,9 +202,10 @@ When set to
 the check will include
 .Sy initiator-portal ,
 .Sy initiator-name ,
-and authentication credentials, ie. if the target does not require
-CHAP authentication, or if CHAP user and secret used during discovery
-match CHAP user and secret required to access the target.
+and authentication credentials.
+The target is returned if it does not require CHAP authentication,
+or if the CHAP user and secret used during discovery match those
+used by the target.
 Note that when using
 .Qq Ar portal-name-auth ,
 targets that require CHAP authentication will only be returned if
