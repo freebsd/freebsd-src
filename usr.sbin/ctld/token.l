@@ -83,6 +83,7 @@ timeout			{ return TIMEOUT; }
 \}			{ return CLOSING_BRACKET; }
 #.*$			/* ignore comments */;
 \n			{ lineno++; }
+;			{ return SEMICOLON; }
 [ \t]+			/* ignore whitespace */;
 .			{ yylval.str = strdup(yytext); return STR; }
 %%
