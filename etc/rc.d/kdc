@@ -5,6 +5,7 @@
 
 # PROVIDE: kdc
 # REQUIRE: NETWORKING
+# BEFORE: SERVERS
 # KEYWORD: shutdown
 
 . /etc/rc.subr
