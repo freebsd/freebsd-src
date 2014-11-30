@@ -142,6 +142,11 @@ OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-ATM.txt
 .if ${MK_AUDIT} == no
 OLD_FILES+=etc/rc.d/auditd
 OLD_FILES+=etc/rc.d/auditdistd
+OLD_FILES+=etc/security/audit_class
+OLD_FILES+=etc/security/audit_control
+OLD_FILES+=etc/security/audit_event
+OLD_FILES+=etc/security/audit_user
+OLD_FILES+=etc/security/audit_warn
 OLD_FILES+=usr/include/bsm/audit_uevents.h
 OLD_FILES+=usr/include/bsm/libbsm.h
 OLD_FILES+=usr/lib/libauditd.a
@@ -263,6 +268,7 @@ OLD_FILES+=usr/share/man/man5/audit_user.5.gz
 OLD_FILES+=usr/share/man/man5/audit_warn.5.gz
 OLD_FILES+=usr/share/man/man8/audit.8.gz
 OLD_FILES+=usr/share/man/man8/auditd.8.gz
+OLD_DIRS+=etc/security
 OLD_DIRS+=usr/include/bsm
 .endif
 
