@@ -3,7 +3,9 @@
 .include <src.opts.mk>
 
 FILES=	DAEMON \
+	DNS \
 	FILESYSTEMS \
+	FIREWALL \
 	LOGIN \
 	NETWORKING \
 	SERVERS \
