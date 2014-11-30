@@ -12,11 +12,6 @@ FILES=	DAEMON \
 	adjkerntz \
 	amd \
 	archdep \
-	atm1 \
-	atm2 \
-	atm3 \
-	auditd \
-	auditdistd \
 	bgfsck \
 	${_bluetooth} \
 	bridge \
@@ -39,11 +34,8 @@ FILES=	DAEMON \
 	gbde \
 	geli \
 	geli2 \
-	gptboot \
 	growfs \
-	gssd \
 	${_hcsecd} \
-	hostapd \
 	hostid \
 	hostid_save \
 	hostname \
@@ -54,10 +46,7 @@ FILES=	DAEMON \
 	ipfw \
 	ipmon \
 	ipnat \
-	ipropd_master \
-	ipropd_slave \
 	ipsec \
-	jail \
 	${_kadmind} \
 	${_kdc} \
 	${_kfd} \
@@ -68,7 +57,6 @@ FILES=	DAEMON \
 	local \
 	localpkg \
 	lockd \
-	lpd \
 	mixer \
 	motd \
 	mountcritlocal \
@@ -92,8 +80,6 @@ FILES=	DAEMON \
 	nisdomain \
 	${_nscd} \
 	nsswitch \
-	ntpd \
-	ntpdate \
 	${_opensm} \
 	${_othermta} \
 	pf \
@@ -120,7 +106,6 @@ FILES=	DAEMON \
 	savecore \
 	sdpd \
 	securelevel \
-	sendmail \
 	serial \
 	sppp \
 	${_sshd} \
@@ -138,25 +123,36 @@ FILES=	DAEMON \
 	${_unbound} \
 	${_utx} \
 	var \
-	virecover \
 	watchdogd \
-	wpa_supplicant \
 	ypbind \
 	yppasswdd \
 	ypserv \
 	ypset \
 	ypupdated \
 	ypxfrd \
-	zfs \
-	zvol
 
 .if ${MK_ACCT} != "no"
 FILES+=	accounting
 .endif
 
+.if ${MK_AMD} != "no"
+FILES+=	amd
+.endif
+
 .if ${MK_APM} != "no"
 FILES+=	apm
 FILES+=	apmd
+.endif
+
+.if ${MK_ATM} != "no"
+FILES+=	atm1
+FILES+=	atm2
+FILES+=	atm3
+.endif
+
+.if ${MK_AUDIT} != "no"
+FILES+=		auditd
+FILES+=		auditdistd
 .endif
 
 .if ${MK_AUTOFS} != "no"
@@ -170,6 +166,10 @@ _bluetooth=	bluetooth
 _bthidd=	bthidd
 _hcsecd=	hcsecd
 _ubthidhci=	ubthidhci
+.endif
+
+.if ${MK_BOOT} != "no"
+FILES+=		gptboot
 .endif
 
 .if ${MK_BOOTPARAMD} != "no"
@@ -188,6 +188,10 @@ _casperd=	casperd
 FILES+=		ftpd
 .endif
 
+.if ${MK_GSSAPI} != "no"
+FILES+=		gssd
+.endif
+
 .if ${MK_HAST} != "no"
 FILES+=		hastd
 .endif
@@ -201,9 +205,17 @@ FILES+=	iscsictl
 FILES+=	iscsid
 .endif
 
+.if ${MK_JAIL} != "no"
+FILES+=	jail
+.endif
+
 .if ${MK_LEGACY_CONSOLE} != "no"
 FILES+=		moused
 FILES+=		syscons
+.endif
+
+.if ${MK_LPR} != "no"
+FILES+=		lpd
 .endif
 
 .if ${MK_NS_CACHING} != "no"
@@ -211,6 +223,8 @@ _nscd=		nscd
 .endif
 
 .if ${MK_KERBEROS} != "no"
+FILES+=		ipropd_master
+FILES+=		ipropd_slave
 _kadmind=	kadmind
 _kdc=		kdc
 _kfd=		kfd
@@ -241,6 +255,10 @@ FILES+=		ftp-proxy
 FILES+=		rwho
 .endif
 
+.if ${MK_SENDMAIL} != "no"
+FILES+=		sendmail
+.endif
+
 .if ${MK_TIMED} != "no"
 FILES+=		timed
 .endif
@@ -251,6 +269,20 @@ _unbound=	local_unbound
 
 .if ${MK_UTMPX} != "no"
 _utx=		utx
+.endif
+
+.if ${MK_VI} != "no"
+FILES+=		virecover
+.endif
+
+.if ${MK_WIRELESS} != "no"
+FILES+=		hostapd
+FILES+=		wpa_supplicant
+.endif
+
+.if ${MK_ZFS} != "no"
+FILES+=		zfs
+FILES+=		zvol
 .endif
 
 FILESDIR=	/etc/rc.d

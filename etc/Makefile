@@ -41,7 +41,6 @@ BIN1=	crontab \
 	rc.bsdextended \
 	rc.firewall \
 	rc.initdiskless \
-	rc.sendmail \
 	rc.shutdown \
 	rc.subr \
 	remote \
@@ -139,6 +138,10 @@ BIN1+= portsnap.conf
 
 .if ${MK_PF} != "no"
 BIN1+= pf.os
+.endif
+
+.if ${MK_SENDMAIL} != "no"
+BIN1+=	rc.sendmail
 .endif
 
 .if ${MK_TCSH} != "no"
