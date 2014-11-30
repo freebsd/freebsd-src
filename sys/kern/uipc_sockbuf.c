@@ -607,28 +607,36 @@ sbappendstream(struct sockbuf *sb, struct mbuf *m)
 
 #ifdef SOCKBUF_DEBUG
 void
-sbcheck(struct sockbuf *sb)
+sbcheck(struct sockbuf *sb, const char *file, int line)
 {
-	struct mbuf *m;
-	struct mbuf *n = 0;
-	u_long len = 0, mbcnt = 0;
+	struct mbuf *m, *n;
+	u_long cc, mbcnt;
 
 	SOCKBUF_LOCK_ASSERT(sb);
+
+	cc = mbcnt = 0;
 
 	for (m = sb->sb_mb; m; m = n) {
 	    n = m->m_nextpkt;
 	    for (; m; m = m->m_next) {
-		len += m->m_len;
+		if (m->m_len == 0) {
+			printf("sb %p empty mbuf %p\n", sb, m);
+			goto fail;
+		}
+		cc += m->m_len;
 		mbcnt += MSIZE;
 		if (m->m_flags & M_EXT) /*XXX*/ /* pretty sure this is bogus */
 			mbcnt += m->m_ext.ext_size;
 	    }
 	}
-	if (len != sb->sb_cc || mbcnt != sb->sb_mbcnt) {
-		printf("cc %ld != %u || mbcnt %ld != %u\n", len, sb->sb_cc,
+	if (cc != sb->sb_cc || mbcnt != sb->sb_mbcnt) {
+		printf("cc %ld != %u || mbcnt %ld != %u\n", cc, sb->sb_cc,
 		    mbcnt, sb->sb_mbcnt);
-		panic("sbcheck");
+		goto fail;
 	}
+	return;
+fail:
+	panic("%s from %s:%u", __func__, file, line);
 }
 #endif
 

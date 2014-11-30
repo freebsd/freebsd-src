@@ -136,7 +136,6 @@ int	sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
 	    struct mbuf *control);
 void	sbappendrecord(struct sockbuf *sb, struct mbuf *m0);
 void	sbappendrecord_locked(struct sockbuf *sb, struct mbuf *m0);
-void	sbcheck(struct sockbuf *sb);
 void	sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n);
 struct mbuf *
 	sbcreatecontrol(caddr_t p, int size, int type, int level);
@@ -224,13 +223,15 @@ sbspace(struct sockbuf *sb)
 
 #ifdef SOCKBUF_DEBUG
 void	sblastrecordchk(struct sockbuf *, const char *, int);
-#define	SBLASTRECORDCHK(sb)	sblastrecordchk((sb), __FILE__, __LINE__)
-
 void	sblastmbufchk(struct sockbuf *, const char *, int);
+void	sbcheck(struct sockbuf *, const char *, int);
+#define	SBLASTRECORDCHK(sb)	sblastrecordchk((sb), __FILE__, __LINE__)
 #define	SBLASTMBUFCHK(sb)	sblastmbufchk((sb), __FILE__, __LINE__)
+#define	SBCHECK(sb)		sbcheck((sb), __FILE__, __LINE__)
 #else
-#define	SBLASTRECORDCHK(sb)      /* nothing */
-#define	SBLASTMBUFCHK(sb)        /* nothing */
+#define	SBLASTRECORDCHK(sb)	do {} while (0)
+#define	SBLASTMBUFCHK(sb)	do {} while (0)
+#define	SBCHECK(sb)		do {} while (0)
 #endif /* SOCKBUF_DEBUG */
 
 #endif /* _KERNEL */
