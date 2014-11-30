@@ -40,11 +40,6 @@ FILES=	DAEMON \
 	hostid_save \
 	hostname \
 	${_inetd} \
-	ipfilter \
-	ipfs \
-	ipfw \
-	ipmon \
-	ipnat \
 	ipsec \
 	${_kadmind} \
 	${_kdc} \
@@ -76,9 +71,6 @@ FILES=	DAEMON \
 	nsswitch \
 	${_opensm} \
 	${_othermta} \
-	pf \
-	pflog \
-	pfsync \
 	pwcheck \
 	quota \
 	random \
@@ -201,6 +193,17 @@ FILES+=		rtsold
 FILES+=		static_ndp
 .endif
 
+.if ${MK_IPFILTER} != "no"
+FILES+=		ipfilter
+FILES+=		ipmon
+FILES+=		ipnat
+FILES+=		ipfs
+.endif
+
+.if ${MK_IPFW} != "no"
+FILES+=		ipfw
+.endif
+
 .if ${MK_ISCSI} != "no"
 FILES+=	iscsictl
 FILES+=	iscsid
@@ -242,6 +245,16 @@ FILES+=		nfsd
 FILES+=		nfsuserd
 .endif
 
+.if ${MK_NIS} != "no"
+FILES+=		nisdomain
+FILES+=		ypbind
+FILES+=		yppasswdd
+FILES+=		ypserv
+FILES+=		ypset
+FILES+=		ypupdated
+FILES+=		ypxfrd
+.endif
+
 .if ${MK_NTP} != "no"
 FILES+=		ntpd
 FILES+=		ntpdate
@@ -261,6 +274,9 @@ _sshd=		sshd
 
 .if ${MK_PF} != "no"
 FILES+=		ftp-proxy
+FILES+=		pf
+FILES+=		pflog
+FILES+=		pfsync
 .endif
 
 .if ${MK_PPP} != "no"

@@ -3,7 +3,8 @@
 # $FreeBSD$
 #
 
-# PROVIDE: ipfw
+# PROVIDE: ipfw FIREWALL
+# REQUIRE: defaultroute
 # KEYWORD: nojailvnet
 
 . /etc/rc.subr

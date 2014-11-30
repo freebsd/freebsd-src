@@ -3,7 +3,7 @@
 # $FreeBSD$
 #
 
-# PROVIDE: pf
+# PROVIDE: pf FIREWALL
 # REQUIRE: FILESYSTEMS netif pflog pfsync
 # BEFORE:  routing
 # KEYWORD: nojail

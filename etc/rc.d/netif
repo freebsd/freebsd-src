@@ -27,7 +27,6 @@
 
 # PROVIDE: netif
 # REQUIRE: FILESYSTEMS serial sysctl
-# REQUIRE: ipfilter ipfs
 # KEYWORD: nojailvnet
 
 . /etc/rc.subr
