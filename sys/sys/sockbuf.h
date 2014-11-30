@@ -136,7 +136,6 @@ int	sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
 	    struct mbuf *control);
 void	sbappendrecord(struct sockbuf *sb, struct mbuf *m0);
 void	sbappendrecord_locked(struct sockbuf *sb, struct mbuf *m0);
-void	sbcheck(struct sockbuf *sb);
 void	sbcompress(struct sockbuf *sb, struct mbuf *m, struct mbuf *n);
 struct mbuf *
 	sbcreatecontrol(caddr_t p, int size, int type, int level);
@@ -164,6 +163,8 @@ void	sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb);
 int	sbwait(struct sockbuf *sb);
 int	sblock(struct sockbuf *sb, int flags);
 void	sbunlock(struct sockbuf *sb);
+void	sballoc(struct sockbuf *, struct mbuf *);
+void	sbfree(struct sockbuf *, struct mbuf *);
 
 /*
  * Return how much data is available to be taken out of socket
@@ -213,38 +214,6 @@ sbspace(struct sockbuf *sb)
 	return((bleft < mleft) ? bleft : mleft);
 }
 
-/* adjust counters in sb reflecting allocation of m */
-#define	sballoc(sb, m) { \
-	(sb)->sb_cc += (m)->m_len; \
-	if ((m)->m_type != MT_DATA && (m)->m_type != MT_OOBDATA) \
-		(sb)->sb_ctl += (m)->m_len; \
-	(sb)->sb_mbcnt += MSIZE; \
-	(sb)->sb_mcnt += 1; \
-	if ((m)->m_flags & M_EXT) { \
-		(sb)->sb_mbcnt += (m)->m_ext.ext_size; \
-		(sb)->sb_ccnt += 1; \
-	} \
-}
-
-/* adjust counters in sb reflecting freeing of m */
-#define	sbfree(sb, m) { \
-	(sb)->sb_cc -= (m)->m_len; \
-	if ((m)->m_type != MT_DATA && (m)->m_type != MT_OOBDATA) \
-		(sb)->sb_ctl -= (m)->m_len; \
-	(sb)->sb_mbcnt -= MSIZE; \
-	(sb)->sb_mcnt -= 1; \
-	if ((m)->m_flags & M_EXT) { \
-		(sb)->sb_mbcnt -= (m)->m_ext.ext_size; \
-		(sb)->sb_ccnt -= 1; \
-	} \
-	if ((sb)->sb_sndptr == (m)) { \
-		(sb)->sb_sndptr = NULL; \
-		(sb)->sb_sndptroff = 0; \
-	} \
-	if ((sb)->sb_sndptroff != 0) \
-		(sb)->sb_sndptroff -= (m)->m_len; \
-}
-
 #define SB_EMPTY_FIXUP(sb) do {						\
 	if ((sb)->sb_mb == NULL) {					\
 		(sb)->sb_mbtail = NULL;					\
@@ -254,13 +223,15 @@ sbspace(struct sockbuf *sb)
 
 #ifdef SOCKBUF_DEBUG
 void	sblastrecordchk(struct sockbuf *, const char *, int);
-#define	SBLASTRECORDCHK(sb)	sblastrecordchk((sb), __FILE__, __LINE__)
-
 void	sblastmbufchk(struct sockbuf *, const char *, int);
+void	sbcheck(struct sockbuf *, const char *, int);
+#define	SBLASTRECORDCHK(sb)	sblastrecordchk((sb), __FILE__, __LINE__)
 #define	SBLASTMBUFCHK(sb)	sblastmbufchk((sb), __FILE__, __LINE__)
+#define	SBCHECK(sb)		sbcheck((sb), __FILE__, __LINE__)
 #else
-#define	SBLASTRECORDCHK(sb)      /* nothing */
-#define	SBLASTMBUFCHK(sb)        /* nothing */
+#define	SBLASTRECORDCHK(sb)	do {} while (0)
+#define	SBLASTMBUFCHK(sb)	do {} while (0)
+#define	SBCHECK(sb)		do {} while (0)
 #endif /* SOCKBUF_DEBUG */
 
 #endif /* _KERNEL */

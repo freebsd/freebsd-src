@@ -69,6 +69,60 @@ static struct mbuf	*sbcut_internal(struct sockbuf *sb, int len);
 static void	sbflush_internal(struct sockbuf *sb);
 
 /*
+ * Adjust sockbuf state reflecting allocation of m.
+ */
+void
+sballoc(struct sockbuf *sb, struct mbuf *m)
+{
+
+	SOCKBUF_LOCK_ASSERT(sb);
+
+	sb->sb_cc += m->m_len;
+
+	if (m->m_type != MT_DATA && m->m_type != MT_OOBDATA)
+		sb->sb_ctl += m->m_len;
+
+	sb->sb_mbcnt += MSIZE;
+	sb->sb_mcnt += 1;
+
+	if (m->m_flags & M_EXT) {
+		sb->sb_mbcnt += m->m_ext.ext_size;
+		sb->sb_ccnt += 1;
+	}
+}
+
+/*
+ * Adjust sockbuf state reflecting freeing of m.
+ */
+void
+sbfree(struct sockbuf *sb, struct mbuf *m)
+{
+
+#if 0	/* XXX: not yet: soclose() call path comes here w/o lock. */
+	SOCKBUF_LOCK_ASSERT(sb);
+#endif
+
+	sb->sb_cc -= m->m_len;
+
+	if (m->m_type != MT_DATA && m->m_type != MT_OOBDATA)
+		sb->sb_ctl -= m->m_len;
+
+	sb->sb_mbcnt -= MSIZE;
+	sb->sb_mcnt -= 1;
+	if (m->m_flags & M_EXT) {
+		sb->sb_mbcnt -= m->m_ext.ext_size;
+		sb->sb_ccnt -= 1;
+	}
+
+	if (sb->sb_sndptr == m) {
+		sb->sb_sndptr = NULL;
+		sb->sb_sndptroff = 0;
+	}
+	if (sb->sb_sndptroff != 0)
+		sb->sb_sndptroff -= m->m_len;
+}
+
+/*
  * Socantsendmore indicates that no more data will be sent on the socket; it
  * would normally be applied to a socket when the user informs the system
  * that no more data is to be sent, by the protocol code (in case
@@ -553,28 +607,36 @@ sbappendstream(struct sockbuf *sb, struct mbuf *m)
 
 #ifdef SOCKBUF_DEBUG
 void
-sbcheck(struct sockbuf *sb)
+sbcheck(struct sockbuf *sb, const char *file, int line)
 {
-	struct mbuf *m;
-	struct mbuf *n = 0;
-	u_long len = 0, mbcnt = 0;
+	struct mbuf *m, *n;
+	u_long cc, mbcnt;
 
 	SOCKBUF_LOCK_ASSERT(sb);
+
+	cc = mbcnt = 0;
 
 	for (m = sb->sb_mb; m; m = n) {
 	    n = m->m_nextpkt;
 	    for (; m; m = m->m_next) {
-		len += m->m_len;
+		if (m->m_len == 0) {
+			printf("sb %p empty mbuf %p\n", sb, m);
+			goto fail;
+		}
+		cc += m->m_len;
 		mbcnt += MSIZE;
 		if (m->m_flags & M_EXT) /*XXX*/ /* pretty sure this is bogus */
 			mbcnt += m->m_ext.ext_size;
 	    }
 	}
-	if (len != sb->sb_cc || mbcnt != sb->sb_mbcnt) {
-		printf("cc %ld != %u || mbcnt %ld != %u\n", len, sb->sb_cc,
+	if (cc != sb->sb_cc || mbcnt != sb->sb_mbcnt) {
+		printf("cc %ld != %u || mbcnt %ld != %u\n", cc, sb->sb_cc,
 		    mbcnt, sb->sb_mbcnt);
-		panic("sbcheck");
+		goto fail;
 	}
+	return;
+fail:
+	panic("%s from %s:%u", __func__, file, line);
 }
 #endif
 

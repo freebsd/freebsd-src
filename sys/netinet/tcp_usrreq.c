@@ -925,7 +925,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			tp->snd_wnd = TTCP_CLIENT_SND_WND;
 			tcp_mss(tp, -1);
 		}
-		tp->snd_up = tp->snd_una + so->so_snd.sb_cc;
+		tp->snd_up = tp->snd_una + sbavail(&so->so_snd);
 		tp->t_flags |= TF_FORCEDATA;
 		error = tcp_output(tp);
 		tp->t_flags &= ~TF_FORCEDATA;
