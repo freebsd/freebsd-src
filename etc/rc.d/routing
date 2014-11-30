@@ -6,7 +6,7 @@
 #
 
 # PROVIDE: routing
-# REQUIRE: netif ppp stf
+# REQUIRE: netif
 # KEYWORD: nojailvnet
 
 . /etc/rc.subr

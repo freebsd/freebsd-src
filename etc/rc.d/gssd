@@ -5,7 +5,7 @@
 
 # PROVIDE: gssd
 # REQUIRE: root
-# BEFORE: nfsd
+# BEFORE: nfsd nfsuserd
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr

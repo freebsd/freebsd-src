@@ -4,7 +4,6 @@
 #
 
 # PROVIDE: ipfw
-# REQUIRE: ppp
 # KEYWORD: nojailvnet
 
 . /etc/rc.subr

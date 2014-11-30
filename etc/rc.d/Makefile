@@ -40,7 +40,6 @@ FILES=	DAEMON \
 	hostid_save \
 	hostname \
 	${_inetd} \
-	ip6addrctl \
 	ipfilter \
 	ipfs \
 	ipfw \
@@ -65,8 +64,6 @@ FILES=	DAEMON \
 	mdconfig \
 	mdconfig2 \
 	mountd \
-	mroute6d \
-	mrouted \
 	msgs \
 	natd \
 	netif \
@@ -82,34 +79,21 @@ FILES=	DAEMON \
 	pf \
 	pflog \
 	pfsync \
-	powerd \
-	power_profile \
-	ppp \
-	pppoed \
 	pwcheck \
 	quota \
 	random \
 	rarpd \
 	rctl \
 	resolv \
-	rfcomm_pppd_server \
 	root \
-	route6d \
-	routed \
 	routing \
 	rpcbind \
-	rtadvd \
-	rtsold \
 	savecore \
-	sdpd \
 	securelevel \
 	serial \
-	sppp \
 	${_sshd} \
 	statd \
 	static_arp \
-	static_ndp \
-	stf \
 	swap \
 	swaplate \
 	sysctl \
@@ -130,6 +114,14 @@ FILES=	DAEMON \
 
 .if ${MK_ACCT} != "no"
 FILES+=	accounting
+.endif
+
+.if ${MK_ACPI} != "no"
+FILES+=		power_profile
+.endif
+
+.if ${MK_ACPI} != "no" || ${MK_APM} != "no"
+FILES+=		powerd
 .endif
 
 .if ${MK_AMD} != "no"
@@ -162,6 +154,8 @@ FILES+=	autounmountd
 _bluetooth=	bluetooth
 _bthidd=	bthidd
 _hcsecd=	hcsecd
+FILES+=		rfcomm_pppd_server
+FILES+=		sdpd
 _ubthidhci=	ubthidhci
 .endif
 
@@ -195,6 +189,16 @@ FILES+=		hastd
 
 .if ${MK_INETD} != "no"
 _inetd=		inetd
+.endif
+
+.if ${MK_INET6} != "no"
+FILES+=		ip6addrctl
+FILES+=		mroute6d
+FILES+=		route6d
+FILES+=		stf
+FILES+=		rtadvd
+FILES+=		rtsold
+FILES+=		static_ndp
 .endif
 
 .if ${MK_ISCSI} != "no"
@@ -259,8 +263,18 @@ _sshd=		sshd
 FILES+=		ftp-proxy
 .endif
 
+.if ${MK_PPP} != "no"
+FILES+=		ppp
+FILES+=		pppoed
+FILES+=		sppp
+.endif
+
 .if ${MK_RCMDS} != "no"
 FILES+=		rwho
+.endif
+
+.if ${MK_ROUTED} != "no"
+FILES+=		routed
 .endif
 
 .if ${MK_SENDMAIL} != "no"

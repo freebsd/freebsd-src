@@ -4,6 +4,7 @@
 
 # PROVIDE: stf
 # REQUIRE: netif
+# BEFORE: bridge defaultroute NETWORKING routing
 # KEYWORD: nojail
 
 . /etc/rc.subr
