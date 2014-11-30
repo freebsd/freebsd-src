@@ -84,7 +84,7 @@ static uma_zone_t cfiscsi_data_wait_zone;
 
 SYSCTL_NODE(_kern_cam_ctl, OID_AUTO, iscsi, CTLFLAG_RD, 0,
     "CAM Target Layer iSCSI Frontend");
-static int debug = 3;
+static int debug = 1;
 TUNABLE_INT("kern.cam.ctl.iscsi.debug", &debug);
 SYSCTL_INT(_kern_cam_ctl_iscsi, OID_AUTO, debug, CTLFLAG_RWTUN,
     &debug, 1, "Enable debug messages");
