@@ -69,6 +69,60 @@ static struct mbuf	*sbcut_internal(struct sockbuf *sb, int len);
 static void	sbflush_internal(struct sockbuf *sb);
 
 /*
+ * Adjust sockbuf state reflecting allocation of m.
+ */
+void
+sballoc(struct sockbuf *sb, struct mbuf *m)
+{
+
+	SOCKBUF_LOCK_ASSERT(sb);
+
+	sb->sb_cc += m->m_len;
+
+	if (m->m_type != MT_DATA && m->m_type != MT_OOBDATA)
+		sb->sb_ctl += m->m_len;
+
+	sb->sb_mbcnt += MSIZE;
+	sb->sb_mcnt += 1;
+
+	if (m->m_flags & M_EXT) {
+		sb->sb_mbcnt += m->m_ext.ext_size;
+		sb->sb_ccnt += 1;
+	}
+}
+
+/*
+ * Adjust sockbuf state reflecting freeing of m.
+ */
+void
+sbfree(struct sockbuf *sb, struct mbuf *m)
+{
+
+#if 0	/* XXX: not yet: soclose() call path comes here w/o lock. */
+	SOCKBUF_LOCK_ASSERT(sb);
+#endif
+
+	sb->sb_cc -= m->m_len;
+
+	if (m->m_type != MT_DATA && m->m_type != MT_OOBDATA)
+		sb->sb_ctl -= m->m_len;
+
+	sb->sb_mbcnt -= MSIZE;
+	sb->sb_mcnt -= 1;
+	if (m->m_flags & M_EXT) {
+		sb->sb_mbcnt -= m->m_ext.ext_size;
+		sb->sb_ccnt -= 1;
+	}
+
+	if (sb->sb_sndptr == m) {
+		sb->sb_sndptr = NULL;
+		sb->sb_sndptroff = 0;
+	}
+	if (sb->sb_sndptroff != 0)
+		sb->sb_sndptroff -= m->m_len;
+}
+
+/*
  * Socantsendmore indicates that no more data will be sent on the socket; it
  * would normally be applied to a socket when the user informs the system
  * that no more data is to be sent, by the protocol code (in case
