@@ -16,6 +16,7 @@ DIRDEPS = \
 	lib/libcom_err \
 	lib/libcompiler_rt \
 	lib/libcrypt \
+	lib/libpam/libpam \
 	secure/lib/libcrypto \
 	usr.bin/xinstall.host \
 

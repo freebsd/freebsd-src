@@ -11,6 +11,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libcrypt \
+	lib/libpam/libpam \
 	usr.bin/xinstall.host \
 
 
