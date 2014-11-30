@@ -37,7 +37,7 @@ LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdatomic.h stdint.h \
 	syslog.h ucontext.h
 
 LDIRS=	cam geom net net80211 netinet netinet6 \
-	netipsec netsmb nfs nfsclient nfsserver sys vm
+	netipsec netsmb nfs nfsclient sys vm
 
 LSUBDIRS=	cam/ata cam/scsi \
 	dev/acpica dev/agp dev/an dev/bktr dev/ciss dev/filemon dev/firewire \
@@ -77,6 +77,10 @@ LSUBDIRS+=	fs/cuse
 .if ${MK_NETGRAPH_SUPPORT} != "no"
 LDIRS+=		netgraph
 LSUBDIRS+=	netgraph/netflow
+.endif
+
+.if ${MK_NFS_SERVER} != "no"
+LDIRS+=		nfsserver
 .endif
 
 .if ${MK_USB} != "no"

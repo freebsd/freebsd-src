@@ -251,10 +251,8 @@ SUBDIR=	\
 	nfscl \
 	nfsclient \
 	nfscommon \
-	nfsd \
 	nfslock \
 	nfslockd \
-	nfsserver \
 	nfssvc \
 	nge \
 	nmdm \
@@ -439,6 +437,11 @@ _nandsim=	nandsim
 
 .if ${MK_NETGRAPH} != "no" || defined(ALL_MODULES)
 _netgraph=	netgraph
+.endif
+
+.if ${MK_NFS_SERVER} != "no" || defined(ALL_MODULES)
+SUBDIR+=	nfsd
+SUBDIR+=	nfsserver
 .endif
 
 .if (${MK_PF} != "no" && (${MK_INET_SUPPORT} != "no" || \
