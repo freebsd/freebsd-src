@@ -3,7 +3,7 @@
 # $FreeBSD$
 #
 
-# PROVIDE: ipfs
+# PROVIDE: ipfs FIREWALL
 # REQUIRE: ipnat
 # KEYWORD: nojail shutdown
 

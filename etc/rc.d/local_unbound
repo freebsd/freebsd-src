@@ -3,9 +3,8 @@
 # $FreeBSD$
 #
 
-# PROVIDE: local_unbound
+# PROVIDE: local_unbound DNS
 # REQUIRE: FILESYSTEMS netif resolv routing
-# BEFORE: NETWORKING
 # KEYWORD: shutdown
 
 . /etc/rc.subr
