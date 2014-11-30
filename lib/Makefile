@@ -25,7 +25,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libalias \
 	libarchive \
 	${_libatm} \
-	libauditd \
+	${_libauditd} \
 	libbegemot \
 	libblocksruntime \
 	${_libbluetooth} \
@@ -52,7 +52,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libfigpar \
 	libgeom \
 	${_libgpib} \
-	libgpio \
+	${_libgpio} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
 	${_libiconv_modules} \
@@ -62,7 +62,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libkvm \
 	${_libldns} \
 	liblzma \
-	libmagic \
+	${_libmagic} \
 	libmandoc \
 	libmemstat \
 	libmd \
@@ -91,7 +91,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libsmb} \
 	${_libsmdb} \
 	${_libsmutil} \
-	libsqlite3 \
+	${_libsqlite3} \
 	libstand \
 	libstdbuf \
 	libstdthreads \
@@ -168,6 +168,10 @@ _csu=csu
 _libngatm=	libngatm
 .endif
 
+.if ${MK_AUDIT} != "no"
+_libauditd=	libauditd
+.endif
+
 .if ${MK_BHYVE} != "no"
 _libvmmapi=	libvmmapi
 .endif
@@ -194,8 +198,16 @@ _clang=		clang
 _cuse=		libcuse
 .endif
 
+.if ${MK_FILE} != "no"
+_libmagic=	libmagic
+.endif
+
 .if ${MK_GPIB} != "no"
 _libgpib=	libgpib
+.endif
+
+.if ${MK_GPIO} != "no"
+_libgpio=	libgpio
 .endif
 
 .if ${MK_GSSAPI} != "no"
@@ -279,6 +291,10 @@ _libmilter=	libmilter
 _libsm=		libsm
 _libsmdb=	libsmdb
 _libsmutil=	libsmutil
+.endif
+
+.if ${MK_SQLITE3} != "no"
+_libsqlite3=	libsqlite3
 .endif
 
 .if ${MK_TELNET} != "no"
