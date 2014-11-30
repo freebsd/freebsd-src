@@ -130,7 +130,7 @@ ENTRY(bzero)
 .Lnormal0:
 	mov	r3, #0x00
 	b	do_memset
-EEND(bzero)
+END(bzero)
 /* LINTSTUB: Func: void *memset(void *, int, size_t) */
 ENTRY(memset)
 	and	r3, r1, #0xff		/* We deal with bytes */
