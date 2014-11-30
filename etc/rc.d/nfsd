@@ -5,6 +5,7 @@
 
 # PROVIDE: nfsd
 # REQUIRE: mountd hostname nfsuserd
+# BEFORE: lockd statd
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr
