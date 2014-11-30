@@ -12,6 +12,7 @@ DIRDEPS = \
 	lib/libc \
 	lib/libcompiler_rt \
 	lib/libcrypt \
+	lib/libpam/libpam \
 	lib/libutil \
 	secure/lib/libcrypto \
 	secure/lib/libssh \
