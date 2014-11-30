@@ -9,12 +9,6 @@ CFLAGS+=	-I${.CURDIR}/../common \
 		-I${.CURDIR}/../../libc/include
 CFLAGS+=	-fno-omit-frame-pointer
 
-FILES=		${OBJS}
-FILESOWN=	${LIBOWN}
-FILESGRP=	${LIBGRP}
-FILESMODE=	${LIBMODE}
-FILESDIR=	${LIBDIR}
-
 all: ${OBJS}
 
 CLEANFILES=	${OBJS}
@@ -44,5 +38,8 @@ Scrt1.s: crt1.c
 Scrt1.o: Scrt1.s
 	${CC} ${ACFLAGS} -c -o ${.TARGET} Scrt1.s
 
+realinstall:
+	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${OBJS} ${DESTDIR}${LIBDIR}
 
-.include <bsd.prog.mk>
+.include <bsd.lib.mk>
