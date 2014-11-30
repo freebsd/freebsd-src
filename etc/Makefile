@@ -252,9 +252,13 @@ distribution:
 .if ${MK_DMAGENT} != "no"
 	${_+_}cd ${.CURDIR}/dma; ${MAKE} install
 .endif
+.if ${MK_GSSAPI} != "no"
 	${_+_}cd ${.CURDIR}/gss; ${MAKE} install
+.endif
 	${_+_}cd ${.CURDIR}/periodic; ${MAKE} install
+.if ${MK_PKGBOOTSTRAP} != "no"
 	${_+_}cd ${.CURDIR}/pkg; ${MAKE} install
+.endif
 	${_+_}cd ${.CURDIR}/rc.d; ${MAKE} install
 	${_+_}cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap
 	${_+_}cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt
