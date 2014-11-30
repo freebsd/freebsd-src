@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to not build all sqlite3 applications and libraries.
