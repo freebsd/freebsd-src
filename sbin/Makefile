@@ -65,7 +65,6 @@ SUBDIR=adjkerntz \
 	savecore \
 	setkey \
 	shutdown \
-	spppcontrol \
 	swapon \
 	sysctl \
 	tunefs \
@@ -109,6 +108,10 @@ SUBDIR+=	newfs_nandfs
 .if ${MK_PF} != "no"
 SUBDIR+=	pfctl
 SUBDIR+=	pflogd
+.endif
+
+.if ${MK_PPP} != "no"
+SUBDIR+=	spppcontrol
 .endif
 
 .if ${MK_INET6} != "no"
