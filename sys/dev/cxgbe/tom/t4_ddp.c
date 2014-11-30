@@ -971,8 +971,9 @@ handle_ddp(struct socket *so, struct uio *uio, int flags, int error)
 	 */
 	rc = sbwait(sb);
 	while (toep->ddp_flags & buf_flag) {
+		/* XXXGL: shouldn't here be sbwait() call? */
 		sb->sb_flags |= SB_WAIT;
-		msleep(&sb->sb_cc, &sb->sb_mtx, PSOCK , "sbwait", 0);
+		msleep(&sb->sb_acc, &sb->sb_mtx, PSOCK , "sbwait", 0);
 	}
 	unwire_ddp_buffer(db);
 	return (rc);
