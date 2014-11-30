@@ -67,9 +67,9 @@ sctp_sblog(struct sockbuf *sb, struct sctp_tcb *stcb, int from, int incr)
 	struct sctp_cwnd_log sctp_clog;
 
 	sctp_clog.x.sb.stcb = stcb;
-	sctp_clog.x.sb.so_sbcc = sb->sb_cc;
+	sctp_clog.x.sb.so_sbcc = sb->sb_ccc;
 	if (stcb)
-		sctp_clog.x.sb.stcb_sbcc = stcb->asoc.sb_cc;
+		sctp_clog.x.sb.stcb_sbcc = stcb->asoc.sb_ccc;
 	else
 		sctp_clog.x.sb.stcb_sbcc = 0;
 	sctp_clog.x.sb.incr = incr;
@@ -4363,7 +4363,7 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 {
 	/*
 	 * Here we must place the control on the end of the socket read
-	 * queue AND increment sb_cc so that select will work properly on
+	 * queue AND increment sb_ccc so that select will work properly on
 	 * read.
 	 */
 	struct mbuf *m, *prev = NULL;
@@ -4489,7 +4489,7 @@ sctp_append_to_readq(struct sctp_inpcb *inp,
 	 * the reassembly queue.
 	 * 
 	 * If PDAPI this means we need to add m to the end of the data.
-	 * Increase the length in the control AND increment the sb_cc.
+	 * Increase the length in the control AND increment the sb_ccc.
 	 * Otherwise sb is NULL and all we need to do is put it at the end
 	 * of the mbuf chain.
 	 */
@@ -4701,10 +4701,10 @@ sctp_free_bufspace(struct sctp_tcb *stcb, struct sctp_association *asoc,
 
 	if (stcb->sctp_socket && (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) ||
 	    ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE)))) {
-		if (stcb->sctp_socket->so_snd.sb_cc >= tp1->book_size) {
-			stcb->sctp_socket->so_snd.sb_cc -= tp1->book_size;
+		if (stcb->sctp_socket->so_snd.sb_ccc >= tp1->book_size) {
+			stcb->sctp_socket->so_snd.sb_ccc -= tp1->book_size;
 		} else {
-			stcb->sctp_socket->so_snd.sb_cc = 0;
+			stcb->sctp_socket->so_snd.sb_ccc = 0;
 
 		}
 	}
@@ -5254,11 +5254,11 @@ sctp_sorecvmsg(struct socket *so,
 	in_eeor_mode = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXPLICIT_EOR);
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_RECV_RWND_LOGGING_ENABLE) {
 		sctp_misc_ints(SCTP_SORECV_ENTER,
-		    rwnd_req, in_eeor_mode, so->so_rcv.sb_cc, uio->uio_resid);
+		    rwnd_req, in_eeor_mode, so->so_rcv.sb_ccc, uio->uio_resid);
 	}
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_RECV_RWND_LOGGING_ENABLE) {
 		sctp_misc_ints(SCTP_SORECV_ENTERPL,
-		    rwnd_req, block_allowed, so->so_rcv.sb_cc, uio->uio_resid);
+		    rwnd_req, block_allowed, so->so_rcv.sb_ccc, uio->uio_resid);
 	}
 	error = sblock(&so->so_rcv, (block_allowed ? SBL_WAIT : 0));
 	if (error) {
@@ -5277,23 +5277,23 @@ restart_nosblocks:
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE)) {
 		goto out;
 	}
-	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) && (so->so_rcv.sb_cc == 0)) {
+	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) && (so->so_rcv.sb_ccc == 0)) {
 		if (so->so_error) {
 			error = so->so_error;
 			if ((in_flags & MSG_PEEK) == 0)
 				so->so_error = 0;
 			goto out;
 		} else {
-			if (so->so_rcv.sb_cc == 0) {
+			if (so->so_rcv.sb_ccc == 0) {
 				/* indicate EOF */
 				error = 0;
 				goto out;
 			}
 		}
 	}
-	if ((so->so_rcv.sb_cc <= held_length) && block_allowed) {
+	if ((so->so_rcv.sb_ccc <= held_length) && block_allowed) {
 		/* we need to wait for data */
-		if ((so->so_rcv.sb_cc == 0) &&
+		if ((so->so_rcv.sb_ccc == 0) &&
 		    ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 		    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL))) {
 			if ((inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) == 0) {
@@ -5329,7 +5329,7 @@ restart_nosblocks:
 		}
 		held_length = 0;
 		goto restart_nosblocks;
-	} else if (so->so_rcv.sb_cc == 0) {
+	} else if (so->so_rcv.sb_ccc == 0) {
 		if (so->so_error) {
 			error = so->so_error;
 			if ((in_flags & MSG_PEEK) == 0)
@@ -5386,11 +5386,11 @@ restart_nosblocks:
 			SCTP_INP_READ_LOCK(inp);
 		}
 		control = TAILQ_FIRST(&inp->read_queue);
-		if ((control == NULL) && (so->so_rcv.sb_cc != 0)) {
+		if ((control == NULL) && (so->so_rcv.sb_ccc != 0)) {
 #ifdef INVARIANTS
 			panic("Huh, its non zero and nothing on control?");
 #endif
-			so->so_rcv.sb_cc = 0;
+			so->so_rcv.sb_ccc = 0;
 		}
 		SCTP_INP_READ_UNLOCK(inp);
 		hold_rlock = 0;
@@ -5511,11 +5511,11 @@ restart_nosblocks:
 		}
 		/*
 		 * if we reach here, not suitable replacement is available
-		 * <or> fragment interleave is NOT on. So stuff the sb_cc
+		 * <or> fragment interleave is NOT on. So stuff the sb_ccc
 		 * into the our held count, and its time to sleep again.
 		 */
-		held_length = so->so_rcv.sb_cc;
-		control->held_length = so->so_rcv.sb_cc;
+		held_length = so->so_rcv.sb_ccc;
+		control->held_length = so->so_rcv.sb_ccc;
 		goto restart;
 	}
 	/* Clear the held length since there is something to read */
@@ -5812,10 +5812,10 @@ get_more_data:
 					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 						sctp_sblog(&so->so_rcv, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBFREE, cp_len);
 					}
-					atomic_subtract_int(&so->so_rcv.sb_cc, cp_len);
+					atomic_subtract_int(&so->so_rcv.sb_ccc, cp_len);
 					if ((control->do_not_ref_stcb == 0) &&
 					    stcb) {
-						atomic_subtract_int(&stcb->asoc.sb_cc, cp_len);
+						atomic_subtract_int(&stcb->asoc.sb_ccc, cp_len);
 					}
 					copied_so_far += cp_len;
 					freed_so_far += cp_len;
@@ -5960,7 +5960,7 @@ wait_some_more:
 		    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_FRAG_INTERLEAVE))) {
 			goto release;
 		}
-		if (so->so_rcv.sb_cc <= control->held_length) {
+		if (so->so_rcv.sb_ccc <= control->held_length) {
 			error = sbwait(&so->so_rcv);
 			if (error) {
 				goto release;
@@ -5987,8 +5987,8 @@ wait_some_more:
 				}
 				goto done_with_control;
 			}
-			if (so->so_rcv.sb_cc > held_length) {
-				control->held_length = so->so_rcv.sb_cc;
+			if (so->so_rcv.sb_ccc > held_length) {
+				control->held_length = so->so_rcv.sb_ccc;
 				held_length = 0;
 			}
 			goto wait_some_more;
@@ -6135,13 +6135,13 @@ out:
 			    freed_so_far,
 			    ((uio) ? (slen - uio->uio_resid) : slen),
 			    stcb->asoc.my_rwnd,
-			    so->so_rcv.sb_cc);
+			    so->so_rcv.sb_ccc);
 		} else {
 			sctp_misc_ints(SCTP_SORECV_DONE,
 			    freed_so_far,
 			    ((uio) ? (slen - uio->uio_resid) : slen),
 			    0,
-			    so->so_rcv.sb_cc);
+			    so->so_rcv.sb_ccc);
 		}
 	}
 stage_left:
