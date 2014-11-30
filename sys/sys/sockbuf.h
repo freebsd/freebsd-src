@@ -131,8 +131,8 @@ struct	sockbuf {
 
 void	sbappend(struct sockbuf *sb, struct mbuf *m);
 void	sbappend_locked(struct sockbuf *sb, struct mbuf *m);
-void	sbappendstream(struct sockbuf *sb, struct mbuf *m);
-void	sbappendstream_locked(struct sockbuf *sb, struct mbuf *m);
+void	sbappendstream(struct sockbuf *sb, struct mbuf *m, int flags);
+void	sbappendstream_locked(struct sockbuf *sb, struct mbuf *m, int flags);
 int	sbappendaddr(struct sockbuf *sb, const struct sockaddr *asa,
 	    struct mbuf *m0, struct mbuf *control);
 int	sbappendaddr_locked(struct sockbuf *sb, const struct sockaddr *asa,
