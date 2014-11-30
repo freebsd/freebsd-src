@@ -1,0 +1,6 @@
+.\" $FreeBSD$
+Set to not build or install
+.Xr nfsd 8 ,
+.Xr nfsdumpstate 8 ,
+.Xr nfsuserd 8 ,
+and associated programs.

@@ -45,17 +45,11 @@ SUBDIR=	adduser \
 	mtest \
 	${_mtree} \
 	newsyslog \
-	nfscbd \
-	nfsd \
-	nfsdumpstate \
-	nfsrevoke \
-	nfsuserd \
 	nmtree \
 	nologin \
 	${_pc_sysinstall} \
 	pciconf \
 	periodic \
-	powerd \
 	procctl \
 	pstat \
 	pw \
@@ -94,6 +88,11 @@ SUBDIR=	adduser \
 .if ${MK_ACCT} != "no"
 SUBDIR+=	accton
 SUBDIR+=	sa
+.endif
+
+.if ${MK_ACPI} != "no" || ${MK_APM} != "no"
+SUBDIR+=	powerd
+SUBDIR+=	zzz
 .endif
 
 .if ${MK_AMD} != "no"
@@ -232,6 +231,14 @@ SUBDIR+=	flowctl
 SUBDIR+=	lmcconfig
 SUBDIR+=	ngctl
 SUBDIR+=	nghook
+.endif
+
+.if ${MK_NFS_SERVER} != "no"
+SUBDIR+=	nfscbd
+SUBDIR+=	nfsd
+SUBDIR+=	nfsdumpstate
+SUBDIR+=	nfsrevoke
+SUBDIR+=	nfsuserd
 .endif
 
 .if ${MK_NIS} != "no"

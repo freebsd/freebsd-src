@@ -4083,6 +4083,24 @@ OLD_FILES+=usr/share/man/man8/ndisgen.8.gz
 OLD_FILES+=usr/share/misc/windrv_stub.c
 .endif
 
+.if ${MK_NFS_SERVER} == no
+OLD_FILES+=etc/rc.d/nfscbd
+OLD_FILES+=etc/rc.d/nfsd
+OLD_FILES+=etc/rc.d/nfsuserd
+OLD_FILES+=usr/sbin/nfscbd
+OLD_FILES+=usr/sbin/nfsd
+OLD_FILES+=usr/sbin/nfsdumpstate
+OLD_FILES+=usr/sbin/nfsrevoke
+OLD_FILES+=usr/sbin/nfsuserd
+OLD_FILES+=usr/share/man/man4/nfsv4.4.gz
+OLD_FILES+=usr/share/man/man5/stablerestart.5.gz
+OLD_FILES+=usr/share/man/man8/nfscbd.8.gz
+OLD_FILES+=usr/share/man/man8/nfsd.8.gz
+OLD_FILES+=usr/share/man/man8/nfsdumpstate.8.gz
+OLD_FILES+=usr/share/man/man8/nfsrevoke.8.gz
+OLD_FILES+=usr/share/man/man8/nfsuserd.8.gz
+.endif
+
 .if ${MK_NETCAT} == no
 OLD_FILES+=usr/bin/nc
 OLD_FILES+=usr/share/man/man1/nc.1.gz

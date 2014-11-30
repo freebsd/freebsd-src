@@ -74,9 +74,6 @@ FILES=	DAEMON \
 	netwait \
 	newsyslog \
 	nfsclient \
-	nfscbd \
-	nfsd \
-	nfsuserd \
 	nisdomain \
 	${_nscd} \
 	nsswitch \
@@ -233,6 +230,12 @@ _kpasswdd=	kpasswdd
 
 .if ${MK_MAIL} != "no"
 _othermta=	othermta
+.endif
+
+.if ${MK_NFS_SERVER} != "no"
+FILES+=		nfscbd
+FILES+=		nfsd
+FILES+=		nfsuserd
 .endif
 
 .if ${MK_NTP} != "no"
