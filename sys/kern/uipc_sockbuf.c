@@ -636,7 +636,7 @@ sbappend(struct sockbuf *sb, struct mbuf *m)
  * that is, a stream protocol (such as TCP).
  */
 void
-sbappendstream_locked(struct sockbuf *sb, struct mbuf *m)
+sbappendstream_locked(struct sockbuf *sb, struct mbuf *m, int flags)
 {
 	SOCKBUF_LOCK_ASSERT(sb);
 
@@ -646,8 +646,8 @@ sbappendstream_locked(struct sockbuf *sb, struct mbuf *m)
 	SBLASTMBUFCHK(sb);
 
 	/* Remove all packet headers and mbuf tags to get a pure data chain. */
-	m_demote(m, 1);
-	
+	m_demote(m, 1, flags & PRUS_NOTREADY ? M_NOTREADY : 0);
+
 	sbcompress(sb, m, sb->sb_mbtail);
 
 	sb->sb_lastrecord = sb->sb_mb;
@@ -660,11 +660,11 @@ sbappendstream_locked(struct sockbuf *sb, struct mbuf *m)
  * that is, a stream protocol (such as TCP).
  */
 void
-sbappendstream(struct sockbuf *sb, struct mbuf *m)
+sbappendstream(struct sockbuf *sb, struct mbuf *m, int flags)
 {
 
 	SOCKBUF_LOCK(sb);
-	sbappendstream_locked(sb, m);
+	sbappendstream_locked(sb, m, flags);
 	SOCKBUF_UNLOCK(sb);
 }
 

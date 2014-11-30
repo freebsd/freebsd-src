@@ -3178,6 +3178,13 @@ pru_send_notsupp(struct socket *so, int flags, struct mbuf *m,
 	return EOPNOTSUPP;
 }
 
+int
+pru_ready_notsupp(struct socket *so, struct mbuf *m, int count)
+{
+
+	return (EOPNOTSUPP);
+}
+
 /*
  * This isn't really a ``null'' operation, but it's the default one and
  * doesn't do anything destructive.
