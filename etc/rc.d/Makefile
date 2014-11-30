@@ -235,6 +235,11 @@ _kpasswdd=	kpasswdd
 _othermta=	othermta
 .endif
 
+.if ${MK_NTP} != "no"
+FILES+=		ntpd
+FILES+=		ntpdate
+.endif
+
 .if ${MK_OFED} != "no"
 _opensm=	opensm
 .endif
