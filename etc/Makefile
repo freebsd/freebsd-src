@@ -39,7 +39,6 @@ BIN1=	crontab \
 	protocols \
 	rc \
 	rc.bsdextended \
-	rc.firewall \
 	rc.initdiskless \
 	rc.shutdown \
 	rc.subr \
@@ -97,6 +96,10 @@ BIN1+= ftpusers
 
 .if ${MK_INETD} != "no"
 BIN1+= inetd.conf
+.endif
+
+.if ${MK_IPFW} != "no"
+BIN1+=	rc.firewall
 .endif
 
 .if ${MK_LOCATE} != "no"
@@ -322,8 +325,10 @@ distribution:
 .endif
 	${INSTALL} -o ${BINOWN} -g operator -m 664 /dev/null \
 	    ${DESTDIR}/etc/dumpdates
+.if ${MK_LOCATE} != "no"
 	${INSTALL} -o nobody -g ${BINGRP} -m 644 /dev/null \
 	    ${DESTDIR}/var/db/locate.database
+.endif
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 ${.CURDIR}/minfree \
 	    ${DESTDIR}/var/crash
 	cd ${.CURDIR}/..; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 444 \
@@ -389,6 +394,7 @@ distrib-dirs: ${MTREES:N/*}
 	done; true
 .endif
 	${INSTALL_SYMLINK} usr/src/sys ${DESTDIR}/sys
+.if ${MK_MAN} != "no"
 	cd ${DESTDIR}/usr/share/man; \
 	for mandir in man*; do \
 		${INSTALL_SYMLINK} ../$$mandir \
@@ -412,6 +418,7 @@ distrib-dirs: ${MTREES:N/*}
 		fi; \
 		shift; shift; \
 	done
+.endif
 .if ${MK_NLS} != "no"
 	set - `grep "^[a-zA-Z]" ${.CURDIR}/nls.alias`; \
 	while [ $$# -gt 0 ] ; do \
