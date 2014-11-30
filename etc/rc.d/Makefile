@@ -60,7 +60,6 @@ FILES=	DAEMON \
 	mountlate \
 	mdconfig \
 	mdconfig2 \
-	mountd \
 	msgs \
 	natd \
 	netif \
@@ -242,6 +241,7 @@ _othermta=	othermta
 .endif
 
 .if ${MK_NFS_SERVER} != "no"
+FILES+=		mountd
 FILES+=		nfscbd
 FILES+=		nfsd
 FILES+=		nfsuserd
