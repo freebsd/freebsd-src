@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.MAIN: all
+
 .include <src.opts.mk>
 MK_SSP=		no
 
