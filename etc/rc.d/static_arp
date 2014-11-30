@@ -30,7 +30,7 @@
 #
 
 # PROVIDE: static_arp
-# REQUIRE: netif
+# REQUIRE: netif routing
 # KEYWORD: nojail
 
 . /etc/rc.subr

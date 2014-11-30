@@ -30,7 +30,8 @@
 #
 
 # PROVIDE: static_ndp
-# REQUIRE: netif
+# REQUIRE: netif routing
+# BEFORE: NETWORKING
 # KEYWORD: nojail
 
 . /etc/rc.subr

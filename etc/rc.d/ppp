@@ -5,6 +5,7 @@
 
 # PROVIDE: ppp
 # REQUIRE: netif
+# BEFORE: bridge ipfw routing
 # KEYWORD: nojail
 
 . /etc/rc.subr

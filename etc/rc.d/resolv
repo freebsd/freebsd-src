@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: resolv
-# REQUIRE: netif FILESYSTEMS
+# REQUIRE: netif FILESYSTEMS routing
 # KEYWORD: nojail
 
 . /etc/rc.subr

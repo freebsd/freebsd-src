@@ -4,7 +4,8 @@
 #
 
 # PROVIDE: route6d
-# REQUIRE: netif routing
+# REQUIRE: bridge netif routing
+# BEFORE: NETWORKING
 # KEYWORD: nojail
 
 . /etc/rc.subr
