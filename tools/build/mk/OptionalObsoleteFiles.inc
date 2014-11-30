@@ -4682,10 +4682,12 @@ OLD_DIRS+=etc/ppp
 OLD_FILES+=etc/rc.d/ppp
 OLD_FILES+=etc/rc.d/pppoed
 OLD_FILES+=etc/rc.d/sppp
+OLD_FILES+=sbin/spppcontrol
 OLD_FILES+=usr/sbin/ppp
 OLD_FILES+=usr/sbin/pppctl
 OLD_FILES+=usr/share/man/man8/ppp.8.gz
 OLD_FILES+=usr/share/man/man8/pppctl.8.gz
+OLD_FILES+=usr/share/man/man8/spppcontrol.8.gz
 .endif
 
 .if ${MK_PROFILE} == no
