@@ -1035,51 +1035,37 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	return (&lle->base);
 }
 
+static void
+in_lltable_stop_timers(struct  llentry *lle)
+{
+
+	LLE_WLOCK_ASSERT(lle);
+	if (callout_stop(&lle->la_timer)) {
+		LLE_REMREF(lle);
+		lle->la_flags &= ~LLE_CALLOUTREF;
+	}
+}
+
 #define IN_ARE_MASKED_ADDR_EQUAL(d, a, m)	(			\
 	    (((ntohl((d)->sin_addr.s_addr) ^ (a)->sin_addr.s_addr) & (m)->sin_addr.s_addr)) == 0 )
 
-static void
-in_lltable_prefix_free(struct lltable *llt, const struct sockaddr *prefix,
-    const struct sockaddr *mask, u_int flags)
+static int
+in_lltable_match_prefix(const struct sockaddr *prefix,
+    const struct sockaddr *mask, u_int flags, struct llentry *lle)
 {
 	const struct sockaddr_in *pfx = (const struct sockaddr_in *)prefix;
 	const struct sockaddr_in *msk = (const struct sockaddr_in *)mask;
-	struct llentry *lle, *next;
-	struct llentries dchain;
-	int i;
-	size_t pkts_dropped;
 
-	LIST_INIT(&dchain);
-	IF_AFDATA_CFG_WLOCK(llt->llt_ifp);
-	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
-		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
-			/*
-			 * (flags & LLE_STATIC) means deleting all entries
-			 * including static ARP entries.
-			 */
-			if (IN_ARE_MASKED_ADDR_EQUAL(satosin(L3_ADDR(lle)),
-			    pfx, msk) && ((flags & LLE_STATIC) ||
-			    !(lle->la_flags & LLE_STATIC))) {
-				LLE_WLOCK(lle);
-				if (callout_stop(&lle->la_timer)) {
-					LLE_REMREF(lle);
-					lle->la_flags &= ~LLE_CALLOUTREF;
-				}
-				LIST_INSERT_HEAD(&dchain, lle, lle_chain);
-			}
-		}
-	}
-	/* Unlink chain */
-	IF_AFDATA_RUN_WLOCK(llt->llt_ifp);
-	llentries_unlink(&dchain);
-	IF_AFDATA_RUN_WUNLOCK(llt->llt_ifp);
-	LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next) {
-		pkts_dropped = llentry_free(lle);
-		ARPSTAT_ADD(dropped, pkts_dropped);
-	}
-	IF_AFDATA_CFG_WUNLOCK(llt->llt_ifp);
+	/*
+	 * (flags & LLE_STATIC) means deleting all entries
+	 * including static ARP entries.
+	 */
+	if (IN_ARE_MASKED_ADDR_EQUAL(satosin(L3_ADDR(lle)), pfx, msk) &&
+	    ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC)))
+		return (1);
+
+	return (0);
 }
-
 
 static int
 in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr)
@@ -1265,29 +1251,22 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 }
 
 static int
-in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
+in_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
+    struct sysctl_req *wr)
 {
-#define	SIN(lle)	((struct sockaddr_in *) L3_ADDR(lle))
 	struct ifnet *ifp = llt->llt_ifp;
-	struct llentry *lle;
 	/* XXX stack use */
 	struct {
 		struct rt_msghdr	rtm;
 		struct sockaddr_in	sin;
 		struct sockaddr_dl	sdl;
 	} arpc;
-	int error, i;
-
-	LLTABLE_LOCK_ASSERT();
-
-	error = 0;
-	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
-		LIST_FOREACH(lle, &llt->lle_head[i], lle_next) {
-			struct sockaddr_dl *sdl;
+	struct sockaddr_dl *sdl;
+	int error;
 
 			/* Skip if jailed and not a valid IP of the prison. */
 			if (prison_if(wr->td->td_ucred, L3_ADDR(lle)) != 0)
-				continue;
+				return (0);
 			/*
 			 * produce a msg made of:
 			 *  struct rt_msghdr;
@@ -1302,7 +1281,7 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			arpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
 			arpc.sin.sin_family = AF_INET;
 			arpc.sin.sin_len = sizeof(arpc.sin);
-			arpc.sin.sin_addr.s_addr = SIN(lle)->sin_addr.s_addr;
+			arpc.sin.sin_addr.s_addr = lle->r_l3addr.addr4.s_addr;
 
 			/* publish */
 			if (lle->la_flags & LLE_PUB)
@@ -1328,12 +1307,8 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 				arpc.rtm.rtm_flags |= RTF_STATIC;
 			arpc.rtm.rtm_index = ifp->if_index;
 			error = SYSCTL_OUT(wr, &arpc, sizeof(arpc));
-			if (error)
-				break;
-		}
-	}
-	return error;
-#undef SIN
+
+	return (error);
 }
 
 void *
@@ -1346,12 +1321,13 @@ in_domifattach(struct ifnet *ifp)
 
 	llt = lltable_init(ifp, AF_INET);
 	if (llt != NULL) {
-		llt->llt_prefix_free = in_lltable_prefix_free;
 		llt->llt_lookup = in_lltable_lookup;
 		llt->llt_create = in_lltable_create;
 		llt->llt_delete = in_lltable_delete;
-		llt->llt_dump = in_lltable_dump;
+		llt->llt_dump_entry = in_lltable_dump_entry;
 		llt->llt_hash = in_lltable_hash;
+		llt->llt_stop_timers = in_lltable_stop_timers;
+		llt->llt_match_prefix = in_lltable_match_prefix;
 	}
 	ii->ii_llt = llt;
 

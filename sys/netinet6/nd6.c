@@ -860,7 +860,8 @@ nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 	*/
 
 	llflags = (flags & ND6_EXCLUSIVE) ? LLE_EXCLUSIVE : 0;
-	ln = lla_lookup(LLTABLE6(ifp), llflags, (struct sockaddr *)&sin6);
+	ln = lltable_lookup_lle(LLTABLE6(ifp), llflags,
+	    (struct sockaddr *)&sin6);
 	
 	return (ln);
 }
@@ -882,7 +883,7 @@ nd6_create(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 
 	IF_AFDATA_CFG_WLOCK_ASSERT(ifp);
 
-	ln = lla_create(LLTABLE6(ifp), 0, (struct sockaddr *)&sin6);
+	ln = lltable_create_lle(LLTABLE6(ifp), 0, (struct sockaddr *)&sin6);
 	if (ln != NULL) {
 		IF_AFDATA_RUN_WLOCK(ifp);
 		ln->ln_state = ND6_LLINFO_NOSTATE;
@@ -2269,7 +2270,7 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 
 	ifp = ia->ia_ifa.ifa_ifp;
 	IF_AFDATA_CFG_WLOCK(ifp);
-	ln = lla_create(LLTABLE6(ifp), LLE_IFADDR,
+	ln = lltable_create_lle(LLTABLE6(ifp), LLE_IFADDR,
 	    (struct sockaddr *)&ia->ia_addr);
 	if (ln != NULL) {
 		IF_AFDATA_RUN_WLOCK(ifp);
@@ -2366,7 +2367,7 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
 	 * the entry should have been created in nd6_store_lladdr
 	 */
 	IF_AFDATA_RLOCK(ifp);
-	ln = lla_lookup(LLTABLE6(ifp), 0, dst);
+	ln = lltable_lookup_lle(LLTABLE6(ifp), 0, dst);
 	IF_AFDATA_RUNLOCK(ifp);
 	if ((ln == NULL) || !(ln->la_flags & LLE_VALID)) {
 		if (ln != NULL)

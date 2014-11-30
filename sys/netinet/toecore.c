@@ -459,7 +459,7 @@ toe_nd6_resolve(struct ifnet *ifp, struct sockaddr *sa, uint8_t *lladdr)
 
 restart:
 	IF_AFDATA_RLOCK(ifp);
-	lle = lla_lookup(LLTABLE6(ifp), flags, sa);
+	lle = lltable_lookup_lle(LLTABLE6(ifp), flags, sa);
 	IF_AFDATA_RUNLOCK(ifp);
 	if (lle == NULL) {
 		IF_AFDATA_CFG_WLOCK(ifp);
