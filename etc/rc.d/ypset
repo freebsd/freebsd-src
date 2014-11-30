@@ -5,6 +5,7 @@
 
 # PROVIDE: ypset
 # REQUIRE: ypbind
+# BEFORE: quota
 # KEYWORD: shutdown
 
 . /etc/rc.subr
