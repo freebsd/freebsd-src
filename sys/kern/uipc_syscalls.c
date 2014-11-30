@@ -2467,11 +2467,13 @@ retry_space:
 		/*
 		 * Calculate maximum allowed number of pages for readahead
 		 * at this iteration.  First, we allow readahead up to "rem".
-		 * If application wants more, let it be. But check against
-		 * "obj_size", since vm_pager_has_page() can hint beyond EOF.
+		 * If application wants more, let it be, but there is no
+		 * reason to go above MAXPHYS.  Also check against "obj_size",
+		 * since vm_pager_has_page() can hint beyond EOF.
 		 */
 		rhpages = howmany(rem + (off & PAGE_MASK), PAGE_SIZE) - npages;
 		rhpages = max(SF_READAHEAD(flags), rhpages);
+		rhpages = min(howmany(MAXPHYS, PAGE_SIZE), rhpages);
 		rhpages = min(howmany(obj_size - trunc_page(off), PAGE_SIZE) -
 		    npages, rhpages);
 
