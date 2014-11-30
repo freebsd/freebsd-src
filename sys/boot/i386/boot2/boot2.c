@@ -418,7 +418,7 @@ parse()
 #if SERIAL
 		} else if (c == 'S') {
 		    j = 0;
-		    while ((i = *arg++ - '0') <= 9)
+		    while ((unsigned int)(i = *arg++ - '0') <= 9)
 			j = j * 10 + i;
 		    if (j > 0 && i == -'0') {
 			comspeed = j;
