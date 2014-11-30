@@ -6,7 +6,7 @@
 # Enable/Check the quotas (must be after ypbind if using NIS)
 
 # PROVIDE: quota
-# REQUIRE: mountcritremote ypset
+# REQUIRE: mountcritremote
 # BEFORE: DAEMON
 # KEYWORD: nojail
 
