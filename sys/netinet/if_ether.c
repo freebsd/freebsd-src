@@ -164,7 +164,8 @@ arp_ifscrub(struct ifnet *ifp, uint32_t addr)
 	addr4.sin_family = AF_INET;
 	addr4.sin_addr.s_addr = addr;
 	IF_AFDATA_CFG_WLOCK(ifp);
-	lla_delete(LLTABLE(ifp), LLE_IFADDR, (struct sockaddr *)&addr4);
+	lltable_delete_lle(LLTABLE(ifp), LLE_IFADDR,
+	    (struct sockaddr *)&addr4);
 	IF_AFDATA_CFG_WUNLOCK(ifp);
 }
 #endif
@@ -257,6 +258,11 @@ arptimer(void *arg)
 		LLE_REMREF(lle);
 		lle->la_flags &= ~LLE_CALLOUTREF;
 	}
+
+	/* Unlink entry */
+	IF_AFDATA_RUN_WLOCK(ifp);
+	llentry_unlink(lle);
+	IF_AFDATA_RUN_WUNLOCK(ifp);
 
 	pkts_dropped = llentry_free(lle);
 	ARPSTAT_ADD(dropped, pkts_dropped);
@@ -373,7 +379,7 @@ arpresolve_fast(struct ifnet *ifp, struct in_addr dst, u_int mflags,
 	sa_dst = (const struct sockaddr *)&sin;
 
 	IF_AFDATA_RUN_RLOCK(ifp);
-	la = lla_lookup(LLTABLE(ifp), LLE_UNLOCKED, sa_dst);
+	la = lltable_lookup_lle(LLTABLE(ifp), LLE_UNLOCKED, sa_dst);
 	if (la != NULL && (la->r_flags & RLLE_VALID) != 0) {
 		/* Entry found, let's copy lle info */
 		bcopy(&la->ll_addr, dst_addr, ifp->if_addrlen);
@@ -458,7 +464,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	}
 
 	IF_AFDATA_RUN_RLOCK(ifp);
-	la = lla_lookup(LLTABLE(ifp), LLE_UNLOCKED, dst);
+	la = lltable_lookup_lle(LLTABLE(ifp), LLE_UNLOCKED, dst);
 	if (la != NULL && (la->r_flags & RLLE_VALID) != 0) {
 		/* Entry found, let's copy lle info */
 		bcopy(&la->ll_addr, desten, ifp->if_addrlen);
@@ -487,12 +493,12 @@ arpresolve_slow(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	*lle = NULL;
 
 	IF_AFDATA_RLOCK(ifp);
-	la = lla_lookup(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
+	la = lltable_lookup_lle(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
 	IF_AFDATA_RUNLOCK(ifp);
 	if (la == NULL && (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
 		create = 1;
 		IF_AFDATA_CFG_WLOCK(ifp);
-		la = lla_create(LLTABLE(ifp), 0, dst);
+		la = lltable_create_lle(LLTABLE(ifp), 0, dst);
 		if (la != NULL) {
 			IF_AFDATA_RUN_WLOCK(ifp);
 			llentry_link(LLTABLE(ifp), la);
@@ -858,9 +864,11 @@ match:
 	flags = LLE_EXCLUSIVE;
 	IF_AFDATA_CFG_WLOCK(ifp);
 	if (create != 0) {
-		la = lla_create(LLTABLE(ifp), 0, (struct sockaddr *)&sin);
+		la = lltable_create_lle(LLTABLE(ifp), 0,
+		    (struct sockaddr *)&sin);
 	} else
-		la = lla_lookup(LLTABLE(ifp), flags, (struct sockaddr *)&sin);
+		la = lltable_lookup_lle(LLTABLE(ifp), flags,
+		    (struct sockaddr *)&sin);
 	IF_AFDATA_CFG_WUNLOCK(ifp);
 	if (la != NULL) {
 		/* the following is not an error when doing bridging */
@@ -989,7 +997,8 @@ reply:
 
 		sin.sin_addr = itaddr;
 		IF_AFDATA_RLOCK(ifp);
-		lle = lla_lookup(LLTABLE(ifp), 0, (struct sockaddr *)&sin);
+		lle = lltable_lookup_lle(LLTABLE(ifp), 0,
+		    (struct sockaddr *)&sin);
 		IF_AFDATA_RUNLOCK(ifp);
 
 		if ((lle != NULL) && (lle->la_flags & LLE_PUB)) {
@@ -1093,7 +1102,7 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 		 * that L2 entry as permanent
 		 */
 		IF_AFDATA_CFG_WLOCK(ifp);
-		lle = lla_create(LLTABLE(ifp), LLE_IFADDR | LLE_STATIC,
+		lle = lltable_create_lle(LLTABLE(ifp), LLE_IFADDR | LLE_STATIC,
 				 (struct sockaddr *)IA_SIN(ifa));
 		if (lle != NULL) {
 			IF_AFDATA_RUN_WLOCK(ifp);

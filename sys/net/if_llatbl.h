@@ -153,10 +153,12 @@ typedef	struct llentry *(llt_create_t)(struct lltable *, u_int flags,
     const struct sockaddr *l3addr);
 typedef	int (llt_delete_t)(struct lltable *, u_int flags,
     const struct sockaddr *l3addr);
-typedef void (llt_prefix_free_t)(struct lltable *,
-    const struct sockaddr *prefix, const struct sockaddr *mask, u_int flags);
-typedef int (llt_dump_t)(struct lltable *, struct sysctl_req *);
+typedef int (llt_dump_entry_t)(struct lltable *, struct llentry *,
+    struct sysctl_req *);
 typedef uint32_t (llt_hash_t)(const struct llentry *);
+typedef int (llt_match_prefix_t)(const struct sockaddr *,
+    const struct sockaddr *, u_int, struct llentry *);
+typedef void (llt_stop_timers_t)(struct llentry *lle);
 
 struct lltable {
 	SLIST_ENTRY(lltable)	llt_link;
@@ -167,9 +169,10 @@ struct lltable {
 	llt_lookup_t		*llt_lookup;
 	llt_create_t		*llt_create;
 	llt_delete_t		*llt_delete;
-	llt_prefix_free_t	*llt_prefix_free;
-	llt_dump_t		*llt_dump;
+	llt_dump_entry_t	*llt_dump_entry;
 	llt_hash_t		*llt_hash;
+	llt_match_prefix_t	*llt_match_prefix;
+	llt_stop_timers_t	*llt_stop_timers;
 };
 
 MALLOC_DECLARE(M_LLTABLE);
@@ -216,21 +219,24 @@ struct llentry  *llentry_alloc(struct ifnet *, struct lltable *,
  * Generic link layer address lookup function.
  */
 static __inline struct llentry *
-lla_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
+lltable_lookup_lle(struct lltable *llt, u_int flags,
+    const struct sockaddr *l3addr)
 {
 
 	return llt->llt_lookup(llt, flags, l3addr);
 }
 
 static __inline struct llentry *
-lla_create(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
+lltable_create_lle(struct lltable *llt, u_int flags,
+    const struct sockaddr *l3addr)
 {
 
 	return llt->llt_create(llt, flags, l3addr);
 }
 
 static __inline int
-lla_delete(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
+lltable_delete_lle(struct lltable *llt, u_int flags,
+    const struct sockaddr *l3addr)
 {
 
 	return llt->llt_delete(llt, flags, l3addr);

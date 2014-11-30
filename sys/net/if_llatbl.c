@@ -72,8 +72,33 @@ struct rwlock lltable_rwlock;
 RW_SYSINIT(lltable_rwlock, &lltable_rwlock, "lltable_rwlock");
 
 /*
- * Dump arp state for a specific address family.
+ * Dump lle state for a specific address family.
  */
+static int
+lltable_dump_af(struct lltable *llt, struct sysctl_req *wr)
+{
+	struct llentry *lle;
+	int i, error;
+
+	LLTABLE_LOCK_ASSERT();
+
+	if (llt->llt_ifp->if_flags & IFF_LOOPBACK)
+		return (0);
+	error = 0;
+
+	IF_AFDATA_CFG_RLOCK(llt->llt_ifp);
+	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
+		LIST_FOREACH(lle, &llt->lle_head[i], lle_next) {
+			error = llt->llt_dump_entry(llt, lle, wr);
+			if (error != 0)
+				break;
+		}
+	}
+	IF_AFDATA_CFG_RUNLOCK(llt->llt_ifp);
+
+	return (error);
+}
+
 int
 lltable_sysctl_dumparp(int af, struct sysctl_req *wr)
 {
@@ -83,7 +108,7 @@ lltable_sysctl_dumparp(int af, struct sysctl_req *wr)
 	LLTABLE_RLOCK();
 	SLIST_FOREACH(llt, &V_lltables, llt_link) {
 		if (llt->llt_af == af) {
-			error = llt->llt_dump(llt, wr);
+			error = lltable_dump_af(llt, wr);
 			if (error != 0)
 				goto done;
 		}
@@ -186,12 +211,12 @@ llentry_alloc(struct ifnet *ifp, struct lltable *lt,
 	struct llentry *la;
 
 	IF_AFDATA_RLOCK(ifp);
-	la = lla_lookup(lt, LLE_EXCLUSIVE, (struct sockaddr *)dst);
+	la = lt->llt_lookup(lt, LLE_EXCLUSIVE, (struct sockaddr *)dst);
 	IF_AFDATA_RUNLOCK(ifp);
 	if ((la == NULL) &&
 	    (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
 		IF_AFDATA_CFG_WLOCK(ifp);
-		la = lla_create(lt, 0, (struct sockaddr *)dst);
+		la = lt->llt_create(lt, 0, (struct sockaddr *)dst);
 		if (la != NULL) {
 			IF_AFDATA_RUN_WLOCK(ifp);
 			llentry_link(lt, la);
@@ -229,10 +254,7 @@ lltable_free(struct lltable *llt)
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 			LLE_WLOCK(lle);
-			if (callout_stop(&lle->la_timer)) {
-				LLE_REMREF(lle);
-				lle->la_flags &= ~LLE_CALLOUTREF;
-			}
+			llt->llt_stop_timers(lle);
 			LIST_INSERT_HEAD(&dchain, lle, lle_chain);
 		}
 	}
@@ -244,6 +266,33 @@ lltable_free(struct lltable *llt)
 	IF_AFDATA_CFG_WUNLOCK(llt->llt_ifp);
 
 	free(llt, M_LLTABLE);
+}
+
+static void
+lltable_prefix_free_af(struct lltable *llt, const struct sockaddr *prefix,
+    const struct sockaddr *mask, u_int flags)
+{
+	struct llentries dchain;
+	struct llentry *lle, *next;
+	int i;
+
+	LIST_INIT(&dchain);
+	IF_AFDATA_CFG_WLOCK(llt->llt_ifp);
+	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
+		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
+			if (llt->llt_match_prefix(prefix, mask, flags, lle)) {
+				LLE_WLOCK(lle);
+				llt->llt_stop_timers(lle);
+				LIST_INSERT_HEAD(&dchain, lle, lle_chain);
+			}
+		}
+	}
+	IF_AFDATA_RUN_WLOCK(llt->llt_ifp);
+	llentries_unlink(&dchain);
+	IF_AFDATA_RUN_WUNLOCK(llt->llt_ifp);
+	LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next)
+		llentry_free(lle);
+	IF_AFDATA_CFG_WUNLOCK(llt->llt_ifp);
 }
 
 #if 0
@@ -285,7 +334,7 @@ lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask,
 		if (llt->llt_af != af)
 			continue;
 
-		llt->llt_prefix_free(llt, prefix, mask, flags);
+		lltable_prefix_free_af(llt, prefix, mask, flags);
 	}
 	LLTABLE_RUNLOCK();
 }
@@ -356,7 +405,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	case RTM_ADD:
 		/* Add static LLE */
 		IF_AFDATA_CFG_WLOCK(ifp);
-		lle = lla_create(llt, 0, dst);
+		lle = llt->llt_create(llt, 0, dst);
 		if (lle == NULL) {
 			IF_AFDATA_CFG_WUNLOCK(ifp);
 			return (ENOMEM);
@@ -403,7 +452,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 
 	case RTM_DELETE:
 		IF_AFDATA_CFG_WLOCK(ifp);
-		error = lla_delete(llt, 0, dst);
+		error = (llt->llt_delete(llt, 0, dst));
 		IF_AFDATA_CFG_WUNLOCK(ifp);
 		return (error == 0 ? 0 : ENOENT);
 

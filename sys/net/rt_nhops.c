@@ -699,7 +699,8 @@ fib6_storelladdr(struct ifnet *ifp, struct in6_addr *dst, int mm_flags,
 	 * the entry should have been created in nd6_store_lladdr
 	 */
 	IF_AFDATA_RUN_RLOCK(ifp);
-	ln = lla_lookup(LLTABLE6(ifp), LLE_UNLOCKED, (struct sockaddr *)&dst_sa);
+	ln = lltable_lookup_lle(LLTABLE6(ifp), LLE_UNLOCKED,
+	    (struct sockaddr *)&dst_sa);
 
 	/*
 	 * Perform fast path for the following cases:
