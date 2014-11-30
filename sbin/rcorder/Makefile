@@ -7,13 +7,11 @@ MAN=	rcorder.8
 
 LIBADD=	util
 
-# XXX hack for make's hash.[ch]
-CFLAGS+= -DORDER -I.
+CFLAGS+= -DORDER
 
-SRCS+=	util.h
-CLEANFILES+=	util.h
-
-util.h:
-	ln -sf ${.CURDIR}/../../lib/libutil/libutil.h ${.TARGET}
+#CFLAGS+= -DDEBUG
+.if ${CFLAGS:M*-DDEBUG}
+CFLAGS+= -I${.CURDIR}/../../usr.bin/make
+.endif
 
 .include <bsd.prog.mk>
