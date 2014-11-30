@@ -231,7 +231,7 @@ insert_ddp_data(struct toepcb *toep, uint32_t n)
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	toep->rx_credits -= n;	/* adjust for F_RX_FC_DDP */
 #endif
-	sbappendstream_locked(sb, m);
+	sbappendstream_locked(sb, m, 0);
 	toep->sb_cc = sbused(sb);
 }
 
@@ -466,7 +466,7 @@ handle_ddp_data(struct toepcb *toep, __be32 ddp_report, __be32 rcv_nxt, int len)
 #ifdef USE_DDP_RX_FLOW_CONTROL
 	toep->rx_credits -= len;	/* adjust for F_RX_FC_DDP */
 #endif
-	sbappendstream_locked(sb, m);
+	sbappendstream_locked(sb, m, 0);
 	toep->sb_cc = sbused(sb);
 wakeup:
 	KASSERT(toep->ddp_flags & db_flag,
