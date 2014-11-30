@@ -27,6 +27,7 @@ OLD_FILES+=usr/share/man/man8/iasl.8.gz
 
 .if ${MK_AMD} == no
 OLD_FILES+=etc/amd.map
+OLD_FILES+=etc/rc.d/amd
 OLD_FILES+=usr/bin/pawd
 OLD_FILES+=usr/sbin/amd
 OLD_FILES+=usr/sbin/amq
@@ -77,6 +78,9 @@ OLD_FILES+=usr/share/man/man8/atrun.8.gz
 .endif
 
 .if ${MK_ATM} == no
+OLD_FILES+=etc/rc.d/atm1
+OLD_FILES+=etc/rc.d/atm2
+OLD_FILES+=etc/rc.d/atm3
 OLD_FILES+=rescue/atmconfig
 OLD_FILES+=sbin/atmconfig
 OLD_FILES+=usr/bin/sscop
@@ -135,6 +139,8 @@ OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-ATM.txt
 .endif
 
 .if ${MK_AUDIT} == no
+OLD_FILES+=etc/rc.d/auditd
+OLD_FILES+=etc/rc.d/auditdistd
 OLD_FILES+=usr/sbin/audit
 OLD_FILES+=usr/sbin/auditd
 OLD_FILES+=usr/sbin/auditreduce
@@ -344,6 +350,7 @@ OLD_FILES+=boot/userboot.so
 OLD_FILES+=boot/version.4th
 OLD_FILES+=boot/zfsboot
 OLD_FILES+=boot/zfsloader
+OLD_FILES+=etc/rc.d/gptboot
 OLD_FILES+=usr/lib/kgzldr.o
 OLD_FILES+=usr/share/man/man5/loader.conf.5.gz
 OLD_FILES+=usr/share/man/man8/beastie.4th.8.gz
@@ -891,6 +898,8 @@ OLD_FILES+=boot/zfsloader
 OLD_FILES+=etc/devd/zfs.conf
 OLD_FILES+=etc/periodic/daily/404.status-zfs
 OLD_FILES+=etc/periodic/daily/800.scrub-zfs
+OLD_FILES+=etc/rc.d/zfs
+OLD_FILES+=etc/rc.d/zvol
 OLD_LIBS+=lib/libzfs.so.2
 OLD_LIBS+=lib/libzfs_core.so.2
 OLD_LIBS+=lib/libzpool.so.2
@@ -2355,6 +2364,7 @@ OLD_DIRS+=usr/share/tmac
 .endif
 
 .if ${MK_GSSAPI} == no
+OLD_FILES+=etc/rc.d/gssd
 OLD_FILES+=usr/include/gssapi/gssapi.h
 OLD_DIRS+=usr/include/gssapi
 OLD_FILES+=usr/include/gssapi.h
@@ -2664,6 +2674,7 @@ OLD_FILES+=usr/share/man/man8/iscsid.8.gz
 .endif
 
 .if ${MK_JAIL} == no
+OLD_FILES+=etc/rc.d/jail
 OLD_FILES+=usr/sbin/jail
 OLD_FILES+=usr/sbin/jexec
 OLD_FILES+=usr/sbin/jls
@@ -2673,6 +2684,8 @@ OLD_FILES+=usr/share/man/man8/jls.8.gz
 .endif
 
 .if ${MK_KERBEROS} == no
+OLD_FILES+=etc/rc.d/ipropd_master
+OLD_FILES+=etc/rc.d/ipropd_slave
 OLD_FILES+=usr/bin/compile_et
 OLD_FILES+=usr/bin/hxtool
 OLD_FILES+=usr/bin/kadmin
@@ -3830,6 +3843,7 @@ OLD_FILES+=usr/share/man/man8/updatedb.8.gz
 .if ${MK_LPR} == no
 OLD_FILES+=etc/hosts.lpd
 OLD_FILES+=etc/printcap
+OLD_FILES+=etc/rc.d/lpd
 OLD_FILES+=usr/bin/lp
 OLD_FILES+=usr/bin/lpq
 OLD_FILES+=usr/bin/lpr
@@ -4596,6 +4610,8 @@ OLD_FILES+=etc/periodic/daily/150.clean-hoststat
 OLD_FILES+=etc/periodic/daily/440.status-mailq
 OLD_FILES+=etc/periodic/daily/460.status-mail-rejects
 OLD_FILES+=etc/periodic/daily/500.queuerun
+OLD_FILES+=etc/rc.sendmail
+OLD_FILES+=etc/rc.d/sendmail
 .if ${MK_MAILWRAPPER} == no
 OLD_FILES+=bin/rmail
 .endif
@@ -6065,6 +6081,7 @@ OLD_FILES+=usr/share/man/man8/utx.8.gz
 .endif
 
 .if ${MK_VI} == no
+OLD_FILES+=etc/rc.d/virecover
 OLD_FILES+=usr/bin/ex
 OLD_FILES+=usr/bin/nex
 OLD_FILES+=usr/bin/nvi
