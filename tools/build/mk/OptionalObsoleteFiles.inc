@@ -15,6 +15,7 @@ OLD_FILES+=usr/share/man/man8/sa.8.gz
 .endif
 
 .if ${MK_ACPI} == no
+OLD_FILES+=etc/rc.d/power_profile
 OLD_FILES+=usr/sbin/acpiconf
 OLD_FILES+=usr/sbin/acpidb
 OLD_FILES+=usr/sbin/acpidump
@@ -60,8 +61,11 @@ OLD_FILES+=usr/share/man/man8/amd64/apmconf.8.gz
 .endif
 
 .if ${MK_APM} == no && ${MK_ACPI} == no
+OLD_FILES+=etc/rc.d/powerd
+OLD_FILES+=usr/sbin/powerd
 OLD_FILES+=usr/sbin/zzz
 OLD_FILES+=usr/share/man/man8/zzz.8.gz
+OLD_FILES+=usr/share/man/man8/powerd.8.gz
 .endif
 
 .if ${MK_AT} == no
@@ -311,6 +315,11 @@ OLD_FILES+=etc/bluetooth/hosts
 OLD_FILES+=etc/bluetooth/protocols
 OLD_FILES+=etc/defaults/bluetooth.device.conf
 OLD_DIRS+=etc/bluetooth
+OLD_FILES+=etc/rc.d/bluetooth
+OLD_FILES+=etc/rc.d/bthidd
+OLD_FILES+=etc/rc.d/hcsecd
+OLD_FILES+=etc/rc.d/sdpd
+OLD_FILES+=etc/rc.d/ubthidhci
 OLD_FILES+=usr/bin/bthost
 OLD_FILES+=usr/bin/btsockstat
 OLD_FILES+=usr/bin/rfcomm_sppd
@@ -2658,6 +2667,13 @@ OLD_FILES+=usr/share/man/man3/iconvlist.3.gz
 .endif
 
 .if ${MK_INET6} == no
+OLD_FILES+=etc/rc.d/ip6addrctl
+OLD_FILES+=etc/rc.d/mroute6d
+OLD_FILES+=etc/rc.d/route6d
+OLD_FILES+=etc/rc.d/rtadvd
+OLD_FILES+=etc/rc.d/rtsold
+OLD_FILES+=etc/rc.d/stf
+OLD_FILES+=etc/rc.d/static_ndp
 OLD_FILES+=sbin/ping6
 OLD_FILES+=sbin/rtsol
 OLD_FILES+=usr/sbin/ip6addrctl
@@ -4663,6 +4679,9 @@ OLD_FILES+=usr/share/man/man8/portsnap.8.gz
 .if ${MK_PPP} == no
 OLD_FILES+=etc/ppp/ppp.conf
 OLD_DIRS+=etc/ppp
+OLD_FILES+=etc/rc.d/ppp
+OLD_FILES+=etc/rc.d/pppoed
+OLD_FILES+=etc/rc.d/sppp
 OLD_FILES+=usr/sbin/ppp
 OLD_FILES+=usr/sbin/pppctl
 OLD_FILES+=usr/share/man/man8/ppp.8.gz
@@ -4885,6 +4904,7 @@ OLD_FILES+=usr/share/man/man8/etcupdate.8.gz
 #.endif
 
 .if ${MK_ROUTED} == no
+OLD_FILES+=etc/rc.d/routed
 OLD_FILES+=usr/include/protocols/routed.h
 OLD_FILES+=sbin/routed
 OLD_FILES+=sbin/rtquery
