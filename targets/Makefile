@@ -35,23 +35,23 @@
 
 # this is our top-level makefile
 .if make(pkg-*)
-DIRDEPS_FILTER = Mpkgs/*
+DIRDEPS_FILTER = Mtargets/*
 .endif
 
 # in theory, this is what we want
-target_dirs = pkgs pkgs/pseudo
+target_dirs = targets targets/pseudo
 # these tweak how we do it
 target_prefix = pkg- build-
 DIRDEPS := ${.TARGETS:Nall:${target_prefix:@p@S,^$p,,@:ts:}:@t@${target_dirs:@d@$d/$t@}@:@d@${exists(${SRCTOP}/$d):?$d:}@}
 
-.if ${DIRDEPS:Mpkgs/pseudo/*} != ""
+.if ${DIRDEPS:Mtargets/pseudo/*} != ""
 # all bets are off
 PKG_MACHINE_LIST = ${ALL_MACHINE_LIST}
 .endif
 
 .if make(check-commit)
 # a special case
-DIRDEPS = pkgs/pseudo/check-commit
+DIRDEPS = targets/pseudo/check-commit
 .if defined(ALL_MACHINES)
 CHECK_MACHINE_LIST = all
 .undef ALL_MACHINES
@@ -127,16 +127,15 @@ start_utc := ${now_utc}
 
 _begin = count-makefiles
 
-# by default, we clean pkgs/ which can otherwise accumulate a lot of cruft
-.if ${NEED_CLEAN_PKGS:Uyes:tl} != "no"
-_begin += clean-pkgs
-.endif
-.if defined(SHIPDIR) && ${NEED_CLEAN_SHIPDIR:Uno:tl} != "no" && exists(${SHIPDIR})
-_begin += clean-shipdir
-.endif
-.if ${NEED_CLEAN_ERROR_LOGS:Uyes:tl} == "yes"
+__DEFAULT_YES_OPTIONS+= \
+	CLEAN_ERROR_LOGS
+
+.include <bsd.mkopt.mk>
+
+.if ${MK_CLEAN_ERROR_LOGS} == "yes"
 _begin += clean-error-logs
 .endif
+
 .if !empty(_begin) && !make(clean*)
 dirdeps: ${_begin} .WAIT
 .endif
@@ -166,12 +165,6 @@ _build_failed: .NOMETA
 
 clean-error-logs: .NOMETA
 	@test ! -d ${meta_error_log:H} || rm -f ${meta_error_log:H}/*log
-
-clean-pkgs:	.NOMETA
-	@rm -rf ${ALL_MACHINE_LIST:N${MACHINE}:@m@${OBJROOT}$m/pkgs@} ${OBJROOT}${MACHINE}/pkgs/*
-
-clean-shipdir:	.NOMETA
-	${"${SHIPDIR:tl:Nno:N*\:*}":?rm -f ${SHIPDIR}/*:}
 
 .if !target(_DIRDEP_USE)
 # we did not read dirdeps.mk above, the target may be here

@@ -5,10 +5,10 @@ GENDIRDEPS_FILTER+= \
 	Ncddl/usr.bin/ctf* \
 	Nlib/clang/include \
 	Nlib/libc_nonshared \
-	Npkgs/pseudo/stage* \
+	Ntargets/pseudo/stage* \
 	Ntools/*
 
-.if ${RELDIR:Mpkgs*} == ""
+.if ${RELDIR:Mtargets*} == ""
 GENDIRDEPS_FILTER+= \
 	Nusr.bin/clang/clang.host \
 	Ngnu/usr.bin/cc* \

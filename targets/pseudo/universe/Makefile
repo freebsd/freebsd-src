@@ -32,7 +32,7 @@
 # 
 
 # this is the RELDIR of the target we build
-UNIVERSE_TARGET_RELDIR?= pkgs/pseudo/the-lot
+UNIVERSE_TARGET_RELDIR?= targets/pseudo/the-lot
 
 # the list of machines
 TARGET_MACHINE_LIST = i386 amd64
