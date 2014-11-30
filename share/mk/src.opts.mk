@@ -81,6 +81,7 @@ __DEFAULT_YES_OPTIONS = \
     EE \
     EXAMPLES \
     FDT \
+    FILE \
     FINGER \
     FLOPPY \
     FMTREE \
@@ -151,6 +152,7 @@ __DEFAULT_YES_OPTIONS = \
     SOURCELESS \
     SOURCELESS_HOST \
     SOURCELESS_UCODE \
+    SQLITE3 \
     SVNLITE \
     SYSCALL_COMPAT \
     SYSCONS \
@@ -325,6 +327,11 @@ MK_KERBEROS:=	no
 
 .if ${MK_PF} == "no"
 MK_AUTHPF:=	no
+.endif
+
+.if ${MK_SQLITE3} == "no"
+MK_SVN:=	no
+MK_SVNLITE:=	no
 .endif
 
 .if ${MK_TEXTPROC} == "no"
