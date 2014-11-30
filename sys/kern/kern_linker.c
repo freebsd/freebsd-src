@@ -1752,7 +1752,7 @@ linker_hints_lookup(const char *path, int pathlen, const char *modname,
 	/*
 	 * XXX: we need to limit this number to some reasonable value
 	 */
-	if (vattr.va_size > 100 * 1024) {
+	if (vattr.va_size > LINKER_HINTS_MAX) {
 		printf("hints file too large %ld\n", (long)vattr.va_size);
 		goto bad;
 	}

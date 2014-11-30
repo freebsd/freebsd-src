@@ -318,7 +318,7 @@ pipe_zone_init(void *mem, int size, int flags)
 
 	pp = (struct pipepair *)mem;
 
-	mtx_init(&pp->pp_mtx, "pipe mutex", NULL, MTX_DEF | MTX_RECURSE);
+	mtx_init(&pp->pp_mtx, "pipe mutex", NULL, MTX_DEF);
 	return (0);
 }
 
@@ -1792,7 +1792,7 @@ filt_piperead(struct knote *kn, long hint)
 	struct pipe *wpipe = rpipe->pipe_peer;
 	int ret;
 
-	PIPE_LOCK(rpipe);
+	PIPE_LOCK_ASSERT(rpipe, MA_OWNED);
 	kn->kn_data = rpipe->pipe_buffer.cnt;
 	if ((kn->kn_data == 0) && (rpipe->pipe_state & PIPE_DIRECTW))
 		kn->kn_data = rpipe->pipe_map.cnt;
@@ -1801,11 +1801,9 @@ filt_piperead(struct knote *kn, long hint)
 	    wpipe->pipe_present != PIPE_ACTIVE ||
 	    (wpipe->pipe_state & PIPE_EOF)) {
 		kn->kn_flags |= EV_EOF;
-		PIPE_UNLOCK(rpipe);
 		return (1);
 	}
 	ret = kn->kn_data > 0;
-	PIPE_UNLOCK(rpipe);
 	return ret;
 }
 
@@ -1816,12 +1814,11 @@ filt_pipewrite(struct knote *kn, long hint)
 	struct pipe *wpipe;
    
 	wpipe = kn->kn_hook;
-	PIPE_LOCK(wpipe);
+	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
 	if (wpipe->pipe_present != PIPE_ACTIVE ||
 	    (wpipe->pipe_state & PIPE_EOF)) {
 		kn->kn_data = 0;
 		kn->kn_flags |= EV_EOF;
-		PIPE_UNLOCK(wpipe);
 		return (1);
 	}
 	kn->kn_data = (wpipe->pipe_buffer.size > 0) ?
@@ -1829,7 +1826,6 @@ filt_pipewrite(struct knote *kn, long hint)
 	if (wpipe->pipe_state & PIPE_DIRECTW)
 		kn->kn_data = 0;
 
-	PIPE_UNLOCK(wpipe);
 	return (kn->kn_data >= PIPE_BUF);
 }
 

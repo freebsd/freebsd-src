@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20141129: mrouted rc.d scripts removed from base
+OLD_FILES+=etc/rc.d/mrouted
 # 20141126: convert sbin/mdconfig/tests to ATF format tests
 OLD_FILES+=usr/tests/sbin/mdconfig/legacy_test
 OLD_FILES+=usr/tests/sbin/mdconfig/mdconfig.test
