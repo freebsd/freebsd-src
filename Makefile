@@ -99,6 +99,11 @@
 #
 # For more information, see the build(7) manual page.
 #
+.if ${MK_META_MODE} == "yes"
+# targets/Makefile plays the role of top-level
+.include "targets/Makefile"
+.else
+
 TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	check-old check-old-dirs check-old-files check-old-libs \
 	checkdpadd clean cleandepend cleandir \
@@ -525,5 +530,6 @@ UPDATE_DEPENDFILE=NO
 # we do not want a failure of one branch abort all.
 MAKE_JOB_ERROR_TOKEN= no
 .export MAKE_JOB_ERROR_TOKEN
+.endif
 .endif
 .endif
