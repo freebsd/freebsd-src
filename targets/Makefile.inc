@@ -6,9 +6,9 @@ __${_this}__:
 _CURDIR ?= ${.CURDIR}
 _OBJDIR ?= ${.OBJDIR}
 
-.if ${RELDIR:Mpkgs/*} != "" || ${RELDIR} == "."
+.if ${RELDIR:Mtargets/*} != "" || ${RELDIR} == "."
 
-.if ${.MAKE.LEVEL} == 0 && ${RELDIR:Mpkgs/*} != ""
+.if ${.MAKE.LEVEL} == 0 && ${RELDIR:Mtargets/*} != ""
 .if make(bootstrap*) || !exists(${_CURDIR}/${.MAKE.DEPENDFILE:T})
 _bootstrap_dirdeps = yes
 .else

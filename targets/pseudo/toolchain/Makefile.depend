@@ -10,10 +10,10 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 DIRDEPS= usr.bin/xinstall 
 .if ${MK_CLANG} == "yes"
-DIRDEPS+= pkgs/pseudo/clang
+DIRDEPS+= targets/pseudo/clang
 .endif
 .if ${MK_GCC} == "yes"
-DIRDEPS+= pkgs/pseudo/gcc
+DIRDEPS+= targets/pseudo/gcc
 .endif
 
 .include <dirdeps.mk>

@@ -17,6 +17,12 @@ DIRDEPS := ${.TARGETS:M*/*}
 ${.TARGETS:Nall}: all
 .endif
 
+# making universe is special
+.if defined(UNIVERSE_GUARD)
+# these should be done by now
+DIRDEPS_FILTER+= N*.host
+.endif
+
 # pseudo machines get no qualification
 .for m in host common
 M_dep_qual_fixes += C;($m),[^/.,]*$$;\1;
@@ -75,9 +81,9 @@ DIRDEPS += \
 DIRDEPS+= lib/clang/include
 .endif
 
-# we need pkgs/pseudo/stage to prep the stage tree
-.if ${DEP_RELDIR} != "pkgs/pseudo/stage"
-DIRDEPS += pkgs/pseudo/stage
+# we need targets/pseudo/stage to prep the stage tree
+.if ${DEP_RELDIR} != "targets/pseudo/stage"
+DIRDEPS += targets/pseudo/stage
 .endif
 
 CSU_DIR.i386 = csu/i386-elf

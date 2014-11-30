@@ -8,7 +8,7 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 
 # our role here is to build all the host tools etc.
 DIRDEPS = \
-	pkgs/pseudo/hosttools.host \
+	targets/pseudo/hosttools.host \
 
 
 .include <dirdeps.mk>
