@@ -1036,7 +1036,7 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 }
 
 static void
-in_lltable_stop_timers(struct  llentry *lle)
+in_lltable_stop_timers(struct llentry *lle)
 {
 
 	LLE_WLOCK_ASSERT(lle);
@@ -1181,22 +1181,11 @@ in_lltable_delete(struct lltable *llt, u_int flags,
 static struct llentry *
 in_lltable_create(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
 {
-	const struct sockaddr_in *sin = (const struct sockaddr_in *)l3addr;
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
 
-	IF_AFDATA_CFG_WLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
-
-	lle = in_lltable_find_dst(llt, sin->sin_addr);
-
-	if (lle != NULL) {
-		LLE_WLOCK(lle);
-		return (lle);
-	}
-
-	/* no existing record, we need to create new one */
 
 	/*
 	 * A route that covers the given address must have
@@ -1213,7 +1202,6 @@ in_lltable_create(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 		return (NULL);
 	}
 	lle->la_flags = flags;
-	LLE_WLOCK(lle);
 
 	return (lle);
 }
