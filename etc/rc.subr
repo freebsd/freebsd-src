@@ -1315,9 +1315,6 @@ load_rc_config()
 {
 	local _name _rcvar_val _var _defval _v _msg _new _d
 	_name=$1
-	if [ -z "$_name" ]; then
-		err 3 'USAGE: load_rc_config name'
-	fi
 
 	if ${_rc_conf_loaded:-false}; then
 		:
@@ -1333,20 +1330,24 @@ load_rc_config()
 		_rc_conf_loaded=true
 	fi
 
-	for _d in /etc ${local_startup%*/rc.d}; do
-		if [ -f ${_d}/rc.conf.d/"$_name" ]; then
-			debug "Sourcing ${_d}/rc.conf.d/$_name"
-			. ${_d}/rc.conf.d/"$_name"
-		elif [ -d ${_d}/rc.conf.d/"$_name" ] ; then
-			local _rc
-			for _rc in ${_d}/rc.conf.d/"$_name"/* ; do
-				if [ -f "$_rc" ] ; then
-					debug "Sourcing $_rc"
-					. "$_rc"
-				fi
-			done
-		fi
-	done
+	# If a service name was specified, attempt to load
+	# service-specific configuration
+	if [ -n "$_name" ] ; then
+		for _d in /etc ${local_startup%*/rc.d}; do
+			if [ -f ${_d}/rc.conf.d/"$_name" ]; then
+				debug "Sourcing ${_d}/rc.conf.d/$_name"
+				. ${_d}/rc.conf.d/"$_name"
+			elif [ -d ${_d}/rc.conf.d/"$_name" ] ; then
+				local _rc
+				for _rc in ${_d}/rc.conf.d/"$_name"/* ; do
+					if [ -f "$_rc" ] ; then
+						debug "Sourcing $_rc"
+						. "$_rc"
+					fi
+				done
+			fi
+		done
+	fi
 
 	# Set defaults if defined.
 	for _var in $rcvar $rcvars; do
