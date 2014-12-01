@@ -2223,7 +2223,6 @@ in6_lltable_create(struct lltable *llt, u_int flags,
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
 
-	IF_AFDATA_CFG_WLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
 
