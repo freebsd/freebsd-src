@@ -50,7 +50,7 @@
 #include <infiniband/common.h>
 #include <infiniband/umad.h>
 #include <infiniband/mad.h>
-#include <infiniband/complib/cl_nodenamemap.h>
+#include <complib/cl_nodenamemap.h>
 
 #include "ibnetdiscover.h"
 #include "grouping.h"
