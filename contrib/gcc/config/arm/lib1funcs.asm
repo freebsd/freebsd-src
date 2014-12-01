@@ -980,8 +980,6 @@ LSYM(Lover12):
 
 	RET
 
-	FUNC_END aeabi_ldiv0
-	FUNC_END aeabi_idiv0
 	FUNC_END div0
 	
 #endif /* L_divmodsi_tools */

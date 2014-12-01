@@ -950,7 +950,7 @@ struct mbuf	*m_copypacket(struct mbuf *, int);
 void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
 struct mbuf	*m_copyup(struct mbuf *, int, int);
 struct mbuf	*m_defrag(struct mbuf *, int);
-void		 m_demote(struct mbuf *, int);
+void		 m_demote(struct mbuf *, int, int);
 struct mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*)(char *, caddr_t, u_int));
 struct mbuf	*m_dup(struct mbuf *, int);

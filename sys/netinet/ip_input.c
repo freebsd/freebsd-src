@@ -1196,7 +1196,6 @@ found:
 	if (rss_mbuf_software_hash_v4(m, 0, &rss_hash, &rss_type) == 0) {
 		m->m_pkthdr.flowid = rss_hash;
 		M_HASHTYPE_SET(m, rss_type);
-		m->m_flags |= M_FLOWID;
 	}
 
 	/*
