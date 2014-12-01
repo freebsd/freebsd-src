@@ -1415,6 +1415,14 @@ _kgzip=		usr.sbin/kgzip
 # If we're given an XAS, don't build binutils.
 .if ${XAS:M/*} == "" && ${MK_BINUTILS_BOOTSTRAP} != "no"
 _binutils=	gnu/usr.bin/binutils
+.if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
+_elftctools=	lib/libelftc \
+		usr.bin/addr2line \
+		usr.bin/elfcopy \
+		usr.bin/nm \
+		usr.bin/size \
+		usr.bin/strings
+.endif
 .endif
 
 # If an full path to an external cross compiler is given, don't build
@@ -1434,6 +1442,7 @@ cross-tools: .MAKE
     ${_clang_libs} \
     ${_clang} \
     ${_binutils} \
+    ${_elftctools} \
     ${_cc} \
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
@@ -1491,6 +1500,7 @@ native-xtools: .MAKE
     ${_clang_tblgen} \
     usr.bin/ar \
     ${_binutils} \
+    ${_elftctools} \
     ${_cc} \
     ${_gcc_tools} \
     ${_clang_libs} \
@@ -2045,6 +2055,7 @@ _xb-build-tools:
 _xb-cross-tools:
 .for _tool in \
     ${_binutils} \
+    ${_elftctools} \
     usr.bin/ar \
     ${_clang_libs} \
     ${_clang} \
@@ -2077,6 +2088,7 @@ _xi-cross-tools:
 	@echo "_xi-cross-tools"
 .for _tool in \
     ${_binutils} \
+    ${_elftctools} \
     usr.bin/ar \
     ${_clang_libs} \
     ${_clang} \

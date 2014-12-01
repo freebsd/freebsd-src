@@ -9,7 +9,8 @@
 # Moved to secure: bdes
 #
 
-SUBDIR=	alias \
+SUBDIR=	${_addr2line} \
+	alias \
 	apply \
 	asa \
 	awk \
@@ -41,6 +42,7 @@ SUBDIR=	alias \
 	du \
 	ee \
 	elf2aout \
+	${_elfcopy} \
 	elfdump \
 	enigma \
 	env \
@@ -119,6 +121,7 @@ SUBDIR=	alias \
 	nfsstat \
 	nice \
 	nl \
+	${_nm} \
 	nohup \
 	opieinfo \
 	opiekey \
@@ -150,12 +153,14 @@ SUBDIR=	alias \
 	seq \
 	shar \
 	showmount \
+	${_size} \
 	sockstat \
 	soeliminate \
 	sort \
 	split \
 	stat \
 	stdbuf \
+	${_strings} \
 	su \
 	systat \
 	tabs \
@@ -234,6 +239,14 @@ SUBDIR+=	calendar
 
 .if ${MK_CLANG} != "no"
 _clang=		clang
+.endif
+
+.if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
+_addr2line=	addr2line
+_elfcopy=	elfcopy
+_nm=		nm
+_size=		size
+_strings=	strings
 .endif
 
 .if ${MK_FMAKE} != "no"
