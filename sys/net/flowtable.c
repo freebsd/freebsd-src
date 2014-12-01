@@ -688,8 +688,8 @@ flowtable_lookup(sa_family_t sa, struct mbuf *m, struct route *ro)
 	if (fle == NULL)
 		return (EHOSTUNREACH);
 
-	if (!(m->m_flags & M_FLOWID)) {
-		m->m_flags |= M_FLOWID;
+	if (M_HASHTYPE_GET(m) == M_HASHTYPE_NONE) {
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 		m->m_pkthdr.flowid = fle->f_hash;
 	}
 
