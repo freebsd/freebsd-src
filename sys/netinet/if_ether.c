@@ -192,6 +192,27 @@ arptimer(void *arg)
 		return;
 	}
 
+	if (lle->la_falgs & LLE_DELETED) {
+		/* XXX: Temporary */
+		/* We have been deleted. Drop callref and return */
+		if ((lle->la_flags & LLE_CALLOUTREF) != 0) {
+			LLE_REMREF(lle);
+			lle->la_flags &= ~LLE_CALLOUTREF;
+		}
+
+		pkts_dropped = llentry_free(lle);
+		ARPSTAT_ADD(dropped, pkts_dropped);
+		return;
+	}
+
+	/* Unlink entry */
+	IF_AFDATA_RUN_WLOCK(ifp);
+	llentry_unlink(lle);
+	IF_AFDATA_RUN_WUNLOCK(ifp);
+
+	pkts_dropped = llentry_free(lle);
+	ARPSTAT_ADD(dropped, pkts_dropped);
+
 	la_flags = lle->la_flags;
 	state = (la_flags & LLE_DELETED) ? ARP_LLINFO_DELETED : lle->ln_state;
 	ifp = lle->lle_tbl->llt_ifp;
