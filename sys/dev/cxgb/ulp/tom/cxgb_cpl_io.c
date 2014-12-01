@@ -1199,7 +1199,7 @@ do_rx_data(struct sge_qset *qs, struct rsp_desc *r, struct mbuf *m)
 	}
 
 	toep->tp_enqueued += m->m_pkthdr.len;
-	sbappendstream_locked(so_rcv, m);
+	sbappendstream_locked(so_rcv, m, 0);
 	sorwakeup_locked(so);
 	SOCKBUF_UNLOCK_ASSERT(so_rcv);
 

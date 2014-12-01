@@ -144,7 +144,6 @@ __FBSDID("$FreeBSD$");
 
 
 ENTRY_NP(xscalec3_cache_syncI)
-xscalec3_cache_purgeID:
 EENTRY_NP(xscalec3_cache_purgeID)
 	mcr	p15, 0, r0, c7, c5, 0	/* flush I cache (D cleaned below) */
 EENTRY_NP(xscalec3_cache_cleanID)

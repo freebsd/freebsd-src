@@ -258,7 +258,8 @@ trap(struct trapframe *frame)
 			if (frame->srr1 & EXC_PGM_TRAP) {
 #ifdef KDTRACE_HOOKS
 				inst = fuword32((const void *)frame->srr0);
-				if (inst == 0x0FFFDDDD && dtrace_pid_probe_ptr != NULL) {
+				if (inst == 0x0FFFDDDD &&
+				    dtrace_pid_probe_ptr != NULL) {
 					struct reg regs;
 					fill_regs(td, &regs);
 					(*dtrace_pid_probe_ptr)(&regs);
@@ -301,7 +302,7 @@ trap(struct trapframe *frame)
 #ifdef KDTRACE_HOOKS
 		case EXC_PGM:
 			if (frame->srr1 & EXC_PGM_TRAP) {
-				if (*(uint32_t *)frame->srr0 == 0x7c810808) {
+				if (*(uint32_t *)frame->srr0 == EXC_DTRACE) {
 					if (dtrace_invop_jump_addr != NULL) {
 						dtrace_invop_jump_addr(frame);
 						return;

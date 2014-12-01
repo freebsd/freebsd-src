@@ -82,9 +82,9 @@ extern struct pr_usrreqs sctp_usrreqs;
 
 #define sctp_maxspace(sb) (max((sb)->sb_hiwat,SCTP_MINIMAL_RWND))
 
-#define	sctp_sbspace(asoc, sb) ((long) ((sctp_maxspace(sb) > (asoc)->sb_cc) ? (sctp_maxspace(sb) - (asoc)->sb_cc) : 0))
+#define	sctp_sbspace(asoc, sb) ((long) ((sctp_maxspace(sb) > (asoc)->sb_ccc) ? (sctp_maxspace(sb) - (asoc)->sb_ccc) : 0))
 
-#define	sctp_sbspace_failedmsgs(sb) ((long) ((sctp_maxspace(sb) > (sb)->sb_cc) ? (sctp_maxspace(sb) - (sb)->sb_cc) : 0))
+#define	sctp_sbspace_failedmsgs(sb) ((long) ((sctp_maxspace(sb) > (sb)->sb_ccc) ? (sctp_maxspace(sb) - (sb)->sb_ccc) : 0))
 
 #define sctp_sbspace_sub(a,b) ((a > b) ? (a - b) : 0)
 
@@ -195,10 +195,10 @@ extern struct pr_usrreqs sctp_usrreqs;
 }
 
 #define sctp_sbfree(ctl, stcb, sb, m) { \
-	SCTP_SAVE_ATOMIC_DECREMENT(&(sb)->sb_cc, SCTP_BUF_LEN((m))); \
+	SCTP_SAVE_ATOMIC_DECREMENT(&(sb)->sb_ccc, SCTP_BUF_LEN((m))); \
 	SCTP_SAVE_ATOMIC_DECREMENT(&(sb)->sb_mbcnt, MSIZE); \
 	if (((ctl)->do_not_ref_stcb == 0) && stcb) {\
-		SCTP_SAVE_ATOMIC_DECREMENT(&(stcb)->asoc.sb_cc, SCTP_BUF_LEN((m))); \
+		SCTP_SAVE_ATOMIC_DECREMENT(&(stcb)->asoc.sb_ccc, SCTP_BUF_LEN((m))); \
 		SCTP_SAVE_ATOMIC_DECREMENT(&(stcb)->asoc.my_rwnd_control_len, MSIZE); \
 	} \
 	if (SCTP_BUF_TYPE(m) != MT_DATA && SCTP_BUF_TYPE(m) != MT_HEADER && \
@@ -207,10 +207,10 @@ extern struct pr_usrreqs sctp_usrreqs;
 }
 
 #define sctp_sballoc(stcb, sb, m) { \
-	atomic_add_int(&(sb)->sb_cc,SCTP_BUF_LEN((m))); \
+	atomic_add_int(&(sb)->sb_ccc,SCTP_BUF_LEN((m))); \
 	atomic_add_int(&(sb)->sb_mbcnt, MSIZE); \
 	if (stcb) { \
-		atomic_add_int(&(stcb)->asoc.sb_cc,SCTP_BUF_LEN((m))); \
+		atomic_add_int(&(stcb)->asoc.sb_ccc,SCTP_BUF_LEN((m))); \
 		atomic_add_int(&(stcb)->asoc.my_rwnd_control_len, MSIZE); \
 	} \
 	if (SCTP_BUF_TYPE(m) != MT_DATA && SCTP_BUF_TYPE(m) != MT_HEADER && \

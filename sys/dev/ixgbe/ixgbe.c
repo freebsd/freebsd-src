@@ -833,7 +833,7 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 	 * If everything is setup correctly, it should be the
 	 * same bucket that the current CPU we're on is.
 	 */
-	if ((m->m_flags & M_FLOWID) != 0) {
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
 #ifdef	RSS
 		if (rss_hash2bucket(m->m_pkthdr.flowid,
 		    M_HASHTYPE_GET(m), &bucket_id) == 0) {
@@ -4764,7 +4764,6 @@ ixgbe_rxeof(struct ix_queue *que)
 #ifdef RSS
 			sendmp->m_pkthdr.flowid =
 			    le32toh(cur->wb.lower.hi_dword.rss);
-			sendmp->m_flags |= M_FLOWID;
 			switch (pkt_info & IXGBE_RXDADV_RSSTYPE_MASK) {
 			case IXGBE_RXDADV_RSSTYPE_IPV4_TCP:
 				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_TCP_IPV4);
@@ -4795,11 +4794,12 @@ ixgbe_rxeof(struct ix_queue *que)
 				break;
 			default:
 				/* XXX fallthrough */
-				M_HASHTYPE_SET(sendmp, M_HASHTYPE_NONE);
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_OPAQUE);
+				break;
 			}
 #else /* RSS */
 			sendmp->m_pkthdr.flowid = que->msix;
-			sendmp->m_flags |= M_FLOWID;
+			M_HASHTYPE_SET(sendmp, M_HASHTYPE_OPAQUE);
 #endif /* RSS */
 #endif /* FreeBSD_version */
 		}

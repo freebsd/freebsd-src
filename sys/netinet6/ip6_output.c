@@ -267,10 +267,10 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 
 	if (inp != NULL) {
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
-		if (((flags & IP_NODEFAULTFLOWID) == 0) &&
-		(inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID))) {
+		if ((flags & IP_NODEFAULTFLOWID) == 0) {
+			/* unconditionally set flowid */
 			m->m_pkthdr.flowid = inp->inp_flowid;
-			m->m_flags |= M_FLOWID;
+			M_HASHTYPE_SET(m, inp->inp_flowtype);
 		}
 	}
 

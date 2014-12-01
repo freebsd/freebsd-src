@@ -399,7 +399,7 @@ typedef struct callout sctp_os_timer_t;
 #define SCTP_SOWAKEUP(so)	wakeup(&(so)->so_timeo)
 /* clear the socket buffer state */
 #define SCTP_SB_CLEAR(sb)	\
-	(sb).sb_cc = 0;		\
+	(sb).sb_ccc = 0;		\
 	(sb).sb_mb = NULL;	\
 	(sb).sb_mbcnt = 0;
 
