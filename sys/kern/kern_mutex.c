@@ -968,7 +968,7 @@ mutex_init(void)
 	mtx_init(&blocked_lock, "blocked lock", NULL, MTX_SPIN);
 	blocked_lock.mtx_lock = 0xdeadc0de;	/* Always blocked. */
 	mtx_init(&proc0.p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
-	mtx_init(&proc0.p_slock, "process slock", NULL, MTX_SPIN | MTX_RECURSE);
+	mtx_init(&proc0.p_slock, "process slock", NULL, MTX_SPIN);
 	mtx_init(&proc0.p_statmtx, "pstatl", NULL, MTX_SPIN);
 	mtx_init(&proc0.p_itimmtx, "pitiml", NULL, MTX_SPIN);
 	mtx_init(&proc0.p_profmtx, "pprofl", NULL, MTX_SPIN);
