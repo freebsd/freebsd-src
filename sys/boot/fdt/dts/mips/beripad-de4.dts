@@ -289,5 +289,14 @@
 			sri-cambridge,mmapio = "rw";
 			sri-cambridge,devname = "altpll_reconfig";
 		};
+
+		avgen@0x7f00d000 {
+			compatible = "sri-cambridge,avgen";
+			reg = <0x7f00d000 0x40>;
+			sri-cambridge,width = <4>;
+			sri-cambridge,fileio = "rw";
+			sri-cambridge,mmapio = "rw";
+			sri-cambridge,devname = "pixelstream";
+		};
 	};
 };
