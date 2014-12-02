@@ -70,12 +70,14 @@ _LIBRARIES=	\
 		compiler_rt \
 		crypt \
 		crypto \
+		css \
 		ctf \
 		cuse \
 		cxxrt \
 		devinfo \
 		devstat \
 		dialog \
+		dom \
 		dpv \
 		dwarf \
 		edit \
@@ -91,6 +93,7 @@ _LIBRARIES=	\
 		heimbase \
 		heimntlm \
 		heimsqlite \
+		hubbub \
 		hx509 \
 		ipsec \
 		jail \
@@ -114,9 +117,13 @@ _LIBRARIES=	\
 		ncursesw \
 		netgraph \
 		ngatm \
+		nsbmp \
+		nsfb \
+		nsgif \
 		nv \
 		opie \
 		pam \
+		parserutils \
 		pcap \
 		pcsclite \
 		pjdlog \
@@ -128,6 +135,7 @@ _LIBRARIES=	\
 		radius \
 		readline \
 		roken \
+		rosprite \
 		rpcsec_gss \
 		rpcsvc \
 		rt \
@@ -139,6 +147,7 @@ _LIBRARIES=	\
 		ssp_nonshared \
 		stdthreads \
 		supcplusplus \
+		svgtiny \
 		tacplus \
 		termcapw \
 		ufs \
@@ -148,6 +157,7 @@ _LIBRARIES=	\
 		usbhid \
 		util \
 		vmmapi \
+		wapcaplet \
 		wind \
 		wrap \
 		xo \
