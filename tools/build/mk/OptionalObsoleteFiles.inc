@@ -152,8 +152,9 @@ OLD_FILES+=etc/security/audit_control
 OLD_FILES+=etc/security/audit_event
 OLD_FILES+=etc/security/audit_user
 OLD_FILES+=etc/security/audit_warn
-OLD_FILES+=usr/include/bsm/audit_uevents.h
-OLD_FILES+=usr/include/bsm/libbsm.h
+# XXX: needs refactoring in sys/sys before it can be removed
+#OLD_FILES+=usr/include/bsm/audit_uevents.h
+#OLD_FILES+=usr/include/bsm/libbsm.h
 OLD_FILES+=usr/lib/libauditd.a
 OLD_LIBS+=usr/lib/libauditd.so.5
 OLD_FILES+=usr/lib/libauditd_p.a
@@ -274,7 +275,8 @@ OLD_FILES+=usr/share/man/man5/audit_warn.5.gz
 OLD_FILES+=usr/share/man/man8/audit.8.gz
 OLD_FILES+=usr/share/man/man8/auditd.8.gz
 OLD_DIRS+=etc/security
-OLD_DIRS+=usr/include/bsm
+# XXX: needs refactoring in sys/sys before it can be removed
+#OLD_DIRS+=usr/include/bsm
 .endif
 
 .if ${MK_AUTHPF} == no
