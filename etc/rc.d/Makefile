@@ -93,7 +93,6 @@ FILES=	DAEMON \
 	syslogd \
 	tmp \
 	${_ubthidhci} \
-	ugidfw \
 	${_unbound} \
 	${_utx} \
 	var \
@@ -221,6 +220,10 @@ FILES+=		syscons
 
 .if ${MK_LPR} != "no"
 FILES+=		lpd
+.endif
+
+.if ${MK_MAC_SUPPORT} != "no"
+FILES+=		ugidfw
 .endif
 
 .if ${MK_NS_CACHING} != "no"

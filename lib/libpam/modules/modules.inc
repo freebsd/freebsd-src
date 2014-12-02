@@ -23,7 +23,7 @@ MODULES		+= pam_opie
 MODULES		+= pam_opieaccess
 MODULES		+= pam_passwdqc
 MODULES		+= pam_permit
-.if ${MK_RADIUS_SUPPORT} != "no
+.if ${MK_RADIUS_SUPPORT} != "no"
 MODULES		+= pam_radius
 .endif
 MODULES		+= pam_rhosts

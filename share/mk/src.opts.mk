@@ -121,6 +121,7 @@ __DEFAULT_YES_OPTIONS = \
     LPR \
     LS_COLORS \
     LZMA_SUPPORT \
+    MAC_SUPPORT \
     MAIL \
     MAILWRAPPER \
     MAKE \

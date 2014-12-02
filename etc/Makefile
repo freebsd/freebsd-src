@@ -38,7 +38,6 @@ BIN1=	crontab \
 	profile \
 	protocols \
 	rc \
-	rc.bsdextended \
 	rc.initdiskless \
 	rc.shutdown \
 	rc.subr \
@@ -112,6 +111,10 @@ BIN1+=	libmap32.conf
 
 .if ${MK_LPR} != "no"
 BIN1+=	hosts.lpd printcap
+.endif
+
+.if ${MK_MAC_SUPPORT} != "no"
+BIN1+=	rc.bsdextended
 .endif
 
 .if ${MK_MAIL} != "no"

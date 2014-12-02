@@ -4055,6 +4055,36 @@ OLD_FILES+=usr/share/man/man8/lpd.8.gz
 OLD_FILES+=usr/share/man/man8/pac.8.gz
 .endif
 
+.if ${MK_MAC_SUPPORT} == no
+OLD_FILES+=etc/rc.d/ugidfw
+OLD_FILES+=usr/include/ugidfw.h
+OLD_FILES+=usr/lib/libugidfw.a
+OLD_LIBS+=usr/lib/libugidfw.so.4
+OLD_FILES+=usr/lib/libugidfw_p.a
+OLD_FILES+=usr/sbin/getfmac
+OLD_FILES+=usr/sbin/getpmac
+OLD_FILES+=usr/sbin/setfmac
+OLD_FILES+=usr/sbin/setfsmac
+OLD_FILES+=usr/sbin/setpmac
+OLD_FILES+=usr/sbin/ugidfw
+OLD_FILES+=usr/share/man/man3/bsde_add_rule.3.gz
+OLD_FILES+=usr/share/man/man3/bsde_delete_rule.3.gz
+OLD_FILES+=usr/share/man/man3/bsde_get_rule.3.gz
+OLD_FILES+=usr/share/man/man3/bsde_get_rule_count.3.gz
+OLD_FILES+=usr/share/man/man3/bsde_get_rule_slots.3.gz
+OLD_FILES+=usr/share/man/man3/bsde_parse_rule.3.gz
+OLD_FILES+=usr/share/man/man3/bsde_parse_rule_string.3.gz
+OLD_FILES+=usr/share/man/man3/bsde_rule_to_string.3.gz
+OLD_FILES+=usr/share/man/man3/bsde_set_rule.3.gz
+OLD_FILES+=usr/share/man/man3/libugidfw.3.gz
+OLD_FILES+=usr/share/man/man8/getfmac.8.gz
+OLD_FILES+=usr/share/man/man8/getpmac.8.gz
+OLD_FILES+=usr/share/man/man8/setfmac.8.gz
+OLD_FILES+=usr/share/man/man8/setfsmac.8.gz
+OLD_FILES+=usr/share/man/man8/setpmac.8.gz
+OLD_FILES+=usr/share/man/man8/ugidfw.8.gz
+.endif
+
 .if ${MK_MAIL} == no
 OLD_FILES+=etc/pam.d/imap
 OLD_FILES+=etc/pam.d/pop3
