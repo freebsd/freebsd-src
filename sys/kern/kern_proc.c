@@ -227,7 +227,7 @@ proc_init(void *mem, int size, int flags)
 	p->p_sched = (struct p_sched *)&p[1];
 	bzero(&p->p_mtx, sizeof(struct mtx));
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
-	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN | MTX_RECURSE);
+	mtx_init(&p->p_slock, "process slock", NULL, MTX_SPIN);
 	mtx_init(&p->p_statmtx, "pstatl", NULL, MTX_SPIN);
 	mtx_init(&p->p_itimmtx, "pitiml", NULL, MTX_SPIN);
 	mtx_init(&p->p_profmtx, "pprofl", NULL, MTX_SPIN);
