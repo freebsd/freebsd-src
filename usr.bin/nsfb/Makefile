@@ -28,7 +28,6 @@ LLVM_NATIVE_FILE_${_LIB:tu}=	${.OBJDIR}/lib${_LIB}/lib${_LIB}.${LLVM_IR_TYPE}-a
 LIBADD+=	${NSLIBS}
 
 LDADD+=		\
-		${NSLIBS:S;^;-L${.CURDIR}/lib;} \
 		-ljpeg -lz -lpng -lm \
 		-Wl,--whole-archive -lnsfb ${LDX} -Wl,--no-whole-archive \
 		-lcurl -lbsdxml -lssl -lcrypto
