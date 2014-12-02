@@ -4130,6 +4130,7 @@ OLD_FILES+=usr/share/misc/windrv_stub.c
 .endif
 
 .if ${MK_NFS_SERVER} == no
+OLD_FILES+=etc/rc.d/mountd
 OLD_FILES+=etc/rc.d/nfscbd
 OLD_FILES+=etc/rc.d/nfsd
 OLD_FILES+=etc/rc.d/nfsuserd
@@ -4139,7 +4140,10 @@ OLD_FILES+=usr/sbin/nfsdumpstate
 OLD_FILES+=usr/sbin/nfsrevoke
 OLD_FILES+=usr/sbin/nfsuserd
 OLD_FILES+=usr/share/man/man4/nfsv4.4.gz
+OLD_FILES+=usr/share/man/man5/exports.5.gz
+OLD_FILES+=usr/share/man/man5/netgroup.5.gz
 OLD_FILES+=usr/share/man/man5/stablerestart.5.gz
+OLD_FILES+=usr/share/man/man8/mountd.8.gz
 OLD_FILES+=usr/share/man/man8/nfscbd.8.gz
 OLD_FILES+=usr/share/man/man8/nfsd.8.gz
 OLD_FILES+=usr/share/man/man8/nfsdumpstate.8.gz
