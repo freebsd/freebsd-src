@@ -148,8 +148,6 @@ key_sendup0(rp, m, promisc)
 		struct sadb_msg *pmsg;
 
 		M_PREPEND(m, sizeof(struct sadb_msg), M_NOWAIT);
-		if (m && m->m_len < sizeof(struct sadb_msg))
-			m = m_pullup(m, sizeof(struct sadb_msg));
 		if (!m) {
 			PFKEYSTAT_INC(in_nomem);
 			m_freem(m);
