@@ -38,7 +38,6 @@ SUBDIR=	adduser \
 	mfiutil \
 	mixer \
 	mlxcontrol \
-	mountd \
 	mptutil \
 	mtest \
 	${_mtree} \
@@ -237,6 +236,7 @@ SUBDIR+=	nghook
 .endif
 
 .if ${MK_NFS_SERVER} != "no"
+SUBDIR+=	mountd
 SUBDIR+=	nfscbd
 SUBDIR+=	nfsd
 SUBDIR+=	nfsdumpstate
