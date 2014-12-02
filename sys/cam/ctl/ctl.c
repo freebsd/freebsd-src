@@ -356,7 +356,6 @@ static struct ctl_logical_block_provisioning_page lbp_page_changeable = {{
  * XXX KDM move these into the softc.
  */
 static int rcv_sync_msg;
-static int persis_offset;
 static uint8_t ctl_pause_rtr;
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, ctl, CTLFLAG_RD, 0, "CAM Target Layer");
@@ -1074,7 +1073,7 @@ ctl_init(void)
 		softc->port_offset = 0;
 	} else
 		softc->port_offset = (softc->ha_id - 1) * CTL_MAX_PORTS;
-	persis_offset = softc->port_offset * CTL_MAX_INIT_PER_PORT;
+	softc->persis_offset = softc->port_offset * CTL_MAX_INIT_PER_PORT;
 
 	/*
 	 * XXX KDM need to figure out where we want to get our target ID
@@ -7870,10 +7869,10 @@ retry:
 static void
 ctl_set_res_ua(struct ctl_lun *lun, uint32_t residx, ctl_ua_type ua)
 {
+	int off = lun->ctl_softc->persis_offset;
 
-	if (residx >= persis_offset &&
-	    residx < persis_offset + CTL_MAX_INITIATORS)
-		lun->pending_ua[residx - persis_offset] |= ua;
+	if (residx >= off && residx < off + CTL_MAX_INITIATORS)
+		lun->pending_ua[residx - off] |= ua;
 }
 
 /*
@@ -8412,8 +8411,8 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 					 */
 
 					for (i = 0; i < CTL_MAX_INITIATORS;i++){
-						if (lun->pr_keys[
-						    i + persis_offset] == 0)
+						if (lun->pr_keys[i +
+						    softc->persis_offset] == 0)
 							continue;
 						lun->pending_ua[i] |=
 							CTL_UA_RES_RELEASE;
@@ -8560,7 +8559,7 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 		 && type != SPR_TYPE_WR_EX) {
 			for (i = 0; i < CTL_MAX_INITIATORS; i++) {
 				if (i == residx ||
-				    lun->pr_keys[i + persis_offset] == 0)
+				    lun->pr_keys[i + softc->persis_offset] == 0)
 					continue;
 				lun->pending_ua[i] |= CTL_UA_RES_RELEASE;
 			}
@@ -8677,8 +8676,8 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 				 */
 
 				for (i = 0; i < CTL_MAX_INITIATORS; i++) {
-					if (lun->pr_keys[i+
-					    persis_offset] == 0)
+					if (lun->pr_keys[i +
+					    softc->persis_offset] == 0)
 						continue;
 
 					lun->pending_ua[i] |=
@@ -8711,7 +8710,7 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 		if (lun->res_type != SPR_TYPE_EX_AC
 		 && lun->res_type != SPR_TYPE_WR_EX) {
 			for (i = 0; i < CTL_MAX_INITIATORS; i++)
-				if (lun->pr_keys[i+persis_offset] != 0)
+				if (lun->pr_keys[i + softc->persis_offset] != 0)
 					lun->pending_ua[i] |=
 						CTL_UA_RES_RELEASE;
 		}
