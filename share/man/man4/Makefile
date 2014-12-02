@@ -91,7 +91,7 @@ MAN=	aac.4 \
 	cc_htcp.4 \
 	cc_newreno.4 \
 	cc_vegas.4 \
-	ccd.4 \
+	${_ccd.4} \
 	cd.4 \
 	cdce.4 \
 	ch.4 \
@@ -741,6 +741,10 @@ SUBDIR=	man4.${MACHINE_CPUARCH}
 
 .if ${MK_BHYVE} != "no"
 _bhyve.4=	bhyve.4
+.endif
+
+.if ${MK_CCD} != "no"
+_ccd.4=		ccd.4
 .endif
 
 .if ${MK_ISCSI} != "no"

@@ -25,6 +25,7 @@
 __DEFAULT_YES_OPTIONS = \
     AUTOFS \
     BLUETOOTH \
+    CCD \
     CDDL \
     CRYPT \
     FORMAT_EXTENSIONS \

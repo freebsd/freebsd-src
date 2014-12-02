@@ -67,6 +67,7 @@ __DEFAULT_YES_OPTIONS = \
     CALENDAR \
     CAPSICUM \
     CASPER \
+    CCD \
     CDDL \
     CPP \
     CROSS_COMPILER \
