@@ -45,10 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/ttm/ttm_bo_driver.h>
 #include <dev/drm2/ttm/ttm_page_alloc.h>
 
-#ifdef TTM_HAS_AGP
-#include <asm/agp.h>
-#endif
-
 #define NUM_PAGES_TO_ALLOC		(PAGE_SIZE/sizeof(vm_page_t))
 #define SMALL_ALLOCATION		16
 #define FREE_ALL_PAGES			(~0U)
@@ -220,46 +216,34 @@ static struct ttm_pool_manager *_manager;
 
 static int set_pages_array_wb(vm_page_t *pages, int addrinarray)
 {
-	vm_page_t m;
+#ifdef TTM_HAS_AGP
 	int i;
 
-	for (i = 0; i < addrinarray; i++) {
-		m = pages[i];
-#ifdef TTM_HAS_AGP
-		unmap_page_from_agp(m);
+	for (i = 0; i < addrinarray; i++)
+		pmap_page_set_memattr(pages[i], VM_MEMATTR_WRITE_BACK);
 #endif
-		pmap_page_set_memattr(m, VM_MEMATTR_WRITE_BACK);
-	}
 	return 0;
 }
 
 static int set_pages_array_wc(vm_page_t *pages, int addrinarray)
 {
-	vm_page_t m;
+#ifdef TTM_HAS_AGP
 	int i;
 
-	for (i = 0; i < addrinarray; i++) {
-		m = pages[i];
-#ifdef TTM_HAS_AGP
-		map_page_into_agp(pages[i]);
+	for (i = 0; i < addrinarray; i++)
+		pmap_page_set_memattr(pages[i], VM_MEMATTR_WRITE_COMBINING);
 #endif
-		pmap_page_set_memattr(m, VM_MEMATTR_WRITE_COMBINING);
-	}
 	return 0;
 }
 
 static int set_pages_array_uc(vm_page_t *pages, int addrinarray)
 {
-	vm_page_t m;
+#ifdef TTM_HAS_AGP
 	int i;
 
-	for (i = 0; i < addrinarray; i++) {
-		m = pages[i];
-#ifdef TTM_HAS_AGP
-		map_page_into_agp(pages[i]);
+	for (i = 0; i < addrinarray; i++)
+		pmap_page_set_memattr(pages[i], VM_MEMATTR_UNCACHEABLE);
 #endif
-		pmap_page_set_memattr(m, VM_MEMATTR_UNCACHEABLE);
-	}
 	return 0;
 }
 
