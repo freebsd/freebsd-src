@@ -89,7 +89,7 @@ gpio_pin_list(gpio_handle_t handle, gpio_config_t **pcfgs)
 		errno = EINVAL;
 		return (-1);
 	}
-	cfgs = calloc(maxpins, sizeof(*cfgs));
+	cfgs = calloc(maxpins + 1, sizeof(*cfgs));
 	if (cfgs == NULL)
 		return (-1);
 	for (i = 0; i <= maxpins; i++) {
