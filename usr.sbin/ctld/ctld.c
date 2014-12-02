@@ -1825,7 +1825,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 			error = kernel_port_add(newtarg);
 			if (error != 0) {
 				log_warnx("failed to add target %s",
-				    oldtarg->t_name);
+				    newtarg->t_name);
 				/*
 				 * XXX: Uncomment after fixing the root cause.
 				 *
