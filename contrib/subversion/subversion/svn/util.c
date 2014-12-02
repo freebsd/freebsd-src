@@ -333,11 +333,13 @@ truncate_buffer_at_prefix(apr_size_t *new_len,
 
 static const char *prefixes[] = {
   "PR:",
+  "Differential Revision:",
   "Submitted by:",
   "Reviewed by:",
   "Approved by:",
   "Obtained from:",
   "MFC after:",
+  "MFH:",
   "Relnotes:",
   "Security:",
   "Sponsored by:"
@@ -404,11 +406,13 @@ svn_cl__get_log_message(const char **log_msg,
   default_msg = svn_stringbuf_create(APR_EOL_STR, pool);
   svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "PR:\t\t" APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "Differential Revision:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Submitted by:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Reviewed by:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Approved by:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Obtained from:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "MFC after:\t" APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "MFH:\t\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Relnotes:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Security:\t" APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "Sponsored by:\t"
@@ -419,15 +423,17 @@ svn_cl__get_log_message(const char **log_msg,
   svn_stringbuf_appendcstr(default_msg, EDITOR_EOF_PREFIX);
   svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Description of fields to fill in above:                     76 columns --|" APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> PR:            If a Bugzilla PR is affected by the change." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> Submitted by:  If someone else sent in the change." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> Reviewed by:   If someone else reviewed your modification." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> Approved by:   If you needed approval for this commit." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> Obtained from: If the change is from a third party." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> MFC after:     N [day[s]|week[s]|month[s]].  Request a reminder email." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> Relnotes:      Set to 'yes' for mention in release notes." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> Security:      Vulnerability reference (one per line) or description." APR_EOL_STR);
-  svn_stringbuf_appendcstr(default_msg, "> Sponsored by:  If the change was sponsored by an organization." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> PR:                       If a Bugzilla PR is affected by the change." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Differential Revision:    https://reviews.freebsd.org/D### (*full* phabric URL needed)." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Submitted by:             If someone else sent in the change." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Reviewed by:              If someone else reviewed your modification." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Approved by:              If you needed approval for this commit." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Obtained from:            If the change is from a third party." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> MFC after:                N [day[s]|week[s]|month[s]].  Request a reminder email." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> MFH:                      Ports tree branch name.  Request approval for merge." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Relnotes:                 Set to 'yes' for mention in release notes." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Security:                 Vulnerability reference (one per line) or description." APR_EOL_STR);
+  svn_stringbuf_appendcstr(default_msg, "> Sponsored by:             If the change was sponsored by an organization." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, "> Empty fields above will be automatically removed." APR_EOL_STR);
   svn_stringbuf_appendcstr(default_msg, APR_EOL_STR);
 
