@@ -15,6 +15,7 @@ OLD_FILES+=usr/share/man/man8/sa.8.gz
 .endif
 
 .if ${MK_ACPI} == no
+OLD_FILES+=etc/devd/asus.conf
 OLD_FILES+=etc/rc.d/power_profile
 OLD_FILES+=usr/sbin/acpiconf
 OLD_FILES+=usr/sbin/acpidb
