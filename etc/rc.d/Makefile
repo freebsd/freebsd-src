@@ -20,7 +20,6 @@ FILES=	DAEMON \
 	${_bsnmpd} \
 	${_bthidd} \
 	${_casperd} \
-	ccd \
 	cleanvar \
 	cleartmp \
 	cron \
@@ -167,6 +166,10 @@ _bsnmpd=	bsnmpd
 _casperd=	casperd
 .endif
 
+.if ${MK_CCD} != "no"
+FILES+=		ccd
+.endif
+
 .if ${MK_FTP} != "no"
 FILES+=		ftpd
 .endif
@@ -226,10 +229,6 @@ FILES+=		lpd
 FILES+=		ugidfw
 .endif
 
-.if ${MK_NS_CACHING} != "no"
-_nscd=		nscd
-.endif
-
 .if ${MK_KERBEROS} != "no"
 FILES+=		ipropd_master
 FILES+=		ipropd_slave
@@ -258,6 +257,10 @@ FILES+=		ypserv
 FILES+=		ypset
 FILES+=		ypupdated
 FILES+=		ypxfrd
+.endif
+
+.if ${MK_NS_CACHING} != "no"
+_nscd=		nscd
 .endif
 
 .if ${MK_NTP} != "no"
