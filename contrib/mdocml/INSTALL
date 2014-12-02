@@ -1,4 +1,4 @@
-$Id: INSTALL,v 1.2 2014/08/10 17:22:26 schwarze Exp $
+$Id: INSTALL,v 1.5 2014/08/18 13:27:47 kristaps Exp $
 
 About mdocml, the portable mandoc distribution
 ----------------------------------------------
@@ -34,19 +34,52 @@ latest bundled and ported versions of mandoc for various operating
 systems is maintained at <http://mdocml.bsd.lv/ports.html>.
 
 If mandoc is installed, you can check the version by running "mandoc -V".
-The version contained in this distribution tarball is listed near
-the beginning of the file "Makefile".
+You can find the version contained in this distribution tarball
+by running "./configure".
 
 Regarding how packages and ports are maintained for your operating
 system, please consult your operating system documentation.
 To install mandoc manually, the following steps are needed:
 
-1. Decide whether you want to build the base tools mandoc(1),
-preconv(1) and demandoc(1) only or whether you also want to build the
-database tools apropos(1) and makewhatis(8).  For the latter,
-the following dependencies are required:
+1. If you want to build the CGI program, man.cgi(8), too, run the
+command "echo BUILD_CGI=1 > configure.local".  Then run "cp
+cgi.h.examples cgi.h" and edit cgi.h as desired.
 
-1.1. The SQLite database system, see <http://sqlite.org/>.
+2. Run "./configure".
+This script attempts autoconfiguration of mandoc for your system.
+Read both its standard output and the file "Makefile.local" it
+generates.  If anything looks wrong or different from what you
+wish, read the file "configure.local.example", create and edit
+a file "configure.local", and re-run "./configure" until the
+result seems right to you.
+
+3. Run "make".
+Any POSIX-compatible make, in particular both BSD make and GNU make,
+should work.  If the build fails, look at "configure.local.example"
+and go back to step 2.
+
+4. Run "make -n install" and check whether everything will be
+installed to the intended places.  Otherwise, put some *DIR variables
+into "configure.local" and go back to step 2.
+
+5. Run "sudo make install".  If you intend to build a binary
+package using some kind of fake root mechanism, you may need a
+command like "make DESTDIR=... install".  Read the *-install targets
+in the "Makefile" to understand how DESTDIR is used.
+
+6. To set up a man.cgi(8) server, read its manual page.
+
+7. To use mandoc(1) as your man(1) formatter, read the "Deployment"
+section below.
+
+
+Understanding mandoc dependencies
+---------------------------------
+The mandoc(1), preconv(1), and demandoc(1) utilities have no external
+dependencies.  However, makewhatis(8) and apropos(1) depend on the
+following software:
+
+1. The SQLite database system, see <http://sqlite.org/>.
 The recommended version of SQLite is 3.8.4.3 or newer.  The mandoc
 toolset is known to work with version 3.7.5 or newer.  Versions
 older than 3.8.3 may not achieve full performance due to the
@@ -57,46 +90,15 @@ problems, apropos(1) is fully usable with SQLite 3.7.5.  Versions
 older than 3.7.5 may or may not work, they have not been tested.
 
 1.2. The fts(3) directory traversion functions.
-A compatibility version will be bundled for 1.13.2 but is not available
-yet.  If you want apropos(1) and makewhatis(8) but do not have fts(3),
-please stay with mandoc 1.12.3 for now and upgrade first to 1.12.4,
-then to 1.13.2 when these versionns are released.  Be careful: the
+If your system does not have them, the bundled compatibility version
+will be used, so you need not worry in that case.  But be careful: the
 glibc version of fts(3) is known to be broken on 32bit platforms,
 see <https://sourceware.org/bugzilla/show_bug.cgi?id=15838>.
+If you run into that problem, set "HAVE_FTS=0" in configure.local.
 
 1.3. Marc Espie's ohash(3) library.
 If your system does not have it, the bundled compatibility version
 will be used, so you probably need not worry about it.
-
-2. If you choose to build the database tools, too, decide whether
-you also want to build the CGI program, man.cgi(8).
-
-3. Read the beginning of the file "Makefile" from "USER SETTINGS"
-to "END OF USER SETTINGS" and edit it as required.  In particular,
-disable "BUILD_TARGETS += db-build" if you do not want database
-support or enable "BUILD_TARGETS += cgi-build" if you do want
-the CGI program.
-
-4. Run "make".  No separate "./configure" or "make depend" steps
-are needed.  The former is run automatically by "make".  The latter
-is a maintainer target.  If you merely want to build the released
-version as opposed to doing active development, there is no need
-to regenerate the dependency specifications.  Any POSIX-compatible
-make, in particular both BSD make and GNU make, should work.
-
-5. Run "make -n install" and check whether everything will be
-installed to the intended places.  Otherwise, edit the *DIR variables
-in the Makefile until it is.
-
-6. Run "sudo make install".  If you intend to build a binary
-package using some kind of fake root mechanism, you may need a
-command like "make DESTDIR=... install".  Read the *-install targets
-in the "Makefile" to understand how DESTDIR is used.
-
-7. To set up a man.cgi(8) server, read its manual page.
-
-8. To use mandoc(1) as your man(1) formatter, read the "Deployment"
-section below.
 
 
 Checking autoconfiguration quality
@@ -130,9 +132,9 @@ please report whatever is missing on your platform.
 The following steps can be used to manually check the automatic
 configuration on your platform:
 
-1. Run "make clean".
+1. Run "make distclean".
 
-2. Run "make config.h"
+2. Run "./configure"
 
 3. Read the file "config.log".  It shows the compiler commands used
 to test the libraries installed on your system and the standard
@@ -140,8 +142,7 @@ output and standard error output these commands produce.  Watch out
 for unexpected failures.  Those are most likely to happen if headers
 or libraries are installed in unusual places or interfaces defined
 in unusual headers.  You can also look at the file "config.h" and
-check that no expected "#define HAVE_*" lines are missing.  The
-list of tests run can be found in the file "configure".
+check that no "#define HAVE_*" differ from your expectations.
 
 
 Deployment

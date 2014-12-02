@@ -1,4 +1,4 @@
-$Id: NEWS,v 1.5 2014/08/10 16:32:57 schwarze Exp $
+$Id: NEWS,v 1.6 2014/08/11 01:39:00 schwarze Exp $
 
 This file lists the most important changes in the mdocml.bsd.lv distribution.
 
@@ -7,9 +7,6 @@ Changes in version 1.13.1, released on August 10, 2014
     --- MAJOR NEW FEATURES ---
  * A complete apropos(1)/makewhatis(8)/man.cgi(8) suite
    based on SQLite3 is now included.
-   CAVEAT: This also requires a working fts(3) implementation.
-   If your system lacks that *and* you want apropos(1)/makewhatis(8),
-   stay with 1.12.3 for now, then go to 1.12.4 and 1.13.2.
  * The roff(7) parser now provides an almost complete implementation
    of numerical expressions.
  * Warning and error messages have been improved in many ways.
