@@ -10962,7 +10962,6 @@ ctl_check_blocked(struct ctl_lun *lun)
 		case CTL_ACTION_SKIP: {
 			struct ctl_softc *softc;
 			const struct ctl_cmd_entry *entry;
-			uint32_t initidx;
 			int isc_retval;
 
 			/*
@@ -11001,8 +11000,6 @@ ctl_check_blocked(struct ctl_lun *lun)
 			}
 			entry = ctl_get_cmd_entry(&cur_blocked->scsiio, NULL);
 			softc = control_softc;
-
-			initidx = ctl_get_initindex(&cur_blocked->io_hdr.nexus);
 
 			/*
 			 * Check this I/O for LUN state changes that may
@@ -11840,7 +11837,7 @@ ctl_lun_reset(struct ctl_lun *lun, union ctl_io *io, ctl_ua_type ua_type)
 {
 	union ctl_io *xio;
 #if 0
-	uint32_t initindex;
+	uint32_t initidx;
 #endif
 	int i;
 
@@ -11860,9 +11857,9 @@ ctl_lun_reset(struct ctl_lun *lun, union ctl_io *io, ctl_ua_type ua_type)
 	 * This version sets unit attention for every
 	 */
 #if 0
-	initindex = ctl_get_initindex(&io->io_hdr.nexus);
+	initidx = ctl_get_initindex(&io->io_hdr.nexus);
 	for (i = 0; i < CTL_MAX_INITIATORS; i++) {
-		if (initindex == i)
+		if (initidx == i)
 			continue;
 		lun->pending_ua[i] |= ua_type;
 	}
@@ -11970,9 +11967,9 @@ ctl_i_t_nexus_reset(union ctl_io *io)
 {
 	struct ctl_softc *softc = control_softc;
 	struct ctl_lun *lun;
-	uint32_t initindex, residx;
+	uint32_t initidx, residx;
 
-	initindex = ctl_get_initindex(&io->io_hdr.nexus);
+	initidx = ctl_get_initindex(&io->io_hdr.nexus);
 	residx = ctl_get_resindex(&io->io_hdr.nexus);
 	mtx_lock(&softc->ctl_lock);
 	STAILQ_FOREACH(lun, &softc->lun_list, links) {
@@ -11981,11 +11978,11 @@ ctl_i_t_nexus_reset(union ctl_io *io)
 		    io->io_hdr.nexus.initid.id,
 		    (io->io_hdr.flags & CTL_FLAG_FROM_OTHER_SC) != 0);
 #ifdef CTL_WITH_CA
-		ctl_clear_mask(lun->have_ca, initindex);
+		ctl_clear_mask(lun->have_ca, initidx);
 #endif
 		if ((lun->flags & CTL_LUN_RESERVED) && (lun->res_idx == residx))
 			lun->flags &= ~CTL_LUN_RESERVED;
-		lun->pending_ua[initindex] |= CTL_UA_I_T_NEXUS_LOSS;
+		lun->pending_ua[initidx] |= CTL_UA_I_T_NEXUS_LOSS;
 		mtx_unlock(&lun->lun_lock);
 	}
 	mtx_unlock(&softc->ctl_lock);
