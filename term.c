@@ -1,4 +1,4 @@
-/*	$Id: term.c,v 1.226 2014/08/01 19:38:29 schwarze Exp $ */
+/*	$Id: term.c,v 1.236 2014/11/21 01:52:53 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,9 +15,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <sys/types.h>
 
@@ -44,11 +42,7 @@ void
 term_free(struct termp *p)
 {
 
-	if (p->buf)
-		free(p->buf);
-	if (p->symtab)
-		mchars_free(p->symtab);
-
+	free(p->buf);
 	free(p);
 }
 
@@ -106,7 +100,7 @@ term_flushln(struct termp *p)
 	size_t		 j;     /* temporary loop index for p->buf */
 	size_t		 jhy;	/* last hyph before overflow w/r/t j */
 	size_t		 maxvis; /* output position of visible boundary */
-	size_t		 mmax; /* used in calculating bp */
+	size_t		 rmargin; /* the rightmost of the two margins */
 
 	/*
 	 * First, establish the maximum columns of "visible" content.
@@ -119,13 +113,17 @@ term_flushln(struct termp *p)
 	 * is negative, it gets sign extended.  Subtracting that
 	 * very large size_t effectively adds a small number to dv.
 	 */
-	assert  (p->rmargin >= p->offset);
-	dv     = p->rmargin - p->offset;
+	rmargin = p->rmargin > p->offset ? p->rmargin : p->offset;
+	dv = p->rmargin - p->offset;
 	maxvis = (int)dv > p->overstep ? dv - (size_t)p->overstep : 0;
-	dv     = p->maxrmargin - p->offset;
-	mmax   = (int)dv > p->overstep ? dv - (size_t)p->overstep : 0;
 
-	bp = TERMP_NOBREAK & p->flags ? mmax : maxvis;
+	if (p->flags & TERMP_NOBREAK) {
+		dv = p->maxrmargin > p->offset ?
+		     p->maxrmargin - p->offset : 0;
+		bp = (int)dv > p->overstep ?
+		     dv - (size_t)p->overstep : 0;
+	} else
+		bp = maxvis;
 
 	/*
 	 * Calculate the required amount of padding.
@@ -194,8 +192,8 @@ term_flushln(struct termp *p)
 			(*p->endline)(p);
 			p->viscol = 0;
 			if (TERMP_BRIND & p->flags) {
-				vbl = p->rmargin;
-				vend += p->rmargin - p->offset;
+				vbl = rmargin;
+				vend += rmargin - p->offset;
 			} else
 				vbl = p->offset;
 
@@ -222,7 +220,7 @@ term_flushln(struct termp *p)
 				break;
 			if (' ' == p->buf[i]) {
 				j = i;
-				while (' ' == p->buf[i])
+				while (i < p->col && ' ' == p->buf[i])
 					i++;
 				dv = (i - j) * (*p->width)(p, ' ');
 				vbl += dv;
@@ -260,8 +258,10 @@ term_flushln(struct termp *p)
 	 * If there was trailing white space, it was not printed;
 	 * so reset the cursor position accordingly.
 	 */
-	if (vis)
+	if (vis > vbl)
 		vis -= vbl;
+	else
+		vis = 0;
 
 	p->col = 0;
 	p->overstep = 0;
@@ -397,7 +397,6 @@ term_word(struct termp *p, const char *word)
 {
 	const char	 nbrsp[2] = { ASCII_NBRSP, 0 };
 	const char	*seq, *cp;
-	char		 c;
 	int		 sz, uc;
 	size_t		 ssz;
 	enum mandoc_esc	 esc;
@@ -446,68 +445,70 @@ term_word(struct termp *p, const char *word)
 		if (ESCAPE_ERROR == esc)
 			continue;
 
-		if (TERMENC_ASCII != p->enc)
-			switch (esc) {
-			case ESCAPE_UNICODE:
-				uc = mchars_num2uc(seq + 1, sz - 1);
-				if ('\0' == uc)
-					break;
-				encode1(p, uc);
-				continue;
-			case ESCAPE_SPECIAL:
-				uc = mchars_spec2cp(p->symtab, seq, sz);
-				if (uc <= 0)
-					break;
-				encode1(p, uc);
-				continue;
-			default:
-				break;
-			}
-
 		switch (esc) {
 		case ESCAPE_UNICODE:
-			encode1(p, '?');
+			uc = mchars_num2uc(seq + 1, sz - 1);
 			break;
 		case ESCAPE_NUMBERED:
-			c = mchars_num2char(seq, sz);
-			if ('\0' != c)
-				encode(p, &c, 1);
+			uc = mchars_num2char(seq, sz);
+			if (uc < 0)
+				continue;
 			break;
 		case ESCAPE_SPECIAL:
-			cp = mchars_spec2str(p->symtab, seq, sz, &ssz);
-			if (NULL != cp)
-				encode(p, cp, ssz);
-			else if (1 == ssz)
-				encode(p, seq, sz);
-			break;
+			if (p->enc == TERMENC_ASCII) {
+				cp = mchars_spec2str(p->symtab,
+				    seq, sz, &ssz);
+				if (cp != NULL)
+					encode(p, cp, ssz);
+			} else {
+				uc = mchars_spec2cp(p->symtab, seq, sz);
+				if (uc > 0)
+					encode1(p, uc);
+			}
+			continue;
 		case ESCAPE_FONTBOLD:
 			term_fontrepl(p, TERMFONT_BOLD);
-			break;
+			continue;
 		case ESCAPE_FONTITALIC:
 			term_fontrepl(p, TERMFONT_UNDER);
-			break;
+			continue;
 		case ESCAPE_FONTBI:
 			term_fontrepl(p, TERMFONT_BI);
-			break;
+			continue;
 		case ESCAPE_FONT:
 			/* FALLTHROUGH */
 		case ESCAPE_FONTROMAN:
 			term_fontrepl(p, TERMFONT_NONE);
-			break;
+			continue;
 		case ESCAPE_FONTPREV:
 			term_fontlast(p);
-			break;
+			continue;
 		case ESCAPE_NOSPACE:
 			if (TERMP_SKIPCHAR & p->flags)
 				p->flags &= ~TERMP_SKIPCHAR;
 			else if ('\0' == *word)
 				p->flags |= TERMP_NOSPACE;
-			break;
+			continue;
 		case ESCAPE_SKIPCHAR:
 			p->flags |= TERMP_SKIPCHAR;
-			break;
+			continue;
 		default:
-			break;
+			continue;
+		}
+
+		/*
+		 * Common handling for Unicode and numbered
+		 * character escape sequences.
+		 */
+
+		if (p->enc == TERMENC_ASCII) {
+			cp = ascii_uc2str(uc);
+			encode(p, cp, strlen(cp));
+		} else {
+			if ((uc < 0x20 && uc != 0x09) ||
+			    (uc > 0x7E && uc < 0xA0))
+				uc = 0xFFFD;
+			encode1(p, uc);
 		}
 	}
 	p->flags &= ~TERMP_NBRWORD;
@@ -659,7 +660,7 @@ size_t
 term_strlen(const struct termp *p, const char *cp)
 {
 	size_t		 sz, rsz, i;
-	int		 ssz, skip, c;
+	int		 ssz, skip, uc;
 	const char	*seq, *rhs;
 	enum mandoc_esc	 esc;
 	static const char rej[] = { '\\', ASCII_NBRSP, ASCII_HYPH,
@@ -685,61 +686,64 @@ term_strlen(const struct termp *p, const char *cp)
 			if (ESCAPE_ERROR == esc)
 				continue;
 
-			if (TERMENC_ASCII != p->enc)
-				switch (esc) {
-				case ESCAPE_UNICODE:
-					c = mchars_num2uc(seq + 1,
-					    ssz - 1);
-					if ('\0' == c)
-						break;
-					sz += cond_width(p, c, &skip);
-					continue;
-				case ESCAPE_SPECIAL:
-					c = mchars_spec2cp(p->symtab,
-					    seq, ssz);
-					if (c <= 0)
-						break;
-					sz += cond_width(p, c, &skip);
-					continue;
-				default:
-					break;
-				}
-
 			rhs = NULL;
 
 			switch (esc) {
 			case ESCAPE_UNICODE:
-				sz += cond_width(p, '?', &skip);
+				uc = mchars_num2uc(seq + 1, ssz - 1);
 				break;
 			case ESCAPE_NUMBERED:
-				c = mchars_num2char(seq, ssz);
-				if ('\0' != c)
-					sz += cond_width(p, c, &skip);
+				uc = mchars_num2char(seq, ssz);
+				if (uc < 0)
+					continue;
 				break;
 			case ESCAPE_SPECIAL:
-				rhs = mchars_spec2str(p->symtab,
-				    seq, ssz, &rsz);
-
-				if (ssz != 1 || rhs)
-					break;
-
-				rhs = seq;
-				rsz = ssz;
-				break;
+				if (p->enc == TERMENC_ASCII) {
+					rhs = mchars_spec2str(p->symtab,
+					    seq, ssz, &rsz);
+					if (rhs != NULL)
+						break;
+				} else {
+					uc = mchars_spec2cp(p->symtab,
+					    seq, ssz);
+					if (uc > 0)
+						sz += cond_width(p, uc, &skip);
+				}
+				continue;
 			case ESCAPE_SKIPCHAR:
 				skip = 1;
-				break;
+				continue;
 			default:
-				break;
+				continue;
 			}
 
-			if (NULL == rhs)
-				break;
+			/*
+			 * Common handling for Unicode and numbered
+			 * character escape sequences.
+			 */
+
+			if (rhs == NULL) {
+				if (p->enc == TERMENC_ASCII) {
+					rhs = ascii_uc2str(uc);
+					rsz = strlen(rhs);
+				} else {
+					if ((uc < 0x20 && uc != 0x09) ||
+					    (uc > 0x7E && uc < 0xA0))
+						uc = 0xFFFD;
+					sz += cond_width(p, uc, &skip);
+					continue;
+				}
+			}
 
 			if (skip) {
 				skip = 0;
 				break;
 			}
+
+			/*
+			 * Common handling for all escape sequences
+			 * printing more than one character.
+			 */
 
 			for (i = 0; i < rsz; i++)
 				sz += (*p->width)(p, *rhs++);

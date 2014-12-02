@@ -1,6 +1,7 @@
-.\"	$Id: tbl.7,v 1.18 2013/09/16 22:39:19 schwarze Exp $
+.\"	$Id: tbl.7,v 1.21 2014/11/26 17:51:55 schwarze Exp $
 .\"
 .\" Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+.\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: September 16 2013 $
+.Dd $Mdocdate: November 26 2014 $
 .Dt TBL 7
 .Os
 .Sh NAME
@@ -134,6 +135,7 @@ in the case of
 .Ss Options
 The first line of a table consists of space-separated option keys and
 modifiers terminated by a semicolon.
+For GNU compatibility, option keys can also be separated by commas.
 If the first line does not have a terminating semicolon, it is assumed
 that no options are specified and instead a
 .Sx Layout
@@ -195,7 +197,7 @@ Each layout line corresponds to a line of data; the last layout line
 applies to all remaining data lines.
 Layout lines may also be separated by a comma.
 Each layout cell consists of one of the following case-insensitive keys:
-.Bl -tag -width Ds
+.Bl -tag -width 2n
 .It Cm c
 Centre a literal string within its column.
 .It Cm r
@@ -244,35 +246,45 @@ Keys may be followed by a set of modifiers.
 A modifier is either a modifier key or a natural number for specifying
 the minimum width of a column.
 The following case-insensitive modifier keys are available:
-.Cm z ,
-.Cm u ,
-.Cm e ,
-.Cm t ,
+.Bl -tag -width 2n
+.It Cm b
+Use a bold font for the contents of this column.
+.It Cm e
+Make this column wider to match the maximum width
+of any other column also having the
+.Cm e
+modifier.
+.It Cm f
+The next character selects the font to use for this column.
+See the
+.Xr roff 7
+manual for supported one-character font names.
+.It Cm i
+Use an italic font for the contents of this column.
+.It Cm x
+After determining the width of all other columns, distribute the
+rest of the line length among all columns having the
+.Cm x
+modifier.
+.It Cm z
+Do not use this cell for determining the width of this column.
+.El
+.Pp
+The modifiers
 .Cm d ,
-.Cm b ,
-.Cm i ,
-.Cm r ,
+.Cm t ,
+.Cm u ,
 and
-.Cm f
-.Po
-followed by
-.Cm b ,
-.Cm i ,
-.Cm r ,
-.Cm 3 ,
-.Cm 2 ,
-or
-.Cm 1
-.Pc .
-All of these are ignored by
+.Cm w
+are ignored by
 .Xr mandoc 1 .
 .Pp
 For example, the following layout specifies a centre-justified column of
 minimum width 10, followed by vertical bar, followed by a left-justified
-column of minimum width 10, another vertical bar, then a column
-justified about the decimal point in numbers:
+column of minimum width 10, another vertical bar, then a column using
+bold font justified about the decimal point in numbers:
 .Pp
-.Dl c10 | l10 | n
+.Dl c10 | l10 | nfB
 .Ss Data
 The data section follows the last layout row.
 By default, cells in a data section are delimited by a tab.
