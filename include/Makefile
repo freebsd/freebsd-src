@@ -62,9 +62,11 @@ LDIRS+=		netnatm
 LSUBDIRS+=	netgraph/atm
 .endif
 
-.if ${MK_AUDIT} != "no"
+# XXX: bsm headers are explicitly required for sys/sysent.h, sys/sysproto.h,
+# and sys/ucred.h
+#.if ${MK_AUDIT} != "no"
 LDIRS+=		bsm
-.endif
+#.endif
 
 .if ${MK_BLUETOOTH} != "no"
 LSUBSUBDIRS+=	netgraph/bluetooth/include
