@@ -7250,7 +7250,7 @@ one_more_time:
 			if ((stcb->sctp_socket != NULL) && \
 			    ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 			    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL))) {
-				atomic_subtract_int(&stcb->sctp_socket->so_snd.sb_ccc, sp->length);
+				atomic_subtract_int(&stcb->sctp_socket->so_snd.sb_cc, sp->length);
 			}
 			if (sp->data) {
 				sctp_m_freem(sp->data);
@@ -11532,7 +11532,7 @@ jump_out:
 		drp->current_onq = htonl(asoc->size_on_reasm_queue +
 		    asoc->size_on_all_streams +
 		    asoc->my_rwnd_control_len +
-		    stcb->sctp_socket->so_rcv.sb_ccc);
+		    stcb->sctp_socket->so_rcv.sb_cc);
 	} else {
 		/*-
 		 * If my rwnd is 0, possibly from mbuf depletion as well as
