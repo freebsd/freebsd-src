@@ -1,4 +1,4 @@
-.\"	$Id: mdoc.7,v 1.234 2014/08/08 16:38:06 schwarze Exp $
+.\"	$Id: mdoc.7,v 1.244 2014/11/28 18:36:35 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010, 2011, 2013 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: August 8 2014 $
+.Dd $Mdocdate: November 28 2014 $
 .Dt MDOC 7
 .Os
 .Sh NAME
@@ -388,7 +388,7 @@ See
 References other manuals with related topics.
 This section should exist for most manuals.
 Cross-references should conventionally be ordered first by section, then
-alphabetically.
+alphabetically (ignoring case).
 .Pp
 References to other documentation concerning the topic of the manual page,
 for example authoritative books or journal articles, may also be
@@ -433,7 +433,7 @@ in the alphabetical
 .Ss Document preamble and NAME section macros
 .Bl -column "Brq, Bro, Brc" description
 .It Sx \&Dd Ta document date: Cm $\&Mdocdate$ | Ar month day , year
-.It Sx \&Dt Ta document title: Ar TITLE section Op Ar volume | arch
+.It Sx \&Dt Ta document title: Ar TITLE section Op Ar arch
 .It Sx \&Os Ta operating system version: Op Ar system Op Ar version
 .It Sx \&Nm Ta document name (one argument)
 .It Sx \&Nd Ta document description (one line)
@@ -937,8 +937,11 @@ The
 .Fl width
 and
 .Fl offset
-arguments accept scaling widths as described in
-.Xr roff 7
+arguments accept macro names as described for
+.Sx \&Bd
+.Fl offset ,
+scaling widths as described in
+.Xr roff 7 ,
 or use the length of the given string.
 The
 .Fl offset
@@ -1182,13 +1185,12 @@ See also
 and
 .Sx \&Dl .
 .Ss \&Db
-Switch debugging mode.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Db Cm on | off
-.Pp
-This macro is ignored by
-.Xr mandoc 1 .
+This macro is obsolete.
+No replacement is needed.
+It is ignored by
+.Xr mandoc 1
+and groff including its arguments.
+It was formerly used to toggle a debugging mode.
 .Ss \&Dc
 Close a
 .Sx \&Do
@@ -1245,7 +1247,7 @@ See also
 and
 .Sx \&Os .
 .Ss \&Dl
-One-line intended display.
+One-line indented display.
 This is formatted as literal text and is useful for commands and
 invocations.
 It is followed by a newline.
@@ -1297,7 +1299,7 @@ Its syntax is as follows:
 .Pf \. Sx \&Dt
 .Ar TITLE
 .Ar section
-.Op Ar volume | arch
+.Op Ar arch
 .Ed
 .Pp
 Its arguments are as follows:
@@ -1346,35 +1348,6 @@ or
 .Pq paper .
 It should correspond to the manual's filename suffix and defaults to
 the empty string if unspecified.
-.It Ar volume
-This overrides the volume inferred from
-.Ar section .
-This field is optional, and if specified, must be one of
-.Cm USD
-.Pq users' supplementary documents ,
-.Cm PS1
-.Pq programmers' supplementary documents ,
-.Cm AMD
-.Pq administrators' supplementary documents ,
-.Cm SMM
-.Pq system managers' manuals ,
-.Cm URM
-.Pq users' reference manuals ,
-.Cm PRM
-.Pq programmers' reference manuals ,
-.Cm KM
-.Pq kernel manuals ,
-.Cm IND
-.Pq master index ,
-.Cm MMI
-.Pq master index ,
-.Cm LOCAL
-.Pq local manuals ,
-.Cm LOC
-.Pq local manuals ,
-or
-.Cm CON
-.Pq contributed manuals .
 .It Ar arch
 This specifies the machine architecture a manual page applies to,
 where relevant, for example
@@ -1383,17 +1356,11 @@ where relevant, for example
 .Cm i386 ,
 or
 .Cm sparc64 .
-The list of supported architectures varies by operating system.
-For the full list of all architectures recognized by
-.Xr mandoc 1 ,
-see the file
-.Pa arch.in
-in the source distribution.
+The list of valid architectures varies by operating system.
 .El
 .Pp
 Examples:
 .Dl \&.Dt FOO 1
-.Dl \&.Dt FOO 4 KM
 .Dl \&.Dt FOO 9 i386
 .Pp
 See also
@@ -1467,16 +1434,29 @@ See also
 and
 .Sx \&It .
 .Ss \&Em
-Denotes text that should be
-.Em emphasised .
-Note that this is a presentation term and should not be used for
-stylistically decorating technical terms.
-Depending on the output device, this is usually represented
-using an italic font or underlined characters.
+Request an italic font.
+If the output device does not provide that, underline.
+.Pp
+This is most often used for stress emphasis (not to be confused with
+importance, see
+.Sx \&Sy ) .
+In the rare cases where none of the semantic markup macros fit,
+it can also be used for technical terms and placeholders, except
+that for syntax elements,
+.Sx \&Sy
+and
+.Sx \&Ar
+are preferred, respectively.
 .Pp
 Examples:
-.Dl \&.Em Warnings!
-.Dl \&.Em Remarks :
+.Bd -literal -compact -offset indent
+Selected lines are those
+\&.Em not
+matching any of the specified patterns.
+Some of the functions use a
+\&.Em hold space
+to save the pattern space for subsequent retrieval.
+.Ed
 .Pp
 See also
 .Sx \&Bf ,
@@ -1557,7 +1537,7 @@ arguments are treated as separate utilities.
 See also
 .Sx \&Rv .
 .Ss \&Fa
-Function argument.
+Function argument or parameter.
 Its syntax is as follows:
 .Bd -ragged -offset indent
 .Pf \. Sx \&Fa
@@ -2497,10 +2477,12 @@ Based on POSIX.1 and POSIX.2, published in 1992.
 .It Single UNIX Specification version 1 and related standards
 .Pp
 .Bl -tag -width "-p1003.1g-2000" -compact
+.It \-susv1
+.St -susv1
 .It \-xpg4.2
 .St -xpg4.2
 .br
-This standard was published in 1994 and is also called SUSv1.
+This standard was published in 1994.
 It was used as the basis for UNIX 95 certification.
 The following three refer to parts of it.
 .Pp
@@ -2544,17 +2526,8 @@ The following refer to parts of it.
 .Pp
 .It \-xns5
 .St -xns5
-.It \-xns5.2d2.0
-.St -xns5.2d2.0
 .It \-xns5.2
 .St -xns5.2
-.Pp
-.It \-p1387.2
-.St -p1387.2
-.It \-p1387.2-95
-.St -p1387.2-95
-.br
-POSIX software administration.
 .El
 .It Single UNIX Specification version 3 and related standards
 .Pp
@@ -2563,16 +2536,6 @@ POSIX software administration.
 .St -p1003.1d-99
 .br
 Additional real-time extensions.
-.Pp
-.It \-p1003.1j-2000
-.St -p1003.1j-2000
-.br
-Advanced real-time extensions.
-.Pp
-.It \-p1003.1q-2000
-.St -p1003.1q-2000
-.br
-Amendment 7: Tracing [C Language].
 .Pp
 .It \-p1003.1-2001
 .St -p1003.1-2001
@@ -2593,8 +2556,10 @@ The second and last Technical Corrigendum.
 .Bl -tag -width "-p1003.1g-2000" -compact
 .It \-p1003.1-2008
 .St -p1003.1-2008
+.It \-susv4
+.St -susv4
 .br
-This standard is also called SUSv4 and
+This standard is also called
 X/Open Portability Guide version 7.
 .Pp
 .It \-p1003.1-2013
@@ -2637,10 +2602,24 @@ See also
 and
 .Sx \&Ss .
 .Ss \&Sy
-Format enclosed arguments in symbolic
-.Pq Dq boldface .
-Note that this is a presentation term and should not be used for
-stylistically decorating technical terms.
+Request a boldface font.
+.Pp
+This is most often used to indicate importance or seriousness (not to be
+confused with stress emphasis, see
+.Sx \&Em ) .
+When none of the semantic macros fit, it is also adequate for syntax
+elements that have to be given or that appear verbatim.
+.Pp
+Examples:
+.Bd -literal -compact -offset indent
+\&.Sy Warning :
+If
+\&.Sy s
+appears in the owner permissions, set-user-ID mode is set.
+This utility replaces the former
+\&.Sy dumpdir
+program.
+.Ed
 .Pp
 See also
 .Sx \&Bf ,
@@ -2673,8 +2652,17 @@ A variable name.
 Examples:
 .Dl \&.Va foo
 .Dl \&.Va const char *bar ;
+.Pp
+For function arguments and parameters, use
+.Sx \&Fa
+instead.
+For declarations of global variables in the
+.Em SYNOPSIS
+section, use
+.Sx \&Vt .
 .Ss \&Vt
 A variable type.
+.Pp
 This is also used for indicating global variables in the
 .Em SYNOPSIS
 section, in which case a variable name is also specified.
@@ -2689,18 +2677,21 @@ In the former case, this macro starts a new output line,
 and a blank line is inserted in front if there is a preceding
 function definition or include directive.
 .Pp
-Note that this should not be confused with
-.Sx \&Ft ,
-which is used for function return types.
-.Pp
 Examples:
 .Dl \&.Vt unsigned char
 .Dl \&.Vt extern const char * const sys_signame[] \&;
 .Pp
+For parameters in function prototypes, use
+.Sx \&Fa
+instead, for function return types
+.Sx \&Ft ,
+and for variable names outside the
+.Em SYNOPSIS
+section
+.Sx \&Va ,
+even when including a type with the name.
 See also
-.Sx MANUAL STRUCTURE
-and
-.Sx \&Va .
+.Sx MANUAL STRUCTURE .
 .Ss \&Xc
 Close a scope opened by
 .Sx \&Xo .

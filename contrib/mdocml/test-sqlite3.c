@@ -1,6 +1,6 @@
-/*	$Id: arch.c,v 1.11 2014/04/20 16:46:04 schwarze Exp $ */
+/*	$Id: test-sqlite3.c,v 1.1 2014/08/16 19:00:01 schwarze Exp $	*/
 /*
- * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,24 +14,34 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
 
-#include <string.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <sqlite3.h>
 
-#include "mdoc.h"
-#include "libmdoc.h"
-
-#define LINE(x, y) \
-	if (0 == strcmp(p, x)) return(y);
-
-
-const char *
-mdoc_a2arch(const char *p)
+int
+main(void)
 {
+	sqlite3	*db;
 
-#include "arch.in"
+	if (sqlite3_open_v2("test.db", &db,
+	    SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
+	    NULL) != SQLITE_OK) {
+		perror("test.db");
+		fprintf(stderr, "sqlite3_open_v2: %s", sqlite3_errmsg(db));
+		return(1);
+	}
+	unlink("test.db");
 
-	return(NULL);
+	if (sqlite3_exec(db, "PRAGMA foreign_keys = ON",
+	    NULL, NULL, NULL) != SQLITE_OK) {
+		fprintf(stderr, "sqlite3_exec: %s", sqlite3_errmsg(db));
+		return(1);
+	}
+
+	if (sqlite3_close(db) != SQLITE_OK) {
+		fprintf(stderr, "sqlite3_close: %s", sqlite3_errmsg(db));
+		return(1);
+	}
+	return(0);
 }

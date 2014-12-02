@@ -1,4 +1,4 @@
-/*	$Id: mandoc.c,v 1.83 2014/07/06 19:09:00 schwarze Exp $ */
+/*	$Id: mandoc.c,v 1.88 2014/10/28 13:24:44 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2012, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,9 +15,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <sys/types.h>
 
@@ -81,24 +79,13 @@ mandoc_escape(const char **end, const char **start, int *sz)
 		break;
 	case '[':
 		gly = ESCAPE_SPECIAL;
-		/*
-		 * Unicode escapes are defined in groff as \[uXXXX] to
-		 * \[u10FFFF], where the contained value must be a valid
-		 * Unicode codepoint.  Here, however, only check whether
-		 * it's not a zero-width escape.
-		 */
-		if ('u' == (*start)[0] && ']' != (*start)[1])
-			gly = ESCAPE_UNICODE;
 		term = ']';
 		break;
 	case 'C':
 		if ('\'' != **start)
 			return(ESCAPE_ERROR);
 		*start = ++*end;
-		if ('u' == (*start)[0] && '\'' != (*start)[1])
-			gly = ESCAPE_UNICODE;
-		else
-			gly = ESCAPE_SPECIAL;
+		gly = ESCAPE_SPECIAL;
 		term = '\'';
 		break;
 
@@ -201,7 +188,8 @@ mandoc_escape(const char **end, const char **start, int *sz)
 		/* FALLTHROUGH */
 	case 'x':
 		if (strchr(" %&()*+-./0123456789:<=>", **start)) {
-			++*end;
+			if ('\0' != **start)
+				++*end;
 			return(ESCAPE_ERROR);
 		}
 		gly = ESCAPE_IGNORE;
@@ -345,6 +333,21 @@ mandoc_escape(const char **end, const char **start, int *sz)
 	case ESCAPE_SPECIAL:
 		if (1 == *sz && 'c' == **start)
 			gly = ESCAPE_NOSPACE;
+		/*
+		 * Unicode escapes are defined in groff as \[u0000]
+		 * to \[u10FFFF], where the contained value must be
+		 * a valid Unicode codepoint.  Here, however, only
+		 * check the length and range.
+		 */
+		if (**start != 'u' || *sz < 5 || *sz > 7)
+			break;
+		if (*sz == 7 && ((*start)[1] != '1' || (*start)[2] != '0'))
+			break;
+		if (*sz == 6 && (*start)[1] == '0')
+			break;
+		if ((int)strspn(*start + 1, "0123456789ABCDEFabcdef")
+		    + 1 == *sz)
+			gly = ESCAPE_UNICODE;
 		break;
 	default:
 		break;
@@ -457,7 +460,7 @@ a2time(time_t *t, const char *fmt, const char *p)
 	memset(&tm, 0, sizeof(struct tm));
 
 	pp = NULL;
-#ifdef	HAVE_STRPTIME
+#if HAVE_STRPTIME
 	pp = strptime(p, fmt, &tm);
 #endif
 	if (NULL != pp && '\0' == *pp) {
