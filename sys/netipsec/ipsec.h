@@ -47,6 +47,10 @@
 
 #ifdef _KERNEL
 
+#include <sys/_lock.h>
+#include <sys/_mutex.h>
+#include <sys/_rwlock.h>
+
 #define	IPSEC_ASSERT(_c,_m) KASSERT(_c, _m)
 
 #define	IPSEC_IS_PRIVILEGED_SO(_so) \
