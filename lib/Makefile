@@ -101,7 +101,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libthread_db \
 	libucl \
 	libufs \
-	libugidfw \
+	${_libugidfw} \
 	libulog \
 	${_libunbound} \
 	${_libusbhid} \
@@ -234,6 +234,10 @@ _libcplusplus=	libc++
 
 .if ${MK_LIBTHR} != "no"
 _libthr=	libthr
+.endif
+
+.if ${MK_MAC_SUPPORT} != "no"
+_libugidfw=	libugidfw
 .endif
 
 .if ${MK_NAND} != "no"

@@ -1,0 +1,6 @@
+.\" $FreeBSD$
+Set to build libraries, programs, and kernel modules without
+.Xr mac 9
+support. Also, do not compile
+.Xr libugidfw 8
+and associated applications.

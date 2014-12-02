@@ -26,8 +26,6 @@ SUBDIR=	adduser \
 	extattrctl \
 	fifolog \
 	fwcontrol \
-	getfmac \
-	getpmac \
 	gstat \
 	i2c \
 	ifmcstat \
@@ -65,8 +63,6 @@ SUBDIR=	adduser \
 	service \
 	services_mkdb \
 	setfib \
-	setfmac \
-	setpmac \
 	smbmsg \
 	snapinfo \
 	spray \
@@ -76,7 +72,6 @@ SUBDIR=	adduser \
 	traceroute \
 	trpt \
 	tzsetup \
-	ugidfw \
 	vipw \
 	wake \
 	watch \
@@ -215,6 +210,14 @@ SUBDIR+=	nscd
 
 .if ${MK_LPR} != "no"
 SUBDIR+=	lpr
+.endif
+	
+.if ${MK_MAC_SUPPORT} != "no"
+SUBDIR+=	getfmac
+SUBDIR+=	getpmac
+SUBDIR+=	setfmac
+SUBDIR+=	setpmac
+SUBDIR+=	ugidfw
 .endif
 
 .if ${MK_MAN_UTILS} != "no"
