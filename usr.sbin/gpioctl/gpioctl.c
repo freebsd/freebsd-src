@@ -215,9 +215,6 @@ main(int argc, char **argv)
 	}
 	argv += optind;
 	argc -= optind;
-	for (i = 0; i < argc; i++)
-		printf("%d/%s\n", i, argv[i]);
-
 	if (ctlfile == NULL)
 		handle = gpio_open(0);
 	else
