@@ -133,7 +133,6 @@ SUBDIR=	${_addr2line} \
 	pathchk \
 	perror \
 	pr \
-	preconv \
 	printenv \
 	printf \
 	procstat \
