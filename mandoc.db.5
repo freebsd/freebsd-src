@@ -1,4 +1,4 @@
-.\"	$Id: mandoc.db.5,v 1.1 2014/04/15 20:18:26 schwarze Exp $
+.\"	$Id: mandoc.db.5,v 1.2 2014/09/03 18:09:14 schwarze Exp $
 .\"
 .\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: April 15 2014 $
+.Dd $Mdocdate: September 3 2014 $
 .Dt MANDOC.DB 5
 .Os
 .Sh NAME
@@ -67,13 +67,26 @@ The description line
 .Pq Sq \&Nd
 of the page.
 .It Sy mpages.form
-The
+An
 .Vt INTEGER
-1 if the page is unformatted, i.e. in
+bit field.
+If bit
+.Dv FORM_GZ
+is set, the page is compressed and requires
+.Xr gunzip 1
+for display.
+If bit
+.Dv FORM_SRC
+is set, the page is unformatted, that is in
 .Xr mdoc 7
 or
 .Xr man 7
-format, and 2 if it is formatted, i.e. a
+format, and requires
+.Xr mandoc 1
+for display.
+If bit
+.Dv FORM_SRC
+is not set, the page is formatted, i.e. a
 .Sq cat
 page.
 .It Sy mlinks.sec

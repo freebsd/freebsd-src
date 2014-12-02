@@ -1,4 +1,4 @@
-/*	$Id: msec.in,v 1.6 2010/06/19 20:46:28 kristaps Exp $ */
+/*	$Id: msec.in,v 1.7 2014/08/26 11:21:40 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -25,8 +25,8 @@
 LINE("1",		"General Commands Manual")
 LINE("2",		"System Calls Manual")
 LINE("3",		"Library Functions Manual")
-LINE("3p",		"Perl Library Functions Manual")
-LINE("4",		"Kernel Interfaces Manual")
+LINE("3p",		"Perl Library Manual")
+LINE("4",		"Device Drivers Manual")
 LINE("5",		"File Formats Manual")
 LINE("6",		"Games Manual")
 LINE("7",		"Miscellaneous Information Manual")

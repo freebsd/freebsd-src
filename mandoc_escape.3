@@ -1,4 +1,4 @@
-.\"	$Id: mandoc_escape.3,v 1.1 2014/08/05 05:48:56 schwarze Exp $
+.\"	$Id: mandoc_escape.3,v 1.2 2014/10/28 14:06:31 schwarze Exp $
 .\"
 .\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: August 5 2014 $
+.Dd $Mdocdate: October 28 2014 $
 .Dt MANDOC_ESCAPE 3
 .Os
 .Sh NAME
@@ -197,15 +197,9 @@ form, directly follows the initial backslash:
 Note that the one-character argument short form can only be used for
 argument characters that do not clash with escape sequence identifiers.
 .Pp
-If the argument consists of more than one character
-and starts with the character
-.Sq u ,
-.Dv ESCAPE_UNICODE
-is returned as described below.
-If the argument is just the single character
-.Sq u ,
-.Dv ESCAPE_ERROR
-is returned.
+If the argument matches one of the forms described below under
+.Dv ESCAPE_UNICODE ,
+that value is returned instead.
 .Pp
 The
 .Dv ESCAPE_SPECIAL
@@ -219,17 +213,27 @@ manual.
 .It Dv ESCAPE_UNICODE
 Escape sequences of the same format as described above under
 .Dv ESCAPE_SPECIAL ,
-but with an argument starting with the character
-.Sq u :
+but with an argument of the forms
+.Ic u Ns Ar XXXX ,
+.Ic u Ns Ar YXXXX ,
+or
+.Ic u10 Ns Ar XXXX
+where
+.Ar X
+and
+.Ar Y
+are hexadecimal digits and
+.Ar Y
+is not zero:
 .Ic \eC'u , \e[u .
 As a special exception,
 .Fa start
 is set to the character after the
-.Sq u ,
+.Ic u ,
 and the
 .Fa sz
 return value does not include the
-.Sq u
+.Ic u
 either.
 .Pp
 Such Unicode character escape sequences can be rendered using the function
