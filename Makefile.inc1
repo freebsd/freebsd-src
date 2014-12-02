@@ -621,6 +621,11 @@ buildworld_epilogue:
 buildenvvars:
 	@echo ${WMAKEENV:Q}
 
+.if ${.TARGETS:Mbuildenv}
+.if ${.MAKEFLAGS:M-j}
+.error The buildenv target is incompatible with -j
+.endif
+.endif
 buildenv:
 	@echo Entering world for ${TARGET_ARCH}:${TARGET}
 	@cd ${.CURDIR} && env ${WMAKEENV} ${BUILDENV_SHELL} || true
