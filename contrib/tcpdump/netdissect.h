@@ -293,7 +293,8 @@ extern if_printer lookup_printer(int);
 static inline int
 invoke_dissector(void *func, u_int length, register_t arg2,
     register_t arg3, register_t arg4, register_t arg5, register_t arg6,
-    register_t arg7, netdissect_options *ndo, packetbody_t bp) {
+    register_t arg7, netdissect_options *ndo, packetbody_t bp,
+    packetbody_t bp2) {
 
 	return (0);
 }
@@ -301,7 +302,8 @@ invoke_dissector(void *func, u_int length, register_t arg2,
 int
 invoke_dissector(void *func, u_int length, register_t arg2,
     register_t arg3, register_t arg4, register_t arg5, register_t arg6,
-    register_t arg7, netdissect_options *ndo, packetbody_t bp);
+    register_t arg7, netdissect_options *ndo, packetbody_t bp,
+    packetbody_t bp2);
 #endif
 
 #define ND_DECLARE(rtype, name, ...)		\

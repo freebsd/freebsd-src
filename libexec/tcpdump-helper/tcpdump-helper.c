@@ -89,7 +89,8 @@ int	invoke(register_t op, register_t localnet, register_t netmask,
 	    const char *ndo_espsecret,
 	    const struct pcap_pkthdr *h,
 	    const u_char *sp,
-	    struct cheri_object *proto_sandbox_objects);
+	    struct cheri_object *proto_sandbox_objects,
+	    const u_char *sp2);
 
 static int
 invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
@@ -166,7 +167,7 @@ invoke(register_t op, register_t arg1, register_t arg2,
     netdissect_options *ndo,
     const char *ndo_espsecret,
     const struct pcap_pkthdr *h, const u_char *sp,
-    struct cheri_object *proto_sandbox_objects)
+    struct cheri_object *proto_sandbox_objects, const u_char *sp2)
 {
 	int ret;
 
@@ -234,7 +235,8 @@ invoke(register_t op, register_t arg1, register_t arg2,
 int
 invoke_dissector(void *func, u_int length, register_t arg2,
     register_t arg3, register_t arg4, register_t arg5, register_t arg6,
-    register_t arg7, netdissect_options *ndo, packetbody_t bp)
+    register_t arg7, netdissect_options *ndo, packetbody_t bp,
+    packetbody_t bp2)
 {
 	register_t op;
 
@@ -249,7 +251,8 @@ invoke_dissector(void *func, u_int length, register_t arg2,
 		    arg2, arg3, arg4, arg5, arg6, arg7,
 		    ndo, NULL, NULL, (void *)bp,
 		    cheri_incbase(gpso, sizeof(struct cheri_object)),
-		    NULL, NULL, NULL)) {
+		    (void *)bp2,
+		    NULL, NULL)) {
 			printf("failure in sandbox op=%d\n", (int)op);
 			abort();
 		}
