@@ -116,7 +116,7 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
 	if (ndo->ndo_espsecret != NULL) { /* XXX: check the real thing */
 		if (gndo->ndo_espsecret != NULL)
 			free(gndo->ndo_espsecret);
-		
+
 		espsec_len = cheri_getlen((void *)ndo_espsecret);
 		gndo->ndo_espsecret = malloc(espsec_len);
 		if (gndo->ndo_espsecret == NULL)
@@ -171,7 +171,7 @@ invoke(register_t op, register_t arg1, register_t arg2,
 	int ret;
 
 	gpso = proto_sandbox_objects;
-	
+
 	ret = 0;
 
 	switch (op) {
