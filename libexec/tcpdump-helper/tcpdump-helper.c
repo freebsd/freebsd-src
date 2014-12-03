@@ -231,6 +231,34 @@ invoke(register_t op, register_t arg1, register_t arg2,
 	return (ret);
 }
 
+int
+invoke_dissector(void *func, u_int length, register_t arg2,
+    register_t arg3, register_t arg4, register_t arg5, register_t arg6,
+    register_t arg7, netdissect_options *ndo, packetbody_t bp)
+{
+	register_t op;
+
+	if (func == (void *)_ip_print)
+		op = TCPDUMP_HELPER_OP_IP_PRINT;
+	else
+		return (0);
+
+	if (gpso != NULL &&
+	    cheri_getlen(gpso) != 0) {
+		if (0 != cheri_invoke(*gpso, op, length,
+		    arg2, arg3, arg4, arg5, arg6, arg7,
+		    ndo, NULL, NULL, (void *)bp,
+		    cheri_incbase(gpso, sizeof(struct cheri_object)),
+		    NULL, NULL, NULL)) {
+			printf("failure in sandbox op=%d\n", (int)op);
+			abort();
+		}
+		return(1);
+	} else
+		return (0);
+
+}
+
 void
 pawned(void)
 {

@@ -42,10 +42,6 @@
 
 #include "packetbody.h"
 
-#ifdef __CHERI_SANDBOX__
-#include <tcpdump-helper.h>
-#endif
-
 #if !defined(HAVE_SNPRINTF)
 int snprintf (char *str, size_t sz, const char *format, ...)
      __attribute__ ((format (printf, 3, 4)));
@@ -294,13 +290,24 @@ extern if_ndo_printer lookup_ndo_printer(int);
 extern if_printer lookup_printer(int);
 
 #ifndef __CHERI_SANDBOX__
-#define DISSECTOR_DECLARE(rtype, name, ...)	\
-	rtype name(__VA_ARGS__);
+static inline int
+invoke_dissector(void *func, u_int length, register_t arg2,
+    register_t arg3, register_t arg4, register_t arg5, register_t arg6,
+    register_t arg7, netdissect_options *ndo, packetbody_t bp) {
+
+	return (0);
+}
 #else
+int
+invoke_dissector(void *func, u_int length, register_t arg2,
+    register_t arg3, register_t arg4, register_t arg5, register_t arg6,
+    register_t arg7, netdissect_options *ndo, packetbody_t bp);
+#endif
+
 #define DISSECTOR_DECLARE(rtype, name, ...)	\
 	rtype name(__VA_ARGS__);		\
 	rtype _##name(__VA_ARGS__);
-#endif
+
 extern void eap_print(netdissect_options *, packetbody_t, u_int);
 extern int esp_print(netdissect_options *,
 		      packetbody_t bp, int len, packetbody_t bp2,
