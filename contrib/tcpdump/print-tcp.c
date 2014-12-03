@@ -137,6 +137,15 @@ void
 tcp_print(packetbody_t bp, register u_int length,
 	  packetbody_t bp2, int fragmented)
 {
+	if (!invoke_dissector((void *)_tcp_print,
+	    length, fragmented, 0, 0, 0, 0, 0, NULL, bp, bp2))
+		_tcp_print(bp, length, bp2, fragmented);
+}
+
+void
+_tcp_print(packetbody_t bp, register u_int length,
+	  packetbody_t bp2, int fragmented)
+{
         __capability const struct tcphdr *tp;
         __capability const struct ip *ip;
         register u_char flags;

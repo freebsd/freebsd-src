@@ -224,6 +224,11 @@ invoke(register_t op, register_t arg1, register_t arg2,
 		_ip_print(ndo, sp, arg1);
 		break;
 
+	case TCPDUMP_HELPER_OP_TCP_PRINT:
+		snapend = sp + arg1; /* set to end of capability? */
+		_tcp_print(sp, arg1, sp2, arg2);
+		break;
+
 	default:
 		printf("unknown op %ld\n", op);
 		abort();
@@ -242,6 +247,8 @@ invoke_dissector(void *func, u_int length, register_t arg2,
 
 	if (func == (void *)_ip_print)
 		op = TCPDUMP_HELPER_OP_IP_PRINT;
+	else if (func == (void *)_tcp_print)
+		op = TCPDUMP_HELPER_OP_TCP_PRINT;
 	else
 		return (0);
 

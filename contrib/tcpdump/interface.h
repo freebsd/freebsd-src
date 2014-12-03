@@ -102,6 +102,11 @@ extern char *strsep(char **, const char *);
 #define MIN(a,b) ((a)<(b)?(a):(b))
 #endif
 
+#define DISSECTOR_DECLARE(rtype, name, ...)	\
+	rtype name(__VA_ARGS__);		\
+	rtype _##name(__VA_ARGS__);
+
+
 extern const char *program_name;/* used to generate self-identifying messages */
 
 extern int32_t thiszone;	/* seconds offset from gmt to local time */
@@ -286,7 +291,7 @@ extern u_int sll_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern void snmp_print(packetbody_t, u_int);
 extern void sunrpcrequest_print(packetbody_t, u_int, packetbody_t);
 extern u_int symantec_if_print(const struct pcap_pkthdr *, packetbody_t);
-extern void tcp_print(packetbody_t, u_int, packetbody_t, int);
+DISSECTOR_DECLARE(extern void, tcp_print, packetbody_t, u_int, packetbody_t, int);
 extern void tftp_print(packetbody_t, u_int);
 extern void timed_print(packetbody_t);
 extern void udld_print(packetbody_t, u_int);
