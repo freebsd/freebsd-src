@@ -74,7 +74,7 @@ static VNET_DEFINE(struct key_cb, key_cb);
 
 static struct sockaddr key_src = { 2, PF_KEY, };
 
-static int key_sendup0 __P((struct rawcb *, struct mbuf *, int));
+static int key_sendup0(struct rawcb *, struct mbuf *, int);
 
 VNET_PCPUSTAT_DEFINE(struct pfkeystat, pfkeystat);
 VNET_PCPUSTAT_SYSINIT(pfkeystat);
