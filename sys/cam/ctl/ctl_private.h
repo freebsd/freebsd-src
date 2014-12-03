@@ -410,7 +410,7 @@ struct ctl_lun {
 	struct ctl_lun_io_stats		stats;
 	uint32_t			res_idx;
 	unsigned int			PRGeneration;
-	uint64_t			pr_keys[2*CTL_MAX_INITIATORS];
+	uint64_t			*pr_keys[2 * CTL_MAX_PORTS];
 	int				pr_key_count;
 	uint32_t			pr_res_idx;
 	uint8_t				res_type;
