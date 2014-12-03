@@ -83,7 +83,6 @@ const char *program_name;
 void	pawned(void);
 
 int	invoke(register_t op, register_t localnet, register_t netmask,
-	    struct cheri_object system_object,
 	    const netdissect_options *ndo,
 	    const char *ndo_espsecret,
 	    const struct pcap_pkthdr *h,
@@ -161,14 +160,11 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
  */
 int
 invoke(register_t op, register_t arg1, register_t arg2,
-    struct cheri_object system_object,
     const netdissect_options *ndo,
     const char *ndo_espsecret,
     const struct pcap_pkthdr *h, const u_char *sp)
 {
 	int ret;
-
-	cheri_system_setup(system_object);
 
 	ret = 0;
 
