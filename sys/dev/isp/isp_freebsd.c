@@ -6109,10 +6109,9 @@ isp_default_wwn(ispsoftc_t * isp, int chan, int isactive, int iswwnn)
 			return (seed);
 		}
 		return (0x400000007F000009ull);
-	} else {
-		seed = iswwnn ? fc->def_wwnn : fc->def_wwpn;
 	}
 
+	seed = iswwnn ? fc->def_wwnn : fc->def_wwpn;
 
 	/*
 	 * For channel zero just return what we have. For either ACTIVE or
@@ -6135,11 +6134,9 @@ isp_default_wwn(ispsoftc_t * isp, int chan, int isactive, int iswwnn)
 	if (seed) {
 		return (seed);
 	}
-	if (isactive) {
+	seed = iswwnn ? ISP_FC_PC(isp, 0)->def_wwnn : ISP_FC_PC(isp, 0)->def_wwpn;
+	if (seed == 0)
 		seed = iswwnn ? FCPARAM(isp, 0)->isp_wwnn_nvram : FCPARAM(isp, 0)->isp_wwpn_nvram;
-	} else {
-		seed = iswwnn ? ISP_FC_PC(isp, 0)->def_wwnn : ISP_FC_PC(isp, 0)->def_wwpn;
-	}
 
 	if (((seed >> 60) & 0xf) == 2) {
 		/*
