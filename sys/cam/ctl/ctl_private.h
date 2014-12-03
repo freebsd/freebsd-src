@@ -403,7 +403,7 @@ struct ctl_lun {
 	uint32_t			have_ca[CTL_MAX_INITIATORS >> 5];
 	struct scsi_sense_data		pending_sense[CTL_MAX_INITIATORS];
 #endif
-	ctl_ua_type			pending_ua[CTL_MAX_INITIATORS];
+	ctl_ua_type			*pending_ua[CTL_MAX_PORTS];
 	time_t				lasttpt;
 	struct ctl_mode_pages		mode_pages;
 	struct ctl_log_pages		log_pages;
