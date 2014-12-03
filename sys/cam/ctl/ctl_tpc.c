@@ -1644,6 +1644,10 @@ ctl_extended_copy_lid1(struct ctl_scsiio *ctsio)
 	return (CTL_RETVAL_COMPLETE);
 
 done:
+	if (ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) {
+		free(ctsio->kern_data_ptr, M_CTL);
+		ctsio->io_hdr.flags &= ~CTL_FLAG_ALLOCATED;
+	}
 	ctl_done((union ctl_io *)ctsio);
 	return (CTL_RETVAL_COMPLETE);
 }
@@ -1767,6 +1771,10 @@ ctl_extended_copy_lid4(struct ctl_scsiio *ctsio)
 	return (CTL_RETVAL_COMPLETE);
 
 done:
+	if (ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) {
+		free(ctsio->kern_data_ptr, M_CTL);
+		ctsio->io_hdr.flags &= ~CTL_FLAG_ALLOCATED;
+	}
 	ctl_done((union ctl_io *)ctsio);
 	return (CTL_RETVAL_COMPLETE);
 }
@@ -1944,8 +1952,10 @@ ctl_populate_token(struct ctl_scsiio *ctsio)
 	return (CTL_RETVAL_COMPLETE);
 
 done:
-	if (ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED)
+	if (ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) {
 		free(ctsio->kern_data_ptr, M_CTL);
+		ctsio->io_hdr.flags &= ~CTL_FLAG_ALLOCATED;
+	}
 	ctl_done((union ctl_io *)ctsio);
 	return (CTL_RETVAL_COMPLETE);
 }
@@ -2069,8 +2079,10 @@ ctl_write_using_token(struct ctl_scsiio *ctsio)
 	return (CTL_RETVAL_COMPLETE);
 
 done:
-	if (ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED)
+	if (ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) {
 		free(ctsio->kern_data_ptr, M_CTL);
+		ctsio->io_hdr.flags &= ~CTL_FLAG_ALLOCATED;
+	}
 	ctl_done((union ctl_io *)ctsio);
 	return (CTL_RETVAL_COMPLETE);
 }
