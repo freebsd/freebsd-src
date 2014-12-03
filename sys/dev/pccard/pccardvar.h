@@ -219,14 +219,8 @@ enum {
 #define PCCARD_C(a, b) PCMCIA_CIS_ ## a ## _ ## b
 #define PCMCIA_CARD_D(v, p) { PCCARD_S(v, p), PCMCIA_VENDOR_ ## v, \
 		PCCARD_P(v, p), PCCARD_C(v, p) }
-#define PCMCIA_CARD2_D(v1, p1, p2) \
-		{ PCMCIA_STR_ ## p2, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
-		  PCMCIA_CIS_ ## p2}
-#define PCMCIA_CARD(v, p) { NULL, PCMCIA_VENDOR_ ## v, \
+#define PCMCIA_CARD(v, p) { PCCARD_S(v, p), PCMCIA_VENDOR_ ## v, \
 		PCCARD_P(v, p), PCCARD_C(v, p) }
-#define PCMCIA_CARD2(v1, p1, p2) \
-		{ NULL, PCMCIA_VENDOR_ ## v1, PCCARD_P(v1, p1), \
-		  PCMCIA_CIS_ ## p2}
 
 /*
  * Defines to decode the get_funce_disk return value.  See the PCMCIA standard
