@@ -178,6 +178,9 @@ struct ichwd_softc {
 #define DEVICEID_3400		0x3b12
 #define DEVICEID_3420		0x3b14
 #define DEVICEID_3450		0x3b16
+#define DEVICEID_WCPT2		0x8cc2
+#define DEVICEID_WCPT4		0x8cc4
+#define DEVICEID_WCPT6		0x8cc6
 
 /* ICH LPC Interface Bridge Registers (ICH5 and older) */
 #define ICH_GEN_STA		0xd4
