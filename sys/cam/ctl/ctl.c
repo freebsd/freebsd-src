@@ -5904,8 +5904,7 @@ ctl_unmap(struct ctl_scsiio *ctsio)
 				      /*field*/ 0,
 				      /*bit_valid*/ 0,
 				      /*bit*/ 0);
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
+		goto done;
 	}
 	len = scsi_2btoul(hdr->desc_length);
 	buf = (struct scsi_unmap_desc *)(hdr + 1);
@@ -5932,8 +5931,7 @@ ctl_unmap(struct ctl_scsiio *ctsio)
 	len = (uint8_t *)endnz - (uint8_t *)buf;
 	if (len == 0) {
 		ctl_set_success(ctsio);
-		ctl_done((union ctl_io *)ctsio);
-		return (CTL_RETVAL_COMPLETE);
+		goto done;
 	}
 
 	mtx_lock(&lun->lun_lock);
@@ -5947,6 +5945,14 @@ ctl_unmap(struct ctl_scsiio *ctsio)
 
 	retval = lun->backend->config_write((union ctl_io *)ctsio);
 	return (retval);
+
+done:
+	if (ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) {
+		free(ctsio->kern_data_ptr, M_CTL);
+		ctsio->io_hdr.flags &= ~CTL_FLAG_ALLOCATED;
+	}
+	ctl_done((union ctl_io *)ctsio);
+	return (CTL_RETVAL_COMPLETE);
 }
 
 /*
