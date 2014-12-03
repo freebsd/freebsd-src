@@ -304,7 +304,7 @@ invoke_dissector(void *func, u_int length, register_t arg2,
     register_t arg7, netdissect_options *ndo, packetbody_t bp);
 #endif
 
-#define DISSECTOR_DECLARE(rtype, name, ...)	\
+#define ND_DECLARE(rtype, name, ...)		\
 	rtype name(__VA_ARGS__);		\
 	rtype _##name(__VA_ARGS__);
 
@@ -321,7 +321,7 @@ extern void isakmp_print(netdissect_options *, packetbody_t,
 			 u_int, packetbody_t);
 extern void isakmp_rfc3948_print(netdissect_options *, packetbody_t,
 				 u_int, packetbody_t);
-DISSECTOR_DECLARE(extern void, ip_print, netdissect_options *, packetbody_t, u_int);
+ND_DECLARE(extern void, ip_print, netdissect_options *, packetbody_t, u_int);
 extern void ip_print_inner(netdissect_options *ndo,
 			   packetbody_t, u_int length, u_int nh,
 			   packetbody_t bp2);
