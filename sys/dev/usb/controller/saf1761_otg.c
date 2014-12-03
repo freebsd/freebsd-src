@@ -130,6 +130,7 @@ static void saf1761_otg_do_poll(struct usb_bus *);
 static void saf1761_otg_standard_done(struct usb_xfer *);
 static void saf1761_otg_intr_set(struct usb_xfer *, uint8_t);
 static void saf1761_otg_root_intr(struct saf1761_otg_softc *);
+static void saf1761_otg_enable_psof(struct saf1761_otg_softc *, uint8_t);
 
 /*
  * Here is a list of what the SAF1761 chip can support. The main
@@ -214,6 +215,7 @@ saf1761_otg_wakeup_peer(struct saf1761_otg_softc *sc)
 static uint8_t
 saf1761_host_channel_alloc(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 {
+	uint32_t map;
 	uint32_t x;
 
 	if (td->channel < SOTG_HOST_CHANNEL_MAX)
@@ -225,8 +227,11 @@ saf1761_host_channel_alloc(struct saf1761_otg_softc *sc, struct saf1761_otg_td *
 
 	switch (td->ep_type) {
 	case UE_INTERRUPT:
+		map = sc->sc_host_intr_map |
+		    sc->sc_host_intr_busy_map[0] |
+		    sc->sc_host_intr_busy_map[1];
 		for (x = 0; x != 32; x++) {
-			if (sc->sc_host_intr_map & (1 << x))
+			if (map & (1 << x))
 				continue;
 			sc->sc_host_intr_map |= (1 << x);
 			td->channel = 32 + x;
@@ -234,8 +239,11 @@ saf1761_host_channel_alloc(struct saf1761_otg_softc *sc, struct saf1761_otg_td *
 		}
 		break;
 	case UE_ISOCHRONOUS:
+		map = sc->sc_host_isoc_map |
+		    sc->sc_host_isoc_busy_map[0] |
+		    sc->sc_host_isoc_busy_map[1];
 		for (x = 0; x != 32; x++) {
-			if (sc->sc_host_isoc_map & (1 << x))
+			if (map & (1 << x))
 				continue;
 			sc->sc_host_isoc_map |= (1 << x);
 			td->channel = x;
@@ -243,8 +251,11 @@ saf1761_host_channel_alloc(struct saf1761_otg_softc *sc, struct saf1761_otg_td *
 		}
 		break;
 	default:
+		map = sc->sc_host_async_map |
+		    sc->sc_host_async_busy_map[0] |
+		    sc->sc_host_async_busy_map[1];
 		for (x = 0; x != 32; x++) {
-			if (sc->sc_host_async_map & (1 << x))
+			if (map & (1 << x))
 				continue;
 			sc->sc_host_async_map |= (1 << x);
 			td->channel = 64 + x;
@@ -269,6 +280,7 @@ saf1761_host_channel_free(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 		td->channel = SOTG_HOST_CHANNEL_MAX;
 		sc->sc_host_intr_map &= ~(1 << x);
 		sc->sc_host_intr_suspend_map &= ~(1 << x);
+		sc->sc_host_intr_busy_map[0] |= (1 << x);
 		SAF1761_WRITE_LE_4(sc, SOTG_INT_PTD_SKIP_PTD,
 		    (~sc->sc_host_intr_map) | sc->sc_host_intr_suspend_map);
 		break;
@@ -277,6 +289,7 @@ saf1761_host_channel_free(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 		td->channel = SOTG_HOST_CHANNEL_MAX;
 		sc->sc_host_isoc_map &= ~(1 << x);
 		sc->sc_host_isoc_suspend_map &= ~(1 << x);
+		sc->sc_host_isoc_busy_map[0] |= (1 << x);
 		SAF1761_WRITE_LE_4(sc, SOTG_ISO_PTD_SKIP_PTD,
 		    (~sc->sc_host_isoc_map) | sc->sc_host_isoc_suspend_map);
 		break;
@@ -285,10 +298,12 @@ saf1761_host_channel_free(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 		td->channel = SOTG_HOST_CHANNEL_MAX;
 		sc->sc_host_async_map &= ~(1 << x);
 		sc->sc_host_async_suspend_map &= ~(1 << x);
+		sc->sc_host_async_busy_map[0] |= (1 << x);
 		SAF1761_WRITE_LE_4(sc, SOTG_ATL_PTD_SKIP_PTD,
 		    (~sc->sc_host_async_map) | sc->sc_host_async_suspend_map);
 		break;
 	}
+	saf1761_otg_enable_psof(sc, 1);
 }
 
 static uint32_t
@@ -1484,6 +1499,17 @@ saf1761_otg_interrupt_poll_locked(struct saf1761_otg_softc *sc)
 }
 
 static void
+saf1761_otg_enable_psof(struct saf1761_otg_softc *sc, uint8_t on)
+{
+	if (on) {
+		sc->sc_intr_enable |= SOTG_DCINTERRUPT_IEPSOF;
+	} else {
+		sc->sc_intr_enable &= ~SOTG_DCINTERRUPT_IEPSOF;
+	}
+	SAF1761_WRITE_LE_4(sc, SOTG_DCINTERRUPT_EN, sc->sc_intr_enable);
+}
+
+static void
 saf1761_otg_wait_suspend(struct saf1761_otg_softc *sc, uint8_t on)
 {
 	if (on) {
@@ -1564,6 +1590,27 @@ saf1761_otg_filter_interrupt(void *arg)
 	(void) SAF1761_READ_LE_4(sc, SOTG_ATL_PTD_DONE_PTD);
 	(void) SAF1761_READ_LE_4(sc, SOTG_INT_PTD_DONE_PTD);
 	(void) SAF1761_READ_LE_4(sc, SOTG_ISO_PTD_DONE_PTD);
+
+	if (status & SOTG_DCINTERRUPT_IEPSOF) {
+		if ((sc->sc_host_async_busy_map[1] | sc->sc_host_async_busy_map[0] |
+		     sc->sc_host_intr_busy_map[1] | sc->sc_host_intr_busy_map[0] |
+		     sc->sc_host_isoc_busy_map[1] | sc->sc_host_isoc_busy_map[0]) != 0) {
+			/* busy waiting is active */
+			retval = FILTER_SCHEDULE_THREAD;
+
+			sc->sc_host_async_busy_map[1] = sc->sc_host_async_busy_map[0];
+			sc->sc_host_async_busy_map[0] = 0;
+
+			sc->sc_host_intr_busy_map[1] = sc->sc_host_intr_busy_map[0];
+			sc->sc_host_intr_busy_map[0] = 0;
+
+			sc->sc_host_isoc_busy_map[1] = sc->sc_host_isoc_busy_map[0];
+			sc->sc_host_isoc_busy_map[0] = 0;
+		} else {
+			/* busy waiting is not active */
+			saf1761_otg_enable_psof(sc, 0);
+		}
+	}
 
 	if (status & SAF1761_DCINTERRUPT_THREAD_IRQ)
 		retval = FILTER_SCHEDULE_THREAD;
