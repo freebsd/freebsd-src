@@ -42,6 +42,10 @@
 
 #include "packetbody.h"
 
+#ifdef __CHERI_SANDBOX__
+#include <tcpdump-helper.h>
+#endif
+
 #if !defined(HAVE_SNPRINTF)
 int snprintf (char *str, size_t sz, const char *format, ...)
      __attribute__ ((format (printf, 3, 4)));
@@ -289,6 +293,14 @@ typedef u_int (*if_printer)(const struct pcap_pkthdr *, packetbody_t);
 extern if_ndo_printer lookup_ndo_printer(int);
 extern if_printer lookup_printer(int);
 
+#ifndef __CHERI_SANDBOX__
+#define DISSECTOR_DECLARE(rtype, name, ...)	\
+	rtype name(__VA_ARGS__);
+#else
+#define DISSECTOR_DECLARE(rtype, name, ...)	\
+	rtype name(__VA_ARGS__);		\
+	rtype _##name(__VA_ARGS__);
+#endif
 extern void eap_print(netdissect_options *, packetbody_t, u_int);
 extern int esp_print(netdissect_options *,
 		      packetbody_t bp, int len, packetbody_t bp2,
@@ -302,7 +314,7 @@ extern void isakmp_print(netdissect_options *, packetbody_t,
 			 u_int, packetbody_t);
 extern void isakmp_rfc3948_print(netdissect_options *, packetbody_t,
 				 u_int, packetbody_t);
-extern void ip_print(netdissect_options *, packetbody_t, u_int);
+DISSECTOR_DECLARE(extern void, ip_print, netdissect_options *, packetbody_t, u_int);
 extern void ip_print_inner(netdissect_options *ndo,
 			   packetbody_t, u_int length, u_int nh,
 			   packetbody_t bp2);
@@ -521,5 +533,8 @@ extern int esp_print_decrypt_buffer_by_ikev2(netdissect_options *ndo,
 					     __capability u_char *buf,
 					     packetbody_t end);
 
+#ifdef __CHERI_SANDBOX__
+extern struct cheri_object *gpso;
+#endif
 
 #endif  /* netdissect_h */

@@ -85,7 +85,7 @@ const char *program_name;
 void	pawned(void);
 
 int	invoke(register_t op, register_t localnet, register_t netmask,
-	    const netdissect_options *ndo,
+	    netdissect_options *ndo,
 	    const char *ndo_espsecret,
 	    const struct pcap_pkthdr *h,
 	    const u_char *sp,
@@ -163,7 +163,7 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
  */
 int
 invoke(register_t op, register_t arg1, register_t arg2,
-    const netdissect_options *ndo,
+    netdissect_options *ndo,
     const char *ndo_espsecret,
     const struct pcap_pkthdr *h, const u_char *sp,
     struct cheri_object *proto_sandbox_objects)
@@ -172,16 +172,6 @@ invoke(register_t op, register_t arg1, register_t arg2,
 
 	gpso = proto_sandbox_objects;
 	
-	if (gpso != NULL &&
-	    cheri_getlen(gpso) != 0) {
-		CHERI_PRINT_PTR(gpso);
-		printf("invoking a protocol sandbox\n");
-		return (cheri_invoke(*gpso,
-		    op, arg1, arg2, 0, 0, 0, 0, 0,
-		    (void *)ndo, (void *)ndo_espsecret, (void *)h, (void *)sp,
-		    cheri_incbase(gpso, sizeof(struct cheri_object)),
-		    NULL, NULL, NULL));
-	}
 	ret = 0;
 
 	switch (op) {
@@ -227,6 +217,11 @@ invoke(register_t op, register_t arg1, register_t arg2,
 
 	case TCPDUMP_HELPER_OP_HAS_PRINTER:
 		return (has_printer(arg1));
+
+	case TCPDUMP_HELPER_OP_IP_PRINT:
+		snapend = sp + arg1; /* set to end of capability? */
+		_ip_print(ndo, sp, arg1);
+		break;
 
 	default:
 		printf("unknown op %ld\n", op);

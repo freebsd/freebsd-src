@@ -32,6 +32,11 @@ static const char rcsid[] _U_ =
 
 #include <tcpdump-stdinc.h>
 
+#include <machine/cheri.h>
+#include <machine/cheric.h>
+
+#include <cheri/cheri_invoke.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -524,6 +529,28 @@ ip_print_inner(netdissect_options *ndo,
  */
 void
 ip_print(netdissect_options *ndo,
+	 packetbody_t bp,
+	 u_int length)
+{
+
+#ifdef __CHERI_SANDBOX__
+	if (gpso != NULL &&
+	    cheri_getlen(gpso) != 0) {
+		if (0 != cheri_invoke(*gpso, TCPDUMP_HELPER_OP_IP_PRINT,
+		    length, 0, 0, 0, 0, 0, 0,
+		    (void *)ndo, NULL, NULL, (void *)bp, cheri_incbase(gpso,
+		    sizeof(struct cheri_object)), NULL, NULL, NULL)) {
+
+			printf("failure in ip_print sandbox\n");
+			abort();
+		}
+	} else
+#endif
+		_ip_print(ndo, bp, length);
+}
+
+void
+_ip_print(netdissect_options *ndo,
 	 packetbody_t bp,
 	 u_int length)
 {
