@@ -107,6 +107,8 @@ xhci_pci_match(device_t self)
 		return ("Intel Panther Point USB 3.0 controller");
 	case 0x8c318086:
 		return ("Intel Lynx Point USB 3.0 controller");
+	case 0x8cb18086:
+		return ("Intel Wildcat Point USB 3.0 controller");
 
 	default:
 		break;
