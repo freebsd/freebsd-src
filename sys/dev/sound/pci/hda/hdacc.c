@@ -318,6 +318,7 @@ static const struct {
 	{ HDA_CODEC_INTELIP2, 0,	"Intel Ibex Peak" },
 	{ HDA_CODEC_INTELCPT, 0,	"Intel Cougar Point" },
 	{ HDA_CODEC_INTELPPT, 0,	"Intel Panther Point" },
+	{ HDA_CODEC_INTELLP, 0,		"Intel Lynx Point" },
 	{ HDA_CODEC_INTELCL, 0,		"Intel Crestline" },
 	{ HDA_CODEC_SII1390, 0,		"Silicon Image SiI1390" },
 	{ HDA_CODEC_SII1392, 0,		"Silicon Image SiI1392" },
