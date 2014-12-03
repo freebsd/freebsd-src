@@ -2602,6 +2602,7 @@ product LENOVO ETHERNET		0x7203	USB 2.0 Ethernet
 /* Lexar products */
 product LEXAR JUMPSHOT		0x0001	jumpSHOT CompactFlash Reader
 product LEXAR CF_READER		0xb002	USB CF Reader
+product LEXAR JUMPDRIVE		0xa833	USB Jumpdrive Flash Drive
 
 /* Lexmark products */
 product LEXMARK S2450		0x0009	Optra S 2450
