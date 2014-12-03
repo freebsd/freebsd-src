@@ -230,7 +230,7 @@ saf1761_host_channel_alloc(struct saf1761_otg_softc *sc, struct saf1761_otg_td *
 		map = sc->sc_host_intr_map |
 		    sc->sc_host_intr_busy_map[0] |
 		    sc->sc_host_intr_busy_map[1];
-		for (x = 0; x != 32; x++) {
+		for (x = ((map & 0xFFFF) == 0xFFFF) ? 16 : 0; x != 32; x++) {
 			if (map & (1 << x))
 				continue;
 			sc->sc_host_intr_map |= (1 << x);
@@ -242,7 +242,7 @@ saf1761_host_channel_alloc(struct saf1761_otg_softc *sc, struct saf1761_otg_td *
 		map = sc->sc_host_isoc_map |
 		    sc->sc_host_isoc_busy_map[0] |
 		    sc->sc_host_isoc_busy_map[1];
-		for (x = 0; x != 32; x++) {
+		for (x = ((map & 0xFFFF) == 0xFFFF) ? 16 : 0; x != 32; x++) {
 			if (map & (1 << x))
 				continue;
 			sc->sc_host_isoc_map |= (1 << x);
@@ -254,7 +254,7 @@ saf1761_host_channel_alloc(struct saf1761_otg_softc *sc, struct saf1761_otg_td *
 		map = sc->sc_host_async_map |
 		    sc->sc_host_async_busy_map[0] |
 		    sc->sc_host_async_busy_map[1];
-		for (x = 0; x != 32; x++) {
+		for (x = ((map & 0xFFFF) == 0xFFFF) ? 16 : 0; x != 32; x++) {
 			if (map & (1 << x))
 				continue;
 			sc->sc_host_async_map |= (1 << x);
