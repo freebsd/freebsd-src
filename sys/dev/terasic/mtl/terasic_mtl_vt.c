@@ -94,6 +94,14 @@ terasic_mtl_fbd_attach(struct terasic_mtl_softc *sc)
 {
 	struct fb_info *info;
 	device_t fbd;
+	char vtname[16] = "";
+
+	TUNABLE_STR_FETCH("kern.vt.driver", vtname, sizeof(vtname));
+	if (vtname[0] != '\0' && strcmp(vtname, "terasic_mtl") != 0) {
+		device_printf(sc->mtl_dev,
+		    "terasic_mtl not selected by kern.vt.driver tunable\n");
+		return (0);
+	}
 
 	info = &sc->mtl_fb_info;
 	info->fb_name = device_get_nameunit(sc->mtl_dev);

@@ -128,6 +128,14 @@ pixelstream_fbd_attach(struct pixelstream_softc *sc)
 {
 	struct fb_info *info;
 	device_t fbd;
+	char vtname[16] = "";
+
+	TUNABLE_STR_FETCH("kern.vt.driver", vtname, sizeof(vtname));
+	if (vtname[0] == '\0' || strcmp(vtname, "pixelstream") != 0) {
+		device_printf(sc->ps_dev,
+		  "pixelstream vt(4) not selected by kern.vt.driver tunable\n");
+		return (0);
+	}
 
 	info = &sc->ps_fb_info;
 
