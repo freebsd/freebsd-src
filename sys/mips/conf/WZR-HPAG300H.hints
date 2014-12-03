@@ -3,7 +3,6 @@
 # arge0 is connected to the LAN side of the switch PHY.
 # arge1 is connected to the single port WAN side of the switch PHY.
 
-# arge1 MDIO bus
 hint.argemdio.0.at="nexus0"
 hint.argemdio.0.maddr=0x19000000
 hint.argemdio.0.msize=0x1000
@@ -24,7 +23,7 @@ hint.arge.1.mdio=mdioproxy1     # .. off of the switch mdiobus
 hint.arge.1.miimode=3 
 
 #
-# AR8317 switch config
+# AR8316 switch config
 #
 hint.arswitch.0.at="mdio0"
 hint.arswitch.0.is_7240=0       # We need to be explicitly told this
