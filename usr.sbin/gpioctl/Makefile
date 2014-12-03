@@ -5,7 +5,6 @@ MAN=	gpioctl.8
 
 CFLAGS+= -I${.CURDIR}/../../lib/libgpio
 
-DPADD+=	${LIBGPIO}
-LDADD+= -lgpio
+LIBADD=	gpio
 
 .include <bsd.prog.mk>
