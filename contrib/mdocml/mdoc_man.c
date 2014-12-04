@@ -1,4 +1,4 @@
-/*	$Id: mdoc_man.c,v 1.68 2014/08/06 15:09:05 schwarze Exp $ */
+/*	$Id: mdoc_man.c,v 1.76 2014/11/27 22:27:56 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
  *
@@ -14,9 +14,9 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
+
+#include <sys/types.h>
 
 #include <assert.h>
 #include <stdio.h>
@@ -46,6 +46,7 @@ static  void	  font_push(char);
 static	void	  font_pop(void);
 static	void	  mid_it(void);
 static	void	  post__t(DECL_ARGS);
+static	void	  post_aq(DECL_ARGS);
 static	void	  post_bd(DECL_ARGS);
 static	void	  post_bf(DECL_ARGS);
 static	void	  post_bk(DECL_ARGS);
@@ -72,6 +73,7 @@ static	void	  post_vt(DECL_ARGS);
 static	int	  pre__t(DECL_ARGS);
 static	int	  pre_an(DECL_ARGS);
 static	int	  pre_ap(DECL_ARGS);
+static	int	  pre_aq(DECL_ARGS);
 static	int	  pre_bd(DECL_ARGS);
 static	int	  pre_bf(DECL_ARGS);
 static	int	  pre_bk(DECL_ARGS);
@@ -82,7 +84,8 @@ static	int	  pre_dl(DECL_ARGS);
 static	int	  pre_en(DECL_ARGS);
 static	int	  pre_enc(DECL_ARGS);
 static	int	  pre_em(DECL_ARGS);
-static	int	  pre_es(DECL_ARGS);
+static	int	  pre_skip(DECL_ARGS);
+static	int	  pre_eo(DECL_ARGS);
 static	int	  pre_ex(DECL_ARGS);
 static	int	  pre_fa(DECL_ARGS);
 static	int	  pre_fd(DECL_ARGS);
@@ -112,7 +115,7 @@ static	int	  pre_xr(DECL_ARGS);
 static	void	  print_word(const char *);
 static	void	  print_line(const char *, int);
 static	void	  print_block(const char *, int);
-static	void	  print_offs(const char *);
+static	void	  print_offs(const char *, int);
 static	void	  print_width(const char *,
 				const struct mdoc_node *, size_t);
 static	void	  print_count(int *);
@@ -172,8 +175,8 @@ static	const struct manact manacts[MDOC_MAX + 1] = {
 	{ NULL, pre__t, post__t, NULL, NULL }, /* %T */
 	{ NULL, NULL, post_percent, NULL, NULL }, /* %V */
 	{ NULL, NULL, NULL, NULL, NULL }, /* Ac */
-	{ cond_body, pre_enc, post_enc, "<", ">" }, /* Ao */
-	{ cond_body, pre_enc, post_enc, "<", ">" }, /* Aq */
+	{ cond_body, pre_aq, post_aq, NULL, NULL }, /* Ao */
+	{ cond_body, pre_aq, post_aq, NULL, NULL }, /* Aq */
 	{ NULL, NULL, NULL, NULL, NULL }, /* At */
 	{ NULL, NULL, NULL, NULL, NULL }, /* Bc */
 	{ NULL, pre_bf, post_bf, NULL, NULL }, /* Bf */
@@ -181,14 +184,14 @@ static	const struct manact manacts[MDOC_MAX + 1] = {
 	{ cond_body, pre_enc, post_enc, "[", "]" }, /* Bq */
 	{ NULL, pre_ux, NULL, "BSD/OS", NULL }, /* Bsx */
 	{ NULL, pre_bx, NULL, NULL, NULL }, /* Bx */
-	{ NULL, NULL, NULL, NULL, NULL }, /* Db */
+	{ NULL, pre_skip, NULL, NULL, NULL }, /* Db */
 	{ NULL, NULL, NULL, NULL, NULL }, /* Dc */
 	{ cond_body, pre_enc, post_enc, "\\(lq", "\\(rq" }, /* Do */
 	{ cond_body, pre_enc, post_enc, "\\(lq", "\\(rq" }, /* Dq */
 	{ NULL, NULL, NULL, NULL, NULL }, /* Ec */
 	{ NULL, NULL, NULL, NULL, NULL }, /* Ef */
 	{ NULL, pre_em, post_font, NULL, NULL }, /* Em */
-	{ NULL, NULL, post_eo, NULL, NULL }, /* Eo */
+	{ cond_body, pre_eo, post_eo, NULL, NULL }, /* Eo */
 	{ NULL, pre_ux, NULL, "FreeBSD", NULL }, /* Fx */
 	{ NULL, pre_sy, post_font, NULL, NULL }, /* Ms */
 	{ NULL, pre_no, NULL, NULL, NULL }, /* No */
@@ -233,7 +236,7 @@ static	const struct manact manacts[MDOC_MAX + 1] = {
 	{ cond_body, pre_enc, post_enc, "{", "}" }, /* Bro */
 	{ NULL, NULL, NULL, NULL, NULL }, /* Brc */
 	{ NULL, NULL, post_percent, NULL, NULL }, /* %C */
-	{ NULL, pre_es, NULL, NULL, NULL }, /* Es */
+	{ NULL, pre_skip, NULL, NULL, NULL }, /* Es */
 	{ cond_body, pre_en, post_en, NULL, NULL }, /* En */
 	{ NULL, pre_ux, NULL, "DragonFly", NULL }, /* Dx */
 	{ NULL, NULL, post_percent, NULL, NULL }, /* %Q */
@@ -416,7 +419,7 @@ print_block(const char *s, int newflags)
 }
 
 static void
-print_offs(const char *v)
+print_offs(const char *v, int keywords)
 {
 	char		  buf[24];
 	struct roffsu	  su;
@@ -425,11 +428,11 @@ print_offs(const char *v)
 	print_line(".RS", MMAN_Bk_susp);
 
 	/* Convert v into a number (of characters). */
-	if (NULL == v || '\0' == *v || 0 == strcmp(v, "left"))
+	if (NULL == v || '\0' == *v || (keywords && !strcmp(v, "left")))
 		sz = 0;
-	else if (0 == strcmp(v, "indent"))
+	else if (keywords && !strcmp(v, "indent"))
 		sz = 6;
-	else if (0 == strcmp(v, "indent-two"))
+	else if (keywords && !strcmp(v, "indent-two"))
 		sz = 12;
 	else if (a2roffsu(v, &su, SCALE_MAX)) {
 		if (SCALE_EN == su.unit)
@@ -594,15 +597,19 @@ print_node(DECL_ARGS)
 			printf("\\&");
 			outflags &= ~MMAN_spc;
 		}
+		if (outflags & MMAN_Sm && ! (n->flags & MDOC_DELIMC))
+			outflags |= MMAN_spc_force;
 		print_word(n->string);
+		if (outflags & MMAN_Sm && ! (n->flags & MDOC_DELIMO))
+			outflags |= MMAN_spc;
 	} else {
 		/*
 		 * Conditionally run the pre-node action handler for a
 		 * node.
 		 */
 		act = manacts + n->tok;
-		cond = NULL == act->cond || (*act->cond)(meta, n);
-		if (cond && act->pre && ENDBODY_NOT == n->end)
+		cond = act->cond == NULL || (*act->cond)(meta, n);
+		if (cond && act->pre && (n->end == ENDBODY_NOT || n->nchild))
 			do_sub = (*act->pre)(meta, n);
 	}
 
@@ -866,6 +873,25 @@ pre_ap(DECL_ARGS)
 }
 
 static int
+pre_aq(DECL_ARGS)
+{
+
+	print_word(n->parent->prev != NULL &&
+	    n->parent->prev->tok == MDOC_An ?  "<" : "\\(la");
+	outflags &= ~MMAN_spc;
+	return(1);
+}
+
+static void
+post_aq(DECL_ARGS)
+{
+
+	outflags &= ~(MMAN_spc | MMAN_nl);
+	print_word(n->parent->prev != NULL &&
+	    n->parent->prev->tok == MDOC_An ?  ">" : "\\(ra");
+}
+
+static int
 pre_bd(DECL_ARGS)
 {
 
@@ -876,7 +902,7 @@ pre_bd(DECL_ARGS)
 		print_line(".nf", 0);
 	if (0 == n->norm->Bd.comp && NULL != n->parent->prev)
 		outflags |= MMAN_sp;
-	print_offs(n->norm->Bd.offs);
+	print_offs(n->norm->Bd.offs, 1);
 	return(1);
 }
 
@@ -963,7 +989,7 @@ pre_bl(DECL_ARGS)
 	 * just nest and do not add up their indentation.
 	 */
 	if (n->norm->Bl.offs) {
-		print_offs(n->norm->Bl.offs);
+		print_offs(n->norm->Bl.offs, 0);
 		Bl_stack[Bl_stack_len++] = 0;
 	}
 
@@ -1048,7 +1074,7 @@ static int
 pre_dl(DECL_ARGS)
 {
 
-	print_offs("6n");
+	print_offs("6n", 0);
 	return(1);
 }
 
@@ -1098,19 +1124,20 @@ post_en(DECL_ARGS)
 	return;
 }
 
+static int
+pre_eo(DECL_ARGS)
+{
+
+	outflags &= ~(MMAN_spc | MMAN_nl);
+	return(1);
+}
+
 static void
 post_eo(DECL_ARGS)
 {
 
-	if (MDOC_HEAD == n->type || MDOC_BODY == n->type)
+	if (n->end != ENDBODY_SPACE)
 		outflags &= ~MMAN_spc;
-}
-
-static int
-pre_es(DECL_ARGS)
-{
-
-	return(0);
 }
 
 static int
@@ -1166,7 +1193,8 @@ pre_fl(DECL_ARGS)
 
 	font_push('B');
 	print_word("\\-");
-	outflags &= ~MMAN_spc;
+	if (n->nchild)
+		outflags &= ~MMAN_spc;
 	return(1);
 }
 
@@ -1175,8 +1203,10 @@ post_fl(DECL_ARGS)
 {
 
 	font_pop();
-	if (0 == n->nchild && NULL != n->next &&
-			n->next->line == n->line)
+	if ( ! (n->nchild ||
+	    n->next == NULL ||
+	    n->next->type == MDOC_TEXT ||
+	    n->next->flags & MDOC_LINE))
 		outflags &= ~MMAN_spc;
 }
 
@@ -1337,7 +1367,7 @@ pre_it(DECL_ARGS)
 			outflags |= MMAN_nl;
 			font_push('B');
 			if (LIST_bullet == bln->norm->Bl.type)
-				print_word("o");
+				print_word("\\(bu");
 			else
 				print_word("-");
 			font_pop();
@@ -1646,6 +1676,13 @@ pre_rv(DECL_ARGS)
 
 	print_word("is set to indicate the error.");
 	outflags |= MMAN_nl;
+	return(0);
+}
+
+static int
+pre_skip(DECL_ARGS)
+{
+
 	return(0);
 }
 

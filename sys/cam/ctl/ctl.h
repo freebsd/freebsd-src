@@ -186,6 +186,7 @@ int ctl_config_move_done(union ctl_io *io);
 void ctl_datamove(union ctl_io *io);
 void ctl_done(union ctl_io *io);
 void ctl_data_submit_done(union ctl_io *io);
+void ctl_config_read_done(union ctl_io *io);
 void ctl_config_write_done(union ctl_io *io);
 void ctl_portDB_changed(int portnum);
 void ctl_init_isc_msg(void);

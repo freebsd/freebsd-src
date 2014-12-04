@@ -84,6 +84,7 @@ _LIBRARIES=	\
 		figpar \
 		geom \
 		gnuregex \
+		gpio \
 		gssapi \
 		gssapi_krb5 \
 		hdb \
