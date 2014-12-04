@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2014
+.Dd December 4, 2014
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -1007,10 +1007,11 @@ Set to "on", enables UNMAP support for the LUN, if supported by the backend.
 .It Va used-threshold
 .It Va pool-avail-threshold
 .It Va pool-used-threshold
-Set per-LUN/-pool thin provisioning soft thresholds for ZVOL-backed LUNs.
+Set per-LUN/-pool thin provisioning soft thresholds.
 LUN will establish UNIT ATTENTION condition if its or pool available space
 get below configured avail values, or its or pool used space get above
 configured used values.
+Pool thresholds are working only for ZVOL-backed LUNs.
 .It Va writecache
 Set to "off", disables write caching for the LUN, if supported by the backend.
 .El
