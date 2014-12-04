@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20141201: new clang import which bumps version from 3.4.1 to 3.5.0.
+# 20141204: new clang import which bumps version from 3.4.1 to 3.5.0.
 OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_pclmul.h
 OLD_FILES+=usr/include/clang/3.4.1/altivec.h
@@ -74,6 +74,9 @@ OLD_FILES+=usr/include/clang/3.4.1/x86intrin.h
 OLD_FILES+=usr/include/clang/3.4.1/xmmintrin.h
 OLD_FILES+=usr/include/clang/3.4.1/xopintrin.h
 OLD_DIRS+=usr/include/clang/3.4.1
+# 20141202: update to mandoc CVS 20141201
+OLD_FILES+=usr.bin/preconv
+OLD_FILES+=share/man/man1/preconv.1.gz
 # 20141129: mrouted rc.d scripts removed from base
 OLD_FILES+=etc/rc.d/mrouted
 # 20141126: convert sbin/mdconfig/tests to ATF format tests

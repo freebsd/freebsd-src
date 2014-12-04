@@ -1,4 +1,4 @@
-/*	$Id: manpage.c,v 1.7 2014/01/06 03:02:46 schwarze Exp $ */
+/*	$Id: manpage.c,v 1.9 2014/08/17 03:24:47 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,9 +15,9 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
+
+#include <sys/types.h>
 
 #include <assert.h>
 #include <getopt.h>
@@ -87,10 +87,11 @@ main(int argc, char *argv[])
 	if (0 == argc)
 		goto usage;
 
-	search.deftype = TYPE_Nm | TYPE_Nd;
+	search.outkey = "Nd";
+	search.argmode = ARG_EXPR;
 
 	manpath_parse(&paths, conf_file, defpaths, auxpaths);
-	ch = mansearch(&search, &paths, argc, argv, "Nd", &res, &sz);
+	ch = mansearch(&search, &paths, argc, argv, &res, &sz);
 	manpath_free(&paths);
 
 	if (0 == ch)

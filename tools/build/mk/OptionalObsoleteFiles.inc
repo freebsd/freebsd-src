@@ -1200,6 +1200,11 @@ OLD_FILES+=usr/share/dict/words
 OLD_DIRS+=usr/share/dict
 .endif
 
+.if ${MK_ELFTOOLCHAIN_TOOLS} == no
+OLD_FILES+=usr/bin/elfcopy
+OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
+.endif
+
 #.if ${MK_EXAMPLES} == no
 # to be filled in
 #.endif
