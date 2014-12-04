@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <sys/filedesc.h>
+#include <sys/filio.h>
 #include <sys/proc.h>
 #include <sys/pcpu.h>
 #include <sys/module.h>
@@ -163,6 +164,7 @@ struct ctl_be_block_lun {
 	cbb_dispatch_t dispatch;
 	cbb_dispatch_t lun_flush;
 	cbb_dispatch_t unmap;
+	cbb_dispatch_t get_lba_status;
 	cbb_getattr_t getattr;
 	uma_zone_t lun_zone;
 	uint64_t size_blocks;
@@ -180,6 +182,7 @@ struct ctl_be_block_lun {
 	struct task io_task;
 	int num_threads;
 	STAILQ_HEAD(, ctl_io_hdr) input_queue;
+	STAILQ_HEAD(, ctl_io_hdr) config_read_queue;
 	STAILQ_HEAD(, ctl_io_hdr) config_write_queue;
 	STAILQ_HEAD(, ctl_io_hdr) datamove_queue;
 	struct mtx_padalign io_lock;
@@ -237,6 +240,8 @@ static void ctl_be_block_flush_file(struct ctl_be_block_lun *be_lun,
 				    struct ctl_be_block_io *beio);
 static void ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 				       struct ctl_be_block_io *beio);
+static void ctl_be_block_gls_file(struct ctl_be_block_lun *be_lun,
+				  struct ctl_be_block_io *beio);
 static void ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
 				   struct ctl_be_block_io *beio);
 static void ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
@@ -245,6 +250,8 @@ static void ctl_be_block_dispatch_dev(struct ctl_be_block_lun *be_lun,
 				      struct ctl_be_block_io *beio);
 static uint64_t ctl_be_block_getattr_dev(struct ctl_be_block_lun *be_lun,
 					 const char *attrname);
+static void ctl_be_block_cr_dispatch(struct ctl_be_block_lun *be_lun,
+				    union ctl_io *io);
 static void ctl_be_block_cw_dispatch(struct ctl_be_block_lun *be_lun,
 				    union ctl_io *io);
 static void ctl_be_block_dispatch(struct ctl_be_block_lun *be_lun,
@@ -753,6 +760,46 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 }
 
 static void
+ctl_be_block_gls_file(struct ctl_be_block_lun *be_lun,
+			struct ctl_be_block_io *beio)
+{
+	union ctl_io *io = beio->io;
+	struct ctl_lba_len_flags *lbalen = ARGS(io);
+	struct scsi_get_lba_status_data *data;
+	off_t roff, off;
+	int error, status;
+
+	DPRINTF("entered\n");
+
+	off = roff = ((off_t)lbalen->lba) << be_lun->blocksize_shift;
+	vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
+	error = VOP_IOCTL(be_lun->vn, FIOSEEKHOLE, &off,
+	    0, curthread->td_ucred, curthread);
+	if (error == 0 && off > roff)
+		status = 0;	/* mapped up to off */
+	else {
+		error = VOP_IOCTL(be_lun->vn, FIOSEEKDATA, &off,
+		    0, curthread->td_ucred, curthread);
+		if (error == 0 && off > roff)
+			status = 1;	/* deallocated up to off */
+		else {
+			status = 0;	/* unknown up to the end */
+			off = be_lun->size_bytes;
+		}
+	}
+	VOP_UNLOCK(be_lun->vn, 0);
+
+	off >>= be_lun->blocksize_shift;
+	data = (struct scsi_get_lba_status_data *)io->scsiio.kern_data_ptr;
+	scsi_u64to8b(lbalen->lba, data->descr[0].addr);
+	scsi_ulto4b(MIN(UINT32_MAX, off - lbalen->lba),
+	    data->descr[0].length);
+	data->descr[0].status = status;
+
+	ctl_complete_beio(beio);
+}
+
+static void
 ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 			   struct ctl_be_block_io *beio)
 {
@@ -842,6 +889,45 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 #endif  
 		ctl_datamove(io);
 	}
+}
+
+static void
+ctl_be_block_gls_zvol(struct ctl_be_block_lun *be_lun,
+			struct ctl_be_block_io *beio)
+{
+	struct ctl_be_block_devdata *dev_data = &be_lun->backend.dev;
+	union ctl_io *io = beio->io;
+	struct ctl_lba_len_flags *lbalen = ARGS(io);
+	struct scsi_get_lba_status_data *data;
+	off_t roff, off;
+	int error, status;
+
+	DPRINTF("entered\n");
+
+	off = roff = ((off_t)lbalen->lba) << be_lun->blocksize_shift;
+	error = (*dev_data->csw->d_ioctl)(dev_data->cdev, FIOSEEKHOLE,
+	    (caddr_t)&off, FREAD, curthread);
+	if (error == 0 && off > roff)
+		status = 0;	/* mapped up to off */
+	else {
+		error = (*dev_data->csw->d_ioctl)(dev_data->cdev, FIOSEEKDATA,
+		    (caddr_t)&off, FREAD, curthread);
+		if (error == 0 && off > roff)
+			status = 1;	/* deallocated up to off */
+		else {
+			status = 0;	/* unknown up to the end */
+			off = be_lun->size_bytes;
+		}
+	}
+
+	off >>= be_lun->blocksize_shift;
+	data = (struct scsi_get_lba_status_data *)io->scsiio.kern_data_ptr;
+	scsi_u64to8b(lbalen->lba, data->descr[0].addr);
+	scsi_ulto4b(MIN(UINT32_MAX, off - lbalen->lba),
+	    data->descr[0].length);
+	data->descr[0].status = status;
+
+	ctl_complete_beio(beio);
 }
 
 static void
@@ -1217,6 +1303,49 @@ ctl_be_block_cw_dispatch_unmap(struct ctl_be_block_lun *be_lun,
 }
 
 static void
+ctl_be_block_cr_done(struct ctl_be_block_io *beio)
+{
+	union ctl_io *io;
+
+	io = beio->io;
+	ctl_free_beio(beio);
+	ctl_config_read_done(io);
+}
+
+static void
+ctl_be_block_cr_dispatch(struct ctl_be_block_lun *be_lun,
+			 union ctl_io *io)
+{
+	struct ctl_be_block_io *beio;
+	struct ctl_be_block_softc *softc;
+
+	DPRINTF("entered\n");
+
+	softc = be_lun->softc;
+	beio = ctl_alloc_beio(softc);
+	beio->io = io;
+	beio->lun = be_lun;
+	beio->beio_cont = ctl_be_block_cr_done;
+	PRIV(io)->ptr = (void *)beio;
+
+	switch (io->scsiio.cdb[0]) {
+	case SERVICE_ACTION_IN:		/* GET LBA STATUS */
+		beio->bio_cmd = -1;
+		beio->ds_trans_type = DEVSTAT_NO_DATA;
+		beio->ds_tag_type = DEVSTAT_TAG_ORDERED;
+		beio->io_len = 0;
+		if (be_lun->get_lba_status)
+			be_lun->get_lba_status(be_lun, beio);
+		else
+			ctl_be_block_cr_done(beio);
+		break;
+	default:
+		panic("Unhandled CDB type %#x", io->scsiio.cdb[0]);
+		break;
+	}
+}
+
+static void
 ctl_be_block_cw_done(struct ctl_be_block_io *beio)
 {
 	union ctl_io *io;
@@ -1451,16 +1580,21 @@ ctl_be_block_worker(void *context, int pending)
 		}
 		io = (union ctl_io *)STAILQ_FIRST(&be_lun->config_write_queue);
 		if (io != NULL) {
-
 			DPRINTF("config write queue\n");
-
 			STAILQ_REMOVE(&be_lun->config_write_queue, &io->io_hdr,
 				      ctl_io_hdr, links);
-
 			mtx_unlock(&be_lun->queue_lock);
-
 			ctl_be_block_cw_dispatch(be_lun, io);
-
+			mtx_lock(&be_lun->queue_lock);
+			continue;
+		}
+		io = (union ctl_io *)STAILQ_FIRST(&be_lun->config_read_queue);
+		if (io != NULL) {
+			DPRINTF("config read queue\n");
+			STAILQ_REMOVE(&be_lun->config_read_queue, &io->io_hdr,
+				      ctl_io_hdr, links);
+			mtx_unlock(&be_lun->queue_lock);
+			ctl_be_block_cr_dispatch(be_lun, io);
 			mtx_lock(&be_lun->queue_lock);
 			continue;
 		}
@@ -1589,6 +1723,7 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	be_lun->dev_type = CTL_BE_BLOCK_FILE;
 	be_lun->dispatch = ctl_be_block_dispatch_file;
 	be_lun->lun_flush = ctl_be_block_flush_file;
+	be_lun->get_lba_status = ctl_be_block_gls_file;
 
 	error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
 	if (error != 0) {
@@ -1675,9 +1810,10 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 					     &be_lun->backend.dev.dev_ref);
 	if (be_lun->backend.dev.csw == NULL)
 		panic("Unable to retrieve device switch");
-	if (strcmp(be_lun->backend.dev.csw->d_name, "zvol") == 0)
+	if (strcmp(be_lun->backend.dev.csw->d_name, "zvol") == 0) {
 		be_lun->dispatch = ctl_be_block_dispatch_zvol;
-	else
+		be_lun->get_lba_status = ctl_be_block_gls_zvol;
+	} else
 		be_lun->dispatch = ctl_be_block_dispatch_dev;
 	be_lun->lun_flush = ctl_be_block_flush_dev;
 	be_lun->unmap = ctl_be_block_unmap_dev;
@@ -1952,6 +2088,7 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	be_lun->params = req->reqdata.create;
 	be_lun->softc = softc;
 	STAILQ_INIT(&be_lun->input_queue);
+	STAILQ_INIT(&be_lun->config_read_queue);
 	STAILQ_INIT(&be_lun->config_write_queue);
 	STAILQ_INIT(&be_lun->datamove_queue);
 	sprintf(be_lun->lunname, "cblk%d", softc->num_luns);
@@ -2582,13 +2719,50 @@ ctl_be_block_config_write(union ctl_io *io)
 	}
 
 	return (retval);
-
 }
 
 static int
 ctl_be_block_config_read(union ctl_io *io)
 {
-	return (0);
+	struct ctl_be_block_lun *be_lun;
+	struct ctl_be_lun *ctl_be_lun;
+	int retval = 0;
+
+	DPRINTF("entered\n");
+
+	ctl_be_lun = (struct ctl_be_lun *)io->io_hdr.ctl_private[
+		CTL_PRIV_BACKEND_LUN].ptr;
+	be_lun = (struct ctl_be_block_lun *)ctl_be_lun->be_lun;
+
+	switch (io->scsiio.cdb[0]) {
+	case SERVICE_ACTION_IN:
+		if (io->scsiio.cdb[1] == SGLS_SERVICE_ACTION) {
+			mtx_lock(&be_lun->queue_lock);
+			STAILQ_INSERT_TAIL(&be_lun->config_read_queue,
+			    &io->io_hdr, links);
+			mtx_unlock(&be_lun->queue_lock);
+			taskqueue_enqueue(be_lun->io_taskqueue,
+			    &be_lun->io_task);
+			retval = CTL_RETVAL_QUEUED;
+			break;
+		}
+		ctl_set_invalid_field(&io->scsiio,
+				      /*sks_valid*/ 1,
+				      /*command*/ 1,
+				      /*field*/ 1,
+				      /*bit_valid*/ 1,
+				      /*bit*/ 4);
+		ctl_config_read_done(io);
+		retval = CTL_RETVAL_COMPLETE;
+		break;
+	default:
+		ctl_set_invalid_opcode(&io->scsiio);
+		ctl_config_read_done(io);
+		retval = CTL_RETVAL_COMPLETE;
+		break;
+	}
+
+	return (retval);
 }
 
 static int
