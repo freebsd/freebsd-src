@@ -78,7 +78,7 @@ static int	parsefile(const char *);
 static int	parse(const char *, int);
 static int	show_var(int *, int);
 static int	sysctl_all(int *oid, int len);
-static int	name2oid(char *, int *);
+static int	name2oid(const char *, int *);
 
 static int	set_IK(const char *, int *);
 
@@ -693,7 +693,7 @@ set_IK(const char *str, int *val)
  */
 
 static int
-name2oid(char *name, int *oidp)
+name2oid(const char *name, int *oidp)
 {
 	int oid[2];
 	int i;
