@@ -433,7 +433,7 @@ const struct ctl_cmd_entry ctl_cmd_table_9e[32] =
 /* 0F */
 {NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
 
-/* 10 */
+/* 10 READ CAPACITY(16) */
 {ctl_read_capacity_16, CTL_SERIDX_RD_CAP, CTL_CMD_FLAG_OK_ON_SLUN |
 					  CTL_CMD_FLAG_OK_ON_STOPPED |
 					  CTL_CMD_FLAG_OK_ON_INOPERABLE |
@@ -443,7 +443,18 @@ const struct ctl_cmd_entry ctl_cmd_table_9e[32] =
  CTL_LUN_PAT_READCAP,
  16, {0x10, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
-/* 11-1f */
+/* 11 */
+{NULL, CTL_SERIDX_INVLD, CTL_CMD_FLAG_NONE, CTL_LUN_PAT_NONE},
+
+/* 12 GET LBA STATUS */
+{ctl_get_lba_status, CTL_SERIDX_READ, CTL_CMD_FLAG_OK_ON_SLUN |
+				      CTL_FLAG_DATA_IN |
+				      CTL_CMD_FLAG_ALLOW_ON_PR_WRESV,
+ CTL_LUN_PAT_READ | CTL_LUN_PAT_RANGE,
+ 16, {0x12, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+    0xff, 0xff, 0xff, 0xff, 0, 0x07}},
+
+/* 13-1f */
 };
 
 /* A3 MAINTENANCE IN */
