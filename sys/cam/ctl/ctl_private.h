@@ -516,6 +516,7 @@ int ctl_report_supported_opcodes(struct ctl_scsiio *ctsio);
 int ctl_report_supported_tmf(struct ctl_scsiio *ctsio);
 int ctl_report_timestamp(struct ctl_scsiio *ctsio);
 int ctl_isc(struct ctl_scsiio *ctsio);
+int ctl_get_lba_status(struct ctl_scsiio *ctsio);
 
 void ctl_tpc_init(struct ctl_softc *softc);
 void ctl_tpc_shutdown(struct ctl_softc *softc);
