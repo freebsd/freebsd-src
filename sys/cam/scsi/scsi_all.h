@@ -2518,6 +2518,32 @@ struct scsi_read_capacity_data_long
 	uint8_t	reserved[16];
 };
 
+struct scsi_get_lba_status
+{
+	uint8_t opcode;
+#define	SGLS_SERVICE_ACTION	0x12
+	uint8_t service_action;
+	uint8_t addr[8];
+	uint8_t alloc_len[4];
+	uint8_t reserved;
+	uint8_t control;
+};
+
+struct scsi_get_lba_status_data_descr
+{
+	uint8_t addr[8];
+	uint8_t length[4];
+	uint8_t status;
+	uint8_t reserved[3];
+};
+
+struct scsi_get_lba_status_data
+{
+	uint8_t length[4];
+	uint8_t reserved[4];
+	struct scsi_get_lba_status_data_descr descr[];
+};
+
 struct scsi_report_luns
 {
 	uint8_t opcode;
