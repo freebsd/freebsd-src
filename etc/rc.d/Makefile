@@ -91,7 +91,6 @@ FILES=	DAEMON \
 	mountd \
 	moused \
 	mroute6d \
-	mrouted \
 	msgs \
 	natd \
 	netif \

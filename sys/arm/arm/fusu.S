@@ -129,7 +129,7 @@ EENTRY_NP(fuword32)
 	str	r1, [r2, #PCB_ONFAULT]
 	mov	r0, r3
 	RET
-END(fuword32)
+EEND(fuword32)
 END(fuword)
 
 /*
@@ -295,7 +295,7 @@ EENTRY_NP(suword32)
 	mov	r0, #0x00000000
 	str	r0, [r2, #PCB_ONFAULT]
 	RET
-END(suword32)
+EEND(suword32)
 END(suword)
 
 /*

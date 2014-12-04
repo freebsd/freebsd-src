@@ -835,7 +835,8 @@ lacp_select_tx_port(struct lagg_softc *sc, struct mbuf *m)
 		return (NULL);
 	}
 
-	if ((sc->sc_opts & LAGG_OPT_USE_FLOWID) && (m->m_flags & M_FLOWID))
+	if ((sc->sc_opts & LAGG_OPT_USE_FLOWID) &&
+	    M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		hash = m->m_pkthdr.flowid >> sc->flowid_shift;
 	else
 		hash = lagg_hashmbuf(sc, m, lsc->lsc_hashkey);

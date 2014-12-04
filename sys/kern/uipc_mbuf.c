@@ -388,7 +388,7 @@ mb_dupcl(struct mbuf *n, struct mbuf *m)
  * cleaned too.
  */
 void
-m_demote(struct mbuf *m0, int all)
+m_demote(struct mbuf *m0, int all, int flags)
 {
 	struct mbuf *m;
 
@@ -400,7 +400,7 @@ m_demote(struct mbuf *m0, int all)
 			m->m_flags &= ~M_PKTHDR;
 			bzero(&m->m_pkthdr, sizeof(struct pkthdr));
 		}
-		m->m_flags = m->m_flags & (M_EXT|M_RDONLY|M_NOFREE);
+		m->m_flags = m->m_flags & (M_EXT | M_RDONLY | M_NOFREE | flags);
 	}
 }
 
@@ -997,7 +997,7 @@ m_catpkt(struct mbuf *m, struct mbuf *n)
 	M_ASSERTPKTHDR(n);
 
 	m->m_pkthdr.len += n->m_pkthdr.len;
-	m_demote(n, 1);
+	m_demote(n, 1, 0);
 
 	m_cat(m, n);
 }

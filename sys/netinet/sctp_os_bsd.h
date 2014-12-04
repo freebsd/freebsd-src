@@ -393,6 +393,8 @@ typedef struct callout sctp_os_timer_t;
 #define SCTP_CLEAR_SO_NBIO(so)	((so)->so_state &= ~SS_NBIO)
 /* get the socket type */
 #define SCTP_SO_TYPE(so)	((so)->so_type)
+/* Use a macro for renaming sb_cc to sb_ccc */
+#define sb_cc sb_ccc
 /* reserve sb space for a socket */
 #define SCTP_SORESERVE(so, send, recv)	soreserve(so, send, recv)
 /* wakeup a socket */

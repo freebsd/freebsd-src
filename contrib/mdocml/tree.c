@@ -1,6 +1,6 @@
-/*	$Id: tree.c,v 1.53 2014/07/02 07:10:38 schwarze Exp $ */
+/*	$Id: tree.c,v 1.60 2014/11/28 05:51:32 schwarze Exp $ */
 /*
- * Copyright (c) 2008, 2009, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2008, 2009, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,9 +15,9 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
+
+#include <sys/types.h>
 
 #include <assert.h>
 #include <limits.h>
@@ -88,8 +88,9 @@ print_mdoc(const struct mdoc_node *n, int indent)
 		t = "text";
 		break;
 	case MDOC_TBL:
-		/* FALLTHROUGH */
+		break;
 	case MDOC_EQN:
+		t = "eqn";
 		break;
 	default:
 		abort();
@@ -124,8 +125,9 @@ print_mdoc(const struct mdoc_node *n, int indent)
 		}
 		break;
 	case MDOC_TBL:
-		/* FALLTHROUGH */
+		break;
 	case MDOC_EQN:
+		p = "EQ";
 		break;
 	case MDOC_ROOT:
 		p = "root";
@@ -138,9 +140,6 @@ print_mdoc(const struct mdoc_node *n, int indent)
 	if (n->span) {
 		assert(NULL == p && NULL == t);
 		print_span(n->span, indent);
-	} else if (n->eqn) {
-		assert(NULL == p && NULL == t);
-		print_box(n->eqn->root, indent);
 	} else {
 		for (i = 0; i < indent; i++)
 			putchar('\t');
@@ -166,6 +165,8 @@ print_mdoc(const struct mdoc_node *n, int indent)
 		putchar('\n');
 	}
 
+	if (n->eqn)
+		print_box(n->eqn->root->first, indent + 1);
 	if (n->child)
 		print_mdoc(n->child, indent + 1);
 	if (n->next)
@@ -199,12 +200,10 @@ print_man(const struct man_node *n, int indent)
 	case MAN_BODY:
 		t = "block-body";
 		break;
-	case MAN_TAIL:
-		t = "block-tail";
-		break;
 	case MAN_TBL:
-		/* FALLTHROUGH */
+		break;
 	case MAN_EQN:
+		t = "eqn";
 		break;
 	default:
 		abort();
@@ -221,8 +220,6 @@ print_man(const struct man_node *n, int indent)
 		/* FALLTHROUGH */
 	case MAN_HEAD:
 		/* FALLTHROUGH */
-	case MAN_TAIL:
-		/* FALLTHROUGH */
 	case MAN_BODY:
 		p = man_macronames[n->tok];
 		break;
@@ -230,8 +227,9 @@ print_man(const struct man_node *n, int indent)
 		p = "root";
 		break;
 	case MAN_TBL:
-		/* FALLTHROUGH */
+		break;
 	case MAN_EQN:
+		p = "EQ";
 		break;
 	default:
 		abort();
@@ -241,9 +239,6 @@ print_man(const struct man_node *n, int indent)
 	if (n->span) {
 		assert(NULL == p && NULL == t);
 		print_span(n->span, indent);
-	} else if (n->eqn) {
-		assert(NULL == p && NULL == t);
-		print_box(n->eqn->root, indent);
 	} else {
 		for (i = 0; i < indent; i++)
 			putchar('\t');
@@ -253,6 +248,8 @@ print_man(const struct man_node *n, int indent)
 		printf("%d:%d\n", n->line, n->pos + 1);
 	}
 
+	if (n->eqn)
+		print_box(n->eqn->root->first, indent + 1);
 	if (n->child)
 		print_man(n->child, indent + 1);
 	if (n->next)
@@ -265,6 +262,11 @@ print_box(const struct eqn_box *ep, int indent)
 	int		 i;
 	const char	*t;
 
+	static const char *posnames[] = {
+	    NULL, "sup", "subsup", "sub",
+	    "to", "from", "fromto",
+	    "over", "sqrt", NULL };
+
 	if (NULL == ep)
 		return;
 	for (i = 0; i < indent; i++)
@@ -275,6 +277,7 @@ print_box(const struct eqn_box *ep, int indent)
 	case EQN_ROOT:
 		t = "eqn-root";
 		break;
+	case EQN_LISTONE:
 	case EQN_LIST:
 		t = "eqn-list";
 		break;
@@ -284,18 +287,36 @@ print_box(const struct eqn_box *ep, int indent)
 	case EQN_TEXT:
 		t = "eqn-text";
 		break;
+	case EQN_PILE:
+		t = "eqn-pile";
+		break;
 	case EQN_MATRIX:
 		t = "eqn-matrix";
 		break;
 	}
 
-	assert(t);
-	printf("%s(%d, %d, %d, %d, %d, \"%s\", \"%s\") %s\n",
-	    t, EQN_DEFSIZE == ep->size ? 0 : ep->size,
-	    ep->pos + 1, ep->font, ep->mark, ep->pile,
-	    ep->left ? ep->left : "",
-	    ep->right ? ep->right : "",
-	    ep->text ? ep->text : "");
+	fputs(t, stdout);
+	if (ep->pos)
+		printf(" pos=%s", posnames[ep->pos]);
+	if (ep->left)
+		printf(" left=\"%s\"", ep->left);
+	if (ep->right)
+		printf(" right=\"%s\"", ep->right);
+	if (ep->top)
+		printf(" top=\"%s\"", ep->top);
+	if (ep->bottom)
+		printf(" bottom=\"%s\"", ep->bottom);
+	if (ep->text)
+		printf(" text=\"%s\"", ep->text);
+	if (ep->font)
+		printf(" font=%d", ep->font);
+	if (ep->size != EQN_DEFSIZE)
+		printf(" size=%d", ep->size);
+	if (ep->expectargs != UINT_MAX && ep->expectargs != ep->args)
+		printf(" badargs=%zu(%zu)", ep->args, ep->expectargs);
+	else if (ep->args)
+		printf(" args=%zu", ep->args);
+	putchar('\n');
 
 	print_box(ep->first, indent + 1);
 	print_box(ep->next, indent);

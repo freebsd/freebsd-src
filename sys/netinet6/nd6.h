@@ -418,7 +418,7 @@ int nd6_need_cache(struct ifnet *);
 int nd6_add_ifa_lle(struct in6_ifaddr *);
 void nd6_rem_ifa_lle(struct in6_ifaddr *);
 int nd6_storelladdr(struct ifnet *, struct mbuf *,
-	const struct sockaddr *, u_char *, struct llentry **);
+	const struct sockaddr *, u_char *, uint32_t *); 
 
 /* nd6_nbr.c */
 void nd6_na_input(struct mbuf *, int, int);

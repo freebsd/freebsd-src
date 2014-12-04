@@ -889,7 +889,7 @@ sdp_append(struct sdp_sock *ssk, struct sockbuf *sb, struct mbuf *mb, int cnt)
 		m_adj(mb, SDP_HEAD_SIZE);
 		n->m_pkthdr.len += mb->m_pkthdr.len;
 		n->m_flags |= mb->m_flags & (M_PUSH | M_URG);
-		m_demote(mb, 1);
+		m_demote(mb, 1, 0);
 		sbcompress(sb, mb, sb->sb_mbtail);
 		return;
 	}

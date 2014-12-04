@@ -11,22 +11,23 @@ LIBMAN_SRCS=	man.c \
 		man_hash.c \
 		man_macro.c \
 		man_validate.c
-LIBMDOC_SRCS=	arch.c \
-		att.c \
+
+LIBMDOC_SRCS=	att.c \
 		lib.c \
 		mdoc.c \
 		mdoc_argv.c \
 		mdoc_hash.c \
 		mdoc_macro.c \
 		mdoc_validate.c \
-		st.c \
-		vol.c
+		st.c
+
 LIBROFF_SRCS=	eqn.c \
 		roff.c \
 		tbl.c \
 		tbl_data.c \
 		tbl_layout.c \
 		tbl_opts.c
+
 COMPAT_SRCS=	compat_reallocarray.c
 SRCS=		${LIBMAN_SRCS} \
 		${LIBMDOC_SRCS} \
@@ -36,6 +37,7 @@ SRCS=		${LIBMAN_SRCS} \
 		mandoc.c \
 		mandoc_aux.c \
 		msec.c \
+		preconv.c \
 		read.c
 
 WARNS?=	3

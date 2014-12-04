@@ -1106,8 +1106,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	uint8_t pr;
 	uint16_t cscov = 0;
 	uint32_t flowid = 0;
-	int flowid_type = 0;
-	int use_flowid = 0;
+	uint8_t flowtype = M_HASHTYPE_NONE;
 
 	/*
 	 * udp_output() may need to temporarily bind or connect the current
@@ -1184,8 +1183,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 					error = EINVAL;
 					break;
 				}
-				flowid_type = *(uint32_t *) CMSG_DATA(cm);
-				use_flowid = 1;
+				flowtype = *(uint32_t *) CMSG_DATA(cm);
 				break;
 
 #ifdef	RSS
@@ -1451,10 +1449,9 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	 * Once the UDP code decides to set a flowid some other way,
 	 * this allows the flowid to be overridden by userland.
 	 */
-	if (use_flowid) {
-		m->m_flags |= M_FLOWID;
+	if (flowtype != M_HASHTYPE_NONE) {
 		m->m_pkthdr.flowid = flowid;
-		M_HASHTYPE_SET(m, flowid_type);
+		M_HASHTYPE_SET(m, flowtype);
 #ifdef	RSS
 	} else {
 		uint32_t hash_val, hash_type;
@@ -1477,7 +1474,6 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		if (rss_proto_software_hash_v4(faddr, laddr, fport, lport,
 		    pr, &hash_val, &hash_type) == 0) {
 			m->m_pkthdr.flowid = hash_val;
-			m->m_flags |= M_FLOWID;
 			M_HASHTYPE_SET(m, hash_type);
 		}
 #endif
