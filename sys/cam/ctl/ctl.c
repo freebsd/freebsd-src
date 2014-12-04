@@ -6956,7 +6956,7 @@ ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
 		phdr->param_len = 8;
 		data = (uint8_t *)(phdr + 1);
 		scsi_ulto4b(val >> CTL_LBP_EXPONENT, data);
-		data[4] = 0x01; /* per-LUN */
+		data[4] = 0x02; /* per-pool */
 		data += phdr->param_len;
 	}
 
@@ -6969,7 +6969,7 @@ ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
 		phdr->param_len = 8;
 		data = (uint8_t *)(phdr + 1);
 		scsi_ulto4b(val >> CTL_LBP_EXPONENT, data);
-		data[4] = 0x02; /* per-pool */
+		data[4] = 0x01; /* per-LUN */
 		data += phdr->param_len;
 	}
 
