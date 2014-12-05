@@ -9,7 +9,7 @@ WANT_DUMP=yes
 
 WARNS=	6
 
-CFLAGS+=	-I${.CURDIR}/../../ctsrd-lib/libimagebox/ \
+CFLAGS+=	-I${.CURDIR}/../../ctsrd-lib/libimagebox/
 LDADD+=		-lpthread -lterasic_mtl -limagebox -lvuln_png
 LIBADD+=	cheri z
 
