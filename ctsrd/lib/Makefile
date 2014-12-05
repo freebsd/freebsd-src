@@ -10,6 +10,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 
 # XXX: libimagebox should be buildable without CHERI
 .if ${MK_CHERI} != "no"
+SUBDIR_ORDERED+=	libvuln_png_cheri
 SUBDIR+=	libcompositor \
 		libimagebox
 .endif
