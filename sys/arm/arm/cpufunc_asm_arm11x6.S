@@ -62,7 +62,7 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-	.cpu arm1136js
+	.cpu arm1176jz-s
 
 #if 0
 #define Invalidate_I_cache(Rtmp1, Rtmp2) \
