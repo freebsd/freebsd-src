@@ -5107,7 +5107,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 #endif
 		case XPT_SCSI_IO:
-			error = isp_control(isp, ISPCTL_ABORT_CMD, ccb);
+			error = isp_control(isp, ISPCTL_ABORT_CMD, accb);
 			if (error) {
 				ccb->ccb_h.status = CAM_UA_ABORT;
 			} else {
