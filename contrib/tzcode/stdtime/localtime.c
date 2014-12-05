@@ -1792,7 +1792,11 @@ int	delta;
 
 	number0 = *number;
 	*number += delta;
-	return (*number < number0) != (delta < 0);
+	if ((*number < number0) != (delta < 0)) {
+		errno = EOVERFLOW;
+		return (1);
+	}
+	return (0);
 }
 
 static int
@@ -1804,7 +1808,11 @@ int	delta;
 
 	number0 = *number;
 	*number += delta;
-	return (*number < number0) != (delta < 0);
+	if ((*number < number0) != (delta < 0)) {
+		errno = EOVERFLOW;
+		return (1);
+	}
+	return (0);
 }
 
 static int
