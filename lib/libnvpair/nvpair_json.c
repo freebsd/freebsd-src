@@ -9,7 +9,7 @@
  * http://www.illumos.org/license/CDDL.
  */
 /*
- * Copyright (c) 2013, Joyent, Inc. All rights reserved.
+ * Copyright (c) 2014, Joyent, Inc.
  */
 
 #include <stdio.h>
@@ -20,9 +20,11 @@
 
 #include "libnvpair.h"
 
-#define	FPRINTF(fp, ...)			\
-	if (fprintf(fp, __VA_ARGS__) < 0)	\
-		return (-1)			\
+#define	FPRINTF(fp, ...)				\
+	do {						\
+		if (fprintf(fp, __VA_ARGS__) < 0)	\
+			return (-1);			\
+	} while (0)
 
 /*
  * When formatting a string for JSON output we must escape certain characters,
@@ -328,7 +330,7 @@ nvlist_print_json(FILE *fp, nvlist_t *nvl)
 			for (i = 0; i < valsz; i++) {
 				if (i > 0)
 					FPRINTF(fp, ",");
-				FPRINTF(fp, "%hhd", val[i]);
+				FPRINTF(fp, "%hd", val[i]);
 			}
 			FPRINTF(fp, "]");
 			break;
