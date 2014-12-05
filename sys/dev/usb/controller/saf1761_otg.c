@@ -58,6 +58,7 @@
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+#include <sys/libkern.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -216,7 +217,7 @@ static uint8_t
 saf1761_host_channel_alloc(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 {
 	uint32_t map;
-	uint32_t x;
+	int x;
 
 	if (td->channel < SOTG_HOST_CHANNEL_MAX)
 		return (0);
@@ -227,41 +228,38 @@ saf1761_host_channel_alloc(struct saf1761_otg_softc *sc, struct saf1761_otg_td *
 
 	switch (td->ep_type) {
 	case UE_INTERRUPT:
-		map = sc->sc_host_intr_map |
+		map = ~(sc->sc_host_intr_map |
 		    sc->sc_host_intr_busy_map[0] |
-		    sc->sc_host_intr_busy_map[1];
-		for (x = ((map & 0xFFFF) == 0xFFFF) ? 16 : 0; x != 32; x++) {
-			if (map & (1 << x))
-				continue;
-			sc->sc_host_intr_map |= (1 << x);
-			td->channel = 32 + x;
-			return (0);
-		}
-		break;
+		    sc->sc_host_intr_busy_map[1]);
+		/* find first set bit */
+		x = ffs(map) - 1;
+		if (x < 0 || x > 31)
+			break;
+		sc->sc_host_intr_map |= (1U << x);
+		td->channel = 32 + x;
+		return (0);
 	case UE_ISOCHRONOUS:
-		map = sc->sc_host_isoc_map |
+		map = ~(sc->sc_host_isoc_map |
 		    sc->sc_host_isoc_busy_map[0] |
-		    sc->sc_host_isoc_busy_map[1];
-		for (x = ((map & 0xFFFF) == 0xFFFF) ? 16 : 0; x != 32; x++) {
-			if (map & (1 << x))
-				continue;
-			sc->sc_host_isoc_map |= (1 << x);
-			td->channel = x;
-			return (0);
-		}
-		break;
+		    sc->sc_host_isoc_busy_map[1]);
+		/* find first set bit */
+		x = ffs(map) - 1;
+		if (x < 0 || x > 31)
+			break;
+		sc->sc_host_isoc_map |= (1U << x);
+		td->channel = x;
+		return (0);
 	default:
-		map = sc->sc_host_async_map |
+		map = ~(sc->sc_host_async_map |
 		    sc->sc_host_async_busy_map[0] |
-		    sc->sc_host_async_busy_map[1];
-		for (x = ((map & 0xFFFF) == 0xFFFF) ? 16 : 0; x != 32; x++) {
-			if (map & (1 << x))
-				continue;
-			sc->sc_host_async_map |= (1 << x);
-			td->channel = 64 + x;
-			return (0);
-		}
-		break;
+		    sc->sc_host_async_busy_map[1]);
+		/* find first set bit */
+		x = ffs(map) - 1;
+		if (x < 0 || x > 31)
+			break;
+		sc->sc_host_async_map |= (1U << x);
+		td->channel = 64 + x;
+		return (0);
 	}
 	return (1);
 }
@@ -278,27 +276,27 @@ saf1761_host_channel_free(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 	case UE_INTERRUPT:
 		x = td->channel - 32;
 		td->channel = SOTG_HOST_CHANNEL_MAX;
-		sc->sc_host_intr_map &= ~(1 << x);
-		sc->sc_host_intr_suspend_map &= ~(1 << x);
-		sc->sc_host_intr_busy_map[0] |= (1 << x);
+		sc->sc_host_intr_map &= ~(1U << x);
+		sc->sc_host_intr_suspend_map &= ~(1U << x);
+		sc->sc_host_intr_busy_map[0] |= (1U << x);
 		SAF1761_WRITE_LE_4(sc, SOTG_INT_PTD_SKIP_PTD,
 		    (~sc->sc_host_intr_map) | sc->sc_host_intr_suspend_map);
 		break;
 	case UE_ISOCHRONOUS:
 		x = td->channel;
 		td->channel = SOTG_HOST_CHANNEL_MAX;
-		sc->sc_host_isoc_map &= ~(1 << x);
-		sc->sc_host_isoc_suspend_map &= ~(1 << x);
-		sc->sc_host_isoc_busy_map[0] |= (1 << x);
+		sc->sc_host_isoc_map &= ~(1U << x);
+		sc->sc_host_isoc_suspend_map &= ~(1U << x);
+		sc->sc_host_isoc_busy_map[0] |= (1U << x);
 		SAF1761_WRITE_LE_4(sc, SOTG_ISO_PTD_SKIP_PTD,
 		    (~sc->sc_host_isoc_map) | sc->sc_host_isoc_suspend_map);
 		break;
 	default:
 		x = td->channel - 64;
 		td->channel = SOTG_HOST_CHANNEL_MAX;
-		sc->sc_host_async_map &= ~(1 << x);
-		sc->sc_host_async_suspend_map &= ~(1 << x);
-		sc->sc_host_async_busy_map[0] |= (1 << x);
+		sc->sc_host_async_map &= ~(1U << x);
+		sc->sc_host_async_suspend_map &= ~(1U << x);
+		sc->sc_host_async_busy_map[0] |= (1U << x);
 		SAF1761_WRITE_LE_4(sc, SOTG_ATL_PTD_SKIP_PTD,
 		    (~sc->sc_host_async_map) | sc->sc_host_async_suspend_map);
 		break;
@@ -3619,19 +3617,19 @@ saf1761_otg_device_resume(struct usb_device *udev)
 		switch (td->ep_type) {
 		case UE_INTERRUPT:
 			x = td->channel - 32;
-			sc->sc_host_intr_suspend_map &= ~(1 << x);
+			sc->sc_host_intr_suspend_map &= ~(1U << x);
 			SAF1761_WRITE_LE_4(sc, SOTG_INT_PTD_SKIP_PTD,
 			    (~sc->sc_host_intr_map) | sc->sc_host_intr_suspend_map);
 			break;
 		case UE_ISOCHRONOUS:
 			x = td->channel;
-			sc->sc_host_isoc_suspend_map &= ~(1 << x);
+			sc->sc_host_isoc_suspend_map &= ~(1U << x);
 			SAF1761_WRITE_LE_4(sc, SOTG_ISO_PTD_SKIP_PTD,
 			    (~sc->sc_host_isoc_map) | sc->sc_host_isoc_suspend_map);
 			break;
 		default:
 			x = td->channel - 64;
-			sc->sc_host_async_suspend_map &= ~(1 << x);
+			sc->sc_host_async_suspend_map &= ~(1U << x);
 			SAF1761_WRITE_LE_4(sc, SOTG_ATL_PTD_SKIP_PTD,
 			    (~sc->sc_host_async_map) | sc->sc_host_async_suspend_map);
 			break;
@@ -3675,19 +3673,19 @@ saf1761_otg_device_suspend(struct usb_device *udev)
 		switch (td->ep_type) {
 		case UE_INTERRUPT:
 			x = td->channel - 32;
-			sc->sc_host_intr_suspend_map |= (1 << x);
+			sc->sc_host_intr_suspend_map |= (1U << x);
 			SAF1761_WRITE_LE_4(sc, SOTG_INT_PTD_SKIP_PTD,
 			    (~sc->sc_host_intr_map) | sc->sc_host_intr_suspend_map);
 			break;
 		case UE_ISOCHRONOUS:
 			x = td->channel;
-			sc->sc_host_isoc_suspend_map |= (1 << x);
+			sc->sc_host_isoc_suspend_map |= (1U << x);
 			SAF1761_WRITE_LE_4(sc, SOTG_ISO_PTD_SKIP_PTD,
 			    (~sc->sc_host_isoc_map) | sc->sc_host_isoc_suspend_map);
 			break;
 		default:
 			x = td->channel - 64;
-			sc->sc_host_async_suspend_map |= (1 << x);
+			sc->sc_host_async_suspend_map |= (1U << x);
 			SAF1761_WRITE_LE_4(sc, SOTG_ATL_PTD_SKIP_PTD,
 			    (~sc->sc_host_async_map) | sc->sc_host_async_suspend_map);
 			break;
