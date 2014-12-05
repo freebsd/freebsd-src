@@ -31,8 +31,6 @@
 #ifndef __IBOXPRIV_H__
 #define __IBOXPRIV_H__
 
-#include <sys/cdefs.h>
-
 #include <machine/sysarch.h>
 
 struct ibox_decode_state

@@ -31,8 +31,6 @@
 #ifndef __IMAGEBOX_H__
 #define __IMAGEBOX_H__
 
-#include <sys/cdefs.h>
-
 enum sbtype {
 	SB_NONE,
 	SB_CAPSICUM,
