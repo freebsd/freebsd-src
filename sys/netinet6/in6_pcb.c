@@ -1252,7 +1252,7 @@ in6_pcblookup_mbuf(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 	 * XXXRW: As above, that policy belongs in the pcbgroup code.
 	 */
 	if (in_pcbgroup_enabled(pcbinfo) &&
-	    !(M_HASHTYPE_TEST(m, M_HASHTYPE_NONE))) {
+	    M_HASHTYPE_TEST(m, M_HASHTYPE_NONE) == 0) {
 		pcbgroup = in6_pcbgroup_byhash(pcbinfo, M_HASHTYPE_GET(m),
 		    m->m_pkthdr.flowid);
 		if (pcbgroup != NULL)

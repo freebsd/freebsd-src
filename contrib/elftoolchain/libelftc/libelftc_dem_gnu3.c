@@ -156,7 +156,7 @@ static int	vector_type_qualifier_init(struct vector_type_qualifier *);
 static int	vector_type_qualifier_push(struct vector_type_qualifier *,
 		    enum type_qualifier);
 
-int cpp_demangle_gnu3_push_head;
+static int cpp_demangle_gnu3_push_head;
 
 /**
  * @brief Decode the input string by IA-64 C++ ABI style.

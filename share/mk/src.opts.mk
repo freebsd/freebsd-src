@@ -182,6 +182,7 @@ __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
     CLANG_EXTRAS \
     EISA \
+    ELFTOOLCHAIN_TOOLS \
     FMAKE \
     HESIOD \
     LLDB \
