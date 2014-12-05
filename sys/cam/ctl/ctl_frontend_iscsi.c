@@ -2054,7 +2054,7 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	desc->length = idlen;
 	strlcpy(desc->identifier, target, idlen);
 
-	retval = ctl_port_register(port, /*master_SC*/ 1);
+	retval = ctl_port_register(port);
 	if (retval != 0) {
 		ctl_free_opts(&port->options);
 		cfiscsi_target_release(ct);
