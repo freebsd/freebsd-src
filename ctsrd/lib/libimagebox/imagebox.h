@@ -39,9 +39,6 @@ enum sbtype {
 	SB_CHERI
 };
 
-#if __has_feature(capabilities)
-#pragma pointer_interpretation capability
-#endif
 struct iboxstate {
 	enum sbtype		 sb;
 	uint32_t		 width;
@@ -54,9 +51,6 @@ struct iboxstate {
 
 	void			*private;
 };
-#if __has_feature(capabilities)
-#pragma pointer_interpretation default
-#endif
 
 extern int ibox_verbose;
 

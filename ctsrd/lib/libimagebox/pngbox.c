@@ -96,14 +96,14 @@ pthr_png_read_start(int pfd, uint32_t width, uint32_t height, enum sbtype sb)
 
 	if ((pdp = malloc(sizeof(*pdp))) == NULL)
 		goto error;
-	is->private = (__capability struct pthr_decode_private *)pdp;
+	is->private = pdp;
 
 	if ((ids = calloc(1, sizeof(*ids))) == NULL)
 		goto error;
-	ids->is = (__capability struct iboxstate *)is;
+	ids->is = is;
 	ids->fd = pfd;
 
-	if ((ids->buffer = (__capability void *)calloc(is->width * is->height,
+	if ((ids->buffer = calloc(is->width * is->height,
 	    sizeof(*ids->buffer))) == NULL)
 		goto error;
 	is->buffer = ids->buffer;
@@ -155,13 +155,13 @@ capsicum_png_read_start(int pfd, uint32_t width, uint32_t height,
 		goto error;
 	if (ftruncate(bfd, width * height * sizeof(uint32_t)) == -1)
 		goto error;
-	if ((is->buffer = (__capability void *)mmap(NULL, width * height * sizeof(uint32_t),
+	if ((is->buffer = mmap(NULL, width * height * sizeof(uint32_t),
 	    PROT_READ | PROT_WRITE, MAP_SHARED, bfd, 0)) == MAP_FAILED)
 		goto error;
 
 	if ((fdp = malloc(sizeof(struct fork_decode_private))) == NULL)
 		goto error;
-	is->private = (__capability struct fork_decode_private*)fdp;
+	is->private = fdp;
 
 	if ((fdp->pid = fork()) == 0) {
 		/*
@@ -239,7 +239,7 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 	is->passes_remaining = UINT32_MAX;
 	is->times[0] = mips_cycle_counter_read();
 
-        if ((is->buffer = (__capability void *)malloc(is->width * is->height *
+        if ((is->buffer = malloc(is->width * is->height *
             sizeof(*is->buffer))) == NULL)
                 goto error;
 
@@ -254,9 +254,15 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 		if (sandbox_object_new(sandbox_class, &sandbox_object) < 0)
 			goto error;
 
+	/*
+	 * XXXBD: We don't really want to capabilities in the output
+	 * buffer, but memcpy_c will do capability writes
+	 */
         v = sandbox_object_cinvoke(sandbox_object, width, height, pnglen,
 	    0, 0, 0, 0, 0,
-            (__capability void *)is->buffer,
+            cheri_ptrperm((void *)is->buffer,
+		is->width * is->height * sizeof(*is->buffer),
+	     CHERI_PERM_STORE | CHERI_PERM_STORE_CAP),
 	    cheri_ptrperm(pngbuffer, pnglen,
 	       CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 	    cheri_ptrperm((void *)(is->times + 1), sizeof(uint32_t) * 2,

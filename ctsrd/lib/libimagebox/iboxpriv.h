@@ -35,24 +35,16 @@
 
 #include <machine/sysarch.h>
 
-#if __has_feature(capabilities)
-#pragma pointer_interpretation capability
-#endif
 struct ibox_decode_state
 {
 	int			 fd;
 	size_t			 offset;
 	struct iboxstate	*is;
 	uint32_t		*buffer;
-
-#if __has_feature(capabilities)
-	__capability uint8_t	*incap;
+#ifdef __CHERI_SANDBOX__
+	uint8_t			*incap;
 #endif
-
 };
-#if __has_feature(capabilities)
-#pragma pointer_interpretation default
-#endif
 
 void decode_png(struct ibox_decode_state *ids,
     png_rw_ptr user_read_fn, png_read_status_ptr read_row_fn);
