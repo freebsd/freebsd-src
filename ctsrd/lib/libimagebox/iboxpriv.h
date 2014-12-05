@@ -39,6 +39,9 @@ struct ibox_decode_state
 	size_t			 offset;
 	struct iboxstate	*is;
 	uint32_t		*buffer;
+#ifdef __CHERI_SANDBOX__
+	uint8_t			*incap;
+#endif
 };
 
 void decode_png(struct ibox_decode_state *ids,

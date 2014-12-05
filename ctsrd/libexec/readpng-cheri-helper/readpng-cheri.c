@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2012-2013 Robert N. M. Watson
- * Copyright (c) 2012 SRI International
+ * Copyright (c) 2012-2014 SRI International
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -37,14 +37,17 @@
 #include <machine/sysarch.h>
 
 #include <cheri/cheri_memcpy.h>
+#include <cheri/cheri_system.h>
 
 #include <png.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "imagebox.h"
 #include "iboxpriv.h"
 
-int	invoke(register_t a0, register_t a1, register_t a2, register_t a3);
+int invoke(uint32_t width, uint32_t height, size_t pnglen,
+    uint8_t *png_out, uint8_t *png_in, uint32_t *times);
 
 int pngwidth;
 
@@ -54,7 +57,7 @@ cheri_read_data(png_structp png_ptr __unused, png_bytep data, png_size_t length)
 	struct ibox_decode_state *ids;
 
 	ids = png_get_io_ptr(png_ptr);
-	memcpy_fromcap(data, 4, ids->offset, length);
+	memcpy_c_fromcap(data, ids->incap + ids->offset, length);
 	ids->offset += length;
 }
 
@@ -75,42 +78,45 @@ cheri_read_row_callback(png_structp png_ptr __unused, png_uint_32 row __unused,
 
 /*
  * Sandboxed imagebox png reader.  
- * 
- * The output buffer is passed in c1.  The pngfile is accessable via c2.
- * a0 holds the image width, a1 the height, and a2 holds the length of the
- * pngfile (currently unused).
  */
 int
-invoke(register_t a0, register_t a1, register_t a2 __unused,
-    register_t a3 __unused)
+invoke(uint32_t width, uint32_t height, size_t pnglen __unused,
+    uint8_t *png_out, uint8_t *png_in, uint32_t *times)
 {
-	struct ibox_decode_state	ids;
-	struct iboxstate		is;
+	struct ibox_decode_state	*idsp;
+	struct iboxstate		*isp;
 
-	pngwidth = a0;
+	pngwidth = width;
 
-	is.width = a0;
-	is.height = a1;
-	is.error = 0;
-	is.sb = SB_CHERI;
-
-	ids.fd = -1;
-	ids.offset = 0;
-	/*
-	 * in principle we could update this via a capabilty,
-	 * but in practice we can reconstruct it on exit
-	 */
-	ids.is = &is;
-	if ((ids.buffer = malloc(sizeof(uint32_t) * a0 * a1)) == NULL)
+	if ((isp = calloc(1, sizeof(*isp))) == NULL)
 		return (1);
 
-	decode_png(&ids, cheri_read_data, cheri_read_row_callback);
+	isp->width = width;
+	isp->height = height;
+	isp->error = 0;
+	isp->sb = SB_CHERI;
+
+	if ((idsp = calloc(1, sizeof(*idsp))) == NULL)
+		return (1);
+
+	idsp->fd = -1;
+	idsp->offset = 0;
+	/*
+	 * In principle we could update this via a capabilty,
+	 * but in practice we can do it on exit.
+	 */
+	idsp->is = isp;
+	if ((idsp->buffer = malloc(sizeof(uint32_t) * width * height)) == NULL)
+		return (1);
+	idsp->incap = png_in;
+
+	decode_png(idsp, cheri_read_data, cheri_read_row_callback);
 
 	/* Copy the whole image out */
-	if (is.error == 0)
-		memcpy_tocap(3, ids.buffer, 0, sizeof(uint32_t) * a0 * a1);
+	if (isp->error == 0)
+		memcpy_c(png_out, idsp->buffer, sizeof(uint32_t) * width * height);
 
-	memcpy_tocap(5, (uint32_t*)is.times + 1, 0, sizeof(uint32_t) * 2);
+	memcpy_c(times, (void *)(isp->times + 1), sizeof(uint32_t) * 2);
 
-	return (is.error);
+	return (isp->error);
 }

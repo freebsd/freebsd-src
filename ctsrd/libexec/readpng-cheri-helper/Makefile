@@ -2,29 +2,36 @@
 
 PROG=	readpng-cheri-helper
 SRCS=	readpng-cheri.c				\
-	chsbrt.S				\
 	execve.S				\
-	setjmp.S				\
 	sysarch.S
 
-USE_CHERI=      yes
+USE_CHERI=	yes
 USE_CHERI_STACK=yes
 WANT_DUMP=	yes
 
 .PATH: ${.CURDIR}/../../lib/libimagebox
 SRCS+=	decode_png.c
 
+.PATH: ${.CURDIR}/../../../lib/libz
+SRCS+=	adler32.c \
+	crc32.c \
+	inffast.c \
+	inflate.c \
+	inftrees.c \
+	zutil.c
+
 MAN=
 
-LDFLAGS+=	-Wl,--script=${.CURDIR}/sandbox.ld -nostdlib
+LDFLAGS+=	-Wl,--script=${.CURDIR}/../../../lib/libc_cheri/sandbox.ld \
+		-nostdlib
 NO_MAN=
 #STRIP=
 CFLAGS+=	-I${.CURDIR}/../../lib/libimagebox
 CFLAGS+=	-I${.CURDIR}/../../../lib/libc/${MACHINE}
 CFLAGS+=	-I${.CURDIR}/../../../lib/libc/include
 CFLAGS+=	-DIMAGEBOX_PNG_NO_FD
-LDADD+=		-lvuln_png
-LIBADD+=	z c_cheri
+LDADD+=		-lvuln_png_cheri
+LIBADD+=	c_cheri
 
 NO_SHARED=	yes
 
@@ -37,9 +44,6 @@ FILESDIR=       ${LIBEXECDIR}
 FILES=		${PROG}.bin
 CLEANFILES=	${PROG}.bin
 
-chsbrt.o:
-	${AS} -G0 -o ${.TARGET} ${.ALLSRC}
-
 ${PROG}.bin: ${PROG}
 	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
 
@@ -47,3 +51,7 @@ ${PROG}.bin: ${PROG}
 
 .include <src.opts.mk>
 .include <bsd.prog.mk>
+
+CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
+CFLAGS.zutil.c=         -Wno-incompatible-pointer-types-discards-qualifiers
+CFLAGS.inffast.c=	-O0

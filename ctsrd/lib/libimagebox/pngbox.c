@@ -86,9 +86,8 @@ pthr_png_read_start(int pfd, uint32_t width, uint32_t height, enum sbtype sb)
 	struct ibox_decode_state	*ids = NULL;
 	struct pthr_decode_private	*pdp;
 
-	if ((is = malloc(sizeof(struct iboxstate))) == NULL)
+	if ((is = calloc(1, sizeof(struct iboxstate))) == NULL)
 		goto error;
-	memset(is, 0, sizeof(struct iboxstate));
 	is->sb = sb;
 	is->width = width;
 	is->height = height;
@@ -99,13 +98,12 @@ pthr_png_read_start(int pfd, uint32_t width, uint32_t height, enum sbtype sb)
 		goto error;
 	is->private = pdp;
 
-	if ((ids = malloc(sizeof(*ids))) == NULL)
+	if ((ids = calloc(1, sizeof(*ids))) == NULL)
 		goto error;
-	memset(ids, 0, sizeof(*ids));
 	ids->is = is;
 	ids->fd = pfd;
 
-	if ((ids->buffer = malloc(is->width * is->height *
+	if ((ids->buffer = calloc(is->width * is->height,
 	    sizeof(*ids->buffer))) == NULL)
 		goto error;
 	is->buffer = ids->buffer;
@@ -227,7 +225,8 @@ static struct iboxstate*
 cheri_png_read_start(char *pngbuffer, size_t pnglen,
     uint32_t width, uint32_t height, enum sbtype sb)
 {
-	static struct sandbox		*sandbox = NULL;
+	static struct sandbox_class	*sandbox_class = NULL;
+	static struct sandbox_object	*sandbox_object = NULL;
 	struct iboxstate		*is = NULL;
         register_t			 v;
 
@@ -247,22 +246,34 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 	if (ibox_verbose)
 		sb_verbose = ibox_verbose;
 
-	if (sandbox == NULL)
-		if (sandbox_setup("/usr/libexec/readpng-cheri-helper.bin",
-		    4*1024*1024, &sandbox) < 0)
+	if (sandbox_class == NULL)
+		if (sandbox_class_new("/usr/libexec/readpng-cheri-helper.bin",
+		    4*1024*1024, &sandbox_class) < 0)
+			goto error;
+	if (sandbox_object == NULL)
+		if (sandbox_object_new(sandbox_class, &sandbox_object) < 0)
 			goto error;
 
-        v = sandbox_cinvoke(sandbox, width, height, pnglen, 0, 0, 0, 0, 0,
+	/*
+	 * XXXBD: We don't really want to capabilities in the output
+	 * buffer, but memcpy_c will do capability writes
+	 */
+        v = sandbox_object_cinvoke(sandbox_object, width, height, pnglen,
+	    0, 0, 0, 0, 0,
             cheri_ptrperm((void *)is->buffer,
-	     is->width * is->height * sizeof(uint32_t),
-	     CHERI_PERM_STORE),
-	    cheri_ptrperm(pngbuffer, pnglen, CHERI_PERM_LOAD),
+	     is->width * is->height * sizeof(*is->buffer),
+	     CHERI_PERM_STORE | CHERI_PERM_STORE_CAP),
+	    cheri_ptrperm(pngbuffer, pnglen,
+	     CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 	    cheri_ptrperm((void *)(is->times + 1), sizeof(uint32_t) * 2,
 	     CHERI_PERM_STORE),
-	    cheri_zerocap(), cheri_zerocap(), cheri_zerocap(),
-	    cheri_zerocap(), cheri_zerocap());
+	    NULL, NULL, NULL, NULL, NULL);
+	if (v != 0) {
+		printf("sandbox returned %ju\n", (intmax_t)v);
+		goto error;
+	}
 	if (ibox_verbose)
-		printf("%s: sandbox returned %ju\n", __func__, (uintmax_t)v);
+		printf("%s: sandbox returned %ju\n", __func__, (intmax_t)v);
 	is->valid_rows = height;
 	is->passes_remaining = 0;
 	is->times[3] = mips_cycle_counter_read();
@@ -360,7 +371,7 @@ png_read_finish(struct iboxstate *is)
 		is->private = NULL;
 		break;
 	case SB_CAPSICUM:
-		fdp = is->private;
+		fdp = (struct fork_decode_private *)is->private;
 		waitpid(fdp->pid, &status, 0);
 		free(fdp);
 		is->private = NULL;
