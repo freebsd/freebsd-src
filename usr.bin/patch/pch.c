@@ -24,7 +24,7 @@
  * -C option added in 1998, original code by Marc Espie, based on FreeBSD
  * behaviour
  *
- * $OpenBSD: pch.c,v 1.39 2012/04/11 08:07:13 ajacoutot Exp $
+ * $OpenBSD: pch.c,v 1.40 2013/07/11 12:39:31 otto Exp $
  * $FreeBSD$
  */
 
