@@ -2156,7 +2156,7 @@ fasttrap_attach(dev_info_t *devi, ddi_attach_cmd_t cmd)
 	if (nent == 0 || nent > 0x1000000)
 		nent = FASTTRAP_TPOINTS_DEFAULT_SIZE;
 
-	if ((nent & (nent - 1)) == 0)
+	if (ISP2(nent))
 		fasttrap_tpoints.fth_nent = nent;
 	else
 		fasttrap_tpoints.fth_nent = 1 << fasttrap_highbit(nent);
@@ -2169,7 +2169,7 @@ fasttrap_attach(dev_info_t *devi, ddi_attach_cmd_t cmd)
 	 * ... and the providers hash table...
 	 */
 	nent = FASTTRAP_PROVIDERS_DEFAULT_SIZE;
-	if ((nent & (nent - 1)) == 0)
+	if (ISP2(nent))
 		fasttrap_provs.fth_nent = nent;
 	else
 		fasttrap_provs.fth_nent = 1 << fasttrap_highbit(nent);
@@ -2182,7 +2182,7 @@ fasttrap_attach(dev_info_t *devi, ddi_attach_cmd_t cmd)
 	 * ... and the procs hash table.
 	 */
 	nent = FASTTRAP_PROCS_DEFAULT_SIZE;
-	if ((nent & (nent - 1)) == 0)
+	if (ISP2(nent))
 		fasttrap_procs.fth_nent = nent;
 	else
 		fasttrap_procs.fth_nent = 1 << fasttrap_highbit(nent);
