@@ -18,7 +18,7 @@ ${PROG}:	${PROG}.c
 		echo "Unsupported operating system: ${OSTYPE}."; \
 		exit 1; \
 	fi; \
-	cmd="gcc -Wall $$CFLAGS ${PROG}.c -o ${PROG}"; \
+	cmd="cc -Wall $$CFLAGS ${PROG}.c -o ${PROG}"; \
 	echo $$cmd; \
 	$$cmd
 
