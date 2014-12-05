@@ -25,6 +25,7 @@ CFLAGS+=	-DINET6
 .endif
 
 CFLAGS+=	-I${TELNETDIR}
+CFLAGS+=	-I${TELNETDIR}/telnet
 
 LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
 
