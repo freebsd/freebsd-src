@@ -652,7 +652,7 @@ void	poke_cpu(int cpun);	 /* interrupt another CPU (to preempt) */
 
 void	mach_cpu_pause(volatile char *);
 
-void	pause_cpus(cpu_t *off_cp);
+void	pause_cpus(cpu_t *off_cp, void *(*func)(void *));
 void	start_cpus(void);
 int	cpus_paused(void);
 
