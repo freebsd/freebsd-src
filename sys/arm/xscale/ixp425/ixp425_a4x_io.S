@@ -56,6 +56,7 @@ ENTRY(a4x_bs_r_1)
 	ldr	r0, [r1, r2, LSL #2]
 	and	r0, r0, #0xff
 	mov	pc, lr
+END(a4x_bs_r_1)
 
 ENTRY(a4x_bs_r_2)
 	ldr	r0, [r1, r2, LSL #2]
@@ -63,10 +64,12 @@ ENTRY(a4x_bs_r_2)
 	orr	r1, r1, r1, lsl #8
 	and	r0, r0, r1
 	mov	pc, lr
+END(a4x_bs_r_2)
 
 ENTRY(a4x_bs_r_4)
 	ldr	r0, [r1, r2, LSL #2]
 	mov	pc, lr
+END(a4x_bs_r_4)
 
 /*
  * Write single
@@ -75,6 +78,7 @@ ENTRY(a4x_bs_w_1)
 	and	r3, r3, #0xff
 	str	r3, [r1, r2, LSL #2]
 	mov	pc, lr
+END(a4x_bs_w_1)
 
 ENTRY(a4x_bs_w_2)
 	mov	r0, #0xff
@@ -82,10 +86,12 @@ ENTRY(a4x_bs_w_2)
 	and	r3, r3, r0
 	str	r3, [r1, r2, LSL #2]
 	mov	pc, lr
+END(a4x_bs_w_2)
 
 ENTRY(a4x_bs_w_4)
 	str	r3, [r1, r2, LSL #2]
 	mov	pc, lr
+END(a4x_bs_w_4)
 
 /*
  * Read multiple
@@ -101,6 +107,7 @@ ENTRY(a4x_bs_rm_1)
 	strb	r3, [r1], #1
 	bne	1b
 	mov	pc, lr
+END(a4x_bs_rm_1)
 
 ENTRY(a4x_bs_rm_2)
 	add	r0, r1, r2, lsl #2
@@ -113,6 +120,7 @@ ENTRY(a4x_bs_rm_2)
 	strh	r3, [r1], #2
 	bne	1b
 	mov	pc, lr
+END(a4x_bs_rm_2)
 
 /*
  * Write multiple
@@ -128,6 +136,7 @@ ENTRY(a4x_bs_wm_1)
 	str	r3, [r0]
 	bne	1b
 	mov	pc, lr
+END(a4x_bs_wm_1)
 
 ENTRY(a4x_bs_wm_2)
 	add	r0, r1, r2, lsl #2
@@ -140,3 +149,4 @@ ENTRY(a4x_bs_wm_2)
 	str	r3, [r0]
 	bne	1b
 	mov	pc, lr
+END(a4x_bs_wm_2)
