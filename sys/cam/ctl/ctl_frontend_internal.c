@@ -244,8 +244,6 @@ cfi_init(void)
 	memset(softc, 0, sizeof(*softc));
 
 	mtx_init(&softc->lock, "CTL frontend mutex", NULL, MTX_DEF);
-	softc->flags |= CTL_FLAG_MASTER_SHELF;
-
 	STAILQ_INIT(&softc->lun_list);
 	STAILQ_INIT(&softc->metatask_list);
 	sprintf(softc->fe_name, "kernel");
@@ -264,7 +262,7 @@ cfi_init(void)
 	port->max_targets = 15;
 	port->max_target_id = 15;
 
-	if (ctl_port_register(port, (softc->flags & CTL_FLAG_MASTER_SHELF)) != 0) 
+	if (ctl_port_register(port) != 0)
 	{
 		printf("%s: internal frontend registration failed\n", __func__);
 		return (0);

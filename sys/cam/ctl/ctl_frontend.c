@@ -136,7 +136,7 @@ ctl_frontend_find(char *frontend_name)
 }
 
 int
-ctl_port_register(struct ctl_port *port, int master_shelf)
+ctl_port_register(struct ctl_port *port)
 {
 	struct ctl_io_pool *pool;
 	int port_num;
@@ -193,7 +193,7 @@ error:
 		STAILQ_INIT(&port->options);
 
 	mtx_lock(&control_softc->ctl_lock);
-	port->targ_port = port_num + (master_shelf != 0 ? 0 : CTL_MAX_PORTS);
+	port->targ_port = port_num + control_softc->port_offset;
 	STAILQ_INSERT_TAIL(&port->frontend->port_list, port, fe_links);
 	STAILQ_INSERT_TAIL(&control_softc->port_list, port, links);
 	control_softc->ctl_ports[port_num] = port;

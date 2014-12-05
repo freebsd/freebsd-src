@@ -164,7 +164,7 @@ cfcs_init(void)
 	port->max_targets = 1;
 	port->max_target_id = 15;
 
-	retval = ctl_port_register(port, /*master_SC*/ 1);
+	retval = ctl_port_register(port);
 	if (retval != 0) {
 		printf("%s: ctl_port_register() failed with error %d!\n",
 		       __func__, retval);
