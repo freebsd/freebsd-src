@@ -271,7 +271,7 @@ _C_LABEL(fusubailout):
 
 fusupcbfaulttext:
 	.asciz	"Yikes - no valid PCB during fusuxxx() addr=%08x\n"
-	.align	0
+	.align	2
 #endif
 
 /*
