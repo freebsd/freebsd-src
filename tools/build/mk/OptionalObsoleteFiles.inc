@@ -4016,9 +4016,10 @@ OLD_FILES+=usr/share/sendmail/cf/siteconfig/uucp.ucbarpa.m4
 OLD_FILES+=usr/share/sendmail/cf/siteconfig/uucp.ucbvax.m4
 .endif
 
-#.if ${MK_SHAREDOCS} == no
-# to be filled in
-#.endif
+.if ${MK_SHAREDOCS} == no
+OLD_FILES+=usr/share/doc/pjdfstest/README
+OLD_DIRS+=usr/share/doc/pjdfstest
+.endif
 
 #.if ${MK_SYSCONS} == no
 # to be filled in

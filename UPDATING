@@ -16,6 +16,11 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20141205:
+	pjdfstest has been integrated into kyua as an opt-in test suite.
+	Please see share/doc/pjdfstest/README for a more details on how to
+	execute it.
+
 20141118:
 	10.1-RELEASE.
 
