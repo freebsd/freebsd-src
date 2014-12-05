@@ -47,8 +47,7 @@
 #include "iboxpriv.h"
 
 int invoke(uint32_t width, uint32_t height, size_t pnglen,
-    struct cheri_object system_object, __capability uint8_t *png_out,
-    __capability uint8_t *png_in, __capability uint32_t *times);
+    uint8_t *png_out, uint8_t *png_in, uint32_t *times);
 
 int pngwidth;
 
@@ -82,40 +81,42 @@ cheri_read_row_callback(png_structp png_ptr __unused, png_uint_32 row __unused,
  */
 int
 invoke(uint32_t width, uint32_t height, size_t pnglen __unused,
-    struct cheri_object system_object, uint8_t *png_out,
-    uint8_t *png_in, uint32_t *times)
+    uint8_t *png_out, uint8_t *png_in, uint32_t *times)
 {
-	struct ibox_decode_state	ids;
-	struct iboxstate		is;
-
-	cheri_system_setup(system_object);
-	printf("in the sandbox\n");
+	struct ibox_decode_state	*idsp;
+	struct iboxstate		*isp;
 
 	pngwidth = width;
 
-	is.width = width;
-	is.height = height;
-	is.error = 0;
-	is.sb = SB_CHERI;
+	if ((isp = calloc(1, sizeof(*isp))) == NULL)
+		return (1);
 
-	ids.fd = -1;
-	ids.offset = 0;
+	isp->width = width;
+	isp->height = height;
+	isp->error = 0;
+	isp->sb = SB_CHERI;
+
+	if ((idsp = calloc(1, sizeof(*idsp))) == NULL)
+		return (1);
+
+	idsp->fd = -1;
+	idsp->offset = 0;
 	/*
 	 * In principle we could update this via a capabilty,
 	 * but in practice we can do it on exit.
 	 */
-	ids.is = &is;
-	if ((ids.buffer = malloc(sizeof(uint32_t) * width * height)) == NULL)
+	idsp->is = isp;
+	if ((idsp->buffer = malloc(sizeof(uint32_t) * width * height)) == NULL)
 		return (1);
-	ids.incap = png_in;
+	idsp->incap = png_in;
 
-	decode_png(&ids, cheri_read_data, cheri_read_row_callback);
+	decode_png(idsp, cheri_read_data, cheri_read_row_callback);
 
 	/* Copy the whole image out */
-	if (is.error == 0)
-		memcpy_c(png_out, ids.buffer, sizeof(uint32_t) * width * height);
+	if (isp->error == 0)
+		memcpy_c(png_out, idsp->buffer, sizeof(uint32_t) * width * height);
 
-	memcpy_c(times, (void *)(is.times + 1), sizeof(uint32_t) * 2);
+	memcpy_c(times, (void *)(isp->times + 1), sizeof(uint32_t) * 2);
 
-	return (is.error);
+	return (isp->error);
 }

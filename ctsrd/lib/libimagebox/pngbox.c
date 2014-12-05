@@ -256,14 +256,12 @@ cheri_png_read_start(char *pngbuffer, size_t pnglen,
 
         v = sandbox_object_cinvoke(sandbox_object, width, height, pnglen,
 	    0, 0, 0, 0, 0,
-	    sandbox_object_getsystemobject(sandbox_object).co_codecap,
-	    sandbox_object_getsystemobject(sandbox_object).co_datacap,
             (__capability void *)is->buffer,
 	    cheri_ptrperm(pngbuffer, pnglen,
 	       CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 	    cheri_ptrperm((void *)(is->times + 1), sizeof(uint32_t) * 2,
 	     CHERI_PERM_STORE),
-	    NULL, NULL, NULL);
+	    NULL, NULL, NULL, NULL, NULL);
 	if (v != 0) {
 		printf("sandbox returned %ju\n", (intmax_t)v);
 		goto error;
