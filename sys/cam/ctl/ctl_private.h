@@ -403,14 +403,14 @@ struct ctl_lun {
 	uint32_t			have_ca[CTL_MAX_INITIATORS >> 5];
 	struct scsi_sense_data		pending_sense[CTL_MAX_INITIATORS];
 #endif
-	ctl_ua_type			pending_ua[CTL_MAX_INITIATORS];
+	ctl_ua_type			*pending_ua[CTL_MAX_PORTS];
 	time_t				lasttpt;
 	struct ctl_mode_pages		mode_pages;
 	struct ctl_log_pages		log_pages;
 	struct ctl_lun_io_stats		stats;
 	uint32_t			res_idx;
 	unsigned int			PRGeneration;
-	uint64_t			pr_keys[2*CTL_MAX_INITIATORS];
+	uint64_t			*pr_keys[2 * CTL_MAX_PORTS];
 	int				pr_key_count;
 	uint32_t			pr_res_idx;
 	uint8_t				res_type;
@@ -450,6 +450,7 @@ struct ctl_softc {
 	int ha_state;
 	int is_single;
 	int port_offset;
+	int persis_offset;
 	int inquiry_pq_no_lun;
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
@@ -515,6 +516,7 @@ int ctl_report_supported_opcodes(struct ctl_scsiio *ctsio);
 int ctl_report_supported_tmf(struct ctl_scsiio *ctsio);
 int ctl_report_timestamp(struct ctl_scsiio *ctsio);
 int ctl_isc(struct ctl_scsiio *ctsio);
+int ctl_get_lba_status(struct ctl_scsiio *ctsio);
 
 void ctl_tpc_init(struct ctl_softc *softc);
 void ctl_tpc_shutdown(struct ctl_softc *softc);

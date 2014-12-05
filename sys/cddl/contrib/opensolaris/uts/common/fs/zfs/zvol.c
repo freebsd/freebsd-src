@@ -91,6 +91,7 @@
 #include <sys/dmu_tx.h>
 #include <sys/zfeature.h>
 #include <sys/zio_checksum.h>
+#include <sys/filio.h>
 
 #include <geom/geom.h>
 
@@ -2912,6 +2913,18 @@ zvol_d_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct threa
 			arg->value.off = refd / DEV_BSIZE;
 		} else
 			error = ENOIOCTL;
+		break;
+	}
+	case FIOSEEKHOLE:
+	case FIOSEEKDATA: {
+		off_t *off = (off_t *)data;
+		uint64_t noff;
+		boolean_t hole;
+
+		hole = (cmd == FIOSEEKHOLE);
+		noff = *off;
+		error = dmu_offset_next(zv->zv_objset, ZVOL_OBJ, hole, &noff);
+		*off = noff;
 		break;
 	}
 	default:

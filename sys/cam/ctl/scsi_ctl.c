@@ -622,6 +622,9 @@ ctlferegister(struct cam_periph *periph, void *arg)
 			  "notify CCBs, status 0x%x\n", __func__, status);
 		return (CAM_REQ_CMP_ERR);
 	}
+	mtx_lock(&bus_softc->lun_softc_mtx);
+	STAILQ_INSERT_TAIL(&bus_softc->lun_softc_list, softc, links);
+	mtx_unlock(&bus_softc->lun_softc_mtx);
 	return (CAM_REQ_CMP);
 }
 
@@ -1573,12 +1576,7 @@ ctlfe_onoffline(void *arg, int online)
 		printf("%s: unable to create path!\n", __func__);
 		return;
 	}
-	ccb = (union ccb *)malloc(sizeof(*ccb), M_TEMP, M_NOWAIT | M_ZERO);
-	if (ccb == NULL) {
-		printf("%s: unable to malloc CCB!\n", __func__);
-		xpt_free_path(path);
-		return;
-	}
+	ccb = xpt_alloc_ccb();
 	xpt_setup_ccb(&ccb->ccb_h, path, CAM_PRIORITY_NONE);
 
 	/*
@@ -1711,10 +1709,7 @@ ctlfe_onoffline(void *arg, int online)
 	}
 
 	xpt_free_path(path);
-
-	free(ccb, M_TEMP);
-
-	return;
+	xpt_free_ccb(ccb);
 }
 
 static void
@@ -1740,14 +1735,7 @@ ctlfe_online(void *arg)
 		return;
 	}
 
-	lun_softc = malloc(sizeof(*lun_softc), M_CTLFE,
-			M_NOWAIT | M_ZERO);
-	if (lun_softc == NULL) {
-		xpt_print(path, "%s: unable to allocate softc for "
-				"wildcard periph\n", __func__);
-		xpt_free_path(path);
-		return;
-	}
+	lun_softc = malloc(sizeof(*lun_softc), M_CTLFE, M_WAITOK | M_ZERO);
 
 	xpt_path_lock(path);
 	periph = cam_periph_find(path, "ctl");
@@ -1780,14 +1768,10 @@ ctlfe_online(void *arg)
 		       "cam_periph_alloc()\n", __func__, (entry != NULL) ?
 		       entry->status_text : "Unknown", status);
 		free(lun_softc, M_CTLFE);
-	} else {
-		mtx_lock(&bus_softc->lun_softc_mtx);
-		STAILQ_INSERT_TAIL(&bus_softc->lun_softc_list, lun_softc, links);
-		mtx_unlock(&bus_softc->lun_softc_mtx);
-		ctlfe_onoffline(arg, /*online*/ 1);
 	}
 
 	xpt_path_unlock(path);
+	ctlfe_onoffline(arg, /*online*/ 1);
 	xpt_free_path(path);
 }
 
@@ -1801,6 +1785,8 @@ ctlfe_offline(void *arg)
 
 	bus_softc = (struct ctlfe_softc *)arg;
 
+	ctlfe_onoffline(arg, /*online*/ 0);
+
 	/*
 	 * Disable the wildcard LUN for this port now that we have taken
 	 * the port offline.
@@ -1813,14 +1799,9 @@ ctlfe_offline(void *arg)
 		       __func__);
 		return;
 	}
-
 	xpt_path_lock(path);
-
-	ctlfe_onoffline(arg, /*online*/ 0);
-
 	if ((periph = cam_periph_find(path, "ctl")) != NULL)
 		cam_periph_invalidate(periph);
-
 	xpt_path_unlock(path);
 	xpt_free_path(path);
 }
@@ -1881,10 +1862,6 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 		       "cam_periph_alloc()\n", __func__, (entry != NULL) ?
 		       entry->status_text : "Unknown", status);
 		free(softc, M_CTLFE);
-	} else {
-		mtx_lock(&bus_softc->lun_softc_mtx);
-		STAILQ_INSERT_TAIL(&bus_softc->lun_softc_list, softc, links);
-		mtx_unlock(&bus_softc->lun_softc_mtx);
 	}
 
 	xpt_path_unlock(path);

@@ -1,6 +1,6 @@
-/*	$Id: mandoc.h,v 1.152 2014/08/06 15:09:05 schwarze Exp $ */
+/*	$Id: mandoc.h,v 1.171 2014/11/28 18:09:01 schwarze Exp $ */
 /*
- * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2010, 2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2014 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -54,7 +54,6 @@ enum	mandocerr {
 	MANDOCERR_TITLE_CASE, /* lower case character in document title */
 	MANDOCERR_MSEC_MISSING, /* missing manual section, using "": macro */
 	MANDOCERR_MSEC_BAD, /* unknown manual section: Dt ... section */
-	MANDOCERR_ARCH_BAD, /* unknown manual volume or arch: Dt ... volume */
 	MANDOCERR_DATE_MISSING, /* missing date, using today's date */
 	MANDOCERR_DATE_BAD, /* cannot parse date, using it verbatim: date */
 	MANDOCERR_OS_MISSING, /* missing Os macro, using "" */
@@ -72,6 +71,9 @@ enum	mandocerr {
 	MANDOCERR_SEC_ORDER, /* sections out of conventional order: Sh title */
 	MANDOCERR_SEC_REP, /* duplicate section title: Sh title */
 	MANDOCERR_SEC_MSEC, /* unexpected section: Sh title for ... only */
+	MANDOCERR_XR_ORDER, /* unusual Xr order: ... after ... */
+	MANDOCERR_XR_PUNCT, /* unusual Xr punctuation: ... after ... */
+	MANDOCERR_AN_MISSING, /* AUTHORS section without An macro */
 
 	/* related to macros and nesting */
 	MANDOCERR_MACRO_OBS, /* obsolete macro: macro */
@@ -101,6 +103,7 @@ enum	mandocerr {
 	MANDOCERR_BF_NOFONT, /* missing font type, using \fR: Bf */
 	MANDOCERR_BF_BADFONT, /* unknown font type, using \fR: Bf font */
 	MANDOCERR_ARG_STD, /* missing -std argument, adding it: macro */
+	MANDOCERR_EQN_NOBOX, /* missing eqn box, using "": op */
 
 	/* related to bad arguments */
 	MANDOCERR_ARG_QUOTE, /* unterminated quoted argument */
@@ -110,6 +113,8 @@ enum	mandocerr {
 	MANDOCERR_BL_REP, /* skipping duplicate list type: Bl -type */
 	MANDOCERR_BL_SKIPW, /* skipping -width argument: Bl -type */
 	MANDOCERR_AT_BAD, /* unknown AT&T UNIX version: At version */
+	MANDOCERR_FA_COMMA, /* comma in function argument: arg */
+	MANDOCERR_FN_PAREN, /* parenthesis in function name: arg */
 	MANDOCERR_RS_BAD, /* invalid content in Rs block: macro */
 	MANDOCERR_SM_BAD, /* invalid Boolean argument: macro arg */
 	MANDOCERR_FT_BAD, /* unknown font, skipping request: ft font */
@@ -129,7 +134,6 @@ enum	mandocerr {
 	MANDOCERR_EQNSCOPE, /* equation scope open on exit */
 	MANDOCERR_EQNBADSCOPE, /* overlapping equation scopes */
 	MANDOCERR_EQNEOF, /* unexpected end of equation */
-	MANDOCERR_EQNSYNT, /* equation syntax error */
 
 	/* related to tables */
 	MANDOCERR_TBL, /* bad table syntax */
@@ -154,6 +158,7 @@ enum	mandocerr {
 	/* related to request and macro arguments */
 	MANDOCERR_NAMESC, /* escaped character not allowed in a name: name */
 	MANDOCERR_ARGCOUNT, /* argument count wrong */
+	MANDOCERR_BD_FILE, /* NOT IMPLEMENTED: Bd -file */
 	MANDOCERR_BL_NOTYPE, /* missing list type, using -item: Bl */
 	MANDOCERR_NM_NONAME, /* missing manual name, using "": Nm */
 	MANDOCERR_OS_UNAME, /* uname(3) system call failed, using UNKNOWN */
@@ -161,19 +166,26 @@ enum	mandocerr {
 	MANDOCERR_IT_NONUM, /* skipping request without numeric argument */
 	MANDOCERR_ARG_SKIP, /* skipping all arguments: macro args */
 	MANDOCERR_ARG_EXCESS, /* skipping excess arguments: macro ... args */
+	MANDOCERR_DIVZERO, /* divide by zero */
 
 	MANDOCERR_FATAL, /* ===== start of fatal errors ===== */
 
 	MANDOCERR_TOOLARGE, /* input too large */
-	MANDOCERR_BD_FILE, /* NOT IMPLEMENTED: Bd -file */
 	MANDOCERR_SO_PATH, /* NOT IMPLEMENTED: .so with absolute path or ".." */
 	MANDOCERR_SO_FAIL, /* .so request failed */
 
 	/* ===== system errors ===== */
 
+	MANDOCERR_SYSDUP, /* cannot dup file descriptor */
+	MANDOCERR_SYSEXEC, /* cannot exec */
+	MANDOCERR_SYSEXIT, /* gunzip failed with code */
+	MANDOCERR_SYSFORK, /* cannot fork */
 	MANDOCERR_SYSOPEN, /* cannot open file */
-	MANDOCERR_SYSSTAT, /* cannot stat file */
+	MANDOCERR_SYSPIPE, /* cannot open pipe */
 	MANDOCERR_SYSREAD, /* cannot read file */
+	MANDOCERR_SYSSIG, /* gunzip died from signal */
+	MANDOCERR_SYSSTAT, /* cannot stat file */
+	MANDOCERR_SYSWAIT, /* wait failed */
 
 	MANDOCERR_MAX
 };
@@ -234,6 +246,7 @@ struct	tbl_cell {
 #define	TBL_CELL_EQUAL	 (1 << 4) /* e, E */
 #define	TBL_CELL_UP	 (1 << 5) /* u, U */
 #define	TBL_CELL_WIGN	 (1 << 6) /* z, Z */
+#define	TBL_CELL_WMAX	 (1 << 7) /* x, X */
 	struct tbl_head	 *head;
 };
 
@@ -295,21 +308,10 @@ enum	eqn_boxt {
 	EQN_ROOT, /* root of parse tree */
 	EQN_TEXT, /* text (number, variable, whatever) */
 	EQN_SUBEXPR, /* nested `eqn' subexpression */
-	EQN_LIST, /* subexpressions list */
-	EQN_MATRIX /* matrix subexpression */
-};
-
-enum	eqn_markt {
-	EQNMARK_NONE = 0,
-	EQNMARK_DOT,
-	EQNMARK_DOTDOT,
-	EQNMARK_HAT,
-	EQNMARK_TILDE,
-	EQNMARK_VEC,
-	EQNMARK_DYAD,
-	EQNMARK_BAR,
-	EQNMARK_UNDER,
-	EQNMARK__MAX
+	EQN_LIST, /* list (braces, etc.) */
+	EQN_LISTONE, /* singleton list */
+	EQN_PILE, /* vertical pile */
+	EQN_MATRIX /* pile of piles */
 };
 
 enum	eqn_fontt {
@@ -323,11 +325,14 @@ enum	eqn_fontt {
 
 enum	eqn_post {
 	EQNPOS_NONE = 0,
-	EQNPOS_OVER,
 	EQNPOS_SUP,
+	EQNPOS_SUBSUP,
 	EQNPOS_SUB,
 	EQNPOS_TO,
 	EQNPOS_FROM,
+	EQNPOS_FROMTO,
+	EQNPOS_OVER,
+	EQNPOS_SQRT,
 	EQNPOS__MAX
 };
 
@@ -355,12 +360,16 @@ struct	eqn_box {
 	struct eqn_box	 *first; /* first child node */
 	struct eqn_box	 *last; /* last child node */
 	struct eqn_box	 *next; /* node sibling */
+	struct eqn_box	 *prev; /* node sibling */
 	struct eqn_box	 *parent; /* node sibling */
 	char		 *text; /* text (or NULL) */
-	char		 *left;
-	char		 *right;
+	char		 *left; /* fence left-hand */
+	char		 *right; /* fence right-hand */
+	char		 *top; /* expression over-symbol */
+	char		 *bottom; /* expression under-symbol */
+	size_t		  args; /* arguments in parent */
+	size_t		  expectargs; /* max arguments in parent */
 	enum eqn_post	  pos; /* position of next box */
-	enum eqn_markt	  mark; /* a mark about the box */
 	enum eqn_fontt	  font; /* font of box */
 	enum eqn_pilet	  pile; /* equation piling */
 };
@@ -383,6 +392,8 @@ struct	eqn {
 #define	MPARSE_MAN	2  /* assume -man */
 #define	MPARSE_SO	4  /* honour .so requests */
 #define	MPARSE_QUICK	8  /* abort the parse early */
+#define	MPARSE_UTF8	16 /* accept UTF-8 input */
+#define	MPARSE_LATIN1	32 /* accept ISO-LATIN-1 input */
 
 enum	mandoc_esc {
 	ESCAPE_ERROR = 0, /* bail! unparsable escape */
@@ -413,16 +424,18 @@ __BEGIN_DECLS
 enum mandoc_esc	  mandoc_escape(const char **, const char **, int *);
 struct mchars	 *mchars_alloc(void);
 void		  mchars_free(struct mchars *);
-char		  mchars_num2char(const char *, size_t);
+int		  mchars_num2char(const char *, size_t);
+const char	 *mchars_uc2str(int);
 int		  mchars_num2uc(const char *, size_t);
 int		  mchars_spec2cp(const struct mchars *,
 			const char *, size_t);
 const char	 *mchars_spec2str(const struct mchars *,
 			const char *, size_t, size_t *);
 struct mparse	 *mparse_alloc(int, enum mandoclevel, mandocmsg,
-			const char *);
+			const struct mchars *, const char *);
 void		  mparse_free(struct mparse *);
 void		  mparse_keep(struct mparse *);
+enum mandoclevel  mparse_open(struct mparse *, int *, const char *);
 enum mandoclevel  mparse_readfd(struct mparse *, int, const char *);
 enum mandoclevel  mparse_readmem(struct mparse *, const void *, size_t,
 			const char *);
@@ -432,6 +445,7 @@ void		  mparse_result(struct mparse *,
 const char	 *mparse_getkeep(const struct mparse *);
 const char	 *mparse_strerror(enum mandocerr);
 const char	 *mparse_strlevel(enum mandoclevel);
+enum mandoclevel  mparse_wait(struct mparse *);
 
 __END_DECLS
 
