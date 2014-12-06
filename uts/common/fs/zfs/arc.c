@@ -196,6 +196,7 @@ static boolean_t arc_warm;
 uint64_t zfs_arc_max;
 uint64_t zfs_arc_min;
 uint64_t zfs_arc_meta_limit = 0;
+uint64_t zfs_arc_meta_min = 0;
 int zfs_arc_grow_retry = 0;
 int zfs_arc_shrink_shift = 0;
 int zfs_arc_p_min_shift = 0;
@@ -324,6 +325,7 @@ typedef struct arc_stats {
 	kstat_named_t arcstat_meta_used;
 	kstat_named_t arcstat_meta_limit;
 	kstat_named_t arcstat_meta_max;
+	kstat_named_t arcstat_meta_min;
 } arc_stats_t;
 
 static arc_stats_t arc_stats = {
@@ -389,7 +391,8 @@ static arc_stats_t arc_stats = {
 	{ "duplicate_reads",		KSTAT_DATA_UINT64 },
 	{ "arc_meta_used",		KSTAT_DATA_UINT64 },
 	{ "arc_meta_limit",		KSTAT_DATA_UINT64 },
-	{ "arc_meta_max",		KSTAT_DATA_UINT64 }
+	{ "arc_meta_max",		KSTAT_DATA_UINT64 },
+	{ "arc_meta_min",		KSTAT_DATA_UINT64 }
 };
 
 #define	ARCSTAT(stat)	(arc_stats.stat.value.ui64)
@@ -452,6 +455,7 @@ static arc_state_t	*arc_l2c_only;
 #define	arc_c_min	ARCSTAT(arcstat_c_min)	/* min target cache size */
 #define	arc_c_max	ARCSTAT(arcstat_c_max)	/* max target cache size */
 #define	arc_meta_limit	ARCSTAT(arcstat_meta_limit) /* max size for metadata */
+#define	arc_meta_min	ARCSTAT(arcstat_meta_min) /* min size for metadata */
 #define	arc_meta_used	ARCSTAT(arcstat_meta_used) /* size of metadata */
 #define	arc_meta_max	ARCSTAT(arcstat_meta_max) /* max size of metadata */
 
@@ -1779,7 +1783,6 @@ arc_evict(arc_state_t *state, uint64_t spa, int64_t bytes, boolean_t recycle,
 	arc_state_t *evicted_state;
 	uint64_t bytes_evicted = 0, skipped = 0, missed = 0;
 	arc_buf_hdr_t *ab, *ab_prev = NULL;
-	list_t *list = &state->arcs_list[type];
 	kmutex_t *hash_lock;
 	boolean_t have_lock;
 	void *stolen = NULL;
@@ -1792,6 +1795,50 @@ arc_evict(arc_state_t *state, uint64_t spa, int64_t bytes, boolean_t recycle,
 
 	mutex_enter(&state->arcs_mtx);
 	mutex_enter(&evicted_state->arcs_mtx);
+
+	/*
+	 * Decide which "type" (data vs metadata) to recycle from.
+	 *
+	 * If we are over the metadata limit, recycle from metadata.
+	 * If we are under the metadata minimum, recycle from data.
+	 * Otherwise, recycle from whichever type has the oldest (least
+	 * recently accessed) header.
+	 */
+	if (recycle) {
+		arc_buf_hdr_t *data_hdr =
+		    list_tail(&state->arcs_list[ARC_BUFC_DATA]);
+		arc_buf_hdr_t *metadata_hdr =
+		    list_tail(&state->arcs_list[ARC_BUFC_METADATA]);
+		arc_buf_contents_t realtype;
+		if (data_hdr == NULL) {
+			realtype = ARC_BUFC_METADATA;
+		} else if (metadata_hdr == NULL) {
+			realtype = ARC_BUFC_DATA;
+		} else if (arc_meta_used >= arc_meta_limit) {
+			realtype = ARC_BUFC_METADATA;
+		} else if (arc_meta_used <= arc_meta_min) {
+			realtype = ARC_BUFC_DATA;
+		} else {
+			if (data_hdr->b_arc_access <
+			    metadata_hdr->b_arc_access) {
+				realtype = ARC_BUFC_DATA;
+			} else {
+				realtype = ARC_BUFC_METADATA;
+			}
+		}
+		if (realtype != type) {
+			/*
+			 * If we want to evict from a different list,
+			 * we can not recycle, because DATA vs METADATA
+			 * buffers are segregated into different kmem
+			 * caches (and vmem arenas).
+			 */
+			type = realtype;
+			recycle = B_FALSE;
+		}
+	}
+
+	list_t *list = &state->arcs_list[type];
 
 	for (ab = list_tail(list); ab; ab = ab_prev) {
 		ab_prev = list_prev(list, ab);
@@ -3754,6 +3801,12 @@ arc_init(void)
 
 	if (arc_c_min < arc_meta_limit / 2 && zfs_arc_min == 0)
 		arc_c_min = arc_meta_limit / 2;
+
+	if (zfs_arc_meta_min > 0) {
+		arc_meta_min = zfs_arc_meta_min;
+	} else {
+		arc_meta_min = arc_c_min / 2;
+	}
 
 	if (zfs_arc_grow_retry > 0)
 		arc_grow_retry = zfs_arc_grow_retry;
