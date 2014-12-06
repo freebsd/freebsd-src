@@ -489,24 +489,17 @@ t4_tweak_chip_settings(struct adapter *sc)
 
 /*
  * SGE wants the buffer to be at least 64B and then a multiple of 16.  If
- * padding and packing are enabled, the buffer's start and end need to be
- * correctly aligned as well.  We'll just make sure that the size is a multiple
- * of the alignment, it is up to other parts .
+ * padding is is use the buffer's start and end need to be aligned to the pad
+ * boundary as well.  We'll just make sure that the size is a multiple of the
+ * boundary here, it is up to the buffer allocation code to make sure the start
+ * of the buffer is aligned as well.
  */
 static inline int
 hwsz_ok(struct adapter *sc, int hwsz)
 {
-	int align = 16;
+	int mask = fl_pad ? sc->sge.pad_boundary - 1 : 16 - 1;
 
-	if (fl_pad) {
-		MPASS(sc->sge.pad_boundary > align);
-		align = sc->sge.pad_boundary;
-	}
-	if (buffer_packing && sc->sge.pack_boundary > align)
-		align = sc->sge.pack_boundary;
-	align--;	/* now a mask */
-	return (hwsz >= 64 && (hwsz & align) == 0);
-
+	return (hwsz >= 64 && (hwsz & mask) == 0);
 }
 
 /*
@@ -600,9 +593,6 @@ t4_read_chip_settings(struct adapter *sc)
 			MPASS(powerof2(swz->size));
 			if (fl_pad && (swz->size % sc->sge.pad_boundary != 0))
 				continue;
-			if (buffer_packing &&
-			    (swz->size % sc->sge.pack_boundary != 0))
-				continue;
 		}
 
 		if (swz->size == safest_rx_cluster)
@@ -615,8 +605,6 @@ t4_read_chip_settings(struct adapter *sc)
 #ifdef INVARIANTS
 			if (fl_pad)
 				MPASS(hwb->size % sc->sge.pad_boundary == 0);
-			if (buffer_packing)
-				MPASS(hwb->size % sc->sge.pack_boundary == 0);
 #endif
 			hwb->zidx = i;
 			if (head == -1)
@@ -668,8 +656,6 @@ t4_read_chip_settings(struct adapter *sc)
 #ifdef INVARIANTS
 			if (fl_pad)
 				MPASS(hwb->size % sc->sge.pad_boundary == 0);
-			if (buffer_packing)
-				MPASS(hwb->size % sc->sge.pack_boundary == 0);
 #endif
 			spare = safe_swz->size - hwb->size;
 			if (spare >= CL_METADATA_SIZE) {
@@ -1571,7 +1557,8 @@ rxb_free(struct mbuf *m, void *arg1, void *arg2)
  * d) m_extaddref (cluster with metadata) zone_mbuf
  */
 static struct mbuf *
-get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
+get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int fr_offset,
+    int remaining)
 {
 	struct mbuf *m;
 	struct fl_sdesc *sd = &fl->sdesc[fl->cidx];
@@ -1579,18 +1566,23 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
 	struct sw_zone_info *swz = &sc->sge.sw_zone_info[cll->zidx];
 	struct hw_buf_info *hwb = &sc->sge.hw_buf_info[cll->hwidx];
 	struct cluster_metadata *clm = cl_metadata(sc, fl, cll, sd->cl);
-	int len, padded_len;
+	int len, blen;
 	caddr_t payload;
 
-	len = min(total, hwb->size - fl->rx_offset);
+	blen = hwb->size - fl->rx_offset;	/* max possible in this buf */
+	len = min(remaining, blen);
 	payload = sd->cl + cll->region1 + fl->rx_offset;
 	if (fl->flags & FL_BUF_PACKING) {
-		padded_len = roundup2(len, fl->buf_boundary);
-		MPASS(fl->rx_offset + padded_len <= hwb->size);
+		const u_int l = fr_offset + len;
+		const u_int pad = roundup2(l, fl->buf_boundary) - l;
+
+		if (fl->rx_offset + len + pad < hwb->size)
+			blen = len + pad;
+		MPASS(fl->rx_offset + blen <= hwb->size);
 	} else {
-		padded_len = hwb->size;
 		MPASS(fl->rx_offset == 0);	/* not packing */
 	}
+
 
 	if (sc->sc_do_rxcopy && len < RX_COPY_THRESHOLD) {
 
@@ -1598,7 +1590,7 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
 		 * Copy payload into a freshly allocated mbuf.
 		 */
 
-		m = flags & M_PKTHDR ?
+		m = fr_offset == 0 ?
 		    m_gethdr(M_NOWAIT, MT_DATA) : m_get(M_NOWAIT, MT_DATA);
 		if (m == NULL)
 			return (NULL);
@@ -1620,10 +1612,11 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
 		MPASS(clm != NULL);
 		m = (struct mbuf *)(sd->cl + sd->nmbuf * MSIZE);
 		/* No bzero required */
-		if (m_init(m, NULL, 0, M_NOWAIT, MT_DATA, flags | M_NOFREE))
+		if (m_init(m, NULL, 0, M_NOWAIT, MT_DATA,
+		    fr_offset == 0 ? M_PKTHDR | M_NOFREE : M_NOFREE))
 			return (NULL);
 		fl->mbuf_inlined++;
-		m_extaddref(m, payload, padded_len, &clm->refcount, rxb_free,
+		m_extaddref(m, payload, blen, &clm->refcount, rxb_free,
 		    swz->zone, sd->cl);
 		if (sd->nmbuf++ == 0)
 			counter_u64_add(extfree_refs, 1);
@@ -1635,13 +1628,13 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
 		 * payload in the cluster.
 		 */
 
-		m = flags & M_PKTHDR ?
+		m = fr_offset == 0 ?
 		    m_gethdr(M_NOWAIT, MT_DATA) : m_get(M_NOWAIT, MT_DATA);
 		if (m == NULL)
 			return (NULL);
 		fl->mbuf_allocated++;
 		if (clm != NULL) {
-			m_extaddref(m, payload, padded_len, &clm->refcount,
+			m_extaddref(m, payload, blen, &clm->refcount,
 			    rxb_free, swz->zone, sd->cl);
 			if (sd->nmbuf++ == 0)
 				counter_u64_add(extfree_refs, 1);
@@ -1650,12 +1643,12 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
 			sd->cl = NULL;	/* consumed, not a recycle candidate */
 		}
 	}
-	if (flags & M_PKTHDR)
-		m->m_pkthdr.len = total;
+	if (fr_offset == 0)
+		m->m_pkthdr.len = remaining;
 	m->m_len = len;
 
 	if (fl->flags & FL_BUF_PACKING) {
-		fl->rx_offset += padded_len;
+		fl->rx_offset += blen;
 		MPASS(fl->rx_offset <= hwb->size);
 		if (fl->rx_offset < hwb->size)
 			return (m);	/* without advancing the cidx */
@@ -1677,17 +1670,17 @@ static struct mbuf *
 get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf)
 {
 	struct mbuf *m0, *m, **pnext;
-	u_int len;
+	u_int remaining;
+	const u_int total = G_RSPD_LEN(len_newbuf);
 
-	len = G_RSPD_LEN(len_newbuf);
 	if (__predict_false(fl->flags & FL_BUF_RESUME)) {
 		M_ASSERTPKTHDR(fl->m0);
-		MPASS(len == fl->m0->m_pkthdr.len);
-		MPASS(fl->remaining < len);
+		MPASS(fl->m0->m_pkthdr.len == total);
+		MPASS(fl->remaining < total);
 
 		m0 = fl->m0;
 		pnext = fl->pnext;
-		len = fl->remaining;
+		remaining = fl->remaining;
 		fl->flags &= ~FL_BUF_RESUME;
 		goto get_segment;
 	}
@@ -1708,25 +1701,25 @@ get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf)
 	 * 'len' and it may span multiple hw buffers.
 	 */
 
-	m0 = get_scatter_segment(sc, fl, len, M_PKTHDR);
+	m0 = get_scatter_segment(sc, fl, 0, total);
 	if (m0 == NULL)
 		return (NULL);
-	len -= m0->m_len;
+	remaining = total - m0->m_len;
 	pnext = &m0->m_next;
-	while (len > 0) {
+	while (remaining > 0) {
 get_segment:
 		MPASS(fl->rx_offset == 0);
-		m = get_scatter_segment(sc, fl, len, 0);
+		m = get_scatter_segment(sc, fl, total - remaining, remaining);
 		if (__predict_false(m == NULL)) {
 			fl->m0 = m0;
 			fl->pnext = pnext;
-			fl->remaining = len;
+			fl->remaining = remaining;
 			fl->flags |= FL_BUF_RESUME;
 			return (NULL);
 		}
 		*pnext = m;
 		pnext = &m->m_next;
-		len -= m->m_len;
+		remaining -= m->m_len;
 	}
 	*pnext = NULL;
 
@@ -4485,8 +4478,7 @@ find_safe_refill_source(struct adapter *sc, struct sge_fl *fl)
 	fl->cll_alt.hwidx = hwidx;
 	fl->cll_alt.zidx = hwb->zidx;
 	if (allow_mbufs_in_cluster &&
-	    (fl_pad == 0 || (MSIZE % sc->sge.pad_boundary) == 0) &&
-	    (!(fl->flags & FL_BUF_PACKING) || (MSIZE % sc->sge.pack_boundary) == 0))
+	    (fl_pad == 0 || (MSIZE % sc->sge.pad_boundary) == 0))
 		fl->cll_alt.region1 = ((spare - CL_METADATA_SIZE) / MSIZE) * MSIZE;
 	else
 		fl->cll_alt.region1 = 0;
