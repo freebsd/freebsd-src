@@ -63,6 +63,7 @@
 #include <libuutil.h>
 #include <aclutils.h>
 #include <directory.h>
+#include <idmap.h>
 
 #include "zfs_iter.h"
 #include "zfs_util.h"
@@ -2372,9 +2373,8 @@ userspace_cb(void *arg, const char *domain, uid_t rid, uint64_t space)
 		/* SMB */
 		char sid[ZFS_MAXNAMELEN + 32];
 		uid_t id;
-		uint64_t classes;
 		int err;
-		directory_error_t e;
+		int flag = IDMAP_REQ_FLG_USE_CACHE;
 
 		smbentity = B_TRUE;
 
@@ -2391,10 +2391,13 @@ userspace_cb(void *arg, const char *domain, uid_t rid, uint64_t space)
 		if (err == 0) {
 			rid = id;
 			if (!cb->cb_sid2posix) {
-				e = directory_name_from_sid(NULL, sid, &name,
-				    &classes);
-				if (e != NULL)
-					directory_error_free(e);
+				if (type == USTYPE_SMB_USR) {
+					(void) idmap_getwinnamebyuid(rid, flag,
+					    &name, NULL);
+				} else {
+					(void) idmap_getwinnamebygid(rid, flag,
+					    &name, NULL);
+				}
 				if (name == NULL)
 					name = sid;
 			}
