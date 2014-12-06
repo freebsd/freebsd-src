@@ -126,6 +126,7 @@ josef [label="Josef El-Rayes\njosef@FreeBSD.org\n2004/12/20"]
 jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2008/09/05"]
 jsa [label="Joseph S. Atkinson\njsa@FreeBSD.org\n2010/07/15"]
 jylefort [label="Jean-Yves Lefort\njylefort@FreeBSD.org\n2005/04/12"]
+kami [label="Dominic Fandrey\nkami@FreeBSD.org\n2014/09/09"]
 kevlo [label="Kevin Lo\nkevlo@FreeBSD.org\n2003/02/21"]
 kmoore [label="Kris Moore\nkmoore@FreeBSD.org\n2009/04/14"]
 knu [label="Akinori Musha\nknu@FreeBSD.org\n2000/03/22"]
@@ -291,6 +292,8 @@ crees -> madpilot
 crees -> gblach
 crees -> tijl
 
+cs -> kami
+
 culot -> danilo
 culot -> jase
 culot -> marino
@@ -389,6 +392,7 @@ knu -> maho
 knu -> nobutaka
 knu -> nork
 
+koobs -> kami
 koobs -> xmj
 
 krion -> brooks
