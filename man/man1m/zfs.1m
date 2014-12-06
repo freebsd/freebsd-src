@@ -24,11 +24,11 @@
 .\" Copyright 2011 Joshua M. Clulow <josh@sysmgr.org>
 .\" Copyright (c) 2014 by Delphix. All rights reserved.
 .\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
-.\" Copyright 2013 Nexenta Systems, Inc.  All Rights Reserved.
 .\" Copyright (c) 2014, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2014 by Adam Stevko. All rights reserved.
+.\" Copyright 2014 Nexenta Systems, Inc.  All Rights Reserved.
 .\"
-.TH ZFS 1M "March 6, 2014"
+.TH ZFS 1M "November 11, 2014"
 .SH NAME
 zfs \- configures ZFS file systems
 .SH SYNOPSIS
@@ -4038,10 +4038,9 @@ permissions on \fBtank/cindys\fR are also displayed.
 .nf
 # \fBzfs allow cindys create,destroy,mount,snapshot tank/cindys\fR
 # \fBzfs allow tank/cindys\fR
--------------------------------------------------------------
-Local+Descendent permissions on (tank/cindys)
-          user cindys create,destroy,mount,snapshot
--------------------------------------------------------------
+---- Permissions on tank/cindys --------------------------------------
+Local+Descendent permissions:
+        user cindys create,destroy,mount,snapshot
 .fi
 .in -2
 .sp
@@ -4074,12 +4073,11 @@ The permissions on \fBtank/users\fR are also displayed.
 # \fBzfs allow staff create,mount tank/users\fR
 # \fBzfs allow -c destroy tank/users\fR
 # \fBzfs allow tank/users\fR
--------------------------------------------------------------
-Create time permissions on (tank/users)
-          create,destroy
-Local+Descendent permissions on (tank/users)
-          group staff create,mount
--------------------------------------------------------------
+---- Permissions on tank/users ---------------------------------------
+Permission sets:
+        destroy
+Local+Descendent permissions:
+        group staff create,mount
 .fi
 .in -2
 .sp
@@ -4098,14 +4096,11 @@ displayed.
 # \fBzfs allow -s @pset create,destroy,snapshot,mount tank/users\fR
 # \fBzfs allow staff @pset tank/users\fR
 # \fBzfs allow tank/users\fR
--------------------------------------------------------------
-Permission sets on (tank/users)
+---- Permissions on tank/users ---------------------------------------
+Permission sets:
         @pset create,destroy,mount,snapshot
-Create time permissions on (tank/users)
-        create,destroy
-Local+Descendent permissions on (tank/users)
-        group staff @pset,create,mount
--------------------------------------------------------------
+Local+Descendent permissions:
+        group staff @pset
 .fi
 .in -2
 .sp
@@ -4123,14 +4118,13 @@ also displayed.
 .nf
 # \fBzfs allow cindys quota,reservation users/home\fR
 # \fBzfs allow users/home\fR
--------------------------------------------------------------
-Local+Descendent permissions on (users/home)
+---- Permissions on users/home ---------------------------------------
+Local+Descendent permissions:
         user cindys quota,reservation
--------------------------------------------------------------
 cindys% \fBzfs set quota=10G users/home/marks\fR
 cindys% \fBzfs get quota users/home/marks\fR
-NAME              PROPERTY  VALUE             SOURCE
-users/home/marks  quota     10G               local
+NAME              PROPERTY  VALUE  SOURCE
+users/home/marks  quota     10G    local
 .fi
 .in -2
 .sp
@@ -4148,14 +4142,11 @@ The following example shows how to remove the snapshot permission from the
 .nf
 # \fBzfs unallow staff snapshot tank/users\fR
 # \fBzfs allow tank/users\fR
--------------------------------------------------------------
-Permission sets on (tank/users)
+---- Permissions on tank/users ---------------------------------------
+Permission sets:
         @pset create,destroy,mount,snapshot
-Create time permissions on (tank/users)
-        create,destroy
-Local+Descendent permissions on (tank/users)
-        group staff @pset,create,mount
--------------------------------------------------------------
+Local+Descendent permissions:
+        group staff @pset
 .fi
 .in -2
 .sp
