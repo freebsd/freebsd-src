@@ -216,10 +216,10 @@ udp_init(void)
 	 * a 4-tuple, flip this to 4-tuple.
 	 */
 	in_pcbinfo_init(&V_udbinfo, "udp", &V_udb, UDBHASHSIZE, UDBHASHSIZE,
-	    "udp_inpcb", udp_inpcb_init, NULL, UMA_ZONE_NOFREE,
+	    "udp_inpcb", udp_inpcb_init, NULL, 0,
 	    IPI_HASHFIELDS_2TUPLE);
 	V_udpcb_zone = uma_zcreate("udpcb", sizeof(struct udpcb),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(V_udpcb_zone, maxsockets);
 	uma_zone_set_warning(V_udpcb_zone, "kern.ipc.maxsockets limit reached");
 	EVENTHANDLER_REGISTER(maxsockets_change, udp_zone_change, NULL,
@@ -232,7 +232,7 @@ udplite_init(void)
 
 	in_pcbinfo_init(&V_ulitecbinfo, "udplite", &V_ulitecb, UDBHASHSIZE,
 	    UDBHASHSIZE, "udplite_inpcb", udplite_inpcb_init, NULL,
-	    UMA_ZONE_NOFREE, IPI_HASHFIELDS_2TUPLE);
+	    0, IPI_HASHFIELDS_2TUPLE);
 }
 
 /*
