@@ -148,7 +148,7 @@ enum {
 #else
 	SW_ZONE_SIZES = 3,	/* cluster, jumbo9k, jumbo16k */
 #endif
-	CL_METADATA_SIZE = CACHE_LINE_SIZE,
+	CL_METADATA_SIZE = 256,	/* same as MSIZE for now */
 
 	SGE_MAX_WR_NDESC = SGE_MAX_WR_LEN / EQ_ESIZE, /* max WR size in desc */
 	TX_SGL_SEGS = 36,
@@ -695,6 +695,7 @@ struct sge {
 	struct sge_iq **iqmap;	/* iq->cntxt_id to iq mapping */
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
 
+	int pad_boundary;
 	int pack_boundary;
 	int8_t safe_hwidx1;	/* may not have room for metadata */
 	int8_t safe_hwidx2;	/* with room for metadata and maybe more */
