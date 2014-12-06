@@ -148,7 +148,7 @@ enum {
 #else
 	SW_ZONE_SIZES = 3,	/* cluster, jumbo9k, jumbo16k */
 #endif
-	CL_METADATA_SIZE = 256,	/* same as MSIZE for now */
+	CL_METADATA_SIZE = CACHE_LINE_SIZE,
 
 	SGE_MAX_WR_NDESC = SGE_MAX_WR_LEN / EQ_ESIZE, /* max WR size in desc */
 	TX_SGL_SEGS = 36,
