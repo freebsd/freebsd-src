@@ -1449,13 +1449,6 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 			    "traverse_dataset_destroyed()", err);
 		}
 
-		/*
-		 * If we didn't make progress, mark the async destroy as
-		 * stalled, so that we will not initiate a spa_sync() on
-		 * its behalf.
-		 */
-		scn->scn_async_stalled = (scn->scn_visited_this_txg == 0);
-
 		if (bptree_is_empty(dp->dp_meta_objset, dp->dp_bptree_obj)) {
 			/* finished; deactivate async destroy feature */
 			spa_feature_decr(spa, SPA_FEATURE_ASYNC_DESTROY, tx);
@@ -1468,6 +1461,18 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 			    dp->dp_bptree_obj, tx));
 			dp->dp_bptree_obj = 0;
 			scn->scn_async_destroying = B_FALSE;
+			scn->scn_async_stalled = B_FALSE;
+		} else {
+			/*
+			 * If we didn't make progress, mark the async
+			 * destroy as stalled, so that we will not initiate
+			 * a spa_sync() on its behalf.  Note that we only
+			 * check this if we are not finished, because if the
+			 * bptree had no blocks for us to visit, we can
+			 * finish without "making progress".
+			 */
+			scn->scn_async_stalled =
+			    (scn->scn_visited_this_txg == 0);
 		}
 	}
 	if (scn->scn_visited_this_txg) {
