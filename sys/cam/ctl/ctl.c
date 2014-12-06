@@ -433,7 +433,9 @@ static int ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len);
 static int ctl_inquiry_evpd(struct ctl_scsiio *ctsio);
 static int ctl_inquiry_std(struct ctl_scsiio *ctsio);
 static int ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint64_t *len);
-static ctl_action ctl_extent_check(union ctl_io *io1, union ctl_io *io2);
+static ctl_action ctl_extent_check(union ctl_io *io1, union ctl_io *io2,
+    bool seq);
+static ctl_action ctl_extent_check_seq(union ctl_io *io1, union ctl_io *io2);
 static ctl_action ctl_check_for_blockage(struct ctl_lun *lun,
     union ctl_io *pending_io, union ctl_io *ooa_io);
 static ctl_action ctl_check_ooa(struct ctl_lun *lun, union ctl_io *pending_io,
@@ -4589,6 +4591,17 @@ ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *ctl_lun,
 	value = ctl_get_opt(&be_lun->options, "readonly");
 	if (value != NULL && strcmp(value, "on") == 0)
 		lun->flags |= CTL_LUN_READONLY;
+
+	lun->serseq = CTL_LUN_SERSEQ_OFF;
+	if (be_lun->flags & CTL_LUN_FLAG_SERSEQ_READ)
+		lun->serseq = CTL_LUN_SERSEQ_READ;
+	value = ctl_get_opt(&be_lun->options, "serseq");
+	if (value != NULL && strcmp(value, "on") == 0)
+		lun->serseq = CTL_LUN_SERSEQ_ON;
+	else if (value != NULL && strcmp(value, "read") == 0)
+		lun->serseq = CTL_LUN_SERSEQ_READ;
+	else if (value != NULL && strcmp(value, "off") == 0)
+		lun->serseq = CTL_LUN_SERSEQ_OFF;
 
 	lun->ctl_softc = ctl_softc;
 	TAILQ_INIT(&lun->ooa_queue);
@@ -10752,15 +10765,15 @@ ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint64_t *len)
 }
 
 static ctl_action
-ctl_extent_check_lba(uint64_t lba1, uint64_t len1, uint64_t lba2, uint64_t len2)
+ctl_extent_check_lba(uint64_t lba1, uint64_t len1, uint64_t lba2, uint64_t len2,
+    bool seq)
 {
 	uint64_t endlba1, endlba2;
 
-	endlba1 = lba1 + len1 - 1;
+	endlba1 = lba1 + len1 - (seq ? 0 : 1);
 	endlba2 = lba2 + len2 - 1;
 
-	if ((endlba1 < lba2)
-	 || (endlba2 < lba1))
+	if ((endlba1 < lba2) || (endlba2 < lba1))
 		return (CTL_ACTION_PASS);
 	else
 		return (CTL_ACTION_BLOCK);
@@ -10799,23 +10812,39 @@ ctl_extent_check_unmap(union ctl_io *io, uint64_t lba2, uint64_t len2)
 }
 
 static ctl_action
-ctl_extent_check(union ctl_io *io1, union ctl_io *io2)
+ctl_extent_check(union ctl_io *io1, union ctl_io *io2, bool seq)
 {
 	uint64_t lba1, lba2;
 	uint64_t len1, len2;
 	int retval;
 
-	if (ctl_get_lba_len(io1, &lba1, &len1) != 0)
-		return (CTL_ACTION_ERROR);
-
-	retval = ctl_extent_check_unmap(io2, lba1, len1);
-	if (retval != CTL_ACTION_ERROR)
-		return (retval);
-
 	if (ctl_get_lba_len(io2, &lba2, &len2) != 0)
 		return (CTL_ACTION_ERROR);
 
-	return (ctl_extent_check_lba(lba1, len1, lba2, len2));
+	retval = ctl_extent_check_unmap(io1, lba2, len2);
+	if (retval != CTL_ACTION_ERROR)
+		return (retval);
+
+	if (ctl_get_lba_len(io1, &lba1, &len1) != 0)
+		return (CTL_ACTION_ERROR);
+
+	return (ctl_extent_check_lba(lba1, len1, lba2, len2, seq));
+}
+
+static ctl_action
+ctl_extent_check_seq(union ctl_io *io1, union ctl_io *io2)
+{
+	uint64_t lba1, lba2;
+	uint64_t len1, len2;
+
+	if (ctl_get_lba_len(io1, &lba1, &len1) != 0)
+		return (CTL_ACTION_ERROR);
+	if (ctl_get_lba_len(io2, &lba2, &len2) != 0)
+		return (CTL_ACTION_ERROR);
+
+	if (lba1 + len1 == lba2)
+		return (CTL_ACTION_BLOCK);
+	return (CTL_ACTION_PASS);
 }
 
 static ctl_action
@@ -10904,12 +10933,18 @@ ctl_check_for_blockage(struct ctl_lun *lun, union ctl_io *pending_io,
 	case CTL_SER_BLOCK:
 		return (CTL_ACTION_BLOCK);
 	case CTL_SER_EXTENT:
-		return (ctl_extent_check(pending_io, ooa_io));
+		return (ctl_extent_check(ooa_io, pending_io,
+		    (lun->serseq == CTL_LUN_SERSEQ_ON)));
 	case CTL_SER_EXTENTOPT:
 		if ((lun->mode_pages.control_page[CTL_PAGE_CURRENT].queue_flags
 		    & SCP_QUEUE_ALG_MASK) != SCP_QUEUE_ALG_UNRESTRICTED)
-			return (ctl_extent_check(pending_io, ooa_io));
-		/* FALLTHROUGH */
+			return (ctl_extent_check(ooa_io, pending_io,
+			    (lun->serseq == CTL_LUN_SERSEQ_ON)));
+		return (CTL_ACTION_PASS);
+	case CTL_SER_EXTENTSEQ:
+		if (lun->serseq != CTL_LUN_SERSEQ_OFF)
+			return (ctl_extent_check_seq(ooa_io, pending_io));
+		return (CTL_ACTION_PASS);
 	case CTL_SER_PASS:
 		return (CTL_ACTION_PASS);
 	case CTL_SER_BLOCKOPT:
@@ -12440,7 +12475,7 @@ ctl_cmd_pattern_match(struct ctl_scsiio *ctsio, struct ctl_error_desc *desc)
 			return (CTL_LUN_PAT_NONE);
 
 		action = ctl_extent_check_lba(lba1, len1, desc->lba_range.lba,
-					      desc->lba_range.len);
+					      desc->lba_range.len, FALSE);
 		/*
 		 * A "pass" means that the LBA ranges don't overlap, so
 		 * this doesn't match the user's range criteria.
