@@ -191,6 +191,7 @@ rodrigo [label="Rodrigo Osorio\nrodrigo@FreeBSD.org\n2014/01/15"]
 romain [label="Romain Tartiere\nromain@FreeBSD.org\n2010/01/24"]
 sahil [label="Sahil Tandon\nsahil@FreeBSD.org\n2010/04/11"]
 sat [label="Andrew Pantyukhin\nsat@FreeBSD.org\n2006/05/06"]
+sbruno [label="Sean Bruno\sbruno@FreeBSD.org\n2014/09/14"]
 sbz [label="Sofian Brabez\nsbz@FreeBSD.org\n2011/03/14"]
 scheidell [label="Michael Scheidell\nscheidell@FreeBSD.org\n2011/11/06"]
 sem [label="Sergey Matveychuk\nsem@FreeBSD.org\n2004/07/07"]
@@ -257,15 +258,17 @@ avilla -> jhale
 avilla -> rakuco
 
 bdrewery -> dbn
+bdrewery -> sbruno
 bdrewery -> trociny
 
 bapt -> bdrewery
 bapt -> eadler
+bapt -> grembo
 bapt -> jlaffaye
 bapt -> marius
 bapt -> marino
 bapt -> rodrigo
-bapt -> grembo
+bapt -> sbruno
 
 beat -> decke
 beat -> marius
