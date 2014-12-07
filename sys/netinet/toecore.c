@@ -477,7 +477,7 @@ restart:
 			 * No entry has been found. Link new one.
 			 */
 			IF_AFDATA_RUN_WLOCK(ifp);
-			llentry_link(LLTABLE6(ifp), lle);
+			lltable_link_entry(LLTABLE6(ifp), lle);
 			IF_AFDATA_RUN_WUNLOCK(ifp);
 		}
 		IF_AFDATA_CFG_WUNLOCK(ifp);

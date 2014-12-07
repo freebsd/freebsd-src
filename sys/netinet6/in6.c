@@ -2188,7 +2188,7 @@ in6_lltable_delete(struct lltable *llt, u_int flags,
 		LLE_WLOCK(lle);
 		lle->la_flags |= LLE_DELETED;
 		IF_AFDATA_RUN_WLOCK(llt->llt_ifp);
-		llentry_unlink(lle);
+		lltable_unlink_entry(llt, lle);
 		IF_AFDATA_RUN_WUNLOCK(llt->llt_ifp);
 #ifdef DIAGNOSTIC
 		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
@@ -2330,6 +2330,8 @@ void *
 in6_domifattach(struct ifnet *ifp)
 {
 	struct in6_ifextra *ext;
+	struct lltable *llt;
+	int i;
 
 	/* There are not IPv6-capable interfaces. */
 	switch (ifp->if_type) {
@@ -2354,16 +2356,22 @@ in6_domifattach(struct ifnet *ifp)
 
 	ext->nd_ifinfo = nd6_ifattach(ifp);
 	ext->scope6_id = scope6_ifattach(ifp);
-	ext->lltable = lltable_init(ifp, AF_INET6);
-	if (ext->lltable != NULL) {
-		ext->lltable->llt_lookup = in6_lltable_lookup;
-		ext->lltable->llt_create = in6_lltable_create;
-		ext->lltable->llt_delete = in6_lltable_delete;
-		ext->lltable->llt_dump_entry = in6_lltable_dump_entry;
-		ext->lltable->llt_hash = in6_lltable_hash;
-		ext->lltable->llt_clear_entry = nd6_lltable_clear_entry;
-		ext->lltable->llt_match_prefix = in6_lltable_match_prefix;
-	}
+
+	llt = malloc(sizeof(struct lltable), M_LLTABLE, M_WAITOK | M_ZERO);
+	llt->llt_af = AF_INET6;
+	llt->llt_ifp = ifp;
+	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++)
+		LIST_INIT(&llt->lle_head[i]);
+
+	llt->llt_lookup = in6_lltable_lookup;
+	llt->llt_create = in6_lltable_create;
+	llt->llt_delete = in6_lltable_delete;
+	llt->llt_dump_entry = in6_lltable_dump_entry;
+	llt->llt_hash = in6_lltable_hash;
+	llt->llt_clear_entry = nd6_lltable_clear_entry;
+	llt->llt_match_prefix = in6_lltable_match_prefix;
+	lltable_link(llt);
+	ext->lltable = llt;
 
 	ext->mld_ifinfo = mld_domifattach(ifp);
 

@@ -1120,7 +1120,7 @@ nd6_lltable_clear_entry(struct lltable *llt, struct llentry *ln)
 		LLE_REMREF(ln);
 
 		IF_AFDATA_RUN_WLOCK(ifp);
-		llentry_unlink(ln);
+		lltable_unlink_entry(llt, ln);
 		IF_AFDATA_RUN_WUNLOCK(ifp);
 		
 		IF_AFDATA_CFG_WUNLOCK(ifp);
@@ -1892,7 +1892,7 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		if (r_update != 0) {
 			IF_AFDATA_RUN_WLOCK(ifp);
 			if (is_newentry != 0)
-				llentry_link(LLTABLE6(ifp), ln);
+				lltable_link_entry(LLTABLE6(ifp), ln);
 			if (lladdr != NULL) {
 				bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
 				ln->la_flags |= LLE_VALID;
@@ -2197,7 +2197,7 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 					 * Link new one.
 					 */
 					IF_AFDATA_RUN_WLOCK(ifp);
-					llentry_link(LLTABLE6(ifp), lle);
+					lltable_link_entry(LLTABLE6(ifp), lle);
 					IF_AFDATA_RUN_WUNLOCK(ifp);
 				}
 				IF_AFDATA_CFG_WUNLOCK(ifp);
@@ -2485,7 +2485,7 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 	bcopy(IF_LLADDR(ifp), &ln->ll_addr, ifp->if_addrlen);
 	/* Finally, link our lle to the list */
 	IF_AFDATA_RUN_WLOCK(ifp);
-	llentry_link(LLTABLE6(ifp), ln);
+	lltable_link_entry(LLTABLE6(ifp), ln);
 	IF_AFDATA_RUN_WUNLOCK(ifp);
 	IF_AFDATA_CFG_WUNLOCK(ifp);
 
