@@ -2173,31 +2173,40 @@ in6_lltable_delete(struct lltable *llt, u_int flags,
 	const struct sockaddr *l3addr)
 {
 	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
+	struct ifnet *ifp;
 	struct llentry *lle;
 
-	IF_AFDATA_CFG_WLOCK_ASSERT(llt->llt_ifp);
+	ifp = llt->llt_ifp;
+
+	IF_AFDATA_CFG_UNLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
 
+	IF_AFDATA_CFG_WLOCK(ifp);
 	lle = in6_lltable_find_dst(llt, &sin6->sin6_addr);
 
-	if (lle == NULL)
+	if (lle == NULL) {
+		IF_AFDATA_CFG_WUNLOCK(ifp);
 		return (ENOENT);
-
-	if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
-		LLE_WLOCK(lle);
-		lle->la_flags |= LLE_DELETED;
-		IF_AFDATA_RUN_WLOCK(llt->llt_ifp);
-		lltable_unlink_entry(llt, lle);
-		IF_AFDATA_RUN_WUNLOCK(llt->llt_ifp);
-#ifdef DIAGNOSTIC
-		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
-#endif
-		if ((lle->la_flags & (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
-			llentry_free(lle);
-		else
-			LLE_WUNLOCK(lle);
 	}
+
+	/* Skipping LLE_IFADDR record */
+	if ((lle->la_flags & LLE_IFADDR) != 0 && (flags & LLE_IFADDR) == 0) {
+		IF_AFDATA_CFG_WUNLOCK(ifp);
+		return (0);
+	}
+
+	LLE_WLOCK(lle);
+	IF_AFDATA_RUN_WLOCK(ifp);
+	lltable_unlink_entry(llt, lle);
+	IF_AFDATA_RUN_WUNLOCK(ifp);
+	IF_AFDATA_CFG_WUNLOCK(ifp);
+
+#ifdef DIAGNOSTIC
+	log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
+#endif
+	EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
+	llt->llt_clear_entry(llt, lle);
 	
 	return (0);
 }
@@ -2365,7 +2374,7 @@ in6_domifattach(struct ifnet *ifp)
 
 	llt->llt_lookup = in6_lltable_lookup;
 	llt->llt_create = in6_lltable_create;
-	llt->llt_delete = in6_lltable_delete;
+	llt->llt_delete_addr = in6_lltable_delete;
 	llt->llt_dump_entry = in6_lltable_dump_entry;
 	llt->llt_hash = in6_lltable_hash;
 	llt->llt_clear_entry = nd6_lltable_clear_entry;

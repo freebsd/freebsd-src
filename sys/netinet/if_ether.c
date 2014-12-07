@@ -162,16 +162,19 @@ static const struct netisr_handler arp_nh = {
 void
 arp_ifscrub(struct ifnet *ifp, uint32_t addr)
 {
-	struct sockaddr_in addr4;
+	struct sockaddr_in addr4, mask4;
 
 	bzero((void *)&addr4, sizeof(addr4));
 	addr4.sin_len    = sizeof(addr4);
 	addr4.sin_family = AF_INET;
 	addr4.sin_addr.s_addr = addr;
-	IF_AFDATA_CFG_WLOCK(ifp);
-	lltable_delete_lle(LLTABLE(ifp), LLE_IFADDR,
-	    (struct sockaddr *)&addr4);
-	IF_AFDATA_CFG_WUNLOCK(ifp);
+	bzero(&mask4, sizeof(mask4));
+	mask4.sin_len    = sizeof(mask4);
+	mask4.sin_family = AF_INET;
+	mask4.sin_addr.s_addr = INADDR_ANY;
+
+	lltable_prefix_free(AF_INET, (struct sockaddr *)&addr4,
+	    (struct sockaddr *)&mask4, LLE_STATIC);
 }
 #endif
 
@@ -305,9 +308,14 @@ arp_lltable_clear_entry(struct lltable *llt, struct llentry *lle)
 		}
 	}
 
-	/* Finally, free entry */
-	pkts_dropped = llentry_free(lle);
+	lle->la_flags |= LLE_DELETED;
+
+	/* Drop hold queue */
+	pkts_dropped = lltable_drop_entry_queue(lle);
 	ARPSTAT_ADD(dropped, pkts_dropped);
+
+	/* Finally, free entry */
+	LLE_FREE_LOCKED(lle);
 }
 
 /*
@@ -1208,8 +1216,9 @@ arp_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp,
 void
 arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 {
-	struct llentry *lle;
+	struct llentry *lle, *lle_tmp;
 	struct in_addr addr;
+	struct lltable *llt;
 
 	if (ifa->ifa_carp != NULL)
 		return;
@@ -1238,6 +1247,7 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 	}
 
 	IF_AFDATA_CFG_WLOCK(ifp);
+	llt = LLTABLE(ifp);
 
 	/* Lock or new shiny lle */
 	LLE_WLOCK(lle);
@@ -1247,18 +1257,26 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 	 * Instead of dealing with callouts/flags/etc we simply
 	 * delete it and add new one.
 	 */
-	lltable_delete_lle(LLTABLE(ifp), LLE_IFADDR,
+	lle_tmp = lltable_lookup_lle(llt, LLE_EXCLUSIVE,
 	    (struct sockaddr *)IA_SIN(ifa));
 
 	IF_AFDATA_RUN_WLOCK(ifp);
+	if (lle_tmp != NULL)
+		lltable_unlink_entry(llt, lle_tmp);
 	bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
 	lle->la_flags |= (LLE_VALID | LLE_STATIC);
 	lle->r_flags |= RLLE_VALID;
-	lltable_link_entry(LLTABLE(ifp), lle);
+	lltable_link_entry(llt, lle);
 	IF_AFDATA_RUN_WUNLOCK(ifp);
 
 	IF_AFDATA_CFG_WUNLOCK(ifp);
+	/* XXX: eventhandler */
 	LLE_WUNLOCK(lle);
+
+	if (lle_tmp != NULL) {
+		/* XXX: eventhandler */
+		llt->llt_clear_entry(llt, lle_tmp);
+	}
 }
 
 void

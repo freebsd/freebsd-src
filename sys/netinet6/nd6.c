@@ -1081,7 +1081,7 @@ nd6_free(struct llentry *ln, int gc)
 	if ((ln->la_flags & LLE_DELETED) != 0) {
 		/* Unlinked entry. Stop timer/callout. */
 		nd6_llinfo_settimer_locked(ln, -1);
-		llentry_free(ln);
+		LLE_FREE_LOCKED(ln);
 		return;
 	}
 
@@ -1132,8 +1132,13 @@ nd6_lltable_clear_entry(struct lltable *llt, struct llentry *ln)
 	/* Check if default router needs to be recalculated */
 	nd6_check_recalc_defrtr(llt, ln);
 
+	/* Drop hold queue */
+	lltable_drop_entry_queue(ln);
+
+	ln->la_flags |= LLE_DELETED;
+
 	/* Finally, free entry */
-	llentry_free(ln);
+	LLE_FREE_LOCKED(ln);
 }
 
 /*
@@ -2460,7 +2465,8 @@ int
 nd6_add_ifa_lle(struct in6_ifaddr *ia)
 {
 	struct ifnet *ifp;
-	struct llentry *ln;
+	struct llentry *ln, *ln_tmp;
+	struct lltable *llt;
 
 	ifp = ia->ia_ifa.ifa_ifp;
 	ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
@@ -2476,20 +2482,36 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 	ln->ln_state = ND6_LLINFO_REACHABLE;
 
 	IF_AFDATA_CFG_WLOCK(ifp);
+	llt = LLTABLE6(ifp);
 	/* Lock or new shiny lle */
 	LLE_WLOCK(ln);
 
-	lltable_delete_lle(LLTABLE6(ifp), LLE_IFADDR,
+	/*
+	 * Check if we already have some corresponding entry.
+	 * Instead of dealing with callouts/flags/etc we simply
+	 * delete it and add new one.
+	 */
+	ln_tmp = lltable_lookup_lle(llt, LLE_EXCLUSIVE,
 	    (struct sockaddr *)&ia->ia_addr);
 
 	bcopy(IF_LLADDR(ifp), &ln->ll_addr, ifp->if_addrlen);
 	/* Finally, link our lle to the list */
 	IF_AFDATA_RUN_WLOCK(ifp);
-	lltable_link_entry(LLTABLE6(ifp), ln);
+	if (ln_tmp != NULL)
+		lltable_unlink_entry(llt, ln_tmp);
+	lltable_link_entry(llt, ln);
 	IF_AFDATA_RUN_WUNLOCK(ifp);
 	IF_AFDATA_CFG_WUNLOCK(ifp);
 
+	/* XXX: event handler? */
 	LLE_WUNLOCK(ln);
+
+	if (ln_tmp != NULL) {
+		/* XXX: event handler ? */
+		llt->llt_clear_entry(llt, ln_tmp);
+	}
+
+
 	in6_newaddrmsg(ia, RTM_ADD);
 	return (0);
 }

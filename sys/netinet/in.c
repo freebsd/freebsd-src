@@ -1137,33 +1137,38 @@ in_lltable_delete(struct lltable *llt, u_int flags,
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
 
-	IF_AFDATA_CFG_WLOCK_ASSERT(ifp);
+	IF_AFDATA_CFG_UNLOCK_ASSERT(ifp);
 	KASSERT(l3addr->sa_family == AF_INET,
 	    ("sin_family %d", l3addr->sa_family));
 
+	IF_AFDATA_CFG_WLOCK(ifp);
 	lle = in_lltable_find_dst(llt, sin->sin_addr);
 	if (lle == NULL) {
+		IF_AFDATA_CFG_WUNLOCK(ifp);
 #ifdef DIAGNOSTIC
-		log(LOG_INFO, "interface address is missing from cache = %p  in delete\n", lle);
+		log(LOG_INFO, "interface address is missing from cache = %p\n",
+		    lle);
 #endif
 		return (ENOENT);
 	}
 
-	if (!(lle->la_flags & LLE_IFADDR) || (flags & LLE_IFADDR)) {
-		LLE_WLOCK(lle);
-		lle->la_flags |= LLE_DELETED;
-		EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
-		IF_AFDATA_RUN_WLOCK(ifp);
-		lltable_unlink_entry(llt, lle);
-		IF_AFDATA_RUN_WUNLOCK(ifp);
+	/* Skipping LLE_IFADDR record */
+	if ((lle->la_flags & LLE_IFADDR) != 0 && (flags & LLE_IFADDR) == 0) {
+		IF_AFDATA_CFG_WUNLOCK(ifp);
+		return (0);
+	}
+
+	LLE_WLOCK(lle);
+	IF_AFDATA_RUN_WLOCK(ifp);
+	lltable_unlink_entry(llt, lle);
+	IF_AFDATA_RUN_WUNLOCK(ifp);
+	IF_AFDATA_CFG_WUNLOCK(ifp);
+
+	EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
 #ifdef DIAGNOSTIC
 		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
 #endif
-		if ((lle->la_flags & (LLE_STATIC | LLE_IFADDR)) == LLE_STATIC)
-			llentry_free(lle);
-		else
-			LLE_WUNLOCK(lle);
-	}
+	llt->llt_clear_entry(llt, lle);
 
 	return (0);
 }
@@ -1304,7 +1309,7 @@ in_domifattach(struct ifnet *ifp)
 
 	llt->llt_lookup = in_lltable_lookup;
 	llt->llt_create = in_lltable_create;
-	llt->llt_delete = in_lltable_delete;
+	llt->llt_delete_addr = in_lltable_delete;
 	llt->llt_dump_entry = in_lltable_dump_entry;
 	llt->llt_hash = in_lltable_hash;
 	llt->llt_clear_entry = arp_lltable_clear_entry;
