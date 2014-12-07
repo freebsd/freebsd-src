@@ -57,6 +57,7 @@ extern "C" {
 #if defined(sun)
 #include <sys/systm.h>
 #else
+#include <sys/cpuvar.h>
 #include <sys/param.h>
 #include <sys/linker.h>
 #include <sys/ioccom.h>
@@ -64,8 +65,8 @@ extern "C" {
 typedef int model_t;
 #endif
 #include <sys/ctf_api.h>
-#include <sys/cyclic.h>
 #if defined(sun)
+#include <sys/cyclic.h>
 #include <sys/int_limits.h>
 #else
 #include <sys/stdint.h>
