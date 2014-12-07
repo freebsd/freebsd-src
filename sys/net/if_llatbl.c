@@ -189,21 +189,17 @@ llentries_unlink(struct lltable *llt, struct llentries *head)
 }
 
 /*
- * Deletes an address from the address table.
- * This function is called by the timer functions
- * such as arptimer() and nd6_llinfo_timer(), and
- * the caller does the locking.
+ * Helper function user to drop all mbufs in hold queue.
  *
  * Returns the number of held packets, if any, that were dropped.
  */
 size_t
-llentry_free(struct llentry *lle)
+lltable_drop_entry_queue(struct llentry *lle)
 {
 	size_t pkts_dropped;
 	struct mbuf *next;
 
 	LLE_WLOCK_ASSERT(lle);
-	KASSERT((lle->la_flags & LLE_LINKED) == 0, ("Freeing linked lle"));
 
 	pkts_dropped = 0;
 	while ((lle->la_numheld > 0) && (lle->la_hold != NULL)) {
@@ -217,8 +213,6 @@ llentry_free(struct llentry *lle)
 	KASSERT(lle->la_numheld == 0,
 		("%s: la_numheld %d > 0, pkts_droped %zd", __func__,
 		 lle->la_numheld, pkts_dropped));
-
-	LLE_FREE_LOCKED(lle);
 
 	return (pkts_dropped);
 }
@@ -522,9 +516,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 		break;
 
 	case RTM_DELETE:
-		IF_AFDATA_CFG_WLOCK(ifp);
-		error = (llt->llt_delete(llt, 0, dst));
-		IF_AFDATA_CFG_WUNLOCK(ifp);
+		error = lltable_delete_addr(llt, 0, dst);
 		return (error == 0 ? 0 : ENOENT);
 
 	default:

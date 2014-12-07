@@ -151,7 +151,7 @@ typedef	struct llentry *(llt_lookup_t)(struct lltable *, u_int flags,
     const struct sockaddr *l3addr);
 typedef	struct llentry *(llt_create_t)(struct lltable *, u_int flags,
     const struct sockaddr *l3addr);
-typedef	int (llt_delete_t)(struct lltable *, u_int flags,
+typedef	int (llt_delete_addr_t)(struct lltable *, u_int flags,
     const struct sockaddr *l3addr);
 typedef int (llt_dump_entry_t)(struct lltable *, struct llentry *,
     struct sysctl_req *);
@@ -175,7 +175,7 @@ struct lltable {
 
 	llt_lookup_t		*llt_lookup;
 	llt_create_t		*llt_create;
-	llt_delete_t		*llt_delete;
+	llt_delete_addr_t	*llt_delete_addr;
 	llt_dump_entry_t	*llt_dump_entry;
 	llt_hash_t		*llt_hash;
 	llt_match_prefix_t	*llt_match_prefix;
@@ -219,9 +219,11 @@ void		lltable_drain(int);
 #endif
 int		lltable_sysctl_dumparp(int, struct sysctl_req *);
 
-size_t		llentry_free(struct llentry *);
 struct llentry  *llentry_alloc(struct ifnet *, struct lltable *,
 		    struct sockaddr_storage *);
+
+/* helper functions */
+size_t		lltable_drop_entry_queue(struct llentry *);
 
 /*
  * Generic link layer address lookup function.
@@ -243,11 +245,11 @@ lltable_create_lle(struct lltable *llt, u_int flags,
 }
 
 static __inline int
-lltable_delete_lle(struct lltable *llt, u_int flags,
+lltable_delete_addr(struct lltable *llt, u_int flags,
     const struct sockaddr *l3addr)
 {
 
-	return llt->llt_delete(llt, flags, l3addr);
+	return llt->llt_delete_addr(llt, flags, l3addr);
 }
 
 static __inline void
