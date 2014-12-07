@@ -38,11 +38,8 @@ struct cyc_cpu;
 
 typedef struct {
 	int		cpuid;
-        struct cyc_cpu *cpu_cyclic;
 	uint32_t	cpu_flags;
 	uint_t		cpu_intr_actv;
-	uintptr_t	cpu_profile_pc;
-	uintptr_t	cpu_profile_upc;
 	uintptr_t	cpu_dtrace_caller;	/* DTrace: caller, if any */
 	hrtime_t	cpu_dtrace_chillmark;	/* DTrace: chill mark time */
 	hrtime_t	cpu_dtrace_chilled;	/* DTrace: total chill time */
