@@ -254,16 +254,16 @@ lltable_free(struct lltable *llt)
 	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 			LLE_WLOCK(lle);
-			llt->llt_stop_timers(lle);
 			LIST_INSERT_HEAD(&dchain, lle, lle_chain);
 		}
 	}
 	IF_AFDATA_RUN_WLOCK(llt->llt_ifp);
 	llentries_unlink(&dchain);
 	IF_AFDATA_RUN_WUNLOCK(llt->llt_ifp);
-	LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next)
-		llentry_free(lle);
 	IF_AFDATA_CFG_WUNLOCK(llt->llt_ifp);
+
+	LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next)
+		llt->llt_clear_entry(llt, lle);
 
 	free(llt, M_LLTABLE);
 }
@@ -282,7 +282,6 @@ lltable_prefix_free_af(struct lltable *llt, const struct sockaddr *prefix,
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 			if (llt->llt_match_prefix(prefix, mask, flags, lle)) {
 				LLE_WLOCK(lle);
-				llt->llt_stop_timers(lle);
 				LIST_INSERT_HEAD(&dchain, lle, lle_chain);
 			}
 		}
@@ -290,9 +289,10 @@ lltable_prefix_free_af(struct lltable *llt, const struct sockaddr *prefix,
 	IF_AFDATA_RUN_WLOCK(llt->llt_ifp);
 	llentries_unlink(&dchain);
 	IF_AFDATA_RUN_WUNLOCK(llt->llt_ifp);
-	LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next)
-		llentry_free(lle);
 	IF_AFDATA_CFG_WUNLOCK(llt->llt_ifp);
+
+	LIST_FOREACH_SAFE(lle, &dchain, lle_chain, next)
+		llt->llt_clear_entry(llt, lle);
 }
 
 #if 0

@@ -2052,14 +2052,12 @@ struct in6_llentry {
 };
 
 /*
- * Deletes an address from the address table.
- * This function is called by the timer functions
- * such as arptimer() and nd6_llinfo_timer(), and
- * the caller does the locking.
+ * Frees already unlinked @lle.
  */
 static void
-in6_lltable_free(struct lltable *llt, struct llentry *lle)
+in6_lltable_free(struct llentry *lle)
 {
+
 	LLE_WUNLOCK(lle);
 	LLE_LOCK_DESTROY(lle);
 	free(lle, M_LLTABLE);
@@ -2085,17 +2083,6 @@ in6_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	    CALLOUT_RETURNUNLOCKED);
 
 	return (&lle->base);
-}
-
-static void
-in6_lltable_stop_timers(struct llentry *lle)
-{
-
-	LLE_WLOCK_ASSERT(lle);
-	if (callout_stop(&lle->la_timer)) {
-		LLE_REMREF(lle);
-		lle->la_flags &= ~LLE_CALLOUTREF;
-	}
 }
 
 static int
@@ -2219,19 +2206,13 @@ static struct llentry *
 in6_lltable_create(struct lltable *llt, u_int flags,
 	const struct sockaddr *l3addr)
 {
-	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
 
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
 
-	lle = in6_lltable_find_dst(llt, &sin6->sin6_addr);
-
-	if (lle != NULL) {
-		LLE_WLOCK(lle);
-		return (lle);
-	}
+	IF_AFDATA_CFG_UNLOCK_ASSERT(ifp);
 
 	/*
 	 * A route that covers the given address must have
@@ -2248,7 +2229,6 @@ in6_lltable_create(struct lltable *llt, u_int flags,
 		return NULL;
 	}
 	lle->la_flags = flags;
-	LLE_WLOCK(lle);
 
 	return (lle);
 }
@@ -2381,7 +2361,7 @@ in6_domifattach(struct ifnet *ifp)
 		ext->lltable->llt_delete = in6_lltable_delete;
 		ext->lltable->llt_dump_entry = in6_lltable_dump_entry;
 		ext->lltable->llt_hash = in6_lltable_hash;
-		ext->lltable->llt_stop_timers = in6_lltable_stop_timers;
+		ext->lltable->llt_clear_entry = nd6_lltable_clear_entry;
 		ext->lltable->llt_match_prefix = in6_lltable_match_prefix;
 	}
 

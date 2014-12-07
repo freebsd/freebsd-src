@@ -182,43 +182,33 @@ static void
 arptimer(void *arg)
 {
 	struct llentry *lle = (struct llentry *)arg;
+	struct lltable *llt;
 	struct ifnet *ifp;
-	size_t pkts_dropped;
-	uint16_t la_flags;
-	int state;
+	int evt;
 
 	if (lle->la_flags & LLE_STATIC) {
+		/* TODO: ensure we won't get here */
 		LLE_WUNLOCK(lle);
 		return;
 	}
 
-	if (lle->la_falgs & LLE_DELETED) {
-		/* XXX: Temporary */
+	if (lle->la_flags & LLE_DELETED) {
 		/* We have been deleted. Drop callref and return */
-		if ((lle->la_flags & LLE_CALLOUTREF) != 0) {
-			LLE_REMREF(lle);
-			lle->la_flags &= ~LLE_CALLOUTREF;
-		}
+		KASSERT((lle->la_flags & LLE_CALLOUTREF) != 0,
+		    ("arptimer was called without callout reference"));
 
-		pkts_dropped = llentry_free(lle);
-		ARPSTAT_ADD(dropped, pkts_dropped);
+		/* Assume the entry was already cleared */
+		lle->la_flags &= ~LLE_CALLOUTREF;
+		LLE_FREE_LOCKED(lle);
 		return;
 	}
 
-	/* Unlink entry */
-	IF_AFDATA_RUN_WLOCK(ifp);
-	llentry_unlink(lle);
-	IF_AFDATA_RUN_WUNLOCK(ifp);
+	llt = lle->lle_tbl;
+	ifp = llt->llt_ifp;
 
-	pkts_dropped = llentry_free(lle);
-	ARPSTAT_ADD(dropped, pkts_dropped);
-
-	la_flags = lle->la_flags;
-	state = (la_flags & LLE_DELETED) ? ARP_LLINFO_DELETED : lle->ln_state;
-	ifp = lle->lle_tbl->llt_ifp;
 	CURVNET_SET(ifp->if_vnet);
 
-	switch (state) {
+	switch (lle->ln_state) {
 	case ARP_LLINFO_REACHABLE:
 
 		/*
@@ -234,6 +224,7 @@ arptimer(void *arg)
 		lle->ln_state = ARP_LLINFO_VERIFY;
 		callout_schedule(&lle->la_timer, hz * V_arpt_rexmit);
 		LLE_WUNLOCK(lle);
+		CURVNET_RESTORE();
 		return;
 	case ARP_LLINFO_VERIFY:
 		if (lle->r_kick == 0 && lle->la_preempt > 0) {
@@ -245,60 +236,78 @@ arptimer(void *arg)
 			lle->r_kick = 1;
 			callout_schedule(&lle->la_timer, hz * V_arpt_rexmit);
 			LLE_WUNLOCK(lle);
+			CURVNET_RESTORE();
 			return;
 		}
 		/* Nothing happened. Reschedule if not too late */
 		if (lle->la_expire > time_uptime) {
 			callout_schedule(&lle->la_timer, hz * V_arpt_rexmit);
 			LLE_WUNLOCK(lle);
+			CURVNET_RESTORE();
 			return;
 		}
 		break;
 	case ARP_LLINFO_INCOMPLETE:
-	case ARP_LLINFO_DELETED:
 		break;
 	}
 
-	if ((lle->la_flags & LLE_DELETED) == 0) {
-		int evt;
+	/* We have to delete entr */
+	if (lle->la_flags & LLE_VALID)
+		evt = LLENTRY_EXPIRED;
+	else
+		evt = LLENTRY_TIMEDOUT;
+	EVENTHANDLER_INVOKE(lle_event, lle, evt);
 
-		if (lle->la_flags & LLE_VALID)
-			evt = LLENTRY_EXPIRED;
-		else
-			evt = LLENTRY_TIMEDOUT;
-		EVENTHANDLER_INVOKE(lle_event, lle, evt);
-	}
-
-	callout_stop(&lle->la_timer);
-
-	/* XXX: LOR avoidance. We still have ref on lle. */
-	LLE_WUNLOCK(lle);
-	IF_AFDATA_CFG_WLOCK(ifp);
-	LLE_WLOCK(lle);
-
-	/*
-	 * Note other thread could have removed given entry
-	 * stopping callout and removing LLE reference.
-	 */
-	//llt->llt_stop_timers(lle);
-	if ((lle->la_flags & LLE_CALLOUTREF) != 0) {
-		LLE_REMREF(lle);
-		lle->la_flags &= ~LLE_CALLOUTREF;
-	}
-
-	/* Unlink entry */
-	IF_AFDATA_RUN_WLOCK(ifp);
-	llentry_unlink(lle);
-	IF_AFDATA_RUN_WUNLOCK(ifp);
-
-	pkts_dropped = llentry_free(lle);
-	ARPSTAT_ADD(dropped, pkts_dropped);
-
-	IF_AFDATA_CFG_WUNLOCK(ifp);
+	llt->llt_clear_entry(llt, lle);
 
 	ARPSTAT_INC(timeouts);
 
 	CURVNET_RESTORE();
+}
+
+/*
+ * Calback for lltable.
+ */
+void
+arp_lltable_clear_entry(struct lltable *llt, struct llentry *lle)
+{
+	struct ifnet *ifp;
+	size_t pkts_dropped;
+
+	LLE_WLOCK_ASSERT(lle);
+	KASSERT(llt != NULL, ("lltable is NULL"));
+
+	/* Unlink entry from table if not already */
+	if ((lle->la_flags & LLE_LINKED) != 0) {
+
+		ifp = llt->llt_ifp;
+		/*
+		 * Lock order needs to be maintained
+		 */
+		LLE_ADDREF(lle);
+		LLE_WUNLOCK(lle);
+		IF_AFDATA_CFG_WLOCK(ifp);
+		LLE_WLOCK(lle);
+		LLE_REMREF(lle);
+
+		IF_AFDATA_RUN_WLOCK(ifp);
+		llentry_unlink(lle);
+		IF_AFDATA_RUN_WUNLOCK(ifp);
+		
+		IF_AFDATA_CFG_WUNLOCK(ifp);
+	}
+
+	/* cancel timer */
+	if (callout_stop(&lle->la_timer) != 0) {
+		if ((lle->la_flags & LLE_CALLOUTREF) != 0) {
+			LLE_REMREF(lle);
+			lle->la_flags &= ~LLE_CALLOUTREF;
+		}
+	}
+
+	/* Finally, free entry */
+	pkts_dropped = llentry_free(lle);
+	ARPSTAT_ADD(dropped, pkts_dropped);
 }
 
 /*
