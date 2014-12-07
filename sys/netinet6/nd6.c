@@ -1095,6 +1095,22 @@ nd6_free(struct llentry *ln, int gc)
 	llt->llt_clear_entry(ln->lle_tbl, ln);
 }
 
+int
+nd6_lltable_prepare_static_entry(struct lltable *llt, struct llentry *lle,
+    struct rt_addrinfo *info)
+{
+
+	lle->la_flags |= LLE_VALID;
+	lle->r_flags |= RLLE_VALID;
+
+	lle->ln_state = ND6_LLINFO_REACHABLE;
+
+	if (lle->la_expire == 0)
+		lle->la_flags |= LLE_STATIC;
+
+	return (0);
+}
+
 /*
  * Calback for lltable.
  */

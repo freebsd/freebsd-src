@@ -440,7 +440,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	struct sockaddr *dst = (struct sockaddr *)info->rti_info[RTAX_DST];
 	struct ifnet *ifp;
 	struct lltable *llt;
-	struct llentry *lle;
+	struct llentry *lle, *lle_tmp;
 	u_int laflags = 0;
 	int error;
 
@@ -469,36 +469,37 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	switch (rtm->rtm_type) {
 	case RTM_ADD:
 		/* Add static LLE */
-		IF_AFDATA_CFG_WLOCK(ifp);
 		lle = llt->llt_create(llt, 0, dst);
-		if (lle == NULL) {
-			IF_AFDATA_CFG_WUNLOCK(ifp);
+		if (lle == NULL)
 			return (ENOMEM);
-		}
 
-
-		IF_AFDATA_RUN_WLOCK(ifp);
+		/* Save initial info to provide to _prepare hook */
 		bcopy(LLADDR(dl), &lle->ll_addr, ifp->if_addrlen);
 		if ((rtm->rtm_flags & RTF_ANNOUNCE))
 			lle->la_flags |= LLE_PUB;
-		lle->la_flags |= LLE_VALID;
-#ifdef INET6
-		/*
-		 * ND6
-		 */
-		if (dst->sa_family == AF_INET6)
-			lle->ln_state = ND6_LLINFO_REACHABLE;
-#endif
-		/*
-		 * NB: arp and ndp always set (RTF_STATIC | RTF_HOST)
-		 */
+		lle->la_expire = rtm->rtm_rmx.rmx_expire;
 
-		if (rtm->rtm_rmx.rmx_expire == 0) {
-			lle->la_flags |= LLE_STATIC;
-			lle->r_flags |= RLLE_VALID;
-			lle->la_expire = 0;
-		} else
-			lle->la_expire = rtm->rtm_rmx.rmx_expire;
+		error = llt->llt_prepare_static_entry(llt, lle, info);
+
+		if (error != 0) {
+			LLE_FREE(lle);
+			return (error);
+		}
+
+		/* Let's try to link new lle to the list */
+		IF_AFDATA_CFG_WLOCK(ifp);
+		LLE_WLOCK(lle);
+		/* Check if we already have this lle */
+		/* XXX: Use LLE_UNLOCKED */
+		lle_tmp = llt->llt_lookup(llt, LLE_EXCLUSIVE, dst);
+		if (lle_tmp != NULL) {
+			IF_AFDATA_CFG_WUNLOCK(ifp);
+			LLE_WUNLOCK(lle_tmp);
+			LLE_FREE_LOCKED(lle);
+			return (EEXIST);
+		}
+
+		IF_AFDATA_RUN_WLOCK(ifp);
 		llentry_link(llt, lle);
 		IF_AFDATA_RUN_WUNLOCK(ifp);
 		laflags = lle->la_flags;

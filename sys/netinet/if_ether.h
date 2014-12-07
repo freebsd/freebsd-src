@@ -115,6 +115,7 @@ extern u_char	ether_ipmulticast_max[ETHER_ADDR_LEN];
 struct lltable;
 struct llentry;
 struct ifaddr;
+struct rt_addrinfo;
 
 int	arpresolve(struct ifnet *ifp, struct rtentry *rt, struct mbuf *m,
 	    const struct sockaddr *dst, u_char *desten, struct llentry **lle);
@@ -126,6 +127,8 @@ void	arp_ifinit(struct ifnet *, struct ifaddr *);
 void	arp_ifinit2(struct ifnet *, struct ifaddr *, u_char *);
 void	arp_ifscrub(struct ifnet *, uint32_t);
 void	arp_lltable_clear_entry(struct lltable *, struct llentry *);
+int	arp_lltable_prepare_static_entry(struct lltable *, struct llentry *,
+	    struct rt_addrinfo *);
 #endif
 
 #endif

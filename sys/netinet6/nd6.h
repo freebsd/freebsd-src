@@ -421,6 +421,8 @@ void nd6_rem_ifa_lle(struct in6_ifaddr *);
 int nd6_storelladdr(struct ifnet *, struct mbuf *,
 	const struct sockaddr *, u_char *, struct llentry **);
 void nd6_lltable_clear_entry(struct lltable *, struct llentry *);
+int nd6_lltable_prepare_static_entry(struct lltable *, struct llentry *,
+	struct rt_addrinfo *);
 
 /* nd6_nbr.c */
 void nd6_na_input(struct mbuf *, int, int);
