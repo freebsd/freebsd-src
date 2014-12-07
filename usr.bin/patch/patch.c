@@ -23,7 +23,7 @@
  * -C option added in 1998, original code by Marc Espie, based on FreeBSD
  * behaviour
  *
- * $OpenBSD: patch.c,v 1.50 2012/05/15 19:32:02 millert Exp $
+ * $OpenBSD: patch.c,v 1.52 2014/11/26 18:34:51 millert Exp $
  * $FreeBSD$
  *
  */
@@ -150,8 +150,8 @@ main(int argc, char *argv[])
 	const	char *tmpdir;
 	char	*v;
 
-	setlinebuf(stdout);
-	setlinebuf(stderr);
+	setvbuf(stdout, NULL, _IOLBF, 0);
+	setvbuf(stderr, NULL, _IOLBF, 0);
 	for (i = 0; i < MAXFILEC; i++)
 		filearg[i] = NULL;
 
