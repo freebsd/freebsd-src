@@ -132,10 +132,14 @@ static int nd6_is_new_addr_neighbor(struct sockaddr_in6 *,
 static void nd6_setmtu0(struct ifnet *, struct nd_ifinfo *);
 static void nd6_slowtimo(void *);
 static int regen_tmpaddr(struct in6_ifaddr *);
-static struct llentry *nd6_free(struct llentry *, int);
+static void nd6_free(struct llentry *, int);
 static void nd6_llinfo_timer(void *);
 static void clear_llinfo_pqueue(struct llentry *);
 static void nd6_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
+static struct in6_addr *nd6_llinfo_get_holdsrc(struct llentry *,
+    struct in6_addr *);
+static int nd6_check_del_defrtr(struct lltable *, struct llentry *);
+static void nd6_check_recalc_defrtr(struct lltable *, struct llentry *);
 
 static VNET_DEFINE(struct callout, nd6_slowtimo_ch);
 #define	V_nd6_slowtimo_ch		VNET(nd6_slowtimo_ch)
@@ -433,6 +437,10 @@ nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 		ln->la_expire = 0;
 		ln->ln_ntick = 0;
 		canceled = callout_stop(&ln->ln_timer_ch);
+		if (canceled != 0) {
+			ln->la_flags &= ~LLE_CALLOUTREF;
+			LLE_REMREF(ln);
+		}
 	} else {
 		ln->la_expire = time_uptime + tick / hz;
 		LLE_ADDREF(ln);
@@ -445,11 +453,11 @@ nd6_llinfo_settimer_locked(struct llentry *ln, long tick)
 			canceled = callout_reset(&ln->ln_timer_ch, tick,
 			    nd6_llinfo_timer, ln);
 		}
+		if (canceled != 0)
+			LLE_REMREF(ln);
+		else
+			ln->la_flags |= LLE_CALLOUTREF;
 	}
-	if (canceled)
-		LLE_REMREF(ln);
-	else
-		ln->la_flags |= LLE_CALLOUTREF;
 }
 
 void
@@ -461,6 +469,34 @@ nd6_llinfo_settimer(struct llentry *ln, long tick)
 	LLE_WUNLOCK(ln);
 }
 
+/*
+ * Gets source address of the first packet in hold queue
+ * and stores it in @src.
+ * Returns pointer to @src (if hold queue is not empty) or NULL.
+ *
+ */
+static struct in6_addr *
+nd6_llinfo_get_holdsrc(struct llentry *ln, struct in6_addr *src)
+{
+	struct ip6_hdr *phdr;
+
+	if (ln->la_hold == NULL)
+		return (NULL);
+
+	/*
+	 * assuming every packet in la_hold has the same IP
+	 * header
+	 */
+	phdr = mtod(ln->la_hold, struct ip6_hdr *);
+	/* XXX pullup? */
+	if (sizeof(*phdr) < ln->la_hold->m_len) {
+		*src = phdr->ip6_src;
+		return (src);
+	}
+
+	return (NULL);
+}
+
 static void
 nd6_llinfo_timer(void *arg)
 {
@@ -468,13 +504,28 @@ nd6_llinfo_timer(void *arg)
 	struct in6_addr *dst;
 	struct ifnet *ifp;
 	struct nd_ifinfo *ndi = NULL;
+	struct in6_addr src, *psrc;
 
 	KASSERT(arg != NULL, ("%s: arg NULL", __func__));
 	ln = (struct llentry *)arg;
 	LLE_WLOCK_ASSERT(ln);
-	ifp = ln->lle_tbl->llt_ifp;
 
-	CURVNET_SET(ifp->if_vnet);
+	if (ln->la_flags & LLE_STATIC) {
+		/* TODO: ensure we won't get here */
+		LLE_WUNLOCK(ln);
+		return;
+	}
+
+	if (ln->la_flags & LLE_DELETED) {
+		/* We have been deleted. Drop callref and return */
+		KASSERT((ln->la_flags & LLE_CALLOUTREF) != 0,
+		    ("nd6_llinfo_timer was called without callout reference"));
+
+		/* Assume the entry was already cleared */
+		ln->la_flags &= ~LLE_CALLOUTREF;
+		LLE_FREE_LOCKED(ln);
+		return;
+	}
 
 	if (ln->ln_ntick > 0) {
 		if (ln->ln_ntick > INT_MAX) {
@@ -484,29 +535,27 @@ nd6_llinfo_timer(void *arg)
 			ln->ln_ntick = 0;
 			nd6_llinfo_settimer_locked(ln, ln->ln_ntick);
 		}
-		goto done;
+		LLE_WUNLOCK(ln);
+		return;
 	}
+
+	ifp = ln->lle_tbl->llt_ifp;
+	CURVNET_SET(ifp->if_vnet);
 
 	ndi = ND_IFINFO(ifp);
 	dst = &L3_ADDR_SIN6(ln)->sin6_addr;
-	if (ln->la_flags & LLE_STATIC) {
-		goto done;
-	}
 
-	if (ln->la_flags & LLE_DELETED) {
-		(void)nd6_free(ln, 0);
-		ln = NULL;
-		goto done;
-	}
-
+	/*
+	 * Each case statement needs to unlock @ln before break/return.
+	 */
 	switch (ln->ln_state) {
 	case ND6_LLINFO_INCOMPLETE:
 		if (ln->la_asked < V_nd6_mmaxtries) {
 			ln->la_asked++;
 			nd6_llinfo_settimer_locked(ln, (long)ndi->retrans * hz / 1000);
+			psrc = nd6_llinfo_get_holdsrc(ln, &src);
 			LLE_WUNLOCK(ln);
-			nd6_ns_output(ifp, NULL, dst, ln, 0);
-			LLE_WLOCK(ln);
+			nd6_ns_output(ifp, NULL, dst, psrc, 0);
 		} else {
 			struct mbuf *m = ln->la_hold;
 			if (m) {
@@ -522,7 +571,7 @@ nd6_llinfo_timer(void *arg)
 				clear_llinfo_pqueue(ln);
 			}
 			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_TIMEDOUT);
-			(void)nd6_free(ln, 0);
+			nd6_free(ln, 0);
 			ln = NULL;
 			if (m != NULL)
 				icmp6_error2(m, ICMP6_DST_UNREACH,
@@ -534,15 +583,17 @@ nd6_llinfo_timer(void *arg)
 			ln->ln_state = ND6_LLINFO_STALE;
 			nd6_llinfo_settimer_locked(ln, (long)V_nd6_gctimer * hz);
 		}
+		LLE_WUNLOCK(ln);
 		break;
 
 	case ND6_LLINFO_STALE:
 		/* Garbage Collection(RFC 2461 5.3) */
 		if (!ND6_LLINFO_PERMANENT(ln)) {
 			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_EXPIRED);
-			(void)nd6_free(ln, 1);
+			nd6_free(ln, 1);
 			ln = NULL;
 		}
+		LLE_WUNLOCK(ln);
 		break;
 
 	case ND6_LLINFO_DELAY:
@@ -551,24 +602,25 @@ nd6_llinfo_timer(void *arg)
 			ln->la_asked = 1;
 			ln->ln_state = ND6_LLINFO_PROBE;
 			nd6_llinfo_settimer_locked(ln, (long)ndi->retrans * hz / 1000);
+			psrc = nd6_llinfo_get_holdsrc(ln, &src);
 			LLE_WUNLOCK(ln);
-			nd6_ns_output(ifp, dst, dst, ln, 0);
-			LLE_WLOCK(ln);
+			nd6_ns_output(ifp, dst, dst, psrc, 0);
 		} else {
 			ln->ln_state = ND6_LLINFO_STALE; /* XXX */
 			nd6_llinfo_settimer_locked(ln, (long)V_nd6_gctimer * hz);
+			LLE_WUNLOCK(ln);
 		}
 		break;
 	case ND6_LLINFO_PROBE:
 		if (ln->la_asked < V_nd6_umaxtries) {
 			ln->la_asked++;
 			nd6_llinfo_settimer_locked(ln, (long)ndi->retrans * hz / 1000);
+			psrc = nd6_llinfo_get_holdsrc(ln, &src);
 			LLE_WUNLOCK(ln);
-			nd6_ns_output(ifp, dst, dst, ln, 0);
-			LLE_WLOCK(ln);
+			nd6_ns_output(ifp, dst, dst, psrc, 0);
 		} else {
 			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_EXPIRED);
-			(void)nd6_free(ln, 0);
+			nd6_free(ln, 0);
 			ln = NULL;
 		}
 		break;
@@ -576,9 +628,7 @@ nd6_llinfo_timer(void *arg)
 		panic("%s: paths in a dark night can be confusing: %d",
 		    __func__, ln->ln_state);
 	}
-done:
-	if (ln != NULL)
-		LLE_FREE_LOCKED(ln);
+
 	CURVNET_RESTORE();
 }
 
@@ -866,9 +916,8 @@ nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 	return (ln);
 }
 
-/* 
- * the caller acquires and releases the lock on the lltbls
- * Returns the llentry wlocked
+/*
+ * Creates and returns new, unlinked and unlocked lle.
  */
 struct llentry *
 nd6_create(struct in6_addr *addr6, int flags, struct ifnet *ifp)
@@ -881,15 +930,10 @@ nd6_create(struct in6_addr *addr6, int flags, struct ifnet *ifp)
 	sin6.sin6_family = AF_INET6;
 	sin6.sin6_addr = *addr6;
 
-	IF_AFDATA_CFG_WLOCK_ASSERT(ifp);
+	IF_AFDATA_CFG_UNLOCK_ASSERT(ifp);
 
 	ln = lltable_create_lle(LLTABLE6(ifp), 0, (struct sockaddr *)&sin6);
-	if (ln != NULL) {
-		IF_AFDATA_RUN_WLOCK(ifp);
-		ln->ln_state = ND6_LLINFO_NOSTATE;
-		llentry_link(LLTABLE6(ifp), ln);
-		IF_AFDATA_RUN_WUNLOCK(ifp);
-	}
+	ln->ln_state = ND6_LLINFO_NOSTATE;
 	
 	return (ln);
 }
@@ -1025,34 +1069,96 @@ nd6_is_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 
 /*
  * Free an nd6 llinfo entry.
- * Since the function would cause significant changes in the kernel, DO NOT
- * make it global, unless you have a strong reason for the change, and are sure
- * that the change is safe.
+ * Internal function used by timer code.
  */
-static struct llentry *
+static void
 nd6_free(struct llentry *ln, int gc)
 {
-        struct llentry *next;
-	struct nd_defrouter *dr;
-	struct ifnet *ifp;
+	struct lltable *llt;
 
 	LLE_WLOCK_ASSERT(ln);
 
-	/*
-	 * we used to have pfctlinput(PRC_HOSTDEAD) here.
-	 * even though it is not harmful, it was not really necessary.
-	 */
+	if ((ln->la_flags & LLE_DELETED) != 0) {
+		/* Unlinked entry. Stop timer/callout. */
+		nd6_llinfo_settimer_locked(ln, -1);
+		llentry_free(ln);
+		return;
+	}
+
+	llt = ln->lle_tbl;
+	/* Check if we can delete/unlink given entry */
+	if (gc != 0 && nd6_check_del_defrtr(llt, ln) == 0) {
+		LLE_WUNLOCK(ln);
+		return;
+	}
+
+	llt->llt_clear_entry(ln->lle_tbl, ln);
+}
+
+/*
+ * Calback for lltable.
+ */
+void
+nd6_lltable_clear_entry(struct lltable *llt, struct llentry *ln)
+{
+	struct ifnet *ifp;
+
+	LLE_WLOCK_ASSERT(ln);
+	KASSERT(llt != NULL, ("lltable is NULL"));
+
+	/* Unlink entry from table */
+	if ((ln->la_flags & LLE_LINKED) != 0) {
+
+		ifp = llt->llt_ifp;
+		/*
+		 * Lock order needs to be maintained
+		 */
+		LLE_ADDREF(ln);
+		LLE_WUNLOCK(ln);
+		IF_AFDATA_CFG_WLOCK(ifp);
+		LLE_WLOCK(ln);
+		LLE_REMREF(ln);
+
+		IF_AFDATA_RUN_WLOCK(ifp);
+		llentry_unlink(ln);
+		IF_AFDATA_RUN_WUNLOCK(ifp);
+		
+		IF_AFDATA_CFG_WUNLOCK(ifp);
+	}
 
 	/* cancel timer */
 	nd6_llinfo_settimer_locked(ln, -1);
 
-	ifp = ln->lle_tbl->llt_ifp;
+	/* Check if default router needs to be recalculated */
+	nd6_check_recalc_defrtr(llt, ln);
+
+	/* Finally, free entry */
+	llentry_free(ln);
+}
+
+/*
+ * Checks if we can delete given entry.
+ * Perfoms defrtr selection if needed.
+ *
+ * return non-zero value if lle can be deleted.
+ */
+static int
+nd6_check_del_defrtr(struct lltable *llt, struct llentry *ln)
+{
+	struct ifnet *ifp;
+	struct nd_defrouter *dr;
+	struct in6_addr dst;
+
+	ifp = llt->llt_ifp;
+	dst = L3_ADDR_SIN6(ln)->sin6_addr;
+
+	LLE_WLOCK_ASSERT(ln);
 
 	if (ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) {
-		dr = defrouter_lookup(&L3_ADDR_SIN6(ln)->sin6_addr, ifp);
+		dr = defrouter_lookup(&dst, ifp);
 
 		if (dr != NULL && dr->expire &&
-		    ln->ln_state == ND6_LLINFO_STALE && gc) {
+		    ln->ln_state == ND6_LLINFO_STALE) {
 			/*
 			 * If the reason for the deletion is just garbage
 			 * collection, and the neighbor is an active default
@@ -1072,11 +1178,27 @@ nd6_free(struct llentry *ln, int gc)
 				nd6_llinfo_settimer_locked(ln,
 				    (long)V_nd6_gctimer * hz);
 
-			next = LIST_NEXT(ln, lle_next);
-			LLE_REMREF(ln);
-			LLE_WUNLOCK(ln);
-			return (next);
+			return (0);
 		}
+	}
+
+	return (1);
+}
+
+static void
+nd6_check_recalc_defrtr(struct lltable *llt, struct llentry *ln)
+{
+	struct ifnet *ifp;
+	struct nd_defrouter *dr;
+	struct in6_addr dst;
+
+	ifp = llt->llt_ifp;
+	dst = L3_ADDR_SIN6(ln)->sin6_addr;
+
+	LLE_WLOCK_ASSERT(ln);
+
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV) {
+		dr = defrouter_lookup(&dst, ifp);
 
 		if (dr) {
 			/*
@@ -1103,6 +1225,7 @@ nd6_free(struct llentry *ln, int gc)
 			 * defrouter_select() in the block further down for calls
 			 * into nd6_lookup().  We still hold a ref.
 			 */
+			LLE_ADDREF(ln);
 			LLE_WUNLOCK(ln);
 
 			/*
@@ -1110,7 +1233,7 @@ nd6_free(struct llentry *ln, int gc)
 			 * is in the Default Router List.
 			 * See a corresponding comment in nd6_na_input().
 			 */
-			rt6_flush(&L3_ADDR_SIN6(ln)->sin6_addr, ifp);
+			rt6_flush(&dst, ifp);
 		}
 
 		if (dr) {
@@ -1128,44 +1251,11 @@ nd6_free(struct llentry *ln, int gc)
 			defrouter_select();
 		}
 
-		if (ln->ln_router || dr)
+		if (ln->ln_router || dr) {
 			LLE_WLOCK(ln);
+			LLE_REMREF(ln);
+		}
 	}
-
-	/*
-	 * Before deleting the entry, remember the next entry as the
-	 * return value.  We need this because pfxlist_onlink_check() above
-	 * might have freed other entries (particularly the old next entry) as
-	 * a side effect (XXX).
-	 */
-	next = LIST_NEXT(ln, lle_next);
-
-	/*
-	 * Save to unlock. We still hold an extra reference and will not
-	 * free(9) in llentry_free() if someone else holds one as well.
-	 */
-	LLE_WUNLOCK(ln);
-	IF_AFDATA_CFG_WLOCK(ifp);
-	LLE_WLOCK(ln);
-
-	/*
-	 * Note other thread could have removed given entry
-	 * stopping callout and removing LLE reference.
-	 */
-	if ((ln->la_flags & LLE_CALLOUTREF) != 0) {
-		LLE_REMREF(ln);
-		ln->la_flags &= ~LLE_CALLOUTREF;
-	}
-
-	IF_AFDATA_RUN_WLOCK(ifp);
-	llentry_unlink(ln);
-	IF_AFDATA_RUN_WUNLOCK(ifp);
-
-	llentry_free(ln);
-
-	IF_AFDATA_CFG_WUNLOCK(ifp);
-
-	return (next);
 }
 
 /*
@@ -1564,6 +1654,79 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	return (error);
 }
 
+static int
+nd6_check_router(int type, int code, int is_new, int old_addr, int new_addr,
+    int ln_router)
+{
+
+	/*
+	 * ICMP6 type dependent behavior.
+	 *
+	 * NS: clear IsRouter if new entry
+	 * RS: clear IsRouter
+	 * RA: set IsRouter if there's lladdr
+	 * redir: clear IsRouter if new entry
+	 *
+	 * RA case, (1):
+	 * The spec says that we must set IsRouter in the following cases:
+	 * - If lladdr exist, set IsRouter.  This means (1-5).
+	 * - If it is old entry (!newentry), set IsRouter.  This means (7).
+	 * So, based on the spec, in (1-5) and (7) cases we must set IsRouter.
+	 * A quetion arises for (1) case.  (1) case has no lladdr in the
+	 * neighbor cache, this is similar to (6).
+	 * This case is rare but we figured that we MUST NOT set IsRouter.
+	 *
+	 * newentry olladdr  lladdr  llchange	    NS  RS  RA	redir
+	 *							D R
+	 *	0	n	n	--	(1)	c   ?     s
+	 *	0	y	n	--	(2)	c   s     s
+	 *	0	n	y	--	(3)	c   s     s
+	 *	0	y	y	n	(4)	c   s     s
+	 *	0	y	y	y	(5)	c   s     s
+	 *	1	--	n	--	(6) c	c	c s
+	 *	1	--	y	--	(7) c	c   s	c s
+	 *
+	 *					(c=clear s=set)
+	 */
+	switch (type & 0xff) {
+	case ND_NEIGHBOR_SOLICIT:
+		/*
+		 * New entry must have is_router flag cleared.
+		 */
+		if (is_new)	/* (6-7) */
+			ln_router = 0;
+		break;
+	case ND_REDIRECT:
+		/*
+		 * If the icmp is a redirect to a better router, always set the
+		 * is_router flag.  Otherwise, if the entry is newly created,
+		 * clear the flag.  [RFC 2461, sec 8.3]
+		 */
+		if (code == ND_REDIRECT_ROUTER)
+			ln_router = 1;
+		else if (is_new) /* (6-7) */
+			ln_router = 0;
+		break;
+	case ND_ROUTER_SOLICIT:
+		/*
+		 * is_router flag must always be cleared.
+		 */
+		ln_router = 0;
+		break;
+	case ND_ROUTER_ADVERT:
+		/*
+		 * Mark an entry with lladdr as a router.
+		 */
+		if ((!is_new && (old_addr || new_addr)) ||	/* (2-5) */
+		    (is_new && new_addr)) {			/* (7) */
+			ln_router = 1;
+		}
+		break;
+	}
+
+	return (ln_router);
+}
+
 /*
  * Create neighbor cache entry and cache link-layer address,
  * on reception of inbound ND6 packets.  (RS/RA/NS/redirect)
@@ -1584,12 +1747,13 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	int do_update;
 	int olladdr;
 	int llchange;
-	int flags;
 	int newstate = 0;
 	uint16_t router = 0;
 	struct sockaddr_in6 sin6;
 	struct mbuf *chain = NULL;
-	int static_route = 0;
+	int r_update;
+	int new_rvalid, old_rvalid;
+	struct llentry *ln_tmp;
 
 	IF_AFDATA_CFG_UNLOCK_ASSERT(ifp);
 
@@ -1609,21 +1773,19 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	 * Spec says nothing in sections for RA, RS and NA.  There's small
 	 * description on it in NS section (RFC 2461 7.2.3).
 	 */
-	flags = lladdr ? ND6_EXCLUSIVE : 0;
 	IF_AFDATA_CFG_RLOCK(ifp);
-	ln = nd6_lookup(from, flags, ifp);
+	ln = nd6_lookup(from, ND6_EXCLUSIVE, ifp);
 	IF_AFDATA_CFG_RUNLOCK(ifp);
 	if (ln == NULL) {
-		flags |= ND6_EXCLUSIVE;
-		IF_AFDATA_CFG_WLOCK(ifp);
 		ln = nd6_create(from, 0, ifp);
-		IF_AFDATA_CFG_WUNLOCK(ifp);
+		if (ln != NULL)
+			LLE_WLOCK(ln);
 		is_newentry = 1;
 	} else {
-		/* do nothing if static ndp is set */
+		/* do nothing if record is static  */
 		if (ln->la_flags & LLE_STATIC) {
-			static_route = 1;
-			goto done;
+			LLE_WUNLOCK(ln);
+			return (NULL);
 		}
 		is_newentry = 0;
 	}
@@ -1637,26 +1799,6 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	} else
 		llchange = 0;
 
-	/*
-	 * newentry olladdr  lladdr  llchange	(*=record)
-	 *	0	n	n	--	(1)
-	 *	0	y	n	--	(2)
-	 *	0	n	y	--	(3) * STALE
-	 *	0	y	y	n	(4) *
-	 *	0	y	y	y	(5) * STALE
-	 *	1	--	n	--	(6)   NOSTATE(= PASSIVE)
-	 *	1	--	y	--	(7) * STALE
-	 */
-
-	if (lladdr) {		/* (3-5) and (7) */
-		/*
-		 * Record source link-layer address
-		 * XXX is it dependent to ifp->if_type?
-		 */
-		bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
-		ln->la_flags |= LLE_VALID;
-		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
-	}
 
 	if (!is_newentry) {
 		if ((!olladdr && lladdr != NULL) ||	/* (3) */
@@ -1671,6 +1813,108 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 			newstate = ND6_LLINFO_NOSTATE;
 		else					/* (7) */
 			newstate = ND6_LLINFO_STALE;
+	}
+
+	/*
+	 * newentry olladdr  lladdr  llchange	(*=record)
+	 *	0	n	n	--	(1)
+	 *	0	y	n	--	(2)
+	 *	0	n	y	--	(3) * STALE
+	 *	0	y	y	n	(4) *
+	 *	0	y	y	y	(5) * STALE
+	 *	1	--	n	--	(6)   NOSTATE(= PASSIVE)
+	 *	1	--	y	--	(7) * STALE
+	 */
+
+	if (lladdr != NULL || do_update != 0) {	/* (3-5) and (7) */
+		/*
+		 * Record source link-layer address
+		 * XXX is it dependent to ifp->if_type?
+		 *
+		 * We have to update either link-layer address
+		 * or state. In most cases this require cfg/runtime locks
+		 * to be held, so we have to do unlock/lock procedure to
+		 * maintain proper lock order.
+		 */
+
+		LLE_ADDREF(ln);
+		LLE_WUNLOCK(ln);
+		IF_AFDATA_CFG_WLOCK(ifp);
+		LLE_WLOCK(ln);
+		/* Check if entry got deleted */
+		if (ln->la_flags & LLE_DELETED) {
+			IF_AFDATA_CFG_WUNLOCK(ifp);
+			LLE_FREE_LOCKED(ln);
+			return (NULL);
+		}
+
+		/* Check if similar entry has been added */
+		if (is_newentry != 0 &&
+		    (ln_tmp = nd6_lookup(from, ND6_EXCLUSIVE, ifp)) != NULL) {
+			LLE_FREE_LOCKED(ln);
+			ln = ln_tmp;
+			ln_tmp = NULL;
+			is_newentry = 0;
+		}
+
+		/*
+		 * Check if we really need to update runtime data:
+		 * e.g. lladdr & r_flags
+		 */
+		r_update = 0;
+
+		/*
+		 * no old lladdr, but new one exists. (3-5),(7)
+		 */
+		if (((ln->la_flags & LLE_VALID) == 0 && lladdr != NULL) ||
+		    ((ln->la_flags & LLE_VALID) != 0 &&
+		    memcmp(lladdr, &ln->ll_addr, ifp->if_addrlen))) {
+			r_update = 1;
+		}
+
+		/*
+		 * state switch changing rlle_valid flag
+		 */
+		new_rvalid = 0;
+		if (newstate == ND6_LLINFO_REACHABLE ||
+		    newstate == ND6_LLINFO_DELAY)
+			new_rvalid = 1;
+
+		old_rvalid = (ln->r_flags & RLLE_VALID) ? 1 : 0;
+
+		if (old_rvalid != new_rvalid)
+			r_update = 1;
+
+		/* linking new entry requires runtime lock */
+		if (is_newentry != 0)
+			r_update = 1;
+
+		if (r_update != 0) {
+			IF_AFDATA_RUN_WLOCK(ifp);
+			if (is_newentry != 0)
+				llentry_link(LLTABLE6(ifp), ln);
+			if (lladdr != NULL) {
+				bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
+				ln->la_flags |= LLE_VALID;
+			}
+			if (new_rvalid != 0)
+				ln->r_flags |= RLLE_VALID;
+			else
+				ln->r_flags &= ~RLLE_VALID;
+			IF_AFDATA_RUN_WUNLOCK(ifp);
+		}
+		IF_AFDATA_CFG_WUNLOCK(ifp);
+		LLE_REMREF(ln);
+
+		if (lladdr != NULL) {
+			/* We might still have to copy lladdr */
+			if (r_update == 0) {
+				bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
+				ln->la_flags |= LLE_VALID;
+			}
+
+			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
+		}
 	}
 
 	if (do_update) {
@@ -1722,82 +1966,13 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		}
 	}
 
-	/*
-	 * ICMP6 type dependent behavior.
-	 *
-	 * NS: clear IsRouter if new entry
-	 * RS: clear IsRouter
-	 * RA: set IsRouter if there's lladdr
-	 * redir: clear IsRouter if new entry
-	 *
-	 * RA case, (1):
-	 * The spec says that we must set IsRouter in the following cases:
-	 * - If lladdr exist, set IsRouter.  This means (1-5).
-	 * - If it is old entry (!newentry), set IsRouter.  This means (7).
-	 * So, based on the spec, in (1-5) and (7) cases we must set IsRouter.
-	 * A quetion arises for (1) case.  (1) case has no lladdr in the
-	 * neighbor cache, this is similar to (6).
-	 * This case is rare but we figured that we MUST NOT set IsRouter.
-	 *
-	 * newentry olladdr  lladdr  llchange	    NS  RS  RA	redir
-	 *							D R
-	 *	0	n	n	--	(1)	c   ?     s
-	 *	0	y	n	--	(2)	c   s     s
-	 *	0	n	y	--	(3)	c   s     s
-	 *	0	y	y	n	(4)	c   s     s
-	 *	0	y	y	y	(5)	c   s     s
-	 *	1	--	n	--	(6) c	c	c s
-	 *	1	--	y	--	(7) c	c   s	c s
-	 *
-	 *					(c=clear s=set)
-	 */
-	switch (type & 0xff) {
-	case ND_NEIGHBOR_SOLICIT:
-		/*
-		 * New entry must have is_router flag cleared.
-		 */
-		if (is_newentry)	/* (6-7) */
-			ln->ln_router = 0;
-		break;
-	case ND_REDIRECT:
-		/*
-		 * If the icmp is a redirect to a better router, always set the
-		 * is_router flag.  Otherwise, if the entry is newly created,
-		 * clear the flag.  [RFC 2461, sec 8.3]
-		 */
-		if (code == ND_REDIRECT_ROUTER)
-			ln->ln_router = 1;
-		else if (is_newentry) /* (6-7) */
-			ln->ln_router = 0;
-		break;
-	case ND_ROUTER_SOLICIT:
-		/*
-		 * is_router flag must always be cleared.
-		 */
-		ln->ln_router = 0;
-		break;
-	case ND_ROUTER_ADVERT:
-		/*
-		 * Mark an entry with lladdr as a router.
-		 */
-		if ((!is_newentry && (olladdr || lladdr)) ||	/* (2-5) */
-		    (is_newentry && lladdr)) {			/* (7) */
-			ln->ln_router = 1;
-		}
-		break;
-	}
+	/* Check if we need to update router status */
+	router = nd6_check_router(type, code, is_newentry, olladdr,
+	    lladdr != NULL ? 1 : 0, ln->ln_router);
 
-	if (ln != NULL) {
-		static_route = (ln->la_flags & LLE_STATIC);
-		router = ln->ln_router;
+	ln->ln_router = router;
+	LLE_WUNLOCK(ln);
 
-		if (flags & ND6_EXCLUSIVE)
-			LLE_WUNLOCK(ln);
-		else
-			LLE_RUNLOCK(ln);
-		if (static_route)
-			ln = NULL;
-	}
 	if (chain)
 		nd6_output_flush(ifp, ifp, chain, &sin6);
 	
@@ -1824,16 +1999,6 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		defrouter_select();
 	}
 	
-	return (ln);
-done:	
-	if (ln != NULL) {
-		if (flags & ND6_EXCLUSIVE)
-			LLE_WUNLOCK(ln);
-		else
-			LLE_RUNLOCK(ln);
-		if (static_route)
-			ln = NULL;
-	}
 	return (ln);
 }
 
@@ -1975,6 +2140,8 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 	int error = 0;
 	int has_lle = 0;
 	int ip6len;
+	struct llentry *lle_tmp;
+	struct in6_addr src, *psrc;
 
 #ifdef INVARIANTS
 	if (lle != NULL) {
@@ -2016,9 +2183,35 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 			 * the condition below is not very efficient.  But we believe
 			 * it is tolerable, because this should be a rare case.
 			 */
-			IF_AFDATA_CFG_WLOCK(ifp);
 			lle = nd6_create(&dst->sin6_addr, 0, ifp);
-			IF_AFDATA_CFG_WUNLOCK(ifp);
+			if (lle != NULL) {
+				IF_AFDATA_CFG_WLOCK(ifp);
+				LLE_WLOCK(lle);
+				/* Check if the same record was addded */
+				lle_tmp = nd6_lookup(&dst->sin6_addr,
+				    ND6_EXCLUSIVE, ifp);
+				if (lle_tmp == NULL) {
+
+					/*
+					 * No entry has been found.
+					 * Link new one.
+					 */
+					IF_AFDATA_RUN_WLOCK(ifp);
+					llentry_link(LLTABLE6(ifp), lle);
+					IF_AFDATA_RUN_WUNLOCK(ifp);
+				}
+				IF_AFDATA_CFG_WUNLOCK(ifp);
+				if (lle_tmp != NULL) {
+
+					/*
+					 * Existing lle has been found.
+					 * Free new one.
+					 */
+					LLE_FREE_LOCKED(lle);
+					lle = lle_tmp;
+					lle_tmp = NULL;
+				}
+			}
 		}
 	} 
 	if (lle == NULL) {
@@ -2106,8 +2299,9 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 		
 		nd6_llinfo_settimer_locked(lle,
 		    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
+		psrc = nd6_llinfo_get_holdsrc(lle, &src);
 		LLE_WUNLOCK(lle);
-		nd6_ns_output(ifp, NULL, &dst->sin6_addr, lle, 0);
+		nd6_ns_output(ifp, NULL, &dst->sin6_addr, psrc, 0);
 		if (has_lle != 0)
 			LLE_WLOCK(lle);
 	} else if (has_lle == 0) {
@@ -2269,29 +2463,35 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 	struct llentry *ln;
 
 	ifp = ia->ia_ifa.ifa_ifp;
-	IF_AFDATA_CFG_WLOCK(ifp);
+	ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
+
 	ln = lltable_create_lle(LLTABLE6(ifp), LLE_IFADDR,
 	    (struct sockaddr *)&ia->ia_addr);
-	if (ln != NULL) {
-		IF_AFDATA_RUN_WLOCK(ifp);
-		bcopy(IF_LLADDR(ifp), &ln->ll_addr, ifp->if_addrlen);
-		ln->la_flags |= (LLE_VALID | LLE_STATIC);
-		ln->r_flags |= RLLE_VALID;
-		ln->la_expire = 0;  /* for IPv6 this means permanent */
-		ln->ln_state = ND6_LLINFO_REACHABLE;
-		llentry_link(LLTABLE6(ifp), ln);
-		IF_AFDATA_RUN_WUNLOCK(ifp);
-	}
+	if (ln == NULL)
+		return (ENOBUFS);
 
-	ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
+	ln->la_flags |= (LLE_VALID | LLE_STATIC);
+	ln->r_flags |= RLLE_VALID;
+	ln->la_expire = 0;  /* for IPv6 this means permanent */
+	ln->ln_state = ND6_LLINFO_REACHABLE;
+
+	IF_AFDATA_CFG_WLOCK(ifp);
+	/* Lock or new shiny lle */
+	LLE_WLOCK(ln);
+
+	lltable_delete_lle(LLTABLE6(ifp), LLE_IFADDR,
+	    (struct sockaddr *)&ia->ia_addr);
+
+	bcopy(IF_LLADDR(ifp), &ln->ll_addr, ifp->if_addrlen);
+	/* Finally, link our lle to the list */
+	IF_AFDATA_RUN_WLOCK(ifp);
+	llentry_link(LLTABLE6(ifp), ln);
+	IF_AFDATA_RUN_WUNLOCK(ifp);
 	IF_AFDATA_CFG_WUNLOCK(ifp);
-	if (ln != NULL) {
-		LLE_WUNLOCK(ln);
-		in6_newaddrmsg(ia, RTM_ADD);
-		return (0);
-	}
 
-	return (ENOBUFS);
+	LLE_WUNLOCK(ln);
+	in6_newaddrmsg(ia, RTM_ADD);
+	return (0);
 }
 
 /*

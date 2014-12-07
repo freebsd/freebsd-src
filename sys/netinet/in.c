@@ -994,14 +994,15 @@ struct in_llentry {
 };
 
 /*
- * Deletes an address from the address table.
+ * Frees unlinked record.
  * This function is called by the timer functions
  * such as arptimer() and nd6_llinfo_timer(), and
  * the caller does the locking.
  */
 static void
-in_lltable_free(struct lltable *llt, struct llentry *lle)
+in_lltable_free(struct llentry *lle)
 {
+
 	LLE_WUNLOCK(lle);
 	LLE_LOCK_DESTROY(lle);
 	free(lle, M_LLTABLE);
@@ -1033,17 +1034,6 @@ in_lltable_new(const struct sockaddr *l3addr, u_int flags)
 	    CALLOUT_RETURNUNLOCKED);
 
 	return (&lle->base);
-}
-
-static void
-in_lltable_stop_timers(struct llentry *lle)
-{
-
-	LLE_WLOCK_ASSERT(lle);
-	if (callout_stop(&lle->la_timer)) {
-		LLE_REMREF(lle);
-		lle->la_flags &= ~LLE_CALLOUTREF;
-	}
 }
 
 #define IN_ARE_MASKED_ADDR_EQUAL(d, a, m)	(			\
@@ -1314,7 +1304,7 @@ in_domifattach(struct ifnet *ifp)
 		llt->llt_delete = in_lltable_delete;
 		llt->llt_dump_entry = in_lltable_dump_entry;
 		llt->llt_hash = in_lltable_hash;
-		llt->llt_stop_timers = in_lltable_stop_timers;
+		llt->llt_clear_entry = arp_lltable_clear_entry;
 		llt->llt_match_prefix = in_lltable_match_prefix;
 	}
 	ii->ii_llt = llt;

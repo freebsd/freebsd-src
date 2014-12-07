@@ -381,7 +381,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
  */
 void
 nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6, 
-    const struct in6_addr *taddr6, struct llentry *ln, int dad)
+    const struct in6_addr *taddr6, const struct in6_addr *csrc, int dad)
 {
 	struct mbuf *m;
 	struct m_tag *mtag;
@@ -462,29 +462,11 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		 * - saddr6 belongs to the outgoing interface.
 		 * Otherwise, we perform the source address selection as usual.
 		 */
-		struct in6_addr *hsrc;
 
-		hsrc = NULL;
-		if (ln != NULL) {
-			LLE_RLOCK(ln);
-			if (ln->la_hold != NULL) {
-				struct ip6_hdr *hip6;		/* hold ip6 */
-
-				/*
-				 * assuming every packet in la_hold has the same IP
-				 * header
-				 */
-				hip6 = mtod(ln->la_hold, struct ip6_hdr *);
-				/* XXX pullup? */
-				if (sizeof(*hip6) < ln->la_hold->m_len) {
-					ip6->ip6_src = hip6->ip6_src;
-					hsrc = &hip6->ip6_src;
-				}
-			}
-			LLE_RUNLOCK(ln);
-		}
-		if (hsrc && (ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp,
-		    hsrc)) != NULL) {
+		if (csrc != NULL)
+			ip6->ip6_src = *csrc;
+		if (csrc && (ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp,
+		    (struct in6_addr *)csrc)) != NULL) {
 			/* ip6_src set already. */
 			ifa_free(ifa);
 		} else {

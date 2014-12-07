@@ -68,7 +68,7 @@ struct llentry {
 	/* FIELDS PROTECTED BY LLE rwlock */
 	struct lltable		 *lle_tbl;
 	struct llentries	 *lle_head;
-	void			(*lle_free)(struct lltable *, struct llentry *);
+	void			(*lle_free)(struct llentry *);
 	struct mbuf		 *la_hold;
 	int			 la_numheld;  /* # of packets currently held */
 	time_t			 la_expire;
@@ -117,7 +117,7 @@ struct llentry {
 
 #define	LLE_FREE_LOCKED(lle) do {				\
 	if ((lle)->lle_refcnt == 1)				\
-		(lle)->lle_free((lle)->lle_tbl, (lle));		\
+		(lle)->lle_free((lle));		\
 	else {							\
 		LLE_REMREF(lle);				\
 		LLE_WUNLOCK(lle);				\
@@ -158,7 +158,7 @@ typedef int (llt_dump_entry_t)(struct lltable *, struct llentry *,
 typedef uint32_t (llt_hash_t)(const struct llentry *);
 typedef int (llt_match_prefix_t)(const struct sockaddr *,
     const struct sockaddr *, u_int, struct llentry *);
-typedef void (llt_stop_timers_t)(struct llentry *lle);
+typedef void (llt_clear_entry_t)(struct lltable *, struct llentry *);
 
 struct lltable {
 	SLIST_ENTRY(lltable)	llt_link;
@@ -172,7 +172,7 @@ struct lltable {
 	llt_dump_entry_t	*llt_dump_entry;
 	llt_hash_t		*llt_hash;
 	llt_match_prefix_t	*llt_match_prefix;
-	llt_stop_timers_t	*llt_stop_timers;
+	llt_clear_entry_t	*llt_clear_entry;
 };
 
 MALLOC_DECLARE(M_LLTABLE);

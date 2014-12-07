@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/types.h>
+#include <sys/lock.h>
+#include <sys/rmlock.h>
 #include <sys/sockopt.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
@@ -453,7 +455,7 @@ toe_route_redirect_event(void *arg __unused, struct nhopu_extended *nh0,
 static int
 toe_nd6_resolve(struct ifnet *ifp, struct sockaddr *sa, uint8_t *lladdr)
 {
-	struct llentry *lle;
+	struct llentry *lle, *lle_tmp;
 	struct sockaddr_in6 *sin6 = (void *)sa;
 	int rc, flags = 0;
 
@@ -462,19 +464,39 @@ restart:
 	lle = lltable_lookup_lle(LLTABLE6(ifp), flags, sa);
 	IF_AFDATA_RUNLOCK(ifp);
 	if (lle == NULL) {
-		IF_AFDATA_CFG_WLOCK(ifp);
 		lle = nd6_create(&sin6->sin6_addr, 0, ifp);
-		IF_AFDATA_CFG_WUNLOCK(ifp);
 		if (lle == NULL)
 			return (ENOMEM); /* Couldn't create entry in cache. */
 		lle->ln_state = ND6_LLINFO_INCOMPLETE;
-		nd6_llinfo_settimer_locked(lle,
-		    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
-		LLE_WUNLOCK(lle);
+		IF_AFDATA_CFG_WLOCK(ifp);
+		LLE_WLOCK(lle);
+		/* Check if the same record was addded */
+		lle_tmp = lltable_lookup_lle(LLTABLE6(ifp), LLE_EXCLUSIVE, sa);
+		if (lle_tmp == NULL) {
+			/*
+			 * No entry has been found. Link new one.
+			 */
+			IF_AFDATA_RUN_WLOCK(ifp);
+			llentry_link(LLTABLE6(ifp), lle);
+			IF_AFDATA_RUN_WUNLOCK(ifp);
+		}
+		IF_AFDATA_CFG_WUNLOCK(ifp);
+		if (lle_tmp == NULL) {
+			/* Set up timer for our new lle */
+			nd6_llinfo_settimer_locked(lle,
+			    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
+			LLE_WUNLOCK(lle);
 
-		nd6_ns_output(ifp, NULL, &sin6->sin6_addr, NULL, 0);
+			nd6_ns_output(ifp, NULL, &sin6->sin6_addr, NULL, 0);
 
-		return (EWOULDBLOCK);
+			return (EWOULDBLOCK);
+		}
+
+		/* Existing lle has been found. Free new one */
+		LLE_FREE_LOCKED(lle);
+		lle = lle_tmp;
+		lle_tmp = NULL;
+		flags |= LLE_EXCLUSIVE;
 	}
 
 	if (lle->ln_state == ND6_LLINFO_STALE) {

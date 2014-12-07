@@ -41,6 +41,7 @@
 #include <sys/queue.h>
 #include <sys/callout.h>
 
+struct lltable;
 struct llentry;
 
 #define ND6_LLINFO_NOSTATE	-2
@@ -419,6 +420,7 @@ int nd6_add_ifa_lle(struct in6_ifaddr *);
 void nd6_rem_ifa_lle(struct in6_ifaddr *);
 int nd6_storelladdr(struct ifnet *, struct mbuf *,
 	const struct sockaddr *, u_char *, struct llentry **);
+void nd6_lltable_clear_entry(struct lltable *, struct llentry *);
 
 /* nd6_nbr.c */
 void nd6_na_input(struct mbuf *, int, int);
@@ -426,7 +428,7 @@ void nd6_na_output(struct ifnet *, const struct in6_addr *,
 	const struct in6_addr *, u_long, int, struct sockaddr *);
 void nd6_ns_input(struct mbuf *, int, int);
 void nd6_ns_output(struct ifnet *, const struct in6_addr *,
-	const struct in6_addr *, struct llentry *, int);
+	const struct in6_addr *, const struct in6_addr *, int);
 caddr_t nd6_ifptomac(struct ifnet *);
 void nd6_dad_start(struct ifaddr *, int);
 void nd6_dad_stop(struct ifaddr *);
