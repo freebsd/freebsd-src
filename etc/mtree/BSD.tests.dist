@@ -291,6 +291,8 @@
             ..
             tr
             ..
+            truncate
+            ..
             uudecode
             ..
             uuencode
