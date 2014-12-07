@@ -159,6 +159,13 @@ typedef uint32_t (llt_hash_t)(const struct llentry *);
 typedef int (llt_match_prefix_t)(const struct sockaddr *,
     const struct sockaddr *, u_int, struct llentry *);
 typedef void (llt_clear_entry_t)(struct lltable *, struct llentry *);
+typedef void (llt_free_tbl_t)(struct lltable *);
+typedef void (llt_link_entry_t)(struct lltable *, struct llentry *);
+typedef void (llt_unlink_entry_t)(struct llentry *);
+
+typedef int (llt_foreach_cb_t)(struct lltable *, struct llentry *, void *);
+typedef int (llt_foreach_entry_t)(struct lltable *, llt_foreach_cb_t *, void *);
+
 
 struct lltable {
 	SLIST_ENTRY(lltable)	llt_link;
@@ -173,6 +180,10 @@ struct lltable {
 	llt_hash_t		*llt_hash;
 	llt_match_prefix_t	*llt_match_prefix;
 	llt_clear_entry_t	*llt_clear_entry;
+	llt_foreach_entry_t	*llt_foreach_entry;
+	llt_link_entry_t	*llt_link_entry;
+	llt_unlink_entry_t	*llt_unlink_entry;
+	llt_free_tbl_t		*llt_free_tbl;
 };
 
 MALLOC_DECLARE(M_LLTABLE);
@@ -199,7 +210,7 @@ MALLOC_DECLARE(M_LLTABLE);
 #define LLATBL_HASH(key, mask) \
 	(((((((key >> 8) ^ key) >> 8) ^ key) >> 8) ^ key) & mask)
 
-struct lltable *lltable_init(struct ifnet *, int);
+void		lltable_link(struct lltable *);
 void		lltable_free(struct lltable *);
 void		lltable_prefix_free(int, struct sockaddr *,
 		    struct sockaddr *, u_int);
@@ -208,9 +219,6 @@ void		lltable_drain(int);
 #endif
 int		lltable_sysctl_dumparp(int, struct sysctl_req *);
 
-void		llentry_link(struct lltable *, struct llentry *);
-void		llentry_unlink(struct llentry *);
-void		llentries_unlink(struct llentries *);
 size_t		llentry_free(struct llentry *);
 struct llentry  *llentry_alloc(struct ifnet *, struct lltable *,
 		    struct sockaddr_storage *);
@@ -242,6 +250,19 @@ lltable_delete_lle(struct lltable *llt, u_int flags,
 	return llt->llt_delete(llt, flags, l3addr);
 }
 
+static __inline void
+lltable_link_entry(struct lltable *llt, struct llentry *lle)
+{
+
+	llt->llt_link_entry(llt, lle);
+}
+
+static __inline void
+lltable_unlink_entry(struct lltable *llt, struct llentry *lle)
+{
+
+	llt->llt_unlink_entry(lle);
+}
 
 int		lla_rt_output(struct rt_msghdr *, struct rt_addrinfo *);
 

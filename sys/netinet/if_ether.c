@@ -291,7 +291,7 @@ arp_lltable_clear_entry(struct lltable *llt, struct llentry *lle)
 		LLE_REMREF(lle);
 
 		IF_AFDATA_RUN_WLOCK(ifp);
-		llentry_unlink(lle);
+		lltable_unlink_entry(llt, lle);
 		IF_AFDATA_RUN_WUNLOCK(ifp);
 		
 		IF_AFDATA_CFG_WUNLOCK(ifp);
@@ -544,7 +544,7 @@ arpresolve_slow(struct ifnet *ifp, int is_gw, struct mbuf *m,
 				 * No entry has been found. Link new one.
 				 */
 				IF_AFDATA_RUN_WLOCK(ifp);
-				llentry_link(LLTABLE(ifp), la);
+				lltable_link_entry(LLTABLE(ifp), la);
 				IF_AFDATA_RUN_WUNLOCK(ifp);
 			}
 			IF_AFDATA_CFG_WUNLOCK(ifp);
@@ -1076,7 +1076,7 @@ arp_update_lle_addr(struct arphdr *ah, struct ifnet *ifp, struct llentry *la)
 	la->r_flags |= RLLE_VALID;
 	if ((la->la_flags & LLE_STATIC) == 0)
 		la->la_expire = time_uptime + V_arpt_keep;
-	llentry_link(LLTABLE(ifp), la);
+	lltable_link_entry(LLTABLE(ifp), la);
 	IF_AFDATA_RUN_WUNLOCK(ifp);
 }
 
@@ -1254,7 +1254,7 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 	bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
 	lle->la_flags |= (LLE_VALID | LLE_STATIC);
 	lle->r_flags |= RLLE_VALID;
-	llentry_link(LLTABLE(ifp), lle);
+	lltable_link_entry(LLTABLE(ifp), lle);
 	IF_AFDATA_RUN_WUNLOCK(ifp);
 
 	IF_AFDATA_CFG_WUNLOCK(ifp);

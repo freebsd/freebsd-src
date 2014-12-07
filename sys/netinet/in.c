@@ -1154,7 +1154,7 @@ in_lltable_delete(struct lltable *llt, u_int flags,
 		lle->la_flags |= LLE_DELETED;
 		EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
 		IF_AFDATA_RUN_WLOCK(ifp);
-		llentry_unlink(lle);
+		lltable_unlink_entry(llt, lle);
 		IF_AFDATA_RUN_WUNLOCK(ifp);
 #ifdef DIAGNOSTIC
 		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
@@ -1294,21 +1294,25 @@ in_domifattach(struct ifnet *ifp)
 {
 	struct in_ifinfo *ii;
 	struct lltable *llt;
+	int i;
+
+	llt = malloc(sizeof(struct lltable), M_LLTABLE, M_WAITOK | M_ZERO);
+	llt->llt_af = AF_INET;
+	llt->llt_ifp = ifp;
+	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++)
+		LIST_INIT(&llt->lle_head[i]);
+
+	llt->llt_lookup = in_lltable_lookup;
+	llt->llt_create = in_lltable_create;
+	llt->llt_delete = in_lltable_delete;
+	llt->llt_dump_entry = in_lltable_dump_entry;
+	llt->llt_hash = in_lltable_hash;
+	llt->llt_clear_entry = arp_lltable_clear_entry;
+	llt->llt_match_prefix = in_lltable_match_prefix;
+	lltable_link(llt);
 
 	ii = malloc(sizeof(struct in_ifinfo), M_IFADDR, M_WAITOK|M_ZERO);
-
-	llt = lltable_init(ifp, AF_INET);
-	if (llt != NULL) {
-		llt->llt_lookup = in_lltable_lookup;
-		llt->llt_create = in_lltable_create;
-		llt->llt_delete = in_lltable_delete;
-		llt->llt_dump_entry = in_lltable_dump_entry;
-		llt->llt_hash = in_lltable_hash;
-		llt->llt_clear_entry = arp_lltable_clear_entry;
-		llt->llt_match_prefix = in_lltable_match_prefix;
-	}
 	ii->ii_llt = llt;
-
 	ii->ii_igmp = igmp_domifattach(ifp);
 
 	return ii;
