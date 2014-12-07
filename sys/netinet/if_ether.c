@@ -268,6 +268,20 @@ arptimer(void *arg)
 	CURVNET_RESTORE();
 }
 
+int
+arp_lltable_prepare_static_entry(struct lltable *llt, struct llentry *lle,
+    struct rt_addrinfo *info)
+{
+
+	lle->la_flags |= LLE_VALID;
+	lle->r_flags |= RLLE_VALID;
+
+	if (lle->la_expire == 0)
+		lle->la_flags |= LLE_STATIC;
+
+	return (0);
+}
+
 /*
  * Calback for lltable.
  */

@@ -162,6 +162,8 @@ typedef void (llt_clear_entry_t)(struct lltable *, struct llentry *);
 typedef void (llt_free_tbl_t)(struct lltable *);
 typedef void (llt_link_entry_t)(struct lltable *, struct llentry *);
 typedef void (llt_unlink_entry_t)(struct llentry *);
+typedef int (llt_prepare_sentry_t)(struct lltable *, struct llentry *,
+    struct rt_addrinfo *);
 
 typedef int (llt_foreach_cb_t)(struct lltable *, struct llentry *, void *);
 typedef int (llt_foreach_entry_t)(struct lltable *, llt_foreach_cb_t *, void *);
@@ -183,6 +185,7 @@ struct lltable {
 	llt_foreach_entry_t	*llt_foreach_entry;
 	llt_link_entry_t	*llt_link_entry;
 	llt_unlink_entry_t	*llt_unlink_entry;
+	llt_prepare_sentry_t	*llt_prepare_static_entry;
 	llt_free_tbl_t		*llt_free_tbl;
 };
 

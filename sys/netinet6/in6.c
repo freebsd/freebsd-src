@@ -2379,6 +2379,7 @@ in6_domifattach(struct ifnet *ifp)
 	llt->llt_hash = in6_lltable_hash;
 	llt->llt_clear_entry = nd6_lltable_clear_entry;
 	llt->llt_match_prefix = in6_lltable_match_prefix;
+	llt->llt_prepare_static_entry = nd6_lltable_prepare_static_entry;
 	lltable_link(llt);
 	ext->lltable = llt;
 

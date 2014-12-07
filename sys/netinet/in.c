@@ -1314,6 +1314,7 @@ in_domifattach(struct ifnet *ifp)
 	llt->llt_hash = in_lltable_hash;
 	llt->llt_clear_entry = arp_lltable_clear_entry;
 	llt->llt_match_prefix = in_lltable_match_prefix;
+	llt->llt_prepare_static_entry = arp_lltable_prepare_static_entry;
 	lltable_link(llt);
 
 	ii = malloc(sizeof(struct in_ifinfo), M_IFADDR, M_WAITOK|M_ZERO);
