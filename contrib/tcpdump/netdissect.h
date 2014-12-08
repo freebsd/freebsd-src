@@ -292,18 +292,18 @@ extern if_printer lookup_printer(int);
 #ifndef __CHERI_SANDBOX__
 static inline int
 invoke_dissector(void *func, u_int length, register_t arg2,
-    register_t arg3, register_t arg4, register_t arg5, register_t arg6,
-    register_t arg7, netdissect_options *ndo, packetbody_t bp,
-    packetbody_t bp2) {
+    register_t arg3, register_t arg4, register_t arg5,
+    netdissect_options *ndo, packetbody_t bp,
+    packetbody_t bp2, void* carg1, void* carg2) {
 
 	return (0);
 }
 #else
 int
 invoke_dissector(void *func, u_int length, register_t arg2,
-    register_t arg3, register_t arg4, register_t arg5, register_t arg6,
-    register_t arg7, netdissect_options *ndo, packetbody_t bp,
-    packetbody_t bp2);
+    register_t arg3, register_t arg4, register_t arg5,
+    netdissect_options *ndo, packetbody_t bp, packetbody_t bp2,
+    void *carg1, void *carg2);
 #endif
 
 #define ND_DECLARE(rtype, name, ...)		\

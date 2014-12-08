@@ -529,7 +529,7 @@ ip_print(netdissect_options *ndo,
 {
 
 	if (!invoke_dissector((void *)_ip_print,
-	    length, 0, 0, 0, 0, 0, 0, ndo, bp, NULL))
+	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
 		_ip_print(ndo, bp, length);
 }
 

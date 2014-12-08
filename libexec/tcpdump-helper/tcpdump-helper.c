@@ -239,9 +239,9 @@ invoke(register_t op, register_t arg1, register_t arg2,
 
 int
 invoke_dissector(void *func, u_int length, register_t arg2,
-    register_t arg3, register_t arg4, register_t arg5, register_t arg6,
-    register_t arg7, netdissect_options *ndo, packetbody_t bp,
-    packetbody_t bp2)
+    register_t arg3, register_t arg4, register_t arg5,
+    netdissect_options *ndo, packetbody_t bp, packetbody_t bp2,
+    void *carg1, void *carg2)
 {
 	register_t op;
 
@@ -255,11 +255,11 @@ invoke_dissector(void *func, u_int length, register_t arg2,
 	if (gpso != NULL &&
 	    cheri_getlen(gpso) != 0) {
 		if (0 != cheri_invoke(*gpso, op, length,
-		    arg2, arg3, arg4, arg5, arg6, arg7,
+		    arg2, arg3, arg4, arg5, 0, 0,
 		    ndo, NULL, NULL, (void *)bp,
 		    cheri_incbase(gpso, sizeof(struct cheri_object)),
 		    (void *)bp2,
-		    NULL, NULL)) {
+		    carg1, carg2)) {
 			printf("failure in sandbox op=%d\n", (int)op);
 			abort();
 		}
