@@ -1390,11 +1390,12 @@ build-tools: .MAKE
 .endfor
 .for _tool in \
     usr.bin/vi
-	${_+_}@${ECHODIR} "===> ${_tool} (obj,build-tools,install)"; \
+	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${MAKE} DIRPRFX=${_tool}/ obj && \
-		${MAKE} DIRPRFX=${_tool}/ build-tools DESTDIR=${WORLDTMP}/ \
-		MK_MAN=no
+		${MAKE} DIRPRFX=${_tool}/ depend MK_MAN=no SUBDIR= && \
+		${MAKE} DIRPRFX=${_tool}/ all MK_MAN=no SUBDIR= && \
+		${MAKE} DIRPRFX=${_tool}/ install MK_MAN=no SUBDIR= DESTDIR=${WORLDTMP}/
 .endfor
 
 #
@@ -2011,6 +2012,7 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 NOFUN=-DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT \
 	MK_MAN=no MK_NLS=no MK_PROFILE=no \
 	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no MK_WARNS=no \
+	MK_VI=no \
 	TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}
 
