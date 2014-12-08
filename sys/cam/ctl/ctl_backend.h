@@ -85,7 +85,8 @@ typedef enum {
 	CTL_LUN_FLAG_DEVID		= 0x20,
 	CTL_LUN_FLAG_DEV_TYPE		= 0x40,
 	CTL_LUN_FLAG_UNMAP		= 0x80,
-	CTL_LUN_FLAG_OFFLINE		= 0x100
+	CTL_LUN_FLAG_OFFLINE		= 0x100,
+	CTL_LUN_FLAG_SERSEQ_READ	= 0x200
 } ctl_backend_lun_flags;
 
 #ifdef _KERNEL

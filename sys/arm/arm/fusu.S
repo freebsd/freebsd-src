@@ -38,6 +38,8 @@
 #include "assym.s"
 __FBSDID("$FreeBSD$");
 
+	.syntax	unified
+
 #ifdef _ARM_ARCH_6
 #define GET_PCB(tmp) \
 	mrc p15, 0, tmp, c13, c0, 4; \
@@ -83,7 +85,7 @@ EENTRY_NP(casuword32)
 	ldrt	r5, [r0]
 	cmp	r5, r1
 	movne	r0, r5
-	streqt	r2, [r0]
+	strteq	r2, [r0]
 #endif
 	moveq	r0, r1
 2:
@@ -269,7 +271,7 @@ _C_LABEL(fusubailout):
 
 fusupcbfaulttext:
 	.asciz	"Yikes - no valid PCB during fusuxxx() addr=%08x\n"
-	.align	0
+	.align	2
 #endif
 
 /*
