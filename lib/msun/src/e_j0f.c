@@ -69,7 +69,7 @@ __ieee754_j0f(float x)
 		}
 		return z;
 	}
-	if(ix<0x3c000000) {	/* |x| < 2**-7 */
+	if(ix<0x3b000000) {	/* |x| < 2**-9 */
 	    if(huge+x>one) {	/* raise inexact if x != 0 */
 	        if(ix<0x39800000) return one;	/* |x|<2**-12 */
 	        else 	      return one - x*x/4;
