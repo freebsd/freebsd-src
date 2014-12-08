@@ -725,6 +725,19 @@ stopme:
 	return (0);
 }
 
+bool
+thread_suspend_check_needed(void)
+{
+	struct proc *p;
+	struct thread *td;
+
+	td = curthread;
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	return (P_SHOULDSTOP(p) || ((p->p_flag & P_TRACED) != 0 &&
+	    (td->td_dbgflags & TDB_SUSPEND) != 0));
+}
+
 /*
  * Called in from locations that can safely check to see
  * whether we have to suspend or at least throttle for a
@@ -769,8 +782,7 @@ thread_suspend_check(int return_instead)
 	p = td->td_proc;
 	mtx_assert(&Giant, MA_NOTOWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	while (P_SHOULDSTOP(p) ||
-	      ((p->p_flag & P_TRACED) && (td->td_dbgflags & TDB_SUSPEND))) {
+	while (thread_suspend_check_needed()) {
 		if (P_SHOULDSTOP(p) == P_STOPPED_SINGLE) {
 			KASSERT(p->p_singlethread != NULL,
 			    ("singlethread not set"));
