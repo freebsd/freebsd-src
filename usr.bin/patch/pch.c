@@ -78,6 +78,7 @@ static size_t	pgets(bool _do_indent);
 static char	*best_name(const struct file_name *, bool);
 static char	*posix_name(const struct file_name *, bool);
 static size_t	num_components(const char *);
+static LINENUM	strtolinenum(char *, char **);
 
 /*
  * Prepare to look for the next patch in the patch file.
@@ -354,7 +355,7 @@ intuit_diff_type(void)
 		stars_this_line = strnEQ(s, "********", 8);
 		if ((!diff_type || diff_type == CONTEXT_DIFF) && stars_last_line &&
 		    strnEQ(s, "*** ", 4)) {
-			if (atol(s + 4) == 0)
+			if (strtolinenum(s + 4, &s) == 0)
 				ok_to_create_file = true;
 			/*
 			 * If this is a new context diff the character just
@@ -593,22 +594,25 @@ another_hunk(void)
 					malformed();
 				if (strnEQ(s, "0,0", 3))
 					memmove(s, s + 2, strlen(s + 2) + 1);
-				p_first = (LINENUM) atol(s);
-				while (isdigit((unsigned char)*s))
-					s++;
+				p_first = strtolinenum(s, &s);
 				if (*s == ',') {
 					for (;
 					     *s && !isdigit((unsigned char)*s); s++)
 						;
 					if (!*s)
 						malformed();
-					p_ptrn_lines = ((LINENUM) atol(s)) - p_first + 1;
+					p_ptrn_lines = strtolinenum(s, &s) - p_first + 1;
+					if (p_ptrn_lines < 0)
+						malformed();
 				} else if (p_first)
 					p_ptrn_lines = 1;
 				else {
 					p_ptrn_lines = 0;
 					p_first = 1;
 				}
+				if (p_first >= LINENUM_MAX - p_ptrn_lines ||
+				    p_ptrn_lines >= LINENUM_MAX - 6)
+					malformed();
 
 				/* we need this much at least */
 				p_max = p_ptrn_lines + 6;
@@ -661,22 +665,25 @@ another_hunk(void)
 						;
 					if (!*s)
 						malformed();
-					p_newfirst = (LINENUM) atol(s);
-					while (isdigit((unsigned char)*s))
-						s++;
+					p_newfirst = strtolinenum(s, &s);
 					if (*s == ',') {
 						for (; *s && !isdigit((unsigned char)*s); s++)
 							;
 						if (!*s)
 							malformed();
-						p_repl_lines = ((LINENUM) atol(s)) -
+						p_repl_lines = strtolinenum(s, &s) -
 						    p_newfirst + 1;
+						if (p_repl_lines < 0)
+							malformed();
 					} else if (p_newfirst)
 						p_repl_lines = 1;
 					else {
 						p_repl_lines = 0;
 						p_newfirst = 1;
 					}
+					if (p_newfirst >= LINENUM_MAX - p_repl_lines ||
+					    p_repl_lines >= LINENUM_MAX - p_end)
+						malformed();
 					p_max = p_repl_lines + p_end;
 					if (p_max > MAXHUNKSIZE)
 						fatal("hunk too large (%ld lines) at line %ld: %s",
@@ -869,31 +876,27 @@ hunk_done:
 		s = buf + 4;
 		if (!*s)
 			malformed();
-		p_first = (LINENUM) atol(s);
-		while (isdigit((unsigned char)*s))
-			s++;
+		p_first = strtolinenum(s, &s);
 		if (*s == ',') {
-			p_ptrn_lines = (LINENUM) atol(++s);
-			while (isdigit((unsigned char)*s))
-				s++;
+			p_ptrn_lines = strtolinenum(s + 1, &s);
 		} else
 			p_ptrn_lines = 1;
 		if (*s == ' ')
 			s++;
 		if (*s != '+' || !*++s)
 			malformed();
-		p_newfirst = (LINENUM) atol(s);
-		while (isdigit((unsigned char)*s))
-			s++;
+		p_newfirst = strtolinenum(s, &s);
 		if (*s == ',') {
-			p_repl_lines = (LINENUM) atol(++s);
-			while (isdigit((unsigned char)*s))
-				s++;
+			p_repl_lines = strtolinenum(s + 1, &s);
 		} else
 			p_repl_lines = 1;
 		if (*s == ' ')
 			s++;
 		if (*s != '@')
+			malformed();
+		if (p_first >= LINENUM_MAX - p_ptrn_lines ||
+		    p_newfirst > LINENUM_MAX - p_repl_lines ||
+		    p_ptrn_lines >= LINENUM_MAX - p_repl_lines - 1)
 			malformed();
 		if (!p_ptrn_lines)
 			p_first++;	/* do append rather than insert */
@@ -1034,35 +1037,36 @@ hunk_done:
 			next_intuit_at(line_beginning, p_input_line);
 			return false;
 		}
-		p_first = (LINENUM) atol(buf);
-		for (s = buf; isdigit((unsigned char)*s); s++)
-			;
+		p_first = strtolinenum(buf, &s);
 		if (*s == ',') {
-			p_ptrn_lines = (LINENUM) atol(++s) - p_first + 1;
-			while (isdigit((unsigned char)*s))
-				s++;
+			p_ptrn_lines = strtolinenum(s + 1, &s) - p_first + 1;
+			if (p_ptrn_lines < 0)
+				malformed();
 		} else
 			p_ptrn_lines = (*s != 'a');
 		hunk_type = *s;
 		if (hunk_type == 'a')
 			p_first++;	/* do append rather than insert */
-		min = (LINENUM) atol(++s);
-		for (; isdigit((unsigned char)*s); s++)
-			;
+		min = strtolinenum(s + 1, &s);
 		if (*s == ',')
-			max = (LINENUM) atol(++s);
+			max = strtolinenum(s + 1, &s);
 		else
 			max = min;
+		if (min < 0 || min > max || max - min == LINENUM_MAX)
+			malformed();
 		if (hunk_type == 'd')
 			min++;
-		p_end = p_ptrn_lines + 1 + max - min + 1;
+		p_newfirst = min;
+		p_repl_lines = max - min + 1;
+		if (p_newfirst > LINENUM_MAX - p_repl_lines ||
+		    p_ptrn_lines >= LINENUM_MAX - p_repl_lines - 1)
+			malformed();
+		p_end = p_ptrn_lines + p_repl_lines + 1;
 		if (p_end > MAXHUNKSIZE)
 			fatal("hunk too large (%ld lines) at line %ld: %s",
 			    p_end, p_input_line, buf);
 		while (p_end >= hunkmax)
 			grow_hunkmax();
-		p_newfirst = min;
-		p_repl_lines = max - min + 1;
 		snprintf(buf, buf_size, "*** %ld,%ld\n", p_first,
 		    p_first + p_ptrn_lines - 1);
 		p_line[0] = savestr(buf);
@@ -1581,4 +1585,37 @@ num_components(const char *path)
 			cp++;		/* skip consecutive slashes */
 	}
 	return n;
+}
+
+/*
+ * Convert number at NPTR into LINENUM and save address of first
+ * character that is not a digit in ENDPTR.  If conversion is not
+ * possible, call fatal.
+ */
+static LINENUM
+strtolinenum(char *nptr, char **endptr)
+{
+	LINENUM rv;
+	char c;
+	char *p;
+	const char *errstr;
+
+	for (p = nptr; isdigit((unsigned char)*p); p++)
+		;
+
+	if (p == nptr)
+		malformed();
+
+	c = *p;
+	*p = '\0';
+
+	rv = strtonum(nptr, 0, LINENUM_MAX, &errstr);
+	if (errstr != NULL)
+		fatal("invalid line number at line %ld: `%s' is %s\n",
+		    p_input_line, nptr, errstr);
+ 
+	*p = c;
+	*endptr = p;
+
+	return rv;
 }
