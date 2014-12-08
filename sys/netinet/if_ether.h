@@ -117,6 +117,21 @@ struct llentry;
 struct ifaddr;
 struct rt_addrinfo;
 
+#define LLTABLE(ifp)	\
+	((struct in_ifinfo *)(ifp)->if_afdata[AF_INET])->ii_llt
+
+static __inline const void *
+_check_in_addr_typecast(const struct in_addr *paddr)
+{
+
+	return ((const void *)paddr);
+}
+
+#define	lltable_lookup_lle4(i, f, a)	\
+	lltable_lookup_lle(LLTABLE(i), (f), _check_in_addr_typecast(a))
+#define	lltable_create_lle4(i, f, a)	\
+	lltable_create_lle(LLTABLE(i), (f), _check_in_addr_typecast(a))
+
 int	arpresolve(struct ifnet *ifp, struct rtentry *rt, struct mbuf *m,
 	    const struct sockaddr *dst, u_char *desten, struct llentry **lle);
 int	arpresolve_fast(struct ifnet *ifp, struct in_addr dst, u_int mflags,

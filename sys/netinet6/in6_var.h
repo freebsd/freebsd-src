@@ -108,8 +108,6 @@ struct in6_ifextra {
 	struct mld_ifinfo *mld_ifinfo;
 };
 
-#define	LLTABLE6(ifp)	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->lltable)
-
 #if defined(_KERNEL) || defined(_WANT_IFADDR)
 struct	in6_ifaddr {
 	struct	ifaddr ia_ifa;		/* protocol-independent info */

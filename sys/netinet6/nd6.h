@@ -89,8 +89,6 @@ struct nd_ifinfo {
 #define	ND6_IFF_NO_RADR		0x40
 #define ND6_IFF_NO_PREFER_IFACE	0x80 /* XXX: not related to ND. */
 
-#define	ND6_EXCLUSIVE		LLE_EXCLUSIVE
-
 #ifdef _KERNEL
 #define ND_IFINFO(ifp) \
 	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->nd_ifinfo)
@@ -389,14 +387,33 @@ void nd6_init(void);
 #ifdef VIMAGE
 void nd6_destroy(void);
 #endif
+
+#define	LLTABLE6(ifp)	\
+	(((struct in6_ifextra *)(ifp)->if_afdata[AF_INET6])->lltable)
+
+static __inline const void *
+_check_in6_addr_typecast(const struct in6_addr *paddr)
+{
+
+	return ((const void *)paddr);
+}
+
+#define	lltable_lookup_lle6(i, f, a)	\
+	lltable_lookup_lle(LLTABLE6(i), (f), _check_in6_addr_typecast(a))
+#define	lltable_create_lle6(i, f, a)	\
+	lltable_create_lle(LLTABLE6(i), (f), _check_in6_addr_typecast(a))
+
+#define	nd6_lookup(a, f, i)	lltable_lookup_lle6((i), (f), (a))
+#define	ND6_EXCLUSIVE		LLE_EXCLUSIVE
+
+
+
 struct nd_ifinfo *nd6_ifattach(struct ifnet *);
 void nd6_ifdetach(struct nd_ifinfo *);
 int nd6_is_addr_neighbor(struct sockaddr_in6 *, struct ifnet *);
 void nd6_option_init(void *, int, union nd_opts *);
 struct nd_opt_hdr *nd6_option(union nd_opts *);
 int nd6_options(union nd_opts *);
-struct llentry *nd6_lookup(struct in6_addr *, int, struct ifnet *);
-struct llentry *nd6_create(struct in6_addr *, int, struct ifnet *);
 void nd6_setmtu(struct ifnet *);
 void nd6_llinfo_settimer(struct llentry *, long);
 void nd6_llinfo_settimer_locked(struct llentry *, long);

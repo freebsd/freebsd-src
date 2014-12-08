@@ -417,8 +417,6 @@ arpresolve_fast(struct ifnet *ifp, struct in_addr dst, u_int mflags,
     u_char *dst_addr)
 {
 	struct llentry *la;
-	struct sockaddr_in sin;
-	const struct sockaddr *sa_dst;
 	IF_AFDATA_RUN_TRACKER;
 
 	if (mflags & M_BCAST) {
@@ -430,14 +428,8 @@ arpresolve_fast(struct ifnet *ifp, struct in_addr dst, u_int mflags,
 		return (0);
 	}
 
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_addr = dst;
-	sin.sin_family = AF_INET;
-	sin.sin_len = sizeof(sin);
-	sa_dst = (const struct sockaddr *)&sin;
-
 	IF_AFDATA_RUN_RLOCK(ifp);
-	la = lltable_lookup_lle(LLTABLE(ifp), LLE_UNLOCKED, sa_dst);
+	la = lltable_lookup_lle4(ifp, LLE_UNLOCKED, &dst);
 	if (la != NULL && (la->r_flags & RLLE_VALID) != 0) {
 		/* Entry found, let's copy lle info */
 		bcopy(&la->ll_addr, dst_addr, ifp->if_addrlen);
@@ -503,8 +495,11 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	const struct sockaddr *dst, u_char *desten, struct llentry **lle)
 {
 	struct llentry *la = NULL;
+	struct in_addr dst4;
 	int is_gw;
 	IF_AFDATA_RUN_TRACKER;
+
+	dst4 = SIN(dst)->sin_addr;
 
 	*lle = NULL;
 	if (m != NULL) {
@@ -516,13 +511,13 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 		}
 		if (m->m_flags & M_MCAST && ifp->if_type != IFT_ARCNET) {
 			/* multicast */
-			ETHER_MAP_IP_MULTICAST(&SIN(dst)->sin_addr, desten);
+			ETHER_MAP_IP_MULTICAST(&dst4, desten);
 			return (0);
 		}
 	}
 
 	IF_AFDATA_RUN_RLOCK(ifp);
-	la = lltable_lookup_lle(LLTABLE(ifp), LLE_UNLOCKED, dst);
+	la = lltable_lookup_lle4(ifp, LLE_UNLOCKED, &dst4);
 	if (la != NULL && (la->r_flags & RLLE_VALID) != 0) {
 		/* Entry found, let's copy lle info */
 		bcopy(&la->ll_addr, desten, ifp->if_addrlen);
@@ -545,22 +540,23 @@ arpresolve_slow(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	struct llentry *la, *la_tmp;
 	struct mbuf *curr = NULL;
 	struct mbuf *next = NULL;
+	struct in_addr dst4;
 	int create, error;
 
 	create = 0;
 	*lle = NULL;
+	dst4 = SIN(dst)->sin_addr;
 
 	IF_AFDATA_RLOCK(ifp);
-	la = lltable_lookup_lle(LLTABLE(ifp), LLE_EXCLUSIVE, dst);
+	la = lltable_lookup_lle4(ifp, LLE_EXCLUSIVE, &dst4);
 	IF_AFDATA_RUNLOCK(ifp);
 	if (la == NULL && (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
 		create = 1;
-		la = lltable_create_lle(LLTABLE(ifp), 0, dst);
+		la = lltable_create_lle4(ifp, 0, &dst4);
 		if (la != NULL) {
 			IF_AFDATA_CFG_WLOCK(ifp);
 			LLE_WLOCK(la);
-			la_tmp = lltable_lookup_lle(LLTABLE(ifp), LLE_EXCLUSIVE,
-			    dst);
+			la_tmp = lltable_lookup_lle4(ifp, LLE_EXCLUSIVE, &dst4);
 			if (la_tmp == NULL) {
 				/*
 				 * No entry has been found. Link new one.
@@ -582,7 +578,7 @@ arpresolve_slow(struct ifnet *ifp, int is_gw, struct mbuf *m,
 		if (create != 0)
 			log(LOG_DEBUG,
 			    "arpresolve: can't allocate llinfo for %s on %s\n",
-			    inet_ntoa(SIN(dst)->sin_addr), ifp->if_xname);
+			    inet_ntoa(dst4), ifp->if_xname);
 		m_freem(m);
 		return (EINVAL);
 	}
@@ -781,12 +777,7 @@ in_arpinput(struct mbuf *m)
 	int bridged = 0, is_bridge = 0;
 	int carped;
 	struct nhop4_extended nh_ext;
-	struct sockaddr_in sin;
 	struct llentry *la_tmp;
-
-	sin.sin_len = sizeof(struct sockaddr_in);
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = 0;
 
 	if (ifp->if_bridge)
 		bridged = 1;
@@ -938,14 +929,8 @@ match:
 	if (ifp->if_flags & IFF_STATICARP)
 		goto reply;
 
-	bzero(&sin, sizeof(sin));
-	sin.sin_len = sizeof(struct sockaddr_in);
-	sin.sin_family = AF_INET;
-	sin.sin_addr = isaddr;
-
 	IF_AFDATA_CFG_RLOCK(ifp);
-	la = lltable_lookup_lle(LLTABLE(ifp), LLE_EXCLUSIVE,
-	    (struct sockaddr *)&sin);
+	la = lltable_lookup_lle4(ifp, LLE_EXCLUSIVE, &isaddr);
 	IF_AFDATA_CFG_RUNLOCK(ifp);
 	if (la != NULL)
 		arp_update_lle(ah, isaddr, ifp, bridged, la);
@@ -955,14 +940,12 @@ match:
 		 * Reply to our address, but no lle exists yet.
 		 * do we really have to create an entry?
 		 */
-		la = lltable_create_lle(LLTABLE(ifp), 0,
-		    (struct sockaddr *)&sin);
+		la = lltable_create_lle4(ifp, 0, &isaddr);
 		if (la != NULL) {
 			IF_AFDATA_CFG_WLOCK(ifp);
 			LLE_WLOCK(la);
 			/* Let's try to search another time */
-			la_tmp = lltable_lookup_lle(LLTABLE(ifp), LLE_EXCLUSIVE,
-			    (struct sockaddr *)&sin);
+			la_tmp = lltable_lookup_lle4(ifp, LLE_EXCLUSIVE, &isaddr);
 			if (la_tmp != NULL) {
 				/*
 				 * Someone has already inserted another entry.
@@ -995,10 +978,8 @@ reply:
 	} else {
 		struct llentry *lle = NULL;
 
-		sin.sin_addr = itaddr;
 		IF_AFDATA_RLOCK(ifp);
-		lle = lltable_lookup_lle(LLTABLE(ifp), 0,
-		    (struct sockaddr *)&sin);
+		lle = lltable_lookup_lle4(ifp, 0, &itaddr);
 		IF_AFDATA_RUNLOCK(ifp);
 
 		if ((lle != NULL) && (lle->la_flags & LLE_PUB)) {
@@ -1013,7 +994,6 @@ reply:
 			if (!V_arp_proxyall)
 				goto drop;
 
-			sin.sin_addr = itaddr;
 			/* XXX MRT use table 0 for arp reply  */
 			if (fib4_lookup_nh_ext(0, itaddr, 0, 0, &nh_ext) != 0)
 				goto drop;
@@ -1035,7 +1015,6 @@ reply:
 			 * avoids ARP chaos if an interface is connected to the
 			 * wrong network.
 			 */
-			sin.sin_addr = isaddr;
 
 			/* XXX MRT use table 0 for arp checks */
 			if (fib4_lookup_nh_ext(0, isaddr, 0, 0, &nh_ext) != 0)
@@ -1252,8 +1231,7 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 	 * because the output of the arp utility shows
 	 * that L2 entry as permanent
 	 */
-	lle = lltable_create_lle(LLTABLE(ifp), LLE_IFADDR | LLE_STATIC,
-			 (struct sockaddr *)IA_SIN(ifa));
+	lle = lltable_create_lle4(ifp, LLE_IFADDR | LLE_STATIC, &addr);
 	if (lle == NULL) {
 		log(LOG_INFO, "arp_ifinit: cannot create arp "
 		    "entry for interface address\n");
@@ -1271,8 +1249,7 @@ arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 	 * Instead of dealing with callouts/flags/etc we simply
 	 * delete it and add new one.
 	 */
-	lle_tmp = lltable_lookup_lle(llt, LLE_EXCLUSIVE,
-	    (struct sockaddr *)IA_SIN(ifa));
+	lle_tmp = lltable_lookup_lle4(ifp, LLE_EXCLUSIVE, &addr);
 
 	IF_AFDATA_RUN_WLOCK(ifp);
 	if (lle_tmp != NULL)

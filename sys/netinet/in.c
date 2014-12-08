@@ -1009,18 +1009,19 @@ in_lltable_free(struct llentry *lle)
 }
 
 static struct llentry *
-in_lltable_new(const struct sockaddr *l3addr, u_int flags)
+in_lltable_new(struct in_addr addr4, u_int flags)
 {
 	struct in_llentry *lle;
-	const struct sockaddr_in *l3addr_sin;
 
 	lle = malloc(sizeof(struct in_llentry), M_LLTABLE, M_NOWAIT | M_ZERO);
 	if (lle == NULL)		/* NB: caller generates msg */
 		return NULL;
 
-	l3addr_sin = (const struct sockaddr_in *)l3addr;
-	lle->base.r_l3addr.addr4 = l3addr_sin->sin_addr;
-	lle->l3_addr4 = *l3addr_sin;
+	lle->base.r_l3addr.addr4 = addr4;
+	/* XXX: Legacy */
+	lle->l3_addr4.sin_len = sizeof(lle->l3_addr4);
+	lle->l3_addr4.sin_family = AF_INET;
+	lle->l3_addr4.sin_addr = addr4;
 
 	/*
 	 * For IPv4 this will trigger "arpresolve" to generate
@@ -1058,15 +1059,10 @@ in_lltable_match_prefix(const struct sockaddr *prefix,
 }
 
 static int
-in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr)
+in_lltable_rtcheck(struct ifnet *ifp, u_int flags, struct in_addr dst)
 {
 	struct nhop4_basic nh4;
-	struct in_addr dst;
 
-	KASSERT(l3addr->sa_family == AF_INET,
-	    ("sin_family %d", l3addr->sa_family));
-
-	dst = ((struct sockaddr_in *)l3addr)->sin_addr;
 	if (fib4_lookup_nh(ifp->if_fib, dst, 0, 0, &nh4) != 0)
 		return (EINVAL);
 
@@ -1110,6 +1106,16 @@ in_lltable_hash(const struct llentry *lle)
 {
 	
 	return (in_lltable_hash_dst(lle->r_l3addr.addr4));
+}
+
+static const void *
+in_lltable_get_sa_addr(const struct sockaddr *l3addr)
+{
+	const struct sockaddr_in *sin;
+	
+	sin = (const struct sockaddr_in *)l3addr;
+
+	return ((const void *)&sin->sin_addr);
 }
 
 static inline struct llentry *
@@ -1174,13 +1180,13 @@ in_lltable_delete(struct lltable *llt, u_int flags,
 }
 
 static struct llentry *
-in_lltable_create(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
+in_lltable_create(struct lltable *llt, u_int flags, const void *paddr)
 {
 	struct ifnet *ifp = llt->llt_ifp;
 	struct llentry *lle;
+	struct in_addr addr4;
 
-	KASSERT(l3addr->sa_family == AF_INET,
-	    ("sin_family %d", l3addr->sa_family));
+	addr4 = *((const struct in_addr *)paddr);
 
 	/*
 	 * A route that covers the given address must have
@@ -1188,10 +1194,10 @@ in_lltable_create(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 	 * verify this.
 	 */
 	if (!(flags & LLE_IFADDR) &&
-	    in_lltable_rtcheck(ifp, flags, l3addr) != 0)
+	    in_lltable_rtcheck(ifp, flags, addr4) != 0)
 		return (NULL);
 
-	lle = in_lltable_new(l3addr, flags);
+	lle = in_lltable_new(addr4, flags);
 	if (lle == NULL) {
 		log(LOG_INFO, "lla_lookup: new lle malloc failed\n");
 		return (NULL);
@@ -1206,7 +1212,7 @@ in_lltable_create(struct lltable *llt, u_int flags, const struct sockaddr *l3add
  * If found return lle read locked.
  */
 static struct llentry *
-in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3addr)
+in_lltable_lookup(struct lltable *llt, u_int flags, const void *paddr)
 {
 	struct llentry *lle;
 	struct in_addr dst;
@@ -1216,10 +1222,8 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 	 * by different locks.
 	 * IF_AFDATA_LOCK_ASSERT(llt->llt_ifp);
 	 */
-	KASSERT(l3addr->sa_family == AF_INET,
-	    ("sin_family %d", l3addr->sa_family));
 
-	dst = ((const struct sockaddr_in *)l3addr)->sin_addr;
+	dst = *((const struct in_addr *)paddr);
 	lle = in_lltable_find_dst(llt, dst);
 
 	if (lle == NULL)
@@ -1312,6 +1316,7 @@ in_domifattach(struct ifnet *ifp)
 	llt->llt_delete_addr = in_lltable_delete;
 	llt->llt_dump_entry = in_lltable_dump_entry;
 	llt->llt_hash = in_lltable_hash;
+	llt->llt_get_sa_addr = in_lltable_get_sa_addr;
 	llt->llt_clear_entry = arp_lltable_clear_entry;
 	llt->llt_match_prefix = in_lltable_match_prefix;
 	llt->llt_prepare_static_entry = arp_lltable_prepare_static_entry;
