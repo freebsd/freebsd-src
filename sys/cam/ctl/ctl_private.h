@@ -97,6 +97,7 @@ typedef enum {
 	CTL_SER_BLOCKOPT,
 	CTL_SER_EXTENT,
 	CTL_SER_EXTENTOPT,
+	CTL_SER_EXTENTSEQ,
 	CTL_SER_PASS,
 	CTL_SER_SKIP
 } ctl_serialize_action;
@@ -181,6 +182,12 @@ typedef enum {
 	CTL_LUN_SENSE_DESC	= 0x400,
 	CTL_LUN_READONLY	= 0x800
 } ctl_lun_flags;
+
+typedef enum {
+	CTL_LUN_SERSEQ_OFF,
+	CTL_LUN_SERSEQ_READ,
+	CTL_LUN_SERSEQ_ON
+} ctl_lun_serseq;
 
 typedef enum {
 	CTLBLOCK_FLAG_NONE	= 0x00,
@@ -386,6 +393,7 @@ struct ctl_lun {
 	struct ctl_id			target;
 	uint64_t			lun;
 	ctl_lun_flags			flags;
+	ctl_lun_serseq			serseq;
 	STAILQ_HEAD(,ctl_error_desc)	error_list;
 	uint64_t			error_serial;
 	struct ctl_softc		*ctl_softc;
