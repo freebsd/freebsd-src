@@ -45,8 +45,10 @@
 #ifdef INET
 static inline void inet_get_local_port_range(int *low, int *high)
 {
+	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
 	*low = V_ipport_firstauto;
 	*high = V_ipport_lastauto;
+	CURVNET_RESTORE();
 }
 
 static inline void
