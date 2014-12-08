@@ -5329,12 +5329,6 @@ l2arc_compress_buf(l2arc_buf_hdr_t *l2hdr)
 	csize = zio_compress_data(ZIO_COMPRESS_LZ4, l2hdr->b_tmp_cdata,
 	    cdata, l2hdr->b_asize);
 
-	rounded = P2ROUNDUP(csize, (size_t)SPA_MINBLOCKSIZE);
-	if (rounded > csize) {
-		bzero((char *)cdata + csize, rounded - csize);
-		csize = rounded;
-	}
-
 	if (csize == 0) {
 		/* zero block, indicate that there's nothing to write */
 		zio_data_buf_free(cdata, len);
@@ -5343,11 +5337,19 @@ l2arc_compress_buf(l2arc_buf_hdr_t *l2hdr)
 		l2hdr->b_tmp_cdata = NULL;
 		ARCSTAT_BUMP(arcstat_l2_compress_zeros);
 		return (B_TRUE);
-	} else if (csize > 0 && csize < len) {
+	}
+
+	rounded = P2ROUNDUP(csize,
+	    (size_t)1 << l2hdr->b_dev->l2ad_vdev->vdev_ashift);
+	if (rounded < len) {
 		/*
 		 * Compression succeeded, we'll keep the cdata around for
 		 * writing and release it afterwards.
 		 */
+		if (rounded > csize) {
+			bzero((char *)cdata + csize, rounded - csize);
+			csize = rounded;
+		}
 		l2hdr->b_compress = ZIO_COMPRESS_LZ4;
 		l2hdr->b_asize = csize;
 		l2hdr->b_tmp_cdata = cdata;
