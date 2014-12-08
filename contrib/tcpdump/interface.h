@@ -213,7 +213,7 @@ extern u_int fr_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int mfr_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int fr_print(packetbody_t, u_int);
 extern u_int mfr_print(packetbody_t, u_int);
-extern char *q922_string(__capability const u_char *);
+extern char *q922_string(packetbody_t);
 extern u_int ieee802_11_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int ieee802_11_radio_if_print(const struct pcap_pkthdr *,
 	packetbody_t);
@@ -235,7 +235,7 @@ extern void msdp_print(packetbody_t, u_int);
 extern void nfsreply_print(packetbody_t, u_int, packetbody_t);
 extern void nfsreq_print(packetbody_t, u_int, packetbody_t);
 extern void ns_print(packetbody_t, u_int, int);
-extern packetbody_t ns_nprint(__capability const u_char *, __capability const u_char *);
+extern packetbody_t ns_nprint(packetbody_t, packetbody_t);
 extern void ntp_print(packetbody_t, u_int);
 extern u_int null_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern void ospf_print(packetbody_t, u_int, packetbody_t);
