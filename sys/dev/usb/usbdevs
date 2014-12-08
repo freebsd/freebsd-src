@@ -4486,8 +4486,27 @@ product WESTERN COMBO		0x0200	Firewire USB Combo
 product WESTERN EXTHDD		0x0400	External HDD
 product WESTERN HUB		0x0500	USB HUB
 product WESTERN MYBOOK		0x0901	MyBook External HDD
-product WESTERN MYPASSWORD	0x0704	MyPassword External HDD
-product WESTERN MYPASSPORT	0x0748	MyPassport External HDD
+product WESTERN MYPASSPORT_00	0x0704	MyPassport External HDD
+product WESTERN MYPASSPORT_01	0x0746	MyPassport External HDD
+product WESTERN MYPASSPORT_02	0x0748	MyPassport External HDD
+product WESTERN MYPASSPORT_03	0x074A	MyPassport External HDD
+product WESTERN MYPASSPORT_04	0x074C	MyPassport External HDD
+product WESTERN MYPASSPORT_05	0x074E	MyPassport External HDD
+product WESTERN MYPASSPORT_06	0x07A6	MyPassport External HDD
+product WESTERN MYPASSPORT_07	0x07A8	MyPassport External HDD
+product WESTERN MYPASSPORT_08	0x07AA	MyPassport External HDD
+product WESTERN MYPASSPORT_09	0x07AC	MyPassport External HDD
+product WESTERN MYPASSPORT_10	0x07AE	MyPassport External HDD
+product WESTERN MYPASSPORTES_00	0x070A	MyPassport Essential External HDD
+product WESTERN MYPASSPORTES_01	0x071A	MyPassport Essential External HDD
+product WESTERN MYPASSPORTES_02	0x0730	MyPassport Essential External HDD
+product WESTERN MYPASSPORTES_03	0x0732	MyPassport Essential External HDD
+product WESTERN MYPASSPORTES_04	0x0740	MyPassport Essential External HDD
+product WESTERN MYPASSPORTES_05	0x0742	MyPassport Essential External HDD
+product WESTERN MYPASSPORTES_06	0x0750	MyPassport Essential External HDD
+product WESTERN MYPASSPORTES_07	0x0752	MyPassport Essential External HDD
+product WESTERN MYPASSPORTES_08	0x07A0	MyPassport Essential External HDD
+product WESTERN MYPASSPORTES_09	0x07A2	MyPassport Essential External HDD
 
 /* WeTelecom products */
 product WETELECOM WM_D200	0x6801	WM-D200
