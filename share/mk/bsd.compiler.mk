@@ -25,6 +25,7 @@
 .if !target(__<bsd.compiler.mk>__)
 __<bsd.compiler.mk>__:
 
+.if !defined(COMPILER_TYPE) && !defined(COMPILER_VERSION)
 _v!=	${CC} --version 2>/dev/null || echo 0.0.0
 .if !defined(COMPILER_TYPE)
 . if ${CC:T:M*gcc*}
@@ -45,6 +46,7 @@ COMPILER_TYPE:=	clang
 COMPILER_VERSION!=echo ${_v:M[1-9].[0-9]*} | awk -F. '{print $$1 * 10000 + $$2 * 100 + $$3;}'
 .endif
 .undef _v
+.endif
 
 .if ${COMPILER_TYPE} == "clang" || \
 	(${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40800)
