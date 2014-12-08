@@ -889,55 +889,6 @@ nd6_purge(struct ifnet *ifp)
 	 */
 }
 
-/* 
- * the caller acquires and releases the lock on the lltbls
- * Returns the llentry locked
- */
-struct llentry *
-nd6_lookup(struct in6_addr *addr6, int flags, struct ifnet *ifp)
-{
-	struct sockaddr_in6 sin6;
-	struct llentry *ln;
-	int llflags;
-	
-	bzero(&sin6, sizeof(sin6));
-	sin6.sin6_len = sizeof(struct sockaddr_in6);
-	sin6.sin6_family = AF_INET6;
-	sin6.sin6_addr = *addr6;
-
-	/*
-	 * IF_AFDATA_LOCK_ASSERT(ifp);
-	*/
-
-	llflags = (flags & ND6_EXCLUSIVE) ? LLE_EXCLUSIVE : 0;
-	ln = lltable_lookup_lle(LLTABLE6(ifp), llflags,
-	    (struct sockaddr *)&sin6);
-	
-	return (ln);
-}
-
-/*
- * Creates and returns new, unlinked and unlocked lle.
- */
-struct llentry *
-nd6_create(struct in6_addr *addr6, int flags, struct ifnet *ifp)
-{
-	struct sockaddr_in6 sin6;
-	struct llentry *ln;
-	
-	bzero(&sin6, sizeof(sin6));
-	sin6.sin6_len = sizeof(struct sockaddr_in6);
-	sin6.sin6_family = AF_INET6;
-	sin6.sin6_addr = *addr6;
-
-	IF_AFDATA_CFG_UNLOCK_ASSERT(ifp);
-
-	ln = lltable_create_lle(LLTABLE6(ifp), 0, (struct sockaddr *)&sin6);
-	ln->ln_state = ND6_LLINFO_NOSTATE;
-	
-	return (ln);
-}
-
 /*
  * Test whether a given IPv6 address is a neighbor or not, ignoring
  * the actual neighbor cache.  The neighbor cache is ignored in order
@@ -1295,7 +1246,7 @@ nd6_nud_hint(struct rtentry *rt, struct in6_addr *dst6, int force)
 
 	ifp = rt->rt_ifp;
 	IF_AFDATA_RLOCK(ifp);
-	ln = nd6_lookup(dst6, ND6_EXCLUSIVE, NULL);
+	ln = nd6_lookup(dst6, ND6_EXCLUSIVE, ifp);
 	IF_AFDATA_RUNLOCK(ifp);
 	if (ln == NULL)
 		return;
@@ -1798,9 +1749,11 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	ln = nd6_lookup(from, ND6_EXCLUSIVE, ifp);
 	IF_AFDATA_CFG_RUNLOCK(ifp);
 	if (ln == NULL) {
-		ln = nd6_create(from, 0, ifp);
-		if (ln != NULL)
+		ln = lltable_create_lle6(ifp, 0, from);
+		if (ln != NULL) {
 			LLE_WLOCK(ln);
+			ln->ln_state = ND6_LLINFO_NOSTATE;
+		}
 		is_newentry = 1;
 	} else {
 		/* do nothing if record is static  */
@@ -2204,8 +2157,9 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 			 * the condition below is not very efficient.  But we believe
 			 * it is tolerable, because this should be a rare case.
 			 */
-			lle = nd6_create(&dst->sin6_addr, 0, ifp);
+			lle = lltable_create_lle6(ifp, 0, &dst->sin6_addr);
 			if (lle != NULL) {
+				lle->ln_state = ND6_LLINFO_NOSTATE;
 				IF_AFDATA_CFG_WLOCK(ifp);
 				LLE_WLOCK(lle);
 				/* Check if the same record was addded */
@@ -2483,12 +2437,13 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 	struct ifnet *ifp;
 	struct llentry *ln, *ln_tmp;
 	struct lltable *llt;
+	struct in6_addr *addr6;
 
 	ifp = ia->ia_ifa.ifa_ifp;
+	addr6 = &ia->ia_addr.sin6_addr;
 	ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
 
-	ln = lltable_create_lle(LLTABLE6(ifp), LLE_IFADDR,
-	    (struct sockaddr *)&ia->ia_addr);
+	ln = lltable_create_lle6(ifp, LLE_IFADDR, addr6);
 	if (ln == NULL)
 		return (ENOBUFS);
 
@@ -2507,8 +2462,7 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 	 * Instead of dealing with callouts/flags/etc we simply
 	 * delete it and add new one.
 	 */
-	ln_tmp = lltable_lookup_lle(llt, LLE_EXCLUSIVE,
-	    (struct sockaddr *)&ia->ia_addr);
+	ln_tmp = lltable_lookup_lle6(ifp, LLE_EXCLUSIVE, addr6);
 
 	bcopy(IF_LLADDR(ifp), &ln->ll_addr, ifp->if_addrlen);
 	/* Finally, link our lle to the list */
@@ -2563,8 +2517,10 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
     const struct sockaddr *dst, u_char *desten, struct llentry **lle)
 {
 	struct llentry *ln;
+	const struct in6_addr *addr6;
 
 	*lle = NULL;
+	addr6 = &SIN6(dst)->sin6_addr;
 	IF_AFDATA_CFG_UNLOCK_ASSERT(ifp);
 	if (m != NULL && m->m_flags & M_MCAST) {
 		int i;
@@ -2580,8 +2536,7 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
 #endif
 		case IFT_BRIDGE:
 		case IFT_ISO88025:
-			ETHER_MAP_IPV6_MULTICAST(&SIN6(dst)->sin6_addr,
-						 desten);
+			ETHER_MAP_IPV6_MULTICAST(addr6, desten);
 			return (0);
 		case IFT_IEEE1394:
 			/*
@@ -2605,7 +2560,7 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
 	 * the entry should have been created in nd6_store_lladdr
 	 */
 	IF_AFDATA_RLOCK(ifp);
-	ln = lltable_lookup_lle(LLTABLE6(ifp), 0, dst);
+	ln = lltable_lookup_lle6(ifp, 0, addr6);
 	IF_AFDATA_RUNLOCK(ifp);
 	if ((ln == NULL) || !(ln->la_flags & LLE_VALID)) {
 		if (ln != NULL)

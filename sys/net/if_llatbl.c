@@ -229,9 +229,12 @@ llentry_alloc(struct ifnet *ifp, struct lltable *lt,
     struct sockaddr_storage *dst)
 {
 	struct llentry *la;
+	const void *l3addr;
+
+	l3addr = lt->llt_get_sa_addr((struct sockaddr *)dst);
 
 	IF_AFDATA_RLOCK(ifp);
-	la = lt->llt_lookup(lt, LLE_EXCLUSIVE, (struct sockaddr *)dst);
+	la = lt->llt_lookup(lt, LLE_EXCLUSIVE, l3addr);
 	IF_AFDATA_RUNLOCK(ifp);
 	if ((la == NULL) &&
 	    (ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) == 0) {
@@ -441,6 +444,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	struct ifnet *ifp;
 	struct lltable *llt;
 	struct llentry *lle, *lle_tmp;
+	const void *l3addr;
 	u_int laflags = 0;
 	int error;
 
@@ -469,6 +473,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 	switch (rtm->rtm_type) {
 	case RTM_ADD:
 		/* Add static LLE */
+		l3addr = llt->llt_get_sa_addr(dst);
 		lle = llt->llt_create(llt, 0, dst);
 		if (lle == NULL)
 			return (ENOMEM);
@@ -491,7 +496,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 		LLE_WLOCK(lle);
 		/* Check if we already have this lle */
 		/* XXX: Use LLE_UNLOCKED */
-		lle_tmp = llt->llt_lookup(llt, LLE_EXCLUSIVE, dst);
+		lle_tmp = llt->llt_lookup(llt, LLE_EXCLUSIVE, l3addr);
 		if (lle_tmp != NULL) {
 			IF_AFDATA_CFG_WUNLOCK(ifp);
 			LLE_WUNLOCK(lle_tmp);

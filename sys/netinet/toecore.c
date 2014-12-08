@@ -456,22 +456,24 @@ static int
 toe_nd6_resolve(struct ifnet *ifp, struct sockaddr *sa, uint8_t *lladdr)
 {
 	struct llentry *lle, *lle_tmp;
-	struct sockaddr_in6 *sin6 = (void *)sa;
+	struct in6_addr *dst;
 	int rc, flags = 0;
+
+	dst = &((struct sockaddr_in6 *)sa)->sin6_addr;
 
 restart:
 	IF_AFDATA_RLOCK(ifp);
-	lle = lltable_lookup_lle(LLTABLE6(ifp), flags, sa);
+	lle = lltable_lookup_lle6(ifp, flags, dst);
 	IF_AFDATA_RUNLOCK(ifp);
 	if (lle == NULL) {
-		lle = nd6_create(&sin6->sin6_addr, 0, ifp);
+		lle = lltable_create_lle6(ifp, 0, dst);
 		if (lle == NULL)
 			return (ENOMEM); /* Couldn't create entry in cache. */
 		lle->ln_state = ND6_LLINFO_INCOMPLETE;
 		IF_AFDATA_CFG_WLOCK(ifp);
 		LLE_WLOCK(lle);
 		/* Check if the same record was addded */
-		lle_tmp = lltable_lookup_lle(LLTABLE6(ifp), LLE_EXCLUSIVE, sa);
+		lle_tmp = lltable_lookup_lle6(ifp, LLE_EXCLUSIVE, dst);
 		if (lle_tmp == NULL) {
 			/*
 			 * No entry has been found. Link new one.
@@ -487,7 +489,7 @@ restart:
 			    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
 			LLE_WUNLOCK(lle);
 
-			nd6_ns_output(ifp, NULL, &sin6->sin6_addr, NULL, 0);
+			nd6_ns_output(ifp, NULL, dst, NULL, 0);
 
 			return (EWOULDBLOCK);
 		}

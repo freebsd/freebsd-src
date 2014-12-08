@@ -680,7 +680,6 @@ fib6_storelladdr(struct ifnet *ifp, struct in6_addr *dst, int mm_flags,
     u_char *desten)
 {
 	struct llentry *ln;
-	struct sockaddr_in6 dst_sa;
 	IF_AFDATA_RUN_TRACKER;
 
 	if (mm_flags & M_MCAST) {
@@ -688,19 +687,11 @@ fib6_storelladdr(struct ifnet *ifp, struct in6_addr *dst, int mm_flags,
 		return (0);
 	}
 
-	memset(&dst_sa, 0, sizeof(dst_sa));
-	dst_sa.sin6_family = AF_INET6;
-	dst_sa.sin6_len = sizeof(dst_sa);
-	dst_sa.sin6_addr = *dst;
-	dst_sa.sin6_scope_id = ifp->if_index;
-	
-
 	/*
 	 * the entry should have been created in nd6_store_lladdr
 	 */
 	IF_AFDATA_RUN_RLOCK(ifp);
-	ln = lltable_lookup_lle(LLTABLE6(ifp), LLE_UNLOCKED,
-	    (struct sockaddr *)&dst_sa);
+	ln = lltable_lookup_lle6(ifp, LLE_UNLOCKED, dst);
 
 	/*
 	 * Perform fast path for the following cases:
