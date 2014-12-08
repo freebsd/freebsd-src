@@ -25,7 +25,7 @@
 .if !target(__<bsd.compiler.mk>__)
 __<bsd.compiler.mk>__:
 
-.if !defined(COMPILER_TYPE) && !defined(COMPILER_VERSION)
+.if !defined(COMPILER_TYPE) || !defined(COMPILER_VERSION)
 _v!=	${CC} --version 2>/dev/null || echo 0.0.0
 .if !defined(COMPILER_TYPE)
 . if ${CC:T:M*gcc*}

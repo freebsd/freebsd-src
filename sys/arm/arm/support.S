@@ -1364,6 +1364,8 @@ ENTRY(memcpy)
 	strbge	r2, [r3], #0x01
 	strbgt	ip, [r3]
 	RET
+/* Place a literal pool here for the above ldr instructions to use */
+.ltorg
 
 
 /*

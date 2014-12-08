@@ -222,8 +222,7 @@ sys_mmap(td, uap)
 	/*
 	 * Ignore old flags that used to be defined but did not do anything.
 	 */
-	if (td->td_proc->p_osrel < P_OSREL_MAP_RENAME)
-		flags &= ~(MAP_RESERVED0020 | MAP_RESERVED0040);
+	flags &= ~(MAP_RESERVED0020 | MAP_RESERVED0040);
 	
 	/*
 	 * Enforce the constraints.
