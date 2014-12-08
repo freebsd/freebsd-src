@@ -1388,6 +1388,8 @@ build-tools: .MAKE
 		${MAKE} DIRPRFX=${_tool}/ depend && \
 		${MAKE} DIRPRFX=${_tool}/ all
 .endfor
+	# usr.bin/vi is required to process files in share/termcap
+.if !defined(NO_SHARE)
 .for _tool in \
     usr.bin/vi
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
@@ -1397,6 +1399,7 @@ build-tools: .MAKE
 		${MAKE} DIRPRFX=${_tool}/ all MK_MAN=no SUBDIR= && \
 		${MAKE} DIRPRFX=${_tool}/ install MK_MAN=no SUBDIR= DESTDIR=${WORLDTMP}/
 .endfor
+.endif
 
 #
 # kernel-tools: Build kernel-building tools
@@ -2014,7 +2017,7 @@ NOFUN=-DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT \
 	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no MK_WARNS=no \
 	MK_VI=no \
 	TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-	CPUTYPE=${XDEV_CPUTYPE}
+	CPUTYPE=${XDEV_CPUTYPE} -DNO_SHARE
 
 XDDIR=${TARGET_ARCH}-freebsd
 XDTP?=/usr/${XDDIR}
