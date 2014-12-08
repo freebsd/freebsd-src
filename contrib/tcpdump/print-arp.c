@@ -298,6 +298,14 @@ trunc:
 void
 arp_print(netdissect_options *ndo, packetbody_t bp, u_int length, u_int caplen)
 {
+	if (!invoke_dissector((void *)_arp_print,
+	    length, caplen, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
+		_arp_print(ndo, bp, length, caplen);
+}
+
+void
+_arp_print(netdissect_options *ndo, packetbody_t bp, u_int length, u_int caplen)
+{
 	__capability const struct arp_pkthdr *ap;
 	u_short pro, hrd, op, linkaddr;
 

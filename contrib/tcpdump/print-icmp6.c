@@ -305,6 +305,15 @@ void
 icmp6_print(netdissect_options *ndo,
             packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 {
+	if (!invoke_dissector((void *)_icmp6_print,
+	    length, fragmented, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
+		_icmp6_print(ndo, bp, length, bp2, fragmented);
+}
+
+void
+_icmp6_print(netdissect_options *ndo,
+            packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
+{
 	__capability const struct icmp6_hdr *dp;
 	__capability const struct ip6_hdr *ip;
 	__capability const struct ip6_hdr *oip;

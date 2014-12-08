@@ -83,6 +83,16 @@ static const struct tok opcode_values[] = {
 void
 rrcp_print(netdissect_options *ndo,
 	  packetbody_t cp,
+	  u_int length)
+{
+	if (!invoke_dissector((void *)_rrcp_print,
+	    length, 0, 0, 0, 0, ndo, cp, NULL, NULL, NULL))
+		_rrcp_print(ndo, cp, length);
+}
+
+void
+_rrcp_print(netdissect_options *ndo,
+	  packetbody_t cp,
 	  u_int length _U_)
 {
 	packetbody_t rrcp;

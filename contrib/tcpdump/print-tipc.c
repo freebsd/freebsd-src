@@ -342,7 +342,16 @@ trunc:
 }
 
 void
-tipc_print(netdissect_options *ndo, packetbody_t bp, u_int length _U_,
+tipc_print(netdissect_options *ndo, packetbody_t bp, u_int length,
+    u_int caplen)
+{
+	if (!invoke_dissector((void *)_tipc_print,
+	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
+		_tipc_print(ndo, bp, length, caplen);
+}
+
+void
+_tipc_print(netdissect_options *ndo, packetbody_t bp, u_int length _U_,
     u_int caplen _U_)
 {
 	__capability const struct tipc_pkthdr *ap;

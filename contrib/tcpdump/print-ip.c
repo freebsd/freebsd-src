@@ -506,6 +506,17 @@ ip_print_inner(netdissect_options *ndo,
 	       u_int length, u_int nh,
 	       packetbody_t bp2)
 {
+	if (!invoke_dissector((void *)_ip_print_inner,
+	    length, nh, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
+		_ip_print_inner(ndo, bp, length, nh, bp2);
+}
+
+void
+_ip_print_inner(netdissect_options *ndo,
+	       packetbody_t bp,
+	       u_int length, u_int nh,
+	       packetbody_t bp2)
+{
 	struct ip_print_demux_state  ipd;
 
 	ipd.ip = (__capability const struct ip *)bp2;

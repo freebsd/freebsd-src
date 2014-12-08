@@ -84,13 +84,19 @@ const char *program_name;
 
 void	pawned(void);
 
-int	invoke(register_t op, register_t localnet, register_t netmask,
+int	invoke(register_t op, register_t arg1, register_t arg2,
+	    register_t arg3, register_t arg4, register_t arg5,
 	    netdissect_options *ndo,
 	    const char *ndo_espsecret,
 	    const struct pcap_pkthdr *h,
 	    const u_char *sp,
 	    struct cheri_object *proto_sandbox_objects,
-	    const u_char *sp2);
+	    const u_char *sp2,
+	    void* carg1, void *carg2);
+static void	dispatch_dissector(register_t op, u_int length,
+    register_t arg2, register_t arg3, register_t arg4, register_t arg5,
+    netdissect_options *ndo, packetbody_t bp, packetbody_t bp2,
+    void *carg1, void *carg2);
 
 static int
 invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
@@ -164,10 +170,12 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
  */
 int
 invoke(register_t op, register_t arg1, register_t arg2,
+    register_t arg3, register_t arg4, register_t arg5,
     netdissect_options *ndo,
     const char *ndo_espsecret,
     const struct pcap_pkthdr *h, const u_char *sp,
-    struct cheri_object *proto_sandbox_objects, const u_char *sp2)
+    struct cheri_object *proto_sandbox_objects, const u_char *sp2,
+    void * carg1, void *carg2)
 {
 	int ret;
 
@@ -219,34 +227,104 @@ invoke(register_t op, register_t arg1, register_t arg2,
 	case TCPDUMP_HELPER_OP_HAS_PRINTER:
 		return (has_printer(arg1));
 
+	default:
+		dispatch_dissector(op, arg1, arg2, arg3, arg4, arg5,
+		    ndo, sp, sp2, carg1, carg2);
+		break;
+
+	}
+
+	return (ret);
+}
+
+static void
+dispatch_dissector(register_t op, u_int length, register_t arg2,
+    register_t arg3 _U_, register_t arg4 _U_, register_t arg5 _U_,
+    netdissect_options *ndo,
+    packetbody_t bp, packetbody_t bp2, void *carg1 _U_, void *carg2 _U_)
+{
+	snapend = bp + length; /* set to end of capability? */
+
+	switch (op) {
+	case TCPDUMP_HELPER_OP_EAP_PRINT:
+		_eap_print(ndo, bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_ARP_PRINT:
+		_arp_print(ndo, bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_TIPC_PRINT:
+		_tipc_print(ndo, bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_MSNLB_PRINT:
+		_msnlb_print(ndo, bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_ICMP6_PRINT:
+		_icmp6_print(ndo, bp, length, bp2, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_ISAKMP_PRINT:
+		_isakmp_print(ndo, bp, length, bp2);
+		break;
+
+	case TCPDUMP_HELPER_OP_ISAKMP_RFC3948_PRINT:
+		_isakmp_rfc3948_print(ndo, bp, length, bp2);
+		break;
+
 	case TCPDUMP_HELPER_OP_IP_PRINT:
-		snapend = sp + arg1; /* set to end of capability? */
-		_ip_print(ndo, sp, arg1);
+		_ip_print(ndo, bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_IP_PRINT_INNER:
+		_ip_print_inner(ndo, bp, length, arg2, bp2);
+		break;
+
+	case TCPDUMP_HELPER_OP_RRCP_PRINT:
+		_rrcp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_TCP_PRINT:
-		snapend = sp + arg1; /* set to end of capability? */
-		_tcp_print(sp, arg1, sp2, arg2);
+		_tcp_print(bp, length, bp2, arg2);
 		break;
 
 	default:
 		printf("unknown op %ld\n", op);
 		abort();
 	}
-
-	return (ret);
 }
 
 int
 invoke_dissector(void *func, u_int length, register_t arg2,
-    register_t arg3, register_t arg4, register_t arg5,
+    register_t arg3 _U_, register_t arg4 _U_, register_t arg5 _U_,
     netdissect_options *ndo, packetbody_t bp, packetbody_t bp2,
-    void *carg1, void *carg2)
+    void *carg1 _U_, void *carg2 _U_)
 {
 	register_t op;
 
-	if (func == (void *)_ip_print)
+	if (func == (void *)_eap_print)
+		op = TCPDUMP_HELPER_OP_EAP_PRINT;
+	else if (func == (void *)_arp_print)
+		op = TCPDUMP_HELPER_OP_ARP_PRINT;
+	else if (func == (void *)_tipc_print)
+		op = TCPDUMP_HELPER_OP_TIPC_PRINT;
+	else if (func == (void *)_msnlb_print)
+		op = TCPDUMP_HELPER_OP_MSNLB_PRINT;
+	else if (func == (void *)_icmp6_print)
+		op = TCPDUMP_HELPER_OP_ICMP6_PRINT;
+	else if (func == (void *)_isakmp_print)
+		op = TCPDUMP_HELPER_OP_ISAKMP_PRINT;
+	else if (func == (void *)_isakmp_rfc3948_print)
+		op = TCPDUMP_HELPER_OP_ISAKMP_RFC3948_PRINT;
+	else if (func == (void *)_ip_print)
 		op = TCPDUMP_HELPER_OP_IP_PRINT;
+	else if (func == (void *)_ip_print_inner)
+		op = TCPDUMP_HELPER_OP_IP_PRINT_INNER;
+	else if (func == (void *)_rrcp_print)
+		op = TCPDUMP_HELPER_OP_RRCP_PRINT;
+
 	else if (func == (void *)_tcp_print)
 		op = TCPDUMP_HELPER_OP_TCP_PRINT;
 	else

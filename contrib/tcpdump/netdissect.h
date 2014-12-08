@@ -306,28 +306,27 @@ invoke_dissector(void *func, u_int length, register_t arg2,
     void *carg1, void *carg2);
 #endif
 
-#define ND_DECLARE(rtype, name, ...)		\
-	rtype name(__VA_ARGS__);		\
-	rtype _##name(__VA_ARGS__);
+#define ND_DECLARE(name, ...)		\
+	extern void name(netdissect_options *, __VA_ARGS__);		\
+	extern void _##name(netdissect_options *, __VA_ARGS__)
 
-extern void eap_print(netdissect_options *, packetbody_t, u_int);
+ND_DECLARE(eap_print, packetbody_t, u_int);
 extern int esp_print(netdissect_options *,
 		      packetbody_t bp, int len, packetbody_t bp2,
 		     int *nhdr, int *padlen);
-extern void arp_print(netdissect_options *, packetbody_t, u_int, u_int);
-extern void tipc_print(netdissect_options *, packetbody_t, u_int, u_int);
-extern void msnlb_print(netdissect_options *, packetbody_t, u_int);
-extern void icmp6_print(netdissect_options *ndo, packetbody_t,
+ND_DECLARE(arp_print, packetbody_t, u_int, u_int);
+ND_DECLARE(tipc_print, packetbody_t, u_int, u_int);
+ND_DECLARE(msnlb_print, packetbody_t, u_int);
+ND_DECLARE(icmp6_print, packetbody_t,
                         u_int, packetbody_t, int);
-extern void isakmp_print(netdissect_options *, packetbody_t,
+ND_DECLARE(isakmp_print, packetbody_t,
 			 u_int, packetbody_t);
-extern void isakmp_rfc3948_print(netdissect_options *, packetbody_t,
+ND_DECLARE(isakmp_rfc3948_print, packetbody_t,
 				 u_int, packetbody_t);
-ND_DECLARE(extern void, ip_print, netdissect_options *, packetbody_t, u_int);
-extern void ip_print_inner(netdissect_options *ndo,
-			   packetbody_t, u_int length, u_int nh,
+ND_DECLARE(ip_print, packetbody_t, u_int);
+ND_DECLARE(ip_print_inner, packetbody_t, u_int length, u_int nh,
 			   packetbody_t bp2);
-extern void rrcp_print(netdissect_options *, packetbody_t, u_int);
+ND_DECLARE(rrcp_print, packetbody_t, u_int);
 
 extern void ether_print(netdissect_options *,
                         packetbody_t, u_int, u_int,

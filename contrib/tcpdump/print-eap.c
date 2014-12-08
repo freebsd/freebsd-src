@@ -159,7 +159,17 @@ static const struct tok eap_aka_subtype_values[] = {
  * Print EAP requests / responses
  */
 void
-eap_print(netdissect_options *ndo _U_,
+eap_print(netdissect_options *ndo,
+          packetbody_t cp,
+          u_int length)
+{
+	if (!invoke_dissector((void *)_eap_print,
+	    length, 0, 0, 0, 0, ndo, cp, NULL, NULL, NULL))
+		_eap_print(ndo, cp, length);
+}
+
+void
+_eap_print(netdissect_options *ndo _U_,
           packetbody_t cp,
           u_int length _U_)
 {

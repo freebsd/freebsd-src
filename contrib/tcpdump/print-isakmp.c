@@ -2449,6 +2449,16 @@ isakmp_print(netdissect_options *ndo,
 	     packetbody_t bp, u_int length,
 	     packetbody_t bp2)
 {
+	if (!invoke_dissector((void *)_isakmp_print,
+	    length, 0, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
+		_isakmp_print(ndo, bp, length, bp2);
+}
+
+void
+_isakmp_print(netdissect_options *ndo,
+	     packetbody_t bp, u_int length,
+	     packetbody_t bp2)
+{
 	__capability const struct isakmp *p;
 	struct isakmp base;
 	packetbody_t ep;
@@ -2511,6 +2521,16 @@ isakmp_print(netdissect_options *ndo,
 
 void
 isakmp_rfc3948_print(netdissect_options *ndo,
+		     packetbody_t bp, u_int length,
+		     packetbody_t bp2)
+{
+	if (!invoke_dissector((void *)_isakmp_rfc3948_print,
+	    length, 0, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
+		_isakmp_rfc3948_print(ndo, bp, length, bp2);
+}
+
+void
+_isakmp_rfc3948_print(netdissect_options *ndo,
 		     packetbody_t bp, u_int length,
 		     packetbody_t bp2)
 {

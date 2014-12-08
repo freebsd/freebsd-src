@@ -49,7 +49,15 @@ struct msnlb_heartbeat_pkt {
 };
 
 void
-msnlb_print(netdissect_options *ndo, packetbody_t bp, u_int length _U_)
+msnlb_print(netdissect_options *ndo, packetbody_t bp, u_int length)
+{
+	if (!invoke_dissector((void *)_msnlb_print,
+	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
+		_msnlb_print(ndo, bp, length);
+}
+
+void
+_msnlb_print(netdissect_options *ndo, packetbody_t bp, u_int length _U_)
 {
 	__capability const struct msnlb_heartbeat_pkt *hb;
 
