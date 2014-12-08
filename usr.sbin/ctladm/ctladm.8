@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2014
+.Dd December 6, 2014
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -995,6 +995,13 @@ command sequence order shall be explicitly handled by the application
 client through the selection of appropriate commands and task attributes.
 The default value is "restricted".  It improves data integrity, but may
 introduce some additional delays.
+.It Va serseq
+Set to "on" to serialize conseсutive reads/writes.
+Set to "read" to serialize conseсutive reads.
+Set to "off" to allow them be issued in parallel.
+Parallel issue of consecutive operations may confuse logic of the
+backing file system, hurting performance; but it may improve performance
+of backing stores without prefetch/write-back.
 .It Va rpm
 Specifies medium rotation rate of the device: 0 -- not reported,
 1 -- non-rotating (SSD), >1024 -- value in revolutions per minute.
@@ -1007,10 +1014,11 @@ Set to "on", enables UNMAP support for the LUN, if supported by the backend.
 .It Va used-threshold
 .It Va pool-avail-threshold
 .It Va pool-used-threshold
-Set per-LUN/-pool thin provisioning soft thresholds for ZVOL-backed LUNs.
+Set per-LUN/-pool thin provisioning soft thresholds.
 LUN will establish UNIT ATTENTION condition if its or pool available space
 get below configured avail values, or its or pool used space get above
 configured used values.
+Pool thresholds are working only for ZVOL-backed LUNs.
 .It Va writecache
 Set to "off", disables write caching for the LUN, if supported by the backend.
 .El

@@ -1171,7 +1171,7 @@ mv_pcib_alloc_msi(device_t dev, device_t child, int count,
 
 	for (i = start; i < start + count; i++) {
 		setbit(&sc->sc_msi_bitmap, i);
-		irqs[i] = MSI_IRQ + i;
+		*irqs++ = MSI_IRQ + i;
 	}
 	debugf("%s: start: %x count: %x\n", __func__, start, count);
 

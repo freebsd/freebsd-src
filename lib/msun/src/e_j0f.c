@@ -69,10 +69,10 @@ __ieee754_j0f(float x)
 		}
 		return z;
 	}
-	if(ix<0x39000000) {	/* |x| < 2**-13 */
+	if(ix<0x3b000000) {	/* |x| < 2**-9 */
 	    if(huge+x>one) {	/* raise inexact if x != 0 */
-	        if(ix<0x32000000) return one;	/* |x|<2**-27 */
-	        else 	      return one - (float)0.25*x*x;
+	        if(ix<0x39800000) return one;	/* |x|<2**-12 */
+	        else 	      return one - x*x/4;
 	    }
 	}
 	z = x*x;

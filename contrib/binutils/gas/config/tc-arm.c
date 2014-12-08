@@ -6789,7 +6789,11 @@ do_co_reg (void)
 {
   inst.instruction |= inst.operands[0].reg << 8;
   inst.instruction |= inst.operands[1].imm << 21;
-  inst.instruction |= inst.operands[2].reg << 12;
+  /* If this is a vector we are using the APSR_nzcv syntax, encode as r15 */
+  if (inst.operands[2].isvec != 0)
+    inst.instruction |= 15 << 12;
+  else
+    inst.instruction |= inst.operands[2].reg << 12;
   inst.instruction |= inst.operands[3].reg << 16;
   inst.instruction |= inst.operands[4].reg;
   inst.instruction |= inst.operands[5].imm << 5;

@@ -2313,7 +2313,8 @@ key_spdacquire(struct secpolicy *sp)
 		} else {
 			/* increment counter and do nothing. */
 			newspacq->count++;
-			return 0;
+			SPACQ_UNLOCK();
+			return (0);
 		}
 		SPACQ_UNLOCK();
 	} else {
