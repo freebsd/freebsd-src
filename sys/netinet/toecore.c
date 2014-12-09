@@ -392,21 +392,26 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 	struct sockaddr *sa;
 	uint8_t *lladdr;
 	uint16_t vtag;
+	int sa_family;
+	struct sockaddr_storage ss;
 
 	LLE_WLOCK_ASSERT(lle);
 
 	ifp = lle->lle_tbl->llt_ifp;
-	sa = L3_ADDR(lle);
+	sa_family = lle->lle_tbl->llt_af;
 
+#if 0
+	/* XXX: Do not panic, ignore event instead */
 	KASSERT(sa->sa_family == AF_INET || sa->sa_family == AF_INET6,
 	    ("%s: lle_event %d for lle %p but sa %p !INET && !INET6",
 	    __func__, evt, lle, sa));
+#endif
 
 	/*
 	 * Not interested if the interface's TOE capability is not enabled.
 	 */
-	if ((sa->sa_family == AF_INET && !(ifp->if_capenable & IFCAP_TOE4)) ||
-	    (sa->sa_family == AF_INET6 && !(ifp->if_capenable & IFCAP_TOE6)))
+	if ((sa_family == AF_INET && !(ifp->if_capenable & IFCAP_TOE4)) ||
+	    (sa_family == AF_INET6 && !(ifp->if_capenable & IFCAP_TOE6)))
 		return;
 
 	tod = TOEDEV(ifp);
@@ -433,6 +438,8 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 #endif
 	}
 
+	sa = (struct sockaddr *)&ss;
+	lltable_fill_sa_entry(lle, sa);
 	tod->tod_l2_update(tod, ifp, sa, lladdr, vtag);
 }
 

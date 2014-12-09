@@ -232,9 +232,7 @@ arptimer(void *arg)
 	case ARP_LLINFO_VERIFY:
 		if (lle->r_kick == 0 && lle->la_preempt > 0) {
 			/* Entry was used, issue refresh request */
-			struct sockaddr_in *dst;
-			dst = (struct sockaddr_in *)L3_ADDR(lle);
-			arprequest(ifp, NULL, &dst->sin_addr, NULL);
+			arprequest(ifp, NULL, &lle->r_l3addr.addr4, NULL);
 			lle->la_preempt--;
 			lle->r_kick = 1;
 			callout_schedule(&lle->la_timer, hz * V_arpt_rexmit);
@@ -1193,7 +1191,7 @@ arp_update_lle(struct arphdr *ah, struct in_addr isaddr, struct ifnet *ifp,
 		m_hold = la->la_hold;
 		la->la_hold = NULL;
 		la->la_numheld = 0;
-		memcpy(&sin, L3_ADDR(la), sizeof(sin));
+		lltable_fill_sa_entry(la, (struct sockaddr *)&sin);
 		LLE_WUNLOCK(la);
 		for (; m_hold != NULL; m_hold = m_hold_next) {
 			m_hold_next = m_hold->m_nextpkt;

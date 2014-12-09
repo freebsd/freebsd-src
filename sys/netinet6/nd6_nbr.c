@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <net/if_llatbl.h>
-#define	L3_ADDR_SIN6(le)	((struct sockaddr_in6 *) L3_ADDR(le))
 #include <netinet6/in6_var.h>
 #include <netinet6/in6_ifattach.h>
 #include <netinet/ip6.h>
@@ -824,7 +823,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			struct nd_defrouter *dr;
 			struct in6_addr *in6;
 
-			in6 = &L3_ADDR_SIN6(ln)->sin6_addr;
+			in6 = &ln->r_l3addr.addr6;
 
 			/*
 			 * Lock to protect the default router list.
@@ -879,13 +878,15 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 				m_tag_prepend(m, mtag);
 			}
 
-			nd6_output_lle(ifp, ifp, m_hold, L3_ADDR_SIN6(ln), NULL, ln, &chain);
+			lltable_fill_sa_entry(ln, (struct sockaddr *)&sin6);
+			nd6_output_lle(ifp, ifp, m_hold, &sin6, NULL, ln,
+			    &chain);
 		}
 	}
  freeit:
 	if (ln != NULL) {
 		if (chain)
-			memcpy(&sin6, L3_ADDR_SIN6(ln), sizeof(sin6));
+			lltable_fill_sa_entry(ln, (struct sockaddr *)&sin6);
 		LLE_WUNLOCK(ln);
 
 		if (chain)

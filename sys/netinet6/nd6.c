@@ -68,7 +68,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
 #include <net/if_llatbl.h>
-#define	L3_ADDR_SIN6(le)	((struct sockaddr_in6 *) L3_ADDR(le))
 #include <netinet/if_ether.h>
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
@@ -543,7 +542,7 @@ nd6_llinfo_timer(void *arg)
 	CURVNET_SET(ifp->if_vnet);
 
 	ndi = ND_IFINFO(ifp);
-	dst = &L3_ADDR_SIN6(ln)->sin6_addr;
+	dst = &ln->r_l3addr.addr6;
 
 	/*
 	 * Each case statement needs to unlock @ln before break/return.
@@ -1122,7 +1121,7 @@ nd6_check_del_defrtr(struct lltable *llt, struct llentry *ln)
 	struct in6_addr dst;
 
 	ifp = llt->llt_ifp;
-	dst = L3_ADDR_SIN6(ln)->sin6_addr;
+	dst = ln->r_l3addr.addr6;
 
 	LLE_WLOCK_ASSERT(ln);
 
@@ -1165,7 +1164,7 @@ nd6_check_recalc_defrtr(struct lltable *llt, struct llentry *ln)
 	struct in6_addr dst;
 
 	ifp = llt->llt_ifp;
-	dst = L3_ADDR_SIN6(ln)->sin6_addr;
+	dst = ln->r_l3addr.addr6;
 
 	LLE_WLOCK_ASSERT(ln);
 
@@ -1909,6 +1908,8 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 			if (ln->la_hold) {
 				struct mbuf *m_hold, *m_hold_next;
 
+				lltable_fill_sa_entry(ln, (struct sockaddr *)&sin6);
+
 				/*
 				 * reset the la_hold in advance, to explicitly
 				 * prevent a la_hold lookup in nd6_output()
@@ -1924,15 +1925,12 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 					 * just set the 2nd argument as the
 					 * 1st one.
 					 */
-					nd6_output_lle(ifp, ifp, m_hold, L3_ADDR_SIN6(ln), NULL, ln, &chain);
+					nd6_output_lle(ifp, ifp, m_hold, &sin6, NULL, ln, &chain);
 				}
 				/*
 				 * If we have mbufs in the chain we need to do
-				 * deferred transmit. Copy the address from the
-				 * llentry before dropping the lock down below.
+				 * deferred transmit.
 				 */
-				if (chain != NULL)
-					memcpy(&sin6, L3_ADDR_SIN6(ln), sizeof(sin6));
 			}
 		} else if (ln->ln_state == ND6_LLINFO_INCOMPLETE) {
 			/* probe right away */

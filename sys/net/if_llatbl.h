@@ -135,10 +135,6 @@ struct llentry {
 #define	ln_timer_ch	lle_timer.ln_timer_ch
 #define	la_timer	lle_timer.la_timer
 
-/* XXX bad name */
-#define	L3_ADDR(lle)	((struct sockaddr *)(&lle[1]))
-#define	L3_ADDR_LEN(lle)	(((struct sockaddr *)(&lle[1]))->sa_len)
-
 #ifndef LLTBL_HASHTBL_SIZE
 #define	LLTBL_HASHTBL_SIZE	32	/* default 32 ? */
 #endif
@@ -165,6 +161,7 @@ typedef void (llt_unlink_entry_t)(struct llentry *);
 typedef int (llt_prepare_sentry_t)(struct lltable *, struct llentry *,
     struct rt_addrinfo *);
 typedef const void *(llt_get_sa_addr_t)(const struct sockaddr *l3addr);
+typedef void (llt_fill_sa_entry_t)(const struct llentry *, struct sockaddr *);
 
 typedef int (llt_foreach_cb_t)(struct lltable *, struct llentry *, void *);
 typedef int (llt_foreach_entry_t)(struct lltable *, llt_foreach_cb_t *, void *);
@@ -188,6 +185,7 @@ struct lltable {
 	llt_unlink_entry_t	*llt_unlink_entry;
 	llt_prepare_sentry_t	*llt_prepare_static_entry;
 	llt_get_sa_addr_t	*llt_get_sa_addr;
+	llt_fill_sa_entry_t	*llt_fill_sa_entry;
 	llt_free_tbl_t		*llt_free_tbl;
 };
 
@@ -269,6 +267,16 @@ lltable_unlink_entry(struct lltable *llt, struct llentry *lle)
 {
 
 	llt->llt_unlink_entry(lle);
+}
+
+static __inline void
+lltable_fill_sa_entry(const struct llentry *lle, struct sockaddr *sa)
+{
+	struct lltable *llt;
+
+	llt = lle->lle_tbl;
+
+	llt->llt_fill_sa_entry(lle, sa);
 }
 
 int		lla_rt_output(struct rt_msghdr *, struct rt_addrinfo *);
