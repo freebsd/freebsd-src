@@ -1788,7 +1788,6 @@ sched_sync(void)
 	int last_work_seen;
 	int net_worklist_len;
 	int syncer_final_iter;
-	int first_printf;
 	int error;
 
 	last_work_seen = 0;
