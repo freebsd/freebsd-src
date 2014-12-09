@@ -30,6 +30,8 @@
  * $FreeBSD$
  */
 
-#define	Q_NOTIFY	0x1
-#define	Q_PFN		0x2
-#define	Q_INTR		0x4
+#define	Q_NOTIFY	0x01
+#define	Q_PFN		0x02
+#define	Q_INTR		0x04
+#define	Q_SEL		0x08
+#define	Q_NOTIFY1	0x10
