@@ -2046,11 +2046,6 @@ in6_if2idlen(struct ifnet *ifp)
 
 #include <sys/sysctl.h>
 
-struct in6_llentry {
-	struct llentry		base;
-	struct sockaddr_in6	l3_addr6;
-};
-
 /*
  * Frees already unlinked @lle.
  */
@@ -2066,17 +2061,13 @@ in6_lltable_free(struct llentry *lle)
 static struct llentry *
 in6_lltable_new(const struct in6_addr *addr6, u_int flags)
 {
-	struct in6_llentry *lle;
+	struct llentry *lle;
 
-	lle = malloc(sizeof(struct in6_llentry), M_LLTABLE, M_NOWAIT | M_ZERO);
+	lle = malloc(sizeof(struct llentry), M_LLTABLE, M_NOWAIT | M_ZERO);
 	if (lle == NULL)		/* NB: caller generates msg */
 		return NULL;
 
 	lle->base.r_l3addr.addr6 = *addr6;
-	/* XXX: legacy */
-	lle->l3_addr6.sin6_family = AF_INET6;
-	lle->l3_addr6.sin6_len = sizeof(lle->l3_addr6);
-	lle->l3_addr6.sin6_addr = *addr6;
 	lle->base.lle_refcnt = 1;
 	lle->base.lle_free = in6_lltable_free;
 	LLE_LOCK_INIT(&lle->base);
@@ -2093,7 +2084,7 @@ in6_lltable_match_prefix(const struct sockaddr *prefix,
 	const struct sockaddr_in6 *pfx = (const struct sockaddr_in6 *)prefix;
 	const struct sockaddr_in6 *msk = (const struct sockaddr_in6 *)mask;
 
-	if (IN6_ARE_MASKED_ADDR_EQUAL(&satosin6(L3_ADDR(lle))->sin6_addr,
+	if (IN6_ARE_MASKED_ADDR_EQUAL(&lle->r_l3addr.addr6,
 	    &pfx->sin6_addr, &msk->sin6_addr) &&
 	    ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC)))
 		return (1);
@@ -2162,6 +2153,18 @@ in6_lltable_get_sa_addr(const struct sockaddr *l3addr)
 	sin6 = (const struct sockaddr_in6 *)l3addr;
 
 	return ((const void *)&sin6->sin6_addr);
+}
+
+static void
+in6_lltable_fill_sa_entry(const struct llentry *lle, struct sockaddr *sa)
+{
+	struct sockaddr_in6 *sin6;
+
+	sin6 = (struct sockaddr_in6 *)sa;
+	bzero(sin6, sizeof(*sin6));
+	sin6->sin6_family = AF_INET6;
+	sin6->sin6_len = sizeof(*sin6);
+	sin6->sin6_addr = lle->r_l3addr.addr6;
 }
 
 static inline struct llentry *
@@ -2300,11 +2303,15 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 	struct sockaddr_dl *sdl;
 	int error;
 
+	bzero(&ndpc, sizeof(ndpc));
 			/* skip invalid entries */
 			if ((lle->la_flags & LLE_VALID) == 0)
 				return (0);
 			/* Skip if jailed and not a valid IP of the prison. */
-			if (prison_if(wr->td->td_ucred, L3_ADDR(lle)) != 0)
+			lltable_fill_sa_entry(lle,
+			    (struct sockaddr *)&ndpc.sin6);
+			if (prison_if(wr->td->td_ucred,
+			    (struct sockaddr *)&ndpc.sin6) != 0)
 				return (0);
 			/*
 			 * produce a msg made of:
@@ -2312,15 +2319,11 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 			 *  struct sockaddr_in6 (IPv6)
 			 *  struct sockaddr_dl;
 			 */
-			bzero(&ndpc, sizeof(ndpc));
 			ndpc.rtm.rtm_msglen = sizeof(ndpc);
 			ndpc.rtm.rtm_version = RTM_VERSION;
 			ndpc.rtm.rtm_type = RTM_GET;
 			ndpc.rtm.rtm_flags = RTF_UP;
 			ndpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
-			ndpc.sin6.sin6_family = AF_INET6;
-			ndpc.sin6.sin6_len = sizeof(ndpc.sin6);
-			bcopy(L3_ADDR(lle), &ndpc.sin6, L3_ADDR_LEN(lle));
 			if (V_deembed_scopeid)
 				sa6_recoverscope(&ndpc.sin6);
 
@@ -2389,6 +2392,7 @@ in6_domifattach(struct ifnet *ifp)
 	llt->llt_dump_entry = in6_lltable_dump_entry;
 	llt->llt_hash = in6_lltable_hash;
 	llt->llt_get_sa_addr = in6_lltable_get_sa_addr;
+	llt->llt_fill_sa_entry = in6_lltable_fill_sa_entry;
 	llt->llt_clear_entry = nd6_lltable_clear_entry;
 	llt->llt_match_prefix = in6_lltable_match_prefix;
 	llt->llt_prepare_static_entry = nd6_lltable_prepare_static_entry;

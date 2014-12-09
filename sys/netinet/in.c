@@ -988,11 +988,6 @@ in_purgemaddrs(struct ifnet *ifp)
 	IN_MULTI_UNLOCK();
 }
 
-struct in_llentry {
-	struct llentry		base;
-	struct sockaddr_in	l3_addr4;
-};
-
 /*
  * Frees unlinked record.
  * This function is called by the timer functions
@@ -1011,17 +1006,13 @@ in_lltable_free(struct llentry *lle)
 static struct llentry *
 in_lltable_new(struct in_addr addr4, u_int flags)
 {
-	struct in_llentry *lle;
+	struct llentry *lle;
 
-	lle = malloc(sizeof(struct in_llentry), M_LLTABLE, M_NOWAIT | M_ZERO);
+	lle = malloc(sizeof(struct llentry), M_LLTABLE, M_NOWAIT | M_ZERO);
 	if (lle == NULL)		/* NB: caller generates msg */
 		return NULL;
 
 	lle->base.r_l3addr.addr4 = addr4;
-	/* XXX: Legacy */
-	lle->l3_addr4.sin_len = sizeof(lle->l3_addr4);
-	lle->l3_addr4.sin_family = AF_INET;
-	lle->l3_addr4.sin_addr = addr4;
 
 	/*
 	 * For IPv4 this will trigger "arpresolve" to generate
@@ -1038,7 +1029,7 @@ in_lltable_new(struct in_addr addr4, u_int flags)
 }
 
 #define IN_ARE_MASKED_ADDR_EQUAL(d, a, m)	(			\
-	    (((ntohl((d)->sin_addr.s_addr) ^ (a)->sin_addr.s_addr) & (m)->sin_addr.s_addr)) == 0 )
+	    (((ntohl((d).s_addr) ^ (a)->sin_addr.s_addr) & (m)->sin_addr.s_addr)) == 0 )
 
 static int
 in_lltable_match_prefix(const struct sockaddr *prefix,
@@ -1051,7 +1042,7 @@ in_lltable_match_prefix(const struct sockaddr *prefix,
 	 * (flags & LLE_STATIC) means deleting all entries
 	 * including static ARP entries.
 	 */
-	if (IN_ARE_MASKED_ADDR_EQUAL(satosin(L3_ADDR(lle)), pfx, msk) &&
+	if (IN_ARE_MASKED_ADDR_EQUAL(lle->r_l3addr.addr4, pfx, msk) &&
 	    ((flags & LLE_STATIC) || !(lle->la_flags & LLE_STATIC)))
 		return (1);
 
@@ -1116,6 +1107,18 @@ in_lltable_get_sa_addr(const struct sockaddr *l3addr)
 	sin = (const struct sockaddr_in *)l3addr;
 
 	return ((const void *)&sin->sin_addr);
+}
+
+static void
+in_lltable_fill_sa_entry(const struct llentry *lle, struct sockaddr *sa)
+{
+	struct sockaddr_in *sin;
+
+	sin = (struct sockaddr_in *)sa;
+	bzero(sin, sizeof(*sin));
+	sin->sin_family = AF_INET;
+	sin->sin_len = sizeof(*sin);
+	sin->sin_addr = lle->r_l3addr.addr4;
 }
 
 static inline struct llentry *
@@ -1251,8 +1254,11 @@ in_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 	struct sockaddr_dl *sdl;
 	int error;
 
+	bzero(&arpc, sizeof(arpc));
 			/* Skip if jailed and not a valid IP of the prison. */
-			if (prison_if(wr->td->td_ucred, L3_ADDR(lle)) != 0)
+			lltable_fill_sa_entry(lle,(struct sockaddr *)&arpc.sin);
+			if (prison_if(wr->td->td_ucred,
+			    (struct sockaddr *)&arpc.sin) != 0)
 				return (0);
 			/*
 			 * produce a msg made of:
@@ -1260,15 +1266,11 @@ in_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 			 *  struct sockaddr_in; (IPv4)
 			 *  struct sockaddr_dl;
 			 */
-			bzero(&arpc, sizeof(arpc));
 			arpc.rtm.rtm_msglen = sizeof(arpc);
 			arpc.rtm.rtm_version = RTM_VERSION;
 			arpc.rtm.rtm_type = RTM_GET;
 			arpc.rtm.rtm_flags = RTF_UP;
 			arpc.rtm.rtm_addrs = RTA_DST | RTA_GATEWAY;
-			arpc.sin.sin_family = AF_INET;
-			arpc.sin.sin_len = sizeof(arpc.sin);
-			arpc.sin.sin_addr.s_addr = lle->r_l3addr.addr4.s_addr;
 
 			/* publish */
 			if (lle->la_flags & LLE_PUB)
@@ -1317,6 +1319,7 @@ in_domifattach(struct ifnet *ifp)
 	llt->llt_dump_entry = in_lltable_dump_entry;
 	llt->llt_hash = in_lltable_hash;
 	llt->llt_get_sa_addr = in_lltable_get_sa_addr;
+	llt->llt_fill_sa_entry = in_lltable_fill_sa_entry;
 	llt->llt_clear_entry = arp_lltable_clear_entry;
 	llt->llt_match_prefix = in_lltable_match_prefix;
 	llt->llt_prepare_static_entry = arp_lltable_prepare_static_entry;
