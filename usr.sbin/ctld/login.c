@@ -613,13 +613,72 @@ login_negotiate_key(struct pdu *request, const char *name,
 }
 
 static void
+login_redirect(struct pdu *request, const char *target_address)
+{
+	struct pdu *response;
+	struct iscsi_bhs_login_response *bhslr2;
+	struct keys *response_keys;
+
+	response = login_new_response(request);
+	login_set_csg(response, login_csg(request));
+	bhslr2 = (struct iscsi_bhs_login_response *)response->pdu_bhs;
+	bhslr2->bhslr_status_class = 0x01;
+	bhslr2->bhslr_status_detail = 0x01;
+
+	response_keys = keys_new();
+	keys_add(response_keys, "TargetAddress", target_address);
+
+	keys_save(response_keys, response);
+	pdu_send(response);
+	pdu_delete(response);
+	keys_delete(response_keys);
+}
+
+static bool
+login_portal_redirect(struct connection *conn, struct pdu *request)
+{
+	const struct portal_group *pg;
+
+	pg = conn->conn_portal->p_portal_group;
+	if (pg->pg_redirection == NULL)
+		return (false);
+
+	log_debugx("portal-group \"%s\" configured to redirect to %s",
+	    pg->pg_name, pg->pg_redirection);
+	login_redirect(request, pg->pg_redirection);
+
+	return (true);
+}
+
+static bool
+login_target_redirect(struct connection *conn, struct pdu *request)
+{
+	const char *target_address;
+
+	assert(conn->conn_portal->p_portal_group->pg_redirection == NULL);
+
+	if (conn->conn_target == NULL)
+		return (false);
+
+	target_address = conn->conn_target->t_redirection;
+	if (target_address == NULL)
+		return (false);
+
+	log_debugx("target \"%s\" configured to redirect to %s",
+	  conn->conn_target->t_name, target_address);
+	login_redirect(request, target_address);
+
+	return (true);
+}
+
+static void
 login_negotiate(struct connection *conn, struct pdu *request)
 {
 	struct pdu *response;
 	struct iscsi_bhs_login_response *bhslr2;
 	struct keys *request_keys, *response_keys;
 	int i;
-	bool skipped_security;
+	bool redirected, skipped_security;
 
 	if (request == NULL) {
 		log_debugx("beginning operational parameter negotiation; "
@@ -628,6 +687,18 @@ login_negotiate(struct connection *conn, struct pdu *request)
 		skipped_security = false;
 	} else
 		skipped_security = true;
+
+	/*
+	 * RFC 3720, 10.13.5.  Status-Class and Status-Detail, says
+	 * the redirection SHOULD be accepted by the initiator before
+	 * authentication, but MUST be be accepted afterwards; that's
+	 * why we're doing it here and not earlier.
+	 */
+	redirected = login_target_redirect(conn, request);
+	if (redirected) {
+		log_debugx("initiator redirected; exiting");
+		exit(0);
+	}
 
 	request_keys = keys_new();
 	keys_load(request_keys, request);
@@ -680,6 +751,7 @@ login(struct connection *conn)
 	struct portal_group *pg;
 	const char *initiator_name, *initiator_alias, *session_type,
 	    *target_name, *auth_method;
+	bool redirected;
 
 	/*
 	 * Handle the initial Login Request - figure out required authentication
@@ -721,6 +793,12 @@ login(struct connection *conn)
 	 * XXX: This doesn't work (does nothing) because of Capsicum.
 	 */
 	setproctitle("%s (%s)", conn->conn_initiator_addr, conn->conn_initiator_name);
+
+	redirected = login_portal_redirect(conn, request);
+	if (redirected) {
+		log_debugx("initiator redirected; exiting");
+		exit(0);
+	}
 
 	initiator_alias = keys_find(request_keys, "InitiatorAlias");
 	if (initiator_alias != NULL)
