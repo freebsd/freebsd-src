@@ -19,8 +19,8 @@ Introduced here: http://svnweb.freebsd.org/changeset/base/275635
 
 Index: lib/Transforms/Vectorize/LoopVectorize.cpp
 ===================================================================
---- lib/Transforms/Vectorize/LoopVectorize.cpp	(revision 21)
-+++ lib/Transforms/Vectorize/LoopVectorize.cpp	(revision 22)
+--- lib/Transforms/Vectorize/LoopVectorize.cpp
++++ lib/Transforms/Vectorize/LoopVectorize.cpp
 @@ -3466,6 +3466,15 @@ bool LoopVectorizationLegality::canVectorize() {
      return false;
    }
@@ -39,8 +39,8 @@ Index: lib/Transforms/Vectorize/LoopVectorize.cpp
          TheLoop->getHeader()->getName() << '\n');
 Index: test/Transforms/LoopVectorize/loop-form.ll
 ===================================================================
---- test/Transforms/LoopVectorize/loop-form.ll	(revision 0)
-+++ test/Transforms/LoopVectorize/loop-form.ll	(revision 22)
+--- test/Transforms/LoopVectorize/loop-form.ll
++++ test/Transforms/LoopVectorize/loop-form.ll
 @@ -0,0 +1,31 @@
 +; RUN: opt -S -loop-vectorize < %s | FileCheck %s
 +target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
