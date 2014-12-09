@@ -1,10 +1,14 @@
 /*-
  * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
  * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
  * ("CTSRD"), as part of the DARPA CRASH research programme.
+ *
+ * Portions of this software were developed by Andrew Turner
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -131,15 +135,24 @@ static void	vtmmio_vq_intr(void *);
 /*
  * I/O port read/write wrappers.
  */
-#define vtmmio_write_config_1(sc, o, v) \
-	bus_write_1((sc)->res[0], (o), (v)); \
-	VIRTIO_MMIO_NOTE(sc->platform, (o))
-#define vtmmio_write_config_2(sc, o, v) \
-	bus_write_2((sc)->res[0], (o), (v)); \
-	VIRTIO_MMIO_NOTE(sc->platform, (o))
-#define vtmmio_write_config_4(sc, o, v) \
-	bus_write_4((sc)->res[0], (o), (v)); \
-	VIRTIO_MMIO_NOTE(sc->platform, (o))
+#define vtmmio_write_config_1(sc, o, v)			\
+do {							\
+	bus_write_1((sc)->res[0], (o), (v)); 		\
+	if (sc->platform != NULL)			\
+		VIRTIO_MMIO_NOTE(sc->platform, (o));	\
+} while (0)
+#define vtmmio_write_config_2(sc, o, v)			\
+do {							\
+	bus_write_2((sc)->res[0], (o), (v));		\
+	if (sc->platform != NULL)			\
+		VIRTIO_MMIO_NOTE(sc->platform, (o));	\
+} while (0)
+#define vtmmio_write_config_4(sc, o, v)			\
+do {							\
+	bus_write_4((sc)->res[0], (o), (v));		\
+	if (sc->platform != NULL)			\
+		VIRTIO_MMIO_NOTE(sc->platform, (o));	\
+} while (0)
 
 #define vtmmio_read_config_1(sc, o) \
 	bus_read_1((sc)->res[0], (o))
@@ -200,11 +213,13 @@ vtmmio_setup_intr(device_t dev, enum intr_type type)
 
 	sc = device_get_softc(dev);
 
-	err = VIRTIO_MMIO_SETUP_INTR(sc->platform, sc->dev,
-				vtmmio_vq_intr, sc);
-	if (err == 0) {
-		/* Okay we have backend-specific interrupts */
-		return (0);
+	if (sc->platform != NULL) {
+		err = VIRTIO_MMIO_SETUP_INTR(sc->platform, sc->dev,
+					vtmmio_vq_intr, sc);
+		if (err == 0) {
+			/* Okay we have backend-specific interrupts */
+			return (0);
+		}
 	}
 
 	rid = 0;
@@ -473,8 +488,8 @@ vtmmio_alloc_virtqueues(device_t dev, int flags, int nvqs,
 	struct vq_alloc_info *info;
 	struct vtmmio_softc *sc;
 	struct virtqueue *vq;
+	uint32_t size;
 	int idx, error;
-	uint16_t size;
 
 	sc = device_get_softc(dev);
 
@@ -492,8 +507,10 @@ vtmmio_alloc_virtqueues(device_t dev, int flags, int nvqs,
 		vqx = &sc->vtmmio_vqs[idx];
 		info = &vq_info[idx];
 
+		vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_SEL, idx);
+
 		vtmmio_select_virtqueue(sc, idx);
-		size = vtmmio_read_config_2(sc, VIRTIO_MMIO_QUEUE_NUM);
+		size = vtmmio_read_config_4(sc, VIRTIO_MMIO_QUEUE_NUM_MAX);
 
 		error = virtqueue_alloc(dev, idx, size,
 		    VIRTIO_MMIO_VRING_ALIGN, 0xFFFFFFFFUL, info, &vq);
@@ -503,6 +520,10 @@ vtmmio_alloc_virtqueues(device_t dev, int flags, int nvqs,
 			    idx, error);
 			break;
 		}
+
+		vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_NUM, size);
+		vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_ALIGN,
+		    VIRTIO_MMIO_VRING_ALIGN);
 #if 0
 		device_printf(dev, "virtqueue paddr 0x%08lx\n",
 				(uint64_t)virtqueue_paddr(vq));
@@ -572,7 +593,7 @@ vtmmio_notify_virtqueue(device_t dev, uint16_t queue)
 
 	sc = device_get_softc(dev);
 
-	vtmmio_write_config_2(sc, VIRTIO_MMIO_QUEUE_NOTIFY, queue);
+	vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_NOTIFY, queue);
 }
 
 static uint8_t
@@ -582,7 +603,7 @@ vtmmio_get_status(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	return (vtmmio_read_config_1(sc, VIRTIO_MMIO_STATUS));
+	return (vtmmio_read_config_4(sc, VIRTIO_MMIO_STATUS));
 }
 
 static void
@@ -595,7 +616,7 @@ vtmmio_set_status(device_t dev, uint8_t status)
 	if (status != VIRTIO_CONFIG_STATUS_RESET)
 		status |= vtmmio_get_status(dev);
 
-	vtmmio_write_config_1(sc, VIRTIO_MMIO_STATUS, status);
+	vtmmio_write_config_4(sc, VIRTIO_MMIO_STATUS, status);
 }
 
 static void
@@ -611,13 +632,16 @@ vtmmio_read_dev_config(device_t dev, bus_size_t offset,
 	off = VIRTIO_MMIO_CONFIG + offset;
 
 	for (d = dst; length > 0; d += size, off += size, length -= size) {
+#ifdef ALLOW_WORD_ALIGNED_ACCESS
 		if (length >= 4) {
 			size = 4;
 			*(uint32_t *)d = vtmmio_read_config_4(sc, off);
 		} else if (length >= 2) {
 			size = 2;
 			*(uint16_t *)d = vtmmio_read_config_2(sc, off);
-		} else {
+		} else
+#endif
+		{
 			size = 1;
 			*d = vtmmio_read_config_1(sc, off);
 		}
@@ -637,13 +661,16 @@ vtmmio_write_dev_config(device_t dev, bus_size_t offset,
 	off = VIRTIO_MMIO_CONFIG + offset;
 
 	for (s = src; length > 0; s += size, off += size, length -= size) {
+#ifdef ALLOW_WORD_ALIGNED_ACCESS
 		if (length >= 4) {
 			size = 4;
 			vtmmio_write_config_4(sc, off, *(uint32_t *)s);
 		} else if (length >= 2) {
 			size = 2;
 			vtmmio_write_config_2(sc, off, *(uint16_t *)s);
-		} else {
+		} else
+#endif
+		{
 			size = 1;
 			vtmmio_write_config_1(sc, off, *s);
 		}
@@ -711,7 +738,7 @@ vtmmio_reinit_virtqueue(struct vtmmio_softc *sc, int idx)
 	KASSERT(vq != NULL, ("%s: vq %d not allocated", __func__, idx));
 
 	vtmmio_select_virtqueue(sc, idx);
-	size = vtmmio_read_config_2(sc, VIRTIO_MMIO_QUEUE_NUM);
+	size = vtmmio_read_config_4(sc, VIRTIO_MMIO_QUEUE_NUM_MAX);
 
 	error = virtqueue_reinit(vq, size);
 	if (error)
@@ -778,7 +805,7 @@ static void
 vtmmio_select_virtqueue(struct vtmmio_softc *sc, int idx)
 {
 
-	vtmmio_write_config_2(sc, VIRTIO_MMIO_QUEUE_SEL, idx);
+	vtmmio_write_config_4(sc, VIRTIO_MMIO_QUEUE_SEL, idx);
 }
 
 static void
@@ -787,14 +814,27 @@ vtmmio_vq_intr(void *arg)
 	struct vtmmio_virtqueue *vqx;
 	struct vtmmio_softc *sc;
 	struct virtqueue *vq;
+	uint32_t status;
 	int idx;
 
 	sc = arg;
 
+	status = vtmmio_read_config_4(sc, VIRTIO_MMIO_INTERRUPT_STATUS);
+	vtmmio_write_config_4(sc, VIRTIO_MMIO_INTERRUPT_ACK, status);
+
+	/* The config changed */
+	if (status & VIRTIO_MMIO_INT_CONFIG)
+		if (sc->vtmmio_child_dev != NULL)
+			VIRTIO_CONFIG_CHANGE(sc->vtmmio_child_dev);
+
 	/* Notify all virtqueues. */
-	for (idx = 0; idx < sc->vtmmio_nvqs; idx++) {
-		vqx = &sc->vtmmio_vqs[idx];
-		vq = vqx->vtv_vq;
-		virtqueue_intr(vq);
-	};
+	if (status & VIRTIO_MMIO_INT_VRING) {
+		for (idx = 0; idx < sc->vtmmio_nvqs; idx++) {
+			vqx = &sc->vtmmio_vqs[idx];
+			if (vqx->vtv_no_intr == 0) {
+				vq = vqx->vtv_vq;
+				virtqueue_intr(vq);
+			}
+		}
+	}
 }
