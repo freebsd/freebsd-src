@@ -149,20 +149,49 @@ virtio_mmio_platform_attach(device_t dev)
 }
 
 static int
-platform_note(device_t dev, size_t offset)
+platform_note(device_t dev, size_t offset, int val)
 {
 	struct virtio_mmio_platform_softc *sc;
+	int note;
+	int i;
 
 	sc = device_get_softc(dev);
 
-	if (offset == VIRTIO_MMIO_QUEUE_NOTIFY) {
-		mips_dcache_wbinv_all();
-		PIO_SET(sc->pio_send, Q_NOTIFY, 1);
+	switch (offset) {
+		case (VIRTIO_MMIO_QUEUE_NOTIFY):
+			if (val == 0)
+				note = Q_NOTIFY;
+			else if (val == 1)
+				note = Q_NOTIFY1;
+			break;
+		case (VIRTIO_MMIO_QUEUE_PFN):
+			note = Q_PFN;
+			break;
+		case (VIRTIO_MMIO_QUEUE_SEL):
+			note = Q_SEL;
+			break;
+		default:
+			note = 0;
 	}
 
-	if (offset == VIRTIO_MMIO_QUEUE_PFN) {
+	if (note) {
 		mips_dcache_wbinv_all();
-		PIO_SET(sc->pio_send, Q_PFN, 1);
+
+		PIO_SET(sc->pio_send, note, 1);
+
+		/* 
+		 * Wait until host ack the request.
+		 * Usually done within few cycles.
+		 * TODO: bad
+		 */
+
+		for (i = 100; i > 0; i--) {
+			if (PIO_READ(sc->pio_send) == 0)
+				break;
+		}
+
+		if (i == 0)
+			device_printf(sc->dev, "Warning: host busy\n");
 	}
 
 	return (0);
