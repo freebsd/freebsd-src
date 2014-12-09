@@ -7,8 +7,8 @@ Introduced here: http://svnweb.freebsd.org/changeset/base/275362
 
 Index: lib/Target/ARM/ARMInstrInfo.td
 ===================================================================
---- lib/Target/ARM/ARMInstrInfo.td	(revision 20)
-+++ lib/Target/ARM/ARMInstrInfo.td	(revision 21)
+--- lib/Target/ARM/ARMInstrInfo.td
++++ lib/Target/ARM/ARMInstrInfo.td
 @@ -4615,7 +4615,7 @@ def STLEXD : AIstlex<0b01, (outs GPR:$Rd),
  
  def CLREX : AXI<(outs), (ins), MiscFrm, NoItinerary, "clrex",
