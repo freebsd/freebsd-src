@@ -58,10 +58,18 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/intr.h>
 
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include <dev/beri/virtio/virtio.h>
 #include <dev/virtio/virtio.h>
 #include <dev/virtio/virtqueue.h>
 #include <dev/virtio/virtio_ring.h>
+#include <dev/altera/pio/pio.h>
+
+#include "pio_if.h"
 
 int
 vq_ring_ready(struct vqueue_info *vq)
@@ -167,12 +175,13 @@ vq_relchain(struct vqueue_info *vq, struct iovec *iov, int n, uint32_t iolen)
 	int i;
 
 	mask = vq->vq_qsize - 1;
+	vu = vq->vq_used;
 	head = be16toh(vq->vq_avail->ring[vq->vq_last_avail++ & mask]);
 
-	vu = vq->vq_used;
 	uidx = be16toh(vu->idx);
 	vue = &vu->ring[uidx++ & mask];
-	vue->id = htobe16(head);
+	vue->id = htobe32(head);
+
 	vue->len = htobe32(iolen);
 	vu->idx = htobe16(uidx);
 
@@ -181,3 +190,59 @@ vq_relchain(struct vqueue_info *vq, struct iovec *iov, int n, uint32_t iolen)
 		paddr_unmap((void *)iov[i].iov_base, iov[i].iov_len);
 	}
 }
+
+int
+setup_pio(device_t dev, char *name, device_t *pio_dev)
+{
+	phandle_t pio_node;
+	struct fdt_ic *ic;
+	phandle_t xref;
+	phandle_t node;
+
+	if ((node = ofw_bus_get_node(dev)) == -1)
+		return (ENXIO);
+
+	if (OF_searchencprop(node, name, &xref,
+		sizeof(xref)) == -1) {
+		return (ENXIO);
+	}
+
+	pio_node = OF_node_from_xref(xref);
+	SLIST_FOREACH(ic, &fdt_ic_list_head, fdt_ics) {
+		if (ic->iph == pio_node) {
+			*pio_dev = ic->dev;
+			PIO_CONFIGURE(*pio_dev, PIO_OUT_ALL,
+					PIO_UNMASK_ALL);
+			return (0);
+		}
+	}
+
+	return (ENXIO);
+}
+
+int
+setup_offset(device_t dev, uint32_t *offset)
+{
+	pcell_t dts_value[2];
+	phandle_t mem_node;
+	phandle_t xref;
+	phandle_t node;
+	int len;
+
+	if ((node = ofw_bus_get_node(dev)) == -1)
+		return (ENXIO);
+
+	if (OF_searchencprop(node, "beri-mem", &xref,
+		sizeof(xref)) == -1) {
+		return (ENXIO);
+	}
+
+	mem_node = OF_node_from_xref(xref);
+	if ((len = OF_getproplen(mem_node, "reg")) <= 0)
+		return (ENXIO);
+	OF_getencprop(mem_node, "reg", dts_value, len);
+	*offset = dts_value[0];
+
+	return (0);
+}
+
