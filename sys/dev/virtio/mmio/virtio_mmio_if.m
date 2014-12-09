@@ -42,7 +42,7 @@ INTERFACE virtio_mmio;
 
 CODE {
 	static int
-	virtio_mmio_write(device_t dev, size_t offset)
+	virtio_mmio_note(device_t dev, size_t offset, int val)
 	{
 
 		return (1);
@@ -63,7 +63,8 @@ CODE {
 METHOD int note {
 	device_t	dev;
 	size_t		offset;
-} DEFAULT virtio_mmio_write;
+	int		val;
+} DEFAULT virtio_mmio_note;
 
 #
 # Setup backend-specific interrupts.
