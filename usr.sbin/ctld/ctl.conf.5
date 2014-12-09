@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 8, 2014
+.Dd November 9, 2014
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -218,6 +218,17 @@ An IPv4 or IPv6 address and port to listen on for incoming connections.
 .\".It Ic listen-iser Ar address
 .\"An IPv4 or IPv6 address and port to listen on for incoming connections
 .\"using iSER (iSCSI over RDMA) protocol.
+.It Ic redirect Aq Ar address
+IPv4 or IPv6 address to redirect initiators to.
+When configured, all initiators attempting to connect to portal
+belonging to this
+.Sy portal-group
+will get redirected using "Target moved temporarily" login response.
+Redirection happens before authentication and any
+.Sy initiator-name
+or
+.Sy initiator-portal
+checks are skipped.
 .El
 .Ss target Context
 .Bl -tag -width indent
@@ -296,6 +307,11 @@ The default portal group is
 .Qq Ar default ,
 which makes the target available
 on TCP port 3260 on all configured IPv4 and IPv6 addresses.
+.It Ic redirect Aq Ar address
+IPv4 or IPv6 address to redirect initiators to.
+When configured, all initiators attempting to connect to this target
+will get redirected using "Target moved temporarily" login response.
+Redirection happens after successful authentication.
 .It Ic lun Ar number
 Create a
 .Sy lun
