@@ -5,11 +5,11 @@ TESTSRC=	${.CURDIR}/../../../contrib/netbsd-tests/usr.sbin/useradd
 
 TESTSDIR=	${TESTSBASE}/usr.sbin/pw
 
-ATF_TESTS_SH=	pw_add pw_delete pw_etcdir pw_lock pw_modify
+ATF_TESTS_SH=	pw_etcdir pw_lock pw_groupmod pw_useradd pw_userdel
 
-TEST_METADATA.pw_add+=		required_user="root"
-TEST_METADATA.pw_delete+=	required_user="root"
-TEST_METADATA.pw_modify+=	required_user="root"
+TEST_METADATA.pw_groupmod+=	required_user="root"
+TEST_METADATA.pw_useradd+=	required_user="root"
+TEST_METADATA.pw_userdel+=	required_user="root"
 
 FILES=		group helper_functions.shin master.passwd
 FILESDIR=       ${TESTSDIR}
