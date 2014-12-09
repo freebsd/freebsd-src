@@ -8618,6 +8618,20 @@ bool ARMAsmParser::parseDirectiveEabiAttr(SMLoc L) {
 bool ARMAsmParser::parseDirectiveCPU(SMLoc L) {
   StringRef CPU = getParser().parseStringToEndOfStatement().trim();
   getTargetStreamer().emitTextAttribute(ARMBuildAttrs::CPU_name, CPU);
+
+  if (!STI.isCPUStringValid(CPU)) {
+    Error(L, "Unknown CPU name");
+    return false;
+  }
+
+  // FIXME: This switches the CPU features globally, therefore it might
+  // happen that code you would not expect to assemble will. For details
+  // see: http://llvm.org/bugs/show_bug.cgi?id=20757
+  STI.InitMCProcessorInfo(CPU, "");
+  STI.InitCPUSchedModel(CPU);
+  unsigned FB = ComputeAvailableFeatures(STI.getFeatureBits());
+  setAvailableFeatures(FB);
+
   return false;
 }
 
