@@ -659,15 +659,58 @@ gnttab_expand(unsigned int req_entries)
 	return (error);
 }
 
-int 
-gnttab_init(device_t dev)
+MTX_SYSINIT(gnttab, &gnttab_list_lock, "GNTTAB LOCK", MTX_DEF); 
+
+/*------------------ Private Device Attachment Functions  --------------------*/
+/**
+ * \brief Identify instances of this device type in the system.
+ *
+ * \param driver  The driver performing this identify action.
+ * \param parent  The NewBus parent device for any devices this method adds.
+ */
+static void
+granttable_identify(driver_t *driver __unused, device_t parent)
+{
+
+	KASSERT(xen_domain(),
+	    ("Trying to attach grant-table device on non Xen domain"));
+	/*
+	 * A single device instance for our driver is always present
+	 * in a system operating under Xen.
+	 */
+	if (BUS_ADD_CHILD(parent, 0, driver->name, 0) == NULL)
+		panic("unable to attach Xen Grant-table device");
+}
+
+/**
+ * \brief Probe for the existence of the Xen Grant-table device
+ *
+ * \param dev  NewBus device_t for this instance.
+ *
+ * \return  Always returns 0 indicating success.
+ */
+static int 
+granttable_probe(device_t dev)
+{
+
+	device_set_desc(dev, "Xen Grant-table Device");
+	return (BUS_PROBE_NOWILDCARD);
+}
+
+/**
+ * \brief Attach the Xen Grant-table device.
+ *
+ * \param dev  NewBus device_t for this instance.
+ *
+ * \return  On success, 0. Otherwise an errno value indicating the
+ *          type of failure.
+ */
+static int
+granttable_attach(device_t dev)
 {
 	int i;
 	unsigned int max_nr_glist_frames;
 	unsigned int nr_init_grefs;
-
-	if (!is_running_on_xen())
-		return (ENODEV);
 
 	nr_grant_frames = 1;
 	boot_max_nr_grant_frames = __max_nr_grant_frames();
@@ -714,7 +757,20 @@ ini_nomem:
 		free(gnttab_list[i], M_DEVBUF);
 	free(gnttab_list, M_DEVBUF);
 	return (ENOMEM);
-
 }
 
-MTX_SYSINIT(gnttab, &gnttab_list_lock, "GNTTAB LOCK", MTX_DEF); 
+/*-------------------- Private Device Attachment Data  -----------------------*/
+static device_method_t granttable_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_identify,	granttable_identify),
+	DEVMETHOD(device_probe,         granttable_probe),
+	DEVMETHOD(device_attach,        granttable_attach),
+
+	DEVMETHOD_END
+};
+
+DEFINE_CLASS_0(granttable, granttable_driver, granttable_methods, 0);
+devclass_t granttable_devclass;
+
+DRIVER_MODULE_ORDERED(granttable, xenpv, granttable_driver, granttable_devclass,
+    NULL, NULL, SI_ORDER_FIRST);
