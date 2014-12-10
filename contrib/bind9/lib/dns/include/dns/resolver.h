@@ -82,6 +82,7 @@ typedef struct dns_fetchevent {
 	isc_sockaddr_t *		client;
 	dns_messageid_t			id;
 	isc_result_t			vresult;
+	isc_uint32_t 			qtotal;
 } dns_fetchevent_t;
 
 /*
@@ -270,6 +271,18 @@ dns_resolver_createfetch2(dns_resolver_t *res, dns_name_t *name,
 			  dns_forwarders_t *forwarders,
 			  isc_sockaddr_t *client, isc_uint16_t id,
 			  unsigned int options, isc_task_t *task,
+			  isc_taskaction_t action, void *arg,
+			  dns_rdataset_t *rdataset,
+			  dns_rdataset_t *sigrdataset,
+			  dns_fetch_t **fetchp);
+isc_result_t
+dns_resolver_createfetch3(dns_resolver_t *res, dns_name_t *name,
+			  dns_rdatatype_t type,
+			  dns_name_t *domain, dns_rdataset_t *nameservers,
+			  dns_forwarders_t *forwarders,
+			  isc_sockaddr_t *client, isc_uint16_t id,
+			  unsigned int options, unsigned int depth,
+			  isc_task_t *task,
 			  isc_taskaction_t action, void *arg,
 			  dns_rdataset_t *rdataset,
 			  dns_rdataset_t *sigrdataset,
@@ -570,6 +583,18 @@ void
 dns_resolver_printbadcache(dns_resolver_t *resolver, FILE *fp);
 /*%
  * Print out the contents of the bad cache to 'fp'.
+ *
+ * Requires:
+ * \li	resolver to be valid.
+ */
+
+void
+dns_resolver_setmaxdepth(dns_resolver_t *resolver, unsigned int maxdepth);
+unsigned int
+dns_resolver_getmaxdepth(dns_resolver_t *resolver);
+/*%
+ * Get and set how many NS indirections will be followed when looking for
+ * nameserver addresses.
  *
  * Requires:
  * \li	resolver to be valid.
