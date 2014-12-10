@@ -201,6 +201,7 @@ struct dns_adbfetch {
 	unsigned int                    magic;
 	dns_fetch_t                    *fetch;
 	dns_rdataset_t                  rdataset;
+	unsigned int			depth;
 };
 
 /*%
@@ -300,8 +301,7 @@ static inline isc_boolean_t dec_entry_refcnt(dns_adb_t *, isc_boolean_t,
 static inline void violate_locking_hierarchy(isc_mutex_t *, isc_mutex_t *);
 static isc_boolean_t clean_namehooks(dns_adb_t *, dns_adbnamehooklist_t *);
 static void clean_target(dns_adb_t *, dns_name_t *);
-static void clean_finds_at_name(dns_adbname_t *, isc_eventtype_t,
-				unsigned int);
+static void clean_finds_at_name(dns_adbname_t *, isc_eventtype_t, unsigned int);
 static isc_boolean_t check_expire_namehooks(dns_adbname_t *, isc_stdtime_t);
 static isc_boolean_t check_expire_entry(dns_adb_t *, dns_adbentry_t **,
 					isc_stdtime_t);
@@ -309,6 +309,7 @@ static void cancel_fetches_at_name(dns_adbname_t *);
 static isc_result_t dbfind_name(dns_adbname_t *, isc_stdtime_t,
 				dns_rdatatype_t);
 static isc_result_t fetch_name(dns_adbname_t *, isc_boolean_t,
+			       unsigned int, isc_counter_t *qc,
 			       dns_rdatatype_t);
 static inline void check_exit(dns_adb_t *);
 static void destroy(dns_adb_t *);
@@ -2770,6 +2771,19 @@ dns_adb_createfind(dns_adb_t *adb, isc_task_t *task, isc_taskaction_t action,
 		   isc_stdtime_t now, dns_name_t *target,
 		   in_port_t port, dns_adbfind_t **findp)
 {
+	return (dns_adb_createfind2(adb, task, action, arg, name,
+				    qname, qtype, options, now,
+				    target, port, 0, NULL, findp));
+}
+
+isc_result_t
+dns_adb_createfind2(dns_adb_t *adb, isc_task_t *task, isc_taskaction_t action,
+		    void *arg, dns_name_t *name, dns_name_t *qname,
+		    dns_rdatatype_t qtype, unsigned int options,
+		    isc_stdtime_t now, dns_name_t *target,
+		    in_port_t port, unsigned int depth, isc_counter_t *qc,
+		    dns_adbfind_t **findp)
+{
 	dns_adbfind_t *find;
 	dns_adbname_t *adbname;
 	int bucket;
@@ -3000,7 +3014,7 @@ dns_adb_createfind(dns_adb_t *adb, isc_task_t *task, isc_taskaction_t action,
 		 * Start V4.
 		 */
 		if (WANT_INET(wanted_fetches) &&
-		    fetch_name(adbname, start_at_zone,
+		    fetch_name(adbname, start_at_zone, depth, qc,
 			       dns_rdatatype_a) == ISC_R_SUCCESS) {
 			DP(DEF_LEVEL,
 			   "dns_adb_createfind: started A fetch for name %p",
@@ -3011,7 +3025,7 @@ dns_adb_createfind(dns_adb_t *adb, isc_task_t *task, isc_taskaction_t action,
 		 * Start V6.
 		 */
 		if (WANT_INET6(wanted_fetches) &&
-		    fetch_name(adbname, start_at_zone,
+		    fetch_name(adbname, start_at_zone, depth, qc,
 			       dns_rdatatype_aaaa) == ISC_R_SUCCESS) {
 			DP(DEF_LEVEL,
 			   "dns_adb_createfind: "
@@ -3754,6 +3768,12 @@ fetch_callback(isc_task_t *task, isc_event_t *ev) {
 		DP(DEF_LEVEL, "adb: fetch of '%s' %s failed: %s",
 		   buf, address_type == DNS_ADBFIND_INET ? "A" : "AAAA",
 		   dns_result_totext(dev->result));
+		/*
+		 * Don't record a failure unless this is the initial
+		 * fetch of a chain.
+		 */
+		if (fetch->depth > 1)
+			goto out;
 		/* XXXMLG Don't pound on bad servers. */
 		if (address_type == DNS_ADBFIND_INET) {
 			name->expire_v4 = ISC_MIN(name->expire_v4, now + 300);
@@ -3791,9 +3811,8 @@ fetch_callback(isc_task_t *task, isc_event_t *ev) {
 }
 
 static isc_result_t
-fetch_name(dns_adbname_t *adbname,
-	   isc_boolean_t start_at_zone,
-	   dns_rdatatype_t type)
+fetch_name(dns_adbname_t *adbname, isc_boolean_t start_at_zone,
+	   unsigned int depth, isc_counter_t *qc, dns_rdatatype_t type)
 {
 	isc_result_t result;
 	dns_adbfetch_t *fetch = NULL;
@@ -3838,12 +3857,14 @@ fetch_name(dns_adbname_t *adbname,
 		result = ISC_R_NOMEMORY;
 		goto cleanup;
 	}
+	fetch->depth = depth;
 
-	result = dns_resolver_createfetch(adb->view->resolver, &adbname->name,
-					  type, name, nameservers, NULL,
-					  options, adb->task, fetch_callback,
-					  adbname, &fetch->rdataset, NULL,
-					  &fetch->fetch);
+	result = dns_resolver_createfetch3(adb->view->resolver, &adbname->name,
+					   type, name, nameservers, NULL,
+					   NULL, 0, options, depth, qc,
+					   adb->task, fetch_callback, adbname,
+					   &fetch->rdataset, NULL,
+					   &fetch->fetch);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
 
