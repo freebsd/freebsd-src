@@ -2580,6 +2580,16 @@ configure_view(dns_view_t *view, cfg_obj_t *config, cfg_obj_t *vconfig,
 					cfg_obj_asuint32(obj),
 					max_clients_per_query);
 
+	obj = NULL;
+	result = ns_config_get(maps, "max-recursion-depth", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	dns_resolver_setmaxdepth(view->resolver, cfg_obj_asuint32(obj));
+
+	obj = NULL;
+	result = ns_config_get(maps, "max-recursion-queries", &obj);
+	INSIST(result == ISC_R_SUCCESS);
+	dns_resolver_setmaxqueries(view->resolver, cfg_obj_asuint32(obj));
+
 #ifdef ALLOW_FILTER_AAAA_ON_V4
 	obj = NULL;
 	result = ns_config_get(maps, "filter-aaaa-on-v4", &obj);
