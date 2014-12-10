@@ -1,3 +1,14 @@
+4006.	[security]	A flaw in delegation handling could be exploited
+			to put named into an infinite loop.  This has
+			been addressed by placing limits on the number
+			of levels of recursion named will allow (default 7),
+			and the number of iterative queries that it will
+			send (default 50) before terminating a recursive
+			query (CVE-2014-8500).
+
+			The recursion depth limit is configured via the
+			"max-recursion-depth" option.  [RT #35780]
+
 	--- 9.9.5 released ---
 
 	--- 9.9.5rc2 released ---
