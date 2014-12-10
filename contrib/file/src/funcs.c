@@ -491,3 +491,43 @@ file_regerror(file_regex_t *rx, int rc, struct magic_set *ms)
 	file_magerror(ms, "regex error %d for `%s', (%s)", rc, rx->pat,
 	    errmsg);
 }
+
+protected file_pushbuf_t *
+file_push_buffer(struct magic_set *ms)
+{
+	file_pushbuf_t *pb;
+
+	if (ms->event_flags & EVENT_HAD_ERR)
+		return NULL;
+
+	if ((pb = (CAST(file_pushbuf_t *, malloc(sizeof(*pb))))) == NULL)
+		return NULL;
+
+	pb->buf = ms->o.buf;
+	pb->offset = ms->offset;
+
+	ms->o.buf = NULL;
+	ms->offset = 0;
+
+	return pb;
+}
+
+protected char *
+file_pop_buffer(struct magic_set *ms, file_pushbuf_t *pb)
+{
+	char *rbuf;
+
+	if (ms->event_flags & EVENT_HAD_ERR) {
+		free(pb->buf);
+		free(pb);
+		return NULL;
+	}
+
+	rbuf = ms->o.buf;
+
+	ms->o.buf = pb->buf;
+	ms->offset = pb->offset;
+
+	free(pb);
+	return rbuf;
+}
