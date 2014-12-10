@@ -9,10 +9,7 @@ MAN=	termcap.5
 
 FILES=		termcap termcap.db
 FILESDIR=	${BINDIR}/misc
-CLEANFILES+=	termcap termcap.db
-
-termcap: reorder termcap.src
-	TERM=dumb TERMCAP=dumb: ex - ${.CURDIR}/termcap.src < ${.CURDIR}/reorder
+CLEANFILES+=	termcap.db
 
 .include <bsd.endian.mk>
 .if ${TARGET_ENDIANNESS} == "1234"
