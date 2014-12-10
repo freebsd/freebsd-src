@@ -425,6 +425,17 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 	/* Assign the opaque handler (the event channel port) */
 	*port_handlep = &isrc->xi_port;
 
+#ifdef SMP
+	if (type == EVTCHN_TYPE_PORT) {
+		/*
+		 * By default all interrupts are assigned to vCPU#0
+		 * unless specified otherwise, so shuffle them to balance
+		 * the interrupt load.
+		 */
+		xen_intr_assign_cpu(&isrc->xi_intsrc, intr_next_cpu());
+	}
+#endif
+
 	if (filter == NULL && handler == NULL) {
 		/*
 		 * No filter/handler provided, leave the event channel
