@@ -886,7 +886,7 @@ sctp_recvv(int sd,
 	struct sctp_rcvinfo *rcvinfo;
 	struct sctp_nxtinfo *nxtinfo;
 
-	if (((info != NULL) && (infolen == NULL)) |
+	if (((info != NULL) && (infolen == NULL)) ||
 	    ((info == NULL) && (infolen != NULL) && (*infolen != 0)) ||
 	    ((info != NULL) && (infotype == NULL))) {
 		errno = EINVAL;
