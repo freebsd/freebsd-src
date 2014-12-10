@@ -1393,18 +1393,6 @@ build-tools: .MAKE
 		${MAKE} DIRPRFX=${_tool}/ depend && \
 		${MAKE} DIRPRFX=${_tool}/ all
 .endfor
-	# usr.bin/vi is required to process files in share/termcap
-.if !defined(NO_SHARE)
-.for _tool in \
-    usr.bin/vi
-	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_tool} && \
-		${MAKE} DIRPRFX=${_tool}/ obj && \
-		${MAKE} DIRPRFX=${_tool}/ depend MK_MAN=no SUBDIR= && \
-		${MAKE} DIRPRFX=${_tool}/ all MK_MAN=no SUBDIR= && \
-		${MAKE} DIRPRFX=${_tool}/ install MK_MAN=no SUBDIR= DESTDIR=${WORLDTMP}/
-.endfor
-.endif
 
 #
 # kernel-tools: Build kernel-building tools
