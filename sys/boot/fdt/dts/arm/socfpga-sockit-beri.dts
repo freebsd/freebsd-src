@@ -39,7 +39,8 @@
 	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
 
 	memreserve = < 0x00000000 0x1000 >, /* SMP trampoline */
-		     < 0x00001000 0x1000 >; /* virtio block */
+		     < 0x00001000 0x1000 >, /* virtio block */
+		     < 0x00002000 0x1000 >; /* virtio net */
 
 	memory {
 		device_type = "memory";
@@ -108,6 +109,15 @@
 		beri_vtblk: vtblk@00001000 {
 			compatible = "sri-cambridge,beri-vtblk";
 			reg = <0x00001000 0x1000>;
+			pio-recv = <&pio0>;
+			pio-send = <&pio1>;
+			beri-mem = <&beri_mem0>;
+			status = "disabled";
+		};
+
+		beri_vtnet: vtnet@00002000 {
+			compatible = "sri-cambridge,beri-vtnet";
+			reg = <0x00002000 0x1000>;
 			pio-recv = <&pio0>;
 			pio-send = <&pio1>;
 			beri-mem = <&beri_mem0>;

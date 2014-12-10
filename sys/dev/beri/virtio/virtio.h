@@ -41,13 +41,9 @@
 
 #define	PAGE_SHIFT		12
 #define	VRING_ALIGN		4096
-#define	NUM_QUEUES		1
 
 #define	VQ_ALLOC		0x01	/* set once we have a pfn */
 #define	VQ_MAX_DESCRIPTORS	512
-
-#define	VTBLK_BLK_ID_BYTES	20
-#define	VTBLK_MAXSEGS		256
 
 struct vqueue_info {
 	uint16_t vq_qsize;	/* size of this queue (a power of 2) */
@@ -70,3 +66,5 @@ int vq_getchain(uint32_t beri_mem_offset, struct vqueue_info *vq,
 		struct iovec *iov, int n_iov, uint16_t *flags);
 void vq_relchain(struct vqueue_info *vq, struct iovec *iov, int n, uint32_t iolen);
 
+int setup_pio(device_t dev, char *name, device_t *pio_dev);
+int setup_offset(device_t dev, uint32_t *offset);

@@ -1,10 +1,6 @@
-/*-
- * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+/*
+ * Copyright (c) 2014 Roger Pau Monné <roger.pau@citrix.com>
  * All rights reserved.
- *
- * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
- * ("CTSRD"), as part of the DARPA CRASH research programme.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -15,7 +11,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
  * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
@@ -30,8 +26,12 @@
  * $FreeBSD$
  */
 
-#define	Q_NOTIFY	0x01
-#define	Q_PFN		0x02
-#define	Q_INTR		0x04
-#define	Q_SEL		0x08
-#define	Q_NOTIFY1	0x10
+#ifndef __XEN_PCI_H__
+#define __XEN_PCI_H__
+
+void xen_pci_enable_msi_method(device_t dev, device_t child, uint64_t address,
+     uint16_t data);
+void xen_pci_disable_msi_method(device_t dev, device_t child);
+void xen_pci_child_added_method(device_t dev, device_t child);
+
+#endif /* !__XEN_PCI_H__ */
