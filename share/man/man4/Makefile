@@ -729,6 +729,10 @@ MLINKS+=qlxge.4 if_qlxge.4
 MLINKS+=qlxgb.4 if_qlxgb.4
 MLINKS+=qlxgbe.4 if_qlxgbe.4
 MLINKS+=sfxge.4 if_sfxge.4
+
+.if ${MK_BHYVE} != "no"
+_bhyve.4=	bhyve.4
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
@@ -737,10 +741,6 @@ _nvram2env.4=	nvram2env.4
 
 .if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
 SUBDIR=	man4.${MACHINE_CPUARCH}
-.endif
-
-.if ${MK_BHYVE} != "no"
-_bhyve.4=	bhyve.4
 .endif
 
 .if ${MK_CCD} != "no"

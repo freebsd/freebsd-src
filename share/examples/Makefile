@@ -184,11 +184,6 @@ NO_OBJ=
 # in environments where it's not possible to keep /sys publicly readable)
 SHARED?=	copies
 
-.if ${MK_BHYVE} != "no"
-LDIRS+=		bhyve
-XFILES+=	bhyve/vmrun.sh
-.endif
-
 .if ${MK_HAST} != "no"
 LDIRS+=		hast
 XFILES+=	hast/ucarp.sh \
@@ -217,6 +212,13 @@ XFILES+=	libusb20/Makefile \
 		libusb20/util.h \
 		libusb20/bulk.c \
 		libusb20/control.c
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64"
+.if ${MK_BHYVE} != "no"
+LDIRS+=		bhyve
+XFILES+=	bhyve/vmrun.sh
+.endif
 .endif
 
 beforeinstall: ${SHARED} etc-examples
