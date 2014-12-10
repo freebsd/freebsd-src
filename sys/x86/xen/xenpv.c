@@ -66,15 +66,6 @@ static int
 xenpv_attach(device_t dev)
 {
 	device_t child;
-	int error;
-
-	/* Initialize grant table before any Xen specific device is attached */
-	error = gnttab_init(dev);
-	if (error != 0) {
-		device_printf(dev, "error initializing grant table: %d\n",
-		    error);
-		return (error);
-	}
 
 	/*
 	 * Let our child drivers identify any child devices that they
