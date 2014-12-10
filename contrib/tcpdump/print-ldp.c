@@ -545,8 +545,16 @@ badtlv:
 }
 
 void
-ldp_print(packetbody_t pptr, register u_int len) {
+ldp_print(packetbody_t pptr, register u_int len)
+{
+	if (!invoke_dissector((void *)_ldp_print,
+	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_ldp_print(pptr, len);
+}
 
+void
+_ldp_print(packetbody_t pptr, register u_int len)
+{
     int processed;
     while (len > (sizeof(struct ldp_common_header) + sizeof(struct ldp_msg_header))) {
         processed = ldp_msg_print(pptr);

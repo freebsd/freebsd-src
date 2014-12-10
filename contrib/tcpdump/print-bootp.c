@@ -65,6 +65,14 @@ static const struct tok bootp_op_values[] = {
 void
 bootp_print(packetbody_t cp, u_int length)
 {
+	if (!invoke_dissector((void *)_bootp_print,
+	    length, 0, 0, 0, 0, gndo, cp, NULL, NULL, NULL))
+		_bootp_print(cp, length);
+}
+
+void
+_bootp_print(packetbody_t cp, u_int length)
+{
 	__capability const struct bootp *bp;
 	static const u_char vm_cmu[4] = VM_CMU;
 	static const u_char vm_rfc1048[4] = VM_RFC1048;

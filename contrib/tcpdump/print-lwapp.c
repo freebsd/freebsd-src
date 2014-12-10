@@ -169,8 +169,16 @@ struct lwapp_message_header {
 };
 
 void
-lwapp_control_print(packetbody_t pptr, u_int len, int has_ap_ident) {
+lwapp_control_print(packetbody_t pptr, u_int len, int has_ap_ident)
+{
+	if (!invoke_dissector((void *)_lwapp_control_print,
+	    len, has_ap_ident, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_lwapp_control_print(pptr, len, has_ap_ident);
+}
 
+void
+_lwapp_control_print(packetbody_t pptr, u_int len, int has_ap_ident)
+{
     __capability const struct lwapp_transport_header *lwapp_trans_header;
     __capability const struct lwapp_control_header *lwapp_control_header;
     packetbody_t tptr;
@@ -295,8 +303,16 @@ lwapp_control_print(packetbody_t pptr, u_int len, int has_ap_ident) {
 }
 
 void
-lwapp_data_print(packetbody_t pptr, u_int len) {
+lwapp_data_print(packetbody_t pptr, u_int len)
+{
+	if (!invoke_dissector((void *)_lwapp_data_print,
+	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_lwapp_data_print(pptr, len);
+}
 
+void
+_lwapp_data_print(packetbody_t pptr, u_int len)
+{
     __capability const struct lwapp_transport_header *lwapp_trans_header;
     packetbody_t tptr;
     int tlen;

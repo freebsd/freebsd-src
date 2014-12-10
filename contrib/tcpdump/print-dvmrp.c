@@ -75,6 +75,14 @@ static u_int32_t target_level;
 void
 dvmrp_print(packetbody_t bp, register u_int len)
 {
+	if (!invoke_dissector((void *)_dvmrp_print,
+	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_dvmrp_print(bp, len);
+}
+
+void
+_dvmrp_print(packetbody_t bp, register u_int len)
+{
 	packetbody_t ep;
 	register u_char type;
 

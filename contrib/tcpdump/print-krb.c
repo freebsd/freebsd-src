@@ -229,6 +229,14 @@ trunc:
 void
 krb_print(packetbody_t dat)
 {
+	if (!invoke_dissector((void *)_krb_print,
+	    snapend - dat, 0, 0, 0, 0, gndo, dat, NULL, NULL, NULL))
+		_krb_print(dat);
+}
+
+void
+_krb_print(packetbody_t dat)
+{
 	__capability const struct krb *kp;
 
 	kp = (__capability const struct krb *)dat;

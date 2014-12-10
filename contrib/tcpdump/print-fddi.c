@@ -243,6 +243,14 @@ fddi_smt_print(packetbody_t p _U_, u_int length _U_)
 void
 fddi_print(packetbody_t p, u_int length, u_int caplen)
 {
+	if (!invoke_dissector((void *)_fddi_print,
+	    length, caplen, 0, 0, 0, gndo, p, NULL, NULL, NULL))
+		_fddi_print(p, length, caplen);
+}
+
+void
+_fddi_print(packetbody_t p, u_int length, u_int caplen)
+{
 	__capability const struct fddi_header *fddip = (__capability const struct fddi_header *)p;
 	struct ether_header ehdr;
 	u_short extracted_ethertype;

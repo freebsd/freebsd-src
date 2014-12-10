@@ -77,6 +77,14 @@ lane_hdr_print(netdissect_options *ndo, packetbody_t bp)
 void
 lane_print(packetbody_t p, u_int length, u_int caplen)
 {
+	if (!invoke_dissector((void *)_lane_print,
+	    length, caplen, 0, 0, 0, gndo, p, NULL, NULL, NULL))
+		_lane_print(p, length, caplen);
+}
+
+void
+_lane_print(packetbody_t p, u_int length, u_int caplen)
+{
 	__capability struct lane_controlhdr *lec;
 
 	if (caplen < sizeof(struct lane_controlhdr)) {

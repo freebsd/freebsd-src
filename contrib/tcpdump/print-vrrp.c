@@ -87,6 +87,14 @@ static const struct tok auth2str[] = {
 void
 vrrp_print(packetbody_t bp, register u_int len, int ttl)
 {
+	if (!invoke_dissector((void *)_vrrp_print,
+	    len, ttl, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_vrrp_print(bp, len, ttl);
+}
+
+void
+_vrrp_print(packetbody_t bp, register u_int len, int ttl)
+{
 	int version, type, auth_type;
 	const char *type_s;
 

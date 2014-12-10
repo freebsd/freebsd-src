@@ -86,6 +86,14 @@ static struct tok udld_flags_values[] = {
 void
 udld_print (packetbody_t pptr, u_int length)
 {
+	if (!invoke_dissector((void *)_udld_print,
+	    length, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_udld_print(pptr, length);
+}
+
+void
+_udld_print (packetbody_t pptr, u_int length)
+{
     char *buf;
     int code, type, len;
     packetbody_t tptr;

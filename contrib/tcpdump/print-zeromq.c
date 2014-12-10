@@ -138,7 +138,16 @@ trunc:
 }
 
 void
-zmtp1_print(packetbody_t cp, u_int len) {
+zmtp1_print(packetbody_t cp, u_int len)
+{
+	if (!invoke_dissector((void *)_zmtp1_print,
+	    len, 0, 0, 0, 0, gndo, cp, NULL, NULL, NULL))
+		_zmtp1_print(cp, len);
+}
+
+void
+_zmtp1_print(packetbody_t cp, u_int len)
+{
 	packetbody_t ep = MIN(snapend, cp + len);
 
 	printf(": ZMTP/1.0");

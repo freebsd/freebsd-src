@@ -43,6 +43,14 @@
 void
 vxlan_print(packetbody_t bp, u_int len)
 {
+	if (!invoke_dissector((void *)_vxlan_print,
+	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_vxlan_print(bp, len);
+}
+
+void
+_vxlan_print(packetbody_t bp, u_int len)
+{
     u_int8_t flags;
     u_int32_t vni;
     

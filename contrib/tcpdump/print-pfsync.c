@@ -83,6 +83,14 @@ out:
 void
 pfsync_ip_print(packetbody_t bp, u_int len)
 {
+	if (!invoke_dissector((void *)_pfsync_ip_print,
+	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_pfsync_ip_print(bp, len);
+}
+
+void
+_pfsync_ip_print(packetbody_t bp, u_int len)
+{
 	__capability const struct pfsync_header *hdr =
 	    (__capability const struct pfsync_header *)bp;
 

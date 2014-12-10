@@ -2686,6 +2686,14 @@ trunc:
 void
 bgp_print(packetbody_t dat, int length)
 {
+	if (!invoke_dissector((void *)_bgp_print,
+	    length, 0, 0, 0, 0, gndo, dat, NULL, NULL, NULL))
+		_bgp_print(dat, length);
+}
+
+void
+_bgp_print(packetbody_t dat, int length)
+{
 	packetbody_t p;
 	packetbody_t ep;
 	packetbody_t start;

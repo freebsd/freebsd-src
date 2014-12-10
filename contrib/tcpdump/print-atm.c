@@ -293,6 +293,15 @@ void
 atm_print(u_int vpi, u_int vci, u_int traftype, packetbody_t p, u_int length,
     u_int caplen)
 {
+	if (!invoke_dissector((void *)_atm_print,
+	    length, vpi, vci, traftype, caplen, gndo, p, NULL, NULL, NULL))
+		_atm_print(vpi, vci, traftype, p, length, caplen);
+}
+
+void
+_atm_print(u_int vpi, u_int vci, u_int traftype, packetbody_t p, u_int length,
+    u_int caplen)
+{
 	if (eflag)
 		printf("VPI:%u VCI:%u ", vpi, vci);
 
@@ -353,9 +362,17 @@ struct oam_fm_ais_rdi_t {
     u_int8_t unused[28];
 };
 
-int 
-oam_print(packetbody_t p, u_int length, u_int hec) {
+void
+oam_print(packetbody_t p, u_int length, u_int hec)
+{
+	if (!invoke_dissector((void *)_oam_print,
+	    length, hec, 0, 0, 0, gndo, p, NULL, NULL, NULL))
+		_oam_print(p, length, hec);
+}
 
+void
+_oam_print(packetbody_t p, u_int length, u_int hec)
+{
     u_int32_t cell_header;
     u_int16_t vpi, vci, cksum, cksum_shouldbe, idx;
     u_int8_t  cell_type, func_type, payload, clp;
@@ -382,7 +399,7 @@ oam_print(packetbody_t p, u_int length, u_int hec) {
            clp, length);
 
     if (!vflag) {
-        return 1;
+        return;
     }
 
     printf("\n\tcell-type %s (%u)",
@@ -449,5 +466,5 @@ oam_print(packetbody_t p, u_int length, u_int hec) {
            cksum,
            cksum_shouldbe == 0 ? "" : "in");
 
-    return 1;
+    return;
 }

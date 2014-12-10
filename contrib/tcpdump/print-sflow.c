@@ -810,8 +810,16 @@ sflow_print_expanded_flow_sample(packetbody_t pointer, u_int len) {
 }
 
 void
-sflow_print(packetbody_t pptr, u_int len) {
+sflow_print(packetbody_t pptr, u_int len)
+{
+	if (!invoke_dissector((void *)_sflow_print,
+	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_sflow_print(pptr, len);
+}
 
+void
+_sflow_print(packetbody_t pptr, u_int len)
+{
     __capability const struct sflow_datagram_t *sflow_datagram;
     __capability const struct sflow_sample_header *sflow_sample;
 

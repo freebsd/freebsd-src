@@ -250,6 +250,14 @@ olsr_print_neighbor (packetbody_t msg_data, u_int hello_len)
 void
 olsr_print (packetbody_t pptr, u_int length, int is_ipv6)
 {
+	if (!invoke_dissector((void *)_olsr_print,
+	    length, is_ipv6, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_olsr_print(pptr, length, is_ipv6);
+}
+
+void
+_olsr_print (packetbody_t pptr, u_int length, int is_ipv6)
+{
     union {
         __capability const struct olsr_common *common;
         __capability const struct olsr_msg4 *msg4;

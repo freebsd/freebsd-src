@@ -67,6 +67,15 @@ void
 decnet_print(packetbody_t ap, register u_int length,
 	     register u_int caplen)
 {
+	if (!invoke_dissector((void *)_decnet_print,
+	    length, caplen, 0, 0, 0, gndo, ap, NULL, NULL, NULL))
+		_decnet_print(ap, length, caplen);
+}
+
+void
+_decnet_print(packetbody_t ap, register u_int length,
+	     register u_int caplen)
+{
 	__capability const union routehdr *rhp;
 	register int mflags;
 	int dst, src, hops;

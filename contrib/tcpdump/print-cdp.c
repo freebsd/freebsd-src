@@ -88,6 +88,14 @@ static unsigned long cdp_get_number(packetbody_t, int);
 void
 cdp_print(packetbody_t pptr, u_int length, u_int caplen)
 {
+	if (!invoke_dissector((void *)_cdp_print,
+	    length, caplen, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_cdp_print(pptr, length, caplen);
+}
+
+void
+_cdp_print(packetbody_t pptr, u_int length, u_int caplen)
+{
 	int type, len, i, j;
         packetbody_t tptr;
 

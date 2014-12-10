@@ -365,6 +365,14 @@ stp_print_mstp_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int length)
 void
 stp_print(packetbody_t p, u_int length)
 {
+	if (!invoke_dissector((void *)_stp_print,
+	    length, 0, 0, 0, 0, gndo, p, NULL, NULL, NULL))
+		_stp_print(p, length);
+}
+
+void
+_stp_print(packetbody_t p, u_int length)
+{
     __capability const struct stp_bpdu_ *stp_bpdu;
     u_int16_t              mstp_len;
     u_int16_t              spb_len;

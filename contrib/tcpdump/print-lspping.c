@@ -466,8 +466,16 @@ static const struct tok lspping_tlv_downstream_addr_values[] = {
 };
 
 void
-lspping_print(packetbody_t pptr, register u_int len) {
+lspping_print(packetbody_t pptr, register u_int len)
+{
+	if (!invoke_dissector((void *)_lspping_print,
+	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_lspping_print(pptr, len);
+}
 
+void
+_lspping_print(packetbody_t pptr, register u_int len)
+{
     __capability const struct lspping_common_header *lspping_com_header;
     __capability const struct lspping_tlv_header *lspping_tlv_header;
     __capability const struct lspping_tlv_header *lspping_subtlv_header;

@@ -1173,7 +1173,16 @@ lldp_mgmt_addr_tlv_print(packetbody_t pptr, u_int len) {
 } 
 
 void
-lldp_print(packetbody_t pptr, register u_int len) {
+lldp_print(packetbody_t pptr, register u_int len)
+{
+	if (!invoke_dissector((void *)_lldp_print,
+	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_lldp_print(pptr, len);
+}
+
+void
+_lldp_print(packetbody_t pptr, register u_int len)
+{
 
     u_int8_t subtype;
     u_int16_t tlv, cap, ena_cap;

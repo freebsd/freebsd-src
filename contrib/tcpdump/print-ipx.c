@@ -56,6 +56,14 @@ void ipx_rip_print(__capability const u_short *, u_int);
 void
 ipx_print(packetbody_t p, u_int length)
 {
+	if (!invoke_dissector((void *)_ipx_print,
+	    length, 0, 0, 0, 0, gndo, p, NULL, NULL, NULL))
+		_ipx_print(p, length);
+}
+
+void
+_ipx_print(packetbody_t p, u_int length)
+{
 	__capability const struct ipxHdr *ipx = (__capability const struct ipxHdr *)p;
 
 	if (!eflag)

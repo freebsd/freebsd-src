@@ -87,6 +87,15 @@ void
 sunrpcrequest_print(packetbody_t bp, register u_int length,
 		    packetbody_t bp2)
 {
+	if (!invoke_dissector((void *)_sunrpcrequest_print,
+	    length, 0, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
+		_sunrpcrequest_print(bp, length, bp2);
+}
+
+void
+_sunrpcrequest_print(packetbody_t bp, register u_int length,
+		    packetbody_t bp2)
+{
 	__capability const struct sunrpc_msg *rp;
 	__capability const struct ip *ip;
 #ifdef INET6

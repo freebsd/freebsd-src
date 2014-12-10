@@ -1052,7 +1052,15 @@ trunc:
 }
 
 void
-ospf_print(packetbody_t bp, register u_int length, packetbody_t bp2 _U_)
+ospf_print(packetbody_t bp, register u_int length, packetbody_t bp2)
+{
+	if (!invoke_dissector((void *)_ospf_print,
+	    length, 0, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
+		_ospf_print(bp, length, bp2);
+}
+
+void
+_ospf_print(packetbody_t bp, register u_int length, packetbody_t bp2 _U_)
 {
 	__capability const struct ospfhdr *op;
 	__capability const u_char *dataend;

@@ -893,6 +893,14 @@ trunc:
 void
 radius_print(packetbody_t dat, u_int length)
 {
+	if (!invoke_dissector((void *)_radius_print,
+	    length, 0, 0, 0, 0, gndo, dat, NULL, NULL, NULL))
+		_radius_print(dat, length);
+}
+
+void
+_radius_print(packetbody_t dat, u_int length)
+{
    __capability const struct radius_hdr *rad;
    u_int len, auth_idx;
 

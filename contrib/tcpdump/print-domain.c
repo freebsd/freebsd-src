@@ -580,6 +580,14 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 void
 ns_print(packetbody_t bp, u_int length, int is_mdns)
 {
+	if (!invoke_dissector((void *)_ns_print,
+	    length, is_mdns, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_ns_print(bp, length, is_mdns);
+}
+
+void
+_ns_print(packetbody_t bp, u_int length, int is_mdns)
+{
 	__capability const HEADER *np;
 	register int qdcount, ancount, nscount, arcount;
 	packetbody_t cp;

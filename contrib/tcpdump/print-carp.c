@@ -53,6 +53,14 @@
 void
 carp_print(packetbody_t bp, register u_int len, int ttl)
 {
+	if (!invoke_dissector((void *)_carp_print,
+	    len, ttl, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_carp_print(bp, len, ttl);
+}
+
+void
+_carp_print(packetbody_t bp, register u_int len, int ttl)
+{
 	int version, type;
 	const char *type_s;
 

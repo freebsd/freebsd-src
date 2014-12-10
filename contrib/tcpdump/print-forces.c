@@ -980,7 +980,16 @@ trunc:
 	return -1;
 }
 
-void forces_print(packetbody_t pptr, register u_int len)
+void
+forces_print(packetbody_t pptr, register u_int len)
+{
+	if (!invoke_dissector((void *)_forces_print,
+	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_forces_print(pptr, len);
+}
+
+void
+_forces_print(packetbody_t pptr, register u_int len)
 {
 	__capability const struct forcesh *fhdr;
 	u_int mlen;

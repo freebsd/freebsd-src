@@ -157,6 +157,14 @@ typedef enum _pgm_type {
 void
 pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 {
+	if (!invoke_dissector((void *)_pgm_print,
+	    length, 0, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
+		_pgm_print(bp, length, bp2);
+}
+
+void
+_pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
+{
 	__capability const struct pgm_header *pgm;
 	__capability const struct ip *ip;
 	register char ch;

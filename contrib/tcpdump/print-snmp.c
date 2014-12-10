@@ -1854,6 +1854,14 @@ v3msg_print(packetbody_t np, u_int length)
 void
 snmp_print(packetbody_t np, u_int length)
 {
+	if (!invoke_dissector((void *)_snmp_print,
+	    length, 0, 0, 0, 0, gndo, np, NULL, NULL, NULL))
+		_snmp_print(np, length);
+}
+
+void
+_snmp_print(packetbody_t np, u_int length)
+{
 	struct be elem;
 	int count = 0;
 	int version = 0;

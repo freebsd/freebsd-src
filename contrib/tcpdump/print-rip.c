@@ -177,6 +177,14 @@ rip_entry_print_v2(__capability const struct rip_netinfo *ni, const unsigned rem
 void
 rip_print(packetbody_t dat, u_int length)
 {
+	if (!invoke_dissector((void *)_rip_print,
+	    length, 0, 0, 0, 0, gndo, dat, NULL, NULL, NULL))
+		_rip_print(dat, length);
+}
+
+void
+_rip_print(packetbody_t dat, u_int length)
+{
 	__capability const struct rip *rp;
 	__capability const struct rip_netinfo *ni;
 	register u_int i, j;

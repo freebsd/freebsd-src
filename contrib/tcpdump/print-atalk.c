@@ -167,6 +167,14 @@ llap_print(packetbody_t bp, u_int length)
 void
 atalk_print(packetbody_t bp, u_int length)
 {
+	if (!invoke_dissector((void *)_atalk_print,
+	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_atalk_print(bp, length);
+}
+
+void
+_atalk_print(packetbody_t bp, u_int length)
+{
 	__capability const struct atDDP *dp;
 	u_short snet;
 
@@ -192,6 +200,14 @@ atalk_print(packetbody_t bp, u_int length)
 /* XXX should probably pass in the snap header and do checks like arp_print() */
 void
 aarp_print(packetbody_t bp, u_int length)
+{
+	if (!invoke_dissector((void *)_aarp_print,
+	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_aarp_print(bp, length);
+}
+
+void
+_aarp_print(packetbody_t bp, u_int length)
 {
 	__capability const struct aarp *ap;
 

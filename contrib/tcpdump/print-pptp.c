@@ -988,6 +988,14 @@ trunc:
 void
 pptp_print(packetbody_t dat)
 {
+	if (!invoke_dissector((void *)_pptp_print,
+	    snapend - dat, 0, 0, 0, 0, gndo, dat, NULL, NULL, NULL))
+		_pptp_print(dat);
+}
+
+void
+_pptp_print(packetbody_t dat)
+{
 	__capability const struct pptp_hdr *hdr;
 	u_int32_t mc;
 	u_int16_t ctrl_msg_type;

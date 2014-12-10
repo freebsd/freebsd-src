@@ -286,9 +286,360 @@ dispatch_dissector(register_t op, u_int length, register_t arg2,
 		_rrcp_print(ndo, bp, length);
 		break;
 
+	case TCPDUMP_HELPER_OP_TELNET_PRINT:
+		_telnet_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_AARP_PRINT:
+		_aarp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_AODV_PRINT:
+		_aodv_print(bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_ATALK_PRINT:
+		_atalk_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_ATM_PRINT:
+		_atm_print(arg2, arg3, arg4, bp, length, arg5);
+		break;
+
+	case TCPDUMP_HELPER_OP_OAM_PRINT:
+		_oam_print(bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_BOOTP_PRINT:
+		_bootp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_BGP_PRINT:
+		_bgp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_BEEP_PRINT:
+		_beep_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_CNFP_PRINT:
+		_cnfp_print(bp, bp2);
+		break;
+
+	case TCPDUMP_HELPER_OP_DECNET_PRINT:
+		_decnet_print(bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_DVMRP_PRINT:
+		_dvmrp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_EGP_PRINT:
+		_egp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_PFSYNC_IP_PRINT:
+		_pfsync_ip_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_FDDI_PRINT:
+		_fddi_print(bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_GRE_PRINT:
+		_gre_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_ICMP_PRINT:
+		_icmp_print(bp, length, bp2, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_IGMP_PRINT:
+		_igmp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_IGRP_PRINT:
+		_igrp_print(bp, length, bp2);
+		break;
+
+	case TCPDUMP_HELPER_OP_IPX_PRINT:
+		_ipx_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_ISOCLNS_PRINT:
+		_isoclns_print(bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_KRB_PRINT:
+		_krb_print(bp);
+		break;
+
+	case TCPDUMP_HELPER_OP_MSDP_PRINT:
+		_msdp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_NFSREPLY_PRINT:
+		_nfsreply_print(bp, length, bp2);
+		break;
+
+	case TCPDUMP_HELPER_OP_NFSREQ_PRINT:
+		_nfsreq_print(bp, length, bp2);
+		break;
+
+	case TCPDUMP_HELPER_OP_NS_PRINT:
+		_ns_print(bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_NTP_PRINT:
+		_ntp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_OSPF_PRINT:
+		_ospf_print(bp, length, bp2);
+		break;
+
+	case TCPDUMP_HELPER_OP_OLSR_PRINT:
+		_olsr_print(bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_PIMV1_PRINT:
+		_pimv1_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_CISCO_AUTORP_PRINT:
+		_cisco_autorp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_RSVP_PRINT:
+		_rsvp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_LDP_PRINT:
+		_ldp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_LLDP_PRINT:
+		_lldp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_RPKI_RTR_PRINT:
+		_rpki_rtr_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_LMP_PRINT:
+		_lmp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_LSPPING_PRINT:
+		_lspping_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_LWAPP_CONTROL_PRINT:
+		_lwapp_control_print(bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_LWAPP_DATA_PRINT:
+		_lwapp_data_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_EIGRP_PRINT:
+		_eigrp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_MOBILE_PRINT:
+		_mobile_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_PIM_PRINT:
+		_pim_print(bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_Q933_PRINT:
+		_q933_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_VQP_PRINT:
+		_vqp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_RIP_PRINT:
+		_rip_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_LANE_PRINT:
+		_lane_print(bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_SNMP_PRINT:
+		_snmp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_SUNRPCREQUEST_PRINT:
+		_sunrpcrequest_print(bp, length, bp2);
+		break;
+
 	case TCPDUMP_HELPER_OP_TCP_PRINT:
 		_tcp_print(bp, length, bp2, arg2);
 		break;
+
+	case TCPDUMP_HELPER_OP_TFTP_PRINT:
+		_tftp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_TIMED_PRINT:
+		_timed_print(bp);
+		break;
+
+	case TCPDUMP_HELPER_OP_UDLD_PRINT:
+		_udld_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_UDP_PRINT:
+		_udp_print(bp, length, bp2, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_VTP_PRINT:
+		_vtp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_WB_PRINT:
+		_wb_print(bp, length);
+		break;
+
+#if 0
+	case TCPDUMP_HELPER_OP_RX_PRINT:
+		_rx_print(bp, length, arg2, arg3, bp2);
+		break;
+#endif
+
+	case TCPDUMP_HELPER_OP_NETBEUI_PRINT:
+		_netbeui_print(arg2, bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_IPX_NETBIOS_PRINT:
+		_ipx_netbios_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_NBT_TCP_PRINT:
+		_nbt_tcp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_NBT_UDP137_PRINT:
+		_nbt_udp137_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_NBT_UDP138_PRINT:
+		_nbt_udp138_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_SMB_TCP_PRINT:
+		_smb_tcp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_L2TP_PRINT:
+		_l2tp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_VRRP_PRINT:
+		_vrrp_print(bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_CARP_PRINT:
+		_carp_print(bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_SLOW_PRINT:
+		_slow_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_SFLOW_PRINT:
+		_sflow_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_MPCP_PRINT:
+		_mpcp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_CFM_PRINT:
+		_cfm_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_PGM_PRINT:
+		_pgm_print(bp, length, bp2);
+		break;
+
+	case TCPDUMP_HELPER_OP_CDP_PRINT:
+		_cdp_print(bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_DTP_PRINT:
+		_dtp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_STP_PRINT:
+		_stp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_RADIUS_PRINT:
+		_radius_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_LWRES_PRINT:
+		_lwres_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_PPTP_PRINT:
+		_pptp_print(bp);
+		break;
+
+	case TCPDUMP_HELPER_OP_DCCP_PRINT:
+		_dccp_print(bp, bp2, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_SCTP_PRINT:
+		_sctp_print(bp, bp2, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_FORCES_PRINT:
+		_forces_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_MPLS_PRINT:
+		_mpls_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_ZEPHYR_PRINT:
+		_zephyr_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_ZMTP1_PRINT:
+		_zmtp1_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_HSRP_PRINT:
+		_hsrp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_BFD_PRINT:
+		_bfd_print(bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_SIP_PRINT:
+		_sip_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_SYSLOG_PRINT:
+		_syslog_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_VXLAN_PRINT:
+		_vxlan_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_OTV_PRINT:
+		_otv_print(bp, length);
+		break;
+
 
 	default:
 		printf("unknown op %ld\n", op);
@@ -325,8 +676,184 @@ invoke_dissector(void *func, u_int length, register_t arg2,
 	else if (func == (void *)_rrcp_print)
 		op = TCPDUMP_HELPER_OP_RRCP_PRINT;
 
+	else if (func == (void *)_telnet_print)
+		op = TCPDUMP_HELPER_OP_TELNET_PRINT;
+	else if (func == (void *)_aarp_print)
+		op = TCPDUMP_HELPER_OP_AARP_PRINT;
+	else if (func == (void *)_aodv_print)
+		op = TCPDUMP_HELPER_OP_AODV_PRINT;
+	else if (func == (void *)_atalk_print)
+		op = TCPDUMP_HELPER_OP_ATALK_PRINT;
+	else if (func == (void *)_atm_print)
+		op = TCPDUMP_HELPER_OP_ATM_PRINT;
+	else if (func == (void *)_oam_print)
+		op = TCPDUMP_HELPER_OP_OAM_PRINT;
+	else if (func == (void *)_bootp_print)
+		op = TCPDUMP_HELPER_OP_BOOTP_PRINT;
+	else if (func == (void *)_bgp_print)
+		op = TCPDUMP_HELPER_OP_BGP_PRINT;
+	else if (func == (void *)_beep_print)
+		op = TCPDUMP_HELPER_OP_BEEP_PRINT;
+	else if (func == (void *)_cnfp_print)
+		op = TCPDUMP_HELPER_OP_CNFP_PRINT;
+	else if (func == (void *)_decnet_print)
+		op = TCPDUMP_HELPER_OP_DECNET_PRINT;
+	else if (func == (void *)_dvmrp_print)
+		op = TCPDUMP_HELPER_OP_DVMRP_PRINT;
+	else if (func == (void *)_egp_print)
+		op = TCPDUMP_HELPER_OP_EGP_PRINT;
+	else if (func == (void *)_pfsync_ip_print)
+		op = TCPDUMP_HELPER_OP_PFSYNC_IP_PRINT;
+	else if (func == (void *)_fddi_print)
+		op = TCPDUMP_HELPER_OP_FDDI_PRINT;
+	else if (func == (void *)_gre_print)
+		op = TCPDUMP_HELPER_OP_GRE_PRINT;
+	else if (func == (void *)_icmp_print)
+		op = TCPDUMP_HELPER_OP_ICMP_PRINT;
+	else if (func == (void *)_igmp_print)
+		op = TCPDUMP_HELPER_OP_IGMP_PRINT;
+	else if (func == (void *)_igrp_print)
+		op = TCPDUMP_HELPER_OP_IGRP_PRINT;
+	else if (func == (void *)_ipx_print)
+		op = TCPDUMP_HELPER_OP_IPX_PRINT;
+	else if (func == (void *)_isoclns_print)
+		op = TCPDUMP_HELPER_OP_ISOCLNS_PRINT;
+	else if (func == (void *)_krb_print)
+		op = TCPDUMP_HELPER_OP_KRB_PRINT;
+	else if (func == (void *)_msdp_print)
+		op = TCPDUMP_HELPER_OP_MSDP_PRINT;
+	else if (func == (void *)_nfsreply_print)
+		op = TCPDUMP_HELPER_OP_NFSREPLY_PRINT;
+	else if (func == (void *)_nfsreq_print)
+		op = TCPDUMP_HELPER_OP_NFSREQ_PRINT;
+	else if (func == (void *)_ns_print)
+		op = TCPDUMP_HELPER_OP_NS_PRINT;
+	else if (func == (void *)_ntp_print)
+		op = TCPDUMP_HELPER_OP_NTP_PRINT;
+	else if (func == (void *)_ospf_print)
+		op = TCPDUMP_HELPER_OP_OSPF_PRINT;
+	else if (func == (void *)_olsr_print)
+		op = TCPDUMP_HELPER_OP_OLSR_PRINT;
+	else if (func == (void *)_pimv1_print)
+		op = TCPDUMP_HELPER_OP_PIMV1_PRINT;
+	else if (func == (void *)_cisco_autorp_print)
+		op = TCPDUMP_HELPER_OP_CISCO_AUTORP_PRINT;
+	else if (func == (void *)_rsvp_print)
+		op = TCPDUMP_HELPER_OP_RSVP_PRINT;
+	else if (func == (void *)_ldp_print)
+		op = TCPDUMP_HELPER_OP_LDP_PRINT;
+	else if (func == (void *)_lldp_print)
+		op = TCPDUMP_HELPER_OP_LLDP_PRINT;
+	else if (func == (void *)_rpki_rtr_print)
+		op = TCPDUMP_HELPER_OP_RPKI_RTR_PRINT;
+	else if (func == (void *)_lmp_print)
+		op = TCPDUMP_HELPER_OP_LMP_PRINT;
+	else if (func == (void *)_lspping_print)
+		op = TCPDUMP_HELPER_OP_LSPPING_PRINT;
+	else if (func == (void *)_lwapp_control_print)
+		op = TCPDUMP_HELPER_OP_LWAPP_CONTROL_PRINT;
+	else if (func == (void *)_lwapp_data_print)
+		op = TCPDUMP_HELPER_OP_LWAPP_DATA_PRINT;
+	else if (func == (void *)_eigrp_print)
+		op = TCPDUMP_HELPER_OP_EIGRP_PRINT;
+	else if (func == (void *)_mobile_print)
+		op = TCPDUMP_HELPER_OP_MOBILE_PRINT;
+	else if (func == (void *)_pim_print)
+		op = TCPDUMP_HELPER_OP_PIM_PRINT;
+	else if (func == (void *)_q933_print)
+		op = TCPDUMP_HELPER_OP_Q933_PRINT;
+	else if (func == (void *)_vqp_print)
+		op = TCPDUMP_HELPER_OP_VQP_PRINT;
+	else if (func == (void *)_rip_print)
+		op = TCPDUMP_HELPER_OP_RIP_PRINT;
+	else if (func == (void *)_lane_print)
+		op = TCPDUMP_HELPER_OP_LANE_PRINT;
+	else if (func == (void *)_snmp_print)
+		op = TCPDUMP_HELPER_OP_SNMP_PRINT;
+	else if (func == (void *)_sunrpcrequest_print)
+		op = TCPDUMP_HELPER_OP_SUNRPCREQUEST_PRINT;
 	else if (func == (void *)_tcp_print)
 		op = TCPDUMP_HELPER_OP_TCP_PRINT;
+	else if (func == (void *)_tftp_print)
+		op = TCPDUMP_HELPER_OP_TFTP_PRINT;
+	else if (func == (void *)_timed_print)
+		op = TCPDUMP_HELPER_OP_TIMED_PRINT;
+	else if (func == (void *)_udld_print)
+		op = TCPDUMP_HELPER_OP_UDLD_PRINT;
+	else if (func == (void *)_udp_print)
+		op = TCPDUMP_HELPER_OP_UDP_PRINT;
+	else if (func == (void *)_vtp_print)
+		op = TCPDUMP_HELPER_OP_VTP_PRINT;
+	else if (func == (void *)_wb_print)
+		op = TCPDUMP_HELPER_OP_WB_PRINT;
+#if 0
+	else if (func == (void *)_rx_print)
+		op = TCPDUMP_HELPER_OP_RX_PRINT;
+#endif
+	else if (func == (void *)_netbeui_print)
+		op = TCPDUMP_HELPER_OP_NETBEUI_PRINT;
+	else if (func == (void *)_ipx_netbios_print)
+		op = TCPDUMP_HELPER_OP_IPX_NETBIOS_PRINT;
+	else if (func == (void *)_nbt_tcp_print)
+		op = TCPDUMP_HELPER_OP_NBT_TCP_PRINT;
+	else if (func == (void *)_nbt_udp137_print)
+		op = TCPDUMP_HELPER_OP_NBT_UDP137_PRINT;
+	else if (func == (void *)_nbt_udp138_print)
+		op = TCPDUMP_HELPER_OP_NBT_UDP138_PRINT;
+	else if (func == (void *)_smb_tcp_print)
+		op = TCPDUMP_HELPER_OP_SMB_TCP_PRINT;
+	else if (func == (void *)_l2tp_print)
+		op = TCPDUMP_HELPER_OP_L2TP_PRINT;
+	else if (func == (void *)_vrrp_print)
+		op = TCPDUMP_HELPER_OP_VRRP_PRINT;
+	else if (func == (void *)_carp_print)
+		op = TCPDUMP_HELPER_OP_CARP_PRINT;
+	else if (func == (void *)_slow_print)
+		op = TCPDUMP_HELPER_OP_SLOW_PRINT;
+	else if (func == (void *)_sflow_print)
+		op = TCPDUMP_HELPER_OP_SFLOW_PRINT;
+	else if (func == (void *)_mpcp_print)
+		op = TCPDUMP_HELPER_OP_MPCP_PRINT;
+	else if (func == (void *)_cfm_print)
+		op = TCPDUMP_HELPER_OP_CFM_PRINT;
+	else if (func == (void *)_pgm_print)
+		op = TCPDUMP_HELPER_OP_PGM_PRINT;
+	else if (func == (void *)_cdp_print)
+		op = TCPDUMP_HELPER_OP_CDP_PRINT;
+	else if (func == (void *)_dtp_print)
+		op = TCPDUMP_HELPER_OP_DTP_PRINT;
+	else if (func == (void *)_stp_print)
+		op = TCPDUMP_HELPER_OP_STP_PRINT;
+	else if (func == (void *)_radius_print)
+		op = TCPDUMP_HELPER_OP_RADIUS_PRINT;
+	else if (func == (void *)_lwres_print)
+		op = TCPDUMP_HELPER_OP_LWRES_PRINT;
+	else if (func == (void *)_pptp_print)
+		op = TCPDUMP_HELPER_OP_PPTP_PRINT;
+	else if (func == (void *)_dccp_print)
+		op = TCPDUMP_HELPER_OP_DCCP_PRINT;
+	else if (func == (void *)_sctp_print)
+		op = TCPDUMP_HELPER_OP_SCTP_PRINT;
+	else if (func == (void *)_forces_print)
+		op = TCPDUMP_HELPER_OP_FORCES_PRINT;
+	else if (func == (void *)_mpls_print)
+		op = TCPDUMP_HELPER_OP_MPLS_PRINT;
+	else if (func == (void *)_zephyr_print)
+		op = TCPDUMP_HELPER_OP_ZEPHYR_PRINT;
+	else if (func == (void *)_zmtp1_print)
+		op = TCPDUMP_HELPER_OP_ZMTP1_PRINT;
+	else if (func == (void *)_hsrp_print)
+		op = TCPDUMP_HELPER_OP_HSRP_PRINT;
+	else if (func == (void *)_bfd_print)
+		op = TCPDUMP_HELPER_OP_BFD_PRINT;
+	else if (func == (void *)_sip_print)
+		op = TCPDUMP_HELPER_OP_SIP_PRINT;
+	else if (func == (void *)_syslog_print)
+		op = TCPDUMP_HELPER_OP_SYSLOG_PRINT;
+	else if (func == (void *)_vxlan_print)
+		op = TCPDUMP_HELPER_OP_VXLAN_PRINT;
+	else if (func == (void *)_otv_print)
+		op = TCPDUMP_HELPER_OP_OTV_PRINT;
 	else
 		return (0);
 

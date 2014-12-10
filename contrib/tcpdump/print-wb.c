@@ -393,6 +393,14 @@ wb_drawop(__capability const struct pkt_dop *dop, u_int len)
 void
 wb_print(packetbody_t hdr, register u_int len)
 {
+	if (!invoke_dissector((void *)_wb_print,
+	    len, 0, 0, 0, 0, gndo, hdr, NULL, NULL, NULL))
+		_wb_print(hdr, len);
+}
+
+void
+_wb_print(packetbody_t hdr, register u_int len)
+{
 	__capability const struct pkt_hdr *ph;
 
 	ph = (__capability const struct pkt_hdr *)hdr;

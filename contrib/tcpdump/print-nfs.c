@@ -287,6 +287,14 @@ print_sattr3(const struct nfsv3_sattr *sa3, int verbose)
 void
 nfsreply_print(packetbody_t bp, u_int length, packetbody_t bp2)
 {
+	if (!invoke_dissector((void *)_nfsreply_print,
+	    length, 0, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
+		_nfsreply_print(bp, length, bp2);
+}
+
+void
+_nfsreply_print(packetbody_t bp, u_int length, packetbody_t bp2)
+{
 	__capability const struct sunrpc_msg *rp;
 	u_int32_t proc, vers, reply_stat;
 	char srcid[20], dstid[20];	/*fits 32bit*/
@@ -508,6 +516,14 @@ parsefhn(__capability const u_int32_t *dp, int v3)
 
 void
 nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
+{
+	if (!invoke_dissector((void *)_nfsreq_print,
+	    length, 0, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
+		_nfsreq_print(bp, length, bp2);
+}
+
+void
+_nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
 {
 	__capability const struct sunrpc_msg *rp;
 	__capability register const u_int32_t *dp;

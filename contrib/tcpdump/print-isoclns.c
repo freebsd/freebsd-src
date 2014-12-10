@@ -672,7 +672,16 @@ struct isis_tlv_lsp {
 #define ISIS_CSNP_HEADER_SIZE (sizeof(struct isis_csnp_header))
 #define ISIS_PSNP_HEADER_SIZE (sizeof(struct isis_psnp_header))
 
-void isoclns_print(packetbody_t p, u_int length, u_int caplen)
+void
+isoclns_print(packetbody_t p, u_int length, u_int caplen)
+{
+	if (!invoke_dissector((void *)_isoclns_print,
+	    length, caplen, 0, 0, 0, gndo, p, NULL, NULL, NULL))
+		_isoclns_print(p, length, caplen);
+}
+
+void
+_isoclns_print(packetbody_t p, u_int length, u_int caplen)
 {
         if (caplen <= 1) { /* enough bytes on the wire ? */
             printf("|OSI");

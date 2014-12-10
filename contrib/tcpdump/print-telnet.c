@@ -227,6 +227,14 @@ pktend:
 void
 telnet_print(packetbody_t sp, u_int length)
 {
+	if (!invoke_dissector((void *)_telnet_print,
+	    length, 0, 0, 0, 0, gndo, sp, NULL, NULL, NULL))
+		_telnet_print(sp, length);
+}
+
+void
+_telnet_print(packetbody_t sp, u_int length)
+{
 	int first = 1;
 	packetbody_t osp;
 	int l;

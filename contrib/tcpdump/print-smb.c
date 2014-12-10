@@ -925,6 +925,14 @@ trunc:
 void
 nbt_tcp_print(packetbody_t data, int length)
 {
+	if (!invoke_dissector((void *)_nbt_tcp_print,
+	    length, 0, 0, 0, 0, gndo, data, NULL, NULL, NULL))
+		_nbt_tcp_print(data, length);
+}
+
+void
+_nbt_tcp_print(packetbody_t data, int length)
+{
     int caplen;
     int type;
     u_int nbt_len;
@@ -1089,6 +1097,14 @@ trunc:
 void
 nbt_udp137_print(packetbody_t data, int length)
 {
+	if (!invoke_dissector((void *)_nbt_udp137_print,
+	    length, 0, 0, 0, 0, gndo, data, NULL, NULL, NULL))
+		_nbt_udp137_print(data, length);
+}
+
+void
+_nbt_udp137_print(packetbody_t data, int length)
+{
     packetbody_t maxbuf = data + length;
     int name_trn_id, response, opcode, nm_flags, rcode;
     int qdcount, ancount, nscount, arcount;
@@ -1250,6 +1266,14 @@ trunc:
 void
 smb_tcp_print (packetbody_t data, int length)
 {
+	if (!invoke_dissector((void *)_smb_tcp_print,
+	    length, 0, 0, 0, 0, gndo, data, NULL, NULL, NULL))
+		_smb_tcp_print(data, length);
+}
+
+void
+_smb_tcp_print (packetbody_t data, int length)
+{
     int caplen;
     u_int smb_len;
     packetbody_t maxbuf;
@@ -1291,6 +1315,14 @@ trunc:
  */
 void
 nbt_udp138_print(packetbody_t data, int length)
+{
+	if (!invoke_dissector((void *)_nbt_udp138_print,
+	    length, 0, 0, 0, 0, gndo, data, NULL, NULL, NULL))
+		_nbt_udp138_print(data, length);
+}
+
+void
+_nbt_udp138_print(packetbody_t data, int length)
 {
     packetbody_t maxbuf = data + length;
 
@@ -1383,6 +1415,14 @@ struct nbf_strings {
 
 void
 netbeui_print(u_short control, packetbody_t data, int length)
+{
+	if (!invoke_dissector((void *)_netbeui_print,
+	    length, control, 0, 0, 0, gndo, data, NULL, NULL, NULL))
+		_netbeui_print(control, data, length);
+}
+
+void
+_netbeui_print(u_short control, packetbody_t data, int length)
 {
     packetbody_t maxbuf = data + length;
     int len;
@@ -1481,6 +1521,14 @@ trunc:
  */
 void
 ipx_netbios_print(packetbody_t data, u_int length)
+{
+	if (!invoke_dissector((void *)_ipx_netbios_print,
+	    length, 0, 0, 0, 0, gndo, data, NULL, NULL, NULL))
+		_ipx_netbios_print(data, length);
+}
+
+void
+_ipx_netbios_print(packetbody_t data, u_int length)
 {
     /*
      * this is a hack till I work out how to parse the rest of the

@@ -290,8 +290,16 @@ cfm_egress_id_string(packetbody_t tptr) {
 }
 
 void
-cfm_print(packetbody_t pptr, register u_int length) {
+cfm_print(packetbody_t pptr, register u_int length)
+{
+	if (!invoke_dissector((void *)_cfm_print,
+	    length, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_cfm_print(pptr, length);
+}
 
+void
+_cfm_print(packetbody_t pptr, register u_int length)
+{
     __capability const struct cfm_common_header_t *cfm_common_header;
     __capability const struct cfm_tlv_header_t *cfm_tlv_header;
     packetbody_t tptr, tlv_ptr, ma_name, ma_nameformat, ma_namelength;

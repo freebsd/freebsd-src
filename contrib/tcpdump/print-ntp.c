@@ -87,6 +87,14 @@ static struct tok ntp_stratum_values[] = {
 void
 ntp_print(packetbody_t cp, u_int length)
 {
+	if (!invoke_dissector((void *)_ntp_print,
+	    length, 0, 0, 0, 0, gndo, cp, NULL, NULL, NULL))
+		_ntp_print(cp, length);
+}
+
+void
+_ntp_print(packetbody_t cp, u_int length)
+{
 	__capability const struct ntpdata *bp;
 	int mode, version, leapind;
 

@@ -216,6 +216,14 @@ trunc:
 void
 egp_print(packetbody_t bp, register u_int length)
 {
+	if (!invoke_dissector((void *)_egp_print,
+	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_egp_print(bp, length);
+}
+
+void
+_egp_print(packetbody_t bp, register u_int length)
+{
 	__capability const struct egp_packet *egp;
 	register int status;
 	register int code;

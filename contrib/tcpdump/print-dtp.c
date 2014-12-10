@@ -49,6 +49,14 @@ static struct tok dtp_tlv_values[] = {
 void
 dtp_print (packetbody_t pptr, u_int length)
 {
+	if (!invoke_dissector((void *)_dtp_print,
+	    length, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_dtp_print(pptr, length);
+}
+
+void
+_dtp_print (packetbody_t pptr, u_int length)
+{
     int type, len;
     packetbody_t tptr;
 

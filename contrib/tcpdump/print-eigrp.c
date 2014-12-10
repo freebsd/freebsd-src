@@ -211,8 +211,16 @@ static const struct tok eigrp_ext_proto_id_values[] = {
 };
 
 void
-eigrp_print(packetbody_t pptr, register u_int len) {
+eigrp_print(packetbody_t pptr, register u_int len)
+{
+	if (!invoke_dissector((void *)_eigrp_print,
+	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_eigrp_print(pptr, len);
+}
 
+void
+_eigrp_print(packetbody_t pptr, register u_int len)
+{
     __capability const struct eigrp_common_header *eigrp_com_header;
     __capability const struct eigrp_tlv_header *eigrp_tlv_header;
     packetbody_t tptr, tlv_tptr;

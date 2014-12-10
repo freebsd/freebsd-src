@@ -297,6 +297,14 @@ lwres_printaddr(__capability lwres_addr_t *ap)
 void
 lwres_print(packetbody_t bp, u_int length)
 {
+	if (!invoke_dissector((void *)_lwres_print,
+	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_lwres_print(bp, length);
+}
+
+void
+_lwres_print(packetbody_t bp, u_int length)
+{
 	__capability const struct lwres_lwpacket *np;
 	u_int32_t v;
 	packetbody_t s;

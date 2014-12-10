@@ -263,6 +263,14 @@ trunc:
 void
 igmp_print(packetbody_t bp, register u_int len)
 {
+	if (!invoke_dissector((void *)_igmp_print,
+	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_igmp_print(bp, len);
+}
+
+void
+_igmp_print(packetbody_t bp, register u_int len)
+{
     struct cksum_vec vec[1];
 
     if (qflag) {

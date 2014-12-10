@@ -132,8 +132,16 @@ static const struct tok mpcp_reg_ack_flag_values[] = {
 };
 
 void
-mpcp_print(packetbody_t pptr, register u_int length) {
+mpcp_print(packetbody_t pptr, register u_int length)
+{
+	if (!invoke_dissector((void *)_mpcp_print,
+	    length, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_mpcp_print(pptr, length);
+}
 
+void
+_mpcp_print(packetbody_t pptr, register u_int length)
+{
     union {
         __capability const struct mpcp_common_header_t *common_header;
         __capability const struct mpcp_grant_t *grant;

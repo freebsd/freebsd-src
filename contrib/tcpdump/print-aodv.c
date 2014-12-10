@@ -393,6 +393,14 @@ aodv_v6_draft_01_rerr(__capability const union aodv *ap _U_, u_int length)
 void
 aodv_print(packetbody_t dat, u_int length, int is_ip6)
 {
+	if (!invoke_dissector((void *)_aodv_print,
+	    length, is_ip6, 0, 0, 0, gndo, dat, NULL, NULL, NULL))
+		_aodv_print(dat, length, is_ip6);
+}
+
+void
+_aodv_print(packetbody_t dat, u_int length, int is_ip6)
+{
 	__capability const union aodv *ap;
 
 	ap = (__capability const union aodv *)dat;

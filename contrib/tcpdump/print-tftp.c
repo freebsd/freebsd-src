@@ -74,6 +74,14 @@ static struct tok err2str[] = {
 void
 tftp_print(packetbody_t bp, u_int length)
 {
+	if (!invoke_dissector((void *)_tftp_print,
+	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_tftp_print(bp, length);
+}
+
+void
+_tftp_print(packetbody_t bp, u_int length)
+{
 	__capability  const struct tftphdr *tp;
 	const char *cp;
 	packetbody_t p;

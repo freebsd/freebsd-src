@@ -86,6 +86,15 @@ void sctp_print(packetbody_t bp,        /* beginning of sctp packet */
 		packetbody_t bp2,       /* beginning of enclosing */
 		u_int sctpPacketLength)  /* ip packet */
 {
+	if (!invoke_dissector((void *)_sctp_print,
+	    sctpPacketLength, 0, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
+		_sctp_print(bp, bp2, sctpPacketLength);
+}
+
+void _sctp_print(packetbody_t bp,        /* beginning of sctp packet */
+		packetbody_t bp2,       /* beginning of enclosing */
+		u_int sctpPacketLength)  /* ip packet */
+{
   __capability const struct sctpHeader *sctpPktHdr;
   __capability const struct ip *ip;
 #ifdef INET6

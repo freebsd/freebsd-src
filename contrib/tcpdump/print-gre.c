@@ -91,6 +91,14 @@ void gre_sre_asn_print(u_int8_t, u_int8_t, packetbody_t, u_int);
 void
 gre_print(packetbody_t bp, u_int length)
 {
+	if (!invoke_dissector((void *)_gre_print,
+	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_gre_print(bp, length);
+}
+
+void
+_gre_print(packetbody_t bp, u_int length)
+{
 	u_int len = length, vers;
 
 	if (len < 2) {

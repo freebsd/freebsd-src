@@ -70,6 +70,14 @@ struct mobile_ip {
 void
 mobile_print(packetbody_t bp, u_int length)
 {
+	if (!invoke_dissector((void *)_mobile_print,
+	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_mobile_print(bp, length);
+}
+
+void
+_mobile_print(packetbody_t bp, u_int length)
+{
 	packetbody_t cp = bp +8 ;
 	__capability const struct mobile_ip *mob;
 	struct cksum_vec vec[1];

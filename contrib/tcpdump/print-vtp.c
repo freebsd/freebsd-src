@@ -122,7 +122,15 @@ static struct tok vtp_stp_type_values[] = {
 };
 
 void
-vtp_print (packetbody_t pptr, u_int length)
+vtp_print(packetbody_t pptr, u_int length)
+{
+	if (!invoke_dissector((void *)_vtp_print,
+	    length, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_vtp_print(pptr, length);
+}
+
+void
+_vtp_print(packetbody_t pptr, u_int length)
 {
     int type, len, name_len, tlv_len, tlv_value;
     packetbody_t name_ptr, tptr;

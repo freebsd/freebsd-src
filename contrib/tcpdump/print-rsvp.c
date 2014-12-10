@@ -1804,8 +1804,16 @@ trunc:
 
 
 void
-rsvp_print(packetbody_t pptr, register u_int len) {
+rsvp_print(packetbody_t pptr, register u_int len)
+{
+	if (!invoke_dissector((void *)_rsvp_print,
+	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_rsvp_print(pptr, len);
+}
 
+void
+_rsvp_print(packetbody_t pptr, register u_int len)
+{
     __capability const struct rsvp_common_header *rsvp_com_header;
     packetbody_t tptr, subtptr;
     u_short plen, tlen, subtlen;

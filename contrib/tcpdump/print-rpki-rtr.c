@@ -315,8 +315,16 @@ rpki_rtr_pdu_print (packetbody_t tptr, u_int indent)
 }
 
 void
-rpki_rtr_print(packetbody_t pptr, register u_int len) {
+rpki_rtr_print(packetbody_t pptr, register u_int len)
+{
+	if (!invoke_dissector((void *)_rpki_rtr_print,
+	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_rpki_rtr_print(pptr, len);
+}
 
+void
+_rpki_rtr_print(packetbody_t pptr, register u_int len)
+{
     u_int tlen, pdu_type, pdu_len;
     packetbody_t tptr;
     __capability const rpki_rtr_pdu *pdu_header;

@@ -728,6 +728,14 @@ static codeset_pr_func_t fr_q933_print_ie_codeset[] = {
 void
 q933_print(packetbody_t p, u_int length)
 {
+	if (!invoke_dissector((void *)_q933_print,
+	    length, 0, 0, 0, 0, gndo, p, NULL, NULL, NULL))
+		_q933_print(p, length);
+}
+
+void
+_q933_print(packetbody_t p, u_int length)
+{
 	packetbody_t ptemp = p;
 	struct ie_tlv_header_t  *ie_p;
         int olen;

@@ -361,8 +361,16 @@ static const struct tok lmp_ctype_values[] = {
 };
 
 void
-lmp_print(packetbody_t pptr, register u_int len) {
+lmp_print(packetbody_t pptr, register u_int len)
+{
+	if (!invoke_dissector((void *)_lmp_print,
+	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_lmp_print(pptr, len);
+}
 
+void
+_lmp_print(packetbody_t pptr, register u_int len)
+{
     __capability const struct lmp_common_header *lmp_com_header;
     __capability const struct lmp_object_header *lmp_obj_header;
     packetbody_t tptr, obj_tptr;

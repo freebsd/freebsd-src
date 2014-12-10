@@ -77,7 +77,15 @@ static struct tok op2str[] = {
 };
 
 void
-igrp_print(packetbody_t bp, u_int length, packetbody_t bp2 _U_)
+igrp_print(packetbody_t bp, u_int length, packetbody_t bp2)
+{
+	if (!invoke_dissector((void *)_igrp_print,
+	    length, 0, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
+		_igrp_print(bp, length, bp2);
+}
+
+void
+_igrp_print(packetbody_t bp, u_int length, packetbody_t bp2 _U_)
 {
 	__capability const struct igrphdr *hdr;
 	__capability const u_char *cp;

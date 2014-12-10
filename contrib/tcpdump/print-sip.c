@@ -35,6 +35,14 @@ static const char rcsid[] _U_ =
 void
 sip_print(packetbody_t pptr, register u_int len)
 {
+	if (!invoke_dissector((void *)_sip_print,
+	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_sip_print(pptr, len);
+}
+
+void
+_sip_print(packetbody_t pptr, register u_int len)
+{
     u_int idx;
 
     printf("SIP, length: %u%s", len, vflag ? "\n\t" : "");

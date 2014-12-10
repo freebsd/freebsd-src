@@ -339,6 +339,14 @@ icmp_tstamp_print(u_int tstamp) {
 void
 icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
 {
+	if (!invoke_dissector((void *)_icmp_print,
+	    plen, fragmented, 0, 0, 0, gndo, bp, bp, NULL, NULL))
+		_icmp_print(bp, plen, bp2, fragmented);
+}
+
+void
+_icmp_print(packetbody_t bp, u_int plen, packetbody_t bp2, int fragmented)
+{
 	char *cp;
 	__capability const struct icmp *dp;
         __capability const struct icmp_ext_t *ext_dp;

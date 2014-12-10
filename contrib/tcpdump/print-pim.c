@@ -211,6 +211,14 @@ trunc:
 void
 pimv1_print(packetbody_t bp, register u_int len)
 {
+	if (!invoke_dissector((void *)_pimv1_print,
+	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_pimv1_print(bp, len);
+}
+
+void
+_pimv1_print(packetbody_t bp, register u_int len)
+{
 	register const u_char *ep;
 	register u_char type;
 
@@ -325,6 +333,14 @@ trunc:
 void
 cisco_autorp_print(packetbody_t bp, register u_int len)
 {
+	if (!invoke_dissector((void *)_cisco_autorp_print,
+	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_cisco_autorp_print(bp, len);
+}
+
+void
+_cisco_autorp_print(packetbody_t bp, register u_int len)
+{
 	int type;
 	int numrps;
 	int hold;
@@ -418,6 +434,14 @@ trunc:
 
 void
 pim_print(packetbody_t bp, register u_int len, u_int cksum)
+{
+	if (!invoke_dissector((void *)_pim_print,
+	    len, cksum, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_pim_print(bp, len, cksum);
+}
+
+void
+_pim_print(packetbody_t bp, register u_int len, u_int cksum)
 {
 	register const u_char *ep;
 	register struct pim *pim = (struct pim *)bp;

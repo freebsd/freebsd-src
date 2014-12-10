@@ -108,6 +108,14 @@ static const struct tok vqp_obj_values[] = {
 void
 vqp_print(packetbody_t pptr, register u_int len) 
 {
+	if (!invoke_dissector((void *)_vqp_print,
+	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
+		_vqp_print(pptr, len);
+}
+
+void
+_vqp_print(packetbody_t pptr, register u_int len)
+{
     __capability const struct vqp_common_header_t *vqp_common_header;
     __capability const struct vqp_obj_tlv_t *vqp_obj_tlv;
 

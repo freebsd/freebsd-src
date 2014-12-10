@@ -67,6 +67,14 @@ enum mpls_packet_type {
 void
 mpls_print(packetbody_t bp, u_int length)
 {
+	if (!invoke_dissector((void *)_mpls_print,
+	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_mpls_print(bp, length);
+}
+
+void
+_mpls_print(packetbody_t bp, u_int length)
+{
 	packetbody_t p;
 	u_int32_t label_entry;
 	u_int16_t label_stack_depth = 0;

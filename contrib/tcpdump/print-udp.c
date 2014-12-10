@@ -361,6 +361,14 @@ udpipaddr_print(__capability const struct ip *ip, int sport, int dport)
 void
 udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 {
+	if (!invoke_dissector((void *)_udp_print,
+	    length, fragmented, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
+		_udp_print(bp, length, bp2, fragmented);
+}
+
+void
+_udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
+{
 	__capability const struct udphdr *up;
 	__capability const struct ip *ip;
 	packetbody_t cp;

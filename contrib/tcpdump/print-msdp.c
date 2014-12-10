@@ -38,6 +38,14 @@ static const char rcsid[] _U_ =
 void
 msdp_print(packetbody_t sp, u_int length)
 {
+	if (!invoke_dissector((void *)_msdp_print,
+	    length, 0, 0, 0, 0, gndo, sp, NULL, NULL, NULL))
+		_msdp_print(sp, length);
+}
+
+void
+_msdp_print(packetbody_t sp, u_int length)
+{
 	unsigned int type, len;
 
 	TCHECK2(*sp, 3);

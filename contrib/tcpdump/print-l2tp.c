@@ -606,6 +606,14 @@ l2tp_avp_print(packetbody_t dat, int length)
 void
 l2tp_print(packetbody_t dat, u_int length)
 {
+	if (!invoke_dissector((void *)_l2tp_print,
+	    length, 0, 0, 0, 0, gndo, dat, NULL, NULL, NULL))
+		_l2tp_print(dat, length);
+}
+
+void
+_l2tp_print(packetbody_t dat, u_int length)
+{
 	packetbody_t ptr = dat;
 	u_int cnt = 0;			/* total octets consumed */
 	u_int16_t pad;

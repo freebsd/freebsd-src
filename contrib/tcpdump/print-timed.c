@@ -46,6 +46,14 @@ static const char *tsptype[TSPTYPENUMBER] =
 void
 timed_print(packetbody_t bp)
 {
+	if (!invoke_dissector((void *)_timed_print,
+	    snapend - bp, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_timed_print(bp);
+}
+
+void
+_timed_print(packetbody_t bp)
+{
 #define endof(x) ((packetbody_t)&(x) + sizeof (x))
 	__capability const struct tsp *tsp = (__capability const struct tsp *)bp;
 	long sec, usec;

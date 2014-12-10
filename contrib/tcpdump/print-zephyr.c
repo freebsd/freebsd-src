@@ -146,6 +146,14 @@ str_to_lower(packetbody_t string)
 void
 zephyr_print(packetbody_t cp, int length)
 {
+	if (!invoke_dissector((void *)_zephyr_print,
+	    length, 0, 0, 0, 0, gndo, cp, NULL, NULL, NULL))
+		_zephyr_print(cp, length);
+}
+
+void
+_zephyr_print(packetbody_t cp, int length)
+{
     char *buf;
     struct z_packet z;
     packetbody_t parse = cp;
