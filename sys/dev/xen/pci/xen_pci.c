@@ -41,16 +41,22 @@ __FBSDID("$FreeBSD$");
 
 #include <xen/xen-os.h>
 #include <xen/hypervisor.h>
+#include <xen/xen_pci.h>
 
 #include "pcib_if.h"
 #include "pci_if.h"
 
-static int xen_pci_probe(device_t dev);
+static int
+xen_pci_probe(device_t dev)
+{
 
-static void xen_pci_enable_msi_method(device_t dev, device_t child,
-    uint64_t address, uint16_t data);
-static void xen_pci_disable_msi_method(device_t dev, device_t child);
-static void xen_pci_child_added_method(device_t dev, device_t child);
+	if (!xen_pv_domain())
+		return (ENXIO);
+
+	device_set_desc(dev, "Xen PCI bus");
+
+	return (BUS_PROBE_DEFAULT);
+}
 
 static device_method_t xen_pci_methods[] = {
 	/* Device interface */
@@ -66,67 +72,9 @@ static device_method_t xen_pci_methods[] = {
 
 static devclass_t pci_devclass;
 
-DECLARE_CLASS(acpi_pci_driver);
+DECLARE_CLASS(pci_driver);
 DEFINE_CLASS_1(pci, xen_pci_driver, xen_pci_methods, sizeof(struct pci_softc),
-    acpi_pci_driver);
+    pci_driver);
 DRIVER_MODULE(xen_pci, pcib, xen_pci_driver, pci_devclass, 0, 0);
 MODULE_DEPEND(xen_pci, pci, 1, 1, 1);
-MODULE_DEPEND(xen_pci, acpi, 1, 1, 1);
 MODULE_VERSION(xen_pci, 1);
-
-static int
-xen_pci_probe(device_t dev)
-{
-
-	device_set_desc(dev, "Xen PCI bus");
-
-	if (!xen_pv_domain())
-		return (ENXIO);
-
-	return (BUS_PROBE_SPECIFIC);
-}
-
-static void
-xen_pci_enable_msi_method(device_t dev, device_t child, uint64_t address,
-     uint16_t data)
-{
-	struct pci_devinfo *dinfo = device_get_ivars(child);
-	struct pcicfg_msi *msi = &dinfo->cfg.msi;
-
-	/* Enable MSI in the control register. */
-	msi->msi_ctrl |= PCIM_MSICTRL_MSI_ENABLE;
-	pci_write_config(child, msi->msi_location + PCIR_MSI_CTRL,
-	    msi->msi_ctrl, 2);
-}
-
-static void
-xen_pci_disable_msi_method(device_t dev, device_t child)
-{
-	struct pci_devinfo *dinfo = device_get_ivars(child);
-	struct pcicfg_msi *msi = &dinfo->cfg.msi;
-
-	msi->msi_ctrl &= ~PCIM_MSICTRL_MSI_ENABLE;
-	pci_write_config(child, msi->msi_location + PCIR_MSI_CTRL,
-	    msi->msi_ctrl, 2);
-}
-
-static void
-xen_pci_child_added_method(device_t dev, device_t child)
-{
-	struct pci_devinfo *dinfo;
-	struct physdev_pci_device_add add_pci;
-	int error;
-
-	dinfo = device_get_ivars(child);
-	KASSERT((dinfo != NULL),
-	    ("xen_pci_add_child_method called with NULL dinfo"));
-
-	bzero(&add_pci, sizeof(add_pci));
-	add_pci.seg = dinfo->cfg.domain;
-	add_pci.bus = dinfo->cfg.bus;
-	add_pci.devfn = (dinfo->cfg.slot << 3) | dinfo->cfg.func;
-	error = HYPERVISOR_physdev_op(PHYSDEVOP_pci_device_add, &add_pci);
-	if (error)
-		panic("unable to add device bus %u devfn %u error: %d\n",
-		    add_pci.bus, add_pci.devfn, error);
-}
