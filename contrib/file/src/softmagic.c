@@ -67,6 +67,9 @@ private void cvt_32(union VALUETYPE *, const struct magic *);
 private void cvt_64(union VALUETYPE *, const struct magic *);
 
 #define OFFSET_OOB(n, o, i)	((n) < (o) || (i) > ((n) - (o)))
+
+#define MAX_RECURSION_LEVEL	10
+
 /*
  * softmagic - lookup one file in parsed, in-memory copy of database
  * Passed the name and FILE * of one file to be typed.
@@ -1193,14 +1196,15 @@ mget(struct magic_set *ms, const unsigned char *s, struct magic *m,
     int flip, int recursion_level, int *printed_something,
     int *need_separator, int *returnval)
 {
-	uint32_t soffset, offset = ms->offset;
+	uint32_t offset = ms->offset;
 	uint32_t lhs;
+	file_pushbuf_t *pb;
 	int rv, oneed_separator, in_type;
-	char *sbuf, *rbuf;
+	char *rbuf;
 	union VALUETYPE *p = &ms->ms_value;
 	struct mlist ml;
 
-	if (recursion_level >= 20) {
+	if (recursion_level >= MAX_RECURSION_LEVEL) {
 		file_error(ms, 0, "recursion nesting exceeded");
 		return -1;
 	}
@@ -1644,19 +1648,23 @@ mget(struct magic_set *ms, const unsigned char *s, struct magic *m,
 	case FILE_INDIRECT:
 		if (offset == 0)
 			return 0;
+
 		if (nbytes < offset)
 			return 0;
-		sbuf = ms->o.buf;
-		soffset = ms->offset;
-		ms->o.buf = NULL;
-		ms->offset = 0;
+
+		if ((pb = file_push_buffer(ms)) == NULL)
+			return -1;
+
 		rv = file_softmagic(ms, s + offset, nbytes - offset,
 		    recursion_level, BINTEST, text);
+
 		if ((ms->flags & MAGIC_DEBUG) != 0)
 			fprintf(stderr, "indirect @offs=%u[%d]\n", offset, rv);
-		rbuf = ms->o.buf;
-		ms->o.buf = sbuf;
-		ms->offset = soffset;
+
+		rbuf = file_pop_buffer(ms, pb);
+		if (rbuf == NULL && ms->event_flags & EVENT_HAD_ERR)
+			return -1;
+
 		if (rv == 1) {
 			if ((ms->flags & (MAGIC_MIME|MAGIC_APPLE)) == 0 &&
 			    file_printf(ms, F(ms, m, "%u"), offset) == -1) {
@@ -1674,13 +1682,13 @@ mget(struct magic_set *ms, const unsigned char *s, struct magic *m,
 	case FILE_USE:
 		if (nbytes < offset)
 			return 0;
-		sbuf = m->value.s;
-		if (*sbuf == '^') {
-			sbuf++;
+		rbuf = m->value.s;
+		if (*rbuf == '^') {
+			rbuf++;
 			flip = !flip;
 		}
-		if (file_magicfind(ms, sbuf, &ml) == -1) {
-			file_error(ms, 0, "cannot find entry `%s'", sbuf);
+		if (file_magicfind(ms, rbuf, &ml) == -1) {
+			file_error(ms, 0, "cannot find entry `%s'", rbuf);
 			return -1;
 		}
 
