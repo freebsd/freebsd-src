@@ -25,6 +25,7 @@ SUBDIR=	adduser \
 	extattr \
 	extattrctl \
 	fifolog \
+	fstyp \
 	fwcontrol \
 	gstat \
 	i2c \
