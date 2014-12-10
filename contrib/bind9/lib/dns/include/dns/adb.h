@@ -118,6 +118,8 @@ struct dns_adbfind {
 	isc_result_t			result_v6;	/*%< RO: v6 result */
 	ISC_LINK(dns_adbfind_t)		publink;	/*%< RW: client use */
 
+	isc_uint32_t			qtotal;
+
 	/* Private */
 	isc_mutex_t			lock;		/* locks all below */
 	in_port_t			port;
@@ -334,6 +336,12 @@ dns_adb_createfind(dns_adb_t *adb, isc_task_t *task, isc_taskaction_t action,
 		   dns_rdatatype_t qtype, unsigned int options,
 		   isc_stdtime_t now, dns_name_t *target,
 		   in_port_t port, dns_adbfind_t **find);
+isc_result_t
+dns_adb_createfind2(dns_adb_t *adb, isc_task_t *task, isc_taskaction_t action,
+		    void *arg, dns_name_t *name, dns_name_t *qname,
+		    dns_rdatatype_t qtype, unsigned int options,
+		    isc_stdtime_t now, dns_name_t *target, in_port_t port,
+		    unsigned int depth, dns_adbfind_t **find);
 /*%<
  * Main interface for clients. The adb will look up the name given in
  * "name" and will build up a list of found addresses, and perhaps start
