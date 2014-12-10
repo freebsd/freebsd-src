@@ -16,6 +16,14 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20141210:	p1	FreeBSD-SA-14:27.stdio
+			FreeBSD-SA-14:28.file
+
+	Fix buffer overflow in stdio. [SA-14:27]
+
+	Fix multiple vulnerabilities in file(1) and libmagic(3).
+	[SA-14:28]
+
 20140904:
 	The ofwfb driver, used to provide a graphics console on PowerPC when
 	using vt(4), no longer allows mmap() of all of physical memory. This
