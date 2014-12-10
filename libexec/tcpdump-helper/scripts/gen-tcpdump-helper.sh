@@ -1,0 +1,1 @@
+grep DISSECTOR_DEC contrib/tcpdump/interface.h  | cut -d\( -f2 | tr a-z A-Z | awk -e 'BEGIN {foo=1100} { print "#define\tTCPDUMP_HELPER_OP_" $1, "\t\t", foo; foo++}' >> libexec/tcpdump-helper/tcpdump-helper.h
