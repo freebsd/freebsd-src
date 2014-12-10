@@ -3,4 +3,4 @@ Set to not build or install
 .Xr bhyve 8 ,
 associated utilities, and examples.
 .Pp
-This option only affects amd64/amd64
+This option only affects amd64/amd64.
