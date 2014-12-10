@@ -1,10 +1,9 @@
 /*-
- * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2014 The FreeBSD Foundation
  * All rights reserved.
  *
- * This software was developed by SRI International and the University of
- * Cambridge Computer Laboratory under DARPA/AFRL contract (FA8750-10-C-0237)
- * ("CTSRD"), as part of the DARPA CRASH research programme.
+ * This software was developed by Edward Tomasz Napierala under sponsorship
+ * from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,8 +29,18 @@
  * $FreeBSD$
  */
 
-#define	Q_NOTIFY	0x01
-#define	Q_PFN		0x02
-#define	Q_INTR		0x04
-#define	Q_SEL		0x08
-#define	Q_NOTIFY1	0x10
+#ifndef FSTYP_H
+#define	FSTYP_H
+
+#define	MIN(a,b) (((a)<(b))?(a):(b))
+
+void	*read_buf(FILE *fp, off_t off, size_t len);
+char	*checked_strdup(const char *s);
+
+int	fstyp_cd9660(FILE *fp, char *label, size_t size);
+int	fstyp_ext2fs(FILE *fp, char *label, size_t size);
+int	fstyp_msdosfs(FILE *fp, char *label, size_t size);
+int	fstyp_ntfs(FILE *fp, char *label, size_t size);
+int	fstyp_ufs(FILE *fp, char *label, size_t size);
+
+#endif /* !FSTYP_H */

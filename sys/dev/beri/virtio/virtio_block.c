@@ -74,6 +74,13 @@ __FBSDID("$FreeBSD$");
 
 #define DPRINTF(fmt, ...)
 
+/* We use indirect descriptors */
+#define	NUM_DESCS	1
+#define	NUM_QUEUES	1
+
+#define	VTBLK_BLK_ID_BYTES	20
+#define	VTBLK_MAXSEGS		256
+
 struct beri_vtblk_softc {
 	struct resource		*res[1];
 	bus_space_tag_t		bst;
@@ -286,8 +293,12 @@ vtblk_notify(struct beri_vtblk_softc *sc)
 	while (vq_has_descs(vq))
 		vtblk_proc(sc, vq);
 
-	/* Interrupt other side */
-	PIO_SET(sc->pio_send, Q_INTR, 1);
+	/* Interrupt the other side */
+	if ((be16toh(vq->vq_avail->flags) & VRING_AVAIL_F_NO_INTERRUPT) == 0) {
+		reg = htobe32(VIRTIO_MMIO_INT_VRING);
+		WRITE4(sc, VIRTIO_MMIO_INTERRUPT_STATUS, reg);
+		PIO_SET(sc->pio_send, Q_INTR, 1);
+	}
 
 	return (0);
 }
@@ -302,7 +313,7 @@ vq_init(struct beri_vtblk_softc *sc)
 	int pfn;
 
 	vq = &sc->vs_queues[0];
-	vq->vq_qsize = NUM_QUEUES;
+	vq->vq_qsize = NUM_DESCS;
 
 	reg = READ4(sc, VIRTIO_MMIO_QUEUE_PFN);
 	pfn = be32toh(reg);
@@ -353,61 +364,6 @@ vtblk_thread(void *arg)
 }
 
 static int
-setup_pio(struct beri_vtblk_softc *sc, char *name, device_t *dev)
-{
-	phandle_t pio_node;
-	struct fdt_ic *ic;
-	phandle_t xref;
-	phandle_t node;
-
-	if ((node = ofw_bus_get_node(sc->dev)) == -1)
-		return (ENXIO);
-
-	if (OF_searchencprop(node, name, &xref,
-		sizeof(xref)) == -1) {
-		return (ENXIO);
-	}
-
-	pio_node = OF_node_from_xref(xref);
-	SLIST_FOREACH(ic, &fdt_ic_list_head, fdt_ics) {
-		if (ic->iph == pio_node) {
-			*dev = ic->dev;
-			PIO_CONFIGURE(*dev, PIO_OUT_ALL,
-					PIO_UNMASK_ALL);
-			return (0);
-		}
-	}
-
-	return (ENXIO);
-}
-
-static int
-setup_offset(struct beri_vtblk_softc *sc)
-{
-	pcell_t dts_value[2];
-	phandle_t mem_node;
-	phandle_t xref;
-	phandle_t node;
-	int len;
-
-	if ((node = ofw_bus_get_node(sc->dev)) == -1)
-		return (ENXIO);
-
-	if (OF_searchencprop(node, "beri-mem", &xref,
-		sizeof(xref)) == -1) {
-		return (ENXIO);
-	}
-
-	mem_node = OF_node_from_xref(xref);
-	if ((len = OF_getproplen(mem_node, "reg")) <= 0)
-		return (ENXIO);
-	OF_getencprop(mem_node, "reg", dts_value, len);
-	sc->beri_mem_offset = dts_value[0];
-
-	return (0);
-}
-
-static int
 backend_info(struct beri_vtblk_softc *sc)
 {
 	struct virtio_blk_config *cfg;
@@ -419,9 +375,9 @@ backend_info(struct beri_vtblk_softc *sc)
 	reg = htobe32(VIRTIO_ID_BLOCK);
 	WRITE4(sc, VIRTIO_MMIO_DEVICE_ID, reg);
 
-	/* The number of queues we support */
-	reg = htobe16(NUM_QUEUES);
-	WRITE2(sc, VIRTIO_MMIO_QUEUE_NUM, reg);
+	/* Queue size */
+	reg = htobe32(NUM_DESCS);
+	WRITE4(sc, VIRTIO_MMIO_QUEUE_NUM_MAX, reg);
 
 	/* Our features */
 	reg = htobe32(VIRTIO_RING_F_INDIRECT_DESC
@@ -566,11 +522,11 @@ beri_vtblk_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (setup_offset(sc) != 0)
+	if (setup_offset(dev, &sc->beri_mem_offset) != 0)
 		return (ENXIO);
-	if (setup_pio(sc, "pio-send", &sc->pio_send) != 0)
+	if (setup_pio(dev, "pio-send", &sc->pio_send) != 0)
 		return (ENXIO);
-	if (setup_pio(sc, "pio-recv", &sc->pio_recv) != 0)
+	if (setup_pio(dev, "pio-recv", &sc->pio_recv) != 0)
 		return (ENXIO);
 
 	sc->cdev = make_dev(&beri_cdevsw, 0, UID_ROOT, GID_WHEEL,

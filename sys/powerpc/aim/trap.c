@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscall.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/uio.h>
 #include <sys/signalvar.h>
 #include <sys/vmmeter.h>

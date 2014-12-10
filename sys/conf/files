@@ -2651,6 +2651,7 @@ dev/xen/blkback/blkback.c	optional xen | xenhvm
 dev/xen/console/console.c	optional xen | xenhvm
 dev/xen/console/xencons_ring.c	optional xen | xenhvm
 dev/xen/control/control.c	optional xen | xenhvm
+dev/xen/grant_table/grant_table.c	optional xen | xenhvm
 dev/xen/netback/netback.c	optional xen | xenhvm
 dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
@@ -4000,7 +4001,6 @@ vm/vm_reserv.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
-xen/gnttab.c			optional xen | xenhvm
 xen/features.c			optional xen | xenhvm
 xen/xenbus/xenbus_if.m		optional xen | xenhvm
 xen/xenbus/xenbus.c		optional xen | xenhvm
