@@ -224,14 +224,18 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 	 * will be returned to the free list.  lastiblock values are also
 	 * normalized to -1 for calls to ext2_indirtrunc below.
 	 */
-	bcopy((caddr_t)&oip->i_db[0], (caddr_t)oldblks, sizeof(oldblks));
-	for (level = TRIPLE; level >= SINGLE; level--)
+	for (level = TRIPLE; level >= SINGLE; level--) {
+		oldblks[NDADDR + level] = oip->i_ib[level];
 		if (lastiblock[level] < 0) {
 			oip->i_ib[level] = 0;
 			lastiblock[level] = -1;
 		}
-	for (i = NDADDR - 1; i > lastblock; i--)
-		oip->i_db[i] = 0;
+	}
+	for (i = 0; i < NDADDR; i++) {
+		oldblks[i] = oip->i_db[i];
+		if (i > lastblock)
+			oip->i_db[i] = 0;
+	}
 	oip->i_flag |= IN_CHANGE | IN_UPDATE;
 	allerror = ext2_update(ovp, !DOINGASYNC(ovp));
 
@@ -241,8 +245,14 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 	 * Note that we save the new block configuration so we can check it
 	 * when we are done.
 	 */
-	bcopy((caddr_t)&oip->i_db[0], (caddr_t)newblks, sizeof(newblks));
-	bcopy((caddr_t)oldblks, (caddr_t)&oip->i_db[0], sizeof(oldblks));
+	for (i = 0; i < NDADDR; i++) {
+		newblks[i] = oip->i_db[i];
+		oip->i_db[i] = oldblks[i];
+	}
+	for (i = 0; i < NIADDR; i++) {
+		newblks[NDADDR + i] = oip->i_ib[i];
+		oip->i_ib[i] = oldblks[NDADDR + i];
+	}
 	oip->i_size = osize;
 	error = vtruncbuf(ovp, cred, length, (int)fs->e2fs_bsize);
 	if (error && (allerror == 0))

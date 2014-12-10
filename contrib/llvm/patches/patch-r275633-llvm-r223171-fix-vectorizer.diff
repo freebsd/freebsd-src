@@ -1,0 +1,71 @@
+Pull in r223171 from upstream llvm trunk (by Michael Zolotukhin):
+
+  PR21302. Vectorize only bottom-tested loops.
+
+  rdar://problem/18886083
+
+This fixes a bug in the llvm vectorizer, which could sometimes cause
+vectorized loops to perform an additional iteration, leading to possible
+buffer overruns.  Symptoms of this, which are usually segfaults, were
+first noticed when building gcc ports, here:
+
+https://lists.freebsd.org/pipermail/freebsd-ports/2014-September/095466.html
+https://lists.freebsd.org/pipermail/freebsd-toolchain/2014-September/001211.html
+
+Introduced here: http://svnweb.freebsd.org/changeset/base/275633
+
+Index: lib/Transforms/Vectorize/LoopVectorize.cpp
+===================================================================
+--- lib/Transforms/Vectorize/LoopVectorize.cpp	(revision 21)
++++ lib/Transforms/Vectorize/LoopVectorize.cpp	(revision 22)
+@@ -2864,6 +2864,14 @@ bool LoopVectorizationLegality::canVectorize() {
+   if (!TheLoop->getExitingBlock())
+     return false;
+ 
++  // We only handle bottom-tested loops, i.e. loop in which the condition is
++  // checked at the end of each iteration. With that we can assume that all
++  // instructions in the loop are executed the same number of times.
++  if (TheLoop->getExitingBlock() != TheLoop->getLoopLatch()) {
++    DEBUG(dbgs() << "LV: loop control flow is not understood by vectorizer\n");
++    return false;
++  }
++
+   // We need to have a loop header.
+   DEBUG(dbgs() << "LV: Found a loop: " <<
+         TheLoop->getHeader()->getName() << '\n');
+Index: test/Transforms/LoopVectorize/loop-form.ll
+===================================================================
+--- test/Transforms/LoopVectorize/loop-form.ll	(revision 0)
++++ test/Transforms/LoopVectorize/loop-form.ll	(revision 22)
+@@ -0,0 +1,31 @@
++; RUN: opt -S -loop-vectorize < %s | FileCheck %s
++target datalayout = "e-m:o-i64:64-f80:128-n8:16:32:64-S128"
++
++; Check that we vectorize only bottom-tested loops.
++; This is a reduced testcase from PR21302.
++;
++; rdar://problem/18886083
++
++%struct.X = type { i32, i16 }
++; CHECK-LABEL: @foo(
++; CHECK-NOT: vector.body
++
++define void @foo(i32 %n) {
++entry:
++  br label %for.cond
++
++for.cond:
++  %i = phi i32 [ 0, %entry ], [ %inc, %for.body ]
++  %cmp = icmp slt i32 %i, %n
++  br i1 %cmp, label %for.body, label %if.end
++
++for.body:
++  %iprom = sext i32 %i to i64
++  %b = getelementptr inbounds %struct.X* undef, i64 %iprom, i32 1
++  store i16 0, i16* %b, align 4
++  %inc = add nsw i32 %i, 1
++  br label %for.cond
++
++if.end:
++  ret void
++}
