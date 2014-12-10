@@ -173,10 +173,6 @@ _libngatm=	libngatm
 _libauditd=	libauditd
 .endif
 
-.if ${MK_BHYVE} != "no"
-_libvmmapi=	libvmmapi
-.endif
-
 .if ${MK_BLUETOOTH} != "no"
 _libbluetooth=	libbluetooth
 _libsdp=	libsdp
@@ -261,28 +257,6 @@ _libypclnt=	libypclnt
 _libevent=	libevent
 .endif
 
-.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
-_libsmb=	libsmb
-_libvgl=	libvgl
-_libproc=	libproc
-_librtld_db=	librtld_db
-.endif
-
-.if ${MACHINE_CPUARCH} == "mips"
-_libproc=	libproc
-_librtld_db=	librtld_db
-.endif
-
-.if ${MACHINE_CPUARCH} == "powerpc"
-_libproc=	libproc
-_librtld_db=	librtld_db
-_libsmb=	libsmb
-.endif
-
-.if ${MACHINE_CPUARCH} == "sparc64"
-_libsmb=	libsmb
-.endif
-
 .if ${MK_OPENSSL} != "no"
 _libmp=		libmp
 .endif
@@ -324,6 +298,34 @@ _libunbound=	libunbound
 .if ${MK_USB} != "no"
 _libusbhid=	libusbhid
 _libusb=	libusb
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64"
+.if ${MK_BHYVE} != "no"
+_libvmmapi=	libvmmapi
+.endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_libsmb=	libsmb
+_libvgl=	libvgl
+_libproc=	libproc
+_librtld_db=	librtld_db
+.endif
+
+.if ${MACHINE_CPUARCH} == "mips"
+_libproc=	libproc
+_librtld_db=	librtld_db
+.endif
+
+.if ${MACHINE_CPUARCH} == "powerpc"
+_libproc=	libproc
+_librtld_db=	librtld_db
+_libsmb=	libsmb
+.endif
+
+.if ${MACHINE_CPUARCH} == "sparc64"
+_libsmb=	libsmb
 .endif
 
 .if !defined(LIBRARIES_ONLY)

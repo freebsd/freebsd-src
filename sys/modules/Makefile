@@ -388,10 +388,6 @@ SUBDIR=	\
 _autofs=	autofs
 .endif
 
-.if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
-_vmm=		vmm
-.endif
-
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 .if exists(${.CURDIR}/../opencrypto)
 _crypto=	crypto
@@ -400,10 +396,6 @@ _cryptodev=	cryptodev
 .if exists(${.CURDIR}/../crypto)
 _random=	random
 .endif
-.endif
-
-.if ${MK_HYPERV} != "no" || defined(ALL_MODULES)
-_hyperv=	hyperv
 .endif
 
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
@@ -505,6 +497,9 @@ _et=		et
 _exca=		exca
 _ext2fs=	ext2fs
 _filemon=	filemon
+.if ${MK_HYPERV} != "no" || defined(ALL_MODULES)
+_hyperv=	hyperv
+.endif
 _i2c=		i2c
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
 _ibcore=        ibcore
@@ -625,6 +620,10 @@ _qlxge=		qlxge
 _qlxgb=		qlxgb
 _qlxgbe=	qlxgbe
 _sfxge=		sfxge
+
+.if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
+_vmm=		vmm
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"

@@ -24,11 +24,13 @@
 
 __DEFAULT_YES_OPTIONS = \
     AUTOFS \
+    BHYVE \
     BLUETOOTH \
     CCD \
     CDDL \
     CRYPT \
     FORMAT_EXTENSIONS \
+    HYPERV \
     ISCSI \
     INET \
     INET6 \
@@ -67,20 +69,6 @@ __T=${MACHINE_ARCH}
 __TT=${TARGET}
 .else
 __TT=${MACHINE}
-.endif
-
-# bhyve is only supported on amd64
-.if ${__T} == "amd64"
-__DEFAULT_YES_OPTIONS+=BHYVE
-.else
-MK_BHYVE:=      no
-.endif
-
-# hyperv is only supported on amd64 and i386/i386
-.if ${__T} == "amd64" || (${__T} == "i386" && ${__TT} == "i386")
-__DEFAULT_YES_OPTIONS+=HYPERV
-.else
-MK_HYPERV:=	no
 .endif
 
 # expanded inline from bsd.mkopt.mk to avoid share/mk dependency
