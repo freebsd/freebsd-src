@@ -817,6 +817,7 @@ cheritest_run_test(const struct cheri_test *ctp)
 	} else if (!(ctp->ct_flags & CT_FLAG_STDOUT_IGNORE)) {
 		len = read(pipefd_stdout[0], buffer, sizeof(buffer) - 1);
 		if (len > 0) {
+			buffer[len] = '\0';
 			snprintf(reason, sizeof(reason),
 			    "read() on test stdout produced unexpected "
 			    "output '%s'", buffer);
