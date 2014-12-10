@@ -9,6 +9,14 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20141210:	p23	FreeBSD-SA-14:28.file
+			FreeBSD-SA-14:29.bind
+
+	Fix multiple vulnerabilities in file(1) and libmagic(3).
+	[SA-14:28]
+
+	Fix BIND remote denial of service vulnerability. [SA-14:29]
+
 20141104:	p22	FreeBSD-SA-14:24.sshd
 			FreeBSD-SA-14:25.setlogin
 			FreeBSD-SA-14:26.ftp
