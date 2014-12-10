@@ -19,7 +19,7 @@ MAN=
 USE_CHERI=	yes
 WANT_DUMP=	yes
 
-LIBADD=  cheri z
+LIBADD=  cheri xo z
 
 NO_SHARED?=	YES
 

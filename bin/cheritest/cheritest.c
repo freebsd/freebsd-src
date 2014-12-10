@@ -63,6 +63,8 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+#include <libxo/xo.h>
+
 #include "cheritest.h"
 
 #define	max(x, y)	((x) > (y) ? (x) : (y))
@@ -619,16 +621,47 @@ struct cheritest_child_state *ccsp;
 
 int tests_failed, tests_passed, tests_xfailed;
 int expected_failures;
+int list;
+int run_all;
+int verbose;
 
 static void
 usage(void)
 {
+
+	fprintf(stderr, "usage:\n");
+	fprintf(stderr, "cheritest -l [-v]          -- List tests\n");
+	fprintf(stderr, "cheritest -a               -- Run all tests\n");
+	fprintf(stderr, "cheritest <test> ...       -- Run specified tests\n");
+	exit(EX_USAGE);
+}
+
+static void
+list_tests(void)
+{
 	u_int i;
 
-	fprintf(stderr, "cheritest all\n");
-	for (i = 0; i < cheri_tests_len; i++)
-		fprintf(stderr, "cheritest %s\n", cheri_tests[i].ct_name);
-	exit(EX_USAGE);
+	xo_open_container("testsuite");
+	xo_open_list("test");
+	for (i = 0; i < cheri_tests_len; i++) {
+		xo_open_instance("test");
+		if (verbose)
+			xo_emit("{cw:name/%s}{:description/%s}",
+			    cheri_tests[i].ct_name, cheri_tests[i].ct_desc);
+		else
+			xo_emit("{:name/%s}{e:description/%s}",
+			    cheri_tests[i].ct_name, cheri_tests[i].ct_desc);
+		if (cheri_tests[i].ct_xfail_reason)
+			xo_emit("{e:xfail-reason/%s}",
+			    cheri_tests[i].ct_xfail_reason);
+		xo_emit("\n");
+		xo_close_instance("test");
+	}
+	xo_close_list("test");
+	xo_close_container("testsuite");
+	xo_finish();
+
+	exit(EX_OK);
 }
 
 static void
@@ -891,7 +924,7 @@ cheritest_run_test_name(const char *name)
 			break;
 	}
 	if (i == cheri_tests_len)
-		usage();
+		errx(EX_USAGE, "unknown test: %s", name);
 	cheritest_run_test(&cheri_tests[i]);
 }
 
@@ -902,16 +935,48 @@ main(__unused int argc, __unused char *argv[])
 	int i, opt;
 	u_int t;
 
-	while ((opt = getopt(argc, argv, "")) != -1) {
+	argc = xo_parse_args(argc, argv);
+	if (argc < 0)
+		errx(1, "xo_parse_args failed\n");
+	while ((opt = getopt(argc, argv, "alv")) != -1) {
 		switch (opt) {
+		case 'a':
+			run_all = 1;
+			break;
+		case 'l':
+			list = 1;
+			break;
+		case 'v':
+			verbose++;
+			break;
 		default:
+			warnx("unknown argument %c\n", opt);
 			usage();
 		}
 	}
 	argc -= optind;
 	argv += optind;
-	if (argc == 0)
+	if (run_all && list) {
+		warnx("-a and -l are incompatible");
 		usage();
+	}
+	if (list) {
+		if (argc == 0)
+			list_tests();
+		/* XXXBD: should we allow this for test automation? */
+		warnx("-l and a list of tests are incompatible");
+		usage();
+	}
+	if (argc == 0 && !run_all)
+		usage();
+	if (argc > 0 && run_all) {
+		warnx("-a and a list of test are incompatible");
+		usage();
+	}
+	if (argc == 1 && strcmp(argv[0], "all") == 0) {
+		warnx("'all' as a synonym for -a is deprecated");
+		run_all = 1;
+	}
 
 	/*
 	 * Allocate an alternative stack, required to safely process signals in
@@ -944,7 +1009,7 @@ main(__unused int argc, __unused char *argv[])
 	/* Run the actual tests. */
 	cheritest_ccall_setup();
 	cheritest_libcheri_setup();
-	if (argc == 1 && strcmp(argv[0], "all") == 0) {
+	if (run_all) {
 		for (t = 0; t < cheri_tests_len; t++)
 			cheritest_run_test(&cheri_tests[t]);
 	} else {
