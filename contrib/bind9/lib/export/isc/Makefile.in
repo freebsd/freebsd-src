@@ -63,7 +63,7 @@ WIN32OBJS = 	win32/condition.@O@ win32/dir.@O@ win32/file.@O@ \
 # Alphabetically
 OBJS =		@ISC_EXTRA_OBJS@ \
 		assertions.@O@ backtrace.@O@ backtrace-emptytbl.@O@ base32.@O@ \
-		base64.@O@ buffer.@O@ bufferlist.@O@ \
+		base64.@O@ buffer.@O@ bufferlist.@O@ counter.@O@ \
 		error.@O@ event.@O@ \
 		hash.@O@ hex.@O@ hmacmd5.@O@ hmacsha.@O@ \
 		inet_aton.@O@ iterated_hash.@O@ lex.@O@ lfsr.@O@ log.@O@ \
@@ -86,7 +86,7 @@ ISCDRIVERSRCS =	mem.c task.c lib.c timer.c heap.c
 
 SRCS =		@ISC_EXTRA_SRCS@ \
 		assertions.c backtrace.c backtrace-emptytbl.c base32.c \
-		base64.c buffer.c bufferlist.c \
+		base64.c buffer.c bufferlist.c counter.c \
 		error.c event.c \
 		hash.c hex.c hmacmd5.c hmacsha.c \
 		inet_aton.c iterated_hash.c lex.c log.c lfsr.c \
