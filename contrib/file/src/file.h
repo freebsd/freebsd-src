@@ -482,6 +482,14 @@ protected int file_regexec(file_regex_t *, const char *, size_t, regmatch_t *,
 protected void file_regfree(file_regex_t *);
 protected void file_regerror(file_regex_t *, int, struct magic_set *);
 
+typedef struct {
+	char *buf;
+	uint32_t offset;
+} file_pushbuf_t;
+
+protected file_pushbuf_t *file_push_buffer(struct magic_set *);
+protected char  *file_pop_buffer(struct magic_set *, file_pushbuf_t *);
+
 #ifndef COMPILE_ONLY
 extern const char *file_names[];
 extern const size_t file_nnames;
