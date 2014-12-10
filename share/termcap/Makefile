@@ -21,7 +21,7 @@ CAP_MKDB_ENDIAN=
 .endif
 
 termcap.db: termcap
-	cap_mkdb ${CAP_MKDB_ENDIAN} termcap
+	cap_mkdb ${CAP_MKDB_ENDIAN} -f ${.TARGET:R} ${.ALLSRC}
 
 etc-termcap:
 	ln -fs ${BINDIR}/misc/termcap ${DESTDIR}/etc/termcap
