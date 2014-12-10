@@ -851,7 +851,7 @@ xen_intr_assign_cpu(struct intsrc *base_isrc, u_int apic_id)
 	struct evtchn_bind_vcpu bind_vcpu;
 	struct xenisrc *isrc;
 	u_int to_cpu, vcpu_id;
-	int error;
+	int error, masked;
 
 #ifdef XENHVM
 	if (xen_vector_callback_enabled == 0)
@@ -869,6 +869,11 @@ xen_intr_assign_cpu(struct intsrc *base_isrc, u_int apic_id)
 		return (EINVAL);
 	}
 
+	/*
+	 * Mask the event channel while binding it to prevent interrupt
+	 * delivery with an inconsistent state in isrc->xi_cpu.
+	 */
+	masked = evtchn_test_and_set_mask(isrc->xi_port);
 	if ((isrc->xi_type == EVTCHN_TYPE_VIRQ) ||
 		(isrc->xi_type == EVTCHN_TYPE_IPI)) {
 		/*
@@ -879,29 +884,25 @@ xen_intr_assign_cpu(struct intsrc *base_isrc, u_int apic_id)
 		evtchn_cpu_mask_port(isrc->xi_cpu, isrc->xi_port);
 		isrc->xi_cpu = to_cpu;
 		evtchn_cpu_unmask_port(isrc->xi_cpu, isrc->xi_port);
-		mtx_unlock(&xen_intr_isrc_lock);
-		return (0);
+		goto out;
 	}
 
 	bind_vcpu.port = isrc->xi_port;
 	bind_vcpu.vcpu = vcpu_id;
 
-	/*
-	 * Allow interrupts to be fielded on the new VCPU before
-	 * we ask the hypervisor to deliver them there.
-	 */
-	evtchn_cpu_unmask_port(to_cpu, isrc->xi_port);
 	error = HYPERVISOR_event_channel_op(EVTCHNOP_bind_vcpu, &bind_vcpu);
 	if (isrc->xi_cpu != to_cpu) {
 		if (error == 0) {
 			/* Commit to new binding by removing the old one. */
 			evtchn_cpu_mask_port(isrc->xi_cpu, isrc->xi_port);
 			isrc->xi_cpu = to_cpu;
-		} else {
-			/* Roll-back to previous binding. */
-			evtchn_cpu_mask_port(to_cpu, isrc->xi_port);
+			evtchn_cpu_unmask_port(isrc->xi_cpu, isrc->xi_port);
 		}
 	}
+
+out:
+	if (masked == 0)
+		evtchn_unmask_port(isrc->xi_port);
 	mtx_unlock(&xen_intr_isrc_lock);
 	return (0);
 #else
