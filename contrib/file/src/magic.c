@@ -33,7 +33,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: magic.c,v 1.84 2014/05/14 23:15:42 christos Exp $")
+FILE_RCSID("@(#)$File: magic.c,v 1.90 2014/12/04 15:56:46 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -128,6 +128,7 @@ out:
 #else
 	char *hmagicp;
 	char *tmppath = NULL;
+	LPTSTR dllpath;
 	hmagicpath = NULL;
 
 #define APPENDPATH() \
@@ -173,7 +174,7 @@ out:
 	}
 
 	/* Third, try to get magic file relative to dll location */
-	LPTSTR dllpath = malloc(sizeof(*dllpath) * (MAX_PATH + 1));
+	dllpath = malloc(sizeof(*dllpath) * (MAX_PATH + 1));
 	dllpath[MAX_PATH] = 0;	/* just in case long path gets truncated and not null terminated */
 	if (GetModuleFileNameA(NULL, dllpath, MAX_PATH)){
 		PathRemoveFileSpecA(dllpath);
@@ -262,7 +263,8 @@ magic_load(struct magic_set *ms, const char *magicfile)
  * Install a set of compiled magic buffers.
  */
 public int
-magic_load_buffers(struct magic_set *ms, void **bufs, size_t *sizes, int nbufs)
+magic_load_buffers(struct magic_set *ms, void **bufs, size_t *sizes,
+    size_t nbufs)
 {
 	if (ms == NULL)
 		return -1;
@@ -534,4 +536,48 @@ public int
 magic_version(void)
 {
 	return MAGIC_VERSION;
+}
+
+public int
+magic_setparam(struct magic_set *ms, int param, const void *val)
+{
+	switch (param) {
+	case MAGIC_PARAM_INDIR_MAX:
+		ms->indir_max = *(const size_t *)val;
+		return 0;
+	case MAGIC_PARAM_NAME_MAX:
+		ms->name_max = *(const size_t *)val;
+		return 0;
+	case MAGIC_PARAM_ELF_PHNUM_MAX:
+		ms->elf_phnum_max = *(const size_t *)val;
+		return 0;
+	case MAGIC_PARAM_ELF_SHNUM_MAX:
+		ms->elf_shnum_max = *(const size_t *)val;
+		return 0;
+	default:
+		errno = EINVAL;
+		return -1;
+	}
+}
+
+public int
+magic_getparam(struct magic_set *ms, int param, void *val)
+{
+	switch (param) {
+	case MAGIC_PARAM_INDIR_MAX:
+		*(size_t *)val = ms->indir_max;
+		return 0;
+	case MAGIC_PARAM_NAME_MAX:
+		*(size_t *)val = ms->name_max;
+		return 0;
+	case MAGIC_PARAM_ELF_PHNUM_MAX:
+		*(size_t *)val = ms->elf_phnum_max;
+		return 0;
+	case MAGIC_PARAM_ELF_SHNUM_MAX:
+		*(size_t *)val = ms->elf_shnum_max;
+		return 0;
+	default:
+		errno = EINVAL;
+		return -1;
+	}
 }

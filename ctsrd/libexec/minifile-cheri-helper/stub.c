@@ -416,6 +416,14 @@ write(int d __unused, const void *buf __unused, size_t nbytes __unused)
 	return (-1);
 }
 
+pid_t
+wait(int *status __unused)
+{
+
+	errno = ECAPMODE;
+	return (-1);
+}
+
 pid_t waitpid(pid_t pid __unused, int *stat_loc __unused, int options __unused);
 pid_t
 waitpid(pid_t pid __unused, int *stat_loc __unused, int options __unused)
