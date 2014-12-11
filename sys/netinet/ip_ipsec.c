@@ -107,20 +107,8 @@ ip_ipsec_filtertunnel(struct mbuf *m)
 int
 ip_ipsec_fwd(struct mbuf *m)
 {
-	struct secpolicy *sp;
-	int error;
 
-	sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND, &error);
-	if (sp != NULL) {
-		/*
-		 * Check security policy against packet attributes.
-		 */
-		error = ipsec_in_reject(sp, m);
-		KEY_FREESP(&sp);
-	}
-	if (error != 0)
-		return (1);
-	return (0);
+	return (ipsec4_in_reject(m, NULL));
 }
 
 /*
@@ -133,29 +121,13 @@ ip_ipsec_fwd(struct mbuf *m)
 int
 ip_ipsec_input(struct mbuf *m, int nxt)
 {
-	struct secpolicy *sp;
-	int error;
 	/*
 	 * enforce IPsec policy checking if we are seeing last header.
 	 * note that we do not visit this with protocols with pcb layer
 	 * code - like udp/tcp/raw ip.
 	 */
-	if ((inetsw[ip_protox[nxt]].pr_flags & PR_LASTHDR) != 0) {
-		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND, &error);
-		if (sp != NULL) {
-			/*
-			 * Check security policy against packet attributes.
-			 */
-			error = ipsec_in_reject(sp, m);
-			KEY_FREESP(&sp);
-		} else {
-			/* XXX error stat??? */
-			error = EINVAL;
-			DPRINTF(("ip_input: no SP, packet discarded\n"));/*XXX*/
-		}
-		if (error != 0)
-			return (1);
-	}
+	if ((inetsw[ip_protox[nxt]].pr_flags & PR_LASTHDR) != 0)
+		return (ipsec4_in_reject(m, NULL));
 	return (0);
 }
 
