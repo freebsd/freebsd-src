@@ -1265,6 +1265,9 @@ ipsec_in_reject(struct secpolicy *sp, struct mbuf *m)
 	return (0);		/* Valid. */
 }
 
+/*
+ * Non zero return value means security policy DISCARD or policy violation.
+ */
 static int
 ipsec46_in_reject(struct mbuf *m, struct inpcb *inp)
 {
@@ -1284,8 +1287,7 @@ ipsec46_in_reject(struct mbuf *m, struct inpcb *inp)
 		result = ipsec_in_reject(sp, m);
 		KEY_FREESP(&sp);
 	} else {
-		result = 0;	/* XXX Should be panic?
-				 * -> No, there may be error. */
+		result = 1;	/* treat errors as policy violation */
 	}
 	return (result);
 }
