@@ -64,7 +64,7 @@ extern int ipsec6_in_reject(struct mbuf *, struct inpcb *);
 struct m_tag;
 extern int ipsec6_common_input(struct mbuf **mp, int *offp, int proto);
 extern int ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav,
-			int skip, int protoff, struct m_tag *mt);
+			int skip, int protoff);
 extern void esp6_ctlinput(int, struct sockaddr *, void *);
 extern int ipsec6_process_packet(struct mbuf *, struct ipsecrequest *);
 #endif /*_KERNEL*/
