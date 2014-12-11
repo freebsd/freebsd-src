@@ -417,7 +417,7 @@ ipsec_getpolicybysock(struct mbuf *m, u_int dir, struct inpcb *inp, int *error)
  *		others	: error occured.
  */
 struct secpolicy *
-ipsec_getpolicybyaddr(struct mbuf *m, u_int dir, int flag, int *error)
+ipsec_getpolicybyaddr(struct mbuf *m, u_int dir, int *error)
 {
 	struct secpolicyindex spidx;
 	struct secpolicy *sp;
@@ -430,15 +430,13 @@ ipsec_getpolicybyaddr(struct mbuf *m, u_int dir, int flag, int *error)
 	sp = NULL;
 	if (key_havesp(dir)) {
 		/* Make an index to look for a policy. */
-		*error = ipsec_setspidx(m, &spidx,
-					(flag & IP_FORWARDING) ? 0 : 1);
+		*error = ipsec_setspidx(m, &spidx, 0);
 		if (*error != 0) {
-			DPRINTF(("%s: setpidx failed, dir %u flag %u\n",
-				__func__, dir, flag));
+			DPRINTF(("%s: setpidx failed, dir %u\n",
+				__func__, dir));
 			return (NULL);
 		}
 		spidx.dir = dir;
-
 		sp = KEY_ALLOCSP(&spidx, dir);
 	}
 	if (sp == NULL)			/* No SP found, use system default. */
@@ -448,14 +446,13 @@ ipsec_getpolicybyaddr(struct mbuf *m, u_int dir, int flag, int *error)
 }
 
 struct secpolicy *
-ipsec4_checkpolicy(struct mbuf *m, u_int dir, u_int flag, int *error,
-    struct inpcb *inp)
+ipsec4_checkpolicy(struct mbuf *m, u_int dir, int *error, struct inpcb *inp)
 {
 	struct secpolicy *sp;
 
 	*error = 0;
 	if (inp == NULL)
-		sp = ipsec_getpolicybyaddr(m, dir, flag, error);
+		sp = ipsec_getpolicybyaddr(m, dir, error);
 	else
 		sp = ipsec_getpolicybysock(m, dir, inp, error);
 	if (sp == NULL) {
@@ -1276,13 +1273,9 @@ ipsec46_in_reject(struct mbuf *m, struct inpcb *inp)
 
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 
-	/*
-	 * Get SP for this packet.
-	 * When we are called from ip_forward(), we call
-	 * ipsec_getpolicybyaddr() with IP_FORWARDING flag.
-	 */
+	/* Get SP for this packet. */
 	if (inp == NULL)
-		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND, IP_FORWARDING, &error);
+		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND, &error);
 	else
 		sp = ipsec_getpolicybysock(m, IPSEC_DIR_INBOUND, inp, &error);
 
@@ -1408,12 +1401,9 @@ ipsec_hdrsiz(struct mbuf *m, u_int dir, struct inpcb *inp)
 
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 
-	/* Get SP for this packet.
-	 * When we are called from ip_forward(), we call
-	 * ipsec_getpolicybyaddr() with IP_FORWARDING flag.
-	 */
+	/* Get SP for this packet. */
 	if (inp == NULL)
-		sp = ipsec_getpolicybyaddr(m, dir, IP_FORWARDING, &error);
+		sp = ipsec_getpolicybyaddr(m, dir, &error);
 	else
 		sp = ipsec_getpolicybysock(m, dir, inp, &error);
 

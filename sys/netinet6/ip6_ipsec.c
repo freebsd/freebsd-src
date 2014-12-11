@@ -128,8 +128,7 @@ ip6_ipsec_fwd(struct mbuf *m)
 	struct secpolicy *sp;
 	int error;
 
-	sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
-	    IP_FORWARDING, &error);
+	sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND, &error);
 	if (sp != NULL) {
 		/*
 		 * Check security policy against packet attributes.
@@ -163,8 +162,7 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
 	 */
 	if ((inet6sw[ip6_protox[nxt]].pr_flags & PR_LASTHDR) != 0 &&
 	    ipsec6_in_reject(m, NULL)) {
-		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
-		    IP_FORWARDING, &error);
+		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND, &error);
 		if (sp != NULL) {
 			/*
 			 * Check security policy against packet attributes.
@@ -190,8 +188,7 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
  */
 
 int
-ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
-    struct ifnet **ifp)
+ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 {
 #ifdef IPSEC
 	struct secpolicy *sp;
@@ -209,7 +206,7 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 		*error = 0;
 		return (0);
 	}
-	sp = ipsec4_checkpolicy(*m, IPSEC_DIR_OUTBOUND, *flags, error, inp);
+	sp = ipsec4_checkpolicy(*m, IPSEC_DIR_OUTBOUND, error, inp);
 	/*
 	 * There are four return cases:
 	 *    sp != NULL		    apply IPsec policy

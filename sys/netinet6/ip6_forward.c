@@ -177,8 +177,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 
 #ifdef IPSEC
 	/* get a security policy for this packet */
-	sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND,
-	    IP_FORWARDING, &error);
+	sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_OUTBOUND, &error);
 	if (sp == NULL) {
 		IPSEC6STAT_INC(ips_out_inval);
 		IP6STAT_INC(ip6s_cantforward);
