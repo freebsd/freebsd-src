@@ -1307,6 +1307,23 @@ ithread_loop(void *arg)
 	ie->ie_count = 0;
 	wake = 0;
 
+#if defined(CPU_BERI) || defined(CPU_CHERI)
+	/*
+	 * XXXRW: Temporary hack due to omission in the BERI PIC driver: bind
+	 * all ithreads to CPU 0 so that the pre-ithread and post-ithread
+	 * handlers, which frob the interrupt-mask fields of the CPU0 status
+	 * register in a way that assumes that ithreads can't be signalled
+	 * from one CPU yet complete on another.  The proper fix is to develop
+	 * a BERI-aware version of intr_machdep.c.
+	 *
+	 * XXXRW: It would be nice if this hack were in beri_pic.c instead of
+	 * here, as well.
+	 */
+	thread_lock(td);
+	sched_bind(td, 0);
+	thread_unlock(td);
+#endif
+
 	/*
 	 * As long as we have interrupts outstanding, go through the
 	 * list of handlers, giving each one a go at it.
