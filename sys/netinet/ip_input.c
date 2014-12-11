@@ -785,7 +785,7 @@ ours:
 	 * note that we do not visit this with protocols with pcb layer
 	 * code - like udp/tcp/raw ip.
 	 */
-	if (ip_ipsec_input(m))
+	if (ip_ipsec_input(m, ip->ip_p) != 0)
 		goto bad;
 #endif /* IPSEC */
 
