@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 
 #ifdef IPSEC
+#include <netinet6/ip6_ipsec.h>
 #include <netipsec/ipsec.h>
 #include <netipsec/ipsec6.h>
 #include <netipsec/key.h>
@@ -109,21 +110,6 @@ ip6_forward(struct mbuf *m, int srcrt)
 	struct m_tag *fwd_tag;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
-#ifdef IPSEC
-	/*
-	 * Check AH/ESP integrity.
-	 */
-	/*
-	 * Don't increment ip6s_cantforward because this is the check
-	 * before forwarding packet actually.
-	 */
-	if (ipsec6_in_reject(m, NULL)) {
-		IPSEC6STAT_INC(ips_in_polvio);
-		m_freem(m);
-		return;
-	}
-#endif /* IPSEC */
-
 	/*
 	 * Do not forward packets to multicast destination (should be handled
 	 * by ip6_mforward().
@@ -148,6 +134,17 @@ ip6_forward(struct mbuf *m, int srcrt)
 		m_freem(m);
 		return;
 	}
+#ifdef IPSEC
+	/*
+	 * Check if this packet has an active SA and needs to be dropped
+	 * instead of forwarded.
+	 */
+	if (ip6_ipsec_fwd(m) != 0) {
+		IP6STAT_INC(ip6s_cantforward);
+		m_freem(m);
+		return;
+	}
+#endif /* IPSEC */
 
 #ifdef IPSTEALTH
 	if (!V_ip6stealth) {
