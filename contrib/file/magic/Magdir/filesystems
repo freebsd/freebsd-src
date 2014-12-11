@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: filesystems,v 1.106 2014/10/23 17:17:09 christos Exp $
+# $File: filesystems,v 1.107 2014/12/03 18:02:52 christos Exp $
 # filesystems:  file(1) magic for different filesystems
 #
 0	name	partid  
@@ -2122,6 +2122,7 @@
 #----------------------------------------------------------
 #delta ISO    Daniel Novotny (dnovotny@redhat.com)
 0	string  DISO	Delta ISO data
+!:strength +50
 >4	belong  x	version %d
 
 # VMS backup savesets - gerardo.cacciari@gmail.com
