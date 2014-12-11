@@ -354,8 +354,7 @@ extern int ipcomp4_input(struct mbuf **mp, int *offp, int proto);
 extern int ipsec4_common_input(struct mbuf *m, ...);
 extern int ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 			int skip, int protoff);
-extern int ipsec4_process_packet(struct mbuf *, struct ipsecrequest *,
-			int, int);
+extern int ipsec4_process_packet(struct mbuf *, struct ipsecrequest *);
 extern int ipsec_process_done(struct mbuf *, struct ipsecrequest *);
 
 extern struct mbuf *ipsec_copypkt(struct mbuf *);
