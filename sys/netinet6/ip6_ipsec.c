@@ -125,35 +125,21 @@ int
 ip6_ipsec_fwd(struct mbuf *m)
 {
 #ifdef IPSEC
-	struct m_tag *mtag;
-	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
 	int error;
-	mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL);
-	if (mtag != NULL) {
-		tdbi = (struct tdb_ident *)(mtag + 1);
-		sp = ipsec_getpolicy(tdbi, IPSEC_DIR_INBOUND);
-	} else {
-		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
-					   IP_FORWARDING, &error);
-	}
-	if (sp == NULL) {	/* NB: can happen if error */
-		/*XXX error stat???*/
-		DPRINTF(("%s: no SP for forwarding\n", __func__));	/*XXX*/
-		return 1;
-	}
 
-	/*
-	 * Check security policy against packet attributes.
-	 */
-	error = ipsec_in_reject(sp, m);
-	KEY_FREESP(&sp);
-	if (error) {
-		IP6STAT_INC(ip6s_cantforward);
-		return 1;
+	sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND, &error);
+	if (sp != NULL) {
+		/*
+		 * Check security policy against packet attributes.
+		 */
+		error = ipsec_in_reject(sp, m);
+		KEY_FREESP(&sp);
 	}
+	if (error != 0)
+		return (1);
 #endif /* IPSEC */
-	return 0;
+	return (0);
 }
 
 /*
@@ -167,8 +153,6 @@ int
 ip6_ipsec_input(struct mbuf *m, int nxt)
 {
 #ifdef IPSEC
-	struct m_tag *mtag;
-	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
 	int error;
 	/*
@@ -178,21 +162,7 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
 	 */
 	if ((inet6sw[ip6_protox[nxt]].pr_flags & PR_LASTHDR) != 0 &&
 	    ipsec6_in_reject(m, NULL)) {
-
-		/*
-		 * Check if the packet has already had IPsec processing
-		 * done.  If so, then just pass it along.  This tag gets
-		 * set during AH, ESP, etc. input handling, before the
-		 * packet is returned to the ip input queue for delivery.
-		 */
-		mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL);
-		if (mtag != NULL) {
-			tdbi = (struct tdb_ident *)(mtag + 1);
-			sp = ipsec_getpolicy(tdbi, IPSEC_DIR_INBOUND);
-		} else {
-			sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
-						   IP_FORWARDING, &error);
-		}
+		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND, &error);
 		if (sp != NULL) {
 			/*
 			 * Check security policy against packet attributes.
@@ -203,13 +173,12 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
 			/* XXX error stat??? */
 			error = EINVAL;
 			DPRINTF(("%s: no SP, packet discarded\n", __func__));/*XXX*/
-			return 1;
 		}
-		if (error)
-			return 1;
+		if (error != 0)
+			return (1);
 	}
 #endif /* IPSEC */
-	return 0;
+	return (0);
 }
 
 /*
@@ -219,26 +188,25 @@ ip6_ipsec_input(struct mbuf *m, int nxt)
  */
 
 int
-ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
-    struct ifnet **ifp)
+ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *error)
 {
 #ifdef IPSEC
-	struct secpolicy *sp = NULL;
-	struct tdb_ident *tdbi;
-	struct m_tag *mtag;
-	/* XXX int s; */
-	mtag = m_tag_find(*m, PACKET_TAG_IPSEC_PENDING_TDB, NULL);
-	if (mtag != NULL) {
-		tdbi = (struct tdb_ident *)(mtag + 1);
-		sp = ipsec_getpolicy(tdbi, IPSEC_DIR_OUTBOUND);
-		if (sp == NULL)
-			*error = -EINVAL;	/* force silent drop */
-		m_tag_delete(*m, mtag);
-	} else {
-		sp = ipsec4_checkpolicy(*m, IPSEC_DIR_OUTBOUND, *flags,
-					error, inp);
-	}
+	struct secpolicy *sp;
 
+	/*
+	 * Check the security policy (SP) for the packet and, if
+	 * required, do IPsec-related processing.  There are two
+	 * cases here; the first time a packet is sent through
+	 * it will be untagged and handled by ipsec4_checkpolicy.
+	 * If the packet is resubmitted to ip6_output (e.g. after
+	 * AH, ESP, etc. processing), there will be a tag to bypass
+	 * the lookup and related policy checking.
+	 */
+	if (m_tag_find(*m, PACKET_TAG_IPSEC_OUT_DONE, NULL) != NULL) {
+		*error = 0;
+		return (0);
+	}
+	sp = ipsec4_checkpolicy(*m, IPSEC_DIR_OUTBOUND, error, inp);
 	/*
 	 * There are four return cases:
 	 *    sp != NULL		    apply IPsec policy
@@ -247,36 +215,6 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 	 *    sp == NULL, error != 0	    discard packet, report error
 	 */
 	if (sp != NULL) {
-		/* Loop detection, check if ipsec processing already done */
-		KASSERT(sp->req != NULL, ("ip_output: no ipsec request"));
-		for (mtag = m_tag_first(*m); mtag != NULL;
-		     mtag = m_tag_next(*m, mtag)) {
-			if (mtag->m_tag_cookie != MTAG_ABI_COMPAT)
-				continue;
-			if (mtag->m_tag_id != PACKET_TAG_IPSEC_OUT_DONE &&
-			    mtag->m_tag_id != PACKET_TAG_IPSEC_OUT_CRYPTO_NEEDED)
-				continue;
-			/*
-			 * Check if policy has no SA associated with it.
-			 * This can happen when an SP has yet to acquire
-			 * an SA; e.g. on first reference.  If it occurs,
-			 * then we let ipsec4_process_packet do its thing.
-			 */
-			if (sp->req->sav == NULL)
-				break;
-			tdbi = (struct tdb_ident *)(mtag + 1);
-			if (tdbi->spi == sp->req->sav->spi &&
-			    tdbi->proto == sp->req->sav->sah->saidx.proto &&
-			    bcmp(&tdbi->dst, &sp->req->sav->sah->saidx.dst,
-				 sizeof (union sockaddr_union)) == 0) {
-				/*
-				 * No IPsec processing is needed, free
-				 * reference to SP.
-				 */
-				goto done;
-			}
-		}
-
 		/*
 		 * Do delayed checksums now because we send before
 		 * this is done in the normal processing path.
@@ -333,9 +271,8 @@ ip6_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error,
 			if (*error == -EINVAL)
 				*error = 0;
 			goto bad;
-		} else {
-			/* No IPsec processing for this packet. */
 		}
+		/* No IPsec processing for this packet. */
 	}
 done:
 	if (sp != NULL)
