@@ -235,37 +235,3 @@ cheri_sysarch_setstack(struct thread *td, struct sysarch_args *uap)
 	cheri_bcopy(&cs, &td->td_pcb->pcb_cheristack, sizeof(cs));
 	return (0);
 }
-
-#ifdef DDB
-/*
- * Print out the trusted stack for the current thread, starting at the top.
- *
- * XXXRW: Would be nice to take a tid/pid argument rather than always use
- * curthread.
- */
-DB_SHOW_COMMAND(cheristack, ddb_dump_cheristack)
-{
-	struct cheri_stack_frame *csfp;
-	struct pcb *pcb = curthread->td_pcb;
-	int i;
-
-	db_printf("Trusted stack for TID %d; TSP 0x%016jx\n",
-	    curthread->td_tid, (uintmax_t)pcb->pcb_cheristack.cs_tsp);
-	for (i = CHERI_STACK_DEPTH - 1; i >= 0; i--) {
-	    /* i > (pcb->pcb_cheristack.cs_tsp / CHERI_FRAME_SIZE); i--) { */
-		csfp = &pcb->pcb_cheristack.cs_frames[i];
-
-		db_printf("Frame %d%c\n", i,
-		    (i >= (pcb->pcb_cheristack.cs_tsp / CHERI_FRAME_SIZE)) ?
-		    '*' : ' ');
-
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &csfp->csf_idc, 0);
-		db_printf("  IDC ");
-		DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
-
-		CHERI_CLC(CHERI_CR_CTEMP0, CHERI_CR_KDC, &csfp->csf_pcc, 0);
-		db_printf("  PCC ");
-		DB_CHERI_CAP_PRINT(CHERI_CR_CTEMP0);
-	}
-}
-#endif
