@@ -632,7 +632,7 @@ usage(void)
 	fprintf(stderr, "usage:\n");
 	fprintf(stderr, "cheritest -l [-v]          -- List tests\n");
 	fprintf(stderr, "cheritest -a               -- Run all tests\n");
-	fprintf(stderr, "cheritest <test> ...       -- Run specified tests\n");
+	fprintf(stderr, "cheritest [-v] <test> ...  -- Run specified tests\n");
 	exit(EX_USAGE);
 }
 
@@ -694,11 +694,16 @@ cheritest_run_test(const struct cheri_test *ctp)
 	register_t cp2_exccode, mips_exccode;
 	ssize_t len;
 
+	xo_open_instance("test");
 	bzero(ccsp, sizeof(*ccsp));
-	printf("TEST: %s: %s\n", ctp->ct_name, ctp->ct_desc);
+	xo_emit("TEST: {:name/%s}: {:description/%s}\n",
+	   ctp->ct_name, ctp->ct_desc);
 
-	if (ctp->ct_xfail_reason != NULL)
+	if (ctp->ct_xfail_reason != NULL) {
+		xo_emit("{e:expected-failure-reason/%s}",
+		    ctp->ct_xfail_reason);
 		expected_failures++;
+	}
 
 	if (pipe(pipefd_stdin) < 0)
 		err(EX_OSERR, "pipe");
@@ -832,8 +837,20 @@ cheritest_run_test(const struct cheri_test *ctp)
 	/*
 	 * Next, see whether any expected output was present.
 	 */
+	len = read(pipefd_stdout[0], buffer, sizeof(buffer) - 1);
+	if (len < 0) {
+		xo_attr("error", strerror(errno));
+		xo_emit("{e:stdout/%s}", "");
+	} else {
+		buffer[len] = '\0';
+		if (len > 0) {
+			if (ctp->ct_flags & CT_FLAG_STDOUT_IGNORE)
+				xo_attr("ignored", "true");
+			xo_emit("{e:stdout/%s}", buffer);
+		}
+	}
 	if (ctp->ct_flags & CT_FLAG_STDOUT_STRING) {
-		len = read(pipefd_stdout[0], buffer, sizeof(buffer) - 1);
+		xo_emit("{e:expected-stdout/%s}", ctp->ct_stdout_string);
 		if (len < 0) {
 			snprintf(reason, sizeof(reason),
 			    "read() on test stdout failed with -1 (%d)",
@@ -842,18 +859,26 @@ cheritest_run_test(const struct cheri_test *ctp)
 		}
 		buffer[len] = '\0';
 		if (strcmp(buffer, ctp->ct_stdout_string) != 0) {
-			snprintf(reason, sizeof(reason),
-			    "read() on test stdout expected '%s' but got "
-			    "'%s'", ctp->ct_stdout_string, buffer);
+			if (verbose)
+				snprintf(reason, sizeof(reason),
+				    "read() on test stdout expected '%s' "
+				    "but got '%s'",
+				    ctp->ct_stdout_string, buffer);
+			else
+				snprintf(reason, sizeof(reason),
+				    "read() on test stdout did not match");
 			goto fail;
 		}
 	} else if (!(ctp->ct_flags & CT_FLAG_STDOUT_IGNORE)) {
-		len = read(pipefd_stdout[0], buffer, sizeof(buffer) - 1);
 		if (len > 0) {
-			buffer[len] = '\0';
-			snprintf(reason, sizeof(reason),
-			    "read() on test stdout produced unexpected "
-			    "output '%s'", buffer);
+			if (verbose)
+				snprintf(reason, sizeof(reason),
+				    "read() on test stdout produced "
+				    "unexpected output '%s'", buffer);
+			else
+				snprintf(reason, sizeof(reason),
+				    "read() on test stdout produced "
+				    "unexpected output");
 			goto fail;
 		}
 	}
@@ -892,24 +917,34 @@ cheritest_run_test(const struct cheri_test *ctp)
 	}
 
 	if (ctp->ct_xfail_reason == NULL)
-		fprintf(stderr, "PASS: %s\n", ctp->ct_name);
-	else
-		fprintf(stderr, "PASS: %s (Expected failure due to %s)\n",
-		    ctp->ct_name, ctp->ct_xfail_reason);
+		xo_emit("{:status/%s}: {d:name/%s}\n", "PASS", ctp->ct_name);
+	else {
+		xo_attr("expected", "false");
+		xo_emit("{:status/%s}: {d:name/%s} (Expected failure due to "
+		    "{d:expected-failure-reason/%s})\n",
+		    "PASS", ctp->ct_name, ctp->ct_xfail_reason);
+	}
 	tests_passed++;
 	close(pipefd_stdin[1]);
 	close(pipefd_stdout[0]);
+	xo_close_instance("test");
+	xo_flush();
 	return;
 
 fail:
 	if (ctp->ct_xfail_reason == NULL)
-		fprintf(stderr, "FAIL: %s: %s\n", ctp->ct_name, reason);
+		xo_emit("{:status/%s}: {d:name/%s}: {:failure-reason/%s}\n",
+		    "FAIL", ctp->ct_name, reason);
 	else {
-		fprintf(stderr, "XFAIL: %s: %s (%s)\n", ctp->ct_name,
-		    reason, ctp->ct_xfail_reason);
+		xo_attr("expected", "true");
+		xo_emit("{d:/%s}{:status/%s}: {d:name/%s}: "
+		    "{:failure-reason/%s} ({d:expected-failure-reason/%s})\n",
+		    "X", "FAIL", ctp->ct_name, reason, ctp->ct_xfail_reason);
 		tests_xfailed++;
 	}
 	tests_failed++;
+	xo_close_instance("test");
+	xo_flush();
 	close(pipefd_stdin[1]);
 	close(pipefd_stdout[0]);
 }
@@ -1009,6 +1044,8 @@ main(__unused int argc, __unused char *argv[])
 	/* Run the actual tests. */
 	cheritest_ccall_setup();
 	cheritest_libcheri_setup();
+	xo_open_container("testsuite");
+	xo_open_list("test");
 	if (run_all) {
 		for (t = 0; t < cheri_tests_len; t++)
 			cheritest_run_test(&cheri_tests[t]);
@@ -1016,6 +1053,8 @@ main(__unused int argc, __unused char *argv[])
 		for (i = 0; i < argc; i++)
 			cheritest_run_test_name(argv[i]);
 	}
+	xo_close_container("testsuite");
+	xo_close_list("test");
 	if (tests_passed + tests_failed > 1) {
 		if (expected_failures == 0)
 			fprintf(stderr, "SUMMARY: passed %d failed %d\n",
@@ -1032,6 +1071,7 @@ main(__unused int argc, __unused char *argv[])
 	}
 
 	cheritest_libcheri_destroy();
+	xo_finish();
 	if (tests_failed > tests_xfailed)
 		exit(-1);
 	exit(EX_OK);
