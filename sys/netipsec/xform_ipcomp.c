@@ -309,12 +309,12 @@ ipcomp_input_cb(struct cryptop *crp)
 	switch (saidx->dst.sa.sa_family) {
 #ifdef INET6
 	case AF_INET6:
-		error = ipsec6_common_input_cb(m, sav, skip, protoff, NULL);
+		error = ipsec6_common_input_cb(m, sav, skip, protoff);
 		break;
 #endif
 #ifdef INET
 	case AF_INET:
-		error = ipsec4_common_input_cb(m, sav, skip, protoff, NULL);
+		error = ipsec4_common_input_cb(m, sav, skip, protoff);
 		break;
 #endif
 	default:
