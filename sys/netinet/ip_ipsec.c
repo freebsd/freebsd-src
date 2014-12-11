@@ -101,41 +101,27 @@ ip_ipsec_filtertunnel(struct mbuf *m)
 /*
  * Check if this packet has an active SA and needs to be dropped instead
  * of forwarded.
- * Called from ip_input().
+ * Called from ip_forward().
  * 1 = drop packet, 0 = forward packet.
  */
 int
 ip_ipsec_fwd(struct mbuf *m)
 {
-	struct m_tag *mtag;
-	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
 	int error;
 
-	mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL);
-	if (mtag != NULL) {
-		tdbi = (struct tdb_ident *)(mtag + 1);
-		sp = ipsec_getpolicy(tdbi, IPSEC_DIR_INBOUND);
-	} else {
-		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
-					   IP_FORWARDING, &error);   
+	sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
+	    IP_FORWARDING, &error);
+	if (sp != NULL) {
+		/*
+		 * Check security policy against packet attributes.
+		 */
+		error = ipsec_in_reject(sp, m);
+		KEY_FREESP(&sp);
 	}
-	if (sp == NULL) {	/* NB: can happen if error */
-		/*XXX error stat???*/
-		DPRINTF(("ip_input: no SP for forwarding\n"));	/*XXX*/
-		return 1;
-	}
-
-	/*
-	 * Check security policy against packet attributes.
-	 */
-	error = ipsec_in_reject(sp, m);
-	KEY_FREESP(&sp);
-	if (error) {
-		IPSTAT_INC(ips_cantforward);
-		return 1;
-	}
-	return 0;
+	if (error != 0)
+		return (1);
+	return (0);
 }
 
 /*

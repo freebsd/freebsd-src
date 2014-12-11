@@ -747,10 +747,6 @@ passin:
 		IPSTAT_INC(ips_cantforward);
 		m_freem(m);
 	} else {
-#ifdef IPSEC
-		if (ip_ipsec_fwd(m))
-			goto bad;
-#endif /* IPSEC */
 		ip_forward(m, dchg);
 	}
 	return;
@@ -1452,6 +1448,13 @@ ip_forward(struct mbuf *m, int srcrt)
 		m_freem(m);
 		return;
 	}
+#ifdef IPSEC
+	if (ip_ipsec_fwd(m) != 0) {
+		IPSTAT_INC(ips_cantforward);
+		m_freem(m);
+		return;
+	}
+#endif /* IPSEC */
 #ifdef IPSTEALTH
 	if (!V_ipstealth) {
 #endif
