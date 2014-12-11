@@ -303,8 +303,9 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	/*
 	 * IPSec checking which handles several cases.
 	 * FAST IPSEC: We re-injected the packet.
+	 * XXX: need scope argument.
 	 */
-	switch(ip6_ipsec_output(&m, inp, &flags, &error, &ifp))
+	switch(ip6_ipsec_output(&m, inp, &error))
 	{
 	case 1:                 /* Bad packet */
 		goto freehdrs;
