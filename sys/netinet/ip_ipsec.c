@@ -228,7 +228,7 @@ ip_ipsec_output(struct mbuf **m, struct inpcb *inp, int *flags, int *error)
 #endif
 
 		/* NB: callee frees mbuf */
-		*error = ipsec4_process_packet(*m, sp->req, *flags, 0);
+		*error = ipsec4_process_packet(*m, sp->req);
 		if (*error == EJUSTRETURN) {
 			/*
 			 * We had a SP with a level of 'use' and no SA. We
