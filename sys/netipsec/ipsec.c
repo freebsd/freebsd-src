@@ -428,6 +428,7 @@ ipsec_getpolicybyaddr(struct mbuf *m, u_int dir, int *error)
 		("invalid direction %u", dir));
 
 	sp = NULL;
+	*error = 0;
 	if (key_havesp(dir)) {
 		/* Make an index to look for a policy. */
 		*error = ipsec_setspidx(m, &spidx, 0);
