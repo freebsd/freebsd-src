@@ -146,11 +146,8 @@ ip_ipsec_fwd(struct mbuf *m)
  * 1 = drop packet, 0 = continue processing packet.
  */
 int
-ip_ipsec_input(struct mbuf *m)
+ip_ipsec_input(struct mbuf *m, int nxt)
 {
-	struct ip *ip = mtod(m, struct ip *);
-	struct m_tag *mtag;
-	struct tdb_ident *tdbi;
 	struct secpolicy *sp;
 	int error;
 	/*
@@ -158,21 +155,9 @@ ip_ipsec_input(struct mbuf *m)
 	 * note that we do not visit this with protocols with pcb layer
 	 * code - like udp/tcp/raw ip.
 	 */
-	if ((inetsw[ip_protox[ip->ip_p]].pr_flags & PR_LASTHDR) != 0) {
-		/*
-		 * Check if the packet has already had IPsec processing
-		 * done.  If so, then just pass it along.  This tag gets
-		 * set during AH, ESP, etc. input handling, before the
-		 * packet is returned to the ip input queue for delivery.
-		 */ 
-		mtag = m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL);
-		if (mtag != NULL) {
-			tdbi = (struct tdb_ident *)(mtag + 1);
-			sp = ipsec_getpolicy(tdbi, IPSEC_DIR_INBOUND);
-		} else {
-			sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
-						   IP_FORWARDING, &error);   
-		}
+	if ((inetsw[ip_protox[nxt]].pr_flags & PR_LASTHDR) != 0) {
+		sp = ipsec_getpolicybyaddr(m, IPSEC_DIR_INBOUND,
+		    IP_FORWARDING, &error);
 		if (sp != NULL) {
 			/*
 			 * Check security policy against packet attributes.
@@ -183,12 +168,11 @@ ip_ipsec_input(struct mbuf *m)
 			/* XXX error stat??? */
 			error = EINVAL;
 			DPRINTF(("ip_input: no SP, packet discarded\n"));/*XXX*/
-			return 1;
 		}
-		if (error)
-			return 1;
+		if (error != 0)
+			return (1);
 	}
-	return 0;
+	return (0);
 }
 
 /*
