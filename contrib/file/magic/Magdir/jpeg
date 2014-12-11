@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: jpeg,v 1.19 2013/02/04 15:50:03 christos Exp $
+# $File: jpeg,v 1.21 2014/09/12 20:47:00 christos Exp $
 # JPEG images
 # SunOS 5.5.1 had
 #
@@ -22,10 +22,12 @@
 >>11	byte		x		\b %d.
 >>12	byte		x		\b%02d
 # Next, the resolution or aspect ratio of the image:
-#>>13	byte		0		\b, aspect ratio
-#>>13	byte		1		\b, resolution (DPI)
-#>>13	byte		2		\b, resolution (DPCM)
-#>>4	beshort		x		\b, segment length %d
+>>13	byte		0		\b, aspect ratio
+>>13	byte		1		\b, resolution (DPI)
+>>13	byte		2		\b, resolution (DPCM)
+>>14	beshort		x		\b, density %dx
+>>16	beshort		x		\b%d
+>>4	beshort		x		\b, segment length %d
 # Next, show thumbnail info, if it exists:
 >>18	byte		!0		\b, thumbnail %dx
 >>>19	byte		x		\b%d
@@ -121,33 +123,52 @@
 >>>>>(150.L+59)	byte	x		%c
 >>>>>(150.L+60)	byte	x		\b.%c
 >>>>>(150.L+61)	byte	!0x30		\b%c
-# Here things get sticky.  We can do ONE MORE marker segment with
-# indirect addressing, and that's all.  It would be great if we could
-# do pointer arithemetic like in an assembler language.  Christos?
-# And if there was some sort of looping construct to do searches, plus a few
-# named accumulators, it would be even more effective...
-# At least we can show a comment if no other segments got inserted before:
->(4.S+5)	byte		0xFE		\b, comment:
->>(4.S+6)	pstring/HJ	x		"%s"
-# Or, we can show the encoding type (I've included only the three most common)
-# and image dimensions if we are lucky and the SOFn (image segment) is here:
->(4.S+5)	byte		0xC0		\b, baseline
->>(4.S+6)	byte		x		\b, precision %d
->>(4.S+7)	beshort		x		\b, %dx
->>(4.S+9)	beshort		x		\b%d
->(4.S+5)	byte		0xC1		\b, extended sequential
->>(4.S+6)	byte		x		\b, precision %d
->>(4.S+7)	beshort		x		\b, %dx
->>(4.S+9)	beshort		x		\b%d
->(4.S+5)	byte		0xC2		\b, progressive
->>(4.S+6)	byte		x		\b, precision %d
->>(4.S+7)	beshort		x		\b, %dx
->>(4.S+9)	beshort		x		\b%d
-# I've commented-out quantisation table reporting.  I doubt anyone cares yet.
-#>(4.S+5)	byte		0xDB		\b, quantisation table
-#>>(4.S+6)	beshort		x		\b length=%d
-#>14	beshort		x		\b, %d x
-#>16	beshort		x		\b %d
+
+# Jump to the first segment
+>(4.S+4)	use		jpeg_segment
+
+# This uses recursion...
+0		name		jpeg_segment
+>0	beshort		0xFFFE
+>>(2.S+2)	use			jpeg_segment
+>>2	pstring/HJ	x		\b, comment: "%s"
+
+>0	beshort		0xFFC0
+>>(2.S+2)	use			jpeg_segment
+>>4	byte		x		\b, baseline, precision %d
+>>7	beshort		x		\b, %dx
+>>5	beshort		x		\b%d
+>>9	byte		x		\b, frames %d
+
+>0	beshort		0xFFC1		
+>>(2.S+2)	use			jpeg_segment
+>>4	byte		x		\b, extended sequential, precision %d
+>>7	beshort		x		\b, %dx
+>>5	beshort		x		\b%d
+>>9	byte		x		\b, frames %d
+
+>0	beshort		0xFFC2		
+>>(2.S+2)	use			jpeg_segment
+>>4	byte		x		\b, progressive, precision %d
+>>7	beshort		x		\b, %dx
+>>5	beshort		x		\b%d
+>>9	byte		x		\b, frames %d
+
+# Define Huffman Tables
+>0	beshort		0xFFC4
+>>(2.S+2)	use			jpeg_segment
+
+# Application specific markers
+>0	beshort&0xFFE0	=0xFFE0
+>>(2.S+2)	use			jpeg_segment
+
+# DB: Define Quantization tables
+# DD: Define Restart interval [XXX: wrong here, it is 4 bytes]
+# D8: Start of image
+# D9: End of image
+# Dn: Restart
+>0	beshort&0xFFD0	=0xFFD0
+>>(2.S+2)	use			jpeg_segment
 
 # HSI is Handmade Software's proprietary JPEG encoding scheme
 0	string		hsi1		JPEG image data, HSI proprietary
