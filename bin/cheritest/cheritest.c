@@ -665,10 +665,12 @@ list_tests(void)
 }
 
 static void
-signal_handler(int signum, siginfo_t *info __unused, ucontext_t *uap)
+signal_handler(int signum, siginfo_t *info __unused, void *vuap)
 {
 	struct cheri_frame *cfp;
+	ucontext_t *uap;
 
+	uap = (ucontext_t *)vuap;
 	cfp = (struct cheri_frame *)uap->uc_mcontext.mc_cp2state;
 	if (cfp == NULL || uap->uc_mcontext.mc_cp2state_len != sizeof(*cfp)) {
 		ccsp->ccs_signum = -1;
