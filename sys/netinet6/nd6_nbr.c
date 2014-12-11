@@ -1210,11 +1210,12 @@ nd6_dad_find(struct ifaddr *ifa)
 	TAILQ_FOREACH(dp, &V_dadq, dad_list)
 		if (dp->dad_ifa == ifa) {
 			refcount_acquire(&dp->dad_refcnt);
-			break;
+			DADQ_RUNLOCK();
+			return (dp);
 		}
 	DADQ_RUNLOCK();
 
-	return (dp);
+	return (NULL);
 }
 
 static void
