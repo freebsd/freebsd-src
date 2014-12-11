@@ -6,10 +6,8 @@
 # $FreeBSD$
 #
 
-include		BERI_DE4_2THREAD_MDROOT
+include		CHERI_DE4_MDROOT
 ident		CHERI_DE4_2THREAD_MDROOT
 
-nocpu		CPU_BERI
-cpu		CPU_CHERI
-
-device		cheri_compositor
+nomakeoption    FDT_DTS_FILE
+makeoption      FDT_DTS_FILE=beripad-de4-2thread.dts
