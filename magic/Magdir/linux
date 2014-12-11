@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: linux,v 1.57 2014/05/20 20:10:17 christos Exp $
+# $File: linux,v 1.59 2014/11/03 21:03:36 christos Exp $
 # linux:  file(1) magic for Linux files
 #
 # Values for Linux/i386 binaries, from Daniel Quinlan <quinlan@yggdrasil.com>
@@ -413,3 +413,22 @@
 >>>>20		belong		>16
 >>>>>36		belong		x	\b, DT structure block size=%d
 
+# glibc locale archive as defined in glibc locale/locarchive.h
+0		lelong		0xde020109	locale archive
+>24		lelong		x		%d strings
+
+# Summary:     Database file for mlocate
+# Description: A database file as used by mlocate, a fast implementation
+#              of locate/updatedb. It uses merging to reuse the existing
+#              database and avoid rereading most of the filesystem. It's
+#              the default version of locate on Arch Linux (and others).
+# File path:   /var/lib/mlocate/mlocate.db by default (but configurable)
+# Site:        https://fedorahosted.org/mlocate/
+# Format docs: http://linux.die.net/man/5/mlocate.db
+# Type: mlocate database file
+# URL:  https://fedorahosted.org/mlocate/
+# From: Wander Nauta <info@wandernauta.nl>
+0		string		\0mlocate	mlocate database
+>12		byte		x		\b, version %d
+>13		byte		1		\b, require visibility
+>16		string		x		\b, root %s
