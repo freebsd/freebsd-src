@@ -93,6 +93,13 @@ ifdead_transmit(struct ifnet *ifp, struct mbuf *m)
 	return (ENXIO);
 }
 
+static uint64_t
+ifdead_get_counter(struct ifnet *ifp, ift_counter cnt)
+{
+
+	return (0);
+}
+
 void
 if_dead(struct ifnet *ifp)
 {
@@ -104,4 +111,5 @@ if_dead(struct ifnet *ifp)
 	ifp->if_resolvemulti = ifdead_resolvemulti;
 	ifp->if_qflush = ifdead_qflush;
 	ifp->if_transmit = ifdead_transmit;
+	ifp->if_get_counter = ifdead_get_counter;
 }
