@@ -652,7 +652,7 @@ list_tests(void)
 			xo_emit("{:name/%s}{e:description/%s}",
 			    cheri_tests[i].ct_name, cheri_tests[i].ct_desc);
 		if (cheri_tests[i].ct_xfail_reason)
-			xo_emit("{e:xfail-reason/%s}",
+			xo_emit("{e:expected-failure-reason/%s}",
 			    cheri_tests[i].ct_xfail_reason);
 		xo_emit("\n");
 		xo_close_instance("test");
