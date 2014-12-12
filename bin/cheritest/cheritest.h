@@ -124,8 +124,7 @@ void	cheritest_failure_errx(const char *msg, ...) __dead2;
 void	cheritest_success(void) __dead2;
 
 /* cheritest_ccall.c */
-void	cheritest_ccall_setup();
-void	test_fault_creturn(const struct cheri_test *ctp);
+void	cheritest_ccall_setup(void);
 void	test_nofault_ccall_creturn(const struct cheri_test *ctp);
 void	test_nofault_ccall_nop_creturn(const struct cheri_test *ctp);
 void	test_nofault_ccall_dli_creturn(const struct cheri_test *ctp);
