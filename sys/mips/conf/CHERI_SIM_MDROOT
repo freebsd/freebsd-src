@@ -10,3 +10,4 @@ ident           CHERI_SIM_MDROOT
 
 nocpu           CPU_BERI
 cpu             CPU_CHERI
+makeoptions	EMBED_CHERITEST_LIST=YES
