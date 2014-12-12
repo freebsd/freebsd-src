@@ -31,8 +31,10 @@
 
 #include <sys/cdefs.h>
 
+#ifndef LIST_ONLY
 #if !__has_feature(capabilities)
 #error "This code requires a CHERI-aware compiler"
+#endif
 #endif
 
 #include <sys/types.h>
@@ -42,6 +44,7 @@
 #include <sys/ucontext.h>
 #include <sys/wait.h>
 
+#ifndef LIST_ONLY
 #include <machine/cheri.h>
 #include <machine/cheric.h>
 #include <machine/cpuregs.h>
@@ -50,6 +53,7 @@
 
 #include <cheri/cheri_fd.h>
 #include <cheri/sandbox.h>
+#endif
 
 #include <cheritest-helper.h>
 #include <err.h>
@@ -66,6 +70,9 @@
 #include <libxo/xo.h>
 
 #include "cheritest.h"
+#ifdef LIST_ONLY
+#include "cheritest_list_only.h"
+#endif
 
 #define	max(x, y)	((x) > (y) ? (x) : (y))
 
@@ -631,8 +638,10 @@ usage(void)
 
 	fprintf(stderr, "usage:\n");
 	fprintf(stderr, "cheritest -l [-v]          -- List tests\n");
+#ifndef LIST_ONLY
 	fprintf(stderr, "cheritest -a               -- Run all tests\n");
 	fprintf(stderr, "cheritest [-v] <test> ...  -- Run specified tests\n");
+#endif
 	exit(EX_USAGE);
 }
 
@@ -664,6 +673,7 @@ list_tests(void)
 	exit(EX_OK);
 }
 
+#ifndef LIST_ONLY
 static void
 signal_handler(int signum, siginfo_t *info __unused, void *vuap)
 {
@@ -964,13 +974,17 @@ cheritest_run_test_name(const char *name)
 		errx(EX_USAGE, "unknown test: %s", name);
 	cheritest_run_test(&cheri_tests[i]);
 }
+#endif /* !LIST_ONLY */
 
 int
 main(__unused int argc, __unused char *argv[])
 {
+	int opt;
+#ifndef LIST_ONLY
 	stack_t stack;
-	int i, opt;
+	int i;
 	u_int t;
+#endif
 
 	argc = xo_parse_args(argc, argv);
 	if (argc < 0)
@@ -1004,6 +1018,10 @@ main(__unused int argc, __unused char *argv[])
 		warnx("-l and a list of tests are incompatible");
 		usage();
 	}
+#ifdef LIST_ONLY
+	else
+		usage();
+#else /* LIST_ONLY */
 	if (argc == 0 && !run_all)
 		usage();
 	if (argc > 0 && run_all) {
@@ -1077,4 +1095,5 @@ main(__unused int argc, __unused char *argv[])
 	if (tests_failed > tests_xfailed)
 		exit(-1);
 	exit(EX_OK);
+#endif /* !LIST_ONLY */
 }
