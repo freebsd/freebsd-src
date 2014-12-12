@@ -30,5 +30,7 @@
 #define	__HDMI_H__
 
 void	brute_force_write_seq(int fd);
+void    display_pixelstream_regs(int fd);
+void	hdmi_set_res(int fd, int xres, int yres, float refresh);
 
 #endif	/* __HDMI_H__ */
