@@ -60,6 +60,7 @@
 #include <cheri/sandbox.h>
 
 #include <cheritest-helper.h>
+#include <cheritest-helper-internal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

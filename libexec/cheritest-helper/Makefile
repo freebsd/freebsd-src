@@ -13,7 +13,7 @@ SRCS+=	adler32.c \
 	inftrees.c \
 	zutil.c
 
-INCS=	cheritest-helper.h
+INCS=	cheritest-helper.h cheritest-helper-internal.h
 
 LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib

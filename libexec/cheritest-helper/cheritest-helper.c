@@ -49,6 +49,7 @@
 #include <zlib.h>
 
 #include "cheritest-helper.h"
+#include "cheritest-helper-internal.h"
 
 int	invoke(__capability void *sealedcodecap,
 	    __capability void *sealeddatacap,

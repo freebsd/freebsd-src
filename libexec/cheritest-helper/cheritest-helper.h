@@ -83,13 +83,4 @@
 #define	CHERITEST_VALUE_INVALID		0xbb
 #define	CHERITEST_VALUE_CONSTRUCTOR	0xcc
 
-struct zstream_proxy {
-	__capability void *next_in;
-	size_t avail_in;
-	__capability void *next_out;
-	size_t avail_out;
-	size_t total_in;
-	size_t total_out;
-};
-
 #endif /* !_LIBEXEC_CHERITEST_CHERITEST_HELPER_H_ */
