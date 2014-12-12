@@ -3223,6 +3223,7 @@ libkern/strtoq.c		standard
 libkern/strtoul.c		standard
 libkern/strtouq.c		standard
 libkern/strvalid.c		standard
+libkern/timingsafe_bcmp.c	standard
 net/bpf.c			standard
 net/bpf_buffer.c		optional bpf
 net/bpf_jitter.c		optional bpf_jitter
@@ -3880,6 +3881,8 @@ opencrypto/cryptodev.c		optional cryptodev
 opencrypto/cryptodev_if.m	optional crypto
 opencrypto/cryptosoft.c		optional crypto
 opencrypto/cryptodeflate.c	optional crypto
+opencrypto/gmac.c		optional crypto
+opencrypto/gfmult.c		optional crypto
 opencrypto/rmd160.c		optional crypto | ipsec
 opencrypto/skipjack.c		optional crypto
 opencrypto/xform.c		optional crypto
