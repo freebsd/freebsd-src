@@ -136,6 +136,9 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o ${MFS_IMAGE}
 .if defined(MFS_IMAGE)
 	sh ${S}/tools/embed_mfs.sh ${FULLKERNEL} ${MFS_IMAGE}
 .endif
+.if defined(EMBED_CHERITEST_LIST)
+	sh ${S}/tools/embed_cheritest_list.sh ${FULLKERNEL}
+.endif
 
 .if !exists(${.OBJDIR}/.depend)
 ${SYSTEM_OBJS}: assym.s vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
