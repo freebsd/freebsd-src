@@ -35,6 +35,8 @@ ifelse(len(X`'_ARG6_), `1', `define(`_LDAP_ROUTE_MAPTEMP_', `_QUEUE_')',
        _ARG6_, `tempfail', `define(`_LDAP_ROUTE_MAPTEMP_', `_TEMPFAIL_')',
        _ARG6_, `queue', `define(`_LDAP_ROUTE_MAPTEMP_', `_QUEUE_')')
 
+define(`_NEED_SMTPOPMODES_', `1')
+
 LOCAL_CONFIG
 # LDAP routing maps
 Kldapmh ifelse(len(X`'_ARG1_), `1',

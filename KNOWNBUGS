@@ -62,9 +62,9 @@ This list is not guaranteed to be complete.
   libmilter and hence the communication fails.  This can be avoided by
   increasing the constant MILTER_CHUNK_SIZE in
   include/libmilter/mfdef.h and recompiling sendmail, libmilter, and
-  all (statically linked) milters (or by using an undocumented compile
-  time option:  _FFR_MAXDATASIZE; you have to read the source code in
-  order to use this properly).
+  all (statically linked) milters (or by using undocumented compile
+  time options: _FFR_MAXDATASIZE/_FFR_MDS_NEGOTIATE; you have to
+  read the source code in order to use these properly).
 
 * Sender addresses whose domain part cause a temporary A record lookup
   failure but have a valid MX record will be temporarily rejected in
@@ -101,6 +101,11 @@ Kresolve sequence dnsmx canon
 
   Header addresses that have the \231 character (and possibly others
   in the range \201 - \237) behave in odd and usually unexpected ways.
+
+* AuthRealm for Cyrus SASL may not work as expected. The man page
+  and the actual usage for sasl_server_new() seem to differ.
+  Feedback for the "correct" usage is welcome, a patch to match
+  the description of the man page is in contrib/AuthRealm.p0.
 
 * accept() problem on SVR4.
 
@@ -252,7 +257,7 @@ Kresolve sequence dnsmx canon
 
 * Race condition for delivery to set-user-ID files
 
-  Sendmail will deliver to a fail if the file is owned by the DefaultUser
+  Sendmail will deliver to a file if the file is owned by the DefaultUser
   or has the set-user-ID bit set.  Unfortunately, some systems clear that bit
   when a file is modified.  Sendmail compensates by resetting the file mode
   back to it's original settings.  Unfortunately, there's still a

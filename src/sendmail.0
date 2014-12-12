@@ -48,6 +48,8 @@ DDEESSCCRRIIPPTTIIOONN
               Also,  the ``From:'' and ``Sender:'' fields are examined for the
               name of the sender.
 
+       --bbCC    Check the configuration file.
+
        --bbdd    Run as a daemon.  SSeennddmmaaiill will fork and run in background  lis-
               tening on socket 25 for incoming SMTP connections.  This is nor-
               mally run from /etc/rc.

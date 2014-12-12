@@ -675,30 +675,30 @@ then
 	echo "Creating $obj using $BUILDTOOLS/OS/$oscf"
 	${mkdir} $obj
 
-		ln="ln -s"
-		(cd $obj
-		# This glob doesn't actually glob to something everywhere,
-		# thus the protective measures.
-		for i in ${obj_rel_base_dir}/${src_dir}/*.[chly13458]
-		do
-			if [ -f $i ]
-			then
-				$ln $i .
-			fi
-		done
-		# This glob doesn't actually glob to something everywhere,
-		# thus the protective measures.
-		for i in ${obj_rel_base_dir}/${src_dir}/*.0
-		do
-			if [ -f $i ]
-			then
-				$ln $i `basename $i`.dist
-			fi
-		done)
-		if [ -f helpfile ]
+	ln="ln -s"
+	(cd $obj
+	# This glob doesn't actually glob to something everywhere,
+	# thus the protective measures.
+	for i in ${obj_rel_base_dir}/${src_dir}/*.[chly13458]
+	do
+		if [ -f $i ]
 		then
-			(cd $obj; $ln ${obj_rel_base_dir}/${src_dir}/helpfile .)
+			$ln $i .
 		fi
+	done
+	# This glob doesn't actually glob to something everywhere,
+	# thus the protective measures.
+	for i in ${obj_rel_base_dir}/${src_dir}/*.0
+	do
+		if [ -f $i ]
+		then
+			$ln $i `basename $i`.dist
+		fi
+	done)
+	if [ -f helpfile ]
+	then
+		(cd $obj; $ln ${obj_rel_base_dir}/${src_dir}/helpfile .)
+	fi
 
 	rm -f $obj/.settings$$
 	echo 'divert(-1)' > $obj/.settings$$

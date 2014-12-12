@@ -726,7 +726,7 @@ sendreply(r, sd, timeout_ptr, ctx)
 }
 
 /*
-**  CLR_MACROS -- clear set of macros starting from a given index
+**  MI_CLR_MACROS -- clear set of macros starting from a given index
 **
 **	Parameters:
 **		ctx -- context structure
@@ -1816,7 +1816,7 @@ dec_arg2(buf, len, s1, s2)
 }
 
 /*
-**  SENDOK -- is it ok for the filter to send stuff to the MTA?
+**  MI_SENDOK -- is it ok for the filter to send stuff to the MTA?
 **
 **	Parameters:
 **		ctx -- context structure

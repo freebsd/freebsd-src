@@ -20,6 +20,7 @@
 */
 
 #include <sm/time.h>
+#include <sm/fdset.h>
 #if !SM_CONF_MEMCHR
 # include <memory.h>
 #endif /* !SM_CONF_MEMCHR */
@@ -244,7 +245,7 @@ int sm_flags __P((int));
 		sm_io_to.tv_sec = (to) / 1000; \
 		sm_io_to.tv_usec = ((to) - (sm_io_to.tv_sec * 1000)) * 1000; \
 	} \
-	if (FD_SETSIZE > 0 && (fd) >= FD_SETSIZE) \
+	if (!SM_FD_OK_SELECT(fd)) \
 	{ \
 		errno = EINVAL; \
 		return SM_IO_EOF; \

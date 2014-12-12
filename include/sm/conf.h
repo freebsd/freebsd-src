@@ -473,6 +473,9 @@ typedef int		pid_t;
 #   ifndef HASGETUSERSHELL
 #    define HASGETUSERSHELL 0	/* getusershell(3) causes core dumps pre-2.7 */
 #   endif /* ! HASGETUSERSHELL */
+#   if SOLARIS < 21200
+#    define SIGWAIT_TAKES_1_ARG	1	/* S12 moves to UNIX V7 semantic */
+#   endif /* SOLARIS < 21200 */
 
 #  else /* SOLARIS */
 			/* SunOS 4.0.3 or 4.1.x */
@@ -1906,6 +1909,7 @@ extern struct passwd *	sendmail_mpe_getpwuid __P((uid_t));
 #  define GIDSET_T		gid_t
 #  define SOCKADDR_LEN_T	size_t
 #  define SOCKOPT_LEN_T		size_t
+#  define SIGWAIT_TAKES_1_ARG	1
 #  ifndef _PATH_UNIX
 #   define _PATH_UNIX		"/stand/unix"
 #  endif /* ! _PATH_UNIX */
@@ -2919,6 +2923,10 @@ typedef void		(*sigfunc_t) __P((int));
 #ifndef FD_SETSIZE
 # define FD_SETSIZE	256
 #endif /* ! FD_SETSIZE */
+
+#ifndef SIGWAIT_TAKES_1_ARG
+# define SIGWAIT_TAKES_1_ARG	0
+#endif /* ! SIGWAIT_TAKES_1_ARG */
 
 /*
 **  Size of prescan buffer.
