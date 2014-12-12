@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2013 Robert N. M. Watson
  * Copyright (c) 2014 SRI International
+ * Copyright (c) 2014 Simon W. Moore
  * All rights reserved.
  *
  * This software was developed by SRI International and the University of
@@ -35,6 +36,7 @@
 #include <sys/endian.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,22 +45,23 @@
 
 #include "hdmi.h"
 
-#define	PATH_TEMPFANCTL	"/dev/de4tempfan"
-#define	PATH_HDMI_RESET	"/dev/de4_hdmi_reset"
-#define	PATH_HDMI_I2C	"/dev/de4_hdmi_i2c"
+#define	PATH_TEMPFANCTL		"/dev/de4tempfan"
+#define	PATH_HDMI_RESET		"/dev/de4_hdmi_reset"
+#define	PATH_HDMI_I2C		"/dev/de4_hdmi_i2c"
+#define PATH_PIXELSTREAM 	"/dev/ps_reg0"
+#define	OFF_TEMP		0
+#define	OFF_FAN			4
 
-#define	OFF_TEMP	0
-#define	OFF_FAN	4
-
-int	qflag;		/* Quiet flag -- print only numbers, not field names. */
+int	qflag = 0;		/* Quiet flag -- print only numbers, not field names. */
 
 static void
 usage(void)
 {
-
 	fprintf(stderr,
-	     "usage: de4ctl [-q] fan | temp\n"
-	     "       de4ctl hdmi reset | setup\n");
+		"usage: de4ctl [-q] fan | temp\n"
+		"       de4ctl hdmi reset | setup\n"
+		"       de4ctl hdmires\n"
+		"       de4ctl hdmires x-res y-res horizonal-refresh\n");
 	exit(0);
 }
 
@@ -174,9 +177,32 @@ main(int argc, char **argv)
 			do_hdmi_setup();
 		else
 			usage();
+	} else if(strcmp(argv[0], "hdmires") == 0) {
+		if (!((argc == 4) || (argc == 1)))
+			usage();
+		int ps_fd = open(PATH_PIXELSTREAM, O_RDWR);
+		if(ps_fd == -1)
+			perror("open");
+		if(argc==1)
+			display_pixelstream_regs(ps_fd);
+		else {
+			int      xres = strtol(argv[1],NULL,10);
+			int      yres = strtol(argv[2],NULL,10);
+			if(errno!=0)
+				perror("strtol");
+			else {
+				float refresh = strtof(argv[3],NULL);
+				if(errno!=0)
+					perror("strtof");
+				else
+					hdmi_set_res(ps_fd, xres, yres, refresh);
+			}
+		}
+		close(ps_fd);
 	} else if (strcmp(argv[0], "temp") == 0)
 		do_temp();
 	else
 		usage();
 	return (0);
 }
+
