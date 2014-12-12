@@ -193,7 +193,7 @@ OBJTREE=	${MAKEOBJDIRPREFIX}/${TARGET}.${TARGET_ARCH}
 WORLDTMP=	${OBJTREE}${.CURDIR}/tmp
 # /usr/games added for fortune which depend on strfile
 BPATH=		${WORLDTMP}/legacy/usr/sbin:${WORLDTMP}/legacy/usr/bin:${WORLDTMP}/legacy/usr/games:${WORLDTMP}/legacy/bin
-XPATH=		${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
+XPATH=		${WORLDTMP}/bin:${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 STRICTTMPPATH=	${BPATH}:${XPATH}
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
@@ -506,7 +506,7 @@ _worldtmp:
 	rm -f ${OBJTREE}${.CURDIR}/usr.bin/truss/ioctl.c
 .endif
 .for _dir in \
-    lib usr legacy/bin legacy/usr
+    bin lib usr legacy/bin legacy/usr
 	mkdir -p ${WORLDTMP}/${_dir}
 .endfor
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
@@ -1414,6 +1414,10 @@ _crunchide=	usr.sbin/crunch/crunchide
 .if ${TARGET_ARCH} == "i386" && defined(RELEASEDIR)
 _kgzip=		usr.sbin/kgzip
 .endif
+.if ${TARGET_ARCH} == "mips64"
+_cheritest=	lib/libxo \
+		bin/cheritest
+.endif
 .endif
 
 # If we're given an XAS, don't build binutils.
@@ -1443,6 +1447,7 @@ _cc=		gnu/usr.bin/cc
 
 cross-tools: .MAKE
 .for _tool in \
+    ${_cheritest} \
     ${_clang_libs} \
     ${_clang} \
     ${_binutils} \
