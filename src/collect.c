@@ -59,7 +59,7 @@ collect_eoh(e, numhdrs, hdrslen)
 		sm_dprintf("collect: rscheck(\"check_eoh\", \"%s $| %s\")\n",
 			   hnum, hsize);
 	(void) rscheck("check_eoh", hnum, hsize, e, RSF_UNSTRUCTURED|RSF_COUNT,
-			3, NULL, e->e_id, NULL);
+			3, NULL, e->e_id, NULL, NULL);
 
 	/*
 	**  Process the header,
@@ -297,6 +297,7 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 	int hdrslen;
 	int numhdrs;
 	int afd;
+	int old_rd_tmo;
 	unsigned char *pbp;
 	unsigned char peekbuf[8];
 	char bufbuf[MAXLINE];
@@ -311,7 +312,7 @@ collect(fp, smtpmode, hdrp, e, rsetsize)
 	dbto = smtpmode ? ((int) TimeOuts.to_datablock * 1000)
 			: SM_TIME_FOREVER;
 	sm_io_setinfo(fp, SM_IO_WHAT_TIMEOUT, &dbto);
-	set_tls_rd_tmo(TimeOuts.to_datablock);
+	old_rd_tmo = set_tls_rd_tmo(TimeOuts.to_datablock);
 	c = SM_IO_EOF;
 	inputerr = false;
 	headeronly = hdrp != NULL;
@@ -720,7 +721,7 @@ readerr:
 	}
 
 	if (headeronly)
-		return;
+		goto end;
 
 	if (mstate != MS_BODY)
 	{
@@ -940,6 +941,9 @@ readerr:
 				 + e->e_nrcpts * WkRecipFact;
 		markstats(e, (ADDRESS *) NULL, STATS_NORMAL);
 	}
+
+  end:
+	(void) set_tls_rd_tmo(old_rd_tmo);
 }
 
 /*
@@ -1026,8 +1030,8 @@ dferror(df, msg, e)
 #endif /* 0 */
 	}
 	else
-		syserr("421 4.3.0 collect: Cannot write %s (%s, uid=%d, gid=%d)",
-			dfname, msg, (int) geteuid(), (int) getegid());
+		syserr("421 4.3.0 collect: Cannot write %s (%s, uid=%ld, gid=%ld)",
+			dfname, msg, (long) geteuid(), (long) getegid());
 	if (sm_io_reopen(SmFtStdio, SM_TIME_DEFAULT, SM_PATH_DEVNULL,
 			 SM_IO_WRONLY, NULL, df) == NULL)
 		sm_syslog(LOG_ERR, e->e_id,

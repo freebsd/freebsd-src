@@ -667,8 +667,8 @@ recipient(new, sendq, aliaslevel, e)
 			new->q_status = "5.7.1";
 			if (new->q_alias->q_ruser == NULL)
 				usrerrenh(new->q_status,
-					  "550 UID %d is an unknown user: cannot mail to programs",
-					  new->q_alias->q_uid);
+					  "550 UID %ld is an unknown user: cannot mail to programs",
+					  (long) new->q_alias->q_uid);
 			else
 				usrerrenh(new->q_status,
 					  "550 User %s@%s doesn't have a valid shell for mailing to programs",
@@ -890,8 +890,8 @@ recipient(new, sendq, aliaslevel, e)
 			new->q_status = "5.7.1";
 			if (new->q_alias->q_ruser == NULL)
 				usrerrenh(new->q_status,
-					  "550 UID %d is an unknown user: cannot mail to files",
-					  new->q_alias->q_uid);
+					  "550 UID %ld is an unknown user: cannot mail to files",
+					  (long) new->q_alias->q_uid);
 			else
 				usrerrenh(new->q_status,
 					  "550 User %s@%s doesn't have a valid shell for mailing to files",
@@ -1174,7 +1174,7 @@ finduser(name, fuzzyp, user)
 
 	*fuzzyp = false;
 
-#if HESIOD
+#if HESIOD && !HESIOD_ALLOW_NUMERIC_LOGIN
 	/* DEC Hesiod getpwnam accepts numeric strings -- short circuit it */
 	for (p = name; *p != '\0'; p++)
 		if (!isascii(*p) || !isdigit(*p))
@@ -1185,7 +1185,7 @@ finduser(name, fuzzyp, user)
 			sm_dprintf("failed (numeric input)\n");
 		return EX_NOUSER;
 	}
-#endif /* HESIOD */
+#endif /* HESIOD && !HESIOD_ALLOW_NUMERIC_LOGIN */
 
 	/* look up this login name using fast path */
 	status = sm_mbdb_lookup(name, user);
@@ -1446,8 +1446,8 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 	if (tTd(27, 2))
 		sm_dprintf("include(%s)\n", fname);
 	if (tTd(27, 4))
-		sm_dprintf("   ruid=%d euid=%d\n",
-			(int) getuid(), (int) geteuid());
+		sm_dprintf("   ruid=%ld euid=%ld\n",
+			(long) getuid(), (long) geteuid());
 	if (tTd(27, 14))
 	{
 		sm_dprintf("ctladdr ");
@@ -1455,8 +1455,8 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 	}
 
 	if (tTd(27, 9))
-		sm_dprintf("include: old uid = %d/%d\n",
-			   (int) getuid(), (int) geteuid());
+		sm_dprintf("include: old uid = %ld/%ld\n",
+			   (long) getuid(), (long) geteuid());
 
 	if (forwarding)
 	{
@@ -1483,8 +1483,8 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 	    !bitnset(DBS_NONROOTSAFEADDR, DontBlameSendmail))
 	{
 		if (tTd(27, 4))
-			sm_dprintf("include: not safe (euid=%d, RunAsUid=%d)\n",
-				   (int) geteuid(), (int) RunAsUid);
+			sm_dprintf("include: not safe (euid=%ld, RunAsUid=%ld)\n",
+				   (long) geteuid(), (long) RunAsUid);
 		ctladdr->q_flags |= QUNSAFEADDR;
 	}
 
@@ -1512,8 +1512,8 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 			if (initgroups(user, gid) == -1)
 			{
 				rval = EAGAIN;
-				syserr("include: initgroups(%s, %d) failed",
-					user, gid);
+				syserr("include: initgroups(%s, %ld) failed",
+					user, (long) gid);
 				goto resetuid;
 			}
 		}
@@ -1533,7 +1533,7 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 		if (gid != 0 && setgid(gid) < -1)
 		{
 			rval = EAGAIN;
-			syserr("setgid(%d) failure", gid);
+			syserr("setgid(%ld) failure", (long) gid);
 			goto resetuid;
 		}
 		if (uid != 0)
@@ -1542,8 +1542,8 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 			if (seteuid(uid) < 0)
 			{
 				rval = EAGAIN;
-				syserr("seteuid(%d) failure (real=%d, eff=%d)",
-					uid, (int) getuid(), (int) geteuid());
+				syserr("seteuid(%ld) failure (real=%ld, eff=%ld)",
+					(long) uid, (long) getuid(), (long) geteuid());
 				goto resetuid;
 			}
 # endif /* MAILER_SETUID_METHOD == USE_SETEUID */
@@ -1551,8 +1551,8 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 			if (setreuid(0, uid) < 0)
 			{
 				rval = EAGAIN;
-				syserr("setreuid(0, %d) failure (real=%d, eff=%d)",
-					uid, (int) getuid(), (int) geteuid());
+				syserr("setreuid(0, %ld) failure (real=%ld, eff=%ld)",
+					(long) uid, (long) getuid(), (long) geteuid());
 				goto resetuid;
 			}
 # endif /* MAILER_SETUID_METHOD == USE_SETREUID */
@@ -1561,8 +1561,8 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 #endif /* MAILER_SETUID_METHOD != USE_SETUID */
 
 	if (tTd(27, 9))
-		sm_dprintf("include: new uid = %d/%d\n",
-			   (int) getuid(), (int) geteuid());
+		sm_dprintf("include: new uid = %ld/%ld\n",
+			   (long) getuid(), (long) geteuid());
 
 	/*
 	**  If home directory is remote mounted but server is down,
@@ -1655,8 +1655,8 @@ include(fname, forwarding, ctladdr, sendq, aliaslevel, e)
 	{
 		/* don't use this :include: file */
 		if (tTd(27, 4))
-			sm_dprintf("include: not safe (uid=%d): %s\n",
-				   (int) uid, sm_errstring(rval));
+			sm_dprintf("include: not safe (uid=%ld): %s\n",
+				   (long) uid, sm_errstring(rval));
 	}
 	else if ((fp = sm_io_open(SmFtStdio, SM_TIME_DEFAULT, fname,
 				  SM_IO_RDONLY, NULL)) == NULL)
@@ -1683,28 +1683,28 @@ resetuid:
 		{
 # if USESETEUID
 			if (seteuid(0) < 0)
-				syserr("!seteuid(0) failure (real=%d, eff=%d)",
-				       (int) getuid(), (int) geteuid());
+				syserr("!seteuid(0) failure (real=%ld, eff=%ld)",
+				       (long) getuid(), (long) geteuid());
 # else /* USESETEUID */
 			if (setreuid(-1, 0) < 0)
-				syserr("!setreuid(-1, 0) failure (real=%d, eff=%d)",
-				       (int) getuid(), (int) geteuid());
+				syserr("!setreuid(-1, 0) failure (real=%ld, eff=%ld)",
+				       (long) getuid(), (long) geteuid());
 			if (setreuid(RealUid, 0) < 0)
-				syserr("!setreuid(%d, 0) failure (real=%d, eff=%d)",
-				       (int) RealUid, (int) getuid(),
-				       (int) geteuid());
+				syserr("!setreuid(%ld, 0) failure (real=%ld, eff=%ld)",
+				       (long) RealUid, (long) getuid(),
+				       (long) geteuid());
 # endif /* USESETEUID */
 		}
 		if (setgid(savedgid) < 0)
-			syserr("!setgid(%d) failure (real=%d eff=%d)",
-			       (int) savedgid, (int) getgid(),
-			       (int) getegid());
+			syserr("!setgid(%ld) failure (real=%ld eff=%ld)",
+			       (long) savedgid, (long) getgid(),
+			       (long) getegid());
 	}
 #endif /* HASSETREUID || USESETEUID */
 
 	if (tTd(27, 9))
-		sm_dprintf("include: reset uid = %d/%d\n",
-			   (int) getuid(), (int) geteuid());
+		sm_dprintf("include: reset uid = %ld/%ld\n",
+			   (long) getuid(), (long) geteuid());
 
 	if (rval == E_SM_OPENTIMEOUT)
 		usrerr("451 4.4.1 open timeout on %s", fname);
