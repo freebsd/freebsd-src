@@ -114,6 +114,7 @@ static int	vtmmio_alloc_virtqueues(device_t, int, int,
 		    struct vq_alloc_info *);
 static int	vtmmio_setup_intr(device_t, enum intr_type);
 static void	vtmmio_stop(device_t);
+static void	vtmmio_poll(device_t);
 static int	vtmmio_reinit(device_t, uint64_t);
 static void	vtmmio_reinit_complete(device_t);
 static void	vtmmio_notify_virtqueue(device_t, uint16_t);
@@ -182,6 +183,7 @@ static device_method_t vtmmio_methods[] = {
 	DEVMETHOD(virtio_bus_alloc_virtqueues,	  vtmmio_alloc_virtqueues),
 	DEVMETHOD(virtio_bus_setup_intr,	  vtmmio_setup_intr),
 	DEVMETHOD(virtio_bus_stop,		  vtmmio_stop),
+	DEVMETHOD(virtio_bus_poll,		  vtmmio_poll),
 	DEVMETHOD(virtio_bus_reinit,		  vtmmio_reinit),
 	DEVMETHOD(virtio_bus_reinit_complete,	  vtmmio_reinit_complete),
 	DEVMETHOD(virtio_bus_notify_vq,		  vtmmio_notify_virtqueue),
@@ -548,6 +550,17 @@ vtmmio_stop(device_t dev)
 {
 
 	vtmmio_reset(device_get_softc(dev));
+}
+
+static void
+vtmmio_poll(device_t dev)
+{
+	struct vtmmio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	if (sc->platform != NULL)
+		VIRTIO_MMIO_POLL(sc->platform);
 }
 
 static int
