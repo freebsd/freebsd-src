@@ -187,7 +187,7 @@
 
 int global_verbose = 0;
 
-void print_value(int n, char *name, float val)
+void print_value(int n, const char *name, float val)
 {
     if (global_verbose) {
         printf("%2d: %-27s: %15f\n", n, name, val);
@@ -336,7 +336,7 @@ mode *vert_refresh (int h_pixels, int v_lines, float freq,
     float vbi_lines, act_vbi_lines, rb_min_vbi;
     float act_pixel_freq, act_h_freq;
     float act_field_rate, act_frame_rate;
-    char *aspect_ratio;
+    const char *aspect_ratio;
     int stage;
 
     mode *m = (mode*) malloc (sizeof (mode));
@@ -797,128 +797,3 @@ mode *vert_refresh (int h_pixels, int v_lines, float freq,
     return (m);
     
 } // vert_refresh()
-
-
-
-
-/*
- * parse_command_line() - parse the command line and return an
- * alloced structure containing the results.  On error print usage
- * and return NULL.
- */ 
-
-options *parse_command_line (int argc, char *argv[])
-{
-    int n;
-
-    options *o = (options *) calloc (1, sizeof (options));
-
-    if (argc < 4) goto bad_option;
-
-    o->x = atoi (argv[1]);
-    o->y = atoi (argv[2]);
-    o->v_freq = atof (argv[3]);
-
-    /* XXX should check for errors in the above */
-    
-    n = 4;
-
-    while (n < argc) {
-        if ((strcmp (argv[n], "-v") == 0) ||
-            (strcmp (argv[n], "--verbose") == 0)) {
-            global_verbose = 1;
-        } else if ((strcmp (argv[n], "-r") == 0) ||
-                   (strcmp (argv[n], "--reduced-blank") == 0)) {
-            o->reduced_blank = 1;
-        } else if ((strcmp (argv[n], "-i") == 0) ||
-                   (strcmp (argv[n], "--interlaced") == 0)) {
-            o->interlaced = 1;
-        } else if ((strcmp (argv[n], "-f") == 0) ||
-                   (strcmp (argv[n], "--fbmode") == 0)) {
-            o->fbmode = 1;
-        } else if ((strcmp (argv[n], "-x") == 0) ||
-                   (strcmp (argv[n], "--xf86mode") == 0)) {
-            o->xf86mode = 1;
-        } else {
-            goto bad_option;
-        }
-        
-        n++;
-    }
-
-    /* if neither xf86mode nor fbmode were requested, default to
-       xf86mode */
-
-    if (!o->fbmode && !o->xf86mode) o->xf86mode = 1;
-    
-    return (o);
-    
- bad_option:
-
-    fprintf (stderr, "\n");
-
-    fprintf (stderr, "Description:  This program generates video timing "
-             "descriptions using formulas\n"
-             "   from the VESA \"CVT\" (Coordinated Video Timing) v1.1 "
-             "specification, based\n"
-             "   itself on the earlier VESA \"GTF\" (Generalized Timing "
-             "Formula) v1.0\n"
-             "   specification.\n");
-
-    fprintf (stderr, "\n");
-
-    fprintf (stderr, "usage: %s x y refresh [-v|--verbose]\n"
-             "      [-r|--reduced-blank] [-i|--interlaced]\n"
-             "      [-f|--fbmode] [-x|-xf86mode]\n", argv[0]);
-
-    fprintf (stderr, "\n");
-    
-    fprintf (stderr, "            x : the desired horizontal "
-             "resolution (required)\n");
-    fprintf (stderr, "            y : the desired vertical "
-             "resolution (required)\n");
-    fprintf (stderr, "      refresh : the desired refresh "
-             "rate (required)\n");
-    fprintf (stderr, " -v|--verbose : enable verbose printouts "
-             "(traces each step of the computation)\n");
-    fprintf (stderr, " -r|--reduced-blank : use \"Reduced Blanking\" "
-             "timings\n");
-    fprintf (stderr, " -i|--interlaced : generate an Interlaced "
-             "video mode\n");
-    fprintf (stderr, " -f|--fbmode  : output an fbset(8)-style mode "
-             "description\n");
-    fprintf (stderr, " -x|-xf86mode : output an XFree86-style mode "
-             "description (this is the default\n"
-             "                if no mode description is requested)\n");
-    
-    fprintf (stderr, "\n");
-    
-    free (o);
-    return (NULL);
-
-} // parse_command_line()
-
-
-/*
-int main (int argc, char *argv[])
-{
-    mode *m;
-    options *o;
-
-    o = parse_command_line (argc, argv);
-    if (!o) exit (1);
-    
-    m = vert_refresh (o->x, o->y, o->v_freq,
-                      o->interlaced, o->reduced_blank, 0);
-    if (!m) exit (1);
-
-    if (o->xf86mode)
-        print_xf86_mode(m);
-    
-    if (o->fbmode)
-        print_fb_mode(m);
-    
-    return 0;
-    
-} // main()
-*/
