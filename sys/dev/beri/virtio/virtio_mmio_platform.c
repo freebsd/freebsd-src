@@ -234,12 +234,22 @@ platform_setup_intr(device_t dev, device_t mmio_dev,
 	return (0);
 }
 
+static int
+platform_poll(device_t dev)
+{
+
+	mips_dcache_wbinv_all();
+
+	return (0);
+}
+
 static device_method_t virtio_mmio_platform_methods[] = {
 	DEVMETHOD(device_probe,		virtio_mmio_platform_probe),
 	DEVMETHOD(device_attach,	virtio_mmio_platform_attach),
 
 	/* virtio_mmio_if.h */
 	DEVMETHOD(virtio_mmio_note,		platform_note),
+	DEVMETHOD(virtio_mmio_poll,		platform_poll),
 	DEVMETHOD(virtio_mmio_setup_intr,	platform_setup_intr),
 	DEVMETHOD_END
 };

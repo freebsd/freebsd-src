@@ -67,6 +67,13 @@ METHOD int note {
 } DEFAULT virtio_mmio_note;
 
 #
+# Inform backend we are going to poll virtqueue.
+#
+METHOD int poll {
+	device_t	dev;
+};
+
+#
 # Setup backend-specific interrupts.
 #
 METHOD int setup_intr {
