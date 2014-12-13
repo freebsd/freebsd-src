@@ -1,3 +1,11 @@
+Pull in r223170 from upstream llvm trunk (by Michael Zolotukhin):
+
+  Apply loop-rotate to several vectorizer tests.
+
+  Such loops shouldn't be vectorized due to the loops form.
+  After applying loop-rotate (+simplifycfg) the tests again start to check
+  what they are intended to check.
+
 Pull in r223171 from upstream llvm trunk (by Michael Zolotukhin):
 
   PR21302. Vectorize only bottom-tested loops.
@@ -37,6 +45,90 @@ Index: lib/Transforms/Vectorize/LoopVectorize.cpp
    // We need to have a loop header.
    DEBUG(dbgs() << "LV: Found a loop: " <<
          TheLoop->getHeader()->getName() << '\n');
+Index: test/Transforms/LoopVectorize/vect.stats.ll
+===================================================================
+--- test/Transforms/LoopVectorize/vect.stats.ll
++++ test/Transforms/LoopVectorize/vect.stats.ll
+@@ -13,53 +13,47 @@ target triple = "x86_64-unknown-linux-gnu"
+ 
+ define void @vectorized(float* nocapture %a, i64 %size) {
+ entry:
+-  %cmp1 = icmp sgt i64 %size, 0
+-  br i1 %cmp1, label %for.header, label %for.end
++  %cmp1 = icmp sle i64 %size, 0
++  %cmp21 = icmp sgt i64 0, %size
++  %or.cond = or i1 %cmp1, %cmp21
++  br i1 %or.cond, label %for.end, label %for.body
+ 
+-for.header:
+-  %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
+-  %cmp2 = icmp sgt i64 %indvars.iv, %size
+-  br i1 %cmp2, label %for.end, label %for.body
+-
+-for.body:
+-
+-  %arrayidx = getelementptr inbounds float* %a, i64 %indvars.iv
++for.body:                                         ; preds = %entry, %for.body
++  %indvars.iv2 = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
++  %arrayidx = getelementptr inbounds float* %a, i64 %indvars.iv2
+   %0 = load float* %arrayidx, align 4
+   %mul = fmul float %0, %0
+   store float %mul, float* %arrayidx, align 4
++  %indvars.iv.next = add nuw nsw i64 %indvars.iv2, 1
++  %cmp2 = icmp sgt i64 %indvars.iv.next, %size
++  br i1 %cmp2, label %for.end, label %for.body
+ 
+-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
+-  br label %for.header
+-
+-for.end:
++for.end:                                          ; preds = %entry, %for.body
+   ret void
+ }
+ 
+ define void @not_vectorized(float* nocapture %a, i64 %size) {
+ entry:
+-  %cmp1 = icmp sgt i64 %size, 0
+-  br i1 %cmp1, label %for.header, label %for.end
++  %cmp1 = icmp sle i64 %size, 0
++  %cmp21 = icmp sgt i64 0, %size
++  %or.cond = or i1 %cmp1, %cmp21
++  br i1 %or.cond, label %for.end, label %for.body
+ 
+-for.header:
+-  %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
+-  %cmp2 = icmp sgt i64 %indvars.iv, %size
+-  br i1 %cmp2, label %for.end, label %for.body
+-
+-for.body:
+-
+-  %0 = add nsw i64 %indvars.iv, -5
++for.body:                                         ; preds = %entry, %for.body
++  %indvars.iv2 = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
++  %0 = add nsw i64 %indvars.iv2, -5
+   %arrayidx = getelementptr inbounds float* %a, i64 %0
+   %1 = load float* %arrayidx, align 4
+-  %2 = add nsw i64 %indvars.iv, 2
++  %2 = add nsw i64 %indvars.iv2, 2
+   %arrayidx2 = getelementptr inbounds float* %a, i64 %2
+   %3 = load float* %arrayidx2, align 4
+   %mul = fmul float %1, %3
+-  %arrayidx4 = getelementptr inbounds float* %a, i64 %indvars.iv
++  %arrayidx4 = getelementptr inbounds float* %a, i64 %indvars.iv2
+   store float %mul, float* %arrayidx4, align 4
++  %indvars.iv.next = add nuw nsw i64 %indvars.iv2, 1
++  %cmp2 = icmp sgt i64 %indvars.iv.next, %size
++  br i1 %cmp2, label %for.end, label %for.body
+ 
+-  %indvars.iv.next = add nuw nsw i64 %indvars.iv, 1
+-  br label %for.header
+-
+-for.end:
++for.end:                                          ; preds = %entry, %for.body
+   ret void
+-}
+\ No newline at end of file
++}
 Index: test/Transforms/LoopVectorize/loop-form.ll
 ===================================================================
 --- test/Transforms/LoopVectorize/loop-form.ll
@@ -73,3 +165,453 @@ Index: test/Transforms/LoopVectorize/loop-form.ll
 +if.end:
 +  ret void
 +}
+Index: test/Transforms/LoopVectorize/runtime-check-readonly-address-space.ll
+===================================================================
+--- test/Transforms/LoopVectorize/runtime-check-readonly-address-space.ll
++++ test/Transforms/LoopVectorize/runtime-check-readonly-address-space.ll
+@@ -8,26 +8,24 @@ define void @add_ints_1_1_1(i32 addrspace(1)* %a,
+ ; CHECK-LABEL: @add_ints_1_1_1(
+ ; CHECK: <4 x i32>
+ ; CHECK: ret
++
+ entry:
+-  br label %for.cond
++  br label %for.body
+ 
+-for.cond:                                         ; preds = %for.body, %entry
+-  %i.0 = phi i64 [ 0, %entry ], [ %inc, %for.body ]
+-  %cmp = icmp ult i64 %i.0, 200
+-  br i1 %cmp, label %for.body, label %for.end
+-
+-for.body:                                         ; preds = %for.cond
+-  %arrayidx = getelementptr inbounds i32 addrspace(1)* %b, i64 %i.0
++for.body:                                         ; preds = %entry, %for.body
++  %i.01 = phi i64 [ 0, %entry ], [ %inc, %for.body ]
++  %arrayidx = getelementptr inbounds i32 addrspace(1)* %b, i64 %i.01
+   %0 = load i32 addrspace(1)* %arrayidx, align 4
+-  %arrayidx1 = getelementptr inbounds i32 addrspace(1)* %c, i64 %i.0
++  %arrayidx1 = getelementptr inbounds i32 addrspace(1)* %c, i64 %i.01
+   %1 = load i32 addrspace(1)* %arrayidx1, align 4
+   %add = add nsw i32 %0, %1
+-  %arrayidx2 = getelementptr inbounds i32 addrspace(1)* %a, i64 %i.0
++  %arrayidx2 = getelementptr inbounds i32 addrspace(1)* %a, i64 %i.01
+   store i32 %add, i32 addrspace(1)* %arrayidx2, align 4
+-  %inc = add i64 %i.0, 1
+-  br label %for.cond
++  %inc = add i64 %i.01, 1
++  %cmp = icmp ult i64 %inc, 200
++  br i1 %cmp, label %for.body, label %for.end
+ 
+-for.end:                                          ; preds = %for.cond
++for.end:                                          ; preds = %for.body
+   ret void
+ }
+ 
+@@ -35,26 +33,24 @@ define void @add_ints_as_1_0_0(i32 addrspace(1)* %
+ ; CHECK-LABEL: @add_ints_as_1_0_0(
+ ; CHECK-NOT: <4 x i32>
+ ; CHECK: ret
++
+ entry:
+-  br label %for.cond
++  br label %for.body
+ 
+-for.cond:                                         ; preds = %for.body, %entry
+-  %i.0 = phi i64 [ 0, %entry ], [ %inc, %for.body ]
+-  %cmp = icmp ult i64 %i.0, 200
+-  br i1 %cmp, label %for.body, label %for.end
+-
+-for.body:                                         ; preds = %for.cond
+-  %arrayidx = getelementptr inbounds i32* %b, i64 %i.0
++for.body:                                         ; preds = %entry, %for.body
++  %i.01 = phi i64 [ 0, %entry ], [ %inc, %for.body ]
++  %arrayidx = getelementptr inbounds i32* %b, i64 %i.01
+   %0 = load i32* %arrayidx, align 4
+-  %arrayidx1 = getelementptr inbounds i32* %c, i64 %i.0
++  %arrayidx1 = getelementptr inbounds i32* %c, i64 %i.01
+   %1 = load i32* %arrayidx1, align 4
+   %add = add nsw i32 %0, %1
+-  %arrayidx2 = getelementptr inbounds i32 addrspace(1)* %a, i64 %i.0
++  %arrayidx2 = getelementptr inbounds i32 addrspace(1)* %a, i64 %i.01
+   store i32 %add, i32 addrspace(1)* %arrayidx2, align 4
+-  %inc = add i64 %i.0, 1
+-  br label %for.cond
++  %inc = add i64 %i.01, 1
++  %cmp = icmp ult i64 %inc, 200
++  br i1 %cmp, label %for.body, label %for.end
+ 
+-for.end:                                          ; preds = %for.cond
++for.end:                                          ; preds = %for.body
+   ret void
+ }
+ 
+@@ -62,26 +58,24 @@ define void @add_ints_as_0_1_0(i32* %a, i32 addrsp
+ ; CHECK-LABEL: @add_ints_as_0_1_0(
+ ; CHECK-NOT: <4 x i32>
+ ; CHECK: ret
++
+ entry:
+-  br label %for.cond
++  br label %for.body
+ 
+-for.cond:                                         ; preds = %for.body, %entry
+-  %i.0 = phi i64 [ 0, %entry ], [ %inc, %for.body ]
+-  %cmp = icmp ult i64 %i.0, 200
+-  br i1 %cmp, label %for.body, label %for.end
+-
+-for.body:                                         ; preds = %for.cond
+-  %arrayidx = getelementptr inbounds i32 addrspace(1)* %b, i64 %i.0
++for.body:                                         ; preds = %entry, %for.body
++  %i.01 = phi i64 [ 0, %entry ], [ %inc, %for.body ]
++  %arrayidx = getelementptr inbounds i32 addrspace(1)* %b, i64 %i.01
+   %0 = load i32 addrspace(1)* %arrayidx, align 4
+-  %arrayidx1 = getelementptr inbounds i32* %c, i64 %i.0
++  %arrayidx1 = getelementptr inbounds i32* %c, i64 %i.01
+   %1 = load i32* %arrayidx1, align 4
+   %add = add nsw i32 %0, %1
+-  %arrayidx2 = getelementptr inbounds i32* %a, i64 %i.0
++  %arrayidx2 = getelementptr inbounds i32* %a, i64 %i.01
+   store i32 %add, i32* %arrayidx2, align 4
+-  %inc = add i64 %i.0, 1
+-  br label %for.cond
++  %inc = add i64 %i.01, 1
++  %cmp = icmp ult i64 %inc, 200
++  br i1 %cmp, label %for.body, label %for.end
+ 
+-for.end:                                          ; preds = %for.cond
++for.end:                                          ; preds = %for.body
+   ret void
+ }
+ 
+@@ -89,26 +83,24 @@ define void @add_ints_as_0_1_1(i32* %a, i32 addrsp
+ ; CHECK-LABEL: @add_ints_as_0_1_1(
+ ; CHECK-NOT: <4 x i32>
+ ; CHECK: ret
++
+ entry:
+-  br label %for.cond
++  br label %for.body
+ 
+-for.cond:                                         ; preds = %for.body, %entry
+-  %i.0 = phi i64 [ 0, %entry ], [ %inc, %for.body ]
+-  %cmp = icmp ult i64 %i.0, 200
+-  br i1 %cmp, label %for.body, label %for.end
+-
+-for.body:                                         ; preds = %for.cond
+-  %arrayidx = getelementptr inbounds i32 addrspace(1)* %b, i64 %i.0
++for.body:                                         ; preds = %entry, %for.body
++  %i.01 = phi i64 [ 0, %entry ], [ %inc, %for.body ]
++  %arrayidx = getelementptr inbounds i32 addrspace(1)* %b, i64 %i.01
+   %0 = load i32 addrspace(1)* %arrayidx, align 4
+-  %arrayidx1 = getelementptr inbounds i32 addrspace(1)* %c, i64 %i.0
++  %arrayidx1 = getelementptr inbounds i32 addrspace(1)* %c, i64 %i.01
+   %1 = load i32 addrspace(1)* %arrayidx1, align 4
+   %add = add nsw i32 %0, %1
+-  %arrayidx2 = getelementptr inbounds i32* %a, i64 %i.0
++  %arrayidx2 = getelementptr inbounds i32* %a, i64 %i.01
+   store i32 %add, i32* %arrayidx2, align 4
+-  %inc = add i64 %i.0, 1
+-  br label %for.cond
++  %inc = add i64 %i.01, 1
++  %cmp = icmp ult i64 %inc, 200
++  br i1 %cmp, label %for.body, label %for.end
+ 
+-for.end:                                          ; preds = %for.cond
++for.end:                                          ; preds = %for.body
+   ret void
+ }
+ 
+@@ -116,26 +108,24 @@ define void @add_ints_as_0_1_2(i32* %a, i32 addrsp
+ ; CHECK-LABEL: @add_ints_as_0_1_2(
+ ; CHECK-NOT: <4 x i32>
+ ; CHECK: ret
++
+ entry:
+-  br label %for.cond
++  br label %for.body
+ 
+-for.cond:                                         ; preds = %for.body, %entry
+-  %i.0 = phi i64 [ 0, %entry ], [ %inc, %for.body ]
+-  %cmp = icmp ult i64 %i.0, 200
+-  br i1 %cmp, label %for.body, label %for.end
+-
+-for.body:                                         ; preds = %for.cond
+-  %arrayidx = getelementptr inbounds i32 addrspace(1)* %b, i64 %i.0
++for.body:                                         ; preds = %entry, %for.body
++  %i.01 = phi i64 [ 0, %entry ], [ %inc, %for.body ]
++  %arrayidx = getelementptr inbounds i32 addrspace(1)* %b, i64 %i.01
+   %0 = load i32 addrspace(1)* %arrayidx, align 4
+-  %arrayidx1 = getelementptr inbounds i32 addrspace(2)* %c, i64 %i.0
++  %arrayidx1 = getelementptr inbounds i32 addrspace(2)* %c, i64 %i.01
+   %1 = load i32 addrspace(2)* %arrayidx1, align 4
+   %add = add nsw i32 %0, %1
+-  %arrayidx2 = getelementptr inbounds i32* %a, i64 %i.0
++  %arrayidx2 = getelementptr inbounds i32* %a, i64 %i.01
+   store i32 %add, i32* %arrayidx2, align 4
+-  %inc = add i64 %i.0, 1
+-  br label %for.cond
++  %inc = add i64 %i.01, 1
++  %cmp = icmp ult i64 %inc, 200
++  br i1 %cmp, label %for.body, label %for.end
+ 
+-for.end:                                          ; preds = %for.cond
++for.end:                                          ; preds = %for.body
+   ret void
+ }
+ 
+Index: test/Transforms/LoopVectorize/runtime-check-address-space.ll
+===================================================================
+--- test/Transforms/LoopVectorize/runtime-check-address-space.ll
++++ test/Transforms/LoopVectorize/runtime-check-address-space.ll
+@@ -31,25 +31,23 @@ define void @foo(i32 addrspace(1)* %a, i32 addrspa
+ ; CHECK: ret
+ 
+ entry:
+-  br label %for.cond
++  %cmp1 = icmp slt i32 0, %n
++  br i1 %cmp1, label %for.body, label %for.end
+ 
+-for.cond:                                         ; preds = %for.body, %entry
+-  %i.0 = phi i32 [ 0, %entry ], [ %inc, %for.body ]
+-  %cmp = icmp slt i32 %i.0, %n
+-  br i1 %cmp, label %for.body, label %for.end
+-
+-for.body:                                         ; preds = %for.cond
+-  %idxprom = sext i32 %i.0 to i64
++for.body:                                         ; preds = %entry, %for.body
++  %i.02 = phi i32 [ %inc, %for.body ], [ 0, %entry ]
++  %idxprom = sext i32 %i.02 to i64
+   %arrayidx = getelementptr inbounds i32 addrspace(1)* %b, i64 %idxprom
+   %0 = load i32 addrspace(1)* %arrayidx, align 4
+   %mul = mul nsw i32 %0, 3
+-  %idxprom1 = sext i32 %i.0 to i64
++  %idxprom1 = sext i32 %i.02 to i64
+   %arrayidx2 = getelementptr inbounds i32 addrspace(1)* %a, i64 %idxprom1
+   store i32 %mul, i32 addrspace(1)* %arrayidx2, align 4
+-  %inc = add nsw i32 %i.0, 1
+-  br label %for.cond
++  %inc = add nsw i32 %i.02, 1
++  %cmp = icmp slt i32 %inc, %n
++  br i1 %cmp, label %for.body, label %for.end
+ 
+-for.end:                                          ; preds = %for.cond
++for.end:                                          ; preds = %for.body, %entry
+   ret void
+ }
+ 
+@@ -60,25 +58,23 @@ define void @bar0(i32* %a, i32 addrspace(1)* %b, i
+ ; CHECK: ret
+ 
+ entry:
+-  br label %for.cond
++  %cmp1 = icmp slt i32 0, %n
++  br i1 %cmp1, label %for.body, label %for.end
+ 
+-for.cond:                                         ; preds = %for.body, %entry
+-  %i.0 = phi i32 [ 0, %entry ], [ %inc, %for.body ]
+-  %cmp = icmp slt i32 %i.0, %n
+-  br i1 %cmp, label %for.body, label %for.end
+-
+-for.body:                                         ; preds = %for.cond
+-  %idxprom = sext i32 %i.0 to i64
++for.body:                                         ; preds = %entry, %for.body
++  %i.02 = phi i32 [ %inc, %for.body ], [ 0, %entry ]
++  %idxprom = sext i32 %i.02 to i64
+   %arrayidx = getelementptr inbounds i32 addrspace(1)* %b, i64 %idxprom
+   %0 = load i32 addrspace(1)* %arrayidx, align 4
+   %mul = mul nsw i32 %0, 3
+-  %idxprom1 = sext i32 %i.0 to i64
++  %idxprom1 = sext i32 %i.02 to i64
+   %arrayidx2 = getelementptr inbounds i32* %a, i64 %idxprom1
+   store i32 %mul, i32* %arrayidx2, align 4
+-  %inc = add nsw i32 %i.0, 1
+-  br label %for.cond
++  %inc = add nsw i32 %i.02, 1
++  %cmp = icmp slt i32 %inc, %n
++  br i1 %cmp, label %for.body, label %for.end
+ 
+-for.end:                                          ; preds = %for.cond
++for.end:                                          ; preds = %for.body, %entry
+   ret void
+ }
+ 
+@@ -89,25 +85,23 @@ define void @bar1(i32 addrspace(1)* %a, i32* %b, i
+ ; CHECK: ret
+ 
+ entry:
+-  br label %for.cond
++  %cmp1 = icmp slt i32 0, %n
++  br i1 %cmp1, label %for.body, label %for.end
+ 
+-for.cond:                                         ; preds = %for.body, %entry
+-  %i.0 = phi i32 [ 0, %entry ], [ %inc, %for.body ]
+-  %cmp = icmp slt i32 %i.0, %n
+-  br i1 %cmp, label %for.body, label %for.end
+-
+-for.body:                                         ; preds = %for.cond
+-  %idxprom = sext i32 %i.0 to i64
++for.body:                                         ; preds = %entry, %for.body
++  %i.02 = phi i32 [ %inc, %for.body ], [ 0, %entry ]
++  %idxprom = sext i32 %i.02 to i64
+   %arrayidx = getelementptr inbounds i32* %b, i64 %idxprom
+   %0 = load i32* %arrayidx, align 4
+   %mul = mul nsw i32 %0, 3
+-  %idxprom1 = sext i32 %i.0 to i64
++  %idxprom1 = sext i32 %i.02 to i64
+   %arrayidx2 = getelementptr inbounds i32 addrspace(1)* %a, i64 %idxprom1
+   store i32 %mul, i32 addrspace(1)* %arrayidx2, align 4
+-  %inc = add nsw i32 %i.0, 1
+-  br label %for.cond
++  %inc = add nsw i32 %i.02, 1
++  %cmp = icmp slt i32 %inc, %n
++  br i1 %cmp, label %for.body, label %for.end
+ 
+-for.end:                                          ; preds = %for.cond
++for.end:                                          ; preds = %for.body, %entry
+   ret void
+ }
+ 
+@@ -119,25 +113,23 @@ define void @bar2(i32* noalias %a, i32 addrspace(1
+ ; CHECK: ret
+ 
+ entry:
+-  br label %for.cond
++  %cmp1 = icmp slt i32 0, %n
++  br i1 %cmp1, label %for.body, label %for.end
+ 
+-for.cond:                                         ; preds = %for.body, %entry
+-  %i.0 = phi i32 [ 0, %entry ], [ %inc, %for.body ]
+-  %cmp = icmp slt i32 %i.0, %n
+-  br i1 %cmp, label %for.body, label %for.end
+-
+-for.body:                                         ; preds = %for.cond
+-  %idxprom = sext i32 %i.0 to i64
++for.body:                                         ; preds = %entry, %for.body
++  %i.02 = phi i32 [ %inc, %for.body ], [ 0, %entry ]
++  %idxprom = sext i32 %i.02 to i64
+   %arrayidx = getelementptr inbounds i32 addrspace(1)* %b, i64 %idxprom
+   %0 = load i32 addrspace(1)* %arrayidx, align 4
+   %mul = mul nsw i32 %0, 3
+-  %idxprom1 = sext i32 %i.0 to i64
++  %idxprom1 = sext i32 %i.02 to i64
+   %arrayidx2 = getelementptr inbounds i32* %a, i64 %idxprom1
+   store i32 %mul, i32* %arrayidx2, align 4
+-  %inc = add nsw i32 %i.0, 1
+-  br label %for.cond
++  %inc = add nsw i32 %i.02, 1
++  %cmp = icmp slt i32 %inc, %n
++  br i1 %cmp, label %for.body, label %for.end
+ 
+-for.end:                                          ; preds = %for.cond
++for.end:                                          ; preds = %for.body, %entry
+   ret void
+ }
+ 
+@@ -149,25 +141,23 @@ define void @arst0(i32* %b, i32 %n) #0 {
+ ; CHECK: ret
+ 
+ entry:
+-  br label %for.cond
++  %cmp1 = icmp slt i32 0, %n
++  br i1 %cmp1, label %for.body, label %for.end
+ 
+-for.cond:                                         ; preds = %for.body, %entry
+-  %i.0 = phi i32 [ 0, %entry ], [ %inc, %for.body ]
+-  %cmp = icmp slt i32 %i.0, %n
+-  br i1 %cmp, label %for.body, label %for.end
+-
+-for.body:                                         ; preds = %for.cond
+-  %idxprom = sext i32 %i.0 to i64
++for.body:                                         ; preds = %entry, %for.body
++  %i.02 = phi i32 [ %inc, %for.body ], [ 0, %entry ]
++  %idxprom = sext i32 %i.02 to i64
+   %arrayidx = getelementptr inbounds i32* %b, i64 %idxprom
+   %0 = load i32* %arrayidx, align 4
+   %mul = mul nsw i32 %0, 3
+-  %idxprom1 = sext i32 %i.0 to i64
++  %idxprom1 = sext i32 %i.02 to i64
+   %arrayidx2 = getelementptr inbounds [1024 x i32] addrspace(1)* @g_as1, i64 0, i64 %idxprom1
+   store i32 %mul, i32 addrspace(1)* %arrayidx2, align 4
+-  %inc = add nsw i32 %i.0, 1
+-  br label %for.cond
++  %inc = add nsw i32 %i.02, 1
++  %cmp = icmp slt i32 %inc, %n
++  br i1 %cmp, label %for.body, label %for.end
+ 
+-for.end:                                          ; preds = %for.cond
++for.end:                                          ; preds = %for.body, %entry
+   ret void
+ }
+ 
+@@ -180,25 +170,23 @@ define void @arst1(i32* %b, i32 %n) #0 {
+ ; CHECK: ret
+ 
+ entry:
+-  br label %for.cond
++  %cmp1 = icmp slt i32 0, %n
++  br i1 %cmp1, label %for.body, label %for.end
+ 
+-for.cond:                                         ; preds = %for.body, %entry
+-  %i.0 = phi i32 [ 0, %entry ], [ %inc, %for.body ]
+-  %cmp = icmp slt i32 %i.0, %n
+-  br i1 %cmp, label %for.body, label %for.end
+-
+-for.body:                                         ; preds = %for.cond
+-  %idxprom = sext i32 %i.0 to i64
++for.body:                                         ; preds = %entry, %for.body
++  %i.02 = phi i32 [ %inc, %for.body ], [ 0, %entry ]
++  %idxprom = sext i32 %i.02 to i64
+   %arrayidx = getelementptr inbounds [1024 x i32] addrspace(1)* @g_as1, i64 0, i64 %idxprom
+   %0 = load i32 addrspace(1)* %arrayidx, align 4
+   %mul = mul nsw i32 %0, 3
+-  %idxprom1 = sext i32 %i.0 to i64
++  %idxprom1 = sext i32 %i.02 to i64
+   %arrayidx2 = getelementptr inbounds i32* %b, i64 %idxprom1
+   store i32 %mul, i32* %arrayidx2, align 4
+-  %inc = add nsw i32 %i.0, 1
+-  br label %for.cond
++  %inc = add nsw i32 %i.02, 1
++  %cmp = icmp slt i32 %inc, %n
++  br i1 %cmp, label %for.body, label %for.end
+ 
+-for.end:                                          ; preds = %for.cond
++for.end:                                          ; preds = %for.body, %entry
+   ret void
+ }
+ 
+@@ -210,25 +198,23 @@ define void @aoeu(i32 %n) #0 {
+ ; CHECK: ret
+ 
+ entry:
+-  br label %for.cond
++  %cmp1 = icmp slt i32 0, %n
++  br i1 %cmp1, label %for.body, label %for.end
+ 
+-for.cond:                                         ; preds = %for.body, %entry
+-  %i.0 = phi i32 [ 0, %entry ], [ %inc, %for.body ]
+-  %cmp = icmp slt i32 %i.0, %n
+-  br i1 %cmp, label %for.body, label %for.end
+-
+-for.body:                                         ; preds = %for.cond
+-  %idxprom = sext i32 %i.0 to i64
++for.body:                                         ; preds = %entry, %for.body
++  %i.02 = phi i32 [ %inc, %for.body ], [ 0, %entry ]
++  %idxprom = sext i32 %i.02 to i64
+   %arrayidx = getelementptr inbounds [1024 x i32] addrspace(2)* @q_as2, i64 0, i64 %idxprom
+   %0 = load i32 addrspace(2)* %arrayidx, align 4
+   %mul = mul nsw i32 %0, 3
+-  %idxprom1 = sext i32 %i.0 to i64
++  %idxprom1 = sext i32 %i.02 to i64
+   %arrayidx2 = getelementptr inbounds [1024 x i32] addrspace(1)* @g_as1, i64 0, i64 %idxprom1
+   store i32 %mul, i32 addrspace(1)* %arrayidx2, align 4
+-  %inc = add nsw i32 %i.0, 1
+-  br label %for.cond
++  %inc = add nsw i32 %i.02, 1
++  %cmp = icmp slt i32 %inc, %n
++  br i1 %cmp, label %for.body, label %for.end
+ 
+-for.end:                                          ; preds = %for.cond
++for.end:                                          ; preds = %for.body, %entry
+   ret void
+ }
+ 
