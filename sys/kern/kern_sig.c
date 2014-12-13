@@ -2509,7 +2509,7 @@ ptracestop(struct thread *td, int sig)
 			cv_broadcast(&p->p_dbgwait);
 		}
 stopme:
-		thread_suspend_switch(td);
+		thread_suspend_switch(td, p);
 		if (p->p_xthread == td)
 			p->p_xthread = NULL;
 		if (!(p->p_flag & P_TRACED))
@@ -2770,7 +2770,7 @@ issignal(struct thread *td)
 				p->p_xstat = sig;
 				PROC_SLOCK(p);
 				sig_suspend_threads(td, p, 0);
-				thread_suspend_switch(td);
+				thread_suspend_switch(td, p);
 				PROC_SUNLOCK(p);
 				mtx_lock(&ps->ps_mtx);
 				break;
@@ -2952,7 +2952,7 @@ sigexit(td, sig)
 	 *     (e.g. via fork()), we won't get a dump at all.
 	 */
 	if ((sigprop(sig) & SIGPROP_CORE) &&
-	    (thread_single(SINGLE_NO_EXIT) == 0)) {
+	    (thread_single(p, SINGLE_NO_EXIT) == 0)) {
 		p->p_sig = sig;
 		/*
 		 * Log signals which would cause core dumps
