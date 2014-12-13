@@ -47,11 +47,12 @@ static const char rcsid[] = "@(#)$Id: ip_fil_freebsd.c,v 2.53.2.50 2007/09/20 12
 #endif
 #include <sys/time.h>
 #include <sys/systm.h>
-#if (__FreeBSD_version >= 300000)
 # include <sys/dirent.h>
-#else
-# include <sys/dir.h>
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 800000)
+#include <sys/jail.h>
 #endif
+# include <sys/mbuf.h>
+# include <sys/sockopt.h>
 #if !defined(__hpux)
 # include <sys/mbuf.h>
 #endif
@@ -86,6 +87,12 @@ static const char rcsid[] = "@(#)$Id: ip_fil_freebsd.c,v 2.53.2.50 2007/09/20 12
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
+#if defined(__FreeBSD_version) && (__FreeBSD_version >= 800000)
+#include <net/vnet.h>
+#else
+#define CURVNET_SET(arg)
+#define CURVNET_RESTORE()
+#endif
 #if defined(__osf__)
 # include <netinet/tcp_timer.h>
 #endif
@@ -362,7 +369,9 @@ int mode;
 
 	SPL_NET(s);
 
+	CURVNET_SET(TD_TO_VNET(p));
 	error = fr_ioctlswitch(unit, data, cmd, mode, p->p_uid, p);
+	CURVNET_RESTORE();
 	if (error != -1) {
 		SPL_X(s);
 		return error;
