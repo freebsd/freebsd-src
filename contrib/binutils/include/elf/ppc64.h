@@ -1,5 +1,5 @@
 /* PPC64 ELF support for BFD.
-   Copyright 2003 Free Software Foundation, Inc.
+   Copyright 2003, 2005, 2009 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -136,6 +136,8 @@ START_RELOC_NUMBERS (elf_ppc64_reloc_type)
   RELOC_NUMBER (R_PPC64_DTPREL16_HIGHERA,  104)
   RELOC_NUMBER (R_PPC64_DTPREL16_HIGHEST,  105)
   RELOC_NUMBER (R_PPC64_DTPREL16_HIGHESTA, 106)
+  RELOC_NUMBER (R_PPC64_TLSGD,		   107)
+  RELOC_NUMBER (R_PPC64_TLSLD,		   108)
 
   /* These are GNU extensions to enable C++ vtable garbage collection.  */
   RELOC_NUMBER (R_PPC64_GNU_VTINHERIT,	   253)

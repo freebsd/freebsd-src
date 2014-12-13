@@ -205,6 +205,7 @@ uint64_t zfs_arc_average_blocksize = 8 * 1024; /* 8KB */
 u_int zfs_arc_free_target = 0;
 
 static int sysctl_vfs_zfs_arc_free_target(SYSCTL_HANDLER_ARGS);
+static int sysctl_vfs_zfs_arc_meta_limit(SYSCTL_HANDLER_ARGS);
 
 #ifdef _KERNEL
 static void
@@ -259,6 +260,15 @@ sysctl_vfs_zfs_arc_free_target(SYSCTL_HANDLER_ARGS)
 
 	return (0);
 }
+
+/*
+ * Must be declared here, before the definition of corresponding kstat
+ * macro which uses the same names will confuse the compiler.
+ */
+SYSCTL_PROC(_vfs_zfs, OID_AUTO, arc_meta_limit,
+    CTLTYPE_U64 | CTLFLAG_MPSAFE | CTLFLAG_RW, 0, sizeof(uint64_t),
+    sysctl_vfs_zfs_arc_meta_limit, "QU",
+    "ARC metadata limit");
 #endif
 
 /*
@@ -413,6 +423,9 @@ typedef struct arc_stats {
 	kstat_named_t arcstat_duplicate_buffers;
 	kstat_named_t arcstat_duplicate_buffers_size;
 	kstat_named_t arcstat_duplicate_reads;
+	kstat_named_t arcstat_meta_used;
+	kstat_named_t arcstat_meta_limit;
+	kstat_named_t arcstat_meta_max;
 } arc_stats_t;
 
 static arc_stats_t arc_stats = {
@@ -490,7 +503,10 @@ static arc_stats_t arc_stats = {
 	{ "memory_throttle_count",	KSTAT_DATA_UINT64 },
 	{ "duplicate_buffers",		KSTAT_DATA_UINT64 },
 	{ "duplicate_buffers_size",	KSTAT_DATA_UINT64 },
-	{ "duplicate_reads",		KSTAT_DATA_UINT64 }
+	{ "duplicate_reads",		KSTAT_DATA_UINT64 },
+	{ "arc_meta_used",		KSTAT_DATA_UINT64 },
+	{ "arc_meta_limit",		KSTAT_DATA_UINT64 },
+	{ "arc_meta_max",		KSTAT_DATA_UINT64 }
 };
 
 #define	ARCSTAT(stat)	(arc_stats.stat.value.ui64)
@@ -552,6 +568,9 @@ static arc_state_t	*arc_l2c_only;
 #define	arc_c		ARCSTAT(arcstat_c)	/* target size of cache */
 #define	arc_c_min	ARCSTAT(arcstat_c_min)	/* min target cache size */
 #define	arc_c_max	ARCSTAT(arcstat_c_max)	/* max target cache size */
+#define	arc_meta_limit	ARCSTAT(arcstat_meta_limit) /* max size for metadata */
+#define	arc_meta_used	ARCSTAT(arcstat_meta_used) /* size of metadata */
+#define	arc_meta_max	ARCSTAT(arcstat_meta_max) /* max size of metadata */
 
 #define	L2ARC_IS_VALID_COMPRESS(_c_) \
 	((_c_) == ZIO_COMPRESS_LZ4 || (_c_) == ZIO_COMPRESS_EMPTY)
@@ -559,13 +578,6 @@ static arc_state_t	*arc_l2c_only;
 static int		arc_no_grow;	/* Don't try to grow cache size */
 static uint64_t		arc_tempreserve;
 static uint64_t		arc_loaned_bytes;
-static uint64_t		arc_meta_used;
-static uint64_t		arc_meta_limit;
-static uint64_t		arc_meta_max = 0;
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_meta_used, CTLFLAG_RD, &arc_meta_used, 0,
-    "ARC metadata used");
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_meta_limit, CTLFLAG_RW, &arc_meta_limit, 0,
-    "ARC metadata limit");
 
 typedef struct l2arc_buf_hdr l2arc_buf_hdr_t;
 
@@ -625,6 +637,26 @@ struct arc_buf_hdr {
 	l2arc_buf_hdr_t		*b_l2hdr;
 	list_node_t		b_l2node;
 };
+
+#ifdef _KERNEL
+static int
+sysctl_vfs_zfs_arc_meta_limit(SYSCTL_HANDLER_ARGS)
+{
+	uint64_t val;
+	int err;
+
+	val = arc_meta_limit;
+	err = sysctl_handle_64(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+        if (val <= 0 || val > arc_c_max)
+		return (EINVAL);
+
+	arc_meta_limit = val;
+	return (0);
+}
+#endif
 
 static arc_buf_t *arc_eviction_list;
 static kmutex_t arc_eviction_mtx;
@@ -1479,7 +1511,7 @@ arc_space_consume(uint64_t space, arc_space_type_t type)
 		break;
 	}
 
-	atomic_add_64(&arc_meta_used, space);
+	ARCSTAT_INCR(arcstat_meta_used, space);
 	atomic_add_64(&arc_size, space);
 }
 
@@ -1506,7 +1538,7 @@ arc_space_return(uint64_t space, arc_space_type_t type)
 	ASSERT(arc_meta_used >= space);
 	if (arc_meta_max < arc_meta_used)
 		arc_meta_max = arc_meta_used;
-	atomic_add_64(&arc_meta_used, -space);
+	ARCSTAT_INCR(arcstat_meta_used, -space);
 	ASSERT(arc_size >= space);
 	atomic_add_64(&arc_size, -space);
 }
