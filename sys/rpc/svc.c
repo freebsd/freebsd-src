@@ -1190,7 +1190,8 @@ svc_run_internal(SVCGROUP *grp, bool_t ismaster)
 				mtx_unlock(&grp->sg_lock);
 				p = curproc;
 				PROC_LOCK(p);
-				if (P_SHOULDSTOP(p)) {
+				if (P_SHOULDSTOP(p) ||
+				    (p->p_flag & P_TOTAL_STOP) != 0) {
 					thread_suspend_check(0);
 					PROC_UNLOCK(p);
 					mtx_lock(&grp->sg_lock);
