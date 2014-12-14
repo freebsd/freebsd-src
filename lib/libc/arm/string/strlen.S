@@ -27,6 +27,8 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+.syntax	unified
+
 ENTRY(strlen)
 	mov	r1, #0
 	/* Check that the pointer is aligned on 32 bits. */
@@ -53,23 +55,23 @@ ENTRY(strlen)
 	addne	r1, r1, #1
 .Ldo_3:
 #ifndef __ARMEB__
-	andnes    r3, r2, #0x0000ff00
+	andsne    r3, r2, #0x0000ff00
 #else
-  	andnes    r3, r2, #0x00ff0000
+  	andsne    r3, r2, #0x00ff0000
 #endif  
 	addne     r1, r1, #1
 .Ldo_2:
 #ifndef __ARMEB__
-	andnes    r3, r2, #0x00ff0000
+	andsne    r3, r2, #0x00ff0000
 #else
-	andnes    r3, r2, #0x0000ff00
+	andsne    r3, r2, #0x0000ff00
 #endif  
 	addne	r1, r1, #1
 .Ldo_1:
 #ifndef __ARMEB__
-	andnes	r3, r2, #0xff000000
+	andsne	r3, r2, #0xff000000
 #else
-	andnes	r3, r2, #0x000000ff
+	andsne	r3, r2, #0x000000ff
 #endif  
 	addne	r1, r1, #1
 	bne	.Loop				
