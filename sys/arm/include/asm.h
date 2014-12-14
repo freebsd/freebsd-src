@@ -118,10 +118,16 @@
 	ldr	x, [x, got]
 #define	GOT_INIT(got,gotsym,pclabel) \
 	ldr	got, gotsym;	\
-	add	got, got, pc;	\
-	pclabel:
+	pclabel: add	got, got, pc
+#ifdef __thumb__
 #define	GOT_INITSYM(gotsym,pclabel) \
-	gotsym: .word _C_LABEL(_GLOBAL_OFFSET_TABLE_) + (. - (pclabel+4))
+	.align 0;		\
+	gotsym: .word _C_LABEL(_GLOBAL_OFFSET_TABLE_) - (pclabel+4)
+#else
+#define	GOT_INITSYM(gotsym,pclabel) \
+	.align 0;		\
+	gotsym: .word _C_LABEL(_GLOBAL_OFFSET_TABLE_) - (pclabel+8)
+#endif
 
 #ifdef __STDC__
 #define	PIC_SYM(x,y)	x ## ( ## y ## )
