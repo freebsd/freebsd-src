@@ -676,8 +676,8 @@ node_print(const struct node *n)
 		node_print_indent(child, 0);
 }
 
-struct node *
-node_find(struct node *node, const char *path)
+static struct node *
+node_find_x(struct node *node, const char *path)
 {
 	struct node *child, *found;
 	char *tmp;
@@ -702,11 +702,22 @@ node_find(struct node *node, const char *path)
 	free(tmp);
 
 	TAILQ_FOREACH(child, &node->n_children, n_next) {
-		found = node_find(child, path);
+		found = node_find_x(child, path);
 		if (found != NULL)
 			return (found);
 	}
 
+	return (node);
+}
+
+struct node *
+node_find(struct node *root, const char *path)
+{
+	struct node *node;
+
+	node = node_find_x(root, path);
+	if (node == root)
+		return (NULL);
 	return (node);
 }
 
