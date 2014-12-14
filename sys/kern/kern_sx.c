@@ -209,7 +209,7 @@ sx_init_flags(struct sx *sx, const char *description, int opts)
 	int flags;
 
 	MPASS((opts & ~(SX_QUIET | SX_RECURSE | SX_NOWITNESS | SX_DUPOK |
-	    SX_NOPROFILE | SX_NOADAPTIVE)) == 0);
+	    SX_NOPROFILE | SX_NOADAPTIVE | SX_NEW)) == 0);
 	ASSERT_ATOMIC_LOAD_PTR(sx->sx_lock,
 	    ("%s: sx_lock not aligned for %s: %p", __func__, description,
 	    &sx->sx_lock));
@@ -225,6 +225,8 @@ sx_init_flags(struct sx *sx, const char *description, int opts)
 		flags |= LO_RECURSABLE;
 	if (opts & SX_QUIET)
 		flags |= LO_QUIET;
+	if (opts & SX_NEW)
+		flags |= LO_NEW;
 
 	flags |= opts & SX_NOADAPTIVE;
 	lock_init(&sx->lock_object, &lock_class_sx, description, NULL, flags);
