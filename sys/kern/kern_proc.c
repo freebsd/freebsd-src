@@ -3031,6 +3031,7 @@ sysctl_debug_stop_all_proc(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_debug, OID_AUTO, stop_all_proc, CTLTYPE_INT | CTLFLAG_RW |
-    CTLFLAG_MPSAFE, (void *)&ap_resume, 0, sysctl_debug_stop_all_proc, "I",
+    CTLFLAG_MPSAFE, __DEVOLATILE(int *, &ap_resume), 0,
+    sysctl_debug_stop_all_proc, "I",
     "");
 #endif
