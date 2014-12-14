@@ -64,19 +64,6 @@
 #endif
 
 /*
- * gas/arm uses @ as a single comment character and thus cannot be used here
- * Instead it recognised the # instead of an @ symbols in .type directives
- * We define a couple of macros so that assembly code will not be dependent
- * on one or the other.
- */
-#define _ASM_TYPE_FUNCTION	#function
-#define _ASM_TYPE_OBJECT	#object
-#define GLOBAL(X) .globl x
-#define _ENTRY(x) \
-	.text; _ALIGN_TEXT; .globl x; .type x,_ASM_TYPE_FUNCTION; x: _FNSTART
-#define	_END(x)	.size x, . - x; _FNEND
-
-/*
  * EENTRY()/EEND() mark "extra" entry/exit points from a function.
  * The unwind info cannot handle the concept of a nested function, or a function
  * with multiple .fnstart directives, but some of our assembler code is written
@@ -85,8 +72,21 @@
  * basically just a label that you can jump to.  The EEND() macro does nothing
  * at all, except document the exit point associated with the same-named entry.
  */
-#define _EENTRY(x) 	.globl x; .type x,_ASM_TYPE_FUNCTION; x:
-#define _EEND(x)	/* nothing */
+#define	_EENTRY(x) 	.globl x; .type x,_ASM_TYPE_FUNCTION; x:
+#define	_EEND(x)	/* nothing */
+
+/*
+ * gas/arm uses @ as a single comment character and thus cannot be used here
+ * Instead it recognised the # instead of an @ symbols in .type directives
+ * We define a couple of macros so that assembly code will not be dependent
+ * on one or the other.
+ */
+#define _ASM_TYPE_FUNCTION	#function
+#define _ASM_TYPE_OBJECT	#object
+#define GLOBAL(X) .globl x
+#define	_ENTRY(x) \
+	.text; _ALIGN_TEXT; _EENTRY(x) _FNSTART
+#define	_END(x)	.size x, . - x; _FNEND
 
 #ifdef GPROF
 #  define _PROF_PROLOGUE	\

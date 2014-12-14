@@ -194,7 +194,6 @@ ENTRY(armv5_idcache_wbinv_range)
 END(armv5_idcache_wbinv_range)
 
 ENTRY_NP(armv5_idcache_wbinv_all)
-armv5_idcache_wbinv_all:
 .Larmv5_idcache_wbinv_all:
 	/*
 	 * We assume that the code here can never be out of sync with the
