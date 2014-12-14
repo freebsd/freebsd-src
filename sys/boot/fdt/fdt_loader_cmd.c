@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 
 #include "bootstrap.h"
-#include "glue.h"
+#include "fdt_platform.h"
 
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
@@ -51,9 +51,6 @@ __FBSDID("$FreeBSD$");
 #define FDT_MAX_DEPTH	6
 
 #define FDT_PROP_SEP	" = "
-
-#define STR(number) #number
-#define STRINGIFY(number) STR(number)
 
 #define COPYOUT(s,d,l)	archsw.arch_copyout(s, d, l)
 #define COPYIN(s,d,l)	archsw.arch_copyin(s, d, l)
@@ -228,7 +225,7 @@ fdt_load_dtb(vm_offset_t va)
 	return (0);
 }
 
-static int
+int
 fdt_load_dtb_addr(struct fdt_header *header)
 {
 	int err;
@@ -253,7 +250,7 @@ fdt_load_dtb_addr(struct fdt_header *header)
 	return (0);
 }
 
-static int
+int
 fdt_load_dtb_file(const char * filename)
 {
 	struct preloaded_file *bfp, *oldbfp;
@@ -283,9 +280,6 @@ int
 fdt_setup_fdtp()
 {
 	struct preloaded_file *bfp;
-	struct fdt_header *hdr;
-	const char *s;
-	char *p;
 	vm_offset_t va;
 	
 	debugf("fdt_setup_fdtp()\n");
@@ -308,41 +302,8 @@ fdt_setup_fdtp()
 		}
 	}
 
-	/*
-	 * If the U-boot environment contains a variable giving the address of a
-	 * valid blob in memory, use it.  The U-boot README says the right
-	 * variable for fdt data loaded into ram is fdt_addr_r, so try that
-	 * first.  Board vendors also use both fdtaddr and fdt_addr names.
-	 */
-	s = ub_env_get("fdt_addr_r");
-	if (s == NULL)
-		s = ub_env_get("fdtaddr");
-	if (s == NULL)
-		s = ub_env_get("fdt_addr");
-	if (s != NULL && *s != '\0') {
-		hdr = (struct fdt_header *)strtoul(s, &p, 16);
-		if (*p == '\0') {
-			if (fdt_load_dtb_addr(hdr) == 0) {
-				printf("Using DTB provided by U-Boot at "
-				    "address 0x%p.\n", hdr);
-				return (0);
-			}
-		}
-	}
-
-	/*
-	 * If the U-boot environment contains a variable giving the name of a
-	 * file, use it if we can load and validate it.
-	 */
-	s = ub_env_get("fdtfile");
-	if (s == NULL)
-		s = ub_env_get("fdt_file");
-	if (s != NULL && *s != '\0') {
-		if (fdt_load_dtb_file(s) == 0) {
-			printf("Loaded DTB from file '%s'.\n", s);
-			return (0);
-		}
-	}
+	if (fdt_platform_load_dtb() == 0)
+		return (0);
 
 	/* If there is a dtb compiled into the kernel, use it. */
 	if ((va = fdt_find_static_dtb()) != 0) {
@@ -406,48 +367,20 @@ _fdt_strtovect(const char *str, void *cellbuf, int lim, unsigned char cellsize,
 	return (cnt);
 }
 
-#define	TMP_MAX_ETH	8
-
-static void
-fixup_ethernet(const char *env, char *ethstr, int *eth_no, int len)
+void
+fdt_fixup_ethernet(const char *str, char *ethstr, int len)
 {
-	const char *str;
-	char *end;
 	uint8_t tmp_addr[6];
-	int i, n;
-
-	/* Extract interface number */
-	i = strtol(env + 3, &end, 10);
-	if (end == (env + 3))
-		/* 'ethaddr' means interface 0 address */
-		n = 0;
-	else
-		n = i;
-
-	if (n > TMP_MAX_ETH)
-		return;
-
-	str = ub_env_get(env);
 
 	/* Convert macaddr string into a vector of uints */
 	fdt_strtovectx(str, &tmp_addr, 6, sizeof(uint8_t));
-	if (n != 0) {
-		i = strlen(env) - 7;
-		strncpy(ethstr + 8, env + 3, i);
-	}
 	/* Set actual property to a value from vect */
 	fdt_setprop(fdtp, fdt_path_offset(fdtp, ethstr),
 	    "local-mac-address", &tmp_addr, 6 * sizeof(uint8_t));
-
-	/* Clear ethernet..XXXX.. string */
-	bzero(ethstr + 8, len - 8);
-
-	if (n + 1 > *eth_no)
-		*eth_no = n + 1;
 }
 
-static void
-fixup_cpubusfreqs(unsigned long cpufreq, unsigned long busfreq)
+void
+fdt_fixup_cpubusfreqs(unsigned long cpufreq, unsigned long busfreq)
 {
 	int lo, o = 0, o2, maxo = 0, depth;
 	const uint32_t zero = 0;
@@ -526,13 +459,14 @@ fdt_reg_valid(uint32_t *reg, int len, int addr_cells, int size_cells)
 	return (0);
 }
 
-static void
-fixup_memory(struct sys_info *si)
+void
+fdt_fixup_memory(struct fdt_mem_region *region, size_t num)
 {
-	struct mem_region *curmr;
+	struct fdt_mem_region *curmr;
 	uint32_t addr_cells, size_cells;
 	uint32_t *addr_cellsp, *reg,  *size_cellsp;
-	int err, i, len, memory, realmrno, root;
+	int err, i, len, memory, root;
+	size_t realmrno;
 	uint8_t *buf, *sb;
 	uint64_t rstart, rsize;
 	int reserved;
@@ -590,7 +524,6 @@ fixup_memory(struct sys_info *si)
 		bzero(buf, len);
 
 		for (i = 0; i < reserved; i++) {
-			curmr = &si->mr[i];
 			if (fdt_get_mem_rsv(fdtp, i, &rstart, &rsize))
 				break;
 			if (rsize) {
@@ -622,9 +555,9 @@ fixup_memory(struct sys_info *si)
 	} 
 
 	/* Count valid memory regions entries in sysinfo. */
-	realmrno = si->mr_no;
-	for (i = 0; i < si->mr_no; i++)
-		if (si->mr[i].start == 0 && si->mr[i].size == 0)
+	realmrno = num;
+	for (i = 0; i < num; i++)
+		if (region[i].start == 0 && region[i].size == 0)
 			realmrno--;
 
 	if (realmrno == 0) {
@@ -651,8 +584,8 @@ fixup_memory(struct sys_info *si)
 
 	bzero(buf, len);
 
-	for (i = 0; i < si->mr_no; i++) {
-		curmr = &si->mr[i];
+	for (i = 0; i < num; i++) {
+		curmr = &region[i];
 		if (curmr->size != 0) {
 			/* Ensure endianess, and put cells into a buffer */
 			if (addr_cells == 2)
@@ -681,17 +614,15 @@ fixup_memory(struct sys_info *si)
 	free(sb);
 }
 
-static void
-fixup_stdout(const char *env)
+void
+fdt_fixup_stdout(const char *str)
 {
-	const char *str;
 	char *ptr;
 	int serialno;
 	int len, no, sero;
 	const struct fdt_property *prop;
 	char *tmp[10];
 
-	str = ub_env_get(env);
 	ptr = (char *)str + strlen(str) - 1;
 	while (ptr > str && isdigit(*(str - 1)))
 		str--;
@@ -737,14 +668,8 @@ fixup_stdout(const char *env)
 static int
 fdt_fixup(void)
 {
-	const char *env;
-	char *ethstr;
-	int chosen, eth_no, len;
-	struct sys_info *si;
+	int chosen, len;
 
-	env = NULL;
-	eth_no = 0;
-	ethstr = NULL;
 	len = 0;
 
 	debugf("fdt_fixup()\n");
@@ -761,45 +686,7 @@ fdt_fixup(void)
 	if (fdt_getprop(fdtp, chosen, "fixup-applied", NULL))
 		return (1);
 
-	/* Acquire sys_info */
-	si = ub_get_sys_info();
-
-	while ((env = ub_env_enum(env)) != NULL) {
-		if (strncmp(env, "eth", 3) == 0 &&
-		    strncmp(env + (strlen(env) - 4), "addr", 4) == 0) {
-			/*
-			 * Handle Ethernet addrs: parse uboot env eth%daddr
-			 */
-
-			if (!eth_no) {
-				/*
-				 * Check how many chars we will need to store
-				 * maximal eth iface number.
-				 */
-				len = strlen(STRINGIFY(TMP_MAX_ETH)) +
-				    strlen("ethernet");
-
-				/*
-				 * Reserve mem for string "ethernet" and len
-				 * chars for iface no.
-				 */
-				ethstr = (char *)malloc(len * sizeof(char));
-				bzero(ethstr, len * sizeof(char));
-				strcpy(ethstr, "ethernet0");
-			}
-
-			/* Modify blob */
-			fixup_ethernet(env, ethstr, &eth_no, len);
-
-		} else if (strcmp(env, "consoledev") == 0)
-			fixup_stdout(env);
-	}
-
-	/* Modify cpu(s) and bus clock frequenties in /cpus node [Hz] */
-	fixup_cpubusfreqs(si->clk_cpu, si->clk_bus);
-
-	/* Fixup memory regions */
-	fixup_memory(si);
+	fdt_platform_fixups();
 
 	fdt_setprop(fdtp, chosen, "fixup-applied", NULL, 0);
 	return (1);
