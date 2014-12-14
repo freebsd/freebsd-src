@@ -93,9 +93,9 @@ static int fdt_cmd_mres(int argc, char *argv[]);
 typedef int cmdf_t(int, char *[]);
 
 struct cmdtab {
-	char	*name;
-	cmdf_t	*handler;
-	int	flags;
+	const char	*name;
+	cmdf_t		*handler;
+	int		flags;
 };
 
 static const struct cmdtab commands[] = {
@@ -364,11 +364,11 @@ fdt_setup_fdtp()
     (cellbuf), (lim), (cellsize), 16);
 
 static int
-_fdt_strtovect(char *str, void *cellbuf, int lim, unsigned char cellsize,
+_fdt_strtovect(const char *str, void *cellbuf, int lim, unsigned char cellsize,
     uint8_t base)
 {
-	char *buf = str;
-	char *end = str + strlen(str) - 2;
+	const char *buf = str;
+	const char *end = str + strlen(str) - 2;
 	uint32_t *u32buf = NULL;
 	uint8_t *u8buf = NULL;
 	int cnt = 0;
@@ -411,7 +411,8 @@ _fdt_strtovect(char *str, void *cellbuf, int lim, unsigned char cellsize,
 static void
 fixup_ethernet(const char *env, char *ethstr, int *eth_no, int len)
 {
-	char *end, *str;
+	const char *str;
+	char *end;
 	uint8_t tmp_addr[6];
 	int i, n;
 
@@ -1347,7 +1348,7 @@ static int
 fdt_modprop(int nodeoff, char *propname, void *value, char mode)
 {
 	uint32_t cells[100];
-	char *buf;
+	const char *buf;
 	int len, rv;
 	const struct fdt_property *p;
 
@@ -1365,7 +1366,7 @@ fdt_modprop(int nodeoff, char *propname, void *value, char mode)
 	}
 	len = strlen(value);
 	rv = 0;
-	buf = (char *)value;
+	buf = value;
 
 	switch (*buf) {
 	case '&':
