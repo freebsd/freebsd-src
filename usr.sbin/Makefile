@@ -94,6 +94,7 @@ SUBDIR=	adduser \
 	trpt \
 	tzsetup \
 	ugidfw \
+	vigr \
 	vipw \
 	wake \
 	watch \
