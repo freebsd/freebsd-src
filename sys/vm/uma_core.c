@@ -145,6 +145,8 @@ static LIST_HEAD(,uma_slab) uma_boot_pages =
 /* This mutex protects the boot time pages list */
 static struct mtx_padalign uma_boot_pages_mtx;
 
+static struct sx uma_drain_lock;
+
 /* Is the VM done starting up? */
 static int booted = 0;
 #define	UMA_STARTUP	1
@@ -1876,6 +1878,7 @@ uma_startup2(void)
 {
 	booted = UMA_STARTUP2;
 	bucket_enable();
+	sx_init(&uma_drain_lock, "umadrain");
 #ifdef UMA_DEBUG
 	printf("UMA startup2 complete.\n");
 #endif
@@ -1930,6 +1933,8 @@ uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 
 {
 	struct uma_zctor_args args;
+	uma_zone_t res;
+	bool locked;
 
 	/* This stuff is essential for the zone ctor */
 	memset(&args, 0, sizeof(args));
@@ -1943,7 +1948,16 @@ uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 	args.flags = flags;
 	args.keg = NULL;
 
-	return (zone_alloc_item(zones, &args, M_WAITOK));
+	if (booted < UMA_STARTUP2) {
+		locked = false;
+	} else {
+		sx_slock(&uma_drain_lock);
+		locked = true;
+	}
+	res = zone_alloc_item(zones, &args, M_WAITOK);
+	if (locked)
+		sx_sunlock(&uma_drain_lock);
+	return (res);
 }
 
 /* See uma.h */
@@ -1953,6 +1967,8 @@ uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
 {
 	struct uma_zctor_args args;
 	uma_keg_t keg;
+	uma_zone_t res;
+	bool locked;
 
 	keg = zone_first_keg(master);
 	memset(&args, 0, sizeof(args));
@@ -1966,8 +1982,17 @@ uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
 	args.flags = keg->uk_flags | UMA_ZONE_SECONDARY;
 	args.keg = keg;
 
+	if (booted < UMA_STARTUP2) {
+		locked = false;
+	} else {
+		sx_slock(&uma_drain_lock);
+		locked = true;
+	}
 	/* XXX Attaches only one keg of potentially many. */
-	return (zone_alloc_item(zones, &args, M_WAITOK));
+	res = zone_alloc_item(zones, &args, M_WAITOK);
+	if (locked)
+		sx_sunlock(&uma_drain_lock);
+	return (res);
 }
 
 /* See uma.h */
@@ -2085,7 +2110,9 @@ void
 uma_zdestroy(uma_zone_t zone)
 {
 
+	sx_slock(&uma_drain_lock);
 	zone_free_item(zones, zone, NULL, SKIP_NONE);
+	sx_sunlock(&uma_drain_lock);
 }
 
 /* See uma.h */
@@ -3171,6 +3198,7 @@ uma_reclaim(void)
 #ifdef UMA_DEBUG
 	printf("UMA: vm asked us to release pages!\n");
 #endif
+	sx_xlock(&uma_drain_lock);
 	bucket_enable();
 	zone_foreach(zone_drain);
 	if (vm_page_count_min()) {
@@ -3185,6 +3213,7 @@ uma_reclaim(void)
 	zone_drain(slabzone);
 	zone_drain(slabrefzone);
 	bucket_zone_drain();
+	sx_xunlock(&uma_drain_lock);
 }
 
 /* See uma.h */
