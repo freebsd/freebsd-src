@@ -183,13 +183,14 @@ exit1(struct thread *td, int rv)
 	 * MUST abort all other threads before proceeding past here.
 	 */
 	PROC_LOCK(p);
+	/*
+	 * First check if some other thread or external request got
+	 * here before us.  If so, act appropriately: exit or suspend.
+	 * We must ensure that stop requests are handled before we set
+	 * P_WEXIT.
+	 */
+	thread_suspend_check(0);
 	while (p->p_flag & P_HADTHREADS) {
-		/*
-		 * First check if some other thread got here before us.
-		 * If so, act appropriately: exit or suspend.
-		 */
-		thread_suspend_check(0);
-
 		/*
 		 * Kill off the other threads. This requires
 		 * some co-operation from other parts of the kernel
@@ -208,12 +209,18 @@ exit1(struct thread *td, int rv)
 		 * either be suspended there or exit.
 		 */
 		if (!thread_single(SINGLE_EXIT))
+			/*
+			 * All other activity in this process is now
+			 * stopped.  Threading support has been turned
+			 * off.
+			 */
 			break;
-
 		/*
-		 * All other activity in this process is now stopped.
-		 * Threading support has been turned off.
+		 * Recheck for new stop or suspend requests which
+		 * might appear while process lock was dropped in
+		 * thread_single().
 		 */
+		thread_suspend_check(0);
 	}
 	KASSERT(p->p_numthreads == 1,
 	    ("exit1: proc %p exiting with %d threads", p, p->p_numthreads));
