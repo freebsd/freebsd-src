@@ -919,6 +919,9 @@ vfs_uninit_t		vfs_stduninit;
 vfs_extattrctl_t	vfs_stdextattrctl;
 vfs_sysctl_t		vfs_stdsysctl;
 
+void	syncer_suspend(void);
+void	syncer_resume(void);
+
 #else /* !_KERNEL */
 
 #include <sys/cdefs.h>
