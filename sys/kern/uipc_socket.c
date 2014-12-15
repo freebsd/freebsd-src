@@ -2002,7 +2002,7 @@ restart:
 
 	/* Socket buffer got some data that we shall deliver now. */
 	if (sbavail(sb) > 0 && !(flags & MSG_WAITALL) &&
-	    ((sb->sb_flags & SS_NBIO) ||
+	    ((so->so_state & SS_NBIO) ||
 	     (flags & (MSG_DONTWAIT|MSG_NBIO)) ||
 	     sbavail(sb) >= sb->sb_lowat ||
 	     sbavail(sb) >= uio->uio_resid ||
