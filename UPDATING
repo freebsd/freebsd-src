@@ -17,14 +17,14 @@ stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
 20141215:
-	At svn r271982, The default linux compat kernel ABI has been adjusted
+	At svn r275807, The default linux compat kernel ABI has been adjusted
 	to 2.6.18 in support of the linux-c6 compat ports infrastructure
 	update.  If you wish to continue using the linux-f10 compat ports,
 	add compat.linux.osrelease=2.6.16 to your local sysctl.conf.  Users are
 	encouraged to update their linux-compat packages to linux-c6 during
 	their next update cycle.
 	
-	See ports/UPDATING 20141202 on migration to CentOS 6 ports.
+	See ports/UPDATING 20141209 and 20141215 on migration to CentOS 6 ports.
 
 20141205:
 	pjdfstest has been integrated into kyua as an opt-in test suite.
