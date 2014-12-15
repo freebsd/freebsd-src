@@ -188,7 +188,7 @@ mv_pci_ranges_decode(phandle_t node, struct mv_pci_range *io_space,
 		    par_addr_cells - offset_cells);
 		rangesptr += par_addr_cells - offset_cells;
 
-		if (size_cells > 2)
+		if (size_cells > 2) {
 			rv = ERANGE;
 			goto out;
 		}
