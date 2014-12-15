@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 SDT_PROVIDER_DECLARE(proc);
 SDT_PROBE_DEFINE(proc, , , lwp__exit);
 
-
 /*
  * thread related storage.
  */
@@ -583,6 +582,46 @@ calc_remaining(struct proc *p, int mode)
 	return (remaining);
 }
 
+static int
+remain_for_mode(int mode)
+{
+
+	return (1);
+}
+
+static int
+weed_inhib(int mode, struct thread *td2, struct proc *p)
+{
+	int wakeup_swapper;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
+	THREAD_LOCK_ASSERT(td2, MA_OWNED);
+
+	wakeup_swapper = 0;
+	switch (mode) {
+	case SINGLE_EXIT:
+		if (TD_IS_SUSPENDED(td2))
+			wakeup_swapper |= thread_unsuspend_one(td2);
+		if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR) != 0)
+			wakeup_swapper |= sleepq_abort(td2, EINTR);
+		break;
+	case SINGLE_BOUNDARY:
+		if (TD_IS_SUSPENDED(td2) && (td2->td_flags & TDF_BOUNDARY) == 0)
+			wakeup_swapper |= thread_unsuspend_one(td2);
+		if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR) != 0)
+			wakeup_swapper |= sleepq_abort(td2, ERESTART);
+		break;
+	case SINGLE_NO_EXIT:
+		if (TD_IS_SUSPENDED(td2) && (td2->td_flags & TDF_BOUNDARY) == 0)
+			wakeup_swapper |= thread_unsuspend_one(td2);
+		if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR) != 0)
+			wakeup_swapper |= sleepq_abort(td2, ERESTART);
+		break;
+	}
+	return (wakeup_swapper);
+}
+
 /*
  * Enforce single-threading.
  *
@@ -630,7 +669,7 @@ thread_single(int mode)
 	PROC_SLOCK(p);
 	p->p_singlethread = td;
 	remaining = calc_remaining(p, mode);
-	while (remaining != 1) {
+	while (remaining != remain_for_mode(mode)) {
 		if (P_SHOULDSTOP(p) != P_STOPPED_SINGLE)
 			goto stopme;
 		wakeup_swapper = 0;
@@ -639,41 +678,8 @@ thread_single(int mode)
 				continue;
 			thread_lock(td2);
 			td2->td_flags |= TDF_ASTPENDING | TDF_NEEDSUSPCHK;
-			if (TD_IS_INHIBITED(td2)) {
-				switch (mode) {
-				case SINGLE_EXIT:
-					if (TD_IS_SUSPENDED(td2))
-						wakeup_swapper |=
-						    thread_unsuspend_one(td2);
-					if (TD_ON_SLEEPQ(td2) &&
-					    (td2->td_flags & TDF_SINTR))
-						wakeup_swapper |=
-						    sleepq_abort(td2, EINTR);
-					break;
-				case SINGLE_BOUNDARY:
-					if (TD_IS_SUSPENDED(td2) &&
-					    !(td2->td_flags & TDF_BOUNDARY))
-						wakeup_swapper |=
-						    thread_unsuspend_one(td2);
-					if (TD_ON_SLEEPQ(td2) &&
-					    (td2->td_flags & TDF_SINTR))
-						wakeup_swapper |=
-						    sleepq_abort(td2, ERESTART);
-					break;
-				case SINGLE_NO_EXIT:
-					if (TD_IS_SUSPENDED(td2) &&
-					    !(td2->td_flags & TDF_BOUNDARY))
-						wakeup_swapper |=
-						    thread_unsuspend_one(td2);
-					if (TD_ON_SLEEPQ(td2) &&
-					    (td2->td_flags & TDF_SINTR))
-						wakeup_swapper |=
-						    sleepq_abort(td2, ERESTART);
-					break;
-				default:
-					break;
-				}
-			}
+			if (TD_IS_INHIBITED(td2))
+				wakeup_swapper |= weed_inhib(mode, td2, p);
 #ifdef SMP
 			else if (TD_IS_RUNNING(td2) && td != td2) {
 				forward_signal(td2);
@@ -688,7 +694,7 @@ thread_single(int mode)
 		/*
 		 * Maybe we suspended some threads.. was it enough?
 		 */
-		if (remaining == 1)
+		if (remaining == remain_for_mode(mode))
 			break;
 
 stopme:
@@ -967,8 +973,7 @@ thread_single_end(void)
 	struct proc *p;
 	int wakeup_swapper;
 
-	td = curthread;
-	p = td->td_proc;
+	p = curproc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT | P_SINGLE_BOUNDARY);
 	PROC_SLOCK(p);
@@ -980,7 +985,8 @@ thread_single_end(void)
 	 * on the process. The single threader must be allowed
 	 * to continue however as this is a bad place to stop.
 	 */
-	if ((p->p_numthreads != 1) && (!P_SHOULDSTOP(p))) {
+	if (p->p_numthreads != remain_for_mode(SINGLE_EXIT) &&
+	    !P_SHOULDSTOP(p)) {
                 FOREACH_THREAD_IN_PROC(p, td) {
 			thread_lock(td);
 			if (TD_IS_SUSPENDED(td)) {
