@@ -123,6 +123,31 @@ proc_realparent(struct proc *child)
 	return (parent);
 }
 
+void
+reaper_abandon_children(struct proc *p, bool exiting)
+{
+	struct proc *p1, *p2, *ptmp;
+
+	sx_assert(&proctree_lock, SX_LOCKED);
+	KASSERT(p != initproc, ("reaper_abandon_children for initproc"));
+	if ((p->p_treeflag & P_TREE_REAPER) == 0)
+		return;
+	p1 = p->p_reaper;
+	LIST_FOREACH_SAFE(p2, &p->p_reaplist, p_reapsibling, ptmp) {
+		LIST_REMOVE(p2, p_reapsibling);
+		p2->p_reaper = p1;
+		p2->p_reapsubtree = p->p_reapsubtree;
+		LIST_INSERT_HEAD(&p1->p_reaplist, p2, p_reapsibling);
+		if (exiting && p2->p_pptr == p) {
+			PROC_LOCK(p2);
+			proc_reparent(p2, p1);
+			PROC_UNLOCK(p2);
+		}
+	}
+	KASSERT(LIST_EMPTY(&p->p_reaplist), ("p_reaplist not empty"));
+	p->p_treeflag &= ~P_TREE_REAPER;
+}
+
 static void
 clear_orphan(struct proc *p)
 {
@@ -458,14 +483,14 @@ exit1(struct thread *td, int rv)
 	sx_xlock(&proctree_lock);
 	q = LIST_FIRST(&p->p_children);
 	if (q != NULL)		/* only need this if any child is S_ZOMB */
-		wakeup(initproc);
+		wakeup(q->p_reaper);
 	for (; q != NULL; q = nq) {
 		nq = LIST_NEXT(q, p_sibling);
 		PROC_LOCK(q);
 		q->p_sigparent = SIGCHLD;
 
 		if (!(q->p_flag & P_TRACED)) {
-			proc_reparent(q, initproc);
+			proc_reparent(q, q->p_reaper);
 		} else {
 			/*
 			 * Traced processes are killed since their existence
@@ -473,7 +498,7 @@ exit1(struct thread *td, int rv)
 			 */
 			t = proc_realparent(q);
 			if (t == p) {
-				proc_reparent(q, initproc);
+				proc_reparent(q, q->p_reaper);
 			} else {
 				PROC_LOCK(t);
 				proc_reparent(q, t);
@@ -562,7 +587,7 @@ exit1(struct thread *td, int rv)
 			mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
 			pp = p->p_pptr;
 			PROC_UNLOCK(pp);
-			proc_reparent(p, initproc);
+			proc_reparent(p, p->p_reaper);
 			p->p_sigparent = SIGCHLD;
 			PROC_LOCK(p->p_pptr);
 
@@ -575,8 +600,8 @@ exit1(struct thread *td, int rv)
 		} else
 			mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
 
-		if (p->p_pptr == initproc)
-			kern_psignal(p->p_pptr, SIGCHLD);
+		if (p->p_pptr == p->p_reaper || p->p_pptr == initproc)
+			childproc_exited(p);
 		else if (p->p_sigparent != 0) {
 			if (p->p_sigparent == SIGCHLD)
 				childproc_exited(p);
@@ -849,6 +874,8 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	LIST_REMOVE(p, p_list);	/* off zombproc */
 	sx_xunlock(&allproc_lock);
 	LIST_REMOVE(p, p_sibling);
+	reaper_abandon_children(p, true);
+	LIST_REMOVE(p, p_reapsibling);
 	PROC_LOCK(p);
 	clear_orphan(p);
 	PROC_UNLOCK(p);
