@@ -105,6 +105,9 @@ extern char *strsep(char **, const char *);
 #define DISSECTOR_DECLARE(func)		\
 	extern void func;		\
 	extern void _##func;
+#define DISSECTOR_DECLARE_UINT(func)	\
+	extern void func;		\
+	extern u_int _##func;
 
 
 extern const char *program_name;/* used to generate self-identifying messages */
@@ -205,14 +208,14 @@ extern u_int pflog_if_print(const struct pcap_pkthdr *, packetbody_t);
 DISSECTOR_DECLARE(pfsync_ip_print(packetbody_t, u_int));
 extern u_int arcnet_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int arcnet_linux_if_print(const struct pcap_pkthdr *, packetbody_t);
-extern u_int token_print(packetbody_t, u_int, u_int);
+DISSECTOR_DECLARE_UINT(token_print(packetbody_t, u_int, u_int));
 extern u_int token_if_print(const struct pcap_pkthdr *, packetbody_t);
 DISSECTOR_DECLARE(fddi_print(packetbody_t, u_int, u_int));
 extern u_int fddi_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int fr_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int mfr_if_print(const struct pcap_pkthdr *, packetbody_t);
-extern u_int fr_print(packetbody_t, u_int);
-extern u_int mfr_print(packetbody_t, u_int);
+DISSECTOR_DECLARE_UINT(fr_print(packetbody_t, u_int));
+DISSECTOR_DECLARE_UINT(mfr_print(packetbody_t, u_int));
 extern char *q922_string(packetbody_t);
 extern u_int ieee802_11_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int ieee802_11_radio_if_print(const struct pcap_pkthdr *,
@@ -229,7 +232,7 @@ extern u_int ipfc_if_print(const struct pcap_pkthdr *, packetbody_t);
 DISSECTOR_DECLARE(ipx_print(packetbody_t, u_int));
 DISSECTOR_DECLARE(isoclns_print(packetbody_t, u_int, u_int));
 DISSECTOR_DECLARE(krb_print(packetbody_t));
-extern u_int llap_print(packetbody_t, u_int);
+DISSECTOR_DECLARE_UINT(llap_print(packetbody_t, u_int));
 extern u_int ltalk_if_print(const struct pcap_pkthdr *, packetbody_t);
 DISSECTOR_DECLARE(msdp_print(packetbody_t, u_int));
 DISSECTOR_DECLARE(nfsreply_print(packetbody_t, u_int, packetbody_t));
@@ -253,15 +256,15 @@ DISSECTOR_DECLARE(lwapp_data_print(packetbody_t, u_int));
 DISSECTOR_DECLARE(eigrp_print(packetbody_t, u_int));
 DISSECTOR_DECLARE(mobile_print(packetbody_t, u_int));
 DISSECTOR_DECLARE(pim_print(packetbody_t, u_int, u_int));
-extern u_int pppoe_print(packetbody_t, u_int);
-extern u_int ppp_print(packetbody_t, u_int);
+DISSECTOR_DECLARE_UINT(pppoe_print(packetbody_t, u_int));
+DISSECTOR_DECLARE_UINT(ppp_print(packetbody_t, u_int));
 extern u_int ppp_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int ppp_hdlc_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int ppp_bsdos_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int pppoe_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int prism_if_print(const struct pcap_pkthdr *, packetbody_t);
 DISSECTOR_DECLARE(q933_print(packetbody_t, u_int));
-extern int vjc_print(packetbody_t, u_short);
+extern int vjc_print(packetbody_t, u_short); /* XXX: Not sandboxed, simple */
 DISSECTOR_DECLARE(vqp_print(packetbody_t, register u_int));
 extern u_int raw_if_print(const struct pcap_pkthdr *, packetbody_t);
 DISSECTOR_DECLARE(rip_print(packetbody_t, u_int));
@@ -271,7 +274,7 @@ extern u_int lane_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int cip_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int sl_bsdos_if_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int chdlc_if_print(const struct pcap_pkthdr *, packetbody_t);
-extern u_int chdlc_print(packetbody_t, u_int);
+DISSECTOR_DECLARE_UINT(chdlc_print(packetbody_t, u_int));
 extern u_int juniper_atm1_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int juniper_atm2_print(const struct pcap_pkthdr *, packetbody_t);
 extern u_int juniper_mfr_print(const struct pcap_pkthdr *, packetbody_t);
@@ -347,11 +350,11 @@ extern int hbhopt_print(packetbody_t);
 extern int dstopt_print(packetbody_t);
 extern int frag6_print(packetbody_t, packetbody_t);
 extern int mobility_print(packetbody_t, packetbody_t);
-extern void ripng_print(packetbody_t, unsigned int);
+DISSECTOR_DECLARE(ripng_print(packetbody_t, unsigned int));
 extern int rt6_print(packetbody_t, packetbody_t);
-extern void ospf6_print(packetbody_t, u_int);
-extern void dhcp6_print(packetbody_t, u_int);
-extern void babel_print(packetbody_t, u_int);
+DISSECTOR_DECLARE(ospf6_print(packetbody_t, u_int));
+DISSECTOR_DECLARE(dhcp6_print(packetbody_t, u_int));
+DISSECTOR_DECLARE(babel_print(packetbody_t, u_int));
 extern int mask62plen(packetbody_t);
 #endif /*INET6*/
 

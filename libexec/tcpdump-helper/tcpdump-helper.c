@@ -640,6 +640,49 @@ dispatch_dissector(register_t op, u_int length, register_t arg2,
 		_otv_print(bp, length);
 		break;
 
+	case TCPDUMP_HELPER_OP_TOKEN_PRINT:
+		_token_print(bp, length, arg2);
+		break;
+
+	case TCPDUMP_HELPER_OP_FR_PRINT:
+		_fr_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_MFR_PRINT:
+		_mfr_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_LLAP_PRINT:
+		_llap_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_PPPOE_PRINT:
+		_pppoe_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_PPP_PRINT:
+		_ppp_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_CHDLC_PRINT:
+		_chdlc_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_RIPNG_PRINT:
+		_ripng_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_OSPF6_PRINT:
+		_ospf6_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_DHCP6_PRINT:
+		_dhcp6_print(bp, length);
+		break;
+
+	case TCPDUMP_HELPER_OP_BABEL_PRINT:
+		_babel_print(bp, length);
+		break;
 
 	default:
 		printf("unknown op %ld\n", op);
@@ -854,6 +897,28 @@ invoke_dissector(void *func, u_int length, register_t arg2,
 		op = TCPDUMP_HELPER_OP_VXLAN_PRINT;
 	else if (func == (void *)_otv_print)
 		op = TCPDUMP_HELPER_OP_OTV_PRINT;
+	else if (func == (void *)_token_print)
+		op = TCPDUMP_HELPER_OP_TOKEN_PRINT;
+	else if (func == (void *)_fr_print)
+		op = TCPDUMP_HELPER_OP_FR_PRINT;
+	else if (func == (void *)_mfr_print)
+		op = TCPDUMP_HELPER_OP_MFR_PRINT;
+	else if (func == (void *)_llap_print)
+		op = TCPDUMP_HELPER_OP_LLAP_PRINT;
+	else if (func == (void *)_pppoe_print)
+		op = TCPDUMP_HELPER_OP_PPPOE_PRINT;
+	else if (func == (void *)_ppp_print)
+		op = TCPDUMP_HELPER_OP_PPP_PRINT;
+	else if (func == (void *)_chdlc_print)
+		op = TCPDUMP_HELPER_OP_CHDLC_PRINT;
+	else if (func == (void *)_ripng_print)
+		op = TCPDUMP_HELPER_OP_RIPNG_PRINT;
+	else if (func == (void *)_ospf6_print)
+		op = TCPDUMP_HELPER_OP_OSPF6_PRINT;
+	else if (func == (void *)_dhcp6_print)
+		op = TCPDUMP_HELPER_OP_DHCP6_PRINT;
+	else if (func == (void *)_babel_print)
+		op = TCPDUMP_HELPER_OP_BABEL_PRINT;
 	else
 		return (0);
 

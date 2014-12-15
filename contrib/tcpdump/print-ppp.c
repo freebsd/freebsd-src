@@ -1397,8 +1397,16 @@ handle_ppp(u_int proto, packetbody_t p, int length)
 }
 
 /* Standard PPP printer */
-u_int
+void
 ppp_print(packetbody_t p, u_int length)
+{
+	if (!invoke_dissector((void *)_ppp_print,
+	    length, 0, 0, 0, 0, gndo, p, NULL, NULL, NULL))
+		_ppp_print(p, length);
+}
+
+u_int
+_ppp_print(packetbody_t p, u_int length)
 {
 	u_int proto,ppp_header;
         u_int olen = length; /* _o_riginal length */

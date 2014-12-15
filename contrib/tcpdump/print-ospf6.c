@@ -586,6 +586,14 @@ trunc:
 void
 ospf6_print(packetbody_t bp, register u_int length)
 {
+	if (!invoke_dissector((void *)_ospf6_print,
+	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_ospf6_print(bp, length);
+}
+
+void
+_ospf6_print(packetbody_t bp, register u_int length)
+{
 	__capability const struct ospf6hdr *op;
 	packetbody_t dataend;
 	const char *cp;

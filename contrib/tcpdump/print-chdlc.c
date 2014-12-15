@@ -60,11 +60,20 @@ chdlc_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 		printf("[|chdlc]");
 		return (caplen);
 	}
-        return (chdlc_print(p,length));
+        return (_chdlc_print(p,length));
+}
+
+void
+chdlc_print(packetbody_t p, u_int length)
+{
+	if (!invoke_dissector((void *)_chdlc_print,
+	    length, 0, 0, 0, 0, gndo, p, NULL, NULL, NULL))
+		_chdlc_print(p, length);
 }
 
 u_int
-chdlc_print(packetbody_t p, u_int length) {
+_chdlc_print(packetbody_t p, u_int length)
+{
 	u_int proto;
 
 	proto = EXTRACT_16BITS(&p[2]);

@@ -61,6 +61,14 @@ rip6_entry_print(__capability const struct netinfo6 *ni, int metric)
 void
 ripng_print(packetbody_t dat, unsigned int length)
 {
+	if (!invoke_dissector((void *)_ripng_print,
+	    length, 0, 0, 0, 0, gndo, dat, NULL, NULL, NULL))
+		_ripng_print(dat, length);
+}
+
+void
+_ripng_print(packetbody_t dat, unsigned int length)
+{
 	__capability const struct rip6 *rp =
 	    (__capability const struct rip6 *)dat;
 	__capability const struct netinfo6 *ni;

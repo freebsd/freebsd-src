@@ -222,7 +222,7 @@ fr_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 
         TCHECK2(*p, 4); /* minimum frame header length */
 
-        if ((length = fr_print(p, length)) == 0)
+        if ((length = _fr_print(p, length)) == 0)
             return (0);
         else
             return length;
@@ -231,8 +231,16 @@ fr_if_print(const struct pcap_pkthdr *h, packetbody_t p)
         return caplen;
 }
 
-u_int
+void
 fr_print(packetbody_t p, u_int length)
+{
+	if (!invoke_dissector((void *)_fr_print,
+	    length, 0, 0, 0, 0, gndo, p, NULL, NULL, NULL))
+		_fr_print(p, length);
+}
+
+u_int
+_fr_print(packetbody_t p, u_int length)
 {
 	u_int16_t extracted_ethertype;
 	u_int dlci;
@@ -344,7 +352,7 @@ mfr_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 
         TCHECK2(*p, 2); /* minimum frame header length */
 
-        if ((length = mfr_print(p, length)) == 0)
+        if ((length = _mfr_print(p, length)) == 0)
             return (0);
         else
             return length;
@@ -397,8 +405,16 @@ struct ie_tlv_header_t {
     u_int8_t ie_len;
 };
 
-u_int
+void
 mfr_print(packetbody_t p, u_int length)
+{
+	if (!invoke_dissector((void *)_mfr_print,
+	    length, 0, 0, 0, 0, gndo, p, NULL, NULL, NULL))
+		_mfr_print(p, length);
+}
+
+u_int
+_mfr_print(packetbody_t p, u_int length)
 {
     u_int tlen,idx,hdr_len = 0;
     u_int16_t sequence_num;

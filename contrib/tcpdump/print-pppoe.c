@@ -97,11 +97,19 @@ static struct tok pppoetag2str[] = {
 u_int
 pppoe_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 {
-	return (pppoe_print(p, h->len));
+	return (_pppoe_print(p, h->len));
+}
+
+void
+pppoe_print(packetbody_t bp, u_int length)
+{
+	if (!invoke_dissector((void *)_pppoe_print,
+	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_pppoe_print(bp, length);
 }
 
 u_int
-pppoe_print(packetbody_t bp, u_int length)
+_pppoe_print(packetbody_t bp, u_int length)
 {
 	u_int16_t pppoe_ver, pppoe_type, pppoe_code, pppoe_sessionid;
 	u_int pppoe_length;
@@ -202,7 +210,7 @@ pppoe_print(packetbody_t bp, u_int length)
 	} else {
 		/* PPPoE data */
 		printf(" ");
-		return (PPPOE_HDRLEN + ppp_print(pppoe_payload, pppoe_length));
+		return (PPPOE_HDRLEN + _ppp_print(pppoe_payload, pppoe_length));
 	}
 
 trunc:

@@ -86,14 +86,22 @@ static const char *ddpskt_string(int);
 u_int
 ltalk_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 {
-	return (llap_print(p, h->caplen));
+	return (_llap_print(p, h->caplen));
 }
 
 /*
  * Print AppleTalk LLAP packets.
  */
-u_int
+void
 llap_print(packetbody_t bp, u_int length)
+{
+	if (!invoke_dissector((void *)_llap_print,
+	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
+		_llap_print(bp, length);
+}
+
+u_int
+_llap_print(packetbody_t bp, u_int length)
 {
 	__capability const struct LAP *lp;
 	__capability const struct atDDP *dp;

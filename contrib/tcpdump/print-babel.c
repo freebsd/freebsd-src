@@ -42,7 +42,15 @@
 static void babel_print_v2(packetbody_t cp, u_int length);
 
 void
-babel_print(packetbody_t cp, u_int length) {
+babel_print(packetbody_t cp, u_int length)
+{
+	if (!invoke_dissector((void *)_babel_print,
+	    length, 0, 0, 0, 0, gndo, cp, NULL, NULL, NULL))
+		_babel_print(cp, length);
+}
+
+void
+_babel_print(packetbody_t cp, u_int length) {
     printf("babel");
 
     TCHECK2(*cp, 4);

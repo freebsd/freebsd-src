@@ -763,6 +763,14 @@ trunc:
 void
 dhcp6_print(packetbody_t cp, u_int length)
 {
+	if (!invoke_dissector((void *)_dhcp6_print,
+	    length, 0, 0, 0, 0, gndo, cp, NULL, NULL, NULL))
+		_dhcp6_print(cp, length);
+}
+
+void
+_dhcp6_print(packetbody_t cp, u_int length)
+{
 	__capability const struct dhcp6 *dh6;
 	__capability const struct dhcp6_relay *dh6relay;
 	packetbody_t ep;
