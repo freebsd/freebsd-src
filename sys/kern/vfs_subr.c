@@ -1773,6 +1773,8 @@ sync_vnode(struct synclist *slp, struct bufobj **bo, struct thread *td)
 	return (0);
 }
 
+static int first_printf = 1;
+
 /*
  * System filesystem synchronizer daemon.
  */
@@ -1786,12 +1788,10 @@ sched_sync(void)
 	int last_work_seen;
 	int net_worklist_len;
 	int syncer_final_iter;
-	int first_printf;
 	int error;
 
 	last_work_seen = 0;
 	syncer_final_iter = 0;
-	first_printf = 1;
 	syncer_state = SYNCER_RUNNING;
 	starttime = time_uptime;
 	td->td_pflags |= TDP_NORUNNINGBUF;
@@ -1946,6 +1946,25 @@ syncer_shutdown(void *arg, int howto)
 	mtx_unlock(&sync_mtx);
 	cv_broadcast(&sync_wakeup);
 	kproc_shutdown(arg, howto);
+}
+
+void
+syncer_suspend(void)
+{
+
+	syncer_shutdown(updateproc, 0);
+}
+
+void
+syncer_resume(void)
+{
+
+	mtx_lock(&sync_mtx);
+	first_printf = 1;
+	syncer_state = SYNCER_RUNNING;
+	mtx_unlock(&sync_mtx);
+	cv_broadcast(&sync_wakeup);
+	kproc_resume(updateproc);
 }
 
 /*
