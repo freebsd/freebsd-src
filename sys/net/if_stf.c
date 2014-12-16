@@ -511,8 +511,6 @@ stf_output(ifp, m, dst, ro)
 	}
 
 	M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
-	if (m && m->m_len < sizeof(struct ip))
-		m = m_pullup(m, sizeof(struct ip));
 	if (m == NULL) {
 		ifa_free(&ia6->ia_ifa);
 		ifp->if_oerrors++;
