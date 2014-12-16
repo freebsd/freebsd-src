@@ -34,5 +34,5 @@ float complex
 conjf(float complex z)
 {
 
-	return (cpackf(crealf(z), -cimagf(z)));
+	return (CMPLXF(crealf(z), -cimagf(z)));
 }
