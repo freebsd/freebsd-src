@@ -149,14 +149,11 @@ key_sendup0(rp, m, promisc)
 		struct sadb_msg *pmsg;
 
 		M_PREPEND(m, sizeof(struct sadb_msg), M_NOWAIT);
-		if (m && m->m_len < sizeof(struct sadb_msg))
-			m = m_pullup(m, sizeof(struct sadb_msg));
-		if (!m) {
+		if (m == NULL) {
 			PFKEYSTAT_INC(in_nomem);
-			m_freem(m);
-			return ENOBUFS;
+			return (ENOBUFS);
 		}
-		m->m_pkthdr.len += sizeof(*pmsg);
+		m->m_pkthdr.len += sizeof(*pmsg); /* XXX: is this correct? */
 
 		pmsg = mtod(m, struct sadb_msg *);
 		bzero(pmsg, sizeof(*pmsg));
