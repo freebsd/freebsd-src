@@ -24,7 +24,7 @@
  * -C option added in 1998, original code by Marc Espie, based on FreeBSD
  * behaviour
  *
- * $OpenBSD: pch.c,v 1.39 2012/04/11 08:07:13 ajacoutot Exp $
+ * $OpenBSD: pch.c,v 1.43 2014/11/18 17:03:35 tobias Exp $
  * $FreeBSD$
  */
 
@@ -318,7 +318,8 @@ intuit_diff_type(void)
 			for (t = s + 7; isspace((unsigned char)*t); t++)
 				;
 			revision = savestr(t);
-			for (t = revision; *t && !isspace((unsigned char)*t); t++)
+			for (t = revision;
+			     *t && !isspace((unsigned char)*t); t++)
 				;
 			*t = '\0';
 			if (*revision == '\0') {
@@ -583,7 +584,8 @@ another_hunk(void)
 					p_end--;
 					return false;
 				}
-				for (s = buf; *s && !isdigit((unsigned char)*s); s++)
+				for (s = buf;
+				     *s && !isdigit((unsigned char)*s); s++)
 					;
 				if (!*s)
 					malformed();
@@ -593,7 +595,8 @@ another_hunk(void)
 				while (isdigit((unsigned char)*s))
 					s++;
 				if (*s == ',') {
-					for (; *s && !isdigit((unsigned char)*s); s++)
+					for (;
+					     *s && !isdigit((unsigned char)*s); s++)
 						;
 					if (!*s)
 						malformed();
@@ -690,8 +693,8 @@ another_hunk(void)
 		change_line:
 				if (buf[1] == '\n' && canonicalize)
 					strlcpy(buf + 1, " \n", buf_size - 1);
-				if (!isspace((unsigned char)buf[1]) && buf[1] != '>' &&
-				    buf[1] != '<' &&
+				if (!isspace((unsigned char)buf[1]) &&
+				    buf[1] != '>' && buf[1] != '<' &&
 				    repl_beginning && repl_could_be_missing) {
 					repl_missing = true;
 					goto hunk_done;
@@ -1420,8 +1423,8 @@ do_ed_script(void)
 		for (t = buf; isdigit((unsigned char)*t) || *t == ','; t++)
 			;
 		/* POSIX defines allowed commands as {a,c,d,i,s} */
-		if (isdigit((unsigned char)*buf) && (*t == 'a' || *t == 'c' ||
-		    *t == 'd' || *t == 'i' || *t == 's')) {
+		if (isdigit((unsigned char)*buf) &&
+		    (*t == 'a' || *t == 'c' || *t == 'd' || *t == 'i' || *t == 's')) {
 			if (pipefp != NULL)
 				fputs(buf, pipefp);
 			if (*t != 'd') {
