@@ -34,5 +34,5 @@ double complex
 conj(double complex z)
 {
 
-	return (cpack(creal(z), -cimag(z)));
+	return (CMPLX(creal(z), -cimag(z)));
 }
