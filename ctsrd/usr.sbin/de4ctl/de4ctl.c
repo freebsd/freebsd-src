@@ -61,7 +61,7 @@ usage(void)
 		"usage: de4ctl [-q] fan | temp\n"
 		"       de4ctl hdmi reset | setup\n"
 		"       de4ctl hdmires\n"
-		"       de4ctl hdmires x-res y-res horizonal-refresh\n");
+		"       de4ctl hdmires x-res y-res vertical-refresh\n");
 	exit(0);
 }
 
