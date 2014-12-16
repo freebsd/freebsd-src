@@ -336,6 +336,7 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 	case PROC_REAP_STATUS:
 		if (error == 0)
 			error = copyout(&x.rs, uap->data, sizeof(x.rs));
+		break;
 	case PROC_REAP_KILL:
 		error1 = copyout(&x.rk, uap->data, sizeof(x.rk));
 		if (error == 0)
