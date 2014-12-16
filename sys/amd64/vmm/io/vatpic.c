@@ -388,6 +388,8 @@ vatpic_set_pinstate(struct vatpic *vatpic, int pin, bool newstate)
 	} else if (oldcnt == 1 && newcnt == 0) {
 		/* falling edge */
 		VATPIC_CTR1(vatpic, "atpic pin%d: deasserted", pin);
+		if (level)
+			atpic->request &= ~(1 << (pin & 0x7));
 	} else {
 		VATPIC_CTR3(vatpic, "atpic pin%d: %s, ignored, acnt %d",
 		    pin, newstate ? "asserted" : "deasserted", newcnt);
