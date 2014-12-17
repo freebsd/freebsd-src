@@ -101,25 +101,25 @@ Future child processes will also mark all of their future child processes.
 .El
 .It Dv PROC_REAP_ACQUIRE
 Acquires the reaper status for the current process.
-The status means that orphaned children by the reaper descendants,
-forked after the acquisition of the status, are reparented to the
+The status means that children orphaned by the reaper's descendants
+that were forked after the acquisition of the status are reparented to the
 reaper.
 After the system initialization,
 .Xr init 8
 is the default reaper.
 .Pp
 .It Dv PROC_REAP_RELEASE
-Releases the reaper state fpr the current process.
+Releases the reaper state for the current process.
 The reaper of the current process becomes the new reaper of the
-current process descendants.
+current process's descendants.
 .It Dv PROC_REAP_STATUS
 Provides the information about the reaper of the specified process,
-or the process itself, in case it is a reaper.
+or the process itself when it is a reaper.
 The
 .Fa data
-argument must point to the
-.Vt "struct procctl_reaper_status" ,
-which if filled by the syscall on successfull return.
+argument must point to a
+.Vt procctl_reaper_status
+structure which is filled in by the syscall on successful return.
 .Bd -literal
 struct procctl_reaper_status {
 	u_int	rs_flags;
@@ -134,57 +134,62 @@ The
 may have the following flags returned:
 .Bl -tag -width "Dv REAPER_STATUS_REALINIT"
 .It Dv REAPER_STATUS_OWNED
-The specified process has acquired the reaper status and did not
+The specified process has acquired the reaper status and has not
 released it.
-When the flag is returned, the
-.Fa id
-pid identifies reaper, otherwise the
+When the flag is returned, the specified process
+.Fa id ,
+pid, identifies the reaper, otherwise the
 .Fa rs_reaper
-field of the structure is the pid of the reaper for passed process id.
+field of the structure is set to the pid of the reaper
+for the specified process id.
 .It Dv REAPER_STATUS_REALINIT
 The specified process is the root of the reaper tree, i.e.
-.Xr init 8.
+.Xr init 8 .
 .El
 The
 .Fa rs_children
-returns the number of the children of the reaper.
+field returns the number of children of the reaper.
 The
 .Fa rs_descendants
-returns the total number of descendants of the reaper,
-not counting descendants of the reapers in the subtree.
+field returns the total number of descendants of the reaper(s),
+not counting descendants of the reaper in the subtree.
 The
 .Fa rs_reaper
-returns the reaper pid.
+field returns the reaper pid.
 The
 .Fa rs_pid
-returns pid of some reaper child if there is any descendant.
+returns the pid of one reaper child if there are any descendants.
 .It Dv PROC_REAP_GETPIDS
 Queries the list of descendants of the reaper of the specified process.
-The request takes the pointer to
-.Vt "struct procctl_reaper_pids"
-as
-.Fa data .
+The request takes a pointer to a
+.Vt procctl_reaper_pids
+structure in the
+.Fa data
+parameter.
 .Bd -literal
 struct procctl_reaper_pids {
 	u_int	rp_count;
 	struct procctl_reaper_pidinfo *rp_pids;
 };
 .Ed
-On call, the
+When called, the
 .Fa rp_pids
-must point to the array of
+field must point to an array of
 .Vt procctl_reaper_pidinfo
-structures, to be filled on return,
+structures, to be filled in on return,
 and the
 .Fa rp_count
-must specify the size of the array,
-no more than rp_count elements is filled by kernel.
+field must specify the size of the array,
+into which no more than
+.Fa rp_count
+elements will be filled in by the kernel.
 .Pp
 The
 .Vt "struct procctl_reaper_pidinfo"
-structure provides some information about one reaper' descendant.
-Note that for the descendant which is not child, it is the subject
-of usual race with process exiting and pid reuse.
+structure provides some information about one of the reaper's descendants.
+Note that for a descendant that is not a child, it may be incorrectly
+identified because of a race in which the original child process exited
+and the exited process's pid was reused for an unrelated process.
 .Bd -literal
 struct procctl_reaper_pidinfo {
 	pid_t	pi_pid;
@@ -194,33 +199,35 @@ struct procctl_reaper_pidinfo {
 .Ed
 The
 .Fa pi_pid
-is the process id of the descendant.
+field is the process id of the descendant.
 The
 .Fa pi_subtree
-provides the pid of the child of the reaper, which is (grand-)parent
+field provides the pid of the child of the reaper, which is the (grand-)parent
 of the process.
 The
 .Fa pi_flags
-returns the following flags, further describing the descendant:
+field returns the following flags, further describing the descendant:
 .Bl -tag -width "Dv REAPER_PIDINFO_VALID"
 .It Dv REAPER_PIDINFO_VALID
-Set for the
+Set to indicate that the
 .Vt procctl_reaper_pidinfo
-structure, which was filled by kernel.
+structure was filled in by the kernel.
 Zero-filling the
 .Fa rp_pids
-array and testing the flag allows the caller to detect the end
-of returned array.
+array and testing the
+.Dv REAPER_PIDINFO_VALID
+flag allows the caller to detect the end
+of the returned array.
 .It Dv REAPER_PIDINFO_CHILD
 The
 .Fa pi_pid
-is the direct child of the reaper.
+field identifies the direct child of the reaper.
 .El
 .It Dv PROC_REAP_KILL
-Request to deliver a signal to some subset of descendants of the reaper.
+Request to deliver a signal to some subset of the descendants of the reaper.
 The
 .Fa data
-must point to
+parameter must point to a
 .Vt procctl_reaper_kill
 structure, which is used both for parameters and status return.
 .Bd -literal
@@ -234,39 +241,40 @@ struct procctl_reaper_kill {
 .Ed
 The
 .Fa rk_sig
-specifies the signal to be delivered.
+field specifies the signal to be delivered.
 Zero is not a valid signal number, unlike
 .Xr kill 2 .
 The
 .Fa rk_flags
-further directs the operation.
+field further directs the operation.
 It is or-ed from the following flags:
 .Bl -tag -width "Dv REAPER_KILL_CHILDREN"
 .It Dv REAPER_KILL_CHILDREN
 Deliver the specified signal only to direct children of the reaper.
 .It Dv REAPER_KILL_SUBTREE
-Deliver the specified signal only to descendants which were forked by
-the direct child with pid specified in
-.Fa rk_subtree .
+Deliver the specified signal only to descendants that were forked by
+the direct child with pid specified in the
+.Fa rk_subtree
+field.
 .El
-If no
+If neither the
 .Dv REAPER_KILL_CHILDREN
-and
+nor the
 .Dv REAPER_KILL_SUBTREE
 flags are specified, all current descendants of the reaper are signalled.
 .Pp
-If signal was delivered to any process, the return value from the request
+If a signal was delivered to any process, the return value from the request
 is zero.
-In this case,
+In this case, the
 .Fa rk_killed
-field is filled with the count of processes signalled.
+field identifies the number of processes signalled.
 The
 .Fa rk_fpid
 field is set to the pid of the first process for which signal
 delivery failed, e.g. due to the permission problems.
 If no such process exist, the
 .Fa rk_fpid
-is set to -1.
+field is set to -1.
 .El
 .Sh RETURN VALUES
 If an error occurs, a value of -1 is returned and
@@ -281,7 +289,7 @@ will fail if:
 .It Bq Er EFAULT
 The
 .Fa arg
-points outside the process's allocated address space.
+parameter points outside the process's allocated address space.
 .It Bq Er EINVAL
 The
 .Fa cmd
@@ -317,11 +325,11 @@ or
 .Dv PROC_REAP_RELEASE
 requests.
 .It Bq Er EINVAL
-Invalid or undefined flags were passed to
+Invalid or undefined flags were passed to a
 .Dv PROC_REAP_KILL
 request.
 .It Bq Er EINVAL
-Invalid or zero signal number was requested for
+An invalid or zero signal number was requested for a
 .Dv PROC_REAP_KILL
 request.
 .It Bq Er EINVAL
@@ -333,8 +341,8 @@ process.
 .It Bq Er EBUSY
 The
 .Dv PROC_REAP_ACQUIRE
-request was issued by the process which already acquired reaper status
-and did not released it.
+request was issued by a process that had already acquired reaper status
+and has not yet released it.
 .El
 .Sh SEE ALSO
 .Xr kill 2 ,
@@ -346,6 +354,6 @@ The
 .Fn procctl
 function appeared in
 .Fx 10.0 .
-Reaper facility was created based on the similar feature of Linux and
+The reaper facility is based on a similar feature of Linux and
 DragonflyBSD, and first appeared in
 .Fx 10.2 .
