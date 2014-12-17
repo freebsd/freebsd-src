@@ -257,7 +257,7 @@ login_receive(struct connection *conn)
 		 * to be bug in NetBSD iSCSI target.
 		 */
 		log_warnx("received Login PDU with wrong StatSN: "
-		    "is %d, should be %d", ntohl(bhslr->bhslr_statsn),
+		    "is %u, should be %u", ntohl(bhslr->bhslr_statsn),
 		    conn->conn_statsn + 1);
 	}
 	conn->conn_tsih = ntohs(bhslr->bhslr_tsih);
