@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpu.h>
 #include <sys/cons.h>
 #include <sys/exec.h>
+#include <sys/endian.h>
 #include <sys/linker.h>
 #include <sys/ucontext.h>
 #include <sys/proc.h>
@@ -57,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/user.h>
 
 #ifdef FDT
+#include <contrib/libfdt/fdt.h>
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #endif
@@ -74,6 +76,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/metadata.h>
 #include <machine/pmap.h>
 #include <machine/trap.h>
+
+#define	FDT_SOURCE_NONE		0
+#define	FDT_SOURCE_LOADER	1
+#define	FDT_SOURCE_ROM		2
+#define	FDT_SOURCE_STATIC	3
 
 extern int	*edata;
 extern int	*end;
@@ -188,6 +195,11 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	vm_offset_t dtbp;
 	phandle_t chosen;
 	void *kmdp;
+	int dtb_needs_swap = 0; /* error */
+	size_t dtb_size = 0;
+	struct fdt_header *dtb_rom, *dtb;
+	uint32_t *swapptr;
+	int fdt_source = FDT_SOURCE_NONE;
 #endif
 	int i;
 
@@ -239,16 +251,46 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	else
 		dtbp = (vm_offset_t)NULL;
 	if (dtbp == (vm_offset_t)NULL &&
-	    bootinfop != NULL && bootinfop->bi_dtb != (bi_ptr_t)NULL)
+	    bootinfop != NULL && bootinfop->bi_dtb != (bi_ptr_t)NULL) {
 		dtbp = bootinfop->bi_dtb;
+		fdt_source = FDT_SOURCE_LOADER;
+	}
+
+	/* Try to find an FDT directly in the hardware */
+	if (dtbp == (vm_offset_t)NULL) {
+		dtb_rom = (void*)(intptr_t)0x900000007f010000;
+		if (dtb_rom->magic == FDT_MAGIC) {
+			dtb_needs_swap = 0;
+			dtb_size = dtb_rom->totalsize;
+		} else if (dtb_rom->magic == bswap32(FDT_MAGIC)) {
+			dtb_needs_swap = 1;
+			dtb_size = bswap32(dtb_rom->totalsize);
+		}
+		if (dtb_size != 0) {
+			/* Steal a bit of memory... */
+			dtb = (void *)kernel_kseg0_end;
+			/* Round alignment from linker script. */
+			kernel_kseg0_end += roundup2(dtb_size, 64 / 8);
+			memcpy(dtb, dtb_rom, dtb_size);
+			if (dtb_needs_swap)
+				for (swapptr = (uint32_t *)dtb;
+				    swapptr < (uint32_t *)dtb + (dtb_size/sizeof(*dtb));
+				    swapptr++)
+					*swapptr = bswap32(*swapptr);
+			dtbp = (vm_offset_t)dtb;
+			fdt_source = FDT_SOURCE_ROM;
+		}
+	}
 
 #if defined(FDT_DTB_STATIC)
 	/*
 	 * In case the device tree blob was not retrieved (from metadata) try
 	 * to use the statically embedded one.
 	 */
-	if (dtbp == (vm_offset_t)NULL)
+	if (dtbp == (vm_offset_t)NULL) {
 		dtbp = (vm_offset_t)&fdt_static_dtb;
+		fdt_source = FDT_SOURCE_STATIC;
+	}
 #endif
 
 	if (OF_install(OFW_FDT, 0) == FALSE)
@@ -275,8 +317,26 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	printf("entry: platform_start()\n");
 
 #ifdef FDT
-	if (dtbp != (vm_offset_t)NULL)
-		printf("Using FDT at %p\n", (void *)dtbp);
+	if (dtbp != (vm_offset_t)NULL) {
+		printf("Using FDT at %p from ", (void *)dtbp);
+		switch (fdt_source) {
+		case FDT_SOURCE_LOADER:
+			printf("loader");
+			break;
+		case FDT_SOURCE_ROM:
+			printf("ROM");
+			break;
+		case FDT_SOURCE_STATIC:
+			printf("kernel");
+			break;
+		default:
+			printf("unknown source %d", fdt_source);
+			break;
+		}
+		printf("\n");
+	}
+	if (dtb_size != 0 && dtb_needs_swap)
+		printf("FDT was byteswapped\n");
 #endif
 
 	bootverbose = 1;
