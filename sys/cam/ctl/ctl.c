@@ -3900,7 +3900,7 @@ ctl_copy_io(union ctl_io *src, union ctl_io *dest)
 	dest->io_hdr.flags |= CTL_FLAG_INT_COPY;
 }
 
-static int
+int
 ctl_expand_number(const char *buf, uint64_t *num)
 {
 	char *endptr;
@@ -10146,10 +10146,10 @@ ctl_inquiry_evpd_block_limits(struct ctl_scsiio *ctsio, int alloc_len)
 		if (lun->be_lun->flags & CTL_LUN_FLAG_UNMAP) {
 			scsi_ulto4b(0xffffffff, bl_ptr->max_unmap_lba_cnt);
 			scsi_ulto4b(0xffffffff, bl_ptr->max_unmap_blk_cnt);
-			if (lun->be_lun->pblockexp != 0) {
-				scsi_ulto4b((1 << lun->be_lun->pblockexp),
+			if (lun->be_lun->ublockexp != 0) {
+				scsi_ulto4b((1 << lun->be_lun->ublockexp),
 				    bl_ptr->opt_unmap_grain);
-				scsi_ulto4b(0x80000000 | lun->be_lun->pblockoff,
+				scsi_ulto4b(0x80000000 | lun->be_lun->ublockoff,
 				    bl_ptr->unmap_grain_align);
 			}
 		}
