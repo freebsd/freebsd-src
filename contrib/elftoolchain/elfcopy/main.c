@@ -1109,7 +1109,8 @@ strip_main(struct elfcopy *ecp, int argc, char **argv)
 
 	if (ecp->strip == 0 &&
 	    ((ecp->flags & DISCARD_LOCAL) == 0) &&
-	    ((ecp->flags & DISCARD_LLABEL) == 0))
+	    ((ecp->flags & DISCARD_LLABEL) == 0) &&
+	    lookup_symop_list(ecp, NULL, SYMOP_STRIP) == NULL)
 		ecp->strip = STRIP_ALL;
 	if (optind == argc)
 		strip_usage();
