@@ -8,6 +8,7 @@ dev/altera/jtag_uart/altera_jtag_uart_fdt.c	optional altera_jtag_uart fdt
 dev/altera/jtag_uart/altera_jtag_uart_nexus.c	optional altera_jtag_uart
 dev/beri/berirom/berirom.c		optional berirom
 dev/beri/berirom/berirom_fdt.c		optional berirom fdt
+dev/beri/virtio/virtio_mmio_platform.c	optional virtio_mmio
 dev/cheri/compositor/cheri_compositor.c	optional cheri_compositor
 dev/cheri/compositor/cheri_compositor_cfb.c	optional cheri_compositor
 dev/cheri/compositor/cheri_compositor_fdt.c	optional cheri_compositor fdt
