@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd December 6, 2014
+.Dd December 17, 2014
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -1002,6 +1002,13 @@ Set to "off" to allow them be issued in parallel.
 Parallel issue of consecutive operations may confuse logic of the
 backing file system, hurting performance; but it may improve performance
 of backing stores without prefetch/write-back.
+.It Va psectorsize
+.It Va psectoroffset
+Specify physical block size and offset of the device.
+.It Va usectorsize
+.It Va usectoroffset
+Specify UNMAP block size and offset of the device.
+.It Va rpm
 .It Va rpm
 Specifies medium rotation rate of the device: 0 -- not reported,
 1 -- non-rotating (SSD), >1024 -- value in revolutions per minute.
