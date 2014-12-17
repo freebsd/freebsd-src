@@ -16,6 +16,9 @@ from older versions of FreeBSD, try WITHOUT_CLANG to bootstrap to the tip of
 stable/10, and then rebuild without this option. The bootstrap process from
 older version of current is a bit fragile.
 
+20141217:	p14	FreeBSD-SA-14:30.unbound
+	Fix unbound remote denial of service vulnerability.
+
 20141210:	p13	FreeBSD-SA-14:28.file
 	Fix multiple vulnerabilities in file(1) and libmagic(3).
 
