@@ -1475,7 +1475,8 @@ ufs_checkpath(ino_t source_ino, ino_t parent_ino, struct inode *target, struct u
 			}
 		}
 		KASSERT(dd_ino == VTOI(vp1)->i_number,
-		    ("directory %d reparented\n", VTOI(vp1)->i_number));
+		    ("directory %ju reparented\n",
+		    (uintmax_t)VTOI(vp1)->i_number));
 		if (vp != tvp)
 			vput(vp);
 		vp = vp1;
