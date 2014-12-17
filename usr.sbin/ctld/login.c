@@ -127,17 +127,17 @@ login_receive(struct connection *conn, bool initial)
 		log_errx(1, "received Login PDU with unsupported "
 		    "Version-min 0x%x", bhslr->bhslr_version_min);
 	}
-	if (ntohl(bhslr->bhslr_cmdsn) < conn->conn_cmdsn) {
+	if (ISCSI_SNLT(ntohl(bhslr->bhslr_cmdsn), conn->conn_cmdsn)) {
 		login_send_error(request, 0x02, 0x05);
 		log_errx(1, "received Login PDU with decreasing CmdSN: "
-		    "was %d, is %d", conn->conn_cmdsn,
+		    "was %u, is %u", conn->conn_cmdsn,
 		    ntohl(bhslr->bhslr_cmdsn));
 	}
 	if (initial == false &&
 	    ntohl(bhslr->bhslr_expstatsn) != conn->conn_statsn) {
 		login_send_error(request, 0x02, 0x05);
 		log_errx(1, "received Login PDU with wrong ExpStatSN: "
-		    "is %d, should be %d", ntohl(bhslr->bhslr_expstatsn),
+		    "is %u, should be %u", ntohl(bhslr->bhslr_expstatsn),
 		    conn->conn_statsn);
 	}
 	conn->conn_cmdsn = ntohl(bhslr->bhslr_cmdsn);
