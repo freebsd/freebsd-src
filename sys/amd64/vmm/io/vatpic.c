@@ -75,7 +75,7 @@ struct atpic {
 	uint8_t		mask;		/* Interrupt Mask Register (IMR) */
 
 	int		acnt[8];	/* sum of pin asserts and deasserts */
-	int		priority;	/* current pin priority */
+	int		lowprio;	/* lowest priority irq */
 
 	bool		intr_raised;
 };
@@ -102,6 +102,14 @@ struct vatpic {
 #define	VATPIC_CTR4(vatpic, fmt, a1, a2, a3, a4)			\
 	VM_CTR4((vatpic)->vm, fmt, a1, a2, a3, a4)
 
+/*
+ * Loop over all the pins in priority order from highest to lowest.
+ */
+#define	ATPIC_PIN_FOREACH(pinvar, atpic, tmpvar)			\
+	for (tmpvar = 0, pinvar = (atpic->lowprio + 1) & 0x7;		\
+	    tmpvar < 8;							\
+	    tmpvar++, pinvar = (pinvar + 1) & 0x7)
+
 static void vatpic_set_pinstate(struct vatpic *vatpic, int pin, bool newstate);
 
 static __inline int
@@ -110,8 +118,7 @@ vatpic_get_highest_isrpin(struct atpic *atpic)
 	int bit, pin;
 	int i;
 
-	for (i = 0; i <= 7; i++) {
-		pin = ((i + 7 - atpic->priority) & 0x7);
+	ATPIC_PIN_FOREACH(pin, atpic, i) {
                 bit = (1 << pin);
 
 		if (atpic->service & bit)
@@ -125,8 +132,7 @@ static __inline int
 vatpic_get_highest_irrpin(struct atpic *atpic)
 {
 	int serviced;
-	int bit, pin;
-	int i, j;
+	int bit, pin, tmp;
 
 	/*
 	 * In 'Special Fully-Nested Mode' when an interrupt request from
@@ -137,17 +143,21 @@ vatpic_get_highest_irrpin(struct atpic *atpic)
 	if (atpic->sfn)
 		serviced &= ~(1 << 2);
 
-	for (i = 0; i <= 7; i++) {
-		pin = ((i + 7 - atpic->priority) & 0x7);
-		bit = (1 << pin);
-		if (serviced & bit)
-			break;
-	}
+	ATPIC_PIN_FOREACH(pin, atpic, tmp) {
+		bit = 1 << pin;
 
-	for (j = 0; j < i; j++) {
-		pin = ((j + 7 - atpic->priority) & 0x7);
-		bit = (1 << pin);
-		if (atpic->request & bit && (~atpic->mask & bit))
+		/*
+		 * If there is already an interrupt in service at the same
+		 * or higher priority then bail.
+		 */
+		if ((serviced & bit) != 0)
+			break;
+
+		/*
+		 * If an interrupt is asserted and not masked then return
+		 * the corresponding 'pin' to the caller.
+		 */
+		if ((atpic->request & bit) != 0 && (atpic->mask & bit) == 0)
 			return (pin);
 	}
 
@@ -238,7 +248,7 @@ vatpic_icw1(struct vatpic *vatpic, struct atpic *atpic, uint8_t val)
 
 	atpic->icw_num = 1;
 	atpic->mask = 0;
-	atpic->priority = 0;
+	atpic->lowprio = 7;
 	atpic->rd_cmd_reg = 0;
 
 	if ((val & ICW1_SNGL) != 0) {
@@ -329,11 +339,11 @@ vatpic_ocw2(struct vatpic *vatpic, struct atpic *atpic, uint8_t val)
 			atpic->service &= ~(1 << isr_bit);
 
 			if (atpic->rotate)
-				atpic->priority = isr_bit;
+				atpic->lowprio = isr_bit;
 		}
 	} else if ((val & OCW2_SL) != 0 && atpic->rotate == true) {
 		/* specific priority */
-		atpic->priority = val & 0x7;
+		atpic->lowprio = val & 0x7;
 	}
 
 	return (0);
@@ -530,7 +540,7 @@ vatpic_pin_accepted(struct atpic *atpic, int pin)
 
 	if (atpic->aeoi == true) {
 		if (atpic->rotate == true)
-			atpic->priority = pin;
+			atpic->lowprio = pin;
 	} else {
 		atpic->service |= (1 << pin);
 	}
