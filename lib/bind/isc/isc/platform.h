@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*
- * Copyright (C) 2004-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2010, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -200,6 +200,11 @@
  * Define if this system needs memmove.
  */
 #undef ISC_PLATFORM_NEEDMEMMOVE
+
+/*
+ * Define if this system needs strcasestr.
+ */
+#undef ISC_PLATFORM_NEEDSTRCASESTR
 
 /***
  *** Miscellaneous.

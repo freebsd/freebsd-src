@@ -368,6 +368,11 @@ connect_timeout(isc_task_t *task, isc_event_t *event);
 static void
 launch_next_query(dig_query_t *query, isc_boolean_t include_question);
 
+static void
+check_next_lookup(dig_lookup_t *lookup);
+
+static isc_boolean_t
+next_origin(dig_lookup_t *oldlookup);
 
 static void *
 mem_alloc(void *arg, size_t size) {
@@ -611,7 +616,8 @@ addr2af(int lwresaddrtype)
 static void
 copy_server_list(lwres_conf_t *confdata, dig_serverlist_t *dest) {
 	dig_server_t *newsrv;
-	char tmp[sizeof("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")];
+	char tmp[sizeof("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255") +
+		 sizeof("%4000000000")];
 	int af;
 	int i;
 
@@ -626,6 +632,12 @@ copy_server_list(lwres_conf_t *confdata, dig_serverlist_t *dest) {
 
 		lwres_net_ntop(af, confdata->nameservers[i].address,
 				   tmp, sizeof(tmp));
+		if (af == AF_INET6 && confdata->nameservers[i].zone != 0) {
+			char buf[sizeof("%4000000000")];
+			snprintf(buf, sizeof(buf), "%%%u",
+				 confdata->nameservers[i].zone);
+			strlcat(tmp, buf, sizeof(tmp));
+		}
 		newsrv = make_server(tmp, tmp);
 		ISC_LINK_INIT(newsrv, link);
 		ISC_LIST_ENQUEUE(*dest, newsrv, link);
@@ -791,6 +803,7 @@ make_empty_lookup(void) {
 	looknew->retries = tries;
 	looknew->nsfound = 0;
 	looknew->tcp_mode = ISC_FALSE;
+	looknew->tcp_mode_set = ISC_FALSE;
 	looknew->ip6_int = ISC_FALSE;
 	looknew->comments = ISC_TRUE;
 	looknew->stats = ISC_TRUE;
@@ -801,6 +814,7 @@ make_empty_lookup(void) {
 	looknew->new_search = ISC_FALSE;
 	looknew->done_as_is = ISC_FALSE;
 	looknew->need_search = ISC_FALSE;
+	dns_fixedname_init(&looknew->fdomain);
 	ISC_LINK_INIT(looknew, link);
 	ISC_LIST_INIT(looknew->q);
 	ISC_LIST_INIT(looknew->connecting);
@@ -867,6 +881,7 @@ clone_lookup(dig_lookup_t *lookold, isc_boolean_t servers) {
 	looknew->cdflag = lookold->cdflag;
 	looknew->ns_search_only = lookold->ns_search_only;
 	looknew->tcp_mode = lookold->tcp_mode;
+	looknew->tcp_mode_set = lookold->tcp_mode_set;
 	looknew->comments = lookold->comments;
 	looknew->stats = lookold->stats;
 	looknew->section_question = lookold->section_question;
@@ -877,6 +892,9 @@ clone_lookup(dig_lookup_t *lookold, isc_boolean_t servers) {
 	looknew->tsigctx = NULL;
 	looknew->need_search = lookold->need_search;
 	looknew->done_as_is = lookold->done_as_is;
+
+	dns_name_copy(dns_fixedname_name(&lookold->fdomain),
+		      dns_fixedname_name(&looknew->fdomain), NULL);
 
 	if (servers)
 		clone_server_list(lookold->my_server_list,
@@ -1688,8 +1706,10 @@ start_lookup(void) {
 		}
 	novalidation:
 #endif
-		setup_lookup(current_lookup);
-		do_lookup(current_lookup);
+		if (setup_lookup(current_lookup))
+			do_lookup(current_lookup);
+		else if (next_origin(current_lookup))
+			check_next_lookup(current_lookup);
 	} else {
 		check_if_done();
 	}
@@ -1823,7 +1843,6 @@ followup_lookup(dns_message_t *msg, dig_query_t *query, dns_section_t section)
 				lookup->trace_root = ISC_FALSE;
 				if (lookup->ns_search_only)
 					lookup->recurse = ISC_FALSE;
-				dns_fixedname_init(&lookup->fdomain);
 				domain = dns_fixedname_name(&lookup->fdomain);
 				dns_name_copy(name, domain, NULL);
 			}
@@ -1891,8 +1910,8 @@ followup_lookup(dns_message_t *msg, dig_query_t *query, dns_section_t section)
  * Return ISC_TRUE iff there was another searchlist entry.
  */
 static isc_boolean_t
-next_origin(dig_query_t *query) {
-	dig_lookup_t *lookup;
+next_origin(dig_lookup_t *oldlookup) {
+	dig_lookup_t *newlookup;
 	dig_searchlist_t *search;
 	dns_fixedname_t fixed;
 	dns_name_t *name;
@@ -1901,7 +1920,7 @@ next_origin(dig_query_t *query) {
 	INSIST(!free_now);
 
 	debug("next_origin()");
-	debug("following up %s", query->lookup->textname);
+	debug("following up %s", oldlookup->textname);
 
 	if (!usesearch)
 		/*
@@ -1915,30 +1934,30 @@ next_origin(dig_query_t *query) {
 	 */
 	dns_fixedname_init(&fixed);
 	name = dns_fixedname_name(&fixed);
-	result = dns_name_fromstring2(name, query->lookup->textname, NULL,
+	result = dns_name_fromstring2(name, oldlookup->textname, NULL,
 				      0, NULL);
 	if (result == ISC_R_SUCCESS &&
 	    (dns_name_isabsolute(name) ||
 	     (int)dns_name_countlabels(name) > ndots))
 		return (ISC_FALSE);
 
-	if (query->lookup->origin == NULL && !query->lookup->need_search)
+	if (oldlookup->origin == NULL && !oldlookup->need_search)
 		/*
 		 * Then we just did rootorg; there's nothing left.
 		 */
 		return (ISC_FALSE);
-	if (query->lookup->origin == NULL && query->lookup->need_search) {
-		lookup = requeue_lookup(query->lookup, ISC_TRUE);
-		lookup->origin = ISC_LIST_HEAD(search_list);
-		lookup->need_search = ISC_FALSE;
+	if (oldlookup->origin == NULL && oldlookup->need_search) {
+		newlookup = requeue_lookup(oldlookup, ISC_TRUE);
+		newlookup->origin = ISC_LIST_HEAD(search_list);
+		newlookup->need_search = ISC_FALSE;
 	} else {
-		search = ISC_LIST_NEXT(query->lookup->origin, link);
-		if (search == NULL && query->lookup->done_as_is)
+		search = ISC_LIST_NEXT(oldlookup->origin, link);
+		if (search == NULL && oldlookup->done_as_is)
 			return (ISC_FALSE);
-		lookup = requeue_lookup(query->lookup, ISC_TRUE);
-		lookup->origin = search;
+		newlookup = requeue_lookup(oldlookup, ISC_TRUE);
+		newlookup->origin = search;
 	}
-	cancel_lookup(query->lookup);
+	cancel_lookup(oldlookup);
 	return (ISC_TRUE);
 }
 
@@ -2014,7 +2033,7 @@ insert_soa(dig_lookup_t *lookup) {
  * well as the query structures and buffer space for the replies.  If the
  * server list is empty, clone it from the system default list.
  */
-void
+isc_boolean_t
 setup_lookup(dig_lookup_t *lookup) {
 	isc_result_t result;
 	isc_uint32_t id;
@@ -2140,20 +2159,35 @@ setup_lookup(dig_lookup_t *lookup) {
 		if (lookup->trace && lookup->trace_root) {
 			dns_name_clone(dns_rootname, lookup->name);
 		} else {
+			dns_fixedname_t fixed;
+			dns_name_t *name;
+
+			dns_fixedname_init(&fixed);
+			name = dns_fixedname_name(&fixed);
 			len = strlen(lookup->textname);
 			isc_buffer_init(&b, lookup->textname, len);
 			isc_buffer_add(&b, len);
-			result = dns_name_fromtext(lookup->name, &b,
-						   lookup->oname, 0,
-						   &lookup->namebuf);
-		}
-		if (result != ISC_R_SUCCESS) {
-			dns_message_puttempname(lookup->sendmsg,
-						&lookup->name);
-			dns_message_puttempname(lookup->sendmsg,
-						&lookup->oname);
-			fatal("'%s' is not in legal name syntax (%s)",
-			      lookup->textname, isc_result_totext(result));
+			result = dns_name_fromtext(name, &b, NULL, 0, NULL);
+			if (result == ISC_R_SUCCESS &&
+			    !dns_name_isabsolute(name))
+				result = dns_name_concatenate(name,
+							      lookup->oname,
+							      lookup->name,
+							      &lookup->namebuf);
+			else if (result == ISC_R_SUCCESS)
+				result = dns_name_copy(name, lookup->name,
+						       &lookup->namebuf);
+			if (result != ISC_R_SUCCESS) {
+				dns_message_puttempname(lookup->sendmsg,
+							&lookup->name);
+				dns_message_puttempname(lookup->sendmsg,
+							&lookup->oname);
+				if (result == DNS_R_NAMETOOLONG)
+					return (ISC_FALSE);
+				fatal("'%s' is not in legal name syntax (%s)",
+				      lookup->textname,
+				      isc_result_totext(result));
+			}
 		}
 		dns_message_puttempname(lookup->sendmsg, &lookup->oname);
 	} else
@@ -2353,6 +2387,7 @@ setup_lookup(dig_lookup_t *lookup) {
 		printmessage(ISC_LIST_HEAD(lookup->q), lookup->sendmsg,
 			     ISC_TRUE);
 	}
+	return (ISC_TRUE);
 }
 
 /*%
@@ -3149,6 +3184,7 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 	INSIST(recvcount >= 0);
 
 	query = event->ev_arg;
+	TIME_NOW(&query->time_recv);
 	debug("lookup=%p, query=%p", query->lookup, query);
 
 	l = query->lookup;
@@ -3472,7 +3508,7 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 	if (!l->doing_xfr || l->xfr_q == query) {
 		if (msg->rcode == dns_rcode_nxdomain &&
 		    (l->origin != NULL || l->need_search)) {
-			if (!next_origin(query) || showsearch) {
+			if (!next_origin(query->lookup) || showsearch) {
 				printmessage(query, msg, ISC_TRUE);
 				received(b->used, &sevent->address, query);
 			}

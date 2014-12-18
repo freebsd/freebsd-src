@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005, 2007-2009 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007-2009, 2014 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2002 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -20,11 +20,11 @@
 .\"     Title: host
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: Jun 30, 2000
+.\"      Date: January 20, 2009
 .\"    Manual: BIND9
 .\"    Source: BIND9
 .\"
-.TH "HOST" "1" "Jun 30, 2000" "BIND9" "BIND9"
+.TH "HOST" "1" "January 20, 2009" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -33,7 +33,7 @@
 host \- DNS lookup utility
 .SH "SYNOPSIS"
 .HP 5
-\fBhost\fR [\fB\-aCdlnrsTwv\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-N\ \fR\fB\fIndots\fR\fR] [\fB\-R\ \fR\fB\fInumber\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-W\ \fR\fB\fIwait\fR\fR] [\fB\-m\ \fR\fB\fIflag\fR\fR] [\fB\-4\fR] [\fB\-6\fR] {name} [server]
+\fBhost\fR [\fB\-aCdlnrsTwv\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-N\ \fR\fB\fIndots\fR\fR] [\fB\-R\ \fR\fB\fInumber\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-W\ \fR\fB\fIwait\fR\fR] [\fB\-m\ \fR\fB\fIflag\fR\fR] [\fB\-4\fR] [\fB\-6\fR] [\fB\-v\fR] [\fB\-V\fR] {name} [server]
 .SH "DESCRIPTION"
 .PP
 \fBhost\fR
@@ -194,6 +194,12 @@ can be used to set the memory usage debugging flags
 \fIusage\fR
 and
 \fItrace\fR.
+.PP
+The
+\fB\-V\fR
+option causes
+\fBhost\fR
+to print the version number and exit.
 .SH "IDN SUPPORT"
 .PP
 If
@@ -213,7 +219,7 @@ runs.
 \fBdig\fR(1),
 \fBnamed\fR(8).
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007\-2009 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007\-2009, 2014 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2002 Internet Software Consortium.
 .br

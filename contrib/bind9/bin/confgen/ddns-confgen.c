@@ -46,6 +46,7 @@
 
 #include <dns/keyvalues.h>
 #include <dns/name.h>
+#include <dns/result.h>
 
 #include <dst/dst.h>
 #include <confgen/os.h>
@@ -98,6 +99,8 @@ main(int argc, char **argv) {
 	int keysize = 256;
 	int len = 0;
 	int ch;
+
+	dns_result_register();
 
 	result = isc_file_progname(*argv, program, sizeof(program));
 	if (result != ISC_R_SUCCESS)

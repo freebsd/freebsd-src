@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
                [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2013  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,10 +17,9 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-importkey.docbook,v 1.15 2011/11/03 20:21:37 each Exp $ -->
 <refentry id="man.dnssec-importkey">
   <refentryinfo>
-    <date>August 30, 2013</date>
+    <date>February 07, 2014</date>
   </refentryinfo>
 
   <refmeta>
@@ -37,6 +36,7 @@
   <docinfo>
     <copyright>
       <year>2013</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -50,6 +50,7 @@
       <arg><option>-D <replaceable class="parameter">date/offset</replaceable></option></arg>
       <arg><option>-h</option></arg>
       <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg><option>-V</option></arg>
       <arg choice="req"><option>keyfile</option></arg>
     </cmdsynopsis>
     <cmdsynopsis>
@@ -61,6 +62,7 @@
       <arg><option>-D <replaceable class="parameter">date/offset</replaceable></option></arg>
       <arg><option>-h</option></arg>
       <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg><option>-V</option></arg>
       <arg><option>dnsname</option></arg>
     </cmdsynopsis>
   </refsynopsisdiv>
@@ -76,7 +78,7 @@
       files will be generated.
     </para>
     <para>
-      The newly-created .private file does <emphasis>not</command>
+      The newly-created .private file does <emphasis>not</emphasis>
       contain private key data, and cannot be used for signing.
       However, having a .private file makes it possible to set
       publication (<option>-P</option>) and deletion
@@ -147,6 +149,15 @@
         </listitem>
       </varlistentry>
 
+      <varlistentry>
+	<term>-V</term>
+        <listitem>
+	  <para>
+	    Prints version information.
+	  </para>
+        </listitem>
+      </varlistentry>
+
     </variablelist>
   </refsect1>
 
@@ -160,7 +171,8 @@
       then the offset is computed in years (defined as 365 24-hour days,
       ignoring leap years), months (defined as 30 24-hour days), weeks,
       days, hours, or minutes, respectively.  Without a suffix, the offset
-      is computed in seconds.  To unset a date, use 'none'.
+      is computed in seconds.  To explicitly prevent a date from being
+      set, use 'none' or 'never'.
     </para>
 
     <variablelist>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -14,8 +14,6 @@
  * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
-/* $Id$ */
 
 /*! \file */
 
@@ -410,16 +408,16 @@ static void
 parse_command_line(int argc, char *argv[]) {
 	int ch;
 	int port;
+	const char *p;
 	isc_boolean_t disable6 = ISC_FALSE;
 	isc_boolean_t disable4 = ISC_FALSE;
 
 	save_command_line(argc, argv);
 
 	/* PLEASE keep options synchronized when main is hooked! */
+#define CMDLINE_FLAGS "46c:C:d:E:fFgi:lm:n:N:p:P:sS:t:T:U:u:vVx:"
 	isc_commandline_errprint = ISC_FALSE;
-	while ((ch = isc_commandline_parse(argc, argv,
-					   "46c:C:d:E:fFgi:lm:n:N:p:P:"
-					   "sS:t:T:U:u:vVx:")) != -1) {
+	while ((ch = isc_commandline_parse(argc, argv, CMDLINE_FLAGS)) != -1) {
 		switch (ch) {
 		case '4':
 			if (disable4)
@@ -585,8 +583,14 @@ parse_command_line(int argc, char *argv[]) {
 			usage();
 			if (isc_commandline_option == '?')
 				exit(0);
-			ns_main_earlyfatal("unknown option '-%c'",
-					   isc_commandline_option);
+			p = strchr(CMDLINE_FLAGS, isc_commandline_option);
+			if (p == NULL || *++p != ':')
+				ns_main_earlyfatal("unknown option '-%c'",
+						   isc_commandline_option);
+			else
+				ns_main_earlyfatal("option '-%c' requires "
+						   "an argument",
+						   isc_commandline_option);
 			/* FALLTHROUGH */
 		default:
 			ns_main_earlyfatal("parsing options returned %d", ch);
@@ -621,8 +625,14 @@ create_managers(void) {
 #ifdef WIN32
 	ns_g_udpdisp = 1;
 #else
-	if (ns_g_udpdisp == 0)
-		ns_g_udpdisp = ns_g_cpus_detected;
+	if (ns_g_udpdisp == 0) {
+		if (ns_g_cpus_detected == 1)
+			ns_g_udpdisp = 1;
+		else if (ns_g_cpus_detected < 4)
+			ns_g_udpdisp = 2;
+		else
+			ns_g_udpdisp = ns_g_cpus_detected / 2;
+	}
 	if (ns_g_udpdisp > ns_g_cpus)
 		ns_g_udpdisp = ns_g_cpus;
 #endif
@@ -704,7 +714,7 @@ destroy_managers(void) {
 }
 
 static void
-dump_symboltable() {
+dump_symboltable(void) {
 	int i;
 	isc_result_t result;
 	const char *fname;

@@ -29,8 +29,6 @@
  * IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnssec-signzone.c,v 1.285 2011/12/22 07:32:39 each Exp $ */
-
 /*! \file */
 
 #include <config.h>
@@ -500,6 +498,8 @@ signset(dns_diff_t *del, dns_diff_t *add, dns_dbnode_t *node, dns_name_t *name,
 	result = dns_db_findrdataset(gdb, node, gversion, dns_rdatatype_rrsig,
 				     set->type, 0, &sigset, NULL);
 	if (result == ISC_R_NOTFOUND) {
+		vbprintf(2, "no existing signatures for %s/%s\n",
+			 namestr, typestr);
 		result = ISC_R_SUCCESS;
 		nosigs = ISC_TRUE;
 	}
@@ -1652,10 +1652,14 @@ remove_records(dns_dbnode_t *node, dns_rdatatype_t which,
 }
 
 /*
- * Remove signatures covering the given type (0 == all signatures).
+ * Remove signatures covering the given type.  If type == 0,
+ * then remove all signatures, unless this is a delegation, in
+ * which case remove all signatures except for DS or nsec_datatype
  */
 static void
-remove_sigs(dns_dbnode_t *node, dns_rdatatype_t which) {
+remove_sigs(dns_dbnode_t *node, isc_boolean_t delegation,
+	    dns_rdatatype_t which)
+{
 	isc_result_t result;
 	dns_rdatatype_t type, covers;
 	dns_rdatasetiter_t *rdsiter = NULL;
@@ -1672,14 +1676,21 @@ remove_sigs(dns_dbnode_t *node, dns_rdatatype_t which) {
 		covers = rdataset.covers;
 		dns_rdataset_disassociate(&rdataset);
 
-		if (type == dns_rdatatype_rrsig &&
-		    (covers == which || which == 0))
-		{
-			result = dns_db_deleterdataset(gdb, node, gversion,
-						       type, covers);
-			check_result(result, "dns_db_deleterdataset()");
+		if (type != dns_rdatatype_rrsig)
 			continue;
-		}
+
+		if (which == 0 && delegation &&
+		    (dns_rdatatype_atparent(covers) ||
+		     (nsec_datatype == dns_rdatatype_nsec &&
+		      covers == nsec_datatype)))
+			continue;
+
+		if (which != 0 && covers != which)
+			continue;
+
+		result = dns_db_deleterdataset(gdb, node, gversion,
+					       type, covers);
+		check_result(result, "dns_db_deleterdataset()");
 	}
 	dns_rdatasetiter_destroy(&rdsiter);
 }
@@ -1766,7 +1777,7 @@ nsecify(void) {
 		if (is_delegation(gdb, gversion, gorigin, name, node, &nsttl)) {
 			zonecut = dns_fixedname_name(&fzonecut);
 			dns_name_copy(name, zonecut, NULL);
-			remove_sigs(node, 0);
+			remove_sigs(node, ISC_TRUE, 0);
 			if (generateds)
 				add_ds(name, node, nsttl);
 		}
@@ -1788,7 +1799,7 @@ nsecify(void) {
 			    (zonecut != NULL &&
 			     dns_name_issubdomain(nextname, zonecut)))
 			{
-				remove_sigs(nextnode, 0);
+				remove_sigs(nextnode, ISC_FALSE, 0);
 				remove_records(nextnode, dns_rdatatype_nsec,
 					       ISC_FALSE);
 				dns_db_detachnode(gdb, &nextnode);
@@ -2199,7 +2210,7 @@ nsec3ify(unsigned int hashalg, dns_iterations_t iterations,
 			if (!dns_name_issubdomain(nextname, gorigin) ||
 			    (zonecut != NULL &&
 			     dns_name_issubdomain(nextname, zonecut))) {
-				remove_sigs(nextnode, 0);
+				remove_sigs(nextnode, ISC_FALSE, 0);
 				dns_db_detachnode(gdb, &nextnode);
 				result = dns_dbiterator_next(dbiter);
 				continue;
@@ -2209,7 +2220,7 @@ nsec3ify(unsigned int hashalg, dns_iterations_t iterations,
 			{
 				zonecut = dns_fixedname_name(&fzonecut);
 				dns_name_copy(nextname, zonecut, NULL);
-				remove_sigs(nextnode, 0);
+				remove_sigs(nextnode, ISC_TRUE, 0);
 				if (generateds)
 					add_ds(nextname, nextnode, nsttl);
 				if (OPTOUT(nsec3flags) &&
@@ -2540,7 +2551,7 @@ report(const char *format, ...) {
 }
 
 static void
-build_final_keylist() {
+build_final_keylist(void) {
 	isc_result_t result;
 	dns_dbversion_t *ver = NULL;
 	dns_diff_t diff;
@@ -2926,6 +2937,7 @@ usage(void) {
 	fprintf(stderr, "\t-j jitter:\n");
 	fprintf(stderr, "\t\trandomize signature end time up to jitter seconds\n");
 	fprintf(stderr, "\t-v debuglevel (0)\n");
+	fprintf(stderr, "\t-V:\tprint version information\n");
 	fprintf(stderr, "\t-o origin:\n");
 	fprintf(stderr, "\t\tzone origin (name of zonefile)\n");
 	fprintf(stderr, "\t-f outfile:\n");
@@ -2981,6 +2993,7 @@ usage(void) {
 	fprintf(stderr, "Signing Keys: ");
 	fprintf(stderr, "(default: all zone keys that have private keys)\n");
 	fprintf(stderr, "\tkeyfile (Kname+alg+tag)\n");
+
 	exit(0);
 }
 
@@ -3063,7 +3076,7 @@ main(int argc, char *argv[]) {
 
 	/* Unused letters: Bb G J M q Yy (and F is reserved). */
 #define CMDLINE_FLAGS \
-	"3:AaCc:Dd:E:e:f:FghH:i:I:j:K:k:L:l:m:n:N:o:O:PpQRr:s:ST:tuUv:X:xzZ:"
+	"3:AaCc:Dd:E:e:f:FghH:i:I:j:K:k:L:l:m:n:N:o:O:PpQRr:s:ST:tuUv:VX:xzZ:"
 
 	/*
 	 * Process memory debugging argument first.
@@ -3178,10 +3191,6 @@ main(int argc, char *argv[]) {
 				fatal("iterations must be numeric");
 			if (nsec3iter  > 0xffffU)
 				fatal("iterations too big");
-			break;
-
-		case 'h':
-			usage();
 			break;
 
 		case 'I':
@@ -3330,17 +3339,24 @@ main(int argc, char *argv[]) {
 			if (isc_commandline_option != '?')
 				fprintf(stderr, "%s: invalid argument -%c\n",
 					program, isc_commandline_option);
+			/* FALLTHROUGH */
+		case 'h':
+			/* Does not return. */
 			usage();
+
+		case 'V':
+			/* Does not return. */
+			version(program);
+
+		case 'Z':	/* Undocumented test options */
+			if (!strcmp(isc_commandline_argument, "nonsecify"))
+				nonsecify = ISC_TRUE;
 			break;
 
 		default:
 			fprintf(stderr, "%s: unhandled option -%c\n",
 				program, isc_commandline_option);
 			exit(1);
-		case 'Z':	/* Undocumented test options */
-			if (!strcmp(isc_commandline_argument, "nonsecify"))
-				nonsecify = ISC_TRUE;
-			break;
 		}
 	}
 
@@ -3361,17 +3377,18 @@ main(int argc, char *argv[]) {
 	isc_stdtime_get(&now);
 
 	if (startstr != NULL) {
-		starttime = strtotime(startstr, now, now);
+		starttime = strtotime(startstr, now, now, NULL);
 	} else
 		starttime = now - 3600;  /* Allow for some clock skew. */
 
 	if (endstr != NULL)
-		endtime = strtotime(endstr, now, starttime);
+		endtime = strtotime(endstr, now, starttime, NULL);
 	else
 		endtime = starttime + (30 * 24 * 60 * 60);
 
 	if (dnskey_endstr != NULL) {
-		dnskey_endtime = strtotime(dnskey_endstr, now, starttime);
+		dnskey_endtime = strtotime(dnskey_endstr, now, starttime,
+					   NULL);
 		if (endstr != NULL && dnskey_endtime == endtime)
 			fprintf(stderr, "WARNING: -e and -X were both set, "
 					"but have identical values.\n");

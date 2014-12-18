@@ -1317,7 +1317,7 @@ dns_tsig_verify(isc_buffer_t *source, dns_message_t *msg,
 	    alg == DST_ALG_HMACSHA384 || alg == DST_ALG_HMACSHA512) {
 		isc_uint16_t digestbits = dst_key_getbits(key);
 		if (tsig.siglen > siglen) {
-			tsig_log(msg->tsigkey, 2, "signature length to big");
+			tsig_log(msg->tsigkey, 2, "signature length too big");
 			return (DNS_R_FORMERR);
 		}
 		if (tsig.siglen > 0 &&

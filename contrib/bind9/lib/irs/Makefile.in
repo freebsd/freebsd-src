@@ -74,7 +74,7 @@ installdirs:
 	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${libdir}
 
 install:: timestamp installdirs
-	${LIBTOOL_MODE_INSTALL} ${INSTALL_DATA} libirs.@A@ ${DESTDIR}${libdir}
+	${LIBTOOL_MODE_INSTALL} ${INSTALL_LIBRARY} libirs.@A@ ${DESTDIR}${libdir}
 
 clean distclean::
 	rm -f libirs.@A@ libirs.la timestamp

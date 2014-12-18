@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2011, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009-2011, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -13,8 +13,6 @@
  * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
-/* $Id: ecdb.c,v 1.10 2011/12/20 00:06:53 marka Exp $ */
 
 #include "config.h"
 
@@ -772,19 +770,24 @@ rdataset_settrust(dns_rdataset_t *rdataset, dns_trust_t trust) {
 
 static void
 rdatasetiter_destroy(dns_rdatasetiter_t **iteratorp) {
-	ecdb_rdatasetiter_t *ecdbiterator;
 	isc_mem_t *mctx;
+	union {
+		dns_rdatasetiter_t *rdatasetiterator;
+		ecdb_rdatasetiter_t *ecdbiterator;
+	} u;
 
 	REQUIRE(iteratorp != NULL);
-	ecdbiterator = (ecdb_rdatasetiter_t *)*iteratorp;
-	REQUIRE(DNS_RDATASETITER_VALID(&ecdbiterator->common));
+	REQUIRE(DNS_RDATASETITER_VALID(*iteratorp));
 
-	mctx = ecdbiterator->common.db->mctx;
+	u.rdatasetiterator = *iteratorp;
 
-	ecdbiterator->common.magic = 0;
+	mctx = u.ecdbiterator->common.db->mctx;
+	u.ecdbiterator->common.magic = 0;
 
-	dns_db_detachnode(ecdbiterator->common.db, &ecdbiterator->common.node);
-	isc_mem_put(mctx, ecdbiterator, sizeof(ecdb_rdatasetiter_t));
+	dns_db_detachnode(u.ecdbiterator->common.db,
+			  &u.ecdbiterator->common.node);
+	isc_mem_put(mctx, u.ecdbiterator,
+		    sizeof(ecdb_rdatasetiter_t));
 
 	*iteratorp = NULL;
 }

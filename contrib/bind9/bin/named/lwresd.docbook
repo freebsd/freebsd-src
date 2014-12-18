@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007-2009, 2014  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,10 +18,9 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: lwresd.docbook,v 1.20 2009/01/20 23:47:56 tbox Exp $ -->
 <refentry>
   <refentryinfo>
-    <date>June 30, 2000</date>
+    <date>January 20, 2009</date>
   </refentryinfo>
 
   <refmeta>
@@ -42,6 +41,7 @@
       <year>2007</year>
       <year>2008</year>
       <year>2009</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>

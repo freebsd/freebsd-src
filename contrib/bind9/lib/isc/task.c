@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -208,7 +208,7 @@ isc__task_unsend(isc_task_t *task, void *sender, isc_eventtype_t type,
 		 void *tag, isc_eventlist_t *events);
 ISC_TASKFUNC_SCOPE isc_result_t
 isc__task_onshutdown(isc_task_t *task0, isc_taskaction_t action,
-		     const void *arg);
+		     void *arg);
 ISC_TASKFUNC_SCOPE void
 isc__task_shutdown(isc_task_t *task0);
 ISC_TASKFUNC_SCOPE void
@@ -796,7 +796,7 @@ isc__task_unsend(isc_task_t *task, void *sender, isc_eventtype_t type,
 
 ISC_TASKFUNC_SCOPE isc_result_t
 isc__task_onshutdown(isc_task_t *task0, isc_taskaction_t action,
-		     const void *arg)
+		     void *arg)
 {
 	isc__task_t *task = (isc__task_t *)task0;
 	isc_boolean_t disallowed = ISC_FALSE;
@@ -1751,7 +1751,7 @@ isc__task_privilege(isc_task_t *task0) {
 
 #ifdef USE_SOCKETIMPREGISTER
 isc_result_t
-isc__task_register() {
+isc__task_register(void) {
 	return (isc_task_register(isc__taskmgr_create));
 }
 #endif

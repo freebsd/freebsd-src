@@ -1,4 +1,4 @@
-.\" Copyright (C) 2008-2012 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2008-2012, 2014 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -19,11 +19,11 @@
 .\"     Title: dnssec\-keyfromlabel
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: February 8, 2008
+.\"      Date: February 27, 2014
 .\"    Manual: BIND9
 .\"    Source: BIND9
 .\"
-.TH "DNSSEC\-KEYFROMLABEL" "8" "February 8, 2008" "BIND9" "BIND9"
+.TH "DNSSEC\-KEYFROMLABEL" "8" "February 27, 2014" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -32,11 +32,12 @@
 dnssec\-keyfromlabel \- DNSSEC key generation tool
 .SH "SYNOPSIS"
 .HP 20
-\fBdnssec\-keyfromlabel\fR {\-l\ \fIlabel\fR} [\fB\-3\fR] [\fB\-a\ \fR\fB\fIalgorithm\fR\fR] [\fB\-A\ \fR\fB\fIdate/offset\fR\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-D\ \fR\fB\fIdate/offset\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] [\fB\-f\ \fR\fB\fIflag\fR\fR] [\fB\-G\fR] [\fB\-I\ \fR\fB\fIdate/offset\fR\fR] [\fB\-k\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-L\ \fR\fB\fIttl\fR\fR] [\fB\-n\ \fR\fB\fInametype\fR\fR] [\fB\-P\ \fR\fB\fIdate/offset\fR\fR] [\fB\-p\ \fR\fB\fIprotocol\fR\fR] [\fB\-R\ \fR\fB\fIdate/offset\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-y\fR] {name}
+\fBdnssec\-keyfromlabel\fR {\-l\ \fIlabel\fR} [\fB\-3\fR] [\fB\-a\ \fR\fB\fIalgorithm\fR\fR] [\fB\-A\ \fR\fB\fIdate/offset\fR\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-D\ \fR\fB\fIdate/offset\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] [\fB\-f\ \fR\fB\fIflag\fR\fR] [\fB\-G\fR] [\fB\-I\ \fR\fB\fIdate/offset\fR\fR] [\fB\-i\ \fR\fB\fIinterval\fR\fR] [\fB\-k\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-L\ \fR\fB\fIttl\fR\fR] [\fB\-n\ \fR\fB\fInametype\fR\fR] [\fB\-P\ \fR\fB\fIdate/offset\fR\fR] [\fB\-p\ \fR\fB\fIprotocol\fR\fR] [\fB\-R\ \fR\fB\fIdate/offset\fR\fR] [\fB\-S\ \fR\fB\fIkey\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-V\fR] [\fB\-y\fR] {name}
 .SH "DESCRIPTION"
 .PP
 \fBdnssec\-keyfromlabel\fR
-gets keys with the given label from a crypto hardware and builds key files for DNSSEC (Secure DNS), as defined in RFC 2535 and RFC 4034.
+generates a key pair of files that referencing a key object stored in a cryptographic hardware service module (HSM). The private key file can be used for DNSSEC signing of zone data as if it were a conventional signing key created by
+\fBdnssec\-keygen\fR, but the key material is stored within the HSM, and the actual signing takes place there.
 .PP
 The
 \fBname\fR
@@ -136,6 +137,11 @@ removes it.
 Sets the protocol value for the key. The protocol is a number between 0 and 255. The default is 3 (DNSSEC). Other possible values for this argument are listed in RFC 2535 and its successors.
 .RE
 .PP
+\-S \fIkey\fR
+.RS 4
+Generate a key as an explicit successor to an existing key. The name, algorithm, size, and type of the key will be set to match the predecessor. The activation date of the new key will be set to the inactivation date of the existing one. The publication date will be set to the activation date minus the prepublication interval, which defaults to 30 days.
+.RE
+.PP
 \-t \fItype\fR
 .RS 4
 Indicates the use of the key.
@@ -148,13 +154,18 @@ must be one of AUTHCONF, NOAUTHCONF, NOAUTH, or NOCONF. The default is AUTHCONF.
 Sets the debugging level.
 .RE
 .PP
+\-V
+.RS 4
+Prints version information.
+.RE
+.PP
 \-y
 .RS 4
 Allows DNSSEC key files to be generated even if the key ID would collide with that of an existing key, in the event of either key being revoked. (This is only safe to use if you are sure you won't be using RFC 5011 trust anchor maintenance with either of the keys involved.)
 .RE
 .SH "TIMING OPTIONS"
 .PP
-Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS. If the argument begins with a '+' or '\-', it is interpreted as an offset from the present time. For convenience, if such an offset is followed by one of the suffixes 'y', 'mo', 'w', 'd', 'h', or 'mi', then the offset is computed in years (defined as 365 24\-hour days, ignoring leap years), months (defined as 30 24\-hour days), weeks, days, hours, or minutes, respectively. Without a suffix, the offset is computed in seconds.
+Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS. If the argument begins with a '+' or '\-', it is interpreted as an offset from the present time. For convenience, if such an offset is followed by one of the suffixes 'y', 'mo', 'w', 'd', 'h', or 'mi', then the offset is computed in years (defined as 365 24\-hour days, ignoring leap years), months (defined as 30 24\-hour days), weeks, days, hours, or minutes, respectively. Without a suffix, the offset is computed in seconds. To explicitly prevent a date from being set, use 'none' or 'never'.
 .PP
 \-P \fIdate/offset\fR
 .RS 4
@@ -179,6 +190,15 @@ Sets the date on which the key is to be retired. After that date, the key will s
 \-D \fIdate/offset\fR
 .RS 4
 Sets the date on which the key is to be deleted. After that date, the key will no longer be included in the zone. (It may remain in the key repository, however.)
+.RE
+.PP
+\-i \fIinterval\fR
+.RS 4
+Sets the prepublication interval for a key. If set, then the publication and activation dates must be separated by at least this much time. If the activation date is specified but the publication date isn't, then the publication date will default to this much time before the activation date; conversely, if the publication date is specified but activation date isn't, then activation will be set to this much time after publication.
+.sp
+If the key is being created as an explicit successor to another key, then the default prepublication interval is 30 days; otherwise it is zero.
+.sp
+As with date offsets, if the argument is followed by one of the suffixes 'y', 'mo', 'w', 'd', 'h', or 'mi', then the interval is measured in years, months, weeks, days, hours, or minutes, respectively. Without a suffix, the interval is measured in seconds.
 .RE
 .SH "GENERATED KEY FILES"
 .PP
@@ -224,5 +244,5 @@ RFC 4034.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2008\-2012 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2008\-2012, 2014 Internet Systems Consortium, Inc. ("ISC")
 .br

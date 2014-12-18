@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005, 2007, 2013 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -32,7 +32,7 @@
 <div class="cmdsynopsis"><p><code class="command">rndc</code>  [<code class="option">-b <em class="replaceable"><code>source-address</code></em></code>] [<code class="option">-c <em class="replaceable"><code>config-file</code></em></code>] [<code class="option">-k <em class="replaceable"><code>key-file</code></em></code>] [<code class="option">-s <em class="replaceable"><code>server</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port</code></em></code>] [<code class="option">-V</code>] [<code class="option">-y <em class="replaceable"><code>key_id</code></em></code>] {command}</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543418"></a><h2>DESCRIPTION</h2>
+<a name="id2543428"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">rndc</strong></span>
       controls the operation of a name
       server.  It supersedes the <span><strong class="command">ndc</strong></span> utility
@@ -61,7 +61,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543453"></a><h2>OPTIONS</h2>
+<a name="id2543463"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-b <em class="replaceable"><code>source-address</code></em></span></dt>
 <dd><p>
@@ -127,7 +127,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543650"></a><h2>COMMANDS</h2>
+<a name="id2543659"></a><h2>COMMANDS</h2>
 <p>
       A list of commands supported by <span><strong class="command">rndc</strong></span> can
       be seen by running <span><strong class="command">rndc</strong></span> without arguments.
@@ -419,8 +419,8 @@
 <dt><span class="term"><strong class="userinput"><code>signing [<span class="optional">( -list | -clear <em class="replaceable"><code>keyid/algorithm</code></em> | -clear <code class="literal">all</code> | -nsec3param ( <em class="replaceable"><code>parameters</code></em> | <code class="literal">none</code> ) ) </span>] <em class="replaceable"><code>zone</code></em> [<span class="optional"><em class="replaceable"><code>class</code></em> [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>] </code></strong></span></dt>
 <dd>
 <p>
-            List, edit, or remove the DNSSEC signing state for 
-            the specified zone.  The status of ongoing DNSSEC
+            List, edit, or remove the DNSSEC signing state records
+            for the specified zone.  The status of ongoing DNSSEC
             operations (such as signing or generating
             NSEC3 chains) is stored in the zone in the form
             of DNS resource records of type
@@ -480,7 +480,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2544843"></a><h2>LIMITATIONS</h2>
+<a name="id2541986"></a><h2>LIMITATIONS</h2>
 <p>
       There is currently no way to provide the shared secret for a
       <code class="option">key_id</code> without using the configuration file.
@@ -490,7 +490,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2542131"></a><h2>SEE ALSO</h2>
+<a name="id2542004"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">rndc.conf</span>(5)</span>,
       <span class="citerefentry"><span class="refentrytitle">rndc-confgen</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
@@ -500,7 +500,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2545190"></a><h2>AUTHOR</h2>
+<a name="id2545200"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

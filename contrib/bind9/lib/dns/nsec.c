@@ -436,7 +436,7 @@ dns_nsec_noexistnodata(dns_rdatatype_t type, dns_name_t *name,
 						  nlabels, &common);
 		}
 		result = dns_name_concatenate(dns_wildcardname, &common,
-					       wild, NULL);
+					      wild, NULL);
 		if (result != ISC_R_SUCCESS) {
 			dns_rdata_freestruct(&nsec);
 			(*logit)(arg, ISC_LOG_DEBUG(3),

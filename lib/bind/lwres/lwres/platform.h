@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -61,7 +61,7 @@
 #undef LWRES_PLATFORM_NEEDIN6ADDRANY
 
 /*
- * If this system is missing in6addr_loopback, 
+ * If this system is missing in6addr_loopback,
  * LWRES_PLATFORM_NEEDIN6ADDRLOOPBACK will be defined.
  */
 #undef LWRES_PLATFORM_NEEDIN6ADDRLOOPBACK
@@ -86,7 +86,7 @@
  * Defined this system needs vsnprintf() and snprintf().
  */
 #undef LWRES_PLATFORM_NEEDVSNPRINTF
- 
+
 /*
  * If this system need a modern sprintf() that returns (int) not (char*).
  */
@@ -101,6 +101,11 @@
  * Define if this system needs strtoul.
  */
 #undef LWRES_PLATFORM_NEEDSTRTOUL
+
+/*! \brief
+ * Define if this system needs strlcpy.
+ */
+#undef LWRES_PLATFORM_NEEDSTRLCPY
 
 #ifndef LWRES_PLATFORM_USEDECLSPEC
 #define LIBLWRES_EXTERNAL_DATA

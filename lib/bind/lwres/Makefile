@@ -17,12 +17,11 @@ MK_BIND_LIBS=	yes
 LIB=		lwres
 
 .PATH:		${SRCDIR} ${SRCDIR}/man
-SRCS+=		context.c gai_strerror.c getaddrinfo.c gethost.c \
+SRCS+=		compat.c context.c gai_strerror.c getaddrinfo.c gethost.c \
 		getipnode.c getnameinfo.c getrrset.c herror.c \
 		lwbuffer.c lwconfig.c lwpacket.c lwresutil.c \
 		lwres_gabn.c lwres_gnba.c lwres_grbn.c lwres_noop.c \
-		lwinetaton.c lwinetpton.c lwinetntop.c print.c \
-		strtoul.c
+		lwinetaton.c lwinetpton.c lwinetntop.c print.c
 
 CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include
 CFLAGS+=	-I${.CURDIR}
@@ -119,6 +118,7 @@ INCS=		${SRCDIR}/include/lwres/context.h \
 		${SRCDIR}/include/lwres/lwpacket.h \
 		${SRCDIR}/include/lwres/lwres.h \
 		${SRCDIR}/include/lwres/result.h \
+		${SRCDIR}/include/lwres/string.h \
 		${SRCDIR}/include/lwres/version.h \
 		${SRCDIR}/unix/include/lwres/net.h \
 		lwres/netdb.h \

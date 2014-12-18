@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009, 2010, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2010, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -174,6 +174,7 @@ insert(dns_keytable_t *keytable, isc_boolean_t managed,
 			for (k = node->data; k != NULL; k = k->next) {
 				if (k->key == NULL) {
 					k->key = *keyp;
+					*keyp = NULL; /* transfer ownership */
 					break;
 				}
 				if (dst_key_compare(k->key, *keyp) == ISC_TRUE)
@@ -182,7 +183,7 @@ insert(dns_keytable_t *keytable, isc_boolean_t managed,
 
 			if (k == NULL)
 				result = ISC_R_SUCCESS;
-			else
+			else if (*keyp != NULL)
 				dst_key_free(keyp);
 		}
 
@@ -575,6 +576,8 @@ dns_keytable_dump(dns_keytable_t *keytable, FILE *fp)
 
 		dns_rbtnodechain_current(&chain, NULL, NULL, &node);
 		for (knode = node->data; knode != NULL; knode = knode->next) {
+			if (knode->key == NULL)
+				continue;
 			dst_key_format(knode->key, pbuf, sizeof(pbuf));
 			fprintf(fp, "%s ; %s\n", pbuf,
 				knode->managed ? "managed" : "trusted");

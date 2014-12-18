@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -38,10 +38,13 @@
  */
 #if !defined(ISC_PLATFORM_NEEDVSNPRINTF) && defined(ISC__PRINT_SOURCE)
 #define ISC_PLATFORM_NEEDVSNPRINTF
+#undef snprintf
+#undef vsnprintf
 #endif
 
 #if !defined(ISC_PLATFORM_NEEDSPRINTF) && defined(ISC__PRINT_SOURCE)
 #define ISC_PLATFORM_NEEDSPRINTF
+#undef sprintf
 #endif
 
 /***

@@ -148,21 +148,36 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 
 	buflen = reservelen + 2;
 
-	nalloc = dns_rdataset_count(rdataset);
-	nitems = nalloc;
-	if (nitems == 0 && rdataset->type != 0)
-		return (ISC_R_FAILURE);
+	nitems = dns_rdataset_count(rdataset);
 
-	if (nalloc > 0xffff)
+	/*
+	 * If there are no rdata then we can just need to allocate a header
+	 * with zero a record count.
+	 */
+	if (nitems == 0) {
+		if (rdataset->type != 0)
+			return (ISC_R_FAILURE);
+		rawbuf = isc_mem_get(mctx, buflen);
+		if (rawbuf == NULL)
+			return (ISC_R_NOMEMORY);
+		region->base = rawbuf;
+		region->length = buflen;
+		rawbuf += reservelen;
+		*rawbuf++ = 0;
+		*rawbuf = 0;
+		return (ISC_R_SUCCESS);
+	}
+
+	if (nitems > 0xffff)
 		return (ISC_R_NOSPACE);
 
-
-	if (nalloc != 0) {
-		x = isc_mem_get(mctx, nalloc * sizeof(struct xrdata));
-		if (x == NULL)
-			return (ISC_R_NOMEMORY);
-	} else
-		x = NULL;
+	/*
+	 * Remember the original number of items.
+	 */
+	nalloc = nitems;
+	x = isc_mem_get(mctx, nalloc * sizeof(struct xrdata));
+	if (x == NULL)
+		return (ISC_R_NOMEMORY);
 
 	/*
 	 * Save all of the rdata members into an array.
@@ -180,12 +195,12 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 #endif
 		result = dns_rdataset_next(rdataset);
 	}
-	if (result != ISC_R_NOMORE)
-		goto free_rdatas;
-	if (i != nalloc) {
+	if (i != nalloc || result != ISC_R_NOMORE) {
 		/*
 		 * Somehow we iterated over fewer rdatas than
-		 * dns_rdataset_count() said there were!
+		 * dns_rdataset_count() said there were or there
+		 * were more items than dns_rdataset_count said
+		 * there were.
 		 */
 		result = ISC_R_FAILURE;
 		goto free_rdatas;
@@ -194,7 +209,8 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 	/*
 	 * Put into DNSSEC order.
 	 */
-	qsort(x, nalloc, sizeof(struct xrdata), compare_rdata);
+	if (nalloc > 1U)
+		qsort(x, nalloc, sizeof(struct xrdata), compare_rdata);
 
 	/*
 	 * Remove duplicates and compute the total storage required.
@@ -230,17 +246,15 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 				buflen++;
 		}
 	}
+
 	/*
 	 * Don't forget the last item!
 	 */
-	if (nalloc != 0) {
 #if DNS_RDATASET_FIXED
-		buflen += (8 + x[i-1].rdata.length);
+	buflen += (8 + x[i-1].rdata.length);
 #else
-		buflen += (2 + x[i-1].rdata.length);
+	buflen += (2 + x[i-1].rdata.length);
 #endif
-	}
-
 	/*
 	 * Provide space to store the per RR meta data.
 	 */
@@ -330,8 +344,7 @@ dns_rdataslab_fromrdataset(dns_rdataset_t *rdataset, isc_mem_t *mctx,
 	result = ISC_R_SUCCESS;
 
  free_rdatas:
-	if (x != NULL)
-		isc_mem_put(mctx, x, nalloc * sizeof(struct xrdata));
+	isc_mem_put(mctx, x, nalloc * sizeof(struct xrdata));
 	return (result);
 }
 

@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2008-2012  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2008-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,10 +17,9 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-keyfromlabel.docbook,v 1.21 2011/03/17 01:40:34 each Exp $ -->
 <refentry id="man.dnssec-keyfromlabel">
   <refentryinfo>
-    <date>February 8, 2008</date>
+    <date>February 27, 2014</date>
   </refentryinfo>
 
   <refmeta>
@@ -41,6 +40,7 @@
       <year>2010</year>
       <year>2011</year>
       <year>2012</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -58,6 +58,7 @@
       <arg><option>-f <replaceable class="parameter">flag</replaceable></option></arg>
       <arg><option>-G</option></arg>
       <arg><option>-I <replaceable class="parameter">date/offset</replaceable></option></arg>
+      <arg><option>-i <replaceable class="parameter">interval</replaceable></option></arg>
       <arg><option>-k</option></arg>
       <arg><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
       <arg><option>-L <replaceable class="parameter">ttl</replaceable></option></arg>
@@ -65,8 +66,10 @@
       <arg><option>-P <replaceable class="parameter">date/offset</replaceable></option></arg>
       <arg><option>-p <replaceable class="parameter">protocol</replaceable></option></arg>
       <arg><option>-R <replaceable class="parameter">date/offset</replaceable></option></arg>
+      <arg><option>-S <replaceable class="parameter">key</replaceable></option></arg>
       <arg><option>-t <replaceable class="parameter">type</replaceable></option></arg>
       <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg><option>-V</option></arg>
       <arg><option>-y</option></arg>
       <arg choice="req">name</arg>
     </cmdsynopsis>
@@ -75,9 +78,12 @@
   <refsect1>
     <title>DESCRIPTION</title>
     <para><command>dnssec-keyfromlabel</command>
-      gets keys with the given label from a crypto hardware and builds
-      key files for DNSSEC (Secure DNS), as defined in RFC 2535
-      and RFC 4034.  
+      generates a key pair of files that referencing a key object stored
+      in a cryptographic hardware service module (HSM).  The private key
+      file can be used for DNSSEC signing of zone data as if it were a
+      conventional signing key created by <command>dnssec-keygen</command>,
+      but the key material is stored within the HSM, and the actual signing
+      takes place there.
     </para>
     <para>
       The <option>name</option> of the key is specified on the command
@@ -264,6 +270,21 @@
       </varlistentry>
 
       <varlistentry>
+        <term>-S <replaceable class="parameter">key</replaceable></term>
+        <listitem>
+          <para>
+            Generate a key as an explicit successor to an existing key.
+	    The name, algorithm, size, and type of the key will be set
+	    to match the predecessor. The activation date of the new
+	    key will be set to the inactivation date of the existing
+	    one. The publication date will be set to the activation
+	    date minus the prepublication interval, which defaults to
+	    30 days.
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>-t <replaceable class="parameter">type</replaceable></term>
         <listitem>
           <para>
@@ -281,6 +302,15 @@
           <para>
             Sets the debugging level.
           </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-V</term>
+        <listitem>
+	  <para>
+	    Prints version information.
+	  </para>
         </listitem>
       </varlistentry>
 
@@ -311,7 +341,8 @@
       then the offset is computed in years (defined as 365 24-hour days,
       ignoring leap years), months (defined as 30 24-hour days), weeks,
       days, hours, or minutes, respectively.  Without a suffix, the offset
-      is computed in seconds.
+      is computed in seconds.  To explicitly prevent a date from being
+      set, use 'none' or 'never'.
     </para>
 
     <variablelist>
@@ -371,6 +402,34 @@
           </para>
         </listitem>
       </varlistentry>
+
+      <varlistentry>
+        <term>-i <replaceable class="parameter">interval</replaceable></term>
+        <listitem>
+          <para>
+            Sets the prepublication interval for a key.  If set, then
+            the publication and activation dates must be separated by at least
+            this much time.  If the activation date is specified but the
+            publication date isn't, then the publication date will default
+            to this much time before the activation date; conversely, if
+            the publication date is specified but activation date isn't,
+            then activation will be set to this much time after publication.
+          </para>
+          <para>
+            If the key is being created as an explicit successor to another
+            key, then the default prepublication interval is 30 days; 
+            otherwise it is zero.
+          </para>
+          <para>
+            As with date offsets, if the argument is followed by one of
+            the suffixes 'y', 'mo', 'w', 'd', 'h', or 'mi', then the
+            interval is measured in years, months, weeks, days, hours,
+            or minutes, respectively.  Without a suffix, the interval is
+            measured in seconds.
+          </para>
+        </listitem>
+      </varlistentry>
+
     </variablelist>
   </refsect1>
 

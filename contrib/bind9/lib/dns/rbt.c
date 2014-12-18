@@ -15,8 +15,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
-
 /*! \file */
 
 /* Principal Authors: DCL */
@@ -134,7 +132,10 @@ struct dns_rbt {
  * of memory concerns, when chains were first implemented).
  */
 #define ADD_LEVEL(chain, node) \
-			(chain)->levels[(chain)->level_count++] = (node)
+	do { \
+		INSIST((chain)->level_count < DNS_RBT_LEVELBLOCK); \
+		(chain)->levels[(chain)->level_count++] = (node); \
+	} while (0)
 
 /*%
  * The following macros directly access normally private name variables.

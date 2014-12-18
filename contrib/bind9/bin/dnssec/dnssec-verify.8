@@ -1,4 +1,4 @@
-.\" Copyright (C) 2012  Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
 .\"
 .\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -19,11 +19,11 @@
 .\"     Title: dnssec\-verify
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: April 12, 2012
+.\"      Date: June 26, 2012
 .\"    Manual: BIND9
 .\"    Source: BIND9
 .\"
-.TH "DNSSEC\-VERIFY" "8" "April 12, 2012" "BIND9" "BIND9"
+.TH "DNSSEC\-VERIFY" "8" "June 26, 2012" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -32,7 +32,7 @@
 dnssec\-verify \- DNSSEC zone verification tool
 .SH "SYNOPSIS"
 .HP 14
-\fBdnssec\-verify\fR [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] [\fB\-I\ \fR\fB\fIinput\-format\fR\fR] [\fB\-o\ \fR\fB\fIorigin\fR\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-x\fR] [\fB\-z\fR] {zonefile}
+\fBdnssec\-verify\fR [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] [\fB\-I\ \fR\fB\fIinput\-format\fR\fR] [\fB\-o\ \fR\fB\fIorigin\fR\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-V\fR] [\fB\-x\fR] [\fB\-z\fR] {zonefile}
 .SH "DESCRIPTION"
 .PP
 \fBdnssec\-verify\fR
@@ -60,6 +60,11 @@ The zone origin. If not specified, the name of the zone file is assumed to be th
 \-v \fIlevel\fR
 .RS 4
 Sets the debugging level.
+.RE
+.PP
+\-V
+.RS 4
+Prints version information.
 .RE
 .PP
 \-x
@@ -93,5 +98,5 @@ RFC 4033.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2012 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2012, 2014 Internet Systems Consortium, Inc. ("ISC")
 .br

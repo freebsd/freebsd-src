@@ -283,7 +283,7 @@ isc_hash_ctxinit(isc_hash_t *hctx) {
 }
 
 void
-isc_hash_init() {
+isc_hash_init(void) {
 	INSIST(hash != NULL && VALID_HASH(hash));
 
 	isc_hash_ctxinit(hash);
@@ -348,7 +348,7 @@ isc_hash_ctxdetach(isc_hash_t **hctxp) {
 }
 
 void
-isc_hash_destroy() {
+isc_hash_destroy(void) {
 	unsigned int refs;
 
 	INSIST(hash != NULL && VALID_HASH(hash));

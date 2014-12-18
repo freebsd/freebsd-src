@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -90,6 +90,8 @@
  */
 #define DNS_MASTER_LHS 2048
 #define DNS_MASTER_RHS MINTSIZ
+
+#define CHECKNAMESFAIL(x) (((x) & DNS_MASTER_CHECKNAMESFAIL) != 0)
 
 typedef ISC_LIST(dns_rdatalist_t) rdatalist_head_t;
 
@@ -798,13 +800,12 @@ generate(dns_loadctx_t *lctx, char *range, char *lhs, char *gtype, char *rhs,
 	dns_rdatalist_t rdatalist;
 	dns_rdatatype_t type;
 	rdatalist_head_t head;
-	int n;
 	int target_size = MINTSIZ;	/* only one rdata at a time */
 	isc_buffer_t buffer;
 	isc_buffer_t target;
 	isc_result_t result;
 	isc_textregion_t r;
-	unsigned int start, stop, step, i;
+	int i, n, start, stop, step = 0;
 	dns_incctx_t *ictx;
 
 	ictx = lctx->inc;
@@ -822,8 +823,10 @@ generate(dns_loadctx_t *lctx, char *range, char *lhs, char *gtype, char *rhs,
 	}
 	isc_buffer_init(&target, target_mem, target_size);
 
-	n = sscanf(range, "%u-%u/%u", &start, &stop, &step);
-	if (n < 2 || stop < start) {
+	n = sscanf(range, "%d-%d/%d", &start, &stop, &step);
+	if ((n < 2) || (start < 0) || (stop < 0) || (step < 0) ||
+	    (stop < start))
+	{
 	       (*callbacks->error)(callbacks,
 				  "%s: %s:%lu: invalid range '%s'",
 				  "$GENERATE", source, line, range);
@@ -1759,7 +1762,8 @@ load_text(dns_loadctx_t *lctx) {
 				dns_name_format(name, namebuf, sizeof(namebuf));
 				result = DNS_R_BADOWNERNAME;
 				desc = dns_result_totext(result);
-				if ((lctx->options & DNS_MASTER_CHECKNAMESFAIL) != 0) {
+				if (CHECKNAMESFAIL(lctx->options) ||
+				    type == dns_rdatatype_nsec3) {
 					(*callbacks->error)(callbacks,
 							    "%s:%lu: %s: %s",
 							    source, line,
@@ -2132,7 +2136,7 @@ load_raw(dns_loadctx_t *lctx) {
 					 isc_result_totext(result));
 			return (result);
 		}
-		isc_buffer_add(&target, commonlen);
+		isc_buffer_add(&target, (unsigned int)commonlen);
 		header.format = isc_buffer_getuint32(&target);
 		if (header.format != dns_masterformat_raw) {
 			(*callbacks->error)(callbacks,
@@ -2165,7 +2169,7 @@ load_raw(dns_loadctx_t *lctx) {
 			return (result);
 		}
 
-		isc_buffer_add(&target, remainder);
+		isc_buffer_add(&target, (unsigned int)remainder);
 		header.dumptime = isc_buffer_getuint32(&target);
 		if (header.version == DNS_RAWFORMAT_VERSION) {
 			header.flags = isc_buffer_getuint32(&target);
@@ -2275,7 +2279,7 @@ load_raw(dns_loadctx_t *lctx) {
 		rdatalist.covers = isc_buffer_getuint16(&target);
 		rdatalist.ttl =  isc_buffer_getuint32(&target);
 		rdcount = isc_buffer_getuint32(&target);
-		if (rdcount == 0) {
+		if (rdcount == 0 || rdcount > 0xffff) {
 			result = ISC_R_RANGE;
 			goto cleanup;
 		}

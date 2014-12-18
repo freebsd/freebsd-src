@@ -162,6 +162,8 @@ options {
         max-ixfr-log-size <size>; // obsolete
         max-journal-size <size_no_default>;
         max-ncache-ttl <integer>;
+        max-recursion-depth <integer>;
+        max-recursion-queries <integer>;
         max-refresh-time <integer>;
         max-retry-time <integer>;
         max-rsa-exponent-size <integer>;
@@ -179,6 +181,7 @@ options {
         multi-master <boolean>;
         multiple-cnames <boolean>; // obsolete
         named-xfer <quoted_string>; // obsolete
+        no-case-compress { <address_match_element>; ... };
         notify <notifytype>;
         notify-delay <integer>;
         notify-source ( <ipv4_address> | * ) [ port ( <integer> | * ) ];
@@ -320,7 +323,6 @@ view <string> <optional_class> {
         check-wildcard <boolean>;
         cleaning-interval <integer>;
         clients-per-query <integer>;
-        database <string>;
         deny-answer-addresses { <address_match_element>; ... } [
             except-from { <quoted_string>; ... } ];
         deny-answer-aliases { <quoted_string>; ... } [ except-from {
@@ -385,6 +387,8 @@ view <string> <optional_class> {
         max-ixfr-log-size <size>; // obsolete
         max-journal-size <size_no_default>;
         max-ncache-ttl <integer>;
+        max-recursion-depth <integer>;
+        max-recursion-queries <integer>;
         max-refresh-time <integer>;
         max-retry-time <integer>;
         max-transfer-idle-in <integer>;
@@ -397,6 +401,7 @@ view <string> <optional_class> {
         min-roots <integer>; // not implemented
         minimal-responses <boolean>;
         multi-master <boolean>;
+        no-case-compress { <address_match_element>; ... };
         notify <notifytype>;
         notify-delay <integer>;
         notify-source ( <ipv4_address> | * ) [ port ( <integer> | * ) ];

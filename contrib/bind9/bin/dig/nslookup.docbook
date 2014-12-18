@@ -17,7 +17,6 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: nslookup.docbook,v 1.18 2010/02/22 23:49:11 tbox Exp $ -->
 <!--
  - Copyright (c) 1985, 1989
  -    The Regents of the University of California.  All rights reserved.
@@ -49,7 +48,7 @@
 <refentry>
 
   <refentryinfo>
-    <date>Jun 30, 2000</date>
+    <date>January 24, 2014</date>
   </refentryinfo>
 
   <refmeta>
@@ -133,6 +132,11 @@
 nslookup -query=hinfo  -timeout=10
 </programlisting>
       <!-- </informalexample> -->
+    </para>
+    <para>
+      The <option>-version</option> option causes
+      <command>nslookup</command> to print the version
+      number and immediately exits.
     </para>
 
   </refsect1>

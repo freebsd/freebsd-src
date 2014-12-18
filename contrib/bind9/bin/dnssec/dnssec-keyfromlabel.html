@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2008-2012 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2008-2012, 2014 Internet Systems Consortium, Inc. ("ISC")
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -28,14 +28,17 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">dnssec-keyfromlabel</code>  {-l <em class="replaceable"><code>label</code></em>} [<code class="option">-3</code>] [<code class="option">-a <em class="replaceable"><code>algorithm</code></em></code>] [<code class="option">-A <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-D <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-E <em class="replaceable"><code>engine</code></em></code>] [<code class="option">-f <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-G</code>] [<code class="option">-I <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-k</code>] [<code class="option">-K <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-L <em class="replaceable"><code>ttl</code></em></code>] [<code class="option">-n <em class="replaceable"><code>nametype</code></em></code>] [<code class="option">-P <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-p <em class="replaceable"><code>protocol</code></em></code>] [<code class="option">-R <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-t <em class="replaceable"><code>type</code></em></code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-y</code>] {name}</p></div>
+<div class="cmdsynopsis"><p><code class="command">dnssec-keyfromlabel</code>  {-l <em class="replaceable"><code>label</code></em>} [<code class="option">-3</code>] [<code class="option">-a <em class="replaceable"><code>algorithm</code></em></code>] [<code class="option">-A <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-D <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-E <em class="replaceable"><code>engine</code></em></code>] [<code class="option">-f <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-G</code>] [<code class="option">-I <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-i <em class="replaceable"><code>interval</code></em></code>] [<code class="option">-k</code>] [<code class="option">-K <em class="replaceable"><code>directory</code></em></code>] [<code class="option">-L <em class="replaceable"><code>ttl</code></em></code>] [<code class="option">-n <em class="replaceable"><code>nametype</code></em></code>] [<code class="option">-P <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-p <em class="replaceable"><code>protocol</code></em></code>] [<code class="option">-R <em class="replaceable"><code>date/offset</code></em></code>] [<code class="option">-S <em class="replaceable"><code>key</code></em></code>] [<code class="option">-t <em class="replaceable"><code>type</code></em></code>] [<code class="option">-v <em class="replaceable"><code>level</code></em></code>] [<code class="option">-V</code>] [<code class="option">-y</code>] {name}</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543507"></a><h2>DESCRIPTION</h2>
+<a name="id2543539"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">dnssec-keyfromlabel</strong></span>
-      gets keys with the given label from a crypto hardware and builds
-      key files for DNSSEC (Secure DNS), as defined in RFC 2535
-      and RFC 4034.  
+      generates a key pair of files that referencing a key object stored
+      in a cryptographic hardware service module (HSM).  The private key
+      file can be used for DNSSEC signing of zone data as if it were a
+      conventional signing key created by <span><strong class="command">dnssec-keygen</strong></span>,
+      but the key material is stored within the HSM, and the actual signing
+      takes place there.
     </p>
 <p>
       The <code class="option">name</code> of the key is specified on the command
@@ -44,7 +47,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543525"></a><h2>OPTIONS</h2>
+<a name="id2543560"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-a <em class="replaceable"><code>algorithm</code></em></span></dt>
 <dd>
@@ -151,6 +154,16 @@
             Other possible values for this argument are listed in
             RFC 2535 and its successors.
           </p></dd>
+<dt><span class="term">-S <em class="replaceable"><code>key</code></em></span></dt>
+<dd><p>
+            Generate a key as an explicit successor to an existing key.
+	    The name, algorithm, size, and type of the key will be set
+	    to match the predecessor. The activation date of the new
+	    key will be set to the inactivation date of the existing
+	    one. The publication date will be set to the activation
+	    date minus the prepublication interval, which defaults to
+	    30 days.
+          </p></dd>
 <dt><span class="term">-t <em class="replaceable"><code>type</code></em></span></dt>
 <dd><p>
             Indicates the use of the key.  <code class="option">type</code> must be
@@ -162,6 +175,10 @@
 <dd><p>
             Sets the debugging level.
           </p></dd>
+<dt><span class="term">-V</span></dt>
+<dd><p>
+	    Prints version information.
+	  </p></dd>
 <dt><span class="term">-y</span></dt>
 <dd><p>
             Allows DNSSEC key files to be generated even if the key ID
@@ -173,7 +190,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543980"></a><h2>TIMING OPTIONS</h2>
+<a name="id2544046"></a><h2>TIMING OPTIONS</h2>
 <p>
       Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS.
       If the argument begins with a '+' or '-', it is interpreted as
@@ -182,7 +199,8 @@
       then the offset is computed in years (defined as 365 24-hour days,
       ignoring leap years), months (defined as 30 24-hour days), weeks,
       days, hours, or minutes, respectively.  Without a suffix, the offset
-      is computed in seconds.
+      is computed in seconds.  To explicitly prevent a date from being
+      set, use 'none' or 'never'.
     </p>
 <div class="variablelist"><dl>
 <dt><span class="term">-P <em class="replaceable"><code>date/offset</code></em></span></dt>
@@ -217,10 +235,34 @@
             date, the key will no longer be included in the zone.  (It
             may remain in the key repository, however.)
           </p></dd>
+<dt><span class="term">-i <em class="replaceable"><code>interval</code></em></span></dt>
+<dd>
+<p>
+            Sets the prepublication interval for a key.  If set, then
+            the publication and activation dates must be separated by at least
+            this much time.  If the activation date is specified but the
+            publication date isn't, then the publication date will default
+            to this much time before the activation date; conversely, if
+            the publication date is specified but activation date isn't,
+            then activation will be set to this much time after publication.
+          </p>
+<p>
+            If the key is being created as an explicit successor to another
+            key, then the default prepublication interval is 30 days; 
+            otherwise it is zero.
+          </p>
+<p>
+            As with date offsets, if the argument is followed by one of
+            the suffixes 'y', 'mo', 'w', 'd', 'h', or 'mi', then the
+            interval is measured in years, months, weeks, days, hours,
+            or minutes, respectively.  Without a suffix, the interval is
+            measured in seconds.
+          </p>
+</dd>
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543054"></a><h2>GENERATED KEY FILES</h2>
+<a name="id2543008"></a><h2>GENERATED KEY FILES</h2>
 <p>
       When <span><strong class="command">dnssec-keyfromlabel</strong></span> completes
       successfully,
@@ -259,7 +301,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543127"></a><h2>SEE ALSO</h2>
+<a name="id2543080"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dnssec-keygen</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">dnssec-signzone</span>(8)</span>,
       <em class="citetitle">BIND 9 Administrator Reference Manual</em>,
@@ -267,7 +309,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543160"></a><h2>AUTHOR</h2>
+<a name="id2543113"></a><h2>AUTHOR</h2>
 <p><span class="corpauthor">Internet Systems Consortium</span>
     </p>
 </div>

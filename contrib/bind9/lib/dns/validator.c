@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -343,7 +343,7 @@ isdelegation(dns_name_t *name, dns_rdataset_t *rdataset,
 		dns_name_getlabel(&nsec3name, 0, &hashlabel);
 		isc_region_consume(&hashlabel, 1);
 		isc_buffer_init(&buffer, owner, sizeof(owner));
-		result = isc_base32hex_decoderegion(&hashlabel, &buffer);
+		result = isc_base32hexnp_decoderegion(&hashlabel, &buffer);
 		if (result != ISC_R_SUCCESS) {
 			dns_rdataset_disassociate(&set);
 			continue;
@@ -918,12 +918,26 @@ authvalidated(isc_task_t *task, isc_event_t *event) {
 						devent->name;
 			}
 			if (!exists) {
+				dns_name_t *closest;
+				unsigned int clabels;
+
 				val->attributes |= VALATTR_FOUNDNOQNAME;
-				val->attributes |= VALATTR_FOUNDCLOSEST;
+
+				closest = dns_fixedname_name(&val->closest);
+				clabels = dns_name_countlabels(closest);
+				/*
+				 * If we are validating a wildcard response
+				 * clabels will not be zero.  We then need
+				 * to check if the generated wilcard from
+				 * dns_nsec_noexistnodata is consistent with
+				 * the wildcard used to generate the response.
+				 */
+				if (clabels == 0 ||
+				    dns_name_countlabels(wild) == clabels + 1)
+					val->attributes |= VALATTR_FOUNDCLOSEST;
 				/*
 				 * The NSEC noqname proof also contains
 				 * the closest encloser.
-
 				 */
 				if (NEEDNOQNAME(val))
 					proofs[DNS_VALIDATOR_NOQNAMEPROOF] =
@@ -2803,7 +2817,8 @@ nsecvalidate(dns_validator_t *val, isc_boolean_t resume) {
 	if (!NEEDNODATA(val) && !NEEDNOWILDCARD(val) && NEEDNOQNAME(val)) {
 		if (!FOUNDNOQNAME(val))
 			findnsec3proofs(val);
-		if (FOUNDNOQNAME(val) && FOUNDCLOSEST(val)) {
+		if (FOUNDNOQNAME(val) && FOUNDCLOSEST(val) &&
+		    !FOUNDOPTOUT(val)) {
 			validator_log(val, ISC_LOG_DEBUG(3),
 				      "marking as secure, noqname proof found");
 			marksecure(val->event);

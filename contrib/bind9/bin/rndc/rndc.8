@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005, 2007, 2013 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -20,11 +20,11 @@
 .\"     Title: rndc
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: June 7, 2013
+.\"      Date: December 04, 2013
 .\"    Manual: BIND9
 .\"    Source: BIND9
 .\"
-.TH "RNDC" "8" "June 7, 2013" "BIND9" "BIND9"
+.TH "RNDC" "8" "December 04, 2013" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -364,7 +364,7 @@ can be deleted in this manner.
 .PP
 \fBsigning \fR\fB[( \-list | \-clear \fIkeyid/algorithm\fR | \-clear all | \-nsec3param ( \fIparameters\fR | none ) ) ]\fR\fB \fR\fB\fIzone\fR\fR\fB \fR\fB[\fIclass\fR [\fIview\fR]]\fR\fB \fR
 .RS 4
-List, edit, or remove the DNSSEC signing state for the specified zone. The status of ongoing DNSSEC operations (such as signing or generating NSEC3 chains) is stored in the zone in the form of DNS resource records of type
+List, edit, or remove the DNSSEC signing state records for the specified zone. The status of ongoing DNSSEC operations (such as signing or generating NSEC3 chains) is stored in the zone in the form of DNS resource records of type
 \fBsig\-signing\-type\fR.
 \fBrndc signing \-list\fR
 converts these records into a human\-readable form, indicating which keys are currently signing or have finished signing the zone, and which NSEC3 chains are being created or removed.
@@ -417,7 +417,7 @@ BIND 9 Administrator Reference Manual.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007, 2013 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000, 2001 Internet Software Consortium.
 .br

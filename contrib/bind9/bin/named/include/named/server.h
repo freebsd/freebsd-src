@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -345,7 +345,7 @@ ns_server_validation(ns_server_t *server, char *args);
  * Add a zone to a running process
  */
 isc_result_t
-ns_server_add_zone(ns_server_t *server, char *args);
+ns_server_add_zone(ns_server_t *server, char *args, isc_buffer_t *text);
 
 /*%
  * Deletes a zone from a running process

@@ -1,6 +1,7 @@
 Frequently Asked Questions about BIND 9
 
-Copyright © 2004-2010, 2013 Internet Systems Consortium, Inc. ("ISC")
+Copyright © 2004-2010, 2013, 2014 Internet Systems Consortium, Inc.
+("ISC")
 
 Copyright © 2000-2003 Internet Software Consortium.
 
@@ -28,8 +29,8 @@ A: Short Answer: No.
    What addresses to listen on? For a laptop on the move a lot you may
    only want to listen on the loop back interfaces.
 
-   Who do you offer recursive service to? Is there are firewall to
-   consider? If so is it stateless or stateful. Are you directly on the
+   To whom do you offer recursive service? Is there a firewall to
+   consider? If so, is it stateless or stateful? Are you directly on the
    Internet? Are you on a private network? Are you on a NAT'd network? The
    answers to all these questions change how you configure even a caching
    name server.
@@ -104,8 +105,8 @@ A: You are most likely running named as a non-root user, and that user
    fixing this are to create a /var/run/named directory owned by the named
    user and set pid-file to "/var/run/named/named.pid", or set pid-file to
    "named.pid", which will put the file in the directory specified by the
-   directory option (which, in this case, must be writable by the named
-   user).
+   directory option (which, in this case, must be writable by the user
+   named is running as).
 
 Q: I can query the nameserver from the nameserver but not from other
    machines. Why?
@@ -264,7 +265,7 @@ Q: I get a error message like "zone wireless.ietf56.ietf.org/IN: loading
    master file primaries/wireless.ietf56.ietf.org: no owner".
 
 A: This error is produced when a line in the master file contains leading
-   white space (tab/space) but the is no current record owner name to
+   white space (tab/space) but there is no current record owner name to
    inherit the name from. Usually this is the result of putting white
    space before a comment, forgetting the "@" for the SOA record, or
    indenting the master file.

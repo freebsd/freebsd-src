@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
                [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2010, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2010, 2012-2014  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -68,12 +68,13 @@
         is an example of such a device.</para>
       </listitem>
     </itemizedlist>
-    <para>The modified OpenSSL code is included in the BIND 9 release,
-        in the form of a context diff against the latest verions of
-        OpenSSL.  OpenSSL 0.9.8, 1.0.0 and 1.0.1 are supported; there are
-        separate diffs for each version.  In the examples to follow,
-        we use OpenSSL 0.9.8, but the same methods work with OpenSSL 1.0.0
-	and 1.0.1.
+    <para>
+      The modified OpenSSL code is included in the BIND 9 release,
+      in the form of a context diff against the latest versions of
+      OpenSSL.  OpenSSL 0.9.8, 1.0.0, and 1.0.1 are supported; there are
+      separate diffs for each version.  In the examples to follow,
+      we use OpenSSL 0.9.8, but the same methods work with OpenSSL
+      1.0.0 and 1.0.1.
     </para>
     <note>
       The latest OpenSSL versions at the time of the BIND release

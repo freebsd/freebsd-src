@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2008-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -13,8 +13,6 @@
  * OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  * PERFORMANCE OF THIS SOFTWARE.
  */
-
-/* $Id: dnssec-dsfromkey.c,v 1.24 2011/10/25 01:54:18 marka Exp $ */
 
 /*! \file */
 
@@ -326,6 +324,7 @@ usage(void) {
 	fprintf(stderr, "Version: %s\n", VERSION);
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr, "    -v <verbose level>\n");
+	fprintf(stderr, "    -V: print version information\n");
 	fprintf(stderr, "    -K <directory>: directory in which to find "
 			"key file or keyset file\n");
 	fprintf(stderr, "    -a algorithm: digest algorithm "
@@ -375,7 +374,7 @@ main(int argc, char **argv) {
 	isc_commandline_errprint = ISC_FALSE;
 
 	while ((ch = isc_commandline_parse(argc, argv,
-					   "12Aa:c:d:Ff:K:l:sT:v:h")) != -1) {
+					   "12Aa:c:d:Ff:K:l:sT:v:hV")) != -1) {
 		switch (ch) {
 		case '1':
 			dtype = DNS_DSDIGEST_SHA1;
@@ -432,7 +431,12 @@ main(int argc, char **argv) {
 					program, isc_commandline_option);
 			/* FALLTHROUGH */
 		case 'h':
+			/* Does not return. */
 			usage();
+
+		case 'V':
+			/* Does not return. */
+			version(program);
 
 		default:
 			fprintf(stderr, "%s: unhandled option -%c\n",

@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2011, 2013 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2011, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -20,11 +20,11 @@
 .\"     Title: dig
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: June 30, 2000
+.\"      Date: February 12, 2014
 .\"    Manual: BIND9
 .\"    Source: BIND9
 .\"
-.TH "DIG" "1" "June 30, 2000" "BIND9" "BIND9"
+.TH "DIG" "1" "February 12, 2014" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -33,7 +33,7 @@
 dig \- DNS lookup utility
 .SH "SYNOPSIS"
 .HP 4
-\fBdig\fR [@server] [\fB\-b\ \fR\fB\fIaddress\fR\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIfilename\fR\fR] [\fB\-k\ \fR\fB\fIfilename\fR\fR] [\fB\-m\fR] [\fB\-p\ \fR\fB\fIport#\fR\fR] [\fB\-q\ \fR\fB\fIname\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-x\ \fR\fB\fIaddr\fR\fR] [\fB\-y\ \fR\fB\fI[hmac:]\fR\fIname:key\fR\fR] [\fB\-4\fR] [\fB\-6\fR] [name] [type] [class] [queryopt...]
+\fBdig\fR [@server] [\fB\-b\ \fR\fB\fIaddress\fR\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIfilename\fR\fR] [\fB\-k\ \fR\fB\fIfilename\fR\fR] [\fB\-m\fR] [\fB\-p\ \fR\fB\fIport#\fR\fR] [\fB\-q\ \fR\fB\fIname\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-v\fR] [\fB\-x\ \fR\fB\fIaddr\fR\fR] [\fB\-y\ \fR\fB\fI[hmac:]\fR\fIname:key\fR\fR] [\fB\-4\fR] [\fB\-6\fR] [name] [type] [class] [queryopt...]
 .HP 4
 \fBdig\fR [\fB\-h\fR]
 .HP 4
@@ -70,7 +70,7 @@ It is possible to set per\-user defaults for
 via
 \fI${HOME}/.digrc\fR. This file is read and any options in it are applied before the command line arguments.
 .PP
-The IN and CH class names overlap with the IN and CH top level domains names. Either use the
+The IN and CH class names overlap with the IN and CH top level domain names. Either use the
 \fB\-t\fR
 and
 \fB\-c\fR
@@ -186,9 +186,15 @@ ixfr=N. The incremental zone transfer will contain the changes made to the zone 
 The
 \fB\-q\fR
 option sets the query name to
-\fIname\fR. This useful do distinguish the
+\fIname\fR. This is useful to distinguish the
 \fIname\fR
 from other arguments.
+.PP
+The
+\fB\-v\fR
+causes
+\fBdig\fR
+to print the version number and exit.
 .PP
 Reverse lookups \(em mapping addresses to names \(em are simplified by the
 \fB\-x\fR
@@ -241,21 +247,85 @@ no
 to negate the meaning of that keyword. Other keywords assign values to options like the timeout interval. They have the form
 \fB+keyword=value\fR. The query options are:
 .PP
-\fB+[no]tcp\fR
+\fB+[no]aaflag\fR
 .RS 4
-Use [do not use] TCP when querying name servers. The default behavior is to use UDP unless an AXFR or IXFR query is requested, in which case a TCP connection is used.
+A synonym for
+\fI+[no]aaonly\fR.
 .RE
 .PP
-\fB+[no]vc\fR
+\fB+[no]aaonly\fR
 .RS 4
-Use [do not use] TCP when querying name servers. This alternate syntax to
-\fI+[no]tcp\fR
-is provided for backwards compatibility. The "vc" stands for "virtual circuit".
+Sets the "aa" flag in the query.
 .RE
 .PP
-\fB+[no]ignore\fR
+\fB+[no]additional\fR
 .RS 4
-Ignore truncation in UDP responses instead of retrying with TCP. By default, TCP retries are performed.
+Display [do not display] the additional section of a reply. The default is to display it.
+.RE
+.PP
+\fB+[no]adflag\fR
+.RS 4
+Set [do not set] the AD (authentic data) bit in the query. This requests the server to return whether all of the answer and authority sections have all been validated as secure according to the security policy of the server. AD=1 indicates that all records have been validated as secure and the answer is not from a OPT\-OUT range. AD=0 indicate that some part of the answer was insecure or not validated. This bit is set by default.
+.RE
+.PP
+\fB+[no]all\fR
+.RS 4
+Set or clear all display flags.
+.RE
+.PP
+\fB+[no]answer\fR
+.RS 4
+Display [do not display] the answer section of a reply. The default is to display it.
+.RE
+.PP
+\fB+[no]authority\fR
+.RS 4
+Display [do not display] the authority section of a reply. The default is to display it.
+.RE
+.PP
+\fB+[no]besteffort\fR
+.RS 4
+Attempt to display the contents of messages which are malformed. The default is to not display malformed answers.
+.RE
+.PP
+\fB+bufsize=B\fR
+.RS 4
+Set the UDP message buffer size advertised using EDNS0 to
+\fIB\fR
+bytes. The maximum and minimum sizes of this buffer are 65535 and 0 respectively. Values outside this range are rounded up or down appropriately. Values other than zero will cause a EDNS query to be sent.
+.RE
+.PP
+\fB+[no]cdflag\fR
+.RS 4
+Set [do not set] the CD (checking disabled) bit in the query. This requests the server to not perform DNSSEC validation of responses.
+.RE
+.PP
+\fB+[no]cl\fR
+.RS 4
+Display [do not display] the CLASS when printing the record.
+.RE
+.PP
+\fB+[no]cmd\fR
+.RS 4
+Toggles the printing of the initial comment in the output identifying the version of
+\fBdig\fR
+and the query options that have been applied. This comment is printed by default.
+.RE
+.PP
+\fB+[no]comments\fR
+.RS 4
+Toggle the display of comment lines in the output. The default is to print comments.
+.RE
+.PP
+\fB+[no]defname\fR
+.RS 4
+Deprecated, treated as a synonym for
+\fI+[no]search\fR
+.RE
+.PP
+\fB+[no]dnssec\fR
+.RS 4
+Requests DNSSEC records be sent by setting the DNSSEC OK bit (DO) in the OPT record in the additional section of the query.
 .RE
 .PP
 \fB+domain=somename\fR
@@ -269,53 +339,83 @@ directive in
 option were given.
 .RE
 .PP
-\fB+[no]search\fR
+\fB+[no]edns[=#]\fR
 .RS 4
-Use [do not use] the search list defined by the searchlist or domain directive in
-\fIresolv.conf\fR
-(if any). The search list is not used by default.
+Specify the EDNS version to query with. Valid values are 0 to 255. Setting the EDNS version will cause a EDNS query to be sent.
+\fB+noedns\fR
+clears the remembered EDNS version. EDNS is set to 0 by default.
 .RE
 .PP
-\fB+[no]showsearch\fR
+\fB+[no]fail\fR
 .RS 4
-Perform [do not perform] a search showing intermediate results.
+Do not try the next server if you receive a SERVFAIL. The default is to not try the next server which is the reverse of normal stub resolver behavior.
 .RE
 .PP
-\fB+[no]defname\fR
+\fB+[no]identify\fR
 .RS 4
-Deprecated, treated as a synonym for
-\fI+[no]search\fR
+Show [or do not show] the IP address and port number that supplied the answer when the
+\fI+short\fR
+option is enabled. If short form answers are requested, the default is not to show the source address and port number of the server that provided the answer.
 .RE
 .PP
-\fB+[no]aaonly\fR
+\fB+[no]ignore\fR
 .RS 4
-Sets the "aa" flag in the query.
+Ignore truncation in UDP responses instead of retrying with TCP. By default, TCP retries are performed.
 .RE
 .PP
-\fB+[no]aaflag\fR
+\fB+[no]keepopen\fR
 .RS 4
-A synonym for
-\fI+[no]aaonly\fR.
+Keep the TCP socket open between queries and reuse it rather than creating a new TCP socket for each lookup. The default is
+\fB+nokeepopen\fR.
 .RE
 .PP
-\fB+[no]adflag\fR
+\fB+[no]multiline\fR
 .RS 4
-Set [do not set] the AD (authentic data) bit in the query. This requests the server to return whether all of the answer and authority sections have all been validated as secure according to the security policy of the server. AD=1 indicates that all records have been validated as secure and the answer is not from a OPT\-OUT range. AD=0 indicate that some part of the answer was insecure or not validated. This bit is set by default.
+Print records like the SOA records in a verbose multi\-line format with human\-readable comments. The default is to print each record on a single line, to facilitate machine parsing of the
+\fBdig\fR
+output.
 .RE
 .PP
-\fB+[no]cdflag\fR
+\fB+ndots=D\fR
 .RS 4
-Set [do not set] the CD (checking disabled) bit in the query. This requests the server to not perform DNSSEC validation of responses.
+Set the number of dots that have to appear in
+\fIname\fR
+to
+\fID\fR
+for it to be considered absolute. The default value is that defined using the ndots statement in
+\fI/etc/resolv.conf\fR, or 1 if no ndots statement is present. Names with fewer dots are interpreted as relative names and will be searched for in the domains listed in the
+\fBsearch\fR
+or
+\fBdomain\fR
+directive in
+\fI/etc/resolv.conf\fR.
 .RE
 .PP
-\fB+[no]cl\fR
+\fB+[no]nsid\fR
 .RS 4
-Display [do not display] the CLASS when printing the record.
+Include an EDNS name server ID request when sending a query.
 .RE
 .PP
-\fB+[no]ttlid\fR
+\fB+[no]nssearch\fR
 .RS 4
-Display [do not display] the TTL when printing the record.
+When this option is set,
+\fBdig\fR
+attempts to find the authoritative name servers for the zone containing the name being looked up and display the SOA record that each name server has for the zone.
+.RE
+.PP
+\fB+[no]onesoa\fR
+.RS 4
+Print only one (starting) SOA record when performing an AXFR. The default is to print both the starting and ending SOA records.
+.RE
+.PP
+\fB+[no]qr\fR
+.RS 4
+Print [do not print] the query as it is sent. By default, the query is not printed.
+.RE
+.PP
+\fB+[no]question\fR
+.RS 4
+Print [do not print] the question section of a query when an answer is returned. The default is to print the question section as a comment.
 .RE
 .PP
 \fB+[no]recurse\fR
@@ -329,28 +429,24 @@ or
 query options are used.
 .RE
 .PP
-\fB+[no]nssearch\fR
+\fB+retry=T\fR
 .RS 4
-When this option is set,
-\fBdig\fR
-attempts to find the authoritative name servers for the zone containing the name being looked up and display the SOA record that each name server has for the zone.
+Sets the number of times to retry UDP queries to server to
+\fIT\fR
+instead of the default, 2. Unlike
+\fI+tries\fR, this does not include the initial query.
 .RE
 .PP
-\fB+[no]trace\fR
+\fB+[no]rrcomments\fR
 .RS 4
-Toggle tracing of the delegation path from the root name servers for the name being looked up. Tracing is disabled by default. When tracing is enabled,
-\fBdig\fR
-makes iterative queries to resolve the name being looked up. It will follow referrals from the root servers, showing the answer from each server that was used to resolve the lookup.
-.sp
-\fB+dnssec\fR
-is also set when +trace is set to better emulate the default queries from a nameserver.
+Toggle the display of per\-record comments in the output (for example, human\-readable key information about DNSKEY records). The default is not to print record comments unless multiline mode is active.
 .RE
 .PP
-\fB+[no]cmd\fR
+\fB+[no]search\fR
 .RS 4
-Toggles the printing of the initial comment in the output identifying the version of
-\fBdig\fR
-and the query options that have been applied. This comment is printed by default.
+Use [do not use] the search list defined by the searchlist or domain directive in
+\fIresolv.conf\fR
+(if any). The search list is not used by default.
 .RE
 .PP
 \fB+[no]short\fR
@@ -358,21 +454,14 @@ and the query options that have been applied. This comment is printed by default
 Provide a terse answer. The default is to print the answer in a verbose form.
 .RE
 .PP
-\fB+[no]identify\fR
+\fB+[no]showsearch\fR
 .RS 4
-Show [or do not show] the IP address and port number that supplied the answer when the
-\fI+short\fR
-option is enabled. If short form answers are requested, the default is not to show the source address and port number of the server that provided the answer.
+Perform [do not perform] a search showing intermediate results.
 .RE
 .PP
-\fB+[no]comments\fR
+\fB+[no]sigchase\fR
 .RS 4
-Toggle the display of comment lines in the output. The default is to print comments.
-.RE
-.PP
-\fB+[no]rrcomments\fR
-.RS 4
-Toggle the display of per\-record comments in the output (for example, human\-readable key information about DNSKEY records). The default is not to print record comments unless multiline mode is active.
+Chase DNSSEC signature chains. Requires dig be compiled with \-DDIG_SIGCHASE.
 .RE
 .PP
 \fB+split=W\fR
@@ -393,34 +482,11 @@ causes fields not to be split at all. The default is 56 characters, or 44 charac
 This query option toggles the printing of statistics: when the query was made, the size of the reply and so on. The default behavior is to print the query statistics.
 .RE
 .PP
-\fB+[no]qr\fR
+\fB+[no]tcp\fR
 .RS 4
-Print [do not print] the query as it is sent. By default, the query is not printed.
-.RE
-.PP
-\fB+[no]question\fR
-.RS 4
-Print [do not print] the question section of a query when an answer is returned. The default is to print the question section as a comment.
-.RE
-.PP
-\fB+[no]answer\fR
-.RS 4
-Display [do not display] the answer section of a reply. The default is to display it.
-.RE
-.PP
-\fB+[no]authority\fR
-.RS 4
-Display [do not display] the authority section of a reply. The default is to display it.
-.RE
-.PP
-\fB+[no]additional\fR
-.RS 4
-Display [do not display] the additional section of a reply. The default is to display it.
-.RE
-.PP
-\fB+[no]all\fR
-.RS 4
-Set or clear all display flags.
+Use [do not use] TCP when querying name servers. The default behavior is to use UDP unless an
+ixfr=N
+query is requested, in which case the default is TCP. AXFR queries always use TCP.
 .RE
 .PP
 \fB+time=T\fR
@@ -432,6 +498,21 @@ seconds. The default timeout is 5 seconds. An attempt to set
 to less than 1 will result in a query timeout of 1 second being applied.
 .RE
 .PP
+\fB+[no]topdown\fR
+.RS 4
+When chasing DNSSEC signature chains perform a top\-down validation. Requires dig be compiled with \-DDIG_SIGCHASE.
+.RE
+.PP
+\fB+[no]trace\fR
+.RS 4
+Toggle tracing of the delegation path from the root name servers for the name being looked up. Tracing is disabled by default. When tracing is enabled,
+\fBdig\fR
+makes iterative queries to resolve the name being looked up. It will follow referrals from the root servers, showing the answer from each server that was used to resolve the lookup.
+.sp
+\fB+dnssec\fR
+is also set when +trace is set to better emulate the default queries from a nameserver.
+.RE
+.PP
 \fB+tries=T\fR
 .RS 4
 Sets the number of times to try UDP queries to server to
@@ -439,75 +520,6 @@ Sets the number of times to try UDP queries to server to
 instead of the default, 3. If
 \fIT\fR
 is less than or equal to zero, the number of tries is silently rounded up to 1.
-.RE
-.PP
-\fB+retry=T\fR
-.RS 4
-Sets the number of times to retry UDP queries to server to
-\fIT\fR
-instead of the default, 2. Unlike
-\fI+tries\fR, this does not include the initial query.
-.RE
-.PP
-\fB+ndots=D\fR
-.RS 4
-Set the number of dots that have to appear in
-\fIname\fR
-to
-\fID\fR
-for it to be considered absolute. The default value is that defined using the ndots statement in
-\fI/etc/resolv.conf\fR, or 1 if no ndots statement is present. Names with fewer dots are interpreted as relative names and will be searched for in the domains listed in the
-\fBsearch\fR
-or
-\fBdomain\fR
-directive in
-\fI/etc/resolv.conf\fR.
-.RE
-.PP
-\fB+bufsize=B\fR
-.RS 4
-Set the UDP message buffer size advertised using EDNS0 to
-\fIB\fR
-bytes. The maximum and minimum sizes of this buffer are 65535 and 0 respectively. Values outside this range are rounded up or down appropriately. Values other than zero will cause a EDNS query to be sent.
-.RE
-.PP
-\fB+edns=#\fR
-.RS 4
-Specify the EDNS version to query with. Valid values are 0 to 255. Setting the EDNS version will cause a EDNS query to be sent.
-\fB+noedns\fR
-clears the remembered EDNS version. EDNS is set to 0 by default.
-.RE
-.PP
-\fB+[no]multiline\fR
-.RS 4
-Print records like the SOA records in a verbose multi\-line format with human\-readable comments. The default is to print each record on a single line, to facilitate machine parsing of the
-\fBdig\fR
-output.
-.RE
-.PP
-\fB+[no]onesoa\fR
-.RS 4
-Print only one (starting) SOA record when performing an AXFR. The default is to print both the starting and ending SOA records.
-.RE
-.PP
-\fB+[no]fail\fR
-.RS 4
-Do not try the next server if you receive a SERVFAIL. The default is to not try the next server which is the reverse of normal stub resolver behavior.
-.RE
-.PP
-\fB+[no]besteffort\fR
-.RS 4
-Attempt to display the contents of messages which are malformed. The default is to not display malformed answers.
-.RE
-.PP
-\fB+[no]dnssec\fR
-.RS 4
-Requests DNSSEC records be sent by setting the DNSSEC OK bit (DO) in the OPT record in the additional section of the query.
-.RE
-.PP
-\fB+[no]sigchase\fR
-.RS 4
-Chase DNSSEC signature chains. Requires dig be compiled with \-DDIG_SIGCHASE.
 .RE
 .PP
 \fB+trusted\-key=####\fR
@@ -526,20 +538,16 @@ in the current directory.
 Requires dig be compiled with \-DDIG_SIGCHASE.
 .RE
 .PP
-\fB+[no]topdown\fR
+\fB+[no]ttlid\fR
 .RS 4
-When chasing DNSSEC signature chains perform a top\-down validation. Requires dig be compiled with \-DDIG_SIGCHASE.
+Display [do not display] the TTL when printing the record.
 .RE
 .PP
-\fB+[no]nsid\fR
+\fB+[no]vc\fR
 .RS 4
-Include an EDNS name server ID request when sending a query.
-.RE
-.PP
-\fB+[no]keepopen\fR
-.RS 4
-Keep the TCP socket open between queries and reuse it rather than creating a new TCP socket for each lookup. The default is
-\fB+nokeepopen\fR.
+Use [do not use] TCP when querying name servers. This alternate syntax to
+\fI+[no]tcp\fR
+is provided for backwards compatibility. The "vc" stands for "virtual circuit".
 .RE
 .SH "MULTIPLE QUERIES"
 .PP
@@ -603,7 +611,7 @@ RFC1035.
 .PP
 There are probably too many query options.
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2011, 2013 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2011, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2003 Internet Software Consortium.
 .br

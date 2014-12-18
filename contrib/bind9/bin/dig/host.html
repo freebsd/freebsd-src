@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005, 2007-2009 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007-2009, 2014 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2002 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -29,10 +29,10 @@
 </div>
 <div class="refsynopsisdiv">
 <h2>Synopsis</h2>
-<div class="cmdsynopsis"><p><code class="command">host</code>  [<code class="option">-aCdlnrsTwv</code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-N <em class="replaceable"><code>ndots</code></em></code>] [<code class="option">-R <em class="replaceable"><code>number</code></em></code>] [<code class="option">-t <em class="replaceable"><code>type</code></em></code>] [<code class="option">-W <em class="replaceable"><code>wait</code></em></code>] [<code class="option">-m <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-4</code>] [<code class="option">-6</code>] {name} [server]</p></div>
+<div class="cmdsynopsis"><p><code class="command">host</code>  [<code class="option">-aCdlnrsTwv</code>] [<code class="option">-c <em class="replaceable"><code>class</code></em></code>] [<code class="option">-N <em class="replaceable"><code>ndots</code></em></code>] [<code class="option">-R <em class="replaceable"><code>number</code></em></code>] [<code class="option">-t <em class="replaceable"><code>type</code></em></code>] [<code class="option">-W <em class="replaceable"><code>wait</code></em></code>] [<code class="option">-m <em class="replaceable"><code>flag</code></em></code>] [<code class="option">-4</code>] [<code class="option">-6</code>] [<code class="option">-v</code>] [<code class="option">-V</code>] {name} [server]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543436"></a><h2>DESCRIPTION</h2>
+<a name="id2543454"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">host</strong></span>
       is a simple utility for performing DNS lookups.
       It is normally used to convert names to IP addresses and vice versa.
@@ -182,9 +182,13 @@
       <em class="parameter"><code>record</code></em>, <em class="parameter"><code>usage</code></em> and
       <em class="parameter"><code>trace</code></em>.
     </p>
+<p>
+      The <code class="option">-V</code> option causes <span><strong class="command">host</strong></span>
+      to print the version number and exit.
+    </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543802"></a><h2>IDN SUPPORT</h2>
+<a name="id2543831"></a><h2>IDN SUPPORT</h2>
 <p>
       If <span><strong class="command">host</strong></span> has been built with IDN (internationalized
       domain name) support, it can accept and display non-ASCII domain names. 
@@ -198,12 +202,12 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543825"></a><h2>FILES</h2>
+<a name="id2543853"></a><h2>FILES</h2>
 <p><code class="filename">/etc/resolv.conf</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543836"></a><h2>SEE ALSO</h2>
+<a name="id2543865"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dig</span>(1)</span>,
       <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>.
     </p>

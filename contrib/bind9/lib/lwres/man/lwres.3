@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -20,11 +20,11 @@
 .\"     Title: lwres
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: Jun 30, 2000
+.\"      Date: June 18, 2007
 .\"    Manual: BIND9
 .\"    Source: BIND9
 .\"
-.TH "LWRES" "3" "Jun 30, 2000" "BIND9" "BIND9"
+.TH "LWRES" "3" "June 18, 2007" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -39,7 +39,7 @@ lwres \- introduction to the lightweight resolver library
 .PP
 The BIND 9 lightweight resolver library is a simple, name service independent stub resolver library. It provides hostname\-to\-address and address\-to\-hostname lookup services to applications by transmitting lookup requests to a resolver daemon
 \fBlwresd\fR
-running on the local host. The resover daemon performs the lookup using the DNS or possibly other name service protocols, and returns the results to the application through the library. The library and resolver daemon communicate using a simple UDP\-based protocol.
+running on the local host. The resolver daemon performs the lookup using the DNS or possibly other name service protocols, and returns the results to the application through the library. The library and resolver daemon communicate using a simple UDP\-based protocol.
 .SH "OVERVIEW"
 .PP
 The lwresd library implements multiple name service APIs. The standard
@@ -159,7 +159,7 @@ bit should be set.
 \fBresolver\fR(5),
 \fBlwresd\fR(8).
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007, 2014 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000, 2001 Internet Software Consortium.
 .br

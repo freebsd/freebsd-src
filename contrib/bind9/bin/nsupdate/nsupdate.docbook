@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,10 +18,9 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id$ -->
 <refentry id="man.nsupdate">
   <refentryinfo>
-    <date>Aug 25, 2009</date>
+    <date>April 18, 2014</date>
   </refentryinfo>
   <refmeta>
     <refentrytitle><application>nsupdate</application></refentrytitle>
@@ -44,6 +43,7 @@
       <year>2010</year>
       <year>2011</year>
       <year>2012</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -72,6 +72,7 @@
       <arg><option>-r <replaceable class="parameter">udpretries</replaceable></option></arg>
       <arg><option>-R <replaceable class="parameter">randomdev</replaceable></option></arg>
       <arg><option>-v</option></arg>
+      <arg><option>-V</option></arg>
       <arg>filename</arg>
     </cmdsynopsis>
   </refsynopsisdiv>
@@ -158,7 +159,13 @@
       <optional><parameter>hmac:</parameter></optional><parameter>keyname:secret.</parameter>
       <parameter>keyname</parameter> is the name of the key, and
       <parameter>secret</parameter> is the base64 encoded shared secret.
-      Use of the <option>-y</option> option is discouraged because the
+      <parameter>hmac</parameter> is the name of the key algorithm;
+      valid choices are <literal>hmac-md5</literal>,
+      <literal>hmac-sha1</literal>, <literal>hmac-sha224</literal>,
+      <literal>hmac-sha256</literal>, <literal>hmac-sha384</literal>, or
+      <literal>hmac-sha512</literal>.  If <parameter>hmac</parameter>
+      is not specified, the default is <literal>hmac-md5</literal>.
+      NOTE: Use of the <option>-y</option> option is discouraged because the
       shared secret is supplied as a command line argument in clear text.
       This may be visible in the output from
       <citerefentry>
@@ -237,6 +244,10 @@
       instead of the default.  The special value
       <filename>keyboard</filename> indicates that keyboard input
       should be used.  This option may be specified multiple times.
+    </para>
+    <para>
+      The -V option causes <command>nsupdate</command> to print the
+      version number and exit.
     </para>
   </refsect1>
 
@@ -371,15 +382,17 @@
         <varlistentry>
           <term>
               <command>key</command>
-              <arg choice="req">name</arg>
+              <arg choice="opt">hmac:</arg><arg choice="req">keyname</arg>
               <arg choice="req">secret</arg>
             </term>
           <listitem>
             <para>
               Specifies that all updates are to be TSIG-signed using the
-              <parameter>keyname</parameter> <parameter>keysecret</parameter> pair.
-              The <command>key</command> command
-              overrides any key specified on the command line via
+              <parameter>keyname</parameter> <parameter>secret</parameter> pair.
+              If <parameter>hmac</parameter> is specified, then it sets the
+              signing algorithm in use; the default is
+              <literal>hmac-md5</literal>.  The <command>key</command>
+              command overrides any key specified on the command line via
               <option>-y</option> or <option>-k</option>.
             </para>
           </listitem>
@@ -619,6 +632,28 @@
           <listitem>
             <para>
               Turn on debugging.
+            </para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term>
+              <command>version</command>
+            </term>
+          <listitem>
+            <para>
+              Print version number.
+            </para>
+          </listitem>
+        </varlistentry>
+
+        <varlistentry>
+          <term>
+              <command>help</command>
+            </term>
+          <listitem>
+            <para>
+              Print a list of commands.
             </para>
           </listitem>
         </varlistentry>

@@ -64,7 +64,7 @@ totext_spf(ARGS_TOTEXT) {
 	dns_rdata_toregion(rdata, &region);
 
 	while (region.length > 0) {
-		RETERR(txt_totext(&region, target));
+		RETERR(txt_totext(&region, ISC_TRUE, target));
 		if (region.length > 0)
 			RETERR(str_totext(" ", target));
 	}

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2012, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2012-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -331,15 +331,20 @@ insert_into_typenames(int type, const char *typename, const char *attr) {
 		exit(1);
 	}
 
+	/* XXXMUKS: This is redundant due to the INSIST above. */
 	if (strlen(typename) > sizeof(ttn->typename) - 1) {
 		fprintf(stderr, "Error:  type name %s is too long\n",
 			typename);
 		exit(1);
 	}
+
 	strncpy(ttn->typename, typename, sizeof(ttn->typename));
-	ttn->type = type;
+	ttn->typename[sizeof(ttn->typename) - 1] = '\0';
 
 	strncpy(ttn->macroname, ttn->typename, sizeof(ttn->macroname));
+	ttn->macroname[sizeof(ttn->macroname) - 1] = '\0';
+
+	ttn->type = type;
 	c = strlen(ttn->macroname);
 	while (c > 0) {
 		if (ttn->macroname[c - 1] == '-')
@@ -365,7 +370,10 @@ insert_into_typenames(int type, const char *typename, const char *attr) {
 			attr, typename);
 		exit(1);
 	}
+
 	strncpy(ttn->attr, attr, sizeof(ttn->attr));
+	ttn->attr[sizeof(ttn->attr) - 1] = '\0';
+
 	ttn->sorted = 0;
 	if (maxtype < type)
 		maxtype = type;
@@ -394,11 +402,17 @@ add(int rdclass, const char *classname, int type, const char *typename,
 	newtt->next = NULL;
 	newtt->rdclass = rdclass;
 	newtt->type = type;
+
 	strncpy(newtt->classname, classname, sizeof(newtt->classname));
+	newtt->classname[sizeof(newtt->classname) - 1] = '\0';
+
 	strncpy(newtt->typename, typename, sizeof(newtt->typename));
+	newtt->typename[sizeof(newtt->typename) - 1] = '\0';
+
 	if (strncmp(dirname, "./", 2) == 0)
 		dirname += 2;
 	strncpy(newtt->dirname, dirname, sizeof(newtt->dirname));
+	newtt->dirname[sizeof(newtt->dirname) - 1] = '\0';
 
 	tt = types;
 	oldtt = NULL;
@@ -437,6 +451,7 @@ add(int rdclass, const char *classname, int type, const char *typename,
 	}
 	newcc->rdclass = rdclass;
 	strncpy(newcc->classname, classname, sizeof(newcc->classname));
+	newcc->classname[sizeof(newcc->classname) - 1] = '\0';
 	cc = classes;
 	oldcc = NULL;
 
