@@ -967,8 +967,31 @@ ctl_backend_ramdisk_config_write(union ctl_io *io)
 static int
 ctl_backend_ramdisk_config_read(union ctl_io *io)
 {
-	/*
-	 * XXX KDM need to implement!!
-	 */
-	return (0);
+	int retval = 0;
+
+	switch (io->scsiio.cdb[0]) {
+	case SERVICE_ACTION_IN:
+		if (io->scsiio.cdb[1] == SGLS_SERVICE_ACTION) {
+			/* We have nothing to tell, leave default data. */
+			ctl_config_read_done(io);
+			retval = CTL_RETVAL_COMPLETE;
+			break;
+		}
+		ctl_set_invalid_field(&io->scsiio,
+				      /*sks_valid*/ 1,
+				      /*command*/ 1,
+				      /*field*/ 1,
+				      /*bit_valid*/ 1,
+				      /*bit*/ 4);
+		ctl_config_read_done(io);
+		retval = CTL_RETVAL_COMPLETE;
+		break;
+	default:
+		ctl_set_invalid_opcode(&io->scsiio);
+		ctl_config_read_done(io);
+		retval = CTL_RETVAL_COMPLETE;
+		break;
+	}
+
+	return (retval);
 }

@@ -5174,6 +5174,40 @@ ctl_config_write_done(union ctl_io *io)
 		free(buf, M_CTL);
 }
 
+void
+ctl_config_read_done(union ctl_io *io)
+{
+	uint8_t *buf;
+
+	/*
+	 * If there is some error -- we are done, skip data transfer.
+	 */
+	if ((io->io_hdr.flags & CTL_FLAG_ABORT) != 0 ||
+	    ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE &&
+	     (io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)) {
+		if (io->io_hdr.flags & CTL_FLAG_ALLOCATED)
+			buf = io->scsiio.kern_data_ptr;
+		else
+			buf = NULL;
+		ctl_done(io);
+		if (buf)
+			free(buf, M_CTL);
+		return;
+	}
+
+	/*
+	 * If the IO_CONT flag is set, we need to call the supplied
+	 * function to continue processing the I/O, instead of completing
+	 * the I/O just yet.
+	 */
+	if (io->io_hdr.flags & CTL_FLAG_IO_CONT) {
+		io->scsiio.io_cont(io);
+		return;
+	}
+
+	ctl_datamove(io);
+}
+
 /*
  * SCSI release command.
  */
@@ -7171,6 +7205,66 @@ ctl_read_capacity_16(struct ctl_scsiio *ctsio)
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
+	return (CTL_RETVAL_COMPLETE);
+}
+
+int
+ctl_get_lba_status(struct ctl_scsiio *ctsio)
+{
+	struct scsi_get_lba_status *cdb;
+	struct scsi_get_lba_status_data *data;
+	struct ctl_lun *lun;
+	struct ctl_lba_len_flags *lbalen;
+	uint64_t lba;
+	uint32_t alloc_len, total_len;
+	int retval;
+
+	CTL_DEBUG_PRINT(("ctl_get_lba_status\n"));
+
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+	cdb = (struct scsi_get_lba_status *)ctsio->cdb;
+	lba = scsi_8btou64(cdb->addr);
+	alloc_len = scsi_4btoul(cdb->alloc_len);
+
+	if (lba > lun->be_lun->maxlba) {
+		ctl_set_lba_out_of_range(ctsio);
+		ctl_done((union ctl_io *)ctsio);
+		return (CTL_RETVAL_COMPLETE);
+	}
+
+	total_len = sizeof(*data) + sizeof(data->descr[0]);
+	ctsio->kern_data_ptr = malloc(total_len, M_CTL, M_WAITOK | M_ZERO);
+	data = (struct scsi_get_lba_status_data *)ctsio->kern_data_ptr;
+
+	if (total_len < alloc_len) {
+		ctsio->residual = alloc_len - total_len;
+		ctsio->kern_data_len = total_len;
+		ctsio->kern_total_len = total_len;
+	} else {
+		ctsio->residual = 0;
+		ctsio->kern_data_len = alloc_len;
+		ctsio->kern_total_len = alloc_len;
+	}
+	ctsio->kern_data_resid = 0;
+	ctsio->kern_rel_offset = 0;
+	ctsio->kern_sg_entries = 0;
+
+	/* Fill dummy data in case backend can't tell anything. */
+	scsi_ulto4b(4 + sizeof(data->descr[0]), data->length);
+	scsi_u64to8b(lba, data->descr[0].addr);
+	scsi_ulto4b(MIN(UINT32_MAX, lun->be_lun->maxlba + 1 - lba),
+	    data->descr[0].length);
+	data->descr[0].status = 0; /* Mapped or unknown. */
+
+	ctl_set_success(ctsio);
+	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
+	ctsio->be_move_done = ctl_config_move_done;
+
+	lbalen = (struct ctl_lba_len_flags *)&ctsio->io_hdr.ctl_private[CTL_PRIV_LBA_LEN];
+	lbalen->lba = lba;
+	lbalen->len = total_len;
+	lbalen->flags = 0;
+	retval = lun->backend->config_read((union ctl_io *)ctsio);
 	return (CTL_RETVAL_COMPLETE);
 }
 
@@ -10642,6 +10736,14 @@ ctl_get_lba_len(union ctl_io *io, uint64_t *lba, uint64_t *len)
 	case UNMAP: {
 		*lba = 0;
 		*len = UINT64_MAX;
+		break;
+	}
+	case SERVICE_ACTION_IN: {	/* GET LBA STATUS */
+		struct scsi_get_lba_status *cdb;
+
+		cdb = (struct scsi_get_lba_status *)io->scsiio.cdb;
+		*lba = scsi_8btou64(cdb->addr);
+		*len = UINT32_MAX;
 		break;
 	}
 	default:
