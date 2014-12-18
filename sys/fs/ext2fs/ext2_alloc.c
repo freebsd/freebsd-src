@@ -264,8 +264,8 @@ ext2_reallocblks(struct vop_reallocblks_args *ap)
 	 * with the file.
 	 */
 #ifdef DEBUG
-	printf("realloc: ino %d, lbns %jd-%jd\n\told:", ip->i_number,
-	    (intmax_t)start_lbn, (intmax_t)end_lbn);
+	printf("realloc: ino %ju, lbns %jd-%jd\n\told:",
+	    (uintmax_t)ip->i_number, (intmax_t)start_lbn, (intmax_t)end_lbn);
 #endif /* DEBUG */
 	blkno = newblk;
 	for (bap = &sbap[soff], i = 0; i < len; i++, blkno += fs->e2fs_fpb) {
@@ -968,8 +968,8 @@ ext2_blkfree(struct inode *ip, e4fs_daddr_t bno, long size)
 	ump = ip->i_ump;
 	cg = dtog(fs, bno);
 	if ((u_int)bno >= fs->e2fs->e2fs_bcount) {
-		printf("bad block %lld, ino %llu\n", (long long)bno,
-		    (unsigned long long)ip->i_number);
+		printf("bad block %lld, ino %ju\n", (long long)bno,
+		    (uintmax_t)ip->i_number);
 		ext2_fserr(fs, ip->i_uid, "bad block");
 		return;
 	}

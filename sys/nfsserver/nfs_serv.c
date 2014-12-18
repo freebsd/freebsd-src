@@ -1217,7 +1217,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 	nd.ni_cnd.cn_cred = cred;
 	nd.ni_cnd.cn_nameiop = CREATE;
-	nd.ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF | SAVESTART;
+	nd.ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF | SAVESTART | NOCACHE;
 
 	/*
 	 * Call namei and do initial cleanup to get a few things
@@ -1501,7 +1501,7 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 	nd.ni_cnd.cn_cred = cred;
 	nd.ni_cnd.cn_nameiop = CREATE;
-	nd.ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF | SAVESTART;
+	nd.ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF | SAVESTART | NOCACHE;
 
 	/*
 	 * Handle nfs_namei() call.  If an error occurs, the nd structure
@@ -2030,7 +2030,7 @@ nfsrv_link(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	VOP_UNLOCK(vp, 0);
 	nd.ni_cnd.cn_cred = cred;
 	nd.ni_cnd.cn_nameiop = CREATE;
-	nd.ni_cnd.cn_flags = LOCKPARENT;
+	nd.ni_cnd.cn_flags = LOCKPARENT | NOCACHE;
 	error = nfs_namei(&nd, nfsd, dfhp, len, slp, nam, &md, &dpos,
 		&dirp, v3, &dirfor, &dirfor_ret, FALSE);
 	if (dirp && !v3) {
@@ -2153,7 +2153,7 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nfsm_srvnamesiz(len);
 	nd.ni_cnd.cn_cred = cred;
 	nd.ni_cnd.cn_nameiop = CREATE;
-	nd.ni_cnd.cn_flags = LOCKPARENT | SAVESTART;
+	nd.ni_cnd.cn_flags = LOCKPARENT | SAVESTART | NOCACHE;
 	error = nfs_namei(&nd, nfsd, fhp, len, slp, nam, &md, &dpos,
 		&dirp, v3, &dirfor, &dirfor_ret, FALSE);
 	if (error == 0) {
@@ -2325,7 +2325,7 @@ nfsrv_mkdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nfsm_srvnamesiz(len);
 	nd.ni_cnd.cn_cred = cred;
 	nd.ni_cnd.cn_nameiop = CREATE;
-	nd.ni_cnd.cn_flags = LOCKPARENT;
+	nd.ni_cnd.cn_flags = LOCKPARENT | NOCACHE;
 
 	error = nfs_namei(&nd, nfsd, fhp, len, slp, nam, &md, &dpos,
 		&dirp, v3, &dirfor, &dirfor_ret, FALSE);

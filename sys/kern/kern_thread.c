@@ -618,6 +618,7 @@ weed_inhib(int mode, struct thread *td2, struct proc *p)
 			wakeup_swapper |= thread_unsuspend_one(td2, p);
 		if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR) != 0)
 			wakeup_swapper |= sleepq_abort(td2, ERESTART);
+		break;
 	case SINGLE_ALLPROC:
 		/*
 		 * ALLPROC suspend tries to avoid spurious EINTR for

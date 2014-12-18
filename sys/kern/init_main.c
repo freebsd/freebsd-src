@@ -496,7 +496,8 @@ proc0_init(void *dummy __unused)
 	prison0.pr_cpuset = cpuset_ref(td->td_cpuset);
 	p->p_peers = 0;
 	p->p_leader = p;
-
+	p->p_reaper = p;
+	LIST_INIT(&p->p_reaplist);
 
 	strncpy(p->p_comm, "kernel", sizeof (p->p_comm));
 	strncpy(td->td_name, "swapper", sizeof (td->td_name));
@@ -821,8 +822,11 @@ create_init(const void *udata __unused)
 	KASSERT(initproc->p_pid == 1, ("create_init: initproc->p_pid != 1"));
 	/* divorce init's credentials from the kernel's */
 	newcred = crget();
+	sx_xlock(&proctree_lock);
 	PROC_LOCK(initproc);
 	initproc->p_flag |= P_SYSTEM | P_INMEM;
+	initproc->p_treeflag |= P_TREE_REAPER;
+	LIST_INSERT_HEAD(&initproc->p_reaplist, &proc0, p_reapsibling);
 	oldcred = initproc->p_ucred;
 	crcopy(newcred, oldcred);
 #ifdef MAC
@@ -833,6 +837,7 @@ create_init(const void *udata __unused)
 #endif
 	initproc->p_ucred = newcred;
 	PROC_UNLOCK(initproc);
+	sx_xunlock(&proctree_lock);
 	crfree(oldcred);
 	cred_update_thread(FIRST_THREAD_IN_PROC(initproc));
 	cpu_set_fork_handler(FIRST_THREAD_IN_PROC(initproc), start_init, NULL);

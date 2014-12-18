@@ -1292,7 +1292,8 @@ clone_cleanup(struct clonedevs **cdp)
 		if (!(cp->cdp_flags & CDP_SCHED_DTR)) {
 			cp->cdp_flags |= CDP_SCHED_DTR;
 			KASSERT(dev->si_flags & SI_NAMED,
-				("Driver has goofed in cloning underways udev %x unit %x", dev2udev(dev), dev2unit(dev)));
+				("Driver has goofed in cloning underways udev %jx unit %x",
+				(uintmax_t)dev2udev(dev), dev2unit(dev)));
 			destroy_devl(dev);
 		}
 	}
