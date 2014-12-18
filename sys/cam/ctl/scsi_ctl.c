@@ -86,7 +86,6 @@ struct ctlfe_softc {
 STAILQ_HEAD(, ctlfe_softc) ctlfe_softc_list;
 struct mtx ctlfe_list_mtx;
 static char ctlfe_mtx_desc[] = "ctlfelist";
-static int ctlfe_dma_enabled = 1;
 #ifdef CTLFE_INIT_ENABLE
 static int ctlfe_max_targets = 1;
 static int ctlfe_num_targets = 0;
@@ -101,7 +100,6 @@ struct ctlfe_lun_softc {
 	struct ctlfe_softc *parent_softc;
 	struct cam_periph *periph;
 	ctlfe_lun_flags flags;
-	struct callout dma_callout;
 	uint64_t ccbs_alloced;
 	uint64_t ccbs_freed;
 	uint64_t ctios_sent;
@@ -136,6 +134,7 @@ struct ctlfe_lun_cmd_info {
 #define CTLFE_MAX_SEGS	32
 	bus_dma_segment_t cam_sglist[CTLFE_MAX_SEGS];
 };
+CTASSERT(sizeof(struct ctlfe_lun_cmd_info) <= CTL_PORT_PRIV_SIZE);
 
 /*
  * When we register the adapter/bus, request that this many ctl_ios be
@@ -181,8 +180,6 @@ struct ctlfe_lun_cmd_info {
 #define	RANDOM_WWNN
 #endif
 
-SYSCTL_INT(_kern_cam_ctl, OID_AUTO, dma_enabled, CTLFLAG_RW,
-	   &ctlfe_dma_enabled, 0, "DMA enabled");
 MALLOC_DEFINE(M_CTLFE, "CAM CTL FE", "CAM CTL FE interface");
 
 #define	io_ptr		ppriv_ptr0
@@ -211,8 +208,8 @@ static int 		ctlfe_lun_disable(void *arg, struct ctl_id targ_id,
 					  int lun_id);
 static void		ctlfe_dump_sim(struct cam_sim *sim);
 static void		ctlfe_dump_queue(struct ctlfe_lun_softc *softc);
-static void		ctlfe_dma_timeout(void *arg);
-static void 		ctlfe_datamove_done(union ctl_io *io);
+static void 		ctlfe_datamove(union ctl_io *io);
+static void 		ctlfe_done(union ctl_io *io);
 static void 		ctlfe_dump(void);
 
 static struct periph_driver ctlfe_driver =
@@ -402,8 +399,8 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		port->lun_enable = ctlfe_lun_enable;
 		port->lun_disable = ctlfe_lun_disable;
 		port->targ_lun_arg = softc;
-		port->fe_datamove = ctlfe_datamove_done;
-		port->fe_done = ctlfe_datamove_done;
+		port->fe_datamove = ctlfe_datamove;
+		port->fe_done = ctlfe_done;
 		/*
 		 * XXX KDM the path inquiry doesn't give us the maximum
 		 * number of targets supported.
@@ -518,9 +515,6 @@ ctlferegister(struct cam_periph *periph, void *arg)
 	
 	TAILQ_INIT(&softc->work_queue);
 	softc->periph = periph;
-
-	callout_init_mtx(&softc->dma_callout, xpt_path_mtx(periph->path),
-	    /*flags*/ 0);
 	periph->softc = softc;
 
 	xpt_setup_ccb(&en_lun_ccb.ccb_h, periph->path, CAM_PRIORITY_NONE);
@@ -679,8 +673,6 @@ ctlfecleanup(struct cam_periph *periph)
 	 * XXX KDM is there anything else that needs to be done here?
 	 */
 
-	callout_stop(&softc->dma_callout);
-
 	free(softc, M_CTLFE);
 }
 
@@ -772,260 +764,213 @@ static void
 ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 {
 	struct ctlfe_lun_softc *softc;
+	struct ctlfe_lun_cmd_info *cmd_info;
 	struct ccb_hdr *ccb_h;
+	struct ccb_accept_tio *atio;
+	struct ccb_scsiio *csio;
+	uint8_t *data_ptr;
+	uint32_t dxfer_len;
+	ccb_flags flags;
+	union ctl_io *io;
+	uint8_t scsi_status;
 
 	softc = (struct ctlfe_lun_softc *)periph->softc;
-
 	softc->ccbs_alloced++;
 
 	ccb_h = TAILQ_FIRST(&softc->work_queue);
 	if (ccb_h == NULL) {
 		softc->ccbs_freed++;
 		xpt_release_ccb(start_ccb);
-	} else {
-		struct ccb_accept_tio *atio;
-		struct ccb_scsiio *csio;
-		uint8_t *data_ptr;
-		uint32_t dxfer_len;
-		ccb_flags flags;
-		union ctl_io *io;
-		uint8_t scsi_status;
-
-		/* Take the ATIO off the work queue */
-		TAILQ_REMOVE(&softc->work_queue, ccb_h, periph_links.tqe);
-		atio = (struct ccb_accept_tio *)ccb_h;
-		io = (union ctl_io *)ccb_h->io_ptr;
-		csio = &start_ccb->csio;
-
-		flags = atio->ccb_h.flags &
-			(CAM_DIS_DISCONNECT|CAM_TAG_ACTION_VALID|CAM_DIR_MASK);
-
-		if ((io == NULL)
-		 || (io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE) {
-			/*
-			 * We're done, send status back.
-			 */
-			flags |= CAM_SEND_STATUS;
-			if (io == NULL) {
-				scsi_status = SCSI_STATUS_BUSY;
-				csio->sense_len = 0;
-			} else if ((io->io_hdr.flags & CTL_FLAG_ABORT) &&
-			    (io->io_hdr.flags & CTL_FLAG_ABORT_STATUS) == 0) {
-				io->io_hdr.flags &= ~CTL_FLAG_STATUS_QUEUED;
-
-				/*
-				 * If this command was aborted, we don't
-				 * need to send status back to the SIM.
-				 * Just free the CTIO and ctl_io, and
-				 * recycle the ATIO back to the SIM.
-				 */
-				xpt_print(periph->path, "%s: aborted "
-					  "command 0x%04x discarded\n",
-					  __func__, io->scsiio.tag_num);
-				/*
-				 * For a wildcard attachment, commands can
-				 * come in with a specific target/lun.  Reset
-				 * the target and LUN fields back to the
-				 * wildcard values before we send them back
-				 * down to the SIM.  The SIM has a wildcard
-				 * LUN enabled, not whatever target/lun 
-				 * these happened to be.
-				 */
-				if (softc->flags & CTLFE_LUN_WILDCARD) {
-					atio->ccb_h.target_id =
-						CAM_TARGET_WILDCARD;
-					atio->ccb_h.target_lun =
-						CAM_LUN_WILDCARD;
-				}
-
-				if ((atio->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-					cam_release_devq(periph->path,
-							 /*relsim_flags*/0,
-							 /*reduction*/0,
- 							 /*timeout*/0,
-							 /*getcount_only*/0);
-					atio->ccb_h.status &= ~CAM_DEV_QFRZN;
-				}
-
-				ccb_h = TAILQ_FIRST(&softc->work_queue);
-
-				if (atio->ccb_h.func_code != 
-				    XPT_ACCEPT_TARGET_IO) {
-					xpt_print(periph->path, "%s: func_code "
-						  "is %#x\n", __func__,
-						  atio->ccb_h.func_code);
-				}
-				start_ccb->ccb_h.func_code = XPT_ABORT;
-				start_ccb->cab.abort_ccb = (union ccb *)atio;
-
-				/* Tell the SIM that we've aborted this ATIO */
-				xpt_action(start_ccb);
-				softc->ccbs_freed++;
-				xpt_release_ccb(start_ccb);
-
-				/*
-				 * Send the ATIO back down to the SIM.
-				 */
-				xpt_action((union ccb *)atio);
-				softc->atios_sent++;
-
-				/*
-				 * If we still have work to do, ask for
-				 * another CCB.  Otherwise, deactivate our
-				 * callout.
-				 */
-				if (ccb_h != NULL)
-					xpt_schedule(periph, /*priority*/ 1);
-				else
-					callout_stop(&softc->dma_callout);
-
-				return;
-			} else {
-				io->io_hdr.flags &= ~CTL_FLAG_STATUS_QUEUED;
-				scsi_status = io->scsiio.scsi_status;
-				csio->sense_len = io->scsiio.sense_len;
-			}
-			data_ptr = NULL;
-			dxfer_len = 0;
-			if (io == NULL) {
-				printf("%s: tag %04x io is NULL\n", __func__,
-				       atio->tag_id);
-			} else {
-#ifdef CTLFEDEBUG
-				printf("%s: tag %04x status %x\n", __func__,
-				       atio->tag_id, io->io_hdr.status);
-#endif
-			}
-			csio->sglist_cnt = 0;
-			if (csio->sense_len != 0) {
-				csio->sense_data = io->scsiio.sense_data;
-				flags |= CAM_SEND_SENSE;
-			} else if (scsi_status == SCSI_STATUS_CHECK_COND) {
-				xpt_print(periph->path, "%s: check condition "
-					  "with no sense\n", __func__);
-			}
-		} else {
-			struct ctlfe_lun_cmd_info *cmd_info;
-
-			/*
-			 * Datamove call, we need to setup the S/G list. 
-			 */
-
-			cmd_info = (struct ctlfe_lun_cmd_info *)
-				io->io_hdr.port_priv;
-
-			KASSERT(sizeof(*cmd_info) < CTL_PORT_PRIV_SIZE,
-				("%s: sizeof(struct ctlfe_lun_cmd_info) %zd < "
-				"CTL_PORT_PRIV_SIZE %d", __func__,
-				sizeof(*cmd_info), CTL_PORT_PRIV_SIZE));
-			io->io_hdr.flags &= ~CTL_FLAG_DMA_QUEUED;
-
-			/*
-			 * Need to zero this, in case it has been used for
-			 * a previous datamove for this particular I/O.
-			 */
-			bzero(cmd_info, sizeof(*cmd_info));
-			scsi_status = 0;
-
-			csio->cdb_len = atio->cdb_len;
-
-			ctlfedata(softc, io, &flags, &data_ptr, &dxfer_len,
-			    &csio->sglist_cnt);
-
-			io->scsiio.ext_data_filled += dxfer_len;
-
-			if (io->scsiio.ext_data_filled >
-			    io->scsiio.kern_total_len) {
-				xpt_print(periph->path, "%s: tag 0x%04x "
-					  "fill len %u > total %u\n",
-					  __func__, io->scsiio.tag_num,
-					  io->scsiio.ext_data_filled,
-					  io->scsiio.kern_total_len);
-			}
-		}
-
-#ifdef CTLFEDEBUG
-		printf("%s: %s: tag %04x flags %x ptr %p len %u\n", __func__,
-		       (flags & CAM_SEND_STATUS) ? "done" : "datamove",
-		       atio->tag_id, flags, data_ptr, dxfer_len);
-#endif
-
-		/*
-		 * Valid combinations:
-		 *  - CAM_SEND_STATUS, CAM_DATA_SG = 0, dxfer_len = 0,
-		 *    sglist_cnt = 0
-		 *  - CAM_SEND_STATUS = 0, CAM_DATA_SG = 0, dxfer_len != 0,
-		 *    sglist_cnt = 0 
-		 *  - CAM_SEND_STATUS = 0, CAM_DATA_SG, dxfer_len != 0,
-		 *    sglist_cnt != 0
-		 */
-#ifdef CTLFEDEBUG
-		if (((flags & CAM_SEND_STATUS)
-		  && (((flags & CAM_DATA_SG) != 0)
-		   || (dxfer_len != 0)
-		   || (csio->sglist_cnt != 0)))
-		 || (((flags & CAM_SEND_STATUS) == 0)
-		  && (dxfer_len == 0))
-		 || ((flags & CAM_DATA_SG)
-		  && (csio->sglist_cnt == 0))
-		 || (((flags & CAM_DATA_SG) == 0)
-		  && (csio->sglist_cnt != 0))) {
-			printf("%s: tag %04x cdb %02x flags %#x dxfer_len "
-			       "%d sg %u\n", __func__, atio->tag_id,
-			       atio->cdb_io.cdb_bytes[0], flags, dxfer_len,
-			       csio->sglist_cnt);
-			if (io != NULL) {
-				printf("%s: tag %04x io status %#x\n", __func__,
-				       atio->tag_id, io->io_hdr.status);
-			} else {
-				printf("%s: tag %04x no associated io\n",
-				       __func__, atio->tag_id);
-			}
-		}
-#endif
-		cam_fill_ctio(csio,
-			      /*retries*/ 2,
-			      ctlfedone,
-			      flags,
-			      (flags & CAM_TAG_ACTION_VALID) ?
-			       MSG_SIMPLE_Q_TAG : 0,
-			      atio->tag_id,
-			      atio->init_id,
-			      scsi_status,
-			      /*data_ptr*/ data_ptr,
-			      /*dxfer_len*/ dxfer_len,
-			      /*timeout*/ 5 * 1000);
-		start_ccb->ccb_h.flags |= CAM_UNLOCKED;
-		start_ccb->ccb_h.ccb_atio = atio;
-		if (((flags & CAM_SEND_STATUS) == 0)
-		 && (io != NULL))
-			io->io_hdr.flags |= CTL_FLAG_DMA_INPROG;
-
-		softc->ctios_sent++;
-
-		cam_periph_unlock(periph);
-		xpt_action(start_ccb);
-		cam_periph_lock(periph);
-
-		if ((atio->ccb_h.status & CAM_DEV_QFRZN) != 0) {
-			cam_release_devq(periph->path,
-					 /*relsim_flags*/0,
-					 /*reduction*/0,
- 					 /*timeout*/0,
-					 /*getcount_only*/0);
-			atio->ccb_h.status &= ~CAM_DEV_QFRZN;
-		}
-
-		ccb_h = TAILQ_FIRST(&softc->work_queue);
+		return;
 	}
+
+	/* Take the ATIO off the work queue */
+	TAILQ_REMOVE(&softc->work_queue, ccb_h, periph_links.tqe);
+	atio = (struct ccb_accept_tio *)ccb_h;
+	io = (union ctl_io *)ccb_h->io_ptr;
+	csio = &start_ccb->csio;
+
+	flags = atio->ccb_h.flags &
+		(CAM_DIS_DISCONNECT|CAM_TAG_ACTION_VALID|CAM_DIR_MASK);
+
+	if (io->io_hdr.flags & CTL_FLAG_DMA_QUEUED) {
+		/*
+		 * Datamove call, we need to setup the S/G list.
+		 */
+		cmd_info = (struct ctlfe_lun_cmd_info *)
+			io->io_hdr.port_priv;
+		bzero(cmd_info, sizeof(*cmd_info));
+		scsi_status = 0;
+		csio->cdb_len = atio->cdb_len;
+		ctlfedata(softc, io, &flags, &data_ptr, &dxfer_len,
+		    &csio->sglist_cnt);
+		io->scsiio.ext_data_filled += dxfer_len;
+		if (io->scsiio.ext_data_filled > io->scsiio.kern_total_len) {
+			xpt_print(periph->path, "%s: tag 0x%04x "
+				  "fill len %u > total %u\n",
+				  __func__, io->scsiio.tag_num,
+				  io->scsiio.ext_data_filled,
+				  io->scsiio.kern_total_len);
+		}
+	} else {
+		/*
+		 * We're done, send status back.
+		 */
+		if ((io->io_hdr.flags & CTL_FLAG_ABORT) &&
+		    (io->io_hdr.flags & CTL_FLAG_ABORT_STATUS) == 0) {
+			io->io_hdr.flags &= ~CTL_FLAG_STATUS_QUEUED;
+
+			/*
+			 * If this command was aborted, we don't
+			 * need to send status back to the SIM.
+			 * Just free the CTIO and ctl_io, and
+			 * recycle the ATIO back to the SIM.
+			 */
+			xpt_print(periph->path, "%s: aborted "
+				  "command 0x%04x discarded\n",
+				  __func__, io->scsiio.tag_num);
+			/*
+			 * For a wildcard attachment, commands can
+			 * come in with a specific target/lun.  Reset
+			 * the target and LUN fields back to the
+			 * wildcard values before we send them back
+			 * down to the SIM.  The SIM has a wildcard
+			 * LUN enabled, not whatever target/lun
+			 * these happened to be.
+			 */
+			if (softc->flags & CTLFE_LUN_WILDCARD) {
+				atio->ccb_h.target_id = CAM_TARGET_WILDCARD;
+				atio->ccb_h.target_lun = CAM_LUN_WILDCARD;
+			}
+
+			if ((atio->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+				cam_release_devq(periph->path,
+						 /*relsim_flags*/0,
+						 /*reduction*/0,
+						 /*timeout*/0,
+						 /*getcount_only*/0);
+				atio->ccb_h.status &= ~CAM_DEV_QFRZN;
+			}
+
+			if (atio->ccb_h.func_code != XPT_ACCEPT_TARGET_IO) {
+				xpt_print(periph->path, "%s: func_code "
+					  "is %#x\n", __func__,
+					  atio->ccb_h.func_code);
+			}
+			start_ccb->ccb_h.func_code = XPT_ABORT;
+			start_ccb->cab.abort_ccb = (union ccb *)atio;
+
+			/* Tell the SIM that we've aborted this ATIO */
+			xpt_action(start_ccb);
+			softc->ccbs_freed++;
+			xpt_release_ccb(start_ccb);
+
+			/*
+			 * Send the ATIO back down to the SIM.
+			 */
+			xpt_action((union ccb *)atio);
+			softc->atios_sent++;
+
+			/*
+			 * If we still have work to do, ask for
+			 * another CCB.  Otherwise, deactivate our
+			 * callout.
+			 */
+			if (!TAILQ_EMPTY(&softc->work_queue))
+				xpt_schedule(periph, /*priority*/ 1);
+			return;
+		}
+
+		flags |= CAM_SEND_STATUS;
+		scsi_status = io->scsiio.scsi_status;
+		csio->sense_len = io->scsiio.sense_len;
+		data_ptr = NULL;
+		dxfer_len = 0;
+#ifdef CTLFEDEBUG
+		printf("%s: tag %04x status %x\n", __func__,
+		       atio->tag_id, io->io_hdr.status);
+#endif
+		csio->sglist_cnt = 0;
+		if (csio->sense_len != 0) {
+			csio->sense_data = io->scsiio.sense_data;
+			flags |= CAM_SEND_SENSE;
+		} else if (scsi_status == SCSI_STATUS_CHECK_COND) {
+			xpt_print(periph->path, "%s: check condition "
+				  "with no sense\n", __func__);
+		}
+	}
+
+#ifdef CTLFEDEBUG
+	printf("%s: %s: tag %04x flags %x ptr %p len %u\n", __func__,
+	       (flags & CAM_SEND_STATUS) ? "done" : "datamove",
+	       atio->tag_id, flags, data_ptr, dxfer_len);
+#endif
+
 	/*
-	 * If we still have work to do, ask for another CCB.  Otherwise,
-	 * deactivate our callout.
+	 * Valid combinations:
+	 *  - CAM_SEND_STATUS, CAM_DATA_SG = 0, dxfer_len = 0,
+	 *    sglist_cnt = 0
+	 *  - CAM_SEND_STATUS = 0, CAM_DATA_SG = 0, dxfer_len != 0,
+	 *    sglist_cnt = 0
+	 *  - CAM_SEND_STATUS = 0, CAM_DATA_SG, dxfer_len != 0,
+	 *    sglist_cnt != 0
 	 */
-	if (ccb_h != NULL)
+#ifdef CTLFEDEBUG
+	if (((flags & CAM_SEND_STATUS)
+	  && (((flags & CAM_DATA_SG) != 0)
+	   || (dxfer_len != 0)
+	   || (csio->sglist_cnt != 0)))
+	 || (((flags & CAM_SEND_STATUS) == 0)
+	  && (dxfer_len == 0))
+	 || ((flags & CAM_DATA_SG)
+	  && (csio->sglist_cnt == 0))
+	 || (((flags & CAM_DATA_SG) == 0)
+	  && (csio->sglist_cnt != 0))) {
+		printf("%s: tag %04x cdb %02x flags %#x dxfer_len "
+		       "%d sg %u\n", __func__, atio->tag_id,
+		       atio->cdb_io.cdb_bytes[0], flags, dxfer_len,
+		       csio->sglist_cnt);
+		printf("%s: tag %04x io status %#x\n", __func__,
+		       atio->tag_id, io->io_hdr.status);
+	}
+#endif
+	cam_fill_ctio(csio,
+		      /*retries*/ 2,
+		      ctlfedone,
+		      flags,
+		      (flags & CAM_TAG_ACTION_VALID) ? MSG_SIMPLE_Q_TAG : 0,
+		      atio->tag_id,
+		      atio->init_id,
+		      scsi_status,
+		      /*data_ptr*/ data_ptr,
+		      /*dxfer_len*/ dxfer_len,
+		      /*timeout*/ 5 * 1000);
+	start_ccb->ccb_h.flags |= CAM_UNLOCKED;
+	start_ccb->ccb_h.ccb_atio = atio;
+	if (io->io_hdr.flags & CTL_FLAG_DMA_QUEUED)
+		io->io_hdr.flags |= CTL_FLAG_DMA_INPROG;
+	io->io_hdr.flags &= ~(CTL_FLAG_DMA_QUEUED | CTL_FLAG_STATUS_QUEUED);
+
+	softc->ctios_sent++;
+
+	cam_periph_unlock(periph);
+	xpt_action(start_ccb);
+	cam_periph_lock(periph);
+
+	if ((atio->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+		cam_release_devq(periph->path,
+				 /*relsim_flags*/0,
+				 /*reduction*/0,
+				 /*timeout*/0,
+				 /*getcount_only*/0);
+		atio->ccb_h.status &= ~CAM_DEV_QFRZN;
+	}
+
+	/*
+	 * If we still have work to do, ask for another CCB.
+	 */
+	if (!TAILQ_EMPTY(&softc->work_queue))
 		xpt_schedule(periph, /*priority*/ 1);
-	else
-		callout_stop(&softc->dma_callout);
 }
 
 static void
@@ -1278,7 +1223,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			    | (done_ccb->csio.msg_ptr[6]);
 		}
 
-		if (srr && (done_ccb->ccb_h.flags & CAM_SEND_STATUS)) {
+		if (srr && (io->io_hdr.flags & CTL_FLAG_DMA_INPROG) == 0) {
 			/*
 			 * If status was being sent, the back end data is now
 			 * history. Hack it up and resubmit a new command with
@@ -1317,7 +1262,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		 * resources.  If we were doing a datamove, call the
 		 * datamove done routine.
 		 */
-		if (done_ccb->ccb_h.flags & CAM_SEND_STATUS) {
+		if ((io->io_hdr.flags & CTL_FLAG_DMA_INPROG) == 0) {
 			softc->ccbs_freed++;
 			xpt_release_ccb(done_ccb);
 			/*
@@ -1986,7 +1931,6 @@ ctlfe_dump_sim(struct cam_sim *sim)
 	printf("%s%d: max tagged openings: %d, max dev openings: %d\n",
 	       sim->sim_name, sim->unit_number,
 	       sim->max_tagged_dev_openings, sim->max_dev_openings);
-	printf("\n");
 }
 
 /*
@@ -2003,25 +1947,9 @@ ctlfe_dump_queue(struct ctlfe_lun_softc *softc)
 	num_items = 0;
 
 	TAILQ_FOREACH(hdr, &softc->work_queue, periph_links.tqe) {
-		union ctl_io *io;
-
-		io = hdr->io_ptr;
+		union ctl_io *io = hdr->io_ptr;
 
 		num_items++;
-
-		/*
-		 * This can happen when we get an ATIO but can't allocate
-		 * a ctl_io.  See the XPT_ACCEPT_TARGET_IO case in ctlfedone().
-		 */
-		if (io == NULL) {
-			struct ccb_scsiio *csio;
-
-			csio = (struct ccb_scsiio *)hdr;
-
-			xpt_print(periph->path, "CCB %#x ctl_io allocation "
-				  "failed\n", csio->tag_id);
-			continue;
-		}
 
 		/*
 		 * Only regular SCSI I/O is put on the work
@@ -2035,20 +1963,15 @@ ctlfe_dump_queue(struct ctlfe_lun_softc *softc)
 		ctl_io_error_print(io, NULL);
 
 		/*
-		 * We're sending status back to the
-		 * initiator, so we're on the queue waiting
-		 * for a CTIO to do that.
+		 * Print DMA status if we are DMA_QUEUED.
 		 */
-		if ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE)
-			continue;
-
-		/*
-		 * Otherwise, we're on the queue waiting to
-		 * do a data transfer.
-		 */
-		xpt_print(periph->path, "Total %u, Current %u, Resid %u\n",
-			  io->scsiio.kern_total_len, io->scsiio.kern_data_len,
-			  io->scsiio.kern_data_resid);
+		if (io->io_hdr.flags & CTL_FLAG_DMA_QUEUED) {
+			xpt_print(periph->path,
+			    "Total %u, Current %u, Resid %u\n",
+			    io->scsiio.kern_total_len,
+			    io->scsiio.kern_data_len,
+			    io->scsiio.kern_data_resid);
+		}
 	}
 
 	xpt_print(periph->path, "%d requests total waiting for CCBs\n",
@@ -2064,66 +1987,43 @@ ctlfe_dump_queue(struct ctlfe_lun_softc *softc)
 }
 
 /*
- * This function is called when we fail to get a CCB for a DMA or status return
- * to the initiator within the specified time period.
- *
- * The callout code should insure that we hold the sim mutex here.
- */
-static void
-ctlfe_dma_timeout(void *arg)
-{
-	struct ctlfe_lun_softc *softc;
-	struct cam_periph *periph;
-	struct cam_sim *sim;
-	int num_queued;
-
-	softc = (struct ctlfe_lun_softc *)arg;
-	periph = softc->periph;
-	sim = xpt_path_sim(periph->path);
-	num_queued = 0;
-
-	/*
-	 * Nothing to do...
-	 */
-	if (TAILQ_FIRST(&softc->work_queue) == NULL) {
-		xpt_print(periph->path, "TIMEOUT triggered after %d "
-			  "seconds, but nothing on work queue??\n",
-			  CTLFE_DMA_TIMEOUT);
-		return;
-	}
-
-	xpt_print(periph->path, "TIMEOUT (%d seconds) waiting for DMA to "
-		  "start\n", CTLFE_DMA_TIMEOUT);
-
-	ctlfe_dump_queue(softc);
-
-	ctlfe_dump_sim(sim);
-
-	xpt_print(periph->path, "calling xpt_schedule() to attempt to "
-		  "unstick our queue\n");
-
-	xpt_schedule(periph, /*priority*/ 1);
-
-	xpt_print(periph->path, "xpt_schedule() call complete\n");
-}
-
-/*
  * Datamove/done routine called by CTL.  Put ourselves on the queue to
  * receive a CCB from CAM so we can queue the continue I/O request down
  * to the adapter.
  */
 static void
-ctlfe_datamove_done(union ctl_io *io)
+ctlfe_datamove(union ctl_io *io)
+{
+	union ccb *ccb;
+	struct cam_periph *periph;
+	struct ctlfe_lun_softc *softc;
+
+	KASSERT(io->io_hdr.io_type == CTL_IO_SCSI,
+	    ("Unexpected io_type (%d) in ctlfe_datamove", io->io_hdr.io_type));
+
+	ccb = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
+	periph = xpt_path_periph(ccb->ccb_h.path);
+	cam_periph_lock(periph);
+	softc = (struct ctlfe_lun_softc *)periph->softc;
+	io->io_hdr.flags |= CTL_FLAG_DMA_QUEUED;
+	if ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE)
+		io->io_hdr.flags |= CTL_FLAG_STATUS_QUEUED;
+	TAILQ_INSERT_TAIL(&softc->work_queue, &ccb->ccb_h,
+			  periph_links.tqe);
+	xpt_schedule(periph, /*priority*/ 1);
+	cam_periph_unlock(periph);
+}
+
+static void
+ctlfe_done(union ctl_io *io)
 {
 	union ccb *ccb;
 	struct cam_periph *periph;
 	struct ctlfe_lun_softc *softc;
 
 	ccb = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
-
 	periph = xpt_path_periph(ccb->ccb_h.path);
 	cam_periph_lock(periph);
-
 	softc = (struct ctlfe_lun_softc *)periph->softc;
 
 	if (io->io_hdr.io_type == CTL_IO_TASK) {
@@ -2143,27 +2043,10 @@ ctlfe_datamove_done(union ctl_io *io)
 		ccb->ccb_h.func_code = XPT_NOTIFY_ACKNOWLEDGE;
 		xpt_action(ccb);
 	} else {
-		if ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE)
-			io->io_hdr.flags |= CTL_FLAG_STATUS_QUEUED;
-		else
-			io->io_hdr.flags |= CTL_FLAG_DMA_QUEUED;
-
+		io->io_hdr.flags |= CTL_FLAG_STATUS_QUEUED;
 		TAILQ_INSERT_TAIL(&softc->work_queue, &ccb->ccb_h,
 				  periph_links.tqe);
-
-		/*
-		 * Reset the timeout for our latest active DMA.
-		 */
-		callout_reset(&softc->dma_callout,
-			      CTLFE_DMA_TIMEOUT * hz,
-			      ctlfe_dma_timeout, softc);
-		/*
-		 * Ask for the CAM transport layer to send us a CCB to do
-		 * the DMA or send status, unless ctlfe_dma_enabled is set
-		 * to 0.
-		 */
-		if (ctlfe_dma_enabled != 0)
-			xpt_schedule(periph, /*priority*/ 1);
+		xpt_schedule(periph, /*priority*/ 1);
 	}
 
 	cam_periph_unlock(periph);
@@ -2173,14 +2056,11 @@ static void
 ctlfe_dump(void)
 {
 	struct ctlfe_softc *bus_softc;
+	struct ctlfe_lun_softc *lun_softc;
 
 	STAILQ_FOREACH(bus_softc, &ctlfe_softc_list, links) {
-		struct ctlfe_lun_softc *lun_softc;
-
 		ctlfe_dump_sim(bus_softc->sim);
-
-		STAILQ_FOREACH(lun_softc, &bus_softc->lun_softc_list, links) {
+		STAILQ_FOREACH(lun_softc, &bus_softc->lun_softc_list, links)
 			ctlfe_dump_queue(lun_softc);
-		}
 	}
 }
