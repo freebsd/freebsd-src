@@ -402,12 +402,6 @@ static int ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		     struct thread *td);
 static uint32_t ctl_map_lun(int port_num, uint32_t lun);
 static uint32_t ctl_map_lun_back(int port_num, uint32_t lun);
-#ifdef unused
-static union ctl_io *ctl_malloc_io(ctl_io_type io_type, uint32_t targ_port,
-				   uint32_t targ_target, uint32_t targ_lun,
-				   int can_wait);
-static void ctl_kfree_io(union ctl_io *io);
-#endif /* unused */
 static int ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
 			 struct ctl_be_lun *be_lun, struct ctl_id target_id);
 static int ctl_free_lun(struct ctl_lun *lun);
@@ -3700,43 +3694,6 @@ ctl_set_prkey(struct ctl_lun *lun, uint32_t residx, uint64_t key)
 	KASSERT(t != NULL, ("prkey %d is not allocated", residx));
 	t[residx % CTL_MAX_INIT_PER_PORT] = key;
 }
-
-#ifdef unused
-/*
- * The bus, target and lun are optional, they can be filled in later.
- * can_wait is used to determine whether we can wait on the malloc or not.
- */
-union ctl_io*
-ctl_malloc_io(ctl_io_type io_type, uint32_t targ_port, uint32_t targ_target,
-	      uint32_t targ_lun, int can_wait)
-{
-	union ctl_io *io;
-
-	if (can_wait)
-		io = (union ctl_io *)malloc(sizeof(*io), M_CTL, M_WAITOK);
-	else
-		io = (union ctl_io *)malloc(sizeof(*io), M_CTL, M_NOWAIT);
-
-	if (io != NULL) {
-		io->io_hdr.io_type = io_type;
-		io->io_hdr.targ_port = targ_port;
-		/*
-		 * XXX KDM this needs to change/go away.  We need to move
-		 * to a preallocated pool of ctl_scsiio structures.
-		 */
-		io->io_hdr.nexus.targ_target.id = targ_target;
-		io->io_hdr.nexus.targ_lun = targ_lun;
-	}
-
-	return (io);
-}
-
-void
-ctl_kfree_io(union ctl_io *io)
-{
-	free(io, M_CTL);
-}
-#endif /* unused */
 
 /*
  * ctl_softc, pool_name, total_ctl_io are passed in.
