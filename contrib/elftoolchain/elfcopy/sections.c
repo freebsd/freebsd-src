@@ -762,8 +762,8 @@ resync_sections(struct elfcopy *ecp)
 				s->off = roundup(off, s->align);
 		} else {
 			if (s->loadable)
-				warnx("moving loadable section,"
-				    "is this intentional?");
+				warnx("moving loadable section %s, "
+				    "is this intentional?", s->name);
 			s->off = roundup(off, s->align);
 		}
 
