@@ -384,8 +384,9 @@ ctl_be_block_move_done(union ctl_io *io)
 	 * We set status at this point for read commands, and write
 	 * commands with errors.
 	 */
-	if ((io->io_hdr.port_status == 0) &&
-	    ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0) &&
+	if (io->io_hdr.flags & CTL_FLAG_ABORT) {
+		;
+	} else if ((io->io_hdr.port_status == 0) &&
 	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
 		lbalen = ARGS(beio->io);
 		if (lbalen->flags & CTL_LLF_READ) {
@@ -408,10 +409,9 @@ ctl_be_block_move_done(union ctl_io *io)
 			else
 				ctl_set_success(&io->scsiio);
 		}
-	}
-	else if ((io->io_hdr.port_status != 0)
-	      && ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0)
-	      && ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
+	} else if ((io->io_hdr.port_status != 0) &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
+	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
 		/*
 		 * For hardware error sense keys, the sense key
 		 * specific value is defined to be a retry count,
@@ -535,6 +535,9 @@ ctl_be_block_biodone(struct bio *bio)
 		ctl_set_success(&io->scsiio);
 		ctl_complete_beio(beio);
 	} else {
+		if ((ARGS(io)->flags & CTL_LLF_READ) &&
+		    beio->beio_cont == NULL)
+			ctl_set_success(&io->scsiio);
 #ifdef CTL_TIME_IO
         	getbintime(&io->io_hdr.dma_start_bt);
 #endif  
@@ -742,6 +745,9 @@ ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 		ctl_set_success(&io->scsiio);
 		ctl_complete_beio(beio);
 	} else {
+		if ((ARGS(io)->flags & CTL_LLF_READ) &&
+		    beio->beio_cont == NULL)
+			ctl_set_success(&io->scsiio);
 #ifdef CTL_TIME_IO
         	getbintime(&io->io_hdr.dma_start_bt);
 #endif  
@@ -831,6 +837,9 @@ ctl_be_block_dispatch_zvol(struct ctl_be_block_lun *be_lun,
 		ctl_set_success(&io->scsiio);
 		ctl_complete_beio(beio);
 	} else {
+		if ((ARGS(io)->flags & CTL_LLF_READ) &&
+		    beio->beio_cont == NULL)
+			ctl_set_success(&io->scsiio);
 #ifdef CTL_TIME_IO
         	getbintime(&io->io_hdr.dma_start_bt);
 #endif  

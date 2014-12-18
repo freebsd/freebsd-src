@@ -792,14 +792,15 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 
 	flags = atio->ccb_h.flags &
 		(CAM_DIS_DISCONNECT|CAM_TAG_ACTION_VALID|CAM_DIR_MASK);
+	cmd_info = (struct ctlfe_lun_cmd_info *)io->io_hdr.port_priv;
+	cmd_info->cur_transfer_index = 0;
+	cmd_info->cur_transfer_off = 0;
+	cmd_info->flags = 0;
 
 	if (io->io_hdr.flags & CTL_FLAG_DMA_QUEUED) {
 		/*
 		 * Datamove call, we need to setup the S/G list.
 		 */
-		cmd_info = (struct ctlfe_lun_cmd_info *)
-			io->io_hdr.port_priv;
-		bzero(cmd_info, sizeof(*cmd_info));
 		scsi_status = 0;
 		csio->cdb_len = atio->cdb_len;
 		ctlfedata(softc, io, &flags, &data_ptr, &dxfer_len,
@@ -880,17 +881,23 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 				xpt_schedule(periph, /*priority*/ 1);
 			return;
 		}
-
+		data_ptr = NULL;
+		dxfer_len = 0;
+		csio->sglist_cnt = 0;
+		scsi_status = 0;
+	}
+	if ((io->io_hdr.flags & CTL_FLAG_STATUS_QUEUED) &&
+	    (cmd_info->flags & CTLFE_CMD_PIECEWISE) == 0 &&
+	    ((io->io_hdr.flags & CTL_FLAG_DMA_QUEUED) == 0 ||
+	     io->io_hdr.status == CTL_SUCCESS)) {
+		io->io_hdr.flags |= CTL_FLAG_STATUS_SENT;
 		flags |= CAM_SEND_STATUS;
 		scsi_status = io->scsiio.scsi_status;
 		csio->sense_len = io->scsiio.sense_len;
-		data_ptr = NULL;
-		dxfer_len = 0;
 #ifdef CTLFEDEBUG
 		printf("%s: tag %04x status %x\n", __func__,
 		       atio->tag_id, io->io_hdr.status);
 #endif
-		csio->sglist_cnt = 0;
 		if (csio->sense_len != 0) {
 			csio->sense_data = io->scsiio.sense_data;
 			flags |= CAM_SEND_SENSE;
@@ -2042,6 +2049,19 @@ ctlfe_done(union ctl_io *io)
 		ccb->ccb_h.status = CAM_REQ_INPROG;
 		ccb->ccb_h.func_code = XPT_NOTIFY_ACKNOWLEDGE;
 		xpt_action(ccb);
+	} else if (io->io_hdr.flags & CTL_FLAG_STATUS_SENT) {
+		if (softc->flags & CTLFE_LUN_WILDCARD) {
+			ccb->ccb_h.target_id = CAM_TARGET_WILDCARD;
+			ccb->ccb_h.target_lun = CAM_LUN_WILDCARD;
+		}
+		if (periph->flags & CAM_PERIPH_INVALID) {
+			ctlfe_free_ccb(periph, ccb);
+		} else {
+			softc->atios_sent++;
+			cam_periph_unlock(periph);
+			xpt_action(ccb);
+			return;
+		}
 	} else {
 		io->io_hdr.flags |= CTL_FLAG_STATUS_QUEUED;
 		TAILQ_INSERT_TAIL(&softc->work_queue, &ccb->ccb_h,
