@@ -526,8 +526,9 @@ _worldtmp:
 	    -p ${WORLDTMP}/usr/lib >/dev/null
 .endif
 .if ${MK_TESTS} != "no"
+	mkdir -p ${WORLDTMP}${TESTSBASE}
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
-	    -p ${WORLDTMP}/usr >/dev/null
+	    -p ${WORLDTMP}${TESTSBASE} >/dev/null
 .endif
 .for _mtree in ${LOCAL_MTREE}
 	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
@@ -866,8 +867,9 @@ distributeworld installworld: _installcheck_world
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib >/dev/null
 .endif
 .if ${MK_TESTS} != "no" && ${dist} == "tests"
+	-mkdir -p ${DESTDIR}/${DISTDIR}/${dist}${TESTSBASE}
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
-	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
+	    -p ${DESTDIR}/${DISTDIR}/${dist}${TESTSBASE} >/dev/null
 .endif
 .if defined(NO_ROOT)
 	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
@@ -2085,8 +2087,9 @@ _xi-mtree:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${XDDESTDIR}/usr/include >/dev/null
 .if ${MK_TESTS} != "no"
+	mkdir -p ${XDDESTDIR}${TESTSBASE}
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
-	    -p ${XDDESTDIR}/usr >/dev/null
+	    -p ${XDDESTDIR}${TESTSBASE} >/dev/null
 .endif
 
 .ORDER: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries
