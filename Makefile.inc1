@@ -1482,7 +1482,7 @@ NXBMAKE=	${NXBENV} ${MAKE} \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
-		MK_DEBUG_FILES=no MK_LLDB=no
+		MK_LLDB=no
 
 native-xtools: .MAKE
 	mkdir -p ${OBJTREE}/nxb-bin/bin
