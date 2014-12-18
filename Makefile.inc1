@@ -1235,6 +1235,8 @@ legacy:
 #
 # bootstrap-tools: Build tools needed for compatibility
 #
+_bt=		_bootstrap-tools	
+
 .if ${MK_GAMES} != "no"
 _strfile=	games/fortune/strfile
 .endif
@@ -1246,6 +1248,8 @@ _gperf=		gnu/usr.bin/gperf
 .if ${MK_GROFF} != "no"
 _groff=		gnu/usr.bin/groff/src/libs \
 		gnu/usr.bin/groff/src/roff/groff
+
+${_bt}-gnu/usr.bin/groff/src/roff/groff: ${_bt}-gnu/usr.bin/groff/src/libs
 .endif
 
 .if ${MK_VT} != "no"
@@ -1259,11 +1263,15 @@ _sed=		usr.bin/sed
 .if ${BOOTSTRAPPING} < 1000002
 _m4=		lib/libohash \
 		usr.bin/m4
+
+${_bt}-usr.bin/m4: ${_bt}-lib/libohash
 .endif
 
 .if ${BOOTSTRAPPING} < 1000013
 _yacc=		lib/liby \
 		usr.bin/yacc
+
+${_bt}-usr.bin/yacc: ${_bt}-lib/liby
 .endif
 
 .if ${BOOTSTRAPPING} < 1000014
@@ -1273,6 +1281,8 @@ _crunch=	usr.sbin/crunch
 .if ${BOOTSTRAPPING} < 1000026
 _nmtree=	lib/libnetbsd \
 		usr.sbin/nmtree
+
+${_bt}-usr.sbin/nmtree: ${_bt}-lib/libnetbsd
 .endif
 
 .if ${BOOTSTRAPPING} < 1000027
@@ -1299,6 +1309,9 @@ _clang_tblgen= \
 	lib/clang/libllvmtablegen \
 	usr.bin/clang/tblgen \
 	usr.bin/clang/clang-tblgen
+
+${_bt}-usr.bin/clang/clang-tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
+${_bt}-usr.bin/clang/tblgen: ${_bt}-lib/clang/libllvmtablegen ${_bt}-lib/clang/libllvmsupport
 .endif
 
 # dtrace tools are required for older bootstrap env and cross-build
@@ -1324,12 +1337,16 @@ _kerberos5_bootstrap_tools= \
 	kerberos5/tools/asn1_compile \
 	kerberos5/tools/slc \
 	usr.bin/compile_et
+
+${_bt}-kerberos5/tools/slc: ${_bt}-kerberos5/lib/libroken
+${_bt}-kerberos5/tools/asn1_compile: ${_bt}-kerberos5/lib/libroken
 .endif
+
+bootstrap-tools: .PHONY
 
 #	Please document (add comment) why something is in 'bootstrap-tools'.
 #	Try to bound the building of the bootstrap-tool to just the
 #	FreeBSD versions that need the tool built at this stage of the build.
-bootstrap-tools: .MAKE
 .for _tool in \
     ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
@@ -1354,12 +1371,15 @@ bootstrap-tools: .MAKE
     ${_crunch} \
     ${_nmtree} \
     ${_vtfontcvt}
+${_bt}-${_tool}: .PHONY .MAKE
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${MAKE} DIRPRFX=${_tool}/ obj && \
 		${MAKE} DIRPRFX=${_tool}/ depend && \
 		${MAKE} DIRPRFX=${_tool}/ all && \
 		${MAKE} DIRPRFX=${_tool}/ DESTDIR=${MAKEOBJDIRPREFIX}/legacy install
+
+bootstrap-tools: ${_bt}-${_tool}
 .endfor
 
 #
