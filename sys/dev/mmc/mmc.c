@@ -1357,7 +1357,6 @@ mmc_discover_cards(struct mmc_softc *sc)
 				ivar->erase_sector =
 				    16 << ivar->sd_status.au_size;
 			}
-			mmc_select_card(sc, 0);
 			/* Find max supported bus width. */
 			if ((mmcbr_get_caps(sc->dev) & MMC_CAP_4_BIT_DATA) &&
 			    (ivar->scr.bus_widths & SD_SCR_BUS_WIDTH_4))
@@ -1385,6 +1384,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 				child = device_add_child(sc->dev, NULL, -1);
 				device_set_ivars(child, ivar);
 			}
+			mmc_select_card(sc, 0);
 			return;
 		}
 		mmc_decode_cid_mmc(ivar->raw_cid, &ivar->cid);
@@ -1443,7 +1443,6 @@ mmc_discover_cards(struct mmc_softc *sc)
 				ivar->hs_tran_speed = ivar->tran_speed;
 			/* Find max supported bus width. */
 			ivar->bus_width = mmc_test_bus_width(sc);
-			mmc_select_card(sc, 0);
 			/* Handle HC erase sector size. */
 			if (ivar->raw_ext_csd[EXT_CSD_ERASE_GRP_SIZE] != 0) {
 				ivar->erase_sector = 1024 *
@@ -1451,6 +1450,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 				mmc_switch(sc, EXT_CSD_CMD_SET_NORMAL,
 				    EXT_CSD_ERASE_GRP_DEF, 1);
 			}
+			mmc_select_card(sc, 0);
 		} else {
 			ivar->bus_width = bus_width_1;
 			ivar->timing = bus_timing_normal;
