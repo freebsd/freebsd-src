@@ -7875,6 +7875,15 @@ retry:
 	return (CTL_RETVAL_COMPLETE);
 }
 
+static void
+ctl_set_res_ua(struct ctl_lun *lun, uint32_t residx, ctl_ua_type ua)
+{
+
+	if (residx >= persis_offset &&
+	    residx < persis_offset + CTL_MAX_INITIATORS)
+		lun->pending_ua[residx - persis_offset] |= ua;
+}
+
 /*
  * Returns 0 if ctl_persistent_reserve_out() should continue, non-zero if
  * it should return.
@@ -7928,15 +7937,8 @@ ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun, uint64_t res_key,
 				if (i == residx || lun->pr_keys[i] == 0)
 					continue;
 
-				if (!persis_offset
-				 && i <CTL_MAX_INITIATORS)
-					lun->pending_ua[i] |=
-						CTL_UA_REG_PREEMPT;
-				else if (persis_offset
-				      && i >= persis_offset)
-					lun->pending_ua[i-persis_offset] |=
-						CTL_UA_REG_PREEMPT;
 				lun->pr_keys[i] = 0;
+				ctl_set_res_ua(lun, i, CTL_UA_REG_PREEMPT);
 			}
 			lun->pr_key_count = 1;
 			lun->res_type = type;
@@ -8007,12 +8009,7 @@ ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun, uint64_t res_key,
 			found = 1;
 			lun->pr_keys[i] = 0;
 			lun->pr_key_count--;
-
-			if (!persis_offset && i < CTL_MAX_INITIATORS)
-				lun->pending_ua[i] |= CTL_UA_REG_PREEMPT;
-			else if (persis_offset && i >= persis_offset)
-				lun->pending_ua[i-persis_offset] |=
-					CTL_UA_REG_PREEMPT;
+			ctl_set_res_ua(lun, i, CTL_UA_REG_PREEMPT);
 		}
 		if (!found) {
 			mtx_unlock(&lun->lun_lock);
@@ -8087,27 +8084,11 @@ ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun, uint64_t res_key,
 				if (sa_res_key == lun->pr_keys[i]) {
 					lun->pr_keys[i] = 0;
 					lun->pr_key_count--;
-
-					if (!persis_offset
-					 && i < CTL_MAX_INITIATORS)
-						lun->pending_ua[i] |=
-							CTL_UA_REG_PREEMPT;
-					else if (persis_offset
-					      && i >= persis_offset)
-						lun->pending_ua[i-persis_offset] |=
-						  CTL_UA_REG_PREEMPT;
+					ctl_set_res_ua(lun, i, CTL_UA_REG_PREEMPT);
 				} else if (type != lun->res_type
 					&& (lun->res_type == SPR_TYPE_WR_EX_RO
 					 || lun->res_type ==SPR_TYPE_EX_AC_RO)){
-						if (!persis_offset
-						 && i < CTL_MAX_INITIATORS)
-							lun->pending_ua[i] |=
-							CTL_UA_RES_RELEASE;
-						else if (persis_offset
-						      && i >= persis_offset)
-							lun->pending_ua[
-							i-persis_offset] |=
-							CTL_UA_RES_RELEASE;
+					ctl_set_res_ua(lun, i, CTL_UA_RES_RELEASE);
 				}
 			}
 			lun->res_type = type;
@@ -8146,15 +8127,7 @@ ctl_pro_preempt(struct ctl_softc *softc, struct ctl_lun *lun, uint64_t res_key,
 				found = 1;
 				lun->pr_keys[i] = 0;
 				lun->pr_key_count--;
-
-				if (!persis_offset
-				 && i < CTL_MAX_INITIATORS)
-					lun->pending_ua[i] |=
-						CTL_UA_REG_PREEMPT;
-				else if (persis_offset
-				      && i >= persis_offset)
-					lun->pending_ua[i-persis_offset] |=
-						CTL_UA_REG_PREEMPT;
+				ctl_set_res_ua(lun, i, CTL_UA_REG_PREEMPT);
 			}
 
 			if (!found) {
@@ -8209,14 +8182,8 @@ ctl_pro_preempt_other(struct ctl_lun *lun, union ctl_ha_msg *msg)
 				    lun->pr_keys[i] == 0)
 					continue;
 
-				if (!persis_offset
-				 && i < CTL_MAX_INITIATORS)
-					lun->pending_ua[i] |=
-						CTL_UA_REG_PREEMPT;
-				else if (persis_offset && i >= persis_offset)
-					lun->pending_ua[i - persis_offset] |=
-						CTL_UA_REG_PREEMPT;
 				lun->pr_keys[i] = 0;
+				ctl_set_res_ua(lun, i, CTL_UA_REG_PREEMPT);
 			}
 
 			lun->pr_key_count = 1;
@@ -8231,15 +8198,7 @@ ctl_pro_preempt_other(struct ctl_lun *lun, union ctl_ha_msg *msg)
 
 				lun->pr_keys[i] = 0;
 				lun->pr_key_count--;
-
-				if (!persis_offset
-				 && i < persis_offset)
-					lun->pending_ua[i] |=
-						CTL_UA_REG_PREEMPT;
-				else if (persis_offset
-				      && i >= persis_offset)
-					lun->pending_ua[i - persis_offset] |=
-						CTL_UA_REG_PREEMPT;
+				ctl_set_res_ua(lun, i, CTL_UA_REG_PREEMPT);
 			}
 		}
 	} else {
@@ -8251,25 +8210,11 @@ ctl_pro_preempt_other(struct ctl_lun *lun, union ctl_ha_msg *msg)
 			if (sa_res_key == lun->pr_keys[i]) {
 				lun->pr_keys[i] = 0;
 				lun->pr_key_count--;
-				if (!persis_offset
-				 && i < CTL_MAX_INITIATORS)
-					lun->pending_ua[i] |=
-						CTL_UA_REG_PREEMPT;
-				else if (persis_offset
-				      && i >= persis_offset)
-					lun->pending_ua[i - persis_offset] |=
-						CTL_UA_REG_PREEMPT;
+				ctl_set_res_ua(lun, i, CTL_UA_REG_PREEMPT);
 			} else if (msg->pr.pr_info.res_type != lun->res_type
 				&& (lun->res_type == SPR_TYPE_WR_EX_RO
 				 || lun->res_type == SPR_TYPE_EX_AC_RO)) {
-					if (!persis_offset
-					 && i < persis_offset)
-						lun->pending_ua[i] |=
-							CTL_UA_RES_RELEASE;
-					else if (persis_offset
-					      && i >= persis_offset)
-					lun->pending_ua[i - persis_offset] |=
-						CTL_UA_RES_RELEASE;
+				ctl_set_res_ua(lun, i, CTL_UA_RES_RELEASE);
 			}
 		}
 		lun->res_type = msg->pr.pr_info.res_type;
@@ -8653,14 +8598,8 @@ ctl_persistent_reserve_out(struct ctl_scsiio *ctsio)
 
 		for (i=0; i < 2*CTL_MAX_INITIATORS; i++)
 			if (lun->pr_keys[i] != 0) {
-				if (!persis_offset && i < CTL_MAX_INITIATORS)
-					lun->pending_ua[i] |=
-						CTL_UA_RES_PREEMPT;
-				else if (persis_offset && i >= persis_offset)
-					lun->pending_ua[i-persis_offset] |=
-					    CTL_UA_RES_PREEMPT;
-
 				lun->pr_keys[i] = 0;
+				ctl_set_res_ua(lun, i, CTL_UA_REG_PREEMPT);
 			}
 		lun->PRGeneration++;
 		mtx_unlock(&lun->lun_lock);
@@ -8802,14 +8741,8 @@ ctl_hndl_per_res_out_on_other_sc(union ctl_ha_msg *msg)
 		for (i=0; i < 2*CTL_MAX_INITIATORS; i++) {
 			if (lun->pr_keys[i] == 0)
 				continue;
-			if (!persis_offset
-			 && i < CTL_MAX_INITIATORS)
-				lun->pending_ua[i] |= CTL_UA_RES_PREEMPT;
-			else if (persis_offset
-			      && i >= persis_offset)
-				lun->pending_ua[i-persis_offset] |=
-					CTL_UA_RES_PREEMPT;
 			lun->pr_keys[i] = 0;
+			ctl_set_res_ua(lun, i, CTL_UA_REG_PREEMPT);
 		}
 		lun->PRGeneration++;
 		break;
