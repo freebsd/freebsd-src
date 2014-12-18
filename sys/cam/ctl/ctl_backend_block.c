@@ -2207,6 +2207,8 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_OFFLINE;
 	if (unmap)
 		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_UNMAP;
+	if (be_lun->dispatch != ctl_be_block_dispatch_dev)
+		be_lun->ctl_be_lun.flags |= CTL_LUN_FLAG_SERSEQ_READ;
 	be_lun->ctl_be_lun.be_lun = be_lun;
 	be_lun->ctl_be_lun.maxlba = (be_lun->size_blocks == 0) ?
 	    0 : (be_lun->size_blocks - 1);
