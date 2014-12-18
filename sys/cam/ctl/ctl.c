@@ -4349,8 +4349,7 @@ ctl_init_log_page_index(struct ctl_lun *lun)
 			continue;
 
 		if (page_index->page_code == SLS_LOGICAL_BLOCK_PROVISIONING &&
-		    ((lun->be_lun->flags & CTL_LUN_FLAG_UNMAP) == 0 ||
-		     lun->backend->lun_attr == NULL))
+		     lun->backend->lun_attr == NULL)
 			continue;
 
 		if (page_index->page_code != prev) {
@@ -10255,8 +10254,8 @@ ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len)
 
 	lbp_ptr->page_code = SVPD_LBP;
 	scsi_ulto2b(sizeof(*lbp_ptr) - 4, lbp_ptr->page_length);
+	lbp_ptr->threshold_exponent = CTL_LBP_EXPONENT;
 	if (lun != NULL && lun->be_lun->flags & CTL_LUN_FLAG_UNMAP) {
-		lbp_ptr->threshold_exponent = CTL_LBP_EXPONENT;
 		lbp_ptr->flags = SVPD_LBP_UNMAP | SVPD_LBP_WS16 |
 		    SVPD_LBP_WS10 | SVPD_LBP_RZ | SVPD_LBP_ANC_SUP;
 		lbp_ptr->prov_type = SVPD_LBP_THIN;
@@ -14004,7 +14003,6 @@ ctl_thresh_thread(void *arg)
 			be_lun = lun->be_lun;
 			if ((lun->flags & CTL_LUN_DISABLED) ||
 			    (lun->flags & CTL_LUN_OFFLINE) ||
-			    (be_lun->flags & CTL_LUN_FLAG_UNMAP) == 0 ||
 			    lun->backend->lun_attr == NULL)
 				continue;
 			rwpage = &lun->mode_pages.rw_er_page[CTL_PAGE_CURRENT];
