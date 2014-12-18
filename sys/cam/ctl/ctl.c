@@ -5213,8 +5213,7 @@ ctl_scsi_release(struct ctl_scsiio *ctsio)
 
 	mtx_unlock(&lun->lun_lock);
 
-	ctsio->scsi_status = SCSI_STATUS_OK;
-	ctsio->io_hdr.status = CTL_SUCCESS;
+	ctl_set_success(ctsio);
 
 	if (ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) {
 		free(ctsio->kern_data_ptr, M_CTL);
@@ -5301,8 +5300,7 @@ ctl_scsi_reserve(struct ctl_scsiio *ctsio)
 	lun->flags |= CTL_LUN_RESERVED;
 	lun->res_idx = residx;
 
-	ctsio->scsi_status = SCSI_STATUS_OK;
-	ctsio->io_hdr.status = CTL_SUCCESS;
+	ctl_set_success(ctsio);
 
 bailout:
 	mtx_unlock(&lun->lun_lock);
@@ -5612,8 +5610,7 @@ ctl_format(struct ctl_scsiio *ctsio)
 	lun->flags &= ~CTL_LUN_INOPERABLE;
 	mtx_unlock(&lun->lun_lock);
 
-	ctsio->scsi_status = SCSI_STATUS_OK;
-	ctsio->io_hdr.status = CTL_SUCCESS;
+	ctl_set_success(ctsio);
 bailout:
 
 	if (ctsio->io_hdr.flags & CTL_FLAG_ALLOCATED) {
@@ -9608,9 +9605,7 @@ ctl_tur(struct ctl_scsiio *ctsio)
 
 	CTL_DEBUG_PRINT(("ctl_tur\n"));
 
-	ctsio->scsi_status = SCSI_STATUS_OK;
-	ctsio->io_hdr.status = CTL_SUCCESS;
-
+	ctl_set_success(ctsio);
 	ctl_done((union ctl_io *)ctsio);
 
 	return (CTL_RETVAL_COMPLETE);

@@ -250,7 +250,7 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 			    &be_lun->io_task);
 			return (0);
 		}
-		io->io_hdr.status = CTL_SUCCESS;
+		ctl_set_success(&io->scsiio);
 	} else if ((io->io_hdr.port_status != 0)
 	      && ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0)
 	      && ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)){
