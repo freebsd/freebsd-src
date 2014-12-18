@@ -245,6 +245,8 @@ static void ctl_be_block_dispatch_file(struct ctl_be_block_lun *be_lun,
 				       struct ctl_be_block_io *beio);
 static void ctl_be_block_gls_file(struct ctl_be_block_lun *be_lun,
 				  struct ctl_be_block_io *beio);
+static uint64_t ctl_be_block_getattr_file(struct ctl_be_block_lun *be_lun,
+					 const char *attrname);
 static void ctl_be_block_flush_dev(struct ctl_be_block_lun *be_lun,
 				   struct ctl_be_block_io *beio);
 static void ctl_be_block_unmap_dev(struct ctl_be_block_lun *be_lun,
@@ -800,6 +802,31 @@ ctl_be_block_gls_file(struct ctl_be_block_lun *be_lun,
 	data->descr[0].status = status;
 
 	ctl_complete_beio(beio);
+}
+
+static uint64_t
+ctl_be_block_getattr_file(struct ctl_be_block_lun *be_lun, const char *attrname)
+{
+	struct vattr		vattr;
+	struct statfs		statfs;
+	int			error;
+
+	if (be_lun->vn == NULL)
+		return (UINT64_MAX);
+	if (strcmp(attrname, "blocksused") == 0) {
+		error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
+		if (error != 0)
+			return (UINT64_MAX);
+		return (vattr.va_bytes >> be_lun->blocksize_shift);
+	}
+	if (strcmp(attrname, "blocksavail") == 0) {
+		error = VFS_STATFS(be_lun->vn->v_mount, &statfs);
+		if (error != 0)
+			return (UINT64_MAX);
+		return ((statfs.f_bavail * statfs.f_bsize) >>
+		    be_lun->blocksize_shift);
+	}
+	return (UINT64_MAX);
 }
 
 static void
@@ -1727,6 +1754,7 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	be_lun->dispatch = ctl_be_block_dispatch_file;
 	be_lun->lun_flush = ctl_be_block_flush_file;
 	be_lun->get_lba_status = ctl_be_block_gls_file;
+	be_lun->getattr = ctl_be_block_getattr_file;
 
 	error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
 	if (error != 0) {
