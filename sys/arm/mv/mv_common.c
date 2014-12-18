@@ -1939,8 +1939,7 @@ fdt_get_ranges(const char *nodename, void *buf, int size, int *tuples,
 	if (tuples_count <= 0)
 		return (ERANGE);
 
-	if (fdt_ranges_verify(buf, tuples_count, par_addr_cells,
-	    addr_cells, size_cells) != 0)
+	if (par_addr_cells > 2 || addr_cells > 2 || size_cells > 2)
 		return (ERANGE);
 
 	*tuples = tuples_count;

@@ -110,7 +110,7 @@ dtrace_dof_init(void)
 	Elf32_Ehdr *elf;
 #endif
 	dof_helper_t dh;
-	Link_map *lmp;
+	Link_map *lmp = NULL;
 #if defined(sun)
 	Lmid_t lmid;
 #else
