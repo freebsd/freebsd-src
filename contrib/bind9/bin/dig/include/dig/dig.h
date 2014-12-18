@@ -117,6 +117,7 @@ struct dig_lookup {
 		trace, /*% dig +trace */
 		trace_root, /*% initial query for either +trace or +nssearch */
 		tcp_mode,
+		tcp_mode_set,
 		ip6_int,
 		comments,
 		stats,
@@ -219,6 +220,7 @@ struct dig_query {
 	ISC_LINK(dig_query_t) clink;
 	isc_sockaddr_t sockaddr;
 	isc_time_t time_sent;
+	isc_time_t time_recv;
 	isc_uint64_t byte_count;
 	isc_buffer_t sendbuf;
 };
@@ -309,7 +311,7 @@ debug(const char *format, ...) ISC_FORMAT_PRINTF(1, 2);
 void
 check_result(isc_result_t result, const char *msg);
 
-void
+isc_boolean_t
 setup_lookup(dig_lookup_t *lookup);
 
 void

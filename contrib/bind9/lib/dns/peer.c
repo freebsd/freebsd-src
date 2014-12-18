@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -300,10 +300,15 @@ peer_delete(dns_peer_t **peer) {
 		isc_mem_put(mem, p->key, sizeof(dns_name_t));
 	}
 
-	if (p->transfer_source != NULL) {
+	if (p->query_source != NULL)
+		isc_mem_put(mem, p->query_source, sizeof(*p->query_source));
+
+	if (p->notify_source != NULL)
+		isc_mem_put(mem, p->notify_source, sizeof(*p->notify_source));
+
+	if (p->transfer_source != NULL)
 		isc_mem_put(mem, p->transfer_source,
 			    sizeof(*p->transfer_source));
-	}
 
 	isc_mem_put(mem, p, sizeof(*p));
 

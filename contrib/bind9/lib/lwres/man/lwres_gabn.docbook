@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,11 +18,10 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: lwres_gabn.docbook,v 1.10 2007/06/18 23:47:51 tbox Exp $ -->
 <refentry>
 
   <refentryinfo>
-    <date>Jun 30, 2000</date>
+    <date>June 18, 2007</date>
   </refentryinfo>
 
   <refmeta>
@@ -36,6 +35,7 @@
       <year>2004</year>
       <year>2005</year>
       <year>2007</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -120,7 +120,7 @@ void
       There are four main functions for the getaddrbyname opcode.
       One render function converts a getaddrbyname request structure &mdash;
       <type>lwres_gabnrequest_t</type> &mdash;
-      to the lighweight resolver's canonical format.
+      to the lightweight resolver's canonical format.
       It is complemented by a parse function that converts a packet in this
       canonical format to a getaddrbyname request structure.
       Another render function converts the getaddrbyname response structure

@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005, 2007, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001, 2002  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -26,7 +26,8 @@ top_srcdir =	@top_srcdir@
 # machine generated.  The latter are handled specially in the
 # install target below.
 #
-HEADERS =	aclconf.h cfg.h grammar.h log.h namedconf.h version.h
+HEADERS =	aclconf.h cfg.h dnsconf.h grammar.h log.h namedconf.h \
+		version.h
 
 SUBDIRS =
 TARGETS =

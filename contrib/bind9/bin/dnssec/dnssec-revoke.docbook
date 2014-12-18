@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
                [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2009, 2011, 2014  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,10 +17,9 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-revoke.docbook,v 1.9 2011/10/20 23:46:51 tbox Exp $ -->
 <refentry id="man.dnssec-revoke">
   <refentryinfo>
-    <date>June 1, 2009</date>
+    <date>October 20, 2011</date>
   </refentryinfo>
 
   <refmeta>
@@ -38,6 +37,7 @@
     <copyright>
       <year>2009</year>
       <year>2011</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -47,6 +47,7 @@
       <command>dnssec-revoke</command>
       <arg><option>-hr</option></arg>
       <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg><option>-V</option></arg>
       <arg><option>-K <replaceable class="parameter">directory</replaceable></option></arg>
       <arg><option>-E <replaceable class="parameter">engine</replaceable></option></arg>
       <arg><option>-f</option></arg>
@@ -102,6 +103,15 @@
           <para>
             Sets the debugging level.
           </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-V</term>
+        <listitem>
+	  <para>
+	    Prints version information.
+	  </para>
         </listitem>
       </varlistentry>
 

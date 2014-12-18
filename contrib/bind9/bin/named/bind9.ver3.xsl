@@ -267,6 +267,13 @@
         <div class="header">
           <h1>ISC Bind 9 Configuration and Statistics</h1>
         </div>
+        <p>Alternate statistics views: <a href="/">All</a>,
+        <a href="/xml/v3/status">Status</a>,
+        <a href="/xml/v3/server">Server</a>,
+        <a href="/xml/v3/zones">Zones</a>,
+        <a href="/xml/v3/net">Network</a>,
+        <a href="/xml/v3/tasks">Tasks</a> and
+        <a href="/xml/v3/mem">Memory</a></p>
         <hr/>
         <h2>Server Times</h2>
         <table class="info">

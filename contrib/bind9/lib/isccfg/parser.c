@@ -1306,8 +1306,9 @@ cfg_parse_mapbody(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret)
 				       "not implemented", clause->name);
 
 		if ((clause->flags & CFG_CLAUSEFLAG_NOTCONFIGURED) != 0) {
-			cfg_parser_warning(pctx, 0, "option '%s' is not "
-					   "configured", clause->name);
+			cfg_parser_warning(pctx, 0, "option '%s' was not "
+					   "enabled at compile time",
+					   clause->name);
 			result = ISC_R_FAILURE;
 			goto cleanup;
 		}

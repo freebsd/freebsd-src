@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
                [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2009-2011  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2009-2011, 2014  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,10 +17,9 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-settime.docbook,v 1.15 2011/11/03 20:21:37 each Exp $ -->
 <refentry id="man.dnssec-settime">
   <refentryinfo>
-    <date>July 15, 2009</date>
+    <date>February 07, 2014</date>
   </refentryinfo>
 
   <refmeta>
@@ -39,6 +38,7 @@
       <year>2009</year>
       <year>2010</year>
       <year>2011</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -55,6 +55,7 @@
       <arg><option>-I <replaceable class="parameter">date/offset</replaceable></option></arg>
       <arg><option>-D <replaceable class="parameter">date/offset</replaceable></option></arg>
       <arg><option>-h</option></arg>
+      <arg><option>-V</option></arg>
       <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
       <arg><option>-E <replaceable class="parameter">engine</replaceable></option></arg>
       <arg choice="req">keyfile</arg>
@@ -141,6 +142,15 @@
       </varlistentry>
   
       <varlistentry>
+	<term>-V</term>
+        <listitem>
+	  <para>
+	    Prints version information.
+	  </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
         <term>-v <replaceable class="parameter">level</replaceable></term>
         <listitem>
           <para>
@@ -171,7 +181,7 @@
       then the offset is computed in years (defined as 365 24-hour days,
       ignoring leap years), months (defined as 30 24-hour days), weeks,
       days, hours, or minutes, respectively.  Without a suffix, the offset
-      is computed in seconds.  To unset a date, use 'none'.
+      is computed in seconds.  To unset a date, use 'none' or 'never'.
     </para>
 
     <variablelist>

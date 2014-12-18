@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2014  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,11 +18,10 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: lwres_hstrerror.docbook,v 1.11 2007/06/18 23:47:51 tbox Exp $ -->
 <refentry>
 
   <refentryinfo>
-    <date>Jun 30, 2000</date>
+    <date>June 18, 2007</date>
   </refentryinfo>
 
   <refmeta>
@@ -36,6 +35,7 @@
       <year>2004</year>
       <year>2005</year>
       <year>2007</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006, 2008, 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2006, 2008, 2009, 2011, 2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -59,8 +59,9 @@ check_result(isc_result_t result, const char *message) {
 }
 
 static void
-usage() {
-	printf("Usage: %s salt algorithm iterations domain\n", program);
+usage(void) {
+	fprintf(stderr, "Usage: %s salt algorithm iterations domain\n",
+		program);
 	exit(1);
 }
 
@@ -115,7 +116,7 @@ main(int argc, char **argv) {
 	region.base = hash;
 	region.length = length;
 	isc_buffer_init(&buffer, text, sizeof(text));
-	isc_base32hex_totext(&region, 1, "", &buffer);
+	isc_base32hexnp_totext(&region, 1, "", &buffer);
 	fprintf(stdout, "%.*s (salt=%s, hash=%u, iterations=%u)\n",
 		(int)isc_buffer_usedlength(&buffer), text, argv[1], hash_alg, iterations);
 	return(0);

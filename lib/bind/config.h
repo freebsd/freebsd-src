@@ -3,7 +3,7 @@
 /* config.h.  Generated from config.h.in by configure.  */
 /* config.h.in.  Generated from configure.in by autoheader.  */
 /*
- * Copyright (C) 2004, 2005, 2007, 2008, 2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2008, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -75,6 +75,9 @@
 
 /** define if arc4random() exists */
 #define HAVE_ARC4RANDOM 1
+
+/** define if arc4random_addrandom() exists */
+#define HAVE_ARC4RANDOM_ADDRANDOM 1
 
 /**
  * define if pthread_setconcurrency() should be called to tell the
@@ -225,6 +228,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the <gssapi_krb5.h> header file. */
 /* #undef HAVE_GSSAPI_KRB5_H */
+
+/* Define to 1 if you have the `if_nametoindex' function. */
+#define HAVE_IF_NAMETOINDEX 1
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1

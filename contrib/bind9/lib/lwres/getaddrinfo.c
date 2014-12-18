@@ -134,13 +134,13 @@
 #include <config.h>
 
 #include <errno.h>
-
-#include <isc/string.h>
+#include <string.h>
 
 #include <lwres/lwres.h>
 #include <lwres/net.h>
 #include <lwres/netdb.h>
 #include <lwres/stdlib.h>
+#include <lwres/string.h>
 
 #define SA(addr)	((struct sockaddr *)(addr))
 #define SIN(addr)	((struct sockaddr_in *)(addr))
@@ -706,12 +706,16 @@ get_local(const char *name, int socktype, struct addrinfo **res) {
 	if (socktype == 0)
 		return (EAI_SOCKTYPE);
 
+	if (strlen(name) >= sizeof(slocal->sun_path))
+		return (EAI_OVERFLOW);
+
 	ai = ai_alloc(AF_LOCAL, sizeof(*slocal));
 	if (ai == NULL)
 		return (EAI_MEMORY);
 
 	slocal = SLOCAL(ai->ai_addr);
 	strncpy(slocal->sun_path, name, sizeof(slocal->sun_path));
+	slocal->sun_path[sizeof(slocal->sun_path) - 1] = '\0';
 
 	ai->ai_socktype = socktype;
 	/*

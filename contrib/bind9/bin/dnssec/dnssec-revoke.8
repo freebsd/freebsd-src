@@ -1,4 +1,4 @@
-.\" Copyright (C) 2009, 2011 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2009, 2011, 2014 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -19,11 +19,11 @@
 .\"     Title: dnssec\-revoke
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: June 1, 2009
+.\"      Date: October 20, 2011
 .\"    Manual: BIND9
 .\"    Source: BIND9
 .\"
-.TH "DNSSEC\-REVOKE" "8" "June 1, 2009" "BIND9" "BIND9"
+.TH "DNSSEC\-REVOKE" "8" "October 20, 2011" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -32,7 +32,7 @@
 dnssec\-revoke \- Set the REVOKED bit on a DNSSEC key
 .SH "SYNOPSIS"
 .HP 14
-\fBdnssec\-revoke\fR [\fB\-hr\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] [\fB\-f\fR] [\fB\-R\fR] {keyfile}
+\fBdnssec\-revoke\fR [\fB\-hr\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-V\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] [\fB\-f\fR] [\fB\-R\fR] {keyfile}
 .SH "DESCRIPTION"
 .PP
 \fBdnssec\-revoke\fR
@@ -57,6 +57,11 @@ After writing the new keyset files remove the original keyset files.
 \-v \fIlevel\fR
 .RS 4
 Sets the debugging level.
+.RE
+.PP
+\-V
+.RS 4
+Prints version information.
 .RE
 .PP
 \-E \fIengine\fR
@@ -84,5 +89,5 @@ RFC 5011.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2009, 2011 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2009, 2011, 2014 Internet Systems Consortium, Inc. ("ISC")
 .br

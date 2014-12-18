@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2007, 2009-2011, 2013  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007, 2009-2011, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2002  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,10 +18,9 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named-checkzone.docbook,v 1.44 2011/12/22 07:32:39 each Exp $ -->
 <refentry id="man.named-checkzone">
   <refentryinfo>
-    <date>June 13, 2000</date>
+    <date>April 29, 2013</date>
   </refentryinfo>
 
   <refmeta>
@@ -40,6 +39,7 @@
       <year>2010</year>
       <year>2011</year>
       <year>2013</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -408,10 +408,10 @@
 	<term>-T <replaceable class="parameter">mode</replaceable></term>
 	<listitem>
 	  <para>
-	    Check if Sender Policy Framework records (TXT and SPF)
-	    both exist or both don't exist.  A warning is issued
-	    if they don't match.  Possible modes are
-	    <command>"warn"</command> (default), <command>"ignore"</command>.
+	    Check if Sender Policy Framework (SPF) records exist
+	    and issues a warning if an SPF-formatted TXT record is
+	    not also present.  Possible modes are <command>"warn"</command>
+	    (default), <command>"ignore"</command>.
 	  </para>
 	</listitem>
       </varlistentry>

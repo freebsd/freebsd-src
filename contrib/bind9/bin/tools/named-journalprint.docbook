@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2009  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2009, 2014  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,10 +17,9 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named-journalprint.docbook,v 1.2 2009/12/04 21:59:23 marka Exp $ -->
 <refentry id="man.named-journalprint">
   <refentryinfo>
-    <date>Feb 18, 2009</date>
+    <date>December 04, 2009</date>
   </refentryinfo>
 
   <refmeta>
@@ -37,6 +36,7 @@
   <docinfo>
     <copyright>
       <year>2009</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>

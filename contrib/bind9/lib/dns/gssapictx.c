@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -233,7 +233,7 @@ check_config(const char *gss_name) {
 		krb5_free_context(krb5_ctx);
 		return;
 	}
-	p = strchr(gss_name, '/');
+	p = strchr(gss_name, '@');
 	if (p == NULL) {
 		gss_log(ISC_LOG_ERROR, "badly formatted "
 			"tkey-gssapi-credentials (%s)", gss_name);

@@ -1082,7 +1082,12 @@ ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 
 		obj = NULL;
 		result = ns_config_get(maps, "also-notify", &obj);
-		if (result == ISC_R_SUCCESS) {
+		if (result == ISC_R_SUCCESS &&
+		    (notifytype == dns_notifytype_yes ||
+		     notifytype == dns_notifytype_explicit ||
+		     (notifytype == dns_notifytype_masteronly &&
+		      ztype == dns_zone_master)))
+		{
 			isc_uint32_t addrcount;
 			addrs = NULL;
 			keynames = NULL;

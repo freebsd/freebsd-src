@@ -34,6 +34,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h> /* uintptr_t */
+#endif
 
 #include <isc/buffer.h>
 #include <isc/bufferlist.h>
@@ -49,6 +52,7 @@
 #include <isc/platform.h>
 #include <isc/print.h>
 #include <isc/region.h>
+#include <isc/resource.h>
 #include <isc/socket.h>
 #include <isc/stats.h>
 #include <isc/strerror.h>
@@ -374,6 +378,8 @@ struct isc__socketmgr {
 #endif	/* USE_EPOLL */
 #ifdef USE_DEVPOLL
 	int			devpoll_fd;
+	isc_resourcevalue_t	open_max;
+	unsigned int		calls;
 	int			nevents;
 	struct pollfd		*events;
 #endif	/* USE_DEVPOLL */
@@ -481,32 +487,32 @@ isc__socketmgr_destroy(isc_socketmgr_t **managerp);
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_recvv(isc_socket_t *sock, isc_bufferlist_t *buflist,
 		 unsigned int minimum, isc_task_t *task,
-		  isc_taskaction_t action, const void *arg);
+		  isc_taskaction_t action, void *arg);
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_recv(isc_socket_t *sock, isc_region_t *region,
 		 unsigned int minimum, isc_task_t *task,
-		 isc_taskaction_t action, const void *arg);
+		 isc_taskaction_t action, void *arg);
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_recv2(isc_socket_t *sock, isc_region_t *region,
 		  unsigned int minimum, isc_task_t *task,
 		  isc_socketevent_t *event, unsigned int flags);
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_send(isc_socket_t *sock, isc_region_t *region,
-		 isc_task_t *task, isc_taskaction_t action, const void *arg);
+		 isc_task_t *task, isc_taskaction_t action, void *arg);
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_sendto(isc_socket_t *sock, isc_region_t *region,
-		   isc_task_t *task, isc_taskaction_t action, const void *arg,
+		   isc_task_t *task, isc_taskaction_t action, void *arg,
 		   isc_sockaddr_t *address, struct in6_pktinfo *pktinfo);
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_sendv(isc_socket_t *sock, isc_bufferlist_t *buflist,
-		  isc_task_t *task, isc_taskaction_t action, const void *arg);
+		  isc_task_t *task, isc_taskaction_t action, void *arg);
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_sendtov(isc_socket_t *sock, isc_bufferlist_t *buflist,
-		    isc_task_t *task, isc_taskaction_t action, const void *arg,
+		    isc_task_t *task, isc_taskaction_t action, void *arg,
 		    isc_sockaddr_t *address, struct in6_pktinfo *pktinfo);
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_sendtov2(isc_socket_t *sock, isc_bufferlist_t *buflist,
-		     isc_task_t *task, isc_taskaction_t action, const void *arg,
+		     isc_task_t *task, isc_taskaction_t action, void *arg,
 		     isc_sockaddr_t *address, struct in6_pktinfo *pktinfo,
 		     unsigned int flags);
 ISC_SOCKETFUNC_SCOPE isc_result_t
@@ -528,11 +534,11 @@ ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_listen(isc_socket_t *sock, unsigned int backlog);
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_accept(isc_socket_t *sock,
-		   isc_task_t *task, isc_taskaction_t action, const void *arg);
+		   isc_task_t *task, isc_taskaction_t action, void *arg);
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_connect(isc_socket_t *sock, isc_sockaddr_t *addr,
 		    isc_task_t *task, isc_taskaction_t action,
-		    const void *arg);
+		    void *arg);
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_getpeername(isc_socket_t *sock, isc_sockaddr_t *addressp);
 ISC_SOCKETFUNC_SCOPE isc_result_t
@@ -1091,8 +1097,6 @@ select_readmsg(isc__socketmgr_t *mgr, int *fd, int *msg) {
 					   "read() failed "
 					   "during watcher poke: %s"),
 			    strbuf);
-
-		return;
 	}
 	INSIST(cc == sizeof(buf));
 
@@ -1593,7 +1597,7 @@ destroy_socketevent(isc_event_t *event) {
 
 static isc_socketevent_t *
 allocate_socketevent(isc__socket_t *sock, isc_eventtype_t eventtype,
-		     isc_taskaction_t action, const void *arg)
+		     isc_taskaction_t action, void *arg)
 {
 	isc_socketevent_t *ev;
 
@@ -1951,7 +1955,7 @@ doio_send(isc__socket_t *sock, isc_socketevent_t *dev) {
  * references exist.
  */
 static void
-closesocket(isc__socketmgr_t *manager, isc__socket_t *sock, int fd) {
+socketclose(isc__socketmgr_t *manager, isc__socket_t *sock, int fd) {
 	isc_sockettype_t type = sock->type;
 	int lockid = FDLOCK_ID(fd);
 
@@ -2031,7 +2035,7 @@ destroy(isc__socket_t **sockp) {
 	if (sock->fd >= 0) {
 		fd = sock->fd;
 		sock->fd = -1;
-		closesocket(manager, sock, fd);
+		socketclose(manager, sock, fd);
 	}
 
 	LOCK(&manager->lock);
@@ -2903,7 +2907,7 @@ isc__socket_close(isc_socket_t *sock0) {
 
 	UNLOCK(&sock->lock);
 
-	closesocket(manager, sock, fd);
+	socketclose(manager, sock, fd);
 
 	return (ISC_R_SUCCESS);
 }
@@ -3822,8 +3826,10 @@ watcher(void *uap) {
 #elif defined (USE_EPOLL)
 	const char *fnname = "epoll_wait()";
 #elif defined(USE_DEVPOLL)
+	isc_result_t result;
 	const char *fnname = "ioctl(DP_POLL)";
 	struct dvpoll dvp;
+	int pass;
 #elif defined (USE_SELECT)
 	const char *fnname = "select()";
 	int maxfd;
@@ -3850,17 +3856,45 @@ watcher(void *uap) {
 			cc = epoll_wait(manager->epoll_fd, manager->events,
 					manager->nevents, -1);
 #elif defined(USE_DEVPOLL)
-			dvp.dp_fds = manager->events;
-			dvp.dp_nfds = manager->nevents;
+			/*
+			 * Re-probe every thousand calls.
+			 */
+			if (manager->calls++ > 1000U) {
+				result = isc_resource_getcurlimit(
+							isc_resource_openfiles,
+							&manager->open_max);
+				if (result != ISC_R_SUCCESS)
+					manager->open_max = 64;
+				manager->calls = 0;
+			}
+			for (pass = 0; pass < 2; pass++) {
+				dvp.dp_fds = manager->events;
+				dvp.dp_nfds = manager->nevents;
+				if (dvp.dp_nfds >= manager->open_max)
+					dvp.dp_nfds = manager->open_max - 1;
 #ifndef ISC_SOCKET_USE_POLLWATCH
-			dvp.dp_timeout = -1;
-#else
-			if (pollstate == poll_idle)
 				dvp.dp_timeout = -1;
-			else
-				dvp.dp_timeout = ISC_SOCKET_POLLWATCH_TIMEOUT;
+#else
+				if (pollstate == poll_idle)
+					dvp.dp_timeout = -1;
+				else
+					dvp.dp_timeout =
+						 ISC_SOCKET_POLLWATCH_TIMEOUT;
 #endif	/* ISC_SOCKET_USE_POLLWATCH */
-			cc = ioctl(manager->devpoll_fd, DP_POLL, &dvp);
+				cc = ioctl(manager->devpoll_fd, DP_POLL, &dvp);
+				if (cc == -1 && errno == EINVAL) {
+					/*
+					 * {OPEN_MAX} may have dropped.  Look
+					 * up the current value and try again.
+					 */
+					result = isc_resource_getcurlimit(
+							isc_resource_openfiles,
+							&manager->open_max);
+					if (result != ISC_R_SUCCESS)
+						manager->open_max = 64;
+				} else
+					break;
+			}
 #elif defined(USE_SELECT)
 			LOCK(&manager->lock);
 			memmove(manager->read_fds_copy, manager->read_fds,
@@ -4022,11 +4056,12 @@ setup_watcher(isc_mem_t *mctx, isc__socketmgr_t *manager) {
 	}
 #endif	/* USE_WATCHER_THREAD */
 #elif defined(USE_DEVPOLL)
-	/*
-	 * XXXJT: /dev/poll seems to reject large numbers of events,
-	 * so we should be careful about redefining ISC_SOCKET_MAXEVENTS.
-	 */
 	manager->nevents = ISC_SOCKET_MAXEVENTS;
+	result = isc_resource_getcurlimit(isc_resource_openfiles,
+					  &manager->open_max);
+	if (result != ISC_R_SUCCESS)
+		manager->open_max = 64;
+	manager->calls = 0;
 	manager->events = isc_mem_get(mctx, sizeof(struct pollfd) *
 				      manager->nevents);
 	if (manager->events == NULL)
@@ -4557,7 +4592,7 @@ socket_recv(isc__socket_t *sock, isc_socketevent_t *dev, isc_task_t *task,
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_recvv(isc_socket_t *sock0, isc_bufferlist_t *buflist,
 		  unsigned int minimum, isc_task_t *task,
-		  isc_taskaction_t action, const void *arg)
+		  isc_taskaction_t action, void *arg)
 {
 	isc__socket_t *sock = (isc__socket_t *)sock0;
 	isc_socketevent_t *dev;
@@ -4611,7 +4646,7 @@ isc__socket_recvv(isc_socket_t *sock0, isc_bufferlist_t *buflist,
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_recv(isc_socket_t *sock0, isc_region_t *region,
 		 unsigned int minimum, isc_task_t *task,
-		 isc_taskaction_t action, const void *arg)
+		 isc_taskaction_t action, void *arg)
 {
 	isc__socket_t *sock = (isc__socket_t *)sock0;
 	isc_socketevent_t *dev;
@@ -4756,7 +4791,7 @@ socket_send(isc__socket_t *sock, isc_socketevent_t *dev, isc_task_t *task,
 
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_send(isc_socket_t *sock, isc_region_t *region,
-		 isc_task_t *task, isc_taskaction_t action, const void *arg)
+		 isc_task_t *task, isc_taskaction_t action, void *arg)
 {
 	/*
 	 * REQUIRE() checking is performed in isc_socket_sendto().
@@ -4767,7 +4802,7 @@ isc__socket_send(isc_socket_t *sock, isc_region_t *region,
 
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_sendto(isc_socket_t *sock0, isc_region_t *region,
-		   isc_task_t *task, isc_taskaction_t action, const void *arg,
+		   isc_task_t *task, isc_taskaction_t action, void *arg,
 		   isc_sockaddr_t *address, struct in6_pktinfo *pktinfo)
 {
 	isc__socket_t *sock = (isc__socket_t *)sock0;
@@ -4795,7 +4830,7 @@ isc__socket_sendto(isc_socket_t *sock0, isc_region_t *region,
 
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_sendv(isc_socket_t *sock, isc_bufferlist_t *buflist,
-		  isc_task_t *task, isc_taskaction_t action, const void *arg)
+		  isc_task_t *task, isc_taskaction_t action, void *arg)
 {
 	return (isc__socket_sendtov2(sock, buflist, task, action, arg, NULL,
 				     NULL, 0));
@@ -4803,7 +4838,7 @@ isc__socket_sendv(isc_socket_t *sock, isc_bufferlist_t *buflist,
 
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_sendtov(isc_socket_t *sock, isc_bufferlist_t *buflist,
-		    isc_task_t *task, isc_taskaction_t action, const void *arg,
+		    isc_task_t *task, isc_taskaction_t action, void *arg,
 		    isc_sockaddr_t *address, struct in6_pktinfo *pktinfo)
 {
 	return (isc__socket_sendtov2(sock, buflist, task, action, arg, address,
@@ -4812,7 +4847,7 @@ isc__socket_sendtov(isc_socket_t *sock, isc_bufferlist_t *buflist,
 
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_sendtov2(isc_socket_t *sock0, isc_bufferlist_t *buflist,
-		     isc_task_t *task, isc_taskaction_t action, const void *arg,
+		     isc_task_t *task, isc_taskaction_t action, void *arg,
 		     isc_sockaddr_t *address, struct in6_pktinfo *pktinfo,
 		     unsigned int flags)
 {
@@ -5211,7 +5246,7 @@ isc__socket_listen(isc_socket_t *sock0, unsigned int backlog) {
  */
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_accept(isc_socket_t *sock0,
-		  isc_task_t *task, isc_taskaction_t action, const void *arg)
+		  isc_task_t *task, isc_taskaction_t action, void *arg)
 {
 	isc__socket_t *sock = (isc__socket_t *)sock0;
 	isc_socket_newconnev_t *dev;
@@ -5286,7 +5321,7 @@ isc__socket_accept(isc_socket_t *sock0,
 
 ISC_SOCKETFUNC_SCOPE isc_result_t
 isc__socket_connect(isc_socket_t *sock0, isc_sockaddr_t *addr,
-		   isc_task_t *task, isc_taskaction_t action, const void *arg)
+		   isc_task_t *task, isc_taskaction_t action, void *arg)
 {
 	isc__socket_t *sock = (isc__socket_t *)sock0;
 	isc_socket_connev_t *dev;
@@ -5796,8 +5831,6 @@ isc__socketmgr_waitevents(isc_socketmgr_t *manager0, struct timeval *tvp,
 			  isc_socketwait_t **swaitp)
 {
 	isc__socketmgr_t *manager = (isc__socketmgr_t *)manager0;
-
-
 	int n;
 #ifdef USE_KQUEUE
 	struct timespec ts, *tsp;
@@ -5806,6 +5839,8 @@ isc__socketmgr_waitevents(isc_socketmgr_t *manager0, struct timeval *tvp,
 	int timeout;
 #endif
 #ifdef USE_DEVPOLL
+	isc_result_t result;
+	int pass;
 	struct dvpoll dvp;
 #endif
 
@@ -5839,15 +5874,41 @@ isc__socketmgr_waitevents(isc_socketmgr_t *manager0, struct timeval *tvp,
 					   manager->nevents, timeout);
 	n = swait_private.nevents;
 #elif defined(USE_DEVPOLL)
-	dvp.dp_fds = manager->events;
-	dvp.dp_nfds = manager->nevents;
-	if (tvp != NULL) {
-		dvp.dp_timeout = tvp->tv_sec * 1000 +
-			(tvp->tv_usec + 999) / 1000;
-	} else
-		dvp.dp_timeout = -1;
-	swait_private.nevents = ioctl(manager->devpoll_fd, DP_POLL, &dvp);
-	n = swait_private.nevents;
+	/*
+	 * Re-probe every thousand calls.
+	 */
+	if (manager->calls++ > 1000U) {
+		result = isc_resource_getcurlimit(isc_resource_openfiles,
+						  &manager->open_max);
+		if (result != ISC_R_SUCCESS)
+			manager->open_max = 64;
+		manager->calls = 0;
+	}
+	for (pass = 0; pass < 2; pass++) {
+		dvp.dp_fds = manager->events;
+		dvp.dp_nfds = manager->nevents;
+		if (dvp.dp_nfds >= manager->open_max)
+			dvp.dp_nfds = manager->open_max - 1;
+		if (tvp != NULL) {
+			dvp.dp_timeout = tvp->tv_sec * 1000 +
+				(tvp->tv_usec + 999) / 1000;
+		} else
+			dvp.dp_timeout = -1;
+		n = ioctl(manager->devpoll_fd, DP_POLL, &dvp);
+		if (n == -1 && errno == EINVAL) {
+			/*
+			 * {OPEN_MAX} may have dropped.  Look
+			 * up the current value and try again.
+			 */
+			result = isc_resource_getcurlimit(
+							isc_resource_openfiles,
+							&manager->open_max);
+			if (result != ISC_R_SUCCESS)
+				manager->open_max = 64;
+		} else
+			break;
+	}
+	swait_private.nevents = n;
 #elif defined(USE_SELECT)
 	memmove(manager->read_fds_copy, manager->read_fds, manager->fd_bufsize);
 	memmove(manager->write_fds_copy, manager->write_fds,
@@ -5923,7 +5984,7 @@ isc__socket_gettag(isc_socket_t *socket0) {
 
 #ifdef USE_SOCKETIMPREGISTER
 isc_result_t
-isc__socket_register() {
+isc__socket_register(void) {
 	return (isc_socket_register(isc__socketmgr_create));
 }
 #endif

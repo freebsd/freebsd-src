@@ -1,8 +1,8 @@
 <!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
-               "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
+	       "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2011, 2013  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2011, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,11 +18,10 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dig.docbook,v 1.51 2011/11/04 11:02:50 jreed Exp $ -->
 <refentry id="man.dig">
 
   <refentryinfo>
-    <date>June 30, 2000</date>
+    <date>February 12, 2014</date>
   </refentryinfo>
 
   <refmeta>
@@ -47,6 +46,7 @@
       <year>2010</year>
       <year>2011</year>
       <year>2013</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -70,6 +70,7 @@
       <arg><option>-p <replaceable class="parameter">port#</replaceable></option></arg>
       <arg><option>-q <replaceable class="parameter">name</replaceable></option></arg>
       <arg><option>-t <replaceable class="parameter">type</replaceable></option></arg>
+      <arg><option>-v</option></arg>
       <arg><option>-x <replaceable class="parameter">addr</replaceable></option></arg>
       <arg><option>-y <replaceable class="parameter"><optional>hmac:</optional>name:key</replaceable></option></arg>
       <arg><option>-4</option></arg>
@@ -138,7 +139,7 @@
 
     <para>
       The IN and CH class names overlap with the IN and CH top level
-      domains names.  Either use the <option>-t</option> and
+      domain names.  Either use the <option>-t</option> and
       <option>-c</option> options to specify the type and class, 
       use the <option>-q</option> the specify the domain name, or
       use "IN." and "CH." when looking up these top level domains.
@@ -156,56 +157,56 @@
 
       <variablelist>
 
-        <varlistentry>
-          <term><constant>server</constant></term>
-          <listitem>
-            <para>
-              is the name or IP address of the name server to query.  This
-              can be an IPv4 address in dotted-decimal notation or an IPv6
-              address in colon-delimited notation.  When the supplied
-              <parameter>server</parameter> argument is a hostname,
-              <command>dig</command> resolves that name before querying
-              that name server.
-            </para>
-            <para>
-              If no <parameter>server</parameter> argument is
-              provided, <command>dig</command> consults
-              <filename>/etc/resolv.conf</filename>; if an
-              address is found there, it queries the name server at
-              that address. If either of the <option>-4</option> or
-              <option>-6</option> options are in use, then
-              only addresses for the corresponding transport
-              will be tried.  If no usable addresses are found,
-              <command>dig</command> will send the query to the
-              local host.  The reply from the name server that
-              responds is displayed.
-            </para>
-          </listitem>
-        </varlistentry>
+	<varlistentry>
+	  <term><constant>server</constant></term>
+	  <listitem>
+	    <para>
+	      is the name or IP address of the name server to query.  This
+	      can be an IPv4 address in dotted-decimal notation or an IPv6
+	      address in colon-delimited notation.  When the supplied
+	      <parameter>server</parameter> argument is a hostname,
+	      <command>dig</command> resolves that name before querying
+	      that name server.
+	    </para>
+	    <para>
+	      If no <parameter>server</parameter> argument is
+	      provided, <command>dig</command> consults
+	      <filename>/etc/resolv.conf</filename>; if an
+	      address is found there, it queries the name server at
+	      that address. If either of the <option>-4</option> or
+	      <option>-6</option> options are in use, then
+	      only addresses for the corresponding transport
+	      will be tried.  If no usable addresses are found,
+	      <command>dig</command> will send the query to the
+	      local host.  The reply from the name server that
+	      responds is displayed.
+	    </para>
+	  </listitem>
+	</varlistentry>
 
-        <varlistentry>
-          <term><constant>name</constant></term>
-          <listitem>
-            <para>
-              is the name of the resource record that is to be looked up.
-            </para>
-          </listitem>
-        </varlistentry>
+	<varlistentry>
+	  <term><constant>name</constant></term>
+	  <listitem>
+	    <para>
+	      is the name of the resource record that is to be looked up.
+	    </para>
+	  </listitem>
+	</varlistentry>
 
-        <varlistentry>
-          <term><constant>type</constant></term>
-          <listitem>
-            <para>
-              indicates what type of query is required &mdash;
-              ANY, A, MX, SIG, etc.
-              <parameter>type</parameter> can be any valid query
-              type.  If no
-              <parameter>type</parameter> argument is supplied,
-              <command>dig</command> will perform a lookup for an
-              A record.
-            </para>
-          </listitem>
-        </varlistentry>
+	<varlistentry>
+	  <term><constant>type</constant></term>
+	  <listitem>
+	    <para>
+	      indicates what type of query is required &mdash;
+	      ANY, A, MX, SIG, etc.
+	      <parameter>type</parameter> can be any valid query
+	      type.  If no
+	      <parameter>type</parameter> argument is supplied,
+	      <command>dig</command> will perform a lookup for an
+	      A record.
+	    </para>
+	  </listitem>
+	</varlistentry>
 
       </variablelist>
     </para>
@@ -245,7 +246,7 @@
     <para>
       The <option>-m</option> option enables memory usage debugging.
       <!-- It enables ISC_MEM_DEBUGTRACE and ISC_MEM_DEBUGRECORD
-           documented in include/isc/mem.h -->
+	   documented in include/isc/mem.h -->
     </para>
 
     <para>
@@ -281,8 +282,13 @@
 
     <para>
       The <option>-q</option> option sets the query name to 
-      <parameter>name</parameter>.  This useful do distinguish the
+      <parameter>name</parameter>.  This is useful to distinguish the
       <parameter>name</parameter> from other arguments.
+    </para>
+
+    <para>
+      The <option>-v</option> causes <command>dig</command> to
+      print the version number and exit.
     </para>
 
     <para>
@@ -315,13 +321,13 @@
       base-64
       encoded string, typically generated by
       <citerefentry>
-        <refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
+	<refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>.
 
       Caution should be taken when using the <option>-y</option> option on
       multi-user systems as the key can be visible in the output from
       <citerefentry>
-        <refentrytitle>ps</refentrytitle><manvolnum>1</manvolnum>
+	<refentrytitle>ps</refentrytitle><manvolnum>1</manvolnum>
       </citerefentry>
       or in the shell's history file.  When
       using TSIG authentication with <command>dig</command>, the name
@@ -356,109 +362,36 @@
 
       <variablelist>
 
-        <varlistentry>
-          <term><option>+[no]tcp</option></term>
-          <listitem>
-            <para>
-              Use [do not use] TCP when querying name servers.  The default
-              behavior is to use UDP unless an AXFR or IXFR query is
-              requested, in
-              which case a TCP connection is used.
-            </para>
-          </listitem>
-        </varlistentry>
+	<varlistentry>
+	  <term><option>+[no]aaflag</option></term>
+	  <listitem>
+	    <para>
+	      A synonym for <parameter>+[no]aaonly</parameter>.
+	    </para>
+	  </listitem>
+	</varlistentry>
 
-        <varlistentry>
-          <term><option>+[no]vc</option></term>
-          <listitem>
-            <para>
-              Use [do not use] TCP when querying name servers.  This alternate
-              syntax to <parameter>+[no]tcp</parameter> is
-              provided for backwards
-              compatibility.  The "vc" stands for "virtual circuit".
-            </para>
-          </listitem>
-        </varlistentry>
+	<varlistentry>
+	  <term><option>+[no]aaonly</option></term>
+	  <listitem>
+	    <para>
+	      Sets the "aa" flag in the query.
+	    </para>
+	  </listitem>
+	</varlistentry>
 
-        <varlistentry>
-          <term><option>+[no]ignore</option></term>
-          <listitem>
-            <para>
-              Ignore truncation in UDP responses instead of retrying with TCP.
-               By
-              default, TCP retries are performed.
-            </para>
-          </listitem>
-        </varlistentry>
+	<varlistentry>
+	  <term><option>+[no]additional</option></term>
+	  <listitem>
+	    <para>
+	      Display [do not display] the additional section of a
+	      reply.  The default is to display it.
+	    </para>
+	  </listitem>
+	</varlistentry>
 
-        <varlistentry>
-          <term><option>+domain=somename</option></term>
-          <listitem>
-            <para>
-              Set the search list to contain the single domain
-              <parameter>somename</parameter>, as if specified in
-              a
-              <command>domain</command> directive in
-              <filename>/etc/resolv.conf</filename>, and enable
-              search list
-              processing as if the <parameter>+search</parameter>
-              option were given.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]search</option></term>
-          <listitem>
-            <para>
-              Use [do not use] the search list defined by the searchlist or
-              domain
-              directive in <filename>resolv.conf</filename> (if
-              any).
-              The search list is not used by default.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]showsearch</option></term>
-          <listitem>
-            <para>
-              Perform [do not perform] a search showing intermediate
-	      results.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]defname</option></term>
-          <listitem>
-            <para>
-              Deprecated, treated as a synonym for <parameter>+[no]search</parameter>
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]aaonly</option></term>
-          <listitem>
-            <para>
-              Sets the "aa" flag in the query.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]aaflag</option></term>
-          <listitem>
-            <para>
-              A synonym for <parameter>+[no]aaonly</parameter>.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]adflag</option></term>
+	<varlistentry>
+	  <term><option>+[no]adflag</option></term>
 	  <listitem>
 	    <para>
 	      Set [do not set] the AD (authentic data) bit in the
@@ -474,38 +407,285 @@
 	  </listitem>
 	</varlistentry>
 
-        <varlistentry>
-          <term><option>+[no]cdflag</option></term>
-          <listitem>
-            <para>
-              Set [do not set] the CD (checking disabled) bit in the query.
-              This
-              requests the server to not perform DNSSEC validation of
-              responses.
-            </para>
-          </listitem>
-        </varlistentry>
+	<varlistentry>
+	  <term><option>+[no]all</option></term>
+	  <listitem>
+	    <para>
+	      Set or clear all display flags.
+	    </para>
+	  </listitem>
+	</varlistentry>
 
-        <varlistentry>
-          <term><option>+[no]cl</option></term>
-          <listitem>
-            <para>
-              Display [do not display] the CLASS when printing the record.
-            </para>
-          </listitem>
-        </varlistentry>
+	<varlistentry>
+	  <term><option>+[no]answer</option></term>
+	  <listitem>
+	    <para>
+	      Display [do not display] the answer section of a
+	      reply.  The default is to display it.
+	    </para>
+	  </listitem>
+	</varlistentry>
 
-        <varlistentry>
-          <term><option>+[no]ttlid</option></term>
-          <listitem>
-            <para>
-              Display [do not display] the TTL when printing the record.
-            </para>
-          </listitem>
-        </varlistentry>
+	<varlistentry>
+	  <term><option>+[no]authority</option></term>
+	  <listitem>
+	    <para>
+	      Display [do not display] the authority section of a
+	      reply.  The default is to display it.
+	    </para>
+	  </listitem>
+	</varlistentry>
 
-        <varlistentry>
-          <term><option>+[no]recurse</option></term>
+	<varlistentry>
+	  <term><option>+[no]besteffort</option></term>
+	  <listitem>
+	    <para>
+	      Attempt to display the contents of messages which are
+	      malformed.  The default is to not display malformed
+	      answers.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+bufsize=B</option></term>
+	  <listitem>
+	    <para>
+	      Set the UDP message buffer size advertised using EDNS0
+	      to <parameter>B</parameter> bytes.  The maximum and
+	      minimum sizes of this buffer are 65535 and 0 respectively.
+	      Values outside this range are rounded up or down
+	      appropriately.  Values other than zero will cause a
+	      EDNS query to be sent.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]cdflag</option></term>
+	  <listitem>
+	    <para>
+	      Set [do not set] the CD (checking disabled) bit in
+	      the query.  This requests the server to not perform
+	      DNSSEC validation of responses.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]cl</option></term>
+	  <listitem>
+	    <para>
+	      Display [do not display] the CLASS when printing the
+	      record.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]cmd</option></term>
+	  <listitem>
+	    <para>
+	      Toggles the printing of the initial comment in the
+	      output identifying the version of <command>dig</command>
+	      and the query options that have been applied.  This
+	      comment is printed by default.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]comments</option></term>
+	  <listitem>
+	    <para>
+	      Toggle the display of comment lines in the output.
+	      The default is to print comments.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]defname</option></term>
+	  <listitem>
+	    <para>
+	      Deprecated, treated as a synonym for
+	      <parameter>+[no]search</parameter>
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]dnssec</option></term>
+	  <listitem>
+	    <para>
+	      Requests DNSSEC records be sent by setting the DNSSEC
+	      OK bit (DO) in the OPT record in the additional section
+	      of the query.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+domain=somename</option></term>
+	  <listitem>
+	    <para>
+	      Set the search list to contain the single domain
+	      <parameter>somename</parameter>, as if specified in
+	      a <command>domain</command> directive in
+	      <filename>/etc/resolv.conf</filename>, and enable
+	      search list processing as if the
+	      <parameter>+search</parameter> option were given.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]edns[=#]</option></term>
+	  <listitem>
+	    <para>
+	       Specify the EDNS version to query with.  Valid values
+	       are 0 to 255.  Setting the EDNS version will cause
+	       a EDNS query to be sent.  <option>+noedns</option>
+	       clears the remembered EDNS version.  EDNS is set to
+	       0 by default.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]fail</option></term>
+	  <listitem>
+	    <para>
+	      Do not try the next server if you receive a SERVFAIL.
+	      The default is to not try the next server which is
+	      the reverse of normal stub resolver behavior.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]identify</option></term>
+	  <listitem>
+	    <para>
+	      Show [or do not show] the IP address and port number
+	      that supplied the answer when the
+	      <parameter>+short</parameter> option is enabled.  If
+	      short form answers are requested, the default is not
+	      to show the source address and port number of the
+	      server that provided the answer.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]ignore</option></term>
+	  <listitem>
+	    <para>
+	      Ignore truncation in UDP responses instead of retrying
+	      with TCP.  By default, TCP retries are performed.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]keepopen</option></term>
+	  <listitem>
+	    <para>
+	      Keep the TCP socket open between queries and reuse
+	      it rather than creating a new TCP socket for each
+	      lookup.  The default is <option>+nokeepopen</option>.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]multiline</option></term>
+	  <listitem>
+	    <para>
+	      Print records like the SOA records in a verbose
+	      multi-line format with human-readable comments.  The
+	      default is to print each record on a single line, to
+	      facilitate machine parsing of the <command>dig</command>
+	      output.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+ndots=D</option></term>
+	  <listitem>
+	    <para>
+	      Set the number of dots that have to appear in
+	      <parameter>name</parameter> to <parameter>D</parameter>
+	      for it to be considered absolute.  The default value
+	      is that defined using the ndots statement in
+	      <filename>/etc/resolv.conf</filename>, or 1 if no
+	      ndots statement is present.  Names with fewer dots
+	      are interpreted as relative names and will be searched
+	      for in the domains listed in the <option>search</option>
+	      or <option>domain</option> directive in
+	      <filename>/etc/resolv.conf</filename>.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]nsid</option></term>
+	  <listitem>
+	    <para>
+	      Include an EDNS name server ID request when sending
+	      a query.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]nssearch</option></term>
+	  <listitem>
+	    <para>
+	      When this option is set, <command>dig</command>
+	      attempts to find the authoritative name servers for
+	      the zone containing the name being looked up and
+	      display the SOA record that each name server has for
+	      the zone.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]onesoa</option></term>
+	  <listitem>
+	    <para>
+	      Print only one (starting) SOA record when performing
+	      an AXFR. The default is to print both the starting
+	      and ending SOA records.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]qr</option></term>
+	  <listitem>
+	    <para>
+	      Print [do not print] the query as it is sent.  By
+	      default, the query is not printed.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]question</option></term>
+	  <listitem>
+	    <para>
+	      Print [do not print] the question section of a query
+	      when an answer is returned.  The default is to print
+	      the question section as a comment.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]recurse</option></term>
 	  <listitem>
 	    <para>
 	      Toggle the setting of the RD (recursion desired) bit
@@ -518,24 +698,141 @@
 	  </listitem>
 	</varlistentry>
 
-        <varlistentry>
-          <term><option>+[no]nssearch</option></term>
-          <listitem>
-            <para>
-              When this option is set, <command>dig</command>
-              attempts to find the
-              authoritative name servers for the zone containing the name
-              being
-              looked up and display the SOA record that each name server has
-              for the
-              zone.
-            </para>
-          </listitem>
-        </varlistentry>
+	<varlistentry>
+	  <term><option>+retry=T</option></term>
+	  <listitem>
+	    <para>
+	      Sets the number of times to retry UDP queries to
+	      server to <parameter>T</parameter> instead of the
+	      default, 2.  Unlike <parameter>+tries</parameter>,
+	      this does not include the initial query.
+	    </para>
+	  </listitem>
+	</varlistentry>
 
-        <varlistentry>
-          <term><option>+[no]trace</option></term>
-          <listitem>
+	<varlistentry>
+	  <term><option>+[no]rrcomments</option></term>
+	  <listitem>
+	    <para>
+	      Toggle the display of per-record comments in the
+	      output (for example, human-readable key information
+	      about DNSKEY records).  The default is not to print
+	      record comments unless multiline mode is active.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]search</option></term>
+	  <listitem>
+	    <para>
+	      Use [do not use] the search list defined by the
+	      searchlist or domain directive in
+	      <filename>resolv.conf</filename> (if any).  The search
+	      list is not used by default.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]short</option></term>
+	  <listitem>
+	    <para>
+	      Provide a terse answer.  The default is to print the
+	      answer in a verbose form.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]showsearch</option></term>
+	  <listitem>
+	    <para>
+	      Perform [do not perform] a search showing intermediate
+	      results.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]sigchase</option></term>
+	  <listitem>
+	    <para>
+	      Chase DNSSEC signature chains.  Requires dig be
+	      compiled with -DDIG_SIGCHASE.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+split=W</option></term>
+	  <listitem>
+	    <para>
+	      Split long hex- or base64-formatted fields in resource
+	      records into chunks of <parameter>W</parameter>
+	      characters (where <parameter>W</parameter> is rounded
+	      up to the nearest multiple of 4).
+	      <parameter>+nosplit</parameter> or
+	      <parameter>+split=0</parameter> causes fields not to
+	      be split at all.  The default is 56 characters, or
+	      44 characters when multiline mode is active.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]stats</option></term>
+	  <listitem>
+	    <para>
+	      This query option toggles the printing of statistics:
+	      when the query was made, the size of the reply and
+	      so on.  The default behavior is to print the query
+	      statistics.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]tcp</option></term>
+	  <listitem>
+	    <para>
+	      Use [do not use] TCP when querying name servers. The
+	      default behavior is to use UDP unless an
+	      <literal>ixfr=N</literal> query is requested, in which
+	      case the default is TCP.  AXFR queries always use
+	      TCP.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+time=T</option></term>
+	  <listitem>
+	    <para>
+
+	      Sets the timeout for a query to
+	      <parameter>T</parameter> seconds.  The default
+	      timeout is 5 seconds.
+	      An attempt to set <parameter>T</parameter> to less
+	      than 1 will result
+	      in a query timeout of 1 second being applied.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]topdown</option></term>
+	  <listitem>
+	    <para>
+	      When chasing DNSSEC signature chains perform a top-down
+	      validation.  Requires dig be compiled with -DDIG_SIGCHASE.
+	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]trace</option></term>
+	  <listitem>
 	    <para>
 	      Toggle tracing of the delegation path from the root
 	      name servers for the name being looked up.  Tracing
@@ -544,369 +841,66 @@
 	      resolve the name being looked up.  It will follow
 	      referrals from the root servers, showing the answer
 	      from each server that was used to resolve the lookup.
-	    </para>
-	    <para>
-	      <command>+dnssec</command> is also set when +trace is
-	      set to better emulate the default queries from a nameserver.
+	    </para> <para>
+	      <command>+dnssec</command> is also set when +trace
+	      is set to better emulate the default queries from a
+	      nameserver.
 	    </para>
 	  </listitem>
 	</varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]cmd</option></term>
-          <listitem>
-            <para>
-              Toggles the printing of the initial comment in the output
-              identifying
-              the version of <command>dig</command> and the query
-              options that have
-              been applied.  This comment is printed by default.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]short</option></term>
-          <listitem>
-            <para>
-              Provide a terse answer.  The default is to print the answer in a
-              verbose form.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]identify</option></term>
-          <listitem>
-            <para>
-              Show [or do not show] the IP address and port number that
-              supplied the
-              answer when the <parameter>+short</parameter> option
-              is enabled.  If
-              short form answers are requested, the default is not to show the
-              source address and port number of the server that provided the
-              answer.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]comments</option></term>
-          <listitem>
-            <para>
-              Toggle the display of comment lines in the output.  The default
-              is to print comments.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]rrcomments</option></term>
-          <listitem>
-            <para>
-              Toggle the display of per-record comments in the output (for
-              example, human-readable key information about DNSKEY records).
-              The default is not to print record comments unless multiline
-              mode is active.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+split=W</option></term>
-          <listitem>
-            <para>
-              Split long hex- or base64-formatted fields in resource
-              records into chunks of <parameter>W</parameter> characters
-              (where <parameter>W</parameter> is rounded up to the nearest
-              multiple of 4).
-              <parameter>+nosplit</parameter> or
-              <parameter>+split=0</parameter> causes fields not to be
-              split at all.  The default is 56 characters, or 44 characters
-              when multiline mode is active.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]stats</option></term>
-          <listitem>
-            <para>
-              This query option toggles the printing of statistics: when the
-              query
-              was made, the size of the reply and so on.  The default
-              behavior is
-              to print the query statistics.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]qr</option></term>
-          <listitem>
-            <para>
-              Print [do not print] the query as it is sent.
-              By default, the query is not printed.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]question</option></term>
-          <listitem>
-            <para>
-              Print [do not print] the question section of a query when an
-              answer is
-              returned.  The default is to print the question section as a
-              comment.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]answer</option></term>
-          <listitem>
-            <para>
-              Display [do not display] the answer section of a reply.  The
-              default
-              is to display it.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]authority</option></term>
-          <listitem>
-            <para>
-              Display [do not display] the authority section of a reply.  The
-              default is to display it.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]additional</option></term>
-          <listitem>
-            <para>
-              Display [do not display] the additional section of a reply.
-              The default is to display it.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]all</option></term>
-          <listitem>
-            <para>
-              Set or clear all display flags.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+time=T</option></term>
-          <listitem>
-            <para>
-
-              Sets the timeout for a query to
-              <parameter>T</parameter> seconds.  The default
-	      timeout is 5 seconds.
-              An attempt to set <parameter>T</parameter> to less
-              than 1 will result
-              in a query timeout of 1 second being applied.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+tries=T</option></term>
-          <listitem>
-            <para>
-              Sets the number of times to try UDP queries to server to
-              <parameter>T</parameter> instead of the default, 3.
-              If
-              <parameter>T</parameter> is less than or equal to
-              zero, the number of
-              tries is silently rounded up to 1.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+retry=T</option></term>
-          <listitem>
-            <para>
-              Sets the number of times to retry UDP queries to server to
-              <parameter>T</parameter> instead of the default, 2.
-              Unlike
-              <parameter>+tries</parameter>, this does not include
-              the initial
-              query.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+ndots=D</option></term>
-          <listitem>
-            <para>
-              Set the number of dots that have to appear in
-              <parameter>name</parameter> to <parameter>D</parameter> for it to be
-              considered absolute.  The default value is that defined using
-              the
-              ndots statement in <filename>/etc/resolv.conf</filename>, or 1 if no
-              ndots statement is present.  Names with fewer dots are
-              interpreted as
-              relative names and will be searched for in the domains listed in
-              the
-              <option>search</option> or <option>domain</option> directive in
-              <filename>/etc/resolv.conf</filename>.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+bufsize=B</option></term>
-          <listitem>
-            <para>
-              Set the UDP message buffer size advertised using EDNS0 to
-              <parameter>B</parameter> bytes.  The maximum and minimum sizes
-	      of this buffer are 65535 and 0 respectively.  Values outside
-	      this range are rounded up or down appropriately.  
-	      Values other than zero will cause a EDNS query to be sent.
-            </para>
-          </listitem>
-        </varlistentry>
 
 	<varlistentry>
-	  <term><option>+edns=#</option></term>
+	  <term><option>+tries=T</option></term>
 	  <listitem>
 	    <para>
-	       Specify the EDNS version to query with.  Valid values
-	       are 0 to 255.  Setting the EDNS version will cause
-	       a EDNS query to be sent.  <option>+noedns</option>
-	       clears the remembered EDNS version.  EDNS is set to
-	       0 by default.
+	      Sets the number of times to try UDP queries to server
+	      to <parameter>T</parameter> instead of the default,
+	      3.  If <parameter>T</parameter> is less than or equal
+	      to zero, the number of tries is silently rounded up
+	      to 1.
 	    </para>
 	  </listitem>
 	</varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]multiline</option></term>
-          <listitem>
-            <para>
-              Print records like the SOA records in a verbose multi-line
-              format with human-readable comments.  The default is to print
-              each record on a single line, to facilitate machine parsing
-              of the <command>dig</command> output.
-            </para>
-          </listitem>
-        </varlistentry>
 
 	<varlistentry>
-	  <term><option>+[no]onesoa</option></term>
+	  <term><option>+trusted-key=####</option></term>
 	  <listitem>
 	    <para>
-	      Print only one (starting) SOA record when performing
-	      an AXFR. The default is to print both the starting and
-	      ending SOA records.
+	      Specifies a file containing trusted keys to be used
+	      with <option>+sigchase</option>.  Each DNSKEY record
+	      must be on its own line.
+	    </para> <para>
+	      If not specified, <command>dig</command> will look
+	      for <filename>/etc/trusted-key.key</filename> then
+	      <filename>trusted-key.key</filename> in the current
+	      directory.
+	    </para> <para>
+	      Requires dig be compiled with -DDIG_SIGCHASE.
 	    </para>
 	  </listitem>
 	</varlistentry>
 
-        <varlistentry>
-          <term><option>+[no]fail</option></term>
-          <listitem>
-            <para>
-              Do not try the next server if you receive a SERVFAIL.  The
-              default is
-              to not try the next server which is the reverse of normal stub
-              resolver
-              behavior.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]besteffort</option></term>
-          <listitem>
-            <para>
-              Attempt to display the contents of messages which are malformed.
-              The default is to not display malformed answers.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]dnssec</option></term>
-          <listitem>
-            <para>
-              Requests DNSSEC records be sent by setting the DNSSEC OK bit
-              (DO)
-              in the OPT record in the additional section of the query.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]sigchase</option></term>
-          <listitem>
-            <para>
-              Chase DNSSEC signature chains.  Requires dig be compiled with
-              -DDIG_SIGCHASE.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+trusted-key=####</option></term>
-          <listitem>
-            <para>
-              Specifies a file containing trusted keys to be used with
-	      <option>+sigchase</option>.  Each DNSKEY record must be
-	      on its own line.
-            </para>
+	<varlistentry>
+	  <term><option>+[no]ttlid</option></term>
+	  <listitem>
 	    <para>
-	      If not specified, <command>dig</command> will look for
-	      <filename>/etc/trusted-key.key</filename> then
-	      <filename>trusted-key.key</filename> in the current directory.
+	      Display [do not display] the TTL when printing the
+	      record.
 	    </para>
+	  </listitem>
+	</varlistentry>
+
+	<varlistentry>
+	  <term><option>+[no]vc</option></term>
+	  <listitem>
 	    <para>
-              Requires dig be compiled with -DDIG_SIGCHASE.
+	      Use [do not use] TCP when querying name servers.  This
+	      alternate syntax to <parameter>+[no]tcp</parameter>
+	      is provided for backwards compatibility.  The "vc"
+	      stands for "virtual circuit".
 	    </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]topdown</option></term>
-          <listitem>
-            <para>
-              When chasing DNSSEC signature chains perform a top-down
-              validation.
-              Requires dig be compiled with -DDIG_SIGCHASE.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]nsid</option></term>
-          <listitem>
-            <para>
-              Include an EDNS name server ID request when sending a query.
-            </para>
-          </listitem>
-        </varlistentry>
-
-        <varlistentry>
-          <term><option>+[no]keepopen</option></term>
-          <listitem>
-            <para>
-              Keep the TCP socket open between queries and reuse it rather
-	      than creating a new TCP socket for each lookup.  The default
-	      is <option>+nokeepopen</option>.
-            </para>
-          </listitem>
-        </varlistentry>
+	  </listitem>
+	</varlistentry>
 
       </variablelist>
 
@@ -988,13 +982,13 @@ dig +qr www.isc.org any -x 127.0.0.1 isc.org ns +noqr
   <refsect1>
     <title>SEE ALSO</title>
     <para><citerefentry>
-        <refentrytitle>host</refentrytitle><manvolnum>1</manvolnum>
+	<refentrytitle>host</refentrytitle><manvolnum>1</manvolnum>
       </citerefentry>,
       <citerefentry>
-        <refentrytitle>named</refentrytitle><manvolnum>8</manvolnum>
+	<refentrytitle>named</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
       <citerefentry>
-        <refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
+	<refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
       <citetitle>RFC1035</citetitle>.
     </para>

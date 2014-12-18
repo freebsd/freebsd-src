@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -82,7 +82,6 @@ typedef struct dns_fetchevent {
 	isc_sockaddr_t *		client;
 	dns_messageid_t			id;
 	isc_result_t			vresult;
-	isc_uint32_t 			qtotal;
 } dns_fetchevent_t;
 
 /*
@@ -98,6 +97,7 @@ typedef struct dns_fetchevent {
 							  UDP buffer. */
 #define DNS_FETCHOPT_WANTNSID           0x80         /*%< Request NSID */
 
+/* Reserved in use by adb.c		0x00400000 */
 #define	DNS_FETCHOPT_EDNSVERSIONSET	0x00800000
 #define	DNS_FETCHOPT_EDNSVERSIONMASK	0xff000000
 #define	DNS_FETCHOPT_EDNSVERSIONSHIFT	24
@@ -282,7 +282,7 @@ dns_resolver_createfetch3(dns_resolver_t *res, dns_name_t *name,
 			  dns_forwarders_t *forwarders,
 			  isc_sockaddr_t *client, isc_uint16_t id,
 			  unsigned int options, unsigned int depth,
-			  isc_task_t *task,
+			  isc_counter_t *qc, isc_task_t *task,
 			  isc_taskaction_t action, void *arg,
 			  dns_rdataset_t *rdataset,
 			  dns_rdataset_t *sigrdataset,
@@ -595,6 +595,18 @@ dns_resolver_getmaxdepth(dns_resolver_t *resolver);
 /*%
  * Get and set how many NS indirections will be followed when looking for
  * nameserver addresses.
+ *
+ * Requires:
+ * \li	resolver to be valid.
+ */
+
+void
+dns_resolver_setmaxqueries(dns_resolver_t *resolver, unsigned int queries);
+unsigned int
+dns_resolver_getmaxqueries(dns_resolver_t *resolver);
+/*%
+ * Get and set how many iterative queries will be allowed before
+ * terminating a recursive query.
  *
  * Requires:
  * \li	resolver to be valid.

@@ -1633,6 +1633,7 @@ isc_log_doit(isc_log_t *lctx, isc_logcategory_t *category,
 
 					TIME_NOW(&new->time);
 
+					ISC_LINK_INIT(new, link);
 					ISC_LIST_APPEND(lctx->messages,
 							new, link);
 				}

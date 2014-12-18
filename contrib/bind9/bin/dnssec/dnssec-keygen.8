@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005, 2007-2012 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004, 2005, 2007-2012, 2014 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -20,11 +20,11 @@
 .\"     Title: dnssec\-keygen
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: June 30, 2000
+.\"      Date: February 07, 2014
 .\"    Manual: BIND9
 .\"    Source: BIND9
 .\"
-.TH "DNSSEC\-KEYGEN" "8" "June 30, 2000" "BIND9" "BIND9"
+.TH "DNSSEC\-KEYGEN" "8" "February 07, 2014" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -33,7 +33,7 @@
 dnssec\-keygen \- DNSSEC key generation tool
 .SH "SYNOPSIS"
 .HP 14
-\fBdnssec\-keygen\fR [\fB\-a\ \fR\fB\fIalgorithm\fR\fR] [\fB\-b\ \fR\fB\fIkeysize\fR\fR] [\fB\-n\ \fR\fB\fInametype\fR\fR] [\fB\-3\fR] [\fB\-A\ \fR\fB\fIdate/offset\fR\fR] [\fB\-C\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-D\ \fR\fB\fIdate/offset\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] [\fB\-f\ \fR\fB\fIflag\fR\fR] [\fB\-G\fR] [\fB\-g\ \fR\fB\fIgenerator\fR\fR] [\fB\-h\fR] [\fB\-I\ \fR\fB\fIdate/offset\fR\fR] [\fB\-i\ \fR\fB\fIinterval\fR\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-L\ \fR\fB\fIttl\fR\fR] [\fB\-k\fR] [\fB\-P\ \fR\fB\fIdate/offset\fR\fR] [\fB\-p\ \fR\fB\fIprotocol\fR\fR] [\fB\-q\fR] [\fB\-R\ \fR\fB\fIdate/offset\fR\fR] [\fB\-r\ \fR\fB\fIrandomdev\fR\fR] [\fB\-S\ \fR\fB\fIkey\fR\fR] [\fB\-s\ \fR\fB\fIstrength\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-z\fR] {name}
+\fBdnssec\-keygen\fR [\fB\-a\ \fR\fB\fIalgorithm\fR\fR] [\fB\-b\ \fR\fB\fIkeysize\fR\fR] [\fB\-n\ \fR\fB\fInametype\fR\fR] [\fB\-3\fR] [\fB\-A\ \fR\fB\fIdate/offset\fR\fR] [\fB\-C\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-D\ \fR\fB\fIdate/offset\fR\fR] [\fB\-E\ \fR\fB\fIengine\fR\fR] [\fB\-f\ \fR\fB\fIflag\fR\fR] [\fB\-G\fR] [\fB\-g\ \fR\fB\fIgenerator\fR\fR] [\fB\-h\fR] [\fB\-I\ \fR\fB\fIdate/offset\fR\fR] [\fB\-i\ \fR\fB\fIinterval\fR\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-L\ \fR\fB\fIttl\fR\fR] [\fB\-k\fR] [\fB\-P\ \fR\fB\fIdate/offset\fR\fR] [\fB\-p\ \fR\fB\fIprotocol\fR\fR] [\fB\-q\fR] [\fB\-R\ \fR\fB\fIdate/offset\fR\fR] [\fB\-r\ \fR\fB\fIrandomdev\fR\fR] [\fB\-S\ \fR\fB\fIkey\fR\fR] [\fB\-s\ \fR\fB\fIstrength\fR\fR] [\fB\-t\ \fR\fB\fItype\fR\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-V\fR] [\fB\-z\fR] {name}
 .SH "DESCRIPTION"
 .PP
 \fBdnssec\-keygen\fR
@@ -197,9 +197,14 @@ must be one of AUTHCONF, NOAUTHCONF, NOAUTH, or NOCONF. The default is AUTHCONF.
 .RS 4
 Sets the debugging level.
 .RE
+.PP
+\-V
+.RS 4
+Prints version information.
+.RE
 .SH "TIMING OPTIONS"
 .PP
-Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS. If the argument begins with a '+' or '\-', it is interpreted as an offset from the present time. For convenience, if such an offset is followed by one of the suffixes 'y', 'mo', 'w', 'd', 'h', or 'mi', then the offset is computed in years (defined as 365 24\-hour days, ignoring leap years), months (defined as 30 24\-hour days), weeks, days, hours, or minutes, respectively. Without a suffix, the offset is computed in seconds.
+Dates can be expressed in the format YYYYMMDD or YYYYMMDDHHMMSS. If the argument begins with a '+' or '\-', it is interpreted as an offset from the present time. For convenience, if such an offset is followed by one of the suffixes 'y', 'mo', 'w', 'd', 'h', or 'mi', then the offset is computed in years (defined as 365 24\-hour days, ignoring leap years), months (defined as 30 24\-hour days), weeks, days, hours, or minutes, respectively. Without a suffix, the offset is computed in seconds. To explicitly prevent a date from being set, use 'none' or 'never'.
 .PP
 \-P \fIdate/offset\fR
 .RS 4
@@ -208,7 +213,7 @@ Sets the date on which a key is to be published to the zone. After that date, th
 .PP
 \-A \fIdate/offset\fR
 .RS 4
-Sets the date on which the key is to be activated. After that date, the key will be included in the zone and used to sign it. If not set, and if the \-G option has not been used, the default is "now".
+Sets the date on which the key is to be activated. After that date, the key will be included in the zone and used to sign it. If not set, and if the \-G option has not been used, the default is "now". If set, if and \-P is not set, then the publication date will be set to the activation date minus the prepublication interval.
 .RE
 .PP
 \-R \fIdate/offset\fR
@@ -302,7 +307,7 @@ RFC 4034.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004, 2005, 2007\-2012 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004, 2005, 2007\-2012, 2014 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2003 Internet Software Consortium.
 .br

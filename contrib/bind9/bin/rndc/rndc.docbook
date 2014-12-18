@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007, 2013  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000, 2001  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,10 +18,9 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: rndc.docbook,v 1.21 2007/12/14 20:39:14 marka Exp $ -->
 <refentry id="man.rndc">
   <refentryinfo>
-    <date>June 7, 2013</date>
+    <date>December 04, 2013</date>
   </refentryinfo>
 
   <refmeta>
@@ -41,6 +40,7 @@
       <year>2005</year>
       <year>2007</year>
       <year>2013</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -632,8 +632,8 @@
         <term><userinput>signing <optional>( -list | -clear <replaceable>keyid/algorithm</replaceable> | -clear <literal>all</literal> | -nsec3param ( <replaceable>parameters</replaceable> | <literal>none</literal> ) ) </optional> <replaceable>zone</replaceable> <optional><replaceable>class</replaceable> <optional><replaceable>view</replaceable></optional></optional> </userinput></term>
         <listitem>
           <para>
-            List, edit, or remove the DNSSEC signing state for 
-            the specified zone.  The status of ongoing DNSSEC
+            List, edit, or remove the DNSSEC signing state records
+            for the specified zone.  The status of ongoing DNSSEC
             operations (such as signing or generating
             NSEC3 chains) is stored in the zone in the form
             of DNS resource records of type

@@ -290,6 +290,9 @@ dns_acl_merge(dns_acl_t *dest, dns_acl_t *source, isc_boolean_t pos)
 		if (newmem == NULL)
 			return (ISC_R_NOMEMORY);
 
+		/* Zero. */
+		memset(newmem, 0, newalloc * sizeof(dns_aclelement_t));
+
 		/* Copy in the original elements */
 		memmove(newmem, dest->elements,
 			dest->length * sizeof(dns_aclelement_t));

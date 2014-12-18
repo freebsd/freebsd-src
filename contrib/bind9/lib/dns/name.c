@@ -53,7 +53,6 @@ typedef enum {
 typedef enum {
 	fw_start = 0,
 	fw_ordinary,
-	fw_copy,
 	fw_newcurrent
 } fw_state;
 
@@ -1161,7 +1160,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 				count++;
 				CONVERTTOASCII(c);
 				if (downcase)
-					c = maptolower[(int)c];
+					c = maptolower[c & 0xff];
 				*ndata++ = c;
 				nrem--;
 				nused++;
@@ -1185,7 +1184,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 				count++;
 				CONVERTTOASCII(c);
 				if (downcase)
-					c = maptolower[(int)c];
+					c = maptolower[c & 0xff];
 				*ndata++ = c;
 				nrem--;
 				nused++;
@@ -1200,7 +1199,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 			if (!isdigit(c & 0xff))
 				return (DNS_R_BADESCAPE);
 			value *= 10;
-			value += digitvalue[(int)c];
+			value += digitvalue[c & 0xff];
 			digits++;
 			if (digits == 3) {
 				if (value > 255)
@@ -1252,7 +1251,7 @@ dns_name_fromtext(dns_name_t *name, isc_buffer_t *source,
 				while (n2 > 0) {
 					c = *label++;
 					if (downcase)
-						c = maptolower[(int)c];
+						c = maptolower[c & 0xff];
 					*ndata++ = c;
 					n2--;
 				}
@@ -1859,7 +1858,6 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 				    0)
 					return (DNS_R_DISALLOWED);
 				new_current = c & 0x3F;
-				n = 1;
 				state = fw_newcurrent;
 			} else
 				return (DNS_R_BADLABELTYPE);
@@ -1867,8 +1865,6 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 		case fw_ordinary:
 			if (downcase)
 				c = maptolower[c];
-			/* FALLTHROUGH */
-		case fw_copy:
 			*ndata++ = c;
 			n--;
 			if (n == 0)
@@ -1877,9 +1873,6 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 		case fw_newcurrent:
 			new_current *= 256;
 			new_current += c;
-			n--;
-			if (n != 0)
-				break;
 			if (new_current >= biggest_pointer)
 				return (DNS_R_BADPOINTER);
 			biggest_pointer = new_current;

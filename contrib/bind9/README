@@ -51,6 +51,15 @@ BIND 9
 	For up-to-date release notes and errata, see
 	http://www.isc.org/software/bind9/releasenotes
 
+BIND 9.9.6
+
+	BIND 9.9.6 is a maintenance release, and also includes
+        the following new functionality.
+
+	 - The former behavior with respect to capitalization of names
+           (prior to BIND 9.9.5) can be restored for specific clients via
+           the new "no-case-compress" ACL.
+
 BIND 9.9.5
 
 	BIND 9.9.5 is a maintenance release, and patches the security
@@ -370,6 +379,14 @@ Change Log
 
 	   [doc]	  Documentation
 
+	   [contrib]	  Changes to the contributed tools and
+			  libraries in the 'contrib' subdirectory
+
+	   [placeholder]  Used in the master development branch to
+			  reserve change numbers for use in other
+			  branches, e.g. when fixing a bug that only
+			  exists in older releases
+
 	In general, [func] and [experimental] tags will only appear
 	in new-feature releases (i.e., those with version numbers
 	ending in zero).  Some new functionality may be backported to
@@ -379,22 +396,28 @@ Change Log
 
 Bug Reports and Mailing Lists
 
-	Bugs reports should be sent to
+	Bug reports should be sent to:
 
 		bind9-bugs@isc.org
 
-	To join the BIND Users mailing list, send mail to
+	Feature requests can be sent to:
 
-		bind-users-request@isc.org
+		bind-suggest@isc.org
 
-	archives of which can be found via
+	To join or view the archives of the BIND Users mailing list,
+	visit:
 
-		http://www.isc.org/ops/lists/
+		https://lists.isc.org/mailman/listinfo/bind-users
 
 	If you're planning on making changes to the BIND 9 source
-	code, you might want to join the BIND Workers mailing list.
-	Send mail to
+	code, you may also want to join the BIND Workers mailing
+	list:
 
-		bind-workers-request@isc.org
+		https://lists.isc.org/mailman/listinfo/bind-workers
+
+	Information on read-only Git access, coding style and developer
+	guidelines can be found at:
+
+		http://www.isc.org/git/
 
 

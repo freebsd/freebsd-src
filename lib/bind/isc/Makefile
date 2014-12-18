@@ -28,7 +28,7 @@ SRCS+=		condition.c mutex.c \
 .PATH:		${SRCDIR}
 SRCS+=		inet_pton.c \
 		assertions.c backtrace.c base32.c base64.c bitstring.c \
-		buffer.c bufferlist.c commandline.c error.c event.c \
+		buffer.c bufferlist.c commandline.c counter.c error.c event.c \
 		fsaccess.c hash.c \
 		heap.c hex.c hmacmd5.c hmacsha.c \
 		httpd.c inet_aton.c \
@@ -66,6 +66,7 @@ INCS=		${SRCDIR}/include/isc/app.h \
 		${SRCDIR}/include/isc/buffer.h \
 		${SRCDIR}/include/isc/bufferlist.h \
 		${SRCDIR}/include/isc/commandline.h \
+		${SRCDIR}/include/isc/counter.h \
 		${SRCDIR}/include/isc/entropy.h \
 		${SRCDIR}/include/isc/error.h \
 		${SRCDIR}/include/isc/event.h \

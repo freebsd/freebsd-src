@@ -1,4 +1,4 @@
-.\" Copyright (C) 2008-2012 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2008-2012, 2014 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -19,11 +19,11 @@
 .\"     Title: dnssec\-dsfromkey
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: August 26, 2009
+.\"      Date: May 17, 2012
 .\"    Manual: BIND9
 .\"    Source: BIND9
 .\"
-.TH "DNSSEC\-DSFROMKEY" "8" "August 26, 2009" "BIND9" "BIND9"
+.TH "DNSSEC\-DSFROMKEY" "8" "May 17, 2012" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -35,6 +35,8 @@ dnssec\-dsfromkey \- DNSSEC DS RR generation tool
 \fBdnssec\-dsfromkey\fR [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-1\fR] [\fB\-2\fR] [\fB\-a\ \fR\fB\fIalg\fR\fR] [\fB\-l\ \fR\fB\fIdomain\fR\fR] [\fB\-T\ \fR\fB\fITTL\fR\fR] {keyfile}
 .HP 17
 \fBdnssec\-dsfromkey\fR {\-s} [\fB\-1\fR] [\fB\-2\fR] [\fB\-a\ \fR\fB\fIalg\fR\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-l\ \fR\fB\fIdomain\fR\fR] [\fB\-s\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-T\ \fR\fB\fITTL\fR\fR] [\fB\-f\ \fR\fB\fIfile\fR\fR] [\fB\-A\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] {dnsname}
+.HP 17
+\fBdnssec\-dsfromkey\fR [\fB\-h\fR] [\fB\-V\fR]
 .SH "DESCRIPTION"
 .PP
 \fBdnssec\-dsfromkey\fR
@@ -113,6 +115,16 @@ Specifies the DNS class (default is IN). Useful only in keyset or zone file mode
 .RS 4
 Sets the debugging level.
 .RE
+.PP
+\-h
+.RS 4
+Prints usage information.
+.RE
+.PP
+\-V
+.RS 4
+Prints version information.
+.RE
 .SH "EXAMPLE"
 .PP
 To build the SHA\-256 DS RR from the
@@ -153,5 +165,5 @@ RFC 4509.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2008\-2012 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2008\-2012, 2014 Internet Systems Consortium, Inc. ("ISC")
 .br

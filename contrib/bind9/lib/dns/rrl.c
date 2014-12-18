@@ -253,6 +253,7 @@ expand_entries(dns_rrl_t *rrl, int new) {
 
 static inline dns_rrl_bin_t *
 get_bin(dns_rrl_hash_t *hash, unsigned int hval) {
+	INSIST(hash != NULL);
 	return (&hash->bins[hval % hash->length]);
 }
 

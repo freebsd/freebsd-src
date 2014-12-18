@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005, 2007-2012  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004, 2005, 2007-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,10 +18,9 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-keygen.docbook,v 1.38 2011/03/17 23:47:29 tbox Exp $ -->
 <refentry id="man.dnssec-keygen">
   <refentryinfo>
-    <date>June 30, 2000</date>
+    <date>February 07, 2014</date>
   </refentryinfo>
 
   <refmeta>
@@ -45,6 +44,7 @@
       <year>2010</year>
       <year>2011</year>
       <year>2012</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -86,6 +86,7 @@
       <arg><option>-s <replaceable class="parameter">strength</replaceable></option></arg>
       <arg><option>-t <replaceable class="parameter">type</replaceable></option></arg>
       <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg><option>-V</option></arg>
       <arg><option>-z</option></arg>
       <arg choice="req">name</arg>
     </cmdsynopsis>
@@ -417,6 +418,15 @@
         </listitem>
       </varlistentry>
 
+      <varlistentry>
+	<term>-V</term>
+        <listitem>
+	  <para>
+	    Prints version information.
+	  </para>
+        </listitem>
+      </varlistentry>
+
     </variablelist>
   </refsect1>
 
@@ -431,7 +441,8 @@
       then the offset is computed in years (defined as 365 24-hour days,
       ignoring leap years), months (defined as 30 24-hour days), weeks,
       days, hours, or minutes, respectively.  Without a suffix, the offset
-      is computed in seconds.
+      is computed in seconds.  To explicitly prevent a date from being
+      set, use 'none' or 'never'.
     </para>
 
     <variablelist>
@@ -454,7 +465,9 @@
             Sets the date on which the key is to be activated.  After that
             date, the key will be included in the zone and used to sign
             it.  If not set, and if the -G option has not been used, the
-            default is "now".
+            default is "now".  If set, if and -P is not set, then
+            the publication date will be set to the activation date
+            minus the prepublication interval.
           </para>
         </listitem>
       </varlistentry>

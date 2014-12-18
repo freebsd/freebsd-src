@@ -63,7 +63,7 @@ dns_dns64_create(isc_mem_t *mctx, isc_netaddr_t *prefix,
 	unsigned int nbytes = 16;
 
 	REQUIRE(prefix != NULL && prefix->family == AF_INET6);
-	/* Legal prefix lengths from draft-ietf-behave-address-format-04. */
+	/* Legal prefix lengths from rfc6052.txt. */
 	REQUIRE(prefixlen == 32 || prefixlen == 40 || prefixlen == 48 ||
 		prefixlen == 56 || prefixlen == 64 || prefixlen == 96);
 	REQUIRE(isc_netaddr_prefixok(prefix, prefixlen) == ISC_R_SUCCESS);
@@ -73,7 +73,7 @@ dns_dns64_create(isc_mem_t *mctx, isc_netaddr_t *prefix,
 		static const unsigned char zeros[16];
 		REQUIRE(prefix->family == AF_INET6);
 		nbytes = prefixlen / 8 + 4;
-		/* Bits 64-71 are zeros. draft-ietf-behave-address-format-04 */
+		/* Bits 64-71 are zeros. rfc6052.txt */
 		if (prefixlen >= 32 && prefixlen <= 64)
 			nbytes++;
 		REQUIRE(memcmp(suffix->type.in6.s6_addr, zeros, nbytes) == 0);
@@ -169,13 +169,13 @@ dns_dns64_aaaafroma(const dns_dns64_t *dns64, const isc_netaddr_t *reqaddr,
 	INSIST(nbytes <= 12);
 	/* Copy prefix. */
 	memmove(aaaa, dns64->bits, nbytes);
-	/* Bits 64-71 are zeros. draft-ietf-behave-address-format-04 */
+	/* Bits 64-71 are zeros. rfc6052.txt */
 	if (nbytes == 8)
 		aaaa[nbytes++] = 0;
 	/* Copy mapped address. */
 	for (i = 0; i < 4U; i++) {
 		aaaa[nbytes++] = a[i];
-		/* Bits 64-71 are zeros. draft-ietf-behave-address-format-04 */
+		/* Bits 64-71 are zeros. rfc6052.txt */
 		if (nbytes == 8)
 			aaaa[nbytes++] = 0;
 	}

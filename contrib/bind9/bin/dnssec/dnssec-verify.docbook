@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2012  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,10 +17,9 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-verify.docbook,v 1.52 2011/12/22 07:32:40 each Exp $ -->
 <refentry id="man.dnssec-verify">
   <refentryinfo>
-    <date>April 12, 2012</date>
+    <date>June 26, 2012</date>
   </refentryinfo>
 
   <refmeta>
@@ -37,6 +36,7 @@
   <docinfo>
     <copyright>
       <year>2012</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -49,6 +49,7 @@
       <arg><option>-I <replaceable class="parameter">input-format</replaceable></option></arg>
       <arg><option>-o <replaceable class="parameter">origin</replaceable></option></arg>
       <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg><option>-V</option></arg>
       <arg><option>-x</option></arg>
       <arg><option>-z</option></arg>
       <arg choice="req">zonefile</arg>
@@ -109,6 +110,15 @@
           <para>
             Sets the debugging level.
           </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-V</term>
+        <listitem>
+	  <para>
+	    Prints version information.
+	  </para>
         </listitem>
       </varlistentry>
 

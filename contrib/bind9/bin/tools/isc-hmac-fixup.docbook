@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2010, 2013  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2010, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,10 +17,9 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: isc-hmac-fixup.docbook,v 1.2 2010/01/07 21:52:11 each Exp $ -->
 <refentry id="man.isc-hmac-fixup">
   <refentryinfo>
-    <date>January 5, 2010</date>
+    <date>April 28, 2013</date>
   </refentryinfo>
 
   <refmeta>
@@ -38,6 +37,7 @@
     <copyright>
       <year>2010</year>
       <year>2013</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>

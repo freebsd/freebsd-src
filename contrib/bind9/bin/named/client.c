@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -233,6 +233,8 @@ static void client_request(isc_task_t *task, isc_event_t *event);
 static void ns_client_dumpmessage(ns_client_t *client, const char *reason);
 static isc_result_t get_client(ns_clientmgr_t *manager, ns_interface_t *ifp,
 			       dns_dispatch_t *disp, isc_boolean_t tcp);
+static inline isc_boolean_t
+allowed(isc_netaddr_t *addr, dns_name_t *signer, dns_acl_t *acl);
 
 void
 ns_client_recursing(ns_client_t *client) {
@@ -973,7 +975,19 @@ ns_client_send(ns_client_t *client) {
 	result = dns_compress_init(&cctx, -1, client->mctx);
 	if (result != ISC_R_SUCCESS)
 		goto done;
-	dns_compress_setsensitive(&cctx, ISC_TRUE);
+	if (client->peeraddr_valid && client->view != NULL) {
+		isc_netaddr_t netaddr;
+		dns_name_t *name = NULL;
+
+		isc_netaddr_fromsockaddr(&netaddr, &client->peeraddr);
+		if (client->message->tsigkey != NULL)
+			name = &client->message->tsigkey->name;
+		if (client->view->nocasecompress == NULL ||
+		    !allowed(&netaddr, name, client->view->nocasecompress))
+		{
+			dns_compress_setsensitive(&cctx, ISC_TRUE);
+		}
+	}
 	cleanup_cctx = ISC_TRUE;
 
 	result = dns_message_renderbegin(client->message, &cctx, &buffer);
@@ -1249,7 +1263,7 @@ client_addopt(ns_client_t *client) {
 	dns_view_t *view;
 	dns_resolver_t *resolver;
 	isc_uint16_t udpsize;
-	dns_ednsopt_t ednsopts[2];
+	dns_ednsopt_t ednsopts[DNS_EDNSOPTIONS];
 	int count = 0;
 	unsigned int flags;
 
@@ -1278,6 +1292,7 @@ client_addopt(ns_client_t *client) {
 		} else
 			nsidp = ns_g_server->server_id;
 
+		INSIST(count < DNS_EDNSOPTIONS);
 		ednsopts[count].code = DNS_OPT_NSID;
 		ednsopts[count].length = strlen(nsidp);
 		ednsopts[count].value = (unsigned char *)nsidp;
@@ -2819,6 +2834,9 @@ ns_client_dumpmessage(ns_client_t *client, const char *reason) {
 	char *buf = NULL;
 	int len = 1024;
 	isc_result_t result;
+
+	if (!isc_log_wouldlog(ns_g_lctx, ISC_LOG_DEBUG(1)))
+		return;
 
 	/*
 	 * Note that these are multiline debug messages.  We want a newline

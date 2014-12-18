@@ -38,6 +38,7 @@
 #include <isc/mem.h>
 #include <isc/parseint.h>
 #include <isc/sockaddr.h>
+#include <isc/string.h>
 #include <isc/util.h>
 
 #include <dns/callbacks.h>

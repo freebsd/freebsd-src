@@ -151,6 +151,14 @@ fromwire_opt(ARGS_FROMWIRE) {
 			isc_region_consume(&sregion, addrbytes);
 			break;
 		}
+		case DNS_OPT_EXPIRE:
+			/*
+			 * Request has zero length.  Response is 32 bits.
+			 */
+			if (length != 0 && length != 4)
+				return (DNS_R_FORMERR);
+			isc_region_consume(&sregion, length);
+			break;
 		default:
 			isc_region_consume(&sregion, length);
 			break;

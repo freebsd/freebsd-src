@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -379,7 +379,7 @@ isc__app_start(void) {
 	}
 	presult = sigprocmask(SIG_UNBLOCK, &sset, NULL);
 	if (presult != 0) {
-		isc__strerror(presult, strbuf, sizeof(strbuf));
+		isc__strerror(errno, strbuf, sizeof(strbuf));
 		UNEXPECTED_ERROR(__FILE__, __LINE__,
 				 "isc_app_start() sigprocmask: %s", strbuf);
 		return (ISC_R_UNEXPECTED);
@@ -718,7 +718,7 @@ isc__app_ctxrun(isc_appctx_t *ctx0) {
 }
 
 ISC_APPFUNC_SCOPE isc_result_t
-isc__app_run() {
+isc__app_run(void) {
 	return (isc__app_ctxrun((isc_appctx_t *)&isc_g_appctx));
 }
 
@@ -773,7 +773,7 @@ isc__app_ctxshutdown(isc_appctx_t *ctx0) {
 }
 
 ISC_APPFUNC_SCOPE isc_result_t
-isc__app_shutdown() {
+isc__app_shutdown(void) {
 	return (isc__app_ctxshutdown((isc_appctx_t *)&isc_g_appctx));
 }
 
@@ -955,7 +955,7 @@ isc__appctx_settimermgr(isc_appctx_t *ctx0, isc_timermgr_t *timermgr) {
 
 #ifdef USE_APPIMPREGISTER
 isc_result_t
-isc__app_register() {
+isc__app_register(void) {
 	return (isc_app_register(isc__appctx_create));
 }
 #endif

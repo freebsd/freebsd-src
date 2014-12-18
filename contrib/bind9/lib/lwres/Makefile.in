@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2005, 2007, 2012, 2014  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2000, 2001  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -31,25 +31,25 @@ CDEFINES =
 CWARNINGS =
 
 # Alphabetically
-OBJS =		context.@O@ gai_strerror.@O@ getaddrinfo.@O@ gethost.@O@ \
+OBJS =		compat.@O@ context.@O@ \
+		gai_strerror.@O@ getaddrinfo.@O@ gethost.@O@ \
 		getipnode.@O@ getnameinfo.@O@ getrrset.@O@ herror.@O@ \
 		lwbuffer.@O@ lwconfig.@O@ lwpacket.@O@ lwresutil.@O@ \
 		lwres_gabn.@O@ lwres_gnba.@O@ lwres_grbn.@O@ lwres_noop.@O@ \
-		lwinetaton.@O@ lwinetpton.@O@ lwinetntop.@O@ print.@O@ \
-		strtoul.@O@
+		lwinetaton.@O@ lwinetpton.@O@ lwinetntop.@O@ print.@O@
 
 # Alphabetically
-SRCS =		context.c gai_strerror.c getaddrinfo.c gethost.c \
+SRCS =		compat.c context.c gai_strerror.c getaddrinfo.c gethost.c \
 		getipnode.c getnameinfo.c getrrset.c herror.c \
 		lwbuffer.c lwconfig.c lwpacket.c lwresutil.c \
 		lwres_gabn.c lwres_gnba.c lwres_grbn.c lwres_noop.c \
-		lwinetaton.c lwinetpton.c lwinetntop.c print.c \
-		strtoul.c
+		lwinetaton.c lwinetpton.c lwinetntop.c print.c
 
 LIBS =		@LIBS@
 
 SUBDIRS =	include man unix
 TARGETS =	timestamp
+TESTDIRS =	@UNITTESTS@
 
 @BIND9_MAKE_RULES@
 
@@ -78,7 +78,7 @@ installdirs:
 	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${libdir}
 
 install:: timestamp installdirs
-	${LIBTOOL_MODE_INSTALL} ${INSTALL_DATA} liblwres.@A@ ${DESTDIR}${libdir}
+	${LIBTOOL_MODE_INSTALL} ${INSTALL_LIBRARY} liblwres.@A@ ${DESTDIR}${libdir}
 
 clean distclean::
 	rm -f liblwres.@A@ liblwres.la timestamp

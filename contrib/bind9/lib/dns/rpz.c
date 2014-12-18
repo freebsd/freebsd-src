@@ -496,16 +496,16 @@ ip2name(dns_rpz_cidr_t *cidr, const dns_rpz_cidr_key_t *tgt_ip,
 	}
 
 	if (canon_name != NULL) {
-		isc__buffer_init(&buffer, str, sizeof(str));
-		isc__buffer_add(&buffer, len);
+		isc_buffer_init(&buffer, str, sizeof(str));
+		isc_buffer_add(&buffer, len);
 		result = dns_name_fromtext(canon_name, &buffer,
 					   dns_rootname, 0, NULL);
 		if (result != ISC_R_SUCCESS)
 			return (result);
 	}
 	if (search_name != NULL) {
-		isc__buffer_init(&buffer, str, sizeof(str));
-		isc__buffer_add(&buffer, len);
+		isc_buffer_init(&buffer, str, sizeof(str));
+		isc_buffer_add(&buffer, len);
 		if (type == DNS_RPZ_TYPE_NSIP)
 			name = &cidr->nsip_name;
 		else

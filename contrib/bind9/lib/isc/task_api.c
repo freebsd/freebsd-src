@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2012  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009-2012, 2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -172,7 +172,7 @@ isc_task_unsend(isc_task_t *task, void *sender, isc_eventtype_t type,
 }
 
 isc_result_t
-isc_task_onshutdown(isc_task_t *task, isc_taskaction_t action, const void *arg)
+isc_task_onshutdown(isc_task_t *task, isc_taskaction_t action, void *arg)
 {
 	REQUIRE(ISCAPI_TASK_VALID(task));
 
@@ -204,7 +204,7 @@ isc_task_purge(isc_task_t *task, void *sender, isc_eventtype_t type, void *tag)
 void
 isc_taskmgr_setexcltask(isc_taskmgr_t *mgr, isc_task_t *task) {
 	REQUIRE(ISCAPI_TASK_VALID(task));
-	return (mgr->methods->setexcltask(mgr, task));
+	mgr->methods->setexcltask(mgr, task);
 }
 
 isc_result_t

@@ -21,7 +21,7 @@
 <meta name="generator" content="DocBook XSL Stylesheets V1.71.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2476277"></a><div class="titlepage"></div>
+<a name="id2476283"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>nslookup &#8212; query Internet name servers interactively</p>
@@ -31,7 +31,7 @@
 <div class="cmdsynopsis"><p><code class="command">nslookup</code>  [<code class="option">-option</code>] [name | -] [server]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543435"></a><h2>DESCRIPTION</h2>
+<a name="id2543442"></a><h2>DESCRIPTION</h2>
 <p><span><strong class="command">Nslookup</strong></span>
       is a program to query Internet domain name servers.  <span><strong class="command">Nslookup</strong></span>
       has two modes: interactive and non-interactive.  Interactive mode allows
@@ -43,7 +43,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543451"></a><h2>ARGUMENTS</h2>
+<a name="id2543458"></a><h2>ARGUMENTS</h2>
 <p>
       Interactive mode is entered in the following cases:
       </p>
@@ -76,9 +76,14 @@ nslookup -query=hinfo  -timeout=10
 <p>
       
     </p>
+<p>
+      The <code class="option">-version</code> option causes
+      <span><strong class="command">nslookup</strong></span> to print the version
+      number and immediately exits.
+    </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2543495"></a><h2>INTERACTIVE COMMANDS</h2>
+<a name="id2543512"></a><h2>INTERACTIVE COMMANDS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="constant">host</code> [<span class="optional">server</span>]</span></dt>
 <dd>
@@ -294,19 +299,19 @@ nslookup -query=hinfo  -timeout=10
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2546309"></a><h2>FILES</h2>
+<a name="id2546326"></a><h2>FILES</h2>
 <p><code class="filename">/etc/resolv.conf</code>
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2546321"></a><h2>SEE ALSO</h2>
+<a name="id2546338"></a><h2>SEE ALSO</h2>
 <p><span class="citerefentry"><span class="refentrytitle">dig</span>(1)</span>,
       <span class="citerefentry"><span class="refentrytitle">host</span>(1)</span>,
       <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>.
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2546355"></a><h2>Author</h2>
+<a name="id2546372"></a><h2>Author</h2>
 <p>
       Andrew Cherenson
     </p>

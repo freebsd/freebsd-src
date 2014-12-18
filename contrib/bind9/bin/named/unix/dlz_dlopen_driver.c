@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2011-2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -243,11 +243,13 @@ dlopen_dlz_create(const char *dlzname, unsigned int argc, char *argv[],
 
 	cd->dl_path = isc_mem_strdup(cd->mctx, argv[1]);
 	if (cd->dl_path == NULL) {
+		result = ISC_R_NOMEMORY;
 		goto failed;
 	}
 
 	cd->dlzname = isc_mem_strdup(cd->mctx, dlzname);
 	if (cd->dlzname == NULL) {
+		result = ISC_R_NOMEMORY;
 		goto failed;
 	}
 
@@ -277,6 +279,7 @@ dlopen_dlz_create(const char *dlzname, unsigned int argc, char *argv[],
 		dlopen_log(ISC_LOG_ERROR,
 			   "dlz_dlopen failed to open library '%s' - %s",
 			   cd->dl_path, dlerror());
+		result = ISC_R_FAILURE;
 		goto failed;
 	}
 
@@ -295,6 +298,7 @@ dlopen_dlz_create(const char *dlzname, unsigned int argc, char *argv[],
 	    cd->dlz_findzonedb == NULL)
 	{
 		/* We're missing a required symbol */
+		result = ISC_R_FAILURE;
 		goto failed;
 	}
 
@@ -330,6 +334,7 @@ dlopen_dlz_create(const char *dlzname, unsigned int argc, char *argv[],
 			   "dlz_dlopen: incorrect version %d "
 			   "should be %d in '%s'",
 			   cd->version, DLZ_DLOPEN_VERSION, cd->dl_path);
+		result = ISC_R_FAILURE;
 		goto failed;
 	}
 
@@ -372,7 +377,6 @@ failed:
 	isc_mem_destroy(&mctx);
 	return (result);
 }
-
 
 /*
  * Called when bind is shutting down

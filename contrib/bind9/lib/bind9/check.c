@@ -15,8 +15,6 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id$ */
-
 /*! \file */
 
 #include <config.h>
@@ -1316,67 +1314,69 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *voptions,
 	const cfg_listelt_t *element;
 
 	static optionstable options[] = {
-	{ "allow-query", MASTERZONE | SLAVEZONE | STUBZONE | REDIRECTZONE |
-	   CHECKACL | STATICSTUBZONE },
 	{ "allow-notify", SLAVEZONE | CHECKACL },
+	{ "allow-query", MASTERZONE | SLAVEZONE | STUBZONE | REDIRECTZONE |
+	  CHECKACL | STATICSTUBZONE },
 	{ "allow-transfer", MASTERZONE | SLAVEZONE | CHECKACL },
-	{ "notify", MASTERZONE | SLAVEZONE },
+	{ "allow-update", MASTERZONE | CHECKACL },
+	{ "allow-update-forwarding", SLAVEZONE | CHECKACL },
 	{ "also-notify", MASTERZONE | SLAVEZONE },
+	{ "auto-dnssec", MASTERZONE | SLAVEZONE },
+	{ "check-dup-records", MASTERZONE },
+	{ "check-mx", MASTERZONE },
+	{ "check-mx-cname", MASTERZONE },
+	{ "check-srv-cname", MASTERZONE },
+	{ "check-wildcard", MASTERZONE },
+	{ "database", MASTERZONE | SLAVEZONE | STUBZONE | REDIRECTZONE },
+	{ "delegation-only", HINTZONE | STUBZONE | FORWARDZONE |
+	  DELEGATIONZONE },
 	{ "dialup", MASTERZONE | SLAVEZONE | STUBZONE | STREDIRECTZONE },
-	{ "delegation-only", HINTZONE | STUBZONE | DELEGATIONZONE },
-	{ "forward", MASTERZONE | SLAVEZONE | STUBZONE |
-	  STATICSTUBZONE | FORWARDZONE },
-	{ "forwarders", MASTERZONE | SLAVEZONE | STUBZONE |
-	  STATICSTUBZONE | FORWARDZONE },
+	{ "dnssec-dnskey-kskonly", MASTERZONE | SLAVEZONE },
+	{ "dnssec-loadkeys-interval", MASTERZONE | SLAVEZONE },
+	{ "dnssec-secure-to-insecure", MASTERZONE },
+	{ "file", MASTERZONE | SLAVEZONE | STUBZONE | HINTZONE | REDIRECTZONE },
+	{ "forward", MASTERZONE | SLAVEZONE | STUBZONE | STATICSTUBZONE |
+	  FORWARDZONE },
+	{ "forwarders", MASTERZONE | SLAVEZONE | STUBZONE | STATICSTUBZONE |
+	  FORWARDZONE },
+	{ "integrity-check", MASTERZONE },
+	{ "ixfr-base", MASTERZONE | SLAVEZONE },
+	{ "ixfr-tmp-file", MASTERZONE | SLAVEZONE },
+	{ "journal", MASTERZONE | SLAVEZONE | STREDIRECTZONE },
+	{ "key-directory", MASTERZONE | SLAVEZONE },
 	{ "maintain-ixfr-base", MASTERZONE | SLAVEZONE | STREDIRECTZONE },
+	{ "masterfile-format", MASTERZONE | SLAVEZONE | STUBZONE |
+	  REDIRECTZONE },
+	{ "masters", SLAVEZONE | STUBZONE | REDIRECTZONE },
 	{ "max-ixfr-log-size", MASTERZONE | SLAVEZONE | STREDIRECTZONE },
-	{ "notify-source", MASTERZONE | SLAVEZONE },
-	{ "notify-source-v6", MASTERZONE | SLAVEZONE },
-	{ "transfer-source", SLAVEZONE | STUBZONE | STREDIRECTZONE },
-	{ "transfer-source-v6", SLAVEZONE | STUBZONE | STREDIRECTZONE },
-	{ "max-transfer-time-in", SLAVEZONE | STUBZONE | STREDIRECTZONE },
-	{ "max-transfer-time-out", MASTERZONE | SLAVEZONE },
+	{ "max-refresh-time", SLAVEZONE | STUBZONE | STREDIRECTZONE },
+	{ "max-retry-time", SLAVEZONE | STUBZONE | STREDIRECTZONE },
 	{ "max-transfer-idle-in", SLAVEZONE | STUBZONE | STREDIRECTZONE },
 	{ "max-transfer-idle-out", MASTERZONE | SLAVEZONE },
-	{ "max-retry-time", SLAVEZONE | STUBZONE | STREDIRECTZONE },
-	{ "min-retry-time", SLAVEZONE | STUBZONE | STREDIRECTZONE },
-	{ "max-refresh-time", SLAVEZONE | STUBZONE | STREDIRECTZONE },
+	{ "max-transfer-time-in", SLAVEZONE | STUBZONE | STREDIRECTZONE },
+	{ "max-transfer-time-out", MASTERZONE | SLAVEZONE },
 	{ "min-refresh-time", SLAVEZONE | STUBZONE | STREDIRECTZONE },
-	{ "dnssec-secure-to-insecure", MASTERZONE },
+	{ "min-retry-time", SLAVEZONE | STUBZONE | STREDIRECTZONE },
+	{ "notify", MASTERZONE | SLAVEZONE },
+	{ "notify-source", MASTERZONE | SLAVEZONE },
+	{ "notify-source-v6", MASTERZONE | SLAVEZONE },
+	{ "pubkey", MASTERZONE | SLAVEZONE | STUBZONE },
+	{ "request-ixfr", SLAVEZONE | REDIRECTZONE },
+	{ "server-addresses", STATICSTUBZONE },
+	{ "server-names", STATICSTUBZONE },
 	{ "sig-re-signing-interval", MASTERZONE | SLAVEZONE },
 	{ "sig-signing-nodes", MASTERZONE | SLAVEZONE },
 	{ "sig-signing-signatures", MASTERZONE | SLAVEZONE },
 	{ "sig-signing-type", MASTERZONE | SLAVEZONE },
 	{ "sig-validity-interval", MASTERZONE | SLAVEZONE },
 	{ "signing", MASTERZONE | SLAVEZONE },
+	{ "transfer-source", SLAVEZONE | STUBZONE | STREDIRECTZONE },
+	{ "transfer-source-v6", SLAVEZONE | STUBZONE | STREDIRECTZONE },
+	{ "try-tcp-refresh", SLAVEZONE | STREDIRECTZONE },
+	{ "update-check-ksk", MASTERZONE | SLAVEZONE },
+	{ "update-policy", MASTERZONE },
 	{ "zone-statistics", MASTERZONE | SLAVEZONE | STUBZONE |
 	  STATICSTUBZONE | REDIRECTZONE },
-	{ "allow-update", MASTERZONE | CHECKACL },
-	{ "allow-update-forwarding", SLAVEZONE | CHECKACL },
-	{ "file", MASTERZONE | SLAVEZONE | STUBZONE | HINTZONE | REDIRECTZONE },
-	{ "journal", MASTERZONE | SLAVEZONE | STREDIRECTZONE },
-	{ "ixfr-base", MASTERZONE | SLAVEZONE },
-	{ "ixfr-tmp-file", MASTERZONE | SLAVEZONE },
-	{ "masters", SLAVEZONE | STUBZONE | REDIRECTZONE },
-	{ "pubkey", MASTERZONE | SLAVEZONE | STUBZONE },
-	{ "update-policy", MASTERZONE },
-	{ "database", MASTERZONE | SLAVEZONE | STUBZONE | REDIRECTZONE },
-	{ "key-directory", MASTERZONE | SLAVEZONE },
-	{ "check-wildcard", MASTERZONE },
-	{ "check-mx", MASTERZONE },
-	{ "check-dup-records", MASTERZONE },
-	{ "integrity-check", MASTERZONE },
-	{ "check-mx-cname", MASTERZONE },
-	{ "check-srv-cname", MASTERZONE },
-	{ "masterfile-format", MASTERZONE | SLAVEZONE | STUBZONE | HINTZONE |
-	  REDIRECTZONE },
-	{ "update-check-ksk", MASTERZONE | SLAVEZONE },
-	{ "dnssec-dnskey-kskonly", MASTERZONE | SLAVEZONE },
-	{ "dnssec-loadkeys-interval", MASTERZONE | SLAVEZONE },
-	{ "auto-dnssec", MASTERZONE | SLAVEZONE },
-	{ "try-tcp-refresh", SLAVEZONE | STREDIRECTZONE },
-	{ "server-addresses", STATICSTUBZONE },
-	{ "server-names", STATICSTUBZONE },
 	};
 
 	static optionstable dialups[] = {
@@ -1525,12 +1525,36 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *voptions,
 	}
 
 	/*
-	 * Master & slave zones must have a "also-notify" field.
+	 * Master & slave zones may have an "also-notify" field, but
+	 * shouldn't if notify is disabled.
 	 */
 	if (ztype == MASTERZONE || ztype == SLAVEZONE ) {
+		isc_boolean_t donotify = ISC_TRUE;
+
+		obj = NULL;
+		tresult = cfg_map_get(zoptions, "notify", &obj);
+		if (tresult != ISC_R_SUCCESS && voptions != NULL)
+			tresult = cfg_map_get(voptions, "notify", &obj);
+		if (tresult != ISC_R_SUCCESS && goptions != NULL)
+			tresult = cfg_map_get(goptions, "notify", &obj);
+		if (tresult == ISC_R_SUCCESS) {
+			if (cfg_obj_isboolean(obj))
+				donotify = cfg_obj_asboolean(obj);
+			else {
+				const char *notifystr = cfg_obj_asstring(obj);
+				if (ztype != MASTERZONE &&
+				    strcasecmp(notifystr, "master-only") == 0)
+					donotify = ISC_FALSE;
+			}
+		}
+
 		obj = NULL;
 		tresult = cfg_map_get(zoptions, "also-notify", &obj);
-		if (tresult == ISC_R_SUCCESS) {
+		if (tresult == ISC_R_SUCCESS && !donotify) {
+			cfg_obj_log(zoptions, logctx, ISC_LOG_WARNING,
+				    "zone '%s': 'also-notify' set but "
+				    "'notify' is disabled", znamestr);
+		} else if (tresult == ISC_R_SUCCESS) {
 			isc_uint32_t count;
 			tresult = validate_masters(obj, config, &count,
 						   logctx, mctx);
@@ -1568,12 +1592,13 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *voptions,
 	 * Master zones can't have both "allow-update" and "update-policy".
 	 */
 	if (ztype == MASTERZONE || ztype == SLAVEZONE) {
-		isc_result_t res1, res2, res3;
-		const char *arg;
 		isc_boolean_t ddns = ISC_FALSE, signing = ISC_FALSE;
+		isc_result_t res1, res2, res3;
+		const cfg_obj_t *au = NULL;
+		const char *arg;
 
 		obj = NULL;
-		res1 = cfg_map_get(zoptions, "allow-update", &obj);
+		res1 = cfg_map_get(zoptions, "allow-update", &au);
 		obj = NULL;
 		res2 = cfg_map_get(zoptions, "update-policy", &obj);
 		if (res1 == ISC_R_SUCCESS && res2 == ISC_R_SUCCESS) {
@@ -1582,10 +1607,40 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *voptions,
 				    "when 'update-policy' is present",
 				    znamestr);
 			result = ISC_R_FAILURE;
-		} else if (res2 == ISC_R_SUCCESS &&
-			   check_update_policy(obj, logctx) != ISC_R_SUCCESS)
-			result = ISC_R_FAILURE;
-		ddns = ISC_TF(res1 == ISC_R_SUCCESS || res2 == ISC_R_SUCCESS);
+		} else if (res2 == ISC_R_SUCCESS) {
+			res3 = check_update_policy(obj, logctx);
+			if (res3 != ISC_R_SUCCESS)
+				result = ISC_R_FAILURE;
+		}
+
+		/*
+		 * To determine whether auto-dnssec is allowed,
+		 * we should also check for allow-update at the
+		 * view and options levels.
+		 */
+		obj = NULL;
+		if (res1 != ISC_R_SUCCESS && voptions != NULL)
+			res1 = cfg_map_get(voptions, "allow-update", &au);
+		if (res1 != ISC_R_SUCCESS && goptions != NULL)
+			res1 = cfg_map_get(goptions, "allow-update", &au);
+
+		if (res2 == ISC_R_SUCCESS)
+			ddns = ISC_TRUE;
+		else if (res1 == ISC_R_SUCCESS) {
+			dns_acl_t *acl = NULL;
+			res1 = cfg_acl_fromconfig(au, config, logctx,
+						  actx, mctx, 0, &acl);
+			if (res1 != ISC_R_SUCCESS) {
+				cfg_obj_log(au, logctx, ISC_LOG_ERROR,
+					    "acl expansion failed: %s",
+					    isc_result_totext(result));
+				result = ISC_R_FAILURE;
+			} else if (acl != NULL) {
+				if (!dns_acl_isnone(acl))
+					ddns = ISC_TRUE;
+				dns_acl_detach(&acl);
+			}
+		}
 
 		obj = NULL;
 		res1 = cfg_map_get(zoptions, "inline-signing", &obj);
@@ -1604,12 +1659,6 @@ check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *voptions,
 				    "the zone", arg,
 				    (ztype == MASTERZONE) ?
 					 " dynamic DNS or" : "");
-			result = ISC_R_FAILURE;
-		}
-		if (strcasecmp(arg, "create") == 0) {
-			cfg_obj_log(obj, logctx, ISC_LOG_ERROR,
-				    "'auto-dnssec create;' is not "
-				    "yet implemented");
 			result = ISC_R_FAILURE;
 		}
 

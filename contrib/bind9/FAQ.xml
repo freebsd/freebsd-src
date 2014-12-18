@@ -83,8 +83,8 @@
 	  you may only want to listen on the loop back interfaces.
 	</para>
 	<para>
-	  Who do you offer recursive service to?  Is there are firewall
-	  to consider?  If so is it stateless or stateful.  Are you
+	  To whom do you offer recursive service?  Is there a firewall
+	  to consider?  If so, is it stateless or stateful?  Are you
 	  directly on the Internet?  Are you on a private network? Are
 	  you on a NAT'd network? The answers
 	  to all these questions change how you configure even a
@@ -246,7 +246,7 @@ view "chaos" chaos {
 	  "/var/run/named/named.pid", or set pid-file to "named.pid",
 	  which will put the file in the directory specified by the
 	  directory option (which, in this case, must be writable by
-	  the named user).
+	  the user named is running as).
 	</para>
       </answer>
     </qandaentry>
@@ -480,7 +480,7 @@ Master 10.0.1.1:
       <answer>
 	<para>
 	  This error is produced when a line in the master file
-	  contains leading white space (tab/space) but the is no
+	  contains leading white space (tab/space) but there is no
 	  current record owner name to inherit the name from.  Usually
 	  this is the result of putting white space before a comment,
 	  forgetting the "@" for the SOA record, or indenting the master

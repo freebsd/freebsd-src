@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004-2009, 2011, 2013  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2009, 2011, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -18,10 +18,9 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: dnssec-signzone.docbook,v 1.52 2011/12/22 07:32:40 each Exp $ -->
 <refentry id="man.dnssec-signzone">
   <refentryinfo>
-    <date>June 05, 2009</date>
+    <date>December 11, 2013</date>
   </refentryinfo>
 
   <refmeta>
@@ -45,6 +44,7 @@
       <year>2009</year>
       <year>2011</year>
       <year>2013</year>
+      <year>2014</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -88,6 +88,7 @@
       <arg><option>-t</option></arg>
       <arg><option>-u</option></arg>
       <arg><option>-v <replaceable class="parameter">level</replaceable></option></arg>
+      <arg><option>-V</option></arg>
       <arg><option>-X <replaceable class="parameter">extended end-time</replaceable></option></arg>
       <arg><option>-x</option></arg>
       <arg><option>-z</option></arg>
@@ -305,6 +306,15 @@
             Prints a short summary of the options and arguments to
             <command>dnssec-signzone</command>.
           </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+	<term>-V</term>
+        <listitem>
+	  <para>
+	    Prints version information.
+	  </para>
         </listitem>
       </varlistentry>
 

@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004-2007, 2009-2011, 2013 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2007, 2009-2011, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2002 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
@@ -20,11 +20,11 @@
 .\"     Title: named\-checkzone
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: June 13, 2000
+.\"      Date: April 29, 2013
 .\"    Manual: BIND9
 .\"    Source: BIND9
 .\"
-.TH "NAMED\-CHECKZONE" "8" "June 13, 2000" "BIND9" "BIND9"
+.TH "NAMED\-CHECKZONE" "8" "April 29, 2013" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -251,7 +251,7 @@ so that include directives in the configuration file are processed as if run by 
 .PP
 \-T \fImode\fR
 .RS 4
-Check if Sender Policy Framework records (TXT and SPF) both exist or both don't exist. A warning is issued if they don't match. Possible modes are
+Check if Sender Policy Framework (SPF) records exist and issues a warning if an SPF\-formatted TXT record is not also present. Possible modes are
 \fB"warn"\fR
 (default),
 \fB"ignore"\fR.
@@ -302,7 +302,7 @@ BIND 9 Administrator Reference Manual.
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2004\-2007, 2009\-2011, 2013 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2004\-2007, 2009\-2011, 2013, 2014 Internet Systems Consortium, Inc. ("ISC")
 .br
 Copyright \(co 2000\-2002 Internet Software Consortium.
 .br

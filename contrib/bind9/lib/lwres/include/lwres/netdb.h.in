@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -88,6 +88,7 @@ struct addrinfo {
 #undef	EAI_SYSTEM
 #undef	EAI_BADHINTS
 #undef	EAI_PROTOCOL
+#undef	EAI_OVERFLOW
 #undef	EAI_MAX
 
 #define	EAI_ADDRFAMILY	 1	/* address family for hostname not supported */
@@ -103,7 +104,8 @@ struct addrinfo {
 #define	EAI_SYSTEM	11	/* system error returned in errno */
 #define EAI_BADHINTS	12
 #define EAI_PROTOCOL	13
-#define EAI_MAX		14
+#define EAI_OVERFLOW	14
+#define EAI_MAX		15
 
 /*
  * Flag values for getaddrinfo()

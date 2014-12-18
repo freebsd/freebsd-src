@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2010, 2014  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -117,7 +117,7 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 		dot = neg = space = plus = left = zero = alt = h = l = q = 0;
 		width = precision = 0;
 		head = "";
-		length = pad = zeropad = 0;
+		pad = zeropad = 0;
 
 		do {
 			if (*format == '#') {
@@ -260,7 +260,7 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 					if (hi != 0)
 						sprintf(buf, "%lu", hi);
 					else
-						buf[0] = '\n';
+						buf[0] = '\0';
 					sprintf(buf + strlen(buf), "%lu", mid);
 					sprintf(buf + strlen(buf), "%lu", lo);
 				}
@@ -317,7 +317,7 @@ isc_print_vsnprintf(char *str, size_t size, const char *format, va_list ap) {
 					if (hi != 0)
 						sprintf(buf, "%lu", hi);
 					else
-						buf[0] = '\n';
+						buf[0] = '\0';
 					sprintf(buf + strlen(buf), "%lu", mid);
 					sprintf(buf + strlen(buf), "%lu", lo);
 				}

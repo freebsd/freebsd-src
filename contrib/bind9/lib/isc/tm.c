@@ -147,6 +147,12 @@ isc_tm_strptime(const char *buf, const char *fmt, struct tm *tm) {
 	size_t len = 0;
 	int alt_format, i, split_year = 0;
 
+	REQUIRE(buf != NULL);
+	REQUIRE(fmt != NULL);
+	REQUIRE(tm != NULL);
+
+	memset(tm, 0, sizeof(struct tm));
+
 	bp = buf;
 
 	while ((c = *fmt) != '\0') {

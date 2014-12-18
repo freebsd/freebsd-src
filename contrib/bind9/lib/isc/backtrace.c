@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009, 2013  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2009, 2013, 2014  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -140,7 +140,7 @@ isc_backtrace_gettrace(void **addrs, int maxaddrs, int *nframes) {
 #elif defined(BACKTRACE_X86STACK)
 #ifdef __x86_64__
 static unsigned long
-getrbp() {
+getrbp(void) {
 	__asm("movq %rbp, %rax\n");
 }
 #endif

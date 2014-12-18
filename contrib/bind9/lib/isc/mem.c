@@ -1778,7 +1778,6 @@ isc__mem_setwater(isc_mem_t *ctx0, isc_mem_water_t water, void *water_arg,
 		ctx->water_arg = water_arg;
 		ctx->hi_water = hiwater;
 		ctx->lo_water = lowater;
-		ctx->hi_called = ISC_FALSE;
 	}
 	MCTXUNLOCK(ctx, &ctx->lock);
 
@@ -2258,7 +2257,7 @@ isc__mempool_getfillcount(isc_mempool_t *mpctx0) {
 
 #ifdef USE_MEMIMPREGISTER
 isc_result_t
-isc__mem_register() {
+isc__mem_register(void) {
 	return (isc_mem_register(isc__mem_create2));
 }
 #endif

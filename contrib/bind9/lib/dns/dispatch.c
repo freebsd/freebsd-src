@@ -819,14 +819,19 @@ deref_portentry(dns_dispatch_t *disp, dispportentry_t **portentryp) {
 				portentry, link);
 		isc_mempool_put(disp->portpool, portentry);
 	}
-	UNLOCK(&qid->lock);
 
+	/*
+	 * Set '*portentryp' to NULL inside the lock so that
+	 * dispsock->portentry does not change in socket_search.
+	 */
 	*portentryp = NULL;
+
+	UNLOCK(&qid->lock);
 }
 
 /*%
  * Find a dispsocket for socket address 'dest', and port number 'port'.
- * Return NULL if no such entry exists.
+ * Return NULL if no such entry exists.  Requires qid->lock to be held.
  */
 static dispsocket_t *
 socket_search(dns_qid_t *qid, isc_sockaddr_t *dest, in_port_t port,
@@ -1322,8 +1327,8 @@ udp_recv(isc_event_t *ev_in, dns_dispatch_t *disp, dispsocket_t *dispsock) {
 		} else {
 			free_buffer(disp, ev->region.base, ev->region.length);
 
-			UNLOCK(&disp->lock);
 			isc_event_free(&ev_in);
+			UNLOCK(&disp->lock);
 			return;
 		}
 	} else if (ev->result != ISC_R_SUCCESS) {
@@ -1334,8 +1339,8 @@ udp_recv(isc_event_t *ev_in, dns_dispatch_t *disp, dispsocket_t *dispsock) {
 				     "odd socket result in udp_recv(): %s",
 				     isc_result_totext(ev->result));
 
-		UNLOCK(&disp->lock);
 		isc_event_free(&ev_in);
+		UNLOCK(&disp->lock);
 		return;
 	}
 
@@ -1510,9 +1515,8 @@ udp_recv(isc_event_t *ev_in, dns_dispatch_t *disp, dispsocket_t *dispsock) {
 		 */
 		deactivate_dispsocket(disp, dispsock);
 	}
-	UNLOCK(&disp->lock);
-
 	isc_event_free(&ev_in);
+	UNLOCK(&disp->lock);
 }
 
 /*
@@ -1694,9 +1698,8 @@ tcp_recv(isc_task_t *task, isc_event_t *ev_in) {
  restart:
 	(void)startrecv(disp, NULL);
 
-	UNLOCK(&disp->lock);
-
 	isc_event_free(&ev_in);
+	UNLOCK(&disp->lock);
 }
 
 /*
@@ -2286,9 +2289,12 @@ dns_dispatchmgr_setudp(dns_dispatchmgr_t *mgr,
 
 	/* Create or adjust socket pool */
 	if (mgr->spool != NULL) {
-		if (maxrequests < DNS_DISPATCH_POOLSOCKS * 2)
-		  isc_mempool_setmaxalloc(mgr->spool, DNS_DISPATCH_POOLSOCKS * 2);
-		  isc_mempool_setfreemax(mgr->spool, DNS_DISPATCH_POOLSOCKS * 2);
+		if (maxrequests < DNS_DISPATCH_POOLSOCKS * 2) {
+			isc_mempool_setmaxalloc(mgr->spool,
+						DNS_DISPATCH_POOLSOCKS * 2);
+			isc_mempool_setfreemax(mgr->spool,
+					       DNS_DISPATCH_POOLSOCKS * 2);
+		}
 		UNLOCK(&mgr->buffer_lock);
 		return (ISC_R_SUCCESS);
 	}
