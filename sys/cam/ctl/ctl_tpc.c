@@ -425,7 +425,7 @@ ctl_inquiry_evpd_tpc(struct ctl_scsiio *ctsio, int alloc_len)
 	gco_ptr->data_segment_granularity = 0;
 	gco_ptr->inline_data_granularity = 0;
 
-	ctsio->scsi_status = SCSI_STATUS_OK;
+	ctl_set_success(ctsio);
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
 	ctl_datamove((union ctl_io *)ctsio);
@@ -487,9 +487,9 @@ ctl_receive_copy_operating_parameters(struct ctl_scsiio *ctsio)
 	data->list_of_implemented_descriptor_type_codes[2] = EC_SEG_REGISTER_KEY;
 	data->list_of_implemented_descriptor_type_codes[3] = EC_CSCD_ID;
 
+	ctl_set_success(ctsio);
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
-
 	ctl_datamove((union ctl_io *)ctsio);
 	return (retval);
 }
@@ -584,9 +584,9 @@ ctl_receive_copy_status_lid1(struct ctl_scsiio *ctsio)
 		scsi_ulto4b(list_copy.curbytes >> 20, data->transfer_count);
 	}
 
+	ctl_set_success(ctsio);
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
-
 	ctl_datamove((union ctl_io *)ctsio);
 	return (retval);
 }
@@ -656,9 +656,9 @@ ctl_receive_copy_failure_details(struct ctl_scsiio *ctsio)
 	scsi_ulto2b(list_copy.sense_len, data->sense_data_length);
 	memcpy(data->sense_data, &list_copy.sense_data, list_copy.sense_len);
 
+	ctl_set_success(ctsio);
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
-
 	ctl_datamove((union ctl_io *)ctsio);
 	return (retval);
 }
@@ -742,9 +742,9 @@ ctl_receive_copy_status_lid4(struct ctl_scsiio *ctsio)
 	data->sense_data_length = list_copy.sense_len;
 	memcpy(data->sense_data, &list_copy.sense_data, list_copy.sense_len);
 
+	ctl_set_success(ctsio);
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
-
 	ctl_datamove((union ctl_io *)ctsio);
 	return (retval);
 }
@@ -1482,8 +1482,6 @@ tpc_done(union ctl_io *io)
 	 * more sophisticated initiator type behavior, the CAM error
 	 * recovery code in ../common might be helpful.
 	 */
-//	if ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)
-//		ctl_io_error_print(io, NULL);
 	tio = io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr;
 	if (((io->io_hdr.status & CTL_STATUS_MASK) != CTL_SUCCESS)
 	 && (io->io_hdr.retries > 0)) {
@@ -2180,9 +2178,9 @@ ctl_receive_rod_token_information(struct ctl_scsiio *ctsio)
 	printf("RRTI(list=%u) valid=%d\n",
 	    scsi_4btoul(cdb->list_identifier), list_copy.res_token_valid);
 */
+	ctl_set_success(ctsio);
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
-
 	ctl_datamove((union ctl_io *)ctsio);
 	return (retval);
 }
@@ -2246,9 +2244,9 @@ ctl_report_all_rod_tokens(struct ctl_scsiio *ctsio)
 /*
 	printf("RART tokens=%d\n", i);
 */
+	ctl_set_success(ctsio);
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
 	ctsio->be_move_done = ctl_config_move_done;
-
 	ctl_datamove((union ctl_io *)ctsio);
 	return (retval);
 }

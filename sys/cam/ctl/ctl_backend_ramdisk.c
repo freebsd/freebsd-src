@@ -238,9 +238,10 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 	if (io->scsiio.kern_sg_entries > 0)
 		free(io->scsiio.kern_data_ptr, M_RAMDISK);
 	io->scsiio.kern_rel_offset += io->scsiio.kern_data_len;
-	if ((io->io_hdr.port_status == 0)
-	 && ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0)
-	 && ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
+	if (io->io_hdr.flags & CTL_FLAG_ABORT) {
+		;
+	} else if ((io->io_hdr.port_status == 0) &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
 		if (io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer > 0) {
 			mtx_lock(&be_lun->queue_lock);
 			STAILQ_INSERT_TAIL(&be_lun->cont_queue,
@@ -251,9 +252,9 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 			return (0);
 		}
 		ctl_set_success(&io->scsiio);
-	} else if ((io->io_hdr.port_status != 0)
-	      && ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0)
-	      && ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)){
+	} else if ((io->io_hdr.port_status != 0) &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
+	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
 		/*
 		 * For hardware error sense keys, the sense key
 		 * specific value is defined to be a retry count,
