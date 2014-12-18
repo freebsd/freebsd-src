@@ -450,6 +450,7 @@ struct ctl_softc {
 	int ha_state;
 	int is_single;
 	int port_offset;
+	int persis_offset;
 	int inquiry_pq_no_lun;
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
