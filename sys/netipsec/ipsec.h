@@ -313,10 +313,9 @@ extern	void ipsec_delisr(struct ipsecrequest *);
 struct tdb_ident;
 extern struct secpolicy *ipsec_getpolicy(struct tdb_ident*, u_int);
 struct inpcb;
-extern struct secpolicy *ipsec4_checkpolicy(struct mbuf *, u_int, u_int,
+extern struct secpolicy *ipsec4_checkpolicy(struct mbuf *, u_int,
 	int *, struct inpcb *);
-extern struct secpolicy * ipsec_getpolicybyaddr(struct mbuf *, u_int,
-	int, int *);
+extern struct secpolicy * ipsec_getpolicybyaddr(struct mbuf *, u_int, int *);
 
 struct inpcb;
 extern int ipsec_init_policy(struct socket *so, struct inpcbpolicy **);
@@ -353,9 +352,8 @@ extern void esp4_ctlinput(int cmd, struct sockaddr *sa, void *);
 extern int ipcomp4_input(struct mbuf **mp, int *offp, int proto);
 extern int ipsec4_common_input(struct mbuf *m, ...);
 extern int ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
-			int skip, int protoff, struct m_tag *mt);
-extern int ipsec4_process_packet(struct mbuf *, struct ipsecrequest *,
-			int, int);
+			int skip, int protoff);
+extern int ipsec4_process_packet(struct mbuf *, struct ipsecrequest *);
 extern int ipsec_process_done(struct mbuf *, struct ipsecrequest *);
 
 extern struct mbuf *ipsec_copypkt(struct mbuf *);

@@ -72,6 +72,7 @@ SUBDIR=	adduser \
 	traceroute \
 	trpt \
 	tzsetup \
+	vigr \
 	vipw \
 	wake \
 	watch \

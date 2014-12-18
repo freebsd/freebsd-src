@@ -323,7 +323,6 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	/* Check AH/ESP integrity. */
 	if (ipsec4_in_reject(n, inp)) {
 		m_freem(n);
-		IPSECSTAT_INC(ips_in_polvio);
 		return;
 	}
 #ifdef IPSEC_NAT_T

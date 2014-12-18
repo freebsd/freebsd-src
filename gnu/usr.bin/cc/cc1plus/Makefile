@@ -30,7 +30,7 @@ LDADD=	${LIBBACKEND} ${LIBCPP} ${LIBDECNUMBER} ${LIBIBERTY}
 # C++ parser
 cfns.h: cfns.gperf
 	gperf -o -C -E -k '1-6,$$' -j1 -D -N 'libc_name_p' -L ANSI-C \
-	    ${.ALLSRC} > ${.TARGET}
+	    ${.ALLSRC} > ${.TARGET} || (rm -f ${.TARGET}; false)
 CLEANFILES= cfns.h
 
 DOBJS+=	${SRCS:N*.h:R:S/$/.o/g}

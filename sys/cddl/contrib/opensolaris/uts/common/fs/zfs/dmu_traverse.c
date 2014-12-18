@@ -178,7 +178,7 @@ static void
 traverse_prefetch_metadata(traverse_data_t *td,
     const blkptr_t *bp, const zbookmark_phys_t *zb)
 {
-	uint32_t flags = ARC_NOWAIT | ARC_PREFETCH;
+	arc_flags_t flags = ARC_FLAG_NOWAIT | ARC_FLAG_PREFETCH;
 
 	if (!(td->td_flags & TRAVERSE_PREFETCH_METADATA))
 		return;
@@ -275,7 +275,7 @@ traverse_visitbp(traverse_data_t *td, const dnode_phys_t *dnp,
 	}
 
 	if (BP_GET_LEVEL(bp) > 0) {
-		uint32_t flags = ARC_WAIT;
+		arc_flags_t flags = ARC_FLAG_WAIT;
 		int i;
 		blkptr_t *cbp;
 		int epb = BP_GET_LSIZE(bp) >> SPA_BLKPTRSHIFT;
@@ -303,7 +303,7 @@ traverse_visitbp(traverse_data_t *td, const dnode_phys_t *dnp,
 				break;
 		}
 	} else if (BP_GET_TYPE(bp) == DMU_OT_DNODE) {
-		uint32_t flags = ARC_WAIT;
+		arc_flags_t flags = ARC_FLAG_WAIT;
 		int i;
 		int epb = BP_GET_LSIZE(bp) >> DNODE_SHIFT;
 
@@ -326,7 +326,7 @@ traverse_visitbp(traverse_data_t *td, const dnode_phys_t *dnp,
 				break;
 		}
 	} else if (BP_GET_TYPE(bp) == DMU_OT_OBJSET) {
-		uint32_t flags = ARC_WAIT;
+		arc_flags_t flags = ARC_FLAG_WAIT;
 		objset_phys_t *osp;
 		dnode_phys_t *dnp;
 
@@ -429,7 +429,7 @@ traverse_dnode(traverse_data_t *td, const dnode_phys_t *dnp,
 			break;
 	}
 
-	if (dnp->dn_flags & DNODE_FLAG_SPILL_BLKPTR) {
+	if (err == 0 && dnp->dn_flags & DNODE_FLAG_SPILL_BLKPTR) {
 		SET_BOOKMARK(&czb, objset, object, 0, DMU_SPILL_BLKID);
 		err = traverse_visitbp(td, dnp, &dnp->dn_spill, &czb);
 	}
@@ -442,7 +442,7 @@ traverse_prefetcher(spa_t *spa, zilog_t *zilog, const blkptr_t *bp,
     const zbookmark_phys_t *zb, const dnode_phys_t *dnp, void *arg)
 {
 	prefetch_data_t *pfd = arg;
-	uint32_t aflags = ARC_NOWAIT | ARC_PREFETCH;
+	arc_flags_t aflags = ARC_FLAG_NOWAIT | ARC_FLAG_PREFETCH;
 
 	ASSERT(pfd->pd_blks_fetched >= 0);
 	if (pfd->pd_cancel)
@@ -533,7 +533,7 @@ traverse_impl(spa_t *spa, dsl_dataset_t *ds, uint64_t objset, blkptr_t *rootbp,
 
 	/* See comment on ZIL traversal in dsl_scan_visitds. */
 	if (ds != NULL && !dsl_dataset_is_snapshot(ds) && !BP_IS_HOLE(rootbp)) {
-		uint32_t flags = ARC_WAIT;
+		arc_flags_t flags = ARC_FLAG_WAIT;
 		objset_phys_t *osp;
 		arc_buf_t *buf;
 
@@ -579,7 +579,7 @@ traverse_dataset(dsl_dataset_t *ds, uint64_t txg_start, int flags,
     blkptr_cb_t func, void *arg)
 {
 	return (traverse_impl(ds->ds_dir->dd_pool->dp_spa, ds, ds->ds_object,
-	    &ds->ds_phys->ds_bp, txg_start, NULL, flags, func, arg));
+	    &dsl_dataset_phys(ds)->ds_bp, txg_start, NULL, flags, func, arg));
 }
 
 int
@@ -634,8 +634,8 @@ traverse_pool(spa_t *spa, uint64_t txg_start, int flags,
 					continue;
 				break;
 			}
-			if (ds->ds_phys->ds_prev_snap_txg > txg)
-				txg = ds->ds_phys->ds_prev_snap_txg;
+			if (dsl_dataset_phys(ds)->ds_prev_snap_txg > txg)
+				txg = dsl_dataset_phys(ds)->ds_prev_snap_txg;
 			err = traverse_dataset(ds, txg, flags, func, arg);
 			dsl_dataset_rele(ds, FTAG);
 			if (err != 0)

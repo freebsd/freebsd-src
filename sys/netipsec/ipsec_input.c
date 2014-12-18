@@ -317,8 +317,8 @@ ipcomp4_input(struct mbuf **mp, int *offp, int proto)
  * the processed packet.
  */
 int
-ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
-			int skip, int protoff, struct m_tag *mt)
+ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
+    int protoff)
 {
 	int prot, af, sproto, isr_prot;
 	struct ip *ip;
@@ -475,13 +475,9 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 
 	/*
 	 * Record what we've done to the packet (under what SA it was
-	 * processed). If we've been passed an mtag, it means the packet
-	 * was already processed by an ethernet/crypto combo card and
-	 * thus has a tag attached with all the right information, but
-	 * with a PACKET_TAG_IPSEC_IN_CRYPTO_DONE as opposed to
-	 * PACKET_TAG_IPSEC_IN_DONE type; in that case, just change the type.
+	 * processed).
 	 */
-	if (mt == NULL && sproto != IPPROTO_IPCOMP) {
+	if (sproto != IPPROTO_IPCOMP) {
 		mtag = m_tag_get(PACKET_TAG_IPSEC_IN_DONE,
 		    sizeof(struct tdb_ident), M_NOWAIT);
 		if (mtag == NULL) {
@@ -500,9 +496,6 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 		tdbi->alg_enc = sav->alg_enc;
 
 		m_tag_prepend(m, mtag);
-	} else if (mt != NULL) {
-		mt->m_tag_id = PACKET_TAG_IPSEC_IN_DONE;
-		/* XXX do we need to mark m_flags??? */
 	}
 
 	key_sa_recordxfer(sav, m);		/* record data transfer */
@@ -619,8 +612,8 @@ ipsec6_common_input(struct mbuf **mp, int *offp, int proto)
  * filtering and other sanity checks on the processed packet.
  */
 int
-ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int protoff,
-    struct m_tag *mt)
+ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
+    int protoff)
 {
 	int prot, af, sproto;
 	struct ip6_hdr *ip6;
@@ -764,13 +757,9 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 
 	/*
 	 * Record what we've done to the packet (under what SA it was
-	 * processed). If we've been passed an mtag, it means the packet
-	 * was already processed by an ethernet/crypto combo card and
-	 * thus has a tag attached with all the right information, but
-	 * with a PACKET_TAG_IPSEC_IN_CRYPTO_DONE as opposed to
-	 * PACKET_TAG_IPSEC_IN_DONE type; in that case, just change the type.
+	 * processed).
 	 */
-	if (mt == NULL && sproto != IPPROTO_IPCOMP) {
+	if (sproto != IPPROTO_IPCOMP) {
 		mtag = m_tag_get(PACKET_TAG_IPSEC_IN_DONE,
 		    sizeof(struct tdb_ident), M_NOWAIT);
 		if (mtag == NULL) {
@@ -789,10 +778,6 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 		tdbi->alg_enc = sav->alg_enc;
 
 		m_tag_prepend(m, mtag);
-	} else {
-		if (mt != NULL)
-			mt->m_tag_id = PACKET_TAG_IPSEC_IN_DONE;
-		/* XXX do we need to mark m_flags??? */
 	}
 
 	key_sa_recordxfer(sav, m);

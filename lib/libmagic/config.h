@@ -47,6 +47,9 @@
 /* Define to 1 if you have the `fork' function. */
 #define HAVE_FORK 1
 
+/* Define to 1 if you have the `freelocale' function. */
+#define HAVE_FREELOCALE 1
+
 /* Define to 1 if fseeko (and presumably ftello) exists and is declared. */
 #define HAVE_FSEEKO 1
 
@@ -98,8 +101,14 @@
 /* Define to 1 if you have a working `mmap' system call. */
 #define HAVE_MMAP 1
 
+/* Define to 1 if you have the `newlocale' function. */
+#define HAVE_NEWLOCALE 1
+
 /* Define to 1 if you have the `pread' function. */
 #define HAVE_PREAD 1
+
+/* Define to 1 if you have the `setlocale' function. */
+#define HAVE_SETLOCALE 1
 
 /* Define to 1 if you have the <stddef.h> header file. */
 #define HAVE_STDDEF_H 1
@@ -185,6 +194,9 @@
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
 
+/* Define to 1 if you have the `uselocale' function. */
+#define HAVE_USELOCALE 1
+
 /* Define to 1 if you have the `utime' function. */
 #define HAVE_UTIME 1
 
@@ -222,6 +234,9 @@
 /* Define to 1 if `vfork' works. */
 #define HAVE_WORKING_VFORK 1
 
+/* Define to 1 if you have the <xlocale.h> header file. */
+#define HAVE_XLOCALE_H 1
+
 /* Define to 1 if you have the <zlib.h> header file. */
 #define HAVE_ZLIB_H 1
 
@@ -247,7 +262,7 @@
 #define PACKAGE_NAME "file"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "file 5.19"
+#define PACKAGE_STRING "file 5.21"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "file"
@@ -256,7 +271,7 @@
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "5.19"
+#define PACKAGE_VERSION "5.21"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
@@ -287,7 +302,7 @@
 
 
 /* Version number of package */
-#define VERSION "5.19"
+#define VERSION "5.21"
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */

@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: vms,v 1.7 2013/03/09 22:36:00 christos Exp $
+# $File: vms,v 1.9 2014/08/17 13:47:59 christos Exp $
 # vms:  file(1) magic for VMS executables (experimental)
 #
 # VMS .exe formats, both VAX and AXP (Greg Roelofs, newt@uchicago.edu)

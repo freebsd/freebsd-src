@@ -194,6 +194,8 @@ struct ctl_be_lun {
 	uint32_t		blocksize;	/* passed to CTL */
 	uint16_t		pblockexp;	/* passed to CTL */
 	uint16_t		pblockoff;	/* passed to CTL */
+	uint16_t		ublockexp;	/* passed to CTL */
+	uint16_t		ublockoff;	/* passed to CTL */
 	uint32_t		atomicblock;	/* passed to CTL */
 	uint32_t		req_lun_id;	/* passed to CTL */
 	uint32_t		lun_id;		/* returned from CTL */

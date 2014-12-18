@@ -101,7 +101,7 @@ g_eli_crypto_cipher(u_int algo, int enc, u_char *data, size_t datasize,
 	crp->crp_opaque = NULL;
 	crp->crp_callback = g_eli_crypto_done;
 	crp->crp_buf = (void *)data;
-	crp->crp_flags = CRYPTO_F_CBIFSYNC | CRYPTO_F_REL;
+	crp->crp_flags = CRYPTO_F_CBIFSYNC;
 	crp->crp_desc = crd;
 
 	error = crypto_dispatch(crp);
