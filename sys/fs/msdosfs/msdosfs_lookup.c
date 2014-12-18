@@ -416,7 +416,7 @@ notfound:
 	 * and 8.3 filenames.  Hence, it may not invalidate all negative
 	 * entries if a file with this name is later created.
 	 */
-	if ((cnp->cn_flags & MAKEENTRY) && nameiop != CREATE)
+	if ((cnp->cn_flags & MAKEENTRY) != 0)
 		cache_enter(vdp, *vpp, cnp);
 #endif
 	return (ENOENT);
