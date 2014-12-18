@@ -97,7 +97,7 @@ CRUNCH_PROGS_sbin= badsect					\
 	mount_msdosfs mount_nfs mount_nullfs			\
 	mount_udf mount_unionfs newfs				\
 	newfs_msdos nos-tun ping reboot				\
-	restore rcorder route routed rtquery rtsol savecore	\
+	restore rcorder route rtsol savecore	\
 	spppcontrol swapon sysctl tunefs umount
 
 .if ${MK_ATM} != "no"
@@ -110,6 +110,9 @@ CRUNCH_PROGS_sbin+= ping6
 
 .if ${MK_IPFILTER} != "no"
 CRUNCH_PROGS_sbin+= ipf
+.endif
+.if ${MK_ROUTED} != "no"
+CRUNCH_PROGS_sbin+= routed rtquery
 .endif
 .if ${MK_ZFS} != "no"
 CRUNCH_PROGS_sbin+= zfs
@@ -199,8 +202,10 @@ CRUNCH_LIBS+= -lcrypto
 .endif
 CRUNCH_LIBS+= -lmd
 
+.if ${MK_VI} != "no"
 CRUNCH_PROGS_usr.bin+= vi
 CRUNCH_ALIAS_vi= ex
+.endif
 
 CRUNCH_PROGS_usr.bin+= id
 CRUNCH_ALIAS_id= groups whoami
