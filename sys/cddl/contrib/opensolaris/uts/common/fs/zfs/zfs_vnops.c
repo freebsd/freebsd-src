@@ -1548,7 +1548,7 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 	/*
 	 * Insert name into cache (as non-existent) if appropriate.
 	 */
-	if (error == ENOENT && (cnp->cn_flags & MAKEENTRY) && nameiop != CREATE)
+	if (error == ENOENT && (cnp->cn_flags & MAKEENTRY) != 0)
 		cache_enter(dvp, *vpp, cnp);
 	/*
 	 * Insert name into cache if appropriate.

@@ -1269,8 +1269,9 @@ kern_mknodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		return (error);
 restart:
 	bwillwrite();
-	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1,
-	    pathseg, path, fd, cap_rights_init(&rights, CAP_MKNODAT), td);
+	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1 |
+	    NOCACHE, pathseg, path, fd, cap_rights_init(&rights, CAP_MKNODAT),
+	    td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vp = nd.ni_vp;
@@ -1384,8 +1385,9 @@ kern_mkfifoat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	AUDIT_ARG_MODE(mode);
 restart:
 	bwillwrite();
-	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1,
-	    pathseg, path, fd, cap_rights_init(&rights, CAP_MKFIFOAT), td);
+	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1 |
+	    NOCACHE, pathseg, path, fd, cap_rights_init(&rights, CAP_MKFIFOAT),
+	    td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	if (nd.ni_vp != NULL) {
@@ -1530,8 +1532,9 @@ again:
 		vrele(vp);
 		return (EPERM);		/* POSIX */
 	}
-	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE2,
-	    segflg, path2, fd2, cap_rights_init(&rights, CAP_LINKAT), td);
+	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE2 |
+	    NOCACHE, segflg, path2, fd2, cap_rights_init(&rights, CAP_LINKAT),
+	    td);
 	if ((error = namei(&nd)) == 0) {
 		if (nd.ni_vp != NULL) {
 			NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1650,8 +1653,9 @@ kern_symlinkat(struct thread *td, char *path1, int fd, char *path2,
 	AUDIT_ARG_TEXT(syspath);
 restart:
 	bwillwrite();
-	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1,
-	    segflg, path2, fd, cap_rights_init(&rights, CAP_SYMLINKAT), td);
+	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1 |
+	    NOCACHE, segflg, path2, fd, cap_rights_init(&rights, CAP_SYMLINKAT),
+	    td);
 	if ((error = namei(&nd)) != 0)
 		goto out;
 	if (nd.ni_vp) {
@@ -3581,8 +3585,9 @@ kern_mkdirat(struct thread *td, int fd, char *path, enum uio_seg segflg,
 	AUDIT_ARG_MODE(mode);
 restart:
 	bwillwrite();
-	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1,
-	    segflg, path, fd, cap_rights_init(&rights, CAP_MKDIRAT), td);
+	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | AUDITVNODE1 |
+	    NOCACHE, segflg, path, fd, cap_rights_init(&rights, CAP_MKDIRAT),
+	    td);
 	nd.ni_cnd.cn_flags |= WILLBEDIR;
 	if ((error = namei(&nd)) != 0)
 		return (error);
