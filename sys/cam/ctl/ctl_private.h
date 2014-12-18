@@ -71,34 +71,13 @@ struct ctl_fe_ioctl_params {
 	ctl_fe_ioctl_state	state;
 };
 
-#define	CTL_POOL_ENTRIES_INTERNAL	200
-#define	CTL_POOL_ENTRIES_EMERGENCY	300
 #define CTL_POOL_ENTRIES_OTHER_SC   200
 
-typedef enum {
-	CTL_POOL_INTERNAL,
-	CTL_POOL_FETD,
-	CTL_POOL_EMERGENCY,
-	CTL_POOL_4OTHERSC
-} ctl_pool_type;
-
-typedef enum {
-	CTL_POOL_FLAG_NONE	= 0x00,
-	CTL_POOL_FLAG_INVALID	= 0x01
-} ctl_pool_flags;
-
 struct ctl_io_pool {
-	ctl_pool_type			type;
-	ctl_pool_flags			flags;
+	char				name[64];
 	uint32_t			id;
 	struct ctl_softc		*ctl_softc;
-	uint32_t			refcount;
-	uint64_t			total_allocated;
-	uint64_t			total_freed;
-	int32_t				total_ctl_io;
-	int32_t				free_ctl_io;
-	STAILQ_HEAD(, ctl_io_hdr)	free_queue;
-	STAILQ_ENTRY(ctl_io_pool)	links;
+	struct uma_zone			*zone;
 };
 
 typedef enum {
@@ -475,9 +454,7 @@ struct ctl_softc {
 	struct sysctl_ctx_list sysctl_ctx;
 	struct sysctl_oid *sysctl_tree;
 	struct ctl_ioctl_info ioctl_info;
-	struct ctl_io_pool *internal_pool;
-	struct ctl_io_pool *emergency_pool;
-	struct ctl_io_pool *othersc_pool;
+	void *othersc_pool;
 	struct proc *ctl_proc;
 	int targ_online;
 	uint32_t ctl_lun_mask[(CTL_MAX_LUNS + 31) / 32];
@@ -492,10 +469,8 @@ struct ctl_softc {
 	struct ctl_port *ctl_ports[CTL_MAX_PORTS];
 	uint32_t num_backends;
 	STAILQ_HEAD(, ctl_backend_driver) be_list;
-	struct mtx pool_lock;
-	uint32_t num_pools;
+	struct uma_zone *io_zone;
 	uint32_t cur_pool_id;
-	STAILQ_HEAD(, ctl_io_pool) io_pools;
 	struct ctl_thread threads[CTL_MAX_THREADS];
 	TAILQ_HEAD(tpc_tokens, tpc_token) tpc_tokens;
 	struct callout tpc_timeout;
@@ -508,8 +483,8 @@ extern const struct ctl_cmd_entry ctl_cmd_table[256];
 uint32_t ctl_get_initindex(struct ctl_nexus *nexus);
 uint32_t ctl_get_resindex(struct ctl_nexus *nexus);
 uint32_t ctl_port_idx(int port_num);
-int ctl_pool_create(struct ctl_softc *ctl_softc, ctl_pool_type pool_type,
-		    uint32_t total_ctl_io, struct ctl_io_pool **npool);
+int ctl_pool_create(struct ctl_softc *ctl_softc, const char *pool_name,
+		    uint32_t total_ctl_io, void **npool);
 void ctl_pool_free(struct ctl_io_pool *pool);
 int ctl_scsi_release(struct ctl_scsiio *ctsio);
 int ctl_scsi_reserve(struct ctl_scsiio *ctsio);

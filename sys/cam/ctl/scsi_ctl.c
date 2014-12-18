@@ -72,10 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_util.h>
 #include <cam/ctl/ctl_error.h>
 
-typedef enum {
-	CTLFE_CCB_DEFAULT	= 0x00
-} ctlfe_ccb_types;
-
 struct ctlfe_softc {
 	struct ctl_port port;
 	path_id_t path_id;
@@ -189,9 +185,7 @@ SYSCTL_INT(_kern_cam_ctl, OID_AUTO, dma_enabled, CTLFLAG_RW,
 	   &ctlfe_dma_enabled, 0, "DMA enabled");
 MALLOC_DEFINE(M_CTLFE, "CAM CTL FE", "CAM CTL FE interface");
 
-#define	ccb_type	ppriv_field0
-/* This is only used in the ATIO */
-#define	io_ptr		ppriv_ptr1
+#define	io_ptr		ppriv_ptr0
 
 /* This is only used in the CTIO */
 #define	ccb_atio	ppriv_ptr1
@@ -546,6 +540,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 
 	for (i = 0; i < CTLFE_ATIO_PER_LUN; i++) {
 		union ccb *new_ccb;
+		union ctl_io *new_io;
 
 		new_ccb = (union ccb *)malloc(sizeof(*new_ccb), M_CTLFE,
 					      M_ZERO|M_NOWAIT);
@@ -553,6 +548,14 @@ ctlferegister(struct cam_periph *periph, void *arg)
 			status = CAM_RESRC_UNAVAIL;
 			break;
 		}
+		new_io = ctl_alloc_io_nowait(bus_softc->port.ctl_pool_ref);
+		if (new_io == NULL) {
+			free(new_ccb, M_CTLFE);
+			status = CAM_RESRC_UNAVAIL;
+			break;
+		}
+		new_ccb->ccb_h.io_ptr = new_io;
+
 		xpt_setup_ccb(&new_ccb->ccb_h, periph->path, /*priority*/ 1);
 		new_ccb->ccb_h.func_code = XPT_ACCEPT_TARGET_IO;
 		new_ccb->ccb_h.cbfcnp = ctlfedone;
@@ -561,6 +564,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 		softc->atios_sent++;
 		status = new_ccb->ccb_h.status;
 		if ((status & CAM_STATUS_MASK) != CAM_REQ_INPROG) {
+			ctl_free_io(new_io);
 			free(new_ccb, M_CTLFE);
 			break;
 		}
@@ -581,6 +585,7 @@ ctlferegister(struct cam_periph *periph, void *arg)
 
 	for (i = 0; i < CTLFE_IN_PER_LUN; i++) {
 		union ccb *new_ccb;
+		union ctl_io *new_io;
 
 		new_ccb = (union ccb *)malloc(sizeof(*new_ccb), M_CTLFE,
 					      M_ZERO|M_NOWAIT);
@@ -588,6 +593,13 @@ ctlferegister(struct cam_periph *periph, void *arg)
 			status = CAM_RESRC_UNAVAIL;
 			break;
 		}
+		new_io = ctl_alloc_io_nowait(bus_softc->port.ctl_pool_ref);
+		if (new_io == NULL) {
+			free(new_ccb, M_CTLFE);
+			status = CAM_RESRC_UNAVAIL;
+			break;
+		}
+		new_ccb->ccb_h.io_ptr = new_io;
 
 		xpt_setup_ccb(&new_ccb->ccb_h, periph->path, /*priority*/ 1);
 		new_ccb->ccb_h.func_code = XPT_IMMEDIATE_NOTIFY;
@@ -766,8 +778,6 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 
 	softc->ccbs_alloced++;
 
-	start_ccb->ccb_h.ccb_type = CTLFE_CCB_DEFAULT;
-
 	ccb_h = TAILQ_FIRST(&softc->work_queue);
 	if (ccb_h == NULL) {
 		softc->ccbs_freed++;
@@ -812,7 +822,6 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 				xpt_print(periph->path, "%s: aborted "
 					  "command 0x%04x discarded\n",
 					  __func__, io->scsiio.tag_num);
-				ctl_free_io(io);
 				/*
 				 * For a wildcard attachment, commands can
 				 * come in with a specific target/lun.  Reset
@@ -1038,6 +1047,7 @@ ctlfe_free_ccb(struct cam_periph *periph, union ccb *ccb)
 		break;
 	}
 
+	ctl_free_io(ccb->ccb_h.io_ptr);
 	free(ccb, M_CTLFE);
 
 	KASSERT(softc->atios_returned <= softc->atios_sent, ("%s: "
@@ -1139,8 +1149,8 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 	KASSERT((done_ccb->ccb_h.flags & CAM_UNLOCKED) != 0,
 	    ("CCB in ctlfedone() without CAM_UNLOCKED flag"));
 #ifdef CTLFE_DEBUG
-	printf("%s: entered, func_code = %#x, type = %#lx\n", __func__,
-	       done_ccb->ccb_h.func_code, done_ccb->ccb_h.ccb_type);
+	printf("%s: entered, func_code = %#x\n", __func__,
+	       done_ccb->ccb_h.func_code);
 #endif
 
 	softc = (struct ctlfe_lun_softc *)periph->softc;
@@ -1180,27 +1190,8 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		 * Allocate a ctl_io, pass it to CTL, and wait for the
 		 * datamove or done.
 		 */
-		io = ctl_alloc_io(bus_softc->port.ctl_pool_ref);
-		if (io == NULL) {
-			atio->ccb_h.flags &= ~CAM_DIR_MASK;
-			atio->ccb_h.flags |= CAM_DIR_NONE;
-
-			printf("%s: ctl_alloc_io failed!\n", __func__);
-
-			/*
-			 * XXX KDM need to set SCSI_STATUS_BUSY, but there
-			 * is no field in the ATIO structure to do that,
-			 * and we aren't able to allocate a ctl_io here.
-			 * What to do?
-			 */
-			atio->sense_len = 0;
-			done_ccb->ccb_h.io_ptr = NULL;
-			TAILQ_INSERT_TAIL(&softc->work_queue, &atio->ccb_h,
-					  periph_links.tqe);
-			xpt_schedule(periph, /*priority*/ 1);
-			break;
-		}
 		mtx_unlock(mtx);
+		io = done_ccb->ccb_h.io_ptr;
 		ctl_zero_io(io);
 
 		/* Save pointers on both sides */
@@ -1296,7 +1287,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			 */
 			softc->ccbs_freed++;
 			xpt_release_ccb(done_ccb);
-			ctl_free_io(io);
 			if (ctlfe_adjust_cdb(atio, srr_off) == 0) {
 				done_ccb = (union ccb *)atio;
 				goto resubmit;
@@ -1330,7 +1320,6 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		if (done_ccb->ccb_h.flags & CAM_SEND_STATUS) {
 			softc->ccbs_freed++;
 			xpt_release_ccb(done_ccb);
-			ctl_free_io(io);
 			/*
 			 * For a wildcard attachment, commands can come in
 			 * with a specific target/lun.  Reset the target
@@ -1473,7 +1462,7 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		union ctl_io *io;
 		struct ccb_immediate_notify *inot;
 		cam_status status;
-		int frozen;
+		int frozen, send_ctl_io;
 
 		inot = &done_ccb->cin1;
 
@@ -1485,112 +1474,99 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 		       "seq %#x\n", __func__, inot->ccb_h.status,
 		       inot->tag_id, inot->seq_id);
 
-		io = ctl_alloc_io(bus_softc->port.ctl_pool_ref);
-		if (io != NULL) {
-			int send_ctl_io;
+		io = done_ccb->ccb_h.io_ptr;
+		ctl_zero_io(io);
 
-			send_ctl_io = 1;
+		send_ctl_io = 1;
 
-			ctl_zero_io(io);		
-			io->io_hdr.io_type = CTL_IO_TASK;
-			io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr =done_ccb;
-			inot->ccb_h.io_ptr = io;
-			io->io_hdr.nexus.initid.id = inot->initiator_id;
-			io->io_hdr.nexus.targ_port = bus_softc->port.targ_port;
-			io->io_hdr.nexus.targ_target.id = inot->ccb_h.target_id;
-			io->io_hdr.nexus.targ_lun = inot->ccb_h.target_lun;
-			/* XXX KDM should this be the tag_id? */
-			io->taskio.tag_num = inot->seq_id;
+		io->io_hdr.io_type = CTL_IO_TASK;
+		io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr =done_ccb;
+		inot->ccb_h.io_ptr = io;
+		io->io_hdr.nexus.initid.id = inot->initiator_id;
+		io->io_hdr.nexus.targ_port = bus_softc->port.targ_port;
+		io->io_hdr.nexus.targ_target.id = inot->ccb_h.target_id;
+		io->io_hdr.nexus.targ_lun = inot->ccb_h.target_lun;
+		/* XXX KDM should this be the tag_id? */
+		io->taskio.tag_num = inot->seq_id;
 
-			status = inot->ccb_h.status & CAM_STATUS_MASK;
-			switch (status) {
-			case CAM_SCSI_BUS_RESET:
-				io->taskio.task_action = CTL_TASK_BUS_RESET;
+		status = inot->ccb_h.status & CAM_STATUS_MASK;
+		switch (status) {
+		case CAM_SCSI_BUS_RESET:
+			io->taskio.task_action = CTL_TASK_BUS_RESET;
+			break;
+		case CAM_BDR_SENT:
+			io->taskio.task_action = CTL_TASK_TARGET_RESET;
+			break;
+		case CAM_MESSAGE_RECV:
+			switch (inot->arg) {
+			case MSG_ABORT_TASK_SET:
+				io->taskio.task_action =
+				    CTL_TASK_ABORT_TASK_SET;
 				break;
-			case CAM_BDR_SENT:
-				io->taskio.task_action = CTL_TASK_TARGET_RESET;
+			case MSG_TARGET_RESET:
+				io->taskio.task_action =
+					CTL_TASK_TARGET_RESET;
 				break;
-			case CAM_MESSAGE_RECV:
-				switch (inot->arg) {
-				case MSG_ABORT_TASK_SET:
-					io->taskio.task_action =
-						CTL_TASK_ABORT_TASK_SET;
-					break;
-				case MSG_TARGET_RESET:
-					io->taskio.task_action =
-						CTL_TASK_TARGET_RESET;
-					break;
-				case MSG_ABORT_TASK:
-					io->taskio.task_action =
-						CTL_TASK_ABORT_TASK;
-					break;
-				case MSG_LOGICAL_UNIT_RESET:
-					io->taskio.task_action =
-						CTL_TASK_LUN_RESET;
-					break;
-				case MSG_CLEAR_TASK_SET:
-					io->taskio.task_action =
-						CTL_TASK_CLEAR_TASK_SET;
-					break;
-				case MSG_CLEAR_ACA:
-					io->taskio.task_action = 
-						CTL_TASK_CLEAR_ACA;
-					break;
-				case MSG_NOOP:
-					send_ctl_io = 0;
-					break;
-				default:
-					xpt_print(periph->path, "%s: "
-						  "unsupported message 0x%x\n", 
-						  __func__, inot->arg);
-					send_ctl_io = 0;
-					break;
-				}
+			case MSG_ABORT_TASK:
+				io->taskio.task_action =
+					CTL_TASK_ABORT_TASK;
 				break;
-			case CAM_REQ_ABORTED:
-				/*
-				 * This request was sent back by the driver.
-				 * XXX KDM what do we do here?
-				 */
+			case MSG_LOGICAL_UNIT_RESET:
+				io->taskio.task_action =
+					CTL_TASK_LUN_RESET;
+				break;
+			case MSG_CLEAR_TASK_SET:
+				io->taskio.task_action =
+					CTL_TASK_CLEAR_TASK_SET;
+				break;
+			case MSG_CLEAR_ACA:
+				io->taskio.task_action =
+					CTL_TASK_CLEAR_ACA;
+				break;
+			case MSG_NOOP:
 				send_ctl_io = 0;
 				break;
-			case CAM_REQ_INVALID:
-			case CAM_PROVIDE_FAIL:
 			default:
-				/*
-				 * We should only get here if we're talking
-				 * to a talking to a SIM that is target
-				 * capable but supports the old API.  In
-				 * that case, we need to just free the CCB.
-				 * If we actually send a notify acknowledge,
-				 * it will send that back with an error as
-				 * well.
-				 */
-
-				if ((status != CAM_REQ_INVALID)
-				 && (status != CAM_PROVIDE_FAIL))
-					xpt_print(periph->path, "%s: "
-						  "unsupported CAM status "
-						  "0x%x\n", __func__, status);
-
-				ctl_free_io(io);
-				ctlfe_free_ccb(periph, done_ccb);
-
-				goto out;
+				xpt_print(periph->path,
+					  "%s: unsupported message 0x%x\n",
+					  __func__, inot->arg);
+				send_ctl_io = 0;
+				break;
 			}
-			if (send_ctl_io != 0) {
-				ctl_queue(io);
-			} else {
-				ctl_free_io(io);
-				done_ccb->ccb_h.status = CAM_REQ_INPROG;
-				done_ccb->ccb_h.func_code =
-					XPT_NOTIFY_ACKNOWLEDGE;
-				xpt_action(done_ccb);
-			}
+			break;
+		case CAM_REQ_ABORTED:
+			/*
+			 * This request was sent back by the driver.
+			 * XXX KDM what do we do here?
+			 */
+			send_ctl_io = 0;
+			break;
+		case CAM_REQ_INVALID:
+		case CAM_PROVIDE_FAIL:
+		default:
+			/*
+			 * We should only get here if we're talking
+			 * to a talking to a SIM that is target
+			 * capable but supports the old API.  In
+			 * that case, we need to just free the CCB.
+			 * If we actually send a notify acknowledge,
+			 * it will send that back with an error as
+			 * well.
+			 */
+
+			if ((status != CAM_REQ_INVALID)
+			 && (status != CAM_PROVIDE_FAIL))
+				xpt_print(periph->path,
+					  "%s: unsupported CAM status 0x%x\n",
+					  __func__, status);
+
+			ctlfe_free_ccb(periph, done_ccb);
+
+			goto out;
+		}
+		if (send_ctl_io != 0) {
+			ctl_queue(io);
 		} else {
-			xpt_print(periph->path, "%s: could not allocate "
-				  "ctl_io for immediate notify!\n", __func__);
-			/* requeue this to the adapter */
 			done_ccb->ccb_h.status = CAM_REQ_INPROG;
 			done_ccb->ccb_h.func_code = XPT_NOTIFY_ACKNOWLEDGE;
 			xpt_action(done_ccb);
@@ -2166,7 +2142,6 @@ ctlfe_datamove_done(union ctl_io *io)
 		ccb->ccb_h.status = CAM_REQ_INPROG;
 		ccb->ccb_h.func_code = XPT_NOTIFY_ACKNOWLEDGE;
 		xpt_action(ccb);
-		ctl_free_io(io);
 	} else {
 		if ((io->io_hdr.status & CTL_STATUS_MASK) != CTL_STATUS_NONE)
 			io->io_hdr.flags |= CTL_FLAG_STATUS_QUEUED;

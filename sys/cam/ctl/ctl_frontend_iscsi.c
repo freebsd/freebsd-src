@@ -546,13 +546,6 @@ cfiscsi_pdu_handle_scsi_command(struct icl_pdu *request)
 		return;
 	}
 	io = ctl_alloc_io(cs->cs_target->ct_port.ctl_pool_ref);
-	if (io == NULL) {
-		CFISCSI_SESSION_WARN(cs, "can't allocate ctl_io; "
-		    "dropping connection");
-		icl_pdu_free(request);
-		cfiscsi_session_terminate(cs);
-		return;
-	}
 	ctl_zero_io(io);
 	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = request;
 	io->io_hdr.io_type = CTL_IO_SCSI;
@@ -610,13 +603,6 @@ cfiscsi_pdu_handle_task_request(struct icl_pdu *request)
 	cs = PDU_SESSION(request);
 	bhstmr = (struct iscsi_bhs_task_management_request *)request->ip_bhs;
 	io = ctl_alloc_io(cs->cs_target->ct_port.ctl_pool_ref);
-	if (io == NULL) {
-		CFISCSI_SESSION_WARN(cs, "can't allocate ctl_io;"
-		    "dropping connection");
-		icl_pdu_free(request);
-		cfiscsi_session_terminate(cs);
-		return;
-	}
 	ctl_zero_io(io);
 	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = request;
 	io->io_hdr.io_type = CTL_IO_TASK;
@@ -1067,10 +1053,6 @@ cfiscsi_session_terminate_tasks(struct cfiscsi_session *cs)
 	if (cs->cs_target == NULL)
 		return;		/* No target yet, so nothing to do. */
 	io = ctl_alloc_io(cs->cs_target->ct_port.ctl_pool_ref);
-	if (io == NULL) {
-		CFISCSI_SESSION_WARN(cs, "can't allocate ctl_io");
-		return;
-	}
 	ctl_zero_io(io);
 	io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = cs;
 	io->io_hdr.io_type = CTL_IO_TASK;
