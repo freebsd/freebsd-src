@@ -82,6 +82,10 @@ __FBSDID("$FreeBSD$");
 #define	FDT_SOURCE_ROM		2
 #define	FDT_SOURCE_STATIC	3
 
+#if defined(FDT_DTB_STATIC_ONLY) && !defined(FDT_DTB_STATIC)
+#define FDT_DTB_STATIC
+#endif
+
 extern int	*edata;
 extern int	*end;
 
@@ -192,13 +196,15 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	long memsize;
 #ifdef FDT
 	char buf[2048];		/* early stack supposedly big enough */
-	vm_offset_t dtbp;
+	vm_offset_t dtbp = 0;
 	phandle_t chosen;
 	void *kmdp;
 	int dtb_needs_swap = 0; /* error */
 	size_t dtb_size = 0;
+#ifndef FDT_DTB_STATIC_ONLY
 	struct fdt_header *dtb_rom, *dtb;
 	uint32_t *swapptr;
+#endif
 	int fdt_source = FDT_SOURCE_NONE;
 #endif
 	int i;
@@ -240,6 +246,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	}
 
 #ifdef FDT
+#ifndef FDT_DTB_STATIC_ONLY
 	/*
 	 * Find the dtb passed in by the boot loader (currently fictional).
 	 *
@@ -281,6 +288,7 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 			fdt_source = FDT_SOURCE_ROM;
 		}
 	}
+#endif /* !FDT_DTB_STATIC_ONLY */
 
 #if defined(FDT_DTB_STATIC)
 	/*

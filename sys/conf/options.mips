@@ -96,6 +96,7 @@ OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h
 #
 BERI_LARGE_TLB			opt_global.h
 PLATFORM_INIT_SECONDARY		opt_global.h
+FDT_DTB_STATIC_ONLY		opt_platform.h
 
 CPU_CHERI_HW_RCLEAR	opt_global.h
 CPU_CHERI_HW_CCLEAR	opt_global.h
