@@ -1246,10 +1246,7 @@ _gperf=		gnu/usr.bin/gperf
 .endif
 
 .if ${MK_GROFF} != "no"
-_groff=		gnu/usr.bin/groff/src/libs \
-		gnu/usr.bin/groff/src/roff/groff
-
-${_bt}-gnu/usr.bin/groff/src/roff/groff: ${_bt}-gnu/usr.bin/groff/src/libs
+_groff=		gnu/usr.bin/groff
 .endif
 
 .if ${MK_VT} != "no"
