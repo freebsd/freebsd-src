@@ -112,6 +112,7 @@ static struct ofw_compat_data compat_data[] = {
 #define	MMCHS_CON			0x02C
 #define	  MMCHS_CON_DW8			  (1 << 5)
 #define	  MMCHS_CON_DVAL_8_4MS		  (3 << 9)
+#define	  MMCHS_CON_OD			  (1 << 0)
 #define MMCHS_SYSCTL			0x12C
 #define   MMCHS_SYSCTL_CLKD_MASK	   0x3FF
 #define   MMCHS_SYSCTL_CLKD_SHIFT	   6
@@ -327,7 +328,7 @@ ti_sdhci_update_ios(device_t brdev, device_t reqdev)
 	struct ti_sdhci_softc *sc = device_get_softc(brdev);
 	struct sdhci_slot *slot;
 	struct mmc_ios *ios;
-	uint32_t val32;
+	uint32_t val32, newval32;
 
 	slot = device_get_ivars(reqdev);
 	ios = &slot->host.ios;
@@ -339,10 +340,20 @@ ti_sdhci_update_ios(device_t brdev, device_t reqdev)
 	 * requested, then let the standard driver handle everything else.
 	 */
 	val32 = ti_mmchs_read_4(sc, MMCHS_CON);
+	newval32  = val32;
+
 	if (ios->bus_width == bus_width_8)
-		ti_mmchs_write_4(sc, MMCHS_CON, val32 | MMCHS_CON_DW8); 
+		newval32 |= MMCHS_CON_DW8;
 	else
-		ti_mmchs_write_4(sc, MMCHS_CON, val32 & ~MMCHS_CON_DW8); 
+		newval32 &= ~MMCHS_CON_DW8;
+
+	if (ios->bus_mode == opendrain)
+		newval32 |= MMCHS_CON_OD;
+	else /* if (ios->bus_mode == pushpull) */
+		newval32 &= ~MMCHS_CON_OD;
+
+	if (newval32 != val32)
+		ti_mmchs_write_4(sc, MMCHS_CON, newval32);
 
 	return (sdhci_generic_update_ios(brdev, reqdev));
 }
