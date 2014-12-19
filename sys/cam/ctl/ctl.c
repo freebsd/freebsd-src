@@ -111,7 +111,7 @@ struct ctl_softc *control_softc = NULL;
  * Note that these are default values only.  The actual values will be
  * filled in when the user does a mode sense.
  */
-static struct copan_debugconf_subpage debugconf_page_default = {
+const static struct copan_debugconf_subpage debugconf_page_default = {
 	DBGCNF_PAGE_CODE | SMPH_SPF,	/* page_code */
 	DBGCNF_SUBPAGE_CODE,		/* subpage */
 	{(sizeof(struct copan_debugconf_subpage) - 4) >> 8,
@@ -121,7 +121,7 @@ static struct copan_debugconf_subpage debugconf_page_default = {
 	 CTL_TIME_IO_DEFAULT_SECS>>0},	/* ctl_time_io_secs */
 };
 
-static struct copan_debugconf_subpage debugconf_page_changeable = {
+const static struct copan_debugconf_subpage debugconf_page_changeable = {
 	DBGCNF_PAGE_CODE | SMPH_SPF,	/* page_code */
 	DBGCNF_SUBPAGE_CODE,		/* subpage */
 	{(sizeof(struct copan_debugconf_subpage) - 4) >> 8,
@@ -130,7 +130,7 @@ static struct copan_debugconf_subpage debugconf_page_changeable = {
 	{0xff,0xff},			/* ctl_time_io_secs */
 };
 
-static struct scsi_da_rw_recovery_page rw_er_page_default = {
+const static struct scsi_da_rw_recovery_page rw_er_page_default = {
 	/*page_code*/SMS_RW_ERROR_RECOVERY_PAGE,
 	/*page_length*/sizeof(struct scsi_da_rw_recovery_page) - 2,
 	/*byte3*/SMS_RWER_AWRE|SMS_RWER_ARRE,
@@ -144,7 +144,7 @@ static struct scsi_da_rw_recovery_page rw_er_page_default = {
 	/*recovery_time_limit*/{0, 0},
 };
 
-static struct scsi_da_rw_recovery_page rw_er_page_changeable = {
+const static struct scsi_da_rw_recovery_page rw_er_page_changeable = {
 	/*page_code*/SMS_RW_ERROR_RECOVERY_PAGE,
 	/*page_length*/sizeof(struct scsi_da_rw_recovery_page) - 2,
 	/*byte3*/0,
@@ -158,7 +158,7 @@ static struct scsi_da_rw_recovery_page rw_er_page_changeable = {
 	/*recovery_time_limit*/{0, 0},
 };
 
-static struct scsi_format_page format_page_default = {
+const static struct scsi_format_page format_page_default = {
 	/*page_code*/SMS_FORMAT_DEVICE_PAGE,
 	/*page_length*/sizeof(struct scsi_format_page) - 2,
 	/*tracks_per_zone*/ {0, 0},
@@ -175,7 +175,7 @@ static struct scsi_format_page format_page_default = {
 	/*reserved*/ {0, 0, 0}
 };
 
-static struct scsi_format_page format_page_changeable = {
+const static struct scsi_format_page format_page_changeable = {
 	/*page_code*/SMS_FORMAT_DEVICE_PAGE,
 	/*page_length*/sizeof(struct scsi_format_page) - 2,
 	/*tracks_per_zone*/ {0, 0},
@@ -191,7 +191,7 @@ static struct scsi_format_page format_page_changeable = {
 	/*reserved*/ {0, 0, 0}
 };
 
-static struct scsi_rigid_disk_page rigid_disk_page_default = {
+const static struct scsi_rigid_disk_page rigid_disk_page_default = {
 	/*page_code*/SMS_RIGID_DISK_PAGE,
 	/*page_length*/sizeof(struct scsi_rigid_disk_page) - 2,
 	/*cylinders*/ {0, 0, 0},
@@ -208,7 +208,7 @@ static struct scsi_rigid_disk_page rigid_disk_page_default = {
 	/*reserved2*/ {0, 0}
 };
 
-static struct scsi_rigid_disk_page rigid_disk_page_changeable = {
+const static struct scsi_rigid_disk_page rigid_disk_page_changeable = {
 	/*page_code*/SMS_RIGID_DISK_PAGE,
 	/*page_length*/sizeof(struct scsi_rigid_disk_page) - 2,
 	/*cylinders*/ {0, 0, 0},
@@ -224,7 +224,7 @@ static struct scsi_rigid_disk_page rigid_disk_page_changeable = {
 	/*reserved2*/ {0, 0}
 };
 
-static struct scsi_caching_page caching_page_default = {
+const static struct scsi_caching_page caching_page_default = {
 	/*page_code*/SMS_CACHING_PAGE,
 	/*page_length*/sizeof(struct scsi_caching_page) - 2,
 	/*flags1*/ SCP_DISC | SCP_WCE,
@@ -240,7 +240,7 @@ static struct scsi_caching_page caching_page_default = {
 	/*non_cache_seg_size*/ {0, 0, 0}
 };
 
-static struct scsi_caching_page caching_page_changeable = {
+const static struct scsi_caching_page caching_page_changeable = {
 	/*page_code*/SMS_CACHING_PAGE,
 	/*page_length*/sizeof(struct scsi_caching_page) - 2,
 	/*flags1*/ SCP_WCE | SCP_RCD,
@@ -256,7 +256,7 @@ static struct scsi_caching_page caching_page_changeable = {
 	/*non_cache_seg_size*/ {0, 0, 0}
 };
 
-static struct scsi_control_page control_page_default = {
+const static struct scsi_control_page control_page_default = {
 	/*page_code*/SMS_CONTROL_MODE_PAGE,
 	/*page_length*/sizeof(struct scsi_control_page) - 2,
 	/*rlec*/0,
@@ -268,7 +268,7 @@ static struct scsi_control_page control_page_default = {
 	/*extended_selftest_completion_time*/{0, 0}
 };
 
-static struct scsi_control_page control_page_changeable = {
+const static struct scsi_control_page control_page_changeable = {
 	/*page_code*/SMS_CONTROL_MODE_PAGE,
 	/*page_length*/sizeof(struct scsi_control_page) - 2,
 	/*rlec*/SCP_DSENSE,
@@ -280,7 +280,7 @@ static struct scsi_control_page control_page_changeable = {
 	/*extended_selftest_completion_time*/{0, 0}
 };
 
-static struct scsi_info_exceptions_page ie_page_default = {
+const static struct scsi_info_exceptions_page ie_page_default = {
 	/*page_code*/SMS_INFO_EXCEPTIONS_PAGE,
 	/*page_length*/sizeof(struct scsi_info_exceptions_page) - 2,
 	/*info_flags*/SIEP_FLAGS_DEXCPT,
@@ -289,7 +289,7 @@ static struct scsi_info_exceptions_page ie_page_default = {
 	/*report_count*/{0, 0, 0, 0}
 };
 
-static struct scsi_info_exceptions_page ie_page_changeable = {
+const static struct scsi_info_exceptions_page ie_page_changeable = {
 	/*page_code*/SMS_INFO_EXCEPTIONS_PAGE,
 	/*page_length*/sizeof(struct scsi_info_exceptions_page) - 2,
 	/*info_flags*/0,
@@ -300,7 +300,7 @@ static struct scsi_info_exceptions_page ie_page_changeable = {
 
 #define CTL_LBPM_LEN	(sizeof(struct ctl_logical_block_provisioning_page) - 4)
 
-static struct ctl_logical_block_provisioning_page lbp_page_default = {{
+const static struct ctl_logical_block_provisioning_page lbp_page_default = {{
 	/*page_code*/SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF,
 	/*subpage_code*/0x02,
 	/*page_length*/{CTL_LBPM_LEN >> 8, CTL_LBPM_LEN},
@@ -326,7 +326,7 @@ static struct ctl_logical_block_provisioning_page lbp_page_default = {{
 	}
 };
 
-static struct ctl_logical_block_provisioning_page lbp_page_changeable = {{
+const static struct ctl_logical_block_provisioning_page lbp_page_changeable = {{
 	/*page_code*/SMS_INFO_EXCEPTIONS_PAGE | SMPH_SPF,
 	/*subpage_code*/0x02,
 	/*page_length*/{CTL_LBPM_LEN >> 8, CTL_LBPM_LEN},
