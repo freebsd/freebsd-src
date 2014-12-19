@@ -403,9 +403,11 @@ ti_sdhci_hw_init(device_t dev)
 	/* Issue a softreset to the controller */
 	ti_mmchs_write_4(sc, MMCHS_SYSCONFIG, MMCHS_SYSCONFIG_RESET);
 	timeout = 1000;
-	while (!(ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) & MMCHS_SYSSTATUS_RESETDONE)) {
+	while (!(ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) &
+	    MMCHS_SYSSTATUS_RESETDONE)) {
 		if (--timeout == 0) {
-			device_printf(dev, "Error: Controller reset operation timed out\n");
+			device_printf(dev,
+			    "Error: Controller reset operation timed out\n");
 			break;
 		}
 		DELAY(100);
@@ -414,9 +416,11 @@ ti_sdhci_hw_init(device_t dev)
 	/* Reset both the command and data state machines */
 	ti_sdhci_write_1(dev, NULL, SDHCI_SOFTWARE_RESET, SDHCI_RESET_ALL);
 	timeout = 1000;
-	while ((ti_sdhci_read_1(dev, NULL, SDHCI_SOFTWARE_RESET) & SDHCI_RESET_ALL)) {
+	while ((ti_sdhci_read_1(dev, NULL, SDHCI_SOFTWARE_RESET) &
+	    SDHCI_RESET_ALL)) {
 		if (--timeout == 0) {
-			device_printf(dev, "Error: Software reset operation timed out\n");
+			device_printf(dev,
+			    "Error: Software reset operation timed out\n");
 			break;
 		}
 		DELAY(100);
