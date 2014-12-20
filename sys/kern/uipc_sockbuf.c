@@ -640,9 +640,6 @@ sbappendstream_locked(struct sockbuf *sb, struct mbuf *m, int flags)
 {
 	SOCKBUF_LOCK_ASSERT(sb);
 
-	if (m == NULL)
-		return;
-
 	KASSERT(m->m_nextpkt == NULL,("sbappendstream 0"));
 	KASSERT(sb->sb_mb == sb->sb_lastrecord,("sbappendstream 1"));
 
@@ -1064,6 +1061,21 @@ sbcut_internal(struct sockbuf *sb, int len)
 			mfree = m;
 			m = n;
 		}
+	}
+	/*
+	 * Free any zero-length mbufs from the buffer.
+	 * For SOCK_DGRAM sockets such mbufs represent empty records.
+	 * XXX: For SOCK_STREAM sockets such mbufs can appear in the buffer,
+	 * when sosend_generic() needs to send only control data.
+	 */
+	while (m && m->m_len == 0) {
+		struct mbuf *n;
+
+		sbfree(sb, m);
+		n = m->m_next;
+		m->m_next = mfree;
+		mfree = m;
+		m = n;
 	}
 	if (m) {
 		sb->sb_mb = m;
