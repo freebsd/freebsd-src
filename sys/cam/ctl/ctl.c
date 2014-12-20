@@ -1743,8 +1743,8 @@ ctl_ioctl_do_datamove(struct ctl_scsiio *ctsio)
 	     i < ext_sg_entries && j < kern_sg_entries;) {
 		uint8_t *ext_ptr, *kern_ptr;
 
-		len_to_copy = ctl_min(ext_sglist[i].len - ext_watermark,
-				      kern_sglist[j].len - kern_watermark);
+		len_to_copy = MIN(ext_sglist[i].len - ext_watermark,
+				  kern_sglist[j].len - kern_watermark);
 
 		ext_ptr = (uint8_t *)ext_sglist[i].addr;
 		ext_ptr = ext_ptr + ext_watermark;
@@ -2834,8 +2834,8 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		bbr_info->scsi_status = metatask->taskinfo.bbrread.scsi_status;
 		memcpy(&bbr_info->sense_data,
 		       &metatask->taskinfo.bbrread.sense_data,
-		       ctl_min(sizeof(bbr_info->sense_data),
-			       sizeof(metatask->taskinfo.bbrread.sense_data)));
+		       MIN(sizeof(bbr_info->sense_data),
+			   sizeof(metatask->taskinfo.bbrread.sense_data)));
 
 		cfi_free_metatask(metatask);
 
@@ -3642,7 +3642,7 @@ ctl_ffz(uint32_t *mask, uint32_t size)
 	num_chunks = (size >> 5);
 	if (num_chunks == 0)
 		num_chunks++;
-	num_pieces = ctl_min((sizeof(uint32_t) * 8), size);
+	num_pieces = MIN((sizeof(uint32_t) * 8), size);
 
 	for (i = 0; i < num_chunks; i++) {
 		for (j = 0; j < num_pieces; j++) {
@@ -3889,7 +3889,7 @@ ctl_copy_io(union ctl_io *src, union ctl_io *dest)
 	 */
 	pool_ref = dest->io_hdr.pool;
 
-	memcpy(dest, src, ctl_min(sizeof(*src), sizeof(*dest)));
+	memcpy(dest, src, MIN(sizeof(*src), sizeof(*dest)));
 
 	dest->io_hdr.pool = pool_ref;
 	/*
@@ -6752,7 +6752,7 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 
 		header = (struct scsi_mode_hdr_6 *)ctsio->kern_data_ptr;
 
-		header->datalen = ctl_min(total_len - 1, 254);
+		header->datalen = MIN(total_len - 1, 254);
 		if (control_dev == 0) {
 			header->dev_specific = 0x10; /* DPOFUA */
 			if ((lun->flags & CTL_LUN_READONLY) ||
@@ -6774,7 +6774,7 @@ ctl_mode_sense(struct ctl_scsiio *ctsio)
 
 		header = (struct scsi_mode_hdr_10 *)ctsio->kern_data_ptr;
 
-		datalen = ctl_min(total_len - 2, 65533);
+		datalen = MIN(total_len - 2, 65533);
 		scsi_ulto2b(datalen, header->datalen);
 		if (control_dev == 0) {
 			header->dev_specific = 0x10; /* DPOFUA */
@@ -9515,7 +9515,7 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 			    (struct scsi_sense_data_fixed *)sense_ptr);
 		else
 			memcpy(sense_ptr, &lun->pending_sense[initidx],
-			       ctl_min(sizeof(*sense_ptr),
+			       MIN(sizeof(*sense_ptr),
 			       sizeof(lun->pending_sense[initidx])));
 
 		ctl_clear_mask(lun->have_ca, initidx);
@@ -12474,8 +12474,8 @@ ctl_inject_error(struct ctl_lun *lun, union ctl_io *io)
 			 * checks.
 			 */
 			bcopy(&desc->custom_sense, &io->scsiio.sense_data,
-			      ctl_min(sizeof(desc->custom_sense),
-				      sizeof(io->scsiio.sense_data)));
+			      MIN(sizeof(desc->custom_sense),
+				  sizeof(io->scsiio.sense_data)));
 			io->scsiio.scsi_status = SCSI_STATUS_CHECK_COND;
 			io->scsiio.sense_len = SSD_FULL_SIZE;
 			io->io_hdr.status = CTL_SCSI_ERROR | CTL_AUTOSENSE;
@@ -12704,7 +12704,7 @@ ctl_datamove(union ctl_io *io)
 		 */
 		for (sg_entries_sent = 0; sg_entries_sent <
 		     msg.dt.kern_sg_entries; msg.dt.sg_sequence++) {
-			msg.dt.cur_sg_entries = ctl_min((sizeof(msg.dt.sg_list)/
+			msg.dt.cur_sg_entries = MIN((sizeof(msg.dt.sg_list)/
 				sizeof(msg.dt.sg_list[0])),
 				msg.dt.kern_sg_entries - sg_entries_sent);
 
@@ -13067,7 +13067,7 @@ ctl_datamove_remote_sgl_setup(union ctl_io *io)
 		for (i = 0; (i < sizeof(io->io_hdr.remote_sglist) /
 		     sizeof(io->io_hdr.remote_sglist[0])) &&
 		     (len_to_go > 0); i++) {
-			local_sglist[i].len = ctl_min(len_to_go, 131072);
+			local_sglist[i].len = MIN(len_to_go, 131072);
 			CTL_SIZE_8B(local_dma_sglist[i].len,
 				    local_sglist[i].len);
 			local_sglist[i].addr =
@@ -13203,8 +13203,8 @@ ctl_datamove_remote_xfer(union ctl_io *io, unsigned command,
 		 * also have enough slack left over at the end, though,
 		 * to round up to the next 8 byte boundary.
 		 */
-		cur_len = ctl_min(local_sglist[i].len - local_used,
-				  remote_sglist[j].len - remote_used);
+		cur_len = MIN(local_sglist[i].len - local_used,
+			      remote_sglist[j].len - remote_used);
 
 		/*
 		 * In this case, we have a size issue and need to decrease
@@ -13703,7 +13703,7 @@ ctl_queue_sense(union ctl_io *io)
 	}
 
 	memcpy(&lun->pending_sense[initidx], &io->scsiio.sense_data,
-	       ctl_min(sizeof(lun->pending_sense[initidx]),
+	       MIN(sizeof(lun->pending_sense[initidx]),
 	       sizeof(io->scsiio.sense_data)));
 	ctl_set_mask(lun->have_ca, initidx);
 	mtx_unlock(&lun->lun_lock);
