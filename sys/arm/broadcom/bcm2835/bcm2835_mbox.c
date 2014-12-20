@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/malloc.h>
 #include <sys/rman.h>
+#include <sys/sema.h>
 #include <sys/timeet.h>
 #include <sys/timetc.h>
 #include <sys/watchdog.h>
@@ -88,8 +89,8 @@ struct bcm_mbox_softc {
 	void*			intr_hl;
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
-	int			valid[BCM2835_MBOX_CHANS];
 	int			msg[BCM2835_MBOX_CHANS];
+	struct sema		sema[BCM2835_MBOX_CHANS];
 };
 
 #define	mbox_read_4(sc, reg)		\
@@ -105,23 +106,19 @@ bcm_mbox_intr(void *arg)
 	uint32_t data;
 	uint32_t msg;
 
-	MBOX_LOCK(sc);
 	while (!(mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY)) {
 		msg = mbox_read_4(sc, REG_READ);
 		dprintf("bcm_mbox_intr: raw data %08x\n", msg);
 		chan = MBOX_CHAN(msg);
 		data = MBOX_DATA(msg);
-		if (sc->valid[chan]) {
+		if (sc->msg[chan]) {
 			printf("bcm_mbox_intr: channel %d oveflow\n", chan);
 			continue;
 		}
 		dprintf("bcm_mbox_intr: chan %d, data %08x\n", chan, data);
-		sc->msg[chan] = data;
-		sc->valid[chan] = 1;
-		wakeup(&sc->msg[chan]);
-		
+		sc->msg[chan] = MBOX_MSG(data, 0xf);
+		sema_post(&sc->sema[chan]);
 	}
-	MBOX_UNLOCK(sc);
 }
 
 static int
@@ -172,8 +169,8 @@ bcm_mbox_attach(device_t dev)
 
 	mtx_init(&sc->lock, "vcio mbox", NULL, MTX_DEF);
 	for (i = 0; i < BCM2835_MBOX_CHANS; i++) {
-		sc->valid[0] = 0;
-		sc->msg[0] = 0;
+		sc->msg[i] = 0;
+		sema_init(&sc->sema[i], 0, "mbox");
 	}
 
 	/* Read all pending messages */
@@ -219,10 +216,18 @@ bcm_mbox_read(device_t dev, int chan, uint32_t *data)
 
 	dprintf("bcm_mbox_read: chan %d\n", chan);
 	MBOX_LOCK(sc);
-	while (!sc->valid[chan])
-		msleep(&sc->msg[chan], &sc->lock, PZERO, "vcio mbox read", 0);
-	*data = sc->msg[chan];
-	sc->valid[chan] = 0;
+	while (sema_trywait(&sc->sema[chan]) == 0) {
+		/* do not unlock sc while waiting for the mbox */
+		if (sema_timedwait(&sc->sema[chan], 10*hz) == 0)
+			break;
+		printf("timeout sema for chan %d\n", chan);
+	}
+	/*
+	 *  get data from intr handler, the same channel is never coming
+	 *  because of holding sc lock.
+	 */
+	*data = MBOX_DATA(sc->msg[chan]);
+	sc->msg[chan] = 0;
 	MBOX_UNLOCK(sc);
 	dprintf("bcm_mbox_read: chan %d, data %08x\n", chan, *data);
 
