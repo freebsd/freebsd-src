@@ -3643,11 +3643,14 @@ retry:
 	XML_SetCharacterDataHandler(parser, cctl_islist_char_handler);
 
 	retval = XML_Parse(parser, conn_str, strlen(conn_str), 1);
-	XML_ParserFree(parser);
 	if (retval != 1) {
+		warnx("%s: Unable to parse XML: Error %d", __func__,
+		    XML_GetErrorCode(parser));
+		XML_ParserFree(parser);
 		retval = 1;
 		goto bailout;
 	}
+	XML_ParserFree(parser);
 
 	if (verbose != 0) {
 		STAILQ_FOREACH(conn, &islist.conn_list, links) {
@@ -4058,11 +4061,14 @@ retry:
 	XML_SetCharacterDataHandler(parser, cctl_char_handler);
 
 	retval = XML_Parse(parser, lun_str, strlen(lun_str), 1);
-	XML_ParserFree(parser);
 	if (retval != 1) {
+		warnx("%s: Unable to parse XML: Error %d", __func__,
+		    XML_GetErrorCode(parser));
+		XML_ParserFree(parser);
 		retval = 1;
 		goto bailout;
 	}
+	XML_ParserFree(parser);
 
 	printf("LUN Backend  %18s %4s %-16s %-16s\n", "Size (Blocks)", "BS",
 	       "Serial Number", "Device ID");
@@ -4336,11 +4342,14 @@ retry:
 	XML_SetCharacterDataHandler(parser, cctl_char_phandler);
 
 	retval = XML_Parse(parser, port_str, strlen(port_str), 1);
-	XML_ParserFree(parser);
 	if (retval != 1) {
+		warnx("%s: Unable to parse XML: Error %d", __func__,
+		    XML_GetErrorCode(parser));
+		XML_ParserFree(parser);
 		retval = 1;
 		goto bailout;
 	}
+	XML_ParserFree(parser);
 
 	if (quiet == 0)
 		printf("Port Online Frontend Name     pp vp\n");
