@@ -511,7 +511,7 @@ struct {
 	struct {
 	    uint8_t		id;
 	    uint8_t		esslen;
-	    uint8_t		essid[32];
+	    uint8_t		essid[IEEE80211_NWID_LEN];
 	}scan_essids[WPI_SCAN_MAX_ESSIDS];
 	/* followed by probe request body */
 	/* followed by nchan x wpi_scan_chan */
