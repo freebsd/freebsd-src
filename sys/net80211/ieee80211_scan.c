@@ -698,6 +698,13 @@ ieee80211_cancel_scan(struct ieee80211vap *vap)
 		SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_CANCEL;
 		/* wake up the scan task */
 		scan_signal(ss);
+	} else {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+		    "%s: called; F_SCAN=%d, vap=%s, CANCEL=%d\n",
+		        __func__,
+			!! (ic->ic_flags & IEEE80211_F_SCAN),
+			(ss->ss_vap == vap ? "match" : "nomatch"),
+			!! (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL));
 	}
 	IEEE80211_UNLOCK(ic);
 }
@@ -724,6 +731,13 @@ ieee80211_cancel_anyscan(struct ieee80211vap *vap)
 		SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_CANCEL;
 		/* wake up the scan task */
 		scan_signal(ss);
+	} else {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+		    "%s: called; F_SCAN=%d, vap=%s, CANCEL=%d\n",
+		        __func__,
+			!! (ic->ic_flags & IEEE80211_F_SCAN),
+			(ss->ss_vap == vap ? "match" : "nomatch"),
+			!! (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL));
 	}
 	IEEE80211_UNLOCK(ic);
 }
