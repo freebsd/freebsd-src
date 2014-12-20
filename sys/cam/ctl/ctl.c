@@ -3497,11 +3497,11 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 
 				if (port->wwpn_iid[j].name != NULL)
 					retval = sbuf_printf(sb,
-					    "\t<initiator>%u %s</initiator>\n",
+					    "\t<initiator id=\"%u\">%s</initiator>\n",
 					    j, port->wwpn_iid[j].name);
 				else
 					retval = sbuf_printf(sb,
-					    "\t<initiator>%u naa.%08jx</initiator>\n",
+					    "\t<initiator id=\"%u\">naa.%08jx</initiator>\n",
 					    j, port->wwpn_iid[j].wwpn);
 				if (retval != 0)
 					break;
