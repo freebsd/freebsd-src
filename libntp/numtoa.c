@@ -31,3 +31,29 @@ numtoa(
 		 (u_long)netnum & 0xff);
 	return buf;
 }
+
+
+/* Convert a refid & stratum to a string */
+const char *
+refid_str(
+	u_int32	refid,
+	int	stratum
+	)
+{
+	char *	text;
+	size_t	tlen;
+
+	if (stratum > 1)
+		return numtoa(refid);
+
+	LIB_GETBUF(text);
+	text[0] = '.';
+	memcpy(&text[1], &refid, sizeof(refid));
+	text[1 + sizeof(refid)] = '\0';
+	tlen = strlen(text);
+	text[tlen] = '.';
+	text[tlen + 1] = '\0';
+
+	return text;
+}
+

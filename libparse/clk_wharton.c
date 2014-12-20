@@ -91,7 +91,7 @@ cvt_wharton_400a(
 	int	i;
 
 	/* The given `size' includes a terminating null-character. */
-	if (size != 16 || buffer[0] != STX || buffer[14] != ETX
+	if (size != 15 || buffer[0] != STX || buffer[14] != ETX
 	    || buffer[13] < '0' || buffer[13] > ('0' + 0xf))
 		return CVT_NONE;
 	for (i = 1; i < 13; i += 1)

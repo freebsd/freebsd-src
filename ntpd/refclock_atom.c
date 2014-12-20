@@ -134,7 +134,7 @@ atom_start(
 	memcpy((char *)&pp->refid, REFID, 4);
 	up = emalloc(sizeof(struct ppsunit));
 	memset(up, 0, sizeof(struct ppsunit));
-	pp->unitptr = (caddr_t)up;
+	pp->unitptr = up;
 
 	/*
 	 * Open PPS device. This can be any serial or parallel port and
@@ -168,7 +168,7 @@ atom_shutdown(
 	struct ppsunit *up;
 
 	pp = peer->procptr;
-	up = (struct ppsunit *)pp->unitptr;
+	up = pp->unitptr;
 	if (up->fddev > 0)
 		close(up->fddev);
 	free(up);
@@ -188,7 +188,7 @@ atom_timer(
 	char	tbuf[80];
 
 	pp = peer->procptr;
-	up = (struct ppsunit *)pp->unitptr;
+	up = pp->unitptr;
 	if (refclock_pps(peer, &up->atom, pp->sloppyclockflag) <= 0)
 		return;
 

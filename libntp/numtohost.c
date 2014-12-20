@@ -37,8 +37,7 @@ numtohost(
 	    return numtoa(netnum);
 	
 	LIB_GETBUF(bp);
-	
-	bp[LIB_BUFLENGTH-1] = '\0';
-	(void) strncpy(bp, hp->h_name, LIB_BUFLENGTH-1);
+	strlcpy(bp, hp->h_name, LIB_BUFLENGTH);
+
 	return bp;
 }

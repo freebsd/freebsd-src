@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1996-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -19,7 +19,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char rcsid[] =
-	"$Id: inet_ntop.c,v 1.19 2007/06/19 23:47:17 tbox Exp $";
+	"$Id: inet_ntop.c,v 1.21 2009/07/17 23:47:41 tbox Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <config.h>
@@ -30,8 +30,6 @@ static char rcsid[] =
 
 #include <isc/net.h>
 #include <isc/print.h>
-
-#include "ntp_sprintf.h"	/* NTP local change, helps SunOS 4 */
 
 #define NS_INT16SZ	 2
 #define NS_IN6ADDRSZ	16
@@ -48,13 +46,14 @@ static const char *inet_ntop4(const unsigned char *src, char *dst,
 static const char *inet_ntop6(const unsigned char *src, char *dst,
 			      size_t size);
 #endif
+const char *isc_net_ntop(int af, const void *src, char *dst, size_t size);
 
 /*! char *
  * isc_net_ntop(af, src, dst, size)
  *	convert a network format address to presentation format.
  * \return
  *	pointer to presentation format address (`dst'), or NULL (see errno).
- * \author 
+ * \author
  *	Paul Vixie, 1996.
  */
 const char *
@@ -91,15 +90,15 @@ inet_ntop4(const unsigned char *src, char *dst, size_t size)
 {
 	static const char *fmt = "%u.%u.%u.%u";
 	char tmp[sizeof("255.255.255.255")];
+	int len;
 
-	/* NTP local change to use SNPRINTF() macro for SunOS4 compat */
-	if (SNPRINTF((tmp, sizeof(tmp), fmt, src[0], src[1], src[2],
-		      src[3])) >= size)
+	len = snprintf(tmp, sizeof(tmp), fmt, src[0], src[1], src[2], src[3]);
+	if (len < 0 || (size_t)len >= size)
 	{
 		errno = ENOSPC;
 		return (NULL);
 	}
-	strcpy(dst, tmp);
+	memcpy(dst, tmp, 1 + len);
 
 	return (dst);
 }
@@ -173,15 +172,16 @@ inet_ntop6(const unsigned char *src, char *dst, size_t size)
 		if (i != 0)
 			*tp++ = ':';
 		/* Is this address an encapsulated IPv4? */
-		if (i == 6 && best.base == 0 &&
-		    (best.len == 6 || (best.len == 5 && words[5] == 0xffff))) {
+		if (i == 6 && best.base == 0 && (best.len == 6 ||
+		    (best.len == 7 && words[7] != 0x0001) ||
+		    (best.len == 5 && words[5] == 0xffff))) {
 			if (!inet_ntop4(src+12, tp,
 					sizeof(tmp) - (tp - tmp)))
 				return (NULL);
 			tp += strlen(tp);
 			break;
 		}
-		tp += SPRINTF((tp, "%x", words[i]));	/* NTP local change */
+		tp += snprintf(tp, sizeof(tmp) - (tp - tmp), "%x", words[i]);
 	}
 	/* Was it a trailing run of 0x00's? */
 	if (best.base != -1 && (best.base + best.len) ==
@@ -196,7 +196,7 @@ inet_ntop6(const unsigned char *src, char *dst, size_t size)
 		errno = ENOSPC;
 		return (NULL);
 	}
-	strcpy(dst, tmp);
+	memcpy(dst, tmp, (size_t)(tp - tmp));
 	return (dst);
 }
 #endif /* AF_INET6 */

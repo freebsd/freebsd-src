@@ -1,13 +1,12 @@
 #ifndef NTP_IO_H
 #define NTP_IO_H
+
+#include "ntp_workimpl.h"
+
 /*
  * POSIX says use <fnct.h> to get O_* symbols and 
  * SEEK_SET symbol form <unistd.h>.
  */
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
-
 #include <sys/types.h>
 #ifdef HAVE_UNISTD_H
 # include <unistd.h>
@@ -39,6 +38,8 @@
 # include <netinet/ip.h>
 #endif
 
+#include "libntp.h"	/* This needs Something above for GETDTABLESIZE */
+
 /*
  * Define FNDELAY and FASYNC using O_NONBLOCK and O_ASYNC if we need
  * to (and can).  This is here initially for QNX, but may help for
@@ -69,7 +70,6 @@ typedef enum {
 	MATCH_IFADDR
 } nic_rule_match;
 
-
 /*
  * NIC rule actions
  */
@@ -80,10 +80,18 @@ typedef enum {
 } nic_rule_action;
 
 
+SOCKET		move_fd(SOCKET fd);
 isc_boolean_t	get_broadcastclient_flag(void);
-extern int	is_ip_address(const char *, sockaddr_u *);
+extern int	is_ip_address(const char *, u_short, sockaddr_u *);
 extern void	sau_from_netaddr(sockaddr_u *, const isc_netaddr_t *);
-extern void add_nic_rule(nic_rule_match match_type, const char *if_name,
-			 int prefixlen, nic_rule_action action);
+extern void	add_nic_rule(nic_rule_match match_type,
+			     const char *if_name, int prefixlen,
+			     nic_rule_action action);
+#ifndef HAVE_IO_COMPLETION_PORT
+extern	void	maintain_activefds(int fd, int closing);
+#else
+#define		maintain_activefds(f, c)	do {} while (0)
+#endif
+
 
 #endif	/* NTP_IO_H */

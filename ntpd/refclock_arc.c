@@ -6,6 +6,8 @@
 #include <config.h>
 #endif
 
+#include "ntp_types.h"
+
 #if defined(REFCLOCK) && defined(CLOCK_ARCRON_MSF)
 
 static const char arc_version[] = { "V1.3 2003/02/21" };
@@ -402,7 +404,7 @@ Also note h<cr> command which starts a resync to MSF signal.
 				       (BITSPERCHAR * BITTIME) ) )
 
      /* Allow for UART to accept char half-way through final stop bit. */
-#define INITIALOFFSET (u_int32)(-BITTIME/2)
+#define INITIALOFFSET ((u_int32)(-BITTIME/2))
 
      /*
     charoffsets[x] is the time after the start of the second that byte
@@ -560,7 +562,7 @@ struct  refclock refclock_arc = {
 /* Queue us up for the next tick. */
 #define ENQUEUE(up) \
 	do { \
-	     peer->nextaction = current_time + QUEUETICK; \
+	     peer->procptr->nextaction = current_time + QUEUETICK; \
 	} while(0)
 
 /* Placeholder event handler---does nothing safely---soaks up loose tick. */
@@ -649,7 +651,7 @@ arc_start(
 	DPRINTF(1, ("arc: unit %d using tty_open().\n", unit));
 	fd = tty_open(device, OPEN_FLAGS, 0777);
 	if (fd < 0) {
-		msyslog(LOG_ERR, "MSF_ARCRON(%d): failed second open(%s, 0777): %m.\n",
+		msyslog(LOG_ERR, "MSF_ARCRON(%d): failed second open(%s, 0777): %m.",
 			unit, device);
 		close(temp_fd);
 		return 0;
@@ -658,14 +660,17 @@ arc_start(
 	temp_fd = -1;
 
 #ifndef SYS_WINNT
-	fcntl(fd, F_SETFL, 0); /* clear the descriptor flags */
+	if (-1 == fcntl(fd, F_SETFL, 0)) /* clear the descriptor flags */
+		msyslog(LOG_ERR, "MSF_ARCRON(%d): fcntl(F_SETFL, 0): %m.",
+			unit);
+
 #endif
 	DPRINTF(1, ("arc: opened RS232 port with file descriptor %d.\n", fd));
 
 #ifdef HAVE_TERMIOS
 
 	if (tcgetattr(fd, &arg) < 0) {
-		msyslog(LOG_ERR, "MSF_ARCRON(%d): tcgetattr(%s): %m.\n",
+		msyslog(LOG_ERR, "MSF_ARCRON(%d): tcgetattr(%s): %m.",
 			unit, device);
 		close(fd);
 		return 0;
@@ -679,7 +684,7 @@ arc_start(
 	arg.c_cc[VTIME] = 0;
 
 	if (tcsetattr(fd, TCSANOW, &arg) < 0) {
-		msyslog(LOG_ERR, "MSF_ARCRON(%d): tcsetattr(%s): %m.\n",
+		msyslog(LOG_ERR, "MSF_ARCRON(%d): tcsetattr(%s): %m.",
 			unit, device);
 		close(fd);
 		return 0;
@@ -698,7 +703,7 @@ arc_start(
 	up = emalloc_zero(sizeof(*up));
 	pp = peer->procptr;
 	pp->io.clock_recv = arc_receive;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
@@ -755,7 +760,7 @@ arc_start(
 	up->quality = MIN_CLOCK_QUALITY;/* Don't trust the clock yet. */
 #endif
 
-	peer->action = arc_event_handler;
+	peer->procptr->action = arc_event_handler;
 
 	ENQUEUE(up);
 
@@ -775,7 +780,7 @@ arc_shutdown(
 	register struct arcunit *up;
 	struct refclockproc *pp;
 
-	peer->action = dummy_event_handler;
+	peer->procptr->action = dummy_event_handler;
 
 	pp = peer->procptr;
 	up = pp->unitptr;
@@ -878,7 +883,7 @@ arc_receive(
 	/*
 	 * Initialize pointers and read the timecode and timestamp
 	 */
-	peer = (struct peer *)rbufp->recv_srcclock;
+	peer = rbufp->recv_peer;
 	pp = peer->procptr;
 	up = pp->unitptr;
 
@@ -1003,7 +1008,7 @@ arc_receive(
 					diff = up->lastrec;
 					L_SUB(&diff, &timestamp);
 					printf("arc: adjusted timestamp by -%sms.\n",
-					       mfptoms(diff.l_i, diff.l_f, 3));
+					       mfptoms(diff.l_ui, diff.l_uf, 3));
 				}
 #endif
 			}
@@ -1578,5 +1583,5 @@ arc_poll(
 }
 
 #else
-int refclock_arc_bs;
+NONEMPTY_TRANSLATION_UNIT
 #endif

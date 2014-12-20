@@ -26,8 +26,7 @@
 #include "recvbuff.h"
 #include "ntp_io.h"
 #include "ntp_stdlib.h"
-
-#include "ntp_data_structures.h"
+#include "ntp_prio_q.h"
 
 /* CONSTANTS */
 
@@ -77,26 +76,32 @@ typedef struct {
 
 
 /* Server Script Information */
+typedef struct script_info_tag script_info;
+struct script_info_tag {
+	script_info *	link;
+	double		duration;
+	double		freq_offset;
+	double		wander;
+	double		jitter; 
+	double		prop_delay;
+	double		proc_delay;
+};
 
-typedef struct {
-    double duration;
-    double freq_offset;
-    double wander;
-    double jitter; 
-    double prop_delay;
-    double proc_delay;
-} script_info;   
-
+typedef DECL_FIFO_ANCHOR(script_info) script_info_fifo;
 
 
 /* Server Structures */
 
-typedef struct {
-    double server_time;             /* Server time */
-    sockaddr_u *addr;  		    /* Server Address */
-    queue *script;                  /* Server Script */
-    script_info *curr_script;       /* Current Script */
-} server_info;
+typedef struct server_info_tag server_info;
+struct server_info_tag {
+	server_info *		link;
+	double			server_time;
+	sockaddr_u *		addr;
+	script_info_fifo *	script;
+	script_info *		curr_script;
+};
+
+typedef DECL_FIFO_ANCHOR(server_info) server_info_fifo;
 
 
 /* Simulation control information */
@@ -114,30 +119,28 @@ typedef struct Sim_Info {
 /* Local Clock (Client) Variables */
 
 typedef struct Local_Clock_Info {
-    double local_time;     /* Client disciplined time */
-    double adj;            /* Remaining time correction */
-    double slew;           /* Correction Slew Rate */
-    double last_read_time; /* Last time the clock was read */
+    double local_time;		/* Client disciplined time */
+    double adj;			/* Remaining time correction */
+    double slew;		/* Correction Slew Rate */
+    double last_read_time;	/* Last time the clock was read */
 } local_clock_info;
 
-extern local_clock_info simclock;   /* Local Clock Variables */
-extern sim_info simulation;         /* Simulation Control Variables */
+extern local_clock_info simclock; /* Local Clock Variables */
+extern sim_info simulation;	  /* Simulation Control Variables */
 
 /* Function Prototypes */
 
-int	 ntpsim			 (int argc, char *argv[]);
-Event    *event                  (double t, funcTkn f);
-void     sim_event_timer         (Event *e);
-int      simulate_server         (sockaddr_u *serv_addr,
-				  struct interface *inter,
-				  struct pkt *rpkt);
-void     sim_update_clocks       (Event *e);
-void     sim_event_recv_packet   (Event *e);
-void     sim_event_beep          (Event *e);
-void     abortsim                (char *errmsg);
-double	 gauss		         (double, double);
-double	 poisson		 (double, double);
-int      yyparse                 (void);
-void     create_server_associations (void);
+int	 ntpsim			(int argc, char *argv[]);
+Event    *event			(double t, funcTkn f);
+void     sim_event_timer	(Event *e);
+int      simulate_server	(sockaddr_u *serv_addr, endpt *inter,
+				 struct pkt *rpkt);
+void     sim_update_clocks	(Event *e);
+void     sim_event_recv_packet	(Event *e);
+void     sim_event_beep		(Event *e);
+void     abortsim		(char *errmsg);
+double	 gauss			(double, double);
+double	 poisson		(double, double);
+void     create_server_associations(void);
 
 #endif	/* NTPSIM_H */

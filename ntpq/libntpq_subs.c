@@ -17,21 +17,19 @@
 #include "libntpq.h"
 
 
+int ntpq_dogetassoc(void)
+{
+	
+	if (dogetassoc(NULL))
+		return numassoc;
+	else
+		return 0;	
+}
+
 /* the following functions are required internally by a number of libntpq functions 
  * and since they are defined as static in ntpq-subs.c, they need to be exported here
  */
  
-int ntpq_dogetassoc(void)
-{
-	
-	if ( dogetassoc(NULL))
-	{
-		return numassoc;
-	} else {
-		return 0;
-	}
-}
-
 char ntpq_decodeaddrtype(sockaddr_u *sock)
 {
 	return decodeaddrtype(sock);

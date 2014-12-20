@@ -1,50 +1,30 @@
-/*  -*- Mode: C -*-  */
-
-/**
- * \file compat.h --- fake the preprocessor into handlng portability
- *
- *  Time-stamp:      "2010-07-16 15:11:57 bkorb"
+/*  -*- Mode: C -*- 
  *
  *  compat.h is free software.
- *  This file is part of AutoGen.
+ *  This file is part of AutoGen and AutoOpts.
  *
- *  AutoGen Copyright (c) 1992-2011 by Bruce Korb - all rights reserved
+ *  AutoGen Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
  *
- *  AutoGen is free software: you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the
- *  Free Software Foundation, either version 3 of the License, or
- *  (at your option) any later version.
+ *  AutoOpts is available under any one of two licenses.  The license
+ *  in use must be one of these two and the choice is under the control
+ *  of the user of the license.
  *
- *  AutoGen is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *  See the GNU General Public License for more details.
+ *   The GNU Lesser General Public License, version 3 or later
+ *      See the files "COPYING.lgplv3" and "COPYING.gplv3"
  *
- *  You should have received a copy of the GNU General Public License along
- *  with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *   The Modified Berkeley Software Distribution License
+ *      See the file "COPYING.mbsd"
  *
- *  As a special exception, Bruce Korb gives permission for additional
- *  uses of the text contained in the release of compat.h.
+ *  These files have the following sha256 sums:
  *
- *  The exception is that, if you link the compat.h library with other
- *  files to produce an executable, this does not by itself cause the
- *  resulting executable to be covered by the GNU General Public License.
- *  Your use of that executable is in no way restricted on account of
- *  linking the compat.h library code into it.
- *
- *  This exception does not however invalidate any other reasons why
- *  the executable file might be covered by the GNU General Public License.
- *
- *  This exception applies only to the code released by Bruce Korb under
- *  the name compat.h.  If you copy code from other sources under the
- *  General Public License into a copy of compat.h, as the General Public
- *  License permits, the exception does not apply to the code that you add
- *  in this way.  To avoid misleading anyone as to the status of such
- *  modified files, you must delete this exception notice from them.
- *
- *  If you write modifications of your own for compat.h, it is your choice
- *  whether to permit this exception to apply to your modifications.
- *  If you do not wish that, delete this exception notice.
+ *  8584710e9b04216a394078dc156b781d0b47e1729104d666658aecef8ee32e95  COPYING.gplv3
+ *  4379e7444a0e2ce2b12dd6f5a52a27a4d02d39d247901d3285c88cf0d37f477b  COPYING.lgplv3
+ *  13aa749a5b0a454917a944ed8fffc530b784f5ead522b1aacaf4ec8aa55a6239  COPYING.mbsd
+ */
+
+/**
+ * \file compat.h
+ *  fake the preprocessor into handlng stuff portability
  */
 #ifndef COMPAT_H_GUARD
 #define COMPAT_H_GUARD 1
@@ -62,7 +42,9 @@
 
 
 #ifndef HAVE_STRSIGNAL
-   char * strsignal( int signo );
+# ifndef HAVE_RAW_DECL_STRSIGNAL
+   char * strsignal(int signo);
+# endif
 #endif
 
 #define  _GNU_SOURCE    1 /* for strsignal in GNU's libc */
@@ -82,7 +64,9 @@
 #  include <sys/procset.h>
 #endif
 #include <sys/stat.h>
-#include <sys/wait.h>
+#ifdef HAVE_SYS_WAIT_H
+#  include <sys/wait.h>
+#endif
 
 #if defined( HAVE_SOLARIS_SYSINFO )
 #  include <sys/systeminfo.h>
@@ -179,15 +163,15 @@
 #include <setjmp.h>
 #include <signal.h>
 
-#if defined( HAVE_STDINT_H )
+#if defined(HAVE_STDINT_H)
 #  include <stdint.h>
-#elif defined( HAVE_INTTYPES_H )
+
+#elif defined(HAVE_INTTYPES_H)
 #  include <inttypes.h>
 #endif
 
 #include <stdlib.h>
 #include <string.h>
-
 #include <time.h>
 
 #ifdef HAVE_UTIME_H
@@ -196,6 +180,17 @@
 
 #ifdef HAVE_UNISTD_H
 #  include <unistd.h>
+#endif
+
+#ifdef HAVE_STDBOOL_H
+#  include <stdbool.h>
+#else
+   typedef enum { false = 0, true = 1 } _Bool;
+#  define bool _Bool
+
+   /* The other macros must be usable in preprocessor directives.  */
+#  define false 0
+#  define true 1
 #endif
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -242,7 +237,7 @@
 #endif
 
 #if !defined (MAXPATHLEN)
-#  define MAXPATHLEN ((size_t)4096)
+#  define MAXPATHLEN 4096
 #endif /* MAXPATHLEN */
 
 #define AG_PATH_MAX  ((size_t)MAXPATHLEN)

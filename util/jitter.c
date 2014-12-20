@@ -21,7 +21,6 @@
 #define JAN_1970 2208988800UL		/* Unix base epoch */
 #define CLOCK_GETTIME			/* Solaris hires clock */
 
-int debug;
 char progname[10];
 double sys_residual;
 double average;

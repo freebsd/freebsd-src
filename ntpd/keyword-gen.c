@@ -1,7 +1,20 @@
 /*
  * keyword-gen.c -- generate keyword scanner finite state machine and
  *		    keyword_text array.
- *		    This program is run to generate ntp_keyword.h
+ *
+ * This program is run to generate ntp_keyword.h
+ * After making a change here, two output files should be committed at
+ * the same time as keyword-gen.c:
+ *	ntp_keyword.h
+ *	keyword-gen-utd
+ *
+ * keyword-gen-utd is a sentinel used by Makefile.am to avoid compiling
+ * keyword_gen.c and generating ntp_keyword.h if the input keyword-gen.c
+ * has not changed.  This is not solely an optimization, it also breaks
+ * a dependency chain that otherwise would cause programs to be compiled
+ * when running "make dist" or "make distdir".  We want these to package
+ * the existing source without building anything but a tarball.  See
+ * [Bug 1470].
  */
 #include <config.h>
 #include <stdio.h>
@@ -15,51 +28,52 @@
 #include "ntp_parser.h"
 
 
-#ifdef QSORT_USES_VOID_P
-typedef const void *	QSORTP;
-#else
-typedef char *		QSORTP;
-#endif
-
 /* Define a structure to hold a (keyword, token) pair */
 struct key_tok {
 	char *	key;		/* Keyword */
-	int	token;		/* Associated Token */
+	u_short	token;		/* Associated Token */
 	follby	followedby;	/* nonzero indicates the next token(s)
 				   forced to be string(s) */
 };
 
 struct key_tok ntp_keywords[] = {
 { "...",		T_Ellipsis,		FOLLBY_TOKEN },
+{ "allpeers",		T_Allpeers,		FOLLBY_TOKEN },
 { "automax",		T_Automax,		FOLLBY_TOKEN },
 { "broadcast",		T_Broadcast,		FOLLBY_STRING },
 { "broadcastclient",	T_Broadcastclient,	FOLLBY_TOKEN },
 { "broadcastdelay",	T_Broadcastdelay,	FOLLBY_TOKEN },
-{ "calldelay",		T_Calldelay,		FOLLBY_TOKEN },
+{ "ctl",		T_Ctl,			FOLLBY_TOKEN },
 { "disable",		T_Disable,		FOLLBY_TOKEN },
 { "driftfile",		T_Driftfile,		FOLLBY_STRING },
 { "enable",		T_Enable,		FOLLBY_TOKEN },
 { "end",		T_End,			FOLLBY_TOKEN },
 { "filegen",		T_Filegen,		FOLLBY_TOKEN },
 { "fudge",		T_Fudge,		FOLLBY_STRING },
+{ "io",			T_Io,			FOLLBY_TOKEN },
 { "includefile",	T_Includefile,		FOLLBY_STRING },
 { "leapfile",		T_Leapfile,		FOLLBY_STRING },
 { "logconfig",		T_Logconfig,		FOLLBY_STRINGS_TO_EOC },
 { "logfile",		T_Logfile,		FOLLBY_STRING },
 { "manycastclient",	T_Manycastclient,	FOLLBY_STRING },
 { "manycastserver",	T_Manycastserver,	FOLLBY_STRINGS_TO_EOC },
+{ "mem",		T_Mem,			FOLLBY_TOKEN },
 { "multicastclient",	T_Multicastclient,	FOLLBY_STRINGS_TO_EOC },
 { "peer",		T_Peer,			FOLLBY_STRING },
 { "phone",		T_Phone,		FOLLBY_STRINGS_TO_EOC },
 { "pidfile",		T_Pidfile,		FOLLBY_STRING },
 { "pool",		T_Pool,			FOLLBY_STRING },
 { "discard",		T_Discard,		FOLLBY_TOKEN },
+{ "reset",		T_Reset,		FOLLBY_TOKEN },
 { "restrict",		T_Restrict,		FOLLBY_TOKEN },
+{ "rlimit",		T_Rlimit,		FOLLBY_TOKEN },
 { "server",		T_Server,		FOLLBY_STRING },
 { "setvar",		T_Setvar,		FOLLBY_STRING },
 { "statistics",		T_Statistics,		FOLLBY_TOKEN },
 { "statsdir",		T_Statsdir,		FOLLBY_STRING },
+{ "sys",		T_Sys,			FOLLBY_TOKEN },
 { "tick",		T_Tick,			FOLLBY_TOKEN },
+{ "timer",		T_Timer,		FOLLBY_TOKEN },
 { "tinker",		T_Tinker,		FOLLBY_TOKEN },
 { "tos",		T_Tos,			FOLLBY_TOKEN },
 { "trap",		T_Trap,			FOLLBY_STRING },
@@ -79,7 +93,6 @@ struct key_tok ntp_keywords[] = {
 { "-6",			T_Ipv6_flag,		FOLLBY_TOKEN },
 /* option */
 { "autokey",		T_Autokey,		FOLLBY_TOKEN },
-{ "bias",		T_Bias,			FOLLBY_TOKEN },
 { "burst",		T_Burst,		FOLLBY_TOKEN },
 { "iburst",		T_Iburst,		FOLLBY_TOKEN },
 { "key",		T_Key,			FOLLBY_TOKEN },
@@ -98,7 +111,6 @@ struct key_tok ntp_keywords[] = {
 { "ident",		T_Ident,		FOLLBY_STRING },
 { "pw",			T_Pw,			FOLLBY_STRING },
 { "randfile",		T_Randfile,		FOLLBY_STRING },
-{ "sign",		T_Sign,			FOLLBY_STRING },
 { "digest",		T_Digest,		FOLLBY_STRING },
 /*** MONITORING COMMANDS ***/
 /* stat */
@@ -135,8 +147,11 @@ struct key_tok ntp_keywords[] = {
 { "maxdist",		T_Maxdist,		FOLLBY_TOKEN },
 { "beacon",		T_Beacon,		FOLLBY_TOKEN },
 { "orphan",		T_Orphan,		FOLLBY_TOKEN },
+{ "orphanwait",		T_Orphanwait,		FOLLBY_TOKEN },
+{ "nonvolatile",	T_Nonvolatile,		FOLLBY_TOKEN },
 /* access_control_flag */
 { "default",		T_Default,		FOLLBY_TOKEN },
+{ "source",		T_Source,		FOLLBY_TOKEN },
 { "flake",		T_Flake,		FOLLBY_TOKEN },
 { "ignore",		T_Ignore,		FOLLBY_TOKEN },
 { "limited",		T_Limited,		FOLLBY_TOKEN },
@@ -145,6 +160,7 @@ struct key_tok ntp_keywords[] = {
 { "lowpriotrap",	T_Lowpriotrap,		FOLLBY_TOKEN },
 { "mask",		T_Mask,			FOLLBY_TOKEN },
 { "nomodify",		T_Nomodify,		FOLLBY_TOKEN },
+{ "nomrulist",		T_Nomrulist,		FOLLBY_TOKEN },
 { "nopeer",		T_Nopeer,		FOLLBY_TOKEN },
 { "noquery",		T_Noquery,		FOLLBY_TOKEN },
 { "noserve",		T_Noserve,		FOLLBY_TOKEN },
@@ -155,7 +171,18 @@ struct key_tok ntp_keywords[] = {
 { "average",		T_Average,		FOLLBY_TOKEN },
 { "minimum",		T_Minimum,		FOLLBY_TOKEN },
 { "monitor",		T_Monitor,		FOLLBY_TOKEN },
+/* mru_option */
+{ "incalloc",		T_Incalloc,		FOLLBY_TOKEN },
+{ "incmem",		T_Incmem,		FOLLBY_TOKEN },
+{ "initalloc",		T_Initalloc,		FOLLBY_TOKEN },
+{ "initmem",		T_Initmem,		FOLLBY_TOKEN },
+{ "mindepth",		T_Mindepth,		FOLLBY_TOKEN },
+{ "maxage",		T_Maxage,		FOLLBY_TOKEN },
+{ "maxdepth",		T_Maxdepth,		FOLLBY_TOKEN },
+{ "maxmem",		T_Maxmem,		FOLLBY_TOKEN },
+{ "mru",		T_Mru,			FOLLBY_TOKEN },
 /* fudge_factor */
+{ "abbrev",		T_Abbrev,		FOLLBY_STRING },
 { "flag1",		T_Flag1,		FOLLBY_TOKEN },
 { "flag2",		T_Flag2,		FOLLBY_TOKEN },
 { "flag3",		T_Flag3,		FOLLBY_TOKEN },
@@ -170,7 +197,12 @@ struct key_tok ntp_keywords[] = {
 { "calibrate",		T_Calibrate,		FOLLBY_TOKEN },
 { "kernel",		T_Kernel,		FOLLBY_TOKEN },
 { "ntp",		T_Ntp,			FOLLBY_TOKEN },
+{ "mode7",		T_Mode7,		FOLLBY_TOKEN },
 { "stats",		T_Stats,		FOLLBY_TOKEN },
+/* rlimit_option */
+{ "memlock",		T_Memlock,		FOLLBY_TOKEN },
+{ "stacksize",		T_Stacksize,		FOLLBY_TOKEN },
+{ "filenum",		T_Filenum,		FOLLBY_TOKEN },
 /* tinker_option */
 { "step",		T_Step,			FOLLBY_TOKEN },
 { "panic",		T_Panic,		FOLLBY_TOKEN },
@@ -182,7 +214,6 @@ struct key_tok ntp_keywords[] = {
 /* miscellaneous_command */
 { "port",		T_Port,			FOLLBY_TOKEN },
 { "interface",		T_Interface,		FOLLBY_TOKEN },
-{ "qos",		T_Qos,			FOLLBY_TOKEN },
 { "saveconfigdir",	T_Saveconfigdir,	FOLLBY_STRING },
 /* interface_command (ignore and interface already defined) */
 { "nic",		T_Nic,			FOLLBY_TOKEN },
@@ -205,7 +236,6 @@ struct key_tok ntp_keywords[] = {
 { "proc_delay",		T_Proc_Delay,		FOLLBY_TOKEN },
 };
 
-
 typedef struct big_scan_state_tag {
 	char	ch;		/* Character this state matches on */
 	char	followedby;	/* Forces next token(s) to T_String */
@@ -222,27 +252,27 @@ typedef struct big_scan_state_tag {
  * 7 bits to free a bit for accepting/non-accepting.  More than 4096
  * states will require expanding scan_state beyond 32 bits each.
  */
-#define MAXSTATES 2048
+#define MAXSTATES	2048
+#define MAX_TOK_LEN	63
 
 const char *	current_keyword;/* for error reporting */
 big_scan_state	sst[MAXSTATES];	/* scanner FSM state entries */
-int		sst_highwater;	/* next entry index to consider */
+u_short		sst_highwater;	/* next entry index to consider */
 char *		symb[1024];	/* map token ID to symbolic name */
 
 /* for libntp */
 const char *	progname = "keyword-gen";
-volatile int	debug = 1;
 
 int		main			(int, char **);
 static void	generate_preamble	(void);
 static void	generate_fsm		(void);
 static void	generate_token_text	(void);
-static int	create_keyword_scanner	(void);
-static int	create_scan_states	(char *, int, follby, int);
-int		compare_key_tok_id	(QSORTP, QSORTP);
-int		compare_key_tok_text	(QSORTP, QSORTP);
+static u_short	create_keyword_scanner	(void);
+static u_short	create_scan_states	(char *, u_short, follby, u_short);
+int		compare_key_tok_id	(const void *, const void *);
+int		compare_key_tok_text	(const void *, const void *);
 void		populate_symb		(char *);
-const char *	symbname		(int);
+const char *	symbname		(u_short);
 
 
 int main(int argc, char **argv)
@@ -251,6 +281,8 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Usage:\n%s t_header.h\n", argv[0]);
 		exit(1);
 	}
+	debug = 1;
+
 	populate_symb(argv[1]);
 
 	generate_preamble();
@@ -290,10 +322,18 @@ generate_preamble(void)
 static void
 generate_fsm(void)
 {
-	char token_id_comment[128];
-	int initial_state;
-	int i;
-	int token;
+	char rprefix[MAX_TOK_LEN + 1];
+	char prefix[MAX_TOK_LEN + 1];
+	char token_id_comment[16 + MAX_TOK_LEN + 1];
+	size_t prefix_len;
+	char *p;
+	char *r;
+	u_short initial_state;
+	u_short this_state;
+	u_short prev_state;
+	u_short state;
+	u_short i;
+	u_short token;
 
 	/* 
 	 * Sort ntp_keywords in alphabetical keyword order.  This is
@@ -370,13 +410,7 @@ generate_fsm(void)
 			exit(9);
 		}
 
-		if (!sst[i].finishes_token)
-			snprintf(token_id_comment,
-				 sizeof(token_id_comment), "%5d %-17s",
-				 i, (initial_state == i) 
-					? "initial state" 
-					: "");
-		else {
+		if (sst[i].finishes_token) {
 			snprintf(token_id_comment, 
 				 sizeof(token_id_comment), "%5d %-17s",
 				 i, symbname(sst[i].finishes_token));
@@ -387,6 +421,53 @@ generate_fsm(void)
 					i, sst[i].finishes_token);
 				exit(5);
 			}
+		} else {
+		/*
+		 * Determine the keyword prefix that leads to this
+		 * state.  This is expensive but keyword-gen is run
+		 * only when it changes.  Distributing keyword-gen-utd
+		 * achieves that, which is why it must be committed
+		 * at the same time as keyword-gen.c and ntp_keyword.h.
+		 *
+		 * Scan the state array iteratively looking for a state
+		 * which leads to the current one, collecting matching
+		 * characters along the way.  There is only one such
+		 * path back to the starting state given the way our
+		 * scanner state machine is built and the practice of
+		 * using the spelling of the keyword as its T_* token
+		 * identifier, which results in never having two
+		 * spellings result in the same T_* value.
+		 */
+			prefix_len = 0;
+			prev_state = 0;
+			this_state = i;
+			do {
+				for (state = 1; state < sst_highwater; state++)
+					if (sst[state].other_next_s == this_state) {
+						this_state = state;
+						break;
+					} else if (sst[state].match_next_s == this_state) {
+						this_state = state;
+						rprefix[prefix_len] = sst[state].ch;
+						prefix_len++;
+						break;
+					}
+			} while (this_state != initial_state);
+
+			if (prefix_len) {
+				/* reverse rprefix into prefix */
+				p = prefix + prefix_len;
+				r = rprefix;
+				while (r < rprefix + prefix_len)
+					*--p = *r++;
+			}
+			prefix[prefix_len] = '\0';
+
+			snprintf(token_id_comment,
+				 sizeof(token_id_comment), "%5d %-17s",
+				 i, (initial_state == i) 
+					? "[initial state]" 
+					: prefix);
 		}
 
 		printf("  S_ST( '%c',\t%d,    %5u, %5u )%s /* %s */\n",
@@ -411,18 +492,18 @@ generate_fsm(void)
  * recognizing the complete keyword, and any pre-existing state that exists
  * for some other keyword that has the same prefix as the current one.
  */
-static int
+static u_short
 create_scan_states(
 	char *	text, 
-	int	token, 
+	u_short	token, 
 	follby	followedby,
-	int	prev_state
+	u_short	prev_state
 	)
 {
-	int my_state;
-	int return_state;
-	int prev_char_s;
-	int curr_char_s;
+	u_short my_state;
+	u_short return_state;
+	u_short prev_char_s;
+	u_short curr_char_s;
 
 	return_state = prev_state;
 	curr_char_s = prev_state;
@@ -492,8 +573,7 @@ create_scan_states(
 		/* relocate so token id is sst[] index */
 		if (my_state != token) {
 			sst[token] = sst[my_state];
-			memset(&sst[my_state], 0,
-			       sizeof(sst[my_state]));
+			ZERO(sst[my_state]);
 			do
 				sst_highwater--;
 			while (sst[sst_highwater].finishes_token);
@@ -519,11 +599,11 @@ create_scan_states(
  * creates a keywords scanner out of it.
  */
 
-static int
+static u_short
 create_keyword_scanner(void)
 {
-	int scanner;
-	int i;
+	u_short scanner;
+	u_short i;
 
 	sst_highwater = 1;	/* index 0 invalid, unused */
 	scanner = 0;
@@ -545,11 +625,11 @@ create_keyword_scanner(void)
 static void
 generate_token_text(void)
 {
-	int lowest_id;
-	int highest_id;
-	int id_count;
-	int id;
-	int i;
+	u_short lowest_id;
+	u_short highest_id;
+	u_short id_count;
+	u_short id;
+	u_short i;
 
 	/* sort ntp_keywords in token ID order */
 	qsort(ntp_keywords, COUNTOF(ntp_keywords),
@@ -586,12 +666,12 @@ generate_token_text(void)
 	
 int
 compare_key_tok_id(
-	QSORTP a1,
-	QSORTP a2
+	const void *a1,
+	const void *a2
 	)
 {
-	const struct key_tok *p1 = (const void *)a1;
-	const struct key_tok *p2 = (const void *)a2;
+	const struct key_tok *p1 = a1;
+	const struct key_tok *p2 = a2;
 
 	if (p1->token == p2->token)
 		return 0;
@@ -605,12 +685,12 @@ compare_key_tok_id(
 
 int
 compare_key_tok_text(
-	QSORTP a1,
-	QSORTP a2
+	const void *a1,
+	const void *a2
 	)
 {
-	const struct key_tok *p1 = (const void *)a1;
-	const struct key_tok *p2 = (const void *)a2;
+	const struct key_tok *p1 = a1;
+	const struct key_tok *p2 = a2;
 
 	return strcmp(p1->key, p2->key);
 }
@@ -626,8 +706,8 @@ populate_symb(
 	)
 {
 	FILE *	yh;
-	char	line[128];
-	char	name[128];
+	char	line[2 * MAX_TOK_LEN];
+	char	name[2 * MAX_TOK_LEN];
 	int	token;
 
 	yh = fopen(header_file, "r");
@@ -639,25 +719,34 @@ populate_symb(
 	while (NULL != fgets(line, sizeof(line), yh))
 		if (2 == sscanf(line, "#define %s %d", name, &token)
 		    && 'T' == name[0] && '_' == name[1] && token >= 0
-		    && token < COUNTOF(symb))
+		    && token < COUNTOF(symb)) {
 
 			symb[token] = estrdup(name);
-
+			if (strlen(name) > MAX_TOK_LEN) {
+				fprintf(stderr,
+					"MAX_TOK_LEN %d too small for '%s'\n"
+					"Edit keyword-gen.c to raise.\n",
+					MAX_TOK_LEN, name);
+				exit(10);
+			}
+		}
 	fclose(yh);
 }
 
 
 const char *
 symbname(
-	int token
+	u_short token
 	)
 {
 	char *name;
 
-	if (token >= 0 && token < COUNTOF(symb) && symb[token] != NULL)
-		return symb[token];
+	if (token < COUNTOF(symb) && symb[token] != NULL) {
+		name = symb[token];
+	} else {
+		LIB_GETBUF(name);
+		snprintf(name, LIB_BUFLENGTH, "%d", token);
+	}	
 
-	LIB_GETBUF(name);
-	snprintf(name, LIB_BUFLENGTH, "%d", token);
 	return name;
 }

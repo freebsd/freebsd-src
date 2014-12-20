@@ -33,14 +33,14 @@ static int
 ux_socket_connect(const char *name)
 {
 	int fd;
-        struct sockaddr_un addr;
+	struct sockaddr_un addr;
 	if (!name) {
 		return -1;
 	}
 
-        memset(&addr, 0, sizeof(addr));
-        addr.sun_family = AF_UNIX;
-        strncpy(addr.sun_path, name, sizeof(addr.sun_path));
+	ZERO(addr);
+	addr.sun_family = AF_UNIX;
+	strlcpy(addr.sun_path, name, sizeof(addr.sun_path));
 
 	fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (fd == -1) {
@@ -163,7 +163,7 @@ send_via_ntp_signd(
 	char *reply = NULL;
 	uint32_t reply_len;
 	
-	memset(&samba_pkt, 0, sizeof(samba_pkt));
+	ZERO(samba_pkt);
 	samba_pkt.op = 0; /* Sign message */
 	/* This will be echoed into the reply - a different
 	 * impelementation might want multiple packets

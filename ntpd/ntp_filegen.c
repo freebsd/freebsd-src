@@ -6,7 +6,7 @@
  *
  *
  * Copyright (C) 1992, 1996 by Rainer Pruy
- * Friedrich-Alexander Universität Erlangen-Nürnberg, Germany
+ * Friedrich-Alexander Universitaet Erlangen-Nuernberg, Germany
  *
  * This code may be modified and used freely
  * provided credits remain intact.
@@ -44,7 +44,7 @@
  */
 #define SUFFIX_SEP '.'
 
-static	void	filegen_open	(FILEGEN *, u_long);
+static	void	filegen_open	(FILEGEN *, u_int32, const time_t*);
 static	int	valid_fileref	(const char *, const char *);
 static	void	filegen_init	(const char *, const char *, FILEGEN *);
 #ifdef	DEBUG
@@ -58,17 +58,18 @@ static	void	filegen_uninit		(FILEGEN *);
 
 static void
 filegen_init(
-	const char *	prefix,
-	const char *	basename,
+	const char *	dir,
+	const char *	fname,
 	FILEGEN *	fgp
 	)
 {
-	fgp->fp       = NULL;
-	fgp->prefix   = prefix;		/* Yes, this is TOTALLY lame! */
-	fgp->basename = estrdup(basename);
-	fgp->id       = 0;
-	fgp->type     = FILEGEN_DAY;
-	fgp->flag     = FGEN_FLAG_LINK; /* not yet enabled !!*/
+	fgp->fp = NULL;
+	fgp->dir = estrdup(dir);
+	fgp->fname = estrdup(fname);
+	fgp->id_lo = 0;
+	fgp->id_hi = 0;
+	fgp->type = FILEGEN_DAY;
+	fgp->flag = FGEN_FLAG_LINK; /* not yet enabled !!*/
 }
 
 
@@ -78,10 +79,11 @@ filegen_init(
 #ifdef DEBUG
 static void
 filegen_uninit(
-	FILEGEN *	fgp
+	FILEGEN *fgp
 	)
 {
-	free(fgp->basename);
+	free(fgp->dir);
+	free(fgp->fname);
 }
 #endif
 
@@ -94,38 +96,53 @@ filegen_uninit(
 static void
 filegen_open(
 	FILEGEN *	gen,
-	u_long		newid
+	u_int32		stamp,
+	const time_t *	pivot
 	)
 {
-	char *filename;
-	char *basename;
-	u_int len;
+	char *savename;	/* temp store for name collision handling */
+	char *fullname;	/* name with any designation extension */
+	char *filename;	/* name without designation extension */
+	char *suffix;	/* where to print suffix extension */
+	u_int len, suflen;
 	FILE *fp;
 	struct calendar cal;
+	struct isodate	iso;
 
-	len = strlen(gen->prefix) + strlen(gen->basename) + 1;
-	basename = emalloc(len);
-	snprintf(basename, len, "%s%s", gen->prefix, gen->basename);
-  
+	/* get basic filename in buffer, leave room for extensions */
+	len = strlen(gen->dir) + strlen(gen->fname) + 65;
+	filename = emalloc(len);
+	fullname = emalloc(len);
+	savename = NULL;
+	snprintf(filename, len, "%s%s", gen->dir, gen->fname);
+
+	/* where to place suffix */
+	suflen = strlcpy(fullname, filename, len);
+	suffix = fullname + suflen;
+	suflen = len - suflen;
+
+	/* last octet of fullname set to '\0' for truncation check */
+	fullname[len - 1] = '\0';
+
 	switch (gen->type) {
 
 	default:
 		msyslog(LOG_ERR, 
 			"unsupported file generations type %d for "
 			"\"%s\" - reverting to FILEGEN_NONE",
-			gen->type, basename);
+			gen->type, filename);
 		gen->type = FILEGEN_NONE;
-		/* fall through to FILEGEN_NONE */
+		break;
 
 	case FILEGEN_NONE:
-		filename = estrdup(basename);
+		/* no suffix, all set */
 		break;
 
 	case FILEGEN_PID:
-		filename = emalloc(len + 1 + 1 + 10);
-		snprintf(filename, len + 1 + 1 + 10,
-			 "%s%c#%ld",
-			 basename, SUFFIX_SEP, newid);
+		gen->id_lo = getpid();
+		gen->id_hi = 0;
+		snprintf(suffix, suflen, "%c#%ld",
+			 SUFFIX_SEP, gen->id_lo);
 		break;
 
 	case FILEGEN_DAY:
@@ -134,52 +151,60 @@ filegen_open(
 		 * would assume it to be easier for humans to interpret
 		 * dates in a format they are used to in everyday life.
 		 */
-		caljulian(newid, &cal);
-		filename = emalloc(len + 1 + 4 + 2 + 2);
-		snprintf(filename, len + 1 + 4 + 2 + 2,
-			 "%s%c%04d%02d%02d",
-			 basename, SUFFIX_SEP,
-			 cal.year, cal.month, cal.monthday);
+		ntpcal_ntp_to_date(&cal, stamp, pivot);
+		snprintf(suffix, suflen, "%c%04d%02d%02d",
+			 SUFFIX_SEP, cal.year, cal.month, cal.monthday);
+		cal.hour = cal.minute = cal.second = 0;
+		gen->id_lo = ntpcal_date_to_ntp(&cal); 
+		gen->id_hi = (u_int32)(gen->id_lo + SECSPERDAY);
 		break;
 
 	case FILEGEN_WEEK:
-		/*
-		 * This is still a hack
-		 * - the term week is not correlated to week as it is used
-		 *   normally - it just refers to a period of 7 days
-		 *   starting at Jan 1 - 'weeks' are counted starting from zero
-		 */
-		caljulian(newid, &cal);
-		filename = emalloc(len + 1 + 4 + 1 + 2);
-		snprintf(filename, len + 1 + 4 + 1 + 2,
-			 "%s%c%04dw%02d",
-			 basename, SUFFIX_SEP,
-			 cal.year, cal.yearday / 7);
+		isocal_ntp_to_date(&iso, stamp, pivot);
+		snprintf(suffix, suflen, "%c%04dw%02d",
+			 SUFFIX_SEP, iso.year, iso.week);
+		iso.hour = iso.minute = iso.second = 0;
+		iso.weekday = 1;
+		gen->id_lo = isocal_date_to_ntp(&iso);
+		gen->id_hi = (u_int32)(gen->id_lo + 7 * SECSPERDAY);
 		break;
 
 	case FILEGEN_MONTH:
-		caljulian(newid, &cal);
-		filename = emalloc(len + 1 + 4 + 2);
-		snprintf(filename, len + 1 + 4 + 2,
-			 "%s%c%04d%02d",
-			 basename, SUFFIX_SEP, cal.year, cal.month);
+		ntpcal_ntp_to_date(&cal, stamp, pivot);
+		snprintf(suffix, suflen, "%c%04d%02d",
+			 SUFFIX_SEP, cal.year, cal.month);
+		cal.hour = cal.minute = cal.second = 0;
+		cal.monthday = 1;
+		gen->id_lo = ntpcal_date_to_ntp(&cal); 
+		cal.month++;
+		gen->id_hi = ntpcal_date_to_ntp(&cal); 
 		break;
 
 	case FILEGEN_YEAR:
-		caljulian(newid, &cal);
-		filename = emalloc(len + 1 + 4);
-		snprintf(filename, len + 1 + 4,
-			 "%s%c%04d",
-			 basename, SUFFIX_SEP, cal.year);
+		ntpcal_ntp_to_date(&cal, stamp, pivot);
+		snprintf(suffix, suflen, "%c%04d",
+			 SUFFIX_SEP, cal.year);
+		cal.hour = cal.minute = cal.second = 0;
+		cal.month = cal.monthday = 1;
+		gen->id_lo = ntpcal_date_to_ntp(&cal); 
+		cal.year++;
+		gen->id_hi = ntpcal_date_to_ntp(&cal); 
 		break;
 
 	case FILEGEN_AGE:
-		filename = emalloc(len + 1 + 2 + 10);
-		snprintf(filename, len + 1 + 2 + 10,
-			 "%s%ca%08ld",
-			 basename, SUFFIX_SEP, newid);
+		gen->id_lo = current_time - (current_time % SECSPERDAY);
+		gen->id_hi = gen->id_lo + SECSPERDAY;
+		snprintf(suffix, suflen, "%ca%08ld",
+			 SUFFIX_SEP, gen->id_lo);
 	}
   
+	/* check possible truncation */
+	if ('\0' != fullname[len - 1]) {
+		fullname[len - 1] = '\0';
+		msyslog(LOG_ERR, "logfile name truncated: \"%s\"",
+			fullname);
+	}
+
 	if (FILEGEN_NONE != gen->type) {
 		/*
 		 * check for existence of a file with name 'basename'
@@ -195,25 +220,23 @@ filegen_open(
 #ifndef	S_ISREG
 #define	S_ISREG(mode)	(((mode) & S_IFREG) == S_IFREG)
 #endif
-		if (stat(basename, &stats) == 0) {
+		if (stat(filename, &stats) == 0) {
 			/* Hm, file exists... */
 			if (S_ISREG(stats.st_mode)) {
 				if (stats.st_nlink <= 1)	{
 					/*
 					 * Oh, it is not linked - try to save it
 					 */
-					char *savename;
-					
-					savename = emalloc(len + 1 + 1 + 10 + 10);
-					snprintf(savename, len + 1 + 1 + 10 + 10,
+					savename = emalloc(len);
+					snprintf(savename, len,
 						"%s%c%dC%lu",
-						basename, SUFFIX_SEP,
+						filename, SUFFIX_SEP,
 						(int)getpid(), conflicts++);
 
-					if (rename(basename, savename) != 0)
+					if (rename(filename, savename) != 0)
 						msyslog(LOG_ERR,
 							"couldn't save %s: %m",
-							basename);
+							filename);
 					free(savename);
 				} else {
 					/*
@@ -223,14 +246,14 @@ filegen_open(
 					 */
 					if (
 #if !defined(VMS)
-						unlink(basename) != 0
+						unlink(filename) != 0
 #else
-						delete(basename) != 0
+						delete(filename) != 0
 #endif
 						)
 						msyslog(LOG_ERR, 
 							"couldn't unlink %s: %m",
-							basename);
+							filename);
 				}
 			} else {
 				/*
@@ -239,7 +262,7 @@ filegen_open(
 				msyslog(LOG_ERR, 
 					"expected regular file for %s "
 					"(found mode 0%lo)",
-					basename,
+					filename,
 					(unsigned long)stats.st_mode);
 			}
 		} else {
@@ -249,18 +272,18 @@ filegen_open(
 			 */
 			if (ENOENT != errno)
 				msyslog(LOG_ERR, "stat(%s) failed: %m",
-						 basename);
+						 filename);
 		}
 	}
 
 	/*
 	 * now, try to open new file generation...
 	 */
-	fp = fopen(filename, "a");
-  
-	DPRINTF(4, ("opening filegen (type=%d/id=%lu) \"%s\"\n",
-		    gen->type, newid, filename));
+	DPRINTF(4, ("opening filegen (type=%d/stamp=%u) \"%s\"\n",
+		    gen->type, stamp, fullname));
 
+	fp = fopen(fullname, "a");
+  
 	if (NULL == fp)	{
 		/* open failed -- keep previous state
 		 *
@@ -272,14 +295,13 @@ filegen_open(
 		 */
 
 		if (ENOENT != errno)
-			msyslog(LOG_ERR, "can't open %s: %m", filename);
+			msyslog(LOG_ERR, "can't open %s: %m", fullname);
 	} else {
 		if (NULL != gen->fp) {
 			fclose(gen->fp);
 			gen->fp = NULL;
 		}
 		gen->fp = fp;
-		gen->id = newid;
 
 		if (gen->flag & FGEN_FLAG_LINK) {
 			/*
@@ -287,7 +309,7 @@ filegen_open(
 			 * have to use hardlink for now as I want to allow
 			 * gen->basename spanning directory levels
 			 * this would make it more complex to get the correct
-			 * filename for symlink
+			 * fullname for symlink
 			 *
 			 * Ok, it would just mean taking the part following
 			 * the last '/' in the name.... Should add it later....
@@ -295,22 +317,22 @@ filegen_open(
 
 			/* Windows NT does not support file links -Greg Schueman 1/18/97 */
 
-#if defined SYS_WINNT || defined SYS_VXWORKS
+#if defined(SYS_WINNT) || defined(SYS_VXWORKS)
 			SetLastError(0); /* On WinNT, don't support FGEN_FLAG_LINK */
 #elif defined(VMS)
 			errno = 0; /* On VMS, don't support FGEN_FLAG_LINK */
 #else  /* not (VMS) / VXWORKS / WINNT ; DO THE LINK) */
-			if (link(filename, basename) != 0)
+			if (link(fullname, filename) != 0)
 				if (EEXIST != errno)
 					msyslog(LOG_ERR, 
 						"can't link(%s, %s): %m",
-						filename, basename);
+						fullname, filename);
 #endif /* SYS_WINNT || VXWORKS */
 		}		/* flags & FGEN_FLAG_LINK */
 	}			/* else fp == NULL */
 	
-	free(basename);
 	free(filename);
+	free(fullname);
 	return;
 }
 
@@ -325,11 +347,11 @@ filegen_open(
 void
 filegen_setup(
 	FILEGEN *	gen,
-	u_long		now
+	u_int32		now
 	)
 {
-	u_long new_gen = ~ (u_long) 0;
-	struct calendar cal;
+	int	current;
+	time_t	pivot;
 
 	if (!(gen->flag & FGEN_FLAG_ENABLED)) {
 		if (NULL != gen->fp) {
@@ -338,67 +360,39 @@ filegen_setup(
 		}
 		return;
 	}
-	
+
 	switch (gen->type) {
 
+	default:
 	case FILEGEN_NONE:
-		if (NULL != gen->fp)
-			return; /* file already open */
+		current = TRUE;
 		break;
 
 	case FILEGEN_PID:
-		new_gen = getpid();
-		break;
-
-	case FILEGEN_DAY:
-		caljulian(now, &cal);
-		cal.hour = cal.minute = cal.second = 0;
-		new_gen = caltontp(&cal);
-		break;
-
-	case FILEGEN_WEEK:
-		/* Would be nice to have a calweekstart() routine */
-		/* so just use a hack ... */
-		/* just round time to integral 7 day period for actual year  */
-		new_gen = now - (now - calyearstart(now)) % TIMES7(SECSPERDAY)
-			+ 60;
-		/*
-		 * just to be sure -
-		 * the computation above would fail in the presence of leap seconds
-		 * so at least carry the date to the next day (+60 (seconds))
-		 * and go back to the start of the day via calendar computations
-		 */
-		caljulian(new_gen, &cal);
-		cal.hour = cal.minute = cal.second = 0;
-		new_gen = caltontp(&cal);
-		break;
-
-	case FILEGEN_MONTH:
-		caljulian(now, &cal);
-		cal.yearday = (u_short) (cal.yearday - cal.monthday + 1);
-		cal.monthday = 1;
-		cal.hour = cal.minute = cal.second = 0;
-		new_gen = caltontp(&cal);
-		break;
-
-	case FILEGEN_YEAR:
-		new_gen = calyearstart(now);
+		current = ((int)gen->id_lo == getpid());
 		break;
 
 	case FILEGEN_AGE:
-		new_gen = current_time - (current_time % SECSPERDAY);
+		current = (gen->id_lo <= current_time) &&
+			  (gen->id_hi > current_time);
+		break;
+
+	case FILEGEN_DAY:
+	case FILEGEN_WEEK:
+	case FILEGEN_MONTH:
+	case FILEGEN_YEAR:
+		current = (gen->id_lo <= now) &&
+			  (gen->id_hi > now);
 		break;
 	}
 	/*
 	 * try to open file if not yet open
 	 * reopen new file generation file on change of generation id
 	 */
-	if (NULL == gen->fp || gen->id != new_gen) {
-
-		DPRINTF(1, ("filegen  %0x %lu %lu %lu\n", 
-			    gen->type, now, gen->id, new_gen));
-
-		filegen_open(gen, new_gen);
+	if (NULL == gen->fp || !current) {
+		DPRINTF(1, ("filegen  %0x %u\n", gen->type, now));
+		pivot = time(NULL);
+		filegen_open(gen, now, &pivot);
 	}
 }
 
@@ -409,45 +403,55 @@ filegen_setup(
 void
 filegen_config(
 	FILEGEN *	gen,
-	const char *	basename,
+	const char *	dir,
+	const char *	fname,
 	u_int		type,
 	u_int		flag
 	)
 {
-	int file_existed = 0;
+	int file_existed;
+	l_fp now;
+
 
 	/*
 	 * if nothing would be changed...
 	 */
-	if ((strcmp(basename, gen->basename) == 0) && type == gen->type
-	    && flag == gen->flag)
+	if (strcmp(dir, gen->dir) == 0 && strcmp(fname, gen->fname) == 0
+	    && type == gen->type && flag == gen->flag)
 		return;
-  
+
 	/*
 	 * validate parameters
 	 */
-	if (!valid_fileref(gen->prefix, basename))
+	if (!valid_fileref(dir, fname))
 		return;
   
 	if (NULL != gen->fp) {
 		fclose(gen->fp);
 		gen->fp = NULL;
-		file_existed = 1;
+		file_existed = TRUE;
+	} else {
+		file_existed = FALSE;
 	}
 
 	DPRINTF(3, ("configuring filegen:\n"
-		    "\tprefix:\t%s\n"
-		    "\tbasename:\t%s -> %s\n"
+		    "\tdir:\t%s -> %s\n"
+		    "\tfname:\t%s -> %s\n"
 		    "\ttype:\t%d -> %d\n"
 		    "\tflag: %x -> %x\n",
-		    gen->prefix,
-		    gen->basename, basename,
+		    gen->dir, dir,
+		    gen->fname, fname,
 		    gen->type, type,
 		    gen->flag, flag));
 
-	if (strcmp(gen->basename, basename) != 0) {
-		free(gen->basename);
-		gen->basename = estrdup(basename);
+	if (strcmp(gen->dir, dir) != 0) {
+		free(gen->dir);
+		gen->dir = estrdup(dir);
+	}
+
+	if (strcmp(gen->fname, fname) != 0) {
+		free(gen->fname);
+		gen->fname = estrdup(fname);
 	}
 	gen->type = (u_char)type;
 	gen->flag = (u_char)flag;
@@ -459,8 +463,6 @@ filegen_config(
 	 * otherwise the new settings will be used anyway at the next open
 	 */
 	if (file_existed) {
-		l_fp now;
-
 		get_systime(&now);
 		filegen_setup(gen, now.l_ui);
 	}
@@ -473,41 +475,54 @@ filegen_config(
  */
 static int
 valid_fileref(
-	const char *	prefix,
-	const char *	basename
+	const char *	dir,
+	const char *	fname
 	)
 {
 	/*
-	 * prefix cannot be changed dynamically
+	 * dir cannot be changed dynamically
 	 * (within the context of filegen)
 	 * so just reject basenames containing '..'
 	 *
 	 * ASSUMPTION:
-	 * 		file system parts 'below' prefix may be
+	 *		file system parts 'below' dir may be
 	 *		specified without infringement of security
 	 *
-	 *		restricting prefix to legal values
+	 *		restricting dir to legal values
 	 *		has to be ensured by other means
 	 * (however, it would be possible to perform some checks here...)
 	 */
-	register const char *p = basename;
-  
+	const char *p;
+
 	/*
 	 * Just to catch, dumb errors opening up the world...
 	 */
-	if (NULL == prefix || '\0' == *prefix)
-		return 0;
+	if (NULL == dir || '\0' == dir[0])
+		return FALSE;
 
-	if (NULL == basename)
-		return 0;
-  
-	for (p = basename; p; p = strchr(p, DIR_SEP)) {
+	if (NULL == fname)
+		return FALSE;
+
+#ifdef SYS_WINNT
+	/*
+	 * Windows treats / equivalent to \, reject any / to ensure
+	 * check below for DIR_SEP (\ on windows) are adequate.
+	 */
+	if (strchr(fname, '/')) {
+		msyslog(LOG_ERR,
+			"filegen filenames must not contain '/': %s",
+			fname);
+		return FALSE;
+	}
+#endif
+
+	for (p = fname; p != NULL; p = strchr(p, DIR_SEP)) {
 		if ('.' == p[0] && '.' == p[1] 
 		    && ('\0' == p[2] || DIR_SEP == p[2]))
-			return 0;
+			return FALSE;
 	}
-  
-	return 1;
+
+	return TRUE;
 }
 
 
@@ -544,7 +559,7 @@ filegen_get(
 
 void
 filegen_register(
-	const char *	prefix,
+	const char *	dir,
 	const char *	name,
 	FILEGEN *	filegen
 	)
@@ -553,7 +568,7 @@ filegen_register(
 
 	DPRINTF(4, ("filegen_register(%s, %p)\n", name, filegen));
 
-	filegen_init(prefix, name, filegen);
+	filegen_init(dir, name, filegen);
 
 	ppfe = &filegen_registry;
 	while (NULL != *ppfe) {
@@ -578,6 +593,20 @@ filegen_register(
 	DPRINTF(6, ("adding new filegen\n"));
 	
 	return;
+}
+
+
+/*
+ * filegen_statsdir() - reset each filegen entry's dir to statsdir.
+ */
+void
+filegen_statsdir(void)
+{
+	struct filegen_entry *f;
+
+	for (f = filegen_registry; f != NULL; f = f->next)
+		filegen_config(f->filegen, statsdir, f->filegen->fname,
+			       f->filegen->type, f->filegen->flag);
 }
 
 

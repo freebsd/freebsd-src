@@ -2,11 +2,15 @@
 /**
  * \file numeric.c
  *
- *  Time-stamp:      "2011-03-25 16:26:10 bkorb"
+ * Handle options with numeric (integer) arguments.
  *
+ * @addtogroup autoopts
+ * @{
+ */
+/*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (c) 1992-2011 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -18,17 +22,17 @@
  *   The Modified Berkeley Software Distribution License
  *      See the file "COPYING.mbsd"
  *
- *  These files have the following md5sums:
+ *  These files have the following sha256 sums:
  *
- *  43b91e8ca915626ed3818ffb1b71248b pkg/libopts/COPYING.gplv3
- *  06a1a2e4760c90ea5e1dad8dfaac4d39 pkg/libopts/COPYING.lgplv3
- *  66a5cedaf62c4b2637025f049f9b826f pkg/libopts/COPYING.mbsd
+ *  8584710e9b04216a394078dc156b781d0b47e1729104d666658aecef8ee32e95  COPYING.gplv3
+ *  4379e7444a0e2ce2b12dd6f5a52a27a4d02d39d247901d3285c88cf0d37f477b  COPYING.lgplv3
+ *  13aa749a5b0a454917a944ed8fffc530b784f5ead522b1aacaf4ec8aa55a6239  COPYING.mbsd
  */
 
 /*=export_func  optionShowRange
  * private:
  *
- * what:  
+ * what:  Show info about range constraints
  * arg:   + tOptions* + pOpts     + program options descriptor  +
  * arg:   + tOptDesc* + pOptDesc  + the descriptor for this arg +
  * arg:   + void *    + rng_table + the value range tables      +
@@ -38,15 +42,11 @@
  *   Show information about a numeric option with range constraints.
 =*/
 void
-optionShowRange(tOptions* pOpts, tOptDesc* pOD, void * rng_table, int rng_ct)
+optionShowRange(tOptions * pOpts, tOptDesc * pOD, void * rng_table, int rng_ct)
 {
-    static char const bullet[] = "\t\t\t\t- ";
-    static char const deepin[] = "\t\t\t\t  ";
-    static char const onetab[] = "\t";
-
     const struct {long const rmin, rmax;} * rng = rng_table;
 
-    char const * pz_indent    = bullet;
+    char const * pz_indent = zTabHyp + tab_skip_ct;
 
     /*
      * The range is shown only for full usage requests and an error
@@ -55,10 +55,10 @@ optionShowRange(tOptions* pOpts, tOptDesc* pOD, void * rng_table, int rng_ct)
     if (pOpts != OPTPROC_EMIT_USAGE) {
         if (pOpts <= OPTPROC_EMIT_LIMIT)
             return;
-        pz_indent = onetab;
+        pz_indent = ONE_TAB_STR;
 
         fprintf(option_usage_fp, zRangeErr, pOpts->pzProgName,
-                pOD->pz_Name, pOD->optArg.argString);
+                pOD->pz_Name, pOD->optArg.argInt);
         pz_indent = "";
     }
 
@@ -66,7 +66,9 @@ optionShowRange(tOptions* pOpts, tOptDesc* pOD, void * rng_table, int rng_ct)
         fprintf(option_usage_fp, zRangeScaled, pz_indent);
 
     fprintf(option_usage_fp, (rng_ct > 1) ? zRangeLie : zRangeOnly, pz_indent);
-    pz_indent = (pOpts != OPTPROC_EMIT_USAGE) ? onetab : deepin;
+    pz_indent = (pOpts != OPTPROC_EMIT_USAGE)
+        ? ONE_TAB_STR
+        : (zTabSpace + tab_skip_ct);
 
     for (;;) {
         if (rng->rmax == LONG_MIN)
@@ -80,7 +82,7 @@ optionShowRange(tOptions* pOpts, tOptDesc* pOD, void * rng_table, int rng_ct)
                     rng->rmax);
 
         if  (--rng_ct <= 0) {
-            fputc('\n', option_usage_fp);
+            fputc(NL, option_usage_fp);
             break;
         }
         fputs(zRangeOr, option_usage_fp);
@@ -95,37 +97,44 @@ optionShowRange(tOptions* pOpts, tOptDesc* pOD, void * rng_table, int rng_ct)
  * private:
  *
  * what:  process an option with a numeric value.
- * arg:   + tOptions* + pOpts    + program options descriptor +
- * arg:   + tOptDesc* + pOptDesc + the descriptor for this arg +
+ * arg:   + tOptions* + opts + program options descriptor +
+ * arg:   + tOptDesc* + od   + the descriptor for this arg +
  *
  * doc:
  *  Decipher a numeric value.
 =*/
 void
-optionNumericVal(tOptions* pOpts, tOptDesc* pOD )
+optionNumericVal(tOptions * opts, tOptDesc * od)
 {
     char* pz;
     long  val;
 
     /*
+     *  Guard against all the different ways this procedure might get invoked
+     *  when there is no string argument provided.
+     */
+    if (INQUERY_CALL(opts, od) || (od->optArg.argString == NULL))
+        return;
+
+    /*
      *  Numeric options may have a range associated with it.
      *  If it does, the usage procedure requests that it be
-     *  emitted by passing a NULL pOD pointer.  Also bail out
+     *  emitted by passing a NULL od pointer.  Also bail out
      *  if there is no option argument or if we are being reset.
      */
-    if (  (pOD == NULL)
-       || (pOD->optArg.argString == NULL)
-       || ((pOD->fOptState & OPTST_RESET) != 0))
+    if (  (od == NULL)
+       || (od->optArg.argString == NULL)
+       || ((od->fOptState & OPTST_RESET) != 0))
         return;
 
     errno = 0;
-    val = strtol(pOD->optArg.argString, &pz, 0);
-    if ((pz == pOD->optArg.argString) || (errno != 0))
+    val = strtol(od->optArg.argString, &pz, 0);
+    if ((pz == od->optArg.argString) || (errno != 0))
         goto bad_number;
 
-    if ((pOD->fOptState & OPTST_SCALED_NUM) != 0)
+    if ((od->fOptState & OPTST_SCALED_NUM) != 0)
         switch (*(pz++)) {
-        case '\0': pz--; break;
+        case NUL:  pz--; break;
         case 't':  val *= 1000;
         case 'g':  val *= 1000;
         case 'm':  val *= 1000;
@@ -142,25 +151,26 @@ optionNumericVal(tOptions* pOpts, tOptDesc* pOD )
     if (*pz != NUL)
         goto bad_number;
 
-    if (pOD->fOptState & OPTST_ALLOC_ARG) {
-        AGFREE(pOD->optArg.argString);
-        pOD->fOptState &= ~OPTST_ALLOC_ARG;
+    if (od->fOptState & OPTST_ALLOC_ARG) {
+        AGFREE(od->optArg.argString);
+        od->fOptState &= ~OPTST_ALLOC_ARG;
     }
 
-    pOD->optArg.argInt = val;
+    od->optArg.argInt = val;
     return;
 
     bad_number:
 
-    fprintf( stderr, zNotNumber, pOpts->pzProgName, pOD->optArg.argString );
-    if ((pOpts->fOptSet & OPTPROC_ERRSTOP) != 0)
-        (*(pOpts->pUsageProc))(pOpts, EXIT_FAILURE);
+    fprintf( stderr, zNotNumber, opts->pzProgName, od->optArg.argString );
+    if ((opts->fOptSet & OPTPROC_ERRSTOP) != 0)
+        (*(opts->pUsageProc))(opts, EXIT_FAILURE);
 
     errno = EINVAL;
-    pOD->optArg.argInt = ~0;
+    od->optArg.argInt = ~0;
 }
 
-/*
+/** @}
+ *
  * Local Variables:
  * mode: C
  * c-file-style: "stroustrup"

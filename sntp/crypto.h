@@ -8,11 +8,7 @@
 #include <ntp_fp.h>
 #include <ntp.h>
 #include <ntp_stdlib.h>
-#ifdef OPENSSL
-# include "openssl/evp.h"
-#else
-# include <ntp_md5.h>		/* provides clone of OpenSSL MD5 API */
-#endif
+#include <ntp_md5.h>	/* provides OpenSSL digest API */
 #include "utilities.h"
 #include "sntp-opts.h"
 

@@ -85,7 +85,7 @@ main (int argc, char **argv) {
   init_agent("ntpsnmpd");
 
   /* Try to connect to ntpd */
-  if ( ntpq_openhost("localhost") == 0 )
+  if ( ntpq_openhost("localhost", 0) == 0 )
   {
 	fprintf(stderr, "Error: Could not connect to ntpd. Aborting.\n");
 	exit(1);

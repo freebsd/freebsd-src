@@ -3,12 +3,8 @@
  * This is optional
  */
 
-#ifndef _l_stdlib_h
-#define _l_stdlib_h
-
-#ifdef HAVE_CONFIG_H
-#include <config.h>
-#endif
+#ifndef L_STDLIB_H
+#define L_STDLIB_H
 
 #ifdef HAVE_STDLIB_H
 # include <stdlib.h>
@@ -111,7 +107,7 @@ extern	int	rename		(const char *, const char *);
 #endif
 
 #ifdef DECL_SELECT_0
-#ifdef _ntp_select_h
+#ifdef NTP_SELECT_H
 extern	int	select		(int, fd_set *, fd_set *, fd_set *, struct timeval *);
 #endif
 #endif
@@ -133,16 +129,6 @@ extern	int	setpriority	(int, id_t, int);
 #ifdef DECL_SIGVEC_0
 struct sigvec;
 extern	int	sigvec		(int, struct sigvec *, struct sigvec *);
-#endif
-
-#ifndef HAVE_SNPRINTF
-/* PRINTFLIKE3 */
-extern	int	snprintf	(char *, size_t, const char *, ...);
-#endif
-
-/* HMS: does this need further protection? */
-#ifndef HAVE_VSNPRINTF
-extern	int	vsnprintf	(char *, size_t, const char *, va_list);
 #endif
 
 #ifdef DECL_STDIO_0
@@ -235,4 +221,4 @@ extern	int	errno;
 extern	int	h_errno;
 #endif
 
-#endif /* l_stdlib_h */
+#endif	/* L_STDLIB_H */

@@ -39,9 +39,10 @@ strerror(
 	static char ebuf[20];
 
 	if ((unsigned int)errnum < sys_nerr)
-		return(sys_errlist[errnum]);
-	(void)sprintf(ebuf, "Unknown error: %d", errnum);
-	return(ebuf);
+		return sys_errlist[errnum];
+	snprintf(ebuf, sizeof(ebuf), "Unknown error: %d", errnum);
+
+	return ebuf;
 }
 #else
 int strerror_bs;

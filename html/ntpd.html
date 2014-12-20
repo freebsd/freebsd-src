@@ -1,235 +1,176 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
-
 <html>
-
-	<head>
-		<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
-		<meta name="generator" content="HTML Tidy, see www.w3.org">
-		<title>ntpd - Network Time Protocol (NTP) daemon</title>
-		<link href="scripts/style.css" type="text/css" rel="stylesheet">
-	</head>
-
-	<body>
-		<h3><tt>ntpd</tt> - Network Time Protocol (NTP) Daemon</h3>
-		<img src="pic/wingdorothy.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>The Wizard of Oz</i>, L. Frank Baum</a>
-		<p>You need help from the monkeys.</p>
-		<p>Last update: <!-- #BeginDate format:En1m -->14-oct-09  22:23<!-- #EndDate --></p>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<meta name="generator" content="HTML Tidy, see www.w3.org">
+<title>ntpd - Network Time Protocol (NTP) daemon</title>
+<!-- Changed by: Harlan &, 10-Feb-2014 -->
+<link href="scripts/style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+<h3><tt>ntpd</tt> - Network Time Protocol (NTP) Daemon</h3>
+<img src="pic/wingdorothy.gif" alt="gif" align="left"><a href="http://www.eecis.udel.edu/~mills/pictures.html">from <i>The Wizard of Oz</i>, L. Frank Baum</a>
+<p>You need help from the monkeys.</p>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->10-Mar-2014  05:14<!-- #EndDate -->
+    UTC</p>
 <br clear="left">
-		<h4>Related Links</h4>
-		<script type="text/javascript" language="javascript" src="scripts/command.txt"></script>
-		<h4>Table of Contents</h4>
-		<ul>
-			<li class="inline"><a href="#synop">Synopsis</a></li>
-			<li class="inline"><a href="#descr">Description</a></li>
-			<li class="inline"><a href="#time">Setting the Time and Frequency</a></li>
-			<li class="inline"><a href="#modes">Operating Modes</a></li>
-			<li class="inline"><a href="#poll">Poll Interval Control</a></li>
-			<li class="inline"><a href="#leap">Leap Second Processing</a></li>
-			<li class="inline"><a href="#notes">Additional Features</a></li>
-			<li class="inline"><a href="#cmd">Command Line Options</a></li>
-			<li class="inline"><a href="#cfg">The Configuration File</a></li>
-			<li class="inline"><a href="#files">Files</a></li>
-		</ul>
-		<hr>
-		<h4 id="synop">Synopsis</h4>
-		<tt>ntpd [ -46aAbdDgLnNqx ] [ -c <i>conffile</i> ] [ -f <i>driftfile</i> ] [ -i <i>jaildir</i> ] [ -I <i>iface</i> ] [ -k <i>keyfile</i> ] [ -l <i>logfile</i> ] [ -p <i>pidfile</i> ] [ -P <i>priority</i> ] [ -r <i>broadcastdelay</i> ] [ -s <i>statsdir</i> ] [ -t <i>key</i> ] [ -u <i>user</i>[:<i>group</i>] ] [ -U <i>interface_update_interval</i> ] [ -v <i>variable</i> ] [ -V <i>variable</i> ]</tt>
-		<h4 id="descr">Description</h4>
-		<p>The <tt>ntpd</tt> program is an operating system daemon that synchronises the system clock with remote NTP&nbsp;time servers or local reference clocks. It is a complete implementation of the Network Time Protocol (NTP) version 4, but also retains compatibility with version 3, as defined by RFC-1305, and version 1 and 2, as defined by RFC-1059 and RFC-1119, respectively. The program can operate in any of several modes, as described on the <a href="assoc.html">Association Management</a> page, and with both symmetric key and public key cryptography, as described on the <a href="manyopt.html">Authentication Options</a> page.</p>
-		<p>The <tt>ntpd</tt> program ordinarily requires a configuration file as desccribe on the Configuration Commands and Options collection above. However a client can discover remote servers and configure them automatically. This makes it possible to deploy a fleet of workstations without specifying configuration details specific to the local environment. Further details are on the <a href="manyopt.html">Automatic Server Discovery</a> page.</p>
-		<p>Once the NTP software distribution has been compiled and installed and the configuration file constructed, the next step is to verify correct operation and fix any bugs that may result. Usually, the command line that starts the daemon is included in the system startup file, so it is executed only at system boot time; however, the daemon can be stopped and restarted from root at any time. Once started, the daemon will begin sending and receiving messages, as specified in the configuration file.</p>
-		<h4 id="time">Setting the Time and Frequency</h4>
-		<p>The <tt>ntpd</tt> program operates by exchanging messages with one or more servers at designated intervals ranging from about one minute to about 17 minutes. When started, the program requires several exchanges while the algorithms accumulate and groom the data before setting the clock. The initial delay to set the clock can be reduced using options on the <a href="confopt.html">Server Options</a> page.</p>
-		<p>Most compters today incorporate a time-of-year (TOY) chip to maintain the time during periods when the power is off. When the machine is booted, the chip is used to initialize the operating system time. In case there is no TOY chip or the TOY&nbsp;time is more than 1000 s from the server&nbsp;time, <tt>ntpd</tt> assumes something must be terribly wrong and exits with a panic message to the system operator. With the <tt>-g</tt> option the clock will be initially set to the server time regardless of the chip time. However, once the clock has been set, an error greater than 1000 s will cause <tt>ntpd</tt> to exit anyway.</p>
-		<p>Under ordinary conditions, <tt>ntpd</tt> slews the clock so that the time is effectively continuous and never runs backwards. If due to extreme network congestion an error spike exceeds the <i>step threshold</i>, by default 128 ms, the spike is discarded. However, if the error persists for more than the <i>stepout threshold</i>, by default 900 s, the system clock is stepped to the correct value. In practice the need for a step has is extremely rare and almost always the result of a hardware failure. With the <tt>-x</tt> option the step threshold is increased to 600 s. Other options are available using the <tt>tinker</tt> command on the <a href="miscopt.html">Miscellaneous Options</a> page.</p>
-		<p>The issues should be carefully considered before using these options. The maximum slew rate possible is limited to 500 parts-per-million (PPM) by the Unix kernel. As a result, the clock can take 2000 s for each second the clock is outside the acceptable range. During this interval the clock will not be consistent with any other network clock and the system cannot be used for distributed applications that require correctly synchronized network time.</p>
-		<p>The frequency file, usually called <tt>ntp.drift</tt>, contains the latest estimate  of clock frequency. If this file does not exist when <tt>ntpd</tt> is started, it enters a special mode designed to measure the particular frequency directly. The measurement takes 15 minutes, after which the frequency is set and <tt>ntpd</tt> resumes normal mode where the time and frequency are continuously adjusted. The frequency file is updated at intervals of an hour or more depending on the measured clock stability.</p>
-		<h4 id="modes">Operating Modes</h4>
-		<p>The <tt>ntpd</tt> program normally operates continuously while adjusting the time and frequency, but in some cases it may not be practical to run it continuously. With the <tt>-q</tt> option <tt>ntpd</tt> operates as in continous mode, but exits just after setting the clock for the first time with the configured servers. Most applications will probably want to specify the <tt>iburst</tt> option with the <tt>server</tt> command. With this option a volley of messages is exchanged to groom the data and set the clock in about 10 s. If nothing is heard after a few minutes, the daemon times out and exits.</p>
-		<h4 id="poll">Poll Interval Control</h4>
-		<p>NTP uses an intricate heuristic algorithm to automatically control the poll interval for maximum accuracy consistent with minimum network overhead. The algorithm measures the incidental offset and jitter to determine the best poll interval. When <tt>ntpd</tt> starts, the interval is the default minimum 64 s. Under normal conditions when the clock discipline has stabilized, the interval increases in steps to the default maximum 1024 s. In addition, should a server become unreachable after some time, the interval increases in steps to the maximum in order to reduce network overhead.</p>
-		<p>The default poll interval range is suitable for most conditions, but can be changed using options on the <a href="confopt.html">Server Options</a> and <a href="miscopt.html">Miscellaneous Options</a> pages. However, when using maximum intervals much larger than the default, the residual clock frequency error must be small enough for the discipline loop to capture and correct. The capture range is 500 PPM with a 64-s interval decreasing by a factor of two for each interval doubling. At a 36-hr interval, for example, the capture range is only 0.24 PPM.</p>
-		<h4 id="huff">The huff-n'-puff Filter</h4>
-		<p>In scenarios where a considerable amount of data are to be downloaded or uploaded over telephone modems, timekeeping quality can be seriously degraded. This occurs because the differential delays on the two directions of transmission can be quite large. In many cases the apparent time errors are so large as to exceed the step threshold and a step correction can occur during and after the data transfer.</p>
-		<p>The huff-n'-puff filter is designed to correct the apparent time offset in these cases. It depends on knowledge of the propagation delay when no other traffic is present, such as during other than work hours. The filter remembers the minimum delay over the most recent interval measured usually in hours. Under conditions of severe delay, the filter corrects the apparent offset using the sign of the offset and the difference between the apparent delay and minimum delay. The name of the filter reflects the negative (huff) and positive (puff) correction, which depends on the sign of the offset. The filter is activated by the <tt>tinker huffpuff</tt> command, as described in the <a href="miscopt.html">Miscellaneous Options</a> page.</p>
-		<h4 id="leap">Leap Second Processing</h4>
-		<p>As provided by international agreement, an extra second is sometimes inserted
-			in Coordinated Universal Time (UTC) at the end of a selected month,
-			usually June or December. The National Institutes of Standards and
-			Technology (NIST) provides an historic leapseconds file at <tt>time.nist.gov</tt> for
-			retrieval via FTP. When this file, usually called <tt>ntp-leapseconds.list</tt>,
-			is copied and installed in a directory. 
-			The <tt>leapfile</tt> configuration command  specifies the path to
-			this file. At startup, <tt>ntpd</tt> reads
-			it  and initializes three leapsecond values: the NTP seconds
-			at the next leap event, the offset of UTC relative to International
-			Atomic Time (TAI) after the leap and the NTP seconds when the leapseconds
-			file expires and should be retrieved again.</p>
-	<p>If a host does not have the leapsecond values, they can be obtained over the net using the Autokey security protocol. Ordinarily, the leapseconds file is installed on the primary servers and the values flow from them via secondary servers to the clients. When multiple servers are involved, the values with the latest expiration time are used.</p>
-		<p>If the latest leap is in the past, nothing further is done other than to install the TAI offset. If the leap is in the future less than 28 days, the leap warning bits are set. If in the future less than 23 hours, the kernel is armed to insert one second at the end of the current day. If the kernel is enabled, the leap is done automatically at that time; otherwise, the clock is effectively stopped for one second at the leap. Additional details are in the <a href='http://www.eecis.udel.edu/~mills/leap.html'>The NTP Timescale and Leap Seconds</a> white paper</p>
-		<p>If none of the above provisions are available, dsependent servers and clients
-			tally the leap warning bits of surviving servers and reference clocks.
-			When a majority of the survivors show warning, a leap is programmed
-			at the end of the current month. During the month and day of insertion,
-			they operate as above. In this way the leap is is propagated at all
-			dependent servers and clients.</p>
-	<h4 id="notes">Additional Features</h4>
-		<p>A new experimental feature called interleaved modes can be used  in NTP
-			symmetric or broadcast modes. It is designed to improve accuracy
-			by avoiding kernel latency and queueing delay, as described on the <a href="xleave.html">NTP
-			Interleaved Modes</a> page. It is activated by the <tt>xleave</tt> option
-			with the <tt>peer</tt> or <tt>broadcast</tt> configuration commands. The NTP
-			protocol automatically reconfigures in normal or interleaved mode
-			as required. Ordinary broadcast clients can use the same servers
-			as interleaved clients at the same time. Further details are in the
-			white paper <a href="http://www.eecis.udel.edu/~mills/onwire.html">NTP
-			Interleaved On-Wire Protocol</a> and the briefing <a href="http://www.eecis.udel.edu/~mills/database/brief/onwire/onwire.ppt">Interleaved
-			Synchronization Protocols for LANs and Space Data Links</a>.</p>
-		<p>If <tt>ntpd</tt>, is configured with NetInfo support, it will attempt to read its configuration from the NetInfo service if the default <tt>ntp.conf</tt> file cannot be read and no file is specified by the <tt>-c</tt> option.</p>
-		<p>In contexts where a host name is expected, a <tt>-4</tt> qualifier preceding the host name forces DNS resolution to the IPv4 namespace, while a <tt>-6</tt> qualifier forces DNS resolution to the IPv6 namespace.</p>
-		<p>Various internal <tt>ntpd</tt> variables can be displayed and configuration options altered while the <tt>ntpd</tt> is running using the <tt><a href="ntpq.html">ntpq</a></tt> and <tt><a href="ntpdc.html">ntpdc</a></tt> utility programs.</p>
-		<p>When <tt>ntpd</tt> starts it looks at the value of <tt>umask</tt>, and if zero <tt>ntpd</tt> will set the <tt>umask</tt> to <tt>022</tt>.</p>
-		<p>Unless the <tt>-n</tt>, <tt>-d</tt> or <tt>-D</tt> option is used, <tt>ntpd</tt> changes the current working directory to the root directory, so any options or commands specifying paths need to use an absolute path or a path relative to the root.</p>
-		<h4 id="cmd">Command Line Options</h4>
-		<dl>
-			<dt><tt>-4</tt>
-			<dd>Force DNS resolution of host names to the IPv4 namespace.
-			<dt><tt>-6</tt>
-			<dd>Force DNS resolution of host names to the IPv6 namespace.
-			<dt><tt>-a</tt></dt>
-			<dd>Require cryptographic authentication for broadcast client, multicast client and symmetric passive associations. This is the same operation as the <tt>enable auth</tt> command and is the default.</dd>
-			<dt><tt>-A</tt></dt>
-			<dd>Do not require cryptographic authentication for broadcast client, multicast client and symmetric passive associations. This is the same operation as the <tt>disable auth</tt> command and almost never a good idea.</dd>
-			<dt><tt>-b</tt></dt>
-			<dd>Enable the client to synchronize to broadcast servers.</dd>
-			<dt><tt>-c <i>conffile</i></tt></dt>
-			<dd>Specify the name and path of the configuration file, default <tt>/etc/ntp.conf</tt>.</dd>
-			<dt><tt>-d</tt></dt>
-			<dd>Specify debugging mode. This option may occur more than once, with each occurrence indicating greater detail of display.</dd>
-			<dt><tt>-D <i>level</i></tt></dt>
-			<dd>Specify debugging level directly.</dd>
-			<dt><tt>-f <i>driftfile</i></tt></dt>
-			<dd>Specify the name and path of the frequency file. This is the same operation as the <tt>driftfile <i>driftfile</i></tt> command.</dd>
-			<dt><tt>-g</tt></dt>
-			<dd>Normally, <tt>ntpd</tt> exits with a message to the system log if the offset exceeds the panic threshold, which is 1000 s by default. This option allows the time to be set to any value without restriction; however, this can happen only once. If the threshold is exceeded after that, <tt>ntpd</tt> will exit with a message to the system log. This option can be used with the <tt>-q</tt> and <tt>-x</tt> options. See the <tt>tinker</tt> command for other options.</dd>
-			<dt><tt>-i <i>jaildir</i></tt></dt>
-			<dd>Chroot the server to the directory <i><tt>jaildir</tt></i>. This option also implies that the server attempts to drop root privileges at startup (otherwise, chroot gives very little additional security), and it is only available if the OS supports to run the server without full root privileges. You may need to also specify a <tt>-u</tt> option.</dd>
-			<dt id="--interface"><tt>-I [<i>address</i> | <i>interface name</i>]</tt></dt>
-			<dd>Open the network address given, or all the addresses associated with the given interface name. This option may appear multiple times. This option also implies not opening other addresses, except wildcard and localhost. This option is deprecated. Please consider using the configuration file <a href="miscopt.html#interface">interface</a> command, which is more versatile.</dd>
-			<dt><tt>-k <i>keyfile</i></tt></dt>
-			<dd>Specify the name and path of the symmetric key file. This is the same operation as the <tt>keys <i>keyfile</i></tt>  command.</dd>
-			<dt><tt>-l <i>logfile</i></tt></dt>
-			<dd>Specify the name and path of the log file. The default is the system log file. This is the same operation as the <tt>logfile <i>logfile</i></tt> command.</dd>
-			<dt id="--novirtualips"><tt>-L</tt></dt>
-			<dd>Do not listen to virtual interfaces, defined as those with names containing a colon. This option is deprecated. Please consider using the configuration file <a href="miscopt.html#interface">interface</a> command, which is more versatile.</dd>
-			<dt><tt>-M</tt></dt>
-			<dd>Raise scheduler precision to its maximum (1 msec) using timeBeginPeriod. (Windows only)</dd>
-			<dt><tt>-n</tt></dt>
-			<dd>Don't fork.</dd>
-			<dt><tt>-N</tt></dt>
-			<dd>To the extent permitted by the operating system, run the <tt>ntpd</tt> at the highest priority.</dd>
-			<dt><tt>-p <i>pidfile</i></tt></dt>
-			<dd>Specify the name and path of the file used to record the <tt>ntpd</tt> process ID. This is the same operation as the <tt>pidfile <i>pidfile</i></tt> command.</dd>
-			<dt><tt>-P <i>priority</i></tt></dt>
-			<dd>To the extent permitted by the operating system, run the <tt>ntpd</tt> at the specified priority.</dd>
-			<dt><tt>-q</tt></dt>
-			<dd>Exit the <tt>ntpd</tt> just after the first time the clock is set. This behavior mimics that of the <tt>ntpdate</tt> program, which is to be retired. The <tt>-g</tt> and <tt>-x</tt> options can be used with this option. Note: The kernel time discipline is disabled with this option.</dd>
-			<dt><tt>-r <i>broadcastdelay</i></tt></dt>
-			<dd>Specify the default propagation delay from the broadcast/multicast server to this client. This is necessary only if the delay cannot be computed automatically by the protocol.</dd>
-			<dt><tt>-s <i>statsdir</i></tt></dt>
-			<dd>Specify the directory path for files created by the statistics facility. This is the same operation as the <tt>statsdir <i>statsdir</i></tt> command.</dd>
-			<dt><tt>-t <i>key</i></tt></dt>
-			<dd>Add a key number to the trusted key list. This option can occur more than once. This is the same operation as the <tt>trustedkey <i>key</i></tt> command.</dd>
-			<dt><tt>-u <i>user[:group]</i> </tt></dt>
-			<dd>Specify a user, and optionally a group, to switch to. This option is only available if the OS supports running the server without full root privileges. Currently, this option is supported under NetBSD (configure with <tt>--enable-clockctl</tt>) and Linux (configure with --<tt>enable-linuxcaps</tt>).</dd>
-			<dt><tt>-U <i>interface update interval</i></tt></dt>
-			<dd>Number of seconds to wait between interface list scans to pick up new and delete network interface. Set to 0 to disable dynamic interface list updating. The default is to scan every 5 minutes.</dd>
-			<dt><tt>-v <i>variable</i></tt></dt>
-			<dt><tt>-V <i>variable</i></tt></dt>
-			<dd>Add a system variable listed by default.</dd>
-			<dt><tt>-x</tt></dt>
-			<dd>Normally, the time is slewed if the offset is less than the step threshold, which is 128 ms by default, and stepped if above the threshold. This option sets the threshold to 600 s, which is well within the accuracy window to set the clock manually. Note: Since the slew rate of typical Unix kernels is limited to 0.5 ms/s, each second of adjustment requires an amortization interval of 2000 s. Thus, an adjustment as much as 600 s will take almost 14 days to complete. This option can be used with the <tt>-g</tt> and <tt>-q</tt> options. See the <tt>tinker</tt> command for other options. Note: The kernel time discipline is disabled with this option.</dd>
-			<dt><tt>--pccfreq <i>frequency</i></tt></dt>
-			<dd>Substitute processor cycle counter for QueryPerformanceCounter unconditionally
-				using the given frequency (in Hz). <tt>--pccfreq</tt> can be used on systems
-				which do not use the PCC to implement QueryPerformanceCounter
-				and have a fixed PCC frequency. The frequency specified must
-				be accurate within 0.5 percent. <tt>--usepcc</tt> is equivalent on many systems and should
-				be tried first, as it does not require determining the frequency
-				of the processor cycle counter. For x86-compatible processors, the PCC is
-				also referred to as <tt>RDTSC</tt>, which is the assembly-language instruction to retrieve
-				the current value.&nbsp; (Windows only)</dd>
-			<dt><tt>--usepcc</tt></dt>
-			<dd>Substitute processor cycle counter for QueryPerformanceCounter if they
-				appear equivalent. This option should be used only if the PCC
-				frequency is fixed. Power-saving functionality on many laptops varies the
-			PCC frequency. (Windows only)</dd>
-	</dl>
-		<h4 id="cfg">The Configuration File</h4>
-		<p>Ordinarily, <tt>ntpd</tt> reads the <tt>ntp.conf</tt> configuration file at startup in order to determine the synchronization sources and operating modes. It is also possible to specify a working, although limited, configuration entirely on the command line, obviating the need for a configuration file. This may be particularly useful when the local host is to be configured as a broadcast client, with servers determined by listening to broadcasts at run time.</p>
-		<p>Usually, the configuration file is installed as<tt>/etc/ntp.conf</tt>, but could be installed elsewhere (see the <tt>-c <i>conffile</i></tt> command line option). The file format is similar to other Unix configuration files - comments begin with a <tt>#</tt> character and extend to the end of the line; blank lines are ignored.</p>
-		<p>Configuration commands consist of an initial command keyword followed by a list of option keywords separated by whitespace. Commands may not be continued over multiple lines. Options may be host names, host addresses written in numeric, dotted-quad form, integers, floating point numbers (when specifying times in seconds) and text strings. Optional arguments are delimited by <tt>[ ]</tt> in the options pages, while alternatives are separated by <tt>|</tt>. The notation <tt>[ ... ]</tt> means an optional, indefinite repetition of the last item before the <tt>[ ... ]</tt>.</p>
-		<h4 id="files">Files</h4>
-		<table width="100%" border="1">
-			<tr>
-				<td width="30%">File</td>
-				<td width="30%">Default</td>
-				<td width="20%">Option</td>
-				<td width="20%">Command</td>
-			</tr>
-			<tr>
-				<td width="30%">configuration file</td>
-				<td width="30%"><tt>/etc/ntp.conf</tt></td>
-				<td width="20%"><tt>-c</tt></td>
-				<td width="20%">none</td>
-			</tr>
-			<tr>
-				<td width="30%">frequency file</td>
-				<td width="30%">none</td>
-				<td width="20%"><tt>-f</tt></td>
-				<td width="20%"><tt>driftfile</tt></td>
-			</tr>
-			<tr>
-				<td width="30%">leapseconds file</td>
-				<td width="30%">none</td>
-				<td width="20%"></td>
-				<td width="20%"><tt>leapfile</tt></td>
-			</tr>
-			<tr>
-				<td width="30%">process ID file</td>
-				<td width="30%">none</td>
-				<td width="20%"><tt>-p</tt></td>
-				<td width="20%"><tt>pidfile</tt></td>
-			</tr>
-			<tr>
-				<td width="30%">log file</td>
-				<td width="30%">system log</td>
-				<td width="20%"><tt>-l</tt></td>
-				<td width="20%"><tt>logfile</tt></td>
-			</tr>
-			<tr>
-				<td width="30%">include file</td>
-				<td width="30%">none</td>
-				<td width="20%">none</td>
-				<td width="20%"><tt>includefile</tt></td>
-			</tr>
-			<tr>
-				<td width="30%">statistics path</td>
-				<td width="30%"><tt>/var/NTP</tt></td>
-				<td width="20%"><tt>-s</tt></td>
-				<td width="20%"><tt>statsdir</tt></td>
-			</tr>
-			<tr>
-				<td width="30%">keys path</td>
-				<td width="30%"><tt>/usr/local/etc</tt></td>
-				<td width="20%"><tt>-k</tt></td>
-				<td width="20%"><tt>keysdir</tt></td>
-			</tr>
-		</table>
-		<h4 id="codes">Exit Codes</h4>
-		<p>A non-zero exit code indicates an error. Any error messages are logged to the system log by default.</p>
-		<p>The exit code is 0 only when <tt>ntpd</tt> is terminated by a signal, or when the <tt>-q</tt> option is used and <tt>ntpd</tt> successfully sets the system clock.</p>
-		<hr>
-		<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
-	</body>
-
+<h4>Related Links</h4>
+<script type="text/javascript" language="javascript" src="scripts/command.txt"></script>
+<h4>Table of Contents</h4>
+<ul>
+  <li class="inline"><a href="#synop">Synopsis</a></li>
+  <li class="inline"><a href="#descr">Description</a></li>
+  <li class="inline"><a href="#cmd">Command Line Options</a></li>
+  <li class="inline"><a href="#cfg">The Configuration File</a></li>
+  <li class="inline"><a href="#files">Files</a></li>
+</ul>
+<hr>
+<h4 id="synop">Synopsis</h4>
+<tt>ntpd [ -46aAbdDgLmnNqx ] [ -c <i>conffile</i> ] [ -f <i>driftfile</i> ] [ -i <i>jaildir</i> ] [ -I <i>InterfaceOrAddress</i> ] [ -k <i>keyfile</i> ] [ -l <i>logfile</i> ] [ -p <i>pidfile</i> ] [ -P <i>priority</i> ] [ -r <i>broadcastdelay</i> ] [ -s <i>statsdir</i> ] [ -t <i>key</i> ] [ -u <i>user</i>[:<i>group</i>] ] [ -U <i>interface_update_interval</i> ] [ -v <i>variable</i> ] [ -V <i>variable</i> ]</tt>
+<h4 id="descr">Description</h4>
+<p>The <tt>ntpd</tt> program is an operating system daemon that synchronizes the system clock to remote NTP time servers or local reference clocks. It is a complete implementation of  NTP version 4 defined by RFC-5905, but also retains compatible with version 3 defined by RFC-1305 and versions 1 and 2,  defined by RFC-1059 and RFC-1119, respectively. The program can operate in any of several modes, including client/server, symmetric and broadcast modes, and with both symmetric-key and public key-cryptography</p>
+<p>The <tt>ntpd</tt> program ordinarily requires a configuration file described on this page. It contains configuration commands described on the pages listed above. However a client can discover remote servers and configure them automatically. This makes it possible to deploy a fleet of workstations without specifying configuration details specific to the local environment. Further details are on the </p>
+<p>The <tt>ntpd</tt> program normally operates continuously while adjusting the system time and frequency, but in some cases this might not be practical. With the <tt>-q</tt> option <tt>ntpd</tt> operates as in continuous mode, but exits just after setting the clock for the first time. Most applications will probably want to specify the <tt>iburst</tt> option with the <tt>server</tt> command. With this option a volley of messages is exchanged to groom the data and set the clock in about ten seconds. If nothing is heard after a few minutes, the daemon times out and exits without setting the clock.</p>
+<h4 id="cmd">Command Line Options</h4>
+<dl>
+  <dt><tt>-4</tt>
+  <dd>Force DNS resolution of host names to the IPv4 namespace.
+  <dt><tt>-6</tt>
+  <dd>Force DNS resolution of host names to the IPv6 namespace.
+  <dt><tt>-a</tt></dt>
+  <dd>Require cryptographic authentication for broadcast client, multicast client and symmetric passive associations. This is the same operation as the <tt>enable auth</tt> command and is the default.</dd>
+  <dt><tt>-A</tt></dt>
+  <dd>Do not require cryptographic authentication for broadcast client, multicast client and symmetric passive associations. This is the same operation as the <tt>disable auth</tt> command and almost never a good idea.</dd>
+  <dt><tt>-b</tt></dt>
+  <dd>Enable the client to synchronize to broadcast servers.</dd>
+  <dt><tt>-c <i>conffile</i></tt></dt>
+  <dd>Specify the name and path of the configuration file. Without the option the default is <tt>/etc/ntp.conf</tt>.</dd>
+  <dt><tt>-d</tt></dt>
+  <dd> Disable switching into daemon mode, so <tt>ntpd</tt> stays   attached to the starting terminal which will get all the debugging printout.    Also, ^C will kill it. This option may occur more than once, with each occurrence indicating greater detail of display.</dd>
+  <dt><tt>-D <i>level</i></tt></dt>
+  <dd>Specify debugging level directly, with <tt>level</tt> corresponding to the numbe of <tt>-d</tt> options..</dd>
+  <dt><tt>-f <i>driftfile</i></tt></dt>
+  <dd>Specify the name and path of the frequency file. This is the same operation as the <tt>driftfile <i>driftfile</i></tt> configuration command.
+  <dt><tt>-g</tt></dt>
+  <dd>Normally, <tt>ntpd</tt> exits with a message to the system log if the offset exceeds the panic threshold, which is 1000 s by default. This option allows the time to be set to any value without restriction; however, this can happen only once. If the threshold is exceeded after that, <tt>ntpd</tt> will exit with a message to the system log. This option can be used with the <tt>-q</tt> and <tt>-x</tt> options. See the <tt>tinker</tt> command for other options.</dd>
+  <dt><tt>-i <i>jaildir</i></tt></dt>
+  <dd>Chroot the server to the directory <i><tt>jaildir</tt></i>. This option also implies that the server attempts to drop root privileges at startup (otherwise, chroot gives very little additional security), and it is only available if the OS supports to run the server without full root privileges. You may need to also specify a <tt>-u</tt> option.</dd>
+  <dt id="--interface"><tt>-I [<i>address</i> | <i>interface name</i>]</tt></dt>
+  <dd>Open the network address given, or all the addresses associated with the given interface name. This option may appear multiple times. This option also implies not opening other addresses, except wildcard and localhost. This option is deprecated. Please consider using the configuration file <a href="miscopt.html#interface">interface</a> command, which is more versatile.</dd>
+  <dt><tt>-k <i>keyfile</i></tt></dt>
+  <dd>Specify the name and path of the symmetric key file. This is the same operation as the <tt>keys <i>keyfile</i></tt> command.</dd>
+  <dt><tt>-l <i>logfile</i></tt></dt>
+  <dd>Specify the name and path of the log file. The default is the system log file. This is the same operation as the <tt>logfile <i>logfile</i></tt> command.</dd>
+  <dt id="--mdns"><tt>-m</tt></dt>
+  <dd>Once the system clock is synchronized, register with mDNS as an available server.</dd>
+  <dt id="--novirtualips"><tt>-L</tt></dt>
+  <dd>Do not listen to virtual interfaces, defined as those with names containing a colon. This option is deprecated. Please consider using the configuration file <a href="miscopt.html#interface">interface</a> command, which is more versatile.</dd>
+  <dt><tt>-M</tt></dt>
+  <dd>Raise scheduler precision to its maximum (1 ms) using timeBeginPeriod. (Windows only)</dd>
+  <dt><tt>-n</tt></dt>
+  <dd>Don't fork.</dd>
+  <dt><tt>-N</tt></dt>
+  <dd>To the extent permitted by the operating system, run the <tt>ntpd</tt> at the highest priority.</dd>
+  <dt><tt>-p <i>pidfile</i></tt></dt>
+  <dd>Specify the name and path of the file used to record the <tt>ntpd</tt> process ID. This is the same operation as the <tt>pidfile <i>pidfile</i></tt> command.</dd>
+  <dt><tt>-P <i>priority</i></tt></dt>
+  <dd>To the extent permitted by the operating system, run the <tt>ntpd</tt> at the specified priority.</dd>
+  <dt><tt>-q</tt></dt>
+  <dd>Exit the <tt>ntpd</tt> just after the first time the clock is set. This behavior mimics that of the <tt>ntpdate</tt> program, which is to be retired. The <tt>-g</tt> and <tt>-x</tt> options can be used with this option. Note: The kernel time discipline is disabled with this option.</dd>
+  <dt><tt>-r <i>broadcastdelay</i></tt></dt>
+  <dd>Specify the default propagation delay from the broadcast/multicast server to this client. This is necessary only if the delay cannot be computed automatically by the protocol.</dd>
+  <dt><tt>-s <i>statsdir</i></tt></dt>
+  <dd>Specify the directory path for files created by the statistics facility. This is the same operation as the <tt>statsdir <i>statsdir</i></tt> command.</dd>
+  <dt><tt>-t <i>key</i></tt></dt>
+  <dd>Add a key number to the trusted key list. This option can occur more than once. This is the same operation as the <tt>trustedkey <i>key</i></tt> command.</dd>
+  <dt><tt>-u <i>user[:group]</i> </tt></dt>
+  <dd>Specify a user, and optionally a group, to switch to. This option is only available if the OS supports running the server without full root privileges. Currently, this option is supported under NetBSD (configure with <tt>--enable-clockctl</tt>) and Linux (configure with --<tt>enable-linuxcaps</tt>).</dd>
+  <dt><tt>-U <i>interface update interval</i></tt></dt>
+  <dd>Number of seconds to wait between interface list scans to pick up old and delete network interface. Set to 0 to disable dynamic interface list updating. The default is to scan every 5 minutes.</dd>
+  <dt><tt>-v <i>variable</i></tt><br>
+    <tt>-V <i>variable</i></tt></dt>
+  <dd>Add a system variable listed by default.</dd>
+  <dt><tt>-x</tt></dt>
+  <dd>Normally, the time is slewed if the offset is less than the step threshold, which is 128 ms by default, and stepped if above the threshold. This option sets the threshold to 600 s, which is well within the accuracy window to set the clock manually. Note: Since the slew rate of typical Unix kernels is limited to 0.5 ms/s, each second of adjustment requires an amortization interval of 2000 s. Thus, an adjustment as much as 600 s will take almost 14 days to complete. This option can be used with the <tt>-g</tt> and <tt>-q</tt> options. See the <tt>tinker</tt> command for other options. Note: The kernel time discipline is disabled with this option.</dd>
+  <dt><tt>--pccfreq <i>frequency</i></tt></dt>
+  <dd>Substitute processor cycle counter for QueryPerformanceCounter unconditionally
+    using the given frequency (in Hz). <tt>--pccfreq</tt> can be used on systems
+    which do not use the PCC to implement QueryPerformanceCounter
+    and have a fixed PCC frequency. The frequency specified must
+    be accurate within 0.5 percent. <tt>--usepcc</tt> is equivalent on many systems and should
+    be tried first, as it does not require determining the frequency
+    of the processor cycle counter. For x86-compatible processors, the PCC is
+    also referred to as <tt>RDTSC</tt>, which is the assembly-language instruction to retrieve
+    the current value.&nbsp; (Windows only)</dd>
+  <dt><tt>--usepcc</tt></dt>
+  <dd>Substitute processor cycle counter for QueryPerformanceCounter if they
+    appear equivalent. This option should be used only if the PCC
+    frequency is fixed. Power-saving functionality on many laptops varies the
+    PCC frequency. (Windows only)</dd>
+</dl>
+<h4 id="cfg">The Configuration File</h4>
+<p>Ordinarily, <tt>ntpd</tt> reads the <tt>ntp.conf</tt> configuration file at startup in order to determine the synchronization sources and operating modes. It is also possible to specify a working, although limited, configuration entirely on the command line, obviating the need for a configuration file. This may be particularly useful when the local host is to be configured as a broadcast client, with servers determined by listening to broadcasts at run time.</p>
+<p>Usually, the configuration file is installed as<tt>/etc/ntp.conf</tt>, but could be installed elsewhere (see the <tt>-c <i>conffile</i></tt> command line option). The file format is similar to other Unix configuration files - comments begin with a <tt>#</tt> character and extend to the end of the line; blank lines are ignored.</p>
+<p>Configuration commands consist of an initial command keyword followed by a list of option keywords separated by whitespace. Commands may not be continued over multiple lines. Options may be host names, host addresses written in numeric, dotted-quad form, integers, floating point numbers (when specifying times in seconds) and text strings. Optional arguments are delimited by <tt>[ ]</tt> in the options pages, while alternatives are separated by <tt>|</tt>. The notation <tt>[ ... ]</tt> means an optional, indefinite repetition of the last item before the <tt>[ ... ]</tt>.</p>
+<h4 id="files">Files</h4>
+<table width="100%" border="1">
+  <tr>
+    <td width="30%">File</td>
+    <td width="30%">Default</td>
+    <td width="20%">Option</td>
+    <td width="20%">Option</td>
+  </tr>
+  <tr>
+    <td width="30%">configuration file</td>
+    <td width="30%"><tt>/etc/ntp.conf</tt></td>
+    <td width="20%"><tt>-c</tt></td>
+    <td width="20%"><tt>conffile</tt></td>
+  </tr>
+  <tr>
+    <td width="30%">frequency file</td>
+    <td width="30%">none</td>
+    <td width="20%"><tt>-f</tt></td>
+    <td width="20%"><tt>driftfile</tt></td>
+  </tr>
+  <tr>
+    <td width="30%">leapseconds file</td>
+    <td width="30%">none</td>
+    <td width="20%"></td>
+    <td width="20%"><tt>leapfile</tt></td>
+  </tr>
+  <tr>
+    <td width="30%">process ID file</td>
+    <td width="30%">none</td>
+    <td width="20%"><tt>-p</tt></td>
+    <td width="20%"><tt>pidfile</tt></td>
+  </tr>
+  <tr>
+    <td width="30%">log file</td>
+    <td width="30%">system log</td>
+    <td width="20%"><tt>-l</tt></td>
+    <td width="20%"><tt>logfile</tt></td>
+  </tr>
+  <tr>
+    <td width="30%">include file</td>
+    <td width="30%">none</td>
+    <td width="20%">none</td>
+    <td width="20%"><tt>includefile</tt></td>
+  </tr>
+  <tr>
+    <td width="30%">statistics path</td>
+    <td width="30%"><tt>/var/NTP</tt></td>
+    <td width="20%"><tt>-s</tt></td>
+    <td width="20%"><tt>statsdir</tt></td>
+  </tr>
+  <tr>
+    <td width="30%">keys path</td>
+    <td width="30%"><tt>/usr/local/etc</tt></td>
+    <td width="20%">none</td>
+    <td width="20%"><tt>keysdir</tt></td>
+  </tr>
+</table>
+<hr>
+<script type="text/javascript" language="javascript" src="scripts/footer.txt"></script>
+</body>
 </html>

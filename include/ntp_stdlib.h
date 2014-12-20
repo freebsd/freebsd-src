@@ -9,43 +9,34 @@
 #include <sys/socket.h>
 #endif
 
+#include "declcond.h"	/* ntpd uses ntpd/declcond.h, others include/ */
 #include "l_stdlib.h"
-#include "ntp_rfc2553.h"
-#include "ntp_types.h"
+#include "ntp_net.h"
+#include "ntp_debug.h"
 #include "ntp_malloc.h"
 #include "ntp_string.h"
-#include "ntp_net.h"
 #include "ntp_syslog.h"
 
-
-/*
- * Handle gcc __attribute__ if available.
- */
-#ifndef __attribute__
-/* This feature is available in gcc versions 2.5 and later.  */
-# if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 5) || (defined(__STRICT_ANSI__))
-#  define __attribute__(Spec) /* empty */
-# endif
-/* The __-protected variants of `format' and `printf' attributes
-   are accepted by gcc versions 2.6.4 (effectively 2.7) and later.  */
-# if __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 7)
-#  define __format__ format
-#  define __printf__ printf
-# endif
+#ifdef __GNUC__
+#define NTP_PRINTF(fmt, args) __attribute__((__format__(__printf__, fmt, args)))
+#else
+#define NTP_PRINTF(fmt, args)
 #endif
 
-extern	int	mprintf(const char *, ...)
-			__attribute__((__format__(__printf__, 1, 2)));
-extern	int	mfprintf(FILE *, const char *, ...)
-			__attribute__((__format__(__printf__, 2, 3)));
-extern	int	mvfprintf(FILE *, const char *, va_list)
-			__attribute__((__format__(__printf__, 2, 0)));
+extern	int	mprintf(const char *, ...) NTP_PRINTF(1, 2);
+extern	int	mfprintf(FILE *, const char *, ...) NTP_PRINTF(2, 3);
+extern	int	mvfprintf(FILE *, const char *, va_list) NTP_PRINTF(2, 0);
 extern	int	mvsnprintf(char *, size_t, const char *, va_list)
-			__attribute__((__format__(__printf__, 3, 0)));
+			NTP_PRINTF(3, 0);
 extern	int	msnprintf(char *, size_t, const char *, ...)
-			__attribute__((__format__(__printf__, 3, 4)));
-extern	void	msyslog(int, const char *, ...)
-				__attribute__((__format__(__printf__, 2, 3)));
+			NTP_PRINTF(3, 4);
+extern	void	msyslog(int, const char *, ...) NTP_PRINTF(2, 3);
+extern	void	init_logging	(const char *, u_int32, int);
+extern	int	change_logfile	(const char *, int);
+extern	void	setup_logfile	(const char *);
+#ifndef errno_to_str
+extern	void	errno_to_str(int, char *, size_t);
+#endif
 
 /*
  * When building without OpenSSL, use a few macros of theirs to
@@ -56,6 +47,19 @@ extern	void	msyslog(int, const char *, ...)
 /* from openssl/evp.h */
 #define EVP_MAX_MD_SIZE	64	/* longest known is SHA512 */
 #endif
+
+#define SAVE_ERRNO(stmt)				\
+	{						\
+		int preserved_errno;			\
+							\
+		preserved_errno = socket_errno();	\
+		{					\
+			stmt				\
+		}					\
+		errno = preserved_errno;		\
+	}
+
+typedef void (*ctrl_c_fn)(void);
 
 /* authkeys.c */
 extern	void	auth_delkeys	(void);
@@ -68,20 +72,31 @@ extern	int	authreadkeys	(const char *);
 extern	void	authtrust	(keyid_t, u_long);
 extern	int	authusekey	(keyid_t, int, const u_char *);
 
-extern	u_long	calyearstart	(u_long);
+/*
+ * Based on the NTP timestamp, calculate the NTP timestamp of
+ * the corresponding calendar unit. Use the pivot time to unfold
+ * the NTP timestamp properly, or the current system time if the
+ * pivot pointer is NULL.
+ */
+extern	u_int32	calyearstart	(u_int32 ntptime, const time_t *pivot);
+extern	u_int32	calmonthstart	(u_int32 ntptime, const time_t *pivot);
+extern	u_int32	calweekstart	(u_int32 ntptime, const time_t *pivot);
+extern	u_int32	caldaystart	(u_int32 ntptime, const time_t *pivot);
+
 extern	const char *clockname	(int);
-extern	int	clocktime	(int, int, int, int, int, u_long, u_long *, u_int32 *);
+extern	int	clocktime	(int, int, int, int, int, u_int32, u_long *, u_int32 *);
 extern	int	ntp_getopt	(int, char **, const char *);
 extern	void	init_auth	(void);
 extern	void	init_lib	(void);
 extern	struct savekey *auth_findkey (keyid_t);
-extern	int	auth_moremem	(void);
+extern	void	auth_moremem	(int);
+extern	void	auth_prealloc_symkeys(int);
 extern	int	ymd2yd		(int, int, int);
 
 /* a_md5encrypt.c */
 extern	int	MD5authdecrypt	(int, u_char *, u_int32 *, int, int);
 extern	int	MD5authencrypt	(int, u_char *, u_int32 *, int);
-extern	void	MD5auth_setkey	(keyid_t, int, const u_char *, const int);
+extern	void	MD5auth_setkey	(keyid_t, int, const u_char *, int);
 extern	u_int32	addr2refid	(sockaddr_u *);
 
 /* emalloc.c */
@@ -115,32 +130,37 @@ extern	int	atoint		(const char *, long *);
 extern	int	atouint		(const char *, u_long *);
 extern	int	hextoint	(const char *, u_long *);
 extern	char *	humanlogtime	(void);
-extern	char *	inttoa		(long);
-extern	char *	mfptoa		(u_long, u_long, short);
-extern	char *	mfptoms		(u_long, u_long, short);
+extern	char *	humantime	(time_t);
+extern	char *	mfptoa		(u_int32, u_int32, short);
+extern	char *	mfptoms		(u_int32, u_int32, short);
 extern	const char * modetoa	(int);
-extern  const char * eventstr	(int);
-extern  const char * ceventstr	(int);
+extern	const char * eventstr	(int);
+extern	const char * ceventstr	(int);
+extern	const char * res_match_flags(u_short);
+extern	const char * res_access_flags(u_short);
+#ifdef KERNEL_PLL
+extern	const char * k_st_flags	(u_int32);
+#endif
 extern	char *	statustoa	(int, int);
-extern  const char * sysstatstr (int);
-extern  const char * peerstatstr (int);
-extern  const char * clockstatstr (int);
 extern	sockaddr_u * netof	(sockaddr_u *);
 extern	char *	numtoa		(u_int32);
 extern	char *	numtohost	(u_int32);
-extern	char *	socktoa		(const sockaddr_u *);
-extern	char *	socktohost	(const sockaddr_u *);
+extern	const char * socktoa	(const sockaddr_u *);
+extern	const char * sockporttoa(const sockaddr_u *);
+extern	u_short	sock_hash	(const sockaddr_u *);
+extern	int	sockaddr_masktoprefixlen(const sockaddr_u *);
+extern	const char * socktohost	(const sockaddr_u *);
 extern	int	octtoint	(const char *, u_long *);
 extern	u_long	ranp2		(int);
-extern	char *	refnumtoa	(sockaddr_u *);
-extern	int	tsftomsu	(u_long, int);
-extern	char *	uinttoa		(u_long);
+extern	const char *refnumtoa	(sockaddr_u *);
+extern	const char *refid_str	(u_int32, int);
 
 extern	int	decodenetnum	(const char *, sockaddr_u *);
 
 extern	const char * FindConfig	(const char *);
 
 extern	void	signal_no_reset (int, RETSIGTYPE (*func)(int));
+extern	void	set_ctrl_c_hook (ctrl_c_fn);
 
 extern	void	getauthkeys 	(const char *);
 extern	void	auth_agekeys	(void);
@@ -149,11 +169,6 @@ extern	void	rereadkeys	(void);
 /*
  * Variable declarations for libntp.
  */
-
-/*
- * Defined by any program.
- */
-extern volatile int debug;		/* debugging flag */
 
 /* authkeys.c */
 extern u_long	authkeynotfound;	/* keys not found */
@@ -170,9 +185,10 @@ extern int	authnumfreekeys;
  * The key cache. We cache the last key we looked at here.
  */
 extern keyid_t	cache_keyid;		/* key identifier */
-extern u_char *	cache_key;		/* key pointer */
 extern int	cache_type;		/* key type */
-extern u_int	cache_keylen;		/* key length */
+extern u_char *	cache_secret;		/* secret */
+extern u_short	cache_secretsize;	/* secret octets */
+extern u_short	cache_flags;		/* KEY_ bit flags */
 
 /* getopt.c */
 extern char *	ntp_optarg;		/* global argument pointer */
@@ -203,6 +219,27 @@ extern	int	keytype_from_text	(const char *,	size_t *);
 extern	const char *keytype_name	(int);
 extern	char *	getpass_keytype		(int);
 
+/* strl-obsd.c */
+#ifndef HAVE_STRLCPY		/* + */
+/*
+ * Copy src to string dst of size siz.  At most siz-1 characters
+ * will be copied.  Always NUL terminates (unless siz == 0).
+ * Returns strlen(src); if retval >= siz, truncation occurred.
+ */
+extern	size_t	strlcpy(char *dst, const char *src, size_t siz);
+#endif
+#ifndef HAVE_STRLCAT		/* + */
+/*
+ * Appends src to string dst of size siz (unlike strncat, siz is the
+ * full size of dst, not space left).  At most siz-1 characters
+ * will be copied.  Always NUL terminates (unless siz <= strlen(dst)).
+ * Returns strlen(src) + MIN(siz, strlen(initial dst)).
+ * If retval >= siz, truncation occurred.
+ */
+extern	size_t	strlcat(char *dst, const char *src, size_t siz);
+#endif
+
+
 
 /* lib/isc/win32/strerror.c
  *
@@ -219,7 +256,10 @@ extern char *	ntp_strerror	(int e);
 #endif
 
 /* systime.c */
-extern double	sys_tick;		/* adjtime() resolution */
+extern double	sys_tick;		/* tick size or time to read */
+extern double	measured_tick;		/* non-overridable sys_tick */
+extern double	sys_fuzz;		/* min clock read latency */
+extern int	trunc_os_clock;		/* sys_tick > measured_tick */
 
 /* version.c */
 extern const char *Version;		/* version declaration */

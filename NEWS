@@ -1,3 +1,187 @@
+---
+NTP 4.2.8 (Harlan Stenn <stenn@ntp.org>, 2014/12/18) 
+ 
+Focus: Security and Bug fixes, enhancements.
+ 
+Severity: HIGH
+ 
+In addition to bug fixes and enhancements, this release fixes the
+following high-severity vulnerabilities:
+
+* Weak default key in config_auth().
+
+  References: [Sec 2665] / CVE-2014-9293 / VU#852879
+  CVSS: (AV:N/AC:L/Au:M/C:P/I:P/A:C) Base Score: 7.3
+  Vulnerable Versions: all releases prior to 4.2.7p11
+  Date Resolved: 28 Jan 2010
+
+  Summary: If no 'auth' key is set in the configuration file, ntpd
+	would generate a random key on the fly.  There were two
+	problems with this: 1) the generated key was 31 bits in size,
+	and 2) it used the (now weak) ntp_random() function, which was
+	seeded with a 32-bit value and could only provide 32 bits of
+	entropy.  This was sufficient back in the late 1990s when the
+	code was written.  Not today.
+
+  Mitigation: Upgrade to 4.2.7p11 or later.
+
+  Credit: This vulnerability was noticed in ntp-4.2.6 by Neel Mehta
+  	of the Google Security Team.
+
+* Non-cryptographic random number generator with weak seed used by
+  ntp-keygen to generate symmetric keys.
+
+  References: [Sec 2666] / CVE-2014-9294 / VU#852879
+  CVSS: (AV:N/AC:L/Au:M/C:P/I:P/A:C) Base Score: 7.3
+  Vulnerable Versions: All NTP4 releases before 4.2.7p230
+  Date Resolved: Dev (4.2.7p230) 01 Nov 2011
+
+  Summary: Prior to ntp-4.2.7p230 ntp-keygen used a weak seed to
+  	prepare a random number generator that was of good quality back
+	in the late 1990s. The random numbers produced was then used to
+	generate symmetric keys. In ntp-4.2.8 we use a current-technology
+	cryptographic random number generator, either RAND_bytes from
+	OpenSSL, or arc4random(). 
+
+  Mitigation: Upgrade to 4.2.7p230 or later.
+
+  Credit:  This vulnerability was discovered in ntp-4.2.6 by
+  	Stephen Roettger of the Google Security Team.
+
+* Buffer overflow in crypto_recv()
+
+  References: Sec 2667 / CVE-2014-9295 / VU#852879
+  CVSS: (AV:N/AC:L/Au:N/C:P/I:P/A:P) Base Score: 7.5
+  Versions: All releases before 4.2.8
+  Date Resolved: Stable (4.2.8) 18 Dec 2014
+
+  Summary: When Autokey Authentication is enabled (i.e. the ntp.conf
+  	file contains a 'crypto pw ...' directive) a remote attacker
+	can send a carefully crafted packet that can overflow a stack
+	buffer and potentially allow malicious code to be executed
+	with the privilege level of the ntpd process.
+
+  Mitigation: Upgrade to 4.2.8, or later, or
+	Disable Autokey Authentication by removing, or commenting out,
+	all configuration directives beginning with the crypto keyword
+	in your ntp.conf file. 
+
+  Credit: This vulnerability was discovered by Stephen Roettger of the
+  	Google Security Team. 
+
+* Buffer overflow in ctl_putdata()
+
+  References: Sec 2668 / CVE-2014-9295 / VU#852879
+  CVSS: (AV:N/AC:L/Au:N/C:P/I:P/A:P) Base Score: 7.5
+  Versions: All NTP4 releases before 4.2.8
+  Date Resolved: Stable (4.2.8) 18 Dec 2014
+
+  Summary: A remote attacker can send a carefully crafted packet that
+  	can overflow a stack buffer and potentially allow malicious
+	code to be executed with the privilege level of the ntpd process.
+
+  Mitigation: Upgrade to 4.2.8, or later.
+
+  Credit: This vulnerability was discovered by Stephen Roettger of the
+  	Google Security Team. 
+
+* Buffer overflow in configure()
+
+  References: Sec 2669 / CVE-2014-9295 / VU#852879
+  CVSS: (AV:N/AC:L/Au:N/C:P/I:P/A:P) Base Score: 7.5
+  Versions: All NTP4 releases before 4.2.8
+  Date Resolved: Stable (4.2.8) 18 Dec 2014
+
+  Summary: A remote attacker can send a carefully crafted packet that
+	can overflow a stack buffer and potentially allow malicious
+	code to be executed with the privilege level of the ntpd process.
+
+  Mitigation: Upgrade to 4.2.8, or later.
+
+  Credit: This vulnerability was discovered by Stephen Roettger of the
+	Google Security Team. 
+
+* receive(): missing return on error
+
+  References: Sec 2670 / CVE-2014-9296 / VU#852879
+  CVSS: (AV:N/AC:L/Au:N/C:N/I:N/A:P) Base Score: 5.0
+  Versions: All NTP4 releases before 4.2.8
+  Date Resolved: Stable (4.2.8) 18 Dec 2014
+
+  Summary: Code in ntp_proto.c:receive() was missing a 'return;' in
+  	the code path where an error was detected, which meant
+	processing did not stop when a specific rare error occurred.
+	We haven't found a way for this bug to affect system integrity.
+	If there is no way to affect system integrity the base CVSS
+	score for this bug is 0. If there is one avenue through which
+	system integrity can be partially affected, the base score
+	becomes a 5. If system integrity can be partially affected
+	via all three integrity metrics, the CVSS base score become 7.5.
+
+  Mitigation:
+        Upgrade to 4.2.8, or later,
+        or Remove or comment out all configuration directives
+	beginning with the crypto keyword in your ntp.conf file. 
+
+  Credit: This vulnerability was discovered by Stephen Roettger of the
+  	Google Security Team. 
+
+See http://support.ntp.org/security for more information.
+
+New features / changes in this release:
+
+Important Changes
+
+* Internal NTP Era counters
+
+The internal counters that track the "era" (range of years) we are in
+rolls over every 136 years'.  The current "era" started at the stroke of
+midnight on 1 Jan 1900, and ends just before the stroke of midnight on
+1 Jan 2036.
+In the past, we have used the "midpoint" of the  range to decide which
+era we were in.  Given the longevity of some products, it became clear
+that it would be more functional to "look back" less, and "look forward"
+more.  We now compile a timestamp into the ntpd executable and when we
+get a timestamp we us the "built-on" to tell us what era we are in.
+This check "looks back" 10 years, and "looks forward" 126 years.
+
+* ntpdc responses disabled by default
+
+Dave Hart writes:
+
+For a long time, ntpq and its mostly text-based mode 6 (control) 
+protocol have been preferred over ntpdc and its mode 7 (private 
+request) protocol for runtime queries and configuration.  There has 
+been a goal of deprecating ntpdc, previously held back by numerous 
+capabilities exposed by ntpdc with no ntpq equivalent.  I have been 
+adding commands to ntpq to cover these cases, and I believe I've 
+covered them all, though I've not compared command-by-command 
+recently. 
+
+As I've said previously, the binary mode 7 protocol involves a lot of 
+hand-rolled structure layout and byte-swapping code in both ntpd and 
+ntpdc which is hard to get right.  As ntpd grows and changes, the 
+changes are difficult to expose via ntpdc while maintaining forward 
+and backward compatibility between ntpdc and ntpd.  In contrast, 
+ntpq's text-based, label=value approach involves more code reuse and 
+allows compatible changes without extra work in most cases. 
+
+Mode 7 has always been defined as vendor/implementation-specific while 
+mode 6 is described in RFC 1305 and intended to be open to interoperate 
+with other implementations.  There is an early draft of an updated 
+mode 6 description that likely will join the other NTPv4 RFCs 
+eventually. (http://tools.ietf.org/html/draft-odonoghue-ntpv4-control-01)
+
+For these reasons, ntpd 4.2.7p230 by default disables processing of 
+ntpdc queries, reducing ntpd's attack surface and functionally 
+deprecating ntpdc.  If you are in the habit of using ntpdc for certain 
+operations, please try the ntpq equivalent.  If there's no equivalent, 
+please open a bug report at http://bugs.ntp.org./
+
+In addition to the above, over 1100 issues have been resolved between
+the 4.2.6 branch and 4.2.8.  The ChangeLog file in the distribution
+lists these.
+
 --- 
 NTP 4.2.6p5 (Harlan Stenn <stenn@ntp.org>, 2011/12/24) 
  

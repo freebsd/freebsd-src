@@ -51,8 +51,7 @@ decodenetnum(
 		else if (NULL != strchr(pp + 1, ':'))
 			cp = num;	/* two or more colons */
 		else {			/* one colon */
-			strncpy(name, num, sizeof(name));
-			name[sizeof(name) - 1] = '\0';
+			strlcpy(name, num, sizeof(name));
 			cp = name;
 			pp = strchr(cp, ':');
 			*pp = '\0';
@@ -74,6 +73,7 @@ decodenetnum(
 	if (err != 0)
 		return 0;
 	NTP_INSIST(ai->ai_addrlen <= sizeof(*netnum));
+	ZERO(*netnum);
 	memcpy(netnum, ai->ai_addr, ai->ai_addrlen);
 	freeaddrinfo(ai);
 	if (NULL == port_str || 1 != sscanf(port_str, "%hu", &port))

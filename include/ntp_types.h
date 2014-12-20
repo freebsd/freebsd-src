@@ -1,5 +1,10 @@
 /*
  *  ntp_types.h - defines how int32 and u_int32 are treated.
+ *
+ * New style: Make sure C99 fixed width integer types are available:
+ * intN_t and uintN_t
+
+ * Old style: defines how int32 and u_int32 are treated.
  *  For 64 bit systems like the DEC Alpha, they have to be defined
  *  as int and u_int.
  *  For 32 bit systems, define them as long and u_long
@@ -8,7 +13,14 @@
 #define NTP_TYPES_H
 
 #include <sys/types.h>
+#if defined(HAVE_INTTYPES_H)
+# include <inttypes.h>
+#elif defined(HAVE_STDINT_H)
+# include <stdint.h>
+#endif
+
 #include "ntp_machine.h"
+
 
 #ifndef TRUE
 # define	TRUE	1
@@ -33,7 +45,10 @@
  * used to quiet compiler warnings
  */
 #ifndef UNUSED_ARG
-#define UNUSED_ARG(arg)	((void)(arg))
+#define UNUSED_ARG(arg)		((void)(arg))
+#endif
+#ifndef UNUSED_LOCAL
+#define UNUSED_LOCAL(arg)	((void)(arg))
 #endif
 
 /*
@@ -48,15 +63,21 @@
 #if defined(VMS)
 #include <socket.h>
 typedef unsigned int u_int;
-/*
- * Note: VMS DECC has  long == int  (even on __alpha),
- *	 so the distinction below doesn't matter
- */
 #endif /* VMS */
 
-#if (SIZEOF_INT == 4)
-# ifndef int32
-#  define int32 int
+#ifdef HAVE_UINT32_T
+# ifndef HAVE_INT32
+   typedef	int32_t		int32;
+# endif
+# ifndef HAVE_U_INT32
+   typedef	uint32_t	u_int32;
+#  if defined(UINT32_MAX) && !defined(U_INT32_MAX)
+#   define U_INT32_MAX UINT32_MAX
+#  endif
+# endif
+#elif (SIZEOF_INT == 4)
+# if !defined(HAVE_INT32) && !defined(int32)
+   typedef	int		int32;
 #  ifndef INT32_MIN
 #   define INT32_MIN INT_MIN
 #  endif
@@ -64,16 +85,16 @@ typedef unsigned int u_int;
 #   define INT32_MAX INT_MAX
 #  endif
 # endif
-# ifndef u_int32
-#  define u_int32 unsigned int
-#  ifndef U_INT32_MAX
+# if !defined(HAVE_U_INT32) && !defined(u_int32)
+   typedef	unsigned	u_int32;
+#  if defined(UINT_MAX) && !defined(U_INT32_MAX)
 #   define U_INT32_MAX UINT_MAX
 #  endif
 # endif
-#else /* not sizeof(int) == 4 */
+#else	/* SIZEOF_INT != 4 */
 # if (SIZEOF_LONG == 4)
-#  ifndef int32
-#   define int32 long
+# if !defined(HAVE_INT32) && !defined(int32)
+    typedef	long		int32;
 #   ifndef INT32_MIN
 #    define INT32_MIN LONG_MIN
 #   endif
@@ -81,26 +102,152 @@ typedef unsigned int u_int;
 #    define INT32_MAX LONG_MAX
 #   endif
 #  endif
-#  ifndef u_int32
-#   define u_int32 unsigned long
-#   ifndef U_INT32_MAX
+# if !defined(HAVE_U_INT32) && !defined(u_int32)
+    typedef	unsigned long	u_int32;
+#   if defined(ULONG_MAX) && !defined(U_INT32_MAX)
 #    define U_INT32_MAX ULONG_MAX
 #   endif
 #  endif
-# else /* not sizeof(long) == 4 */
+# else	/* SIZEOF_LONG != 4 */
 #  include "Bletch: what's 32 bits on this machine?"
-# endif /* not sizeof(long) == 4 */
-#endif /* not sizeof(int) == 4 */
+# endif
+#endif	/* !HAVE_UINT32_T && SIZEOF_INT != 4 */
 
-typedef u_char		ntp_u_int8_t;
-typedef u_short		ntp_u_int16_t;
-typedef u_int32		ntp_u_int32_t;
+#ifndef U_INT32_MAX
+# define U_INT32_MAX	0xffffffff
+#endif
+
+
+/*
+ * Ugly dance to find out if we have 64bit integer type.
+ */
+#if !defined(HAVE_INT64)
+
+/* assume best for now, fix if frustrated later. */
+# define HAVE_INT64
+# define HAVE_U_INT64
+
+/* now check the cascade. Feel free to add things. */
+# ifdef INT64_MAX
+
+typedef int64_t int64;
+typedef uint64_t u_int64;
+
+# elif SIZEOF_LONG == 8
+
+typedef long int64;
+typedef unsigned long u_int64;
+
+# elif SIZEOF_LONG_LONG == 8
+
+typedef long long int64;
+typedef unsigned long long u_int64;
+
+# else
+
+/* no 64bit scalar, give it up. */
+#  undef HAVE_INT64
+#  undef HAVE_U_INT64
+
+# endif
+
+#endif
+
+/*
+ * and here the trouble starts: We need a representation with more than
+ * 64 bits. If a scalar of that size is not available, we need a struct
+ * that holds the value in split representation.
+ *
+ * To ease the usage a bit, we alwys use a union that is in processor
+ * byte order and might or might not contain a 64bit scalar.
+ */
+
+#if SIZEOF_SHORT != 2
+# error short is not 2 bytes -- what is 16 bit integer on this target?
+#endif
+
+typedef union {
+#   ifdef WORDS_BIGENDIAN
+	struct {
+		int16_t	hh; uint16_t hl; uint16_t lh; uint16_t ll;
+	} w_s;
+	struct {
+		uint16_t hh; uint16_t hl; uint16_t lh; uint16_t ll;
+	} W_s;
+	struct {
+		  int32 hi; u_int32 lo;
+	} d_s;
+	struct {
+		u_int32	hi; u_int32 lo;
+	} D_s;
+#   else
+	struct {
+		uint16_t ll; uint16_t lh; uint16_t hl;   int16_t hh;
+	} w_s;
+	struct {
+		uint16_t ll; uint16_t lh; uint16_t hl; uint16_t hh;
+	} W_s;
+	struct {
+		u_int32 lo;   int32 hi;
+	} d_s;
+	struct {
+		u_int32 lo; u_int32 hi;
+	} D_s;
+#   endif
+
+#   ifdef HAVE_INT64
+	int64	q_s;	/*   signed quad scalar */
+	u_int64 Q_s;	/* unsigned quad scalar */
+#   endif
+} vint64; /* variant int 64 */
+
+
+typedef uint8_t		ntp_u_int8_t;
+typedef uint16_t	ntp_u_int16_t;
+typedef uint32_t	ntp_u_int32_t;
 
 typedef struct ntp_uint64_t { u_int32 val[2]; } ntp_uint64_t;
 
-typedef unsigned short associd_t; /* association ID */
+typedef uint16_t	associd_t; /* association ID */
+#define ASSOCID_MAX	USHRT_MAX
 typedef u_int32 keyid_t;	/* cryptographic key ID */
+#define KEYID_T_MAX	(0xffffffff)
 typedef u_int32 tstamp_t;	/* NTP seconds timestamp */
+
+/*
+ * Cloning malloc()'s behavior of always returning pointers suitably
+ * aligned for the strictest alignment requirement of any type is not
+ * easy to do portably, as the maximum alignment required is not
+ * exposed.  Use the size of a union of the types known to represent the
+ * strictest alignment on some platform.
+ */
+typedef union max_alignment_tag {
+	double		d;
+} max_alignment;
+
+#define MAXALIGN		sizeof(max_alignment)
+#define ALIGN_UNITS(sz)		(((sz) + MAXALIGN - 1) / MAXALIGN)
+#define ALIGNED_SIZE(sz)	(MAXALIGN * ALIGN_UNITS(sz))
+#define INC_ALIGNED_PTR(b, m)	((void *)aligned_ptr((void *)(b), m))
+
+static inline
+max_alignment *
+aligned_ptr(
+	max_alignment *	base,
+	size_t		minsize
+	)
+{
+	return base + ALIGN_UNITS((minsize < 1) ? 1 : minsize);
+}
+
+/*
+ * Macro to use in otherwise-empty source files to comply with ANSI C
+ * requirement that each translation unit (source file) contain some
+ * declaration.  This has commonly been done by declaring an unused
+ * global variable of type int or char.  An extern reference to exit()
+ * serves the same purpose without bloat.
+ */
+#define	NONEMPTY_TRANSLATION_UNIT	extern void exit(int);
 
 /*
  * On Unix struct sock_timeval is equivalent to struct timeval.
@@ -121,10 +268,21 @@ typedef u_int32 tstamp_t;	/* NTP seconds timestamp */
  * instead of refclock_open(), tty_open() is equivalent to open() on
  * Unix and  implemented in the Windows port similarly to
  * refclock_open().
+ * Similarly, the termios emulation in the Windows code needs to know
+ * about serial ports being closed, while the Posix systems do not.
  */
 #ifndef SYS_WINNT
-#define tty_open(f, a, m)	open(f, a, m)
+# define tty_open(f, a, m)	open(f, a, m)
+# define closeserial(fd)	close(fd)
+# define closesocket(fd)	close(fd)
+typedef int SOCKET;
+# define INVALID_SOCKET		(-1)
+# define SOCKET_ERROR		(-1)
+# define socket_errno()		(errno)
+#else	/* SYS_WINNT follows */
+# define socket_errno()		(errno = WSAGetLastError())
 #endif
+
 
 
 #endif	/* NTP_TYPES_H */

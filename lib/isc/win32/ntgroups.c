@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2006, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ntgroups.c,v 1.10 2007/06/19 23:47:19 tbox Exp $ */
+/* $Id: ntgroups.c,v 1.12 2009/09/29 23:48:04 tbox Exp $ */
 
 /*
  * The NT Groups have two groups that are not well documented and are
@@ -63,28 +63,28 @@ isc_ntsecurity_getaccountgroups(char *username, char **GroupList,
 	DWORD dwTotalEntries = 0;
 	NET_API_STATUS nStatus;
 	DWORD dwTotalCount = 0;
-	int retlen;
+	size_t retlen;
 	wchar_t user[MAX_NAME_LENGTH];
 
 	retlen = mbstowcs(user, username, MAX_NAME_LENGTH);
 
 	*totalGroups = 0;
 	/*
-	 * Call the NetUserGetLocalGroups function 
+	 * Call the NetUserGetLocalGroups function
 	 * specifying information level 0.
 	 *
-	 * The LG_INCLUDE_INDIRECT flag specifies that the 
-	 * function should also return the names of the local 
+	 * The LG_INCLUDE_INDIRECT flag specifies that the
+	 * function should also return the names of the local
 	 * groups in which the user is indirectly a member.
 	 */
 	nStatus = NetUserGetLocalGroups(NULL,
-                                   user,
-                                   dwLevel,
-                                   dwFlags,
-                                   (LPBYTE *) &pBuf,
-                                   dwPrefMaxLen,
-                                   &dwEntriesRead,
-                                   &dwTotalEntries);
+				   user,
+				   dwLevel,
+				   dwFlags,
+				   (LPBYTE *) &pBuf,
+				   dwPrefMaxLen,
+				   &dwEntriesRead,
+				   &dwTotalEntries);
 	/*
 	 * See if the call succeeds,
 	 */
@@ -103,7 +103,7 @@ isc_ntsecurity_getaccountgroups(char *username, char **GroupList,
 		/*
 		 * Loop through the entries
 		 */
-	         for (i = 0;
+		 for (i = 0;
 		     (i < dwEntriesRead && *totalGroups < maxgroups); i++) {
 			assert(pTmpLBuf != NULL);
 			if (pTmpLBuf == NULL)
@@ -127,17 +127,17 @@ isc_ntsecurity_getaccountgroups(char *username, char **GroupList,
 	if (pBuf != NULL)
 		NetApiBufferFree(pBuf);
 
-   
+
 	/*
 	 * Call the NetUserGetGroups function, specifying level 0.
 	 */
 	nStatus = NetUserGetGroups(NULL,
-                              user,
-                              dwLevel,
-                              (LPBYTE*)&pgrpBuf,
-                              dwPrefMaxLen,
-                              &dwEntriesRead,
-                              &dwTotalEntries);
+			      user,
+			      dwLevel,
+			      (LPBYTE*)&pgrpBuf,
+			      dwPrefMaxLen,
+			      &dwEntriesRead,
+			      &dwTotalEntries);
 	/*
 	 * See if the call succeeds,
 	 */
@@ -149,13 +149,13 @@ isc_ntsecurity_getaccountgroups(char *username, char **GroupList,
 		if (nStatus == NERR_UserNotFound)
 			dwEntriesRead = 0;
 	}
- 
+
 	if (pgrpBuf != NULL) {
 		pTmpBuf = pgrpBuf;
 		/*
 		 * Loop through the entries
 		 */
-	         for (i = 0;
+		 for (i = 0;
 		     (i < dwEntriesRead && *totalGroups < maxgroups); i++) {
 			assert(pTmpBuf != NULL);
 

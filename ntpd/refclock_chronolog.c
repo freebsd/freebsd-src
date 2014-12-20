@@ -109,18 +109,18 @@ chronolog_start(
 	if (debug)
 		printf ("starting Chronolog with device %s\n",device);
 #endif
-	if (!(fd = refclock_open(device, SPEED232, 0)))
+	fd = refclock_open(device, SPEED232, 0);
+	if (fd <= 0)
 		return (0);
 
 	/*
 	 * Allocate and initialize unit structure
 	 */
-	up = emalloc(sizeof(*up));
-	memset(up, 0, sizeof(*up));
+	up = emalloc_zero(sizeof(*up));
 	pp = peer->procptr;
-	pp->unitptr = (caddr_t)up;
+	pp->unitptr = up;
 	pp->io.clock_recv = chronolog_receive;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
@@ -154,7 +154,7 @@ chronolog_shutdown(
 	struct refclockproc *pp;
 
 	pp = peer->procptr;
-	up = (struct chronolog_unit *)pp->unitptr;
+	up = pp->unitptr;
 	if (-1 != pp->io.fd)
 		io_closeclock(&pp->io);
 	if (NULL != up)
@@ -184,9 +184,9 @@ chronolog_receive(
 	/*
 	 * Initialize pointers and read the timecode and timestamp
 	 */
-	peer = (struct peer *)rbufp->recv_srcclock;
+	peer = rbufp->recv_peer;
 	pp = peer->procptr;
-	up = (struct chronolog_unit *)pp->unitptr;
+	up = pp->unitptr;
 	temp = refclock_gtlin(rbufp, pp->a_lastcode, BMAX, &trtmp);
 
 	if (temp == 0) {
@@ -297,7 +297,7 @@ chronolog_receive(
 	pp->lastref = pp->lastrec;
 	refclock_receive(peer);
 	record_clock_stats(&peer->srcadr, pp->a_lastcode);
-	up->lasthour = pp->hour;
+	up->lasthour = (u_char)pp->hour;
 }
 
 
@@ -324,7 +324,7 @@ chronolog_poll(
 	char pollchar;
 
 	pp = peer->procptr;
-	up = (struct chronolog_unit *)pp->unitptr;
+	up = pp->unitptr;
 	if (peer->burst == 0 && peer->reach == 0)
 		refclock_report(peer, CEVNT_TIMEOUT);
 	if (up->linect > 0)

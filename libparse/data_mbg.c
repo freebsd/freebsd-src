@@ -33,6 +33,7 @@
  *
  */
 
+#include <config.h>
 #ifdef PARSESTREAM
 #define NEED_BOPS
 #include "ntp_string.h"
@@ -176,7 +177,7 @@ get_mbg_tzname(
 	char *tznamep
 	)
 {
-  strncpy(tznamep, (char *)*buffpp, sizeof(TZ_NAME));
+  strlcpy(tznamep, (char *)*buffpp, sizeof(TZ_NAME));
   *buffpp += sizeof(TZ_NAME);
 }
 
@@ -241,10 +242,10 @@ mbg_time_status_str(
 			{
 				if (p != *buffpp)
 				{
-					strncpy(p, ", ", size - (p - start));
+					strlcpy(p, ", ", size - (p - start));
 					p += 2;
 				}
-				strncpy(p, s->string, size - (p - start));
+				strlcpy(p, s->string, size - (p - start));
 				p += strlen(p);
 			}
 		}

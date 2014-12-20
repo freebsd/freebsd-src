@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2010-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sockaddr.c,v 1.70 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -182,6 +182,9 @@ isc_sockaddr_format(const isc_sockaddr_t *sa, char *array, unsigned int size) {
 	isc_result_t result;
 	isc_buffer_t buf;
 
+	if (size == 0U)
+		return;
+
 	isc_buffer_init(&buf, array, size);
 	result = isc_sockaddr_totext(sa, &buf);
 	if (result != ISC_R_SUCCESS) {
@@ -217,7 +220,7 @@ isc_sockaddr_hash(const isc_sockaddr_t *sockaddr, isc_boolean_t address_only) {
 	case AF_INET6:
 		in6 = &sockaddr->type.sin6.sin6_addr;
 		if (IN6_IS_ADDR_V4MAPPED(in6)) {
-			s = (const unsigned char *)&in6[12];
+			s = (const unsigned char *)&in6 + 12;
 			length = sizeof(sockaddr->type.sin.sin_addr.s_addr);
 		} else {
 			s = (const unsigned char *)in6;
@@ -390,8 +393,8 @@ isc_sockaddr_fromnetaddr(isc_sockaddr_t *sockaddr, const isc_netaddr_t *na,
 #endif
 		sockaddr->type.sin6.sin6_port = htons(port);
 		break;
-        default:
-                INSIST(0);
+	default:
+		INSIST(0);
 	}
 	ISC_LINK_INIT(sockaddr, link);
 }

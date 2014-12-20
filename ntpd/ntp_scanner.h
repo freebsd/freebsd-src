@@ -11,6 +11,8 @@
 #ifndef NTP_SCANNER_H
 #define NTP_SCANNER_H
 
+#include "ntp_config.h"
+
 /*
  * ntp.conf syntax is slightly irregular in that some tokens such as
  * hostnames do not require quoting even if they might otherwise be
@@ -103,10 +105,8 @@ struct FILE_INFO {
 /* SCANNER GLOBAL VARIABLES 
  * ------------------------
  */
-extern struct config_tree cfgt;	  /* Parser output stored here */
+extern config_tree cfgt;	  /* Parser output stored here */
 extern int curr_include_level;    /* The current include level */
-
-extern struct FILE_INFO *ip_file; /* Pointer to the configuration file stream */
 
 /* VARIOUS EXTERNAL DECLARATIONS
  * -----------------------------
@@ -120,13 +120,11 @@ extern struct FILE_INFO *fp[];
  */
 extern const char *keyword(int token);
 extern char *quote_if_needed(char *str);
-int yylex(void);
+int yylex(struct FILE_INFO *);
 
 struct FILE_INFO *F_OPEN(const char *path, const char *mode);
 int FGETC(struct FILE_INFO *stream);
 int UNGETC(int ch, struct FILE_INFO *stream);
 int FCLOSE(struct FILE_INFO *stream);
-
-void push_back_char(int ch);
 
 #endif	/* NTP_SCANNER_H */

@@ -176,19 +176,19 @@ audio_config_read(
 
 		if (!strncmp(cc, "IDEV", 4) &&
 		    1 == sscanf(ca, "%99s", ab)) {
-			strncpy(cf_i_dev, ab, sizeof(cf_i_dev));
+			strlcpy(cf_i_dev, ab, sizeof(cf_i_dev));
 			printf("idev <%s>\n", ab);
 		} else if (!strncmp(cc, "CDEV", 4) &&
 			   1 == sscanf(ca, "%99s", ab)) {
-			strncpy(cf_c_dev, ab, sizeof(cf_c_dev));
+			strlcpy(cf_c_dev, ab, sizeof(cf_c_dev));
 			printf("cdev <%s>\n", ab);
 		} else if (!strncmp(cc, "AGC", 3) &&
 			   1 == sscanf(ca, "%99s", ab)) {
-			strncpy(cf_agc, ab, sizeof(cf_agc));
+			strlcpy(cf_agc, ab, sizeof(cf_agc));
 			printf("agc <%s> %d\n", ab, i);
 		} else if (!strncmp(cc, "MONITOR", 7) &&
 			   1 == sscanf(ca, "%99s", ab)) {
-			strncpy(cf_monitor, ab, sizeof(cf_monitor));
+			strlcpy(cf_monitor, ab, sizeof(cf_monitor));
 			printf("monitor <%s> %d\n", ab, mixer_name(ab, -1));
 		}
 	}
@@ -251,7 +251,7 @@ audio_init(
 	 */
 	fd = open(dname, O_RDWR | O_NONBLOCK, 0777);
 	if (fd < 0) {
-		msyslog(LOG_ERR, "audio_init: %s %m\n", dname);
+		msyslog(LOG_ERR, "audio_init: %s %m", dname);
 		return (fd);
 	}
 
@@ -260,7 +260,7 @@ audio_init(
 	 */
 	ctl_fd = open(actl, O_RDWR);
 	if (ctl_fd < 0) {
-		msyslog(LOG_ERR, "audio_init: invalid control device <%s>\n",
+		msyslog(LOG_ERR, "audio_init: invalid control device <%s>",
 		    actl);
 		close(fd);
 		return(ctl_fd);
@@ -319,7 +319,8 @@ audio_init(
 	if (cf_agc[0] != '\0') {
 		int i;
 
-		i = mixer_name(cf_agc, devmask);
+		/* recmask */
+		i = mixer_name(cf_agc, recmask);
 		if (i >= 0)
 			agc = MIXER_WRITE(i);
 		else
@@ -348,7 +349,7 @@ audio_init(
 # endif /* HAVE_SYS_AUDIOIO_H */
 	rval = ioctl(ctl_fd, (int)AUDIO_SETINFO, (char *)&info);
 	if (rval < 0) {
-		msyslog(LOG_ERR, "audio: invalid control device parameters\n");
+		msyslog(LOG_ERR, "audio: invalid control device parameters");
 		close(ctl_fd);
 		close(fd);
 		return(rval);

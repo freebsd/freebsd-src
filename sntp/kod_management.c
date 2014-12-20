@@ -7,7 +7,8 @@
 #include "log.h"
 #include "sntp-opts.h"
 #include "ntp_stdlib.h"
-//#define DEBUG
+#include "ntp_worker.h"
+#include "ntp_debug.h"
 
 int kod_init = 0, kod_db_cnt = 0;
 const char *kod_db_file;
@@ -18,10 +19,10 @@ struct kod_entry **kod_db;	/* array of pointers to kod_entry */
  * Search for a KOD entry
  */
 int
-search_entry (
-		char *hostname,
-		struct kod_entry **dst
-	     )
+search_entry(
+	const char *hostname,
+	struct kod_entry **dst
+	)
 {
 	register int a, b, resc = 0;
 
@@ -49,20 +50,18 @@ search_entry (
 
 void
 add_entry(
-	char *hostname,
-	char *type	/* 4 bytes not \0 terminated */
+	const char *	hostname,
+	const char *	type	/* 4 bytes not \0 terminated */
 	)
 {
 	int n;
 	struct kod_entry *pke;
 
-	pke = emalloc(sizeof(*pke));
+	pke = emalloc_zero(sizeof(*pke));
 	pke->timestamp = time(NULL);
 	memcpy(pke->type, type, 4);
 	pke->type[sizeof(pke->type) - 1] = '\0';
-	strncpy(pke->hostname, hostname,
-		sizeof(pke->hostname));
-	pke->hostname[sizeof(pke->hostname) - 1] = '\0';
+	strlcpy(pke->hostname, hostname, sizeof(pke->hostname));
 
 	/*
 	 * insert in address ("hostname") order to find duplicates
@@ -89,11 +88,11 @@ add_entry(
 
 void
 delete_entry(
-	char *hostname,
-	char *type
+	const char *	hostname,
+	const char *	type
 	)
 {
-	register int a;
+	int a;
 
 	for (a = 0; a < kod_db_cnt; a++)
 		if (!strcmp(kod_db[a]->hostname, hostname)
@@ -113,6 +112,17 @@ delete_entry(
 
 
 void
+atexit_write_kod_db(void)
+{
+#ifdef WORK_FORK
+	if (worker_process)
+		return;
+#endif
+	write_kod_db();
+}
+
+
+int
 write_kod_db(void)
 {
 	FILE *db_s;
@@ -133,7 +143,12 @@ write_kod_db(void)
 		pch = strchr(kod_db_file + 1, DIR_SEP);
 		while (NULL != pch) {
 			*pch = '\0';
-			mkdir(kod_db_file, dirmode);
+			if (-1 == mkdir(kod_db_file, dirmode)
+			    && errno != EEXIST) {
+				msyslog(LOG_ERR, "mkdir(%s) failed: %m",
+					kod_db_file);
+				return FALSE;
+			}
 			*pch = DIR_SEP;
 			pch = strchr(pch + 1, DIR_SEP);
 		}
@@ -141,10 +156,10 @@ write_kod_db(void)
 	}
 
 	if (NULL == db_s) {
-		msyslog(LOG_WARNING, "Can't open KOD db file %s for writing!",
+		msyslog(LOG_WARNING, "Can't open KOD db file %s for writing: %m",
 			kod_db_file);
 
-		return;
+		return FALSE;
 	}
 
 	for (a = 0; a < kod_db_cnt; a++) {
@@ -155,12 +170,15 @@ write_kod_db(void)
 
 	fflush(db_s);
 	fclose(db_s);
+
+	return TRUE;
 }
 
 
 void
 kod_init_kod_db(
-	const char *db_file
+	const char *	db_file,
+	int		readonly
 	)
 {
 	/*
@@ -174,25 +192,20 @@ kod_init_kod_db(
 	char *str_ptr;
 	char error = 0;
 
-	atexit(write_kod_db);
-
-#ifdef DEBUG
-	printf("Initializing KOD DB...\n");
-#endif
+	TRACE(2, ("Initializing KOD DB...\n"));
 
 	kod_db_file = estrdup(db_file);
-
 
 	db_s = fopen(db_file, "r");
 
 	if (NULL == db_s) {
-		msyslog(LOG_WARNING, "kod_init_kod_db(): Cannot open KoD db file %s",
+		msyslog(LOG_WARNING, "kod_init_kod_db(): Cannot open KoD db file %s: %m",
 			db_file);
 
 		return;
 	}
 
-	if (ENABLED_OPT(NORMALVERBOSE))
+	if (debug)
 		printf("Starting to read KoD file %s...\n", db_file);
 	/* First let's see how many entries there are and check for right syntax */
 
@@ -225,16 +238,11 @@ kod_init_kod_db(
 	}
 
 	if (0 == kod_db_cnt) {
-#ifdef DEBUG
-		printf("KoD DB %s empty.\n", db_file);
-#endif
-		fclose(db_s);
-		return;
+		TRACE(2, ("KoD DB %s empty.\n", db_file));
+		goto wrapup;
 	}
 
-#ifdef DEBUG
-	printf("KoD DB %s contains %d entries, reading...\n", db_file, kod_db_cnt);
-#endif
+	TRACE(2, ("KoD DB %s contains %d entries, reading...\n", db_file, kod_db_cnt));
 
 	rewind(db_s);
 
@@ -280,12 +288,14 @@ kod_init_kod_db(
 		return;
 	}
 
+    wrapup:
 	fclose(db_s);
-#ifdef DEBUG
 	for (a = 0; a < kod_db_cnt; a++)
-		printf("KoD entry %d: %s at %llx type %s\n", a,
-		       kod_db[a]->hostname,
-		       (unsigned long long)kod_db[a]->timestamp,
-		       kod_db[a]->type);
-#endif
+		TRACE(2, ("KoD entry %d: %s at %llx type %s\n", a,
+			  kod_db[a]->hostname,
+			  (unsigned long long)kod_db[a]->timestamp,
+			  kod_db[a]->type));
+
+	if (!readonly && write_kod_db())
+		atexit(&atexit_write_kod_db);
 }

@@ -131,20 +131,20 @@ struct neoclock4x_unit {
   int   utc_msec;
 };
 
-static	int	neoclock4x_start        (int, struct peer *);
+static	int	neoclock4x_start	(int, struct peer *);
 static	void	neoclock4x_shutdown	(int, struct peer *);
 static	void	neoclock4x_receive	(struct recvbuf *);
 static	void	neoclock4x_poll		(int, struct peer *);
-static	void	neoclock4x_control      (int, struct refclockstat *, struct refclockstat *, struct peer *);
+static	void	neoclock4x_control	(int, const struct refclockstat *, struct refclockstat *, struct peer *);
 
-static int      neol_atoi_len           (const char str[], int *, int);
-static int      neol_hexatoi_len        (const char str[], int *, int);
-static void     neol_jdn_to_ymd         (unsigned long, int *, int *, int *);
-static void     neol_localtime          (unsigned long, int* , int*, int*, int*, int*, int*);
-static unsigned long neol_mktime        (int, int, int, int, int, int);
+static int	neol_atoi_len		(const char str[], int *, int);
+static int	neol_hexatoi_len	(const char str[], int *, int);
+static void	neol_jdn_to_ymd		(unsigned long, int *, int *, int *);
+static void	neol_localtime		(unsigned long, int* , int*, int*, int*, int*, int*);
+static unsigned long neol_mktime	(int, int, int, int, int, int);
 #if !defined(NEOCLOCK4X_FIRMWARE)
-static int      neol_query_firmware     (int, int, char *, int);
-static int      neol_check_firmware     (int, const char*, char *);
+static int	neol_query_firmware	(int, int, char *, int);
+static int	neol_check_firmware	(int, const char*, char *);
 #endif
 
 struct refclock refclock_neoclock4x = {
@@ -294,9 +294,9 @@ neoclock4x_start(int unit,
   memset((char *)up, 0, sizeof(struct neoclock4x_unit));
   pp = peer->procptr;
   pp->clockdesc = "NeoClock4X";
-  pp->unitptr = (caddr_t)up;
+  pp->unitptr = up;
   pp->io.clock_recv = neoclock4x_receive;
-  pp->io.srcclock = (caddr_t)peer;
+  pp->io.srcclock = peer;
   pp->io.datalen = 0;
   pp->io.fd = fd;
   /*
@@ -312,15 +312,14 @@ neoclock4x_start(int unit,
    * Initialize miscellaneous variables
    */
   peer->precision = -10;
-  peer->burst = NSTAGE;
   memcpy((char *)&pp->refid, "neol", 4);
 
   up->leap_status = 0;
   up->unit = unit;
-  strcpy(up->firmware, "?");
+  strlcpy(up->firmware, "?", sizeof(up->firmware));
   up->firmwaretag = '?';
-  strcpy(up->serial, "?");
-  strcpy(up->radiosignal, "?");
+  strlcpy(up->serial, "?", sizeof(up->serial));
+  strlcpy(up->radiosignal, "?", sizeof(up->radiosignal));
   up->timesource  = '?';
   up->dststatus   = '?';
   up->quarzstatus = '?';
@@ -336,7 +335,8 @@ neoclock4x_start(int unit,
 
 #if defined(NEOCLOCK4X_FIRMWARE)
 #if NEOCLOCK4X_FIRMWARE == NEOCLOCK4X_FIRMWARE_VERSION_A
-  strcpy(up->firmware, "(c) 2002 NEOL S.A. FRANCE / L0.01 NDF:A:* (compile time)");
+  strlcpy(up->firmware, "(c) 2002 NEOL S.A. FRANCE / L0.01 NDF:A:* (compile time)",
+	  sizeof(up->firmware));
   up->firmwaretag = 'A';
 #else
   msyslog(LOG_EMERG, "NeoClock4X(%d): unknown firmware defined at compile time for NeoClock4X",
@@ -400,7 +400,7 @@ neoclock4x_shutdown(int unit,
       pp = peer->procptr;
       if(pp != NULL)
         {
-          up = (struct neoclock4x_unit *)pp->unitptr;
+          up = pp->unitptr;
           if(up != NULL)
             {
               if(-1 !=  pp->io.fd)
@@ -454,9 +454,9 @@ neoclock4x_receive(struct recvbuf *rbufp)
   unsigned char calc_chksum;
   int recv_chksum;
 
-  peer = (struct peer *)rbufp->recv_srcclock;
+  peer = rbufp->recv_peer;
   pp = peer->procptr;
-  up = (struct neoclock4x_unit *)pp->unitptr;
+  up = pp->unitptr;
 
   /* wait till poll interval is reached */
   if(0 == up->recvnow)
@@ -663,7 +663,7 @@ neoclock4x_poll(int unit,
   struct refclockproc *pp;
 
   pp = peer->procptr;
-  up = (struct neoclock4x_unit *)pp->unitptr;
+  up = pp->unitptr;
 
   pp->polls++;
   up->recvnow = 1;
@@ -671,7 +671,7 @@ neoclock4x_poll(int unit,
 
 static void
 neoclock4x_control(int unit,
-		   struct refclockstat *in,
+		   const struct refclockstat *in,
 		   struct refclockstat *out,
 		   struct peer *peer)
 {
@@ -691,7 +691,7 @@ neoclock4x_control(int unit,
       return;
     }
 
-  up = (struct neoclock4x_unit *)pp->unitptr;
+  up = pp->unitptr;
   if(NULL == up)
     {
       msyslog(LOG_ERR, "NeoClock4X(%d): control: unit invalid/inactive", unit);
@@ -931,20 +931,20 @@ neol_query_firmware(int fd,
 	  if(read_errors > 5)
 	    {
 	      msyslog(LOG_ERR, "NeoClock4X(%d): can't read firmware version (timeout)", unit);
-	      strcpy(tmpbuf, "unknown due to timeout");
+	      strlcpy(tmpbuf, "unknown due to timeout", sizeof(tmpbuf));
 	      break;
 	    }
           if(chars_read > 500)
             {
 	      msyslog(LOG_ERR, "NeoClock4X(%d): can't read firmware version (garbage)", unit);
-	      strcpy(tmpbuf, "unknown due to garbage input");
+	      strlcpy(tmpbuf, "unknown due to garbage input", sizeof(tmpbuf));
 	      break;
             }
 	  if(-1 == read(fd, &c, 1))
 	    {
               if(EAGAIN != errno)
                 {
-                  msyslog(LOG_DEBUG, "NeoClock4x(%d): read: %s", unit ,strerror(errno));
+                  msyslog(LOG_DEBUG, "NeoClock4x(%d): read: %m", unit);
                   read_errors++;
                 }
               else
@@ -963,7 +963,7 @@ neol_query_firmware(int fd,
 	      if(0xA9 != c) /* wait for (c) char in input stream */
 		continue;
 
-	      strcpy(tmpbuf, "(c)");
+	      strlcpy(tmpbuf, "(c)", sizeof(tmpbuf));
 	      len = 3;
 	      init = 0;
 	      continue;
@@ -1008,10 +1008,10 @@ neol_query_firmware(int fd,
   else
     {
       msyslog(LOG_ERR, "NeoClock4X(%d): can't query firmware version", unit);
-      strcpy(tmpbuf, "unknown error");
+      strlcpy(tmpbuf, "unknown error", sizeof(tmpbuf));
     }
-  strncpy(firmware, tmpbuf, maxlen);
-  firmware[maxlen] = '\0';
+  if (strlcpy(firmware, tmpbuf, maxlen) >= maxlen)
+    strlcpy(firmware, "buffer too small", maxlen);
 
   if(flag)
     {

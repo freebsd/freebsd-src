@@ -1,0 +1,70 @@
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "instsrv", "Instsrv.vcproj", "{EAA8D0C8-A8AF-4C40-BF14-4A94570DE033}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libntp", "libntp.vcproj", "{ECDDC7EE-5805-4603-B38D-804C09BDC910}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ntpd", "ntpd.vcproj", "{F6F7E7C0-AE5E-4D7C-A17E-A3043FE68664}"
+	ProjectSection(ProjectDependencies) = postProject
+		{ECDDC7EE-5805-4603-B38D-804C09BDC910} = {ECDDC7EE-5805-4603-B38D-804C09BDC910}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ntpdate", "ntpdate.vcproj", "{9BF928B1-8A1A-4A0D-BE6D-38EDAD29F416}"
+	ProjectSection(ProjectDependencies) = postProject
+		{ECDDC7EE-5805-4603-B38D-804C09BDC910} = {ECDDC7EE-5805-4603-B38D-804C09BDC910}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ntpdc", "ntpdc.vcproj", "{C82634BB-AC80-4796-B2AF-2903C665ED17}"
+	ProjectSection(ProjectDependencies) = postProject
+		{ECDDC7EE-5805-4603-B38D-804C09BDC910} = {ECDDC7EE-5805-4603-B38D-804C09BDC910}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ntpkeygen", "ntpkeygen.vcproj", "{9B768B99-2BC8-4A4C-AC0D-A7DA9C695825}"
+	ProjectSection(ProjectDependencies) = postProject
+		{ECDDC7EE-5805-4603-B38D-804C09BDC910} = {ECDDC7EE-5805-4603-B38D-804C09BDC910}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ntpq", "ntpq.vcproj", "{EA10E04E-946B-44A6-B0AB-B5B93A160744}"
+	ProjectSection(ProjectDependencies) = postProject
+		{ECDDC7EE-5805-4603-B38D-804C09BDC910} = {ECDDC7EE-5805-4603-B38D-804C09BDC910}
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EAA8D0C8-A8AF-4C40-BF14-4A94570DE033}.Debug|Win32.ActiveCfg = Debug|Win32
+		{EAA8D0C8-A8AF-4C40-BF14-4A94570DE033}.Debug|Win32.Build.0 = Debug|Win32
+		{EAA8D0C8-A8AF-4C40-BF14-4A94570DE033}.Release|Win32.ActiveCfg = Release|Win32
+		{EAA8D0C8-A8AF-4C40-BF14-4A94570DE033}.Release|Win32.Build.0 = Release|Win32
+		{ECDDC7EE-5805-4603-B38D-804C09BDC910}.Debug|Win32.ActiveCfg = Debug|Win32
+		{ECDDC7EE-5805-4603-B38D-804C09BDC910}.Debug|Win32.Build.0 = Debug|Win32
+		{ECDDC7EE-5805-4603-B38D-804C09BDC910}.Release|Win32.ActiveCfg = Release|Win32
+		{ECDDC7EE-5805-4603-B38D-804C09BDC910}.Release|Win32.Build.0 = Release|Win32
+		{F6F7E7C0-AE5E-4D7C-A17E-A3043FE68664}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F6F7E7C0-AE5E-4D7C-A17E-A3043FE68664}.Debug|Win32.Build.0 = Debug|Win32
+		{F6F7E7C0-AE5E-4D7C-A17E-A3043FE68664}.Release|Win32.ActiveCfg = Release|Win32
+		{F6F7E7C0-AE5E-4D7C-A17E-A3043FE68664}.Release|Win32.Build.0 = Release|Win32
+		{9BF928B1-8A1A-4A0D-BE6D-38EDAD29F416}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9BF928B1-8A1A-4A0D-BE6D-38EDAD29F416}.Debug|Win32.Build.0 = Debug|Win32
+		{9BF928B1-8A1A-4A0D-BE6D-38EDAD29F416}.Release|Win32.ActiveCfg = Release|Win32
+		{9BF928B1-8A1A-4A0D-BE6D-38EDAD29F416}.Release|Win32.Build.0 = Release|Win32
+		{C82634BB-AC80-4796-B2AF-2903C665ED17}.Debug|Win32.ActiveCfg = Debug|Win32
+		{C82634BB-AC80-4796-B2AF-2903C665ED17}.Debug|Win32.Build.0 = Debug|Win32
+		{C82634BB-AC80-4796-B2AF-2903C665ED17}.Release|Win32.ActiveCfg = Release|Win32
+		{C82634BB-AC80-4796-B2AF-2903C665ED17}.Release|Win32.Build.0 = Release|Win32
+		{9B768B99-2BC8-4A4C-AC0D-A7DA9C695825}.Debug|Win32.ActiveCfg = Debug|Win32
+		{9B768B99-2BC8-4A4C-AC0D-A7DA9C695825}.Debug|Win32.Build.0 = Debug|Win32
+		{9B768B99-2BC8-4A4C-AC0D-A7DA9C695825}.Release|Win32.ActiveCfg = Release|Win32
+		{9B768B99-2BC8-4A4C-AC0D-A7DA9C695825}.Release|Win32.Build.0 = Release|Win32
+		{EA10E04E-946B-44A6-B0AB-B5B93A160744}.Debug|Win32.ActiveCfg = Debug|Win32
+		{EA10E04E-946B-44A6-B0AB-B5B93A160744}.Debug|Win32.Build.0 = Debug|Win32
+		{EA10E04E-946B-44A6-B0AB-B5B93A160744}.Release|Win32.ActiveCfg = Release|Win32
+		{EA10E04E-946B-44A6-B0AB-B5B93A160744}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -121,18 +121,17 @@ dumbclock_start(
 		printf ("starting Dumbclock with device %s\n",device);
 #endif
 	fd = refclock_open(device, SPEED232, 0);
-	if (!fd)
+	if (fd <= 0)
 		return (0);
 
 	/*
 	 * Allocate and initialize unit structure
 	 */
-	up = emalloc(sizeof(*up));
-	memset(up, 0, sizeof(*up));
+	up = emalloc_zero(sizeof(*up));
 	pp = peer->procptr;
-	pp->unitptr = (caddr_t)up;
+	pp->unitptr = up;
 	pp->io.clock_recv = dumbclock_receive;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
@@ -178,7 +177,7 @@ dumbclock_shutdown(
 	struct refclockproc *pp;
 
 	pp = peer->procptr;
-	up = (struct dumbclock_unit *)pp->unitptr;
+	up = pp->unitptr;
 	if (-1 != pp->io.fd)
 		io_closeclock(&pp->io);
 	if (NULL != up)
@@ -208,9 +207,9 @@ dumbclock_receive(
 	/*
 	 * Initialize pointers and read the timecode and timestamp
 	 */
-	peer = (struct peer *)rbufp->recv_srcclock;
+	peer = rbufp->recv_peer;
 	pp = peer->procptr;
-	up = (struct dumbclock_unit *)pp->unitptr;
+	up = pp->unitptr;
 	temp = refclock_gtlin(rbufp, pp->a_lastcode, BMAX, &trtmp);
 
 	if (temp == 0) {
@@ -364,7 +363,7 @@ dumbclock_poll(
 	 */
 #if 0
 	pp = peer->procptr;
-	up = (struct dumbclock_unit *)pp->unitptr;
+	up = pp->unitptr;
 	if (peer->reach == 0)
 		refclock_report(peer, CEVNT_TIMEOUT);
 	if (up->linect > 0)

@@ -24,14 +24,6 @@
 #include "sntp-opts.h"	
 #include "utilities.h"
 
-/* 
- * for 4.2.6 only define AUTOKEY if OPENSSL, so that backported 4.2.7
- * references to AUTOKEY work -- in 4.2.7 AUTOKEY is independent of OPENSSL
- */
-#ifdef OPENSSL
-#define AUTOKEY
-#endif
-
 /* FIXME To be replaced by the constants in ntp.h */
 #define SERVER_UNUSEABLE -1 /* Skip server */
 #define PACKET_UNUSEABLE -2 /* Discard packet and try to get a useable packet again if not tried too often */
@@ -40,25 +32,14 @@
 #define KOD_RATE -5	    /* KOD packet with code RATE, reduce poll intervall */
 #define BROADCAST_FAILED -6
 
-
-/* From ntpdate.c */
-int is_reachable (struct addrinfo *dst);
-
-int resolve_hosts (const char **hosts, int hostc, struct addrinfo ***res, int pref_family);
-
-void create_socket (SOCKET *rsock, sockaddr_u *dest);
-
-void sendpkt (SOCKET rsock, sockaddr_u *dest, struct pkt *pkt, int len);
-
-int recvdata (SOCKET rsock, sockaddr_u *sender, char *rdata, int rdata_len);
-
-int recvpkt (SOCKET rsock, struct pkt *rpkt, unsigned int rsize, struct pkt *spkt);
-
-int recv_bcst_data (SOCKET rsock, char *rdata, int rdata_len, sockaddr_u *sas, sockaddr_u *ras);
-
-int recv_bcst_pkt (SOCKET rsock, struct pkt *rpkt, unsigned int rsize, sockaddr_u *sas);
-
-int process_pkt (struct pkt *rpkt, sockaddr_u *sas,	int pkt_len, int mode, struct pkt *spkt, char * func_name);
+/* prototypes */
+int sendpkt(SOCKET rsock, sockaddr_u *dest, struct pkt *pkt, int len);
+int recvdata(SOCKET rsock, sockaddr_u *sender, void *rdata,
+	     int rdata_len);
+int recvpkt(SOCKET rsock, struct pkt *rpkt, unsigned int rsize,
+	    struct pkt *spkt);
+int process_pkt(struct pkt *rpkt, sockaddr_u *sas, int pkt_len,
+		int mode, struct pkt *spkt, const char *func_name);
 
 /* Shortened peer structure. Not absolutely necessary yet */
 struct speer {

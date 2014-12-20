@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,17 +15,25 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: task_p.h,v 1.11 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id$ */
 
 #ifndef ISC_TASK_P_H
 #define ISC_TASK_P_H
 
 /*! \file */
 
+#if defined(BIND9) && defined(ISC_PLATFORM_USETHREADS)
+void
+isc__taskmgr_pause(isc_taskmgr_t *taskmgr);
+
+void
+isc__taskmgr_resume(isc_taskmgr_t *taskmgr);
+#else
 isc_boolean_t
-isc__taskmgr_ready(void);
+isc__taskmgr_ready(isc_taskmgr_t *taskmgr);
 
 isc_result_t
-isc__taskmgr_dispatch(void);
+isc__taskmgr_dispatch(isc_taskmgr_t *taskmgr);
+#endif /* !BIND9 || !ISC_PLATFORM_USETHREADS */
 
 #endif /* ISC_TASK_P_H */

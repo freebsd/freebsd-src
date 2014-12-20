@@ -197,7 +197,7 @@ typedef struct {
 /* by the user. The status field can be checked to see which corrections */
 /* have been applied. */
 
-#ifndef _TM_DEFINED
+#ifndef GPS166_TM_DEFINED
   typedef struct {
     short year;          /* 0..9999 */
     char month;          /* 1..12 */
@@ -221,7 +221,7 @@ typedef struct {
 #  define TM_LS_ANN     0x10   /* leap second will be inserted */
 #  define TM_LS_ENB     0x20   /* current second is leap second */
 
-#  define _TM_DEFINED
+#  define GPS166_TM_DEFINED
 #endif
 
 

@@ -1,12 +1,14 @@
 /*
  * caltontp - convert a date to an NTP time
  */
+#include <config.h>
 #include <sys/types.h>
 
 #include "ntp_types.h"
 #include "ntp_calendar.h"
 #include "ntp_stdlib.h"
 #include "ntp_assert.h"
+#include "ntp_unixtime.h"
 
 /*
  * Juergen Perlinger, 2008-11-12
@@ -29,15 +31,15 @@
  * *not* necessarily reproduce the input, especially if the time spec is more
  * than 68 years off from the current time...
  */
-u_long
+
+uint32_t
 caltontp(
 	const struct calendar *jt
 	)
 {
-	ntp_u_int32_t days;	/* full days in NTP epoch */
-	ntp_u_int32_t years;	/* complete ACE years before date */
-	ntp_u_int32_t month;	/* adjusted month for calendar */
-	
+	int32_t eraday;	/* CE Rata Die number	*/
+	vint64  ntptime;/* resulting NTP time	*/
+
 	NTP_INSIST(jt != NULL);
 
 	NTP_REQUIRE(jt->month <= 13);	/* permit month 0..13! */
@@ -48,58 +50,19 @@ caltontp(
 	NTP_REQUIRE(jt->second <= SECSPERMIN);
 
 	/*
-	 * First convert the date to fully elapsed days since NTP epoch. The
-	 * expressions used here give us initially days since 0001-01-01, the
-	 * beginning of the christian era in the proleptic gregorian calendar;
-	 * they are rebased on-the-fly into days since beginning of the NTP
-	 * epoch, 1900-01-01.
+	 * First convert the date to he corresponding RataDie
+	 * number. If yearday is not zero, assume that it contains a
+	 * useable value and avoid all calculations involving month
+	 * and day-of-month. Do a full evaluation otherwise.
 	 */
-	if (jt->yearday) {
-		/*
-		 * Assume that the day-of-year contains a useable value and
-		 * avoid all calculations involving month and day-of-month.
-		 */
-		years = jt->year - 1;
-		days  = years * DAYSPERYEAR	/* days in previous years */
-		      + years / 4		/* plus prior years's leap days */
-		      - years / 100		/* minus leapless century years */
-		      + years / 400		/* plus leapful Gregorian yrs */
-		      + jt->yearday		/* days this year */
-		      - DAY_NTP_STARTS;		/* rebase to NTP epoch */
-	} else {
-		/*
-		 * The following code is according to the excellent book
-		 * 'Calendrical Calculations' by Nachum Dershowitz and Edward
-		 * Reingold. It does a full calendar evaluation, using one of
-		 * the alternate algorithms: Shift to a hypothetical year
-		 * starting on the previous march,1st; merge years, month and
-		 * days; undo the the 9 month shift (which is 306 days). The
-		 * advantage is that we do NOT need to now whether a year is a
-		 * leap year or not, because the leap day is the LAST day of
-		 * the year.
-		 */
-		month  = (ntp_u_int32_t)jt->month + 9;
-		years  = jt->year - 1 + month / 12;
-		month %= 12;
-		days   = years * DAYSPERYEAR	/* days in previous years */
-		       + years / 4		/* plus prior years's leap days */
-		       - years / 100		/* minus leapless century years */
-		       + years / 400		/* plus leapful Gregorian yrs */
-		       + (month * 153 + 2) / 5	/* plus days before month */
-		       + jt->monthday		/* plus day-of-month */
-		       - 306			/* minus 9 months */
-		       - DAY_NTP_STARTS;	/* rebase to NTP epoch */
-	}
+	if (jt->yearday)
+		eraday = ntpcal_year_to_ystart(jt->year)
+		       + jt->yearday - 1;
+	else
+		eraday = ntpcal_date_to_rd(jt);
 
-	/*
-	 * Do the obvious: Merge everything together, making sure integer
-	 * promotion doesn't play dirty tricks on us; there is probably some
-	 * redundancy in the casts, but this drives it home with force. All
-	 * arithmetic is done modulo 2**32, because the result is truncated
-	 * anyway.
-	 */
-	return               days       * SECSPERDAY
-	    + (ntp_u_int32_t)jt->hour   * MINSPERHR*SECSPERMIN
-	    + (ntp_u_int32_t)jt->minute * SECSPERMIN
-	    + (ntp_u_int32_t)jt->second;
+	ntptime = ntpcal_dayjoin(eraday - DAY_NTP_STARTS,
+				 ntpcal_etime_to_seconds(jt->hour, jt->minute,
+							 jt->second));
+	return ntptime.d_s.lo;
 }

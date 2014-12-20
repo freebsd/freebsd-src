@@ -1,2 +1,0 @@
-#assert (version-compare >= autogen-version "5.11.9")
-guard-option-names;

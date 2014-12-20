@@ -12,6 +12,9 @@
 
     <body link="#00008B" vlink="#8B0000">
         <h4>VxWorks port of NTP</h4>
+<p>Last update:
+  <!-- #BeginDate format:En2m -->21-Oct-2010  23:44<!-- #EndDate -->
+  UTC</p>
         <p>Creating a port for vxWorks posed some problems. This port may help as a starting point for similar ports to real-time OS's and other embeddable kernels, particularly where <tt>main()</tt> is not allowed, and where the configure scripts need to be altered.</p>
         <h4>Configuration issues</h4>
         <p>I decided to do as little invasive surgery as possible on the NTP code, so I brought the vxWorks header tree in line with the standard Unix tree. The following changes were needed, as a side effect these changes will allow for easy porting of other autoconfigure enabled code.</p>

@@ -4,7 +4,7 @@ $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 	@[ -w $@ ] ||							\
 		chmod ug+w $@
 	@cmp $(top_srcdir)/deps-ver $@ > /dev/null || (			\
-		$(MAKE) clean &&					\
+		$(MAKE) $(AM_MAKEFLAGS) clean &&					\
 		echo -n "Prior $(subdir)/$(DEPDIR) version " &&		\
 		cat $@ &&						\
 		rm -rf $(DEPDIR) &&					\
@@ -13,17 +13,10 @@ $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 		 .)							\
 		    ./config.status Makefile depfiles			\
 		    ;;							\
-		 ..)							\
-			cd .. &&					\
-			./config.status $(subdir)/Makefile depfiles &&	\
-			cd $(subdir)					\
-		    ;;							\
 		 *)							\
-		    echo 'Fatal: depsver.mf Automake fragment limited'	\
-			 'to immediate subdirectories.'	&&		\
-		    echo "top_builddir:	$(top_builddir)" &&		\
-		    echo "subdir:	$(subdir)" &&			\
-		    exit 1						\
+		    cd "$(top_builddir)" &&				\
+		    ./config.status $(subdir)/Makefile depfiles &&	\
+		    cd $(subdir)					\
 		    ;;							\
 		esac &&							\
 		echo -n "Cleaned $(subdir)/$(DEPDIR) version " &&	\
@@ -32,7 +25,7 @@ $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 	cp $(top_srcdir)/deps-ver $@
 
 .deps-ver: $(top_srcdir)/deps-ver
-	@[ ! -d $(DEPDIR) ] || $(MAKE) $(DEPDIR)/deps-ver
+	@[ ! -d $(DEPDIR) ] || $(MAKE) $(AM_MAKEFLAGS) $(DEPDIR)/deps-ver
 	@touch $@
 
 BUILT_SOURCES += .deps-ver
