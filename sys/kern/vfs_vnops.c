@@ -1579,7 +1579,7 @@ vn_closefile(fp, td)
 static int
 vn_start_write_locked(struct mount *mp, int flags)
 {
-	int error;
+	int error, mflags;
 
 	mtx_assert(MNT_MTX(mp), MA_OWNED);
 	error = 0;
@@ -1589,13 +1589,15 @@ vn_start_write_locked(struct mount *mp, int flags)
 	 */
 	if ((curthread->td_pflags & TDP_IGNSUSP) == 0 ||
 	    mp->mnt_susp_owner != curthread) {
+		mflags = ((mp->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0 ?
+		    (flags & PCATCH) : 0) | (PUSER - 1);
 		while ((mp->mnt_kern_flag & MNTK_SUSPEND) != 0) {
 			if (flags & V_NOWAIT) {
 				error = EWOULDBLOCK;
 				goto unlock;
 			}
-			error = msleep(&mp->mnt_flag, MNT_MTX(mp),
-			    (PUSER - 1) | (flags & PCATCH), "suspfs", 0);
+			error = msleep(&mp->mnt_flag, MNT_MTX(mp), mflags,
+			    "suspfs", 0);
 			if (error)
 				goto unlock;
 		}
@@ -1705,8 +1707,9 @@ vn_start_secondary_write(vp, mpp, flags)
 	/*
 	 * Wait for the suspension to finish.
 	 */
-	error = msleep(&mp->mnt_flag, MNT_MTX(mp),
-		       (PUSER - 1) | (flags & PCATCH) | PDROP, "suspfs", 0);
+	error = msleep(&mp->mnt_flag, MNT_MTX(mp), (PUSER - 1) | PDROP |
+	    ((mp->mnt_vfc->vfc_flags & VFCF_SBDRY) != 0 ? (flags & PCATCH) : 0),
+	    "suspfs", 0);
 	vfs_rel(mp);
 	if (error == 0)
 		goto retry;
