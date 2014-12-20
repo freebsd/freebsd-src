@@ -19,6 +19,125 @@ You have another version of autoconf.  It may work, but is not guaranteed to.
 If you have problems, you may need to regenerate the build system entirely.
 To do so, use the procedure documented by the package, typically `autoreconf'.])])
 
+# serial 9  -*- Autoconf -*-
+# Enable extensions on systems that normally disable them.
+
+# Copyright (C) 2003, 2006-2010 Free Software Foundation, Inc.
+# This file is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# This definition of AC_USE_SYSTEM_EXTENSIONS is stolen from CVS
+# Autoconf.  Perhaps we can remove this once we can assume Autoconf
+# 2.62 or later everywhere, but since CVS Autoconf mutates rapidly
+# enough in this area it's likely we'll need to redefine
+# AC_USE_SYSTEM_EXTENSIONS for quite some time.
+
+# If autoconf reports a warning
+#     warning: AC_COMPILE_IFELSE was called before AC_USE_SYSTEM_EXTENSIONS
+# or  warning: AC_RUN_IFELSE was called before AC_USE_SYSTEM_EXTENSIONS
+# the fix is
+#   1) to ensure that AC_USE_SYSTEM_EXTENSIONS is never directly invoked
+#      but always AC_REQUIREd,
+#   2) to ensure that for each occurrence of
+#        AC_REQUIRE([AC_USE_SYSTEM_EXTENSIONS])
+#      or
+#        AC_REQUIRE([gl_USE_SYSTEM_EXTENSIONS])
+#      the corresponding gnulib module description has 'extensions' among
+#      its dependencies. This will ensure that the gl_USE_SYSTEM_EXTENSIONS
+#      invocation occurs in gl_EARLY, not in gl_INIT.
+
+# AC_USE_SYSTEM_EXTENSIONS
+# ------------------------
+# Enable extensions on systems that normally disable them,
+# typically due to standards-conformance issues.
+# Remember that #undef in AH_VERBATIM gets replaced with #define by
+# AC_DEFINE.  The goal here is to define all known feature-enabling
+# macros, then, if reports of conflicts are made, disable macros that
+# cause problems on some platforms (such as __EXTENSIONS__).
+AC_DEFUN_ONCE([AC_USE_SYSTEM_EXTENSIONS],
+[AC_BEFORE([$0], [AC_COMPILE_IFELSE])dnl
+AC_BEFORE([$0], [AC_RUN_IFELSE])dnl
+
+  AC_REQUIRE([AC_CANONICAL_HOST])
+
+  AC_CHECK_HEADER([minix/config.h], [MINIX=yes], [MINIX=])
+  if test "$MINIX" = yes; then
+    AC_DEFINE([_POSIX_SOURCE], [1],
+      [Define to 1 if you need to in order for `stat' and other
+       things to work.])
+    AC_DEFINE([_POSIX_1_SOURCE], [2],
+      [Define to 2 if the system does not provide POSIX.1 features
+       except with this defined.])
+    AC_DEFINE([_MINIX], [1],
+      [Define to 1 if on MINIX.])
+  fi
+
+  dnl HP-UX 11.11 defines mbstate_t only if _XOPEN_SOURCE is defined to 500,
+  dnl regardless of whether the flags -Ae or _D_HPUX_SOURCE=1 are already
+  dnl provided.
+  case "$host_os" in
+    hpux*)
+      AC_DEFINE([_XOPEN_SOURCE], [500],
+        [Define to 500 only on HP-UX.])
+      ;;
+  esac
+
+  AH_VERBATIM([__EXTENSIONS__],
+[/* Enable extensions on AIX 3, Interix.  */
+#ifndef _ALL_SOURCE
+# undef _ALL_SOURCE
+#endif
+/* Enable GNU extensions on systems that have them.  */
+#ifndef _GNU_SOURCE
+# undef _GNU_SOURCE
+#endif
+/* Enable threading extensions on Solaris.  */
+#ifndef _POSIX_PTHREAD_SEMANTICS
+# undef _POSIX_PTHREAD_SEMANTICS
+#endif
+/* Enable extensions on HP NonStop.  */
+#ifndef _TANDEM_SOURCE
+# undef _TANDEM_SOURCE
+#endif
+/* Enable general extensions on Solaris.  */
+#ifndef __EXTENSIONS__
+# undef __EXTENSIONS__
+#endif
+])
+  AC_CACHE_CHECK([whether it is safe to define __EXTENSIONS__],
+    [ac_cv_safe_to_define___extensions__],
+    [AC_COMPILE_IFELSE(
+       [AC_LANG_PROGRAM([[
+#         define __EXTENSIONS__ 1
+          ]AC_INCLUDES_DEFAULT])],
+       [ac_cv_safe_to_define___extensions__=yes],
+       [ac_cv_safe_to_define___extensions__=no])])
+  test $ac_cv_safe_to_define___extensions__ = yes &&
+    AC_DEFINE([__EXTENSIONS__])
+  AC_DEFINE([_ALL_SOURCE])
+  AC_DEFINE([_GNU_SOURCE])
+  AC_DEFINE([_POSIX_PTHREAD_SEMANTICS])
+  AC_DEFINE([_TANDEM_SOURCE])
+])# AC_USE_SYSTEM_EXTENSIONS
+
+# gl_USE_SYSTEM_EXTENSIONS
+# ------------------------
+# Enable extensions on systems that normally disable them,
+# typically due to standards-conformance issues.
+AC_DEFUN_ONCE([gl_USE_SYSTEM_EXTENSIONS],
+[
+  dnl Require this macro before AC_USE_SYSTEM_EXTENSIONS.
+  dnl gnulib does not need it. But if it gets required by third-party macros
+  dnl after AC_USE_SYSTEM_EXTENSIONS is required, autoconf 2.62..2.63 emit a
+  dnl warning: "AC_COMPILE_IFELSE was called before AC_USE_SYSTEM_EXTENSIONS".
+  dnl Note: We can do this only for one of the macros AC_AIX, AC_GNU_SOURCE,
+  dnl AC_MINIX. If people still use AC_AIX or AC_MINIX, they are out of luck.
+  AC_REQUIRE([AC_GNU_SOURCE])
+
+  AC_REQUIRE([AC_USE_SYSTEM_EXTENSIONS])
+])
+
 # Copyright (C) 2002, 2003, 2005, 2006, 2007, 2008  Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
@@ -841,6 +960,33 @@ Check your system clock])
 fi
 AC_MSG_RESULT(yes)])
 
+# Copyright (C) 2009  Free Software Foundation, Inc.
+#
+# This file is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# serial 1
+
+# AM_SILENT_RULES([DEFAULT])
+# --------------------------
+# Enable less verbose build rules; with the default set to DEFAULT
+# (`yes' being less verbose, `no' or empty being verbose).
+AC_DEFUN([AM_SILENT_RULES],
+[AC_ARG_ENABLE([silent-rules],
+[  --enable-silent-rules          less verbose build output (undo: `make V=1')
+  --disable-silent-rules         verbose build output (undo: `make V=0')])
+case $enable_silent_rules in
+yes) AM_DEFAULT_VERBOSITY=0;;
+no)  AM_DEFAULT_VERBOSITY=1;;
+*)   AM_DEFAULT_VERBOSITY=m4_if([$1], [yes], [0], [1]);;
+esac
+AC_SUBST([AM_DEFAULT_VERBOSITY])dnl
+AM_BACKSLASH='\'
+AC_SUBST([AM_BACKSLASH])dnl
+_AM_SUBST_NOTMAKE([AM_BACKSLASH])dnl
+])
+
 # Copyright (C) 2001, 2003, 2005  Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
@@ -985,12 +1131,33 @@ AC_SUBST([am__untar])
 ]) # _AM_PROG_TAR
 
 m4_include([libopts/m4/libopts.m4])
-m4_include([../m4/libtool.m4])
-m4_include([../m4/ltoptions.m4])
-m4_include([../m4/ltsugar.m4])
-m4_include([../m4/ltversion.m4])
-m4_include([../m4/lt~obsolete.m4])
-m4_include([../m4/ntp_cacheversion.m4])
-m4_include([../m4/ntp_dir_sep.m4])
-m4_include([../m4/ntp_lib_m.m4])
-m4_include([../m4/ntp_openssl.m4])
+m4_include([libopts/m4/stdnoreturn.m4])
+m4_include([libevent/m4/openldap-thread-check.m4])
+m4_include([libevent/m4/openldap.m4])
+m4_include([m4/hms_search_lib.m4])
+m4_include([m4/libtool.m4])
+m4_include([m4/ltoptions.m4])
+m4_include([m4/ltsugar.m4])
+m4_include([m4/ltversion.m4])
+m4_include([m4/lt~obsolete.m4])
+m4_include([m4/ntp_cacheversion.m4])
+m4_include([m4/ntp_compiler.m4])
+m4_include([m4/ntp_crosscompile.m4])
+m4_include([m4/ntp_debug.m4])
+m4_include([m4/ntp_dir_sep.m4])
+m4_include([m4/ntp_facilitynames.m4])
+m4_include([m4/ntp_googletest.m4])
+m4_include([m4/ntp_ipv6.m4])
+m4_include([m4/ntp_lib_m.m4])
+m4_include([m4/ntp_libevent.m4])
+m4_include([m4/ntp_libntp.m4])
+m4_include([m4/ntp_lineeditlibs.m4])
+m4_include([m4/ntp_locinfo.m4])
+m4_include([m4/ntp_openssl.m4])
+m4_include([m4/ntp_pkg_config.m4])
+m4_include([m4/ntp_prog_cc.m4])
+m4_include([m4/ntp_sntp.m4])
+m4_include([m4/ntp_sysexits.m4])
+m4_include([m4/ntp_ver_suffix.m4])
+m4_include([m4/os_cflags.m4])
+m4_include([m4/snprintf.m4])

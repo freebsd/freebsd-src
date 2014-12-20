@@ -64,4 +64,4 @@ extern	int showhostnames;
 extern	int s_port;
 
 extern	int	doquery	(int, int, int, int, int, char *, int *, int *, char **, int, int);
-extern	char *	nntohost	(sockaddr_u *);
+extern	const char * nntohost	(sockaddr_u *);

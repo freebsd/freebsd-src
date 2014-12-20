@@ -1,33 +1,25 @@
 /*
+ * ntp_machine.h
+ *
  * Collect all machine dependent idiosyncrasies in one place.
+ *
+ * The functionality formerly in this file is mostly handled by
+ * Autoconf these days.
  */
 
 #ifndef NTP_MACHINE_H
 #define NTP_MACHINE_H
 
-#ifdef HAVE_CONFIG_H
-# include <config.h>
-#endif
-
-#ifdef TIME_WITH_SYS_TIME
+#ifdef HAVE_SYS_TIME_H
 # include <sys/time.h>
-# include <time.h>
-#else
-# ifdef HAVE_SYS_TIME_H
-#  include <sys/time.h>
-# else
-#  include <time.h>
-# endif
 #endif
+#include <time.h>
 
 #include "ntp_proto.h"
 
 /*
 
 			 HEY!  CHECK THIS OUT!
-
-  The first half of this file is obsolete, and is only there to help
-  reconcile "what went before" with "current behavior".
 
   The per-system SYS_* #defins ARE NO LONGER USED, with the temporary
   exception of SYS_WINNT.
@@ -39,13 +31,6 @@
 */
 
 /*
-
-INFO ON NEW KERNEL PLL SYS CALLS
-
-  NTP_SYSCALLS_STD	- use the "normal" ones
-  NTP_SYSCALL_GET	- SYS_ntp_gettime id
-  NTP_SYSCALL_ADJ	- SYS_ntp_adjtime id
-  NTP_SYSCALLS_LIBC - ntp_adjtime() and ntp_gettime() are in libc.
 
 HOW TO GET IP INTERFACE INFORMATION
 
@@ -80,168 +65,7 @@ MISC
   LOCK_PROCESS		- Have plock.
 */
 
-#if !defined(HAVE_NTP_ADJTIME) && defined(HAVE___ADJTIMEX)
-# define ntp_adjtime __adjtimex
-#endif
-
-#if 0
-
-/*
- * IRIX 4.X and IRIX 5.x
- */
-#if defined(SYS_IRIX4)||defined(SYS_IRIX5)
-# define ADJTIME_IS_ACCURATE
-# define LOCK_PROCESS
-#endif
-
-/*
- * Ultrix
- * Note: posix version has NTP_POSIX_SOURCE and HAVE_SIGNALED_IO
- */
-#if defined(SYS_ULTRIX)
-# define S_CHAR_DEFINED
-# define NTP_SYSCALLS_STD
-# define HAVE_MODEM_CONTROL
-#endif
-
-/*
- * AUX
- */
-#if defined(SYS_AUX2) || defined(SYS_AUX3)
-# define NO_SIGNED_CHAR_DECL
-# define LOCK_PROCESS
-# define NTP_POSIX_SOURCE
-/*
- * This requires that _POSIX_SOURCE be forced on the
- * compiler command flag. We can't do it here since this
- * file is included _after_ the system header files and we
- * need to let _them_ know we're POSIX. We do this in
- * compilers/aux3.gcc...
- */
-# define LOG_NTP LOG_LOCAL1
-#endif
-
-/*
- * HPUX
- */
-#if defined(SYS_HPUX)
-# define getdtablesize() sysconf(_SC_OPEN_MAX)
-# define setlinebuf(f) setvbuf(f, NULL, _IOLBF, 0)
-# define NO_SIGNED_CHAR_DECL
-# define LOCK_PROCESS
-#endif
-
-/*
- * BSD/OS 2.0 and above
- */
-#if defined(SYS_BSDI)
-# define USE_FSETOWNCTTY	/* this funny system demands a CTTY for FSETOWN */
-#endif
-
-/*
- * FreeBSD 2.0 and above
- */
-#ifdef SYS_FREEBSD
-# define KERNEL_PLL
-#endif
-
-/*
- * Linux
- */
-#if defined(SYS_LINUX)
-# define ntp_adjtime __adjtimex
-#endif
-
-/*
- * PTX
- */
-#if defined(SYS_PTX)
-# define LOCK_PROCESS
-struct timezone { int __0; };	/* unused placebo */
-/*
- * no comment !@!
- */
-typedef unsigned int u_int;
-# ifndef	_NETINET_IN_SYSTM_INCLUDED	/* i am about to comment... */
-typedef unsigned char u_char;
-typedef unsigned short u_short;
-typedef unsigned long u_long;
-# endif
-#endif
-
-/*
- * UNIX V.4 on and NCR 3000
- */
-#if defined(SYS_SVR4)
-# define STREAM
-# define LOCK_PROCESS
-# define SIZE_RETURNED_IN_BUFFER
-#endif
-
-/*
- * (Univel/Novell) Unixware1 SVR4 on intel x86 processor
- */
-#if defined(SYS_UNIXWARE1)
-/* #define _POSIX_SOURCE */
-# define STREAM
-# define STREAMS
-# undef STEP_SLEW		/* TWO step */
-# define LOCK_PROCESS
-# define SIZE_RETURNED_IN_BUFFER
-# include <sys/sockio.h>
-# include <sys/types.h>
-# include <netinet/in_systm.h>
-#endif
-
-/*
- * DomainOS
- */
-#if defined(SYS_DOMAINOS)
-# define NTP_SYSCALLS_STD
-/* older versions of domain/os don't have class D */
-# ifndef IN_CLASSD
-#  define IN_CLASSD(i)		(((long)(i) & 0xf0000000) == 0xe0000000)
-#  define IN_CLASSD_NET 	0xf0000000
-#  define IN_CLASSD_NSHIFT	28
-#  define IN_CLASSD_HOST	0xfffffff
-#  define IN_MULTICAST(i)	IN_CLASSD(i)
-# endif
-#endif
-
-/*
- * Fujitsu UXP/V
- */
-#if defined(SYS_UXPV)
-# define LOCK_PROCESS
-# define SIZE_RETURNED_IN_BUFFER
-#endif
-
-
-#endif /* 0 */
-
-/*
- * Define these here for non-Windows NT systems
- * SOCKET and INVALID_SOCKET are native macros
- * on Windows NT and since they have different
- * requirements we use them in the code and
- * make them macros for everyone else
- */
-#ifndef SYS_WINNT
-typedef int SOCKET;
-# define INVALID_SOCKET	-1
-# define SOCKET_ERROR	-1
-# define socket_errno()		(errno)
-# define closesocket(fd)	close(fd)
-#else	/* SYS_WINNT follows */
-# define socket_errno()		(errno = WSAGetLastError())
-#endif
-
 int ntp_set_tod (struct timeval *tvp, void *tzp);
-
-#if defined (SYS_CYGWIN32)
-#include <windows.h>
-#define __int64 long long
-#endif
 
 /*casey Tue May 27 15:45:25 SAT 1997*/
 #ifdef SYS_VXWORKS
@@ -263,8 +87,6 @@ int ntp_set_tod (struct timeval *tvp, void *tzp);
 #define HAVE_NO_NICE		1	/* configure does not set this ... */
 #define HAVE_RANDOM		1	/* configure does not set this ...  */
 #define HAVE_SRANDOM		1	/* configure does not set this ... */
-
-#define NODETACH		1
 
 /* vxWorks specific additions to take care of its
  * unix (non)complicance
@@ -428,7 +250,6 @@ struct servent *getservbyname (char *name, char *type);
 # define IN_CLASSD(i)	((((long)(i))&0xf0000000)==0xe0000000)
 # define IN_MULTICAST IN_CLASSD
 # define ITIMER_REAL 0
-# define MAXHOSTNAMELEN 64
 
 /* standard structures missing from MPE include files */
 
@@ -468,71 +289,9 @@ extern char *strdup(const char *);
 #include "ERROR: You must define one of the HAVE_xx_NICE defines!"
 #endif
 
-/*
- * use only one tty model - no use in initialising
- * a tty in three ways
- * HAVE_TERMIOS is preferred over HAVE_SYSV_TTYS over HAVE_BSD_TTYS
- */
-
-#ifdef HAVE_TERMIOS_H
-# define HAVE_TERMIOS
-#else
-# ifdef HAVE_TERMIO_H
-#  define HAVE_SYSV_TTYS
-# else
-#  ifdef HAVE_SGTTY_H
-#	define HAVE_BSD_TTYS
-#  endif
-# endif
-#endif
-
-#ifdef HAVE_TERMIOS
-# undef HAVE_BSD_TTYS
-# undef HAVE_SYSV_TTYS
-#endif
-
 #ifndef HAVE_TIMEGM
 extern time_t	timegm		(struct tm *);
 #endif
 
-#ifdef HAVE_SYSV_TTYS
-# undef HAVE_BSD_TTYS
-#endif
-
-#if !defined(SYS_WINNT) && !defined(VMS) && !defined(SYS_VXWORKS)
-# if	!defined(HAVE_SYSV_TTYS) \
-	&& !defined(HAVE_BSD_TTYS) \
-	&& !defined(HAVE_TERMIOS)
-#include "ERROR: no tty type defined!"
-# endif
-#endif /* SYS_WINNT || VMS	|| SYS_VXWORKS*/
-
-#ifdef	WORDS_BIGENDIAN
-# define	XNTP_BIG_ENDIAN 1
-#else
-# define	XNTP_LITTLE_ENDIAN	1
-#endif
-
-/*
- * Byte order woes.
- * This used to be resolved by calling ntohl() and htonl() to swap things
- * around, but this turned out to be quite costly on Vaxes where those
- * things are actual functions.  The code now straightens out byte
- * order troubles on its own, with no performance penalty for little
- * end first machines, but at great expense to cleanliness.
- */
-#if !defined(XNTP_BIG_ENDIAN) && !defined(XNTP_LITTLE_ENDIAN)
-	/*
-	 * Pick one or the other.
-	 */
-	BYTE_ORDER_NOT_DEFINED_FOR_AUTHENTICATION
-#endif
-
-#if defined(XNTP_BIG_ENDIAN) && defined(XNTP_LITTLE_ENDIAN)
-	/*
-	 * Pick one or the other.
-	 */
-	BYTE_ORDER_NOT_DEFINED_FOR_AUTHENTICATION
-#endif
 
 #endif	/* NTP_MACHINE_H */

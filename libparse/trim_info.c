@@ -33,6 +33,7 @@
  * SUCH DAMAGE.
  *
  */
+#include <config.h>
 #include "ntp_types.h"
 #include "trimble.h"
 

@@ -1,10 +1,15 @@
+/** \file tokenize.c
+ *
+ *  Tokenize a string, accommodating quoted strings.
+ *
+ * @addtogroup autoopts
+ * @{
+ */
 /*
  *  This file defines the string_tokenize interface
- * Time-stamp:      "2010-07-17 10:40:26 bkorb"
- *
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (c) 1992-2011 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -16,11 +21,11 @@
  *   The Modified Berkeley Software Distribution License
  *      See the file "COPYING.mbsd"
  *
- *  These files have the following md5sums:
+ *  These files have the following sha256 sums:
  *
- *  43b91e8ca915626ed3818ffb1b71248b pkg/libopts/COPYING.gplv3
- *  06a1a2e4760c90ea5e1dad8dfaac4d39 pkg/libopts/COPYING.lgplv3
- *  66a5cedaf62c4b2637025f049f9b826f pkg/libopts/COPYING.mbsd
+ *  8584710e9b04216a394078dc156b781d0b47e1729104d666658aecef8ee32e95  COPYING.gplv3
+ *  4379e7444a0e2ce2b12dd6f5a52a27a4d02d39d247901d3285c88cf0d37f477b  COPYING.lgplv3
+ *  13aa749a5b0a454917a944ed8fffc530b784f5ead522b1aacaf4ec8aa55a6239  COPYING.mbsd
  */
 
 #include <errno.h>
@@ -87,11 +92,11 @@ copy_raw(ch_t** ppDest, char const ** ppSrc)
             switch (*pSrc) {
             case NUL:   *ppSrc = NULL; return;
             case '\r':
-                if (*(++pSrc) == '\n')
+                if (*(++pSrc) == NL)
                     ++pSrc;
                 continue;
 
-            case '\n':
+            case NL:
                 ++pSrc;
                 continue;
 
@@ -128,7 +133,7 @@ alloc_token_list(char const * str)
      *  Trim leading white space.  Use "ENOENT" and a NULL return to indicate
      *  an empty string was passed.
      */
-    while (IS_WHITESPACE_CHAR(*str))  str++;
+    str = SPN_WHITESPACE_CHARS(str);
     if (*str == NUL)  goto enoent_res;
 
     /*
@@ -137,18 +142,16 @@ alloc_token_list(char const * str)
      *  high and we'll squander the space for a few extra pointers.
      */
     {
-        cc_t* pz = (cc_t*)str;
+        char const * pz = str;
 
         do {
             max_token_ct++;
-            while (! IS_WHITESPACE_CHAR(*++pz))
-                if (*pz == NUL) goto found_nul;
-            while (IS_WHITESPACE_CHAR(*pz))  pz++;
+            pz = BRK_WHITESPACE_CHARS(pz+1);
+            pz = SPN_WHITESPACE_CHARS(pz);
         } while (*pz != NUL);
 
-    found_nul:
-        res = malloc(sizeof(*res) + (pz - (cc_t*)str)
-                     + (max_token_ct * sizeof(ch_t*)));
+        res = malloc(sizeof(*res) + (size_t)(pz - str)
+                     + ((size_t)max_token_ct * sizeof(ch_t*)));
     }
 
     if (res == NULL)
@@ -249,7 +252,7 @@ ao_string_tokenize(char const* str)
             int ch = (ch_t)*str;
             if (IS_WHITESPACE_CHAR(ch)) {
             found_white_space:
-                while (IS_WHITESPACE_CHAR(*++str))  ;
+                str = SPN_WHITESPACE_CHARS(str+1);
                 break;
             }
 
@@ -281,7 +284,7 @@ ao_string_tokenize(char const* str)
 
             default:
                 str++;
-                *(pzDest++) = ch;
+                *(pzDest++) = (unsigned char)ch;
             }
         } copy_done:;
 
@@ -326,7 +329,8 @@ main(int argc, char** argv)
 }
 #endif
 
-/*
+/** @}
+ *
  * Local Variables:
  * mode: C
  * c-file-style: "stroustrup"

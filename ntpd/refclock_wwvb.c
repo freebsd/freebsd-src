@@ -199,7 +199,7 @@ wwvb_start(
 	up = emalloc_zero(sizeof(*up));
 	pp = peer->procptr;
 	pp->io.clock_recv = wwvb_receive;
-	pp->io.srcclock = (void *)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
@@ -229,8 +229,8 @@ wwvb_shutdown(
 	struct peer *peer
 	)
 {
-	register struct wwvbunit *up;
-	struct refclockproc *pp;
+	struct refclockproc *	pp;
+	struct wwvbunit *	up;
 
 	pp = peer->procptr;
 	up = pp->unitptr;
@@ -395,28 +395,28 @@ wwvb_receive(
 	 */
 	switch (qualchar) {
 
-	    case ' ':
+	case ' ':
 		pp->disp = .001;
 		pp->lastref = pp->lastrec;
 		break;
 
-	    case 'A':
+	case 'A':
 		pp->disp = .01;
 		break;
 
-	    case 'B':
+	case 'B':
 		pp->disp = .1;
 		break;
 
-	    case 'C':
+	case 'C':
 		pp->disp = .5;
 		break;
 
-	    case 'D':
+	case 'D':
 		pp->disp = MAXDISPERSE;
 		break;
 
-	    default:
+	default:
 		pp->disp = MAXDISPERSE;
 		refclock_report(peer, CEVNT_BADREPLY);
 		break;
@@ -455,7 +455,9 @@ wwvb_timer(
 	register struct wwvbunit *up;
 	struct refclockproc *pp;
 	char	pollchar;	/* character sent to clock */
+#ifdef DEBUG
 	l_fp	now;
+#endif
 
 	/*
 	 * Time to poll the clock. The Spectracom clock responds to a
@@ -591,9 +593,8 @@ wwvb_control(
 		return;
 	}
 
-	NLOG(NLOG_CLOCKINFO)
-		msyslog(LOG_WARNING, "%s flag1 1 but PPSAPI fails",
-			refnumtoa(&peer->srcadr));
+	msyslog(LOG_WARNING, "%s flag1 1 but PPSAPI fails",
+		refnumtoa(&peer->srcadr));
 }
 #endif	/* HAVE_PPSAPI */
 

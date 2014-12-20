@@ -14,6 +14,7 @@
 #include "ntp_stdlib.h"
 #include "ntp_unixtime.h"
 #include "lib_strbuf.h"
+#include "ntp_debug.h"
 
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
@@ -432,14 +433,13 @@ ntp_set_tod(
 	void *tzp
 	)
 {
-	static int tod;
-	int rc = -1;
-	int saved_errno = 0;
+	static int	tod;
+	int		rc;
+	int		saved_errno;
 
-#ifdef DEBUG
-	if (debug)
-	    printf("In ntp_set_tod\n");
-#endif
+	TRACE(1, ("In ntp_set_tod\n"));
+	rc = -1;
+	saved_errno = 0;
 
 #ifdef HAVE_CLOCK_SETTIME
 	if (rc && (SET_TOD_CLOCK_SETTIME == tod || !tod)) {
@@ -452,12 +452,7 @@ ntp_set_tod(
 		errno = 0;
 		rc = clock_settime(CLOCK_REALTIME, &ts);
 		saved_errno = errno;
-#ifdef DEBUG
-		if (debug) {
-			printf("ntp_set_tod: clock_settime: %d: %s\n",
-			       rc, strerror(saved_errno));
-		}
-#endif
+		TRACE(1, ("ntp_set_tod: clock_settime: %d %m\n", rc));
 		if (!tod && !rc)
 			tod = SET_TOD_CLOCK_SETTIME;
 
@@ -476,12 +471,7 @@ ntp_set_tod(
 		errno = 0;
 		rc = SETTIMEOFDAY(tvp, tzp);
 		saved_errno = errno;
-#ifdef DEBUG
-		if (debug) {
-			printf("ntp_set_tod: settimeofday: %d: %s\n",
-			       rc, strerror(saved_errno));
-		}
-#endif
+		TRACE(1, ("ntp_set_tod: settimeofday: %d %m\n", rc));
 		if (!tod && !rc)
 			tod = SET_TOD_SETTIMEOFDAY;
 	}
@@ -493,23 +483,15 @@ ntp_set_tod(
 		errno = 0;
 		rc = stime(&tp); /* lie as bad as SysVR4 */
 		saved_errno = errno;
-#ifdef DEBUG
-		if (debug) {
-			printf("ntp_set_tod: stime: %d: %s\n",
-			       rc, strerror(saved_errno));
-		}
-#endif
+		TRACE(1, ("ntp_set_tod: stime: %d %m\n", rc));
 		if (!tod && !rc)
 			tod = SET_TOD_STIME;
 	}
 #endif /* HAVE_STIME */
 
-#ifdef DEBUG
-	if (debug) {
-		printf("ntp_set_tod: Final result: %s: %d: %s\n",
-			set_tod_used[tod], rc, strerror(saved_errno));
-	}
-#endif
+	errno = saved_errno;	/* for %m below */
+	TRACE(1, ("ntp_set_tod: Final result: %s: %d %m\n",
+		  set_tod_used[tod], rc));
 	/*
 	 * Say how we're setting the time of day
 	 */
@@ -549,16 +531,3 @@ getpass(const char * prompt)
 	return password;
 }
 #endif /* SYS_WINNT */
-
-#if !defined(HAVE_MEMSET)
-void
-ntp_memset(
-	char *a,
-	int x,
-	int c
-	)
-{
-	while (c-- > 0)
-		*a++ = (char) x;
-}
-#endif /*POSIX*/

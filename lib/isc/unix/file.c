@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -48,7 +48,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id: file.c,v 1.51.332.2 2009/02/16 23:47:15 tbox Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -68,12 +68,14 @@
 #include <isc/dir.h>
 #include <isc/file.h>
 #include <isc/log.h>
+#include <isc/mem.h>
 #include <isc/random.h>
 #include <isc/string.h>
 #include <isc/time.h>
 #include <isc/util.h>
 
 #include "errno2result.h"
+#include "ntp_stdlib.h"		/* NTP change for strlcpy, strlcat */
 
 /*
  * XXXDCL As the API for accessing file statistics undoubtedly gets expanded,
@@ -97,12 +99,12 @@ file_stats(const char *file, struct stat *stats) {
 }
 
 isc_result_t
-isc_file_getmodtime(const char *file, isc_time_t *time) {
+isc_file_getmodtime(const char *file, isc_time_t *itime) {
 	isc_result_t result;
 	struct stat stats;
 
 	REQUIRE(file != NULL);
-	REQUIRE(time != NULL);
+	REQUIRE(itime != NULL);
 
 	result = file_stats(file, &stats);
 
@@ -111,16 +113,16 @@ isc_file_getmodtime(const char *file, isc_time_t *time) {
 		 * XXXDCL some operating systems provide nanoseconds, too,
 		 * such as BSD/OS via st_mtimespec.
 		 */
-		isc_time_set(time, stats.st_mtime, 0);
+		isc_time_set(itime, stats.st_mtime, 0);
 
 	return (result);
 }
 
 isc_result_t
-isc_file_settime(const char *file, isc_time_t *time) {
+isc_file_settime(const char *file, isc_time_t *itime) {
 	struct timeval times[2];
 
-	REQUIRE(file != NULL && time != NULL);
+	REQUIRE(file != NULL && itime != NULL);
 
 	/*
 	 * tv_sec is at least a 32 bit quantity on all platforms we're
@@ -132,7 +134,7 @@ isc_file_settime(const char *file, isc_time_t *time) {
 	 *   * isc_time_seconds is changed to be > 32 bits but long is 32 bits
 	 *      and isc_time_seconds has at least 33 significant bits.
 	 */
-	times[0].tv_sec = times[1].tv_sec = (long)isc_time_seconds(time);
+	times[0].tv_sec = times[1].tv_sec = (long)isc_time_seconds(itime);
 
 	/*
 	 * Here is the real check for the high bit being set.
@@ -148,7 +150,7 @@ isc_file_settime(const char *file, isc_time_t *time) {
 	 * we can at least cast to signed so the IRIX compiler shuts up.
 	 */
 	times[0].tv_usec = times[1].tv_usec =
-		(isc_int32_t)(isc_time_nanoseconds(time) / 1000);
+		(isc_int32_t)(isc_time_nanoseconds(itime) / 1000);
 
 	if (utimes(file, times) < 0)
 		return (isc__errno2result(errno));
@@ -183,14 +185,14 @@ isc_file_template(const char *path, const char *templet, char *buf,
 		if ((s - path + 1 + strlen(templet) + 1) > buflen)
 			return (ISC_R_NOSPACE);
 
-		strncpy(buf, path, s - path + 1);
+		strlcpy(buf, path, buflen);
 		buf[s - path + 1] = '\0';
-		strcat(buf, templet);
+		strlcat(buf, templet, buflen);
 	} else {
 		if ((strlen(templet) + 1) > buflen)
 			return (ISC_R_NOSPACE);
 
-		strcpy(buf, templet);
+		strlcpy(buf, templet, buflen);
 	}
 
 	return (ISC_R_SUCCESS);
@@ -242,16 +244,26 @@ isc_file_renameunique(const char *file, char *templet) {
 	return (ISC_R_SUCCESS);
 }
 
-
 isc_result_t
 isc_file_openunique(char *templet, FILE **fp) {
+	int mode = S_IWUSR|S_IRUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
+	return (isc_file_openuniquemode(templet, mode, fp));
+}
+
+isc_result_t
+isc_file_openuniqueprivate(char *templet, FILE **fp) {
+	int mode = S_IWUSR|S_IRUSR;
+	return (isc_file_openuniquemode(templet, mode, fp));
+}
+
+isc_result_t
+isc_file_openuniquemode(char *templet, int mode, FILE **fp) {
 	int fd;
 	FILE *f;
 	isc_result_t result = ISC_R_SUCCESS;
 	char *x;
 	char *cp;
 	isc_uint32_t which;
-	int mode;
 
 	REQUIRE(templet != NULL);
 	REQUIRE(fp != NULL && *fp == NULL);
@@ -269,7 +281,6 @@ isc_file_openunique(char *templet, FILE **fp) {
 		x = cp--;
 	}
 
-	mode = S_IWUSR|S_IRUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH;
 
 	while ((fd = open(templet, O_RDWR|O_CREAT|O_EXCL, mode)) == -1) {
 		if (errno != EEXIST)
@@ -336,6 +347,23 @@ isc_file_exists(const char *pathname) {
 	REQUIRE(pathname != NULL);
 
 	return (ISC_TF(file_stats(pathname, &stats) == ISC_R_SUCCESS));
+}
+
+isc_result_t
+isc_file_isplainfile(const char *filename) {
+	/*
+	 * This function returns success if filename is a plain file.
+	 */
+	struct stat filestat;
+	memset(&filestat,0,sizeof(struct stat));
+
+	if ((stat(filename, &filestat)) == -1)
+		return(isc__errno2result(errno));
+
+	if(! S_ISREG(filestat.st_mode))
+		return(ISC_R_INVALIDFILE);
+
+	return(ISC_R_SUCCESS);
 }
 
 isc_boolean_t
@@ -416,7 +444,7 @@ dir_current(char *dirname, size_t length) {
 		if (strlen(dirname) + 1 == length)
 			result = ISC_R_NOSPACE;
 		else if (dirname[1] != '\0')
-			strcat(dirname, "/");
+			strlcat(dirname, "/", length);
 	}
 
 	return (result);
@@ -430,7 +458,7 @@ isc_file_absolutepath(const char *filename, char *path, size_t pathlen) {
 		return (result);
 	if (strlen(path) + strlen(filename) + 1 > pathlen)
 		return (ISC_R_NOSPACE);
-	strcat(path, filename);
+	strlcat(path, filename, pathlen);
 	return (ISC_R_SUCCESS);
 }
 
@@ -441,4 +469,76 @@ isc_file_truncate(const char *filename, isc_offset_t size) {
 	if (truncate(filename, size) < 0)
 		result = isc__errno2result(errno);
 	return (result);
+}
+
+isc_result_t
+isc_file_safecreate(const char *filename, FILE **fp) {
+	isc_result_t result;
+	int flags;
+	struct stat sb;
+	FILE *f;
+	int fd;
+
+	REQUIRE(filename != NULL);
+	REQUIRE(fp != NULL && *fp == NULL);
+
+	result = file_stats(filename, &sb);
+	if (result == ISC_R_SUCCESS) {
+		if ((sb.st_mode & S_IFREG) == 0)
+			return (ISC_R_INVALIDFILE);
+		flags = O_WRONLY | O_TRUNC;
+	} else if (result == ISC_R_FILENOTFOUND) {
+		flags = O_WRONLY | O_CREAT | O_EXCL;
+	} else
+		return (result);
+
+	fd = open(filename, flags, S_IRUSR | S_IWUSR);
+	if (fd == -1)
+		return (isc__errno2result(errno));
+
+	f = fdopen(fd, "w");
+	if (f == NULL) {
+		result = isc__errno2result(errno);
+		close(fd);
+		return (result);
+	}
+
+	*fp = f;
+	return (ISC_R_SUCCESS);
+}
+
+isc_result_t
+isc_file_splitpath(isc_mem_t *mctx, char *path, char **dirname, char **basename)
+{
+	char *dir, *file, *slash;
+
+	REQUIRE(path != NULL);
+
+	slash = strrchr(path, '/');
+
+	if (slash == path) {
+		file = ++slash;
+		dir = isc_mem_strdup(mctx, "/");
+	} else if (slash != NULL) {
+		file = ++slash;
+		dir = isc_mem_allocate(mctx, slash - path);
+		if (dir != NULL)
+			strlcpy(dir, path, slash - path);
+	} else {
+		file = path;
+		dir = isc_mem_strdup(mctx, ".");
+	}
+
+	if (dir == NULL)
+		return (ISC_R_NOMEMORY);
+
+	if (*file == '\0') {
+		isc_mem_free(mctx, dir);
+		return (ISC_R_INVALIDFILE);
+	}
+
+	*dirname = dir;
+	*basename = file;
+
+	return (ISC_R_SUCCESS);
 }

@@ -1,8 +1,8 @@
 /*
  * Definitions for the atom driver and its friends
  */
+#undef NANOSECOND	/* some systems define it differently */
 #define NANOSECOND	1000000000 /* one second (ns) */
-#define RANGEGATE	500000  /* range gate (ns) */
 
 struct refclock_atom {
 	pps_handle_t handle;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ntpaths.h,v 1.16 2007/06/19 23:47:20 tbox Exp $ */
+/* $Id: ntpaths.h,v 1.20 2009/07/14 22:54:57 each Exp $ */
 
 /*
  * Windows-specific path definitions
@@ -40,7 +40,8 @@ enum NtPaths {
 	LWRESD_PID_PATH,
 	LOCAL_STATE_DIR,
 	SYS_CONF_DIR,
-	RNDC_KEY_PATH
+	RNDC_KEY_PATH,
+	SESSION_KEY_PATH
 };
 
 /*
@@ -49,8 +50,8 @@ enum NtPaths {
 #define NAMED_CONFFILE isc_ntpaths_get(NAMED_CONF_PATH)
 #define RNDC_CONFFILE isc_ntpaths_get(RNDC_CONF_PATH)
 #define RNDC_KEYFILE isc_ntpaths_get(RNDC_KEY_PATH)
+#define SESSION_KEYFILE isc_ntpaths_get(SESSION_KEY_PATH)
 #define RESOLV_CONF isc_ntpaths_get(RESOLV_CONF_PATH)
-
 
 /*
  * Information about where the files are on disk

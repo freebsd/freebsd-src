@@ -93,8 +93,7 @@ ntp_readline_init(
 
 			if (NULL == ntp_hist) {
 
-				fprintf(stderr, "history_init(): %s\n",
-						strerror(errno));
+				mfprintf(stderr, "history_init(): %m\n");
 				fflush(stderr);
 
 				el_end(ntp_el);
@@ -103,7 +102,7 @@ ntp_readline_init(
 				success = 0;
 
 			} else {
-				memset(&hev, 0, sizeof(hev));
+				ZERO(hev);
 #ifdef H_SETSIZE
 				history(ntp_hist, &hev, H_SETSIZE, 128);
 #endif

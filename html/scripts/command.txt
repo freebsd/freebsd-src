@@ -1,11 +1,7 @@
-document.write("<ul><p>Configuration Commands and Options<br><ul>\
-<li class='inline'><a href='comdex.html'>Command Index</a><br>\
-<li class='inline'><a href='confopt.html'>Server Options</a><br>\
-<li class='inline'><a href='accopt.html'>Access Control Options</a><br>\
-<li class='inline'><a href='authopt.html'>Authentication Options</a><br>\
-<li class='inline'><a href='monopt.html'>Monitoring Options</a><br>\
-<li class='inline'><a href='clockopt.html'>Reference Clock Options</a><br>\
-<li class='inline'><a href='miscopt.html'>Miscellaneous Options</a><br>\
-<li class='inline'><a href='ntp_conf.html'>Configuration File Definition (Advanced)</a><br>\
-<li class='inline'><a href='sitemap.html'>Site Map</a></p>\
-</ul></ul>")
+document.write("\
+<table><tr>\
+<td width='50%' ><img src='icons/home.gif' align='middle' alt='gif'>\
+<a href='index.html'>Home Page</a></td>\
+<td width='50%' ><img src='icons/mail2.gif' align='middle' alt='gif'>\
+<a href='http://www.ntp.org/contact'>Contacts</a></i></td>\
+</tr></table>")

@@ -28,6 +28,7 @@
 #define NTP_ASSERT_H
 
 # ifdef CALYSTO 
+/* see: http://www.domagoj-babic.com/index.php/ResearchProjects/Calysto */
 
 extern void calysto_assume(unsigned char cnd); /* assume this always holds */ 
 extern void calysto_assert(unsigned char cnd); /* check whether this holds */ 
@@ -57,7 +58,17 @@ extern void calysto_assert(unsigned char cnd); /* check whether this holds */
 #define ALWAYS_ENSURE(x)	assert(x)
 */
 
-# else	/* neither Coverity nor Calysto */
+
+#elif defined(__FLEXELINT__)
+
+#include <assert.h>
+
+#define ALWAYS_REQUIRE(x)	assert(x)
+#define ALWAYS_INSIST(x)	assert(x)
+#define ALWAYS_INVARIANT(x)	assert(x)
+#define ALWAYS_ENSURE(x)	assert(x)
+
+# else	/* neither Calysto, Coverity or FlexeLint */
 
 #include "isc/assertions.h"
 
@@ -88,10 +99,10 @@ extern void calysto_assert(unsigned char cnd); /* check whether this holds */
 #define	DEBUG_INVARIANT(x)	INVARIANT(x)
 #define	DEBUG_ENSURE(x)		ENSURE(x)
 # else
-#define	DEBUG_REQUIRE(x)	(void)(x)
-#define	DEBUG_INSIST(x)		(void)(x)
-#define	DEBUG_INVARIANT(x)	(void)(x)
-#define	DEBUG_ENSURE(x)		(void)(x)
+#define	DEBUG_REQUIRE(x)	do {} while (FALSE)
+#define	DEBUG_INSIST(x)		do {} while (FALSE)
+#define	DEBUG_INVARIANT(x)	do {} while (FALSE)
+#define	DEBUG_ENSURE(x)		do {} while (FALSE)
 # endif
 
 #endif	/* NTP_ASSERT_H */

@@ -2,6 +2,7 @@
  * uglydate - convert a time stamp to something barely readable
  *	      The string returned is 37 characters long.
  */
+#include <config.h>
 #include <stdio.h>
 
 #include "ntp_fp.h"

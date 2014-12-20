@@ -38,19 +38,50 @@ DIST_COMMON = README $(am__configure_deps) $(srcdir)/Makefile.am \
 	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
 	$(top_srcdir)/configure ChangeLog INSTALL NEWS TODO compile \
 	config.guess config.sub depcomp install-sh ltmain.sh missing \
+	sntp/libevent/build-aux/compile \
+	sntp/libevent/build-aux/config.guess \
+	sntp/libevent/build-aux/config.sub \
+	sntp/libevent/build-aux/depcomp \
+	sntp/libevent/build-aux/install-sh \
+	sntp/libevent/build-aux/ltmain.sh \
+	sntp/libevent/build-aux/missing sntp/libevent/build-aux/ylwrap \
 	ylwrap
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/sntp/libopts/m4/libopts.m4 \
-	$(top_srcdir)/m4/define_dir.m4 $(top_srcdir)/m4/libtool.m4 \
-	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
-	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
-	$(top_srcdir)/m4/ntp_cacheversion.m4 \
-	$(top_srcdir)/m4/ntp_dir_sep.m4 \
-	$(top_srcdir)/m4/ntp_lineeditlibs.m4 \
-	$(top_srcdir)/m4/ntp_openssl.m4 \
-	$(top_srcdir)/m4/ntp_vpathhack.m4 \
-	$(top_srcdir)/m4/os_cflags.m4 $(top_srcdir)/version.m4 \
-	$(top_srcdir)/configure.ac
+	$(top_srcdir)/sntp/libopts/m4/stdnoreturn.m4 \
+	$(top_srcdir)/sntp/libevent/m4/openldap-thread-check.m4 \
+	$(top_srcdir)/sntp/libevent/m4/openldap.m4 \
+	$(top_srcdir)/sntp/m4/define_dir.m4 \
+	$(top_srcdir)/sntp/m4/hms_search_lib.m4 \
+	$(top_srcdir)/sntp/m4/libtool.m4 \
+	$(top_srcdir)/sntp/m4/ltoptions.m4 \
+	$(top_srcdir)/sntp/m4/ltsugar.m4 \
+	$(top_srcdir)/sntp/m4/ltversion.m4 \
+	$(top_srcdir)/sntp/m4/lt~obsolete.m4 \
+	$(top_srcdir)/sntp/m4/ntp_cacheversion.m4 \
+	$(top_srcdir)/sntp/m4/ntp_compiler.m4 \
+	$(top_srcdir)/sntp/m4/ntp_crosscompile.m4 \
+	$(top_srcdir)/sntp/m4/ntp_crypto_rand.m4 \
+	$(top_srcdir)/sntp/m4/ntp_debug.m4 \
+	$(top_srcdir)/sntp/m4/ntp_dir_sep.m4 \
+	$(top_srcdir)/sntp/m4/ntp_facilitynames.m4 \
+	$(top_srcdir)/sntp/m4/ntp_googletest.m4 \
+	$(top_srcdir)/sntp/m4/ntp_ipv6.m4 \
+	$(top_srcdir)/sntp/m4/ntp_lib_m.m4 \
+	$(top_srcdir)/sntp/m4/ntp_libevent.m4 \
+	$(top_srcdir)/sntp/m4/ntp_libntp.m4 \
+	$(top_srcdir)/sntp/m4/ntp_lineeditlibs.m4 \
+	$(top_srcdir)/sntp/m4/ntp_locinfo.m4 \
+	$(top_srcdir)/sntp/m4/ntp_openssl.m4 \
+	$(top_srcdir)/sntp/m4/ntp_pkg_config.m4 \
+	$(top_srcdir)/sntp/m4/ntp_prog_cc.m4 \
+	$(top_srcdir)/sntp/m4/ntp_rlimit.m4 \
+	$(top_srcdir)/sntp/m4/ntp_sntp.m4 \
+	$(top_srcdir)/sntp/m4/ntp_ver_suffix.m4 \
+	$(top_srcdir)/sntp/m4/ntp_vpathhack.m4 \
+	$(top_srcdir)/sntp/m4/os_cflags.m4 \
+	$(top_srcdir)/sntp/m4/snprintf.m4 \
+	$(top_srcdir)/sntp/m4/version.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -59,6 +90,12 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
+AM_V_GEN = $(am__v_GEN_$(V))
+am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
+am__v_GEN_0 = @echo "  GEN   " $@;
+AM_V_at = $(am__v_at_$(V))
+am__v_at_ = $(am__v_at_$(AM_DEFAULT_VERBOSITY))
+am__v_at_0 = @
 SOURCES =
 DIST_SOURCES =
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
@@ -75,6 +112,7 @@ AM_RECURSIVE_TARGETS = $(RECURSIVE_TARGETS:-recursive=) \
 	distdir dist dist-all distcheck
 ETAGS = etags
 CTAGS = ctags
+DIST_SUBDIRS = $(SUBDIRS)
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -112,20 +150,32 @@ GZIP_ENV = --best
 distuninstallcheck_listfiles = find . -type f -print
 distcleancheck_listfiles = find . -type f -print
 ACLOCAL = @ACLOCAL@
+ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
+AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AR = @AR@
 AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
-BINSUBDIR = @BINSUBDIR@
+CALC_TICKADJ_DB = @CALC_TICKADJ_DB@
+CALC_TICKADJ_DL = @CALC_TICKADJ_DL@
+CALC_TICKADJ_DS = @CALC_TICKADJ_DS@
+CALC_TICKADJ_MS = @CALC_TICKADJ_MS@
+CALC_TICKADJ_NI = @CALC_TICKADJ_NI@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CFLAGS_NTP = @CFLAGS_NTP@
 CHUTEST = @CHUTEST@
-CLKTEST = @CLKTEST@
+CONFIG_SHELL = @CONFIG_SHELL@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
+CPPFLAGS_NTP = @CPPFLAGS_NTP@
+CXX = @CXX@
+CXXCPP = @CXXCPP@
+CXXDEPMODE = @CXXDEPMODE@
+CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DCFD = @DCFD@
 DEFS = @DEFS@
@@ -137,21 +187,31 @@ ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
 EDITLINE_LIBS = @EDITLINE_LIBS@
-EF_LIBS = @EF_LIBS@
-EF_PROGS = @EF_PROGS@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
 GREP = @GREP@
+GTEST_CONFIG = @GTEST_CONFIG@
+GTEST_CPPFLAGS = @GTEST_CPPFLAGS@
+GTEST_CXXFLAGS = @GTEST_CXXFLAGS@
+GTEST_LDFLAGS = @GTEST_LDFLAGS@
+GTEST_LIBS = @GTEST_LIBS@
 HAVE_INLINE = @HAVE_INLINE@
+HAVE_RLIMIT_MEMLOCK = @HAVE_RLIMIT_MEMLOCK@
+HAVE_RLIMIT_STACK = @HAVE_RLIMIT_STACK@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
-LCRYPTO = @LCRYPTO@
 LD = @LD@
+LDADD_LIBNTP = @LDADD_LIBNTP@
+LDADD_NLIST = @LDADD_NLIST@
+LDADD_NTP = @LDADD_NTP@
 LDFLAGS = @LDFLAGS@
+LDFLAGS_NTP = @LDFLAGS_NTP@
+LIBISC_PTHREADS_NOTHREADS = @LIBISC_PTHREADS_NOTHREADS@
+LIBM = @LIBM@
 LIBOBJS = @LIBOBJS@
 LIBOPTS_CFLAGS = @LIBOPTS_CFLAGS@
 LIBOPTS_DIR = @LIBOPTS_DIR@
@@ -159,6 +219,7 @@ LIBOPTS_LDADD = @LIBOPTS_LDADD@
 LIBPARSE = @LIBPARSE@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
+LIBTOOL_DEPS = @LIBTOOL_DEPS@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LSCF = @LSCF@
@@ -177,14 +238,68 @@ MAKE_PARSEKMODULE = @MAKE_PARSEKMODULE@
 MAKE_TICKADJ = @MAKE_TICKADJ@
 MAKE_TIMETRIM = @MAKE_TIMETRIM@
 MANIFEST_TOOL = @MANIFEST_TOOL@
+MANTAGFMT = @MANTAGFMT@
 MKDIR_P = @MKDIR_P@
 NM = @NM@
 NMEDIT = @NMEDIT@
+NTPDATE_DB = @NTPDATE_DB@
+NTPDATE_DL = @NTPDATE_DL@
+NTPDATE_DS = @NTPDATE_DS@
+NTPDATE_MS = @NTPDATE_MS@
+NTPDATE_NI = @NTPDATE_NI@
+NTPDC_DB = @NTPDC_DB@
+NTPDC_DL = @NTPDC_DL@
+NTPDC_DS = @NTPDC_DS@
+NTPDC_MS = @NTPDC_MS@
+NTPDC_NI = @NTPDC_NI@
+NTPDSIM_DB = @NTPDSIM_DB@
+NTPDSIM_DL = @NTPDSIM_DL@
+NTPDSIM_DS = @NTPDSIM_DS@
+NTPDSIM_MS = @NTPDSIM_MS@
+NTPDSIM_NI = @NTPDSIM_NI@
+NTPD_DB = @NTPD_DB@
+NTPD_DL = @NTPD_DL@
+NTPD_DS = @NTPD_DS@
+NTPD_MS = @NTPD_MS@
+NTPD_NI = @NTPD_NI@
+NTPQ_DB = @NTPQ_DB@
+NTPQ_DL = @NTPQ_DL@
+NTPQ_DS = @NTPQ_DS@
+NTPQ_MS = @NTPQ_MS@
+NTPQ_NI = @NTPQ_NI@
+NTPSNMPD_DB = @NTPSNMPD_DB@
+NTPSNMPD_DL = @NTPSNMPD_DL@
+NTPSNMPD_DS = @NTPSNMPD_DS@
+NTPSNMPD_MS = @NTPSNMPD_MS@
+NTPSNMPD_NI = @NTPSNMPD_NI@
+NTPSWEEP_DB = @NTPSWEEP_DB@
+NTPSWEEP_DL = @NTPSWEEP_DL@
+NTPSWEEP_DS = @NTPSWEEP_DS@
+NTPSWEEP_MS = @NTPSWEEP_MS@
+NTPSWEEP_NI = @NTPSWEEP_NI@
+NTPTIME_DB = @NTPTIME_DB@
+NTPTIME_DL = @NTPTIME_DL@
+NTPTIME_DS = @NTPTIME_DS@
+NTPTIME_MS = @NTPTIME_MS@
+NTPTIME_NI = @NTPTIME_NI@
+NTPTRACE_DB = @NTPTRACE_DB@
+NTPTRACE_DL = @NTPTRACE_DL@
+NTPTRACE_DS = @NTPTRACE_DS@
+NTPTRACE_MS = @NTPTRACE_MS@
+NTPTRACE_NI = @NTPTRACE_NI@
+NTP_KEYGEN_DB = @NTP_KEYGEN_DB@
+NTP_KEYGEN_DL = @NTP_KEYGEN_DL@
+NTP_KEYGEN_DS = @NTP_KEYGEN_DS@
+NTP_KEYGEN_MS = @NTP_KEYGEN_MS@
+NTP_KEYGEN_NI = @NTP_KEYGEN_NI@
+NTP_KEYSDIR = @NTP_KEYSDIR@
+NTP_WAIT_DB = @NTP_WAIT_DB@
+NTP_WAIT_DL = @NTP_WAIT_DL@
+NTP_WAIT_DS = @NTP_WAIT_DS@
+NTP_WAIT_MS = @NTP_WAIT_MS@
+NTP_WAIT_NI = @NTP_WAIT_NI@
 OBJDUMP = @OBJDUMP@
 OBJEXT = @OBJEXT@
-OPENSSL = @OPENSSL@
-OPENSSL_INC = @OPENSSL_INC@
-OPENSSL_LIB = @OPENSSL_LIB@
 OTOOL = @OTOOL@
 OTOOL64 = @OTOOL64@
 PACKAGE = @PACKAGE@
@@ -197,10 +312,12 @@ PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_NET_SNMP_CONFIG = @PATH_NET_SNMP_CONFIG@
 PATH_PERL = @PATH_PERL@
 PATH_SEPARATOR = @PATH_SEPARATOR@
-PATH_SH = @PATH_SH@
 PATH_TEST = @PATH_TEST@
+PERLLIBDIR = @PERLLIBDIR@
+PKG_CONFIG = @PKG_CONFIG@
 POSIX_SHELL = @POSIX_SHELL@
 PROPDELAY = @PROPDELAY@
+PTHREAD_LIBS = @PTHREAD_LIBS@
 RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
@@ -208,9 +325,27 @@ SHELL = @SHELL@
 SNMP_CFLAGS = @SNMP_CFLAGS@
 SNMP_CPPFLAGS = @SNMP_CPPFLAGS@
 SNMP_LIBS = @SNMP_LIBS@
+SNTP = @SNTP@
+SNTP_DB = @SNTP_DB@
+SNTP_DL = @SNTP_DL@
+SNTP_DS = @SNTP_DS@
+SNTP_MS = @SNTP_MS@
+SNTP_NI = @SNTP_NI@
+STDNORETURN_H = @STDNORETURN_H@
 STRIP = @STRIP@
 TESTDCF = @TESTDCF@
+TICKADJ_DB = @TICKADJ_DB@
+TICKADJ_DL = @TICKADJ_DL@
+TICKADJ_DS = @TICKADJ_DS@
+TICKADJ_MS = @TICKADJ_MS@
+TICKADJ_NI = @TICKADJ_NI@
+TIMETRIM_DB = @TIMETRIM_DB@
+TIMETRIM_DL = @TIMETRIM_DL@
+TIMETRIM_DS = @TIMETRIM_DS@
+TIMETRIM_MS = @TIMETRIM_MS@
+TIMETRIM_NI = @TIMETRIM_NI@
 VERSION = @VERSION@
+VER_SUFFIX = @VER_SUFFIX@
 YACC = @YACC@
 YFLAGS = @YFLAGS@
 abs_builddir = @abs_builddir@
@@ -219,6 +354,7 @@ abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
 ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
+ac_ct_CXX = @ac_ct_CXX@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
@@ -266,19 +402,13 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-AUTOMAKE_OPTIONS = foreign 1.10
-ACLOCAL_AMFLAGS = -I m4 -I sntp/libopts/m4
+ACLOCAL_AMFLAGS = -I sntp/m4 -I sntp/libevent/m4 -I sntp/libopts/m4
 NULL = 
-SUBDIRS = scripts include ElectricFence libntp sntp libparse ntpd \
-	ntpdate ntpdc ntpq ntpsnmpd parseutil adjtimed clockstuff \
-	kernel util $(NULL)
-DIST_SUBDIRS = \
+SUBDIRS = \
 	scripts		\
 	include		\
-	ElectricFence	\
 	libntp		\
 	libparse	\
-	sntp		\
 	ntpd		\
 	ntpdate		\
 	ntpdc		\
@@ -289,9 +419,11 @@ DIST_SUBDIRS = \
 	clockstuff	\
 	kernel		\
 	util		\
+	sntp		\
+	tests		\
 	$(NULL)
 
-DISTCHECK_CONFIGURE_FLAGS = -C
+DISTCHECK_CONFIGURE_FLAGS = -C --with-sntp
 EXTRA_DIST = \
 	$(srcdir)/COPYRIGHT	\
 	ChangeLog		\
@@ -308,13 +440,9 @@ EXTRA_DIST = \
 	WHERE-TO-START		\
 	bootstrap		\
 	build			\
-	config.guess		\
 	config.h.in		\
-	config.sub		\
 	dot.emacs		\
-	excludes		\
 	flock-build		\
-	install-sh		\
 	packageinfo.sh		\
 	readme.y2kfixes		\
 	results.y2kfixes	\
@@ -322,35 +450,29 @@ EXTRA_DIST = \
 	conf			\
 	html			\
 	lib/isc			\
+	libjsmn			\
 	ports			\
 	\
-	bincheck.mf		\
-	depsver.mf		\
 	deps-ver		\
-	$(srcdir)/version	\
-	version.m4		\
 	\
 	$(NULL)
 
 CLEANFILES = 
 DISTCLEANFILES = .gcc-warning
-ETAGS_ARGS = Makefile.am configure.ac
 
 # HMS: Keep .gcc-warning first, as that way it gets printed first.
 BUILT_SOURCES = \
 	.gcc-warning			\
 	libtool				\
+	html/.datecheck			\
+	sntp/built-sources-only		\
 	$(srcdir)/COPYRIGHT		\
-	$(srcdir)/version		\
-	$(srcdir)/version.m4		\
-	$(srcdir)/include/version.def	\
-	$(srcdir)/include/version.texi	\
 	$(srcdir)/.checkChangeLog	\
 	$(NULL)
 
 
 # HMS: The following seems to be a work-in-progress...
-CVO = `$(srcdir)/config.guess`
+CVO = `$(srcdir)/sntp/libevent/build-aux/config.guess`
 BHOST = `(hostname || uname -n)`
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
@@ -787,7 +909,7 @@ info: info-recursive
 
 info-am:
 
-install-data-am:
+install-data-am: install-data-local
 
 install-dvi: install-dvi-recursive
 
@@ -833,7 +955,7 @@ ps: ps-recursive
 
 ps-am:
 
-uninstall-am:
+uninstall-am: uninstall-local
 
 .MAKE: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) all check \
 	ctags-recursive install install-am install-strip \
@@ -846,15 +968,38 @@ uninstall-am:
 	dist-zip distcheck distclean distclean-generic distclean-hdr \
 	distclean-libtool distclean-tags distcleancheck distdir \
 	distuninstallcheck dvi dvi-am html html-am info info-am \
-	install install-am install-data install-data-am install-dvi \
-	install-dvi-am install-exec install-exec-am install-html \
-	install-html-am install-info install-info-am install-man \
-	install-pdf install-pdf-am install-ps install-ps-am \
-	install-strip installcheck installcheck-am installdirs \
-	installdirs-am maintainer-clean maintainer-clean-generic \
-	mostlyclean mostlyclean-generic mostlyclean-libtool pdf pdf-am \
-	ps ps-am tags tags-recursive uninstall uninstall-am
+	install install-am install-data install-data-am \
+	install-data-local install-dvi install-dvi-am install-exec \
+	install-exec-am install-html install-html-am install-info \
+	install-info-am install-man install-pdf install-pdf-am \
+	install-ps install-ps-am install-strip installcheck \
+	installcheck-am installdirs installdirs-am maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-generic \
+	mostlyclean-libtool pdf pdf-am ps ps-am tags tags-recursive \
+	uninstall uninstall-am uninstall-local
 
+
+.gcc-warning:
+	@echo "Compiling with GCC now generates lots of new warnings."
+	@echo " "
+	@echo "Don't be concerned. They're just warnings."
+	@echo " "
+	@echo "Don't send bug reports about the warnings, either."
+	@echo " "
+	@echo "Feel free to send patches that fix these warnings, though."
+	@echo " "
+	@sleep 1
+	@touch $@
+
+html/.datecheck: FRC.html
+	cd $(srcdir)/html && \
+	../scripts/build/checkHtmlFileDates
+
+libtool: $(LIBTOOL_DEPS)
+	./config.status --recheck
+
+sntp/built-sources-only: FRC.sntp
+	@cd sntp && $(MAKE) $(AM_MAKEFLAGS) built-sources-only
 
 $(srcdir)/COPYRIGHT: $(srcdir)/html/copyright.html
 	{ echo "This file is automatically generated from html/copyright.html" ; \
@@ -869,57 +1014,27 @@ COPYRIGHT-please: $(srcdir)/COPYRIGHT
 	   Rather than determine our $(srcdir) from sntp/Makefile.am \
 	   COPYRIGHT-please serves as a fixed target.
 
-# HMS: The next bit is still suboptimal.  If bk is present but this NTP
-# repo is not a bk repo, we'll get an error message from the prs command.
-# Unfortunately, I haven't found the necessary magic to redirect this error
-# output to /dev/null under ancient/unique shells like the one Ultrix uses.
-# We'll also get an error if srcdir or version is unwritable.
-$(srcdir)/version: FRC.version
-	-(bk version) >/dev/null 2>&1 && \
-	    cd $(srcdir) && \
-	    x=`bk -R prs -hr+ -nd:I: ChangeSet` && \
-	    y=`cat version 2>/dev/null` || true && \
-	    case "$$x" in ''|$$y) ;; *) echo $$x > version ;; esac
-
-$(srcdir)/version.m4: $(srcdir)/packageinfo.sh
-	TEMPDIR=`pwd` && export TEMPDIR && cd $(srcdir) && \
-	./scripts/genver version.m4
-
-$(srcdir)/include/version.def: $(srcdir)/packageinfo.sh
-	TEMPDIR=`pwd` && export TEMPDIR && cd $(srcdir) && \
-	./scripts/genver include/version.def
-
-$(srcdir)/include/version.texi: $(srcdir)/packageinfo.sh
-	TEMPDIR=`pwd` && export TEMPDIR && cd $(srcdir) && \
-	./scripts/genver include/version.texi
-
-$(srcdir)/.checkChangeLog: $(srcdir)/ChangeLog $(srcdir)/scripts/checkChangeLog
+$(srcdir)/.checkChangeLog: $(srcdir)/ChangeLog $(srcdir)/scripts/build/checkChangeLog
 	cd $(srcdir) && \
-	./scripts/checkChangeLog
-
-libtool: $(LIBTOOL_DEPS)
-	./config.status --recheck
+	./scripts/build/checkChangeLog
 
 dist-hook:
 	@find $(distdir) -type d -name SCCS -print | xargs rm -rf
 
-.gcc-warning:
-	@echo "Compiling with GCC now generates lots of new warnings."
-	@echo " "
-	@echo "Don't be concerned. They're just warnings."
-	@echo " "
-	@echo "Don't send bug reports about the warnings, either."
-	@echo " "
-	@echo "Feel free to send patches that fix these warnings, though."
-	@echo " "
-	@sleep 1
-	@touch $@
+install-data-local:
+	( cd $(srcdir) && find html -name SCCS -prune -o -type d \
+		-exec $(INSTALL) -d $(DESTDIR)$(htmldir)/{} ";" )
+	( cd $(srcdir) && find html -name SCCS -prune -o -type f \
+		-exec $(INSTALL_DATA) {} $(DESTDIR)$(htmldir)/{} ";" )
+
+uninstall-local:
+		rm -rf $(DESTDIR)$(htmldir)/html
 
 CommitLog: FRC.CommitLog
 	cd $(srcdir)					\
 	&& $(PATH_TEST) -e CommitLog			\
 		-a SCCS/s.ChangeSet -ot CommitLog	\
-	|| scripts/genCommitLog
+	|| scripts/build/genCommitLog
 
 .buildcvo:
 	echo "$(CVO)" > .buildcvo
@@ -940,7 +1055,7 @@ CommitLog: FRC.CommitLog
 		echo " "; \
 	fi
 
-FRC.CommitLog FRC.distwarn FRC.checkcvo FRC.checkhost FRC.version:
+FRC.CommitLog FRC.checkcvo FRC.checkhost FRC.distwarn FRC.html FRC.sntp:
 	@: do-nothing action prevents any default
 
 # HMS: what was I trying to do with this?

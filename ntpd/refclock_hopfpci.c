@@ -124,8 +124,7 @@ hopfpci_start(
 	/*
 	 * Allocate and initialize unit structure
 	 */
-	up = emalloc(sizeof(*up));
-	memset(up, 0, sizeof(*up));
+	up = emalloc_zero(sizeof(*up));
 
 #ifndef SYS_WINNT
 
@@ -141,10 +140,10 @@ hopfpci_start(
 
 	pp = peer->procptr;
 	pp->io.clock_recv = noentry;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = INVALID_SOCKET;
-	pp->unitptr = (caddr_t)up;
+	pp->unitptr = up;
 
 	get_systime(&pp->lastrec);
 
@@ -195,7 +194,9 @@ hopfpci_poll(
 	pp = peer->procptr;
 
 #ifndef SYS_WINNT
-	ioctl(fd,HOPF_CLOCK_GET_UTC,&m_time);
+	if (ioctl(fd, HOPF_CLOCK_GET_UTC, &m_time) < 0)
+		msyslog(LOG_ERR, "HOPF_P(%d): HOPF_CLOCK_GET_UTC: %m",
+			unit);
 #else
 	GetHopfSystemTime(&m_time);
 #endif

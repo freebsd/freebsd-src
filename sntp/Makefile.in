@@ -15,11 +15,11 @@
 
 @SET_MAKE@
 
-# Makefile.am for JMK's SNTP, by Harlan Stenn
-
 # we traditionally installed software in bindir, while it should have gone
 # in sbindir.  Now that we offer a choice, look in the "other" installation
 # subdir to warn folks if there is another version there.
+
+
 
 
 VPATH = @srcdir@
@@ -41,27 +41,49 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-@NTP_BINSUBDIR_IS_BIN_TRUE@bin_PROGRAMS = sntp$(EXEEXT)
-@NTP_BINSUBDIR_IS_BIN_FALSE@sbin_PROGRAMS = sntp$(EXEEXT)
-@NEED_LIBOPTS_TRUE@am__append_1 = libopts
-DIST_COMMON = $(am__configure_deps) $(srcdir)/Makefile.am \
-	$(srcdir)/Makefile.in $(srcdir)/config.h.in \
-	$(top_srcdir)/bincheck.mf $(top_srcdir)/configure \
-	$(top_srcdir)/depsver.mf compile config.guess config.sub \
-	depcomp install-sh ltmain.sh missing
+EXTRA_PROGRAMS = sntp$(EXEEXT)
+@BUILD_LIBEVENT_TRUE@@BUILD_SNTP_TRUE@am__append_1 = libevent
+@BUILD_LIBEVENT_TRUE@@BUILD_SNTP_TRUE@am__append_2 = libevent
+@BUILD_SNTP_TRUE@@GTEST_AVAILABLE_TRUE@am__append_3 = tests
+@NEED_LIBOPTS_TRUE@am__append_4 = libopts
+DIST_COMMON = $(am__configure_deps) $(noinst_HEADERS) \
+	$(srcdir)/Makefile.am $(srcdir)/Makefile.in \
+	$(srcdir)/config.h.in $(top_srcdir)/bincheck.mf \
+	$(top_srcdir)/check-libntp.mf $(top_srcdir)/check-libopts.mf \
+	$(top_srcdir)/configure $(top_srcdir)/depsver.mf \
+	$(top_srcdir)/includes.mf compile config.guess config.sub \
+	depcomp install-sh libevent/build-aux/compile \
+	libevent/build-aux/config.guess libevent/build-aux/config.sub \
+	libevent/build-aux/depcomp libevent/build-aux/install-sh \
+	libevent/build-aux/ltmain.sh libevent/build-aux/missing \
+	libevent/build-aux/ylwrap ltmain.sh missing
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/libopts/m4/libopts.m4 \
-	$(top_srcdir)/../m4/libtool.m4 \
-	$(top_srcdir)/../m4/ltoptions.m4 \
-	$(top_srcdir)/../m4/ltsugar.m4 \
-	$(top_srcdir)/../m4/ltversion.m4 \
-	$(top_srcdir)/../m4/lt~obsolete.m4 \
-	$(top_srcdir)/../m4/ntp_cacheversion.m4 \
-	$(top_srcdir)/../m4/ntp_dir_sep.m4 \
-	$(top_srcdir)/../m4/ntp_lib_m.m4 \
-	$(top_srcdir)/../m4/ntp_openssl.m4 $(top_srcdir)/../version.m4 \
-	$(top_srcdir)/configure.ac
+	$(top_srcdir)/libopts/m4/stdnoreturn.m4 \
+	$(top_srcdir)/libevent/m4/openldap-thread-check.m4 \
+	$(top_srcdir)/libevent/m4/openldap.m4 \
+	$(top_srcdir)/m4/hms_search_lib.m4 $(top_srcdir)/m4/libtool.m4 \
+	$(top_srcdir)/m4/ltoptions.m4 $(top_srcdir)/m4/ltsugar.m4 \
+	$(top_srcdir)/m4/ltversion.m4 $(top_srcdir)/m4/lt~obsolete.m4 \
+	$(top_srcdir)/m4/ntp_cacheversion.m4 \
+	$(top_srcdir)/m4/ntp_compiler.m4 \
+	$(top_srcdir)/m4/ntp_crosscompile.m4 \
+	$(top_srcdir)/m4/ntp_debug.m4 $(top_srcdir)/m4/ntp_dir_sep.m4 \
+	$(top_srcdir)/m4/ntp_facilitynames.m4 \
+	$(top_srcdir)/m4/ntp_googletest.m4 \
+	$(top_srcdir)/m4/ntp_ipv6.m4 $(top_srcdir)/m4/ntp_lib_m.m4 \
+	$(top_srcdir)/m4/ntp_libevent.m4 \
+	$(top_srcdir)/m4/ntp_libntp.m4 \
+	$(top_srcdir)/m4/ntp_lineeditlibs.m4 \
+	$(top_srcdir)/m4/ntp_locinfo.m4 \
+	$(top_srcdir)/m4/ntp_openssl.m4 \
+	$(top_srcdir)/m4/ntp_pkg_config.m4 \
+	$(top_srcdir)/m4/ntp_prog_cc.m4 $(top_srcdir)/m4/ntp_sntp.m4 \
+	$(top_srcdir)/m4/ntp_sysexits.m4 \
+	$(top_srcdir)/m4/ntp_ver_suffix.m4 \
+	$(top_srcdir)/m4/os_cflags.m4 $(top_srcdir)/m4/snprintf.m4 \
+	$(top_srcdir)/m4/version.m4 $(top_srcdir)/configure.ac
 am__configure_deps = $(am__aclocal_m4_deps) $(CONFIGURE_DEPENDENCIES) \
 	$(ACLOCAL_M4)
 am__CONFIG_DISTCLEAN_FILES = config.status config.cache config.log \
@@ -70,34 +92,61 @@ mkinstalldirs = $(install_sh) -d
 CONFIG_HEADER = config.h
 CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
-am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" \
-	"$(DESTDIR)$(man1dir)"
-PROGRAMS = $(bin_PROGRAMS) $(sbin_PROGRAMS)
+LIBRARIES = $(noinst_LIBRARIES)
+ARFLAGS = cru
+AM_V_AR = $(am__v_AR_$(V))
+am__v_AR_ = $(am__v_AR_$(AM_DEFAULT_VERBOSITY))
+am__v_AR_0 = @echo "  AR    " $@;
+AM_V_at = $(am__v_at_$(V))
+am__v_at_ = $(am__v_at_$(AM_DEFAULT_VERBOSITY))
+am__v_at_0 = @
+libsntp_a_AR = $(AR) $(ARFLAGS)
+libsntp_a_LIBADD =
 am__objects_1 =
-am_sntp_OBJECTS = crypto.$(OBJEXT) kod_management.$(OBJEXT) \
+am_libsntp_a_OBJECTS = crypto.$(OBJEXT) kod_management.$(OBJEXT) \
 	log.$(OBJEXT) main.$(OBJEXT) networking.$(OBJEXT) \
-	sntp.$(OBJEXT) sntp-opts.$(OBJEXT) utilities.$(OBJEXT) \
-	$(am__objects_1)
+	sntp-opts.$(OBJEXT) utilities.$(OBJEXT) $(am__objects_1)
+libsntp_a_OBJECTS = $(am_libsntp_a_OBJECTS)
+am__installdirs = "$(DESTDIR)$(bindir)" "$(DESTDIR)$(libexecdir)" \
+	"$(DESTDIR)$(sbindir)" "$(DESTDIR)$(man1dir)" \
+	"$(DESTDIR)$(man8dir)" "$(DESTDIR)$(htmldir)"
+PROGRAMS = $(bin_PROGRAMS) $(libexec_PROGRAMS) $(sbin_PROGRAMS)
+am_sntp_OBJECTS = sntp.$(OBJEXT) $(am__objects_1)
 sntp_OBJECTS = $(am_sntp_OBJECTS)
 sntp_LDADD = $(LDADD)
 am__DEPENDENCIES_1 =
-sntp_DEPENDENCIES = $(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
-	../libntp/libntp.a
+sntp_DEPENDENCIES = version.o libsntp.a $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) ../libntp/libntp.a $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1) $(am__DEPENDENCIES_1) \
+	$(am__DEPENDENCIES_1)
+AM_V_lt = $(am__v_lt_$(V))
+am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
+am__v_lt_0 = --silent
 DEFAULT_INCLUDES = -I.@am__isrc@
-depcomp = $(SHELL) $(top_srcdir)/depcomp
+depcomp = $(SHELL) $(top_srcdir)/libevent/build-aux/depcomp
 am__depfiles_maybe = depfiles
 am__mv = mv -f
 COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
-LTCOMPILE = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) \
-	$(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
+LTCOMPILE = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) \
+	$(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) \
+	$(AM_CFLAGS) $(CFLAGS)
+AM_V_CC = $(am__v_CC_$(V))
+am__v_CC_ = $(am__v_CC_$(AM_DEFAULT_VERBOSITY))
+am__v_CC_0 = @echo "  CC    " $@;
 CCLD = $(CC)
-LINK = $(LIBTOOL) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) \
-	--mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) \
-	$(LDFLAGS) -o $@
-SOURCES = $(sntp_SOURCES)
-DIST_SOURCES = $(sntp_SOURCES)
+LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
+	$(AM_LDFLAGS) $(LDFLAGS) -o $@
+AM_V_CCLD = $(am__v_CCLD_$(V))
+am__v_CCLD_ = $(am__v_CCLD_$(AM_DEFAULT_VERBOSITY))
+am__v_CCLD_0 = @echo "  CCLD  " $@;
+AM_V_GEN = $(am__v_GEN_$(V))
+am__v_GEN_ = $(am__v_GEN_$(AM_DEFAULT_VERBOSITY))
+am__v_GEN_0 = @echo "  GEN   " $@;
+SOURCES = $(libsntp_a_SOURCES) $(sntp_SOURCES)
+DIST_SOURCES = $(libsntp_a_SOURCES) $(sntp_SOURCES)
 RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
 	html-recursive info-recursive install-data-recursive \
 	install-dvi-recursive install-exec-recursive \
@@ -127,9 +176,11 @@ am__base_list = \
   sed '$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;$$!N;s/\n/ /g' | \
   sed '$$!N;$$!N;$$!N;$$!N;s/\n/ /g'
 man1dir = $(mandir)/man1
+man8dir = $(mandir)/man8
 NROFF = nroff
-MANS = $(man_MANS)
-DATA = $(noinst_DATA)
+MANS = $(man1_MANS) $(man8_MANS) $(man_MANS)
+DATA = $(html_DATA) $(noinst_DATA)
+HEADERS = $(noinst_HEADERS)
 RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
 AM_RECURSIVE_TARGETS = $(RECURSIVE_TARGETS:-recursive=) \
@@ -137,7 +188,6 @@ AM_RECURSIVE_TARGETS = $(RECURSIVE_TARGETS:-recursive=) \
 	distdir dist dist-all distcheck
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = libopts
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 distdir = $(PACKAGE)-$(VERSION)
 top_distdir = $(distdir)
@@ -175,18 +225,31 @@ GZIP_ENV = --best
 distuninstallcheck_listfiles = find . -type f -print
 distcleancheck_listfiles = find . -type f -print
 ACLOCAL = @ACLOCAL@
+ALLOCA = @ALLOCA@
 AMTAR = @AMTAR@
+AM_DEFAULT_VERBOSITY = @AM_DEFAULT_VERBOSITY@
 AR = @AR@
 AUTOCONF = @AUTOCONF@
 AUTOHEADER = @AUTOHEADER@
 AUTOMAKE = @AUTOMAKE@
 AWK = @AWK@
-BINSUBDIR = @BINSUBDIR@
+CALC_TICKADJ_DB = @CALC_TICKADJ_DB@
+CALC_TICKADJ_DL = @CALC_TICKADJ_DL@
+CALC_TICKADJ_DS = @CALC_TICKADJ_DS@
+CALC_TICKADJ_MS = @CALC_TICKADJ_MS@
+CALC_TICKADJ_NI = @CALC_TICKADJ_NI@
 CC = @CC@
 CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
+CFLAGS_NTP = @CFLAGS_NTP@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
+CPPFLAGS_LIBEVENT = @CPPFLAGS_LIBEVENT@
+CPPFLAGS_NTP = @CPPFLAGS_NTP@
+CXX = @CXX@
+CXXCPP = @CXXCPP@
+CXXDEPMODE = @CXXDEPMODE@
+CXXFLAGS = @CXXFLAGS@
 CYGPATH_W = @CYGPATH_W@
 DEFS = @DEFS@
 DEPDIR = @DEPDIR@
@@ -196,19 +259,29 @@ DUMPBIN = @DUMPBIN@
 ECHO_C = @ECHO_C@
 ECHO_N = @ECHO_N@
 ECHO_T = @ECHO_T@
+EDITLINE_LIBS = @EDITLINE_LIBS@
 EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
 GREP = @GREP@
+GTEST_CONFIG = @GTEST_CONFIG@
+GTEST_CPPFLAGS = @GTEST_CPPFLAGS@
+GTEST_CXXFLAGS = @GTEST_CXXFLAGS@
+GTEST_LDFLAGS = @GTEST_LDFLAGS@
+GTEST_LIBS = @GTEST_LIBS@
 HAVE_INLINE = @HAVE_INLINE@
 INSTALL = @INSTALL@
 INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_SCRIPT = @INSTALL_SCRIPT@
 INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
-LCRYPTO = @LCRYPTO@
 LD = @LD@
+LDADD_LIBEVENT = @LDADD_LIBEVENT@
+LDADD_LIBNTP = @LDADD_LIBNTP@
+LDADD_NTP = @LDADD_NTP@
 LDFLAGS = @LDFLAGS@
+LDFLAGS_NTP = @LDFLAGS_NTP@
+LIBISC_PTHREADS_NOTHREADS = @LIBISC_PTHREADS_NOTHREADS@
 LIBM = @LIBM@
 LIBOBJS = @LIBOBJS@
 LIBOPTS_CFLAGS = @LIBOPTS_CFLAGS@
@@ -216,19 +289,75 @@ LIBOPTS_DIR = @LIBOPTS_DIR@
 LIBOPTS_LDADD = @LIBOPTS_LDADD@
 LIBS = @LIBS@
 LIBTOOL = @LIBTOOL@
+LIBTOOL_DEPS = @LIBTOOL_DEPS@
+LIB_SYSLOG = @LIB_SYSLOG@
 LIPO = @LIPO@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
 MAKEINFO = @MAKEINFO@
 MANIFEST_TOOL = @MANIFEST_TOOL@
+MANTAGFMT = @MANTAGFMT@
 MKDIR_P = @MKDIR_P@
 NM = @NM@
 NMEDIT = @NMEDIT@
+NTPDATE_DB = @NTPDATE_DB@
+NTPDATE_DL = @NTPDATE_DL@
+NTPDATE_DS = @NTPDATE_DS@
+NTPDATE_MS = @NTPDATE_MS@
+NTPDATE_NI = @NTPDATE_NI@
+NTPDC_DB = @NTPDC_DB@
+NTPDC_DL = @NTPDC_DL@
+NTPDC_DS = @NTPDC_DS@
+NTPDC_MS = @NTPDC_MS@
+NTPDC_NI = @NTPDC_NI@
+NTPDSIM_DB = @NTPDSIM_DB@
+NTPDSIM_DL = @NTPDSIM_DL@
+NTPDSIM_DS = @NTPDSIM_DS@
+NTPDSIM_MS = @NTPDSIM_MS@
+NTPDSIM_NI = @NTPDSIM_NI@
+NTPD_DB = @NTPD_DB@
+NTPD_DL = @NTPD_DL@
+NTPD_DS = @NTPD_DS@
+NTPD_MS = @NTPD_MS@
+NTPD_NI = @NTPD_NI@
+NTPQ_DB = @NTPQ_DB@
+NTPQ_DL = @NTPQ_DL@
+NTPQ_DS = @NTPQ_DS@
+NTPQ_MS = @NTPQ_MS@
+NTPQ_NI = @NTPQ_NI@
+NTPSNMPD_DB = @NTPSNMPD_DB@
+NTPSNMPD_DL = @NTPSNMPD_DL@
+NTPSNMPD_DS = @NTPSNMPD_DS@
+NTPSNMPD_MS = @NTPSNMPD_MS@
+NTPSNMPD_NI = @NTPSNMPD_NI@
+NTPSWEEP_DB = @NTPSWEEP_DB@
+NTPSWEEP_DL = @NTPSWEEP_DL@
+NTPSWEEP_DS = @NTPSWEEP_DS@
+NTPSWEEP_MS = @NTPSWEEP_MS@
+NTPSWEEP_NI = @NTPSWEEP_NI@
+NTPTIME_DB = @NTPTIME_DB@
+NTPTIME_DL = @NTPTIME_DL@
+NTPTIME_DS = @NTPTIME_DS@
+NTPTIME_MS = @NTPTIME_MS@
+NTPTIME_NI = @NTPTIME_NI@
+NTPTRACE_DB = @NTPTRACE_DB@
+NTPTRACE_DL = @NTPTRACE_DL@
+NTPTRACE_DS = @NTPTRACE_DS@
+NTPTRACE_MS = @NTPTRACE_MS@
+NTPTRACE_NI = @NTPTRACE_NI@
+NTP_FORCE_LIBEVENT_DIST = @NTP_FORCE_LIBEVENT_DIST@
+NTP_KEYGEN_DB = @NTP_KEYGEN_DB@
+NTP_KEYGEN_DL = @NTP_KEYGEN_DL@
+NTP_KEYGEN_DS = @NTP_KEYGEN_DS@
+NTP_KEYGEN_MS = @NTP_KEYGEN_MS@
+NTP_KEYGEN_NI = @NTP_KEYGEN_NI@
+NTP_WAIT_DB = @NTP_WAIT_DB@
+NTP_WAIT_DL = @NTP_WAIT_DL@
+NTP_WAIT_DS = @NTP_WAIT_DS@
+NTP_WAIT_MS = @NTP_WAIT_MS@
+NTP_WAIT_NI = @NTP_WAIT_NI@
 OBJDUMP = @OBJDUMP@
 OBJEXT = @OBJEXT@
-OPENSSL = @OPENSSL@
-OPENSSL_INC = @OPENSSL_INC@
-OPENSSL_LIB = @OPENSSL_LIB@
 OTOOL = @OTOOL@
 OTOOL64 = @OTOOL64@
 PACKAGE = @PACKAGE@
@@ -239,19 +368,40 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PKG_CONFIG = @PKG_CONFIG@
 POSIX_SHELL = @POSIX_SHELL@
+PTHREAD_LIBS = @PTHREAD_LIBS@
 RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
 SHELL = @SHELL@
+SNTP = @SNTP@
+SNTP_DB = @SNTP_DB@
+SNTP_DL = @SNTP_DL@
+SNTP_DS = @SNTP_DS@
+SNTP_MS = @SNTP_MS@
+SNTP_NI = @SNTP_NI@
+STDNORETURN_H = @STDNORETURN_H@
 STRIP = @STRIP@
+TICKADJ_DB = @TICKADJ_DB@
+TICKADJ_DL = @TICKADJ_DL@
+TICKADJ_DS = @TICKADJ_DS@
+TICKADJ_MS = @TICKADJ_MS@
+TICKADJ_NI = @TICKADJ_NI@
+TIMETRIM_DB = @TIMETRIM_DB@
+TIMETRIM_DL = @TIMETRIM_DL@
+TIMETRIM_DS = @TIMETRIM_DS@
+TIMETRIM_MS = @TIMETRIM_MS@
+TIMETRIM_NI = @TIMETRIM_NI@
 VERSION = @VERSION@
+VER_SUFFIX = @VER_SUFFIX@
 abs_builddir = @abs_builddir@
 abs_srcdir = @abs_srcdir@
 abs_top_builddir = @abs_top_builddir@
 abs_top_srcdir = @abs_top_srcdir@
 ac_ct_AR = @ac_ct_AR@
 ac_ct_CC = @ac_ct_CC@
+ac_ct_CXX = @ac_ct_CXX@
 ac_ct_DUMPBIN = @ac_ct_DUMPBIN@
 am__include = @am__include@
 am__leading_dot = @am__leading_dot@
@@ -293,80 +443,117 @@ psdir = @psdir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
+subdirs = @subdirs@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
+ACLOCAL_AMFLAGS = -I m4 -I libevent/m4 -I libopts/m4
 NULL = 
-AUTOMAKE_OPTIONS = foreign 1.10
-ACLOCAL_AMFLAGS = -I ../m4 -I libopts/m4
-AM_CPPFLAGS = $(LIBOPTS_CFLAGS) -I$(top_srcdir)/../include \
-	-I$(top_srcdir)/../lib/isc/include \
-	-I$(top_srcdir)/../lib/isc/nothreads/include \
-	-I$(top_srcdir)/../lib/isc/unix/include
+AM_CFLAGS = $(CFLAGS_NTP)
+AM_CPPFLAGS = $(SNTP_INCS) $(LIBOPTS_CFLAGS) $(CPPFLAGS_LIBEVENT) \
+	$(CPPFLAGS_NTP)
+AM_LDFLAGS = $(LDFLAGS_NTP)
+LDADD = version.o libsntp.a $(LIBOPTS_LDADD) $(LDADD_LIBEVENT) \
+	../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(PTHREAD_LIBS) \
+	$(LDADD_NTP)
+run_ag = cd $(srcdir) &&	env PATH="$(abs_builddir):$(PATH)" AUTOGEN_DNE_DATE=-D	\
+		autogen -L include -L ag-tpl --writable
 
-LDADD = $(LIBOPTS_LDADD) $(LIBM) ../libntp/libntp.a @LCRYPTO@
-run_ag = cd $(srcdir) &&	env PATH="$(abs_builddir):$(PATH)"	\
-		autogen -L ../include --writable
+std_def_list = \
+	$(srcdir)/include/debug-opt.def			\
+	$(srcdir)/include/autogen-version.def 		\
+	$(srcdir)/include/copyright.def 		\
+	$(srcdir)/include/homerc.def 			\
+	$(srcdir)/include/ntp.lic 			\
+	$(srcdir)/include/version.def			\
+	$(NULL)
 
-CLEANFILES = check-COPYRIGHT-submake .deps-ver
-SUBDIRS = $(am__append_1)
+bin_PROGRAMS = @SNTP_DB@
+libexec_PROGRAMS = @SNTP_DL@
+sbin_PROGRAMS = @SNTP_DS@
+SUBDIRS = include scripts $(am__append_1) $(am__append_3) \
+	$(am__append_4)
+DIST_SUBDIRS = include scripts $(am__append_2) libopts tests
+@BUILD_SNTP_TRUE@noinst_LIBRARIES = libsntp.a
+libsntp_a_SOURCES = \
+	crypto.c		\
+	kod_management.c	\
+	log.c			\
+	main.c			\
+	networking.c		\
+	sntp-opts.c		\
+	utilities.c		\
+	$(NULL)
+
 sntp_SOURCES = \
-	crypto.c	\
-	crypto.h	\
-	data_formats.h	\
-	header.h	\
-	kod_management.c \
-	kod_management.h \
-	log.c		\
-	log.h		\
-	main.c		\
-	main.h		\
-	networking.c	\
-	networking.h	\
 	sntp.c		\
-	sntp-opts.c	\
-	sntp-opts.h	\
-	utilities.c	\
-	utilities.h	\
+	$(NULL)
+
+noinst_HEADERS = \
+	crypto.h		\
+	data_formats.h		\
+	kod_management.h	\
+	log.h			\
+	main.h			\
+	networking.h		\
+	sntp-opts.h		\
+	tests_main.h		\
+	utilities.h		\
+	$(NULL)
+
+DISTCLEANFILES = \
+	.version			\
+	version.c			\
+	config.log			\
+	$(man_MANS)			\
 	$(NULL)
 
 EXTRA_DIST = \
-	$(srcdir)/autogen-version.def	\
-	bincheck.mf			\
 	$(srcdir)/COPYRIGHT		\
+	ag-tpl				\
 	deps-ver			\
-	depsver.mf			\
+	invoke-sntp.menu		\
+	invoke-sntp.texi		\
+	@NTP_FORCE_LIBEVENT_DIST@	\
+	loc				\
 	sntp-opts.def			\
-	sntp-opts.menu			\
-	sntp-opts.texi			\
-	sntp.1				\
+	sntp.1sntpman			\
+	sntp.1sntpmdoc			\
+	sntp.man.in			\
+	sntp.mdoc.in			\
 	sntp.html			\
 	sntp.texi			\
-	$(srcdir)/version.def		\
-	$(srcdir)/version.m4		\
-	$(srcdir)/version.texi		\
+	$(srcdir)/scm-rev		\
+	$(srcdir)/m4/version.m4		\
 	$(NULL)
 
-OLD_EXTRA_DIST = \
-		autogen-version.def version.def version.m4 version.texi
-
-BUILT_SOURCES = check-autogen-version.def check-version.def \
-	check-version.m4 check-version.texi $(srcdir)/COPYRIGHT \
-	libtool $(srcdir)/sntp-opts.c $(srcdir)/sntp-opts.h $(NULL) \
-	.deps-ver
-man_MANS = $(srcdir)/sntp.1
-
-# HMS: Real Soon Now...
-#info_TEXINFOS=	sntp.texi
-#sntp_TEXINFOS=	sntp-opts.texi
-noinst_DATA = \
+BUILT_SOURCES = $(srcdir)/COPYRIGHT libtool $(srcdir)/sntp-opts.c \
+	$(srcdir)/sntp-opts.h check-scm-rev \
+	$(srcdir)/include/version.def $(srcdir)/m4/version.m4 \
+	$(srcdir)/include/version.texi $(NULL) check-libntp \
+	check-libopts .deps-ver
+CLEANFILES = built-sources-only check-COPYRIGHT-submake $(NULL) \
+	check-libntp check-libopts .deps-ver
+man1_MANS = 
+man8_MANS = 
+man_MANS = sntp.$(SNTP_MS)
+html_DATA = \
 	$(srcdir)/sntp.html		\
-	$(srcdir)/sntp-opts.texi	\
-	$(srcdir)/sntp-opts.menu	\
 	$(NULL)
 
+noinst_DATA = \
+	$(srcdir)/invoke-sntp.menu	\
+	$(srcdir)/invoke-sntp.texi	\
+	$(srcdir)/sntp.man.in		\
+	$(srcdir)/sntp.mdoc.in		\
+	$(NULL)
+
+SNTP_INCS = -I$(top_srcdir)/../include \
+	-I$(top_srcdir)/../lib/isc/include \
+	-I$(top_srcdir)/../lib/isc/$(LIBISC_PTHREADS_NOTHREADS)/include \
+	-I$(top_srcdir)/../lib/isc/unix/include
 all: $(BUILT_SOURCES) config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-recursive
 
@@ -374,7 +561,7 @@ all: $(BUILT_SOURCES) config.h
 .SUFFIXES: .c .lo .o .obj
 am--refresh:
 	@:
-$(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(top_srcdir)/bincheck.mf $(top_srcdir)/depsver.mf $(am__configure_deps)
+$(srcdir)/Makefile.in:  $(srcdir)/Makefile.am $(top_srcdir)/bincheck.mf $(top_srcdir)/check-libntp.mf $(top_srcdir)/check-libopts.mf $(top_srcdir)/depsver.mf $(top_srcdir)/includes.mf $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
 	    *$$dep*) \
@@ -423,6 +610,13 @@ $(srcdir)/config.h.in:  $(am__configure_deps)
 
 distclean-hdr:
 	-rm -f config.h stamp-h1
+
+clean-noinstLIBRARIES:
+	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
+libsntp.a: $(libsntp_a_OBJECTS) $(libsntp_a_DEPENDENCIES) 
+	$(AM_V_at)-rm -f libsntp.a
+	$(AM_V_AR)$(libsntp_a_AR) libsntp.a $(libsntp_a_OBJECTS) $(libsntp_a_LIBADD)
+	$(AM_V_at)$(RANLIB) libsntp.a
 install-binPROGRAMS: $(bin_PROGRAMS)
 	@$(NORMAL_INSTALL)
 	test -z "$(bindir)" || $(MKDIR_P) "$(DESTDIR)$(bindir)"
@@ -460,6 +654,49 @@ uninstall-binPROGRAMS:
 
 clean-binPROGRAMS:
 	@list='$(bin_PROGRAMS)'; test -n "$$list" || exit 0; \
+	echo " rm -f" $$list; \
+	rm -f $$list || exit $$?; \
+	test -n "$(EXEEXT)" || exit 0; \
+	list=`for p in $$list; do echo "$$p"; done | sed 's/$(EXEEXT)$$//'`; \
+	echo " rm -f" $$list; \
+	rm -f $$list
+install-libexecPROGRAMS: $(libexec_PROGRAMS)
+	@$(NORMAL_INSTALL)
+	test -z "$(libexecdir)" || $(MKDIR_P) "$(DESTDIR)$(libexecdir)"
+	@list='$(libexec_PROGRAMS)'; test -n "$(libexecdir)" || list=; \
+	for p in $$list; do echo "$$p $$p"; done | \
+	sed 's/$(EXEEXT)$$//' | \
+	while read p p1; do if test -f $$p || test -f $$p1; \
+	  then echo "$$p"; echo "$$p"; else :; fi; \
+	done | \
+	sed -e 'p;s,.*/,,;n;h' -e 's|.*|.|' \
+	    -e 'p;x;s,.*/,,;s/$(EXEEXT)$$//;$(transform);s/$$/$(EXEEXT)/' | \
+	sed 'N;N;N;s,\n, ,g' | \
+	$(AWK) 'BEGIN { files["."] = ""; dirs["."] = 1 } \
+	  { d=$$3; if (dirs[d] != 1) { print "d", d; dirs[d] = 1 } \
+	    if ($$2 == $$4) files[d] = files[d] " " $$1; \
+	    else { print "f", $$3 "/" $$4, $$1; } } \
+	  END { for (d in files) print "f", d, files[d] }' | \
+	while read type dir files; do \
+	    if test "$$dir" = .; then dir=; else dir=/$$dir; fi; \
+	    test -z "$$files" || { \
+	    echo " $(INSTALL_PROGRAM_ENV) $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(INSTALL_PROGRAM) $$files '$(DESTDIR)$(libexecdir)$$dir'"; \
+	    $(INSTALL_PROGRAM_ENV) $(LIBTOOL) $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=install $(INSTALL_PROGRAM) $$files "$(DESTDIR)$(libexecdir)$$dir" || exit $$?; \
+	    } \
+	; done
+
+uninstall-libexecPROGRAMS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(libexec_PROGRAMS)'; test -n "$(libexecdir)" || list=; \
+	files=`for p in $$list; do echo "$$p"; done | \
+	  sed -e 'h;s,^.*/,,;s/$(EXEEXT)$$//;$(transform)' \
+	      -e 's/$$/$(EXEEXT)/' `; \
+	test -n "$$list" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(libexecdir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(libexecdir)" && rm -f $$files
+
+clean-libexecPROGRAMS:
+	@list='$(libexec_PROGRAMS)'; test -n "$$list" || exit 0; \
 	echo " rm -f" $$list; \
 	rm -f $$list || exit $$?; \
 	test -n "$(EXEEXT)" || exit 0; \
@@ -511,7 +748,7 @@ clean-sbinPROGRAMS:
 	rm -f $$list
 sntp$(EXEEXT): $(sntp_OBJECTS) $(sntp_DEPENDENCIES) 
 	@rm -f sntp$(EXEEXT)
-	$(LINK) $(sntp_OBJECTS) $(sntp_LDADD) $(LIBS)
+	$(AM_V_CCLD)$(LINK) $(sntp_OBJECTS) $(sntp_LDADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
@@ -529,22 +766,25 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/utilities.Po@am__quote@
 
 .c.o:
-@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(COMPILE) -c $<
 
 .c.obj:
-@am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ `$(CYGPATH_W) '$<'`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Po
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(COMPILE) -c `$(CYGPATH_W) '$<'`
 
 .c.lo:
-@am__fastdepCC_TRUE@	$(LTCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
-@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(LTCOMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/$*.Tpo $(DEPDIR)/$*.Plo
+@am__fastdepCC_FALSE@	$(AM_V_CC) @AM_BACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='$<' object='$@' libtool=yes @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(LTCOMPILE) -c -o $@ $<
@@ -557,10 +797,10 @@ clean-libtool:
 
 distclean-libtool:
 	-rm -f libtool config.lt
-install-man1: $(man_MANS)
+install-man1: $(man1_MANS) $(man_MANS)
 	@$(NORMAL_INSTALL)
 	test -z "$(man1dir)" || $(MKDIR_P) "$(DESTDIR)$(man1dir)"
-	@list=''; test -n "$(man1dir)" || exit 0; \
+	@list='$(man1_MANS)'; test -n "$(man1dir)" || exit 0; \
 	{ for i in $$list; do echo "$$i"; done; \
 	l2='$(man_MANS)'; for i in $$l2; do echo "$$i"; done | \
 	  sed -n '/\.1[a-z]*$$/p'; \
@@ -586,7 +826,7 @@ install-man1: $(man_MANS)
 
 uninstall-man1:
 	@$(NORMAL_UNINSTALL)
-	@list=''; test -n "$(man1dir)" || exit 0; \
+	@list='$(man1_MANS)'; test -n "$(man1dir)" || exit 0; \
 	files=`{ for i in $$list; do echo "$$i"; done; \
 	l2='$(man_MANS)'; for i in $$l2; do echo "$$i"; done | \
 	  sed -n '/\.1[a-z]*$$/p'; \
@@ -595,6 +835,64 @@ uninstall-man1:
 	test -z "$$files" || { \
 	  echo " ( cd '$(DESTDIR)$(man1dir)' && rm -f" $$files ")"; \
 	  cd "$(DESTDIR)$(man1dir)" && rm -f $$files; }
+install-man8: $(man8_MANS) $(man_MANS)
+	@$(NORMAL_INSTALL)
+	test -z "$(man8dir)" || $(MKDIR_P) "$(DESTDIR)$(man8dir)"
+	@list='$(man8_MANS)'; test -n "$(man8dir)" || exit 0; \
+	{ for i in $$list; do echo "$$i"; done; \
+	l2='$(man_MANS)'; for i in $$l2; do echo "$$i"; done | \
+	  sed -n '/\.8[a-z]*$$/p'; \
+	} | while read p; do \
+	  if test -f $$p; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; echo "$$p"; \
+	done | \
+	sed -e 'n;s,.*/,,;p;h;s,.*\.,,;s,^[^8][0-9a-z]*$$,8,;x' \
+	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,' | \
+	sed 'N;N;s,\n, ,g' | { \
+	list=; while read file base inst; do \
+	  if test "$$base" = "$$inst"; then list="$$list $$file"; else \
+	    echo " $(INSTALL_DATA) '$$file' '$(DESTDIR)$(man8dir)/$$inst'"; \
+	    $(INSTALL_DATA) "$$file" "$(DESTDIR)$(man8dir)/$$inst" || exit $$?; \
+	  fi; \
+	done; \
+	for i in $$list; do echo "$$i"; done | $(am__base_list) | \
+	while read files; do \
+	  test -z "$$files" || { \
+	    echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(man8dir)'"; \
+	    $(INSTALL_DATA) $$files "$(DESTDIR)$(man8dir)" || exit $$?; }; \
+	done; }
+
+uninstall-man8:
+	@$(NORMAL_UNINSTALL)
+	@list='$(man8_MANS)'; test -n "$(man8dir)" || exit 0; \
+	files=`{ for i in $$list; do echo "$$i"; done; \
+	l2='$(man_MANS)'; for i in $$l2; do echo "$$i"; done | \
+	  sed -n '/\.8[a-z]*$$/p'; \
+	} | sed -e 's,.*/,,;h;s,.*\.,,;s,^[^8][0-9a-z]*$$,8,;x' \
+	      -e 's,\.[0-9a-z]*$$,,;$(transform);G;s,\n,.,'`; \
+	test -z "$$files" || { \
+	  echo " ( cd '$(DESTDIR)$(man8dir)' && rm -f" $$files ")"; \
+	  cd "$(DESTDIR)$(man8dir)" && rm -f $$files; }
+install-htmlDATA: $(html_DATA)
+	@$(NORMAL_INSTALL)
+	test -z "$(htmldir)" || $(MKDIR_P) "$(DESTDIR)$(htmldir)"
+	@list='$(html_DATA)'; test -n "$(htmldir)" || list=; \
+	for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  echo "$$d$$p"; \
+	done | $(am__base_list) | \
+	while read files; do \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(htmldir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(htmldir)" || exit $$?; \
+	done
+
+uninstall-htmlDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(html_DATA)'; test -n "$(htmldir)" || list=; \
+	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
+	test -n "$$files" || exit 0; \
+	echo " ( cd '$(DESTDIR)$(htmldir)' && rm -f" $$files ")"; \
+	cd "$(DESTDIR)$(htmldir)" && rm -f $$files
 
 # This directory's subdirectories are mostly independent; you can cd
 # into them and run `make' without going through this Makefile.
@@ -804,6 +1102,9 @@ distdir: $(DISTFILES)
 	      || exit 1; \
 	  fi; \
 	done
+	$(MAKE) $(AM_MAKEFLAGS) \
+	  top_distdir="$(top_distdir)" distdir="$(distdir)" \
+	  dist-hook
 	-test -n "$(am__skip_mode_fix)" \
 	|| find "$(distdir)" -type d ! -perm -755 \
 		-exec chmod u+rwx,go+rx {} \; -o \
@@ -922,10 +1223,11 @@ distcleancheck: distclean
 check-am: all-am
 check: $(BUILT_SOURCES)
 	$(MAKE) $(AM_MAKEFLAGS) check-recursive
-all-am: Makefile $(PROGRAMS) $(MANS) $(DATA) config.h
+all-am: Makefile $(LIBRARIES) $(PROGRAMS) $(MANS) $(DATA) $(HEADERS) \
+		config.h
 installdirs: installdirs-recursive
 installdirs-am:
-	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(man1dir)"; do \
+	for dir in "$(DESTDIR)$(bindir)" "$(DESTDIR)$(libexecdir)" "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(man1dir)" "$(DESTDIR)$(man8dir)" "$(DESTDIR)$(htmldir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: $(BUILT_SOURCES)
@@ -951,6 +1253,7 @@ clean-generic:
 distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-test . = "$(srcdir)" || test -z "$(CONFIG_CLEAN_VPATH_FILES)" || rm -f $(CONFIG_CLEAN_VPATH_FILES)
+	-test -z "$(DISTCLEANFILES)" || rm -f $(DISTCLEANFILES)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
@@ -958,8 +1261,9 @@ maintainer-clean-generic:
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 clean: clean-recursive
 
-clean-am: clean-binPROGRAMS clean-generic clean-libtool \
-	clean-sbinPROGRAMS mostlyclean-am
+clean-am: clean-binPROGRAMS clean-generic clean-libexecPROGRAMS \
+	clean-libtool clean-noinstLIBRARIES clean-sbinPROGRAMS \
+	mostlyclean-am
 
 distclean: distclean-recursive
 	-rm -f $(am__CONFIG_DISTCLEAN_FILES)
@@ -980,13 +1284,14 @@ info: info-recursive
 
 info-am:
 
-install-data-am: install-man
+install-data-am: install-data-local install-htmlDATA install-man
 
 install-dvi: install-dvi-recursive
 
 install-dvi-am:
 
-install-exec-am: install-binPROGRAMS install-sbinPROGRAMS
+install-exec-am: install-binPROGRAMS install-libexecPROGRAMS \
+	install-sbinPROGRAMS
 	@$(NORMAL_INSTALL)
 	$(MAKE) $(AM_MAKEFLAGS) install-exec-hook
 install-html: install-html-recursive
@@ -997,7 +1302,7 @@ install-info: install-info-recursive
 
 install-info-am:
 
-install-man: install-man1
+install-man: install-man1 install-man8
 
 install-pdf: install-pdf-recursive
 
@@ -1029,10 +1334,10 @@ ps: ps-recursive
 
 ps-am:
 
-uninstall-am: uninstall-binPROGRAMS uninstall-man \
-	uninstall-sbinPROGRAMS
+uninstall-am: uninstall-binPROGRAMS uninstall-htmlDATA \
+	uninstall-libexecPROGRAMS uninstall-man uninstall-sbinPROGRAMS
 
-uninstall-man: uninstall-man1
+uninstall-man: uninstall-man1 uninstall-man8
 
 .MAKE: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) all check \
 	ctags-recursive install install-am install-exec-am \
@@ -1040,25 +1345,30 @@ uninstall-man: uninstall-man1
 
 .PHONY: $(RECURSIVE_CLEAN_TARGETS) $(RECURSIVE_TARGETS) CTAGS GTAGS \
 	all all-am am--refresh check check-am clean clean-binPROGRAMS \
-	clean-generic clean-libtool clean-sbinPROGRAMS ctags \
-	ctags-recursive dist dist-all dist-bzip2 dist-gzip dist-lzma \
+	clean-generic clean-libexecPROGRAMS clean-libtool \
+	clean-noinstLIBRARIES clean-sbinPROGRAMS ctags ctags-recursive \
+	dist dist-all dist-bzip2 dist-gzip dist-hook dist-lzma \
 	dist-shar dist-tarZ dist-xz dist-zip distcheck distclean \
 	distclean-compile distclean-generic distclean-hdr \
 	distclean-libtool distclean-tags distcleancheck distdir \
 	distuninstallcheck dvi dvi-am html html-am info info-am \
 	install install-am install-binPROGRAMS install-data \
-	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-exec-hook install-html install-html-am \
-	install-info install-info-am install-man install-man1 \
+	install-data-am install-data-local install-dvi install-dvi-am \
+	install-exec install-exec-am install-exec-hook install-html \
+	install-html-am install-htmlDATA install-info install-info-am \
+	install-libexecPROGRAMS install-man install-man1 install-man8 \
 	install-pdf install-pdf-am install-ps install-ps-am \
 	install-sbinPROGRAMS install-strip installcheck \
 	installcheck-am installdirs installdirs-am maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic mostlyclean-libtool pdf pdf-am ps ps-am \
 	tags tags-recursive uninstall uninstall-am \
-	uninstall-binPROGRAMS uninstall-man uninstall-man1 \
-	uninstall-sbinPROGRAMS
+	uninstall-binPROGRAMS uninstall-htmlDATA \
+	uninstall-libexecPROGRAMS uninstall-man uninstall-man1 \
+	uninstall-man8 uninstall-sbinPROGRAMS
 
+
+install-data-local: install-html
 
 FRC:
 	@: do-nothing action to prevent default SCCS get
@@ -1066,6 +1376,14 @@ FRC:
 	@: always out-of-date causing targets which depend on it to
 	@: similarly always be outdated causing their rules to fire
 	@: each time they or a dependent is built.
+
+$(PROGRAMS): version.o
+
+version.c: $(sntp_OBJECTS) ../libntp/libntp.a Makefile $(srcdir)/scm-rev
+	env CSET=`cat $(srcdir)/scm-rev` $(top_builddir)/../scripts/build/mkver sntp
+
+version.o: version.c
+	env CCACHE_DISABLE=1 $(COMPILE) -c version.c -o version.o
 
 check-autogen-version.def: FRC
 	@cd $(srcdir)							\
@@ -1077,46 +1395,36 @@ check-autogen-version.def: FRC
 	   fi )
 
 $(srcdir)/autogen-version.def:
-	$(MAKE) check-autogen-version.def
+	$(MAKE) $(AM_MAKEFLAGS) check-autogen-version.def
 
-check-version.def: FRC
-	@cd $(srcdir)					\
-	&& test -r ../include/version.def		\
-	&& ( if cmp -s ../include/version.def version.def;	\
-	   then : ;						\
-	   else cp ../include/version.def version.def;		\
-		echo "Installing new sntp/version.def file";	\
-	   fi )
+built-sources-only: $(BUILT_SOURCES)
+	@: do-nothing action to avoid default SCCS get
 
-$(srcdir)/version.def:
-	$(MAKE) check-version.def
+check-scm-rev: $(srcdir)/scm-rev
+	@: do-nothing
 
-check-version.m4: FRC
-	@cd $(srcdir)					\
-	&& test -r ../version.m4			\
-	&& ( if cmp -s ../version.m4 version.m4;	\
-	   then : ;					\
-	   else cp ../version.m4 version.m4;		\
-		echo "Installing new sntp/version.m4 file";	\
-	   fi )
+$(srcdir)/scm-rev:
+	-test -r $(srcdir)/../SCCS/s.ChangeSet &&		\
+	    (bk version) >/dev/null 2>&1 &&			\
+	    cd $(srcdir)/.. &&					\
+	    x=`bk -R prs -hr+ -nd:I: ChangeSet` &&		\
+	    y=`cat sntp/scm-rev 2>/dev/null` || true &&		\
+	    case "$$x" in ''|$$y) ;; *) echo $$x > sntp/scm-rev ;; esac
 
-$(srcdir)/version.m4:
-	$(MAKE) check-version.m4
+$(srcdir)/m4/version.m4: $(srcdir)/../packageinfo.sh
+	TEMPDIR=`pwd` && export TEMPDIR && cd $(srcdir) && \
+	../scripts/build/genver m4/version.m4
 
-check-version.texi: FRC
-	@cd $(srcdir)					\
-	&& test -r ../include/version.texi			\
-	&& ( if cmp -s ../include/version.texi version.texi;	\
-	   then : ;					\
-	   else cp ../include/version.texi version.texi;	\
-		echo "Installing new sntp/version.texi file";	\
-	   fi )
+$(srcdir)/include/version.def: $(srcdir)/../packageinfo.sh
+	TEMPDIR=`pwd` && export TEMPDIR && cd $(srcdir) && \
+	../scripts/build/genver include/version.def
 
-$(srcdir)/version.texi:
-	$(MAKE) check-version.texi
+$(srcdir)/include/version.texi: $(srcdir)/../packageinfo.sh
+	TEMPDIR=`pwd` && export TEMPDIR && cd $(srcdir) && \
+	../scripts/build/genver include/version.texi
 
 $(srcdir)/../COPYRIGHT:
-	cd .. && $(MAKE) COPYRIGHT-please
+	cd .. && $(MAKE) $(AM_MAKEFLAGS) COPYRIGHT-please
 
 check-COPYRIGHT-submake: $(srcdir)/../COPYRIGHT
 	@cmp -s $(srcdir)/../COPYRIGHT $(srcdir)/COPYRIGHT	\
@@ -1127,7 +1435,7 @@ check-COPYRIGHT-submake: $(srcdir)/../COPYRIGHT
 check-COPYRIGHT: FRC
 	[ ! -r $(srcdir)/../COPYRIGHT ]					\
 	|| [ check-COPYRIGHT-submake -nt $(srcdir)/../COPYRIGHT ]	\
-	|| $(MAKE) check-COPYRIGHT-submake
+	|| $(MAKE) $(AM_MAKEFLAGS) check-COPYRIGHT-submake
 
 $(srcdir)/COPYRIGHT: check-COPYRIGHT
 	@: do-nothing action to prevent any default
@@ -1135,46 +1443,86 @@ $(srcdir)/COPYRIGHT: check-COPYRIGHT
 $(srcdir)/sntp-opts.h: $(srcdir)/sntp-opts.c
 	@: do-nothing action to avoid default SCCS get, .h built with .c
 
-$(srcdir)/sntp-opts.c: $(srcdir)/sntp-opts.def $(srcdir)/version.def $(srcdir)/../include/copyright.def
+$(srcdir)/sntp-opts.c: $(srcdir)/sntp-opts.def $(std_def_list)
 	$(run_ag) sntp-opts.def
 
-$(srcdir)/sntp.1: $(srcdir)/sntp-opts.def $(srcdir)/version.def $(srcdir)/../include/copyright.def
-	$(run_ag) -Tagman1.tpl -bsntp sntp-opts.def
+###
 
-$(srcdir)/sntp-opts.menu: $(srcdir)/sntp-opts.texi
+$(srcdir)/sntp.1sntpman: $(srcdir)/sntp-opts.def $(std_def_list)
+	$(run_ag) -DMAN_SECTION=1sntpman -Tagman-cmd.tpl sntp-opts.def
+
+$(srcdir)/sntp.man.in: $(srcdir)/sntp.1sntpman $(srcdir)/scripts/mansec2subst.sed
+	sed -f $(srcdir)/scripts/mansec2subst.sed $(srcdir)/sntp.1sntpman > $(srcdir)/sntp.man.in+
+	mv $(srcdir)/sntp.man.in+ $(srcdir)/sntp.man.in
+
+###
+
+$(srcdir)/sntp.1sntpmdoc: $(srcdir)/sntp-opts.def $(std_def_list)
+	$(run_ag) -DMAN_SECTION=1sntpmdoc -Tagmdoc-cmd.tpl sntp-opts.def
+
+$(srcdir)/sntp.mdoc.in: $(srcdir)/sntp.1sntpmdoc $(srcdir)/scripts/mansec2subst.sed
+	sed -f $(srcdir)/scripts/mansec2subst.sed $(srcdir)/sntp.1sntpmdoc > $(srcdir)/sntp.mdoc.in+
+	mv $(srcdir)/sntp.mdoc.in+ $(srcdir)/sntp.mdoc.in
+
+###
+
+sntp.$(SNTP_MS): $(srcdir)/sntp.$(MANTAGFMT).in $(top_builddir)/config.status
+	$(top_builddir)/config.status --file=sntp.$(SNTP_MS)+:$(srcdir)/sntp.$(MANTAGFMT).in
+	mv sntp.$(SNTP_MS)+ sntp.$(SNTP_MS)
+
+###
+
+$(srcdir)/invoke-sntp.menu: $(srcdir)/invoke-sntp.texi
 	@: do-nothing action to avoid default SCCS get, .menu built with .texi
 
-$(srcdir)/sntp-opts.texi: $(srcdir)/sntp-opts.def $(srcdir)/version.def $(srcdir)/../include/copyright.def
-	$(run_ag) -Taginfo.tpl -DLEVEL=section sntp-opts.def
-	$(top_srcdir)/../scripts/check--help $@
+$(srcdir)/invoke-sntp.texi: $(srcdir)/sntp-opts.def $(std_def_list)
+	$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section sntp-opts.def
+	$(top_srcdir)/../scripts/build/check--help $@
 
-$(srcdir)/sntp.html: $(srcdir)/sntp-opts.menu $(srcdir)/sntp-opts.texi $(srcdir)/sntp.texi $(srcdir)/version.texi
+$(srcdir)/sntp.html: $(srcdir)/invoke-sntp.menu $(srcdir)/invoke-sntp.texi $(srcdir)/sntp.texi $(srcdir)/include/version.texi
 	cd $(srcdir) && ( makeinfo --force --html --no-split -o sntp.html sntp.texi || true )
-
-../libntp/libntp.a:
-	cd ../libntp && $(MAKE) libntp.a
 
 libtool: $(LIBTOOL_DEPS)
 	./config.status --recheck
 
+libevent-dist-hook:
+	if test -n "$(NTP_FORCE_LIBEVENT_DIST)" ; then rm -rf $(distdir)/libevent/autom4te.cache $(distdir)/libevent/config.h.in~ ; find $(distdir)/libevent -type d -name SCCS -print | xargs rm -rf ; fi
+
+dist-hook: libevent-dist-hook
+	@: do-nothing action to avoid default SCCS get
+
 install-exec-hook:
-	@case ${BINSUBDIR} in						\
-	 bin) ODIR=${sbindir} ;;					\
-	 sbin) ODIR=${bindir} ;;					\
-	esac;								\
-	test -z "${bin_PROGRAMS}${bin_SCRIPTS}"				\
-	|| for i in ${bin_PROGRAMS} ${bin_SCRIPTS} " "; do		\
-	   test ! -f $$ODIR/$$i || echo "*** $$i is also in $$ODIR!";	\
+	@test -z "${bin_PROGRAMS}${bin_SCRIPTS}"		\
+	|| for i in ${bin_PROGRAMS} ${bin_SCRIPTS} " "; do	\
+	   test ! -f ${sbindir}/$$i				\
+		|| echo "*** $$i is also in ${sbindir}!";	\
+	done
+	@test -z "${sbin_PROGRAMS}${asbin_SCRIPTS}"		\
+	|| for i in ${sbin_PROGRAMS} ${sbin_SCRIPTS} " "; do	\
+	   test ! -f ${bindir}/$$i				\
+		|| echo "*** $$i is also in ${bindir}!";	\
 	done
 
 #
+
+check-libntp: ../libntp/libntp.a
+	@echo stamp > $@
+
+../libntp/libntp.a:
+	cd ../libntp && $(MAKE) $(AM_MAKEFLAGS) libntp.a
+
+check-libopts: libopts/libopts.la
+	@echo stamp > $@
+
+libopts/libopts.la:
+	-cd libopts && $(MAKE) $(AM_MAKEFLAGS) libopts.la
 $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 	@[ -f $@ ] ||							\
 		cp $(top_srcdir)/deps-ver $@
 	@[ -w $@ ] ||							\
 		chmod ug+w $@
 	@cmp $(top_srcdir)/deps-ver $@ > /dev/null || (			\
-		$(MAKE) clean &&					\
+		$(MAKE) $(AM_MAKEFLAGS) clean &&					\
 		echo -n "Prior $(subdir)/$(DEPDIR) version " &&		\
 		cat $@ &&						\
 		rm -rf $(DEPDIR) &&					\
@@ -1183,17 +1531,10 @@ $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 		 .)							\
 		    ./config.status Makefile depfiles			\
 		    ;;							\
-		 ..)							\
-			cd .. &&					\
-			./config.status $(subdir)/Makefile depfiles &&	\
-			cd $(subdir)					\
-		    ;;							\
 		 *)							\
-		    echo 'Fatal: depsver.mf Automake fragment limited'	\
-			 'to immediate subdirectories.'	&&		\
-		    echo "top_builddir:	$(top_builddir)" &&		\
-		    echo "subdir:	$(subdir)" &&			\
-		    exit 1						\
+		    cd "$(top_builddir)" &&				\
+		    ./config.status $(subdir)/Makefile depfiles &&	\
+		    cd $(subdir)					\
 		    ;;							\
 		esac &&							\
 		echo -n "Cleaned $(subdir)/$(DEPDIR) version " &&	\
@@ -1202,7 +1543,7 @@ $(DEPDIR)/deps-ver: $(top_srcdir)/deps-ver
 	cp $(top_srcdir)/deps-ver $@
 
 .deps-ver: $(top_srcdir)/deps-ver
-	@[ ! -d $(DEPDIR) ] || $(MAKE) $(DEPDIR)/deps-ver
+	@[ ! -d $(DEPDIR) ] || $(MAKE) $(AM_MAKEFLAGS) $(DEPDIR)/deps-ver
 	@touch $@
 
 #

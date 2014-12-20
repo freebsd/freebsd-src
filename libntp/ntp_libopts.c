@@ -17,9 +17,11 @@ extern const char *Version;	/* version.c for each program */
 
 
 /*
- * ntpOptionProcess() is a clone of libopts' optionProcess which
- * overrides the --version output, appending detail from version.c
- * which was not available at Autogen time.
+ * ntpOptionProcess() was a clone of libopts' optionProcess which
+ * overrode the --version output, appending detail from version.c
+ * which was not available at Autogen time.  This is now done via
+ * AutoOpts' version-proc = override in copyright.def, so this
+ * routine is a straightforward wrapper of optionProcess().
  */
 int
 ntpOptionProcess(
@@ -28,27 +30,29 @@ ntpOptionProcess(
 	char **		argv
 	)
 {
-	char *		pchOpts;
-	char **		ppzFullVersion;
-	char *		pzNewFV;
-	char *		pzAutogenFV;
-	size_t		octets;
-	int		rc;
+	return optionProcess(pOpts, argc, argv);
+}
 
-	pchOpts = (void *)pOpts;
-	ppzFullVersion = (char **)(pchOpts + offsetof(tOptions,
-						      pzFullVersion));
-	pzAutogenFV = *ppzFullVersion;
-	octets = strlen(pzAutogenFV) +
-		 1 +	/* '\n' */
-		 strlen(Version) +
-		 1;	/* '\0' */
-	pzNewFV = emalloc(octets);
-	snprintf(pzNewFV, octets, "%s\n%s", pzAutogenFV, Version);
-	*ppzFullVersion = pzNewFV;
-	rc = optionProcess(pOpts, argc, argv);
-	*ppzFullVersion = pzAutogenFV;
-	free(pzNewFV);
 
-	return rc;
+/*
+ * ntpOptionPrintVersion() replaces the stock optionPrintVersion() via
+ * version-proc = ntpOptionPrintVersion; in copyright.def.  It differs
+ * from the stock function by displaying the complete version string,
+ * including compile time which was unknown when Autogen ran.
+ *
+ * Like optionPrintVersion() this function must exit(0) rather than
+ * return.
+ */
+void
+ntpOptionPrintVersion(
+	tOptions *	pOpts,
+	tOptDesc *	pOD
+	)
+{
+	UNUSED_ARG(pOpts);
+	UNUSED_ARG(pOD);
+
+	printf("%s\n", Version);
+	fflush(stdout);
+	exit(EXIT_SUCCESS);
 }

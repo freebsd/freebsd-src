@@ -10,4 +10,5 @@
 
 extern	int	ntpOptionProcess(tOptions *pOpts, int argc,
 				 char ** argv);
+extern	void	ntpOptionPrintVersion(tOptions *, tOptDesc *);
 #endif

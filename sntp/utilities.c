@@ -33,21 +33,12 @@ pkt_output (
 /* Output a long floating point value in hex in the style described above 
  */
 void
-l_fp_output (
-		l_fp *ts,
-		FILE *output
-	    )
+l_fp_output(
+	l_fp *	ts,
+	FILE *	output
+	)
 {
-	register int a;
-
-	fprintf(output, HLINE);
-
-	for(a=0; a<8; a++) 
-		fprintf(output, "%i: %x \t", a, ((unsigned char *) ts)[a]);
-
-	fprintf(output, "\n");
-	fprintf(output, HLINE);
-
+	fprintf(output, "%s\n", prettydate(ts));
 }
 
 /* Output a long floating point value in binary in the style described above
@@ -112,16 +103,17 @@ l_fp_output_dec (
  */
 char *
 addrinfo_to_str (
-	struct addrinfo *addr
+	const struct addrinfo *addr
 	)
 {
 	sockaddr_u	s;
 	
-	memset(&s, 0, sizeof(s));
+	ZERO(s);
 	memcpy(&s, addr->ai_addr, min(sizeof(s), addr->ai_addrlen));
 
 	return ss_to_str(&s);
 }
+
 
 /* Convert a sockaddr_u to a string containing the address in
  * style of inet_ntoa
@@ -129,17 +121,14 @@ addrinfo_to_str (
  * in that case.
  */
 char *
-ss_to_str (
+ss_to_str(
 	sockaddr_u *saddr
 	)
 {
-	char *	buf;
-	
-	buf = emalloc(INET6_ADDRSTRLEN);
-	strncpy(buf, stoa(saddr), INET6_ADDRSTRLEN);
-
-	return buf;
+	return estrdup(stoa(saddr));
 }
+
+
 /*
  * Converts a struct tv to a date string
  */
@@ -186,5 +175,35 @@ tv_to_str(
 }
 
 
+/*
+ *
+ * hostnameaddr()
+ *
+ * Formats the hostname and resulting numeric IP address into a string,
+ * avoiding duplication if the "hostname" was in fact a numeric address.
+ *
+ */
+const char *
+hostnameaddr(
+	const char *		hostname,
+	const sockaddr_u *	addr
+	)
+{
+	const char *	addrtxt;
+	char *		result;
+	int		cnt;
 
-		
+	addrtxt = stoa(addr);
+	LIB_GETBUF(result);
+	if (strcmp(hostname, addrtxt))
+		cnt = snprintf(result, LIB_BUFLENGTH, "%s %s",
+			       hostname, addrtxt);
+	else
+		cnt = snprintf(result, LIB_BUFLENGTH, "%s", addrtxt);
+	if (cnt >= LIB_BUFLENGTH)
+		snprintf(result, LIB_BUFLENGTH,
+			 "hostnameaddr ERROR have %d (%d needed)",
+			 LIB_BUFLENGTH, cnt + 1);
+
+	return result;
+}

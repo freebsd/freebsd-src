@@ -2,6 +2,7 @@
  * octtoint - convert an ascii string in octal to an unsigned
  *	      long, with error checking
  */
+#include <config.h>
 #include <stdio.h>
 #include <ctype.h>
 

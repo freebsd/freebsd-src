@@ -21,16 +21,6 @@
 
 #ifdef REFCLOCK
 
-#ifdef TTYCLK
-# ifdef HAVE_SYS_CLKDEFS_H
-#  include <sys/clkdefs.h>
-#  include <stropts.h>
-# endif
-# ifdef HAVE_SYS_SIO_H
-#  include <sys/sio.h>
-# endif
-#endif /* TTYCLK */
-
 #ifdef KERNEL_PLL
 #include "ntp_syscall.h"
 #endif /* KERNEL_PLL */
@@ -50,8 +40,8 @@
  * clock data on through the filters.  Routines refclock_peer() and
  * refclock_unpeer() are called to initialize and terminate reference
  * clock associations.  A set of utility routines is included to open
- * serial devices, process sample data, edit input lines to extract
- * embedded timestamps and to perform various debugging functions.
+ * serial devices, process sample data, and to perform various debugging
+ * functions.
  *
  * The main interface used by these routines is the refclockproc
  * structure, which contains for most drivers the decimal equivalants
@@ -71,21 +61,14 @@
 #define FUDGEFAC	.1	/* fudge correction factor */
 #define LF		0x0a	/* ASCII LF */
 
-#ifdef PPS
-int	fdpps;			/* ppsclock legacy */
-#endif /* PPS */
-
 int	cal_enable;		/* enable refclock calibrate */
 
 /*
  * Forward declarations
  */
-#ifdef QSORT_USES_VOID_P
 static int refclock_cmpl_fp (const void *, const void *);
-#else
-static int refclock_cmpl_fp (const double *, const double *);
-#endif /* QSORT_USES_VOID_P */
 static int refclock_sample (struct refclockproc *);
+static int refclock_ioctl(int, u_int);
 
 
 /*
@@ -200,8 +183,7 @@ refclock_newpeer(
 	/*
 	 * Allocate and initialize interface structure
 	 */
-	pp = emalloc(sizeof(*pp));
-	memset(pp, 0, sizeof(*pp));
+	pp = emalloc_zero(sizeof(*pp));
 	peer->procptr = pp;
 
 	/*
@@ -214,7 +196,9 @@ refclock_newpeer(
 	peer->stratum = STRATUM_REFCLOCK;
 	peer->ppoll = peer->maxpoll;
 	pp->type = clktype;
+	pp->conf = refclock_conf[clktype];
 	pp->timestarted = current_time;
+	pp->io.fd = -1;
 
 	/*
 	 * Set peer.pmode based on the hmode. For appearances only.
@@ -274,16 +258,18 @@ refclock_unpeer(
  */
 void
 refclock_timer(
-	struct peer *peer	/* peer structure pointer */
+	struct peer *p
 	)
 {
-	u_char clktype;
-	int unit;
+	struct refclockproc *	pp;
+	int			unit;
 
-	clktype = peer->refclktype;
-	unit = peer->refclkunit;
-	if (refclock_conf[clktype]->clock_timer != noentry)
-		(refclock_conf[clktype]->clock_timer)(unit, peer);
+	unit = p->refclkunit;
+	pp = p->procptr;
+	if (pp->conf->clock_timer != noentry)
+		(*pp->conf->clock_timer)(unit, p);
+	if (pp->action != NULL && pp->nextaction <= current_time)
+		(*pp->action)(p);
 }
 	
 
@@ -480,7 +466,7 @@ refclock_sample(
 		return (0);
 
 	if (n > 1)
-		qsort((void *)off, n, sizeof(off[0]), refclock_cmpl_fp);
+		qsort(off, n, sizeof(off[0]), refclock_cmpl_fp);
 
 	/*
 	 * Reject the furthest from the median of the samples until
@@ -512,7 +498,7 @@ refclock_sample(
 	if (debug)
 		printf(
 		    "refclock_sample: n %d offset %.6f disp %.6f jitter %.6f\n",
-		    n, pp->offset, pp->disp, pp->jitter);
+		    (int)n, pp->offset, pp->disp, pp->jitter);
 #endif
 	return (int)n;
 }
@@ -591,25 +577,39 @@ refclock_gtlin(
 	l_fp	*tsptr		/* pointer to timestamp returned */
 	)
 {
-	char	s[BMAX];
-	char	*dpt, *dpend, *dp;
+	const char *sp, *spend;
+	char	   *dp, *dpend;
+	int         dlen;
 
-	dpt = s;
-	dpend = s + refclock_gtraw(rbufp, s, BMAX - 1, tsptr);
-	if (dpend - dpt > bmax - 1)
-		dpend = dpt + bmax - 1;
-	for (dp = lineptr; dpt < dpend; dpt++) {
-		char	c;
+	if (bmax <= 0)
+		return (0);
 
-		c = *dpt & 0x7f;
+	dp    = lineptr;
+	dpend = dp + bmax - 1; /* leave room for NUL pad */
+	sp    = (const char *)rbufp->recv_buffer;
+	spend = sp + rbufp->recv_length;
+
+	while (sp != spend && dp != dpend) {
+		char c;
+		
+		c = *sp++ & 0x7f;
 		if (c >= 0x20 && c < 0x7f)
 			*dp++ = c;
 	}
-	if (dp == lineptr)
-		return (0);
-
-	*dp = '\0';
-	return (dp - lineptr);
+	/* Get length of data written to the destination buffer. If
+	 * zero, do *not* place a NUL byte to preserve the previous
+	 * buffer content.
+	 */
+	dlen = dp - lineptr;
+	if (dlen)
+	    *dp  = '\0';
+	*tsptr = rbufp->recv_time;
+	DPRINTF(2, ("refclock_gtlin: fd %d time %s timecode %d %s\n",
+		    rbufp->fd, ulfptoa(&rbufp->recv_time, 6), dlen,
+		    (dlen != 0)
+			? lineptr
+			: ""));
+	return (dlen);
 }
 
 
@@ -626,9 +626,7 @@ refclock_gtlin(
  * followed by a NULL character ('\0'), which is not included in the
  * count.
  *
- * If a timestamp is present in the timecode, as produced by the tty_clk
- * STREAMS module, it returns that as the timestamp; otherwise, it
- * returns the buffer timestamp.
+ * *tsptr receives a copy of the buffer timestamp.
  */
 int
 refclock_gtraw(
@@ -638,74 +636,99 @@ refclock_gtraw(
 	l_fp	*tsptr		/* pointer to timestamp returned */
 	)
 {
-	char	*dpt, *dpend, *dp;
-	l_fp	trtmp, tstmp;
-	int	i;
+	if (bmax <= 0)
+		return (0);
+	bmax -= 1; /* leave room for trailing NUL */
+	if (bmax > rbufp->recv_length)
+		bmax = rbufp->recv_length;
+	memcpy(lineptr, rbufp->recv_buffer, bmax);
+	lineptr[bmax] = '\0';
 
-	/*
-	 * Check for the presence of a timestamp left by the tty_clock
-	 * module and, if present, use that instead of the buffer
-	 * timestamp captured by the I/O routines. We recognize a
-	 * timestamp by noting its value is earlier than the buffer
-	 * timestamp, but not more than one second earlier.
-	 */
-	dpt = (char *)rbufp->recv_buffer;
-	dpend = dpt + rbufp->recv_length;
-	trtmp = rbufp->recv_time;
-	if (dpend >= dpt + 8) {
-		if (buftvtots(dpend - 8, &tstmp)) {
-			L_SUB(&trtmp, &tstmp);
-			if (trtmp.l_ui == 0) {
-#ifdef DEBUG
-				if (debug > 1) {
-					printf(
-					    "refclock_gtlin: fd %d ldisc %s",
-					    rbufp->fd, lfptoa(&trtmp,
-					    6));
-					get_systime(&trtmp);
-					L_SUB(&trtmp, &tstmp);
-					printf(" sigio %s\n",
-					    lfptoa(&trtmp, 6));
-				}
-#endif
-				dpend -= 8;
-				trtmp = tstmp;
-			} else
-				trtmp = rbufp->recv_time;
-		}
-	}
-
-	/*
-	 * Copy the raw buffer to the user string. The string is padded
-	 * with a NULL, which is not included in the character count.
-	 */
-	if (dpend - dpt > bmax - 1)
-		dpend = dpt + bmax - 1;
-	for (dp = lineptr; dpt < dpend; dpt++)
-		*dp++ = *dpt;
-	*dp = '\0';
-	i = dp - lineptr;
-#ifdef DEBUG
-	if (debug > 1)
-		printf("refclock_gtraw: fd %d time %s timecode %d %s\n",
-		    rbufp->fd, ulfptoa(&trtmp, 6), i, lineptr);
-#endif
-	*tsptr = trtmp;
-	return (i);
+	*tsptr = rbufp->recv_time;
+	DPRINTF(2, ("refclock_gtraw: fd %d time %s timecode %d %s\n",
+		    rbufp->fd, ulfptoa(&rbufp->recv_time, 6), bmax,
+		    lineptr));
+	return (bmax);
 }
+
+
+/*
+ * indicate_refclock_packet()
+ *
+ * Passes a fragment of refclock input read from the device to the
+ * driver direct input routine, which may consume it (batch it for
+ * queuing once a logical unit is assembled).  If it is not so
+ * consumed, queue it for the driver's receive entrypoint.
+ *
+ * The return value is TRUE if the data has been consumed as a fragment
+ * and should not be counted as a received packet.
+ */
+int
+indicate_refclock_packet(
+	struct refclockio *	rio,
+	struct recvbuf *	rb
+	)
+{
+	/* Does this refclock use direct input routine? */
+	if (rio->io_input != NULL && (*rio->io_input)(rb) == 0) {
+		/*
+		 * data was consumed - nothing to pass up
+		 * into block input machine
+		 */
+		freerecvbuf(rb);
+
+		return TRUE;
+	}
+	add_full_recv_buffer(rb);
+
+	return FALSE;
+}
+
+
+/*
+ * process_refclock_packet()
+ *
+ * Used for deferred processing of 'io_input' on systems where threading
+ * is used (notably Windows). This is acting as a trampoline to make the
+ * real calls to the refclock functions.
+ */
+#ifdef HAVE_IO_COMPLETION_PORT
+void
+process_refclock_packet(
+	struct recvbuf * rb
+	)
+{
+	struct refclockio * rio;
+
+	/* get the refclockio structure from the receive buffer */
+	rio  = &rb->recv_peer->procptr->io;
+
+	/* call 'clock_recv' if either there is no input function or the
+	 * raw input function tells us to feed the packet to the
+	 * receiver.
+	 */
+	if (rio->io_input == NULL || (*rio->io_input)(rb) != 0) {
+		rio->recvcount++;
+		packets_received++;
+		handler_pkts++;		
+		(*rio->clock_recv)(rb);
+	}
+}
+#endif	/* HAVE_IO_COMPLETION_PORT */
 
 
 /*
  * The following code does not apply to WINNT & VMS ...
  */
-#if !defined SYS_VXWORKS && !defined SYS_WINNT
+#if !defined(SYS_VXWORKS) && !defined(SYS_WINNT)
 #if defined(HAVE_TERMIOS) || defined(HAVE_SYSV_TTYS) || defined(HAVE_BSD_TTYS)
 
 /*
  * refclock_open - open serial port for reference clock
  *
  * This routine opens a serial port for I/O and sets default options. It
- * returns the file descriptor if success and zero if failure.
+ * returns the file descriptor if successful, or logs an error and
+ * returns -1.
  */
 int
 refclock_open(
@@ -717,7 +740,7 @@ refclock_open(
 	int	fd;
 	int	omode;
 #ifdef O_NONBLOCK
-	char    trash[128];	/* litter bin for old input data */
+	char	trash[128];	/* litter bin for old input data */
 #endif
 
 	/*
@@ -732,18 +755,26 @@ refclock_open(
 #endif
 
 	fd = open(dev, omode, 0777);
-	if (fd < 0) {
-		msyslog(LOG_ERR, "refclock_open %s: %m", dev);
-		return (0);
+	/* refclock_open() long returned 0 on failure, avoid it. */
+	if (0 == fd) {
+		fd = dup(0);
+		SAVE_ERRNO(
+			close(0);
+		)
 	}
-	NTP_INSIST(fd != 0);
+	if (fd < 0) {
+		SAVE_ERRNO(
+			msyslog(LOG_ERR, "refclock_open %s: %m", dev);
+		)
+		return -1;
+	}
 	if (!refclock_setup(fd, speed, lflags)) {
 		close(fd);
-		return (0);
+		return -1;
 	}
 	if (!refclock_ioctl(fd, lflags)) {
 		close(fd);
-		return (0);
+		return -1;
 	}
 #ifdef O_NONBLOCK
 	/*
@@ -755,7 +786,7 @@ refclock_open(
 	while (read(fd, trash, sizeof(trash)) > 0 || errno == EINTR)
 		/*NOP*/;
 #endif
-	return (fd);
+	return fd;
 }
 
 
@@ -771,9 +802,6 @@ refclock_setup(
 {
 	int	i;
 	TTY	ttyb, *ttyp;
-#ifdef PPS
-	fdpps = fd;		/* ppsclock legacy */
-#endif /* PPS */
 
 	/*
 	 * By default, the serial line port is initialized in canonical
@@ -790,9 +818,12 @@ refclock_setup(
 	 * POSIX serial line parameters (termios interface)
 	 */
 	if (tcgetattr(fd, ttyp) < 0) {
-		msyslog(LOG_ERR,
-			"refclock_setup fd %d tcgetattr: %m", fd);
-		return (0);
+		SAVE_ERRNO(
+			msyslog(LOG_ERR,
+				"refclock_setup fd %d tcgetattr: %m",
+				fd);
+		)
+		return FALSE;
 	}
 
 	/*
@@ -807,7 +838,7 @@ refclock_setup(
 		ttyp->c_cflag = CS8 | CLOCAL | CREAD;
 		if (lflags & LDISC_7O1) {
 			/* HP Z3801A needs 7-bit, odd parity */
-  			ttyp->c_cflag = CS7 | PARENB | PARODD | CLOCAL | CREAD;
+			ttyp->c_cflag = CS7 | PARENB | PARODD | CLOCAL | CREAD;
 		}
 		cfsetispeed(&ttyb, speed);
 		cfsetospeed(&ttyb, speed);
@@ -846,9 +877,12 @@ refclock_setup(
 	if (lflags & LDISC_ECHO)
 		ttyp->c_lflag |= ECHO;
 	if (tcsetattr(fd, TCSANOW, ttyp) < 0) {
-		msyslog(LOG_ERR,
-		    "refclock_setup fd %d TCSANOW: %m", fd);
-		return (0);
+		SAVE_ERRNO(
+			msyslog(LOG_ERR,
+				"refclock_setup fd %d TCSANOW: %m",
+				fd);
+		)
+		return FALSE;
 	}
 
 	/*
@@ -857,7 +891,8 @@ refclock_setup(
 	 * is logged, but we keep our fingers crossed otherwise.
 	 */
 	if (tcflush(fd, TCIOFLUSH) < 0)
-		msyslog(LOG_ERR, "refclock_setup fd %d tcflush(): %m", fd);
+		msyslog(LOG_ERR, "refclock_setup fd %d tcflush(): %m",
+			fd);
 #endif /* HAVE_TERMIOS */
 
 #ifdef HAVE_SYSV_TTYS
@@ -867,9 +902,12 @@ refclock_setup(
 	 *
 	 */
 	if (ioctl(fd, TCGETA, ttyp) < 0) {
-		msyslog(LOG_ERR,
-		    "refclock_setup fd %d TCGETA: %m", fd);
-		return (0);
+		SAVE_ERRNO(
+			msyslog(LOG_ERR,
+				"refclock_setup fd %d TCGETA: %m",
+				fd);
+		)
+		return FALSE;
 	}
 
 	/*
@@ -915,9 +953,11 @@ refclock_setup(
 		ttyp->c_cc[VMIN] = 1;
 	}
 	if (ioctl(fd, TCSETA, ttyp) < 0) {
-		msyslog(LOG_ERR,
-		    "refclock_setup fd %d TCSETA: %m", fd);
-		return (0);
+		SAVE_ERRNO(
+			msyslog(LOG_ERR,
+				"refclock_setup fd %d TCSETA: %m", fd);
+		)
+		return FALSE;
 	}
 #endif /* HAVE_SYSV_TTYS */
 
@@ -927,23 +967,26 @@ refclock_setup(
 	 * 4.3bsd serial line parameters (sgttyb interface)
 	 */
 	if (ioctl(fd, TIOCGETP, (char *)ttyp) < 0) {
-		msyslog(LOG_ERR,
-		    "refclock_setup fd %d TIOCGETP: %m", fd);
-		return (0);
+		SAVE_ERRNO(
+			msyslog(LOG_ERR,
+				"refclock_setup fd %d TIOCGETP: %m",
+				fd);
+		)
+		return FALSE;
 	}
 	if (speed)
 		ttyp->sg_ispeed = ttyp->sg_ospeed = speed;
 	ttyp->sg_flags = EVENP | ODDP | CRMOD;
 	if (ioctl(fd, TIOCSETP, (char *)ttyp) < 0) {
-		msyslog(LOG_ERR,
-		    "refclock_setup TIOCSETP: %m");
-		return (0);
+		SAVE_ERRNO(
+			msyslog(LOG_ERR, "refclock_setup TIOCSETP: %m");
+		)
+		return FALSE;
 	}
 #endif /* HAVE_BSD_TTYS */
 	return(1);
 }
 #endif /* HAVE_TERMIOS || HAVE_SYSV_TTYS || HAVE_BSD_TTYS */
-#endif /* SYS_VXWORKS SYS_WINNT */
 
 
 /*
@@ -952,8 +995,8 @@ refclock_setup(
  * This routine attempts to hide the internal, system-specific details
  * of serial ports. It can handle POSIX (termios), SYSV (termio) and BSD
  * (sgtty) interfaces with varying degrees of success. The routine sets
- * up optional features such as tty_clk. The routine returns 1 if
- * success and 0 if failure.
+ * up optional features such as tty_clk. The routine returns TRUE if
+ * successful.
  */
 int
 refclock_ioctl(
@@ -962,53 +1005,13 @@ refclock_ioctl(
 	)
 {
 	/*
-	 * simply return 1 if no UNIX line discipline is supported
+	 * simply return TRUE if no UNIX line discipline is supported
 	 */
-#if !defined SYS_VXWORKS && !defined SYS_WINNT
-#if defined(HAVE_TERMIOS) || defined(HAVE_SYSV_TTYS) || defined(HAVE_BSD_TTYS)
+	DPRINTF(1, ("refclock_ioctl: fd %d flags 0x%x\n", fd, lflags));
 
-#ifdef DEBUG
-	if (debug)
-		printf("refclock_ioctl: fd %d flags 0x%x\n", fd,
-		    lflags);
-#endif
-#ifdef TTYCLK
-
-	/*
-	 * The TTYCLK option provides timestamping at the driver level.
-	 * It requires the tty_clk streams module and System V STREAMS
-	 * support. If not available, don't complain.
-	 */
-	if (lflags & (LDISC_CLK | LDISC_CLKPPS | LDISC_ACTS)) {
-		int rval = 0;
-
-		if (ioctl(fd, I_PUSH, "clk") < 0) {
-			msyslog(LOG_NOTICE,
-			    "refclock_ioctl fd %d I_PUSH: %m", fd);
-			return (0);
-#ifdef CLK_SETSTR
-		} else {
-			char *str;
-
-			if (lflags & LDISC_CLKPPS)
-				str = "\377";
-			else if (lflags & LDISC_ACTS)
-				str = "*";
-			else
-				str = "\n";
-			if (ioctl(fd, CLK_SETSTR, str) < 0) {
-				msyslog(LOG_ERR,
-				    "refclock_ioctl fd %d CLK_SETSTR: %m", fd);
-				return (0);
-			}
-#endif /*CLK_SETSTR */
-		}
-	}
-#endif /* TTYCLK */
-#endif /* HAVE_TERMIOS || HAVE_SYSV_TTYS || HAVE_BSD_TTYS */
-#endif /* SYS_VXWORKS SYS_WINNT */
-	return (1);
+	return TRUE;
 }
+#endif /* !defined(SYS_VXWORKS) && !defined(SYS_WINNT) */
 
 
 /*
@@ -1023,7 +1026,7 @@ refclock_ioctl(
 void
 refclock_control(
 	sockaddr_u *srcadr,
-	struct refclockstat *in,
+	const struct refclockstat *in,
 	struct refclockstat *out
 	)
 {
@@ -1041,17 +1044,18 @@ refclock_control(
 	clktype = (u_char)REFCLOCKTYPE(srcadr);
 	unit = REFCLOCKUNIT(srcadr);
 
-	peer = findexistingpeer(srcadr, NULL, -1, 0);
+	peer = findexistingpeer(srcadr, NULL, NULL, -1, 0);
 
-	if (NULL == peer || NULL == peer->procptr)
+	if (NULL == peer)
 		return;
 
+	NTP_INSIST(peer->procptr != NULL);
 	pp = peer->procptr;
 
 	/*
 	 * Initialize requested data
 	 */
-	if (in != 0) {
+	if (in != NULL) {
 		if (in->haveflags & CLK_HAVETIME1)
 			pp->fudgetime1 = in->fudgetime1;
 		if (in->haveflags & CLK_HAVETIME2)
@@ -1081,14 +1085,25 @@ refclock_control(
 	/*
 	 * Readback requested data
 	 */
-	if (out != 0) {
-		out->haveflags = CLK_HAVETIME1 | CLK_HAVEVAL1 |
-			CLK_HAVEVAL2 | CLK_HAVEFLAG4;
-		out->fudgetime1 = pp->fudgetime1;
-		out->fudgetime2 = pp->fudgetime2;
+	if (out != NULL) {
 		out->fudgeval1 = pp->stratum;
 		out->fudgeval2 = pp->refid;
+		out->haveflags = CLK_HAVEVAL1 | CLK_HAVEVAL2;
+		out->fudgetime1 = pp->fudgetime1;
+		if (0.0 != out->fudgetime1)
+			out->haveflags |= CLK_HAVETIME1;
+		out->fudgetime2 = pp->fudgetime2;
+		if (0.0 != out->fudgetime2)
+			out->haveflags |= CLK_HAVETIME2;
 		out->flags = (u_char) pp->sloppyclockflag;
+		if (CLK_FLAG1 & out->flags)
+			out->haveflags |= CLK_HAVEFLAG1;
+		if (CLK_FLAG2 & out->flags)
+			out->haveflags |= CLK_HAVEFLAG2;
+		if (CLK_FLAG3 & out->flags)
+			out->haveflags |= CLK_HAVEFLAG3;
+		if (CLK_FLAG4 & out->flags)
+			out->haveflags |= CLK_HAVEFLAG4;
 
 		out->timereset = current_time - pp->timestarted;
 		out->polls = pp->polls;
@@ -1140,7 +1155,7 @@ refclock_buginfo(
 	clktype = (u_char) REFCLOCKTYPE(srcadr);
 	unit = REFCLOCKUNIT(srcadr);
 
-	peer = findexistingpeer(srcadr, NULL, -1, 0);
+	peer = findexistingpeer(srcadr, NULL, NULL, -1, 0);
 
 	if (NULL == peer || NULL == peer->procptr)
 		return;
@@ -1210,7 +1225,7 @@ refclock_params(
 	struct refclock_atom *ap	/* atom structure pointer */
 	)
 {
-	memset(&ap->pps_params, 0, sizeof(pps_params_t));
+	ZERO(ap->pps_params);
 	ap->pps_params.api_version = PPS_API_VERS_1;
 
 	/*
@@ -1230,19 +1245,17 @@ refclock_params(
 	}
 
 	/*
-	 * If flag3 is lit, select the kernel PPS.
+	 * If flag3 is lit, select the kernel PPS if we can.
 	 */
 	if (mode & CLK_FLAG3) {
 		if (time_pps_kcbind(ap->handle, PPS_KC_HARDPPS,
 		    ap->pps_params.mode & ~PPS_TSFMT_TSPEC,
 		    PPS_TSFMT_TSPEC) < 0) {
-			if (errno != EOPNOTSUPP) { 
-				msyslog(LOG_ERR,
-				    "refclock_params: time_pps_kcbind: %m");
-				return (0);
-			}
+			msyslog(LOG_ERR,
+			    "refclock_params: time_pps_kcbind: %m");
+			return (0);
 		}
-		pps_enable = 1;
+		hardpps_enable = 1;
 	}
 	return (1);
 }
@@ -1282,7 +1295,7 @@ refclock_pps(
 	}
 	timeout.tv_sec = 0;
 	timeout.tv_nsec = 0;
-	memset(&pps_info, 0, sizeof(pps_info_t));
+	ZERO(pps_info);
 	if (time_pps_fetch(ap->handle, PPS_TSFMT_TSPEC, &pps_info,
 	    &timeout) < 0) {
 		refclock_report(peer, CEVNT_FAULT);
@@ -1295,15 +1308,8 @@ refclock_pps(
 		ap->ts = pps_info.clear_timestamp;
 	else
 		return (0);
-	
-	/*
-	 * There can be zero, one or two PPS pulses between polls,
-	 * depending on the poll interval relative to the PPS interval.
-	 * The pulse must be newer and within the range gate relative
-	 * to the last pulse.
-	 */
-	if (ap->ts.tv_sec <= timeout.tv_sec || abs(ap->ts.tv_nsec -
-	    timeout.tv_nsec) > RANGEGATE)
+
+	if (0 == memcmp(&timeout, &ap->ts, sizeof(timeout)))
 		return (0);
 
 	/*

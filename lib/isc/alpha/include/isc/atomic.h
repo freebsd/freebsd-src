@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: atomic.h,v 1.5.332.2 2009/04/08 06:47:32 tbox Exp $ */
+/* $Id: atomic.h,v 1.7 2009/04/08 06:48:23 tbox Exp $ */
 
 /*
  * This code was written based on FreeBSD's kernel source whose copyright
@@ -46,7 +46,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/atomic.h,v 1.18.6.1 2004/09/13 21:52:04 wilko Exp $
  */
 
 #ifndef ISC_ATOMIC_H

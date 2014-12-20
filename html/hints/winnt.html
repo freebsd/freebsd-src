@@ -9,10 +9,10 @@
 		<link href="../scripts/style.css" type="text/css" rel="stylesheet">
 	</head>
     <body>
-        <h3>NTP 4.x for Windows NT</h3>
+        <h3>NTP 4.x for Windows</h3>
 
         <h4>Introduction</h4>
-		<p>The NTP 4 distribution runs as service on Windows Vista, Windows NT 4.0, Windows 2000, Windows XP, Windows .NET Server 2003. It will NOT run on Windows 95, 98, ME, etc. The binaries work on multi-processor systems. This port has not been tested on the Alpha platform. This release now uses OpenSSL for authentication. IPv6 is not implemented yet for Win32 platforms. A ready-to-run install distribution is available from Meinberg at <a href="http://www.meinberg.de/english/sw/ntp.htm">http://www.meinberg.de/english/sw/ntp.htm.</a></p>
+		<p>The NTP 4 distribution runs as service on Windows 2000 and later. It will NOT run on Windows 95, 98, ME, etc.  Lately it has been run the most on Windows-7 and later.  The binaries work on multi-processor systems. This port has not been tested on the Alpha platform. This release now uses OpenSSL for authentication. IPv6 is not implemented yet for Win32 platforms. A ready-to-run install distribution is available from Meinberg at <a href="http://www.meinberg.de/english/sw/ntp.htm">http://www.meinberg.de/english/sw/ntp.htm.</a></p>
 		<p>Users should note that the stock Windows client sends requests as mode-1 packets, which can have unintended consequences and create a security risk. The client should send requests as mode-3 (client) packets, which conform to the protocol specification. The issues and resolution are described in Microsoft KB 875424. A less desirable alternative that avoids changing registry keys is to use the <tt>--with-wintime</tt> option when building the executable.</p>
 		<h4>Authentication Keys</h4>
 		<p>With this release ntp-keygen is supported. See the <a href="../keygen.html"> ntp keygen documentation</a> for details on how to use ntp-keygen.</p>
@@ -36,17 +36,15 @@
         <h4 id="ToDo">ToDo</h4>
         <p>These tasks are in no particular order of priority.</p>
         <ul>
-            <li>Create a proper install/uninstall program
-            <li>Add sntp to the list of supported programs
-            <li>Add support for Visual C++ 7.0 or later (.NET)
             <li>Add IPv6 support
             <li>See if precision can be improved by using CPU cycle counter for tick interpolation.
             <li>Make precision time available to applications using NTP_GETTIME API
         </ul>
         <h4>Compiling Requirements</h4>
         <ul>
-            <li>Windows NT 4.0 Windows 2000, Windows XP,Windows Vista or Windows.NET Server 2003
-            <li>Microsoft Visual C++ 2008 EE or Visual C++ 2010 EE
+            <li>Windows 7 or Windows.NET Server 2003, or later.
+            <li>Windows NT 4.0 Windows 2000, Windows XP or Windows Vista <i>may</i> still work.
+            <li>Microsoft Visual C++ 2008, 2010, or 2013 EE
             <li>Some way of uncompressing and untarring the gzipped tar file.
             <li>OpenSSL must be built on the box before building NTP. Additional steps would
             be required to not use OpenSSL.
@@ -58,15 +56,15 @@
 <ul><li>	OPENSSL_INC=C:\OpenSSL\include
 <li>	OPENSSL_LIB=C:\OpenSSL\lib</ul>
             <li>Unpack the NTP-4.x.tar.gz using utilities such as WinZip or WinRar.
-            <li>Run Microsoft Visual C++ 2008 EE.  On Windows Vista and later, Run as Administrator.
+            <li>Run Microsoft Visual C++ 2008 EE.
             <li>Open the ports\winnt\vs2008\ntp.sln solution file
             <li>Batch build all projects (Build menu, Batch Build..., select all, build).
-            <li>The built binaries can be found in the ports\winnt\v2008\bin\ directory.
+            <li>The built binaries can be found in the <tt>ports\winnt\v2008\Win32-bin\Release</tt> directory.
             <li>If you are shipping binaries in a kit it is strongly recommended that you ship this file (winnt.html) along with the binaries.
         </ol>
         <h4>Configuration File</h4>
         <p>The default NTP configuration file path is %SystemRoot%<tt>\system32\drivers\etc\. </tt>(%SystemRoot% is an environmental variable that can be determined by typing &quot;set&quot; at the &quot;Command Prompt&quot; or from the &quot;System&quot; icon in the &quot;Control Panel&quot;).</p>
-        <p>Refer to your system environment and <tt>c</tt>reate your<tt> ntp.conf</tt> file in the directory corresponding to your system&nbsp; installation. The older <tt>&lt;WINDIR&gt;\ntp.conf</tt> is still supported but you will get a log entry reporting that the first file wasn't found.
+        <p>Refer to your system environment and create your<tt> ntp.conf</tt> file in the directory corresponding to your system&nbsp; installation. The older <tt>&lt;WINDIR&gt;\ntp.conf</tt> is still supported but you will get a log entry reporting that the first file wasn't found.
         <h4>Installation Instructions</h4>
         <p>The <tt>instsrv</tt> program in the instsrv subdirectory of the distribution can be used to install 'ntpd' as a service and start automatically at boot time. Instsrv is automatically compiled with the rest of the distribution if you followed the steps above.</p>
         <ol>
@@ -83,105 +81,10 @@
         <p>Use the registry editor to edit the value for the ntpd executable under LocalMachine\System\CurrentControlSet\Services\NTP.</p>
         <p>Add the -g option to the ImagePath key, behind &quot;%INSTALLDIR&gt;\ntpd.exe&quot;. This will force NTP to accept large time errors (including 1.1.1980 00:00)</p>
         <h4>Bug Reports</h4>
-        <p>Send questions and bug reports to <a href="../bugs.html">NTP Bug Reporting Procedures</a>.</p>
-        <h4>Change Log</h4>
-        <h3>Last revision 2 July 2003&nbsp; Version 4.2.0</h3>
-        <p>by Danny Mayer (mayer@ntp.org>)</p>
-        <h4>Significant Changes:</h4>
-        <p>This latest release of NTP constitutes a major upgrade to its ability to build and run on Windows platforms and should now build and run cleanly. More importantly it is now able to support all authentication in the same way as Unix boxes. This does require the usage of OpenSSL which is now a prerequisite for build on Windows. <tt>ntp-keygen</tt> is now supported and builds on Win32 platforms.
-        <h4>Last revision 16 February 1999 Version 4.0.99e.</h4>
-        <p>by Sven Dietrich (sven_dietrich@trimble.com)</p>
-        <p>pSignificant Changes:</p>
-        <ul>
-            <li>Perl 5 is no longer needed to compile NTP. The configuration script which creates version.c with the current date and time was modified by Frederick Czajka [w2k@austin.rr.com] so that Perl is no longer required.
-        </ul>
-        <h4>Last revision 15 November 1999&nbsp; Version 4.0.98f.</h4>
-        <p>by Sven Dietrich (sven_dietrich@trimble.com)</b>
-        <p>ignificant Changes:</p>
-        <ul>
-            <li>Fixed I/O problem delaying packet responses which resulted in no-replys to NTPQ and others.
-            <li>The default configuration file path is <tt>&lt;WINDIR&gt;\system32\drivers\etc\ntp.conf. The old &lt;WINDIR&gt;\ntp.conf </tt>is still supported but you will get a log entry reporting that the first file wasn't found. The NTP 3.x legacy <tt>ntp.ini</tt> file is no longer supported.
-        </ul>
-        <h4>Known Problems / TODO:</h4>
-        <ul>
-            <li>MD5 and name resolution do not yet get along. If you define MD5, you cannot use DNS names, only IP numbers.
-        </ul>
-        <h4>Last revision 27 July 1999&nbsp; Version 4.0.95.</h4>
-		<p>This version compiled under WINNT with Visual C 6.0 by Greg Brackley and Sven Dietrich. Significant changes:</p>
-		<ul>
-            <li>Visual Studio v6.0 support
-            <li>Winsock 2.0 support
-            <li>Use of I/O completion ports for sockets and comm port I/O
-            <li>Removed the use of multimedia timers (from ntpd, others need removing)
-            <li>Use of waitable timers (with user mode APC) and performance counters to fake getting a better time
-            <li>Trimble Palisade NTP Reference Clock support
-            <li>General cleanup, prototyping of functions
-            <li>Moved receiver buffer code to a separate module (removed unused members from the recvbuff struct)
-            <li>Moved io signal code to a separate module
-        </ul>
-		<h4>Last revision:&nbsp; 20-Oct-1996</h4>
-        <p>This version corrects problems with building the XNTPversion 3.5-86 distribution under Windows NT. The following files were modified:</p>
-      	<ul>
-            <li><tt>blddbg.bat</tt>
-            <li><tt>bldrel.bat</tt>
-            <li><tt>include\ntp_machine.h</tt>
-            <li><tt>xntpd\ntp_unixclock.c</tt>
-            <li><tt>xntpd\ntp_refclock.c</tt>
-            <li><tt>scripts\wininstall\build.bat</tt>
-            <li><tt>scripts\wininstall\setup.rul</tt>
-            <li><tt>scripts\wininstall\readme.nt</tt>
-            <li><tt>scripts\wininstall\distrib\ntpog.wri</tt>
-            <li><tt>html\hints\winnt</tt> (this file)
-        </ul>
-        <p>In order to build the entire Windows NT distribution you           need to modify the file scripts\wininstall\build.bat with the installation directory of the InstallShield software.&nbsp; Then, simply type &quot;bldrel&quot; for non-debug or &quot;blddbg&quot; for debug executables.</p>
-        <p>Greg Schueman, 
-        	schueman@acm.org&gt;</p>
-        <h4>Last revision: 07-May-1996</h4>
-        <p>This set of changes fixes all known bugs, and it includes<br>
-        several major enhancements. Many changes have been made both to the build environment as well as the code.&nbsp; There is no longer an ntp.mak file, instead there is a buildntall.bat file that will build the entire    release in one shot. The batch file requires Perl.&nbsp; Perl is easily available from the NT Resource Kit or on the Net.</p>
-        <p>The multiple interface support was adapted from Larry Kahn's       work on the BIND NT port.&nbsp; I have not been able to test it,      adequately as I only have NT servers with one network interfaces on which to test.</p>
-        <p>Enhancements:</p>
-        <ul>
-            <li>Event Logging now works correctly.
-            <li>Version numbers now work (requires Perl during build)
-            <li>Support for multiple network interface cards (untested)
-            <li>NTP.CONF now default, but supports ntp.ini if not found
-            <li>Installation procedure automated.
-            <li>All paths now allow environment variables such as %windir%
-        </ul>
-        <p>Bug fixes</p>
-        <ul>
-            <li>INSTSRV replaced, works correctly
-            <li>Cleaned up many warnings
-            <li>Corrected use of an uninitialized variable in XNTPD
-            <li>Fixed ntpdate -b option
-            <li>Fixed ntpdate to accept names as well as IP addresses
-            (Winsock WSAStartup was called after a gethostbyname())
-            <li>Fixed problem with &quot;longjmp&quot; in xntpdc/ntpdc.c that  caused a software exception on doing a Control-C in xntpdc. A Cntrl-C now terminates the program.
-        </ul>
-        <p>See below for more detail</p>
-        <p>Note: SIGINT is not supported for any Win32 application including; Windows NT and Windows 95. When a CTRL+C interrupt occurs, Win32 operating systems generate a new thread to specifically handle that interrupt. This can cause a single-thread application such as UNIX, to become multithreaded, resulting in unexpected behavior.</p>
-        <p>Possible enhancements and things left to do:</p>
-        <ul>
-            <li>Reference clock drivers for NT (at least Local Clock support)
-            <li>Control Panel Applet
-            <li>InstallShield based installation, like NT BIND has
-            <li>Integration with NT Performance Monitor
-            <li>SNMP integration
-            <li>Fully test multiple interface support
-        </ul>
-        <h4>Known problems:</h4>
-        <ul>
-            <li>bug in ntptrace - if no Stratum 1 servers are available, such as on an IntraNet, the application crashes.
-         </ul>
-        <h4>Last revision: 12-Apr-1995</h4>
-		<p>This NTPv3 distribution includes a sample configuration file and the project makefiles for WindowsNT 3.5 platform using Microsoft Visual C++ 2.0 compiler. Also included is a small routine to install the NTP daemon as a &quot;service&quot; on a WindowsNT box. Besides xntpd, the utilities that have been ported are ntpdate and xntpdc. The port to WindowsNT 3.5 has been tested using a Bancomm TimeServe2000 GPS receiver clock that acts as a stratum 1 NTP server with no authentication (it has not been tested with any refclock drivers compiled in).
-		<p>Following are the known flaws in this port</p>
-		<ul>
-		<li>Currently, I do not know of a way in NT to get information about multiple network interface cards. The current port uses just one socket bound to INADDR_ANY address. Therefore when dealing with a multihomed NT time server, clients should point to the default address on the server (otherwise the reply is not guaranteed to come from the same interface to which the request was sent). Working with Microsoft to get this resolved.
-		<li>There is some problem with &quot;longjmp&quot; in xntpdc/ntpdc.c that causes a software exception on doing a Control-C in xntpdc. Be patient!&gt; 3) The error messages logged by xntpd currently contain only the numerical error code. Corresponding error message string has to be looked up in &quot;Books Online&quot; on Visual C++ 2.0 under the topic &quot;Numerical List of Error Codes&quot;.</ul>
-		<h4>Last HTML Update: November 17, 1999</h4>
-		<p>by Sven_Dietrich@Trimble.COM</p>
-	</body>
-
+        <p>Please follow the <a href="../bugs.html">NTP Bug Reporting Procedures</a> to report bugs or request enhancements.</p>
+	<p>Last update:
+	  <!-- #BeginDate format:En2m -->6-Apr-2014  23:27<!-- #EndDate -->
+	</p>
+	
+    </body>
 </html>

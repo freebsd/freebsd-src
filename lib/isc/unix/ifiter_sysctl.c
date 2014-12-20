@@ -159,6 +159,10 @@ internal_current(isc_interfaceiter_t *iter) {
 	ifam = (struct ifa_msghdr *) ((char *) iter->buf + iter->pos);
 	ifam_end = (struct ifa_msghdr *) ((char *) iter->buf + iter->bufused);
 
+	// Skip wrong RTM version headers
+	if (ifam->ifam_version != RTM_VERSION)
+		return (ISC_R_IGNORE);
+
 	if (ifam->ifam_type == RTM_IFINFO) {
 		struct if_msghdr *ifm = (struct if_msghdr *) ifam;
 		struct sockaddr_dl *sdl = (struct sockaddr_dl *) (ifm + 1);
@@ -272,10 +276,11 @@ internal_current(isc_interfaceiter_t *iter) {
 
 		return (ISC_R_SUCCESS);
 	} else {
-		printf(isc_msgcat_get(isc_msgcat, ISC_MSGSET_IFITERSYSCTL,
-				      ISC_MSG_UNEXPECTEDTYPE,
-				      "warning: unexpected interface list "
-				      "message type\n"));
+		printf("%s", isc_msgcat_get(isc_msgcat,
+					    ISC_MSGSET_IFITERSYSCTL,
+					    ISC_MSG_UNEXPECTEDTYPE,
+					    "warning: unexpected interface "
+					    "list message type\n"));
 		return (ISC_R_IGNORE);
 	}
 }

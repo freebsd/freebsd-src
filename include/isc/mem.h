@@ -60,9 +60,9 @@
 #define isc_mem_strdup(c, str)		\
 	( ISC_MEM_UNUSED_ARG(c),	estrdup(str) )
 
-#define isc_mem_attach(src, ptgt)	do { *(ptgt) = (src); } while (0)
-#define isc_mem_detach(c)		ISC_MEM_UNUSED_ARG(c)
-#define isc_mem_printallactive(s)	fprintf((s), \
+#define isc__mem_attach(src, ptgt)	do { *(ptgt) = (src); } while (0)
+#define isc__mem_detach(c)		ISC_MEM_UNUSED_ARG(c)
+#define isc__mem_printallactive(s)	fprintf((s), \
 					"isc_mem_printallactive() stubbed.\n")
 
 #endif /* ISC_MEM_H */

@@ -35,7 +35,8 @@ files in the base directory of this distribution is in the README file.
 A list of "significant" changes for the release is in the NEWS file.
 
 If you're interested in helping us test pre-release versions of ntpd,
-please look in <ftp://huey.udel.edu/pub/ntp/testing/>.
+please visit http://support.ntp.org/downloads and look for RC and/or
+Development tarballs.
 
 David L. Mills (mills@udel.edu)
 21 June 1998

@@ -121,7 +121,7 @@ ntpsnmpd_parse_string(
 
 	if (value[0] == '"') {
 		val_cnt--;
-		strncpy(value, &value[1], valuesize);
+		strlcpy(value, &value[1], valuesize);
 		if (val_cnt > 0 && value[val_cnt - 1] == '"') {
 			val_cnt--;
 			value[val_cnt] = '\0';

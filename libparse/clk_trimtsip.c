@@ -44,7 +44,7 @@
 #include "ntp_syslog.h"
 #include "ntp_types.h"
 #include "ntp_fp.h"
-#include "ntp_unixtime.h"
+#include "timevalops.h"
 #include "ntp_calendar.h"
 #include "ntp_machine.h"
 #include "ntp_stdlib.h"

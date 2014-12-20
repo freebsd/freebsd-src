@@ -146,12 +146,11 @@ hopfserial_start (
 	/*
 	 * Allocate and initialize unit structure
 	 */
-	up = emalloc(sizeof(*up));
-	memset(up, 0, sizeof(*up));
+	up = emalloc_zero(sizeof(*up));
 	pp = peer->procptr;
-	pp->unitptr = (caddr_t)up;
+	pp->unitptr = up;
 	pp->io.clock_recv = hopfserial_receive;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
@@ -170,7 +169,6 @@ hopfserial_start (
 	 */
 	pp->clockdesc = DESCRIPTION;
 	peer->precision = PRECISION;
-	peer->burst = NSTAGE;
 	memcpy((char *)&pp->refid, REFID, 4);
 
 	up->leap_status = 0;
@@ -193,7 +191,7 @@ hopfserial_shutdown (
 	struct refclockproc *pp;
 
 	pp = peer->procptr;
-	up = (struct hopfclock_unit *)pp->unitptr;
+	up = pp->unitptr;
 
 	if (-1 != pp->io.fd)
 		io_closeclock(&pp->io);
@@ -216,30 +214,31 @@ hopfserial_receive (
 	struct refclockproc *pp;
 	struct peer *peer;
 
-	int		synch;	/* synchhronization indicator */
-	int		DoW;	/* Dow */
+	int	synch;	/* synchhronization indicator */
+	int	DoW;	/* Day of Week */
 
 	int	day, month;	/* ddd conversion */
+	int	converted;
 
 	/*
 	 * Initialize pointers and read the timecode and timestamp.
 	 */
-	peer = (struct peer *)rbufp->recv_srcclock;
+	peer = rbufp->recv_peer;
 	pp = peer->procptr;
-	up = (struct hopfclock_unit *)pp->unitptr;
+	up = pp->unitptr;
 
 	if (up->rpt_next == 0 )
 		return;
 
-
 	up->rpt_next = 0; /* wait until next poll interval occur */
 
-	pp->lencode = (u_short)refclock_gtlin(rbufp, pp->a_lastcode, BMAX, &pp->lastrec);
-
-	if (pp->lencode  == 0)
+	pp->lencode = (u_short)refclock_gtlin(rbufp, pp->a_lastcode,
+					      sizeof(pp->a_lastcode),
+					      &pp->lastrec);
+	if (pp->lencode == 0)
 		return;
 
-	sscanf(pp->a_lastcode,
+	converted = sscanf(pp->a_lastcode,
 #if 1
 	       "%1x%1x%2d%2d%2d%2d%2d%2d",   /* ...cr,lf */
 #else
@@ -259,9 +258,9 @@ hopfserial_receive (
 	  Validate received values at least enough to prevent internal
 	  array-bounds problems, etc.
 	*/
-	if((pp->hour < 0) || (pp->hour > 23) ||
-	   (pp->minute < 0) || (pp->minute > 59) ||
-	   (pp->second < 0) || (pp->second > 60) /*Allow for leap seconds.*/ ||
+	if ((8 != converted) || (pp->hour < 0) || (pp->hour > 23) ||
+	   (pp->minute < 0) || (pp->minute > 59) || (pp->second < 0) ||
+	   (pp->second > 60) /*Allow for leap seconds.*/ ||
 	   (day < 1) || (day > 31) ||
 	   (month < 1) || (month > 12) ||
 	   (pp->year < 0) || (pp->year > 99)) {
@@ -356,7 +355,7 @@ hopfserial_poll (
 	struct refclockproc *pp;
 	pp = peer->procptr;
 
-	up = (struct hopfclock_unit *)pp->unitptr;
+	up = pp->unitptr;
 
 	pp->polls++;
 	up->rpt_next = 1;

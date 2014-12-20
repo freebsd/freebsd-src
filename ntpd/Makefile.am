@@ -1,21 +1,22 @@
 NULL=
-AUTOMAKE_OPTIONS= 
 
-if NTP_BINSUBDIR_IS_BIN
-bin_PROGRAMS=	ntpd @MAKE_NTPDSIM@
-else
-sbin_PROGRAMS=	ntpd @MAKE_NTPDSIM@
-endif
+bin_PROGRAMS=	$(NTPD_DB) $(NTPDSIM_DB)
+libexec_PROGRAMS=	$(NTPD_DL) $(NTPDSIM_DL)
+sbin_PROGRAMS=	$(NTPD_DS) $(NTPDSIM_DS)
 
 noinst_LIBRARIES=	libntpd.a
 
-AM_CPPFLAGS= -I$(top_srcdir)/include -I$(top_srcdir)/lib/isc/include \
-	-I$(top_srcdir)/lib/isc/nothreads/include \
-	-I$(top_srcdir)/lib/isc/unix/include $(LIBOPTS_CFLAGS)
+AM_CFLAGS = $(CFLAGS_NTP)
+
+AM_CPPFLAGS  = $(NTP_INCS)
+AM_CPPFLAGS += $(LIBOPTS_CFLAGS)
+AM_CPPFLAGS += $(CPPFLAGS_NTP)
+
+AM_LDFLAGS = $(LDFLAGS_NTP)
 
 # LDADD might need RESLIB and ADJLIB.
-LDADD=	version.o libntpd.a @LIBPARSE@
-AM_YFLAGS=	-d -t -r all
+LDADD = version.o libntpd.a $(LIBPARSE)
+AM_YFLAGS = -d -t -r all
 
 if SAVECONFIG_ENABLED
 if NTP_CROSSCOMPILE
@@ -28,15 +29,15 @@ CHECK_SAVECONFIG=
 endif
 
 #
-# VPHACK and VPHACK_AFTER are enabled on non-GNU makes (such as 
+# VPHACK and VPHACK_AFTER are enabled on non-GNU makes (such as
 # BSD make) to work around issues specific to compiling
-# ntp_parser.y into ntp_parser.h and ntp_parser.c in a vPATH
+# ntp_parser.y into ntp_parser.h and ntp_parser.c in a VPATH
 # configuration where we would like (for a change) the output
 # files ntp_parser.[ch] to be placed in the source directory,
 # as opposed to the build directory.  This allows a single
 # host of a flock configured with Bison to update ntp_parser.[ch]
 # used by the rest.
-# 
+#
 
 if VPATH_HACK
 VPHACK=	vphack
@@ -53,7 +54,7 @@ vphack:
 #
 # ylwrap script which invokes Bison replaces ntp_parser.h
 # symlink with the updated file, when ntp_parser.h changes.
-# vphack_after detects this and copies the updated file to srcdir 
+# vphack_after detects this and copies the updated file to srcdir
 # and re-creates the ntp_parser.h symlink in its place.
 #
 
@@ -64,79 +65,137 @@ vphack_after:
 		)
 
 # BUILT_SOURCES which should also be in EXTRA_DIST
-B_S_DIST=		\
-	ntpd-opts.c 	\
-	ntpd-opts.h 	\
+B_S_DIST=			\
+	$(srcdir)/ntpd-opts.c	\
+	$(srcdir)/ntpd-opts.h	\
 	$(NULL)
 
 BUILT_SOURCES=		\
-	$(VPHACK) 	\
-	ntp_parser.c 	\
-	ntp_parser.h 	\
+	$(VPHACK)	\
+	$(LIBPARSE)	\
+	ntp_parser.c	\
+	ntp_parser.h	\
 	$(VPHACK_AFTER)	\
 	$(B_S_DIST)	\
 	$(NULL)
 
-man_MANS=	$(srcdir)/ntpd.1
+man1_MANS=
+man5_MANS=	ntp.conf.5 ntp.keys.5
+man8_MANS=
+man_MANS=	ntpd.$(NTPD_MS)
 
 # ntpdsim.1 is a remnant along with all the ntpdsim-opts.* files, the
 # simulator currently uses ntpd-opts.[ch].  This also means there is no
 # longer a reason to have ntpdbase-opts.def split off of ntpd-opts.def.
 
-# ntpd may need:
-# log10                               refclock_wwv.o
-# sqrt                                ntp_control.o
-# floor                               refclock_wwv.o
-# which are (usually) provided by -lm.
-ntpd_LDADD = $(LDADD) $(LIBOPTS_LDADD) ../libntp/libntp.a -lm @LCRYPTO@ @LSCF@
-ntpdsim_LDADD = $(LDADD) $(LIBOPTS_LDADD) ../libntp/libntpsim.a -lm @LCRYPTO@ @LSCF@
-ntpdsim_CFLAGS = $(CFLAGS) -DSIM
-check_y2k_LDADD = $(LDADD) ../libntp/libntp.a
-keyword_gen_LDADD = ../libntp/libntp.a	# we don't want $(LDADD) here
+LDADD_NTPD_COMMON  = $(LDADD_LIBNTP) $(LIBOPTS_LDADD) $(PTHREAD_LIBS)
+LDADD_NTPD_COMMON += $(LIBM) $(LDADD_NTP) $(LSCF)
+ntpd_LDADD = $(LDADD) ../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(LDADD_NTPD_COMMON)
+ntpdsim_LDADD = $(LDADD) ../libntp/libntpsim.a $(LDADD_NTPD_COMMON)
+ntpdsim_CPPFLAGS = $(AM_CPPFLAGS) -DSIM
+check_y2k_LDADD = $(LDADD) ../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(LDADD_LIBNTP) $(PTHREAD_LIBS)
+## we don't want $(LDADD) in keyword_gen_LDADD
+keyword_gen_LDADD = ../libntp/libntp.a $(LDADD_LIBNTP) $(LIBM) $(PTHREAD_LIBS)
 
 DISTCLEANFILES =		\
 	keyword-gen		\
 	.version		\
 	version.c		\
+	config.log		\
+	$(man5_MANS)		\
+	$(man_MANS)		\
 	$(NULL)
 
 CLEANFILES =			\
 	check-saveconfig	\
 	compsave.conf		\
 	k-g-u-submake		\
+	$(EXTRA_PROGRAMS)	\
 	$(NULL)
 
 EXTRA_DIST =			\
-	complete.conf		\
+	complete.conf.in	\
+	invoke-ntp.conf.menu	\
+	invoke-ntp.conf.texi	\
+	invoke-ntp.keys.menu	\
+	invoke-ntp.keys.texi	\
+	invoke-ntpd.menu	\
+	invoke-ntpd.texi	\
 	keyword-gen-utd		\
-	ntpd.1			\
+	ntp.conf.5man		\
+	ntp.conf.5mdoc		\
+	ntp.conf.def		\
+	ntp.conf.man.in		\
+	ntp.conf.mdoc.in	\
+	ntp.conf.html		\
+	ntp.conf.texi		\
+	ntp.keys.5man		\
+	ntp.keys.5mdoc		\
+	ntp.keys.def		\
+	ntp.keys.man.in		\
+	ntp.keys.mdoc.in	\
+	ntp.keys.html		\
+	ntp.keys.texi		\
 	ntpd-opts.def		\
-	ntpd-opts.menu		\
-	ntpd-opts.texi		\
+	ntpd.1ntpdman		\
+	ntpd.1ntpdmdoc		\
+	ntpd.man.in		\
+	ntpd.mdoc.in		\
+	ntpd.html		\
+	ntpd.texi		\
 	ntpdbase-opts.def	\
 	refclock_msfees.c	\
-	refclock_trak.c		\
 	$(B_S_DIST)		\
 	$(NULL)
 
-ETAGS_ARGS = Makefile.am
 ###							Y2Kfixes
 check_PROGRAMS = @MAKE_CHECK_Y2K@
-EXTRA_PROGRAMS = check_y2k ntpdsim keyword-gen
-noinst_DATA =	$(srcdir)/ntpd-opts.texi $(srcdir)/ntpd-opts.menu
-run_ag=		cd $(srcdir) &&	env PATH="$(abs_builddir):$(PATH)"	\
-		autogen -L ../include --writable
-std_def_list=	$(top_srcdir)/include/autogen-version.def 	\
-		$(top_srcdir)/include/copyright.def 		\
-		$(top_srcdir)/include/version.def
+EXTRA_PROGRAMS = check_y2k keyword-gen ntpd ntpdsim
 
-check-local: @MAKE_CHECK_Y2K@ $(CHECK_SAVECONFIG)
-	test -z "@MAKE_CHECK_Y2K@" || ./@MAKE_CHECK_Y2K@
+html_DATA=				\
+	$(srcdir)/ntp.conf.html		\
+	$(srcdir)/ntp.keys.html		\
+	$(srcdir)/ntpd.html		\
+	$(NULL)
+
+noinst_DATA =				\
+	$(srcdir)/invoke-ntp.conf.menu	\
+	$(srcdir)/invoke-ntp.conf.texi	\
+	$(srcdir)/invoke-ntp.keys.menu	\
+	$(srcdir)/invoke-ntp.keys.texi	\
+	$(srcdir)/invoke-ntpd.menu	\
+	$(srcdir)/invoke-ntpd.texi	\
+	$(srcdir)/ntp.conf.man.in	\
+	$(srcdir)/ntp.conf.mdoc.in	\
+	$(srcdir)/ntp.keys.man.in	\
+	$(srcdir)/ntp.keys.mdoc.in	\
+	$(srcdir)/ntpd.man.in		\
+	$(srcdir)/ntpd.mdoc.in		\
+	$(NULL)
+
+noinst_HEADERS =			\
+	declcond.h			\
+	ntp_leapsec.h			\
+	$(NULL)
+
+install-data-local: install-html
+
+run_ag=		cd $(srcdir) &&	env PATH="$(abs_builddir):$(PATH)" AUTOGEN_DNE_DATE=-D	\
+		autogen -L ../sntp/include -L ../sntp/ag-tpl --writable
+std_def_list =							\
+	$(top_srcdir)/sntp/include/debug-opt.def		\
+	$(top_srcdir)/sntp/include/autogen-version.def		\
+	$(top_srcdir)/sntp/include/copyright.def		\
+	$(top_srcdir)/sntp/include/homerc.def			\
+	$(top_srcdir)/sntp/include/ntp.lic			\
+	$(top_srcdir)/sntp/include/version.def			\
+	$(NULL)
+
+check-local: $(MAKE_CHECK_Y2K) $(CHECK_SAVECONFIG)
+	test -z "$(MAKE_CHECK_Y2K)" || ./$(MAKE_CHECK_Y2K)
 
 ntpd_SOURCES =			\
-	cmd_args.c		\
 	ntp_config.c		\
-	ntp_data_structures.c	\
 	ntp_keyword.h		\
 	ntp_io.c		\
 	ntp_parser.y		\
@@ -146,20 +205,22 @@ ntpd_SOURCES =			\
 	ntpd-opts.c		\
 	ntpd-opts.h		\
 	$(NULL)
-	
+
 ntpdsim_SOURCES =		\
 	$(ntpd_SOURCES)		\
+	ntp_prio_q.c		\
 	ntpsim.c		\
 	$(NULL)
 
 # libntpd_a_SOURCES do not use #ifdef SIM
 
 libntpd_a_SOURCES =		\
+	cmd_args.c		\
 	jupiter.h		\
 	ntp_control.c		\
 	ntp_crypto.c		\
 	ntp_filegen.c		\
-	ntp_intres.c		\
+	ntp_leapsec.c		\
 	ntp_loopfilter.c	\
 	ntp_monitor.c		\
 	ntp_peer.c		\
@@ -183,6 +244,7 @@ libntpd_a_SOURCES =		\
 	refclock_datum.c	\
 	refclock_dumbclock.c	\
 	refclock_fg.c		\
+	refclock_gpsdjson.c	\
 	refclock_gpsvme.c	\
 	refclock_heath.c	\
 	refclock_hopfser.c	\
@@ -211,6 +273,7 @@ libntpd_a_SOURCES =		\
 	refclock_wwv.c		\
 	refclock_wwvb.c		\
 	refclock_zyfer.c	\
+	refclock_tsyncpci.c	\
 	$(NULL)
 
 k-g-u-submake: keyword-gen
@@ -226,53 +289,150 @@ k-g-u-submake: keyword-gen
 	@echo 'keyword-gen and ntp_keyword.h are up to date.' > $@
 
 $(srcdir)/keyword-gen-utd: $(srcdir)/keyword-gen.c $(srcdir)/ntp_parser.h
-	$(MAKE) k-g-u-submake	# avoid explicit dependency
+	$(MAKE) $(AM_MAKEFLAGS) k-g-u-submake	# avoid explicit dependency
 	grep diff_ignore_line $(srcdir)/ntp_keyword.h > k-g-u
 	mv -f k-g-u $@
-	
+
 $(srcdir)/ntp_keyword.h: $(srcdir)/keyword-gen-utd
 	@: do-nothing action to avoid default SCCS get
 	@: .h updated if needed by k-g-u-submake rule
 
 $(srcdir)/ntpd-opts.h: $(srcdir)/ntpd-opts.c
 	@: do-nothing action to avoid default SCCS get, .h built with .c
-	
+
 $(srcdir)/ntpd-opts.c: $(srcdir)/ntpd-opts.def $(srcdir)/ntpdbase-opts.def $(std_def_list)
 	$(run_ag) ntpd-opts.def
 
-$(srcdir)/ntpd.1: $(srcdir)/ntpd-opts.def $(srcdir)/ntpdbase-opts.def $(std_def_list)
-	$(run_ag) -Tagman1.tpl -bntpd ntpd-opts.def
+###
 
-$(srcdir)/ntpd-opts.menu: $(srcdir)/ntpd-opts.texi
+$(srcdir)/ntpd.1ntpdman: $(srcdir)/ntpd-opts.def $(srcdir)/ntpdbase-opts.def $(std_def_list)
+	$(run_ag) -DMAN_SECTION=1ntpdman -Tagman-cmd.tpl ntpd-opts.def
+
+$(srcdir)/ntpd.man.in: $(srcdir)/ntpd.1ntpdman $(top_srcdir)/sntp/scripts/mansec2subst.sed
+	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/ntpd.1ntpdman > $(srcdir)/ntpd.man.in+
+	mv $(srcdir)/ntpd.man.in+ $(srcdir)/ntpd.man.in
+
+###
+
+$(srcdir)/ntpd.1ntpdmdoc: $(srcdir)/ntpd-opts.def $(srcdir)/ntpdbase-opts.def $(std_def_list)
+	$(run_ag) -DMAN_SECTION=1ntpdmdoc -Tagmdoc-cmd.tpl ntpd-opts.def
+
+$(srcdir)/ntpd.mdoc.in: $(srcdir)/ntpd.1ntpdmdoc $(top_srcdir)/sntp/scripts/mansec2subst.sed
+	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/ntpd.1ntpdmdoc > $(srcdir)/ntpd.mdoc.in+
+	mv $(srcdir)/ntpd.mdoc.in+ $(srcdir)/ntpd.mdoc.in
+
+###
+
+ntpd.$(NTPD_MS): $(srcdir)/ntpd.$(MANTAGFMT).in $(top_builddir)/config.status
+	$(top_builddir)/config.status --file=ntpd.$(NTPD_MS)+:$(srcdir)/ntpd.$(MANTAGFMT).in
+	mv ntpd.$(NTPD_MS)+ ntpd.$(NTPD_MS)
+
+###
+
+$(srcdir)/invoke-ntp.conf.menu: $(srcdir)/invoke-ntp.conf.texi
 	@: do-nothing action to avoid default SCCS get, .menu built with .texi
-	
-$(srcdir)/ntpd-opts.texi: $(srcdir)/ntpd-opts.def $(srcdir)/ntpdbase-opts.def $(std_def_list)
-	$(run_ag) -Taginfo.tpl -DLEVEL=section ntpd-opts.def
-	$(top_srcdir)/scripts/check--help $@
+
+$(srcdir)/invoke-ntp.conf.texi: $(srcdir)/ntp.conf.def $(std_def_list)
+	$(run_ag) -Tagtexi-file.tpl -DLEVEL=section ntp.conf.def
+
+$(srcdir)/invoke-ntp.keys.menu: $(srcdir)/invoke-ntp.keys.texi
+	@: do-nothing action to avoid default SCCS get, .menu built with .texi
+
+$(srcdir)/invoke-ntp.keys.texi: $(srcdir)/ntp.keys.def $(std_def_list)
+	$(run_ag) -Tagtexi-file.tpl -DLEVEL=section ntp.keys.def
+
+$(srcdir)/ntp.conf.html: $(srcdir)/ntp.conf.texi $(top_srcdir)/sntp/include/version.texi
+	cd $(srcdir) && ( makeinfo --force --html --no-split -o ntp.conf.html ntp.conf.texi || true )
+
+$(srcdir)/ntp.keys.html: $(srcdir)/ntp.keys.texi $(top_srcdir)/sntp/include/version.texi
+	cd $(srcdir) && ( makeinfo --force --html --no-split -o ntp.keys.html ntp.keys.texi || true )
+
+$(srcdir)/ntpd.html: $(srcdir)/ntpd.texi $(top_srcdir)/sntp/include/version.texi
+	cd $(srcdir) && ( makeinfo --force --html --no-split -o ntpd.html ntpd.texi || true )
+
+###
+
+$(srcdir)/ntp.conf.5man: $(srcdir)/ntp.conf.def $(std_def_list)
+	$(run_ag) -DMAN_SECTION=5man -Tagman-cmd.tpl ntp.conf.def
+
+$(srcdir)/ntp.conf.man.in: $(srcdir)/ntp.conf.5man $(top_srcdir)/sntp/scripts/mansec2subst.sed
+	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/ntp.conf.5man > $(srcdir)/ntp.conf.man.in+
+	mv $(srcdir)/ntp.conf.man.in+ $(srcdir)/ntp.conf.man.in
+
+###
+
+$(srcdir)/ntp.conf.5mdoc: $(srcdir)/ntp.conf.def $(std_def_list)
+	$(run_ag) -DMAN_SECTION=5mdoc -Tagmdoc-cmd.tpl ntp.conf.def
+
+$(srcdir)/ntp.conf.mdoc.in: $(srcdir)/ntp.conf.5mdoc $(top_srcdir)/sntp/scripts/mansec2subst.sed
+	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/ntp.conf.5mdoc > $(srcdir)/ntp.conf.mdoc.in+
+	mv $(srcdir)/ntp.conf.mdoc.in+ $(srcdir)/ntp.conf.mdoc.in
+
+###
+
+ntp.conf.5: $(srcdir)/ntp.conf.$(MANTAGFMT).in $(top_builddir)/config.status
+	$(top_builddir)/config.status --file=ntp.conf.5+:$(srcdir)/ntp.conf.$(MANTAGFMT).in
+	mv ntp.conf.5+ ntp.conf.5
+
+###
+
+$(srcdir)/ntp.keys.5man: $(srcdir)/ntp.keys.def $(std_def_list)
+	$(run_ag) -DMAN_SECTION=5man -Tagman-file.tpl ntp.keys.def
+
+$(srcdir)/ntp.keys.man.in: $(srcdir)/ntp.keys.5man $(top_srcdir)/sntp/scripts/mansec2subst.sed
+	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/ntp.keys.5man > $(srcdir)/ntp.keys.man.in+
+	mv $(srcdir)/ntp.keys.man.in+ $(srcdir)/ntp.keys.man.in
+
+###
+
+$(srcdir)/ntp.keys.5mdoc: $(srcdir)/ntp.keys.def $(std_def_list)
+	$(run_ag) -DMAN_SECTION=5mdoc -Tagmdoc-file.tpl ntp.keys.def
+
+$(srcdir)/ntp.keys.mdoc.in: $(srcdir)/ntp.keys.5mdoc $(top_srcdir)/sntp/scripts/mansec2subst.sed
+	sed -f $(top_srcdir)/sntp/scripts/mansec2subst.sed $(srcdir)/ntp.keys.5mdoc > $(srcdir)/ntp.keys.mdoc.in+
+	mv $(srcdir)/ntp.keys.mdoc.in+ $(srcdir)/ntp.keys.mdoc.in
+
+###
+
+ntp.keys.5: $(srcdir)/ntp.keys.$(MANTAGFMT).in $(top_builddir)/config.status
+	$(top_builddir)/config.status --file=ntp.keys.5+:$(srcdir)/ntp.keys.$(MANTAGFMT).in
+	mv ntp.keys.5+ ntp.keys.5
+
+###
+
+$(srcdir)/invoke-ntpd.menu: $(srcdir)/invoke-ntpd.texi
+	@: do-nothing action to avoid default SCCS get, .menu built with .texi
+
+$(srcdir)/invoke-ntpd.texi: $(srcdir)/ntpd-opts.def $(srcdir)/ntpdbase-opts.def $(std_def_list)
+	$(run_ag) -Tagtexi-cmd.tpl -DLEVEL=section ntpd-opts.def
+	$(top_srcdir)/scripts/build/check--help $@
 
 $(PROGRAMS): $(LDADD)
 
-compsave.conf: ntpd $(srcdir)/complete.conf
-	./ntpd --configfile $(srcdir)/complete.conf --saveconfigquit $@
+compsave.conf: ntpd complete.conf
+	./ntpd --configfile complete.conf --saveconfigquit $@
 
-check-saveconfig: $(srcdir)/complete.conf compsave.conf
-	cmp $(srcdir)/complete.conf compsave.conf && echo stamp > $@
+check-saveconfig: complete.conf compsave.conf
+	-diff -u complete.conf compsave.conf
+	cmp complete.conf compsave.conf && echo stamp > $@
 
-../libopts/libopts.la:
-	cd ../libopts && $(MAKE) libopts.la
-
-../libntp/libntp.a:
-	cd ../libntp && $(MAKE) libntp.a
+../libntp/libntpsim.a:
+	cd ../libntp && $(MAKE) $(AM_MAKEFLAGS) libntpsim.a
 
 ../libparse/libparse.a:
-	cd ../libparse && $(MAKE) libparse.a
+	cd ../libparse && $(MAKE) $(AM_MAKEFLAGS) check-libparse
 
-$(top_srcdir)/version:
-	cd $(top_srcdir) && $(MAKE) version
+$(top_srcdir)/sntp/scm-rev:
+	cd ../sntp && $(MAKE) $(AM_MAKEFLAGS) check-scm-rev
 
-version.o: $(ntpd_OBJECTS) ../libntp/libntp.a @LIBPARSE@ Makefile $(top_srcdir)/version
-	env CSET=`cat $(top_srcdir)/version` $(top_builddir)/scripts/mkver ntpd
-	$(COMPILE) -c version.c
+version.c: $(ntpd_OBJECTS) ../libntp/libntp.a @LIBPARSE@ Makefile $(top_srcdir)/sntp/scm-rev
+	env CSET=`cat $(top_srcdir)/sntp/scm-rev` $(top_builddir)/scripts/build/mkver ntpd
+
+version.o: version.c
+	env CCACHE_DISABLE=1 $(COMPILE) -c version.c -o version.o
 
 include $(top_srcdir)/bincheck.mf
+include $(top_srcdir)/check-libopts.mf
+include $(top_srcdir)/sntp/check-libntp.mf
 include $(top_srcdir)/depsver.mf
+include $(top_srcdir)/includes.mf

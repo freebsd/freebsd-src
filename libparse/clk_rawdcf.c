@@ -234,7 +234,7 @@ convert_rawdcf(
 	if (size < 57)
 	{
 #ifndef PARSEKERNEL
-		msyslog(LOG_ERR, "parse: convert_rawdcf: INCOMPLETE DATA - time code only has %d bits\n", size);
+		msyslog(LOG_ERR, "parse: convert_rawdcf: INCOMPLETE DATA - time code only has %d bits", size);
 #endif
 		return CVT_NONE;
 	}
@@ -320,7 +320,7 @@ convert_rawdcf(
 		 * bad format - not for us
 		 */
 #ifndef PARSEKERNEL
-		msyslog(LOG_ERR, "parse: convert_rawdcf: parity check FAILED for \"%s\"\n", buffer);
+		msyslog(LOG_ERR, "parse: convert_rawdcf: parity check FAILED for \"%s\"", buffer);
 #endif
 		return CVT_FAIL|CVT_BADFMT;
 	}

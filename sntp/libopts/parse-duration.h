@@ -1,18 +1,18 @@
 /* Parse a time duration and return a seconds count
-   Copyright (C) 2008-2011 Free Software Foundation, Inc.
+   Copyright (C) 2008-2014 Free Software Foundation, Inc.
    Written by Bruce Korb <bkorb@gnu.org>, 2008.
 
    This program is free software: you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 3 of the License, or
+   it under the terms of the GNU Lesser General Public License as published by
+   the Free Software Foundation; either version 2.1 of the License, or
    (at your option) any later version.
 
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+   GNU Lesser General Public License for more details.
 
-   You should have received a copy of the GNU General Public License
+   You should have received a copy of the GNU Lesser General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
 /*
@@ -31,7 +31,7 @@
   the string may contain:  NNN Y NNN M NNN W NNN d NNN h NNN m NNN s
   This represents NNN years, NNN months, NNN weeks, NNN days, NNN hours,
     NNN minutes and NNN seconds.
-  The embeded white space is optional.
+  The embedded white space is optional.
   These terms must appear in this order.
   Case is significant:  'M' is months and 'm' is minutes.
   The final "s" is optional.

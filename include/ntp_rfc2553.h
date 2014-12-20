@@ -68,16 +68,33 @@
 #ifndef NTP_RFC2553_H
 #define NTP_RFC2553_H
 
-/*
- * Ensure that we include the configuration file before we check
- * for IPV6
- */
-#include <config.h>
 #include <netdb.h>
 #include <isc/net.h>
 
 #include "ntp_types.h"
+#include "ntp_malloc.h"
 
+struct addrinfo *copy_addrinfo_impl(const struct addrinfo *
+#ifdef EREALLOC_CALLSITE	/* from ntp_malloc.h */
+							   ,
+				    const char *, int
+#endif
+					 );
+struct addrinfo *copy_addrinfo_list_impl(const struct addrinfo *
+#ifdef EREALLOC_CALLSITE	/* from ntp_malloc.h */
+								,
+					 const char *, int
+#endif
+					 );
+#ifdef EREALLOC_CALLSITE
+# define copy_addrinfo(l) \
+	 copy_addrinfo_impl((l), __FILE__, __LINE__)
+# define copy_addrinfo_list(l) \
+	 copy_addrinfo_list_impl((l), __FILE__, __LINE__)
+#else
+# define copy_addrinfo(l)	copy_addrinfo_impl(l)
+# define copy_addrinfo_list(l)	copy_addrinfo_list_impl(l)
+#endif
 
 /*
  * If various macros are not defined we need to define them

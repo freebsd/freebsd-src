@@ -1,6 +1,7 @@
 /*
  * mstolfp - convert an ascii string in milliseconds to an l_fp number
  */
+#include <config.h>
 #include <stdio.h>
 #include <ctype.h>
 

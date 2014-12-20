@@ -2,6 +2,7 @@
  * calyearstart - determine the NTP time at midnight of January 1 in
  *		  the year of the given date.
  */
+#include <config.h>
 #include <sys/types.h>
 
 #include "ntp_types.h"
@@ -10,47 +11,78 @@
 #include "ntp_assert.h"
 
 /*
- * Juergen Perlinger, 2008-11-12
- * Use the result of 'caljulian' to get the delta from the time stamp to the
- * beginning of the year. Do not make a second trip through 'caltontp' after
- * fixing the date, apart for invariant tests.
+ * Juergen Perlinger, 2010-05-02
+ *
+ * Redone in terms of the calendar functions. It's rather simple:
+ * - expand the NTP time stamp
+ * - split into days and seconds since midnight, dropping the partial day
+ * - get full number of days before year start in NTP epoch
+ * - convert to seconds, truncated to 32 bits.
  */
-u_long
-calyearstart(u_long ntp_time)
+u_int32
+calyearstart(u_int32 ntptime, const time_t *pivot)
 {
-	struct calendar jt;
-	ntp_u_int32_t   delta;
+	u_int32      ndays; /* elapsed days since NTP starts */
+	vint64       vlong;
+	ntpcal_split split;
 
-	caljulian(ntp_time,&jt);
+	vlong = ntpcal_ntp_to_ntp(ntptime, pivot);
+	split = ntpcal_daysplit(&vlong);
+	ndays = ntpcal_rd_to_ystart(split.hi + DAY_NTP_STARTS)
+	      - DAY_NTP_STARTS;
+
+	return (u_int32)(ndays * SECSPERDAY);
+}
+
+/*
+ * calmonthstart - get NTP time at midnight of the first day of the
+ * current month.
+ */
+u_int32
+calmonthstart(u_int32 ntptime, const time_t *pivot)
+{
+	u_int32      ndays; /* elapsed days since NTP starts */
+	vint64       vlong;
+	ntpcal_split split;
+
+	vlong = ntpcal_ntp_to_ntp(ntptime, pivot);
+	split = ntpcal_daysplit(&vlong);
+	ndays = ntpcal_rd_to_mstart(split.hi + DAY_NTP_STARTS)
+	      - DAY_NTP_STARTS;
+
+	return (u_int32)(ndays * SECSPERDAY);
+}
+
+/*
+ * calweekstart - get NTP time at midnight of the last monday on or
+ * before the current date.
+ */
+u_int32
+calweekstart(u_int32 ntptime, const time_t *pivot)
+{
+	u_int32      ndays; /* elapsed days since NTP starts */
+	vint64       vlong;
+	ntpcal_split split;
+
+	vlong = ntpcal_ntp_to_ntp(ntptime, pivot);
+	split = ntpcal_daysplit(&vlong);
+	ndays = ntpcal_weekday_le(split.hi + DAY_NTP_STARTS, CAL_MONDAY)
+	      - DAY_NTP_STARTS;
+
+	return (u_int32)(ndays * SECSPERDAY);
+}
+
+/*
+ * caldaystart - get NTP time at midnight of the current day.
+ */
+u_int32
+caldaystart(u_int32 ntptime, const time_t *pivot)
+{
+	vint64       vlong;
+	ntpcal_split split;
+
+	vlong = ntpcal_ntp_to_ntp(ntptime, pivot);
+	split = ntpcal_daysplit(&vlong);
 	
-	/*
-	* Now we have days since yearstart (unity-based) and the time in that
-	* day. Simply merge these together to seconds and subtract that from
-	* input time. That's faster than going through the calendar stuff
-	* again...
-	*/
-	delta = (ntp_u_int32_t)jt.yearday * SECSPERDAY
-	      + (ntp_u_int32_t)jt.hour    * MINSPERHR * SECSPERMIN
-	      + (ntp_u_int32_t)jt.minute  * SECSPERMIN
-	      + (ntp_u_int32_t)jt.second
-	      - SECSPERDAY;	/* yearday is unity-based... */
-
-#   if ISC_CHECK_INVARIANT
-	/*
-	 * check that this computes properly: do a roundtrip! That's the only
-	 * sensible test here, but it's a rather expensive invariant...
-	 */  
-	jt.yearday  = 0;
-	jt.month    = 1;
-	jt.monthday = 1;
-	jt.hour     = 0;
-	jt.minute   = 0;
-	jt.second   = 0;
-	NTP_INVARIANT((ntp_u_int32_t)(caltontp(&jt) + delta) == (ntp_u_int32_t)ntp_time);
-#   endif
-
-	/* The NTP time stamps (l_fp) count seconds unsigned mod 2**32, so we
-	 * have to calculate this in the proper way!
-	 */
-	return (ntp_u_int32_t)(ntp_time - delta);
+	return ntptime - split.lo;
 }

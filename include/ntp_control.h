@@ -4,6 +4,11 @@
 
 #include "ntp_types.h"
 
+typedef union ctl_pkt_u_tag {
+	u_char data[480 + MAX_MAC_LEN]; /* data + auth */
+	u_int32 u32[(480 + MAX_MAC_LEN) / sizeof(u_int32)];
+} ctl_pkt_u;
+
 struct ntp_control {
 	u_char li_vn_mode;		/* leap, version, mode */
 	u_char r_m_e_op;		/* response, more, error, opcode */
@@ -12,13 +17,13 @@ struct ntp_control {
 	associd_t associd;		/* association ID */
 	u_short offset;			/* offset of this batch of data */
 	u_short count;			/* count of data in this packet */
-	u_char data[(480 + MAX_MAC_LEN)]; /* data + auth */
+	ctl_pkt_u u;
 };
 
 /*
  * Length of the control header, in octets
  */
-#define	CTL_HEADER_LEN		(offsetof(struct ntp_control, data))
+#define	CTL_HEADER_LEN		(offsetof(struct ntp_control, u))
 #define	CTL_MAX_DATA_LEN	468
 
 
@@ -37,10 +42,10 @@ struct ntp_control {
 #define	CTL_MORE	0x20
 #define	CTL_OP_MASK	0x1f
 
-#define	CTL_ISRESPONSE(r_m_e_op)	(((r_m_e_op) & 0x80) != 0)
-#define	CTL_ISMORE(r_m_e_op)	(((r_m_e_op) & 0x20) != 0)
-#define	CTL_ISERROR(r_m_e_op)	(((r_m_e_op) & 0x40) != 0)
-#define	CTL_OP(r_m_e_op)	((r_m_e_op) & CTL_OP_MASK)
+#define	CTL_ISRESPONSE(r_m_e_op) ((CTL_RESPONSE	& (r_m_e_op)) != 0)
+#define	CTL_ISMORE(r_m_e_op)	 ((CTL_MORE	& (r_m_e_op)) != 0)
+#define	CTL_ISERROR(r_m_e_op)	 ((CTL_ERROR	& (r_m_e_op)) != 0)
+#define	CTL_OP(r_m_e_op)	 (CTL_OP_MASK	& (r_m_e_op))
 
 /*
  * Opcodes
@@ -55,6 +60,9 @@ struct ntp_control {
 #define	CTL_OP_ASYNCMSG		7	/* asynchronous message */
 #define CTL_OP_CONFIGURE	8	/* runtime configuration */
 #define CTL_OP_SAVECONFIG	9	/* save config to file */
+#define CTL_OP_READ_MRU		10	/* retrieve MRU (mrulist) */
+#define CTL_OP_READ_ORDLIST_A	11	/* ordered list req. auth. */
+#define CTL_OP_REQ_NONCE	12	/* request a client nonce */
 #define	CTL_OP_UNSETTRAP	31	/* unset trap */
 
 /*
@@ -144,121 +152,6 @@ struct ntp_control {
 
 
 /*
- * System variables we understand
- */
-#define	CS_LEAP		1
-#define	CS_STRATUM	2
-#define	CS_PRECISION	3
-#define	CS_ROOTDELAY	4
-#define	CS_ROOTDISPERSION	5
-#define	CS_REFID	6
-#define	CS_REFTIME	7
-#define	CS_POLL		8
-#define	CS_PEERID	9
-#define	CS_OFFSET	10
-#define	CS_DRIFT	11
-#define CS_JITTER	12
-#define CS_ERROR	13
-#define	CS_CLOCK	14
-#define	CS_PROCESSOR	15
-#define	CS_SYSTEM	16
-#define CS_VERSION	17
-#define	CS_STABIL	18
-#define CS_VARLIST	19
-#define CS_TAI          20
-#define CS_LEAPTAB      21
-#define CS_LEAPEND      22
-#define	CS_RATE		23
-#ifdef OPENSSL
-#define CS_FLAGS	24
-#define CS_HOST		25
-#define CS_PUBLIC	26
-#define	CS_CERTIF	27
-#define	CS_SIGNATURE	28
-#define	CS_REVTIME	29
-#define	CS_GROUP	30
-#define CS_DIGEST	31
-#define	CS_MAXCODE	CS_DIGEST
-#else
-#define	CS_MAXCODE	CS_RATE
-#endif /* OPENSSL */
-
-/*
- * Peer variables we understand
- */
-#define	CP_CONFIG	1
-#define	CP_AUTHENABLE	2
-#define	CP_AUTHENTIC	3
-#define	CP_SRCADR	4
-#define	CP_SRCPORT	5
-#define	CP_DSTADR	6
-#define	CP_DSTPORT	7
-#define	CP_LEAP		8
-#define	CP_HMODE	9
-#define	CP_STRATUM	10
-#define	CP_PPOLL	11
-#define	CP_HPOLL	12
-#define	CP_PRECISION	13
-#define	CP_ROOTDELAY	14
-#define	CP_ROOTDISPERSION	15
-#define	CP_REFID	16
-#define	CP_REFTIME	17
-#define	CP_ORG		18
-#define	CP_REC		19
-#define	CP_XMT		20
-#define	CP_REACH	21
-#define	CP_UNREACH	22
-#define	CP_TIMER	23
-#define	CP_DELAY	24
-#define	CP_OFFSET	25
-#define CP_JITTER	26
-#define	CP_DISPERSION	27
-#define	CP_KEYID	28
-#define	CP_FILTDELAY	29
-#define	CP_FILTOFFSET	30
-#define	CP_PMODE	31
-#define	CP_RECEIVED	32
-#define	CP_SENT		33
-#define	CP_FILTERROR	34
-#define	CP_FLASH	35
-#define CP_TTL		36
-#define CP_VARLIST	37
-#define	CP_IN		38
-#define	CP_OUT		39
-#define	CP_RATE		40
-#define	CP_BIAS		41
-#ifdef OPENSSL
-#define CP_FLAGS	42
-#define CP_HOST		43
-#define CP_VALID	44
-#define	CP_INITSEQ	45
-#define	CP_INITKEY	46
-#define	CP_INITTSP	47
-#define	CP_SIGNATURE	48
-#define	CP_MAXCODE	CP_SIGNATURE
-#else
-#define	CP_MAXCODE	CP_BIAS
-#endif /* OPENSSL */
-
-/*
- * Clock variables we understand
- */
-#define	CC_TYPE		1
-#define	CC_TIMECODE	2
-#define	CC_POLL		3
-#define	CC_NOREPLY	4
-#define	CC_BADFORMAT	5
-#define	CC_BADDATA	6
-#define	CC_FUDGETIME1	7
-#define	CC_FUDGETIME2	8
-#define	CC_FUDGEVAL1	9
-#define	CC_FUDGEVAL2	10
-#define	CC_FLAGS	11
-#define	CC_DEVICE	12
-#define CC_VARLIST	13
-#define	CC_MAXCODE	CC_VARLIST
-
-/*
  * Definition of the structure used internally to hold trap information.
  * ntp_request.c wants to see this.
  */
@@ -273,7 +166,7 @@ struct ctl_trap {
 	u_char tr_flags;		/* trap flags */
 	u_char tr_version;		/* version number of trapper */
 };
-extern struct ctl_trap ctl_trap[];
+extern struct ctl_trap ctl_traps[CTL_MAXTRAPS];
 
 /*
  * Flag bits
@@ -289,3 +182,11 @@ extern struct ctl_trap ctl_trap[];
 #define	TYPE_SYS	1
 #define	TYPE_PEER	2
 #define	TYPE_CLOCK	3
+
+/*
+ * IFSTATS_FIELDS is the number of fields ntpd supplies for each ifstats
+ * row.  Similarly RESLIST_FIELDS for reslist.
+ */
+#define	IFSTATS_FIELDS	12
+#define	RESLIST_FIELDS	4
+

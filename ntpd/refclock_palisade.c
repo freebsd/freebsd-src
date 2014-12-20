@@ -305,9 +305,7 @@ palisade_start (
 	/*
 	 * Allocate and initialize unit structure
 	 */
-	up = (struct palisade_unit *) emalloc(sizeof(struct palisade_unit));
-
-	memset((char *)up, 0, sizeof(struct palisade_unit));
+	up = emalloc_zero(sizeof(*up));
 
 	up->type = CLK_TYPE(peer);
 	switch (up->type) {
@@ -315,20 +313,20 @@ palisade_start (
 		/* Normal mode, do nothing */
 		break;
 	    case CLK_PRAECIS:
-		msyslog(LOG_NOTICE, "Palisade(%d) Praecis mode enabled\n"
+		msyslog(LOG_NOTICE, "Palisade(%d) Praecis mode enabled"
 			,unit);
 		break;
 	    case CLK_THUNDERBOLT:
-		msyslog(LOG_NOTICE, "Palisade(%d) Thunderbolt mode enabled\n"
+		msyslog(LOG_NOTICE, "Palisade(%d) Thunderbolt mode enabled"
 			,unit);
 		tio.c_cflag = (CS8|CLOCAL|CREAD);
 		break;
 	    case CLK_ACUTIME:
-		msyslog(LOG_NOTICE, "Palisade(%d) Acutime Gold mode enabled\n"
+		msyslog(LOG_NOTICE, "Palisade(%d) Acutime Gold mode enabled"
 			,unit);
 		break;
 	    default:
-		msyslog(LOG_NOTICE, "Palisade(%d) mode unknown\n",unit);
+		msyslog(LOG_NOTICE, "Palisade(%d) mode unknown",unit);
 		break;
 	}
 	if (tcsetattr(fd, TCSANOW, &tio) == -1) {
@@ -343,7 +341,7 @@ palisade_start (
 
 	pp = peer->procptr;
 	pp->io.clock_recv = palisade_io;
-	pp->io.srcclock = (caddr_t)peer;
+	pp->io.srcclock = peer;
 	pp->io.datalen = 0;
 	pp->io.fd = fd;
 	if (!io_addclock(&pp->io)) {
@@ -359,7 +357,7 @@ palisade_start (
 	/*
 	 * Initialize miscellaneous variables
 	 */
-	pp->unitptr = (caddr_t)up;
+	pp->unitptr = up;
 	pp->clockdesc = DESCRIPTION;
 
 	peer->precision = PRECISION;
@@ -394,7 +392,7 @@ palisade_shutdown (
 	struct palisade_unit *up;
 	struct refclockproc *pp;
 	pp = peer->procptr;
-	up = (struct palisade_unit *)pp->unitptr;
+	up = pp->unitptr;
 	if (-1 != pp->io.fd)
 		io_closeclock(&pp->io);
 	if (NULL != up)
@@ -448,7 +446,7 @@ TSIP_decode (
 	struct refclockproc *pp;
 
 	pp = peer->procptr;
-	up = (struct palisade_unit *)pp->unitptr;
+	up = pp->unitptr;
 
 	/*
 	 * Check the time packet, decode its contents. 
@@ -544,7 +542,7 @@ TSIP_decode (
 
 #ifdef DEBUG
 			if (debug > 1)
-				printf("TSIP_decode: unit %d: %02X #%d %02d:%02d:%02d.%06ld %02d/%02d/%04d UTC %02d\n",
+				printf("TSIP_decode: unit %d: %02X #%d %02d:%02d:%02d.%09ld %02d/%02d/%04d UTC %02d\n",
 				       up->unit, mb(0) & 0xff, event, pp->hour, pp->minute, 
 				       pp->second, pp->nsec, mb(12), mb(11), pp->year, GPS_UTC_Offset);
 #endif
@@ -620,7 +618,7 @@ TSIP_decode (
 
 #ifdef DEBUG
 			if (debug > 1)
-				printf("TSIP_decode: unit %d: %02X #%d %02d:%02d:%02d.%06ld %02d/%02d/%04d UTC %02x %s\n",
+				printf("TSIP_decode: unit %d: %02X #%d %02d:%02d:%02d.%09ld %02d/%02d/%04d UTC %02x %s\n",
 				       up->unit, mb(0) & 0xff, event, pp->hour, pp->minute, 
 				       pp->second, pp->nsec, mb(15), mb(14), pp->year,
 				       mb(19), *Tracking_Status[st]);
@@ -764,7 +762,7 @@ TSIP_decode (
 
 #ifdef DEBUG
 			if (debug > 1)
-				printf("TSIP_decode: unit %d: %02X #%d %02d:%02d:%02d.%06ld %02d/%02d/%04d ",up->unit, mb(0) & 0xff, event, pp->hour, pp->minute, pp->second, pp->nsec, mb(14), mb(13), pp->year);
+				printf("TSIP_decode: unit %d: %02X #%d %02d:%02d:%02d.%09ld %02d/%02d/%04d ",up->unit, mb(0) & 0xff, event, pp->hour, pp->minute, pp->second, pp->nsec, mb(14), mb(13), pp->year);
 #endif
 			return 1;
 			break;
@@ -789,9 +787,9 @@ TSIP_decode (
 	}
 	else if ((up->rpt_buf[0] == PACKET_41A) & (up->type == CLK_ACUTIME)) {
 #ifdef DEBUG
-		printf("GPS TOW: %ld\n", getlong((u_char *) &mb(0)));
+		printf("GPS TOW: %ld\n", (long)getlong((u_char *) &mb(0)));
 		printf("GPS WN: %d\n", getint((u_char *) &mb(4)));
-		printf("GPS UTC-GPS Offser: %ld\n", getlong((u_char *) &mb(6)));
+		printf("GPS UTC-GPS Offser: %ld\n", (long)getlong((u_char *) &mb(6)));
 #endif
 		return 0;
 	}
@@ -835,15 +833,15 @@ TSIP_decode (
 			up->polled = -1;
 #ifdef DEBUG
 			if (debug > 1) {
-				if (mb(1) && 0x01)
+				if (mb(1) & 0x01)
 					printf ("Signal Processor Error, reset unit.\n");
-				if (mb(1) && 0x02)
+				if (mb(1) & 0x02)
 					printf ("Alignment error, channel or chip 1, reset unit.\n");
-				if (mb(1) && 0x03)
+				if (mb(1) & 0x03)
 					printf ("Alignment error, channel or chip 2, reset unit.\n");
-				if (mb(1) && 0x04)
+				if (mb(1) & 0x04)
 					printf ("Antenna feed line fault (open or short)\n");
-				if (mb(1) && 0x05)
+				if (mb(1) & 0x05)
 					printf ("Excessive reference frequency error, refer to packet 0x2D and packet 0x4D documentation for further information\n");
 			}
 #endif
@@ -900,7 +898,7 @@ palisade_receive (
 	 * Initialize pointers and read the timecode and timestamp.
 	 */
 	pp = peer->procptr;
-	up = (struct palisade_unit *)pp->unitptr;
+	up = pp->unitptr;
 		
 	if (! TSIP_decode(peer)) return;
 	
@@ -912,7 +910,7 @@ palisade_receive (
 #ifdef DEBUG
 	if (debug) 
 		printf(
-			"palisade_receive: unit %d: %4d %03d %02d:%02d:%02d.%06ld\n",
+			"palisade_receive: unit %d: %4d %03d %02d:%02d:%02d.%09ld\n",
 			up->unit, pp->year, pp->day, pp->hour, pp->minute, 
 			pp->second, pp->nsec);
 #endif
@@ -924,7 +922,7 @@ palisade_receive (
 	 */
 
 	snprintf(pp->a_lastcode, sizeof(pp->a_lastcode),
-		 "%4d %03d %02d:%02d:%02d.%06ld",
+		 "%4d %03d %02d:%02d:%02d.%09ld",
 		 pp->year, pp->day,
 		 pp->hour,pp->minute, pp->second, pp->nsec); 
 	pp->lencode = 24;
@@ -965,7 +963,7 @@ palisade_poll (
 	struct refclockproc *pp;
 	
 	pp = peer->procptr;
-	up = (struct palisade_unit *)pp->unitptr;
+	up = pp->unitptr;
 
 	pp->polls++;
 	if (up->polled > 0) /* last reply never arrived or error */ 
@@ -1038,9 +1036,9 @@ palisade_io (
 
 	char * c, * d;
 
-	peer = (struct peer *)rbufp->recv_srcclock;
+	peer = rbufp->recv_peer;
 	pp = peer->procptr;
-	up = (struct palisade_unit *)pp->unitptr;
+	up = pp->unitptr;
 
 	if(up->type == CLK_PRAECIS) {
 		if(praecis_msg) {
@@ -1141,14 +1139,12 @@ HW_poll (
 	int x;	/* state before & after RTS set */
 	struct palisade_unit *up;
 
-	up = (struct palisade_unit *) pp->unitptr;
+	up = pp->unitptr;
 
 	/* read the current status, so we put things back right */
 	if (ioctl(pp->io.fd, TIOCMGET, &x) < 0) {
-#ifdef DEBUG
-		if (debug)
-			printf("Palisade HW_poll: unit %d: GET %s\n", up->unit, strerror(errno));
-#endif
+		DPRINTF(1, ("Palisade HW_poll: unit %d: GET %m\n",
+			up->unit));
 		msyslog(LOG_ERR, "Palisade(%d) HW_poll: ioctl(fd,GET): %m", 
 			up->unit);
 		return -1;
@@ -1190,85 +1186,66 @@ HW_poll (
 	return 0;
 }
 
-#if 0 /* unused */
 /*
- * this 'casts' a character array into a float
+ * copy/swap a big-endian palisade double into a host double
  */
-float
-getfloat (
-	u_char *bp
-	)
-{
-	float sval;
-#ifdef WORDS_BIGENDIAN 
-	((char *) &sval)[0] = *bp++;
-	((char *) &sval)[1] = *bp++;
-	((char *) &sval)[2] = *bp++;
-	((char *) &sval)[3] = *bp++;
-#else
-	((char *) &sval)[3] = *bp++;
-	((char *) &sval)[2] = *bp++;
-	((char *) &sval)[1] = *bp++;
-	((char *) &sval)[0] = *bp;
-#endif  /* ! XNTP_BIG_ENDIAN */ 
-	return sval;
-}
-#endif
-
-/*
- * this 'casts' a character array into a double
- */
-double
+static double
 getdbl (
 	u_char *bp
 	)
 {
-	double dval;
-#ifdef WORDS_BIGENDIAN 
-	((char *) &dval)[0] = *bp++;
-	((char *) &dval)[1] = *bp++;
-	((char *) &dval)[2] = *bp++;
-	((char *) &dval)[3] = *bp++;
-	((char *) &dval)[4] = *bp++;
-	((char *) &dval)[5] = *bp++;
-	((char *) &dval)[6] = *bp++;
-	((char *) &dval)[7] = *bp;
+#ifdef WORDS_BIGENDIAN
+	double out;
+
+	memcpy(&out, bp, sizeof(out));
+	return out;
 #else
-	((char *) &dval)[7] = *bp++;
-	((char *) &dval)[6] = *bp++;
-	((char *) &dval)[5] = *bp++;
-	((char *) &dval)[4] = *bp++;
-	((char *) &dval)[3] = *bp++;
-	((char *) &dval)[2] = *bp++;
-	((char *) &dval)[1] = *bp++;
-	((char *) &dval)[0] = *bp;
-#endif  /* ! XNTP_BIG_ENDIAN */ 
-	return dval;
+	union {
+		u_char ch[8];
+		u_int32 u32[2];
+	} ui;
+		
+	union {
+		double out;
+		u_int32 u32[2];
+	} uo;
+
+	memcpy(ui.ch, bp, sizeof(ui.ch));
+	/* least-significant 32 bits of double from swapped bp[4] to bp[7] */
+	uo.u32[0] = ntohl(ui.u32[1]);
+	/* most-significant 32 bits from swapped bp[0] to bp[3] */
+	uo.u32[1] = ntohl(ui.u32[0]);
+
+	return uo.out;
+#endif
 }
 
 /*
- * cast a 16 bit character array into a short (16 bit) int
+ * copy/swap a big-endian palisade short into a host short
  */
-short
+static short
 getint (
 	u_char *bp
 	)
 {
-	return (short) (bp[1] + (bp[0] << 8));
+	u_short us;
+
+	memcpy(&us, bp, sizeof(us));
+	return (short)ntohs(us);
 }
 
 /*
- * cast a 32 bit character array into a long (32 bit) int
+ * copy/swap a big-endian palisade 32-bit int into a host 32-bit int
  */
-long
+static int32
 getlong(
 	u_char *bp
 	)
 {
-	return (long) (bp[0] << 24) | 
-		      (bp[1] << 16) |
-		      (bp[2] << 8) |
-		       bp[3];
+	u_int32 u32;
+
+	memcpy(&u32, bp, sizeof(u32));
+	return (int32)(u_int32)ntohl(u32);
 }
 
 #else	/* REFCLOCK && CLOCK_PALISADE*/

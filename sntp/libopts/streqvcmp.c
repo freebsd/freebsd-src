@@ -2,8 +2,6 @@
 /**
  * \file streqvcmp.c
  *
- * Time-stamp:      "2010-07-17 10:16:24 bkorb"
- *
  *  String Equivalence Comparison
  *
  *  These routines allow any character to be mapped to any other
@@ -11,9 +9,13 @@
  *  the characters "-", "_" and "^" all need to be equivalent
  *  (because they are treated so by different development environments).
  *
+ * @addtogroup autoopts
+ * @{
+ */
+/*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (c) 1992-2011 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -25,19 +27,19 @@
  *   The Modified Berkeley Software Distribution License
  *      See the file "COPYING.mbsd"
  *
- *  These files have the following md5sums:
+ *  These files have the following sha256 sums:
  *
- *  43b91e8ca915626ed3818ffb1b71248b pkg/libopts/COPYING.gplv3
- *  06a1a2e4760c90ea5e1dad8dfaac4d39 pkg/libopts/COPYING.lgplv3
- *  66a5cedaf62c4b2637025f049f9b826f pkg/libopts/COPYING.mbsd
+ *  8584710e9b04216a394078dc156b781d0b47e1729104d666658aecef8ee32e95  COPYING.gplv3
+ *  4379e7444a0e2ce2b12dd6f5a52a27a4d02d39d247901d3285c88cf0d37f477b  COPYING.lgplv3
+ *  13aa749a5b0a454917a944ed8fffc530b784f5ead522b1aacaf4ec8aa55a6239  COPYING.mbsd
  *
  * This array is designed for mapping upper and lower case letter
  * together for a case independent comparison.  The mappings are
  * based upon ascii character sequences.
  */
 static unsigned char charmap[] = {
-    0x00, 0x01, 0x02, 0x03,  0x04, 0x05, 0x06, '\a',
-    '\b', '\t', '\n', '\v',  '\f', '\r', 0x0E, 0x0F,
+    NUL,  0x01, 0x02, 0x03,  0x04, 0x05, 0x06, '\a',
+    '\b', '\t', NL,   '\v',  '\f', '\r', 0x0E, 0x0F,
     0x10, 0x11, 0x12, 0x13,  0x14, 0x15, 0x16, 0x17,
     0x18, 0x19, 0x1A, 0x1B,  0x1C, 0x1D, 0x1E, 0x1F,
 
@@ -98,12 +100,19 @@ static unsigned char charmap[] = {
  * err:  none checked.  Caller responsible for seg faults.
 =*/
 int
-strneqvcmp(tCC* s1, tCC* s2, int ct)
+strneqvcmp(char const * s1, char const * s2, int ct)
 {
     for (; ct > 0; --ct) {
         unsigned char u1 = (unsigned char) *s1++;
         unsigned char u2 = (unsigned char) *s2++;
-        int dif = charmap[ u1 ] - charmap[ u2 ];
+        int dif;
+        if (u1 == u2) {
+            if (u1 == NUL)
+                return 0;
+            continue;
+        }
+
+        dif = charmap[ u1 ] - charmap[ u2 ];
 
         if (dif != 0)
             return dif;
@@ -137,12 +146,19 @@ strneqvcmp(tCC* s1, tCC* s2, int ct)
  * err:  none checked.  Caller responsible for seg faults.
 =*/
 int
-streqvcmp(tCC* s1, tCC* s2)
+streqvcmp(char const * s1, char const * s2)
 {
     for (;;) {
         unsigned char u1 = (unsigned char) *s1++;
         unsigned char u2 = (unsigned char) *s2++;
-        int dif = charmap[ u1 ] - charmap[ u2 ];
+        int dif;
+        if (u1 == u2) {
+            if (u1 == NUL)
+                return 0;
+            continue;
+        }
+
+        dif = charmap[ u1 ] - charmap[ u2 ];
 
         if (dif != 0)
             return dif;
@@ -157,8 +173,8 @@ streqvcmp(tCC* s1, tCC* s2)
  *
  * what: Set the character mappings for the streqv functions
  *
- * arg:  + char + From + Input character +
- * arg:  + char + To   + Mapped-to character +
+ * arg:  + char + from + Input character +
+ * arg:  + char + to   + Mapped-to character +
  * arg:  + int  + ct   + compare length +
  *
  * doc:
@@ -182,24 +198,24 @@ streqvcmp(tCC* s1, tCC* s2)
  * err:  none.
 =*/
 void
-streqvmap(char From, char To, int ct)
+streqvmap(char from, char to, int ct)
 {
     if (ct == 0) {
         ct = sizeof(charmap) - 1;
         do  {
-            charmap[ ct ] = ct;
+            charmap[ct] = (unsigned char)ct;
         } while (--ct >= 0);
     }
 
     else {
-        int  chTo   = (int)To   & 0xFF;
-        int  chFrom = (int)From & 0xFF;
+        unsigned int i_to   = (int)to   & 0xFF;
+        unsigned int i_from = (int)from & 0xFF;
 
         do  {
-            charmap[ chFrom ] = (unsigned)chTo;
-            chFrom++;
-            chTo++;
-            if ((chFrom >= sizeof(charmap)) || (chTo >= sizeof(charmap)))
+            charmap[i_from] = (unsigned char)i_to;
+            i_from++;
+            i_to++;
+            if ((i_from >= sizeof(charmap)) || (i_to >= sizeof(charmap)))
                 break;
         } while (--ct > 0);
     }
@@ -225,9 +241,9 @@ void
 strequate(char const* s)
 {
     if ((s != NULL) && (*s != NUL)) {
-        unsigned char equiv = (unsigned)*s;
+        unsigned char equiv = (unsigned char)*s;
         while (*s != NUL)
-            charmap[ (unsigned)*(s++) ] = equiv;
+            charmap[(unsigned char)*(s++)] = equiv;
     }
 }
 
@@ -254,11 +270,12 @@ void
 strtransform(char* d, char const* s)
 {
     do  {
-        *(d++) = (char)charmap[ (unsigned)*s ];
+        *(d++) = (char)charmap[(unsigned char)*s];
     } while (*(s++) != NUL);
 }
 
-/*
+/** @}
+ *
  * Local Variables:
  * mode: C
  * c-file-style: "stroustrup"

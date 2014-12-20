@@ -14,13 +14,12 @@
 #include "ntp_fp.h"
 #include "ntp.h"
 #include "ntp_io.h"
-#include "ntp_unixtime.h"
+#include "timevalops.h"
 #include "ntpdate.h"
 #include "ntp_string.h"
 #include "ntp_syslog.h"
 #include "ntp_select.h"
 #include "ntp_stdlib.h"
-#include "ntp_assert.h"
 #include <ssl_applink.c>
 
 #include "isc/net.h"
@@ -109,11 +108,6 @@ static timer_t ntpdate_timerid;
  * for get_systime()
  */
 s_char	sys_precision;		/* local clock precision (log2 s) */
-
-/*
- * Debugging flag
- */
-volatile int debug = 0;
 
 /*
  * File descriptor masks etc. for call to select
@@ -330,7 +324,7 @@ ntpdatemain (
 	key_file = key_file_storage;
 
 	if (!ExpandEnvironmentStrings(KEYFILE, key_file, MAX_PATH))
-		msyslog(LOG_ERR, "ExpandEnvironmentStrings(KEYFILE) failed: %m\n");
+		msyslog(LOG_ERR, "ExpandEnvironmentStrings(KEYFILE) failed: %m");
 
 	ssl_applink();
 #endif /* SYS_WINNT */
@@ -834,7 +828,7 @@ receive(
 	if (LEAP_NOTINSYNC == PKT_LEAP(rpkt->li_vn_mode) &&
 	    STRATUM_PKT_UNSPEC == rpkt->stratum &&
 	    !memcmp("RATE", &rpkt->refid, 4)) {
-		msyslog(LOG_ERR, "%s rate limit response from server.\n",
+		msyslog(LOG_ERR, "%s rate limit response from server.",
 			stoa(&rbufp->recv_srcadr));
 		server->event_time = 0;
 		complete_servers++;
@@ -1358,7 +1352,7 @@ addserver(
 	char service[5];
 	sockaddr_u addr;
 
-	strncpy(service, "ntp", sizeof(service));
+	strlcpy(service, "ntp", sizeof(service));
 
 	/* Get host address. Looking for UDP datagram connection. */
 	ZERO(hints);
@@ -1379,13 +1373,13 @@ addserver(
 			   by waiting for resolution of several servers */
 			fprintf(stderr, "Exiting, name server cannot be used: %s (%d)",
 				gai_strerror(error), error);
-			msyslog(LOG_ERR, "name server cannot be used: %s (%d)\n",
+			msyslog(LOG_ERR, "name server cannot be used: %s (%d)",
 				gai_strerror(error), error);
 			exit(1);
 		}
 		fprintf(stderr, "Error resolving %s: %s (%d)\n", serv,
 			gai_strerror(error), error);
-		msyslog(LOG_ERR, "Can't find host %s: %s (%d)\n", serv,
+		msyslog(LOG_ERR, "Can't find host %s: %s (%d)", serv,
 			gai_strerror(error), error);
 		return;
 	}
@@ -1695,7 +1689,7 @@ init_io(void)
 	 * Open the socket
 	 */
 
-	strncpy(service, "ntp", sizeof(service));
+	strlcpy(service, "ntp", sizeof(service));
 
 	/*
 	 * Init hints addrinfo structure
@@ -2044,7 +2038,7 @@ l_adj_systime(
 	if (adjtv.tv_usec != 0 && !debug) {
 		if (adjtime(&adjtv, &oadjtv) < 0) {
 			msyslog(LOG_ERR, "Can't adjust the time of day: %m");
-			return 0;
+			exit(1);
 		}
 	}
 	return 1;

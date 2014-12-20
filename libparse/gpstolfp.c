@@ -32,6 +32,7 @@
  * SUCH DAMAGE.
  *
  */
+#include <config.h>
 #include "ntp_fp.h"
 
 #define GPSORIGIN	2524953600UL	/* NTP origin - GPS origin in seconds */

@@ -1,6 +1,7 @@
 /*
  * hextolfp - convert an ascii hex string to an l_fp number
  */
+#include <config.h>
 #include <stdio.h>
 #include <ctype.h>
 

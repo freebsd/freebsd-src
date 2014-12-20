@@ -9,7 +9,7 @@
 #endif
 #include "ntp_fp.h"
 #include "ntp_string.h"
-#include "ntp_unixtime.h"
+#include "timevalops.h"
 
 #ifndef SYS_WINNT
 int
@@ -28,26 +28,11 @@ buftvtots(
 	/*
 	 * and use it
 	 */
-	ts->l_ui = tv.tv_sec + (u_long)JAN_1970;
-	if (tv.tv_usec > 999999)
-	    return 0;
-	TVUTOTSF(tv.tv_usec, ts->l_uf);
-	return 1;
-}
-#else	/* SYS_WINNT */
-/*
- * Windows doesn't have the tty_clock line discipline, so
- * don't look for a timestamp where there is none.
- */
-int
-buftvtots(
-	const char *bufp,
-	l_fp *ts
-	)
-{
-	UNUSED_ARG(bufp);
-	UNUSED_ARG(ts);
+	if (tv.tv_usec > MICROSECONDS - 1)
+		return FALSE;
 
-	return 0;
+	*ts = tval_stamp_to_lfp(tv);
+
+	return TRUE;
 }
-#endif	/* SYS_WINNT */
+#endif	/* !SYS_WINNT */

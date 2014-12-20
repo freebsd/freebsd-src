@@ -30,18 +30,21 @@ esac
 #set -e
 #set -x
 
-# scripts/cvo.sh invokes config.guess, and we want it to use the copy
-# in the top directory (alongside build) if there's not another
-# config.guess earlier on the path, so we invoke it using env to append
-# . to the PATH.
+if [ ! -r sntp/libevent/build-aux/config.guess ] ; then
+	echo "Error: bootstrap required." 1>&2 && exit 1
+fi
 
-CVO=`env PATH="$PATH:." scripts/cvo.sh @cvo@`
+# sntp/scripts/cvo.sh invokes config.guess, and we want it to use the copy
+# in the build-aux directory if there's not another config.guess earlier
+# on the path, so we invoke it using env to append to the PATH.
+
+CVO=`env PATH="$PATH:./sntp/libevent/build-aux" sntp/scripts/cvo.sh @cvo@`
 case "$CVO" in
- *-*-*-*) echo "scripts/cvo.sh returned <$CVO>, which makes no sense to me."
+ *-*-*-*) echo "sntp/scripts/cvo.sh returned <$CVO>, which makes no sense to me."
     exit 1
     ;;
  *-*-*) ;;
- *) echo "scripts/cvo.sh returned <$CVO>, which makes no sense to me."
+ *) echo "sntp/scripts/cvo.sh returned <$CVO>, which makes no sense to me."
     exit 1
     ;;
 esac
@@ -114,7 +117,7 @@ case "$CC" in
     ;;
 esac
 
-BDIR="$BASEDIR$KEYSUF$CCSUF"
+	BDIR="$BASEDIR$KEYSUF$CCSUF"
 
 [ -d "$BDIR" ] || mkdir $BDIR
 [ -f "$BDIR/.buildcvo" ] || echo $CVO > $BDIR/.buildcvo
@@ -159,20 +162,28 @@ if [ -z "$TEST" ] ; then
     fi
 fi
 
-CONFIGURE="../configure --cache-file=../config.cache-$IAM$CCSUF $CONFIG_ARGS"
+CONFIGURE="../configure --cache-file=../config.cache-$IAM$KEYSUF$CCSUF $CONFIG_ARGS"
 
 (	# This sequence of commands is logged to make.log.
 	# If config.status is newer than ../configure, and the same
 	# is true for sntp, we do not need to re-run configure.
+	# For libevent, the twist is we may not be configuring the
+	# tearoff, so only act if its config.status exists.
 	# Solaris /bin/sh doesn't grok -nt.
 
 	( "$TEST" config.status -nt ../configure &&
-		$TEST sntp/config.status -nt ../sntp/configure ) ||
+	  "$TEST" sntp/config.status -nt ../sntp/configure &&
+	  ( "$TEST" '!' -f sntp/libevent/config.status ||
+	    "$TEST" sntp/libevent/config.status -nt ../sntp/libevent/configure ) ) ||
 		"$NICEB" -7 $CONFIGURE
-	"$NICEB" -5 ./config.status &&
-		( cd sntp && "$NICEB" -5 ./config.status ) &&
-		"$NICEB" -14 ${MAKE-make} &&
-		"$NICEB" -11 ${MAKE-make} check
+	"$TEST" Makefile -nt config.status ||
+		"$NICEB" -5 ./config.status
+	"$TEST" sntp/Makefile -nt sntp/config.status ||
+		( cd sntp && "$NICEB" -5 ./config.status )
+	"$TEST" '!' -f sntp/libevent/Makefile ||
+	  "$TEST" sntp/libevent/Makefile -nt sntp/libevent/config.status ||
+		( cd sntp/libevent && "$NICEB" -5 ./config.status )
+	"$NICEB" -14 ${MAKE-make} && "$NICEB" -11 ${MAKE-make} check
 ) > $LOGF 2>&1
 
 EXITCODE=$?

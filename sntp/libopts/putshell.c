@@ -2,15 +2,17 @@
 /**
  * \file putshell.c
  *
- * Time-stamp:      "2010-09-05 06:10:56 bkorb"
- *
  *  This module will interpret the options set in the tOptions
  *  structure and print them to standard out in a fashion that
  *  will allow them to be interpreted by the Bourne or Korn shells.
  *
+ * @addtogroup autoopts
+ * @{
+ */
+/*
  *  This file is part of AutoOpts, a companion to AutoGen.
  *  AutoOpts is free software.
- *  AutoOpts is Copyright (c) 1992-2011 by Bruce Korb - all rights reserved
+ *  AutoOpts is Copyright (C) 1992-2014 by Bruce Korb - all rights reserved
  *
  *  AutoOpts is available under any one of two licenses.  The license
  *  in use must be one of these two and the choice is under the control
@@ -22,19 +24,22 @@
  *   The Modified Berkeley Software Distribution License
  *      See the file "COPYING.mbsd"
  *
- *  These files have the following md5sums:
+ *  These files have the following sha256 sums:
  *
- *  43b91e8ca915626ed3818ffb1b71248b pkg/libopts/COPYING.gplv3
- *  06a1a2e4760c90ea5e1dad8dfaac4d39 pkg/libopts/COPYING.lgplv3
- *  66a5cedaf62c4b2637025f049f9b826f pkg/libopts/COPYING.mbsd
+ *  8584710e9b04216a394078dc156b781d0b47e1729104d666658aecef8ee32e95  COPYING.gplv3
+ *  4379e7444a0e2ce2b12dd6f5a52a27a4d02d39d247901d3285c88cf0d37f477b  COPYING.lgplv3
+ *  13aa749a5b0a454917a944ed8fffc530b784f5ead522b1aacaf4ec8aa55a6239  COPYING.mbsd
  */
-static char const zOptValFmt[] = "%s_%s=";
-static char const zOptEnd[]    = "\nexport %s_%s\n";
-static char const zOptNumFmt[] = "%1$s_%2$s=%3$d # 0x%3$X\nexport %1$s_%2$s\n";
 
 /* = = = START-STATIC-FORWARD = = = */
+static size_t
+string_size(char const * scan, size_t nl_len);
+
+static char const *
+print_quoted_apostrophes(char const * str);
+
 static void
-print_quot_str(tCC* pzStr);
+print_quot_str(char const * str);
 
 static void
 print_enumeration(tOptions * pOpts, tOptDesc * pOD);
@@ -46,21 +51,180 @@ static void
 print_stacked_arg(tOptions * pOpts, tOptDesc * pOD);
 
 static void
-print_reordering(tOptions * pOpts);
+print_reordering(tOptions * opts);
 /* = = = END-STATIC-FORWARD = = = */
 
-/*
- *  Make sure embedded single quotes come out okay.  The initial quote has
- *  been emitted and the closing quote will be upon return.
+/**
+ * Count the number of bytes required to represent a string as a
+ * compilable string.
+ *
+ * @param[in] scan    the text to be rewritten as a C program text string.
+ * @param[in] nl_len  the number of bytes used for each embedded newline.
+ *
+ * @returns the count, including the terminating NUL byte.
+ */
+static size_t
+string_size(char const * scan, size_t nl_len)
+{
+    /*
+     *  Start by counting the start and end quotes, plus the NUL.
+     */
+    size_t res_ln = 3;
+
+    for (;;) {
+        char ch = *(scan++);
+        if ((ch >= ' ') && (ch <= '~')) {
+
+            /*
+             * a backslash allowance for double quotes and baskslashes
+             */
+            res_ln += ((ch == '"') || (ch == '\\')) ? 2 : 1;
+        }
+
+        /*
+         *  When not a normal character, then count the characters
+         *  required to represent whatever it is.
+         */
+        else switch (ch) {
+        case NUL:
+            return res_ln;
+
+        case NL:
+            res_ln += nl_len;
+            break;
+
+        case HT:
+        case BEL:
+        case BS:
+        case FF:
+        case CR:
+        case VT:
+            res_ln += 2;
+            break;
+
+        default:
+            res_ln += 4; /* text len for \xNN */
+        }
+    }
+}
+
+/*=export_func  optionQuoteString
+ * private:
+ *
+ * what:  Print a string as quoted text suitable for a C compiler.
+ * arg:   + char const * + text  + a block of text to quote +
+ * arg:   + char const * + nl    + line splice text         +
+ *
+ * ret_type:  char const *
+ * ret_desc:  the allocated input string as a quoted string
+ *
+ * doc:
+ *  This is for internal use by autogen and autoopts.
+ *  It takes an input string and produces text the C compiler can process
+ *  to produce an exact copy of the original string.
+ *  The caller must deallocate the result.  Standard C strings and
+ *  K&R strings are distinguished by the "nl" string.
+=*/
+char const *
+optionQuoteString(char const * text, char const * nl)
+{
+    size_t   nl_len = strlen(nl);
+    char *   out;
+    char *   res = out = AGALOC(string_size(text, nl_len), "quot str");
+    *(out++) = '"';
+
+    for (;;) {
+        unsigned char ch = (unsigned char)*text;
+        if ((ch >= ' ') && (ch <= '~')) {
+            if ((ch == '"') || (ch == '\\'))
+                /*
+                 *  We must escape these characters in the output string
+                 */
+                *(out++) = '\\';
+            *(out++) = (char)ch;
+
+        } else switch (ch) {
+#       define   add_esc_ch(_ch)  { *(out++) = '\\'; *(out++) = (_ch); }
+        case BEL: add_esc_ch('a'); break;
+        case BS:  add_esc_ch('b'); break;
+        case HT:  add_esc_ch('t'); break;
+        case VT:  add_esc_ch('v'); break;
+        case FF:  add_esc_ch('f'); break;
+        case CR:  add_esc_ch('r'); break;
+
+        case LF:
+            /*
+             *  Place contiguous new-lines on a single line.
+             *  The current character is a NL, check the next one.
+             */
+            while (*++text == NL)
+                add_esc_ch('n');
+
+            /*
+             *  Insert a splice before starting next line
+             */
+            if (*text != NUL) {
+                memcpy(out, nl, nl_len);
+                out += nl_len;
+
+                continue; /* text is already at the next character */
+            }
+
+            add_esc_ch('n');
+            /* FALLTHROUGH */
+
+        case NUL:
+            /*
+             *  End of string.  Terminate the quoted output.  If necessary,
+             *  deallocate the text string.  Return the scan resumption point.
+             */
+            *(out++) = '"';
+            *out = NUL;
+            return res;
+
+        default:
+            /*
+             *  sprintf is safe here, because we already computed
+             *  the amount of space we will be using.
+             */
+            sprintf(out, MK_STR_OCT_FMT, ch);
+            out += 4;
+        }
+
+        text++;
+#       undef add_esc_ch
+    }
+}
+
+/**
+ *  Print out escaped apostorophes.
+ *
+ *  @param[in] str  the apostrophies to print
+ */
+static char const *
+print_quoted_apostrophes(char const * str)
+{
+    while (*str == APOSTROPHE) {
+        fputs(QUOT_APOS, stdout);
+        str++;
+    }
+    return str;
+}
+
+/**
+ *  Print a single quote (apostrophe quoted) string.
+ *  Other than somersaults for apostrophes, nothing else needs quoting.
+ *
+ *  @param[in] str  the string to print
  */
 static void
-print_quot_str(tCC* pzStr)
+print_quot_str(char const * str)
 {
     /*
      *  Handle empty strings to make the rest of the logic simpler.
      */
-    if ((pzStr == NULL) || (*pzStr == NUL)) {
-        fputs("''", stdout);
+    if ((str == NULL) || (*str == NUL)) {
+        fputs(EMPTY_ARG, stdout);
         return;
     }
 
@@ -68,69 +232,66 @@ print_quot_str(tCC* pzStr)
      *  Emit any single quotes/apostrophes at the start of the string and
      *  bail if that is all we need to do.
      */
-    while (*pzStr == '\'') {
-        fputs("\\'", stdout);
-        pzStr++;
-    }
-    if (*pzStr == NUL)
+    str = print_quoted_apostrophes(str);
+    if (*str == NUL)
         return;
 
     /*
      *  Start the single quote string
      */
-    fputc('\'', stdout);
+    fputc(APOSTROPHE, stdout);
     for (;;) {
-        tCC* pz = strchr(pzStr, '\'');
+        char const * pz = strchr(str, APOSTROPHE);
         if (pz == NULL)
             break;
 
         /*
          *  Emit the string up to the single quote (apostrophe) we just found.
          */
-        (void)fwrite(pzStr, (size_t)(pz - pzStr), (size_t)1, stdout);
-        fputc('\'', stdout);
-        pzStr = pz;
+        (void)fwrite(str, (size_t)(pz - str), (size_t)1, stdout);
 
         /*
-         *  Emit an escaped apostrophe for every one we find.
-         *  If that ends the string, do not re-open the single quotes.
+         * Close the current string, emit the apostrophes and re-open the
+         * string (IFF there is more text to print).
          */
-        while (*++pzStr == '\'')   fputs("\\'", stdout);
-        if (*pzStr == NUL)
+        fputc(APOSTROPHE, stdout);
+        str = print_quoted_apostrophes(pz);
+        if (*str == NUL)
             return;
 
-        fputc('\'', stdout);
+        fputc(APOSTROPHE, stdout);
     }
 
     /*
      *  If we broke out of the loop, we must still emit the remaining text
      *  and then close the single quote string.
      */
-    fputs(pzStr, stdout);
-    fputc('\'', stdout);
+    fputs(str, stdout);
+    fputc(APOSTROPHE, stdout);
 }
 
 static void
 print_enumeration(tOptions * pOpts, tOptDesc * pOD)
 {
     uintptr_t e_val = pOD->optArg.argEnum;
-    printf(zOptValFmt, pOpts->pzPROGNAME, pOD->pz_NAME);
+    printf(OPT_VAL_FMT, pOpts->pzPROGNAME, pOD->pz_NAME);
 
     /*
      *  Convert value to string, print that and restore numeric value.
      */
     (*(pOD->pOptProc))(OPTPROC_RETURN_VALNAME, pOD);
-    printf("'%s'", pOD->optArg.argString);
+    printf(QUOT_ARG_FMT, pOD->optArg.argString);
     if (pOD->fOptState & OPTST_ALLOC_ARG)
         AGFREE(pOD->optArg.argString);
     pOD->optArg.argEnum = e_val;
 
-    printf(zOptEnd, pOpts->pzPROGNAME, pOD->pz_NAME);
+    printf(OPT_END_FMT, pOpts->pzPROGNAME, pOD->pz_NAME);
 }
 
 static void
 print_membership(tOptions * pOpts, tOptDesc * pOD)
 {
+    char const * svstr = pOD->optArg.argString;
     char const * pz;
     uintptr_t val = 1;
     printf(zOptNumFmt, pOpts->pzPROGNAME, pOD->pz_NAME,
@@ -138,14 +299,10 @@ print_membership(tOptions * pOpts, tOptDesc * pOD)
     pOD->optCookie = (void*)(uintptr_t)~0UL;
     (*(pOD->pOptProc))(OPTPROC_RETURN_VALNAME, pOD);
 
-    /*
-     *  We are building the typeset list.  The list returned starts with
-     *  'none + ' for use by option saving stuff.  We must ignore that.
-     */
-    pz = pOD->optArg.argString + 7;
+    pz = pOD->optArg.argString;
     while (*pz != NUL) {
-        printf("typeset -x -i %s_", pOD->pz_NAME);
-        while (IS_PLUS_N_SPACE_CHAR(*pz))  pz++;
+        printf("readonly %s_", pOD->pz_NAME);
+        pz = SPN_PLUS_N_SPACE_CHARS(pz);
 
         for (;;) {
             int ch = *(pz++);
@@ -155,66 +312,52 @@ print_membership(tOptions * pOpts, tOptDesc * pOD)
             else if (ch == NUL)        { pz--; goto name_done; }
             else fputc('_', stdout);
         } name_done:;
-        printf("=%1$lu # 0x%1$lX\n", (unsigned long)val);
+        printf(SHOW_VAL_FMT, (unsigned long)val);
         val <<= 1;
     }
 
     AGFREE(pOD->optArg.argString);
-    pOD->optArg.argString = NULL;
-    pOD->fOptState &= ~OPTST_ALLOC_ARG;
+    pOD->optArg.argString = svstr;
 }
 
 static void
 print_stacked_arg(tOptions * pOpts, tOptDesc * pOD)
 {
-    tSCC zOptCookieCt[] = "%1$s_%2$s_CT=%3$d\nexport %1$s_%2$s_CT\n";
-
-    tArgList*    pAL = (tArgList*)pOD->optCookie;
-    tCC**        ppz = pAL->apzArgs;
-    int          ct  = pAL->useCt;
+    tArgList*       pAL = (tArgList*)pOD->optCookie;
+    char const **   ppz = pAL->apzArgs;
+    int             ct  = pAL->useCt;
 
     printf(zOptCookieCt, pOpts->pzPROGNAME, pOD->pz_NAME, ct);
 
     while (--ct >= 0) {
-        tSCC numarg_z[] = "%s_%s_%d=";
-        tSCC end_z[]    = "\nexport %s_%s_%d\n";
-
-        printf(numarg_z, pOpts->pzPROGNAME, pOD->pz_NAME,
+        printf(ARG_BY_NUM_FMT, pOpts->pzPROGNAME, pOD->pz_NAME,
                pAL->useCt - ct);
         print_quot_str(*(ppz++));
-        printf(end_z, pOpts->pzPROGNAME, pOD->pz_NAME,
+        printf(EXPORT_ARG_FMT, pOpts->pzPROGNAME, pOD->pz_NAME,
                pAL->useCt - ct);
     }
 }
 
+/**
+ * emit the arguments as readily parsed text.
+ * The program options are set by emitting the shell "set" command.
+ *
+ * @param[in] opts  the program options structure
+ */
 static void
-print_reordering(tOptions * pOpts)
+print_reordering(tOptions * opts)
 {
-    int  optIx;
+    unsigned int ix;
 
-    fputs("set --", stdout);
+    fputs(set_dash, stdout);
 
-    for (optIx = pOpts->curOptIdx; optIx < pOpts->origArgCt; optIx++) {
-
-        char* pzArg = pOpts->origArgVect[ optIx ];
-
-        if (strchr(pzArg, '\'') == NULL)
-            printf(" '%s'", pzArg);
-
-        else {
-            fputs(" '", stdout);
-            for (;;) {
-                char ch = *(pzArg++);
-                switch (ch) {
-                case '\'':  fputs("'\\''", stdout); break;
-                case NUL:   goto arg_done;
-                default:    fputc(ch, stdout); break;
-                }
-            } arg_done:;
-            fputc('\'', stdout);
-        }
+    for (ix = opts->curOptIdx;
+         ix < opts->origArgCt;
+         ix++) {
+        fputc(' ', stdout);
+        print_quot_str(opts->origArgVect[ ix ]);
     }
-    fputs("\nOPTION_CT=0\n", stdout);
+    fputs(init_optct, stdout);
 }
 
 /*=export_func  optionPutShell
@@ -228,17 +371,13 @@ void
 optionPutShell(tOptions* pOpts)
 {
     int  optIx = 0;
-    tSCC zOptCtFmt[]  = "OPTION_CT=%d\nexport OPTION_CT\n";
-    tSCC zOptDisabl[] = "%1$s_%2$s=%3$s\nexport %1$s_%2$s\n";
-    tSCC zFullOptFmt[]= "%1$s_%2$s='%3$s'\nexport %1$s_%2$s\n";
-    tSCC zEquivMode[] = "%1$s_%2$s_MODE='%3$s'\nexport %1$s_%2$s_MODE\n";
 
     printf(zOptCtFmt, pOpts->curOptIdx-1);
 
     do  {
         tOptDesc* pOD = pOpts->pOptDesc + optIx;
 
-        if (SKIP_OPT(pOD))
+        if ((pOD->fOptState & OPTST_NO_OUTPUT_MASK) != 0)
             continue;
 
         /*
@@ -281,9 +420,8 @@ optionPutShell(tOptions* pOpts)
          *  The idea is that if someone defines an option to initialize
          *  enabled, we should tell our shell script that it is enabled.
          */
-        if (UNUSED_OPT(pOD) && DISABLED_OPT(pOD)) {
+        if (UNUSED_OPT(pOD) && DISABLED_OPT(pOD))
             continue;
-        }
 
         /*
          *  Handle stacked arguments
@@ -350,9 +488,9 @@ optionPutShell(tOptions* pOpts)
         /*
          *  This option has a text value
          */
-        printf(zOptValFmt, pOpts->pzPROGNAME, pOD->pz_NAME);
+        printf(OPT_VAL_FMT, pOpts->pzPROGNAME, pOD->pz_NAME);
         print_quot_str(pOD->optArg.argString);
-        printf(zOptEnd, pOpts->pzPROGNAME, pOD->pz_NAME);
+        printf(OPT_END_FMT, pOpts->pzPROGNAME, pOD->pz_NAME);
 
     } while (++optIx < pOpts->presetOptCt );
 
@@ -363,7 +501,8 @@ optionPutShell(tOptions* pOpts)
     fflush(stdout);
 }
 
-/*
+/** @}
+ *
  * Local Variables:
  * mode: C
  * c-file-style: "stroustrup"

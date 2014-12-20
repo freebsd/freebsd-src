@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2007, 2008  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: unistd.h,v 1.8 2008/01/23 03:22:43 tbox Exp $ */
+/* $Id: unistd.h,v 1.10 2009/07/17 23:47:41 tbox Exp $ */
 
 /* None of these are defined in NT, so define them for our use */
 #define O_NONBLOCK 1
@@ -39,6 +39,13 @@ int fcntl(int, int, ...);
  * access() related definitions for winXP
  */
 #include <io.h>
+#ifndef F_OK
+#define	F_OK	0
+#endif
+
+#ifndef X_OK
+#define	X_OK	1
+#endif
 
 #ifndef W_OK
 #define W_OK 2
