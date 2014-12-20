@@ -149,7 +149,6 @@ static void
 sdhci_reset(struct sdhci_slot *slot, uint8_t mask)
 {
 	int timeout;
-	uint8_t res;
 
 	if (slot->quirks & SDHCI_QUIRK_NO_CARD_NO_RESET) {
 		if (!(RD4(slot, SDHCI_PRESENT_STATE) &
@@ -168,26 +167,43 @@ sdhci_reset(struct sdhci_slot *slot, uint8_t mask)
 		sdhci_set_clock(slot, clock);
 	}
 
-	WR1(slot, SDHCI_SOFTWARE_RESET, mask);
-
 	if (mask & SDHCI_RESET_ALL) {
 		slot->clock = 0;
 		slot->power = 0;
 	}
 
+	WR1(slot, SDHCI_SOFTWARE_RESET, mask);
+
+	if (slot->quirks & SDHCI_QUIRK_WAITFOR_RESET_ASSERTED) {
+		/*
+		 * Resets on TI OMAPs and AM335x are incompatible with SDHCI
+		 * specification.  The reset bit has internal propagation delay,
+		 * so a fast read after write returns 0 even if reset process is
+		 * in progress. The workaround is to poll for 1 before polling
+		 * for 0.  In the worst case, if we miss seeing it asserted the
+		 * time we spent waiting is enough to ensure the reset finishes.
+		 */
+		timeout = 10000;
+		while ((RD1(slot, SDHCI_SOFTWARE_RESET) & mask) != mask) {
+			if (timeout <= 0)
+				break;
+			timeout--;
+			DELAY(1);
+		}
+	}
+
 	/* Wait max 100 ms */
-	timeout = 100;
+	timeout = 10000;
 	/* Controller clears the bits when it's done */
-	while ((res = RD1(slot, SDHCI_SOFTWARE_RESET)) & mask) {
-		if (timeout == 0) {
-			slot_printf(slot,
-			    "Reset 0x%x never completed - 0x%x.\n",
-			    (int)mask, (int)res);
+	while (RD1(slot, SDHCI_SOFTWARE_RESET) & mask) {
+		if (timeout <= 0) {
+			slot_printf(slot, "Reset 0x%x never completed.\n",
+			    mask);
 			sdhci_dumpregs(slot);
 			return;
 		}
 		timeout--;
-		DELAY(1000);
+		DELAY(10);
 	}
 }
 
