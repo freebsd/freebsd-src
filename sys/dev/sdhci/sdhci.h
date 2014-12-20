@@ -59,6 +59,8 @@
 #define	SDHCI_QUIRK_MISSING_CAPS			(1<<12)
 /* Hardware shifts the 136-bit response, don't do it in software. */
 #define	SDHCI_QUIRK_DONT_SHIFT_RESPONSE			(1<<13)
+/* Wait to see reset bit asserted before waiting for de-asserted  */
+#define	SDHCI_QUIRK_WAITFOR_RESET_ASSERTED		(1<<14)
 
 /*
  * Controller registers
