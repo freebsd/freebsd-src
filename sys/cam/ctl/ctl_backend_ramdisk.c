@@ -313,8 +313,7 @@ ctl_backend_ramdisk_continue(union ctl_io *io)
 		sg_entries = (struct ctl_sg_entry *)io->scsiio.kern_data_ptr;
 		for (i = 0, len_filled = 0; i < sg_filled; i++) {
 			sg_entries[i].addr = softc->ramdisk_pages[i];
-			sg_entries[i].len = ctl_min(PAGE_SIZE,
-						    len - len_filled);
+			sg_entries[i].len = MIN(PAGE_SIZE, len - len_filled);
 			len_filled += sg_entries[i].len;
 		}
 		io->io_hdr.flags |= CTL_FLAG_KDPTR_SGLIST;
@@ -614,32 +613,32 @@ ctl_backend_ramdisk_create(struct ctl_be_ramdisk_softc *softc,
 		snprintf(tmpstr, sizeof(tmpstr), "MYSERIAL%4d",
 			 softc->num_luns);
 		strncpy((char *)be_lun->ctl_be_lun.serial_num, tmpstr,
-			ctl_min(sizeof(be_lun->ctl_be_lun.serial_num),
-			sizeof(tmpstr)));
+			MIN(sizeof(be_lun->ctl_be_lun.serial_num),
+			    sizeof(tmpstr)));
 
 		/* Tell the user what we used for a serial number */
 		strncpy((char *)params->serial_num, tmpstr,
-			ctl_min(sizeof(params->serial_num), sizeof(tmpstr)));
+			MIN(sizeof(params->serial_num), sizeof(tmpstr)));
 	} else { 
 		strncpy((char *)be_lun->ctl_be_lun.serial_num,
 			params->serial_num,
-			ctl_min(sizeof(be_lun->ctl_be_lun.serial_num),
-			sizeof(params->serial_num)));
+			MIN(sizeof(be_lun->ctl_be_lun.serial_num),
+			    sizeof(params->serial_num)));
 	}
 	if ((params->flags & CTL_LUN_FLAG_DEVID) == 0) {
 		snprintf(tmpstr, sizeof(tmpstr), "MYDEVID%4d", softc->num_luns);
 		strncpy((char *)be_lun->ctl_be_lun.device_id, tmpstr,
-			ctl_min(sizeof(be_lun->ctl_be_lun.device_id),
-			sizeof(tmpstr)));
+			MIN(sizeof(be_lun->ctl_be_lun.device_id),
+			    sizeof(tmpstr)));
 
 		/* Tell the user what we used for a device ID */
 		strncpy((char *)params->device_id, tmpstr,
-			ctl_min(sizeof(params->device_id), sizeof(tmpstr)));
+			MIN(sizeof(params->device_id), sizeof(tmpstr)));
 	} else {
 		strncpy((char *)be_lun->ctl_be_lun.device_id,
 			params->device_id,
-			ctl_min(sizeof(be_lun->ctl_be_lun.device_id),
-				sizeof(params->device_id)));
+			MIN(sizeof(be_lun->ctl_be_lun.device_id),
+			    sizeof(params->device_id)));
 	}
 
 	STAILQ_INIT(&be_lun->cont_queue);
