@@ -640,6 +640,9 @@ sbappendstream_locked(struct sockbuf *sb, struct mbuf *m, int flags)
 {
 	SOCKBUF_LOCK_ASSERT(sb);
 
+	if (m == NULL)
+		return;
+
 	KASSERT(m->m_nextpkt == NULL,("sbappendstream 0"));
 	KASSERT(sb->sb_mb == sb->sb_lastrecord,("sbappendstream 1"));
 
