@@ -78,7 +78,7 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 #options 	DIAGNOSTIC
 
 # NFS server support
-#options	NFSD
+#options 	NFSD
 
 # NFS root from boopt/dhcp
 #options 	BOOTP
