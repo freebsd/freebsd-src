@@ -356,6 +356,14 @@ ahci_setup_interrupt(device_t dev)
 		device_printf(dev, "Falling back to one MSI\n");
 		ctlr->numirqs = 1;
 	}
+
+	/* Ensure we don't overrun irqs. */
+	if (ctlr->numirqs > AHCI_MAX_IRQS) {
+		device_printf(dev, "Too many irqs %d > %d (clamping)\n",
+		    ctlr->numirqs, AHCI_MAX_IRQS);
+		ctlr->numirqs = AHCI_MAX_IRQS;
+	}
+
 	/* Allocate all IRQs. */
 	for (i = 0; i < ctlr->numirqs; i++) {
 		ctlr->irqs[i].ctlr = ctlr;
