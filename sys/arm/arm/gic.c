@@ -361,6 +361,7 @@ arm_gic_config(device_t dev, int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 	struct arm_gic_softc *sc = device_get_softc(dev);
+	device_t dev = sc->gic_dev;
 	uint32_t reg;
 	uint32_t mask;
 
@@ -506,4 +507,3 @@ EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 EARLY_DRIVER_MODULE(gic, ofwbus, arm_gic_driver, arm_gic_devclass, 0, 0,
     BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
-

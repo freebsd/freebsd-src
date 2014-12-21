@@ -58,7 +58,6 @@
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
-			interrupts = < 0 >;
 			reg =	< 0x48241000 0x1000 >,	/* Distributor Registers */
 				< 0x48240100 0x0100 >;	/* CPU Interface Registers */
 		};
