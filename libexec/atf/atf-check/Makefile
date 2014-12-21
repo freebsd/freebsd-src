@@ -35,6 +35,7 @@ SRCS=		atf-check.cpp
 MAN=		atf-check.1
 
 CFLAGS+=	-I${ATF}
+CFLAGS+=	-DATF_SHELL='"/bin/sh"'
 
 LDFLAGS+=	-L${.OBJDIR}/../../../lib/atf/libatf-c++
 LDFLAGS+=	-L${.OBJDIR}/../../../lib/atf/libatf-c

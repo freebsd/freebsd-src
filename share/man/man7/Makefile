@@ -37,4 +37,15 @@ MLINKS+= c99.7 c78.7
 MLINKS+= c99.7 c89.7
 MLINKS+= c99.7 c90.7
 
+.if ${MK_TESTS} != "no"
+ATF=	${.CURDIR}/../../../contrib/atf
+.PATH:	${ATF}/doc
+MAN+=	atf.7
+
+CLEANFILES+= atf.7
+atf.7: atf.7.in
+	sed -e 's,__DOCDIR__,/usr/share/doc/atf,g' \
+	    <"${ATF}/doc/atf.7.in" >atf.7
+.endif
+
 .include <bsd.prog.mk>

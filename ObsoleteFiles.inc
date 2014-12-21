@@ -208,7 +208,6 @@ OLD_FILES+=usr/share/man/man1/atf-report.1.gz
 OLD_FILES+=usr/share/man/man1/atf-run.1.gz
 OLD_FILES+=usr/share/man/man1/atf-version.1.gz
 OLD_FILES+=usr/share/man/man5/atf-formats.5.gz
-OLD_FILES+=usr/share/man/man7/atf.7.gz
 OLD_FILES+=usr/share/xml/atf/tests-results.dtd
 OLD_FILES+=usr/share/xsl/atf/tests-results.xsl
 # 20131009: freebsd-version moved from /libexec to /bin

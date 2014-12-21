@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2007 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,7 +22,8 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+
+#include "atf-c++/check.hpp"
 
 extern "C" {
 #include <fcntl.h>
@@ -43,14 +41,11 @@ extern "C" {
 
 #include <atf-c++.hpp>
 
-#include "check.hpp"
-#include "config.hpp"
-#include "utils.hpp"
-
-#include "detail/fs.hpp"
-#include "detail/process.hpp"
-#include "detail/test_helpers.hpp"
-#include "detail/text.hpp"
+#include "atf-c++/detail/fs.hpp"
+#include "atf-c++/detail/process.hpp"
+#include "atf-c++/detail/test_helpers.hpp"
+#include "atf-c++/detail/text.hpp"
+#include "atf-c++/utils.hpp"
 
 // ------------------------------------------------------------------------
 // Auxiliary functions.
@@ -374,19 +369,13 @@ ATF_TEST_CASE_HEAD(exec_unknown)
 ATF_TEST_CASE_BODY(exec_unknown)
 {
     std::vector< std::string > argv;
-    argv.push_back(atf::config::get("atf_workdir") + "/non-existent");
+    argv.push_back("/foo/bar/non-existent");
 
     atf::process::argv_array argva(argv);
     std::auto_ptr< atf::check::check_result > r = atf::check::exec(argva);
     ATF_REQUIRE(r->exited());
     ATF_REQUIRE_EQ(r->exitcode(), 127);
 }
-
-// ------------------------------------------------------------------------
-// Tests cases for the header file.
-// ------------------------------------------------------------------------
-
-HEADER_TC(include, "atf-c++/check.hpp");
 
 // ------------------------------------------------------------------------
 // Main.
@@ -402,7 +391,4 @@ ATF_INIT_TEST_CASES(tcs)
     ATF_ADD_TEST_CASE(tcs, exec_exitstatus);
     ATF_ADD_TEST_CASE(tcs, exec_stdout_stderr);
     ATF_ADD_TEST_CASE(tcs, exec_unknown);
-
-    // Add the test cases for the header file.
-    ATF_ADD_TEST_CASE(tcs, include);
 }
