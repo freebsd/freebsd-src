@@ -104,7 +104,6 @@ various aspects of the
 and
 .Nm VALE
 architecture, features and usage.
-.Pp
 .Sh ARCHITECTURE
 .Nm
 supports raw packet I/O through a
@@ -141,7 +140,6 @@ and
 ports
 by default use separate memory regions,
 but can be independently configured to share memory.
-.Pp
 .Sh ENTERING AND EXITING NETMAP MODE
 The following section describes the system calls to create
 and control
@@ -210,7 +208,6 @@ A
 on the file descriptor removes the binding,
 and returns the NIC to normal mode (reconnecting the data path
 to the host stack), or destroys the virtual port.
-.Pp
 .Sh DATA STRUCTURES
 The data structures in the mmapped memory region are detailed in
 .Xr sys/net/netmap.h ,
@@ -403,7 +400,6 @@ A transmit ring with pending transmissions has
 The function
 .Va int nm_tx_pending(ring)
 implements this test.
-.Pp
 .Ss RECEIVE RINGS
 On receive rings, after a
 .Nm
@@ -447,7 +443,6 @@ Below is an example of the evolution of an RX ring:
                  v  v           v
      RX  [.......hhhRRRRRRRRRRRR....]
 .Ed
-.Pp
 .Sh SLOTS AND PACKET BUFFERS
 Normally, packets should be stored in the netmap-allocated buffers
 assigned to slots when ports are bound to a file descriptor.
@@ -749,7 +744,6 @@ of the packet is successful, or 0 on error;
 similar to pcap_dispatch(), applies a callback to incoming packets
 .It Va u_char * nm_nextpkt(struct nm_desc *d, struct nm_pkthdr *hdr)
 similar to pcap_next(), fetches the next packet
-.Pp
 .El
 .Sh SUPPORTED DEVICES
 .Nm
@@ -1037,10 +1031,8 @@ Other
 .Nm
 clients attached to the same switch can now communicate
 with the network card or the host.
-.Pp
 .Sh SEE ALSO
-.Pp
-http://info.iet.unipi.it/~luigi/netmap/
+.Pa http://info.iet.unipi.it/~luigi/netmap/
 .Pp
 Luigi Rizzo, Revisiting network I/O APIs: the netmap framework,
 Communications of the ACM, 55 (3), pp.45-51, March 2012
