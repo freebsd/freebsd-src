@@ -560,10 +560,15 @@ ieee80211_sta_pwrsave(struct ieee80211vap *vap, int enable)
  * Handle being notified that we have data available for us in a TIM/ATIM.
  *
  * This may schedule a transition from _SLEEP -> _RUN if it's appropriate.
+ *
+ * In STA mode, we may have put to sleep during scan and need to be dragged
+ * back out of powersave mode.
  */
 void
 ieee80211_sta_tim_notify(struct ieee80211vap *vap, int set)
 {
+	struct ieee80211com *ic = vap->iv_ic;
+
 	/*
 	 * Schedule the driver state change.  It'll happen at some point soon.
 	 * Since the hardware shouldn't know that we're running just yet
@@ -574,10 +579,24 @@ ieee80211_sta_tim_notify(struct ieee80211vap *vap, int set)
 	 * XXX TODO: verify that the transition to RUN will wake up the
 	 * BSS node!
 	 */
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_POWER, "%s: TIM=%d\n", __func__, set);
 	IEEE80211_LOCK(vap->iv_ic);
 	if (set == 1 && vap->iv_state == IEEE80211_S_SLEEP) {
 		ieee80211_new_state_locked(vap, IEEE80211_S_RUN, 0);
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_POWER,
+		    "%s: TIM=%d; wakeup\n", __func__, set);
+	} else if ((set == 1) && (ic->ic_flags_ext & IEEE80211_FEXT_BGSCAN)) {
+		/*
+		 * XXX only do this if we're in RUN state?
+		 */
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_POWER,
+		    "%s: wake up from bgscan vap sleep\n",
+		    __func__);
+		/*
+		 * We may be in BGSCAN mode - this means the VAP is is in STA
+		 * mode powersave.  If it is, we need to wake it up so we
+		 * can process outbound traffic.
+		 */
+		vap->iv_sta_ps(vap, 0);
 	}
 	IEEE80211_UNLOCK(vap->iv_ic);
 }
