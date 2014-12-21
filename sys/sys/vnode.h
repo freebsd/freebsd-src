@@ -580,6 +580,7 @@ typedef void vop_getpages_iodone_t(void *, vm_page_t *, int, int);
 /* vn_open_flags */
 #define	VN_OPEN_NOAUDIT		0x00000001
 #define	VN_OPEN_NOCAPCHECK	0x00000002
+#define	VN_OPEN_NAMECACHE	0x00000004
 
 /*
  * Public vnode manipulation functions.
