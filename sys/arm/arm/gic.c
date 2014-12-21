@@ -112,6 +112,7 @@ struct arm_gic_softc {
 	struct mtx		mutex;
 	uint32_t		nirqs;
 };
+
 static struct resource_spec arm_gic_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Distributor registers */
 	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },	/* CPU Interrupt Intf. registers */
@@ -187,8 +188,7 @@ arm_gic_init_secondary(device_t dev)
 
 	/* Enable interrupt distribution */
 	gic_d_write_4(sc, GICD_CTLR, 0x01);
-		
-	/* Activate IRQ 29, ie private timer IRQ*/
+
 	/*
 	 * Activate the timer interrupts: virtual, secure, and non-secure.
 	 */
@@ -305,7 +305,7 @@ arm_gic_attach(device_t dev)
 	}
 
 	for (i = 0; i < sc->nirqs; i += 4) {
-		gic_d_write_4(sc, GICD_IPRIORITYR(i >> 2),  0);
+		gic_d_write_4(sc, GICD_IPRIORITYR(i >> 2), 0);
 		gic_d_write_4(sc, GICD_ITARGETSR(i >> 2), 1 << 0 | 1 << 8 | 1 << 16 | 1 << 24);
 	}
 
@@ -334,12 +334,11 @@ arm_gic_intr(void *arg)
 
 	active_irq = gic_c_read_4(sc, GICC_IAR);
 
-	/* 
+	/*
 	 * Immediatly EOIR the SGIs, because doing so requires the other
 	 * bits (ie CPU number), not just the IRQ number, and we do not
 	 * have this information later.
 	 */
-	   
 	if ((active_irq & 0x3ff) <= GIC_LAST_IPI)
 		gic_c_write_4(sc, GICC_EOIR, active_irq);
 	active_irq &= 0x3FF;
@@ -463,7 +462,7 @@ arm_gic_ipi_read(device_t dev, int i)
 		 * The intr code will automagically give the frame pointer
 		 * if the interrupt argument is 0.
 		 */
-		if ((unsigned int)i > 16) 
+		if ((unsigned int)i > 16)
 			return (0);
 		return (i);
 	}
