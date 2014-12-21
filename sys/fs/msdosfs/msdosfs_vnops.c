@@ -184,6 +184,8 @@ msdosfs_create(ap)
 	if (error)
 		goto bad;
 	*ap->a_vpp = DETOV(dep);
+	if ((cnp->cn_flags & MAKEENTRY) != 0)
+		cache_enter(ap->a_dvp, *ap->a_vpp, cnp);
 	return (0);
 
 bad:
