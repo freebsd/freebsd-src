@@ -980,5 +980,8 @@
 543	AUE_NULL	NOSTD	{ int aio_mlock(struct aiocb *aiocbp); }
 544	AUE_NULL	STD	{ int procctl(idtype_t idtype, id_t id, \
 				    int com, void *data); }
+545	AUE_POLL	STD	{ int ppoll(struct pollfd *fds, u_int nfds, \
+				    const struct timespec *ts, \
+				    const sigset_t *set); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
