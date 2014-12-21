@@ -345,8 +345,15 @@ db_unwind_tab(struct unwind_state *state)
 	/*
 	 * The program counter was not updated, load it from the link register.
 	 */
-	if (state->registers[PC] == 0)
+	if (state->registers[PC] == 0) {
 		state->registers[PC] = state->registers[LR];
+
+		/*
+		 * If the program counter changed, flag it in the update mask.
+		 */
+		if (state->start_pc != state->registers[PC])
+			state->update_mask |= 1 << PC;
+	}
 
 	return 0;
 }
