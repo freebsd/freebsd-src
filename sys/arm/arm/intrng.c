@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #define	INTRNAME_LEN	(MAXCOMLEN + 1)
 
-#define	IRQ_PIC_IDX(_irq)	((_irq >> 8) & 0xff)
+#define	IRQ_PIC_IDX(_irq)	(((_irq) >> 8) & 0xff)
 #define	IRQ_VECTOR_IDX(_irq)	((_irq) & 0xff)
 #define	IRQ_GEN(_pic, _irq)	(((_pic) << 8) | ((_irq) & 0xff))
 
@@ -139,10 +139,11 @@ arm_dispatch_irq(device_t dev, struct trapframe *tf, int irq)
 			for (i = 0; i < ic->ic_maxintrs; i++) {
 				ih = &ic->ic_intrs[i];
 				if (irq == ih->ih_irq)
-					break;
+					goto done;
 			}
 		}
 	}
+done:
 
 	if (ic->ic_dev == NULL)
 		panic("arm_dispatch_irq: unknown irq");
@@ -181,7 +182,7 @@ arm_fdt_map_irq(phandle_t ic, pcell_t *cells, int ncells)
 	struct arm_intr_handler *ih;
 	int i, j;
 
-	ic = OF_xref_from_node(ic);
+	ic = OF_node_from_xref(ic);
 
 	debugf("ic %08x cells <%*D>\n", ic, ncells * sizeof(pcell_t),
 	    (char *)cells, ",");
@@ -213,12 +214,11 @@ arm_fdt_map_irq(phandle_t ic, pcell_t *cells, int ncells)
 				PIC_TRANSLATE(pic->ic_dev, cells, &ih->ih_irq,
 				    &ih->ih_trig, &ih->ih_pol);
 
-				debugf(pic->ic_dev, "translated to irq %d\n",
-				    ih->ih_irq);
+				debugf("translated to irq %d\n", ih->ih_irq);
 			}
 
 			return (IRQ_GEN(i, pic->ic_maxintrs - 1));
-		};
+		}
 	}
 
 	/* 
@@ -343,7 +343,7 @@ arm_register_pic(device_t dev, int flags)
 		PIC_TRANSLATE(ic->ic_dev, ih->ih_cells, &ih->ih_irq,
 		    &ih->ih_trig, &ih->ih_pol);
 
-		debugf(ic->ic_dev, "translated to irq %d\n", ih->ih_irq);
+		debugf("translated to irq %d\n", ih->ih_irq);
 	}
 
 	device_printf(dev, "registered as interrupt controller\n");
@@ -363,6 +363,8 @@ arm_setup_irqhandler(device_t dev, driver_filter_t *filt,
 		return;
 
 	ipi = (flags & INTR_IPI) != 0;
+	KASSERT(!ipi || arm_ipi_pic != NULL,
+	    ("No IPI pic setup when adding an IPI"));
 	pic = ipi ? arm_ipi_pic : &arm_pics[IRQ_PIC_IDX(irq)];
 	ih = arm_lookup_intr_handler(pic->ic_dev, IRQ_VECTOR_IDX(irq));
 
