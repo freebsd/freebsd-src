@@ -104,22 +104,6 @@ static struct timecounter tsc_timecounter = {
 };
 
 static void
-tsc_freq_vmware(void)
-{
-	u_int regs[4];
-
-	if (hv_high >= 0x40000010) {
-		do_cpuid(0x40000010, regs);
-		tsc_freq = regs[0] * 1000;
-	} else {
-		vmware_hvcall(VMW_HVCMD_GETHZ, regs);
-		if (regs[1] != UINT_MAX)
-			tsc_freq = regs[0] | ((uint64_t)regs[1] << 32);
-	}
-	tsc_is_invariant = 1;
-}
-
-static void
 tsc_freq_intel(void)
 {
 	char brand[48];
@@ -201,7 +185,8 @@ probe_tsc_freq(void)
 	}
 
 	if (vm_guest == VM_GUEST_VMWARE) {
-		tsc_freq_vmware();
+		tsc_freq = vmware_tsc_freq();
+		tsc_is_invariant = 1;
 		return;
 	}
 

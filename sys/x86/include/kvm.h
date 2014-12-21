@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2014 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2014 Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,24 +26,12 @@
  * $FreeBSD$
  */
 
-#ifndef _X86_VMWARE_H_
-#define	_X86_VMWARE_H_
+#ifndef _X86_KVM_H_
+#define _X86_KVM_H_
 
-#define	VMW_HVMAGIC		0x564d5868
-#define	VMW_HVPORT		0x5658
-#define	VMW_HVCMD_GETVERSION	10
-#define	VMW_HVCMD_GETHZ		45
+#define KVM_CPUID_FEATURES_LEAF		0x40000001
 
-static __inline void
-vmware_hvcall(u_int cmd, u_int *p)
-{
+int		kvm_paravirt_supported(void);
+uint32_t	kvm_get_features(void);
 
-	__asm __volatile("inl %w3, %0"
-	: "=a" (p[0]), "=b" (p[1]), "=c" (p[2]), "=d" (p[3])
-	: "0" (VMW_HVMAGIC), "1" (UINT_MAX), "2" (cmd), "3" (VMW_HVPORT)
-	: "memory");
-}
-
-uint64_t	vmware_tsc_freq(void);
-
-#endif /* !_X86_VMWARE_H_ */
+#endif /* !_X86_KVM_H_ */

@@ -44,7 +44,12 @@ char hv_vendor[16];
 SYSCTL_STRING(_hw, OID_AUTO, hv_vendor, CTLFLAG_RD, hv_vendor, 0,
     "Hypervisor vendor");
 
+extern const struct hypervisor_info kvm_hypervisor_info;
+extern const struct hypervisor_info vmware_hypervisor_info;
+
 static const struct hypervisor_info *hypervisor_infos[] = {
+	&kvm_hypervisor_info,
+	&vmware_hypervisor_info,
 };
 
 static const struct hypervisor_info *hv_info;

@@ -563,6 +563,7 @@ x86/x86/hypervisor.c		standard
 x86/x86/identcpu.c		standard
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		standard
+x86/x86/kvm.c			standard
 x86/x86/legacy.c		standard
 x86/x86/local_apic.c		standard
 x86/x86/mca.c			standard
@@ -573,6 +574,7 @@ x86/x86/nexus.c			standard
 x86/x86/pvclock.c		standard
 x86/x86/tsc.c			standard
 x86/x86/delay.c			standard
+x86/x86/vmware.c		standard
 x86/xen/hvm.c			optional	xenhvm
 x86/xen/xen_intr.c		optional	xen | xenhvm
 x86/xen/pv.c			optional	xenhvm

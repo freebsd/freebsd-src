@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2014 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2014 Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,28 +22,61 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#ifndef _X86_VMWARE_H_
-#define	_X86_VMWARE_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define	VMW_HVMAGIC		0x564d5868
-#define	VMW_HVPORT		0x5658
-#define	VMW_HVCMD_GETVERSION	10
-#define	VMW_HVCMD_GETHZ		45
+#include <sys/param.h>
+#include <sys/systm.h>
 
-static __inline void
-vmware_hvcall(u_int cmd, u_int *p)
+#include <x86/hypervisor.h>
+#include <x86/kvm.h>
+
+static int		kvm_identify(void);
+static uint32_t		kvm_cpuid_identify(void);
+
+const struct hypervisor_info kvm_hypervisor_info = {
+	.hvi_name =		"KVM",
+	.hvi_type =		VM_GUEST_KVM,
+	.hvi_identify =		kvm_identify,
+};
+
+static uint32_t kvm_cpuid_base = -1;
+static uint32_t kvm_cpuid_high = -1;
+
+static uint32_t
+kvm_cpuid_identify(void)
 {
 
-	__asm __volatile("inl %w3, %0"
-	: "=a" (p[0]), "=b" (p[1]), "=c" (p[2]), "=d" (p[3])
-	: "0" (VMW_HVMAGIC), "1" (UINT_MAX), "2" (cmd), "3" (VMW_HVPORT)
-	: "memory");
+	if (kvm_cpuid_base == -1) {
+		hypervisor_cpuid_base("KVMKVMKVM\0\0", 0, &kvm_cpuid_base,
+		    &kvm_cpuid_high);
+	}
+
+	return (kvm_cpuid_base);
 }
 
-uint64_t	vmware_tsc_freq(void);
+static int
+kvm_identify(void)
+{
 
-#endif /* !_X86_VMWARE_H_ */
+	return (kvm_cpuid_identify() != 0);
+}
+
+int
+kvm_paravirt_supported(void)
+{
+
+	return (kvm_cpuid_base != -1);
+}
+
+uint32_t
+kvm_get_features(void)
+{
+	u_int regs[4];
+
+	do_cpuid(kvm_cpuid_identify() | KVM_CPUID_FEATURES_LEAF, regs);
+
+	return (regs[0]);
+}
