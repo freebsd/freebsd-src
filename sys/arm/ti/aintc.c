@@ -73,10 +73,10 @@ static struct resource_spec ti_aintc_spec[] = {
 	{ -1, 0 }
 };
 
-#define	aintc_read_4(_sc,reg)		\
-    bus_space_read_4(_sc->aintc_bst, _sc->aintc_bsh, (reg))
+#define	aintc_read_4(_sc, reg)		\
+    bus_space_read_4((_sc)->aintc_bst, (_sc)->aintc_bsh, (reg))
 #define	aintc_write_4(_sc, reg, val)		\
-    bus_space_write_4(_sc->aintc_bst, _sc->aintc_bsh, (reg), (val))
+    bus_space_write_4((_sc)->aintc_bst, (_sc)->aintc_bsh, (reg), (val))
 
 static int ti_aintc_probe(device_t);
 static int ti_aintc_attach(device_t);
@@ -191,6 +191,7 @@ ti_aintc_unmask(device_t dev, int irq)
 
 	aintc_write_4(sc, INTC_MIR_CLEAR(irq >> 5), (1UL << (irq & 0x1F)));
 	arm_irq_memory_barrier(nb);
+}
 
 static void
 ti_aintc_eoi(device_t dev, int irq)
@@ -200,7 +201,4 @@ ti_aintc_eoi(device_t dev, int irq)
 	aintc_write_4(sc, INTC_ISR_CLEAR(irq >> 5),
 	    1UL << (irq & 0x1F));
 	aintc_write_4(sc, INTC_CONTROL,1);
-}
-
-	aintc_write_4(INTC_MIR_CLEAR(nb >> 5), (1UL << (nb & 0x1F)));
 }
