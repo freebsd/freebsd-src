@@ -96,14 +96,14 @@ This value defaults to the size of the raw partition specified in
 will enlarge the file system to the size of the entire partition).
 .El
 .Sh EXAMPLES
-Enlarge
-.Pa /dev/ada0p1
-up to 2GB if there is enough space in
-.Pa /dev/ada0p1 :
-.Dl growfs -s 2G /dev/ada0p1
-.Pp
-Enlarge root filesystem to fill up available space:
+Expand root filesystem to fill up available space:
 .Dl growfs /
+.Pp
+Resize
+.Pa /dev/ada0p1
+partition to 2GB and expand the filesystem:
+.Dl gpart resize -i 1 -s 2G ada0
+.Dl growfs -s 2G /dev/ada0p1
 .Sh SEE ALSO
 .Xr dumpfs 8 ,
 .Xr ffsinfo 8 ,
