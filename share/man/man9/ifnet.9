@@ -418,7 +418,7 @@ lock used to protect interface-related address lists.
 .Xr queue 3
 macro glue for the list of clonable network interfaces.
 .It Va if_groups
-.Pq Fn TAILQ_HEAD ", ifg_list"
+.Pq Fn TAILQ_HEAD "" "ifg_list"
 The head of the
 .Xr queue 3
 .Li TAILQ
@@ -1410,7 +1410,8 @@ address whose remote address is
 if one is found.
 If
 .Fa ignore_ptp
-is true, skip point-to-point interface addresses.  The 
+is true, skip point-to-point interface addresses.
+The
 .Fa fib
 parameter is handled the same way as by
 .Fn ifa_ifwithdstaddr .
