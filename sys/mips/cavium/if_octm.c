@@ -238,7 +238,7 @@ octm_attach(device_t dev)
 
 	ifp->if_transmit = octm_transmit;
 
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 
@@ -347,10 +347,10 @@ octm_transmit(struct ifnet *ifp, struct mbuf *m)
 	if (result == CVMX_MGMT_PORT_SUCCESS) {
 		ETHER_BPF_MTAP(ifp, m);
 
-		ifp->if_opackets++;
-		ifp->if_obytes += m->m_pkthdr.len;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 	} else
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	m_freem(m);
 
@@ -473,7 +473,7 @@ octm_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		return (0);
 
 	case SIOCSIFMTU:
-		cvmx_mgmt_port_set_max_packet_size(sc->sc_port, ifr->ifr_mtu + ifp->if_data.ifi_hdrlen);
+		cvmx_mgmt_port_set_max_packet_size(sc->sc_port, ifr->ifr_mtu + ifp->if_hdrlen);
 		return (0);
 
 	case SIOCSIFMEDIA:
@@ -517,7 +517,7 @@ octm_rx_intr(void *arg)
 			m->m_pkthdr.rcvif = sc->sc_ifp;
 			m->m_pkthdr.len = m->m_len = len;
 
-			sc->sc_ifp->if_ipackets++;
+			if_inc_counter(sc->sc_ifp, IFCOUNTER_IPACKETS, 1);
 
 			(*sc->sc_ifp->if_input)(sc->sc_ifp, m);
 
@@ -529,7 +529,7 @@ octm_rx_intr(void *arg)
 		if (len == 0)
 			break;
 
-		sc->sc_ifp->if_ierrors++;
+		if_inc_counter(sc->sc_ifp, IFCOUNTER_IERRORS, 1);
 	}
 
 	/* Acknowledge interrupts.  */

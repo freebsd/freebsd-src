@@ -135,11 +135,14 @@ struct pci_vtnet_softc {
 	int		vsc_rx_ready;
 	volatile int	resetting;	/* set and checked outside lock */
 
-	uint32_t	vsc_features;
+	uint64_t	vsc_features;	/* negotiated features */
+	
 	struct virtio_net_config vsc_config;
 
 	pthread_mutex_t	rx_mtx;
 	int		rx_in_progress;
+	int		rx_vhdrlen;
+	int		rx_merge;	/* merged rx bufs in use */
 
 	pthread_t 	tx_tid;
 	pthread_mutex_t	tx_mtx;
@@ -151,6 +154,7 @@ static void pci_vtnet_reset(void *);
 /* static void pci_vtnet_notify(void *, struct vqueue_info *); */
 static int pci_vtnet_cfgread(void *, int, int, uint32_t *);
 static int pci_vtnet_cfgwrite(void *, int, int, uint32_t);
+static void pci_vtnet_neg_features(void *, uint64_t);
 
 static struct virtio_consts vtnet_vi_consts = {
 	"vtnet",		/* our name */
@@ -160,6 +164,7 @@ static struct virtio_consts vtnet_vi_consts = {
 	NULL,			/* device-wide qnotify -- not used */
 	pci_vtnet_cfgread,	/* read PCI config */
 	pci_vtnet_cfgwrite,	/* write PCI config */
+	pci_vtnet_neg_features,	/* apply negotiated features */
 	VTNET_S_HOSTCAPS,	/* our capabilities */
 };
 
@@ -212,6 +217,8 @@ pci_vtnet_reset(void *vsc)
 	pci_vtnet_rxwait(sc);
 
 	sc->vsc_rx_ready = 0;
+	sc->rx_merge = 1;
+	sc->rx_vhdrlen = sizeof(struct virtio_net_rxhdr);
 
 	/* now reset rings, MSI-X vectors, and negotiated capabilities */
 	vi_reset_dev(&sc->vsc_vs);
@@ -253,14 +260,34 @@ pci_vtnet_tap_tx(struct pci_vtnet_softc *sc, struct iovec *iov, int iovcnt,
  */
 static uint8_t dummybuf[2048];
 
+static __inline struct iovec *
+rx_iov_trim(struct iovec *iov, int *niov, int tlen)
+{
+	struct iovec *riov;
+
+	/* XXX short-cut: assume first segment is >= tlen */
+	assert(iov[0].iov_len >= tlen);
+
+	iov[0].iov_len -= tlen;
+	if (iov[0].iov_len == 0) {
+		assert(*niov > 1);
+		*niov -= 1;
+		riov = &iov[1];
+	} else {
+		iov[0].iov_base = (void *)((uintptr_t)iov[0].iov_base + tlen);
+		riov = &iov[0];
+	}
+
+	return (riov);
+}
+
 static void
 pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 {
+	struct iovec iov[VTNET_MAXSEGS], *riov;
 	struct vqueue_info *vq;
-	struct virtio_net_rxhdr *vrx;
-	uint8_t *buf;
-	int len;
-	struct iovec iov;
+	void *vrx;
+	int len, n;
 
 	/*
 	 * Should never be called without a valid tap fd
@@ -296,21 +323,19 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 
 	do {
 		/*
-		 * Get descriptor chain, which should have just
-		 * one descriptor in it.
-		 * ??? allow guests to use multiple descs?
+		 * Get descriptor chain.
 		 */
-		assert(vq_getchain(vq, &iov, 1, NULL) == 1);
+		n = vq_getchain(vq, iov, VTNET_MAXSEGS, NULL);
+		assert(n >= 1 && n <= VTNET_MAXSEGS);
 
 		/*
 		 * Get a pointer to the rx header, and use the
 		 * data immediately following it for the packet buffer.
 		 */
-		vrx = iov.iov_base;
-		buf = (uint8_t *)(vrx + 1);
+		vrx = iov[0].iov_base;
+		riov = rx_iov_trim(iov, &n, sc->rx_vhdrlen);
 
-		len = read(sc->vsc_tapfd, buf,
-			   iov.iov_len - sizeof(struct virtio_net_rxhdr));
+		len = readv(sc->vsc_tapfd, riov, n);
 
 		if (len < 0 && errno == EWOULDBLOCK) {
 			/*
@@ -323,16 +348,21 @@ pci_vtnet_tap_rx(struct pci_vtnet_softc *sc)
 
 		/*
 		 * The only valid field in the rx packet header is the
-		 * number of buffers, which is always 1 without TSO
-		 * support.
+		 * number of buffers if merged rx bufs were negotiated.
 		 */
-		memset(vrx, 0, sizeof(struct virtio_net_rxhdr));
-		vrx->vrh_bufs = 1;
+		memset(vrx, 0, sc->rx_vhdrlen);
+
+		if (sc->rx_merge) {
+			struct virtio_net_rxhdr *vrxh;
+
+			vrxh = vrx;
+			vrxh->vrh_bufs = 1;
+		}
 
 		/*
 		 * Release this chain and handle more chains.
 		 */
-		vq_relchain(vq, len + sizeof(struct virtio_net_rxhdr));
+		vq_relchain(vq, len + sc->rx_vhdrlen);
 	} while (vq_has_descs(vq));
 
 	/* Interrupt if needed, including for NOTIFY_ON_EMPTY. */
@@ -623,6 +653,8 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 	sc->resetting = 0;
 
+	sc->rx_merge = 1;
+	sc->rx_vhdrlen = sizeof(struct virtio_net_rxhdr);
 	sc->rx_in_progress = 0;
 	pthread_mutex_init(&sc->rx_mtx, NULL); 
 
@@ -656,9 +688,10 @@ pci_vtnet_cfgwrite(void *vsc, int offset, int size, uint32_t value)
 		ptr = &sc->vsc_config.mac[offset];
 		memcpy(ptr, &value, size);
 	} else {
+		/* silently ignore other writes */
 		DPRINTF(("vtnet: write to readonly reg %d\n\r", offset));
-		return (1);
 	}
+
 	return (0);
 }
 
@@ -671,6 +704,20 @@ pci_vtnet_cfgread(void *vsc, int offset, int size, uint32_t *retval)
 	ptr = (uint8_t *)&sc->vsc_config + offset;
 	memcpy(retval, ptr, size);
 	return (0);
+}
+
+static void
+pci_vtnet_neg_features(void *vsc, uint64_t negotiated_features)
+{
+	struct pci_vtnet_softc *sc = vsc;
+
+	sc->vsc_features = negotiated_features;
+
+	if (!(sc->vsc_features & VIRTIO_NET_F_MRG_RXBUF)) {
+		sc->rx_merge = 0;
+		/* non-merge rx header is 2 bytes shorter */
+		sc->rx_vhdrlen -= 2;
+	}
 }
 
 struct pci_devemu pci_de_vnet = {

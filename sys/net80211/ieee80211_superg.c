@@ -87,7 +87,7 @@ __FBSDID("$FreeBSD$");
 	memcpy(dst, src, sizeof(struct ether_header))
 
 static	int ieee80211_ffppsmin = 2;	/* pps threshold for ff aggregation */
-SYSCTL_INT(_net_wlan, OID_AUTO, ffppsmin, CTLTYPE_INT | CTLFLAG_RW,
+SYSCTL_INT(_net_wlan, OID_AUTO, ffppsmin, CTLFLAG_RW,
 	&ieee80211_ffppsmin, 0, "min packet rate before fast-frame staging");
 static	int ieee80211_ffagemax = -1;	/* max time frames held on stage q */
 SYSCTL_PROC(_net_wlan, OID_AUTO, ffagemax, CTLTYPE_INT | CTLFLAG_RW,
@@ -480,7 +480,7 @@ ff_transmit(struct ieee80211_node *ni, struct mbuf *m)
 			/* NB: IFQ_HANDOFF reclaims mbuf */
 			ieee80211_free_node(ni);
 		} else {
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		}
 	} else
 		ieee80211_free_node(ni);

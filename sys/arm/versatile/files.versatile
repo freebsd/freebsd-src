@@ -17,6 +17,5 @@ arm/versatile/versatile_pci.c			optional pci
 arm/versatile/versatile_pci_bus_space.c		optional pci
 arm/versatile/versatile_sic.c			standard
 arm/versatile/versatile_timer.c			standard
-arm/versatile/if_smc_fdt.c			optional smc
 
 kern/kern_clocksource.c                         standard

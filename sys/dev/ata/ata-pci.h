@@ -275,6 +275,19 @@ struct ata_pci_controller {
 #define ATA_LPT_R5		0x8c0e8086
 #define ATA_LPT_R6		0x8c0f8086
 
+#define ATA_WCPT_S1		0x8c808086
+#define ATA_WCPT_S2		0x8c818086
+#define ATA_WCPT_AH1		0x8c828086
+#define ATA_WCPT_AH2		0x8c838086
+#define ATA_WCPT_R1		0x8c848086
+#define ATA_WCPT_R2		0x8c858086
+#define ATA_WCPT_R3		0x8c868086
+#define ATA_WCPT_R4		0x8c878086
+#define ATA_WCPT_S3		0x8c888086
+#define ATA_WCPT_S4		0x8c898086
+#define ATA_WCPT_R5		0x8c8e8086
+#define ATA_WCPT_R6		0x8c8f8086
+
 #define ATA_WELLS_S1		0x8d008086
 #define ATA_WELLS_S2		0x8d088086
 #define ATA_WELLS_S3		0x8d608086
@@ -306,6 +319,7 @@ struct ata_pci_controller {
 #define ATA_JMB365              0x2365197b
 #define ATA_JMB366              0x2366197b
 #define ATA_JMB368              0x2368197b
+#define ATA_JMB368_2            0x0368197b
 
 #define ATA_MARVELL_ID          0x11ab
 #define ATA_M88SX5040           0x504011ab

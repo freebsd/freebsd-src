@@ -11,7 +11,8 @@ SUBDIR=	sendmail
 SUBDIR+=tests
 .endif
 
-BIN1=	crontab \
+BIN1=	auto_master \
+	crontab \
 	devd.conf \
 	devfs.conf \
 	ddb.conf \
@@ -225,6 +226,7 @@ distribution:
 		echo "./etc/spwd.db type=file mode=0600 uname=root gname=wheel"; \
 	) | ${METALOG.add}
 .endif
+	${_+_}cd ${.CURDIR}/autofs; ${MAKE} install
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
 .endif
@@ -331,7 +333,7 @@ MTREES+=	mtree/BSD.debug.dist		/usr/lib
 MTREES+=	mtree/BSD.groff.dist		/usr
 .endif
 .if ${MK_TESTS} != "no"
-MTREES+=	mtree/BSD.tests.dist		/usr
+MTREES+=	mtree/BSD.tests.dist		${TESTSBASE}
 .endif
 .if ${MK_SENDMAIL} != "no"
 MTREES+=	mtree/BSD.sendmail.dist		/
@@ -347,6 +349,7 @@ distrib-dirs: ${MTREES:N/*}
 		shift; \
 		d=${DESTDIR}$$1; \
 		shift; \
+		test -d $$d || mkdir -p $$d; \
 		${ECHO} ${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} \
 		    -f $$m -p $$d; \
 		${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} -f $$m -p $$d; \
@@ -360,6 +363,7 @@ distrib-dirs: ${MTREES:N/*}
 		test "$$d" == "/" && d=""; \
 		d=${DISTBASE}$$d; \
 		shift; \
+		test -d $$d || mkdir -p $$d; \
 		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K uname,gname | " \
 		    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
 		${MTREE_CMD:N-W} -C -f $$m -K uname,gname | sed s#^\.#.$$d# | \

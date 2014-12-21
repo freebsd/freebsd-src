@@ -11,8 +11,7 @@ CFLAGS+= -DMINIMALISTIC
 .if ${MACHINE_CPUARCH} == "arm"
 WARNS?= 3
 .endif
-DPADD=	${LIBCAM} ${LIBSBUF} ${LIBUTIL}
-LDADD=	-lcam -lsbuf -lutil
+LIBADD=	cam sbuf util
 MAN=	camcontrol.8
 
 .include <bsd.prog.mk>

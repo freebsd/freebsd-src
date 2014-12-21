@@ -172,6 +172,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_phys.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_reserv.h>
 
@@ -1342,9 +1343,10 @@ pmap_init(void)
 
 	/*
 	 * Calculate the size of the pv head table for superpages.
+	 * Handle the possibility that "vm_phys_segs[...].end" is zero.
 	 */
-	for (i = 0; phys_avail[i + 1]; i += 2);
-	pv_npg = round_1mpage(phys_avail[(i - 2) + 1]) / NBPDR;
+	pv_npg = trunc_1mpage(vm_phys_segs[vm_phys_nsegs - 1].end -
+	    PAGE_SIZE) / NBPDR + 1;
 
 	/*
 	 * Allocate memory for the pv head table for superpages.
@@ -2369,7 +2371,7 @@ pmap_kenter_section(vm_offset_t va, vm_offset_t pa, int flags)
  * to be used for panic dumps.
  */
 void *
-pmap_kenter_temp(vm_paddr_t pa, int i)
+pmap_kenter_temporary(vm_paddr_t pa, int i)
 {
 	vm_offset_t va;
 

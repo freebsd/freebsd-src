@@ -68,7 +68,7 @@ parse_duration(const char *duration)
 
 	ret = strtod(duration, &end);
 	if (ret == 0 && end == duration)
-		errx(EXIT_FAILURE, "invalid duration");
+		errx(125, "invalid duration");
 
 	if (end == NULL || *end == '\0')
 		return (ret);
@@ -89,11 +89,11 @@ parse_duration(const char *duration)
 		ret *= 60 * 60 * 24;
 		break;
 	default:
-		errx(EX_USAGE, "invalid duration");
+		errx(125, "invalid duration");
 	}
 
 	if (ret < 0 || ret >= 100000000UL)
-		errx(EX_USAGE, "invalid duration");
+		errx(125, "invalid duration");
 
 	return (ret);
 }
@@ -116,7 +116,7 @@ parse_signal(const char *str)
 			return (i);
 	}
 
-	errx(EX_USAGE, "invalid signal");
+	errx(125, "invalid signal");
 }
 
 static void
@@ -260,8 +260,12 @@ main(int argc, char **argv)
 		signal(SIGTTOU, SIG_DFL);
 
 		error = execvp(argv[0], argv);
-		if (error == -1)
-			err(EX_UNAVAILABLE, "exec()");
+		if (error == -1) {
+			if (errno == ENOENT)
+				err(127, "exec(%s)", argv[0]);
+			else
+				err(126, "exec(%s)", argv[0]);
+		}
 	}
 
 	if (sigprocmask(SIG_BLOCK, &signals.sa_mask, NULL) == -1)

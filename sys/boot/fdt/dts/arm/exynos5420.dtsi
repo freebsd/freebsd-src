@@ -81,5 +81,32 @@
 		xhci@12400000 {
 			status = "okay";
 		};
+
+		mmc0: dwmmc@12200000 {
+			compatible = "samsung,exynos5420-dw-mshc-smu";
+			reg = <0x12200000 0x10000>;
+			interrupts = <107>;
+			interrupt-parent = <&GIC>;
+			fifo-depth = <0x40>;
+			status = "disabled";
+		};
+
+		mmc1: dwmmc@12210000 {
+			compatible = "samsung,exynos5420-dw-mshc-smu";
+			reg = <0x12210000 0x10000>;
+			interrupts = <108>;
+			interrupt-parent = <&GIC>;
+			fifo-depth = <0x40>;
+			status = "disabled";
+		};
+
+		mmc2: dwmmc@12220000 {
+			compatible = "samsung,exynos5420-dw-mshc";
+			reg = <0x12220000 0x10000>;
+			interrupts = <109>;
+			interrupt-parent = <&GIC>;
+			fifo-depth = <0x40>;
+			status = "disabled";
+		};
 	};
 };

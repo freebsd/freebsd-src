@@ -36,7 +36,6 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 

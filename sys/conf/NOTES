@@ -351,6 +351,12 @@ options 	COMPAT_FREEBSD6
 # Enable FreeBSD7 compatibility syscalls
 options 	COMPAT_FREEBSD7
 
+# Enable FreeBSD9 compatibility syscalls
+options 	COMPAT_FREEBSD9
+
+# Enable FreeBSD10 compatibility syscalls
+options 	COMPAT_FREEBSD10
+
 #
 # These three options provide support for System V Interface
 # Definition-style interprocess communication, in the form of shared
@@ -795,6 +801,10 @@ device		ether
 #  according to IEEE 802.1Q.
 device		vlan
 
+# The `vxlan' device implements the VXLAN encapsulation of Ethernet
+# frames in UDP packets according to RFC7348.
+device		vxlan
+
 #  The `wlan' device provides generic code to support 802.11
 #  drivers, including host AP mode; it is MANDATORY for the wi,
 #  and ath drivers and will eventually be required by all 802.11 drivers.
@@ -869,18 +879,18 @@ device		tun
 #  The `gif' device implements IPv6 over IP4 tunneling,
 #  IPv4 over IPv6 tunneling, IPv4 over IPv4 tunneling and
 #  IPv6 over IPv6 tunneling.
-#  The `gre' device implements two types of IP4 over IP4 tunneling:
-#  GRE and MOBILE, as specified in the RFC1701 and RFC2004.
+#  The `gre' device implements GRE (Generic Routing Encapsulation) tunneling,
+#  as specified in the RFC 2784 and RFC 2890.
+#  The `me' device implements Minimal Encapsulation within IPv4 as
+#  specified in the RFC 2004.
 #  The XBONEHACK option allows the same pair of addresses to be configured on
 #  multiple gif interfaces.
 device		gif
 device		gre
+device		me
 options 	XBONEHACK
 
-#  The `faith' device captures packets sent to it and diverts them
-#  to the IPv4/IPv6 translation daemon.
 #  The `stf' device implements 6to4 encapsulation.
-device		faith
 device		stf
 
 # The pf packet filter consists of three devices:
@@ -1012,6 +1022,7 @@ options 	FFS			#Fast filesystem
 options 	NFSCLIENT		#Network File System client
 
 # The rest are optional:
+options 	AUTOFS			#Automounter filesystem
 options 	CD9660			#ISO 9660 filesystem
 options 	FDESCFS			#File descriptor filesystem
 options 	FUSE			#FUSE support module
@@ -1676,6 +1687,7 @@ device		amrp		# SCSI Passthrough interface (optional, CAM req.)
 device		mfi		# LSI MegaRAID SAS
 device		mfip		# LSI MegaRAID SAS passthrough, requires CAM
 options 	MFI_DEBUG
+device		mrsas		# LSI/Avago MegaRAID SAS/SATA, 6Gb/s and 12Gb/s
 
 #
 # 3ware ATA RAID
@@ -2623,9 +2635,8 @@ options 	NSFBUFS=1024
 # Enable extra debugging code for locks.  This stores the filename and
 # line of whatever acquired the lock in the lock itself, and changes a
 # number of function calls to pass around the relevant data.  This is
-# not at all useful unless you are debugging lock code.  Also note
-# that it is likely to break e.g. fstat(1) unless you recompile your
-# userland with -DDEBUG_LOCKS as well.
+# not at all useful unless you are debugging lock code.  Note that
+# modules should be recompiled as this option modifies KBI.
 #
 options 	DEBUG_LOCKS
 
@@ -2649,6 +2660,8 @@ device		usb
 device		udbp
 # USB Fm Radio
 device		ufm
+# USB LED
+device		uled
 # Human Interface Device (anything with buttons and dials)
 device		uhid
 # USB keyboard
@@ -2955,6 +2968,7 @@ options 	SC_RENDER_DEBUG	# syscons rendering debugging
 options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging
 
 options 	KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack
+options 	KSTACK_USAGE_PROF
 
 # Adaptec Array Controller driver options
 options 	AAC_DEBUG	# Debugging levels:
@@ -2979,10 +2993,10 @@ options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
 
 # Random number generator
-options 	RANDOM_YARROW	# Yarrow RNG
-##options 	RANDOM_FORTUNA	# Fortuna RNG - not yet implemented
+# Only ONE of the below two may be used; they are mutually exclusive.
+options 	RANDOM_YARROW	# Yarrow CSPRNG (Default)
+#options 	RANDOM_FORTUNA	# Fortuna CSPRNG
 options 	RANDOM_DEBUG	# Debugging messages
-options 	RANDOM_RWFILE	# Read and write entropy cache
 
 # Module to enable execution of application via emulators like QEMU
 options         IMAGACT_BINMISC

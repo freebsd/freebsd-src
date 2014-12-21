@@ -29,12 +29,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+
+#include <sys/capsicum.h>
 #include <sys/elf32.h>
 #include <sys/elf64.h>
 #include <sys/endian.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stddef.h>
@@ -213,7 +216,7 @@ d_tags(u_int64_t tag)
 	case DT_PLTPADSZ:	return "DT_PLTPADSZ";
 	case DT_MOVEENT:	return "DT_MOVEENT";
 	case DT_MOVESZ:		return "DT_MOVESZ";
-	case 0x6ffffdfc:	return "DT_FEATURE";
+	case DT_FEATURE:	return "DT_FEATURE";
 	case DT_POSFLAG_1:	return "DT_POSFLAG_1";
 	case DT_SYMINSZ:	return "DT_SYMINSZ";
 	case DT_SYMINENT :	return "DT_SYMINENT (DT_VALRNGHI)";
@@ -221,11 +224,11 @@ d_tags(u_int64_t tag)
 	case DT_GNU_HASH:	return "DT_GNU_HASH";
 	case 0x6ffffef8:	return "DT_GNU_CONFLICT";
 	case 0x6ffffef9:	return "DT_GNU_LIBLIST";
-	case 0x6ffffefa:	return "DT_SUNW_CONFIG";
-	case 0x6ffffefb:	return "DT_SUNW_DEPAUDIT";
-	case 0x6ffffefc:	return "DT_SUNW_AUDIT";
-	case 0x6ffffefd:	return "DT_SUNW_PLTPAD";
-	case 0x6ffffefe:	return "DT_SUNW_MOVETAB";
+	case DT_CONFIG:		return "DT_CONFIG";
+	case DT_DEPAUDIT:	return "DT_DEPAUDIT";
+	case DT_AUDIT:		return "DT_AUDIT";
+	case DT_PLTPAD:		return "DT_PLTPAD";
+	case DT_MOVETAB:	return "DT_MOVETAB";
 	case DT_SYMINFO :	return "DT_SYMINFO (DT_ADDRRNGHI)";
 	case DT_RELACOUNT:	return "DT_RELACOUNT";
 	case DT_RELCOUNT:	return "DT_RELCOUNT";
@@ -467,6 +470,7 @@ elf_get_shstrndx(Elf32_Ehdr *e, void *sh)
 int
 main(int ac, char **av)
 {
+	cap_rights_t rights;
 	u_int64_t phoff;
 	u_int64_t shoff;
 	u_int64_t phentsize;
@@ -527,6 +531,9 @@ main(int ac, char **av)
 		case 'w':
 			if ((out = fopen(optarg, "w")) == NULL)
 				err(1, "%s", optarg);
+			cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE);
+			if (cap_rights_limit(fileno(out), &rights) < 0 && errno != ENOSYS)
+				err(1, "unable to limit rights for %s", optarg);
 			break;
 		case '?':
 		default:
@@ -539,6 +546,17 @@ main(int ac, char **av)
 	if ((fd = open(*av, O_RDONLY)) < 0 ||
 	    fstat(fd, &sb) < 0)
 		err(1, "%s", *av);
+	cap_rights_init(&rights, CAP_MMAP_R);
+	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for %s", *av);
+	close(STDIN_FILENO);
+	cap_rights_init(&rights, CAP_WRITE);
+	if (cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for stdout");
+	if (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for stderr");
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "unable to enter capability mode");
 	e = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
 	if (e == MAP_FAILED)
 		err(1, NULL);

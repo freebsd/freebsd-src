@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_DigestVerifyInit 3"
-.TH EVP_DigestVerifyInit 3 "2014-08-06" "1.0.1i" "OpenSSL"
+.TH EVP_DigestVerifyInit 3 "2014-10-15" "1.0.1j" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -165,7 +165,7 @@ or a negative value for failure. In particular a return value of \-2 indicates
 the operation is not supported by the public key algorithm.
 .PP
 Unlike other functions the return value 0 from \fIEVP_DigestVerifyFinal()\fR only
-indicates that the signature did not not verify successfully (that is tbs did
+indicates that the signature did not verify successfully (that is tbs did
 not match the original data or the signature was of invalid form) it is not an
 indication of a more serious error.
 .PP
@@ -185,7 +185,7 @@ For some key types and parameters the random number generator must be seeded
 or the operation will fail.
 .PP
 The call to \fIEVP_DigestVerifyFinal()\fR internally finalizes a copy of the digest
-context. This means that calls to \fIEVP_VerifyUpdate()\fR and \fIEVP_VerifyFinal()\fR can
+context. This means that \fIEVP_VerifyUpdate()\fR and \fIEVP_VerifyFinal()\fR can
 be called later to digest and verify additional data.
 .PP
 Since only a copy of the digest context is ever finalized the context must

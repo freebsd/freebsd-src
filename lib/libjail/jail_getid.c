@@ -53,12 +53,12 @@ jail_getid(const char *name)
 	jid = strtoul(name, &ep, 10);
 	if (*name && !*ep)
 		return jid;
-	*(const void **)&jiov[0].iov_base = "name";
+	jiov[0].iov_base = __DECONST(char *, "name");
 	jiov[0].iov_len = sizeof("name");
 	jiov[1].iov_len = strlen(name) + 1;
 	jiov[1].iov_base = alloca(jiov[1].iov_len);
 	strcpy(jiov[1].iov_base, name);
-	*(const void **)&jiov[2].iov_base = "errmsg";
+	jiov[2].iov_base = __DECONST(char *, "errmsg");
 	jiov[2].iov_len = sizeof("errmsg");
 	jiov[3].iov_base = jail_errmsg;
 	jiov[3].iov_len = JAIL_ERRMSGLEN;
@@ -80,15 +80,15 @@ jail_getname(int jid)
 	char *name;
 	char namebuf[MAXHOSTNAMELEN];
 
-	*(const void **)&jiov[0].iov_base = "jid";
+	jiov[0].iov_base = __DECONST(char *, "jid");
 	jiov[0].iov_len = sizeof("jid");
 	jiov[1].iov_base = &jid;
 	jiov[1].iov_len = sizeof(jid);
-	*(const void **)&jiov[2].iov_base = "name";
+	jiov[2].iov_base = __DECONST(char *, "name");
 	jiov[2].iov_len = sizeof("name");
 	jiov[3].iov_base = namebuf;
 	jiov[3].iov_len = sizeof(namebuf);
-	*(const void **)&jiov[4].iov_base = "errmsg";
+	jiov[4].iov_base = __DECONST(char *, "errmsg");
 	jiov[4].iov_len = sizeof("errmsg");
 	jiov[5].iov_base = jail_errmsg;
 	jiov[5].iov_len = JAIL_ERRMSGLEN;

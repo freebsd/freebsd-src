@@ -33,7 +33,7 @@ void
 ar9300_set_stub_functions(struct ath_hal *ah)
 {
 
-	ath_hal_printf(ah, "%s: setting stub functions\n", __func__);
+//	ath_hal_printf(ah, "%s: setting stub functions\n", __func__);
 
 	ah->ah_getRateTable		= ar9300_Stub_GetRateTable;
 //	ah->ah_detach			= ar9300_Stub_detach;

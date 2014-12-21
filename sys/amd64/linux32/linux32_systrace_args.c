@@ -1720,27 +1720,43 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_timer_create */
 	case 259: {
-		*n_args = 0;
+		struct linux_timer_create_args *p = params;
+		iarg[0] = p->clock_id; /* clockid_t */
+		uarg[1] = (intptr_t) p->evp; /* struct sigevent * */
+		uarg[2] = (intptr_t) p->timerid; /* l_timer_t * */
+		*n_args = 3;
 		break;
 	}
 	/* linux_timer_settime */
 	case 260: {
-		*n_args = 0;
+		struct linux_timer_settime_args *p = params;
+		iarg[0] = p->timerid; /* l_timer_t */
+		iarg[1] = p->flags; /* l_int */
+		uarg[2] = (intptr_t) p->new; /* const struct itimerspec * */
+		uarg[3] = (intptr_t) p->old; /* struct itimerspec * */
+		*n_args = 4;
 		break;
 	}
 	/* linux_timer_gettime */
 	case 261: {
-		*n_args = 0;
+		struct linux_timer_gettime_args *p = params;
+		iarg[0] = p->timerid; /* l_timer_t */
+		uarg[1] = (intptr_t) p->setting; /* struct itimerspec * */
+		*n_args = 2;
 		break;
 	}
 	/* linux_timer_getoverrun */
 	case 262: {
-		*n_args = 0;
+		struct linux_timer_getoverrun_args *p = params;
+		iarg[0] = p->timerid; /* l_timer_t */
+		*n_args = 1;
 		break;
 	}
 	/* linux_timer_delete */
 	case 263: {
-		*n_args = 0;
+		struct linux_timer_delete_args *p = params;
+		iarg[0] = p->timerid; /* l_timer_t */
+		*n_args = 1;
 		break;
 	}
 	/* linux_clock_settime */
@@ -4829,18 +4845,71 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timer_create */
 	case 259:
+		switch(ndx) {
+		case 0:
+			p = "clockid_t";
+			break;
+		case 1:
+			p = "struct sigevent *";
+			break;
+		case 2:
+			p = "l_timer_t *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_timer_settime */
 	case 260:
+		switch(ndx) {
+		case 0:
+			p = "l_timer_t";
+			break;
+		case 1:
+			p = "l_int";
+			break;
+		case 2:
+			p = "const struct itimerspec *";
+			break;
+		case 3:
+			p = "struct itimerspec *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_timer_gettime */
 	case 261:
+		switch(ndx) {
+		case 0:
+			p = "l_timer_t";
+			break;
+		case 1:
+			p = "struct itimerspec *";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_timer_getoverrun */
 	case 262:
+		switch(ndx) {
+		case 0:
+			p = "l_timer_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_timer_delete */
 	case 263:
+		switch(ndx) {
+		case 0:
+			p = "l_timer_t";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_clock_settime */
 	case 264:
@@ -6413,14 +6482,29 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_timer_create */
 	case 259:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_timer_settime */
 	case 260:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_timer_gettime */
 	case 261:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_timer_getoverrun */
 	case 262:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_timer_delete */
 	case 263:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_clock_settime */
 	case 264:
 		if (ndx == 0 || ndx == 1)

@@ -1005,6 +1005,11 @@ _libelf_cvt_NOTE_tof(char *dst, size_t dsz, char *src, size_t count,
 		descsz = en->n_descsz;
 		type = en->n_type;
 
+		sz = namesz;
+		ROUNDUP2(sz, 4);
+		sz += descsz;
+		ROUNDUP2(sz, 4);
+
 		SWAP_WORD(namesz);
 		SWAP_WORD(descsz);
 		SWAP_WORD(type);
@@ -1014,11 +1019,6 @@ _libelf_cvt_NOTE_tof(char *dst, size_t dsz, char *src, size_t count,
 		WRITE_WORD(dst, type);
 
 		src += sizeof(Elf_Note);
-
-		ROUNDUP2(namesz, 4);
-		ROUNDUP2(descsz, 4);
-
-		sz = namesz + descsz;
 
 		if (count < sz)
 			sz = count;

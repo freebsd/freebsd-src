@@ -289,8 +289,19 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 				 * with all we know.
 				 */
 				if (from->sin_port != htons(RIP_PORT)) {
-					supply(from, aifp, OUT_QUERY, 0,
-					       rip->rip_vers, ap != 0);
+					/*
+					 * insecure: query from non-router node
+					 *   > 1: allow from distant node
+					 *   > 0: allow from neighbor node
+					 *  == 0: deny
+					 */
+					if ((aifp != NULL && insecure > 0) ||
+					    (aifp == NULL && insecure > 1))
+						supply(from, aifp, OUT_QUERY, 0,
+						       rip->rip_vers, ap != 0);
+					else
+						trace_pkt("Warning: "
+						    "possible attack detected");
 					return;
 				}
 

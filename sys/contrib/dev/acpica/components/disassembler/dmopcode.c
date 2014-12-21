@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,8 @@
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
+#include <contrib/dev/acpica/include/acinterp.h>
+#include <contrib/dev/acpica/include/acnamesp.h>
 
 #ifdef ACPI_DISASSEMBLER
 
@@ -57,6 +59,159 @@
 static void
 AcpiDmMatchKeyword (
     ACPI_PARSE_OBJECT       *Op);
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDisplayTargetPathname
+ *
+ * PARAMETERS:  Op              - Parse object
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: For AML opcodes that have a target operand, display the full
+ *              pathname for the target, in a comment field. Handles Return()
+ *              statements also.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDisplayTargetPathname (
+    ACPI_PARSE_OBJECT       *Op)
+{
+    ACPI_PARSE_OBJECT       *NextOp;
+    ACPI_PARSE_OBJECT       *PrevOp = NULL;
+    char                    *Pathname;
+    const ACPI_OPCODE_INFO  *OpInfo;
+
+
+    if (Op->Common.AmlOpcode == AML_RETURN_OP)
+    {
+        PrevOp = Op->Asl.Value.Arg;
+    }
+    else
+    {
+        OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);
+        if (!(OpInfo->Flags & AML_HAS_TARGET))
+        {
+            return;
+        }
+
+        /* Target is the last Op in the arg list */
+
+        NextOp = Op->Asl.Value.Arg;
+        while (NextOp)
+        {
+            PrevOp = NextOp;
+            NextOp = PrevOp->Asl.Next;
+        }
+    }
+
+    if (!PrevOp)
+    {
+        return;
+    }
+
+    /* We must have a namepath AML opcode */
+
+    if (PrevOp->Asl.AmlOpcode != AML_INT_NAMEPATH_OP)
+    {
+        return;
+    }
+
+    /* A null string is the "no target specified" case */
+
+    if (!PrevOp->Asl.Value.String)
+    {
+        return;
+    }
+
+    /* No node means "unresolved external reference" */
+
+    if (!PrevOp->Asl.Node)
+    {
+        AcpiOsPrintf (" /* External reference */");
+        return;
+    }
+
+    /* Ignore if path is already from the root */
+
+    if (*PrevOp->Asl.Value.String == '\\')
+    {
+        return;
+    }
+
+    /* Now: we can get the full pathname */
+
+    Pathname = AcpiNsGetExternalPathname (PrevOp->Asl.Node);
+    if (!Pathname)
+    {
+        return;
+    }
+
+    AcpiOsPrintf (" /* %s */", Pathname);
+    ACPI_FREE (Pathname);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmNotifyDescription
+ *
+ * PARAMETERS:  Op              - Name() parse object
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Emit a description comment for the value associated with a
+ *              Notify() operator.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmNotifyDescription (
+    ACPI_PARSE_OBJECT       *Op)
+{
+    ACPI_PARSE_OBJECT       *NextOp;
+    ACPI_NAMESPACE_NODE     *Node;
+    UINT8                   NotifyValue;
+    UINT8                   Type = ACPI_TYPE_ANY;
+
+
+    /* The notify value is the second argument */
+
+    NextOp = Op->Asl.Value.Arg;
+    NextOp = NextOp->Asl.Next;
+
+    switch (NextOp->Common.AmlOpcode)
+    {
+    case AML_ZERO_OP:
+    case AML_ONE_OP:
+
+        NotifyValue = (UINT8) NextOp->Common.AmlOpcode;
+        break;
+
+    case AML_BYTE_OP:
+
+        NotifyValue = (UINT8) NextOp->Asl.Value.Integer;
+        break;
+
+    default:
+        return;
+    }
+
+    /*
+     * Attempt to get the namespace node so we can determine the object type.
+     * Some notify values are dependent on the object type (Device, Thermal,
+     * or Processor).
+     */
+    Node = Op->Asl.Node;
+    if (Node)
+    {
+        Type = Node->Type;
+    }
+
+    AcpiOsPrintf (" // %s", AcpiUtGetNotifyName (NotifyValue, Type));
+}
 
 
 /*******************************************************************************
@@ -183,14 +338,11 @@ AcpiDmPredefinedDescription (
 
     /* Match the name in the info table */
 
-    for (Info = AslPredefinedInfo; Info->Name; Info++)
+    Info = AcpiAhMatchPredefinedName (NameString);
+    if (Info)
     {
-        if (ACPI_COMPARE_NAME (NameString, Info->Name))
-        {
-            AcpiOsPrintf ("  // %4.4s: %s",
-                NameString, ACPI_CAST_PTR (char, Info->Description));
-            return;
-        }
+        AcpiOsPrintf ("  // %4.4s: %s",
+            NameString, ACPI_CAST_PTR (char, Info->Description));
     }
 
 #endif
@@ -267,14 +419,11 @@ AcpiDmFieldPredefinedDescription (
 
     /* Match the name in the info table */
 
-    for (Info = AslPredefinedInfo; Info->Name; Info++)
+    Info = AcpiAhMatchPredefinedName (Tag);
+    if (Info)
     {
-        if (ACPI_COMPARE_NAME (Tag, Info->Name))
-        {
-            AcpiOsPrintf ("  // %4.4s: %s", Tag,
-                ACPI_CAST_PTR (char, Info->Description));
-            return;
-        }
+        AcpiOsPrintf ("  // %4.4s: %s", Tag,
+            ACPI_CAST_PTR (char, Info->Description));
     }
 
 #endif
@@ -527,6 +676,7 @@ AcpiDmDisassembleOneOp (
     ACPI_PARSE_OBJECT       *Child;
     ACPI_STATUS             Status;
     UINT8                   *Aml;
+    const AH_DEVICE_ID      *IdInfo;
 
 
     if (!Op)
@@ -605,7 +755,7 @@ AcpiDmDisassembleOneOp (
 
         if (Op->Common.DisasmOpcode == ACPI_DASM_EISAID)
         {
-            AcpiDmEisaId ((UINT32) Op->Common.Value.Integer);
+            AcpiDmDecompressEisaId ((UINT32) Op->Common.Value.Integer);
         }
         else
         {
@@ -617,7 +767,7 @@ AcpiDmDisassembleOneOp (
 
         if (Op->Common.DisasmOpcode == ACPI_DASM_EISAID)
         {
-            AcpiDmEisaId ((UINT32) Op->Common.Value.Integer);
+            AcpiDmDecompressEisaId ((UINT32) Op->Common.Value.Integer);
         }
         else
         {
@@ -634,6 +784,19 @@ AcpiDmDisassembleOneOp (
     case AML_STRING_OP:
 
         AcpiUtPrintString (Op->Common.Value.String, ACPI_UINT16_MAX);
+
+        /* For _HID/_CID strings, attempt to output a descriptive comment */
+
+        if (Op->Common.DisasmOpcode == ACPI_DASM_HID_STRING)
+        {
+            /* If we know about the ID, emit the description */
+
+            IdInfo = AcpiAhMatchHardwareId (Op->Common.Value.String);
+            if (IdInfo)
+            {
+                AcpiOsPrintf (" /* %s */", IdInfo->Description);
+            }
+        }
         break;
 
     case AML_BUFFER_OP:
@@ -664,7 +827,12 @@ AcpiDmDisassembleOneOp (
             }
         }
 
-        if (AcpiDmIsUnicodeBuffer (Op))
+        if (AcpiDmIsUuidBuffer (Op))
+        {
+            Op->Common.DisasmOpcode = ACPI_DASM_UUID;
+            AcpiOsPrintf ("ToUUID (");
+        }
+        else if (AcpiDmIsUnicodeBuffer (Op))
         {
             Op->Common.DisasmOpcode = ACPI_DASM_UNICODE;
             AcpiOsPrintf ("Unicode (");
@@ -765,7 +933,9 @@ AcpiDmDisassembleOneOp (
             Length = (UINT32) Child->Common.Value.Integer;
 
             Info->Level += 1;
+            Info->MappingOp = Op;
             Op->Common.DisasmOpcode = ACPI_DASM_RESOURCE;
+
             AcpiDmResourceTemplate (Info, Op->Common.Parent, Aml, Length);
 
             Info->Level -= 1;

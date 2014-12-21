@@ -235,8 +235,8 @@ void  os_request_timer(void * osext, HPT_U32 interval)
 
 	HPT_ASSERT(vbus_ext->ext_type==EXT_TYPE_VBUS);
 
-	callout_reset(&vbus_ext->timer, interval * hz / 1000000,
-	    os_timer_for_ldm, vbus_ext);
+	callout_reset_sbt(&vbus_ext->timer, SBT_1US * interval, 0,
+	    os_timer_for_ldm, vbus_ext, 0);
 }
 
 HPT_TIME os_query_time(void)
@@ -270,21 +270,7 @@ int os_revalidate_device(void *osext, int id)
 
 int os_query_remove_device(void *osext, int id)
 {
-	PVBUS_EXT				vbus_ext = (PVBUS_EXT)osext;
-	struct cam_periph		*periph = NULL;
-    struct cam_path			*path;
-    int						status,retval = 0;
-
-    status = xpt_create_path(&path, NULL, vbus_ext->sim->path_id, id, 0);
-    if (status == CAM_REQ_CMP) {
-		if((periph = cam_periph_find(path, "da")) != NULL){
-			if(periph->refcount >= 1)	
-				retval = -1;
-		}
-		xpt_free_path(path);
-    }
-
-    return retval;
+    return 0;
 }
 
 HPT_U8 os_get_vbus_seq(void *osext)

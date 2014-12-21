@@ -260,7 +260,7 @@ emac_txeof(struct emac_softc *sc)
 	EMAC_ASSERT_LOCKED(sc);
 
 	ifp = sc->emac_ifp;
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	/* Unarm watchdog timer if no TX */
@@ -340,12 +340,12 @@ emac_rxeof(struct emac_softc *sc, int count)
 				if_printf(ifp,
 				    "bad packet: len = %i status = %i\n",
 				    len, status);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		}
 #if 0
 		if (status & (EMAC_CRCERR | EMAC_LENERR)) {
 			good_packet = 0;
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			if (status & EMAC_CRCERR)
 				if_printf(ifp, "crc error\n");
 			if (status & EMAC_LENERR)
@@ -393,18 +393,18 @@ emac_rxeof(struct emac_softc *sc, int count)
 					m0->m_next = m;
 					m = m0;
 				} else {
-					ifp->if_ierrors++;
+					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 					m_freem(m);
 					m = NULL;
 					continue;
 				}
 			} else if (m->m_len > EMAC_MAC_MAXF) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				m_freem(m);
 				m = NULL;
 				continue;
 			}
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			EMAC_UNLOCK(sc);
 			(*ifp->if_input)(ifp, m);
 			EMAC_LOCK(sc);
@@ -431,7 +431,7 @@ emac_watchdog(struct emac_softc *sc)
 	} else
 		if_printf(sc->emac_ifp, "watchdog timeout -- resetting\n");
 	
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	emac_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))

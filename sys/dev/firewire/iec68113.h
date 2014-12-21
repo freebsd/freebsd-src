@@ -97,7 +97,7 @@ struct ciphdr {
 	} fdf;
 
 };
-struct dvdbc{
+struct dvdbc {
 #if BYTE_ORDER == BIG_ENDIAN
 	uint8_t sct:3,		/* Section type */
 		:1,		/* Reserved */

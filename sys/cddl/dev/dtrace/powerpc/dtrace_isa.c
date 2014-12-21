@@ -52,8 +52,102 @@
 /* Offset to LR Save word (ppc64).  CR Save area sits between back chain and LR */
 #define RETURN_OFFSET64	16
 
+#ifdef __powerpc64__
+#define OFFSET 4 /* Account for the TOC reload slot */
+#else
+#define OFFSET 0
+#endif
+
 #define INKERNEL(x)	((x) <= VM_MAX_KERNEL_ADDRESS && \
 		(x) >= VM_MIN_KERNEL_ADDRESS)
+
+static __inline int
+dtrace_sp_inkernel(uintptr_t sp, int aframes)
+{
+	vm_offset_t callpc;
+
+#ifdef __powerpc64__
+	callpc = *(vm_offset_t *)(sp + RETURN_OFFSET64);
+#else
+	callpc = *(vm_offset_t *)(sp + RETURN_OFFSET);
+#endif
+	if ((callpc & 3) || (callpc < 0x100))
+		return (0);
+
+	/*
+	 * trapexit() and asttrapexit() are sentinels
+	 * for kernel stack tracing.
+	 *
+	 * Special-case this for 'aframes == 0', because fbt sets aframes to the
+	 * trap callchain depth, so we want to break out of it.
+	 */
+	if ((callpc + OFFSET == (vm_offset_t) &trapexit ||
+	    callpc + OFFSET == (vm_offset_t) &asttrapexit) &&
+	    aframes != 0)
+		return (0);
+
+	return (1);
+}
+
+static __inline uintptr_t
+dtrace_next_sp(uintptr_t sp)
+{
+	vm_offset_t callpc;
+
+#ifdef __powerpc64__
+	callpc = *(vm_offset_t *)(sp + RETURN_OFFSET64);
+#else
+	callpc = *(vm_offset_t *)(sp + RETURN_OFFSET);
+#endif
+
+	/*
+	 * trapexit() and asttrapexit() are sentinels
+	 * for kernel stack tracing.
+	 *
+	 * Special-case this for 'aframes == 0', because fbt sets aframes to the
+	 * trap callchain depth, so we want to break out of it.
+	 */
+	if ((callpc + OFFSET == (vm_offset_t) &trapexit ||
+	    callpc + OFFSET == (vm_offset_t) &asttrapexit))
+	    /* Access the trap frame */
+#ifdef __powerpc64__
+		return (*(uintptr_t *)sp + 48 + sizeof(register_t));
+#else
+		return (*(uintptr_t *)sp + 8 + sizeof(register_t));
+#endif
+
+	return (*(uintptr_t*)sp);
+}
+
+static __inline uintptr_t
+dtrace_get_pc(uintptr_t sp)
+{
+	vm_offset_t callpc;
+
+#ifdef __powerpc64__
+	callpc = *(vm_offset_t *)(sp + RETURN_OFFSET64);
+#else
+	callpc = *(vm_offset_t *)(sp + RETURN_OFFSET);
+#endif
+
+	/*
+	 * trapexit() and asttrapexit() are sentinels
+	 * for kernel stack tracing.
+	 *
+	 * Special-case this for 'aframes == 0', because fbt sets aframes to the
+	 * trap callchain depth, so we want to break out of it.
+	 */
+	if ((callpc + OFFSET == (vm_offset_t) &trapexit ||
+	    callpc + OFFSET == (vm_offset_t) &asttrapexit))
+	    /* Access the trap frame */
+#ifdef __powerpc64__
+		return (*(uintptr_t *)sp + 48 + offsetof(struct trapframe, lr));
+#else
+		return (*(uintptr_t *)sp + 8 + offsetof(struct trapframe, lr));
+#endif
+
+	return (callpc);
+}
 
 greg_t
 dtrace_getfp(void)
@@ -66,10 +160,11 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
     uint32_t *intrpc)
 {
 	int depth = 0;
-	register_t sp;
+	uintptr_t osp, sp;
 	vm_offset_t callpc;
 	pc_t caller = (pc_t) solaris_cpu[curcpu].cpu_dtrace_caller;
 
+	osp = PAGE_SIZE;
 	if (intrpc != 0)
 		pcstack[depth++] = (pc_t) intrpc;
 
@@ -78,17 +173,12 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 	sp = dtrace_getfp();
 
 	while (depth < pcstack_limit) {
-		if (!INKERNEL((long) sp))
+		if (sp <= osp)
 			break;
 
-#ifdef __powerpc64__
-		callpc = *(uintptr_t *)(sp + RETURN_OFFSET64);
-#else
-		callpc = *(uintptr_t *)(sp + RETURN_OFFSET);
-#endif
-
-		if (!INKERNEL(callpc))
+		if (!dtrace_sp_inkernel(sp, aframes))
 			break;
+		callpc = dtrace_get_pc(sp);
 
 		if (aframes > 0) {
 			aframes--;
@@ -100,7 +190,8 @@ dtrace_getpcstack(pc_t *pcstack, int pcstack_limit, int aframes,
 			pcstack[depth++] = callpc;
 		}
 
-		sp = *(uintptr_t*)sp;
+		osp = sp;
+		sp = dtrace_next_sp(sp);
 	}
 
 	for (; depth < pcstack_limit; depth++) {
@@ -368,8 +459,11 @@ dtrace_getarg(int arg, int aframes)
 		 * On ppc32 AIM, and booke, trapexit() is the immediately following
 		 * label.  On ppc64 AIM trapexit() follows a nop.
 		 */
-		if (((long)(fp[1]) == (long)trapexit) ||
-				(((long)(fp[1]) + 4 == (long)trapexit))) {
+#ifdef __powerpc64__
+		if ((long)(fp[2]) + 4 == (long)trapexit) {
+#else
+		if ((long)(fp[1]) == (long)trapexit) {
+#endif
 			/*
 			 * In the case of powerpc, we will use the pointer to the regs
 			 * structure that was pushed when we took the trap.  To get this
@@ -433,23 +527,31 @@ int
 dtrace_getstackdepth(int aframes)
 {
 	int depth = 0;
-	register_t sp;
+	uintptr_t osp, sp;
+	vm_offset_t callpc;
 
+	osp = PAGE_SIZE;
 	aframes++;
 	sp = dtrace_getfp();
 	depth++;
 	for(;;) {
-		if (!INKERNEL((long) sp))
+		if (sp <= osp)
 			break;
-		if (!INKERNEL((long) *(void **)sp))
+
+		if (!dtrace_sp_inkernel(sp, aframes))
 			break;
-		depth++;
+
+		if (aframes == 0)
+			depth++;
+		else
+			aframes--;
+		osp = sp;
 		sp = *(uintptr_t *)sp;
 	}
 	if (depth < aframes)
-		return 0;
-	else
-		return depth - aframes;
+		return (0);
+
+	return (depth);
 }
 
 ulong_t

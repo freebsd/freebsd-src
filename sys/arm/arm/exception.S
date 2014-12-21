@@ -244,12 +244,12 @@ __FBSDID("$FreeBSD$");
 #define	DO_AST								\
 	ldr	r0, [sp]		/* Get the SPSR from stack */	;\
 	mrs	r4, cpsr		/* save CPSR */			;\
-	orr	r1, r4, #(I32_bit|F32_bit)				;\
+	orr	r1, r4, #(PSR_I|PSR_F)					;\
 	msr	cpsr_c, r1		/* Disable interrupts */	;\
 	and	r0, r0, #(PSR_MODE)	/* Returning to USR mode? */	;\
 	teq	r0, #(PSR_USR32_MODE)					;\
 	bne	2f			/* Nope, get out now */		;\
-	bic	r4, r4, #(I32_bit|F32_bit)				;\
+	bic	r4, r4, #(PSR_I|PSR_F)					;\
 1:	GET_CURTHREAD_PTR(r5)						;\
 	ldr	r1, [r5, #(TD_FLAGS)]					;\
 	and	r1, r1, #(TDF_ASTPENDING|TDF_NEEDRESCHED)		;\
@@ -258,7 +258,7 @@ __FBSDID("$FreeBSD$");
 	msr	cpsr_c, r4		/* Restore interrupts */	;\
 	mov	r0, sp							;\
 	bl	_C_LABEL(ast)		/* ast(frame) */		;\
-	orr	r0, r4, #(I32_bit|F32_bit)				;\
+	orr	r0, r4, #(PSR_I|PSR_F)					;\
 	msr	cpsr_c, r0						;\
 	b	1b							;\
 2:
@@ -382,7 +382,7 @@ END(irq_entry)
  */
 ASENTRY_NP(fiq_entry)
 	mrs	r8, cpsr		/* FIQ handling isn't supported, */
-	bic	r8, #(F32_bit)		/* just disable FIQ and return.  */
+	bic	r8, #(PSR_F)		/* just disable FIQ and return.  */
 	msr	cpsr_c, r8		/* The r8 we trash here is the  */
 	subs	pc, lr, #4		/* banked FIQ-mode r8. */
 END(fiq_entry)

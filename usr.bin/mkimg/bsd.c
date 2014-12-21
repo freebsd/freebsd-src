@@ -52,13 +52,17 @@ static struct mkimg_alias bsd_aliases[] = {
     {	ALIAS_NONE, 0 }
 };
 
-static u_int
-bsd_metadata(u_int where)
+static lba_t
+bsd_metadata(u_int where, lba_t blk)
 {
-	u_int secs;
 
-	secs = BBSIZE / secsz;
-	return ((where == SCHEME_META_IMG_START) ? secs : 0);
+	if (where == SCHEME_META_IMG_START)
+		blk += BBSIZE / secsz;
+	else if (where == SCHEME_META_IMG_END)
+		blk = round_cylinder(blk);
+	else
+		blk = round_block(blk);
+	return (blk);
 }
 
 static int
@@ -68,7 +72,7 @@ bsd_write(lba_t imgsz, void *bootcode)
 	struct disklabel *d;
 	struct partition *dp;
 	struct part *part;
-	int error, n;
+	int bsdparts, error, n;
 	uint16_t checksum;
 
 	buf = malloc(BBSIZE);
@@ -76,16 +80,13 @@ bsd_write(lba_t imgsz, void *bootcode)
 		return (ENOMEM);
 	if (bootcode != NULL) {
 		memcpy(buf, bootcode, BBSIZE);
-		memset(buf + secsz, 0, secsz);
+		memset(buf + secsz, 0, sizeof(struct disklabel));
 	} else
 		memset(buf, 0, BBSIZE);
 
-	imgsz = (lba_t)ncyls * nheads * nsecs;
-	error = image_set_size(imgsz);
-	if (error) {
-		free(buf);
-		return (error);
-	}
+	bsdparts = nparts + 1;	/* Account for c partition */
+	if (bsdparts < MAXPARTITIONS)
+		bsdparts = MAXPARTITIONS;
 
 	d = (void *)(buf + secsz);
 	le32enc(&d->d_magic, DISKMAGIC);
@@ -97,7 +98,7 @@ bsd_write(lba_t imgsz, void *bootcode)
 	le32enc(&d->d_secperunit, imgsz);
 	le16enc(&d->d_rpm, 3600);
 	le32enc(&d->d_magic2, DISKMAGIC);
-	le16enc(&d->d_npartitions, (8 > nparts + 1) ? 8 : nparts + 1);
+	le16enc(&d->d_npartitions, bsdparts);
 	le32enc(&d->d_bbsize, BBSIZE);
 
 	dp = &d->d_partitions[RAW_PART];
@@ -107,12 +108,15 @@ bsd_write(lba_t imgsz, void *bootcode)
 		dp = &d->d_partitions[n];
 		le32enc(&dp->p_size, part->size);
 		le32enc(&dp->p_offset, part->block);
+		le32enc(&dp->p_fsize, 0);
 		dp->p_fstype = ALIAS_TYPE2INT(part->type);
+		dp->p_frag = 0;
+		le16enc(&dp->p_cpg, 0);
 	}
 
-	dp = &d->d_partitions[nparts + 1];
+	dp = &d->d_partitions[bsdparts];
 	checksum = 0;
-	for (p = buf; p < (u_char *)dp; p += 2)
+	for (p = (void *)d; p < (u_char *)dp; p += 2)
 		checksum ^= le16dec(p);
 	le16enc(&d->d_checksum, checksum);
 

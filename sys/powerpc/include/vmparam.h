@@ -210,5 +210,6 @@ struct pmap_physseg {
 #define	SFBUF
 #define	SFBUF_NOMD
 #define	SFBUF_OPTIONAL_DIRECT_MAP	hw_direct_map
+#define	SFBUF_PHYS_DMAP(x)		(x)
  
 #endif /* _MACHINE_VMPARAM_H_ */

@@ -103,10 +103,6 @@
 #endif
 
 enum {
-	MLX4_CQ_ENTRY_SIZE		= 0x20
-};
-
-enum {
 	MLX4_STAT_RATE_OFFSET		= 5
 };
 
@@ -192,6 +188,7 @@ struct mlx4_context {
 	int				max_qp_wr;
 	int				max_sge;
 	int				max_cqe;
+	int				cqe_size;
 
 	struct {
 		struct mlx4_srq       **table;
@@ -226,6 +223,7 @@ struct mlx4_cq {
 	uint32_t		       *set_ci_db;
 	uint32_t		       *arm_db;
 	int				arm_sn;
+	int				cqe_size;
 };
 
 struct mlx4_srq {
@@ -369,7 +367,8 @@ int mlx4_dereg_mr(struct ibv_mr *mr);
 struct ibv_cq *mlx4_create_cq(struct ibv_context *context, int cqe,
 			       struct ibv_comp_channel *channel,
 			       int comp_vector);
-int mlx4_alloc_cq_buf(struct mlx4_device *dev, struct mlx4_buf *buf, int nent);
+int mlx4_alloc_cq_buf(struct mlx4_device *dev, struct mlx4_buf *buf, int nent,
+		      int entry_size);
 int mlx4_resize_cq(struct ibv_cq *cq, int cqe);
 int mlx4_destroy_cq(struct ibv_cq *cq);
 int mlx4_poll_cq(struct ibv_cq *cq, int ne, struct ibv_wc *wc);

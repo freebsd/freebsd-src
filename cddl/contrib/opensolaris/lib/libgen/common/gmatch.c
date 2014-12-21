@@ -42,6 +42,7 @@
 #include <widec.h>
 #include "_range.h"
 #else
+#include <ctype.h>
 /* DOODAD */ static int multibyte = 0;
 #define WCHAR_CSMASK    0x30000000
 #define valid_range(c1, c2) \

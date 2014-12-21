@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_rss.h"
 
 #include <sys/param.h>
 #include <sys/domain.h>
@@ -89,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/udplite.h>
+#include <netinet/in_rss.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -112,7 +114,7 @@ __FBSDID("$FreeBSD$");
  * cause problems (especially for NFS data blocks).
  */
 VNET_DEFINE(int, udp_cksum) = 1;
-SYSCTL_VNET_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(udp_cksum), 0, "compute udp checksum");
 
 int	udp_log_in_vain = 0;
@@ -120,7 +122,7 @@ SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW,
     &udp_log_in_vain, 0, "Log all incoming UDP packets");
 
 VNET_DEFINE(int, udp_blackhole) = 0;
-SYSCTL_VNET_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(udp_blackhole), 0,
     "Do not send port unreachables for refused connects");
 
@@ -206,11 +208,18 @@ void
 udp_init(void)
 {
 
+	/*
+	 * For now default to 2-tuple UDP hashing - until the fragment
+	 * reassembly code can also update the flowid.
+	 *
+	 * Once we can calculate the flowid that way and re-establish
+	 * a 4-tuple, flip this to 4-tuple.
+	 */
 	in_pcbinfo_init(&V_udbinfo, "udp", &V_udb, UDBHASHSIZE, UDBHASHSIZE,
-	    "udp_inpcb", udp_inpcb_init, NULL, UMA_ZONE_NOFREE,
+	    "udp_inpcb", udp_inpcb_init, NULL, 0,
 	    IPI_HASHFIELDS_2TUPLE);
 	V_udpcb_zone = uma_zcreate("udpcb", sizeof(struct udpcb),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(V_udpcb_zone, maxsockets);
 	uma_zone_set_warning(V_udpcb_zone, "kern.ipc.maxsockets limit reached");
 	EVENTHANDLER_REGISTER(maxsockets_change, udp_zone_change, NULL,
@@ -223,7 +232,7 @@ udplite_init(void)
 
 	in_pcbinfo_init(&V_ulitecbinfo, "udplite", &V_ulitecb, UDBHASHSIZE,
 	    UDBHASHSIZE, "udplite_inpcb", udplite_inpcb_init, NULL,
-	    UMA_ZONE_NOFREE, IPI_HASHFIELDS_2TUPLE);
+	    0, IPI_HASHFIELDS_2TUPLE);
 }
 
 /*
@@ -303,12 +312,10 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	 */
 	up = intoudpcb(inp);
 	if (up->u_tun_func != NULL) {
-		(*up->u_tun_func)(n, off, inp);
+		(*up->u_tun_func)(n, off, inp, (struct sockaddr *)udp_in,
+		    up->u_tun_ctx);
 		return;
 	}
-
-	if (n == NULL)
-		return;
 
 	off += sizeof(struct udphdr);
 
@@ -316,7 +323,6 @@ udp_append(struct inpcb *inp, struct ip *ip, struct mbuf *n, int off,
 	/* Check AH/ESP integrity. */
 	if (ipsec4_in_reject(n, inp)) {
 		m_freem(n);
-		IPSECSTAT_INC(ips_in_polvio);
 		return;
 	}
 #ifdef IPSEC_NAT_T
@@ -435,9 +441,10 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 	 */
 	len = ntohs((u_short)uh->uh_ulen);
 	ip_len = ntohs(ip->ip_len) - iphlen;
-	if (proto == IPPROTO_UDPLITE && len == 0) {
+	if (proto == IPPROTO_UDPLITE && (len == 0 || len == ip_len)) {
 		/* Zero means checksum over the complete packet. */
-		len = ip_len;
+		if (len == 0)
+			len = ip_len;
 		cscov_partial = 0;
 	}
 	if (ip_len != len) {
@@ -488,8 +495,16 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			m_freem(m);
 			return (IPPROTO_DONE);
 		}
-	} else
-		UDPSTAT_INC(udps_nosum);
+	} else {
+		if (proto == IPPROTO_UDP) {
+			UDPSTAT_INC(udps_nosum);
+		} else {
+			/* UDPLite requires a checksum */
+			/* XXX: What is the right UDPLite MIB counter here? */
+			m_freem(m);
+			return (IPPROTO_DONE);
+		}
+	}
 
 	pcbinfo = get_inpcbinfo(proto);
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
@@ -560,8 +575,12 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			if (last != NULL) {
 				struct mbuf *n;
 
-				n = m_copy(m, 0, M_COPYALL);
-				udp_append(last, ip, n, iphlen, &udp_in);
+				if ((n = m_copy(m, 0, M_COPYALL)) != NULL) {
+					UDP_PROBE(receive, NULL, last, ip,
+					    last, uh);
+					udp_append(last, ip, n, iphlen,
+					    &udp_in);
+				}
 				INP_RUNLOCK(last);
 			}
 			last = inp;
@@ -590,6 +609,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 			INP_INFO_RUNLOCK(pcbinfo);
 			goto badunlocked;
 		}
+		UDP_PROBE(receive, NULL, last, ip, last, uh);
 		udp_append(last, ip, m, iphlen, &udp_in);
 		INP_RUNLOCK(last);
 		INP_INFO_RUNLOCK(pcbinfo);
@@ -671,7 +691,7 @@ udp_input(struct mbuf **mp, int *offp, int proto)
 		struct udpcb *up;
 
 		up = intoudpcb(inp);
-		if (up->u_rxcslen > len) {
+		if (up->u_rxcslen == 0 || up->u_rxcslen > len) {
 			INP_RUNLOCK(inp);
 			m_freem(m);
 			return (IPPROTO_DONE);
@@ -1008,7 +1028,7 @@ udp_ctloutput(struct socket *so, struct sockopt *sopt)
 			INP_WLOCK(inp);
 			up = intoudpcb(inp);
 			KASSERT(up != NULL, ("%s: up == NULL", __func__));
-			if (optval != 0 && optval < 8) {
+			if ((optval != 0 && optval < 8) || (optval > 65535)) {
 				INP_WUNLOCK(inp);
 				error = EINVAL;
 				break;
@@ -1084,6 +1104,8 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	u_char tos;
 	uint8_t pr;
 	uint16_t cscov = 0;
+	uint32_t flowid = 0;
+	uint8_t flowtype = M_HASHTYPE_NONE;
 
 	/*
 	 * udp_output() may need to temporarily bind or connect the current
@@ -1147,6 +1169,31 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 				tos = *(u_char *)CMSG_DATA(cm);
 				break;
 
+			case IP_FLOWID:
+				if (cm->cmsg_len != CMSG_LEN(sizeof(uint32_t))) {
+					error = EINVAL;
+					break;
+				}
+				flowid = *(uint32_t *) CMSG_DATA(cm);
+				break;
+
+			case IP_FLOWTYPE:
+				if (cm->cmsg_len != CMSG_LEN(sizeof(uint32_t))) {
+					error = EINVAL;
+					break;
+				}
+				flowtype = *(uint32_t *) CMSG_DATA(cm);
+				break;
+
+#ifdef	RSS
+			case IP_RSSBUCKETID:
+				if (cm->cmsg_len != CMSG_LEN(sizeof(uint32_t))) {
+					error = EINVAL;
+					break;
+				}
+				/* This is just a placeholder for now */
+				break;
+#endif	/* RSS */
 			default:
 				error = ENOPROTOOPT;
 				break;
@@ -1395,6 +1442,57 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	((struct ip *)ui)->ip_tos = tos;		/* XXX */
 	UDPSTAT_INC(udps_opackets);
 
+	/*
+	 * Setup flowid / RSS information for outbound socket.
+	 *
+	 * Once the UDP code decides to set a flowid some other way,
+	 * this allows the flowid to be overridden by userland.
+	 */
+	if (flowtype != M_HASHTYPE_NONE) {
+		m->m_pkthdr.flowid = flowid;
+		M_HASHTYPE_SET(m, flowtype);
+#ifdef	RSS
+	} else {
+		uint32_t hash_val, hash_type;
+		/*
+		 * Calculate an appropriate RSS hash for UDP and
+		 * UDP Lite.
+		 *
+		 * The called function will take care of figuring out
+		 * whether a 2-tuple or 4-tuple hash is required based
+		 * on the currently configured scheme.
+		 *
+		 * Later later on connected socket values should be
+		 * cached in the inpcb and reused, rather than constantly
+		 * re-calculating it.
+		 *
+		 * UDP Lite is a different protocol number and will
+		 * likely end up being hashed as a 2-tuple until
+		 * RSS / NICs grow UDP Lite protocol awareness.
+		 */
+		if (rss_proto_software_hash_v4(faddr, laddr, fport, lport,
+		    pr, &hash_val, &hash_type) == 0) {
+			m->m_pkthdr.flowid = hash_val;
+			M_HASHTYPE_SET(m, hash_type);
+		}
+#endif
+	}
+
+#ifdef	RSS
+	/*
+	 * Don't override with the inp cached flowid value.
+	 *
+	 * Depending upon the kind of send being done, the inp
+	 * flowid/flowtype values may actually not be appropriate
+	 * for this particular socket send.
+	 *
+	 * We should either leave the flowid at zero (which is what is
+	 * currently done) or set it to some software generated
+	 * hash value based on the packet contents.
+	 */
+	ipflags |= IP_NODEFAULTFLOWID;
+#endif	/* RSS */
+
 	if (unlock_udbinfo == UH_WLOCKED)
 		INP_HASH_WUNLOCK(pcbinfo);
 	else if (unlock_udbinfo == UH_RLOCKED)
@@ -1615,7 +1713,7 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 #endif /* INET */
 
 int
-udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f)
+udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f, void *ctx)
 {
 	struct inpcb *inp;
 	struct udpcb *up;
@@ -1631,6 +1729,7 @@ udp_set_kernel_tunneling(struct socket *so, udp_tun_func_t f)
 		return (EBUSY);
 	}
 	up->u_tun_func = f;
+	up->u_tun_ctx = ctx;
 	INP_WUNLOCK(inp);
 	return (0);
 }

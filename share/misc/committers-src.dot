@@ -179,6 +179,7 @@ ivoras [label="Ivan Voras\nivoras@FreeBSD.org\n2008/06/10"]
 jamie [label="Jamie Gritton\njamie@FreeBSD.org\n2009/01/28"]
 jasone [label="Jason Evans\njasone@FreeBSD.org\n1999/03/03"]
 jceel [label="Jakub Klama\njceel@FreeBSD.org\n2011/09/25"]
+jch [label="Julien Charbon\njch@FreeBSD.org\n2014/09/24"]
 jchandra [label="Jayachandran C.\njchandra@FreeBSD.org\n2010/05/19"]
 jeff [label="Jeff Roberson\njeff@FreeBSD.org\n2002/02/21"]
 jh [label="Jaakko Heinonen\njh@FreeBSD.org\n2009/10/02"]
@@ -484,6 +485,7 @@ jdp -> fjoe
 
 jhb -> arr
 jhb -> avg
+jhb -> jch
 jhb -> jeff
 jhb -> kbyanc
 jhb -> peterj

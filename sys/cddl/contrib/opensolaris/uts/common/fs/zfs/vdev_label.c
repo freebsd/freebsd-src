@@ -713,8 +713,9 @@ vdev_label_init(vdev_t *vd, uint64_t crtxg, vdev_labeltype_t reason)
 	 * Don't TRIM if removing so that we don't interfere with zpool
 	 * disaster recovery.
 	 */
-	if (zfs_trim_enabled && vdev_trim_on_init && (reason == VDEV_LABEL_CREATE ||
-	    reason == VDEV_LABEL_SPARE || reason == VDEV_LABEL_L2CACHE))
+	if (zfs_trim_enabled && vdev_trim_on_init && !vd->vdev_notrim && 
+	    (reason == VDEV_LABEL_CREATE || reason == VDEV_LABEL_SPARE ||
+	    reason == VDEV_LABEL_L2CACHE))
 		zio_wait(zio_trim(NULL, spa, vd, 0, vd->vdev_psize));
 
 	/*
@@ -992,7 +993,7 @@ vdev_uberblock_sync_done(zio_t *zio)
 	uint64_t *good_writes = zio->io_private;
 
 	if (zio->io_error == 0 && zio->io_vd->vdev_top->vdev_ms_array != 0)
-		atomic_add_64(good_writes, 1);
+		atomic_inc_64(good_writes);
 }
 
 /*
@@ -1067,7 +1068,7 @@ vdev_label_sync_done(zio_t *zio)
 	uint64_t *good_writes = zio->io_private;
 
 	if (zio->io_error == 0)
-		atomic_add_64(good_writes, 1);
+		atomic_inc_64(good_writes);
 }
 
 /*

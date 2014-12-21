@@ -291,6 +291,7 @@ static int radeon_fbdev_destroy(struct drm_device *dev, struct radeon_fbdev *rfb
 
 	if (rfbdev->helper.fbdev) {
 		info = rfbdev->helper.fbdev;
+		free(info->fb_priv, DRM_MEM_KMS);
 		free(info, DRM_MEM_KMS);
 	}
 

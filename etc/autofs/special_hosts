@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+if [ $# -eq 0 ]; then
+	out=`getent hosts`
+	[ $? -eq 0 ] || exit 1
+	echo "$out" | awk '{ print $2 }' | sort -u
+	exit 0
+fi
+
+out=`showmount -e "$1"`
+[ $? -eq 0 ] || exit 1
+echo "$out" | awk -v host="$1" \
+    'NR > 1 { printf "%s\t%s:%s ", $1, host, $1 } END { printf "\n" }'
+

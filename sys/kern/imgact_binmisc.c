@@ -600,12 +600,12 @@ imgact_binmisc_exec(struct image_params *imgp)
 	}
 
 	/* No interpreter nesting allowed. */
-	if (imgp->interpreted) {
+	if (imgp->interpreted & IMGACT_BINMISC) {
 		mtx_unlock(&interp_list_mtx);
 		return (ENOEXEC);
 	}
 
-	imgp->interpreted = 1;
+	imgp->interpreted |= IMGACT_BINMISC;
 
 	if (imgp->args->fname != NULL) {
 		fname = imgp->args->fname;

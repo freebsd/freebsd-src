@@ -1452,7 +1452,7 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 	 *    the server value).
 	 */
 	p = NULL;
-	if ((s = getenv("vfs.root.mountfrom")) != NULL) {
+	if ((s = kern_getenv("vfs.root.mountfrom")) != NULL) {
 		if ((p = strstr(s, "nfs:")) != NULL)
 			p = strdup(p + 4, M_TEMP);
 		freeenv(s);
@@ -1723,7 +1723,7 @@ retry:
 
 	if (gctx->gotrootpath != 0) {
 
-		setenv("boot.netif.name", ifctx->ifp->if_xname);
+		kern_setenv("boot.netif.name", ifctx->ifp->if_xname);
 
 		error = md_mount(&nd->root_saddr, nd->root_hostnam,
 				 nd->root_fh, &nd->root_fhsize,

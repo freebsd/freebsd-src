@@ -57,6 +57,7 @@ static const char *features_for_read[] = {
 	"com.delphix:hole_birth",
 	"com.delphix:extensible_dataset",
 	"com.delphix:embedded_data",
+	"org.open-zfs:large_blocks",
 	NULL
 };
 
@@ -1221,6 +1222,11 @@ dnode_read(const spa_t *spa, const dnode_phys_t *dnode, off_t offset, void *buf,
 	int bsize = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
 	int nlevels = dnode->dn_nlevels;
 	int i, rc;
+
+	if (bsize > SPA_MAXBLOCKSIZE) {
+		printf("ZFS: I/O error - blocks larger than 128K are not supported\n");
+		return (EIO);
+	}
 
 	/*
 	 * Note: bsize may not be a power of two here so we need to do an

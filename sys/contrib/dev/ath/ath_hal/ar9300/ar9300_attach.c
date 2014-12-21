@@ -618,7 +618,8 @@ ar9300_read_revisions(struct ath_hal *ah)
  */
 struct ath_hal *
 ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
-  HAL_BUS_HANDLE sh, uint16_t *eepromdata, HAL_STATUS *status)
+  HAL_BUS_HANDLE sh, uint16_t *eepromdata, HAL_OPS_CONFIG *ah_config,
+  HAL_STATUS *status)
 {
     struct ath_hal_9300     *ahp;
     struct ath_hal          *ah;
@@ -628,7 +629,7 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
     HAL_NO_INTERSPERSED_READS;
 
     /* NB: memory is returned zero'd */
-    ahp = ar9300_new_state(devid, sc, st, sh, eepromdata, status);
+    ahp = ar9300_new_state(devid, sc, st, sh, eepromdata, ah_config, status);
     if (ahp == AH_NULL) {
         return AH_NULL;
     }
@@ -653,12 +654,6 @@ ar9300_attach(u_int16_t devid, HAL_SOFTC sc, HAL_BUS_TAG st,
 
     /* XXX FreeBSD: enable RX mitigation */
     ah->ah_config.ath_hal_intr_mitigation_rx = 1;
-
-    /*
-     * XXX what's this do? Check in the qcamain driver code
-     * as to what it does.
-     */
-    ah->ah_config.ath_hal_ext_atten_margin_cfg = 0;
 
     /* interrupt mitigation */
 #ifdef AR5416_INT_MITIGATION
@@ -2378,7 +2373,9 @@ ar9300_detach(struct ath_hal *ah)
 struct ath_hal_9300 *
 ar9300_new_state(u_int16_t devid, HAL_SOFTC sc,
     HAL_BUS_TAG st, HAL_BUS_HANDLE sh,
-    uint16_t *eepromdata, HAL_STATUS *status)
+    uint16_t *eepromdata,
+    HAL_OPS_CONFIG *ah_config,
+    HAL_STATUS *status)
 {
     static const u_int8_t defbssidmask[IEEE80211_ADDR_LEN] =
         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
@@ -2430,7 +2427,7 @@ ar9300_new_state(u_int16_t devid, HAL_SOFTC sc,
     ** Initialize factory defaults in the private space
     */
 //    ath_hal_factory_defaults(AH_PRIVATE(ah), hal_conf_parm);
-    ar9300_config_defaults_freebsd(ah);
+    ar9300_config_defaults_freebsd(ah, ah_config);
 
     /* XXX FreeBSD: cal is always in EEPROM */
 #if 0
@@ -2456,6 +2453,7 @@ ar9300_new_state(u_int16_t devid, HAL_SOFTC sc,
     AH_PRIVATE(ah)->ah_tpScale = HAL_TP_SCALE_MAX;  /* no scaling */
 
     ahp->ah_atim_window = 0;         /* [0..1000] */
+
     ahp->ah_diversity_control =
         ah->ah_config.ath_hal_diversity_control;
     ahp->ah_antenna_switch_swap =
@@ -3835,6 +3833,11 @@ ar9300_ant_div_comb_get_config(struct ath_hal *ah,
     } else {
         div_comb_conf->antdiv_configgroup = DEFAULT_ANTDIV_CONFIG_GROUP;
     }
+
+    /*
+     * XXX TODO: allow the HAL to override the rssithres and fast_div_bias
+     * values (eg CUS198.)
+     */
 }
 
 void

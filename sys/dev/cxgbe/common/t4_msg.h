@@ -273,6 +273,7 @@ union opcode_tid {
 
 /* extract the TID from a CPL command */
 #define GET_TID(cmd) (G_TID(ntohl(OPCODE_TID(cmd))))
+#define GET_OPCODE(cmd) ((cmd)->ot.opcode)
 
 /* partitioning of TID fields that also carry a queue id */
 #define S_TID_TID    0

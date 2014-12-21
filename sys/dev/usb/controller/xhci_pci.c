@@ -102,11 +102,15 @@ xhci_pci_match(device_t self)
 	case 0x10421b21:
 		return ("ASMedia ASM1042 USB 3.0 controller");
 
+	case 0x0f358086:
+		return ("Intel Intel BayTrail USB 3.0 controller");
 	case 0x9c318086:
 	case 0x1e318086:
 		return ("Intel Panther Point USB 3.0 controller");
 	case 0x8c318086:
 		return ("Intel Lynx Point USB 3.0 controller");
+	case 0x8cb18086:
+		return ("Intel Wildcat Point USB 3.0 controller");
 
 	default:
 		break;
@@ -244,9 +248,11 @@ xhci_pci_attach(device_t self)
 
 	/* On Intel chipsets reroute ports from EHCI to XHCI controller. */
 	switch (pci_get_devid(self)) {
+	case 0x0f358086:	/* BayTrail */
 	case 0x9c318086:	/* Panther Point */
 	case 0x1e318086:	/* Panther Point */
 	case 0x8c318086:	/* Lynx Point */
+	case 0x8cb18086:	/* Wildcat Point */
 		sc->sc_port_route = &xhci_pci_port_route;
 		sc->sc_imod_default = XHCI_IMOD_DEFAULT_LP;
 		break;

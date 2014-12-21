@@ -271,6 +271,9 @@
 /* target host supports USB sniffing */
 /* #undef PCAP_SUPPORT_USB */
 
+/* target host supports netmap */
+#define PCAP_SUPPORT_NETMAP 1
+
 /* include ACN support */
 /* #undef SITA */
 

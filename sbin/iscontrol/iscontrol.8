@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 9, 2010
+.Dd October 9, 2014
 .Dt ISCONTROL 8
 .Os
 .Sh NAME
@@ -41,6 +41,15 @@
 .Op Fl t Ar target
 .Op Ar variable Ns = Ns Ar value
 .Sh DESCRIPTION
+.Bf -symbolic
+This command, along with its kernel counterpart
+.Xr iscsi_initiator 4 , 
+is obsolete.
+Users are advised to use
+.Xr iscsictl 8
+instead.
+.Ef
+.Pp
 Internet SCSI (iSCSI) is a network protocol standard, that allows the
 use of the SCSI protocol over TCP/IP networks,
 the

@@ -132,6 +132,7 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 			ISP_SET_PC(isp, chan, proc_active, 0);
 			isp_prt(isp, ISP_LOGERR, "cannot create test target thread");
 		}
+		ISP_SPI_PC(isp, chan)->num_threads += 1;
 #endif
 	} else {
 		fcparam *fcp = FCPARAM(isp, chan);
@@ -167,12 +168,14 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 			cam_sim_free(fc->sim, FALSE);
 			return (ENOMEM);
 		}
+		ISP_FC_PC(isp, chan)->num_threads += 1;
 #ifdef	ISP_INTERNAL_TARGET
 		ISP_SET_PC(isp, chan, proc_active, 1);
 		if (THREAD_CREATE(isp_target_thread_fc, fc, &fc->target_proc, 0, 0, "%s: isp_test_tgt%d", device_get_nameunit(isp->isp_osinfo.dev), chan)) {
 			ISP_SET_PC(isp, chan, proc_active, 0);
 			isp_prt(isp, ISP_LOGERR, "cannot create test target thread");
 		}
+		ISP_FC_PC(isp, chan)->num_threads += 1;
 #endif
 		if (chan == 0) {
 			struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(isp->isp_osinfo.dev);
@@ -187,6 +190,47 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 		}
 	}
 	return (0);
+}
+
+static void
+isp_detach_internal_target(ispsoftc_t *isp, int chan)
+{
+#ifdef ISP_INTERNAL_TARGET
+	void *wchan;
+
+	ISP_GET_PC(isp, chan, target_proc, wchan);
+	ISP_SET_PC(isp, chan, proc_active, 0);
+	wakeup(wchan);
+#endif
+}
+
+static void
+isp_detach_chan(ispsoftc_t *isp, int chan)
+{
+	struct cam_sim *sim;
+	struct cam_path *path;
+	struct ccb_setasync csa;
+	int *num_threads;
+
+	ISP_GET_PC(isp, chan, sim, sim);
+	ISP_GET_PC(isp, chan, path, path);
+	ISP_GET_PC_ADDR(isp, chan, num_threads, num_threads);
+
+	xpt_setup_ccb(&csa.ccb_h, path, 5);
+	csa.ccb_h.func_code = XPT_SASYNC_CB;
+	csa.event_enable = 0;
+	csa.callback = isp_cam_async;
+	csa.callback_arg = sim;
+	xpt_action((union ccb *)&csa);
+	xpt_free_path(path);
+	xpt_bus_deregister(cam_sim_path(sim));
+	cam_sim_free(sim, FALSE);
+
+	/* Wait for the channel's spawned threads to exit. */
+	wakeup(isp->isp_osinfo.pc.ptr);
+	isp_detach_internal_target(isp, chan);
+	while (*num_threads != 0)
+		mtx_sleep(isp, &isp->isp_osinfo.lock, PRIBIO, "isp_reap", 100);
 }
 
 int
@@ -239,13 +283,9 @@ unwind:
 	while (--chan >= 0) {
 		struct cam_sim *sim;
 		struct cam_path *path;
-		if (IS_FC(isp)) {
-			sim = ISP_FC_PC(isp, chan)->sim;
-			path = ISP_FC_PC(isp, chan)->path;
-		} else {
-			sim = ISP_SPI_PC(isp, chan)->sim;
-			path = ISP_SPI_PC(isp, chan)->path;
-		}
+
+		ISP_GET_PC(isp, chan, sim, sim);
+		ISP_GET_PC(isp, chan, path, path);
 		xpt_free_path(path);
 		ISP_LOCK(isp);
 		xpt_bus_deregister(cam_sim_path(sim));
@@ -269,49 +309,26 @@ int
 isp_detach(ispsoftc_t *isp)
 {
 	struct cam_sim *sim;
-	struct cam_path *path;
-	struct ccb_setasync csa;
 	int chan;
 
 	ISP_LOCK(isp);
 	for (chan = isp->isp_nchan - 1; chan >= 0; chan -= 1) {
-		if (IS_FC(isp)) {
-			sim = ISP_FC_PC(isp, chan)->sim;
-			path = ISP_FC_PC(isp, chan)->path;
-		} else {
-			sim = ISP_SPI_PC(isp, chan)->sim;
-			path = ISP_SPI_PC(isp, chan)->path;
-		}
+		ISP_GET_PC(isp, chan, sim, sim);
 		if (sim->refcount > 2) {
 			ISP_UNLOCK(isp);
 			return (EBUSY);
 		}
 	}
+	/* Tell spawned threads that we're exiting. */
+	isp->isp_osinfo.is_exiting = 1;
 	if (isp->isp_osinfo.timer_active) {
 		callout_stop(&isp->isp_osinfo.tmo);
 		isp->isp_osinfo.timer_active = 0;
 	}
-	for (chan = isp->isp_nchan - 1; chan >= 0; chan -= 1) {
-		if (IS_FC(isp)) {
-			sim = ISP_FC_PC(isp, chan)->sim;
-			path = ISP_FC_PC(isp, chan)->path;
-		} else {
-			sim = ISP_SPI_PC(isp, chan)->sim;
-			path = ISP_SPI_PC(isp, chan)->path;
-		}
-		xpt_setup_ccb(&csa.ccb_h, path, 5);
-		csa.ccb_h.func_code = XPT_SASYNC_CB;
-		csa.event_enable = 0;
-		csa.callback = isp_cam_async;
-		csa.callback_arg = sim;
-		ISP_LOCK(isp);
-		xpt_action((union ccb *)&csa);
-		ISP_UNLOCK(isp);
-		xpt_free_path(path);
-		xpt_bus_deregister(cam_sim_path(sim));
-		cam_sim_free(sim, FALSE);
-	}
+	for (chan = isp->isp_nchan - 1; chan >= 0; chan -= 1)
+		isp_detach_chan(isp, chan);
 	ISP_UNLOCK(isp);
+
 	if (isp->isp_osinfo.cdev) {
 		destroy_dev(isp->isp_osinfo.cdev);
 		isp->isp_osinfo.cdev = NULL;
@@ -877,7 +894,7 @@ is_lun_enabled(ispsoftc_t *isp, int bus, lun_id_t lun)
 
 	ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(lun)], lhp);
 	SLIST_FOREACH(tptr, lhp, next) {
-		if (xpt_path_lun_id(tptr->owner) == lun) {
+		if (tptr->ts_lun == lun) {
 			return (1);
 		}
 	}
@@ -909,16 +926,13 @@ get_lun_statep(ispsoftc_t *isp, int bus, lun_id_t lun)
 {
 	tstate_t *tptr = NULL;
 	struct tslist *lhp;
-	int i;
 
 	if (bus < isp->isp_nchan) {
-		for (i = 0; i < LUN_HASH_SIZE; i++) {
-			ISP_GET_PC_ADDR(isp, bus, lun_hash[i], lhp);
-			SLIST_FOREACH(tptr, lhp, next) {
-				if (xpt_path_lun_id(tptr->owner) == lun) {
-					tptr->hold++;
-					return (tptr);
-				}
+		ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(lun)], lhp);
+		SLIST_FOREACH(tptr, lhp, next) {
+			if (tptr->ts_lun == lun) {
+				tptr->hold++;
+				return (tptr);
 			}
 		}
 	}
@@ -1132,6 +1146,7 @@ create_lun_state(ispsoftc_t *isp, int bus, struct cam_path *path, tstate_t **rsl
 	if (tptr == NULL) {
 		return (CAM_RESRC_UNAVAIL);
 	}
+	tptr->ts_lun = lun;
 	status = xpt_create_path(&tptr->owner, NULL, xpt_path_path_id(path), xpt_path_target_id(path), lun);
 	if (status != CAM_REQ_CMP) {
 		free(tptr, M_DEVBUF);
@@ -1149,7 +1164,7 @@ create_lun_state(ispsoftc_t *isp, int bus, struct cam_path *path, tstate_t **rsl
 		tptr->ntpool[i].next = &tptr->ntpool[i+1];
 	tptr->ntfree = tptr->ntpool;
 	tptr->hold = 1;
-	ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(xpt_path_lun_id(tptr->owner))], lhp);
+	ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(lun)], lhp);
 	SLIST_INSERT_HEAD(lhp, tptr, next);
 	*rslt = tptr;
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0, path, "created tstate\n");
@@ -1180,7 +1195,7 @@ destroy_lun_state(ispsoftc_t *isp, tstate_t *tptr)
 			xpt_done(ccb);
 		}
 	} while (ccb);
-	ISP_GET_PC_ADDR(isp, cam_sim_bus(xpt_path_sim(tptr->owner)), lun_hash[LUN_HASH_FUNC(xpt_path_lun_id(tptr->owner))], lhp);
+	ISP_GET_PC_ADDR(isp, cam_sim_bus(xpt_path_sim(tptr->owner)), lun_hash[LUN_HASH_FUNC(tptr->ts_lun)], lhp);
 	SLIST_REMOVE(lhp, tptr, tstate, next);
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0, tptr->owner, "destroyed tstate\n");
 	xpt_free_path(tptr->owner);
@@ -1356,7 +1371,7 @@ isp_enable_deferred_luns(ispsoftc_t *isp, int bus)
 		SLIST_FOREACH(tptr, lhp, next) {
 			tptr->hold++;
 			if (tptr->enabled == 0) {
-				if (isp_enable_deferred(isp, bus, xpt_path_lun_id(tptr->owner)) == CAM_REQ_CMP) {
+				if (isp_enable_deferred(isp, bus, tptr->ts_lun) == CAM_REQ_CMP) {
 					tptr->enabled = 1;
 					n++;
 				}
@@ -2119,10 +2134,9 @@ static void
 isp_refire_putback_atio(void *arg)
 {
 	union ccb *ccb = arg;
-	ispsoftc_t *isp = XS_ISP(ccb);
-	ISP_LOCK(isp);
+
+	ISP_ASSERT_LOCKED((ispsoftc_t *)XS_ISP(ccb));
 	isp_target_putback_atio(ccb);
-	ISP_UNLOCK(isp);
 }
 
 static void
@@ -2130,13 +2144,13 @@ isp_refire_notify_ack(void *arg)
 {
 	isp_tna_t *tp  = arg;
 	ispsoftc_t *isp = tp->isp;
-	ISP_LOCK(isp);
+
+	ISP_ASSERT_LOCKED(isp);
 	if (isp_notify_ack(isp, tp->not)) {
-		(void) timeout(isp_refire_notify_ack, tp, 5);
+		callout_schedule(&tp->timer, 5);
 	} else {
 		free(tp, M_DEVBUF);
 	}
-	ISP_UNLOCK(isp);
 }
 
 
@@ -2153,7 +2167,8 @@ isp_target_putback_atio(union ccb *ccb)
 	if (qe == NULL) {
 		xpt_print(ccb->ccb_h.path,
 		    "%s: Request Queue Overflow\n", __func__);
-		(void) timeout(isp_refire_putback_atio, ccb, 10);
+		callout_reset(&PISP_PCMD(ccb)->wdog, 10,
+		    isp_refire_putback_atio, ccb);
 		return;
 	}
 	memset(qe, 0, QENTRY_LEN);
@@ -4225,7 +4240,7 @@ isp_target_thread(ispsoftc_t *isp, int chan)
 	/*
 	 * Add resources
 	 */
-	ISP_GET_PC_ADDR(isp, chan, target_proc, wchan);
+	ISP_GET_PC(isp, chan, target_proc, wchan);
 	for (i = 0; i < 4; i++) {
 		ccb = malloc(sizeof (*ccb), M_ISPTARG, M_WAITOK | M_ZERO);
 		xpt_setup_ccb(&ccb->ccb_h, wperiph->path, 1);
@@ -4313,14 +4328,24 @@ static void
 isp_target_thread_pi(void *arg)
 {
 	struct isp_spi *pi = arg;
-	isp_target_thread(cam_sim_softc(pi->sim), cam_sim_bus(pi->sim));
+	ispsoftc_t *isp = cam_sim_softc(pi->sim);
+	int chan = cam_sim_bus(pi->sim);
+
+	isp_target_thread(isp, chan);
+	ISP_SPI_PC(isp, chan)->num_threads -= 1;
+	kthread_exit();
 }
 
 static void
 isp_target_thread_fc(void *arg)
 {
 	struct isp_fc *fc = arg;
-	isp_target_thread(cam_sim_softc(fc->sim), cam_sim_bus(fc->sim));
+	ispsoftc_t *isp = cam_sim_softc(pi->sim);
+	int chan = cam_sim_bus(pi->sim);
+
+	isp_target_thread(isp, chan);
+	ISP_FC_PC(isp, chan)->num_threads -= 1;
+	kthread_exit();
 }
 
 static int
@@ -4748,7 +4773,7 @@ isp_kthread(void *arg)
 
 	mtx_lock(&isp->isp_osinfo.lock);
 
-	for (;;) {
+	while (isp->isp_osinfo.is_exiting == 0) {
 		int lb, lim;
 
 		isp_prt(isp, ISP_LOG_SANCFG|ISP_LOGDEBUG0, "%s: Chan %d checking FC state", __func__, chan);
@@ -4844,7 +4869,9 @@ isp_kthread(void *arg)
 			mtx_lock(&isp->isp_osinfo.lock);
 		}
 	}
+	fc->num_threads -= 1;
 	mtx_unlock(&isp->isp_osinfo.lock);
+	kthread_exit();
 }
 
 static void
@@ -5935,7 +5962,9 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 				} else {
 					tp->not = NULL;
 				}
-				(void) timeout(isp_refire_notify_ack, tp, 5);
+				callout_init_mtx(&tp->timer, &isp->isp_lock, 0);
+				callout_reset(&tp->timer, 5,
+				    isp_refire_notify_ack, tp);
 			} else {
 				isp_prt(isp, ISP_LOGERR, "you lose- cannot allocate a notify refire");
 			}
@@ -6011,7 +6040,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			 */
 			tptr = get_lun_statep_from_tag(isp, chan, abts->abts_rxid_task);
 			if (tptr) {
-				nt->nt_lun = xpt_path_lun_id(tptr->owner);
+				nt->nt_lun = tptr->ts_lun;
 				rls_lun_statep(isp, tptr);
 			} else {
 				nt->nt_lun = LUN_ANY;
@@ -6109,10 +6138,9 @@ isp_default_wwn(ispsoftc_t * isp, int chan, int isactive, int iswwnn)
 			return (seed);
 		}
 		return (0x400000007F000009ull);
-	} else {
-		seed = iswwnn ? fc->def_wwnn : fc->def_wwpn;
 	}
 
+	seed = iswwnn ? fc->def_wwnn : fc->def_wwpn;
 
 	/*
 	 * For channel zero just return what we have. For either ACTIVE or
@@ -6135,11 +6163,9 @@ isp_default_wwn(ispsoftc_t * isp, int chan, int isactive, int iswwnn)
 	if (seed) {
 		return (seed);
 	}
-	if (isactive) {
+	seed = iswwnn ? ISP_FC_PC(isp, 0)->def_wwnn : ISP_FC_PC(isp, 0)->def_wwpn;
+	if (seed == 0)
 		seed = iswwnn ? FCPARAM(isp, 0)->isp_wwnn_nvram : FCPARAM(isp, 0)->isp_wwpn_nvram;
-	} else {
-		seed = iswwnn ? ISP_FC_PC(isp, 0)->def_wwnn : ISP_FC_PC(isp, 0)->def_wwpn;
-	}
 
 	if (((seed >> 60) & 0xf) == 2) {
 		/*

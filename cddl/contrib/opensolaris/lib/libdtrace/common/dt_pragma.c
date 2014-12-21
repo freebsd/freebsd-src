@@ -36,6 +36,7 @@
 #include <stdio.h>
 
 #include <sys/types.h>
+#include <sys/sysctl.h>
 #include <sys/stat.h>
 
 #include <dt_parser.h>

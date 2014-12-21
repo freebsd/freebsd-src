@@ -324,6 +324,10 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	/* The relocation for the dynamic loader has already been done. */
 	if (obj == obj_rtld)
 		return (0);
+	if ((flags & SYMLOOK_IFUNC) != 0)
+		/* XXX not implemented */
+		return (0);
+
 	/*
  	 * The dynamic loader may be called from a thread, we have
 	 * limited amounts of stack available so we cannot use alloca().

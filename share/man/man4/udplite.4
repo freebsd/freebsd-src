@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 7, 2014
+.Dd October 1, 2014
 .Dt UDPLITE 4
 .Os
 .Sh NAME
@@ -55,16 +55,16 @@ and tested with
 .Bl -tag -width ".Dv UDPLITE_SEND_CSCOV"
 .It Dv UDPLITE_SEND_CSCOV
 This option sets the sender checksum coverage.
-A value of zero indicates that the entire packet
-is covered by the checksum. 
-A value of 1 to 7 must be discarded by the receiver.
+A value of zero indicates that all sent packets will have
+full checksum coverage.
+A value of 8 to 65535 limits the checksum coverage of all sent packets
+to the value given.
 .It Dv UDPLITE_RECV_CSCOV
 This option is the receiver-side analogue.
-It is truly optional, i.e. not required to enable traffic
-with partial checksum coverage.
-Its function is that of a traffic filter:
-when enabled, it instructs the kernel to drop
-all packets which have a coverage less than this value.
+A value of zero instructs the kernel to drop all received packets
+not having full checksum coverage.
+A value of 8 to 65535 instructs the kernel to drop all received
+packets with a partial checksum coverage smaller than the value specified.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:

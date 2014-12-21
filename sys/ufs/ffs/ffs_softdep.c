@@ -735,7 +735,7 @@ static struct malloc_type *memtype[] = {
 static	void check_clear_deps(struct mount *);
 static	void softdep_error(char *, int);
 static	int softdep_process_worklist(struct mount *, int);
-static	int softdep_waitidle(struct mount *);
+static	int softdep_waitidle(struct mount *, int);
 static	void drain_output(struct vnode *);
 static	struct buf *getdirtybuf(struct buf *, struct rwlock *, int);
 static	void clear_remove(struct mount *);
@@ -1911,7 +1911,7 @@ softdep_flushworklist(oldmnt, countp, td)
 }
 
 static int
-softdep_waitidle(struct mount *mp)
+softdep_waitidle(struct mount *mp, int flags __unused)
 {
 	struct ufsmount *ump;
 	int error;
@@ -1921,8 +1921,9 @@ softdep_waitidle(struct mount *mp)
 	ACQUIRE_LOCK(ump);
 	for (i = 0; i < 10 && ump->softdep_deps; i++) {
 		ump->softdep_req = 1;
-		if (ump->softdep_on_worklist)
-			panic("softdep_waitidle: work added after flush.");
+		KASSERT((flags & FORCECLOSE) == 0 ||
+		    ump->softdep_on_worklist == 0,
+		    ("softdep_waitidle: work added after flush"));
 		msleep(&ump->softdep_deps, LOCK_PTR(ump), PVM, "softdeps", 1);
 	}
 	ump->softdep_req = 0;
@@ -1990,7 +1991,7 @@ retry_flush:
 		error = EBUSY;
 	}
 	if (!error)
-		error = softdep_waitidle(oldmnt);
+		error = softdep_waitidle(oldmnt, flags);
 	if (!error) {
 		if (oldmnt->mnt_kern_flag & MNTK_UNMOUNT) {
 			retry = 0;
@@ -2453,7 +2454,6 @@ softdep_mount(devvp, mp, fs, cred)
 	ump->um_softdep = sdp;
 	MNT_IUNLOCK(mp);
 	rw_init(LOCK_PTR(ump), "Per-Filesystem Softdep Lock");
-	TAILQ_INSERT_TAIL(&softdepmounts, sdp, sd_next);
 	sdp->sd_ump = ump;
 	LIST_INIT(&ump->softdep_workitem_pending);
 	LIST_INIT(&ump->softdep_journal_pending);
@@ -2479,6 +2479,9 @@ softdep_mount(devvp, mp, fs, cred)
 	ump->indir_hash_size = i - 1;
 	for (i = 0; i <= ump->indir_hash_size; i++)
 		TAILQ_INIT(&ump->indir_hashtbl[i]);
+	ACQUIRE_GBLLOCK(&lk);
+	TAILQ_INSERT_TAIL(&softdepmounts, sdp, sd_next);
+	FREE_GBLLOCK(&lk);
 	if ((fs->fs_flags & FS_SUJ) &&
 	    (error = journal_mount(mp, fs, cred)) != 0) {
 		printf("Failed to start journal: %d\n", error);
@@ -2562,8 +2565,10 @@ softdep_unmount(mp)
 	/*
 	 * Free up our resources.
 	 */
-	rw_destroy(LOCK_PTR(ump));
+	ACQUIRE_GBLLOCK(&lk);
 	TAILQ_REMOVE(&softdepmounts, ump->um_softdep, sd_next);
+	FREE_GBLLOCK(&lk);
+	rw_destroy(LOCK_PTR(ump));
 	hashdestroy(ump->pagedep_hashtbl, M_PAGEDEP, ump->pagedep_hash_size);
 	hashdestroy(ump->inodedep_hashtbl, M_INODEDEP, ump->inodedep_hash_size);
 	hashdestroy(ump->newblk_hashtbl, M_NEWBLK, ump->newblk_hash_size);

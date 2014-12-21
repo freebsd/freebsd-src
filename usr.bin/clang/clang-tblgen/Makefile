@@ -19,6 +19,4 @@ SRCS=	ClangASTNodesEmitter.cpp \
 LIBDEPS=llvmtablegen \
 	llvmsupport
 
-NO_PIE=	yes
-
 .include "../clang.prog.mk"

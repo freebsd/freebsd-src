@@ -776,19 +776,19 @@ ate_tick(void *xsc)
 	sc->mibdata.dot3StatsAlignmentErrors += RD4(sc, ETH_ALE);
 	sc->mibdata.dot3StatsFCSErrors += RD4(sc, ETH_SEQE);
 	c = RD4(sc, ETH_SCOL);
-	ifp->if_collisions += c;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, c);
 	sc->mibdata.dot3StatsSingleCollisionFrames += c;
 	c = RD4(sc, ETH_MCOL);
 	sc->mibdata.dot3StatsMultipleCollisionFrames += c;
-	ifp->if_collisions += c;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, c);
 	sc->mibdata.dot3StatsSQETestErrors += RD4(sc, ETH_SQEE);
 	sc->mibdata.dot3StatsDeferredTransmissions += RD4(sc, ETH_DTE);
 	c = RD4(sc, ETH_LCOL);
 	sc->mibdata.dot3StatsLateCollisions += c;
-	ifp->if_collisions += c;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, c);
 	c = RD4(sc, ETH_ECOL);
 	sc->mibdata.dot3StatsExcessiveCollisions += c;
-	ifp->if_collisions += c;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, c);
 	sc->mibdata.dot3StatsCarrierSenseErrors += RD4(sc, ETH_CSE);
 	sc->mibdata.dot3StatsFrameTooLongs += RD4(sc, ETH_ELR);
 	sc->mibdata.dot3StatsInternalMacReceiveErrors += RD4(sc, ETH_DRFC);
@@ -797,9 +797,9 @@ ate_tick(void *xsc)
 	 * Not sure where to lump these, so count them against the errors
 	 * for the interface.
 	 */
-	sc->ifp->if_oerrors += RD4(sc, ETH_TUE);
-	sc->ifp->if_ierrors += RD4(sc, ETH_CDE) + RD4(sc, ETH_RJB) +
-	    RD4(sc, ETH_USF);
+	if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, RD4(sc, ETH_TUE));
+	if_inc_counter(sc->ifp, IFCOUNTER_IERRORS,
+	    RD4(sc, ETH_CDE) + RD4(sc, ETH_RJB) + RD4(sc, ETH_USF));
 
 	/* Schedule another timeout one second from now. */
 	callout_reset(&sc->tick_ch, hz, ate_tick, sc);
@@ -914,7 +914,7 @@ ate_intr(void *xsc)
 			mb = m_get2(remain + ETHER_ALIGN, M_NOWAIT, MT_DATA,
 			    M_PKTHDR);
 			if (mb == NULL) {
-				sc->ifp->if_iqdrops++;
+				if_inc_counter(sc->ifp, IFCOUNTER_IQDROPS, 1);
 				rxdhead->status = 0;
 				continue;
 			}
@@ -957,7 +957,7 @@ ate_intr(void *xsc)
 
 			} while (!done);
 
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 			(*ifp->if_input)(ifp, mb);
 		}
 	}
@@ -990,7 +990,7 @@ ate_intr(void *xsc)
 			m_freem(sc->sent_mbuf[sc->txtail]);
 			sc->tx_descs[sc->txtail].addr = 0;
 			sc->sent_mbuf[sc->txtail] = NULL;
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 			sc->txtail = NEXT_TX_IDX(sc, sc->txtail);
 		}
 
@@ -1162,7 +1162,7 @@ atestart_locked(struct ifnet *ifp)
 			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(sc->mtag, sc->tx_map[sc->txtail]);
 			m_free(sc->sent_mbuf[sc->txhead]);
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		}
 		
 		sc->sent_mbuf[sc->txhead] = m;

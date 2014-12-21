@@ -22,7 +22,7 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
- * Copyright (c) 2012, 2014 by Delphix. All rights reserved.
+ * Copyright (c) 2011, 2014 by Delphix. All rights reserved.
  * Copyright (c) 2013, Joyent, Inc. All rights reserved.
  */
 
@@ -304,7 +304,6 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
 		case ZPOOL_PROP_FREE:
 		case ZPOOL_PROP_FREEING:
 		case ZPOOL_PROP_LEAKED:
-		case ZPOOL_PROP_EXPANDSZ:
 			if (literal) {
 				(void) snprintf(buf, len, "%llu",
 				    (u_longlong_t)intval);
@@ -312,7 +311,16 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
 				(void) zfs_nicenum(intval, buf, len);
 			}
 			break;
-
+		case ZPOOL_PROP_EXPANDSZ:
+			if (intval == 0) {
+				(void) strlcpy(buf, "-", len);
+			} else if (literal) {
+				(void) snprintf(buf, len, "%llu",
+				    (u_longlong_t)intval);
+			} else {
+				(void) zfs_nicenum(intval, buf, len);
+			}
+			break;
 		case ZPOOL_PROP_CAPACITY:
 			if (literal) {
 				(void) snprintf(buf, len, "%llu",
@@ -330,13 +338,11 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
 				    (u_longlong_t)intval);
 			}
 			break;
-
 		case ZPOOL_PROP_DEDUPRATIO:
 			(void) snprintf(buf, len, "%llu.%02llux",
 			    (u_longlong_t)(intval / 100),
 			    (u_longlong_t)(intval % 100));
 			break;
-
 		case ZPOOL_PROP_HEALTH:
 			verify(nvlist_lookup_nvlist(zpool_get_config(zhp, NULL),
 			    ZPOOL_CONFIG_VDEV_TREE, &nvroot) == 0);

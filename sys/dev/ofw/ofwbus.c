@@ -399,10 +399,16 @@ ofwbus_adjust_resource(device_t bus, device_t child __unused, int type,
 }
 
 static int
-ofwbus_release_resource(device_t bus __unused, device_t child, int type,
+ofwbus_release_resource(device_t bus, device_t child, int type,
     int rid, struct resource *r)
 {
+	struct resource_list_entry *rle;
 	int error;
+
+	/* Clean resource list entry */
+	rle = resource_list_find(BUS_GET_RESOURCE_LIST(bus, child), type, rid);
+	if (rle != NULL)
+		rle->res = NULL;
 
 	if ((rman_get_flags(r) & RF_ACTIVE) != 0) {
 		error = bus_deactivate_resource(child, type, rid, r);
@@ -436,11 +442,9 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 	struct ofwbus_softc *sc;
 	struct ofwbus_devinfo *ndi;
 	const char *nodename;
-	uint32_t *reg, *intr, icells;
+	uint32_t *reg;
 	uint64_t phys, size;
-	phandle_t iparent;
 	int i, j, rid;
-	int nintr;
 	int nreg;
 
 	sc = device_get_softc(dev);
@@ -485,35 +489,7 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 	}
 	free(reg, M_OFWPROP);
 
-	nintr = OF_getencprop_alloc(node, "interrupts",  sizeof(*intr),
-	    (void **)&intr);
-	if (nintr > 0) {
-		if (OF_searchencprop(node, "interrupt-parent", &iparent,
-		    sizeof(iparent)) == -1) {
-			device_printf(dev, "No interrupt-parent found, "
-			    "assuming nexus on <%s>\n", nodename);
-			iparent = 0xffffffff;
-		}
-		if (OF_searchencprop(OF_xref_phandle(iparent), 
-		    "#interrupt-cells", &icells, sizeof(icells)) == -1) {
-			device_printf(dev, "Missing #interrupt-cells property, "
-			    "assuming <1> on <%s>\n", nodename);
-			icells = 1;
-		}
-		if (icells < 1 || icells > nintr) {
-			device_printf(dev, "Invalid #interrupt-cells property "
-			    "value <%d>, assuming <1> on <%s>\n", icells, 
-			    nodename);
-			icells = 1;
-		}
-		for (i = 0, rid = 0; i < nintr; i += icells, rid++) {
-			intr[i] = ofw_bus_map_intr(dev, iparent, icells,
-			    &intr[i]);
-			resource_list_add(&ndi->ndi_rl, SYS_RES_IRQ, rid, intr[i],
-			    intr[i], 1);
-		}
-		free(intr, M_OFWPROP);
-	}
+	ofw_bus_intr_to_rl(dev, node, &ndi->ndi_rl);
 
 	return (ndi);
 }

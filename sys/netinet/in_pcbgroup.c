@@ -416,7 +416,7 @@ in_pcbgroup_update_internal(struct inpcbinfo *pcbinfo,
 	if (newpcbgroup != NULL && oldpcbgroup != newpcbgroup) {
 #ifdef INET6
 		if (inp->inp_vflag & INP_IPV6)
-			hashkey_faddr = inp->in6p_faddr.s6_addr32[3]; /* XXX */
+			hashkey_faddr = INP6_PCBHASHKEY(&inp->in6p_faddr);
 		else
 #endif
 			hashkey_faddr = inp->inp_faddr.s_addr;

@@ -120,19 +120,10 @@ TUNABLE_INT("hw.cxgbe.buffer_packing", &buffer_packing);
 /*
  * Start next frame in a packed buffer at this boundary.
  * -1: driver should figure out a good value.
- * T4:
- * ---
- * if fl_pad != 0
- * 	value specified here will be overridden by fl_pad.
- * else
- * 	power of 2 from 32 to 4096 (both inclusive) is a valid value here.
- * T5:
- * ---
- * 16, or a power of 2 from 64 to 4096 (both inclusive) is a valid value.
+ * T4: driver will ignore this and use the same value as fl_pad above.
+ * T5: 16, or a power of 2 from 64 to 4096 (both inclusive) is a valid value.
  */
 static int fl_pack = -1;
-static int t4_fl_pack;
-static int t5_fl_pack;
 TUNABLE_INT("hw.cxgbe.fl_pack", &fl_pack);
 
 /*
@@ -175,8 +166,7 @@ static int service_iq(struct sge_iq *, int);
 static struct mbuf *get_fl_payload(struct adapter *, struct sge_fl *, uint32_t);
 static int t4_eth_rx(struct sge_iq *, const struct rss_header *, struct mbuf *);
 static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int);
-static inline void init_fl(struct adapter *, struct sge_fl *, int, int, int,
-    char *);
+static inline void init_fl(struct adapter *, struct sge_fl *, int, int, char *);
 static inline void init_eq(struct sge_eq *, int, int, uint8_t, uint16_t,
     char *);
 static int alloc_ring(struct adapter *, size_t, bus_dma_tag_t *, bus_dmamap_t *,
@@ -264,50 +254,12 @@ static counter_u64_t extfree_rels;
 void
 t4_sge_modload(void)
 {
-	int pad;
-
-	/* set pad to a reasonable powerof2 between 16 and 4096 (inclusive) */
-#if defined(__i386__) || defined(__amd64__)
-	pad = max(cpu_clflush_line_size, 16);
-#else
-	pad = max(CACHE_LINE_SIZE, 16);
-#endif
-	pad = min(pad, 4096);
 
 	if (fl_pktshift < 0 || fl_pktshift > 7) {
 		printf("Invalid hw.cxgbe.fl_pktshift value (%d),"
 		    " using 2 instead.\n", fl_pktshift);
 		fl_pktshift = 2;
 	}
-
-	if (fl_pad != 0 &&
-	    (fl_pad < 32 || fl_pad > 4096 || !powerof2(fl_pad))) {
-
-		if (fl_pad != -1) {
-			printf("Invalid hw.cxgbe.fl_pad value (%d),"
-			    " using %d instead.\n", fl_pad, max(pad, 32));
-		}
-		fl_pad = max(pad, 32);
-	}
-
-	/*
-	 * T4 has the same pad and pack boundary.  If a pad boundary is set,
-	 * pack boundary must be set to the same value.  Otherwise take the
-	 * specified value or auto-calculate something reasonable.
-	 */
-	if (fl_pad)
-		t4_fl_pack = fl_pad;
-	else if (fl_pack < 32 || fl_pack > 4096 || !powerof2(fl_pack))
-		t4_fl_pack = max(pad, 32);
-	else
-		t4_fl_pack = fl_pack;
-
-	/* T5's pack boundary is independent of the pad boundary. */
-	if (fl_pack < 16 || fl_pack == 32 || fl_pack > 4096 ||
-	    !powerof2(fl_pack))
-	       t5_fl_pack = max(pad, CACHE_LINE_SIZE);
-	else
-	       t5_fl_pack = fl_pack;
 
 	if (spg_len != 64 && spg_len != 128) {
 		int len;
@@ -366,6 +318,71 @@ t4_init_sge_cpl_handlers(struct adapter *sc)
 	t4_register_fw_msg_handler(sc, FW6_TYPE_CMD_RPL, t4_handle_fw_rpl);
 }
 
+static inline void
+setup_pad_and_pack_boundaries(struct adapter *sc)
+{
+	uint32_t v, m;
+	int pad, pack;
+
+	pad = fl_pad;
+	if (fl_pad < 32 || fl_pad > 4096 || !powerof2(fl_pad)) {
+		/*
+		 * If there is any chance that we might use buffer packing and
+		 * the chip is a T4, then pick 64 as the pad/pack boundary.  Set
+		 * it to 32 in all other cases.
+		 */
+		pad = is_t4(sc) && buffer_packing ? 64 : 32;
+
+		/*
+		 * For fl_pad = 0 we'll still write a reasonable value to the
+		 * register but all the freelists will opt out of padding.
+		 * We'll complain here only if the user tried to set it to a
+		 * value greater than 0 that was invalid.
+		 */
+		if (fl_pad > 0) {
+			device_printf(sc->dev, "Invalid hw.cxgbe.fl_pad value"
+			    " (%d), using %d instead.\n", fl_pad, pad);
+		}
+	}
+	m = V_INGPADBOUNDARY(M_INGPADBOUNDARY);
+	v = V_INGPADBOUNDARY(ilog2(pad) - 5);
+	t4_set_reg_field(sc, A_SGE_CONTROL, m, v);
+
+	if (is_t4(sc)) {
+		if (fl_pack != -1 && fl_pack != pad) {
+			/* Complain but carry on. */
+			device_printf(sc->dev, "hw.cxgbe.fl_pack (%d) ignored,"
+			    " using %d instead.\n", fl_pack, pad);
+		}
+		return;
+	}
+
+	pack = fl_pack;
+	if (fl_pack < 16 || fl_pack == 32 || fl_pack > 4096 ||
+	    !powerof2(fl_pack)) {
+		pack = max(sc->params.pci.mps, CACHE_LINE_SIZE);
+		MPASS(powerof2(pack));
+		if (pack < 16)
+			pack = 16;
+		if (pack == 32)
+			pack = 64;
+		if (pack > 4096)
+			pack = 4096;
+		if (fl_pack != -1) {
+			device_printf(sc->dev, "Invalid hw.cxgbe.fl_pack value"
+			    " (%d), using %d instead.\n", fl_pack, pack);
+		}
+	}
+	m = V_INGPACKBOUNDARY(M_INGPACKBOUNDARY);
+	if (pack == 16)
+		v = V_INGPACKBOUNDARY(0);
+	else
+		v = V_INGPACKBOUNDARY(ilog2(pack) - 5);
+
+	MPASS(!is_t4(sc));	/* T4 doesn't have SGE_CONTROL2 */
+	t4_set_reg_field(sc, A_SGE_CONTROL2, m, v);
+}
+
 /*
  * adap->params.vpd.cclk must be set up before this is called.
  */
@@ -398,24 +415,9 @@ t4_tweak_chip_settings(struct adapter *sc)
 	m = V_PKTSHIFT(M_PKTSHIFT) | F_RXPKTCPLMODE | F_EGRSTATUSPAGESIZE;
 	v = V_PKTSHIFT(fl_pktshift) | F_RXPKTCPLMODE |
 	    V_EGRSTATUSPAGESIZE(spg_len == 128);
-	if (is_t4(sc) && (fl_pad || buffer_packing)) {
-		/* t4_fl_pack has the correct value even when fl_pad = 0 */
-		m |= V_INGPADBOUNDARY(M_INGPADBOUNDARY);
-		v |= V_INGPADBOUNDARY(ilog2(t4_fl_pack) - 5);
-	} else if (is_t5(sc) && fl_pad) {
-		m |= V_INGPADBOUNDARY(M_INGPADBOUNDARY);
-		v |= V_INGPADBOUNDARY(ilog2(fl_pad) - 5);
-	}
 	t4_set_reg_field(sc, A_SGE_CONTROL, m, v);
 
-	if (is_t5(sc) && buffer_packing) {
-		m = V_INGPACKBOUNDARY(M_INGPACKBOUNDARY);
-		if (t5_fl_pack == 16)
-			v = V_INGPACKBOUNDARY(0);
-		else
-			v = V_INGPACKBOUNDARY(ilog2(t5_fl_pack) - 5);
-		t4_set_reg_field(sc, A_SGE_CONTROL2, m, v);
-	}
+	setup_pad_and_pack_boundaries(sc);
 
 	v = V_HOSTPAGESIZEPF0(PAGE_SHIFT - 10) |
 	    V_HOSTPAGESIZEPF1(PAGE_SHIFT - 10) |
@@ -486,13 +488,16 @@ t4_tweak_chip_settings(struct adapter *sc)
 }
 
 /*
- * SGE wants the buffer to be at least 64B and then a multiple of the pad
- * boundary or 16, whichever is greater.
+ * SGE wants the buffer to be at least 64B and then a multiple of 16.  If
+ * padding is is use the buffer's start and end need to be aligned to the pad
+ * boundary as well.  We'll just make sure that the size is a multiple of the
+ * boundary here, it is up to the buffer allocation code to make sure the start
+ * of the buffer is aligned as well.
  */
 static inline int
-hwsz_ok(int hwsz)
+hwsz_ok(struct adapter *sc, int hwsz)
 {
-	int mask = max(fl_pad, 16) - 1;
+	int mask = fl_pad ? sc->sge.pad_boundary - 1 : 16 - 1;
 
 	return (hwsz >= 64 && (hwsz & mask) == 0);
 }
@@ -521,33 +526,22 @@ t4_read_chip_settings(struct adapter *sc)
 	m = V_PKTSHIFT(M_PKTSHIFT) | F_RXPKTCPLMODE | F_EGRSTATUSPAGESIZE;
 	v = V_PKTSHIFT(fl_pktshift) | F_RXPKTCPLMODE |
 	    V_EGRSTATUSPAGESIZE(spg_len == 128);
-	if (is_t4(sc) && (fl_pad || buffer_packing)) {
-		m |= V_INGPADBOUNDARY(M_INGPADBOUNDARY);
-		v |= V_INGPADBOUNDARY(ilog2(t4_fl_pack) - 5);
-	} else if (is_t5(sc) && fl_pad) {
-		m |= V_INGPADBOUNDARY(M_INGPADBOUNDARY);
-		v |= V_INGPADBOUNDARY(ilog2(fl_pad) - 5);
-	}
 	r = t4_read_reg(sc, A_SGE_CONTROL);
 	if ((r & m) != v) {
 		device_printf(sc->dev, "invalid SGE_CONTROL(0x%x)\n", r);
 		rc = EINVAL;
 	}
+	s->pad_boundary = 1 << (G_INGPADBOUNDARY(r) + 5);
 
-	if (is_t5(sc) && buffer_packing) {
-		m = V_INGPACKBOUNDARY(M_INGPACKBOUNDARY);
-		if (t5_fl_pack == 16)
-			v = V_INGPACKBOUNDARY(0);
-		else
-			v = V_INGPACKBOUNDARY(ilog2(t5_fl_pack) - 5);
+	if (is_t4(sc))
+		s->pack_boundary = s->pad_boundary;
+	else {
 		r = t4_read_reg(sc, A_SGE_CONTROL2);
-		if ((r & m) != v) {
-			device_printf(sc->dev,
-			    "invalid SGE_CONTROL2(0x%x)\n", r);
-			rc = EINVAL;
-		}
+		if (G_INGPACKBOUNDARY(r) == 0)
+			s->pack_boundary = 16;
+		else
+			s->pack_boundary = 1 << (G_INGPACKBOUNDARY(r) + 5);
 	}
-	s->pack_boundary = is_t4(sc) ? t4_fl_pack : t5_fl_pack;
 
 	v = V_HOSTPAGESIZEPF0(PAGE_SHIFT - 10) |
 	    V_HOSTPAGESIZEPF1(PAGE_SHIFT - 10) |
@@ -568,13 +562,22 @@ t4_read_chip_settings(struct adapter *sc)
 	for (i = 0; i < nitems(s->hw_buf_info); i++, hwb++) {
 		r = t4_read_reg(sc, A_SGE_FL_BUFFER_SIZE0 + (4 * i));
 		hwb->size = r;
-		hwb->zidx = hwsz_ok(r) ? -1 : -2;
+		hwb->zidx = hwsz_ok(sc, r) ? -1 : -2;
 		hwb->next = -1;
 	}
 
 	/*
 	 * Create a sorted list in decreasing order of hw buffer sizes (and so
 	 * increasing order of spare area) for each software zone.
+	 *
+	 * If padding is enabled then the start and end of the buffer must align
+	 * to the pad boundary; if packing is enabled then they must align with
+	 * the pack boundary as well.  Allocations from the cluster zones are
+	 * aligned to min(size, 4K), so the buffer starts at that alignment and
+	 * ends at hwb->size alignment.  If mbuf inlining is allowed the
+	 * starting alignment will be reduced to MSIZE and the driver will
+	 * exercise appropriate caution when deciding on the best buffer layout
+	 * to use.
 	 */
 	n = 0;	/* no usable buffer size to begin with */
 	swz = &s->sw_zone_info[0];
@@ -586,6 +589,12 @@ t4_read_chip_settings(struct adapter *sc)
 		swz->zone = m_getzone(swz->size);
 		swz->type = m_gettype(swz->size);
 
+		if (swz->size < PAGE_SIZE) {
+			MPASS(powerof2(swz->size));
+			if (fl_pad && (swz->size % sc->sge.pad_boundary != 0))
+				continue;
+		}
+
 		if (swz->size == safest_rx_cluster)
 			safe_swz = swz;
 
@@ -593,6 +602,10 @@ t4_read_chip_settings(struct adapter *sc)
 		for (j = 0; j < SGE_FLBUF_SIZES; j++, hwb++) {
 			if (hwb->zidx != -1 || hwb->size > swz->size)
 				continue;
+#ifdef INVARIANTS
+			if (fl_pad)
+				MPASS(hwb->size % sc->sge.pad_boundary == 0);
+#endif
 			hwb->zidx = i;
 			if (head == -1)
 				head = tail = j;
@@ -640,14 +653,15 @@ t4_read_chip_settings(struct adapter *sc)
 			int spare;
 
 			hwb = &s->hw_buf_info[i];
+#ifdef INVARIANTS
+			if (fl_pad)
+				MPASS(hwb->size % sc->sge.pad_boundary == 0);
+#endif
 			spare = safe_swz->size - hwb->size;
-			if (spare < CL_METADATA_SIZE)
-				continue;
-			if (s->safe_hwidx2 == -1 ||
-			    spare == CL_METADATA_SIZE + MSIZE)
+			if (spare >= CL_METADATA_SIZE) {
 				s->safe_hwidx2 = i;
-			if (spare >= CL_METADATA_SIZE + MSIZE)
 				break;
+			}
 		}
 	}
 
@@ -745,17 +759,6 @@ t4_create_dma_tag(struct adapter *sc)
 	return (rc);
 }
 
-static inline int
-enable_buffer_packing(struct adapter *sc)
-{
-
-	if (sc->flags & BUF_PACKING_OK &&
-	    ((is_t5(sc) && buffer_packing) ||	/* 1 or -1 both ok for T5 */
-	    (is_t4(sc) && buffer_packing == 1)))
-		return (1);
-	return (0);
-}
-
 void
 t4_sge_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
     struct sysctl_oid_list *children)
@@ -769,17 +772,13 @@ t4_sge_sysctls(struct adapter *sc, struct sysctl_ctx_list *ctx,
 	    NULL, fl_pktshift, "payload DMA offset in rx buffer (bytes)");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "fl_pad", CTLFLAG_RD,
-	    NULL, fl_pad, "payload pad boundary (bytes)");
+	    NULL, sc->sge.pad_boundary, "payload pad boundary (bytes)");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "spg_len", CTLFLAG_RD,
 	    NULL, spg_len, "status page size (bytes)");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "cong_drop", CTLFLAG_RD,
 	    NULL, cong_drop, "congestion drop setting");
-
-	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "buffer_packing", CTLFLAG_RD,
-	    NULL, enable_buffer_packing(sc),
-	    "pack multiple frames in one fl buffer");
 
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "fl_pack", CTLFLAG_RD,
 	    NULL, sc->sge.pack_boundary, "payload pack boundary (bytes)");
@@ -958,7 +957,6 @@ mtu_to_max_payload(struct adapter *sc, int mtu, const int toe)
 #ifdef TCP_OFFLOAD
 	}
 #endif
-	payload = roundup2(payload, fl_pad);
 
 	return (payload);
 }
@@ -983,7 +981,7 @@ t4_setup_port_queues(struct port_info *pi)
 	struct ifnet *ifp = pi->ifp;
 	struct sysctl_oid *oid = device_get_sysctl_tree(pi->dev);
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
-	int maxp, pack, mtu = ifp->if_mtu;
+	int maxp, mtu = ifp->if_mtu;
 
 	/* Interrupt vector to start from (when using multiple vectors) */
 	intr_idx = first_vector(pi);
@@ -994,7 +992,6 @@ t4_setup_port_queues(struct port_info *pi)
 	 * b) allocate queue iff it will take direct interrupts.
 	 */
 	maxp = mtu_to_max_payload(sc, mtu, 0);
-	pack = enable_buffer_packing(sc);
 	if (pi->flags & INTR_RXQ) {
 		oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "rxq",
 		    CTLFLAG_RD, NULL, "rx queues");
@@ -1005,7 +1002,7 @@ t4_setup_port_queues(struct port_info *pi)
 
 		snprintf(name, sizeof(name), "%s rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
-		init_fl(sc, &rxq->fl, pi->qsize_rxq / 8, maxp, pack, name);
+		init_fl(sc, &rxq->fl, pi->qsize_rxq / 8, maxp, name);
 
 		if (pi->flags & INTR_RXQ) {
 			rxq->iq.flags |= IQ_INTR;
@@ -1029,7 +1026,7 @@ t4_setup_port_queues(struct port_info *pi)
 
 		snprintf(name, sizeof(name), "%s ofld_rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
-		init_fl(sc, &ofld_rxq->fl, pi->qsize_rxq / 8, maxp, pack, name);
+		init_fl(sc, &ofld_rxq->fl, pi->qsize_rxq / 8, maxp, name);
 
 		if (pi->flags & INTR_OFLD_RXQ) {
 			ofld_rxq->iq.flags |= IQ_INTR;
@@ -1560,7 +1557,8 @@ rxb_free(struct mbuf *m, void *arg1, void *arg2)
  * d) m_extaddref (cluster with metadata) zone_mbuf
  */
 static struct mbuf *
-get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
+get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int fr_offset,
+    int remaining)
 {
 	struct mbuf *m;
 	struct fl_sdesc *sd = &fl->sdesc[fl->cidx];
@@ -1568,12 +1566,23 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
 	struct sw_zone_info *swz = &sc->sge.sw_zone_info[cll->zidx];
 	struct hw_buf_info *hwb = &sc->sge.hw_buf_info[cll->hwidx];
 	struct cluster_metadata *clm = cl_metadata(sc, fl, cll, sd->cl);
-	int len, padded_len;
+	int len, blen;
 	caddr_t payload;
 
-	len = min(total, hwb->size - fl->rx_offset);
-	padded_len = roundup2(len, fl->buf_boundary);
+	blen = hwb->size - fl->rx_offset;	/* max possible in this buf */
+	len = min(remaining, blen);
 	payload = sd->cl + cll->region1 + fl->rx_offset;
+	if (fl->flags & FL_BUF_PACKING) {
+		const u_int l = fr_offset + len;
+		const u_int pad = roundup2(l, fl->buf_boundary) - l;
+
+		if (fl->rx_offset + len + pad < hwb->size)
+			blen = len + pad;
+		MPASS(fl->rx_offset + blen <= hwb->size);
+	} else {
+		MPASS(fl->rx_offset == 0);	/* not packing */
+	}
+
 
 	if (sc->sc_do_rxcopy && len < RX_COPY_THRESHOLD) {
 
@@ -1581,7 +1590,7 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
 		 * Copy payload into a freshly allocated mbuf.
 		 */
 
-		m = flags & M_PKTHDR ?
+		m = fr_offset == 0 ?
 		    m_gethdr(M_NOWAIT, MT_DATA) : m_get(M_NOWAIT, MT_DATA);
 		if (m == NULL)
 			return (NULL);
@@ -1603,10 +1612,11 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
 		MPASS(clm != NULL);
 		m = (struct mbuf *)(sd->cl + sd->nmbuf * MSIZE);
 		/* No bzero required */
-		if (m_init(m, NULL, 0, M_NOWAIT, MT_DATA, flags | M_NOFREE))
+		if (m_init(m, NULL, 0, M_NOWAIT, MT_DATA,
+		    fr_offset == 0 ? M_PKTHDR | M_NOFREE : M_NOFREE))
 			return (NULL);
 		fl->mbuf_inlined++;
-		m_extaddref(m, payload, padded_len, &clm->refcount, rxb_free,
+		m_extaddref(m, payload, blen, &clm->refcount, rxb_free,
 		    swz->zone, sd->cl);
 		if (sd->nmbuf++ == 0)
 			counter_u64_add(extfree_refs, 1);
@@ -1618,13 +1628,13 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
 		 * payload in the cluster.
 		 */
 
-		m = flags & M_PKTHDR ?
+		m = fr_offset == 0 ?
 		    m_gethdr(M_NOWAIT, MT_DATA) : m_get(M_NOWAIT, MT_DATA);
 		if (m == NULL)
 			return (NULL);
 		fl->mbuf_allocated++;
 		if (clm != NULL) {
-			m_extaddref(m, payload, padded_len, &clm->refcount,
+			m_extaddref(m, payload, blen, &clm->refcount,
 			    rxb_free, swz->zone, sd->cl);
 			if (sd->nmbuf++ == 0)
 				counter_u64_add(extfree_refs, 1);
@@ -1633,12 +1643,12 @@ get_scatter_segment(struct adapter *sc, struct sge_fl *fl, int total, int flags)
 			sd->cl = NULL;	/* consumed, not a recycle candidate */
 		}
 	}
-	if (flags & M_PKTHDR)
-		m->m_pkthdr.len = total;
+	if (fr_offset == 0)
+		m->m_pkthdr.len = remaining;
 	m->m_len = len;
 
 	if (fl->flags & FL_BUF_PACKING) {
-		fl->rx_offset += padded_len;
+		fl->rx_offset += blen;
 		MPASS(fl->rx_offset <= hwb->size);
 		if (fl->rx_offset < hwb->size)
 			return (m);	/* without advancing the cidx */
@@ -1660,17 +1670,17 @@ static struct mbuf *
 get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf)
 {
 	struct mbuf *m0, *m, **pnext;
-	u_int len;
+	u_int remaining;
+	const u_int total = G_RSPD_LEN(len_newbuf);
 
-	len = G_RSPD_LEN(len_newbuf);
 	if (__predict_false(fl->flags & FL_BUF_RESUME)) {
 		M_ASSERTPKTHDR(fl->m0);
-		MPASS(len == fl->m0->m_pkthdr.len);
-		MPASS(fl->remaining < len);
+		MPASS(fl->m0->m_pkthdr.len == total);
+		MPASS(fl->remaining < total);
 
 		m0 = fl->m0;
 		pnext = fl->pnext;
-		len = fl->remaining;
+		remaining = fl->remaining;
 		fl->flags &= ~FL_BUF_RESUME;
 		goto get_segment;
 	}
@@ -1691,25 +1701,25 @@ get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf)
 	 * 'len' and it may span multiple hw buffers.
 	 */
 
-	m0 = get_scatter_segment(sc, fl, len, M_PKTHDR);
+	m0 = get_scatter_segment(sc, fl, 0, total);
 	if (m0 == NULL)
 		return (NULL);
-	len -= m0->m_len;
+	remaining = total - m0->m_len;
 	pnext = &m0->m_next;
-	while (len > 0) {
+	while (remaining > 0) {
 get_segment:
 		MPASS(fl->rx_offset == 0);
-		m = get_scatter_segment(sc, fl, len, 0);
+		m = get_scatter_segment(sc, fl, total - remaining, remaining);
 		if (__predict_false(m == NULL)) {
 			fl->m0 = m0;
 			fl->pnext = pnext;
-			fl->remaining = len;
+			fl->remaining = remaining;
 			fl->flags |= FL_BUF_RESUME;
 			return (NULL);
 		}
 		*pnext = m;
 		pnext = &m->m_next;
-		len -= m->m_len;
+		remaining -= m->m_len;
 	}
 	*pnext = NULL;
 
@@ -1734,7 +1744,7 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 	m0->m_data += fl_pktshift;
 
 	m0->m_pkthdr.rcvif = ifp;
-	m0->m_flags |= M_FLOWID;
+	M_HASHTYPE_SET(m0, M_HASHTYPE_OPAQUE);
 	m0->m_pkthdr.flowid = be32toh(rss->hash_val);
 
 	if (cpl->csum_calc && !cpl->err_vec) {
@@ -2121,14 +2131,15 @@ init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
 }
 
 static inline void
-init_fl(struct adapter *sc, struct sge_fl *fl, int qsize, int maxp, int pack,
-    char *name)
+init_fl(struct adapter *sc, struct sge_fl *fl, int qsize, int maxp, char *name)
 {
 
 	fl->qsize = qsize;
 	fl->sidx = qsize - spg_len / EQ_ESIZE;
 	strlcpy(fl->lockname, name, sizeof(fl->lockname));
-	if (pack)
+	if (sc->flags & BUF_PACKING_OK &&
+	    ((!is_t4(sc) && buffer_packing) ||	/* T5+: enabled unless 0 */
+	    (is_t4(sc) && buffer_packing == 1)))/* T4: disabled unless 1 */
 		fl->flags |= FL_BUF_PACKING;
 	find_best_refill_source(sc, fl, maxp);
 	find_safe_refill_source(sc, fl);
@@ -2277,11 +2288,13 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 
 		if (fl->flags & FL_BUF_PACKING) {
 			fl->lowat = roundup2(sc->sge.fl_starve_threshold2, 8);
-			fl->buf_boundary = max(fl_pad, sc->sge.pack_boundary);
+			fl->buf_boundary = sc->sge.pack_boundary;
 		} else {
 			fl->lowat = roundup2(sc->sge.fl_starve_threshold, 8);
-			fl->buf_boundary = fl_pad;
+			fl->buf_boundary = 16;
 		}
+		if (fl_pad && fl->buf_boundary < sc->sge.pad_boundary)
+			fl->buf_boundary = sc->sge.pad_boundary;
 
 		c.iqns_to_fl0congen |=
 		    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE) |
@@ -2452,6 +2465,10 @@ add_fl_sysctls(struct sysctl_ctx_list *ctx, struct sysctl_oid *oid,
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "cntxt_id",
 	    CTLTYPE_INT | CTLFLAG_RD, &fl->cntxt_id, 0, sysctl_uint16, "I",
 	    "SGE context id of the freelist");
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "padding", CTLFLAG_RD, NULL,
+	    fl_pad ? 1 : 0, "padding enabled");
+	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "packing", CTLFLAG_RD, NULL,
+	    fl->flags & FL_BUF_PACKING ? 1 : 0, "packing enabled");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "cidx", CTLFLAG_RD, &fl->cidx,
 	    0, "consumer index");
 	if (fl->flags & FL_BUF_PACKING) {
@@ -4367,6 +4384,17 @@ done:
 
 		if (allow_mbufs_in_cluster == 0 || hwb->size < maxp)
 			break;
+
+		/*
+		 * Do not inline mbufs if doing so would violate the pad/pack
+		 * boundary alignment requirement.
+		 */
+		if (fl_pad && (MSIZE % sc->sge.pad_boundary) != 0)
+			continue;
+		if (fl->flags & FL_BUF_PACKING &&
+		    (MSIZE % sc->sge.pack_boundary) != 0)
+			continue;
+
 		if (spare < CL_METADATA_SIZE + MSIZE)
 			continue;
 		n = (spare - CL_METADATA_SIZE) / MSIZE;
@@ -4449,7 +4477,8 @@ find_safe_refill_source(struct adapter *sc, struct sge_fl *fl)
 	spare = swz->size - hwb->size;
 	fl->cll_alt.hwidx = hwidx;
 	fl->cll_alt.zidx = hwb->zidx;
-	if (allow_mbufs_in_cluster)
+	if (allow_mbufs_in_cluster &&
+	    (fl_pad == 0 || (MSIZE % sc->sge.pad_boundary) == 0))
 		fl->cll_alt.region1 = ((spare - CL_METADATA_SIZE) / MSIZE) * MSIZE;
 	else
 		fl->cll_alt.region1 = 0;

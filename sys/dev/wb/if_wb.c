@@ -895,7 +895,7 @@ wb_rxeof(sc)
 		    (WB_RXBYTES(cur_rx->wb_ptr->wb_status) > 1536) ||
 		    !(rxstat & WB_RXSTAT_LASTFRAG) ||
 		    !(rxstat & WB_RXSTAT_RXCMP)) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			wb_newbuf(sc, cur_rx, m);
 			device_printf(sc->wb_dev,
 			    "receiver babbling: possible chip bug,"
@@ -907,7 +907,7 @@ wb_rxeof(sc)
 		}
 
 		if (rxstat & WB_RXSTAT_RXERR) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			wb_newbuf(sc, cur_rx, m);
 			break;
 		}
@@ -928,12 +928,12 @@ wb_rxeof(sc)
 		    NULL);
 		wb_newbuf(sc, cur_rx, m);
 		if (m0 == NULL) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			break;
 		}
 		m = m0;
 
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		WB_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		WB_LOCK(sc);
@@ -986,16 +986,16 @@ wb_txeof(sc)
 			break;
 
 		if (txstat & WB_TXSTAT_TXERR) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			if (txstat & WB_TXSTAT_ABORT)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 			if (txstat & WB_TXSTAT_LATECOLL)
-				ifp->if_collisions++;
+				if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 1);
 		}
 
-		ifp->if_collisions += (txstat & WB_TXSTAT_COLLCNT) >> 3;
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS, (txstat & WB_TXSTAT_COLLCNT) >> 3);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		m_freem(cur_tx->wb_mbuf);
 		cur_tx->wb_mbuf = NULL;
 
@@ -1064,7 +1064,7 @@ wb_intr(arg)
 			break;
 
 		if ((status & WB_ISR_RX_NOBUF) || (status & WB_ISR_RX_ERR)) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			wb_reset(sc);
 			if (status & WB_ISR_RX_ERR)
 				wb_fixmedia(sc);
@@ -1093,7 +1093,7 @@ wb_intr(arg)
 		}
 
 		if (status & WB_ISR_TX_UNDERRUN) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			wb_txeof(sc);
 			WB_CLRBIT(sc, WB_NETCFG, WB_NETCFG_TX_ON);
 			/* Jack up TX threshold */
@@ -1553,7 +1553,7 @@ wb_watchdog(sc)
 
 	WB_LOCK_ASSERT(sc);
 	ifp = sc->wb_ifp;
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if_printf(ifp, "watchdog timeout\n");
 #ifdef foo
 	if (!(wb_phy_readreg(sc, PHY_BMSR) & PHY_BMSR_LINKSTAT))

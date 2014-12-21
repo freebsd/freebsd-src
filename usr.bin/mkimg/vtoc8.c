@@ -53,13 +53,12 @@ static struct mkimg_alias vtoc8_aliases[] = {
     {	ALIAS_NONE, 0 }
 };
 
-static u_int
-vtoc8_metadata(u_int where)
+static lba_t
+vtoc8_metadata(u_int where, lba_t blk)
 {
-	u_int secs;
 
-	secs = (where == SCHEME_META_IMG_START) ? nsecs * nheads : 0;
-	return (secs);
+	blk += (where == SCHEME_META_IMG_START) ? 1 : 0;
+	return (round_cylinder(blk));
 }
 
 static int
@@ -86,10 +85,6 @@ vtoc8_write(lba_t imgsz, void *bootcode __unused)
 	be16enc(&vtoc8.nheads, nheads);
 	be16enc(&vtoc8.nsecs, nsecs);
 	be16enc(&vtoc8.magic, VTOC_MAGIC);
-
-	error = image_set_size(imgsz);
-	if (error)
-		return (error);
 
 	be32enc(&vtoc8.map[VTOC_RAW_PART].nblks, imgsz);
 	STAILQ_FOREACH(part, &partlist, link) {

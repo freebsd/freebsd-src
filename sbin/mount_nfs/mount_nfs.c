@@ -79,7 +79,7 @@ __FBSDID("$FreeBSD$");
 #include "mounttab.h"
 
 /* Table for af,sotype -> netid conversions. */
-struct nc_protos {
+static struct nc_protos {
 	const char *netid;
 	int af;
 	int sotype;
@@ -102,20 +102,21 @@ struct nfhret {
 #define	ISBGRND	2
 #define	OF_NOINET4	4
 #define	OF_NOINET6	8
-int retrycnt = -1;
-int opflags = 0;
-int nfsproto = IPPROTO_TCP;
-int mnttcp_ok = 1;
-int noconn = 0;
-char *portspec = NULL;	/* Server nfs port; NULL means look up via rpcbind. */
-struct sockaddr *addr;
-int addrlen = 0;
-u_char *fh = NULL;
-int fhsize = 0;
-int secflavor = -1;
-int got_principal = 0;
+static int retrycnt = -1;
+static int opflags = 0;
+static int nfsproto = IPPROTO_TCP;
+static int mnttcp_ok = 1;
+static int noconn = 0;
+/* The 'portspec' is the server nfs port; NULL means look up via rpcbind. */
+static const char *portspec = NULL;
+static struct sockaddr *addr;
+static int addrlen = 0;
+static u_char *fh = NULL;
+static int fhsize = 0;
+static int secflavor = -1;
+static int got_principal = 0;
 
-enum mountmode {
+static enum mountmode {
 	ANY,
 	V2,
 	V3,
@@ -130,9 +131,8 @@ enum tryret {
 	TRYRET_LOCALERR		/* Local failure. */
 };
 
-static int	fallback_mount(struct iovec *iov, int iovlen);
-static int	sec_name_to_num(char *sec);
-static char	*sec_num_to_name(int num);
+static int	sec_name_to_num(const char *sec);
+static const char	*sec_num_to_name(int num);
 static int	getnfsargs(char *, struct iovec **iov, int *iovlen);
 /* void	set_rpc_maxgrouplist(int); */
 static struct netconfig *getnetconf_cached(const char *netid);
@@ -150,10 +150,10 @@ main(int argc, char *argv[])
 	int c;
 	struct iovec *iov;
 	int num, iovlen;
-	int osversion;
-	char *name, *p, *spec, *fstype;
+	char *mntname, *p, *spec, *tmp;
 	char mntpath[MAXPATHLEN], errmsg[255];
-	char hostname[MAXHOSTNAMELEN + 1], *gssname, gssn[MAXHOSTNAMELEN + 50];
+	char hostname[MAXHOSTNAMELEN + 1], gssn[MAXHOSTNAMELEN + 50];
+	const char *fstype, *gssname;
 
 	iov = NULL;
 	iovlen = 0;
@@ -228,7 +228,7 @@ main(int argc, char *argv[])
 			while (opt) {
 				char *pval = NULL;
 				char *pnextopt = NULL;
-				char *val = "";
+				const char *val = "";
 				pass_flag_to_nmount = 1;
 				pnextopt = strchr(opt, ',');
 				if (pnextopt != NULL) {
@@ -278,12 +278,41 @@ main(int argc, char *argv[])
 						portspec = "2049";
 				} else if (strcmp(opt, "port") == 0) {
 					pass_flag_to_nmount=0;
-					asprintf(&portspec, "%d",
-					    atoi(val));
-					if (portspec == NULL)
+					asprintf(&tmp, "%d", atoi(val));
+					if (tmp == NULL)
 						err(1, "asprintf");
+					portspec = tmp;
 				} else if (strcmp(opt, "principal") == 0) {
 					got_principal = 1;
+				} else if (strcmp(opt, "proto") == 0) {
+					pass_flag_to_nmount=0;
+					if (strcmp(val, "tcp") == 0) {
+						nfsproto = IPPROTO_TCP;
+						opflags |= OF_NOINET6;
+						build_iovec(&iov, &iovlen,
+						    "tcp", NULL, 0);
+					} else if (strcmp(val, "udp") == 0) {
+						mnttcp_ok = 0;
+						nfsproto = IPPROTO_UDP;
+						opflags |= OF_NOINET6;
+						build_iovec(&iov, &iovlen,
+						    "udp", NULL, 0);
+					} else if (strcmp(val, "tcp6") == 0) {
+						nfsproto = IPPROTO_TCP;
+						opflags |= OF_NOINET4;
+						build_iovec(&iov, &iovlen,
+						    "tcp", NULL, 0);
+					} else if (strcmp(val, "udp6") == 0) {
+						mnttcp_ok = 0;
+						nfsproto = IPPROTO_UDP;
+						opflags |= OF_NOINET4;
+						build_iovec(&iov, &iovlen,
+						    "udp", NULL, 0);
+					} else {
+						errx(1,
+						    "illegal proto value -- %s",
+						    val);
+					}
 				} else if (strcmp(opt, "sec") == 0) {
 					/*
 					 * Don't add this option to
@@ -337,9 +366,11 @@ main(int argc, char *argv[])
 					}
 					pass_flag_to_nmount=0;
 				}
-				if (pass_flag_to_nmount)
-					build_iovec(&iov, &iovlen, opt, val,
+				if (pass_flag_to_nmount) {
+					build_iovec(&iov, &iovlen, opt,
+					    __DECONST(void *, val),
 					    strlen(val) + 1);
+				}
 				opt = pnextopt;
 			}
 			}
@@ -399,7 +430,7 @@ main(int argc, char *argv[])
 	}
 
 	spec = *argv++;
-	name = *argv;
+	mntname = *argv;
 
 	if (retrycnt == -1)
 		/* The default is to keep retrying forever. */
@@ -428,271 +459,30 @@ main(int argc, char *argv[])
 			    hostname);
 			gssname = gssn;
 		}
-		build_iovec(&iov, &iovlen, "gssname", gssname,
-		    strlen(gssname) + 1);
+		build_iovec(&iov, &iovlen, "gssname",
+		    __DECONST(void *, gssname), strlen(gssname) + 1);
 	}
 
 	if (!getnfsargs(spec, &iov, &iovlen))
 		exit(1);
 
 	/* resolve the mountpoint with realpath(3) */
-	if (checkpath(name, mntpath) != 0)
+	if (checkpath(mntname, mntpath) != 0)
 		err(1, "%s", mntpath);
 
-	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
+	build_iovec(&iov, &iovlen, "fstype", 
+	    __DECONST(void *, fstype), (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
 	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
 
-	/*
-	 * XXX:
-	 * Backwards compatibility routines for older kernels.
-	 * Remove this and fallback_mount() code when we do not need to support
-	 * NFS mounts against older kernels which still need
-	 * struct nfs_args to be passed in via nmount().
-	 */
-	osversion = getosreldate();
-	if (osversion >= 702100) {
-		if (nmount(iov, iovlen, 0))
-			err(1, "%s, %s", mntpath, errmsg);
-	} else {
-		if (fallback_mount(iov, iovlen))
-			err(1, "%s, %s", mntpath, errmsg);
-	}
+	if (nmount(iov, iovlen, 0))
+		err(1, "%s, %s", mntpath, errmsg);
 
 	exit(0);
 }
 
 static int
-findopt(struct iovec *iov, int iovlen, const char *name,
-    char **valuep, int *lenp)
-{
-	int i;
-
-	for (i = 0; i < iovlen/2; i++, iov += 2) {
-		if (strcmp(name, iov[0].iov_base) == 0) {
-			if (valuep)
-				*valuep = iov[1].iov_base;
-			if (lenp)
-				*lenp = iov[1].iov_len;
-			return (0);
-		}
-	}
-	return (ENOENT);
-}
-
-static void
-copyopt(struct iovec **newiov, int *newiovlen,
-    struct iovec *iov, int iovlen, const char *name)
-{
-	char *value;
-	int len;
-
-	if (findopt(iov, iovlen, name, &value, &len) == 0)
-		build_iovec(newiov, newiovlen, name, value, len);
-}
-
-/*
- * XXX: This function is provided for backwards
- *      compatibility with older kernels which did not support
- *      passing NFS mount options to nmount() as individual
- *      parameters.  It should be eventually be removed.
- */
-static int
-fallback_mount(struct iovec *iov, int iovlen)
-{
-	struct nfs_args args = {
-	    .version = NFS_ARGSVERSION,
-	    .addr = NULL,
-	    .addrlen = sizeof (struct sockaddr_in),
-	    .sotype = SOCK_STREAM,
-	    .proto = 0,
-	    .fh = NULL,
-	    .fhsize = 0,
-	    .flags = NFSMNT_RESVPORT,
-	    .wsize = NFS_WSIZE,
-	    .rsize = NFS_RSIZE,
-	    .readdirsize = NFS_READDIRSIZE,
-	    .timeo = 10,
-	    .retrans = NFS_RETRANS,
-	    .maxgrouplist = NFS_MAXGRPS,
-	    .readahead = NFS_DEFRAHEAD,
-	    .wcommitsize = 0,			/* was: NQ_DEFLEASE */
-	    .deadthresh = NFS_MAXDEADTHRESH,	/* was: NQ_DEADTHRESH */
-	    .hostname = NULL,
-	    /* args version 4 */
-	    .acregmin = NFS_MINATTRTIMO,
-	    .acregmax = NFS_MAXATTRTIMO,
-	    .acdirmin = NFS_MINDIRATTRTIMO,
-	    .acdirmax = NFS_MAXDIRATTRTIMO,
-	};
-	int ret;
-	char *opt;
-	struct iovec *newiov;
-	int newiovlen;
-
-	if (findopt(iov, iovlen, "dumbtimer", NULL, NULL) == 0)
-		args.flags |= NFSMNT_DUMBTIMR;
-	if (findopt(iov, iovlen, "noconn", NULL, NULL) == 0)
-		args.flags |= NFSMNT_NOCONN;
-	if (findopt(iov, iovlen, "conn", NULL, NULL) == 0)
-		args.flags |= NFSMNT_NOCONN;
-	if (findopt(iov, iovlen, "nolockd", NULL, NULL) == 0)
-		args.flags |= NFSMNT_NOLOCKD;
-	if (findopt(iov, iovlen, "lockd", NULL, NULL) == 0)
-		args.flags &= ~NFSMNT_NOLOCKD;
-	if (findopt(iov, iovlen, "intr", NULL, NULL) == 0)
-		args.flags |= NFSMNT_INT;
-	if (findopt(iov, iovlen, "rdirplus", NULL, NULL) == 0)
-		args.flags |= NFSMNT_RDIRPLUS;
-	if (findopt(iov, iovlen, "resvport", NULL, NULL) == 0)
-		args.flags |= NFSMNT_RESVPORT;
-	if (findopt(iov, iovlen, "noresvport", NULL, NULL) == 0)
-		args.flags &= ~NFSMNT_RESVPORT;
-	if (findopt(iov, iovlen, "soft", NULL, NULL) == 0)
-		args.flags |= NFSMNT_SOFT;
-	if (findopt(iov, iovlen, "hard", NULL, NULL) == 0)
-		args.flags &= ~NFSMNT_SOFT;
-	if (findopt(iov, iovlen, "mntudp", NULL, NULL) == 0)
-		args.sotype = SOCK_DGRAM;
-	if (findopt(iov, iovlen, "udp", NULL, NULL) == 0)
-		args.sotype = SOCK_DGRAM;
-	if (findopt(iov, iovlen, "tcp", NULL, NULL) == 0)
-		args.sotype = SOCK_STREAM;
-	if (findopt(iov, iovlen, "nfsv3", NULL, NULL) == 0)
-		args.flags |= NFSMNT_NFSV3;
-	if (findopt(iov, iovlen, "readdirsize", &opt, NULL) == 0) {
-		if (opt == NULL) { 
-			errx(1, "illegal readdirsize");
-		}
-		ret = sscanf(opt, "%d", &args.readdirsize);
-		if (ret != 1 || args.readdirsize <= 0) {
-			errx(1, "illegal readdirsize: %s", opt);
-		}
-		args.flags |= NFSMNT_READDIRSIZE;
-	}
-	if (findopt(iov, iovlen, "readahead", &opt, NULL) == 0) {
-		if (opt == NULL) { 
-			errx(1, "illegal readahead");
-		}
-		ret = sscanf(opt, "%d", &args.readahead);
-		if (ret != 1 || args.readahead <= 0) {
-			errx(1, "illegal readahead: %s", opt);
-		}
-		args.flags |= NFSMNT_READAHEAD;
-	}
-	if (findopt(iov, iovlen, "wsize", &opt, NULL) == 0) {
-		if (opt == NULL) { 
-			errx(1, "illegal wsize");
-		}
-		ret = sscanf(opt, "%d", &args.wsize);
-		if (ret != 1 || args.wsize <= 0) {
-			errx(1, "illegal wsize: %s", opt);
-		}
-		args.flags |= NFSMNT_WSIZE;
-	}
-	if (findopt(iov, iovlen, "rsize", &opt, NULL) == 0) {
-		if (opt == NULL) { 
-			errx(1, "illegal rsize");
-		}
-		ret = sscanf(opt, "%d", &args.rsize);
-		if (ret != 1 || args.rsize <= 0) {
-			errx(1, "illegal wsize: %s", opt);
-		}
-		args.flags |= NFSMNT_RSIZE;
-	}
-	if (findopt(iov, iovlen, "retrans", &opt, NULL) == 0) {
-		if (opt == NULL) { 
-			errx(1, "illegal retrans");
-		}
-		ret = sscanf(opt, "%d", &args.retrans);
-		if (ret != 1 || args.retrans <= 0) {
-			errx(1, "illegal retrans: %s", opt);
-		}
-		args.flags |= NFSMNT_RETRANS;
-	}
-	if (findopt(iov, iovlen, "acregmin", &opt, NULL) == 0) {
-		ret = sscanf(opt, "%d", &args.acregmin);
-		if (ret != 1 || args.acregmin < 0) {
-			errx(1, "illegal acregmin: %s", opt);
-		}
-		args.flags |= NFSMNT_ACREGMIN;
-	}
-	if (findopt(iov, iovlen, "acregmax", &opt, NULL) == 0) {
-		ret = sscanf(opt, "%d", &args.acregmax);
-		if (ret != 1 || args.acregmax < 0) {
-			errx(1, "illegal acregmax: %s", opt);
-		}
-		args.flags |= NFSMNT_ACREGMAX;
-	}
-	if (findopt(iov, iovlen, "acdirmin", &opt, NULL) == 0) {
-		ret = sscanf(opt, "%d", &args.acdirmin);
-		if (ret != 1 || args.acdirmin < 0) {
-			errx(1, "illegal acdirmin: %s", opt);
-		}
-		args.flags |= NFSMNT_ACDIRMIN;
-	}
-	if (findopt(iov, iovlen, "acdirmax", &opt, NULL) == 0) {
-		ret = sscanf(opt, "%d", &args.acdirmax);
-		if (ret != 1 || args.acdirmax < 0) {
-			errx(1, "illegal acdirmax: %s", opt);
-		}
-		args.flags |= NFSMNT_ACDIRMAX;
-	}
-	if (findopt(iov, iovlen, "wcommitsize", &opt, NULL) == 0) {
-		ret = sscanf(opt, "%d", &args.wcommitsize);
-		if (ret != 1 || args.wcommitsize < 0) {
-			errx(1, "illegal wcommitsize: %s", opt);
-		}
-		args.flags |= NFSMNT_WCOMMITSIZE;
-	}
-	if (findopt(iov, iovlen, "deadthresh", &opt, NULL) == 0) {
-		ret = sscanf(opt, "%d", &args.deadthresh);
-		if (ret != 1 || args.deadthresh <= 0) {
-			errx(1, "illegal deadthresh: %s", opt);
-		}
-		args.flags |= NFSMNT_DEADTHRESH;
-	}
-	if (findopt(iov, iovlen, "timeout", &opt, NULL) == 0) {
-		ret = sscanf(opt, "%d", &args.timeo);
-		if (ret != 1 || args.timeo <= 0) {
-			errx(1, "illegal timeout: %s", opt);
-		}
-		args.flags |= NFSMNT_TIMEO;
-	}
-	if (findopt(iov, iovlen, "maxgroups", &opt, NULL) == 0) {
-		ret = sscanf(opt, "%d", &args.maxgrouplist);
-		if (ret != 1 || args.timeo <= 0) {
-			errx(1, "illegal maxgroups: %s", opt);
-		}
-		args.flags |= NFSMNT_MAXGRPS;
-	}
-	if (findopt(iov, iovlen, "addr", &opt,
-		&args.addrlen) == 0) {
-		args.addr = (struct sockaddr *) opt;
-	}
-	if (findopt(iov, iovlen, "fh", &opt, &args.fhsize) == 0) {
-		args.fh = opt;
-	}
-	if (findopt(iov, iovlen, "hostname", &args.hostname,
-		NULL) == 0) {
-	}
-	if (args.hostname == NULL) {
-		errx(1, "Invalid hostname");
-	}
-
-	newiov = NULL;
-	newiovlen = 0;
-
-	build_iovec(&newiov, &newiovlen, "nfs_args", &args, sizeof(args));
-	copyopt(&newiov, &newiovlen, iov, iovlen, "fstype");
-	copyopt(&newiov, &newiovlen, iov, iovlen, "fspath");
-	copyopt(&newiov, &newiovlen, iov, iovlen, "errmsg");
-
-	return nmount(newiov, newiovlen, 0);
-}
-
-static int
-sec_name_to_num(char *sec)
+sec_name_to_num(const char *sec)
 {
 	if (!strcmp(sec, "krb5"))
 		return (RPCSEC_GSS_KRB5);
@@ -705,7 +495,7 @@ sec_name_to_num(char *sec)
 	return (-1);
 }
 
-static char *
+static const char *
 sec_num_to_name(int flavor)
 {
 	switch (flavor) {
@@ -889,10 +679,9 @@ nfs_tryproto(struct addrinfo *ai, char *hostp, char *spec, char **errstr,
 	struct rpc_err rpcerr;
 	CLIENT *clp;
 	struct netconfig *nconf, *nconf_mnt;
-	const char *netid, *netid_mnt;
-	char *secname;
+	const char *netid, *netid_mnt, *secname;
 	int doconnect, nfsvers, mntvers, sotype;
-	enum clnt_stat stat;
+	enum clnt_stat clntstat;
 	enum mountmode trymntmode;
 
 	sotype = 0;
@@ -936,6 +725,7 @@ nfs_tryproto(struct addrinfo *ai, char *hostp, char *spec, char **errstr,
 tryagain:
 	if (trymntmode == V4) {
 		nfsvers = 4;
+		mntvers = 3; /* Workaround for GCC. */
 	} else if (trymntmode == V2) {
 		nfsvers = 2;
 		mntvers = 1;
@@ -995,10 +785,10 @@ tryagain:
 
 	try.tv_sec = 10;
 	try.tv_usec = 0;
-	stat = clnt_call(clp, NFSPROC_NULL, (xdrproc_t)xdr_void, NULL,
+	clntstat = clnt_call(clp, NFSPROC_NULL, (xdrproc_t)xdr_void, NULL,
 			 (xdrproc_t)xdr_void, NULL, try);
-	if (stat != RPC_SUCCESS) {
-		if (stat == RPC_PROGVERSMISMATCH && trymntmode == ANY) {
+	if (clntstat != RPC_SUCCESS) {
+		if (clntstat == RPC_PROGVERSMISMATCH && trymntmode == ANY) {
 			clnt_destroy(clp);
 			trymntmode = V2;
 			goto tryagain;
@@ -1007,7 +797,7 @@ tryagain:
 		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid,
 		    hostp, spec, clnt_sperror(clp, "NFSPROC_NULL"));
 		clnt_destroy(clp);
-		return (returncode(stat, &rpcerr));
+		return (returncode(clntstat, &rpcerr));
 	}
 	clnt_destroy(clp);
 
@@ -1027,8 +817,10 @@ tryagain:
 
 		build_iovec(iov, iovlen, "addr", addr, addrlen);
 		secname = sec_num_to_name(secflavor);
-		if (secname != NULL)
-			build_iovec(iov, iovlen, "sec", secname, (size_t)-1);
+		if (secname != NULL) {
+			build_iovec(iov, iovlen, "sec",
+			    __DECONST(void *, secname), (size_t)-1);
+		}
 		build_iovec(iov, iovlen, "nfsv4", NULL, 0);
 		build_iovec(iov, iovlen, "dirpath", spec, (size_t)-1);
 
@@ -1048,12 +840,12 @@ tryagain:
 	clp->cl_auth = authsys_create_default();
 	nfhret.auth = secflavor;
 	nfhret.vers = mntvers;
-	stat = clnt_call(clp, MOUNTPROC_MNT, (xdrproc_t)xdr_dir, spec, 
+	clntstat = clnt_call(clp, MOUNTPROC_MNT, (xdrproc_t)xdr_dir, spec, 
 			 (xdrproc_t)xdr_fh, &nfhret,
 	    try);
 	auth_destroy(clp->cl_auth);
-	if (stat != RPC_SUCCESS) {
-		if (stat == RPC_PROGVERSMISMATCH && trymntmode == ANY) {
+	if (clntstat != RPC_SUCCESS) {
+		if (clntstat == RPC_PROGVERSMISMATCH && trymntmode == ANY) {
 			clnt_destroy(clp);
 			trymntmode = V2;
 			goto tryagain;
@@ -1062,7 +854,7 @@ tryagain:
 		snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s", netid_mnt,
 		    hostp, spec, clnt_sperror(clp, "RPCPROG_MNT"));
 		clnt_destroy(clp);
-		return (returncode(stat, &rpcerr));
+		return (returncode(clntstat, &rpcerr));
 	}
 	clnt_destroy(clp);
 
@@ -1088,8 +880,10 @@ tryagain:
 	build_iovec(iov, iovlen, "addr", addr, addrlen);
 	build_iovec(iov, iovlen, "fh", fh, fhsize);
 	secname = sec_num_to_name(nfhret.auth);
-	if (secname)
-		build_iovec(iov, iovlen, "sec", secname, (size_t)-1);
+	if (secname) {
+		build_iovec(iov, iovlen, "sec",
+		    __DECONST(void *, secname), (size_t)-1);
+	}
 	if (nfsvers == 3)
 		build_iovec(iov, iovlen, "nfsv3", NULL, 0);
 
@@ -1101,9 +895,10 @@ tryagain:
  * return code.
  */
 static enum tryret
-returncode(enum clnt_stat stat, struct rpc_err *rpcerr)
+returncode(enum clnt_stat clntstat, struct rpc_err *rpcerr)
 {
-	switch (stat) {
+
+	switch (clntstat) {
 	case RPC_TIMEDOUT:
 		return (TRYRET_TIMEOUT);
 	case RPC_PMAPFAILURE:

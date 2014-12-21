@@ -6151,6 +6151,7 @@ ar9300_ant_ctrl_set_lna_div_use_bt_ant(struct ath_hal *ah, HAL_BOOL enable, cons
             value &= ~AR_SWITCH_TABLE_COM2_ALL;
             value |= ah->ah_config.ath_hal_ant_ctrl_comm2g_switch_enable;
         }
+	HALDEBUG(ah, HAL_DEBUG_RESET, "%s: com2=0x%08x\n", __func__, value);
         OS_REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM_2, AR_SWITCH_TABLE_COM2_ALL, value);
 
         value = ar9300_eeprom_get(ahp, EEP_ANTDIV_control);

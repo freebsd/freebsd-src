@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "BIO_s_accept 3"
-.TH BIO_s_accept 3 "2014-08-06" "1.0.1i" "OpenSSL"
+.TH BIO_s_accept 3 "2014-10-15" "1.0.1j" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -187,8 +187,8 @@ the accept socket. See \fIBIO_s_fd\fR\|(3)
 \&\fIBIO_set_accept_port()\fR uses the string \fBname\fR to set the accept
 port. The port is represented as a string of the form \*(L"host:port\*(R",
 where \*(L"host\*(R" is the interface to use and \*(L"port\*(R" is the port.
-Either or both values can be \*(L"*\*(R" which is interpreted as meaning
-any interface or port respectively. \*(L"port\*(R" has the same syntax
+The host can be can be \*(L"*\*(R" which is interpreted as meaning
+any interface; \*(L"port\*(R" has the same syntax
 as the port specified in \fIBIO_set_conn_port()\fR for connect BIOs,
 that is it can be a numerical port string or a string to lookup
 using \fIgetservbyname()\fR and a string table.

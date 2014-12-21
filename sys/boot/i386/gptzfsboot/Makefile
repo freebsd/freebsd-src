@@ -5,6 +5,7 @@
 		${.CURDIR}/../../common
 
 FILES=		gptzfsboot
+MAN=		gptzfsboot.8
 
 NM?=		nm
 

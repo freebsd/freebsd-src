@@ -319,7 +319,7 @@ sysarch(td, uap)
 		fpugetregs(td);
 		error = copyout((char *)(get_pcb_user_save_td(td) + 1),
 		    a64xfpu.addr, a64xfpu.len);
-		return (error);
+		break;
 
 	default:
 		error = EINVAL;

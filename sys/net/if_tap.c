@@ -156,6 +156,7 @@ static int			tapdebug = 0;        /* debug flag   */
 static int			tapuopen = 0;        /* allow user open() */
 static int			tapuponopen = 0;    /* IFF_UP on open() */
 static int			tapdclone = 1;	/* enable devfs cloning */
+static int			tapclosedeladdrs = 1; /* del addrs on close */
 static SLIST_HEAD(, tap_softc)	taphead;             /* first device */
 static struct clonedevs 	*tapclones;
 
@@ -172,6 +173,9 @@ SYSCTL_INT(_net_link_tap, OID_AUTO, up_on_open, CTLFLAG_RW, &tapuponopen, 0,
 	"Bring interface up when /dev/tap is opened");
 SYSCTL_INT(_net_link_tap, OID_AUTO, devfs_cloning, CTLFLAG_RWTUN, &tapdclone, 0,
 	"Enably legacy devfs interface creation");
+SYSCTL_INT(_net_link_tap, OID_AUTO, deladdrs_on_close, CTLFLAG_RW,
+	&tapclosedeladdrs, 0, "Delete addresses and routes when /dev/tap is "
+	"closed");
 SYSCTL_INT(_net_link_tap, OID_AUTO, debug, CTLFLAG_RW, &tapdebug, 0, "");
 
 DEV_MODULE(if_tap, tapmodevent, NULL);
@@ -536,7 +540,8 @@ tapclose(struct cdev *dev, int foo, int bar, struct thread *td)
 	 * interface, if we are in VMnet mode. just close the device.
 	 */
 
-	if (((tp->tap_flags & TAP_VMNET) == 0) && (ifp->if_flags & IFF_UP)) {
+	if (tapclosedeladdrs == 1 && ((tp->tap_flags & TAP_VMNET) == 0) &&
+	    (ifp->if_flags & IFF_UP)) {
 		mtx_unlock(&tp->tap_mtx);
 		if_down(ifp);
 		mtx_lock(&tp->tap_mtx);
@@ -682,7 +687,7 @@ tapifstart(struct ifnet *ifp)
 			IF_DEQUEUE(&ifp->if_snd, m);
 			if (m != NULL) {
 				m_freem(m);
-				ifp->if_oerrors++;
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			} else
 				break;
 		}
@@ -707,7 +712,7 @@ tapifstart(struct ifnet *ifp)
 
 		selwakeuppri(&tp->tap_rsel, PZERO+1);
 		KNOTE_LOCKED(&tp->tap_rsel.si_note, 0);
-		ifp->if_opackets ++; /* obytes are counted in ether_output */
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1); /* obytes are counted in ether_output */
 	}
 
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -947,7 +952,7 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 
 	if ((m = m_uiotombuf(uio, M_NOWAIT, 0, ETHER_ALIGN,
 	    M_PKTHDR)) == NULL) {
-		ifp->if_ierrors ++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return (ENOBUFS);
 	}
 
@@ -974,7 +979,7 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 	CURVNET_SET(ifp->if_vnet);
 	(*ifp->if_input)(ifp, m);
 	CURVNET_RESTORE();
-	ifp->if_ipackets ++; /* ibytes are counted in parent */
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1); /* ibytes are counted in parent */
 
 	return (0);
 } /* tapwrite */

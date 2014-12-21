@@ -46,3 +46,4 @@ ASENTRY(CERROR)
 	mvn	r0, #0x00000000
 	mvn	r1, #0x00000000
 	ldmfd	sp!, {r4, pc}
+END(CERROR)

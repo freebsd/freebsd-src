@@ -120,7 +120,7 @@ static int get_result(struct scd_softc *, int result_len, u_char *result);
 static void print_error(struct scd_softc *, int errcode);
 
 static void scd_start(struct scd_softc *);
-static timeout_t scd_timeout;
+static void scd_timeout(void *);
 static void scd_doread(struct scd_softc *, int state, struct scd_mbx *mbxin);
 
 static int scd_eject(struct scd_softc *);
@@ -153,7 +153,7 @@ static struct cdevsw scd_cdevsw = {
 	.d_ioctl =	scdioctl,
 	.d_strategy =	scdstrategy,
 	.d_name =	"scd",
-	.d_flags =	D_DISK | D_NEEDGIANT,
+	.d_flags =	D_DISK,
 };
 
 int
@@ -163,11 +163,13 @@ scd_attach(struct scd_softc *sc)
 
 	unit = device_get_unit(sc->dev);
 
+	SCD_LOCK(sc);
 	init_drive(sc);
 
 	sc->data.flags = SCDINIT;
 	sc->data.audio_status = CD_AS_AUDIO_INVALID;
 	bioq_init(&sc->data.head);
+	SCD_UNLOCK(sc);
 
 	sc->scd_dev_t = make_dev(&scd_cdevsw, 8 * unit,
 		UID_ROOT, GID_OPERATOR, 0640, "scd%d", unit);
@@ -184,18 +186,18 @@ scdopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	sc = (struct scd_softc *)dev->si_drv1;
 
-	/* not initialized*/
-	if (!(sc->data.flags & SCDINIT))
+	/* mark all open part's invalid */
+	SCD_LOCK(sc);
+	if (sc->data.openflag) {
+		SCD_UNLOCK(sc);
 		return (ENXIO);
-
-	/* invalidated in the meantime? mark all open part's invalid */
-	if (sc->data.openflag)
-		return (ENXIO);
+	}
 
 	XDEBUG(sc, 1, "DEBUG: status = 0x%x\n", SCD_READ(sc, IREG_STATUS));
 
 	if ((rc = spin_up(sc)) != 0) {
 		print_error(sc, rc);
+		SCD_UNLOCK(sc);
 		return (EIO);
 	}
 	if (!(sc->data.flags & SCDTOC)) {
@@ -205,18 +207,21 @@ scdopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 			if (rc == ERR_NOT_SPINNING) {
 				rc = spin_up(sc);
 				if (rc) {
-					print_error(sc, rc);\
+					print_error(sc, rc);
+					SCD_UNLOCK(sc);
 					return (EIO);
 				}
 				continue;
 			}
 			device_printf(sc->dev, "TOC read error 0x%x\n", rc);
+			SCD_UNLOCK(sc);
 			return (EIO);
 		}
 	}
 
 	sc->data.openflag = 1;
 	sc->data.flags |= SCDVALID;
+	SCD_UNLOCK(sc);
 
 	return (0);
 }
@@ -228,17 +233,17 @@ scdclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 
 	sc = (struct scd_softc *)dev->si_drv1;
 
-	if (!(sc->data.flags & SCDINIT) || !sc->data.openflag)
-		return (ENXIO);
+	SCD_LOCK(sc);
+	KASSERT(sc->data.openflag, ("device not open"));
 
 	if (sc->data.audio_status != CD_AS_PLAY_IN_PROGRESS) {
 		(void)send_cmd(sc, CMD_SPIN_DOWN, 0);
 		sc->data.flags &= ~SCDSPINNING;
 	}
 
-
 	/* close channel */
 	sc->data.openflag = 0;
+	SCD_UNLOCK(sc);
 
 	return (0);
 }
@@ -246,12 +251,12 @@ scdclose(struct cdev *dev, int flags, int fmt, struct thread *td)
 static	void
 scdstrategy(struct bio *bp)
 {
-	int s;
 	struct scd_softc *sc;
 
 	sc = (struct scd_softc *)bp->bio_dev->si_drv1;
 
 	/* if device invalidated (e.g. media change, door open), error */
+	SCD_LOCK(sc);
 	if (!(sc->data.flags & SCDVALID)) {
 		device_printf(sc->dev, "media changed\n");
 		bp->bio_error = EIO;
@@ -276,17 +281,17 @@ scdstrategy(struct bio *bp)
 	bp->bio_resid = 0;
 
 	/* queue it */
-	s = splbio();
 	bioq_disksort(&sc->data.head, bp);
-	splx(s);
 
 	/* now check whether we can perform processing */
 	scd_start(sc);
+	SCD_UNLOCK(sc);
 	return;
 
 bad:
 	bp->bio_flags |= BIO_ERROR;
 done:
+	SCD_UNLOCK(sc);
 	bp->bio_resid = bp->bio_bcount;
 	biodone(bp);
 	return;
@@ -296,27 +301,22 @@ static void
 scd_start(struct scd_softc *sc)
 {
 	struct bio *bp;
-	int s = splbio();
 
-	if (sc->data.flags & SCDMBXBSY) {
-		splx(s);
+	SCD_ASSERT_LOCKED(sc);
+	if (sc->data.flags & SCDMBXBSY)
 		return;
-	}
 
 	bp = bioq_takefirst(&sc->data.head);
 	if (bp != 0) {
 		/* block found to process, dequeue */
 		sc->data.flags |= SCDMBXBSY;
-		splx(s);
 	} else {
 		/* nothing to do */
-		splx(s);
 		return;
 	}
 
 	sc->data.mbx.retry = 3;
 	sc->data.mbx.bp = bp;
-	splx(s);
 
 	scd_doread(sc, SCD_S_BEGIN, &(sc->data.mbx));
 	return;
@@ -326,39 +326,47 @@ static	int
 scdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct scd_softc *sc;
+	int error;
 
 	sc = (struct scd_softc *)dev->si_drv1;
 
 	XDEBUG(sc, 1, "ioctl: cmd=0x%lx\n", cmd);
 
-	if (!(sc->data.flags & SCDVALID))
+	SCD_LOCK(sc);
+	if (!(sc->data.flags & SCDVALID)) {
+		SCD_UNLOCK(sc);
 		return (EIO);
+	}
 
+	error = 0;
 	switch (cmd) {
 	case DIOCGMEDIASIZE:
 		*(off_t *)addr = (off_t)sc->data.disksize * sc->data.blksize;
-		return (0);
 		break;
 	case DIOCGSECTORSIZE:
 		*(u_int *)addr = sc->data.blksize;
-		return (0);
 		break;
 	case CDIOCPLAYTRACKS:
-		return scd_playtracks(sc, (struct ioc_play_track *) addr);
+		error = scd_playtracks(sc, (struct ioc_play_track *) addr);
+		break;
 	case CDIOCPLAYBLOCKS:
-		return (EINVAL);
+		error = EINVAL;
+		break;
 	case CDIOCPLAYMSF:
-		return scd_playmsf(sc, (struct ioc_play_msf *) addr);
+		error = scd_playmsf(sc, (struct ioc_play_msf *) addr);
+		break;
 	case CDIOCREADSUBCHANNEL_SYSSPACE:
 		return scd_subchan(sc, (struct ioc_read_subchannel *) addr, 1);
 	case CDIOCREADSUBCHANNEL:
 		return scd_subchan(sc, (struct ioc_read_subchannel *) addr, 0);
 	case CDIOREADTOCHEADER:
-		return scd_toc_header (sc, (struct ioc_toc_header *) addr);
+		error = scd_toc_header (sc, (struct ioc_toc_header *) addr);
+		break;
 	case CDIOREADTOCENTRYS:
 		return scd_toc_entrys (sc, (struct ioc_read_toc_entry*) addr);
 	case CDIOREADTOCENTRY:
-		return scd_toc_entry (sc, (struct ioc_read_toc_single_entry*) addr);
+		error = scd_toc_entry (sc, (struct ioc_read_toc_single_entry*) addr);
+		break;
 	case CDIOCSETPATCH:
 	case CDIOCGETVOL:
 	case CDIOCSETVOL:
@@ -367,34 +375,43 @@ scdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *t
 	case CDIOCSETMUTE:
 	case CDIOCSETLEFT:
 	case CDIOCSETRIGHT:
-		return (EINVAL);
+		error = EINVAL;
+		break;
 	case CDIOCRESUME:
-		return scd_resume(sc);
+		error = scd_resume(sc);
+		break;
 	case CDIOCPAUSE:
-		return scd_pause(sc);
+		error = scd_pause(sc);
+		break;
 	case CDIOCSTART:
-		return (EINVAL);
+		error = EINVAL;
+		break;
 	case CDIOCSTOP:
-		return scd_stop(sc);
+		error = scd_stop(sc);
+		break;
 	case CDIOCEJECT:
-		return scd_eject(sc);
+		error = scd_eject(sc);
+		break;
 	case CDIOCALLOW:
-		return (0);
+		break;
 	case CDIOCSETDEBUG:
 #ifdef SCD_DEBUG
 		scd_debuglevel++;
 #endif
-		return (0);
+		break;
 	case CDIOCCLRDEBUG:
 #ifdef SCD_DEBUG
 		scd_debuglevel = 0;
 
 #endif
-		return (0);
+		break;
 	default:
 		device_printf(sc->dev, "unsupported ioctl (cmd=0x%lx)\n", cmd);
-		return (ENOTTY);
+		error = ENOTTY;
+		break;
 	}
+	SCD_UNLOCK(sc);
+	return (error);
 }
 
 /***************************************************************
@@ -573,6 +590,7 @@ scd_subchan(struct scd_softc *sc, struct ioc_read_subchannel *sch, int nocopyout
 	data.what.position.absaddr.msf.minute = bcd2bin(q.abs_msf[0]);
 	data.what.position.absaddr.msf.second = bcd2bin(q.abs_msf[1]);
 	data.what.position.absaddr.msf.frame = bcd2bin(q.abs_msf[2]);
+	SCD_UNLOCK(sc);
 
 	if (nocopyout == 0) {
 		if (copyout(&data, sch->data, min(sizeof(struct cd_sub_channel_info), sch->data_len))!=0)
@@ -680,6 +698,7 @@ scd_timeout(void *arg)
 	struct scd_softc *sc;
 	sc = (struct scd_softc *)arg;
 
+	SCD_ASSERT_LOCKED(sc);
 	scd_doread(sc, sc->ch_state, sc->ch_mbxsave);
 }
 
@@ -693,6 +712,7 @@ scd_doread(struct scd_softc *sc, int state, struct scd_mbx *mbxin)
 	caddr_t	addr;
 	static char sdata[3];	/* Must be preserved between calls to this function */
 
+	SCD_ASSERT_LOCKED(sc);
 loop:
 	switch (state) {
 	case SCD_S_BEGIN:
@@ -707,7 +727,7 @@ loop:
 
 	case SCD_S_WAITSTAT:
 		sc->ch_state = SCD_S_WAITSTAT;
-		untimeout(scd_timeout, (caddr_t)sc, sc->ch);
+		callout_stop(&sc->timer);
 		if (mbx->count-- <= 0) {
 			device_printf(sc->dev, "timeout. drive busy.\n");
 			goto harderr;
@@ -716,7 +736,7 @@ loop:
 trystat:
 		if (IS_BUSY(sc)) {
 			sc->ch_state = SCD_S_WAITSTAT;
-			sc->ch = timeout(scd_timeout, (caddr_t)sc, hz/100); /* XXX */
+			callout_reset(&sc->timer, hz / 100, scd_timeout, sc); /* XXX */
 			return;
 		}
 
@@ -754,19 +774,19 @@ nextblock:
 
 		mbx->count = 100;
 		sc->ch_state = SCD_S_WAITFIFO;
-		sc->ch = timeout(scd_timeout, (caddr_t)sc, hz/100); /* XXX */
+		callout_reset(&sc->timer, hz / 100, scd_timeout, sc); /* XXX */
 		return;
 
 	case SCD_S_WAITSPIN:
 		sc->ch_state = SCD_S_WAITSPIN;
-		untimeout(scd_timeout,(caddr_t)sc, sc->ch);
+		callout_stop(&sc->timer);
 		if (mbx->count-- <= 0) {
 			device_printf(sc->dev, "timeout waiting for drive to spin up.\n");
 			goto harderr;
 		}
 		if (!STATUS_BIT(sc, SBIT_RESULT_READY)) {
 			sc->ch_state = SCD_S_WAITSPIN;
-			sc->ch = timeout(scd_timeout, (caddr_t)sc, hz/100); /* XXX */
+			callout_reset(&sc->timer, hz / 100, scd_timeout, sc); /* XXX */
 			return;
 		}
 		SCD_WRITE(sc, OREG_CONTROL, CBIT_RESULT_READY_CLEAR);
@@ -787,14 +807,14 @@ nextblock:
 
 	case SCD_S_WAITFIFO:
 		sc->ch_state = SCD_S_WAITFIFO;
-		untimeout(scd_timeout,(caddr_t)sc, sc->ch);
+		callout_stop(&sc->timer);
 		if (mbx->count-- <= 0) {
 			device_printf(sc->dev, "timeout. write param not ready.\n");
 			goto harderr;
 		}
 		if (!FSTATUS_BIT(sc, FBIT_WPARAM_READY)) {
 			sc->ch_state = SCD_S_WAITFIFO;
-			sc->ch = timeout(scd_timeout, (caddr_t)sc,hz/100); /* XXX */
+			callout_reset(&sc->timer, hz / 100, scd_timeout, sc); /* XXX */
 			return;
 		}
 		XDEBUG(sc, 1, "mbx->count (writeparamwait) = %d(%d)\n", mbx->count, 100);
@@ -807,12 +827,11 @@ writeparam:
 			SCD_WRITE(sc, OREG_COMMAND, CMD_SPIN_UP);
 			mbx->count = 300;
 			sc->ch_state = SCD_S_WAITSPIN;
-			sc->ch = timeout(scd_timeout, (caddr_t)sc, hz/100); /* XXX */
+			callout_reset(&sc->timer, hz / 100, scd_timeout, sc); /* XXX */
 			return;
 		}
 
 		/* send the read command */
-		critical_enter();
 		SCD_WRITE(sc, OREG_WPARAMS, sdata[0]);
 		SCD_WRITE(sc, OREG_WPARAMS, sdata[1]);
 		SCD_WRITE(sc, OREG_WPARAMS, sdata[2]);
@@ -820,7 +839,6 @@ writeparam:
 		SCD_WRITE(sc, OREG_WPARAMS, 0);
 		SCD_WRITE(sc, OREG_WPARAMS, 1);
 		SCD_WRITE(sc, OREG_COMMAND, CMD_READ);
-		critical_exit();
 
 		mbx->count = RDELAY_WAITREAD;
 		for (i = 0; i < 50; i++) {
@@ -830,12 +848,12 @@ writeparam:
 		}
 
 		sc->ch_state = SCD_S_WAITREAD;
-		sc->ch = timeout(scd_timeout, (caddr_t)sc, hz/100); /* XXX */
+		callout_reset(&sc->timer, hz / 100, scd_timeout, sc); /* XXX */
 		return;
 
 	case SCD_S_WAITREAD:
 		sc->ch_state = SCD_S_WAITREAD;
-		untimeout(scd_timeout,(caddr_t)sc, sc->ch);
+		callout_stop(&sc->timer);
 		if (mbx->count-- <= 0) {
 			if (STATUS_BIT(sc, SBIT_RESULT_READY))
 				goto got_param;
@@ -847,7 +865,7 @@ writeparam:
 			if (!(sc->data.flags & SCDVALID))
 				goto changed;
 			sc->ch_state = SCD_S_WAITREAD;
-			sc->ch = timeout(scd_timeout, (caddr_t)sc, hz/100); /* XXX */
+			callout_reset(&sc->timer, hz / 100, scd_timeout, sc); /* XXX */
 			return;
 		}
 		XDEBUG(sc, 2, "mbx->count (after RDY_BIT) = %d(%d)\n", mbx->count, RDELAY_WAITREAD);
@@ -868,7 +886,7 @@ got_data:
 
 	case SCD_S_WAITPARAM:
 		sc->ch_state = SCD_S_WAITPARAM;
-		untimeout(scd_timeout,(caddr_t)sc, sc->ch);
+		callout_stop(&sc->timer);
 		if (mbx->count-- <= 0) {
 			device_printf(sc->dev, "timeout waiting for params\n");
 			goto readerr;
@@ -877,7 +895,7 @@ got_data:
 waitfor_param:
 		if (!STATUS_BIT(sc, SBIT_RESULT_READY)) {
 			sc->ch_state = SCD_S_WAITPARAM;
-			sc->ch = timeout(scd_timeout, (caddr_t)sc, hz/100); /* XXX */
+			callout_reset(&sc->timer, hz / 100, scd_timeout, sc); /* XXX */
 			return;
 		}
 #ifdef SCD_DEBUG
@@ -1293,7 +1311,9 @@ waitfor_status_bits(struct scd_softc *sc, int bits_set, int bits_clear)
 			{
 				break;
 			}
+			SCD_UNLOCK(sc);
 			pause("waitfor", hz/10);
+			SCD_LOCK(sc);
 		}
 	}
 	if ((c & bits_set) == bits_set &&
@@ -1363,6 +1383,7 @@ scd_toc_entrys (struct scd_softc *sc, struct ioc_read_toc_entry *te)
 		toc_entry.addr.msf.second = bcd2bin(sc->data.toc[i].start_msf[1]);
 		toc_entry.addr.msf.frame = bcd2bin(sc->data.toc[i].start_msf[2]);
 	}
+	SCD_UNLOCK(sc);
 
 	/* copy the data back */
 	if (copyout(&toc_entry, te->data, sizeof(struct cd_toc_entry)) != 0)

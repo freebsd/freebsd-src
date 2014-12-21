@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd August 5, 2014
+.Dd October 30, 2014
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -118,6 +118,8 @@ for regular files, and 30 -> 60 seconds for directories.
 The algorithm to calculate the timeout is based on the age of the file.
 The older the file,
 the longer the cache is considered valid, subject to the limits above.
+.It Cm actimeo Ns = Ns Aq Ar seconds
+Set four cache timeouts above to specified value.
 .It Cm allgssname
 This option can be used along with
 .Fl o Cm gssname
@@ -211,6 +213,8 @@ NFS Version 4 protocol.
 This option is only meaningful when used with the
 .Cm minorversion
 option.
+.It Cm noac
+Disable attribute caching.
 .It Cm noconn
 For UDP mount points, do not do a
 .Xr connect 2 .
@@ -282,6 +286,15 @@ use a reserved socket port number (see below).
 .It Cm port Ns = Ns Aq Ar port_number
 Use specified port number for NFS requests.
 The default is to query the portmapper for the NFS port.
+.It Cm proto Ns = Ns Aq Ar protocol
+Specify transport protocol version to use.
+Currently, they are:
+.Bd -literal
+udp -   Use UDP over IPv4
+tcp -   Use TCP over IPv4
+udp6 -  Use UDP over IPv6
+tcp6 -  Use TCP over IPv6
+.Ed
 .It Cm rdirplus
 Used with NFSV3 to specify that the \fBReaddirPlus\fR RPC should
 be used.
@@ -357,7 +370,8 @@ LAN and WAN configurations compared to UDP.
 Some old NFS servers do not support this method; UDP mounts may be required
 for interoperability.
 .It Cm timeout Ns = Ns Aq Ar value
-Set the initial retransmit timeout to the specified value.
+Set the initial retransmit timeout to the specified value,
+expressed in tenths of a second.
 May be useful for fine tuning UDP mounts over internetworks
 with high packet loss rates or an overloaded server.
 Try increasing the interval if
@@ -369,6 +383,9 @@ value if there is a low retransmit rate but long response delay observed.
 option should be specified when using this option to manually
 tune the timeout
 interval.)
+.It Cm timeo Ns = Ns Aq Ar value
+Alias for
+.Cm timeout .
 .It Cm udp
 Use UDP transport.
 .It Cm vers Ns = Ns Aq Ar vers_number

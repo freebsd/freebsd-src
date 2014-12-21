@@ -32,7 +32,7 @@
 .\"     @(#)dd.1	8.2 (Berkeley) 1/13/94
 .\" $FreeBSD$
 .\"
-.Dd April 2, 2014
+.Dd August 28, 2014
 .Dt DD 1
 .Os
 .Sh NAME
@@ -408,6 +408,11 @@ To create an image of a Mode-1 CD-ROM, which is a commonly used format
 for data CD-ROM disks, use a block size of 2048 bytes:
 .Pp
 .Dl "dd if=/dev/acd0 of=filename.iso bs=2048"
+.Pp
+Write a filesystem image to a memory stick, padding the end with zeros,
+if necessary, to a 1MiB boundary:
+.Pp
+.Dl "dd if=memstick.img of=/dev/da0 bs=1m conv=noerror,sync"
 .Sh SEE ALSO
 .Xr cp 1 ,
 .Xr mt 1 ,

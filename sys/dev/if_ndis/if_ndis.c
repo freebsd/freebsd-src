@@ -1431,7 +1431,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 				p->np_refcnt++;
 				m_freem(m0);
 				if (m == NULL)
-					ifp->if_ierrors++;
+					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				else
 					m0 = m;
 			} else
@@ -1444,7 +1444,7 @@ ndis_rxeof(adapter, packets, pktcnt)
 				p->np_oob.npo_status = NDIS_STATUS_PENDING;
 			m_freem(m0);
 			if (m == NULL) {
-				ifp->if_ierrors++;
+				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				continue;
 			}
 			m0 = m;
@@ -1554,9 +1554,9 @@ ndis_txeof(adapter, packet, status)
 	sc->ndis_txpending++;
 
 	if (status == NDIS_STATUS_SUCCESS)
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	else
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	sc->ndis_tx_timer = 0;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -1659,7 +1659,7 @@ ndis_tick(xsc)
 	}
 
 	if (sc->ndis_tx_timer && --sc->ndis_tx_timer == 0) {
-		sc->ifp->if_oerrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		device_printf(sc->ndis_dev, "watchdog timeout\n");
 
 		IoQueueWorkItem(sc->ndis_resetitem,
@@ -1710,23 +1710,26 @@ ndis_ticktask(d, xsc)
 	if (sc->ndis_link == 0 &&
 	    sc->ndis_sts == NDIS_STATUS_MEDIA_CONNECT) {
 		sc->ndis_link = 1;
-		NDIS_UNLOCK(sc);
 		if ((sc->ndis_80211 != 0) && (vap != NULL)) {
+			NDIS_UNLOCK(sc);
 			ndis_getstate_80211(sc);
 			ieee80211_new_state(vap, IEEE80211_S_RUN, -1);
-		}
-		NDIS_LOCK(sc);
-		if_link_state_change(sc->ifp, LINK_STATE_UP);
+			NDIS_LOCK(sc);
+			if_link_state_change(vap->iv_ifp, LINK_STATE_UP);
+		} else
+			if_link_state_change(sc->ifp, LINK_STATE_UP);
 	}
 
 	if (sc->ndis_link == 1 &&
 	    sc->ndis_sts == NDIS_STATUS_MEDIA_DISCONNECT) {
 		sc->ndis_link = 0;
-		NDIS_UNLOCK(sc);
-		if ((sc->ndis_80211 != 0) && (vap != NULL))
+		if ((sc->ndis_80211 != 0) && (vap != NULL)) {
+			NDIS_UNLOCK(sc);
 			ieee80211_new_state(vap, IEEE80211_S_SCAN, 0);
-		NDIS_LOCK(sc);
-		if_link_state_change(sc->ifp, LINK_STATE_DOWN);
+			NDIS_LOCK(sc);
+			if_link_state_change(vap->iv_ifp, LINK_STATE_DOWN);
+		} else
+			if_link_state_change(sc->ifp, LINK_STATE_DOWN);
 	}
 
 	NDIS_UNLOCK(sc);

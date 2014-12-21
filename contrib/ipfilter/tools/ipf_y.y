@@ -1020,12 +1020,13 @@ addr:	pool '/' YY_NUMBER		{ pooled = 1;
 					  yyexpectaddr = 0; }
 	;
 
-ipaddr:	IPFY_ANY			{ bzero(&($$), sizeof($$));
+ipaddr:	IPFY_ANY			{ memset(&($$), 0, sizeof($$));
 					  $$.type = FRI_NORMAL;
 					  $$.ifpos = -1;
 					  yyexpectaddr = 0;
 					}
-	| hostname			{ $$.a = $1.adr;
+	| hostname			{ memset(&($$), 0, sizeof($$));
+					  $$.a = $1.adr;
 					  $$.f = $1.f;
 					  if ($1.f == AF_INET6)
 						  fill6bits(128, $$.m.i6);
@@ -1038,7 +1039,8 @@ ipaddr:	IPFY_ANY			{ bzero(&($$), sizeof($$));
 	| hostname			{ yyresetdict(); }
 		maskspace		{ yysetdict(maskwords);
 					  yyexpectaddr = 2; }
-		ipmask			{ ntomask($1.f, $5, $$.m.i6);
+		ipmask			{ memset(&($$), 0, sizeof($$));
+					  ntomask($1.f, $5, $$.m.i6);
 					  $$.a = $1.adr;
 					  $$.a.i6[0] &= $$.m.i6[0];
 					  $$.a.i6[1] &= $$.m.i6[1];
@@ -1060,7 +1062,8 @@ ipaddr:	IPFY_ANY			{ bzero(&($$), sizeof($$));
 					  yyresetdict();
 					  yyexpectaddr = 0;
 					}
-	| '(' YY_STR ')'		{ $$.type = FRI_DYNAMIC;
+	| '(' YY_STR ')'		{ memset(&($$), 0, sizeof($$));
+					  $$.type = FRI_DYNAMIC;
 					  ifpflag = FRI_DYNAMIC;
 					  $$.ifpos = addname(&fr, $2);
 					  $$.lif = 0;
@@ -1068,7 +1071,8 @@ ipaddr:	IPFY_ANY			{ bzero(&($$), sizeof($$));
 	| '(' YY_STR ')' '/'
 	  { ifpflag = FRI_DYNAMIC; yysetdict(maskwords); }
 	  maskopts
-					{ $$.type = ifpflag;
+					{ memset(&($$), 0, sizeof($$));
+					  $$.type = ifpflag;
 					  $$.ifpos = addname(&fr, $2);
 					  $$.lif = 0;
 					  if (frc->fr_family == AF_UNSPEC)
@@ -1083,7 +1087,8 @@ ipaddr:	IPFY_ANY			{ bzero(&($$), sizeof($$));
 	| '(' YY_STR ':' YY_NUMBER ')' '/'
 	  { ifpflag = FRI_DYNAMIC; yysetdict(maskwords); }
 	  maskopts
-					{ $$.type = ifpflag;
+					{ memset(&($$), 0, sizeof($$));
+					  $$.type = ifpflag;
 					  $$.ifpos = addname(&fr, $2);
 					  $$.lif = $4;
 					  if (frc->fr_family == AF_UNSPEC)
@@ -1142,30 +1147,35 @@ maskopts:
 	;
 
 hostname:
-	ipv4				{ $$.adr.in4 = $1;
+	ipv4				{ memset(&($$), 0, sizeof($$));
+					  $$.adr.in4 = $1;
 					  if (frc->fr_family == AF_INET6)
 						YYERROR;
 					  $$.f = AF_INET;
 					  yyexpectaddr = 2;
 					}
-	| YY_NUMBER			{ if (frc->fr_family == AF_INET6)
+	| YY_NUMBER			{ memset(&($$), 0, sizeof($$));
+					  if (frc->fr_family == AF_INET6)
 						YYERROR;
 					  $$.adr.in4_addr = $1;
 					  $$.f = AF_INET;
 					  yyexpectaddr = 2;
 					}
-	| YY_HEX			{ if (frc->fr_family == AF_INET6)
+	| YY_HEX			{ memset(&($$), 0, sizeof($$));
+					  if (frc->fr_family == AF_INET6)
 						YYERROR;
 					  $$.adr.in4_addr = $1;
 					  $$.f = AF_INET;
 					  yyexpectaddr = 2;
 					}
-	| YY_STR			{ if (lookuphost($1, &$$.adr) == 0)
+	| YY_STR			{ memset(&($$), 0, sizeof($$));
+					  if (lookuphost($1, &$$.adr) == 0)
 						  $$.f = AF_INET;
 					  free($1);
 					  yyexpectaddr = 2;
 					}
-	| YY_IPV6			{ if (frc->fr_family == AF_INET)
+	| YY_IPV6			{ memset(&($$), 0, sizeof($$));
+					  if (frc->fr_family == AF_INET)
 						YYERROR;
 					  $$.adr = $1;
 					  $$.f = AF_INET6;

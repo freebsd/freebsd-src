@@ -770,7 +770,7 @@ qls_init_ifnet(device_t dev, qla_host_t *ha)
 
 	ifp->if_capenable = ifp->if_capabilities;
 
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	ifmedia_init(&ha->media, IFM_IMASK, qls_media_change, qls_media_status);
 
@@ -1136,7 +1136,8 @@ qls_send(qla_host_t *ha, struct mbuf **m_headp)
 
 	QL_DPRINT8((ha->pci_dev, "%s: enter\n", __func__));
 
-	if (m_head->m_flags & M_FLOWID)
+	/* check if flowid is set */
+	if (M_HASHTYPE_GET(m_head) != M_HASHTYPE_NONE)
 		txr_idx = m_head->m_pkthdr.flowid & (ha->num_tx_rings - 1);
 
 	tx_idx = ha->tx_ring[txr_idx].txr_next;

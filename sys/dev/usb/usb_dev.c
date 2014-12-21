@@ -298,6 +298,10 @@ error:
 	}
 	mtx_unlock(&usb_ref_lock);
 	DPRINTFN(2, "fail\n");
+
+	/* clear all refs */
+	memset(crd, 0, sizeof(*crd));
+
 	return (USB_ERR_INVAL);
 }
 
@@ -1093,8 +1097,8 @@ usb_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread* 
 		goto done;
 
 	if (usb_usb_ref_device(cpd, &refs)) {
-		err = ENXIO;
-		goto done;
+		/* we lost the reference */
+		return (ENXIO);
 	}
 
 	err = (f->methods->f_ioctl_post) (f, cmd, addr, fflags);
@@ -1117,9 +1121,8 @@ usb_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int fflag, struct thread* 
 
 		while (usb_ref_device(cpd, &refs, 1 /* need uref */)) {
 			if (usb_ref_device(cpd, &refs, 0)) {
-				/* device no longer exits */
-				err = ENXIO;
-				goto done;
+				/* device no longer exists */
+				return (ENXIO);
 			}
 			usb_unref_device(cpd, &refs);
 			usb_pause_mtx(NULL, hz / 128);
@@ -1411,9 +1414,9 @@ usb_read(struct cdev *dev, struct uio *uio, int ioflag)
 		return (err);
 
 	err = usb_ref_device(cpd, &refs, 0 /* no uref */ );
-	if (err) {
+	if (err)
 		return (ENXIO);
-	}
+
 	fflags = cpd->fflags;
 
 	f = refs.rxfifo;
@@ -1537,9 +1540,9 @@ usb_write(struct cdev *dev, struct uio *uio, int ioflag)
 		return (err);
 
 	err = usb_ref_device(cpd, &refs, 0 /* no uref */ );
-	if (err) {
+	if (err)
 		return (ENXIO);
-	}
+
 	fflags = cpd->fflags;
 
 	f = refs.txfifo;

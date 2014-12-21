@@ -30,7 +30,7 @@
  */
 
 #ifndef _SFXGE_TX_H
-#define _SFXGE_TX_H
+#define	_SFXGE_TX_H
 
 #include <netinet/in.h>
 #include <netinet/ip.h>
@@ -47,7 +47,7 @@
  * could overlap all mbufs in the chain and also require an extra
  * segment for a TSO header.
  */
-#define SFXGE_TX_PACKET_MAX_SEG (SFXGE_TX_MAPPING_MAX_SEG + 1)
+#define	SFXGE_TX_PACKET_MAX_SEG (SFXGE_TX_MAPPING_MAX_SEG + 1)
 
 /*
  * Buffer mapping flags.
@@ -75,17 +75,21 @@ struct sfxge_tx_mapping {
 	enum sfxge_tx_buf_flags	flags;
 };
 
-#define	SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT	64
+#define	SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT	1024
 #define	SFXGE_TX_DPL_PUT_PKT_LIMIT_DEFAULT	64
 
 /*
  * Deferred packet list.
  */
 struct sfxge_tx_dpl {
-	uintptr_t		std_put;    /* Head of put list. */
-	struct mbuf		*std_get;   /* Head of get list. */
-	struct mbuf		**std_getp; /* Tail of get list. */
-	unsigned int		std_count;  /* Count of packets. */
+	unsigned int		std_get_max;	/* Maximum number of packets
+						 * in get list */
+	unsigned int		std_put_max;	/* Maximum number of packets
+						 * in put list */
+	uintptr_t		std_put;	/* Head of put list. */
+	struct mbuf		*std_get;	/* Head of get list. */
+	struct mbuf		**std_getp;	/* Tail of get list. */
+	unsigned int		std_get_count;	/* Packets in get list. */
 };
 
 
@@ -106,16 +110,16 @@ enum sfxge_txq_type {
 	SFXGE_TXQ_NTYPES
 };
 
-#define	SFXGE_TXQ_UNBLOCK_LEVEL		(EFX_TXQ_LIMIT(SFXGE_NDESCS) / 4)
+#define	SFXGE_TXQ_UNBLOCK_LEVEL(_entries)	(EFX_TXQ_LIMIT(_entries) / 4)
 
 #define	SFXGE_TX_BATCH	64
 
 #ifdef SFXGE_HAVE_MQ
-#define SFXGE_TXQ_LOCK(txq)		(&(txq)->lock)
-#define SFXGE_TX_SCALE(sc)		((sc)->intr.n_alloc)
+#define	SFXGE_TXQ_LOCK(txq)		(&(txq)->lock)
+#define	SFXGE_TX_SCALE(sc)		((sc)->intr.n_alloc)
 #else
-#define SFXGE_TXQ_LOCK(txq)		(&(txq)->sc->tx_lock)
-#define SFXGE_TX_SCALE(sc)		1
+#define	SFXGE_TXQ_LOCK(txq)		(&(txq)->sc->tx_lock)
+#define	SFXGE_TX_SCALE(sc)		1
 #endif
 
 struct sfxge_txq {
@@ -128,6 +132,8 @@ struct sfxge_txq {
 	unsigned int			evq_index;
 	efsys_mem_t			mem;
 	unsigned int			buf_base_id;
+	unsigned int			entries;
+	unsigned int			ptr_mask;
 
 	struct sfxge_tx_mapping		*stmp;	/* Packets in flight. */
 	bus_dma_tag_t			packet_dma_tag;

@@ -27,7 +27,7 @@
  */
 
 /*
- * 	Author: David B. Golub, Carnegie Mellon University
+ *	Author: David B. Golub, Carnegie Mellon University
  *	Date:	10/90
  */
 

@@ -27,7 +27,7 @@
  *
  */
 
-#define ASMC_MAXFANS	2
+#define ASMC_MAXFANS	6
 
 struct asmc_softc {
 	device_t 		sc_dev;
@@ -83,6 +83,7 @@ struct asmc_softc {
  */
 #define ASMC_KEY_FANCOUNT	"FNum"	/* RO; 1 byte */
 #define ASMC_KEY_FANMANUAL	"FS! "	/* RW; 2 bytes */
+#define ASMC_KEY_FANID		"F%dID"	/* RO; 16 bytes */
 #define ASMC_KEY_FANSPEED	"F%dAc"	/* RO; 2 bytes */
 #define ASMC_KEY_FANMINSPEED	"F%dMn"	/* RO; 2 bytes */
 #define ASMC_KEY_FANMAXSPEED	"F%dMx"	/* RO; 2 bytes */
@@ -132,7 +133,7 @@ struct asmc_softc {
  *
  */
 /* maximum array size for temperatures including the last NULL */
-#define ASMC_TEMP_MAX		36
+#define ASMC_TEMP_MAX		80
 #define ASMC_MB_TEMPS		{ "TB0T", "TN0P", "TN1P", "Th0H", "Th1H", \
 				  "TM0P", NULL }
 #define ASMC_MB_TEMPNAMES	{ "enclosure", "northbridge1", \
@@ -175,6 +176,57 @@ struct asmc_softc {
 				  "Unknown", "Unknown", \
 				  "Wireless Module", } 
 
+#define ASMC_MBP8_TEMPS		{ "TB0T", "TB1T", "TB2T", "TC0C", "TC0D", \
+				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
+				  "TC3C", "TC4C", "TCFC", "TCGC", "TCSA", \
+				  "TCTD", "TG0D", "TG0P", "THSP", "TM0S", \
+				  "TMBS", "TP0P", "TPCD", "TW0P", "Th1H", \
+				  "Th2H", "Tm0P", "Ts0P", "Ts0S", NULL } 
+
+#define ASMC_MBP8_TEMPNAMES	{ "enclosure", "TB1T", "TB2T", "TC0C", "TC0D", \
+				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
+				  "TC3C", "TC4C", "TCFC", "TCGC", "TCSA", \
+				  "TCTD", "graphics", "TG0P", "THSP", "TM0S", \
+				  "TMBS", "TP0P", "TPCD", "wireless", "Th1H", \
+				  "Th2H", "memory", "Ts0P", "Ts0S" } 
+
+#define ASMC_MBP8_TEMPDESCS	{ "Enclosure Bottomside", "TB1T", "TB2T", "TC0C", "TC0D", \
+				  "TC0E", "TC0F", "TC0P", "TC1C", "TC2C", \
+				  "TC3C", "TC4C", "TCFC", "TCGC", "TCSA", \
+				  "TCTD", "TG0D", "TG0P", "THSP", "TM0S", \
+				  "TMBS", "TP0P", "TPCD", "TW0P", "Th1H", \
+				  "Th2H", "Tm0P", "Ts0P", "Ts0S" } 
+
+#define ASMC_MBP11_TEMPS	{ "TB0T", "TB1T", "TB2T", "TBXT", "TC0E", \
+				  "TC0F", "TC0P", "TC1C", "TC2C", "TC3C", \
+				  "TC4C", "TCFC", "TCGC", "TCSA", "TCTD", \
+				  "TCXC", "TG0D", "TG0P", "TG1D", "TG1F", \
+				  "TG1d", "TH0A", "TH0B", "TH0F", "TH0R", \
+				  "TH0V", "TH0a", "TH0b", "TH0c", "TM0P", \
+				  "TM0S", "TP0P", "TPCD", "TW0P", "Ta0P", \
+				  "TaSP", "Th1H", "Th2H", "Ts0P", "Ts0S", \
+				  "Ts1S", NULL } 
+
+#define ASMC_MBP11_TEMPNAMES	{ "TB0T", "TB1T", "TB2T", "TBXT", "TC0E", \
+				  "TC0F", "TC0P", "TC1C", "TC2C", "TC3C", \
+				  "TC4C", "TCFC", "TCGC", "TCSA", "TCTD", \
+				  "TCXC", "TG0D", "TG0P", "TG1D", "TG1F", \
+				  "TG1d", "TH0A", "TH0B", "TH0F", "TH0R", \
+				  "TH0V", "TH0a", "TH0b", "TH0c", "TM0P", \
+				  "TM0S", "TP0P", "TPCD", "TW0P", "Ta0P", \
+				  "TaSP", "Th1H", "Th2H", "Ts0P", "Ts0S", \
+				  "Ts1S" } 
+
+#define ASMC_MBP11_TEMPDESCS	{ "TB0T", "TB1T", "TB2T", "TBXT", "TC0E", \
+				  "TC0F", "TC0P", "TC1C", "TC2C", "TC3C", \
+				  "TC4C", "TCFC", "TCGC", "TCSA", "TCTD", \
+				  "TCXC", "TG0D", "TG0P", "TG1D", "TG1F", \
+				  "TG1d", "TH0A", "TH0B", "TH0F", "TH0R", \
+				  "TH0V", "TH0a", "TH0b", "TH0c", "TM0P", \
+				  "TM0S", "TP0P", "TPCD", "TW0P", "Ta0P", \
+				  "TaSP", "Th1H", "Th2H", "Ts0P", "Ts0S", \
+				  "Ts1S" } 
+
 #define ASMC_MM_TEMPS		{ "TN0P", "TN1P", NULL }
 #define ASMC_MM_TEMPNAMES	{ "northbridge1", "northbridge2" }
 #define ASMC_MM_TEMPDESCS	{ "Northbridge Point 1", \
@@ -214,8 +266,7 @@ struct asmc_softc {
 				  "TH0P", "TH1P", "TH2P", "TH3P", "TMAP", \
 				  "TMAS", "TMBS", "TM0P", "TM0S", "TM1P", \
 				  "TM1S", "TM2P", "TM2S", "TM3S", "TM8P", \
-				  "TM8S", "TM9P", "TM9S", "TN0H", "TS0C", \
-				  NULL }
+				  "TM8S", "TM9P", "TM9S", "TN0H", "TS0C", }
 
 #define ASMC_MP_TEMPDESCS	{ "TA0P", "TCAG", "TCAH", "TCBG", "TCBH", \
 				  "TC0C", "TC0D", "TC0P", "TC1C", "TC1D", \
@@ -223,9 +274,66 @@ struct asmc_softc {
 				  "TH0P", "TH1P", "TH2P", "TH3P", "TMAP", \
 				  "TMAS", "TMBS", "TM0P", "TM0S", "TM1P", \
 				  "TM1S", "TM2P", "TM2S", "TM3S", "TM8P", \
-				  "TM8S", "TM9P", "TM9S", "TN0H", "TS0C", \
+				  "TM8S", "TM9P", "TM9S", "TN0H", "TS0C", }
+
+#define ASMC_MP5_TEMPS		{ "TA0P", "TCAC", "TCAD", "TCAG", "TCAH", \
+				  "TCAS", "TCBC", "TCBD", "TCBG", "TCBH", \
+				  "TCBS", "TH1F", "TH1P", "TH1V", "TH2F", \
+				  "TH2P", "TH2V", "TH3F", "TH3P", "TH3V", \
+				  "TH4F", "TH4P", "TH4V", "THPS", "THTG", \
+				  "TM1P", "TM2P", "TM2V", "TM3P", "TM3V", \
+				  "TM4P", "TM5P", "TM6P", "TM6V", "TM7P", \
+				  "TM7V", "TM8P", "TM8V", "TM9V", "TMA1", \
+				  "TMA2", "TMA3", "TMA4", "TMB1", "TMB2", \
+				  "TMB3", "TMB4", "TMHS", "TMLS", "TMPS", \
+				  "TMPV", "TMTG", "TN0D", "TN0H", "TNTG", \
+				  "Te1F", "Te1P", "Te1S", "Te2F", "Te2S", \
+				  "Te3F", "Te3S", "Te4F", "Te4S", "Te5F", \
+				  "Te5S", "TeGG", "TeGP", "TeRG", "TeRP", \
+				  "TeRV", "Tp0C", "Tp1C", "TpPS", "TpTG", \
 				  NULL }
+
+#define ASMC_MP5_TEMPNAMES	{ "ambient", "TCAC", "TCAD", "TCAG", "TCAH", \
+				  "TCAS", "TCBC", "TCBD", "TCBG", "TCBH", \
+				  "TCBS", "TH1F", "TH1P", "TH1V", "TH2F", \
+				  "TH2P", "TH2V", "TH3F", "TH3P", "TH3V", \
+				  "TH4F", "TH4P", "TH4V", "THPS", "THTG", \
+				  "TM1P", "TM2P", "TM2V", "TM3P", "TM3V", \
+				  "TM4P", "TM5P", "TM6P", "TM6V", "TM7P", \
+				  "TM7V", "TM8P", "TM8V", "TM9V", "ram_a1", \
+				  "ram_a2", "ram_a3", "ram_a4", "ram_b1", "ram_b2", \
+				  "ram_b3", "ram_b4", "TMHS", "TMLS", "TMPS", \
+				  "TMPV", "TMTG", "TN0D", "TN0H", "TNTG", \
+				  "Te1F", "Te1P", "Te1S", "Te2F", "Te2S", \
+				  "Te3F", "Te3S", "Te4F", "Te4S", "Te5F", \
+				  "Te5S", "TeGG", "TeGP", "TeRG", "TeRP", \
+				  "TeRV", "Tp0C", "Tp1C", "TpPS", "TpTG", }
+
+#define ASMC_MP5_TEMPDESCS	{ "TA0P", "TCAC", "TCAD", "TCAG", "TCAH", \
+				  "TCAS", "TCBC", "TCBD", "TCBG", "TCBH", \
+				  "TCBS", "TH1F", "TH1P", "TH1V", "TH2F", \
+				  "TH2P", "TH2V", "TH3F", "TH3P", "TH3V", \
+				  "TH4F", "TH4P", "TH4V", "THPS", "THTG", \
+				  "TM1P", "TM2P", "TM2V", "TM3P", "TM3V", \
+				  "TM4P", "TM5P", "TM6P", "TM6V", "TM7P", \
+				  "TM7V", "TM8P", "TM8V", "TM9V", "TMA1", \
+				  "TMA2", "TMA3", "TMA4", "TMB1", "TMB2", \
+				  "TMB3", "TMB4", "TMHS", "TMLS", "TMPS", \
+				  "TMPV", "TMTG", "TN0D", "TN0H", "TNTG", \
+				  "Te1F", "Te1P", "Te1S", "Te2F", "Te2S", \
+				  "Te3F", "Te3S", "Te4F", "Te4S", "Te5F", \
+				  "Te5S", "TeGG", "TeGP", "TeRG", "TeRP", \
+				  "TeRV", "Tp0C", "Tp1C", "TpPS", "TpTG", }
 
 #define	ASMC_MBA_TEMPS		{ "TB0T", NULL }
 #define	ASMC_MBA_TEMPNAMES	{ "enclosure" }
 #define	ASMC_MBA_TEMPDESCS	{ "Enclosure Bottom" }
+
+#define	ASMC_MBA3_TEMPS		{ "TB0T", "TB1T", "TB2T", \
+				  "TC0D", "TC0E", "TC0P", NULL }
+
+#define	ASMC_MBA3_TEMPNAMES	{ "enclosure", "TB1T", "TB2T", \
+				  "TC0D", "TC0E", "TC0P" }
+
+#define	ASMC_MBA3_TEMPDESCS	{ "Enclosure Bottom", "TB1T", "TB2T", \
+				  "TC0D", "TC0E", "TC0P" }

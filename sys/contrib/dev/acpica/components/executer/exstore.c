@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,6 +60,12 @@ static ACPI_STATUS
 AcpiExStoreObjectToIndex (
     ACPI_OPERAND_OBJECT     *ValDesc,
     ACPI_OPERAND_OBJECT     *DestDesc,
+    ACPI_WALK_STATE         *WalkState);
+
+static ACPI_STATUS
+AcpiExStoreDirectToNode (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    ACPI_NAMESPACE_NODE     *Node,
     ACPI_WALK_STATE         *WalkState);
 
 
@@ -393,7 +399,11 @@ AcpiExStoreObjectToIndex (
  *              When storing into an object the data is converted to the
  *              target object type then stored in the object. This means
  *              that the target object type (for an initialized target) will
- *              not be changed by a store operation.
+ *              not be changed by a store operation. A CopyObject can change
+ *              the target type, however.
+ *
+ *              The ImplicitConversion flag is set to NO/FALSE only when
+ *              storing to an ArgX -- as per the rules of the ACPI spec.
  *
  *              Assumes parameters are already validated.
  *
@@ -420,7 +430,7 @@ AcpiExStoreObjectToNode (
     TargetType = AcpiNsGetType (Node);
     TargetDesc = AcpiNsGetAttachedObject (Node);
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Storing %p(%s) into node %p(%s)\n",
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC, "Storing %p (%s) to node %p (%s)\n",
         SourceDesc, AcpiUtGetObjectTypeName (SourceDesc),
               Node, AcpiUtGetTypeName (TargetType)));
 
@@ -434,49 +444,35 @@ AcpiExStoreObjectToNode (
         return_ACPI_STATUS (Status);
     }
 
-    /* If no implicit conversion, drop into the default case below */
-
-    if ((!ImplicitConversion) ||
-          ((WalkState->Opcode == AML_COPY_OP) &&
-           (TargetType != ACPI_TYPE_LOCAL_REGION_FIELD) &&
-           (TargetType != ACPI_TYPE_LOCAL_BANK_FIELD) &&
-           (TargetType != ACPI_TYPE_LOCAL_INDEX_FIELD)))
-    {
-        /*
-         * Force execution of default (no implicit conversion). Note:
-         * CopyObject does not perform an implicit conversion, as per the ACPI
-         * spec -- except in case of region/bank/index fields -- because these
-         * objects must retain their original type permanently.
-         */
-        TargetType = ACPI_TYPE_ANY;
-    }
-
     /* Do the actual store operation */
 
     switch (TargetType)
     {
-    case ACPI_TYPE_BUFFER_FIELD:
-    case ACPI_TYPE_LOCAL_REGION_FIELD:
-    case ACPI_TYPE_LOCAL_BANK_FIELD:
-    case ACPI_TYPE_LOCAL_INDEX_FIELD:
-
-        /* For fields, copy the source data to the target field. */
-
-        Status = AcpiExWriteDataToField (SourceDesc, TargetDesc,
-                    &WalkState->ResultObj);
-        break;
-
     case ACPI_TYPE_INTEGER:
     case ACPI_TYPE_STRING:
     case ACPI_TYPE_BUFFER:
         /*
-         * These target types are all of type Integer/String/Buffer, and
-         * therefore support implicit conversion before the store.
-         *
-         * Copy and/or convert the source object to a new target object
+         * The simple data types all support implicit source operand
+         * conversion before the store.
          */
+
+        if ((WalkState->Opcode == AML_COPY_OP) ||
+            !ImplicitConversion)
+        {
+            /*
+             * However, CopyObject and Stores to ArgX do not perform
+             * an implicit conversion, as per the ACPI specification.
+             * A direct store is performed instead.
+             */
+            Status = AcpiExStoreDirectToNode (SourceDesc, Node,
+                WalkState);
+            break;
+        }
+
+        /* Store with implicit source operand conversion support */
+
         Status = AcpiExStoreObjectToObject (SourceDesc, TargetDesc,
-                    &NewDesc, WalkState);
+            &NewDesc, WalkState);
         if (ACPI_FAILURE (Status))
         {
             return_ACPI_STATUS (Status);
@@ -489,11 +485,12 @@ AcpiExStoreObjectToNode (
              * the Name's type to that of the value being stored in it.
              * SourceDesc reference count is incremented by AttachObject.
              *
-             * Note: This may change the type of the node if an explicit store
-             * has been performed such that the node/object type has been
-             * changed.
+             * Note: This may change the type of the node if an explicit
+             * store has been performed such that the node/object type
+             * has been changed.
              */
-            Status = AcpiNsAttachObject (Node, NewDesc, NewDesc->Common.Type);
+            Status = AcpiNsAttachObject (Node, NewDesc,
+                NewDesc->Common.Type);
 
             ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
                 "Store %s into %s via Convert/Attach\n",
@@ -502,33 +499,86 @@ AcpiExStoreObjectToNode (
         }
         break;
 
+    case ACPI_TYPE_BUFFER_FIELD:
+    case ACPI_TYPE_LOCAL_REGION_FIELD:
+    case ACPI_TYPE_LOCAL_BANK_FIELD:
+    case ACPI_TYPE_LOCAL_INDEX_FIELD:
+        /*
+         * For all fields, always write the source data to the target
+         * field. Any required implicit source operand conversion is
+         * performed in the function below as necessary. Note, field
+         * objects must retain their original type permanently.
+         */
+        Status = AcpiExWriteDataToField (SourceDesc, TargetDesc,
+            &WalkState->ResultObj);
+        break;
+
     default:
-
-        ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
-            "Storing [%s] (%p) directly into node [%s] (%p)"
-            " with no implicit conversion\n",
-            AcpiUtGetObjectTypeName (SourceDesc), SourceDesc,
-            AcpiUtGetObjectTypeName (TargetDesc), Node));
-
         /*
          * No conversions for all other types. Directly store a copy of
-         * the source object. NOTE: This is a departure from the ACPI
-         * spec, which states "If conversion is impossible, abort the
-         * running control method".
+         * the source object. This is the ACPI spec-defined behavior for
+         * the CopyObject operator.
          *
-         * This code implements "If conversion is impossible, treat the
-         * Store operation as a CopyObject".
+         * NOTE: For the Store operator, this is a departure from the
+         * ACPI spec, which states "If conversion is impossible, abort
+         * the running control method". Instead, this code implements
+         * "If conversion is impossible, treat the Store operation as
+         * a CopyObject".
          */
-        Status = AcpiUtCopyIobjectToIobject (SourceDesc, &NewDesc, WalkState);
-        if (ACPI_FAILURE (Status))
-        {
-            return_ACPI_STATUS (Status);
-        }
-
-        Status = AcpiNsAttachObject (Node, NewDesc, NewDesc->Common.Type);
-        AcpiUtRemoveReference (NewDesc);
+        Status = AcpiExStoreDirectToNode (SourceDesc, Node,
+            WalkState);
         break;
     }
 
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiExStoreDirectToNode
+ *
+ * PARAMETERS:  SourceDesc              - Value to be stored
+ *              Node                    - Named object to receive the value
+ *              WalkState               - Current walk state
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: "Store" an object directly to a node. This involves a copy
+ *              and an attach.
+ *
+ ******************************************************************************/
+
+static ACPI_STATUS
+AcpiExStoreDirectToNode (
+    ACPI_OPERAND_OBJECT     *SourceDesc,
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_WALK_STATE         *WalkState)
+{
+    ACPI_STATUS             Status;
+    ACPI_OPERAND_OBJECT     *NewDesc;
+
+
+    ACPI_FUNCTION_TRACE (ExStoreDirectToNode);
+
+
+    ACPI_DEBUG_PRINT ((ACPI_DB_EXEC,
+        "Storing [%s] (%p) directly into node [%s] (%p)"
+        " with no implicit conversion\n",
+        AcpiUtGetObjectTypeName (SourceDesc), SourceDesc,
+        AcpiUtGetTypeName (Node->Type), Node));
+
+    /* Copy the source object to a new object */
+
+    Status = AcpiUtCopyIobjectToIobject (SourceDesc, &NewDesc, WalkState);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Attach the new object to the node */
+
+    Status = AcpiNsAttachObject (Node, NewDesc, NewDesc->Common.Type);
+    AcpiUtRemoveReference (NewDesc);
     return_ACPI_STATUS (Status);
 }

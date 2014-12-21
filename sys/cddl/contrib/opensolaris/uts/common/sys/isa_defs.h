@@ -331,7 +331,9 @@ extern "C" {
 /*
  * Define the appropriate "implementation choices".
  */
+#if !defined(_ILP32)
 #define	_ILP32
+#endif
 #if !defined(_I32LPx) && defined(_KERNEL)
 #define	_I32LPx
 #endif
@@ -375,7 +377,9 @@ extern "C" {
 /*
  * Define the appropriate "implementation choices".
  */
+#if !defined(_ILP32)
 #define	_ILP32
+#endif
 #if !defined(_I32LPx) && defined(_KERNEL)
 #define	_I32LPx
 #endif

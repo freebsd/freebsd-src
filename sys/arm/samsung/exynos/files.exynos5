@@ -33,4 +33,4 @@ arm/samsung/exynos/chrome_ec.c			optional	chrome_ec_i2c
 arm/samsung/exynos/chrome_ec_spi.c		optional	chrome_ec_spi
 arm/samsung/exynos/chrome_kb.c			optional	chrome_kb
 
-#dev/sdhci/sdhci_fdt.c				optional	sdhci
+dev/mmc/host/dwmmc.c				optional	dwmmc

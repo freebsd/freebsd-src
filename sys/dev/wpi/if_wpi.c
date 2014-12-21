@@ -1460,7 +1460,7 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 
 	if (stat->len > WPI_STAT_MAXLEN) {
 		device_printf(sc->sc_dev, "invalid rx statistic header\n");
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -1477,13 +1477,13 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 	if ((le32toh(tail->flags) & WPI_RX_NOERROR) != WPI_RX_NOERROR) {
 		DPRINTFN(WPI_DEBUG_RX, ("%s: rx flags error %x\n", __func__,
 		    le32toh(tail->flags)));
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 	if (le16toh(head->len) < sizeof (struct ieee80211_frame)) {
 		DPRINTFN(WPI_DEBUG_RX, ("%s: frame too short: %d\n", __func__,
 		    le16toh(head->len)));
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -1492,7 +1492,7 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 	if (mnew == NULL) {
 		DPRINTFN(WPI_DEBUG_RX, ("%s: no mbuf to restock ring\n",
 		    __func__));
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 	bus_dmamap_unload(ring->data_dmat, data->map);
@@ -1504,7 +1504,7 @@ wpi_rx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc,
 		device_printf(sc->sc_dev,
 		    "%s: bus_dmamap_load failed, error %d\n", __func__, error);
 		m_freem(mnew);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 	bus_dmamap_sync(ring->data_dmat, data->map, BUS_DMASYNC_PREWRITE);
@@ -1596,9 +1596,9 @@ wpi_tx_intr(struct wpi_softc *sc, struct wpi_rx_desc *desc)
 
 	/* XXX oerrors should only count errors !maxtries */
 	if ((le32toh(stat->status) & 0xff) != 1)
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	else
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 	bus_dmamap_sync(ring->data_dmat, txdata->map, BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(ring->data_dmat, txdata->map);
@@ -2059,7 +2059,7 @@ wpi_start_locked(struct ifnet *ifp)
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
 		if (wpi_tx_data(sc, m, ni, ac) != 0) {
 			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			break;
 		}
 		sc->sc_tx_timer = 5;
@@ -2091,7 +2091,7 @@ wpi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		return ENOBUFS;		/* XXX */
 	}
 
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	if (wpi_tx_data(sc, m, ni, 0) != 0)
 		goto bad;
 	sc->sc_tx_timer = 5;
@@ -2100,7 +2100,7 @@ wpi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	WPI_UNLOCK(sc);
 	return 0;
 bad:
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	WPI_UNLOCK(sc);
 	ieee80211_free_node(ni);
 	return EIO;		/* XXX */
@@ -2564,7 +2564,7 @@ wpi_scan(struct wpi_softc *sc)
 	struct ieee80211_channel *c;
 	enum ieee80211_phymode mode;
 	uint8_t *frm;
-	int nrates, pktlen, error, i, nssid;
+	int pktlen, error, i, nssid;
 	bus_addr_t physaddr;
 
 	desc = &ring->desc[ring->cur];
@@ -2613,7 +2613,7 @@ wpi_scan(struct wpi_softc *sc)
 	nssid = MIN(ss->ss_nssid, WPI_SCAN_MAX_ESSIDS);
 	for (i = 0; i < nssid; i++) {
 		hdr->scan_essids[i].id = IEEE80211_ELEMID_SSID;
-		hdr->scan_essids[i].esslen = MIN(ss->ss_ssid[i].len, 32);
+		hdr->scan_essids[i].esslen = MIN(ss->ss_ssid[i].len, IEEE80211_NWID_LEN);
 		memcpy(hdr->scan_essids[i].essid, ss->ss_ssid[i].ssid,
 		    hdr->scan_essids[i].esslen);
 #ifdef WPI_DEBUG
@@ -2630,7 +2630,7 @@ wpi_scan(struct wpi_softc *sc)
 	 * Build a probe request frame.  Most of the following code is a
 	 * copy & paste of what is done in net80211.
 	 */
-	wh = (struct ieee80211_frame *)&hdr->scan_essids[4];
+	wh = (struct ieee80211_frame *)&hdr->scan_essids[WPI_SCAN_MAX_ESSIDS];
 	wh->i_fc[0] = IEEE80211_FC0_VERSION_0 | IEEE80211_FC0_TYPE_MGT |
 		IEEE80211_FC0_SUBTYPE_PROBE_REQ;
 	wh->i_fc[1] = IEEE80211_FC1_DIR_NODS;
@@ -2642,30 +2642,12 @@ wpi_scan(struct wpi_softc *sc)
 
 	frm = (uint8_t *)(wh + 1);
 
-	/* add essid IE, the hardware will fill this in for us */
-	*frm++ = IEEE80211_ELEMID_SSID;
-	*frm++ = 0;
-
 	mode = ieee80211_chan2mode(ic->ic_curchan);
 	rs = &ic->ic_sup_rates[mode];
 
-	/* add supported rates IE */
-	*frm++ = IEEE80211_ELEMID_RATES;
-	nrates = rs->rs_nrates;
-	if (nrates > IEEE80211_RATE_SIZE)
-		nrates = IEEE80211_RATE_SIZE;
-	*frm++ = nrates;
-	memcpy(frm, rs->rs_rates, nrates);
-	frm += nrates;
-
-	/* add supported xrates IE */
-	if (rs->rs_nrates > IEEE80211_RATE_SIZE) {
-		nrates = rs->rs_nrates - IEEE80211_RATE_SIZE;
-		*frm++ = IEEE80211_ELEMID_XRATES;
-		*frm++ = nrates;
-		memcpy(frm, rs->rs_rates + IEEE80211_RATE_SIZE, nrates);
-		frm += nrates;
-	}
+	frm = ieee80211_add_ssid(frm, NULL, 0);
+	frm = ieee80211_add_rates(frm, rs);
+	frm = ieee80211_add_xrates(frm, rs);
 
 	/* setup length of probe request */
 	hdr->tx.len = htole16(frm - (uint8_t *)wh);
@@ -3667,7 +3649,7 @@ wpi_watchdog(void *arg)
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
 			device_printf(sc->sc_dev,"device timeout\n");
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			ieee80211_runtask(ic, &sc->sc_restarttask);
 		}
 	}

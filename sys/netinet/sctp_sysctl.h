@@ -46,6 +46,8 @@ struct sctp_sysctl {
 	uint32_t sctp_multiple_asconfs;
 	uint32_t sctp_ecn_enable;
 	uint32_t sctp_pr_enable;
+	uint32_t sctp_auth_enable;
+	uint32_t sctp_asconf_enable;
 	uint32_t sctp_reconfig_enable;
 	uint32_t sctp_nrsack_enable;
 	uint32_t sctp_pktdrop_enable;
@@ -81,7 +83,6 @@ struct sctp_sysctl {
 	uint32_t sctp_cmt_on_off;
 	uint32_t sctp_cmt_use_dac;
 	uint32_t sctp_use_cwnd_based_maxburst;
-	uint32_t sctp_auth_disable;
 	uint32_t sctp_nat_friendly;
 	uint32_t sctp_L2_abc_variable;
 	uint32_t sctp_mbuf_threshold_count;
@@ -142,7 +143,7 @@ struct sctp_sysctl {
 #define SCTPCTL_AUTOASCONF_DESC		"Enable SCTP Auto-ASCONF"
 #define SCTPCTL_AUTOASCONF_MIN		0
 #define SCTPCTL_AUTOASCONF_MAX		1
-#define SCTPCTL_AUTOASCONF_DEFAULT	SCTP_DEFAULT_AUTO_ASCONF
+#define SCTPCTL_AUTOASCONF_DEFAULT	1
 
 /* autoasconf: Enable SCTP Auto-ASCONF */
 #define SCTPCTL_MULTIPLEASCONFS_DESC	"Enable SCTP Muliple-ASCONFs"
@@ -161,6 +162,18 @@ struct sctp_sysctl {
 #define SCTPCTL_PR_ENABLE_MIN		0
 #define SCTPCTL_PR_ENABLE_MAX		1
 #define SCTPCTL_PR_ENABLE_DEFAULT	1
+
+/* auth_enable: Enable SCTP AUTH function */
+#define SCTPCTL_AUTH_ENABLE_DESC	"Enable SCTP AUTH function"
+#define SCTPCTL_AUTH_ENABLE_MIN		0
+#define SCTPCTL_AUTH_ENABLE_MAX		1
+#define SCTPCTL_AUTH_ENABLE_DEFAULT	1
+
+/* asconf_enable: Enable SCTP ASCONF */
+#define SCTPCTL_ASCONF_ENABLE_DESC	"Enable SCTP ASCONF"
+#define SCTPCTL_ASCONF_ENABLE_MIN	0
+#define SCTPCTL_ASCONF_ENABLE_MAX	1
+#define SCTPCTL_ASCONF_ENABLE_DEFAULT	1
 
 /* reconfig_enable: Enable SCTP RE-CONFIG */
 #define SCTPCTL_RECONFIG_ENABLE_DESC	"Enable SCTP RE-CONFIG"
@@ -379,12 +392,6 @@ struct sctp_sysctl {
 #define SCTPCTL_CWND_MAXBURST_MAX	1
 #define SCTPCTL_CWND_MAXBURST_DEFAULT	1
 
-/* auth_disable: Disable SCTP AUTH function */
-#define SCTPCTL_AUTH_DISABLE_DESC	"Disable SCTP AUTH function"
-#define SCTPCTL_AUTH_DISABLE_MIN	0
-#define SCTPCTL_AUTH_DISABLE_MAX	1
-#define SCTPCTL_AUTH_DISABLE_DEFAULT	0
-
 /* nat_friendly: SCTP NAT friendly operation */
 #define SCTPCTL_NAT_FRIENDLY_DESC	"SCTP NAT friendly operation"
 #define SCTPCTL_NAT_FRIENDLY_MIN	0
@@ -467,13 +474,13 @@ struct sctp_sysctl {
 #define SCTPCTL_MOBILITY_BASE_DESC	"Enable SCTP base mobility"
 #define SCTPCTL_MOBILITY_BASE_MIN	0
 #define SCTPCTL_MOBILITY_BASE_MAX	1
-#define SCTPCTL_MOBILITY_BASE_DEFAULT	SCTP_DEFAULT_MOBILITY_BASE
+#define SCTPCTL_MOBILITY_BASE_DEFAULT	0
 
 /* mobility_fasthandoff: Enable SCTP fast handoff support */
 #define SCTPCTL_MOBILITY_FASTHANDOFF_DESC	"Enable SCTP fast handoff"
 #define SCTPCTL_MOBILITY_FASTHANDOFF_MIN	0
 #define SCTPCTL_MOBILITY_FASTHANDOFF_MAX	1
-#define SCTPCTL_MOBILITY_FASTHANDOFF_DEFAULT	SCTP_DEFAULT_MOBILITY_FASTHANDOFF
+#define SCTPCTL_MOBILITY_FASTHANDOFF_DEFAULT	0
 
 /* Enable SCTP/UDP tunneling port */
 #define SCTPCTL_UDP_TUNNELING_PORT_DESC		"Set the SCTP/UDP tunneling port"

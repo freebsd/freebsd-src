@@ -9,7 +9,6 @@ SRCS=		bthidcontrol.c hid.c lexer.l  parser.y sdp.c
 WARNS?=		1
 CFLAGS+=	-DBTHIDCONTROL=1 -I${.CURDIR}/../bthidd
 
-DPADD=		${LIBBLUETOOTH} ${LIBSDP} ${LIBUSBHID}
-LDADD=		-lbluetooth -lsdp -lusbhid
+LIBADD+=	bluetooth sdp usbhid
 
 .include <bsd.prog.mk>

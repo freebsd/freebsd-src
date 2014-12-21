@@ -85,21 +85,21 @@ print_unreach6_code(uint16_t code)
  * Print the ip address contained in a command.
  */
 void
-print_ip6(ipfw_insn_ip6 *cmd, char const *s)
+print_ip6(struct buf_pr *bp, ipfw_insn_ip6 *cmd, char const *s)
 {
        struct hostent *he = NULL;
        int len = F_LEN((ipfw_insn *) cmd) - 1;
        struct in6_addr *a = &(cmd->addr6);
        char trad[255];
 
-       printf("%s%s ", cmd->o.len & F_NOT ? " not": "", s);
+       bprintf(bp, "%s%s ", cmd->o.len & F_NOT ? " not": "", s);
 
        if (cmd->o.opcode == O_IP6_SRC_ME || cmd->o.opcode == O_IP6_DST_ME) {
-	       printf("me6");
+	       bprintf(bp, "me6");
 	       return;
        }
        if (cmd->o.opcode == O_IP6) {
-	       printf(" ip6");
+	       bprintf(bp, " ip6");
 	       return;
        }
 
@@ -117,21 +117,21 @@ print_ip6(ipfw_insn_ip6 *cmd, char const *s)
 	   if (mb == 128 && co.do_resolv)
 	       he = gethostbyaddr((char *)a, sizeof(*a), AF_INET6);
 	   if (he != NULL)	     /* resolved to name */
-	       printf("%s", he->h_name);
+	       bprintf(bp, "%s", he->h_name);
 	   else if (mb == 0)	   /* any */
-	       printf("any");
+	       bprintf(bp, "any");
 	   else {	  /* numeric IP followed by some kind of mask */
 	       if (inet_ntop(AF_INET6,  a, trad, sizeof( trad ) ) == NULL)
-		   printf("Error ntop in print_ip6\n");
-	       printf("%s",  trad );
+		   bprintf(bp, "Error ntop in print_ip6\n");
+	       bprintf(bp, "%s",  trad );
 	       if (mb < 0)     /* XXX not really legal... */
-		   printf(":%s",
+		   bprintf(bp, ":%s",
 		       inet_ntop(AF_INET6, &a[1], trad, sizeof(trad)));
 	       else if (mb < 128)
-		   printf("/%d", mb);
+		   bprintf(bp, "/%d", mb);
 	   }
 	   if (len > 2)
-	       printf(",");
+	       bprintf(bp, ",");
        }
 }
 
@@ -165,32 +165,32 @@ fill_icmp6types(ipfw_insn_icmp6 *cmd, char *av, int cblen)
 
 
 void
-print_icmp6types(ipfw_insn_u32 *cmd)
+print_icmp6types(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 {
        int i, j;
        char sep= ' ';
 
-       printf(" ip6 icmp6types");
+       bprintf(bp, " ip6 icmp6types");
        for (i = 0; i < 7; i++)
 	       for (j=0; j < 32; ++j) {
 		       if ( (cmd->d[i] & (1 << (j))) == 0)
 			       continue;
-		       printf("%c%d", sep, (i*32 + j));
+		       bprintf(bp, "%c%d", sep, (i*32 + j));
 		       sep = ',';
 	       }
 }
 
 void
-print_flow6id( ipfw_insn_u32 *cmd)
+print_flow6id(struct buf_pr *bp, ipfw_insn_u32 *cmd)
 {
        uint16_t i, limit = cmd->o.arg1;
        char sep = ',';
 
-       printf(" flow-id ");
+       bprintf(bp, " flow-id ");
        for( i=0; i < limit; ++i) {
 	       if (i == limit - 1)
 		       sep = ' ';
-	       printf("%d%c", cmd->d[i], sep);
+	       bprintf(bp, "%d%c", cmd->d[i], sep);
        }
 }
 
@@ -265,41 +265,41 @@ fill_ext6hdr( ipfw_insn *cmd, char *av)
 }
 
 void
-print_ext6hdr( ipfw_insn *cmd )
+print_ext6hdr(struct buf_pr *bp, ipfw_insn *cmd )
 {
        char sep = ' ';
 
-       printf(" extension header:");
+       bprintf(bp, " extension header:");
        if (cmd->arg1 & EXT_FRAGMENT ) {
-	   printf("%cfragmentation", sep);
+	   bprintf(bp, "%cfragmentation", sep);
 	   sep = ',';
        }
        if (cmd->arg1 & EXT_HOPOPTS ) {
-	   printf("%chop options", sep);
+	   bprintf(bp, "%chop options", sep);
 	   sep = ',';
        }
        if (cmd->arg1 & EXT_ROUTING ) {
-	   printf("%crouting options", sep);
+	   bprintf(bp, "%crouting options", sep);
 	   sep = ',';
        }
        if (cmd->arg1 & EXT_RTHDR0 ) {
-	   printf("%crthdr0", sep);
+	   bprintf(bp, "%crthdr0", sep);
 	   sep = ',';
        }
        if (cmd->arg1 & EXT_RTHDR2 ) {
-	   printf("%crthdr2", sep);
+	   bprintf(bp, "%crthdr2", sep);
 	   sep = ',';
        }
        if (cmd->arg1 & EXT_DSTOPTS ) {
-	   printf("%cdestination options", sep);
+	   bprintf(bp, "%cdestination options", sep);
 	   sep = ',';
        }
        if (cmd->arg1 & EXT_AH ) {
-	   printf("%cauthentication header", sep);
+	   bprintf(bp, "%cauthentication header", sep);
 	   sep = ',';
        }
        if (cmd->arg1 & EXT_ESP ) {
-	   printf("%cencapsulated security payload", sep);
+	   bprintf(bp, "%cencapsulated security payload", sep);
        }
 }
 

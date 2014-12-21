@@ -5,7 +5,6 @@ test_suite("atf")
 atf_test_program{name="atf_c_test"}
 atf_test_program{name="build_test"}
 atf_test_program{name="check_test"}
-atf_test_program{name="config_test"}
 atf_test_program{name="error_test"}
 atf_test_program{name="macros_test"}
 atf_test_program{name="pkg_config_test"}

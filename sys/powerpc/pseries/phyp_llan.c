@@ -345,13 +345,13 @@ llan_intr(void *xsc)
 
 		/* llan_add_rxbuf does DMA sync and unload as well as requeue */
 		if (llan_add_rxbuf(sc, rx) != 0) {
-			sc->ifp->if_ierrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 			phyp_hcall(H_ADD_LOGICAL_LAN_BUFFER, sc->unit,
 			    rx->rx_bufdesc);
 			continue;
 		}
 
-		sc->ifp->if_ipackets++;
+		if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 		m_adj(m, sc->rx_buf[sc->rx_dma_slot].offset);
 		m->m_len = sc->rx_buf[sc->rx_dma_slot].length;
 		m->m_pkthdr.rcvif = sc->ifp;

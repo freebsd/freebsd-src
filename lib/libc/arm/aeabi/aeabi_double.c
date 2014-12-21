@@ -74,3 +74,28 @@ float64 AEABI_FUNC2(ddiv, float64, float64_div)
 float64 AEABI_FUNC2(dmul, float64, float64_mul)
 float64 AEABI_FUNC2(dsub, float64, float64_sub)
 
+int
+__aeabi_cdcmpeq_helper(float64 a, float64 b)
+{
+	int quiet = 0;
+
+	/* Check if a is a NaN */
+	if ((a << 1) > 0xffe0000000000000ull) {
+		/* If it's a signalling NaN we will always signal */
+		if ((a & 0x0008000000000000ull) == 0)
+			return (0);
+
+		quiet = 1;
+	}
+
+	/* Check if b is a NaN */
+	if ((b << 1) > 0xffe0000000000000ull) {
+		/* If it's a signalling NaN we will always signal */
+		if ((b & 0x0008000000000000ull) == 0)
+			return (0);
+
+		quiet = 1;
+	}
+
+	return (quiet);
+}

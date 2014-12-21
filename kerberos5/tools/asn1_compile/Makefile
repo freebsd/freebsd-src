@@ -3,8 +3,9 @@
 PROG=	asn1_compile
 MAN=
 LIBROKEN_A=	${.OBJDIR}/../../lib/libroken/libroken.a
-LDADD=	${LIBROKEN_A} ${LIBVERS}
-DPADD=	${LIBROKEN_A} ${LIBVERS}
+LIBADD=	vers
+LDADD=	${LIBROKEN_A}
+DPADD=	${LIBROKEN_A}
 
 SRCS=	\
 	asn1parse.y \
@@ -26,8 +27,6 @@ SRCS=	\
 CFLAGS+=-I${KRB5DIR}/lib/roken -I${KRB5DIR}/lib/asn1 -I.
 
 CLEANFILES= roken.h lex.c parse.c
-
-NO_PIE=	yes
 
 roken.h:
 	 make-roken > ${.TARGET}

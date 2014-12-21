@@ -11,7 +11,7 @@
 # are exceptions). Recursive makes usually add MK_FOO=no for options that they wish
 # to omit from that make.
 #
-# Makefiles must include bsd.srcpot.mk before they test the value of any MK_FOO
+# Makefiles must include bsd.mkopt.mk before they test the value of any MK_FOO
 # variable.
 #
 # Makefiles may also assume that this file is included by src.opts.mk should it
@@ -48,7 +48,6 @@ __DEFAULT_YES_OPTIONS = \
     ACPI \
     AMD \
     APM \
-    ARM_EABI \
     AT \
     ATM \
     AUDIT \
@@ -91,6 +90,7 @@ __DEFAULT_YES_OPTIONS = \
     GPL_DTC \
     GROFF \
     HTML \
+    HYPERV \
     ICONV \
     INET \
     INET6 \
@@ -160,6 +160,7 @@ __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
     CLANG_EXTRAS \
     EISA \
+    ELFTOOLCHAIN_TOOLS \
     FMAKE \
     HESIOD \
     LLDB \
@@ -169,8 +170,7 @@ __DEFAULT_NO_OPTIONS = \
     OPENSSH_NONE_CIPHER \
     SHARED_TOOLCHAIN \
     SORT_THREADS \
-    SVN \
-    USB_GADGET_EXAMPLES
+    SVN
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately
@@ -194,7 +194,7 @@ __TT=${MACHINE}
 # Clang is only for x86, powerpc and little-endian arm right now, by default.
 .if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL CLANG_BOOTSTRAP
-.elif ${__T} == "arm" || ${__T} == "armv6" || ${__T} == "armv6hf"
+.elif ${__TT} == "arm" && ${__T:Marm*eb*} == ""
 __DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP
 # GCC is unable to build the full clang on arm, disable it by default.
 __DEFAULT_NO_OPTIONS+=CLANG_FULL
@@ -202,8 +202,8 @@ __DEFAULT_NO_OPTIONS+=CLANG_FULL
 __DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL CLANG_BOOTSTRAP
 .endif
 # Clang the default system compiler only on little-endian arm and x86.
-.if ${__T} == "amd64" || ${__T} == "arm" || ${__T} == "armv6" || \
-    ${__T} == "armv6hf" || ${__T} == "i386"
+.if ${__T} == "amd64" || (${__TT} == "arm" && ${__T:Marm*eb*} == "") || \
+    ${__T} == "i386"
 __DEFAULT_YES_OPTIONS+=CLANG_IS_CC
 __DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
 .else
@@ -307,6 +307,7 @@ MK_BINUTILS:=	no
 MK_CLANG:=	no
 MK_GCC:=	no
 MK_GDB:=	no
+MK_INCLUDES:=	no
 .endif
 
 .if ${MK_CLANG} == "no"
@@ -331,6 +332,7 @@ MK_CLANG_FULL:= no
     KVM \
     NETGRAPH \
     PAM \
+    TESTS \
     WIRELESS
 .if defined(WITHOUT_${var}_SUPPORT) || ${MK_${var}} == "no"
 MK_${var}_SUPPORT:= no
@@ -358,4 +360,12 @@ MK_${vv:H}:=	${MK_${vv:T}}
 MK_LLDB:=	no
 .endif
 
+# gcc 4.8 and newer supports libc++, so suppress gnuc++ in that case.
+# while in theory we could build it with that, we don't want to do
+# that since it creates too much confusion for too little gain.
+.if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40800
+MK_GNUCXX:=no
+MK_GCC:=no
 .endif
+
+.endif #  !target(__<src.opts.mk>__)

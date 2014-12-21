@@ -612,7 +612,7 @@ __gen6_gt_wait_for_fifo(struct drm_i915_private *dev_priv)
 }
 
 static int
-i8xx_do_reset(struct drm_device *dev, u8 flags)
+i8xx_do_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int onems;
@@ -657,7 +657,7 @@ i965_reset_complete(struct drm_device *dev)
 }
 
 static int
-i965_do_reset(struct drm_device *dev, u8 flags)
+i965_do_reset(struct drm_device *dev)
 {
 	u8 gdrst;
 
@@ -667,28 +667,30 @@ i965_do_reset(struct drm_device *dev, u8 flags)
 	 * triggers the reset; when done, the hardware will clear it.
 	 */
 	gdrst = pci_read_config(dev->device, I965_GDRST, 1);
-	pci_write_config(dev->device, I965_GDRST, gdrst | flags | 0x1, 1);
+	pci_write_config(dev->device, I965_GDRST,
+	    gdrst | GRDOM_RENDER | GRDOM_RESET_ENABLE, 1);
 
 	return (_intel_wait_for(dev, i965_reset_complete(dev), 500, 1,
 	    "915rst"));
 }
 
 static int
-ironlake_do_reset(struct drm_device *dev, u8 flags)
+ironlake_do_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv;
 	u32 gdrst;
 
 	dev_priv = dev->dev_private;
 	gdrst = I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR);
-	I915_WRITE(MCHBAR_MIRROR_BASE + ILK_GDSR, gdrst | flags | 0x1);
+	I915_WRITE(MCHBAR_MIRROR_BASE + ILK_GDSR,
+	    gdrst | GRDOM_RENDER | GRDOM_RESET_ENABLE);
 	return (_intel_wait_for(dev,
 	    (I915_READ(MCHBAR_MIRROR_BASE + ILK_GDSR) & 0x1) != 0,
 	    500, 1, "915rst"));
 }
 
 static int
-gen6_do_reset(struct drm_device *dev, u8 flags)
+gen6_do_reset(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv;
 	int ret;
@@ -726,8 +728,43 @@ gen6_do_reset(struct drm_device *dev, u8 flags)
 	return (ret);
 }
 
+int intel_gpu_reset(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret = -ENODEV;
+
+	switch (INTEL_INFO(dev)->gen) {
+	case 7:
+	case 6:
+		ret = gen6_do_reset(dev);
+		break;
+	case 5:
+		ret = ironlake_do_reset(dev);
+		break;
+	case 4:
+		ret = i965_do_reset(dev);
+		break;
+	case 2:
+		ret = i8xx_do_reset(dev);
+		break;
+	}
+
+	/* Also reset the gpu hangman. */
+	if (dev_priv->stop_rings) {
+		DRM_DEBUG("Simulated gpu hang, resetting stop_rings\n");
+		dev_priv->stop_rings = 0;
+		if (ret == -ENODEV) {
+			DRM_ERROR("Reset not implemented, but ignoring "
+				  "error for simulated gpu hangs\n");
+			ret = 0;
+		}
+	}
+
+	return ret;
+}
+
 int
-i915_reset(struct drm_device *dev, u8 flags)
+i915_reset(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	/*
@@ -748,23 +785,9 @@ i915_reset(struct drm_device *dev, u8 flags)
 	ret = -ENODEV;
 	if (time_second - dev_priv->last_gpu_reset < 5) {
 		DRM_ERROR("GPU hanging too fast, declaring wedged!\n");
-	} else {
-		switch (INTEL_INFO(dev)->gen) {
-		case 7:
-		case 6:
-		ret = gen6_do_reset(dev, flags);
-		break;
-	case 5:
-		ret = ironlake_do_reset(dev, flags);
-			break;
-		case 4:
-			ret = i965_do_reset(dev, flags);
-			break;
-		case 2:
-			ret = i8xx_do_reset(dev, flags);
-			break;
-		}
-	}
+	} else
+		ret = intel_gpu_reset(dev);
+
 	dev_priv->last_gpu_reset = time_second;
 	if (ret) {
 		DRM_ERROR("Failed to reset chip.\n");
@@ -784,6 +807,7 @@ i915_reset(struct drm_device *dev, u8 flags)
 		if (HAS_BLT(dev))
 			dev_priv->rings[BCS].init(&dev_priv->rings[BCS]);
 
+		i915_gem_context_init(dev);
 		i915_gem_init_ppgtt(dev);
 
 		drm_irq_uninstall(dev);

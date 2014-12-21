@@ -70,9 +70,6 @@ void
 ar9300_attach_freebsd_ops(struct ath_hal *ah)
 {
 
-	/* stub everything first */
-	ar9300_set_stub_functions(ah);
-
 	/* Global functions */
 	ah->ah_detach		= ar9300_detach;
 	ah->ah_getRateTable		= ar9300_get_rate_table;
@@ -255,9 +252,6 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	/* LNA diversity functions */
 	ah->ah_divLnaConfGet = ar9300_ant_div_comb_get_config;
 	ah->ah_divLnaConfSet = ar9300_ant_div_comb_set_config;
-
-	/* Setup HAL configuration defaults */
-	ah->ah_config.ath_hal_ant_ctrl_comm2g_switch_enable = 0x000bbb88;
 }
 
 HAL_BOOL
@@ -341,9 +335,11 @@ ar9300_ani_poll_freebsd(struct ath_hal *ah,
  * wants.
  */
 void
-ar9300_config_defaults_freebsd(struct ath_hal *ah)
+ar9300_config_defaults_freebsd(struct ath_hal *ah, HAL_OPS_CONFIG *ah_config)
 {
 
+	/* Until FreeBSD's HAL does this by default - just copy */
+	OS_MEMCPY(&ah->ah_config, ah_config, sizeof(HAL_OPS_CONFIG));
 	ah->ah_config.ath_hal_enable_ani = AH_TRUE;
 }
 
@@ -471,11 +467,13 @@ ar9300_freebsd_setup_x_tx_desc(struct ath_hal *ah, struct ath_desc *ds,
     u_int txRate3, u_int txTries3)
 {
 
+#if 0
 	ath_hal_printf(ah, "%s: called, 0x%x/%d, 0x%x/%d, 0x%x/%d\n",
 	    __func__,
 	    txRate1, txTries1,
 	    txRate2, txTries2,
 	    txRate3, txTries3);
+#endif
 
 	/* XXX should only be called during probe */
 	return (AH_TRUE);

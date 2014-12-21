@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	tabs
-DPADD=	${LIBTERMCAPW}
-LDADD=	-ltermcapw
+
+LIBADD=	ncursesw
 
 .include <bsd.prog.mk>

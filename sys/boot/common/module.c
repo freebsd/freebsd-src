@@ -66,7 +66,12 @@ static void			moduledir_rebuild(void);
 /* load address should be tweaked by first module loaded (kernel) */
 static vm_offset_t	loadaddr = 0;
 
+#if defined(LOADER_FDT_SUPPORT)
+static const char	*default_searchpath =
+    "/boot/kernel;/boot/modules;/boot/dtb";
+#else
 static const char	*default_searchpath ="/boot/kernel;/boot/modules";
+#endif
 
 static STAILQ_HEAD(, moduledir) moduledir_list = STAILQ_HEAD_INITIALIZER(moduledir_list);
 
@@ -933,7 +938,7 @@ moduledir_readhints(struct moduledir *mdp)
     path = moduledir_fullpath(mdp, "linker.hints");
     if (stat(path, &st) != 0 ||
 	st.st_size < (ssize_t)(sizeof(version) + sizeof(int)) ||
-	st.st_size > 100 * 1024 || (fd = open(path, O_RDONLY)) < 0) {
+	st.st_size > LINKER_HINTS_MAX || (fd = open(path, O_RDONLY)) < 0) {
 	free(path);
 	mdp->d_flags |= MDIR_NOHINTS;
 	return;

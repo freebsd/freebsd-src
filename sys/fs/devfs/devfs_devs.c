@@ -109,10 +109,10 @@ SYSCTL_PROC(_kern, OID_AUTO, devname,
     NULL, 0, sysctl_devname, "", "devname(3) handler");
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, cdev, CTLFLAG_RD,
-    0, sizeof(struct cdev), "sizeof(struct cdev)");
+    SYSCTL_NULL_INT_PTR, sizeof(struct cdev), "sizeof(struct cdev)");
 
 SYSCTL_INT(_debug_sizeof, OID_AUTO, cdev_priv, CTLFLAG_RD,
-    0, sizeof(struct cdev_priv), "sizeof(struct cdev_priv)");
+    SYSCTL_NULL_INT_PTR, sizeof(struct cdev_priv), "sizeof(struct cdev_priv)");
 
 struct cdev *
 devfs_alloc(int flags)

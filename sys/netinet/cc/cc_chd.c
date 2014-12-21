@@ -471,24 +471,27 @@ SYSCTL_DECL(_net_inet_tcp_cc_chd);
 SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, chd, CTLFLAG_RW, NULL,
     "CAIA Hamilton delay-based congestion control related settings");
 
-SYSCTL_VNET_PROC(_net_inet_tcp_cc_chd, OID_AUTO, loss_fair,
-    CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(chd_loss_fair), 1, &chd_loss_fair_handler,
+SYSCTL_PROC(_net_inet_tcp_cc_chd, OID_AUTO, loss_fair,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    &VNET_NAME(chd_loss_fair), 1, &chd_loss_fair_handler,
     "IU", "Flag to enable shadow window functionality.");
 
-SYSCTL_VNET_PROC(_net_inet_tcp_cc_chd, OID_AUTO, pmax,
-    CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(chd_pmax), 5, &chd_pmax_handler,
+SYSCTL_PROC(_net_inet_tcp_cc_chd, OID_AUTO, pmax,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    &VNET_NAME(chd_pmax), 5, &chd_pmax_handler,
     "IU", "Per RTT maximum backoff probability as a percentage");
 
-SYSCTL_VNET_PROC(_net_inet_tcp_cc_chd, OID_AUTO, queue_threshold,
-    CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(chd_qthresh), 20, &chd_qthresh_handler,
+SYSCTL_PROC(_net_inet_tcp_cc_chd, OID_AUTO, queue_threshold,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    &VNET_NAME(chd_qthresh), 20, &chd_qthresh_handler,
     "IU", "Queueing congestion threshold in ticks");
 
-SYSCTL_VNET_UINT(_net_inet_tcp_cc_chd, OID_AUTO, queue_min,
-    CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(chd_qmin), 5,
+SYSCTL_UINT(_net_inet_tcp_cc_chd, OID_AUTO, queue_min,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(chd_qmin), 5,
     "Minimum queueing delay threshold in ticks");
 
-SYSCTL_VNET_UINT(_net_inet_tcp_cc_chd,  OID_AUTO, use_max,
-    CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(chd_use_max), 1,
+SYSCTL_UINT(_net_inet_tcp_cc_chd,  OID_AUTO, use_max,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(chd_use_max), 1,
     "Use the maximum RTT seen within the measurement period (RTT) "
     "as the basic delay measurement for the algorithm.");
 

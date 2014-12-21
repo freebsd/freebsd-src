@@ -621,6 +621,20 @@ sig_ffs(sigset_t *set)
 	return (0);
 }
 
+static bool
+sigact_flag_test(struct sigaction *act, int flag)
+{
+
+	/*
+	 * SA_SIGINFO is reset when signal disposition is set to
+	 * ignore or default.  Other flags are kept according to user
+	 * settings.
+	 */
+	return ((act->sa_flags & flag) != 0 && (flag != SA_SIGINFO ||
+	    ((__sighandler_t *)act->sa_sigaction != SIG_IGN &&
+	    (__sighandler_t *)act->sa_sigaction != SIG_DFL)));
+}
+
 /*
  * kern_sigaction
  * sigaction
@@ -638,6 +652,10 @@ kern_sigaction(td, sig, act, oact, flags)
 	struct proc *p = td->td_proc;
 
 	if (!_SIG_VALID(sig))
+		return (EINVAL);
+	if (act != NULL && (act->sa_flags & ~(SA_ONSTACK | SA_RESTART |
+	    SA_RESETHAND | SA_NOCLDSTOP | SA_NODEFER | SA_NOCLDWAIT |
+	    SA_SIGINFO)) != 0)
 		return (EINVAL);
 
 	PROC_LOCK(p);
@@ -679,7 +697,7 @@ kern_sigaction(td, sig, act, oact, flags)
 
 		ps->ps_catchmask[_SIG_IDX(sig)] = act->sa_mask;
 		SIG_CANTMASK(ps->ps_catchmask[_SIG_IDX(sig)]);
-		if (act->sa_flags & SA_SIGINFO) {
+		if (sigact_flag_test(act, SA_SIGINFO)) {
 			ps->ps_sigact[_SIG_IDX(sig)] =
 			    (__sighandler_t *)act->sa_sigaction;
 			SIGADDSET(ps->ps_siginfo, sig);
@@ -687,19 +705,19 @@ kern_sigaction(td, sig, act, oact, flags)
 			ps->ps_sigact[_SIG_IDX(sig)] = act->sa_handler;
 			SIGDELSET(ps->ps_siginfo, sig);
 		}
-		if (!(act->sa_flags & SA_RESTART))
+		if (!sigact_flag_test(act, SA_RESTART))
 			SIGADDSET(ps->ps_sigintr, sig);
 		else
 			SIGDELSET(ps->ps_sigintr, sig);
-		if (act->sa_flags & SA_ONSTACK)
+		if (sigact_flag_test(act, SA_ONSTACK))
 			SIGADDSET(ps->ps_sigonstack, sig);
 		else
 			SIGDELSET(ps->ps_sigonstack, sig);
-		if (act->sa_flags & SA_RESETHAND)
+		if (sigact_flag_test(act, SA_RESETHAND))
 			SIGADDSET(ps->ps_sigreset, sig);
 		else
 			SIGDELSET(ps->ps_sigreset, sig);
-		if (act->sa_flags & SA_NODEFER)
+		if (sigact_flag_test(act, SA_NODEFER))
 			SIGADDSET(ps->ps_signodefer, sig);
 		else
 			SIGDELSET(ps->ps_signodefer, sig);
@@ -900,11 +918,28 @@ siginit(p)
 	PROC_LOCK(p);
 	ps = p->p_sigacts;
 	mtx_lock(&ps->ps_mtx);
-	for (i = 1; i <= NSIG; i++)
-		if (sigprop(i) & SA_IGNORE && i != SIGCONT)
+	for (i = 1; i <= NSIG; i++) {
+		if (sigprop(i) & SA_IGNORE && i != SIGCONT) {
 			SIGADDSET(ps->ps_sigignore, i);
+		}
+	}
 	mtx_unlock(&ps->ps_mtx);
 	PROC_UNLOCK(p);
+}
+
+/*
+ * Reset specified signal to the default disposition.
+ */
+static void
+sigdflt(struct sigacts *ps, int sig)
+{
+
+	mtx_assert(&ps->ps_mtx, MA_OWNED);
+	SIGDELSET(ps->ps_sigcatch, sig);
+	if ((sigprop(sig) & SA_IGNORE) != 0 && sig != SIGCONT)
+		SIGADDSET(ps->ps_sigignore, sig);
+	ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
+	SIGDELSET(ps->ps_siginfo, sig);
 }
 
 /*
@@ -928,13 +963,9 @@ execsigs(struct proc *p)
 	mtx_lock(&ps->ps_mtx);
 	while (SIGNOTEMPTY(ps->ps_sigcatch)) {
 		sig = sig_ffs(&ps->ps_sigcatch);
-		SIGDELSET(ps->ps_sigcatch, sig);
-		if (sigprop(sig) & SA_IGNORE) {
-			if (sig != SIGCONT)
-				SIGADDSET(ps->ps_sigignore, sig);
+		sigdflt(ps, sig);
+		if ((sigprop(sig) & SA_IGNORE) != 0)
 			sigqueue_delete_proc(p, sig);
-		}
-		ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
 	}
 	/*
 	 * Reset stack state to the user stack.
@@ -967,8 +998,12 @@ kern_sigprocmask(struct thread *td, int how, sigset_t *set, sigset_t *oset,
 	int error;
 
 	p = td->td_proc;
-	if (!(flags & SIGPROCMASK_PROC_LOCKED))
+	if ((flags & SIGPROCMASK_PROC_LOCKED) != 0)
+		PROC_LOCK_ASSERT(p, MA_OWNED);
+	else
 		PROC_LOCK(p);
+	mtx_assert(&p->p_sigacts->ps_mtx, (flags & SIGPROCMASK_PS_LOCKED) != 0
+	    ? MA_OWNED : MA_NOTOWNED);
 	if (oset != NULL)
 		*oset = td->td_sigmask;
 
@@ -1851,6 +1886,30 @@ pgsignal(struct pgrp *pgrp, int sig, int checkctty, ksiginfo_t *ksi)
 	}
 }
 
+
+/*
+ * Recalculate the signal mask and reset the signal disposition after
+ * usermode frame for delivery is formed.  Should be called after
+ * mach-specific routine, because sysent->sv_sendsig() needs correct
+ * ps_siginfo and signal mask.
+ */
+static void
+postsig_done(int sig, struct thread *td, struct sigacts *ps)
+{
+	sigset_t mask;
+
+	mtx_assert(&ps->ps_mtx, MA_OWNED);
+	td->td_ru.ru_nsignals++;
+	mask = ps->ps_catchmask[_SIG_IDX(sig)];
+	if (!SIGISMEMBER(ps->ps_signodefer, sig))
+		SIGADDSET(mask, sig);
+	kern_sigprocmask(td, SIG_BLOCK, &mask, NULL,
+	    SIGPROCMASK_PROC_LOCKED | SIGPROCMASK_PS_LOCKED);
+	if (SIGISMEMBER(ps->ps_sigreset, sig))
+		sigdflt(ps, sig);
+}
+
+
 /*
  * Send a signal caused by a trap to the current thread.  If it will be
  * caught immediately, deliver it with correct code.  Otherwise, post it
@@ -1860,7 +1919,6 @@ void
 trapsignal(struct thread *td, ksiginfo_t *ksi)
 {
 	struct sigacts *ps;
-	sigset_t mask;
 	struct proc *p;
 	int sig;
 	int code;
@@ -1875,7 +1933,6 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 	mtx_lock(&ps->ps_mtx);
 	if ((p->p_flag & P_TRACED) == 0 && SIGISMEMBER(ps->ps_sigcatch, sig) &&
 	    !SIGISMEMBER(td->td_sigmask, sig)) {
-		td->td_ru.ru_nsignals++;
 #ifdef KTRACE
 		if (KTRPOINT(curthread, KTR_PSIG))
 			ktrpsig(sig, ps->ps_sigact[_SIG_IDX(sig)],
@@ -1883,21 +1940,7 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 #endif
 		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)],
 				ksi, &td->td_sigmask);
-		mask = ps->ps_catchmask[_SIG_IDX(sig)];
-		if (!SIGISMEMBER(ps->ps_signodefer, sig))
-			SIGADDSET(mask, sig);
-		kern_sigprocmask(td, SIG_BLOCK, &mask, NULL,
-		    SIGPROCMASK_PROC_LOCKED | SIGPROCMASK_PS_LOCKED);
-		if (SIGISMEMBER(ps->ps_sigreset, sig)) {
-			/*
-			 * See kern_sigaction() for origin of this code.
-			 */
-			SIGDELSET(ps->ps_sigcatch, sig);
-			if (sig != SIGCONT &&
-			    sigprop(sig) & SA_IGNORE)
-				SIGADDSET(ps->ps_sigignore, sig);
-			ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
-		}
+		postsig_done(sig, td, ps);
 		mtx_unlock(&ps->ps_mtx);
 	} else {
 		/*
@@ -2448,7 +2491,7 @@ ptracestop(struct thread *td, int sig)
 			cv_broadcast(&p->p_dbgwait);
 		}
 stopme:
-		thread_suspend_switch(td);
+		thread_suspend_switch(td, p);
 		if (p->p_xthread == td)
 			p->p_xthread = NULL;
 		if (!(p->p_flag & P_TRACED))
@@ -2471,9 +2514,11 @@ reschedule_signals(struct proc *p, sigset_t block, int flags)
 	int sig;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	ps = p->p_sigacts;
+	mtx_assert(&ps->ps_mtx, (flags & SIGPROCMASK_PS_LOCKED) != 0 ?
+	    MA_OWNED : MA_NOTOWNED);
 	if (SIGISEMPTY(p->p_siglist))
 		return;
-	ps = p->p_sigacts;
 	SIGSETAND(block, p->p_siglist);
 	while ((sig = sig_ffs(&block)) != 0) {
 		SIGDELSET(block, sig);
@@ -2707,7 +2752,7 @@ issignal(struct thread *td)
 				p->p_xstat = sig;
 				PROC_SLOCK(p);
 				sig_suspend_threads(td, p, 0);
-				thread_suspend_switch(td);
+				thread_suspend_switch(td, p);
 				PROC_SUNLOCK(p);
 				mtx_lock(&ps->ps_mtx);
 				break;
@@ -2779,7 +2824,7 @@ postsig(sig)
 	struct sigacts *ps;
 	sig_t action;
 	ksiginfo_t ksi;
-	sigset_t returnmask, mask;
+	sigset_t returnmask;
 
 	KASSERT(sig != 0, ("postsig"));
 
@@ -2834,28 +2879,12 @@ postsig(sig)
 		} else
 			returnmask = td->td_sigmask;
 
-		mask = ps->ps_catchmask[_SIG_IDX(sig)];
-		if (!SIGISMEMBER(ps->ps_signodefer, sig))
-			SIGADDSET(mask, sig);
-		kern_sigprocmask(td, SIG_BLOCK, &mask, NULL,
-		    SIGPROCMASK_PROC_LOCKED | SIGPROCMASK_PS_LOCKED);
-
-		if (SIGISMEMBER(ps->ps_sigreset, sig)) {
-			/*
-			 * See kern_sigaction() for origin of this code.
-			 */
-			SIGDELSET(ps->ps_sigcatch, sig);
-			if (sig != SIGCONT &&
-			    sigprop(sig) & SA_IGNORE)
-				SIGADDSET(ps->ps_sigignore, sig);
-			ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
-		}
-		td->td_ru.ru_nsignals++;
 		if (p->p_sig == sig) {
 			p->p_code = 0;
 			p->p_sig = 0;
 		}
 		(*p->p_sysent->sv_sendsig)(action, &ksi, &returnmask);
+		postsig_done(sig, td, ps);
 	}
 	return (1);
 }
@@ -2904,7 +2933,7 @@ sigexit(td, sig)
 	 * XXX If another thread attempts to single-thread before us
 	 *     (e.g. via fork()), we won't get a dump at all.
 	 */
-	if ((sigprop(sig) & SA_CORE) && (thread_single(SINGLE_NO_EXIT) == 0)) {
+	if ((sigprop(sig) & SA_CORE) && thread_single(p, SINGLE_NO_EXIT) == 0) {
 		p->p_sig = sig;
 		/*
 		 * Log signals which would cause core dumps
@@ -3138,7 +3167,8 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 	sbuf_delete(&sb);
 
 	cmode = S_IRUSR | S_IWUSR;
-	oflags = VN_OPEN_NOAUDIT | (capmode_coredump ? VN_OPEN_NOCAPCHECK : 0);
+	oflags = VN_OPEN_NOAUDIT | VN_OPEN_NAMECACHE |
+	    (capmode_coredump ? VN_OPEN_NOCAPCHECK : 0);
 
 	/*
 	 * If the core format has a %I in it, then we need to check
@@ -3199,8 +3229,8 @@ coredump(struct thread *td)
 	struct flock lf;
 	struct vattr vattr;
 	int error, error1, locked;
-	struct mount *mp;
 	char *name;			/* name of corefile */
+	void *rl_cookie;
 	off_t limit;
 	int compress;
 
@@ -3233,38 +3263,32 @@ coredump(struct thread *td)
 	}
 	PROC_UNLOCK(p);
 
-restart:
 	error = corefile_open(p->p_comm, cred->cr_uid, p->p_pid, td, compress,
 	    &vp, &name);
 	if (error != 0)
 		return (error);
 
-	/* Don't dump to non-regular files or files with links. */
+	/*
+	 * Don't dump to non-regular files or files with links.
+	 * Do not dump into system files.
+	 */
 	if (vp->v_type != VREG || VOP_GETATTR(vp, &vattr, cred) != 0 ||
-	    vattr.va_nlink != 1) {
+	    vattr.va_nlink != 1 || (vp->v_vflag & VV_SYSTEM) != 0) {
 		VOP_UNLOCK(vp, 0);
 		error = EFAULT;
 		goto close;
 	}
 
 	VOP_UNLOCK(vp, 0);
+
+	/* Postpone other writers, including core dumps of other processes. */
+	rl_cookie = vn_rangelock_wlock(vp, 0, OFF_MAX);
+
 	lf.l_whence = SEEK_SET;
 	lf.l_start = 0;
 	lf.l_len = 0;
 	lf.l_type = F_WRLCK;
 	locked = (VOP_ADVLOCK(vp, (caddr_t)p, F_SETLK, &lf, F_FLOCK) == 0);
-
-	if (vn_start_write(vp, &mp, V_NOWAIT) != 0) {
-		lf.l_type = F_UNLCK;
-		if (locked)
-			VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
-		if ((error = vn_close(vp, FWRITE, cred, td)) != 0)
-			goto out;
-		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
-			goto out;
-		free(name, M_TEMP);
-		goto restart;
-	}
 
 	VATTR_NULL(&vattr);
 	vattr.va_size = 0;
@@ -3273,7 +3297,6 @@ restart:
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	VOP_SETATTR(vp, &vattr, cred);
 	VOP_UNLOCK(vp, 0);
-	vn_finished_write(mp);
 	PROC_LOCK(p);
 	p->p_acflag |= ACORE;
 	PROC_UNLOCK(p);
@@ -3289,11 +3312,11 @@ restart:
 		lf.l_type = F_UNLCK;
 		VOP_ADVLOCK(vp, (caddr_t)p, F_UNLCK, &lf, F_FLOCK);
 	}
+	vn_rangelock_unlock(vp, rl_cookie);
 close:
 	error1 = vn_close(vp, FWRITE, cred, td);
 	if (error == 0)
 		error = error1;
-out:
 #ifdef AUDIT
 	audit_proc_coredump(td, name, error);
 #endif
@@ -3414,7 +3437,7 @@ sigacts_alloc(void)
 	struct sigacts *ps;
 
 	ps = malloc(sizeof(struct sigacts), M_SUBPROC, M_WAITOK | M_ZERO);
-	ps->ps_refcnt = 1;
+	refcount_init(&ps->ps_refcnt, 1);
 	mtx_init(&ps->ps_mtx, "sigacts", NULL, MTX_DEF);
 	return (ps);
 }

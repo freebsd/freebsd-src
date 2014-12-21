@@ -625,7 +625,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 		{
 			struct sockaddr_in *sin;
 
-			sin = (struct sockaddr_in *)&sctp_ifap->address.sin;
+			sin = &sctp_ifap->address.sin;
 			if (SCTP_IFN_IS_IFT_LOOP(sctp_ifap->ifn_p) ||
 			    (IN4_ISLOOPBACK_ADDRESS(&sin->sin_addr))) {
 				sctp_ifap->src_is_loop = 1;
@@ -645,7 +645,7 @@ sctp_add_addr_to_vrf(uint32_t vrf_id, void *ifn, uint32_t ifn_index,
 			/* ok to use deprecated addresses? */
 			struct sockaddr_in6 *sin6;
 
-			sin6 = (struct sockaddr_in6 *)&sctp_ifap->address.sin6;
+			sin6 = &sctp_ifap->address.sin6;
 			if (SCTP_IFN_IS_IFT_LOOP(sctp_ifap->ifn_p) ||
 			    (IN6_IS_ADDR_LOOPBACK(&sin6->sin6_addr))) {
 				sctp_ifap->src_is_loop = 1;
@@ -974,7 +974,7 @@ sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
 				{
 					struct sockaddr_in *sin, *rsin;
 
-					sin = (struct sockaddr_in *)&laddr->ifa->address.sin;
+					sin = &laddr->ifa->address.sin;
 					rsin = (struct sockaddr_in *)to;
 					if (sin->sin_addr.s_addr == rsin->sin_addr.s_addr) {
 						SCTP_IPI_ADDR_RUNLOCK();
@@ -988,7 +988,7 @@ sctp_does_stcb_own_this_addr(struct sctp_tcb *stcb, struct sockaddr *to)
 				{
 					struct sockaddr_in6 *sin6, *rsin6;
 
-					sin6 = (struct sockaddr_in6 *)&laddr->ifa->address.sin6;
+					sin6 = &laddr->ifa->address.sin6;
 					rsin6 = (struct sockaddr_in6 *)to;
 					if (SCTP6_ARE_ADDR_EQUAL(sin6, rsin6)) {
 						SCTP_IPI_ADDR_RUNLOCK();
@@ -2330,7 +2330,7 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int offset,
     struct sctp_inpcb **inp_p, struct sctp_nets **netp, uint32_t vrf_id)
 {
 	struct sctp_tcb *stcb;
-	struct sockaddr_storage remote_store;
+	union sctp_sockstore remote_store;
 	struct sctp_paramhdr parm_buf, *phdr;
 	int ptype;
 	int zero_address = 0;
@@ -2372,7 +2372,7 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int offset,
 				    __FUNCTION__);
 				return (NULL);
 			}
-			sin6 = (struct sockaddr_in6 *)&remote_store;
+			sin6 = &remote_store.sin6;
 			sin6->sin6_family = AF_INET6;
 			sin6->sin6_len = sizeof(*sin6);
 			sin6->sin6_port = sh->src_port;
@@ -2399,7 +2399,7 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int offset,
 				    __FUNCTION__);
 				return (NULL);
 			}
-			sin = (struct sockaddr_in *)&remote_store;
+			sin = &remote_store.sin;
 			sin->sin_family = AF_INET;
 			sin->sin_len = sizeof(*sin);
 			sin->sin_port = sh->src_port;
@@ -2422,7 +2422,7 @@ sctp_findassociation_ep_asconf(struct mbuf *m, int offset,
 		}
 	} else {
 		stcb = sctp_findassociation_ep_addr(inp_p,
-		    (struct sockaddr *)&remote_store, netp,
+		    &remote_store.sa, netp,
 		    dst, NULL);
 	}
 	return (stcb);
@@ -2485,6 +2485,8 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	inp->sctp_cmt_on_off = SCTP_BASE_SYSCTL(sctp_cmt_on_off);
 	inp->ecn_supported = (uint8_t) SCTP_BASE_SYSCTL(sctp_ecn_enable);
 	inp->prsctp_supported = (uint8_t) SCTP_BASE_SYSCTL(sctp_pr_enable);
+	inp->auth_supported = (uint8_t) SCTP_BASE_SYSCTL(sctp_auth_enable);
+	inp->asconf_supported = (uint8_t) SCTP_BASE_SYSCTL(sctp_asconf_enable);
 	inp->reconfig_supported = (uint8_t) SCTP_BASE_SYSCTL(sctp_reconfig_enable);
 	inp->nrsack_supported = (uint8_t) SCTP_BASE_SYSCTL(sctp_nrsack_enable);
 	inp->pktdrop_supported = (uint8_t) SCTP_BASE_SYSCTL(sctp_pktdrop_enable);
@@ -2651,12 +2653,15 @@ sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id)
 	 */
 	m->local_hmacs = sctp_default_supported_hmaclist();
 	m->local_auth_chunks = sctp_alloc_chunklist();
+	if (inp->asconf_supported) {
+		sctp_auth_add_chunk(SCTP_ASCONF, m->local_auth_chunks);
+		sctp_auth_add_chunk(SCTP_ASCONF_ACK, m->local_auth_chunks);
+	}
 	m->default_dscp = 0;
 #ifdef INET6
 	m->default_flowlabel = 0;
 #endif
 	m->port = 0;		/* encapsulation disabled by default */
-	sctp_auth_set_default_chunks(m->local_auth_chunks);
 	LIST_INIT(&m->shared_keys);
 	/* add default NULL key as key id 0 */
 	null_key = sctp_alloc_sharedkey();
@@ -3121,31 +3126,21 @@ continue_anyway:
 		 * too (before adding).
 		 */
 		struct sctp_ifa *ifa;
-		struct sockaddr_storage store_sa;
+		union sctp_sockstore store;
 
-		memset(&store_sa, 0, sizeof(store_sa));
+		memset(&store, 0, sizeof(store));
 		switch (addr->sa_family) {
 #ifdef INET
 		case AF_INET:
-			{
-				struct sockaddr_in *sin;
-
-				sin = (struct sockaddr_in *)&store_sa;
-				memcpy(sin, addr, sizeof(struct sockaddr_in));
-				sin->sin_port = 0;
-				break;
-			}
+			memcpy(&store.sin, addr, sizeof(struct sockaddr_in));
+			store.sin.sin_port = 0;
+			break;
 #endif
 #ifdef INET6
 		case AF_INET6:
-			{
-				struct sockaddr_in6 *sin6;
-
-				sin6 = (struct sockaddr_in6 *)&store_sa;
-				memcpy(sin6, addr, sizeof(struct sockaddr_in6));
-				sin6->sin6_port = 0;
-				break;
-			}
+			memcpy(&store.sin6, addr, sizeof(struct sockaddr_in6));
+			store.sin6.sin6_port = 0;
+			break;
 #endif
 		default:
 			break;
@@ -3163,7 +3158,7 @@ continue_anyway:
 			 * pass things in via the sctp_ifap argument
 			 * (Panda).
 			 */
-			ifa = sctp_find_ifa_by_addr((struct sockaddr *)&store_sa,
+			ifa = sctp_find_ifa_by_addr(&store.sa,
 			    vrf_id, SCTP_ADDR_NOT_LOCKED);
 		}
 		if (ifa == NULL) {
@@ -4054,9 +4049,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 	net->flowid = stcb->asoc.my_vtag ^
 	    ntohs(stcb->rport) ^
 	    ntohs(stcb->sctp_ep->sctp_lport);
-#ifdef INVARIANTS
-	net->flowidset = 1;
-#endif
+	net->flowtype = M_HASHTYPE_OPAQUE;
 	if (netp) {
 		*netp = net;
 	}
@@ -5971,6 +5964,9 @@ sctp_pcb_finish(void)
 	LIST_FOREACH_SAFE(wi, &SCTP_BASE_INFO(addr_wq), sctp_nxt_addr, nwi) {
 		LIST_REMOVE(wi, sctp_nxt_addr);
 		SCTP_DECR_LADDR_COUNT();
+		if (wi->action == SCTP_DEL_IP_ADDRESS) {
+			SCTP_FREE(wi->ifa, SCTP_M_IFA);
+		}
 		SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_laddr), wi);
 	}
 	SCTP_WQ_ADDR_UNLOCK();
@@ -6085,11 +6081,14 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 	sctp_key_t *new_key;
 	uint32_t keylen;
 	int got_random = 0, got_hmacs = 0, got_chklist = 0;
-	uint8_t ecn_supported;
-	uint8_t prsctp_supported;
-	uint8_t reconfig_supported;
-	uint8_t nrsack_supported;
-	uint8_t pktdrop_supported;
+	uint8_t peer_supports_ecn;
+	uint8_t peer_supports_prsctp;
+	uint8_t peer_supports_auth;
+	uint8_t peer_supports_asconf;
+	uint8_t peer_supports_asconf_ack;
+	uint8_t peer_supports_reconfig;
+	uint8_t peer_supports_nrsack;
+	uint8_t peer_supports_pktdrop;
 
 #ifdef INET
 	struct sockaddr_in sin;
@@ -6118,11 +6117,13 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 	} else {
 		sa = src;
 	}
-	ecn_supported = 0;
-	prsctp_supported = 0;
-	reconfig_supported = 0;
-	nrsack_supported = 0;
-	pktdrop_supported = 0;
+	peer_supports_ecn = 0;
+	peer_supports_prsctp = 0;
+	peer_supports_auth = 0;
+	peer_supports_asconf = 0;
+	peer_supports_reconfig = 0;
+	peer_supports_nrsack = 0;
+	peer_supports_pktdrop = 0;
 	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 		/* mark all addresses that we have currently on the list */
 		net->dest_state |= SCTP_ADDR_NOT_IN_ASSOC;
@@ -6172,12 +6173,6 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 		/* the assoc was freed? */
 		return (-4);
 	}
-	/*
-	 * peer must explicitly turn this on. This may have been initialized
-	 * to be "on" in order to allow local addr changes while INIT's are
-	 * in flight.
-	 */
-	stcb->asoc.peer_supports_asconf = 0;
 	/* now we must go through each of the params. */
 	phdr = sctp_get_next_param(m, offset, &parm_buf, sizeof(parm_buf));
 	while (phdr) {
@@ -6371,7 +6366,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 		} else
 #endif
 		if (ptype == SCTP_ECN_CAPABLE) {
-			ecn_supported = 1;
+			peer_supports_ecn = 1;
 		} else if (ptype == SCTP_ULP_ADAPTATION) {
 			if (stcb->asoc.state != SCTP_STATE_OPEN) {
 				struct sctp_adaptation_layer_indication ai,
@@ -6395,7 +6390,9 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 
 #endif
 
-			stcb->asoc.peer_supports_asconf = 1;
+			if (stcb->asoc.asconf_supported == 0) {
+				return (-100);
+			}
 			if (plen > sizeof(lstore)) {
 				return (-23);
 			}
@@ -6447,7 +6444,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			stcb->asoc.peer_supports_nat = 1;
 		} else if (ptype == SCTP_PRSCTP_SUPPORTED) {
 			/* Peer supports pr-sctp */
-			prsctp_supported = 1;
+			peer_supports_prsctp = 1;
 		} else if (ptype == SCTP_SUPPORTED_CHUNK_EXT) {
 			/* A supported extension chunk */
 			struct sctp_supported_chunk_types_param *pr_supported;
@@ -6459,30 +6456,30 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			if (phdr == NULL) {
 				return (-25);
 			}
-			stcb->asoc.peer_supports_asconf = 0;
-			stcb->asoc.peer_supports_auth = 0;
 			pr_supported = (struct sctp_supported_chunk_types_param *)phdr;
 			num_ent = plen - sizeof(struct sctp_paramhdr);
 			for (i = 0; i < num_ent; i++) {
 				switch (pr_supported->chunk_types[i]) {
 				case SCTP_ASCONF:
+					peer_supports_asconf = 1;
+					break;
 				case SCTP_ASCONF_ACK:
-					stcb->asoc.peer_supports_asconf = 1;
+					peer_supports_asconf_ack = 1;
 					break;
 				case SCTP_FORWARD_CUM_TSN:
-					prsctp_supported = 1;
+					peer_supports_prsctp = 1;
 					break;
 				case SCTP_PACKET_DROPPED:
-					pktdrop_supported = 1;
+					peer_supports_pktdrop = 1;
 					break;
 				case SCTP_NR_SELECTIVE_ACK:
-					nrsack_supported = 1;
+					peer_supports_nrsack = 1;
 					break;
 				case SCTP_STREAM_RESET:
-					reconfig_supported = 1;
+					peer_supports_reconfig = 1;
 					break;
 				case SCTP_AUTHENTICATION:
-					stcb->asoc.peer_supports_auth = 1;
+					peer_supports_auth = 1;
 					break;
 				default:
 					/* one I have not learned yet */
@@ -6511,8 +6508,8 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			}
 			got_random = 1;
 		} else if (ptype == SCTP_HMAC_LIST) {
-			int num_hmacs;
-			int i;
+			uint16_t num_hmacs;
+			uint16_t i;
 
 			if (plen > sizeof(hmacs_store))
 				break;
@@ -6619,25 +6616,47 @@ next_param:
 			}
 		}
 	}
-	stcb->asoc.ecn_supported &= ecn_supported;
-	stcb->asoc.prsctp_supported &= prsctp_supported;
-	stcb->asoc.reconfig_supported &= reconfig_supported;
-	stcb->asoc.nrsack_supported &= nrsack_supported;
-	stcb->asoc.pktdrop_supported &= pktdrop_supported;
-	/* validate authentication required parameters */
-	if (got_random && got_hmacs) {
-		stcb->asoc.peer_supports_auth = 1;
-	} else {
-		stcb->asoc.peer_supports_auth = 0;
+	if ((stcb->asoc.ecn_supported == 1) &&
+	    (peer_supports_ecn == 0)) {
+		stcb->asoc.ecn_supported = 0;
 	}
-	if (!stcb->asoc.peer_supports_auth && got_chklist) {
+	if ((stcb->asoc.prsctp_supported == 1) &&
+	    (peer_supports_prsctp == 0)) {
+		stcb->asoc.prsctp_supported = 0;
+	}
+	if ((stcb->asoc.auth_supported == 1) &&
+	    ((peer_supports_auth == 0) ||
+	    (got_random == 0) || (got_hmacs == 0))) {
+		stcb->asoc.auth_supported = 0;
+	}
+	if ((stcb->asoc.asconf_supported == 1) &&
+	    ((peer_supports_asconf == 0) || (peer_supports_asconf_ack == 0) ||
+	    (stcb->asoc.auth_supported == 0) ||
+	    (saw_asconf == 0) || (saw_asconf_ack == 0))) {
+		stcb->asoc.asconf_supported = 0;
+	}
+	if ((stcb->asoc.reconfig_supported == 1) &&
+	    (peer_supports_reconfig == 0)) {
+		stcb->asoc.reconfig_supported = 0;
+	}
+	if ((stcb->asoc.nrsack_supported == 1) &&
+	    (peer_supports_nrsack == 0)) {
+		stcb->asoc.nrsack_supported = 0;
+	}
+	if ((stcb->asoc.pktdrop_supported == 1) &&
+	    (peer_supports_pktdrop == 0)) {
+		stcb->asoc.pktdrop_supported = 0;
+	}
+	/* validate authentication required parameters */
+	if ((peer_supports_auth == 0) && (got_chklist == 1)) {
 		/* peer does not support auth but sent a chunks list? */
 		return (-31);
 	}
-	if (stcb->asoc.peer_supports_asconf && !stcb->asoc.peer_supports_auth) {
+	if ((peer_supports_asconf == 1) && (peer_supports_auth == 0)) {
 		/* peer supports asconf but not auth? */
 		return (-32);
-	} else if ((stcb->asoc.peer_supports_asconf) && (stcb->asoc.peer_supports_auth) &&
+	} else if ((peer_supports_asconf == 1) &&
+		    (peer_supports_auth == 1) &&
 	    ((saw_asconf == 0) || (saw_asconf_ack == 0))) {
 		return (-33);
 	}

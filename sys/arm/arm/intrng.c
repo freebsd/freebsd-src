@@ -181,7 +181,7 @@ arm_fdt_map_irq(phandle_t ic, pcell_t *cells, int ncells)
 	struct arm_intr_handler *ih;
 	int i, j;
 
-	ic = OF_xref_phandle(ic);
+	ic = OF_xref_from_node(ic);
 
 	debugf("ic %08x cells <%*D>\n", ic, ncells * sizeof(pcell_t),
 	    (char *)cells, ",");

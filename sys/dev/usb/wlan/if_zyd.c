@@ -679,7 +679,7 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				ieee80211_free_node(ni);
 			}
 			if (le16toh(retry->count) & 0x100)
-				ifp->if_oerrors++;	/* too many retries */
+				if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);	/* too many retries */
 			break;
 		}
 		case ZYD_NOTIF_IORD:
@@ -2188,7 +2188,7 @@ zyd_rx_data(struct usb_xfer *xfer, int offset, uint16_t len)
 	if (len < ZYD_MIN_FRAGSZ) {
 		DPRINTF(sc, ZYD_DEBUG_RECV, "%s: frame too short (length=%d)\n",
 		    device_get_nameunit(sc->sc_dev), len);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 	pc = usbd_xfer_get_frame(xfer, 0);
@@ -2199,7 +2199,7 @@ zyd_rx_data(struct usb_xfer *xfer, int offset, uint16_t len)
 		DPRINTF(sc, ZYD_DEBUG_RECV,
 		    "%s: RX status indicated error (%x)\n",
 		    device_get_nameunit(sc->sc_dev), stat.flags);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 
@@ -2211,7 +2211,7 @@ zyd_rx_data(struct usb_xfer *xfer, int offset, uint16_t len)
 	if (rlen > (int)MCLBYTES) {
 		DPRINTF(sc, ZYD_DEBUG_RECV, "%s: frame too long (length=%d)\n",
 		    device_get_nameunit(sc->sc_dev), rlen);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	} else if (rlen > (int)MHLEN)
 		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
@@ -2220,7 +2220,7 @@ zyd_rx_data(struct usb_xfer *xfer, int offset, uint16_t len)
 	if (m == NULL) {
 		DPRINTF(sc, ZYD_DEBUG_RECV, "%s: could not allocate rx mbuf\n",
 		    device_get_nameunit(sc->sc_dev));
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return;
 	}
 	m->m_pkthdr.rcvif = ifp;
@@ -2403,7 +2403,7 @@ zyd_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		zyd_tx_free(data, 0);
 		usbd_xfer_set_priv(xfer, NULL);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		/* FALLTHROUGH */
@@ -2447,7 +2447,7 @@ tr_setup:
 		DPRINTF(sc, ZYD_DEBUG_ANY, "transfer error, %s\n",
 		    usbd_errstr(error));
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		data = usbd_xfer_get_priv(xfer);
 		usbd_xfer_set_priv(xfer, NULL);
 		if (data != NULL)
@@ -2608,7 +2608,7 @@ zyd_start(struct ifnet *ifp)
 		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
 		if (zyd_tx_start(sc, m, ni) != 0) {
 			ieee80211_free_node(ni);
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			break;
 		}
 	}
@@ -2646,7 +2646,7 @@ zyd_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	 */
 	if (zyd_tx_start(sc, m, ni) != 0) {
 		ZYD_UNLOCK(sc);
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ieee80211_free_node(ni);
 		return (EIO);
 	}

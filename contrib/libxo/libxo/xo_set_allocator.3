@@ -1,0 +1,73 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd July, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_emit
+.Nd emit formatted output based on format string and arguments
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Sy typedef void *(*xo_realloc_func_t)(void *, size_t);
+.Pp
+.Sy typedef void (*xo_free_func_t)(void *);
+.Ft void
+.Fn xo_set_allocator "xo_realloc_func_t realloc_func" "xo_free_func_t free_func"
+.Sh DESCRIPTION
+The
+.Fn xo_set_allocator
+function allows libxo to be used in environments
+where the standard
+.Xr realloc 3
+and
+.Xr free 3
+functions are not available.
+.Pp
+.Fa realloc_func
+should expect the same arguments as
+.Xr realloc 3
+and return
+a pointer to memory following the same convention.
+.Fa free_func
+will receive the same argument as
+.Xr free 3
+and should release it, asappropriate for the environment.
+.Pp
+By default, the standard
+.Xr realloc 3
+and
+.Xr free 3
+functions are used.
+.Sh ADDITIONAL DOCUMENTATION
+.Pp
+Complete documentation can be found on github:
+.Bd -literal -offset indent
+http://juniper.github.io/libxo/libxo-manual.html
+.Ed
+.Pp
+libxo lives on github as:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo
+.Ed
+.Pp
+The latest release of libxo is available at:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo/releases
+.Ed
+.Sh SEE ALSO
+.Xr xo_emit 3
+.Sh HISTORY
+The
+.Fa libxo
+library was added in FreeBSD 11.0.
+.Sh AUTHOR
+Phil Shafer

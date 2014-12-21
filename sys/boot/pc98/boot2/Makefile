@@ -2,12 +2,6 @@
 
 .include <bsd.own.mk>
 
-# XXX: clang can compile the boot code just fine, but boot2 gets too big
-#CC:=		gcc
-#COMPILER_TYPE:=	gcc
-
-NO_PIE=	yes
-
 FILES=		boot boot1 boot2
 
 NM?=		nm
@@ -116,4 +110,5 @@ boot2.h: boot1.out
 .include <bsd.prog.mk>
 
 # XXX: clang integrated-as doesn't grok .codeNN directives yet
-CFLAGS+=		${CLANG_NO_IAS}
+CFLAGS.boot1.S=		${CLANG_NO_IAS}
+CFLAGS+=		${CFLAGS.${.IMPSRC:T}}

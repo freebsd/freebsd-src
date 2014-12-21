@@ -1,4 +1,4 @@
-/*	$Id: tbl_opts.c,v 1.12 2011/09/18 14:14:15 schwarze Exp $ */
+/*	$Id: tbl_opts.c,v 1.15 2014/11/26 17:51:55 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -14,9 +14,9 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
+
+#include <sys/types.h>
 
 #include <ctype.h>
 #include <stdio.h>
@@ -62,10 +62,10 @@ struct	tbl_phrase {
 static	const struct tbl_phrase keys[KEY_MAXKEYS] = {
 	{ "center",	 TBL_OPT_CENTRE,	KEY_CENTRE},
 	{ "centre",	 TBL_OPT_CENTRE,	KEY_CENTRE},
-	{ "delim",	 0,	       		KEY_DELIM},
+	{ "delim",	 0,			KEY_DELIM},
 	{ "expand",	 TBL_OPT_EXPAND,	KEY_EXPAND},
-	{ "box",	 TBL_OPT_BOX,   	KEY_BOX},
-	{ "doublebox",	 TBL_OPT_DBOX,  	KEY_DBOX},
+	{ "box",	 TBL_OPT_BOX,		KEY_BOX},
+	{ "doublebox",	 TBL_OPT_DBOX,		KEY_DBOX},
 	{ "allbox",	 TBL_OPT_ALLBOX,	KEY_ALLBOX},
 	{ "frame",	 TBL_OPT_BOX,		KEY_FRAME},
 	{ "doubleframe", TBL_OPT_DBOX,		KEY_DFRAME},
@@ -76,10 +76,11 @@ static	const struct tbl_phrase keys[KEY_MAXKEYS] = {
 	{ "nospaces",	 TBL_OPT_NOSPACE,	KEY_NOSPACE},
 };
 
-static	int		 arg(struct tbl_node *, int, 
+static	int		 arg(struct tbl_node *, int,
 				const char *, int *, enum tbl_ident);
-static	void		 opt(struct tbl_node *, int, 
+static	void		 opt(struct tbl_node *, int,
 				const char *, int *);
+
 
 static int
 arg(struct tbl_node *tbl, int ln, const char *p, int *pos, enum tbl_ident key)
@@ -93,8 +94,8 @@ arg(struct tbl_node *tbl, int ln, const char *p, int *pos, enum tbl_ident key)
 	/* Arguments always begin with a parenthesis. */
 
 	if ('(' != p[*pos]) {
-		mandoc_msg(MANDOCERR_TBL, tbl->parse, 
-				ln, *pos, NULL);
+		mandoc_msg(MANDOCERR_TBL, tbl->parse,
+		    ln, *pos, NULL);
 		return(0);
 	}
 
@@ -107,27 +108,27 @@ arg(struct tbl_node *tbl, int ln, const char *p, int *pos, enum tbl_ident key)
 	 */
 
 	switch (key) {
-	case (KEY_DELIM):
+	case KEY_DELIM:
 		if ('\0' == p[(*pos)++]) {
 			mandoc_msg(MANDOCERR_TBL, tbl->parse,
-					ln, *pos - 1, NULL);
+			    ln, *pos - 1, NULL);
 			return(0);
-		} 
+		}
 
 		if ('\0' == p[(*pos)++]) {
 			mandoc_msg(MANDOCERR_TBL, tbl->parse,
-					ln, *pos - 1, NULL);
+			    ln, *pos - 1, NULL);
 			return(0);
-		} 
+		}
 		break;
-	case (KEY_TAB):
+	case KEY_TAB:
 		if ('\0' != (tbl->opts.tab = p[(*pos)++]))
 			break;
 
 		mandoc_msg(MANDOCERR_TBL, tbl->parse,
-				ln, *pos - 1, NULL);
+		    ln, *pos - 1, NULL);
 		return(0);
-	case (KEY_LINESIZE):
+	case KEY_LINESIZE:
 		for (i = 0; i < KEY_MAXNUMSZ && p[*pos]; i++, (*pos)++) {
 			buf[i] = p[*pos];
 			if ( ! isdigit((unsigned char)buf[i]))
@@ -142,12 +143,12 @@ arg(struct tbl_node *tbl, int ln, const char *p, int *pos, enum tbl_ident key)
 
 		mandoc_msg(MANDOCERR_TBL, tbl->parse, ln, *pos, NULL);
 		return(0);
-	case (KEY_DPOINT):
+	case KEY_DPOINT:
 		if ('\0' != (tbl->opts.decimal = p[(*pos)++]))
 			break;
 
-		mandoc_msg(MANDOCERR_TBL, tbl->parse, 
-				ln, *pos - 1, NULL);
+		mandoc_msg(MANDOCERR_TBL, tbl->parse,
+		    ln, *pos - 1, NULL);
 		return(0);
 	default:
 		abort();
@@ -181,8 +182,8 @@ again:	/*
 	 *
 	 * options	::= option_list [:space:]* [;][\n]
 	 * option_list	::= option option_tail
-	 * option_tail	::= [:space:]+ option_list |
-	 * 		::= epsilon
+	 * option_tail	::= [,:space:]+ option_list |
+	 *		::= epsilon
 	 * option	::= [:alpha:]+ args
 	 * args		::= [:space:]* [(] [:alpha:]+ [)]
 	 */
@@ -212,10 +213,10 @@ again:	/*
 
 	buf[i] = '\0';
 
-	while (isspace((unsigned char)p[*pos]))
+	while (isspace((unsigned char)p[*pos]) || p[*pos] == ',')
 		(*pos)++;
 
-	/* 
+	/*
 	 * Look through all of the available keys to find one that
 	 * matches the input.  FIXME: hashtable this.
 	 */
@@ -231,7 +232,7 @@ again:	/*
 		 * of the sequence altogether.
 		 */
 
-		if (keys[i].key) 
+		if (keys[i].key)
 			tbl->opts.opts |= keys[i].key;
 		else if ( ! arg(tbl, ln, p, pos, keys[i].ident))
 			return;
@@ -239,7 +240,7 @@ again:	/*
 		break;
 	}
 
-	/* 
+	/*
 	 * Allow us to recover from bad options by continuing to another
 	 * parse sequence.
 	 */

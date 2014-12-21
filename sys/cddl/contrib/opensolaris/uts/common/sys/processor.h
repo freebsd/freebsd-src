@@ -25,6 +25,8 @@
  */
 
 /*
+ * Copyright 2014 Garrett D'Amore <garrett@damore.org>
+ *
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
  * Use is subject to license terms.
  */
@@ -112,7 +114,6 @@ typedef struct {
  * User-level system call interface prototypes
  */
 #ifndef _KERNEL
-#ifdef __STDC__
 
 extern int	p_online(processorid_t processorid, int flag);
 extern int	processor_info(processorid_t processorid,
@@ -121,16 +122,6 @@ extern int	processor_bind(idtype_t idtype, id_t id,
 		    processorid_t processorid, processorid_t *obind);
 extern processorid_t getcpuid(void);
 extern lgrpid_t gethomelgroup(void);
-
-#else
-
-extern int	p_online();
-extern int	processor_info();
-extern int	processor_bind();
-extern processorid_t getcpuid();
-extern lgrpid_t gethomelgroup();
-
-#endif /* __STDC__ */
 
 #else   /* _KERNEL */
 

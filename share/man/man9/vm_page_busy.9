@@ -95,7 +95,7 @@ themselves.
 For example, when a thread wants to access or update page contents
 without a lock held the page is shared busied.
 .Pp
-Before busing a page the vm_object lock must be held.
+Before busying a page the vm_object lock must be held.
 The same rule applies when a page is unbusied.
 This makes the vm_object lock a real busy interlock.
 .Pp
@@ -205,7 +205,6 @@ function panics if
 .Fa m
 is not exclusive busied.
 .Sh SEE ALSO
-.Xr VOP_GETPAGES 9 ,
 .Xr vm_page_aflag 9 ,
 .Xr vm_page_alloc 9 ,
 .Xr vm_page_deactivate 9 ,
@@ -213,4 +212,5 @@ is not exclusive busied.
 .Xr vm_page_grab 9 ,
 .Xr vm_page_insert 9 ,
 .Xr vm_page_lookup 9 ,
-.Xr vm_page_rename 9
+.Xr vm_page_rename 9 ,
+.Xr VOP_GETPAGES 9

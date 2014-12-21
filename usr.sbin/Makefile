@@ -5,6 +5,7 @@
 
 SUBDIR=	adduser \
 	arp \
+	autofs \
 	binmiscctl \
 	bootparamd \
 	bsdconfig \
@@ -25,10 +26,10 @@ SUBDIR=	adduser \
 	digictl \
 	diskinfo \
 	dumpcis \
-	etcupdate \
 	extattr \
 	extattrctl \
 	fifolog \
+	fstyp \
 	fwcontrol \
 	getfmac \
 	getpmac \
@@ -93,6 +94,7 @@ SUBDIR=	adduser \
 	trpt \
 	tzsetup \
 	ugidfw \
+	vigr \
 	vipw \
 	wake \
 	watch \
@@ -160,7 +162,6 @@ SUBDIR+=	gpioctl
 .endif
 
 .if ${MK_INET6} != "no"
-SUBDIR+=	faithd
 SUBDIR+=	ip6addrctl
 SUBDIR+=	mld6query
 SUBDIR+=	ndp
@@ -275,6 +276,10 @@ SUBDIR+=	repquota
 
 .if ${MK_RCMDS} != "no"
 SUBDIR+=	rwhod
+.endif
+
+.if ${MK_RCS} != "no"
+SUBDIR+=	etcupdate
 .endif
 
 .if ${MK_SENDMAIL} != "no"

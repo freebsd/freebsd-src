@@ -52,7 +52,7 @@ else
 fi
 
 b=share/examples/etc/bsd-style-copyright
-year=`date '+%Y'`
+year=$(sed -Ee '/^Copyright .* The FreeBSD Project/!d;s/^.*1992-([0-9]*) .*$/\1/g' ${SYSDIR}/../COPYRIGHT)
 # look for copyright template
 for bsd_copyright in ../$b ../../$b ../../../$b /usr/src/$b /usr/$b
 do
@@ -89,7 +89,7 @@ fi
 touch version
 v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`} t=`date`
 i=`${MAKE:-make} -V KERN_IDENT`
-compiler_v=$($(${MAKE:-make} -V CC) -v 2>&1 | grep 'version')
+compiler_v=$($(${MAKE:-make} -V CC) -v 2>&1 | grep -w 'version')
 
 for dir in /usr/bin /usr/local/bin; do
 	if [ ! -z "${svnversion}" ] ; then

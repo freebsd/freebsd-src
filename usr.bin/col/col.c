@@ -378,7 +378,7 @@ flush_blanks(void)
 		PUTC('\n');
 	if (half) {
 		PUTC('\033');
-		PUTC('9');
+		PUTC('\011');
 		if (!nb)
 			PUTC('\r');
 	}

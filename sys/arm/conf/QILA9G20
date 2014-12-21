@@ -117,10 +117,10 @@ device		iicbus
 device		icee
 
 # SCSI peripherals
-device		scbus			# SCSI bus (required for SCSI)
+device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
 device		cd			# CD
-device		pass			# Passthrough device (direct SCSI access)
+device		pass			# Passthrough device (direct ATA/SCSI access)
 
 # USB support
 device		ohci			# OHCI localbus->USB interface

@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "EVP_PKEY_set1_RSA 3"
-.TH EVP_PKEY_set1_RSA 3 "2014-08-06" "1.0.1i" "OpenSSL"
+.TH EVP_PKEY_set1_RSA 3 "2014-10-15" "1.0.1j" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -165,7 +165,7 @@ EVP_PKEY_type \- EVP_PKEY assignment functions.
 \&\fIEVP_PKEY_get1_EC_KEY()\fR return the referenced key in \fBpkey\fR or
 \&\fB\s-1NULL\s0\fR if the key is not of the correct type.
 .PP
-\&\fIEVP_PKEY_assign_RSA()\fR \fIEVP_PKEY_assign_DSA()\fR, \fIEVP_PKEY_assign_DH()\fR
+\&\fIEVP_PKEY_assign_RSA()\fR, \fIEVP_PKEY_assign_DSA()\fR, \fIEVP_PKEY_assign_DH()\fR
 and \fIEVP_PKEY_assign_EC_KEY()\fR also set the referenced key to \fBkey\fR
 however these use the supplied \fBkey\fR internally and so \fBkey\fR
 will be freed when the parent \fBpkey\fR is freed.
@@ -181,8 +181,8 @@ In accordance with the OpenSSL naming convention the key obtained
 from or assigned to the \fBpkey\fR using the \fB1\fR functions must be
 freed as well as \fBpkey\fR.
 .PP
-\&\fIEVP_PKEY_assign_RSA()\fR \fIEVP_PKEY_assign_DSA()\fR, \fIEVP_PKEY_assign_DH()\fR
-\&\fIEVP_PKEY_assign_EC_KEY()\fR are implemented as macros.
+\&\fIEVP_PKEY_assign_RSA()\fR, \fIEVP_PKEY_assign_DSA()\fR, \fIEVP_PKEY_assign_DH()\fR
+and \fIEVP_PKEY_assign_EC_KEY()\fR are implemented as macros.
 .SH "RETURN VALUES"
 .IX Header "RETURN VALUES"
 \&\fIEVP_PKEY_set1_RSA()\fR, \fIEVP_PKEY_set1_DSA()\fR, \fIEVP_PKEY_set1_DH()\fR and
@@ -192,7 +192,7 @@ freed as well as \fBpkey\fR.
 \&\fIEVP_PKEY_get1_EC_KEY()\fR return the referenced key or \fB\s-1NULL\s0\fR if 
 an error occurred.
 .PP
-\&\fIEVP_PKEY_assign_RSA()\fR \fIEVP_PKEY_assign_DSA()\fR, \fIEVP_PKEY_assign_DH()\fR
+\&\fIEVP_PKEY_assign_RSA()\fR, \fIEVP_PKEY_assign_DSA()\fR, \fIEVP_PKEY_assign_DH()\fR
 and \fIEVP_PKEY_assign_EC_KEY()\fR return 1 for success and 0 for failure.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"

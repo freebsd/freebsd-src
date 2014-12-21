@@ -279,8 +279,7 @@ man_check_for_so() {
 # Usage: man_display_page
 # Display either the manpage or catpage depending on the use_cat variable
 man_display_page() {
-	local EQN NROFF PIC TBL TROFF REFER VGRIND
-	local IFS l nroff_dev pipeline preproc_arg tool
+	local IFS pipeline testline
 
 	# We are called with IFS set to colon. This causes really weird
 	# things to happen for the variables that have spaces in them.
@@ -311,6 +310,36 @@ man_display_page() {
 		ret=0
 		return
 	fi
+
+	testline="mandoc -Tlint -Werror 2>/dev/null"
+	pipeline="mandoc -Tlocale | $MANPAGER"
+
+	if ! eval "$cattool $manpage | $testline" ;then
+		if which -s groff; then
+			man_display_page_groff
+		else
+			echo "This manpage needs groff(1) to be rendered" >&2
+			echo "First install groff(1): " >&2
+			echo "pkg install groff " >&2
+			ret=1
+		fi
+		return
+	fi
+
+	if [ $debug -gt 0 ]; then
+		decho "Command: $cattool $manpage | $pipeline"
+		ret=0
+	else
+		eval "$cattool $manpage | $pipeline"
+		ret=$?
+	fi
+}
+
+# Usage: man_display_page_groff
+# Display the manpage using groff
+man_display_page_groff() {
+	local EQN NROFF PIC TBL TROFF REFER VGRIND
+	local IFS l nroff_dev pipeline preproc_arg tool
 
 	# So, we really do need to parse the manpage. First, figure out the
 	# device flag (-T) we have to pass to eqn(1) and groff(1). Then,

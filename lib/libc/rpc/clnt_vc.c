@@ -141,7 +141,6 @@ static cond_t   *vc_cv;
 
 static const char clnt_vc_errstr[] = "%s : %s";
 static const char clnt_vc_str[] = "clnt_vc_create";
-static const char clnt_read_vc_str[] = "read_vc";
 static const char __no_mem_str[] = "out of memory";
 
 /*

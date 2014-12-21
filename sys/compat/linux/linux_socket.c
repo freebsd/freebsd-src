@@ -731,7 +731,7 @@ linux_bind(struct thread *td, struct linux_bind_args *args)
 	if (error)
 		return (error);
 
-	error = kern_bind(td, args->s, sa);
+	error = kern_bindat(td, AT_FDCWD, args->s, sa);
 	free(sa, M_SONAME);
 	if (error == EADDRNOTAVAIL && args->namelen != sizeof(struct sockaddr_in))
 	   	return (EINVAL);
@@ -759,7 +759,7 @@ linux_connect(struct thread *td, struct linux_connect_args *args)
 	if (error)
 		return (error);
 
-	error = kern_connect(td, args->s, sa);
+	error = kern_connectat(td, AT_FDCWD, args->s, sa);
 	free(sa, M_SONAME);
 	if (error != EISCONN)
 		return (error);

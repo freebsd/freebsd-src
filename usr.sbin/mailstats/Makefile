@@ -13,14 +13,7 @@ CFLAGS+= -DNOT_SENDMAIL
 
 WARNS?=	2
 
-LIBSMDIR=	${.OBJDIR}/../../lib/libsm
-LIBSM=		${LIBSMDIR}/libsm.a
-
-LIBSMUTILDIR=	${.OBJDIR}/../../lib/libsmutil
-LIBSMUTIL=	${LIBSMUTILDIR}/libsmutil.a
-
-DPADD=	${LIBSMUTIL} ${LIBSM}
-LDADD=	${LIBSMUTIL} ${LIBSM}
+LIBADD=	sm smutil
 
 SRCS+=	sm_os.h
 CLEANFILES+=sm_os.h
@@ -30,8 +23,6 @@ CFLAGS+= ${SENDMAIL_CFLAGS}
 DPADD+=	${SENDMAIL_DPADD}
 LDADD+=	${SENDMAIL_LDADD}
 LDFLAGS+= ${SENDMAIL_LDFLAGS}
-
-NO_PIE=	yes
 
 sm_os.h:
 	ln -sf ${SENDMAIL_DIR}/include/sm/os/sm_os_freebsd.h sm_os.h

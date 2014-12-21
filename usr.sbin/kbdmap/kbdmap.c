@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -47,10 +48,10 @@ static const char *lang_default = DEFAULT_LANG;
 static const char *font;
 static const char *lang;
 static const char *program;
-static const char *keymapdir = DEFAULT_KEYMAP_DIR;
-static const char *fontdir = DEFAULT_FONT_DIR;
+static const char *keymapdir = DEFAULT_VT_KEYMAP_DIR;
+static const char *fontdir = DEFAULT_VT_FONT_DIR;
+static const char *font_default = DEFAULT_VT_FONT;
 static const char *sysconfig = DEFAULT_SYSCONFIG;
-static const char *font_default = DEFAULT_FONT;
 static const char *font_current;
 static const char *dir;
 static const char *menu = "";
@@ -143,6 +144,22 @@ add_keymap(const char *desc, int mark, const char *keym)
 
 	/* Add to keymap list */
 	SLIST_INSERT_HEAD(&head, km_new, entries);
+}
+
+/*
+ * Return 0 if syscons is in use (to select legacy defaults).
+ */
+static int
+check_newcons(void)
+{
+	size_t len;
+	char term[3];
+
+	len = 3;
+	if (sysctlbyname("kern.vty", &term, &len, NULL, 0) != 0 ||
+	    strcmp(term, "vt") != 0)
+		return 0;
+	return -1;
 }
 
 /*
@@ -813,6 +830,12 @@ main(int argc, char **argv)
 		fprintf(stderr, "You are not on a virtual console - "
 				"expect certain strange side-effects\n");
 		sleep(2);
+	}
+
+	if (check_newcons() == 0) {
+		keymapdir = DEFAULT_SC_KEYMAP_DIR;
+		fontdir = DEFAULT_SC_FONT_DIR;
+		font_default = DEFAULT_SC_FONT;
 	}
 
 	SLIST_INIT(&head);

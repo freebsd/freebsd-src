@@ -220,16 +220,8 @@ avila_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	if (pin >= IXP4XX_GPIO_PINS || !(sc->sc_valid & mask))
 		return (EINVAL);
 
-	/* Check for unwanted flags. */
-	if ((flags & sc->sc_pins[pin].gp_caps) != flags)
-		return (EINVAL);
-
-	/* Can't mix input/output together */
-	if ((flags & (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT)) ==
-	    (GPIO_PIN_INPUT|GPIO_PIN_OUTPUT))
-		return (EINVAL);
-
 	avila_gpio_pin_configure(sc, &sc->sc_pins[pin], flags);
+
 	return (0);
 }
 
@@ -318,8 +310,9 @@ avila_gpio_attach(device_t dev)
 		sc->sc_valid |= 1 << p->pin;
 	}
 
-	device_add_child(dev, "gpioc", device_get_unit(dev));
-	device_add_child(dev, "gpiobus", device_get_unit(dev));
+	device_add_child(dev, "gpioc", -1);
+	device_add_child(dev, "gpiobus", -1);
+
 	return (bus_generic_attach(dev));
 #undef N
 }

@@ -1029,9 +1029,11 @@ f_package_extract()
 
 	# Request the package be added via pkg-install(8)
 	if f_debugging; then
-		f_eval_catch $funcname pkg 'pkg -d install -y "%s"' "$name"
+		f_eval_catch $funcname pkg \
+			'pkg -d install -${depended:+A}y "%s"' "$name"
 	else
-		f_eval_catch $funcname pkg 'pkg install -y "%s"' "$name"
+		f_eval_catch $funcname pkg \
+			'pkg install -${depended:+A}y "%s"' "$name"
 	fi
 	if [ $? -ne $SUCCESS ]; then
 		$alert "$msg_pkg_install_apparently_did_not_like_the_package" \

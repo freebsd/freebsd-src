@@ -62,6 +62,7 @@ CFLAGS+=	-DLOADER_TFTP_SUPPORT
 CFLAGS+=	-I${.CURDIR}/../../fdt
 CFLAGS+=	-I${.OBJDIR}/../../fdt
 CFLAGS+=	-DLOADER_FDT_SUPPORT
+LIBUBOOT_FDT=	${.OBJDIR}/../../uboot/fdt/libuboot_fdt.a
 LIBFDT=		${.OBJDIR}/../../fdt/libfdt.a
 .endif
 
@@ -98,8 +99,8 @@ CFLAGS+=	-I${.OBJDIR}/../../uboot/lib
 LIBSTAND=	${.OBJDIR}/../../libstand32/libstand.a
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
-DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBSTAND}
+DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSTAND}
+LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBUBOOT_FDT} ${LIBSTAND}
 
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}

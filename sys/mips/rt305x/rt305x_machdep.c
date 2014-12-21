@@ -167,7 +167,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 			arg = (char *)(intptr_t)MIPS_PHYS_TO_KSEG0(argv[i]);
 			printf("\targv[%d] = %s\n", i, arg);
 			sprintf(n, "argv%d", i);
-			setenv(n, arg);
+			kern_setenv(n, arg);
 		}
 	}
 
@@ -180,9 +180,9 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 		printf("\t%s\n", arg);
 		n = strsep(&arg, "=");
 		if (arg == NULL)
-			setenv(n, "1");
+			kern_setenv(n, "1");
 		else
-			setenv(n, arg);
+			kern_setenv(n, arg);
 	}
 
 

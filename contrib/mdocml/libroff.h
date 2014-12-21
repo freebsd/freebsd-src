@@ -1,6 +1,7 @@
-/*	$Id: libroff.h,v 1.28 2013/05/31 21:37:17 schwarze Exp $ */
+/*	$Id: libroff.h,v 1.31 2014/10/25 14:35:37 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -43,16 +44,19 @@ struct	tbl_node {
 };
 
 struct	eqn_node {
-	struct eqn_def	 *defs;
-	size_t		  defsz;
-	char		 *data;
-	size_t		  rew;
-	size_t		  cur;
-	size_t		  sz;
-	int		  gsize;
-	struct eqn	  eqn;
-	struct mparse	 *parse;
-	struct eqn_node  *next;
+	struct eqn	  eqn;    /* syntax tree of this equation */
+	struct mparse	 *parse;  /* main parser, for error reporting */
+	struct eqn_node  *next;   /* singly linked list of equations */
+	struct eqn_def	 *defs;   /* array of definitions */
+	char		 *data;   /* source code of this equation */
+	size_t		  defsz;  /* number of definitions */
+	size_t		  sz;     /* length of the source code */
+	size_t		  cur;    /* parse point in the source code */
+	size_t		  rew;    /* beginning of the current token */
+	int		  gsize;  /* default point size */
+	int		  delim;  /* in-line delimiters enabled */
+	char		  odelim; /* in-line opening delimiter */
+	char		  cdelim; /* in-line closing delimiter */
 };
 
 struct	eqn_def {
@@ -66,17 +70,17 @@ struct tbl_node	*tbl_alloc(int, int, struct mparse *);
 void		 tbl_restart(int, int, struct tbl_node *);
 void		 tbl_free(struct tbl_node *);
 void		 tbl_reset(struct tbl_node *);
-enum rofferr 	 tbl_read(struct tbl_node *, int, const char *, int);
+enum rofferr	 tbl_read(struct tbl_node *, int, const char *, int);
 int		 tbl_option(struct tbl_node *, int, const char *);
 int		 tbl_layout(struct tbl_node *, int, const char *);
 int		 tbl_data(struct tbl_node *, int, const char *);
 int		 tbl_cdata(struct tbl_node *, int, const char *);
 const struct tbl_span	*tbl_span(struct tbl_node *);
 void		 tbl_end(struct tbl_node **);
-struct eqn_node	*eqn_alloc(const char *, int, int, struct mparse *);
+struct eqn_node	*eqn_alloc(int, int, struct mparse *);
 enum rofferr	 eqn_end(struct eqn_node **);
 void		 eqn_free(struct eqn_node *);
-enum rofferr 	 eqn_read(struct eqn_node **, int, 
+enum rofferr	 eqn_read(struct eqn_node **, int,
 			const char *, int, int *);
 
 __END_DECLS

@@ -260,6 +260,7 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define	MNT_NOCLUSTERR	0x0000000040000000ULL /* disable cluster read */
 #define	MNT_NOCLUSTERW	0x0000000080000000ULL /* disable cluster write */
 #define	MNT_SUJ		0x0000000100000000ULL /* using journaled soft updates */
+#define	MNT_AUTOMOUNTED	0x0000000200000000ULL /* mounted by automountd(8) */
 
 /*
  * NFS export related mount flags.
@@ -296,7 +297,7 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 			MNT_NOCLUSTERW	| MNT_SUIDDIR	| MNT_SOFTDEP	| \
 			MNT_IGNORE	| MNT_EXPUBLIC	| MNT_NOSYMFOLLOW | \
 			MNT_GJOURNAL	| MNT_MULTILABEL | MNT_ACLS	| \
-			MNT_NFS4ACLS)
+			MNT_NFS4ACLS	| MNT_AUTOMOUNTED)
 
 /* Mask of flags that can be updated. */
 #define	MNT_UPDATEMASK (MNT_NOSUID	| MNT_NOEXEC	| \
@@ -304,7 +305,8 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 			MNT_NOATIME | \
 			MNT_NOSYMFOLLOW	| MNT_IGNORE	| \
 			MNT_NOCLUSTERR	| MNT_NOCLUSTERW | MNT_SUIDDIR	| \
-			MNT_ACLS	| MNT_USER | MNT_NFS4ACLS)
+			MNT_ACLS	| MNT_USER	| MNT_NFS4ACLS	| \
+			MNT_AUTOMOUNTED)
 
 /*
  * External filesystem command modifier flags.
@@ -359,7 +361,7 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
 #define	MNTK_SUSPEND2	0x04000000	/* block secondary writes */
 #define	MNTK_SUSPENDED	0x10000000	/* write operations are suspended */
-#define	MNTK_UNUSED25	0x20000000	/*  --available-- */
+#define	MNTK_SUSPENDABLE	0x20000000 /* writes can be suspended */
 #define MNTK_LOOKUP_SHARED	0x40000000 /* FS supports shared lock lookups */
 #define	MNTK_NOKNOTE	0x80000000	/* Don't send KNOTEs from VOP hooks */
 
@@ -914,6 +916,9 @@ vfs_init_t		vfs_stdinit;
 vfs_uninit_t		vfs_stduninit;
 vfs_extattrctl_t	vfs_stdextattrctl;
 vfs_sysctl_t		vfs_stdsysctl;
+
+void	syncer_suspend(void);
+void	syncer_resume(void);
 
 #else /* !_KERNEL */
 

@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -93,7 +92,6 @@ enum AcpiExDebuggerCommands
     CMD_ALLOCATIONS,
     CMD_ARGS,
     CMD_ARGUMENTS,
-    CMD_BATCH,
     CMD_BREAKPOINT,
     CMD_BUSINFO,
     CMD_CALL,
@@ -128,7 +126,7 @@ enum AcpiExDebuggerCommands
     CMD_METHODS,
     CMD_NAMESPACE,
     CMD_NOTIFY,
-    CMD_OBJECT,
+    CMD_OBJECTS,
     CMD_OPEN,
     CMD_OSI,
     CMD_OWNER,
@@ -147,6 +145,7 @@ enum AcpiExDebuggerCommands
     CMD_TABLES,
     CMD_TEMPLATE,
     CMD_TERMINATE,
+    CMD_TEST,
     CMD_THREADS,
     CMD_TRACE,
     CMD_TREE,
@@ -166,7 +165,6 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"ALLOCATIONS",  0},
     {"ARGS",         0},
     {"ARGUMENTS",    0},
-    {"BATCH",        0},
     {"BREAKPOINT",   1},
     {"BUSINFO",      0},
     {"CALL",         0},
@@ -182,7 +180,7 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"EXIT",         0},
     {"FIND",         1},
     {"GO",           0},
-    {"GPE",          2},
+    {"GPE",          1},
     {"GPES",         0},
     {"HANDLERS",     0},
     {"HELP",         0},
@@ -201,7 +199,7 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"METHODS",      0},
     {"NAMESPACE",    0},
     {"NOTIFY",       2},
-    {"OBJECT",       1},
+    {"OBJECTS",      1},
     {"OPEN",         1},
     {"OSI",          0},
     {"OWNER",        1},
@@ -220,6 +218,7 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"TABLES",       0},
     {"TEMPLATE",     1},
     {"TERMINATE",    0},
+    {"TEST",        1},
     {"THREADS",      3},
     {"TRACE",        1},
     {"TREE",         0},
@@ -246,8 +245,7 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
     {1, "  Locks",                             "Current status of internal mutexes\n"},
     {1, "  Osi [Install|Remove <name>]",       "Display or modify global _OSI list\n"},
     {1, "  Quit or Exit",                      "Exit this command\n"},
-    {9, "  Stats [Allocations|Memory|Misc|",   "\n"},
-    {1, "      Objects|Sizes|Stack|Tables]",   "Display namespace and memory statistics\n"},
+    {8, "  Stats <SubCommand>",                "Display namespace and memory statistics\n"},
     {1, "     Allocations",                    "Display list of current memory allocations\n"},
     {1, "     Memory",                         "Dump internal memory lists\n"},
     {1, "     Misc",                           "Namespace search and mutex stats\n"},
@@ -306,7 +304,7 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
 
     {0, "\nHardware Related Commands:",         "\n"},
     {1, "  Event <F|G> <Value>",               "Generate AcpiEvent (Fixed/GPE)\n"},
-    {1, "  Gpe <GpeNum> <GpeBlock>",           "Simulate a GPE\n"},
+    {1, "  Gpe <GpeNum> [GpeBlockDevice]",     "Simulate a GPE\n"},
     {1, "  Gpes",                              "Display info on all GPEs\n"},
     {1, "  Sci",                               "Generate an SCI\n"},
     {1, "  Sleep [SleepState]",                "Simulate sleep/wake sequence(s) (0-5)\n"},
@@ -315,6 +313,11 @@ static const ACPI_DB_COMMAND_HELP   AcpiGbl_DbCommandHelp[] =
     {1, "  Close",                             "Close debug output file\n"},
     {1, "  Load <Input Filename>",             "Load ACPI table from a file\n"},
     {1, "  Open <Output Filename>",            "Open a file for debug output\n"},
+
+    {0, "\nDebug Test Commands:",              "\n"},
+    {3, "  Test <TestName>",                   "Invoke a debug test\n"},
+    {1, "     Objects",                        "Read/write/compare all namespace data objects\n"},
+    {1, "     Predefined",                     "Execute all ACPI predefined names (_STA, etc.)\n"},
     {0, NULL, NULL}
 };
 
@@ -635,7 +638,13 @@ AcpiDbGetLine (
     char                    *This;
 
 
-    ACPI_STRCPY (AcpiGbl_DbParsedBuf, InputBuffer);
+    if (AcpiUtSafeStrcpy (AcpiGbl_DbParsedBuf, sizeof (AcpiGbl_DbParsedBuf),
+        InputBuffer))
+    {
+        AcpiOsPrintf ("Buffer overflow while parsing input line (max %u characters)\n",
+            sizeof (AcpiGbl_DbParsedBuf));
+        return (0);
+    }
 
     This = AcpiGbl_DbParsedBuf;
     for (i = 0; i < ACPI_DEBUGGER_MAX_ARGS; i++)
@@ -740,6 +749,11 @@ AcpiDbCommandDispatch (
         return (AE_CTRL_TERMINATE);
     }
 
+
+    /* Add all commands that come here to the history buffer */
+
+    AcpiDbAddToHistory (InputBuffer);
+
     ParamCount = AcpiDbGetLine (InputBuffer);
     CommandIndex = AcpiDbMatchCommand (AcpiGbl_DbArgs[0]);
     Temp = 0;
@@ -779,11 +793,6 @@ AcpiDbCommandDispatch (
     case CMD_ARGUMENTS:
 
         AcpiDbDisplayArguments ();
-        break;
-
-    case CMD_BATCH:
-
-        AcpiDbBatchExecute (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_BREAKPOINT:
@@ -989,7 +998,7 @@ AcpiDbCommandDispatch (
         AcpiDbSendNotify (AcpiGbl_DbArgs[1], Temp);
         break;
 
-    case CMD_OBJECT:
+    case CMD_OBJECTS:
 
         AcpiUtStrupr (AcpiGbl_DbArgs[1]);
         Status = AcpiDbDisplayObjects (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2]);
@@ -1088,6 +1097,11 @@ AcpiDbCommandDispatch (
         /*  AcpiInitialize (NULL);  */
         break;
 
+    case CMD_TEST:
+
+        AcpiDbExecuteTest (AcpiGbl_DbArgs[1]);
+        break;
+
     case CMD_THREADS:
 
         AcpiDbCreateExecutionThreads (AcpiGbl_DbArgs[1], AcpiGbl_DbArgs[2],
@@ -1135,7 +1149,7 @@ AcpiDbCommandDispatch (
     case CMD_NOT_FOUND:
     default:
 
-        AcpiOsPrintf ("Unknown Command\n");
+        AcpiOsPrintf ("%s: unknown command\n", AcpiGbl_DbArgs[0]);
         return (AE_CTRL_TRUE);
     }
 
@@ -1144,9 +1158,6 @@ AcpiDbCommandDispatch (
         Status = AE_CTRL_TRUE;
     }
 
-    /* Add all commands that come here to the history buffer */
-
-    AcpiDbAddToHistory (InputBuffer);
     return (Status);
 }
 

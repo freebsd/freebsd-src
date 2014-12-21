@@ -1,6 +1,7 @@
-/*	$Id: man.h,v 1.62 2013/10/17 20:54:58 schwarze Exp $ */
+/*	$Id: man.h,v 1.66 2014/11/28 05:51:32 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -56,6 +57,7 @@ enum	mant {
 	MAN_EE,
 	MAN_UR,
 	MAN_UE,
+	MAN_ll,
 	MAN_MAX
 };
 
@@ -66,7 +68,6 @@ enum	man_type {
 	MAN_BLOCK,
 	MAN_HEAD,
 	MAN_BODY,
-	MAN_TAIL,
 	MAN_TBL,
 	MAN_EQN
 };
@@ -77,6 +78,7 @@ struct	man_meta {
 	char		*vol; /* `TH' volume */
 	char		*title; /* `TH' title (e.g., FOO) */
 	char		*source; /* `TH' source (e.g., GNU) */
+	int		 hasbody; /* document is not empty */
 };
 
 struct	man_node {
@@ -111,6 +113,7 @@ struct	man;
 const struct man_node *man_node(const struct man *);
 const struct man_meta *man_meta(const struct man *);
 const struct mparse   *man_mparse(const struct man *);
+void man_deroff(char **, const struct man_node *);
 
 __END_DECLS
 

@@ -4688,6 +4688,23 @@ parse_address_main (char **str, int i, int group_relocations,
 	      return PARSE_OPERAND_FAIL;
 	}
     }
+  else if (skip_past_char (&p, ':') == SUCCESS)
+    {
+      /* FIXME: '@' should be used here, but it's filtered out by generic
+         code before we get to see it here. This may be subject to
+         change.  */
+      expressionS exp;
+      my_get_expression (&exp, &p, GE_NO_PREFIX);
+      if (exp.X_op != O_constant)
+        {
+          inst.error = _("alignment must be constant");
+          return PARSE_OPERAND_FAIL;
+        }
+      inst.operands[i].imm = exp.X_add_number << 8;
+      inst.operands[i].immisalign = 1;
+      /* Alignments are not pre-indexes.  */
+      inst.operands[i].preind = 0;
+    }
 
   if (skip_past_char (&p, ']') == FAIL)
     {
@@ -6062,7 +6079,7 @@ parse_operands (char *str, const unsigned char *pattern)
 
 /* Functions for operand encoding.  ARM, then Thumb.  */
 
-#define rotate_left(v, n) (v << n | v >> (32 - n))
+#define rotate_left(v, n) (v << (n % 32) | v >> ((32 - n) % 32))
 
 /* If VAL can be encoded in the immediate field of an ARM instruction,
    return the encoded form.  Otherwise, return FAIL.  */
@@ -6571,6 +6588,7 @@ do_barrier (void)
   if (inst.operands[0].present)
     {
       constraint ((inst.instruction & 0xf0) != 0x40
+		  && (inst.instruction & 0xf0) != 0x50
 		  && inst.operands[0].imm != 0xf,
 		  "bad barrier type");
       inst.instruction |= inst.operands[0].imm;
@@ -6771,7 +6789,11 @@ do_co_reg (void)
 {
   inst.instruction |= inst.operands[0].reg << 8;
   inst.instruction |= inst.operands[1].imm << 21;
-  inst.instruction |= inst.operands[2].reg << 12;
+  /* If this is a vector we are using the APSR_nzcv syntax, encode as r15 */
+  if (inst.operands[2].isvec != 0)
+    inst.instruction |= 15 << 12;
+  else
+    inst.instruction |= inst.operands[2].reg << 12;
   inst.instruction |= inst.operands[3].reg << 16;
   inst.instruction |= inst.operands[4].reg;
   inst.instruction |= inst.operands[5].imm << 5;
@@ -14694,10 +14716,18 @@ static const struct asm_cond conds[] =
 
 static struct asm_barrier_opt barrier_opt_names[] =
 {
-  { "sy",   0xf },
-  { "un",   0x7 },
-  { "st",   0xe },
-  { "unst", 0x6 }
+  { "sy",    0xf },
+  { "un",    0x7 },
+  { "st",    0xe },
+  { "unst",  0x6 },
+  { "ish",   0xb },
+  { "sh",    0xb },
+  { "ishst", 0xa },
+  { "shst",  0xa },
+  { "nsh",   0x7 },
+  { "nshst", 0x6 },
+  { "osh",   0x3 },
+  { "oshst", 0x2 }
 };
 
 /* Table of ARM-format instructions.	*/
@@ -15029,7 +15059,7 @@ static const struct asm_opcode insns[] =
  TCE(stc,	c000000, ec000000, 3, (RCP, RCN, ADDRGLDC),	        lstc,   lstc),
  TC3(stcl,	c400000, ec400000, 3, (RCP, RCN, ADDRGLDC),	        lstc,   lstc),
  TCE(mcr,	e000010, ee000010, 6, (RCP, I7b, RR, RCN, RCN, oI7b),   co_reg, co_reg),
- TCE(mrc,	e100010, ee100010, 6, (RCP, I7b, RR, RCN, RCN, oI7b),   co_reg, co_reg),
+ TCE(mrc,	e100010, ee100010, 6, (RCP, I7b, APSR_RR, RCN, RCN, oI7b),   co_reg, co_reg),
 
 #undef ARM_VARIANT
 #define ARM_VARIANT &arm_ext_v2s /* ARM 3 - swp instructions.  */
@@ -15088,7 +15118,7 @@ static const struct asm_opcode insns[] =
  TUF(stc2l,	c400000, fc400000, 3, (RCP, RCN, ADDRGLDC),		        lstc,	lstc),
  TUF(cdp2,	e000000, fe000000, 6, (RCP, I15b, RCN, RCN, RCN, oI7b), cdp,    cdp),
  TUF(mcr2,	e000010, fe000010, 6, (RCP, I7b, RR, RCN, RCN, oI7b),   co_reg, co_reg),
- TUF(mrc2,	e100010, fe100010, 6, (RCP, I7b, RR, RCN, RCN, oI7b),   co_reg, co_reg),
+ TUF(mrc2,	e100010, fe100010, 6, (RCP, I7b, APSR_RR, RCN, RCN, oI7b),   co_reg, co_reg),
 
 #undef ARM_VARIANT
 #define ARM_VARIANT &arm_ext_v5exp /*  ARM Architecture 5TExP.  */
@@ -19367,6 +19397,12 @@ arm_fix_adjustable (fixS * fixP)
   if ((fixP->fx_r_type >= BFD_RELOC_ARM_ALU_PC_G0_NC
        && fixP->fx_r_type <= BFD_RELOC_ARM_LDC_SB_G2)
       || fixP->fx_r_type == BFD_RELOC_ARM_LDR_PC_G0)
+    return 0;
+
+  if (fixP->fx_r_type == BFD_RELOC_ARM_MOVW
+      || fixP->fx_r_type == BFD_RELOC_ARM_MOVT
+      || fixP->fx_r_type == BFD_RELOC_ARM_THUMB_MOVW
+      || fixP->fx_r_type == BFD_RELOC_ARM_THUMB_MOVT)
     return 0;
 
   return 1;

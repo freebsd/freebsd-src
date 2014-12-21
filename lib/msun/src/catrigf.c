@@ -156,12 +156,12 @@ casinhf(float complex z)
 
 	if (isnan(x) || isnan(y)) {
 		if (isinf(x))
-			return (cpackf(x, y + y));
+			return (CMPLXF(x, y + y));
 		if (isinf(y))
-			return (cpackf(y, x + x));
+			return (CMPLXF(y, x + x));
 		if (y == 0)
-			return (cpackf(x + x, y));
-		return (cpackf(x + 0.0L + (y + 0), x + 0.0L + (y + 0)));
+			return (CMPLXF(x + x, y));
+		return (CMPLXF(x + 0.0L + (y + 0), x + 0.0L + (y + 0)));
 	}
 
 	if (ax > RECIP_EPSILON || ay > RECIP_EPSILON) {
@@ -169,7 +169,7 @@ casinhf(float complex z)
 			w = clog_for_large_values(z) + m_ln2;
 		else
 			w = clog_for_large_values(-z) + m_ln2;
-		return (cpackf(copysignf(crealf(w), x),
+		return (CMPLXF(copysignf(crealf(w), x),
 		    copysignf(cimagf(w), y)));
 	}
 
@@ -186,15 +186,15 @@ casinhf(float complex z)
 		ry = asinf(B);
 	else
 		ry = atan2f(new_y, sqrt_A2my2);
-	return (cpackf(copysignf(rx, x), copysignf(ry, y)));
+	return (CMPLXF(copysignf(rx, x), copysignf(ry, y)));
 }
 
 float complex
 casinf(float complex z)
 {
-	float complex w = casinhf(cpackf(cimagf(z), crealf(z)));
+	float complex w = casinhf(CMPLXF(cimagf(z), crealf(z)));
 
-	return (cpackf(cimagf(w), crealf(w)));
+	return (CMPLXF(cimagf(w), crealf(w)));
 }
 
 float complex
@@ -214,12 +214,12 @@ cacosf(float complex z)
 
 	if (isnan(x) || isnan(y)) {
 		if (isinf(x))
-			return (cpackf(y + y, -INFINITY));
+			return (CMPLXF(y + y, -INFINITY));
 		if (isinf(y))
-			return (cpackf(x + x, -y));
+			return (CMPLXF(x + x, -y));
 		if (x == 0)
-			return (cpackf(pio2_hi + pio2_lo, y + y));
-		return (cpackf(x + 0.0L + (y + 0), x + 0.0L + (y + 0)));
+			return (CMPLXF(pio2_hi + pio2_lo, y + y));
+		return (CMPLXF(x + 0.0L + (y + 0), x + 0.0L + (y + 0)));
 	}
 
 	if (ax > RECIP_EPSILON || ay > RECIP_EPSILON) {
@@ -228,16 +228,16 @@ cacosf(float complex z)
 		ry = crealf(w) + m_ln2;
 		if (sy == 0)
 			ry = -ry;
-		return (cpackf(rx, ry));
+		return (CMPLXF(rx, ry));
 	}
 
 	if (x == 1 && y == 0)
-		return (cpackf(0, -y));
+		return (CMPLXF(0, -y));
 
 	raise_inexact();
 
 	if (ax < SQRT_6_EPSILON / 4 && ay < SQRT_6_EPSILON / 4)
-		return (cpackf(pio2_hi - (x - pio2_lo), -y));
+		return (CMPLXF(pio2_hi - (x - pio2_lo), -y));
 
 	do_hard_work(ay, ax, &ry, &B_is_usable, &B, &sqrt_A2mx2, &new_x);
 	if (B_is_usable) {
@@ -253,7 +253,7 @@ cacosf(float complex z)
 	}
 	if (sy == 0)
 		ry = -ry;
-	return (cpackf(rx, ry));
+	return (CMPLXF(rx, ry));
 }
 
 float complex
@@ -266,12 +266,12 @@ cacoshf(float complex z)
 	rx = crealf(w);
 	ry = cimagf(w);
 	if (isnan(rx) && isnan(ry))
-		return (cpackf(ry, rx));
+		return (CMPLXF(ry, rx));
 	if (isnan(rx))
-		return (cpackf(fabsf(ry), rx));
+		return (CMPLXF(fabsf(ry), rx));
 	if (isnan(ry))
-		return (cpackf(ry, ry));
-	return (cpackf(fabsf(ry), copysignf(rx, cimagf(z))));
+		return (CMPLXF(ry, ry));
+	return (CMPLXF(fabsf(ry), copysignf(rx, cimagf(z))));
 }
 
 static float complex
@@ -291,13 +291,13 @@ clog_for_large_values(float complex z)
 	}
 
 	if (ax > FLT_MAX / 2)
-		return (cpackf(logf(hypotf(x / m_e, y / m_e)) + 1,
+		return (CMPLXF(logf(hypotf(x / m_e, y / m_e)) + 1,
 		    atan2f(y, x)));
 
 	if (ax > QUARTER_SQRT_MAX || ay < SQRT_MIN)
-		return (cpackf(logf(hypotf(x, y)), atan2f(y, x)));
+		return (CMPLXF(logf(hypotf(x, y)), atan2f(y, x)));
 
-	return (cpackf(logf(ax * ax + ay * ay) / 2, atan2f(y, x)));
+	return (CMPLXF(logf(ax * ax + ay * ay) / 2, atan2f(y, x)));
 }
 
 static inline float
@@ -346,22 +346,22 @@ catanhf(float complex z)
 	ay = fabsf(y);
 
 	if (y == 0 && ax <= 1)
-		return (cpackf(atanhf(x), y));
+		return (CMPLXF(atanhf(x), y));
 
 	if (x == 0)
-		return (cpackf(x, atanf(y)));
+		return (CMPLXF(x, atanf(y)));
 
 	if (isnan(x) || isnan(y)) {
 		if (isinf(x))
-			return (cpackf(copysignf(0, x), y + y));
+			return (CMPLXF(copysignf(0, x), y + y));
 		if (isinf(y))
-			return (cpackf(copysignf(0, x),
+			return (CMPLXF(copysignf(0, x),
 			    copysignf(pio2_hi + pio2_lo, y)));
-		return (cpackf(x + 0.0L + (y + 0), x + 0.0L + (y + 0)));
+		return (CMPLXF(x + 0.0L + (y + 0), x + 0.0L + (y + 0)));
 	}
 
 	if (ax > RECIP_EPSILON || ay > RECIP_EPSILON)
-		return (cpackf(real_part_reciprocal(x, y),
+		return (CMPLXF(real_part_reciprocal(x, y),
 		    copysignf(pio2_hi + pio2_lo, y)));
 
 	if (ax < SQRT_3_EPSILON / 2 && ay < SQRT_3_EPSILON / 2) {
@@ -381,13 +381,13 @@ catanhf(float complex z)
 	else
 		ry = atan2f(2 * ay, (1 - ax) * (1 + ax) - ay * ay) / 2;
 
-	return (cpackf(copysignf(rx, x), copysignf(ry, y)));
+	return (CMPLXF(copysignf(rx, x), copysignf(ry, y)));
 }
 
 float complex
 catanf(float complex z)
 {
-	float complex w = catanhf(cpackf(cimagf(z), crealf(z)));
+	float complex w = catanhf(CMPLXF(cimagf(z), crealf(z)));
 
-	return (cpackf(cimagf(w), crealf(w)));
+	return (CMPLXF(cimagf(w), crealf(w)));
 }

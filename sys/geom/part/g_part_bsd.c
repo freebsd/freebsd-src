@@ -83,6 +83,8 @@ static const char *g_part_bsd_type(struct g_part_table *, struct g_part_entry *,
 static int g_part_bsd_write(struct g_part_table *, struct g_consumer *);
 static int g_part_bsd_resize(struct g_part_table *, struct g_part_entry *,
     struct g_part_parms *);
+static int g_part_bsd_ioctl(struct g_part_table *, struct g_provider *,
+    u_long cmd, void *data, int fflag, struct thread *td);
 
 static kobj_method_t g_part_bsd_methods[] = {
 	KOBJMETHOD(g_part_add,		g_part_bsd_add),
@@ -98,6 +100,7 @@ static kobj_method_t g_part_bsd_methods[] = {
 	KOBJMETHOD(g_part_read,		g_part_bsd_read),
 	KOBJMETHOD(g_part_type,		g_part_bsd_type),
 	KOBJMETHOD(g_part_write,	g_part_bsd_write),
+	KOBJMETHOD(g_part_ioctl,	g_part_bsd_ioctl),
 	{ 0, 0 }
 };
 
@@ -492,6 +495,38 @@ g_part_bsd_type(struct g_part_table *basetable, struct g_part_entry *baseentry,
 		return (g_part_alias_name(G_PART_ALIAS_FREEBSD_ZFS));
 	snprintf(buf, bufsz, "!%d", type);
 	return (buf);
+}
+
+/*-
+ * This start routine is only called for non-trivial requests, all the
+ * trivial ones are handled autonomously by the slice code.
+ * For requests we handle here, we must call the g_io_deliver() on the
+ * bio, and return non-zero to indicate to the slice code that we did so.
+ * This code executes in the "DOWN" I/O path, this means:
+ *    * No sleeping.
+ *    * Don't grab the topology lock.
+ *    * Don't call biowait, g_getattr(), g_setattr() or g_read_data()
+ */
+static int
+g_part_bsd_ioctl(struct g_part_table *basetable, struct g_provider *pp,
+    u_long cmd, void *data, int fflag, struct thread *td)
+{
+
+	switch (cmd)
+	{
+	case DIOCGDINFO:
+	{
+		struct g_part_bsd_table *table;
+		u_char *p;
+
+		table = (struct g_part_bsd_table *)basetable;
+		p = table->bbarea + pp->sectorsize;
+		return (bsd_disklabel_le_dec(p, data, MAXPARTITIONS));
+	}
+	default:
+		return (ENOIOCTL);
+
+	}
 }
 
 static int

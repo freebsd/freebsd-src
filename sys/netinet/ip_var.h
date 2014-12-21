@@ -161,6 +161,7 @@ void	kmod_ipstat_dec(int statnum);
 #define	IP_SENDTOIF		0x8		/* send on specific ifnet */
 #define IP_ROUTETOIF		SO_DONTROUTE	/* 0x10 bypass routing tables */
 #define IP_ALLOWBROADCAST	SO_BROADCAST	/* 0x20 can send broadcast packets */
+#define	IP_NODEFAULTFLOWID	0x40		/* Don't set the flowid from inp */
 
 #ifdef __NO_STRICT_ALIGNMENT
 #define IP_HDR_ALIGNED_P(ip)	1
@@ -235,7 +236,7 @@ void	rip_init(void);
 void	rip_destroy(void);
 #endif
 int	rip_input(struct mbuf **, int *, int);
-int	rip_output(struct mbuf *, struct socket *, u_long);
+int	rip_output(struct mbuf *, struct socket *, ...);
 int	ipip_input(struct mbuf **, int *, int);
 int	rsvp_input(struct mbuf **, int *, int);
 int	ip_rsvp_init(struct socket *);

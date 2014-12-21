@@ -621,7 +621,7 @@ stge_attach(device_t dev)
 	 * Must appear after the call to ether_ifattach() because
 	 * ether_ifattach() sets ifi_hdrlen to the default value.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	/*
 	 * The manual recommends disabling early transmit, so we
@@ -1236,7 +1236,7 @@ stge_watchdog(struct stge_softc *sc)
 
 	ifp = sc->sc_ifp;
 	if_printf(sc->sc_ifp, "device timeout\n");
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	stge_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -1684,7 +1684,7 @@ stge_rxeof(struct stge_softc *sc)
 		 * Add a new receive buffer to the ring.
 		 */
 		if (stge_newbuf(sc, cons) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			stge_discard_rxbuf(sc, cons);
 			if (sc->sc_cdata.stge_rxhead != NULL) {
 				m_freem(sc->sc_cdata.stge_rxhead);
@@ -1874,22 +1874,22 @@ stge_stats_update(struct stge_softc *sc)
 
 	CSR_READ_4(sc,STGE_OctetRcvOk);
 
-	ifp->if_ipackets += CSR_READ_4(sc, STGE_FramesRcvdOk);
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, CSR_READ_4(sc, STGE_FramesRcvdOk));
 
-	ifp->if_ierrors += CSR_READ_2(sc, STGE_FramesLostRxErrors);
+	if_inc_counter(ifp, IFCOUNTER_IERRORS, CSR_READ_2(sc, STGE_FramesLostRxErrors));
 
 	CSR_READ_4(sc, STGE_OctetXmtdOk);
 
-	ifp->if_opackets += CSR_READ_4(sc, STGE_FramesXmtdOk);
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, CSR_READ_4(sc, STGE_FramesXmtdOk));
 
-	ifp->if_collisions +=
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
 	    CSR_READ_4(sc, STGE_LateCollisions) +
 	    CSR_READ_4(sc, STGE_MultiColFrames) +
-	    CSR_READ_4(sc, STGE_SingleColFrames);
+	    CSR_READ_4(sc, STGE_SingleColFrames));
 
-	ifp->if_oerrors +=
+	if_inc_counter(ifp, IFCOUNTER_OERRORS,
 	    CSR_READ_2(sc, STGE_FramesAbortXSColls) +
-	    CSR_READ_2(sc, STGE_FramesWEXDeferal);
+	    CSR_READ_2(sc, STGE_FramesWEXDeferal));
 }
 
 /*

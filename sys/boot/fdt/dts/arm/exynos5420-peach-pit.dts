@@ -68,5 +68,20 @@
 		usbdrd_phy1: phy@12500000 {
 			vbus-supply = < 218 >;
 		};
+
+		mmc2: dwmmc@12220000 {
+			status = "okay";
+			num-slots = <1>;
+			supports-highspeed;
+			samsung,dw-mshc-ciu-div = <3>;
+			samsung,dw-mshc-sdr-timing = <2 3>;
+			samsung,dw-mshc-ddr-timing = <1 2>;
+			bus-frequency = <50000000>;
+
+			slot@0 {
+				reg = <0>;
+				bus-width = <4>;
+			};
+		};
 	};
 };

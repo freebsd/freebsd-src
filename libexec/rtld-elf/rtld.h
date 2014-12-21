@@ -271,6 +271,7 @@ typedef struct Struct_Obj_Entry {
     bool filtees_loaded : 1;	/* Filtees loaded */
     bool irelative : 1;		/* Object has R_MACHDEP_IRELATIVE relocs */
     bool gnu_ifunc : 1;		/* Object has references to STT_GNU_IFUNC */
+    bool non_plt_gnu_ifunc : 1;	/* Object has non-plt IFUNC references */
     bool crt_no_init : 1;	/* Object' crt does not call _init/_fini */
     bool valid_hash_sysv : 1;	/* A valid System V hash hash tag is available */
     bool valid_hash_gnu : 1;	/* A valid GNU hash tag is available */
@@ -293,6 +294,8 @@ typedef struct Struct_Obj_Entry {
 #define SYMLOOK_DLSYM	0x02	/* Return newest versioned symbol. Used by
 				   dlsym. */
 #define	SYMLOOK_EARLY	0x04	/* Symlook is done during initialization. */
+#define	SYMLOOK_IFUNC	0x08	/* Allow IFUNC processing in
+				   reloc_non_plt(). */
 
 /* Flags for load_object(). */
 #define	RTLD_LO_NOLOAD	0x01	/* dlopen() specified RTLD_NOLOAD. */

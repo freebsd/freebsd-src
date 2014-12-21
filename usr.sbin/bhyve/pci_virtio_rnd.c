@@ -80,6 +80,7 @@ static struct virtio_consts vtrnd_vi_consts = {
 	pci_vtrnd_notify,	/* device-wide qnotify */
 	NULL,			/* read virtio config */
 	NULL,			/* write virtio config */
+	NULL,			/* apply negotiated features */
 	0,			/* our capabilities */
 };
 

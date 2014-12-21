@@ -31,9 +31,22 @@
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include "libgeom.h"
+
+/*
+ * Amount of extra space we allocate to try and anticipate the size of
+ * confxml.
+ */
+#define	GEOM_GETXML_SLACK	4096
+
+/*
+ * Number of times to retry in the face of the size of confxml exceeding
+ * that of our buffer.
+ */
+#define	GEOM_GETXML_RETRIES	4
 
 char *
 geom_getxml(void)
@@ -42,19 +55,33 @@ geom_getxml(void)
 	size_t l = 0;
 	int mib[3];
 	size_t sizep;
+	int retries;
 
 	sizep = sizeof(mib) / sizeof(*mib);
 	if (sysctlnametomib("kern.geom.confxml", mib, &sizep) != 0)
 		return (NULL);
 	if (sysctl(mib, sizep, NULL, &l, NULL, 0) != 0)
 		return (NULL);
-	l += 4096;
-	p = malloc(l);
-	if (p == NULL)
-		return (NULL);
-	if (sysctl(mib, sizep, p, &l, NULL, 0) != 0) {
+	l += GEOM_GETXML_SLACK;
+
+	for (retries = 0; retries < GEOM_GETXML_RETRIES; retries++) {
+		p = malloc(l);
+		if (p == NULL)
+			return (NULL);
+		if (sysctl(mib, sizep, p, &l, NULL, 0) == 0)
+			return (reallocf(p, strlen(p) + 1));
+
 		free(p);
-		return (NULL);
+
+		if (errno != ENOMEM)
+			return (NULL);
+
+		/*
+		 * Our buffer wasn't big enough. Make it bigger and
+		 * try again.
+		 */
+		l *= 2;
 	}
-	return (reallocf(p, strlen(p) + 1));
+
+	return (NULL);
 }

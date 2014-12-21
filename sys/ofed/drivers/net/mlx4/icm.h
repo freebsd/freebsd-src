@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2005, 2006, 2007, 2008 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2005, 2006, 2007, 2008, 2014 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2006, 2007 Cisco Systems, Inc.  All rights reserved.
  *
  * This software is available to you under a choice of one of two
@@ -37,6 +37,7 @@
 #include <linux/list.h>
 #include <linux/pci.h>
 #include <linux/mutex.h>
+#include <linux/scatterlist.h>
 
 #define MLX4_ICM_CHUNK_LEN						\
 	((256 - sizeof (struct list_head) - 2 * sizeof (int)) /		\
@@ -78,7 +79,7 @@ int mlx4_table_get_range(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 void mlx4_table_put_range(struct mlx4_dev *dev, struct mlx4_icm_table *table,
 			  u32 start, u32 end);
 int mlx4_init_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table,
-			u64 virt, int obj_size,	u32 nobj, int reserved,
+			u64 virt, int obj_size,	u64 nobj, int reserved,
 			int use_lowmem, int use_coherent);
 void mlx4_cleanup_icm_table(struct mlx4_dev *dev, struct mlx4_icm_table *table);
 void *mlx4_table_find(struct mlx4_icm_table *table, u32 obj, dma_addr_t *dma_handle);
@@ -122,5 +123,7 @@ static inline unsigned long mlx4_icm_size(struct mlx4_icm_iter *iter)
 	return sg_dma_len(&iter->chunk->mem[iter->page_idx]);
 }
 
+int mlx4_MAP_ICM_AUX(struct mlx4_dev *dev, struct mlx4_icm *icm);
+int mlx4_UNMAP_ICM_AUX(struct mlx4_dev *dev);
 
 #endif /* MLX4_ICM_H */

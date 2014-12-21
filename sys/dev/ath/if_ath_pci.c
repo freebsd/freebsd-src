@@ -80,6 +80,98 @@ struct ath_pci_softc {
 	void			*sc_ih;		/* interrupt handler */
 };
 
+/*
+ * XXX eventually this should be some system level definition
+ * so modules will hvae probe/attach information like USB.
+ * But for now..
+ */
+struct pci_device_id {
+	int vendor_id;
+	int device_id;
+
+	int sub_vendor_id;
+	int sub_device_id;
+
+	int driver_data;
+
+	int match_populated:1;
+	int match_vendor_id:1;
+	int match_device_id:1;
+	int match_sub_vendor_id:1;
+	int match_sub_device_id:1;
+};
+
+#define	PCI_VDEVICE(v, s) \
+	.vendor_id = (v), \
+	.device_id = (s), \
+	.match_populated = 1, \
+	.match_vendor_id = 1, \
+	.match_device_id = 1
+
+#define	PCI_DEVICE_SUB(v, d, dv, ds) \
+	.match_populated = 1, \
+	.vendor_id = (v), .match_vendor_id = 1, \
+	.device_id = (d), .match_device_id = 1, \
+	.sub_vendor_id = (dv), .match_sub_vendor_id = 1, \
+	.sub_device_id = (ds), .match_sub_device_id = 1
+
+#define	PCI_VENDOR_ID_ATHEROS		0x168c
+#define	PCI_VENDOR_ID_SAMSUNG		0x144d
+#define	PCI_VENDOR_ID_AZWAVE		0x1a3b
+#define	PCI_VENDOR_ID_FOXCONN		0x105b
+#define	PCI_VENDOR_ID_ATTANSIC		0x1969
+#define	PCI_VENDOR_ID_ASUSTEK		0x1043
+#define	PCI_VENDOR_ID_DELL		0x1028
+#define	PCI_VENDOR_ID_QMI		0x1a32
+#define	PCI_VENDOR_ID_LENOVO		0x17aa
+#define	PCI_VENDOR_ID_HP		0x103c
+
+#include "if_ath_pci_devlist.h"
+
+/*
+ * Attempt to find a match for the given device in
+ * the given device table.
+ *
+ * Returns the device structure or NULL if no matching
+ * PCI device is found.
+ */
+static const struct pci_device_id *
+ath_pci_probe_device(device_t dev, const struct pci_device_id *dev_table, int nentries)
+{
+	int i;
+	int vendor_id, device_id;
+	int sub_vendor_id, sub_device_id;
+
+	vendor_id = pci_get_vendor(dev);
+	device_id = pci_get_device(dev);
+	sub_vendor_id = pci_get_subvendor(dev);
+	sub_device_id = pci_get_subdevice(dev);
+
+	for (i = 0; i < nentries; i++) {
+		/* Don't match on non-populated (eg empty) entries */
+		if (! dev_table[i].match_populated)
+			continue;
+
+		if (dev_table[i].match_vendor_id &&
+		    (dev_table[i].vendor_id != vendor_id))
+			continue;
+		if (dev_table[i].match_device_id &&
+		    (dev_table[i].device_id != device_id))
+			continue;
+		if (dev_table[i].match_sub_vendor_id &&
+		    (dev_table[i].sub_vendor_id != sub_vendor_id))
+			continue;
+		if (dev_table[i].match_sub_device_id &&
+		    (dev_table[i].sub_device_id != sub_device_id))
+			continue;
+
+		/* Match */
+		return (&dev_table[i]);
+	}
+
+	return (NULL);
+}
+
 #define	BS_BAR	0x10
 #define	PCIR_RETRY_TIMEOUT	0x41
 #define	PCIR_CFG_PMCSR		0x48
@@ -150,8 +242,14 @@ ath_pci_attach(device_t dev)
 	const struct firmware *fw = NULL;
 	const char *buf;
 #endif
+	const struct pci_device_id *pd;
 
 	sc->sc_dev = dev;
+
+	/* Do this lookup anyway; figure out what to do with it later */
+	pd = ath_pci_probe_device(dev, ath_pci_id_table, nitems(ath_pci_id_table));
+	if (pd)
+		sc->sc_pci_devinfo = pd->driver_data;
 
 	/*
 	 * Enable bus mastering.

@@ -5,6 +5,4 @@ PROG=	fsck
 SRCS=	fsck.c fsutil.c preen.c
 MAN=	fsck.8
 
-NO_PIE=	yes
-
 .include <bsd.prog.mk>

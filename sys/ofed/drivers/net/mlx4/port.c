@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2014 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -32,10 +32,14 @@
 
 #include <linux/errno.h>
 #include <linux/if_ether.h>
+#include <linux/module.h>
+#include <linux/err.h>
 
 #include <linux/mlx4/cmd.h>
 #include <linux/moduleparam.h>
 #include "mlx4.h"
+#include "mlx4_stats.h"
+
 
 int mlx4_set_4k_mtu = -1;
 module_param_named(set_4k_mtu, mlx4_set_4k_mtu, int, 0444);
@@ -47,12 +51,6 @@ MODULE_PARM_DESC(set_4k_mtu,
 
 #define MLX4_VLAN_VALID		(1u << 31)
 #define MLX4_VLAN_MASK		0xfff
-
-#define MLX4_STATS_TRAFFIC_COUNTERS_MASK	0xfULL
-#define MLX4_STATS_TRAFFIC_DROPS_MASK		0xc0ULL
-#define MLX4_STATS_ERROR_COUNTERS_MASK		0x1ffc30ULL
-#define MLX4_STATS_PORT_COUNTERS_MASK		0x1fe00000ULL
-#define MLX4_STATS_IF_RX_ERRORS_COUNTERS_MASK	0x8010ULL
 
 void mlx4_init_mac_table(struct mlx4_dev *dev, struct mlx4_mac_table *table)
 {
@@ -85,7 +83,7 @@ static int validate_index(struct mlx4_dev *dev,
 {
 	int err = 0;
 
-	if (index < 0 || index >= table->max || !table->entries[index]) {
+	if (index < 0 || index >= table->max || !table->refs[index]) {
 		mlx4_warn(dev, "No valid Mac entry for the given index\n");
 		err = -EINVAL;
 	}
@@ -140,14 +138,15 @@ int __mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 
 	mutex_lock(&table->mutex);
 	for (i = 0; i < MLX4_MAX_MAC_NUM; i++) {
-		if (free < 0 && !table->entries[i]) {
+		if (free < 0 && !table->refs[i]) {
 			free = i;
 			continue;
 		}
 
-		if (mac == (MLX4_MAC_MASK & be64_to_cpu(table->entries[i]))) {
+		if ((mac == (MLX4_MAC_MASK & be64_to_cpu(table->entries[i]))) &&
+		    table->refs[i]) {
 			/* MAC already registered, Must not have duplicates */
-		       err = i;
+			err = i;
 			++table->refs[i];
 			goto out;
 		}
@@ -184,13 +183,24 @@ EXPORT_SYMBOL_GPL(__mlx4_register_mac);
 int mlx4_register_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 {
 	u64 out_param = 0;
-	int err;
+	int err = -EINVAL;
 
 	if (mlx4_is_mfunc(dev)) {
-		err = mlx4_cmd_imm(dev, mac, &out_param,
-				   ((u32) port) << 8 | (u32) RES_MAC,
-				   RES_OP_RESERVE_AND_MAP, MLX4_CMD_ALLOC_RES,
-				   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
+		if (!(dev->flags & MLX4_FLAG_OLD_REG_MAC)) {
+			err = mlx4_cmd_imm(dev, mac, &out_param,
+					   ((u32) port) << 8 | (u32) RES_MAC,
+					   RES_OP_RESERVE_AND_MAP, MLX4_CMD_ALLOC_RES,
+					   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
+		}
+		if (err && err == -EINVAL && mlx4_is_slave(dev)) {
+			/* retry using old REG_MAC format */
+			set_param_l(&out_param, port);
+			err = mlx4_cmd_imm(dev, mac, &out_param, RES_MAC,
+					   RES_OP_RESERVE_AND_MAP, MLX4_CMD_ALLOC_RES,
+					   MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
+			if (!err)
+				dev->flags |= MLX4_FLAG_OLD_REG_MAC;
+		}
 		if (err)
 			return err;
 
@@ -245,10 +255,18 @@ void mlx4_unregister_mac(struct mlx4_dev *dev, u8 port, u64 mac)
 	u64 out_param = 0;
 
 	if (mlx4_is_mfunc(dev)) {
-		(void) mlx4_cmd_imm(dev, mac, &out_param,
-				    ((u32) port) << 8 | (u32) RES_MAC,
-				    RES_OP_RESERVE_AND_MAP, MLX4_CMD_FREE_RES,
-				    MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
+		if (!(dev->flags & MLX4_FLAG_OLD_REG_MAC)) {
+			(void) mlx4_cmd_imm(dev, mac, &out_param,
+					    ((u32) port) << 8 | (u32) RES_MAC,
+					    RES_OP_RESERVE_AND_MAP, MLX4_CMD_FREE_RES,
+					    MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
+		} else {
+			/* use old unregister mac format */
+			set_param_l(&out_param, port);
+			(void) mlx4_cmd_imm(dev, mac, &out_param, RES_MAC,
+					    RES_OP_RESERVE_AND_MAP, MLX4_CMD_FREE_RES,
+					    MLX4_CMD_TIME_CLASS_A, MLX4_CMD_WRAPPED);
+		}
 		return;
 	}
 	__mlx4_unregister_mac(dev, port, mac);
@@ -535,17 +553,21 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 	__be32 new_cap_mask;
 
 	port = in_mod & 0xff;
-	in_modifier = in_mod >> 8;
+	in_modifier = (in_mod >> 8) & 0xff;
 	is_eth = op_mod;
 	port_info = &priv->port[port];
+
+	if (op_mod > 1)
+		return -EINVAL;
 
 	/* Slaves cannot perform SET_PORT operations except changing MTU */
 	if (is_eth) {
 		if (slave != dev->caps.function &&
 		    in_modifier != MLX4_SET_PORT_GENERAL &&
 		    in_modifier != MLX4_SET_PORT_GID_TABLE) {
-			mlx4_warn(dev, "denying SET_PORT for slave:%d\n",
-					slave);
+			mlx4_warn(dev, "denying SET_PORT for slave:%d,"
+				  "port %d, config_select 0x%x\n",
+				  slave, port, in_modifier);
 			return -EINVAL;
 		}
 		switch (in_modifier) {
@@ -570,7 +592,8 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 			/* Mtu is configured as the max MTU among all the
 			 * the functions on the port. */
 			mtu = be16_to_cpu(gen_context->mtu);
-			mtu = min_t(int, mtu, dev->caps.eth_mtu_cap[port]);
+			mtu = min_t(int, mtu, dev->caps.eth_mtu_cap[port] +
+				    ETH_HLEN + VLAN_HLEN + ETH_FCS_LEN);
 			prev_mtu = slave_st->mtu[port];
 			slave_st->mtu[port] = mtu;
 			if (mtu > master->max_mtu[port])
@@ -650,7 +673,7 @@ static int mlx4_common_set_port(struct mlx4_dev *dev, int slave, u32 in_mod,
 
 			break;
 		}
-		return mlx4_cmd(dev, inbox->dma, in_mod, op_mod,
+		return mlx4_cmd(dev, inbox->dma, in_mod & 0xffff, op_mod,
 				MLX4_CMD_SET_PORT, MLX4_CMD_TIME_CLASS_B,
 				MLX4_CMD_NATIVE);
 	}
@@ -727,19 +750,10 @@ enum {
 	MLX4_CHANGE_PORT_MTU_CAP = 22,
 };
 
-#define	CX3_PPF_DEV_ID 0x1003
-static int vl_cap_start(struct mlx4_dev *dev)
-{
-	/* for non CX3 devices, start with 4 VLs to avoid errors in syslog */
-	if (dev->pdev->device != CX3_PPF_DEV_ID)
-		return 4;
-	return 8;
-}
-
 int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port, int pkey_tbl_sz)
 {
 	struct mlx4_cmd_mailbox *mailbox;
-	int err, vl_cap, pkey_tbl_flag = 0;
+	int err = -EINVAL, vl_cap, pkey_tbl_flag = 0;
 	u32 in_mod;
 
 	if (dev->caps.port_type[port] == MLX4_PORT_TYPE_NONE)
@@ -765,7 +779,8 @@ int mlx4_SET_PORT(struct mlx4_dev *dev, u8 port, int pkey_tbl_sz)
 		}
 
 		/* IB VL CAP enum isn't used by the firmware, just numerical values */
-		for (vl_cap = vl_cap_start(dev); vl_cap >= 1; vl_cap >>= 1) {
+		for (vl_cap = dev->caps.vl_cap[port];
+				vl_cap >= 1; vl_cap >>= 1) {
 			((__be32 *) mailbox->buf)[0] = cpu_to_be32(
 				(1 << MLX4_CHANGE_PORT_MTU_CAP) |
 				(1 << MLX4_CHANGE_PORT_VL_CAP)  |
@@ -822,10 +837,9 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 	u32 in_mod;
 	u32 m_promisc = (dev->caps.flags & MLX4_DEV_CAP_FLAG_VEP_MC_STEER) ?
 		MCAST_DIRECT : MCAST_DEFAULT;
-/*
+
 	if (dev->caps.steering_mode != MLX4_STEERING_MODE_A0)
 		return 0;
-*/
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
 	if (IS_ERR(mailbox))
@@ -834,10 +848,7 @@ int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
 	memset(context, 0, sizeof *context);
 
 	context->base_qpn = cpu_to_be32(base_qpn);
-        /* 
-        * This assignment breaks vlan support - I don't know why. Probablya an A0 issue - shahar Klein
-	* context->n_mac = dev->caps.log_num_macs;
-        */
+	context->n_mac = dev->caps.log_num_macs;
 	context->promisc = cpu_to_be32(promisc << SET_PORT_PROMISC_SHIFT |
 				       base_qpn);
 	context->mcast = cpu_to_be32(m_promisc << SET_PORT_MC_PROMISC_SHIFT |
@@ -960,40 +971,44 @@ int mlx4_SET_VLAN_FLTR_wrapper(struct mlx4_dev *dev, int slave,
 	return err;
 }
 
-int mlx4_common_dump_eth_stats(struct mlx4_dev *dev, int slave,
-			       u32 in_mod, struct mlx4_cmd_mailbox *outbox)
-{
-	return mlx4_cmd_box(dev, 0, outbox->dma, in_mod, 0,
-			    MLX4_CMD_DUMP_ETH_STATS, MLX4_CMD_TIME_CLASS_B,
-			    MLX4_CMD_NATIVE);
-}
-
 int mlx4_DUMP_ETH_STATS_wrapper(struct mlx4_dev *dev, int slave,
 				struct mlx4_vhcr *vhcr,
 				struct mlx4_cmd_mailbox *inbox,
 				struct mlx4_cmd_mailbox *outbox,
 				struct mlx4_cmd_info *cmd)
 {
-	if (slave != dev->caps.function)
-		return 0;
-	return mlx4_common_dump_eth_stats(dev, slave,
-					  vhcr->in_modifier, outbox);
+	return 0;
 }
 
-void mlx4_set_stats_bitmap(struct mlx4_dev *dev, u64 *stats_bitmap)
+void mlx4_set_stats_bitmap(struct mlx4_dev *dev, unsigned long *stats_bitmap)
 {
-	if (!mlx4_is_mfunc(dev)) {
-		*stats_bitmap = 0;
-		return;
+	int last_i = 0;
+
+	bitmap_zero(stats_bitmap, NUM_ALL_STATS);
+
+	if (mlx4_is_slave(dev)) {
+		last_i = dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_FLOWSTATS_EN ?
+			NUM_PKT_STATS + NUM_FLOW_STATS : NUM_PKT_STATS;
+	} else {
+		bitmap_set(stats_bitmap, last_i, NUM_PKT_STATS);
+		last_i = NUM_PKT_STATS;
+
+		if (dev->caps.flags2 &
+		    MLX4_DEV_CAP_FLAG2_FLOWSTATS_EN) {
+			bitmap_set(stats_bitmap, last_i, NUM_FLOW_STATS);
+			last_i += NUM_FLOW_STATS;
+		}
 	}
 
-	*stats_bitmap = (MLX4_STATS_TRAFFIC_COUNTERS_MASK |
-			 MLX4_STATS_TRAFFIC_DROPS_MASK |
-			 MLX4_STATS_PORT_COUNTERS_MASK |
-			 MLX4_STATS_IF_RX_ERRORS_COUNTERS_MASK);
+	if (mlx4_is_slave(dev))
+		bitmap_set(stats_bitmap, last_i, NUM_VF_STATS);
+	last_i += NUM_VF_STATS;
 
 	if (mlx4_is_master(dev))
-		*stats_bitmap |= MLX4_STATS_ERROR_COUNTERS_MASK;
+		bitmap_set(stats_bitmap, last_i, NUM_VPORT_STATS);
+	last_i += NUM_VPORT_STATS;
+
+	bitmap_set(stats_bitmap, last_i, NUM_PORT_STATS);
 }
 EXPORT_SYMBOL(mlx4_set_stats_bitmap);
 

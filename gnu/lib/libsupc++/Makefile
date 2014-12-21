@@ -22,9 +22,6 @@ SRCS+=	del_op.cc del_opnt.cc del_opv.cc del_opvnt.cc eh_alloc.cc eh_arm.cc \
 SRCS+=	cp-demangle.c
 
 CFLAGS+=	-DIN_GLIBCPP_V3 -DHAVE_CONFIG_H
-.if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} == "no"
-CFLAGS+=	-D_GLIBCXX_SJLJ_EXCEPTIONS=1
-.endif
 CFLAGS+=	-I${GCCLIB}/include -I${SRCDIR} -I${GCCDIR}
 CFLAGS+=	-I${.CURDIR}/../libstdc++ -I.
 CFLAGS+=	-frandom-seed=RepeatabilityConsideredGood
@@ -35,7 +32,7 @@ HDRS=	exception new typeinfo cxxabi.h exception_defines.h
 INCS=	${HDRS:S;^;${SRCDIR}/;}
 INCSDIR=${INCLUDEDIR}/c++/${GCCVER}
 
-.if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+.if ${MACHINE_CPUARCH} == "arm"
 unwind.h: ${GCCDIR}/config/arm/unwind-arm.h
 .else
 unwind.h: ${GCCDIR}/unwind-generic.h

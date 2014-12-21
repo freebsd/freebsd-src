@@ -159,7 +159,7 @@ void bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 	src = ft_p->ft_buf;
 	src_len = ft_p->ft_len;
 	slot = &ring->slot[*j];
-	dst = BDG_NMB(&dst_na->up, slot);
+	dst = NMB(&dst_na->up, slot);
 	dst_len = src_len;
 
 	/* We are processing the first input slot and there is a mismatch
@@ -303,7 +303,7 @@ void bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 				/* Next destination slot. */
 				*j = nm_next(*j, lim);
 				slot = &ring->slot[*j];
-				dst = BDG_NMB(&dst_na->up, slot);
+				dst = NMB(&dst_na->up, slot);
 
 				gso_bytes = 0;
 				gso_idx++;
@@ -365,7 +365,7 @@ void bdg_mismatch_datapath(struct netmap_vp_adapter *na,
 			/* Next destination slot. */
 			*j = nm_next(*j, lim);
 			slot = &ring->slot[*j];
-			dst = BDG_NMB(&dst_na->up, slot);
+			dst = NMB(&dst_na->up, slot);
 
 			/* Next source slot. */
 			ft_p++;

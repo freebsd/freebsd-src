@@ -375,4 +375,8 @@ rtc_dsdt(void)
 }
 LPC_DSDT(rtc_dsdt);
 
+/*
+ * Reserve the extended RTC I/O ports although they are not emulated at this
+ * time.
+ */
 SYSRES_IO(0x72, 6);

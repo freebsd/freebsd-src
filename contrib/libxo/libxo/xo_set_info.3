@@ -1,0 +1,113 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd July, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_emit
+.Nd emit formatted output based on format string and arguments
+.Sh LIBRARY
+.Lb libxo
+.Sh SYNOPSIS
+.In libxo/xo.h
+.Ft void
+.Fn xo_set_info "xo_handle_t *handle" "xo_info_t *info" "int count"
+.Sh DESCRIPTION
+HTML data can include additional information in attributes that
+begin with "data-".  To enable this, three things must occur:
+.Pp
+First the application must build an array of xo_info_t structures,
+one per tag.  The array must be sorted by name, since
+.Em libxo
+uses a
+binary search to find the entry that matches names from format
+instructions.
+.Pp
+The
+.Em xo_info_t
+structure is defined in
+.Em <libxo/xo.h> :
+.Bd -literal -offset indent
+    typedef struct xo_info_s {
+        const char *xi_name;    /* Name of the element */
+        const char *xi_type;    /* Type of field */
+        const char *xi_help;    /* Description of field */
+    } xo_info_t;
+.Ed
+.Pp
+Second, the application must inform
+.Em libxo
+about this information using the
+.Fn xo_set_info
+call.  Like other libxo calls, passing NULL for the handle tells
+.Em libxo
+to use the default handle.
+.Pp
+If the
+.Fa count
+is -1,
+.Em libxo
+will count the elements of
+.Fa info ,
+but there
+must be an empty element at the end.  More typically, the number is
+known to the application:
+.Bd -literal -offset indent
+    xo_info_t info[] = {
+        { "in-stock", "number", "Number of items in stock" },
+        { "name", "string", "Name of the item" },
+        { "on-order", "number", "Number of items on order" },
+        { "sku", "string", "Stock Keeping Unit" },
+        { "sold", "number", "Number of items sold" },
+    };
+    int info_count = (sizeof(info) / sizeof(info[0]));
+    ...
+    xo_set_info(NULL, info, info_count);
+.Ed
+.Pp
+Third, the emitting of info must be triggered with the
+.Em XOF_INFO
+flag
+using either the
+.Fn xo_set_flags
+function or the
+.Dq --libxo=info
+command line argument.
+.Pp
+The type and help values, if present, are emitted as the "data-type"
+and "data-help" attributes:
+.Bd -literal -offset indent
+  <div class="data" data-tag="sku" data-type="string" 
+       data-help="Stock Keeping Unit">GRO-000-533</div>
+.Ed
+.Sh ADDITIONAL DOCUMENTATION
+.Pp
+Complete documentation can be found on github:
+.Bd -literal -offset indent
+http://juniper.github.io/libxo/libxo-manual.html
+.Ed
+.Pp
+libxo lives on github as:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo
+.Ed
+.Pp
+The latest release of libxo is available at:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo/releases
+.Ed
+.Sh SEE ALSO
+.Xr xo_emit 3
+.Sh HISTORY
+The
+.Fa libxo
+library was added in FreeBSD 11.0.
+.Sh AUTHOR
+Phil Shafer

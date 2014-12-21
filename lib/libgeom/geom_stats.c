@@ -68,7 +68,7 @@ geom_stats_resync(void)
 		return;
 	for (;;) {
 		p = mmap(statp, (npages + 1) * pagesize, 
-		    PROT_READ, 0, statsfd, 0);
+		    PROT_READ, MAP_SHARED, statsfd, 0);
 		if (p == MAP_FAILED)
 			break;
 		else
@@ -90,7 +90,7 @@ geom_stats_open(void)
 		return (errno);
 	pagesize = getpagesize();
 	spp = pagesize / sizeof(struct devstat);
-	p = mmap(NULL, pagesize, PROT_READ, 0, statsfd, 0);
+	p = mmap(NULL, pagesize, PROT_READ, MAP_SHARED, statsfd, 0);
 	if (p == MAP_FAILED) {
 		error = errno;
 		close(statsfd);

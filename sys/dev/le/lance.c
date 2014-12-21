@@ -196,7 +196,7 @@ lance_attach(struct lance_softc *sc)
 	ether_ifattach(ifp, sc->sc_enaddr);
 
 	/* Claim 802.1q capability. */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;
 }
@@ -446,7 +446,7 @@ lance_watchdog(void *xsc)
 	}
 
 	if_printf(ifp, "device timeout\n");
-	++ifp->if_oerrors;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	lance_init_locked(sc);
 }
 

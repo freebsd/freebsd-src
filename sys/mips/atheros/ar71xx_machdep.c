@@ -92,9 +92,9 @@ parse_argv(char *str)
 		} else {
 			n = strsep(&v, "=");
 			if (v == NULL)
-				setenv(n, "1");
+				kern_setenv(n, "1");
 			else
-				setenv(n, v);
+				kern_setenv(n, v);
 		}
 	}
 }
@@ -127,8 +127,8 @@ ar71xx_redboot_get_macaddr(void)
 	 * "ethaddr" is passed via envp on RedBoot platforms
 	 * "kmac" is passed via argv on RouterBOOT platforms
 	 */
-	if ((var = getenv("ethaddr")) != NULL ||
-	    (var = getenv("kmac")) != NULL) {
+	if ((var = kern_getenv("ethaddr")) != NULL ||
+	    (var = kern_getenv("kmac")) != NULL) {
 		count = sscanf(var, "%x%*c%x%*c%x%*c%x%*c%x%*c%x",
 		    &ar711_base_mac[0], &ar711_base_mac[1],
 		    &ar711_base_mac[2], &ar711_base_mac[3],
@@ -296,7 +296,7 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	if (MIPS_IS_VALID_PTR(envp)) {
 		for (i = 0; envp[i]; i+=2) {
 			printf("  %s = %s\n", envp[i], envp[i+1]);
-			setenv(envp[i], envp[i+1]);
+			kern_setenv(envp[i], envp[i+1]);
 		}
 	}
 	else 

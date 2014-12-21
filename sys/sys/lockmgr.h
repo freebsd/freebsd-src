@@ -77,6 +77,7 @@ void	 lockallowrecurse(struct lock *lk);
 void	 lockallowshare(struct lock *lk);
 void	 lockdestroy(struct lock *lk);
 void	 lockdisablerecurse(struct lock *lk);
+void	 lockdisableshare(struct lock *lk);
 void	 lockinit(struct lock *lk, int prio, const char *wmesg, int timo,
 	    int flags);
 #ifdef DDB
@@ -157,6 +158,7 @@ _lockmgr_args_rw(struct lock *lk, u_int flags, struct rwlock *ilk,
 #define	LK_RETRY	0x000400
 #define	LK_SLEEPFAIL	0x000800
 #define	LK_TIMELOCK	0x001000
+#define	LK_NODDLKTREAT	0x002000
 
 /*
  * Operations for lockmgr().

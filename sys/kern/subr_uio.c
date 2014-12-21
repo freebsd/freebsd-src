@@ -7,6 +7,11 @@
  * Co. or Unix System Laboratories, Inc. and are reproduced herein with
  * the permission of UNIX System Laboratories, Inc.
  *
+ * Copyright (c) 2014 The FreeBSD Foundation
+ *
+ * Portions of this software were developed by Konstantin Belousov
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -57,7 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_map.h>
 
-SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, NULL, UIO_MAXIOV,
+SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, SYSCTL_NULL_INT_PTR, UIO_MAXIOV,
 	"Maximum number of elements in an I/O vector; sysconf(_SC_IOV_MAX)");
 
 static int uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault);
@@ -438,3 +443,128 @@ copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz)
 
 	return (0);
 }
+
+#ifdef NO_FUEWORD
+/*
+ * XXXKIB The temporal implementation of fue*() functions which do not
+ * handle usermode -1 properly, mixing it with the fault code.  Keep
+ * this until MD code is written.  Currently sparc64, mips and arm do
+ * not have proper implementation.
+ */
+
+int
+fueword(volatile const void *base, long *val)
+{
+	long res;
+
+	res = fuword(base);
+	if (res == -1)
+		return (-1);
+	*val = res;
+	return (0);
+}
+
+int
+fueword32(volatile const void *base, int32_t *val)
+{
+	int32_t res;
+
+	res = fuword32(base);
+	if (res == -1)
+		return (-1);
+	*val = res;
+	return (0);
+}
+
+#ifdef _LP64
+int
+fueword64(volatile const void *base, int64_t *val)
+{
+	int32_t res;
+
+	res = fuword64(base);
+	if (res == -1)
+		return (-1);
+	*val = res;
+	return (0);
+}
+#endif
+
+int
+casueword32(volatile uint32_t *base, uint32_t oldval, uint32_t *oldvalp,
+    uint32_t newval)
+{
+	int32_t ov;
+
+	ov = casuword32(base, oldval, newval);
+	if (ov == -1)
+		return (-1);
+	*oldvalp = ov;
+	return (0);
+}
+
+int
+casueword(volatile u_long *p, u_long oldval, u_long *oldvalp, u_long newval)
+{
+	u_long ov;
+
+	ov = casuword(p, oldval, newval);
+	if (ov == -1)
+		return (-1);
+	*oldvalp = ov;
+	return (0);
+}
+#else /* NO_FUEWORD */
+int32_t
+fuword32(volatile const void *addr)
+{
+	int rv;
+	int32_t val;
+
+	rv = fueword32(addr, &val);
+	return (rv == -1 ? -1 : val);
+}
+
+#ifdef _LP64
+int64_t
+fuword64(volatile const void *addr)
+{
+	int rv;
+	int64_t val;
+
+	rv = fueword64(addr, &val);
+	return (rv == -1 ? -1 : val);
+}
+#endif /* _LP64 */
+
+long
+fuword(volatile const void *addr)
+{
+	long val;
+	int rv;
+
+	rv = fueword(addr, &val);
+	return (rv == -1 ? -1 : val);
+}
+
+uint32_t
+casuword32(volatile uint32_t *addr, uint32_t old, uint32_t new)
+{
+	int rv;
+	uint32_t val;
+
+	rv = casueword32(addr, old, &val, new);
+	return (rv == -1 ? -1 : val);
+}
+
+u_long
+casuword(volatile u_long *addr, u_long old, u_long new)
+{
+	int rv;
+	u_long val;
+
+	rv = casueword(addr, old, &val, new);
+	return (rv == -1 ? -1 : val);
+}
+
+#endif /* NO_FUEWORD */

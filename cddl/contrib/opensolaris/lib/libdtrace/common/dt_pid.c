@@ -434,15 +434,10 @@ static const prmap_t *
 dt_pid_fix_mod(dtrace_probedesc_t *pdp, struct ps_prochandle *P)
 {
 	char m[MAXPATHLEN];
-#if defined(sun)
 	Lmid_t lmid = PR_LMID_EVERY;
-#else
-	Lmid_t lmid = 0;
-#endif
 	const char *obj;
 	const prmap_t *pmp;
 
-#if defined(sun)
 	/*
 	 * Pick apart the link map from the library name.
 	 */
@@ -463,20 +458,17 @@ dt_pid_fix_mod(dtrace_probedesc_t *pdp, struct ps_prochandle *P)
 	} else {
 		obj = pdp->dtpd_mod;
 	}
-#else
-	obj = pdp->dtpd_mod;
-#endif
 
 	if ((pmp = Plmid_to_map(P, lmid, obj)) == NULL)
 		return (NULL);
 
-#if defined(sun)
 	(void) Pobjname(P, pmp->pr_vaddr, m, sizeof (m));
 	if ((obj = strrchr(m, '/')) == NULL)
 		obj = &m[0];
 	else
 		obj++;
 
+#if defined(sun)
 	(void) Plmid(P, pmp->pr_vaddr, &lmid);
 #endif
 
@@ -571,9 +563,7 @@ dt_pid_usdt_mapping(void *data, const prmap_t *pmp, const char *oname)
 {
 	struct ps_prochandle *P = data;
 	GElf_Sym sym;
-#if defined(sun)
 	prsyminfo_t sip;
-#endif
 	dof_helper_t dh;
 	GElf_Half e_type;
 	const char *mname;
@@ -852,11 +842,7 @@ dt_pid_get_types(dtrace_hdl_t *dtp, const dtrace_probedesc_t *pdp,
 	ctf_funcinfo_t f;
 	ctf_id_t argv[32];
 	GElf_Sym sym;
-#if defined(sun)
 	prsyminfo_t si;
-#else
-	void *si;
-#endif
 	struct ps_prochandle *p;
 	int i, args;
 	char buf[DTRACE_ARGTYPELEN];
@@ -941,13 +927,11 @@ dt_pid_get_types(dtrace_hdl_t *dtp, const dtrace_probedesc_t *pdp,
 		    pdp->dtpd_func, pdp->dtpd_provider, pdp->dtpd_mod);
 		goto out;
 	}
-#if defined(sun)
 	if (ctf_func_info(fp, si.prs_id, &f) == CTF_ERR) {
 		dt_dprintf("failed to get ctf information for %s in %s`%s\n",
 		    pdp->dtpd_func, pdp->dtpd_provider, pdp->dtpd_mod);
 		goto out;
 	}
-#endif
 
 	(void) snprintf(buf, sizeof (buf), "%s`%s", pdp->dtpd_provider,
 	    pdp->dtpd_mod);
@@ -977,7 +961,6 @@ dt_pid_get_types(dtrace_hdl_t *dtp, const dtrace_probedesc_t *pdp,
 		(void) ctf_type_qname(fp, f.ctc_return, adp->dtargd_native +
 		    ret, DTRACE_ARGTYPELEN - ret, buf);
 		*nargs = 2;
-#if defined(sun)
 	} else {
 		if (ctf_func_args(fp, si.prs_id, argc, argv) == CTF_ERR)
 			goto out;
@@ -993,7 +976,6 @@ dt_pid_get_types(dtrace_hdl_t *dtp, const dtrace_probedesc_t *pdp,
 			(void) ctf_type_qname(fp, argv[i], adp->dtargd_native +
 			    ret, DTRACE_ARGTYPELEN - ret, buf);
 		}
-#endif
 	}
 out:
 	dt_proc_unlock(dtp, p);

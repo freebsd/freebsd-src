@@ -108,6 +108,8 @@
         ..
         bsdinstall
         ..
+        hyperv
+        ..
         lpr
             ru
             ..
@@ -124,6 +126,8 @@
     sbin
     ..
     share
+        atf
+        ..
         bsdconfig
             media
             ..
@@ -167,6 +171,8 @@
         doc
             IPv6
             ..
+            atf
+            ..
             atm
             ..
             legal
@@ -186,6 +192,8 @@
             ntp
             ..
             papers
+            ..
+            pjdfstest
             ..
             psd
                 01.cacm

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 30, 2013
+.Dd August 14, 2014
 .Dt DEVD 8
 .Os
 .Sh NAME
@@ -55,9 +55,7 @@ If option
 .Fl f
 is specified more than once, the last file specified is used.
 .It Fl l Ar num
-Limit concurrent
-.Pa /var/run/devd.pipe
-connections to
+Limit concurrent socket connections to
 .Ar num .
 The default connection limit is 10.
 .It Fl n
@@ -130,22 +128,27 @@ wish to hook into the
 system without modifying the user's other
 config files.
 .Pp
-All messages that
+Since
+.Xr devctl 4
+allows only one active reader,
 .Nm
-receives are forwarded to the
+multiplexes it, forwarding all events to any number of connected clients.
+Clients connect by opening the SOCK_SEQPACKET
 .Ux
 domain socket at
-.Pa /var/run/devd.pipe .
+.Pa /var/run/devd.seqpacket.pipe .
 .Sh FILES
-.Bl -tag -width ".Pa /var/run/devd.pipe" -compact
+.Bl -tag -width ".Pa /var/run/devd.seqpacket.pipe" -compact
 .It Pa /etc/devd.conf
 The default
 .Nm
 configuration file.
-.It Pa /var/run/devd.pipe
+.It Pa /var/run/devd.seqpacket.pipe
 The socket used by
 .Nm
 to communicate with its clients.
+.It Pa /var/run/devd.pipe
+A deprecated socket retained for use with old clients.
 .El
 .Sh SEE ALSO
 .Xr devctl 4 ,

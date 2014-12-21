@@ -1,4 +1,4 @@
-/*	$Id: out.h,v 1.21 2011/07/17 15:24:25 kristaps Exp $ */
+/*	$Id: out.h,v 1.24 2014/10/14 02:16:06 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -34,6 +34,7 @@ enum	roffscale {
 struct	roffcol {
 	size_t		 width; /* width of cell */
 	size_t		 decimal; /* decimal position in cell */
+	int		 flags; /* layout flags, see tbl_cell */
 };
 
 struct	roffsu {
@@ -59,12 +60,13 @@ __BEGIN_DECLS
 	while (/* CONSTCOND */ 0)
 
 #define	SCALE_HS_INIT(p, v) \
-	do { (p)->unit = SCALE_BU; \
+	do { (p)->unit = SCALE_EN; \
 	     (p)->scale = (v); } \
 	while (/* CONSTCOND */ 0)
 
-int	  	  a2roffsu(const char *, struct roffsu *, enum roffscale);
-void	  	  tblcalc(struct rofftbl *tbl, const struct tbl_span *);
+int		  a2roffsu(const char *, struct roffsu *, enum roffscale);
+void		  tblcalc(struct rofftbl *tbl,
+			const struct tbl_span *, size_t);
 
 __END_DECLS
 

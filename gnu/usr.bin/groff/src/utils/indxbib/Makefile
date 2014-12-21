@@ -6,8 +6,6 @@ DPADD=		${LIBBIB} ${LIBGROFF} ${LIBM}
 LDADD=		${LIBBIB} ${LIBGROFF} -lm
 CLEANFILES=	${MAN}
 
-NO_PIE=	yes
-
 beforeinstall:
 	${INSTALL} -o ${BINOWN} -g ${BINGRP} -m ${NOBINMODE} \
 	    ${DIST_DIR}/eign ${DESTDIR}${SHAREDIR}/dict/

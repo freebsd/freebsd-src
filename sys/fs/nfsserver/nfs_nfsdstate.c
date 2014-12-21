@@ -1628,9 +1628,17 @@ tryagain:
 	       */
 	      if (error == 0 && (stp->ls_flags & NFSLCK_OPEN) &&
 		  ((stp->ls_openowner->ls_flags & NFSLCK_NEEDSCONFIRM) ||
-		   (getlckret == 0 && stp->ls_lfp != lfp)))
-			error = NFSERR_BADSTATEID;
-	      if (error == 0 &&
+		   (getlckret == 0 && stp->ls_lfp != lfp))){
+		      /*
+		       * NFSLCK_SETATTR should return OK rather than NFSERR_BADSTATEID
+		       * The only exception is using SETATTR with SIZE.
+		       * */
+                    if ((new_stp->ls_flags &
+                         (NFSLCK_SETATTR | NFSLCK_CHECK)) != NFSLCK_SETATTR)
+			     error = NFSERR_BADSTATEID;
+	      }
+	      
+		if (error == 0 &&
 		  (stp->ls_flags & (NFSLCK_DELEGREAD | NFSLCK_DELEGWRITE)) &&
 		  getlckret == 0 && stp->ls_lfp != lfp)
 			error = NFSERR_BADSTATEID;
@@ -4909,12 +4917,17 @@ tryagain:
 	 * Now, look for a conflicting open share.
 	 */
 	if (remove) {
-		LIST_FOREACH(stp, &lfp->lf_open, ls_file) {
-			if (stp->ls_flags & NFSLCK_WRITEDENY) {
-				error = NFSERR_FILEOPEN;
-				break;
+		/*
+		 * If the entry in the directory was the last reference to the
+		 * corresponding filesystem object, the object can be destroyed
+		 * */
+		if(lfp->lf_usecount>1)
+			LIST_FOREACH(stp, &lfp->lf_open, ls_file) {
+				if (stp->ls_flags & NFSLCK_WRITEDENY) {
+					error = NFSERR_FILEOPEN;
+					break;
+				}
 			}
-		}
 	}
 
 	NFSUNLOCKSTATE();

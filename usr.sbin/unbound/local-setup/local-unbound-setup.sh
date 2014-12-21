@@ -178,7 +178,7 @@ gen_forward_conf() {
 	echo "forward-zone:"
 	echo "        name: ."
 	for forwarder ; do
-		if expr "${forwarder}" : "^[0-9:.]\{1,\}$" >/dev/null ; then
+		if expr "${forwarder}" : "^[0-9A-Fa-f:.]\{1,\}$" >/dev/null ; then
 			echo "        forward-addr: ${forwarder}"
 		else
 			echo "        forward-host: ${forwarder}"

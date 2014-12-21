@@ -649,6 +649,10 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 			fsflags |= MNT_SYNCHRONOUS;
 		else if (strcmp(opt->name, "union") == 0)
 			fsflags |= MNT_UNION;
+		else if (strcmp(opt->name, "automounted") == 0) {
+			fsflags |= MNT_AUTOMOUNTED;
+			vfs_freeopt(optlist, opt);
+		}
 	}
 
 	/*
@@ -1301,8 +1305,8 @@ dounmount(mp, flags, td)
 		}
 		vput(fsrootvp);
 	}
-	if (((mp->mnt_flag & MNT_RDONLY) ||
-	     (error = VFS_SYNC(mp, MNT_WAIT)) == 0) || (flags & MNT_FORCE) != 0)
+	if ((mp->mnt_flag & MNT_RDONLY) != 0 || (flags & MNT_FORCE) != 0 ||
+	    (error = VFS_SYNC(mp, MNT_WAIT)) == 0)
 		error = VFS_UNMOUNT(mp, flags);
 	vn_finished_write(mp);
 	/*

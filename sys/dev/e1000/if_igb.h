@@ -336,7 +336,6 @@ struct rx_ring {
 	struct lro_ctrl		lro;
 	bool			lro_enabled;
 	bool			hdr_split;
-	bool			discard;
 	struct mtx		rx_mtx;
 	char			mtx_name[16];
 	u32			next_to_refresh;

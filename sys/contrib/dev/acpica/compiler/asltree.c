@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include "aslcompiler.y.h"
@@ -79,15 +78,29 @@ static ACPI_PARSE_OBJECT *
 TrGetNextNode (
     void)
 {
+    ASL_CACHE_INFO          *Cache;
 
-    if (Gbl_NodeCacheNext >= Gbl_NodeCacheLast)
+
+    if (Gbl_ParseOpCacheNext >= Gbl_ParseOpCacheLast)
     {
-        Gbl_NodeCacheNext = UtLocalCalloc (sizeof (ACPI_PARSE_OBJECT) *
-                                ASL_NODE_CACHE_SIZE);
-        Gbl_NodeCacheLast = Gbl_NodeCacheNext + ASL_NODE_CACHE_SIZE;
+        /* Allocate a new buffer */
+
+        Cache = UtLocalCalloc (sizeof (Cache->Next) +
+            (sizeof (ACPI_PARSE_OBJECT) * ASL_PARSEOP_CACHE_SIZE));
+
+        /* Link new cache buffer to head of list */
+
+        Cache->Next = Gbl_ParseOpCacheList;
+        Gbl_ParseOpCacheList = Cache;
+
+        /* Setup cache management pointers */
+
+        Gbl_ParseOpCacheNext = ACPI_CAST_PTR (ACPI_PARSE_OBJECT, Cache->Buffer);
+        Gbl_ParseOpCacheLast = Gbl_ParseOpCacheNext + ASL_PARSEOP_CACHE_SIZE;
     }
 
-    return (Gbl_NodeCacheNext++);
+    Gbl_ParseOpCount++;
+    return (Gbl_ParseOpCacheNext++);
 }
 
 
@@ -517,7 +530,6 @@ TrCreateConstantLeafNode (
         /* Get the simple filename from the full path */
 
         FlSplitInputPathname (Op->Asl.Filename, &Path, &Filename);
-        ACPI_FREE (Path);
         Op->Asl.Value.String = Filename;
         break;
 

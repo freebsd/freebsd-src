@@ -97,6 +97,7 @@ struct port_info {
 	const struct port_type_info *port_type;
 	struct cphy	phy;
 	struct cmac	mac;
+	struct timeval	last_refreshed;
 	struct link_config link_config;
 	struct ifmedia	media;
 	struct mtx	lock;
@@ -575,4 +576,5 @@ void cxgb_tx_watchdog(void *arg);
 int cxgb_transmit(struct ifnet *ifp, struct mbuf *m);
 void cxgb_qflush(struct ifnet *ifp);
 void t3_iterate(void (*)(struct adapter *, void *), void *);
+void cxgb_refresh_stats(struct port_info *);
 #endif

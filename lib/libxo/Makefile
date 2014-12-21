@@ -1,0 +1,79 @@
+# $FreeBSD$
+
+LIBXO=	${.CURDIR:H:H}/contrib/libxo
+
+.PATH:	${LIBXO}/libxo
+
+LIB=	xo
+SHLIB_MAJOR=0
+
+SRCS=	libxo.c
+
+CFLAGS+=-I${LIBXO}/libxo
+
+INCS=	xo.h
+INCSDIR=${INCLUDEDIR}/libxo
+
+MAN+=	libxo.3
+MAN+=	xo_attr.3 \
+	xo_create.3 \
+	xo_emit.3 \
+	xo_err.3 \
+	xo_finish.3 \
+	xo_flush.3 \
+	xo_no_setlocale.3 \
+	xo_open_container.3 \
+	xo_open_list.3 \
+	xo_parse_args.3 \
+	xo_set_allocator.3 \
+	xo_set_flags.3 \
+	xo_set_info.3 \
+	xo_set_options.3 \
+	xo_set_style.3 \
+	xo_set_writer.3
+MAN+=	xo_format.5
+
+MLINKS=	xo_attr.3 xo_attr_h.3 \
+	xo_attr.3 xo_attr_hv.3 \
+	xo_create.3 xo_create_to_file.3 \
+	xo_create.3 xo_destroy.3 \
+	xo_emit.3 xo_emit_h.3 \
+	xo_emit.3 xo_emit_hv.3 \
+	xo_err.3 xo_warn.3 \
+	xo_err.3 xo_warnx.3 \
+	xo_err.3 xo_warn_c.3 \
+	xo_err.3 xo_warn_hc.3 \
+	xo_err.3 xo_errc.3 \
+	xo_err.3 xo_errx.3 \
+	xo_err.3 xo_message.3 \
+	xo_err.3 xo_message_c.3 \
+	xo_err.3 xo_message_hc.3 \
+	xo_err.3 xo_message_hcv.3 \
+	xo_finish.3 xo_finish_h.3 \
+	xo_flush.3 xo_flush_h.3 \
+	xo_open_container.3 xo_open_container_h.3 \
+	xo_open_container.3 xo_open_container_hd.3 \
+	xo_open_container.3 xo_open_container_d.3 \
+	xo_open_container.3 xo_close_container.3 \
+	xo_open_container.3 xo_close_container_h.3 \
+	xo_open_container.3 xo_close_container_hd.3 \
+	xo_open_container.3 xo_close_container_d.3 \
+	xo_open_list.3 xo_open_list_h.3 \
+	xo_open_list.3 xo_open_list_hd.3 \
+	xo_open_list.3 xo_open_list_d.3 \
+	xo_open_list.3 xo_open_instance.3 \
+	xo_open_list.3 xo_open_instance_h.3 \
+	xo_open_list.3 xo_open_instance_hd.3 \
+	xo_open_list.3 xo_open_instance_d.3 \
+	xo_open_list.3 xo_close_instance.3 \
+	xo_open_list.3 xo_close_instance_h.3 \
+	xo_open_list.3 xo_close_instance_hd.3 \
+	xo_open_list.3 xo_close_instance_d.3 \
+	xo_open_list.3 xo_close_list.3 \
+	xo_open_list.3 xo_close_list_h.3 \
+	xo_open_list.3 xo_close_list_hd.3 \
+	xo_open_list.3 xo_close_list_d.3 \
+	xo_set_flags.3 xo_clear_flags.3 \
+	xo_set_style.3 xo_set_style_name.3
+
+.include <bsd.lib.mk>

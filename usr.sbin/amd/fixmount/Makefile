@@ -10,14 +10,11 @@
 
 PROG=	fixmount
 MAN=	fixmount.8
-SRCS=	fixmount.c 
+SRCS=	fixmount.c
 
 #	These would be links created by the GNU-style configure
 SRCS+=	checkmount_bsd44.c
 
-DPADD=	${LIBAMU} ${LIBRPCSVC}
-LDADD=	${LIBAMU} -lrpcsvc
-
-NO_PIE=	yes
+LIBADD+=	amu rpcsvc
 
 .include <bsd.prog.mk>

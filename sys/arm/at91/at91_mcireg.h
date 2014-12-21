@@ -118,6 +118,30 @@
 #define	MCI_SR_OVRE     (0x1u << 30) /* (MCI) Overrun flag */
 #define	MCI_SR_UNRE     (0x1u << 31) /* (MCI) Underrun flag */
 
+/*	TXRDY,DTIP,ENDTX,TXBUFE,RTOE */
+
+#define MCI_SR_BITSTRING \
+	"\020" \
+	"\001CMDRDY" \
+	"\002RXRDY" \
+	"\003TXRDY" \
+	"\004BLKE" \
+	"\005DTIP" \
+	"\006NOTBUSY" \
+	"\007ENDRX" \
+	"\010ENDTX" \
+	"\017RXBUFF" \
+	"\020TXBUFE" \
+	"\021RINDE" \
+	"\022RDIRE" \
+	"\023RCRCE" \
+	"\024RENDE" \
+	"\025RTOE" \
+	"\026DCRCE" \
+	"\027DTOE" \
+	"\037OVRE" \
+	"\040UNRE"
+
 /* -------- MCI_IER : (MCI Offset: 0x44) MCI Interrupt Enable Register --------  */
 /* -------- MCI_IDR : (MCI Offset: 0x48) MCI Interrupt Disable Register --------  */
 /* -------- MCI_IMR : (MCI Offset: 0x4c) MCI Interrupt Mask Register --------  */

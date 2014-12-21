@@ -1097,7 +1097,7 @@ axe_rx_frame(struct usb_ether *ue, struct usb_page_cache *pc, int actlen)
 		axe_rxeof(ue, pc, 0, actlen, NULL);
 
 	if (error != 0)
-		ue->ue_ifp->if_ierrors++;
+		if_inc_counter(ue->ue_ifp, IFCOUNTER_IERRORS, 1);
 	return (error);
 }
 
@@ -1109,13 +1109,13 @@ axe_rxeof(struct usb_ether *ue, struct usb_page_cache *pc, unsigned int offset,
 	struct mbuf *m;
 
 	if (len < ETHER_HDR_LEN || len > MCLBYTES - ETHER_ALIGN) {
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		return (EINVAL);
 	}
 
 	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
-		ifp->if_iqdrops++;
+		if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 		return (ENOMEM);
 	}
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -1123,7 +1123,7 @@ axe_rxeof(struct usb_ether *ue, struct usb_page_cache *pc, unsigned int offset,
 
 	usbd_copy_out(pc, offset, mtod(m, uint8_t *), len);
 
-	ifp->if_ipackets++;
+	if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	m->m_pkthdr.rcvif = ifp;
 	m->m_pkthdr.len = m->m_len = len;
 
@@ -1229,7 +1229,7 @@ tr_setup:
 			 * multiple writes into single one if there is
 			 * room in TX buffer of controller.
 			 */
-			ifp->if_opackets++;
+			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 			/*
 			 * if there's a BPF listener, bounce a copy
@@ -1253,7 +1253,7 @@ tr_setup:
 		DPRINTFN(11, "transfer error, %s\n",
 		    usbd_errstr(error));
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 		if (error != USB_ERR_CANCELLED) {

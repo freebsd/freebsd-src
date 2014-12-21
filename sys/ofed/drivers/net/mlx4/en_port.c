@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2007 Mellanox Technologies. All rights reserved.
+ * Copyright (c) 2007, 2014 Mellanox Technologies. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -31,28 +31,25 @@
  *
  */
 
-
-#include "mlx4_en.h"
-
+#include <sys/types.h>
 #include <linux/if_vlan.h>
 
 #include <linux/mlx4/device.h>
 #include <linux/mlx4/cmd.h>
 
-#if 0 //  moved to port.c
-int mlx4_SET_MCAST_FLTR(struct mlx4_dev *dev, u8 port,
-			u64 mac, u64 clear, u8 mode)
-{
-	return mlx4_cmd(dev, (mac | (clear << 63)), port, mode,
-			MLX4_CMD_SET_MCAST_FLTR, MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
-}
-#endif
+#include "en_port.h"
+#include "mlx4_en.h"
+#define EN_IFQ_MIN_INTERVAL 3000
 
-int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, u8 port, u32 *vlans)
+
+int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, struct mlx4_en_priv *priv)
 {
 	struct mlx4_cmd_mailbox *mailbox;
 	struct mlx4_set_vlan_fltr_mbox *filter;
-	int i, j;
+	int i;
+	int j;
+	int index = 0;
+	u32 entry;
 	int err = 0;
 
 	mailbox = mlx4_alloc_cmd_mailbox(dev);
@@ -60,85 +57,20 @@ int mlx4_SET_VLAN_FLTR(struct mlx4_dev *dev, u8 port, u32 *vlans)
 		return PTR_ERR(mailbox);
 
 	filter = mailbox->buf;
-	memset(filter, 0, sizeof *filter);
-	if (vlans)
-		for (i = 0, j = VLAN_FLTR_SIZE - 1; i < VLAN_FLTR_SIZE;
-		    i++, j--)
-			filter->entry[j] = cpu_to_be32(vlans[i]);
-	err = mlx4_cmd(dev, mailbox->dma, port, 0, MLX4_CMD_SET_VLAN_FLTR,
-		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
+	memset(filter, 0, sizeof(*filter));
+	for (i = VLAN_FLTR_SIZE - 1; i >= 0; i--) {
+		entry = 0;
+		for (j = 0; j < 32; j++)
+			if (test_bit(index, priv->active_vlans))
+				entry |= 1 << j;
+                        index++;
+		filter->entry[i] = cpu_to_be32(entry);
+	}
+	err = mlx4_cmd(dev, mailbox->dma, priv->port, 0, MLX4_CMD_SET_VLAN_FLTR,
+		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
 	mlx4_free_cmd_mailbox(dev, mailbox);
 	return err;
 }
-
-
-#if 0 //moved to port.c - shahark
-int mlx4_SET_PORT_general(struct mlx4_dev *dev, u8 port, int mtu,
-			  u8 pptx, u8 pfctx, u8 pprx, u8 pfcrx)
-{
-	struct mlx4_cmd_mailbox *mailbox;
-	struct mlx4_set_port_general_context *context;
-	int err;
-	u32 in_mod;
-
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
-	context = mailbox->buf;
-	memset(context, 0, sizeof *context);
-
-	context->flags = SET_PORT_GEN_ALL_VALID;
-	context->mtu = cpu_to_be16(mtu);
-	context->pptx = (pptx * (!pfctx)) << 7;
-	context->pfctx = pfctx;
-	context->pprx = (pprx * (!pfcrx)) << 7;
-	context->pfcrx = pfcrx;
-
-	in_mod = MLX4_SET_PORT_GENERAL << 8 | port;
-	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
-
-	mlx4_free_cmd_mailbox(dev, mailbox);
-	return err;
-}
-int mlx4_SET_PORT_qpn_calc(struct mlx4_dev *dev, u8 port, u32 base_qpn,
-			   u8 promisc)
-{
-
-        printf("%s %s:%d\n", __func__, __FILE__, __LINE__);
-
-
-
-	struct mlx4_cmd_mailbox *mailbox;
-	struct mlx4_set_port_rqp_calc_context *context;
-	int err;
-	u32 in_mod;
-
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
-	context = mailbox->buf;
-	memset(context, 0, sizeof *context);
-
-	context->base_qpn = cpu_to_be32(base_qpn);
-	context->promisc = cpu_to_be32(promisc << SET_PORT_PROMISC_EN_SHIFT | base_qpn);
-/*
-	context->mcast = cpu_to_be32((dev->caps.mc_promisc_mode <<
-				      SET_PORT_PROMISC_MODE_SHIFT) | base_qpn);
-*/
-	context->intra_no_vlan = 0;
-	context->no_vlan = MLX4_NO_VLAN_IDX;
-	context->intra_vlan_miss = 0;
-	context->vlan_miss = MLX4_VLAN_MISS_IDX;
-
-	in_mod = MLX4_SET_PORT_RQP_CALC << 8 | port;
-	err = mlx4_cmd(dev, mailbox->dma, in_mod, 1, MLX4_CMD_SET_PORT,
-		       MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
-
-	mlx4_free_cmd_mailbox(dev, mailbox);
-	return err;
-}
-#endif
 
 int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port)
 {
@@ -153,7 +85,8 @@ int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port)
 		return PTR_ERR(mailbox);
 	memset(mailbox->buf, 0, sizeof(*qport_context));
 	err = mlx4_cmd_box(mdev->dev, 0, mailbox->dma, port, 0,
-			   MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
+			   MLX4_CMD_QUERY_PORT, MLX4_CMD_TIME_CLASS_B,
+			   MLX4_CMD_WRAPPED);
 	if (err)
 		goto out;
 	qport_context = mailbox->buf;
@@ -169,95 +102,77 @@ int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port)
 	case MLX4_EN_10G_SPEED_XFI:
 		state->link_speed = 10000;
 		break;
+	case MLX4_EN_20G_SPEED:
+		state->link_speed = 20000;
+		break;
 	case MLX4_EN_40G_SPEED:
 		state->link_speed = 40000;
+		break;
+	case MLX4_EN_56G_SPEED:
+		state->link_speed = 56000;
 		break;
 	default:
 		state->link_speed = -1;
 		break;
 	}
 	state->transciver = qport_context->transceiver;
-	if (be32_to_cpu(qport_context->transceiver_code_hi) & 0x400)
-		state->transciver = 0x80;
+	state->autoneg = !!(qport_context->autoneg & MLX4_EN_AUTONEG_MASK);
 
 out:
 	mlx4_free_cmd_mailbox(mdev->dev, mailbox);
 	return err;
 }
 
-#if 0
-static int read_iboe_counters(struct mlx4_dev *dev, int index, u64 counters[])
-{
-	struct mlx4_cmd_mailbox *mailbox;
-	int err;
-	int mode;
-	struct mlx4_counters_ext *ext;
-	struct mlx4_counters *reg;
-
-	mailbox = mlx4_alloc_cmd_mailbox(dev);
-	if (IS_ERR(mailbox))
-		return -ENOMEM;
-
-	err = mlx4_cmd_box(dev, 0, mailbox->dma, index, 0,
-			   MLX4_CMD_QUERY_IF_STAT, MLX4_CMD_TIME_CLASS_C, MLX4_CMD_WRAPPED);
-	if (err)
-		goto out;
-
-	mode = be32_to_cpu(((struct mlx4_counters *)mailbox->buf)->counter_mode) & 0xf;
-	switch (mode) {
-	case 0:
-		reg = mailbox->buf;
-		counters[0] = be64_to_cpu(reg->rx_frames);
-		counters[1] = be64_to_cpu(reg->tx_frames);
-		counters[2] = be64_to_cpu(reg->rx_bytes);
-		counters[3] = be64_to_cpu(reg->tx_bytes);
-		break;
-	case 1:
-		ext = mailbox->buf;
-		counters[0] = be64_to_cpu(ext->rx_uni_frames);
-		counters[1] = be64_to_cpu(ext->tx_uni_frames);
-		counters[2] = be64_to_cpu(ext->rx_uni_bytes);
-		counters[3] = be64_to_cpu(ext->tx_uni_bytes);
-		break;
-	default:
-		err = -EINVAL;
-	}
-
-out:
-	mlx4_free_cmd_mailbox(dev, mailbox);
-	return err;
-}
-#endif
-
 int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 {
 	struct mlx4_en_stat_out_mbox *mlx4_en_stats;
-	struct net_device *dev;
-	struct mlx4_en_priv *priv;
-	struct mlx4_cmd_mailbox *mailbox;
+	struct mlx4_en_stat_out_flow_control_mbox *flowstats;
+	struct mlx4_en_priv *priv = netdev_priv(mdev->pndev[port]);
+	struct mlx4_en_vport_stats *vport_stats = &priv->vport_stats;
+	struct mlx4_cmd_mailbox *mailbox = NULL;
+	struct mlx4_cmd_mailbox *mailbox_flow = NULL;
 	u64 in_mod = reset << 8 | port;
-	unsigned long oerror;
-	unsigned long ierror;
 	int err;
 	int i;
-	//int counter;
-	u64 counters[4];
+	int do_if_stat = 1;
+	unsigned long period = (unsigned long) (jiffies - priv->last_ifq_jiffies);
+	struct mlx4_en_vport_stats tmp_vport_stats;
+        struct net_device *dev;
 
-	dev = mdev->pndev[port];
-	priv = netdev_priv(dev);
-	memset(counters, 0, sizeof counters);
-        /*
-	counter = mlx4_get_iboe_counter(priv->mdev->dev, port);
-	if (counter >= 0)
-		err = read_iboe_counters(priv->mdev->dev, counter, counters);
-        */
+	if (jiffies_to_msecs(period) < EN_IFQ_MIN_INTERVAL ||
+				priv->counter_index == 0xff)
+		do_if_stat = 0;
 
 	mailbox = mlx4_alloc_cmd_mailbox(mdev->dev);
-	if (IS_ERR(mailbox))
-		return PTR_ERR(mailbox);
-	memset(mailbox->buf, 0, sizeof(*mlx4_en_stats));
+	if (IS_ERR(mailbox)) {
+		err = PTR_ERR(mailbox);
+		goto mailbox_out;
+	}
+
+	mailbox_flow = mlx4_alloc_cmd_mailbox(mdev->dev);
+	if (IS_ERR(mailbox_flow)) {
+		mlx4_free_cmd_mailbox(mdev->dev, mailbox);
+		err = PTR_ERR(mailbox_flow);
+		goto mailbox_out;
+	}
+
+	/* 0xffs indicates invalid value */
+	memset(mailbox_flow->buf, 0xff, sizeof(*flowstats) *
+		MLX4_NUM_PRIORITIES);
+
+	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_FLOWSTATS_EN) {
+		memset(mailbox_flow->buf, 0, sizeof(*flowstats));
+		err = mlx4_cmd_box(mdev->dev, 0, mailbox_flow->dma,
+				   in_mod | 1<<12, 0, MLX4_CMD_DUMP_ETH_STATS,
+				   MLX4_CMD_TIME_CLASS_B, MLX4_CMD_NATIVE);
+
+		if (err)
+			goto out;
+	}
+
 	err = mlx4_cmd_box(mdev->dev, 0, mailbox->dma, in_mod, 0,
-			   MLX4_CMD_DUMP_ETH_STATS, MLX4_CMD_TIME_CLASS_B, MLX4_CMD_WRAPPED);
+			   MLX4_CMD_DUMP_ETH_STATS, MLX4_CMD_TIME_CLASS_B,
+			   MLX4_CMD_NATIVE);
 	if (err)
 		goto out;
 
@@ -265,74 +180,404 @@ int mlx4_en_DUMP_ETH_STATS(struct mlx4_en_dev *mdev, u8 port, u8 reset)
 
 	spin_lock(&priv->stats_lock);
 
-	oerror = ierror = 0;
-	dev->if_ipackets = counters[0];
-	dev->if_ibytes = counters[2];
+	priv->port_stats.rx_chksum_good = 0;
+	priv->port_stats.rx_chksum_none = 0;
 	for (i = 0; i < priv->rx_ring_num; i++) {
-		dev->if_ipackets += priv->rx_ring[i].packets;
-		dev->if_ibytes += priv->rx_ring[i].bytes;
-		ierror += priv->rx_ring[i].errors;
-	}
-	dev->if_opackets = counters[1];
-	dev->if_obytes = counters[3];
-	for (i = 0; i <= priv->tx_ring_num; i++) {
-		dev->if_opackets += priv->tx_ring[i].packets;
-		dev->if_obytes += priv->tx_ring[i].bytes;
-		oerror += priv->tx_ring[i].errors;
+		priv->port_stats.rx_chksum_good += priv->rx_ring[i]->csum_ok;
+		priv->port_stats.rx_chksum_none += priv->rx_ring[i]->csum_none;
 	}
 
-	dev->if_ierrors = be32_to_cpu(mlx4_en_stats->RDROP) + ierror;
-	dev->if_oerrors = be32_to_cpu(mlx4_en_stats->TDROP) + oerror;
-	dev->if_imcasts = be64_to_cpu(mlx4_en_stats->MCAST_prio_0) +
-			  be64_to_cpu(mlx4_en_stats->MCAST_prio_1) +
-			  be64_to_cpu(mlx4_en_stats->MCAST_prio_2) +
-			  be64_to_cpu(mlx4_en_stats->MCAST_prio_3) +
-			  be64_to_cpu(mlx4_en_stats->MCAST_prio_4) +
-			  be64_to_cpu(mlx4_en_stats->MCAST_prio_5) +
-			  be64_to_cpu(mlx4_en_stats->MCAST_prio_6) +
-			  be64_to_cpu(mlx4_en_stats->MCAST_prio_7) +
-			  be64_to_cpu(mlx4_en_stats->MCAST_novlan);
-	dev->if_omcasts = be64_to_cpu(mlx4_en_stats->TMCAST_prio_0) +
-			  be64_to_cpu(mlx4_en_stats->TMCAST_prio_1) +
-			  be64_to_cpu(mlx4_en_stats->TMCAST_prio_2) +
-			  be64_to_cpu(mlx4_en_stats->TMCAST_prio_3) +
-			  be64_to_cpu(mlx4_en_stats->TMCAST_prio_4) +
-			  be64_to_cpu(mlx4_en_stats->TMCAST_prio_5) +
-			  be64_to_cpu(mlx4_en_stats->TMCAST_prio_6) +
-			  be64_to_cpu(mlx4_en_stats->TMCAST_prio_7) +
-			  be64_to_cpu(mlx4_en_stats->TMCAST_novlan);
-	dev->if_collisions = 0;
+	priv->port_stats.tx_chksum_offload = 0;
+	priv->port_stats.queue_stopped = 0;
+	priv->port_stats.wake_queue = 0;
+	for (i = 0; i < priv->tx_ring_num; i++) {
+		priv->port_stats.tx_chksum_offload += priv->tx_ring[i]->tx_csum;
+		priv->port_stats.queue_stopped += priv->tx_ring[i]->queue_stopped;
+		priv->port_stats.wake_queue += priv->tx_ring[i]->wake_queue;
+	}
+	/* RX Statistics */
+	priv->pkstats.rx_packets = be64_to_cpu(mlx4_en_stats->RTOT_prio_0) +
+		be64_to_cpu(mlx4_en_stats->RTOT_prio_1) +
+		be64_to_cpu(mlx4_en_stats->RTOT_prio_2) +
+		be64_to_cpu(mlx4_en_stats->RTOT_prio_3) +
+		be64_to_cpu(mlx4_en_stats->RTOT_prio_4) +
+		be64_to_cpu(mlx4_en_stats->RTOT_prio_5) +
+		be64_to_cpu(mlx4_en_stats->RTOT_prio_6) +
+		be64_to_cpu(mlx4_en_stats->RTOT_prio_7) +
+		be64_to_cpu(mlx4_en_stats->RTOT_novlan);
+	priv->pkstats.rx_bytes = be64_to_cpu(mlx4_en_stats->ROCT_prio_0) +
+		be64_to_cpu(mlx4_en_stats->ROCT_prio_1) +
+		be64_to_cpu(mlx4_en_stats->ROCT_prio_2) +
+		be64_to_cpu(mlx4_en_stats->ROCT_prio_3) +
+		be64_to_cpu(mlx4_en_stats->ROCT_prio_4) +
+		be64_to_cpu(mlx4_en_stats->ROCT_prio_5) +
+		be64_to_cpu(mlx4_en_stats->ROCT_prio_6) +
+		be64_to_cpu(mlx4_en_stats->ROCT_prio_7) +
+		be64_to_cpu(mlx4_en_stats->ROCT_novlan);
+	priv->pkstats.rx_multicast_packets = be64_to_cpu(mlx4_en_stats->MCAST_prio_0) +
+		be64_to_cpu(mlx4_en_stats->MCAST_prio_1) +
+		be64_to_cpu(mlx4_en_stats->MCAST_prio_2) +
+		be64_to_cpu(mlx4_en_stats->MCAST_prio_3) +
+		be64_to_cpu(mlx4_en_stats->MCAST_prio_4) +
+		be64_to_cpu(mlx4_en_stats->MCAST_prio_5) +
+		be64_to_cpu(mlx4_en_stats->MCAST_prio_6) +
+		be64_to_cpu(mlx4_en_stats->MCAST_prio_7) +
+		be64_to_cpu(mlx4_en_stats->MCAST_novlan);
+	priv->pkstats.rx_broadcast_packets = be64_to_cpu(mlx4_en_stats->RBCAST_prio_0) +
+		be64_to_cpu(mlx4_en_stats->RBCAST_prio_1) +
+		be64_to_cpu(mlx4_en_stats->RBCAST_prio_2) +
+		be64_to_cpu(mlx4_en_stats->RBCAST_prio_3) +
+		be64_to_cpu(mlx4_en_stats->RBCAST_prio_4) +
+		be64_to_cpu(mlx4_en_stats->RBCAST_prio_5) +
+		be64_to_cpu(mlx4_en_stats->RBCAST_prio_6) +
+		be64_to_cpu(mlx4_en_stats->RBCAST_prio_7) +
+		be64_to_cpu(mlx4_en_stats->RBCAST_novlan);
+	priv->pkstats.rx_errors = be64_to_cpu(mlx4_en_stats->PCS) +
+		be32_to_cpu(mlx4_en_stats->RJBBR) +
+		be32_to_cpu(mlx4_en_stats->RCRC) +
+		be32_to_cpu(mlx4_en_stats->RRUNT) +
+		be64_to_cpu(mlx4_en_stats->RInRangeLengthErr) +
+		be64_to_cpu(mlx4_en_stats->ROutRangeLengthErr) +
+		be32_to_cpu(mlx4_en_stats->RSHORT) +
+		be64_to_cpu(mlx4_en_stats->RGIANT_prio_0) +
+		be64_to_cpu(mlx4_en_stats->RGIANT_prio_1) +
+		be64_to_cpu(mlx4_en_stats->RGIANT_prio_2) +
+		be64_to_cpu(mlx4_en_stats->RGIANT_prio_3) +
+		be64_to_cpu(mlx4_en_stats->RGIANT_prio_4) +
+		be64_to_cpu(mlx4_en_stats->RGIANT_prio_5) +
+		be64_to_cpu(mlx4_en_stats->RGIANT_prio_6) +
+		be64_to_cpu(mlx4_en_stats->RGIANT_prio_7) +
+		be64_to_cpu(mlx4_en_stats->RGIANT_novlan);
+	priv->pkstats.rx_dropped = be32_to_cpu(mlx4_en_stats->RdropOvflw);
+	priv->pkstats.rx_length_errors = be32_to_cpu(mlx4_en_stats->RdropLength);
+	priv->pkstats.rx_over_errors = be32_to_cpu(mlx4_en_stats->RdropOvflw);
+	priv->pkstats.rx_crc_errors = be32_to_cpu(mlx4_en_stats->RCRC);
+	priv->pkstats.rx_jabbers = be32_to_cpu(mlx4_en_stats->RJBBR);
+	priv->pkstats.rx_in_range_length_error = be64_to_cpu(mlx4_en_stats->RInRangeLengthErr);
+	priv->pkstats.rx_out_range_length_error = be64_to_cpu(mlx4_en_stats->ROutRangeLengthErr);
+	priv->pkstats.rx_lt_64_bytes_packets = be64_to_cpu(mlx4_en_stats->R64_prio_0) +
+		be64_to_cpu(mlx4_en_stats->R64_prio_1) +
+		be64_to_cpu(mlx4_en_stats->R64_prio_2) +
+		be64_to_cpu(mlx4_en_stats->R64_prio_3) +
+		be64_to_cpu(mlx4_en_stats->R64_prio_4) +
+		be64_to_cpu(mlx4_en_stats->R64_prio_5) +
+		be64_to_cpu(mlx4_en_stats->R64_prio_6) +
+		be64_to_cpu(mlx4_en_stats->R64_prio_7) +
+		be64_to_cpu(mlx4_en_stats->R64_novlan);
+	priv->pkstats.rx_127_bytes_packets = be64_to_cpu(mlx4_en_stats->R127_prio_0) +
+		be64_to_cpu(mlx4_en_stats->R127_prio_1) +
+		be64_to_cpu(mlx4_en_stats->R127_prio_2) +
+		be64_to_cpu(mlx4_en_stats->R127_prio_3) +
+		be64_to_cpu(mlx4_en_stats->R127_prio_4) +
+		be64_to_cpu(mlx4_en_stats->R127_prio_5) +
+		be64_to_cpu(mlx4_en_stats->R127_prio_6) +
+		be64_to_cpu(mlx4_en_stats->R127_prio_7) +
+		be64_to_cpu(mlx4_en_stats->R127_novlan);
+	priv->pkstats.rx_255_bytes_packets = be64_to_cpu(mlx4_en_stats->R255_prio_0) +
+		be64_to_cpu(mlx4_en_stats->R255_prio_1) +
+		be64_to_cpu(mlx4_en_stats->R255_prio_2) +
+		be64_to_cpu(mlx4_en_stats->R255_prio_3) +
+		be64_to_cpu(mlx4_en_stats->R255_prio_4) +
+		be64_to_cpu(mlx4_en_stats->R255_prio_5) +
+		be64_to_cpu(mlx4_en_stats->R255_prio_6) +
+		be64_to_cpu(mlx4_en_stats->R255_prio_7) +
+		be64_to_cpu(mlx4_en_stats->R255_novlan);
+	priv->pkstats.rx_511_bytes_packets = be64_to_cpu(mlx4_en_stats->R511_prio_0) +
+		be64_to_cpu(mlx4_en_stats->R511_prio_1) +
+		be64_to_cpu(mlx4_en_stats->R511_prio_2) +
+		be64_to_cpu(mlx4_en_stats->R511_prio_3) +
+		be64_to_cpu(mlx4_en_stats->R511_prio_4) +
+		be64_to_cpu(mlx4_en_stats->R511_prio_5) +
+		be64_to_cpu(mlx4_en_stats->R511_prio_6) +
+		be64_to_cpu(mlx4_en_stats->R511_prio_7) +
+		be64_to_cpu(mlx4_en_stats->R511_novlan);
+	priv->pkstats.rx_1023_bytes_packets = be64_to_cpu(mlx4_en_stats->R1023_prio_0) +
+		be64_to_cpu(mlx4_en_stats->R1023_prio_1) +
+		be64_to_cpu(mlx4_en_stats->R1023_prio_2) +
+		be64_to_cpu(mlx4_en_stats->R1023_prio_3) +
+		be64_to_cpu(mlx4_en_stats->R1023_prio_4) +
+		be64_to_cpu(mlx4_en_stats->R1023_prio_5) +
+		be64_to_cpu(mlx4_en_stats->R1023_prio_6) +
+		be64_to_cpu(mlx4_en_stats->R1023_prio_7) +
+		be64_to_cpu(mlx4_en_stats->R1023_novlan);
+	priv->pkstats.rx_1518_bytes_packets = be64_to_cpu(mlx4_en_stats->R1518_prio_0) +
+		be64_to_cpu(mlx4_en_stats->R1518_prio_1) +
+		be64_to_cpu(mlx4_en_stats->R1518_prio_2) +
+		be64_to_cpu(mlx4_en_stats->R1518_prio_3) +
+		be64_to_cpu(mlx4_en_stats->R1518_prio_4) +
+		be64_to_cpu(mlx4_en_stats->R1518_prio_5) +
+		be64_to_cpu(mlx4_en_stats->R1518_prio_6) +
+		be64_to_cpu(mlx4_en_stats->R1518_prio_7) +
+		be64_to_cpu(mlx4_en_stats->R1518_novlan);
+	priv->pkstats.rx_1522_bytes_packets = be64_to_cpu(mlx4_en_stats->R1522_prio_0) +
+		be64_to_cpu(mlx4_en_stats->R1522_prio_1) +
+		be64_to_cpu(mlx4_en_stats->R1522_prio_2) +
+		be64_to_cpu(mlx4_en_stats->R1522_prio_3) +
+		be64_to_cpu(mlx4_en_stats->R1522_prio_4) +
+		be64_to_cpu(mlx4_en_stats->R1522_prio_5) +
+		be64_to_cpu(mlx4_en_stats->R1522_prio_6) +
+		be64_to_cpu(mlx4_en_stats->R1522_prio_7) +
+		be64_to_cpu(mlx4_en_stats->R1522_novlan);
+	priv->pkstats.rx_1548_bytes_packets = be64_to_cpu(mlx4_en_stats->R1548_prio_0) +
+		be64_to_cpu(mlx4_en_stats->R1548_prio_1) +
+		be64_to_cpu(mlx4_en_stats->R1548_prio_2) +
+		be64_to_cpu(mlx4_en_stats->R1548_prio_3) +
+		be64_to_cpu(mlx4_en_stats->R1548_prio_4) +
+		be64_to_cpu(mlx4_en_stats->R1548_prio_5) +
+		be64_to_cpu(mlx4_en_stats->R1548_prio_6) +
+		be64_to_cpu(mlx4_en_stats->R1548_prio_7) +
+		be64_to_cpu(mlx4_en_stats->R1548_novlan);
+	priv->pkstats.rx_gt_1548_bytes_packets = be64_to_cpu(mlx4_en_stats->R2MTU_prio_0) +
+		be64_to_cpu(mlx4_en_stats->R2MTU_prio_1) +
+		be64_to_cpu(mlx4_en_stats->R2MTU_prio_2) +
+		be64_to_cpu(mlx4_en_stats->R2MTU_prio_3) +
+		be64_to_cpu(mlx4_en_stats->R2MTU_prio_4) +
+		be64_to_cpu(mlx4_en_stats->R2MTU_prio_5) +
+		be64_to_cpu(mlx4_en_stats->R2MTU_prio_6) +
+		be64_to_cpu(mlx4_en_stats->R2MTU_prio_7) +
+		be64_to_cpu(mlx4_en_stats->R2MTU_novlan);
 
-	priv->pkstats.broadcast =
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_0) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_1) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_2) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_3) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_4) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_5) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_6) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_prio_7) +
-				be64_to_cpu(mlx4_en_stats->RBCAST_novlan);
-	priv->pkstats.rx_prio[0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_0);
-	priv->pkstats.rx_prio[1] = be64_to_cpu(mlx4_en_stats->RTOT_prio_1);
-	priv->pkstats.rx_prio[2] = be64_to_cpu(mlx4_en_stats->RTOT_prio_2);
-	priv->pkstats.rx_prio[3] = be64_to_cpu(mlx4_en_stats->RTOT_prio_3);
-	priv->pkstats.rx_prio[4] = be64_to_cpu(mlx4_en_stats->RTOT_prio_4);
-	priv->pkstats.rx_prio[5] = be64_to_cpu(mlx4_en_stats->RTOT_prio_5);
-	priv->pkstats.rx_prio[6] = be64_to_cpu(mlx4_en_stats->RTOT_prio_6);
-	priv->pkstats.rx_prio[7] = be64_to_cpu(mlx4_en_stats->RTOT_prio_7);
-	priv->pkstats.tx_prio[0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_0);
-	priv->pkstats.tx_prio[1] = be64_to_cpu(mlx4_en_stats->TTOT_prio_1);
-	priv->pkstats.tx_prio[2] = be64_to_cpu(mlx4_en_stats->TTOT_prio_2);
-	priv->pkstats.tx_prio[3] = be64_to_cpu(mlx4_en_stats->TTOT_prio_3);
-	priv->pkstats.tx_prio[4] = be64_to_cpu(mlx4_en_stats->TTOT_prio_4);
-	priv->pkstats.tx_prio[5] = be64_to_cpu(mlx4_en_stats->TTOT_prio_5);
-	priv->pkstats.tx_prio[6] = be64_to_cpu(mlx4_en_stats->TTOT_prio_6);
-	priv->pkstats.tx_prio[7] = be64_to_cpu(mlx4_en_stats->TTOT_prio_7);
+	/* Tx Stats */
+	priv->pkstats.tx_packets = be64_to_cpu(mlx4_en_stats->TTOT_prio_0) +
+		be64_to_cpu(mlx4_en_stats->TTOT_prio_1) +
+		be64_to_cpu(mlx4_en_stats->TTOT_prio_2) +
+		be64_to_cpu(mlx4_en_stats->TTOT_prio_3) +
+		be64_to_cpu(mlx4_en_stats->TTOT_prio_4) +
+		be64_to_cpu(mlx4_en_stats->TTOT_prio_5) +
+		be64_to_cpu(mlx4_en_stats->TTOT_prio_6) +
+		be64_to_cpu(mlx4_en_stats->TTOT_prio_7) +
+		be64_to_cpu(mlx4_en_stats->TTOT_novlan);
+	priv->pkstats.tx_bytes = be64_to_cpu(mlx4_en_stats->TOCT_prio_0) +
+		be64_to_cpu(mlx4_en_stats->TOCT_prio_1) +
+		be64_to_cpu(mlx4_en_stats->TOCT_prio_2) +
+		be64_to_cpu(mlx4_en_stats->TOCT_prio_3) +
+		be64_to_cpu(mlx4_en_stats->TOCT_prio_4) +
+		be64_to_cpu(mlx4_en_stats->TOCT_prio_5) +
+		be64_to_cpu(mlx4_en_stats->TOCT_prio_6) +
+		be64_to_cpu(mlx4_en_stats->TOCT_prio_7) +
+		be64_to_cpu(mlx4_en_stats->TOCT_novlan);
+	priv->pkstats.tx_multicast_packets = be64_to_cpu(mlx4_en_stats->TMCAST_prio_0) +
+		be64_to_cpu(mlx4_en_stats->TMCAST_prio_1) +
+		be64_to_cpu(mlx4_en_stats->TMCAST_prio_2) +
+		be64_to_cpu(mlx4_en_stats->TMCAST_prio_3) +
+		be64_to_cpu(mlx4_en_stats->TMCAST_prio_4) +
+		be64_to_cpu(mlx4_en_stats->TMCAST_prio_5) +
+		be64_to_cpu(mlx4_en_stats->TMCAST_prio_6) +
+		be64_to_cpu(mlx4_en_stats->TMCAST_prio_7) +
+		be64_to_cpu(mlx4_en_stats->TMCAST_novlan);
+	priv->pkstats.tx_broadcast_packets = be64_to_cpu(mlx4_en_stats->TBCAST_prio_0) +
+		be64_to_cpu(mlx4_en_stats->TBCAST_prio_1) +
+		be64_to_cpu(mlx4_en_stats->TBCAST_prio_2) +
+		be64_to_cpu(mlx4_en_stats->TBCAST_prio_3) +
+		be64_to_cpu(mlx4_en_stats->TBCAST_prio_4) +
+		be64_to_cpu(mlx4_en_stats->TBCAST_prio_5) +
+		be64_to_cpu(mlx4_en_stats->TBCAST_prio_6) +
+		be64_to_cpu(mlx4_en_stats->TBCAST_prio_7) +
+		be64_to_cpu(mlx4_en_stats->TBCAST_novlan);
+	priv->pkstats.tx_errors = be64_to_cpu(mlx4_en_stats->TGIANT_prio_0) +
+		be64_to_cpu(mlx4_en_stats->TGIANT_prio_1) +
+		be64_to_cpu(mlx4_en_stats->TGIANT_prio_2) +
+		be64_to_cpu(mlx4_en_stats->TGIANT_prio_3) +
+		be64_to_cpu(mlx4_en_stats->TGIANT_prio_4) +
+		be64_to_cpu(mlx4_en_stats->TGIANT_prio_5) +
+		be64_to_cpu(mlx4_en_stats->TGIANT_prio_6) +
+		be64_to_cpu(mlx4_en_stats->TGIANT_prio_7) +
+		be64_to_cpu(mlx4_en_stats->TGIANT_novlan);
+	priv->pkstats.tx_dropped = be32_to_cpu(mlx4_en_stats->TDROP) -
+		priv->pkstats.tx_errors;
+	priv->pkstats.tx_lt_64_bytes_packets = be64_to_cpu(mlx4_en_stats->T64_prio_0) +
+		be64_to_cpu(mlx4_en_stats->T64_prio_1) +
+		be64_to_cpu(mlx4_en_stats->T64_prio_2) +
+		be64_to_cpu(mlx4_en_stats->T64_prio_3) +
+		be64_to_cpu(mlx4_en_stats->T64_prio_4) +
+		be64_to_cpu(mlx4_en_stats->T64_prio_5) +
+		be64_to_cpu(mlx4_en_stats->T64_prio_6) +
+		be64_to_cpu(mlx4_en_stats->T64_prio_7) +
+		be64_to_cpu(mlx4_en_stats->T64_novlan);
+	priv->pkstats.tx_127_bytes_packets = be64_to_cpu(mlx4_en_stats->T127_prio_0) +
+		be64_to_cpu(mlx4_en_stats->T127_prio_1) +
+		be64_to_cpu(mlx4_en_stats->T127_prio_2) +
+		be64_to_cpu(mlx4_en_stats->T127_prio_3) +
+		be64_to_cpu(mlx4_en_stats->T127_prio_4) +
+		be64_to_cpu(mlx4_en_stats->T127_prio_5) +
+		be64_to_cpu(mlx4_en_stats->T127_prio_6) +
+		be64_to_cpu(mlx4_en_stats->T127_prio_7) +
+		be64_to_cpu(mlx4_en_stats->T127_novlan);
+	priv->pkstats.tx_255_bytes_packets = be64_to_cpu(mlx4_en_stats->T255_prio_0) +
+		be64_to_cpu(mlx4_en_stats->T255_prio_1) +
+		be64_to_cpu(mlx4_en_stats->T255_prio_2) +
+		be64_to_cpu(mlx4_en_stats->T255_prio_3) +
+		be64_to_cpu(mlx4_en_stats->T255_prio_4) +
+		be64_to_cpu(mlx4_en_stats->T255_prio_5) +
+		be64_to_cpu(mlx4_en_stats->T255_prio_6) +
+		be64_to_cpu(mlx4_en_stats->T255_prio_7) +
+		be64_to_cpu(mlx4_en_stats->T255_novlan);
+	priv->pkstats.tx_511_bytes_packets = be64_to_cpu(mlx4_en_stats->T511_prio_0) +
+		be64_to_cpu(mlx4_en_stats->T511_prio_1) +
+		be64_to_cpu(mlx4_en_stats->T511_prio_2) +
+		be64_to_cpu(mlx4_en_stats->T511_prio_3) +
+		be64_to_cpu(mlx4_en_stats->T511_prio_4) +
+		be64_to_cpu(mlx4_en_stats->T511_prio_5) +
+		be64_to_cpu(mlx4_en_stats->T511_prio_6) +
+		be64_to_cpu(mlx4_en_stats->T511_prio_7) +
+		be64_to_cpu(mlx4_en_stats->T511_novlan);
+	priv->pkstats.tx_1023_bytes_packets = be64_to_cpu(mlx4_en_stats->T1023_prio_0) +
+		be64_to_cpu(mlx4_en_stats->T1023_prio_1) +
+		be64_to_cpu(mlx4_en_stats->T1023_prio_2) +
+		be64_to_cpu(mlx4_en_stats->T1023_prio_3) +
+		be64_to_cpu(mlx4_en_stats->T1023_prio_4) +
+		be64_to_cpu(mlx4_en_stats->T1023_prio_5) +
+		be64_to_cpu(mlx4_en_stats->T1023_prio_6) +
+		be64_to_cpu(mlx4_en_stats->T1023_prio_7) +
+		be64_to_cpu(mlx4_en_stats->T1023_novlan);
+	priv->pkstats.tx_1518_bytes_packets = be64_to_cpu(mlx4_en_stats->T1518_prio_0) +
+		be64_to_cpu(mlx4_en_stats->T1518_prio_1) +
+		be64_to_cpu(mlx4_en_stats->T1518_prio_2) +
+		be64_to_cpu(mlx4_en_stats->T1518_prio_3) +
+		be64_to_cpu(mlx4_en_stats->T1518_prio_4) +
+		be64_to_cpu(mlx4_en_stats->T1518_prio_5) +
+		be64_to_cpu(mlx4_en_stats->T1518_prio_6) +
+		be64_to_cpu(mlx4_en_stats->T1518_prio_7) +
+		be64_to_cpu(mlx4_en_stats->T1518_novlan);
+	priv->pkstats.tx_1522_bytes_packets = be64_to_cpu(mlx4_en_stats->T1522_prio_0) +
+		be64_to_cpu(mlx4_en_stats->T1522_prio_1) +
+		be64_to_cpu(mlx4_en_stats->T1522_prio_2) +
+		be64_to_cpu(mlx4_en_stats->T1522_prio_3) +
+		be64_to_cpu(mlx4_en_stats->T1522_prio_4) +
+		be64_to_cpu(mlx4_en_stats->T1522_prio_5) +
+		be64_to_cpu(mlx4_en_stats->T1522_prio_6) +
+		be64_to_cpu(mlx4_en_stats->T1522_prio_7) +
+		be64_to_cpu(mlx4_en_stats->T1522_novlan);
+	priv->pkstats.tx_1548_bytes_packets = be64_to_cpu(mlx4_en_stats->T1548_prio_0) +
+		be64_to_cpu(mlx4_en_stats->T1548_prio_1) +
+		be64_to_cpu(mlx4_en_stats->T1548_prio_2) +
+		be64_to_cpu(mlx4_en_stats->T1548_prio_3) +
+		be64_to_cpu(mlx4_en_stats->T1548_prio_4) +
+		be64_to_cpu(mlx4_en_stats->T1548_prio_5) +
+		be64_to_cpu(mlx4_en_stats->T1548_prio_6) +
+		be64_to_cpu(mlx4_en_stats->T1548_prio_7) +
+		be64_to_cpu(mlx4_en_stats->T1548_novlan);
+	priv->pkstats.tx_gt_1548_bytes_packets = be64_to_cpu(mlx4_en_stats->T2MTU_prio_0) +
+		be64_to_cpu(mlx4_en_stats->T2MTU_prio_1) +
+		be64_to_cpu(mlx4_en_stats->T2MTU_prio_2) +
+		be64_to_cpu(mlx4_en_stats->T2MTU_prio_3) +
+		be64_to_cpu(mlx4_en_stats->T2MTU_prio_4) +
+		be64_to_cpu(mlx4_en_stats->T2MTU_prio_5) +
+		be64_to_cpu(mlx4_en_stats->T2MTU_prio_6) +
+		be64_to_cpu(mlx4_en_stats->T2MTU_prio_7) +
+		be64_to_cpu(mlx4_en_stats->T2MTU_novlan);
+
+	priv->pkstats.rx_prio[0][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_0);
+	priv->pkstats.rx_prio[0][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_0);
+	priv->pkstats.rx_prio[1][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_1);
+	priv->pkstats.rx_prio[1][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_1);
+	priv->pkstats.rx_prio[2][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_2);
+	priv->pkstats.rx_prio[2][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_2);
+	priv->pkstats.rx_prio[3][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_3);
+	priv->pkstats.rx_prio[3][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_3);
+	priv->pkstats.rx_prio[4][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_4);
+	priv->pkstats.rx_prio[4][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_4);
+	priv->pkstats.rx_prio[5][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_5);
+	priv->pkstats.rx_prio[5][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_5);
+	priv->pkstats.rx_prio[6][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_6);
+	priv->pkstats.rx_prio[6][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_6);
+	priv->pkstats.rx_prio[7][0] = be64_to_cpu(mlx4_en_stats->RTOT_prio_7);
+	priv->pkstats.rx_prio[7][1] = be64_to_cpu(mlx4_en_stats->ROCT_prio_7);
+	priv->pkstats.rx_prio[8][0] = be64_to_cpu(mlx4_en_stats->RTOT_novlan);
+	priv->pkstats.rx_prio[8][1] = be64_to_cpu(mlx4_en_stats->ROCT_novlan);
+	priv->pkstats.tx_prio[0][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_0);
+	priv->pkstats.tx_prio[0][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_0);
+	priv->pkstats.tx_prio[1][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_1);
+	priv->pkstats.tx_prio[1][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_1);
+	priv->pkstats.tx_prio[2][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_2);
+	priv->pkstats.tx_prio[2][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_2);
+	priv->pkstats.tx_prio[3][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_3);
+	priv->pkstats.tx_prio[3][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_3);
+	priv->pkstats.tx_prio[4][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_4);
+	priv->pkstats.tx_prio[4][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_4);
+	priv->pkstats.tx_prio[5][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_5);
+	priv->pkstats.tx_prio[5][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_5);
+	priv->pkstats.tx_prio[6][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_6);
+	priv->pkstats.tx_prio[6][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_6);
+	priv->pkstats.tx_prio[7][0] = be64_to_cpu(mlx4_en_stats->TTOT_prio_7);
+	priv->pkstats.tx_prio[7][1] = be64_to_cpu(mlx4_en_stats->TOCT_prio_7);
+	priv->pkstats.tx_prio[8][0] = be64_to_cpu(mlx4_en_stats->TTOT_novlan);
+	priv->pkstats.tx_prio[8][1] = be64_to_cpu(mlx4_en_stats->TOCT_novlan);
+
+	flowstats = mailbox_flow->buf;
+
+	for (i = 0; i < MLX4_NUM_PRIORITIES; i++)	{
+		priv->flowstats[i].rx_pause =
+			be64_to_cpu(flowstats[i].rx_pause);
+		priv->flowstats[i].rx_pause_duration =
+			be64_to_cpu(flowstats[i].rx_pause_duration);
+		priv->flowstats[i].rx_pause_transition =
+			be64_to_cpu(flowstats[i].rx_pause_transition);
+		priv->flowstats[i].tx_pause =
+			be64_to_cpu(flowstats[i].tx_pause);
+		priv->flowstats[i].tx_pause_duration =
+			be64_to_cpu(flowstats[i].tx_pause_duration);
+		priv->flowstats[i].tx_pause_transition =
+			be64_to_cpu(flowstats[i].tx_pause_transition);
+	}
+
+	memset(&tmp_vport_stats, 0, sizeof(tmp_vport_stats));
+	spin_unlock(&priv->stats_lock);
+	err = mlx4_get_vport_ethtool_stats(mdev->dev, port,
+					   &tmp_vport_stats, reset);
+	spin_lock(&priv->stats_lock);
+	if (!err) {
+		/* ethtool stats format */
+		vport_stats->rx_unicast_packets = tmp_vport_stats.rx_unicast_packets;
+		vport_stats->rx_unicast_bytes = tmp_vport_stats.rx_unicast_bytes;
+		vport_stats->rx_multicast_packets = tmp_vport_stats.rx_multicast_packets;
+		vport_stats->rx_multicast_bytes = tmp_vport_stats.rx_multicast_bytes;
+		vport_stats->rx_broadcast_packets = tmp_vport_stats.rx_broadcast_packets;
+		vport_stats->rx_broadcast_bytes = tmp_vport_stats.rx_broadcast_bytes;
+		vport_stats->rx_dropped = tmp_vport_stats.rx_dropped;
+		vport_stats->rx_errors = tmp_vport_stats.rx_errors;
+		vport_stats->tx_unicast_packets = tmp_vport_stats.tx_unicast_packets;
+		vport_stats->tx_unicast_bytes = tmp_vport_stats.tx_unicast_bytes;
+		vport_stats->tx_multicast_packets = tmp_vport_stats.tx_multicast_packets;
+		vport_stats->tx_multicast_bytes = tmp_vport_stats.tx_multicast_bytes;
+		vport_stats->tx_broadcast_packets = tmp_vport_stats.tx_broadcast_packets;
+		vport_stats->tx_broadcast_bytes = tmp_vport_stats.tx_broadcast_bytes;
+		vport_stats->tx_errors = tmp_vport_stats.tx_errors;
+	}
+
+	if (!mlx4_is_mfunc(mdev->dev)) {
+		if (reset == 0) {
+			/* netdevice stats format */
+			dev                     = mdev->pndev[port];
+			if_inc_counter(dev, IFCOUNTER_IPACKETS,
+			    priv->pkstats.rx_packets - priv->pkstats_last.rx_packets);
+			if_inc_counter(dev, IFCOUNTER_OPACKETS,
+			    priv->pkstats.tx_packets - priv->pkstats_last.tx_packets);
+			if_inc_counter(dev, IFCOUNTER_IBYTES,
+			    priv->pkstats.rx_bytes - priv->pkstats_last.rx_bytes);
+			if_inc_counter(dev, IFCOUNTER_OBYTES,
+			    priv->pkstats.tx_bytes - priv->pkstats_last.tx_bytes);
+			if_inc_counter(dev, IFCOUNTER_IERRORS,
+			    priv->pkstats.rx_errors - priv->pkstats_last.rx_errors);
+			if_inc_counter(dev, IFCOUNTER_IQDROPS,
+			    priv->pkstats.rx_dropped - priv->pkstats_last.rx_dropped);
+			if_inc_counter(dev, IFCOUNTER_IMCASTS,
+			    priv->pkstats.rx_multicast_packets - priv->pkstats_last.rx_multicast_packets);
+			if_inc_counter(dev, IFCOUNTER_OMCASTS,
+			    priv->pkstats.tx_multicast_packets - priv->pkstats_last.tx_multicast_packets);
+		}
+		priv->pkstats_last = priv->pkstats;
+	}
+
 	spin_unlock(&priv->stats_lock);
 
 out:
+	mlx4_free_cmd_mailbox(mdev->dev, mailbox_flow);
 	mlx4_free_cmd_mailbox(mdev->dev, mailbox);
+
+mailbox_out:
+	if (do_if_stat)
+		priv->last_ifq_jiffies = jiffies;
+
 	return err;
 }
-

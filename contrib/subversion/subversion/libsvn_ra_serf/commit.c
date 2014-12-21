@@ -99,14 +99,11 @@ typedef struct proppatch_context_t {
 } proppatch_context_t;
 
 typedef struct delete_context_t {
-  const char *path;
+  const char *relpath;
 
   svn_revnum_t revision;
 
-  const char *lock_token;
-  apr_hash_t *lock_token_hash;
-  svn_boolean_t keep_locks;
-
+  commit_context_t *commit;
 } delete_context_t;
 
 /* Represents a directory. */
@@ -149,7 +146,6 @@ typedef struct dir_context_t {
   /* The checked-out working resource for this directory.  May be NULL; if so
      call checkout_dir() first.  */
   const char *working_url;
-
 } dir_context_t;
 
 /* Represents a file to be committed. */
@@ -1078,6 +1074,96 @@ setup_copy_file_headers(serf_bucket_t *headers,
 }
 
 static svn_error_t *
+setup_if_header_recursive(svn_boolean_t *added,
+                          serf_bucket_t *headers,
+                          commit_context_t *commit_ctx,
+                          const char *rq_relpath,
+                          apr_pool_t *pool)
+{
+  svn_stringbuf_t *sb = NULL;
+  apr_hash_index_t *hi;
+  apr_pool_t *iterpool = NULL;
+
+  if (!commit_ctx->lock_tokens)
+    {
+      *added = FALSE;
+      return SVN_NO_ERROR;
+    }
+
+  /* We try to create a directory, so within the Subversion world that
+     would imply that there is nothing here, but mod_dav_svn still sees
+     locks on the old nodes here as in DAV it is perfectly legal to lock
+     something that is not there...
+
+     Let's make mod_dav, mod_dav_svn and the DAV RFC happy by providing
+     the locks we know of with the request */
+
+  for (hi = apr_hash_first(pool, commit_ctx->lock_tokens);
+       hi;
+       hi = apr_hash_next(hi))
+    {
+      const char *relpath = svn__apr_hash_index_key(hi);
+      apr_uri_t uri;
+
+      if (!svn_relpath_skip_ancestor(rq_relpath, relpath))
+        continue;
+      else if (svn_hash_gets(commit_ctx->deleted_entries, relpath))
+        {
+          /* When a path is already explicit deleted then its lock
+             will be removed by mod_dav. But mod_dav doesn't remove
+             locks on descendants */
+          continue;
+        }
+
+      if (!iterpool)
+        iterpool = svn_pool_create(pool);
+      else
+        svn_pool_clear(iterpool);
+
+      if (sb == NULL)
+        sb = svn_stringbuf_create("", pool);
+      else
+        svn_stringbuf_appendbyte(sb, ' ');
+
+      uri = commit_ctx->session->session_url;
+      uri.path = (char *)svn_path_url_add_component2(uri.path, relpath,
+                                                    iterpool);
+
+      svn_stringbuf_appendbyte(sb, '<');
+      svn_stringbuf_appendcstr(sb, apr_uri_unparse(iterpool, &uri, 0));
+      svn_stringbuf_appendcstr(sb, "> (<");
+      svn_stringbuf_appendcstr(sb, svn__apr_hash_index_val(hi));
+      svn_stringbuf_appendcstr(sb, ">)");
+    }
+
+  if (iterpool)
+    svn_pool_destroy(iterpool);
+
+  if (sb)
+    {
+      serf_bucket_headers_set(headers, "If", sb->data);
+      *added = TRUE;
+    }
+  else
+    *added = FALSE;
+
+  return SVN_NO_ERROR;
+}
+
+static svn_error_t *
+setup_add_dir_common_headers(serf_bucket_t *headers,
+                             void *baton,
+                             apr_pool_t *pool)
+{
+  dir_context_t *dir = baton;
+  svn_boolean_t added;
+
+  return svn_error_trace(
+      setup_if_header_recursive(&added, headers, dir->commit, dir->relpath,
+                                pool));
+}
+
+static svn_error_t *
 setup_copy_dir_headers(serf_bucket_t *headers,
                        void *baton,
                        apr_pool_t *pool)
@@ -1109,7 +1195,7 @@ setup_copy_dir_headers(serf_bucket_t *headers,
   /* Implicitly checkout this dir now. */
   dir->working_url = apr_pstrdup(dir->pool, uri.path);
 
-  return SVN_NO_ERROR;
+  return svn_error_trace(setup_add_dir_common_headers(headers, baton, pool));
 }
 
 static svn_error_t *
@@ -1117,51 +1203,19 @@ setup_delete_headers(serf_bucket_t *headers,
                      void *baton,
                      apr_pool_t *pool)
 {
-  delete_context_t *ctx = baton;
+  delete_context_t *del = baton;
+  svn_boolean_t added;
 
   serf_bucket_headers_set(headers, SVN_DAV_VERSION_NAME_HEADER,
-                          apr_ltoa(pool, ctx->revision));
+                          apr_ltoa(pool, del->revision));
 
-  if (ctx->lock_token_hash)
-    {
-      ctx->lock_token = svn_hash_gets(ctx->lock_token_hash, ctx->path);
+  SVN_ERR(setup_if_header_recursive(&added, headers, del->commit,
+                                    del->relpath, pool));
 
-      if (ctx->lock_token)
-        {
-          const char *token_header;
+  if (added && del->commit->keep_locks)
+    serf_bucket_headers_setn(headers, SVN_DAV_OPTIONS_HEADER,
+                                      SVN_DAV_OPTION_KEEP_LOCKS);
 
-          token_header = apr_pstrcat(pool, "<", ctx->path, "> (<",
-                                     ctx->lock_token, ">)", (char *)NULL);
-
-          serf_bucket_headers_set(headers, "If", token_header);
-
-          if (ctx->keep_locks)
-            serf_bucket_headers_setn(headers, SVN_DAV_OPTIONS_HEADER,
-                                     SVN_DAV_OPTION_KEEP_LOCKS);
-        }
-    }
-
-  return SVN_NO_ERROR;
-}
-
-/* Implements svn_ra_serf__request_body_delegate_t */
-static svn_error_t *
-create_delete_body(serf_bucket_t **body_bkt,
-                   void *baton,
-                   serf_bucket_alloc_t *alloc,
-                   apr_pool_t *pool)
-{
-  delete_context_t *ctx = baton;
-  serf_bucket_t *body;
-
-  body = serf_bucket_aggregate_create(alloc);
-
-  svn_ra_serf__add_xml_header_buckets(body, alloc);
-
-  svn_ra_serf__merge_lock_token_list(ctx->lock_token_hash, ctx->path,
-                                     body, alloc, pool);
-
-  *body_bkt = body;
   return SVN_NO_ERROR;
 }
 
@@ -1541,7 +1595,6 @@ delete_entry(const char *path,
   delete_context_t *delete_ctx;
   svn_ra_serf__handler_t *handler;
   const char *delete_target;
-  svn_error_t *err;
 
   if (USING_HTTPV2_COMMIT_SUPPORT(dir->commit))
     {
@@ -1560,10 +1613,9 @@ delete_entry(const char *path,
 
   /* DELETE our entry */
   delete_ctx = apr_pcalloc(pool, sizeof(*delete_ctx));
-  delete_ctx->path = apr_pstrdup(pool, path);
+  delete_ctx->relpath = apr_pstrdup(pool, path);
   delete_ctx->revision = revision;
-  delete_ctx->lock_token_hash = dir->commit->lock_tokens;
-  delete_ctx->keep_locks = dir->commit->keep_locks;
+  delete_ctx->commit = dir->commit;
 
   handler = apr_pcalloc(pool, sizeof(*handler));
   handler->handler_pool = pool;
@@ -1579,30 +1631,7 @@ delete_entry(const char *path,
   handler->method = "DELETE";
   handler->path = delete_target;
 
-  err = svn_ra_serf__context_run_one(handler, pool);
-
-  if (err &&
-      (err->apr_err == SVN_ERR_FS_BAD_LOCK_TOKEN ||
-       err->apr_err == SVN_ERR_FS_NO_LOCK_TOKEN ||
-       err->apr_err == SVN_ERR_FS_LOCK_OWNER_MISMATCH ||
-       err->apr_err == SVN_ERR_FS_PATH_ALREADY_LOCKED))
-    {
-      svn_error_clear(err);
-
-      /* An error has been registered on the connection. Reset the thing
-         so that we can use it again.  */
-      serf_connection_reset(handler->conn->conn);
-
-      handler->body_delegate = create_delete_body;
-      handler->body_delegate_baton = delete_ctx;
-      handler->body_type = "text/xml";
-
-      SVN_ERR(svn_ra_serf__context_run_one(handler, pool));
-    }
-  else if (err)
-    {
-      return err;
-    }
+  SVN_ERR(svn_ra_serf__context_run_one(handler, pool));
 
   /* 204 No Content: item successfully deleted */
   if (handler->sline.code != 204)
@@ -1673,6 +1702,9 @@ add_directory(const char *path,
     {
       handler->method = "MKCOL";
       handler->path = mkcol_target;
+
+      handler->header_delegate = setup_add_dir_common_headers;
+      handler->header_delegate_baton = dir;
     }
   else
     {
@@ -2341,7 +2373,8 @@ svn_ra_serf__get_commit_editor(svn_ra_session_t *ra_session,
   ctx->callback = callback;
   ctx->callback_baton = callback_baton;
 
-  ctx->lock_tokens = lock_tokens;
+  ctx->lock_tokens = (lock_tokens && apr_hash_count(lock_tokens))
+                       ? lock_tokens : NULL;
   ctx->keep_locks = keep_locks;
 
   ctx->deleted_entries = apr_hash_make(ctx->pool);

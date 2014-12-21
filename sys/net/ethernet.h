@@ -73,6 +73,25 @@ struct ether_addr {
 #define	ETHER_IS_MULTICAST(addr) (*(addr) & 0x01) /* is address mcast/bcast? */
 
 /*
+ * 802.1q Virtual LAN header.
+ */
+struct ether_vlan_header {
+	uint8_t evl_dhost[ETHER_ADDR_LEN];
+	uint8_t evl_shost[ETHER_ADDR_LEN];
+	uint16_t evl_encap_proto;
+	uint16_t evl_tag;
+	uint16_t evl_proto;
+} __packed;
+
+#define	EVL_VLID_MASK		0x0FFF
+#define	EVL_PRI_MASK		0xE000
+#define	EVL_VLANOFTAG(tag)	((tag) & EVL_VLID_MASK)
+#define	EVL_PRIOFTAG(tag)	(((tag) >> 13) & 7)
+#define	EVL_CFIOFTAG(tag)	(((tag) >> 12) & 1)
+#define	EVL_MAKETAG(vlid, pri, cfi)					\
+	((((((pri) & 7) << 1) | ((cfi) & 1)) << 12) | ((vlid) & EVL_VLID_MASK))
+
+/*
  *  NOTE: 0x0000-0x05DC (0..1500) are generally IEEE 802.3 length fields.
  *  However, there are some conflicts.
  */

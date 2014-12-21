@@ -933,7 +933,8 @@ dname_labeldec(char *dst, size_t dlen, const char *src)
 	dst_origin = dst;
 	memset(dst, '\0', dlen);
 	while (src && (len = (uint8_t)(*src++) & 0x3f) &&
-	    (src + len) <= src_last) {
+	    (src + len) <= src_last &&
+	    (dst - dst_origin < (ssize_t)dlen)) {
 		if (dst != dst_origin)
 			*dst++ = '.';
 		warnmsg(LOG_DEBUG, __func__, "labellen = %zd", len);

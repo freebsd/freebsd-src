@@ -1,6 +1,83 @@
-$Id: NEWS,v 1.3 2013/10/13 16:06:50 schwarze Exp $
+$Id: NEWS,v 1.6 2014/08/11 01:39:00 schwarze Exp $
 
 This file lists the most important changes in the mdocml.bsd.lv distribution.
+
+Changes in version 1.13.1, released on August 10, 2014
+
+    --- MAJOR NEW FEATURES ---
+ * A complete apropos(1)/makewhatis(8)/man.cgi(8) suite
+   based on SQLite3 is now included.
+ * The roff(7) parser now provides an almost complete implementation
+   of numerical expressions.
+ * Warning and error messages have been improved in many ways.
+   Almost all fatal errors were downgraded to normal errors and some
+   even to warnings.  Almost all messages now mention the macro where
+   the issue is detected and many indicate the workaround employed.
+   The mandoc(1) manual now includes a list explaining all messages.
+    --- MINOR NEW FEATURES ---
+ * The roff(7) parser now supports the .ami (append to macro with
+   indirectly specified name), .as (append to user-defined
+   string), .dei (define macro with indirectly specified name),
+   .ll (line length), and .rr (remove register) requests.
+ * The roff(7) parser now supports string comparison and numerical
+   conditionals in the .if and .ie requests.
+ * The roff parser now fully supports the \B (validate numerical
+   expression) and partially supports the \w (measure text width)
+   escape sequences.
+ * The terminal formatter now supports the \: (optional line break)
+   escape sequence.
+ * The roff parser now supports expansion of user-defined strings
+   involving indirect references.
+ * The roff(7) parser now handles some pre-defined read-only
+   number registers that occur in the pod2man(1) preamble.
+ * For backward compatibility, the mdoc(7) parser and formatters
+   now support the obsolete macros .En, .Es, .Fr, and .Ot.
+ * The mdoc(7) formatter non partially supports .Bd -centered.
+ * tbl(7) now handles leading and trailing vertical lines.
+ * The build system now provides fallback versions of strcasestr(3)
+   and strsep(3) for systems lacking them.
+ * The mdoc(7) manual now explains how various standards
+   supported by the .St macro are related to each other.
+    --- BUGFIXES ---
+ * In the roff(7) parser, several bugs were fixed with respect
+   to closing conditional blocks on macro lines.
+ * Parsing of roff(7) identifiers and escape sequences was improved
+   in multiple respects.
+ * In the mdoc(7) parser, the handling of defective document
+   prologues was improved in multiple ways.
+ * The mdoc(7) parser no longer skips content before the first section
+   header, and it no longer deletes non-.% content from .Rs blocks.
+ * In the mdoc(7) parser, a crash was fixed related to weird .Sh headers.
+ * In the mdoc(7) parser, handling of .Sm with missing or invalid
+   arguments was corrected.
+ * In the mdoc(7) parser, trailing punctuation at the end of partial
+   implicit macros no longer triggers end-of-sentence spacing.
+ * In the terminal formatter, two crashes were fixed: one triggered by
+   excessive indentation and another by excessively long .Nm arguments.
+ * In the terminal formatter, a floating point rounding bug was
+   fixed that sometimes caused an off-by-one error in indentation.
+ * In the UTF-8 formatter, rendering of accents, breakable hyphens,
+   and non-breakable spaces was corrected.
+ * In the HTML formatter, encoding of special characters was
+   corrected in multiple respects.
+ * In the mdoc(7) formatter, rendering of .Ex and .Rv was
+   improved for various edge cases.
+ * In the mdoc(7) formatter, handling of empty .Bl -inset item
+   heads was improved.
+ * In the man(7) formatter, some bugs were fixed with respect
+   to same-line detection in the context of .TP and .nf macros,
+   and the indentation of .IP and .TP blocks was improved.
+ * The mandoc(3) library no longer prints to stderr.
+    --- THANKS TO ---
+   Abhinav Upadhyay (NetBSD), Andreas Voegele, Anthony Bentley (OpenBSD),
+   Christian Weisgerber (OpenBSD), Havard Eidnes (NetBSD), Jan Stary,
+   Jason McIntyre (OpenBSD), Jeremie Courreges-Anglas (OpenBSD),
+   Joerg Sonnenberger (NetBSD), Juan Francisco Cantero Hurtado (OpenBSD),
+   Marc Espie (OpenBSD), Matthias Scheler (NetBSD), Pascal Stumpf (OpenBSD),
+   Paul Onyschuk (Alpine Linux), Sebastien Marie, Steffen Nurpmeso,
+   Stuart Henderson (OpenBSD), Ted Unangst (OpenBSD), Theo de Raadt (OpenBSD),
+   Thomas Klausner (NetBSD), and Ulrich Spoerlein (FreeBSD)
+   for reporting bugs and missing features.
 
 Changes in version 1.12.3, released on December 31, 2013
 

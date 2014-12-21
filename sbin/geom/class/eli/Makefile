@@ -8,8 +8,7 @@ SRCS+=	g_eli_key.c
 SRCS+=	pkcs5v2.c
 SRCS+=	sha2.c
 
-DPADD=	${LIBMD} ${LIBCRYPTO}
-LDADD=	-lmd -lcrypto
+LIBADD=	md crypto
 
 WARNS?=	3
 

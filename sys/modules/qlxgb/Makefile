@@ -35,9 +35,4 @@ KMOD=	if_qlxgb
 SRCS=	qla_os.c qla_dbg.c qla_hw.c qla_misc.c qla_isr.c qla_ioctl.c
 SRCS+=	device_if.h bus_if.h pci_if.h
 
-clean:
-	rm -f opt_bdg.h device_if.h bus_if.h pci_if.h export_syms
-	rm -f *.o *.kld *.ko
-	rm -f @ machine
-
 .include <bsd.kmod.mk>

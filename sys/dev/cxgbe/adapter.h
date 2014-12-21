@@ -57,6 +57,7 @@
 #include "common/t4_msg.h"
 #include "firmware/t4fw_interface.h"
 
+#define KTR_CXGBE	KTR_SPARE3
 MALLOC_DECLARE(M_CXGBE);
 #define CXGBE_UNIMPLEMENTED(s) \
     panic("%s (%s, line %d) not implemented yet.", s, __FILE__, __LINE__)
@@ -268,7 +269,10 @@ struct port_info {
 
 	int linkdnrc;
 	struct link_config link_cfg;
-	struct port_stats stats;
+
+	struct timeval last_refreshed;
+ 	struct port_stats stats;
+	u_int tnl_cong_drops;
 
 	eventhandler_tag vlan_c;
 
@@ -692,6 +696,7 @@ struct sge {
 	struct sge_iq **iqmap;	/* iq->cntxt_id to iq mapping */
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
 
+	int pad_boundary;
 	int pack_boundary;
 	int8_t safe_hwidx1;	/* may not have room for metadata */
 	int8_t safe_hwidx2;	/* with room for metadata and maybe more */
@@ -789,6 +794,8 @@ struct adapter {
 	struct mtx sfl_lock;	/* same cache-line as sc_lock? but that's ok */
 	TAILQ_HEAD(, sge_fl) sfl;
 	struct callout sfl_callout;
+
+	struct mtx regwin_lock;	/* for indirect reads and memory windows */
 
 	an_handler_t an_handler __aligned(CACHE_LINE_SIZE);
 	fw_msg_handler_t fw_msg_handler[5];	/* NUM_FW6_TYPES */

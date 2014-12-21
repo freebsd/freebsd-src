@@ -61,6 +61,11 @@ struct _usem {
 	__uint32_t		_flags;
 };
 
+struct _usem2 {
+	volatile __uint32_t	_count;		/* Waiters flag in high bit. */
+	__uint32_t		_flags;
+};
+
 struct _umtx_time {
 	struct timespec		_timeout;
 	__uint32_t		_flags;

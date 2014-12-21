@@ -115,6 +115,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/uio.h>
+#include <sys/user.h>
 #include <sys/event.h>
 
 #include <security/mac/mac_framework.h>
@@ -152,6 +153,7 @@ static fo_stat_t	pipe_stat;
 static fo_close_t	pipe_close;
 static fo_chmod_t	pipe_chmod;
 static fo_chown_t	pipe_chown;
+static fo_fill_kinfo_t	pipe_fill_kinfo;
 
 struct fileops pipeops = {
 	.fo_read = pipe_read,
@@ -165,6 +167,7 @@ struct fileops pipeops = {
 	.fo_chmod = pipe_chmod,
 	.fo_chown = pipe_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_fill_kinfo = pipe_fill_kinfo,
 	.fo_flags = DFLAG_PASSABLE
 };
 
@@ -315,7 +318,7 @@ pipe_zone_init(void *mem, int size, int flags)
 
 	pp = (struct pipepair *)mem;
 
-	mtx_init(&pp->pp_mtx, "pipe mutex", NULL, MTX_DEF | MTX_RECURSE);
+	mtx_init(&pp->pp_mtx, "pipe mutex", NULL, MTX_DEF);
 	return (0);
 }
 
@@ -1293,13 +1296,13 @@ pipe_write(fp, uio, active_cred, flags, td)
 	}
 
 	/*
-	 * Don't return EPIPE if I/O was successful
+	 * Don't return EPIPE if any byte was written.
+	 * EINTR and other interrupts are handled by generic I/O layer.
+	 * Do not pretend that I/O succeeded for obvious user error
+	 * like EFAULT.
 	 */
-	if ((wpipe->pipe_buffer.cnt == 0) &&
-	    (uio->uio_resid == 0) &&
-	    (error == EPIPE)) {
+	if (uio->uio_resid != orig_resid && error == EPIPE)
 		error = 0;
-	}
 
 	if (error == 0)
 		vfs_timestamp(&wpipe->pipe_mtime);
@@ -1324,11 +1327,15 @@ pipe_truncate(fp, length, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
+	struct pipe *cpipe;
+	int error;
 
-	/* For named pipes call the vnode operation. */
-	if (fp->f_vnode != NULL)
-		return (vnops.fo_truncate(fp, length, active_cred, td));
-	return (EINVAL);
+	cpipe = fp->f_data;
+	if (cpipe->pipe_state & PIPE_NAMED)
+		error = vnops.fo_truncate(fp, length, active_cred, td);
+	else
+		error = invfo_truncate(fp, length, active_cred, td);
+	return (error);
 }
 
 /*
@@ -1603,6 +1610,21 @@ pipe_chown(fp, uid, gid, active_cred, td)
 	return (error);
 }
 
+static int
+pipe_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
+{
+	struct pipe *pi;
+
+	if (fp->f_type == DTYPE_FIFO)
+		return (vn_fill_kinfo(fp, kif, fdp));
+	kif->kf_type = KF_TYPE_PIPE;
+	pi = fp->f_data;
+	kif->kf_un.kf_pipe.kf_pipe_addr = (uintptr_t)pi;
+	kif->kf_un.kf_pipe.kf_pipe_peer = (uintptr_t)pi->pipe_peer;
+	kif->kf_un.kf_pipe.kf_pipe_buffer_cnt = pi->pipe_buffer.cnt;
+	return (0);
+}
+
 static void
 pipe_free_kmem(cpipe)
 	struct pipe *cpipe;
@@ -1770,7 +1792,7 @@ filt_piperead(struct knote *kn, long hint)
 	struct pipe *wpipe = rpipe->pipe_peer;
 	int ret;
 
-	PIPE_LOCK(rpipe);
+	PIPE_LOCK_ASSERT(rpipe, MA_OWNED);
 	kn->kn_data = rpipe->pipe_buffer.cnt;
 	if ((kn->kn_data == 0) && (rpipe->pipe_state & PIPE_DIRECTW))
 		kn->kn_data = rpipe->pipe_map.cnt;
@@ -1779,11 +1801,9 @@ filt_piperead(struct knote *kn, long hint)
 	    wpipe->pipe_present != PIPE_ACTIVE ||
 	    (wpipe->pipe_state & PIPE_EOF)) {
 		kn->kn_flags |= EV_EOF;
-		PIPE_UNLOCK(rpipe);
 		return (1);
 	}
 	ret = kn->kn_data > 0;
-	PIPE_UNLOCK(rpipe);
 	return ret;
 }
 
@@ -1794,12 +1814,11 @@ filt_pipewrite(struct knote *kn, long hint)
 	struct pipe *wpipe;
    
 	wpipe = kn->kn_hook;
-	PIPE_LOCK(wpipe);
+	PIPE_LOCK_ASSERT(wpipe, MA_OWNED);
 	if (wpipe->pipe_present != PIPE_ACTIVE ||
 	    (wpipe->pipe_state & PIPE_EOF)) {
 		kn->kn_data = 0;
 		kn->kn_flags |= EV_EOF;
-		PIPE_UNLOCK(wpipe);
 		return (1);
 	}
 	kn->kn_data = (wpipe->pipe_buffer.size > 0) ?
@@ -1807,7 +1826,6 @@ filt_pipewrite(struct knote *kn, long hint)
 	if (wpipe->pipe_state & PIPE_DIRECTW)
 		kn->kn_data = 0;
 
-	PIPE_UNLOCK(wpipe);
 	return (kn->kn_data >= PIPE_BUF);
 }
 
