@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2007 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,17 +22,16 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+
+#include "atf-c++/detail/env.hpp"
 
 extern "C" {
-#include "../../atf-c/error.h"
-
-#include "../../atf-c/detail/env.h"
+#include "atf-c/detail/env.h"
+#include "atf-c/error.h"
 }
 
-#include "env.hpp"
-#include "exceptions.hpp"
-#include "sanity.hpp"
+#include "atf-c++/detail/exceptions.hpp"
+#include "atf-c++/detail/sanity.hpp"
 
 namespace impl = atf::env;
 #define IMPL_NAME "atf::env"
@@ -48,6 +44,12 @@ std::string
 impl::get(const std::string& name)
 {
     return atf_env_get(name.c_str());
+}
+
+std::string
+impl::get(const std::string& name, const std::string& default_value)
+{
+    return atf_env_get_with_default(name.c_str(), default_value.c_str());
 }
 
 bool
