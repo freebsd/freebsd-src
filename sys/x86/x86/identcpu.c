@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #include <amd64/vmm/intel/vmx_controls.h>
 #include <x86/isa/icu.h>
+#include <x86/hypervisor.h>
 #include <x86/vmware.h>
 
 #ifdef __i386__
@@ -78,7 +79,6 @@ static u_int find_cpu_vendor_id(void);
 static void print_AMD_info(void);
 static void print_INTEL_info(void);
 static void print_INTEL_TLB(u_int data);
-static void print_hypervisor_info(void);
 static void print_svm_info(void);
 static void print_via_padlock_info(void);
 static void print_vmx_info(void);
@@ -122,11 +122,6 @@ SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
 static int hw_clockrate;
 SYSCTL_INT(_hw, OID_AUTO, clockrate, CTLFLAG_RD,
     &hw_clockrate, 0, "CPU instruction clock rate");
-
-u_int hv_high;
-char hv_vendor[16];
-SYSCTL_STRING(_hw, OID_AUTO, hv_vendor, CTLFLAG_RD, hv_vendor, 0,
-    "Hypervisor vendor");
 
 static eventhandler_tag tsc_post_tag;
 
@@ -985,7 +980,7 @@ printcpuinfo(void)
 #endif
 	}
 
-	print_hypervisor_info();
+	hypervisor_print_info();
 }
 
 void
@@ -1218,25 +1213,11 @@ identify_hypervisor(void)
 	int i;
 
 	/*
-	 * [RFC] CPUID usage for interaction between Hypervisors and Linux.
-	 * http://lkml.org/lkml/2008/10/1/246
-	 *
-	 * KB1009458: Mechanisms to determine if software is running in
-	 * a VMware virtual machine
-	 * http://kb.vmware.com/kb/1009458
+	 * Modern hypervisors set the HV present feature bit, and are then
+	 * identifiable through a special CPUID leaf.
 	 */
 	if (cpu_feature2 & CPUID2_HV) {
-		vm_guest = VM_GUEST_VM;
-		do_cpuid(0x40000000, regs);
-		if (regs[0] >= 0x40000000) {
-			hv_high = regs[0];
-			((u_int *)&hv_vendor)[0] = regs[1];
-			((u_int *)&hv_vendor)[1] = regs[2];
-			((u_int *)&hv_vendor)[2] = regs[3];
-			hv_vendor[12] = '\0';
-			if (strcmp(hv_vendor, "VMwareVMware") == 0)
-				vm_guest = VM_GUEST_VMWARE;
-		}
+		hypervisor_cpuid_identify();
 		return;
 	}
 
@@ -2149,12 +2130,4 @@ print_vmx_info(void)
 		"\014single-globals"
 		);
 	}
-}
-
-static void
-print_hypervisor_info(void)
-{
-
-	if (*hv_vendor)
-		printf("Hypervisor: Origin = \"%s\"\n", hv_vendor);
 }
