@@ -564,6 +564,7 @@ x86/x86/identcpu.c		standard
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		standard
 x86/x86/kvm.c			standard
+x86/x86/kvm_clock.c		standard
 x86/x86/legacy.c		standard
 x86/x86/local_apic.c		standard
 x86/x86/mca.c			standard

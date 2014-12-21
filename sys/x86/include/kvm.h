@@ -31,6 +31,16 @@
 
 #define KVM_CPUID_FEATURES_LEAF		0x40000001
 
+#define KVM_FEATURE_CLOCKSOURCE		0x00000001
+#define KVM_FEATURE_CLOCKSOURCE2	0x00000008
+
+/* Deprecated: for the CLOCKSOURCE feature. */
+#define KVM_MSR_WALL_CLOCK		0x11
+#define KVM_MSR_SYSTEM_TIME		0x12
+
+#define KVM_MSR_WALL_CLOCK_NEW		0x4b564d00
+#define KVM_MSR_SYSTEM_TIME_NEW		0x4b564d01
+
 int		kvm_paravirt_supported(void);
 uint32_t	kvm_get_features(void);
 
