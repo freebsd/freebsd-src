@@ -99,13 +99,13 @@ __FBSDID("$FreeBSD$");
 #define GICD_ICFGR_TRIG_MASK	0x2
 
 struct arm_gic_softc {
+	device_t		gic_dev;
 	struct resource *	gic_res[3];
 	bus_space_tag_t		gic_c_bst;
 	bus_space_tag_t		gic_d_bst;
 	bus_space_handle_t	gic_c_bsh;
 	bus_space_handle_t	gic_d_bsh;
 	uint8_t			ver;
-	device_t		dev;
 	struct mtx		mutex;
 	uint32_t		nirqs;
 };
@@ -159,17 +159,13 @@ void
 gic_init_secondary(void)
 {
 	struct arm_gic_softc *sc = arm_gic_sc;
-	int i, nirqs;
+	int i;
 
-  	/* Get the number of interrupts */
-	nirqs = gic_d_read_4(sc, GICD_TYPER);
-	nirqs = 32 * ((nirqs & 0x1f) + 1);
-
-	for (i = 0; i < nirqs; i += 4)
+	for (i = 0; i < sc->nirqs; i += 4)
 		gic_d_write_4(sc, GICD_IPRIORITYR(i >> 2), 0);
 
 	/* Set all the interrupts to be in Group 0 (secure) */
-	for (i = 0; i < nirqs; i += 32) {
+	for (i = 0; i < sc->nirqs; i += 32) {
 		gic_d_write_4(sc, GICD_IGROUPR(i >> 5), 0);
 	}
 
@@ -246,12 +242,14 @@ arm_gic_attach(device_t dev)
 		return (ENXIO);
 
 	sc = device_get_softc(dev);
-	sc->dev = dev;
 
 	if (bus_alloc_resources(dev, arm_gic_spec, sc->gic_res)) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
+
+	sc->gic_dev = dev;
+	arm_gic_sc = sc;
 
 	/* Initialize mutex */
 	mtx_init(&sc->mutex, "GIC lock", "", MTX_SPIN);
@@ -263,8 +261,6 @@ arm_gic_attach(device_t dev)
 	/* CPU Interface */
 	sc->gic_c_bst = rman_get_bustag(sc->gic_res[1]);
 	sc->gic_c_bsh = rman_get_bushandle(sc->gic_res[1]);
-
-	arm_gic_sc = sc;
 
 	/* Disable interrupt forwarding to the CPU interface */
 	gic_d_write_4(sc, GICD_CTLR, 0x00);
@@ -314,25 +310,6 @@ arm_gic_attach(device_t dev)
 
 	return (0);
 }
-
-static device_method_t arm_gic_methods[] = {
-	DEVMETHOD(device_probe,		arm_gic_probe),
-	DEVMETHOD(device_attach,	arm_gic_attach),
-	{ 0, 0 }
-};
-
-static driver_t arm_gic_driver = {
-	"gic",
-	arm_gic_methods,
-	sizeof(struct arm_gic_softc),
-};
-
-static devclass_t arm_gic_devclass;
-
-EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
-EARLY_DRIVER_MODULE(gic, ofwbus, arm_gic_driver, arm_gic_devclass, 0, 0,
-    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
 
 static void
 gic_post_filter(void *arg)
@@ -395,6 +372,7 @@ gic_config_irq(int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 	struct arm_gic_softc *sc = arm_gic_sc;
+	device_t dev = sc->gic_dev;
 	uint32_t reg;
 	uint32_t mask;
 
@@ -439,7 +417,7 @@ gic_config_irq(int irq, enum intr_trigger trig,
 	return (0);
 
 invalid_args:
-	device_printf(sc->dev, "gic_config_irg, invalid parameters\n");
+	device_printf(dev, "gic_config_irg, invalid parameters\n");
 	return (EINVAL);
 }
 
@@ -470,6 +448,7 @@ pic_ipi_get(int i)
 			return (0);
 		return (i);
 	}
+
 	return (0x3ff);
 }
 
@@ -479,3 +458,22 @@ pic_ipi_clear(int ipi)
 }
 #endif
 
+static device_method_t arm_gic_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		arm_gic_probe),
+	DEVMETHOD(device_attach,	arm_gic_attach),
+	{ 0, 0 }
+};
+
+static driver_t arm_gic_driver = {
+	"gic",
+	arm_gic_methods,
+	sizeof(struct arm_gic_softc),
+};
+
+static devclass_t arm_gic_devclass;
+
+EARLY_DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(gic, ofwbus, arm_gic_driver, arm_gic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT + BUS_PASS_ORDER_MIDDLE);
