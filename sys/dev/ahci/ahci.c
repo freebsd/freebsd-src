@@ -231,12 +231,12 @@ ahci_attach(device_t dev)
 	ahci_ctlr_setup(dev);
 
 	/* Setup interrupts. */
-	if (ahci_setup_interrupt(dev)) {
+	if ((error = ahci_setup_interrupt(dev)) != 0) {
 		bus_dma_tag_destroy(ctlr->dma_tag);
 		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid,
 		    ctlr->r_mem);
 		rman_fini(&ctlr->sc_iomem);
-		return ENXIO;
+		return error;
 	}
 
 	i = 0;
