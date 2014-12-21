@@ -85,9 +85,9 @@ struct bcm_intc_softc {
 };
 
 #define	intc_read_4(_sc, reg)		\
-    bus_space_read_4(_sc->intc_bst, _sc->intc_bsh, reg)
+    bus_space_read_4((_sc)->intc_bst, (_sc)->intc_bsh, (reg))
 #define	intc_write_4(_sc, reg, val)		\
-    bus_space_write_4(_sc->intc_bst, _sc->intc_bsh, reg, val)
+    bus_space_write_4((_sc)->intc_bst, (_sc)->intc_bsh, (reg), (val))
 
 static int bcm_intc_probe(device_t);
 static int bcm_intc_attach(device_t);
