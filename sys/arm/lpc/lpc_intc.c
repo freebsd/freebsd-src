@@ -68,9 +68,9 @@ static void lpc_intc_unmask(device_t, int);
 static void lpc_intc_eoi(device_t, int);
 
 #define	intc_read_4(_sc, _reg)		\
-    bus_space_read_4((_sc)->li_bst, (_sc)->li_bsh, _reg)
+    bus_space_read_4((_sc)->li_bst, (_sc)->li_bsh, (_reg))
 #define	intc_write_4(_sc, _reg, _val)		\
-    bus_space_write_4((_sc)->li_bst, (_sc)->li_bsh, _reg, _val)
+    bus_space_write_4((_sc)->li_bst, (_sc)->li_bsh, (_reg), (_val))
 
 static int
 lpc_intc_probe(device_t dev)
