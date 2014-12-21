@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: blender,v 1.5 2009/09/19 16:28:08 christos Exp $
+# $File: blender,v 1.6 2014/08/30 08:34:17 christos Exp $
 # blender: file(1) magic for Blender 3D related files
 #
 # Native format rule v1.2. For questions use the developers list 
@@ -35,5 +35,5 @@
 >>>0x44		string	=GLOB		\b.
 >>>>0x60	beshort	x		\b%.4d
 
-# Scripts that run in the embeded Python interpreter
+# Scripts that run in the embedded Python interpreter
 0		string	#!BPY		Blender3D BPython script

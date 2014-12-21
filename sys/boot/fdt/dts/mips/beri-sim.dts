@@ -80,6 +80,11 @@
 */
 	};
 
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x4000000>;		// 64M at 0x0
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -91,11 +96,6 @@
 		 */
 		compatible = "simple-bus", "mips,mips4k";
 		ranges = <>;
-
-		memory {
-			device_type = "memory";
-			reg = <0x0 0x4000000>;		// 64M at 0x0
-		};
 
 		beripic0: beripic@7f804000 {
 			compatible = "sri-cambridge,beri-pic";

@@ -204,7 +204,7 @@ netmap_catch_tx(struct netmap_generic_adapter *gna, int enable)
  * of the transmission does not consume resources.
  *
  * On FreeBSD, and on multiqueue cards, we can force the queue using
- *      if ((m->m_flags & M_FLOWID) != 0)
+ *      if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
  *              i = m->m_pkthdr.flowid % adapter->num_queues;
  *      else
  *              i = curcpu % adapter->num_queues;
@@ -240,7 +240,7 @@ generic_xmit_frame(struct ifnet *ifp, struct mbuf *m,
 	m->m_len = m->m_pkthdr.len = len;
 	// inc refcount. All ours, we could skip the atomic
 	atomic_fetchadd_int(PNT_MBUF_REFCNT(m), 1);
-	m->m_flags |= M_FLOWID;
+	M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	m->m_pkthdr.flowid = ring_nr;
 	m->m_pkthdr.rcvif = ifp; /* used for tx notification */
 	ret = NA(ifp)->if_transmit(ifp, m);

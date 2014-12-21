@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009, Oleksandr Tymoshenko <gonzo@FreeBSD.org>
+ * Copyright (c) 2014, Rui Paulo <rpaulo@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include <sys/gpio.h>
+#include <libgpio.h>
 
 struct flag_desc {
 	const char *name;
@@ -100,7 +101,7 @@ str2cap(const char *str)
 /*
  * Our handmade function for converting string to number
  */
-static int 
+static int
 str2int(const char *s, int *ok)
 {
 	char *endptr;
@@ -132,44 +133,35 @@ print_caps(int caps)
 }
 
 static void
-dump_pins(int fd, int verbose)
+dump_pins(gpio_handle_t handle, int verbose)
 {
-	int i, maxpin;
-	struct gpio_pin pin;
-	struct gpio_req req;
+	int i, maxpin, pinv;
+	gpio_config_t *cfgs;
+	gpio_config_t *pin;
 
-	if (ioctl(fd, GPIOMAXPIN, &maxpin) < 0) {
-		perror("ioctl(GPIOMAXPIN)");
+	maxpin = gpio_pin_list(handle, &cfgs);
+	if (maxpin < 0) {
+		perror("gpio_pin_list");
 		exit(1);
 	}
 
 	for (i = 0; i <= maxpin; i++) {
-		pin.gp_pin = i;
-		if (ioctl(fd, GPIOGETCONFIG, &pin) < 0)
-			/* For some reason this pin is inaccessible */
-			continue;
+		pin = cfgs + i;
+		pinv = gpio_pin_get(handle, pin->g_pin);
+		printf("pin %02d:\t%d\t%s", pin->g_pin, pinv,
+		    pin->g_name);
 
-		req.gp_pin = i;
-		if (ioctl(fd, GPIOGET, &req) < 0) {
-			/* Now, that's wrong */
-			perror("ioctl(GPIOGET)");
-			exit(1);
-		}
-
-		printf("pin %02d:\t%d\t%s", pin.gp_pin, req.gp_value, 
-		    pin.gp_name);
-
-		print_caps(pin.gp_flags);
+		print_caps(pin->g_flags);
 
 		if (verbose) {
 			printf(", caps:");
-			print_caps(pin.gp_caps);
+			print_caps(pin->g_caps);
 		}
 		printf("\n");
 	}
 }
 
-static void 
+static void
 fail(const char *fmt, ...)
 {
 	va_list ap;
@@ -180,15 +172,14 @@ fail(const char *fmt, ...)
 	exit(1);
 }
 
-int 
+int
 main(int argc, char **argv)
 {
 	int i;
-	struct gpio_pin pin;
-	struct gpio_req req;
-	char defctlfile[] = _PATH_DEVGPIOC "0";
+	gpio_config_t pin;
+	gpio_handle_t handle;
 	char *ctlfile = NULL;
-	int pinn, pinv, fd, ch;
+	int pinn, pinv, ch;
 	int flags, flag, ok;
 	int config, toggle, verbose, list;
 
@@ -224,21 +215,18 @@ main(int argc, char **argv)
 	}
 	argv += optind;
 	argc -= optind;
-	for (i = 0; i < argc; i++)
-		printf("%d/%s\n", i, argv[i]);
-
 	if (ctlfile == NULL)
-		ctlfile = defctlfile;
-
-	fd = open(ctlfile, O_RDONLY);
-	if (fd < 0) {
-		perror("open");
+		handle = gpio_open(0);
+	else
+		handle = gpio_open_device(ctlfile);
+	if (handle == GPIO_INVALID_HANDLE) {
+		perror("gpio_open");
 		exit(1);
 	}
 
 	if (list) {
-		dump_pins(fd, verbose);
-		close(fd);
+		dump_pins(handle, verbose);
+		gpio_close(handle);
 		exit(0);
 	}
 
@@ -246,19 +234,16 @@ main(int argc, char **argv)
 		/*
 		 * -t pin assumes no additional arguments
 		 */
-		if(argc > 0) {
+		if (argc > 0) {
 			usage();
 			exit(1);
 		}
-
-		req.gp_pin = pinn;
-		if (ioctl(fd, GPIOTOGGLE, &req) < 0) {
-			perror("ioctl(GPIOTOGGLE)");
+		if (gpio_pin_toggle(handle, pinn) < 0) {
+			perror("gpio_pin_toggle");
 			exit(1);
 		}
-
-		close(fd);
-		exit (0);
+		gpio_close(handle);
+		exit(0);
 	}
 
 	if (config) {
@@ -269,14 +254,12 @@ main(int argc, char **argv)
 				fail("Invalid flag: %s\n", argv[i]);
 			flags |= flag;
 		}
-
-		pin.gp_pin = pinn;
-		pin.gp_flags = flags;
-		if (ioctl(fd, GPIOSETCONFIG, &pin) < 0) {
-			perror("ioctl(GPIOSETCONFIG)");
+		pin.g_pin = pinn;
+		pin.g_flags = flags;
+		if (gpio_pin_set_flags(handle, &pin) < 0) {
+			perror("gpio_pin_set_flags");
 			exit(1);
 		}
-
 		exit(0);
 	}
 
@@ -296,13 +279,13 @@ main(int argc, char **argv)
 	 * Read pin value
 	 */
 	if (argc == 1) {
-		req.gp_pin = pinn;
-		if (ioctl(fd, GPIOGET, &req) < 0) {
-			perror("ioctl(GPIOGET)");
+		pinv = gpio_pin_get(handle, pinn);
+		if (pinv < 0) {
+			perror("gpio_pin_get");
 			exit(1);
 		}
-		printf("%d\n", req.gp_value);
-		exit (0);
+		printf("%d\n", pinv);
+		exit(0);
 	}
 
 	/* Is it valid number (0 or 1) ? */
@@ -313,13 +296,11 @@ main(int argc, char **argv)
 	/*
 	 * Set pin value
 	 */
-	req.gp_pin = pinn;
-	req.gp_value = pinv;
-	if (ioctl(fd, GPIOSET, &req) < 0) {
-		perror("ioctl(GPIOSET)");
+	if (gpio_pin_set(handle, pinn, pinv) < 0) {
+		perror("gpio_pin_set");
 		exit(1);
 	}
 
-	close(fd);
+	gpio_close(handle);
 	exit(0);
 }

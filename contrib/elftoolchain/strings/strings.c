@@ -75,9 +75,9 @@ enum encoding_style {
 	      (encoding == ENCODING_8BIT && (c) > 127)))
 
 
-int encoding_size, entire_file, min_len, show_filename, show_loc;
-enum encoding_style encoding;
-enum radix_style radix;
+static int encoding_size, entire_file, min_len, show_filename, show_loc;
+static enum encoding_style encoding;
+static enum radix_style radix;
 
 static struct option strings_longopts[] = {
 	{ "all",		no_argument,		NULL,	'a'},

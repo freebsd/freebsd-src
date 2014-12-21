@@ -482,8 +482,6 @@ stf_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	}
 
 	M_PREPEND(m, sizeof(struct ip), M_NOWAIT);
-	if (m && m->m_len < sizeof(struct ip))
-		m = m_pullup(m, sizeof(struct ip));
 	if (m == NULL) {
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		return ENOBUFS;

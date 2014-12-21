@@ -3397,7 +3397,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 			if ((asoc->asoc.size_on_reasm_queue > 0) ||
 			    (asoc->asoc.control_pdapi) ||
 			    (asoc->asoc.size_on_all_streams > 0) ||
-			    (so && (so->so_rcv.sb_ccc > 0))) {
+			    (so && (so->so_rcv.sb_cc > 0))) {
 				/* Left with Data unread */
 				struct mbuf *op_err;
 
@@ -3625,7 +3625,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		TAILQ_REMOVE(&inp->read_queue, sq, next);
 		sctp_free_remote_addr(sq->whoFrom);
 		if (so)
-			so->so_rcv.sb_ccc -= sq->length;
+			so->so_rcv.sb_cc -= sq->length;
 		if (sq->data) {
 			sctp_m_freem(sq->data);
 			sq->data = NULL;
@@ -4049,9 +4049,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 	net->flowid = stcb->asoc.my_vtag ^
 	    ntohs(stcb->rport) ^
 	    ntohs(stcb->sctp_ep->sctp_lport);
-#ifdef INVARIANTS
-	net->flowidset = 1;
-#endif
+	net->flowtype = M_HASHTYPE_OPAQUE;
 	if (netp) {
 		*netp = net;
 	}
@@ -4853,7 +4851,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			inp->sctp_flags |= SCTP_PCB_FLAGS_WAS_CONNECTED;
 			if (so) {
 				SOCK_LOCK(so);
-				if (so->so_rcv.sb_ccc == 0) {
+				if (so->so_rcv.sb_cc == 0) {
 					so->so_state &= ~(SS_ISCONNECTING |
 					    SS_ISDISCONNECTING |
 					    SS_ISCONFIRMING |
@@ -6464,6 +6462,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				switch (pr_supported->chunk_types[i]) {
 				case SCTP_ASCONF:
 					peer_supports_asconf = 1;
+					break;
 				case SCTP_ASCONF_ACK:
 					peer_supports_asconf_ack = 1;
 					break;

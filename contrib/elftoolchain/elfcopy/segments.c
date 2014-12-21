@@ -28,6 +28,7 @@
 #include <sys/queue.h>
 #include <err.h>
 #include <gelf.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -438,7 +439,7 @@ copy_phdr(struct elfcopy *ecp)
 		seg->fsz = seg->msz = 0;
 		for (i = 0; i < seg->nsec; i++) {
 			s = seg->v_sec[i];
-			seg->msz = s->off + s->sz - seg->off;
+			seg->msz = s->vma + s->sz - seg->addr;
 			if (s->type != SHT_NOBITS)
 				seg->fsz = seg->msz;
 		}

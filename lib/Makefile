@@ -45,6 +45,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libdpv \
 	libdwarf \
 	libedit \
+	${_libelftc} \
 	${_libevent} \
 	libexecinfo \
 	libexpat \
@@ -188,6 +189,10 @@ _clang=		clang
 
 .if ${MK_CUSE} != "no"
 _cuse=		libcuse
+.endif
+
+.if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
+_libelftc=	libelftc
 .endif
 
 .if ${MK_GPIB} != "no"

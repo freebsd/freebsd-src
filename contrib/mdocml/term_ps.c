@@ -1,4 +1,4 @@
-/*	$Id: term_ps.c,v 1.62 2014/08/01 19:25:52 schwarze Exp $ */
+/*	$Id: term_ps.c,v 1.69 2014/11/20 13:56:20 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,9 +15,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <sys/types.h>
 
@@ -27,7 +25,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 
 #include "mandoc.h"
@@ -62,13 +59,15 @@ struct	termp_ps {
 #define	PS_INLINE	 (1 << 0)	/* we're in a word */
 #define	PS_MARGINS	 (1 << 1)	/* we're in the margins */
 #define	PS_NEWPAGE	 (1 << 2)	/* new page, no words yet */
+#define	PS_BACKSP	 (1 << 3)	/* last character was backspace */
 	size_t		  pscol;	/* visible column (AFM units) */
 	size_t		  psrow;	/* visible row (AFM units) */
 	char		 *psmarg;	/* margin buf */
 	size_t		  psmargsz;	/* margin buf size */
 	size_t		  psmargcur;	/* cur index in margin buf */
-	char		  last;		/* character buffer */
+	char		  last;		/* last non-backspace seen */
 	enum termfont	  lastf;	/* last set font */
+	enum termfont	  nextf;	/* building next font here */
 	size_t		  scale;	/* font scaling factor */
 	size_t		  pages;	/* number of pages shown */
 	size_t		  lineheight;	/* line height (AFM units) */
@@ -107,7 +106,7 @@ static	void		  ps_printf(struct termp *, const char *, ...);
 static	void		  ps_putchar(struct termp *, char);
 static	void		  ps_setfont(struct termp *, enum termfont);
 static	void		  ps_setwidth(struct termp *, int, size_t);
-static	struct termp	 *pspdf_alloc(char *);
+static	struct termp	 *pspdf_alloc(const struct mchars *, char *);
 static	void		  pdf_obj(struct termp *, size_t);
 
 /*
@@ -408,32 +407,129 @@ static	const struct font fonts[TERMFONT__MAX] = {
 		{  400 },
 		{  541 },
 	} },
+	{ "Times-BoldItalic", {
+		{  250 },
+		{  389 },
+		{  555 },
+		{  500 },
+		{  500 },
+		{  833 },
+		{  778 },
+		{  333 },
+		{  333 },
+		{  333 },
+		{  500 },
+		{  570 },
+		{  250 },
+		{  333 },
+		{  250 },
+		{  278 },
+		{  500 },
+		{  500 },
+		{  500 },
+		{  500 },
+		{  500 },
+		{  500 },
+		{  500 },
+		{  500 },
+		{  500 },
+		{  500 },
+		{  333 },
+		{  333 },
+		{  570 },
+		{  570 },
+		{  570 },
+		{  500 },
+		{  832 },
+		{  667 },
+		{  667 },
+		{  667 },
+		{  722 },
+		{  667 },
+		{  667 },
+		{  722 },
+		{  778 },
+		{  389 },
+		{  500 },
+		{  667 },
+		{  611 },
+		{  889 },
+		{  722 },
+		{  722 },
+		{  611 },
+		{  722 },
+		{  667 },
+		{  556 },
+		{  611 },
+		{  722 },
+		{  667 },
+		{  889 },
+		{  667 },
+		{  611 },
+		{  611 },
+		{  333 },
+		{  278 },
+		{  333 },
+		{  570 },
+		{  500 },
+		{  333 },
+		{  500 },
+		{  500 },
+		{  444 },
+		{  500 },
+		{  444 },
+		{  333 },
+		{  500 },
+		{  556 },
+		{  278 },
+		{  278 },
+		{  500 },
+		{  278 },
+		{  778 },
+		{  556 },
+		{  500 },
+		{  500 },
+		{  500 },
+		{  389 },
+		{  389 },
+		{  278 },
+		{  556 },
+		{  444 },
+		{  667 },
+		{  500 },
+		{  444 },
+		{  389 },
+		{  348 },
+		{  220 },
+		{  348 },
+		{  570 },
+	} },
 };
 
 void *
-pdf_alloc(char *outopts)
+pdf_alloc(const struct mchars *mchars, char *outopts)
 {
 	struct termp	*p;
 
-	if (NULL != (p = pspdf_alloc(outopts)))
+	if (NULL != (p = pspdf_alloc(mchars, outopts)))
 		p->type = TERMTYPE_PDF;
 
 	return(p);
 }
 
 void *
-ps_alloc(char *outopts)
+ps_alloc(const struct mchars *mchars, char *outopts)
 {
 	struct termp	*p;
 
-	if (NULL != (p = pspdf_alloc(outopts)))
+	if (NULL != (p = pspdf_alloc(mchars, outopts)))
 		p->type = TERMTYPE_PS;
 
 	return(p);
 }
 
 static struct termp *
-pspdf_alloc(char *outopts)
+pspdf_alloc(const struct mchars *mchars, char *outopts)
 {
 	struct termp	*p;
 	unsigned int	 pagex, pagey;
@@ -443,6 +539,7 @@ pspdf_alloc(char *outopts)
 	char		*v;
 
 	p = mandoc_calloc(1, sizeof(struct termp));
+	p->symtab = mchars;
 	p->enc = TERMENC_ASCII;
 	p->ps = mandoc_calloc(1, sizeof(struct termp_ps));
 
@@ -538,12 +635,14 @@ ps_setwidth(struct termp *p, int iop, size_t width)
 	size_t	 lastwidth;
 
 	lastwidth = p->ps->width;
-	if (0 < iop)
+	if (iop > 0)
 		p->ps->width += width;
-	else if (0 > iop)
+	else if (iop == 0)
+		p->ps->width = width ? width : p->ps->lastwidth;
+	else if (p->ps->width > width)
 		p->ps->width -= width;
 	else
-		p->ps->width = width ? width : p->ps->lastwidth;
+		p->ps->width = 0;
 	p->ps->lastwidth = lastwidth;
 }
 
@@ -756,7 +855,6 @@ ps_end(struct termp *p)
 static void
 ps_begin(struct termp *p)
 {
-	time_t		 t;
 	int		 i;
 
 	/*
@@ -797,11 +895,8 @@ ps_begin(struct termp *p)
 	 * stuff gets printed to the screen, so make sure we're sane.
 	 */
 
-	t = time(NULL);
-
 	if (TERMTYPE_PS == p->type) {
 		ps_printf(p, "%%!PS-Adobe-3.0\n");
-		ps_printf(p, "%%%%CreationDate: %s", ctime(&t));
 		ps_printf(p, "%%%%DocumentData: Clean7Bit\n");
 		ps_printf(p, "%%%%Orientation: Portrait\n");
 		ps_printf(p, "%%%%Pages: (atend)\n");
@@ -955,11 +1050,13 @@ ps_fclose(struct termp *p)
 	 * Following this, close out any scope that's open.
 	 */
 
-	if ('\0' != p->ps->last) {
-		if (p->ps->lastf != TERMFONT_NONE) {
+	if (p->ps->last != '\0') {
+		assert( ! (p->ps->flags & PS_BACKSP));
+		if (p->ps->nextf != p->ps->lastf) {
 			ps_pclose(p);
-			ps_setfont(p, TERMFONT_NONE);
+			ps_setfont(p, p->ps->nextf);
 		}
+		p->ps->nextf = TERMFONT_NONE;
 		ps_pletter(p, p->ps->last);
 		p->ps->last = '\0';
 	}
@@ -973,50 +1070,99 @@ ps_fclose(struct termp *p)
 static void
 ps_letter(struct termp *p, int arg)
 {
-	char		cc, c;
+	size_t		savecol;
+	char		c;
 
 	c = arg >= 128 || arg <= 0 ? '?' : arg;
 
 	/*
-	 * State machine dictates whether to buffer the last character
-	 * or not.  Basically, encoded words are detected by checking if
-	 * we're an "8" and switching on the buffer.  Then we put "8" in
-	 * our buffer, and on the next charater, flush both character
-	 * and buffer.  Thus, "regular" words are detected by having a
-	 * regular character and a regular buffer character.
+	 * When receiving a backspace, merely flag it.
+	 * We don't know yet whether it is
+	 * a font instruction or an overstrike.
 	 */
 
-	if ('\0' == p->ps->last) {
-		assert(8 != c);
-		p->ps->last = c;
+	if (c == '\b') {
+		assert(p->ps->last != '\0');
+		assert( ! (p->ps->flags & PS_BACKSP));
+		p->ps->flags |= PS_BACKSP;
 		return;
-	} else if (8 == p->ps->last) {
-		assert(8 != c);
-		p->ps->last = '\0';
-	} else if (8 == c) {
-		assert(8 != p->ps->last);
-		if ('_' == p->ps->last) {
-			if (p->ps->lastf != TERMFONT_UNDER) {
-				ps_pclose(p);
-				ps_setfont(p, TERMFONT_UNDER);
-			}
-		} else if (p->ps->lastf != TERMFONT_BOLD) {
-			ps_pclose(p);
-			ps_setfont(p, TERMFONT_BOLD);
-		}
-		p->ps->last = c;
-		return;
-	} else {
-		if (p->ps->lastf != TERMFONT_NONE) {
-			ps_pclose(p);
-			ps_setfont(p, TERMFONT_NONE);
-		}
-		cc = p->ps->last;
-		p->ps->last = c;
-		c = cc;
 	}
 
-	ps_pletter(p, c);
+	/*
+	 * Decode font instructions.
+	 */
+
+	if (p->ps->flags & PS_BACKSP) {
+		if (p->ps->last == '_') {
+			switch (p->ps->nextf) {
+			case TERMFONT_BI:
+				break;
+			case TERMFONT_BOLD:
+				p->ps->nextf = TERMFONT_BI;
+				break;
+			default:
+				p->ps->nextf = TERMFONT_UNDER;
+			}
+			p->ps->last = c;
+			p->ps->flags &= ~PS_BACKSP;
+			return;
+		}
+		if (p->ps->last == c) {
+			switch (p->ps->nextf) {
+			case TERMFONT_BI:
+				break;
+			case TERMFONT_UNDER:
+				p->ps->nextf = TERMFONT_BI;
+				break;
+			default:
+				p->ps->nextf = TERMFONT_BOLD;
+			}
+			p->ps->flags &= ~PS_BACKSP;
+			return;
+		}
+
+		/*
+		 * This is not a font instruction, but rather
+		 * the next character.  Prepare for overstrike.
+		 */
+
+		savecol = p->ps->pscol;
+	} else
+		savecol = SIZE_MAX;
+
+	/*
+	 * We found the next character, so the font instructions
+	 * for the previous one are complete.
+	 * Use them and print it.
+	 */
+
+	if (p->ps->last != '\0') {
+		if (p->ps->nextf != p->ps->lastf) {
+			ps_pclose(p);
+			ps_setfont(p, p->ps->nextf);
+		}
+		p->ps->nextf = TERMFONT_NONE;
+		ps_pletter(p, p->ps->last);
+	}
+
+	/*
+	 * Do not print the current character yet because font
+	 * instructions might follow; only remember it.
+	 * For the first character, nothing else is done.
+	 * The final character will get printed from ps_fclose().
+	 */
+
+	p->ps->last = c;
+
+	/*
+	 * For an overstrike, back up to the previous position.
+	 */
+
+	if (savecol != SIZE_MAX) {
+		ps_pclose(p);
+		p->ps->pscol = savecol;
+		p->ps->flags &= ~PS_BACKSP;
+	}
 }
 
 static void
@@ -1117,30 +1263,40 @@ ps_hspan(const struct termp *p, const struct roffsu *su)
 	 * All of these measurements are derived by converting from the
 	 * native measurement to AFM units.
 	 */
-
 	switch (su->unit) {
+	case SCALE_BU:
+		/*
+		 * Traditionally, the default unit is fixed to the
+		 * output media.  So this would refer to the point.  In
+		 * mandoc(1), however, we stick to the default terminal
+		 * scaling unit so that output is the same regardless
+		 * the media.
+		 */
+		r = PNT2AFM(p, su->scale * 72.0 / 240.0);
+		break;
 	case SCALE_CM:
-		r = PNT2AFM(p, su->scale * 28.34);
-		break;
-	case SCALE_IN:
-		r = PNT2AFM(p, su->scale * 72.0);
-		break;
-	case SCALE_PC:
-		r = PNT2AFM(p, su->scale * 12.0);
-		break;
-	case SCALE_PT:
-		r = PNT2AFM(p, su->scale * 100.0);
+		r = PNT2AFM(p, su->scale * 72.0 / 2.54);
 		break;
 	case SCALE_EM:
 		r = su->scale *
 		    fonts[(int)TERMFONT_NONE].gly[109 - 32].wx;
 		break;
-	case SCALE_MM:
-		r = PNT2AFM(p, su->scale * 2.834);
-		break;
 	case SCALE_EN:
 		r = su->scale *
 		    fonts[(int)TERMFONT_NONE].gly[110 - 32].wx;
+		break;
+	case SCALE_IN:
+		r = PNT2AFM(p, su->scale * 72.0);
+		break;
+	case SCALE_MM:
+		r = su->scale *
+		    fonts[(int)TERMFONT_NONE].gly[109 - 32].wx / 100.0;
+		break;
+	case SCALE_PC:
+		r = PNT2AFM(p, su->scale * 12.0);
+		break;
+	case SCALE_PT:
+		r = PNT2AFM(p, su->scale * 1.0);
 		break;
 	case SCALE_VS:
 		r = su->scale * p->ps->lineheight;

@@ -1548,7 +1548,7 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 	/*
 	 * Insert name into cache (as non-existent) if appropriate.
 	 */
-	if (error == ENOENT && (cnp->cn_flags & MAKEENTRY) && nameiop != CREATE)
+	if (error == ENOENT && (cnp->cn_flags & MAKEENTRY) != 0)
 		cache_enter(dvp, *vpp, cnp);
 	/*
 	 * Insert name into cache if appropriate.
@@ -5969,6 +5969,7 @@ top:
 		    &zp->z_pflags, 8);
 		zfs_tstamp_update_setup(zp, CONTENT_MODIFIED, mtime, ctime,
 		    B_TRUE);
+		(void)sa_bulk_update(zp->z_sa_hdl, bulk, count, tx);
 		zfs_log_write(zfsvfs->z_log, tx, TX_WRITE, zp, off, len, 0);
 
 		zfs_vmobject_wlock(object);

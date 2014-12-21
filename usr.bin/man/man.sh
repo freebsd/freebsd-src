@@ -279,7 +279,7 @@ man_check_for_so() {
 # Usage: man_display_page
 # Display either the manpage or catpage depending on the use_cat variable
 man_display_page() {
-	local IFS pipeline preconv_enc testline
+	local IFS pipeline testline
 
 	# We are called with IFS set to colon. This causes really weird
 	# things to happen for the variables that have spaces in them.
@@ -311,21 +311,8 @@ man_display_page() {
 		return
 	fi
 
-	case "${manpage}" in
-	*.${man_charset}/*)
-		case "$man_charset" in
-		ISO8859-1) preconv_enc="latin-1" ;;
-		ISO8859-15) preconv_enc="latin-1" ;;
-		UTF-8) preconv_enc="utf-8" ;;
-		esac
-		;;
-	esac
-
-	if [ -n "$preconv_enc" ]; then
-		pipeline="preconv -e $preconv_enc |"
-	fi
-	testline="$pipeline mandoc -Tlint -Werror 2>/dev/null"
-	pipeline="$pipeline mandoc -Tlocale | $MANPAGER"
+	testline="mandoc -Tlint -Werror 2>/dev/null"
+	pipeline="mandoc -Tlocale | $MANPAGER"
 
 	if ! eval "$cattool $manpage | $testline" ;then
 		if which -s groff; then

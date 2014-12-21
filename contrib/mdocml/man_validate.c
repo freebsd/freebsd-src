@@ -1,4 +1,4 @@
-/*	$Id: man_validate.c,v 1.105 2014/08/06 15:09:05 schwarze Exp $ */
+/*	$OpenBSD$ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010, 2012, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,9 +15,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <sys/types.h>
 
@@ -38,26 +36,26 @@
 
 #define	CHKARGS	  struct man *man, struct man_node *n
 
-typedef	int	(*v_check)(CHKARGS);
+typedef	void	(*v_check)(CHKARGS);
 
-static	int	  check_eq0(CHKARGS);
-static	int	  check_eq2(CHKARGS);
-static	int	  check_le1(CHKARGS);
-static	int	  check_le5(CHKARGS);
-static	int	  check_par(CHKARGS);
-static	int	  check_part(CHKARGS);
-static	int	  check_root(CHKARGS);
-static	int	  check_text(CHKARGS);
+static	void	  check_eq0(CHKARGS);
+static	void	  check_eq2(CHKARGS);
+static	void	  check_le1(CHKARGS);
+static	void	  check_le5(CHKARGS);
+static	void	  check_par(CHKARGS);
+static	void	  check_part(CHKARGS);
+static	void	  check_root(CHKARGS);
+static	void	  check_text(CHKARGS);
 
-static	int	  post_AT(CHKARGS);
-static	int	  post_IP(CHKARGS);
-static	int	  post_vs(CHKARGS);
-static	int	  post_fi(CHKARGS);
-static	int	  post_ft(CHKARGS);
-static	int	  post_nf(CHKARGS);
-static	int	  post_TH(CHKARGS);
-static	int	  post_UC(CHKARGS);
-static	int	  post_UR(CHKARGS);
+static	void	  post_AT(CHKARGS);
+static	void	  post_IP(CHKARGS);
+static	void	  post_vs(CHKARGS);
+static	void	  post_fi(CHKARGS);
+static	void	  post_ft(CHKARGS);
+static	void	  post_nf(CHKARGS);
+static	void	  post_TH(CHKARGS);
+static	void	  post_UC(CHKARGS);
+static	void	  post_UR(CHKARGS);
 
 static	v_check man_valids[MAN_MAX] = {
 	post_vs,    /* br */
@@ -102,7 +100,7 @@ static	v_check man_valids[MAN_MAX] = {
 };
 
 
-int
+void
 man_valid_post(struct man *man)
 {
 	struct man_node	*n;
@@ -110,25 +108,29 @@ man_valid_post(struct man *man)
 
 	n = man->last;
 	if (n->flags & MAN_VALID)
-		return(1);
+		return;
 	n->flags |= MAN_VALID;
 
 	switch (n->type) {
 	case MAN_TEXT:
-		return(check_text(man, n));
+		check_text(man, n);
+		break;
 	case MAN_ROOT:
-		return(check_root(man, n));
+		check_root(man, n);
+		break;
 	case MAN_EQN:
 		/* FALLTHROUGH */
 	case MAN_TBL:
-		return(1);
+		break;
 	default:
 		cp = man_valids + n->tok;
-		return(*cp ? (*cp)(man, n) : 1);
+		if (*cp)
+			(*cp)(man, n);
+		break;
 	}
 }
 
-static int
+static void
 check_root(CHKARGS)
 {
 
@@ -154,35 +156,31 @@ check_root(CHKARGS)
 		man->meta.date = man->quick ? mandoc_strdup("") :
 		    mandoc_normdate(man->parse, NULL, n->line, n->pos);
 	}
-
-	return(1);
 }
 
-static int
+static void
 check_text(CHKARGS)
 {
 	char		*cp, *p;
 
 	if (MAN_LITERAL & man->flags)
-		return(1);
+		return;
 
 	cp = n->string;
 	for (p = cp; NULL != (p = strchr(p, '\t')); p++)
 		mandoc_msg(MANDOCERR_FI_TAB, man->parse,
 		    n->line, n->pos + (p - cp), NULL);
-	return(1);
 }
 
 #define	INEQ_DEFINE(x, ineq, name) \
-static int \
+static void \
 check_##name(CHKARGS) \
 { \
 	if (n->nchild ineq (x)) \
-		return(1); \
+		return; \
 	mandoc_vmsg(MANDOCERR_ARGCOUNT, man->parse, n->line, n->pos, \
 	    "line arguments %s %d (have %d)", \
 	    #ineq, (x), n->nchild); \
-	return(1); \
 }
 
 INEQ_DEFINE(0, ==, eq0)
@@ -190,25 +188,24 @@ INEQ_DEFINE(2, ==, eq2)
 INEQ_DEFINE(1, <=, le1)
 INEQ_DEFINE(5, <=, le5)
 
-static int
+static void
 post_UR(CHKARGS)
 {
 
 	if (MAN_HEAD == n->type && 1 != n->nchild)
 		mandoc_vmsg(MANDOCERR_ARGCOUNT, man->parse, n->line,
 		    n->pos, "line arguments eq 1 (have %d)", n->nchild);
-
-	return(check_part(man, n));
+	check_part(man, n);
 }
 
-static int
+static void
 post_ft(CHKARGS)
 {
 	char	*cp;
 	int	 ok;
 
 	if (0 == n->nchild)
-		return(1);
+		return;
 
 	ok = 0;
 	cp = n->child->string;
@@ -250,22 +247,18 @@ post_ft(CHKARGS)
 	if (1 < n->nchild)
 		mandoc_vmsg(MANDOCERR_ARGCOUNT, man->parse, n->line,
 		    n->pos, "want one child (have %d)", n->nchild);
-
-	return(1);
 }
 
-static int
+static void
 check_part(CHKARGS)
 {
 
 	if (MAN_BODY == n->type && 0 == n->nchild)
 		mandoc_msg(MANDOCERR_ARGCWARN, man->parse, n->line,
 		    n->pos, "want children (have none)");
-
-	return(1);
 }
 
-static int
+static void
 check_par(CHKARGS)
 {
 
@@ -291,11 +284,9 @@ check_par(CHKARGS)
 	default:
 		break;
 	}
-
-	return(1);
 }
 
-static int
+static void
 post_IP(CHKARGS)
 {
 
@@ -313,10 +304,9 @@ post_IP(CHKARGS)
 	default:
 		break;
 	}
-	return(1);
 }
 
-static int
+static void
 post_TH(CHKARGS)
 {
 	struct man_node	*nb;
@@ -404,10 +394,9 @@ post_TH(CHKARGS)
 	 * meta-data.
 	 */
 	man_node_delete(man, man->last);
-	return(1);
 }
 
-static int
+static void
 post_nf(CHKARGS)
 {
 
@@ -418,10 +407,9 @@ post_nf(CHKARGS)
 		    n->line, n->pos, "nf");
 
 	man->flags |= MAN_LITERAL;
-	return(1);
 }
 
-static int
+static void
 post_fi(CHKARGS)
 {
 
@@ -432,10 +420,9 @@ post_fi(CHKARGS)
 		    n->line, n->pos, "fi");
 
 	man->flags &= ~MAN_LITERAL;
-	return(1);
 }
 
-static int
+static void
 post_UC(CHKARGS)
 {
 	static const char * const bsd_versions[] = {
@@ -470,10 +457,9 @@ post_UC(CHKARGS)
 
 	free(man->meta.source);
 	man->meta.source = mandoc_strdup(p);
-	return(1);
 }
 
-static int
+static void
 post_AT(CHKARGS)
 {
 	static const char * const unix_versions[] = {
@@ -508,10 +494,9 @@ post_AT(CHKARGS)
 
 	free(man->meta.source);
 	man->meta.source = mandoc_strdup(p);
-	return(1);
 }
 
-static int
+static void
 post_vs(CHKARGS)
 {
 
@@ -521,7 +506,7 @@ post_vs(CHKARGS)
 		check_le1(man, n);
 
 	if (NULL != n->prev)
-		return(1);
+		return;
 
 	switch (n->parent->tok) {
 	case MAN_SH:
@@ -541,6 +526,4 @@ post_vs(CHKARGS)
 	default:
 		break;
 	}
-
-	return(1);
 }

@@ -188,7 +188,6 @@ static char *igb_strings[] = {
 /*********************************************************************
  *  Function prototypes
  *********************************************************************/
-static int	igb_per_unit_num_queues(SYSCTL_HANDLER_ARGS);
 static int	igb_probe(device_t);
 static int	igb_attach(device_t);
 static int	igb_detach(device_t);
@@ -493,11 +492,6 @@ igb_attach(device_t dev)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "nvm", CTLTYPE_INT|CTLFLAG_RW, adapter, 0,
 	    igb_sysctl_nvm_info, "I", "NVM Information");
-
-        SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
-                        SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-			OID_AUTO, "num_queues", CTLTYPE_INT | CTLFLAG_RD,
-			adapter, 0, igb_per_unit_num_queues, "I", "Number of Queues");
 
 	igb_set_sysctl_value(adapter, "enable_aim",
 	    "Interrupt Moderation", &adapter->enable_aim,
@@ -990,7 +984,7 @@ igb_mq_start(struct ifnet *ifp, struct mbuf *m)
 	 * If everything is setup correctly, it should be the
 	 * same bucket that the current CPU we're on is.
 	 */
-	if ((m->m_flags & M_FLOWID) != 0) {
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
 #ifdef	RSS
 		if (rss_hash2bucket(m->m_pkthdr.flowid,
 		    M_HASHTYPE_GET(m), &bucket_id) == 0) {
@@ -2837,7 +2831,6 @@ igb_setup_msix(struct adapter *adapter)
 {
 	device_t	dev = adapter->dev;
 	int		bar, want, queues, msgs, maxqueues;
-	int		n_queues;
 
 	/* tuneable override */
 	if (igb_enable_msix == 0)
@@ -2865,18 +2858,11 @@ igb_setup_msix(struct adapter *adapter)
 		goto msi;
 	}
 
-	n_queues = 0;
-	/* try more specific tunable, then global, then finally default to boot time tunable if set. */
-	if (device_getenv_int(dev, "num_queues", &n_queues) != 0) {
-		device_printf(dev, "using specific tunable num_queues=%d", n_queues);
-	} else if (TUNABLE_INT_FETCH("hw.igb.num_queues", &n_queues) != 0) {
-		if (igb_num_queues != n_queues) {
-			device_printf(dev, "using global tunable hw.igb.num_queues=%d", n_queues);
-			igb_num_queues = n_queues;
-		}
-	} else {
-		n_queues = igb_num_queues;
-	}
+	queues = (mp_ncpus > (msgs-1)) ? (msgs-1) : mp_ncpus;
+
+	/* Override via tuneable */
+	if (igb_num_queues != 0)
+		queues = igb_num_queues;
 
 #ifdef	RSS
 	/* If we're doing RSS, clamp at the number of RSS buckets */
@@ -2884,12 +2870,6 @@ igb_setup_msix(struct adapter *adapter)
 		queues = rss_getnumbuckets();
 #endif
 
-	if (n_queues != 0) {
-		queues = n_queues;
-	} else {
-		/* Figure out a reasonable auto config value */
-		queues = (mp_ncpus > (msgs-1)) ? (msgs-1) : mp_ncpus;
-	}
 
 	/* Sanity check based on HW */
 	switch (adapter->hw.mac.type) {
@@ -2912,17 +2892,10 @@ igb_setup_msix(struct adapter *adapter)
 			maxqueues = 1;
 			break;
 	}
-	if (queues > maxqueues) {
-		device_printf(adapter->dev, "requested %d queues, but max for this adapter is %d\n",
-		    queues, maxqueues);
+
+	/* Final clamp on the actual hardware capability */
+	if (queues > maxqueues)
 		queues = maxqueues;
-	} else if (queues == 0) {
-		queues = 1;
-	} else if (queues < 0) {
-		device_printf(adapter->dev, "requested %d queues, but min for this adapter is %d\n",
-		    queues, 1);
-		queues = 1;
-	}
 
 	/*
 	** One vector (RX/TX pair) per queue
@@ -5166,7 +5139,6 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 			/* XXX set flowtype once this works right */
 			rxr->fmp->m_pkthdr.flowid = 
 			    le32toh(cur->wb.lower.hi_dword.rss);
-			rxr->fmp->m_flags |= M_FLOWID;
 			switch (pkt_info & E1000_RXDADV_RSSTYPE_MASK) {
 			case E1000_RXDADV_RSSTYPE_IPV4_TCP:
 				M_HASHTYPE_SET(rxr->fmp, M_HASHTYPE_RSS_TCP_IPV4);
@@ -5196,11 +5168,11 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 			
 			default:
 				/* XXX fallthrough */
-				M_HASHTYPE_SET(rxr->fmp, M_HASHTYPE_NONE);
+				M_HASHTYPE_SET(rxr->fmp, M_HASHTYPE_OPAQUE);
 			}
 #elif !defined(IGB_LEGACY_TX)
 			rxr->fmp->m_pkthdr.flowid = que->msix;
-			rxr->fmp->m_flags |= M_FLOWID;
+			M_HASHTYPE_SET(rxr->fmp, M_HASHTYPE_OPAQUE);
 #endif
 			sendmp = rxr->fmp;
 			/* Make sure to set M_PKTHDR. */
@@ -6408,14 +6380,3 @@ igb_sysctl_eee(SYSCTL_HANDLER_ARGS)
 	IGB_CORE_UNLOCK(adapter);
 	return (0);
 }
-
-static int
-igb_per_unit_num_queues(SYSCTL_HANDLER_ARGS)
-{
-	struct adapter          *adapter;
-
-	adapter = (struct adapter *) arg1;
-
-	return sysctl_handle_int(oidp, &adapter->num_queues, 0, req);
-}
-

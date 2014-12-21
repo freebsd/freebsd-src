@@ -884,24 +884,20 @@ findpcb:
 		goto dropwithreset;
 	}
 	INP_WLOCK_ASSERT(inp);
-	if (!(inp->inp_flags & INP_HW_FLOWID)
-	    && (m->m_flags & M_FLOWID)
-	    && ((inp->inp_socket == NULL)
-		|| !(inp->inp_socket->so_options & SO_ACCEPTCONN))) {
-		inp->inp_flags |= INP_HW_FLOWID;
-		inp->inp_flags &= ~INP_SW_FLOWID;
+	if ((inp->inp_flowtype == M_HASHTYPE_NONE) &&
+	    (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) &&
+	    ((inp->inp_socket == NULL) ||
+	    (inp->inp_socket->so_options & SO_ACCEPTCONN) == 0)) {
 		inp->inp_flowid = m->m_pkthdr.flowid;
 		inp->inp_flowtype = M_HASHTYPE_GET(m);
 	}
 #ifdef IPSEC
 #ifdef INET6
 	if (isipv6 && ipsec6_in_reject(m, inp)) {
-		IPSEC6STAT_INC(ips_in_polvio);
 		goto dropunlock;
 	} else
 #endif /* INET6 */
 	if (ipsec4_in_reject(m, inp) != 0) {
-		IPSECSTAT_INC(ips_in_polvio);
 		goto dropunlock;
 	}
 #endif /* IPSEC */

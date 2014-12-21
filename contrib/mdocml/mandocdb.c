@@ -1,4 +1,4 @@
-/*	$Id: mandocdb.c,v 1.155 2014/08/06 15:09:05 schwarze Exp $ */
+/*	$Id: mandocdb.c,v 1.171 2014/11/27 01:58:21 schwarze Exp $ */
 /*
  * Copyright (c) 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2012, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,10 +15,9 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
+#include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
@@ -26,7 +25,11 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#if HAVE_FTS
 #include <fts.h>
+#else
+#include "compat_fts.h"
+#endif
 #include <getopt.h>
 #include <limits.h>
 #include <stddef.h>
@@ -36,7 +39,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef HAVE_OHASH
+#if HAVE_OHASH
 #include <ohash.h>
 #else
 #include "compat_ohash.h"
@@ -80,12 +83,6 @@ enum	op {
 	OP_TEST /* change no databases, report potential problems */
 };
 
-enum	form {
-	FORM_NONE,  /* format is unknown */
-	FORM_SRC,   /* format is -man or -mdoc */
-	FORM_CAT    /* format is cat */
-};
-
 struct	str {
 	char		*rendered; /* key in UTF-8 or ASCII form */
 	const struct mpage *mpage; /* if set, the owning parse */
@@ -101,24 +98,24 @@ struct	inodev {
 struct	mpage {
 	struct inodev	 inodev;  /* used for hashing routine */
 	int64_t		 pageid;  /* pageid in mpages SQL table */
-	enum form	 form;    /* format from file content */
 	char		*sec;     /* section from file content */
 	char		*arch;    /* architecture from file content */
 	char		*title;   /* title from file content */
 	char		*desc;    /* description from file content */
 	struct mlink	*mlinks;  /* singly linked list */
+	int		 form;    /* format from file content */
 };
 
 struct	mlink {
 	char		 file[PATH_MAX]; /* filename rel. to manpath */
-	enum form	 dform;   /* format from directory */
-	enum form	 fform;   /* format from file name suffix */
 	char		*dsec;    /* section from directory */
 	char		*arch;    /* architecture from directory */
 	char		*name;    /* name from file name (not empty) */
 	char		*fsec;    /* section from file name suffix */
 	struct mlink	*next;    /* singly linked list */
 	struct mpage	*mpage;   /* parent */
+	int		 dform;   /* format from directory */
+	int		 fform;   /* format from file name suffix */
 	int		 gzip;	  /* filename has a .gz suffix */
 };
 
@@ -141,6 +138,7 @@ struct	mdoc_handler {
 static	void	 dbclose(int);
 static	void	 dbadd(struct mpage *, struct mchars *);
 static	void	 dbadd_mlink(const struct mlink *mlink);
+static	void	 dbadd_mlink_name(const struct mlink *mlink);
 static	int	 dbopen(int);
 static	void	 dbprune(void);
 static	void	 filescan(const char *);
@@ -172,7 +170,7 @@ static	void	 putmdockey(const struct mpage *,
 			const struct mdoc_node *, uint64_t);
 static	void	 render_key(struct mchars *, struct str *);
 static	void	 say(const char *, const char *, ...);
-static	int	 set_basedir(const char *);
+static	int	 set_basedir(const char *, int);
 static	int	 treescan(void);
 static	size_t	 utf8(unsigned int, char [7]);
 
@@ -318,6 +316,7 @@ static	const struct mdoc_handler mdocs[MDOC_MAX] = {
 	{ NULL, 0 },  /* sp */
 	{ NULL, 0 },  /* %U */
 	{ NULL, 0 },  /* Ta */
+	{ NULL, 0 },  /* ll */
 };
 
 
@@ -427,9 +426,9 @@ main(int argc, char *argv[])
 	}
 
 	exitcode = (int)MANDOCLEVEL_OK;
-	mp = mparse_alloc(mparse_options, MANDOCLEVEL_FATAL, NULL, NULL);
 	mc = mchars_alloc();
-
+	mp = mparse_alloc(mparse_options, MANDOCLEVEL_FATAL, NULL,
+	    mc, NULL);
 	ohash_init(&mpages, 6, &mpages_info);
 	ohash_init(&mlinks, 6, &mlinks_info);
 
@@ -439,7 +438,7 @@ main(int argc, char *argv[])
 		 * Most of these deal with a specific directory.
 		 * Jump into that directory first.
 		 */
-		if (OP_TEST != op && 0 == set_basedir(path_arg))
+		if (OP_TEST != op && 0 == set_basedir(path_arg, 1))
 			goto out;
 
 		if (dbopen(1)) {
@@ -505,12 +504,12 @@ main(int argc, char *argv[])
 				ohash_init(&mlinks, 6, &mlinks_info);
 			}
 
-			if (0 == set_basedir(dirs.paths[j]))
-				goto out;
+			if (0 == set_basedir(dirs.paths[j], argc > 0))
+				continue;
 			if (0 == treescan())
-				goto out;
+				continue;
 			if (0 == dbopen(0))
-				goto out;
+				continue;
 
 			mpages_merge(mc, mp);
 			if (warnings && !nodb &&
@@ -527,8 +526,8 @@ main(int argc, char *argv[])
 	}
 out:
 	manpath_free(&dirs);
-	mchars_free(mc);
 	mparse_free(mp);
+	mchars_free(mc);
 	mpages_free();
 	ohash_delete(&mpages);
 	ohash_delete(&mlinks);
@@ -835,6 +834,7 @@ filescan(const char *file)
 	}
 
 	mlink = mandoc_calloc(1, sizeof(struct mlink));
+	mlink->dform = FORM_NONE;
 	if (strlcpy(mlink->file, start, sizeof(mlink->file)) >=
 	    sizeof(mlink->file)) {
 		say(start, "Filename too long");
@@ -1078,15 +1078,13 @@ mpages_merge(struct mchars *mc, struct mparse *mp)
 {
 	char			 any[] = "any";
 	struct ohash_info	 str_info;
-	int			 fd[2];
 	struct mpage		*mpage, *mpage_dest;
 	struct mlink		*mlink, *mlink_dest;
 	struct mdoc		*mdoc;
 	struct man		*man;
 	char			*sodest;
 	char			*cp;
-	pid_t			 child_pid;
-	int			 status;
+	int			 fd;
 	unsigned int		 pslot;
 	enum mandoclevel	 lvl;
 
@@ -1095,13 +1093,13 @@ mpages_merge(struct mchars *mc, struct mparse *mp)
 	str_info.free = hash_free;
 	str_info.key_offset = offsetof(struct str, key);
 
-	if (0 == nodb)
+	if ( ! nodb)
 		SQL_EXEC("BEGIN TRANSACTION");
 
 	mpage = ohash_first(&mpages, &pslot);
-	while (NULL != mpage) {
+	while (mpage != NULL) {
 		mlinks_undupe(mpage);
-		if (NULL == mpage->mlinks) {
+		if (mpage->mlinks == NULL) {
 			mpage = ohash_next(&mpages, &pslot);
 			continue;
 		}
@@ -1113,39 +1111,11 @@ mpages_merge(struct mchars *mc, struct mparse *mp)
 		mdoc = NULL;
 		man = NULL;
 		sodest = NULL;
-		child_pid = 0;
-		fd[0] = -1;
-		fd[1] = -1;
 
-		if (mpage->mlinks->gzip) {
-			if (-1 == pipe(fd)) {
-				exitcode = (int)MANDOCLEVEL_SYSERR;
-				say(mpage->mlinks->file, "&pipe gunzip");
-				goto nextpage;
-			}
-			switch (child_pid = fork()) {
-			case -1:
-				exitcode = (int)MANDOCLEVEL_SYSERR;
-				say(mpage->mlinks->file, "&fork gunzip");
-				child_pid = 0;
-				close(fd[1]);
-				close(fd[0]);
-				goto nextpage;
-			case 0:
-				close(fd[0]);
-				if (-1 == dup2(fd[1], STDOUT_FILENO)) {
-					say(mpage->mlinks->file,
-					    "&dup gunzip");
-					exit(1);
-				}
-				execlp("gunzip", "gunzip", "-c",
-				    mpage->mlinks->file, NULL);
-				say(mpage->mlinks->file, "&exec gunzip");
-				exit(1);
-			default:
-				close(fd[1]);
-				break;
-			}
+		mparse_open(mp, &fd, mpage->mlinks->file);
+		if (fd == -1) {
+			say(mpage->mlinks->file, "&open");
+			goto nextpage;
 		}
 
 		/*
@@ -1153,17 +1123,23 @@ mpages_merge(struct mchars *mc, struct mparse *mp)
 		 * source code, unless it is already known to be
 		 * formatted.  Fall back to formatted mode.
 		 */
-		if (FORM_CAT != mpage->mlinks->dform ||
-		    FORM_CAT != mpage->mlinks->fform) {
-			lvl = mparse_readfd(mp, fd[0], mpage->mlinks->file);
+		if (mpage->mlinks->dform != FORM_CAT ||
+		    mpage->mlinks->fform != FORM_CAT) {
+			lvl = mparse_readfd(mp, fd, mpage->mlinks->file);
 			if (lvl < MANDOCLEVEL_FATAL)
 				mparse_result(mp, &mdoc, &man, &sodest);
 		}
 
-		if (NULL != sodest) {
+		if (sodest != NULL) {
 			mlink_dest = ohash_find(&mlinks,
 			    ohash_qlookup(&mlinks, sodest));
-			if (NULL != mlink_dest) {
+			if (mlink_dest == NULL) {
+				mandoc_asprintf(&cp, "%s.gz", sodest);
+				mlink_dest = ohash_find(&mlinks,
+				    ohash_qlookup(&mlinks, cp));
+				free(cp);
+			}
+			if (mlink_dest != NULL) {
 
 				/* The .so target exists. */
 
@@ -1182,9 +1158,9 @@ mpages_merge(struct mchars *mc, struct mparse *mp)
 					 */
 
 					if (mpage_dest->pageid)
-						dbadd_mlink(mlink);
+						dbadd_mlink_name(mlink);
 
-					if (NULL == mlink->next)
+					if (mlink->next == NULL)
 						break;
 					mlink = mlink->next;
 				}
@@ -1196,17 +1172,17 @@ mpages_merge(struct mchars *mc, struct mparse *mp)
 				mpage->mlinks = NULL;
 			}
 			goto nextpage;
-		} else if (NULL != mdoc) {
+		} else if (mdoc != NULL) {
 			mpage->form = FORM_SRC;
 			mpage->sec = mdoc_meta(mdoc)->msec;
 			mpage->sec = mandoc_strdup(
-			    NULL == mpage->sec ? "" : mpage->sec);
+			    mpage->sec == NULL ? "" : mpage->sec);
 			mpage->arch = mdoc_meta(mdoc)->arch;
 			mpage->arch = mandoc_strdup(
-			    NULL == mpage->arch ? "" : mpage->arch);
+			    mpage->arch == NULL ? "" : mpage->arch);
 			mpage->title =
 			    mandoc_strdup(mdoc_meta(mdoc)->title);
-		} else if (NULL != man) {
+		} else if (man != NULL) {
 			mpage->form = FORM_SRC;
 			mpage->sec =
 			    mandoc_strdup(man_meta(man)->msec);
@@ -1224,8 +1200,8 @@ mpages_merge(struct mchars *mc, struct mparse *mp)
 			    mandoc_strdup(mpage->mlinks->name);
 		}
 		putkey(mpage, mpage->sec, TYPE_sec);
-		putkey(mpage, '\0' == *mpage->arch ?
-		    any : mpage->arch, TYPE_arch);
+		if (*mpage->arch != '\0')
+			putkey(mpage, mpage->arch, TYPE_arch);
 
 		for (mlink = mpage->mlinks; mlink; mlink = mlink->next) {
 			if ('\0' != *mlink->dsec)
@@ -1245,7 +1221,7 @@ mpages_merge(struct mchars *mc, struct mparse *mp)
 		} else if (NULL != man)
 			parse_man(mpage, man_node(man));
 		else
-			parse_cat(mpage, fd[0]);
+			parse_cat(mpage, fd);
 		if (NULL == mpage->desc)
 			mpage->desc = mandoc_strdup(mpage->mlinks->name);
 
@@ -1257,21 +1233,9 @@ mpages_merge(struct mchars *mc, struct mparse *mp)
 		dbadd(mpage, mc);
 
 nextpage:
-		if (child_pid) {
-			if (-1 == waitpid(child_pid, &status, 0)) {
-				exitcode = (int)MANDOCLEVEL_SYSERR;
-				say(mpage->mlinks->file, "&wait gunzip");
-			} else if (WIFSIGNALED(status)) {
-				exitcode = (int)MANDOCLEVEL_SYSERR;
-				say(mpage->mlinks->file,
-				    "gunzip died from signal %d",
-				    WTERMSIG(status));
-			} else if (WEXITSTATUS(status)) {
-				exitcode = (int)MANDOCLEVEL_SYSERR;
-				say(mpage->mlinks->file,
-				    "gunzip failed with code %d",
-				    WEXITSTATUS(status));
-			}
+		if (mparse_wait(mp) != MANDOCLEVEL_OK) {
+			exitcode = (int)MANDOCLEVEL_SYSERR;
+			say(mpage->mlinks->file, "&wait gunzip");
 		}
 		ohash_delete(&strings);
 		ohash_delete(&names);
@@ -1329,6 +1293,8 @@ parse_cat(struct mpage *mpage, int fd)
 	    fopen(mpage->mlinks->file, "r") :
 	    fdopen(fd, "r");
 	if (NULL == stream) {
+		if (-1 != fd)
+			close(fd);
 		if (warnings)
 			say(mpage->mlinks->file, "&fopen");
 		return;
@@ -1764,7 +1730,8 @@ putkeys(const struct mpage *mpage,
 	if (TYPE_Nm & v) {
 		htab = &names;
 		v &= name_mask;
-		name_mask &= ~NAME_FIRST;
+		if (v & NAME_FIRST)
+			name_mask &= ~NAME_FIRST;
 		if (debug > 1)
 			say(mpage->mlinks->file,
 			    "Adding name %*s", sz, cp);
@@ -1772,7 +1739,7 @@ putkeys(const struct mpage *mpage,
 		htab = &strings;
 		if (debug > 1)
 		    for (i = 0; i < mansearch_keymax; i++)
-			if (1 << i & v)
+			if ((uint64_t)1 << i & v)
 			    say(mpage->mlinks->file,
 				"Adding key %s=%*s",
 				mansearch_keynames[i], sz, cp);
@@ -1939,7 +1906,7 @@ render_key(struct mchars *mc, struct str *key)
 		 */
 
 		if (write_utf8) {
-			if (0 == (u = mchars_spec2cp(mc, seq, len)))
+			if ((u = mchars_spec2cp(mc, seq, len)) <= 0)
 				continue;
 			cpp = utfbuf;
 			if (0 == (sz = utf8(u, utfbuf)))
@@ -1979,6 +1946,21 @@ dbadd_mlink(const struct mlink *mlink)
 	SQL_BIND_INT64(stmts[STMT_INSERT_LINK], i, mlink->mpage->pageid);
 	SQL_STEP(stmts[STMT_INSERT_LINK]);
 	sqlite3_reset(stmts[STMT_INSERT_LINK]);
+}
+
+static void
+dbadd_mlink_name(const struct mlink *mlink)
+{
+	size_t		 i;
+
+	dbadd_mlink(mlink);
+
+	i = 1;
+	SQL_BIND_INT64(stmts[STMT_INSERT_NAME], i, NAME_FILE & NAME_MASK);
+	SQL_BIND_TEXT(stmts[STMT_INSERT_NAME], i, mlink->name);
+	SQL_BIND_INT64(stmts[STMT_INSERT_NAME], i, mlink->mpage->pageid);
+	SQL_STEP(stmts[STMT_INSERT_NAME]);
+	sqlite3_reset(stmts[STMT_INSERT_NAME]);
 }
 
 /*
@@ -2045,7 +2027,7 @@ dbadd(struct mpage *mpage, struct mchars *mc)
 
 	i = 1;
 	SQL_BIND_TEXT(stmts[STMT_INSERT_PAGE], i, key->rendered);
-	SQL_BIND_INT(stmts[STMT_INSERT_PAGE], i, FORM_SRC == mpage->form);
+	SQL_BIND_INT(stmts[STMT_INSERT_PAGE], i, mpage->form);
 	SQL_STEP(stmts[STMT_INSERT_PAGE]);
 	mpage->pageid = sqlite3_last_insert_rowid(db);
 	sqlite3_reset(stmts[STMT_INSERT_PAGE]);
@@ -2342,7 +2324,7 @@ prepare_statements:
 	    "PRAGMA synchronous = OFF", NULL, NULL, NULL)) {
 		exitcode = (int)MANDOCLEVEL_SYSERR;
 		say(MANDOC_DB, "PRAGMA synchronous: %s",
-		sqlite3_errmsg(db));
+		    sqlite3_errmsg(db));
 		sqlite3_close(db);
 		return(0);
 	}
@@ -2373,7 +2355,7 @@ hash_free(void *p, void *arg)
 }
 
 static int
-set_basedir(const char *targetdir)
+set_basedir(const char *targetdir, int report_baddir)
 {
 	static char	 startdir[PATH_MAX];
 	static int	 getcwd_status;  /* 1 = ok, 2 = failure */
@@ -2426,12 +2408,16 @@ set_basedir(const char *targetdir)
 	 * we can reliably check whether files are inside.
 	 */
 	if (NULL == realpath(targetdir, basedir)) {
-		exitcode = (int)MANDOCLEVEL_BADARG;
-		say("", "&%s: realpath", targetdir);
+		if (report_baddir || errno != ENOENT) {
+			exitcode = (int)MANDOCLEVEL_BADARG;
+			say("", "&%s: realpath", targetdir);
+		}
 		return(0);
 	} else if (-1 == chdir(basedir)) {
-		exitcode = (int)MANDOCLEVEL_BADARG;
-		say("", "&chdir");
+		if (report_baddir || errno != ENOENT) {
+			exitcode = (int)MANDOCLEVEL_BADARG;
+			say("", "&chdir");
+		}
 		return(0);
 	}
 	chdir_status = 1;

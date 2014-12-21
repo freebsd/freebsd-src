@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20141121:
+	The handling of LOCAL_LIB_DIRS has been altered to skip addition of
+	directories to top level SUBDIR variable when their parent
+	directory is included in LOCAL_DIRS.  Users with build systems with
+	such hierarchies and without SUBDIR entries in the parent
+	directory Makefiles should add them or add the directories to
+	LOCAL_DIRS.
+
 20141109:
 	faith(4) and faithd(8) has been removed from base system. It
 	has been obsolete for a very long time.

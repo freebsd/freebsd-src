@@ -27,6 +27,7 @@ _INTERNALIBS=	\
 		amu \
 		bsnmptools \
 		cron \
+		elftc \
 		event \
 		fifolog \
 		ipf \
@@ -83,6 +84,7 @@ _LIBRARIES=	\
 		figpar \
 		geom \
 		gnuregex \
+		gpio \
 		gssapi \
 		gssapi_krb5 \
 		hdb \
@@ -285,6 +287,10 @@ LIBATF_CXX?=	${LIBATF_CXXDIR}/libatf-c++.a
 
 LIBBSDSTATDIR=	${ROOTOBJDIR}/lib/libbsdstat
 LIBBSDSTAT?=	${LIBBSDSTATDIR}/libbsdstat.a
+
+LIBELFTCDIR=	${ROOTOBJDIR}/lib/libelftc
+LDELFTC?=	${LIBELFTCDIR}/libelftc.a
+LIBELFTC?=	${LIBELFTCDIR}/libelftc.a
 
 LIBEVENTDIR=	${ROOTOBJDIR}/lib/libevent
 LIBEVENT?=	${LIBEVENTDIR}/libevent.a

@@ -1,6 +1,6 @@
-/*	$Id: manpath.c,v 1.15 2014/04/23 21:06:41 schwarze Exp $ */
+/*	$Id: manpath.c,v 1.19 2014/11/27 00:30:40 schwarze Exp $ */
 /*
- * Copyright (c) 2011 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2011, 2014 Ingo Schwarze <schwarze@openbsd.org>
  * Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,9 +15,10 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
+
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -32,14 +33,14 @@
 #define MAN_CONF_FILE	"/etc/man.conf"
 #define MAN_CONF_KEY	"_whatdb"
 
-static	void	 manpath_add(struct manpaths *, const char *);
-static	void	 manpath_parseline(struct manpaths *, char *);
+static	void	 manpath_add(struct manpaths *, const char *, int);
+static	void	 manpath_parseline(struct manpaths *, char *, int);
 
 void
 manpath_parse(struct manpaths *dirs, const char *file,
 		char *defp, char *auxp)
 {
-#ifdef	USE_MANPATH
+#if HAVE_MANPATH
 	char		 cmd[(PATH_MAX * 3) + 20];
 	FILE		*stream;
 	char		*buf;
@@ -79,7 +80,7 @@ manpath_parse(struct manpaths *dirs, const char *file,
 	if ( ! ferror(stream) && feof(stream) &&
 			bsz && '\n' == buf[bsz - 1]) {
 		buf[bsz - 1] = '\0';
-		manpath_parseline(dirs, buf);
+		manpath_parseline(dirs, buf, 1);
 	}
 
 	free(buf);
@@ -88,11 +89,11 @@ manpath_parse(struct manpaths *dirs, const char *file,
 	char		*insert;
 
 	/* Always prepend -m. */
-	manpath_parseline(dirs, auxp);
+	manpath_parseline(dirs, auxp, 1);
 
 	/* If -M is given, it overrides everything else. */
 	if (NULL != defp) {
-		manpath_parseline(dirs, defp);
+		manpath_parseline(dirs, defp, 1);
 		return;
 	}
 
@@ -110,13 +111,13 @@ manpath_parse(struct manpaths *dirs, const char *file,
 	/* Prepend man.conf(5) to MANPATH. */
 	if (':' == defp[0]) {
 		manpath_manconf(dirs, file);
-		manpath_parseline(dirs, defp);
+		manpath_parseline(dirs, defp, 0);
 		return;
 	}
 
 	/* Append man.conf(5) to MANPATH. */
 	if (':' == defp[strlen(defp) - 1]) {
-		manpath_parseline(dirs, defp);
+		manpath_parseline(dirs, defp, 0);
 		manpath_manconf(dirs, file);
 		return;
 	}
@@ -125,14 +126,14 @@ manpath_parse(struct manpaths *dirs, const char *file,
 	insert = strstr(defp, "::");
 	if (NULL != insert) {
 		*insert++ = '\0';
-		manpath_parseline(dirs, defp);
+		manpath_parseline(dirs, defp, 0);
 		manpath_manconf(dirs, file);
-		manpath_parseline(dirs, insert + 1);
+		manpath_parseline(dirs, insert + 1, 0);
 		return;
 	}
 
 	/* MANPATH overrides man.conf(5) completely. */
-	manpath_parseline(dirs, defp);
+	manpath_parseline(dirs, defp, 0);
 #endif
 }
 
@@ -140,7 +141,7 @@ manpath_parse(struct manpaths *dirs, const char *file,
  * Parse a FULL pathname from a colon-separated list of arrays.
  */
 static void
-manpath_parseline(struct manpaths *dirs, char *path)
+manpath_parseline(struct manpaths *dirs, char *path, int complain)
 {
 	char	*dir;
 
@@ -148,7 +149,7 @@ manpath_parseline(struct manpaths *dirs, char *path)
 		return;
 
 	for (dir = strtok(path, ":"); dir; dir = strtok(NULL, ":"))
-		manpath_add(dirs, dir);
+		manpath_add(dirs, dir, complain);
 }
 
 /*
@@ -156,18 +157,32 @@ manpath_parseline(struct manpaths *dirs, char *path)
  * Grow the array one-by-one for simplicity's sake.
  */
 static void
-manpath_add(struct manpaths *dirs, const char *dir)
+manpath_add(struct manpaths *dirs, const char *dir, int complain)
 {
 	char		 buf[PATH_MAX];
+	struct stat	 sb;
 	char		*cp;
 	size_t		 i;
 
-	if (NULL == (cp = realpath(dir, buf)))
+	if (NULL == (cp = realpath(dir, buf))) {
+		if (complain) {
+			fputs("manpath: ", stderr);
+			perror(dir);
+		}
 		return;
+	}
 
 	for (i = 0; i < dirs->sz; i++)
 		if (0 == strcmp(dirs->paths[i], dir))
 			return;
+
+	if (stat(cp, &sb) == -1) {
+		if (complain) {
+			fputs("manpath: ", stderr);
+			perror(dir);
+		}
+		return;
+	}
 
 	dirs->paths = mandoc_reallocarray(dirs->paths,
 	    dirs->sz + 1, sizeof(char *));
@@ -215,7 +230,7 @@ manpath_manconf(struct manpaths *dirs, const char *file)
 		if (NULL == (q = strrchr(p, '/')))
 			continue;
 		*q = '\0';
-		manpath_add(dirs, p);
+		manpath_add(dirs, p, 0);
 	}
 
 	fclose(stream);

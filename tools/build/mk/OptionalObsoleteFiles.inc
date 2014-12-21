@@ -1198,6 +1198,11 @@ OLD_FILES+=usr/share/dict/words
 OLD_DIRS+=usr/share/dict
 .endif
 
+.if ${MK_ELFTOOLCHAIN_TOOLS} == no
+OLD_FILES+=usr/bin/elfcopy
+OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
+.endif
+
 #.if ${MK_EXAMPLES} == no
 # to be filled in
 #.endif
@@ -4658,10 +4663,10 @@ OLD_FILES+=usr/share/man/man4/atf-test-case.4.gz
 OLD_FILES+=usr/share/mk/atf.test.mk
 
 # Test suite.
-. if(exists(${DESTDIR}/usr/tests/))
-TESTS_DIRS!=find ${DESTDIR}/usr/tests -type d | sed -e 's,^${DESTDIR}/,,'; echo
+. if exists(${DESTDIR}${TESTSBASE})
+TESTS_DIRS!=find ${DESTDIR}${TESTSBASE} -type d | sed -e 's,^${DESTDIR}/,,'; echo
 OLD_DIRS+=${TESTS_DIRS}
-TESTS_FILES!=find ${DESTDIR}/usr/tests \! -type d | sed -e 's,^${DESTDIR}/,,'; echo
+TESTS_FILES!=find ${DESTDIR}${TESTSBASE} \! -type d | sed -e 's,^${DESTDIR}/,,'; echo
 OLD_FILES+=${TESTS_FILES}
 . endif
 .endif	# Test suite.

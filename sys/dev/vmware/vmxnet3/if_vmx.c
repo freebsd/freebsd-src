@@ -2059,7 +2059,7 @@ vmxnet3_rxq_input(struct vmxnet3_rxqueue *rxq,
 	}
 #else
 	m->m_pkthdr.flowid = rxq->vxrxq_id;
-	m->m_flags |= M_FLOWID;
+	M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 #endif
 
 	if (!rxcd->no_csum)
@@ -3002,7 +3002,8 @@ vmxnet3_txq_mq_start(struct ifnet *ifp, struct mbuf *m)
 	sc = ifp->if_softc;
 	ntxq = sc->vmx_ntxqueues;
 
-	if (m->m_flags & M_FLOWID)
+	/* check if flowid is set */
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		i = m->m_pkthdr.flowid % ntxq;
 	else
 		i = curcpu % ntxq;

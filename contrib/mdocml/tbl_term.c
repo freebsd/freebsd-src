@@ -1,4 +1,4 @@
-/*	$Id: tbl_term.c,v 1.27 2014/04/20 16:46:05 schwarze Exp $ */
+/*	$Id: tbl_term.c,v 1.31 2014/10/14 18:18:05 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2012, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,9 +15,9 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
+
+#include <sys/types.h>
 
 #include <assert.h>
 #include <stdio.h>
@@ -43,6 +43,7 @@ static	void	tbl_number(struct termp *, const struct tbl_opts *,
 			const struct roffcol *);
 static	void	tbl_hrule(struct termp *, const struct tbl_span *);
 static	void	tbl_vrule(struct termp *, const struct tbl_head *);
+static	void	tbl_word(struct termp *, const struct tbl_dat *);
 
 
 static size_t
@@ -90,7 +91,7 @@ term_tbl(struct termp *tp, const struct tbl_span *sp)
 		tp->tbl.slen = term_tbl_strlen;
 		tp->tbl.arg = tp;
 
-		tblcalc(&tp->tbl, sp);
+		tblcalc(&tp->tbl, sp, rmargin - tp->offset);
 	}
 
 	/* Horizontal frame at the start of boxed tables. */
@@ -106,7 +107,7 @@ term_tbl(struct termp *tp, const struct tbl_span *sp)
 	/* Vertical frame at the start of each row. */
 
 	if ((TBL_OPT_BOX | TBL_OPT_DBOX) & sp->opts->opts ||
-	    sp->head->vert)
+	    (sp->head != NULL && sp->head->vert))
 		term_word(tp, TBL_SPAN_HORIZ == sp->pos ||
 		    TBL_SPAN_DHORIZ == sp->pos ? "+" : "|");
 
@@ -378,7 +379,7 @@ tbl_literal(struct termp *tp, const struct tbl_dat *dp,
 	}
 
 	tbl_char(tp, ASCII_NBRSP, padl);
-	term_word(tp, dp->string);
+	tbl_word(tp, dp);
 	tbl_char(tp, ASCII_NBRSP, padr);
 }
 
@@ -419,8 +420,23 @@ tbl_number(struct termp *tp, const struct tbl_opts *opts,
 	padl = col->decimal - d;
 
 	tbl_char(tp, ASCII_NBRSP, padl);
-	term_word(tp, dp->string);
+	tbl_word(tp, dp);
 	if (col->width > sz + padl)
 		tbl_char(tp, ASCII_NBRSP, col->width - sz - padl);
 }
 
+static void
+tbl_word(struct termp *tp, const struct tbl_dat *dp)
+{
+	const void	*prev_font;
+
+	prev_font = term_fontq(tp);
+	if (dp->layout->flags & TBL_CELL_BOLD)
+		term_fontpush(tp, TERMFONT_BOLD);
+	else if (dp->layout->flags & TBL_CELL_ITALIC)
+		term_fontpush(tp, TERMFONT_UNDER);
+
+	term_word(tp, dp->string);
+
+	term_fontpopq(tp, prev_font);
+}

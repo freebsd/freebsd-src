@@ -70,14 +70,14 @@ sctp_calc_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
 
 	/*
 	 * This is really set wrong with respect to a 1-2-m socket. Since
-	 * the sb_ccc is the count that everyone as put up. When we re-write
+	 * the sb_cc is the count that everyone as put up. When we re-write
 	 * sctp_soreceive then we will fix this so that ONLY this
 	 * associations data is taken into account.
 	 */
 	if (stcb->sctp_socket == NULL)
 		return (calc);
 
-	if (stcb->asoc.sb_ccc == 0 &&
+	if (stcb->asoc.sb_cc == 0 &&
 	    asoc->size_on_reasm_queue == 0 &&
 	    asoc->size_on_all_streams == 0) {
 		/* Full rwnd granted */
@@ -1363,7 +1363,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		 * When we have NO room in the rwnd we check to make sure
 		 * the reader is doing its job...
 		 */
-		if (stcb->sctp_socket->so_rcv.sb_ccc) {
+		if (stcb->sctp_socket->so_rcv.sb_cc) {
 			/* some to read, wake-up */
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 			struct socket *so;
@@ -2296,7 +2296,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
     struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, struct sctp_inpcb *inp,
     struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t * high_tsn,
-    uint8_t use_mflowid, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid,
     uint32_t vrf_id, uint16_t port)
 {
 	struct sctp_data_chunk *ch, chunk_buf;
@@ -2391,7 +2391,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_19;
 				sctp_abort_association(inp, stcb, m, iphlen,
 				    src, dst, sh, op_err,
-				    use_mflowid, mflowid,
+				    mflowtype, mflowid,
 				    vrf_id, port);
 				return (2);
 			}
@@ -2406,7 +2406,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_19;
 				sctp_abort_association(inp, stcb, m, iphlen,
 				    src, dst, sh, op_err,
-				    use_mflowid, mflowid,
+				    mflowtype, mflowid,
 				    vrf_id, port);
 				return (2);
 			}
@@ -2475,7 +2475,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 					    m, iphlen,
 					    src, dst,
 					    sh, op_err,
-					    use_mflowid, mflowid,
+					    mflowtype, mflowid,
 					    vrf_id, port);
 					return (2);
 				}

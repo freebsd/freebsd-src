@@ -380,9 +380,7 @@ struct sctp_nets {
 	uint8_t lan_type;
 	uint8_t rto_needed;
 	uint32_t flowid;
-#ifdef INVARIANTS
-	uint8_t flowidset;
-#endif
+	uint8_t flowtype;
 };
 
 
@@ -990,7 +988,7 @@ struct sctp_association {
 
 	uint32_t total_output_queue_size;
 
-	uint32_t sb_ccc;		/* shadow of sb_ccc */
+	uint32_t sb_cc;		/* shadow of sb_cc */
 	uint32_t sb_send_resv;	/* amount reserved on a send */
 	uint32_t my_rwnd_control_len;	/* shadow of sb_mbcnt used for rwnd
 					 * control */

@@ -1,4 +1,4 @@
-/*	$Id: mansearch.c,v 1.42 2014/08/09 14:24:53 schwarze Exp $ */
+/*	$Id: mansearch.c,v 1.51 2014/11/27 01:58:21 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,11 +15,11 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <sys/mman.h>
+#include <sys/types.h>
+
 #include <assert.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -32,7 +32,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef HAVE_OHASH
+#if HAVE_OHASH
 #include <ohash.h>
 #else
 #include "compat_ohash.h"
@@ -79,8 +79,9 @@ struct	expr {
 
 struct	match {
 	uint64_t	 pageid; /* identifier in database */
+	uint64_t	 bits; /* name type mask */
 	char		*desc; /* manual page description */
-	int		 form; /* 0 == catpage */
+	int		 form; /* bit field: formatted, zipped? */
 };
 
 static	void		 buildnames(struct manpage *, sqlite3 *,
@@ -159,7 +160,6 @@ int
 mansearch(const struct mansearch *search,
 		const struct manpaths *paths,
 		int argc, char *argv[],
-		const char *outkey,
 		struct manpage **res, size_t *sz)
 {
 	int		 fd, rc, c, indexbit;
@@ -195,11 +195,11 @@ mansearch(const struct mansearch *search,
 		goto out;
 
 	outbit = 0;
-	if (NULL != outkey) {
+	if (NULL != search->outkey) {
 		for (indexbit = 0, iterbit = 1;
 		     indexbit < mansearch_keymax;
 		     indexbit++, iterbit <<= 1) {
-			if (0 == strcasecmp(outkey,
+			if (0 == strcasecmp(search->outkey,
 			    mansearch_keynames[indexbit])) {
 				outbit = iterbit;
 				break;
@@ -302,6 +302,7 @@ mansearch(const struct mansearch *search,
 			mp = mandoc_calloc(1, sizeof(struct match));
 			mp->pageid = pageid;
 			mp->form = sqlite3_column_int(s, 1);
+			mp->bits = sqlite3_column_int64(s, 3);
 			if (TYPE_Nd == outbit)
 				mp->desc = mandoc_strdup((const char *)
 				    sqlite3_column_text(s, 0));
@@ -336,6 +337,8 @@ mansearch(const struct mansearch *search,
 				    maxres, sizeof(struct manpage));
 			}
 			mpage = *res + cur;
+			mpage->ipath = i;
+			mpage->bits = mp->bits;
 			mpage->sec = 10;
 			mpage->form = mp->form;
 			buildnames(mpage, db, s, mp->pageid,
@@ -352,6 +355,14 @@ mansearch(const struct mansearch *search,
 		sqlite3_finalize(s2);
 		sqlite3_close(db);
 		ohash_delete(&htab);
+
+		/*
+		 * In man(1) mode, prefer matches in earlier trees
+		 * over matches in later trees.
+		 */
+
+		if (cur && search->firstmatch)
+			break;
 	}
 	qsort(*res, cur, sizeof(struct manpage), manpage_compare);
 	rc = 1;
@@ -367,6 +378,19 @@ out:
 	return(rc);
 }
 
+void
+mansearch_free(struct manpage *res, size_t sz)
+{
+	size_t	 i;
+
+	for (i = 0; i < sz; i++) {
+		free(res[i].file);
+		free(res[i].names);
+		free(res[i].output);
+	}
+	free(res);
+}
+
 static int
 manpage_compare(const void *vp1, const void *vp2)
 {
@@ -375,8 +399,9 @@ manpage_compare(const void *vp1, const void *vp2)
 
 	mp1 = vp1;
 	mp2 = vp2;
-	diff = mp1->sec - mp2->sec;
-	return(diff ? diff : strcasecmp(mp1->names, mp2->names));
+	return(	(diff = mp2->bits - mp1->bits) ? diff :
+		(diff = mp1->sec - mp2->sec) ? diff :
+		strcasecmp(mp1->names, mp2->names));
 }
 
 static void
@@ -447,28 +472,28 @@ buildnames(struct manpage *mpage, sqlite3 *db, sqlite3_stmt *s,
 
 		/* Also save the first file name encountered. */
 
-		if (NULL != mpage->file)
+		if (mpage->file != NULL)
 			continue;
 
-		if (form) {
+		if (form & FORM_SRC) {
 			sep1 = "man";
 			fsec = sec;
 		} else {
 			sep1 = "cat";
 			fsec = "0";
 		}
-		sep2 = '\0' == *arch ? "" : "/";
+		sep2 = *arch == '\0' ? "" : "/";
 		mandoc_asprintf(&mpage->file, "%s/%s%s%s%s/%s.%s",
 		    path, sep1, sec, sep2, arch, name, fsec);
 	}
-	if (SQLITE_DONE != c)
+	if (c != SQLITE_DONE)
 		fprintf(stderr, "%s\n", sqlite3_errmsg(db));
 	sqlite3_reset(s);
 
 	/* Append one final section to the names. */
 
-	if (NULL != prevsec) {
-		sep2 = '\0' == *prevarch ? "" : "/";
+	if (prevsec != NULL) {
+		sep2 = *prevarch == '\0' ? "" : "/";
 		mandoc_asprintf(&newnames, "%s(%s%s%s)",
 		    mpage->names, prevsec, sep2, prevarch);
 		free(mpage->names);
@@ -566,8 +591,10 @@ sql_statement(const struct expr *e)
 	size_t		 sz;
 	int		 needop;
 
-	sql = mandoc_strdup(
-	    "SELECT desc, form, pageid FROM mpages WHERE ");
+	sql = mandoc_strdup(e->equal ?
+	    "SELECT desc, form, pageid, bits "
+		"FROM mpages NATURAL JOIN names WHERE " :
+	    "SELECT desc, form, pageid, 0 FROM mpages WHERE ");
 	sz = strlen(sql);
 
 	for (needop = 0; NULL != e; e = e->next) {
@@ -587,8 +614,7 @@ sql_statement(const struct expr *e)
 			? "pageid IN (SELECT pageid FROM names "
 			  "WHERE name REGEXP ?)"
 			: e->equal
-			? "pageid IN (SELECT pageid FROM names "
-			  "WHERE name = ?)"
+			? "name = ? "
 			: "pageid IN (SELECT pageid FROM names "
 			  "WHERE name MATCH ?)")
 		    : (NULL == e->substr
@@ -739,35 +765,30 @@ exprterm(const struct mansearch *search, char *buf, int cs)
 
 	e = mandoc_calloc(1, sizeof(struct expr));
 
-	if (MANSEARCH_MAN & search->flags) {
-		e->bits = search->deftype;
+	if (search->argmode == ARG_NAME) {
+		e->bits = TYPE_Nm;
 		e->substr = buf;
 		e->equal = 1;
 		return(e);
 	}
 
 	/*
-	 * Look for an '=' or '~' operator,
-	 * unless forced to some fixed macro keys.
+	 * Separate macro keys from search string.
+	 * If needed, request regular expression handling
+	 * by setting e->substr to NULL.
 	 */
 
-	if (MANSEARCH_WHATIS & search->flags)
-		val = NULL;
-	else
-		val = strpbrk(buf, "=~");
-
-	if (NULL == val) {
-		e->bits = search->deftype;
+	if (search->argmode == ARG_WORD) {
+		e->bits = TYPE_Nm;
+		e->substr = NULL;
+		mandoc_asprintf(&val, "[[:<:]]%s[[:>:]]", buf);
+		cs = 0;
+	} else if ((val = strpbrk(buf, "=~")) == NULL) {
+		e->bits = TYPE_Nm | TYPE_Nd;
 		e->substr = buf;
-
-	/*
-	 * Found an operator.
-	 * Regexp search is requested by !e->substr.
-	 */
-
 	} else {
 		if (val == buf)
-			e->bits = search->deftype;
+			e->bits = TYPE_Nm | TYPE_Nd;
 		if ('=' == *val)
 			e->substr = val + 1;
 		*val++ = '\0';
@@ -777,15 +798,10 @@ exprterm(const struct mansearch *search, char *buf, int cs)
 
 	/* Compile regular expressions. */
 
-	if (MANSEARCH_WHATIS & search->flags) {
-		e->substr = NULL;
-		mandoc_asprintf(&val, "[[:<:]]%s[[:>:]]", buf);
-	}
-
 	if (NULL == e->substr) {
 		irc = regcomp(&e->regexp, val,
 		    REG_EXTENDED | REG_NOSUB | (cs ? 0 : REG_ICASE));
-		if (MANSEARCH_WHATIS & search->flags)
+		if (search->argmode == ARG_WORD)
 			free(val);
 		if (irc) {
 			regerror(irc, &e->regexp, errbuf, sizeof(errbuf));

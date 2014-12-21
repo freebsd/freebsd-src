@@ -269,7 +269,7 @@ handle_core_note(Elf *elf, GElf_Ehdr *elfhdr, GElf_Phdr *phdr,
 	static pid_t pid;
 	uintptr_t ver;
 	Elf32_Nhdr *nhdr, nhdr_l;
-	static int reg_pseudo = 0, reg2_pseudo = 0, regxfp_pseudo = 0;
+	static int reg_pseudo = 0, reg2_pseudo = 0 /*, regxfp_pseudo = 0*/;
 	char buf[BUF_SIZE], *data, *name;
 
  	if (elf == NULL || elfhdr == NULL || phdr == NULL)
@@ -360,6 +360,7 @@ handle_core_note(Elf *elf, GElf_Ehdr *elfhdr, GElf_Phdr *phdr,
 				text_size_total += nhdr_l.n_descsz;
 			}
 			break;
+#if 0
 		case NT_AUXV:
 			if (style == STYLE_SYSV) {
 				tbl_append();
@@ -390,6 +391,7 @@ handle_core_note(Elf *elf, GElf_Ehdr *elfhdr, GElf_Phdr *phdr,
 			}
 			break;
 		case NT_PSINFO:
+#endif
 		case NT_PRPSINFO: {
 			/* FreeBSD 64-bit */
 			if (nhdr_l.n_descsz == 0x78 &&
@@ -415,8 +417,10 @@ handle_core_note(Elf *elf, GElf_Ehdr *elfhdr, GElf_Phdr *phdr,
 			}
 			break;
 		}
+#if 0
 		case NT_PSTATUS:
 		case NT_LWPSTATUS:
+#endif
 		default:
 			break;
 		}

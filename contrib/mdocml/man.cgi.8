@@ -1,4 +1,4 @@
-.\"     $Id: man.cgi.8,v 1.9 2014/07/22 18:14:13 schwarze Exp $
+.\"     $Id: man.cgi.8,v 1.11 2014/09/14 19:44:28 schwarze Exp $
 .\"
 .\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
 .\"
@@ -14,7 +14,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 22 2014 $
+.Dd $Mdocdate: September 14 2014 $
 .Dt MAN.CGI 8
 .Os
 .Sh NAME
@@ -43,6 +43,12 @@ either a name of a manual page or an
 using the syntax described in the
 .Xr apropos 1
 manual; filling this in is required for each search.
+.Pp
+The expression is broken into words at whitespace.
+Whitespace characters and backslashes can be escaped
+by prepending a backslash.
+The effect of prepending a backslash to another character is undefined;
+in the current implementation, it has no effect.
 .It
 A
 .Dq Submit
@@ -307,7 +313,7 @@ and ending before the
 .Ev QUERY_STRING .
 It is used by the
 .Cm show
-page to aquire the manpath and filename it needs.
+page to acquire the manpath and filename it needs.
 .It Ev QUERY_STRING
 The HTTP query string passed from the client to the server.
 It is the final part of the URI, after the question mark.

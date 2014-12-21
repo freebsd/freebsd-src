@@ -1,6 +1,7 @@
-.\"	$Id: eqn.7,v 1.29 2013/07/13 19:41:16 schwarze Exp $
+.\"	$Id: eqn.7,v 1.31 2014/10/12 11:57:38 schwarze Exp $
 .\"
 .\" Copyright (c) 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+.\" Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 13 2013 $
+.Dd $Mdocdate: October 12 2014 $
 .Dt EQN 7
 .Os
 .Sh NAME
@@ -37,7 +38,9 @@ This manual describes the
 .Nm
 language accepted by the
 .Xr mandoc 1
-utility, which corresponds to the Second Edition eqn specification (see
+utility, which corresponds to the Second Edition
+.Nm
+specification (see
 .Sx SEE ALSO
 for references).
 .Pp
@@ -77,6 +80,7 @@ box     : text
         | \*qgsize\*q text
         | \*qset\*q text text
         | \*qundef\*q text
+        | \*qsqrt\*q box
         | box pos box
         | box mark
         | \*qmatrix\*q \*q{\*q [col \*q{\*q list \*q}\*q ]*
@@ -98,8 +102,19 @@ space   : [\e^~ \et]
 .Pp
 White-space consists of the space, tab, circumflex, and tilde
 characters.
+It is required to delimit tokens consisting of alphabetic characters
+and it is ignored at other places.
+Braces and quotes also delimit tokens.
 If within a quoted string, these space characters are retained.
-Quoted strings are also not scanned for replacement definitions.
+Quoted strings are also not scanned for keywords, glyph names,
+and expansion of definitions.
+To print a literal quote character, it can be prepended with a
+backslash or expressed with the \e(dq escape sequence.
+.Pp
+Subequations can be enclosed in braces to pass them as arguments
+to operation keywords, overriding standard operation precedence.
+Braces can be nested.
+To set a brace verbatim, it needs to be enclosed in quotes.
 .Pp
 The following text terms are translated into a rendered glyph, if
 available: alpha, beta, chi, delta, epsilon, eta, gamma, iota, kappa,
@@ -110,9 +125,12 @@ int (integral), sum (summation), grad (gradient), del (vector
 differential), times (multiply), cdot (centre-dot), nothing (zero-width
 space), approx (approximately equals), prime (prime), half (one-half),
 partial (partial differential), inf (infinity), >> (much greater), <<
-(much less), \-> (left arrow), <\- (right arrow), += (plus-minus), !=
+(much less), \-> (left arrow), <\- (right arrow), +\- (plus-minus), !=
 (not equal), == (equivalence), <= (less-than-equal), and >=
 (more-than-equal).
+The character escape sequences documented in
+.Xr mandoc_char 7
+can be used, too.
 .Pp
 The following control statements are available:
 .Bl -tag -width Ds
@@ -120,7 +138,7 @@ The following control statements are available:
 Replace all occurrences of a key with a value.
 Its syntax is as follows:
 .Pp
-.D1 define Ar key cvalc
+.D1 Cm define Ar key cvalc
 .Pp
 The first character of the value string,
 .Ar c ,
@@ -128,8 +146,8 @@ is used as the delimiter for the value
 .Ar val .
 This allows for arbitrary enclosure of terms (not just quotes), such as
 .Pp
-.D1 define Ar foo 'bar baz'
-.D1 define Ar foo cbar bazc
+.D1 Cm define Ar foo 'bar baz'
+.D1 Cm define Ar foo cbar bazc
 .Pp
 It is an error to have an empty
 .Ar key
@@ -164,24 +182,26 @@ is discarded.
 Set the default font of subsequent output.
 Its syntax is as follows:
 .Pp
-.D1 gfont Ar font
+.D1 Cm gfont Ar font
 .Pp
 In mandoc, this value is discarded.
 .It Cm gsize
 Set the default size of subsequent output.
 Its syntax is as follows:
 .Pp
-.D1 gsize Ar size
+.D1 Cm gsize Oo +|\- Oc Ns Ar size
 .Pp
 The
 .Ar size
 value should be an integer.
+If prepended by a sign,
+the font size is changed relative to the current size.
 .It Cm set
 Set an equation mode.
 In mandoc, both arguments are thrown away.
 Its syntax is as follows:
 .Pp
-.D1 set Ar key val
+.D1 Cm set Ar key val
 .Pp
 The
 .Ar key
@@ -193,7 +213,7 @@ This statement is a GNU extension.
 Unset a previously-defined key.
 Its syntax is as follows:
 .Pp
-.D1 define Ar key
+.D1 Cm define Ar key
 .Pp
 Once invoked, the definition for
 .Ar key
@@ -202,6 +222,207 @@ The
 .Ar key
 is not expanded for replacements.
 This statement is a GNU extension.
+.El
+.Pp
+Operation keywords have the following semantics:
+.Bl -tag -width Ds
+.It Cm above
+See
+.Cm pile .
+.It Cm bar
+Draw a line over the preceding box.
+.It Cm bold
+Set the following box using bold font.
+.It Cm ccol
+Like
+.Cm cpile ,
+but for use in
+.Cm matrix .
+.It Cm cpile
+Like
+.Cm pile ,
+but with slightly increased vertical spacing.
+.It Cm dot
+Set a single dot over the preceding box.
+.It Cm dotdot
+Set two dots (dieresis) over the preceding box.
+.It Cm dyad
+Set a dyad symbol (left-right arrow) over the preceding box.
+.It Cm fat
+A synonym for
+.Cm bold .
+.It Cm font
+Set the second argument using the font specified by the first argument;
+currently not recognized by the
+.Xr mandoc 1
+.Nm
+parser.
+.It Cm from
+Set the following box below the preceding box,
+using a slightly smaller font.
+Used for sums, integrals, limits, and the like.
+.It Cm hat
+Set a hat (circumflex) over the preceding box.
+.It Cm italic
+Set the following box using italic font.
+.It Cm lcol
+Like
+.Cm lpile ,
+but for use in
+.Cm matrix .
+.It Cm left
+Set the first argument as a big left delimiter before the second argument.
+As an optional third argument,
+.Cm right
+can follow.
+In that case, the fourth argument is set as a big right delimiter after
+the second argument.
+.It Cm lpile
+Like
+.Cm cpile ,
+but subequations are left-justified.
+.It Cm matrix
+Followed by a list of columns enclosed in braces.
+All columns need to have the same number of subequations.
+The columns are set as a matrix.
+The difference compared to multiple subsequent
+.Cm pile
+operators is that in a
+.Cm matrix ,
+corresponding subequations in all columns line up horizontally,
+while each
+.Cm pile
+does vertical spacing independently.
+.It Cm over
+Set a fraction.
+The preceding box is the numerator, the following box is the denominator.
+.It Cm pile
+Followed by a list of subequations enclosed in braces,
+the subequations being separated by
+.Cm above
+keywords.
+Sets the subequations one above the other, each of them centered.
+Typically used to represent vectors in coordinate representation.
+.It Cm rcol
+Like
+.Cm rpile ,
+but for use in
+.Cm matrix .
+.It Cm right
+See
+.Cm left ;
+.Cm right
+cannot be used without
+.Cm left .
+To set a big right delimiter without a big left delimiter, the following
+construction can be used:
+.Pp
+.D1 Cm left No \(dq\(dq Ar box Cm right Ar delimiter
+.It Cm roman
+Set the following box using the default font.
+.It Cm rpile
+Like
+.Cm cpile ,
+but subequations are right-justified.
+.It Cm size
+Set the second argument with the font size specified by the first
+argument; currently ignored by
+.Xr mandoc 1 .
+By prepending a plus or minus sign to the first argument,
+the font size can be selected relative to the current size.
+.It Cm sqrt
+Set the square root of the following box.
+.It Cm sub
+Set the following box as a subscript to the preceding box.
+.It Cm sup
+Set the following box as a superscript to the preceding box.
+As a special case, if a
+.Cm sup
+clause immediately follows a
+.Cm sub
+clause as in
+.Pp
+.D1 Ar mainbox Cm sub Ar subbox Cm sup Ar supbox
+.Pp
+both are set with respect to the same
+.Ar mainbox ,
+that is,
+.Ar supbox
+is set above
+.Ar subbox .
+.It Cm tilde
+Set a tilde over the preceding box.
+.It Cm to
+Set the following box above the preceding box,
+using a slightly smaller font.
+Used for sums and integrals and the like.
+As a special case, if a
+.Cm to
+clause immediately follows a
+.Cm from
+clause as in
+.Pp
+.D1 Ar mainbox Cm from Ar frombox Cm to Ar tobox
+.Pp
+both are set below and above the same
+.Ar mainbox .
+.It Cm under
+Underline the preceding box.
+.It Cm vec
+Set a vector symbol (right arrow) over the preceding box.
+.El
+.Pp
+The binary operations
+.Cm from ,
+.Cm to ,
+.Cm sub ,
+and
+.Cm sup
+group to the right, that is,
+.Pp
+.D1 Ar mainbox Cm sup Ar supbox Cm sub Ar subbox
+.Pp
+is the same as
+.Pp
+.D1 Ar mainbox Cm sup Brq Ar supbox Cm sub Ar subbox
+.Pp
+and different from
+.Pp
+.D1 Bro Ar mainbox Cm sup Ar supbox Brc Cm sub Ar subbox .
+.Pp
+By contrast,
+.Cm over
+groups to the left.
+.Pp
+In the following list, earlier operations bind more tightly than
+later operations:
+.Pp
+.Bl -enum -compact
+.It
+.Cm dyad ,
+.Cm vec ,
+.Cm under ,
+.Cm bar ,
+.Cm tilde ,
+.Cm hat ,
+.Cm dot ,
+.Cm dotdot
+.It
+.Cm fat ,
+.Cm roman ,
+.Cm italic ,
+.Cm bold ,
+.Cm size
+.It
+.Cm sub ,
+.Cm sup
+.It
+.Cm sqrt
+.It
+.Cm over
+.It
+.Cm from ,
+.Cm to
 .El
 .Sh COMPATIBILITY
 This section documents the compatibility of mandoc
@@ -236,6 +457,11 @@ The
 and
 .Cm down Ar n
 commands are also ignored.
+.It
+Inline equations and the
+.Cm delim
+control statement are not yet implemented in
+.Xr mandoc 1 .
 .El
 .Sh SEE ALSO
 .Xr mandoc 1 ,

@@ -1,4 +1,4 @@
-.\"	$Id: roff.7,v 1.55 2014/07/07 11:35:06 schwarze Exp $
+.\"	$Id: roff.7,v 1.59 2014/11/19 01:20:25 schwarze Exp $
 .\"
 .\" Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010, 2011, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: July 7 2014 $
+.Dd $Mdocdate: November 19 2014 $
 .Dt ROFF 7
 .Os
 .Sh NAME
@@ -239,8 +239,9 @@ pica (~1/6 inch)
 .It p
 point (~1/72 inch)
 .It f
-synonym for
+scale
 .Sq u
+by 65536
 .It v
 default vertical span
 .It m
@@ -254,7 +255,7 @@ width of rendered
 .Pq en
 character
 .It u
-default horizontal span
+default horizontal span for the terminal
 .It M
 mini-em (~1/100 em)
 .El
@@ -262,7 +263,6 @@ mini-em (~1/100 em)
 Using anything other than
 .Sq m ,
 .Sq n ,
-.Sq u ,
 or
 .Sq v
 is necessarily non-portable across output media.
@@ -747,16 +747,18 @@ If the first character of COND is
 .Pq even page ,
 .Sq r
 .Pq register accessed ,
-or
 .Sq t
 .Pq troff mode ,
+or
+.Sq v
+.Pq vroff mode ,
 COND evaluates to false.
 .It
 If COND starts with a parenthesis or with an optionally signed
 integer number, it is evaluated according to the rules of
 .Sx Numerical expressions
 explained below.
-It evaluates to true if the the result is positive,
+It evaluates to true if the result is positive,
 or to false if the result is zero or negative.
 .It
 Otherwise, the first character of COND is regarded as a delimiter
@@ -933,6 +935,11 @@ macro will reset this register.
 .Ss \&ns
 Turn on no-space mode.
 This line-scoped request is intended to take no arguments.
+Currently, it is ignored including its arguments,
+and the number of arguments is not checked.
+.Ss \&pl
+Change page length.
+This line-scoped request is intended to take one height argument.
 Currently, it is ignored including its arguments,
 and the number of arguments is not checked.
 .Ss \&ps
@@ -1347,6 +1354,12 @@ The term
 refers to groff version 1.15.
 .Pp
 .Bl -dash -compact
+.It
+The
+.Sq u
+scaling unit is the default terminal unit.
+In traditional troff systems, this unit would change depending on the
+output media.
 .It
 In mandoc, the
 .Sx \&EQ ,

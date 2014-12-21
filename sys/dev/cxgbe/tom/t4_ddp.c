@@ -1173,7 +1173,7 @@ restart:
 
 	/* Socket buffer got some data that we shall deliver now. */
 	if (sbused(sb) && !(flags & MSG_WAITALL) &&
-	    ((sb->sb_flags & SS_NBIO) ||
+	    ((so->so_state & SS_NBIO) ||
 	     (flags & (MSG_DONTWAIT|MSG_NBIO)) ||
 	     sbused(sb) >= sb->sb_lowat ||
 	     sbused(sb) >= uio->uio_resid ||

@@ -30,11 +30,13 @@ SRCS+=	usbtest.c
 SRCS+=	usb_msc_test.c
 SRCS+=	usb_modem_test.c
 SRCS+=	usb_control_ep_test.c
+SYSDIR?= ${.CURDIR}/../../../sys
 
+DPADD+=	${LIBUSB}
 LDADD+=	-lusb
 
 WARNS=	3
 
-CFLAGS+= -I ${.CURDIR}/../../../sys/dev/usb/gadget
+CFLAGS+= -I${SYSDIR}/dev/usb/gadget
 
 .include <bsd.prog.mk>

@@ -1,6 +1,6 @@
-/*	$Id: mdoc_html.c,v 1.195 2014/08/06 15:09:05 schwarze Exp $ */
+/*	$Id: mdoc_html.c,v 1.213 2014/11/27 22:27:56 schwarze Exp $ */
 /*
- * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,9 +15,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <sys/types.h>
 
@@ -58,7 +56,6 @@ static	void		  synopsis_pre(struct html *,
 				const struct mdoc_node *);
 
 static	void		  a2width(const char *, struct roffsu *);
-static	void		  a2offs(const char *, struct roffsu *);
 
 static	void		  mdoc_root_post(MDOC_ARGS);
 static	int		  mdoc_root_pre(MDOC_ARGS);
@@ -101,6 +98,7 @@ static	int		  mdoc_mt_pre(MDOC_ARGS);
 static	int		  mdoc_ms_pre(MDOC_ARGS);
 static	int		  mdoc_nd_pre(MDOC_ARGS);
 static	int		  mdoc_nm_pre(MDOC_ARGS);
+static	int		  mdoc_no_pre(MDOC_ARGS);
 static	int		  mdoc_ns_pre(MDOC_ARGS);
 static	int		  mdoc_pa_pre(MDOC_ARGS);
 static	void		  mdoc_pf_post(MDOC_ARGS);
@@ -185,7 +183,7 @@ static	const struct htmlmdoc mdocs[MDOC_MAX] = {
 	{mdoc_quote_pre, mdoc_quote_post}, /* Bq */
 	{mdoc_xx_pre, NULL}, /* Bsx */
 	{mdoc_bx_pre, NULL}, /* Bx */
-	{NULL, NULL}, /* Db */
+	{mdoc_skip_pre, NULL}, /* Db */
 	{NULL, NULL}, /* Dc */
 	{mdoc_quote_pre, mdoc_quote_post}, /* Do */
 	{mdoc_quote_pre, mdoc_quote_post}, /* Dq */
@@ -195,7 +193,7 @@ static	const struct htmlmdoc mdocs[MDOC_MAX] = {
 	{mdoc_quote_pre, mdoc_quote_post}, /* Eo */
 	{mdoc_xx_pre, NULL}, /* Fx */
 	{mdoc_ms_pre, NULL}, /* Ms */
-	{mdoc_igndelim_pre, NULL}, /* No */
+	{mdoc_no_pre, NULL}, /* No */
 	{mdoc_ns_pre, NULL}, /* Ns */
 	{mdoc_xx_pre, NULL}, /* Nx */
 	{mdoc_xx_pre, NULL}, /* Ox */
@@ -283,7 +281,7 @@ a2width(const char *p, struct roffsu *su)
 {
 
 	if ( ! a2roffsu(p, su, SCALE_MAX)) {
-		su->unit = SCALE_BU;
+		su->unit = SCALE_EN;
 		su->scale = html_strlen(p);
 	}
 }
@@ -316,11 +314,11 @@ synopsis_pre(struct html *h, const struct mdoc_node *n)
 	case MDOC_In:
 		/* FALLTHROUGH */
 	case MDOC_Vt:
-		print_otag(h, TAG_P, 0, NULL);
+		print_paragraph(h);
 		break;
 	case MDOC_Ft:
 		if (MDOC_Fn != n->tok && MDOC_Fo != n->tok) {
-			print_otag(h, TAG_P, 0, NULL);
+			print_paragraph(h);
 			break;
 		}
 		/* FALLTHROUGH */
@@ -328,27 +326,6 @@ synopsis_pre(struct html *h, const struct mdoc_node *n)
 		print_otag(h, TAG_BR, 0, NULL);
 		break;
 	}
-}
-
-/*
- * Calculate the scaling unit passed in an `-offset' argument.  This
- * uses either a native scaling unit (e.g., 1i, 2m), one of a set of
- * predefined strings (indent, etc.), or the string length of the value.
- */
-static void
-a2offs(const char *p, struct roffsu *su)
-{
-
-	/* FIXME: "right"? */
-
-	if (0 == strcmp(p, "left"))
-		SCALE_HS_INIT(su, 0);
-	else if (0 == strcmp(p, "indent"))
-		SCALE_HS_INIT(su, INDENT);
-	else if (0 == strcmp(p, "indent-two"))
-		SCALE_HS_INIT(su, INDENT * 2);
-	else if ( ! a2roffsu(p, su, SCALE_MAX))
-		SCALE_HS_INIT(su, html_strlen(p));
 }
 
 static void
@@ -446,13 +423,12 @@ print_mdoc_node(MDOC_ARGS)
 		 * the "meta" table state.  This will be reopened on the
 		 * next table element.
 		 */
-		if (h->tblt) {
+		if (h->tblt != NULL) {
 			print_tblclose(h);
 			t = h->tags.head;
 		}
-
-		assert(NULL == h->tblt);
-		if (mdocs[n->tok].pre && ENDBODY_NOT == n->end)
+		assert(h->tblt == NULL);
+		if (mdocs[n->tok].pre && (n->end == ENDBODY_NOT || n->child))
 			child = (*mdocs[n->tok].pre)(meta, n, h);
 		break;
 	}
@@ -477,8 +453,13 @@ print_mdoc_node(MDOC_ARGS)
 	case MDOC_EQN:
 		break;
 	default:
-		if (mdocs[n->tok].post && ENDBODY_NOT == n->end)
-			(*mdocs[n->tok].post)(meta, n, h);
+		if ( ! mdocs[n->tok].post || n->flags & MDOC_ENDED)
+			break;
+		(*mdocs[n->tok].post)(meta, n, h);
+		if (n->end != ENDBODY_NOT)
+			n->pending->flags |= MDOC_ENDED;
+		if (n->end == ENDBODY_NOSPACE)
+			h->flags |= HTML_NOSPACE;
 		break;
 	}
 }
@@ -486,29 +467,23 @@ print_mdoc_node(MDOC_ARGS)
 static void
 mdoc_root_post(MDOC_ARGS)
 {
-	struct htmlpair	 tag[3];
+	struct htmlpair	 tag;
 	struct tag	*t, *tt;
 
-	PAIR_SUMMARY_INIT(&tag[0], "Document Footer");
-	PAIR_CLASS_INIT(&tag[1], "foot");
-	PAIR_INIT(&tag[2], ATTR_WIDTH, "100%");
-	t = print_otag(h, TAG_TABLE, 3, tag);
-	PAIR_INIT(&tag[0], ATTR_WIDTH, "50%");
-	print_otag(h, TAG_COL, 1, tag);
-	print_otag(h, TAG_COL, 1, tag);
+	PAIR_CLASS_INIT(&tag, "foot");
+	t = print_otag(h, TAG_TABLE, 1, &tag);
 
 	print_otag(h, TAG_TBODY, 0, NULL);
 
 	tt = print_otag(h, TAG_TR, 0, NULL);
 
-	PAIR_CLASS_INIT(&tag[0], "foot-date");
-	print_otag(h, TAG_TD, 1, tag);
+	PAIR_CLASS_INIT(&tag, "foot-date");
+	print_otag(h, TAG_TD, 1, &tag);
 	print_text(h, meta->date);
 	print_stagq(h, tt);
 
-	PAIR_CLASS_INIT(&tag[0], "foot-os");
-	PAIR_INIT(&tag[1], ATTR_ALIGN, "right");
-	print_otag(h, TAG_TD, 2, tag);
+	PAIR_CLASS_INIT(&tag, "foot-os");
+	print_otag(h, TAG_TD, 1, &tag);
 	print_text(h, meta->os);
 	print_tagq(h, t);
 }
@@ -516,7 +491,7 @@ mdoc_root_post(MDOC_ARGS)
 static int
 mdoc_root_pre(MDOC_ARGS)
 {
-	struct htmlpair	 tag[3];
+	struct htmlpair	 tag;
 	struct tag	*t, *tt;
 	char		*volume, *title;
 
@@ -532,33 +507,25 @@ mdoc_root_pre(MDOC_ARGS)
 		mandoc_asprintf(&title, "%s(%s)",
 		    meta->title, meta->msec);
 
-	PAIR_SUMMARY_INIT(&tag[0], "Document Header");
-	PAIR_CLASS_INIT(&tag[1], "head");
-	PAIR_INIT(&tag[2], ATTR_WIDTH, "100%");
-	t = print_otag(h, TAG_TABLE, 3, tag);
-	PAIR_INIT(&tag[0], ATTR_WIDTH, "30%");
-	print_otag(h, TAG_COL, 1, tag);
-	print_otag(h, TAG_COL, 1, tag);
-	print_otag(h, TAG_COL, 1, tag);
+	PAIR_CLASS_INIT(&tag, "head");
+	t = print_otag(h, TAG_TABLE, 1, &tag);
 
 	print_otag(h, TAG_TBODY, 0, NULL);
 
 	tt = print_otag(h, TAG_TR, 0, NULL);
 
-	PAIR_CLASS_INIT(&tag[0], "head-ltitle");
-	print_otag(h, TAG_TD, 1, tag);
+	PAIR_CLASS_INIT(&tag, "head-ltitle");
+	print_otag(h, TAG_TD, 1, &tag);
 	print_text(h, title);
 	print_stagq(h, tt);
 
-	PAIR_CLASS_INIT(&tag[0], "head-vol");
-	PAIR_INIT(&tag[1], ATTR_ALIGN, "center");
-	print_otag(h, TAG_TD, 2, tag);
+	PAIR_CLASS_INIT(&tag, "head-vol");
+	print_otag(h, TAG_TD, 1, &tag);
 	print_text(h, volume);
 	print_stagq(h, tt);
 
-	PAIR_CLASS_INIT(&tag[0], "head-rtitle");
-	PAIR_INIT(&tag[1], ATTR_ALIGN, "right");
-	print_otag(h, TAG_TD, 2, tag);
+	PAIR_CLASS_INIT(&tag, "head-rtitle");
+	print_otag(h, TAG_TD, 1, &tag);
 	print_text(h, title);
 	print_tagq(h, t);
 
@@ -572,12 +539,18 @@ mdoc_sh_pre(MDOC_ARGS)
 {
 	struct htmlpair	 tag;
 
-	if (MDOC_BLOCK == n->type) {
+	switch (n->type) {
+	case MDOC_BLOCK:
 		PAIR_CLASS_INIT(&tag, "section");
 		print_otag(h, TAG_DIV, 1, &tag);
 		return(1);
-	} else if (MDOC_BODY == n->type)
+	case MDOC_BODY:
+		if (n->sec == SEC_AUTHORS)
+			h->flags &= ~(HTML_SPLIT|HTML_NOSPLIT);
 		return(1);
+	default:
+		break;
+	}
 
 	bufinit(h);
 	bufcat(h, "x");
@@ -642,9 +615,10 @@ mdoc_fl_pre(MDOC_ARGS)
 
 	print_text(h, "\\-");
 
-	if (n->child)
-		h->flags |= HTML_NOSPACE;
-	else if (n->next && n->next->line == n->line)
+	if ( ! (n->nchild == 0 &&
+	    (n->next == NULL ||
+	     n->next->type == MDOC_TEXT ||
+	     n->next->flags & MDOC_LINE)))
 		h->flags |= HTML_NOSPACE;
 
 	return(1);
@@ -1003,7 +977,7 @@ mdoc_bl_pre(MDOC_ARGS)
 	/* Set the block's left-hand margin. */
 
 	if (n->norm->Bl.offs) {
-		a2offs(n->norm->Bl.offs, &su);
+		a2width(n->norm->Bl.offs, &su);
 		bufcat_su(h, "margin-left", &su);
 	}
 
@@ -1165,13 +1139,21 @@ mdoc_bd_pre(MDOC_ARGS)
 				break;
 		}
 		if ( ! comp)
-			print_otag(h, TAG_P, 0, NULL);
+			print_paragraph(h);
 		return(1);
 	}
 
-	SCALE_HS_INIT(&su, 0);
-	if (n->norm->Bd.offs)
-		a2offs(n->norm->Bd.offs, &su);
+	/* Handle the -offset argument. */
+
+	if (n->norm->Bd.offs == NULL ||
+	    ! strcmp(n->norm->Bd.offs, "left"))
+		SCALE_HS_INIT(&su, 0);
+	else if ( ! strcmp(n->norm->Bd.offs, "indent"))
+		SCALE_HS_INIT(&su, INDENT);
+	else if ( ! strcmp(n->norm->Bd.offs, "indent-two"))
+		SCALE_HS_INIT(&su, INDENT * 2);
+	else
+		a2width(n->norm->Bd.offs, &su);
 
 	bufinit(h);
 	bufcat_su(h, "margin-left", &su);
@@ -1259,7 +1241,25 @@ mdoc_an_pre(MDOC_ARGS)
 {
 	struct htmlpair	tag;
 
-	/* TODO: -split and -nosplit (see termp_an_pre()). */
+	if (n->norm->An.auth == AUTH_split) {
+		h->flags &= ~HTML_NOSPLIT;
+		h->flags |= HTML_SPLIT;
+		return(0);
+	}
+	if (n->norm->An.auth == AUTH_nosplit) {
+		h->flags &= ~HTML_SPLIT;
+		h->flags |= HTML_NOSPLIT;
+		return(0);
+	}
+
+	if (n->child == NULL)
+		return(0);
+
+	if (h->flags & HTML_SPLIT)
+		print_otag(h, TAG_BR, 0, NULL);
+
+	if (n->sec == SEC_AUTHORS && ! (h->flags & HTML_NOSPLIT))
+		h->flags |= HTML_SPLIT;
 
 	PAIR_CLASS_INIT(&tag, "author");
 	print_otag(h, TAG_SPAN, 1, &tag);
@@ -1553,7 +1553,7 @@ static int
 mdoc_pp_pre(MDOC_ARGS)
 {
 
-	print_otag(h, TAG_P, 0, NULL);
+	print_paragraph(h);
 	return(0);
 }
 
@@ -1881,10 +1881,20 @@ mdoc_rs_pre(MDOC_ARGS)
 		return(1);
 
 	if (n->prev && SEC_SEE_ALSO == n->sec)
-		print_otag(h, TAG_P, 0, NULL);
+		print_paragraph(h);
 
 	PAIR_CLASS_INIT(&tag, "ref");
 	print_otag(h, TAG_SPAN, 1, &tag);
+	return(1);
+}
+
+static int
+mdoc_no_pre(MDOC_ARGS)
+{
+	struct htmlpair	tag;
+
+	PAIR_CLASS_INIT(&tag, "none");
+	print_otag(h, TAG_CODE, 1, &tag);
 	return(1);
 }
 
@@ -2069,7 +2079,8 @@ mdoc_quote_pre(MDOC_ARGS)
 	case MDOC_Ao:
 		/* FALLTHROUGH */
 	case MDOC_Aq:
-		print_text(h, "\\(la");
+		print_text(h, n->parent->prev != NULL &&
+		    n->parent->prev->tok == MDOC_An ?  "<" : "\\(la");
 		break;
 	case MDOC_Bro:
 		/* FALLTHROUGH */
@@ -2135,17 +2146,19 @@ static void
 mdoc_quote_post(MDOC_ARGS)
 {
 
-	if (MDOC_BODY != n->type)
+	if (n->type != MDOC_BODY && n->type != MDOC_ELEM)
 		return;
 
-	if (MDOC_En != n->tok)
+	if ( ! (n->tok == MDOC_En ||
+	    (n->tok == MDOC_Eo && n->end == ENDBODY_SPACE)))
 		h->flags |= HTML_NOSPACE;
 
 	switch (n->tok) {
 	case MDOC_Ao:
 		/* FALLTHROUGH */
 	case MDOC_Aq:
-		print_text(h, "\\(ra");
+		print_text(h, n->parent->prev != NULL &&
+		    n->parent->prev->tok == MDOC_An ?  ">" : "\\(ra");
 		break;
 	case MDOC_Bro:
 		/* FALLTHROUGH */

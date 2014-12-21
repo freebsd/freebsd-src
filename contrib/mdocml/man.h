@@ -1,4 +1,4 @@
-/*	$Id: man.h,v 1.65 2014/06/20 23:02:31 schwarze Exp $ */
+/*	$Id: man.h,v 1.66 2014/11/28 05:51:32 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -68,7 +68,6 @@ enum	man_type {
 	MAN_BLOCK,
 	MAN_HEAD,
 	MAN_BODY,
-	MAN_TAIL,
 	MAN_TBL,
 	MAN_EQN
 };

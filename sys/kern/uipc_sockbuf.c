@@ -1062,6 +1062,21 @@ sbcut_internal(struct sockbuf *sb, int len)
 			m = n;
 		}
 	}
+	/*
+	 * Free any zero-length mbufs from the buffer.
+	 * For SOCK_DGRAM sockets such mbufs represent empty records.
+	 * XXX: For SOCK_STREAM sockets such mbufs can appear in the buffer,
+	 * when sosend_generic() needs to send only control data.
+	 */
+	while (m && m->m_len == 0) {
+		struct mbuf *n;
+
+		sbfree(sb, m);
+		n = m->m_next;
+		m->m_next = mfree;
+		mfree = m;
+		m = n;
+	}
 	if (m) {
 		sb->sb_mb = m;
 		m->m_nextpkt = next;

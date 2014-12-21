@@ -50,6 +50,8 @@
 
 __FBSDID("$FreeBSD$");
 
+	.syntax	unified
+
 /*
  * Read bytes from an I/O address into a block of memory
  *
@@ -71,10 +73,10 @@ ENTRY(read_multi_1)
 	cmp	r12, #2
 	ldrb	r3, [r0]
 	strb	r3, [r1], #1
-	ldrgeb	r3, [r0]
-	strgeb	r3, [r1], #1
-	ldrgtb	r3, [r0]
-	strgtb	r3, [r1], #1
+	ldrbge	r3, [r0]
+	strbge	r3, [r1], #1
+	ldrbgt	r3, [r0]
+	strbgt	r3, [r1], #1
 	subs	r2, r2, r12
 	blt	.Lrm1_l4
 .Lrm1_main:
@@ -91,15 +93,15 @@ ENTRY(read_multi_1)
 	bge	.Lrm1loop
 .Lrm1_l4:
 	adds	r2, r2, #4			/* r2 = length again */
-	ldmeqdb	fp, {fp, sp, pc}
+	ldmdbeq	fp, {fp, sp, pc}
 	RETeq
 	cmp	r2, #2
 	ldrb	r3, [r0]
 	strb	r3, [r1], #1
-	ldrgeb	r3, [r0]
-	strgeb	r3, [r1], #1
-	ldrgtb	r3, [r0]
-	strgtb	r3, [r1], #1
+	ldrbge	r3, [r0]
+	strbge	r3, [r1], #1
+	ldrbgt	r3, [r0]
+	strbgt	r3, [r1], #1
 	ldmdb	fp, {fp, sp, pc}
 END(read_multi_1)
 
@@ -124,10 +126,10 @@ ENTRY(write_multi_1)
 	cmp	r12, #2
 	ldrb	r3, [r1], #1
 	strb	r3, [r0]
-	ldrgeb	r3, [r1], #1
-	strgeb	r3, [r0]
-	ldrgtb	r3, [r1], #1
-	strgtb	r3, [r0]
+	ldrbge	r3, [r1], #1
+	strbge	r3, [r0]
+	ldrbgt	r3, [r1], #1
+	strbgt	r3, [r0]
 	subs	r2, r2, r12
 	blt	.Lwm1_l4
 .Lwm1_main:
@@ -144,14 +146,14 @@ ENTRY(write_multi_1)
 	bge	.Lwm1loop
 .Lwm1_l4:
 	adds	r2, r2, #4			/* r2 = length again */
-	ldmeqdb	fp, {fp, sp, pc}
+	ldmdbeq	fp, {fp, sp, pc}
 	cmp	r2, #2
 	ldrb	r3, [r1], #1
 	strb	r3, [r0]
-	ldrgeb	r3, [r1], #1
-	strgeb	r3, [r0]
-	ldrgtb	r3, [r1], #1
-	strgtb	r3, [r0]
+	ldrbge	r3, [r1], #1
+	strbge	r3, [r0]
+	ldrbgt	r3, [r1], #1
+	strbgt	r3, [r0]
 	ldmdb	fp, {fp, sp, pc}
 END(write_multi_1)
 

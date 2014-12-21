@@ -69,7 +69,7 @@ typedef struct mzap_ent {
 } mzap_ent_t;
 
 #define	MZE_PHYS(zap, mze) \
-	(&(zap)->zap_m.zap_phys->mz_chunk[(mze)->mze_chunkid])
+	(&zap_m_phys(zap)->mz_chunk[(mze)->mze_chunkid])
 
 /*
  * The (fat) zap is stored in one object. It is an array of
@@ -103,7 +103,7 @@ struct zap_leaf;
  * word number (1<<ZAP_EMBEDDED_PTRTBL_SHIFT(zap)).
  */
 #define	ZAP_EMBEDDED_PTRTBL_ENT(zap, idx) \
-	((uint64_t *)(zap)->zap_f.zap_phys) \
+	((uint64_t *)zap_f_phys(zap)) \
 	[(idx) + (1<<ZAP_EMBEDDED_PTRTBL_SHIFT(zap))]
 
 /*
@@ -148,8 +148,6 @@ typedef struct zap {
 	uint64_t zap_salt;
 	union {
 		struct {
-			zap_phys_t *zap_phys;
-
 			/*
 			 * zap_num_entries_mtx protects
 			 * zap_num_entries
@@ -158,7 +156,6 @@ typedef struct zap {
 			int zap_block_shift;
 		} zap_fat;
 		struct {
-			mzap_phys_t *zap_phys;
 			int16_t zap_num_entries;
 			int16_t zap_num_chunks;
 			int16_t zap_alloc_next;
@@ -166,6 +163,18 @@ typedef struct zap {
 		} zap_micro;
 	} zap_u;
 } zap_t;
+
+inline zap_phys_t *
+zap_f_phys(zap_t *zap)
+{
+	return (zap->zap_dbuf->db_data);
+}
+
+inline mzap_phys_t *
+zap_m_phys(zap_t *zap)
+{
+	return (zap->zap_dbuf->db_data);
+}
 
 typedef struct zap_name {
 	zap_t *zn_zap;

@@ -1,4 +1,4 @@
-.\"	$Id: mandoc.1,v 1.106 2014/08/08 01:50:59 schwarze Exp $
+.\"	$Id: mandoc.1,v 1.125 2014/11/28 18:09:01 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2012, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: August 8 2014 $
+.Dd $Mdocdate: November 28 2014 $
 .Dt MANDOC 1
 .Os
 .Sh NAME
@@ -23,10 +23,11 @@
 .Nd format and display UNIX manuals
 .Sh SYNOPSIS
 .Nm mandoc
-.Op Fl V
+.Op Fl acfhklV
 .Sm off
 .Op Fl I Cm os Li = Ar name
 .Sm on
+.Op Fl K Ns Ar encoding
 .Op Fl m Ns Ar format
 .Op Fl O Ns Ar option
 .Op Fl T Ns Ar output
@@ -51,8 +52,31 @@ and produces
 .Fl T Ns Cm ascii
 output.
 .Pp
-The arguments are as follows:
+The options are as follows:
 .Bl -tag -width Ds
+.It Fl a
+If the standard output is a terminal device and
+.Fl c
+is not specified, use
+.Xr more 1
+to paginate the output, just like
+.Xr man 1
+would.
+.It Fl c
+Copy the formatted manual pages to the standard output without using
+.Xr more 1
+to paginate them.
+This is the default.
+It can be specified to override
+.Fl a .
+.It Fl f
+A synonym for
+.Xr whatis 1 .
+This overrides any earlier
+.Fl k
+and
+.Fl l
+options.
 .Sm off
 .It Fl I Cm os Li = Ar name
 .Sm on
@@ -62,6 +86,51 @@ for the
 .Xr mdoc 7
 .Sq \&Os
 macro.
+.It Fl h
+Display only the SYNOPSIS lines.
+Implies
+.Fl c .
+.It Fl K Ns Ar encoding
+Specify the input encoding.
+The supported
+.Ar encoding
+arguments are
+.Cm us-ascii ,
+.Cm iso-8859-1 ,
+and
+.Cm utf-8 .
+If not specified, autodetection uses the first match:
+.Bl -tag -width iso-8859-1
+.It Cm utf-8
+if the first three bytes of the input file
+are the UTF-8 byte order mark (BOM, 0xefbbbf)
+.It Ar encoding
+if the first or second line of the input file matches the
+.Sy emacs
+mode line format
+.Pp
+.D1 .\e" -*- Oo ...; Oc coding: Ar encoding ; No -*-
+.It Cm utf-8
+if the first non-ASCII byte in the file introduces a valid UTF-8 sequence
+.It Cm iso-8859-1
+otherwise
+.El
+.It Fl k
+A synonym for
+.Xr apropos 1 .
+This overrides any earlier
+.Fl f
+and
+.Fl l
+options.
+.It Fl l
+A synonym for
+.Fl a .
+Also reverts any earlier
+.Fl f
+and
+.Fl k
+options.
 .It Fl m Ns Ar format
 Input format.
 See
@@ -122,6 +191,18 @@ If multiple files are specified,
 .Nm
 will halt with the first failed parse.
 .El
+.Pp
+In
+.Fl f
+and
+.Fl k
+mode,
+.Nm
+also supports the options
+.Fl CMmOSsw
+described in the
+.Xr apropos 1
+manual.
 .Ss Input Formats
 The
 .Nm
@@ -178,7 +259,7 @@ This is the default.
 See
 .Sx ASCII Output .
 .It Fl T Ns Cm html
-Produce strict CSS1/HTML-4.01 output.
+Produce HTML5, CSS1, and MathML output.
 See
 .Sx HTML Output .
 .It Fl T Ns Cm lint
@@ -210,9 +291,8 @@ Encode output in the UTF\-8 multi-byte format.
 See
 .Sx UTF\-8 Output .
 .It Fl T Ns Cm xhtml
-Produce strict CSS1/XHTML-1.0 output.
-See
-.Sx XHTML Output .
+This is a synonym for
+.Fl T Ns Cm html .
 .El
 .Pp
 If multiple input files are specified, these will be processed by the
@@ -265,7 +345,11 @@ which will normalise to \(>=60.
 .Ss HTML Output
 Output produced by
 .Fl T Ns Cm html
-conforms to HTML-4.01 strict.
+conforms to HTML5 using optional self-closing tags.
+Default styles use only CSS1.
+Equations rendered from
+.Xr eqn 7
+blocks use MathML.
 .Pp
 The
 .Pa example.style.css
@@ -273,7 +357,8 @@ file documents style-sheet classes available for customising output.
 If a style-sheet is not specified with
 .Fl O Ns Ar style ,
 .Fl T Ns Cm html
-defaults to simple output readable in any graphical or text-based web
+defaults to simple output (via an embedded style-sheet)
+readable in any graphical or text-based web
 browser.
 .Pp
 Special characters are rendered in decimal-encoded UTF\-8.
@@ -283,16 +368,8 @@ The following
 arguments are accepted:
 .Bl -tag -width Ds
 .It Cm fragment
-Omit the
-.Aq !DOCTYPE
-declaration and the
-.Aq html ,
-.Aq head ,
-and
-.Aq body
-elements and only emit the subtree below the
-.Aq body
-element.
+Omit the <!DOCTYPE> declaration and the <html>, <head>, and <body>
+elements and only emit the subtree below the <body> element.
 The
 .Cm style
 argument will be ignored.
@@ -416,15 +493,21 @@ to force a UTF\-8 locale.
 See
 .Sx Locale Output
 for details and options.
-.Ss XHTML Output
-Output produced by
-.Fl T Ns Cm xhtml
-conforms to XHTML-1.0 strict.
-.Pp
-See
-.Sx HTML Output
-for details; beyond generating XHTML tags instead of HTML tags, these
-output modes are identical.
+.Sh ENVIRONMENT
+.Bl -tag -width MANPAGER
+.It Ev MANPAGER
+Any non-empty value of the environment variable
+.Ev MANPAGER
+will be used instead of the standard pagination program,
+.Xr more 1 .
+.It Ev PAGER
+Specifies the pagination program to use when
+.Ev MANPAGER
+is not defined.
+If neither PAGER nor MANPAGER is defined,
+.Pa /usr/bin/more Fl s
+will be used.
+.El
 .Sh EXIT STATUS
 The
 .Nm
@@ -582,12 +665,6 @@ macro lacks the mandatory section argument.
 The section number in a
 .Ic \&Dt
 line is invalid, but still used.
-.It Sy "unknown manual volume or arch"
-.Pq mdoc
-The volume name in a
-.Ic \&Dt
-line is invalid, but still used.
-The manual is assumed to be architecture-independent.
 .It Sy "missing date, using today's date"
 .Pq mdoc, man
 The document was parsed as
@@ -696,6 +773,28 @@ The same standard section title occurs more than once.
 .Pq mdoc
 A standard section header occurs in a section of the manual
 where it normally isn't useful.
+.It Sy "unusual Xr order"
+.Pq mdoc
+In the SEE ALSO section, an
+.Ic \&Xr
+macro with a lower section number follows one with a higher number,
+or two
+.Ic \&Xr
+macros refering to the same section are out of alphabetical order.
+.It Sy "unusual Xr punctuation"
+.Pq mdoc
+In the SEE ALSO section, punctuation between two
+.Ic \&Xr
+macros differs from a single comma, or there is trailing punctuation
+after the last
+.Ic \&Xr
+macro.
+.It Sy "AUTHORS section without An macro"
+.Pq mdoc
+An AUTHORS sections contains no
+.Ic \&An
+macros, or only empty ones.
+Probably, there are author names lacking markup.
 .El
 .Ss "Warnings related to macros and nesting"
 .Bl -ohang
@@ -824,8 +923,11 @@ The previous, interrupted macro is deleted from the parse tree.
 .Ss "Warnings related to missing arguments"
 .Bl -ohang
 .It Sy "skipping empty request"
-.Pq roff
-The macro name is missing from a macro definition request.
+.Pq roff , eqn
+The macro name is missing from a macro definition request,
+or an
+.Xr eqn 7
+control statement or operation keyword lacks its required argument.
 .It Sy "conditional request controls empty scope"
 .Pq roff
 A conditional request is only useful if any of the following
@@ -959,6 +1061,11 @@ The
 utility assumes
 .Fl std
 even when it is not specified, but other implementations may not.
+.It Sy "missing eqn box, using \(dq\(dq"
+.Pq eqn
+A diacritic mark or a binary operator is found,
+but there is nothing to the left of it.
+An empty box is inserted.
 .El
 .Ss "Warnings related to bad macro arguments"
 .Bl -ohang
@@ -1026,6 +1133,21 @@ macro has an invalid argument.
 It is used verbatim, with
 .Qq "AT&T UNIX "
 prefixed to it.
+.It Sy "comma in function argument"
+.Pq mdoc
+An argument of an
+.Ic \&Fa
+or
+.Ic \&Fn
+macro contains a comma; it should probably be split into two arguments.
+.It Sy "parenthesis in function name"
+.Pq mdoc
+The first argument of an
+.Ic \&Fc
+or
+.Ic \&Fn
+macro contains an opening or closing parenthesis; that's probably wrong,
+parentheses are added automatically.
 .It Sy "invalid content in Rs block"
 .Pq mdoc
 An
@@ -1044,11 +1166,16 @@ or
 The invalid argument is moved out of the macro, which leaves the macro
 empty, causing it to toggle the spacing mode.
 .It Sy "unknown font, skipping request"
-.Pq man
+.Pq man , tbl
 A
 .Xr roff 7
 .Ic \&ft
-request has an invalid argument.
+request or a
+.Xr tbl 7
+.Ic \&f
+layout modifier has an unknown
+.Ar font
+argument.
 .El
 .Ss "Warnings related to plain text"
 .Bl -ohang
@@ -1111,7 +1238,6 @@ keeps the code more readable.
 .It "equation scope open on exit"
 .It "overlapping equation scopes"
 .It "unexpected end of equation"
-.It "equation syntax error"
 .El
 .Ss "Errors related to tables"
 .Bl -inset -compact
@@ -1165,12 +1291,15 @@ macro.
 It may be mistyped or unsupported.
 The request or macro is discarded including its arguments.
 .It Sy "skipping item outside list"
-.Pq mdoc
+.Pq mdoc , eqn
 An
 .Ic \&It
 macro occurs outside any
 .Ic \&Bl
-list.
+list, or an
+.Xr eqn 7
+.Ic above
+delimiter occurs outside any pile.
 It is discarded including its arguments.
 .It Sy "skipping column outside column list"
 .Pq mdoc
@@ -1191,7 +1320,9 @@ block closing macro, a
 .Ic \&RE
 or
 .Ic \&UE
-macro, or the end of an equation, table, or
+macro, an
+.Xr eqn 7
+right delimiter or closing brace, or the end of an equation, table, or
 .Xr roff 7
 conditional request is encountered but no matching block is open.
 The offending request or macro is discarded.
@@ -1259,6 +1390,17 @@ The indicated request or macro has too few or too many arguments.
 The syntax tree will contain the wrong number of arguments as given.
 Formatting behaviour depends on the specific request or macro in question.
 Note that the same message may also occur as a WARNING, see above.
+.It Sy "NOT IMPLEMENTED: Bd -file"
+.Pq mdoc
+For security reasons, the
+.Ic \&Bd
+macro does not support the
+.Fl file
+argument.
+By requesting the inclusion of a sensitive file, a malicious document
+might otherwise trick a privileged user into inadvertently displaying
+the file on the screen, revealing the file content to bystanders.
+The argument is ignored including the file name following it.
 .It Sy "missing list type, using -item"
 .Pq mdoc
 A
@@ -1288,11 +1430,16 @@ An
 .Ic \&St
 macro has an unknown argument and is discarded.
 .It Sy "skipping request without numeric argument"
-.Pq roff
+.Pq roff , eqn
 An
 .Ic \&it
-request has a non-numeric or negative argument or no argument at all.
-The invalid request is ignored.
+request or an
+.Xr eqn 7
+.Ic \&size
+or
+.Ic \&gsize
+statement has a non-numeric or negative argument or no argument at all.
+The invalid request or statement is ignored.
 .It Sy "skipping all arguments"
 .Pq mdoc , man , eqn , roff
 An
@@ -1315,6 +1462,8 @@ or
 .Ic \&PP
 macro, an
 .Xr eqn 7
+.Ic \&EQ
+or
 .Ic \&EN
 macro, or a
 .Xr roff 7
@@ -1340,17 +1489,6 @@ cannot handle input files larger than its arbitrary size limit
 of 2^31 bytes (2 Gigabytes).
 Since useful manuals are always small, this is not a problem in practice.
 Parsing is aborted as soon as the condition is detected.
-.It Sy "NOT IMPLEMENTED: Bd -file"
-.Pq mdoc
-For security reasons, the
-.Ic \&Bd
-macro does not support the
-.Fl file
-argument.
-By requesting the inclusion of a sensitive file, a malicious document
-might otherwise trick a privileged user into inadvertently displaying
-the file on the screen, revealing the file content to bystanders.
-The parser exits immediately.
 .It Sy "NOT IMPLEMENTED: .so with absolute path or \(dq..\(dq"
 .Pq roff
 For security reasons,
@@ -1430,7 +1568,7 @@ has no effect.
 .It
 Words aren't hyphenated.
 .El
-.Ss HTML/XHTML Compatibility
+.Ss HTML Compatibility
 .Bl -bullet -compact
 .It
 The

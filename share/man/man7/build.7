@@ -445,6 +445,21 @@ process.
 .Bd -literal -offset indent
 make PORTS_MODULES=emulators/kqemu-kmod kernel
 .Ed
+.It Va STRIP_CMD
+Command to use at install time when stripping binaries.
+Be sure to add any additional tools required to run
+.Va STRIP_CMD
+to the
+.Va LOCAL_ITOOLS
+.Xr make 1
+variable before running the
+.Cm distributeworld
+or
+.Cm installworld
+targets.
+See
+.Xr install 1
+for more details.
 .It Va SUBDIR_OVERRIDE
 Override the default list of sub-directories and only build the
 sub-directory named in this variable.

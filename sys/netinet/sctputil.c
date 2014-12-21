@@ -67,9 +67,9 @@ sctp_sblog(struct sockbuf *sb, struct sctp_tcb *stcb, int from, int incr)
 	struct sctp_cwnd_log sctp_clog;
 
 	sctp_clog.x.sb.stcb = stcb;
-	sctp_clog.x.sb.so_sbcc = sb->sb_ccc;
+	sctp_clog.x.sb.so_sbcc = sb->sb_cc;
 	if (stcb)
-		sctp_clog.x.sb.stcb_sbcc = stcb->asoc.sb_ccc;
+		sctp_clog.x.sb.stcb_sbcc = stcb->asoc.sb_cc;
 	else
 		sctp_clog.x.sb.stcb_sbcc = 0;
 	sctp_clog.x.sb.incr = incr;
@@ -2760,7 +2760,16 @@ sctp_notify_peer_addr_change(struct sctp_tcb *stcb, uint32_t state,
 	switch (sa->sa_family) {
 #ifdef INET
 	case AF_INET:
+#ifdef INET6
+		if (sctp_is_feature_on(stcb->sctp_ep, SCTP_PCB_FLAGS_NEEDS_MAPPED_V4)) {
+			in6_sin_2_v4mapsin6((struct sockaddr_in *)sa,
+			    (struct sockaddr_in6 *)&spc->spc_aaddr);
+		} else {
+			memcpy(&spc->spc_aaddr, sa, sizeof(struct sockaddr_in));
+		}
+#else
 		memcpy(&spc->spc_aaddr, sa, sizeof(struct sockaddr_in));
+#endif
 		break;
 #endif
 #ifdef INET6
@@ -3852,7 +3861,7 @@ sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct mbuf *m, int iphlen,
     struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, struct mbuf *op_err,
-    uint8_t use_mflowid, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid,
     uint32_t vrf_id, uint16_t port)
 {
 	uint32_t vtag;
@@ -3872,7 +3881,7 @@ sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		stcb->asoc.state |= SCTP_STATE_WAS_ABORTED;
 	}
 	sctp_send_abort(m, iphlen, src, dst, sh, vtag, op_err,
-	    use_mflowid, mflowid,
+	    mflowtype, mflowid,
 	    vrf_id, port);
 	if (stcb != NULL) {
 		/* Ok, now lets free it */
@@ -4026,7 +4035,7 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset,
     struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, struct sctp_inpcb *inp,
     struct mbuf *cause,
-    uint8_t use_mflowid, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid,
     uint32_t vrf_id, uint16_t port)
 {
 	struct sctp_chunkhdr *ch, chunk_buf;
@@ -4068,7 +4077,7 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset,
 			return;
 		case SCTP_SHUTDOWN_ACK:
 			sctp_send_shutdown_complete2(src, dst, sh,
-			    use_mflowid, mflowid,
+			    mflowtype, mflowid,
 			    vrf_id, port);
 			return;
 		default:
@@ -4082,7 +4091,7 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset,
 	    ((SCTP_BASE_SYSCTL(sctp_blackhole) == 1) &&
 	    (contains_init_chunk == 0))) {
 		sctp_send_abort(m, iphlen, src, dst, sh, 0, cause,
-		    use_mflowid, mflowid,
+		    mflowtype, mflowid,
 		    vrf_id, port);
 	}
 }
@@ -4363,7 +4372,7 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 {
 	/*
 	 * Here we must place the control on the end of the socket read
-	 * queue AND increment sb_ccc so that select will work properly on
+	 * queue AND increment sb_cc so that select will work properly on
 	 * read.
 	 */
 	struct mbuf *m, *prev = NULL;
@@ -4489,7 +4498,7 @@ sctp_append_to_readq(struct sctp_inpcb *inp,
 	 * the reassembly queue.
 	 * 
 	 * If PDAPI this means we need to add m to the end of the data.
-	 * Increase the length in the control AND increment the sb_ccc.
+	 * Increase the length in the control AND increment the sb_cc.
 	 * Otherwise sb is NULL and all we need to do is put it at the end
 	 * of the mbuf chain.
 	 */
@@ -4701,10 +4710,10 @@ sctp_free_bufspace(struct sctp_tcb *stcb, struct sctp_association *asoc,
 
 	if (stcb->sctp_socket && (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) ||
 	    ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE)))) {
-		if (stcb->sctp_socket->so_snd.sb_ccc >= tp1->book_size) {
-			stcb->sctp_socket->so_snd.sb_ccc -= tp1->book_size;
+		if (stcb->sctp_socket->so_snd.sb_cc >= tp1->book_size) {
+			stcb->sctp_socket->so_snd.sb_cc -= tp1->book_size;
 		} else {
-			stcb->sctp_socket->so_snd.sb_ccc = 0;
+			stcb->sctp_socket->so_snd.sb_cc = 0;
 
 		}
 	}
@@ -5254,11 +5263,11 @@ sctp_sorecvmsg(struct socket *so,
 	in_eeor_mode = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXPLICIT_EOR);
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_RECV_RWND_LOGGING_ENABLE) {
 		sctp_misc_ints(SCTP_SORECV_ENTER,
-		    rwnd_req, in_eeor_mode, so->so_rcv.sb_ccc, uio->uio_resid);
+		    rwnd_req, in_eeor_mode, so->so_rcv.sb_cc, uio->uio_resid);
 	}
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_RECV_RWND_LOGGING_ENABLE) {
 		sctp_misc_ints(SCTP_SORECV_ENTERPL,
-		    rwnd_req, block_allowed, so->so_rcv.sb_ccc, uio->uio_resid);
+		    rwnd_req, block_allowed, so->so_rcv.sb_cc, uio->uio_resid);
 	}
 	error = sblock(&so->so_rcv, (block_allowed ? SBL_WAIT : 0));
 	if (error) {
@@ -5277,23 +5286,23 @@ restart_nosblocks:
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE)) {
 		goto out;
 	}
-	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) && (so->so_rcv.sb_ccc == 0)) {
+	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) && (so->so_rcv.sb_cc == 0)) {
 		if (so->so_error) {
 			error = so->so_error;
 			if ((in_flags & MSG_PEEK) == 0)
 				so->so_error = 0;
 			goto out;
 		} else {
-			if (so->so_rcv.sb_ccc == 0) {
+			if (so->so_rcv.sb_cc == 0) {
 				/* indicate EOF */
 				error = 0;
 				goto out;
 			}
 		}
 	}
-	if ((so->so_rcv.sb_ccc <= held_length) && block_allowed) {
+	if ((so->so_rcv.sb_cc <= held_length) && block_allowed) {
 		/* we need to wait for data */
-		if ((so->so_rcv.sb_ccc == 0) &&
+		if ((so->so_rcv.sb_cc == 0) &&
 		    ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 		    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL))) {
 			if ((inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) == 0) {
@@ -5329,7 +5338,7 @@ restart_nosblocks:
 		}
 		held_length = 0;
 		goto restart_nosblocks;
-	} else if (so->so_rcv.sb_ccc == 0) {
+	} else if (so->so_rcv.sb_cc == 0) {
 		if (so->so_error) {
 			error = so->so_error;
 			if ((in_flags & MSG_PEEK) == 0)
@@ -5386,11 +5395,11 @@ restart_nosblocks:
 			SCTP_INP_READ_LOCK(inp);
 		}
 		control = TAILQ_FIRST(&inp->read_queue);
-		if ((control == NULL) && (so->so_rcv.sb_ccc != 0)) {
+		if ((control == NULL) && (so->so_rcv.sb_cc != 0)) {
 #ifdef INVARIANTS
 			panic("Huh, its non zero and nothing on control?");
 #endif
-			so->so_rcv.sb_ccc = 0;
+			so->so_rcv.sb_cc = 0;
 		}
 		SCTP_INP_READ_UNLOCK(inp);
 		hold_rlock = 0;
@@ -5511,11 +5520,11 @@ restart_nosblocks:
 		}
 		/*
 		 * if we reach here, not suitable replacement is available
-		 * <or> fragment interleave is NOT on. So stuff the sb_ccc
+		 * <or> fragment interleave is NOT on. So stuff the sb_cc
 		 * into the our held count, and its time to sleep again.
 		 */
-		held_length = so->so_rcv.sb_ccc;
-		control->held_length = so->so_rcv.sb_ccc;
+		held_length = so->so_rcv.sb_cc;
+		control->held_length = so->so_rcv.sb_cc;
 		goto restart;
 	}
 	/* Clear the held length since there is something to read */
@@ -5653,43 +5662,43 @@ found_one:
 		entry->flgs = control->sinfo_flags;
 	}
 #endif
-	if (fromlen && from) {
-		cp_len = min((size_t)fromlen, (size_t)control->whoFrom->ro._l_addr.sa.sa_len);
+	if ((fromlen > 0) && (from != NULL)) {
+		union sctp_sockstore store;
+		size_t len;
+
 		switch (control->whoFrom->ro._l_addr.sa.sa_family) {
 #ifdef INET6
 		case AF_INET6:
-			((struct sockaddr_in6 *)from)->sin6_port = control->port_from;
+			len = sizeof(struct sockaddr_in6);
+			store.sin6 = control->whoFrom->ro._l_addr.sin6;
+			store.sin6.sin6_port = control->port_from;
 			break;
 #endif
 #ifdef INET
 		case AF_INET:
-			((struct sockaddr_in *)from)->sin_port = control->port_from;
+#ifdef INET6
+			if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NEEDS_MAPPED_V4)) {
+				len = sizeof(struct sockaddr_in6);
+				in6_sin_2_v4mapsin6(&control->whoFrom->ro._l_addr.sin,
+				    &store.sin6);
+				store.sin6.sin6_port = control->port_from;
+			} else {
+				len = sizeof(struct sockaddr_in);
+				store.sin = control->whoFrom->ro._l_addr.sin;
+				store.sin.sin_port = control->port_from;
+			}
+#else
+			len = sizeof(struct sockaddr_in);
+			store.sin = control->whoFrom->ro._l_addr.sin;
+			store.sin.sin_port = control->port_from;
+#endif
 			break;
 #endif
 		default:
+			len = 0;
 			break;
 		}
-		memcpy(from, &control->whoFrom->ro._l_addr, cp_len);
-
-#if defined(INET) && defined(INET6)
-		if ((sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NEEDS_MAPPED_V4)) &&
-		    (from->sa_family == AF_INET) &&
-		    ((size_t)fromlen >= sizeof(struct sockaddr_in6))) {
-			struct sockaddr_in *sin;
-			struct sockaddr_in6 sin6;
-
-			sin = (struct sockaddr_in *)from;
-			bzero(&sin6, sizeof(sin6));
-			sin6.sin6_family = AF_INET6;
-			sin6.sin6_len = sizeof(struct sockaddr_in6);
-			sin6.sin6_addr.s6_addr32[2] = htonl(0xffff);
-			bcopy(&sin->sin_addr,
-			    &sin6.sin6_addr.s6_addr32[3],
-			    sizeof(sin6.sin6_addr.s6_addr32[3]));
-			sin6.sin6_port = sin->sin_port;
-			memcpy(from, &sin6, sizeof(struct sockaddr_in6));
-		}
-#endif
+		memcpy(from, &store, min((size_t)fromlen, len));
 #ifdef INET6
 		{
 			struct sockaddr_in6 lsa6, *from6;
@@ -5812,10 +5821,10 @@ get_more_data:
 					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SB_LOGGING_ENABLE) {
 						sctp_sblog(&so->so_rcv, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBFREE, cp_len);
 					}
-					atomic_subtract_int(&so->so_rcv.sb_ccc, cp_len);
+					atomic_subtract_int(&so->so_rcv.sb_cc, cp_len);
 					if ((control->do_not_ref_stcb == 0) &&
 					    stcb) {
-						atomic_subtract_int(&stcb->asoc.sb_ccc, cp_len);
+						atomic_subtract_int(&stcb->asoc.sb_cc, cp_len);
 					}
 					copied_so_far += cp_len;
 					freed_so_far += cp_len;
@@ -5960,7 +5969,7 @@ wait_some_more:
 		    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_FRAG_INTERLEAVE))) {
 			goto release;
 		}
-		if (so->so_rcv.sb_ccc <= control->held_length) {
+		if (so->so_rcv.sb_cc <= control->held_length) {
 			error = sbwait(&so->so_rcv);
 			if (error) {
 				goto release;
@@ -5987,8 +5996,8 @@ wait_some_more:
 				}
 				goto done_with_control;
 			}
-			if (so->so_rcv.sb_ccc > held_length) {
-				control->held_length = so->so_rcv.sb_ccc;
+			if (so->so_rcv.sb_cc > held_length) {
+				control->held_length = so->so_rcv.sb_cc;
 				held_length = 0;
 			}
 			goto wait_some_more;
@@ -6135,13 +6144,13 @@ out:
 			    freed_so_far,
 			    ((uio) ? (slen - uio->uio_resid) : slen),
 			    stcb->asoc.my_rwnd,
-			    so->so_rcv.sb_ccc);
+			    so->so_rcv.sb_cc);
 		} else {
 			sctp_misc_ints(SCTP_SORECV_DONE,
 			    freed_so_far,
 			    ((uio) ? (slen - uio->uio_resid) : slen),
 			    0,
-			    so->so_rcv.sb_ccc);
+			    so->so_rcv.sb_cc);
 		}
 	}
 stage_left:
@@ -6450,7 +6459,7 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 {
 	struct sockaddr *addr_touse;
 
-#ifdef INET6
+#if defined(INET) && defined(INET6)
 	struct sockaddr_in sin;
 
 #endif
@@ -6464,8 +6473,10 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 	addr_touse = sa;
 #ifdef INET6
 	if (sa->sa_family == AF_INET6) {
+#ifdef INET
 		struct sockaddr_in6 *sin6;
 
+#endif
 		if (sa->sa_len != sizeof(struct sockaddr_in6)) {
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
 			*error = EINVAL;
@@ -6477,6 +6488,7 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 			*error = EINVAL;
 			return;
 		}
+#ifdef INET
 		sin6 = (struct sockaddr_in6 *)addr_touse;
 		if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
 			if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
@@ -6489,6 +6501,7 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 			in6_sin6_2_sin(&sin, sin6);
 			addr_touse = (struct sockaddr *)&sin;
 		}
+#endif
 	}
 #endif
 #ifdef INET
@@ -6578,7 +6591,7 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp,
 {
 	struct sockaddr *addr_touse;
 
-#ifdef INET6
+#if defined(INET) && defined(INET6)
 	struct sockaddr_in sin;
 
 #endif
@@ -6592,7 +6605,10 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp,
 	addr_touse = sa;
 #ifdef INET6
 	if (sa->sa_family == AF_INET6) {
+#ifdef INET
 		struct sockaddr_in6 *sin6;
+
+#endif
 
 		if (sa->sa_len != sizeof(struct sockaddr_in6)) {
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
@@ -6605,6 +6621,7 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp,
 			*error = EINVAL;
 			return;
 		}
+#ifdef INET
 		sin6 = (struct sockaddr_in6 *)addr_touse;
 		if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
 			if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
@@ -6617,6 +6634,7 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp,
 			in6_sin6_2_sin(&sin, sin6);
 			addr_touse = (struct sockaddr *)&sin;
 		}
+#endif
 	}
 #endif
 #ifdef INET

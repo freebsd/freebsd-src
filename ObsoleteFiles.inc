@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20141202: update to mandoc CVS 20141201
+OLD_FILES+=usr.bin/preconv
+OLD_FILES+=share/man/man1/preconv.1.gz
 # 20141129: mrouted rc.d scripts removed from base
 OLD_FILES+=etc/rc.d/mrouted
 # 20141126: convert sbin/mdconfig/tests to ATF format tests

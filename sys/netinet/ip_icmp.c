@@ -33,7 +33,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
-#include "opt_ipsec.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -65,10 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp_var.h>
 
 #ifdef INET
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/key.h>
-#endif
 
 #include <machine/in_cksum.h>
 
@@ -619,9 +614,6 @@ reflect:
 			  (struct sockaddr *)&icmpgw, fibnum);
 		}
 		pfctlinput(PRC_REDIRECT_HOST, (struct sockaddr *)&icmpsrc);
-#ifdef IPSEC
-		key_sa_routechange((struct sockaddr *)&icmpsrc);
-#endif
 		break;
 
 	/*
@@ -869,7 +861,7 @@ icmp_send(struct mbuf *m, struct mbuf *opts)
 }
 
 /*
- * Return milliseconds since 00:00 GMT in network format.
+ * Return milliseconds since 00:00 UTC in network format.
  */
 uint32_t
 iptime(void)

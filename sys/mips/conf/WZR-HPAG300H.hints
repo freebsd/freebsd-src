@@ -3,9 +3,8 @@
 # arge0 is connected to the LAN side of the switch PHY.
 # arge1 is connected to the single port WAN side of the switch PHY.
 
-# arge1 MDIO bus
 hint.argemdio.0.at="nexus0"
-hint.argemdio.0.maddr=0x1a000000
+hint.argemdio.0.maddr=0x19000000
 hint.argemdio.0.msize=0x1000
 hint.argemdio.0.order=0
 
@@ -20,15 +19,16 @@ hint.arge.1.phymask=0x10
 hint.arge.1.media=1000
 hint.arge.1.fduplex=1
 hint.arge.1.eeprommac=0x1f05520c
-hint.arge.1.mdio=mdioproxy0     # .. off of the switch mdiobus
+hint.arge.1.mdio=mdioproxy1     # .. off of the switch mdiobus
 hint.arge.1.miimode=3 
+
 #
-# AR7240 switch config
+# AR8316 switch config
 #
 hint.arswitch.0.at="mdio0"
 hint.arswitch.0.is_7240=0       # We need to be explicitly told this
 hint.arswitch.0.numphys=4       # 5 active switch PHYs (PHY 0 -> 4)
-hint.arswitch.0.phy4cpu=0       # No, PHY 4 == dedicated PHY
+hint.arswitch.0.phy4cpu=1       # No, PHY 4 == dedicated PHY
 hint.arswitch.0.is_rgmii=1      # Yes, is RGMII
 hint.arswitch.0.is_gmii=0       # No, not GMII
 

@@ -11,7 +11,7 @@
 # are exceptions). Recursive makes usually add MK_FOO=no for options that they wish
 # to omit from that make.
 #
-# Makefiles must include bsd.srcpot.mk before they test the value of any MK_FOO
+# Makefiles must include bsd.mkopt.mk before they test the value of any MK_FOO
 # variable.
 #
 # Makefiles may also assume that this file is included by src.opts.mk should it
@@ -160,6 +160,7 @@ __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
     CLANG_EXTRAS \
     EISA \
+    ELFTOOLCHAIN_TOOLS \
     FMAKE \
     HESIOD \
     LLDB \

@@ -87,3 +87,8 @@ METHOD void write_device_config {
 	void		*src;
 	int		len;
 };
+
+METHOD void poll {
+	device_t	dev;
+};
+
