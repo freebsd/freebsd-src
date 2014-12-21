@@ -100,8 +100,7 @@
 .Fa "struct vnet *"
 .Fc
 .\"
-.Fo CURVNET_RESTORE
-.Fc
+.Fn CURVNET_RESTORE
 .\"
 .Fo VNET_ITERATOR_DECL
 .Fa "struct vnet *"
@@ -113,14 +112,10 @@
 .\" ------------------------------------------------------------
 .Ss "Locking"
 .\"
-.Fo VNET_LIST_RLOCK
-.Fc
-.Fo VNET_LIST_RUNLOCK
-.Fc
-.Fo VNET_LIST_RLOCK_NOSLEEP
-.Fc
-.Fo VNET_LIST_RUNLOCK_NOSLEEP
-.Fc
+.Fn VNET_LIST_RLOCK
+.Fn VNET_LIST_RUNLOCK
+.Fn VNET_LIST_RLOCK_NOSLEEP
+.Fn VNET_LIST_RUNLOCK_NOSLEEP
 .\" ------------------------------------------------------------
 .Ss "Startup and Teardown Functions"
 .\"
