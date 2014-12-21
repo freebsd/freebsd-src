@@ -752,6 +752,8 @@ ieee80211_scan_next(struct ieee80211vap *vap)
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_scan_state *ss = ic->ic_scan;
 
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: called\n", __func__);
+
 	/* wake up the scan task */
 	IEEE80211_LOCK(ic);
 	scan_signal(ss);
@@ -767,6 +769,8 @@ ieee80211_scan_done(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_scan_state *ss;
+
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: called\n", __func__);
 
 	IEEE80211_LOCK(ic);
 	ss = ic->ic_scan;
@@ -821,6 +825,10 @@ scan_curchan(struct ieee80211_scan_state *ss, unsigned long maxdwell)
 {
 	struct ieee80211vap *vap  = ss->ss_vap;
 
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+	    "%s: calling; maxdwell=%lu\n",
+	    __func__,
+	    maxdwell);
 	IEEE80211_LOCK(vap->iv_ic);
 	if (ss->ss_flags & IEEE80211_SCAN_ACTIVE)
 		ieee80211_probe_curchan(vap, 0);
@@ -835,7 +843,6 @@ scan_signal(void *arg)
 	struct ieee80211_scan_state *ss = (struct ieee80211_scan_state *) arg;
 
 	IEEE80211_LOCK_ASSERT(ss->ss_ic);
-
 	cv_signal(&SCAN_PRIVATE(ss)->ss_scan_cv);
 }
 
@@ -847,6 +854,8 @@ static void
 scan_mindwell(struct ieee80211_scan_state *ss)
 {
 	struct ieee80211com *ic = ss->ss_ic;
+
+	IEEE80211_DPRINTF(ss->ss_vap, IEEE80211_MSG_SCAN, "%s: called\n", __func__);
 
 	IEEE80211_LOCK(ic);
 	scan_signal(ss);
@@ -904,8 +913,15 @@ scan_task(void *arg, int pending)
 	IEEE80211_LOCK(ic);
 
 	for (;;) {
+
 		scandone = (ss->ss_next >= ss->ss_last) ||
 		    (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL) != 0;
+
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+		    "%s: loop start; scandone=%d\n",
+		    __func__,
+		    scandone);
+
 		if (scandone || (ss->ss_flags & IEEE80211_SCAN_GOTPICK) ||
 		    (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_ABORT) ||
 		     time_after(ticks + ss->ss_mindwell, scanend))
@@ -970,9 +986,13 @@ scan_task(void *arg, int pending)
 		if ((SCAN_PRIVATE(ss)->ss_iflags & (ISCAN_CANCEL|ISCAN_ABORT)))
 			continue;
 
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: waiting\n", __func__);
 		/* Wait to be signalled to scan the next channel */
 		cv_wait(&SCAN_PRIVATE(ss)->ss_scan_cv, IEEE80211_LOCK_OBJ(ic));
 	}
+
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: out\n", __func__);
+
 	if (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_ABORT)
 		goto done;
 
