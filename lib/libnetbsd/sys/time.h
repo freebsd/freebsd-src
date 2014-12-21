@@ -1,8 +1,7 @@
 /* $FreeBSD$ */
 
-/*-
- * Copyright (c) 2012 SRI International
- * Copyright (c) 1992, 1993
+/*
+ * Copyright (c) 1982, 1986, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -28,45 +27,39 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	@(#)time.h	8.5 (Berkeley) 5/4/95
  */
 
-#ifndef _LIBNETBSD_SYS_CDEFS_H_
-#define _LIBNETBSD_SYS_CDEFS_H_
+#ifndef _LIBNETBSD_SYS_TIME_H_
+#define	_LIBNETBSD_SYS_TIME_H_
 
-#include_next <sys/cdefs.h>
+#include_next <sys/time.h>
 
-#ifdef __dead2
-#define __dead __dead2
-#else
-#define __dead
+/* Operations on timespecs. */
+#define	timespecclear(tsp)	(tsp)->tv_sec = (time_t)((tsp)->tv_nsec = 0L)
+#define	timespecisset(tsp)	((tsp)->tv_sec || (tsp)->tv_nsec)
+#define	timespeccmp(tsp, usp, cmp)					\
+	(((tsp)->tv_sec == (usp)->tv_sec) ?				\
+	    ((tsp)->tv_nsec cmp (usp)->tv_nsec) :			\
+	    ((tsp)->tv_sec cmp (usp)->tv_sec))
+#define	timespecadd(tsp, usp, vsp)					\
+	do {								\
+		(vsp)->tv_sec = (tsp)->tv_sec + (usp)->tv_sec;		\
+		(vsp)->tv_nsec = (tsp)->tv_nsec + (usp)->tv_nsec;	\
+		if ((vsp)->tv_nsec >= 1000000000L) {			\
+			(vsp)->tv_sec++;				\
+			(vsp)->tv_nsec -= 1000000000L;			\
+		}							\
+	} while (/* CONSTCOND */ 0)
+#define	timespecsub(tsp, usp, vsp)					\
+	do {								\
+		(vsp)->tv_sec = (tsp)->tv_sec - (usp)->tv_sec;		\
+		(vsp)->tv_nsec = (tsp)->tv_nsec - (usp)->tv_nsec;	\
+		if ((vsp)->tv_nsec < 0) {				\
+			(vsp)->tv_sec--;				\
+			(vsp)->tv_nsec += 1000000000L;			\
+		}							\
+	} while (/* CONSTCOND */ 0)
+
 #endif
-
-/*
- * The __CONCAT macro is used to concatenate parts of symbol names, e.g.
- * with "#define OLD(foo) __CONCAT(old,foo)", OLD(foo) produces oldfoo.
- * The __CONCAT macro is a bit tricky -- make sure you don't put spaces
- * in between its arguments.  __CONCAT can also concatenate double-quoted
- * strings produced by the __STRING macro, but this only works with ANSI C.
- */
-
-#define	___STRING(x)	__STRING(x)
-#define	___CONCAT(x,y)	__CONCAT(x,y)
-
-/*
- * The following macro is used to remove const cast-away warnings
- * from gcc -Wcast-qual; it should be used with caution because it
- * can hide valid errors; in particular most valid uses are in
- * situations where the API requires it, not to cast away string
- * constants. We don't use *intptr_t on purpose here and we are
- * explicit about unsigned long so that we don't have additional
- * dependencies.
- */
-#define __UNCONST(a)	((void *)(unsigned long)(const void *)(a))
-
-/*
- * Return the number of elements in a statically-allocated array,
- * __x.
- */
-#define	__arraycount(__x)	(sizeof(__x) / sizeof(__x[0]))
-
-#endif /* _LIBNETBSD_SYS_CDEFS_H_ */
