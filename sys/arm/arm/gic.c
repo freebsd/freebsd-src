@@ -306,7 +306,8 @@ arm_gic_attach(device_t dev)
 
 	for (i = 0; i < sc->nirqs; i += 4) {
 		gic_d_write_4(sc, GICD_IPRIORITYR(i >> 2), 0);
-		gic_d_write_4(sc, GICD_ITARGETSR(i >> 2), 1 << 0 | 1 << 8 | 1 << 16 | 1 << 24);
+		gic_d_write_4(sc, GICD_ITARGETSR(i >> 2),
+		    1 << 0 | 1 << 8 | 1 << 16 | 1 << 24);
 	}
 
 	/* Set all the interrupts to be in Group 0 (secure) */
