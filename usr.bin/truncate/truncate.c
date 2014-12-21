@@ -54,8 +54,8 @@ main(int argc, char **argv)
 {
 	struct stat	sb;
 	mode_t	omode;
-	off_t	oflow, rsize, tsize;
-	int64_t sz;
+	off_t	oflow, rsize, sz, tsize;
+	uint64_t usz;
 	int	ch, error, fd, oflags;
 	char   *fname, *rname;
 
@@ -73,11 +73,13 @@ main(int argc, char **argv)
 			rname = optarg;
 			break;
 		case 's':
-			if (expand_number(optarg, &sz) == -1)
+			do_relative = *optarg == '+' || *optarg == '-';
+			if (expand_number(do_relative ? optarg + 1 : optarg,
+			    &usz) == -1 || (off_t)usz < 0)
 				errx(EXIT_FAILURE,
 				    "invalid size argument `%s'", optarg);
-			if (*optarg == '+' || *optarg == '-')
-				do_relative = 1;
+
+			sz = (*optarg == '-') ? -(off_t)usz : (off_t)usz;
 			got_size = 1;
 			break;
 		default:
