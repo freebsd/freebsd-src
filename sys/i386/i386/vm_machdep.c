@@ -150,8 +150,6 @@ static u_int	sf_buf_alloc_want;
  */
 static struct mtx sf_buf_lock;
 
-extern int	_ucodesel, _udatasel;
-
 /*
  * Finish a fork operation, with process p2 nearly set up.
  * Copy and update the pcb, set up the stack so that the child
