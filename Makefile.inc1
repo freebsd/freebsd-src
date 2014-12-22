@@ -1405,7 +1405,7 @@ build-tools: .MAKE
 .endfor
 .for _tool in \
     ${_texinfo}
-	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all)"; \
+	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${MAKE} DIRPRFX=${_tool}/ obj && \
 		${MAKE} DIRPRFX=${_tool}/ depend && \
