@@ -1,6 +1,8 @@
 #
-# $Id: Makefile 2084 2011-10-27 04:48:12Z jkoshy $
+# $Id: Makefile 3025 2014-04-18 16:20:25Z jkoshy $
 #
+
+TOP=		../../..
 
 SUBDIR+=	dwarf_init
 SUBDIR+=	dwarf_next_cu_header
@@ -22,4 +24,4 @@ SUBDIR+=	dwarf_pubnames
 SUBDIR+=	dwarf_macinfo
 SUBDIR+=	dwarf_ranges
 
-.include <bsd.subdir.mk>
+.include "${TOP}/mk/elftoolchain.subdir.mk"

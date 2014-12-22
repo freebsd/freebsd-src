@@ -1,6 +1,8 @@
 #
-# $Id: Makefile 1638 2011-07-10 15:43:19Z jkoshy $
+# $Id: Makefile 3025 2014-04-18 16:20:25Z jkoshy $
 #
+
+TOP=		../../..
 
 SUBDIR+=	common		# must be first
 
@@ -55,4 +57,4 @@ SUBDIR+=	gelf_getehdr
 SUBDIR+=	gelf_newehdr
 SUBDIR+=	gelf_xlate
 
-.include <bsd.subdir.mk>
+.include "${TOP}/mk/elftoolchain.subdir.mk"

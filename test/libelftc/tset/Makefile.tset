@@ -1,8 +1,9 @@
-# $Id: Makefile.tset 2845 2012-12-31 04:19:35Z jkoshy $
+# $Id: Makefile.tset 3021 2014-04-17 16:32:00Z jkoshy $
 
-# All the test cases in this test suite need -lelftc.
-DPADD+=		${LIBELFTC}
-LDADD+=		-lelftc
+# All the test cases in this test suite need -lelftc.  In addition,
+# a few need -lelf.
+DPADD+=		${LIBELFTC} ${LIBELF}
+LDADD+=		-lelftc -lelf
 
 GENERATE_TEST_SCAFFOLDING=	yes
 

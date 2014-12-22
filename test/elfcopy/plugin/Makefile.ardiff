@@ -1,8 +1,6 @@
-# $Id: Makefile.ardiff 2096 2011-11-01 04:42:04Z jkoshy $
+# $Id: Makefile.ardiff 3121 2014-12-21 05:46:01Z kaiwang27 $
 
 TOP=	../../..
-
-.include "${TOP}/mk/elftoolchain.os.mk"
 
 PROG=	ardiff
 

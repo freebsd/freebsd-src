@@ -48,7 +48,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: nm.c 2484 2012-04-07 15:52:05Z kaiwang27 $");
+ELFTC_VCSID("$Id: nm.c 3124 2014-12-21 05:46:28Z kaiwang27 $");
 
 /* symbol information list */
 STAILQ_HEAD(sym_head, sym_entry);
@@ -65,7 +65,7 @@ typedef void (*fn_sym_print)(const GElf_Sym *);
 typedef int (*fn_filter)(char, const GElf_Sym *, const char *);
 
 /* output filter list */
-SLIST_HEAD(filter_head, filter_entry) nm_out_filter =
+static SLIST_HEAD(filter_head, filter_entry) nm_out_filter =
     SLIST_HEAD_INITIALIZER(nm_out_filter);
 
 struct filter_entry {

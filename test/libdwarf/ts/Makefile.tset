@@ -1,6 +1,4 @@
-# $Id: Makefile.tset 2198 2011-11-23 16:13:45Z jkoshy $
-
-.include "${TOP}/mk/elftoolchain.os.mk"
+# $Id: Makefile.tset 3122 2014-12-21 05:46:10Z kaiwang27 $
 
 # libdwarf test suite uses libdwarf in /usr/local (i.e. SGI libdwarf),
 # if TCGEN is defined.
@@ -14,6 +12,11 @@ LDADD+=		-ldwarf
 
 DPADD+=		${LIBELF}
 LDADD+=		-lelf
+
+# Test cases do not have manual pages.
+NOMAN=		noman
+
+.include "${TOP}/mk/elftoolchain.os.mk"
 
 # Determine the location of the XML handling library.
 .if ${OS_HOST} == FreeBSD
@@ -51,6 +54,3 @@ ${f}:	${TS_OBJROOT}/common/object/${f}.gz
 .if ${OS_HOST} != NetBSD
 WARNS?=		2
 .endif
-
-# Test cases do not have manual pages.
-NOMAN=		noman

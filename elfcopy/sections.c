@@ -35,7 +35,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: sections.c 2358 2011-12-19 18:22:32Z kaiwang27 $");
+ELFTC_VCSID("$Id: sections.c 3126 2014-12-21 08:03:31Z kaiwang27 $");
 
 static void	add_gnu_debuglink(struct elfcopy *ecp);
 static uint32_t calc_crc32(const char *p, size_t len, uint32_t crc);
@@ -371,6 +371,14 @@ create_scn(struct elfcopy *ecp)
 			if (ish.sh_info != 0 &&
 			    is_remove_reloc_sec(ecp, ish.sh_info))
 				continue;
+
+		/*
+		 * Section groups should be removed if symbol table will
+		 * be removed. (section group's signature stored in symbol
+		 * table)
+		 */
+		if (ish.sh_type == SHT_GROUP && ecp->strip == STRIP_ALL)
+			continue;
 
 		/* Get section flags set by user. */
 		sec_flags = get_section_flags(ecp, name);
@@ -762,8 +770,8 @@ resync_sections(struct elfcopy *ecp)
 				s->off = roundup(off, s->align);
 		} else {
 			if (s->loadable)
-				warnx("moving loadable section,"
-				    "is this intentional?");
+				warnx("moving loadable section %s, "
+				    "is this intentional?", s->name);
 			s->off = roundup(off, s->align);
 		}
 
@@ -1139,12 +1147,6 @@ add_to_shstrtab(struct elfcopy *ecp, const char *name)
 	struct section *s;
 
 	s = ecp->shstrtab;
-	if (s->buf == NULL) {
-		insert_to_strtab(s, "");
-		insert_to_strtab(s, ".symtab");
-		insert_to_strtab(s, ".strtab");
-		insert_to_strtab(s, ".shstrtab");
-	}
 	insert_to_strtab(s, name);
 }
 
@@ -1206,6 +1208,11 @@ init_shstrtab(struct elfcopy *ecp)
 	s->loadable = 0;
 	s->type = SHT_STRTAB;
 	s->vma = 0;
+
+	insert_to_strtab(s, "");
+	insert_to_strtab(s, ".symtab");
+	insert_to_strtab(s, ".strtab");
+	insert_to_strtab(s, ".shstrtab");
 }
 
 void

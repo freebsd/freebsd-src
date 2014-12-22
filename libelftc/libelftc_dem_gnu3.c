@@ -36,7 +36,7 @@
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: libelftc_dem_gnu3.c 2179 2011-11-18 03:05:47Z jkoshy $");
+ELFTC_VCSID("$Id: libelftc_dem_gnu3.c 3123 2014-12-21 05:46:19Z kaiwang27 $");
 
 /**
  * @file cpp_demangle.c
@@ -156,7 +156,7 @@ static int	vector_type_qualifier_init(struct vector_type_qualifier *);
 static int	vector_type_qualifier_push(struct vector_type_qualifier *,
 		    enum type_qualifier);
 
-int cpp_demangle_gnu3_push_head;
+static int cpp_demangle_gnu3_push_head;
 
 /**
  * @brief Decode the input string by IA-64 C++ ABI style.

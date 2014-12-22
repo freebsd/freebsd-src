@@ -1,4 +1,4 @@
-# $Id: Makefile 2872 2013-01-07 13:57:54Z jkoshy $
+# $Id: Makefile 3016 2014-04-10 16:01:42Z jkoshy $
 
 TOP=	.
 
@@ -15,7 +15,8 @@ SUBDIR += libdwarf
 SUBDIR += libelftc
 
 # Build the tools needed for the rest of the build.
-SUBDIR += isa
+
+# SUBDIR += isa  # ('isa' does not build on all platforms yet).
 
 # Build tools after the libraries.
 SUBDIR += addr2line

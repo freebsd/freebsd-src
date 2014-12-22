@@ -32,7 +32,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: gelf_cap.c 2272 2011-12-03 17:07:31Z jkoshy $");
+ELFTC_VCSID("$Id: gelf_cap.c 2995 2014-03-18 02:16:31Z jkoshy $");
 
 GElf_Cap *
 gelf_getcap(Elf_Data *ed, int ndx, GElf_Cap *dst)
@@ -72,7 +72,7 @@ gelf_getcap(Elf_Data *ed, int ndx, GElf_Cap *dst)
 
 	assert(msz > 0);
 
-	if (msz * ndx >= d->d_data.d_size) {
+	if (msz * (size_t) ndx >= d->d_data.d_size) {
 		LIBELF_SET_ERROR(ARGUMENT, 0);
 		return (NULL);
 	}
@@ -131,7 +131,7 @@ gelf_update_cap(Elf_Data *ed, int ndx, GElf_Cap *gc)
 	msz = _libelf_msize(ELF_T_CAP, ec, e->e_version);
 	assert(msz > 0);
 
-	if (msz * ndx >= d->d_data.d_size) {
+	if (msz * (size_t) ndx >= d->d_data.d_size) {
 		LIBELF_SET_ERROR(ARGUMENT, 0);
 		return (0);
 	}

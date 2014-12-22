@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: segments.c 2542 2012-08-12 16:14:15Z kaiwang27 $");
+ELFTC_VCSID("$Id: segments.c 3113 2014-12-20 08:33:29Z kaiwang27 $");
 
 static void	insert_to_inseg_list(struct segment *seg, struct section *sec);
 
@@ -72,12 +72,14 @@ add_to_inseg_list(struct elfcopy *ecp, struct section *s)
 	 */
 	loadable = 0;
 	STAILQ_FOREACH(seg, &ecp->v_seg, seg_list) {
-		if (s->off < seg->off)
+		if (s->off < seg->off || (s->vma < seg->addr && !s->pseudo))
 			continue;
 		if (s->off + s->sz > seg->off + seg->fsz &&
 		    s->type != SHT_NOBITS)
 			continue;
 		if (s->off + s->sz > seg->off + seg->msz)
+			continue;
+		if (s->vma + s->sz > seg->addr + seg->msz)
 			continue;
 
 		insert_to_inseg_list(seg, s);
@@ -96,7 +98,7 @@ adjust_addr(struct elfcopy *ecp)
 	struct section *s, *s0;
 	struct segment *seg;
 	struct sec_action *sac;
-	uint64_t dl, lma, old_vma, start, end;
+	uint64_t dl, lma, start, end;
 	int found, i;
 
 	/*
@@ -113,8 +115,6 @@ adjust_addr(struct elfcopy *ecp)
 			s->lma += ecp->change_addr;
 
 		if (!s->pseudo) {
-			old_vma = s->vma;
-
 			/* Apply global VMA adjustment. */
 			if (ecp->change_addr != 0)
 				s->vma += ecp->change_addr;
@@ -438,7 +438,7 @@ copy_phdr(struct elfcopy *ecp)
 		seg->fsz = seg->msz = 0;
 		for (i = 0; i < seg->nsec; i++) {
 			s = seg->v_sec[i];
-			seg->msz = s->off + s->sz - seg->off;
+			seg->msz = s->vma + s->sz - seg->addr;
 			if (s->type != SHT_NOBITS)
 				seg->fsz = seg->msz;
 		}

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dwarf_die_query.c 2084 2011-10-27 04:48:12Z jkoshy $
+ * $Id: dwarf_die_query.c 3075 2014-06-23 03:08:57Z kaiwang27 $
  */
 
 #include <assert.h>
@@ -42,15 +42,18 @@
  */
 
 static void tp_dwarf_die_query(void);
+static void tp_dwarf_die_query_types(void);
 static void tp_dwarf_die_query_sanity(void);
 static struct dwarf_tp dwarf_tp_array[] = {
 	{"tp_dwarf_die_query", tp_dwarf_die_query},
+	{"tp_dwarf_die_query_types", tp_dwarf_die_query_types},
 	{"tp_dwarf_die_query_sanity", tp_dwarf_die_query_sanity},
 	{NULL, NULL},
 };
 static int result = TET_UNRESOLVED;
 #include "driver.c"
 #include "die_traverse.c"
+#include "die_traverse2.c"
 
 static void
 _dwarf_die_query(Dwarf_Die die)
@@ -93,6 +96,27 @@ tp_dwarf_die_query(void)
 	TS_DWARF_INIT(dbg, fd, de);
 
 	TS_DWARF_DIE_TRAVERSE(dbg, _dwarf_die_query);
+
+	if (result == TET_UNRESOLVED)
+		result = TET_PASS;
+
+done:
+	TS_DWARF_FINISH(dbg, de);
+	TS_RESULT(result);
+}
+
+static void
+tp_dwarf_die_query_types(void)
+{
+	Dwarf_Debug dbg;
+	Dwarf_Error de;
+	int fd;
+
+	result = TET_UNRESOLVED;
+
+	TS_DWARF_INIT(dbg, fd, de);
+
+	TS_DWARF_DIE_TRAVERSE2(dbg, 0, _dwarf_die_query);
 
 	if (result == TET_UNRESOLVED)
 		result = TET_PASS;

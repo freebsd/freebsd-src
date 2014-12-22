@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: update.m4 2833 2012-12-30 16:16:51Z jkoshy $
+ * $Id: update.m4 3081 2014-07-28 08:53:14Z jkoshy $
  */
 
 #include <sys/types.h>
@@ -743,7 +743,7 @@ tcSectionType$2$1(void)
 		goto done;
 	}
 
-	sh->sh_type = SHT_NULL - 1;
+	sh->sh_type = SHT_LOOS - 1;
 	(void) elf_flagshdr(scn, ELF_C_SET, ELF_F_DIRTY);
 
 	if ((offset = elf_update(e, ELF_C_NULL)) != (off_t) -1) {
@@ -772,6 +772,88 @@ FN(32,`lsb')
 FN(32,`msb')
 FN(64,`lsb')
 FN(64,`msb')
+
+/*
+ * Verify that sections with unrecognized sh_type values in the
+ * range [SHT_LOUSER,SHT_HIUSER], [SHT_LOPROC,SHT_HIPROC],
+ * and [SHT_LOOS,SHT_HIOS] are accepted.
+ */
+
+define(`ADD_SECTION',`
+	if ((scn = elf_newscn(e)) == NULL) {
+		TP_UNRESOLVED("elf_newscn() failed: \"%s\".",
+		    elf_errmsg(-1));
+		goto done;
+	}
+	if ((sh = elf$1_getshdr(scn)) == NULL) {
+		TP_UNRESOLVED("elf$1_getshdr() failed: \"%s\".",
+		    elf_errmsg(-1));
+		goto done;
+	}
+	sh->sh_type = $2;
+	if ((d = elf_newdata(scn)) == NULL) {
+		TP_UNRESOLVED("elf_newdata() failed: \"%s\".",
+		    elf_errmsg(-1));
+		goto done;
+	}
+	d->d_align = 1;
+	d->d_buf = NULL;
+	d->d_size = 0;
+	d->d_off = (off_t) 0;
+	(void) elf_flagdata(d, ELF_C_SET, ELF_F_DIRTY);
+	(void) elf_flagshdr(scn, ELF_C_SET, ELF_F_DIRTY);')
+undefine(`FN')
+define(`FN',`
+void
+tcSectionTypeOSUserProcDefined_$2$1(void)
+{
+	int error, fd, result;
+	off_t offset;
+	Elf *e;
+	Elf_Data *d;
+	Elf_Scn *scn;
+	Elf$1_Shdr *sh;
+
+	TP_CHECK_INITIALIZATION();
+
+	TP_ANNOUNCE("TOUPPER($2)$1: user, OS and processor specific "
+	    "section types are accepted.") ;
+
+	result = TET_UNRESOLVED;
+	e = NULL;
+	fd = -1;
+
+	_TS_OPEN_FILE(e, "newehdr.$2$1", ELF_C_READ, fd, goto done;);
+
+	/*
+	 * Create two new sections, one of type SHT_LOOS (0x60000000UL),
+	 * and the other of type SHT_HIUSER (0xFFFFFFFFUL).  These
+	 * should be accepted as valid sections.
+	 */
+	ADD_SECTION($1,`SHT_LOOS')
+	ADD_SECTION($1,`SHT_HIUSER')
+
+	if ((offset = elf_update(e, ELF_C_NULL)) == (off_t) -1) {
+		TP_FAIL("elf_update() failed.");
+		goto done;
+	}
+
+	result = TET_PASS;
+
+ done:
+	if (e)
+		(void) elf_end(e);
+	if (fd)
+		(void) close(fd);
+	tet_result(result);
+}')
+
+FN(32,`lsb')
+FN(32,`msb')
+FN(64,`lsb')
+FN(64,`msb')
+
+undefine(`ADD_SECTION')
 
 /*
  * An Elf_Data descriptor that is malformed in various ways

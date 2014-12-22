@@ -19,6 +19,7 @@ operating systems.
   NetBSD_             v5.0.2     i386
   OpenBSD_            v5.0       i386
   Ubuntu_ GNU/Linux   10.04LTS   i386 & x86_64
+  Ubuntu_ GNU/Linux   12.04LTS   i386 & x86_64
   =================   ========   =======================
 
 .. _DragonFly BSD: http://www.dragonflybsd.org/
@@ -114,6 +115,26 @@ Prerequisites
     - Building additional documentation is not currently supported
       under OpenBSD.
 
+:OpenBSD 5.4:
+    - The following packages are pre-requisites for building the
+      sources on OpenBSD 5.4:
+
+      ===================     =====================================
+      **Package**             **Description**
+      ===================     =====================================
+      ``libarchive``          An archive access library.
+      ===================     =====================================
+
+      The following command line may be used to install the necessary
+      pre-requisites::
+
+          # pkg_add libarchive
+
+    - The test suites cannot currently be built under OpenBSD.
+
+    - Building additional documentation is not currently supported
+      under OpenBSD.
+
 :NetBSD 5.0.2:
     - The core libraries and utilities should build out of the box
       on a stock install of NetBSD.
@@ -174,16 +195,16 @@ Prerequisites
 
           % sudo apt-get install pgf
 
-:Ubuntu GNU/Linux 11.10:
+:Ubuntu GNU/Linux 12.04:
     - The following packages are pre-requisites for building the
-      sources on Ubuntu GNU/Linux 11.10:
+      sources on Ubuntu GNU/Linux 12.04:
 
       ===================     =====================================
       **Package**             **Description**
       ===================     =====================================
       ``bison``               Parser generator.
+      ``build-essential``     Basic build tools.
       ``flex``                Lexical analyser.
-      ``gcc``                 C compiler.
       ``libarchive-dev``      Archive access library.
       ``libexpat1-dev``       An XML processing library.
       ``m4``                  Macro processor.
@@ -195,7 +216,7 @@ Prerequisites
       The following command line may be used to install the necessary
       pre-requisites::
 
-          % sudo apt-get install bison flex gcc libarchive-dev \
+          % sudo apt-get install bison build-essential flex libarchive-dev \
             m4 pmake
 
     - To build and run the test suite:
@@ -210,7 +231,7 @@ Prerequisites
             % sudo apt-get install libexpat1-dev python-yaml sharutils
 
     - Builds of additional documentation are not currently supported
-      under Ubuntu GNU/Linux 11.10.
+      under Ubuntu GNU/Linux 12.04.
 
 .. _Test Execution Toolkit: http://tetworks.opengroup.org/
 .. _OpenGroup: http://www.opengroup.org/
@@ -276,7 +297,7 @@ website`_.
 
 .. _project website:  http://elftoolchain.sourceforge.net/
 
-.. $Id: INSTALL 2777 2012-12-12 17:21:36Z jkoshy $
+.. $Id: INSTALL 3020 2014-04-17 15:52:31Z jkoshy $
 
 .. Local Variables:
 .. mode: rst

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dwarf_form.c 2084 2011-10-27 04:48:12Z jkoshy $
+ * $Id: dwarf_form.c 3084 2014-09-02 22:08:13Z kaiwang27 $
  */
 
 #include <assert.h>
@@ -48,7 +48,7 @@ static struct dwarf_tp dwarf_tp_array[] = {
 };
 static int result = TET_UNRESOLVED;
 #include "driver.c"
-#include "die_traverse.c"
+#include "die_traverse2.c"
 
 static void
 _dwarf_form(Dwarf_Die die)
@@ -62,11 +62,14 @@ _dwarf_form(Dwarf_Die die)
 	Dwarf_Unsigned uvalue;
 	Dwarf_Signed svalue;
 	Dwarf_Block *block;
+	Dwarf_Sig8 sig8;
+	Dwarf_Ptr ptr;
 	Dwarf_Error de;
 	char *str;
 	int i, r;
 	int r_formref, r_global_formref, r_formaddr, r_formflag;
 	int r_formudata, r_formsdata, r_formblock, r_formstring;
+	int r_formsig8, r_formexprloc;
 
 	r = dwarf_attrlist(die, &attrlist, &attrcount, &de);
 	if (r == DW_DLV_ERROR) {
@@ -141,6 +144,16 @@ _dwarf_form(Dwarf_Die die)
 		TS_CHECK_INT(r_formstring);
 		if (r_formstring == DW_DLV_OK)
 			TS_CHECK_STRING(str);
+
+		r_formsig8 = dwarf_formsig8(at, &sig8, &de);
+		TS_CHECK_INT(r_formsig8);
+		if (r_formsig8 == DW_DLV_OK)
+			TS_CHECK_BLOCK(sig8.signature, 8);
+
+		r_formexprloc = dwarf_formexprloc(at, &uvalue, &ptr, &de);
+		TS_CHECK_INT(r_formexprloc);
+		if (r_formexprloc == DW_DLV_OK)
+			TS_CHECK_BLOCK(ptr, uvalue);
 	}
 }
 
@@ -155,7 +168,8 @@ tp_dwarf_form(void)
 
 	TS_DWARF_INIT(dbg, fd, de);
 
-	TS_DWARF_DIE_TRAVERSE(dbg, _dwarf_form);
+	TS_DWARF_DIE_TRAVERSE2(dbg, 1, _dwarf_form);
+	TS_DWARF_DIE_TRAVERSE2(dbg, 0, _dwarf_form);
 
 	if (result == TET_UNRESOLVED)
 		result = TET_PASS;

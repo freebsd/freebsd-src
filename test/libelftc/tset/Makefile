@@ -1,7 +1,8 @@
-# $Id: Makefile 2861 2013-01-05 09:35:42Z jkoshy $
+# $Id: Makefile 3025 2014-04-18 16:20:25Z jkoshy $
 
+TOP=		../../..
 SUBDIR=
 SUBDIR+=	elftc_string_table
 SUBDIR+=	elftc_version
 
-.include <bsd.subdir.mk>
+.include "${TOP}/mk/elftoolchain.subdir.mk"
