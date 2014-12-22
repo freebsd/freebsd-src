@@ -69,10 +69,13 @@ __FBSDID("$FreeBSD$");
 #include "gpio_if.h"
 #include "ti_gpio_if.h"
 
+#if !defined(SOC_OMAP4) && !defined(SOC_TI_AM335X)
+#error "Unknown SoC"
+#endif
+
 /* Register definitions */
 #define	TI_GPIO_REVISION		0x0000
 #define	TI_GPIO_SYSCONFIG		0x0010
-#if defined(SOC_OMAP4) || defined(SOC_TI_AM335X)
 #define	TI_GPIO_IRQSTATUS_RAW_0		0x0024
 #define	TI_GPIO_IRQSTATUS_RAW_1		0x0028
 #define	TI_GPIO_IRQSTATUS_0		0x002C
@@ -103,9 +106,6 @@ __FBSDID("$FreeBSD$");
 #define	TI_GPIO_SETWKUENA		0x0184
 #define	TI_GPIO_CLEARDATAOUT		0x0190
 #define	TI_GPIO_SETDATAOUT		0x0194
-#else
-#error "Unknown SoC"
-#endif
 
 /* Other SoC Specific definitions */
 #define	OMAP4_MAX_GPIO_BANKS		6
@@ -273,13 +273,8 @@ ti_gpio_intr_clr(struct ti_gpio_softc *sc, unsigned int bank, uint32_t mask)
 {
 
 	/* We clear both set of registers. */
-#if defined(SOC_OMAP4) || defined(SOC_TI_AM335X)
 	ti_gpio_write_4(sc, bank, TI_GPIO_IRQSTATUS_CLR_0, mask);
 	ti_gpio_write_4(sc, bank, TI_GPIO_IRQSTATUS_CLR_1, mask);
-#else
-	ti_gpio_write_4(sc, bank, TI_GPIO_CLEARIRQENABLE1, mask);
-	ti_gpio_write_4(sc, bank, TI_GPIO_CLEARIRQENABLE2, mask);
-#endif
 }
 
 /**
