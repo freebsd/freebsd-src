@@ -782,6 +782,11 @@ ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 	rm sed sh sysctl test true uname wc ${_zoneinfo} \
 	${LOCAL_ITOOLS}
 
+# Needed for share/man
+.if ${MK_MAN} != "no"
+ITOOLS+=makewhatis
+.endif
+
 #
 # distributeworld
 #
