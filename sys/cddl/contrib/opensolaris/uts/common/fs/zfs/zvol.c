@@ -214,7 +214,7 @@ static void zvol_geom_worker(void *arg);
 static void
 zvol_size_changed(zvol_state_t *zv)
 {
-#ifdef sun
+#ifdef illumos
 	dev_t dev = makedevice(maj, min);
 
 	VERIFY(ddi_prop_update_int64(dev, zfs_dip,
@@ -225,7 +225,7 @@ zvol_size_changed(zvol_state_t *zv)
 	/* Notify specfs to invalidate the cached size */
 	spec_size_invalidate(dev, VBLK);
 	spec_size_invalidate(dev, VCHR);
-#else	/* !sun */
+#else	/* !illumos */
 	if (zv->zv_volmode == ZFS_VOLMODE_GEOM) {
 		struct g_provider *pp;
 
@@ -236,7 +236,7 @@ zvol_size_changed(zvol_state_t *zv)
 		g_resize_provider(pp, zv->zv_volsize);
 		g_topology_unlock();
 	}
-#endif	/* !sun */
+#endif	/* illumos */
 }
 
 int
@@ -517,7 +517,7 @@ zil_replay_func_t *zvol_replay_vector[TX_MAX_TYPE] = {
 	zvol_replay_err,	/* TX_WRITE2 */
 };
 
-#ifdef sun
+#ifdef illumos
 int
 zvol_name2minor(const char *name, minor_t *minor)
 {
@@ -530,7 +530,7 @@ zvol_name2minor(const char *name, minor_t *minor)
 	mutex_exit(&spa_namespace_lock);
 	return (zv ? 0 : -1);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 /*
  * Create a minor node (plus a whole lot more) for the specified volume.
@@ -565,7 +565,7 @@ zvol_create_minor(const char *name)
 		return (error);
 	}
 
-#ifdef sun
+#ifdef illumos
 	if ((minor = zfsdev_minor_alloc()) == 0) {
 		dmu_objset_disown(os, FTAG);
 		mutex_exit(&spa_namespace_lock);
@@ -604,7 +604,7 @@ zvol_create_minor(const char *name)
 	zs = ddi_get_soft_state(zfsdev_state, minor);
 	zs->zss_type = ZSST_ZVOL;
 	zv = zs->zss_data = kmem_zalloc(sizeof (zvol_state_t), KM_SLEEP);
-#else	/* !sun */
+#else	/* !illumos */
 
 	zv = kmem_zalloc(sizeof(*zv), KM_SLEEP);
 	zv->zv_state = 0;
@@ -651,7 +651,7 @@ zvol_create_minor(const char *name)
 		dev->si_drv2 = zv;
 	}
 	LIST_INSERT_HEAD(&all_zvols, zv, zv_links);
-#endif	/* !sun */
+#endif	/* illumos */
 
 	(void) strlcpy(zv->zv_name, name, MAXPATHLEN);
 	zv->zv_min_bs = DEV_BSHIFT;
@@ -681,7 +681,7 @@ zvol_create_minor(const char *name)
 
 	mutex_exit(&spa_namespace_lock);
 
-#ifndef sun
+#ifndef illumos
 	if (zv->zv_volmode == ZFS_VOLMODE_GEOM) {
 		zvol_geom_run(zv);
 		g_topology_unlock();
@@ -700,7 +700,7 @@ zvol_create_minor(const char *name)
 static int
 zvol_remove_zv(zvol_state_t *zv)
 {
-#ifdef sun
+#ifdef illumos
 	minor_t minor = zv->zv_minor;
 #endif
 
@@ -710,7 +710,7 @@ zvol_remove_zv(zvol_state_t *zv)
 
 	ZFS_LOG(1, "ZVOL %s destroyed.", zv->zv_name);
 
-#ifdef sun
+#ifdef illumos
 	(void) snprintf(nmbuf, sizeof (nmbuf), "%u,raw", minor);
 	ddi_remove_minor_node(zfs_dip, nmbuf);
 #else
@@ -721,7 +721,7 @@ zvol_remove_zv(zvol_state_t *zv)
 		g_topology_unlock();
 	} else if (zv->zv_volmode == ZFS_VOLMODE_DEV)
 		destroy_dev(zv->zv_dev);
-#endif	/* sun */
+#endif
 
 	avl_destroy(&zv->zv_znode.z_range_avl);
 	mutex_destroy(&zv->zv_znode.z_range_lock);
@@ -809,7 +809,7 @@ zvol_last_close(zvol_state_t *zv)
 	zv->zv_objset = NULL;
 }
 
-#ifdef sun
+#ifdef illumos
 int
 zvol_prealloc(zvol_state_t *zv)
 {
@@ -848,7 +848,7 @@ zvol_prealloc(zvol_state_t *zv)
 
 	return (0);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 static int
 zvol_update_volsize(objset_t *os, uint64_t volsize)
@@ -955,7 +955,7 @@ zvol_set_volsize(const char *name, major_t maj, uint64_t volsize)
 		}
 	}
 
-#ifdef sun
+#ifdef illumos
 	/*
 	 * Generate a LUN expansion event.
 	 */
@@ -976,7 +976,7 @@ zvol_set_volsize(const char *name, major_t maj, uint64_t volsize)
 		nvlist_free(attr);
 		kmem_free(physpath, MAXPATHLEN);
 	}
-#endif	/* sun */
+#endif	/* illumos */
 
 out:
 	dmu_objset_rele(os, FTAG);
@@ -1260,7 +1260,7 @@ zvol_log_write(zvol_state_t *zv, dmu_tx_t *tx, offset_t off, ssize_t resid,
 	}
 }
 
-#ifdef sun
+#ifdef illumos
 static int
 zvol_dumpio_vdev(vdev_t *vd, void *addr, uint64_t offset, uint64_t origoffset,
     uint64_t size, boolean_t doread, boolean_t isdump)
@@ -1353,7 +1353,7 @@ zvol_dumpio(zvol_state_t *zv, void *addr, uint64_t offset, uint64_t size,
 
 	return (error);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 void
 zvol_strategy(struct bio *bp)
@@ -1494,7 +1494,7 @@ out:
 		biofinish(bp, NULL, error);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * Set the buffer count to the zvol maximum transfer.
  * Using our own routine instead of the default minphys()
@@ -1550,17 +1550,17 @@ int
 zvol_read(dev_t dev, uio_t *uio, cred_t *cr)
 {
 	minor_t minor = getminor(dev);
-#else
+#else	/* !illumos */
 int
 zvol_read(struct cdev *dev, struct uio *uio, int ioflag)
 {
-#endif
+#endif	/* illumos */
 	zvol_state_t *zv;
 	uint64_t volsize;
 	rl_t *rl;
 	int error = 0;
 
-#ifdef sun
+#ifdef illumos
 	zv = zfsdev_get_soft_state(minor, ZSST_ZVOL);
 	if (zv == NULL)
 		return (SET_ERROR(ENXIO));
@@ -1602,24 +1602,24 @@ zvol_read(struct cdev *dev, struct uio *uio, int ioflag)
 	return (error);
 }
 
-#ifdef sun
+#ifdef illumos
 /*ARGSUSED*/
 int
 zvol_write(dev_t dev, uio_t *uio, cred_t *cr)
 {
 	minor_t minor = getminor(dev);
-#else
+#else	/* !illumos */
 int
 zvol_write(struct cdev *dev, struct uio *uio, int ioflag)
 {
-#endif
+#endif	/* illumos */
 	zvol_state_t *zv;
 	uint64_t volsize;
 	rl_t *rl;
 	int error = 0;
 	boolean_t sync;
 
-#ifdef sun
+#ifdef illumos
 	zv = zfsdev_get_soft_state(minor, ZSST_ZVOL);
 	if (zv == NULL)
 		return (SET_ERROR(ENXIO));
@@ -1638,9 +1638,7 @@ zvol_write(struct cdev *dev, struct uio *uio, int ioflag)
 		    zvol_minphys, uio);
 		return (error);
 	}
-#endif
 
-#ifdef sun
 	sync = !(zv->zv_flags & ZVOL_WCE) ||
 #else
 	sync = (ioflag & IO_SYNC) ||
@@ -1677,7 +1675,7 @@ zvol_write(struct cdev *dev, struct uio *uio, int ioflag)
 	return (error);
 }
 
-#ifdef sun
+#ifdef illumos
 int
 zvol_getefi(void *arg, int flag, uint64_t vs, uint8_t bs)
 {
@@ -1806,7 +1804,7 @@ zvol_log_write_minor(void *minor_hdl, dmu_tx_t *tx, offset_t off, ssize_t resid,
 /*
  * END entry points to allow external callers access to the volume.
  */
-#endif	/* sun */
+#endif	/* illumos */
 
 /*
  * Log a DKIOCFREE/free-long-range to the ZIL with TX_TRUNCATE.
@@ -1832,7 +1830,7 @@ zvol_log_truncate(zvol_state_t *zv, dmu_tx_t *tx, uint64_t off, uint64_t len,
 	zil_itx_assign(zilog, itx, tx);
 }
 
-#ifdef sun
+#ifdef illumos
 /*
  * Dirtbag ioctls to support mkfs(1M) for UFS filesystems.  See dkio(7I).
  * Also a dirtbag dkio ioctl for unmap/free-block functionality.
@@ -2047,7 +2045,7 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 	mutex_exit(&spa_namespace_lock);
 	return (error);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 int
 zvol_busy(void)
@@ -2070,7 +2068,7 @@ zvol_fini(void)
 	ZFS_LOG(1, "ZVOL Deinitialized.");
 }
 
-#ifdef sun
+#ifdef illumos
 /*ARGSUSED*/
 static int
 zfs_mvdev_dump_feature_check(void *arg, dmu_tx_t *tx)
@@ -2355,7 +2353,7 @@ zvol_dump_fini(zvol_state_t *zv)
 
 	return (0);
 }
-#endif	/* sun */
+#endif	/* illumos */
 
 static void
 zvol_geom_run(zvol_state_t *zv)
