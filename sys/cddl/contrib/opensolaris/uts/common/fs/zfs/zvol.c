@@ -110,11 +110,20 @@ static char *zvol_tag = "zvol_tag";
 #define	ZVOL_DUMPSIZE		"dumpsize"
 
 /*
- * The spa_namespace_lock protects the zfsdev_state structure from being
- * modified while it's being used, e.g. an open that comes in before a
- * create finishes.  It also protects temporary opens of the dataset so that,
+ * This lock protects the zfsdev_state structure from being modified
+ * while it's being used, e.g. an open that comes in before a create
+ * finishes.  It also protects temporary opens of the dataset so that,
  * e.g., an open doesn't get a spurious EBUSY.
  */
+#ifdef illumos
+kmutex_t zfsdev_state_lock;
+#else
+/*
+ * In FreeBSD we've replaced the upstream zfsdev_state_lock with the
+ * spa_namespace_lock in the ZVOL code.
+ */
+#define zfsdev_state_lock spa_namespace_lock
+#endif
 static uint32_t zvol_minors;
 
 SYSCTL_DECL(_vfs_zfs);
@@ -294,7 +303,7 @@ zvol_minor_lookup(const char *name)
 {
 	zvol_state_t *zv;
 
-	ASSERT(MUTEX_HELD(&spa_namespace_lock));
+	ASSERT(MUTEX_HELD(&zfsdev_state_lock));
 
 	LIST_FOREACH(zv, &all_zvols, zv_links) {
 		if (strcmp(zv->zv_name, name) == 0)
@@ -523,11 +532,11 @@ zvol_name2minor(const char *name, minor_t *minor)
 {
 	zvol_state_t *zv;
 
-	mutex_enter(&spa_namespace_lock);
+	mutex_enter(&zfsdev_state_lock);
 	zv = zvol_minor_lookup(name);
 	if (minor && zv)
 		*minor = zv->zv_minor;
-	mutex_exit(&spa_namespace_lock);
+	mutex_exit(&zfsdev_state_lock);
 	return (zv ? 0 : -1);
 }
 #endif	/* illumos */
@@ -550,10 +559,10 @@ zvol_create_minor(const char *name)
 
 	ZFS_LOG(1, "Creating ZVOL %s...", name);
 
-	mutex_enter(&spa_namespace_lock);
+	mutex_enter(&zfsdev_state_lock);
 
 	if (zvol_minor_lookup(name) != NULL) {
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		return (SET_ERROR(EEXIST));
 	}
 
@@ -561,20 +570,20 @@ zvol_create_minor(const char *name)
 	error = dmu_objset_own(name, DMU_OST_ZVOL, B_TRUE, FTAG, &os);
 
 	if (error) {
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		return (error);
 	}
 
 #ifdef illumos
 	if ((minor = zfsdev_minor_alloc()) == 0) {
 		dmu_objset_disown(os, FTAG);
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		return (SET_ERROR(ENXIO));
 	}
 
 	if (ddi_soft_state_zalloc(zfsdev_state, minor) != DDI_SUCCESS) {
 		dmu_objset_disown(os, FTAG);
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		return (SET_ERROR(EAGAIN));
 	}
 	(void) ddi_prop_update_string(minor, zfs_dip, ZVOL_PROP_NAME,
@@ -586,7 +595,7 @@ zvol_create_minor(const char *name)
 	    minor, DDI_PSEUDO, 0) == DDI_FAILURE) {
 		ddi_soft_state_free(zfsdev_state, minor);
 		dmu_objset_disown(os, FTAG);
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		return (SET_ERROR(EAGAIN));
 	}
 
@@ -597,7 +606,7 @@ zvol_create_minor(const char *name)
 		ddi_remove_minor_node(zfs_dip, chrbuf);
 		ddi_soft_state_free(zfsdev_state, minor);
 		dmu_objset_disown(os, FTAG);
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		return (SET_ERROR(EAGAIN));
 	}
 
@@ -612,7 +621,7 @@ zvol_create_minor(const char *name)
 	if (error) {
 		kmem_free(zv, sizeof(*zv));
 		dmu_objset_disown(os, zvol_tag);
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		return (error);
 	}
 	error = dsl_prop_get_integer(name,
@@ -643,7 +652,7 @@ zvol_create_minor(const char *name)
 		    0640, "%s/%s", ZVOL_DRIVER, name) != 0) {
 			kmem_free(zv, sizeof(*zv));
 			dmu_objset_disown(os, FTAG);
-			mutex_exit(&spa_namespace_lock);
+			mutex_exit(&zfsdev_state_lock);
 			return (SET_ERROR(ENXIO));
 		}
 		zv->zv_dev = dev;
@@ -679,7 +688,7 @@ zvol_create_minor(const char *name)
 
 	zvol_minors++;
 
-	mutex_exit(&spa_namespace_lock);
+	mutex_exit(&zfsdev_state_lock);
 
 #ifndef illumos
 	if (zv->zv_volmode == ZFS_VOLMODE_GEOM) {
@@ -704,7 +713,7 @@ zvol_remove_zv(zvol_state_t *zv)
 	minor_t minor = zv->zv_minor;
 #endif
 
-	ASSERT(MUTEX_HELD(&spa_namespace_lock));
+	ASSERT(MUTEX_HELD(&zfsdev_state_lock));
 	if (zv->zv_total_opens != 0)
 		return (SET_ERROR(EBUSY));
 
@@ -738,13 +747,13 @@ zvol_remove_minor(const char *name)
 	zvol_state_t *zv;
 	int rc;
 
-	mutex_enter(&spa_namespace_lock);
+	mutex_enter(&zfsdev_state_lock);
 	if ((zv = zvol_minor_lookup(name)) == NULL) {
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		return (SET_ERROR(ENXIO));
 	}
 	rc = zvol_remove_zv(zv);
-	mutex_exit(&spa_namespace_lock);
+	mutex_exit(&zfsdev_state_lock);
 	return (rc);
 }
 
@@ -856,7 +865,7 @@ zvol_update_volsize(objset_t *os, uint64_t volsize)
 	dmu_tx_t *tx;
 	int error;
 
-	ASSERT(MUTEX_HELD(&spa_namespace_lock));
+	ASSERT(MUTEX_HELD(&zfsdev_state_lock));
 
 	tx = dmu_tx_create(os);
 	dmu_tx_hold_zap(tx, ZVOL_ZAP_OBJ, TRUE, NULL);
@@ -886,7 +895,7 @@ zvol_remove_minors(const char *name)
 	namelen = strlen(name);
 
 	DROP_GIANT();
-	mutex_enter(&spa_namespace_lock);
+	mutex_enter(&zfsdev_state_lock);
 
 	LIST_FOREACH_SAFE(zv, &all_zvols, zv_links, tzv) {
 		if (strcmp(zv->zv_name, name) == 0 ||
@@ -897,7 +906,7 @@ zvol_remove_minors(const char *name)
 		}
 	}
 
-	mutex_exit(&spa_namespace_lock);
+	mutex_exit(&zfsdev_state_lock);
 	PICKUP_GIANT();
 }
 
@@ -911,10 +920,10 @@ zvol_set_volsize(const char *name, major_t maj, uint64_t volsize)
 	uint64_t old_volsize = 0ULL;
 	uint64_t readonly;
 
-	mutex_enter(&spa_namespace_lock);
+	mutex_enter(&zfsdev_state_lock);
 	zv = zvol_minor_lookup(name);
 	if ((error = dmu_objset_hold(name, FTAG, &os)) != 0) {
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		return (error);
 	}
 
@@ -981,7 +990,7 @@ zvol_set_volsize(const char *name, major_t maj, uint64_t volsize)
 out:
 	dmu_objset_rele(os, FTAG);
 
-	mutex_exit(&spa_namespace_lock);
+	mutex_exit(&zfsdev_state_lock);
 
 	return (error);
 }
@@ -1005,15 +1014,15 @@ zvol_open(struct g_provider *pp, int flag, int count)
 	 * recursively, but that function already has all the
 	 * necessary protection.
 	 */
-	if (!MUTEX_HELD(&spa_namespace_lock)) {
-		mutex_enter(&spa_namespace_lock);
+	if (!MUTEX_HELD(&zfsdev_state_lock)) {
+		mutex_enter(&zfsdev_state_lock);
 		locked = B_TRUE;
 	}
 
 	zv = pp->private;
 	if (zv == NULL) {
 		if (locked)
-			mutex_exit(&spa_namespace_lock);
+			mutex_exit(&zfsdev_state_lock);
 		return (SET_ERROR(ENXIO));
 	}
 
@@ -1021,7 +1030,7 @@ zvol_open(struct g_provider *pp, int flag, int count)
 		err = zvol_first_open(zv);
 		if (err) {
 			if (locked)
-				mutex_exit(&spa_namespace_lock);
+				mutex_exit(&zfsdev_state_lock);
 			return (err);
 		}
 		pp->mediasize = zv->zv_volsize;
@@ -1048,14 +1057,14 @@ zvol_open(struct g_provider *pp, int flag, int count)
 
 	zv->zv_total_opens += count;
 	if (locked)
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 
 	return (err);
 out:
 	if (zv->zv_total_opens == 0)
 		zvol_last_close(zv);
 	if (locked)
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 	return (err);
 }
 
@@ -1068,15 +1077,15 @@ zvol_close(struct g_provider *pp, int flag, int count)
 	boolean_t locked = B_FALSE;
 
 	/* See comment in zvol_open(). */
-	if (!MUTEX_HELD(&spa_namespace_lock)) {
-		mutex_enter(&spa_namespace_lock);
+	if (!MUTEX_HELD(&zfsdev_state_lock)) {
+		mutex_enter(&zfsdev_state_lock);
 		locked = B_TRUE;
 	}
 
 	zv = pp->private;
 	if (zv == NULL) {
 		if (locked)
-			mutex_exit(&spa_namespace_lock);
+			mutex_exit(&zfsdev_state_lock);
 		return (SET_ERROR(ENXIO));
 	}
 
@@ -1100,7 +1109,7 @@ zvol_close(struct g_provider *pp, int flag, int count)
 		zvol_last_close(zv);
 
 	if (locked)
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 	return (error);
 }
 
@@ -1844,12 +1853,12 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 	int error = 0;
 	rl_t *rl;
 
-	mutex_enter(&spa_namespace_lock);
+	mutex_enter(&zfsdev_state_lock);
 
 	zv = zfsdev_get_soft_state(getminor(dev), ZSST_ZVOL);
 
 	if (zv == NULL) {
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		return (SET_ERROR(ENXIO));
 	}
 	ASSERT(zv->zv_total_opens > 0);
@@ -1867,7 +1876,7 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		dki.dki_unit = getminor(dev);
 		dki.dki_maxtransfer =
 		    1 << (SPA_OLD_MAXBLOCKSHIFT - zv->zv_min_bs);
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		if (ddi_copyout(&dki, (void *)arg, sizeof (dki), flag))
 			error = SET_ERROR(EFAULT);
 		return (error);
@@ -1881,7 +1890,7 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		dkm.dki_lbsize = 1U << zv->zv_min_bs;
 		dkm.dki_capacity = zv->zv_volsize >> zv->zv_min_bs;
 		dkm.dki_media_type = DK_UNKNOWN;
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		if (ddi_copyout(&dkm, (void *)arg, sizeof (dkm), flag))
 			error = SET_ERROR(EFAULT);
 		return (error);
@@ -1896,7 +1905,7 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		dkmext.dki_pbsize = zv->zv_volblocksize;
 		dkmext.dki_capacity = zv->zv_volsize >> zv->zv_min_bs;
 		dkmext.dki_media_type = DK_UNKNOWN;
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		if (ddi_copyout(&dkmext, (void *)arg, sizeof (dkmext), flag))
 			error = SET_ERROR(EFAULT);
 		return (error);
@@ -1907,14 +1916,14 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		uint64_t vs = zv->zv_volsize;
 		uint8_t bs = zv->zv_min_bs;
 
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		error = zvol_getefi((void *)arg, flag, vs, bs);
 		return (error);
 	}
 
 	case DKIOCFLUSHWRITECACHE:
 		dkc = (struct dk_callback *)arg;
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		zil_commit(zv->zv_zilog, ZVOL_OBJ);
 		if ((flag & FKIOCTL) && dkc != NULL && dkc->dkc_callback) {
 			(*dkc->dkc_callback)(dkc->dkc_cookie, error);
@@ -1940,10 +1949,10 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		}
 		if (wce) {
 			zv->zv_flags |= ZVOL_WCE;
-			mutex_exit(&spa_namespace_lock);
+			mutex_exit(&zfsdev_state_lock);
 		} else {
 			zv->zv_flags &= ~ZVOL_WCE;
-			mutex_exit(&spa_namespace_lock);
+			mutex_exit(&zfsdev_state_lock);
 			zil_commit(zv->zv_zilog, ZVOL_OBJ);
 		}
 		return (0);
@@ -1995,7 +2004,7 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		if (df.df_start >= zv->zv_volsize)
 			break;	/* No need to do anything... */
 
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 
 		rl = zfs_range_lock(&zv->zv_znode, df.df_start, df.df_length,
 		    RL_WRITER);
@@ -2042,7 +2051,7 @@ zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr, int *rvalp)
 		break;
 
 	}
-	mutex_exit(&spa_namespace_lock);
+	mutex_exit(&zfsdev_state_lock);
 	return (error);
 }
 #endif	/* illumos */
@@ -2058,12 +2067,19 @@ zvol_init(void)
 {
 	VERIFY(ddi_soft_state_init(&zfsdev_state, sizeof (zfs_soft_state_t),
 	    1) == 0);
+#ifdef illumos
+	mutex_init(&zfsdev_state_lock, NULL, MUTEX_DEFAULT, NULL);
+#else
 	ZFS_LOG(1, "ZVOL Initialized.");
+#endif
 }
 
 void
 zvol_fini(void)
 {
+#ifdef illumos
+	mutex_destroy(&zfsdev_state_lock);
+#endif
 	ddi_soft_state_fini(&zfsdev_state);
 	ZFS_LOG(1, "ZVOL Deinitialized.");
 }
@@ -2101,7 +2117,7 @@ zvol_dump_init(zvol_state_t *zv, boolean_t resize)
 	uint64_t version = spa_version(spa);
 	enum zio_checksum checksum;
 
-	ASSERT(MUTEX_HELD(&spa_namespace_lock));
+	ASSERT(MUTEX_HELD(&zfsdev_state_lock));
 	ASSERT(vd->vdev_ops == &vdev_root_ops);
 
 	error = dmu_free_long_range(zv->zv_objset, ZVOL_OBJ, 0,
@@ -2668,7 +2684,7 @@ zvol_rename_minor(zvol_state_t *zv, const char *newname)
 	struct g_provider *pp;
 	struct cdev *dev;
 
-	ASSERT(MUTEX_HELD(&spa_namespace_lock));
+	ASSERT(MUTEX_HELD(&zfsdev_state_lock));
 
 	if (zv->zv_volmode == ZFS_VOLMODE_GEOM) {
 		g_topology_lock();
@@ -2721,8 +2737,8 @@ zvol_rename_minors(const char *oldname, const char *newname)
 
 	DROP_GIANT();
 	/* See comment in zvol_open(). */
-	if (!MUTEX_HELD(&spa_namespace_lock)) {
-		mutex_enter(&spa_namespace_lock);
+	if (!MUTEX_HELD(&zfsdev_state_lock)) {
+		mutex_enter(&zfsdev_state_lock);
 		locked = B_TRUE;
 	}
 
@@ -2740,7 +2756,7 @@ zvol_rename_minors(const char *oldname, const char *newname)
 	}
 
 	if (locked)
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 	PICKUP_GIANT();
 }
 
@@ -2750,17 +2766,17 @@ zvol_d_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 	zvol_state_t *zv;
 	int err = 0;
 
-	mutex_enter(&spa_namespace_lock);
+	mutex_enter(&zfsdev_state_lock);
 	zv = dev->si_drv2;
 	if (zv == NULL) {
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		return(ENXIO);		/* zvol_create_minor() not done yet */
 	}
 
 	if (zv->zv_total_opens == 0)
 		err = zvol_first_open(zv);
 	if (err) {
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		return (err);
 	}
 	if ((flags & FWRITE) && (zv->zv_flags & ZVOL_RDONLY)) {
@@ -2782,12 +2798,12 @@ zvol_d_open(struct cdev *dev, int flags, int fmt, struct thread *td)
 #endif
 
 	zv->zv_total_opens++;
-	mutex_exit(&spa_namespace_lock);
+	mutex_exit(&zfsdev_state_lock);
 	return (err);
 out:
 	if (zv->zv_total_opens == 0)
 		zvol_last_close(zv);
-	mutex_exit(&spa_namespace_lock);
+	mutex_exit(&zfsdev_state_lock);
 	return (err);
 }
 
@@ -2797,10 +2813,10 @@ zvol_d_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 	zvol_state_t *zv;
 	int err = 0;
 
-	mutex_enter(&spa_namespace_lock);
+	mutex_enter(&zfsdev_state_lock);
 	zv = dev->si_drv2;
 	if (zv == NULL) {
-		mutex_exit(&spa_namespace_lock);
+		mutex_exit(&zfsdev_state_lock);
 		return(ENXIO);
 	}
 
@@ -2823,7 +2839,7 @@ zvol_d_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 	if (zv->zv_total_opens == 0)
 		zvol_last_close(zv);
 
-	mutex_exit(&spa_namespace_lock);
+	mutex_exit(&zfsdev_state_lock);
 	return (0);
 }
 
