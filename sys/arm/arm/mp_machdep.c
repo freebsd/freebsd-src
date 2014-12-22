@@ -235,7 +235,7 @@ init_secondary(int cpu)
 #endif
 #endif
 				
-	for (int i = start; i <= end; i++)
+	for (int i = 0; i < ARM_IPI_COUNT; i++)
 		arm_unmask_ipi(i);
 	enable_interrupts(PSR_I);
 
@@ -352,7 +352,7 @@ release_aps(void *dummy __unused)
 #endif
 #endif
 
-	for (int i = start; i <= end; i++) {
+	for (int i = 0; i < ARM_IPI_COUNT; i++) {
 		/*
 		 * IPI handler
 		 */
@@ -361,9 +361,8 @@ release_aps(void *dummy __unused)
 		 * if we used 0, the intr code will give the trap frame
 		 * pointer instead.
 		 */
-		arm_setup_irqhandler((device_t)"ipi", ipi_handler, NULL, (void *)i, i,
+		arm_setup_irqhandler(NULL, ipi_handler, NULL, (void *)i, i,
 		    INTR_TYPE_MISC | INTR_EXCL | INTR_IPI, NULL);
-	
 		arm_unmask_ipi(i);
 	}
 	atomic_store_rel_int(&aps_ready, 1);

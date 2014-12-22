@@ -281,6 +281,8 @@ arm_gic_attach(device_t dev)
 	}
 
 	arm_register_pic(dev, PIC_FEATURE_IPI);
+	for (int i = 0; i < ARM_IPI_COUNT; i++)
+		arm_ipi_map_irq(dev, i, i);
 
 	/* Disable interrupt forwarding to the CPU interface */
 	gic_d_write_4(sc, GICD_CTLR, 0x00);
@@ -350,7 +352,7 @@ arm_gic_intr(void *arg)
 		return (FILTER_HANDLED);
 	}
 	
-	gic_c_write_4(sc, GICC_EOIR, active_irq);
+	//gic_c_write_4(sc, GICC_EOIR, active_irq);
 	arm_dispatch_irq(sc->gic_dev, NULL, active_irq);
 
 	return (FILTER_HANDLED);

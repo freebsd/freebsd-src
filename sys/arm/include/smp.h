@@ -6,13 +6,17 @@
 #include <sys/_cpuset.h>
 #include <machine/pcb.h>
 
-#define IPI_AST		0
-#define IPI_PREEMPT	2
-#define IPI_RENDEZVOUS	3
-#define IPI_STOP	4
-#define IPI_STOP_HARD	4
-#define IPI_HARDCLOCK	6
-#define IPI_TLB		7
+enum {
+	IPI_AST,
+	IPI_PREEMPT,
+	IPI_RENDEZVOUS,
+	IPI_STOP,
+	IPI_STOP_HARD = IPI_STOP, /* These are synonyms on arm. */
+	IPI_HARDCLOCK,
+	IPI_TLB,
+	ARM_IPI_COUNT
+};
+
 
 void	init_secondary(int cpu);
 void	mpentry(void);
