@@ -161,7 +161,7 @@ SYSCTL_INT(_vfs_zfs_metaslab, OID_AUTO, debug_unload, CTLFLAG_RWTUN,
  * an allocation of this size then it switches to using more
  * aggressive strategy (i.e search by size rather than offset).
  */
-uint64_t metaslab_df_alloc_threshold = SPA_MAXBLOCKSIZE;
+uint64_t metaslab_df_alloc_threshold = SPA_OLD_MAXBLOCKSIZE;
 TUNABLE_QUAD("vfs.zfs.metaslab.df_alloc_threshold",
     &metaslab_df_alloc_threshold);
 SYSCTL_QUAD(_vfs_zfs_metaslab, OID_AUTO, df_alloc_threshold, CTLFLAG_RWTUN,
