@@ -2736,7 +2736,7 @@ retrylookup:
 			return (m);
 		}
 	}
-	m = vm_page_alloc(object, pindex, allocflags & ~VM_ALLOC_IGN_SBUSY);
+	m = vm_page_alloc(object, pindex, allocflags);
 	if (m == NULL) {
 		VM_OBJECT_WUNLOCK(object);
 		VM_WAIT;
