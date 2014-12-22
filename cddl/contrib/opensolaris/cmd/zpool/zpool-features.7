@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 1, 2014
+.Dd November 10, 2014
 .Dt ZPOOL-FEATURES 7
 .Os
 .Sh NAME
@@ -427,6 +427,33 @@ This feature becomes
 as soon as it is enabled and will
 never return to being
 .Sy enabled .
+.It Sy large_blocks
+.Bl -column "READ\-ONLY COMPATIBLE" "org.open-zfs:large_block"
+.It GUID Ta org.open-zfs:large_block
+.It READ\-ONLY COMPATIBLE Ta no
+.It DEPENDENCIES Ta extensible_dataset
+.El
+.Pp
+The
+.Sy large_block
+feature allows the record size on a dataset to be
+set larger than 128KB.
+.Pp
+This feature becomes
+.Sy active
+once a
+.Sy recordsize
+property has been set larger than 128KB, and will return to being 
+.Sy enabled
+once all filesystems that have ever had their recordsize larger than 128KB
+are destroyed.
+.Pp
+Please note that booting from datasets that have recordsize greater than
+128KB is
+.Em NOT
+supported by the
+.Fx
+boot loader.
 .El
 .Sh SEE ALSO
 .Xr zpool 8
