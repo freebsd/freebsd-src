@@ -1492,7 +1492,7 @@ dsl_scan_sync(dsl_pool_t *dp, dmu_tx_t *tx)
 	}
 	if (scn->scn_visited_this_txg) {
 		zfs_dbgmsg("freed %llu blocks in %llums from "
-		    "free_bpobj/bptree txg %llu; err=%u",
+		    "free_bpobj/bptree txg %llu; err=%d",
 		    (longlong_t)scn->scn_visited_this_txg,
 		    (longlong_t)
 		    NSEC2MSEC(gethrtime() - scn->scn_sync_start_time),
