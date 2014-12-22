@@ -90,18 +90,24 @@ x.$p= PROG_CXX=$p
 
 $p ${p}_p: .PHONY .MAKE
 	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
-	    SUBDIR= PROG=$p ${x.$p})
+	    SUBDIR= PROG=$p \
+	    DEPENDFILE=.depend.$p .MAKE.DEPENDFILE=.depend.$p \
+	    ${x.$p})
 
 .for t in ${PROGS_TARGETS:O:u}
 $p.$t: .PHONY .MAKE
 	(cd ${.CURDIR} && ${MAKE} -f ${MAKEFILE} _RECURSING_PROGS= \
-	    SUBDIR= PROG=$p ${x.$p} ${@:E})
+	    SUBDIR= PROG=$p \
+	    DEPENDFILE=.depend.$p .MAKE.DEPENDFILE=.depend.$p \
+	    ${x.$p} ${@:E})
 .endfor
 .endfor
 
+.if !empty(PROGS)
 .for t in ${PROGS_TARGETS:O:u}
 $t: ${PROGS:%=%.$t}
 .endfor
+.endif
 
 .if empty(PROGS) && !empty(SCRIPTS)
 
