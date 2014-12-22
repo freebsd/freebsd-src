@@ -487,6 +487,7 @@ elf_machine(unsigned int mach)
 	case EM_SEP: return "Sharp embedded microprocessor";
 	case EM_ARCA: return "Arca RISC Microprocessor";
 	case EM_UNICORE: return "Microprocessor series from PKU-Unity Ltd";
+	case EM_AARCH64: return "AArch64";
 	default:
 		snprintf(s_mach, sizeof(s_mach), "<unknown: %#x>", mach);
 		return (s_mach);
@@ -1039,6 +1040,67 @@ r_type(unsigned int mach, unsigned int type)
 		case 35: return "R_386_TLS_DTPMOD32";
 		case 36: return "R_386_TLS_DTPOFF32";
 		case 37: return "R_386_TLS_TPOFF32";
+		default: return "";
+		}
+	case EM_AARCH64:
+		switch(type) {
+		case 0: return "R_AARCH64_NONE";
+		case 257: return "R_AARCH64_ABS64";
+		case 258: return "R_AARCH64_ABS32";
+		case 259: return "R_AARCH64_ABS16";
+		case 260: return "R_AARCH64_PREL64";
+		case 261: return "R_AARCH64_PREL32";
+		case 262: return "R_AARCH64_PREL16";
+		case 263: return "R_AARCH64_MOVW_UABS_G0";
+		case 264: return "R_AARCH64_MOVW_UABS_G0_NC";
+		case 265: return "R_AARCH64_MOVW_UABS_G1";
+		case 266: return "R_AARCH64_MOVW_UABS_G1_NC";
+		case 267: return "R_AARCH64_MOVW_UABS_G2";
+		case 268: return "R_AARCH64_MOVW_UABS_G2_NC";
+		case 269: return "R_AARCH64_MOVW_UABS_G3";
+		case 270: return "R_AARCH64_MOVW_SABS_G0";
+		case 271: return "R_AARCH64_MOVW_SABS_G1";
+		case 272: return "R_AARCH64_MOVW_SABS_G2";
+		case 273: return "R_AARCH64_LD_PREL_LO19";
+		case 274: return "R_AARCH64_ADR_PREL_LO21";
+		case 275: return "R_AARCH64_ADR_PREL_PG_HI21";
+		case 276: return "R_AARCH64_ADR_PREL_PG_HI21_NC";
+		case 277: return "R_AARCH64_ADD_ABS_LO12_NC";
+		case 278: return "R_AARCH64_LDST8_ABS_LO12_NC";
+		case 279: return "R_AARCH64_TSTBR14";
+		case 280: return "R_AARCH64_CONDBR19";
+		case 282: return "R_AARCH64_JUMP26";
+		case 283: return "R_AARCH64_CALL26";
+		case 284: return "R_AARCH64_LDST16_ABS_LO12_NC";
+		case 285: return "R_AARCH64_LDST32_ABS_LO12_NC";
+		case 286: return "R_AARCH64_LDST64_ABS_LO12_NC";
+		case 287: return "R_AARCH64_MOVW_PREL_G0";
+		case 288: return "R_AARCH64_MOVW_PREL_G0_NC";
+		case 289: return "R_AARCH64_MOVW_PREL_G1";
+		case 290: return "R_AARCH64_MOVW_PREL_G1_NC";
+		case 291: return "R_AARCH64_MOVW_PREL_G2";
+		case 292: return "R_AARCH64_MOVW_PREL_G2_NC";
+		case 293: return "R_AARCH64_MOVW_PREL_G3";
+		case 299: return "R_AARCH64_LDST128_ABS_LO12_NC";
+		case 300: return "R_AARCH64_MOVW_GOTOFF_G0";
+		case 301: return "R_AARCH64_MOVW_GOTOFF_G0_NC";
+		case 302: return "R_AARCH64_MOVW_GOTOFF_G1";
+		case 303: return "R_AARCH64_MOVW_GOTOFF_G1_NC";
+		case 304: return "R_AARCH64_MOVW_GOTOFF_G2";
+		case 305: return "R_AARCH64_MOVW_GOTOFF_G2_NC";
+		case 306: return "R_AARCH64_MOVW_GOTOFF_G3";
+		case 307: return "R_AARCH64_GOTREL64";
+		case 308: return "R_AARCH64_GOTREL32";
+		case 309: return "R_AARCH64_GOT_LD_PREL19";
+		case 310: return "R_AARCH64_LD64_GOTOFF_LO15";
+		case 311: return "R_AARCH64_ADR_GOT_PAGE";
+		case 312: return "R_AARCH64_LD64_GOT_LO12_NC";
+		case 313: return "R_AARCH64_LD64_GOTPAGE_LO15";
+		case 1024: return "R_AARCH64_COPY";
+		case 1025: return "R_AARCH64_GLOB_DAT";
+		case 1026: return "R_AARCH64_JUMP_SLOT";
+		case 1027: return "R_AARCH64_RELATIVE";
+		case 1031: return "R_AARCH64_TLSDESC";
 		default: return "";
 		}
 	case EM_ARM:
