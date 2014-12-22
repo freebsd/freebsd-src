@@ -3454,15 +3454,15 @@ read_network_packet(
 	if (AF_INET6 == itf->family) {
 		DPRINTF(1, ("Got an IPv6 packet, from <%s> (%d) to <%s> (%d)\n",
 			stoa(&rb->recv_srcadr),
-			IN6_IS_ADDR_LOOPBACK(&rb->recv_srcadr),
+			IN6_IS_ADDR_LOOPBACK(&rb->recv_srcadr.sa6.sin6_addr),
 			stoa(&itf->sin),
-			!IN6_IS_ADDR_LOOPBACK(&itf->sin)
+			!IN6_IS_ADDR_LOOPBACK(&itf->sin.sa6.sin6_addr)
 			));
 	}
 
 	if (   AF_INET6 == itf->family
-	    && IN6_IS_ADDR_LOOPBACK(&rb->recv_srcadr)
-	    && !IN6_IS_ADDR_LOOPBACK(&itf->sin)
+	    && IN6_IS_ADDR_LOOPBACK(&rb->recv_srcadr.sa6.sin6_addr)
+	    && !IN6_IS_ADDR_LOOPBACK(&itf->sin.sa6.sin6_addr)
 	   ) {
 		packets_dropped++;
 		DPRINTF(1, ("DROPPING that packet\n"));
