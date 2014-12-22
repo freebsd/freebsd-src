@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 Kai Wang
+ * Copyright (c) 2010,2014 Kai Wang
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: dwarf_next_cu_header.c 2084 2011-10-27 04:48:12Z jkoshy $
+ * $Id: dwarf_next_cu_header.c 3073 2014-06-23 03:08:49Z kaiwang27 $
  */
 
 #include <assert.h>
@@ -38,10 +38,12 @@
 
 static void tp_dwarf_next_cu_header(void);
 static void tp_dwarf_next_cu_header_b(void);
+static void tp_dwarf_next_cu_header_c(void);
 static void tp_dwarf_next_cu_header_loop(void);
 static struct dwarf_tp dwarf_tp_array[] = {
 	{"tp_dwarf_next_cu_header", tp_dwarf_next_cu_header},
 	{"tp_dwarf_next_cu_header_b", tp_dwarf_next_cu_header_b},
+	{"tp_dwarf_next_cu_header_c", tp_dwarf_next_cu_header_c},
 	{"tp_dwarf_next_cu_header_loop", tp_dwarf_next_cu_header_loop},
 	{NULL, NULL},
 };
@@ -100,8 +102,8 @@ tp_dwarf_next_cu_header_b(void)
 	TS_DWARF_INIT(dbg, fd, de);
 
 	while (dwarf_next_cu_header_b(dbg, &cu_header_length, &cu_version,
-		&cu_abbrev_offset, &cu_pointer_size, &cu_offset_size,
-		&cu_extension_size, &cu_next_offset, &de) == DW_DLV_OK) {
+	    &cu_abbrev_offset, &cu_pointer_size, &cu_offset_size,
+	    &cu_extension_size, &cu_next_offset, &de) == DW_DLV_OK) {
 		TS_CHECK_UINT(cu_header_length);
 		TS_CHECK_UINT(cu_version);
 		TS_CHECK_INT(cu_abbrev_offset);
@@ -110,6 +112,64 @@ tp_dwarf_next_cu_header_b(void)
 		TS_CHECK_UINT(cu_extension_size);
 		TS_CHECK_UINT(cu_next_offset);
 	}
+
+	if (result == TET_UNRESOLVED)
+		result = TET_PASS;
+
+done:
+	TS_DWARF_FINISH(dbg, de);
+	TS_RESULT(result);
+}
+
+static void
+tp_dwarf_next_cu_header_c(void)
+{
+	Dwarf_Debug dbg;
+	Dwarf_Error de;
+	Dwarf_Unsigned cu_header_length;
+	Dwarf_Half cu_version;
+	Dwarf_Off cu_abbrev_offset;
+	Dwarf_Half cu_pointer_size;
+	Dwarf_Half cu_offset_size;
+	Dwarf_Half cu_extension_size;
+	Dwarf_Sig8 cu_type_sig;
+	Dwarf_Unsigned cu_type_offset;
+	Dwarf_Unsigned cu_next_offset;
+	int fd, result;
+
+	result = TET_UNRESOLVED;
+
+	TS_DWARF_INIT(dbg, fd, de);
+
+	while (dwarf_next_cu_header_c(dbg, 1, &cu_header_length, &cu_version,
+	    &cu_abbrev_offset, &cu_pointer_size, &cu_offset_size,
+	    &cu_extension_size, NULL, NULL, &cu_next_offset, &de) ==
+	    DW_DLV_OK) {
+		TS_CHECK_UINT(cu_header_length);
+		TS_CHECK_UINT(cu_version);
+		TS_CHECK_INT(cu_abbrev_offset);
+		TS_CHECK_UINT(cu_pointer_size);
+		TS_CHECK_UINT(cu_offset_size);
+		TS_CHECK_UINT(cu_extension_size);
+		TS_CHECK_UINT(cu_next_offset);
+	}
+
+	do {
+		while (dwarf_next_cu_header_c(dbg, 0, &cu_header_length,
+		    &cu_version, &cu_abbrev_offset, &cu_pointer_size,
+		    &cu_offset_size, &cu_extension_size, &cu_type_sig,
+		    &cu_type_offset, &cu_next_offset, &de) == DW_DLV_OK) {
+			TS_CHECK_UINT(cu_header_length);
+			TS_CHECK_UINT(cu_version);
+			TS_CHECK_INT(cu_abbrev_offset);
+			TS_CHECK_UINT(cu_pointer_size);
+			TS_CHECK_UINT(cu_offset_size);
+			TS_CHECK_UINT(cu_extension_size);
+			TS_CHECK_BLOCK(cu_type_sig.signature, 8);
+			TS_CHECK_UINT(cu_type_offset);
+			TS_CHECK_UINT(cu_next_offset);
+		}
+	} while (dwarf_next_types_section(dbg, &de) == DW_DLV_OK);
 
 	if (result == TET_UNRESOLVED)
 		result = TET_PASS;

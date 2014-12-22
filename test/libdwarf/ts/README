@@ -1,4 +1,4 @@
-: $Id: README 2084 2011-10-27 04:48:12Z jkoshy $
+: $Id: README 3072 2014-06-23 03:08:44Z kaiwang27 $
 
 Libdwarf test suite use XML files to describe test case, invocable
 component and test purpose.
@@ -32,3 +32,15 @@ When a test case is compiled with 'make TCGEN=yes', it will instead
 link with SGI libdwarf and genearte XML files during TP execution.
 These generated XML files can then be used directly to test this
 libdwarf implementation.
+
+For example, to generate XML files for test case dwarf_next_cu_header:
+
+% cd /path/to/elftoolchain/test/libdwarf/
+# unsetenv TET_ROOT
+% make clean && make TCGEN=yes
+% cd ts/dwarf_next_cu_header
+% setenv TET_ROOT /path/to/elftoolchain/test/tet
+% env ICLIST=dt32-g1:dt64-g1:ec32-g1:ec64-g1:ld_symver.o-64-g1 ./tc_dwarf_next_cu_header
+
+(ICLIST defines a list of test objects on which the test case
+generates. One gzipped XML file is generated for each test object.)

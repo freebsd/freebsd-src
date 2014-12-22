@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: driver.h 2084 2011-10-27 04:48:12Z jkoshy $
+ * $Id: driver.h 3074 2014-06-23 03:08:53Z kaiwang27 $
  */
 
 #ifndef	_DRIVER_H_
@@ -62,8 +62,15 @@ struct dwarf_tp {
 	while (dwarf_next_cu_header((D), NULL, NULL, NULL, NULL, &(N),	\
 	    &(DE)) == DW_DLV_OK)
 
-#define	TS_DWARF_DIE_TRAVERSE(D, CB)					\
+#define	TS_DWARF_CU_FOREACH2(D,I,N,DE)					\
+	while (dwarf_next_cu_header_c((D), (I), NULL, NULL, NULL, NULL,	\
+	    NULL, NULL, NULL, NULL, &(N), &(DE)) == DW_DLV_OK)
+
+#define	TS_DWARF_DIE_TRAVERSE(D,CB)					\
 	_die_traverse((D), (CB))
+
+#define	TS_DWARF_DIE_TRAVERSE2(D,I,CB)					\
+	_die_traverse2((D), (I), (CB))
 
 #ifndef	TCGEN
 

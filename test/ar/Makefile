@@ -1,4 +1,4 @@
-# $Id: Makefile 2141 2011-11-10 15:03:40Z jkoshy $
+# $Id: Makefile 3025 2014-04-18 16:20:25Z jkoshy $
 
 TOP=		../..
 AR=		${TOP}/ar/ar
@@ -17,4 +17,4 @@ clobber:	clean
 
 SUBDIR=		plugin
 
-.include <bsd.subdir.mk>
+.include "${TOP}/mk/elftoolchain.subdir.mk"

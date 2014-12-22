@@ -1,4 +1,4 @@
-.\" Copyright (c) 2010 Kai Wang
+.\" Copyright (c) 2010,2014 Kai Wang
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -22,16 +22,17 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_dieoffset.3 2073 2011-10-27 03:30:47Z jkoshy $
+.\" $Id: dwarf_dieoffset.3 3129 2014-12-21 20:06:26Z jkoshy $
 .\"
-.Dd April 17, 2010
+.Dd December 21, 2014
 .Os
 .Dt DWARF_DIEOFFSET 3
 .Sh NAME
 .Nm dwarf_die_CU_offset ,
 .Nm dwarf_die_CU_offset_range ,
 .Nm dwarf_dieoffset ,
-.Nm dwarf_get_cu_die_offset_given_cu_header_offset
+.Nm dwarf_get_cu_die_offset_given_cu_header_offset ,
+.Nm dwarf_get_cu_die_offset_given_cu_header_offset_b
 .Nd return offsets of DWARF debugging information entries
 .Sh LIBRARY
 .Lb libdwarf
@@ -60,6 +61,14 @@
 .Fo dwarf_get_cu_die_offset_given_cu_header_offset
 .Fa "Dwarf_Debug dbg"
 .Fa "Dwarf_Off in_cu_header_offset"
+.Fa "Dwarf_Off *out_cu_die_offset"
+.Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_get_cu_die_offset_given_cu_header_offset_b
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Off in_cu_header_offset"
+.Fa "Dwarf_Bool is_info"
 .Fa "Dwarf_Off *out_cu_die_offset"
 .Fa "Dwarf_Error *err"
 .Fc
@@ -114,7 +123,7 @@ an error.
 .Pp
 Function
 .Fn dwarf_get_cu_die_offset_given_cu_header_offset
-returns the offset for the debugging information entry for a
+returns the offset for the first debugging information entry for a
 compilation unit, given an offset to the header of the compilation
 unit.
 Argument
@@ -131,8 +140,30 @@ If argument
 .Ar err
 is non-NULL, it will be used to return an error descriptor in case of
 an error.
+.Pp
+Function
+.Fn dwarf_get_cu_die_offset_given_cu_header_offset_b
+behaves identically to the function
+.Fn dwarf_get_cu_die_offset_given_cu_header_offset
+when the argument
+.Ar is_info
+is non-zero.
+When the argument
+.Ar is_info
+is zero, function
+.Fn dwarf_get_cu_die_offset_given_cu_header_offset_b
+returns the offset for the first debugging information entry for a
+type unit, given an offset to the header of the type unit in argument
+.Ar in_cu_header_offset .
+Argument
+.Ar out_cu_die_offset
+points to a location that will hold the returned offset.
+If the argument
+.Ar err
+is non-NULL, it will be used to return an error descriptor in case of
+an error.
 .Sh RETURN VALUES
-On success, these functions returns
+On success, these functions return
 .Dv DW_DLV_OK .
 In case of an error, these functions return
 .Dv DW_DLV_ERROR
@@ -141,11 +172,13 @@ and set argument
 .Pp
 Function
 .Fn dwarf_get_cu_die_offset_given_cu_header_offset
+and
+.Fn dwarf_get_cu_die_offset_given_cu_header_offset_b
 returns
 .Dv DW_DLV_NO_ENTRY
 and sets argument
 .Ar err
-if there is no compilation unit located at the
+if there is no compilation or type unit located at the
 offset specified in argument
 .Ar in_cu_header_offset .
 .Sh ERRORS
@@ -169,4 +202,5 @@ specified an unknown offset.
 .Sh SEE ALSO
 .Xr dwarf 3 ,
 .Xr dwarf_next_cu_header 3 ,
-.Xr dwarf_offdie 3
+.Xr dwarf_offdie 3 ,
+.Xr dwarf_offdie_b 3

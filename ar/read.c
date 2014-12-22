@@ -39,7 +39,7 @@
 
 #include "ar.h"
 
-ELFTC_VCSID("$Id: read.c 2229 2011-11-27 13:25:37Z jkoshy $");
+ELFTC_VCSID("$Id: read.c 3102 2014-10-29 21:09:01Z jkoshy $");
 
 /*
  * Handle read modes: 'x', 't' and 'p'.
@@ -68,9 +68,8 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 
 	if ((a = archive_read_new()) == NULL)
 		bsdar_errc(bsdar, 0, "archive_read_new failed");
-	archive_read_support_compression_none(a);
 	archive_read_support_format_ar(a);
-	AC(archive_read_open_file(a, bsdar->filename, DEF_BLKSZ));
+	AC(archive_read_open_filename(a, bsdar->filename, DEF_BLKSZ));
 
 	out = bsdar->output;
 
@@ -188,5 +187,5 @@ ar_read_archive(struct bsdar *bsdar, int mode)
 		}
 	}
 	AC(archive_read_close(a));
-	ACV(archive_read_finish(a));
+	ACV(archive_read_free(a));
 }

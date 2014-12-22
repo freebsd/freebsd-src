@@ -1,4 +1,4 @@
-# $Id: Makefile 2741 2012-12-10 18:47:00Z jkoshy $
+# $Id: Makefile 3107 2014-12-20 08:31:58Z kaiwang27 $
 
 TOP=	..
 
@@ -9,8 +9,8 @@ YSRC=	acpyacc.y
 
 WARNS?=	5
 
-DPADD=	${LIBARCHIVE} ${LIBELFTC} ${LIBELF}
-LDADD=	-larchive -lelftc -lelf
+DPADD=	${LIBARCHIVE} ${LIBELFTC} ${LIBELF} ${LIBZ}
+LDADD=	-larchive -lelftc -lelf -lz
 
 CFLAGS+=-I. -I${.CURDIR}
 

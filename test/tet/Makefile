@@ -1,7 +1,7 @@
 #
 # Build TET from source.
 #
-# $Id: Makefile 2117 2011-11-09 05:48:03Z jkoshy $
+# $Id: Makefile 3024 2014-04-18 16:20:11Z jkoshy $
 #
 
 TOP=	../..
@@ -41,7 +41,7 @@ clean:
 clobber:
 	rm -rf ${TET_ROOT} ${TET_BUILD_MARKER} ${TET_PATCH_MARKER}
 
-depend test:	.SILENT
+cleandepend depend test:	.SILENT
 	true
 
 .else

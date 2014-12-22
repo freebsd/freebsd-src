@@ -29,14 +29,13 @@
 #include <sys/param.h>
 #include <assert.h>
 #include <errno.h>
-#include <libelf.h>
 #include <libelftc.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "_libelftc.h"
 
-ELFTC_VCSID("$Id: elftc_demangle.c 2065 2011-10-26 15:24:47Z jkoshy $");
+ELFTC_VCSID("$Id: elftc_demangle.c 3030 2014-05-01 06:30:48Z kaiwang27 $");
 
 static int
 is_mangled(const char *s, int style)

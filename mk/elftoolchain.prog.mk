@@ -1,7 +1,7 @@
 #
 # Rules for building programs.
 #
-# $Id: elftoolchain.prog.mk 2796 2012-12-19 12:44:09Z jkoshy $
+# $Id: elftoolchain.prog.mk 2985 2014-03-06 03:24:35Z jkoshy $
 
 .if !defined(TOP)
 .error	Make variable \"TOP\" has not been defined.
@@ -76,7 +76,7 @@ ${_L:R}.o:	${_Y:R}.h
 .include "${TOP}/mk/elftoolchain.m4.mk"
 
 # Support a 'clobber' target.
-clobber:	clean	.PHONY
+clobber:	clean os-specific-clobber .PHONY
 
 .if defined(DEBUG)
 CFLAGS:=	${CFLAGS:N-O*} -g

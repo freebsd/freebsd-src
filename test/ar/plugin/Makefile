@@ -1,4 +1,4 @@
-# $Id: Makefile 2080 2011-10-27 04:23:24Z jkoshy $
+# $Id: Makefile 3025 2014-04-18 16:20:25Z jkoshy $
 
 PLUGINS=	ardiff teraser
 
@@ -9,7 +9,7 @@ ${PLUGINS}:
 	${MAKE} -f Makefile.${plugin}
 .endfor
 
-clean depend:
+clean cleandepend depend:
 .for plugin in ${PLUGINS}
 	${MAKE} -f Makefile.${plugin} ${.TARGET}
 .endfor

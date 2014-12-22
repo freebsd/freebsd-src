@@ -46,7 +46,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: brandelf.c 2324 2011-12-12 06:36:27Z jkoshy $");
+ELFTC_VCSID("$Id: brandelf.c 3101 2014-10-27 22:24:40Z jkoshy $");
 
 static int elftype(const char *);
 static const char *iselftype(int);
@@ -96,7 +96,7 @@ main(int argc, char **argv)
 	Elf_Kind kind;
 	int type = ELFOSABI_NONE;
 	int retval = 0;
-	int ch, change = 0, verbose = 0, force = 0, listed = 0;
+	int ch, change = 0, force = 0, listed = 0;
 
 	if (elf_version(EV_CURRENT) == EV_NONE)
 		errx(EXIT_FAILURE, "elf_version error");
@@ -124,7 +124,7 @@ main(int argc, char **argv)
 			listed = 1;
 			break;
 		case 'v':
-			verbose = 1;
+			/* This flag is ignored. */
 			break;
 		case 't':
 			if (force)
@@ -256,7 +256,6 @@ Usage: %s [options] file...\n\
   -h | --help               Print a usage message and exit.\n\
   -l                        List known ELF ABI names.\n\
   -t ABI                    Set the ELF ABI to the value named by \"ABI\".\n\
-  -v                        Be verbose.\n\
   -V | --version            Print a version identifier and exit.\n"
 
 static void

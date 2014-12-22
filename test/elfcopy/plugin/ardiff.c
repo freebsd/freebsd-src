@@ -12,7 +12,7 @@
  * By default, it compares nothing and consider the test "not ok"
  * iff it encounters errors while reading archive.
  *
- * $Id: ardiff.c 2142 2011-11-10 15:29:59Z jkoshy $
+ * $Id: ardiff.c 3102 2014-10-29 21:09:01Z jkoshy $
  */
 
 #include <archive.h>
@@ -93,9 +93,8 @@ main(int argc, char **argv)
 
 	/* Open file 1 */
 	a1 = archive_read_new();
-	archive_read_support_compression_none(a1);
 	archive_read_support_format_ar(a1);
-	if (archive_read_open_file(a1, argv[0],
+	if (archive_read_open_filename(a1, argv[0],
 	    1024*10)) {
 		warnx("%s", archive_error_string(a1));
 		filediff(tc, "archive open failed", NULL);
@@ -103,9 +102,8 @@ main(int argc, char **argv)
 
 	/* Open file 2 */
 	a2 = archive_read_new();
-	archive_read_support_compression_none(a2);
 	archive_read_support_format_ar(a2);
-	if (archive_read_open_file(a2, argv[1],
+	if (archive_read_open_filename(a2, argv[1],
 	    1024*10)) {
 		warnx("%s", archive_error_string(a2));
 		filediff(tc, "archive open failed", NULL);
@@ -233,10 +231,11 @@ static void
 incct(const char *pathname)
 {
 	FILE *fp;
-	char buf[10], *_buf;
+	char buf[10];
 
 	if ((fp = fopen(pathname, "r")) != NULL) {
-		_buf = fgets(buf, 10, fp);
+		if (fgets(buf, 10, fp) != buf)
+			perror("fgets");
 		snprintf(buf, 10, "%d\n", atoi(buf) + 1);
 		fclose(fp);
 	}

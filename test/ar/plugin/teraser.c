@@ -2,7 +2,7 @@
  * make it easy to `diff'.  (option -e)
  * 2. Check the sanity of timestamp. (option -c)
  *
- * $Id: teraser.c 2142 2011-11-10 15:29:59Z jkoshy $
+ * $Id: teraser.c 3102 2014-10-29 21:09:01Z jkoshy $
  */
 
 #include <errno.h>
@@ -28,7 +28,7 @@ main(int argc, char **argv)
 	char opt;
 	char checktime;
 	char erasetime;
-	char buf[TSLEN + 1], *_buf;
+	char buf[TSLEN + 1];
 	char *tc;
 	int fd;
 	int ts;
@@ -85,7 +85,8 @@ main(int argc, char **argv)
 			if (ts <= now && ts >= now - TDELAY) {
 				fprintf(stderr, "%s - timestamp ok\n", tc);
 				if ((ps = fopen(PASSED, "r")) != NULL) {
-					_buf = fgets(buf, TSLEN, ps);
+					if (fgets(buf, TSLEN, ps) != buf)
+						perror("fgets");
 					snprintf(buf, TSLEN, "%d\n",
 					    atoi(buf) + 1);
 					fclose(ps);
@@ -98,7 +99,8 @@ main(int argc, char **argv)
 				fprintf(stderr, "%s - timestamp not ok\n", tc);
 			}
 			if ((ct = fopen(COUNTER, "r")) != NULL) {
-				_buf = fgets(buf, TSLEN, ct);
+				if (fgets(buf, TSLEN, ct) != buf)
+					perror("fgets");
 				snprintf(buf, TSLEN, "%d\n", atoi(buf) + 1);
 				fclose(ct);
 			}
