@@ -2711,8 +2711,8 @@ retrylookup:
 		sleep = (allocflags & VM_ALLOC_IGN_SBUSY) != 0 ?
 		    vm_page_xbusied(m) : vm_page_busied(m);
 		if (sleep) {
-			if (allocflags & VM_ALLOC_NOWAIT)
-				return (NULL);
+			if ((allocflags & VM_ALLOC_NOWAIT) != 0)
+				return (NULL); 
 			/*
 			 * Reference the page before unlocking and
 			 * sleeping so that the page daemon is less
@@ -2738,9 +2738,9 @@ retrylookup:
 			return (m);
 		}
 	}
-	m = vm_page_alloc(object, pindex, allocflags & ~VM_ALLOC_IGN_SBUSY);
+	m = vm_page_alloc(object, pindex, allocflags);
 	if (m == NULL) {
-		if (allocflags & VM_ALLOC_NOWAIT)
+		if ((allocflags & VM_ALLOC_NOWAIT) != 0)
 			return (NULL);
 		VM_OBJECT_WUNLOCK(object);
 		VM_WAIT;
