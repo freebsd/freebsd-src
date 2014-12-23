@@ -27,42 +27,40 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)getmntinfo.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/ucred.h>
 #include <sys/mount.h>
 #include <stdlib.h>
 
+#include "gen-compat.h"
+
 /*
  * Return information about mounted filesystems.
  */
 int
-getmntinfo(mntbufp, flags)
-	struct statfs **mntbufp;
-	int flags;
+freebsd10_getmntinfo(struct freebsd10_statfs **mntbufp, int flags)
 {
-	static struct statfs *mntbuf;
+	static struct freebsd10_statfs *mntbuf;
 	static int mntsize;
 	static long bufsize;
 
-	if (mntsize <= 0 && (mntsize = getfsstat(0, 0, MNT_NOWAIT)) < 0)
+	if (mntsize <= 0 &&
+	    (mntsize = freebsd10_getfsstat(0, 0, MNT_NOWAIT)) < 0)
 		return (0);
-	if (bufsize > 0 && (mntsize = getfsstat(mntbuf, bufsize, flags)) < 0)
+	if (bufsize > 0 &&
+	    (mntsize = freebsd10_getfsstat(mntbuf, bufsize, flags)) < 0)
 		return (0);
-	while (bufsize <= mntsize * sizeof(struct statfs)) {
+	while (bufsize <= mntsize * sizeof(struct freebsd10_statfs)) {
 		if (mntbuf)
 			free(mntbuf);
-		bufsize = (mntsize + 1) * sizeof(struct statfs);
-		if ((mntbuf = (struct statfs *)malloc(bufsize)) == 0)
+		bufsize = (mntsize + 1) * sizeof(struct freebsd10_statfs);
+		if ((mntbuf = (struct freebsd10_statfs *)malloc(bufsize)) == 0)
 			return (0);
-		if ((mntsize = getfsstat(mntbuf, bufsize, flags)) < 0)
+		if ((mntsize = freebsd10_getfsstat(mntbuf, bufsize, flags)) < 0)
 			return (0);
 	}
 	*mntbufp = mntbuf;
 	return (mntsize);
 }
+
+__sym_compat(getmntinfo, freebsd10_getmntinfo, FBSD_1.0);

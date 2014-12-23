@@ -26,12 +26,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include <fts.h>
 #include <ftw.h>
 
+#include "fts-compat10.h"
+
 int
-nftw(const char *path, int (*fn)(const char *, const struct stat *, int,
-     struct FTW *), int nfds, int ftwflags)
+freebsd10_nftw(const char *path,
+    int (*fn)(const char *, const struct freebsd10_stat *, int, struct FTW *),
+    int nfds, int ftwflags)
 {
 	char * const paths[2] = { (char *)path, NULL };
 	struct FTW ftw;
@@ -55,10 +57,10 @@ nftw(const char *path, int (*fn)(const char *, const struct stat *, int,
 	else
 		ftsflags |= FTS_LOGICAL;
 	postorder = (ftwflags & FTW_DEPTH) != 0;
-	ftsp = fts_open(paths, ftsflags, NULL);
+	ftsp = freebsd10_fts_open(paths, ftsflags, NULL);
 	if (ftsp == NULL)
 		return (-1);
-	while ((cur = fts_read(ftsp)) != NULL) {
+	while ((cur = freebsd10_fts_read(ftsp)) != NULL) {
 		switch (cur->fts_info) {
 		case FTS_D:
 			if (postorder)
@@ -101,9 +103,11 @@ nftw(const char *path, int (*fn)(const char *, const struct stat *, int,
 	}
 done:
 	sverrno = errno;
-	if (fts_close(ftsp) != 0 && error == 0)
+	if (freebsd10_fts_close(ftsp) != 0 && error == 0)
 		error = -1;
 	else
 		errno = sverrno;
 	return (error);
 }
+
+__sym_compat(nftw, freebsd10_nftw, FBSD_1.0);

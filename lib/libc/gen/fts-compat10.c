@@ -46,10 +46,11 @@ __FBSDID("$FreeBSD$");
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <fts.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "gen-compat.h"
+#include "fts-compat10.h"
 #include "un-namespace.h"
 
 #include "gen-private.h"
@@ -86,8 +87,8 @@ static int	 fts_ufslinks(FTS *, const FTSENT *);
  */
 struct _fts_private {
 	FTS		ftsp_fts;
-	struct statfs	ftsp_statfs;
-	dev_t		ftsp_dev;
+	struct freebsd10_statfs	ftsp_statfs;
+	uint32_t	ftsp_dev;
 	int		ftsp_linksreliable;
 };
 
@@ -110,7 +111,7 @@ static const char *ufslike_filesystems[] = {
 };
 
 FTS *
-fts_open(argv, options, compar)
+freebsd10_fts_open(argv, options, compar)
 	char * const *argv;
 	int options;
 	int (*compar)(const FTSENT * const *, const FTSENT * const *);
@@ -248,7 +249,7 @@ fts_load(FTS *sp, FTSENT *p)
 }
 
 int
-fts_close(FTS *sp)
+freebsd10_fts_close(FTS *sp)
 {
 	FTSENT *freep, *p;
 	int saved_errno;
@@ -302,7 +303,7 @@ fts_close(FTS *sp)
 	    ? p->fts_pathlen - 1 : p->fts_pathlen)
 
 FTSENT *
-fts_read(FTS *sp)
+freebsd10_fts_read(FTS *sp)
 {
 	FTSENT *p, *tmp;
 	int instr;
@@ -500,7 +501,7 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
  */
 /* ARGSUSED */
 int
-fts_set(FTS *sp, FTSENT *p, int instr)
+freebsd10_fts_set(FTS *sp, FTSENT *p, int instr)
 {
 	if (instr != 0 && instr != FTS_AGAIN && instr != FTS_FOLLOW &&
 	    instr != FTS_NOINSTR && instr != FTS_SKIP) {
@@ -512,7 +513,7 @@ fts_set(FTS *sp, FTSENT *p, int instr)
 }
 
 FTSENT *
-fts_children(FTS *sp, int instr)
+freebsd10_fts_children(FTS *sp, int instr)
 {
 	FTSENT *p;
 	int fd;
@@ -579,29 +580,29 @@ fts_children(FTS *sp, int instr)
 	return (sp->fts_child);
 }
 
-#ifndef fts_get_clientptr
-#error "fts_get_clientptr not defined"
+#ifndef freebsd10_fts_get_clientptr
+#error "freebsd10_fts_get_clientptr not defined"
 #endif
 
 void *
-(fts_get_clientptr)(FTS *sp)
+(freebsd10_fts_get_clientptr)(FTS *sp)
 {
 
-	return (fts_get_clientptr(sp));
+	return (freebsd10_fts_get_clientptr(sp));
 }
 
-#ifndef fts_get_stream
-#error "fts_get_stream not defined"
+#ifndef freebsd10_fts_get_stream
+#error "freebsd10_fts_get_stream not defined"
 #endif
 
 FTS *
-(fts_get_stream)(FTSENT *p)
+(freebsd10_fts_get_stream)(FTSENT *p)
 {
-	return (fts_get_stream(p));
+	return (freebsd10_fts_get_stream(p));
 }
 
 void
-fts_set_clientptr(FTS *sp, void *clientptr)
+freebsd10_fts_set_clientptr(FTS *sp, void *clientptr)
 {
 
 	sp->fts_clientptr = clientptr;
@@ -624,7 +625,7 @@ fts_set_clientptr(FTS *sp, void *clientptr)
 static FTSENT *
 fts_build(FTS *sp, int type)
 {
-	struct dirent *dp;
+	struct freebsd10_dirent *dp;
 	FTSENT *p, *head;
 	FTSENT *cur, *tail;
 	DIR *dirp;
@@ -736,7 +737,8 @@ fts_build(FTS *sp, int type)
 
 	/* Read the directory, attaching each entry to the `link' pointer. */
 	doadjust = 0;
-	for (head = tail = NULL, nitems = 0; dirp && (dp = readdir(dirp));) {
+	for (head = tail = NULL, nitems = 0;
+	    dirp && (dp = freebsd10_readdir(dirp));) {
 		dnamlen = dp->d_namlen;
 		if (!ISSET(FTS_SEEDOT) && ISDOT(dp->d_name))
 			continue;
@@ -872,9 +874,9 @@ static int
 fts_stat(FTS *sp, FTSENT *p, int follow, int dfd)
 {
 	FTSENT *t;
-	dev_t dev;
-	ino_t ino;
-	struct stat *sbp, sb;
+	uint32_t dev;
+	uint32_t ino;
+	struct freebsd10_stat *sbp, sb;
 	int saved_errno;
 	const char *path;
 
@@ -903,16 +905,16 @@ fts_stat(FTS *sp, FTSENT *p, int follow, int dfd)
 	 * fail, set the errno from the stat call.
 	 */
 	if (ISSET(FTS_LOGICAL) || follow) {
-		if (fstatat(dfd, path, sbp, 0)) {
+		if (freebsd10_fstatat(dfd, path, sbp, 0)) {
 			saved_errno = errno;
-			if (!fstatat(dfd, path, sbp, AT_SYMLINK_NOFOLLOW)) {
+			if (!freebsd10_fstatat(dfd, path, sbp, AT_SYMLINK_NOFOLLOW)) {
 				errno = 0;
 				return (FTS_SLNONE);
 			}
 			p->fts_errno = saved_errno;
 			goto err;
 		}
-	} else if (fstatat(dfd, path, sbp, AT_SYMLINK_NOFOLLOW)) {
+	} else if (freebsd10_fstatat(dfd, path, sbp, AT_SYMLINK_NOFOLLOW)) {
 		p->fts_errno = errno;
 err:		memset(sbp, 0, sizeof(struct stat));
 		return (FTS_NS);
@@ -1006,7 +1008,7 @@ fts_alloc(FTS *sp, char *name, size_t namelen)
 
 	struct ftsent_withstat {
 		FTSENT	ent;
-		struct	stat statbuf;
+		struct	freebsd10_stat statbuf;
 	};
 
 	/*
@@ -1121,7 +1123,7 @@ static int
 fts_safe_changedir(FTS *sp, FTSENT *p, int fd, char *path)
 {
 	int ret, oerrno, newfd;
-	struct stat sb;
+	struct freebsd10_stat sb;
 
 	newfd = fd;
 	if (ISSET(FTS_NOCHDIR))
@@ -1129,7 +1131,7 @@ fts_safe_changedir(FTS *sp, FTSENT *p, int fd, char *path)
 	if (fd < 0 && (newfd = _open(path, O_RDONLY | O_DIRECTORY |
 	    O_CLOEXEC, 0)) < 0)
 		return (-1);
-	if (_fstat(newfd, &sb)) {
+	if (freebsd10_fstat(newfd, &sb)) {
 		ret = -1;
 		goto bail;
 	}
@@ -1164,7 +1166,7 @@ fts_ufslinks(FTS *sp, const FTSENT *ent)
 	 * avoidance.
 	 */
 	if (priv->ftsp_dev != ent->fts_dev) {
-		if (statfs(ent->fts_path, &priv->ftsp_statfs) != -1) {
+		if (freebsd10_statfs(ent->fts_path, &priv->ftsp_statfs) != -1) {
 			priv->ftsp_dev = ent->fts_dev;
 			priv->ftsp_linksreliable = 0;
 			for (cpp = ufslike_filesystems; *cpp; cpp++) {
@@ -1180,3 +1182,12 @@ fts_ufslinks(FTS *sp, const FTSENT *ent)
 	}
 	return (priv->ftsp_linksreliable);
 }
+
+__sym_compat(fts_open, freebsd10_fts_open, FBSD_1.1);
+__sym_compat(fts_close, freebsd10_fts_close, FBSD_1.1);
+__sym_compat(fts_read, freebsd10_fts_read, FBSD_1.1);
+__sym_compat(fts_set, freebsd10_fts_set, FBSD_1.1);
+__sym_compat(fts_children, freebsd10_fts_children, FBSD_1.1);
+__sym_compat(fts_get_clientptr, freebsd10_fts_get_clientptr, FBSD_1.1);
+__sym_compat(fts_get_stream, freebsd10_fts_get_stream, FBSD_1.1);
+__sym_compat(fts_set_clientptr, freebsd10_fts_set_clientptr, FBSD_1.1);

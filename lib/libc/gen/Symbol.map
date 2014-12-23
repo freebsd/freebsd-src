@@ -80,8 +80,6 @@ FBSD_1.0 {
 	ctermid;
 	ctermid_r;
 	daemon;
-	devname;
-	devname_r;
 	dirname;
 	getdiskbyname;
 	dladdr;
@@ -134,9 +132,6 @@ FBSD_1.0 {
 	setfsent;
 	endfsent;
 	ftok;
-	ftw;
-	glob;
-	globfree;
 	getbootfile;
 	getbsize;
 	cgetset;
@@ -169,7 +164,6 @@ FBSD_1.0 {
 	getloadavg;
 	getlogin;
 	getlogin_r;
-	getmntinfo;
 	setnetgrent;
 	getnetgrent;
 	endnetgrent;
@@ -215,7 +209,6 @@ FBSD_1.0 {
 	lrand48;
 	modf;
 	mrand48;
-	nftw;
 	nice;
 	nlist;
 	nrand48;
@@ -226,13 +219,9 @@ FBSD_1.0 {
 	pclose;
 	psignal;
 	raise;
-	readdir;
-	readdir_r;
 	readpassphrase;
 	getpass;
 	rewinddir;
-	scandir;
-	alphasort;
 	seed48;
 	seekdir;
 	user_from_uid;
@@ -320,14 +309,6 @@ FBSD_1.1 {
 	fdevname_r;
 	fdopendir;
 	feature_present;
-	fts_children;
-	fts_close;
-	fts_get_clientptr;
-	fts_get_stream;
-	fts_open;
-	fts_read;
-	fts_set;
-	fts_set_clientptr;
 	posix_spawn;
 	posix_spawn_file_actions_addclose;
 	posix_spawn_file_actions_adddup2;
@@ -410,6 +391,25 @@ FBSD_1.3 {
 };
 
 FBSD_1.4 {
+	alphasort;
+	devname;
+	devname_r;
+	fts_children;
+	fts_close;
+	fts_get_clientptr;
+	fts_get_stream;
+	fts_open;
+	fts_read;
+	fts_set;
+	fts_set_clientptr;
+	ftw;
+	getmntinfo;
+	glob;
+	globfree;
+	nftw;
+	readdir;
+	readdir_r;
+	scandir;
 	scandir_b;
 };
 

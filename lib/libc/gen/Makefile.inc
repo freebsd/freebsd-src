@@ -26,6 +26,7 @@ SRCS+=	__getosreldate.c \
 	ctermid.c \
 	daemon.c \
 	devname.c \
+	devname-compat10.c \
 	dirfd.c \
 	dirname.c \
 	disklabel.c \
@@ -49,7 +50,9 @@ SRCS+=	__getosreldate.c \
 	ftok.c \
 	fts.c \
 	fts-compat.c \
+	fts-compat10.c \
 	ftw.c \
+	ftw-compat10.c \
 	getbootfile.c \
 	getbsize.c \
 	getcap.c \
@@ -61,6 +64,7 @@ SRCS+=	__getosreldate.c \
 	getloadavg.c \
 	getlogin.c \
 	getmntinfo.c \
+	getmntinfo-compat10.c \
 	getnetgrent.c \
 	getosreldate.c \
 	getpagesize.c \
@@ -73,6 +77,7 @@ SRCS+=	__getosreldate.c \
 	getutxent.c \
 	getvfsbyname.c \
 	glob.c \
+	glob-compat10.c \
 	initgroups.c \
 	isatty.c \
 	isinf.c \
@@ -84,6 +89,7 @@ SRCS+=	__getosreldate.c \
 	lrand48.c \
 	mrand48.c \
 	nftw.c \
+	nftw-compat10.c \
 	nice.c \
 	nlist.c \
 	nrand48.c \
@@ -97,9 +103,11 @@ SRCS+=	__getosreldate.c \
 	pw_scan.c \
 	raise.c \
 	readdir.c \
+	readdir-compat10.c \
 	readpassphrase.c \
 	rewinddir.c \
 	scandir.c \
+	scandir-compat10.c \
 	seed48.c \
 	seekdir.c \
 	semctl.c \

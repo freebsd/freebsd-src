@@ -30,16 +30,14 @@
  * $FreeBSD$
  */
 
-#ifndef	_FTS_H_
-#define	_FTS_H_
-
-#include <sys/_types.h>
+#ifndef	_FTS_COPMAT10_H_
+#define	_FTS_COPMAT10_H_
 
 typedef struct {
 	struct _ftsent *fts_cur;	/* current node */
 	struct _ftsent *fts_child;	/* linked list of children */
 	struct _ftsent **fts_array;	/* sort array */
-	__dev_t fts_dev;		/* starting device # */
+	uint32_t fts_dev;		/* starting device # */
 	char *fts_path;			/* path for this descent */
 	int fts_rfd;			/* fd for root */
 	__size_t fts_pathlen;		/* sizeof(path) */
@@ -77,9 +75,9 @@ typedef struct _ftsent {
 	__size_t fts_pathlen;		/* strlen(fts_path) */
 	__size_t fts_namelen;		/* strlen(fts_name) */
 
-	__ino_t fts_ino;		/* inode */
-	__dev_t fts_dev;		/* device */
-	__nlink_t fts_nlink;		/* link count */
+	uint32_t fts_ino;		/* inode */
+	uint32_t fts_dev;		/* device */
+	uint16_t fts_nlink;		/* link count */
 
 #define	FTS_ROOTPARENTLEVEL	-1
 #define	FTS_ROOTLEVEL		 0
@@ -112,25 +110,21 @@ typedef struct _ftsent {
 #define	FTS_SKIP	 4		/* discard node */
 	int fts_instr;			/* fts_set() instructions */
 
-	struct stat *fts_statp;		/* stat(2) information */
+	struct freebsd10_stat *fts_statp; /* stat(2) information */
 	char *fts_name;			/* file name */
 	FTS *fts_fts;			/* back pointer to main FTS */
 } FTSENT;
 
-#include <sys/cdefs.h>
-
-__BEGIN_DECLS
-FTSENT	*fts_children(FTS *, int);
-int	 fts_close(FTS *);
-void	*fts_get_clientptr(FTS *);
-#define	 fts_get_clientptr(fts)	((fts)->fts_clientptr)
-FTS	*fts_get_stream(FTSENT *);
-#define	 fts_get_stream(ftsent)	((ftsent)->fts_fts)
-FTS	*fts_open(char * const *, int,
+FTSENT	*freebsd10_fts_children(FTS *, int);
+int	 freebsd10_fts_close(FTS *);
+void	*freebsd10_fts_get_clientptr(FTS *);
+#define	 freebsd10_fts_get_clientptr(fts)	((fts)->fts_clientptr)
+FTS	*freebsd10_fts_get_stream(FTSENT *);
+#define	 freebsd10_fts_get_stream(ftsent)	((ftsent)->fts_fts)
+FTS	*freebsd10_fts_open(char * const *, int,
 	    int (*)(const FTSENT * const *, const FTSENT * const *));
-FTSENT	*fts_read(FTS *);
-int	 fts_set(FTS *, FTSENT *, int);
-void	 fts_set_clientptr(FTS *, void *);
-__END_DECLS
+FTSENT	*freebsd10_fts_read(FTS *);
+int	 freebsd10_fts_set(FTS *, FTSENT *, int);
+void	 freebsd10_fts_set_clientptr(FTS *, void *);
 
-#endif /* !_FTS_H_ */
+#endif /* !_FTS_COMPAT10_H_ */

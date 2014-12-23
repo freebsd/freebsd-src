@@ -47,7 +47,7 @@
 struct ddloc {
 	LIST_ENTRY(ddloc) loc_lqe; /* entry in list */
 	long	loc_index;	/* key associated with structure */
-	long	loc_seek;	/* magic cookie returned by getdirentries */
+	off_t	loc_seek;	/* magic cookie returned by getdirentries */
 	long	loc_loc;	/* offset of entry in buffer */
 };
 

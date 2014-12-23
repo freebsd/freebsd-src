@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include "gen-compat.h"
 #include "fts-compat.h"
 #include "un-namespace.h"
 
@@ -96,8 +97,8 @@ static int	 fts_ufslinks(FTS *, const FTSENT *);
  */
 struct _fts_private {
 	FTS		ftsp_fts;
-	struct statfs	ftsp_statfs;
-	dev_t		ftsp_dev;
+	struct freebsd10_statfs	ftsp_statfs;
+	uint32_t	ftsp_dev;
 	int		ftsp_linksreliable;
 };
 
@@ -639,7 +640,7 @@ fts_build(sp, type)
 	FTS *sp;
 	int type;
 {
-	struct dirent *dp;
+	struct freebsd10_dirent *dp;
 	FTSENT *p, *head;
 	int nitems;
 	FTSENT *cur, *tail;
@@ -751,7 +752,8 @@ fts_build(sp, type)
 
 	/* Read the directory, attaching each entry to the `link' pointer. */
 	doadjust = 0;
-	for (head = tail = NULL, nitems = 0; dirp && (dp = readdir(dirp));) {
+	for (head = tail = NULL, nitems = 0;
+	    dirp && (dp = freebsd10_readdir(dirp));) {
 		dnamlen = dp->d_namlen;
 		if (!ISSET(FTS_SEEDOT) && ISDOT(dp->d_name))
 			continue;
@@ -907,9 +909,9 @@ fts_stat(sp, p, follow)
 	int follow;
 {
 	FTSENT *t;
-	dev_t dev;
-	ino_t ino;
-	struct stat *sbp, sb;
+	uint32_t dev;
+	uint32_t ino;
+	struct freebsd10_stat *sbp, sb;
 	int saved_errno;
 
 	/* If user needs stat info, stat buffer already allocated. */
@@ -932,16 +934,16 @@ fts_stat(sp, p, follow)
 	 * fail, set the errno from the stat call.
 	 */
 	if (ISSET(FTS_LOGICAL) || follow) {
-		if (stat(p->fts_accpath, sbp)) {
+		if (freebsd10_stat(p->fts_accpath, sbp)) {
 			saved_errno = errno;
-			if (!lstat(p->fts_accpath, sbp)) {
+			if (!freebsd10_lstat(p->fts_accpath, sbp)) {
 				errno = 0;
 				return (FTS_SLNONE);
 			}
 			p->fts_errno = saved_errno;
 			goto err;
 		}
-	} else if (lstat(p->fts_accpath, sbp)) {
+	} else if (freebsd10_lstat(p->fts_accpath, sbp)) {
 		p->fts_errno = errno;
 err:		memset(sbp, 0, sizeof(struct stat));
 		return (FTS_NS);
@@ -1041,7 +1043,7 @@ fts_alloc(sp, name, namelen)
 
 	struct ftsent_withstat {
 		FTSENT	ent;
-		struct	stat statbuf;
+		struct	freebsd10_stat statbuf;
 	};
 
 	/*
@@ -1177,14 +1179,14 @@ fts_safe_changedir(sp, p, fd, path)
 	char *path;
 {
 	int ret, oerrno, newfd;
-	struct stat sb;
+	struct freebsd10_stat sb;
 
 	newfd = fd;
 	if (ISSET(FTS_NOCHDIR))
 		return (0);
 	if (fd < 0 && (newfd = _open(path, O_RDONLY | O_CLOEXEC, 0)) < 0)
 		return (-1);
-	if (_fstat(newfd, &sb)) {
+	if (freebsd10_fstat(newfd, &sb)) {
 		ret = -1;
 		goto bail;
 	}
@@ -1219,7 +1221,7 @@ fts_ufslinks(FTS *sp, const FTSENT *ent)
 	 * avoidance.
 	 */
 	if (priv->ftsp_dev != ent->fts_dev) {
-		if (statfs(ent->fts_path, &priv->ftsp_statfs) != -1) {
+		if (freebsd10_statfs(ent->fts_path, &priv->ftsp_statfs) != -1) {
 			priv->ftsp_dev = ent->fts_dev;
 			priv->ftsp_linksreliable = 0;
 			for (cpp = ufslike_filesystems; *cpp; cpp++) {

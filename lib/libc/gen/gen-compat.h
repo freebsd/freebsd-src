@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Gleb Kurtsou <gleb@FreeBSD.org>
+ * Copyright (c) 2012 Gleb Kurtsou <gleb@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,29 +24,29 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef	_GEN_COMPAT_H_
+#define	_GEN_COMPAT_H_
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <stdlib.h>
+#include <dirent.h>
 
-char *freebsd10_devname(uint32_t dev, mode_t type);
-char *freebsd10_devname_r(uint32_t dev, mode_t type, char *buf, int len);
+#define FREEBSD10_DIRSIZ(dp)						\
+	(sizeof(struct freebsd10_dirent) - sizeof((dp)->d_name) +	\
+	    (((dp)->d_namlen + 1 + 3) &~ 3))
 
-char *
-freebsd10_devname(uint32_t dev, mode_t type)
-{
+struct freebsd10_dirent;
+struct freebsd10_stat;
+struct freebsd10_statfs;
 
-	return (devname(dev, type));
-}
+struct freebsd10_dirent *freebsd10_readdir(DIR *);
+int	freebsd10_readdir_r(DIR *, struct freebsd10_dirent *,
+	    struct freebsd10_dirent **);
+int	freebsd10_stat(const char *, struct freebsd10_stat *);
+int	freebsd10_lstat(const char *, struct freebsd10_stat *);
+int	freebsd10_fstat(int, struct freebsd10_stat *);
+int	freebsd10_fstatat(int, const char *, struct freebsd10_stat *, int);
 
-char *
-freebsd10_devname_r(uint32_t dev, mode_t type, char *buf, int len)
-{
+int	freebsd10_statfs(const char *, struct freebsd10_statfs *);
+int	freebsd10_getfsstat(struct freebsd10_statfs *, long, int);
+int	freebsd10_getmntinfo(struct freebsd10_statfs **, int);
 
-	return (devname_r(dev, type, buf, len));
-}
-
-__sym_compat(devname, freebsd10_devname, FBSD_1.0);
-__sym_compat(devname_r, freebsd10_devname_r, FBSD_1.0);
+#endif /* _GEN_COMPAT_H_ */

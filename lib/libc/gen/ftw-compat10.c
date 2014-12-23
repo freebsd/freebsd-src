@@ -26,12 +26,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
-#include <fts.h>
 #include <ftw.h>
 
+#include "fts-compat10.h"
+
 int
-ftw(const char *path, int (*fn)(const char *, const struct stat *, int),
-    int nfds)
+freebsd10_ftw(const char *path,
+    int (*fn)(const char *, const struct freebsd10_stat *, int), int nfds)
 {
 	char * const paths[2] = { (char *)path, NULL };
 	FTSENT *cur;
@@ -44,10 +45,11 @@ ftw(const char *path, int (*fn)(const char *, const struct stat *, int),
 		return (-1);
 	}
 
-	ftsp = fts_open(paths, FTS_LOGICAL | FTS_COMFOLLOW | FTS_NOCHDIR, NULL);
+	ftsp = freebsd10_fts_open(paths,
+	    FTS_LOGICAL | FTS_COMFOLLOW | FTS_NOCHDIR, NULL);
 	if (ftsp == NULL)
 		return (-1);
-	while ((cur = fts_read(ftsp)) != NULL) {
+	while ((cur = freebsd10_fts_read(ftsp)) != NULL) {
 		switch (cur->fts_info) {
 		case FTS_D:
 			fnflag = FTW_D;
@@ -83,9 +85,11 @@ ftw(const char *path, int (*fn)(const char *, const struct stat *, int),
 	}
 done:
 	sverrno = errno;
-	if (fts_close(ftsp) != 0 && error == 0)
+	if (freebsd10_fts_close(ftsp) != 0 && error == 0)
 		error = -1;
 	else
 		errno = sverrno;
 	return (error);
 }
+
+__sym_compat(ftw, freebsd10_ftw, FBSD_1.0);

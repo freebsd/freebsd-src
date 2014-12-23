@@ -27,9 +27,6 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)readdir.c	8.3 (Berkeley) 9/29/94";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -37,6 +34,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <dirent.h>
 #include <errno.h>
+#include <stddef.h>
+#include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 #include "un-namespace.h"
@@ -45,91 +44,70 @@ __FBSDID("$FreeBSD$");
 #include "gen-private.h"
 #include "telldir.h"
 
-/*
- * get next entry in a directory.
- */
-struct dirent *
-_readdir_unlocked(dirp, skip)
-	DIR *dirp;
-	int skip;
-{
-	struct dirent *dp;
+#include "gen-compat.h"
 
-	for (;;) {
-		if (dirp->dd_loc >= dirp->dd_size) {
-			if (dirp->dd_flags & __DTF_READALL)
-				return (NULL);
-			dirp->dd_loc = 0;
-		}
-		if (dirp->dd_loc == 0 &&
-		    !(dirp->dd_flags & (__DTF_READALL | __DTF_SKIPREAD))) {
-			dirp->dd_size = _getdirentries(dirp->dd_fd,
-			    dirp->dd_buf, dirp->dd_len, &dirp->dd_seek);
-			if (dirp->dd_size <= 0)
-				return (NULL);
-		}
-		dirp->dd_flags &= ~__DTF_SKIPREAD;
-		dp = (struct dirent *)(dirp->dd_buf + dirp->dd_loc);
-		if ((long)dp & 03L)	/* bogus pointer check */
-			return (NULL);
-		if (dp->d_reclen <= 0 ||
-		    dp->d_reclen > dirp->dd_len + 1 - dirp->dd_loc)
-			return (NULL);
-		dirp->dd_loc += dp->d_reclen;
-		if (dp->d_ino == 0 && skip)
-			continue;
-		if (dp->d_type == DT_WHT && (dirp->dd_flags & DTF_HIDEW))
-			continue;
-		return (dp);
-	}
+static int
+freebsd10_cvtdirent(struct freebsd10_dirent *dstdp, struct dirent *srcdp)
+{
+	if (srcdp->d_namlen > sizeof(dstdp->d_name) - 1)
+		return (ENAMETOOLONG);
+	dstdp->d_type = srcdp->d_type;
+	dstdp->d_namlen = srcdp->d_namlen;
+	dstdp->d_fileno = srcdp->d_fileno;		/* truncate */
+	dstdp->d_reclen = FREEBSD10_DIRSIZ(dstdp);
+	bcopy(srcdp->d_name, dstdp->d_name, dstdp->d_namlen);
+	bzero(dstdp->d_name + dstdp->d_namlen,
+	    dstdp->d_reclen - offsetof(struct freebsd10_dirent, d_name) -
+	    dstdp->d_namlen);
+	return (0);
 }
 
-struct dirent *
-readdir(dirp)
-	DIR *dirp;
+struct freebsd10_dirent *
+freebsd10_readdir(DIR *dirp)
 {
-	struct dirent	*dp;
+	static struct freebsd10_dirent *compatbuf;
+	struct freebsd10_dirent *dstdp;
+	struct dirent *dp;
 
-	if (__isthreaded) {
+	if (__isthreaded)
 		_pthread_mutex_lock(&dirp->dd_lock);
-		dp = _readdir_unlocked(dirp, 1);
+again:
+	dp = _readdir_unlocked(dirp, 1);
+	if (dp != NULL) {
+		if (compatbuf == NULL)
+			compatbuf = malloc(sizeof(struct freebsd10_dirent));
+		if (freebsd10_cvtdirent(compatbuf, dp) != 0)
+			goto again;
+		dstdp = compatbuf;
+	} else
+		dstdp = NULL;
+	if (__isthreaded)
 		_pthread_mutex_unlock(&dirp->dd_lock);
-	}
-	else
-		dp = _readdir_unlocked(dirp, 1);
-	return (dp);
+
+	return (dstdp);
 }
 
 int
-readdir_r(dirp, entry, result)
-	DIR *dirp;
-	struct dirent *entry;
-	struct dirent **result;
+freebsd10_readdir_r(DIR *dirp, struct freebsd10_dirent *entry,
+    struct freebsd10_dirent **result)
 {
-	struct dirent *dp;
-	int saved_errno;
+	struct dirent xentry;
+	struct dirent *xresult;
+	int error;
 
-	saved_errno = errno;
-	errno = 0;
-	if (__isthreaded) {
-		_pthread_mutex_lock(&dirp->dd_lock);
-		if ((dp = _readdir_unlocked(dirp, 1)) != NULL)
-			memcpy(entry, dp, _GENERIC_DIRSIZ(dp));
-		_pthread_mutex_unlock(&dirp->dd_lock);
-	}
-	else if ((dp = _readdir_unlocked(dirp, 1)) != NULL)
-		memcpy(entry, dp, _GENERIC_DIRSIZ(dp));
+again:
+	error = readdir_r(dirp, &xentry, &xresult);
 
-	if (errno != 0) {
-		if (dp == NULL)
-			return (errno);
-	} else
-		errno = saved_errno;
-
-	if (dp != NULL)
+	if (error != 0)
+		return (error);
+	if (xresult != NULL) {
+		if (freebsd10_cvtdirent(entry, &xentry) != 0)
+			goto again;
 		*result = entry;
-	else
+	} else
 		*result = NULL;
-
 	return (0);
 }
+
+__sym_compat(readdir, freebsd10_readdir, FBSD_1.0);
+__sym_compat(readdir_r, freebsd10_readdir_r, FBSD_1.0);
