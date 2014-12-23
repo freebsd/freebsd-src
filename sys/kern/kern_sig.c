@@ -1847,6 +1847,34 @@ pgsignal(struct pgrp *pgrp, int sig, int checkctty, ksiginfo_t *ksi)
 	}
 }
 
+
+/*
+ * Recalculate the signal mask and reset the signal disposition after
+ * usermode frame for delivery is formed.  Should be called after
+ * mach-specific routine, because sysent->sv_sendsig() needs correct
+ * ps_siginfo and signal mask.
+ */
+static void
+postsig_done(int sig, struct thread *td, struct sigacts *ps)
+{
+	sigset_t mask;
+
+	mtx_assert(&ps->ps_mtx, MA_OWNED);
+	td->td_ru.ru_nsignals++;
+	mask = ps->ps_catchmask[_SIG_IDX(sig)];
+	if (!SIGISMEMBER(ps->ps_signodefer, sig))
+		SIGADDSET(mask, sig);
+	kern_sigprocmask(td, SIG_BLOCK, &mask, NULL,
+	    SIGPROCMASK_PROC_LOCKED | SIGPROCMASK_PS_LOCKED);
+	if (SIGISMEMBER(ps->ps_sigreset, sig)) {
+		SIGDELSET(ps->ps_sigcatch, sig);
+		if (sig != SIGCONT &&
+		    sigprop(sig) & SA_IGNORE)
+			SIGADDSET(ps->ps_sigignore, sig);
+		ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
+	}
+}
+
 /*
  * Send a signal caused by a trap to the current thread.  If it will be
  * caught immediately, deliver it with correct code.  Otherwise, post it
@@ -1856,7 +1884,6 @@ void
 trapsignal(struct thread *td, ksiginfo_t *ksi)
 {
 	struct sigacts *ps;
-	sigset_t mask;
 	struct proc *p;
 	int sig;
 	int code;
@@ -1871,7 +1898,6 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 	mtx_lock(&ps->ps_mtx);
 	if ((p->p_flag & P_TRACED) == 0 && SIGISMEMBER(ps->ps_sigcatch, sig) &&
 	    !SIGISMEMBER(td->td_sigmask, sig)) {
-		td->td_ru.ru_nsignals++;
 #ifdef KTRACE
 		if (KTRPOINT(curthread, KTR_PSIG))
 			ktrpsig(sig, ps->ps_sigact[_SIG_IDX(sig)],
@@ -1879,21 +1905,7 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 #endif
 		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)], 
 				ksi, &td->td_sigmask);
-		mask = ps->ps_catchmask[_SIG_IDX(sig)];
-		if (!SIGISMEMBER(ps->ps_signodefer, sig))
-			SIGADDSET(mask, sig);
-		kern_sigprocmask(td, SIG_BLOCK, &mask, NULL,
-		    SIGPROCMASK_PROC_LOCKED | SIGPROCMASK_PS_LOCKED);
-		if (SIGISMEMBER(ps->ps_sigreset, sig)) {
-			/*
-			 * See kern_sigaction() for origin of this code.
-			 */
-			SIGDELSET(ps->ps_sigcatch, sig);
-			if (sig != SIGCONT &&
-			    sigprop(sig) & SA_IGNORE)
-				SIGADDSET(ps->ps_sigignore, sig);
-			ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
-		}
+		postsig_done(sig, td, ps);
 		mtx_unlock(&ps->ps_mtx);
 	} else {
 		/*
@@ -2779,7 +2791,7 @@ postsig(sig)
 	struct sigacts *ps;
 	sig_t action;
 	ksiginfo_t ksi;
-	sigset_t returnmask, mask;
+	sigset_t returnmask;
 
 	KASSERT(sig != 0, ("postsig"));
 
@@ -2834,28 +2846,12 @@ postsig(sig)
 		} else
 			returnmask = td->td_sigmask;
 
-		mask = ps->ps_catchmask[_SIG_IDX(sig)];
-		if (!SIGISMEMBER(ps->ps_signodefer, sig))
-			SIGADDSET(mask, sig);
-		kern_sigprocmask(td, SIG_BLOCK, &mask, NULL,
-		    SIGPROCMASK_PROC_LOCKED | SIGPROCMASK_PS_LOCKED);
-
-		if (SIGISMEMBER(ps->ps_sigreset, sig)) {
-			/*
-			 * See kern_sigaction() for origin of this code.
-			 */
-			SIGDELSET(ps->ps_sigcatch, sig);
-			if (sig != SIGCONT &&
-			    sigprop(sig) & SA_IGNORE)
-				SIGADDSET(ps->ps_sigignore, sig);
-			ps->ps_sigact[_SIG_IDX(sig)] = SIG_DFL;
-		}
-		td->td_ru.ru_nsignals++;
 		if (p->p_sig == sig) {
 			p->p_code = 0;
 			p->p_sig = 0;
 		}
 		(*p->p_sysent->sv_sendsig)(action, &ksi, &returnmask);
+		postsig_done(sig, td, ps);
 	}
 	return (1);
 }
