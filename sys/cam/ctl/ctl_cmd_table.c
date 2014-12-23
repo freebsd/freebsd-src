@@ -513,7 +513,7 @@ const struct ctl_cmd_entry ctl_cmd_table_a3[32] =
 						CTL_FLAG_DATA_IN |
 						CTL_CMD_FLAG_ALLOW_ON_PR_RESV,
  CTL_LUN_PAT_NONE,
- 12, {0x0c, 0x07, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
+ 12, {0x0c, 0x87, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0, 0x07}},
 
 /* 0D REPORT SUPPORTED_TASK MANAGEMENT FUNCTIONS */
 {ctl_report_supported_tmf, CTL_SERIDX_INQ, CTL_CMD_FLAG_OK_ON_BOTH |
