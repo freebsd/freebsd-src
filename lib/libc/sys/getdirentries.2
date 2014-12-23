@@ -40,10 +40,10 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In dirent.h
-.Ft int
-.Fn getdirentries "int fd" "char *buf" "int nbytes" "long *basep"
-.Ft int
-.Fn getdents "int fd" "char *buf" "int nbytes"
+.Ft ssize_t
+.Fn getdirentries "int fd" "char *buf" "size_t nbytes" "off_t *basep"
+.Ft ssize_t
+.Fn getdents "int fd" "char *buf" "size_t nbytes"
 .Sh DESCRIPTION
 The
 .Fn getdirentries

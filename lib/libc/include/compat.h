@@ -42,6 +42,27 @@ __sym_compat(__semctl, freebsd7___semctl, FBSD_1.0);
 __sym_compat(msgctl, freebsd7_msgctl, FBSD_1.0);
 __sym_compat(shmctl, freebsd7_shmctl, FBSD_1.0);
 
+__sym_compat(nfstat, freebsd10_nfstat, FBSD_1.0);
+__sym_compat(nlstat, freebsd10_nlstat, FBSD_1.0);
+__sym_compat(nstat, freebsd10_nstat, FBSD_1.0);
+
+__sym_compat(fhstat, freebsd10_fhstat, FBSD_1.0);
+__sym_compat(fstat, freebsd10_fstat, FBSD_1.0);
+__sym_compat(fstatat, freebsd10_fstatat, FBSD_1.1);
+__sym_compat(lstat, freebsd10_lstat, FBSD_1.0);
+__sym_compat(stat, freebsd10_stat, FBSD_1.0);
+
+__sym_compat(getdents, freebsd10_getdents, FBSD_1.0);
+__sym_compat(getdirentries, freebsd10_getdirentries, FBSD_1.0);
+
+__sym_compat(getfsstat, freebsd10_getfsstat, FBSD_1.0);
+__sym_compat(fhstatfs, freebsd10_fhstatfs, FBSD_1.0);
+__sym_compat(fstatfs, freebsd10_fstatfs, FBSD_1.0);
+__sym_compat(statfs, freebsd10_statfs, FBSD_1.0);
+
+__sym_compat(mknod, freebsd10_mknod, FBSD_1.0);
+__sym_compat(mknodat, freebsd10_mknodat, FBSD_1.1);
+
 #undef __sym_compat
 
 #endif	/* __LIBC_COMPAT_H__ */

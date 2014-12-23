@@ -20,6 +20,7 @@ NOASM+=  clock_gettime.o gettimeofday.o
 PSEUDO+= _clock_gettime.o _gettimeofday.o
 
 # Sources common to both syscall interfaces:
+SRCS+=	getdents.c lstat.c mknod.c stat.c
 SRCS+=	stack_protector.c stack_protector_compat.c __error.c
 .if ${MK_SYSCALL_COMPAT} != "no"
 SYSCALL_COMPAT_SRCS=	fcntl.c ftruncate.c lseek.c mmap.c pread.c \

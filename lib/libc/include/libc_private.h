@@ -37,6 +37,8 @@
 #include <sys/_types.h>
 #include <sys/_pthreadtypes.h>
 
+struct stat;
+
 /*
  * This global flag is non-zero when a process has created one
  * or more threads. It is used to avoid calling locking functions
@@ -245,6 +247,8 @@ extern void *	__sys_freebsd6_mmap(void *, __size_t, int, int, int, int, __off_t)
 
 /* Without back-compat translation */
 extern int	__sys_fcntl(int, int, ...);
+
+extern int	__sys_fstatat(int, const char *, struct stat *, int);
 
 struct timespec;
 struct timeval;
