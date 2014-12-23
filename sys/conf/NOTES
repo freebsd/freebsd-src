@@ -1098,8 +1098,6 @@ options 	NFS_MINATTRTIMO=3	# VREG attrib cache timeout in sec
 options 	NFS_MAXATTRTIMO=60
 options 	NFS_MINDIRATTRTIMO=30	# VDIR attrib cache timeout in sec
 options 	NFS_MAXDIRATTRTIMO=60
-options 	NFS_GATHERDELAY=10	# Default write gather delay (msec)
-options 	NFS_WDELAYHASHSIZ=16	# and with this
 options 	NFS_DEBUG		# Enable NFS Debugging
 
 #
