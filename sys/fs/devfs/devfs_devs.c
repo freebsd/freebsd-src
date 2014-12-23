@@ -80,10 +80,18 @@ sysctl_devname(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	dev_t ud;
+	uint32_t ud_compat;
 	struct cdev_priv *cdp;
 	struct cdev *dev;
 
-	error = SYSCTL_IN(req, &ud, sizeof (ud));
+	if (req->newlen == sizeof(ud_compat)) {
+		error = SYSCTL_IN(req, &ud_compat, sizeof (ud_compat));
+		if (ud_compat == (uint32_t)NODEV)
+			ud = NODEV;
+		else
+			ud = ud_compat;
+	} else
+		error = SYSCTL_IN(req, &ud, sizeof (ud));
 	if (error)
 		return (error);
 	if (ud == NODEV)

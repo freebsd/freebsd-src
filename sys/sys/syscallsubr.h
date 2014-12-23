@@ -99,8 +99,8 @@ int	kern_fstatfs(struct thread *td, int fd, struct statfs *buf);
 int	kern_ftruncate(struct thread *td, int fd, off_t length);
 int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	    enum uio_seg tptrseg);
-int	kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
-	    long *basep, ssize_t *residp, enum uio_seg bufseg);
+int	kern_getdirentries(struct thread *td, int fd, char *buf, size_t count,
+	    off_t *basep, ssize_t *residp, enum uio_seg bufseg);
 int	kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 	    enum uio_seg bufseg, int flags);
 int	kern_getitimer(struct thread *, u_int, struct itimerval *);
@@ -130,7 +130,7 @@ int	kern_mkdirat(struct thread *td, int fd, char *path,
 int	kern_mkfifoat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, int mode);
 int	kern_mknodat(struct thread *td, int fd, char *path,
-	    enum uio_seg pathseg, int mode, int dev);
+	    enum uio_seg pathseg, int mode, dev_t dev);
 int	kern_msgctl(struct thread *, int, int, struct msqid_ds *);
 int	kern_msgsnd(struct thread *, int, const void *, size_t, int, long);
 int	kern_msgrcv(struct thread *, int, void *, size_t, long, int, long *);
@@ -231,5 +231,10 @@ int	kern_socketpair(struct thread *td, int domain, int type, int protocol,
 /* flags for kern_sigaction */
 #define	KSA_OSIGSET	0x0001	/* uses osigact_t */
 #define	KSA_FREEBSD4	0x0002	/* uses ucontext4 */
+
+struct freebsd10_dirent;
+
+int	freebsd10_kern_getdirentries(struct thread *td, int fd, char *ubuf, u_int
+	    count, long *basep, void (*func)(struct freebsd10_dirent *));
 
 #endif /* !_SYS_SYSCALLSUBR_H_ */

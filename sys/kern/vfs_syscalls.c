@@ -1210,35 +1210,6 @@ ocreat(td, uap)
 /*
  * Create a special file.
  */
-#ifndef _SYS_SYSPROTO_H_
-struct mknod_args {
-	char	*path;
-	int	mode;
-	int	dev;
-};
-#endif
-int
-sys_mknod(td, uap)
-	struct thread *td;
-	register struct mknod_args /* {
-		char *path;
-		int mode;
-		int dev;
-	} */ *uap;
-{
-
-	return (kern_mknodat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
-	    uap->mode, uap->dev));
-}
-
-#ifndef _SYS_SYSPROTO_H_
-struct mknodat_args {
-	int	fd;
-	char	*path;
-	mode_t	mode;
-	dev_t	dev;
-};
-#endif
 int
 sys_mknodat(struct thread *td, struct mknodat_args *uap)
 {
@@ -1247,9 +1218,29 @@ sys_mknodat(struct thread *td, struct mknodat_args *uap)
 	    uap->dev));
 }
 
+#if defined(COMPAT_FREEBSD10)
+int
+freebsd10_mknod(struct thread *td,
+    struct freebsd10_mknod_args *uap)
+{
+
+	return (kern_mknodat(td, AT_FDCWD, uap->path, UIO_USERSPACE,
+	    uap->mode, uap->dev));
+}
+
+int
+freebsd10_mknodat(struct thread *td,
+    struct freebsd10_mknodat_args *uap)
+{
+
+	return (kern_mknodat(td, uap->fd, uap->path, UIO_USERSPACE, uap->mode,
+	    uap->dev));
+}
+#endif /* COMPAT_FREEBSD10 */
+
 int
 kern_mknodat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
-    int mode, int dev)
+    int mode, dev_t dev)
 {
 	struct vnode *vp;
 	struct mount *mp;
@@ -2179,33 +2170,100 @@ cvtstat(st, ost)
 }
 #endif /* COMPAT_43 */
 
-/*
- * Get file status; this version follows links.
- */
-#ifndef _SYS_SYSPROTO_H_
-struct stat_args {
-	char	*path;
-	struct stat *ub;
-};
-#endif
+#if defined(COMPAT_FREEBSD10)
+void
+freebsd10_cvtstat(struct stat *st, struct freebsd10_stat *ost)
+{
+	ost->st_dev = st->st_dev;
+	ost->st_ino = st->st_ino;		/* truncate */
+	ost->st_mode = st->st_mode;
+	ost->st_nlink = st->st_nlink;		/* truncate */
+	ost->st_uid = st->st_uid;
+	ost->st_gid = st->st_gid;
+	ost->st_rdev = st->st_rdev;
+	ost->st_atim = st->st_atim;
+	ost->st_mtim = st->st_mtim;
+	ost->st_ctim = st->st_ctim;
+	ost->st_size = st->st_size;
+	ost->st_blocks = st->st_blocks;
+	ost->st_blksize = st->st_blksize;
+	ost->st_flags = st->st_flags;
+	ost->st_gen = st->st_gen;
+	ost->st_lspare = 0;
+	ost->st_birthtim = st->st_birthtim;
+}
+
 int
-sys_stat(td, uap)
-	struct thread *td;
-	register struct stat_args /* {
-		char *path;
-		struct stat *ub;
-	} */ *uap;
+freebsd10_stat(struct thread *td, struct freebsd10_stat_args* uap)
 {
 	struct stat sb;
+	struct freebsd10_stat osb;
 	int error;
 
 	error = kern_statat(td, 0, AT_FDCWD, uap->path, UIO_USERSPACE,
 	    &sb, NULL);
-	if (error == 0)
-		error = copyout(&sb, uap->ub, sizeof (sb));
+	if (error != 0)
+		return (error);
+	freebsd10_cvtstat(&sb, &osb);
+	error = copyout(&osb, uap->ub, sizeof(osb));
 	return (error);
 }
 
+int
+freebsd10_lstat(struct thread *td, struct freebsd10_lstat_args* uap)
+{
+	struct stat sb;
+	struct freebsd10_stat osb;
+	int error;
+
+	error = kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, uap->path,
+	    UIO_USERSPACE, &sb, NULL);
+	if (error != 0)
+		return (error);
+	freebsd10_cvtstat(&sb, &osb);
+	error = copyout(&osb, uap->ub, sizeof(osb));
+	return (error);
+}
+
+int
+freebsd10_fhstat(struct thread *td, struct freebsd10_fhstat_args* uap)
+{
+	struct fhandle fh;
+	struct stat sb;
+	struct freebsd10_stat osb;
+	int error;
+
+	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
+	if (error != 0)
+		return (error);
+	error = kern_fhstat(td, fh, &sb);
+	if (error != 0)
+		return (error);
+	freebsd10_cvtstat(&sb, &osb);
+	error = copyout(&osb, uap->sb, sizeof(osb));
+	return (error);
+}
+
+int
+freebsd10_fstatat(struct thread *td, struct freebsd10_fstatat_args* uap)
+{
+	struct stat sb;
+	struct freebsd10_stat osb;
+	int error;
+
+	error = kern_statat(td, uap->flag, uap->fd, uap->path,
+	    UIO_USERSPACE, &sb, NULL);
+	if (error != 0)
+		return (error);
+	freebsd10_cvtstat(&sb, &osb);
+	error = copyout(&osb, uap->buf, sizeof(osb));
+	return (error);
+}
+#endif	/* COMPAT_FREEBSD10 */
+
+/*
+ * Get file status
+ */
 #ifndef _SYS_SYSPROTO_H_
 struct fstatat_args {
 	int	fd;
@@ -2266,38 +2324,12 @@ kern_statat(struct thread *td, int flag, int fd, char *path,
 	return (0);
 }
 
-/*
- * Get file status; this version does not follow links.
- */
-#ifndef _SYS_SYSPROTO_H_
-struct lstat_args {
-	char	*path;
-	struct stat *ub;
-};
-#endif
-int
-sys_lstat(td, uap)
-	struct thread *td;
-	register struct lstat_args /* {
-		char *path;
-		struct stat *ub;
-	} */ *uap;
-{
-	struct stat sb;
-	int error;
-
-	error = kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, uap->path,
-	    UIO_USERSPACE, &sb, NULL);
-	if (error == 0)
-		error = copyout(&sb, uap->ub, sizeof (sb));
-	return (error);
-}
-
+#if defined(COMPAT_FREEBSD10)
 /*
  * Implementation of the NetBSD [l]stat() functions.
  */
 void
-cvtnstat(sb, nsb)
+freebsd10_cvtnstat(sb, nsb)
 	struct stat *sb;
 	struct nstat *nsb;
 {
@@ -2322,15 +2354,15 @@ cvtnstat(sb, nsb)
 }
 
 #ifndef _SYS_SYSPROTO_H_
-struct nstat_args {
+struct freebsd10_nstat_args {
 	char	*path;
 	struct nstat *ub;
 };
 #endif
 int
-sys_nstat(td, uap)
+freebsd10_nstat(td, uap)
 	struct thread *td;
-	register struct nstat_args /* {
+	register struct freebsd10_nstat_args /* {
 		char *path;
 		struct nstat *ub;
 	} */ *uap;
@@ -2343,7 +2375,7 @@ sys_nstat(td, uap)
 	    &sb, NULL);
 	if (error != 0)
 		return (error);
-	cvtnstat(&sb, &nsb);
+	freebsd10_cvtnstat(&sb, &nsb);
 	return (copyout(&nsb, uap->ub, sizeof (nsb)));
 }
 
@@ -2351,15 +2383,15 @@ sys_nstat(td, uap)
  * NetBSD lstat.  Get file status; this version does not follow links.
  */
 #ifndef _SYS_SYSPROTO_H_
-struct lstat_args {
+struct freebsd10_nlstat_args {
 	char	*path;
 	struct stat *ub;
 };
 #endif
 int
-sys_nlstat(td, uap)
+freebsd10_nlstat(td, uap)
 	struct thread *td;
-	register struct nlstat_args /* {
+	register struct freebsd10_nlstat_args /* {
 		char *path;
 		struct nstat *ub;
 	} */ *uap;
@@ -2372,9 +2404,10 @@ sys_nlstat(td, uap)
 	    UIO_USERSPACE, &sb, NULL);
 	if (error != 0)
 		return (error);
-	cvtnstat(&sb, &nsb);
+	freebsd10_cvtnstat(&sb, &nsb);
 	return (copyout(&nsb, uap->ub, sizeof (nsb)));
 }
+#endif /* COMPAT_FREEBSD10 */
 
 /*
  * Get configurable pathname variables.
@@ -3726,7 +3759,86 @@ out:
 	return (error);
 }
 
+#if defined(COMPAT_43) || defined(COMPAT_FREEBSD10)
+int
+freebsd10_kern_getdirentries(struct thread *td, int fd, char *ubuf, u_int count,
+    long *basep, void (*func)(struct freebsd10_dirent *))
+{
+	struct freebsd10_dirent dstdp;
+	struct dirent *dp, *edp;
+	char *dirbuf;
+	off_t base;
+	ssize_t resid, ucount;
+	int error;
+
+	/* XXX arbitrary sanity limit on `count'. */
+	count = min(count, 64 * 1024);
+
+	dirbuf = malloc(count, M_TEMP, M_WAITOK);
+
+	error = kern_getdirentries(td, fd, dirbuf, count, &base, &resid,
+	    UIO_SYSSPACE);
+	if (error != 0)
+		goto done;
+	if (basep != NULL)
+		*basep = base;
+
+	ucount = 0;
+	for (dp = (struct dirent *)dirbuf,
+	    edp = (struct dirent *)&dirbuf[count - resid];
+	    ucount < count && dp < edp; ) {
+		if (dp->d_reclen == 0)
+			break;
+		if (dp->d_namlen > sizeof(dstdp.d_name) - 1)
+			continue;
+		dstdp.d_type = dp->d_type;
+		dstdp.d_namlen = dp->d_namlen;
+		dstdp.d_fileno = dp->d_fileno;		/* truncate */
+		dstdp.d_reclen = sizeof(dstdp) - sizeof(dstdp.d_name) +
+		    ((dp->d_namlen + 1 + 3) &~ 3);
+		bcopy(dp->d_name, dstdp.d_name, dstdp.d_namlen);
+		bzero(dstdp.d_name + dstdp.d_namlen,
+		    dstdp.d_reclen - offsetof(struct freebsd10_dirent, d_name) -
+		    dstdp.d_namlen);
+		MPASS(dstdp.d_reclen <= dp->d_reclen);
+		MPASS(ucount + dstdp.d_reclen <= count);
+		if (func != NULL)
+			func(&dstdp);
+		error = copyout(&dstdp, ubuf + ucount, dstdp.d_reclen);
+		if (error != 0)
+			break;
+		dp = (struct dirent *)((char *)dp + dp->d_reclen);
+		ucount += dstdp.d_reclen;
+	}
+
+done:
+	free(dirbuf, M_TEMP);
+	if (error == 0)
+		td->td_retval[0] = ucount;
+	return (error);
+}
+#endif /* COMPAT */
+
 #ifdef COMPAT_43
+static void
+ogetdirentries_cvt(struct freebsd10_dirent *dp)
+{
+#if (BYTE_ORDER == LITTLE_ENDIAN)
+	/*
+	 * The expected low byte of dp->d_namlen is our dp->d_type.
+	 * The high MBZ byte of dp->d_namlen is our dp->d_namlen.
+	 */
+	dp->d_type = dp->d_namlen;
+	dp->d_namlen = 0;
+#else
+	/*
+	 * The dp->d_type is the high byte of the expected dp->d_namlen,
+	 * so must be zero'ed.
+	 */
+	dp->d_type = 0;
+#endif
+}
+
 /*
  * Read a block of directory entries in a filesystem independent format.
  */
@@ -3754,139 +3866,26 @@ int
 kern_ogetdirentries(struct thread *td, struct ogetdirentries_args *uap,
     long *ploff)
 {
-	struct vnode *vp;
-	struct file *fp;
-	struct uio auio, kuio;
-	struct iovec aiov, kiov;
-	struct dirent *dp, *edp;
-	cap_rights_t rights;
-	caddr_t dirbuf;
-	int error, eofflag, readcnt;
-	long loff;
-	off_t foffset;
+	long base;
+	int error;
 
 	/* XXX arbitrary sanity limit on `count'. */
 	if (uap->count > 64 * 1024)
 		return (EINVAL);
-	error = getvnode(td->td_proc->p_fd, uap->fd,
-	    cap_rights_init(&rights, CAP_READ), &fp);
-	if (error != 0)
-		return (error);
-	if ((fp->f_flag & FREAD) == 0) {
-		fdrop(fp, td);
-		return (EBADF);
-	}
-	vp = fp->f_vnode;
-	foffset = foffset_lock(fp, 0);
-unionread:
-	if (vp->v_type != VDIR) {
-		foffset_unlock(fp, foffset, 0);
-		fdrop(fp, td);
-		return (EINVAL);
-	}
-	aiov.iov_base = uap->buf;
-	aiov.iov_len = uap->count;
-	auio.uio_iov = &aiov;
-	auio.uio_iovcnt = 1;
-	auio.uio_rw = UIO_READ;
-	auio.uio_segflg = UIO_USERSPACE;
-	auio.uio_td = td;
-	auio.uio_resid = uap->count;
-	vn_lock(vp, LK_SHARED | LK_RETRY);
-	loff = auio.uio_offset = foffset;
-#ifdef MAC
-	error = mac_vnode_check_readdir(td->td_ucred, vp);
-	if (error != 0) {
-		VOP_UNLOCK(vp, 0);
-		foffset_unlock(fp, foffset, FOF_NOUPDATE);
-		fdrop(fp, td);
-		return (error);
-	}
-#endif
-#	if (BYTE_ORDER != LITTLE_ENDIAN)
-		if (vp->v_mount->mnt_maxsymlinklen <= 0) {
-			error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag,
-			    NULL, NULL);
-			foffset = auio.uio_offset;
-		} else
-#	endif
-	{
-		kuio = auio;
-		kuio.uio_iov = &kiov;
-		kuio.uio_segflg = UIO_SYSSPACE;
-		kiov.iov_len = uap->count;
-		dirbuf = malloc(uap->count, M_TEMP, M_WAITOK);
-		kiov.iov_base = dirbuf;
-		error = VOP_READDIR(vp, &kuio, fp->f_cred, &eofflag,
-			    NULL, NULL);
-		foffset = kuio.uio_offset;
-		if (error == 0) {
-			readcnt = uap->count - kuio.uio_resid;
-			edp = (struct dirent *)&dirbuf[readcnt];
-			for (dp = (struct dirent *)dirbuf; dp < edp; ) {
-#				if (BYTE_ORDER == LITTLE_ENDIAN)
-					/*
-					 * The expected low byte of
-					 * dp->d_namlen is our dp->d_type.
-					 * The high MBZ byte of dp->d_namlen
-					 * is our dp->d_namlen.
-					 */
-					dp->d_type = dp->d_namlen;
-					dp->d_namlen = 0;
-#				else
-					/*
-					 * The dp->d_type is the high byte
-					 * of the expected dp->d_namlen,
-					 * so must be zero'ed.
-					 */
-					dp->d_type = 0;
-#				endif
-				if (dp->d_reclen > 0) {
-					dp = (struct dirent *)
-					    ((char *)dp + dp->d_reclen);
-				} else {
-					error = EIO;
-					break;
-				}
-			}
-			if (dp >= edp)
-				error = uiomove(dirbuf, readcnt, &auio);
-		}
-		free(dirbuf, M_TEMP);
-	}
-	if (error != 0) {
-		VOP_UNLOCK(vp, 0);
-		foffset_unlock(fp, foffset, 0);
-		fdrop(fp, td);
-		return (error);
-	}
-	if (uap->count == auio.uio_resid &&
-	    (vp->v_vflag & VV_ROOT) &&
-	    (vp->v_mount->mnt_flag & MNT_UNION)) {
-		struct vnode *tvp = vp;
-		vp = vp->v_mount->mnt_vnodecovered;
-		VREF(vp);
-		fp->f_vnode = vp;
-		fp->f_data = vp;
-		foffset = 0;
-		vput(tvp);
-		goto unionread;
-	}
-	VOP_UNLOCK(vp, 0);
-	foffset_unlock(fp, foffset, 0);
-	fdrop(fp, td);
-	td->td_retval[0] = uap->count - auio.uio_resid;
-	if (error == 0)
-		*ploff = loff;
+
+	error = freebsd10_kern_getdirentries(td, uap->fd, uap->buf, uap->count,
+	    &base, ogetdirentries_cvt);
+
+	if (error == 0 && uap->basep != NULL)
+		error = copyout(&base, uap->basep, sizeof(long));
+
 	return (error);
 }
 #endif /* COMPAT_43 */
 
-/*
- * Read a block of directory entries in a filesystem independent format.
- */
+#if defined(COMPAT_FREEBSD10)
 #ifndef _SYS_SYSPROTO_H_
-struct getdirentries_args {
+struct freebsd10_getdirentries_args {
 	int	fd;
 	char	*buf;
 	u_int	count;
@@ -3894,16 +3893,40 @@ struct getdirentries_args {
 };
 #endif
 int
-sys_getdirentries(td, uap)
-	struct thread *td;
-	register struct getdirentries_args /* {
-		int fd;
-		char *buf;
-		u_int count;
-		long *basep;
-	} */ *uap;
+freebsd10_getdirentries(struct thread *td,
+    struct freebsd10_getdirentries_args *uap)
 {
 	long base;
+	int error;
+
+	error = freebsd10_kern_getdirentries(td, uap->fd, uap->buf, uap->count,
+	    &base, NULL);
+
+	if (error == 0 && uap->basep != NULL)
+		error = copyout(&base, uap->basep, sizeof(long));
+	return (error);
+}
+
+int
+freebsd10_getdents(struct thread *td, struct freebsd10_getdents_args *uap)
+{
+	struct freebsd10_getdirentries_args ap;
+
+	ap.fd = uap->fd;
+	ap.buf = uap->buf;
+	ap.count = uap->count;
+	ap.basep = NULL;
+	return (freebsd10_getdirentries(td, &ap));
+}
+#endif /* COMPAT_FREEBSD10 */
+
+/*
+ * Read a block of directory entries in a filesystem independent format.
+ */
+int
+sys_getdirentries(struct thread *td, struct getdirentries_args *uap)
+{
+	off_t base;
 	int error;
 
 	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base,
@@ -3911,20 +3934,20 @@ sys_getdirentries(td, uap)
 	if (error != 0)
 		return (error);
 	if (uap->basep != NULL)
-		error = copyout(&base, uap->basep, sizeof(long));
+		error = copyout(&base, uap->basep, sizeof(off_t));
 	return (error);
 }
 
 int
-kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
-    long *basep, ssize_t *residp, enum uio_seg bufseg)
+kern_getdirentries(struct thread *td, int fd, char *buf, size_t count,
+    off_t *basep, ssize_t *residp, enum uio_seg bufseg)
 {
 	struct vnode *vp;
 	struct file *fp;
 	struct uio auio;
 	struct iovec aiov;
 	cap_rights_t rights;
-	long loff;
+	off_t loff;
 	int error, eofflag;
 	off_t foffset;
 
@@ -3990,31 +4013,6 @@ fail:
 	foffset_unlock(fp, foffset, 0);
 	fdrop(fp, td);
 	return (error);
-}
-
-#ifndef _SYS_SYSPROTO_H_
-struct getdents_args {
-	int fd;
-	char *buf;
-	size_t count;
-};
-#endif
-int
-sys_getdents(td, uap)
-	struct thread *td;
-	register struct getdents_args /* {
-		int fd;
-		char *buf;
-		u_int count;
-	} */ *uap;
-{
-	struct getdirentries_args ap;
-
-	ap.fd = uap->fd;
-	ap.buf = uap->buf;
-	ap.count = uap->count;
-	ap.basep = NULL;
-	return (sys_getdirentries(td, &ap));
 }
 
 /*

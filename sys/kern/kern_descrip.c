@@ -1289,6 +1289,23 @@ ofstat(struct thread *td, struct ofstat_args *uap)
 }
 #endif /* COMPAT_43 */
 
+#if defined(COMPAT_FREEBSD10)
+int
+freebsd10_fstat(struct thread *td, struct freebsd10_fstat_args *uap)
+{
+	struct stat sb;
+	struct freebsd10_stat osb;
+	int error;
+
+	error = kern_fstat(td, uap->fd, &sb);
+	if (error != 0)
+		return (error);
+	freebsd10_cvtstat(&sb, &osb);
+	error = copyout(&osb, uap->sb, sizeof(osb));
+	return (error);
+}
+#endif	/* COMPAT_FREEBSD10 */
+
 /*
  * Return status information about a file descriptor.
  */
@@ -1335,18 +1352,19 @@ kern_fstat(struct thread *td, int fd, struct stat *sbp)
 	return (error);
 }
 
+#if defined(COMPAT_FREEBSD10)
 /*
  * Return status information about a file descriptor.
  */
 #ifndef _SYS_SYSPROTO_H_
-struct nfstat_args {
+struct freebsd10_nfstat_args {
 	int	fd;
 	struct	nstat *sb;
 };
 #endif
 /* ARGSUSED */
 int
-sys_nfstat(struct thread *td, struct nfstat_args *uap)
+freebsd10_nfstat(struct thread *td, struct freebsd10_nfstat_args *uap)
 {
 	struct nstat nub;
 	struct stat ub;
@@ -1354,11 +1372,12 @@ sys_nfstat(struct thread *td, struct nfstat_args *uap)
 
 	error = kern_fstat(td, uap->fd, &ub);
 	if (error == 0) {
-		cvtnstat(&ub, &nub);
+		freebsd10_cvtnstat(&ub, &nub);
 		error = copyout(&nub, uap->sb, sizeof(nub));
 	}
 	return (error);
 }
+#endif /* COMPAT_FREEBSD10 */
 
 /*
  * Return pathconf information about a file descriptor.

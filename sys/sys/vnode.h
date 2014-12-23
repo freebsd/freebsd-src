@@ -590,6 +590,7 @@ struct file;
 struct mount;
 struct nameidata;
 struct ostat;
+struct freebsd10_stat;
 struct thread;
 struct proc;
 struct stat;
@@ -615,7 +616,8 @@ void	cache_purgevfs(struct mount *mp);
 int	change_dir(struct vnode *vp, struct thread *td);
 int	change_root(struct vnode *vp, struct thread *td);
 void	cvtstat(struct stat *st, struct ostat *ost);
-void	cvtnstat(struct stat *sb, struct nstat *nsb);
+void	freebsd10_cvtnstat(struct stat *sb, struct nstat *nsb);
+void	freebsd10_cvtstat(struct stat *st, struct freebsd10_stat *ost);
 int	getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	    struct vnode **vpp);
 void	getnewvnode_reserve(u_int count);
