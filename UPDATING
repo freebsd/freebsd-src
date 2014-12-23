@@ -15,6 +15,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20141223:	p21	FreeBSD-SA-14:31.ntp
+			FreeBSD-EN-14:13.freebsd-update
+
+	Fix multiple vulnerabilities in NTP suite.  [SA-14:31]
+	Fix directory deletion issue in freebsd-update.	 [EN-14:13]
+
 20141210:	p20	FreeBSD-SA-14:28.file
 			FreeBSD-SA-14:29.bind
 
