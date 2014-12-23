@@ -36,6 +36,16 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
+#ifndef _INO_T_DECLARED
+typedef	__ino_t		ino_t;
+#define	_INO_T_DECLARED
+#endif
+
+#ifndef _OFF_T_DECLARED
+typedef	__off_t		off_t;
+#define	_OFF_T_DECLARED
+#endif
+
 /*
  * The dirent structure defines the format of directory entries returned by
  * the getdirentries(2) system call.
@@ -48,10 +58,13 @@
  */
 
 struct dirent {
-	__uint32_t d_fileno;		/* file number of entry */
+	ino_t      d_fileno;		/* file number of entry */
+	off_t      d_off__unused;	/* directory offset of entry */
 	__uint16_t d_reclen;		/* length of this record */
+	__uint16_t d_namlen;		/* length of string in d_name */
 	__uint8_t  d_type; 		/* file type, see below */
-	__uint8_t  d_namlen;		/* length of string in d_name */
+	__uint8_t  d_unused1;
+	__uint16_t d_unused2;
 #if __BSD_VISIBLE
 #define	MAXNAMLEN	255
 	char	d_name[MAXNAMLEN + 1];	/* name must be no longer than this */
@@ -61,6 +74,14 @@ struct dirent {
 };
 
 #if __BSD_VISIBLE
+struct freebsd10_dirent {
+	__uint32_t d_fileno;		/* file number of entry */
+	__uint16_t d_reclen;		/* length of this record */
+	__uint8_t  d_type; 		/* file type, see below */
+	__uint8_t  d_namlen;		/* length of string in d_name */
+	char	d_name[255 + 1];	/* name must be no longer than this */
+};
+
 /*
  * File types
  */

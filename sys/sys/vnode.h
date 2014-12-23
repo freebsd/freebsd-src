@@ -261,11 +261,12 @@ struct xvnode {
 struct vattr {
 	enum vtype	va_type;	/* vnode type (for create) */
 	u_short		va_mode;	/* files access mode and type */
-	short		va_nlink;	/* number of references to file */
+	u_short		va_padding0;
+	nlink_t		va_nlink;	/* number of references to file */
 	uid_t		va_uid;		/* owner user id */
 	gid_t		va_gid;		/* owner group id */
 	dev_t		va_fsid;	/* filesystem id */
-	long		va_fileid;	/* file id */
+	ino_t		va_fileid;	/* file id */
 	u_quad_t	va_size;	/* file size in bytes */
 	long		va_blocksize;	/* blocksize preferred for i/o */
 	struct timespec	va_atime;	/* time of last access */

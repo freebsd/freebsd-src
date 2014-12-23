@@ -107,7 +107,8 @@ struct itimerval32 {
 	struct timeval32 it_value;
 };
 
-#define FREEBSD4_MNAMELEN        (88 - 2 * sizeof(int32_t)) /* size of on/from name bufs */
+#define FREEBSD4_MFSNAMELEN	16
+#define FREEBSD4_MNAMELEN	(88 - 2 * sizeof(int32_t))
 
 /* 4.x version */
 struct statfs32 {
@@ -125,7 +126,7 @@ struct statfs32 {
 	int32_t	f_flags;
 	int32_t	f_syncwrites;
 	int32_t	f_asyncwrites;
-	char	f_fstypename[MFSNAMELEN];
+	char	f_fstypename[FREEBSD4_MFSNAMELEN];
 	char	f_mntonname[FREEBSD4_MNAMELEN];
 	int32_t	f_syncreads;
 	int32_t	f_asyncreads;
@@ -162,11 +163,31 @@ struct msghdr32 {
 struct stat32 {
 	dev_t	st_dev;
 	ino_t	st_ino;
-	mode_t	st_mode;
 	nlink_t	st_nlink;
+	mode_t	st_mode;
+	u_int16_t st_padding0;
 	uid_t	st_uid;
 	gid_t	st_gid;
 	dev_t	st_rdev;
+	struct timespec32 st_atim;
+	struct timespec32 st_mtim;
+	struct timespec32 st_ctim;
+	struct timespec32 st_birthtim;
+	off_t	st_size;
+	int64_t	st_blocks;
+	u_int32_t st_blksize;
+	u_int32_t st_flags;
+	u_int64_t st_gen;
+	u_int64_t st_spare[10];
+};
+struct freebsd10_stat32 {
+	u_int32_t st_dev;
+	u_int32_t st_ino;
+	mode_t	st_mode;
+	u_int16_t st_nlink;
+	uid_t	st_uid;
+	gid_t	st_gid;
+	u_int32_t st_rdev;
 	struct timespec32 st_atim;
 	struct timespec32 st_mtim;
 	struct timespec32 st_ctim;
@@ -183,9 +204,9 @@ struct stat32 {
 
 struct ostat32 {
 	__uint16_t st_dev;
-	ino_t	st_ino;
+	__uint32_t st_ino;
 	mode_t	st_mode;
-	nlink_t	st_nlink;
+	__uint16_t st_nlink;
 	__uint16_t st_uid;
 	__uint16_t st_gid;
 	__uint16_t st_rdev;
