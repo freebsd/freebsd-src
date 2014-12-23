@@ -100,6 +100,11 @@ SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_INITIAL_DELAY,
 static int nfs_tprintf_delay = NFS_TPRINTF_DELAY;
 SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_DELAY,
         downdelayinterval, CTLFLAG_RW, &nfs_tprintf_delay, 0, "");
+#ifdef NFS_DEBUG
+int nfs_debug;
+SYSCTL_INT(_vfs_nfs, OID_AUTO, debug, CTLFLAG_RW, &nfs_debug, 0,
+    "Toggle debug flag");
+#endif
 
 static int	nfs_mountroot(struct mount *);
 static void	nfs_sec_name(char *, int *);
