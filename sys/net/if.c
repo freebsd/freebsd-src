@@ -1450,6 +1450,100 @@ if_rtdel(struct radix_node *rn, void *arg)
 }
 
 /*
+ * A compatibility function returns ifnet counter values.
+ */
+uint64_t
+if_get_counter_default(struct ifnet *ifp, ift_counter cnt)
+{
+
+	KASSERT(cnt < IFCOUNTERS, ("%s: invalid cnt %d", __func__, cnt));
+	switch (cnt) {
+	case IFCOUNTER_IPACKETS:
+		return (ifp->if_ipackets);
+	case IFCOUNTER_IERRORS:
+		return (ifp->if_ierrors);
+	case IFCOUNTER_OPACKETS:
+		return (ifp->if_opackets);
+	case IFCOUNTER_OERRORS:
+		return (ifp->if_oerrors);
+	case IFCOUNTER_COLLISIONS:
+		return (ifp->if_collisions);
+	case IFCOUNTER_IBYTES:
+		return (ifp->if_ibytes);
+	case IFCOUNTER_OBYTES:
+		return (ifp->if_obytes);
+	case IFCOUNTER_IMCASTS:
+		return (ifp->if_imcasts);
+	case IFCOUNTER_OMCASTS:
+		return (ifp->if_omcasts);
+	case IFCOUNTER_IQDROPS:
+		return (ifp->if_iqdrops);
+#ifdef _IFI_OQDROPS
+	case IFCOUNTER_OQDROPS:
+		return (ifp->if_oqdrops);
+#endif
+	case IFCOUNTER_NOPROTO:
+		return (ifp->if_noproto);
+	default:
+		break;
+	};
+	return (0);
+}
+
+/*
+ * Increase an ifnet counter. Usually used for counters shared
+ * between the stack and a driver, but function supports them all.
+ */
+void
+if_inc_counter(struct ifnet *ifp, ift_counter cnt, int64_t inc)
+{
+
+	KASSERT(cnt < IFCOUNTERS, ("%s: invalid cnt %d", __func__, cnt));
+	switch (cnt) {
+	case IFCOUNTER_IPACKETS:
+		ifp->if_ipackets += inc;
+		break;
+	case IFCOUNTER_IERRORS:
+		ifp->if_ierrors += inc;
+		break;
+	case IFCOUNTER_OPACKETS:
+		ifp->if_opackets += inc;
+		break;
+	case IFCOUNTER_OERRORS:
+		ifp->if_oerrors += inc;
+		break;
+	case IFCOUNTER_COLLISIONS:
+		ifp->if_collisions += inc;
+		break;
+	case IFCOUNTER_IBYTES:
+		ifp->if_ibytes += inc;
+		break;
+	case IFCOUNTER_OBYTES:
+		ifp->if_obytes += inc;
+		break;
+	case IFCOUNTER_IMCASTS:
+		ifp->if_imcasts += inc;
+		break;
+	case IFCOUNTER_OMCASTS:
+		ifp->if_omcasts += inc;
+		break;
+	case IFCOUNTER_IQDROPS:
+		ifp->if_iqdrops += inc;
+		break;
+#ifdef _IFI_OQDROPS
+	case IFCOUNTER_OQDROPS:
+		ifp->if_oqdrops += inc;
+		break;
+#endif
+	case IFCOUNTER_NOPROTO:
+		ifp->if_noproto += inc;
+		break;
+	default:
+		break;
+	};
+}
+
+/*
  * Wrapper functions for struct ifnet address list locking macros.  These are
  * used by kernel modules to avoid encoding programming interface or binary
  * interface assumptions that may be violated when kernel-internal locking
