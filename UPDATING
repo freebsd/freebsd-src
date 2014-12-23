@@ -9,6 +9,12 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20141223:	p24	FreeBSD-SA-14:31.ntp
+			FreeBSD-EN-14:13.freebsd-update
+
+	Fix multiple vulnerabilities in NTP suite.  [SA-14:31]
+	Fix directory deletion issue in freebsd-update.	 [EN-14:13]
+
 20141210:	p23	FreeBSD-SA-14:28.file
 			FreeBSD-SA-14:29.bind
 
