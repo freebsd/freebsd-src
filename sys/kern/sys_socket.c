@@ -350,13 +350,15 @@ soo_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 		break;
 	}
 	error = so->so_proto->pr_usrreqs->pru_sockaddr(so, &sa);
-	if (error == 0 && sa->sa_len <= sizeof(kif->kf_sa_local)) {
-		bcopy(sa, &kif->kf_sa_local, sa->sa_len);
+	if (error == 0 &&
+	    sa->sa_len <= sizeof(kif->kf_un.kf_sock.kf_sa_local)) {
+		bcopy(sa, &kif->kf_un.kf_sock.kf_sa_local, sa->sa_len);
 		free(sa, M_SONAME);
 	}
 	error = so->so_proto->pr_usrreqs->pru_peeraddr(so, &sa);
-	if (error == 0 && sa->sa_len <= sizeof(kif->kf_sa_peer)) {
-		bcopy(sa, &kif->kf_sa_peer, sa->sa_len);
+	if (error == 0 &&
+	    sa->sa_len <= sizeof(kif->kf_un.kf_sock.kf_sa_peer)) {
+		bcopy(sa, &kif->kf_un.kf_sock.kf_sa_peer, sa->sa_len);
 		free(sa, M_SONAME);
 	}
 	strncpy(kif->kf_path, so->so_proto->pr_domain->dom_name,

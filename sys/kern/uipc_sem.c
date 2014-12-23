@@ -265,6 +265,8 @@ ksem_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 	mtx_lock(&sem_lock);
 	kif->kf_un.kf_sem.kf_sem_value = ks->ks_value;
 	kif->kf_un.kf_sem.kf_sem_mode = S_IFREG | ks->ks_mode;	/* XXX */
+	kif->kf_un.kf_sem.kf_sem_mode_freebsd10 =
+	    kif->kf_un.kf_sem.kf_sem_mode; /* truncate */
 	mtx_unlock(&sem_lock);
 	if (ks->ks_path != NULL) {
 		sx_slock(&ksem_dict_lock);

@@ -84,7 +84,7 @@
  * it in two places: function fill_kinfo_proc in sys/kern/kern_proc.c and
  * function kvm_proclist in lib/libkvm/kvm_proc.c .
  */
-#define	KI_NSPARE_INT	4
+#define	KI_NSPARE_INT	2
 #define	KI_NSPARE_LONG	12
 #define	KI_NSPARE_PTR	6
 
@@ -135,7 +135,7 @@ struct kinfo_proc {
 	pid_t	ki_tsid;		/* Terminal session ID */
 	short	ki_jobc;		/* job control counter */
 	short	ki_spare_short1;	/* unused (just here for alignment) */
-	dev_t	ki_tdev;		/* controlling tty dev */
+	uint32_t ki_tdev_freebsd10;	/* controlling tty dev */
 	sigset_t ki_siglist;		/* Signals arrived but not delivered */
 	sigset_t ki_sigmask;		/* Current signal mask */
 	sigset_t ki_sigignore;		/* Signals being ignored */
@@ -187,6 +187,7 @@ struct kinfo_proc {
 	 */
 	char	ki_sparestrings[50];	/* spare string space */
 	int	ki_spareints[KI_NSPARE_INT];	/* spare room for growth */
+	uint64_t ki_tdev;		/* controlling tty dev */
 	int	ki_oncpu;		/* Which cpu we are on */
 	int	ki_lastcpu;		/* Last cpu we were on */
 	int	ki_tracer;		/* Pid of tracing process */
@@ -344,10 +345,12 @@ struct kinfo_file {
 	int		kf_sock_domain;		/* Socket domain. */
 	int		kf_sock_type;		/* Socket type. */
 	int		kf_sock_protocol;	/* Socket protocol. */
-	struct sockaddr_storage kf_sa_local;	/* Socket address. */
-	struct sockaddr_storage	kf_sa_peer;	/* Peer address. */
 	union {
 		struct {
+			/* Socket address. */
+			struct sockaddr_storage kf_sa_local;
+			/* Peer address. */
+			struct sockaddr_storage	kf_sa_peer;
 			/* Address of so_pcb. */
 			uint64_t	kf_sock_pcb;
 			/* Address of inp_ppcb. */
@@ -362,25 +365,38 @@ struct kinfo_file {
 			uint32_t	kf_sock_pad0;
 		} kf_sock;
 		struct {
+			/* Space for future use */
+			uint64_t	kf_spareint64[30];
+			/* Vnode filesystem id. */
+			uint64_t	kf_file_fsid;
+			/* File device. */
+			uint64_t	kf_file_rdev;
 			/* Global file id. */
 			uint64_t	kf_file_fileid;
 			/* File size. */
 			uint64_t	kf_file_size;
-			/* Vnode filesystem id. */
-			uint32_t	kf_file_fsid;
-			/* File device. */
-			uint32_t	kf_file_rdev;
-			/* File mode. */
-			uint16_t	kf_file_mode;
+			/* Vnode filesystem id, FreeBSD 10 compat. */
+			uint32_t	kf_file_fsid_freebsd10;
+			/* File device, FreeBSD 10 compat. */
+			uint32_t	kf_file_rdev_freebsd10;
+			/* File mode, FreeBSD 10 compat. */
+			uint16_t	kf_file_mode_freebsd10;
 			/* Round to 64 bit alignment. */
 			uint16_t	kf_file_pad0;
-			uint32_t	kf_file_pad1;
+			/* File mode. */
+			uint32_t	kf_file_mode;
 		} kf_file;
 		struct {
+			/* Space for future use */
+			uint64_t	kf_spareint64[32];
 			uint32_t	kf_sem_value;
-			uint16_t	kf_sem_mode;
+			uint16_t	kf_sem_mode_freebsd10;
+			uint16_t	kf_sem_pad0;
+			uint32_t	kf_sem_mode;
 		} kf_sem;
 		struct {
+			/* Space for future use */
+			uint64_t	kf_spareint64[32];
 			uint64_t	kf_pipe_addr;
 			uint64_t	kf_pipe_peer;
 			uint32_t	kf_pipe_buffer_cnt;
@@ -388,11 +404,17 @@ struct kinfo_file {
 			uint32_t	kf_pipe_pad0[3];
 		} kf_pipe;
 		struct {
-			uint32_t	kf_pts_dev;
+			/* Space for future use */
+			uint64_t	kf_spareint64[32];
+			uint32_t	kf_pts_dev_freebsd10;
+			uint32_t	kf_pts_pad0;
+			uint64_t	kf_pts_dev;
 			/* Round to 64 bit alignment. */
-			uint32_t	kf_pts_pad0[7];
+			uint32_t	kf_pts_pad1[4];
 		} kf_pts;
 		struct {
+			/* Space for future use */
+			uint64_t	kf_spareint64[32];
 			pid_t		kf_pid;
 		} kf_proc;
 	} kf_un;
@@ -453,7 +475,7 @@ struct kinfo_ovmentry {
 	void	*_kve_pspare[8];		/* Space for more stuff. */
 	off_t	 kve_offset;			/* Mapping offset in object */
 	uint64_t kve_fileid;			/* inode number if vnode */
-	dev_t	 kve_fsid;			/* dev_t of vnode location */
+	uint32_t kve_fsid;			/* dev_t of vnode location */
 	int	 _kve_ispare[3];		/* Space for more stuff. */
 };
 
@@ -468,7 +490,7 @@ struct kinfo_vmentry {
 	uint64_t kve_end;			/* Finishing address. */
 	uint64_t kve_offset;			/* Mapping offset in object */
 	uint64_t kve_vn_fileid;			/* inode number if vnode */
-	uint32_t kve_vn_fsid;			/* dev_t of vnode location */
+	uint32_t kve_vn_fsid_freebsd10;		/* dev_t of vnode location */
 	int	 kve_flags;			/* Flags on map entry. */
 	int	 kve_resident;			/* Number of resident pages. */
 	int	 kve_private_resident;		/* Number of private pages. */
@@ -477,10 +499,14 @@ struct kinfo_vmentry {
 	int	 kve_shadow_count;		/* VM obj shadow count. */
 	int	 kve_vn_type;			/* Vnode type. */
 	uint64_t kve_vn_size;			/* File size. */
-	uint32_t kve_vn_rdev;			/* Device id if device. */
-	uint16_t kve_vn_mode;			/* File mode. */
+	uint32_t kve_vn_rdev_freebsd10;		/* Device id if device. */
+	uint16_t kve_vn_mode_freebsd10;		/* File mode. */
 	uint16_t kve_status;			/* Status flags. */
-	int	 _kve_ispare[12];		/* Space for more stuff. */
+	uint64_t kve_vn_fsid;			/* dev_t of vnode location */
+	uint64_t kve_vn_rdev;			/* Device id if device. */
+	uint32_t kve_vn_mode;			/* File mode. */
+	uint32_t _kve_ispare0;			/* Space for more stuff. */
+	int	 _kve_ispare[6];		/* Space for more stuff. */
 	/* Truncated before copyout in sysctl */
 	char	 kve_path[PATH_MAX];		/* Path to VM obj, if any. */
 };

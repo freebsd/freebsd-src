@@ -3301,8 +3301,13 @@ kinfo_to_okinfo(struct kinfo_file *kif, struct kinfo_ofile *okif)
 	okif->kf_sock_type = kif->kf_sock_type;
 	okif->kf_sock_protocol = kif->kf_sock_protocol;
 	strlcpy(okif->kf_path, kif->kf_path, sizeof(okif->kf_path));
-	okif->kf_sa_local = kif->kf_sa_local;
-	okif->kf_sa_peer = kif->kf_sa_peer;
+	if (kif->kf_type == KF_TYPE_SOCKET) {
+		okif->kf_sa_local = kif->kf_un.kf_sock.kf_sa_local;
+		okif->kf_sa_peer = kif->kf_un.kf_sock.kf_sa_peer;
+	} else {
+		okif->kf_sa_local.ss_family = AF_UNSPEC;
+		okif->kf_sa_peer.ss_family = AF_UNSPEC;
+	}
 }
 
 static int

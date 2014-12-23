@@ -1035,6 +1035,8 @@ shm_fill_kinfo(struct file *fp, struct kinfo_file *kif, struct filedesc *fdp)
 
 	mtx_lock(&shm_timestamp_lock);
 	kif->kf_un.kf_file.kf_file_mode = S_IFREG | shmfd->shm_mode;	/* XXX */
+	kif->kf_un.kf_file.kf_file_mode_freebsd10 =
+	    kif->kf_un.kf_file.kf_file_mode; /* truncate */
 	mtx_unlock(&shm_timestamp_lock);
 	kif->kf_un.kf_file.kf_file_size = shmfd->shm_size;
 	if (shmfd->shm_path != NULL) {
