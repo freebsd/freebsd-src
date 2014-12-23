@@ -30,21 +30,17 @@
  * SUCH DAMAGE.
  */
 
-/*
- * if_gif.h
- */
-
 #ifndef _NET_IF_GIF_H_
 #define _NET_IF_GIF_H_
-
 
 #ifdef _KERNEL
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
 #include <netinet/in.h>
-/* xxx sigh, why route have struct route instead of pointer? */
 
+struct ip;
+struct ip6_hdr;
 struct encaptab;
 
 extern	void (*ng_gif_input_p)(struct ifnet *ifp, struct mbuf **mp,
@@ -56,35 +52,38 @@ extern	void (*ng_gif_attach_p)(struct ifnet *ifp);
 extern	void (*ng_gif_detach_p)(struct ifnet *ifp);
 
 struct gif_softc {
-	struct ifnet	*gif_ifp;
-	struct mtx	gif_mtx;
-	struct sockaddr	*gif_psrc; /* Physical src addr */
-	struct sockaddr	*gif_pdst; /* Physical dst addr */
+	struct ifnet		*gif_ifp;
+	struct rmlock		gif_lock;
+	const struct encaptab	*gif_ecookie;
+	int			gif_family;
+	int			gif_flags;
+	u_int			gif_fibnum;
+	u_int			gif_options;
+	void			*gif_netgraph;	/* netgraph node info */
 	union {
-		struct route  gifscr_ro;    /* xxx */
+		void		*hdr;
+		struct ip	*iphdr;
 #ifdef INET6
-		struct route_in6 gifscr_ro6; /* xxx */
+		struct ip6_hdr	*ip6hdr;
 #endif
-	} gifsc_gifscr;
-	int		gif_flags;
-	u_int		gif_fibnum;
-	const struct encaptab *encap_cookie4;
-	const struct encaptab *encap_cookie6;
-	void		*gif_netgraph;	/* ng_gif(4) netgraph node info */
-	u_int		gif_options;
-	LIST_ENTRY(gif_softc) gif_list; /* all gif's are linked */
+	} gif_uhdr;
+	LIST_ENTRY(gif_softc)	gif_list; /* all gif's are linked */
 };
 #define	GIF2IFP(sc)	((sc)->gif_ifp)
-#define	GIF_LOCK_INIT(sc)	mtx_init(&(sc)->gif_mtx, "gif softc",	\
-				     NULL, MTX_DEF)
-#define	GIF_LOCK_DESTROY(sc)	mtx_destroy(&(sc)->gif_mtx)
-#define	GIF_LOCK(sc)		mtx_lock(&(sc)->gif_mtx)
-#define	GIF_UNLOCK(sc)		mtx_unlock(&(sc)->gif_mtx)
-#define	GIF_LOCK_ASSERT(sc)	mtx_assert(&(sc)->gif_mtx, MA_OWNED)
+#define	GIF_LOCK_INIT(sc)	rm_init(&(sc)->gif_lock, "gif softc")
+#define	GIF_LOCK_DESTROY(sc)	rm_destroy(&(sc)->gif_lock)
+#define	GIF_RLOCK_TRACKER	struct rm_priotracker gif_tracker
+#define	GIF_RLOCK(sc)		rm_rlock(&(sc)->gif_lock, &gif_tracker)
+#define	GIF_RUNLOCK(sc)		rm_runlock(&(sc)->gif_lock, &gif_tracker)
+#define	GIF_RLOCK_ASSERT(sc)	rm_assert(&(sc)->gif_lock, RA_RLOCKED)
+#define	GIF_WLOCK(sc)		rm_wlock(&(sc)->gif_lock)
+#define	GIF_WUNLOCK(sc)		rm_wunlock(&(sc)->gif_lock)
+#define	GIF_WLOCK_ASSERT(sc)	rm_assert(&(sc)->gif_lock, RA_WLOCKED)
 
-#define gif_ro gifsc_gifscr.gifscr_ro
+#define	gif_iphdr	gif_uhdr.iphdr
+#define	gif_hdr		gif_uhdr.hdr
 #ifdef INET6
-#define gif_ro6 gifsc_gifscr.gifscr_ro6
+#define	gif_ip6hdr	gif_uhdr.ip6hdr
 #endif
 
 #define GIF_MTU		(1280)	/* Default MTU */
@@ -111,12 +110,9 @@ struct etherip_header {
 #define	ETHERIP_ALIGN		2
 
 /* Prototypes */
-void gif_input(struct mbuf *, int, struct ifnet *);
+void gif_input(struct mbuf *, struct ifnet *, int, uint8_t);
 int gif_output(struct ifnet *, struct mbuf *, const struct sockaddr *,
 	       struct route *);
-int gif_ioctl(struct ifnet *, u_long, caddr_t);
-int gif_set_tunnel(struct ifnet *, struct sockaddr *, struct sockaddr *);
-void gif_delete_tunnel(struct ifnet *);
 int gif_encapcheck(const struct mbuf *, int, int, void *);
 #endif /* _KERNEL */
 
