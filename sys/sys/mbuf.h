@@ -757,7 +757,10 @@ static __inline void
 m_clrprotoflags(struct mbuf *m)
 {
 
-	m->m_flags &= ~M_PROTOFLAGS;
+	while (m) {
+		m->m_flags &= ~M_PROTOFLAGS;
+		m = m->m_next;
+	}
 }
 
 static __inline struct mbuf *
