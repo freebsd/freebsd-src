@@ -293,19 +293,8 @@ ti_gpio_intr_clr(struct ti_gpio_softc *sc, unsigned int bank, uint32_t mask)
 static int
 ti_gpio_pin_max(device_t dev, int *maxpin)
 {
-	struct ti_gpio_softc *sc = device_get_softc(dev);
-	unsigned int i;
-	unsigned int banks = 0;
 
-	/* Calculate how many valid banks we have and then multiply that by 32 to
-	 * give use the total number of pins.
-	 */
-	for (i = 0; i < ti_max_gpio_banks(); i++) {
-		if (sc->sc_mem_res[i] != NULL)
-			banks++;
-	}
-
-	*maxpin = (banks * PINS_PER_BANK) - 1;
+	*maxpin = ti_max_gpio_banks() * PINS_PER_BANK - 1;
 
 	return (0);
 }
