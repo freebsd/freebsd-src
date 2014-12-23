@@ -74,7 +74,9 @@ int	ext2_vfree(struct vnode *, ino_t, int);
 int	ext2_vinit(struct mount *, struct vop_vector *, struct vnode **vpp);
 int	ext2_lookup(struct vop_cachedlookup_args *);
 int	ext2_readdir(struct vop_readdir_args *);
+#ifdef EXT2FS_DEBUG
 void	ext2_print_inode(struct inode *);
+#endif
 int	ext2_direnter(struct inode *, 
 		struct vnode *, struct componentname *);
 int	ext2_dirremove(struct vnode *, struct componentname *);
