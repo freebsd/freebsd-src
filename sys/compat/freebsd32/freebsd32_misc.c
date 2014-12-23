@@ -264,7 +264,7 @@ freebsd4_freebsd32_getfsstat(struct thread *td, struct freebsd4_freebsd32_getfss
 			uap->buf++;
 			count--;
 		}
-		free(buf, M_TEMP);
+		free(buf, M_STATFS);
 	}
 	return (error);
 }
@@ -1329,14 +1329,17 @@ int
 freebsd4_freebsd32_statfs(struct thread *td, struct freebsd4_freebsd32_statfs_args *uap)
 {
 	struct statfs32 s32;
-	struct statfs s;
+	struct statfs *sp;
 	int error;
 
-	error = kern_statfs(td, uap->path, UIO_USERSPACE, &s);
-	if (error)
-		return (error);
-	copy_statfs(&s, &s32);
-	return (copyout(&s32, uap->buf, sizeof(s32)));
+	sp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_statfs(td, uap->path, UIO_USERSPACE, sp);
+	if (error == 0) {
+		copy_statfs(sp, &s32);
+		error = copyout(&s32, uap->buf, sizeof(s32));
+	}
+	free(sp, M_STATFS);
+	return (error);
 }
 #endif
 
@@ -1345,14 +1348,17 @@ int
 freebsd4_freebsd32_fstatfs(struct thread *td, struct freebsd4_freebsd32_fstatfs_args *uap)
 {
 	struct statfs32 s32;
-	struct statfs s;
+	struct statfs *sp;
 	int error;
 
-	error = kern_fstatfs(td, uap->fd, &s);
-	if (error)
-		return (error);
-	copy_statfs(&s, &s32);
-	return (copyout(&s32, uap->buf, sizeof(s32)));
+	sp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_fstatfs(td, uap->fd, sp);
+	if (error == 0) {
+		copy_statfs(sp, &s32);
+		error = copyout(&s32, uap->buf, sizeof(s32));
+	}
+	free(sp, M_STATFS);
+	return (error);
 }
 #endif
 
@@ -1361,17 +1367,20 @@ int
 freebsd4_freebsd32_fhstatfs(struct thread *td, struct freebsd4_freebsd32_fhstatfs_args *uap)
 {
 	struct statfs32 s32;
-	struct statfs s;
+	struct statfs *sp;
 	fhandle_t fh;
 	int error;
 
 	if ((error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t))) != 0)
 		return (error);
-	error = kern_fhstatfs(td, fh, &s);
-	if (error)
-		return (error);
-	copy_statfs(&s, &s32);
-	return (copyout(&s32, uap->buf, sizeof(s32)));
+	sp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_fhstatfs(td, fh, sp);
+	if (error == 0) {
+		copy_statfs(sp, &s32);
+		error = copyout(&s32, uap->buf, sizeof(s32));
+	}
+	free(sp, M_STATFS);
+	return (error);
 }
 #endif
 

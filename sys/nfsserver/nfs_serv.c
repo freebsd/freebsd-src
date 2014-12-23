@@ -75,11 +75,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
-#include <sys/mount.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/mount.h>
 #include <sys/priv.h>
 #include <sys/dirent.h>
 #include <sys/stat.h>
@@ -3450,10 +3450,10 @@ nfsrv_statfs(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	struct vattr at;
 	nfsfh_t nfh;
 	fhandle_t *fhp;
-	struct statfs statfs;
 	u_quad_t tval;
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
+	sf = NULL;
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
 	error = nfsrv_fhtovp(fhp, 0, &vp, nfsd, slp, nam, &rdonly);
@@ -3464,7 +3464,7 @@ nfsrv_statfs(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		error = 0;
 		goto nfsmout;
 	}
-	sf = &statfs;
+	sf = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
 	error = VFS_STATFS(vp->v_mount, sf);
 	getret = VOP_GETATTR(vp, &at, cred);
 	vput(vp);
@@ -3516,6 +3516,7 @@ nfsrv_statfs(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 nfsmout:
 	if (vp)
 		vput(vp);
+	free(sf, M_STATFS);
 	return(error);
 }
 
@@ -3539,7 +3540,7 @@ nfsrv_fsinfo(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nfsfh_t nfh;
 	fhandle_t *fhp;
 	u_quad_t maxfsize;
-	struct statfs sb;
+	struct statfs *sf;
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
 
 	nfsdbprintf(("%s %d\n", __FILE__, __LINE__));
@@ -3556,8 +3557,12 @@ nfsrv_fsinfo(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 
 	/* XXX Try to make a guess on the max file size. */
-	VFS_STATFS(vp->v_mount, &sb);
-	maxfsize = (u_quad_t)0x80000000 * sb.f_bsize - 1;
+	sf = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	if (VFS_STATFS(vp->v_mount, sf) == 0)
+		maxfsize = (u_quad_t)0x80000000 * sf->f_bsize - 1;
+	else
+		maxfsize = (u_quad_t)-1;
+	free(sf, M_STATFS);
 
 	getret = VOP_GETATTR(vp, &at, cred);
 	vput(vp);

@@ -587,6 +587,7 @@ struct uio;
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_MOUNT);
+MALLOC_DECLARE(M_STATFS);
 #endif
 extern int maxvfsconf;		/* highest defined filesystem type */
 extern int nfs_mount_type;	/* vfc_typenum for nfs, or -1 */

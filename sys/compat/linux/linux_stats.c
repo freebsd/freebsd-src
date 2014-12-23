@@ -397,7 +397,7 @@ int
 linux_statfs(struct thread *td, struct linux_statfs_args *args)
 {
 	struct l_statfs linux_statfs;
-	struct statfs bsd_statfs;
+	struct statfs *bsd_statfs;
 	char *path;
 	int error, dev_shm;
 
@@ -408,14 +408,17 @@ linux_statfs(struct thread *td, struct linux_statfs_args *args)
 		printf(ARGS(statfs, "%s, *"), path);
 #endif
 	dev_shm = 0;
-	error = kern_statfs(td, path, UIO_SYSSPACE, &bsd_statfs);
+	bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_statfs(td, path, UIO_SYSSPACE, bsd_statfs);
 	if (strncmp(path, "/dev/shm", sizeof("/dev/shm") - 1) == 0)
 		dev_shm = (path[8] == '\0'
 		    || (path[8] == '/' && path[9] == '\0'));
 	LFREEPATH(path);
-	if (error)
+	if (error == 0)
+		bsd_to_linux_statfs(bsd_statfs, &linux_statfs);
+	free(bsd_statfs, M_STATFS);
+	if (error != 0)
 		return (error);
-	bsd_to_linux_statfs(&bsd_statfs, &linux_statfs);
 	if (dev_shm)
 		linux_statfs.f_type = LINUX_SHMFS_MAGIC;
 	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
@@ -441,7 +444,7 @@ int
 linux_statfs64(struct thread *td, struct linux_statfs64_args *args)
 {
 	struct l_statfs64 linux_statfs;
-	struct statfs bsd_statfs;
+	struct statfs *bsd_statfs;
 	char *path;
 	int error;
 
@@ -454,11 +457,14 @@ linux_statfs64(struct thread *td, struct linux_statfs64_args *args)
 	if (ldebug(statfs64))
 		printf(ARGS(statfs64, "%s, *"), path);
 #endif
-	error = kern_statfs(td, path, UIO_SYSSPACE, &bsd_statfs);
+	bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_statfs(td, path, UIO_SYSSPACE, bsd_statfs);
 	LFREEPATH(path);
-	if (error)
+	if (error == 0)
+		bsd_to_linux_statfs64(bsd_statfs, &linux_statfs);
+	free(bsd_statfs, M_STATFS);
+	if (error != 0)
 		return (error);
-	bsd_to_linux_statfs64(&bsd_statfs, &linux_statfs);
 	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
 }
 
@@ -466,17 +472,20 @@ int
 linux_fstatfs(struct thread *td, struct linux_fstatfs_args *args)
 {
 	struct l_statfs linux_statfs;
-	struct statfs bsd_statfs;
+	struct statfs *bsd_statfs;
 	int error;
 
 #ifdef DEBUG
 	if (ldebug(fstatfs))
 		printf(ARGS(fstatfs, "%d, *"), args->fd);
 #endif
-	error = kern_fstatfs(td, args->fd, &bsd_statfs);
-	if (error)
-		return error;
-	bsd_to_linux_statfs(&bsd_statfs, &linux_statfs);
+	bsd_statfs = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_fstatfs(td, args->fd, bsd_statfs);
+	if (error == 0)
+		bsd_to_linux_statfs(bsd_statfs, &linux_statfs);
+	free(bsd_statfs, M_STATFS);
+	if (error != 0)
+		return (error);
 	return copyout(&linux_statfs, args->buf, sizeof(linux_statfs));
 }
 
