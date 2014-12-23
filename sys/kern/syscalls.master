@@ -12,7 +12,7 @@
 ;		case where the event exists, but we don't want auditing, the
 ;		event should be #defined to AUE_NULL in audit_kevents.h.
 ;	type	one of STD, OBSOL, UNIMPL, COMPAT, COMPAT4, COMPAT6,
-;		COMPAT7, NODEF, NOARGS, NOPROTO, NOSTD
+;		COMPAT7, COMPAT10, NODEF, NOARGS, NOPROTO, NOSTD
 ;		The COMPAT* options may be combined with one or more NO*
 ;		options separated by '|' with no spaces (e.g. COMPAT|NOARGS)
 ;	name	psuedo-prototype of syscall routine
@@ -28,6 +28,7 @@
 ;	COMPAT4	included on COMPAT4 #ifdef (FreeBSD 4 compat)
 ;	COMPAT6	included on COMPAT6 #ifdef (FreeBSD 6 compat)
 ;	COMPAT7	included on COMPAT7 #ifdef (FreeBSD 7 compat)
+;	COMPAT10 included on COMPAT10 #ifdef (FreeBSD 10 compat)
 ;	OBSOL	obsolete, not included in system, only specifies name
 ;	UNIMPL	not implemented, placeholder only
 ;	NOSTD	implemented but as a lkm that can be statically
@@ -78,7 +79,7 @@
 11	AUE_NULL	OBSOL	execv
 12	AUE_CHDIR	STD	{ int chdir(char *path); }
 13	AUE_FCHDIR	STD	{ int fchdir(int fd); }
-14	AUE_MKNOD	STD	{ int mknod(char *path, int mode, int dev); }
+14	AUE_MKNOD	COMPAT10 { int mknod(char *path, int mode, int dev); }
 15	AUE_CHMOD	STD	{ int chmod(char *path, int mode); }
 16	AUE_CHOWN	STD	{ int chown(char *path, int uid, int gid); }
 17	AUE_NULL	STD	{ int obreak(char *nsize); } break \
@@ -362,9 +363,12 @@
 185	AUE_NULL	UNIMPL	lfs_markv
 186	AUE_NULL	UNIMPL	lfs_segclean
 187	AUE_NULL	UNIMPL	lfs_segwait
-188	AUE_STAT	STD	{ int stat(char *path, struct stat *ub); }
-189	AUE_FSTAT	STD	{ int fstat(int fd, struct stat *sb); }
-190	AUE_LSTAT	STD	{ int lstat(char *path, struct stat *ub); }
+188	AUE_STAT	COMPAT10 { int stat(char *path, \
+				    struct freebsd10_stat *ub); }
+189	AUE_FSTAT	COMPAT10 { int fstat(int fd, \
+				    struct freebsd10_stat *sb); }
+190	AUE_LSTAT	COMPAT10 { int lstat(char *path, \
+				    struct freebsd10_stat *ub); }
 191	AUE_PATHCONF	STD	{ int pathconf(char *path, int name); }
 192	AUE_FPATHCONF	STD	{ int fpathconf(int fd, int name); }
 193	AUE_NULL	UNIMPL	nosys
@@ -374,7 +378,7 @@
 195	AUE_SETRLIMIT	STD	{ int setrlimit(u_int which, \
 				    struct rlimit *rlp); } setrlimit \
 				    __setrlimit_args int
-196	AUE_GETDIRENTRIES	STD	{ int getdirentries(int fd, char *buf, \
+196	AUE_GETDIRENTRIES	COMPAT10 { int getdirentries(int fd, char *buf, \
 				    u_int count, long *basep); }
 197	AUE_MMAP	STD	{ caddr_t freebsd6_mmap(caddr_t addr, \
 				    size_t len, int prot, int flags, int fd, \
@@ -494,7 +498,7 @@
 269	AUE_NULL	UNIMPL	nosys
 270	AUE_NULL	UNIMPL	nosys
 271	AUE_NULL	UNIMPL	nosys
-272	AUE_O_GETDENTS	STD	{ int getdents(int fd, char *buf, \
+272	AUE_O_GETDENTS	COMPAT10 { int getdents(int fd, char *buf, \
 				    size_t count); }
 273	AUE_NULL	UNIMPL	nosys
 274	AUE_LCHMOD	STD	{ int lchmod(char *path, mode_t mode); }
@@ -505,9 +509,9 @@
 				    struct timeval *tptr); }
 277	AUE_MSYNC	NOPROTO	{ int msync(void *addr, size_t len, \
 				    int flags); } netbsd_msync msync_args int
-278	AUE_STAT	STD	{ int nstat(char *path, struct nstat *ub); }
-279	AUE_FSTAT	STD	{ int nfstat(int fd, struct nstat *sb); }
-280	AUE_LSTAT	STD	{ int nlstat(char *path, struct nstat *ub); }
+278	AUE_STAT	COMPAT10 { int nstat(char *path, struct nstat *ub); }
+279	AUE_FSTAT	COMPAT10 { int nfstat(int fd, struct nstat *sb); }
+280	AUE_LSTAT	COMPAT10 { int nlstat(char *path, struct nstat *ub); }
 281	AUE_NULL	UNIMPL	nosys
 282	AUE_NULL	UNIMPL	nosys
 283	AUE_NULL	UNIMPL	nosys
@@ -533,8 +537,8 @@
 				    struct ostatfs *buf); }
 298	AUE_FHOPEN	STD	{ int fhopen(const struct fhandle *u_fhp, \
 				    int flags); }
-299	AUE_FHSTAT	STD	{ int fhstat(const struct fhandle *u_fhp, \
-				    struct stat *sb); }
+299	AUE_FHSTAT	COMPAT10 { int fhstat(const struct fhandle *u_fhp, \
+				    struct freebsd10_stat *sb); }
 ; syscall numbers for FreeBSD
 300	AUE_NULL	STD	{ int modnext(int modid); }
 301	AUE_NULL	STD	{ int modstat(int modid, \
@@ -705,13 +709,14 @@
 				    off_t *sbytes, int flags); }
 394	AUE_NULL	STD	{ int mac_syscall(const char *policy, \
 				    int call, void *arg); }
-395	AUE_GETFSSTAT	STD	{ int getfsstat(struct statfs *buf, \
+395	AUE_GETFSSTAT	COMPAT10 { int getfsstat(struct freebsd10_statfs *buf, \
 				    long bufsize, int flags); }
-396	AUE_STATFS	STD	{ int statfs(char *path, \
-				    struct statfs *buf); }
-397	AUE_FSTATFS	STD	{ int fstatfs(int fd, struct statfs *buf); }
-398	AUE_FHSTATFS	STD	{ int fhstatfs(const struct fhandle *u_fhp, \
-				    struct statfs *buf); }
+396	AUE_STATFS	COMPAT10 { int statfs(char *path, \
+				    struct freebsd10_statfs *buf); }
+397	AUE_FSTATFS	COMPAT10 { int fstatfs(int fd, \
+				    struct freebsd10_statfs *buf); }
+398	AUE_FHSTATFS	COMPAT10 { int fhstatfs(const struct fhandle *u_fhp, \
+				    struct freebsd10_statfs *buf); }
 399	AUE_NULL	UNIMPL	nosys
 400	AUE_NULL	NOSTD	{ int ksem_close(semid_t id); }
 401	AUE_NULL	NOSTD	{ int ksem_post(semid_t id); }
@@ -881,16 +886,16 @@
 				    gid_t gid, int flag); }
 492	AUE_FEXECVE	STD	{ int fexecve(int fd, char **argv, \
 				    char **envv); }
-493	AUE_FSTATAT	STD	{ int fstatat(int fd, char *path, \
-				    struct stat *buf, int flag); }
+493	AUE_FSTATAT	COMPAT10 { int fstatat(int fd, char *path, \
+				    struct freebsd10_stat *buf, int flag); }
 494	AUE_FUTIMESAT	STD	{ int futimesat(int fd, char *path, \
 				    struct timeval *times); }
 495	AUE_LINKAT	STD	{ int linkat(int fd1, char *path1, int fd2, \
 				    char *path2, int flag); }
 496	AUE_MKDIRAT	STD	{ int mkdirat(int fd, char *path, mode_t mode); }
 497	AUE_MKFIFOAT	STD	{ int mkfifoat(int fd, char *path, mode_t mode); }
-498	AUE_MKNODAT	STD	{ int mknodat(int fd, char *path, mode_t mode, \
-				    dev_t dev); }
+498	AUE_MKNODAT	COMPAT10 { int mknodat(int fd, char *path, mode_t mode, \
+				    uint32_t dev); }
 ; XXX: see the comment for open
 499	AUE_OPENAT_RWTC	STD	{ int openat(int fd, char *path, int flag, \
 				    mode_t mode); }
@@ -983,5 +988,21 @@
 545	AUE_POLL	STD	{ int ppoll(struct pollfd *fds, u_int nfds, \
 				    const struct timespec *ts, \
 				    const sigset_t *set); }
+546	AUE_FSTAT	STD	{ int fstat(int fd, struct stat *sb); }
+547	AUE_FSTATAT	STD	{ int fstatat(int fd, char *path, \
+				    struct stat *buf, int flag); }
+548	AUE_FHSTAT	STD	{ int fhstat(const struct fhandle *u_fhp, \
+				    struct stat *sb); }
+549	AUE_GETDIRENTRIES	STD	{ ssize_t getdirentries(int fd, char *buf, \
+				    size_t count, off_t *basep); }
+550	AUE_MKNODAT	STD	{ int mknodat(int fd, char *path, mode_t mode, \
+				    dev_t dev); }
+551	AUE_GETFSSTAT	STD	{ int getfsstat(struct statfs *buf, \
+				    long bufsize, int flags); }
+552	AUE_STATFS	STD	{ int statfs(char *path, \
+				    struct statfs *buf); }
+553	AUE_FSTATFS	STD	{ int fstatfs(int fd, struct statfs *buf); }
+554	AUE_FHSTATFS	STD	{ int fhstatfs(const struct fhandle *u_fhp, \
+				    struct statfs *buf); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
