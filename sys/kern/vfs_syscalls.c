@@ -719,6 +719,137 @@ freebsd4_cvtstatfs(nsp, osp)
 }
 #endif /* COMPAT_FREEBSD4 */
 
+#if defined(COMPAT_FREEBSD10)
+/*
+ * Get old format filesystem statistics.
+ */
+static void freebsd10_cvtstatfs(struct statfs *, struct freebsd10_statfs *);
+
+int
+freebsd10_statfs(struct thread *td, struct freebsd10_statfs_args *uap)
+{
+	struct freebsd10_statfs osb;
+	struct statfs *sfp;
+	int error;
+
+	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_statfs(td, uap->path, UIO_USERSPACE, sfp);
+	if (error == 0) {
+		freebsd10_cvtstatfs(sfp, &osb);
+		error = copyout(&osb, uap->buf, sizeof(osb));
+	}
+	free(sfp, M_STATFS);
+	return (error);
+}
+
+/*
+ * Get filesystem statistics.
+ */
+int
+freebsd10_fstatfs(struct thread *td, struct freebsd10_fstatfs_args *uap)
+{
+	struct freebsd10_statfs osb;
+	struct statfs *sfp;
+	int error;
+
+	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_fstatfs(td, uap->fd, sfp);
+	if (error == 0) {
+		freebsd10_cvtstatfs(sfp, &osb);
+		error = copyout(&osb, uap->buf, sizeof(osb));
+	}
+	free(sfp, M_STATFS);
+	return (error);
+}
+
+/*
+ * Get statistics on all filesystems.
+ */
+int
+freebsd10_getfsstat(struct thread *td, struct freebsd10_getfsstat_args *uap)
+{
+	struct freebsd10_statfs osb;
+	struct statfs *buf, *sp;
+	size_t count, size;
+	int error;
+
+	count = uap->bufsize / sizeof(struct ostatfs);
+	size = count * sizeof(struct statfs);
+	error = kern_getfsstat(td, &buf, size, UIO_SYSSPACE, uap->flags);
+	if (size > 0) {
+		count = td->td_retval[0];
+		sp = buf;
+		while (count > 0 && error == 0) {
+			freebsd10_cvtstatfs(sp, &osb);
+			error = copyout(&osb, uap->buf, sizeof(osb));
+			sp++;
+			uap->buf++;
+			count--;
+		}
+		free(buf, M_STATFS);
+	}
+	return (error);
+}
+
+/*
+ * Implement fstatfs() for (NFS) file handles.
+ */
+int
+freebsd10_fhstatfs(struct thread *td, struct freebsd10_fhstatfs_args *uap)
+{
+	struct freebsd10_statfs osb;
+	struct statfs *sfp;
+	fhandle_t fh;
+	int error;
+
+	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
+	if (error)
+		return (error);
+	sfp = malloc(sizeof(struct statfs), M_STATFS, M_WAITOK);
+	error = kern_fhstatfs(td, fh, sfp);
+	if (error == 0) {
+		freebsd10_cvtstatfs(sfp, &osb);
+		error = copyout(&osb, uap->buf, sizeof(osb));
+	}
+	free(sfp, M_STATFS);
+	return (error);
+}
+
+/*
+ * Convert a new format statfs structure to an old format statfs structure.
+ */
+static void
+freebsd10_cvtstatfs(nsp, osp)
+	struct statfs *nsp;
+	struct freebsd10_statfs *osp;
+{
+	bzero(osp, sizeof(*osp));
+	osp->f_version = FREEBSD10_STATFS_VERSION;
+	osp->f_type = nsp->f_type;
+	osp->f_flags = nsp->f_flags;
+	osp->f_bsize = nsp->f_bsize;
+	osp->f_iosize = nsp->f_iosize;
+	osp->f_blocks = nsp->f_blocks;
+	osp->f_bfree = nsp->f_bfree;
+	osp->f_bavail = nsp->f_bavail;
+	osp->f_files = nsp->f_files;
+	osp->f_ffree = nsp->f_ffree;
+	osp->f_syncwrites = nsp->f_syncwrites;
+	osp->f_asyncwrites = nsp->f_asyncwrites;
+	osp->f_syncreads = nsp->f_syncreads;
+	osp->f_asyncreads = nsp->f_asyncreads;
+	osp->f_namemax = nsp->f_namemax;
+	osp->f_owner = nsp->f_owner;
+	osp->f_fsid = nsp->f_fsid;
+	strlcpy(osp->f_fstypename, nsp->f_fstypename,
+	    MIN(MFSNAMELEN, sizeof(osp->f_fstypename)));
+	strlcpy(osp->f_mntonname, nsp->f_mntonname,
+	    MIN(MNAMELEN, sizeof(osp->f_mntonname)));
+	strlcpy(osp->f_mntfromname, nsp->f_mntfromname,
+	    MIN(MNAMELEN, sizeof(osp->f_mntfromname)));
+}
+#endif /* COMPAT_FREEBSD10 */
+
 /*
  * Change current working directory to a given file descriptor.
  */
