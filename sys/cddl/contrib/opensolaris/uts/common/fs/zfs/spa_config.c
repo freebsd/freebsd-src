@@ -536,8 +536,7 @@ spa_config_update(spa_t *spa, int what)
 	/*
 	 * Update the global config cache to reflect the new mosconfig.
 	 */
-	if (!spa->spa_is_root)
-		spa_config_sync(spa, B_FALSE, what != SPA_CONFIG_UPDATE_POOL);
+	spa_config_sync(spa, B_FALSE, what != SPA_CONFIG_UPDATE_POOL);
 
 	if (what == SPA_CONFIG_UPDATE_POOL)
 		spa_config_update(spa, SPA_CONFIG_UPDATE_VDEVS);
