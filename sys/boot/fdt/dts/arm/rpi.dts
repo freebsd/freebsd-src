@@ -35,6 +35,7 @@
 
 	memreserve = <0x08000000 0x08000000>;	/* Set by VideoCore */
 
+	/*
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -45,6 +46,7 @@
 			clock-frequency = <700000000>;	/* 700MHz */
 		};
 	};
+	*/
 
 	memory {
 		device_type = "memory";
