@@ -1735,9 +1735,6 @@ retry:
 				goto out;
 		}
 		rootdevnames[0] = "nfs:";
-#ifdef NFSCLIENT
-		rootdevnames[1] = "oldnfs:";
-#endif
 		nfs_diskless_valid = 3;
 	}
 

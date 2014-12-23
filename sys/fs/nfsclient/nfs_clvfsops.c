@@ -152,7 +152,7 @@ MODULE_DEPEND(nfs, nfslock, 1, 1, 1);
  * will be defined for kernels built without NFS_ROOT, although it
  * isn't used in that case.
  */
-#if !defined(NFS_ROOT) && !defined(NFSCLIENT)
+#if !defined(NFS_ROOT)
 struct nfs_diskless	nfs_diskless = { { { 0 } } };
 struct nfsv3_diskless	nfsv3_diskless = { { { 0 } } };
 int			nfs_diskless_valid = 0;
@@ -704,7 +704,7 @@ nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp,
 			while (newnfs_connect(nmp, &nmp->nm_sockreq,
 			    cred, td, 0)) {
 				printf("newnfs_args: retrying connect\n");
-				(void) nfs_catnap(PSOCK, 0, "newnfscon");
+				(void) nfs_catnap(PSOCK, 0, "nfscon");
 			}
 		}
 	} else {
@@ -1063,7 +1063,7 @@ nfs_mount(struct mount *mp)
 		 * greater than NFS_MAXDGRAMDATA, those thread(s) will be
 		 * hung, retrying the RPC(s) forever. Usually these threads
 		 * will be seen doing an uninterruptible sleep on wait channel
-		 * "newnfsreq" (truncated to "newnfsre" by procstat).
+		 * "nfsreq".
 		 */
 		if (args.sotype == SOCK_DGRAM && nmp->nm_sotype == SOCK_STREAM)
 			tprintf(td->td_proc, LOG_WARNING,
