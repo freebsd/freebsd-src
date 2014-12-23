@@ -4117,6 +4117,7 @@ struct cctl_portlist_data {
 	STAILQ_HEAD(,cctl_port) port_list;
 	struct cctl_port *cur_port;
 	int level;
+	uint64_t cur_id;
 	struct sbuf *cur_sb[32];
 };
 
@@ -4139,6 +4140,14 @@ cctl_start_pelement(void *user_data, const char *name, const char **attr)
 	if (portlist->cur_sb[portlist->level] == NULL)
 		err(1, "%s: Unable to allocate sbuf", __func__);
 
+	portlist->cur_id = 0;
+	for (i = 0; attr[i] != NULL; i += 2) {
+		if (strcmp(attr[i], "id") == 0) {
+			portlist->cur_id = strtoull(attr[i+1], NULL, 0);
+			break;
+		}
+	}
+
 	if (strcmp(name, "targ_port") == 0) {
 		if (cur_port != NULL)
 			errx(1, "%s: improper port element nesting", __func__);
@@ -4153,16 +4162,8 @@ cctl_start_pelement(void *user_data, const char *name, const char **attr)
 
 		STAILQ_INIT(&cur_port->init_list);
 		STAILQ_INIT(&cur_port->attr_list);
+		cur_port->port_id = portlist->cur_id;
 		STAILQ_INSERT_TAIL(&portlist->port_list, cur_port, links);
-
-		for (i = 0; attr[i] != NULL; i += 2) {
-			if (strcmp(attr[i], "id") == 0) {
-				cur_port->port_id = strtoull(attr[i+1], NULL, 0);
-			} else {
-				errx(1, "%s: invalid LUN attribute %s = %s",
-				     __func__, attr[i], attr[i+1]);
-			}
-		}
 	}
 }
 
@@ -4231,7 +4232,10 @@ cctl_end_pelement(void *user_data, const char *name)
 			err(1, "%s: can't allocate %zd bytes for nv pair",
 			    __func__, sizeof(*nv));
 
-		nv->name = strdup(name);
+		if (strcmp(name, "initiator") == 0)
+			asprintf(&nv->name, "%ju", portlist->cur_id);
+		else
+			nv->name = strdup(name);
 		if (nv->name == NULL)
 			err(1, "%s: can't allocated %zd bytes for string",
 			    __func__, strlen(name));
@@ -4372,7 +4376,8 @@ retry:
 			if (port->target)
 				printf("  Target: %s\n", port->target);
 			STAILQ_FOREACH(nv, &port->init_list, links) {
-				printf("  Initiator: %s\n", nv->value);
+				printf("  Initiator %s: %s\n",
+				    nv->name, nv->value);
 			}
 		}
 
