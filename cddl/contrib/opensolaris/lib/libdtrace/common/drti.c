@@ -171,6 +171,7 @@ dtrace_dof_init(void)
 			if (s != NULL && strcmp(s, ".SUNW_dof") == 0) {
 				dofdata = elf_getdata(scn, NULL);
 				dof = dofdata->d_buf;
+				break;
 			}
 		}
 	}
