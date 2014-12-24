@@ -35,7 +35,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: sections.c 2358 2011-12-19 18:22:32Z kaiwang27 $");
+ELFTC_VCSID("$Id: sections.c 3126 2014-12-21 08:03:31Z kaiwang27 $");
 
 static void	add_gnu_debuglink(struct elfcopy *ecp);
 static uint32_t calc_crc32(const char *p, size_t len, uint32_t crc);
@@ -371,6 +371,14 @@ create_scn(struct elfcopy *ecp)
 			if (ish.sh_info != 0 &&
 			    is_remove_reloc_sec(ecp, ish.sh_info))
 				continue;
+
+		/*
+		 * Section groups should be removed if symbol table will
+		 * be removed. (section group's signature stored in symbol
+		 * table)
+		 */
+		if (ish.sh_type == SHT_GROUP && ecp->strip == STRIP_ALL)
+			continue;
 
 		/* Get section flags set by user. */
 		sec_flags = get_section_flags(ecp, name);

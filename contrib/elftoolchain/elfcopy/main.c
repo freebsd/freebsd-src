@@ -40,7 +40,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: main.c 2970 2013-12-01 15:22:12Z kaiwang27 $");
+ELFTC_VCSID("$Id: main.c 3111 2014-12-20 08:33:01Z kaiwang27 $");
 
 enum options
 {
