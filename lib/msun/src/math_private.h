@@ -456,9 +456,8 @@ typedef union {
  * to -0.0+I*0.0.
  *
  * The C11 standard introduced the macros CMPLX(), CMPLXF() and CMPLXL()
- * to construct complex values. The functions below are modelled after
- * these macros, with the exception that they cannot be used to
- * construct compile-time complex values.
+ * to construct complex values.  Compilers that conform to the C99
+ * standard require the following functions to avoid the above issues.
  */
 
 #ifndef CMPLXF
