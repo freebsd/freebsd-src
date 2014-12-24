@@ -175,6 +175,8 @@ struct ctl_be_block_lun {
 	int blocksize_shift;
 	uint16_t pblockexp;
 	uint16_t pblockoff;
+	uint16_t ublockexp;
+	uint16_t ublockoff;
 	struct ctl_be_block_softc *softc;
 	struct devstat *disk_stats;
 	ctl_be_block_lun_flags flags;
@@ -1742,8 +1744,9 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 {
 	struct ctl_be_block_filedata *file_data;
 	struct ctl_lun_create_params *params;
+	char			     *value;
 	struct vattr		      vattr;
-	off_t			      pss;
+	off_t			      ps, pss, po, pos, us, uss, uo, uos;
 	int			      error;
 
 	error = 0;
@@ -1803,11 +1806,36 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		be_lun->blocksize = params->blocksize_bytes;
 	else
 		be_lun->blocksize = 512;
-	pss = vattr.va_blocksize / be_lun->blocksize;
-	if ((pss > 0) && (pss * be_lun->blocksize == vattr.va_blocksize) &&
-	    ((pss & (pss - 1)) == 0)) {
+
+	us = ps = vattr.va_blocksize;
+	uo = po = 0;
+
+	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "pblocksize");
+	if (value != NULL)
+		ctl_expand_number(value, &ps);
+	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "pblockoffset");
+	if (value != NULL)
+		ctl_expand_number(value, &po);
+	pss = ps / be_lun->blocksize;
+	pos = po / be_lun->blocksize;
+	if ((pss > 0) && (pss * be_lun->blocksize == ps) && (pss >= pos) &&
+	    ((pss & (pss - 1)) == 0) && (pos * be_lun->blocksize == po)) {
 		be_lun->pblockexp = fls(pss) - 1;
-		be_lun->pblockoff = 0;
+		be_lun->pblockoff = (pss - pos) % pss;
+	}
+
+	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "ublocksize");
+	if (value != NULL)
+		ctl_expand_number(value, &us);
+	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "ublockoffset");
+	if (value != NULL)
+		ctl_expand_number(value, &uo);
+	uss = us / be_lun->blocksize;
+	uos = uo / be_lun->blocksize;
+	if ((uss > 0) && (uss * be_lun->blocksize == us) && (uss >= uos) &&
+	    ((uss & (uss - 1)) == 0) && (uos * be_lun->blocksize == uo)) {
+		be_lun->ublockexp = fls(uss) - 1;
+		be_lun->ublockoff = (uss - uos) % uss;
 	}
 
 	/*
@@ -1830,8 +1858,9 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	struct vattr		      vattr;
 	struct cdev		     *dev;
 	struct cdevsw		     *devsw;
+	char			     *value;
 	int			      error;
-	off_t			      ps, pss, po, pos;
+	off_t			      ps, pss, po, pos, us, uss, uo, uos;
 
 	params = &be_lun->params;
 
@@ -1945,12 +1974,35 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		if (error)
 			po = 0;
 	}
+	us = ps;
+	uo = po;
+
+	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "pblocksize");
+	if (value != NULL)
+		ctl_expand_number(value, &ps);
+	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "pblockoffset");
+	if (value != NULL)
+		ctl_expand_number(value, &po);
 	pss = ps / be_lun->blocksize;
 	pos = po / be_lun->blocksize;
 	if ((pss > 0) && (pss * be_lun->blocksize == ps) && (pss >= pos) &&
 	    ((pss & (pss - 1)) == 0) && (pos * be_lun->blocksize == po)) {
 		be_lun->pblockexp = fls(pss) - 1;
 		be_lun->pblockoff = (pss - pos) % pss;
+	}
+
+	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "ublocksize");
+	if (value != NULL)
+		ctl_expand_number(value, &us);
+	value = ctl_get_opt(&be_lun->ctl_be_lun.options, "ublockoffset");
+	if (value != NULL)
+		ctl_expand_number(value, &uo);
+	uss = us / be_lun->blocksize;
+	uos = uo / be_lun->blocksize;
+	if ((uss > 0) && (uss * be_lun->blocksize == us) && (uss >= uos) &&
+	    ((uss & (uss - 1)) == 0) && (uos * be_lun->blocksize == uo)) {
+		be_lun->ublockexp = fls(uss) - 1;
+		be_lun->ublockoff = (uss - uos) % uss;
 	}
 
 	return (0);
@@ -2165,6 +2217,8 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		be_lun->blocksize = 0;
 		be_lun->pblockexp = 0;
 		be_lun->pblockoff = 0;
+		be_lun->ublockexp = 0;
+		be_lun->ublockoff = 0;
 		be_lun->size_blocks = 0;
 		be_lun->size_bytes = 0;
 		be_lun->ctl_be_lun.maxlba = 0;
@@ -2215,6 +2269,8 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	be_lun->ctl_be_lun.blocksize = be_lun->blocksize;
 	be_lun->ctl_be_lun.pblockexp = be_lun->pblockexp;
 	be_lun->ctl_be_lun.pblockoff = be_lun->pblockoff;
+	be_lun->ctl_be_lun.ublockexp = be_lun->ublockexp;
+	be_lun->ctl_be_lun.ublockoff = be_lun->ublockoff;
 	if (be_lun->dispatch == ctl_be_block_dispatch_zvol &&
 	    be_lun->blocksize != 0)
 		be_lun->ctl_be_lun.atomicblock = CTLBLK_MAX_IO_SIZE /
@@ -2594,6 +2650,8 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		be_lun->ctl_be_lun.blocksize = be_lun->blocksize;
 		be_lun->ctl_be_lun.pblockexp = be_lun->pblockexp;
 		be_lun->ctl_be_lun.pblockoff = be_lun->pblockoff;
+		be_lun->ctl_be_lun.ublockexp = be_lun->ublockexp;
+		be_lun->ctl_be_lun.ublockoff = be_lun->ublockoff;
 		if (be_lun->dispatch == ctl_be_block_dispatch_zvol &&
 		    be_lun->blocksize != 0)
 			be_lun->ctl_be_lun.atomicblock = CTLBLK_MAX_IO_SIZE /
