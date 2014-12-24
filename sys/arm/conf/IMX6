@@ -56,6 +56,7 @@ options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 options 	FREEBSD_BOOT_LOADER	# Process metadata passed from loader(8)
 options 	VFP			# Enable floating point hardware support
 options 	SMP			# Enable multiple cores
+options 	ARM_INTRNG
 
 # Debugging for use in -current
 makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
