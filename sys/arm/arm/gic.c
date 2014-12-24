@@ -436,7 +436,7 @@ pic_ipi_send(cpuset_t cpus, u_int ipi)
 }
 
 int
-pic_ipi_get(int i)
+pic_ipi_read(int i)
 {
 
 	if (i != -1) {
