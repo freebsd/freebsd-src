@@ -6,5 +6,5 @@
 const char *
 elftc_version(void)
 {
-	return "libelftc r2974";
+	return "libelftc r3130";
 }
