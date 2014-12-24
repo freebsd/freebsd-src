@@ -463,8 +463,8 @@ kdebug_secpolicy(struct secpolicy *sp)
 	if (sp == NULL)
 		panic("%s: NULL pointer was passed.\n", __func__);
 
-	printf("secpolicy{ refcnt=%u state=%u policy=%u\n",
-		sp->refcnt, sp->state, sp->policy);
+	printf("secpolicy{ refcnt=%u policy=%u\n",
+		sp->refcnt, sp->policy);
 
 	kdebug_secpolicyindex(&sp->spidx);
 
