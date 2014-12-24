@@ -24,7 +24,7 @@ void	ipi_selected(cpuset_t cpus, u_int ipi);
 /* PIC interface */
 void	pic_ipi_send(cpuset_t cpus, u_int ipi);
 void	pic_ipi_clear(int ipi);
-int	pic_ipi_get(int arg);
+int	pic_ipi_read(int arg);
 
 /* Platform interface */
 void	platform_mp_setmaxid(void);
