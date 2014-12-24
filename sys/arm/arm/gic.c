@@ -482,6 +482,35 @@ arm_gic_ipi_clear(device_t dev, int ipi)
 }
 
 #ifndef ARM_INTRNG
+
+void
+arm_mask_irq(uintptr_t nb)
+{
+
+	arm_gic_mask(arm_gic_sc->gic_dev, nb);
+}
+
+void
+arm_unmask_irq(uintptr_t nb)
+{
+
+	arm_gic_unmask(arm_gic_sc->gic_dev, nb);
+}
+
+void
+gic_init_secondary(void)
+{
+
+	arm_gic_init_secondary(arm_gic_sc->gic_dev);
+}
+
+void
+pic_ipi_send(cpuset_t cpus, u_int ipi)
+{
+
+	arm_gic_ipi_send(arm_gic_sc->gic_dev, cpus, ipi);
+}
+
 int
 pic_ipi_read(int i)
 {
@@ -493,7 +522,7 @@ void
 pic_ipi_clear(int ipi)
 {
 
-	return arm_gic_ipi_clear(arm_gic_sc->gic_dev, ipi);
+	arm_gic_ipi_clear(arm_gic_sc->gic_dev, ipi);
 }
 #endif
 
