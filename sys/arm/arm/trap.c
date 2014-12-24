@@ -545,7 +545,7 @@ dab_buserr(struct trapframe *tf, u_int fsr, u_int far, struct thread *td,
 		 * If the current trapframe is at the top of the kernel stack,
 		 * the fault _must_ have come from user mode.
 		 */
-		if (tf != ((struct trapframe *)pcb->un_32.pcb32_sp) - 1) {
+		if (tf != ((struct trapframe *)pcb->pcb_regs.sf_sp) - 1) {
 			/*
 			 * Kernel mode. We're either about to die a
 			 * spectacular death, or pcb_onfault will come
