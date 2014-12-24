@@ -226,12 +226,13 @@ static int
 isci_sysctl_fail_on_task_timeout(SYSCTL_HANDLER_ARGS)
 {
 	struct isci_softc	*isci = (struct isci_softc *)arg1;
-	int32_t			fail_on_timeout = 0;
+	int32_t			fail_on_timeout;
 	int			error, i;
 
+	fail_on_timeout = isci->controllers[0].fail_on_task_timeout;
 	error = sysctl_handle_int(oidp, &fail_on_timeout, 0, req);
 
-	if (error || fail_on_timeout == 0)
+	if (error || req->newptr == NULL)
 		return (error);
 
 	for (i = 0; i < isci->controller_count; i++)

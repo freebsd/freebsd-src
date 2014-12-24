@@ -31,6 +31,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20141222:
+	The old NFS client and server (kernel options NFSCLIENT, NFSSERVER)
+	kernel sources have been removed. The .h files remain, since some
+	utilities include them. This will need to be fixed later.
+	If "mount -t oldnfs ..." is attempted, it will fail.
+	If the "-o" option on mountd(8), nfsd(8) or nfsstat(1) is used,
+	the utilities will report errors.
+
 20141121:
 	The handling of LOCAL_LIB_DIRS has been altered to skip addition of
 	directories to top level SUBDIR variable when their parent

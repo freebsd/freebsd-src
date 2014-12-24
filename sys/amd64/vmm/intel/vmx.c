@@ -283,8 +283,8 @@ exit_reason_to_str(int reason)
 		return "monitor";
 	case EXIT_REASON_PAUSE:
 		return "pause";
-	case EXIT_REASON_MCE:
-		return "mce";
+	case EXIT_REASON_MCE_DURING_ENTRY:
+		return "mce-during-entry";
 	case EXIT_REASON_TPR:
 		return "tpr";
 	case EXIT_REASON_APIC_ACCESS:
@@ -821,6 +821,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 	int i, error;
 	struct vmx *vmx;
 	struct vmcs *vmcs;
+	uint32_t exc_bitmap;
 
 	vmx = malloc(sizeof(struct vmx), M_VMX, M_WAITOK | M_ZERO);
 	if ((uintptr_t)vmx & PAGE_MASK) {
@@ -911,6 +912,14 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 		error += vmwrite(VMCS_ENTRY_CTLS, entry_ctls);
 		error += vmwrite(VMCS_MSR_BITMAP, vtophys(vmx->msr_bitmap));
 		error += vmwrite(VMCS_VPID, vpid[i]);
+
+		/* exception bitmap */
+		if (vcpu_trace_exceptions(vm, i))
+			exc_bitmap = 0xffffffff;
+		else
+			exc_bitmap = 1 << IDT_MC;
+		error += vmwrite(VMCS_EXCEPTION_BITMAP, exc_bitmap);
+
 		if (virtual_interrupt_delivery) {
 			error += vmwrite(VMCS_APIC_ACCESS, APIC_ACCESS_ADDRESS);
 			error += vmwrite(VMCS_VIRTUAL_APIC,
@@ -2056,8 +2065,9 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	struct vlapic *vlapic;
 	struct vm_inout_str *vis;
 	struct vm_task_switch *ts;
+	struct vm_exception vmexc;
 	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, intr_info, inst_info;
-	uint32_t intr_type, reason;
+	uint32_t intr_type, intr_vec, reason;
 	uint64_t exitintinfo, qual, gpa;
 	bool retu;
 
@@ -2072,6 +2082,18 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	vmexit->exitcode = VM_EXITCODE_BOGUS;
 
 	vmm_stat_incr(vmx->vm, vcpu, VMEXIT_COUNT, 1);
+
+	/*
+	 * VM-entry failures during or after loading guest state.
+	 *
+	 * These VM-exits are uncommon but must be handled specially
+	 * as most VM-exit fields are not populated as usual.
+	 */
+	if (__predict_false(reason == EXIT_REASON_MCE_DURING_ENTRY)) {
+		VCPU_CTR0(vmx->vm, vcpu, "Handling MCE during VM-entry");
+		__asm __volatile("int $18");
+		return (1);
+	}
 
 	/*
 	 * VM exits that can be triggered during event delivery need to
@@ -2305,6 +2327,9 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		KASSERT((intr_info & VMCS_INTR_VALID) != 0,
 		    ("VM exit interruption info invalid: %#x", intr_info));
 
+		intr_vec = intr_info & 0xff;
+		intr_type = intr_info & VMCS_INTR_T_MASK;
+
 		/*
 		 * If Virtual NMIs control is 1 and the VM-exit is due to a
 		 * fault encountered during the execution of IRET then we must
@@ -2315,16 +2340,55 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		 * See "Information for VM Exits Due to Vectored Events".
 		 */
 		if ((idtvec_info & VMCS_IDT_VEC_VALID) == 0 &&
-		    (intr_info & 0xff) != IDT_DF &&
+		    (intr_vec != IDT_DF) &&
 		    (intr_info & EXIT_QUAL_NMIUDTI) != 0)
 			vmx_restore_nmi_blocking(vmx, vcpu);
 
 		/*
 		 * The NMI has already been handled in vmx_exit_handle_nmi().
 		 */
-		if ((intr_info & VMCS_INTR_T_MASK) == VMCS_INTR_T_NMI)
+		if (intr_type == VMCS_INTR_T_NMI)
 			return (1);
-		break;
+
+		/*
+		 * Call the machine check handler by hand. Also don't reflect
+		 * the machine check back into the guest.
+		 */
+		if (intr_vec == IDT_MC) {
+			VCPU_CTR0(vmx->vm, vcpu, "Vectoring to MCE handler");
+			__asm __volatile("int $18");
+			return (1);
+		}
+
+		if (intr_vec == IDT_PF) {
+			error = vmxctx_setreg(vmxctx, VM_REG_GUEST_CR2, qual);
+			KASSERT(error == 0, ("%s: vmxctx_setreg(cr2) error %d",
+			    __func__, error));
+		}
+
+		/*
+		 * Software exceptions exhibit trap-like behavior. This in
+		 * turn requires populating the VM-entry instruction length
+		 * so that the %rip in the trap frame is past the INT3/INTO
+		 * instruction.
+		 */
+		if (intr_type == VMCS_INTR_T_SWEXCEPTION)
+			vmcs_write(VMCS_ENTRY_INST_LENGTH, vmexit->inst_length);
+
+		/* Reflect all other exceptions back into the guest */
+		bzero(&vmexc, sizeof(struct vm_exception));
+		vmexc.vector = intr_vec;
+		if (intr_info & VMCS_INTR_DEL_ERRCODE) {
+			vmexc.error_code_valid = 1;
+			vmexc.error_code = vmcs_read(VMCS_EXIT_INTR_ERRCODE);
+		}
+		VCPU_CTR2(vmx->vm, vcpu, "Reflecting exception %d/%#x into "
+		    "the guest", vmexc.vector, vmexc.error_code);
+		error = vm_inject_exception(vmx->vm, vcpu, &vmexc);
+		KASSERT(error == 0, ("%s: vm_inject_exception error %d",
+		    __func__, error));
+		return (1);
+
 	case EXIT_REASON_EPT_FAULT:
 		/*
 		 * If 'gpa' lies within the address space allocated to

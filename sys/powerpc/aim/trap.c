@@ -177,7 +177,7 @@ trap(struct trapframe *frame)
 	 * handled the trap and modified the trap frame so that this
 	 * function can return normally.
 	 */
-	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame))
+	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type) != 0)
 		return;
 #endif
 

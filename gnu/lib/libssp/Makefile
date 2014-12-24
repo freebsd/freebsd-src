@@ -15,6 +15,7 @@ SRCDIR=	${GCCLIB}/libssp
 
 LIB=		ssp
 SHLIB_MAJOR=	0
+LD_FATAL_WARNINGS=	no
 
 SRCS=	ssp.c gets-chk.c memcpy-chk.c memmove-chk.c mempcpy-chk.c \
 	memset-chk.c snprintf-chk.c sprintf-chk.c stpcpy-chk.c \
