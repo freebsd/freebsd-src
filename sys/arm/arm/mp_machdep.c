@@ -266,7 +266,7 @@ ipi_handler(void *arg)
 
 	cpu = PCPU_GET(cpuid);
 
-	ipi = pic_ipi_get((int)arg);
+	ipi = pic_ipi_read((int)arg);
 
 	while ((ipi != 0x3ff)) {
 		switch (ipi) {
@@ -329,7 +329,7 @@ ipi_handler(void *arg)
 		}
 
 		pic_ipi_clear(ipi);
-		ipi = pic_ipi_get(-1);
+		ipi = pic_ipi_read(-1);
 	}
 
 	return (FILTER_HANDLED);
