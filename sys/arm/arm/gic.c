@@ -55,7 +55,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#ifdef ARM_INTRNG
 #include "pic_if.h"
+#endif
 
 /* We are using GICv2 register naming */
 
@@ -479,11 +481,28 @@ arm_gic_ipi_clear(device_t dev, int ipi)
 	/* no-op */
 }
 
+#ifndef ARM_INTRNG
+int
+pic_ipi_read(int i)
+{
+
+	return (arm_gic_pid_ipi_read(arm_gic_sc->gic_dev, i);
+}
+
+void
+pic_ipi_clear(int ipi)
+{
+
+	return arm_gic_ipi_clear(arm_gic_sc->gic_dev, ipi);
+}
+#endif
+
 static device_method_t arm_gic_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		arm_gic_probe),
 	DEVMETHOD(device_attach,	arm_gic_attach),
 
+#ifdef ARM_INTRNG
 	/* Interrupt controller interface */
 	DEVMETHOD(pic_config,		arm_gic_config),
 	DEVMETHOD(pic_mask,		arm_gic_mask),
@@ -493,6 +512,8 @@ static device_method_t arm_gic_methods[] = {
 	DEVMETHOD(pic_ipi_send,		arm_gic_ipi_send),
 	DEVMETHOD(pic_ipi_clear,	arm_gic_ipi_clear),
 	DEVMETHOD(pic_ipi_read,		arm_gic_ipi_read),
+#endif
+
 	{ 0, 0 }
 };
 
