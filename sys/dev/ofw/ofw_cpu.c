@@ -171,7 +171,7 @@ ofw_cpu_probe(device_t dev)
 {
 	const char *type = ofw_bus_get_type(dev);
 
-	if (strcmp(type, "cpu") != 0)
+	if (type == NULL || strcmp(type, "cpu") != 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "Open Firmware CPU");
@@ -182,12 +182,20 @@ static int
 ofw_cpu_attach(device_t dev)
 {
 	struct ofw_cpu_softc *sc;
+	phandle_t node;
 	uint32_t cell;
 
 	sc = device_get_softc(dev);
-	OF_getprop(ofw_bus_get_node(dev), "reg", &cell, sizeof(cell));
+	node = ofw_bus_get_node(dev);
+	if (OF_getencprop(node, "reg", &cell, sizeof(cell)) < 0) {
+		cell = device_get_unit(dev);
+		device_printf(dev, "missing 'reg' property, using %u\n", cell);
+	}
 	sc->sc_cpu_pcpu = pcpu_find(cell);
-	OF_getprop(ofw_bus_get_node(dev), "clock-frequency", &cell, sizeof(cell));
+	if (OF_getencprop(node, "clock-frequency", &cell, sizeof(cell)) < 0) {
+		device_printf(dev, "missing 'clock-frequency' property\n");
+		return (ENXIO);
+	}
 	sc->sc_nominal_mhz = cell / 1000000; /* convert to MHz */
 
 	bus_generic_probe(dev);
