@@ -361,9 +361,16 @@ release_aps(void *dummy __unused)
 		 * if we used 0, the intr code will give the trap frame
 		 * pointer instead.
 		 */
+#ifdef ARM_INTRNG
 		arm_setup_irqhandler(NULL, ipi_handler, NULL, (void *)i, i,
 		    INTR_TYPE_MISC | INTR_EXCL | INTR_IPI, NULL);
 		arm_unmask_ipi(i);
+#else
+		arm_setup_irqhandler("ipi", ipi_handler, NULL, (void *)i, i,
+		    INTR_TYPE_MISC | INTR_EXCL, NULL);
+		/* Enable ipi */
+		arm_unmask_irq(i);
+#endif
 	}
 	atomic_store_rel_int(&aps_ready, 1);
 
