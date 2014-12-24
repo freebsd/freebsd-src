@@ -29,6 +29,7 @@
 #include <assert.h>
 #include <gelf.h>
 #include <limits.h>
+#include <stdint.h>
 
 #include "_libelf.h"
 
