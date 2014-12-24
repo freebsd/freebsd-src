@@ -401,17 +401,23 @@ int
 vop_stdadvlock(struct vop_advlock_args *ap)
 {
 	struct vnode *vp;
-	struct ucred *cred;
 	struct vattr vattr;
 	int error;
 
 	vp = ap->a_vp;
-	cred = curthread->td_ucred;
-	vn_lock(vp, LK_SHARED | LK_RETRY);
-	error = VOP_GETATTR(vp, &vattr, cred);
-	VOP_UNLOCK(vp, 0);
-	if (error)
-		return (error);
+	if (ap->a_fl->l_whence == SEEK_END) {
+		/*
+		 * The NFSv4 server will LOR/deadlock if a vn_lock() call
+		 * is done on vp. Fortunately, vattr.va_size is only
+		 * needed for SEEK_END and the NFSv4 server only uses SEEK_SET.
+		 */
+		vn_lock(vp, LK_SHARED | LK_RETRY);
+		error = VOP_GETATTR(vp, &vattr, curthread->td_ucred);
+		VOP_UNLOCK(vp, 0);
+		if (error)
+			return (error);
+	} else
+		vattr.va_size = 0;
 
 	return (lf_advlock(ap, &(vp->v_lockf), vattr.va_size));
 }
@@ -420,17 +426,19 @@ int
 vop_stdadvlockasync(struct vop_advlockasync_args *ap)
 {
 	struct vnode *vp;
-	struct ucred *cred;
 	struct vattr vattr;
 	int error;
 
 	vp = ap->a_vp;
-	cred = curthread->td_ucred;
-	vn_lock(vp, LK_SHARED | LK_RETRY);
-	error = VOP_GETATTR(vp, &vattr, cred);
-	VOP_UNLOCK(vp, 0);
-	if (error)
-		return (error);
+	if (ap->a_fl->l_whence == SEEK_END) {
+		/* The size argument is only needed for SEEK_END. */
+		vn_lock(vp, LK_SHARED | LK_RETRY);
+		error = VOP_GETATTR(vp, &vattr, curthread->td_ucred);
+		VOP_UNLOCK(vp, 0);
+		if (error)
+			return (error);
+	} else
+		vattr.va_size = 0;
 
 	return (lf_advlockasync(ap, &(vp->v_lockf), vattr.va_size));
 }
