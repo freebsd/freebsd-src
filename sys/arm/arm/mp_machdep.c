@@ -236,7 +236,11 @@ init_secondary(int cpu)
 #endif
 				
 	for (int i = 0; i < ARM_IPI_COUNT; i++)
+#ifdef ARM_INTRNG
 		arm_unmask_ipi(i);
+#else
+		arm_unmask_irq(i);
+#endif
 	enable_interrupts(PSR_I);
 
 	loop_counter = 0;

@@ -133,6 +133,7 @@ static void arm_gic_eoi(device_t, int);
 static void arm_gic_mask(device_t, int);
 static void arm_gic_unmask(device_t, int);
 static void arm_gic_ipi_send(device_t, cpuset_t, int);
+static int arm_gic_ipi_read(device_t dev, int i);
 static void arm_gic_ipi_clear(device_t, int);
 
 #define	gic_c_read_4(_sc, _reg)		\
@@ -275,6 +276,7 @@ arm_gic_attach(device_t dev)
 	sc->gic_c_bst = rman_get_bustag(sc->gic_res[1]);
 	sc->gic_c_bsh = rman_get_bushandle(sc->gic_res[1]);
 
+#ifdef ARM_INTRNG
 	if (bus_setup_intr(dev, sc->gic_res[2], INTR_TYPE_MISC | INTR_CONTROLLER,
 	    arm_gic_intr, NULL, sc, &sc->gic_intrhand)) {
 		device_printf(dev, "could not setup interrupt handler\n");
@@ -283,8 +285,10 @@ arm_gic_attach(device_t dev)
 	}
 
 	arm_register_pic(dev, PIC_FEATURE_IPI);
+
 	for (int i = 0; i < ARM_IPI_COUNT; i++)
 		arm_ipi_map_irq(dev, i, i);
+#endif
 
 	/* Disable interrupt forwarding to the CPU interface */
 	gic_d_write_4(sc, GICD_CTLR, 0x00);
@@ -515,7 +519,7 @@ int
 pic_ipi_read(int i)
 {
 
-	return (arm_gic_pid_ipi_read(arm_gic_sc->gic_dev, i);
+	return (arm_gic_ipi_read(arm_gic_sc->gic_dev, i));
 }
 
 void
