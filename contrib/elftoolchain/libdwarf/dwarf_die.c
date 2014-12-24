@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2007 John Birrell (jb@freebsd.org)
- * Copyright (c) 2009,2011 Kai Wang
+ * Copyright (c) 2009,2011,2014 Kai Wang
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,12 +27,13 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: dwarf_die.c 2073 2011-10-27 03:30:47Z jkoshy $");
+ELFTC_VCSID("$Id: dwarf_die.c 3039 2014-05-18 15:10:56Z kaiwang27 $");
 
 int
 dwarf_child(Dwarf_Die die, Dwarf_Die *ret_die, Dwarf_Error *error)
 {
 	Dwarf_Debug dbg;
+	Dwarf_Section *ds;
 	Dwarf_CU cu;
 	int ret;
 
@@ -48,9 +49,9 @@ dwarf_child(Dwarf_Die die, Dwarf_Die *ret_die, Dwarf_Error *error)
 
 	dbg = die->die_dbg;
 	cu = die->die_cu;
-	ret = _dwarf_die_parse(die->die_dbg, dbg->dbg_info_sec, cu,
-	    cu->cu_dwarf_size, die->die_next_off, cu->cu_next_offset,
-	    ret_die, 0, error);
+	ds = cu->cu_is_info ? dbg->dbg_info_sec : dbg->dbg_types_sec;
+	ret = _dwarf_die_parse(die->die_dbg, ds, cu, cu->cu_dwarf_size,
+	    die->die_next_off, cu->cu_next_offset, ret_die, 0, error);
 
 	if (ret == DW_DLE_NO_ENTRY) {
 		DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
@@ -62,11 +63,12 @@ dwarf_child(Dwarf_Die die, Dwarf_Die *ret_die, Dwarf_Error *error)
 }
 
 int
-dwarf_siblingof(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Die *ret_die,
-    Dwarf_Error *error)
+dwarf_siblingof_b(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Die *ret_die,
+    Dwarf_Bool is_info, Dwarf_Error *error)
 {
 	Dwarf_CU cu;
 	Dwarf_Attribute at;
+	Dwarf_Section *ds;
 	uint64_t offset;
 	int ret, search_sibling;
 
@@ -75,15 +77,27 @@ dwarf_siblingof(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Die *ret_die,
 		return (DW_DLV_ERROR);
 	}
 
-	if ((cu = dbg->dbg_cu_current) == NULL) {
+	ds = is_info ? dbg->dbg_info_sec : dbg->dbg_types_sec;
+	cu = is_info ? dbg->dbg_cu_current : dbg->dbg_tu_current;
+
+	if (cu == NULL) {
 		DWARF_SET_ERROR(dbg, error, DW_DLE_DIE_NO_CU_CONTEXT);
 		return (DW_DLV_ERROR);
 	}
 
 	/* Application requests the first DIE in this CU. */
 	if (die == NULL)
-		return (dwarf_offdie(dbg, cu->cu_1st_offset, ret_die,
-		    error));
+		return (dwarf_offdie_b(dbg, cu->cu_1st_offset, is_info,
+		    ret_die, error));
+
+	/*
+	 * Check if the `is_info' flag matches the debug section the
+	 * DIE belongs to.
+	 */
+	if (is_info != die->die_cu->cu_is_info) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
 
 	/*
 	 * If the DIE doesn't have any children, its sibling sits next
@@ -108,9 +122,8 @@ dwarf_siblingof(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Die *ret_die,
 		}
 	}
 
-	ret = _dwarf_die_parse(die->die_dbg, dbg->dbg_info_sec, cu,
-	    cu->cu_dwarf_size, offset, cu->cu_next_offset, ret_die,
-	    search_sibling, error);
+	ret = _dwarf_die_parse(die->die_dbg, ds, cu, cu->cu_dwarf_size, offset,
+	    cu->cu_next_offset, ret_die, search_sibling, error);
 	
 	if (ret == DW_DLE_NO_ENTRY) {
 		DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
@@ -121,21 +134,31 @@ dwarf_siblingof(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Die *ret_die,
 	return (DW_DLV_OK);
 }
 
+
+int
+dwarf_siblingof(Dwarf_Debug dbg, Dwarf_Die die, Dwarf_Die *ret_die,
+    Dwarf_Error *error)
+{
+
+	return (dwarf_siblingof_b(dbg, die, ret_die, 1, error));
+}
+
 static int
-_dwarf_search_die_within_cu(Dwarf_Debug dbg, Dwarf_CU cu, Dwarf_Off offset,
-    Dwarf_Die *ret_die, Dwarf_Error *error)
+_dwarf_search_die_within_cu(Dwarf_Debug dbg, Dwarf_Section *s, Dwarf_CU cu,
+    Dwarf_Off offset, Dwarf_Die *ret_die, Dwarf_Error *error)
 {
 
 	assert(dbg != NULL && cu != NULL && ret_die != NULL);
 
-	return (_dwarf_die_parse(dbg, dbg->dbg_info_sec, cu, cu->cu_dwarf_size,
+	return (_dwarf_die_parse(dbg, s, cu, cu->cu_dwarf_size,
 	    offset, cu->cu_next_offset, ret_die, 0, error));
 }
 
 int
-dwarf_offdie(Dwarf_Debug dbg, Dwarf_Off offset, Dwarf_Die *ret_die,
-    Dwarf_Error *error)
+dwarf_offdie_b(Dwarf_Debug dbg, Dwarf_Off offset, Dwarf_Bool is_info,
+    Dwarf_Die *ret_die, Dwarf_Error *error)
 {
+	Dwarf_Section *ds;
 	Dwarf_CU cu;
 	int ret;
 
@@ -144,11 +167,13 @@ dwarf_offdie(Dwarf_Debug dbg, Dwarf_Off offset, Dwarf_Die *ret_die,
 		return (DW_DLV_ERROR);
 	}
 
+	ds = is_info ? dbg->dbg_info_sec : dbg->dbg_types_sec;
+	cu = is_info ? dbg->dbg_cu_current : dbg->dbg_tu_current;
+
 	/* First search the current CU. */
-	if (dbg->dbg_cu_current != NULL) {
-		cu = dbg->dbg_cu_current;
+	if (cu != NULL) {
 		if (offset > cu->cu_offset && offset < cu->cu_next_offset) {
-			ret = _dwarf_search_die_within_cu(dbg, cu, offset,
+			ret = _dwarf_search_die_within_cu(dbg, ds, cu, offset,
 			    ret_die, error);
 			if (ret == DW_DLE_NO_ENTRY) {
 				DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
@@ -160,25 +185,50 @@ dwarf_offdie(Dwarf_Debug dbg, Dwarf_Off offset, Dwarf_Die *ret_die,
 	}
 
 	/* Search other CUs. */
-	ret = _dwarf_info_load(dbg, 1, error);
+	ret = _dwarf_info_load(dbg, 1, is_info, error);
 	if (ret != DW_DLE_NONE)
 		return (DW_DLV_ERROR);
 
-	STAILQ_FOREACH(cu, &dbg->dbg_cu, cu_next) {
-		if (offset < cu->cu_offset || offset > cu->cu_next_offset)
-			continue;
-		ret = _dwarf_search_die_within_cu(dbg, cu, offset,
-		    ret_die, error);
-		if (ret == DW_DLE_NO_ENTRY) {
-			DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
-			return (DW_DLV_NO_ENTRY);
-		} else if (ret != DW_DLE_NONE)
-			return (DW_DLV_ERROR);
-		return (DW_DLV_OK);
+	if (is_info) {
+		STAILQ_FOREACH(cu, &dbg->dbg_cu, cu_next) {
+			if (offset < cu->cu_offset ||
+			    offset > cu->cu_next_offset)
+				continue;
+			ret = _dwarf_search_die_within_cu(dbg, ds, cu, offset,
+			    ret_die, error);
+			if (ret == DW_DLE_NO_ENTRY) {
+				DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
+				return (DW_DLV_NO_ENTRY);
+			} else if (ret != DW_DLE_NONE)
+				return (DW_DLV_ERROR);
+			return (DW_DLV_OK);
+		}
+	} else {
+		STAILQ_FOREACH(cu, &dbg->dbg_tu, cu_next) {
+			if (offset < cu->cu_offset ||
+			    offset > cu->cu_next_offset)
+				continue;
+			ret = _dwarf_search_die_within_cu(dbg, ds, cu, offset,
+			    ret_die, error);
+			if (ret == DW_DLE_NO_ENTRY) {
+				DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
+				return (DW_DLV_NO_ENTRY);
+			} else if (ret != DW_DLE_NONE)
+				return (DW_DLV_ERROR);
+			return (DW_DLV_OK);
+		}
 	}
 
 	DWARF_SET_ERROR(dbg, error, DW_DLE_NO_ENTRY);
 	return (DW_DLV_NO_ENTRY);
+}
+
+int
+dwarf_offdie(Dwarf_Debug dbg, Dwarf_Off offset, Dwarf_Die *ret_die,
+    Dwarf_Error *error)
+{
+
+	return (dwarf_offdie_b(dbg, offset, 1, ret_die, error));
 }
 
 int
@@ -293,9 +343,9 @@ dwarf_die_abbrev_code(Dwarf_Die die)
 }
 
 int
-dwarf_get_cu_die_offset_given_cu_header_offset(Dwarf_Debug dbg,
-    Dwarf_Off in_cu_header_offset, Dwarf_Off *out_cu_die_offset,
-    Dwarf_Error *error)
+dwarf_get_cu_die_offset_given_cu_header_offset_b(Dwarf_Debug dbg,
+    Dwarf_Off in_cu_header_offset, Dwarf_Bool is_info,
+    Dwarf_Off *out_cu_die_offset, Dwarf_Error *error)
 {
 	Dwarf_CU cu;
 
@@ -304,10 +354,19 @@ dwarf_get_cu_die_offset_given_cu_header_offset(Dwarf_Debug dbg,
 		return (DW_DLV_ERROR);
 	}
 
-	STAILQ_FOREACH(cu, &dbg->dbg_cu, cu_next) {
-		if (cu->cu_offset == in_cu_header_offset) {
-			*out_cu_die_offset = cu->cu_1st_offset;
-			break;
+	if (is_info) {
+		STAILQ_FOREACH(cu, &dbg->dbg_cu, cu_next) {
+			if (cu->cu_offset == in_cu_header_offset) {
+				*out_cu_die_offset = cu->cu_1st_offset;
+				break;
+			}
+		}
+	} else {
+		STAILQ_FOREACH(cu, &dbg->dbg_tu, cu_next) {
+			if (cu->cu_offset == in_cu_header_offset) {
+				*out_cu_die_offset = cu->cu_1st_offset;
+				break;
+			}
 		}
 	}
 
@@ -317,6 +376,16 @@ dwarf_get_cu_die_offset_given_cu_header_offset(Dwarf_Debug dbg,
 	}
 
 	return (DW_DLV_OK);
+}
+
+int
+dwarf_get_cu_die_offset_given_cu_header_offset(Dwarf_Debug dbg,
+    Dwarf_Off in_cu_header_offset, Dwarf_Off *out_cu_die_offset,
+    Dwarf_Error *error)
+{
+
+	return (dwarf_get_cu_die_offset_given_cu_header_offset_b(dbg,
+	    in_cu_header_offset, 1, out_cu_die_offset, error));
 }
 
 int
@@ -332,4 +401,13 @@ dwarf_get_address_size(Dwarf_Debug dbg, Dwarf_Half *addr_size,
 	*addr_size = dbg->dbg_pointer_size;
 
 	return (DW_DLV_OK);
+}
+
+Dwarf_Bool
+dwarf_get_die_infotypes_flag(Dwarf_Die die)
+{
+
+	assert(die != NULL);
+
+	return (die->die_cu->cu_is_info);
 }
