@@ -7608,7 +7608,7 @@ key_destroy(void)
 	TAILQ_INIT(&drainq);
 	SPTREE_WLOCK();
 	for (i = 0; i < IPSEC_DIR_MAX; i++) {
-		TAILQ_CONCAT(&drainq, &V_sptree[dir], chain);
+		TAILQ_CONCAT(&drainq, &V_sptree[i], chain);
 	}
 	SPTREE_WUNLOCK();
 	sp = TAILQ_FIRST(&drainq);
