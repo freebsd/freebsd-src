@@ -1,4 +1,4 @@
-/*	$Id: term_ps.c,v 1.69 2014/11/20 13:56:20 schwarze Exp $ */
+/*	$Id: term_ps.c,v 1.70 2014/12/01 08:05:52 schwarze Exp $ */
 /*
  * Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -27,11 +27,10 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "mandoc.h"
 #include "mandoc_aux.h"
 #include "out.h"
-#include "main.h"
 #include "term.h"
+#include "main.h"
 
 /* These work the buffer used by the header and footer. */
 #define	PS_BUFSLOP	  128
