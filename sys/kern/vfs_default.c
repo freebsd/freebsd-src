@@ -407,9 +407,10 @@ vop_stdadvlock(struct vop_advlock_args *ap)
 	vp = ap->a_vp;
 	if (ap->a_fl->l_whence == SEEK_END) {
 		/*
-		 * The NFSv4 server will LOR/deadlock if a vn_lock() call
-		 * is done on vp. Fortunately, vattr.va_size is only
-		 * needed for SEEK_END and the NFSv4 server only uses SEEK_SET.
+		 * The NFSv4 server must avoid doing a vn_lock() here, since it
+		 * can deadlock the nfsd threads, due to a LOR.  Fortunately
+		 * the NFSv4 server always uses SEEK_SET and this code is
+		 * only required for the SEEK_END case.
 		 */
 		vn_lock(vp, LK_SHARED | LK_RETRY);
 		error = VOP_GETATTR(vp, &vattr, curthread->td_ucred);
