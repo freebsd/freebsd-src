@@ -1,4 +1,4 @@
-/*	$Id: read.c,v 1.101 2014/11/28 18:09:01 schwarze Exp $ */
+/*	$Id: read.c,v 1.104 2014/12/01 04:14:14 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010-2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -41,7 +41,6 @@
 #include "libmandoc.h"
 #include "mdoc.h"
 #include "man.h"
-#include "main.h"
 
 #define	REPARSE_LIMIT	1000
 
@@ -120,6 +119,7 @@ static	const char * const	mandocerrs[MANDOCERR_MAX] = {
 
 	/* related to macros and nesting */
 	"obsolete macro",
+	"macro neither callable nor escaped",
 	"skipping paragraph macro",
 	"moving paragraph macro out of list",
 	"skipping no-space macro",
@@ -145,6 +145,7 @@ static	const char * const	mandocerrs[MANDOCERR_MAX] = {
 	"empty list item",
 	"missing font type, using \\fR",
 	"unknown font type, using \\fR",
+	"nothing follows prefix",
 	"missing -std argument, adding it",
 	"missing eqn box, using \"\"",
 
@@ -754,12 +755,12 @@ mparse_parse_buffer(struct mparse *curp, struct buf blk, const char *file)
 }
 
 enum mandoclevel
-mparse_readmem(struct mparse *curp, const void *buf, size_t len,
+mparse_readmem(struct mparse *curp, void *buf, size_t len,
 		const char *file)
 {
 	struct buf blk;
 
-	blk.buf = UNCONST(buf);
+	blk.buf = buf;
 	blk.sz = len;
 
 	mparse_parse_buffer(curp, blk, file);
