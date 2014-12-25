@@ -39,6 +39,7 @@
 #ifndef _MACHINE_ASM_H_
 #define _MACHINE_ASM_H_
 #include <sys/cdefs.h>
+#include <machine/sysreg.h>
 
 #define	_C_LABEL(x)	x
 #define	_ASM_LABEL(x)	x
@@ -219,6 +220,20 @@
 # define RETeq	moveq	pc, lr
 # define RETne	movne	pc, lr
 # define RETc(c) mov##c	pc, lr
+#endif
+
+#if __ARM_ARCH >= 7
+#define ISB	isb
+#define DSB	dsb
+#define DMB	dmb
+#elif __ARM_ARCH == 6
+#define ISB	mcr CP15_CP15ISB
+#define DSB	mcr CP15_CP15DSB
+#define DMB	mcr CP15_CP15DMB
+#else
+#define ISB	mcr CP15_CP15ISB
+#define DSB	mcr CP15_CP15DSB	/* DSB and DMB are the */
+#define DMB	mcr CP15_CP15DSB	/* same prior to v6.*/
 #endif
 
 #endif /* !_MACHINE_ASM_H_ */
