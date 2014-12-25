@@ -81,10 +81,6 @@ SYSCTL_DECL(_net_inet6_ip6);
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_GIF_HLIM, gifhlim, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(ip6_gif_hlim), 0, "");
 
-int in6_gif_output(struct ifnet *, struct mbuf *, int, uint8_t);
-int in6_gif_encapcheck(const struct mbuf *, int, int, void *);
-int in6_gif_attach(struct gif_softc *);
-
 static int gif_validate6(const struct ip6_hdr *, struct gif_softc *,
 			 struct ifnet *);
 static int in6_gif_input(struct mbuf **, int *, int);
