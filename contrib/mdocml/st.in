@@ -1,4 +1,4 @@
-/*	$Id: st.in,v 1.26 2014/11/16 20:46:21 schwarze Exp $ */
+/*	$Id: st.in,v 1.27 2014/11/30 21:56:18 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -39,7 +39,6 @@ LINE("-p1003.1",	"IEEE Std 1003.1 (\\(lqPOSIX.1\\(rq)")
 LINE("-p1003.1b",	"IEEE Std 1003.1b (\\(lqPOSIX.1b\\(rq)")
 LINE("-p1003.1b-93",	"IEEE Std 1003.1b-1993 (\\(lqPOSIX.1b\\(rq)")
 LINE("-p1003.1c-95",	"IEEE Std 1003.1c-1995 (\\(lqPOSIX.1c\\(rq)")
-LINE("-p1003.1d-99",	"IEEE Std 1003.1d-1999 (\\(lqPOSIX.1d\\(rq)")
 LINE("-p1003.1g-2000",	"IEEE Std 1003.1g-2000 (\\(lqPOSIX.1g\\(rq)")
 LINE("-p1003.1i-95",	"IEEE Std 1003.1i-1995 (\\(lqPOSIX.1i\\(rq)")
 LINE("-p1003.2",	"IEEE Std 1003.2 (\\(lqPOSIX.2\\(rq)")
@@ -57,7 +56,6 @@ LINE("-iso9945-1-96",	"ISO/IEC 9945-1:1996 (\\(lqPOSIX.1\\(rq)")
 LINE("-iso9945-2-93",	"ISO/IEC 9945-2:1993 (\\(lqPOSIX.2\\(rq)")
 LINE("-ansiC",		"ANSI X3.159-1989 (\\(lqANSI\\~C89\\(rq)")
 LINE("-ansiC-89",	"ANSI X3.159-1989 (\\(lqANSI\\~C89\\(rq)")
-LINE("-ansiC-99",	"ANSI/ISO/IEC 9899-1999 (\\(lqANSI\\~C99\\(rq)")
 LINE("-ieee754",	"IEEE Std 754-1985")
 LINE("-iso8802-3",	"ISO 8802-3: 1989")
 LINE("-iso8601",	"ISO 8601")
@@ -65,7 +63,6 @@ LINE("-ieee1275-94",	"IEEE Std 1275-1994 (\\(lqOpen Firmware\\(rq)")
 LINE("-xpg3",		"X/Open Portability Guide Issue\\~3 (\\(lqXPG3\\(rq)")
 LINE("-xpg4",		"X/Open Portability Guide Issue\\~4 (\\(lqXPG4\\(rq)")
 LINE("-xpg4.2",		"X/Open Portability Guide Issue\\~4, Version\\~2 (\\(lqXPG4.2\\(rq)")
-LINE("-xpg4.3",		"X/Open Portability Guide Issue\\~4, Version\\~3 (\\(lqXPG4.3\\(rq)")
 LINE("-xbd5",		"X/Open Base Definitions Issue\\~5 (\\(lqXBD5\\(rq)")
 LINE("-xcu5",		"X/Open Commands and Utilities Issue\\~5 (\\(lqXCU5\\(rq)")
 LINE("-xsh4.2",		"X/Open System Interfaces and Headers Issue\\~4, Version\\~2 (\\(lqXSH4.2\\(rq)")

@@ -1,4 +1,4 @@
-/*	$Id: mansearch.h,v 1.21 2014/11/27 01:58:21 schwarze Exp $ */
+/*	$Id: mansearch.h,v 1.23 2014/12/01 08:05:52 schwarze Exp $ */
 /*
  * Copyright (c) 2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,8 +15,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifndef MANSEARCH_H
-#define MANSEARCH_H
 
 #define	MANDOC_DB	 "mandoc.db"
 
@@ -99,6 +97,8 @@ struct	mansearch {
 
 __BEGIN_DECLS
 
+struct	manpaths;
+
 int	mansearch_setup(int);
 int	mansearch(const struct mansearch *cfg, /* options */
 		const struct manpaths *paths, /* manpaths */
@@ -109,5 +109,3 @@ int	mansearch(const struct mansearch *cfg, /* options */
 void	mansearch_free(struct manpage *, size_t);
 
 __END_DECLS
-
-#endif /* MANSEARCH_H */

@@ -1,4 +1,4 @@
-# $Id: configure.local.example,v 1.1 2014/08/16 19:00:01 schwarze Exp $
+# $Id: configure.local.example,v 1.2 2014/12/09 09:14:33 schwarze Exp $
 #
 # Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
 #
@@ -58,7 +58,7 @@ HAVE_WCHAR=0
 # If you do not want uname(3) to be called but instead want a fixed
 # string to be used, use the following line:
 
-OSNAME="OpenBSD 5.5"
+OSNAME="OpenBSD 5.6"
 
 # The following installation directories are used.
 # It is possible to set only one or a few of these variables,
@@ -73,6 +73,19 @@ INCLUDEDIR="${PREFIX}/include/mandoc"
 LIBDIR="${PREFIX}/lib/mandoc"
 MANDIR="${PREFIX}/man"
 EXAMPLEDIR="${PREFIX}/share/examples/mandoc"
+
+# Some distributions may want to avoid naming conflicts among manuals.
+# If you want to change the names of installed section 7 manual pages,
+# the following alternative names are suggested.
+# The suffix ".7" will automatically be appended.
+# It is possible to set only one or a few of these variables,
+# there is no need to copy the whole block.
+
+MANM_MAN="mandoc_man"		# default is "man"
+MANM_MDOC="mandoc_mdoc"		# default is "mdoc"
+MANM_ROFF="mandoc_roff"		# default is "roff"
+MANM_EQN="mandoc_eqn"		# default is "eqn"
+MANM_TBL="mandoc_tbl"		# default is "tbl"
 
 # It is possible to change the utility program used for installation
 # and the modes files are installed with.  The defaults are:
@@ -124,6 +137,21 @@ HAVE_MANPATH=1
 # makewhatis(8) and apropos(1) will not work properly.
 
 HAVE_MANPATH=0
+
+# Some distributions may want to avoid naming conflicts
+# with groff, man-db, or other tools.
+# If you want to change the names of binary programs,
+# the following alternative names are suggested.
+# Using other names is possible as well.
+# This changes the names of the installed section 1 and section 8
+# manual pages as well.
+# It is possible to set only one or a few of these variables,
+# there is no need to copy the whole block.
+
+BINM_APROPOS=mapropos		# default is "apropos"
+BINM_MAN=mman			# default is "man"
+BINM_WHATIS=mwhatis		# default is "whatis"
+BINM_MAKEWHATIS=mandocdb	# default is "makewhatis"
 
 # --- user settings related man.cgi ------------------------------------
 

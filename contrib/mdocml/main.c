@@ -1,4 +1,4 @@
-/*	$Id: main.c,v 1.200 2014/11/26 21:40:17 schwarze Exp $ */
+/*	$Id: main.c,v 1.205 2014/12/11 19:19:35 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2012 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2010, 2011, 2012, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -83,12 +83,17 @@ struct	curparse {
 };
 
 static	int		  koptions(int *, char *);
+#if HAVE_SQLITE3
+int			  mandocdb(int, char**);
+#endif
 static	int		  moptions(int *, char *);
 static	void		  mmsg(enum mandocerr, enum mandoclevel,
 				const char *, int, int, const char *);
 static	void		  parse(struct curparse *, int,
 				const char *, enum mandoclevel *);
+#if HAVE_SQLITE3
 static	enum mandoclevel  passthrough(const char *, int, int);
+#endif
 static	void		  spawn_pager(void);
 static	int		  toptions(struct curparse *, char *);
 static	void		  usage(enum argmode) __attribute__((noreturn));
@@ -96,6 +101,8 @@ static	void		  version(void) __attribute__((noreturn));
 static	int		  woptions(struct curparse *, char *);
 
 static	const int sec_prios[] = {1, 4, 5, 8, 6, 3, 7, 2, 9};
+static	char		  help_arg[] = "help";
+static	char		 *help_argv[] = {help_arg, NULL};
 static	const char	 *progname;
 
 
@@ -105,12 +112,13 @@ main(int argc, char *argv[])
 	struct curparse	 curp;
 	struct mansearch search;
 	struct manpaths	 paths;
-	char		*conf_file, *defpaths, *auxpaths;
+	char		*auxpaths;
 	char		*defos;
 #if HAVE_SQLITE3
 	struct manpage	*res, *resp;
+	char		*conf_file, *defpaths;
 	size_t		 isec, i, sz;
-	int		 prio, best_prio;
+	int		 prio, best_prio, synopsis_only;
 	char		 sec;
 #endif
 	enum mandoclevel rc;
@@ -118,7 +126,6 @@ main(int argc, char *argv[])
 	int		 fd;
 	int		 show_usage;
 	int		 use_pager;
-	int		 synopsis_only;
 	int		 options;
 	int		 c;
 
@@ -128,34 +135,46 @@ main(int argc, char *argv[])
 	else
 		++progname;
 
+#if HAVE_SQLITE3
+	if (strcmp(progname, BINM_MAKEWHATIS) == 0)
+		return(mandocdb(argc, argv));
+#endif
+
 	/* Search options. */
 
 	memset(&paths, 0, sizeof(struct manpaths));
-	conf_file = defpaths = auxpaths = NULL;
+#if HAVE_SQLITE3
+	conf_file = defpaths = NULL;
+#endif
+	auxpaths = NULL;
 
 	memset(&search, 0, sizeof(struct mansearch));
 	search.outkey = "Nd";
 
-	if (strcmp(progname, "man") == 0)
+	if (strcmp(progname, BINM_MAN) == 0)
 		search.argmode = ARG_NAME;
-	else if (strncmp(progname, "apropos", 7) == 0)
+	else if (strcmp(progname, BINM_APROPOS) == 0)
 		search.argmode = ARG_EXPR;
-	else if (strncmp(progname, "whatis", 6) == 0)
+	else if (strcmp(progname, BINM_WHATIS) == 0)
 		search.argmode = ARG_WORD;
+	else if (strncmp(progname, "help", 4) == 0)
+		search.argmode = ARG_NAME;
 	else
 		search.argmode = ARG_FILE;
 
 	/* Parser and formatter options. */
 
 	memset(&curp, 0, sizeof(struct curparse));
-	curp.outtype = OUTT_ASCII;
+	curp.outtype = OUTT_LOCALE;
 	curp.wlevel  = MANDOCLEVEL_FATAL;
 	options = MPARSE_SO | MPARSE_UTF8 | MPARSE_LATIN1;
 	defos = NULL;
 
 	use_pager = 1;
 	show_usage = 0;
+#if HAVE_SQLITE3
 	synopsis_only = 0;
+#endif
 	outmode = OUTMODE_DEF;
 
 	while (-1 != (c = getopt(argc, argv,
@@ -165,7 +184,9 @@ main(int argc, char *argv[])
 			outmode = OUTMODE_ALL;
 			break;
 		case 'C':
+#if HAVE_SQLITE3
 			conf_file = optarg;
+#endif
 			break;
 		case 'c':
 			use_pager = 0;
@@ -175,7 +196,9 @@ main(int argc, char *argv[])
 			break;
 		case 'h':
 			(void)strlcat(curp.outopts, "synopsis,", BUFSIZ);
+#if HAVE_SQLITE3
 			synopsis_only = 1;
+#endif
 			use_pager = 0;
 			outmode = OUTMODE_ALL;
 			break;
@@ -209,7 +232,9 @@ main(int argc, char *argv[])
 			outmode = OUTMODE_ALL;
 			break;
 		case 'M':
+#if HAVE_SQLITE3
 			defpaths = optarg;
+#endif
 			break;
 		case 'm':
 			auxpaths = optarg;
@@ -273,15 +298,24 @@ main(int argc, char *argv[])
 	resp = NULL;
 #endif
 
-	/* Quirk for a man(1) section argument without -s. */
+	/*
+	 * Quirks for help(1)
+	 * and for a man(1) section argument without -s.
+	 */
 
-	if (search.argmode == ARG_NAME &&
-	    argv[0] != NULL &&
-	    isdigit((unsigned char)argv[0][0]) &&
-	    (argv[0][1] == '\0' || !strcmp(argv[0], "3p"))) {
-		search.sec = argv[0];
-		argv++;
-		argc--;
+	if (search.argmode == ARG_NAME) {
+		if (*progname == 'h') {
+			if (argc == 0) {
+				argv = help_argv;
+				argc = 1;
+			}
+		} else if (argv[0] != NULL &&
+		    isdigit((unsigned char)argv[0][0]) &&
+		    (argv[0][1] == '\0' || !strcmp(argv[0], "3p"))) {
+			search.sec = argv[0];
+			argv++;
+			argc--;
+		}
 	}
 
 	rc = MANDOCLEVEL_OK;
@@ -583,6 +617,7 @@ parse(struct curparse *curp, int fd, const char *file,
 		*level = rc;
 }
 
+#if HAVE_SQLITE3
 static enum mandoclevel
 passthrough(const char *file, int fd, int synopsis_only)
 {
@@ -646,6 +681,7 @@ fail:
 	    progname, file, syscall, strerror(errno));
 	return(MANDOCLEVEL_SYSERR);
 }
+#endif
 
 static int
 koptions(int *options, char *arg)
