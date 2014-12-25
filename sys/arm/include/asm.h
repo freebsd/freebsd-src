@@ -75,6 +75,7 @@
 
 /*
  * EENTRY()/EEND() mark "extra" entry/exit points from a function.
+ * LEENTRY()/LEEND() are the the same for local symbols.
  * The unwind info cannot handle the concept of a nested function, or a function
  * with multiple .fnstart directives, but some of our assembler code is written
  * with multiple labels to allow entry at several points.  The EENTRY() macro
@@ -84,11 +85,15 @@
  */
 #define	GLOBAL(x)	.global x
 
-#define	_EENTRY(x) 	GLOBAL(x); .type x,_ASM_TYPE_FUNCTION; x:
-#define	_EEND(x)	/* nothing */
+#define	_LEENTRY(x) 	.type x,_ASM_TYPE_FUNCTION; x:
+#define	_LEEND(x)	/* nothing */
+#define	_EENTRY(x) 	GLOBAL(x); _LEENTRY(x)
+#define	_EEND(x)	_LEEND(x)
 
-#define	_ENTRY(x)	.text; _ALIGN_TEXT; _EENTRY(x) _FNSTART
-#define	_END(x)		.size x, . - x; _FNEND
+#define	_LENTRY(x)	.text; _ALIGN_TEXT; _LEENTRY(x); _FNSTART
+#define	_LEND(x)	.size x, . - x; _FNEND
+#define	_ENTRY(x)	.text; _ALIGN_TEXT; _EENTRY(x); _FNSTART
+#define	_END(x)		_LEND(x)
 
 #define	ENTRY(y)	_ENTRY(_C_LABEL(y)); _PROF_PROLOGUE
 #define	EENTRY(y)	_EENTRY(_C_LABEL(y));
@@ -97,11 +102,17 @@
 #define	END(y)		_END(_C_LABEL(y))
 #define	EEND(y)		_EEND(_C_LABEL(y))
 #define	ASENTRY(y)	_ENTRY(_ASM_LABEL(y)); _PROF_PROLOGUE
+#define	ASLENTRY(y)	_LENTRY(_ASM_LABEL(y)); _PROF_PROLOGUE
 #define	ASEENTRY(y)	_EENTRY(_ASM_LABEL(y));
+#define	ASLEENTRY(y)	_LEENTRY(_ASM_LABEL(y));
 #define	ASENTRY_NP(y)	_ENTRY(_ASM_LABEL(y))
+#define	ASLENTRY_NP(y)	_LENTRY(_ASM_LABEL(y))
 #define	ASEENTRY_NP(y)	_EENTRY(_ASM_LABEL(y))
+#define	ASLEENTRY_NP(y)	_LEENTRY(_ASM_LABEL(y))
 #define	ASEND(y)	_END(_ASM_LABEL(y))
+#define	ASLEND(y)	_LEND(_ASM_LABEL(y))
 #define	ASEEND(y)	_EEND(_ASM_LABEL(y))
+#define	ASLEEND(y)	_LEEND(_ASM_LABEL(y))
 
 #define	ASMSTR		.asciz
 
