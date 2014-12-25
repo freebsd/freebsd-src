@@ -312,7 +312,7 @@ man_display_page() {
 	fi
 
 	testline="mandoc -Tlint -Werror 2>/dev/null"
-	pipeline="mandoc -Tlocale | $MANPAGER"
+	pipeline="mandoc | $MANPAGER"
 
 	if ! eval "$cattool $manpage | $testline" ;then
 		if which -s groff; then
