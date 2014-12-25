@@ -156,7 +156,6 @@ MAN=	aac.4 \
 	geom_uncompress.4 \
 	geom_uzip.4 \
 	gif.4 \
-	gpib.4 \
 	gpio.4 \
 	gpioiic.4 \
 	gpioled.4 \
@@ -372,7 +371,6 @@ MAN=	aac.4 \
 	pci.4 \
 	pcib.4 \
 	pcic.4 \
-	pcii.4 \
 	pcm.4 \
 	pcn.4 \
 	${_pf.4} \
@@ -495,7 +493,6 @@ MAN=	aac.4 \
 	ti.4 \
 	timecounters.4 \
 	tl.4 \
-	tnt4882.4 \
 	${_tpm.4} \
 	trm.4 \
 	tty.4 \
