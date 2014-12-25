@@ -82,10 +82,11 @@
  * basically just a label that you can jump to.  The EEND() macro does nothing
  * at all, except document the exit point associated with the same-named entry.
  */
-#define	_EENTRY(x) 	.globl x; .type x,_ASM_TYPE_FUNCTION; x:
+#define	GLOBAL(x)	.global x
+
+#define	_EENTRY(x) 	GLOBAL(x); .type x,_ASM_TYPE_FUNCTION; x:
 #define	_EEND(x)	/* nothing */
 
-#define	GLOBAL(X)	.globl x
 #define	_ENTRY(x)	.text; _ALIGN_TEXT; _EENTRY(x) _FNSTART
 #define	_END(x)		.size x, . - x; _FNEND
 
