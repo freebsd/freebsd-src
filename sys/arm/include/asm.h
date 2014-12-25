@@ -90,17 +90,17 @@
 #endif
 
 #define	ENTRY(y)	_ENTRY(_C_LABEL(y)); _PROF_PROLOGUE
-#define	EENTRY(y)	_EENTRY(_C_LABEL(y)); _PROF_PROLOGUE
+#define	EENTRY(y)	_EENTRY(_C_LABEL(y));
 #define	ENTRY_NP(y)	_ENTRY(_C_LABEL(y))
 #define	EENTRY_NP(y)	_EENTRY(_C_LABEL(y))
 #define	END(y)		_END(_C_LABEL(y))
-#define	EEND(y)
+#define	EEND(y)		_EEND(_C_LABEL(y))
 #define	ASENTRY(y)	_ENTRY(_ASM_LABEL(y)); _PROF_PROLOGUE
-#define	ASEENTRY(y)	_EENTRY(_ASM_LABEL(y)); _PROF_PROLOGUE
+#define	ASEENTRY(y)	_EENTRY(_ASM_LABEL(y));
 #define	ASENTRY_NP(y)	_ENTRY(_ASM_LABEL(y))
 #define	ASEENTRY_NP(y)	_EENTRY(_ASM_LABEL(y))
 #define	ASEND(y)	_END(_ASM_LABEL(y))
-#define	ASEEND(y)
+#define	ASEEND(y)	_EEND(_ASM_LABEL(y))
 
 #define	ASMSTR		.asciz
 
