@@ -58,6 +58,22 @@
 #endif
 
 /*
+ * gas/arm uses @ as a single comment character and thus cannot be used here.
+ * It recognises the # instead of an @ symbol in .type directives.
+ */
+#define	_ASM_TYPE_FUNCTION	#function
+#define	_ASM_TYPE_OBJECT	#object
+
+/* XXX Is this still the right prologue for profiling? */
+#ifdef GPROF
+#define	_PROF_PROLOGUE	\
+	mov ip, lr;	\
+	bl __mcount
+#else
+#define	_PROF_PROLOGUE
+#endif
+
+/*
  * EENTRY()/EEND() mark "extra" entry/exit points from a function.
  * The unwind info cannot handle the concept of a nested function, or a function
  * with multiple .fnstart directives, but some of our assembler code is written
@@ -69,25 +85,9 @@
 #define	_EENTRY(x) 	.globl x; .type x,_ASM_TYPE_FUNCTION; x:
 #define	_EEND(x)	/* nothing */
 
-/*
- * gas/arm uses @ as a single comment character and thus cannot be used here
- * Instead it recognised the # instead of an @ symbols in .type directives
- * We define a couple of macros so that assembly code will not be dependent
- * on one or the other.
- */
-#define _ASM_TYPE_FUNCTION	#function
-#define _ASM_TYPE_OBJECT	#object
-#define GLOBAL(X) .globl x
-#define	_ENTRY(x) \
-	.text; _ALIGN_TEXT; _EENTRY(x) _FNSTART
-#define	_END(x)	.size x, . - x; _FNEND
-
-#ifdef GPROF
-#  define _PROF_PROLOGUE	\
-	mov ip, lr; bl __mcount
-#else
-# define _PROF_PROLOGUE
-#endif
+#define	GLOBAL(X)	.globl x
+#define	_ENTRY(x)	.text; _ALIGN_TEXT; _EENTRY(x) _FNSTART
+#define	_END(x)		.size x, . - x; _FNEND
 
 #define	ENTRY(y)	_ENTRY(_C_LABEL(y)); _PROF_PROLOGUE
 #define	EENTRY(y)	_EENTRY(_C_LABEL(y));
