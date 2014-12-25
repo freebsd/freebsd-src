@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.448 2014/11/28 18:57:31 schwarze Exp $
+# $Id: Makefile,v 1.453 2014/12/09 09:14:33 schwarze Exp $
 #
 # Copyright (c) 2010, 2011, 2012 Kristaps Dzonsons <kristaps@bsd.lv>
 # Copyright (c) 2011, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,9 +15,7 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-BASEBIN		 = mandoc demandoc
-DBBIN		 = makewhatis
-CGIBIN		 = man.cgi
+# === LIST OF FILES ====================================================
 
 TESTSRCS	 = test-dirent-namlen.c \
 		   test-fgetln.c \
@@ -131,6 +129,7 @@ DISTFILES	 = INSTALL \
 		   mandoc_aux.h \
 		   mandoc_char.7 \
 		   mandoc_escape.3 \
+		   mandoc_headers.3 \
 		   mandoc_html.3 \
 		   mandoc_malloc.3 \
 		   manpath.h \
@@ -208,18 +207,19 @@ MANDOC_TERM_OBJS = eqn_term.o \
 		   term_ps.o \
 		   tbl_term.o
 
-MANDOC_OBJS	 = $(MANDOC_HTML_OBJS) \
+BASE_OBJS	 = $(MANDOC_HTML_OBJS) \
 		   $(MANDOC_MAN_OBJS) \
 		   $(MANDOC_TERM_OBJS) \
 		   main.o \
 		   out.o \
 		   tree.o
 
-MAN_OBJS	 = $(MANDOC_OBJS)
+MAIN_OBJS	 = $(BASE_OBJS)
 
-MAKEWHATIS_OBJS	 = mandocdb.o mansearch_const.o manpath.o
-
-APROPOS_OBJS	 = mansearch.o mansearch_const.o manpath.o
+DB_OBJS		 = mandocdb.o \
+		   mansearch.o \
+		   mansearch_const.o \
+		   manpath.o
 
 CGI_OBJS	 = $(MANDOC_HTML_OBJS) \
 		   cgi.o \
@@ -237,6 +237,7 @@ WWW_MANS	 = apropos.1.html \
 		   mandoc.1.html \
 		   mandoc.3.html \
 		   mandoc_escape.3.html \
+		   mandoc_headers.3.html \
 		   mandoc_html.3.html \
 		   mandoc_malloc.3.html \
 		   mansearch.3.html \
@@ -261,25 +262,26 @@ WWW_MANS	 = apropos.1.html \
 WWW_OBJS	 = mdocml.tar.gz \
 		   mdocml.sha256
 
-include Makefile.local
+# === USER CONFIGURATION ===============================================
 
-INSTALL_TARGETS	 = $(BUILD_TARGETS:-build=-install)
+include Makefile.local
 
 # === DEPENDENCY HANDLING ==============================================
 
 all: base-build $(BUILD_TARGETS) Makefile.local
 
-base-build: $(BASEBIN)
+base-build: mandoc demandoc
 
-db-build: $(DBBIN)
-
-cgi-build: $(CGIBIN)
+cgi-build: man.cgi
 
 install: base-install $(INSTALL_TARGETS)
 
 www: $(WWW_OBJS) $(WWW_MANS)
 
 $(WWW_MANS): mandoc
+
+.PHONY: base-install cgi-install db-install install www-install
+.PHONY: clean distclean depend
 
 include Makefile.depend
 
@@ -290,8 +292,7 @@ distclean: clean
 
 clean:
 	rm -f libmandoc.a $(LIBMANDOC_OBJS) $(COMPAT_OBJS)
-	rm -f mandoc $(MANDOC_OBJS) $(APROPOS_OBJS)
-	rm -f makewhatis $(MAKEWHATIS_OBJS)
+	rm -f mandoc $(BASE_OBJS) $(DB_OBJS)
 	rm -f man.cgi $(CGI_OBJS)
 	rm -f manpage $(MANPAGE_OBJS)
 	rm -f demandoc $(DEMANDOC_OBJS)
@@ -306,34 +307,41 @@ base-install: base-build
 	mkdir -p $(DESTDIR)$(MANDIR)/man1
 	mkdir -p $(DESTDIR)$(MANDIR)/man3
 	mkdir -p $(DESTDIR)$(MANDIR)/man7
-	$(INSTALL_PROGRAM) $(BASEBIN) $(DESTDIR)$(BINDIR)
+	$(INSTALL_PROGRAM) mandoc demandoc $(DESTDIR)$(BINDIR)
 	$(INSTALL_LIB) libmandoc.a $(DESTDIR)$(LIBDIR)
 	$(INSTALL_LIB) man.h mandoc.h mandoc_aux.h mdoc.h \
 		$(DESTDIR)$(INCLUDEDIR)
-	$(INSTALL_MAN) man.1 mandoc.1 demandoc.1 \
-		$(DESTDIR)$(MANDIR)/man1
+	$(INSTALL_MAN) mandoc.1 demandoc.1 $(DESTDIR)$(MANDIR)/man1
 	$(INSTALL_MAN) mandoc.3 mandoc_escape.3 mandoc_malloc.3 \
 		mchars_alloc.3 tbl.3 $(DESTDIR)$(MANDIR)/man3
-	$(INSTALL_MAN) man.7 mdoc.7 roff.7 eqn.7 tbl.7 mandoc_char.7 \
-		$(DESTDIR)$(MANDIR)/man7
+	$(INSTALL_MAN) man.7 $(DESTDIR)$(MANDIR)/man7/${MANM_MAN}.7
+	$(INSTALL_MAN) mdoc.7 $(DESTDIR)$(MANDIR)/man7/${MANM_MDOC}.7
+	$(INSTALL_MAN) roff.7 $(DESTDIR)$(MANDIR)/man7/${MANM_ROFF}.7
+	$(INSTALL_MAN) eqn.7 $(DESTDIR)$(MANDIR)/man7/${MANM_EQN}.7
+	$(INSTALL_MAN) tbl.7 $(DESTDIR)$(MANDIR)/man7/${MANM_TBL}.7
+	$(INSTALL_MAN) mandoc_char.7 $(DESTDIR)$(MANDIR)/man7
 	$(INSTALL_DATA) example.style.css $(DESTDIR)$(EXAMPLEDIR)
 
-db-install: db-build
+db-install: base-build
 	mkdir -p $(DESTDIR)$(BINDIR)
 	mkdir -p $(DESTDIR)$(SBINDIR)
 	mkdir -p $(DESTDIR)$(MANDIR)/man1
 	mkdir -p $(DESTDIR)$(MANDIR)/man3
 	mkdir -p $(DESTDIR)$(MANDIR)/man5
 	mkdir -p $(DESTDIR)$(MANDIR)/man8
-	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/apropos
-	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/whatis
-	$(INSTALL_PROGRAM) makewhatis $(DESTDIR)$(SBINDIR)
-	$(INSTALL_MAN) apropos.1 $(DESTDIR)$(MANDIR)/man1
-	ln -f $(DESTDIR)$(MANDIR)/man1/apropos.1 \
-		$(DESTDIR)$(MANDIR)/man1/whatis.1
+	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_APROPOS)
+	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_MAN)
+	ln -f $(DESTDIR)$(BINDIR)/mandoc $(DESTDIR)$(BINDIR)/$(BINM_WHATIS)
+	ln -f $(DESTDIR)$(BINDIR)/mandoc \
+		$(DESTDIR)$(SBINDIR)/$(BINM_MAKEWHATIS)
+	$(INSTALL_MAN) apropos.1 $(DESTDIR)$(MANDIR)/man1/$(BINM_APROPOS).1
+	$(INSTALL_MAN) man.1 $(DESTDIR)$(MANDIR)/man1/$(BINM_MAN).1
+	ln -f $(DESTDIR)$(MANDIR)/man1/$(BINM_APROPOS).1 \
+		$(DESTDIR)$(MANDIR)/man1/$(BINM_WHATIS).1
 	$(INSTALL_MAN) mansearch.3 $(DESTDIR)$(MANDIR)/man3
 	$(INSTALL_MAN) mandoc.db.5 $(DESTDIR)$(MANDIR)/man5
-	$(INSTALL_MAN) makewhatis.8 $(DESTDIR)$(MANDIR)/man8
+	$(INSTALL_MAN) makewhatis.8 \
+		$(DESTDIR)$(MANDIR)/man8/$(BINM_MAKEWHATIS).8
 
 cgi-install: cgi-build
 	mkdir -p $(DESTDIR)$(CGIBINDIR)
@@ -346,34 +354,15 @@ cgi-install: cgi-build
 	$(INSTALL_MAN) apropos.1 $(DESTDIR)$(WWWPREFIX)/man/mandoc/man1/
 	$(INSTALL_MAN) man.cgi.8 $(DESTDIR)$(WWWPREFIX)/man/mandoc/man8/
 
-www-install: www
-	mkdir -p $(DESTDIR)$(HTDOCDIR)/snapshots
-	$(INSTALL_DATA) $(WWW_MANS) style.css $(DESTDIR)$(HTDOCDIR)
-	$(INSTALL_DATA) $(WWW_OBJS) $(DESTDIR)$(HTDOCDIR)/snapshots
-	$(INSTALL_DATA) mdocml.tar.gz \
-		$(DESTDIR)$(HTDOCDIR)/snapshots/mdocml-$(VERSION).tar.gz
-	$(INSTALL_DATA) mdocml.sha256 \
-		$(DESTDIR)$(HTDOCDIR)/snapshots/mdocml-$(VERSION).sha256
-
 Makefile.local config.h: configure ${TESTSRCS}
 	@echo "$@ is out of date; please run ./configure"
 	@exit 1
 
-depend: config.h
-	mkdep -f Makefile.depend $(CFLAGS) $(SRCS)
-	perl -e 'undef $$/; $$_ = <>; s|/usr/include/\S+||g; \
-		s|\\\n||g; s|  +| |g; s| $$||mg; print;' \
-		Makefile.depend > Makefile.tmp
-	mv Makefile.tmp Makefile.depend
-
 libmandoc.a: $(COMPAT_OBJS) $(LIBMANDOC_OBJS)
 	$(AR) rs $@ $(COMPAT_OBJS) $(LIBMANDOC_OBJS)
 
-mandoc: $(MAN_OBJS) libmandoc.a
-	$(CC) $(LDFLAGS) -o $@ $(MAN_OBJS) libmandoc.a $(DBLIB)
-
-makewhatis: $(MAKEWHATIS_OBJS) libmandoc.a
-	$(CC) $(LDFLAGS) -o $@ $(MAKEWHATIS_OBJS) libmandoc.a $(DBLIB)
+mandoc: $(MAIN_OBJS) libmandoc.a
+	$(CC) $(LDFLAGS) -o $@ $(MAIN_OBJS) libmandoc.a $(DBLIB)
 
 manpage: $(MANPAGE_OBJS) libmandoc.a
 	$(CC) $(LDFLAGS) -o $@ $(MANPAGE_OBJS) libmandoc.a $(DBLIB)
@@ -383,6 +372,24 @@ man.cgi: $(CGI_OBJS) libmandoc.a
 
 demandoc: $(DEMANDOC_OBJS) libmandoc.a
 	$(CC) $(LDFLAGS) -o $@ $(DEMANDOC_OBJS) libmandoc.a
+
+# --- maintainer targets ---
+
+www-install: www
+	mkdir -p $(HTDOCDIR)/snapshots
+	$(INSTALL_DATA) $(WWW_MANS) style.css $(HTDOCDIR)/man
+	$(INSTALL_DATA) $(WWW_OBJS) $(HTDOCDIR)/snapshots
+	$(INSTALL_DATA) mdocml.tar.gz \
+		$(HTDOCDIR)/snapshots/mdocml-$(VERSION).tar.gz
+	$(INSTALL_DATA) mdocml.sha256 \
+		$(HTDOCDIR)/snapshots/mdocml-$(VERSION).sha256
+
+depend: config.h
+	mkdep -f Makefile.depend $(CFLAGS) $(SRCS)
+	perl -e 'undef $$/; $$_ = <>; s|/usr/include/\S+||g; \
+		s|\\\n||g; s|  +| |g; s| $$||mg; print;' \
+		Makefile.depend > Makefile.tmp
+	mv Makefile.tmp Makefile.depend
 
 mdocml.sha256: mdocml.tar.gz
 	sha256 mdocml.tar.gz > $@
@@ -394,8 +401,8 @@ mdocml.tar.gz: $(DISTFILES)
 	( cd .dist/ && tar zcf ../$@ mdocml-$(VERSION) )
 	rm -rf .dist/
 
-.PHONY: 	 base-install cgi-install db-install install www-install
-.PHONY: 	 clean distclean depend
+# === SUFFIX RULES =====================================================
+
 .SUFFIXES:	 .1       .3       .5       .7       .8       .h
 .SUFFIXES:	 .1.html  .3.html  .5.html  .7.html  .8.html  .h.html
 
