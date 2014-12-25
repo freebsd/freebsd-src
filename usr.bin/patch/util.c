@@ -202,6 +202,22 @@ savestr(const char *s)
 }
 
 /*
+ * Allocate a unique area for a string.  Call fatal if out of memory.
+ */
+char *
+xstrdup(const char *s)
+{
+	char	*rv;
+
+	if (!s)
+		s = "Oops";
+	rv = strdup(s);
+	if (rv == NULL)
+		fatal("out of memory\n");
+	return rv;
+}
+
+/*
  * Vanilla terminal output (buffered).
  */
 void
