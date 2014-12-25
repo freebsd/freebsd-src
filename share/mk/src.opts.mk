@@ -85,7 +85,6 @@ __DEFAULT_YES_OPTIONS = \
     GDB \
     GNU \
     GNU_GREP_COMPAT \
-    GPIB \
     GPIO \
     GPL_DTC \
     GROFF \
