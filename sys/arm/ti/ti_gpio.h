@@ -46,6 +46,11 @@
  */
 struct ti_gpio_softc {
 	device_t		sc_dev;
+
+	/* Interrupt trigger type and level. */
+	enum intr_trigger	*sc_irq_trigger;
+	enum intr_polarity	*sc_irq_polarity;
+
 	int			sc_maxpin;
 	struct mtx		sc_mtx;
 
@@ -56,6 +61,9 @@ struct ti_gpio_softc {
 	 */
 	struct resource		*sc_mem_res[MAX_GPIO_BANKS];
 	struct resource		*sc_irq_res[MAX_GPIO_INTRS];
+
+	/* Interrupt events. */
+	struct intr_event	**sc_events;
 
 	/* The handle for the register IRQ handlers. */
 	void			*sc_irq_hdl[MAX_GPIO_INTRS];
