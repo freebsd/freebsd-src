@@ -260,7 +260,7 @@ __FBSDID("$FreeBSD$");
 	bl	_C_LABEL(ast);		/* ast(frame) */		   \
 	orr	r0, r4, #(PSR_I|PSR_F);					   \
 	msr	cpsr_c, r0;						   \
-	b	1b							   \
+	b	1b;							   \
 2:
 
 
