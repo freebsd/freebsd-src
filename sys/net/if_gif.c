@@ -118,16 +118,6 @@ void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
 void	(*ng_gif_attach_p)(struct ifnet *ifp);
 void	(*ng_gif_detach_p)(struct ifnet *ifp);
 
-#ifdef INET
-extern int in_gif_output(struct ifnet *, struct mbuf *, int, uint8_t);
-extern int in_gif_encapcheck(const struct mbuf *, int, int, void *);
-extern int in_gif_attach(struct gif_softc *);
-#endif
-#ifdef INET6
-extern int in6_gif_output(struct ifnet *, struct mbuf *, int, uint8_t);
-extern int in6_gif_encapcheck(const struct mbuf *, int, int, void *);
-extern int in6_gif_attach(struct gif_softc *);
-#endif
 static int	gif_set_tunnel(struct ifnet *, struct sockaddr *,
     struct sockaddr *);
 static void	gif_delete_tunnel(struct ifnet *);
