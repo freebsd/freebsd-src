@@ -39,8 +39,7 @@
 # done
 
 # 20141224: libxo moved to /lib
-OLD_FILES+=usr/lib/libxo.a
-OLD_FILES+=usr/lib/libxo_p.a
+OLD_LIBS+=usr/lib/libxo.so.0
 # 20141223: remove in6_gif.h, in_gif.h and if_stf.h
 OLD_FILES+=usr/include/net/if_stf.h
 OLD_FILES+=usr/include/netinet/in_gif.h
