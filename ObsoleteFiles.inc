@@ -38,6 +38,29 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20141226: Remove gpib/ieee488
+OLD_FILES+=usr/include/dev/ieee488/ibfoo_int.h
+OLD_FILES+=usr/include/dev/ieee488/tnt4882.h
+OLD_FILES+=usr/include/dev/ieee488/ugpib.h
+OLD_FILES+=usr/include/dev/ieee488/upd7210.h
+OLD_DIRS+=usr/include/dev/ieee488
+OLD_FILES+=usr/include/gpib/gpib.h
+OLD_DIRS+=usr/include/gpib
+OLD_FILES+=usr/lib/libgpib.a
+OLD_FILES+=usr/lib/libgpib_p.a
+OLD_FILES+=usr/lib/libgpib.so
+OLD_LIBS+=usr/lib/libgpib.so.3
+OLD_FILES+=usr/lib/libgpib_p.a
+OLD_FILES+=share/man/man4/pcii.4.gz
+OLD_FILES+=share/man/man4/gpib.4.gz
+OLD_FILES+=share/man/man4/tnt4882.4.gz
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libgpib.a
+OLD_FILES+=usr/lib32/libgpib_p.a
+OLD_FILES+=usr/lib32/libgpib.so
+OLD_LIBS+=usr/lib32/libgpib.so.3
+.endif
+
 # 20141224: libxo moved to /lib
 OLD_LIBS+=usr/lib/libxo.so.0
 # 20141223: remove in6_gif.h, in_gif.h and if_stf.h
