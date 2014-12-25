@@ -320,7 +320,8 @@ ASENTRY_NP(prefetch_abort_entry)
 	PUSHFRAMEINSVC			/* mode stack, build trapframe there. */
 	adr	lr, exception_exit	/* Return from handler via standard */
 	mov	r0, sp			/* exception exit routine.  Pass the */
-	b	prefetch_abort_handler	/* trapframe to the handler. */
+	mov	r1, #1			/* Type flag */
+	b	_C_LABEL(abort_handler)
 END(prefetch_abort_entry)
 
 /*
@@ -337,9 +338,10 @@ ASENTRY_NP(data_abort_entry)
 #endif
 	sub	lr, lr, #8		/* Adjust the lr. Transition to scv32 */
 	PUSHFRAMEINSVC			/* mode stack, build trapframe there. */
-	adr	lr, exception_exit	/* Return from handler via standard */
-	mov	r0, sp			/* exception exit routine.  Pass the */
-	b	data_abort_handler	/* trapframe to the handler. */
+	adr	lr, exception_exit	/* Exception exit routine */
+	mov	r0, sp			/* Trapframe to the handler */
+	mov	r1, #0			/* Type flag */
+	b	_C_LABEL(abort_handler)
 END(data_abort_entry)
 
 /*
