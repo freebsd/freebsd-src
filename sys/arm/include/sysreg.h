@@ -99,11 +99,12 @@
 #if __ARM_ARCH >= 6
 /* From ARMv6: */
 #define	CP15_IFSR(rr)		p15, 0, rr, c5, c0,  1 /* Instruction Fault Status Register */
+#endif
+#if __ARM_ARCH >= 7
 /* From ARMv7: */
 #define	CP15_ADFSR(rr)		p15, 0, rr, c5, c1,  0 /* Auxiliary Data Fault Status Register */
 #define	CP15_AIFSR(rr)		p15, 0, rr, c5, c1,  1 /* Auxiliary Instruction Fault Status Register */
 #endif
-
 
 /*
  * CP15 C6 registers
@@ -118,7 +119,7 @@
 /*
  * CP15 C7 registers
  */
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH >= 7 && defined(SMP)
 /* From ARMv7: */
 #define	CP15_ICIALLUIS		p15, 0, r0, c7, c1,  0 /* Instruction cache invalidate all PoU, IS */
 #define	CP15_BPIALLIS		p15, 0, r0, c7, c1,  6 /* Branch predictor invalidate all IS */
@@ -128,14 +129,14 @@
 
 #define	CP15_ICIALLU		p15, 0, r0, c7, c5,  0 /* Instruction cache invalidate all PoU */
 #define	CP15_ICIMVAU(rr)	p15, 0, rr, c7, c5,  1 /* Instruction cache invalidate */
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH == 6
 /* Deprecated in ARMv7 */
 #define	CP15_CP15ISB		p15, 0, r0, c7, c5,  4 /* ISB */
 #endif
 #define	CP15_BPIALL		p15, 0, r0, c7, c5,  6 /* Branch predictor invalidate all */
 #define	CP15_BPIMVA		p15, 0, rr, c7, c5,  7 /* Branch predictor invalidate by MVA */
 
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH == 6
 /* Only ARMv6: */
 #define	CP15_DCIALL		p15, 0, r0, c7, c6,  0 /* Data cache invalidate all */
 #endif
@@ -147,7 +148,7 @@
 #define	CP15_ATS1CUR(rr)	p15, 0, rr, c7, c8,  2 /* Stage 1 Current state unprivileged read */
 #define	CP15_ATS1CUW(rr)	p15, 0, rr, c7, c8,  3 /* Stage 1 Current state unprivileged write */
 
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH >= 7
 /* From ARMv7: */
 #define	CP15_ATS12NSOPR(rr)	p15, 0, rr, c7, c8,  4 /* Stages 1 and 2 Non-secure only PL1 read */
 #define	CP15_ATS12NSOPW(rr)	p15, 0, rr, c7, c8,  5 /* Stages 1 and 2 Non-secure only PL1 write */
@@ -155,24 +156,24 @@
 #define	CP15_ATS12NSOUW(rr)	p15, 0, rr, c7, c8,  7 /* Stages 1 and 2 Non-secure only unprivileged write */
 #endif
 
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH == 6
 /* Only ARMv6: */
 #define	CP15_DCCALL		p15, 0, r0, c7, c10, 0 /* Data cache clean all */
 #endif
 #define	CP15_DCCMVAC(rr)	p15, 0, rr, c7, c10, 1 /* Data cache clean by MVA PoC */
 #define	CP15_DCCSW(rr)		p15, 0, rr, c7, c10, 2 /* Data cache clean by set/way */
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH == 6
 /* Only ARMv6: */
 #define	CP15_CP15DSB		p15, 0, r0, c7, c10, 4 /* DSB */
 #define	CP15_CP15DMB		p15, 0, r0, c7, c10, 5 /* DMB */
 #endif
 
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH >= 7
 /* From ARMv7: */
 #define	CP15_DCCMVAU(rr)	p15, 0, rr, c7, c11, 1 /* Data cache clean by MVA PoU */
 #endif
 
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH == 6
 /* Only ARMv6: */
 #define	CP15_DCCIALL		p15, 0, r0, c7, c14, 0 /* Data cache clean and invalidate all */
 #endif
@@ -182,7 +183,7 @@
 /*
  * CP15 C8 registers
  */
-#if __ARM_ARCH >= 6
+#if __ARM_ARCH >= 7 && defined(SMP)
 /* From ARMv7: */
 #define	CP15_TLBIALLIS		p15, 0, r0, c8, c3, 0 /* Invalidate entire unified TLB IS */
 #define	CP15_TLBIMVAIS(rr)	p15, 0, rr, c8, c3, 1 /* Invalidate unified TLB by MVA IS */
@@ -228,5 +229,10 @@
 #define	CP15_TPIDRURW(rr)	p15, 0, rr, c13, c0, 2 /* User Read/Write Thread ID Register */
 #define	CP15_TPIDRURO(rr)	p15, 0, rr, c13, c0, 3 /* User Read-Only Thread ID Register */
 #define	CP15_TPIDRPRW(rr)	p15, 0, rr, c13, c0, 4 /* PL1 only Thread ID Register */
+
+/*
+ * CP15 C15 registers
+ */
+#define CP15_CBAR(rr)		p15, 4, rr, c15, c0, 0 /* Configuration Base Address Register */
 
 #endif /* !MACHINE_SYSREG_H */

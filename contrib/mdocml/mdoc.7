@@ -1,4 +1,4 @@
-.\"	$Id: mdoc.7,v 1.244 2014/11/28 18:36:35 schwarze Exp $
+.\"	$Id: mdoc.7,v 1.245 2014/11/30 21:56:18 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010, 2011, 2013 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: November 28 2014 $
+.Dd $Mdocdate: November 30 2014 $
 .Dt MDOC 7
 .Os
 .Sh NAME
@@ -2396,8 +2396,6 @@ The original C standard.
 .Pp
 .It \-isoC-99
 .St -isoC-99
-.It \-ansiC-99
-.St -ansiC-99
 .br
 The second major version of the C language standard.
 .Pp
@@ -2497,9 +2495,6 @@ The following three refer to parts of it.
 .br
 Networking APIs, including sockets.
 .Pp
-.It \-xpg4.3
-.St -xpg4.3
-.Pp
 .It \-svid4
 .St -svid4 ,
 .br
@@ -2529,14 +2524,9 @@ The following refer to parts of it.
 .It \-xns5.2
 .St -xns5.2
 .El
-.It Single UNIX Specification version 3 and related standards
+.It Single UNIX Specification version 3
 .Pp
-.Bl -tag -width "-p1003.1g-2000X" -compact
-.It \-p1003.1d-99
-.St -p1003.1d-99
-.br
-Additional real-time extensions.
-.Pp
+.Bl -tag -width "-p1003.1-2001" -compact
 .It \-p1003.1-2001
 .St -p1003.1-2001
 .It \-susv3

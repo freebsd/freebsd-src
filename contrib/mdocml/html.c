@@ -1,4 +1,4 @@
-/*	$Id: html.c,v 1.181 2014/10/29 00:17:43 schwarze Exp $ */
+/*	$Id: html.c,v 1.183 2014/12/02 10:08:06 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2011, 2012, 2013, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -30,7 +30,6 @@
 
 #include "mandoc.h"
 #include "mandoc_aux.h"
-#include "libmandoc.h"
 #include "out.h"
 #include "html.h"
 #include "main.h"
@@ -563,8 +562,9 @@ print_text(struct html *h, const char *word)
 	if ( ! print_encode(h, word, 0)) {
 		if ( ! (h->flags & HTML_NONOSPACE))
 			h->flags &= ~HTML_NOSPACE;
+		h->flags &= ~HTML_NONEWLINE;
 	} else
-		h->flags |= HTML_NOSPACE;
+		h->flags |= HTML_NOSPACE | HTML_NONEWLINE;
 
 	if (h->metaf) {
 		print_tagq(h, h->metaf);

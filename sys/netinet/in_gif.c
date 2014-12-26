@@ -67,10 +67,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if_gif.h>
 
-int in_gif_output(struct ifnet *, struct mbuf *, int, uint8_t);
-int in_gif_encapcheck(const struct mbuf *, int, int, void *);
-int in_gif_attach(struct gif_softc *);
-
 static int gif_validate4(const struct ip *, struct gif_softc *,
 	struct ifnet *);
 static int in_gif_input(struct mbuf **, int *, int);
