@@ -618,6 +618,7 @@ ti_gpio_intr(void *arg)
 
 	sc = (struct ti_gpio_softc *)arg;
 	bank_last = -1;
+	reg = 0; /* squelch bogus gcc warning */
 	for (irq = 0; irq < sc->sc_maxpin; irq++) {
 
 		/* Read interrupt status only once for each bank. */
