@@ -4492,6 +4492,7 @@ product WESTERN EXTHDD		0x0400	External HDD
 product WESTERN HUB		0x0500	USB HUB
 product WESTERN MYBOOK		0x0901	MyBook External HDD
 product WESTERN MYPASSPORT_00	0x0704	MyPassport External HDD
+product WESTERN MYPASSPORT_11	0x0741	MyPassport External HDD
 product WESTERN MYPASSPORT_01	0x0746	MyPassport External HDD
 product WESTERN MYPASSPORT_02	0x0748	MyPassport External HDD
 product WESTERN MYPASSPORT_03	0x074A	MyPassport External HDD
