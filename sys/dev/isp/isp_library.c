@@ -2369,7 +2369,7 @@ isp_find_pdb_by_wwn(ispsoftc_t *isp, int chan, uint64_t wwn, fcportdb_t **lptr)
 
 	if (chan < isp->isp_nchan) {
 		fcp = FCPARAM(isp, chan);
-		for (i = 0; i < MAX_FC_TARG; i++) {
+		for (i = MAX_FC_TARG - 1; i >= 0; i--) {
 			fcportdb_t *lp = &fcp->portdb[i];
 
 			if (lp->target_mode == 0) {
@@ -2392,7 +2392,7 @@ isp_find_pdb_by_loopid(ispsoftc_t *isp, int chan, uint32_t loopid, fcportdb_t **
 
 	if (chan < isp->isp_nchan) {
 		fcp = FCPARAM(isp, chan);
-		for (i = 0; i < MAX_FC_TARG; i++) {
+		for (i = MAX_FC_TARG - 1; i >= 0; i--) {
 			fcportdb_t *lp = &fcp->portdb[i];
 
 			if (lp->target_mode == 0) {
@@ -2418,7 +2418,7 @@ isp_find_pdb_by_sid(ispsoftc_t *isp, int chan, uint32_t sid, fcportdb_t **lptr)
 	}
 
 	fcp = FCPARAM(isp, chan);
-	for (i = 0; i < MAX_FC_TARG; i++) {
+	for (i = MAX_FC_TARG - 1; i >= 0; i--) {
 		fcportdb_t *lp = &fcp->portdb[i];
 
 		if (lp->target_mode == 0) {
