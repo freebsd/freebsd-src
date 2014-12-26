@@ -558,7 +558,7 @@ login_negotiate_key(struct pdu *request, const char *name,
 			tmp = MAX_DATA_SEGMENT_LENGTH;
 		}
 		conn->conn_max_data_segment_length = tmp;
-		keys_add_int(response_keys, name, tmp);
+		keys_add_int(response_keys, name, MAX_DATA_SEGMENT_LENGTH);
 	} else if (strcmp(name, "MaxBurstLength") == 0) {
 		tmp = strtoul(value, NULL, 10);
 		if (tmp <= 0) {
