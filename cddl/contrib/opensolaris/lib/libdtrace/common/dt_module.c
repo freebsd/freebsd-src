@@ -1211,13 +1211,13 @@ dt_module_update(dtrace_hdl_t *dtp, struct kld_file_stat *k_stat)
 #if defined(__FreeBSD__)
 		if (sh.sh_size == 0)
 			continue;
-		if (is_elf_obj && (sh.sh_type == SHT_PROGBITS ||
-		    sh.sh_type == SHT_NOBITS)) {
+		if (sh.sh_type == SHT_PROGBITS || sh.sh_type == SHT_NOBITS) {
 			alignmask = sh.sh_addralign - 1;
 			mapbase += alignmask;
 			mapbase &= ~alignmask;
 			sh.sh_addr = mapbase;
-			dmp->dm_sec_offsets[elf_ndxscn(sp)] = sh.sh_addr;
+			if (is_elf_obj)
+				dmp->dm_sec_offsets[elf_ndxscn(sp)] = sh.sh_addr;
 			mapbase += sh.sh_size;
 		}
 #endif
