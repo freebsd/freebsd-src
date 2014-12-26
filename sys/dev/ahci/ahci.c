@@ -529,7 +529,7 @@ ahci_attach(device_t dev)
 	ctlr->emloc = ATA_INL(ctlr->r_mem, AHCI_EM_LOC);
 
 	/* Create controller-wide DMA tag. */
-	if (bus_dma_tag_create(bus_get_dma_tag(dev), 0, 0,
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
 	    (ctlr->caps & AHCI_CAP_64BIT) ? BUS_SPACE_MAXADDR :
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    BUS_SPACE_MAXSIZE, BUS_SPACE_UNRESTRICTED, BUS_SPACE_MAXSIZE,
