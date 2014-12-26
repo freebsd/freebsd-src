@@ -145,6 +145,12 @@ static void arm_gic_ipi_clear(device_t, int);
 #define	gic_d_write_4(_sc, _reg, _val)		\
     bus_space_write_4((_sc)->gic_d_bst, (_sc)->gic_d_bsh, (_reg), (_val))
 
+#ifndef ARM_INTRNG
+static int gic_config_irq(int irq, enum intr_trigger trig,
+    enum intr_polarity pol);
+static void gic_post_filter(void *);
+#endif
+
 static struct ofw_compat_data compat_data[] = {
 	{"arm,gic",		true},	/* Non-standard, used in FreeBSD dts. */
 	{"arm,gic-400",		true},
@@ -297,6 +303,12 @@ arm_gic_attach(device_t dev)
 	sc->nirqs = gic_d_read_4(sc, GICD_TYPER);
 	sc->nirqs = 32 * ((sc->nirqs & 0x1f) + 1);
 
+#ifndef ARM_INTRNG
+	/* Set up function pointers */
+	arm_post_filter = gic_post_filter;
+	arm_config_irq = gic_config_irq;
+#endif
+
 	icciidr = gic_c_read_4(sc, GICC_IIDR);
 	device_printf(dev,"pn 0x%x, arch 0x%x, rev 0x%x, implementer 0x%x irqs %u\n",
 			icciidr>>20, (icciidr>>16) & 0xF, (icciidr>>12) & 0xf,
@@ -336,10 +348,9 @@ arm_gic_attach(device_t dev)
 }
 
 static int
-arm_gic_intr(void *arg)
+arm_gic_next_irq(struct arm_gic_softc *sc, int last_irq)
 {
-	struct arm_gic_softc *sc = (struct arm_gic_softc *)arg;
-	uint32_t active_irq, last_irq = 0;
+	uint32_t active_irq;
 
 	active_irq = gic_c_read_4(sc, GICC_IAR);
 
@@ -355,14 +366,27 @@ arm_gic_intr(void *arg)
 	if (active_irq == 0x3FF) {
 		if (last_irq == -1)
 			printf("Spurious interrupt detected\n");
-		return (FILTER_HANDLED);
+		return -1;
 	}
+
+	return active_irq;
+}
+
+#ifdef ARM_INTRNG
+static int
+arm_gic_intr(void *arg)
+{
+	struct arm_gic_softc *sc = (struct arm_gic_softc *)arg;
+	int active_irq;
+
+	active_irq = arm_gic_next_irq(sc, 0);
 	
 	//gic_c_write_4(sc, GICC_EOIR, active_irq);
 	arm_dispatch_irq(sc->gic_dev, NULL, active_irq);
 
 	return (FILTER_HANDLED);
 }
+#endif
 
 static int
 arm_gic_config(device_t dev, int irq, enum intr_trigger trig,
@@ -417,6 +441,7 @@ invalid_args:
 	return (EINVAL);
 }
 
+#ifdef ARM_INTRNG
 static void
 arm_gic_eoi(device_t dev, int irq)
 {
@@ -427,6 +452,7 @@ arm_gic_eoi(device_t dev, int irq)
 
 	gic_c_write_4(sc, GICC_EOIR, irq);
 }
+#endif
 
 
 static void
@@ -486,6 +512,23 @@ arm_gic_ipi_clear(device_t dev, int ipi)
 }
 
 #ifndef ARM_INTRNG
+static void
+gic_post_filter(void *arg)
+{
+	struct arm_gic_softc *sc = arm_gic_sc;
+	uintptr_t irq = (uintptr_t) arg;
+
+	if (irq > GIC_LAST_IPI)
+		arm_irq_memory_barrier(irq);
+	gic_c_write_4(sc, GICC_EOIR, irq);
+}
+
+static int
+gic_config_irq(int irq, enum intr_trigger trig, enum intr_polarity pol)
+{
+
+	return (arm_gic_config(arm_gic_sc->gic_dev, irq, trig, pol));
+}
 
 void
 arm_mask_irq(uintptr_t nb)
@@ -499,6 +542,13 @@ arm_unmask_irq(uintptr_t nb)
 {
 
 	arm_gic_unmask(arm_gic_sc->gic_dev, nb);
+}
+
+int
+arm_get_next_irq(int last_irq)
+{
+
+	return (arm_gic_next_irq(arm_gic_sc, last_irq));
 }
 
 void
