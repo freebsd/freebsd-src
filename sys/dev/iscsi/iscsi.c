@@ -2189,6 +2189,10 @@ iscsi_action_scsiio(struct iscsi_session *is, union ccb *ccb)
 			ISCSI_SESSION_DEBUG(is, "len %zd -> %zd", len, is->is_first_burst_length);
 			len = is->is_first_burst_length;
 		}
+		if (len > is->is_max_data_segment_length) {
+			ISCSI_SESSION_DEBUG(is, "len %zd -> %zd", len, is->is_max_data_segment_length);
+			len = is->is_max_data_segment_length;
+		}
 
 		error = icl_pdu_append_data(request, csio->data_ptr, len, M_NOWAIT);
 		if (error != 0) {
