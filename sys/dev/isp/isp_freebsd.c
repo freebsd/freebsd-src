@@ -877,7 +877,7 @@ is_lun_enabled(ispsoftc_t *isp, int bus, lun_id_t lun)
 
 	ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(lun)], lhp);
 	SLIST_FOREACH(tptr, lhp, next) {
-		if (xpt_path_lun_id(tptr->owner) == lun) {
+		if (tptr->ts_lun == lun) {
 			return (1);
 		}
 	}
@@ -909,16 +909,13 @@ get_lun_statep(ispsoftc_t *isp, int bus, lun_id_t lun)
 {
 	tstate_t *tptr = NULL;
 	struct tslist *lhp;
-	int i;
 
 	if (bus < isp->isp_nchan) {
-		for (i = 0; i < LUN_HASH_SIZE; i++) {
-			ISP_GET_PC_ADDR(isp, bus, lun_hash[i], lhp);
-			SLIST_FOREACH(tptr, lhp, next) {
-				if (xpt_path_lun_id(tptr->owner) == lun) {
-					tptr->hold++;
-					return (tptr);
-				}
+		ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(lun)], lhp);
+		SLIST_FOREACH(tptr, lhp, next) {
+			if (tptr->ts_lun == lun) {
+				tptr->hold++;
+				return (tptr);
 			}
 		}
 	}
@@ -1132,6 +1129,7 @@ create_lun_state(ispsoftc_t *isp, int bus, struct cam_path *path, tstate_t **rsl
 	if (tptr == NULL) {
 		return (CAM_RESRC_UNAVAIL);
 	}
+	tptr->ts_lun = lun;
 	status = xpt_create_path(&tptr->owner, NULL, xpt_path_path_id(path), xpt_path_target_id(path), lun);
 	if (status != CAM_REQ_CMP) {
 		free(tptr, M_DEVBUF);
@@ -1149,7 +1147,7 @@ create_lun_state(ispsoftc_t *isp, int bus, struct cam_path *path, tstate_t **rsl
 		tptr->ntpool[i].next = &tptr->ntpool[i+1];
 	tptr->ntfree = tptr->ntpool;
 	tptr->hold = 1;
-	ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(xpt_path_lun_id(tptr->owner))], lhp);
+	ISP_GET_PC_ADDR(isp, bus, lun_hash[LUN_HASH_FUNC(lun)], lhp);
 	SLIST_INSERT_HEAD(lhp, tptr, next);
 	*rslt = tptr;
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0, path, "created tstate\n");
@@ -1180,7 +1178,7 @@ destroy_lun_state(ispsoftc_t *isp, tstate_t *tptr)
 			xpt_done(ccb);
 		}
 	} while (ccb);
-	ISP_GET_PC_ADDR(isp, cam_sim_bus(xpt_path_sim(tptr->owner)), lun_hash[LUN_HASH_FUNC(xpt_path_lun_id(tptr->owner))], lhp);
+	ISP_GET_PC_ADDR(isp, cam_sim_bus(xpt_path_sim(tptr->owner)), lun_hash[LUN_HASH_FUNC(tptr->ts_lun)], lhp);
 	SLIST_REMOVE(lhp, tptr, tstate, next);
 	ISP_PATH_PRT(isp, ISP_LOGTDEBUG0, tptr->owner, "destroyed tstate\n");
 	xpt_free_path(tptr->owner);
@@ -1356,7 +1354,7 @@ isp_enable_deferred_luns(ispsoftc_t *isp, int bus)
 		SLIST_FOREACH(tptr, lhp, next) {
 			tptr->hold++;
 			if (tptr->enabled == 0) {
-				if (isp_enable_deferred(isp, bus, xpt_path_lun_id(tptr->owner)) == CAM_REQ_CMP) {
+				if (isp_enable_deferred(isp, bus, tptr->ts_lun) == CAM_REQ_CMP) {
 					tptr->enabled = 1;
 					n++;
 				}
@@ -6011,7 +6009,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			 */
 			tptr = get_lun_statep_from_tag(isp, chan, abts->abts_rxid_task);
 			if (tptr) {
-				nt->nt_lun = xpt_path_lun_id(tptr->owner);
+				nt->nt_lun = tptr->ts_lun;
 				rls_lun_statep(isp, tptr);
 			} else {
 				nt->nt_lun = LUN_ANY;
