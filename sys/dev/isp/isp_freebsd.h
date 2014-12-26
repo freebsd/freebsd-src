@@ -95,7 +95,7 @@ void		isp_put_ecmd(struct ispsoftc *, isp_ecmd_t *);
 
 #define	ISP_TARGET_FUNCTIONS	1
 #define	ATPDPSIZE	4096
-#define	ATPDPHASHSIZE	16
+#define	ATPDPHASHSIZE	32
 #define	ATPDPHASH(x)	((((x) >> 24) ^ ((x) >> 16) ^ ((x) >> 8) ^ (x)) &  \
 			    ((ATPDPHASHSIZE) - 1))
 
@@ -163,6 +163,7 @@ typedef struct isp_timed_notify_ack {
 TAILQ_HEAD(isp_ccbq, ccb_hdr);
 typedef struct tstate {
 	SLIST_ENTRY(tstate) next;
+	lun_id_t ts_lun;
 	struct cam_path *owner;
 	struct isp_ccbq waitq;		/* waiting CCBs */
 	struct ccb_hdr_slist atios;
