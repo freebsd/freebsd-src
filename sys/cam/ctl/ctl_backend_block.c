@@ -177,6 +177,8 @@ struct ctl_be_block_lun {
 	uint16_t pblockoff;
 	uint16_t ublockexp;
 	uint16_t ublockoff;
+	uint32_t atomicblock;
+	uint32_t opttxferlen;
 	struct ctl_be_block_softc *softc;
 	struct devstat *disk_stats;
 	ctl_be_block_lun_flags flags;
@@ -1848,6 +1850,8 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 			 "file %s size %ju < block size %u", be_lun->dev_path,
 			 (uintmax_t)be_lun->size_bytes, be_lun->blocksize);
 	}
+
+	be_lun->opttxferlen = CTLBLK_MAX_IO_SIZE / be_lun->blocksize;
 	return (error);
 }
 
@@ -1859,7 +1863,7 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	struct cdev		     *dev;
 	struct cdevsw		     *devsw;
 	char			     *value;
-	int			      error;
+	int			      error, atomic, maxio;
 	off_t			      ps, pss, po, pos, us, uss, uo, uos;
 
 	params = &be_lun->params;
@@ -1873,8 +1877,16 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 	if (strcmp(be_lun->backend.dev.csw->d_name, "zvol") == 0) {
 		be_lun->dispatch = ctl_be_block_dispatch_zvol;
 		be_lun->get_lba_status = ctl_be_block_gls_zvol;
-	} else
+		atomic = maxio = CTLBLK_MAX_IO_SIZE;
+	} else {
 		be_lun->dispatch = ctl_be_block_dispatch_dev;
+		atomic = 0;
+		maxio = be_lun->backend.dev.cdev->si_iosize_max;
+		if (maxio <= 0)
+			maxio = DFLTPHYS;
+		if (maxio > CTLBLK_MAX_IO_SIZE)
+			maxio = CTLBLK_MAX_IO_SIZE;
+	}
 	be_lun->lun_flush = ctl_be_block_flush_dev;
 	be_lun->unmap = ctl_be_block_unmap_dev;
 	be_lun->getattr = ctl_be_block_getattr_dev;
@@ -2005,6 +2017,8 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 		be_lun->ublockoff = (uss - uos) % uss;
 	}
 
+	be_lun->atomicblock = atomic / be_lun->blocksize;
+	be_lun->opttxferlen = maxio / be_lun->blocksize;
 	return (0);
 }
 
@@ -2271,10 +2285,8 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 	be_lun->ctl_be_lun.pblockoff = be_lun->pblockoff;
 	be_lun->ctl_be_lun.ublockexp = be_lun->ublockexp;
 	be_lun->ctl_be_lun.ublockoff = be_lun->ublockoff;
-	if (be_lun->dispatch == ctl_be_block_dispatch_zvol &&
-	    be_lun->blocksize != 0)
-		be_lun->ctl_be_lun.atomicblock = CTLBLK_MAX_IO_SIZE /
-		    be_lun->blocksize;
+	be_lun->ctl_be_lun.atomicblock = be_lun->atomicblock;
+	be_lun->ctl_be_lun.opttxferlen = be_lun->opttxferlen;
 	/* Tell the user the blocksize we ended up using */
 	params->lun_size_bytes = be_lun->size_bytes;
 	params->blocksize_bytes = be_lun->blocksize;
@@ -2652,10 +2664,8 @@ ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		be_lun->ctl_be_lun.pblockoff = be_lun->pblockoff;
 		be_lun->ctl_be_lun.ublockexp = be_lun->ublockexp;
 		be_lun->ctl_be_lun.ublockoff = be_lun->ublockoff;
-		if (be_lun->dispatch == ctl_be_block_dispatch_zvol &&
-		    be_lun->blocksize != 0)
-			be_lun->ctl_be_lun.atomicblock = CTLBLK_MAX_IO_SIZE /
-			    be_lun->blocksize;
+		be_lun->ctl_be_lun.atomicblock = be_lun->atomicblock;
+		be_lun->ctl_be_lun.opttxferlen = be_lun->opttxferlen;
 		ctl_lun_capacity_changed(&be_lun->ctl_be_lun);
 		if (oldsize == 0 && be_lun->size_blocks != 0)
 			ctl_lun_online(&be_lun->ctl_be_lun);
