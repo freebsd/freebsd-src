@@ -102,8 +102,7 @@ struct ti_i2c_softc
 
 struct ti_i2c_clock_config
 {
-	int speed;
-	int bitrate;
+	u_int   frequency;	/* Bus frequency in Hz */
 	uint8_t psc;		/* Fast/Standard mode prescale divider */
 	uint8_t scll;		/* Fast/Standard mode SCL low time */
 	uint8_t sclh;		/* Fast/Standard mode SCL high time */
@@ -116,27 +115,30 @@ struct ti_i2c_clock_config
 #endif
 
 #if defined(SOC_OMAP4)
+/*
+ * OMAP4 i2c bus clock is 96MHz / ((psc + 1) * (scll + 7 + sclh + 5)).
+ * The prescaler values for 100KHz and 400KHz modes come from the table in the
+ * OMAP4 TRM.  The table doesn't list 1MHz; these values should give that speed.
+ */
 static struct ti_i2c_clock_config ti_omap4_i2c_clock_configs[] = {
-	{ IIC_UNKNOWN,	 100000, 23, 13, 15,  0, 0},
-	{ IIC_SLOW,	 100000, 23, 13, 15,  0, 0},
-	{ IIC_FAST,	 400000,  9,  5,  7,  0, 0},
-	{ IIC_FASTEST,	1000000,  5,  3,  4,  0, 0},
-	/* { IIC_FASTEST, 3200000,  1, 113, 115, 7, 10}, - HS mode */
-	{ -1, 0 }
+	{  100000, 23,  13,  15,  0,  0},
+	{  400000,  9,   5,   7,  0,  0},
+	{ 1000000,  3,   5,   7,  0,  0},
+/*	{ 3200000,  1, 113, 115,  7, 10}, - HS mode */
+	{       0 /* Table terminator */ }
 };
 #endif
 
 #if defined(SOC_TI_AM335X)
 /*
- * AM335X doesn't support HS mode.  For 100kHz I2C clock set the internal
- * clock to 12Mhz, for 400kHz I2C clock set the internal clock to 24Mhz.
+ * AM335x i2c bus clock is 48MHZ / ((psc + 1) * (scll + 7 + sclh + 5))
+ * In all cases we prescale the clock to 24MHz as recommended in the manual.
  */
 static struct ti_i2c_clock_config ti_am335x_i2c_clock_configs[] = {
-	{ IIC_UNKNOWN,	 100000, 7, 59, 61, 0, 0},
-	{ IIC_SLOW,	 100000, 7, 59, 61, 0, 0},
-	{ IIC_FAST,	 400000, 3, 23, 25, 0, 0},
-	{ IIC_FASTEST,	 400000, 3, 23, 25, 0, 0},
-	{ -1, 0 }
+	{  100000, 1, 111, 117, 0, 0},
+	{  400000, 1,  23,  25, 0, 0},
+	{ 1000000, 1,   5,   7, 0, 0},
+	{       0 /* Table terminator */ }
 };
 #endif
 
@@ -512,6 +514,7 @@ ti_i2c_reset(struct ti_i2c_softc *sc, u_char speed)
 {
 	int timeout;
 	struct ti_i2c_clock_config *clkcfg;
+	u_int busfreq;
 	uint16_t fifo_trsh, reg, scll, sclh;
 
 	switch (ti_chip()) {
@@ -528,13 +531,24 @@ ti_i2c_reset(struct ti_i2c_softc *sc, u_char speed)
 	default:
 		panic("Unknown Ti SoC, unable to reset the i2c");
 	}
-	while (clkcfg->speed != -1) {
-		if (clkcfg->speed == speed)
+
+	/*
+	 * If we haven't attached the bus yet, just init at the default slow
+	 * speed.  This lets us get the hardware initialized enough to attach
+	 * the bus which is where the real speed configuration is handled. After
+	 * the bus is attached, get the configured speed from it.  Search the
+	 * configuration table for the best speed we can do that doesn't exceed
+	 * the requested speed.
+	 */
+	if (sc->sc_iicbus == NULL)
+		busfreq = 100000;
+	else
+		busfreq = IICBUS_GET_FREQUENCY(sc->sc_iicbus, speed);
+	for (;;) {
+		if (clkcfg[1].frequency == 0 || clkcfg[1].frequency > busfreq)
 			break;
 		clkcfg++;
 	}
-	if (clkcfg->speed == -1)
-		return (EINVAL);
 
 	/*
 	 * 23.1.4.3 - HS I2C Software Reset
