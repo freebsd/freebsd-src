@@ -668,6 +668,11 @@ run_command(struct cfjail *j)
 			if (term != NULL)
 				setenv("TERM", term, 1);
 		}
+		if (setgid(pwd->pw_gid) < 0) {
+			jail_warnx(j, "setgid %d: %s", pwd->pw_gid,
+			    strerror(errno));
+			exit(1);
+		}
 		if (setusercontext(lcap, pwd, pwd->pw_uid, username
 		    ? LOGIN_SETALL & ~LOGIN_SETGROUP & ~LOGIN_SETLOGIN
 		    : LOGIN_SETPATH | LOGIN_SETENV) < 0) {
