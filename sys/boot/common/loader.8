@@ -671,8 +671,9 @@ Overrides the compile-time set value of
 or the preset default of 512.
 Must be a power of 2.
 .It Va twiddle_divisor
-Throttles the output of the `twiddle' I/O progress indicator displayed
-while loading the kernel and modules.
+Throttles the output of the 
+.Sq twiddle
+I/O progress indicator displayed while loading the kernel and modules.
 This is useful on slow serial consoles where the time spent waiting for
 these characters to be written can add up to many seconds.
 The default is 1 (full speed); a value of 2 spins half as fast, and so on.
