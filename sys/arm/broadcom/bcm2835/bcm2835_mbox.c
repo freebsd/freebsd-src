@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 	mtx_unlock(&(sc)->lock);	\
 } while(0)
 
+#undef DEBUG
 #ifdef  DEBUG
 #define dprintf(fmt, args...) printf(fmt, ##args)
 #else
@@ -116,7 +117,7 @@ bcm_mbox_intr(void *arg)
 			continue;
 		}
 		dprintf("bcm_mbox_intr: chan %d, data %08x\n", chan, data);
-		sc->msg[chan] = MBOX_MSG(data, 0xf);
+		sc->msg[chan] = msg;
 		sema_post(&sc->sema[chan]);
 	}
 }
@@ -174,7 +175,8 @@ bcm_mbox_attach(device_t dev)
 	}
 
 	/* Read all pending messages */
-	bcm_mbox_intr(sc);
+	while ((mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY) == 0)
+		(void)mbox_read_4(sc, REG_READ);
 
 	mbox_write_4(sc, REG_CONFIG, CONFIG_DATA_IRQ);
 
