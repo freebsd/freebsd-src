@@ -1731,7 +1731,7 @@ iwn6000g2afw.fwo		optional iwn6000g2afw | iwnfw		\
 	no-implicit-rule						\
 	clean		"iwn6000g2afw.fwo"
 iwn6000g2a.fw			optional iwn6000g2afw | iwnfw		\
-	dependency	"$S/contrib/dev/iwn/iwlwifi-6000g2a-17.168.5.2.fw.uu" \
+	dependency	"$S/contrib/dev/iwn/iwlwifi-6000g2a-18.168.6.1.fw.uu" \
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn6000g2a.fw"
@@ -1745,7 +1745,7 @@ iwn6000g2bfw.fwo		optional iwn6000g2bfw | iwnfw		\
 	no-implicit-rule						\
 	clean		"iwn6000g2bfw.fwo"
 iwn6000g2b.fw			optional iwn6000g2bfw | iwnfw		\
-	dependency	"$S/contrib/dev/iwn/iwlwifi-6000g2b-17.168.5.2.fw.uu" \
+	dependency	"$S/contrib/dev/iwn/iwlwifi-6000g2b-18.168.6.1.fw.uu" \
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn6000g2b.fw"
