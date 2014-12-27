@@ -1,4 +1,4 @@
-# $Id: gendirdeps.mk,v 1.23 2013/09/04 17:49:20 sjg Exp $
+# $Id: gendirdeps.mk,v 1.25 2014/03/14 21:28:37 sjg Exp $
 
 # Copyright (c) 2010-2013, Juniper Networks, Inc.
 # All rights reserved.
@@ -229,7 +229,7 @@ DIRDEPS = \
 	${qualdir_list:N${RELDIR}.*:N${RELDIR}/*}
 
 # We only consider things below $RELDIR/ if they have a makefile.
-# This is the same test that _DIRDEPS_USE applies.
+# This is the same test that _DIRDEP_USE applies.
 # We have do a double test with dirdep_list as it _may_ contain 
 # qualified dirs - if we got anything from a stage dir.
 # qualdir_list we know are all qualified.
@@ -240,7 +240,7 @@ DIRDEPS += \
 	${dirdep_list:M${RELDIR}/*:@d@${.MAKE.MAKEFILE_PREFERENCE:@m@${exists(${SRCTOP}/$d/$m):?$d:${exists(${SRCTOP}/${d:R}/$m):?$d:}}@}@} \
 	${qualdir_list:M${RELDIR}/*:@d@${.MAKE.MAKEFILE_PREFERENCE:@m@${exists(${SRCTOP}/${d:R}/$m):?$d:}@}@}
 
-DIRDEPS := ${DIRDEPS:${GENDIRDEPS_FILTER:UNno:ts:}:O:u}
+DIRDEPS := ${DIRDEPS:${GENDIRDEPS_FILTER:UNno:ts:}:C,//+,/,g:O:u}
 
 .if ${DEBUG_GENDIRDEPS:Uno:@x@${RELDIR:M$x}@} != ""
 .info ${RELDIR}: M2D_OBJROOTS=${M2D_OBJROOTS}
@@ -261,7 +261,7 @@ src_dirdep_list = \
 SRC_DIRDEPS = \
 	${src_dirdep_list:N${RELDIR}:N${RELDIR}/*:C,(/h)/.*,,}
 
-SRC_DIRDEPS := ${SRC_DIRDEPS:${GENDIRDEPS_SRC_FILTER:UN/*:ts:}:O:u}
+SRC_DIRDEPS := ${SRC_DIRDEPS:${GENDIRDEPS_SRC_FILTER:UN/*:ts:}:C,//+,/,g:O:u}
 
 # if you want to capture SRC_DIRDEPS in .MAKE.DEPENDFILE put
 # SRC_DIRDEPS_FILE = ${_DEPENDFILE} 
