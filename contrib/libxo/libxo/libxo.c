@@ -956,9 +956,6 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
     }
     memcpy(newfmt + plen, fmt, len);
 
-    /* Add a newline to the fmt string */
-    if (!(xop->xo_flags & XOF_WARN_XML))
-	newfmt[len++ + plen] = '\n';
     newfmt[len + plen] = '\0';
 
     if (xop->xo_flags & XOF_WARN_XML) {
@@ -1010,6 +1007,7 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
 
     } else {
 	vfprintf(stderr, newfmt, vap);
+	fprintf(stderr, ": %s\n", strerror(code));
     }
 }
 
