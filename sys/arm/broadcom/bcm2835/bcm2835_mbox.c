@@ -76,7 +76,6 @@ __FBSDID("$FreeBSD$");
 	mtx_unlock(&(sc)->lock);	\
 } while(0)
 
-#undef DEBUG
 #ifdef  DEBUG
 #define dprintf(fmt, args...) printf(fmt, ##args)
 #else
