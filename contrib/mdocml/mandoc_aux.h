@@ -1,4 +1,4 @@
-/*	$Id: mandoc_aux.h,v 1.2 2014/04/23 21:06:41 schwarze Exp $ */
+/*	$Id: mandoc_aux.h,v 1.3 2014/12/01 04:05:32 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  * Copyright (c) 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,8 +15,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifndef MANDOC_AUX_H
-#define MANDOC_AUX_H
 
 __BEGIN_DECLS
 
@@ -29,5 +27,3 @@ char		 *mandoc_strdup(const char *);
 char		 *mandoc_strndup(const char *, size_t);
 
 __END_DECLS
-
-#endif /*!MANDOC_AUX_H*/

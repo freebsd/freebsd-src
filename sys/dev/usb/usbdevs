@@ -2411,6 +2411,8 @@ product INTEL EASYPC_CAMERA	0x0110	Easy PC Camera
 product INTEL TESTBOARD		0x9890	82930 test board
 product INTEL2 IRMH        	0x0020	Integrated Rate Matching Hub
 product INTEL2 IRMH2        	0x0024	Integrated Rate Matching Hub
+product INTEL2 IRMH3        	0x8000	Integrated Rate Matching Hub
+product INTEL2 IRMH4        	0x8008	Integrated Rate Matching Hub
 
 /* Interbiometric products */
 product INTERBIOMETRICS IOBOARD		0x1002	FTDI compatible adapter
@@ -4492,6 +4494,7 @@ product WESTERN EXTHDD		0x0400	External HDD
 product WESTERN HUB		0x0500	USB HUB
 product WESTERN MYBOOK		0x0901	MyBook External HDD
 product WESTERN MYPASSPORT_00	0x0704	MyPassport External HDD
+product WESTERN MYPASSPORT_11	0x0741	MyPassport External HDD
 product WESTERN MYPASSPORT_01	0x0746	MyPassport External HDD
 product WESTERN MYPASSPORT_02	0x0748	MyPassport External HDD
 product WESTERN MYPASSPORT_03	0x074A	MyPassport External HDD

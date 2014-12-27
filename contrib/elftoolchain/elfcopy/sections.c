@@ -762,8 +762,8 @@ resync_sections(struct elfcopy *ecp)
 				s->off = roundup(off, s->align);
 		} else {
 			if (s->loadable)
-				warnx("moving loadable section,"
-				    "is this intentional?");
+				warnx("moving loadable section %s, "
+				    "is this intentional?", s->name);
 			s->off = roundup(off, s->align);
 		}
 
@@ -1139,12 +1139,6 @@ add_to_shstrtab(struct elfcopy *ecp, const char *name)
 	struct section *s;
 
 	s = ecp->shstrtab;
-	if (s->buf == NULL) {
-		insert_to_strtab(s, "");
-		insert_to_strtab(s, ".symtab");
-		insert_to_strtab(s, ".strtab");
-		insert_to_strtab(s, ".shstrtab");
-	}
 	insert_to_strtab(s, name);
 }
 
@@ -1206,6 +1200,11 @@ init_shstrtab(struct elfcopy *ecp)
 	s->loadable = 0;
 	s->type = SHT_STRTAB;
 	s->vma = 0;
+
+	insert_to_strtab(s, "");
+	insert_to_strtab(s, ".symtab");
+	insert_to_strtab(s, ".strtab");
+	insert_to_strtab(s, ".shstrtab");
 }
 
 void

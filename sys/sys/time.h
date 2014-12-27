@@ -398,7 +398,7 @@ extern sbintime_t sbt_tickthreshold;
  * Functions containing "up" returns time relative to boot and
  * should be used for calculating time intervals.
  *
- * Functions without "up" returns GMT time.
+ * Functions without "up" returns UTC time.
  *
  * Functions with the "get" prefix returns a less precise result
  * much faster than the functions without "get" prefix and should

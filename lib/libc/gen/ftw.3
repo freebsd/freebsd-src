@@ -87,8 +87,9 @@ A directory which cannot be read.
 The directory will not be descended into.
 .It Dv FTW_DP
 A directory being visited in post-order
-.Fn ( nftw
-only).
+.Po Fn nftw
+only
+.Pc .
 .It Dv FTW_NS
 A file for which no
 .Xr stat 2
@@ -100,8 +101,9 @@ structure are undefined.
 A symbolic link.
 .It Dv FTW_SLN
 A symbolic link with a non-existent target
-.Fn ( nftw
-only).
+.Po Fn nftw
+only
+.Pc .
 .El
 .Pp
 The

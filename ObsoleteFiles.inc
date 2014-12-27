@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20141204: new clang import which bumps version from 3.4.1 to 3.5.0.
+# 20141227: new clang import which bumps version from 3.4.1 to 3.5.0.
 OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_pclmul.h
 OLD_FILES+=usr/include/clang/3.4.1/altivec.h
@@ -74,6 +74,35 @@ OLD_FILES+=usr/include/clang/3.4.1/x86intrin.h
 OLD_FILES+=usr/include/clang/3.4.1/xmmintrin.h
 OLD_FILES+=usr/include/clang/3.4.1/xopintrin.h
 OLD_DIRS+=usr/include/clang/3.4.1
+# 20141226: Remove gpib/ieee488
+OLD_FILES+=usr/include/dev/ieee488/ibfoo_int.h
+OLD_FILES+=usr/include/dev/ieee488/tnt4882.h
+OLD_FILES+=usr/include/dev/ieee488/ugpib.h
+OLD_FILES+=usr/include/dev/ieee488/upd7210.h
+OLD_DIRS+=usr/include/dev/ieee488
+OLD_FILES+=usr/include/gpib/gpib.h
+OLD_DIRS+=usr/include/gpib
+OLD_FILES+=usr/lib/libgpib.a
+OLD_FILES+=usr/lib/libgpib_p.a
+OLD_FILES+=usr/lib/libgpib.so
+OLD_LIBS+=usr/lib/libgpib.so.3
+OLD_FILES+=usr/lib/libgpib_p.a
+OLD_FILES+=share/man/man4/pcii.4.gz
+OLD_FILES+=share/man/man4/gpib.4.gz
+OLD_FILES+=share/man/man4/tnt4882.4.gz
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libgpib.a
+OLD_FILES+=usr/lib32/libgpib_p.a
+OLD_FILES+=usr/lib32/libgpib.so
+OLD_LIBS+=usr/lib32/libgpib.so.3
+.endif
+
+# 20141224: libxo moved to /lib
+OLD_LIBS+=usr/lib/libxo.so.0
+# 20141223: remove in6_gif.h, in_gif.h and if_stf.h
+OLD_FILES+=usr/include/net/if_stf.h
+OLD_FILES+=usr/include/netinet/in_gif.h
+OLD_FILES+=usr/include/netinet6/in6_gif.h
 # 20141202: update to mandoc CVS 20141201
 OLD_FILES+=usr.bin/preconv
 OLD_FILES+=share/man/man1/preconv.1.gz

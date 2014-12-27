@@ -1,4 +1,4 @@
-/*	$Id: out.h,v 1.24 2014/10/14 02:16:06 schwarze Exp $ */
+/*	$Id: out.h,v 1.26 2014/12/01 08:05:52 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -14,8 +14,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifndef OUT_H
-#define OUT_H
 
 enum	roffscale {
 	SCALE_CM, /* centimeters (c) */
@@ -52,8 +50,6 @@ struct	rofftbl {
 	void		*arg; /* passed to slen and len */
 };
 
-__BEGIN_DECLS
-
 #define	SCALE_VS_INIT(p, v) \
 	do { (p)->unit = SCALE_VS; \
 	     (p)->scale = (v); } \
@@ -64,10 +60,12 @@ __BEGIN_DECLS
 	     (p)->scale = (v); } \
 	while (/* CONSTCOND */ 0)
 
+__BEGIN_DECLS
+
+struct	tbl_span;
+
 int		  a2roffsu(const char *, struct roffsu *, enum roffscale);
 void		  tblcalc(struct rofftbl *tbl,
 			const struct tbl_span *, size_t);
 
 __END_DECLS
-
-#endif /*!OUT_H*/
