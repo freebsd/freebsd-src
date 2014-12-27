@@ -473,38 +473,6 @@ out:
 	return (err);
 }
 
-/**
- *	ti_i2c_callback - as we only provide iicbus_transfer() interface
- * 		we don't need to implement the serialization here.
- *	@dev: i2c device handle
- *
- *
- *
- *	LOCKING:
- *	Called from timer context
- *
- *	RETURNS:
- *	EH_HANDLED or EH_NOT_HANDLED
- */
-static int
-ti_i2c_callback(device_t dev, int index, caddr_t data)
-{
-	int error = 0;
-
-	switch (index) {
-		case IIC_REQUEST_BUS:
-			break;
-
-		case IIC_RELEASE_BUS:
-			break;
-
-		default:
-			error = EINVAL;
-	}
-
-	return (error);
-}
-
 static int
 ti_i2c_reset(struct ti_i2c_softc *sc, u_char speed)
 {
@@ -955,7 +923,7 @@ static device_method_t ti_i2c_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ti_i2c_get_node),
 
 	/* iicbus interface */
-	DEVMETHOD(iicbus_callback,	ti_i2c_callback),
+	DEVMETHOD(iicbus_callback,	iicbus_null_callback),
 	DEVMETHOD(iicbus_reset,		ti_i2c_iicbus_reset),
 	DEVMETHOD(iicbus_transfer,	ti_i2c_transfer),
 
