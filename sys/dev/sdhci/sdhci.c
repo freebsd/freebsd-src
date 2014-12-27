@@ -150,7 +150,6 @@ static void
 sdhci_reset(struct sdhci_slot *slot, uint8_t mask)
 {
 	int timeout;
-	uint8_t res;
 
 	if (slot->quirks & SDHCI_QUIRK_NO_CARD_NO_RESET) {
 		if (!(RD4(slot, SDHCI_PRESENT_STATE) &
@@ -169,26 +168,43 @@ sdhci_reset(struct sdhci_slot *slot, uint8_t mask)
 		sdhci_set_clock(slot, clock);
 	}
 
-	WR1(slot, SDHCI_SOFTWARE_RESET, mask);
-
 	if (mask & SDHCI_RESET_ALL) {
 		slot->clock = 0;
 		slot->power = 0;
 	}
 
+	WR1(slot, SDHCI_SOFTWARE_RESET, mask);
+
+	if (slot->quirks & SDHCI_QUIRK_WAITFOR_RESET_ASSERTED) {
+		/*
+		 * Resets on TI OMAPs and AM335x are incompatible with SDHCI
+		 * specification.  The reset bit has internal propagation delay,
+		 * so a fast read after write returns 0 even if reset process is
+		 * in progress. The workaround is to poll for 1 before polling
+		 * for 0.  In the worst case, if we miss seeing it asserted the
+		 * time we spent waiting is enough to ensure the reset finishes.
+		 */
+		timeout = 10000;
+		while ((RD1(slot, SDHCI_SOFTWARE_RESET) & mask) != mask) {
+			if (timeout <= 0)
+				break;
+			timeout--;
+			DELAY(1);
+		}
+	}
+
 	/* Wait max 100 ms */
-	timeout = 100;
+	timeout = 10000;
 	/* Controller clears the bits when it's done */
-	while ((res = RD1(slot, SDHCI_SOFTWARE_RESET)) & mask) {
-		if (timeout == 0) {
-			slot_printf(slot,
-			    "Reset 0x%x never completed - 0x%x.\n",
-			    (int)mask, (int)res);
+	while (RD1(slot, SDHCI_SOFTWARE_RESET) & mask) {
+		if (timeout <= 0) {
+			slot_printf(slot, "Reset 0x%x never completed.\n",
+			    mask);
 			sdhci_dumpregs(slot);
 			return;
 		}
 		timeout--;
-		DELAY(1000);
+		DELAY(10);
 	}
 }
 
@@ -714,9 +730,13 @@ sdhci_timeout(void *arg)
 	struct sdhci_slot *slot = arg;
 
 	if (slot->curcmd != NULL) {
+		slot_printf(slot, " Controller timeout\n");
+		sdhci_dumpregs(slot);
 		sdhci_reset(slot, SDHCI_RESET_CMD|SDHCI_RESET_DATA);
 		slot->curcmd->error = MMC_ERR_TIMEOUT;
 		sdhci_req_done(slot);
+	} else {
+		slot_printf(slot, " Spurious timeout - no active command\n");
 	}
 }
  
@@ -1275,7 +1295,9 @@ sdhci_generic_intr(struct sdhci_slot *slot)
 	/* Handle data interrupts. */
 	if (intmask & SDHCI_INT_DATA_MASK) {
 		WR4(slot, SDHCI_INT_STATUS, intmask & SDHCI_INT_DATA_MASK);
-		sdhci_data_irq(slot, intmask & SDHCI_INT_DATA_MASK);
+		/* Dont call data_irq in case of errored command */
+		if ((intmask & SDHCI_INT_CMD_ERROR_MASK) == 0)
+			sdhci_data_irq(slot, intmask & SDHCI_INT_DATA_MASK);
 	}
 	/* Handle AutoCMD12 error interrupt. */
 	if (intmask & SDHCI_INT_ACMD12ERR) {

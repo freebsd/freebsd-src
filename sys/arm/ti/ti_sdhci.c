@@ -112,6 +112,7 @@ static struct ofw_compat_data compat_data[] = {
 #define	MMCHS_CON			0x02C
 #define	  MMCHS_CON_DW8			  (1 << 5)
 #define	  MMCHS_CON_DVAL_8_4MS		  (3 << 9)
+#define	  MMCHS_CON_OD			  (1 << 0)
 #define MMCHS_SYSCTL			0x12C
 #define   MMCHS_SYSCTL_CLKD_MASK	   0x3FF
 #define   MMCHS_SYSCTL_CLKD_SHIFT	   6
@@ -327,7 +328,7 @@ ti_sdhci_update_ios(device_t brdev, device_t reqdev)
 	struct ti_sdhci_softc *sc = device_get_softc(brdev);
 	struct sdhci_slot *slot;
 	struct mmc_ios *ios;
-	uint32_t val32;
+	uint32_t val32, newval32;
 
 	slot = device_get_ivars(reqdev);
 	ios = &slot->host.ios;
@@ -339,10 +340,20 @@ ti_sdhci_update_ios(device_t brdev, device_t reqdev)
 	 * requested, then let the standard driver handle everything else.
 	 */
 	val32 = ti_mmchs_read_4(sc, MMCHS_CON);
+	newval32  = val32;
+
 	if (ios->bus_width == bus_width_8)
-		ti_mmchs_write_4(sc, MMCHS_CON, val32 | MMCHS_CON_DW8); 
+		newval32 |= MMCHS_CON_DW8;
 	else
-		ti_mmchs_write_4(sc, MMCHS_CON, val32 & ~MMCHS_CON_DW8); 
+		newval32 &= ~MMCHS_CON_DW8;
+
+	if (ios->bus_mode == opendrain)
+		newval32 |= MMCHS_CON_OD;
+	else /* if (ios->bus_mode == pushpull) */
+		newval32 &= ~MMCHS_CON_OD;
+
+	if (newval32 != val32)
+		ti_mmchs_write_4(sc, MMCHS_CON, newval32);
 
 	return (sdhci_generic_update_ios(brdev, reqdev));
 }
@@ -392,20 +403,42 @@ ti_sdhci_hw_init(device_t dev)
 	/* Issue a softreset to the controller */
 	ti_mmchs_write_4(sc, MMCHS_SYSCONFIG, MMCHS_SYSCONFIG_RESET);
 	timeout = 1000;
-	while (!(ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) & MMCHS_SYSSTATUS_RESETDONE)) {
+	while (!(ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) &
+	    MMCHS_SYSSTATUS_RESETDONE)) {
 		if (--timeout == 0) {
-			device_printf(dev, "Error: Controller reset operation timed out\n");
+			device_printf(dev,
+			    "Error: Controller reset operation timed out\n");
 			break;
 		}
 		DELAY(100);
 	}
 
-	/* Reset both the command and data state machines */
+	/*
+	 * Reset the command and data state machines and also other aspects of
+	 * the controller such as bus clock and power.
+	 *
+	 * If we read the software reset register too fast after writing it we
+	 * can get back a zero that means the reset hasn't started yet rather
+	 * than that the reset is complete. Per TI recommendations, work around
+	 * it by reading until we see the reset bit asserted, then read until
+	 * it's clear. We also set the SDHCI_QUIRK_WAITFOR_RESET_ASSERTED quirk
+	 * so that the main sdhci driver uses this same logic in its resets.
+	 */
 	ti_sdhci_write_1(dev, NULL, SDHCI_SOFTWARE_RESET, SDHCI_RESET_ALL);
-	timeout = 1000;
-	while ((ti_sdhci_read_1(dev, NULL, SDHCI_SOFTWARE_RESET) & SDHCI_RESET_ALL)) {
+	timeout = 10000;
+	while ((ti_sdhci_read_1(dev, NULL, SDHCI_SOFTWARE_RESET) &
+	    SDHCI_RESET_ALL) != SDHCI_RESET_ALL) {
 		if (--timeout == 0) {
-			device_printf(dev, "Error: Software reset operation timed out\n");
+			break;
+		}
+		DELAY(1);
+	}
+	timeout = 10000;
+	while ((ti_sdhci_read_1(dev, NULL, SDHCI_SOFTWARE_RESET) &
+	    SDHCI_RESET_ALL)) {
+		if (--timeout == 0) {
+			device_printf(dev,
+			    "Error: Software reset operation timed out\n");
 			break;
 		}
 		DELAY(100);
@@ -560,6 +593,12 @@ ti_sdhci_attach(device_t dev)
 	 * the spec), so tell the sdhci driver not to do the same in software.
 	 */
 	sc->slot.quirks |= SDHCI_QUIRK_DONT_SHIFT_RESPONSE;
+
+	/*
+	 * Reset bits are broken, have to wait to see the bits asserted
+	 * before waiting to see them de-asserted.
+	 */
+	sc->slot.quirks |= SDHCI_QUIRK_WAITFOR_RESET_ASSERTED;
 
 	/*
 	 * DMA is not really broken, I just haven't implemented it yet.
