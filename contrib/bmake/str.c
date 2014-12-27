@@ -1,4 +1,4 @@
-/*	$NetBSD: str.c,v 1.34 2012/03/03 23:16:47 dholland Exp $	*/
+/*	$NetBSD: str.c,v 1.35 2014/02/12 01:35:56 sjg Exp $	*/
 
 /*-
  * Copyright (c) 1988, 1989, 1990, 1993
@@ -69,14 +69,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: str.c,v 1.34 2012/03/03 23:16:47 dholland Exp $";
+static char rcsid[] = "$NetBSD: str.c,v 1.35 2014/02/12 01:35:56 sjg Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char     sccsid[] = "@(#)str.c	5.8 (Berkeley) 6/1/90";
 #else
-__RCSID("$NetBSD: str.c,v 1.34 2012/03/03 23:16:47 dholland Exp $");
+__RCSID("$NetBSD: str.c,v 1.35 2014/02/12 01:35:56 sjg Exp $");
 #endif
 #endif				/* not lint */
 #endif
@@ -145,7 +145,7 @@ brk_string(const char *str, int *store_argc, Boolean expand, char **buffer)
 	const char *p;
 	int len;
 	int argmax = 50, curlen = 0;
-    	char **argv = bmake_malloc((argmax + 1) * sizeof(char *));
+    	char **argv;
 
 	/* skip leading space chars. */
 	for (; *str == ' ' || *str == '\t'; ++str)
@@ -154,6 +154,12 @@ brk_string(const char *str, int *store_argc, Boolean expand, char **buffer)
 	/* allocate room for a copy of the string */
 	if ((len = strlen(str) + 1) > curlen)
 		*buffer = bmake_malloc(curlen = len);
+
+	/*
+	 * initial argmax based on len
+	 */
+	argmax = MAX((len / 5), 50);
+	argv = bmake_malloc((argmax + 1) * sizeof(char *));
 
 	/*
 	 * copy the string; at the same time, parse backslashes,
