@@ -1334,6 +1334,7 @@ mpt_wait_req(struct mpt_softc *mpt, request_t *req,
 		/* Set timeout as well so final timeout check works. */
 		timeout = time_ms;
 	} else {
+		sbt = 0; /* Squelch bogus gcc warning. */
 		timeout = time_ms * 2;
 	}
 	req->state |= REQ_STATE_NEED_WAKEUP;
