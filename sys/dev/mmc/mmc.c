@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/endian.h>
 #include <sys/sysctl.h>
+#include <sys/time.h>
 
 #include <dev/mmc/mmcreg.h>
 #include <dev/mmc/mmcbrvar.h>
@@ -76,7 +77,12 @@ struct mmc_softc {
 	struct intr_config_hook config_intrhook;
 	device_t owner;
 	uint32_t last_rca;
+	int	 squelched; /* suppress reporting of (expected) errors */
+	int	 log_count;
+	struct timeval log_time;
 };
+
+#define	LOG_PPS		5 /* Log no more than 5 errors per second. */
 
 /*
  * Per-card data
@@ -426,6 +432,13 @@ mmc_wait_for_cmd(struct mmc_softc *sc, struct mmc_command *cmd, int retries)
 			err = cmd->error;
 	} while (err != MMC_ERR_NONE && retries-- > 0);
 
+	if (err != MMC_ERR_NONE && sc->squelched == 0) {
+		if (ppsratecheck(&sc->log_time, &sc->log_count, LOG_PPS)) {
+			device_printf(sc->dev, "CMD%d failed, RESULT: %d\n",
+			    cmd->opcode, err);
+		}
+	}
+
 	return (err);
 }
 
@@ -436,6 +449,8 @@ mmc_wait_for_app_cmd(struct mmc_softc *sc, uint32_t rca,
 	struct mmc_command appcmd;
 	int err;
 
+	/* Squelch error reporting at lower levels, we report below. */
+	sc->squelched++;
 	do {
 		memset(&appcmd, 0, sizeof(appcmd));
 		appcmd.opcode = MMC_APP_CMD;
@@ -455,6 +470,14 @@ mmc_wait_for_app_cmd(struct mmc_softc *sc, uint32_t rca,
 				err = cmd->error;
 		}
 	} while (err != MMC_ERR_NONE && retries-- > 0);
+	sc->squelched--;
+
+	if (err != MMC_ERR_NONE && sc->squelched == 0) {
+		if (ppsratecheck(&sc->log_time, &sc->log_count, LOG_PPS)) {
+			device_printf(sc->dev, "ACMD%d failed, RESULT: %d\n",
+			    cmd->opcode, err);
+		}
+	}
 
 	return (err);
 }
@@ -760,6 +783,7 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		mmcbr_set_bus_width(sc->dev, bus_width_8);
 		mmcbr_update_ios(sc->dev);
 
+		sc->squelched++; /* Errors are expected, squelch reporting. */
 		memset(&cmd, 0, sizeof(cmd));
 		memset(&data, 0, sizeof(data));
 		cmd.opcode = MMC_BUSTEST_W;
@@ -783,6 +807,7 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		data.len = 8;
 		data.flags = MMC_DATA_READ;
 		err = mmc_wait_for_cmd(sc, &cmd, 0);
+		sc->squelched--;
 		
 		mmcbr_set_bus_width(sc->dev, bus_width_1);
 		mmcbr_update_ios(sc->dev);
@@ -795,6 +820,7 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		mmcbr_set_bus_width(sc->dev, bus_width_4);
 		mmcbr_update_ios(sc->dev);
 
+		sc->squelched++; /* Errors are expected, squelch reporting. */
 		memset(&cmd, 0, sizeof(cmd));
 		memset(&data, 0, sizeof(data));
 		cmd.opcode = MMC_BUSTEST_W;
@@ -818,6 +844,7 @@ mmc_test_bus_width(struct mmc_softc *sc)
 		data.len = 4;
 		data.flags = MMC_DATA_READ;
 		err = mmc_wait_for_cmd(sc, &cmd, 0);
+		sc->squelched--;
 
 		mmcbr_set_bus_width(sc->dev, bus_width_1);
 		mmcbr_update_ios(sc->dev);
@@ -1270,7 +1297,9 @@ mmc_discover_cards(struct mmc_softc *sc)
 	if (bootverbose || mmc_debug)
 		device_printf(sc->dev, "Probing cards\n");
 	while (1) {
+		sc->squelched++; /* Errors are expected, squelch reporting. */
 		err = mmc_all_send_cid(sc, raw_cid);
+		sc->squelched--;
 		if (err == MMC_ERR_TIMEOUT)
 			break;
 		if (err != MMC_ERR_NONE) {
@@ -1417,10 +1446,10 @@ mmc_discover_cards(struct mmc_softc *sc)
 			break;
 		}
 
+		mmc_select_card(sc, ivar->rca);
+
 		/* Only MMC >= 4.x cards support EXT_CSD. */
 		if (ivar->csd.spec_vers >= 4) {
-			/* Card must be selected to fetch EXT_CSD. */
-			mmc_select_card(sc, ivar->rca);
 			mmc_send_ext_csd(sc, ivar->raw_ext_csd);
 			/* Handle extended capacity from EXT_CSD */
 			sec_count = ivar->raw_ext_csd[EXT_CSD_SEC_CNT] +
@@ -1450,7 +1479,6 @@ mmc_discover_cards(struct mmc_softc *sc)
 				mmc_switch(sc, EXT_CSD_CMD_SET_NORMAL,
 				    EXT_CSD_ERASE_GRP_DEF, 1);
 			}
-			mmc_select_card(sc, 0);
 		} else {
 			ivar->bus_width = bus_width_1;
 			ivar->timing = bus_timing_normal;
@@ -1477,6 +1505,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 			child = device_add_child(sc->dev, NULL, -1);
 			device_set_ivars(child, ivar);
 		}
+		mmc_select_card(sc, 0);
 	}
 }
 
@@ -1536,6 +1565,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 		/*
 		 * First, try SD modes
 		 */
+		sc->squelched++; /* Errors are expected, squelch reporting. */
 		mmcbr_set_mode(dev, mode_sd);
 		mmc_power_up(sc);
 		mmcbr_set_bus_mode(dev, pushpull);
@@ -1561,6 +1591,7 @@ mmc_go_discovery(struct mmc_softc *sc)
 				    "MMC probe: OK (OCR: 0x%08x)\n", ocr);
 		} else if (bootverbose || mmc_debug)
 			device_printf(sc->dev, "SD probe: OK (OCR: 0x%08x)\n", ocr);
+		sc->squelched--;
 
 		mmcbr_set_ocr(dev, mmc_select_vdd(sc, ocr));
 		if (mmcbr_get_ocr(dev) != 0)

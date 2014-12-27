@@ -117,13 +117,13 @@ mips_init(void)
 			("First region is not within FDT memory range"));
 
 		/* Limit size of the first region */
-		phys_avail[1] = MIN(mr[0].mr_size, ctob(realmem));
+		phys_avail[1] = (mr[0].mr_start + MIN(mr[0].mr_size, ctob(realmem)));
 		dump_avail[1] = phys_avail[1];
 
 		/* Add the rest of regions */
 		for (i = 1, j = 2; i < mr_cnt; i++, j+=2) {
 			phys_avail[j] = mr[i].mr_start;
-			phys_avail[j+1] = mr[i].mr_size;
+			phys_avail[j+1] = (mr[i].mr_start + mr[i].mr_size);
 			dump_avail[j] = phys_avail[j];
 			dump_avail[j+1] = phys_avail[j+1];
 		}

@@ -770,6 +770,8 @@ _ELF_DEFINE_EM(EM_ETPU,             178,				\
 	"Freescale Extended Time Processing Unit")			\
 _ELF_DEFINE_EM(EM_SLE9X,            179,				\
 	"Infineon Technologies SLE9X core")				\
+_ELF_DEFINE_EM(EM_AARCH64,          183,				\
+	"AArch64 (64-bit ARM)")						\
 _ELF_DEFINE_EM(EM_AVR32,            185,				\
 	"Atmel Corporation 32-bit microprocessor family")		\
 _ELF_DEFINE_EM(EM_STM8,             186,				\

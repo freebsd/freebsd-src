@@ -184,6 +184,8 @@ kcs_start_write(struct ipmi_softc *sc)
 	for (retry = 0; retry < 10; retry++) {
 		/* Wait for IBF = 0 */
 		status = kcs_wait_for_ibf(sc, 0);
+		if (status & KCS_STATUS_IBF)
+			return (0);
 
 		/* Clear OBF */
 		kcs_clear_obf(sc, status);
@@ -193,6 +195,9 @@ kcs_start_write(struct ipmi_softc *sc)
 
 		/* Wait for IBF = 0 */
 		status = kcs_wait_for_ibf(sc, 0);
+		if (status & KCS_STATUS_IBF)
+			return (0);
+
 		if (KCS_STATUS_STATE(status) == KCS_STATUS_STATE_WRITE)
 			break;
 		DELAY(1000000);
@@ -222,6 +227,8 @@ kcs_write_byte(struct ipmi_softc *sc, u_char data)
 
 	/* Wait for IBF = 0 */
 	status = kcs_wait_for_ibf(sc, 0);
+	if (status & KCS_STATUS_IBF)
+		return (0);
 
 	if (KCS_STATUS_STATE(status) != KCS_STATUS_STATE_WRITE)
 		return (0);
@@ -244,6 +251,8 @@ kcs_write_last_byte(struct ipmi_softc *sc, u_char data)
 
 	/* Wait for IBF = 0 */
 	status = kcs_wait_for_ibf(sc, 0);
+	if (status & KCS_STATUS_IBF)
+		return (0);
 
 	if (KCS_STATUS_STATE(status) != KCS_STATUS_STATE_WRITE)
 		/* error state */
@@ -274,6 +283,8 @@ kcs_read_byte(struct ipmi_softc *sc, u_char *data)
 
 		/* Wait for OBF = 1 */
 		status = kcs_wait_for_obf(sc, 1);
+		if ((status & KCS_STATUS_OBF) == 0)
+			return (0);
 
 		/* Read Data_out */
 		*data = INB(sc, KCS_DATA);
@@ -288,6 +299,8 @@ kcs_read_byte(struct ipmi_softc *sc, u_char *data)
 
 		/* Wait for OBF = 1*/
 		status = kcs_wait_for_obf(sc, 1);
+		if ((status & KCS_STATUS_OBF) == 0)
+			return (0);
 
 		/* Read Dummy */
 		dummy = INB(sc, KCS_DATA);

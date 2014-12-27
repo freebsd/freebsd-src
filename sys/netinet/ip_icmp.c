@@ -861,7 +861,7 @@ icmp_send(struct mbuf *m, struct mbuf *opts)
 }
 
 /*
- * Return milliseconds since 00:00 GMT in network format.
+ * Return milliseconds since 00:00 UTC in network format.
  */
 uint32_t
 iptime(void)

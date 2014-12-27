@@ -579,7 +579,7 @@ sbappend_locked(struct sockbuf *sb, struct mbuf *m)
 
 	if (m == 0)
 		return;
-
+	m_clrprotoflags(m);
 	SBLASTRECORDCHK(sb);
 	n = sb->sb_mb;
 	if (n) {
@@ -732,6 +732,7 @@ sbappendrecord_locked(struct sockbuf *sb, struct mbuf *m0)
 
 	if (m0 == 0)
 		return;
+	m_clrprotoflags(m0);
 	/*
 	 * Put the first mbuf on the queue.  Note this permits zero length
 	 * records.
@@ -777,6 +778,8 @@ sbappendaddr_locked_internal(struct sockbuf *sb, const struct sockaddr *asa,
 		return (0);
 	m->m_len = asa->sa_len;
 	bcopy(asa, mtod(m, caddr_t), asa->sa_len);
+	if (m0)
+		m_clrprotoflags(m0);
 	if (ctrl_last)
 		ctrl_last->m_next = m0;	/* concatenate data to control */
 	else
@@ -872,6 +875,7 @@ sbappendcontrol_locked(struct sockbuf *sb, struct mbuf *m0,
 
 	if (space > sbspace(sb))
 		return (0);
+	m_clrprotoflags(m0);
 	n->m_next = m0;			/* concatenate data to control */
 
 	SBLASTRECORDCHK(sb);
@@ -1061,6 +1065,21 @@ sbcut_internal(struct sockbuf *sb, int len)
 			mfree = m;
 			m = n;
 		}
+	}
+	/*
+	 * Free any zero-length mbufs from the buffer.
+	 * For SOCK_DGRAM sockets such mbufs represent empty records.
+	 * XXX: For SOCK_STREAM sockets such mbufs can appear in the buffer,
+	 * when sosend_generic() needs to send only control data.
+	 */
+	while (m && m->m_len == 0) {
+		struct mbuf *n;
+
+		sbfree(sb, m);
+		n = m->m_next;
+		m->m_next = mfree;
+		mfree = m;
+		m = n;
 	}
 	if (m) {
 		sb->sb_mb = m;

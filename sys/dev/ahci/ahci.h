@@ -143,6 +143,7 @@
 
 #define AHCI_MAX_PORTS			32
 #define AHCI_MAX_SLOTS			32
+#define AHCI_MAX_IRQS			16
 
 /* SATA AHCI v1.0 register defines */
 #define AHCI_CAP                    0x00
@@ -494,7 +495,7 @@ struct ahci_controller {
 #define	AHCI_IRQ_MODE_ALL	0
 #define	AHCI_IRQ_MODE_AFTER	1
 #define	AHCI_IRQ_MODE_ONE	2
-	} irqs[16];
+	} irqs[AHCI_MAX_IRQS];
 	uint32_t		caps;		/* Controller capabilities */
 	uint32_t		caps2;		/* Controller capabilities */
 	uint32_t		capsem;		/* Controller capabilities */

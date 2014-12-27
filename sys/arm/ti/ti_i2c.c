@@ -119,7 +119,7 @@ struct ti_i2c_clock_config
 static struct ti_i2c_clock_config ti_omap4_i2c_clock_configs[] = {
 	{  100000, 23,  13,  15,  0,  0},
 	{  400000,  9,   5,   7,  0,  0},
-	{ 1000000,  5,   1,   3,  0,  0},
+	{ 1000000,  3,   5,   7,  0,  0},
 /*	{ 3200000,  1, 113, 115,  7, 10}, - HS mode */
 	{       0 /* Table terminator */ }
 };

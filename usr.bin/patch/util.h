@@ -23,7 +23,7 @@
  * -C option added in 1998, original code by Marc Espie, based on FreeBSD
  * behaviour
  *
- * $OpenBSD: util.h,v 1.15 2005/06/20 07:14:06 otto Exp $
+ * $OpenBSD: util.h,v 1.16 2014/12/13 10:31:07 tobias Exp $
  * $FreeBSD$
  */
 
@@ -41,6 +41,7 @@ void		pfatal(const char *, ...)
 void		ask(const char *, ...)
 		    __attribute__((__format__(__printf__, 1, 2)));
 char		*savestr(const char *);
+char		*xstrdup(const char *);
 void		set_signals(int);
 void		ignore_signals(void);
 void		makedirs(const char *, bool);
