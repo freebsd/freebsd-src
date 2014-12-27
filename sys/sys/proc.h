@@ -355,7 +355,7 @@ do {									\
 #define	TDF_CANSWAP	0x00000040 /* Thread can be swapped. */
 #define	TDF_SLEEPABORT	0x00000080 /* sleepq_abort was called. */
 #define	TDF_KTH_SUSP	0x00000100 /* kthread is suspended */
-#define	TDF_UNUSED09	0x00000200 /* --available-- */
+#define	TDF_ALLPROCSUSP	0x00000200 /* suspended by SINGLE_ALLPROC */
 #define	TDF_BOUNDARY	0x00000400 /* Thread suspended at user boundary */
 #define	TDF_ASTPENDING	0x00000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x00001000 /* Timeout from sleep after we were awake. */
@@ -629,7 +629,7 @@ struct proc {
 #define	P_SINGLE_BOUNDARY 0x400000 /* Threads should suspend at user boundary. */
 #define	P_HWPMC		0x800000 /* Process is using HWPMCs */
 #define	P_JAILED	0x1000000 /* Process is in jail. */
-#define	P_UNUSED1	0x2000000
+#define	P_TOTAL_STOP	0x2000000 /* Stopped in proc_stop_total. */
 #define	P_INEXEC	0x4000000 /* Process is in execve(). */
 #define	P_STATCHILD	0x8000000 /* Child process stopped or exited. */
 #define	P_INMEM		0x10000000 /* Loaded into memory. */
@@ -690,6 +690,7 @@ struct proc {
 #define	SINGLE_NO_EXIT	0
 #define	SINGLE_EXIT	1
 #define	SINGLE_BOUNDARY	2
+#define	SINGLE_ALLPROC	3
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PARGS);
@@ -816,6 +817,7 @@ extern LIST_HEAD(pgrphashhead, pgrp) *pgrphashtbl;
 extern u_long pgrphash;
 
 extern struct sx allproc_lock;
+extern int allproc_gen;
 extern struct sx proctree_lock;
 extern struct mtx ppeers_lock;
 extern struct proc proc0;		/* Process slot for swapper. */
@@ -939,8 +941,8 @@ void	thread_exit(void) __dead2;
 void	thread_free(struct thread *td);
 void	thread_link(struct thread *td, struct proc *p);
 void	thread_reap(void);
-int	thread_single(int how);
-void	thread_single_end(void);
+int	thread_single(struct proc *p, int how);
+void	thread_single_end(struct proc *p, int how);
 void	thread_stash(struct thread *td);
 void	thread_stopped(struct proc *p);
 void	childproc_stopped(struct proc *child, int reason);
@@ -948,13 +950,16 @@ void	childproc_continued(struct proc *child);
 void	childproc_exited(struct proc *child);
 int	thread_suspend_check(int how);
 bool	thread_suspend_check_needed(void);
-void	thread_suspend_switch(struct thread *);
+void	thread_suspend_switch(struct thread *, struct proc *p);
 void	thread_suspend_one(struct thread *td);
 void	thread_unlink(struct thread *td);
 void	thread_unsuspend(struct proc *p);
-int	thread_unsuspend_one(struct thread *td);
+int	thread_unsuspend_one(struct thread *td, struct proc *p);
 void	thread_wait(struct proc *p);
 struct thread	*thread_find(struct proc *p, lwpid_t tid);
+
+void	stop_all_proc(void);
+void	resume_all_proc(void);
 
 static __inline int
 curthread_pflags_set(int flags)

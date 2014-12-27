@@ -323,7 +323,7 @@ fork_norfproc(struct thread *td, int flags)
 	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
 	    (flags & (RFCFDG | RFFDG))) {
 		PROC_LOCK(p1);
-		if (thread_single(SINGLE_BOUNDARY)) {
+		if (thread_single(p1, SINGLE_BOUNDARY)) {
 			PROC_UNLOCK(p1);
 			return (ERESTART);
 		}
@@ -354,7 +354,7 @@ fail:
 	if (((p1->p_flag & (P_HADTHREADS|P_SYSTEM)) == P_HADTHREADS) &&
 	    (flags & (RFCFDG | RFFDG))) {
 		PROC_LOCK(p1);
-		thread_single_end();
+		thread_single_end(p1, SINGLE_BOUNDARY);
 		PROC_UNLOCK(p1);
 	}
 	return (error);
@@ -390,6 +390,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	p2->p_pid = trypid;
 	AUDIT_ARG_PID(p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
+	allproc_gen++;
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
 	tidhash_add(td2);
 	PROC_LOCK(p2);
