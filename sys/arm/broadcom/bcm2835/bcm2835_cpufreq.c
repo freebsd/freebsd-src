@@ -125,7 +125,7 @@ TUNABLE_INT("hw.bcm2835.cpufreq.verbose", &cpufreq_verbose);
 static int cpufreq_lowest_freq = DEFAULT_LOWEST_FREQ;
 TUNABLE_INT("hw.bcm2835.cpufreq.lowest_freq", &cpufreq_lowest_freq);
 
-#ifdef DEBUG
+#ifdef PROP_DEBUG
 static void
 bcm2835_dump(const void *data, int len)
 {
