@@ -334,7 +334,7 @@ static int
 ti_gpio_valid_pin(struct ti_gpio_softc *sc, int pin)
 {
 
-	if (pin > sc->sc_maxpin ||
+	if (pin >= sc->sc_maxpin ||
 	    TI_GPIO_BANK(pin) >= ti_max_gpio_banks() ||
 	    sc->sc_mem_res[TI_GPIO_BANK(pin)] == NULL) {
 		return (EINVAL);
@@ -755,6 +755,7 @@ ti_gpio_attach(device_t dev)
 	sc->sc_dev = dev;
 	TI_GPIO_LOCK_INIT(sc);
 	ti_gpio_pin_max(dev, &sc->sc_maxpin);
+	sc->sc_maxpin++;
 
 	/* There are up to 6 different GPIO register sets located in different
 	 * memory areas on the chip.  The memory range should have been set for
