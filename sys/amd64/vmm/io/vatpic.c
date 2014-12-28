@@ -73,6 +73,7 @@ struct atpic {
 	uint8_t		request;	/* Interrupt Request Register (IIR) */
 	uint8_t		service;	/* Interrupt Service (ISR) */
 	uint8_t		mask;		/* Interrupt Mask Register (IMR) */
+	uint8_t		smm;		/* special mask mode */
 
 	int		acnt[8];	/* sum of pin asserts and deasserts */
 	int		lowprio;	/* lowest priority irq */
@@ -131,8 +132,16 @@ vatpic_get_highest_isrpin(struct atpic *atpic)
 	ATPIC_PIN_FOREACH(pin, atpic, i) {
                 bit = (1 << pin);
 
-		if (atpic->service & bit)
-			return (pin);
+		if (atpic->service & bit) {
+			/*
+			 * An IS bit that is masked by an IMR bit will not be
+			 * cleared by a non-specific EOI in Special Mask Mode.
+			 */
+			if (atpic->smm && (atpic->mask & bit) != 0)
+				continue;
+			else
+				return (pin);
+		}
 	}
 
 	return (-1);
@@ -152,6 +161,15 @@ vatpic_get_highest_irrpin(struct atpic *atpic)
 	serviced = atpic->service;
 	if (atpic->sfn)
 		serviced &= ~(1 << 2);
+
+	/*
+	 * In 'Special Mask Mode', when a mask bit is set in OCW1 it inhibits
+	 * further interrupts at that level and enables interrupts from all
+	 * other levels that are not masked. In other words the ISR has no
+	 * bearing on the levels that can generate interrupts.
+	 */
+	if (atpic->smm)
+		serviced = 0;
 
 	ATPIC_PIN_FOREACH(pin, atpic, tmp) {
 		bit = 1 << pin;
@@ -261,6 +279,7 @@ vatpic_icw1(struct vatpic *vatpic, struct atpic *atpic, uint8_t val)
 	atpic->lowprio = 7;
 	atpic->rd_cmd_reg = 0;
 	atpic->poll = 0;
+	atpic->smm = 0;
 
 	if ((val & ICW1_SNGL) != 0) {
 		VATPIC_CTR0(vatpic, "vatpic cascade mode required");
@@ -375,8 +394,10 @@ vatpic_ocw3(struct vatpic *vatpic, struct atpic *atpic, uint8_t val)
 	VATPIC_CTR1(vatpic, "atpic ocw3 0x%x", val);
 
 	if (val & OCW3_ESMM) {
-		VATPIC_CTR0(vatpic, "atpic special mask mode not implemented");
-		return (-1);
+		atpic->smm = val & OCW3_SMM ? 1 : 0;
+		VATPIC_CTR2(vatpic, "%s atpic special mask mode %s",
+		    master_atpic(vatpic, atpic) ? "master" : "slave",
+		    atpic->smm ?  "enabled" : "disabled");
 	}
 
 	if (val & OCW3_RR) {

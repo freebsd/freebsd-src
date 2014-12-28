@@ -31,24 +31,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
-#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/sema.h>
-#include <sys/timeet.h>
-#include <sys/timetc.h>
-#include <sys/watchdog.h>
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_mbox.h>
 
@@ -188,25 +179,21 @@ bcm_mbox_attach(device_t dev)
 static int
 bcm_mbox_write(device_t dev, int chan, uint32_t data)
 {
-	int limit = 20000;
+	int limit = 1000;
 	struct bcm_mbox_softc *sc = device_get_softc(dev);
 
 	dprintf("bcm_mbox_write: chan %d, data %08x\n", chan, data);
 	MBOX_LOCK(sc);
-
-	while ((mbox_read_4(sc, REG_STATUS) & STATUS_FULL) && limit--) {
-		DELAY(2);
-	}
-
+	while ((mbox_read_4(sc, REG_STATUS) & STATUS_FULL) && --limit)
+		DELAY(5);
 	if (limit == 0) {
 		printf("bcm_mbox_write: STATUS_FULL stuck");
 		MBOX_UNLOCK(sc);
 		return (EAGAIN);
 	}
-	
 	mbox_write_4(sc, REG_WRITE, MBOX_MSG(chan, data));
-
 	MBOX_UNLOCK(sc);
+
 	return (0);
 }
 
@@ -254,4 +241,3 @@ static driver_t bcm_mbox_driver = {
 static devclass_t bcm_mbox_devclass;
 
 DRIVER_MODULE(mbox, simplebus, bcm_mbox_driver, bcm_mbox_devclass, 0, 0);
-

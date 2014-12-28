@@ -1,8 +1,14 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 TESTSDIR=	${TESTSBASE}/lib/libc/hash
 
-NETBSD_ATF_TESTS_C=	sha2_test
+NETBSD_ATF_TESTS_C=
+
+.if ${MK_OPENSSL} != "no"
+NETBSD_ATF_TESTS_C+=	sha2_test
+.endif
 
 NETBSD_ATF_TESTS_SH=	hash_test
 

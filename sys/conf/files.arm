@@ -11,6 +11,8 @@ arm/arm/copystr.S		standard
 arm/arm/cpufunc.c		standard
 arm/arm/cpufunc_asm.S		standard
 arm/arm/cpufunc_asm_armv4.S 	standard
+arm/arm/cpuinfo.c		standard
+arm/arm/cpu_asm-v6.S		optional	armv6
 arm/arm/db_disasm.c		optional	ddb
 arm/arm/db_interface.c		optional	ddb
 arm/arm/db_trace.c		optional	ddb
