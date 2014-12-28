@@ -155,4 +155,242 @@ _RF0(cp15_cbar_get, CP15_CBAR(%0))
 #undef	_WF0
 #undef	_WF1
 
+/*
+ * TLB maintenance operations.
+ */
+
+/* Local (i.e. not broadcasting ) operations.  */
+
+/* Flush all TLB entries (even global). */
+static __inline void
+tlb_flush_all_local(void)
+{
+
+	dsb();
+	_CP15_TLBIALL();
+	dsb();
+}
+
+/* Flush all not global TLB entries. */
+static __inline void
+tlb_flush_all_ng_local(void)
+{
+
+	dsb();
+	_CP15_TLBIASID(CPU_ASID_KERNEL);
+	dsb();
+}
+
+/* Flush single TLB entry (even global). */
+static __inline void
+tlb_flush_local(vm_offset_t sva)
+{
+
+	dsb();
+	_CP15_TLBIMVA((sva & ~PAGE_MASK ) | CPU_ASID_KERNEL);
+	dsb();
+}
+
+/* Flush range of TLB entries (even global). */
+static __inline void
+tlb_flush_range_local(vm_offset_t sva, vm_size_t size)
+{
+	vm_offset_t va;
+	vm_offset_t eva = sva + size;
+
+	dsb();
+	for (va = sva; va < eva; va += PAGE_SIZE)
+		_CP15_TLBIMVA((va & ~PAGE_MASK ) | CPU_ASID_KERNEL);
+	dsb();
+}
+
+/* Broadcasting operations. */
+#ifndef SMP
+
+#define tlb_flush_all() 		tlb_flush_all_local()
+#define tlb_flush_all_ng() 		tlb_flush_all_ng_local()
+#define tlb_flush(sva) 			tlb_flush_local(sva)
+#define tlb_flush_range(sva, size) 	tlb_flush_range_local(sva, size)
+
+#else /* SMP */
+
+static __inline void
+tlb_flush_all(void)
+{
+
+	dsb();
+	_CP15_TLBIALLIS();
+	dsb();
+}
+
+static __inline void
+tlb_flush_all_ng()
+{
+
+	dsb();
+	_CP15_TLBIASIDIS(CPU_ASID_KERNEL);
+	dsb();
+}
+
+static __inline void
+tlb_flush(vm_offset_t sva)
+{
+
+	dsb();
+	_CP15_TLBIMVAAIS(sva);
+	dsb();
+}
+
+static __inline void
+tlb_flush_range(vm_offset_t sva,  vm_size_t size)
+{
+	vm_offset_t va;
+	vm_offset_t eva = sva + size;
+
+	dsb();
+	for (va = sva; va < eva; va += PAGE_SIZE)
+		_CP15_TLBIMVAAIS(va);
+	dsb();
+}
+#endif /* SMP */
+
+/*
+ * Cache maintenance operations.
+ */
+
+/*  Sync I and D caches to PoU */
+static __inline void
+icache_sync(vm_offset_t sva, vm_size_t size)
+{
+	vm_offset_t va;
+	vm_offset_t eva = sva + size;
+
+	dsb();
+	for (va = sva; va < eva; va += arm_dcache_align) {
+#ifdef SMP
+		_CP15_DCCMVAU(va);
+#else
+		_CP15_DCCMVAC(va);
+#endif
+	}
+	dsb();
+#ifdef SMP
+	_CP15_ICIALLUIS();
+#else
+	_CP15_ICIALLU();
+#endif
+	dsb();
+	isb();
+}
+
+/*  Invalidate I cache */
+static __inline void
+icache_inv_all(void)
+{
+#ifdef SMP
+	_CP15_ICIALLUIS();
+#else
+	_CP15_ICIALLU();
+#endif
+	dsb();
+	isb();
+}
+
+/* Write back D-cache to PoU */
+static __inline void
+dcache_wb_pou(vm_offset_t sva, vm_size_t size)
+{
+	vm_offset_t va;
+	vm_offset_t eva = sva + size;
+
+	dsb();
+	for (va = sva; va < eva; va += arm_dcache_align) {
+#ifdef SMP
+		_CP15_DCCMVAU(va);
+#else
+		_CP15_DCCMVAC(va);
+#endif
+	}
+	dsb();
+}
+
+/* Invalidate D-cache to PoC */
+static __inline void
+dcache_inv_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
+{
+	vm_offset_t va;
+	vm_offset_t eva = sva + size;
+
+	/* invalidate L1 first */
+	for (va = sva; va < eva; va += arm_dcache_align) {
+		_CP15_DCIMVAC(va);
+	}
+	dsb();
+
+	/* then L2 */
+ 	cpu_l2cache_inv_range(pa, size);
+	dsb();
+
+	/* then L1 again */
+	for (va = sva; va < eva; va += arm_dcache_align) {
+		_CP15_DCIMVAC(va);
+	}
+	dsb();
+}
+
+/* Write back D-cache to PoC */
+static __inline void
+dcache_wb_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
+{
+	vm_offset_t va;
+	vm_offset_t eva = sva + size;
+
+	dsb();
+
+	for (va = sva; va < eva; va += arm_dcache_align) {
+		_CP15_DCCMVAC(va);
+	}
+	dsb();
+
+	cpu_l2cache_wb_range(pa, size);
+}
+
+/* Write back and invalidate D-cache to PoC */
+static __inline void
+dcache_wbinv_poc(vm_offset_t sva, vm_paddr_t pa, vm_size_t size)
+{
+	vm_offset_t va;
+	vm_offset_t eva = sva + size;
+
+	dsb();
+
+	/* write back L1 first */
+	for (va = sva; va < eva; va += arm_dcache_align) {
+		_CP15_DCCMVAC(va);
+	}
+	dsb();
+
+	/* then write back and invalidate L2 */
+	cpu_l2cache_wbinv_range(pa, size);
+
+	/* then invalidate L1 */
+	for (va = sva; va < eva; va += arm_dcache_align) {
+		_CP15_DCIMVAC(va);
+	}
+	dsb();
+}
+
+/* Set TTB0 register */
+static __inline void
+cp15_ttbr_set(uint32_t reg)
+{
+	dsb();
+	_CP15_TTB_SET(reg);
+	dsb();
+	_CP15_BPIALL();
+	dsb();
+	isb();
+	tlb_flush_all_ng_local();
+}
+
 #endif /* !MACHINE_CPU_V6_H */
