@@ -633,6 +633,7 @@ vlapic_fire_timer(struct vlapic *vlapic)
 	// The timer LVT always uses the fixed delivery mode.
 	lvt = vlapic_get_lvt(vlapic, APIC_OFFSET_TIMER_LVT);
 	if (vlapic_fire_lvt(vlapic, lvt | APIC_LVT_DM_FIXED)) {
+		VLAPIC_CTR0(vlapic, "vlapic timer fired");
 		vmm_stat_incr(vlapic->vm, vlapic->vcpuid, VLAPIC_INTR_TIMER, 1);
 	}
 }

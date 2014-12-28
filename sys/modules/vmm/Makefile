@@ -19,7 +19,6 @@ SRCS+=	vmm.c		\
 	vmm_ipi.c	\
 	vmm_lapic.c	\
 	vmm_mem.c	\
-	vmm_msr.c	\
 	vmm_stat.c	\
 	vmm_util.c	\
 	x86.c		\

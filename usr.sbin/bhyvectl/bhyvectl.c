@@ -309,7 +309,7 @@ dump_vmcs_msr_bitmap(int vcpu, u_long addr)
 	if (fd < 0)
 		goto done;
 
-	bitmap = mmap(NULL, PAGE_SIZE, PROT_READ, 0, fd, addr);
+	bitmap = mmap(NULL, PAGE_SIZE, PROT_READ, MAP_SHARED, fd, addr);
 	if (bitmap == MAP_FAILED)
 		goto done;
 
