@@ -224,7 +224,7 @@ tlb_flush_all(void)
 }
 
 static __inline void
-tlb_flush_all_ng()
+tlb_flush_all_ng(void)
 {
 
 	dsb();
