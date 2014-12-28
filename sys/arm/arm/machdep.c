@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #include <machine/atags.h>
 #include <machine/cpu.h>
+#include <machine/cpuinfo.h>
 #include <machine/devmap.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
@@ -1064,6 +1065,8 @@ initarm(struct arm_boot_params *abp)
 	arm_physmem_kernaddr = abp->abp_physaddr;
 
 	memsize = 0;
+
+	cpuinfo_init();
 	set_cpufuncs();
 
 	/*
