@@ -37,14 +37,16 @@
 
 /* 
  * Define cache functions used by startup code, which counts on the fact that
- * only r0-r4,r12 (ip) are modified and no stack space is used. This set
- * of function must be called with interrupts disabled and don't follow
- * ARM ABI (cannot be called form C code.
- * Moreover, it works only with caches integrated to CPU (accessible via CP15).
+ * only r0-r3,r12 (ip) are modified and no stack space is used.  These functions
+ * must be called with interrupts disabled.  Moreover, these work only with 
+ * caches integrated to CPU (accessible via CP15); systems with an external L2
+ * cache controller such as a PL310 need separate calls to that device driver
+ * to affect L2 caches.  This is not a factor during early kernel startup, as
+ * any external L2 cache controller has not been enabled yet.
  */
 
 /* Invalidate D cache to PoC. (aka all cache levels)*/
-ASENTRY(dcache_inv_poc_all)
+ASENTRY_NP(dcache_inv_poc_all)
 	mrc	CP15_CLIDR(r0)
 	ands	r0, r0, #0x07000000
 	mov	r0, r0, lsr #23		/* Get LoC (naturally aligned) */
@@ -96,7 +98,7 @@ ASENTRY(dcache_inv_poc_all)
 END(dcache_inv_poc_all)
 
 /* Invalidate D cache to PoU. (aka L1 cache only)*/
-ASENTRY(dcache_inv_pou_all)
+ASENTRY_NP(dcache_inv_pou_all)
 	mrc	CP15_CLIDR(r0)
 	ands	r0, r0, #0x07000000
 	mov	r0, r0, lsr #26		/* Get LoUU (naturally aligned) */
@@ -147,7 +149,7 @@ ASENTRY(dcache_inv_pou_all)
 END(dcache_inv_pou_all)
 
 /* Write back and Invalidate D cache to PoC. */
-ASENTRY(dcache_wbinv_poc_all)
+ASENTRY_NP(dcache_wbinv_poc_all)
 	mrc	CP15_CLIDR(r0)
 	ands	r0, r0, #0x07000000
 	mov	r0, r0, lsr #23		/* Get LoC (naturally aligned) */
