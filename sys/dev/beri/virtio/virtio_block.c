@@ -67,7 +67,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/altera/pio/pio.h>
 #include <dev/virtio/mmio/virtio_mmio.h>
 #include <dev/virtio/block/virtio_blk.h>
-#include <dev/virtio/virtio.h>
+#include <dev/virtio/virtio_ids.h>
+#include <dev/virtio/virtio_config.h>
 #include <dev/virtio/virtio_ring.h>
 
 #include "pio_if.h"
