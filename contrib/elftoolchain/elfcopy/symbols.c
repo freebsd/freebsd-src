@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: symbols.c 2971 2013-12-01 15:22:21Z kaiwang27 $");
+ELFTC_VCSID("$Id: symbols.c 3019 2014-04-17 14:53:40Z jkoshy $");
 
 /* Symbol table buffer structure. */
 struct symbuf {
@@ -300,7 +300,7 @@ generate_symbols(struct elfcopy *ecp)
 	GElf_Sym	 sym;
 	Elf_Data*	 id;
 	Elf_Scn		*is;
-	size_t		 ishstrndx, namelen, ndx, nsyms, sc, symndx;
+	size_t		 ishstrndx, namelen, ndx, sc, symndx;
 	int		 ec, elferr, i;
 
 	if (elf_getshstrndx(ecp->ein, &ishstrndx) == 0)
@@ -320,7 +320,6 @@ generate_symbols(struct elfcopy *ecp)
 	st_buf->lcap = 64;
 	st_buf->lsz = 1;	/* '\0' at start. */
 	st_buf->gsz = 0;
-	nsyms = 0;
 
 	ecp->symtab->sz = 0;
 	ecp->strtab->sz = 0;
