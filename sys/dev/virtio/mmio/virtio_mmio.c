@@ -202,6 +202,7 @@ static driver_t vtmmio_driver = {
 devclass_t vtmmio_devclass;
 
 DRIVER_MODULE(virtio_mmio, simplebus, vtmmio_driver, vtmmio_devclass, 0, 0);
+DRIVER_MODULE(virtio_mmio, ofwbus, vtmmio_driver, vtmmio_devclass, 0, 0);
 MODULE_VERSION(virtio_mmio, 1);
 MODULE_DEPEND(virtio_mmio, simplebus, 1, 1, 1);
 MODULE_DEPEND(virtio_mmio, virtio, 1, 1, 1);
