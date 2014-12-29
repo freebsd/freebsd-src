@@ -538,13 +538,13 @@ expredir(union node *n)
 		case NFROMTO:
 		case NAPPEND:
 		case NCLOBBER:
-			expandarg(redir->nfile.fname, &fn, EXP_TILDE | EXP_REDIR);
+			expandarg(redir->nfile.fname, &fn, EXP_TILDE);
 			redir->nfile.expfname = fn.list->text;
 			break;
 		case NFROMFD:
 		case NTOFD:
 			if (redir->ndup.vname) {
-				expandarg(redir->ndup.vname, &fn, EXP_TILDE | EXP_REDIR);
+				expandarg(redir->ndup.vname, &fn, EXP_TILDE);
 				fixredir(redir, fn.list->text, 1);
 			}
 			break;

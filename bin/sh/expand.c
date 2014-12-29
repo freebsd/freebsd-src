@@ -171,17 +171,12 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
 	STPUTC('\0', expdest);
 	p = grabstackstr(expdest);
 	exparg.lastp = &exparg.list;
-	/*
-	 * TODO - EXP_REDIR
-	 */
 	if (flag & EXP_FULL) {
 		ifsbreakup(p, &exparg);
 		*exparg.lastp = NULL;
 		exparg.lastp = &exparg.list;
 		expandmeta(exparg.list, flag);
 	} else {
-		if (flag & EXP_REDIR) /*XXX - for now, just remove escapes */
-			rmescapes(p);
 		sp = (struct strlist *)stalloc(sizeof (struct strlist));
 		sp->text = p;
 		*exparg.lastp = sp;
@@ -209,7 +204,7 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
  * expansion, and tilde expansion if requested via EXP_TILDE/EXP_VARTILDE.
  * Processing ends at a CTLENDVAR or CTLENDARI character as well as '\0'.
  * This is used to expand word in ${var+word} etc.
- * If EXP_FULL, EXP_CASE or EXP_REDIR are set, keep and/or generate CTLESC
+ * If EXP_FULL or EXP_CASE are set, keep and/or generate CTLESC
  * characters to allow for further processing.
  * If EXP_FULL is set, also preserve CTLQUOTEMARK characters.
  */
@@ -217,7 +212,7 @@ static char *
 argstr(char *p, int flag)
 {
 	char c;
-	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);	/* do CTLESC */
+	int quotes = flag & (EXP_FULL | EXP_CASE);	/* do CTLESC */
 	int firsteq = 1;
 	int split_lit;
 	int lit_quoted;
@@ -303,7 +298,7 @@ exptilde(char *p, int flag)
 	char c, *startp = p;
 	struct passwd *pw;
 	char *home;
-	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
+	int quotes = flag & (EXP_FULL | EXP_CASE);
 
 	while ((c = *p) != '\0') {
 		switch(c) {
@@ -442,7 +437,7 @@ expbackq(union node *cmd, int quoted, int flag)
 	char lastc;
 	int startloc = dest - stackblock();
 	char const *syntax = quoted? DQSYNTAX : BASESYNTAX;
-	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
+	int quotes = flag & (EXP_FULL | EXP_CASE);
 	size_t nnl;
 
 	INTOFF;
@@ -642,7 +637,7 @@ evalvar(char *p, int flag)
 	int varlen;
 	int varlenb;
 	int easy;
-	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
+	int quotes = flag & (EXP_FULL | EXP_CASE);
 
 	varflags = (unsigned char)*p++;
 	subtype = varflags & VSTYPE;
@@ -867,7 +862,7 @@ varisset(const char *name, int nulok)
 static void
 strtodest(const char *p, int flag, int subtype, int quoted)
 {
-	if (flag & (EXP_FULL | EXP_CASE | EXP_REDIR) && subtype != VSLENGTH)
+	if (flag & (EXP_FULL | EXP_CASE) && subtype != VSLENGTH)
 		STPUTS_QUOTES(p, quoted ? DQSYNTAX : BASESYNTAX, expdest);
 	else
 		STPUTS(p, expdest);
@@ -1108,7 +1103,6 @@ expandmeta(struct strlist *str, int flag __unused)
 	struct strlist **savelastp;
 	struct strlist *sp;
 	char c;
-	/* TODO - EXP_REDIR */
 
 	while (str) {
 		if (fflag)
