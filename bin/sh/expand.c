@@ -867,7 +867,7 @@ varisset(const char *name, int nulok)
 static void
 strtodest(const char *p, int flag, int subtype, int quoted)
 {
-	if (flag & (EXP_FULL | EXP_CASE) && subtype != VSLENGTH)
+	if (flag & (EXP_FULL | EXP_CASE | EXP_REDIR) && subtype != VSLENGTH)
 		STPUTS_QUOTES(p, quoted ? DQSYNTAX : BASESYNTAX, expdest);
 	else
 		STPUTS(p, expdest);
