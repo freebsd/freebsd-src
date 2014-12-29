@@ -50,6 +50,7 @@ _libelf_load_section_headers(Elf *e, void *ehdr)
 	Elf64_Ehdr *eh64;
 	int ec, swapbytes;
 	unsigned char *src;
+	unsigned char *rawend;
 	size_t fsz, i, shnum;
 	int (*xlator)(unsigned char *_d, size_t _dsz, unsigned char *_s,
 	    size_t _c, int _swap);
@@ -86,6 +87,7 @@ _libelf_load_section_headers(Elf *e, void *ehdr)
 
 	swapbytes = e->e_byteorder != LIBELF_PRIVATE(byteorder);
 	src = e->e_rawfile + shoff;
+	rawend = e->e_rawfile + e->e_rawsize;
 
 	/*
 	 * If the file is using extended numbering then section #0
@@ -102,6 +104,8 @@ _libelf_load_section_headers(Elf *e, void *ehdr)
 	}
 
 	for (; i < shnum; i++, src += fsz) {
+		if (src + sizeof(scn->s_shdr) > rawend)
+			return (0);
 		if ((scn = _libelf_allocate_scn(e, i)) == NULL)
 			return (0);
 
