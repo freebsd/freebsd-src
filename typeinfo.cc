@@ -96,7 +96,7 @@ extern "C" char* __cxa_demangle(const char* mangled_name,
 		}
 		if (*n < len+1)
 		{
-			buf = (char*)realloc(buf, len+1);
+			buf = static_cast<char*>(realloc(buf, len+1));
 		}
 		if (0 != buf)
 		{

@@ -218,6 +218,6 @@ _Unwind_Reason_Code name(_Unwind_State state,\
 			break;\
 		}\
 	}\
-	_Unwind_SetGR (context, 12, (unsigned long)exceptionObject);\
+	_Unwind_SetGR (context, 12, reinterpret_cast<unsigned long>(exceptionObject));\
 
 #define CALL_PERSONALITY_FUNCTION(name) name(state,exceptionObject,context)
