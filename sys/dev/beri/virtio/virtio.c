@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/beri/virtio/virtio.h>
-#include <dev/virtio/virtio.h>
 #include <dev/virtio/virtqueue.h>
 #include <dev/virtio/virtio_ring.h>
 #include <dev/altera/pio/pio.h>
