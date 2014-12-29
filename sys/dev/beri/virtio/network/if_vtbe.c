@@ -82,7 +82,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/virtio/mmio/virtio_mmio.h>
 #include <dev/virtio/network/virtio_net.h>
-#include <dev/virtio/virtio.h>
+#include <dev/virtio/virtio_ids.h>
+#include <dev/virtio/virtio_config.h>
 #include <dev/virtio/virtio_ring.h>
 
 #include "pio_if.h"
