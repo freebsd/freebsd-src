@@ -31,7 +31,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_xlate.c 2225 2011-11-26 18:55:54Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_xlate.c 3007 2014-03-22 08:10:14Z jkoshy $");
 
 /*
  * Translate to/from the file representation of ELF objects.
@@ -99,10 +99,10 @@ _libelf_xlate(Elf_Data *dst, const Elf_Data *src, unsigned int encoding,
 	 * buffer.
 	 */
 	if (direction == ELF_TOMEMORY) {
-		cnt = src->d_size / fsz;
+		cnt = (size_t) src->d_size / fsz;
 		dsz = cnt * msz;
 	} else {
-		cnt = src->d_size / msz;
+		cnt = (size_t) src->d_size / msz;
 		dsz = cnt * fsz;
 	}
 
@@ -112,9 +112,9 @@ _libelf_xlate(Elf_Data *dst, const Elf_Data *src, unsigned int encoding,
 	}
 
 	sb = (uintptr_t) src->d_buf;
-	se = sb + src->d_size;
+	se = sb + (size_t) src->d_size;
 	db = (uintptr_t) dst->d_buf;
-	de = db + dst->d_size;
+	de = db + (size_t) dst->d_size;
 
 	/*
 	 * Check for overlapping buffers.  Note that db == sb is
