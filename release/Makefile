@@ -201,6 +201,7 @@ system: packagesystem
 	echo sendmail_enable=\"NONE\" > release/etc/rc.conf
 	echo hostid_enable=\"NO\" >> release/etc/rc.conf
 	echo debug.witness.trace=0 >> release/etc/sysctl.conf
+	echo kern.cam.boot_delay=\"10000\" >> release/boot/loader.conf
 	cp ${.CURDIR}/rc.local release/etc
 	touch ${.TARGET}
 
@@ -226,6 +227,7 @@ bootonly: packagesystem
 	echo sendmail_enable=\"NONE\" > bootonly/etc/rc.conf
 	echo hostid_enable=\"NO\" >> bootonly/etc/rc.conf
 	echo debug.witness.trace=0 >> bootonly/etc/sysctl.conf
+	echo kern.cam.boot_delay=\"10000\" >> bootonly/boot/loader.conf
 	cp ${.CURDIR}/rc.local bootonly/etc
 
 dvd:
@@ -248,6 +250,7 @@ dvd:
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
+	echo kern.cam.boot_delay=\"10000\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	touch ${.TARGET}
 
