@@ -97,7 +97,7 @@ This algorithm implements Integer Counter Mode.
 This is similar to what most people call counter mode, but instead of the
 counter being split into a nonce and a counter part, then entire nonce is
 used as the initial counter.
-This does mean that if a counter is required that rolls over at 32 bits, 
+This does mean that if a counter is required that rolls over at 32 bits,
 the transaction need to be split into two parts where the counter rolls over.
 The counter incremented as a 128-bit big endian number.
 .Pp
