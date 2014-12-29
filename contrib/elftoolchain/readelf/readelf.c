@@ -903,7 +903,7 @@ dt_type(unsigned int mach, unsigned int dtype)
 	case DT_PLTPADSZ: return "PLTPADSZ";
 	case DT_MOVEENT: return "MOVEENT";
 	case DT_MOVESZ: return "MOVESZ";
-	case DT_FEATURE_1: return "FEATURE_1";
+	case DT_FEATURE: return "FEATURE";
 	case DT_POSFLAG_1: return "POSFLAG_1";
 	case DT_SYMINSZ: return "SYMINSZ";
 	case DT_SYMINENT: return "SYMINENT";
