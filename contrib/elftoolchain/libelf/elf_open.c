@@ -63,5 +63,5 @@ elf_openmemory(char *image, size_t sz)
 		return (NULL);
 	}
 
-	return (_libelf_memory(image, sz, 0));
+	return (_libelf_memory((unsigned char *) image, sz, 0));
 }
