@@ -188,8 +188,10 @@ struct vm_map {
 	vm_flags_t flags;		/* flags for this vm_map */
 	vm_map_entry_t root;		/* Root of a binary search tree */
 	pmap_t pmap;			/* (c) Physical map */
+#ifdef	_KERNEL
 #define	min_offset	header.start	/* (c) */
 #define	max_offset	header.end	/* (c) */
+#endif	/* _KERNEL */
 	int busy;
 };
 
