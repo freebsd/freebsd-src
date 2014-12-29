@@ -40,7 +40,7 @@ __RCSID("$NetBSD: t_access.c,v 1.1 2011/07/07 06:57:53 jruoho Exp $");
 
 #include <atf-c.h>
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <sys/stat.h>
 #endif
 

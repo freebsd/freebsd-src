@@ -79,7 +79,7 @@ struct xo_handle_s {
     unsigned short xo_indent;	/* Indent level (if pretty) */
     unsigned short xo_indent_by; /* Indent amount (tab stop) */
     xo_write_func_t xo_write;	/* Write callback */
-    xo_close_func_t xo_close;	/* Clo;se callback */
+    xo_close_func_t xo_close;	/* Close callback */
     xo_formatter_t xo_formatter; /* Custom formating function */
     xo_checkpointer_t xo_checkpointer; /* Custom formating support function */
     void *xo_opaque;		/* Opaque data for write function */
@@ -317,7 +317,7 @@ xo_init_handle (xo_handle_t *xop)
 	    cp = getenv("LC_ALL");
 	if (cp == NULL)
 	    cp = "UTF-8";	/* Optimistic? */
-	cp = setlocale(LC_CTYPE, cp);
+	(void) setlocale(LC_CTYPE, cp);
     }
 
     /*
@@ -607,8 +607,10 @@ xo_vsnprintf (xo_handle_t *xop, xo_buffer_t *xbp, const char *fmt, va_list vap)
 	rc = vsnprintf(xbp->xb_curp, left, fmt, va_local);
 
     if (rc > xbp->xb_size) {
-	if (!xo_buf_has_room(xbp, rc))
+	if (!xo_buf_has_room(xbp, rc)) {
+	    va_end(va_local);
 	    return -1;
+	}
 
 	/*
 	 * After we call vsnprintf(), the stage of vap is not defined.
@@ -648,8 +650,10 @@ xo_printf_v (xo_handle_t *xop, const char *fmt, va_list vap)
     rc = vsnprintf(xbp->xb_curp, left, fmt, va_local);
 
     if (rc > xbp->xb_size) {
-	if (!xo_buf_has_room(xbp, rc))
+	if (!xo_buf_has_room(xbp, rc)) {
+	    va_end(va_local);
 	    return -1;
+	}
 
 	va_end(va_local);	/* Reset vap to the start */
 	va_copy(va_local, vap);
@@ -952,9 +956,6 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
     }
     memcpy(newfmt + plen, fmt, len);
 
-    /* Add a newline to the fmt string */
-    if (!(xop->xo_flags & XOF_WARN_XML))
-	newfmt[len++ + plen] = '\n';
     newfmt[len + plen] = '\0';
 
     if (xop->xo_flags & XOF_WARN_XML) {
@@ -974,8 +975,10 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
 	int left = xbp->xb_size - (xbp->xb_curp - xbp->xb_bufp);
 	int rc = vsnprintf(xbp->xb_curp, left, newfmt, vap);
 	if (rc > xbp->xb_size) {
-	    if (!xo_buf_has_room(xbp, rc))
+	    if (!xo_buf_has_room(xbp, rc)) {
+		va_end(va_local);
 		return;
+	    }
 
 	    va_end(vap);	/* Reset vap to the start */
 	    va_copy(vap, va_local);
@@ -1004,6 +1007,7 @@ xo_warn_hcv (xo_handle_t *xop, int code, int check_warn,
 
     } else {
 	vfprintf(stderr, newfmt, vap);
+	fprintf(stderr, ": %s\n", strerror(code));
     }
 }
 
@@ -1118,8 +1122,10 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
 	int left = xbp->xb_size - (xbp->xb_curp - xbp->xb_bufp);
 	rc = vsnprintf(xbp->xb_curp, left, fmt, vap);
 	if (rc > xbp->xb_size) {
-	    if (!xo_buf_has_room(xbp, rc))
+	    if (!xo_buf_has_room(xbp, rc)) {
+		va_end(va_local);
 		return;
+	    }
 
 	    va_end(vap);	/* Reset vap to the start */
 	    va_copy(vap, va_local);
@@ -1154,14 +1160,15 @@ xo_message_hcv (xo_handle_t *xop, int code, const char *fmt, va_list vap)
 
 	    va_copy(va_local, vap);
 
-	    rc = vsnprintf(buf, bufsiz, fmt, va_local);
+	    rc = vsnprintf(bp, bufsiz, fmt, va_local);
 	    if (rc > bufsiz) {
 		bufsiz = rc + BUFSIZ;
 		bp = alloca(bufsiz);
 		va_end(va_local);
 		va_copy(va_local, vap);
-		rc = vsnprintf(buf, bufsiz, fmt, va_local);
+		rc = vsnprintf(bp, bufsiz, fmt, va_local);
 	    }
+	    va_end(va_local);
 	    cp = bp + rc;
 
 	    if (need_nl) {
@@ -1302,9 +1309,9 @@ xo_create_to_file (FILE *fp, xo_style_t style, xo_xof_flags_t flags)
  * @xop XO handle to alter (or NULL for default handle)
  */
 void
-xo_destroy (xo_handle_t *xop)
+xo_destroy (xo_handle_t *xop_arg)
 {
-    xop = xo_default(xop);
+    xo_handle_t *xop = xo_default(xop_arg);
 
     if (xop->xo_close && (xop->xo_flags & XOF_CLOSE_FP))
 	xop->xo_close(xop->xo_opaque);
@@ -1315,7 +1322,7 @@ xo_destroy (xo_handle_t *xop)
     xo_buf_cleanup(&xop->xo_predicate);
     xo_buf_cleanup(&xop->xo_attrs);
 
-    if (xop == &xo_default_handle) {
+    if (xop_arg == NULL) {
 	bzero(&xo_default_handle, sizeof(&xo_default_handle));
 	xo_default_inited = 0;
     } else
@@ -1743,7 +1750,7 @@ xo_format_string_direct (xo_handle_t *xop, xo_buffer_t *xbp,
 			 int need_enc, int have_enc)
 {
     int cols = 0;
-    wchar_t wc;
+    wchar_t wc = 0;
     int ilen, olen, width;
     int attr = (flags & XFF_ATTR);
     const char *sp;
@@ -1912,6 +1919,7 @@ xo_format_string (xo_handle_t *xop, xo_buffer_t *xbp, xo_xff_flags_t flags,
 		  xo_format_t *xfp)
 {
     static char null[] = "(null)";
+
     char *cp = NULL;
     wchar_t *wcp = NULL;
     int len, cols = 0, rc = 0;
@@ -1922,15 +1930,32 @@ xo_format_string (xo_handle_t *xop, xo_buffer_t *xbp, xo_xff_flags_t flags,
     if (xo_check_conversion(xop, xfp->xf_enc, need_enc))
 	return 0;
 
+    len = xfp->xf_width[XF_WIDTH_SIZE];
+
     if (xfp->xf_enc == XF_ENC_WIDE) {
 	wcp = va_arg(xop->xo_vap, wchar_t *);
 	if (xfp->xf_skip)
 	    return 0;
 
+	/*
+	 * Dont' deref NULL; use the traditional "(null)" instead
+	 * of the more accurate "who's been a naughty boy, then?".
+	 */
+	if (wcp == NULL) {
+	    cp = null;
+	    len = sizeof(null) - 1;
+	}
+
     } else {
 	cp = va_arg(xop->xo_vap, char *); /* UTF-8 or native */
 	if (xfp->xf_skip)
 	    return 0;
+
+	/* Echo "Dont' deref NULL" logic */
+	if (cp == NULL) {
+	    cp = null;
+	    len = sizeof(null) - 1;
+	}
 
 	/*
 	 * Optimize the most common case, which is "%s".  We just
@@ -1955,17 +1980,6 @@ xo_format_string (xo_handle_t *xop, xo_buffer_t *xbp, xo_xff_flags_t flags,
 
 	    return rc;
 	}
-    }
-
-    len = xfp->xf_width[XF_WIDTH_SIZE];
-
-    /*
-     * Dont' deref NULL; use the traditional "(null)" instead
-     * of the more accurate "who's been a naughty boy, then?".
-     */
-    if (cp == NULL && wcp == NULL) {
-	cp = null;
-	len = sizeof(null) - 1;
     }
 
     cols = xo_format_string_direct(xop, xbp, flags, wcp, cp, len,
@@ -3859,7 +3873,7 @@ xo_close_list_h (xo_handle_t *xop, const char *name)
     rc = xo_printf(xop, "%s%*s]", pre_nl, xo_indent(xop), "");
     xop->xo_stack[xop->xo_depth].xs_flags |= XSF_NOT_FIRST;
 
-    return 0;
+    return rc;
 }
 
 int

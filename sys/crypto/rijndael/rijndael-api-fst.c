@@ -233,10 +233,10 @@ int rijndael_padEncrypt(cipherInstance *cipher, keyInstance *key,
 	case MODE_CBC:
 		iv = cipher->IV;
 		for (i = numBlocks; i > 0; i--) {
-			((u_int32_t*)block)[0] = ((u_int32_t*)input)[0] ^ ((u_int32_t*)iv)[0];
-			((u_int32_t*)block)[1] = ((u_int32_t*)input)[1] ^ ((u_int32_t*)iv)[1];
-			((u_int32_t*)block)[2] = ((u_int32_t*)input)[2] ^ ((u_int32_t*)iv)[2];
-			((u_int32_t*)block)[3] = ((u_int32_t*)input)[3] ^ ((u_int32_t*)iv)[3];
+			((u_int32_t*)block)[0] = ((const u_int32_t*)input)[0] ^ ((u_int32_t*)iv)[0];
+			((u_int32_t*)block)[1] = ((const u_int32_t*)input)[1] ^ ((u_int32_t*)iv)[1];
+			((u_int32_t*)block)[2] = ((const u_int32_t*)input)[2] ^ ((u_int32_t*)iv)[2];
+			((u_int32_t*)block)[3] = ((const u_int32_t*)input)[3] ^ ((u_int32_t*)iv)[3];
 			rijndaelEncrypt(key->rk, key->Nr, block, outBuffer);
 			iv = outBuffer;
 			input += 16;

@@ -7,8 +7,7 @@ CONTRIBDIR=	${.CURDIR}/../../contrib/smbfs
 
 LIB=	smb
 SHLIB_MAJOR=	4
-DPADD=	${LIBKICONV}
-LDADD=	-lkiconv
+LIBADD=	kiconv
 
 SRCS=	rcfile.c ctx.c cfopt.c subr.c nls.c rap.c mbuf.c rq.c file.c \
 	print.c \

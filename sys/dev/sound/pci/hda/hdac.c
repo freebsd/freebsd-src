@@ -86,6 +86,7 @@ static const struct {
 	{ HDA_INTEL_PPT1,    "Intel Panther Point",	0, 0 },
 	{ HDA_INTEL_LPT1,    "Intel Lynx Point",	0, 0 },
 	{ HDA_INTEL_LPT2,    "Intel Lynx Point",	0, 0 },
+	{ HDA_INTEL_WCPT,    "Intel Wildcat Point",	0, 0 },
 	{ HDA_INTEL_WELLS1,  "Intel Wellsburg",	0, 0 },
 	{ HDA_INTEL_WELLS2,  "Intel Wellsburg",	0, 0 },
 	{ HDA_INTEL_LPTLP1,  "Intel Lynx Point-LP",	0, 0 },

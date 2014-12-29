@@ -219,6 +219,10 @@ ports_build() (
 
 	ports_recurse . $PORTS_WE_WANT 
 
+	if [ "x${PKG_DIR}" != "x" ] ; then
+		mkdir -p ${PKG_DIR}
+	fi
+
 	# Now build & install them
 	for p in `cat /tmp/_.plist`
 	do
@@ -226,15 +230,12 @@ ports_build() (
 		t=`echo $p | sed 's,/usr/ports/,,'`
 		pn=`cd $p && make package-name`
 
-		if [ "x$p" == "x/usr/ports/ports-mgmt/pkg" -o \
-		     "x$p" == "x/freebsd/ports/ports-mgmt/pkg" ] ; then
+		if [ "x`basename $p`" == "xpkg" ] ; then
 			log_it "Very Special: $t ($pn)"
 
 			(
 			cd $p
-			make clean ${PORTS_OPTS}
-			make all ${PORTS_OPTS}
-			make install ${PORTS_OPTS}
+			make clean all install ${PORTS_OPTS}
 			) > _.$b 2>&1 < /dev/null
 			continue
 		fi

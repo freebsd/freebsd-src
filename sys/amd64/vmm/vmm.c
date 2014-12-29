@@ -207,6 +207,11 @@ static int vmm_ipinum;
 SYSCTL_INT(_hw_vmm, OID_AUTO, ipinum, CTLFLAG_RD, &vmm_ipinum, 0,
     "IPI vector used for vcpu notifications");
 
+static int trace_guest_exceptions;
+SYSCTL_INT(_hw_vmm, OID_AUTO, trace_guest_exceptions, CTLFLAG_RDTUN,
+    &trace_guest_exceptions, 0,
+    "Trap into hypervisor on all guest exceptions and reflect them back");
+
 static void
 vcpu_cleanup(struct vm *vm, int i, bool destroy)
 {
@@ -248,6 +253,13 @@ vcpu_init(struct vm *vm, int vcpu_id, bool create)
 	vcpu->guest_xcr0 = XFEATURE_ENABLED_X87;
 	fpu_save_area_reset(vcpu->guestfpu);
 	vmm_stat_init(vcpu->stats);
+}
+
+int
+vcpu_trace_exceptions(struct vm *vm, int vcpuid)
+{
+
+	return (trace_guest_exceptions);
 }
 
 struct vm_exit *
@@ -389,7 +401,7 @@ vm_create(const char *name, struct vm **retvm)
 	if (name == NULL || strlen(name) >= VM_MAX_NAMELEN)
 		return (EINVAL);
 
-	vmspace = VMSPACE_ALLOC(VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS);
+	vmspace = VMSPACE_ALLOC(0, VM_MAXUSER_ADDRESS);
 	if (vmspace == NULL)
 		return (ENOMEM);
 

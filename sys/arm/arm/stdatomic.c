@@ -34,10 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/sysarch.h>
 
-#ifdef _KERNEL
-#include "opt_global.h"
-#endif
-
 /*
  * Executing statements with interrupts disabled.
  */
@@ -854,8 +850,13 @@ EMIT_FETCH_AND_OP_N(N, uintN_t, ldr, str, fetch_and_or, "orr")		\
 EMIT_FETCH_AND_OP_N(N, uintN_t, ldr, str, fetch_and_sub, "sub")		\
 EMIT_FETCH_AND_OP_N(N, uintN_t, ldr, str, fetch_and_xor, "eor")
 
+#ifdef __clang__
+EMIT_ALL_OPS_N(1, uint8_t, "ldrb", "strb", "strbeq")
+EMIT_ALL_OPS_N(2, uint16_t, "ldrh", "strh", "strheq")
+#else
 EMIT_ALL_OPS_N(1, uint8_t, "ldrb", "strb", "streqb")
 EMIT_ALL_OPS_N(2, uint16_t, "ldrh", "strh", "streqh")
+#endif
 EMIT_ALL_OPS_N(4, uint32_t, "ldr", "str", "streq")
 
 #ifndef __clang__

@@ -54,6 +54,7 @@ LIBFIGPAR?=	${DESTDIR}${LIBDIR}/libfigpar.a
 LIBFL?=		"don't use LIBFL, use LIBL"
 LIBFORM?=	${DESTDIR}${LIBDIR}/libform.a
 LIBG2C?=	${DESTDIR}${LIBDIR}/libg2c.a
+LIBGPIO?=	${DESTDIR}${LIBDIR}/libgpio.a
 LIBGEOM?=	${DESTDIR}${LIBDIR}/libgeom.a
 LIBGNUREGEX?=	${DESTDIR}${LIBDIR}/libgnuregex.a
 LIBGSSAPI?=	${DESTDIR}${LIBDIR}/libgssapi.a
@@ -90,33 +91,7 @@ LIBNGATM?=	${DESTDIR}${LIBDIR}/libngatm.a
 LIBNV?=		${DESTDIR}${LIBDIR}/libnv.a
 LIBNVPAIR?=	${DESTDIR}${LIBDIR}/libnvpair.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
-
-# The static PAM library doesn't know its secondary dependencies,
-# so we have to specify them explicitly. Ths is an unfortunate,
-# but necessary departure from testing MK_ flags to define
-# values here.
 LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a
-MINUSLPAM=	-lpam
-.if defined(LDFLAGS) && !empty(LDFLAGS:M-static)
-.if ${MK_KERBEROS} != "no"
-LIBPAM+=	${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
-		${LIBROKEN} ${LIBCOM_ERR}
-MINUSLPAM+=	-lkrb5 -lhx509 -lasn1 -lcrypto -lcrypt -lroken -lcom_err
-.endif
-LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBCRYPT} \
-		${LIBUTIL} ${LIBOPIE} ${LIBMD}
-MINUSLPAM+=	-lradius -ltacplus -lcrypt \
-		-lutil -lopie -lmd
-.if ${MK_OPENSSH} != "no"
-LIBPAM+=	${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT}
-MINUSLPAM+=	-lssh -lcrypto -lcrypt
-.endif
-.if ${MK_NIS} != "no"
-LIBPAM+=	${LIBYPCLNT}
-MINUSLPAM+=	-lypclnt
-.endif
-.endif
-
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
 LIBPJDLOG?=	${DESTDIR}${LIBDIR}/libpjdlog.a
@@ -161,3 +136,13 @@ LIBZ?=		${DESTDIR}${LIBDIR}/libz.a
 LIBZFS?=	${DESTDIR}${LIBDIR}/libzfs.a
 LIBZFS_CORE?=	${DESTDIR}${LIBDIR}/libzfs_core.a
 LIBZPOOL?=	${DESTDIR}${LIBDIR}/libzpool.a
+
+# enforce the 2 -lpthread and -lc to always be the last in that exact order
+.if defined(LDADD)
+.if ${LDADD:M-lpthread}
+LDADD:=	${LDADD:N-lpthread} -lpthread
+.endif
+.if ${LDADD:M-lc}
+LDADD:=	${LDADD:N-lc} -lc
+.endif
+.endif

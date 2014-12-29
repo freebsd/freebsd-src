@@ -212,12 +212,13 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	struct iso88025_header gen_th;
 	struct sockaddr_dl *sdl = NULL;
 	struct rtentry *rt0 = NULL;
-#if defined(INET) || defined(INET6)
-	struct llentry *lle;
-#endif
+	int is_gw = 0;
 
-	if (ro != NULL)
+	if (ro != NULL) {
 		rt0 = ro->ro_rt;
+		if (rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) != 0)
+			is_gw = 1;
+	}
 
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
@@ -257,7 +258,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
-		error = arpresolve(ifp, rt0, m, dst, edst, &lle);
+		error = arpresolve(ifp, is_gw, m, dst, edst, NULL);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
 		snap_type = ETHERTYPE_IP;
@@ -292,7 +293,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #endif	/* INET */
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, &lle);
+		error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, NULL);
 		if (error)
 			return (error);
 		snap_type = ETHERTYPE_IPV6;

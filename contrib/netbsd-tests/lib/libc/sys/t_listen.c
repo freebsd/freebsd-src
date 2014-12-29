@@ -36,7 +36,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <sys/socket.h>
 #endif
 

@@ -11,7 +11,7 @@
 # are exceptions). Recursive makes usually add MK_FOO=no for options that they wish
 # to omit from that make.
 #
-# Makefiles must include bsd.srcpot.mk before they test the value of any MK_FOO
+# Makefiles must include bsd.mkopt.mk before they test the value of any MK_FOO
 # variable.
 #
 # Makefiles may also assume that this file is included by src.opts.mk should it
@@ -85,7 +85,6 @@ __DEFAULT_YES_OPTIONS = \
     GDB \
     GNU \
     GNU_GREP_COMPAT \
-    GPIB \
     GPIO \
     GPL_DTC \
     GROFF \
@@ -160,6 +159,7 @@ __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
     CLANG_EXTRAS \
     EISA \
+    ELFTOOLCHAIN_TOOLS \
     FMAKE \
     HESIOD \
     LLDB \
@@ -306,6 +306,7 @@ MK_BINUTILS:=	no
 MK_CLANG:=	no
 MK_GCC:=	no
 MK_GDB:=	no
+MK_INCLUDES:=	no
 .endif
 
 .if ${MK_CLANG} == "no"

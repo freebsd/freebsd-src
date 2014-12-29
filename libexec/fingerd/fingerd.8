@@ -28,7 +28,7 @@
 .\"     @(#)fingerd.8	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 1, 2010
+.Dd November 19, 2014
 .Dt FINGERD 8
 .Os
 .Sh NAME
@@ -86,7 +86,7 @@ returns a
 report that lists all people logged into
 the system at that moment.
 .Pp
-If a user name is specified (e.g.\&
+If a user name is specified (e.g.,\&
 .Pf eric Aq Tn CRLF )
 then the
 response lists more extended information for only that particular user,
@@ -159,19 +159,3 @@ The
 .Nm
 utility appeared in
 .Bx 4.3 .
-.Sh BUGS
-Connecting directly to the server from a
-.Tn TIP
-or an equally narrow-minded
-.Tn TELNET Ns \-protocol
-user program can result
-in meaningless attempts at option negotiation being sent to the
-server, which will foul up the command line interpretation.
-The
-.Nm
-utility should be taught to filter out
-.Tn IAC Ns \'s
-and perhaps even respond
-negatively
-.Pq Tn IAC WON'T
-to all option commands received.

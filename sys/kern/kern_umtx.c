@@ -169,7 +169,6 @@ struct umtxq_chain {
 };
 
 #define	UMTXQ_LOCKED_ASSERT(uc)		mtx_assert(&(uc)->uc_lock, MA_OWNED)
-#define	UMTXQ_BUSY_ASSERT(uc)	KASSERT(&(uc)->uc_busy, ("umtx chain is not busy"))
 
 /*
  * Don't propagate time-sharing priority, there is a security reason,
@@ -1478,7 +1477,7 @@ umtxq_sleep_pi(struct umtx_q *uq, struct umtx_pi *pi,
 	KASSERT(td == curthread, ("inconsistent uq_thread"));
 	uc = umtxq_getchain(&uq->uq_key);
 	UMTXQ_LOCKED_ASSERT(uc);
-	UMTXQ_BUSY_ASSERT(uc);
+	KASSERT(uc->uc_busy != 0, ("umtx chain is not busy"));
 	umtxq_insert(uq);
 	mtx_lock_spin(&umtx_lock);
 	if (pi->pi_owner == NULL) {

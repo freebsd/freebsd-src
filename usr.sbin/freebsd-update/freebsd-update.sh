@@ -580,6 +580,7 @@ fetchupgrade_check_params () {
 	_KEYPRINT_z="Key must be given via -k option or configuration file."
 	_KEYPRINT_bad="Invalid key fingerprint: "
 	_WORKDIR_bad="Directory does not exist or is not writable: "
+	_WORKDIR_bad2="Directory is not on a persistent filesystem: "
 
 	if [ -z "${SERVERNAME}" ]; then
 		echo -n "`basename $0`: "
@@ -603,6 +604,13 @@ fetchupgrade_check_params () {
 		echo ${WORKDIR}
 		exit 1
 	fi
+	case `df -T ${WORKDIR}` in */dev/md[0-9]* | *tmpfs*)
+		echo -n "`basename $0`: "
+		echo -n "${_WORKDIR_bad2}"
+		echo ${WORKDIR}
+		exit 1
+		;;
+	esac
 	chmod 700 ${WORKDIR}
 	cd ${WORKDIR} || exit 1
 
@@ -1387,6 +1395,7 @@ fetch_filter_metadata () {
 	# matter, since we add a leading "/" when we use paths later.
 	cut -f 3- -d '|' $1 |
 	    sed -e 's,/|d|,|d|,' |
+	    sed -e 's,/|-|,|-|,' |
 	    sort -u > $1.tmp
 
 	# Figure out which lines to ignore and remove them.
@@ -2255,7 +2264,7 @@ upgrade_oldall_to_oldnew () {
 }
 
 # Helper for upgrade_merge: Return zero true iff the two files differ only
-# in the contents of their $FreeBSD$ tags.
+# in the contents of their RCS tags.
 samef () {
 	X=`sed -E 's/\\$FreeBSD.*\\$/\$FreeBSD\$/' < $1 | ${SHA256}`
 	Y=`sed -E 's/\\$FreeBSD.*\\$/\$FreeBSD\$/' < $2 | ${SHA256}`
@@ -2351,7 +2360,7 @@ upgrade_merge () {
 		# Ask the user to handle any files which didn't merge.
 		while read F; do
 			# If the installed file differs from the version in
-			# the old release only due to $FreeBSD$ tag expansion
+			# the old release only due to RCS tag expansion
 			# then just use the version in the new release.
 			if samef merge/old/${F} merge/${OLDRELNUM}/${F}; then
 				cp merge/${RELNUM}/${F} merge/new/${F}
@@ -2373,14 +2382,14 @@ manually...
 		# of merging files.
 		while read F; do
 			# Skip files which haven't changed except possibly
-			# in their $FreeBSD$ tags.
+			# in their RCS tags.
 			if [ -f merge/old/${F} ] && [ -f merge/new/${F} ] &&
 			    samef merge/old/${F} merge/new/${F}; then
 				continue
 			fi
 
 			# Skip files where the installed file differs from
-			# the old file only due to $FreeBSD$ tags.
+			# the old file only due to RCS tags.
 			if [ -f merge/old/${F} ] &&
 			    [ -f merge/${OLDRELNUM}/${F} ] &&
 			    samef merge/old/${F} merge/${OLDRELNUM}/${F}; then

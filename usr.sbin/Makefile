@@ -29,6 +29,7 @@ SUBDIR=	adduser \
 	extattr \
 	extattrctl \
 	fifolog \
+	fstyp \
 	fwcontrol \
 	getfmac \
 	getpmac \
@@ -93,6 +94,7 @@ SUBDIR=	adduser \
 	trpt \
 	tzsetup \
 	ugidfw \
+	vigr \
 	vipw \
 	wake \
 	watch \

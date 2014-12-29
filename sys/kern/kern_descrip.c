@@ -1797,7 +1797,7 @@ finstall(struct thread *td, struct file *fp, int *fd, int flags,
  * If fdp is not NULL, return with it shared locked.
  */
 struct filedesc *
-fdinit(struct filedesc *fdp)
+fdinit(struct filedesc *fdp, bool prepfiles)
 {
 	struct filedesc0 *newfdp0;
 	struct filedesc *newfdp;
@@ -1818,7 +1818,7 @@ fdinit(struct filedesc *fdp)
 	if (fdp == NULL)
 		return (newfdp);
 
-	if (fdp->fd_lastfile >= newfdp->fd_nfiles)
+	if (prepfiles && fdp->fd_lastfile >= newfdp->fd_nfiles)
 		fdgrowtable(newfdp, fdp->fd_lastfile + 1);
 
 	FILEDESC_SLOCK(fdp);
@@ -1832,10 +1832,14 @@ fdinit(struct filedesc *fdp)
 	if (newfdp->fd_jdir)
 		VREF(newfdp->fd_jdir);
 
-	while (fdp->fd_lastfile >= newfdp->fd_nfiles) {
+	if (!prepfiles) {
 		FILEDESC_SUNLOCK(fdp);
-		fdgrowtable(newfdp, fdp->fd_lastfile + 1);
-		FILEDESC_SLOCK(fdp);
+	} else {
+		while (fdp->fd_lastfile >= newfdp->fd_nfiles) {
+			FILEDESC_SUNLOCK(fdp);
+			fdgrowtable(newfdp, fdp->fd_lastfile + 1);
+			FILEDESC_SLOCK(fdp);
+		}
 	}
 
 	return (newfdp);
@@ -1914,7 +1918,7 @@ fdcopy(struct filedesc *fdp)
 
 	MPASS(fdp != NULL);
 
-	newfdp = fdinit(fdp);
+	newfdp = fdinit(fdp, true);
 	/* copy all passable descriptors (i.e. not kqueue) */
 	newfdp->fd_freefile = -1;
 	for (i = 0; i <= fdp->fd_lastfile; ++i) {
@@ -2215,8 +2219,8 @@ fdcheckstd(struct thread *td)
 		if (devnull != -1) {
 			error = do_dup(td, DUP_FIXED, devnull, i);
 		} else {
-			error = kern_open(td, "/dev/null", UIO_SYSSPACE,
-			    O_RDWR, 0);
+			error = kern_openat(td, AT_FDCWD, "/dev/null",
+			    UIO_SYSSPACE, O_RDWR, 0);
 			if (error == 0) {
 				devnull = td->td_retval[0];
 				KASSERT(devnull == i, ("we didn't get our fd"));
@@ -2567,9 +2571,7 @@ fgetvp_rights(struct thread *td, int fd, cap_rights_t *needrightsp,
 	int error;
 #endif
 
-	if (td == NULL || (fdp = td->td_proc->p_fd) == NULL)
-		return (EBADF);
-
+	fdp = td->td_proc->p_fd;
 	fp = fget_locked(fdp, fd);
 	if (fp == NULL || fp->f_ops == &badfileops)
 		return (EBADF);
@@ -3094,6 +3096,7 @@ export_vnode_to_kinfo(struct vnode *vp, int fd, int fflags,
 	if (error == 0)
 		kif->kf_status |= KF_ATTR_VALID;
 	kif->kf_flags = xlate_fflags(fflags);
+	cap_rights_init(&kif->kf_cap_rights);
 	kif->kf_fd = fd;
 	kif->kf_ref_count = -1;
 	kif->kf_offset = -1;
@@ -3684,7 +3687,7 @@ badfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 static int
 badfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct sendfile_sync *sfs, struct thread *td)
+    int kflags, struct thread *td)
 {
 
 	return (EBADF);
@@ -3770,7 +3773,7 @@ invfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 int
 invfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct sendfile_sync *sfs, struct thread *td)
+    int kflags, struct thread *td)
 {
 
 	return (EINVAL);

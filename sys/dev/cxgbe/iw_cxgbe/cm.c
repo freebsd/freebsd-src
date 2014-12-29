@@ -584,8 +584,8 @@ process_data(struct c4iw_ep *ep)
 {
 	struct sockaddr_in *local, *remote;
 
-	CTR5(KTR_IW_CXGBE, "%s: so %p, ep %p, state %s, sb_cc %d", __func__,
-	    ep->com.so, ep, states[ep->com.state], ep->com.so->so_rcv.sb_cc);
+	CTR5(KTR_IW_CXGBE, "%s: so %p, ep %p, state %s, sbused %d", __func__,
+	    ep->com.so, ep, states[ep->com.state], sbused(&ep->com.so->so_rcv));
 
 	switch (state_read(&ep->com)) {
 	case MPA_REQ_SENT:
@@ -601,11 +601,11 @@ process_data(struct c4iw_ep *ep)
 		process_mpa_request(ep);
 		break;
 	default:
-		if (ep->com.so->so_rcv.sb_cc)
-			log(LOG_ERR, "%s: Unexpected streaming data.  "
-			    "ep %p, state %d, so %p, so_state 0x%x, sb_cc %u\n",
+		if (sbused(&ep->com.so->so_rcv))
+			log(LOG_ERR, "%s: Unexpected streaming data. ep %p, "
+			    "state %d, so %p, so_state 0x%x, sbused %u\n",
 			    __func__, ep, state_read(&ep->com), ep->com.so,
-			    ep->com.so->so_state, ep->com.so->so_rcv.sb_cc);
+			    ep->com.so->so_state, sbused(&ep->com.so->so_rcv));
 		break;
 	}
 }
@@ -2114,9 +2114,11 @@ int c4iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 		ep->com.thread);
 
 	if (!err) {
-
 		CTR2(KTR_IW_CXGBE, "%s:cca %p", __func__, ep);
 		goto out;
+	} else {
+		close_socket(&ep->com, 0);
+		goto fail2;
 	}
 
 fail3:

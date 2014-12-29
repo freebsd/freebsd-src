@@ -286,19 +286,20 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
  * Resolve an IP address into an ethernet address.
  * On input:
  *    ifp is the interface we use
- *    rt0 is the route to the final destination (possibly useless)
+ *    is_gw != if @dst represents gateway to some destination
  *    m is the mbuf. May be NULL if we don't have a packet.
  *    dst is the next hop,
  *    desten is where we want the address.
+ *    flags returns lle entry flags.
  *
- * On success, desten is filled in and the function returns 0;
+ * On success, desten and flags are filled in and the function returns 0;
  * If the packet must be held pending resolution, we return EWOULDBLOCK
  * On other errors, we return the corresponding error code.
  * Note that m_freem() handles NULL.
  */
 int
-arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
-	const struct sockaddr *dst, u_char *desten, struct llentry **lle)
+arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
+	const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
 {
 	struct llentry *la = 0;
 	u_int flags = 0;
@@ -306,7 +307,9 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	struct mbuf *next = NULL;
 	int error, renew;
 
-	*lle = NULL;
+	if (pflags != NULL)
+		*pflags = 0;
+
 	if (m != NULL) {
 		if (m->m_flags & M_BCAST) {
 			/* broadcast */
@@ -354,7 +357,8 @@ retry:
 			la->la_preempt--;
 		}
 
-		*lle = la;
+		if (pflags != NULL)
+			*pflags = la->la_flags;
 		error = 0;
 		goto done;
 	}
@@ -412,8 +416,7 @@ retry:
 	if (la->la_asked < V_arp_maxtries)
 		error = EWOULDBLOCK;	/* First request. */
 	else
-		error = rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) ?
-		    EHOSTUNREACH : EHOSTDOWN;
+		error = is_gw != 0 ? EHOSTUNREACH : EHOSTDOWN;
 
 	if (renew) {
 		int canceled;

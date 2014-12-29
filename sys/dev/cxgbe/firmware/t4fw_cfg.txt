@@ -28,8 +28,8 @@
 	tp_ntxch = 0
 
 	# TP rx and tx payload memory (% of the total EDRAM + DDR3).
-	tp_pmrx = 38
-	tp_pmtx = 60
+	tp_pmrx = 38, 512
+	tp_pmtx = 60, 512
 	tp_pmrx_pagesize = 64K
 	tp_pmtx_pagesize = 64K
 
@@ -160,7 +160,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0x6a1f8858
+	checksum = 0xb4168add
 #
 # $FreeBSD$
 #

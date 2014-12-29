@@ -109,6 +109,8 @@ SYSINIT_ENTRY(uniq##_entry, "sysuninit", (subs),	\
 #define	cold 0
 #define	BUS_PROBE_GENERIC 0
 #define	CALLOUT_RETURNUNLOCKED 0x1
+#undef ffs
+#define	ffs(x) __builtin_ffs(x)
 #undef va_list
 #define	va_list __builtin_va_list
 #undef va_size

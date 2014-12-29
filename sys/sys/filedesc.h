@@ -158,7 +158,7 @@ void	fdsetugidsafety(struct thread *td);
 struct	filedesc *fdcopy(struct filedesc *fdp);
 void	fdunshare(struct thread *td);
 void	fdescfree(struct thread *td);
-struct	filedesc *fdinit(struct filedesc *fdp);
+struct	filedesc *fdinit(struct filedesc *fdp, bool prepfiles);
 struct	filedesc *fdshare(struct filedesc *fdp);
 struct filedesc_to_leader *
 	filedesc_to_leader_alloc(struct filedesc_to_leader *old,

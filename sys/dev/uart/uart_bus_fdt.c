@@ -157,3 +157,4 @@ uart_fdt_probe(device_t dev)
 }
 
 DRIVER_MODULE(uart, simplebus, uart_fdt_driver, uart_devclass, 0, 0);
+DRIVER_MODULE(uart, ofwbus, uart_fdt_driver, uart_devclass, 0, 0);

@@ -65,13 +65,13 @@ text_receive(struct connection *conn)
 	 */
 	if ((bhstr->bhstr_flags & BHSTR_FLAGS_CONTINUE) != 0)
 		log_errx(1, "received Text PDU with unsupported \"C\" flag");
-	if (ntohl(bhstr->bhstr_cmdsn) < conn->conn_cmdsn) {
+	if (ISCSI_SNLT(ntohl(bhstr->bhstr_cmdsn), conn->conn_cmdsn)) {
 		log_errx(1, "received Text PDU with decreasing CmdSN: "
-		    "was %d, is %d", conn->conn_cmdsn, ntohl(bhstr->bhstr_cmdsn));
+		    "was %u, is %u", conn->conn_cmdsn, ntohl(bhstr->bhstr_cmdsn));
 	}
 	if (ntohl(bhstr->bhstr_expstatsn) != conn->conn_statsn) {
 		log_errx(1, "received Text PDU with wrong StatSN: "
-		    "is %d, should be %d", ntohl(bhstr->bhstr_expstatsn),
+		    "is %u, should be %u", ntohl(bhstr->bhstr_expstatsn),
 		    conn->conn_statsn);
 	}
 	conn->conn_cmdsn = ntohl(bhstr->bhstr_cmdsn);
@@ -120,14 +120,14 @@ logout_receive(struct connection *conn)
 	if ((bhslr->bhslr_reason & 0x7f) != BHSLR_REASON_CLOSE_SESSION)
 		log_debugx("received Logout PDU with invalid reason 0x%x; "
 		    "continuing anyway", bhslr->bhslr_reason & 0x7f);
-	if (ntohl(bhslr->bhslr_cmdsn) < conn->conn_cmdsn) {
+	if (ISCSI_SNLT(ntohl(bhslr->bhslr_cmdsn), conn->conn_cmdsn)) {
 		log_errx(1, "received Logout PDU with decreasing CmdSN: "
-		    "was %d, is %d", conn->conn_cmdsn,
+		    "was %u, is %u", conn->conn_cmdsn,
 		    ntohl(bhslr->bhslr_cmdsn));
 	}
 	if (ntohl(bhslr->bhslr_expstatsn) != conn->conn_statsn) {
 		log_errx(1, "received Logout PDU with wrong StatSN: "
-		    "is %d, should be %d", ntohl(bhslr->bhslr_expstatsn),
+		    "is %u, should be %u", ntohl(bhslr->bhslr_expstatsn),
 		    conn->conn_statsn);
 	}
 	conn->conn_cmdsn = ntohl(bhslr->bhslr_cmdsn);

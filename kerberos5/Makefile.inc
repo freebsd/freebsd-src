@@ -16,9 +16,6 @@ LDAPCFLAGS=	-I${OPENLDAPBASE}/include -DOPENLDAP=1 -DLDAP_DEPRECATED=1
 LDAPLDFLAGS=	-L${OPENLDAPBASE}/lib -Wl,-rpath,${OPENLDAPBASE}/lib
 .endif
 
-LIBVERS=	${.OBJDIR}/../../lib/libvers/libvers.a
-LIBSL=		${.OBJDIR}/../../lib/libsl/libsl.a
-
 .if defined(SRCS)
 
 ETSRCS=	\

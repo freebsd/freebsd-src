@@ -10,7 +10,6 @@ MAN=	praudit.1
 
 WARNS?=	3
 
-DPADD=	${LIBBSM}
-LDADD=	-lbsm
+LIBADD=	bsm
 
 .include <bsd.prog.mk>

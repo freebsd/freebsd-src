@@ -28,6 +28,19 @@ sub main {
 	extract_samples() if /^-X/;
     }
 
+    if ($#ARGV < 0) {
+	print STDERR "xolint [options] files ...\n";
+	print STDERR "    -c    invoke 'cpp' on input\n";
+	print STDERR "    -C flags   Pass flags to cpp\n";
+	print STDERR "    -d         Show debug output\n";
+	print STDERR "    -D         Extract xolint documentation\n";
+	print STDERR "    -I         Print xo_info_t data\n";
+	print STDERR "    -p         Print input data on errors\n";
+	print STDERR "    -V         Print vocabulary (list of tags)\n";
+	print STDERR "    -X         Print examples of invalid use\n";
+	exit(1);
+    }
+
     for $file (@ARGV) {
 	parse_file($file);
     }
@@ -269,9 +282,9 @@ sub check_format {
 		$last = $prev;
 		next;
 	    }
+	    $prev = $ch;
 	}
 
-	$prev = $ch;
 	$build[$phase] .= $ch;
     }
 
@@ -346,18 +359,6 @@ sub check_field {
 	info("potential missing slash after N, L, or T with format")
 	    if $field[1] =~ /%/;
 
-	#@ Format cannot be given when content is present (roles: DNLT)
-	#@    xo_emit("{T:Max/%6.6s}", "Max");
-	#@ Fields with the D, N, L, or T roles can't have both
-	#@ static literal content ("{T:Title}") and a
-	#@ format ("{T:/%s}").
-	#@ This error will also occur when the content has a backslash
-	#@ in it, like "{N:Type of I/O}"; backslashes should be escaped,
-	#@ like "{N:Type of I\\/O}".  Note the double backslash, one for
-	#@ handling 'C' strings, and one for libxo.
-	error("format cannot be given when content is present")
-	    if $field[1] && $field[2];
-
 	#@ An encoding format cannot be given (roles: DNLT)
 	#@    xo_emit("{T:Max//%s}", "Max");
 	#@ Fields with the D, N, L, and T roles are not emitted in
@@ -365,6 +366,21 @@ sub check_field {
 	#@ would make no sense.
 	error("encoding format cannot be given when content is present")
 	    if $field[3];
+    }
+
+    # Field is a decoration, label, or title
+    if ($field[0] =~ /DLN/) {
+	#@ Format cannot be given when content is present (roles: DLN)
+	#@    xo_emit("{N:Max/%6.6s}", "Max");
+	#@ Fields with the D, L, or N roles can't have both
+	#@ static literal content ("{L:Label}") and a
+	#@ format ("{L:/%s}").
+	#@ This error will also occur when the content has a backslash
+	#@ in it, like "{N:Type of I/O}"; backslashes should be escaped,
+	#@ like "{N:Type of I\\/O}".  Note the double backslash, one for
+	#@ handling 'C' strings, and one for libxo.
+	error("format cannot be given when content is present")
+	    if $field[1] && $field[2];
     }
 
     # A value field
@@ -527,7 +543,7 @@ sub check_field_format {
     #@ for non-strings.  This error may occur from a typo,
     #@ like "{:tag/%6..6d}" where only one period should be used.
     error("max width only valid for strings")
-	if $#chunks >= 2 && $fc =~ /[sS]/;
+	if $#chunks >= 2 && $fc !~ /[sS]/;
 }
 
 sub error {

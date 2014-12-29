@@ -81,15 +81,13 @@ dbuf_compare(const void *x1, const void *x2)
 		return (1);
 	}
 
-	if (d1->db_state < d2->db_state) {
+	if (d1->db_state == DB_SEARCH) {
+		ASSERT3S(d2->db_state, !=, DB_SEARCH);
 		return (-1);
-	}
-	if (d1->db_state > d2->db_state) {
+	} else if (d2->db_state == DB_SEARCH) {
+		ASSERT3S(d1->db_state, !=, DB_SEARCH);
 		return (1);
 	}
-
-	ASSERT3S(d1->db_state, !=, DB_SEARCH);
-	ASSERT3S(d2->db_state, !=, DB_SEARCH);
 
 	if ((uintptr_t)d1 < (uintptr_t)d2) {
 		return (-1);
@@ -1121,7 +1119,7 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag,
 			zrl_init(&dnh[i].dnh_zrlock);
 			dnh[i].dnh_dnode = NULL;
 		}
-		if (winner = dmu_buf_set_user(&db->db, children_dnodes, NULL,
+		if (winner = dmu_buf_set_user(&db->db, children_dnodes,
 		    dnode_buf_pageout)) {
 
 			for (i = 0; i < epb; i++) {

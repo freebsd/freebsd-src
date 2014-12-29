@@ -631,7 +631,8 @@ sfxge_if_transmit(struct ifnet *ifp, struct mbuf *m)
 	if (m->m_pkthdr.csum_flags & (CSUM_DELAY_DATA | CSUM_TSO)) {
 		int index = 0;
 
-		if (m->m_flags & M_FLOWID) {
+		/* check if flowid is set */
+		if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
 			uint32_t hash = m->m_pkthdr.flowid;
 
 			index = sc->rx_indir_table[hash % SFXGE_RX_SCALE_MAX];

@@ -153,6 +153,8 @@ nd6_init(void)
 	callout_init(&V_nd6_slowtimo_ch, 0);
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
 	    nd6_slowtimo, curvnet);
+
+	nd6_dad_init();
 }
 
 #ifdef VIMAGE
@@ -2206,9 +2208,6 @@ nd6_need_cache(struct ifnet *ifp)
 	case IFT_IEEE80211:
 #endif
 	case IFT_INFINIBAND:
-	case IFT_GIF:		/* XXX need more cases? */
-	case IFT_PPP:
-	case IFT_TUNNEL:
 	case IFT_BRIDGE:
 	case IFT_PROPVIRTUAL:
 		return (1);
@@ -2235,6 +2234,8 @@ nd6_add_ifa_lle(struct in6_ifaddr *ia)
 	struct llentry *ln;
 
 	ifp = ia->ia_ifa.ifa_ifp;
+	if (nd6_need_cache(ifp) == 0)
+		return (0);
 	IF_AFDATA_LOCK(ifp);
 	ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
 	ln = lla_lookup(LLTABLE6(ifp), (LLE_CREATE | LLE_IFADDR |
@@ -2279,11 +2280,12 @@ nd6_rem_ifa_lle(struct in6_ifaddr *ia)
  */
 int
 nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
-    const struct sockaddr *dst, u_char *desten, struct llentry **lle)
+    const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
 {
 	struct llentry *ln;
 
-	*lle = NULL;
+	if (pflags != NULL)
+		*pflags = 0;
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
 	if (m != NULL && m->m_flags & M_MCAST) {
 		int i;
@@ -2335,7 +2337,8 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
 	}
 
 	bcopy(&ln->ll_addr, desten, ifp->if_addrlen);
-	*lle = ln;
+	if (pflags != NULL)
+		*pflags = ln->la_flags;
 	LLE_RUNLOCK(ln);
 	/*
 	 * A *small* use after free race exists here

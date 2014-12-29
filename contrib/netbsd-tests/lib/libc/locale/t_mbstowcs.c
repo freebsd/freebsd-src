@@ -150,7 +150,7 @@ ATF_TC_BODY(mbstowcs_basic, tc)
 		int i;
 
 		ATF_REQUIRE_STREQ(setlocale(LC_ALL, "C"), "C");
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 		ATF_REQUIRE(setlocale(LC_CTYPE, t->locale) != NULL);
 #else
 		if (setlocale(LC_CTYPE, t->locale) == NULL) {

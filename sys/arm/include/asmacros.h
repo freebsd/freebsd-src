@@ -34,7 +34,6 @@
 #ifdef _KERNEL
 
 #ifdef LOCORE
-#include "opt_global.h"
 
 #ifdef _ARM_ARCH_6
 #define GET_CURTHREAD_PTR(tmp) \

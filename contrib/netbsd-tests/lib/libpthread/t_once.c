@@ -46,6 +46,10 @@ static int x;
 
 #define NTHREADS 25
 
+#ifdef __FreeBSD__
+#include <sys/time.h>
+#endif
+
 static void
 ofunc(void)
 {

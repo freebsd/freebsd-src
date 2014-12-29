@@ -52,6 +52,12 @@ main (int argc, char **argv)
 
     xo_open_container("employees");
 
+    xo_open_list("test");
+    xo_open_instance("test");
+    xo_emit("{ek:filename/%s}", NULL);
+    xo_close_instance("test");
+    xo_close_list("test");
+
     rc = xo_emit("Οὐχὶ ταὐτὰ παρίσταταί μοι {:v1/%s}, {:v2/%s}\n",
 	    "γιγνώσκειν", "ὦ ἄνδρες ᾿Αθηναῖοι");
     rc = xo_emit("{:columns/%d}\n", rc);

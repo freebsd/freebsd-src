@@ -555,7 +555,6 @@ ddb/db_textdump.c		optional ddb
 ddb/db_variables.c		optional ddb
 ddb/db_watch.c			optional ddb
 ddb/db_write_cmd.c		optional ddb
-#dev/dpt/dpt_control.c		optional dpt
 dev/aac/aac.c			optional aac
 dev/aac/aac_cam.c		optional aacp aac
 dev/aac/aac_debug.c		optional aac
@@ -661,6 +660,8 @@ dev/altera/sdcard/altera_sdcard_disk.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_io.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_fdt.c	optional altera_sdcard fdt
 dev/altera/sdcard/altera_sdcard_nexus.c	optional altera_sdcard
+dev/altera/pio/pio.c		optional altera_pio
+dev/altera/pio/pio_if.m		optional altera_pio
 dev/amdpm/amdpm.c		optional amdpm pci | nfpm pci
 dev/amdsmb/amdsmb.c		optional amdsmb pci
 dev/amr/amr.c			optional amr
@@ -1447,10 +1448,6 @@ dev/ida/ida_eisa.c		optional ida eisa
 dev/ida/ida_pci.c		optional ida pci
 dev/ie/if_ie.c			optional ie isa nowerror
 dev/ie/if_ie_isa.c		optional ie isa
-dev/ieee488/ibfoo.c		optional pcii | tnt4882
-dev/ieee488/pcii.c		optional pcii
-dev/ieee488/tnt4882.c		optional tnt4882
-dev/ieee488/upd7210.c		optional pcii | tnt4882
 dev/iicbus/ad7418.c		optional ad7418
 dev/iicbus/ds133x.c		optional ds133x
 dev/iicbus/ds1374.c		optional ds1374
@@ -1734,7 +1731,7 @@ iwn6000g2afw.fwo		optional iwn6000g2afw | iwnfw		\
 	no-implicit-rule						\
 	clean		"iwn6000g2afw.fwo"
 iwn6000g2a.fw			optional iwn6000g2afw | iwnfw		\
-	dependency	"$S/contrib/dev/iwn/iwlwifi-6000g2a-17.168.5.2.fw.uu" \
+	dependency	"$S/contrib/dev/iwn/iwlwifi-6000g2a-18.168.6.1.fw.uu" \
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn6000g2a.fw"
@@ -1748,7 +1745,7 @@ iwn6000g2bfw.fwo		optional iwn6000g2bfw | iwnfw		\
 	no-implicit-rule						\
 	clean		"iwn6000g2bfw.fwo"
 iwn6000g2b.fw			optional iwn6000g2bfw | iwnfw		\
-	dependency	"$S/contrib/dev/iwn/iwlwifi-6000g2b-17.168.5.2.fw.uu" \
+	dependency	"$S/contrib/dev/iwn/iwlwifi-6000g2b-18.168.6.1.fw.uu" \
 	compile-with	"${NORMAL_FW}"					\
 	no-obj no-implicit-rule						\
 	clean		"iwn6000g2b.fw"
@@ -1798,7 +1795,6 @@ dev/ixgbe/ixgbe_dcb_82599.c	optional ixgbe inet \
 dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
-dev/joy/joy_pccard.c		optional joy pccard
 dev/kbdmux/kbdmux.c		optional kbdmux
 dev/ksyms/ksyms.c		optional ksyms
 dev/le/am7990.c			optional le
@@ -2572,6 +2568,19 @@ dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
 dev/vge/if_vge.c		optional vge
 dev/viapm/viapm.c		optional viapm pci
+dev/virtio/virtio.c			optional	virtio
+dev/virtio/virtqueue.c			optional	virtio
+dev/virtio/virtio_bus_if.m		optional	virtio
+dev/virtio/virtio_if.m			optional	virtio
+dev/virtio/pci/virtio_pci.c		optional	virtio_pci
+dev/virtio/mmio/virtio_mmio.c		optional	virtio_mmio
+dev/virtio/mmio/virtio_mmio_if.m	optional	virtio_mmio
+dev/virtio/network/if_vtnet.c		optional	vtnet
+dev/virtio/block/virtio_blk.c		optional	virtio_blk
+dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon
+dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi
+dev/virtio/random/virtio_random.c	optional	virtio_random
+dev/virtio/console/virtio_console.c	optional	virtio_console
 dev/vkbd/vkbd.c			optional vkbd
 dev/vr/if_vr.c			optional vr pci
 dev/vt/colors/vt_termcolors.c	optional vt
@@ -2638,6 +2647,7 @@ dev/xen/blkback/blkback.c	optional xen | xenhvm
 dev/xen/console/console.c	optional xen | xenhvm
 dev/xen/console/xencons_ring.c	optional xen | xenhvm
 dev/xen/control/control.c	optional xen | xenhvm
+dev/xen/grant_table/grant_table.c	optional xen | xenhvm
 dev/xen/netback/netback.c	optional xen | xenhvm
 dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
@@ -2774,7 +2784,7 @@ geom/eli/pkcs5v2.c		optional geom_eli
 geom/gate/g_gate.c		optional geom_gate
 geom/geom_aes.c			optional geom_aes
 geom/geom_bsd.c			optional geom_bsd
-geom/geom_bsd_enc.c		optional geom_bsd
+geom/geom_bsd_enc.c		optional geom_bsd | geom_part_bsd
 geom/geom_ccd.c			optional ccd | geom_ccd
 geom/geom_ctl.c			standard
 geom/geom_dev.c			standard
@@ -2973,6 +2983,7 @@ kern/kern_pmc.c			standard
 kern/kern_poll.c		optional device_polling
 kern/kern_priv.c		standard
 kern/kern_proc.c		standard
+kern/kern_procctl.c		standard
 kern/kern_prot.c		standard
 kern/kern_racct.c		standard
 kern/kern_rangelock.c		standard
@@ -3209,6 +3220,7 @@ libkern/strtoq.c		standard
 libkern/strtoul.c		standard
 libkern/strtouq.c		standard
 libkern/strvalid.c		standard
+libkern/timingsafe_bcmp.c	standard
 net/bpf.c			standard
 net/bpf_buffer.c		optional bpf
 net/bpf_jitter.c		optional bpf_jitter
@@ -3543,24 +3555,12 @@ netsmb/smb_smb.c		optional netsmb
 netsmb/smb_subr.c		optional netsmb
 netsmb/smb_trantcp.c		optional netsmb
 netsmb/smb_usr.c		optional netsmb
-nfs/bootp_subr.c		optional bootp nfsclient | bootp nfscl
-nfs/krpc_subr.c			optional bootp nfsclient | bootp nfscl
-nfs/nfs_common.c		optional nfsclient | nfsserver
-nfs/nfs_diskless.c		optional nfsclient nfs_root | nfscl nfs_root
-nfs/nfs_fha.c			optional nfsserver | nfsd
-nfs/nfs_lock.c			optional nfsclient | nfscl | nfslockd | nfsd
-nfsclient/nfs_bio.c		optional nfsclient
-nfsclient/nfs_node.c		optional nfsclient
-nfsclient/nfs_krpc.c		optional nfsclient
-nfsclient/nfs_subs.c		optional nfsclient
-nfsclient/nfs_nfsiod.c		optional nfsclient
-nfsclient/nfs_vfsops.c		optional nfsclient
-nfsclient/nfs_vnops.c		optional nfsclient
-nfsserver/nfs_fha_old.c		optional nfsserver
-nfsserver/nfs_serv.c		optional nfsserver
-nfsserver/nfs_srvkrpc.c		optional nfsserver
-nfsserver/nfs_srvsubs.c		optional nfsserver
-nfs/nfs_nfssvc.c		optional nfsserver | nfscl | nfsd
+nfs/bootp_subr.c		optional bootp nfscl
+nfs/krpc_subr.c			optional bootp nfscl
+nfs/nfs_diskless.c		optional nfscl nfs_root
+nfs/nfs_fha.c			optional nfsd
+nfs/nfs_lock.c			optional nfscl | nfslockd | nfsd
+nfs/nfs_nfssvc.c		optional nfscl | nfsd
 nlm/nlm_advlock.c		optional nfslockd | nfsd
 nlm/nlm_prot_clnt.c		optional nfslockd | nfsd
 nlm/nlm_prot_impl.c		optional nfslockd | nfsd
@@ -3866,29 +3866,31 @@ opencrypto/cryptodev.c		optional cryptodev
 opencrypto/cryptodev_if.m	optional crypto
 opencrypto/cryptosoft.c		optional crypto
 opencrypto/cryptodeflate.c	optional crypto
+opencrypto/gmac.c		optional crypto
+opencrypto/gfmult.c		optional crypto
 opencrypto/rmd160.c		optional crypto | ipsec
 opencrypto/skipjack.c		optional crypto
 opencrypto/xform.c		optional crypto
-rpc/auth_none.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/auth_unix.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
-rpc/authunix_prot.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/clnt_bck.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
-rpc/clnt_dg.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
-rpc/clnt_rc.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
-rpc/clnt_vc.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/getnetconfig.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/replay.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/rpc_callmsg.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/rpc_generic.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/rpc_prot.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/rpcb_clnt.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/rpcb_prot.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/svc.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/svc_auth.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/svc_auth_unix.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/svc_dg.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
-rpc/svc_generic.c		optional krpc | nfslockd | nfsserver | nfscl | nfsd
-rpc/svc_vc.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/auth_none.c			optional krpc | nfslockd | nfscl | nfsd
+rpc/auth_unix.c			optional krpc | nfslockd | nfscl | nfsd
+rpc/authunix_prot.c		optional krpc | nfslockd | nfscl | nfsd
+rpc/clnt_bck.c			optional krpc | nfslockd | nfscl | nfsd
+rpc/clnt_dg.c			optional krpc | nfslockd | nfscl | nfsd
+rpc/clnt_rc.c			optional krpc | nfslockd | nfscl | nfsd
+rpc/clnt_vc.c			optional krpc | nfslockd | nfscl | nfsd
+rpc/getnetconfig.c		optional krpc | nfslockd | nfscl | nfsd
+rpc/replay.c			optional krpc | nfslockd | nfscl | nfsd
+rpc/rpc_callmsg.c		optional krpc | nfslockd | nfscl | nfsd
+rpc/rpc_generic.c		optional krpc | nfslockd | nfscl | nfsd
+rpc/rpc_prot.c			optional krpc | nfslockd | nfscl | nfsd
+rpc/rpcb_clnt.c			optional krpc | nfslockd | nfscl | nfsd
+rpc/rpcb_prot.c			optional krpc | nfslockd | nfscl | nfsd
+rpc/svc.c			optional krpc | nfslockd | nfscl | nfsd
+rpc/svc_auth.c			optional krpc | nfslockd | nfscl | nfsd
+rpc/svc_auth_unix.c		optional krpc | nfslockd | nfscl | nfsd
+rpc/svc_dg.c			optional krpc | nfslockd | nfscl | nfsd
+rpc/svc_generic.c		optional krpc | nfslockd | nfscl | nfsd
+rpc/svc_vc.c			optional krpc | nfslockd | nfscl | nfsd
 rpc/rpcsec_gss/rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi
 rpc/rpcsec_gss/rpcsec_gss_conf.c optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi
 rpc/rpcsec_gss/rpcsec_gss_misc.c optional krpc kgssapi | nfslockd kgssapi | nfscl kgssapi | nfsd kgssapi
@@ -3987,7 +3989,6 @@ vm/vm_reserv.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
-xen/gnttab.c			optional xen | xenhvm
 xen/features.c			optional xen | xenhvm
 xen/xenbus/xenbus_if.m		optional xen | xenhvm
 xen/xenbus/xenbus.c		optional xen | xenhvm
@@ -3995,9 +3996,9 @@ xen/xenbus/xenbusb_if.m		optional xen | xenhvm
 xen/xenbus/xenbusb.c		optional xen | xenhvm
 xen/xenbus/xenbusb_front.c	optional xen | xenhvm
 xen/xenbus/xenbusb_back.c	optional xen | xenhvm
-xdr/xdr.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-xdr/xdr_array.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-xdr/xdr_mbuf.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-xdr/xdr_mem.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-xdr/xdr_reference.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-xdr/xdr_sizeof.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr.c			optional krpc | nfslockd | nfscl | nfsd
+xdr/xdr_array.c			optional krpc | nfslockd | nfscl | nfsd
+xdr/xdr_mbuf.c			optional krpc | nfslockd | nfscl | nfsd
+xdr/xdr_mem.c			optional krpc | nfslockd | nfscl | nfsd
+xdr/xdr_reference.c		optional krpc | nfslockd | nfscl | nfsd
+xdr/xdr_sizeof.c		optional krpc | nfslockd | nfscl | nfsd

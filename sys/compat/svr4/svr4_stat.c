@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/filedesc.h>
+#include <sys/fcntl.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -170,7 +171,7 @@ svr4_sys_stat(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_stat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, 0, AT_FDCWD, path, UIO_SYSSPACE, &st, NULL);
 	free(path, M_TEMP);
 	if (error)
 		return (error);
@@ -195,7 +196,8 @@ svr4_sys_lstat(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_lstat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, path,
+	    UIO_SYSSPACE, &st, NULL);
 	free(path, M_TEMP);
 	if (error)
 		return (error);
@@ -238,7 +240,7 @@ svr4_sys_xstat(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_stat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, 0, AT_FDCWD, path, UIO_SYSSPACE, &st, NULL);
 	free(path, M_TEMP);
 	if (error)
 		return (error);
@@ -265,7 +267,8 @@ svr4_sys_lxstat(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_lstat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, path,
+	    UIO_SYSSPACE, &st, NULL);
 	free(path, M_TEMP);
 	if (error)
 		return (error);
@@ -309,7 +312,7 @@ svr4_sys_stat64(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_stat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, 0, AT_FDCWD, path, UIO_SYSSPACE, &st, NULL);
 	free(path, M_TEMP);
 	if (error)
 		return (error);
@@ -335,7 +338,8 @@ svr4_sys_lstat64(td, uap)
 
 	CHECKALTEXIST(td, uap->path, &path);
 
-	error = kern_lstat(td, path, UIO_SYSSPACE, &st);
+	error = kern_statat(td, AT_SYMLINK_NOFOLLOW, AT_FDCWD, path,
+	    UIO_SYSSPACE, &st, NULL);
 	free(path, M_TEMP);
 	if (error)
 		return (error);
@@ -582,7 +586,8 @@ svr4_sys_utime(td, uap)
 		tp = NULL;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_utimes(td, path, UIO_SYSSPACE, tp, UIO_SYSSPACE);
+	error = kern_utimesat(td, AT_FDCWD, path, UIO_SYSSPACE,
+	    tp, UIO_SYSSPACE);
 	free(path, M_TEMP);
 	return (error);
 }
@@ -597,7 +602,8 @@ svr4_sys_utimes(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &path);
-	error = kern_utimes(td, path, UIO_SYSSPACE, uap->tptr, UIO_USERSPACE);
+	error = kern_utimesat(td, AT_FDCWD, path, UIO_SYSSPACE,
+	    uap->tptr, UIO_USERSPACE);
 	free(path, M_TEMP);
 	return (error);
 }

@@ -771,10 +771,10 @@ mpt_assign_serno(struct mpt_softc *mpt, request_t *req)
 #define	MPT_UNLOCK(mpt)		mtx_unlock(&(mpt)->mpt_lock)
 #define	MPT_OWNED(mpt)		mtx_owned(&(mpt)->mpt_lock)
 #define	MPT_LOCK_ASSERT(mpt)	mtx_assert(&(mpt)->mpt_lock, MA_OWNED)
-#define mpt_sleep(mpt, ident, priority, wmesg, timo) \
-	msleep(ident, &(mpt)->mpt_lock, priority, wmesg, timo)
-#define mpt_req_timeout(req, ticks, func, arg) \
-	callout_reset(&(req)->callout, (ticks), (func), (arg))
+#define mpt_sleep(mpt, ident, priority, wmesg, sbt) \
+    msleep_sbt(ident, &(mpt)->mpt_lock, priority, wmesg, sbt, 0, 0)
+#define mpt_req_timeout(req, sbt, func, arg) \
+    callout_reset_sbt(&(req)->callout, (sbt), 0, (func), (arg), 0)
 #define mpt_req_untimeout(req, func, arg) \
 	callout_stop(&(req)->callout)
 #define mpt_callout_init(mpt, c) \

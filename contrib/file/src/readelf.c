@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef lint
-FILE_RCSID("@(#)$File: readelf.c,v 1.103 2014/05/02 02:25:10 christos Exp $")
+FILE_RCSID("@(#)$File: readelf.c,v 1.111 2014/12/09 02:47:45 christos Exp $")
 #endif
 
 #ifdef BUILTIN_ELF
@@ -59,6 +59,19 @@ private size_t donote(struct magic_set *, void *, size_t, size_t, int,
 private uint16_t getu16(int, uint16_t);
 private uint32_t getu32(int, uint32_t);
 private uint64_t getu64(int, uint64_t);
+
+#define MAX_PHNUM	128
+#define	MAX_SHNUM	32768
+#define SIZE_UNKNOWN	((off_t)-1)
+
+private int
+toomany(struct magic_set *ms, const char *name, uint16_t num)
+{
+	if (file_printf(ms, ", too many %s header sections (%u)", name, num
+	    ) == -1)
+		return -1;
+	return 0;
+}
 
 private uint16_t
 getu16(int swap, uint16_t value)
@@ -312,7 +325,7 @@ dophn_core(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
 		}
 		off += size;
 
-		if (xph_offset > fsize) {
+		if (fsize != SIZE_UNKNOWN && xph_offset > fsize) {
 			/* Perhaps warn here */
 			continue;
 		}
@@ -477,6 +490,13 @@ donote(struct magic_set *ms, void *vbuf, size_t offset, size_t size,
 	uint32_t namesz, descsz;
 	unsigned char *nbuf = CAST(unsigned char *, vbuf);
 
+	if (xnh_sizeof + offset > size) {
+		/*
+		 * We're out of note headers.
+		 */
+		return xnh_sizeof + offset;
+	}
+
 	(void)memcpy(xnh_addr, &nbuf[offset], xnh_sizeof);
 	offset += xnh_sizeof;
 
@@ -492,13 +512,13 @@ donote(struct magic_set *ms, void *vbuf, size_t offset, size_t size,
 	if (namesz & 0x80000000) {
 	    (void)file_printf(ms, ", bad note name size 0x%lx",
 		(unsigned long)namesz);
-	    return offset;
+	    return 0;
 	}
 
 	if (descsz & 0x80000000) {
 	    (void)file_printf(ms, ", bad note description size 0x%lx",
 		(unsigned long)descsz);
-	    return offset;
+	    return 0;
 	}
 
 
@@ -900,6 +920,7 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 	Elf32_Shdr sh32;
 	Elf64_Shdr sh64;
 	int stripped = 1;
+	size_t nbadcap = 0;
 	void *nbuf;
 	off_t noff, coff, name_off;
 	uint64_t cap_hw1 = 0;	/* SunOS 5.x hardware capabilites */
@@ -944,7 +965,7 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 			stripped = 0;
 			break;
 		default:
-			if (xsh_offset > fsize) {
+			if (fsize != SIZE_UNKNOWN && xsh_offset > fsize) {
 				/* Perhaps warn here */
 				continue;
 			}
@@ -988,6 +1009,8 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 				goto skip;
 			}
 
+			if (nbadcap > 5)
+				break;
 			if (lseek(fd, xsh_offset, SEEK_SET) == (off_t)-1) {
 				file_badseek(ms);
 				return -1;
@@ -1053,6 +1076,8 @@ doshn(struct magic_set *ms, int clazz, int swap, int fd, off_t off, int num,
 					    (unsigned long long)xcap_tag,
 					    (unsigned long long)xcap_val) == -1)
 						return -1;
+					if (nbadcap++ > 2)
+						coff = xsh_size;
 					break;
 				}
 			}
@@ -1166,7 +1191,7 @@ dophn_exec(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
 			shared_libraries = " (uses shared libs)";
 			break;
 		default:
-			if (xph_offset > fsize) {
+			if (fsize != SIZE_UNKNOWN && xph_offset > fsize) {
 				/* Maybe warn here? */
 				continue;
 			}
@@ -1176,7 +1201,8 @@ dophn_exec(struct magic_set *ms, int clazz, int swap, int fd, off_t off,
 		/* Things we can determine when we seek */
 		switch (xph_type) {
 		case PT_NOTE:
-			if ((align = xph_align) & 0x80000000UL) {
+			if (((align = xph_align) & 0x80000000UL) != 0 ||
+			    align < 4) {
 				if (file_printf(ms, 
 				    ", invalid note alignment 0x%lx",
 				    (unsigned long)align) == -1)
@@ -1233,7 +1259,7 @@ file_tryelf(struct magic_set *ms, int fd, const unsigned char *buf,
 	int flags = 0;
 	Elf32_Ehdr elf32hdr;
 	Elf64_Ehdr elf64hdr;
-	uint16_t type;
+	uint16_t type, phnum, shnum;
 
 	if (ms->flags & (MAGIC_MIME|MAGIC_APPLE))
 		return 0;
@@ -1259,7 +1285,10 @@ file_tryelf(struct magic_set *ms, int fd, const unsigned char *buf,
   		file_badread(ms);
 		return -1;
 	}
-	fsize = st.st_size;
+	if (S_ISREG(st.st_mode) || st.st_size != 0)
+		fsize = st.st_size;
+	else
+		fsize = SIZE_UNKNOWN;
 
 	clazz = buf[EI_CLASS];
 

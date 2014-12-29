@@ -28,8 +28,7 @@ SRCS=	alloc.c autotrust.c config_file.c configlexer.l configparser.y \
 
 WARNS?=	3
 
-DPADD+=	${LIBSSL} ${LIBCRYPTO} ${LIBPTHREAD}
-LDADD+=	-lssl -lcrypto -lpthread
+LIBADD=	ssl crypto pthread
 
 # Misnamed file in upstream source
 configlexer.l: configlexer.lex

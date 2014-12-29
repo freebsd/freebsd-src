@@ -267,10 +267,10 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 
 	if (inp != NULL) {
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
-		if (((flags & IP_NODEFAULTFLOWID) == 0) &&
-		(inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID))) {
+		if ((flags & IP_NODEFAULTFLOWID) == 0) {
+			/* unconditionally set flowid */
 			m->m_pkthdr.flowid = inp->inp_flowid;
-			m->m_flags |= M_FLOWID;
+			M_HASHTYPE_SET(m, inp->inp_flowtype);
 		}
 	}
 
@@ -303,8 +303,9 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	/*
 	 * IPSec checking which handles several cases.
 	 * FAST IPSEC: We re-injected the packet.
+	 * XXX: need scope argument.
 	 */
-	switch(ip6_ipsec_output(&m, inp, &flags, &error, &ifp))
+	switch(ip6_ipsec_output(&m, inp, &error))
 	{
 	case 1:                 /* Bad packet */
 		goto freehdrs;
@@ -1275,17 +1276,6 @@ ip6_getpmtu(struct route_in6 *ro_pmtu, struct route_in6 *ro,
 			 */
 			alwaysfrag = 1;
 			mtu = IPV6_MMTU;
-		} else if (mtu > ifmtu) {
-			/*
-			 * The MTU on the route is larger than the MTU on
-			 * the interface!  This shouldn't happen, unless the
-			 * MTU of the interface has been changed after the
-			 * interface was brought up.  Change the MTU in the
-			 * route to match the interface MTU (as long as the
-			 * field isn't locked).
-			 */
-			mtu = ifmtu;
-			ro_pmtu->ro_rt->rt_mtu = mtu;
 		}
 	} else if (ifp) {
 		mtu = IN6_LINKMTU(ifp);

@@ -7,7 +7,6 @@ CFLAGS+= -I${.CURDIR}/../../contrib/dialog -I.
 
 WARNS?=	3
 
-DPADD=	${LIBDIALOG} ${LIBNCURSESW} ${LIBM}
-LDADD=	-ldialog -lncursesw -lm
+LIBADD=	dialog ncursesw
 
 .include <bsd.prog.mk>

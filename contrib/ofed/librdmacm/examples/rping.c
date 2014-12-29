@@ -1049,19 +1049,20 @@ static int rping_run_client(struct rping_cb *cb)
 	ret = rping_connect_client(cb);
 	if (ret) {
 		fprintf(stderr, "connect error %d\n", ret);
-		goto err2;
+		goto err3;
 	}
 
 	ret = rping_test_client(cb);
 	if (ret) {
 		fprintf(stderr, "rping client failed: %d\n", ret);
-		goto err3;
+		goto err4;
 	}
 	ret = 0;
-err3:
+err4:
 	rdma_disconnect(cb->cm_id);
-err2:
+err3:
 	pthread_join(cb->cqthread, NULL);
+err2:
 	rping_free_buffers(cb);
 err1:
 	rping_free_qp(cb);

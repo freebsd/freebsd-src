@@ -3219,7 +3219,7 @@ bxe_tpa_stop(struct bxe_softc          *sc,
 #if __FreeBSD_version >= 800000
         /* specify what RSS queue was used for this flow */
         m->m_pkthdr.flowid = fp->index;
-        m->m_flags |= M_FLOWID;
+        M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 #endif
 
         if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
@@ -3454,7 +3454,7 @@ bxe_rxeof(struct bxe_softc    *sc,
 #if __FreeBSD_version >= 800000
         /* specify what RSS queue was used for this flow */
         m->m_pkthdr.flowid = fp->index;
-        m->m_flags |= M_FLOWID;
+        M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 #endif
 
 next_rx:
@@ -6037,10 +6037,9 @@ bxe_tx_mq_start(struct ifnet *ifp,
 
     fp_index = 0; /* default is the first queue */
 
-    /* change the queue if using flow ID */
-    if ((m->m_flags & M_FLOWID) != 0) {
+    /* check if flowid is set */
+    if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
         fp_index = (m->m_pkthdr.flowid % sc->num_queues);
-    }
 
     fp = &sc->fp[fp_index];
 

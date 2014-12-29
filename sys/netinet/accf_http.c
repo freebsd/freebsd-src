@@ -92,7 +92,7 @@ sbfull(struct sockbuf *sb)
 	    "mbcnt(%ld) >= mbmax(%ld): %d",
 	    sb->sb_cc, sb->sb_hiwat, sb->sb_cc >= sb->sb_hiwat,
 	    sb->sb_mbcnt, sb->sb_mbmax, sb->sb_mbcnt >= sb->sb_mbmax);
-	return (sb->sb_cc >= sb->sb_hiwat || sb->sb_mbcnt >= sb->sb_mbmax);
+	return (sbused(sb) >= sb->sb_hiwat || sb->sb_mbcnt >= sb->sb_mbmax);
 }
 
 /*
@@ -162,13 +162,14 @@ static int
 sohashttpget(struct socket *so, void *arg, int waitflag)
 {
 
-	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) == 0 && !sbfull(&so->so_rcv)) {
+	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) == 0 &&
+	    !sbfull(&so->so_rcv)) {
 		struct mbuf *m;
 		char *cmp;
 		int	cmplen, cc;
 
 		m = so->so_rcv.sb_mb;
-		cc = so->so_rcv.sb_cc - 1;
+		cc = sbavail(&so->so_rcv) - 1;
 		if (cc < 1)
 			return (SU_OK);
 		switch (*mtod(m, char *)) {
@@ -215,7 +216,7 @@ soparsehttpvers(struct socket *so, void *arg, int waitflag)
 		goto fallout;
 
 	m = so->so_rcv.sb_mb;
-	cc = so->so_rcv.sb_cc;
+	cc = sbavail(&so->so_rcv);
 	inspaces = spaces = 0;
 	for (m = so->so_rcv.sb_mb; m; m = n) {
 		n = m->m_nextpkt;
@@ -304,7 +305,7 @@ soishttpconnected(struct socket *so, void *arg, int waitflag)
 	 * have NCHRS left
 	 */
 	copied = 0;
-	ccleft = so->so_rcv.sb_cc;
+	ccleft = sbavail(&so->so_rcv);
 	if (ccleft < NCHRS)
 		goto readmore;
 	a = b = c = '\0';

@@ -81,6 +81,9 @@ ATF_TC_BODY(scalbn_val, tc)
 	double rv;
 
 	for (i = 0; i < tcnt; i++) {
+#ifdef __FreeBSD__
+		errno = 0;
+#endif
 		rv = scalbn(tests[i].inval, tests[i].exp);
 		ATF_CHECK_EQ_MSG(errno, tests[i].error,
 		    "test %zu: errno %d instead of %d", i, errno,

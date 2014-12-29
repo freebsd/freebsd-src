@@ -86,6 +86,9 @@ ATF_TC_BODY(basic, tc)
 	if (sysconf(_SC_SEMAPHORES) == -1)
 		atf_tc_skip("POSIX semaphores not supported");
 
+#ifdef __FreeBSD__
+	sem_unlink("/sem_b");
+#endif
 	sem_b = sem_open("/sem_b", O_CREAT | O_EXCL, 0644, 0);
 	ATF_REQUIRE(sem_b != SEM_FAILED);
 
@@ -127,6 +130,9 @@ ATF_TC_BODY(child, tc)
 	if (sysconf(_SC_SEMAPHORES) == -1)         
 		atf_tc_skip("POSIX semaphores not supported");
 
+#ifdef __FreeBSD__
+	sem_unlink("/sem_a");
+#endif
 	sem_a = sem_open("/sem_a", O_CREAT | O_EXCL, 0644, 0);
 	ATF_REQUIRE(sem_a != SEM_FAILED);
 

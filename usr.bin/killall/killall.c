@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <dirent.h>
 #include <jail.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -262,7 +263,7 @@ main(int ac, char **av)
 			errx(1, "%s: not a character device", buf);
 		tdev = sb.st_rdev;
 		if (dflag)
-			printf("ttydev:0x%x\n", tdev);
+			printf("ttydev:0x%jx\n", (uintmax_t)tdev);
 	}
 	if (user) {
 		uid = strtol(user, &ep, 10);
@@ -410,8 +411,9 @@ main(int ac, char **av)
 		if (matched == 0)
 			continue;
 		if (dflag)
-			printf("sig:%d, cmd:%s, pid:%d, dev:0x%x uid:%d\n", sig,
-			    thiscmd, thispid, thistdev, thisuid);
+			printf("sig:%d, cmd:%s, pid:%d, dev:0x%jx uid:%d\n",
+			    sig, thiscmd, thispid, (uintmax_t)thistdev,
+			    thisuid);
 
 		if (vflag || sflag)
 			printf("kill -%s %d\n", sys_signame[sig], thispid);

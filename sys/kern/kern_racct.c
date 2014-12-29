@@ -1129,11 +1129,11 @@ racctd(void)
 
 			microuptime(&wallclock);
 			timevalsub(&wallclock, &p->p_stats->p_start);
-			PROC_SLOCK(p);
+			PROC_STATLOCK(p);
 			FOREACH_THREAD_IN_PROC(p, td)
 				ruxagg(p, td);
 			runtime = cputick2usec(p->p_rux.rux_runtime);
-			PROC_SUNLOCK(p);
+			PROC_STATUNLOCK(p);
 #ifdef notyet
 			KASSERT(runtime >= p->p_prev_runtime,
 			    ("runtime < p_prev_runtime"));

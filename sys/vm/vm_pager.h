@@ -51,18 +51,22 @@ typedef vm_object_t pgo_alloc_t(void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t,
     struct ucred *);
 typedef void pgo_dealloc_t(vm_object_t);
 typedef int pgo_getpages_t(vm_object_t, vm_page_t *, int, int);
+typedef void pgo_getpages_iodone_t(void *, vm_page_t *, int, int);
+typedef int pgo_getpages_async_t(vm_object_t, vm_page_t *, int, int,
+    pgo_getpages_iodone_t, void *);
 typedef void pgo_putpages_t(vm_object_t, vm_page_t *, int, int, int *);
 typedef boolean_t pgo_haspage_t(vm_object_t, vm_pindex_t, int *, int *);
 typedef void pgo_pageunswapped_t(vm_page_t);
 
 struct pagerops {
-	pgo_init_t	*pgo_init;		/* Initialize pager. */
-	pgo_alloc_t	*pgo_alloc;		/* Allocate pager. */
-	pgo_dealloc_t	*pgo_dealloc;		/* Disassociate. */
-	pgo_getpages_t	*pgo_getpages;		/* Get (read) page. */
-	pgo_putpages_t	*pgo_putpages;		/* Put (write) page. */
-	pgo_haspage_t	*pgo_haspage;		/* Does pager have page? */
-	pgo_pageunswapped_t *pgo_pageunswapped;
+	pgo_init_t		*pgo_init;		/* Initialize pager. */
+	pgo_alloc_t		*pgo_alloc;		/* Allocate pager. */
+	pgo_dealloc_t		*pgo_dealloc;		/* Disassociate. */
+	pgo_getpages_t		*pgo_getpages;		/* Get (read) page. */
+	pgo_getpages_async_t	*pgo_getpages_async;	/* Get page asyncly. */
+	pgo_putpages_t		*pgo_putpages;		/* Put (write) page. */
+	pgo_haspage_t		*pgo_haspage;		/* Query page. */
+	pgo_pageunswapped_t	*pgo_pageunswapped;
 };
 
 extern struct pagerops defaultpagerops;
@@ -103,6 +107,8 @@ vm_object_t vm_pager_allocate(objtype_t, void *, vm_ooffset_t, vm_prot_t,
 void vm_pager_bufferinit(void);
 void vm_pager_deallocate(vm_object_t);
 static __inline int vm_pager_get_pages(vm_object_t, vm_page_t *, int, int);
+static inline int vm_pager_get_pages_async(vm_object_t, vm_page_t *, int,
+    int, pgo_getpages_iodone_t, void *);
 static __inline boolean_t vm_pager_has_page(vm_object_t, vm_pindex_t, int *, int *);
 void vm_pager_init(void);
 vm_object_t vm_pager_object_lookup(struct pagerlst *, void *);
@@ -131,6 +137,16 @@ vm_pager_get_pages(
 		vm_page_zero_invalid(m[reqpage], TRUE);
 	}
 	return (r);
+}
+
+static inline int
+vm_pager_get_pages_async(vm_object_t object, vm_page_t *m, int count,
+    int reqpage, pgo_getpages_iodone_t iodone, void *arg)
+{
+
+	VM_OBJECT_ASSERT_WLOCKED(object);
+	return ((*pagertab[object->type]->pgo_getpages_async)(object, m,
+	    count, reqpage, iodone, arg));
 }
 
 static __inline void

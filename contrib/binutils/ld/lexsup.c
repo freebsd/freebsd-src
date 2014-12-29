@@ -84,6 +84,7 @@ enum option_values
   OPTION_NO_KEEP_MEMORY,
   OPTION_NO_WARN_MISMATCH,
   OPTION_NO_WARN_SEARCH_MISMATCH,
+  OPTION_NO_WARN_FATAL,
   OPTION_NOINHIBIT_EXEC,
   OPTION_NON_SHARED,
   OPTION_NO_WHOLE_ARCHIVE,
@@ -375,6 +376,9 @@ static const struct ld_option ld_options[] =
   { {"fatal-warnings", no_argument, NULL, OPTION_WARN_FATAL},
     '\0', NULL, N_("Treat warnings as errors"),
     TWO_DASHES },
+  { {"no-fatal-warnings", no_argument, NULL, OPTION_NO_WARN_FATAL},
+    '\0', NULL, N_("Don't treat warnings as errors"),
+    TWO_DASHES },
   { {"fini", required_argument, NULL, OPTION_FINI},
     '\0', N_("SYMBOL"), N_("Call SYMBOL at unload-time"), ONE_DASH },
   { {"force-exe-suffix", no_argument, NULL, OPTION_FORCE_EXE_SUFFIX},
@@ -568,6 +572,7 @@ parse_args (unsigned argc, char **argv)
   struct option *really_longopts;
   int last_optind;
   enum report_method how_to_report_unresolved_symbols = RM_GENERATE_ERROR;
+  int no_fatal_warnings = FALSE;
 
   shortopts = xmalloc (OPTION_COUNT * 3 + 2);
   longopts = xmalloc (sizeof (*longopts) * (OPTION_COUNT + 1));
@@ -1317,6 +1322,9 @@ parse_args (unsigned argc, char **argv)
 	case OPTION_WARN_FATAL:
 	  config.fatal_warnings = TRUE;
 	  break;
+	case OPTION_NO_WARN_FATAL:
+	  no_fatal_warnings = TRUE;
+	  break;
 	case OPTION_WARN_MULTIPLE_GP:
 	  config.warn_multiple_gp = TRUE;
 	  break;
@@ -1438,6 +1446,8 @@ parse_args (unsigned argc, char **argv)
           break;
 	}
     }
+  if (no_fatal_warnings)
+    config.fatal_warnings = FALSE;
 
   if (ingroup)
     lang_leave_group ();

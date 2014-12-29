@@ -45,13 +45,14 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libdpv \
 	libdwarf \
 	libedit \
+	${_libelftc} \
 	${_libevent} \
 	libexecinfo \
 	libexpat \
 	libfetch \
 	libfigpar \
 	libgeom \
-	${_libgpib} \
+	libgpio \
 	${_libgssapi} \
 	${_librpcsec_gss} \
 	${_libiconv_modules} \
@@ -90,6 +91,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libsmb} \
 	${_libsmdb} \
 	${_libsmutil} \
+	libsqlite3 \
 	libstand \
 	libstdbuf \
 	libstdthreads \
@@ -188,8 +190,8 @@ _clang=		clang
 _cuse=		libcuse
 .endif
 
-.if ${MK_GPIB} != "no"
-_libgpib=	libgpib
+.if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
+_libelftc=	libelftc
 .endif
 
 .if ${MK_GSSAPI} != "no"

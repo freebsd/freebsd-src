@@ -97,11 +97,24 @@ SUBDIR+=contrib/ofed
 #
 SUBDIR+=etc
 
-# These are last, since it is nice to at least get the base system
-# rebuilt before you do them.
-.for _DIR in ${LOCAL_LIB_DIRS} ${LOCAL_DIRS}
+# Local directories are last, since it is nice to at least get the base
+# system rebuilt before you do them.
+.for _DIR in ${LOCAL_DIRS}
 .if exists(${.CURDIR}/${_DIR}/Makefile)
-SUBDIR+= ${_DIR}
+SUBDIR+=	${_DIR}
+.endif
+.endfor
+# Add LOCAL_LIB_DIRS, but only if they will not be picked up as a SUBDIR
+# of a LOCAL_DIRS directory.  This allows LOCAL_DIRS=foo and
+# LOCAL_LIB_DIRS=foo/lib to behave as expected.
+.for _DIR in ${LOCAL_DIRS:M*/} ${LOCAL_DIRS:N*/:S|$|/|}
+_REDUNDENT_LIB_DIRS+=    ${LOCAL_LIB_DIRS:M${_DIR}*}
+.endfor
+.for _DIR in ${LOCAL_LIB_DIRS}
+.if empty(_REDUNDENT_LIB_DIRS:M${_DIR}) && exists(${.CURDIR}/${_DIR}/Makefile)
+SUBDIR+=	${_DIR}
+.else
+.warning ${_DIR} not added to SUBDIR list.  See UPDATING 20141121.
 .endif
 .endfor
 .endif
@@ -250,7 +263,8 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		MK_HTML=no MK_INFO=no NO_LINT=yes MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
-		MK_CLANG_FULL=no MK_LLDB=no MK_TESTS=no
+		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
+		MK_LLDB=no MK_TESTS=no
 
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
@@ -260,7 +274,9 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		-DNO_LINT \
-		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no MK_CLANG_FULL=no MK_LLDB=no MK_TESTS=no
+		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
+		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
+		MK_LLDB=no MK_TESTS=no
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
@@ -513,8 +529,9 @@ _worldtmp:
 	    -p ${WORLDTMP}/usr/lib >/dev/null
 .endif
 .if ${MK_TESTS} != "no"
+	mkdir -p ${WORLDTMP}${TESTSBASE}
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
-	    -p ${WORLDTMP}/usr >/dev/null
+	    -p ${WORLDTMP}${TESTSBASE} >/dev/null
 .endif
 .for _mtree in ${LOCAL_MTREE}
 	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
@@ -691,6 +708,11 @@ buildworld_epilogue:
 buildenvvars:
 	@echo ${WMAKEENV:Q}
 
+.if ${.TARGETS:Mbuildenv}
+.if ${.MAKEFLAGS:M-j}
+.error The buildenv target is incompatible with -j
+.endif
+.endif
 buildenv:
 	@echo Entering world for ${TARGET_ARCH}:${TARGET}
 	@cd ${.CURDIR} && env ${WMAKEENV} ${BUILDENV_SHELL} || true
@@ -772,8 +794,13 @@ _zoneinfo=	zic tzsetup
 ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 	date echo egrep find grep id install ${_install-info} \
 	ln lockf make mkdir mtree mv pwd_mkdb \
-	rm sed services_mkdb sh sysctl test true uname wc ${_zoneinfo} \
+	rm sed services_mkdb sh strip sysctl test true uname wc ${_zoneinfo} \
 	${LOCAL_ITOOLS}
+
+# Needed for share/man
+.if ${MK_MAN} != "no"
+ITOOLS+=makewhatis
+.endif
 
 #
 # distributeworld
@@ -843,8 +870,9 @@ distributeworld installworld: _installcheck_world
 	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr/lib >/dev/null
 .endif
 .if ${MK_TESTS} != "no" && ${dist} == "tests"
+	-mkdir -p ${DESTDIR}/${DISTDIR}/${dist}${TESTSBASE}
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
-	    -p ${DESTDIR}/${DISTDIR}/${dist}/usr >/dev/null
+	    -p ${DESTDIR}/${DISTDIR}/${dist}${TESTSBASE} >/dev/null
 .endif
 .if defined(NO_ROOT)
 	${IMAKEENV} mtree -C -f ${.CURDIR}/etc/mtree/BSD.root.dist | \
@@ -1339,6 +1367,11 @@ _share=	share/syscons/scrnmaps
 _gcc_tools= gnu/usr.bin/cc/cc_tools
 .endif
 
+.if ${MK_INFO} != "no"
+_texinfo=	gnu/usr.bin/texinfo/libtxi \
+		gnu/usr.bin/texinfo/makeinfo
+.endif
+
 .if ${MK_RESCUE} != "no"
 _rescue= rescue/rescue
 .endif
@@ -1370,6 +1403,16 @@ build-tools: .MAKE
 		${MAKE} DIRPRFX=${_tool}/ depend && \
 		${MAKE} DIRPRFX=${_tool}/ all
 .endfor
+.for _tool in \
+    ${_texinfo}
+	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
+		${MAKE} DIRPRFX=${_tool}/ depend && \
+		${MAKE} DIRPRFX=${_tool}/ all && \
+		${MAKE} DIRPRFX=${_tool}/ install DESTDIR=${WORLDTMP}
+.endfor
+
 
 #
 # kernel-tools: Build kernel-building tools
@@ -1399,6 +1442,14 @@ _kgzip=		usr.sbin/kgzip
 # If we're given an XAS, don't build binutils.
 .if ${XAS:M/*} == "" && ${MK_BINUTILS_BOOTSTRAP} != "no"
 _binutils=	gnu/usr.bin/binutils
+.if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
+_elftctools=	lib/libelftc \
+		usr.bin/addr2line \
+		usr.bin/elfcopy \
+		usr.bin/nm \
+		usr.bin/size \
+		usr.bin/strings
+.endif
 .endif
 
 # If an full path to an external cross compiler is given, don't build
@@ -1418,6 +1469,7 @@ cross-tools: .MAKE
     ${_clang_libs} \
     ${_clang} \
     ${_binutils} \
+    ${_elftctools} \
     ${_cc} \
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
@@ -1444,28 +1496,76 @@ NXBMAKE=	${NXBENV} ${MAKE} \
 		MK_HTML=no MK_INFO=no NO_LINT=yes MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
-		MK_CLANG_FULL=no MK_LLDB=no
+		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
+		MK_LLDB=no
 
 native-xtools: .MAKE
+	mkdir -p ${OBJTREE}/nxb-bin/bin
+	mkdir -p ${OBJTREE}/nxb-bin/sbin
 	mkdir -p ${OBJTREE}/nxb-bin/usr
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.usr.dist \
 	    -p ${OBJTREE}/nxb-bin/usr >/dev/null
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${OBJTREE}/nxb-bin/usr/include >/dev/null
 .for _tool in \
+    bin/cat \
+    bin/chmod \
+    bin/cp \
+    bin/csh \
+    bin/echo \
+    bin/expr \
+    bin/hostname \
+    bin/ln \
+    bin/ls \
+    bin/mkdir \
+    bin/mv \
+    bin/ps \
+    bin/realpath \
+    bin/rm \
+    bin/rmdir \
+    bin/sh \
+    bin/sleep \
     ${_clang_tblgen} \
     usr.bin/ar \
     ${_binutils} \
+    ${_elftctools} \
     ${_cc} \
     ${_gcc_tools} \
     ${_clang_libs} \
     ${_clang} \
+    sbin/md5 \
+    sbin/sysctl \
+    gnu/usr.bin/diff \
     usr.bin/awk \
+    usr.bin/basename \
     usr.bin/bmake \
+    usr.bin/bzip2 \
+    usr.bin/cmp \
+    usr.bin/dirname \
+    usr.bin/env \
+    usr.bin/fetch \
+    usr.bin/find \
+    usr.bin/grep \
+    usr.bin/gzip \
+    usr.bin/id \
     usr.bin/lex \
     usr.bin/lorder \
+    usr.bin/mktemp \
+    usr.bin/mt \
+    usr.bin/patch \
     usr.bin/sed \
-    usr.bin/yacc
+    usr.bin/sort \
+    usr.bin/tar \
+    usr.bin/touch \
+    usr.bin/tr \
+    usr.bin/true \
+    usr.bin/uniq \
+    usr.bin/unzip \
+    usr.bin/xargs \
+    usr.bin/xinstall \
+    usr.bin/xz \
+    usr.bin/yacc \
+    usr.sbin/chown
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
 		${NXBMAKE} DIRPRFX=${_tool}/ obj && \
@@ -1967,7 +2067,8 @@ _xb-worldtmp:
 
 _xb-bootstrap-tools:
 .for _tool in \
-    ${_clang_tblgen}
+    ${_clang_tblgen} \
+    ${_gperf}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 	cd ${.CURDIR}/${_tool} && \
 	${CDMAKE} DIRPRFX=${_tool}/ obj && \
@@ -1983,6 +2084,7 @@ _xb-build-tools:
 _xb-cross-tools:
 .for _tool in \
     ${_binutils} \
+    ${_elftctools} \
     usr.bin/ar \
     ${_clang_libs} \
     ${_clang} \
@@ -2004,8 +2106,9 @@ _xi-mtree:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
 	    -p ${XDDESTDIR}/usr/include >/dev/null
 .if ${MK_TESTS} != "no"
+	mkdir -p ${XDDESTDIR}${TESTSBASE}
 	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.tests.dist \
-	    -p ${XDDESTDIR}/usr >/dev/null
+	    -p ${XDDESTDIR}${TESTSBASE} >/dev/null
 .endif
 
 .ORDER: xdev-build _xi-mtree _xi-cross-tools _xi-includes _xi-libraries
@@ -2015,6 +2118,7 @@ _xi-cross-tools:
 	@echo "_xi-cross-tools"
 .for _tool in \
     ${_binutils} \
+    ${_elftctools} \
     usr.bin/ar \
     ${_clang_libs} \
     ${_clang} \

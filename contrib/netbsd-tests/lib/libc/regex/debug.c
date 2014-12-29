@@ -34,7 +34,7 @@
 #include <string.h>
 
 #include <sys/types.h>
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <wchar.h>
 #include <wctype.h>
 #endif
@@ -54,7 +54,7 @@ static char *regchar(int);
 void
 regprint(regex_t *r, FILE *d)
 {
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 	struct re_guts *g = r->re_g;
 	int c;
 	int last;
@@ -177,7 +177,7 @@ s_print(struct re_guts *g, FILE *d)
 			break;
 		case OANYOF:
 			fprintf(d, "[(%ld)", (long)opnd);
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 			cs = &g->sets[opnd];
 			last = -1;
 			for (size_t i = 0; i < g->csetsize+1; i++)	/* +1 flushes */
@@ -250,7 +250,7 @@ s_print(struct re_guts *g, FILE *d)
 			fprintf(d, ">");
 			break;
 		default:
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 			fprintf(d, "!%ld(%ld)!", OP(*s), opnd);
 #else
 			fprintf(d, "!%d(%d)!", OP(*s), opnd);

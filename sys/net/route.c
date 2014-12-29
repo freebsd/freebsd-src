@@ -141,6 +141,14 @@ static int rtrequest1_fib_change(struct radix_node_head *, struct rt_addrinfo *,
     struct rtentry **, u_int);
 static void rt_setmetrics(const struct rt_addrinfo *, struct rtentry *);
 
+struct if_mtuinfo
+{
+	struct ifnet	*ifp;
+	int		mtu;
+};
+
+static int	if_updatemtu_cb(struct radix_node *, void *);
+
 /*
  * handler for net.my_fibnum
  */
@@ -947,6 +955,70 @@ bad:
 	return (error);
 }
 
+static int
+if_updatemtu_cb(struct radix_node *rn, void *arg)
+{
+	struct rtentry *rt;
+	struct if_mtuinfo *ifmtu;
+
+	rt = (struct rtentry *)rn;
+	ifmtu = (struct if_mtuinfo *)arg;
+
+	if (rt->rt_ifp != ifmtu->ifp)
+		return (0);
+
+	if (rt->rt_mtu >= ifmtu->mtu) {
+		/* We have to decrease mtu regardless of flags */
+		rt->rt_mtu = ifmtu->mtu;
+		return (0);
+	}
+
+	/*
+	 * New MTU is bigger. Check if are allowed to alter it
+	 */
+	if ((rt->rt_flags & (RTF_FIXEDMTU | RTF_GATEWAY | RTF_HOST)) != 0) {
+
+		/*
+		 * Skip routes with user-supplied MTU and
+		 * non-interface routes
+		 */
+		return (0);
+	}
+
+	/* We are safe to update route MTU */
+	rt->rt_mtu = ifmtu->mtu;
+
+	return (0);
+}
+
+void
+rt_updatemtu(struct ifnet *ifp)
+{
+	struct if_mtuinfo ifmtu;
+	struct radix_node_head *rnh;
+	int i, j;
+
+	ifmtu.ifp = ifp;
+
+	/*
+	 * Try to update rt_mtu for all routes using this interface
+	 * Unfortunately the only way to do this is to traverse all
+	 * routing tables in all fibs/domains.
+	 */
+	for (i = 1; i <= AF_MAX; i++) {
+		ifmtu.mtu = if_getmtu_family(ifp, i);
+		for (j = 0; j < rt_numfibs; j++) {
+			rnh = rt_tables_get_rnh(j, i);
+			if (rnh == NULL)
+				continue;
+			RADIX_NODE_HEAD_LOCK(rnh);
+			rnh->rnh_walktree(rnh, if_updatemtu_cb, &ifmtu);
+			RADIX_NODE_HEAD_UNLOCK(rnh);
+		}
+	}
+}
+
+
 #if 0
 int p_sockaddr(char *buf, int buflen, struct sockaddr *s);
 int rt_print(char *buf, int buflen, struct rtentry *rt);
@@ -1408,6 +1480,7 @@ rtrequest1_fib_change(struct radix_node_head *rnh, struct rt_addrinfo *info,
 	int error = 0;
 	int free_ifa = 0;
 	int family, mtu;
+	struct if_mtuinfo ifmtu;
 
 	rt = (struct rtentry *)rnh->rnh_lookup(info->rti_info[RTAX_DST],
 	    info->rti_info[RTAX_NETMASK], rnh);
@@ -1478,12 +1551,19 @@ rtrequest1_fib_change(struct radix_node_head *rnh, struct rt_addrinfo *info,
 	if (rt->rt_ifa && rt->rt_ifa->ifa_rtrequest != NULL)
 	       rt->rt_ifa->ifa_rtrequest(RTM_ADD, rt, info);
 
-	/* Ensure route MTU is not bigger than interface MTU */
+	/* Alter route MTU if necessary */
 	if (rt->rt_ifp != NULL) {
 		family = info->rti_info[RTAX_DST]->sa_family;
 		mtu = if_getmtu_family(rt->rt_ifp, family);
-		if (rt->rt_mtu > mtu)
+		/* Set default MTU */
+		if (rt->rt_mtu == 0)
 			rt->rt_mtu = mtu;
+		if (rt->rt_mtu != mtu) {
+			/* Check if we really need to update */
+			ifmtu.ifp = rt->rt_ifp;
+			ifmtu.mtu = mtu;
+			if_updatemtu_cb(rt->rt_nodes, &ifmtu);
+		}
 	}
 
 	if (ret_nrt) {
@@ -1501,8 +1581,24 @@ static void
 rt_setmetrics(const struct rt_addrinfo *info, struct rtentry *rt)
 {
 
-	if (info->rti_mflags & RTV_MTU)
+	if (info->rti_mflags & RTV_MTU) {
+		if (info->rti_rmx->rmx_mtu != 0) {
+
+			/*
+			 * MTU was explicitly provided by user.
+			 * Keep it.
+			 */
+			rt->rt_flags |= RTF_FIXEDMTU;
+		} else {
+
+			/*
+			 * User explicitly sets MTU to 0.
+			 * Assume rollback to default.
+			 */
+			rt->rt_flags &= ~RTF_FIXEDMTU;
+		}
 		rt->rt_mtu = info->rti_rmx->rmx_mtu;
+	}
 	if (info->rti_mflags & RTV_WEIGHT)
 		rt->rt_weight = info->rti_rmx->rmx_weight;
 	/* Kernel -> userland timebase conversion. */

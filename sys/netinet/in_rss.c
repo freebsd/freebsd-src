@@ -568,6 +568,8 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 	const struct ip *ip;
 	const struct tcphdr *th;
 	const struct udphdr *uh;
+	uint32_t flowid;
+	uint32_t flowtype;
 	uint8_t proto;
 	int iphlen;
 	int is_frag = 0;
@@ -617,12 +619,10 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 	 * then we shouldn't just "trust" the 2-tuple hash.  We need
 	 * a 4-tuple hash.
 	 */
-	if (m->m_flags & M_FLOWID) {
-		uint32_t flowid, flowtype;
+	flowid = m->m_pkthdr.flowid;
+	flowtype = M_HASHTYPE_GET(m);
 
-		flowid = m->m_pkthdr.flowid;
-		flowtype = M_HASHTYPE_GET(m);
-
+	if (flowtype != M_HASHTYPE_NONE) {
 		switch (proto) {
 		case IPPROTO_UDP:
 			if ((rss_gethashconfig_local() & RSS_HASHTYPE_RSS_UDP_IPV4) &&
@@ -743,7 +743,6 @@ rss_soft_m2cpuid(struct mbuf *m, uintptr_t source, u_int *cpuid)
 		/* hash was done; update */
 		m->m_pkthdr.flowid = hash_val;
 		M_HASHTYPE_SET(m, hash_type);
-		m->m_flags |= M_FLOWID;
 		*cpuid = rss_hash2cpuid(m->m_pkthdr.flowid, M_HASHTYPE_GET(m));
 	} else { /* ret < 0 */
 		/* no hash was done */

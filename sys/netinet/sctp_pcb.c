@@ -4049,9 +4049,7 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 	net->flowid = stcb->asoc.my_vtag ^
 	    ntohs(stcb->rport) ^
 	    ntohs(stcb->sctp_ep->sctp_lport);
-#ifdef INVARIANTS
-	net->flowidset = 1;
-#endif
+	net->flowtype = M_HASHTYPE_OPAQUE;
 	if (netp) {
 		*netp = net;
 	}
@@ -6464,6 +6462,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				switch (pr_supported->chunk_types[i]) {
 				case SCTP_ASCONF:
 					peer_supports_asconf = 1;
+					break;
 				case SCTP_ASCONF_ACK:
 					peer_supports_asconf_ack = 1;
 					break;

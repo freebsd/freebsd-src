@@ -38,12 +38,54 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20141226: Remove gpib/ieee488
+OLD_FILES+=usr/include/dev/ieee488/ibfoo_int.h
+OLD_FILES+=usr/include/dev/ieee488/tnt4882.h
+OLD_FILES+=usr/include/dev/ieee488/ugpib.h
+OLD_FILES+=usr/include/dev/ieee488/upd7210.h
+OLD_DIRS+=usr/include/dev/ieee488
+OLD_FILES+=usr/include/gpib/gpib.h
+OLD_DIRS+=usr/include/gpib
+OLD_FILES+=usr/lib/libgpib.a
+OLD_FILES+=usr/lib/libgpib_p.a
+OLD_FILES+=usr/lib/libgpib.so
+OLD_LIBS+=usr/lib/libgpib.so.3
+OLD_FILES+=usr/lib/libgpib_p.a
+OLD_FILES+=share/man/man4/pcii.4.gz
+OLD_FILES+=share/man/man4/gpib.4.gz
+OLD_FILES+=share/man/man4/tnt4882.4.gz
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libgpib.a
+OLD_FILES+=usr/lib32/libgpib_p.a
+OLD_FILES+=usr/lib32/libgpib.so
+OLD_LIBS+=usr/lib32/libgpib.so.3
+.endif
+
+# 20141224: libxo moved to /lib
+OLD_LIBS+=usr/lib/libxo.so.0
+# 20141223: remove in6_gif.h, in_gif.h and if_stf.h
+OLD_FILES+=usr/include/net/if_stf.h
+OLD_FILES+=usr/include/netinet/in_gif.h
+OLD_FILES+=usr/include/netinet6/in6_gif.h
+# 20141202: update to mandoc CVS 20141201
+OLD_FILES+=usr.bin/preconv
+OLD_FILES+=share/man/man1/preconv.1.gz
+# 20141129: mrouted rc.d scripts removed from base
+OLD_FILES+=etc/rc.d/mrouted
+# 20141126: convert sbin/mdconfig/tests to ATF format tests
+OLD_FILES+=usr/tests/sbin/mdconfig/legacy_test
+OLD_FILES+=usr/tests/sbin/mdconfig/mdconfig.test
+OLD_FILES+=usr/tests/sbin/mdconfig/run.pl
+# 20141126: remove xform_ipip decapsulation fallback
+OLD_FILES+=usr/include/netipsec/ipip_var.h
 # 20141109: faith/faithd removal
 OLD_FILES+=etc/rc.d/faith
 OLD_FILES+=usr/share/man/man4/faith.4.gz
 OLD_FILES+=usr/share/man/man4/if_faith.4.gz
 OLD_FILES+=usr/sbin/faithd
 OLD_FILES+=usr/share/man/man8/faithd.8.gz
+# 20141107: overhaul if_gre(4)
+OLD_FILES+=usr/include/netinet/ip_gre.h
 # 20141102: postrandom obsoleted by new /dev/random code
 OLD_FILES+=etc/rc.d/postrandom
 # 20141031: initrandom obsoleted by new /dev/random code
@@ -132,10 +174,12 @@ OLD_FILES+=usr/include/readline/chardefs.h
 OLD_FILES+=usr/include/readline/history.h
 OLD_FILES+=usr/include/readline/keymaps.h
 OLD_FILES+=usr/include/readline/readline.h
+OLD_FILES+=usr/include/readline/tilde.h
 OLD_FILES+=usr/include/readline/rlconf.h
 OLD_FILES+=usr/include/readline/rlstdc.h
 OLD_FILES+=usr/include/readline/rltypedefs.h
 OLD_FILES+=usr/include/readline/rltypedefs.h
+OLD_DIRS+=usr/include/readline
 OLD_FILES+=usr/share/info/readline.info.gz
 OLD_FILES+=usr/share/man/man3/readline.3.gz
 # 20140625: csup removal

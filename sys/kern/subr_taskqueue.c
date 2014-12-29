@@ -661,11 +661,11 @@ taskqueue_thread_enqueue(void *context)
 
 TASKQUEUE_DEFINE(swi, taskqueue_swi_enqueue, NULL,
 		 swi_add(NULL, "task queue", taskqueue_swi_run, NULL, SWI_TQ,
-		     INTR_MPSAFE, &taskqueue_ih)); 
+		     INTR_MPSAFE, &taskqueue_ih));
 
 TASKQUEUE_DEFINE(swi_giant, taskqueue_swi_giant_enqueue, NULL,
 		 swi_add(NULL, "Giant taskq", taskqueue_swi_giant_run,
-		     NULL, SWI_TQ_GIANT, 0, &taskqueue_giant_ih)); 
+		     NULL, SWI_TQ_GIANT, 0, &taskqueue_giant_ih));
 
 TASKQUEUE_DEFINE_THREAD(thread);
 

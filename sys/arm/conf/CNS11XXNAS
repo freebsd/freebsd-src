@@ -103,7 +103,7 @@ device		bpf
 device		loop
 
 device		md
-device          random			# Entropy device
+device		random			# Entropy device
 
 
 device		usb
@@ -114,12 +114,12 @@ device		umass
 device		scbus			# SCSI bus (required for ATA/SCSI)
 device		da			# Direct Access (disks)
 device		pass
-device 		cfi
+device		cfi
 
 #device		udav			# Davicom DM9601E USB
 
 device		geom_label
 device		geom_journal
-device 		geom_part_bsd
+device		geom_part_bsd
 
 options 	ROOTDEVNAME=\"ufs:da0s1a\"

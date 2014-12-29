@@ -42,7 +42,7 @@ __RCSID("$NetBSD: h_atexit.c,v 1.1 2011/01/12 19:44:08 pgoyette Exp $");
 extern int __cxa_atexit(void (*func)(void *), void *, void *);
 extern void __cxa_finalize(void *);
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 /*
  * On shared object unload, in __cxa_finalize, call and clear all installed
  * atexit and __cxa_atexit handlers that are either installed by unloaded
@@ -191,7 +191,7 @@ main(int argc, char *argv[])
 
 	ASSERT(0 == atexit(normal_handler_0));
 	ASSERT(0 == atexit(normal_handler_1));
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	ASSERT(0 == __cxa_atexit(cxa_handler_4, &arg_1, dso_handle_1));
 	ASSERT(0 == __cxa_atexit(cxa_handler_5, &arg_1, dso_handle_1));
 	ASSERT(0 == __cxa_atexit(cxa_handler_3, &arg_2, dso_handle_2));

@@ -593,9 +593,9 @@ struct ip6_mtuinfo {
 #define IPV6CTL_MAPPED_ADDR	23
 #endif
 #define IPV6CTL_V6ONLY		24
-#define IPV6CTL_RTEXPIRE	25	/* cloned route expiration time */
-#define IPV6CTL_RTMINEXPIRE	26	/* min value for expiration time */
-#define IPV6CTL_RTMAXCACHE	27	/* trigger level for dynamic expire */
+/*	IPV6CTL_RTEXPIRE	25	deprecated */
+/*	IPV6CTL_RTMINEXPIRE	26	deprecated */
+/*	IPV6CTL_RTMAXCACHE	27	deprecated */
 
 #define IPV6CTL_USETEMPADDR	32	/* use temporary addresses (RFC3041) */
 #define IPV6CTL_TEMPPLTIME	33	/* preferred lifetime for tmpaddrs */

@@ -295,11 +295,6 @@ wiigpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 
 	if (pin >= WIIGPIO_NPINS)
 		return (EINVAL);
-	if ((flags & ~(GPIO_PIN_OUTPUT|GPIO_PIN_INPUT)) != 0)
-		return (EINVAL);
-	if ((flags & (GPIO_PIN_OUTPUT|GPIO_PIN_INPUT)) == 
-	    (GPIO_PIN_OUTPUT|GPIO_PIN_INPUT))
-		return (EINVAL);
 	sc = device_get_softc(dev);
 	pinbank = WIIGPIO_PINBANK(pin);
 	pinmask = WIIGPIO_PINMASK(pin);

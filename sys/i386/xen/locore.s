@@ -42,7 +42,6 @@
 #include "opt_bootp.h"
 #include "opt_compat.h"
 #include "opt_nfsroot.h"
-#include "opt_global.h"
 #include "opt_pmap.h"
 
 #include <sys/syscall.h>

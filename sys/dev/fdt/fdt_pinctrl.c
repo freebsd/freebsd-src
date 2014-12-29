@@ -124,15 +124,14 @@ pinctrl_configure_children(device_t pinctrl, phandle_t parent)
 		pinctrl_configure_children(pinctrl, node);
 		nconfigs = OF_getencprop_alloc(node, "pinctrl-0", 
 		    sizeof(*configs), (void **)&configs);
-#ifdef DEBUG
-		{
-			char name[32]; 
-			OF_getprop(node, "name", &name, sizeof(name));
-			printf("%d items in pinctrl-0 for %s\n", nconfigs, name);
-		}
-#endif
 		if (nconfigs <= 0)
 			continue;
+		if (bootverbose) {
+			char name[32]; 
+			OF_getprop(node, "name", &name, sizeof(name));
+			printf("Processing %d pin-config node(s) in pinctrl-0 for %s\n",
+			    nconfigs, name);
+		}
 		for (i = 0; i < nconfigs; i++) {
 			if (OF_device_from_xref(configs[i]) == pinctrl)
 				FDT_PINCTRL_CONFIGURE(pinctrl, configs[i]);
