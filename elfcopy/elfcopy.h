@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: elfcopy.h 2970 2013-12-01 15:22:12Z kaiwang27 $
+ * $Id: elfcopy.h 3134 2014-12-23 10:43:59Z kaiwang27 $
  */
 
 #include <sys/queue.h>
@@ -115,6 +115,7 @@ struct segment;
 /* Internal data structure for sections. */
 struct section {
 	struct segment	*seg;	/* containing segment */
+	struct segment	*seg_tls; /* tls segment */
 	const char	*name;	/* section name */
 	char		*newname; /* new section name */
 	Elf_Scn		*is;	/* input scn */
