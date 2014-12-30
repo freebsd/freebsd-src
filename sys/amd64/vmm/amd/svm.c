@@ -1322,9 +1322,12 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 
 		if (reflect) {
 			/* Reflect the exception back into the guest */
+			bzero(&exception, sizeof(struct vm_exception));
 			exception.vector = idtvec;
-			exception.error_code_valid = errcode_valid;
-			exception.error_code = errcode_valid ? info1 : 0;
+			if (errcode_valid) {
+				exception.error_code = info1;
+				exception.error_code_valid = 1;
+			}
 			VCPU_CTR2(svm_sc->vm, vcpu, "Reflecting exception "
 			    "%d/%#x into the guest", exception.vector,
 			    exception.error_code);
