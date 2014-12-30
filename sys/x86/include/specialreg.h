@@ -81,6 +81,7 @@
 #define	EFER_LME 0x000000100	/* Long mode enable (R/W) */
 #define	EFER_LMA 0x000000400	/* Long mode active (R) */
 #define	EFER_NXE 0x000000800	/* PTE No-Execute bit enable (R/W) */
+#define	EFER_SVM 0x000001000	/* SVM enable bit for AMD, reserved for Intel */
 
 /*
  * Intel Extended Features registers
@@ -771,12 +772,10 @@
 #define	MSR_PERFEVSEL1	0xc0010001
 #define	MSR_PERFEVSEL2	0xc0010002
 #define	MSR_PERFEVSEL3	0xc0010003
-#undef MSR_PERFCTR0
-#undef MSR_PERFCTR1
-#define	MSR_PERFCTR0	0xc0010004
-#define	MSR_PERFCTR1	0xc0010005
-#define	MSR_PERFCTR2	0xc0010006
-#define	MSR_PERFCTR3	0xc0010007
+#define	MSR_K7_PERFCTR0	0xc0010004
+#define	MSR_K7_PERFCTR1	0xc0010005
+#define	MSR_K7_PERFCTR2	0xc0010006
+#define	MSR_K7_PERFCTR3	0xc0010007
 #define	MSR_SYSCFG	0xc0010010
 #define	MSR_HWCR	0xc0010015
 #define	MSR_IORRBASE0	0xc0010016
@@ -785,8 +784,21 @@
 #define	MSR_IORRMASK1	0xc0010019
 #define	MSR_TOP_MEM	0xc001001a	/* boundary for ram below 4G */
 #define	MSR_TOP_MEM2	0xc001001d	/* boundary for ram above 4G */
+#define	MSR_NB_CFG1	0xc001001f	/* NB configuration 1 */
+#define	MSR_P_STATE_LIMIT 0xc0010061	/* P-state Current Limit Register */
+#define	MSR_P_STATE_CONTROL 0xc0010062	/* P-state Control Register */
+#define	MSR_P_STATE_STATUS 0xc0010063	/* P-state Status Register */
+#define	MSR_P_STATE_CONFIG(n) (0xc0010064 + (n)) /* P-state Config */
+#define	MSR_SMM_ADDR	0xc0010112	/* SMM TSEG base address */
+#define	MSR_SMM_MASK	0xc0010113	/* SMM TSEG address mask */
+#define	MSR_IC_CFG	0xc0011021	/* Instruction Cache Configuration */
 #define	MSR_K8_UCODE_UPDATE	0xc0010020	/* update microcode */
 #define	MSR_MC0_CTL_MASK	0xc0010044
+#define	MSR_VM_CR		0xc0010114 /* SVM: feature control */
+#define	MSR_VM_HSAVE_PA		0xc0010117 /* SVM: host save area address */
+
+/* MSR_VM_CR related */
+#define	VM_CR_SVMDIS		0x10	/* SVM: disabled by BIOS */
 
 /* VIA ACE crypto featureset: for via_feature_rng */
 #define	VIA_HAS_RNG		1	/* cpu has RNG */
