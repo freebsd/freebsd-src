@@ -1440,8 +1440,10 @@ _kgzip=		usr.sbin/kgzip
 .endif
 
 # If we're given an XAS, don't build binutils.
-.if ${XAS:M/*} == "" && ${MK_BINUTILS_BOOTSTRAP} != "no"
+.if ${XAS:M/*} == ""
+.if ${MK_BINUTILS_BOOTSTRAP} != "no"
 _binutils=	gnu/usr.bin/binutils
+.endif
 .if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
 _elftctools=	lib/libelftc \
 		usr.bin/addr2line \
