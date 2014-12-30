@@ -1275,7 +1275,7 @@ vtvga_attach(device_t dev)
 
 	res_id = 0;
 	pseudo_phys_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &res_id, VGA_MEM_BASE, VGA_MEM_BASE + VGA_MEM_SIZE,
+	    &res_id, VGA_MEM_BASE, VGA_MEM_BASE + VGA_MEM_SIZE - 1,
 	    VGA_MEM_SIZE, RF_ACTIVE);
 	if (pseudo_phys_res == NULL)
 		panic("Unable to reserve vt_vga memory");
