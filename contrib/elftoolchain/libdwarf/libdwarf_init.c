@@ -26,7 +26,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: libdwarf_init.c 3061 2014-06-02 00:42:41Z kaiwang27 $");
+ELFTC_VCSID("$Id: libdwarf_init.c 3136 2014-12-24 16:04:38Z kaiwang27 $");
 
 static int
 _dwarf_consumer_init(Dwarf_Debug dbg, Dwarf_Error *error)
@@ -93,12 +93,7 @@ _dwarf_consumer_init(Dwarf_Debug dbg, Dwarf_Error *error)
 	}
 	dbg->dbg_section[cnt].ds_name = NULL;
 
-	if (_dwarf_find_section(dbg, ".debug_abbrev") == NULL ||
-	    ((dbg->dbg_info_sec = _dwarf_find_section(dbg, ".debug_info")) ==
-	     NULL)) {
-		DWARF_SET_ERROR(dbg, error, DW_DLE_DEBUG_INFO_NULL);
-		return (DW_DLE_DEBUG_INFO_NULL);
-	}
+	dbg->dbg_info_sec = _dwarf_find_section(dbg, ".debug_info");
 
 	/* Try to find the optional DWARF4 .debug_types section. */
 	dbg->dbg_types_sec = _dwarf_find_next_types_section(dbg, NULL);

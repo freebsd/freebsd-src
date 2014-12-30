@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007-2011 Kai Wang
+ * Copyright (c) 2007-2011,2014 Kai Wang
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,7 +35,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: sections.c 3126 2014-12-21 08:03:31Z kaiwang27 $");
+ELFTC_VCSID("$Id: sections.c 3134 2014-12-23 10:43:59Z kaiwang27 $");
 
 static void	add_gnu_debuglink(struct elfcopy *ecp);
 static uint32_t calc_crc32(const char *p, size_t len, uint32_t crc);
@@ -485,7 +485,10 @@ insert_shtab(struct elfcopy *ecp, int tail)
 	if ((shtab = calloc(1, sizeof(*shtab))) == NULL)
 		errx(EXIT_FAILURE, "calloc failed");
 	if (!tail) {
-		/* shoff of input object is used as a hint. */
+		/*
+		 * "shoff" of input object is used as a hint for section
+		 * resync later.
+		 */
 		if (gelf_getehdr(ecp->ein, &ieh) == NULL)
 			errx(EXIT_FAILURE, "gelf_getehdr() failed: %s",
 			    elf_errmsg(-1));
@@ -763,6 +766,15 @@ resync_sections(struct elfcopy *ecp)
 			off = s->off;
 			first = 0;
 		}
+
+		/*
+		 * Ignore TLS sections with load address 0 and without
+		 * content. We don't need to adjust their file offset or
+		 * VMA, only the size matters.
+		 */
+		if (s->seg_tls != NULL && s->type == SHT_NOBITS &&
+		    s->off == 0)
+			continue;
 
 		/* Align section offset. */
 		if (off <= s->off) {
@@ -1050,6 +1062,17 @@ copy_data(struct section *s)
 		od->d_size	= id->d_size;
 		od->d_version	= id->d_version;
 	}
+
+	/*
+	 * Alignment Fixup. libelf does not allow the alignment for
+	 * Elf_Data descriptor to be set to 0. In this case we workaround
+	 * it by setting the alignment to 1.
+	 *
+	 * According to the ELF ABI, alignment 0 and 1 has the same
+	 * meaning: the section has no alignment constraints.
+	 */
+	if (od->d_align == 0)
+		od->d_align = 1;
 }
 
 struct section *
