@@ -320,11 +320,23 @@ struct xhci_dev_endpoint_trbs {
 	    XHCI_MAX_TRANSFERS) + XHCI_MAX_STREAMS];
 };
 
-#define	XHCI_TD_PAGE_NBUF	17	/* units, room enough for 64Kbytes */
-#define	XHCI_TD_PAGE_SIZE	4096	/* bytes */
-#define	XHCI_TD_PAYLOAD_MAX	(XHCI_TD_PAGE_SIZE * (XHCI_TD_PAGE_NBUF - 1))
+#if (USB_PAGE_SIZE < 4096)
+#error "The XHCI driver needs a pagesize above 4K"
+#endif
+
+/* Define the maximum payload which we will handle in a single TRB */
+#define	XHCI_TD_PAYLOAD_MAX	65536	/* bytes */
+
+/* Define the maximum payload of a single scatter-gather list element */
+#define	XHCI_TD_PAGE_SIZE \
+  ((USB_PAGE_SIZE < XHCI_TD_PAYLOAD_MAX) ? USB_PAGE_SIZE : XHCI_TD_PAYLOAD_MAX)
+
+/* Define the maximum length of the scatter-gather list */
+#define	XHCI_TD_PAGE_NBUF \
+  (((XHCI_TD_PAYLOAD_MAX + XHCI_TD_PAGE_SIZE - 1) / XHCI_TD_PAGE_SIZE) + 1)
 
 struct xhci_td {
+	/* one LINK TRB has been added to the TRB array */
 	struct xhci_trb		td_trb[XHCI_TD_PAGE_NBUF + 1];
 
 /*
