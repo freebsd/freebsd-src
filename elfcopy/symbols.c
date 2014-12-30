@@ -34,7 +34,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: symbols.c 3019 2014-04-17 14:53:40Z jkoshy $");
+ELFTC_VCSID("$Id: symbols.c 3135 2014-12-24 08:22:43Z kaiwang27 $");
 
 /* Symbol table buffer structure. */
 struct symbuf {
@@ -46,12 +46,25 @@ struct symbuf {
 	size_t gcap, lcap; 	/* buffer capacities. */
 };
 
+struct sthash {
+	LIST_ENTRY(sthash) sh_next;
+	size_t sh_off;
+};
+typedef LIST_HEAD(,sthash) hash_head;
+#define STHASHSIZE 65536
+
+struct strimpl {
+	char *buf;		/* string table */
+	size_t sz;		/* entries */
+	size_t cap;		/* buffer capacity */
+	hash_head hash[STHASHSIZE];
+};
+
+
 /* String table buffer structure. */
 struct strbuf {
-	char *l;		/* local symbol string table */
-	char *g;		/* global symbol string table */
-	size_t lsz, gsz;	/* size of each kind */
-	size_t gcap, lcap; 	/* buffer capacities. */
+	struct strimpl l;	/* local symbols */
+	struct strimpl g;	/* global symbols */
 };
 
 static int	is_debug_symbol(unsigned char st_info);
@@ -62,10 +75,12 @@ static int	is_needed_symbol(struct elfcopy *ecp, int i, GElf_Sym *s);
 static int	is_remove_symbol(struct elfcopy *ecp, size_t sc, int i,
 		    GElf_Sym *s, const char *name);
 static int	is_weak_symbol(unsigned char st_info);
-static int	lookup_exact_string(const char *buf, size_t sz, const char *s);
+static int	lookup_exact_string(hash_head *hash, const char *buf,
+		    const char *s);
 static int	generate_symbols(struct elfcopy *ecp);
 static void	mark_symbols(struct elfcopy *ecp, size_t sc);
 static int	match_wildcard(const char *name, const char *pattern);
+uint32_t	str_hash(const char *s);
 
 /* Convenient bit vector operation macros. */
 #define BIT_SET(v, n) (v[(n)>>3] |= 1U << ((n) & 7))
@@ -316,10 +331,10 @@ generate_symbols(struct elfcopy *ecp)
 	if ((st_buf = calloc(1, sizeof(*st_buf))) == NULL)
 		err(EXIT_FAILURE, "calloc failed");
 	sy_buf->gcap = sy_buf->lcap = 64;
-	st_buf->gcap = 256;
-	st_buf->lcap = 64;
-	st_buf->lsz = 1;	/* '\0' at start. */
-	st_buf->gsz = 0;
+	st_buf->g.cap = 256;
+	st_buf->l.cap = 64;
+	st_buf->l.sz = 1;	/* '\0' at start. */
+	st_buf->g.sz = 0;
 
 	ecp->symtab->sz = 0;
 	ecp->strtab->sz = 0;
@@ -541,10 +556,10 @@ generate_symbols(struct elfcopy *ecp)
 			/* Update st_name. */
 			if (ec == ELFCLASS32)
 				sy_buf->g32[ecp->symndx[i]].st_name +=
-				    st_buf->lsz;
+				    st_buf->l.sz;
 			else
 				sy_buf->g64[ecp->symndx[i]].st_name +=
-				    st_buf->lsz;
+				    st_buf->l.sz;
 
 			/* Update index map. */
 			ecp->symndx[i] += sy_buf->nls;
@@ -633,6 +648,8 @@ free_symtab(struct elfcopy *ecp)
 {
 	struct symbuf	*sy_buf;
 	struct strbuf	*st_buf;
+	struct sthash	*sh, *shtmp;
+	int i;
 
 	if (ecp->symtab != NULL && ecp->symtab->buf != NULL) {
 		sy_buf = ecp->symtab->buf;
@@ -648,10 +665,22 @@ free_symtab(struct elfcopy *ecp)
 
 	if (ecp->strtab != NULL && ecp->strtab->buf != NULL) {
 		st_buf = ecp->strtab->buf;
-		if (st_buf->l != NULL)
-			free(st_buf->l);
-		if (st_buf->g != NULL)
-			free(st_buf->g);
+		if (st_buf->l.buf != NULL)
+			free(st_buf->l.buf);
+		if (st_buf->g.buf != NULL)
+			free(st_buf->g.buf);
+		for (i = 0; i < STHASHSIZE; i++) {
+			LIST_FOREACH_SAFE(sh, &st_buf->l.hash[i], sh_next,
+			    shtmp) {
+				LIST_REMOVE(sh, sh_next);
+				free(sh);
+			}
+			LIST_FOREACH_SAFE(sh, &st_buf->g.hash[i], sh_next,
+			    shtmp) {
+				LIST_REMOVE(sh, sh_next);
+				free(sh);
+			}
+		}
 	}
 }
 
@@ -689,10 +718,10 @@ create_external_symtab(struct elfcopy *ecp)
 	if ((st_buf = calloc(1, sizeof(*st_buf))) == NULL)
 		err(EXIT_FAILURE, "calloc failed");
 	sy_buf->gcap = sy_buf->lcap = 64;
-	st_buf->gcap = 256;
-	st_buf->lcap = 64;
-	st_buf->lsz = 1;	/* '\0' at start. */
-	st_buf->gsz = 0;
+	st_buf->g.cap = 256;
+	st_buf->l.cap = 64;
+	st_buf->l.sz = 1;	/* '\0' at start. */
+	st_buf->g.sz = 0;
 
 	ecp->symtab->sz = 0;
 	ecp->strtab->sz = 0;
@@ -729,6 +758,8 @@ add_to_symtab(struct elfcopy *ecp, const char *name, uint64_t st_value,
 {
 	struct symbuf *sy_buf;
 	struct strbuf *st_buf;
+	struct sthash *sh;
+	uint32_t hash;
 	int pos;
 
 	/*
@@ -761,32 +792,39 @@ add_to_symtab(struct elfcopy *ecp, const char *name, uint64_t st_value,
 	else								\
 		sy_buf->B##SZ[sy_buf->n##B##s].st_shndx	=		\
 			ecp->secndx[st_shndx];				\
-	if (st_buf->B == NULL) {					\
-		st_buf->B = calloc(st_buf->B##cap, sizeof(*st_buf->B));	\
-		if (st_buf->B == NULL)					\
+	if (st_buf->B.buf == NULL) {					\
+		st_buf->B.buf = calloc(st_buf->B.cap,			\
+		    sizeof(*st_buf->B.buf));				\
+		if (st_buf->B.buf == NULL)				\
 			err(EXIT_FAILURE, "malloc failed");		\
 	}								\
 	if (name != NULL && *name != '\0') {				\
-		pos = lookup_exact_string(st_buf->B,			\
-		    st_buf->B##sz, name);				\
+		pos = lookup_exact_string(st_buf->B.hash, st_buf->B.buf,\
+		    name);						\
 		if (pos != -1)						\
 			sy_buf->B##SZ[sy_buf->n##B##s].st_name = pos;	\
 		else {							\
 			sy_buf->B##SZ[sy_buf->n##B##s].st_name =	\
-			    st_buf->B##sz;				\
-			while (st_buf->B##sz + strlen(name) >=		\
-			    st_buf->B##cap - 1) {			\
-				st_buf->B##cap *= 2;			\
-				st_buf->B = realloc(st_buf->B,		\
-				    st_buf->B##cap);			\
-				if (st_buf->B == NULL)			\
+			    st_buf->B.sz;				\
+			while (st_buf->B.sz + strlen(name) >=		\
+			    st_buf->B.cap - 1) {			\
+				st_buf->B.cap *= 2;			\
+				st_buf->B.buf = realloc(st_buf->B.buf,	\
+				    st_buf->B.cap);			\
+				if (st_buf->B.buf == NULL)		\
 					err(EXIT_FAILURE,		\
 					    "realloc failed");		\
 			}						\
-			strncpy(&st_buf->B[st_buf->B##sz], name,	\
+			if ((sh = malloc(sizeof(*sh))) == NULL)		\
+				err(EXIT_FAILURE, "malloc failed");	\
+			sh->sh_off = st_buf->B.sz;			\
+			hash = str_hash(name);				\
+			LIST_INSERT_HEAD(&st_buf->B.hash[hash], sh,	\
+			    sh_next);					\
+			strncpy(&st_buf->B.buf[st_buf->B.sz], name,	\
 			    strlen(name));				\
-			st_buf->B[st_buf->B##sz + strlen(name)] = '\0';	\
-			st_buf->B##sz += strlen(name) + 1;		\
+			st_buf->B.buf[st_buf->B.sz + strlen(name)] = '\0'; \
+			st_buf->B.sz += strlen(name) + 1;		\
 		}							\
 	} else								\
 		sy_buf->B##SZ[sy_buf->n##B##s].st_name = 0;		\
@@ -811,7 +849,7 @@ add_to_symtab(struct elfcopy *ecp, const char *name, uint64_t st_value,
 	/* Update section size. */
 	ecp->symtab->sz = (sy_buf->nls + sy_buf->ngs) *
 	    (ecp->oec == ELFCLASS32 ? sizeof(Elf32_Sym) : sizeof(Elf64_Sym));
-	ecp->strtab->sz = st_buf->lsz + st_buf->gsz;
+	ecp->strtab->sz = st_buf->l.sz + st_buf->g.sz;
 
 #undef	_ADDSYM
 }
@@ -831,9 +869,9 @@ finalize_external_symtab(struct elfcopy *ecp)
 	st_buf = ecp->strtab->buf;
 	for (i = 0; (size_t) i < sy_buf->ngs; i++) {
 		if (ecp->oec == ELFCLASS32)
-			sy_buf->g32[i].st_name += st_buf->lsz;
+			sy_buf->g32[i].st_name += st_buf->l.sz;
 		else
-			sy_buf->g64[i].st_name += st_buf->lsz;
+			sy_buf->g64[i].st_name += st_buf->l.sz;
 	}
 }
 
@@ -920,19 +958,19 @@ create_symtab_data(struct elfcopy *ecp)
 		    elf_errmsg(-1));
 	lstdata->d_align	= 1;
 	lstdata->d_off		= 0;
-	lstdata->d_buf		= st_buf->l;
-	lstdata->d_size		= st_buf->lsz;
+	lstdata->d_buf		= st_buf->l.buf;
+	lstdata->d_size		= st_buf->l.sz;
 	lstdata->d_type		= ELF_T_BYTE;
 	lstdata->d_version	= EV_CURRENT;
 
-	if (st_buf->gsz > 0) {
+	if (st_buf->g.sz > 0) {
 		if ((gstdata = elf_newdata(st->os)) == NULL)
 			errx(EXIT_FAILURE, "elf_newdata() failed: %s.",
 			    elf_errmsg(-1));
 		gstdata->d_align	= 1;
 		gstdata->d_off		= lstdata->d_size;
-		gstdata->d_buf		= st_buf->g;
-		gstdata->d_size		= st_buf->gsz;
+		gstdata->d_buf		= st_buf->g.buf;
+		gstdata->d_size		= st_buf->g.sz;
 		gstdata->d_type		= ELF_T_BYTE;
 		gstdata->d_version	= EV_CURRENT;
 	}
@@ -1022,18 +1060,25 @@ lookup_symop_list(struct elfcopy *ecp, const char *name, unsigned int op)
 }
 
 static int
-lookup_exact_string(const char *buf, size_t sz, const char *s)
+lookup_exact_string(hash_head *buckets, const char *buf, const char *s)
 {
-	const char	*b;
-	size_t		 slen;
+	struct sthash	*sh;
+	uint32_t	 hash;
 
-	slen = strlen(s);
-	for (b = buf; b < buf + sz; b += strlen(b) + 1) {
-		if (strlen(b) != slen)
-			continue;
-		if (!strcmp(b, s))
-			return (b - buf);
-	}
-
+	hash = str_hash(s);
+	LIST_FOREACH(sh, &buckets[hash], sh_next)
+		if (strcmp(buf + sh->sh_off, s) == 0)
+			return sh->sh_off;
 	return (-1);
+}
+
+uint32_t
+str_hash(const char *s)
+{
+	uint32_t hash;
+
+	for (hash = 2166136261; *s; s++)
+		hash = (hash ^ *s) * 16777619;
+
+	return (hash & (STHASHSIZE - 1));
 }
