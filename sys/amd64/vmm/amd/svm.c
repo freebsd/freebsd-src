@@ -461,6 +461,9 @@ vmcb_init(struct svm_softc *sc, int vcpu, uint64_t iopm_base_pa,
 	svm_enable_intercept(sc, vcpu, VMCB_CTRL1_INTCPT,
 	    VMCB_INTCPT_FERR_FREEZE);
 
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_MONITOR);
+	svm_enable_intercept(sc, vcpu, VMCB_CTRL2_INTCPT, VMCB_INTCPT_MWAIT);
+
 	/*
 	 * From section "Canonicalization and Consistency Checks" in APMv2
 	 * the VMRUN intercept bit must be set to pass the consistency check.
@@ -1140,6 +1143,10 @@ exit_reason_to_str(uint64_t reason)
 		return ("msr");
 	case VMCB_EXIT_IRET:
 		return ("iret");
+	case VMCB_EXIT_MONITOR:
+		return ("monitor");
+	case VMCB_EXIT_MWAIT:
+		return ("mwait");
 	default:
 		snprintf(reasonbuf, sizeof(reasonbuf), "%#lx", reason);
 		return (reasonbuf);
@@ -1405,6 +1412,12 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			    "for gpa %#lx/%#lx at rip %#lx",
 			    info2, info1, state->rip);
 		}
+		break;
+	case VMCB_EXIT_MONITOR:
+		vmexit->exitcode = VM_EXITCODE_MONITOR;
+		break;
+	case VMCB_EXIT_MWAIT:
+		vmexit->exitcode = VM_EXITCODE_MWAIT;
 		break;
 	default:
 		vmm_stat_incr(svm_sc->vm, vcpu, VMEXIT_UNKNOWN, 1);
