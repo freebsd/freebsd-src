@@ -44,6 +44,7 @@ OPT('0', "print0", 0, "               terminate filenames with ASCII NUL\n")
 OPT('p', "preserve-date", 0, "        preserve access times on files\n")
 #endif
 OPT('r', "raw", 0, "                  don't translate unprintable chars to \\ooo\n")
+OPT('R', "recursion", 0, "            set maximum recursion level\n")
 OPT('s', "special-files", 0, "        treat special (block/char devices) files as\n"
     "                             ordinary ones\n")
 OPT('C', "compile", 0, "              compile file specified by -m\n")
