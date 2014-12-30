@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$File: file.h,v 1.152 2014/06/03 19:01:34 christos Exp $
+ * @(#)$File: file.h,v 1.161 2014/12/04 15:56:46 christos Exp $
  */
 
 #ifndef __file_h__
@@ -64,7 +64,9 @@
 #include <regex.h>
 #include <time.h>
 #include <sys/types.h>
+#ifndef WIN32
 #include <sys/param.h>
+#endif
 /* Do this here and now, because struct stat gets re-defined on solaris */
 #include <sys/stat.h>
 #include <stdarg.h>
@@ -401,6 +403,14 @@ struct magic_set {
 	/* FIXME: Make the string dynamically allocated so that e.g.
 	   strings matched in files can be longer than MAXstring */
 	union VALUETYPE ms_value;	/* either number or string */
+	uint16_t indir_max;
+	uint16_t name_max;
+	uint16_t elf_shnum_max;
+	uint16_t elf_phnum_max;
+#define	FILE_INDIR_MAX			15
+#define	FILE_NAME_MAX			30
+#define	FILE_ELF_SHNUM_MAX		32768
+#define	FILE_ELF_PHNUM_MAX		128
 };
 
 /* Type for Unicode characters */
@@ -440,8 +450,10 @@ protected int file_encoding(struct magic_set *, const unsigned char *, size_t,
     unichar **, size_t *, const char **, const char **, const char **);
 protected int file_is_tar(struct magic_set *, const unsigned char *, size_t);
 protected int file_softmagic(struct magic_set *, const unsigned char *, size_t,
-    size_t, int, int);
+    uint16_t, uint16_t *, int, int);
 protected int file_apprentice(struct magic_set *, const char *, int);
+protected int buffer_apprentice(struct magic_set *, struct magic **,
+    size_t *, size_t);
 protected int file_magicfind(struct magic_set *, const char *, struct mlist *);
 protected uint64_t file_signextend(struct magic_set *, struct magic *,
     uint64_t);
@@ -469,9 +481,20 @@ protected int file_os2_apptype(struct magic_set *, const char *, const void *,
     size_t);
 #endif /* __EMX__ */
 
+#if defined(HAVE_LOCALE_H)
+#include <locale.h>
+#endif
+#if defined(HAVE_XLOCALE_H)
+#include <xlocale.h>
+#endif
+
 typedef struct {
 	const char *pat;
-	char *old_lc_ctype;
+#if defined(HAVE_NEWLOCALE) && defined(HAVE_USELOCALE) && defined(HAVE_FREELOCALE)
+#define USE_C_LOCALE
+	locale_t old_lc_ctype;
+	locale_t c_lc_ctype;
+#endif
 	int rc;
 	regex_t rx;
 } file_regex_t;

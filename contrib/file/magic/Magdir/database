@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: database,v 1.41 2014/06/03 19:17:27 christos Exp $
+# $File: database,v 1.43 2014/10/28 15:47:39 christos Exp $
 # database:  file(1) magic for various databases
 #
 # extracted from header/code files by Graeme Wilford (eep2gw@ee.surrey.ac.uk)
@@ -9,9 +9,17 @@
 # GDBM magic numbers
 #  Will be maintained as part of the GDBM distribution in the future.
 #  <downsj@teeny.org>
-0	belong	0x13579ace	GNU dbm 1.x or ndbm database, big endian
+0	belong	0x13579acd	GNU dbm 1.x or ndbm database, big endian, 32-bit
 !:mime	application/x-gdbm
-0	lelong	0x13579ace	GNU dbm 1.x or ndbm database, little endian
+0	belong	0x13579ace	GNU dbm 1.x or ndbm database, big endian, old
+!:mime	application/x-gdbm
+0	belong	0x13579acf	GNU dbm 1.x or ndbm database, big endian, 64-bit
+!:mime	application/x-gdbm
+0	lelong	0x13579acd	GNU dbm 1.x or ndbm database, little endian, 32-bit
+!:mime	application/x-gdbm
+0	lelong	0x13579ace	GNU dbm 1.x or ndbm database, little endian, old
+!:mime	application/x-gdbm
+0	lelong	0x13579acf	GNU dbm 1.x or ndbm database, little endian, 64-bit
 !:mime	application/x-gdbm
 0	string	GDBM		GNU dbm 2.x database
 !:mime	application/x-gdbm
@@ -202,27 +210,27 @@
 # for multiple index files (*.MDX) Production flag,tag numbers(<=0x30),tag length(<=0x20), reserverd (NULL) 
 >>>>>>>24	ubelong&0x0133f7ff	>0		
 # test for reserved NULL byte
->>>>>>>>47	ubyte			x		
+>>>>>>>>47	ubyte			0		
 # test for valid TAG key format (0x10 or 0)
 >>>>>>>>>559	ubyte&0xeF		0		
 # test MM <= 12
->>>>>>>>>45	ubeshort		<0x0C20		
->>>>>>>>>>45	ubyte			>0		
->>>>>>>>>>>46	ubyte			<32		
->>>>>>>>>>>>46	ubyte			>0		
+>>>>>>>>>>45	ubeshort		<0x0C20		
+>>>>>>>>>>>45	ubyte			>0		
+>>>>>>>>>>>>46	ubyte			<32		
+>>>>>>>>>>>>>46	ubyte			>0		
 #!:mime	application/x-mdx
->>>>>>>>>>>>>0	use			xbase-type
->>>>>>>>>>>>>0	ubyte			x		\b MDX
->>>>>>>>>>>>>1	ubyte			x		\b, creation-date
->>>>>>>>>>>>>1	use			xbase-date
->>>>>>>>>>>>>44	ubyte			x		\b, update-date
->>>>>>>>>>>>>44	use			xbase-date
+>>>>>>>>>>>>>>0		use		xbase-type
+>>>>>>>>>>>>>>0		ubyte		x		\b MDX
+>>>>>>>>>>>>>>1		ubyte		x		\b, creation-date
+>>>>>>>>>>>>>>1		use		xbase-date
+>>>>>>>>>>>>>>44	ubyte		x		\b, update-date
+>>>>>>>>>>>>>>44	use		xbase-date
 # No.of tags in use (1,2,5,12)
->>>>>>>>>>>>>28	uleshort		x		\b, %d
+>>>>>>>>>>>>>>28	uleshort	x		\b, %d
 # No. of entries in tag (0x30)
->>>>>>>>>>>>>25	ubyte			x		\b/%d tags
+>>>>>>>>>>>>>>25	ubyte		x		\b/%d tags
 #  Length of tag
->>>>>>>>>>>>>26	ubyte			x		* %d
+>>>>>>>>>>>>>>26	ubyte		x		* %d
 # 1st tag name_
 >>>>>>>>>>>>>548	string		x		\b, 1st tag "%.11s"
 # 2nd tag name
@@ -337,60 +345,103 @@
 # dBASE III
 >>>>>>16	ubyte		3		
 # dBASE III DBT
->>>>>>>0	use		xbase-memo-print
-# dBASE IV DBT , FoxPro FPT or many PNG , ZIP , DBF garbage
+>>>>>>>0	use		dbase3-memo-print
+# dBASE III DBT without version, dBASE IV DBT , FoxPro FPT , or many ZIP , DBF garbage
 >>>>>>16	ubyte		0		
-# dBASE IV DBT with DBF name or DBF garbage
->>>>>>>8	ubelong		>0x40000000	
-# skip DBF and catch dBASE IV DBT with DBF name and with non big index of next free block
->>>>>>>>0	ulelong		<0x01010002	
->>>>>>>>>0	use		xbase-memo-print
->>>>>>>8	ubelong		0		
+# unusual dBASE III DBT like angest.dbt, dBASE IV DBT with block size 0 , FoxPro FPT ,  or garbage PCX DBF
+>>>>>>>20	uleshort	0		
+# FoxPro FPT , unusual dBASE III DBT like biblio.dbt or garbage
+>>>>>>>>8	ulong		=0		
+>>>>>>>>>6	ubeshort	>0		
+# skip emacs.PIF
+>>>>>>>>>>4	ushort		0		
+>>>>>>>>>>>0	use		foxpro-memo-print
+# dBASE III DBT , garbage
+>>>>>>>>>6	ubeshort	0		
 # skip MM*DD*.bin by test for for reserved NULL byte
->>>>>>>>508	ubelong		0		
-# real memo files should contain text here
->>>>>>>>>520	ubelong		>0x20202019	
->>>>>>>>>>520	ubelong		<0xFEFEFEFF	
->>>>>>>>>>>0	use		xbase-memo-print
-# garbage PCX , ZIP , JAR , XPI 
->>>>>>>8	default		x		
+>>>>>>>>>>510	ubeshort	0		
+# skip TK-DOS11.img image by looking for memo text
+>>>>>>>>>>>512	ubelong		<0xfeffff03	
+# skip EFI executables by looking for memo text
+>>>>>>>>>>>>512	ubelong		>0x1F202020	
+>>>>>>>>>>>>>513 ubyte		>0		
+# unusual dBASE III DBT like adressen.dbt
+>>>>>>>>>>>>>>0	use		dbase3-memo-print
+# dBASE III DBT like angest.dbt, or garbage PCX DBF
+>>>>>>>>8	ubelong		!0		
+# skip PCX and some DBF by test for for reserved NULL bytes
+>>>>>>>>>510	ubeshort	0		
+# skip some DBF by test of invalid version
+>>>>>>>>>>0	ubyte		>5		
+>>>>>>>>>>>0	ubyte		<48		
+>>>>>>>>>>>>0	use		dbase3-memo-print
+# dBASE IV DBT with positive block size
+>>>>>>>20	uleshort	>0		
+>>>>>>>>0	use		dbase4-memo-print
 
-#		Print the information of dBase DBT or FoxPro FPT memo files 
-0	name				xbase-memo-print
->0	ubyte			x		
-# test version
-# memo file
->>16	ubyte			3		dBase III DBT
->>16	ubyte			0		
->>>512	ubelong			<0x00000003	FoxPro FPT
-# Size of blocks for FoxPro
->>>>6	ubeshort		x		\b, blocks size %u
-# Number of next available block for appending data for FoxPro
->>>>0	ubelong			=0		\b, next free block index %u
->>>>0	ubelong			!0		\b, next free block index %u
->>>512	default			x		dBase IV DBT
-# DBF file name without extension
->>>>8	string			>\0		\b of %-.8s.DBF
-# size of blocks  ; not reliable 0x2020204C
-#>>>>4	ulelong			=0		\b, blocks size %u
->>>>4	ulelong			!0		\b, blocks size %u
-# Block length found 0 , 512
-#>>>>20	uleshort		=0		\b, block length %u
->>>>20	uleshort		!0		\b, block length %u
+#		Print the information of dBase III DBT memo file 
+0	name				dbase3-memo-print
+>0	ubyte			x		dBase III DBT
+# instead 3 as version number 0 for unusual examples like biblio.dbt
+>16	ubyte			!3		\b, version number %u
 # Number of next available block for appending data
->>>>0	ulelong			=0		\b, next free block index %u
->>>>0	ulelong			!0		\b, next free block index %u
->>512	ubelong			x		
->>>512	ubelong			=0xFFFF0800	
->>>>520	string			>\0		\b, 1st used item "%s"
-# FoxPro
->>>512	ubelong			<3		
-# FoxPro memo
->>>>512	ubelong			=1		
->>>>520	string			>\0		\b, 1st used item "%s"
->>>512	default			x		
-# may be deleted memo field
->>>>512	string			>\0		\b, 1st item "%s"
+#>0	lelong			=0		\b, next free block index %u
+>0	lelong			!0		\b, next free block index %u
+# no positiv block length
+#>20	uleshort		=0		\b, block length %u
+>20	uleshort		!0		\b, block length %u
+# dBase III memo field terminated by \032\032
+>512	string			>\0		\b, 1st item "%s"
+#		Print the information of dBase IV DBT memo file 
+0	name				dbase4-memo-print
+>0		lelong		x		dBase IV DBT
+# 8 character shorted main name of coresponding dBASE IV DBF file
+>8		ubelong		>0x20000000	
+# skip unusual like for angest.dbt
+>>20		uleshort	>0	
+>>>8		string		>\0		\b of %-.8s.DBF
+# value 0 implies 512 as size
+#>4		ulelong		=0		\b, blocks size %u
+# size of blocks not reliable like 0x2020204C in angest.dbt
+>4		ulelong		!0		
+>>4		ulelong&0x0000003f	0	\b, blocks size %u
+# dBase IV DBT with positive block length (found 512 , 1024)
+>20		uleshort	>0		\b, block length %u
+# next available block
+#>0		lelong		=0		\b, next free block index %u
+>0		lelong		!0		\b, next free block index %u
+>20		uleshort	>0		
+>>(20.s)	ubelong		x		
+>>>&-4		use		dbase4-memofield-print
+# unusual dBase IV DBT without block length (implies 512 as length)
+>20		uleshort	=0		
+>>512		ubelong		x		
+>>>&-4		use				dbase4-memofield-print
+#		Print the information of dBase IV memo field 
+0	name			dbase4-memofield-print
+# free dBase IV memo field
+>0		ubelong		!0xFFFF0800	
+>>0		lelong		x		\b, next free block %u
+>>4		lelong		x		\b, next used block %u
+# used dBase IV memo field
+>0		ubelong		=0xFFFF0800	
+# length of memo field
+>>4		lelong		x		\b, field length %d
+>>>8		string		>\0		\b, 1st used item "%s"
+#		Print the information of FoxPro FPT memo file 
+0	name				foxpro-memo-print
+>0		belong		x		FoxPro FPT
+# Size of blocks for FoxPro ( 64,256 )
+>6		ubeshort	x		\b, blocks size %u
+# next available block
+#>0		belong		=0		\b, next free block index %u
+>0		belong		!0		\b, next free block index %u
+# field type ( 0~picture, 1~memo, 2~object ) 
+>512		ubelong		<3		\b, field type %u
+# length of memo field
+>512		ubelong		1		
+>>516		belong		>0		\b, field length %d
+>>>520		string		>\0		\b, 1st item "%s"
 
 # TODO: 
 # DBASE index file *.NDX
