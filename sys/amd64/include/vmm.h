@@ -285,6 +285,7 @@ int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
 int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
 struct vatpic *vm_atpic(struct vm *vm);
 struct vatpit *vm_atpit(struct vm *vm);
+struct vpmtmr *vm_pmtmr(struct vm *vm);
 
 /*
  * Inject exception 'vme' into the guest vcpu. This function returns 0 on

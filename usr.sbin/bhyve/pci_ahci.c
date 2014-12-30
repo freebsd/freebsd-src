@@ -367,11 +367,15 @@ ahci_check_stopped(struct ahci_port *p)
 {
 	/*
 	 * If we are no longer processing the command list and nothing
-	 * is in-flight, clear the running bit.
+	 * is in-flight, clear the running bit, the current command
+	 * slot, the command issue and active bits.
 	 */
 	if (!(p->cmd & AHCI_P_CMD_ST)) {
-		if (p->pending == 0)
+		if (p->pending == 0) {
 			p->cmd &= ~(AHCI_P_CMD_CR | AHCI_P_CMD_CCS_MASK);
+			p->ci = 0;
+			p->sact = 0;
+		}
 	}
 }
 
