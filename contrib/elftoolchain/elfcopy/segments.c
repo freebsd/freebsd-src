@@ -35,7 +35,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: segments.c 3113 2014-12-20 08:33:29Z kaiwang27 $");
+ELFTC_VCSID("$Id: segments.c 3134 2014-12-23 10:43:59Z kaiwang27 $");
 
 static void	insert_to_inseg_list(struct segment *seg, struct section *sec);
 
@@ -86,6 +86,8 @@ add_to_inseg_list(struct elfcopy *ecp, struct section *s)
 		insert_to_inseg_list(seg, s);
 		if (seg->type == PT_LOAD)
 			s->seg = seg;
+		else if (seg->type == PT_TLS)
+			s->seg_tls = seg;
 		s->lma = seg->addr + (s->off - seg->off);
 		loadable = 1;
 	}
