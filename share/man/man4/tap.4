@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .\" Based on PR#2411
 .\"
-.Dd January 26, 2012
+.Dd November 30, 2014
 .Dt TAP 4
 .Os
 .Sh NAME
@@ -18,20 +18,31 @@ described as the network interface analog of the
 that is,
 .Nm
 does for network interfaces what the
-.Nm pty
+.Xr pty 4
 driver does for terminals.
 .Pp
 The
 .Nm
 driver, like the
-.Nm pty
+.Xr pty 4
 driver, provides two interfaces: an interface like the usual facility
 it is simulating
 (an Ethernet network interface in the case of
 .Nm ,
 or a terminal for
-.Nm pty ) ,
+.Xr pty 4 ) ,
 and a character-special device
+.Dq control
+interface.
+A client program transfers Ethernet frames to or from the 
+.Nm
+.Dq control
+interface.
+The
+.Xr tun 4
+interface provides similar functionality at the network layer:
+a client will transfer IP (by default) packets to or from a
+.Xr tun 4
 .Dq control
 interface.
 .Pp
@@ -314,4 +325,5 @@ VMware
 .El
 .Sh SEE ALSO
 .Xr inet 4 ,
-.Xr intro 4
+.Xr intro 4 ,
+.Xr tun 4
