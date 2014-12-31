@@ -841,7 +841,7 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		 * XXX .. and we should likely cache this in the inpcb.
 		 */
 #ifdef	RSS
-		m->m_pkthdr.flowid = rss_hash_ip6_2tuple(*faddr, *laddr);
+		m->m_pkthdr.flowid = rss_hash_ip6_2tuple(faddr, laddr);
 		M_HASHTYPE_SET(m, M_HASHTYPE_RSS_IPV6);
 #endif
 		flags = 0;
