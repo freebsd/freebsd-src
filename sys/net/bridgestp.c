@@ -245,7 +245,7 @@ bstp_transmit_tcn(struct bstp_state *bs, struct bstp_port *bp)
 
 	eh = mtod(m, struct ether_header *);
 
-	memcpy(eh->ether_shost, IF_LLADDR(ifp), ETHER_ADDR_LEN);
+	memcpy(eh->ether_shost, if_lladdr(ifp), ETHER_ADDR_LEN);
 	memcpy(eh->ether_dhost, bstp_etheraddr, ETHER_ADDR_LEN);
 	eh->ether_type = htons(sizeof(bpdu));
 
@@ -359,7 +359,7 @@ bstp_send_bpdu(struct bstp_state *bs, struct bstp_port *bp,
 	bpdu->cbu_ctl = LLC_UI;
 	bpdu->cbu_protoid = htons(BSTP_PROTO_ID);
 
-	memcpy(eh->ether_shost, IF_LLADDR(ifp), ETHER_ADDR_LEN);
+	memcpy(eh->ether_shost, if_lladdr(ifp), ETHER_ADDR_LEN);
 	memcpy(eh->ether_dhost, bstp_etheraddr, ETHER_ADDR_LEN);
 
 	switch (bpdu->cbu_bpdutype) {
@@ -2047,14 +2047,14 @@ bstp_reinit(struct bstp_state *bs)
 		if (ifp->if_bridge != bridgeptr)
 			continue;	/* Not part of our bridge */
 
-		if (bstp_addr_cmp(IF_LLADDR(ifp), llzero) == 0)
+		if (bstp_addr_cmp(if_lladdr(ifp), llzero) == 0)
 			continue;	/* No mac address set */
 
 		if (mif == NULL) {
 			mif = ifp;
 			continue;
 		}
-		if (bstp_addr_cmp(IF_LLADDR(ifp), IF_LLADDR(mif)) < 0) {
+		if (bstp_addr_cmp(if_lladdr(ifp), if_lladdr(mif)) < 0) {
 			mif = ifp;
 			continue;
 		}
@@ -2063,7 +2063,7 @@ bstp_reinit(struct bstp_state *bs)
 	if (mif == NULL)
 		goto disablestp;
 
-	e_addr = IF_LLADDR(mif);
+	e_addr = if_lladdr(mif);
 	bs->bs_bridge_pv.pv_dbridge_id =
 	    (((uint64_t)bs->bs_bridge_priority) << 48) |
 	    (((uint64_t)e_addr[0]) << 40) |

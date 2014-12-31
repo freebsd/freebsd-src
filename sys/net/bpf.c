@@ -1140,13 +1140,13 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	BPFD_UNLOCK(d);
 #endif
 
-	error = (*ifp->if_output)(ifp, m, &dst, NULL);
+	error = if_output(ifp, m, &dst, NULL);
 	if (error)
 		d->bd_wdcount++;
 
 	if (mc != NULL) {
 		if (error == 0)
-			(*ifp->if_input)(ifp, mc);
+			if_input(ifp, mc);
 		else
 			m_freem(mc);
 	}
@@ -1330,7 +1330,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 				error = EINVAL;
 			else {
 				ifp = d->bd_bif->bif_ifp;
-				error = (*ifp->if_ioctl)(ifp, cmd, addr);
+				error = if_ioctl(ifp, cmd, addr);
 			}
 			break;
 		}
@@ -2520,10 +2520,7 @@ bpfattach2(struct ifnet *ifp, u_int dlt, u_int hdrlen, struct bpf_if **driverp)
 {
 	struct bpf_if *bp;
 
-	bp = malloc(sizeof(*bp), M_BPF, M_NOWAIT | M_ZERO);
-	if (bp == NULL)
-		panic("bpfattach");
-
+	bp = malloc(sizeof(*bp), M_BPF, M_WAITOK | M_ZERO);
 	LIST_INIT(&bp->bif_dlist);
 	LIST_INIT(&bp->bif_wlist);
 	bp->bif_ifp = ifp;

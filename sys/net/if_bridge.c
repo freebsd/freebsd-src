@@ -690,7 +690,7 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		LIST_FOREACH(sc2, &V_bridge_list, sc_list) {
 			bifp = sc2->sc_ifp;
 			if (memcmp(sc->sc_defaddr,
-			    IF_LLADDR(bifp), ETHER_ADDR_LEN) == 0) {
+			    if_lladdr(bifp), ETHER_ADDR_LEN) == 0) {
 				retry = 1;
 				break;
 			}
@@ -1009,12 +1009,12 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 	if (V_bridge_inherit_mac && sc->sc_ifaddr == ifs) {
 		if (LIST_EMPTY(&sc->sc_iflist)) {
 			bcopy(sc->sc_defaddr,
-			    IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
+			    if_lladdr(sc->sc_ifp), ETHER_ADDR_LEN);
 			sc->sc_ifaddr = NULL;
 		} else {
 			fif = LIST_FIRST(&sc->sc_iflist)->bif_ifp;
-			bcopy(IF_LLADDR(fif),
-			    IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
+			bcopy(if_lladdr(fif),
+			    if_lladdr(sc->sc_ifp), ETHER_ADDR_LEN);
 			sc->sc_ifaddr = fif;
 		}
 		EVENTHANDLER_INVOKE(iflladdr_event, sc->sc_ifp);
@@ -1173,8 +1173,8 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	 * the default randomly generated one.
 	 */
 	if (V_bridge_inherit_mac && LIST_EMPTY(&sc->sc_iflist) &&
-	    !memcmp(IF_LLADDR(sc->sc_ifp), sc->sc_defaddr, ETHER_ADDR_LEN)) {
-		bcopy(IF_LLADDR(ifs), IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
+	    !memcmp(if_lladdr(sc->sc_ifp), sc->sc_defaddr, ETHER_ADDR_LEN)) {
+		bcopy(if_lladdr(ifs), if_lladdr(sc->sc_ifp), ETHER_ADDR_LEN);
 		sc->sc_ifaddr = ifs;
 		EVENTHANDLER_INVOKE(iflladdr_event, sc->sc_ifp);
 	}
@@ -2396,7 +2396,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	if ((iface)->if_type == IFT_GIF) \
 		continue; \
 	/* It is destined for us. */ \
-	if (memcmp(IF_LLADDR((iface)), eh->ether_dhost,  ETHER_ADDR_LEN) == 0 \
+	if (memcmp(if_lladdr((iface)), eh->ether_dhost,  ETHER_ADDR_LEN) == 0 \
 	    OR_CARP_CHECK_WE_ARE_DST((iface))				\
 	    ) {								\
 		if ((iface)->if_type == IFT_BRIDGE) {			\
@@ -2430,7 +2430,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	}								\
 									\
 	/* We just received a packet that we sent out. */		\
-	if (memcmp(IF_LLADDR((iface)), eh->ether_shost, ETHER_ADDR_LEN) == 0 \
+	if (memcmp(if_lladdr((iface)), eh->ether_shost, ETHER_ADDR_LEN) == 0 \
 	    OR_CARP_CHECK_WE_ARE_SRC((iface))			\
 	    ) {								\
 		BRIDGE_UNLOCK(sc);					\

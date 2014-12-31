@@ -1862,8 +1862,8 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			 * doing this for compatibility reasons
 			 */
 			if (cmd == RTM_ADD) {
-			    ((struct sockaddr_dl *)rt->rt_gateway)->sdl_type  =
-				rt->rt_ifp->if_type;
+			    ((struct sockaddr_dl *)rt->rt_gateway)->sdl_type =
+				if_type(rt->rt_ifp);
 			    ((struct sockaddr_dl *)rt->rt_gateway)->sdl_index =
 				rt->rt_ifp->if_index;
 			}

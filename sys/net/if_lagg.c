@@ -572,7 +572,7 @@ lagg_lladdr(struct lagg_softc *sc, uint8_t *lladdr)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct lagg_port lp;
 
-	if (memcmp(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN) == 0)
+	if (memcmp(lladdr, if_lladdr(ifp), ETHER_ADDR_LEN) == 0)
 		return;
 
 	LAGG_WLOCK_ASSERT(sc);
@@ -583,7 +583,7 @@ lagg_lladdr(struct lagg_softc *sc, uint8_t *lladdr)
 	 * may trigger gratuitous ARPs for INET will be handled in
 	 * a taskqueue.
 	 */
-	bcopy(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN);
+	bcopy(lladdr, if_lladdr(ifp), ETHER_ADDR_LEN);
 	lagg_proto_lladdr(sc);
 
 	bzero(&lp, sizeof(lp));
@@ -644,7 +644,7 @@ lagg_port_lladdr(struct lagg_port *lp, uint8_t *lladdr)
 
 	primary = (sc->sc_primary->lp_ifp == ifp) ? 1 : 0;
 	if (primary == 0 && (lp->lp_detaching ||
-	    memcmp(lladdr, IF_LLADDR(ifp), ETHER_ADDR_LEN) == 0))
+	    memcmp(lladdr, if_lladdr(ifp), ETHER_ADDR_LEN) == 0))
 		return;
 
 	/* Check to make sure its not already queued to be changed */
@@ -789,14 +789,14 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 	lp->lp_softc = sc;
 
 	/* Save port link layer address */
-	bcopy(IF_LLADDR(ifp), lp->lp_lladdr, ETHER_ADDR_LEN);
+	bcopy(if_lladdr(ifp), lp->lp_lladdr, ETHER_ADDR_LEN);
 
 	if (SLIST_EMPTY(&sc->sc_ports)) {
 		sc->sc_primary = lp;
-		lagg_lladdr(sc, IF_LLADDR(ifp));
+		lagg_lladdr(sc, if_lladdr(ifp));
 	} else {
 		/* Update link layer address for this port */
-		lagg_port_lladdr(lp, IF_LLADDR(sc->sc_ifp));
+		lagg_port_lladdr(lp, if_lladdr(sc->sc_ifp));
 	}
 
 	/* Insert into the list of ports. Keep ports sorted by if_index. */
@@ -1156,7 +1156,7 @@ lagg_init(void *xsc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	/* Update the port lladdrs */
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
-		lagg_port_lladdr(lp, IF_LLADDR(ifp));
+		lagg_port_lladdr(lp, if_lladdr(ifp));
 
 	lagg_proto_init(sc);
 

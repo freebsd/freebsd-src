@@ -257,7 +257,7 @@ if_clone_destroy(const char *name)
 	/* Find the cloner for this interface */
 	IF_CLONERS_LOCK();
 	LIST_FOREACH(ifc, &V_if_cloners, ifc_list) {
-		if (strcmp(ifc->ifc_name, ifp->if_dname) == 0) {
+		if (strcmp(ifc->ifc_name, ifp->if_drv->ifdrv_dname) == 0) {
 			break;
 		}
 	}

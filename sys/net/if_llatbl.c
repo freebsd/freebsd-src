@@ -324,7 +324,7 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 			 * "arp add" should look up this entry, reset the
 			 * LLE_DELETED flag, and reset the expiration timer
 			 */
-			bcopy(LLADDR(dl), &lle->ll_addr, ifp->if_addrlen);
+			bcopy(LLADDR(dl), &lle->ll_addr, if_addrlen(ifp));
 			lle->la_flags |= (flags & LLE_PUB);
 			lle->la_flags |= LLE_VALID;
 			lle->la_flags &= ~LLE_DELETED;

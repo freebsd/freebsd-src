@@ -175,7 +175,7 @@ iso88025_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
                         struct sockaddr *sa;
 
                         sa = (struct sockaddr *) & ifr->ifr_data;
-                        bcopy(IF_LLADDR(ifp),
+                        bcopy(if_lladdr(ifp),
                               (caddr_t) sa->sa_data, ISO88025_ADDR_LEN);
                 }
                 break;
@@ -243,7 +243,7 @@ iso88025_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	/* Generate a generic 802.5 header for the packet */
 	gen_th.ac = TR_AC;
 	gen_th.fc = TR_LLC_FRAME;
-	(void)memcpy((caddr_t)gen_th.iso88025_shost, IF_LLADDR(ifp),
+	(void)memcpy((caddr_t)gen_th.iso88025_shost, if_lladdr(ifp),
 		     ISO88025_ADDR_LEN);
 	if (rif_len) {
 		gen_th.iso88025_shost[0] |= TR_RII;
@@ -466,7 +466,7 @@ iso88025_input(ifp, m)
 	 */
 	if ((ifp->if_flags & IFF_PROMISC) &&
 	    ((th->iso88025_dhost[0] & 1) == 0) &&
-	     (bcmp(IF_LLADDR(ifp), (caddr_t) th->iso88025_dhost,
+	     (bcmp(if_lladdr(ifp), (caddr_t) th->iso88025_dhost,
 	     ISO88025_ADDR_LEN) != 0))
 		goto dropanyway;
 
@@ -576,7 +576,7 @@ iso88025_input(ifp, m)
 			l->llc_dsap = l->llc_ssap;
 			l->llc_ssap = c;
 			if (m->m_flags & (M_BCAST | M_MCAST))
-				bcopy((caddr_t)IF_LLADDR(ifp),
+				bcopy((caddr_t)if_lladdr(ifp),
 				      (caddr_t)th->iso88025_dhost,
 					ISO88025_ADDR_LEN);
 			sa.sa_family = AF_UNSPEC;

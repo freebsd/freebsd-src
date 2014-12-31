@@ -500,7 +500,7 @@ tapopen(struct cdev *dev, int flag, int mode, struct thread *td)
 		return (EBUSY);
 	}
 
-	bcopy(IF_LLADDR(tp->tap_ifp), tp->ether_addr, sizeof(tp->ether_addr));
+	bcopy(if_lladdr(tp->tap_ifp), tp->ether_addr, sizeof(tp->ether_addr));
 	tp->tap_pid = td->td_proc->p_pid;
 	tp->tap_flags |= TAP_OPEN;
 	ifp = tp->tap_ifp;
@@ -970,7 +970,7 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 
 	if (eh && (ifp->if_flags & IFF_PROMISC) == 0 &&
 	    !ETHER_IS_MULTICAST(eh->ether_dhost) &&
-	    bcmp(eh->ether_dhost, IF_LLADDR(ifp), ETHER_ADDR_LEN) != 0) {
+	    bcmp(eh->ether_dhost, if_lladdr(ifp), ETHER_ADDR_LEN) != 0) {
 		m_freem(m);
 		return (0);
 	}

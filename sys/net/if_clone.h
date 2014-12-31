@@ -40,10 +40,10 @@ struct if_clone;
 /* Methods. */
 typedef int	ifc_match_t(struct if_clone *, const char *);
 typedef int	ifc_create_t(struct if_clone *, char *, size_t, caddr_t);
-typedef int	ifc_destroy_t(struct if_clone *, struct ifnet *);
+typedef int	ifc_destroy_t(struct if_clone *, if_t);
 
 typedef int	ifcs_create_t(struct if_clone *, int, caddr_t);
-typedef void	ifcs_destroy_t(struct ifnet *);
+typedef void	ifcs_destroy_t(if_t);
 
 /* Interface cloner (de)allocating functions. */
 struct if_clone *
@@ -71,7 +71,7 @@ int	if_clone_destroy(const char *);
 int	if_clone_list(struct if_clonereq *);
 
 /* The below interface used only by epair(4). */
-int	if_clone_destroyif(struct if_clone *, struct ifnet *);
+int	if_clone_destroyif(struct if_clone *, if_t);
 
 #endif /* _KERNEL */
 #endif /* !_NET_IF_CLONE_H_ */

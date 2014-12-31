@@ -331,7 +331,7 @@ lacp_fill_actorinfo(struct lacp_port *lp, struct lacp_peerinfo *info)
 
 	info->lip_systemid.lsi_prio = htons(LACP_SYSTEM_PRIO);
 	memcpy(&info->lip_systemid.lsi_mac,
-	    IF_LLADDR(sc->sc_ifp), ETHER_ADDR_LEN);
+	    if_lladdr(sc->sc_ifp), ETHER_ADDR_LEN);
 	info->lip_portid.lpi_prio = htons(LACP_PORT_PRIO);
 	info->lip_portid.lpi_portno = htons(lp->lp_ifp->if_index);
 	info->lip_state = lp->lp_state;

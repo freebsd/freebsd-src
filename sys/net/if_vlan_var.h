@@ -110,11 +110,6 @@ struct	vlanreq {
  * if_capabilities.
  */
 
-#define	VLAN_CAPABILITIES(_ifp) do {				\
-	if ((_ifp)->if_vlantrunk != NULL) 			\
-		(*vlan_trunk_cap_p)(_ifp);			\
-} while (0)
-
 #define	VLAN_TRUNKDEV(_ifp)					\
 	(_ifp)->if_type == IFT_L2VLAN ? (*vlan_trunkdev_p)((_ifp)) : NULL
 #define	VLAN_TAG(_ifp, _vid)					\

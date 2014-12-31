@@ -749,7 +749,7 @@ route_output(struct mbuf *m, struct socket *so, ...)
 			struct sockaddr laddr;
 
 			if (rt->rt_ifp != NULL && 
-			    rt->rt_ifp->if_type == IFT_PROPVIRTUAL) {
+			    if_type(rt->rt_ifp) == IFT_PROPVIRTUAL) {
 				struct ifaddr *ifa;
 
 				ifa = ifa_ifwithnet(info.rti_info[RTAX_DST], 1,

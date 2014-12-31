@@ -552,7 +552,7 @@ vlan_iflladdr(void *arg __unused, struct ifnet *ifp)
 		LIST_FOREACH_SAFE(ifv, &ifp->if_vlantrunk->hash[i], ifv_list, next) {
 #endif /* VLAN_ARRAY */
 			VLAN_UNLOCK();
-			if_setlladdr(ifv->ifv_ifp, IF_LLADDR(ifp),
+			if_setlladdr(ifv->ifv_ifp, if_lladdr(ifp),
 			    ifp->if_addrlen);
 			VLAN_LOCK();
 		}
@@ -1342,7 +1342,7 @@ exists:
 	 * Set up our interface address to reflect the underlying
 	 * physical interface's.
 	 */
-	bcopy(IF_LLADDR(p), IF_LLADDR(ifp), p->if_addrlen);
+	bcopy(if_lladdr(p), if_lladdr(ifp), p->if_addrlen);
 	((struct sockaddr_dl *)ifp->if_addr->ifa_addr)->sdl_alen =
 	    p->if_addrlen;
 
@@ -1643,7 +1643,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			struct sockaddr *sa;
 
 			sa = (struct sockaddr *)&ifr->ifr_data;
-			bcopy(IF_LLADDR(ifp), sa->sa_data, ifp->if_addrlen);
+			bcopy(if_lladdr(ifp), sa->sa_data, ifp->if_addrlen);
                 }
 		break;
 	case SIOCGIFMEDIA:

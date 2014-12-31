@@ -105,8 +105,7 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 		ifmd.ifmd_flags = ifp->if_flags | ifp->if_drv_flags;
 		ifmd.ifmd_snd_len = ifp->if_snd.ifq_len;
 		ifmd.ifmd_snd_maxlen = ifp->if_snd.ifq_maxlen;
-		ifmd.ifmd_snd_drops =
-		    ifp->if_get_counter(ifp, IFCOUNTER_OQDROPS);
+		ifmd.ifmd_snd_drops = if_get_counter(ifp, IFCOUNTER_OQDROPS);
 
 		error = SYSCTL_OUT(req, &ifmd, sizeof ifmd);
 		if (error)
@@ -125,15 +124,16 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 
 	case IFDATA_DRIVERNAME:
 		/* 20 is enough for 64bit ints */
-		dlen = strlen(ifp->if_dname) + 20 + 1;
+		dlen = strlen(ifp->if_drv->ifdrv_dname) + 20 + 1;
 		if ((dbuf = malloc(dlen, M_TEMP, M_NOWAIT)) == NULL) {
 			error = ENOMEM;
 			goto out;
 		}
 		if (ifp->if_dunit == IF_DUNIT_NONE)
-			strcpy(dbuf, ifp->if_dname);
+			strcpy(dbuf, ifp->if_drv->ifdrv_dname);
 		else
-			sprintf(dbuf, "%s%d", ifp->if_dname, ifp->if_dunit);
+			sprintf(dbuf, "%s%d", ifp->if_drv->ifdrv_dname,
+			    ifp->if_dunit);
 
 		error = SYSCTL_OUT(req, dbuf, strlen(dbuf) + 1);
 		if (error == 0 && req->newptr != NULL)

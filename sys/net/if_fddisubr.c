@@ -259,7 +259,7 @@ fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	if (hdrcmplt)
 		bcopy((caddr_t)esrc, (caddr_t)fh->fddi_shost, FDDI_ADDR_LEN);
 	else
-		bcopy(IF_LLADDR(ifp), (caddr_t)fh->fddi_shost,
+		bcopy(if_lladdr(ifp), (caddr_t)fh->fddi_shost,
 			FDDI_ADDR_LEN);
 
 	/*
@@ -369,7 +369,7 @@ fddi_input(ifp, m)
 	 * is in promiscuous mode.
 	 */
 	if ((ifp->if_flags & IFF_PROMISC) && ((fh->fddi_dhost[0] & 1) == 0) &&
-	    (bcmp(IF_LLADDR(ifp), (caddr_t)fh->fddi_dhost,
+	    (bcmp(if_lladdr(ifp), (caddr_t)fh->fddi_dhost,
 	     FDDI_ADDR_LEN) != 0))
 		goto dropanyway;
 
@@ -561,7 +561,7 @@ fddi_ioctl (ifp, command, data)
 			struct sockaddr *sa;
 
 			sa = (struct sockaddr *) & ifr->ifr_data;
-			bcopy(IF_LLADDR(ifp),
+			bcopy(if_lladdr(ifp),
 			      (caddr_t) sa->sa_data, FDDI_ADDR_LEN);
 
 		}

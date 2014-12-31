@@ -84,7 +84,7 @@ static int arc_resolvemulti(struct ifnet *, struct sockaddr **,
 
 u_int8_t  arcbroadcastaddr = 0;
 
-#define ARC_LLADDR(ifp)	(*(u_int8_t *)IF_LLADDR(ifp))
+#define ARC_LLADDR(ifp)	(*(u_int8_t *)if_lladdr(ifp))
 
 #define senderr(e) { error = (e); goto bad;}
 #define SIN(s)	((const struct sockaddr_in *)(s))
