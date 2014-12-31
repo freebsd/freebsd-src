@@ -697,6 +697,9 @@ cpu_reset_real()
 	int b;
 #endif
 
+	if (cpu_ops.cpu_stop)
+		cpu_ops.cpu_stop(0);
+
 	disable_intr();
 #ifdef XEN
 	if (smp_processor_id() == 0)

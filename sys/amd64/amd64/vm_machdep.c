@@ -644,6 +644,9 @@ cpu_reset_real()
 	struct region_descriptor null_idt;
 	int b;
 
+	if (cpu_ops.cpu_stop)
+		cpu_ops.cpu_stop(0);
+
 	disable_intr();
 
 	/*

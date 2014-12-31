@@ -63,6 +63,7 @@
 struct cpu_ops {
 	void (*cpu_init)(void);
 	void (*cpu_resume)(void);
+	void (*cpu_stop)(int);
 };
 
 extern struct	cpu_ops cpu_ops;

@@ -1427,6 +1427,9 @@ cpustop_handler(void)
 
 	cpu = PCPU_GET(cpuid);
 
+	if (cpu_ops.cpu_stop)
+		cpu_ops.cpu_stop(0);
+
 	savectx(&stoppcbs[cpu]);
 
 	/* Indicate that we are stopped */
@@ -1438,6 +1441,9 @@ cpustop_handler(void)
 
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
+
+	if (cpu_ops.cpu_stop)
+		cpu_ops.cpu_stop(1);
 
 #ifdef DDB
 	amd64_db_resume_dbreg();
