@@ -187,7 +187,7 @@ nd6_ifattach(struct ifnet *ifp)
 	 * default regardless of the V_ip6_auto_linklocal configuration to
 	 * give a reasonable default behavior.
 	 */
-	if ((V_ip6_auto_linklocal && ifp->if_type != IFT_BRIDGE) ||
+	if ((V_ip6_auto_linklocal && if_type(ifp) != IFT_BRIDGE) ||
 	    (ifp->if_flags & IFF_LOOPBACK))
 		nd->flags |= ND6_IFF_AUTO_LINKLOCAL;
 	/*
@@ -197,9 +197,8 @@ nd6_ifattach(struct ifnet *ifp)
 	 * prevent the interface from accepting RA messages arrived
 	 * on one of the member interfaces with ND6_IFF_ACCEPT_RTADV.
 	 */
-	if (V_ip6_accept_rtadv &&
-	    !(ifp->if_flags & IFF_LOOPBACK) &&
-	    (ifp->if_type != IFT_BRIDGE))
+	if (V_ip6_accept_rtadv && !(ifp->if_flags & IFF_LOOPBACK) &&
+	    (if_type(ifp) != IFT_BRIDGE))
 			nd->flags |= ND6_IFF_ACCEPT_RTADV;
 	if (V_ip6_no_radr && !(ifp->if_flags & IFF_LOOPBACK))
 		nd->flags |= ND6_IFF_NO_RADR;
@@ -236,7 +235,7 @@ nd6_setmtu0(struct ifnet *ifp, struct nd_ifinfo *ndi)
 
 	omaxmtu = ndi->maxmtu;
 
-	switch (ifp->if_type) {
+	switch (if_type(ifp)) {
 	case IFT_ARCNET:
 		ndi->maxmtu = MIN(ARC_PHDS_MAXMTU, ifp->if_mtu); /* RFC2497 */
 		break;
@@ -1597,10 +1596,9 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		return (NULL);
 
 	olladdr = (ln->la_flags & LLE_VALID) ? 1 : 0;
-	if (olladdr && lladdr) {
-		llchange = bcmp(lladdr, &ln->ll_addr,
-		    ifp->if_addrlen);
-	} else
+	if (olladdr && lladdr)
+		llchange = bcmp(lladdr, &ln->ll_addr, if_addrlen(ifp));
+	else
 		llchange = 0;
 
 	/*
@@ -1617,9 +1615,9 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	if (lladdr) {		/* (3-5) and (7) */
 		/*
 		 * Record source link-layer address
-		 * XXX is it dependent to ifp->if_type?
+		 * XXX is it dependent to if_type(ifp)?
 		 */
-		bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
+		bcopy(lladdr, &ln->ll_addr, if_addrlen(ifp));
 		ln->la_flags |= LLE_VALID;
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 	}
@@ -1916,8 +1914,9 @@ sendpkt:
 
 	if ((ifp->if_flags & IFF_LOOPBACK) == 0)
 		origifp = ifp;
-	
-	error = (*ifp->if_output)(origifp, m, (struct sockaddr *)dst, NULL);
+
+	/* XXXGL */
+	error = ifp->if_ops->ifop_output(origifp, m, (struct sockaddr *)dst, NULL);
 	return (error);
 }
 
@@ -2151,7 +2150,8 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 	if ((ifp->if_flags & IFF_LOOPBACK) == 0)
 		origifp = ifp;
 
-	error = (*ifp->if_output)(origifp, m, (struct sockaddr *)dst, NULL);
+	/* XXXGL */
+	error = ifp->if_ops->ifop_output(origifp, m, (struct sockaddr *)dst, NULL);
 	return (error);
 }
 
@@ -2173,7 +2173,7 @@ nd6_output_flush(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain,
 	while (m_head) {
 		m = m_head;
 		m_head = m_head->m_nextpkt;
-		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst, NULL);
+		error = if_output(ifp, m, (struct sockaddr *)dst, NULL);
 	}
 
 	/*
@@ -2196,7 +2196,7 @@ nd6_need_cache(struct ifnet *ifp)
 	 * RFC2893 says:
 	 * - unidirectional tunnels needs no ND
 	 */
-	switch (ifp->if_type) {
+	switch (if_type(ifp)) {
 	case IFT_ARCNET:
 	case IFT_ETHER:
 	case IFT_FDDI:
@@ -2290,7 +2290,7 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
 	if (m != NULL && m->m_flags & M_MCAST) {
 		int i;
 
-		switch (ifp->if_type) {
+		switch (if_type(ifp)) {
 		case IFT_ETHER:
 		case IFT_FDDI:
 #ifdef IFT_L2VLAN
@@ -2309,7 +2309,7 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
 			 * netbsd can use if_broadcastaddr, but we don't do so
 			 * to reduce # of ifdef.
 			 */
-			for (i = 0; i < ifp->if_addrlen; i++)
+			for (i = 0; i < if_addrlen(ifp); i++)
 				desten[i] = ~0;
 			return (0);
 		case IFT_ARCNET:
@@ -2336,7 +2336,7 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
 		return (1);
 	}
 
-	bcopy(&ln->ll_addr, desten, ifp->if_addrlen);
+	bcopy(&ln->ll_addr, desten, if_addrlen(ifp));
 	if (pflags != NULL)
 		*pflags = ln->la_flags;
 	LLE_RUNLOCK(ln);

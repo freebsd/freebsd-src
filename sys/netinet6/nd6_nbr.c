@@ -286,11 +286,11 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	if (((struct in6_ifaddr *)ifa)->ia6_flags & IN6_IFF_DUPLICATED)
 		goto freeit;
 
-	if (lladdr && ((ifp->if_addrlen + 2 + 7) & ~7) != lladdrlen) {
+	if (lladdr && ((if_addrlen(ifp) + 2 + 7) & ~7) != lladdrlen) {
 		nd6log((LOG_INFO, "nd6_ns_input: lladdrlen mismatch for %s "
 		    "(if %d, NS packet %d)\n",
 		    ip6_sprintf(ip6bufs, &taddr6),
-		    ifp->if_addrlen, lladdrlen - 2));
+		    if_addrlen(ifp), lladdrlen - 2));
 		goto bad;
 	}
 
@@ -404,7 +404,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 
 	/* estimate the size of message */
 	maxlen = sizeof(*ip6) + sizeof(*nd_ns);
-	maxlen += (sizeof(struct nd_opt_hdr) + ifp->if_addrlen + 7) & ~7;
+	maxlen += (sizeof(struct nd_opt_hdr) + if_addrlen(ifp) + 7) & ~7;
 	if (max_linkhdr + maxlen >= MCLBYTES) {
 #ifdef DIAGNOSTIC
 		printf("nd6_ns_output: max_linkhdr + maxlen >= MCLBYTES "
@@ -551,7 +551,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 	 *	Unicast NS		SHOULD add one	add the option
 	 */
 	if (!dad && (mac = nd6_ifptomac(ifp))) {
-		int optlen = sizeof(struct nd_opt_hdr) + ifp->if_addrlen;
+		int optlen = sizeof(struct nd_opt_hdr) + if_addrlen(ifp);
 		struct nd_opt_hdr *nd_opt = (struct nd_opt_hdr *)(nd_ns + 1);
 		/* 8 byte alignments... */
 		optlen = (optlen + 7) & ~7;
@@ -562,7 +562,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		bzero((caddr_t)nd_opt, optlen);
 		nd_opt->nd_opt_type = ND_OPT_SOURCE_LINKADDR;
 		nd_opt->nd_opt_len = optlen >> 3;
-		bcopy(mac, (caddr_t)(nd_opt + 1), ifp->if_addrlen);
+		bcopy(mac, (caddr_t)(nd_opt + 1), if_addrlen(ifp));
 	}
 
 	ip6->ip6_plen = htons((u_short)icmp6len);
@@ -719,10 +719,10 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		goto freeit;
 	}
 
-	if (lladdr && ((ifp->if_addrlen + 2 + 7) & ~7) != lladdrlen) {
+	if (lladdr && ((if_addrlen(ifp) + 2 + 7) & ~7) != lladdrlen) {
 		nd6log((LOG_INFO, "nd6_na_input: lladdrlen mismatch for %s "
 		    "(if %d, NA packet %d)\n", ip6_sprintf(ip6bufs, &taddr6),
-		    ifp->if_addrlen, lladdrlen - 2));
+		    if_addrlen(ifp), lladdrlen - 2));
 		goto bad;
 	}
 
@@ -742,14 +742,14 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		 * If the link-layer has address, and no lladdr option came,
 		 * discard the packet.
 		 */
-		if (ifp->if_addrlen && lladdr == NULL) {
+		if (if_addrlen(ifp) && lladdr == NULL) {
 			goto freeit;
 		}
 
 		/*
 		 * Record link-layer address, and update the state.
 		 */
-		bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
+		bcopy(lladdr, &ln->ll_addr, if_addrlen(ifp));
 		ln->la_flags |= LLE_VALID;
 		EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_RESOLVED);
 		if (is_solicited) {
@@ -781,7 +781,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			llchange = 0;
 		else {
 			if (ln->la_flags & LLE_VALID) {
-				if (bcmp(lladdr, &ln->ll_addr, ifp->if_addrlen))
+				if (bcmp(lladdr, &ln->ll_addr, if_addrlen(ifp)))
 					llchange = 1;
 				else
 					llchange = 0;
@@ -825,7 +825,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			 * Update link-local address, if any.
 			 */
 			if (lladdr != NULL) {
-				bcopy(lladdr, &ln->ll_addr, ifp->if_addrlen);
+				bcopy(lladdr, &ln->ll_addr, if_addrlen(ifp));
 				ln->la_flags |= LLE_VALID;
 				EVENTHANDLER_INVOKE(lle_event, ln,
 				    LLENTRY_RESOLVED);
@@ -977,7 +977,7 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 
 	/* estimate the size of message */
 	maxlen = sizeof(*ip6) + sizeof(*nd_na);
-	maxlen += (sizeof(struct nd_opt_hdr) + ifp->if_addrlen + 7) & ~7;
+	maxlen += (sizeof(struct nd_opt_hdr) + if_addrlen(ifp) + 7) & ~7;
 	if (max_linkhdr + maxlen >= MCLBYTES) {
 #ifdef DIAGNOSTIC
 		printf("nd6_na_output: max_linkhdr + maxlen >= MCLBYTES "
@@ -1070,12 +1070,12 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		} else if (sdl0->sa_family == AF_LINK) {
 			struct sockaddr_dl *sdl;
 			sdl = (struct sockaddr_dl *)sdl0;
-			if (sdl->sdl_alen == ifp->if_addrlen)
+			if (sdl->sdl_alen == if_addrlen(ifp))
 				mac = LLADDR(sdl);
 		}
 	}
 	if (tlladdr && mac) {
-		int optlen = sizeof(struct nd_opt_hdr) + ifp->if_addrlen;
+		int optlen = sizeof(struct nd_opt_hdr) + if_addrlen(ifp);
 		struct nd_opt_hdr *nd_opt = (struct nd_opt_hdr *)(nd_na + 1);
 
 		/* roundup to 8 bytes alignment! */
@@ -1087,7 +1087,7 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 		bzero((caddr_t)nd_opt, optlen);
 		nd_opt->nd_opt_type = ND_OPT_TARGET_LINKADDR;
 		nd_opt->nd_opt_len = optlen >> 3;
-		bcopy(mac, (caddr_t)(nd_opt + 1), ifp->if_addrlen);
+		bcopy(mac, (caddr_t)(nd_opt + 1), if_addrlen(ifp));
 	} else
 		flags &= ~ND_NA_FLAG_OVERRIDE;
 
@@ -1139,7 +1139,8 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 caddr_t
 nd6_ifptomac(struct ifnet *ifp)
 {
-	switch (ifp->if_type) {
+
+	switch (if_type(ifp)) {
 	case IFT_ARCNET:
 	case IFT_ETHER:
 	case IFT_FDDI:
@@ -1153,7 +1154,7 @@ nd6_ifptomac(struct ifnet *ifp)
 	case IFT_INFINIBAND:
 	case IFT_BRIDGE:
 	case IFT_ISO88025:
-		return IF_LLADDR(ifp);
+		return if_lladdr(ifp);
 	default:
 		return NULL;
 	}
@@ -1476,7 +1477,7 @@ nd6_dad_duplicated(struct ifaddr *ifa, struct dadq *dp)
 		 * To avoid over-reaction, we only apply this logic when we are
 		 * very sure that hardware addresses are supposed to be unique.
 		 */
-		switch (ifp->if_type) {
+		switch (if_type(ifp)) {
 		case IFT_ETHER:
 		case IFT_FDDI:
 		case IFT_ATM:
@@ -1493,6 +1494,8 @@ nd6_dad_duplicated(struct ifaddr *ifa, struct dadq *dp)
 				    "duplication detected, disable IPv6\n",
 				    if_name(ifp));
 			}
+			break;
+		default:
 			break;
 		}
 	}

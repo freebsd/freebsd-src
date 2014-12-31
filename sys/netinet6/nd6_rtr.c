@@ -179,12 +179,12 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 		lladdrlen = ndopts.nd_opts_src_lladdr->nd_opt_len << 3;
 	}
 
-	if (lladdr && ((ifp->if_addrlen + 2 + 7) & ~7) != lladdrlen) {
+	if (lladdr && ((if_addrlen(ifp) + 2 + 7) & ~7) != lladdrlen) {
 		nd6log((LOG_INFO,
 		    "nd6_rs_input: lladdrlen mismatch for %s "
 		    "(if %d, RS packet %d)\n",
 		    ip6_sprintf(ip6bufs, &saddr6),
-		    ifp->if_addrlen, lladdrlen - 2));
+		    if_addrlen(ifp), lladdrlen - 2));
 		goto bad;
 	}
 
@@ -409,11 +409,11 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 		lladdrlen = ndopts.nd_opts_src_lladdr->nd_opt_len << 3;
 	}
 
-	if (lladdr && ((ifp->if_addrlen + 2 + 7) & ~7) != lladdrlen) {
+	if (lladdr && ((if_addrlen(ifp) + 2 + 7) & ~7) != lladdrlen) {
 		nd6log((LOG_INFO,
 		    "nd6_ra_input: lladdrlen mismatch for %s "
 		    "(if %d, RA packet %d)\n", ip6_sprintf(ip6bufs, &saddr6),
-		    ifp->if_addrlen, lladdrlen - 2));
+		    if_addrlen(ifp), lladdrlen - 2));
 		goto bad;
 	}
 
@@ -1553,7 +1553,7 @@ nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
 				struct sockaddr_dl *dl;
 
 				dl = (struct sockaddr_dl *)rt->rt_gateway;
-				dl->sdl_type = rt->rt_ifp->if_type;
+				dl->sdl_type = if_type(rt->rt_ifp);
 				dl->sdl_index = rt->rt_ifp->if_index;
 			}
 			RADIX_NODE_HEAD_UNLOCK(rnh);

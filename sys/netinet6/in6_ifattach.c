@@ -266,7 +266,7 @@ found:
 	addrlen = sdl->sdl_alen;
 
 	/* get EUI64 */
-	switch (ifp->if_type) {
+	switch (if_type(ifp)) {
 	case IFT_BRIDGE:
 	case IFT_ETHER:
 	case IFT_L2VLAN:
@@ -702,7 +702,7 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	/*
 	 * quirks based on interface type
 	 */
-	switch (ifp->if_type) {
+	switch (if_type(ifp)) {
 	case IFT_STF:
 		/*
 		 * 6to4 interface is a very special kind of beast.

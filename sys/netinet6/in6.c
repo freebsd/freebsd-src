@@ -753,11 +753,7 @@ aifaddr_out:
 	}
 
 	default:
-		if (ifp->if_ioctl == NULL) {
-			error = EOPNOTSUPP;
-			goto out;
-		}
-		error = (*ifp->if_ioctl)(ifp, cmd, data);
+		error = if_ioctl(ifp, cmd, data);
 		goto out;
 	}
 
@@ -1402,9 +1398,9 @@ in6_notify_ifa(struct ifnet *ifp, struct in6_ifaddr *ia,
 		IF_ADDR_RUNLOCK(ifp);
 	}
 
-	if (ifacount <= 1 && ifp->if_ioctl) {
-		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
-		if (error)
+	if (ifacount <= 1) {
+		error = if_ioctl(ifp, SIOCSIFADDR, (caddr_t)ia);
+		if (error != 0 && error != EOPNOTSUPP)
 			return (error);
 	}
 
@@ -1963,7 +1959,7 @@ in6_setmaxmtu(void)
 int
 in6_if2idlen(struct ifnet *ifp)
 {
-	switch (ifp->if_type) {
+	switch (if_type(ifp)) {
 	case IFT_ETHER:		/* RFC2464 */
 #ifdef IFT_PROPVIRTUAL
 	case IFT_PROPVIRTUAL:	/* XXX: no RFC. treat it as ether */
@@ -2007,7 +2003,7 @@ in6_if2idlen(struct ifnet *ifp)
 		 * we always use the constant, but make an explicit notice
 		 * indicating the "unknown" case.
 		 */
-		printf("in6_if2idlen: unknown link type (%d)\n", ifp->if_type);
+		printf("%s: unknown link type (%d)\n", __func__, if_type(ifp));
 		return (64);
 	}
 }
@@ -2167,7 +2163,7 @@ in6_lltable_lookup(struct lltable *llt, u_int flags,
 		}
 		lle->la_flags = flags & ~LLE_CREATE;
 		if ((flags & (LLE_CREATE | LLE_IFADDR)) == (LLE_CREATE | LLE_IFADDR)) {
-			bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
+			bcopy(if_lladdr(ifp), &lle->ll_addr, if_addrlen(ifp));
 			lle->la_flags |= (LLE_VALID | LLE_STATIC);
 		}
 
@@ -2259,10 +2255,10 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			sdl = &ndpc.sdl;
 			sdl->sdl_family = AF_LINK;
 			sdl->sdl_len = sizeof(*sdl);
-			sdl->sdl_alen = ifp->if_addrlen;
+			sdl->sdl_alen = if_addrlen(ifp);
 			sdl->sdl_index = ifp->if_index;
-			sdl->sdl_type = ifp->if_type;
-			bcopy(&lle->ll_addr, LLADDR(sdl), ifp->if_addrlen);
+			sdl->sdl_type = if_type(ifp);
+			bcopy(&lle->ll_addr, LLADDR(sdl), if_addrlen(ifp));
 			ndpc.rtm.rtm_rmx.rmx_expire =
 			    lle->la_flags & LLE_STATIC ? 0 : lle->la_expire;
 			ndpc.rtm.rtm_flags |= (RTF_HOST | RTF_LLDATA);
@@ -2283,11 +2279,13 @@ in6_domifattach(struct ifnet *ifp)
 	struct in6_ifextra *ext;
 
 	/* There are not IPv6-capable interfaces. */
-	switch (ifp->if_type) {
+	switch (if_type(ifp)) {
 	case IFT_PFLOG:
 	case IFT_PFSYNC:
 	case IFT_USB:
 		return (NULL);
+	default:
+		break;
 	}
 	ext = (struct in6_ifextra *)malloc(sizeof(*ext), M_IFADDR, M_WAITOK);
 	bzero(ext, sizeof(*ext));

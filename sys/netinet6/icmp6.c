@@ -2420,11 +2420,11 @@ icmp6_redirect_input(struct mbuf *m, int off)
 		lladdrlen = ndopts.nd_opts_tgt_lladdr->nd_opt_len << 3;
 	}
 
-	if (lladdr && ((ifp->if_addrlen + 2 + 7) & ~7) != lladdrlen) {
+	if (lladdr && ((if_addrlen(ifp)+ 2 + 7) & ~7) != lladdrlen) {
 		nd6log((LOG_INFO, "%s: lladdrlen mismatch for %s "
 		    "(if %d, icmp6 packet %d): %s\n",
 		    __func__, ip6_sprintf(ip6buf, &redtgt6),
-		    ifp->if_addrlen, lladdrlen - 2,
+		    if_addrlen(ifp), lladdrlen - 2,
 		    icmp6_redirect_diag(&src6, &reddst6, &redtgt6)));
 		goto bad;
 	}
@@ -2538,7 +2538,7 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 	maxlen = min(IPV6_MMTU, maxlen);
 	/* just for safety */
 	if (maxlen < sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr) +
-	    ((sizeof(struct nd_opt_hdr) + ifp->if_addrlen + 7) & ~7)) {
+	    ((sizeof(struct nd_opt_hdr) + if_addrlen(ifp) + 7) & ~7)) {
 		goto fail;
 	}
 
@@ -2617,7 +2617,7 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 		if (ln == NULL)
 			goto nolladdropt;
 
-		len = sizeof(*nd_opt) + ifp->if_addrlen;
+		len = sizeof(*nd_opt) + if_addrlen(ifp);
 		len = (len + 7) & ~7;	/* round by 8 */
 		/* safety check */
 		if (len + (p - (u_char *)ip6) > maxlen) 			
@@ -2628,7 +2628,7 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 			nd_opt->nd_opt_type = ND_OPT_TARGET_LINKADDR;
 			nd_opt->nd_opt_len = len >> 3;
 			lladdr = (char *)(nd_opt + 1);
-			bcopy(&ln->ll_addr, lladdr, ifp->if_addrlen);
+			bcopy(&ln->ll_addr, lladdr, if_addrlen(ifp));
 			p += len;
 		}
 	}
