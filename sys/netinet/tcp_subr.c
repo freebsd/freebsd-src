@@ -1807,13 +1807,11 @@ tcp_maxmtu(struct in_conninfo *inc, struct tcp_ifcap *cap)
 
 		/* Report additional interface capabilities. */
 		if (cap != NULL) {
-			if (ifp->if_capenable & IFCAP_TSO4 &&
-			    ifp->if_hwassist & CSUM_TSO) {
-				cap->ifcap |= CSUM_TSO;
-				cap->tsomax = ifp->if_hw_tsomax;
-				cap->tsomaxsegcount = ifp->if_hw_tsomaxsegcount;
-				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
-			}
+			if (ifp->if_capenable & IFCAP_TSO4) {
+				cap->hwassist = ifp->if_hwassist;
+				cap->tsomax = ifp->if_tsomax;
+			} else
+				bzero(cap, sizeof(struct tcp_ifcap));
 		}
 		RTFREE(sro.ro_rt);
 	}
@@ -1848,13 +1846,11 @@ tcp_maxmtu6(struct in_conninfo *inc, struct tcp_ifcap *cap)
 
 		/* Report additional interface capabilities. */
 		if (cap != NULL) {
-			if (ifp->if_capenable & IFCAP_TSO6 &&
-			    ifp->if_hwassist & CSUM_TSO) {
-				cap->ifcap |= CSUM_TSO;
-				cap->tsomax = ifp->if_hw_tsomax;
-				cap->tsomaxsegcount = ifp->if_hw_tsomaxsegcount;
-				cap->tsomaxsegsize = ifp->if_hw_tsomaxsegsize;
-			}
+			if (ifp->if_capenable & IFCAP_TSO6) {
+				cap->hwassist = ifp->if_hwassist;
+				cap->tsomax = ifp->if_tsomax;
+			} else
+				bzero(cap, sizeof(struct tcp_ifcap));
 		}
 		RTFREE(sro6.ro_rt);
 	}

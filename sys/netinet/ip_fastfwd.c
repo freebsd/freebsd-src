@@ -531,8 +531,7 @@ passout:
 		 * Send off the packet via outgoing interface
 		 */
 		IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
-		error = (*ifp->if_output)(ifp, m,
-				(struct sockaddr *)dst, &ro);
+		error = if_output(ifp, m, (struct sockaddr *)dst, &ro);
 	} else {
 		/*
 		 * Handle EMSGSIZE with icmp reply needfrag for TCP MTU discovery
@@ -563,8 +562,8 @@ passout:
 				m_clrprotoflags(m);
 
 				IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
-				error = (*ifp->if_output)(ifp, m,
-					(struct sockaddr *)dst, &ro);
+				error = if_output(ifp, m,
+				    (struct sockaddr *)dst, &ro);
 				if (error)
 					break;
 			} while ((m = m0) != NULL);

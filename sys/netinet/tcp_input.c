@@ -3540,7 +3540,6 @@ tcp_mss(struct tcpcb *tp, int offer)
 
 	KASSERT(tp != NULL, ("%s: tp == NULL", __func__));
 
-	bzero(&cap, sizeof(cap));
 	tcp_mss_update(tp, offer, -1, &metrics, &cap);
 
 	mss = tp->t_maxseg;
@@ -3586,11 +3585,11 @@ tcp_mss(struct tcpcb *tp, int offer)
 	SOCKBUF_UNLOCK(&so->so_rcv);
 
 	/* Check the interface for TSO capabilities. */
-	if (cap.ifcap & CSUM_TSO) {
+	if (cap.hwassist & CSUM_TSO) {
 		tp->t_flags |= TF_TSO;
-		tp->t_tsomax = cap.tsomax;
-		tp->t_tsomaxsegcount = cap.tsomaxsegcount;
-		tp->t_tsomaxsegsize = cap.tsomaxsegsize;
+		tp->t_tsomax = cap.tsomax->tsomax_bytes;
+		tp->t_tsomaxsegcount = cap.tsomax->tsomax_segcount;
+		tp->t_tsomaxsegsize = cap.tsomax->tsomax_segsize;
 	}
 }
 

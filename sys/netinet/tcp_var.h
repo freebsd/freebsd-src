@@ -332,11 +332,12 @@ struct hc_metrics_lite {	/* must stay in sync with hc_metrics */
  * Used by tcp_maxmtu() to communicate interface specific features
  * and limits at the time of connection setup.
  */
+#ifndef _NET_IF_H_
+struct iftsomax;
+#endif
 struct tcp_ifcap {
-	int	ifcap;
-	u_int	tsomax;
-	u_int	tsomaxsegcount;
-	u_int	tsomaxsegsize;
+	uint64_t	hwassist;
+	struct iftsomax	*tsomax;
 };
 
 #ifndef _NETINET_IN_PCB_H_

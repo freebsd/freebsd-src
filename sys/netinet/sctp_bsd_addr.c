@@ -48,6 +48,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_indata.h>
 #include <sys/unistd.h>
 
+#define	if_addrlist	if_addrhead
+#define	if_list		if_link
+
 /* Declare all of our malloc named types */
 MALLOC_DEFINE(SCTP_M_MAP, "sctp_map", "sctp asoc map descriptor");
 MALLOC_DEFINE(SCTP_M_STRMI, "sctp_stri", "sctp stream in array");
@@ -150,7 +153,7 @@ sctp_is_desired_interface_type(struct ifnet *ifn)
 	int result;
 
 	/* check the interface type to see if it's one we care about */
-	switch (ifn->if_type) {
+	switch (if_type(ifn)) {
 	case IFT_ETHER:
 	case IFT_ISO88023:
 	case IFT_ISO88024:
@@ -256,7 +259,7 @@ sctp_init_ifns_for_vrf(int vrfid)
 			sctp_ifa = sctp_add_addr_to_vrf(vrfid,
 			    (void *)ifn,
 			    ifn->if_index,
-			    ifn->if_type,
+			    if_type(ifn),
 			    ifn->if_xname,
 			    (void *)ifa,
 			    ifa->ifa_addr,
@@ -336,8 +339,9 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 		return;
 	}
 	if (cmd == RTM_ADD) {
-		(void)sctp_add_addr_to_vrf(SCTP_DEFAULT_VRFID, (void *)ifa->ifa_ifp,
-		    ifa->ifa_ifp->if_index, ifa->ifa_ifp->if_type, ifa->ifa_ifp->if_xname,
+		(void)sctp_add_addr_to_vrf(SCTP_DEFAULT_VRFID,
+		    (void *)ifa->ifa_ifp, ifa->ifa_ifp->if_index,
+		    if_type(ifa->ifa_ifp), ifa->ifa_ifp->if_xname,
 		    (void *)ifa, ifa->ifa_addr, ifa_flags, 1);
 	} else {
 

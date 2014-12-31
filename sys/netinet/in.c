@@ -232,9 +232,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		/* We no longer support that old commands. */
 		return (EINVAL);
 	default:
-		if (ifp->if_ioctl == NULL)
-			return (EOPNOTSUPP);
-		return ((*ifp->if_ioctl)(ifp, cmd, data));
+		return if_ioctl(ifp, cmd, data);
 	}
 
 	if (addr->sin_addr.s_addr != INADDR_ANY &&
@@ -436,11 +434,9 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	 * if this is its first address,
 	 * and to validate the address if necessary.
 	 */
-	if (ifp->if_ioctl != NULL) {
-		error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia);
-		if (error)
-			goto fail1;
-	}
+	error = if_ioctl(ifp, SIOCSIFADDR, (caddr_t)ia);
+	if (error != 0 && error != EOPNOTSUPP)
+		goto fail1;
 
 	/*
 	 * Add route for the network.
@@ -1026,7 +1022,7 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, const struct sockaddr *l3addr
 	 */
 	if (rt->rt_flags & RTF_GATEWAY) {
 		if (!(rt->rt_flags & RTF_HOST) || !rt->rt_ifp ||
-		    rt->rt_ifp->if_type != IFT_ETHER ||
+		    if_type(rt->rt_ifp) != IFT_ETHER ||
 		    (rt->rt_ifp->if_flags & (IFF_NOARP | IFF_STATICARP)) != 0 ||
 		    memcmp(rt->rt_gateway->sa_data, l3addr->sa_data,
 		    sizeof(in_addr_t)) != 0) {
@@ -1126,8 +1122,9 @@ in_lltable_lookup(struct lltable *llt, u_int flags, const struct sockaddr *l3add
 			goto done;
 		}
 		lle->la_flags = flags & ~LLE_CREATE;
-		if ((flags & (LLE_CREATE | LLE_IFADDR)) == (LLE_CREATE | LLE_IFADDR)) {
-			bcopy(IF_LLADDR(ifp), &lle->ll_addr, ifp->if_addrlen);
+		if ((flags & (LLE_CREATE | LLE_IFADDR)) ==
+		    (LLE_CREATE | LLE_IFADDR)) {
+			bcopy(if_lladdr(ifp), &lle->ll_addr, if_addrlen(ifp));
 			lle->la_flags |= (LLE_VALID | LLE_STATIC);
 		}
 
@@ -1213,13 +1210,14 @@ in_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			sdl->sdl_family = AF_LINK;
 			sdl->sdl_len = sizeof(*sdl);
 			sdl->sdl_index = ifp->if_index;
-			sdl->sdl_type = ifp->if_type;
+			sdl->sdl_type = if_type(ifp);
 			if ((lle->la_flags & LLE_VALID) == LLE_VALID) {
-				sdl->sdl_alen = ifp->if_addrlen;
-				bcopy(&lle->ll_addr, LLADDR(sdl), ifp->if_addrlen);
+				sdl->sdl_alen = if_addrlen(ifp);
+				bcopy(&lle->ll_addr, LLADDR(sdl),
+				    if_addrlen(ifp));
 			} else {
 				sdl->sdl_alen = 0;
-				bzero(LLADDR(sdl), ifp->if_addrlen);
+				bzero(LLADDR(sdl), if_addrlen(ifp));
 			}
 
 			arpc.rtm.rtm_rmx.rmx_expire =

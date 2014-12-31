@@ -298,7 +298,7 @@ tcp_lro_flush(struct lro_ctrl *lc, struct lro_entry *le)
 #endif
 	}
 
-	(*lc->ifp->if_input)(lc->ifp, le->m_head);
+	if_input(lc->ifp, le->m_head);
 	lc->lro_queued += le->append_cnt + 1;
 	lc->lro_flushed++;
 	bzero(le, sizeof(*le));

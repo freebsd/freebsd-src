@@ -624,8 +624,7 @@ passout:
 		 */
 		m_clrprotoflags(m);
 		IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
-		error = (*ifp->if_output)(ifp, m,
-		    (const struct sockaddr *)gw, ro);
+		error = if_output(ifp, m, (const struct sockaddr *)gw, ro);
 		goto done;
 	}
 
@@ -660,7 +659,7 @@ passout:
 			m_clrprotoflags(m);
 
 			IP_PROBE(send, NULL, NULL, ip, ifp, ip, NULL);
-			error = (*ifp->if_output)(ifp, m,
+			error = if_output(ifp, m,
 			    (const struct sockaddr *)gw, ro);
 		} else
 			m_freem(m);
