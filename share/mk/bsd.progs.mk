@@ -42,7 +42,7 @@ PROG ?= $t
 
 .if defined(PROG)
 # just one of many
-PROG_OVERRIDE_VARS += BINDIR MAN SRCS
+PROG_OVERRIDE_VARS += BINDIR DPSRCS MAN SRCS
 PROG_VARS += CFLAGS CPPFLAGS CXXFLAGS DPADD DPLIBS LDADD LDFLAGS ${PROG_OVERRIDE_VARS}
 .for v in ${PROG_VARS:O:u}
 .if empty(${PROG_OVERRIDE_VARS:M$v})
@@ -73,6 +73,12 @@ UPDATE_DEPENDFILE = NO
 # nor can we safely run in parallel.
 .NOTPARALLEL:
 .endif
+.endif
+
+# The non-recursive call to bsd.progs.mk will handle FILES; NUL out
+# FILESGROUPS so recursive calls don't duplicate the work
+.ifdef _RECURSING_PROGS
+FILESGROUPS=
 .endif
 
 # handle being called [bsd.]progs.mk
