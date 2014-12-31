@@ -339,7 +339,7 @@ END(reinit_mmu)
  *
  * Addresses must be 1MiB aligned
  */
-ASENTRY_NP(build_pagetables)
+build_pagetables:
 	/* Set the required page attributed */
 #if defined(ARM_NEW_PMAP)
 	ldr	r4, =PTE1_V|PTE1_A|PTE1_AP_KRW|TEX1_CLASS_0
@@ -520,6 +520,7 @@ ENTRY_NP(sigcode)
 
 	/* Branch back to retry	SYS_sigreturn */
 	b	. - 16
+END(sigcode)
 
 	.word	SYS_sigreturn
 	.word	SYS_exit
@@ -532,5 +533,5 @@ ENTRY_NP(sigcode)
 	.global	szsigcode
 szsigcode:
 	.long esigcode-sigcode
-END(sigcode)
+
 /* End of locore.S */
