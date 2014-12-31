@@ -6,7 +6,7 @@ DPADD=	${LIBARCHIVE} ${LIBDIALOG} ${LIBM}
 LDADD=	-larchive -ldialog -lm
 
 WARNS?=	6
-NO_MAN=	true
+MAN=
 
 .include <bsd.own.mk>
 

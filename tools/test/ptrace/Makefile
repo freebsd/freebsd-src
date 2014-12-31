@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	scescx
-NO_MAN=
+MAN=
 WARNS?=	6
 
 .include <bsd.prog.mk>

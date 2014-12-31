@@ -62,8 +62,7 @@ SUBDIR+= ${ts}
 
 # it is rare for test cases to have man pages
 .if !defined(MAN)
-WITHOUT_MAN=yes
-.export WITHOUT_MAN
+MAN=
 .endif
 
 # tell progs.mk we might want to install things

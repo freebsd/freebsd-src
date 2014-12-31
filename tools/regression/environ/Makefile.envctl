@@ -8,7 +8,7 @@ CFLAGS+=-Wall -I../../../include
 
 CLEANFILES=	${PROG}.core
 
-NO_MAN=	yes
+MAN=
 
 .include <bsd.prog.mk>
 

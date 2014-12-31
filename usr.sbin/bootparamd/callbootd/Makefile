@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	callbootd
-NO_MAN=
+MAN=
 SRCS=	callbootd.c ${GENSRCS}
 GENSRCS=bootparam_prot.h bootparam_prot_clnt.c bootparam_prot_xdr.c
 

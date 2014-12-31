@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 PROG=	find_interface
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

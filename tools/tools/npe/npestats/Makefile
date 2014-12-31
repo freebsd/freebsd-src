@@ -3,6 +3,6 @@
 PROG=	npestats
 SRCS=	main.c statfoo.c npestats.c
 BINDIR=	/usr/local/bin
-NO_MAN=	true
+MAN=
 
 .include <bsd.prog.mk>

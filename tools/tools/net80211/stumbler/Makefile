@@ -5,6 +5,6 @@ BINDIR=	/usr/local/bin
 DPADD=	${LIBPCAP} ${LIBNCURSES}
 LDADD=	-lpcap -lncurses
 CFLAGS=-g
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

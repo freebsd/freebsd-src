@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	make_index
-NO_MAN=
+MAN=
 
 BINDIR=	${LIBEXECDIR}
 

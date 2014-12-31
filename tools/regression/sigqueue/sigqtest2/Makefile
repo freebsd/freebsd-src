@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=sigqtest2
-NO_MAN=
+MAN=
 DEBUG_FLAGS=-g
 
 .include <bsd.prog.mk>
