@@ -141,7 +141,7 @@ update_mbuf_csumflags(struct mbuf *src, struct mbuf *dst)
  * Use trailer local net encapsulation if enough data in first
  * packet leaves a multiple of 512 bytes of data in remainder.
  */
-int
+static int
 ether_output(struct ifnet *ifp, struct mbuf *m,
 	const struct sockaddr *dst, struct route *ro)
 {
@@ -267,7 +267,8 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	if (hdrcmplt == 0) {
 		memcpy(&eh->ether_type, &type, sizeof(eh->ether_type));
 		memcpy(eh->ether_dhost, edst, sizeof (edst));
-		memcpy(eh->ether_shost, IF_LLADDR(ifp),sizeof(eh->ether_shost));
+		memcpy(eh->ether_shost, if_lladdr(ifp),
+		    sizeof(eh->ether_shost));
 	}
 
 	/*
@@ -365,7 +366,7 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 	 * Queue message on interface, update output statistics if
 	 * successful, and start output if interface not yet active.
 	 */
-	return ((ifp->if_transmit)(ifp, m));
+	return (if_transmit(ifp, m));
 }
 
 #if defined(INET) || defined(INET6)
@@ -470,7 +471,8 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	}
 
 	/* Handle input from a lagg(4) port */
-	if (ifp->if_type == IFT_IEEE8023ADLAG) {
+	/* XXXGL: this should go away, lagg(4) should intercept if_ops. */
+	if (if_type(ifp) == IFT_IEEE8023ADLAG) {
 		KASSERT(lagg_input_p != NULL,
 		    ("%s: if_lagg not loaded!", __func__));
 		m = (*lagg_input_p)(ifp, m);
@@ -566,7 +568,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 		 * seen by upper protocol layers.
 		 */
 		if (!ETHER_IS_MULTICAST(eh->ether_dhost) &&
-		    bcmp(IF_LLADDR(ifp), eh->ether_dhost, ETHER_ADDR_LEN) != 0)
+		    bcmp(if_lladdr(ifp), eh->ether_dhost, ETHER_ADDR_LEN) != 0)
 			m->m_flags |= M_PROMISC;
 	}
 
@@ -615,14 +617,6 @@ static struct netisr_handler	ether_nh = {
 	.nh_dispatch = NETISR_DISPATCH_DIRECT,
 #endif
 };
-
-static void
-ether_init(__unused void *arg)
-{
-
-	netisr_register(&ether_nh);
-}
-SYSINIT(ether, SI_SUB_INIT_IF, SI_ORDER_ANY, ether_init, NULL);
 
 static void
 vnet_ether_init(__unused void *arg)
@@ -807,44 +801,35 @@ ether_sprintf(const u_char *ap)
 /*
  * Perform common duties while attaching to interface list
  */
-void
-ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
+static void
+ether_ifattach(struct ifnet *ifp, struct if_attach_args *ifat)
 {
-	int i;
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
+	int i;
 
-	ifp->if_addrlen = ETHER_ADDR_LEN;
-	ifp->if_hdrlen = ETHER_HDR_LEN;
-	if_attach(ifp);
-	ifp->if_mtu = ETHERMTU;
-	ifp->if_output = ether_output;
-	ifp->if_input = ether_input;
-	ifp->if_resolvemulti = ether_resolvemulti;
-#ifdef VIMAGE
-	ifp->if_reassign = ether_reassign;
-#endif
+	if (ifp->if_mtu == 0)
+		ifp->if_mtu = ETHERMTU;
 	if (ifp->if_baudrate == 0)
-		ifp->if_baudrate = IF_Mbps(10);		/* just a default */
+		ifp->if_baudrate = IF_Mbps(10);	/* just a default */
 	ifp->if_broadcastaddr = etherbroadcastaddr;
 
 	ifa = ifp->if_addr;
 	KASSERT(ifa != NULL, ("%s: no lladdr!\n", __func__));
 	sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 	sdl->sdl_type = IFT_ETHER;
-	sdl->sdl_alen = ifp->if_addrlen;
-	bcopy(lla, LLADDR(sdl), ifp->if_addrlen);
+	sdl->sdl_alen = if_addrlen(ifp);
+	bcopy(ifat->ifat_lla, LLADDR(sdl), if_addrlen(ifp));
 
-	bpfattach(ifp, DLT_EN10MB, ETHER_HDR_LEN);
 	if (ng_ether_attach_p != NULL)
 		(*ng_ether_attach_p)(ifp);
 
 	/* Announce Ethernet MAC address if non-zero. */
-	for (i = 0; i < ifp->if_addrlen; i++)
-		if (lla[i] != 0)
+	for (i = 0; i < if_addrlen(ifp); i++)
+		if (ifat->ifat_lla[i] != 0)
 			break; 
-	if (i != ifp->if_addrlen)
-		if_printf(ifp, "Ethernet address: %6D\n", lla, ":");
+	if (i != if_addrlen(ifp))
+		if_printf(ifp, "Ethernet address: %6D\n", ifat->ifat_lla, ":");
 
 	uuid_ether_add(LLADDR(sdl));
 }
@@ -852,7 +837,7 @@ ether_ifattach(struct ifnet *ifp, const u_int8_t *lla)
 /*
  * Perform common duties while detaching an Ethernet interface
  */
-void
+static void
 ether_ifdetach(struct ifnet *ifp)
 {
 	struct sockaddr_dl *sdl;
@@ -872,7 +857,7 @@ ether_ifdetach(struct ifnet *ifp)
 
 #ifdef VIMAGE
 void
-ether_reassign(struct ifnet *ifp, struct vnet *new_vnet, char *unused __unused)
+ether_reassign(struct ifnet *ifp, struct vnet *new_vnet)
 {
 
 	if (ifp->if_l2com != NULL) {
@@ -966,7 +951,7 @@ ether_crc32_be(const uint8_t *buf, size_t len)
 	return (crc);
 }
 
-int
+static int
 ether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
@@ -980,12 +965,12 @@ ether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 		case AF_INET:
-			ifp->if_init(ifp->if_softc);	/* before arpwhohas */
+			if_init(ifp, ifp->if_softc);	/* before arpwhohas */
 			arp_ifinit(ifp, ifa);
 			break;
 #endif
 		default:
-			ifp->if_init(ifp->if_softc);
+			if_init(ifp, ifp->if_softc);
 			break;
 		}
 		break;
@@ -995,7 +980,7 @@ ether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			struct sockaddr *sa;
 
 			sa = (struct sockaddr *) & ifr->ifr_data;
-			bcopy(IF_LLADDR(ifp),
+			bcopy(if_lladdr(ifp),
 			      (caddr_t) sa->sa_data, ETHER_ADDR_LEN);
 		}
 		break;
@@ -1086,10 +1071,6 @@ ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 	}
 }
 
-static moduledata_t ether_mod = {
-	.name = "ether",
-};
-
 void
 ether_vlan_mtap(struct bpf_if *bp, struct mbuf *m, void *data, u_int dlen)
 {
@@ -1157,6 +1138,52 @@ ether_vlanencap(struct mbuf *m, uint16_t tag)
 	evl->evl_tag = htons(tag);
 	return (m);
 }
+
+static struct iftype ether_iftype = {
+	.ift_type = IFT_ETHER,
+	.ift_attach = ether_ifattach,
+	.ift_detach = ether_ifdetach,
+	.ift_dlt = DLT_EN10MB,
+	.ift_dlt_hdrlen = ETHER_HDR_LEN,
+	.ift_addrlen = ETHER_ADDR_LEN,
+	.ift_hdrlen = ETHER_HDR_LEN,
+	.ift_ops = {
+		.ifop_origin = IFOP_ORIGIN_IFTYPE,
+		.ifop_output = ether_output,
+		.ifop_input = ether_input,
+		.ifop_resolvemulti = ether_resolvemulti,
+		.ifop_ioctl = ether_ioctl,
+#ifdef VIMAGE
+		.ifop_reassign = ether_reassign,
+#endif
+	}
+};
+
+
+static int
+ether_modevent(module_t mod, int type, void *data)
+{
+
+	switch (type) {
+	case MOD_LOAD:
+		iftype_register(&ether_iftype);
+		netisr_register(&ether_nh);
+		break;
+	case MOD_UNLOAD:
+		netisr_unregister(&ether_nh);
+		iftype_unregister(&ether_iftype);
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+
+	return (0);
+}
+
+static moduledata_t ether_mod = {
+	.name = "ether",
+	.evhand = ether_modevent,
+};
 
 DECLARE_MODULE(ether, ether_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);
 MODULE_VERSION(ether, 1);

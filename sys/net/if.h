@@ -178,9 +178,11 @@ struct if_data {
 /*
  * Values for if_link_state.
  */
-#define	LINK_STATE_UNKNOWN	0	/* link invalid/unknown */
-#define	LINK_STATE_DOWN		1	/* link is down */
-#define	LINK_STATE_UP		2	/* link is up */
+enum {
+	LINK_STATE_UNKNOWN = 0,		/* link invalid/unknown */
+	LINK_STATE_DOWN,		/* link is down */
+	LINK_STATE_UP,			/* link is up */
+};
 
 /*
  * Some convenience macros used for setting ifi_baudrate.
@@ -525,13 +527,6 @@ struct ifi2creq {
 
 #endif /* __BSD_VISIBLE */
 
-#ifdef _KERNEL
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_IFADDR);
-MALLOC_DECLARE(M_IFMADDR);
-#endif
-#endif
-
 #ifndef _KERNEL
 struct if_nameindex {
 	unsigned int	if_index;	/* 1, 2, ... */
@@ -545,4 +540,198 @@ struct if_nameindex	*if_nameindex(void);
 unsigned int		 if_nametoindex(const char *);
 __END_DECLS
 #endif
+
+#ifdef _KERNEL
+#include <net/if_types.h>
+/*
+ * Under _KERNEL there live declarations from net/if.c, that are public
+ * and available to network device drivers.  Declarations that are protected
+ * from drivers, but available to the stack live in if_var.h.
+ */
+
+/* Some forward declarations are required. */
+struct mbuf;	/* if_input, if_output, if_transmit */
+struct route;	/* if_output */
+struct vnet;	/* if_reassign */
+
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_IFADDR);
+MALLOC_DECLARE(M_IFMADDR);
+#endif
+
+typedef enum {
+	IFCOUNTER_IPACKETS = 0,
+	IFCOUNTER_IERRORS,
+	IFCOUNTER_OPACKETS,
+	IFCOUNTER_OERRORS,
+	IFCOUNTER_COLLISIONS,
+	IFCOUNTER_IBYTES,
+	IFCOUNTER_OBYTES,
+	IFCOUNTER_IMCASTS,
+	IFCOUNTER_OMCASTS,
+	IFCOUNTER_IQDROPS,
+	IFCOUNTER_OQDROPS,
+	IFCOUNTER_NOPROTO,
+	IFCOUNTERS /* Array size (used internally). */
+} ift_counter;
+
+typedef enum {
+	/* uint32_t */
+	IF_FLAGS = 1,
+	IF_DRV_FLAGS,
+	IF_CAPABILITIES,
+	IF_CAPENABLE,
+	IF_MTU,
+	/* uint64_t */
+	IF_HWASSIST,
+	IF_BAUDRATE,
+	/* pointers */
+	IF_DRIVER_SOFTC,
+} ift_feature;
+
+typedef struct ifnet * if_t;
+
+typedef void	(*if_init_t)(void *);
+typedef void	(*if_input_t)(if_t, struct mbuf *);
+typedef int	(*if_transmit_t)(if_t, struct mbuf *);
+typedef int	(*if_output_t)(if_t, struct mbuf *, const struct sockaddr *,
+    struct route *);
+typedef int	(*if_ioctl_t)(if_t, u_long, caddr_t);
+typedef uint64_t (*if_get_counter_t)(if_t, ift_counter);
+typedef void	(*if_start_t)(if_t);
+typedef void	(*if_qflush_t)(if_t);
+typedef int	(*if_resolvemulti_t)(if_t, struct sockaddr **,
+    struct sockaddr *);
+typedef void	(*if_reassign_t)(if_t, struct vnet *);
+
+/*
+ * Interface methods.  Usually stored in ifdriver definition, however
+ * some subsystems like lagg(4) or altq(4) may put a shim ifops before
+ * native ones.
+ */
+struct ifops {
+	if_input_t	ifop_input;	/* input routine (from h/w driver) */
+	if_transmit_t	ifop_transmit;	/* initiate output routine */
+	if_output_t	ifop_output;
+	if_ioctl_t	ifop_ioctl;	/* ioctl routine */
+	if_get_counter_t ifop_get_counter; /* get counter values */
+	if_init_t	ifop_init;	/* init routine */
+	if_start_t	ifop_start;	/* initiate output routine */
+	if_qflush_t	ifop_qflush;	/* flush any queue */	
+	if_resolvemulti_t ifop_resolvemulti; /* validate/resolve multicast */
+	if_reassign_t	ifop_reassign;	/* reassign to vnet routine */
+	struct ifops	*ifop_next;
+	uint8_t		ifop_origin;
+};
+enum {
+	IFOP_ORIGIN_DRIVER = 1,
+	IFOP_ORIGIN_IFTYPE = 2,
+};
+
+/*
+ * Structure describing TSO properties of an interface.  Known both to ifnet
+ * layer and TCP.  Most interfaces point to a static tsomax in ifdriver
+ * definition.  However, vlan(4) and lagg(4) require a dynamic tsomax.
+ */
+struct iftsomax {
+	uint32_t tsomax_bytes;	  /* TSO total burst length limit in bytes */
+	uint32_t tsomax_segcount; /* TSO maximum segment count */
+	uint32_t tsomax_segsize;  /* TSO maximum segment size in bytes */
+};
+
+/*
+ * Driver description.  All instances of a driver share common properties
+ * that are stable during runtime.  The stack can bless them, which
+ * means modify, when attaching the first instance of given
+ * driver.
+ */
+struct ifdriver {
+	struct ifops		ifdrv_ops;
+	struct iftsomax		*ifdrv_tsomax;
+	/*
+	 * The ifdrv_dname must be a pointer to storage which will last as
+	 * long as any interface does.  For physical devices, the result of
+	 * device_get_name(dev) is a good choice and for pseudo-devices a
+	 * static string works well.
+	 */
+	const char *	ifdrv_dname;
+	ifType		ifdrv_type;	/* from if_types.h */
+	uint8_t		ifdrv_hdrlen;	/* media header length */
+	uint8_t		ifdrv_addrlen;	/* media address length */
+	uint32_t	ifdrv_dlt;	/* from net/bpf.h */
+	uint32_t	ifdrv_dlt_hdrlen;
+	/*
+	 * Owned by stack.  Drivers shouldn't initialize these!
+	 */
+	uint32_t		__ifdrv_stack_owned;
+};
+
+/*
+ * Arguments for if_attach().  Usually stored on stack of device_attach
+ * function in driver.  In future this structure will probably have
+ * different versions, so that we can support older ABIs for drivers.
+ */
+struct if_attach_args {
+	uint8_t		ifat_version;	/* must be IF_ATTACH_VERSION */
+#define	IF_ATTACH_VERSION	1
+	uint8_t		ifat_spare8;
+	uint16_t	ifat_spare16;
+	uint32_t	ifat_spare32;
+
+	struct ifdriver	*ifat_drv;
+	void 		*ifat_softc;	/* Driver private softc. */
+	const uint8_t	*ifat_lla;	/* Link-level address. */
+	int32_t		ifat_dunit;	/* unit or IF_DUNIT_NONE */
+	/*
+	 * Variables that may differ between two instances of a same
+	 * driver, but are constant within instance lifetime.
+	 */
+	uint64_t	ifat_capabilities;
+	/*
+	 * MTU, flags, capabilities at attach time.  Driver
+	 * can change them later.
+	 */
+	uint32_t	ifat_mtu;
+	uint64_t	ifat_flags;
+	uint64_t	ifat_capenable;
+	uint64_t	ifat_hwassist;
+	uint64_t	ifat_baudrate;
+	/*
+	 * If ifat_tsomax pointer is non-zero, then an interface will
+	 * have dynamically allocated ifdrv_tsomax, that can be changed
+	 * later.  Otherwise it inherits static iftsomax from ifdriver.
+	 */
+	struct iftsomax *ifat_tsomax;
+};
+
+/*
+ * Interface manipulating functions that are available for drivers.
+ */
+if_t	if_attach(struct if_attach_args *);
+void	if_detach(if_t);
+void	if_input(if_t, struct mbuf *);
+void	if_mtap(if_t, struct mbuf *, void *, u_int);
+void	if_inc_counter(if_t, ift_counter, int64_t);
+uint64_t if_get_counter_default(if_t, ift_counter);
+void	if_link_state_change(if_t, int);
+void *	if_getsoftc(if_t, ift_feature);
+char *	if_lladdr(if_t);
+void	if_setflags(if_t, ift_feature, uint64_t);
+uint64_t if_flagbits(if_t, ift_feature, uint64_t, uint64_t, uint64_t);
+#define	if_getflags(ifp, f)	if_flagbits((ifp), (f), 0, 0, 0)
+#define	if_addflags(ifp, f, a)	if_flagbits((ifp), (f), (a), 0, 0)
+#define	if_clrflags(ifp, f, c)	if_flagbits((ifp), (f), 0, (c), 0)
+#define	if_xorflags(ifp, f, x)	if_flagbits((ifp), (f), 0, 0, (x))
+void	if_capenable(if_t, uint64_t);
+int	if_printf(if_t, const char *, ...) __printflike(2, 3);
+/*
+ * Traversing through interface address lists.
+ */
+typedef	void	ifaddr_cb_t(void *, struct sockaddr *, struct sockaddr *,
+		    struct sockaddr *);
+typedef	void	ifmaddr_cb_t(void *, struct sockaddr *);
+void	if_foreach_addr(if_t, ifaddr_cb_t, void *);
+void	if_foreach_maddr(if_t, ifmaddr_cb_t, void *);
+
+#endif /* _KERNEL */
 #endif /* !_NET_IF_H_ */

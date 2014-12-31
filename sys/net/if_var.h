@@ -33,39 +33,12 @@
 #ifndef	_NET_IF_VAR_H_
 #define	_NET_IF_VAR_H_
 
-/*
- * Structures defining a network interface, providing a packet
- * transport mechanism (ala level 0 of the PUP protocols).
- *
- * Each interface accepts output datagrams of a specified maximum
- * length, and provides higher level routines with input datagrams
- * received from its medium.
- *
- * Output occurs when the routine if_output is called, with three parameters:
- *	(*ifp->if_output)(ifp, m, dst, rt)
- * Here m is the mbuf chain to be sent and dst is the destination address.
- * The output routine encapsulates the supplied datagram if necessary,
- * and then transmits it on its medium.
- *
- * On input, each interface unwraps the data received by it, and either
- * places it on the input queue of an internetwork datagram routine
- * and posts the associated software interrupt, or passes the datagram to a raw
- * packet input routine.
- *
- * Routines exist for locating interfaces by their addresses
- * or for locating an interface on a certain network, as well as more general
- * routing and gateway routines maintaining information used to locate
- * interfaces.  These routines live in the files if.c and route.c
- */
-
 struct	rtentry;		/* ifa_rtrequest */
 struct	rt_addrinfo;		/* ifa_rtrequest */
 struct	socket;
 struct	carp_if;
 struct	carp_softc;
 struct  ifvlantrunk;
-struct	route;			/* if_output */
-struct	vnet;
 struct	ifmedia;
 struct	netmap_adapter;
 
@@ -95,56 +68,39 @@ VNET_DECLARE(struct pfil_head, link_pfil_hook);	/* packet filter hooks */
 #define	V_link_pfil_hook	VNET(link_pfil_hook)
 #endif /* _KERNEL */
 
-typedef enum {
-	IFCOUNTER_IPACKETS = 0,
-	IFCOUNTER_IERRORS,
-	IFCOUNTER_OPACKETS,
-	IFCOUNTER_OERRORS,
-	IFCOUNTER_COLLISIONS,
-	IFCOUNTER_IBYTES,
-	IFCOUNTER_OBYTES,
-	IFCOUNTER_IMCASTS,
-	IFCOUNTER_OMCASTS,
-	IFCOUNTER_IQDROPS,
-	IFCOUNTER_OQDROPS,
-	IFCOUNTER_NOPROTO,
-	IFCOUNTERS /* Array size. */
-} ift_counter;
-
-typedef struct ifnet * if_t;
-
-typedef	void (*if_start_fn_t)(if_t);
-typedef	int (*if_ioctl_fn_t)(if_t, u_long, caddr_t);
-typedef	void (*if_init_fn_t)(void *);
-typedef void (*if_qflush_fn_t)(if_t);
-typedef int (*if_transmit_fn_t)(if_t, struct mbuf *);
-typedef	uint64_t (*if_get_counter_t)(if_t, ift_counter);
-
-struct ifnet_hw_tsomax {
-	u_int	tsomaxbytes;	/* TSO total burst length limit in bytes */
-	u_int	tsomaxsegcount;	/* TSO maximum segment count */
-	u_int	tsomaxsegsize;	/* TSO maximum segment size in bytes */
+typedef	void (*iftype_attach_t)(if_t ifp, struct if_attach_args *args);
+typedef	void (*iftype_detach_t)(if_t ifp);
+struct iftype {
+	const ifType		ift_type;
+	SLIST_ENTRY(iftype)	ift_next;
+	iftype_attach_t		ift_attach;
+	iftype_detach_t		ift_detach;
+	uint8_t			ift_hdrlen;
+	uint8_t			ift_addrlen;
+	uint32_t		ift_dlt;
+	uint32_t		ift_dlt_hdrlen;
+	struct ifops		ift_ops;
 };
 
 /*
  * Structure defining a network interface.
  *
- * Size ILP32:  592 (approx)
- *	 LP64: 1048 (approx)
+ * (Would like to call this struct ``if'', but C isn't PL/1.)
  */
 struct ifnet {
+	struct ifops	*if_ops;	/* driver ops (or overridden) */
+	void		*if_softc;	/* driver soft state */
+	struct ifdriver	*if_drv;	/* driver static definition */
+	struct iftype	*if_type;	/* if type static def (optional)*/
+	struct iftsomax	*if_tsomax;	/* TSO limits */
+	
 	/* General book keeping of interface lists. */
 	TAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained */
 	LIST_ENTRY(ifnet) if_clones;	/* interfaces of a cloner */
 	TAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if */
 					/* protected by if_addr_lock */
-	u_char	if_alloctype;		/* if_type at time of allocation */
-
-	/* Driver and protocol specific information that remains stable. */
-	void	*if_softc;		/* pointer to driver state */
 	void	*if_llsoftc;		/* link layer softc */
 	void	*if_l2com;		/* pointer to protocol bits */
-	const char *if_dname;		/* driver name */
 	int	if_dunit;		/* unit or IF_DUNIT_NONE */
 	u_short	if_index;		/* numeric abbreviation for this if  */
 	short	if_index_reserved;	/* spare space to grow if_index */
@@ -152,18 +108,14 @@ struct ifnet {
 	char	*if_description;	/* interface description */
 
 	/* Variable fields that are touched by the stack and drivers. */
-	int	if_flags;		/* up/down, broadcast, etc. */
-	int	if_drv_flags;		/* driver-managed status flags */
-	int	if_capabilities;	/* interface features & capabilities */
-	int	if_capenable;		/* enabled features & capabilities */
+	uint32_t	if_flags;	/* up/down, broadcast, etc. */
+	uint32_t	if_drv_flags;	/* driver-managed status flags */
+	uint32_t	if_capabilities;/* interface features & capabilities */
+	uint32_t	if_capenable;	/* enabled features & capabilities */
 	void	*if_linkmib;		/* link-type-specific MIB data */
 	size_t	if_linkmiblen;		/* length of above data */
 	u_int	if_refcount;		/* reference count */
 
-	/* These fields are shared with struct if_data. */
-	uint8_t		if_type;	/* ethernet, tokenring, etc */
-	uint8_t		if_addrlen;	/* media address length */
-	uint8_t		if_hdrlen;	/* media header length */
 	uint8_t		if_link_state;	/* current link state */
 	uint32_t	if_mtu;		/* maximum transmission unit */
 	uint32_t	if_metric;	/* routing metric (external only) */
@@ -210,48 +162,7 @@ struct ifnet {
 	struct	label *if_label;	/* interface MAC label */
 	struct	netmap_adapter *if_netmap; /* netmap(4) softc */
 
-	/* Various procedures of the layer2 encapsulation and drivers. */
-	int	(*if_output)		/* output routine (enqueue) */
-		(struct ifnet *, struct mbuf *, const struct sockaddr *,
-		     struct route *);
-	void	(*if_input)		/* input routine (from h/w driver) */
-		(struct ifnet *, struct mbuf *);
-	if_start_fn_t	if_start;	/* initiate output routine */
-	if_ioctl_fn_t	if_ioctl;	/* ioctl routine */
-	if_init_fn_t	if_init;	/* Init routine */
-	int	(*if_resolvemulti)	/* validate/resolve multicast */
-		(struct ifnet *, struct sockaddr **, struct sockaddr *);
-	if_qflush_fn_t	if_qflush;	/* flush any queue */	
-	if_transmit_fn_t if_transmit;   /* initiate output routine */
-
-	void	(*if_reassign)		/* reassign to vnet routine */
-		(struct ifnet *, struct vnet *, char *);
-	if_get_counter_t if_get_counter; /* get counter values */
-
-	/* Statistics. */
-	counter_u64_t	if_counters[IFCOUNTERS];
-
-	/* Stuff that's only temporary and doesn't belong here. */
-
-	/*
-	 * Network adapter TSO limits:
-	 * ===========================
-	 *
-	 * If the "if_hw_tsomax" field is zero the maximum segment
-	 * length limit does not apply. If the "if_hw_tsomaxsegcount"
-	 * or the "if_hw_tsomaxsegsize" field is zero the TSO segment
-	 * count limit does not apply. If all three fields are zero,
-	 * there is no TSO limit.
-	 *
-	 * NOTE: The TSO limits only apply to the data payload part of
-	 * a TCP/IP packet. That means there is no need to subtract
-	 * space for ethernet-, vlan-, IP- or TCP- headers from the
-	 * TSO limits unless the hardware driver in question requires
-	 * so.
-	 */
-	u_int	if_hw_tsomax;		/* TSO maximum size in bytes */
-	u_int	if_hw_tsomaxsegcount;	/* TSO maximum segment count */
-	u_int	if_hw_tsomaxsegsize;	/* TSO maximum segment size in bytes */
+	counter_u64_t	if_counters[IFCOUNTERS];	/* Statistics */
 
 	/*
 	 * Spare fields to be added before branching a stable branch, so
@@ -259,11 +170,6 @@ struct ifnet {
 	 * binary interface.
 	 */
 };
-
-/* for compatibility with other BSDs */
-#define	if_addrlist	if_addrhead
-#define	if_list		if_link
-#define	if_name(ifp)	((ifp)->if_xname)
 
 /*
  * Locks for address lists on the network interface.
@@ -485,22 +391,14 @@ int	if_addgroup(struct ifnet *, const char *);
 int	if_delgroup(struct ifnet *, const char *);
 int	if_addmulti(struct ifnet *, struct sockaddr *, struct ifmultiaddr **);
 int	if_allmulti(struct ifnet *, int);
-struct	ifnet* if_alloc(u_char);
-void	if_attach(struct ifnet *);
-void	if_dead(struct ifnet *);
 int	if_delmulti(struct ifnet *, struct sockaddr *);
 void	if_delmulti_ifma(struct ifmultiaddr *);
-void	if_detach(struct ifnet *);
 void	if_vmove(struct ifnet *, struct vnet *);
 void	if_purgeaddrs(struct ifnet *);
 void	if_delallmulti(struct ifnet *);
 void	if_down(struct ifnet *);
 struct ifmultiaddr *
 	if_findmulti(struct ifnet *, struct sockaddr *);
-void	if_free(struct ifnet *);
-void	if_initname(struct ifnet *, const char *, int);
-void	if_link_state_change(struct ifnet *, int);
-int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);
 void	if_ref(struct ifnet *);
 void	if_rele(struct ifnet *);
 int	if_setlladdr(struct ifnet *, const u_char *, int);
@@ -509,6 +407,9 @@ int	ifioctl(struct socket *, u_long, caddr_t, struct thread *);
 int	ifpromisc(struct ifnet *, int);
 struct	ifnet *ifunit(const char *);
 struct	ifnet *ifunit_ref(const char *);
+
+void	iftype_register(struct iftype *);
+void	iftype_unregister(struct iftype *);
 
 int	ifa_add_loopback_route(struct ifaddr *, struct sockaddr *);
 int	ifa_del_loopback_route(struct ifaddr *, struct sockaddr *);
@@ -525,84 +426,16 @@ int	ifa_preferred(struct ifaddr *, struct ifaddr *);
 
 int	if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen);
 
-typedef	void *if_com_alloc_t(u_char type, struct ifnet *ifp);
-typedef	void if_com_free_t(void *com, u_char type);
-void	if_register_com_alloc(u_char type, if_com_alloc_t *a, if_com_free_t *f);
-void	if_deregister_com_alloc(u_char type);
 void	if_data_copy(struct ifnet *, struct if_data *);
-uint64_t if_get_counter_default(struct ifnet *, ift_counter);
-void	if_inc_counter(struct ifnet *, ift_counter, int64_t);
-
-#define IF_LLADDR(ifp)							\
-    LLADDR((struct sockaddr_dl *)((ifp)->if_addr->ifa_addr))
-
-uint64_t if_setbaudrate(if_t ifp, uint64_t baudrate);
-uint64_t if_getbaudrate(if_t ifp);
-int if_setcapabilities(if_t ifp, int capabilities);
-int if_setcapabilitiesbit(if_t ifp, int setbit, int clearbit);
-int if_getcapabilities(if_t ifp);
-int if_togglecapenable(if_t ifp, int togglecap);
-int if_setcapenable(if_t ifp, int capenable);
-int if_setcapenablebit(if_t ifp, int setcap, int clearcap);
-int if_getcapenable(if_t ifp);
-const char *if_getdname(if_t ifp);
-int if_setdev(if_t ifp, void *dev);
-int if_setdrvflagbits(if_t ifp, int if_setflags, int clear_flags);
-int if_getdrvflags(if_t ifp);
-int if_setdrvflags(if_t ifp, int flags);
-int if_clearhwassist(if_t ifp);
-int if_sethwassistbits(if_t ifp, int toset, int toclear);
-int if_sethwassist(if_t ifp, int hwassist_bit);
-int if_gethwassist(if_t ifp);
-int if_setsoftc(if_t ifp, void *softc);
-void *if_getsoftc(if_t ifp);
-int if_setflags(if_t ifp, int flags);
-int if_setmtu(if_t ifp, int mtu);
-int if_getmtu(if_t ifp);
-int if_getmtu_family(if_t ifp, int family);
-int if_setflagbits(if_t ifp, int set, int clear);
-int if_getflags(if_t ifp);
-int if_sendq_empty(if_t ifp);
-int if_setsendqready(if_t ifp);
-int if_setsendqlen(if_t ifp, int tx_desc_count);
-int if_input(if_t ifp, struct mbuf* sendmp);
-int if_sendq_prepend(if_t ifp, struct mbuf *m);
-struct mbuf *if_dequeue(if_t ifp);
-int if_setifheaderlen(if_t ifp, int len);
-void if_setrcvif(struct mbuf *m, if_t ifp);
-void if_setvtag(struct mbuf *m, u_int16_t tag);
-u_int16_t if_getvtag(struct mbuf *m);
-int if_vlantrunkinuse(if_t ifp);
-caddr_t if_getlladdr(if_t ifp);
-void *if_gethandle(u_char);
-void if_bpfmtap(if_t ifp, struct mbuf *m);
-void if_etherbpfmtap(if_t ifp, struct mbuf *m);
-void if_vlancap(if_t ifp);
+int	if_getmtu_family(if_t ifp, int family);
 
 int if_setupmultiaddr(if_t ifp, void *mta, int *cnt, int max);
 int if_multiaddr_array(if_t ifp, void *mta, int *cnt, int max);
 int if_multiaddr_count(if_t ifp, int max);
 
-int if_getamcount(if_t ifp);
-struct ifaddr * if_getifaddr(if_t ifp);
-
-/* Functions */
-void if_setinitfn(if_t ifp, void (*)(void *));
-void if_setioctlfn(if_t ifp, int (*)(if_t, u_long, caddr_t));
-void if_setstartfn(if_t ifp, void (*)(if_t));
-void if_settransmitfn(if_t ifp, if_transmit_fn_t);
-void if_setqflushfn(if_t ifp, if_qflush_fn_t);
-void if_setgetcounterfn(if_t ifp, if_get_counter_t);
- 
-/* Revisit the below. These are inline functions originally */
-int drbr_inuse_drv(if_t ifp, struct buf_ring *br);
-struct mbuf* drbr_dequeue_drv(if_t ifp, struct buf_ring *br);
-int drbr_needs_enqueue_drv(if_t ifp, struct buf_ring *br);
-int drbr_enqueue_drv(if_t ifp, struct buf_ring *br, struct mbuf *m);
-
 /* TSO */
-void if_hw_tsomax_common(if_t ifp, struct ifnet_hw_tsomax *);
-int if_hw_tsomax_update(if_t ifp, struct ifnet_hw_tsomax *);
+void if_tsomax_common(const struct iftsomax *, struct iftsomax *);
+int if_tsomax_update(if_t ifp, const struct iftsomax *);
 
 #ifdef DEVICE_POLLING
 enum poll_cmd { POLL_ONLY, POLL_AND_CHECK_STATUS };
@@ -612,6 +445,103 @@ int    ether_poll_register(poll_handler_t *h, if_t ifp);
 int    ether_poll_deregister(if_t ifp);
 #endif /* DEVICE_POLLING */
 
+/*
+ * Wrappers around ifops. Some ops are optional and can be NULL,
+ * others are mandatory.  Those wrappers that driver can invoke
+ * theirselves are not inlined, but implemented in if.c.
+ */
+static inline void
+if_init(if_t ifp, void *sc)
+{
+
+	if (ifp->if_ops->ifop_init != NULL)
+		return (ifp->if_ops->ifop_init(sc));
+}
+
+static inline int
+if_transmit(if_t ifp, struct mbuf *m)
+{
+
+	return (ifp->if_ops->ifop_transmit(ifp, m));
+}
+
+static inline void
+if_start(if_t ifp)
+{
+
+	return (ifp->if_ops->ifop_start(ifp));
+}
+
+static inline int
+if_output(if_t ifp, struct mbuf *m, const struct sockaddr *dst,
+    struct route *ro)
+{
+
+	return (ifp->if_ops->ifop_output(ifp, m, dst, ro));
+}
+
+static inline int
+if_ioctl(if_t ifp, u_long cmd, caddr_t data)
+{
+	struct iftype *ift = ifp->if_type;
+	int error = EOPNOTSUPP;
+
+	if (ifp->if_ops->ifop_ioctl != NULL)
+		error = ifp->if_ops->ifop_ioctl(ifp, cmd, data);
+
+	if (error == EOPNOTSUPP && ift->ift_ops.ifop_ioctl != NULL)
+		error = ift->ift_ops.ifop_ioctl(ifp, cmd, data);
+
+	return (error);
+}
+
+static inline uint64_t
+if_get_counter(const if_t ifp, ift_counter cnt)
+{
+
+	return (ifp->if_ops->ifop_get_counter(ifp, cnt));
+}
+
+static inline int
+if_resolvemulti(if_t ifp, struct sockaddr **llsa, struct sockaddr *sa)
+{
+
+	if (ifp->if_ops->ifop_resolvemulti != NULL)
+		return (ifp->if_ops->ifop_resolvemulti(ifp, llsa, sa));
+	else
+		return (EOPNOTSUPP);
+}
+
+static inline void
+if_reassign(if_t ifp, struct vnet *new)
+{
+
+	return (ifp->if_ops->ifop_reassign(ifp, new));
+}
+
+/*
+ * Inliners to shorten code, and make protocols more ifnet-agnostic.
+ */
+static inline ifType
+if_type(const if_t ifp)
+{
+
+	return (ifp->if_drv->ifdrv_type);
+}
+
+static inline uint8_t
+if_addrlen(const if_t ifp)
+{
+
+	return (ifp->if_drv->ifdrv_addrlen);
+}
+
+static inline const char *
+if_name(if_t ifp)
+{
+
+	return (ifp->if_xname);
+}
 #endif /* _KERNEL */
 
 #include <net/ifq.h>	/* XXXAO: temporary unconditional include */
