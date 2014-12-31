@@ -14,7 +14,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "expand-isel-pseudos"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -23,6 +22,8 @@
 #include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
+#define DEBUG_TYPE "expand-isel-pseudos"
+
 namespace {
   class ExpandISelPseudos : public MachineFunctionPass {
   public:
@@ -30,9 +31,9 @@ namespace {
     ExpandISelPseudos() : MachineFunctionPass(ID) {}
 
   private:
-    virtual bool runOnMachineFunction(MachineFunction &MF);
+    bool runOnMachineFunction(MachineFunction &MF) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       MachineFunctionPass::getAnalysisUsage(AU);
     }
   };

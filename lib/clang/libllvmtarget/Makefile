@@ -5,8 +5,7 @@
 LIB=	llvmtarget
 
 SRCDIR=	lib/Target
-SRCS=	Mangler.cpp \
-	Target.cpp \
+SRCS=	Target.cpp \
 	TargetIntrinsicInfo.cpp \
 	TargetJITInfo.cpp \
 	TargetLibraryInfo.cpp \

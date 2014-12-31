@@ -28,6 +28,7 @@
 #include "lldb/Target/StackFrame.h"
 #include "lldb/Target/Thread.h"
 
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Triple.h"
 
 using namespace lldb;
@@ -251,7 +252,7 @@ static RegisterInfo g_register_infos[] =
     { "ymm15" , NULL,   32,  0, eEncodingVector, eFormatVectorOfUInt8, { gcc_dwarf_ymm15     , gcc_dwarf_ymm15     , LLDB_INVALID_REGNUM       , gdb_ymm15          , LLDB_INVALID_REGNUM },      NULL,              NULL}
 };
 
-static const uint32_t k_num_register_infos = sizeof(g_register_infos)/sizeof(RegisterInfo);
+static const uint32_t k_num_register_infos = llvm::array_lengthof(g_register_infos);
 static bool g_register_info_names_constified = false;
 
 const lldb_private::RegisterInfo *
@@ -316,8 +317,8 @@ ABISysV_x86_64::PrepareTrivialCall (Thread &thread,
                     (uint64_t)func_addr,
                     (uint64_t)return_addr);
 
-        for (int i = 0; i < args.size(); ++i)
-            s.Printf (", arg%d = 0x%" PRIx64, i + 1, args[i]);
+        for (size_t i = 0; i < args.size(); ++i)
+            s.Printf (", arg%zd = 0x%" PRIx64, i + 1, args[i]);
         s.PutCString (")");
         log->PutCString(s.GetString().c_str());
     }
@@ -331,11 +332,11 @@ ABISysV_x86_64::PrepareTrivialCall (Thread &thread,
     if (args.size() > 6) // TODO handle more than 6 arguments
         return false;
     
-    for (int i = 0; i < args.size(); ++i)
+    for (size_t i = 0; i < args.size(); ++i)
     {
         reg_info = reg_ctx->GetRegisterInfo(eRegisterKindGeneric, LLDB_REGNUM_GENERIC_ARG1 + i);
         if (log)
-            log->Printf("About to write arg%d (0x%" PRIx64 ") into %s", i + 1, args[i], reg_info->name);
+            log->Printf("About to write arg%zd (0x%" PRIx64 ") into %s", i + 1, args[i], reg_info->name);
         if (!reg_ctx->WriteRegisterFromUnsigned(reg_info, args[i]))
             return false;
     }
@@ -562,7 +563,13 @@ ABISysV_x86_64::SetReturnValueObject(lldb::StackFrameSP &frame_sp, lldb::ValueOb
         const RegisterInfo *reg_info = reg_ctx->GetRegisterInfoByName("rax", 0);
 
         DataExtractor data;
-        size_t num_bytes = new_value_sp->GetData(data);
+        Error data_error;
+        size_t num_bytes = new_value_sp->GetData(data, data_error);
+        if (data_error.Fail())
+        {
+            error.SetErrorStringWithFormat("Couldn't convert return value to raw data: %s", data_error.AsCString());
+            return error;
+        }
         lldb::offset_t offset = 0;
         if (num_bytes <= 8)
         {
@@ -589,8 +596,14 @@ ABISysV_x86_64::SetReturnValueObject(lldb::StackFrameSP &frame_sp, lldb::ValueOb
                 const RegisterInfo *xmm0_info = reg_ctx->GetRegisterInfoByName("xmm0", 0);
                 RegisterValue xmm0_value;
                 DataExtractor data;
-                size_t num_bytes = new_value_sp->GetData(data);
-
+                Error data_error;
+                size_t num_bytes = new_value_sp->GetData(data, data_error);
+                if (data_error.Fail())
+                {
+                    error.SetErrorStringWithFormat("Couldn't convert return value to raw data: %s", data_error.AsCString());
+                    return error;
+                }
+                
                 unsigned char buffer[16];
                 ByteOrder byte_order = data.GetByteOrder();
                 

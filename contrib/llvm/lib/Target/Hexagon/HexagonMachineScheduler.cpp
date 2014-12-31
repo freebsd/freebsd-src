@@ -12,17 +12,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "misched"
-
 #include "HexagonMachineScheduler.h"
 #include "llvm/CodeGen/MachineLoopInfo.h"
 #include "llvm/IR/Function.h"
 
 using namespace llvm;
 
-/// Platform specific modifications to DAG.
+#define DEBUG_TYPE "misched"
+
+/// Platform-specific modifications to DAG.
 void VLIWMachineScheduler::postprocessDAG() {
-  SUnit* LastSequentialCall = NULL;
+  SUnit* LastSequentialCall = nullptr;
   // Currently we only catch the situation when compare gets scheduled
   // before preceding call.
   for (unsigned su = 0, e = SUnits.size(); su != e; ++su) {
@@ -108,7 +108,7 @@ bool VLIWResourceModel::reserveResources(SUnit *SU) {
   case TargetOpcode::REG_SEQUENCE:
   case TargetOpcode::IMPLICIT_DEF:
   case TargetOpcode::KILL:
-  case TargetOpcode::PROLOG_LABEL:
+  case TargetOpcode::CFI_INSTRUCTION:
   case TargetOpcode::EH_LABEL:
   case TargetOpcode::COPY:
   case TargetOpcode::INLINEASM:
@@ -150,7 +150,7 @@ void VLIWMachineScheduler::schedule() {
 
   buildDAGWithRegPressure();
 
-  // Postprocess the DAG to add platform specific artificial dependencies.
+  // Postprocess the DAG to add platform-specific artificial dependencies.
   postprocessDAG();
 
   SmallVector<SUnit*, 8> TopRoots, BotRoots;
@@ -186,6 +186,9 @@ void VLIWMachineScheduler::schedule() {
     scheduleMI(SU, IsTopNode);
 
     updateQueues(SU, IsTopNode);
+
+    // Notify the scheduling strategy after updating the DAG.
+    SchedImpl->schedNode(SU, IsTopNode);
   }
   assert(CurrentTop == CurrentBottom && "Nonempty unscheduled zone.");
 
@@ -266,7 +269,7 @@ void ConvergingVLIWScheduler::releaseBottomNode(SUnit *SU) {
 /// can dispatch per cycle.
 ///
 /// TODO: Also check whether the SU must start a new group.
-bool ConvergingVLIWScheduler::SchedBoundary::checkHazard(SUnit *SU) {
+bool ConvergingVLIWScheduler::VLIWSchedBoundary::checkHazard(SUnit *SU) {
   if (HazardRec->isEnabled())
     return HazardRec->getHazardType(SU) != ScheduleHazardRecognizer::NoHazard;
 
@@ -277,7 +280,7 @@ bool ConvergingVLIWScheduler::SchedBoundary::checkHazard(SUnit *SU) {
   return false;
 }
 
-void ConvergingVLIWScheduler::SchedBoundary::releaseNode(SUnit *SU,
+void ConvergingVLIWScheduler::VLIWSchedBoundary::releaseNode(SUnit *SU,
                                                      unsigned ReadyCycle) {
   if (ReadyCycle < MinReadyCycle)
     MinReadyCycle = ReadyCycle;
@@ -292,7 +295,7 @@ void ConvergingVLIWScheduler::SchedBoundary::releaseNode(SUnit *SU,
 }
 
 /// Move the boundary of scheduled code by one cycle.
-void ConvergingVLIWScheduler::SchedBoundary::bumpCycle() {
+void ConvergingVLIWScheduler::VLIWSchedBoundary::bumpCycle() {
   unsigned Width = SchedModel->getIssueWidth();
   IssueCount = (IssueCount <= Width) ? 0 : IssueCount - Width;
 
@@ -318,7 +321,7 @@ void ConvergingVLIWScheduler::SchedBoundary::bumpCycle() {
 }
 
 /// Move the boundary of scheduled code by one SUnit.
-void ConvergingVLIWScheduler::SchedBoundary::bumpNode(SUnit *SU) {
+void ConvergingVLIWScheduler::VLIWSchedBoundary::bumpNode(SUnit *SU) {
   bool startNewCycle = false;
 
   // Update the reservation table.
@@ -348,7 +351,7 @@ void ConvergingVLIWScheduler::SchedBoundary::bumpNode(SUnit *SU) {
 
 /// Release pending ready nodes in to the available queue. This makes them
 /// visible to heuristics.
-void ConvergingVLIWScheduler::SchedBoundary::releasePending() {
+void ConvergingVLIWScheduler::VLIWSchedBoundary::releasePending() {
   // If the available queue is empty, it is safe to reset MinReadyCycle.
   if (Available.empty())
     MinReadyCycle = UINT_MAX;
@@ -376,7 +379,7 @@ void ConvergingVLIWScheduler::SchedBoundary::releasePending() {
 }
 
 /// Remove SU from the ready set for this boundary.
-void ConvergingVLIWScheduler::SchedBoundary::removeReady(SUnit *SU) {
+void ConvergingVLIWScheduler::VLIWSchedBoundary::removeReady(SUnit *SU) {
   if (Available.isInQueue(SU))
     Available.remove(Available.find(SU));
   else {
@@ -388,20 +391,20 @@ void ConvergingVLIWScheduler::SchedBoundary::removeReady(SUnit *SU) {
 /// If this queue only has one ready candidate, return it. As a side effect,
 /// advance the cycle until at least one node is ready. If multiple instructions
 /// are ready, return NULL.
-SUnit *ConvergingVLIWScheduler::SchedBoundary::pickOnlyChoice() {
+SUnit *ConvergingVLIWScheduler::VLIWSchedBoundary::pickOnlyChoice() {
   if (CheckPending)
     releasePending();
 
   for (unsigned i = 0; Available.empty(); ++i) {
     assert(i <= (HazardRec->getMaxLookAhead() + MaxMinLatency) &&
            "permanent hazard"); (void)i;
-    ResourceModel->reserveResources(0);
+    ResourceModel->reserveResources(nullptr);
     bumpCycle();
     releasePending();
   }
   if (Available.size() == 1)
     return *Available.begin();
-  return NULL;
+  return nullptr;
 }
 
 #ifndef NDEBUG
@@ -421,7 +424,7 @@ void ConvergingVLIWScheduler::traceCandidate(const char *Label,
 /// getSingleUnscheduledPred - If there is exactly one unscheduled predecessor
 /// of SU, return it, otherwise return null.
 static SUnit *getSingleUnscheduledPred(SUnit *SU) {
-  SUnit *OnlyAvailablePred = 0;
+  SUnit *OnlyAvailablePred = nullptr;
   for (SUnit::const_pred_iterator I = SU->Preds.begin(), E = SU->Preds.end();
        I != E; ++I) {
     SUnit &Pred = *I->getSUnit();
@@ -429,7 +432,7 @@ static SUnit *getSingleUnscheduledPred(SUnit *SU) {
       // We found an available, but not scheduled, predecessor.  If it's the
       // only one we have found, keep track of it... otherwise give up.
       if (OnlyAvailablePred && OnlyAvailablePred != &Pred)
-        return 0;
+        return nullptr;
       OnlyAvailablePred = &Pred;
     }
   }
@@ -439,7 +442,7 @@ static SUnit *getSingleUnscheduledPred(SUnit *SU) {
 /// getSingleUnscheduledSucc - If there is exactly one unscheduled successor
 /// of SU, return it, otherwise return null.
 static SUnit *getSingleUnscheduledSucc(SUnit *SU) {
-  SUnit *OnlyAvailableSucc = 0;
+  SUnit *OnlyAvailableSucc = nullptr;
   for (SUnit::const_succ_iterator I = SU->Succs.begin(), E = SU->Succs.end();
        I != E; ++I) {
     SUnit &Succ = *I->getSUnit();
@@ -447,7 +450,7 @@ static SUnit *getSingleUnscheduledSucc(SUnit *SU) {
       // We found an available, but not scheduled, successor.  If it's the
       // only one we have found, keep track of it... otherwise give up.
       if (OnlyAvailableSucc && OnlyAvailableSucc != &Succ)
-        return 0;
+        return nullptr;
       OnlyAvailableSucc = &Succ;
     }
   }
@@ -636,7 +639,7 @@ SUnit *ConvergingVLIWScheduler::pickNode(bool &IsTopNode) {
   if (DAG->top() == DAG->bottom()) {
     assert(Top.Available.empty() && Top.Pending.empty() &&
            Bot.Available.empty() && Bot.Pending.empty() && "ReadyQ garbage");
-    return NULL;
+    return nullptr;
   }
   SUnit *SU;
   if (llvm::ForceTopDown) {

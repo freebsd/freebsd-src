@@ -12,9 +12,12 @@ SRCS=	AliasAnalysis.cpp \
 	AliasSetTracker.cpp \
 	Analysis.cpp \
 	BasicAliasAnalysis.cpp \
+	BlockFrequencyInfo.cpp \
+	BlockFrequencyInfoImpl.cpp \
 	BranchProbabilityInfo.cpp \
 	CFG.cpp \
 	CFGPrinter.cpp \
+	CGSCCPassManager.cpp \
 	CaptureTracking.cpp \
 	CodeMetrics.cpp \
 	ConstantFolding.cpp \
@@ -28,6 +31,8 @@ SRCS=	AliasAnalysis.cpp \
 	InstructionSimplify.cpp \
 	Interval.cpp \
 	IntervalPartition.cpp \
+	JumpInstrTableInfo.cpp \
+	LazyCallGraph.cpp \
 	LazyValueInfo.cpp \
 	LibCallAliasAnalysis.cpp \
 	LibCallSemantics.cpp \
@@ -56,9 +61,9 @@ SRCS=	AliasAnalysis.cpp \
 	TypeBasedAliasAnalysis.cpp \
 	ValueTracking.cpp
 
-.if ${MK_CLANG_EXTRAS} != "no"
-SRCS+=	BlockFrequencyInfo.cpp
-.endif
+#.if ${MK_CLANG_EXTRAS} != "no"
+#SRCS+=	BlockFrequencyInfo.cpp
+#.endif
 
 TGHDRS=	Intrinsics
 

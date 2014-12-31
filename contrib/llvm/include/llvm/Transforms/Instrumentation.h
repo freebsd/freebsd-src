@@ -16,7 +16,7 @@
 
 #include "llvm/ADT/StringRef.h"
 
-#if defined(__GNUC__) && defined(__linux__)
+#if defined(__GNUC__) && defined(__linux__) && !defined(ANDROID)
 inline void *getDFSanArgTLSPtrForJIT() {
   extern __thread __attribute__((tls_model("initial-exec")))
     void *__dfsan_arg_tls;
@@ -64,27 +64,21 @@ ModulePass *createGCOVProfilerPass(const GCOVOptions &Options =
                                    GCOVOptions::getDefault());
 
 // Insert AddressSanitizer (address sanity checking) instrumentation
-FunctionPass *createAddressSanitizerFunctionPass(
-    bool CheckInitOrder = true, bool CheckUseAfterReturn = false,
-    bool CheckLifetime = false, StringRef BlacklistFile = StringRef(),
-    bool ZeroBaseShadow = false);
-ModulePass *createAddressSanitizerModulePass(
-    bool CheckInitOrder = true, StringRef BlacklistFile = StringRef(),
-    bool ZeroBaseShadow = false);
+FunctionPass *createAddressSanitizerFunctionPass();
+ModulePass *createAddressSanitizerModulePass();
 
 // Insert MemorySanitizer instrumentation (detection of uninitialized reads)
-FunctionPass *createMemorySanitizerPass(bool TrackOrigins = false,
-                                        StringRef BlacklistFile = StringRef());
+FunctionPass *createMemorySanitizerPass(int TrackOrigins = 0);
 
 // Insert ThreadSanitizer (race detection) instrumentation
-FunctionPass *createThreadSanitizerPass(StringRef BlacklistFile = StringRef());
+FunctionPass *createThreadSanitizerPass();
 
 // Insert DataFlowSanitizer (dynamic data flow analysis) instrumentation
 ModulePass *createDataFlowSanitizerPass(StringRef ABIListFile = StringRef(),
-                                        void *(*getArgTLS)() = 0,
-                                        void *(*getRetValTLS)() = 0);
+                                        void *(*getArgTLS)() = nullptr,
+                                        void *(*getRetValTLS)() = nullptr);
 
-#if defined(__GNUC__) && defined(__linux__)
+#if defined(__GNUC__) && defined(__linux__) && !defined(ANDROID)
 inline ModulePass *createDataFlowSanitizerPassForJIT(StringRef ABIListFile =
                                                          StringRef()) {
   return createDataFlowSanitizerPass(ABIListFile, getDFSanArgTLSPtrForJIT,

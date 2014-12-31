@@ -114,11 +114,9 @@ bool TemplateArgument::isDependent() const {
     return (getAsExpr()->isTypeDependent() || getAsExpr()->isValueDependent());
 
   case Pack:
-    for (pack_iterator P = pack_begin(), PEnd = pack_end(); P != PEnd; ++P) {
-      if (P->isDependent())
+    for (const auto &P : pack_elements())
+      if (P.isDependent())
         return true;
-    }
-
     return false;
   }
 
@@ -155,11 +153,9 @@ bool TemplateArgument::isInstantiationDependent() const {
     return getAsExpr()->isInstantiationDependent();
     
   case Pack:
-    for (pack_iterator P = pack_begin(), PEnd = pack_end(); P != PEnd; ++P) {
-      if (P->isInstantiationDependent())
+    for (const auto &P : pack_elements())
+      if (P.isInstantiationDependent())
         return true;
-    }
-    
     return false;
   }
 
@@ -214,8 +210,8 @@ bool TemplateArgument::containsUnexpandedParameterPack() const {
     break;
 
   case Pack:
-    for (pack_iterator P = pack_begin(), PEnd = pack_end(); P != PEnd; ++P)
-      if (P->containsUnexpandedParameterPack())
+    for (const auto &P : pack_elements())
+      if (P.containsUnexpandedParameterPack())
         return true;
 
     break;
@@ -248,7 +244,7 @@ void TemplateArgument::Profile(llvm::FoldingSetNodeID &ID,
     break;
 
   case Declaration:
-    ID.AddPointer(getAsDecl()? getAsDecl()->getCanonicalDecl() : 0);
+    ID.AddPointer(getAsDecl()? getAsDecl()->getCanonicalDecl() : nullptr);
     break;
 
   case Template:
@@ -345,7 +341,7 @@ void TemplateArgument::print(const PrintingPolicy &Policy,
                              raw_ostream &Out) const {
   switch (getKind()) {
   case Null:
-    Out << "<no value>";
+    Out << "(no value)";
     break;
     
   case Type: {
@@ -362,7 +358,7 @@ void TemplateArgument::print(const PrintingPolicy &Policy,
       // FIXME: distinguish between pointer and reference args?
       ND->printQualifiedName(Out);
     } else {
-      Out << "<anonymous>";
+      Out << "(anonymous)";
     }
     break;
   }
@@ -386,20 +382,19 @@ void TemplateArgument::print(const PrintingPolicy &Policy,
   }
     
   case Expression:
-    getAsExpr()->printPretty(Out, 0, Policy);
+    getAsExpr()->printPretty(Out, nullptr, Policy);
     break;
     
   case Pack:
     Out << "<";
     bool First = true;
-    for (TemplateArgument::pack_iterator P = pack_begin(), PEnd = pack_end();
-         P != PEnd; ++P) {
+    for (const auto &P : pack_elements()) {
       if (First)
         First = false;
       else
         Out << ", ";
       
-      P->print(Policy, Out);
+      P.print(Policy, Out);
     }
     Out << ">";
     break;        
@@ -489,7 +484,7 @@ const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
     LangOptions LangOpts;
     LangOpts.CPlusPlus = true;
     PrintingPolicy Policy(LangOpts);
-    Arg.getAsExpr()->printPretty(OS, 0, Policy);
+    Arg.getAsExpr()->printPretty(OS, nullptr, Policy);
     return DB << OS.str();
   }
       
@@ -511,6 +506,8 @@ const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
 const ASTTemplateArgumentListInfo *
 ASTTemplateArgumentListInfo::Create(ASTContext &C,
                                     const TemplateArgumentListInfo &List) {
+  assert(llvm::alignOf<ASTTemplateArgumentListInfo>() >=
+         llvm::alignOf<TemplateArgumentLoc>());
   std::size_t size = ASTTemplateArgumentListInfo::sizeFor(List.size());
   void *Mem = C.Allocate(size, llvm::alignOf<ASTTemplateArgumentListInfo>());
   ASTTemplateArgumentListInfo *TAI = new (Mem) ASTTemplateArgumentListInfo();

@@ -130,6 +130,14 @@ namespace clang {
     void VisitObjCPropertyDecl(ObjCPropertyDecl *D);
     void VisitObjCPropertyImplDecl(ObjCPropertyImplDecl *D);
     void VisitOMPThreadPrivateDecl(OMPThreadPrivateDecl *D);
+
+    void AddFunctionDefinition(const FunctionDecl *FD) {
+      assert(FD->doesThisDeclarationHaveABody());
+      if (auto *CD = dyn_cast<CXXConstructorDecl>(FD))
+        Writer.AddCXXCtorInitializers(CD->CtorInitializers,
+                                      CD->NumCtorInitializers, Record);
+      Writer.AddStmt(FD->getBody());
+    }
   };
 }
 
@@ -168,6 +176,24 @@ void ASTDeclWriter::VisitDecl(Decl *D) {
   Record.push_back(D->getAccess());
   Record.push_back(D->isModulePrivate());
   Record.push_back(Writer.inferSubmoduleIDFromLocation(D->getLocation()));
+
+  // If this declaration injected a name into a context different from its
+  // lexical context, and that context is an imported namespace, we need to
+  // update its visible declarations to include this name.
+  //
+  // This happens when we instantiate a class with a friend declaration or a
+  // function with a local extern declaration, for instance.
+  if (D->isOutOfLine()) {
+    auto *DC = D->getDeclContext();
+    while (auto *NS = dyn_cast<NamespaceDecl>(DC->getRedeclContext())) {
+      if (!NS->isFromASTFile())
+        break;
+      Writer.AddUpdatedDeclContext(NS->getPrimaryContext());
+      if (!NS->isInlineNamespace())
+        break;
+      DC = NS->getParent();
+    }
+  }
 }
 
 void ASTDeclWriter::VisitTranslationUnitDecl(TranslationUnitDecl *D) {
@@ -251,7 +277,7 @@ void ASTDeclWriter::VisitEnumDecl(EnumDecl *D) {
     Record.push_back(MemberInfo->getTemplateSpecializationKind());
     Writer.AddSourceLocation(MemberInfo->getPointOfInstantiation(), Record);
   } else {
-    Writer.AddDeclRef(0, Record);
+    Writer.AddDeclRef(nullptr, Record);
   }
 
   if (!D->hasAttrs() &&
@@ -372,7 +398,7 @@ void ASTDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
     Writer.AddTemplateArgumentList(FTSInfo->TemplateArguments, Record);
     
     // Template args as written.
-    Record.push_back(FTSInfo->TemplateArgumentsAsWritten != 0);
+    Record.push_back(FTSInfo->TemplateArgumentsAsWritten != nullptr);
     if (FTSInfo->TemplateArgumentsAsWritten) {
       Record.push_back(FTSInfo->TemplateArgumentsAsWritten->NumTemplateArgs);
       for (int i=0, e = FTSInfo->TemplateArgumentsAsWritten->NumTemplateArgs;
@@ -414,9 +440,8 @@ void ASTDeclWriter::VisitFunctionDecl(FunctionDecl *D) {
   }
 
   Record.push_back(D->param_size());
-  for (FunctionDecl::param_iterator P = D->param_begin(), PEnd = D->param_end();
-       P != PEnd; ++P)
-    Writer.AddDeclRef(*P, Record);
+  for (auto P : D->params())
+    Writer.AddDeclRef(P, Record);
   Code = serialization::DECL_FUNCTION;
 }
 
@@ -424,8 +449,8 @@ void ASTDeclWriter::VisitObjCMethodDecl(ObjCMethodDecl *D) {
   VisitNamedDecl(D);
   // FIXME: convert to LazyStmtPtr?
   // Unlike C/C++, method bodies will never be in header files.
-  bool HasBodyStuff = D->getBody() != 0     ||
-                      D->getSelfDecl() != 0 || D->getCmdDecl() != 0;
+  bool HasBodyStuff = D->getBody() != nullptr     ||
+                      D->getSelfDecl() != nullptr || D->getCmdDecl() != nullptr;
   Record.push_back(HasBodyStuff);
   if (HasBodyStuff) {
     Writer.AddStmt(D->getBody());
@@ -451,13 +476,12 @@ void ASTDeclWriter::VisitObjCMethodDecl(ObjCMethodDecl *D) {
   // FIXME: stable encoding for in/out/inout/bycopy/byref/oneway
   Record.push_back(D->getObjCDeclQualifier());
   Record.push_back(D->hasRelatedResultType());
-  Writer.AddTypeRef(D->getResultType(), Record);
-  Writer.AddTypeSourceInfo(D->getResultTypeSourceInfo(), Record);
+  Writer.AddTypeRef(D->getReturnType(), Record);
+  Writer.AddTypeSourceInfo(D->getReturnTypeSourceInfo(), Record);
   Writer.AddSourceLocation(D->getLocEnd(), Record);
   Record.push_back(D->param_size());
-  for (ObjCMethodDecl::param_iterator P = D->param_begin(),
-                                   PEnd = D->param_end(); P != PEnd; ++P)
-    Writer.AddDeclRef(*P, Record);
+  for (const auto *P : D->params())
+    Writer.AddDeclRef(P, Record);
 
   Record.push_back(D->SelLocsKind);
   unsigned NumStoredSelLocs = D->getNumStoredSelLocs();
@@ -489,17 +513,14 @@ void ASTDeclWriter::VisitObjCInterfaceDecl(ObjCInterfaceDecl *D) {
     Writer.AddDeclRef(D->getSuperClass(), Record);
     Writer.AddSourceLocation(D->getSuperClassLoc(), Record);
     Writer.AddSourceLocation(D->getEndOfDefinitionLoc(), Record);
+    Record.push_back(Data.HasDesignatedInitializers);
 
     // Write out the protocols that are directly referenced by the @interface.
     Record.push_back(Data.ReferencedProtocols.size());
-    for (ObjCInterfaceDecl::protocol_iterator P = D->protocol_begin(),
-                                           PEnd = D->protocol_end();
-         P != PEnd; ++P)
-      Writer.AddDeclRef(*P, Record);
-    for (ObjCInterfaceDecl::protocol_loc_iterator PL = D->protocol_loc_begin(),
-         PLEnd = D->protocol_loc_end();
-         PL != PLEnd; ++PL)
-      Writer.AddSourceLocation(*PL, Record);
+    for (const auto *P : D->protocols())
+      Writer.AddDeclRef(P, Record);
+    for (const auto &PL : D->protocol_locs())
+      Writer.AddSourceLocation(PL, Record);
     
     // Write out the protocols that are transitively referenced.
     Record.push_back(Data.AllReferencedProtocols.size());
@@ -528,7 +549,6 @@ void ASTDeclWriter::VisitObjCIvarDecl(ObjCIvarDecl *D) {
   // FIXME: stable encoding for @public/@private/@protected/@package
   Record.push_back(D->getAccessControl());
   Record.push_back(D->getSynthesize());
-  Record.push_back(D->getBackingIvarReferencedInAccessor());
 
   if (!D->hasAttrs() &&
       !D->isImplicit() &&
@@ -551,13 +571,10 @@ void ASTDeclWriter::VisitObjCProtocolDecl(ObjCProtocolDecl *D) {
   Record.push_back(D->isThisDeclarationADefinition());
   if (D->isThisDeclarationADefinition()) {
     Record.push_back(D->protocol_size());
-    for (ObjCProtocolDecl::protocol_iterator
-         I = D->protocol_begin(), IEnd = D->protocol_end(); I != IEnd; ++I)
-      Writer.AddDeclRef(*I, Record);
-    for (ObjCProtocolDecl::protocol_loc_iterator PL = D->protocol_loc_begin(),
-           PLEnd = D->protocol_loc_end();
-         PL != PLEnd; ++PL)
-      Writer.AddSourceLocation(*PL, Record);
+    for (const auto *I : D->protocols())
+      Writer.AddDeclRef(I, Record);
+    for (const auto &PL : D->protocol_locs())
+      Writer.AddSourceLocation(PL, Record);
   }
   
   Code = serialization::DECL_OBJC_PROTOCOL;
@@ -575,13 +592,10 @@ void ASTDeclWriter::VisitObjCCategoryDecl(ObjCCategoryDecl *D) {
   Writer.AddSourceLocation(D->getIvarRBraceLoc(), Record);
   Writer.AddDeclRef(D->getClassInterface(), Record);
   Record.push_back(D->protocol_size());
-  for (ObjCCategoryDecl::protocol_iterator
-       I = D->protocol_begin(), IEnd = D->protocol_end(); I != IEnd; ++I)
-    Writer.AddDeclRef(*I, Record);
-  for (ObjCCategoryDecl::protocol_loc_iterator 
-         PL = D->protocol_loc_begin(), PLEnd = D->protocol_loc_end();
-       PL != PLEnd; ++PL)
-    Writer.AddSourceLocation(*PL, Record);
+  for (const auto *I : D->protocols())
+    Writer.AddDeclRef(I, Record);
+  for (const auto &PL : D->protocol_locs())
+    Writer.AddSourceLocation(PL, Record);
   Code = serialization::DECL_OBJC_CATEGORY;
 }
 
@@ -688,10 +702,8 @@ void ASTDeclWriter::VisitIndirectFieldDecl(IndirectFieldDecl *D) {
   VisitValueDecl(D);
   Record.push_back(D->getChainingSize());
 
-  for (IndirectFieldDecl::chain_iterator
-       P = D->chain_begin(),
-       PEnd = D->chain_end(); P != PEnd; ++P)
-    Writer.AddDeclRef(*P, Record);
+  for (const auto *P : D->chain())
+    Writer.AddDeclRef(P, Record);
   Code = serialization::DECL_INDIRECTFIELD;
 }
 
@@ -745,7 +757,7 @@ void ASTDeclWriter::VisitVarDecl(VarDecl *D) {
       !D->hasExtInfo() &&
       D->getFirstDecl() == D->getMostRecentDecl() &&
       D->getInitStyle() == VarDecl::CInit &&
-      D->getInit() == 0 &&
+      D->getInit() == nullptr &&
       !isa<ParmVarDecl>(D) &&
       !isa<VarTemplateSpecializationDecl>(D) &&
       !D->isConstexpr() &&
@@ -794,7 +806,7 @@ void ASTDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
       D->getObjCDeclQualifier() == 0 &&
       !D->isKNRPromoted() &&
       !D->hasInheritedDefaultArg() &&
-      D->getInit() == 0 &&
+      D->getInit() == nullptr &&
       !D->hasUninstantiatedDefaultArg())  // No default expr.
     AbbrevToUse = Writer.getDeclParmVarAbbrev();
 
@@ -803,7 +815,7 @@ void ASTDeclWriter::VisitParmVarDecl(ParmVarDecl *D) {
   assert(!D->getTSCSpec() && "PARM_VAR_DECL can't use TLS");
   assert(D->getAccess() == AS_none && "PARM_VAR_DECL can't be public/private");
   assert(!D->isExceptionVariable() && "PARM_VAR_DECL can't be exception var");
-  assert(D->getPreviousDecl() == 0 && "PARM_VAR_DECL can't be redecl");
+  assert(D->getPreviousDecl() == nullptr && "PARM_VAR_DECL can't be redecl");
   assert(!D->isStaticDataMember() &&
          "PARM_VAR_DECL can't be static data member");
 }
@@ -833,9 +845,7 @@ void ASTDeclWriter::VisitBlockDecl(BlockDecl *D) {
   Record.push_back(D->isConversionFromLambda());
   Record.push_back(D->capturesCXXThis());
   Record.push_back(D->getNumCaptures());
-  for (BlockDecl::capture_iterator
-         i = D->capture_begin(), e = D->capture_end(); i != e; ++i) {
-    const BlockDecl::Capture &capture = *i;
+  for (const auto &capture : D->captures()) {
     Writer.AddDeclRef(capture.getVariable(), Record);
 
     unsigned flags = 0;
@@ -853,9 +863,11 @@ void ASTDeclWriter::VisitBlockDecl(BlockDecl *D) {
 void ASTDeclWriter::VisitCapturedDecl(CapturedDecl *CD) {
   Record.push_back(CD->getNumParams());
   VisitDecl(CD);
+  Record.push_back(CD->getContextParamPosition());
+  Record.push_back(CD->isNothrow() ? 1 : 0);
   // Body is stored by VisitCapturedStmt.
-  for (unsigned i = 0; i < CD->getNumParams(); ++i)
-    Writer.AddDeclRef(CD->getParam(i), Record);
+  for (unsigned I = 0; I < CD->getNumParams(); ++I)
+    Writer.AddDeclRef(CD->getParam(I), Record);
   Code = serialization::DECL_CAPTURED;
 }
 
@@ -911,9 +923,8 @@ void ASTDeclWriter::VisitNamespaceDecl(NamespaceDecl *D) {
     Decl *Parent = cast<Decl>(
         D->getParent()->getRedeclContext()->getPrimaryContext());
     if (Parent->isFromASTFile() || isa<TranslationUnitDecl>(Parent)) {
-      ASTWriter::UpdateRecord &Record = Writer.DeclUpdates[Parent];
-      Record.push_back(UPD_CXX_ADDED_ANONYMOUS_NAMESPACE);
-      Writer.AddDeclRef(D, Record);
+      Writer.DeclUpdates[Parent].push_back(
+          ASTWriter::DeclUpdate(UPD_CXX_ADDED_ANONYMOUS_NAMESPACE, D));
     }
   }
 }
@@ -975,9 +986,6 @@ void ASTDeclWriter::VisitUnresolvedUsingTypenameDecl(
 
 void ASTDeclWriter::VisitCXXRecordDecl(CXXRecordDecl *D) {
   VisitRecordDecl(D);
-  Record.push_back(D->isThisDeclarationADefinition());
-  if (D->isThisDeclarationADefinition())
-    Writer.AddCXXDefinitionData(D, Record);
 
   enum {
     CXXRecNotTemplate = 0, CXXRecTemplate, CXXRecMemberSpecialization
@@ -994,6 +1002,10 @@ void ASTDeclWriter::VisitCXXRecordDecl(CXXRecordDecl *D) {
   } else {
     Record.push_back(CXXRecNotTemplate);
   }
+
+  Record.push_back(D->isThisDeclarationADefinition());
+  if (D->isThisDeclarationADefinition())
+    Writer.AddCXXDefinitionData(D, Record);
 
   // Store (what we currently believe to be) the key function to avoid
   // deserializing every method so we can compute it.
@@ -1021,6 +1033,7 @@ void ASTDeclWriter::VisitCXXMethodDecl(CXXMethodDecl *D) {
 void ASTDeclWriter::VisitCXXConstructorDecl(CXXConstructorDecl *D) {
   VisitCXXMethodDecl(D);
 
+  Writer.AddDeclRef(D->getInheritedConstructor(), Record);
   Record.push_back(D->IsExplicitSpecified);
   Writer.AddCXXCtorInitializers(D->CtorInitializers, D->NumCtorInitializers,
                                 Record);
@@ -1091,7 +1104,7 @@ void ASTDeclWriter::VisitFriendTemplateDecl(FriendTemplateDecl *D) {
   Record.push_back(D->getNumTemplateParameters());
   for (unsigned i = 0, e = D->getNumTemplateParameters(); i != e; ++i)
     Writer.AddTemplateParameterList(D->getTemplateParameterList(i), Record);
-  Record.push_back(D->getFriendDecl() != 0);
+  Record.push_back(D->getFriendDecl() != nullptr);
   if (D->getFriendDecl())
     Writer.AddDeclRef(D->getFriendDecl(), Record);
   else
@@ -1143,8 +1156,6 @@ void ASTDeclWriter::VisitClassTemplateDecl(ClassTemplateDecl *D) {
       assert(I->isCanonicalDecl() && "Expected only canonical decls in set");
       Writer.AddDeclRef(&*I, Record); 
     }
-
-    Writer.AddTypeRef(D->getCommonPtr()->InjectedClassNameType, Record);
   }
   Code = serialization::DECL_CLASS_TEMPLATE;
 }
@@ -1192,7 +1203,7 @@ void ASTDeclWriter::VisitClassTemplatePartialSpecializationDecl(
   Writer.AddASTTemplateArgumentListInfo(D->getTemplateArgsAsWritten(), Record);
 
   // These are read/set from/to the first declaration.
-  if (D->getPreviousDecl() == 0) {
+  if (D->getPreviousDecl() == nullptr) {
     Writer.AddDeclRef(D->getInstantiatedFromMember(), Record);
     Record.push_back(D->isMemberSpecialization());
   }
@@ -1268,7 +1279,7 @@ void ASTDeclWriter::VisitVarTemplatePartialSpecializationDecl(
   Writer.AddASTTemplateArgumentListInfo(D->getTemplateArgsAsWritten(), Record);
 
   // These are read/set from/to the first declaration.
-  if (D->getPreviousDecl() == 0) {
+  if (D->getPreviousDecl() == nullptr) {
     Writer.AddDeclRef(D->getInstantiatedFromMember(), Record);
     Record.push_back(D->isMemberSpecialization());
   }
@@ -1335,7 +1346,7 @@ void ASTDeclWriter::VisitNonTypeTemplateParmDecl(NonTypeTemplateParmDecl *D) {
   } else {
     // Rest of NonTypeTemplateParmDecl.
     Record.push_back(D->isParameterPack());
-    Record.push_back(D->getDefaultArgument() != 0);
+    Record.push_back(D->getDefaultArgument() != nullptr);
     if (D->getDefaultArgument()) {
       Writer.AddStmt(D->getDefaultArgument());
       Record.push_back(D->defaultArgumentWasInherited());
@@ -1429,10 +1440,8 @@ void ASTDeclWriter::VisitRedeclarable(Redeclarable<T> *D) {
 void ASTDeclWriter::VisitOMPThreadPrivateDecl(OMPThreadPrivateDecl *D) {
   Record.push_back(D->varlist_size());
   VisitDecl(D);
-  for (OMPThreadPrivateDecl::varlist_iterator I = D->varlist_begin(),
-                                              E = D->varlist_end();
-       I != E; ++I)
-    Writer.AddStmt(*I);
+  for (auto *I : D->varlists())
+    Writer.AddStmt(I);
   Code = serialization::DECL_OMP_THREADPRIVATE;
 }
 
@@ -1506,8 +1515,6 @@ void ASTWriter::WriteDeclsBlockAbbrevs() {
   // ObjC Ivar
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // getAccessControl
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6)); // getSynthesize
-  // getBackingIvarReferencedInAccessor
-  Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6));
   // Type Source Info
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::VBR, 6));
   Abv->Add(BitCodeAbbrevOp(BitCodeAbbrevOp::Array));
@@ -1817,8 +1824,10 @@ static bool isRequiredDecl(const Decl *D, ASTContext &Context) {
   // An ObjCMethodDecl is never considered as "required" because its
   // implementation container always is.
 
-  // File scoped assembly or obj-c implementation must be seen.
-  if (isa<FileScopeAsmDecl>(D) || isa<ObjCImplDecl>(D))
+  // File scoped assembly or obj-c implementation must be seen. ImportDecl is
+  // used by codegen to determine the set of imported modules to search for
+  // inputs for automatic linking.
+  if (isa<FileScopeAsmDecl>(D) || isa<ObjCImplDecl>(D) || isa<ImportDecl>(D))
     return true;
 
   return Context.DeclMustBeEmitted(D);
@@ -1906,10 +1915,16 @@ void ASTWriter::WriteDecl(ASTContext &Context, Decl *D) {
   // Flush C++ base specifiers, if there are any.
   FlushCXXBaseSpecifiers();
   
-  // Note "external" declarations so that we can add them to a record in the
-  // AST file later.
-  //
-  // FIXME: This should be renamed, the predicate is much more complicated.
+  // Note declarations that should be deserialized eagerly so that we can add
+  // them to a record in the AST file later.
   if (isRequiredDecl(D, Context))
-    ExternalDefinitions.push_back(ID);
+    EagerlyDeserializedDecls.push_back(ID);
+}
+
+void ASTWriter::AddFunctionDefinition(const FunctionDecl *FD,
+                                      RecordData &Record) {
+  ClearSwitchCaseIDs();
+
+  ASTDeclWriter W(*this, FD->getASTContext(), Record);
+  W.AddFunctionDefinition(FD);
 }

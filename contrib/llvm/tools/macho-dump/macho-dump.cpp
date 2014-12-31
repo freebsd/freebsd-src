@@ -20,7 +20,7 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/system_error.h"
+#include <system_error>
 using namespace llvm;
 using namespace llvm::object;
 
@@ -96,9 +96,9 @@ static int DumpSectionData(const MachOObjectFile &Obj, unsigned Index,
   // Dump the relocation entries.
   outs() << "  ('_relocations', [\n";
   unsigned RelNum = 0;
-  error_code EC;
   for (relocation_iterator I = Obj.section_rel_begin(Index),
-         E = Obj.section_rel_end(Index); I != E; I.increment(EC), ++RelNum) {
+                           E = Obj.section_rel_end(Index);
+       I != E; ++I, ++RelNum) {
     MachO::any_relocation_info RE = Obj.getRelocation(I->getRawDataRefImpl());
     outs() << "    # Relocation " << RelNum << "\n";
     outs() << "    (('word-0', " << format("0x%x", RE.r_word0) << "),\n";
@@ -201,11 +201,9 @@ static int DumpSymtabCommand(const MachOObjectFile &Obj) {
 
   // Dump the symbol table.
   outs() << "  ('_symbols', [\n";
-  error_code EC;
   unsigned SymNum = 0;
-  for (symbol_iterator I = Obj.begin_symbols(), E = Obj.end_symbols(); I != E;
-       I.increment(EC), ++SymNum) {
-    DataRefImpl DRI = I->getRawDataRefImpl();
+  for (const SymbolRef &Symbol : Obj.symbols()) {
+    DataRefImpl DRI = Symbol.getRawDataRefImpl();
     if (Obj.is64Bit()) {
       MachO::nlist_64 STE = Obj.getSymbol64TableEntry(DRI);
       DumpSymbolTableEntryData(Obj, SymNum, STE.n_strx, STE.n_type,
@@ -217,6 +215,7 @@ static int DumpSymtabCommand(const MachOObjectFile &Obj) {
                                STE.n_sect, STE.n_desc, STE.n_value,
                                StringTable);
     }
+    SymNum++;
   }
   outs() << "  ])\n";
 
@@ -320,6 +319,26 @@ DumpLinkerOptionsCommand(const MachOObjectFile &Obj,
   return 0;
 }
 
+static int
+DumpVersionMin(const MachOObjectFile &Obj,
+               const MachOObjectFile::LoadCommandInfo &LCI) {
+  MachO::version_min_command VMLC = Obj.getVersionMinLoadCommand(LCI);
+  outs() << "  ('version, " << VMLC.version << ")\n"
+         << "  ('reserved, " << VMLC.reserved << ")\n";
+  return 0;
+}
+
+static int
+DumpDylibID(const MachOObjectFile &Obj,
+            const MachOObjectFile::LoadCommandInfo &LCI) {
+  MachO::dylib_command DLLC = Obj.getDylibIDLoadCommand(LCI);
+  outs() << "  ('install_name', '" << LCI.Ptr + DLLC.dylib.name << "')\n"
+         << "  ('timestamp, " << DLLC.dylib.timestamp << ")\n"
+         << "  ('cur_version, " << DLLC.dylib.current_version << ")\n"
+         << "  ('compat_version, " << DLLC.dylib.compatibility_version << ")\n";
+  return 0;
+}
+
 static int DumpLoadCommand(const MachOObjectFile &Obj,
                            MachOObjectFile::LoadCommandInfo &LCI) {
   switch (LCI.C.cmd) {
@@ -339,6 +358,11 @@ static int DumpLoadCommand(const MachOObjectFile &Obj,
     return DumpDataInCodeDataCommand(Obj, LCI);
   case MachO::LC_LINKER_OPTIONS:
     return DumpLinkerOptionsCommand(Obj, LCI);
+  case MachO::LC_VERSION_MIN_IPHONEOS:
+  case MachO::LC_VERSION_MIN_MACOSX:
+    return DumpVersionMin(Obj, LCI);
+  case MachO::LC_ID_DYLIB:
+    return DumpDylibID(Obj, LCI);
   default:
     Warning("unknown load command: " + Twine(LCI.C.cmd));
     return 0;
@@ -379,9 +403,10 @@ int main(int argc, char **argv) {
 
   cl::ParseCommandLineOptions(argc, argv, "llvm Mach-O dumping tool\n");
 
-  OwningPtr<Binary> Binary;
-  if (error_code EC = createBinary(InputFile, Binary))
+  ErrorOr<Binary *> BinaryOrErr = createBinary(InputFile);
+  if (std::error_code EC = BinaryOrErr.getError())
     return Error("unable to read input: '" + EC.message() + "'");
+  std::unique_ptr<Binary> Binary(BinaryOrErr.get());
 
   const MachOObjectFile *InputObject = dyn_cast<MachOObjectFile>(Binary.get());
   if (!InputObject)
