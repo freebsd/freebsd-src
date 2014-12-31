@@ -133,6 +133,12 @@ void	vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *guest_iov,
 void	vm_copyout(struct vmctx *ctx, int vcpu, const void *host_src,
 	    struct iovec *guest_iov, size_t len);
 
+/* RTC */
+int	vm_rtc_write(struct vmctx *ctx, int offset, uint8_t value);
+int	vm_rtc_read(struct vmctx *ctx, int offset, uint8_t *retval);
+int	vm_rtc_settime(struct vmctx *ctx, time_t secs);
+int	vm_rtc_gettime(struct vmctx *ctx, time_t *secs);
+
 /* Reset vcpu register state */
 int	vcpu_reset(struct vmctx *ctx, int vcpu);
 
