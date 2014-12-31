@@ -34,18 +34,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 20141231:
 	Clang, llvm and lldb have been upgraded to 3.5.0 release.
 
-	As of this release, a prerequisite for building llvm and clang is a
-	C++11 capable compiler and C++11 standard library.  This means that to
+	As of this release, a prerequisite for building clang, llvm and lldb is
+	a C++11 capable compiler and C++11 standard library.  This means that to
 	be able to successfully build the cross-tools stage of buildworld, with
 	clang as the bootstrap compiler, your system compiler or cross compiler
 	should either be clang 3.3 or later, or gcc 4.8 or later, and your
 	system C++ library should be libc++, or libdstdc++ from gcc 4.8 or
 	later.
 
-	On any earlier standard FreeBSD 10.x or 11.x installation, where clang
-	and libc++ are on by default (that is, on x86 or arm), this should work
-	out of the box, unless you explicitly disabled clang or libc++.  In that
-	case, you must re-enable, build and install both of those first.
+	On any standard FreeBSD 10.x or 11.x installation, where clang and
+	libc++ are on by default (that is, on x86 or arm), this should work out
+	of the box.
 
 	On 9.x installations where clang is enabled by default, e.g. on x86 and
 	powerpc, libc++ will not be enabled by default, so libc++ should be
@@ -54,6 +53,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 
 	On 8.x and earlier installations, upgrade to 9.x first, and then follow
 	the instructions for 9.x above.
+
+	Sparc64 and mips users are unaffected, as they still use gcc 4.2.1 by
+	default, and do not build clang.
+
+	Many embedded systems are resource constrained, and will not be able to
+	build clang in a reasonable time, or in some cases at all.  In those
+	cases, cross building bootable systems on amd64 is a workaround.
 
 	This new version of clang introduces a number of new warnings, of which
 	the following are most likely to appear:
