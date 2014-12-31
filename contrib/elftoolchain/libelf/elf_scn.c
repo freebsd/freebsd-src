@@ -62,7 +62,7 @@ _libelf_load_section_headers(Elf *e, void *ehdr)
 #define	CHECK_EHDR(E,EH)	do {				\
 		if (fsz != (EH)->e_shentsize ||			\
 		    shnum > SIZE_MAX / fsz ||			\
-		    shoff + fsz * shnum > e->e_rawsize) {	\
+		    fsz * shnum > e->e_rawsize - shoff) {	\
 			LIBELF_SET_ERROR(HEADER, 0);		\
 			return (0);				\
 		}						\
