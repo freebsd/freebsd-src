@@ -34,40 +34,23 @@ __FBSDID("$FreeBSD$");
 #include <x86/hypervisor.h>
 #include <x86/vmware.h>
 
-static int		vmware_identify(void);
-static uint32_t		vmware_cpuid_identify(void);
-
-const struct hypervisor_info vmware_hypervisor_info = {
-	.hvi_name =		"VMware",
-	.hvi_signature =	"VMwareVMware",
-	.hvi_type =		VM_GUEST_VMWARE,
-	.hvi_identify =		vmware_identify,
-};
-
 static uint32_t vmware_cpuid_base = -1;
 static uint32_t vmware_cpuid_high = -1;
 
-static uint32_t
+static int
 vmware_cpuid_identify(void)
 {
 
+	/*
+	 * KB1009458: Mechanisms to determine if software is running in a
+	 * VMware virtual machine: http://kb.vmware.com/kb/1009458
+	 */
 	if (vmware_cpuid_base == -1) {
-		hypervisor_cpuid_base(vmware_hypervisor_info.hvi_signature,
-		    0, &vmware_cpuid_base, &vmware_cpuid_high);
+		hypervisor_cpuid_base("VMwareVMware", 0, &vmware_cpuid_base,
+		    &vmware_cpuid_high);
 	}
 
-	return (vmware_cpuid_base);
-}
-
-/*
- * KB1009458: Mechanisms to determine if software is running in a VMware
- * virtual machine: http://kb.vmware.com/kb/1009458
- */
-static int
-vmware_identify(void)
-{
-
-	return (vmware_cpuid_identify() != 0);
+	return (vmware_cpuid_base > 0);
 }
 
 uint64_t
@@ -89,3 +72,13 @@ vmware_tsc_freq(void)
 
 	return (freq);
 }
+
+static void
+vmware_init(void)
+{
+
+	if (vmware_cpuid_identify() != 0)
+		hypervisor_register("VMware", VM_GUEST_VMWARE, NULL);
+}
+
+HYPERVISOR_SYSINIT(vmware, vmware_init);

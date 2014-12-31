@@ -55,8 +55,9 @@ static struct timecounter kvm_clock_timecounter = {
 	1000,
 };
 
-static uint32_t kvm_clock_wall_clock_msr;
-static uint32_t kvm_clock_system_time_msr;
+static int		kvm_clock_registered;
+static uint32_t		kvm_clock_wall_clock_msr;
+static uint32_t		kvm_clock_system_time_msr;
 
 uint64_t
 kvm_clock_tsc_freq(void)
@@ -102,11 +103,23 @@ kvm_clock_pcpu_system_time(void *arg)
 	wrmsr(kvm_clock_system_time_msr, data);
 }
 
+void
+kvm_clock_cpu_stop(int restarted)
+{
+
+	/*
+	 * The per-CPU shared data area must be unregistered when the CPU
+	 * is stopped. Otherwise if the guest is rebooted, the host can
+	 * continue to write into the shared data area causing corruption.
+	 */
+	if (kvm_clock_registered != 0)
+		kvm_clock_pcpu_system_time(&restarted);
+}
+
 static void
 kvm_clock_init(void)
 {
 	uint32_t features;
-	int enable;
 
 	if (vm_guest != VM_GUEST_KVM || !kvm_paravirt_supported())
 		return;
@@ -122,9 +135,9 @@ kvm_clock_init(void)
 	} else
 		return;
 
-	enable = 1;
+	kvm_clock_registered = 1;
 	smp_rendezvous(smp_no_rendevous_barrier, kvm_clock_pcpu_system_time,
-	    smp_no_rendevous_barrier, &enable);
+	    smp_no_rendevous_barrier, &kvm_clock_registered);
 
 	tc_init(&kvm_clock_timecounter);
 }

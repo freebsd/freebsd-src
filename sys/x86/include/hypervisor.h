@@ -29,18 +29,30 @@
 #ifndef _X86_HYPERVISOR_H_
 #define _X86_HYPERVISOR_H_
 
-typedef int hypervisor_info_identify_t(void);
+#include <sys/param.h>
+#include <sys/kernel.h>
 
-struct hypervisor_info {
-	const char			*hvi_name;
-	const char			*hvi_signature;
-	enum VM_GUEST			 hvi_type;
-	hypervisor_info_identify_t	*hvi_identify;
+typedef void hypervisor_init_func_t(void);
+typedef void hypervisor_op_cpu_stop_t(int);
+
+/*
+ * The guest hypervisor support may provide paravirtualized or have special
+ * requirements for various operations. The callback functions are provided
+ * when a hypervisor is detected and registered.
+ */
+struct hypervisor_ops {
+	hypervisor_op_cpu_stop_t	*hvo_cpu_stop;
 };
 
-void	hypervisor_cpuid_identify(void);
+void	hypervisor_sysinit(void *func);
+void	hypervisor_register(const char *vendor, enum VM_GUEST guest,
+	    struct hypervisor_ops *ops);
 int	hypervisor_cpuid_base(const char *signature, int leaves,
 	    uint32_t *base, uint32_t *high);
 void	hypervisor_print_info(void);
+
+#define HYPERVISOR_SYSINIT(name, func)				\
+	SYSINIT(name ## _hypervisor_sysinit, SI_SUB_HYPERVISOR,	\
+	    SI_ORDER_FIRST, hypervisor_sysinit, func)
 
 #endif /* !_X86_HYPERVISOR_H_ */

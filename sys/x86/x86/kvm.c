@@ -30,46 +30,45 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
+#include <machine/cpufunc.h>
+
 #include <x86/hypervisor.h>
 #include <x86/kvm.h>
 
-static int		kvm_identify(void);
-static uint32_t		kvm_cpuid_identify(void);
+static int		kvm_cpuid_identify(void);
+static void		kvm_cpu_stop(int);
 
-const struct hypervisor_info kvm_hypervisor_info = {
-	.hvi_name =		"KVM",
-	.hvi_signature =	"KVMKVMKVM\0\0",
-	.hvi_type =		VM_GUEST_KVM,
-	.hvi_identify =		kvm_identify,
+static struct hypervisor_ops kvm_ops = {
+	.hvo_cpu_stop =		kvm_cpu_stop,
 };
 
 static uint32_t kvm_cpuid_base = -1;
 static uint32_t kvm_cpuid_high = -1;
 
-static uint32_t
+static int
 kvm_cpuid_identify(void)
 {
 
 	if (kvm_cpuid_base == -1) {
-		hypervisor_cpuid_base(kvm_hypervisor_info.hvi_signature,
-		    0, &kvm_cpuid_base, &kvm_cpuid_high);
+		hypervisor_cpuid_base("KVMKVMKVM\0\0", 0, &kvm_cpuid_base,
+		    &kvm_cpuid_high);
 	}
 
-	return (kvm_cpuid_base);
+	return (kvm_cpuid_base > 0);
 }
 
-static int
-kvm_identify(void)
+static void
+kvm_cpu_stop(int restarted)
 {
 
-	return (kvm_cpuid_identify() != 0);
+	kvm_clock_cpu_stop(restarted);
 }
 
 int
 kvm_paravirt_supported(void)
 {
 
-	return (kvm_cpuid_base != -1);
+	return (kvm_cpuid_base > 0);
 }
 
 uint32_t
@@ -77,7 +76,20 @@ kvm_get_features(void)
 {
 	u_int regs[4];
 
-	do_cpuid(kvm_cpuid_identify() | KVM_CPUID_FEATURES_LEAF, regs);
+	if (kvm_paravirt_supported())
+		do_cpuid(kvm_cpuid_base | KVM_CPUID_FEATURES_LEAF, regs);
+	else
+		regs[0] = 0;
 
 	return (regs[0]);
 }
+
+static void
+kvm_init(void)
+{
+
+	if (kvm_cpuid_identify() != 0)
+		hypervisor_register("KVM", VM_GUEST_KVM, &kvm_ops);
+}
+
+HYPERVISOR_SYSINIT(kvm, kvm_init);

@@ -1213,11 +1213,12 @@ identify_hypervisor(void)
 	int i;
 
 	/*
-	 * Modern hypervisors set the HV present feature bit, and are then
-	 * identifiable through a special CPUID leaf.
+	 * Modern hypervisors set the HV present feature bit and are then
+	 * identifiable through a special CPUID leaf. Hypervisors we know
+	 * about are later detected via the SI_SUB_HYPERVISOR SYSINIT().
 	 */
 	if (cpu_feature2 & CPUID2_HV) {
-		hypervisor_cpuid_identify();
+		vm_guest = VM_GUEST_VM;
 		return;
 	}
 

@@ -32,33 +32,27 @@ __FBSDID("$FreeBSD$");
 
 #include <x86/hypervisor.h>
 
-static int	bhyve_identify(void);
-
-const struct hypervisor_info bhyve_hypervisor_info = {
-	.hvi_name =		"bhyve",
-	.hvi_signature =	"bhyve bhyve",
-	.hvi_type =		VM_GUEST_BHYVE,
-	.hvi_identify =		bhyve_identify,
-};
-
 static uint32_t bhyve_cpuid_base = -1;
 static uint32_t bhyve_cpuid_high = -1;
 
-static uint32_t
+static int
 bhyve_cpuid_identify(void)
 {
 
 	if (bhyve_cpuid_base == -1) {
-		hypervisor_cpuid_base(bhyve_hypervisor_info.hvi_signature,
-		    0, &bhyve_cpuid_base, &bhyve_cpuid_high);
+		hypervisor_cpuid_base("bhyve bhyve", 0, &bhyve_cpuid_base,
+		    &bhyve_cpuid_high);
 	}
 
-	return (bhyve_cpuid_base);
+	return (bhyve_cpuid_base > 0);
 }
 
-static int
-bhyve_identify(void)
+static void
+bhyve_init(void)
 {
 
-	return (bhyve_cpuid_identify() != 0);
+	if (bhyve_cpuid_identify() != 0)
+		hypervisor_register("bhyve", VM_GUEST_BHYVE, NULL);
 }
+
+HYPERVISOR_SYSINIT(bhyve, bhyve_init);

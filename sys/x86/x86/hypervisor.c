@@ -33,6 +33,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/cpufunc.h>
 #include <machine/cpu.h>
+#include <machine/md_var.h>
+#include <machine/specialreg.h>
 
 #include <x86/hypervisor.h>
 
@@ -40,17 +42,41 @@ char hv_vendor[16];
 SYSCTL_STRING(_hw, OID_AUTO, hv_vendor, CTLFLAG_RD, hv_vendor, 0,
     "Hypervisor vendor");
 
-extern const struct hypervisor_info bhyve_hypervisor_info;
-extern const struct hypervisor_info kvm_hypervisor_info;
-extern const struct hypervisor_info vmware_hypervisor_info;
+void
+hypervisor_sysinit(void *func)
+{
+	hypervisor_init_func_t *init;
 
-static const struct hypervisor_info *hypervisor_infos[] = {
-	&bhyve_hypervisor_info,
-	&kvm_hypervisor_info,
-	&vmware_hypervisor_info,
-};
+	init = func;
 
-static const struct hypervisor_info *hv_info;
+	/*
+	 * Call the init function if we have not already identified the
+	 * hypervisor yet. We assume the hypervisor will announce its
+	 * presence via the CPUID bit.
+	 */
+	if (vm_guest == VM_GUEST_VM && cpu_feature2 & CPUID2_HV)
+		(*init)();
+}
+
+static void
+hypervisor_register_cpu_ops(struct hypervisor_ops *ops)
+{
+
+	if (ops->hvo_cpu_stop != NULL)
+		cpu_ops.cpu_stop = ops->hvo_cpu_stop;
+}
+
+void
+hypervisor_register(const char *vendor, enum VM_GUEST guest,
+    struct hypervisor_ops *ops)
+{
+
+	strlcpy(hv_vendor, vendor, sizeof(hv_vendor));
+	vm_guest = guest;
+
+	if (ops != NULL)
+		hypervisor_register_cpu_ops(ops);
+}
 
 /*
  * [RFC] CPUID usage for interaction between Hypervisors and Linux.
@@ -73,28 +99,6 @@ hypervisor_cpuid_base(const char *signature, int leaves, uint32_t *base,
 	}
 
 	return (1);
-}
-
-void
-hypervisor_cpuid_identify(void)
-{
-	const struct hypervisor_info *hvi;
-	int i;
-
-	for (i = 0; i < nitems(hypervisor_infos); i++) {
-		hvi = hypervisor_infos[i];
-
-		if (hvi->hvi_identify() != 0) {
-			hv_info = hvi;
-			break;
-		}
-	}
-
-	if (hv_info != NULL) {
-		vm_guest = hvi->hvi_type;
-		strlcpy(hv_vendor, hvi->hvi_name, sizeof(hv_vendor));
-	} else
-		vm_guest = VM_GUEST_VM;
 }
 
 void
