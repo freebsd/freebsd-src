@@ -88,7 +88,7 @@ public:
 
   virtual SVal evalComplement(NonLoc val) = 0;
 
-  /// Create a new value which represents a binary expression with two non
+  /// Create a new value which represents a binary expression with two non-
   /// location operands.
   virtual SVal evalBinOpNN(ProgramStateRef state, BinaryOperator::Opcode op,
                            NonLoc lhs, NonLoc rhs, QualType resultTy) = 0;
@@ -99,7 +99,7 @@ public:
                            Loc lhs, Loc rhs, QualType resultTy) = 0;
 
   /// Create a new value which represents a binary expression with a memory
-  /// location and non location operands. For example, this would be used to
+  /// location and non-location operands. For example, this would be used to
   /// evaluate a pointer arithmetic operation.
   virtual SVal evalBinOpLN(ProgramStateRef state, BinaryOperator::Opcode op,
                            Loc lhs, NonLoc rhs, QualType resultTy) = 0;
@@ -146,14 +146,14 @@ public:
                                       const LocationContext *LCtx,
                                       QualType type,
                                       unsigned visitCount,
-                                      const void *symbolTag = 0) {
+                                      const void *symbolTag = nullptr) {
     return SymMgr.conjureSymbol(stmt, LCtx, type, visitCount, symbolTag);
   }
 
   const SymbolConjured* conjureSymbol(const Expr *expr,
                                       const LocationContext *LCtx,
                                       unsigned visitCount,
-                                      const void *symbolTag = 0) {
+                                      const void *symbolTag = nullptr) {
     return SymMgr.conjureSymbol(expr, LCtx, visitCount, symbolTag);
   }
 

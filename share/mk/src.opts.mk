@@ -190,25 +190,29 @@ __TT=${TARGET}
 .else
 __TT=${MACHINE}
 .endif
-# Clang is only for x86, powerpc and little-endian arm right now, by default.
-.if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
-__DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL CLANG_BOOTSTRAP
-.elif ${__TT} == "arm" && ${__T:Marm*eb*} == ""
-__DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP
-# GCC is unable to build the full clang on arm, disable it by default.
-__DEFAULT_NO_OPTIONS+=CLANG_FULL
-.else
-__DEFAULT_NO_OPTIONS+=CLANG CLANG_FULL CLANG_BOOTSTRAP
-.endif
-# Clang the default system compiler only on little-endian arm and x86.
-.if ${__T} == "amd64" || (${__TT} == "arm" && ${__T:Marm*eb*} == "") || \
-    ${__T} == "i386"
-__DEFAULT_YES_OPTIONS+=CLANG_IS_CC
-__DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
-.else
-# If clang is not cc, then build gcc by default
-__DEFAULT_NO_OPTIONS+=CLANG_IS_CC CLANG CLANG_BOOTSTRAP
+
+.include <bsd.compiler.mk>
+.if !${COMPILER_FEATURES:Mc++11}
+# If the compiler is not C++11 capable, disable clang and use gcc instead.
 __DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
+__DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
+.elif ${__T} == "amd64" || ${__T} == "i386"
+# On x86, clang is enabled, and will be installed as the default cc.
+__DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
+__DEFAULT_NO_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
+.elif ${__TT} == "arm" && ${__T:Marm*eb*} == ""
+# On little-endian arm, clang is enabled, and it is installed as the default
+# cc, but since gcc is unable to build the full clang, disable it by default.
+__DEFAULT_YES_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_IS_CC
+__DEFAULT_NO_OPTIONS+=CLANG_FULL GCC GCC_BOOTSTRAP GNUCXX
+.elif ${__T:Mpowerpc*}
+# On powerpc, clang is enabled, but gcc is installed as the default cc.
+__DEFAULT_YES_OPTIONS+=CLANG CLANG_FULL GCC GCC_BOOTSTRAP GNUCXX
+__DEFAULT_NO_OPTIONS+=CLANG_BOOTSTRAP CLANG_IS_CC
+.else
+# Everything else disables clang, and uses gcc instead.
+__DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
+__DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
 .endif
 
 .include <bsd.mkopt.mk>
@@ -216,7 +220,6 @@ __DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
 #
 # MK_* options that default to "yes" if the compiler is a C++11 compiler.
 #
-.include <bsd.compiler.mk>
 .for var in \
     LIBCPLUSPLUS
 .if !defined(MK_${var})

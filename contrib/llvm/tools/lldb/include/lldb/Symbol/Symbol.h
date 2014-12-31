@@ -92,6 +92,9 @@ public:
         return m_addr_range.GetBaseAddress();
     }
 
+    lldb::addr_t
+    ResolveCallableAddress(Target &target) const;
+
     const ConstString &
     GetName () const
     {
@@ -135,7 +138,7 @@ public:
     SetReExportedSymbolSharedLibrary (const FileSpec &fspec);
     
     Symbol *
-    ResolveReExportedSymbol (Target &target);
+    ResolveReExportedSymbol (Target &target) const;
 
     uint32_t
     GetSiblingIndex () const;
@@ -303,7 +306,15 @@ public:
                     Stream &strm);
 
 protected:
-
+    // This is the internal guts of ResolveReExportedSymbol, it assumes reexport_name is not null, and that module_spec
+    // is valid.  We track the modules we've already seen to make sure we don't get caught in a cycle.
+    
+    Symbol *
+    ResolveReExportedSymbolInModuleSpec (Target &target,
+                                         ConstString &reexport_name,
+                                         lldb_private::ModuleSpec &module_spec,
+                                         lldb_private::ModuleList &seen_modules) const;
+    
     uint32_t        m_uid;                  // User ID (usually the original symbol table index)
     uint16_t        m_type_data;            // data specific to m_type
     uint16_t        m_type_data_resolved:1, // True if the data in m_type_data has already been calculated

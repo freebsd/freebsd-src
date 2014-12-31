@@ -18,7 +18,7 @@ using namespace lldb;
 using namespace lldb_private;
 
 
-// when the one and only logging channel is abled, then this will be non NULL.
+// when the one and only logging channel is enabled, then this will be non NULL.
 static LogChannelDWARF* g_log_channel = NULL;
 
 LogChannelDWARF::LogChannelDWARF () :
@@ -103,6 +103,7 @@ LogChannelDWARF::Disable (const char **categories, Stream *feedback_strm)
         else if (::strcasecmp (arg, "lookups")    == 0) flag_bits &= ~DWARF_LOG_LOOKUPS;
         else if (::strcasecmp (arg, "map")        == 0) flag_bits &= ~DWARF_LOG_DEBUG_MAP;
         else if (::strcasecmp (arg, "default")    == 0) flag_bits &= ~DWARF_LOG_DEFAULT;
+        else if (::strcasecmp (arg, "verbose")    == 0) flag_bits &= ~DWARF_LOG_VERBOSE;
         else if (::strncasecmp(arg, "comp", 4)    == 0) flag_bits &= ~DWARF_LOG_TYPE_COMPLETION;
         else
         {
@@ -151,6 +152,7 @@ LogChannelDWARF::Enable
         else if (::strcasecmp (arg, "lookups")    == 0) flag_bits |= DWARF_LOG_LOOKUPS;
         else if (::strcasecmp (arg, "map")        == 0) flag_bits |= DWARF_LOG_DEBUG_MAP;
         else if (::strcasecmp (arg, "default")    == 0) flag_bits |= DWARF_LOG_DEFAULT;
+        else if (::strcasecmp (arg, "verbose")    == 0) flag_bits |= DWARF_LOG_VERBOSE;
         else if (::strncasecmp(arg, "comp", 4)    == 0) flag_bits |= DWARF_LOG_TYPE_COMPLETION;
         else
         {

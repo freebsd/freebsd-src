@@ -46,11 +46,14 @@ def DirectivePwr5x: SubtargetFeature<"", "DarwinDirective", "PPC::DIR_PWR5X", ""
 def DirectivePwr6: SubtargetFeature<"", "DarwinDirective", "PPC::DIR_PWR6", "">;
 def DirectivePwr6x: SubtargetFeature<"", "DarwinDirective", "PPC::DIR_PWR6X", "">;
 def DirectivePwr7: SubtargetFeature<"", "DarwinDirective", "PPC::DIR_PWR7", "">;
+def DirectivePwr8: SubtargetFeature<"", "DarwinDirective", "PPC::DIR_PWR8", "">;
 
 def Feature64Bit     : SubtargetFeature<"64bit","Has64BitSupport", "true",
                                         "Enable 64-bit instructions">;
 def Feature64BitRegs : SubtargetFeature<"64bitregs","Use64BitRegs", "true",
                               "Enable 64-bit registers usage for ppc32 [beta]">;
+def FeatureCRBits    : SubtargetFeature<"crbits", "UseCRBits", "true",
+                              "Use condition-register bits individually">;
 def FeatureAltivec   : SubtargetFeature<"altivec","HasAltivec", "true",
                                         "Enable Altivec instructions">;
 def FeatureMFOCRF    : SubtargetFeature<"mfocrf","HasMFOCRF", "true",
@@ -88,7 +91,8 @@ def FeatureBookE     : SubtargetFeature<"booke", "IsBookE", "true",
 def FeatureQPX       : SubtargetFeature<"qpx","HasQPX", "true",
                                         "Enable QPX instructions">;
 def FeatureVSX       : SubtargetFeature<"vsx","HasVSX", "true",
-                                        "Enable VSX instructions">;
+                                        "Enable VSX instructions",
+                                        [FeatureAltivec]>;
 
 def DeprecatedMFTB   : SubtargetFeature<"", "DeprecatedMFTB", "true",
                                         "Treat mftb as deprecated">;
@@ -109,6 +113,12 @@ def DeprecatedDST    : SubtargetFeature<"", "DeprecatedDST", "true",
 // RecFormRel - Filter class used to relate non-record-form instructions with
 // their record-form variants.
 class RecFormRel;
+
+// AltVSXFMARel - Filter class used to relate the primary addend-killing VSX
+// FMA instruction forms with their corresponding factor-killing forms.
+class AltVSXFMARel {
+  bit IsVSXFMAAlt = 0;
+}
 
 //===----------------------------------------------------------------------===//
 // Relation Map Definitions.
@@ -140,6 +150,19 @@ def getNonRecordFormOpcode : InstrMapping {
   let ValueCols = [["0"]];
 }
 
+def getAltVSXFMAOpcode : InstrMapping {
+  let FilterClass = "AltVSXFMARel";
+  // Instructions with the same BaseName and Interpretation64Bit values
+  // form a row.
+  let RowFields = ["BaseName"];
+  // Instructions with the same RC value form a column.
+  let ColFields = ["IsVSXFMAAlt"];
+  // The key column are the (default) addend-killing instructions.
+  let KeyCol = ["0"];
+  // Value columns IsVSXFMAAlt=1
+  let ValueCols = [["1"]];
+}
+
 //===----------------------------------------------------------------------===//
 // Register File Description
 //===----------------------------------------------------------------------===//
@@ -153,12 +176,12 @@ include "PPCInstrInfo.td"
 //
 
 def : Processor<"generic", G3Itineraries, [Directive32]>;
-def : Processor<"440", PPC440Itineraries, [Directive440, FeatureISEL,
-                                           FeatureFRES, FeatureFRSQRTE,
-                                           FeatureBookE, DeprecatedMFTB]>;
-def : Processor<"450", PPC440Itineraries, [Directive440, FeatureISEL,
-                                           FeatureFRES, FeatureFRSQRTE,
-                                           FeatureBookE, DeprecatedMFTB]>;
+def : ProcessorModel<"440", PPC440Model, [Directive440, FeatureISEL,
+                                          FeatureFRES, FeatureFRSQRTE,
+                                          FeatureBookE, DeprecatedMFTB]>;
+def : ProcessorModel<"450", PPC440Model, [Directive440, FeatureISEL,
+                                          FeatureFRES, FeatureFRSQRTE,
+                                          FeatureBookE, DeprecatedMFTB]>;
 def : Processor<"601", G3Itineraries, [Directive601]>;
 def : Processor<"602", G3Itineraries, [Directive602]>;
 def : Processor<"603", G3Itineraries, [Directive603,
@@ -254,8 +277,17 @@ def : ProcessorModel<"pwr6x", G5Model,
                    FeatureSTFIWX, FeatureLFIWAX,
                    FeatureFPRND, Feature64Bit,
                    DeprecatedMFTB, DeprecatedDST]>;
-def : ProcessorModel<"pwr7", G5Model,
+def : ProcessorModel<"pwr7", P7Model,
                   [DirectivePwr7, FeatureAltivec,
+                   FeatureMFOCRF, FeatureFCPSGN, FeatureFSqrt, FeatureFRE,
+                   FeatureFRES, FeatureFRSQRTE, FeatureFRSQRTES,
+                   FeatureRecipPrec, FeatureSTFIWX, FeatureLFIWAX,
+                   FeatureFPRND, FeatureFPCVT, FeatureISEL,
+                   FeaturePOPCNTD, FeatureLDBRX,
+                   Feature64Bit /*, Feature64BitRegs */,
+                   DeprecatedMFTB, DeprecatedDST]>;
+def : ProcessorModel<"pwr8", P7Model /* FIXME: Update to P8Model when available */,
+                  [DirectivePwr8, FeatureAltivec,
                    FeatureMFOCRF, FeatureFCPSGN, FeatureFSqrt, FeatureFRE,
                    FeatureFRES, FeatureFRSQRTE, FeatureFRSQRTES,
                    FeatureRecipPrec, FeatureSTFIWX, FeatureLFIWAX,
@@ -283,11 +315,11 @@ include "PPCCallingConv.td"
 
 def PPCInstrInfo : InstrInfo {
   let isLittleEndianEncoding = 1;
-}
 
-def PPCAsmWriter : AsmWriter {
-  string AsmWriterClassName  = "InstPrinter";
-  bit isMCAsmWriter = 1;
+  // FIXME: Unset this when no longer needed!
+  let decodePositionallyEncodedOperands = 1;
+
+  let noNamedPositionallyEncodedOperands = 1;
 }
 
 def PPCAsmParser : AsmParser {
@@ -306,8 +338,7 @@ def PPCAsmParserVariant : AsmParserVariant {
 def PPC : Target {
   // Information about the instructions.
   let InstructionSet = PPCInstrInfo;
-  
-  let AssemblyWriters = [PPCAsmWriter];
+
   let AssemblyParsers = [PPCAsmParser];
   let AssemblyParserVariants = [PPCAsmParserVariant];
 }

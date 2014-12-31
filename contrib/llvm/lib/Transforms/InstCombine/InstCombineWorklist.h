@@ -10,13 +10,14 @@
 #ifndef INSTCOMBINE_WORKLIST_H
 #define INSTCOMBINE_WORKLIST_H
 
-#define DEBUG_TYPE "instcombine"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+
+#define DEBUG_TYPE "instcombine"
 
 namespace llvm {
 
@@ -68,7 +69,7 @@ public:
     if (It == WorklistMap.end()) return; // Not in worklist.
 
     // Don't bother moving everything down, just null out the slot.
-    Worklist[It->second] = 0;
+    Worklist[It->second] = nullptr;
 
     WorklistMap.erase(It);
   }
@@ -84,9 +85,8 @@ public:
   /// now.
   ///
   void AddUsersToWorkList(Instruction &I) {
-    for (Value::use_iterator UI = I.use_begin(), UE = I.use_end();
-         UI != UE; ++UI)
-      Add(cast<Instruction>(*UI));
+    for (User *U : I.users())
+      Add(cast<Instruction>(U));
   }
 
 
@@ -101,5 +101,7 @@ public:
 };
 
 } // end namespace llvm.
+
+#undef DEBUG_TYPE
 
 #endif

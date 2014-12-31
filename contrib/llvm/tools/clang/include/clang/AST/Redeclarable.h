@@ -14,6 +14,7 @@
 #ifndef LLVM_CLANG_AST_REDECLARABLE_H
 #define LLVM_CLANG_AST_REDECLARABLE_H
 
+#include "clang/AST/ExternalASTSource.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/Support/Casting.h"
 #include <iterator>
@@ -23,26 +24,82 @@ namespace clang {
 /// \brief Provides common interface for the Decls that can be redeclared.
 template<typename decl_type>
 class Redeclarable {
-
 protected:
   class DeclLink {
-    llvm::PointerIntPair<decl_type *, 1, bool> NextAndIsPrevious;
-  public:
-    DeclLink(decl_type *D, bool isLatest)
-      : NextAndIsPrevious(D, isLatest) { }
+    /// A pointer to a known latest declaration, either statically known or
+    /// generationally updated as decls are added by an external source.
+    typedef LazyGenerationalUpdatePtr<const Decl*, Decl*,
+                                      &ExternalASTSource::CompleteRedeclChain>
+                                          KnownLatest;
 
-    bool NextIsPrevious() const { return !NextAndIsPrevious.getInt(); }
-    bool NextIsLatest() const { return NextAndIsPrevious.getInt(); }
-    decl_type *getNext() const { return NextAndIsPrevious.getPointer(); }
-    void setNext(decl_type *D) { NextAndIsPrevious.setPointer(D); }
+    typedef const ASTContext *UninitializedLatest;
+    typedef Decl *Previous;
+
+    /// A pointer to either an uninitialized latest declaration (where either
+    /// we've not yet set the previous decl or there isn't one), or to a known
+    /// previous declaration.
+    typedef llvm::PointerUnion<Previous, UninitializedLatest> NotKnownLatest;
+
+    mutable llvm::PointerUnion<NotKnownLatest, KnownLatest> Next;
+
+  public:
+    enum PreviousTag { PreviousLink };
+    enum LatestTag { LatestLink };
+
+    DeclLink(LatestTag, const ASTContext &Ctx)
+        : Next(NotKnownLatest(&Ctx)) {}
+    DeclLink(PreviousTag, decl_type *D)
+        : Next(NotKnownLatest(Previous(D))) {}
+
+    bool NextIsPrevious() const {
+      return Next.is<NotKnownLatest>() &&
+             // FIXME: 'template' is required on the next line due to an
+             // apparent clang bug.
+             Next.get<NotKnownLatest>().template is<Previous>();
+    }
+
+    bool NextIsLatest() const { return !NextIsPrevious(); }
+
+    decl_type *getNext(const decl_type *D) const {
+      if (Next.is<NotKnownLatest>()) {
+        NotKnownLatest NKL = Next.get<NotKnownLatest>();
+        if (NKL.is<Previous>())
+          return static_cast<decl_type*>(NKL.get<Previous>());
+
+        // Allocate the generational 'most recent' cache now, if needed.
+        Next = KnownLatest(*NKL.get<UninitializedLatest>(),
+                           const_cast<decl_type *>(D));
+      }
+
+      return static_cast<decl_type*>(Next.get<KnownLatest>().get(D));
+    }
+
+    void setPrevious(decl_type *D) {
+      assert(NextIsPrevious() && "decl became non-canonical unexpectedly");
+      Next = Previous(D);
+    }
+
+    void setLatest(decl_type *D) {
+      assert(NextIsLatest() && "decl became canonical unexpectedly");
+      if (Next.is<NotKnownLatest>()) {
+        NotKnownLatest NKL = Next.get<NotKnownLatest>();
+        Next = KnownLatest(*NKL.get<UninitializedLatest>(), D);
+      } else {
+        auto Latest = Next.get<KnownLatest>();
+        Latest.set(D);
+        Next = Latest;
+      }
+    }
+
+    void markIncomplete() { Next.get<KnownLatest>().markIncomplete(); }
   };
 
   static DeclLink PreviousDeclLink(decl_type *D) {
-    return DeclLink(D, false);
+    return DeclLink(DeclLink::PreviousLink, D);
   }
 
-  static DeclLink LatestDeclLink(decl_type *D) {
-    return DeclLink(D, true);
+  static DeclLink LatestDeclLink(const ASTContext &Ctx) {
+    return DeclLink(DeclLink::LatestLink, Ctx);
   }
 
   /// \brief Points to the next redeclaration in the chain.
@@ -58,15 +115,20 @@ protected:
   /// If there is only one declaration, it is <pointer to self, true>
   DeclLink RedeclLink;
 
+  decl_type *getNextRedeclaration() const {
+    return RedeclLink.getNext(static_cast<const decl_type *>(this));
+  }
+
 public:
-  Redeclarable() : RedeclLink(LatestDeclLink(static_cast<decl_type*>(this))) { }
+  Redeclarable(const ASTContext &Ctx)
+      : RedeclLink(LatestDeclLink(Ctx)) {}
 
   /// \brief Return the previous declaration of this declaration or NULL if this
   /// is the first declaration.
   decl_type *getPreviousDecl() {
     if (RedeclLink.NextIsPrevious())
-      return RedeclLink.getNext();
-    return 0;
+      return getNextRedeclaration();
+    return nullptr;
   }
   const decl_type *getPreviousDecl() const {
     return const_cast<decl_type *>(
@@ -96,14 +158,14 @@ public:
 
   /// \brief Returns the most recent (re)declaration of this declaration.
   decl_type *getMostRecentDecl() {
-    return getFirstDecl()->RedeclLink.getNext();
+    return getFirstDecl()->getNextRedeclaration();
   }
 
   /// \brief Returns the most recent (re)declaration of this declaration.
   const decl_type *getMostRecentDecl() const {
-    return getFirstDecl()->RedeclLink.getNext();
+    return getFirstDecl()->getNextRedeclaration();
   }
-  
+
   /// \brief Set the previous declaration. If PrevDecl is NULL, set this as the
   /// first and only declaration.
   void setPreviousDecl(decl_type *PrevDecl);
@@ -122,7 +184,7 @@ public:
     typedef std::forward_iterator_tag iterator_category;
     typedef std::ptrdiff_t            difference_type;
 
-    redecl_iterator() : Current(0) { }
+    redecl_iterator() : Current(nullptr) { }
     explicit redecl_iterator(decl_type *C)
       : Current(C), Starter(C), PassedFirst(false) { }
 
@@ -135,15 +197,15 @@ public:
       if (Current->isFirstDecl()) {
         if (PassedFirst) {
           assert(0 && "Passed first decl twice, invalid redecl chain!");
-          Current = 0;
+          Current = nullptr;
           return *this;
         }
         PassedFirst = true;
       }
 
       // Get either previous decl or latest decl.
-      decl_type *Next = Current->RedeclLink.getNext();
-      Current = (Next != Starter ? Next : 0);
+      decl_type *Next = Current->getNextRedeclaration();
+      Current = (Next != Starter) ? Next : nullptr;
       return *this;
     }
 
@@ -161,13 +223,18 @@ public:
     }
   };
 
-  /// \brief Returns iterator for all the redeclarations of the same decl.
-  /// It will iterate at least once (when this decl is the only one).
-  redecl_iterator redecls_begin() const {
-    return redecl_iterator(const_cast<decl_type*>(
-                                          static_cast<const decl_type*>(this)));
+  typedef llvm::iterator_range<redecl_iterator> redecl_range;
+
+  /// \brief Returns an iterator range for all the redeclarations of the same
+  /// decl. It will iterate at least once (when this decl is the only one).
+  redecl_range redecls() const {
+    return redecl_range(redecl_iterator(const_cast<decl_type *>(
+                            static_cast<const decl_type *>(this))),
+                        redecl_iterator());
   }
-  redecl_iterator redecls_end() const { return redecl_iterator(); }
+
+  redecl_iterator redecls_begin() const { return redecls().begin(); }
+  redecl_iterator redecls_end() const { return redecls().end(); }
 
   friend class ASTDeclReader;
   friend class ASTDeclWriter;

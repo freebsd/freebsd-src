@@ -20,15 +20,14 @@
 #include "llvm/Analysis/Passes.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Assembly/Writer.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/InstIterator.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -57,12 +56,12 @@ namespace {
       initializeAAEvalPass(*PassRegistry::getPassRegistry());
     }
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.addRequired<AliasAnalysis>();
       AU.setPreservesAll();
     }
 
-    bool doInitialization(Module &M) {
+    bool doInitialization(Module &M) override {
       NoAlias = MayAlias = PartialAlias = MustAlias = 0;
       NoModRef = Mod = Ref = ModRef = 0;
 
@@ -74,8 +73,8 @@ namespace {
       return false;
     }
 
-    bool runOnFunction(Function &F);
-    bool doFinalization(Module &M);
+    bool runOnFunction(Function &F) override;
+    bool doFinalization(Module &M) override;
   };
 }
 
@@ -94,8 +93,8 @@ static void PrintResults(const char *Msg, bool P, const Value *V1,
     std::string o1, o2;
     {
       raw_string_ostream os1(o1), os2(o2);
-      WriteAsOperand(os1, V1, true, M);
-      WriteAsOperand(os2, V2, true, M);
+      V1->printAsOperand(os1, true, M);
+      V2->printAsOperand(os2, true, M);
     }
     
     if (o2 < o1)
@@ -111,7 +110,7 @@ PrintModRefResults(const char *Msg, bool P, Instruction *I, Value *Ptr,
                    Module *M) {
   if (P) {
     errs() << "  " << Msg << ":  Ptr: ";
-    WriteAsOperand(errs(), Ptr, true, M);
+    Ptr->printAsOperand(errs(), true, M);
     errs() << "\t<->" << *I << '\n';
   }
 }

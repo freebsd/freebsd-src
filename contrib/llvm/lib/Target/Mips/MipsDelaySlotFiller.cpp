@@ -11,8 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "delay-slot-filler"
-
+#include "MCTargetDesc/MipsMCNaCl.h"
 #include "Mips.h"
 #include "MipsInstrInfo.h"
 #include "MipsTargetMachine.h"
@@ -24,6 +23,7 @@
 #include "llvm/CodeGen/MachineBranchProbabilityInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetInstrInfo.h"
@@ -31,6 +31,8 @@
 #include "llvm/Target/TargetRegisterInfo.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "delay-slot-filler"
 
 STATISTIC(FilledSlots, "Number of delay slots filled");
 STATISTIC(UsefulSlots, "Number of delay slots filled with instructions that"
@@ -64,20 +66,6 @@ namespace {
   typedef MachineBasicBlock::iterator Iter;
   typedef MachineBasicBlock::reverse_iterator ReverseIter;
   typedef SmallDenseMap<MachineBasicBlock*, MachineInstr*, 2> BB2BrMap;
-
-  /// \brief A functor comparing edge weight of two blocks.
-  struct CmpWeight {
-    CmpWeight(const MachineBasicBlock &S,
-              const MachineBranchProbabilityInfo &P) : Src(S), Prob(P) {}
-
-    bool operator()(const MachineBasicBlock *Dst0,
-                    const MachineBasicBlock *Dst1) const {
-      return Prob.getEdgeWeight(&Src, Dst0) < Prob.getEdgeWeight(&Src, Dst1);
-    }
-
-    const MachineBasicBlock &Src;
-    const MachineBranchProbabilityInfo &Prob;
-  };
 
   class RegDefsUses {
   public:
@@ -137,7 +125,7 @@ namespace {
   public:
     NoMemInstr() : InspectMemInstr(true) {}
   private:
-    virtual bool hasHazard_(const MachineInstr &MI) { return true; }
+    bool hasHazard_(const MachineInstr &MI) override { return true; }
   };
 
   /// This subclass accepts loads from stacks and constant loads.
@@ -145,7 +133,7 @@ namespace {
   public:
     LoadFromStackOrConst() : InspectMemInstr(false) {}
   private:
-    virtual bool hasHazard_(const MachineInstr &MI);
+    bool hasHazard_(const MachineInstr &MI) override;
   };
 
   /// This subclass uses memory dependence information to determine whether a
@@ -155,19 +143,21 @@ namespace {
     MemDefsUses(const MachineFrameInfo *MFI);
 
   private:
-    virtual bool hasHazard_(const MachineInstr &MI);
+    typedef PointerUnion<const Value *, const PseudoSourceValue *> ValueType;
+
+    bool hasHazard_(const MachineInstr &MI) override;
 
     /// Update Defs and Uses. Return true if there exist dependences that
     /// disqualify the delay slot candidate between V and values in Uses and
     /// Defs.
-    bool updateDefsUses(const Value *V, bool MayStore);
+    bool updateDefsUses(ValueType V, bool MayStore);
 
     /// Get the list of underlying objects of MI's memory operand.
     bool getUnderlyingObjects(const MachineInstr &MI,
-                              SmallVectorImpl<const Value *> &Objects) const;
+                              SmallVectorImpl<ValueType> &Objects) const;
 
     const MachineFrameInfo *MFI;
-    SmallPtrSet<const Value*, 4> Uses, Defs;
+    SmallPtrSet<ValueType, 4> Uses, Defs;
 
     /// Flags indicating whether loads or stores with no underlying objects have
     /// been seen.
@@ -179,19 +169,26 @@ namespace {
     Filler(TargetMachine &tm)
       : MachineFunctionPass(ID), TM(tm) { }
 
-    virtual const char *getPassName() const {
+    const char *getPassName() const override {
       return "Mips Delay Slot Filler";
     }
 
-    bool runOnMachineFunction(MachineFunction &F) {
+    bool runOnMachineFunction(MachineFunction &F) override {
       bool Changed = false;
       for (MachineFunction::iterator FI = F.begin(), FE = F.end();
            FI != FE; ++FI)
         Changed |= runOnMachineBasicBlock(*FI);
+
+      // This pass invalidates liveness information when it reorders
+      // instructions to fill delay slot. Without this, -verify-machineinstrs
+      // will fail.
+      if (Changed)
+        F.getRegInfo().invalidateLiveness();
+
       return Changed;
     }
 
-    void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.addRequired<MachineBranchProbabilityInfo>();
       MachineFunctionPass::getAnalysisUsage(AU);
     }
@@ -412,16 +409,15 @@ bool LoadFromStackOrConst::hasHazard_(const MachineInstr &MI) {
   if (MI.mayStore())
     return true;
 
-  if (!MI.hasOneMemOperand() || !(*MI.memoperands_begin())->getValue())
+  if (!MI.hasOneMemOperand() || !(*MI.memoperands_begin())->getPseudoValue())
     return true;
 
-  const Value *V = (*MI.memoperands_begin())->getValue();
-
-  if (isa<FixedStackPseudoSourceValue>(V))
-    return false;
-
-  if (const PseudoSourceValue *PSV = dyn_cast<const PseudoSourceValue>(V))
-    return !PSV->isConstant(0) && V != PseudoSourceValue::getStack();
+  if (const PseudoSourceValue *PSV =
+      (*MI.memoperands_begin())->getPseudoValue()) {
+    if (isa<FixedStackPseudoSourceValue>(PSV))
+      return false;
+    return !PSV->isConstant(nullptr) && PSV != PseudoSourceValue::getStack();
+  }
 
   return true;
 }
@@ -432,11 +428,11 @@ MemDefsUses::MemDefsUses(const MachineFrameInfo *MFI_)
 
 bool MemDefsUses::hasHazard_(const MachineInstr &MI) {
   bool HasHazard = false;
-  SmallVector<const Value *, 4> Objs;
+  SmallVector<ValueType, 4> Objs;
 
   // Check underlying object list.
   if (getUnderlyingObjects(MI, Objs)) {
-    for (SmallVectorImpl<const Value *>::const_iterator I = Objs.begin();
+    for (SmallVectorImpl<ValueType>::const_iterator I = Objs.begin();
          I != Objs.end(); ++I)
       HasHazard |= updateDefsUses(*I, MI.mayStore());
 
@@ -453,7 +449,7 @@ bool MemDefsUses::hasHazard_(const MachineInstr &MI) {
   return HasHazard;
 }
 
-bool MemDefsUses::updateDefsUses(const Value *V, bool MayStore) {
+bool MemDefsUses::updateDefsUses(ValueType V, bool MayStore) {
   if (MayStore)
     return !Defs.insert(V) || Uses.count(V) || SeenNoObjStore || SeenNoObjLoad;
 
@@ -463,9 +459,19 @@ bool MemDefsUses::updateDefsUses(const Value *V, bool MayStore) {
 
 bool MemDefsUses::
 getUnderlyingObjects(const MachineInstr &MI,
-                     SmallVectorImpl<const Value *> &Objects) const {
-  if (!MI.hasOneMemOperand() || !(*MI.memoperands_begin())->getValue())
+                     SmallVectorImpl<ValueType> &Objects) const {
+  if (!MI.hasOneMemOperand() ||
+      (!(*MI.memoperands_begin())->getValue() &&
+       !(*MI.memoperands_begin())->getPseudoValue()))
     return false;
+
+  if (const PseudoSourceValue *PSV =
+      (*MI.memoperands_begin())->getPseudoValue()) {
+    if (!PSV->isAliased(MFI))
+      return false;
+    Objects.push_back(PSV);
+    return true;
+  }
 
   const Value *V = (*MI.memoperands_begin())->getValue();
 
@@ -474,10 +480,7 @@ getUnderlyingObjects(const MachineInstr &MI,
 
   for (SmallVectorImpl<Value *>::iterator I = Objs.begin(), E = Objs.end();
        I != E; ++I) {
-    if (const PseudoSourceValue *PSV = dyn_cast<PseudoSourceValue>(*I)) {
-      if (PSV->isAliased(MFI))
-        return false;
-    } else if (!isIdentifiedObject(V))
+    if (!isIdentifiedObject(V))
       return false;
 
     Objects.push_back(*I);
@@ -514,8 +517,8 @@ bool Filler::runOnMachineBasicBlock(MachineBasicBlock &MBB) {
     // Bundle the NOP to the instruction with the delay slot.
     const MipsInstrInfo *TII =
       static_cast<const MipsInstrInfo*>(TM.getInstrInfo());
-    BuildMI(MBB, llvm::next(I), I->getDebugLoc(), TII->get(Mips::NOP));
-    MIBundleBuilder(MBB, I, llvm::next(llvm::next(I)));
+    BuildMI(MBB, std::next(I), I->getDebugLoc(), TII->get(Mips::NOP));
+    MIBundleBuilder(MBB, I, std::next(I, 2));
   }
 
   return Changed;
@@ -545,6 +548,18 @@ bool Filler::searchRange(MachineBasicBlock &MBB, IterTy Begin, IterTy End,
     if (delayHasHazard(*I, RegDU, IM))
       continue;
 
+    if (TM.getSubtarget<MipsSubtarget>().isTargetNaCl()) {
+      // In NaCl, instructions that must be masked are forbidden in delay slots.
+      // We only check for loads, stores and SP changes.  Calls, returns and
+      // branches are not checked because non-NaCl targets never put them in
+      // delay slots.
+      unsigned AddrIdx;
+      if ((isBasePlusOffsetMemoryAccess(I->getOpcode(), &AddrIdx)
+           && baseRegNeedsLoadStoreMask(I->getOperand(AddrIdx).getReg()))
+          || I->modifiesRegister(Mips::SP, TM.getRegisterInfo()))
+        continue;
+    }
+
     Filler = I;
     return true;
   }
@@ -565,8 +580,8 @@ bool Filler::searchBackward(MachineBasicBlock &MBB, Iter Slot) const {
   if (!searchRange(MBB, ReverseIter(Slot), MBB.rend(), RegDU, MemDU, Filler))
     return false;
 
-  MBB.splice(llvm::next(Slot), &MBB, llvm::next(Filler).base());
-  MIBundleBuilder(MBB, Slot, llvm::next(llvm::next(Slot)));
+  MBB.splice(std::next(Slot), &MBB, std::next(Filler).base());
+  MIBundleBuilder(MBB, Slot, std::next(Slot, 2));
   ++UsefulSlots;
   return true;
 }
@@ -582,11 +597,11 @@ bool Filler::searchForward(MachineBasicBlock &MBB, Iter Slot) const {
 
   RegDU.setCallerSaved(*Slot);
 
-  if (!searchRange(MBB, llvm::next(Slot), MBB.end(), RegDU, NM, Filler))
+  if (!searchRange(MBB, std::next(Slot), MBB.end(), RegDU, NM, Filler))
     return false;
 
-  MBB.splice(llvm::next(Slot), &MBB, Filler);
-  MIBundleBuilder(MBB, Slot, llvm::next(llvm::next(Slot)));
+  MBB.splice(std::next(Slot), &MBB, Filler);
+  MIBundleBuilder(MBB, Slot, std::next(Slot, 2));
   ++UsefulSlots;
   return true;
 }
@@ -603,7 +618,7 @@ bool Filler::searchSuccBBs(MachineBasicBlock &MBB, Iter Slot) const {
   RegDefsUses RegDU(TM);
   bool HasMultipleSuccs = false;
   BB2BrMap BrMap;
-  OwningPtr<InspectMemInstr> IM;
+  std::unique_ptr<InspectMemInstr> IM;
   Iter Filler;
 
   // Iterate over SuccBB's predecessor list.
@@ -637,19 +652,23 @@ bool Filler::searchSuccBBs(MachineBasicBlock &MBB, Iter Slot) const {
 
 MachineBasicBlock *Filler::selectSuccBB(MachineBasicBlock &B) const {
   if (B.succ_empty())
-    return NULL;
+    return nullptr;
 
   // Select the successor with the larget edge weight.
-  CmpWeight Cmp(B, getAnalysis<MachineBranchProbabilityInfo>());
-  MachineBasicBlock *S = *std::max_element(B.succ_begin(), B.succ_end(), Cmp);
-  return S->isLandingPad() ? NULL : S;
+  auto &Prob = getAnalysis<MachineBranchProbabilityInfo>();
+  MachineBasicBlock *S = *std::max_element(B.succ_begin(), B.succ_end(),
+                                           [&](const MachineBasicBlock *Dst0,
+                                               const MachineBasicBlock *Dst1) {
+    return Prob.getEdgeWeight(&B, Dst0) < Prob.getEdgeWeight(&B, Dst1);
+  });
+  return S->isLandingPad() ? nullptr : S;
 }
 
 std::pair<MipsInstrInfo::BranchType, MachineInstr *>
 Filler::getBranch(MachineBasicBlock &MBB, const MachineBasicBlock &Dst) const {
   const MipsInstrInfo *TII =
     static_cast<const MipsInstrInfo*>(TM.getInstrInfo());
-  MachineBasicBlock *TrueBB = 0, *FalseBB = 0;
+  MachineBasicBlock *TrueBB = nullptr, *FalseBB = nullptr;
   SmallVector<MachineInstr*, 2> BranchInstrs;
   SmallVector<MachineOperand, 2> Cond;
 
@@ -657,11 +676,11 @@ Filler::getBranch(MachineBasicBlock &MBB, const MachineBasicBlock &Dst) const {
     TII->AnalyzeBranch(MBB, TrueBB, FalseBB, Cond, false, BranchInstrs);
 
   if ((R == MipsInstrInfo::BT_None) || (R == MipsInstrInfo::BT_NoBranch))
-    return std::make_pair(R, (MachineInstr*)NULL);
+    return std::make_pair(R, nullptr);
 
   if (R != MipsInstrInfo::BT_CondUncond) {
     if (!hasUnoccupiedSlot(BranchInstrs[0]))
-      return std::make_pair(MipsInstrInfo::BT_None, (MachineInstr*)NULL);
+      return std::make_pair(MipsInstrInfo::BT_None, nullptr);
 
     assert(((R != MipsInstrInfo::BT_Uncond) || (TrueBB == &Dst)));
 
@@ -678,7 +697,7 @@ Filler::getBranch(MachineBasicBlock &MBB, const MachineBasicBlock &Dst) const {
   if (hasUnoccupiedSlot(BranchInstrs[1]) && (FalseBB == &Dst))
     return std::make_pair(MipsInstrInfo::BT_Uncond, BranchInstrs[1]);
 
-  return std::make_pair(MipsInstrInfo::BT_None, (MachineInstr*)NULL);
+  return std::make_pair(MipsInstrInfo::BT_None, nullptr);
 }
 
 bool Filler::examinePred(MachineBasicBlock &Pred, const MachineBasicBlock &Succ,
@@ -714,6 +733,6 @@ bool Filler::delayHasHazard(const MachineInstr &Candidate, RegDefsUses &RegDU,
 
 bool Filler::terminateSearch(const MachineInstr &Candidate) const {
   return (Candidate.isTerminator() || Candidate.isCall() ||
-          Candidate.isLabel() || Candidate.isInlineAsm() ||
+          Candidate.isPosition() || Candidate.isInlineAsm() ||
           Candidate.hasUnmodeledSideEffects());
 }

@@ -8,13 +8,12 @@
 //===----------------------------------------------------------------------===//
 //
 // This file implements the RegisterClassInfo class which provides dynamic
-// information about target register classes. Callee saved and reserved
-// registers depends on calling conventions and other dynamic information, so
-// some things cannot be determined statically.
+// information about target register classes. Callee-saved vs. caller-saved and
+// reserved registers depend on calling conventions and other dynamic
+// information, so some things cannot be determined statically.
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "regalloc"
 #include "llvm/CodeGen/RegisterClassInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
@@ -25,12 +24,14 @@
 
 using namespace llvm;
 
+#define DEBUG_TYPE "regalloc"
+
 static cl::opt<unsigned>
 StressRA("stress-regalloc", cl::Hidden, cl::init(0), cl::value_desc("N"),
          cl::desc("Limit all regclasses to N registers"));
 
-RegisterClassInfo::RegisterClassInfo() : Tag(0), MF(0), TRI(0), CalleeSaved(0)
-{}
+RegisterClassInfo::RegisterClassInfo()
+  : Tag(0), MF(nullptr), TRI(nullptr), CalleeSaved(nullptr) {}
 
 void RegisterClassInfo::runOnMachineFunction(const MachineFunction &mf) {
   bool Update = false;
@@ -151,7 +152,7 @@ void RegisterClassInfo::compute(const TargetRegisterClass *RC) const {
 /// nonoverlapping reserved registers. However, computing the allocation order
 /// for all register classes would be too expensive.
 unsigned RegisterClassInfo::computePSetLimit(unsigned Idx) const {
-  const TargetRegisterClass *RC = 0;
+  const TargetRegisterClass *RC = nullptr;
   unsigned NumRCUnits = 0;
   for (TargetRegisterInfo::regclass_iterator
          RI = TRI->regclass_begin(), RE = TRI->regclass_end(); RI != RE; ++RI) {

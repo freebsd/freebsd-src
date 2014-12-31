@@ -155,6 +155,9 @@ public:
     bool
     IsFunctionType (bool *is_variadic_ptr = NULL) const;
 
+    uint32_t
+    IsHomogeneousAggregate (ClangASTType* base_type_ptr) const;
+
     size_t
     GetNumberOfFunctionArguments () const;
     
@@ -210,7 +213,7 @@ public:
     IsPointerOrReferenceType (ClangASTType *pointee_type = NULL) const;
     
     bool
-    IsReferenceType (ClangASTType *pointee_type = NULL) const;
+    IsReferenceType (ClangASTType *pointee_type = nullptr, bool* is_rvalue = nullptr) const;
     
     bool
     IsScalarType () const;
@@ -261,6 +264,9 @@ public:
     ConstString
     GetTypeName () const;
 
+    ConstString
+    GetDisplayTypeName () const;
+
     uint32_t
     GetTypeInfo (ClangASTType *pointee_or_element_clang_type = NULL) const;
     
@@ -309,7 +315,7 @@ public:
                        clang::DeclContext *decl_ctx) const;
     
     ClangASTType
-    GetArrayElementType (uint64_t& stride) const;
+    GetArrayElementType (uint64_t *stride = nullptr) const;
     
     ClangASTType
     GetCanonicalType () const;
@@ -317,7 +323,7 @@ public:
     ClangASTType
     GetFullyUnqualifiedType () const;
     
-    // Returns -1 if this isn't a function of if the fucntion doesn't have a prototype
+    // Returns -1 if this isn't a function of if the function doesn't have a prototype
     // Returns a value >= 0 if there is a prototype.
     int
     GetFunctionArgumentCount () const;
@@ -420,7 +426,6 @@ public:
     
     ClangASTType
     GetChildClangTypeAtIndex (ExecutionContext *exe_ctx,
-                              const char *parent_name,
                               size_t idx,
                               bool transparent_pointers,
                               bool omit_empty_base_classes,
@@ -431,7 +436,8 @@ public:
                               uint32_t &child_bitfield_bit_size,
                               uint32_t &child_bitfield_bit_offset,
                               bool &child_is_base_class,
-                              bool &child_is_deref_of_parent) const;
+                              bool &child_is_deref_of_parent,
+                              ValueObject *valobj) const;
     
     // Lookup a child given a name. This function will match base class names
     // and member member names in "clang_type" only, not descendants.
@@ -640,6 +646,9 @@ public:
                    lldb::addr_t addr,
                    AddressType address_type,
                    StreamString &new_value);
+
+    clang::EnumDecl *
+    GetAsEnumDecl () const;
 
     
     clang::RecordDecl *

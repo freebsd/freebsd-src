@@ -55,7 +55,6 @@ using legacy::FunctionPassManager;
 ///   ...
 class PassManagerBuilder {
 public:
-
   /// Extensions are passed the builder itself (so they can see how it is
   /// configured) as well as the pass manager to add stuff to.
   typedef void (*ExtensionFn)(const PassManagerBuilder &Builder,
@@ -86,7 +85,12 @@ public:
     /// EP_EnabledOnOptLevel0 - This extension point allows adding passes that
     /// should not be disabled by O0 optimization level. The passes will be
     /// inserted after the inlining pass.
-    EP_EnabledOnOptLevel0
+    EP_EnabledOnOptLevel0,
+
+    /// EP_Peephole - This extension point allows adding passes that perform
+    /// peephole optimizations similar to the instruction combiner. These passes
+    /// will be inserted after each instance of the instruction combiner pass.
+    EP_Peephole,
   };
 
   /// The Optimization Level - Specify the basic optimization level.
@@ -106,13 +110,14 @@ public:
   /// added to the per-module passes.
   Pass *Inliner;
 
+  bool DisableTailCalls;
   bool DisableUnitAtATime;
   bool DisableUnrollLoops;
   bool BBVectorize;
   bool SLPVectorize;
   bool LoopVectorize;
-  bool LateVectorize;
   bool RerollLoops;
+  bool LoadCombine;
 
 private:
   /// ExtensionList - This is list of all of the extensions that are registered.
@@ -130,8 +135,8 @@ public:
 private:
   void addExtensionsToPM(ExtensionPointTy ETy, PassManagerBase &PM) const;
   void addInitialAliasAnalysisPasses(PassManagerBase &PM) const;
-public:
 
+public:
   /// populateFunctionPassManager - This fills in the function pass manager,
   /// which is expected to be run on each function immediately as it is
   /// generated.  The idea is to reduce the size of the IR in memory.

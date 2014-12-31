@@ -116,7 +116,7 @@ CWARNFLAGS+=	-Wno-unknown-pragmas
 CLANG_NO_IAS=	 -no-integrated-as
 .endif
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
-		 -mllvm -enable-load-pre=false -mllvm -simplifycfg-dup-ret
+		 -mllvm -simplifycfg-dup-ret -mllvm -enable-gvn=false
 CFLAGS.clang+=	 -Qunused-arguments
 .if ${MACHINE_CPUARCH} == "sparc64"
 # Don't emit .cfi directives, since we must use GNU as on sparc64, for now.

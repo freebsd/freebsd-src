@@ -28,6 +28,8 @@ CODEGENOPT(Name, Bits, Default)
 CODEGENOPT(Name, Bits, Default)
 #endif
 
+CODEGENOPT(DisableIntegratedAS, 1, 0) ///< -no-integrated-as
+CODEGENOPT(CompressDebugSections, 1, 0) ///< -Wa,-compress-debug-sections
 CODEGENOPT(Autolink          , 1, 1) ///< -fno-autolink
 CODEGENOPT(AsmVerbose        , 1, 0) ///< -dA, -fverbose-asm.
 CODEGENOPT(ObjCAutoRefCountExceptions , 1, 0) ///< Whether ARC should be EH-safe.
@@ -59,8 +61,6 @@ ENUM_CODEGENOPT(FPContractMode, FPContractModeKind, 2, FPC_On)
 CODEGENOPT(ForbidGuardVariables , 1, 0) ///< Issue errors if C++ guard variables
                                         ///< are required.
 CODEGENOPT(FunctionSections  , 1, 0) ///< Set when -ffunction-sections is enabled.
-CODEGENOPT(HiddenWeakVTables , 1, 0) ///< Emit weak vtables, RTTI, and thunks with
-                                     ///< hidden visibility.
 CODEGENOPT(InstrumentFunctions , 1, 0) ///< Set when -finstrument-functions is
                                        ///< enabled.
 CODEGENOPT(InstrumentForProfiling , 1, 0) ///< Set when -pg is enabled.
@@ -68,7 +68,6 @@ CODEGENOPT(LessPreciseFPMAD  , 1, 0) ///< Enable less precise MAD instructions t
                                      ///< be generated.
 CODEGENOPT(MergeAllConstants , 1, 1) ///< Merge identical constants.
 CODEGENOPT(NoCommon          , 1, 0) ///< Set when -fno-common or C++ is enabled.
-CODEGENOPT(NoDwarf2CFIAsm    , 1, 0) ///< Set when -fno-dwarf2-cfi-asm is enabled.
 CODEGENOPT(NoDwarfDirectoryAsm , 1, 0) ///< Set when -fno-dwarf-directory-asm is
                                        ///< enabled.
 CODEGENOPT(NoExecStack       , 1, 0) ///< Set when -Wa,--noexecstack is enabled.
@@ -87,6 +86,9 @@ CODEGENOPT(OmitLeafFramePointer , 1, 0) ///< Set when -momit-leaf-frame-pointer 
 VALUE_CODEGENOPT(OptimizationLevel, 3, 0) ///< The -O[0-4] option specified.
 VALUE_CODEGENOPT(OptimizeSize, 2, 0) ///< If -Os (==1) or -Oz (==2) is specified.
 
+CODEGENOPT(ProfileInstrGenerate , 1, 0) ///< Instrument code to generate
+                                        ///< execution counts to use with PGO.
+
   /// If -fpcc-struct-return or -freg-struct-return is specified.
 ENUM_CODEGENOPT(StructReturnConvention, StructReturnConventionKind, 2, SRCK_Default)
 
@@ -96,7 +98,7 @@ CODEGENOPT(StructPathTBAA    , 1, 0) ///< Whether or not to use struct-path TBAA
 CODEGENOPT(SaveTempLabels    , 1, 0) ///< Save temporary labels.
 CODEGENOPT(SanitizeAddressZeroBaseShadow , 1, 0) ///< Map shadow memory at zero
                                                  ///< offset in AddressSanitizer.
-CODEGENOPT(SanitizeMemoryTrackOrigins, 1, 0) ///< Enable tracking origins in
+CODEGENOPT(SanitizeMemoryTrackOrigins, 2, 0) ///< Enable tracking origins in
                                              ///< MemorySanitizer
 CODEGENOPT(SanitizeUndefinedTrapOnError, 1, 0) ///< Set on
                                                /// -fsanitize-undefined-trap-on-error
@@ -138,7 +140,7 @@ VALUE_CODEGENOPT(NumRegisterParameters, 32, 0)
 VALUE_CODEGENOPT(SSPBufferSize, 32, 0)
 
 /// The kind of generated debug info.
-ENUM_CODEGENOPT(DebugInfo, DebugInfoKind, 2, NoDebugInfo)
+ENUM_CODEGENOPT(DebugInfo, DebugInfoKind, 3, NoDebugInfo)
 
 /// Dwarf version.
 VALUE_CODEGENOPT(DwarfVersion, 3, 0)

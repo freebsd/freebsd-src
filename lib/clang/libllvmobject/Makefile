@@ -13,10 +13,12 @@ SRCS=	Archive.cpp \
 	ELFObjectFile.cpp \
 	ELFYAML.cpp \
 	Error.cpp \
+	IRObjectFile.cpp \
 	MachOObjectFile.cpp \
 	MachOUniversal.cpp \
 	Object.cpp \
 	ObjectFile.cpp \
-	YAML.cpp
+	RecordStreamer.cpp \
+	SymbolicFile.cpp
 
 .include "../clang.lib.mk"
