@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/buf_ring.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
@@ -51,12 +52,9 @@ __FBSDID("$FreeBSD$");
 
 #include <net/ethernet.h>
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_arp.h>
 #include <net/if_dl.h>
-#include <net/if_types.h>
 #include <net/if_media.h>
-#include <net/if_vlan_var.h>
 
 #include <net/bpf.h>
 
@@ -78,6 +76,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/virtio/virtqueue.h>
 #include <dev/virtio/network/virtio_net.h>
 #include <dev/virtio/network/if_vtnetvar.h>
+
+#ifdef DEV_NETMAP
+#include <dev/netmap/if_vtnet_netmap.h>
+#endif /* DEV_NETMAP */
 
 #include "virtio_if.h"
 
@@ -104,10 +106,10 @@ static void	vtnet_free_rxtx_queues(struct vtnet_softc *);
 static int	vtnet_alloc_rx_filters(struct vtnet_softc *);
 static void	vtnet_free_rx_filters(struct vtnet_softc *);
 static int	vtnet_alloc_virtqueues(struct vtnet_softc *);
-static int	vtnet_setup_interface(struct vtnet_softc *);
+static void	vtnet_setup_interface(struct vtnet_softc *);
 static int	vtnet_change_mtu(struct vtnet_softc *, int);
-static int	vtnet_ioctl(struct ifnet *, u_long, caddr_t);
-static uint64_t	vtnet_get_counter(struct ifnet *, ift_counter);
+static int	vtnet_ioctl(if_t, u_long, caddr_t);
+static uint64_t	vtnet_get_counter(if_t, ift_counter);
 
 static int	vtnet_rxq_populate(struct vtnet_rxq *);
 static void	vtnet_rxq_free_mbufs(struct vtnet_rxq *);
@@ -142,23 +144,15 @@ static struct mbuf *
 static int	vtnet_txq_enqueue_buf(struct vtnet_txq *, struct mbuf **,
 		    struct vtnet_tx_header *);
 static int	vtnet_txq_encap(struct vtnet_txq *, struct mbuf **);
-#ifdef VTNET_LEGACY_TX
-static void	vtnet_start_locked(struct vtnet_txq *, struct ifnet *);
-static void	vtnet_start(struct ifnet *);
-#else
 static int	vtnet_txq_mq_start_locked(struct vtnet_txq *, struct mbuf *);
-static int	vtnet_txq_mq_start(struct ifnet *, struct mbuf *);
+static int	vtnet_txq_mq_start(if_t, struct mbuf *);
 static void	vtnet_txq_tq_deferred(void *, int);
-#endif
 static void	vtnet_txq_start(struct vtnet_txq *);
 static void	vtnet_txq_tq_intr(void *, int);
 static int	vtnet_txq_eof(struct vtnet_txq *);
 static void	vtnet_tx_vq_intr(void *);
 static void	vtnet_tx_start_all(struct vtnet_softc *);
-
-#ifndef VTNET_LEGACY_TX
-static void	vtnet_qflush(struct ifnet *);
-#endif
+static void	vtnet_qflush(if_t);
 
 static int	vtnet_watchdog(struct vtnet_txq *);
 static void	vtnet_accum_stats(struct vtnet_softc *,
@@ -196,13 +190,13 @@ static void	vtnet_rx_filter_mac(struct vtnet_softc *);
 static int	vtnet_exec_vlan_filter(struct vtnet_softc *, int, uint16_t);
 static void	vtnet_rx_filter_vlan(struct vtnet_softc *);
 static void	vtnet_update_vlan_filter(struct vtnet_softc *, int, uint16_t);
-static void	vtnet_register_vlan(void *, struct ifnet *, uint16_t);
-static void	vtnet_unregister_vlan(void *, struct ifnet *, uint16_t);
+static void	vtnet_register_vlan(void *, if_t, uint16_t);
+static void	vtnet_unregister_vlan(void *, if_t, uint16_t);
 
 static int	vtnet_is_link_up(struct vtnet_softc *);
 static void	vtnet_update_link_status(struct vtnet_softc *);
-static int	vtnet_ifmedia_upd(struct ifnet *);
-static void	vtnet_ifmedia_sts(struct ifnet *, struct ifmediareq *);
+static int	vtnet_ifmedia_upd(if_t);
+static void	vtnet_ifmedia_sts(if_t, struct ifmediareq *);
 static void	vtnet_get_hwaddr(struct vtnet_softc *);
 static void	vtnet_set_hwaddr(struct vtnet_softc *);
 static void	vtnet_vlan_tag_remove(struct mbuf *);
@@ -287,10 +281,6 @@ static device_method_t vtnet_methods[] = {
 	DEVMETHOD_END
 };
 
-#ifdef DEV_NETMAP
-#include <dev/netmap/if_vtnet_netmap.h>
-#endif /* DEV_NETMAP */
-
 static driver_t vtnet_driver = {
 	"vtnet",
 	vtnet_methods,
@@ -304,6 +294,20 @@ DRIVER_MODULE(vtnet, virtio_pci, vtnet_driver, vtnet_devclass,
     vtnet_modevent, 0);
 MODULE_VERSION(vtnet, 1);
 MODULE_DEPEND(vtnet, virtio, 1, 1, 1);
+
+static struct ifdriver vtnet_ifdrv = {
+	.ifdrv_ops = {
+		.ifop_origin = IFOP_ORIGIN_DRIVER,
+		.ifop_ioctl = vtnet_ioctl,
+		.ifop_init = vtnet_init,
+		.ifop_get_counter = vtnet_get_counter,
+		.ifop_transmit = vtnet_txq_mq_start,
+		.ifop_qflush = vtnet_qflush,
+	},
+	.ifdrv_dname = "vtnet",
+	.ifdrv_type = IFT_ETHER,
+	.ifdrv_hdrlen = sizeof(struct ether_vlan_header),
+};
 
 static int
 vtnet_modevent(module_t mod, int type, void *unused)
@@ -385,19 +389,13 @@ vtnet_attach(device_t dev)
 		goto fail;
 	}
 
-	error = vtnet_setup_interface(sc);
-	if (error) {
-		device_printf(dev, "cannot setup interface\n");
-		goto fail;
-	}
-
 	error = virtio_setup_intr(dev, INTR_TYPE_NET);
 	if (error) {
 		device_printf(dev, "cannot setup virtqueue interrupts\n");
-		/* BMV: This will crash if during boot! */
-		ether_ifdetach(sc->vtnet_ifp);
 		goto fail;
 	}
+
+	vtnet_setup_interface(sc);
 
 #ifdef DEV_NETMAP
 	vtnet_netmap_attach(sc);
@@ -416,10 +414,8 @@ static int
 vtnet_detach(device_t dev)
 {
 	struct vtnet_softc *sc;
-	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
-	ifp = sc->vtnet_ifp;
 
 	if (device_is_attached(dev)) {
 		VTNET_CORE_LOCK(sc);
@@ -429,12 +425,12 @@ vtnet_detach(device_t dev)
 		callout_drain(&sc->vtnet_tick_ch);
 		vtnet_drain_taskqueues(sc);
 
-		ether_ifdetach(ifp);
-	}
-
 #ifdef DEV_NETMAP
-	netmap_detach(ifp);
+		netmap_detach(sc->vtnet_ifp);
 #endif /* DEV_NETMAP */
+
+		if_detach(sc->vtnet_ifp);
+	}
 
 	vtnet_free_taskqueues(sc);
 
@@ -448,11 +444,6 @@ vtnet_detach(device_t dev)
 	}
 
 	ifmedia_removeall(&sc->vtnet_media);
-
-	if (ifp != NULL) {
-		if_free(ifp);
-		sc->vtnet_ifp = NULL;
-	}
 
 	vtnet_free_rxtx_queues(sc);
 	vtnet_free_rx_filters(sc);
@@ -484,13 +475,13 @@ static int
 vtnet_resume(device_t dev)
 {
 	struct vtnet_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	sc = device_get_softc(dev);
 	ifp = sc->vtnet_ifp;
 
 	VTNET_CORE_LOCK(sc);
-	if (ifp->if_flags & IFF_UP)
+	if (if_getflags(ifp, IF_FLAGS) & IFF_UP)
 		vtnet_init_locked(sc);
 	sc->vtnet_flags &= ~VTNET_FLAG_SUSPENDED;
 	VTNET_CORE_UNLOCK(sc);
@@ -555,12 +546,8 @@ vtnet_negotiate_features(struct vtnet_softc *sc)
 		mask |= VTNET_TSO_FEATURES;
 	if (vtnet_tunable_int(sc, "lro_disable", vtnet_lro_disable))
 		mask |= VTNET_LRO_FEATURES;
-#ifndef VTNET_LEGACY_TX
 	if (vtnet_tunable_int(sc, "mq_disable", vtnet_mq_disable))
 		mask |= VIRTIO_NET_F_MQ;
-#else
-	mask |= VIRTIO_NET_F_MQ;
-#endif
 
 	features = VTNET_FEATURES & ~mask;
 	sc->vtnet_features = virtio_negotiate_features(dev, features);
@@ -711,14 +698,12 @@ vtnet_init_txq(struct vtnet_softc *sc, int id)
 	if (txq->vtntx_sg == NULL)
 		return (ENOMEM);
 
-#ifndef VTNET_LEGACY_TX
 	txq->vtntx_br = buf_ring_alloc(VTNET_DEFAULT_BUFRING_SIZE, M_DEVBUF,
 	    M_NOWAIT, &txq->vtntx_mtx);
 	if (txq->vtntx_br == NULL)
 		return (ENOMEM);
 
 	TASK_INIT(&txq->vtntx_defrtask, 0, vtnet_txq_tq_deferred, txq);
-#endif
 	TASK_INIT(&txq->vtntx_intrtask, 0, vtnet_txq_tq_intr, txq);
 	txq->vtntx_tq = taskqueue_create(txq->vtntx_name, M_NOWAIT,
 	    taskqueue_thread_enqueue, &txq->vtntx_tq);
@@ -784,12 +769,10 @@ vtnet_destroy_txq(struct vtnet_txq *txq)
 		txq->vtntx_sg = NULL;
 	}
 
-#ifndef VTNET_LEGACY_TX
 	if (txq->vtntx_br != NULL) {
 		buf_ring_free(txq->vtntx_br, M_DEVBUF);
 		txq->vtntx_br = NULL;
 	}
-#endif
 
 	if (mtx_initialized(&txq->vtntx_mtx) != 0)
 		mtx_destroy(&txq->vtntx_mtx);
@@ -901,101 +884,75 @@ vtnet_alloc_virtqueues(struct vtnet_softc *sc)
 	return (error);
 }
 
-static int
+static void
 vtnet_setup_interface(struct vtnet_softc *sc)
 {
+	struct if_attach_args ifat = {
+		.ifat_version = IF_ATTACH_VERSION,
+		.ifat_drv = &vtnet_ifdrv,
+		.ifat_softc = sc,
+		.ifat_baudrate = IF_Gbps(10), /* Approx. */
+		.ifat_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST,
+		.ifat_capabilities = IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU,
+	};
 	device_t dev;
-	struct ifnet *ifp;
 
 	dev = sc->vtnet_dev;
-
-	ifp = sc->vtnet_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(dev, "cannot allocate ifnet structure\n");
-		return (ENOSPC);
-	}
-
-	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_baudrate = IF_Gbps(10);	/* Approx. */
-	ifp->if_softc = sc;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
-	ifp->if_init = vtnet_init;
-	ifp->if_ioctl = vtnet_ioctl;
-	ifp->if_get_counter = vtnet_get_counter;
-#ifndef VTNET_LEGACY_TX
-	ifp->if_transmit = vtnet_txq_mq_start;
-	ifp->if_qflush = vtnet_qflush;
-#else
-	struct virtqueue *vq = sc->vtnet_txqs[0].vtntx_vq;
-	ifp->if_start = vtnet_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, virtqueue_size(vq) - 1);
-	ifp->if_snd.ifq_drv_maxlen = virtqueue_size(vq) - 1;
-	IFQ_SET_READY(&ifp->if_snd);
-#endif
-
-	ifmedia_init(&sc->vtnet_media, IFM_IMASK, vtnet_ifmedia_upd,
-	    vtnet_ifmedia_sts);
-	ifmedia_add(&sc->vtnet_media, VTNET_MEDIATYPE, 0, NULL);
-	ifmedia_set(&sc->vtnet_media, VTNET_MEDIATYPE);
-
 	/* Read (or generate) the MAC address for the adapter. */
 	vtnet_get_hwaddr(sc);
 
-	ether_ifattach(ifp, sc->vtnet_hwaddr);
+	ifat.ifat_dunit = device_get_unit(dev);
+	ifat.ifat_lla = sc->vtnet_hwaddr;
 
 	if (virtio_with_feature(dev, VIRTIO_NET_F_STATUS))
-		ifp->if_capabilities |= IFCAP_LINKSTATE;
-
-	/* Tell the upper layer(s) we support long frames. */
-	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
-	ifp->if_capabilities |= IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU;
+		ifat.ifat_capabilities |= IFCAP_LINKSTATE;
 
 	if (virtio_with_feature(dev, VIRTIO_NET_F_CSUM)) {
-		ifp->if_capabilities |= IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6;
+		ifat.ifat_capabilities |= IFCAP_TXCSUM | IFCAP_TXCSUM_IPV6;
 
 		if (virtio_with_feature(dev, VIRTIO_NET_F_GSO)) {
-			ifp->if_capabilities |= IFCAP_TSO4 | IFCAP_TSO6;
+			ifat.ifat_capabilities |= IFCAP_TSO4 | IFCAP_TSO6;
 			sc->vtnet_flags |= VTNET_FLAG_TSO_ECN;
 		} else {
 			if (virtio_with_feature(dev, VIRTIO_NET_F_HOST_TSO4))
-				ifp->if_capabilities |= IFCAP_TSO4;
+				ifat.ifat_capabilities |= IFCAP_TSO4;
 			if (virtio_with_feature(dev, VIRTIO_NET_F_HOST_TSO6))
-				ifp->if_capabilities |= IFCAP_TSO6;
+				ifat.ifat_capabilities |= IFCAP_TSO6;
 			if (virtio_with_feature(dev, VIRTIO_NET_F_HOST_ECN))
 				sc->vtnet_flags |= VTNET_FLAG_TSO_ECN;
 		}
 
-		if (ifp->if_capabilities & IFCAP_TSO)
-			ifp->if_capabilities |= IFCAP_VLAN_HWTSO;
+		if (ifat.ifat_capabilities & IFCAP_TSO)
+			ifat.ifat_capabilities |= IFCAP_VLAN_HWTSO;
 	}
 
 	if (virtio_with_feature(dev, VIRTIO_NET_F_GUEST_CSUM)) {
-		ifp->if_capabilities |= IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
+		ifat.ifat_capabilities |= IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6;
 
 		if (virtio_with_feature(dev, VIRTIO_NET_F_GUEST_TSO4) ||
 		    virtio_with_feature(dev, VIRTIO_NET_F_GUEST_TSO6))
-			ifp->if_capabilities |= IFCAP_LRO;
+			ifat.ifat_capabilities |= IFCAP_LRO;
 	}
 
-	if (ifp->if_capabilities & IFCAP_HWCSUM) {
+	if (ifat.ifat_capabilities & IFCAP_HWCSUM) {
 		/*
 		 * VirtIO does not support VLAN tagging, but we can fake
 		 * it by inserting and removing the 802.1Q header during
 		 * transmit and receive. We are then able to do checksum
 		 * offloading of VLAN frames.
 		 */
-		ifp->if_capabilities |=
+		ifat.ifat_capabilities |=
 		    IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_HWCSUM;
 	}
 
-	ifp->if_capenable = ifp->if_capabilities;
+	ifat.ifat_capenable = ifat.ifat_capabilities;
 
 	/*
 	 * Capabilities after here are not enabled by default.
 	 */
 
 	if (sc->vtnet_flags & VTNET_FLAG_VLAN_FILTER) {
-		ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
+		ifat.ifat_capabilities |= IFCAP_VLAN_HWFILTER;
 
 		sc->vtnet_vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
 		    vtnet_register_vlan, sc, EVENTHANDLER_PRI_FIRST);
@@ -1006,13 +963,18 @@ vtnet_setup_interface(struct vtnet_softc *sc)
 	vtnet_set_rx_process_limit(sc);
 	vtnet_set_tx_intr_threshold(sc);
 
-	return (0);
+	ifmedia_init(&sc->vtnet_media, IFM_IMASK, vtnet_ifmedia_upd,
+	    vtnet_ifmedia_sts);
+	ifmedia_add(&sc->vtnet_media, VTNET_MEDIATYPE, 0, NULL);
+	ifmedia_set(&sc->vtnet_media, VTNET_MEDIATYPE);
+
+	sc->vtnet_ifp = if_attach(&ifat);
 }
 
 static int
 vtnet_change_mtu(struct vtnet_softc *sc, int new_mtu)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	int frame_size, clsize;
 
 	ifp = sc->vtnet_ifp;
@@ -1037,11 +999,11 @@ vtnet_change_mtu(struct vtnet_softc *sc, int new_mtu)
 	} else
 		clsize = MJUMPAGESIZE;
 
-	ifp->if_mtu = new_mtu;
+	if_setflags(ifp, IF_MTU, new_mtu);
 	sc->vtnet_rx_new_clsize = clsize;
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if (if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) {
+		if_clrflags(ifp, IF_DRV_FLAGS, IFF_DRV_RUNNING);
 		vtnet_init_locked(sc);
 	}
 
@@ -1049,19 +1011,19 @@ vtnet_change_mtu(struct vtnet_softc *sc, int new_mtu)
 }
 
 static int
-vtnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
+vtnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 {
 	struct vtnet_softc *sc;
 	struct ifreq *ifr;
-	int reinit, mask, error;
+	int reinit, capenable, mask, error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	ifr = (struct ifreq *) data;
 	error = 0;
 
 	switch (cmd) {
 	case SIOCSIFMTU:
-		if (ifp->if_mtu != ifr->ifr_mtu) {
+		if (if_getflags(ifp, IF_MTU) != ifr->ifr_mtu) {
 			VTNET_CORE_LOCK(sc);
 			error = vtnet_change_mtu(sc, ifr->ifr_mtu);
 			VTNET_CORE_UNLOCK(sc);
@@ -1070,11 +1032,11 @@ vtnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFFLAGS:
 		VTNET_CORE_LOCK(sc);
-		if ((ifp->if_flags & IFF_UP) == 0) {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if ((if_getflags(ifp, IF_FLAGS) & IFF_UP) == 0) {
+			if (if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING)
 				vtnet_stop(sc);
-		} else if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-			if ((ifp->if_flags ^ sc->vtnet_if_flags) &
+		} else if (if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) {
+			if ((if_getflags(ifp, IF_FLAGS) ^ sc->vtnet_if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI)) {
 				if (sc->vtnet_flags & VTNET_FLAG_CTRL_RX)
 					vtnet_rx_filter(sc);
@@ -1085,7 +1047,7 @@ vtnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			vtnet_init_locked(sc);
 
 		if (error == 0)
-			sc->vtnet_if_flags = ifp->if_flags;
+			sc->vtnet_if_flags = if_getflags(ifp, IF_FLAGS);
 		VTNET_CORE_UNLOCK(sc);
 		break;
 
@@ -1094,7 +1056,7 @@ vtnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if ((sc->vtnet_flags & VTNET_FLAG_CTRL_RX) == 0)
 			break;
 		VTNET_CORE_LOCK(sc);
-		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+		if (if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING)
 			vtnet_rx_filter_mac(sc);
 		VTNET_CORE_UNLOCK(sc);
 		break;
@@ -1106,16 +1068,17 @@ vtnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFCAP:
 		VTNET_CORE_LOCK(sc);
-		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
+		capenable = if_getflags(ifp, IF_CAPENABLE);
+		mask = ifr->ifr_reqcap ^ capenable;
 
 		if (mask & IFCAP_TXCSUM)
-			ifp->if_capenable ^= IFCAP_TXCSUM;
+			capenable ^= IFCAP_TXCSUM;
 		if (mask & IFCAP_TXCSUM_IPV6)
-			ifp->if_capenable ^= IFCAP_TXCSUM_IPV6;
+			capenable ^= IFCAP_TXCSUM_IPV6;
 		if (mask & IFCAP_TSO4)
-			ifp->if_capenable ^= IFCAP_TSO4;
+			capenable ^= IFCAP_TSO4;
 		if (mask & IFCAP_TSO6)
-			ifp->if_capenable ^= IFCAP_TSO6;
+			capenable ^= IFCAP_TSO6;
 
 		if (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO |
 		    IFCAP_VLAN_HWFILTER)) {
@@ -1123,33 +1086,35 @@ vtnet_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			reinit = 1;
 
 			if (mask & IFCAP_RXCSUM)
-				ifp->if_capenable ^= IFCAP_RXCSUM;
+				capenable ^= IFCAP_RXCSUM;
 			if (mask & IFCAP_RXCSUM_IPV6)
-				ifp->if_capenable ^= IFCAP_RXCSUM_IPV6;
+				capenable ^= IFCAP_RXCSUM_IPV6;
 			if (mask & IFCAP_LRO)
-				ifp->if_capenable ^= IFCAP_LRO;
+				capenable ^= IFCAP_LRO;
 			if (mask & IFCAP_VLAN_HWFILTER)
-				ifp->if_capenable ^= IFCAP_VLAN_HWFILTER;
+				capenable ^= IFCAP_VLAN_HWFILTER;
 		} else
 			reinit = 0;
 
 		if (mask & IFCAP_VLAN_HWTSO)
-			ifp->if_capenable ^= IFCAP_VLAN_HWTSO;
+			capenable ^= IFCAP_VLAN_HWTSO;
 		if (mask & IFCAP_VLAN_HWTAGGING)
-			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
+			capenable ^= IFCAP_VLAN_HWTAGGING;
 
-		if (reinit && (ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if (reinit &&
+		    (if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING)) {
+			if_clrflags(ifp, IF_DRV_FLAGS, IFF_DRV_RUNNING);
 			vtnet_init_locked(sc);
 		}
 
 		VTNET_CORE_UNLOCK(sc);
-		VLAN_CAPABILITIES(ifp);
+
+		if_capenable(ifp, capenable);
 
 		break;
 
 	default:
-		error = ether_ioctl(ifp, cmd, data);
+		error = EOPNOTSUPP;
 		break;
 	}
 
@@ -1633,14 +1598,12 @@ static int
 vtnet_rxq_merged_eof(struct vtnet_rxq *rxq, struct mbuf *m_head, int nbufs)
 {
 	struct vtnet_softc *sc;
-	struct ifnet *ifp;
 	struct virtqueue *vq;
 	struct mbuf *m, *m_tail;
 	int len;
 
 	sc = rxq->vtnrx_sc;
 	vq = rxq->vtnrx_vq;
-	ifp = sc->vtnet_ifp;
 	m_tail = m_head;
 
 	while (--nbufs > 0) {
@@ -1683,13 +1646,13 @@ vtnet_rxq_input(struct vtnet_rxq *rxq, struct mbuf *m,
     struct virtio_net_hdr *hdr)
 {
 	struct vtnet_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct ether_header *eh;
 
 	sc = rxq->vtnrx_sc;
 	ifp = sc->vtnet_ifp;
 
-	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) {
+	if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWTAGGING) {
 		eh = mtod(m, struct ether_header *);
 		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
 			vtnet_vlan_tag_remove(m);
@@ -1722,7 +1685,7 @@ vtnet_rxq_input(struct vtnet_rxq *rxq, struct mbuf *m,
 	rxq->vtnrx_stats.vrxs_ibytes += m->m_pkthdr.len;
 
 	VTNET_RXQ_UNLOCK(rxq);
-	(*ifp->if_input)(ifp, m);
+	if_input(ifp, m);
 	VTNET_RXQ_LOCK(rxq);
 }
 
@@ -1731,7 +1694,7 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 {
 	struct virtio_net_hdr lhdr, *hdr;
 	struct vtnet_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	struct virtqueue *vq;
 	struct mbuf *m;
 	struct virtio_net_hdr_mrg_rxbuf *mhdr;
@@ -1811,7 +1774,7 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 		vtnet_rxq_input(rxq, m, hdr);
 
 		/* Must recheck after dropping the Rx lock. */
-		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		if ((if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) == 0)
 			break;
 	}
 
@@ -1826,7 +1789,7 @@ vtnet_rx_vq_intr(void *xrxq)
 {
 	struct vtnet_softc *sc;
 	struct vtnet_rxq *rxq;
-	struct ifnet *ifp;
+	if_t ifp;
 	int tries, more;
 
 	rxq = xrxq;
@@ -1848,7 +1811,7 @@ vtnet_rx_vq_intr(void *xrxq)
 	VTNET_RXQ_LOCK(rxq);
 
 again:
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+	if ((if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) == 0) {
 		VTNET_RXQ_UNLOCK(rxq);
 		return;
 	}
@@ -1876,7 +1839,7 @@ vtnet_rxq_tq_intr(void *xrxq, int pending)
 {
 	struct vtnet_softc *sc;
 	struct vtnet_rxq *rxq;
-	struct ifnet *ifp;
+	if_t ifp;
 	int more;
 
 	rxq = xrxq;
@@ -1885,7 +1848,7 @@ vtnet_rxq_tq_intr(void *xrxq, int pending)
 
 	VTNET_RXQ_LOCK(rxq);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+	if ((if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) == 0) {
 		VTNET_RXQ_UNLOCK(rxq);
 		return;
 	}
@@ -2205,81 +2168,13 @@ fail:
 	return (error);
 }
 
-#ifdef VTNET_LEGACY_TX
-
-static void
-vtnet_start_locked(struct vtnet_txq *txq, struct ifnet *ifp)
-{
-	struct vtnet_softc *sc;
-	struct virtqueue *vq;
-	struct mbuf *m0;
-	int tries, enq;
-
-	sc = txq->vtntx_sc;
-	vq = txq->vtntx_vq;
-	tries = 0;
-
-	VTNET_TXQ_LOCK_ASSERT(txq);
-
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
-	    sc->vtnet_link_active == 0)
-		return;
-
-	vtnet_txq_eof(txq);
-
-again:
-	enq = 0;
-
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		if (virtqueue_full(vq))
-			break;
-
-		IFQ_DRV_DEQUEUE(&ifp->if_snd, m0);
-		if (m0 == NULL)
-			break;
-
-		if (vtnet_txq_encap(txq, &m0) != 0) {
-			if (m0 != NULL)
-				IFQ_DRV_PREPEND(&ifp->if_snd, m0);
-			break;
-		}
-
-		enq++;
-		ETHER_BPF_MTAP(ifp, m0);
-	}
-
-	if (enq > 0 && vtnet_txq_notify(txq) != 0) {
-		if (tries++ < VTNET_NOTIFY_RETRIES)
-			goto again;
-
-		txq->vtntx_stats.vtxs_rescheduled++;
-		taskqueue_enqueue(txq->vtntx_tq, &txq->vtntx_intrtask);
-	}
-}
-
-static void
-vtnet_start(struct ifnet *ifp)
-{
-	struct vtnet_softc *sc;
-	struct vtnet_txq *txq;
-
-	sc = ifp->if_softc;
-	txq = &sc->vtnet_txqs[0];
-
-	VTNET_TXQ_LOCK(txq);
-	vtnet_start_locked(txq, ifp);
-	VTNET_TXQ_UNLOCK(txq);
-}
-
-#else /* !VTNET_LEGACY_TX */
-
 static int
 vtnet_txq_mq_start_locked(struct vtnet_txq *txq, struct mbuf *m)
 {
 	struct vtnet_softc *sc;
 	struct virtqueue *vq;
 	struct buf_ring *br;
-	struct ifnet *ifp;
+	if_t ifp;
 	int enq, tries, error;
 
 	sc = txq->vtntx_sc;
@@ -2291,15 +2186,15 @@ vtnet_txq_mq_start_locked(struct vtnet_txq *txq, struct mbuf *m)
 
 	VTNET_TXQ_LOCK_ASSERT(txq);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 ||
+	if ((if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) == 0 ||
 	    sc->vtnet_link_active == 0) {
 		if (m != NULL)
-			error = drbr_enqueue(ifp, br, m);
+			error = buf_ring_enqueue(br, m);
 		return (error);
 	}
 
 	if (m != NULL) {
-		error = drbr_enqueue(ifp, br, m);
+		error = buf_ring_enqueue(br, m);
 		if (error)
 			return (error);
 	}
@@ -2309,23 +2204,23 @@ vtnet_txq_mq_start_locked(struct vtnet_txq *txq, struct mbuf *m)
 again:
 	enq = 0;
 
-	while ((m = drbr_peek(ifp, br)) != NULL) {
+	while ((m = buf_ring_peek(br)) != NULL) {
 		if (virtqueue_full(vq)) {
-			drbr_putback(ifp, br, m);
+			buf_ring_putback_sc(br, m);
 			break;
 		}
 
 		if (vtnet_txq_encap(txq, &m) != 0) {
 			if (m != NULL)
-				drbr_putback(ifp, br, m);
+				buf_ring_putback_sc(br, m);
 			else
-				drbr_advance(ifp, br);
+				buf_ring_advance_sc(br);
 			break;
 		}
-		drbr_advance(ifp, br);
+		buf_ring_advance_sc(br);
 
 		enq++;
-		ETHER_BPF_MTAP(ifp, m);
+		if_mtap(ifp, m, NULL, 0);
 	}
 
 	if (enq > 0 && vtnet_txq_notify(txq) != 0) {
@@ -2340,13 +2235,13 @@ again:
 }
 
 static int
-vtnet_txq_mq_start(struct ifnet *ifp, struct mbuf *m)
+vtnet_txq_mq_start(if_t ifp, struct mbuf *m)
 {
 	struct vtnet_softc *sc;
 	struct vtnet_txq *txq;
 	int i, npairs, error;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	npairs = sc->vtnet_act_vq_pairs;
 
 	/* check if flowid is set */
@@ -2361,7 +2256,7 @@ vtnet_txq_mq_start(struct ifnet *ifp, struct mbuf *m)
 		error = vtnet_txq_mq_start_locked(txq, m);
 		VTNET_TXQ_UNLOCK(txq);
 	} else {
-		error = drbr_enqueue(ifp, txq->vtntx_br, m);
+		error = buf_ring_enqueue(txq->vtntx_br, m);
 		taskqueue_enqueue(txq->vtntx_tq, &txq->vtntx_defrtask);
 	}
 
@@ -2378,29 +2273,20 @@ vtnet_txq_tq_deferred(void *xtxq, int pending)
 	sc = txq->vtntx_sc;
 
 	VTNET_TXQ_LOCK(txq);
-	if (!drbr_empty(sc->vtnet_ifp, txq->vtntx_br))
+	if (!buf_ring_empty(txq->vtntx_br))
 		vtnet_txq_mq_start_locked(txq, NULL);
 	VTNET_TXQ_UNLOCK(txq);
 }
-
-#endif /* VTNET_LEGACY_TX */
 
 static void
 vtnet_txq_start(struct vtnet_txq *txq)
 {
 	struct vtnet_softc *sc;
-	struct ifnet *ifp;
 
 	sc = txq->vtntx_sc;
-	ifp = sc->vtnet_ifp;
 
-#ifdef VTNET_LEGACY_TX
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		vtnet_start_locked(txq, ifp);
-#else
-	if (!drbr_empty(ifp, txq->vtntx_br))
+	if (!buf_ring_empty(txq->vtntx_br))
 		vtnet_txq_mq_start_locked(txq, NULL);
-#endif
 }
 
 static void
@@ -2408,7 +2294,7 @@ vtnet_txq_tq_intr(void *xtxq, int pending)
 {
 	struct vtnet_softc *sc;
 	struct vtnet_txq *txq;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	txq = xtxq;
 	sc = txq->vtntx_sc;
@@ -2416,7 +2302,7 @@ vtnet_txq_tq_intr(void *xtxq, int pending)
 
 	VTNET_TXQ_LOCK(txq);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+	if ((if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) == 0) {
 		VTNET_TXQ_UNLOCK(txq);
 		return;
 	}
@@ -2470,7 +2356,7 @@ vtnet_tx_vq_intr(void *xtxq)
 {
 	struct vtnet_softc *sc;
 	struct vtnet_txq *txq;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	txq = xtxq;
 	sc = txq->vtntx_sc;
@@ -2489,7 +2375,7 @@ vtnet_tx_vq_intr(void *xtxq)
 
 	VTNET_TXQ_LOCK(txq);
 
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+	if ((if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) == 0) {
 		VTNET_TXQ_UNLOCK(txq);
 		return;
 	}
@@ -2517,16 +2403,15 @@ vtnet_tx_start_all(struct vtnet_softc *sc)
 	}
 }
 
-#ifndef VTNET_LEGACY_TX
 static void
-vtnet_qflush(struct ifnet *ifp)
+vtnet_qflush(if_t ifp)
 {
 	struct vtnet_softc *sc;
 	struct vtnet_txq *txq;
 	struct mbuf *m;
 	int i;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 
 	for (i = 0; i < sc->vtnet_act_vq_pairs; i++) {
 		txq = &sc->vtnet_txqs[i];
@@ -2536,10 +2421,7 @@ vtnet_qflush(struct ifnet *ifp)
 			m_freem(m);
 		VTNET_TXQ_UNLOCK(txq);
 	}
-
-	if_qflush(ifp);
 }
-#endif
 
 static int
 vtnet_watchdog(struct vtnet_txq *txq)
@@ -2608,7 +2490,7 @@ vtnet_get_counter(if_t ifp, ift_counter cnt)
 	struct vtnet_rxq_stats rxaccum;
 	struct vtnet_txq_stats txaccum;
 
-	sc = if_getsoftc(ifp);
+	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	vtnet_accum_stats(sc, &rxaccum, &txaccum);
 
 	switch (cnt) {
@@ -2620,12 +2502,10 @@ vtnet_get_counter(if_t ifp, ift_counter cnt)
 		return (rxaccum.vrxs_ierrors);
 	case IFCOUNTER_OPACKETS:
 		return (txaccum.vtxs_opackets);
-#ifndef VTNET_LEGACY_TX
 	case IFCOUNTER_OBYTES:
 		return (txaccum.vtxs_obytes);
 	case IFCOUNTER_OMCASTS:
 		return (txaccum.vtxs_omcasts);
-#endif
 	default:
 		return (if_get_counter_default(ifp, cnt));
 	}
@@ -2648,7 +2528,7 @@ vtnet_tick(void *xsc)
 		timedout |= vtnet_watchdog(&sc->vtnet_txqs[i]);
 
 	if (timedout != 0) {
-		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		if_clrflags(ifp, IF_DRV_FLAGS, IFF_DRV_RUNNING);
 		vtnet_init_locked(sc);
 	} else
 		callout_schedule(&sc->vtnet_tick_ch, hz);
@@ -2729,9 +2609,7 @@ vtnet_drain_taskqueues(struct vtnet_softc *sc)
 		txq = &sc->vtnet_txqs[i];
 		if (txq->vtntx_tq != NULL) {
 			taskqueue_drain(txq->vtntx_tq, &txq->vtntx_intrtask);
-#ifndef VTNET_LEGACY_TX
 			taskqueue_drain(txq->vtntx_tq, &txq->vtntx_defrtask);
-#endif
 		}
 	}
 }
@@ -2787,7 +2665,7 @@ vtnet_stop(struct vtnet_softc *sc)
 
 	VTNET_CORE_LOCK_ASSERT(sc);
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	if_clrflags(ifp, IF_DRV_FLAGS, IFF_DRV_RUNNING);
 	sc->vtnet_link_active = 0;
 	callout_stop(&sc->vtnet_tick_ch);
 
@@ -2812,7 +2690,8 @@ vtnet_virtio_reinit(struct vtnet_softc *sc)
 	device_t dev;
 	struct ifnet *ifp;
 	uint64_t features;
-	int mask, error;
+	uint32_t caps, capenable, mask;
+	int error;
 
 	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
@@ -2829,26 +2708,27 @@ vtnet_virtio_reinit(struct vtnet_softc *sc)
 	/*
 	 * Re-negotiate with the host, removing any disabled receive
 	 * features. Transmit features are disabled only on our side
-	 * via if_capenable and if_hwassist.
+	 * via IF_CAPEANBLE and IF_HWASSIST.
 	 */
-
-	if (ifp->if_capabilities & mask) {
+	caps = if_getflags(ifp, IF_CAPABILITIES);
+	capenable = if_getflags(ifp, IF_CAPENABLE);
+	if (caps & mask) {
 		/*
 		 * We require both IPv4 and IPv6 offloading to be enabled
 		 * in order to negotiated it: VirtIO does not distinguish
 		 * between the two.
 		 */
-		if ((ifp->if_capenable & mask) != mask)
+		if ((capenable & mask) != mask)
 			features &= ~VIRTIO_NET_F_GUEST_CSUM;
 	}
 
-	if (ifp->if_capabilities & IFCAP_LRO) {
-		if ((ifp->if_capenable & IFCAP_LRO) == 0)
+	if (caps & IFCAP_LRO) {
+		if ((capenable & IFCAP_LRO) == 0)
 			features &= ~VTNET_LRO_FEATURES;
 	}
 
-	if (ifp->if_capabilities & IFCAP_VLAN_HWFILTER) {
-		if ((ifp->if_capenable & IFCAP_VLAN_HWFILTER) == 0)
+	if (caps & IFCAP_VLAN_HWFILTER) {
+		if ((capenable & IFCAP_VLAN_HWFILTER) == 0)
 			features &= ~VIRTIO_NET_F_CTRL_VLAN;
 	}
 
@@ -2873,7 +2753,7 @@ vtnet_init_rx_filters(struct vtnet_softc *sc)
 		vtnet_rx_filter_mac(sc);
 	}
 
-	if (ifp->if_capenable & IFCAP_VLAN_HWFILTER)
+	if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWFILTER)
 		vtnet_rx_filter_vlan(sc);
 }
 
@@ -2990,25 +2870,27 @@ static int
 vtnet_reinit(struct vtnet_softc *sc)
 {
 	struct ifnet *ifp;
+	uint64_t hwassist;
 	int error;
 
 	ifp = sc->vtnet_ifp;
 
 	/* Use the current MAC address. */
-	bcopy(IF_LLADDR(ifp), sc->vtnet_hwaddr, ETHER_ADDR_LEN);
+	bcopy(if_lladdr(ifp), sc->vtnet_hwaddr, ETHER_ADDR_LEN);
 	vtnet_set_hwaddr(sc);
 
 	vtnet_set_active_vq_pairs(sc);
 
-	ifp->if_hwassist = 0;
-	if (ifp->if_capenable & IFCAP_TXCSUM)
-		ifp->if_hwassist |= VTNET_CSUM_OFFLOAD;
-	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
-		ifp->if_hwassist |= VTNET_CSUM_OFFLOAD_IPV6;
-	if (ifp->if_capenable & IFCAP_TSO4)
-		ifp->if_hwassist |= CSUM_TSO;
-	if (ifp->if_capenable & IFCAP_TSO6)
-		ifp->if_hwassist |= CSUM_TSO; /* No CSUM_TSO_IPV6. */
+	hwassist = 0;
+	if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_TXCSUM)
+		hwassist |= VTNET_CSUM_OFFLOAD;
+	if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_TXCSUM_IPV6)
+		hwassist |= VTNET_CSUM_OFFLOAD_IPV6;
+	if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_TSO4)
+		hwassist |= CSUM_TSO;
+	if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_TSO6)
+		hwassist |= CSUM_TSO; /* No CSUM_TSO_IPV6. */
+	if_setflags(ifp, IF_HWASSIST, hwassist);
 
 	if (sc->vtnet_flags & VTNET_FLAG_CTRL_VQ)
 		vtnet_init_rx_filters(sc);
@@ -3018,7 +2900,7 @@ vtnet_reinit(struct vtnet_softc *sc)
 		return (error);
 
 	vtnet_enable_interrupts(sc);
-	ifp->if_drv_flags |= IFF_DRV_RUNNING;
+	if_addflags(ifp, IF_DRV_FLAGS, IFF_DRV_RUNNING);
 
 	return (0);
 }
@@ -3034,7 +2916,7 @@ vtnet_init_locked(struct vtnet_softc *sc)
 
 	VTNET_CORE_LOCK_ASSERT(sc);
 
-	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+	if (if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING)
 		return;
 
 	vtnet_stop(sc);
@@ -3236,9 +3118,9 @@ vtnet_attach_disable_promisc(struct vtnet_softc *sc)
 
 	VTNET_CORE_LOCK(sc);
 	if ((sc->vtnet_flags & VTNET_FLAG_CTRL_RX) == 0) {
-		ifp->if_flags |= IFF_PROMISC;
+		if_addflags(ifp, IF_FLAGS, IFF_PROMISC);
 	} else if (vtnet_set_promisc(sc, 0) != 0) {
-		ifp->if_flags |= IFF_PROMISC;
+		if_addflags(ifp, IF_FLAGS, IFF_PROMISC);
 		device_printf(sc->vtnet_dev,
 		    "cannot disable default promiscuous mode\n");
 	}
@@ -3256,13 +3138,61 @@ vtnet_rx_filter(struct vtnet_softc *sc)
 
 	VTNET_CORE_LOCK_ASSERT(sc);
 
-	if (vtnet_set_promisc(sc, ifp->if_flags & IFF_PROMISC) != 0)
+	if (vtnet_set_promisc(sc,
+	    if_getflags(ifp, IF_FLAGS) & IFF_PROMISC) != 0)
 		device_printf(dev, "cannot %s promiscuous mode\n",
-		    ifp->if_flags & IFF_PROMISC ? "enable" : "disable");
+		    if_getflags(ifp, IF_FLAGS) & IFF_PROMISC ?
+		    "enable" : "disable");
 
-	if (vtnet_set_allmulti(sc, ifp->if_flags & IFF_ALLMULTI) != 0)
+	if (vtnet_set_allmulti(sc,
+	    if_getflags(ifp, IF_FLAGS) & IFF_ALLMULTI) != 0)
 		device_printf(dev, "cannot %s all-multicast mode\n",
-		    ifp->if_flags & IFF_ALLMULTI ? "enable" : "disable");
+		    if_getflags(ifp, IF_FLAGS) & IFF_ALLMULTI ?
+		    "enable" : "disable");
+}
+
+static void
+vtnet_copy_unicast_mac(void *arg, struct sockaddr *addr,
+    struct sockaddr *dstaddr, struct sockaddr *mask)
+{
+	struct vtnet_softc *sc = arg;
+	struct vtnet_mac_filter *filter = sc->vtnet_mac_filter;
+	struct sockaddr_dl *sdl = (struct sockaddr_dl *)addr;
+
+	if (addr->sa_family != AF_LINK)
+		return;
+
+	if (memcmp(LLADDR(sdl), sc->vtnet_hwaddr, ETHER_ADDR_LEN) == 0)
+		return;
+
+	if (filter->vmf_unicast.nentries == VTNET_MAX_MAC_ENTRIES) {
+		filter->vmf_unicast.nentries++;
+		return;
+	}
+
+	bcopy(LLADDR(sdl),
+	    &filter->vmf_unicast.macs[filter->vmf_unicast.nentries++],
+	    ETHER_ADDR_LEN);
+}
+
+static void
+vtnet_copy_multicast_mac(void *arg, struct sockaddr *maddr)
+{
+	struct vtnet_softc *sc = arg;
+	struct vtnet_mac_filter *filter = sc->vtnet_mac_filter;
+	struct sockaddr_dl *sdl = (struct sockaddr_dl *)maddr;
+
+	if (maddr->sa_family != AF_LINK)
+		return;
+
+	if (filter->vmf_multicast.nentries == VTNET_MAX_MAC_ENTRIES) {
+		filter->vmf_multicast.nentries++;
+		return;
+	}
+
+	bcopy(LLADDR(sdl), 
+	    &filter->vmf_multicast.macs[filter->vmf_multicast.nentries++],
+	    ETHER_ADDR_LEN);
 }
 
 static void
@@ -3273,15 +3203,11 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 	struct sglist_seg segs[4];
 	struct sglist sg;
 	struct ifnet *ifp;
-	struct ifaddr *ifa;
-	struct ifmultiaddr *ifma;
-	int ucnt, mcnt, promisc, allmulti, error;
+	int promisc, allmulti, error;
 	uint8_t ack;
 
 	ifp = sc->vtnet_ifp;
 	filter = sc->vtnet_mac_filter;
-	ucnt = 0;
-	mcnt = 0;
 	promisc = 0;
 	allmulti = 0;
 
@@ -3290,55 +3216,24 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 	    ("%s: CTRL_RX feature not negotiated", __func__));
 
 	/* Unicast MAC addresses: */
-	if_addr_rlock(ifp);
-	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-		if (ifa->ifa_addr->sa_family != AF_LINK)
-			continue;
-		else if (memcmp(LLADDR((struct sockaddr_dl *)ifa->ifa_addr),
-		    sc->vtnet_hwaddr, ETHER_ADDR_LEN) == 0)
-			continue;
-		else if (ucnt == VTNET_MAX_MAC_ENTRIES) {
-			promisc = 1;
-			break;
-		}
-
-		bcopy(LLADDR((struct sockaddr_dl *)ifa->ifa_addr),
-		    &filter->vmf_unicast.macs[ucnt], ETHER_ADDR_LEN);
-		ucnt++;
-	}
-	if_addr_runlock(ifp);
-
-	if (promisc != 0) {
+	if_foreach_addr(ifp, vtnet_copy_unicast_mac, sc);
+	if (filter->vmf_unicast.nentries > VTNET_MAX_MAC_ENTRIES) {
+		promisc = 1;
 		filter->vmf_unicast.nentries = 0;
 		if_printf(ifp, "more than %d MAC addresses assigned, "
 		    "falling back to promiscuous mode\n",
 		    VTNET_MAX_MAC_ENTRIES);
-	} else
-		filter->vmf_unicast.nentries = ucnt;
+	}
 
 	/* Multicast MAC addresses: */
-	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		else if (mcnt == VTNET_MAX_MAC_ENTRIES) {
-			allmulti = 1;
-			break;
-		}
-
-		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-		    &filter->vmf_multicast.macs[mcnt], ETHER_ADDR_LEN);
-		mcnt++;
-	}
-	if_maddr_runlock(ifp);
-
-	if (allmulti != 0) {
+	if_foreach_maddr(ifp, vtnet_copy_multicast_mac, sc);
+	if (filter->vmf_multicast.nentries > VTNET_MAX_MAC_ENTRIES) {
+		allmulti = 1;
 		filter->vmf_multicast.nentries = 0;
 		if_printf(ifp, "more than %d multicast MAC addresses "
 		    "assigned, falling back to all-multicast mode\n",
 		    VTNET_MAX_MAC_ENTRIES);
-	} else
-		filter->vmf_multicast.nentries = mcnt;
+	}
 
 	if (promisc != 0 && allmulti != 0)
 		goto out;
@@ -3449,7 +3344,7 @@ vtnet_update_vlan_filter(struct vtnet_softc *sc, int add, uint16_t tag)
 	else
 		sc->vtnet_vlan_filter[idx] &= ~(1 << bit);
 
-	if (ifp->if_capenable & IFCAP_VLAN_HWFILTER &&
+	if ((if_getflags(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWFILTER) &&
 	    vtnet_exec_vlan_filter(sc, add, tag) != 0) {
 		device_printf(sc->vtnet_dev,
 		    "cannot %s VLAN %d %s the host filter table\n",
@@ -3463,7 +3358,7 @@ static void
 vtnet_register_vlan(void *arg, struct ifnet *ifp, uint16_t tag)
 {
 
-	if (ifp->if_softc != arg)
+	if (if_getsoftc(ifp, IF_DRIVER_SOFTC) != arg)
 		return;
 
 	vtnet_update_vlan_filter(arg, 1, tag);
@@ -3473,7 +3368,7 @@ static void
 vtnet_unregister_vlan(void *arg, struct ifnet *ifp, uint16_t tag)
 {
 
-	if (ifp->if_softc != arg)
+	if (if_getsoftc(ifp, IF_DRIVER_SOFTC) != arg)
 		return;
 
 	vtnet_update_vlan_filter(arg, 0, tag);
@@ -3489,7 +3384,7 @@ vtnet_is_link_up(struct vtnet_softc *sc)
 	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
 
-	if ((ifp->if_capabilities & IFCAP_LINKSTATE) == 0)
+	if ((if_getflags(ifp, IF_CAPABILITIES) & IFCAP_LINKSTATE) == 0)
 		status = VIRTIO_NET_S_LINK_UP;
 	else
 		status = virtio_read_dev_config_2(dev,
@@ -3525,7 +3420,7 @@ vtnet_ifmedia_upd(struct ifnet *ifp)
 	struct vtnet_softc *sc;
 	struct ifmedia *ifm;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	ifm = &sc->vtnet_media;
 
 	if (IFM_TYPE(ifm->ifm_media) != IFM_ETHER)
@@ -3539,7 +3434,7 @@ vtnet_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct vtnet_softc *sc;
 
-	sc = ifp->if_softc;
+	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 
 	ifmr->ifm_status = IFM_AVALID;
 	ifmr->ifm_active = IFM_ETHER;
