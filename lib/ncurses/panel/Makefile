@@ -58,7 +58,7 @@ MLINKS=	panel.3 bottom_panel.3 \
 	panel.3 top_panel.3 \
 	panel.3 update_panels.3
 .else
-NO_MAN=
+MAN=
 .endif
 	
 .include <bsd.lib.mk>

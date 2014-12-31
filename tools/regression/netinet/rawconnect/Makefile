@@ -3,6 +3,6 @@
 #
 
 PROG=	rawconnect
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

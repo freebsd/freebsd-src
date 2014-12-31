@@ -1,6 +1,6 @@
 # $FreeBSD$
 
 PROG=	mmap
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

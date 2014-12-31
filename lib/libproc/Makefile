@@ -27,6 +27,6 @@ CFLAGS+=	-DNO_CXA_DEMANGLE
 
 SHLIB_MAJOR=	2
 
-WITHOUT_MAN=
+MAN=
 
 .include <bsd.lib.mk>

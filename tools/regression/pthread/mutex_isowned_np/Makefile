@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	mutex_isowned_np
-NO_MAN=
+MAN=
 DPADD=	${LIBPTHREAD}
 LDADD=	-lpthread
 

@@ -4,6 +4,6 @@
 
 PROG=	syscall_timing
 CFLAGS+=	-static -O
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

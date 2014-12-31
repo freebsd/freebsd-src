@@ -2,6 +2,6 @@
 
 PROG=	fsx
 
-NO_MAN=
+MAN=
 
 .include <bsd.prog.mk>

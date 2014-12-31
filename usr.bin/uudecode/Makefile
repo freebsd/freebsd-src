@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/6/93
 # $FreeBSD$
 
-NO_MAN=
+MAN=
 
 .include <bsd.own.mk>
 

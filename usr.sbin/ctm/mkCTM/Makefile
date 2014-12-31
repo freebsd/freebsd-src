@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	mkctm
-NO_MAN=
+MAN=
 
 DPADD=	${LIBMD}
 LDADD=	-lmd

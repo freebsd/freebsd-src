@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+MAN=
+
 .include "${.CURDIR}/../Makefile.inc"
 
 .PATH:	${SVNDIR}/svn

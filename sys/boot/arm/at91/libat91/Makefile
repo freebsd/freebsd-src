@@ -11,7 +11,7 @@ SRCS=${SOC}_lowlevel.c delay.c eeprom.c emac.c emac_init.c getc.c \
 	sd-card.c strcvt.c strlen.c strcmp.c memcpy.c strcpy.c \
 	memset.c memcmp.c
 SRCS+=ashldi3.c divsi3.S
-NO_MAN=
+MAN=
 
 .if ${MK_TAG_LIST} != "no"
 CFLAGS += -I${.CURDIR}/.. -DSUPPORT_TAG_LIST

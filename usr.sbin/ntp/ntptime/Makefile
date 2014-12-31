@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/../../../contrib/ntp/util
 
 PROG=	ntptime
-NO_MAN=
+MAN=
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../
 

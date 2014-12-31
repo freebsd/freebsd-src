@@ -6,7 +6,7 @@
 PROGS	=	pkt-gen bridge vale-ctl
 
 CLEANFILES = $(PROGS) *.o
-NO_MAN=
+MAN=
 CFLAGS += -Werror -Wall # -nostdinc -I/usr/include -I../../../sys
 CFLAGS += -Wextra
 

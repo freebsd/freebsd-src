@@ -2,7 +2,7 @@
 
 PROG=	wlanwatch
 BINDIR=	/usr/local/bin
-NO_MAN=
+MAN=
 
 .include <bsd.own.mk>
 

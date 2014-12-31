@@ -67,7 +67,7 @@
 # $FreeBSD$
 #
 PROG=	testcdev
-NO_MAN=
+MAN=
 WARNS?=	5
 
 MODSTAT= /sbin/kldstat
