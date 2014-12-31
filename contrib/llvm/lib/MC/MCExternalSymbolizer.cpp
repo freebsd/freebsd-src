@@ -43,8 +43,19 @@ bool MCExternalSymbolizer::tryAddingSymbolicOperand(MCInst &MI,
       !GetOpInfo(DisInfo, Address, Offset, InstSize, 1, &SymbolicOp)) {
     // Clear SymbolicOp.Value from above and also all other fields.
     std::memset(&SymbolicOp, '\0', sizeof(struct LLVMOpInfo1));
-    if (!SymbolLookUp)
+
+    // At this point, GetOpInfo() did not find any relocation information about
+    // this operand and we are left to use the SymbolLookUp() call back to guess
+    // if the Value is the address of a symbol.  In the case this is a branch
+    // that always makes sense to guess.  But in the case of an immediate it is
+    // a bit more questionable if it is an address of a symbol or some other
+    // reference.  So if the immediate Value comes from a width of 1 byte,
+    // InstSize, we will not guess it is an address of a symbol.  Because in
+    // object files assembled starting at address 0 this usually leads to
+    // incorrect symbolication.
+    if (!SymbolLookUp || (InstSize == 1 && !IsBranch))
       return false;
+
     uint64_t ReferenceType;
     if (IsBranch)
        ReferenceType = LLVMDisassembler_ReferenceType_In_Branch;
@@ -56,6 +67,9 @@ bool MCExternalSymbolizer::tryAddingSymbolicOperand(MCInst &MI,
     if (Name) {
       SymbolicOp.AddSymbol.Name = Name;
       SymbolicOp.AddSymbol.Present = true;
+      // If Name is a C++ symbol name put the human readable name in a comment.
+      if(ReferenceType == LLVMDisassembler_ReferenceType_DeMangled_Name)
+        cStream << ReferenceName;
     }
     // For branches always create an MCExpr so it gets printed as hex address.
     else if (IsBranch) {
@@ -69,7 +83,7 @@ bool MCExternalSymbolizer::tryAddingSymbolicOperand(MCInst &MI,
       return false;
   }
 
-  const MCExpr *Add = NULL;
+  const MCExpr *Add = nullptr;
   if (SymbolicOp.AddSymbol.Present) {
     if (SymbolicOp.AddSymbol.Name) {
       StringRef Name(SymbolicOp.AddSymbol.Name);
@@ -80,7 +94,7 @@ bool MCExternalSymbolizer::tryAddingSymbolicOperand(MCInst &MI,
     }
   }
 
-  const MCExpr *Sub = NULL;
+  const MCExpr *Sub = nullptr;
   if (SymbolicOp.SubtractSymbol.Present) {
       if (SymbolicOp.SubtractSymbol.Name) {
       StringRef Name(SymbolicOp.SubtractSymbol.Name);
@@ -91,7 +105,7 @@ bool MCExternalSymbolizer::tryAddingSymbolicOperand(MCInst &MI,
     }
   }
 
-  const MCExpr *Off = NULL;
+  const MCExpr *Off = nullptr;
   if (SymbolicOp.Value != 0)
     Off = MCConstantExpr::Create(SymbolicOp.Value, Ctx);
 
@@ -102,17 +116,17 @@ bool MCExternalSymbolizer::tryAddingSymbolicOperand(MCInst &MI,
       LHS = MCBinaryExpr::CreateSub(Add, Sub, Ctx);
     else
       LHS = MCUnaryExpr::CreateMinus(Sub, Ctx);
-    if (Off != 0)
+    if (Off)
       Expr = MCBinaryExpr::CreateAdd(LHS, Off, Ctx);
     else
       Expr = LHS;
   } else if (Add) {
-    if (Off != 0)
+    if (Off)
       Expr = MCBinaryExpr::CreateAdd(Add, Off, Ctx);
     else
       Expr = Add;
   } else {
-    if (Off != 0)
+    if (Off)
       Expr = Off;
     else
       Expr = MCConstantExpr::Create(0, Ctx);
@@ -146,8 +160,11 @@ void MCExternalSymbolizer::tryAddingPcLoadReferenceComment(raw_ostream &cStream,
     if(ReferenceType == LLVMDisassembler_ReferenceType_Out_LitPool_SymAddr)
       cStream << "literal pool symbol address: " << ReferenceName;
     else if(ReferenceType ==
-            LLVMDisassembler_ReferenceType_Out_LitPool_CstrAddr)
-      cStream << "literal pool for: \"" << ReferenceName << "\"";
+            LLVMDisassembler_ReferenceType_Out_LitPool_CstrAddr) {
+      cStream << "literal pool for: \"";
+      cStream.write_escaped(ReferenceName);
+      cStream << "\"";
+    }
     else if(ReferenceType ==
             LLVMDisassembler_ReferenceType_Out_Objc_CFString_Ref)
       cStream << "Objc cfstring ref: @\"" << ReferenceName << "\"";
@@ -172,10 +189,10 @@ MCSymbolizer *createMCSymbolizer(StringRef TT, LLVMOpInfoCallback GetOpInfo,
                                  void *DisInfo,
                                  MCContext *Ctx,
                                  MCRelocationInfo *RelInfo) {
-  assert(Ctx != 0 && "No MCContext given for symbolic disassembly");
+  assert(Ctx && "No MCContext given for symbolic disassembly");
 
-  OwningPtr<MCRelocationInfo> RelInfoOwingPtr(RelInfo);
-  return new MCExternalSymbolizer(*Ctx, RelInfoOwingPtr, GetOpInfo,
-                                  SymbolLookUp, DisInfo);
+  return new MCExternalSymbolizer(*Ctx,
+                                  std::unique_ptr<MCRelocationInfo>(RelInfo),
+                                  GetOpInfo, SymbolLookUp, DisInfo);
 }
 }

@@ -62,7 +62,7 @@ LLVMTargetRef LLVMGetFirstTarget(void);
 LLVMTargetRef LLVMGetNextTarget(LLVMTargetRef T);
 
 /*===-- Target ------------------------------------------------------------===*/
-/** Finds the target corresponding to the given name and stores it in \p T. 
+/** Finds the target corresponding to the given name and stores it in \p T.
   Returns 0 on success. */
 LLVMTargetRef LLVMGetTargetFromName(const char *Name);
 
@@ -136,6 +136,9 @@ LLVMBool LLVMTargetMachineEmitToMemoryBuffer(LLVMTargetMachineRef T, LLVMModuleR
 /** Get a triple for the host machine as a string. The result needs to be
   disposed with LLVMDisposeMessage. */
 char* LLVMGetDefaultTargetTriple(void);
+
+/** Adds the target-specific analysis passes to the pass manager. */
+void LLVMAddAnalysisPasses(LLVMTargetMachineRef T, LLVMPassManagerRef PM);
 
 #ifdef __cplusplus
 }

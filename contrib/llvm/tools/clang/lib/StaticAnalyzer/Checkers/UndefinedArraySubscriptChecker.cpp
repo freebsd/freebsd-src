@@ -25,7 +25,7 @@ using namespace ento;
 namespace {
 class UndefinedArraySubscriptChecker
   : public Checker< check::PreStmt<ArraySubscriptExpr> > {
-  mutable OwningPtr<BugType> BT;
+  mutable std::unique_ptr<BugType> BT;
 
 public:
   void checkPreStmt(const ArraySubscriptExpr *A, CheckerContext &C) const;
@@ -50,7 +50,7 @@ UndefinedArraySubscriptChecker::checkPreStmt(const ArraySubscriptExpr *A,
   if (!N)
     return;
   if (!BT)
-    BT.reset(new BuiltinBug("Array subscript is undefined"));
+    BT.reset(new BuiltinBug(this, "Array subscript is undefined"));
 
   // Generate a report for this bug.
   BugReport *R = new BugReport(*BT, BT->getName(), N);

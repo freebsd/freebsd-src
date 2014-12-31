@@ -47,7 +47,6 @@
 using namespace llvm;
 using namespace sys;
 
-
 process::id_type self_process::get_id() {
   return getpid();
 }
@@ -135,7 +134,7 @@ size_t Process::GetMallocUsage() {
 void Process::GetTimeUsage(TimeValue &elapsed, TimeValue &user_time,
                            TimeValue &sys_time) {
   elapsed = TimeValue::now();
-  llvm::tie(user_time, sys_time) = getRUsageTimes();
+  std::tie(user_time, sys_time) = getRUsageTimes();
 }
 
 #if defined(HAVE_MACH_MACH_H) && !defined(__GNU__)
@@ -190,12 +189,13 @@ Optional<std::string> Process::GetEnv(StringRef Name) {
   return std::string(Val);
 }
 
-error_code Process::GetArgumentVector(SmallVectorImpl<const char *> &ArgsOut,
-                                      ArrayRef<const char *> ArgsIn,
-                                      SpecificBumpPtrAllocator<char> &) {
+std::error_code
+Process::GetArgumentVector(SmallVectorImpl<const char *> &ArgsOut,
+                           ArrayRef<const char *> ArgsIn,
+                           SpecificBumpPtrAllocator<char> &) {
   ArgsOut.append(ArgsIn.begin(), ArgsIn.end());
 
-  return error_code::success();
+  return std::error_code();
 }
 
 bool Process::StandardInIsUserInput() {
@@ -270,7 +270,7 @@ static bool terminalHasColors(int fd) {
   MutexGuard G(M);
 
   int errret = 0;
-  if (setupterm((char *)0, fd, &errret) != 0)
+  if (setupterm((char *)nullptr, fd, &errret) != 0)
     // Regardless of why, if we can't get terminfo, we shouldn't try to print
     // colors.
     return false;
@@ -292,7 +292,7 @@ static bool terminalHasColors(int fd) {
 
   // Now extract the structure allocated by setupterm and free its memory
   // through a really silly dance.
-  struct term *termp = set_curterm((struct term *)0);
+  struct term *termp = set_curterm((struct term *)nullptr);
   (void)del_curterm(termp); // Drop any errors here.
 
   // Return true if we found a color capabilities for the current terminal.
@@ -343,7 +343,7 @@ const char *Process::ResetColor() {
   return "\033[0m";
 }
 
-#if !defined(HAVE_ARC4RANDOM)
+#if !defined(HAVE_DECL_ARC4RANDOM) || !HAVE_DECL_ARC4RANDOM
 static unsigned GetRandomNumberSeed() {
   // Attempt to get the initial seed from /dev/urandom, if possible.
   if (FILE *RandomSource = ::fopen("/dev/urandom", "r")) {
@@ -364,7 +364,7 @@ static unsigned GetRandomNumberSeed() {
 #endif
 
 unsigned llvm::sys::Process::GetRandomNumber() {
-#if defined(HAVE_ARC4RANDOM)
+#if defined(HAVE_DECL_ARC4RANDOM) && HAVE_DECL_ARC4RANDOM
   return arc4random();
 #else
   static int x = (::srand(GetRandomNumberSeed()), 0);

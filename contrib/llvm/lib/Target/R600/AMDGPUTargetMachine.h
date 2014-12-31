@@ -17,10 +17,9 @@
 
 #include "AMDGPUFrameLowering.h"
 #include "AMDGPUInstrInfo.h"
+#include "AMDGPUIntrinsicInfo.h"
 #include "AMDGPUSubtarget.h"
-#include "AMDILIntrinsicInfo.h"
 #include "R600ISelLowering.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/IR/DataLayout.h"
 
 namespace llvm {
@@ -31,8 +30,7 @@ class AMDGPUTargetMachine : public LLVMTargetMachine {
   const DataLayout Layout;
   AMDGPUFrameLowering FrameLowering;
   AMDGPUIntrinsicInfo IntrinsicInfo;
-  OwningPtr<AMDGPUInstrInfo> InstrInfo;
-  OwningPtr<AMDGPUTargetLowering> TLInfo;
+  std::unique_ptr<AMDGPUTargetLowering> TLInfo;
   const InstrItineraryData *InstrItins;
 
 public:
@@ -40,30 +38,32 @@ public:
                       StringRef CPU, TargetOptions Options, Reloc::Model RM,
                       CodeModel::Model CM, CodeGenOpt::Level OL);
   ~AMDGPUTargetMachine();
-  virtual const AMDGPUFrameLowering *getFrameLowering() const {
+  const AMDGPUFrameLowering *getFrameLowering() const override {
     return &FrameLowering;
   }
-  virtual const AMDGPUIntrinsicInfo *getIntrinsicInfo() const {
+  const AMDGPUIntrinsicInfo *getIntrinsicInfo() const override {
     return &IntrinsicInfo;
   }
-  virtual const AMDGPUInstrInfo *getInstrInfo() const {
-    return InstrInfo.get();
+  const AMDGPUInstrInfo *getInstrInfo() const override {
+    return getSubtargetImpl()->getInstrInfo();
   }
-  virtual const AMDGPUSubtarget *getSubtargetImpl() const { return &Subtarget; }
-  virtual const AMDGPURegisterInfo *getRegisterInfo() const {
-    return &InstrInfo->getRegisterInfo();
+  const AMDGPUSubtarget *getSubtargetImpl() const override {
+    return &Subtarget;
   }
-  virtual AMDGPUTargetLowering *getTargetLowering() const {
+  const AMDGPURegisterInfo *getRegisterInfo() const override {
+    return &getInstrInfo()->getRegisterInfo();
+  }
+  AMDGPUTargetLowering *getTargetLowering() const override {
     return TLInfo.get();
   }
-  virtual const InstrItineraryData *getInstrItineraryData() const {
+  const InstrItineraryData *getInstrItineraryData() const override {
     return InstrItins;
   }
-  virtual const DataLayout *getDataLayout() const { return &Layout; }
-  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
+  const DataLayout *getDataLayout() const override { return &Layout; }
+  TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
 
   /// \brief Register R600 analysis passes with a pass manager.
-  virtual void addAnalysisPasses(PassManagerBase &PM);
+  void addAnalysisPasses(PassManagerBase &PM) override;
 };
 
 } // End namespace llvm

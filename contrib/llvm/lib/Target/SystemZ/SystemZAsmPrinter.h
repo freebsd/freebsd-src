@@ -32,20 +32,18 @@ public:
   }
 
   // Override AsmPrinter.
-  virtual const char *getPassName() const LLVM_OVERRIDE {
+  const char *getPassName() const override {
     return "SystemZ Assembly Printer";
   }
-  virtual void EmitInstruction(const MachineInstr *MI) LLVM_OVERRIDE;
-  virtual void EmitMachineConstantPoolValue(MachineConstantPoolValue *MCPV)
-    LLVM_OVERRIDE;
-  virtual bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
-                               unsigned AsmVariant, const char *ExtraCode,
-                               raw_ostream &OS) LLVM_OVERRIDE;
-  virtual bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
-                                     unsigned AsmVariant,
-                                     const char *ExtraCode,
-                                     raw_ostream &OS) LLVM_OVERRIDE;
-  virtual void EmitEndOfAsmFile(Module &M) LLVM_OVERRIDE;
+  void EmitInstruction(const MachineInstr *MI) override;
+  void EmitMachineConstantPoolValue(MachineConstantPoolValue *MCPV) override;
+  bool PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
+                       unsigned AsmVariant, const char *ExtraCode,
+                       raw_ostream &OS) override;
+  bool PrintAsmMemoryOperand(const MachineInstr *MI, unsigned OpNo,
+                             unsigned AsmVariant, const char *ExtraCode,
+                             raw_ostream &OS) override;
+  void EmitEndOfAsmFile(Module &M) override;
 };
 } // end namespace llvm
 

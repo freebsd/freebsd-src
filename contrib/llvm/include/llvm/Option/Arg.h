@@ -27,10 +27,7 @@ class ArgList;
 /// \brief A concrete instance of a particular driver option.
 ///
 /// The Arg class encodes just enough information to be able to
-/// derive the argument values efficiently. In addition, Arg
-/// instances have an intrusive double linked list which is used by
-/// ArgList to provide efficient iteration over all instances of a
-/// particular option.
+/// derive the argument values efficiently.
 class Arg {
   Arg(const Arg &) LLVM_DELETED_FUNCTION;
   void operator=(const Arg &) LLVM_DELETED_FUNCTION;
@@ -63,14 +60,14 @@ private:
 
 public:
   Arg(const Option Opt, StringRef Spelling, unsigned Index,
-      const Arg *BaseArg = 0);
+      const Arg *BaseArg = nullptr);
   Arg(const Option Opt, StringRef Spelling, unsigned Index,
-      const char *Value0, const Arg *BaseArg = 0);
+      const char *Value0, const Arg *BaseArg = nullptr);
   Arg(const Option Opt, StringRef Spelling, unsigned Index,
-      const char *Value0, const char *Value1, const Arg *BaseArg = 0);
+      const char *Value0, const char *Value1, const Arg *BaseArg = nullptr);
   ~Arg();
 
-  const Option getOption() const { return Opt; }
+  const Option &getOption() const { return Opt; }
   StringRef getSpelling() const { return Spelling; }
   unsigned getIndex() const { return Index; }
 

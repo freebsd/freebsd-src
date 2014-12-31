@@ -73,7 +73,7 @@ namespace lldb_private {
         // Called when CTRL+C is pressed which usually causes
         // Debugger::DispatchInputInterrupt to be called.
         
-        virtual void
+        virtual bool
         Interrupt () = 0;
         
         virtual void
@@ -191,7 +191,7 @@ namespace lldb_private {
         ///
         /// This will return true if the input stream is a terminal (tty or
         /// pty) and can cause IO handlers to do different things (like
-        /// for a comfirmation when deleting all breakpoints).
+        /// for a confirmation when deleting all breakpoints).
         //------------------------------------------------------------------
         bool
         GetIsInteractive ();
@@ -200,9 +200,9 @@ namespace lldb_private {
         /// Check if the input is coming from a real terminal.
         ///
         /// A real terminal has a valid size with a certain number of rows
-        /// and colums. If this function returns true, then terminal escape
+        /// and columns. If this function returns true, then terminal escape
         /// sequences are expected to work (cursor movement escape sequences,
-        /// clearning lines, etc).
+        /// clearing lines, etc).
         //------------------------------------------------------------------
         bool
         GetIsRealTerminal ();
@@ -267,7 +267,7 @@ namespace lldb_private {
         //------------------------------------------------------------------
         /// Called when a line or lines have been retrieved.
         ///
-        /// This funtion can handle the current line and possibly call
+        /// This function can handle the current line and possibly call
         /// IOHandler::SetIsDone(true) when the IO handler is done like when
         /// "quit" is entered as a command, of when an empty line is
         /// received. It is up to the delegate to determine when a line
@@ -304,11 +304,22 @@ namespace lldb_private {
         
         
         virtual ConstString
-        GetControlSequence (char ch)
+        IOHandlerGetControlSequence (char ch)
         {
             return ConstString();
         }
         
+        //------------------------------------------------------------------
+        // Intercept the IOHandler::Interrupt() calls and do something.
+        //
+        // Return true if the interrupt was handled, false if the IOHandler
+        // should continue to try handle the interrupt itself.
+        //------------------------------------------------------------------
+        virtual bool
+        IOHandlerInterrupt (IOHandler &io_handler)
+        {
+            return false;
+        }
     protected:
         Completion m_completion; // Support for common builtin completions
         bool m_io_handler_done;
@@ -338,7 +349,7 @@ namespace lldb_private {
         }
         
         virtual ConstString
-        GetControlSequence (char ch)
+        IOHandlerGetControlSequence (char ch)
         {
             if (ch == 'd')
                 return ConstString (m_end_line + "\n");
@@ -364,7 +375,9 @@ namespace lldb_private {
                 // The last line was edited, if this line is empty, then we are done
                 // getting our multiple lines.
                 if (lines[line_idx] == m_end_line)
+                {
                     return LineStatus::Done;
+                }
             }
             return LineStatus::Success;
         }
@@ -380,6 +393,7 @@ namespace lldb_private {
                            const char *editline_name, // Used for saving history files
                            const char *prompt,
                            bool multi_line,
+                           uint32_t line_number_start, // If non-zero show line numbers starting at 'line_number_start'
                            IOHandlerDelegate &delegate);
 
         IOHandlerEditline (Debugger &debugger,
@@ -390,6 +404,7 @@ namespace lldb_private {
                            const char *editline_name, // Used for saving history files
                            const char *prompt,
                            bool multi_line,
+                           uint32_t line_number_start, // If non-zero show line numbers starting at 'line_number_start'
                            IOHandlerDelegate &delegate);
         
         virtual
@@ -407,7 +422,7 @@ namespace lldb_private {
         virtual void
         Cancel ();
 
-        virtual void
+        virtual bool
         Interrupt ();
         
         virtual void
@@ -423,7 +438,7 @@ namespace lldb_private {
         virtual ConstString
         GetControlSequence (char ch)
         {
-            return m_delegate.GetControlSequence (ch);
+            return m_delegate.IOHandlerGetControlSequence (ch);
         }
 
         virtual const char *
@@ -433,11 +448,14 @@ namespace lldb_private {
         SetPrompt (const char *prompt);
 
         bool
-        GetLine (std::string &line);
+        GetLine (std::string &line, bool &interrupted);
         
         bool
-        GetLines (StringList &lines);
-
+        GetLines (StringList &lines, bool &interrupted);
+        
+        void
+        SetBaseLineNumber (uint32_t line);
+        
     private:
         static LineStatus
         LineCompletedCallback (Editline *editline,
@@ -458,6 +476,7 @@ namespace lldb_private {
         std::unique_ptr<Editline> m_editline_ap;
         IOHandlerDelegate &m_delegate;
         std::string m_prompt;
+        uint32_t m_base_line_number; // If non-zero, then show line numbers in prompt
         bool m_multi_line;        
     };
     
@@ -517,7 +536,7 @@ namespace lldb_private {
         virtual void
         Cancel ();
 
-        virtual void
+        virtual bool
         Interrupt ();
         
         virtual void
@@ -551,8 +570,8 @@ namespace lldb_private {
         virtual void
         Refresh ();
         
-        virtual void
-        Interrupt ();
+        virtual bool
+        HandleInterrupt ();
         
         virtual void
         GotEOF();
