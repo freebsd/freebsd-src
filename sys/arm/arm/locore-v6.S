@@ -84,11 +84,9 @@ ASENTRY_NP(_start)
 	 */
 	mrc	CP15_SCTLR(r7)
 	tst	r7, #CPU_CONTROL_DC_ENABLE
-	beq	1f
-	bic	r7, #CPU_CONTROL_DC_ENABLE
-	mcr	CP15_SCTLR(r7)
-	ISB
-	bl	dcache_wbinv_poc_all
+	blne	dcache_wbinv_poc_all
+
+	/* ! Do not write to memory between wbinv and disabling cache ! */
 
 	/*
 	 * Now there are no dirty lines, but there may still be lines marked
@@ -96,6 +94,7 @@ ASENTRY_NP(_start)
 	 * before setting up new page tables and re-enabling the mmu.
 	 */
 1:	
+	bic	r7, #CPU_CONTROL_DC_ENABLE
 	bic	r7, #CPU_CONTROL_MMU_ENABLE
 	bic	r7, #CPU_CONTROL_IC_ENABLE
 	bic	r7, #CPU_CONTROL_UNAL_ENABLE
