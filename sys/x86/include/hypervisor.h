@@ -44,4 +44,3 @@ int	hypervisor_cpuid_base(const char *signature, int leaves,
 void	hypervisor_print_info(void);
 
 #endif /* !_X86_HYPERVISOR_H_ */
-

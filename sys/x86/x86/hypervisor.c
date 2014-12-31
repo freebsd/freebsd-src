@@ -28,8 +28,6 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/limits.h>
-#include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -37,8 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 
 #include <x86/hypervisor.h>
-#include <x86/kvm.h>
-#include <x86/vmware.h>
 
 char hv_vendor[16];
 SYSCTL_STRING(_hw, OID_AUTO, hv_vendor, CTLFLAG_RD, hv_vendor, 0,
@@ -88,13 +84,15 @@ hypervisor_cpuid_identify(void)
 
 		if (hvi->hvi_identify() != 0) {
 			hv_info = hvi;
-			vm_guest = hvi->hvi_type;
-			strncpy(hv_vendor, hvi->hvi_name, sizeof(hv_vendor));
-			return;
+			break;
 		}
 	}
 
-	vm_guest = VM_GUEST_VM;
+	if (hv_info != NULL) {
+		vm_guest = hvi->hvi_type;
+		strlcpy(hv_vendor, hvi->hvi_name, sizeof(hv_vendor));
+	} else
+		vm_guest = VM_GUEST_VM;
 }
 
 void
