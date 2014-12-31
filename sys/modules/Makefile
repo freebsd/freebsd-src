@@ -438,7 +438,6 @@ _pfsync=	pfsync
 
 .if ${MK_SOURCELESS_UCODE} != "no"
 _bce=		bce
-_cxgbe=		cxgbe
 _fatm=		fatm
 _fxp=		fxp
 _ispfw=		ispfw
@@ -450,6 +449,9 @@ _ti=		ti
 _txp=		txp
 .endif
 
+.if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} == "amd64"
+_cxgbe=		cxgbe
+.endif
 
 .if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips" && \
 	${MACHINE_CPUARCH} != "powerpc"
