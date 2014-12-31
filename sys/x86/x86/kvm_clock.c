@@ -58,6 +58,20 @@ static struct timecounter kvm_clock_timecounter = {
 static uint32_t kvm_clock_wall_clock_msr;
 static uint32_t kvm_clock_system_time_msr;
 
+uint64_t
+kvm_clock_tsc_freq(void)
+{
+	struct pvclock_vcpu_time_info *ti;
+	uint64_t freq;
+
+	critical_enter();
+	ti = DPCPU_PTR(kvm_clock_vcpu_time_info);
+	freq = pvclock_tsc_freq(ti);
+	critical_exit();
+
+	return (freq);
+}
+
 static u_int
 kvm_clock_get_timecounter(struct timecounter *tc)
 {

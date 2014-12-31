@@ -43,5 +43,6 @@
 
 int		kvm_paravirt_supported(void);
 uint32_t	kvm_get_features(void);
+uint64_t	kvm_clock_tsc_freq(void);
 
 #endif /* !_X86_KVM_H_ */
