@@ -39,6 +39,7 @@ static uint32_t		vmware_cpuid_identify(void);
 
 const struct hypervisor_info vmware_hypervisor_info = {
 	.hvi_name =		"VMware",
+	.hvi_signature =	"VMwareVMware",
 	.hvi_type =		VM_GUEST_VMWARE,
 	.hvi_identify =		vmware_identify,
 };
@@ -51,8 +52,8 @@ vmware_cpuid_identify(void)
 {
 
 	if (vmware_cpuid_base == -1) {
-		hypervisor_cpuid_base("VMwareVMware", 0, &vmware_cpuid_base,
-		    &vmware_cpuid_high);
+		hypervisor_cpuid_base(vmware_hypervisor_info.hvi_signature,
+		    0, &vmware_cpuid_base, &vmware_cpuid_high);
 	}
 
 	return (vmware_cpuid_base);

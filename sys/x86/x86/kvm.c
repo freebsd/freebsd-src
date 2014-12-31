@@ -38,6 +38,7 @@ static uint32_t		kvm_cpuid_identify(void);
 
 const struct hypervisor_info kvm_hypervisor_info = {
 	.hvi_name =		"KVM",
+	.hvi_signature =	"KVMKVMKVM\0\0",
 	.hvi_type =		VM_GUEST_KVM,
 	.hvi_identify =		kvm_identify,
 };
@@ -50,8 +51,8 @@ kvm_cpuid_identify(void)
 {
 
 	if (kvm_cpuid_base == -1) {
-		hypervisor_cpuid_base("KVMKVMKVM\0\0", 0, &kvm_cpuid_base,
-		    &kvm_cpuid_high);
+		hypervisor_cpuid_base(kvm_hypervisor_info.hvi_signature,
+		    0, &kvm_cpuid_base, &kvm_cpuid_high);
 	}
 
 	return (kvm_cpuid_base);

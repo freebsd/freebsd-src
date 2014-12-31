@@ -33,6 +33,7 @@ typedef int hypervisor_info_identify_t(void);
 
 struct hypervisor_info {
 	const char			*hvi_name;
+	const char			*hvi_signature;
 	enum VM_GUEST			 hvi_type;
 	hypervisor_info_identify_t	*hvi_identify;
 };
