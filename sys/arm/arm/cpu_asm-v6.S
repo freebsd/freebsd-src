@@ -106,7 +106,7 @@ ASENTRY_NP(dcache_inv_pou_all)
 	bx	lr
 #else
 	mrc	CP15_CLIDR(r0)
-	ands	r0, r0, #0x07000000
+	ands	r0, r0, #0x38000000
 	mov	r0, r0, lsr #26		/* Get LoUU (naturally aligned) */
 	beq	4f
 
