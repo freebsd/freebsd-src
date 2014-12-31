@@ -346,16 +346,16 @@ rss_hash_ip4_4tuple(struct in_addr src, u_short srcport, struct in_addr dst,
  * Hash an IPv6 2-tuple.
  */
 uint32_t
-rss_hash_ip6_2tuple(struct in6_addr src, struct in6_addr dst)
+rss_hash_ip6_2tuple(const struct in6_addr *src, const struct in6_addr *dst)
 {
-	uint8_t data[sizeof(src) + sizeof(dst)];
+	uint8_t data[sizeof(*src) + sizeof(*dst)];
 	u_int datalen;
 
 	datalen = 0;
-	bcopy(&src, &data[datalen], sizeof(src));
-	datalen += sizeof(src);
-	bcopy(&dst, &data[datalen], sizeof(dst));
-	datalen += sizeof(dst);
+	bcopy(src, &data[datalen], sizeof(*src));
+	datalen += sizeof(*src);
+	bcopy(dst, &data[datalen], sizeof(*dst));
+	datalen += sizeof(*dst);
 	return (rss_hash(datalen, data));
 }
 
@@ -363,18 +363,18 @@ rss_hash_ip6_2tuple(struct in6_addr src, struct in6_addr dst)
  * Hash an IPv6 4-tuple.
  */
 uint32_t
-rss_hash_ip6_4tuple(struct in6_addr src, u_short srcport,
-    struct in6_addr dst, u_short dstport)
+rss_hash_ip6_4tuple(const struct in6_addr *src, u_short srcport,
+    const struct in6_addr *dst, u_short dstport)
 {
-	uint8_t data[sizeof(src) + sizeof(dst) + sizeof(srcport) +
+	uint8_t data[sizeof(*src) + sizeof(*dst) + sizeof(srcport) +
 	    sizeof(dstport)];
 	u_int datalen;
 
 	datalen = 0;
-	bcopy(&src, &data[datalen], sizeof(src));
-	datalen += sizeof(src);
-	bcopy(&dst, &data[datalen], sizeof(dst));
-	datalen += sizeof(dst);
+	bcopy(src, &data[datalen], sizeof(*src));
+	datalen += sizeof(*src);
+	bcopy(dst, &data[datalen], sizeof(*dst));
+	datalen += sizeof(*dst);
 	bcopy(&srcport, &data[datalen], sizeof(srcport));
 	datalen += sizeof(srcport);
 	bcopy(&dstport, &data[datalen], sizeof(dstport));
