@@ -21,7 +21,8 @@ using namespace clang;
 //than a page, almost certainly enough for anything. :)
 static const unsigned ScratchBufSize = 4060;
 
-ScratchBuffer::ScratchBuffer(SourceManager &SM) : SourceMgr(SM), CurBuffer(0) {
+ScratchBuffer::ScratchBuffer(SourceManager &SM)
+    : SourceMgr(SM), CurBuffer(nullptr) {
   // Set BytesUsed so that the first call to getToken will require an alloc.
   BytesUsed = ScratchBufSize;
 }
@@ -65,7 +66,7 @@ void ScratchBuffer::AllocScratchBuffer(unsigned RequestLen) {
 
   llvm::MemoryBuffer *Buf =
     llvm::MemoryBuffer::getNewMemBuffer(RequestLen, "<scratch space>");
-  FileID FID = SourceMgr.createFileIDForMemBuffer(Buf);
+  FileID FID = SourceMgr.createFileID(Buf);
   BufferStartLoc = SourceMgr.getLocForStartOfFile(FID);
   CurBuffer = const_cast<char*>(Buf->getBufferStart());
   BytesUsed = 1;

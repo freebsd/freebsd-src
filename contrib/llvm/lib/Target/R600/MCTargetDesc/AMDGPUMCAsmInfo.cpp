@@ -21,12 +21,8 @@ AMDGPUMCAsmInfo::AMDGPUMCAsmInfo(StringRef &TT) : MCAsmInfo() {
   LinkerRequiresNonEmptyDwarfLines = true;
   MaxInstLength = 16;
   SeparatorString = "\n";
-  CommentColumn = 40;
   CommentString = ";";
   LabelSuffix = ":";
-  GlobalPrefix = "@";
-  PrivateGlobalPrefix = ";.";
-  LinkerPrivateGlobalPrefix = "!";
   InlineAsmStart = ";#ASMSTART";
   InlineAsmEnd = ";#ASMEND";
   AssemblerDialect = 0;
@@ -39,13 +35,11 @@ AMDGPUMCAsmInfo::AMDGPUMCAsmInfo(StringRef &TT) : MCAsmInfo() {
   Data16bitsDirective = ".short\t";
   Data32bitsDirective = ".long\t";
   Data64bitsDirective = ".quad\t";
-  GPRel32Directive = 0;
+  GPRel32Directive = nullptr;
   SunStyleELFSectionSwitchSyntax = true;
   UsesELFSectionDirectiveForBSS = true;
-  HasMicrosoftFastStdCallMangling = false;
 
   //===--- Alignment Information ----------------------------------------===//
-  AlignDirective = ".align\t";
   AlignmentIsInBytes = true;
   TextAlignFillValue = 0;
 
@@ -64,5 +58,5 @@ AMDGPUMCAsmInfo::AMDGPUMCAsmInfo(StringRef &TT) : MCAsmInfo() {
 
 const MCSection*
 AMDGPUMCAsmInfo::getNonexecutableStackSection(MCContext &CTX) const {
-  return 0;
+  return nullptr;
 }

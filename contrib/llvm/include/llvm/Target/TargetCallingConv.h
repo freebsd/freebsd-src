@@ -14,6 +14,7 @@
 #ifndef LLVM_TARGET_TARGETCALLINGCONV_H
 #define LLVM_TARGET_TARGETCALLINGCONV_H
 
+#include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/MathExtras.h"
 #include <string>
@@ -42,10 +43,16 @@ namespace ISD {
     static const uint64_t ByValAlignOffs = 7;
     static const uint64_t Split          = 1ULL<<11;
     static const uint64_t SplitOffs      = 11;
+    static const uint64_t InAlloca       = 1ULL<<12; ///< Passed with inalloca
+    static const uint64_t InAllocaOffs   = 12;
     static const uint64_t OrigAlign      = 0x1FULL<<27;
     static const uint64_t OrigAlignOffs  = 27;
-    static const uint64_t ByValSize      = 0xffffffffULL<<32; ///< Struct size
+    static const uint64_t ByValSize      = 0x3fffffffULL<<32; ///< Struct size
     static const uint64_t ByValSizeOffs  = 32;
+    static const uint64_t InConsecutiveRegsLast      = 0x1ULL<<62; ///< Struct size
+    static const uint64_t InConsecutiveRegsLastOffs  = 62;
+    static const uint64_t InConsecutiveRegs      = 0x1ULL<<63; ///< Struct size
+    static const uint64_t InConsecutiveRegsOffs  = 63;
 
     static const uint64_t One            = 1ULL; ///< 1 of this type, for shifts
 
@@ -68,11 +75,20 @@ namespace ISD {
     bool isByVal()     const { return Flags & ByVal; }
     void setByVal()    { Flags |= One << ByValOffs; }
 
+    bool isInAlloca()  const { return Flags & InAlloca; }
+    void setInAlloca() { Flags |= One << InAllocaOffs; }
+
     bool isNest()      const { return Flags & Nest; }
     void setNest()     { Flags |= One << NestOffs; }
 
     bool isReturned()  const { return Flags & Returned; }
     void setReturned() { Flags |= One << ReturnedOffs; }
+
+    bool isInConsecutiveRegs()  const { return Flags & InConsecutiveRegs; }
+    void setInConsecutiveRegs() { Flags |= One << InConsecutiveRegsOffs; }
+
+    bool isInConsecutiveRegsLast()  const { return Flags & InConsecutiveRegsLast; }
+    void setInConsecutiveRegsLast() { Flags |= One << InConsecutiveRegsLastOffs; }
 
     unsigned getByValAlign() const {
       return (unsigned)

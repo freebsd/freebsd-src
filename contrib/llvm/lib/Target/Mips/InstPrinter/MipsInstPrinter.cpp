@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "asm-printer"
 #include "MipsInstPrinter.h"
+#include "MCTargetDesc/MipsMCExpr.h"
 #include "MipsInstrInfo.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/MC/MCExpr.h"
@@ -22,6 +22,8 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "asm-printer"
 
 #define PRINT_ALIAS_INSTR
 #include "MipsGenAsmWriter.inc"
@@ -83,6 +85,27 @@ void MipsInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
   case Mips::RDHWR64:
     O << "\t.set\tpush\n";
     O << "\t.set\tmips32r2\n";
+    break;
+  case Mips::Save16:
+    O << "\tsave\t";
+    printSaveRestore(MI, O);
+    O << " # 16 bit inst\n";
+    return;
+  case Mips::SaveX16:
+    O << "\tsave\t";
+    printSaveRestore(MI, O);
+    O << "\n";
+    return;
+  case Mips::Restore16:
+    O << "\trestore\t";
+    printSaveRestore(MI, O);
+    O << " # 16 bit inst\n";
+    return;
+  case Mips::RestoreX16:
+    O << "\trestore\t";
+    printSaveRestore(MI, O);
+    O << "\n";
+    return;
   }
 
   // Try to print any aliases first.
@@ -108,8 +131,10 @@ static void printExpr(const MCExpr *Expr, raw_ostream &OS) {
     const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(BE->getRHS());
     assert(SRE && CE && "Binary expression must be sym+const.");
     Offset = CE->getValue();
-  }
-  else if (!(SRE = dyn_cast<MCSymbolRefExpr>(Expr)))
+  } else if (const MipsMCExpr *ME = dyn_cast<MipsMCExpr>(Expr)) {
+    ME->print(OS);
+    return;
+  } else if (!(SRE = dyn_cast<MCSymbolRefExpr>(Expr)))
     assert(false && "Unexpected MCExpr type.");
 
   MCSymbolRefExpr::VariantKind Kind = SRE->getKind();
@@ -141,6 +166,8 @@ static void printExpr(const MCExpr *Expr, raw_ostream &OS) {
   case MCSymbolRefExpr::VK_Mips_GOT_LO16:  OS << "%got_lo("; break;
   case MCSymbolRefExpr::VK_Mips_CALL_HI16: OS << "%call_hi("; break;
   case MCSymbolRefExpr::VK_Mips_CALL_LO16: OS << "%call_lo("; break;
+  case MCSymbolRefExpr::VK_Mips_PCREL_HI16: OS << "%pcrel_hi("; break;
+  case MCSymbolRefExpr::VK_Mips_PCREL_LO16: OS << "%pcrel_lo("; break;
   }
 
   OS << SRE->getSymbol();
@@ -286,3 +313,14 @@ bool MipsInstPrinter::printAlias(const MCInst &MI, raw_ostream &OS) {
   default: return false;
   }
 }
+
+void MipsInstPrinter::printSaveRestore(const MCInst *MI, raw_ostream &O) {
+  for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
+    if (i != 0) O << ", ";
+    if (MI->getOperand(i).isReg())
+      printRegName(O, MI->getOperand(i).getReg());
+    else
+      printUnsignedImm(MI, i, O);
+  }
+}
+

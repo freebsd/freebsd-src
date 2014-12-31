@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "TableGenBackends.h"
 #include "llvm/TableGen/Record.h"
 #include "llvm/TableGen/StringMatcher.h"
 #include "llvm/TableGen/TableGenBackend.h"
@@ -19,14 +20,11 @@
 
 using namespace llvm;
 
-namespace clang {
-void EmitClangCommentHTMLTags(RecordKeeper &Records, raw_ostream &OS) {
+void clang::EmitClangCommentHTMLTags(RecordKeeper &Records, raw_ostream &OS) {
   std::vector<Record *> Tags = Records.getAllDerivedDefinitions("Tag");
   std::vector<StringMatcher::StringPair> Matches;
-  for (std::vector<Record *>::iterator I = Tags.begin(), E = Tags.end();
-       I != E; ++I) {
-    Record &Tag = **I;
-    std::string Spelling = Tag.getValueAsString("Spelling");
+  for (Record *Tag : Tags) {
+    std::string Spelling = Tag->getValueAsString("Spelling");
     Matches.push_back(StringMatcher::StringPair(Spelling, "return true;"));
   }
 
@@ -38,19 +36,17 @@ void EmitClangCommentHTMLTags(RecordKeeper &Records, raw_ostream &OS) {
      << "}\n\n";
 }
 
-void EmitClangCommentHTMLTagsProperties(RecordKeeper &Records,
-                                        raw_ostream &OS) {
+void clang::EmitClangCommentHTMLTagsProperties(RecordKeeper &Records,
+                                               raw_ostream &OS) {
   std::vector<Record *> Tags = Records.getAllDerivedDefinitions("Tag");
   std::vector<StringMatcher::StringPair> MatchesEndTagOptional;
   std::vector<StringMatcher::StringPair> MatchesEndTagForbidden;
-  for (std::vector<Record *>::iterator I = Tags.begin(), E = Tags.end();
-       I != E; ++I) {
-    Record &Tag = **I;
-    std::string Spelling = Tag.getValueAsString("Spelling");
+  for (Record *Tag : Tags) {
+    std::string Spelling = Tag->getValueAsString("Spelling");
     StringMatcher::StringPair Match(Spelling, "return true;");
-    if (Tag.getValueAsBit("EndTagOptional"))
+    if (Tag->getValueAsBit("EndTagOptional"))
       MatchesEndTagOptional.push_back(Match);
-    if (Tag.getValueAsBit("EndTagForbidden"))
+    if (Tag->getValueAsBit("EndTagForbidden"))
       MatchesEndTagForbidden.push_back(Match);
   }
 
@@ -66,5 +62,4 @@ void EmitClangCommentHTMLTagsProperties(RecordKeeper &Records,
   OS << "  return false;\n"
      << "}\n\n";
 }
-} // end namespace clang
 

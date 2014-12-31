@@ -9,7 +9,6 @@ SRCS=	llc.cpp
 
 LIBDEPS=llvmirreader \
 	llvmasmparser \
-	llvmbitreader \
 	llvmarmdisassembler \
 	llvmarmcodegen \
 	llvmarmasmparser \
@@ -22,6 +21,7 @@ LIBDEPS=llvmirreader \
 	llvmmipsdesc \
 	llvmmipsinfo \
 	llvmmipsinstprinter \
+	llvmpowerpcdisassembler \
 	llvmpowerpccodegen \
 	llvmpowerpcasmparser \
 	llvmpowerpcdesc \
@@ -38,22 +38,25 @@ LIBDEPS=llvmirreader \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
-	llvmmcparser \
 	llvmcodegen \
-	llvmobjcarcopts \
 	llvmscalaropts \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmx86desc \
-	llvmx86info \
 	llvmtarget \
+	llvmx86desc \
+	llvmobject \
+	llvmmcparser \
+	llvmbitreader \
+	llvmcore \
+	llvmx86info \
 	llvmx86instprinter \
 	llvmmc \
-	llvmobject \
 	llvmx86utils \
-	llvmcore \
 	llvmsupport
 
 .include "../clang.prog.mk"
+
+DPADD+=	${LIBZ}
+LDADD+=	-lz

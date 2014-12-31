@@ -28,13 +28,11 @@ using namespace lldb_private;
 FuncUnwinders::FuncUnwinders
 (
     UnwindTable& unwind_table, 
-    const lldb::UnwindAssemblySP& assembly_profiler,
     AddressRange range
 ) : 
     m_unwind_table(unwind_table), 
-    m_assembly_profiler(assembly_profiler), 
     m_range(range), 
-    m_mutex (Mutex::eMutexTypeNormal),
+    m_mutex (Mutex::eMutexTypeRecursive),
     m_unwind_plan_call_site_sp (), 
     m_unwind_plan_non_call_site_sp (), 
     m_unwind_plan_fast_sp (), 
@@ -68,7 +66,7 @@ FuncUnwinders::GetUnwindPlanAtCallSite (int current_offset)
     //  if (best_unwind_plan == NULL)
     //      best_unwind_plan = GetUnwindPlanAtNonCallSite (...)
     Mutex::Locker locker (m_mutex);
-    if (m_tried_unwind_at_call_site == false && m_unwind_plan_call_site_sp.get() == NULL)
+    if (m_tried_unwind_at_call_site == false && m_unwind_plan_call_site_sp.get() == nullptr)
     {
         m_tried_unwind_at_call_site = true;
         // We have cases (e.g. with _sigtramp on Mac OS X) where the hand-written eh_frame unwind info for a
@@ -96,7 +94,7 @@ FuncUnwinders::GetUnwindPlanAtCallSite (int current_offset)
 }
 
 UnwindPlanSP
-FuncUnwinders::GetUnwindPlanAtNonCallSite (Thread& thread)
+FuncUnwinders::GetUnwindPlanAtNonCallSite (Target& target, Thread& thread, int current_offset)
 {
     // Lock the mutex to ensure we can always give out the most appropriate
     // information. We want to make sure if someone requests an unwind
@@ -111,13 +109,29 @@ FuncUnwinders::GetUnwindPlanAtNonCallSite (Thread& thread)
     //  if (best_unwind_plan == NULL)
     //      best_unwind_plan = GetUnwindPlanAtNonCallSite (...)
     Mutex::Locker locker (m_mutex);
-    if (m_tried_unwind_at_non_call_site == false && m_unwind_plan_non_call_site_sp.get() == NULL)
+    if (m_tried_unwind_at_non_call_site == false && m_unwind_plan_non_call_site_sp.get() == nullptr)
     {
-        m_tried_unwind_at_non_call_site = true;
-        if (m_assembly_profiler)
+        UnwindAssemblySP assembly_profiler_sp (GetUnwindAssemblyProfiler());
+        if (assembly_profiler_sp)
         {
+            if (target.GetArchitecture().GetCore() == ArchSpec::eCore_x86_32_i386
+                || target.GetArchitecture().GetCore() == ArchSpec::eCore_x86_64_x86_64
+                || target.GetArchitecture().GetCore() == ArchSpec::eCore_x86_64_x86_64h)
+            {
+                // For 0th frame on i386 & x86_64, we fetch eh_frame and try using assembly profiler
+                // to augment it into asynchronous unwind table.
+                GetUnwindPlanAtCallSite(current_offset);
+                if (m_unwind_plan_call_site_sp) {
+                    UnwindPlan* plan = new UnwindPlan (*m_unwind_plan_call_site_sp);
+                    if (assembly_profiler_sp->AugmentUnwindPlanFromCallSite (m_range, thread, *plan)) {
+                        m_unwind_plan_non_call_site_sp.reset (plan);
+                        return m_unwind_plan_non_call_site_sp;
+                    }
+                }
+            }
+
             m_unwind_plan_non_call_site_sp.reset (new UnwindPlan (lldb::eRegisterKindGeneric));
-            if (!m_assembly_profiler->GetNonCallSiteUnwindPlanFromAssembly (m_range, thread, *m_unwind_plan_non_call_site_sp))
+            if (!assembly_profiler_sp->GetNonCallSiteUnwindPlanFromAssembly (m_range, thread, *m_unwind_plan_non_call_site_sp))
                 m_unwind_plan_non_call_site_sp.reset();
         }
     }
@@ -140,13 +154,14 @@ FuncUnwinders::GetUnwindPlanFastUnwind (Thread& thread)
     //  if (best_unwind_plan == NULL)
     //      best_unwind_plan = GetUnwindPlanAtNonCallSite (...)
     Mutex::Locker locker (m_mutex);
-    if (m_tried_unwind_fast == false && m_unwind_plan_fast_sp.get() == NULL)
+    if (m_tried_unwind_fast == false && m_unwind_plan_fast_sp.get() == nullptr)
     {
         m_tried_unwind_fast = true;
-        if (m_assembly_profiler)
+        UnwindAssemblySP assembly_profiler_sp (GetUnwindAssemblyProfiler());
+        if (assembly_profiler_sp)
         {
             m_unwind_plan_fast_sp.reset (new UnwindPlan (lldb::eRegisterKindGeneric));
-            if (!m_assembly_profiler->GetFastUnwindPlan (m_range, thread, *m_unwind_plan_fast_sp))
+            if (!assembly_profiler_sp->GetFastUnwindPlan (m_range, thread, *m_unwind_plan_fast_sp))
                 m_unwind_plan_fast_sp.reset();
         }
     }
@@ -169,7 +184,7 @@ FuncUnwinders::GetUnwindPlanArchitectureDefault (Thread& thread)
     //  if (best_unwind_plan == NULL)
     //      best_unwind_plan = GetUnwindPlanAtNonCallSite (...)
     Mutex::Locker locker (m_mutex);
-    if (m_tried_unwind_arch_default == false && m_unwind_plan_arch_default_sp.get() == NULL)
+    if (m_tried_unwind_arch_default == false && m_unwind_plan_arch_default_sp.get() == nullptr)
     {
         m_tried_unwind_arch_default = true;
         Address current_pc;
@@ -205,7 +220,7 @@ FuncUnwinders::GetUnwindPlanArchitectureDefaultAtFunctionEntry (Thread& thread)
     //  if (best_unwind_plan == NULL)
     //      best_unwind_plan = GetUnwindPlanAtNonCallSite (...)
     Mutex::Locker locker (m_mutex);
-    if (m_tried_unwind_arch_default_at_func_entry == false && m_unwind_plan_arch_default_at_func_entry_sp.get() == NULL)
+    if (m_tried_unwind_arch_default_at_func_entry == false && m_unwind_plan_arch_default_at_func_entry_sp.get() == nullptr)
     {
         m_tried_unwind_arch_default_at_func_entry = true;
         Address current_pc;
@@ -232,8 +247,10 @@ FuncUnwinders::GetFirstNonPrologueInsn (Target& target)
     if (m_first_non_prologue_insn.IsValid())
         return m_first_non_prologue_insn;
     ExecutionContext exe_ctx (target.shared_from_this(), false);
-    if (m_assembly_profiler)
-        m_assembly_profiler->FirstNonPrologueInsn (m_range, exe_ctx, m_first_non_prologue_insn);
+    UnwindAssemblySP assembly_profiler_sp (GetUnwindAssemblyProfiler());
+    if (assembly_profiler_sp)
+    if (assembly_profiler_sp)
+        assembly_profiler_sp->FirstNonPrologueInsn (m_range, exe_ctx, m_first_non_prologue_insn);
     return m_first_non_prologue_insn;
 }
 
@@ -251,4 +268,16 @@ FuncUnwinders::InvalidateNonCallSiteUnwindPlan (lldb_private::Thread& thread)
     {
         m_unwind_plan_call_site_sp = arch_default;
     }
+}
+
+lldb::UnwindAssemblySP
+FuncUnwinders::GetUnwindAssemblyProfiler ()
+{
+    UnwindAssemblySP assembly_profiler_sp;
+    ArchSpec arch;
+    if (m_unwind_table.GetArchitecture (arch))
+    {
+        assembly_profiler_sp = UnwindAssembly::FindPlugin (arch);
+    }
+    return assembly_profiler_sp;
 }

@@ -31,6 +31,68 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20141231:
+	Clang, llvm and lldb have been upgraded to 3.5.0 release.
+
+	As of this release, a prerequisite for building clang, llvm and lldb is
+	a C++11 capable compiler and C++11 standard library.  This means that to
+	be able to successfully build the cross-tools stage of buildworld, with
+	clang as the bootstrap compiler, your system compiler or cross compiler
+	should either be clang 3.3 or later, or gcc 4.8 or later, and your
+	system C++ library should be libc++, or libdstdc++ from gcc 4.8 or
+	later.
+
+	On any standard FreeBSD 10.x or 11.x installation, where clang and
+	libc++ are on by default (that is, on x86 or arm), this should work out
+	of the box.
+
+	On 9.x installations where clang is enabled by default, e.g. on x86 and
+	powerpc, libc++ will not be enabled by default, so libc++ should be
+	built (with clang) and installed first.  If both clang and libc++ are
+	missing, build clang first, then use it to build libc++.
+
+	On 8.x and earlier installations, upgrade to 9.x first, and then follow
+	the instructions for 9.x above.
+
+	Sparc64 and mips users are unaffected, as they still use gcc 4.2.1 by
+	default, and do not build clang.
+
+	Many embedded systems are resource constrained, and will not be able to
+	build clang in a reasonable time, or in some cases at all.  In those
+	cases, cross building bootable systems on amd64 is a workaround.
+
+	This new version of clang introduces a number of new warnings, of which
+	the following are most likely to appear:
+
+	-Wabsolute-value
+
+	This warns in two cases, for both C and C++:
+	* When the code is trying to take the absolute value of an unsigned
+	  quantity, which is effectively a no-op, and almost never what was
+	  intended.  The code should be fixed, if at all possible.  If you are
+	  sure that the unsigned quantity can be safely cast to signed, without
+	  loss of information or undefined behavior, you can add an explicit
+	  cast, or disable the warning.
+
+	* When the code is trying to take an absolute value, but the called
+	  abs() variant is for the wrong type, which can lead to truncation.
+	  If you want to disable the warning instead of fixing the code, please
+	  make sure that truncation will not occur, or it might lead to unwanted
+	  side-effects.
+
+	-Wtautological-undefined-compare and
+	-Wundefined-bool-conversion
+
+	These warn when C++ code is trying to compare 'this' against NULL, while
+	'this' should never be NULL in well-defined C++ code.  However, there is
+	some legacy (pre C++11) code out there, which actively abuses this
+	feature, which was less strictly defined in previous C++ versions.
+
+	Squid and openjdk do this, for example.  The warning can be turned off
+	for C++98 and earlier, but compiling the code in C++11 mode might result
+	in unexpected behavior; for example, the parts of the program that are
+	unreachable could be optimized away.
+
 20141222:
 	The old NFS client and server (kernel options NFSCLIENT, NFSSERVER)
 	kernel sources have been removed. The .h files remain, since some

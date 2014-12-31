@@ -17,11 +17,11 @@
 #define LLVM_CLANG_SERIALIZATION_GLOBAL_MODULE_INDEX_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
+#include <memory>
 #include <utility>
 
 namespace llvm {
@@ -59,7 +59,7 @@ using serialization::ModuleFile;
 class GlobalModuleIndex {
   /// \brief Buffer containing the index file, which is lazily accessed so long
   /// as the global module index is live.
-  llvm::OwningPtr<llvm::MemoryBuffer> Buffer;
+  std::unique_ptr<llvm::MemoryBuffer> Buffer;
 
   /// \brief The hash table.
   ///
@@ -185,6 +185,9 @@ public:
 
   /// \brief Print statistics to standard error.
   void printStats();
+
+  /// \brief Print debugging view to standard error.
+  void dump();
 
   /// \brief Write a global index into the given
   ///

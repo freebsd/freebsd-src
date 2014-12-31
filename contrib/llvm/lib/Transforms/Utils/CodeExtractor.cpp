@@ -14,20 +14,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/CodeExtractor.h"
-#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/StringExtras.h"
-#include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/RegionInfo.h"
 #include "llvm/Analysis/RegionIterator.h"
-#include "llvm/Analysis/Verifier.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -37,6 +37,8 @@
 #include <algorithm>
 #include <set>
 using namespace llvm;
+
+#define DEBUG_TYPE "code-extractor"
 
 // Provide a command-line option to aggregate function arguments into a struct
 // for functions produced by the code extractor. This is useful when converting
@@ -86,7 +88,7 @@ static SetVector<BasicBlock *> buildExtractionBlockSet(IteratorT BBBegin,
   }
 
 #ifndef NDEBUG
-  for (SetVector<BasicBlock *>::iterator I = llvm::next(Result.begin()),
+  for (SetVector<BasicBlock *>::iterator I = std::next(Result.begin()),
                                          E = Result.end();
        I != E; ++I)
     for (pred_iterator PI = pred_begin(*I), PE = pred_end(*I);
@@ -118,7 +120,7 @@ buildExtractionBlockSet(const RegionNode &RN) {
 }
 
 CodeExtractor::CodeExtractor(BasicBlock *BB, bool AggregateArgs)
-  : DT(0), AggregateArgs(AggregateArgs||AggregateArgsOpt),
+  : DT(nullptr), AggregateArgs(AggregateArgs||AggregateArgsOpt),
     Blocks(buildExtractionBlockSet(BB)), NumExitBlocks(~0U) {}
 
 CodeExtractor::CodeExtractor(ArrayRef<BasicBlock *> BBs, DominatorTree *DT,
@@ -171,9 +173,8 @@ void CodeExtractor::findInputsOutputs(ValueSet &Inputs,
         if (definedInCaller(Blocks, *OI))
           Inputs.insert(*OI);
 
-      for (Value::use_iterator UI = II->use_begin(), UE = II->use_end();
-           UI != UE; ++UI)
-        if (!definedInRegion(Blocks, *UI)) {
+      for (User *U : II->users())
+        if (!definedInRegion(Blocks, U)) {
           Outputs.insert(II);
           break;
         }
@@ -369,7 +370,7 @@ Function *CodeExtractor::constructFunction(const ValueSet &inputs,
     } else
       RewriteVal = AI++;
 
-    std::vector<User*> Users(inputs[i]->use_begin(), inputs[i]->use_end());
+    std::vector<User*> Users(inputs[i]->user_begin(), inputs[i]->user_end());
     for (std::vector<User*>::iterator use = Users.begin(), useE = Users.end();
          use != useE; ++use)
       if (Instruction* inst = dyn_cast<Instruction>(*use))
@@ -389,7 +390,7 @@ Function *CodeExtractor::constructFunction(const ValueSet &inputs,
   // Rewrite branches to basic blocks outside of the loop to new dummy blocks
   // within the new function. This must be done before we lose track of which
   // blocks were originally in the code region.
-  std::vector<User*> Users(header->use_begin(), header->use_end());
+  std::vector<User*> Users(header->user_begin(), header->user_end());
   for (unsigned i = 0, e = Users.size(); i != e; ++i)
     // The BasicBlock which contains the branch is not in the region
     // modify the branch target to a new block
@@ -405,14 +406,13 @@ Function *CodeExtractor::constructFunction(const ValueSet &inputs,
 /// that uses the value within the basic block, and return the predecessor
 /// block associated with that use, or return 0 if none is found.
 static BasicBlock* FindPhiPredForUseInBlock(Value* Used, BasicBlock* BB) {
-  for (Value::use_iterator UI = Used->use_begin(),
-       UE = Used->use_end(); UI != UE; ++UI) {
-     PHINode *P = dyn_cast<PHINode>(*UI);
+  for (Use &U : Used->uses()) {
+     PHINode *P = dyn_cast<PHINode>(U.getUser());
      if (P && P->getParent() == BB)
-       return P->getIncomingBlock(UI);
+       return P->getIncomingBlock(U);
   }
-  
-  return 0;
+
+  return nullptr;
 }
 
 /// emitCallAndSwitchStatement - This method sets up the caller side by adding
@@ -440,14 +440,14 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
       StructValues.push_back(*i);
     } else {
       AllocaInst *alloca =
-        new AllocaInst((*i)->getType(), 0, (*i)->getName()+".loc",
+        new AllocaInst((*i)->getType(), nullptr, (*i)->getName()+".loc",
                        codeReplacer->getParent()->begin()->begin());
       ReloadOutputs.push_back(alloca);
       params.push_back(alloca);
     }
   }
 
-  AllocaInst *Struct = 0;
+  AllocaInst *Struct = nullptr;
   if (AggregateArgs && (inputs.size() + outputs.size() > 0)) {
     std::vector<Type*> ArgTypes;
     for (ValueSet::iterator v = StructValues.begin(),
@@ -457,7 +457,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
     // Allocate a struct at the beginning of this function
     Type *StructArgTy = StructType::get(newFunction->getContext(), ArgTypes);
     Struct =
-      new AllocaInst(StructArgTy, 0, "structArg",
+      new AllocaInst(StructArgTy, nullptr, "structArg",
                      codeReplacer->getParent()->begin()->begin());
     params.push_back(Struct);
 
@@ -486,7 +486,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
 
   // Reload the outputs passed in by reference
   for (unsigned i = 0, e = outputs.size(); i != e; ++i) {
-    Value *Output = 0;
+    Value *Output = nullptr;
     if (AggregateArgs) {
       Value *Idx[2];
       Idx[0] = Constant::getNullValue(Type::getInt32Ty(Context));
@@ -502,7 +502,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
     LoadInst *load = new LoadInst(Output, outputs[i]->getName()+".reload");
     Reloads.push_back(load);
     codeReplacer->getInstList().push_back(load);
-    std::vector<User*> Users(outputs[i]->use_begin(), outputs[i]->use_end());
+    std::vector<User*> Users(outputs[i]->user_begin(), outputs[i]->user_end());
     for (unsigned u = 0, e = Users.size(); u != e; ++u) {
       Instruction *inst = cast<Instruction>(Users[u]);
       if (!Blocks.count(inst->getParent()))
@@ -539,7 +539,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
                                          newFunction);
           unsigned SuccNum = switchVal++;
 
-          Value *brVal = 0;
+          Value *brVal = nullptr;
           switch (NumExitBlocks) {
           case 0:
           case 1: break;  // No value needed.
@@ -635,7 +635,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
 
     // Check if the function should return a value
     if (OldFnRetTy->isVoidTy()) {
-      ReturnInst::Create(Context, 0, TheSwitch);  // Return void
+      ReturnInst::Create(Context, nullptr, TheSwitch);  // Return void
     } else if (OldFnRetTy == TheSwitch->getCondition()->getType()) {
       // return what we have
       ReturnInst::Create(Context, TheSwitch->getCondition(), TheSwitch);
@@ -687,7 +687,7 @@ void CodeExtractor::moveCodeToFunction(Function *newFunction) {
 
 Function *CodeExtractor::extractCodeRegion() {
   if (!isEligible())
-    return 0;
+    return nullptr;
 
   ValueSet inputs, outputs;
 

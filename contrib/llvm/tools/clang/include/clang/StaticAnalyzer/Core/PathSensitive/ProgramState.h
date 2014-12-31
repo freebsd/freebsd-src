@@ -25,10 +25,10 @@
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/ImmutableMap.h"
 #include "llvm/ADT/PointerIntPair.h"
+#include "llvm/Support/Allocator.h"
 
 namespace llvm {
 class APSInt;
-class BumpPtrAllocator;
 }
 
 namespace clang {
@@ -237,16 +237,16 @@ public:
   ProgramStateRef
   invalidateRegions(ArrayRef<const MemRegion *> Regions, const Expr *E,
                     unsigned BlockCount, const LocationContext *LCtx,
-                    bool CausesPointerEscape, InvalidatedSymbols *IS = 0,
-                    const CallEvent *Call = 0,
-                    RegionAndSymbolInvalidationTraits *ITraits = 0) const;
+                    bool CausesPointerEscape, InvalidatedSymbols *IS = nullptr,
+                    const CallEvent *Call = nullptr,
+                    RegionAndSymbolInvalidationTraits *ITraits = nullptr) const;
 
   ProgramStateRef
   invalidateRegions(ArrayRef<SVal> Regions, const Expr *E,
                     unsigned BlockCount, const LocationContext *LCtx,
-                    bool CausesPointerEscape, InvalidatedSymbols *IS = 0,
-                    const CallEvent *Call = 0,
-                    RegionAndSymbolInvalidationTraits *ITraits = 0) const;
+                    bool CausesPointerEscape, InvalidatedSymbols *IS = nullptr,
+                    const CallEvent *Call = nullptr,
+                    RegionAndSymbolInvalidationTraits *ITraits = nullptr) const;
 
   /// enterStackFrame - Returns the state for entry to the given stack frame,
   ///  preserving the current state.
@@ -441,8 +441,8 @@ private:
   SubEngine *Eng; /* Can be null. */
 
   EnvironmentManager                   EnvMgr;
-  OwningPtr<StoreManager>              StoreMgr;
-  OwningPtr<ConstraintManager>         ConstraintMgr;
+  std::unique_ptr<StoreManager>        StoreMgr;
+  std::unique_ptr<ConstraintManager>   ConstraintMgr;
 
   ProgramState::GenericDataMap::Factory     GDMFactory;
 
@@ -454,10 +454,10 @@ private:
   llvm::FoldingSet<ProgramState> StateSet;
 
   /// Object that manages the data for all created SVals.
-  OwningPtr<SValBuilder> svalBuilder;
+  std::unique_ptr<SValBuilder> svalBuilder;
 
   /// Manages memory for created CallEvents.
-  OwningPtr<CallEventManager> CallEventMgr;
+  std::unique_ptr<CallEventManager> CallEventMgr;
 
   /// A BumpPtrAllocator to allocate states.
   llvm::BumpPtrAllocator &Alloc;
@@ -676,10 +676,8 @@ inline SVal ProgramState::getLValue(const FieldDecl *D, SVal Base) const {
 inline SVal ProgramState::getLValue(const IndirectFieldDecl *D,
                                     SVal Base) const {
   StoreManager &SM = *getStateManager().StoreMgr;
-  for (IndirectFieldDecl::chain_iterator I = D->chain_begin(),
-                                         E = D->chain_end();
-       I != E; ++I) {
-    Base = SM.getLValueField(cast<FieldDecl>(*I), Base);
+  for (const auto *I : D->chain()) {
+    Base = SM.getLValueField(cast<FieldDecl>(I), Base);
   }
 
   return Base;

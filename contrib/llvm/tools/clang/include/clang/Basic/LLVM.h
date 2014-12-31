@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 //
 /// \file
-/// \brief Forward declares and imports various common LLVM datatypes that
+/// \brief Forward-declares and imports various common LLVM datatypes that
 /// clang wants to use unqualified.
 ///
 //===----------------------------------------------------------------------===//
@@ -29,7 +29,7 @@ namespace llvm {
   class StringRef;
   class Twine;
   template<typename T> class ArrayRef;
-  template<typename T> class OwningPtr;
+  template<typename T> class MutableArrayRef;
   template<unsigned InternalLen> class SmallString;
   template<typename T, unsigned N> class SmallVector;
   template<typename T> class SmallVectorImpl;
@@ -63,7 +63,7 @@ namespace clang {
   using llvm::StringRef;
   using llvm::Twine;
   using llvm::ArrayRef;
-  using llvm::OwningPtr;
+  using llvm::MutableArrayRef;
   using llvm::SmallString;
   using llvm::SmallVector;
   using llvm::SmallVectorImpl;

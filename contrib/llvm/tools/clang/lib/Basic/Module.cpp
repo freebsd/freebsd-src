@@ -24,20 +24,23 @@
 
 using namespace clang;
 
-Module::Module(StringRef Name, SourceLocation DefinitionLoc, Module *Parent, 
-               bool IsFramework, bool IsExplicit)
-  : Name(Name), DefinitionLoc(DefinitionLoc), Parent(Parent),
-    Umbrella(), ASTFile(0), IsAvailable(true), IsFromModuleFile(false),
-    IsFramework(IsFramework), IsExplicit(IsExplicit), IsSystem(false),
-    InferSubmodules(false), InferExplicitSubmodules(false), 
-    InferExportWildcard(false), ConfigMacrosExhaustive(false),
-    NameVisibility(Hidden)
-{ 
+Module::Module(StringRef Name, SourceLocation DefinitionLoc, Module *Parent,
+               const FileEntry *File, bool IsFramework, bool IsExplicit)
+    : Name(Name), DefinitionLoc(DefinitionLoc), Parent(Parent), ModuleMap(File),
+      Umbrella(), ASTFile(nullptr), IsMissingRequirement(false),
+      IsAvailable(true), IsFromModuleFile(false), IsFramework(IsFramework),
+      IsExplicit(IsExplicit), IsSystem(false), IsExternC(false),
+      IsInferred(false), InferSubmodules(false), InferExplicitSubmodules(false),
+      InferExportWildcard(false), ConfigMacrosExhaustive(false),
+      NameVisibility(Hidden) {
   if (Parent) {
     if (!Parent->isAvailable())
       IsAvailable = false;
     if (Parent->IsSystem)
       IsSystem = true;
+    if (Parent->IsExternC)
+      IsExternC = true;
+    IsMissingRequirement = Parent->IsMissingRequirement;
     
     Parent->SubModuleIndex[Name] = Parent->SubModules.size();
     Parent->SubModules.push_back(this);
@@ -69,11 +72,15 @@ static bool hasFeature(StringRef Feature, const LangOptions &LangOpts,
 
 bool
 Module::isAvailable(const LangOptions &LangOpts, const TargetInfo &Target,
-                    Requirement &Req) const {
+                    Requirement &Req, HeaderDirective &MissingHeader) const {
   if (IsAvailable)
     return true;
 
   for (const Module *Current = this; Current; Current = Current->Parent) {
+    if (!Current->MissingHeaders.empty()) {
+      MissingHeader = Current->MissingHeaders.front();
+      return false;
+    }
     for (unsigned I = 0, N = Current->Requirements.size(); I != N; ++I) {
       if (hasFeature(Current->Requirements[I].first, LangOpts, Target) !=
               Current->Requirements[I].second) {
@@ -86,7 +93,7 @@ Module::isAvailable(const LangOptions &LangOpts, const TargetInfo &Target,
   llvm_unreachable("could not find a reason why module is unavailable");
 }
 
-bool Module::isSubModuleOf(Module *Other) const {
+bool Module::isSubModuleOf(const Module *Other) const {
   const Module *This = this;
   do {
     if (This == Other)
@@ -155,6 +162,10 @@ void Module::addRequirement(StringRef Feature, bool RequiredState,
   if (hasFeature(Feature, LangOpts, Target) == RequiredState)
     return;
 
+  markUnavailable(/*MissingRequirement*/true);
+}
+
+void Module::markUnavailable(bool MissingRequirement) {
   if (!IsAvailable)
     return;
 
@@ -168,6 +179,7 @@ void Module::addRequirement(StringRef Feature, bool RequiredState,
       continue;
 
     Current->IsAvailable = false;
+    Current->IsMissingRequirement |= MissingRequirement;
     for (submodule_iterator Sub = Current->submodule_begin(),
                          SubEnd = Current->submodule_end();
          Sub != SubEnd; ++Sub) {
@@ -180,8 +192,8 @@ void Module::addRequirement(StringRef Feature, bool RequiredState,
 Module *Module::findSubmodule(StringRef Name) const {
   llvm::StringMap<unsigned>::const_iterator Pos = SubModuleIndex.find(Name);
   if (Pos == SubModuleIndex.end())
-    return 0;
-  
+    return nullptr;
+
   return SubModules[Pos->getValue()];
 }
 
@@ -349,7 +361,8 @@ void Module::print(raw_ostream &OS, unsigned Indent) const {
   
   for (submodule_const_iterator MI = submodule_begin(), MIEnd = submodule_end();
        MI != MIEnd; ++MI)
-    (*MI)->print(OS, Indent + 2);
+    if (!(*MI)->IsInferred)
+      (*MI)->print(OS, Indent + 2);
   
   for (unsigned I = 0, N = Exports.size(); I != N; ++I) {
     OS.indent(Indent + 2);
