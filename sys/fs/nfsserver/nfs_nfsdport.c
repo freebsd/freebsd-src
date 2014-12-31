@@ -2965,12 +2965,7 @@ nfsvno_advlock(struct vnode *vp, int ftype, u_int64_t first,
 
 	if (nfsrv_dolocallocks == 0)
 		goto out;
-
-	/* Check for VI_DOOMED here, so that VOP_ADVLOCK() isn't performed. */
-	if ((vp->v_iflag & VI_DOOMED) != 0) {
-		error = EPERM;
-		goto out;
-	}
+	ASSERT_VOP_UNLOCKED(vp, "nfsvno_advlock: vp locked");
 
 	fl.l_whence = SEEK_SET;
 	fl.l_type = ftype;
@@ -2994,14 +2989,12 @@ nfsvno_advlock(struct vnode *vp, int ftype, u_int64_t first,
 	fl.l_pid = (pid_t)0;
 	fl.l_sysid = (int)nfsv4_sysid;
 
-	NFSVOPUNLOCK(vp, 0);
 	if (ftype == F_UNLCK)
 		error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_UNLCK, &fl,
 		    (F_POSIX | F_REMOTE));
 	else
 		error = VOP_ADVLOCK(vp, (caddr_t)td->td_proc, F_SETLK, &fl,
 		    (F_POSIX | F_REMOTE));
-	NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
 
 out:
 	NFSEXITCODE(error);
