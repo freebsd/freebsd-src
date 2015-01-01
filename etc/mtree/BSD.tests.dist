@@ -91,6 +91,12 @@
             ..
             libmp
             ..
+            librt
+            ..
+            libthr
+                dlopen
+                ..
+            ..
             libutil
             ..
         ..
