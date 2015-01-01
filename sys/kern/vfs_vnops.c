@@ -187,7 +187,11 @@ restart:
 	fmode = *flagp;
 	if (fmode & O_CREAT) {
 		ndp->ni_cnd.cn_nameiop = CREATE;
-		ndp->ni_cnd.cn_flags = ISOPEN | LOCKPARENT | LOCKLEAF;
+		/*
+		 * Set NOCACHE to avoid flushing the cache when
+		 * rolling in many files at once.
+		*/
+		ndp->ni_cnd.cn_flags = ISOPEN | LOCKPARENT | LOCKLEAF | NOCACHE;
 		if ((fmode & O_EXCL) == 0 && (fmode & O_NOFOLLOW) == 0)
 			ndp->ni_cnd.cn_flags |= FOLLOW;
 		if (!(vn_open_flags & VN_OPEN_NOAUDIT))

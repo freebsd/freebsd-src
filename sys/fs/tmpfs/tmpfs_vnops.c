@@ -195,7 +195,7 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 	/* Store the result of this lookup in the cache.  Avoid this if the
 	 * request was for creation, as it does not improve timings on
 	 * emprical tests. */
-	if ((cnp->cn_flags & MAKEENTRY) && cnp->cn_nameiop != CREATE)
+	if ((cnp->cn_flags & MAKEENTRY) != 0)
 		cache_enter(dvp, *vpp, cnp);
 
 out:
