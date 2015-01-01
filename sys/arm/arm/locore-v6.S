@@ -461,7 +461,7 @@ ENTRY_NP(cpu_halt)
 	teq	r4, #0
 	movne	pc, r4
 1:	
-	wfi
+	WFI
 	b	1b
 
 	/*
