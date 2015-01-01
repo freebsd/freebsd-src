@@ -29,7 +29,12 @@ NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
 CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
-		-Wno-error-parentheses-equality -Wno-error-unused-function
+		-Wno-error-parentheses-equality -Wno-error-unused-function \
+		-Wno-error-pointer-sign -Wno-error-format -Wno-error-parentheses \
+		-Wno-error-switch -Wno-error-switch \
+		-Wno-error-shift-count-negative \
+		-Wno-error-shift-count-overflow \
+		-Wno-error-constant-conversion
 .endif
 
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40300
@@ -164,13 +169,7 @@ CFLAGS+=	-fstack-protector
 CFLAGS+=	-gdwarf-2
 .endif
 
-# A whole bunch of new default warnings in clang 3.5 subpress for now until
-# this can be cleaned up.
-.if ${COMPILER_VERSION} >= 30500
-CFLAGS.clang+=    -Wno-pointer-sign -Wno-constant-conversion -Wno-format \
-	-Wno-shift-count-negative -Wno-tautological-pointer-compare \
-	-Wno-shift-count-overflow -Wno-tautological-compare
-.endif
+CFLAGS+= ${CWARNEXTRA}
 
 CFLAGS+= ${CFLAGS.${COMPILER_TYPE}}
 
@@ -187,3 +186,17 @@ PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
 
 .PHONY: ${PHONY_NOTMAIN}
 .NOTMAIN: ${PHONY_NOTMAIN}
+
+CSTD=		c99
+
+.if ${CSTD} == "k&r"
+CFLAGS+=        -traditional
+.elif ${CSTD} == "c89" || ${CSTD} == "c90"
+CFLAGS+=        -std=iso9899:1990
+.elif ${CSTD} == "c94" || ${CSTD} == "c95"
+CFLAGS+=        -std=iso9899:199409
+.elif ${CSTD} == "c99"
+CFLAGS+=        -std=iso9899:1999
+.else # CSTD
+CFLAGS+=        -std=${CSTD}
+.endif # CSTD
