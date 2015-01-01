@@ -328,6 +328,9 @@ openfirmware_core(void *args)
 	int		result;
 	register_t	oldmsr;
 
+	if (openfirmware_entry == NULL)
+		return (-1);
+
 	/*
 	 * Turn off exceptions - we really don't want to end up
 	 * anywhere unexpected with PCPU set to something strange
@@ -402,7 +405,12 @@ openfirmware(void *args)
 	int result;
 	#ifdef SMP
 	struct ofw_rv_args rv_args;
+	#endif
 
+	if (openfirmware_entry == NULL)
+		return (-1);
+
+	#ifdef SMP
 	rv_args.args = args;
 	rv_args.in_progress = 1;
 	smp_rendezvous(smp_no_rendevous_barrier, ofw_rendezvous_dispatch,
