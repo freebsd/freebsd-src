@@ -175,11 +175,12 @@ LIN_SDT_PROBE_DEFINE2(futex, linux_get_robust_list, entry, "struct thread *",
 LIN_SDT_PROBE_DEFINE1(futex, linux_get_robust_list, copyout_error, "int");
 LIN_SDT_PROBE_DEFINE1(futex, linux_get_robust_list, return, "int");
 LIN_SDT_PROBE_DEFINE3(futex, handle_futex_death, entry, "struct proc *",
-    "uint32_t *", "int");
+    "uint32_t *", "unsigned int");
 LIN_SDT_PROBE_DEFINE1(futex, handle_futex_death, copyin_error, "int");
 LIN_SDT_PROBE_DEFINE1(futex, handle_futex_death, return, "int");
 LIN_SDT_PROBE_DEFINE3(futex, fetch_robust_entry, entry,
-    "struct linux_robust_list **", "struct linux_robust_list **", "int *");
+    "struct linux_robust_list **", "struct linux_robust_list **",
+    "unsigned int *");
 LIN_SDT_PROBE_DEFINE1(futex, fetch_robust_entry, copyin_error, "int");
 LIN_SDT_PROBE_DEFINE1(futex, fetch_robust_entry, return, "int");
 LIN_SDT_PROBE_DEFINE1(futex, release_futexes, entry, "struct proc *");
@@ -1100,7 +1101,7 @@ linux_get_robust_list(struct thread *td, struct linux_get_robust_list_args *args
 }
 
 static int
-handle_futex_death(struct proc *p, uint32_t *uaddr, int pi)
+handle_futex_death(struct proc *p, uint32_t *uaddr, unsigned int pi)
 {
 	uint32_t uval, nval, mval;
 	struct futex *f;
@@ -1149,7 +1150,7 @@ retry:
 
 static int
 fetch_robust_entry(struct linux_robust_list **entry,
-    struct linux_robust_list **head, int *pi)
+    struct linux_robust_list **head, unsigned int *pi)
 {
 	l_ulong uentry;
 	int error;
