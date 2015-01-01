@@ -3006,9 +3006,9 @@ vtnet_reinit(struct vtnet_softc *sc)
 	if (ifp->if_capenable & IFCAP_TXCSUM_IPV6)
 		ifp->if_hwassist |= VTNET_CSUM_OFFLOAD_IPV6;
 	if (ifp->if_capenable & IFCAP_TSO4)
-		ifp->if_hwassist |= CSUM_TSO;
+		ifp->if_hwassist |= CSUM_IP_TSO;
 	if (ifp->if_capenable & IFCAP_TSO6)
-		ifp->if_hwassist |= CSUM_TSO; /* No CSUM_TSO_IPV6. */
+		ifp->if_hwassist |= CSUM_IP6_TSO;
 
 	if (sc->vtnet_flags & VTNET_FLAG_CTRL_VQ)
 		vtnet_init_rx_filters(sc);
