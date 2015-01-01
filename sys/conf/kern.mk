@@ -164,4 +164,26 @@ CFLAGS+=	-fstack-protector
 CFLAGS+=	-gdwarf-2
 .endif
 
+# A whole bunch of new default warnings in clang 3.5 subpress for now until
+# this can be cleaned up.
+.if ${COMPILER_VERSION} >= 30500
+CFLAGS.clang+=    -Wno-pointer-sign -Wno-constant-conversion -Wno-format \
+	-Wno-shift-count-negative -Wno-tautological-pointer-compare \
+	-Wno-shift-count-overflow -Wno-tautological-compare
+.endif
+
 CFLAGS+= ${CFLAGS.${COMPILER_TYPE}}
+
+# Tell bmake not to mistake standard targets for things to be searched for
+# or expect to ever be up-to-date.
+PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
+		beforelinking build build-tools buildfiles buildincludes \
+		checkdpadd clean cleandepend cleandir cleanobj configure \
+		depend dependall distclean distribute exe \
+		html includes install installfiles installincludes lint \
+		obj objlink objs objwarn realall realdepend \
+		realinstall regress subdir-all subdir-depend subdir-install \
+		tags whereobj
+
+.PHONY: ${PHONY_NOTMAIN}
+.NOTMAIN: ${PHONY_NOTMAIN}

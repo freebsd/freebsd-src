@@ -110,11 +110,7 @@ CWARNFLAGS+=	-Wno-format
 CWARNFLAGS+=	-Wno-unknown-pragmas
 .endif # IGNORE_PRAGMA
 
-.if ${COMPILER_TYPE} == "clang"
-# Would love to do this unconditionally, but can't due to its use in
-# kernel build coupled with CFLAGS.${TARGET} feature
 CLANG_NO_IAS=	 -no-integrated-as
-.endif
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
 		 -mllvm -simplifycfg-dup-ret -mllvm -enable-gvn=false
 CFLAGS.clang+=	 -Qunused-arguments
