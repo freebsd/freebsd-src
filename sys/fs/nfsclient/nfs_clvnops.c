@@ -1185,8 +1185,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 			return (EJUSTRETURN);
 		}
 
-		if ((cnp->cn_flags & MAKEENTRY) && cnp->cn_nameiop != CREATE &&
-		    dattrflag) {
+		if ((cnp->cn_flags & MAKEENTRY) != 0 && dattrflag) {
 			/*
 			 * Cache the modification time of the parent
 			 * directory from the post-op attributes in
