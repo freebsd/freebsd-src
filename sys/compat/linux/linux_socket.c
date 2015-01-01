@@ -573,7 +573,8 @@ linux_sendit(struct thread *td, int s, struct msghdr *mp, int flags,
 static int
 linux_check_hdrincl(struct thread *td, int s)
 {
-	int error, optval, size_val;
+	int error, optval;
+	socklen_t size_val;
 
 	size_val = sizeof(optval);
 	error = kern_getsockopt(td, s, IPPROTO_IP, IP_HDRINCL,
@@ -932,7 +933,7 @@ linux_getpeername(struct thread *td, struct linux_getpeername_args *args)
 
 	bsd_args.fdes = args->s;
 	bsd_args.asa = (struct sockaddr *)PTRIN(args->addr);
-	bsd_args.alen = (int *)PTRIN(args->namelen);
+	bsd_args.alen = (socklen_t *)PTRIN(args->namelen);
 	error = sys_getpeername(td, &bsd_args);
 	bsd_to_linux_sockaddr((struct sockaddr *)bsd_args.asa);
 	if (error)
