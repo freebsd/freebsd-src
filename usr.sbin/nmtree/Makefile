@@ -31,4 +31,8 @@ CLEANFILES+=	nmtree.8
 nmtree.8: mtree.8
 	cp ${.ALLSRC} ${.TARGET}
 
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
+
 .include <bsd.prog.mk>
