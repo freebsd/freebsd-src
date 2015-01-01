@@ -188,6 +188,7 @@ extern unsigned char _etext[];
 extern unsigned char _end[];
 
 extern int dumpsys_minidump;
+extern int ofw_real_mode;
 
 /*
  * Map of physical memory regions.
@@ -850,7 +851,7 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 	ihandle_t	mmui;
 	phandle_t	chosen;
 	phandle_t	mmu;
-	size_t		sz;
+	ssize_t		sz;
 	int		i;
 	vm_offset_t	pa, va;
 	void		*dpcpu;
@@ -861,15 +862,17 @@ moea64_late_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend
 	 */
 
 	chosen = OF_finddevice("/chosen");
-	if (chosen != -1 && OF_getprop(chosen, "mmu", &mmui, 4) != -1) {
-	    mmu = OF_instance_to_package(mmui);
-	    if (mmu == -1 || (sz = OF_getproplen(mmu, "translations")) == -1)
-		sz = 0;
-	    if (sz > 6144 /* tmpstksz - 2 KB headroom */)
-		panic("moea64_bootstrap: too many ofw translations");
+	if (!ofw_real_mode && chosen != -1 &&
+	    OF_getprop(chosen, "mmu", &mmui, 4) != -1) {
+		mmu = OF_instance_to_package(mmui);
+		if (mmu == -1 ||
+		    (sz = OF_getproplen(mmu, "translations")) == -1)
+			sz = 0;
+		if (sz > 6144 /* tmpstksz - 2 KB headroom */)
+			panic("moea64_bootstrap: too many ofw translations");
 
-	    if (sz > 0)
-		moea64_add_ofw_mappings(mmup, mmu, sz);
+		if (sz > 0)
+			moea64_add_ofw_mappings(mmup, mmu, sz);
 	}
 
 	/*
