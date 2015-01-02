@@ -141,11 +141,9 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 	cell_t address_cells, size_cells;
 	cell_t OFmem[4 * PHYS_AVAIL_SZ];
 	int sz, i, j;
-	int apple_hack_mode;
 	phandle_t phandle;
 
 	sz = 0;
-	apple_hack_mode = 0;
 
 	/*
 	 * Get #address-cells from root node, defaulting to 1 if it cannot
