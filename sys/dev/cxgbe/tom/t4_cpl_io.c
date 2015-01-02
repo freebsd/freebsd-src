@@ -111,8 +111,6 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 	KASSERT(!(toep->flags & TPF_FLOWC_WR_SENT),
 	    ("%s: flowc for tid %u sent already", __func__, toep->tid));
 
-	CTR2(KTR_CXGBE, "%s: tid %u", __func__, toep->tid);
-
 	flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
 
 	wr = alloc_wrqe(roundup2(flowclen, 16), toep->ofld_txq);
@@ -147,11 +145,18 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 		flowc->mnemval[6].val = htobe32(sndbuf);
 		flowc->mnemval[7].mnemonic = FW_FLOWC_MNEM_MSS;
 		flowc->mnemval[7].val = htobe32(ftxp->mss);
+
+		CTR6(KTR_CXGBE,
+		    "%s: tid %u, mss %u, sndbuf %u, snd_nxt 0x%x, rcv_nxt 0x%x",
+		    __func__, toep->tid, ftxp->mss, sndbuf, ftxp->snd_nxt,
+		    ftxp->rcv_nxt);
 	} else {
 		flowc->mnemval[4].mnemonic = FW_FLOWC_MNEM_SNDBUF;
 		flowc->mnemval[4].val = htobe32(512);
 		flowc->mnemval[5].mnemonic = FW_FLOWC_MNEM_MSS;
 		flowc->mnemval[5].val = htobe32(512);
+
+		CTR2(KTR_CXGBE, "%s: tid %u", __func__, toep->tid);
 	}
 
 	txsd->tx_credits = howmany(flowclen, 16);
