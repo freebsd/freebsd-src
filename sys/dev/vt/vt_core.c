@@ -114,6 +114,7 @@ const struct terminal_class vt_termclass = {
 
 #define	VT_LOCK(vd)	mtx_lock(&(vd)->vd_lock)
 #define	VT_UNLOCK(vd)	mtx_unlock(&(vd)->vd_lock)
+#define	VT_LOCK_ASSERT(vd, what)	mtx_assert(&(vd)->vd_lock, what)
 
 #define	VT_UNIT(vw)	((vw)->vw_device->vd_unit * VT_MAXWINDOWS + \
 			(vw)->vw_number)
@@ -283,12 +284,18 @@ vt_resume_flush_timer(struct vt_device *vd, int ms)
 static void
 vt_suspend_flush_timer(struct vt_device *vd)
 {
+	/*
+	 * As long as this function is called locked, callout_stop()
+	 * has the same effect like callout_drain() with regard to
+	 * preventing the callback function from executing.
+	 */
+	VT_LOCK_ASSERT(vd, MA_OWNED);
 
 	if (!(vd->vd_flags & VDF_ASYNC) ||
 	    !atomic_cmpset_int(&vd->vd_timer_armed, 1, 0))
 		return;
 
-	callout_drain(&vd->vd_timer);
+	callout_stop(&vd->vd_timer);
 }
 
 static void
@@ -2604,7 +2611,9 @@ vt_allocate(struct vt_driver *drv, void *softc)
 
 	if (vd->vd_flags & VDF_ASYNC) {
 		/* Stop vt_flush periodic task. */
+		VT_LOCK(vd);
 		vt_suspend_flush_timer(vd);
+		VT_UNLOCK(vd);
 		/*
 		 * Mute current terminal until we done. vt_change_font (called
 		 * from vt_resize) will unmute it.
