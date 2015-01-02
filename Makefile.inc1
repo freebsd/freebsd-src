@@ -260,7 +260,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
-		MK_HTML=no MK_INFO=no NO_LINT=yes MK_MAN=no \
+		MK_HTML=no NO_LINT=yes MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
@@ -293,7 +293,7 @@ KTMAKE=		TOOLS_PREFIX=${WORLDTMP} MAKEOBJDIRPREFIX=${WORLDTMP} \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
-		MK_HTML=no MK_INFO=no -DNO_LINT MK_MAN=no \
+		MK_HTML=no -DNO_LINT MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no
 
@@ -438,7 +438,7 @@ LIB32WMAKEFLAGS+= CC="${XCC} ${LIB32FLAGS}" \
 		MK_TESTS=no
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} ${LIB32WMAKEFLAGS} \
-		MK_MAN=no MK_INFO=no MK_HTML=no
+		MK_MAN=no MK_HTML=no
 LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} \
 		MK_TOOLCHAIN=no ${IMAKE_INSTALL}
 .endif
@@ -590,7 +590,7 @@ _libraries:
 	@echo ">>> stage 4.2: building libraries"
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
-	    ${WMAKE} -DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT MK_MAN=no \
+	    ${WMAKE} -DNO_FSCHG MK_HTML=no -DNO_LINT MK_MAN=no \
 	    MK_PROFILE=no MK_TESTS=no MK_TESTS_SUPPORT=${MK_TESTS} libraries
 _depend:
 	@echo
@@ -784,9 +784,6 @@ __installcheck_UGID:
 #
 # Required install tools to be saved in a scratch dir for safety.
 #
-.if ${MK_INFO} != "no"
-_install-info=	install-info
-.endif
 .if ${MK_ZONEINFO} != "no"
 _zoneinfo=	zic tzsetup
 .endif
@@ -1367,11 +1364,6 @@ _share=	share/syscons/scrnmaps
 _gcc_tools= gnu/usr.bin/cc/cc_tools
 .endif
 
-.if ${MK_INFO} != "no"
-_texinfo=	gnu/usr.bin/texinfo/libtxi \
-		gnu/usr.bin/texinfo/makeinfo
-.endif
-
 .if ${MK_RESCUE} != "no"
 _rescue= rescue/rescue
 .endif
@@ -1403,16 +1395,6 @@ build-tools: .MAKE
 		${MAKE} DIRPRFX=${_tool}/ depend && \
 		${MAKE} DIRPRFX=${_tool}/ all
 .endfor
-.for _tool in \
-    ${_texinfo}
-	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_tool} && \
-		${MAKE} DIRPRFX=${_tool}/ obj && \
-		${MAKE} DIRPRFX=${_tool}/ depend && \
-		${MAKE} DIRPRFX=${_tool}/ all && \
-		${MAKE} DIRPRFX=${_tool}/ install DESTDIR=${WORLDTMP}
-.endfor
-
 
 #
 # kernel-tools: Build kernel-building tools
@@ -1495,7 +1477,7 @@ NXBMAKE=	${NXBENV} ${MAKE} \
 		MACHINE=${TARGET} MACHINE_ARCH=${TARGET_ARCH} \
 		MK_GDB=no MK_TESTS=no \
 		SSP_CFLAGS= \
-		MK_HTML=no MK_INFO=no NO_LINT=yes MK_MAN=no \
+		MK_HTML=no NO_LINT=yes MK_MAN=no \
 		-DNO_PIC MK_PROFILE=no -DNO_SHARED \
 		-DNO_CPU_CFLAGS MK_WARNS=no MK_CTF=no \
 		MK_CLANG_EXTRAS=no MK_CLANG_FULL=no \
@@ -2024,7 +2006,7 @@ XDEV_CPUTYPE?=${CPUTYPE}
 XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 .endif
 
-NOFUN=-DNO_FSCHG MK_HTML=no MK_INFO=no -DNO_LINT \
+NOFUN=-DNO_FSCHG MK_HTML=no -DNO_LINT \
 	MK_MAN=no MK_NLS=no MK_PROFILE=no \
 	MK_KERBEROS=no MK_RESCUE=no MK_TESTS=no MK_WARNS=no \
 	TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
