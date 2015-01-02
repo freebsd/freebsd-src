@@ -415,6 +415,9 @@
 
     <para revision="267256"><application>OpenSSL</application> has
       been updated to version 1.0.1h.</para>
+
+    <para revision="276577"><application>file</application> has been
+      updated to version 5.22.</para>
   </sect2>
 
   <sect2 xml:id="ports">
