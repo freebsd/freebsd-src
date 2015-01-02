@@ -279,7 +279,8 @@ _libelf_ar_open(Elf *e, int reporterror)
 	 */
 	if (arh.ar_name[0] == '/') {
 
-		assert(sz > 0);
+		if (sz == 0)
+			goto error;
 
 		e->e_flags |= LIBELF_F_AR_VARIANT_SVR4;
 
