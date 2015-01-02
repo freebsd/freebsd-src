@@ -91,9 +91,29 @@
 
 	<tbody>
 	  <row>
-	    <entry>No advisories.</entry>
-	    <entry>&nbsp;</entry>
-	    <entry>&nbsp;</entry>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:27.stdio.asc">SA-14:27.stdio</link></entry>
+	    <entry>10&nbsp;December&nbsp;2014</entry>
+	    <entry><para>Buffer overflow in stdio</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:28.file.asc">SA-14:28.file</link></entry>
+	    <entry>10&nbsp;December&nbsp;2014</entry>
+	    <entry><para>Multiple vulnerabilities in &man.file.1; and
+		&man.libmagic.3;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:30.unbound.asc">SA-14:30.unbound</link></entry>
+	    <entry>17&nbsp;December&nbsp;2014</entry>
+	    <entry><para>Remote denial of service
+		vulnerability</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:31.ntp.asc">SA-14:31.ntp</link></entry>
+	    <entry>23&nbsp;December&nbsp;2014</entry>
+	    <entry><para>Multiple vulnerabilities</para></entry>
 	  </row>
 	</tbody>
       </tgroup>
