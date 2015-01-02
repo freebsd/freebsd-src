@@ -1358,6 +1358,11 @@ _share=	share/syscons/scrnmaps
 _gcc_tools= gnu/usr.bin/cc/cc_tools
 .endif
 
+.if ${MK_INFO} != "no"
+_texinfo=	gnu/usr.bin/texinfo/libtxi \
+		gnu/usr.bin/texinfo/makeinfo
+.endif
+
 .if ${MK_RESCUE} != "no"
 _rescue= rescue/rescue
 .endif
@@ -1389,6 +1394,16 @@ build-tools: .MAKE
 		${MAKE} DIRPRFX=${_tool}/ depend && \
 		${MAKE} DIRPRFX=${_tool}/ all
 .endfor
+.for _tool in \
+    ${_texinfo}
+	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
+		cd ${.CURDIR}/${_tool} && \
+		${MAKE} DIRPRFX=${_tool}/ obj && \
+		${MAKE} DIRPRFX=${_tool}/ depend && \
+		${MAKE} DIRPRFX=${_tool}/ all && \
+		${MAKE} DIRPRFX=${_tool}/ install DESTDIR=${WORLDTMP}
+.endfor
+
 
 #
 # kernel-tools: Build kernel-building tools
