@@ -31,6 +31,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150102:
+	The GNU texinfo and GNU info pages have been removed.
+	To be able to view GNU info pages please install texinfo from ports.
+
 20141231:
 	Clang, llvm and lldb have been upgraded to 3.5.0 release.
 
@@ -176,6 +180,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	The GNU texinfo and GNU info pages are not built and installed
 	anymore, WITH_INFO knob has been added to allow to built and install
 	them again.
+	UPDATE: see 20150102 entry on texinfo's removal
 
 20140708:
 	The GNU readline library is now an INTERNALLIB - that is, it is

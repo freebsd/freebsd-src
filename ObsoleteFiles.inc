@@ -38,6 +38,38 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150103: removal of texinfo
+OLD_FILES+=usr/bin/info
+OLD_FILES+=usr/bin/infokey
+OLD_FILES+=usr/bin/install-info
+OLD_FILES+=usr/bin/makeinfo
+OLD_FILES+=usr/bin/texindex
+OLD_FILES+=usr/share/info/am-utils.info.gz
+OLD_FILES+=usr/share/info/as-utils.info.gz
+OLD_FILES+=usr/share/info/binutils.info.gz
+OLD_FILES+=usr/share/info/com_err.info.gz
+OLD_FILES+=usr/share/info/diff.info.gz
+OLD_FILES+=usr/share/info/gdb.info.gz
+OLD_FILES+=usr/share/info/gdbint.info.gz
+OLD_FILES+=usr/share/info/gperf.info.gz
+OLD_FILES+=usr/share/info/grep.info.gz
+OLD_FILES+=usr/share/info/groff.info.gz
+OLD_FILES+=usr/share/info/heimdal.info.gz
+OLD_FILES+=usr/share/info/history.info.gz
+OLD_FILES+=usr/share/info/info-stnd.info.gz
+OLD_FILES+=usr/share/info/info.info.gz
+OLD_FILES+=usr/share/info/ld.info.gz
+OLD_FILES+=usr/share/info/regex.info.gz
+OLD_FILES+=usr/share/info/rluserman.info.gz
+OLD_FILES+=usr/share/info/stabs.info.gz
+OLD_FILES+=usr/share/info/texinfo.info.gz
+OLD_FILES+=usr/share/man/man1/info.1.gz
+OLD_FILES+=usr/share/man/man1/infokey.1.gz
+OLD_FILES+=usr/share/man/man1/install-info.1.gz
+OLD_FILES+=usr/share/man/man1/makeinfo.1.gz
+OLD_FILES+=usr/share/man/man1/texindex.1.gz
+OLD_FILES+=usr/share/man/man5/info.5.gz
+OLD_FILES+=usr/share/man/man5/texinfo.5.gz
 # 20141231: new clang import which bumps version from 3.4.1 to 3.5.0.
 OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_aes.h
 OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_pclmul.h
