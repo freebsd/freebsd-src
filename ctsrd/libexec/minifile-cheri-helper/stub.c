@@ -39,6 +39,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -357,6 +358,14 @@ select(int nfds __unused, fd_set *readfds __unused, fd_set *writefds __unused,
 
 	errno = ECAPMODE;
 	return (-1);
+}
+
+sig_t
+signal(int sig __unused, sig_t func __unused)
+{
+
+	errno = ECAPMODE;
+	return (SIG_ERR);
 }
 
 int
