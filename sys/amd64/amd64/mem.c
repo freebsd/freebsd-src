@@ -81,8 +81,6 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	int error, o, sflags;
 	vm_offset_t addr, eaddr;
 
-	GIANT_REQUIRED;
-
 	error = 0;
 	c = 0;
 	sflags = curthread_pflags_set(TDP_DEVMEMIO);
@@ -110,8 +108,7 @@ kmemphys:
 			}
 			error = uiomove((void *)v, (int)c, uio);
 			continue;
-		}
-		else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
+		} else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			v = uio->uio_offset;
 
 			if (v >= DMAP_MIN_ADDRESS && v < DMAP_MAX_ADDRESS) {
