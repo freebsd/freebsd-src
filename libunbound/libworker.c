@@ -48,12 +48,14 @@
 #include "libunbound/libworker.h"
 #include "libunbound/context.h"
 #include "libunbound/unbound.h"
+#include "libunbound/worker.h"
 #include "libunbound/unbound-event.h"
 #include "services/outside_network.h"
 #include "services/mesh.h"
 #include "services/localzone.h"
 #include "services/cache/rrset.h"
 #include "services/outbound_list.h"
+#include "util/fptr_wlist.h"
 #include "util/module.h"
 #include "util/regional.h"
 #include "util/random.h"
@@ -231,7 +233,7 @@ libworker_setup(struct ub_ctx* ctx, int is_bg, struct event_base* eb)
 		w->env->infra_cache, w->env->rnd, cfg->use_caps_bits_for_id,
 		ports, numports, cfg->unwanted_threshold,
 		&libworker_alloc_cleanup, w, cfg->do_udp, w->sslctx,
-		cfg->delay_close);
+		cfg->delay_close, NULL);
 	if(!w->is_bg || w->is_bg_thread) {
 		lock_basic_unlock(&ctx->cfglock);
 	}
@@ -819,8 +821,9 @@ void libworker_alloc_cleanup(void* arg)
 
 struct outbound_entry* libworker_send_query(uint8_t* qname, size_t qnamelen,
         uint16_t qtype, uint16_t qclass, uint16_t flags, int dnssec,
-	int want_dnssec, struct sockaddr_storage* addr, socklen_t addrlen,
-	uint8_t* zone, size_t zonelen, struct module_qstate* q)
+	int want_dnssec, int nocaps, struct sockaddr_storage* addr,
+	socklen_t addrlen, uint8_t* zone, size_t zonelen,
+	struct module_qstate* q)
 {
 	struct libworker* w = (struct libworker*)q->env->worker;
 	struct outbound_entry* e = (struct outbound_entry*)regional_alloc(
@@ -829,7 +832,7 @@ struct outbound_entry* libworker_send_query(uint8_t* qname, size_t qnamelen,
 		return NULL;
 	e->qstate = q;
 	e->qsent = outnet_serviced_query(w->back, qname,
-		qnamelen, qtype, qclass, flags, dnssec, want_dnssec,
+		qnamelen, qtype, qclass, flags, dnssec, want_dnssec, nocaps,
 		q->env->cfg->tcp_upstream, q->env->cfg->ssl_upstream, addr,
 		addrlen, zone, zonelen, libworker_handle_service_reply, e,
 		w->back->udp_buff);
@@ -951,8 +954,9 @@ struct outbound_entry* worker_send_query(uint8_t* ATTR_UNUSED(qname),
 	size_t ATTR_UNUSED(qnamelen), uint16_t ATTR_UNUSED(qtype), 
 	uint16_t ATTR_UNUSED(qclass), uint16_t ATTR_UNUSED(flags), 
 	int ATTR_UNUSED(dnssec), int ATTR_UNUSED(want_dnssec),
-	struct sockaddr_storage* ATTR_UNUSED(addr), 
-	socklen_t ATTR_UNUSED(addrlen), struct module_qstate* ATTR_UNUSED(q))
+	int ATTR_UNUSED(nocaps), struct sockaddr_storage* ATTR_UNUSED(addr), 
+	socklen_t ATTR_UNUSED(addrlen), uint8_t* ATTR_UNUSED(zone),
+	size_t ATTR_UNUSED(zonelen), struct module_qstate* ATTR_UNUSED(q))
 {
 	log_assert(0);
 	return 0;

@@ -85,6 +85,8 @@ usage()
 	printf("    -c class		what class to look for, if not class IN.\n");
 	printf("    -y 'keystring'	specify trust anchor, DS or DNSKEY, like\n");
 	printf("			-y 'example.com DS 31560 5 1 1CFED8478...'\n");
+	printf("    -D			DNSSEC enable with default root anchor\n");
+	printf("    			from %s\n", ROOT_ANCHOR_FILE);
 	printf("    -f keyfile		read trust anchors from file, with lines as -y.\n");
 	printf("    -F keyfile		read named.conf-style trust anchors.\n");
 	printf("    -C config		use the specified unbound.conf (none read by default)\n");
@@ -421,9 +423,11 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "error: out of memory\n");
 		exit(1);
 	}
+	/* no need to fetch additional targets, we only do few lookups */
+	check_ub_res(ub_ctx_set_option(ctx, "target-fetch-policy:", "0 0 0 0 0"));
 
 	/* parse the options */
-	while( (c=getopt(argc, argv, "46F:c:df:hrt:vy:C:")) != -1) {
+	while( (c=getopt(argc, argv, "46DF:c:df:hrt:vy:C:")) != -1) {
 		switch(c) {
 		case '4':
 			check_ub_res(ub_ctx_set_option(ctx, "do-ip6:", "no"));
@@ -436,6 +440,9 @@ int main(int argc, char* argv[])
 			break;
 		case 'C':
 			check_ub_res(ub_ctx_config(ctx, optarg));
+			break;
+		case 'D':
+			check_ub_res(ub_ctx_add_ta_file(ctx, ROOT_ANCHOR_FILE));
 			break;
 		case 'd':
 			debuglevel++;

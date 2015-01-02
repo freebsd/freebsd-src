@@ -254,6 +254,14 @@ error_response_cache(struct module_qstate* qstate, int id, int rcode)
 {
 	/* store in cache */
 	struct reply_info err;
+	if(qstate->prefetch_leeway > NORR_TTL) {
+		verbose(VERB_ALGO, "error response for prefetch in cache");
+		/* attempt to adjust the cache entry prefetch */
+		if(dns_cache_prefetch_adjust(qstate->env, &qstate->qinfo,
+			NORR_TTL))
+			return error_response(qstate, id, rcode);
+		/* if that fails (not in cache), fall through to store err */
+	}
 	memset(&err, 0, sizeof(err));
 	err.flags = (uint16_t)(BIT_QR | BIT_RA);
 	FLAGS_SET_RCODE(err.flags, rcode);
@@ -1888,8 +1896,8 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		iq->qchase.qname, iq->qchase.qname_len, 
 		iq->qchase.qtype, iq->qchase.qclass, 
 		iq->chase_flags | (iq->chase_to_rd?BIT_RD:0), EDNS_DO|BIT_CD, 
-		iq->dnssec_expected, &target->addr, target->addrlen,
-		iq->dp->name, iq->dp->namelen, qstate);
+		iq->dnssec_expected, iq->caps_fallback, &target->addr,
+		target->addrlen, iq->dp->name, iq->dp->namelen, qstate);
 	if(!outq) {
 		log_addr(VERB_DETAIL, "error sending query to auth server", 
 			&target->addr, target->addrlen);
@@ -2799,6 +2807,21 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 	iq->response = NULL;
 	iq->state = QUERY_RESP_STATE;
 	if(event == module_event_noreply || event == module_event_error) {
+		if(event == module_event_noreply && iq->sent_count >= 3 &&
+			qstate->env->cfg->use_caps_bits_for_id &&
+			!iq->caps_fallback) {
+			/* start fallback */
+			iq->caps_fallback = 1;
+			iq->caps_server = 0;
+			iq->caps_reply = NULL;
+			iq->state = QUERYTARGETS_STATE;
+			iq->num_current_queries--;
+			/* need fresh attempts for the 0x20 fallback, if
+			 * that was the cause for the failure */
+			iter_dec_attempts(iq->dp, 3);
+			verbose(VERB_DETAIL, "Capsforid: timeouts, starting fallback");
+			goto handle_it;
+		}
 		goto handle_it;
 	}
 	if( (event != module_event_reply && event != module_event_capsfail)
@@ -2847,7 +2870,7 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 		log_dns_msg("incoming scrubbed packet:", &iq->response->qinfo, 
 			iq->response->rep);
 	
-	if(event == module_event_capsfail) {
+	if(event == module_event_capsfail || iq->caps_fallback) {
 		if(!iq->caps_fallback) {
 			/* start fallback */
 			iq->caps_fallback = 1;
@@ -2859,7 +2882,11 @@ process_response(struct module_qstate* qstate, struct iter_qstate* iq,
 			goto handle_it;
 		} else {
 			/* check if reply is the same, otherwise, fail */
-			if(!reply_equal(iq->response->rep, iq->caps_reply,
+			if(!iq->caps_reply) {
+				iq->caps_reply = iq->response->rep;
+				iq->caps_server = -1; /*become zero at ++,
+				so that we start the full set of trials */
+			} else if(!reply_equal(iq->response->rep, iq->caps_reply,
 				qstate->env->scratch)) {
 				verbose(VERB_DETAIL, "Capsforid fallback: "
 					"getting different replies, failed");

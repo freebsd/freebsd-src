@@ -48,7 +48,7 @@
      list = PyList_New(cnt);
      i = 0; cnt = 0;
      while (i < len) {
-        PyList_SetItem(list, cnt, PyString_FromStringAndSize(name + i + 1, name[i]));
+        PyList_SetItem(list, cnt, PyBytes_FromStringAndSize(name + i + 1, name[i]));
         i += name[i] + 1;
         cnt++;
      }
@@ -148,7 +148,7 @@ struct query_info {
    };
 
    PyObject* _get_qname(struct query_info* q) {
-      return PyString_FromStringAndSize((char*)q->qname, q->qname_len);
+      return PyBytes_FromStringAndSize((char*)q->qname, q->qname_len);
    } 
 
    PyObject* _get_qname_components(struct query_info* q) {
@@ -210,7 +210,7 @@ uint16_t ntohs(uint16_t netshort);
 
 %inline %{
    PyObject* _get_dname(struct packed_rrset_key* k) {
-      return PyString_FromStringAndSize((char*)k->dname, k->dname_len);
+      return PyBytes_FromStringAndSize((char*)k->dname, k->dname_len);
    } 
    PyObject* _get_dname_components(struct packed_rrset_key* k) {
       return GetNameAsLabelList((char*)k->dname, k->dname_len);
@@ -317,7 +317,7 @@ struct packed_rrset_data {
    PyObject* _get_data_rr_data(struct packed_rrset_data* d, int idx) {
      if ((d != NULL) && (idx >= 0) && 
              ((size_t)idx < (d->count+d->rrsig_count))) 
-        return PyString_FromStringAndSize((char*)d->rr_data[idx],
+        return PyBytes_FromStringAndSize((char*)d->rr_data[idx],
                 d->rr_len[idx]);
      return Py_None;
    }

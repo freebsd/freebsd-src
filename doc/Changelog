@@ -1,5 +1,307 @@
+11 November 2014: Wouter
+	- iana portlist update.
+	- Fix bug where forward or stub addresses with same address but
+	  different port number were not tried.
+	- version number in svn trunk is 1.5.0
+	- tag 1.5.0rc1
+
+7 November 2014: Wouter
+	- dnstap fixes by Robert Edmonds:
+		dnstap/dnstap.m4: cosmetic fixes
+		dnstap/: Remove compiled protoc-c output files
+		dnstap/dnstap.m4: Error out if required libraries are not found
+		dnstap: Fix ProtobufCBufferSimple usage that is incorrect as of
+			protobuf-c 1.0.0
+		dnstap/: Adapt to API changes in latest libfstrm (>= 0.2.0)
+
+4 November 2014: Wouter
+	- Add ub_ctx_add_ta_autr function to add a RFC5011 automatically
+	  tracked trust anchor to libunbound.
+	- Redefine internal minievent symbols to unique symbols that helps
+	  linking on platforms where the linker leaks names across modules.
+
+27 October 2014: Wouter
+	- Disabled use of SSLv3 in remote-control and ssl-upstream.
+	- iana portlist update.
+
+16 October 2014: Wouter
+	- Documented dns64 configuration in unbound.conf man page.
+
+13 October 2014: Wouter
+	- Fix #617: in ldns in unbound, lowercase WKS services.
+	- Fix ctype invocation casts.
+
+10 October 2014: Wouter
+	- Fix unbound-checkconf check for module config with dns64 module.
+	- Fix unbound capsforid fallback, it ignores TTLs in comparison.
+
+6 October 2014: Wouter
+	- Fix #614: man page variable substitution bug.
+6 October 2014: Willem
+	- Whitespaces after $ORIGIN are not part of the origin dname (ldns).
+	- $TTL's value starts at position 5 (ldns).
+
+1 October 2014: Wouter
+	- fix #613: Allow tab ws in var length last rdfs (in ldns str2wire).
+
+29 September 2014: Wouter
+	- Fix #612: create service with service.conf in present directory and
+	  auto load it.
+	- Fix for mingw compile openssl ranlib.
+
+25 September 2014: Wouter
+	- updated configure and aclocal with newer autoconf 1.13.
+
+22 September 2014: Wouter
+	- Fix swig and python examples for Python 3.x.
+	- Fix for mingw compile with openssl-1.0.1i.
+
+19 September 2014: Wouter
+	- improve python configuration detection to build on Fedora 22.
+
+18 September 2014: Wouter
+	- patches to also build with Python 3.x (from Pavel Simerda).
+
+16 September 2014: Wouter
+	- Fix tcp timer waiting list removal code.
+	- iana portlist update.
+	- Updated the TCP_BACLOG from 5 to 256, so that the tcp accept queue
+	  is longer and more tcp connections can be handled.
+
+15 September 2014: Wouter
+	- Fix unit test for CDS typecode.
+
+5 September 2014: Wouter
+	- type CDS and CDNSKEY types in sldns.
+
+25 August 2014: Wouter
+	- Fixup checklock code for log lock and its mutual initialization
+	  dependency.
+	- iana portlist update.
+	- Removed necessity for pkg-config from the dnstap.m4, new are
+	  the --with-libfstrm and --with-protobuf-c configure options.
+
+19 August 2014: Wouter
+	- Update unbound manpage with more explanation (from Florian Obser).
+
+18 August 2014: Wouter
+	- Fix #603: unbound-checkconf -o <option> should skip verification
+	  checks.
+	- iana portlist update.
+	- Fixup doc/unbound.doxygen to remove obsolete 1.8.7 settings.
+
+5 August 2014: Wouter
+	- dnstap support, with a patch from Farsight Security, written by
+	  Robert Edmonds. The --enable-dnstap needs libfstrm and protobuf-c.
+	  It is BSD licensed (see dnstap/dnstap.c).
+	  Building with --enable-dnstap needs pkg-config with this patch.
+	- Noted dnstap in doc/README and doc/CREDITS.
+	- Changes to the dnstap patch.
+	  - lint fixes.
+	  - dnstap/dnstap_config.h should not have been added to the repo,
+	    because is it generated.
+
+1 August 2014: Wouter
+	- Patch add msg, rrset, infra and key cache sizes to stats command
+	  from Maciej Soltysiak.
+	- iana portlist update.
+
+31 July 2014: Wouter
+	- DNS64 from Viagenie (BSD Licensed), written by Simon Perrault.
+	  Initial commit of the patch from the FreeBSD base (with its fixes).
+	  This adds a module (for module-config in unbound.conf) dns64 that
+	  performs DNS64 processing, see README.DNS64.
+	- Changes from DNS64:
+	  strcpy changed to memmove.
+	  arraybound check fixed from prefix_net/8/4 to prefix_net/8+4.
+	  allocation of result consistently in the correct region.
+	  time_t is now used for ttl in unbound (since the patch's version).
+	- testdata/dns64_lookup.rpl for unit test for dns64 functionality.
+
+29 July 2014: Wouter
+	- Patch from Dag-Erling Smorgrav that implements feature, unbound -dd
+	  does not fork in the background and also logs to stderr.
+
+21 July 2014: Wouter
+	- Fix endian.h include for OpenBSD.
+
+16 July 2014: Wouter
+	- And Fix#596: Bail out of unbound-control dump_infra when ssl
+	  write fails.
+
+15 July 2014: Wouter
+	- Fix #596: Bail out of unbound-control list_local_zones when ssl
+	  write fails.
+	- iana portlist update.
+
+13 July 2014: Wouter
+	- Configure tests if main can be linked to from getentropy compat.
+
+12 July 2014: Wouter
+	- Fix getentropy compat code, function refs were not portable.
+	- Fix to check openssl version number only for OpenSSL.
+	- LibreSSL provides compat items, check for that in configure.
+	- Fix bug in fix for log locks that caused deadlock in signal handler.
+	- update compat/getentropy and arc4random to the most recent ones from OpenBSD.
+
+11 July 2014: Matthijs
+	- fake-rfc2553 patch (thanks Benjamin Baier).
+
+11 July 2014: Wouter
+	- arc4random in compat/ and getentropy, explicit_bzero, chacha for
+	  dependencies, from OpenBSD.  arc4_lock and sha512 in compat.
+	  This makes arc4random available on all platforms, except when
+	  compiled with LIBNSS (it uses libNSS crypto random).
+	- fix strptime implicit declaration error on OpenBSD.
+	- arc4random, getentropy and explicit_bzero compat for Windows.
+
+4 July 2014: Wouter
+	- Fix #593: segfault or crash upon rotating logfile.
+
+3 July 2014: Wouter
+	- DLV tests added.
+	- signit tool fixup for compile with libldns library.
+	- iana portlist updated.
+
+27 June 2014: Wouter
+	- so-reuseport is available on BSDs(such as FreeBSD 10) and OS/X.
+
+26 June 2014: Wouter
+	- unbound-control status reports if so-reuseport was successful.
+	- iana portlist updated.
+
+24 June 2014: Wouter
+	- Fix caps-for-id fallback, and added fallback attempt when servers
+	  drop 0x20 perturbed queries.
+	- Fixup testsetup for VM tests (run testcode/run_vm.sh).
+
+17 June 2014: Wouter
+	- iana portlist updated.
+
+3 June 2014: Wouter
+	- Add AAAA for B root server to default root hints.
+
+2 June 2014: Wouter
+	- Remove unused define from iterator.h
+
+30 May 2014: Wouter
+	- Fixup sldns_enum_edns_option typedef definition.
+
+28 May 2014: Wouter
+	- Code cleanup patch from Dag-Erling Smorgrav, with compiler issue
+	  fixes from FreeBSD's copy of Unbound, he notes:
+	  Generate unbound-control-setup.sh at build time so it respects
+	  prefix and sysconfdir from the configure script.  Also fix the
+	  umask to match the comment, and the comment to match the umask.
+	  Add const and static where needed.  Use unions instead of
+	  playing pointer poker.  Move declarations that are needed in
+	  multiple source files into a shared header.  Move sldns_bgetc()
+	  from parse.c to buffer.c where it belongs.  Introduce a new
+	  header file, worker.h, which declares the callbacks that
+	  all workers must define.  Remove those declarations from
+	  libworker.h.	Include the correct headers in the correct places.
+	  Fix a few dummy callbacks that don't match their prototype.
+	  Fix some casts.  Hide the sbrk madness behind #ifdef HAVE_SBRK.
+	  Remove a useless printf which breaks reproducible builds.
+	  Get rid of CONFIGURE_{TARGET,DATE,BUILD_WITH} now that they're
+	  no longer used.  Add unbound-control-setup.sh to the list of
+	  generated files.  The prototype for libworker_event_done_cb()
+	  needs to be moved from libunbound/libworker.h to
+	  libunbound/worker.h.
+	- Fixup out-of-directory compile with unbound-control-setup.sh.in.
+	- make depend.
+
+23 May 2014: Wouter
+	- unbound-host -D enabled dnssec and reads root trust anchor from
+	  the default root key file that was compiled in.
+
+20 May 2014: Wouter
+	- Feature, unblock-lan-zones: yesno that you can use to make unbound
+	  perform 10.0.0.0/8 and other reverse lookups normally, for use if
+	  unbound is running service for localhost on localhost.
+
+16 May 2014: Wouter
+	- Updated create_unbound_ad_servers and unbound_cache scripts from
+	  Yuri Voinov in the source/contrib directory. Added
+	  warmup.cmd (and .sh): warm up the DNS cache with your MRU domains.
+
+9 May 2014: Wouter
+	- Implement draft-ietf-dnsop-rfc6598-rfc6303-01.
+	- iana portlist updated.
+
+8 May 2014: Wouter
+	- Contrib windows scripts from Yuri Voinov added to src/contrib:
+	  create_unbound_ad_servers.cmd: enters anti-ad server lists.
+	  unbound_cache.cmd: saves and loads the cache.
+	- Added unbound-control-setup.cmd from Yuri Voinov to the windows
+	  unbound distribution set.  It requires openssl installed in %PATH%.
+
+6 May 2014: Wouter
+	- Change MAX_SENT_COUNT from 16 to 32 to resolve some cases easier.
+
+5 May 2014: Wouter
+	- More #567: remove : from output of stub and forward lists, this is
+	  easier to parse.
+
+29 April 2014: Wouter
+	- iana portlist updated.
+	- Add unbound-control flush_negative that flushed nxdomains, nodata,
+	  and errors from the cache.  For dnssec-trigger and NetworkManager,
+	  fixes cases where network changes have localdata that was already
+	  negatively cached from the previous network.
+
+23 April 2014: Wouter
+	- Patch from Jeremie Courreges-Anglas to use arc4random_uniform
+	  if available on the OS, it gets entropy from the OS.
+
+15 April 2014: Wouter
+	- Fix compile with libevent2 on FreeBSD.
+
+11 April 2014: Wouter
+	- Fix #502: explain that do-ip6 disable does not stop AAAA lookups,
+	  but it stops the use of the ipv6 transport layer for DNS traffic.
+	- iana portlist updated.
+
+10 April 2014: Wouter
+	- iana portlist updated.
+	- Patch from Hannes Frederic Sowa for Linux 3.15 fragmentation
+	  option for DNS fragmentation defense.
+	- Document that dump_requestlist only prints queries from thread 0.
+	- unbound-control stats prints num.query.tcpout with number of TCP
+	  outgoing queries made in the previous statistics interval.
+	- Fix #567: unbound lists if forward zone is secure or insecure with
+	  +i annotation in output of list_forwards, also for list_stubs
+	  (for NetworkManager integration.)
+	- Fix #554: use unsigned long to print 64bit statistics counters on
+	  64bit systems.
+	- Fix #558: failed prefetch lookup does not remove cached response
+	  but delays next prefetch (in lieu of caching a SERVFAIL).
+	- Fix #545: improved logging, the ip address of the error is printed
+	  on the same log-line as the error.
+
+8 April 2014: Wouter
+	- Fix #574: make test fails on Ubuntu 14.04.  Disabled remote-control
+	  in testbound scripts.
+	- iana portlist updated.
+
+7 April 2014: Wouter
+	- C.ROOT-SERVERS.NET has an IPv6 address, and we updated the root
+	  hints (patch from Anand Buddhdev).
+	- Fix #572: Fix unit test failure for systems with different
+	  /etc/services.
+
+28 March 2014: Wouter
+	- Fix #569: do_tcp is do-tcp in unbound.conf man page.
+
+25 March 2014: Wouter
+	- Patch from Stuart Henderson to build unbound-host man from .1.in.
+
+24 March 2014: Wouter
+	- Fix print filename of encompassing config file on read failure.
+
 12 March 2014: Wouter
 	- tag 1.4.22
+	- trunk has 1.4.23 in development.
 
 10 March 2014: Wouter
 	- Fix bug#561: contrib/cacti plugin did not report SERVFAIL rcodes

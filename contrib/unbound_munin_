@@ -238,6 +238,7 @@ if test "$1" = "config" ; then
 		p_config "total.num.cachehits" "cache hits"
 		p_config "total.num.prefetch" "cache prefetch"
 		p_config "num.query.tcp" "TCP queries"
+		p_config "num.query.tcpout" "TCP out queries"
 		p_config "num.query.ipv6" "IPv6 queries"
 		p_config "unwanted.queries" "queries that failed acl"
 		p_config "unwanted.replies" "unwanted or unsolicited replies"
@@ -266,6 +267,10 @@ if test "$1" = "config" ; then
 		p_config "mem.cache.message" "Message cache memory"
 		p_config "mem.mod.iterator" "Iterator module memory"
 		p_config "mem.mod.validator" "Validator module and key cache memory"
+		p_config "msg.cache.count" "msg cache count"
+		p_config "rrset.cache.count" "rrset cache count"
+		p_config "infra.cache.count" "infra cache count"
+		p_config "key.cache.count" "key cache count"
 		echo "graph_info The memory used by unbound."
 		;;
 	by_type)
@@ -425,7 +430,8 @@ hits)
 	for x in `grep "^thread[0-9][0-9]*\.num\.queries=" $state |
 		sed -e 's/=.*//'` total.num.queries \
 		total.num.cachehits total.num.prefetch num.query.tcp \
-		num.query.ipv6 unwanted.queries unwanted.replies; do
+		num.query.tcpout num.query.ipv6 unwanted.queries \
+		unwanted.replies; do
 		if grep "^"$x"=" $state >/dev/null 2>&1; then
 			print_qps $x
 		fi
@@ -452,8 +458,9 @@ memory)
 		fi
 	fi
 	echo "$mn.value" $value
-	for x in mem.cache.rrset mem.cache.message \
-		mem.mod.iterator mem.mod.validator; do
+	for x in mem.cache.rrset mem.cache.message mem.mod.iterator \
+		mem.mod.validator msg.cache.count rrset.cache.count \
+		infra.cache.count key.cache.count; do
 		print_value $x
 	done
 	;;

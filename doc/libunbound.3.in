@@ -1,4 +1,4 @@
-.TH "libunbound" "3" "Mar 12, 2014" "NLnet Labs" "unbound 1.4.22"
+.TH "libunbound" "3" "Nov 18, 2014" "NLnet Labs" "unbound 1.5.0"
 .\"
 .\" libunbound.3 -- unbound library functions manual
 .\"
@@ -8,7 +8,6 @@
 .\"
 .\"
 .SH "NAME"
-.LP
 .B libunbound,
 .B unbound.h,
 .B ub_ctx,
@@ -23,6 +22,7 @@
 .B ub_ctx_resolvconf,
 .B ub_ctx_hosts,
 .B ub_ctx_add_ta,
+.B ub_ctx_add_ta_autr,
 .B ub_ctx_add_ta_file,
 .B ub_ctx_trustedkeys,
 .B ub_ctx_debugout,
@@ -42,9 +42,8 @@
 .B ub_ctx_zone_remove,
 .B ub_ctx_data_add,
 .B ub_ctx_data_remove
-\- Unbound DNS validating resolver 1.4.22 functions.
+\- Unbound DNS validating resolver 1.5.0 functions.
 .SH "SYNOPSIS"
-.LP
 .B #include <unbound.h>
 .LP
 \fIstruct ub_ctx *\fR
@@ -73,6 +72,9 @@
 .LP
 \fIint\fR
 \fBub_ctx_add_ta\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR ta);
+.LP
+\fIint\fR
+\fBub_ctx_add_ta_autr\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR fname);
 .LP
 \fIint\fR
 \fBub_ctx_add_ta_file\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR fname);
@@ -137,7 +139,6 @@
 \fIint\fR
 \fBub_ctx_data_remove\fR(\fIstruct ub_ctx*\fR ctx, \fIchar*\fR data);
 .SH "DESCRIPTION"
-.LP
 .B Unbound 
 is an implementation of a DNS resolver, that does caching and 
 DNSSEC validation. This is the library API, for using the \-lunbound library.
@@ -233,6 +234,15 @@ At this time it is only possible to add trusted keys before the
 first resolve is done.
 The format is a string, similar to the zone\-file format,
 [domainname] [type] [rdata contents]. Both DS and DNSKEY records are accepted.
+.TP
+.B ub_ctx_add_ta_autr
+Add filename with automatically tracked trust anchor to the given context.
+Pass name of a file with the managed trust anchor.  You can create this
+file with \fIunbound\-anchor\fR(8) for the root anchor.  You can also
+create it with an initial file with one line with a DNSKEY or DS record.
+If the file is writable, it is updated when the trust anchor changes.
+At this time it is only possible to add trusted keys before the
+first resolve is done.
 .TP
 .B ub_ctx_add_ta_file
 Add trust anchors to the given context.
@@ -342,7 +352,6 @@ Add resource record data to local authority info, like local\-data
 .B ub_ctx_data_remove
 Delete local authority data from the name given.
 .SH "RESULT DATA STRUCTURE"
-.LP
 The result of the DNS resolution and validation is returned as 
 \fIstruct ub_result\fR. The result structure contains the following entries.
 .P

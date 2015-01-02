@@ -179,4 +179,16 @@ struct dns_msg* dns_msg_create(uint8_t* qname, size_t qnamelen, uint16_t qtype,
 int dns_msg_authadd(struct dns_msg* msg, struct regional* region, 
 	struct ub_packed_rrset_key* rrset, time_t now);
 
+/**
+ * Adjust the prefetch_ttl for a cached message.  This adds a value to the
+ * prefetch ttl - postponing the time when it will be prefetched for future
+ * incoming queries.
+ * @param env: module environment with caches and time.
+ * @param qinfo: query info for the query that needs adjustment.
+ * @param adjust: time in seconds to add to the prefetch_leeway.
+ * @return false if not in cache. true if added.
+ */
+int dns_cache_prefetch_adjust(struct module_env* env, struct query_info* qinfo,
+        time_t adjust);
+
 #endif /* SERVICES_CACHE_DNS_H */

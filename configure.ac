@@ -5,19 +5,20 @@ sinclude(acx_nlnetlabs.m4)
 sinclude(ax_pthread.m4)
 sinclude(acx_python.m4)
 sinclude(ac_pkg_swig.m4)
+sinclude(dnstap/dnstap.m4)
 
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
-m4_define([VERSION_MINOR],[4])
-m4_define([VERSION_MICRO],[22])
+m4_define([VERSION_MINOR],[5])
+m4_define([VERSION_MICRO],[0])
 AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl, unbound)
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
 AC_SUBST(UNBOUND_VERSION_MICRO, [VERSION_MICRO])
 
-LIBUNBOUND_CURRENT=4
-LIBUNBOUND_REVISION=1
-LIBUNBOUND_AGE=2
+LIBUNBOUND_CURRENT=5
+LIBUNBOUND_REVISION=3
+LIBUNBOUND_AGE=3
 # 1.0.0 had 0:12:0
 # 1.0.1 had 0:13:0
 # 1.0.2 had 0:14:0
@@ -54,6 +55,8 @@ LIBUNBOUND_AGE=2
 # 1.4.19 had 3:4:1
 # 1.4.20 had 4:0:2 # adds libunbound.ttl # but shipped 3:5:1
 # 1.4.21 had 4:1:2
+# 1.4.22 had 4:1:2
+# 1.5.0 had 5:3:3 # adds ub_ctx_add_ta_autr
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -76,19 +79,6 @@ LIBUNBOUND_AGE=2
 AC_SUBST(LIBUNBOUND_CURRENT)
 AC_SUBST(LIBUNBOUND_REVISION)
 AC_SUBST(LIBUNBOUND_AGE)
-
-pretty_cmdline() {
-	cmdline=""
-	while test -n "$1"; do
-		cmdline="$cmdline '"`echo $1 | sed -e 's/\\\\/\\\\\\\\/g' | sed -e 's/"/\\\\"/g' `"'"
-		shift
-	done
-}
-pretty_cmdline $@
-AC_DEFINE_UNQUOTED(CONFIGURE_BUILD_WITH, ["$cmdline"], [configure flags])
-AC_CANONICAL_TARGET
-AC_DEFINE_UNQUOTED(CONFIGURE_TARGET, ["$target"], [configure target system])
-AC_DEFINE_UNQUOTED(CONFIGURE_DATE, ["`date`"], [configure date])
 
 CFLAGS="$CFLAGS"
 AC_AIX
@@ -275,7 +265,7 @@ AC_CHECK_TOOL(STRIP, strip)
 ACX_LIBTOOL_C_ONLY
 
 # Checks for header files.
-AC_CHECK_HEADERS([stdarg.h stdbool.h netinet/in.h sys/param.h sys/socket.h sys/uio.h sys/resource.h arpa/inet.h syslog.h netdb.h sys/wait.h pwd.h glob.h grp.h login_cap.h winsock2.h ws2tcpip.h],,, [AC_INCLUDES_DEFAULT])
+AC_CHECK_HEADERS([stdarg.h stdbool.h netinet/in.h sys/param.h sys/socket.h sys/uio.h sys/resource.h arpa/inet.h syslog.h netdb.h sys/wait.h pwd.h glob.h grp.h login_cap.h winsock2.h ws2tcpip.h endian.h],,, [AC_INCLUDES_DEFAULT])
 
 # check for types.  
 # Using own tests for int64* because autoconf builtin only give 32bit.
@@ -327,7 +317,7 @@ AC_DEFUN([AC_CHECK_STRPTIME_WORKS],
 AC_MSG_CHECKING(whether strptime works)
 if test c${cross_compiling} = cno; then
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
-#define _XOPEN_SOURCE
+#define _XOPEN_SOURCE 600
 #include <time.h>
 int main(void) { struct tm tm; char *res;
 res = strptime("2010-07-15T00:00:00+00:00", "%t%Y%t-%t%m%t-%t%d%tT%t%H%t:%t%M%t:%t%S%t", &tm);
@@ -475,7 +465,7 @@ if test x_$ub_test_python != x_no; then
    ac_save_LIBS="$LIBS" dnl otherwise AC_PYTHON_DEVEL thrashes $LIBS
    AC_PYTHON_DEVEL
    if test ! -z "$PYTHON_VERSION"; then
-	if test `$PYTHON -c "print '$PYTHON_VERSION' >= '2.4.0'"` = "False"; then
+	if test `$PYTHON -c "print('$PYTHON_VERSION' >= '2.4.0')"` = "False"; then
 		AC_ERROR([Python version >= 2.4.0 is required])
 	fi
 
@@ -567,6 +557,16 @@ AC_ARG_WITH([nss], AC_HELP_STRING([--with-nss=path],
 if test $USE_NSS = "no"; then
 ACX_WITH_SSL
 ACX_LIB_SSL
+AC_MSG_CHECKING([for LibreSSL])
+if grep OPENSSL_VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "LibreSSL" >/dev/null; then
+	AC_MSG_RESULT([yes])
+	AC_DEFINE([HAVE_LIBRESSL], [1], [Define if we have LibreSSL])
+	# libressl provides these compat functions, but they may also be
+	# declared by the OS in libc.  See if they have been declared.
+	AC_CHECK_DECLS([strlcpy,strlcat,arc4random,arc4random_uniform])
+else
+	AC_MSG_RESULT([no])
+fi
 AC_CHECK_HEADERS([openssl/conf.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_HEADERS([openssl/engine.h],,, [AC_INCLUDES_DEFAULT])
 AC_CHECK_FUNCS([OPENSSL_config EVP_sha1 EVP_sha256 EVP_sha512 FIPS_mode])
@@ -732,10 +732,15 @@ case "$enable_ecdsa" in
 	      ])
 	      # see if OPENSSL 1.0.0 or later (has EVP MD and Verify independency)
 	      AC_MSG_CHECKING([if openssl supports SHA2 and ECDSA with EVP])
-	      if grep OPENSSL_VERSION_NUMBER $ssldir/include/openssl/opensslv.h | grep 0x0 >/dev/null; then
-		AC_MSG_RESULT([no])
-		AC_DEFINE_UNQUOTED([USE_ECDSA_EVP_WORKAROUND], [1], [Define this to enable an EVP workaround for older openssl])
+	      if grep OPENSSL_VERSION_TEXT $ssldir/include/openssl/opensslv.h | grep "OpenSSL" >/dev/null; then
+		if grep OPENSSL_VERSION_NUMBER $ssldir/include/openssl/opensslv.h | grep 0x0 >/dev/null; then
+		  AC_MSG_RESULT([no])
+		  AC_DEFINE_UNQUOTED([USE_ECDSA_EVP_WORKAROUND], [1], [Define this to enable an EVP workaround for older openssl])
+		else
+		  AC_MSG_RESULT([yes])
+		fi
 	      else
+		# not OpenSSL, thus likely LibreSSL, which supports it
 		AC_MSG_RESULT([yes])
 	      fi
       fi
@@ -979,6 +984,81 @@ AC_REPLACE_FUNCS(strlcat)
 AC_REPLACE_FUNCS(strlcpy)
 AC_REPLACE_FUNCS(memmove)
 AC_REPLACE_FUNCS(gmtime_r)
+LIBOBJ_WITHOUT_CTIMEARC4="$LIBOBJS"
+AC_SUBST(LIBOBJ_WITHOUT_CTIMEARC4)
+if test "$USE_NSS" = "no"; then
+	AC_REPLACE_FUNCS(arc4random)
+	AC_REPLACE_FUNCS(arc4random_uniform)
+	if test "$ac_cv_func_arc4random" = "no"; then
+		AC_LIBOBJ(explicit_bzero)
+		AC_LIBOBJ(arc4_lock)
+		AC_CHECK_FUNCS([getentropy],,[
+		    if test "$USE_WINSOCK" = 1; then
+			AC_LIBOBJ(getentropy_win)
+		    else
+			case `uname` in
+			Darwin)
+				AC_LIBOBJ(getentropy_osx)
+			;;
+			SunOS)
+				AC_LIBOBJ(getentropy_solaris)
+				AC_CHECK_HEADERS([sys/sha2.h],, [
+					AC_CHECK_FUNCS([SHA512_Update],,[
+						AC_LIBOBJ(sha512)
+					])
+				], [AC_INCLUDES_DEFAULT])
+				if test "$ac_cv_header_sys_sha2_h" = "yes"; then
+					# this lib needed for sha2 on solaris
+					LIBS="$LIBS -lmd"
+				fi
+			;;
+			Linux|*)
+				AC_LIBOBJ(getentropy_linux)
+				AC_CHECK_FUNCS([SHA512_Update],,[
+					AC_DEFINE([COMPAT_SHA512], [1], [Do sha512 definitions in config.h])
+					AC_LIBOBJ(sha512)
+				])
+				AC_CHECK_HEADERS([sys/sysctl.h],,, [AC_INCLUDES_DEFAULT])
+				AC_SEARCH_LIBS([clock_gettime], [rt])
+			;;
+			esac
+			# generate libtool to test if linking main
+			# from a dynamic library works.
+			LT_OUTPUT
+			AC_MSG_CHECKING([if dynamic lib can refer to main])
+			cat >tmp.$$.def <<EOF
+myfunc
+EOF
+			cat >tmp.$$.c <<EOF
+int myfunc(void);
+extern int main(int, char *argv[]);
+int myfunc(void)
+{
+	return ((int)main) + 1;
+}
+EOF
+			mylibtool=./libtool
+			mylibdir=/usr/local/lib
+			myok=yes
+			$mylibtool --quiet --tag=CC --mode=compile $CC $CFLAGS -o tmp.$$.lo -c tmp.$$.c >/dev/null 2>&1
+			if test $? = 0; then myok=yes; else myok=no; fi
+			if test "$myok" = "yes"; then
+			$mylibtool --quiet --tag=CC --mode=link $CC $CFLAGS -version-info 1:0:0 -no-undefined -export-symbols tmp.$$.def -o libtmp$$.la tmp.$$.lo $LDFLAGS -rpath $mylibdir $LIBS >/dev/null 2>&1
+				if test $? = 0; then myok=yes; else myok=no; fi
+			fi
+			if test "$myok" = "yes"; then
+				AC_MSG_RESULT(yes)
+				AC_DEFINE(CAN_REFERENCE_MAIN, [1], [define if a library can reference the 'main' symbol])
+			else
+				AC_MSG_RESULT(no)
+			fi
+			$mylibtool --quiet --mode=clean rm -rf libtmp$$.la tmp.$$.lo
+			rm -f tmp.$$.def tmp.$$.c libtmp$$.la tmp.$$.lo tmp.$$.o
+
+		    fi
+		])
+	fi
+fi
 LIBOBJ_WITHOUT_CTIME="$LIBOBJS"
 AC_SUBST(LIBOBJ_WITHOUT_CTIME)
 AC_REPLACE_FUNCS(ctime_r)
@@ -1014,6 +1094,25 @@ if test x_$enable_lock_checks = x_yes; then
 	echo checklock_thrcreate >> clubsyms.def
 	echo checklock_thrjoin >> clubsyms.def
 fi
+
+# check for dnstap if requested
+dt_DNSTAP([$UNBOUND_RUN_DIR/dnstap.sock],
+    [
+        AC_DEFINE([USE_DNSTAP], [1], [Define to 1 to enable dnstap support])
+        AC_SUBST([ENABLE_DNSTAP], [1])
+
+        AC_SUBST([opt_dnstap_socket_path])
+        ACX_ESCAPE_BACKSLASH($opt_dnstap_socket_path, hdr_dnstap_socket_path)
+        AC_DEFINE_UNQUOTED(DNSTAP_SOCKET_PATH,
+            ["$hdr_dnstap_socket_path"], [default dnstap socket path])
+
+        AC_SUBST([DNSTAP_SRC], ["dnstap/dnstap.c dnstap/dnstap.pb-c.c"])
+        AC_SUBST([DNSTAP_OBJ], ["dnstap.lo dnstap.pb-c.lo"])
+    ],
+    [
+        AC_SUBST([ENABLE_DNSTAP], [0])
+    ]
+)
 
 AC_MSG_CHECKING([if ${MAKE:-make} supports $< with implicit rule in scope])
 # on openBSD, the implicit rule make $< work.
@@ -1172,6 +1271,50 @@ struct tm;
 char *strptime(const char *s, const char *format, struct tm *tm);
 #endif
 
+#ifdef HAVE_LIBRESSL
+#  if !HAVE_DECL_STRLCPY
+size_t strlcpy(char *dst, const char *src, size_t siz);
+#  endif
+#  if !HAVE_DECL_STRLCAT
+size_t strlcat(char *dst, const char *src, size_t siz);
+#  endif
+#  if !HAVE_DECL_ARC4RANDOM && defined(HAVE_ARC4RANDOM)
+uint32_t arc4random(void);
+#  endif
+#  if !HAVE_DECL_ARC4RANDOM_UNIFORM && defined(HAVE_ARC4RANDOM_UNIFORM)
+uint32_t arc4random_uniform(uint32_t upper_bound);
+#  endif
+#endif /* HAVE_LIBRESSL */
+#ifndef HAVE_ARC4RANDOM
+void explicit_bzero(void* buf, size_t len);
+int getentropy(void* buf, size_t len);
+uint32_t arc4random(void);
+void arc4random_buf(void* buf, size_t n);
+void _ARC4_LOCK(void);
+void _ARC4_UNLOCK(void);
+#endif
+#ifndef HAVE_ARC4RANDOM_UNIFORM
+uint32_t arc4random_uniform(uint32_t upper_bound);
+#endif
+#ifdef COMPAT_SHA512
+#ifndef SHA512_DIGEST_LENGTH
+#define SHA512_BLOCK_LENGTH		128
+#define SHA512_DIGEST_LENGTH		64
+#define SHA512_DIGEST_STRING_LENGTH	(SHA512_DIGEST_LENGTH * 2 + 1)
+typedef struct _SHA512_CTX {
+	uint64_t	state[8];
+	uint64_t	bitcount[2];
+	uint8_t	buffer[SHA512_BLOCK_LENGTH];
+} SHA512_CTX;
+#endif /* SHA512_DIGEST_LENGTH */
+void SHA512_Init(SHA512_CTX*);
+void SHA512_Update(SHA512_CTX*, void*, size_t);
+void SHA512_Final(uint8_t[SHA512_DIGEST_LENGTH], SHA512_CTX*);
+unsigned char *SHA512(void* data, unsigned int data_len, unsigned char *digest);
+#endif /* COMPAT_SHA512 */
+
+
+
 #if defined(HAVE_EVENT_H) && !defined(HAVE_EVENT_BASE_ONCE) && !(defined(HAVE_EV_LOOP) || defined(HAVE_EV_DEFAULT_LOOP)) && (defined(HAVE_PTHREAD) || defined(HAVE_SOLARIS_THREADS))
    /* using version of libevent that is not threadsafe. */
 #  define LIBEVENT_SIGNAL_PROBLEM 1
@@ -1222,6 +1365,11 @@ void *unbound_stat_realloc_log(void *ptr, size_t size, const char* file,
 
 ])
 
-AC_CONFIG_FILES([Makefile doc/example.conf doc/libunbound.3 doc/unbound.8 doc/unbound-anchor.8 doc/unbound-checkconf.8 doc/unbound.conf.5 doc/unbound-control.8])
+dnl if we build from source tree, the man pages need @date@ and @version@
+dnl if this is a distro tarball, that was already done by makedist.sh
+AC_SUBST(version, [VERSION_MAJOR.VERSION_MINOR.VERSION_MICRO])
+AC_SUBST(date, [`date +'%b %e, %Y'`])
+
+AC_CONFIG_FILES([Makefile doc/example.conf doc/libunbound.3 doc/unbound.8 doc/unbound-anchor.8 doc/unbound-checkconf.8 doc/unbound.conf.5 doc/unbound-control.8 doc/unbound-host.1 smallapp/unbound-control-setup.sh dnstap/dnstap_config.h])
 AC_CONFIG_HEADER([config.h])
 AC_OUTPUT

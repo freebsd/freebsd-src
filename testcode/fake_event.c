@@ -734,7 +734,8 @@ run_scenario(struct replay_runtime* runtime)
 struct listen_dnsport* 
 listen_create(struct comm_base* base, struct listen_port* ATTR_UNUSED(ports),
 	size_t bufsize, int ATTR_UNUSED(tcp_accept_count),
-	void* ATTR_UNUSED(sslctx), comm_point_callback_t* cb, void* cb_arg)
+	void* ATTR_UNUSED(sslctx), struct dt_env* ATTR_UNUSED(dtenv),
+	comm_point_callback_t* cb, void* cb_arg)
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)base;
 	struct listen_dnsport* l= calloc(1, sizeof(struct listen_dnsport));
@@ -901,7 +902,7 @@ outside_network_create(struct comm_base* base, size_t bufsize,
 	int ATTR_UNUSED(numavailports), size_t ATTR_UNUSED(unwanted_threshold),
 	void (*unwanted_action)(void*), void* ATTR_UNUSED(unwanted_param),
 	int ATTR_UNUSED(do_udp), void* ATTR_UNUSED(sslctx),
-	int ATTR_UNUSED(delayclose))
+	int ATTR_UNUSED(delayclose), struct dt_env* ATTR_UNUSED(dtenv))
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)base;
 	struct outside_network* outnet =  calloc(1, 
@@ -934,11 +935,11 @@ outside_network_quit_prepare(struct outside_network* ATTR_UNUSED(outnet))
 }
 
 struct pending* 
-pending_udp_query(struct outside_network* outnet, sldns_buffer* packet,
-	struct sockaddr_storage* addr, socklen_t addrlen, int timeout,
-	comm_point_callback_t* callback, void* callback_arg)
+pending_udp_query(struct serviced_query* sq, sldns_buffer* packet,
+	int timeout, comm_point_callback_t* callback, void* callback_arg)
 {
-	struct replay_runtime* runtime = (struct replay_runtime*)outnet->base;
+	struct replay_runtime* runtime = (struct replay_runtime*)
+		sq->outnet->base;
 	struct fake_pending* pend = (struct fake_pending*)calloc(1,
 		sizeof(struct fake_pending));
 	log_assert(pend);
@@ -947,8 +948,8 @@ pending_udp_query(struct outside_network* outnet, sldns_buffer* packet,
 	sldns_buffer_write(pend->buffer, sldns_buffer_begin(packet),
 		sldns_buffer_limit(packet));
 	sldns_buffer_flip(pend->buffer);
-	memcpy(&pend->addr, addr, addrlen);
-	pend->addrlen = addrlen;
+	memcpy(&pend->addr, &sq->addr, sq->addrlen);
+	pend->addrlen = sq->addrlen;
 	pend->callback = callback;
 	pend->cb_arg = callback_arg;
 	pend->timeout = timeout/1000;
@@ -983,13 +984,12 @@ pending_udp_query(struct outside_network* outnet, sldns_buffer* packet,
 	return (struct pending*)pend;
 }
 
-struct waiting_tcp* 
-pending_tcp_query(struct outside_network* outnet, sldns_buffer* packet,
-	struct sockaddr_storage* addr, socklen_t addrlen, int timeout,
-	comm_point_callback_t* callback, void* callback_arg,
-	int ATTR_UNUSED(ssl_upstream))
+struct waiting_tcp*
+pending_tcp_query(struct serviced_query* sq, sldns_buffer* packet,
+	int timeout, comm_point_callback_t* callback, void* callback_arg)
 {
-	struct replay_runtime* runtime = (struct replay_runtime*)outnet->base;
+	struct replay_runtime* runtime = (struct replay_runtime*)
+		sq->outnet->base;
 	struct fake_pending* pend = (struct fake_pending*)calloc(1,
 		sizeof(struct fake_pending));
 	log_assert(pend);
@@ -998,8 +998,8 @@ pending_tcp_query(struct outside_network* outnet, sldns_buffer* packet,
 	sldns_buffer_write(pend->buffer, sldns_buffer_begin(packet),
 		sldns_buffer_limit(packet));
 	sldns_buffer_flip(pend->buffer);
-	memcpy(&pend->addr, addr, addrlen);
-	pend->addrlen = addrlen;
+	memcpy(&pend->addr, &sq->addr, sq->addrlen);
+	pend->addrlen = sq->addrlen;
 	pend->callback = callback;
 	pend->cb_arg = callback_arg;
 	pend->timeout = timeout;
@@ -1037,9 +1037,10 @@ pending_tcp_query(struct outside_network* outnet, sldns_buffer* packet,
 struct serviced_query* outnet_serviced_query(struct outside_network* outnet,
         uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
 	uint16_t flags, int dnssec, int ATTR_UNUSED(want_dnssec),
-	int ATTR_UNUSED(tcp_upstream), int ATTR_UNUSED(ssl_upstream),
-	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
-	size_t zonelen, comm_point_callback_t* callback, void* callback_arg,
+	int ATTR_UNUSED(nocaps), int ATTR_UNUSED(tcp_upstream),
+	int ATTR_UNUSED(ssl_upstream), struct sockaddr_storage* addr,
+	socklen_t addrlen, uint8_t* zone, size_t zonelen,
+	comm_point_callback_t* callback, void* callback_arg,
 	sldns_buffer* ATTR_UNUSED(buff))
 {
 	struct replay_runtime* runtime = (struct replay_runtime*)outnet->base;

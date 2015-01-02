@@ -211,7 +211,7 @@ int fptr_whitelist_hash_markdelfunc(lruhash_markdelfunc_t fptr);
  */
 int fptr_whitelist_modenv_send_query(struct outbound_entry* (*fptr)(
 	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass, 
-	uint16_t flags, int dnssec, int want_dnssec,
+	uint16_t flags, int dnssec, int want_dnssec, int nocaps,
 	struct sockaddr_storage* addr, socklen_t addrlen, 
 	uint8_t* zone, size_t zonelen,
 	struct module_qstate* q));

@@ -391,6 +391,11 @@ main(int argc, char* argv[])
 	rbtree_t* all_locks;
 	int i;
 	time_t starttime = time(NULL);
+#ifdef USE_THREAD_DEBUG
+	/* do not overwrite the ublocktrace files with the ones generated
+	 * by this program (i.e. when the log code creates a lock) */
+	check_locking_order = 0;
+#endif
 	if(argc <= 1) {
 		usage();
 		return 1;

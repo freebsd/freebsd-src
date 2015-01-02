@@ -1,4 +1,4 @@
-/* A Bison parser, made by GNU Bison 2.6.1.  */
+/* A Bison parser, made by GNU Bison 2.7.  */
 
 /* Bison interface for Yacc-like parsers in C
    
@@ -30,8 +30,8 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
-#ifndef YY_UTIL_CONFIGPARSER_H
-# define YY_UTIL_CONFIGPARSER_H
+#ifndef YY_YY_UTIL_CONFIGPARSER_H_INCLUDED
+# define YY_YY_UTIL_CONFIGPARSER_H_INCLUDED
 /* Enabling traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -175,7 +175,23 @@ extern int yydebug;
      VAR_MINIMAL_RESPONSES = 384,
      VAR_RRSET_ROUNDROBIN = 385,
      VAR_MAX_UDP_SIZE = 386,
-     VAR_DELAY_CLOSE = 387
+     VAR_DELAY_CLOSE = 387,
+     VAR_UNBLOCK_LAN_ZONES = 388,
+     VAR_DNS64_PREFIX = 389,
+     VAR_DNS64_SYNTHALL = 390,
+     VAR_DNSTAP = 391,
+     VAR_DNSTAP_ENABLE = 392,
+     VAR_DNSTAP_SOCKET_PATH = 393,
+     VAR_DNSTAP_SEND_IDENTITY = 394,
+     VAR_DNSTAP_SEND_VERSION = 395,
+     VAR_DNSTAP_IDENTITY = 396,
+     VAR_DNSTAP_VERSION = 397,
+     VAR_DNSTAP_LOG_RESOLVER_QUERY_MESSAGES = 398,
+     VAR_DNSTAP_LOG_RESOLVER_RESPONSE_MESSAGES = 399,
+     VAR_DNSTAP_LOG_CLIENT_QUERY_MESSAGES = 400,
+     VAR_DNSTAP_LOG_CLIENT_RESPONSE_MESSAGES = 401,
+     VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES = 402,
+     VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES = 403
    };
 #endif
 /* Tokens.  */
@@ -309,20 +325,36 @@ extern int yydebug;
 #define VAR_RRSET_ROUNDROBIN 385
 #define VAR_MAX_UDP_SIZE 386
 #define VAR_DELAY_CLOSE 387
+#define VAR_UNBLOCK_LAN_ZONES 388
+#define VAR_DNS64_PREFIX 389
+#define VAR_DNS64_SYNTHALL 390
+#define VAR_DNSTAP 391
+#define VAR_DNSTAP_ENABLE 392
+#define VAR_DNSTAP_SOCKET_PATH 393
+#define VAR_DNSTAP_SEND_IDENTITY 394
+#define VAR_DNSTAP_SEND_VERSION 395
+#define VAR_DNSTAP_IDENTITY 396
+#define VAR_DNSTAP_VERSION 397
+#define VAR_DNSTAP_LOG_RESOLVER_QUERY_MESSAGES 398
+#define VAR_DNSTAP_LOG_RESOLVER_RESPONSE_MESSAGES 399
+#define VAR_DNSTAP_LOG_CLIENT_QUERY_MESSAGES 400
+#define VAR_DNSTAP_LOG_CLIENT_RESPONSE_MESSAGES 401
+#define VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES 402
+#define VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES 403
 
 
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
 {
-/* Line 2049 of yacc.c  */
+/* Line 2058 of yacc.c  */
 #line 64 "util/configparser.y"
 
 	char*	str;
 
 
-/* Line 2049 of yacc.c  */
-#line 326 "util/configparser.h"
+/* Line 2058 of yacc.c  */
+#line 358 "util/configparser.h"
 } YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
@@ -345,4 +377,4 @@ int yyparse ();
 #endif
 #endif /* ! YYPARSE_PARAM */
 
-#endif /* !YY_UTIL_CONFIGPARSER_H  */
+#endif /* !YY_YY_UTIL_CONFIGPARSER_H_INCLUDED  */

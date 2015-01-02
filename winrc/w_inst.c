@@ -190,19 +190,32 @@ wsvc_install(FILE* out, const char* rename)
 {
         SC_HANDLE scm;
         SC_HANDLE sv;
-        TCHAR path[MAX_PATH+2+256];
+        TCHAR path[2*MAX_PATH+4+256];
+        TCHAR path_config[2*MAX_PATH+4+256];
         if(out) fprintf(out, "installing unbound service\n");
         if(!GetModuleFileName(NULL, path+1, MAX_PATH))
                 fatal_win(out, "could not GetModuleFileName");
         /* change 'unbound-service-install' to 'unbound' */
-	if(rename)
+	if(rename) {
         	change(out, path+1, sizeof(path)-1, rename, "unbound.exe");
+		memmove(path_config+1, path+1, sizeof(path)-1);
+        	change(out, path_config+1, sizeof(path_config)-1,
+			"unbound.exe", "service.conf");
+	}
 
 	event_reg_install(out, path+1);
 
         /* have to quote it because of spaces in directory names */
         /* could append arguments to be sent to ServiceMain */
         quote_it(out, path, sizeof(path));
+
+	/* if we started in a different directory, also read config from it. */
+	if(rename) {
+        	quote_it(out, path_config, sizeof(path_config));
+		strcat(path, " -c ");
+		strcat(path, path_config);
+	}
+
         strcat(path, " -w service");
         scm = OpenSCManager(NULL, NULL, (int)SC_MANAGER_CREATE_SERVICE);
         if(!scm) fatal_win(out, "could not OpenSCManager");

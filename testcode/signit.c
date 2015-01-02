@@ -95,7 +95,7 @@ convert_timeval(const char* str)
 	if (tm.tm_min < 0 || tm.tm_min > 59)	return 0;
 	if (tm.tm_sec < 0 || tm.tm_sec > 59)	return 0;
 	/* call ldns conversion function */
-	t = sldns_mktime_from_utc(&tm);
+	t = ldns_mktime_from_utc(&tm);
 	return t;
 }
 
@@ -121,14 +121,14 @@ parse_cmdline(char *argv[], struct keysets* s)
 }
 
 /** read all key files, exit on error */
-static sldns_key_list*
+static ldns_key_list*
 read_keys(int num, char* names[], struct keysets* set)
 {
 	int i;
-	sldns_key_list* keys = sldns_key_list_new();
-	sldns_key* k;
-	sldns_rdf* rdf;
-	sldns_status s;
+	ldns_key_list* keys = ldns_key_list_new();
+	ldns_key* k;
+	ldns_rdf* rdf;
+	ldns_status s;
 	int b;
 	FILE* in;
 
@@ -138,45 +138,45 @@ read_keys(int num, char* names[], struct keysets* set)
 		in = fopen(names[i], "r");
 		if(!in) fatal_exit("could not open %s: %s", names[i],
 				strerror(errno));
-		s = sldns_key_new_frm_fp(&k, in);
+		s = ldns_key_new_frm_fp(&k, in);
 		fclose(in);
 		if(s != LDNS_STATUS_OK)
 			fatal_exit("bad keyfile %s: %s", names[i],
-				sldns_get_errorstr_by_id(s));
-		sldns_key_set_expiration(k, set->expi);
-		sldns_key_set_inception(k, set->incep);
-		s = sldns_str2rdf_dname(&rdf, set->owner);
+				ldns_get_errorstr_by_id(s));
+		ldns_key_set_expiration(k, set->expi);
+		ldns_key_set_inception(k, set->incep);
+		s = ldns_str2rdf_dname(&rdf, set->owner);
 		if(s != LDNS_STATUS_OK)
 			fatal_exit("bad owner name %s: %s", set->owner,
-				sldns_get_errorstr_by_id(s));
-		sldns_key_set_pubkey_owner(k, rdf);
-		sldns_key_set_flags(k, set->flags);
-		sldns_key_set_keytag(k, set->keytag);
-		b = sldns_key_list_push_key(keys, k);
+				ldns_get_errorstr_by_id(s));
+		ldns_key_set_pubkey_owner(k, rdf);
+		ldns_key_set_flags(k, set->flags);
+		ldns_key_set_keytag(k, set->keytag);
+		b = ldns_key_list_push_key(keys, k);
 		assert(b);
 	}
 	return keys;
 }
 
 /** read list of rrs from the file */
-static sldns_rr_list*
+static ldns_rr_list*
 read_rrs(FILE* in)
 {
 	uint32_t my_ttl = 3600;
-	sldns_rdf *my_origin = NULL;
-	sldns_rdf *my_prev = NULL;
-	sldns_status s;
+	ldns_rdf *my_origin = NULL;
+	ldns_rdf *my_prev = NULL;
+	ldns_status s;
 	int line_nr = 1;
 	int b;
 
-	sldns_rr_list* list;
-	sldns_rr *rr;
+	ldns_rr_list* list;
+	ldns_rr *rr;
 
-	list = sldns_rr_list_new();
+	list = ldns_rr_list_new();
 	if(!list) fatal_exit("alloc error");
 
 	while(!feof(in)) {
-		s = sldns_rr_new_frm_fp_l(&rr, in, &my_ttl, &my_origin,
+		s = ldns_rr_new_frm_fp_l(&rr, in, &my_ttl, &my_origin,
 			&my_prev, &line_nr);
 		if(s == LDNS_STATUS_SYNTAX_TTL || 
 			s == LDNS_STATUS_SYNTAX_ORIGIN ||
@@ -184,8 +184,8 @@ read_rrs(FILE* in)
 			continue;
 		else if(s != LDNS_STATUS_OK)
 			fatal_exit("parse error in line %d: %s", line_nr,
-				sldns_get_errorstr_by_id(s));
-		b = sldns_rr_list_push_rr(list, rr);
+				ldns_get_errorstr_by_id(s));
+		b = ldns_rr_list_push_rr(list, rr);
 		assert(b);
 	}
 	printf("read %d lines\n", line_nr);
@@ -195,21 +195,21 @@ read_rrs(FILE* in)
 
 /** sign the rrs with the keys */
 static void
-signit(sldns_rr_list* rrs, sldns_key_list* keys)
+signit(ldns_rr_list* rrs, ldns_key_list* keys)
 {
-	sldns_rr_list* rrset;
-	sldns_rr_list* sigs;
+	ldns_rr_list* rrset;
+	ldns_rr_list* sigs;
 	
-	while(sldns_rr_list_rr_count(rrs) > 0) {
-		rrset = sldns_rr_list_pop_rrset(rrs);
+	while(ldns_rr_list_rr_count(rrs) > 0) {
+		rrset = ldns_rr_list_pop_rrset(rrs);
 		if(!rrset) fatal_exit("copy alloc failure");
-		sigs = sldns_sign_public(rrset, keys);
+		sigs = ldns_sign_public(rrset, keys);
 		if(!sigs) fatal_exit("failed to sign");
-		sldns_rr_list_print(stdout, rrset);
-		sldns_rr_list_print(stdout, sigs);
+		ldns_rr_list_print(stdout, rrset);
+		ldns_rr_list_print(stdout, sigs);
 		printf("\n");
-		sldns_rr_list_free(rrset);
-		sldns_rr_list_free(sigs);
+		ldns_rr_list_free(rrset);
+		ldns_rr_list_free(sigs);
 	}
 }
 
@@ -217,8 +217,8 @@ signit(sldns_rr_list* rrs, sldns_key_list* keys)
 static void
 process_keys(int argc, char* argv[])
 {
-	sldns_rr_list* rrs;
-	sldns_key_list* keys;
+	ldns_rr_list* rrs;
+	ldns_key_list* keys;
 	struct keysets settings;
 	assert(argc == 6);
 
@@ -227,8 +227,8 @@ process_keys(int argc, char* argv[])
 	rrs = read_rrs(stdin);
 	signit(rrs, keys);
 
-	sldns_rr_list_deep_free(rrs);
-	sldns_key_list_free(keys);
+	ldns_rr_list_deep_free(rrs);
+	ldns_key_list_free(keys);
 }
 
 /** process nsec3 params and perform hashing */
@@ -236,37 +236,37 @@ static void
 process_nsec3(int argc, char* argv[])
 {
 	char line[10240];
-	sldns_rdf* salt;
-	sldns_rdf* in, *out;
-	sldns_status status;
-	status = sldns_str2rdf_nsec3_salt(&salt, argv[5]);
+	ldns_rdf* salt;
+	ldns_rdf* in, *out;
+	ldns_status status;
+	status = ldns_str2rdf_nsec3_salt(&salt, argv[5]);
 	if(status != LDNS_STATUS_OK)
 		fatal_exit("Could not parse salt %s: %s", argv[5],
-			sldns_get_errorstr_by_id(status));
+			ldns_get_errorstr_by_id(status));
 	assert(argc == 6);
 	while(fgets(line, (int)sizeof(line), stdin)) {
 		if(strlen(line) > 0)
 			line[strlen(line)-1] = 0; /* remove trailing newline */
 		if(line[0]==0)
 			continue;
-		status = sldns_str2rdf_dname(&in, line);
+		status = ldns_str2rdf_dname(&in, line);
 		if(status != LDNS_STATUS_OK)
 			fatal_exit("Could not parse name %s: %s", line,
-				sldns_get_errorstr_by_id(status));
-		sldns_rdf_print(stdout, in);
+				ldns_get_errorstr_by_id(status));
+		ldns_rdf_print(stdout, in);
 		printf(" -> ");
 		/* arg 3 is flags, unused */
-		out = sldns_nsec3_hash_name(in, (uint8_t)atoi(argv[2]), 
+		out = ldns_nsec3_hash_name(in, (uint8_t)atoi(argv[2]), 
 			(uint16_t)atoi(argv[4]),
-			sldns_rdf_data(salt)[0], sldns_rdf_data(salt)+1);
+			ldns_rdf_data(salt)[0], ldns_rdf_data(salt)+1);
 		if(!out)
 			fatal_exit("Could not hash %s", line);
-		sldns_rdf_print(stdout, out);
+		ldns_rdf_print(stdout, out);
 		printf("\n");
-		sldns_rdf_deep_free(in);
-		sldns_rdf_deep_free(out);
+		ldns_rdf_deep_free(in);
+		ldns_rdf_deep_free(out);
 	}
-	sldns_rdf_deep_free(salt);
+	ldns_rdf_deep_free(salt);
 }
 
 /** main program */

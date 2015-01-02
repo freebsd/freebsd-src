@@ -212,6 +212,8 @@ struct module_env {
 	 *	If BIT_CD is set, CD bit is set in queries with EDNS records.
 	 * @param want_dnssec: if set, the validator wants DNSSEC.  Without
 	 * 	EDNS, the answer is likely to be useless for this domain.
+	 * @param nocaps: do not use caps_for_id, use the qname as given.
+	 *	(ignored if caps_for_id is disabled).
 	 * @param addr: where to.
 	 * @param addrlen: length of addr.
 	 * @param zone: delegation point name.
@@ -224,7 +226,7 @@ struct module_env {
 	 */
 	struct outbound_entry* (*send_query)(uint8_t* qname, size_t qnamelen, 
 		uint16_t qtype, uint16_t qclass, uint16_t flags, int dnssec, 
-		int want_dnssec, struct sockaddr_storage* addr, 
+		int want_dnssec, int nocaps, struct sockaddr_storage* addr, 
 		socklen_t addrlen, uint8_t* zone, size_t zonelen,
 		struct module_qstate* q);
 
