@@ -9,10 +9,7 @@ WARNS?=	2
 
 CFLAGS.h_raw+=	-fstack-protector-all -Wstack-protector
 .if ${COMPILER_TYPE} == "clang"
-# Disable -fsanitize=bounds until runtime support is done for clang 3.5.0.
-.if ${COMPILER_VERSION} < 30500
 CFLAGS.h_raw+=	-fsanitize=bounds
-.endif
 .elif ${COMPILER_TYPE} == "gcc"
 CFLAGS.h_raw+=	--param ssp-buffer-size=1
 DPADD+=		${LIBSSP}
@@ -29,7 +26,11 @@ PROGS+=		h_getcwd
 PROGS+=		h_memcpy
 PROGS+=		h_memmove
 PROGS+=		h_memset
+# This testcase doesn't run properly when not compiled with -fsantize=bounds
+# with clang, which is currently contingent on a compiler_rt update
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 30500
 PROGS+=		h_raw
+.endif
 PROGS+=		h_read
 PROGS+=		h_readlink
 PROGS+=		h_snprintf
