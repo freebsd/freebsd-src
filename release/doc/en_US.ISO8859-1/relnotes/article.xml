@@ -283,6 +283,9 @@
       <para revision="267359">Support for the
 	<literal>disklabel64</literal> partitioning scheme has been
 	added to &man.gpart.8;.</para>
+
+      <para revision="276526">The <literal>asr(4)</literal> driver has
+	been removed, and is no longer supported.</para>
     </sect3>
 
     <sect3 xml:id="fs">
