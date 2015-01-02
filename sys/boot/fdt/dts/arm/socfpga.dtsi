@@ -76,6 +76,11 @@
 			reg = <0xffd08000 0x1000>;
 		};
 
+		clkmgr: clkmgr@ffd04000 {
+			compatible = "altr,clk-mgr";
+			reg = <0xffd04000 0x1000>;
+		};
+
 		rstmgr: rstmgr@ffd05000 {
 			compatible = "altr,rst-mgr";
 			reg = <0xffd05000 0x1000>;
@@ -92,6 +97,36 @@
 			      <0xffb90000 0x1000>; /* FPGAMGRDATA */
 			interrupts = < 207 >;
 			interrupt-parent = <&GIC>;
+		};
+
+		gpio0: gpio@ff708000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0xff708000 0x1000>;
+			porta: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				snps,nr-gpios = <29>;
+			};
+		};
+
+		gpio1: gpio@ff709000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0xff709000 0x1000>;
+			portb: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				snps,nr-gpios = <29>;
+			};
+		};
+
+		gpio2: gpio@ff70a000 {
+			compatible = "snps,dw-apb-gpio";
+			reg = <0xff70a000 0x1000>;
+			portc: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				snps,nr-gpios = <27>;
+			};
 		};
 
 		serial0: serial@ffc02000 {
