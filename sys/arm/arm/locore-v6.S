@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #define	INIT_ARM_STACK_SIZE	2048
 
 	.text
-	.align	0
+	.align	2
 
 /*
  * On entry for	FreeBSD	boot ABI:
@@ -373,7 +373,7 @@ VA_TO_PA_POINTER(Lpagetable, boot_pt1)
 
 .Lmainreturned:
 	.asciz	"main()	returned"
-	.align	0
+	.align	2
 
 	.bss
 svcstk:
@@ -390,7 +390,7 @@ boot_pt1:
 	.space	L1_TABLE_SIZE
 
 	.text
-	.align	0
+	.align	2
 
 .Lcpufuncs:
 	.word	_C_LABEL(cpufuncs)
@@ -443,11 +443,11 @@ ASENTRY_NP(mpentry)
 	adr	r0, .Lmpreturned
 	b	_C_LABEL(panic)
 	/* NOTREACHED */
+END(mpentry)
 
 .Lmpreturned:
 	.asciz	"init_secondary() returned"
-	.align	0
-END(mpentry)
+	.align	2
 #endif
 
 ENTRY_NP(cpu_halt)
@@ -525,7 +525,7 @@ END(sigcode)
 	.word	SYS_sigreturn
 	.word	SYS_exit
 
-	.align	0
+	.align	2
 	.global	_C_LABEL(esigcode)
 		_C_LABEL(esigcode):
 
