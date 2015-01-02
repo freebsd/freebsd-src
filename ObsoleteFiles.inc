@@ -38,7 +38,7 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
-# 20150103: removal of texinfo
+# 20150102: removal of texinfo
 OLD_FILES+=usr/bin/info
 OLD_FILES+=usr/bin/infokey
 OLD_FILES+=usr/bin/install-info
