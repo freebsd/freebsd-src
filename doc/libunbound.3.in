@@ -1,4 +1,4 @@
-.TH "libunbound" "3" "Nov 18, 2014" "NLnet Labs" "unbound 1.5.0"
+.TH "libunbound" "3" "Dec  8, 2014" "NLnet Labs" "unbound 1.5.1"
 .\"
 .\" libunbound.3 -- unbound library functions manual
 .\"
@@ -42,7 +42,7 @@
 .B ub_ctx_zone_remove,
 .B ub_ctx_data_add,
 .B ub_ctx_data_remove
-\- Unbound DNS validating resolver 1.5.0 functions.
+\- Unbound DNS validating resolver 1.5.1 functions.
 .SH "SYNOPSIS"
 .B #include <unbound.h>
 .LP

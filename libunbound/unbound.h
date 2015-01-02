@@ -357,7 +357,7 @@ int ub_ctx_add_ta(struct ub_ctx* ctx, const char* ta);
 int ub_ctx_add_ta_file(struct ub_ctx* ctx, const char* fname);
 
 /**
- * Add trust anchor to the give context that is tracked with RFC5011
+ * Add trust anchor to the given context that is tracked with RFC5011
  * automated trust anchor maintenance.  The file is written to when the
  * trust anchor is changed.
  * Pass the name of a file that was output from eg. unbound-anchor,

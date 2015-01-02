@@ -425,10 +425,10 @@ dns_copy_msg(struct dns_msg* from, struct regional* region)
 void 
 iter_dns_store(struct module_env* env, struct query_info* msgqinf,
 	struct reply_info* msgrep, int is_referral, time_t leeway, int pside,
-	struct regional* region)
+	struct regional* region, uint16_t flags)
 {
 	if(!dns_cache_store(env, msgqinf, msgrep, is_referral, leeway,
-		pside, region))
+		pside, region, flags))
 		log_err("out of memory: cannot store data in cache");
 }
 
@@ -457,7 +457,8 @@ causes_cycle(struct module_qstate* qstate, uint8_t* name, size_t namelen,
 	fptr_ok(fptr_whitelist_modenv_detect_cycle(
 		qstate->env->detect_cycle));
 	return (*qstate->env->detect_cycle)(qstate, &qinf, 
-		(uint16_t)(BIT_RD|BIT_CD), qstate->is_priming);
+		(uint16_t)(BIT_RD|BIT_CD), qstate->is_priming,
+		qstate->is_valrec);
 }
 
 void 
