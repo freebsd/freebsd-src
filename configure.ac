@@ -10,7 +10,7 @@ sinclude(dnstap/dnstap.m4)
 # must be numbers. ac_defun because of later processing
 m4_define([VERSION_MAJOR],[1])
 m4_define([VERSION_MINOR],[5])
-m4_define([VERSION_MICRO],[0])
+m4_define([VERSION_MICRO],[1])
 AC_INIT(unbound, m4_defn([VERSION_MAJOR]).m4_defn([VERSION_MINOR]).m4_defn([VERSION_MICRO]), unbound-bugs@nlnetlabs.nl, unbound)
 AC_SUBST(UNBOUND_VERSION_MAJOR, [VERSION_MAJOR])
 AC_SUBST(UNBOUND_VERSION_MINOR, [VERSION_MINOR])
@@ -57,6 +57,7 @@ LIBUNBOUND_AGE=3
 # 1.4.21 had 4:1:2
 # 1.4.22 had 4:1:2
 # 1.5.0 had 5:3:3 # adds ub_ctx_add_ta_autr
+# 1.5.1 had 5:4:3
 
 #   Current  -- the number of the binary API that we're implementing
 #   Revision -- which iteration of the implementation of the binary
@@ -1022,39 +1023,6 @@ if test "$USE_NSS" = "no"; then
 				AC_SEARCH_LIBS([clock_gettime], [rt])
 			;;
 			esac
-			# generate libtool to test if linking main
-			# from a dynamic library works.
-			LT_OUTPUT
-			AC_MSG_CHECKING([if dynamic lib can refer to main])
-			cat >tmp.$$.def <<EOF
-myfunc
-EOF
-			cat >tmp.$$.c <<EOF
-int myfunc(void);
-extern int main(int, char *argv[]);
-int myfunc(void)
-{
-	return ((int)main) + 1;
-}
-EOF
-			mylibtool=./libtool
-			mylibdir=/usr/local/lib
-			myok=yes
-			$mylibtool --quiet --tag=CC --mode=compile $CC $CFLAGS -o tmp.$$.lo -c tmp.$$.c >/dev/null 2>&1
-			if test $? = 0; then myok=yes; else myok=no; fi
-			if test "$myok" = "yes"; then
-			$mylibtool --quiet --tag=CC --mode=link $CC $CFLAGS -version-info 1:0:0 -no-undefined -export-symbols tmp.$$.def -o libtmp$$.la tmp.$$.lo $LDFLAGS -rpath $mylibdir $LIBS >/dev/null 2>&1
-				if test $? = 0; then myok=yes; else myok=no; fi
-			fi
-			if test "$myok" = "yes"; then
-				AC_MSG_RESULT(yes)
-				AC_DEFINE(CAN_REFERENCE_MAIN, [1], [define if a library can reference the 'main' symbol])
-			else
-				AC_MSG_RESULT(no)
-			fi
-			$mylibtool --quiet --mode=clean rm -rf libtmp$$.la tmp.$$.lo
-			rm -f tmp.$$.def tmp.$$.c libtmp$$.la tmp.$$.lo tmp.$$.o
-
 		    fi
 		])
 	fi

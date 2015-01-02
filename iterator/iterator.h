@@ -52,6 +52,8 @@ struct iter_donotq;
 struct iter_prep_list;
 struct iter_priv;
 
+/** max number of targets spawned for a query and its subqueries */
+#define MAX_TARGET_COUNT	32
 /** max number of query restarts. Determines max number of CNAME chain. */
 #define MAX_RESTART_COUNT       8
 /** max number of referrals. Makes sure resolver does not run away */
@@ -251,6 +253,10 @@ struct iter_qstate {
 
 	/** number of queries fired off */
 	int sent_count;
+	
+	/** number of target queries spawned in [1], for this query and its
+	 * subqueries, the malloced-array is shared, [0] refcount. */
+	int* target_count;
 
 	/**
 	 * The query must store NS records from referrals as parentside RRs
