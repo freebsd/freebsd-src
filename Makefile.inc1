@@ -815,6 +815,7 @@ MTREE_MAGIC?=	mtree 2.0
 
 distributeworld installworld: _installcheck_world
 	mkdir -p ${INSTALLTMP}
+	export PATH=${BPATH}:${PATH} ; \
 	progs=$$(for prog in ${ITOOLS}; do \
 		if progpath=`which $$prog`; then \
 			echo $$progpath; \
@@ -1313,7 +1314,8 @@ _kerberos5_bootstrap_tools= \
 
 .if ${_BOOTSTRAP_MAKEINFO} != "no"
 _texinfo=	gnu/usr.bin/texinfo/libtxi \
-		gnu/usr.bin/texinfo/makeinfo
+		gnu/usr.bin/texinfo/makeinfo \
+		gnu/usr.bin/texinfo/install-info
 .endif
 #	Please document (add comment) why something is in 'bootstrap-tools'.
 #	Try to bound the building of the bootstrap-tool to just the
