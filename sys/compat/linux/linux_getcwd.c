@@ -430,7 +430,7 @@ linux_getcwd(struct thread *td, struct linux_getcwd_args *args)
 
 	path = (char *)malloc(len, M_TEMP, M_WAITOK);
 
-	error = kern___getcwd(td, path, UIO_SYSSPACE, len);
+	error = kern___getcwd(td, (u_char *)path, UIO_SYSSPACE, len);
 	if (!error) {
 		lenused = strlen(path) + 1;
 		if (lenused <= args->bufsize) {
