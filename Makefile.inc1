@@ -233,6 +233,7 @@ CROSSENV+=	GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
 		GROFF_TMAC_PATH=${WORLDTMP}/legacy/usr/share/tmac
 .endif
 
+_BOOTSTRAP_MAKEINFO?=	${MK_INFO}
 # bootstrap-tools stage
 BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${BPATH}:${PATH} \
@@ -247,6 +248,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		SSP_CFLAGS= \
 		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
 		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
+		_BOOTSTRAP_MAKEINFO=${_BOOTSTRAP_MAKEINFO} \
 		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD -DNO_TESTS
 
 # build-tools stage
@@ -1309,6 +1311,10 @@ _kerberos5_bootstrap_tools= \
 	usr.bin/compile_et
 .endif
 
+.if ${_BOOTSTRAP_MAKEINFO} != "no"
+_texinfo=	gnu/usr.bin/texinfo/libtxi \
+		gnu/usr.bin/texinfo/makeinfo
+.endif
 #	Please document (add comment) why something is in 'bootstrap-tools'.
 #	Try to bound the building of the bootstrap-tool to just the
 #	FreeBSD versions that need the tool built at this stage of the build.
@@ -1338,6 +1344,7 @@ bootstrap-tools: .MAKE
     usr.sbin/config \
     ${_crunch} \
     ${_nmtree} \
+    ${_texinfo} \
     ${_vtfontcvt}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool} && \
@@ -1356,11 +1363,6 @@ _share=	share/syscons/scrnmaps
 
 .if ${MK_GCC} != "no"
 _gcc_tools= gnu/usr.bin/cc/cc_tools
-.endif
-
-.if ${MK_INFO} != "no"
-_texinfo=	gnu/usr.bin/texinfo/libtxi \
-		gnu/usr.bin/texinfo/makeinfo
 .endif
 
 .if ${MK_RESCUE} != "no"
@@ -1393,15 +1395,6 @@ build-tools: .MAKE
 		${MAKE} DIRPRFX=${_tool}/ obj && \
 		${MAKE} DIRPRFX=${_tool}/ depend && \
 		${MAKE} DIRPRFX=${_tool}/ all
-.endfor
-.for _tool in \
-    ${_texinfo}
-	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_tool} && \
-		${MAKE} DIRPRFX=${_tool}/ obj && \
-		${MAKE} DIRPRFX=${_tool}/ depend && \
-		${MAKE} DIRPRFX=${_tool}/ all && \
-		${MAKE} DIRPRFX=${_tool}/ install DESTDIR=${WORLDTMP}
 .endfor
 
 
