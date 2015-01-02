@@ -1,6 +1,6 @@
 ************************************************************************
 * Official mandoc TODO.
-* $Id: TODO,v 1.189 2014/11/26 21:40:17 schwarze Exp $
+* $Id: TODO,v 1.195 2014/12/13 13:14:39 schwarze Exp $
 ************************************************************************
 
 Many issues are annotated for difficulty as follows:
@@ -72,7 +72,8 @@ are mere guesses, and some may be wrong.
 - .ta (tab settings) occurs in ircbug(1) and probably gnats(1)
   reported by brad@  Sat, 15 Jan 2011 15:50:51 -0500
   also Tcl_NewStringObj(3) via wiz@  Wed, 5 Mar 2014 22:27:43 +0100
-  loc **  exist ***  algo **  size **  imp **
+  also posix2time(3) Carsten Kunze  Mon, 1 Dec 2014 13:03:10 +0100
+  loc **  exist ***  algo **  size **  imp ***
 
 - .ti (temporary indent)
   found by naddy@ in xloadimage(1)
@@ -83,14 +84,10 @@ are mere guesses, and some may be wrong.
   found by jca@ in ratpoison(1)  Sun, 30 Jun 2013 12:01:09 +0200
   loc *  exist **  algo **  size **  imp **
 
-- \c (interrupted text) should prevent the line break
-  even inside .Bd literal; that occurs in chat(8)
-  also found in cclive(1) - DocBook output
-  loc **  exist ***  algo **  size *  imp *
-
 - \h horizontal move
-  found in cclive(1) DocBook output
-  Anthony J. Bentley on discuss@  Sat, 21 Sep 2013 22:29:34 -0600
+  found in cclive(1) and nasm(1) asciidoc/DocBook output
+  bentley@ on discuss@  Sat, 21 Sep 2013 22:29:34 -0600
+  naddy@  Thu, 4 Dec 2014 16:26:41 +0100
   loc **  exist **  algo **  size *  imp ** (parser reorg helps a lot)
 
 - \n+ and \n- numerical register increment and decrement
@@ -124,13 +121,6 @@ are mere guesses, and some may be wrong.
   .Sh .Nm .Bk .Nm .Ek .Sh found by jmc@ in ssh-keygen(1)
   from jmc@  Wed, 14 Jul 2010 18:10:32 +0100
   loc *  exist ***  algo ***  size **  imp **
-
-- \\ is now implemented correctly
-  * when defining strings and macros using .ds and .de
-  * when parsing roff(7) and man(7) macro arguments
-  It does not yet work in mdoc(7) macro arguments
-  because libmdoc does not yet use mandoc_getarg().
-  Also check what happens in plain text, it must be identical to \e.
 
 - .Bd -centered implies -filled, not -unfilled, which is not
   easy to implement; it requires code similar to .ce, which
@@ -171,12 +161,6 @@ are mere guesses, and some may be wrong.
 - inside `.Bl -column' phrases, TERMP_IGNDELIM handling by `Pf'
   is not safe, e.g. `.Bl -column .It Pf a b .' gives "ab."
   but should give "ab ."
-
-- set a meaningful default if no `Bl' list type is assigned
-  loc *  exist *  algo *  size *  imp **  (already done?)
-
-- have a blank `It' head for `Bl -tag' not puke
-  loc *  exist *  algo *  size *  imp **  (already done?)
 
 - check whether it is correct that `D1' uses INDENT+1;
   does it need its own constant?
@@ -315,8 +299,17 @@ are mere guesses, and some may be wrong.
 * formatting issues: ugly output
 ************************************************************************
 
-- a column list with blank `Ta' cells triggers a spurrious
+- revisit empty in-line macros
+  look at the difference between "Em x Em ." and "Sq x Em ."
+  Carsten Kunze  Fri, 12 Dec 2014 00:15:41 +0100
+  loc *** exist *** algo *** size * imp **
+
+- a column list with blank `Ta' cells triggers a spurious
   start-with-whitespace printing of a newline
+
+- In .Bl -column, .It a<tab>"b<tab>c"
+  shows the quotes in groff, but not in mandoc
+  loc * exist *** algo ** size * imp **
 
 - In .Bl -column,
   .It Em Authentication<tab>Key Length
@@ -402,16 +395,6 @@ are mere guesses, and some may be wrong.
   Do we want to change mandoc or groff?
   Steffen Nurpmeso  Sat, 08 Nov 2014 13:34:59 +0100
   loc *  exist **  algo **  size *  imp **
-
-- .Rv (and probably .Ex) print different text if an `Nm' has been named
-  or not (run a manual without `Nm blah' to see this).  I'm not sure
-  that this exists in the wild, but it's still an error.
-  loc *  exist *  algo *  size *  imp * (already done?)
-
-- In .Bl -bullet, the groff bullet is "+\b+\bo\bo", the mandoc bullet
-  is just "o\bo".  The problem is to not break ps/pdf when fixing.
-  see for example OpenBSD ksh(1)
-  loc **  exist **  algo **  size *  imp **
 
 - In .Bl -enum -width 0n, groff continues one the same line after
   the number, mandoc breaks the line.
@@ -601,3 +584,9 @@ Several areas can be cleaned up to make mandoc even faster.  These are
  - Have Mac OSX systems automatically disable -static compilation of the
    CGI: -static isn't supported.
 
+************************************************************************
+* to improve in the groff_mdoc(7) macros
+************************************************************************
+
+- use uname(1) to set doc-default-operating-system at install time
+  tobimensch  Mon, 1 Dec 2014 00:25:07 +0100

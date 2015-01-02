@@ -16,14 +16,14 @@
 //===          is guaranteed to work on *all* Win32 variants.
 //===----------------------------------------------------------------------===//
 
-#include "Windows.h"
+#include "WindowsSupport.h"
 #include "llvm/Support/ThreadLocal.h"
 
 namespace llvm {
 using namespace sys;
 
 ThreadLocalImpl::ThreadLocalImpl() : data() {
-  typedef int SIZE_TOO_BIG[sizeof(DWORD) <= sizeof(data) ? 1 : -1];
+  static_assert(sizeof(DWORD) <= sizeof(data), "size too big");
   DWORD* tls = reinterpret_cast<DWORD*>(&data);
   *tls = TlsAlloc();
   assert(*tls != TLS_OUT_OF_INDEXES);

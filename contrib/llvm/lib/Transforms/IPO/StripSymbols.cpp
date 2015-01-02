@@ -23,8 +23,8 @@
 #include "llvm/Transforms/IPO.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/DebugInfo.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
@@ -44,9 +44,9 @@ namespace {
         initializeStripSymbolsPass(*PassRegistry::getPassRegistry());
       }
 
-    virtual bool runOnModule(Module &M);
+    bool runOnModule(Module &M) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();
     }
   };
@@ -59,9 +59,9 @@ namespace {
         initializeStripNonDebugSymbolsPass(*PassRegistry::getPassRegistry());
       }
 
-    virtual bool runOnModule(Module &M);
+    bool runOnModule(Module &M) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();
     }
   };
@@ -74,9 +74,9 @@ namespace {
         initializeStripDebugDeclarePass(*PassRegistry::getPassRegistry());
       }
 
-    virtual bool runOnModule(Module &M);
+    bool runOnModule(Module &M) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();
     }
   };
@@ -89,9 +89,9 @@ namespace {
         initializeStripDeadDebugInfoPass(*PassRegistry::getPassRegistry());
       }
 
-    virtual bool runOnModule(Module &M);
+    bool runOnModule(Module &M) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();
     }
   };
@@ -132,11 +132,10 @@ ModulePass *llvm::createStripDeadDebugInfoPass() {
 
 /// OnlyUsedBy - Return true if V is only used by Usr.
 static bool OnlyUsedBy(Value *V, Value *Usr) {
-  for(Value::use_iterator I = V->use_begin(), E = V->use_end(); I != E; ++I) {
-    User *U = *I;
+  for (User *U : V->users())
     if (U != Usr)
       return false;
-  }
+
   return true;
 }
 
@@ -147,7 +146,7 @@ static void RemoveDeadConstant(Constant *C) {
     if (OnlyUsedBy(C->getOperand(i), C))
       Operands.insert(cast<Constant>(C->getOperand(i)));
   if (GlobalVariable *GV = dyn_cast<GlobalVariable>(C)) {
-    if (!GV->hasLocalLinkage()) return;   // Don't delete non static globals.
+    if (!GV->hasLocalLinkage()) return;   // Don't delete non-static globals.
     GV->eraseFromParent();
   }
   else if (!isa<Function>(C))
@@ -193,7 +192,7 @@ static void StripTypeNames(Module &M, bool PreserveDbgInfo) {
 /// Find values that are marked as llvm.used.
 static void findUsedValues(GlobalVariable *LLVMUsed,
                            SmallPtrSet<const GlobalValue*, 8> &UsedValues) {
-  if (LLVMUsed == 0) return;
+  if (!LLVMUsed) return;
   UsedValues.insert(LLVMUsed);
 
   ConstantArray *Inits = cast<ConstantArray>(LLVMUsed->getInitializer());
@@ -250,7 +249,7 @@ bool StripDebugDeclare::runOnModule(Module &M) {
 
   if (Declare) {
     while (!Declare->use_empty()) {
-      CallInst *CI = cast<CallInst>(Declare->use_back());
+      CallInst *CI = cast<CallInst>(Declare->user_back());
       Value *Arg1 = CI->getArgOperand(0);
       Value *Arg2 = CI->getArgOperand(1);
       assert(CI->use_empty() && "llvm.dbg intrinsic should have void result");
@@ -307,10 +306,7 @@ bool StripDeadDebugInfo::runOnModule(Module &M) {
   SmallVector<Value *, 64> LiveSubprograms;
   DenseSet<const MDNode *> VisitedSet;
 
-  for (DebugInfoFinder::iterator CI = F.compile_unit_begin(),
-         CE = F.compile_unit_end(); CI != CE; ++CI) {
-    // Create our compile unit.
-    DICompileUnit DIC(*CI);
+  for (DICompileUnit DIC : F.compile_units()) {
     assert(DIC.Verify() && "DIC must verify as a DICompileUnit.");
 
     // Create our live subprogram list.

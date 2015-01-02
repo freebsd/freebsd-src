@@ -107,7 +107,6 @@ reaper.
 After the system initialization,
 .Xr init 8
 is the default reaper.
-.Pp
 .It Dv PROC_REAP_RELEASE
 Releases the reaper state for the current process.
 The reaper of the current process becomes the new reaper of the
@@ -146,6 +145,7 @@ for the specified process id.
 The specified process is the root of the reaper tree, i.e.
 .Xr init 8 .
 .El
+.Pp
 The
 .Fa rs_children
 field returns the number of children of the reaper.

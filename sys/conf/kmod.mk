@@ -89,7 +89,6 @@ CFLAGS+=	-D_KERNEL
 CFLAGS+=	-DKLD_MODULE
 
 # Don't use any standard or source-relative include directories.
-CSTD=		c99
 NOSTDINC=	-nostdinc
 CFLAGS:=	${CFLAGS:N-I*} ${NOSTDINC} ${INCLMAGIC} ${CFLAGS:M-I*}
 .if defined(KERNBUILDDIR)
@@ -117,6 +116,11 @@ LDFLAGS+=	-d -warn-common
 CFLAGS+=	${DEBUG_FLAGS}
 .if ${MACHINE_CPUARCH} == amd64
 CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
+.endif
+
+# Temporary workaround for PR 196407, which contains the fascinating details.
+.if ${MACHINE_CPUARCH} == arm
+CFLAGS.clang+=	-mllvm -arm-use-movt=0
 .endif
 
 .if ${MACHINE_CPUARCH} == powerpc

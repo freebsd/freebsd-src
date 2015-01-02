@@ -48,16 +48,17 @@ struct HexagonRegisterInfo : public HexagonGenRegisterInfo {
   HexagonRegisterInfo(HexagonSubtarget &st);
 
   /// Code Generation virtual methods...
-  const uint16_t *getCalleeSavedRegs(const MachineFunction *MF = 0) const;
+  const MCPhysReg *
+  getCalleeSavedRegs(const MachineFunction *MF = nullptr) const override;
 
-  const TargetRegisterClass* const* getCalleeSavedRegClasses(
-                                     const MachineFunction *MF = 0) const;
+  const TargetRegisterClass* const*
+  getCalleeSavedRegClasses(const MachineFunction *MF = nullptr) const;
 
-  BitVector getReservedRegs(const MachineFunction &MF) const;
+  BitVector getReservedRegs(const MachineFunction &MF) const override;
 
   void eliminateFrameIndex(MachineBasicBlock::iterator II,
                            int SPAdj, unsigned FIOperandNum,
-                           RegScavenger *RS = NULL) const;
+                           RegScavenger *RS = nullptr) const override;
 
   /// determineFrameLayout - Determine the size of the frame and maximum call
   /// frame size.
@@ -65,17 +66,17 @@ struct HexagonRegisterInfo : public HexagonGenRegisterInfo {
 
   /// requiresRegisterScavenging - returns true since we may need scavenging for
   /// a temporary register when generating hardware loop instructions.
-  bool requiresRegisterScavenging(const MachineFunction &MF) const {
+  bool requiresRegisterScavenging(const MachineFunction &MF) const override {
     return true;
   }
 
-  bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const {
+  bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const override {
     return true;
   }
 
   // Debug information queries.
   unsigned getRARegister() const;
-  unsigned getFrameRegister(const MachineFunction &MF) const;
+  unsigned getFrameRegister(const MachineFunction &MF) const override;
   unsigned getFrameRegister() const;
   unsigned getStackRegister() const;
 };

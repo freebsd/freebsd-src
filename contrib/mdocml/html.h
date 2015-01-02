@@ -1,4 +1,4 @@
-/*	$Id: html.h,v 1.67 2014/10/28 17:36:19 schwarze Exp $ */
+/*	$Id: html.h,v 1.70 2014/12/02 10:08:06 schwarze Exp $ */
 /*
  * Copyright (c) 2008-2011, 2014 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -14,10 +14,6 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifndef HTML_H
-#define HTML_H
-
-__BEGIN_DECLS
 
 enum	htmltag {
 	TAG_HTML,
@@ -130,6 +126,7 @@ struct	html {
 #define	HTML_SKIPCHAR	 (1 << 6) /* skip the next character */
 #define	HTML_NOSPLIT	 (1 << 7) /* do not break line before .An */
 #define	HTML_SPLIT	 (1 << 8) /* break line before .An */
+#define	HTML_NONEWLINE	 (1 << 9) /* No line break in nofill mode. */
 	struct tagq	  tags; /* stack of open tags */
 	struct rofftbl	  tbl; /* current table */
 	struct tag	 *tblt; /* current open table scope */
@@ -145,6 +142,11 @@ struct	html {
 	int		  oflags; /* output options */
 #define	HTML_FRAGMENT	 (1 << 0) /* don't emit HTML/HEAD/BODY */
 };
+
+__BEGIN_DECLS
+
+struct	tbl_span;
+struct	eqn;
 
 void		  print_gen_decls(struct html *);
 void		  print_gen_head(struct html *);
@@ -176,5 +178,3 @@ void		  buffmt_includes(struct html *, const char *);
 int		  html_strlen(const char *);
 
 __END_DECLS
-
-#endif /*!HTML_H*/

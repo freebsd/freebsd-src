@@ -29,7 +29,12 @@ NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
 CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
-		-Wno-error-parentheses-equality -Wno-error-unused-function
+		-Wno-error-parentheses-equality -Wno-error-unused-function \
+		-Wno-error-pointer-sign -Wno-error-format -Wno-error-parentheses \
+		-Wno-error-switch -Wno-error-switch \
+		-Wno-error-shift-count-negative \
+		-Wno-error-shift-count-overflow \
+		-Wno-error-constant-conversion
 .endif
 
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40300
@@ -164,4 +169,34 @@ CFLAGS+=	-fstack-protector
 CFLAGS+=	-gdwarf-2
 .endif
 
+CFLAGS+= ${CWARNEXTRA}
+
 CFLAGS+= ${CFLAGS.${COMPILER_TYPE}}
+
+# Tell bmake not to mistake standard targets for things to be searched for
+# or expect to ever be up-to-date.
+PHONY_NOTMAIN = afterdepend afterinstall all beforedepend beforeinstall \
+		beforelinking build build-tools buildfiles buildincludes \
+		checkdpadd clean cleandepend cleandir cleanobj configure \
+		depend dependall distclean distribute exe \
+		html includes install installfiles installincludes lint \
+		obj objlink objs objwarn realall realdepend \
+		realinstall regress subdir-all subdir-depend subdir-install \
+		tags whereobj
+
+.PHONY: ${PHONY_NOTMAIN}
+.NOTMAIN: ${PHONY_NOTMAIN}
+
+CSTD=		c99
+
+.if ${CSTD} == "k&r"
+CFLAGS+=        -traditional
+.elif ${CSTD} == "c89" || ${CSTD} == "c90"
+CFLAGS+=        -std=iso9899:1990
+.elif ${CSTD} == "c94" || ${CSTD} == "c95"
+CFLAGS+=        -std=iso9899:199409
+.elif ${CSTD} == "c99"
+CFLAGS+=        -std=iso9899:1999
+.else # CSTD
+CFLAGS+=        -std=${CSTD}
+.endif # CSTD

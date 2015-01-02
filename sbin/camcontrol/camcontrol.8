@@ -1613,7 +1613,7 @@ For example:
 .It FC
 A Fibre Channel Transport ID consists of
 .Dq fcp,
-followed by a 64-bit Fibre Channel World Wide Name. 
+followed by a 64-bit Fibre Channel World Wide Name.
 For example:
 .Pp
 .Dl fcp,0x1234567812345678
@@ -1735,11 +1735,11 @@ May also be specified as
 .Dq exclusive_access .
 .It wr_ex_ro
 Write Exclusive Registrants Only mode.
-May also be specified as 
+May also be specified as
 .Dq write_exclusive_reg_only .
 .It ex_ac_ro
 Exclusive Access Registrants Only mode.
-May also be specified as 
+May also be specified as
 .Dq exclusive_access_reg_only .
 .It wr_ex_ar
 Write Exclusive All Registrants mode.
@@ -1747,7 +1747,7 @@ May also be specified as
 .Dq write_exclusive_all_regs .
 .It ex_ac_ar
 Exclusive Access All Registrants mode.
-May also be specified as 
+May also be specified as
 .Dq exclusive_access_all_regs .
 .El
 .It Fl U
@@ -1931,7 +1931,7 @@ camcontrol persist da0 -v -i read_keys
 .Pp
 This will read any persistent reservation keys registered with da0, and
 display any errors encountered when sending the PERSISTENT RESERVE IN
-.Tn SCSI 
+.Tn SCSI
 command.
 .Bd -literal -offset indent
 camcontrol persist da0 -v -o register -a -K 0x12345678
@@ -1976,9 +1976,9 @@ camcontrol persist da0 -v -o register_move -k 0x87654321 \e
 .Ed
 .Pp
 This will move the registration from the current initiator, whose
-Registration Key is 0x87654321, to the Fibre Channel initiator with the 
+Registration Key is 0x87654321, to the Fibre Channel initiator with the
 Fiber Channel World Wide Node Name 0x1234567812345678.
-A new registration key, 0x12345678, will be registered for the initiator 
+A new registration key, 0x12345678, will be registered for the initiator
 with the Fibre Channel World Wide Node Name 0x1234567812345678, and the
 current initiator will be unregistered from the target.
 The reservation will be moved to relative target port 2 on the target

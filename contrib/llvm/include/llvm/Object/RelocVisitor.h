@@ -17,8 +17,8 @@
 #define LLVM_OBJECT_RELOCVISITOR_H
 
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Object/ObjectFile.h"
 #include "llvm/Object/ELFObjectFile.h"
+#include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Support/raw_ostream.h"
@@ -33,7 +33,6 @@ struct RelocToApply {
   // The width of the value; how many bytes to touch when applying the
   // relocation.
   char Width;
-  RelocToApply(const RelocToApply &In) : Value(In.Value), Width(In.Width) {}
   RelocToApply(int64_t Value, char Width) : Value(Value), Width(Width) {}
   RelocToApply() : Value(0), Width(0) {}
 };
@@ -103,6 +102,16 @@ public:
         HasError = true;
         return RelocToApply();
       }
+    } else if (FileFormat == "ELF64-mips") {
+      switch (RelocType) {
+      case llvm::ELF::R_MIPS_32:
+        return visitELF_MIPS_32(R, Value);
+      case llvm::ELF::R_MIPS_64:
+        return visitELF_MIPS_64(R, Value);
+      default:
+        HasError = true;
+        return RelocToApply();
+      }
     } else if (FileFormat == "ELF64-aarch64") {
       switch (RelocType) {
       case llvm::ELF::R_AARCH64_ABS32:
@@ -122,6 +131,35 @@ public:
       default:
         HasError = true;
         return RelocToApply();
+      }
+    } else if (FileFormat == "ELF32-sparc") {
+      switch (RelocType) {
+      case llvm::ELF::R_SPARC_32:
+      case llvm::ELF::R_SPARC_UA32:
+        return visitELF_SPARC_32(R, Value);
+      default:
+        HasError = true;
+        return RelocToApply();
+      }
+    } else if (FileFormat == "ELF64-sparc") {
+      switch (RelocType) {
+      case llvm::ELF::R_SPARC_32:
+      case llvm::ELF::R_SPARC_UA32:
+        return visitELF_SPARCV9_32(R, Value);
+      case llvm::ELF::R_SPARC_64:
+      case llvm::ELF::R_SPARC_UA64:
+        return visitELF_SPARCV9_64(R, Value);
+      default:
+        HasError = true;
+        return RelocToApply();
+      }
+    } else if (FileFormat == "ELF32-arm") {
+      switch (RelocType) {
+      default:
+        HasError = true;
+        return RelocToApply();
+      case llvm::ELF::R_ARM_ABS32:
+        return visitELF_ARM_ABS32(R, Value);
       }
     }
     HasError = true;
@@ -215,12 +253,14 @@ private:
 
   /// PPC64 ELF
   RelocToApply visitELF_PPC64_ADDR32(RelocationRef R, uint64_t Value) {
-    int64_t Addend = getAddend64BE(R);
+    int64_t Addend;
+    getELFRelocationAddend(R, Addend);
     uint32_t Res = (Value + Addend) & 0xFFFFFFFF;
     return RelocToApply(Res, 4);
   }
   RelocToApply visitELF_PPC64_ADDR64(RelocationRef R, uint64_t Value) {
-    int64_t Addend = getAddend64BE(R);
+    int64_t Addend;
+    getELFRelocationAddend(R, Addend);
     return RelocToApply(Value + Addend, 8);
   }
 
@@ -237,6 +277,13 @@ private:
     getELFRelocationAddend(R, Addend);
     uint32_t Res = (Value + Addend) & 0xFFFFFFFF;
     return RelocToApply(Res, 4);
+  }
+
+  RelocToApply visitELF_MIPS_64(RelocationRef R, uint64_t Value) {
+    int64_t Addend;
+    getELFRelocationAddend(R, Addend);
+    uint64_t Res = (Value + Addend);
+    return RelocToApply(Res, 8);
   }
 
   // AArch64 ELF
@@ -272,6 +319,27 @@ private:
     int64_t Addend = getAddend64BE(R);
     return RelocToApply(Value + Addend, 8);
   }
+
+  RelocToApply visitELF_SPARC_32(RelocationRef R, uint32_t Value) {
+    int32_t Addend = getAddend32BE(R);
+    return RelocToApply(Value + Addend, 4);
+  }
+
+  RelocToApply visitELF_SPARCV9_32(RelocationRef R, uint64_t Value) {
+    int32_t Addend = getAddend64BE(R);
+    return RelocToApply(Value + Addend, 4);
+  }
+
+  RelocToApply visitELF_SPARCV9_64(RelocationRef R, uint64_t Value) {
+    int64_t Addend = getAddend64BE(R);
+    return RelocToApply(Value + Addend, 8);
+  }
+
+  RelocToApply visitELF_ARM_ABS32(RelocationRef R, uint64_t Value) {
+    int64_t Addend = getAddend32LE(R);
+    return RelocToApply(Value + Addend, 4);
+  }
+
 };
 
 }

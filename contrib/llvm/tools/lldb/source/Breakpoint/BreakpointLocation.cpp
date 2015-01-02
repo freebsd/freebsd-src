@@ -289,7 +289,8 @@ BreakpointLocation::ConditionSaysStop (ExecutionContext &exe_ctx, Error &error)
         if (!m_user_expression_sp->Parse(errors,
                                          exe_ctx,
                                          eExecutionPolicyOnlyWhenNeeded,
-                                         true))
+                                         true,
+                                         false))
         {
             error.SetErrorStringWithFormat("Couldn't parse conditional expression:\n%s",
                                            errors.GetData());
@@ -316,7 +317,7 @@ BreakpointLocation::ConditionSaysStop (ExecutionContext &exe_ctx, Error &error)
     
     ClangExpressionVariableSP result_variable_sp;
     
-    ExecutionResults result_code =
+    ExpressionResults result_code =
     m_user_expression_sp->Execute(execution_errors,
                                   exe_ctx,
                                   options,
@@ -325,11 +326,10 @@ BreakpointLocation::ConditionSaysStop (ExecutionContext &exe_ctx, Error &error)
     
     bool ret;
     
-    if (result_code == eExecutionCompleted)
+    if (result_code == eExpressionCompleted)
     {
         if (!result_variable_sp)
         {
-            ret = false;
             error.SetErrorString("Expression did not return a result");
             return false;
         }
@@ -522,8 +522,15 @@ BreakpointLocation::ClearBreakpointSite ()
 {
     if (m_bp_site_sp.get())
     {
-        m_owner.GetTarget().GetProcessSP()->RemoveOwnerFromBreakpointSite (GetBreakpoint().GetID(), 
+        ProcessSP process_sp(m_owner.GetTarget().GetProcessSP());
+        // If the process exists, get it to remove the owner, it will remove the physical implementation
+        // of the breakpoint as well if there are no more owners.  Otherwise just remove this owner.
+        if (process_sp)
+            process_sp->RemoveOwnerFromBreakpointSite (GetBreakpoint().GetID(),
                                                                            GetID(), m_bp_site_sp);
+        else
+            m_bp_site_sp->RemoveOwner(GetBreakpoint().GetID(), GetID());
+        
         m_bp_site_sp.reset();
         return true;
     }
@@ -627,7 +634,7 @@ BreakpointLocation::GetDescription (Stream *s, lldb::DescriptionLevel level)
     if (exe_scope == NULL)
         exe_scope = target;
 
-    if (eDescriptionLevelInitial)
+    if (level == eDescriptionLevelInitial)
         m_address.Dump(s, exe_scope, Address::DumpStyleLoadAddress, Address::DumpStyleFileAddress);
     else
         m_address.Dump(s, exe_scope, Address::DumpStyleLoadAddress, Address::DumpStyleModuleWithFileAddress);

@@ -52,7 +52,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libfetch \
 	libfigpar \
 	libgeom \
-	${_libgpib} \
 	${_libgpio} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
@@ -201,10 +200,6 @@ _libelftc=	libelftc
 
 .if ${MK_FILE} != "no"
 _libmagic=	libmagic
-.endif
-
-.if ${MK_GPIB} != "no"
-_libgpib=	libgpib
 .endif
 
 .if ${MK_GPIO} != "no"

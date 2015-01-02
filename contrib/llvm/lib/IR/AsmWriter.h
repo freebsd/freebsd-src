@@ -16,7 +16,7 @@
 #define LLVM_IR_ASSEMBLYWRITER_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/SetVector.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/TypeFinder.h"
@@ -27,6 +27,7 @@ namespace llvm {
 class BasicBlock;
 class Function;
 class GlobalValue;
+class Comdat;
 class Module;
 class NamedMDNode;
 class Value;
@@ -67,10 +68,11 @@ protected:
   const Module *TheModule;
 
 private:
-  OwningPtr<SlotTracker> ModuleSlotTracker;
+  std::unique_ptr<SlotTracker> ModuleSlotTracker;
   SlotTracker &Machine;
   TypePrinting TypePrinter;
   AssemblyAnnotationWriter *AnnotationWriter;
+  SetVector<const Comdat *> Comdats;
 
 public:
   /// Construct an AssemblyWriter with an external SlotTracker
@@ -91,6 +93,9 @@ public:
   void writeOperand(const Value *Op, bool PrintType);
   void writeParamOperand(const Value *Operand, AttributeSet Attrs,unsigned Idx);
   void writeAtomic(AtomicOrdering Ordering, SynchronizationScope SynchScope);
+  void writeAtomicCmpXchg(AtomicOrdering SuccessOrdering,
+                          AtomicOrdering FailureOrdering,
+                          SynchronizationScope SynchScope);
 
   void writeAllMDNodes();
   void writeMDNode(unsigned Slot, const MDNode *Node);
@@ -99,6 +104,7 @@ public:
   void printTypeIdentities();
   void printGlobal(const GlobalVariable *GV);
   void printAlias(const GlobalAlias *GV);
+  void printComdat(const Comdat *C);
   void printFunction(const Function *F);
   void printArgument(const Argument *FA, AttributeSet Attrs, unsigned Idx);
   void printBasicBlock(const BasicBlock *BB);

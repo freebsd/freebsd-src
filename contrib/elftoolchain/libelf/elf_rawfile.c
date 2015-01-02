@@ -30,13 +30,13 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_rawfile.c 2225 2011-11-26 18:55:54Z jkoshy $");
+ELFTC_VCSID("$Id: elf_rawfile.c 3013 2014-03-23 06:16:59Z jkoshy $");
 
 char *
 elf_rawfile(Elf *e, size_t *sz)
 {
-	char *ptr;
 	size_t size;
+	unsigned char *ptr;
 
 	size = e ? e->e_rawsize : 0;
 	ptr = NULL;
@@ -49,5 +49,5 @@ elf_rawfile(Elf *e, size_t *sz)
 	if (sz)
 		*sz = size;
 
-	return (ptr);
+	return ((char *) ptr);
 }

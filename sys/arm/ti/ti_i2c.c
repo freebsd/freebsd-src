@@ -119,7 +119,7 @@ struct ti_i2c_clock_config
 static struct ti_i2c_clock_config ti_omap4_i2c_clock_configs[] = {
 	{  100000, 23,  13,  15,  0,  0},
 	{  400000,  9,   5,   7,  0,  0},
-	{ 1000000,  5,   1,   3,  0,  0},
+	{ 1000000,  3,   5,   7,  0,  0},
 /*	{ 3200000,  1, 113, 115,  7, 10}, - HS mode */
 	{       0 /* Table terminator */ }
 };
@@ -471,38 +471,6 @@ out:
 	TI_I2C_UNLOCK(sc);
 
 	return (err);
-}
-
-/**
- *	ti_i2c_callback - as we only provide iicbus_transfer() interface
- * 		we don't need to implement the serialization here.
- *	@dev: i2c device handle
- *
- *
- *
- *	LOCKING:
- *	Called from timer context
- *
- *	RETURNS:
- *	EH_HANDLED or EH_NOT_HANDLED
- */
-static int
-ti_i2c_callback(device_t dev, int index, caddr_t data)
-{
-	int error = 0;
-
-	switch (index) {
-		case IIC_REQUEST_BUS:
-			break;
-
-		case IIC_RELEASE_BUS:
-			break;
-
-		default:
-			error = EINVAL;
-	}
-
-	return (error);
 }
 
 static int
@@ -955,7 +923,7 @@ static device_method_t ti_i2c_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ti_i2c_get_node),
 
 	/* iicbus interface */
-	DEVMETHOD(iicbus_callback,	ti_i2c_callback),
+	DEVMETHOD(iicbus_callback,	iicbus_null_callback),
 	DEVMETHOD(iicbus_reset,		ti_i2c_iicbus_reset),
 	DEVMETHOD(iicbus_transfer,	ti_i2c_transfer),
 

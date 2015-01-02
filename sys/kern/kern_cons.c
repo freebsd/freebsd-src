@@ -601,7 +601,13 @@ static void
 cn_drvinit(void *unused)
 {
 
-	mtx_init(&cnputs_mtx, "cnputs_mtx", NULL, MTX_SPIN | MTX_NOWITNESS);
+	/*
+	 * NOTE: Debug prints and/or witness printouts in console
+	 * driver clients can cause the "cnputs_mtx" mutex to
+	 * recurse. Make sure the "MTX_RECURSE" flags is set!
+	 */
+	mtx_init(&cnputs_mtx, "cnputs_mtx", NULL, MTX_SPIN |
+	    MTX_NOWITNESS | MTX_RECURSE);
 	use_cnputs_mtx = 1;
 }
 

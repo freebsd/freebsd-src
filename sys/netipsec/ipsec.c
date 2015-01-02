@@ -118,11 +118,12 @@ VNET_DEFINE(int, ip4_esp_trans_deflev) = IPSEC_LEVEL_USE;
 VNET_DEFINE(int, ip4_esp_net_deflev) = IPSEC_LEVEL_USE;
 VNET_DEFINE(int, ip4_ah_trans_deflev) = IPSEC_LEVEL_USE;
 VNET_DEFINE(int, ip4_ah_net_deflev) = IPSEC_LEVEL_USE;
-VNET_DEFINE(struct secpolicy, ip4_def_policy);
 /* ECN ignore(-1)/forbidden(0)/allowed(1) */
 VNET_DEFINE(int, ip4_ipsec_ecn) = 0;
 VNET_DEFINE(int, ip4_esp_randpad) = -1;
 
+static VNET_DEFINE(struct secpolicy, def_policy);
+#define	V_def_policy	VNET(def_policy)
 /*
  * Crypto support requirements:
  *
@@ -141,7 +142,7 @@ SYSCTL_DECL(_net_inet_ipsec);
 
 /* net.inet.ipsec */
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_POLICY, def_policy,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_def_policy).policy, 0,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(def_policy).policy, 0,
 	"IPsec default policy.");
 SYSCTL_INT(_net_inet_ipsec, IPSECCTL_DEF_ESP_TRANSLEV, esp_trans_deflev,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_esp_trans_deflev), 0,
@@ -213,7 +214,7 @@ SYSCTL_DECL(_net_inet6_ipsec6);
 
 /* net.inet6.ipsec6 */
 SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_POLICY, def_policy,
-	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip4_def_policy).policy, 0,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(def_policy).policy, 0,
 	"IPsec default policy.");
 SYSCTL_INT(_net_inet6_ipsec6, IPSECCTL_DEF_ESP_TRANSLEV, esp_trans_deflev,
 	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ip6_esp_trans_deflev), 0,
@@ -262,7 +263,7 @@ key_allocsp_default(const char* where, int tag)
 	KEYDEBUG(KEYDEBUG_IPSEC_STAMP,
 		printf("DP key_allocsp_default from %s:%u\n", where, tag));
 
-	sp = &V_ip4_def_policy;
+	sp = &V_def_policy;
 	if (sp->policy != IPSEC_POLICY_DISCARD &&
 	    sp->policy != IPSEC_POLICY_NONE) {
 		ipseclog((LOG_INFO, "fixed system default policy: %d->%d\n",
@@ -828,17 +829,13 @@ ipsec_init_policy(struct socket *so, struct inpcbpolicy **pcb_sp)
 		ipsec_delpcbpolicy(new);
 		return (ENOBUFS);
 	}
-	new->sp_in->state = IPSEC_SPSTATE_ALIVE;
 	new->sp_in->policy = IPSEC_POLICY_ENTRUST;
-
 	if ((new->sp_out = KEY_NEWSP()) == NULL) {
 		KEY_FREESP(&new->sp_in);
 		ipsec_delpcbpolicy(new);
 		return (ENOBUFS);
 	}
-	new->sp_out->state = IPSEC_SPSTATE_ALIVE;
 	new->sp_out->policy = IPSEC_POLICY_ENTRUST;
-
 	*pcb_sp = new;
 
 	return (0);
@@ -927,7 +924,6 @@ ipsec_deepcopy_policy(struct secpolicy *src)
 	}
 
 	dst->req = newchain;
-	dst->state = src->state;
 	dst->policy = src->policy;
 	/* Do not touch the refcnt fields. */
 
@@ -978,8 +974,6 @@ ipsec_set_policy_internal(struct secpolicy **pcb_sp, int optname,
 	/* Allocating new SP entry. */
 	if ((newsp = key_msg2sp(xpl, len, &error)) == NULL)
 		return (error);
-
-	newsp->state = IPSEC_SPSTATE_ALIVE;
 
 	/* Clear old SP and set new SP. */
 	KEY_FREESP(pcb_sp);
@@ -1693,14 +1687,15 @@ ipsec_dumpmbuf(struct mbuf *m)
 }
 
 static void
-ipsec_init(const void *unused __unused)
+def_policy_init(const void *unused __unused)
 {
 
-	SECPOLICY_LOCK_INIT(&V_ip4_def_policy);
-	V_ip4_def_policy.refcnt = 1;			/* NB: disallow free. */
+	bzero(&V_def_policy, sizeof(struct secpolicy));
+	V_def_policy.policy = IPSEC_POLICY_NONE;
+	V_def_policy.refcnt = 1;
 }
-VNET_SYSINIT(ipsec_init, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, ipsec_init,
-    NULL);
+VNET_SYSINIT(def_policy_init, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY,
+    def_policy_init, NULL);
 
 
 /* XXX This stuff doesn't belong here... */

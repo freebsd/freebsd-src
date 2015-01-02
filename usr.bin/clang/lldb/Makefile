@@ -16,8 +16,8 @@ SRCS=	Driver.cpp \
 lldb.1:
 	ln -fs ${LLDB_SRCS}/docs/lldb.1 ${.TARGET}
 
-DPADD=	${LIBEDIT} ${LIBNCURSESW} ${LIBEXECINFO} ${LIBPANEL}
-LDADD=	-ledit -lncursesw -lexecinfo -lpanel
+DPADD=	${LIBEDIT} ${LIBNCURSESW} ${LIBEXECINFO} ${LIBPANEL} ${LIBZ}
+LDADD=	-ledit -lncursesw -lexecinfo -lpanel -lz
 
 LLDB_LIBS=\
 	lldb \
@@ -30,6 +30,7 @@ LLDB_LIBS=\
 	lldbExpression \
 	lldbHostFreeBSD \
 	lldbHostCommon \
+	lldbHostPOSIX \
 	lldbInterpreter \
 	lldbSymbol \
 	lldbTarget \
@@ -39,12 +40,15 @@ LLDB_LIBS=\
 	lldbPluginCXXItaniumABI \
 	lldbPluginDisassemblerLLVM \
 	lldbPluginInstructionARM \
+	lldbPluginInstructionARM64 \
+	lldbPluginJITLoaderGDB \
 	lldbPluginSymbolFileDWARF \
 	lldbPluginSymbolFileSymtab \
 	lldbPluginDynamicLoaderStatic \
 	lldbPluginDynamicLoaderPosixDYLD \
 	lldbPluginObjectContainerBSDArchive \
 	lldbPluginObjectFileELF \
+	lldbPluginObjectFileJIT \
 	lldbPluginSymbolVendorELF \
 	lldbPluginPlatformFreeBSD \
 	lldbPluginPlatformGDB \
@@ -98,7 +102,6 @@ LIBDEPS=\
 	llvmselectiondag \
 	llvmipo \
 	llvmbitwriter \
-	llvmbitreader \
 	llvmasmparser \
 	llvminterpreter \
 	llvmjit \
@@ -109,6 +112,8 @@ LIBDEPS=\
 	llvmpowerpcdesc \
 	llvmpowerpcinstprinter \
 	llvmpowerpcasmparser \
+	llvmpowerpcdisassembler \
+	llvmprofiledata \
 	llvmruntimedyld \
 	llvmvectorize \
 	llvmx86desc \
@@ -130,6 +135,7 @@ LIBDEPS=\
 	llvmx86info \
 	llvmx86utils \
 	llvmobject \
+	llvmbitreader \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \

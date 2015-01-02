@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip.h>
+#include <netinet/ip6.h>
 #include <netinet/tcp_var.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
@@ -111,8 +112,6 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 	KASSERT(!(toep->flags & TPF_FLOWC_WR_SENT),
 	    ("%s: flowc for tid %u sent already", __func__, toep->tid));
 
-	CTR2(KTR_CXGBE, "%s: tid %u", __func__, toep->tid);
-
 	flowclen = sizeof(*flowc) + nparams * sizeof(struct fw_flowc_mnemval);
 
 	wr = alloc_wrqe(roundup2(flowclen, 16), toep->ofld_txq);
@@ -147,11 +146,18 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 		flowc->mnemval[6].val = htobe32(sndbuf);
 		flowc->mnemval[7].mnemonic = FW_FLOWC_MNEM_MSS;
 		flowc->mnemval[7].val = htobe32(ftxp->mss);
+
+		CTR6(KTR_CXGBE,
+		    "%s: tid %u, mss %u, sndbuf %u, snd_nxt 0x%x, rcv_nxt 0x%x",
+		    __func__, toep->tid, ftxp->mss, sndbuf, ftxp->snd_nxt,
+		    ftxp->rcv_nxt);
 	} else {
 		flowc->mnemval[4].mnemonic = FW_FLOWC_MNEM_SNDBUF;
 		flowc->mnemval[4].val = htobe32(512);
 		flowc->mnemval[5].mnemonic = FW_FLOWC_MNEM_MSS;
 		flowc->mnemval[5].val = htobe32(512);
+
+		CTR2(KTR_CXGBE, "%s: tid %u", __func__, toep->tid);
 	}
 
 	txsd->tx_credits = howmany(flowclen, 16);
@@ -231,11 +237,20 @@ static void
 assign_rxopt(struct tcpcb *tp, unsigned int opt)
 {
 	struct toepcb *toep = tp->t_toe;
+	struct inpcb *inp = tp->t_inpcb;
 	struct adapter *sc = td_adapter(toep->td);
+	int n;
 
-	INP_LOCK_ASSERT(tp->t_inpcb);
+	INP_LOCK_ASSERT(inp);
 
-	tp->t_maxseg = tp->t_maxopd = sc->params.mtus[G_TCPOPT_MSS(opt)] - 40;
+	if (inp->inp_inc.inc_flags & INC_ISIPV6)
+		n = sizeof(struct ip6_hdr) + sizeof(struct tcphdr);
+	else
+		n = sizeof(struct ip) + sizeof(struct tcphdr);
+	tp->t_maxseg = tp->t_maxopd = sc->params.mtus[G_TCPOPT_MSS(opt)] - n;
+
+	CTR4(KTR_CXGBE, "%s: tid %d, mtu_idx %u (%u)", __func__, toep->tid,
+	    G_TCPOPT_MSS(opt), sc->params.mtus[G_TCPOPT_MSS(opt)]);
 
 	if (G_TCPOPT_TSTAMP(opt)) {
 		tp->t_flags |= TF_RCVD_TSTMP;	/* timestamps ok */
