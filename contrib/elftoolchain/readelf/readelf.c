@@ -1492,6 +1492,7 @@ note_type(unsigned int osabi, unsigned int et, unsigned int nt)
 			return "NT_FPREGSET (Floating point information)";
 		case NT_PRPSINFO:
 			return "NT_PRPSINFO (Process information)";
+#if 0
 		case NT_AUXV:
 			return "NT_AUXV (Auxiliary vector)";
 		case NT_PRXFPREG:
@@ -1506,12 +1507,14 @@ note_type(unsigned int osabi, unsigned int et, unsigned int nt)
 			return "NT_LWPSTATUS (Linux lwpstatus_t type)";
 		case NT_LWPSINFO:
 			return "NT_LWPSINFO (Linux lwpinfo_t type)";
+#endif
 		default:
 			snprintf(s_nt, sizeof(s_nt), "<unknown: %u>", nt);
 			return (s_nt);
 		}
 	} else {
 		switch (nt) {
+#if 0
 		case NT_ABI_TAG:
 			switch (osabi) {
 			case ELFOSABI_FREEBSD:
@@ -1529,11 +1532,13 @@ note_type(unsigned int osabi, unsigned int et, unsigned int nt)
 			return "NT_GNU_BUILD_ID (Build id set by ld(1))";
 		case NT_GNU_GOLD_VERSION:
 			return "NT_GNU_GOLD_VERSION (GNU gold version)";
+#endif
 		default:
 			snprintf(s_nt, sizeof(s_nt), "<unknown: %u>", nt);
 			return (s_nt);
 		}
 	}
+	(void)osabi;
 }
 
 static struct {
@@ -3592,13 +3597,8 @@ dump_notes_content(struct readelf *re, const char *buf, size_t sz, off_t off)
 		    (uintmax_t) note->n_descsz);
 		printf("      %s\n", note_type(re->ehdr.e_ident[EI_OSABI],
 		    re->ehdr.e_type, note->n_type));
-		buf += sizeof(Elf_Note);
-		if (re->ec == ELFCLASS32)
-			buf += roundup2(note->n_namesz, 4) +
-			    roundup2(note->n_descsz, 4);
-		else
-			buf += roundup2(note->n_namesz, 8) +
-			    roundup2(note->n_descsz, 8);
+		buf += sizeof(Elf_Note) + roundup2(note->n_namesz, 4) +
+		    roundup2(note->n_descsz, 4);
 	}
 }
 
