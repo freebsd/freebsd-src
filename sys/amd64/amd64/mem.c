@@ -77,7 +77,7 @@ int
 memrw(struct cdev *dev, struct uio *uio, int flags)
 {
 	struct iovec *iov;
-	u_long c, v;
+	u_long c, v, vd;
 	int error, o, sflags;
 	vm_offset_t addr, eaddr;
 
@@ -98,15 +98,15 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 kmemphys:
 			o = v & PAGE_MASK;
 			c = min(uio->uio_resid, (u_int)(PAGE_SIZE - o));
-			v = PHYS_TO_DMAP(v);
-			if (v < DMAP_MIN_ADDRESS ||
-			    (v > DMAP_MIN_ADDRESS + dmaplimit &&
-			    v <= DMAP_MAX_ADDRESS) ||
-			    pmap_kextract(v) == 0) {
+			vd = PHYS_TO_DMAP(v);
+			if (vd < DMAP_MIN_ADDRESS ||
+			    (vd > DMAP_MIN_ADDRESS + dmaplimit &&
+			    vd <= DMAP_MAX_ADDRESS) ||
+			    (pmap_kextract(vd) == 0 && (v & PG_FRAME) != 0)) {
 				error = EFAULT;
 				goto ret;
 			}
-			error = uiomove((void *)v, (int)c, uio);
+			error = uiomove((void *)vd, (int)c, uio);
 			continue;
 		} else if (dev2unit(dev) == CDEV_MINOR_KMEM) {
 			v = uio->uio_offset;
