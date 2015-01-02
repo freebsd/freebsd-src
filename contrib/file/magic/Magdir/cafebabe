@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: cafebabe,v 1.16 2014/04/30 21:41:02 christos Exp $
+# $File: cafebabe,v 1.17 2015/01/01 17:07:00 christos Exp $
 # Cafe Babes unite!
 #
 # Since Java bytecode and Mach-O universal binaries have the same magic number,
@@ -45,7 +45,7 @@
 
 0	name		mach-o		\b [
 >0	use		mach-o-cpu	\b
->&(8.L)	indirect			\b: 
+>(8.L)	indirect			\b: 
 >0	belong		x		\b]
 
 0	belong		0xcafebabe
