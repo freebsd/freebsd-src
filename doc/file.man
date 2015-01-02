@@ -1,5 +1,5 @@
-.\" $File: file.man,v 1.110 2014/11/28 02:46:39 christos Exp $
-.Dd November 27, 2014
+.\" $File: file.man,v 1.111 2014/12/16 23:18:40 christos Exp $
+.Dd December 16, 2014
 .Dt FILE __CSECTION__
 .Os
 .Sh NAME
@@ -310,6 +310,7 @@ Set various parameter limits.
 .It Sy "Name" Ta Sy "Default" Ta Sy "Explanation"
 .It Li indir Ta 15 Ta recursion limit for indirect magic
 .It Li name Ta 30 Ta use count limit for name/use magic
+.It Li elf_notes Ta 256 Ta max ELF notes processed
 .It Li elf_phnum Ta 128 Ta max ELF program sections processed
 .It Li elf_shnum Ta 32768 Ta max ELF sections processed
 .El
