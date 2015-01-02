@@ -307,9 +307,23 @@ vm_page_startup(vm_offset_t vaddr)
 		phys_avail[i + 1] = trunc_page(phys_avail[i + 1]);
 	}
 
+#ifdef XEN
+	/*
+	 * There is no obvious reason why i386 PV Xen needs vm_page structs
+	 * created for these pseudo-physical addresses.  XXX
+	 */
+	vm_phys_add_seg(0, phys_avail[0]);
+#endif
+
 	low_water = phys_avail[0];
 	high_water = phys_avail[1];
 
+	for (i = 0; i < vm_phys_nsegs; i++) {
+		if (vm_phys_segs[i].start < low_water)
+			low_water = vm_phys_segs[i].start;
+		if (vm_phys_segs[i].end > high_water)
+			high_water = vm_phys_segs[i].end;
+	}
 	for (i = 0; phys_avail[i + 1]; i += 2) {
 		vm_paddr_t size = phys_avail[i + 1] - phys_avail[i];
 
@@ -322,10 +336,6 @@ vm_page_startup(vm_offset_t vaddr)
 		if (phys_avail[i + 1] > high_water)
 			high_water = phys_avail[i + 1];
 	}
-
-#ifdef XEN
-	low_water = 0;
-#endif	
 
 	end = phys_avail[biggestone+1];
 
@@ -394,6 +404,10 @@ vm_page_startup(vm_offset_t vaddr)
 	first_page = low_water / PAGE_SIZE;
 #ifdef VM_PHYSSEG_SPARSE
 	page_range = 0;
+	for (i = 0; i < vm_phys_nsegs; i++) {
+		page_range += atop(vm_phys_segs[i].end -
+		    vm_phys_segs[i].start);
+	}
 	for (i = 0; phys_avail[i + 1] != 0; i += 2)
 		page_range += atop(phys_avail[i + 1] - phys_avail[i]);
 #elif defined(VM_PHYSSEG_DENSE)
@@ -434,6 +448,13 @@ vm_page_startup(vm_offset_t vaddr)
 		dump_add_page(pa);
 #endif	
 	phys_avail[biggestone + 1] = new_end;
+
+	/*
+	 * Add physical memory segments corresponding to the available
+	 * physical pages.
+	 */
+	for (i = 0; phys_avail[i + 1] != 0; i += 2)
+		vm_phys_add_seg(phys_avail[i], phys_avail[i + 1]);
 
 	/*
 	 * Clear all of the page structures
