@@ -129,6 +129,7 @@ void listening_ports_free(struct listen_port* list);
  * @param tcp_accept_count: max number of simultaneous TCP connections 
  * 	from clients.
  * @param sslctx: nonNULL if ssl context.
+ * @param dtenv: nonNULL if dnstap enabled.
  * @param cb: callback function when a request arrives. It is passed
  *	  the packet and user argument. Return true to send a reply.
  * @param cb_arg: user data argument for callback function.
@@ -136,7 +137,8 @@ void listening_ports_free(struct listen_port* list);
  */
 struct listen_dnsport* listen_create(struct comm_base* base,
 	struct listen_port* ports, size_t bufsize, int tcp_accept_count,
-	void* sslctx, comm_point_callback_t* cb, void* cb_arg);
+	void* sslctx, struct dt_env *dtenv, comm_point_callback_t* cb,
+	void* cb_arg);
 
 /**
  * delete the listening structure

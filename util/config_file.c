@@ -63,18 +63,6 @@
 
 /** global config during parsing */
 struct config_parser_state* cfg_parser = 0;
-/** lex in file */
-extern FILE* ub_c_in;
-/** lex out file */
-extern FILE* ub_c_out;
-/** the yacc lex generated parse function */
-int ub_c_parse(void);
-/** the lexer function */
-int ub_c_lex(void);
-/** wrap function */
-int ub_c_wrap(void);
-/** init lex state */
-void init_cfg_parse(void);
 
 /** init ports possible for use */
 static void init_outgoing_availports(int* array, int num);
@@ -203,6 +191,7 @@ config_create(void)
 	cfg->local_zones = NULL;
 	cfg->local_zones_nodefault = NULL;
 	cfg->local_data = NULL;
+	cfg->unblock_lan_zones = 0;
 	cfg->python_script = NULL;
 	cfg->remote_control_enable = 0;
 	cfg->control_ifs = NULL;
@@ -222,6 +211,10 @@ config_create(void)
 	if(!(cfg->module_conf = strdup("validator iterator"))) goto error_exit;
 	if(!(cfg->val_nsec3_key_iterations = 
 		strdup("1024 150 2048 500 4096 2500"))) goto error_exit;
+#if defined(DNSTAP_SOCKET_PATH)
+	if(!(cfg->dnstap_socket_path = strdup(DNSTAP_SOCKET_PATH)))
+		goto error_exit;
+#endif
 	return cfg;
 error_exit:
 	config_delete(cfg); 
@@ -426,6 +419,7 @@ int config_set_option(struct config_file* cfg, const char* opt,
 	else S_YNO("minimal-responses:", minimal_responses)
 	else S_YNO("rrset-roundrobin:", rrset_roundrobin)
 	else S_STRLIST("local-data:", local_data)
+	else S_YNO("unblock-lan-zones:", unblock_lan_zones)
 	else S_YNO("control-enable:", remote_control_enable)
 	else S_STRLIST("control-interface:", control_ifs)
 	else S_NUMBER_NONZERO("control-port:", control_port)
@@ -690,6 +684,7 @@ config_get_option(struct config_file* cfg, const char* opt,
 	else O_UNS(opt, "val-override-date", val_date_override)
 	else O_YNO(opt, "minimal-responses", minimal_responses)
 	else O_YNO(opt, "rrset-roundrobin", rrset_roundrobin)
+	else O_YNO(opt, "unblock-lan-zones", unblock_lan_zones)
 	else O_DEC(opt, "max-udp-size", max_udp_size)
 	else O_STR(opt, "python-script", python_script)
 	else O_DEC(opt, "val-sig-skew-min", val_sig_skew_min)
@@ -800,7 +795,7 @@ config_read(struct config_file* cfg, const char* filename, const char* chroot)
 
 	if(cfg_parser->errors != 0) {
 		fprintf(stderr, "read %s failed: %d errors in configuration file\n",
-			cfg_parser->filename, cfg_parser->errors);
+			fname, cfg_parser->errors);
 		errno=EINVAL;
 		return 0;
 	}
@@ -897,6 +892,9 @@ config_delete(struct config_file* cfg)
 	free(cfg->server_cert_file);
 	free(cfg->control_key_file);
 	free(cfg->control_cert_file);
+	free(cfg->dnstap_socket_path);
+	free(cfg->dnstap_identity);
+	free(cfg->dnstap_version);
 	free(cfg);
 }
 
@@ -1107,7 +1105,7 @@ cfg_count_numbers(const char* s)
 	/* sp ::= (space|tab)*      */
 	int num = 0;
 	while(*s) {
-		while(*s && isspace((int)*s))
+		while(*s && isspace((unsigned char)*s))
 			s++;
 		if(!*s) /* end of string */
 			break;
@@ -1115,9 +1113,9 @@ cfg_count_numbers(const char* s)
 			s++;
 		if(!*s) /* only - not allowed */
 			return 0;
-		if(!isdigit((int)*s)) /* bad character */
+		if(!isdigit((unsigned char)*s)) /* bad character */
 			return 0;
-		while(*s && isdigit((int)*s))
+		while(*s && isdigit((unsigned char)*s))
 			s++;
 		num++;
 	}
@@ -1129,7 +1127,7 @@ static int isalldigit(const char* str, size_t l)
 {
 	size_t i;
 	for(i=0; i<l; i++)
-		if(!isdigit(str[i]))
+		if(!isdigit((unsigned char)str[i]))
 			return 0;
 	return 1;
 }
@@ -1155,13 +1153,13 @@ cfg_parse_memsize(const char* str, size_t* res)
 	else if(len > 1 && str[len-1] == 'B') 
 		len--;
 	
-	if(len > 1 && tolower(str[len-1]) == 'g')
+	if(len > 1 && tolower((unsigned char)str[len-1]) == 'g')
 		mult = 1024*1024*1024;
-	else if(len > 1 && tolower(str[len-1]) == 'm')
+	else if(len > 1 && tolower((unsigned char)str[len-1]) == 'm')
 		mult = 1024*1024;
-	else if(len > 1 && tolower(str[len-1]) == 'k')
+	else if(len > 1 && tolower((unsigned char)str[len-1]) == 'k')
 		mult = 1024;
-	else if(len > 0 && isdigit(str[len-1]))
+	else if(len > 0 && isdigit((unsigned char)str[len-1]))
 		mult = 1;
 	else {
 		log_err("unknown size specifier: '%s'", str);
@@ -1324,7 +1322,7 @@ cfg_parse_local_zone(struct config_file* cfg, const char* val)
 
 	/* parse it as: [zone_name] [between stuff] [zone_type] */
 	name = val;
-	while(*name && isspace(*name))
+	while(*name && isspace((unsigned char)*name))
 		name++;
 	if(!*name) {
 		log_err("syntax error: too short: %s", val);
@@ -1343,7 +1341,7 @@ cfg_parse_local_zone(struct config_file* cfg, const char* val)
 	buf[name_end-name] = '\0';
 
 	type = last_space_pos(name_end);
-	while(type && *type && isspace(*type))
+	while(type && *type && isspace((unsigned char)*type))
 		type++;
 	if(!type || !*type) {
 		log_err("syntax error: expected zone type: %s", val);
@@ -1370,7 +1368,7 @@ char* cfg_ptr_reverse(char* str)
 
 	/* parse it as: [IP] [between stuff] [name] */
 	ip = str;
-	while(*ip && isspace(*ip))
+	while(*ip && isspace((unsigned char)*ip))
 		ip++;
 	if(!*ip) {
 		log_err("syntax error: too short: %s", str);
@@ -1425,7 +1423,7 @@ char* cfg_ptr_reverse(char* str)
 	}
 
 	/* printed the reverse address, now the between goop and name on end */
-	while(*ip_end && isspace(*ip_end))
+	while(*ip_end && isspace((unsigned char)*ip_end))
 		ip_end++;
 	if(name>ip_end) {
 		snprintf(buf+strlen(buf), sizeof(buf)-strlen(buf), "%.*s", 

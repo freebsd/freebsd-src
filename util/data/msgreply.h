@@ -192,6 +192,26 @@ struct msgreply_entry {
 	struct lruhash_entry entry;
 };
 
+/**
+ * Constructor for replyinfo.
+ * @param region: where to allocate the results, pass NULL to use malloc.
+ * @param flags: flags for the replyinfo.
+ * @param qd: qd count
+ * @param ttl: TTL of replyinfo
+ * @param prettl: prefetch ttl
+ * @param an: an count
+ * @param ns: ns count
+ * @param ar: ar count
+ * @param total: total rrset count (presumably an+ns+ar).
+ * @param sec: security status of the reply info.
+ * @return the reply_info base struct with the array for putting the rrsets
+ * in.  The array has been zeroed.  Returns NULL on malloc failure.
+ */
+struct reply_info*
+construct_reply_info_base(struct regional* region, uint16_t flags, size_t qd,
+		time_t ttl, time_t prettl, size_t an, size_t ns, size_t ar,
+		size_t total, enum sec_status sec);
+
 /** 
  * Parse wire query into a queryinfo structure, return 0 on parse error. 
  * initialises the (prealloced) queryinfo structure as well.

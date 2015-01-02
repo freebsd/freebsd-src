@@ -1,4 +1,4 @@
-.TH "unbound\-host" "1" "Mar 12, 2014" "NLnet Labs" "unbound 1.4.22"
+.TH "unbound\-host" "1" "Nov 18, 2014" "NLnet Labs" "unbound 1.5.0"
 .\"
 .\" unbound-host.1 -- unbound DNS lookup utility
 .\"
@@ -8,13 +8,11 @@
 .\"
 .\"
 .SH "NAME"
-.LP
 .B unbound\-host
 \- unbound DNS lookup utility
 .SH "SYNOPSIS"
-.LP
 .B unbound\-host
-.RB [ \-vdhr46 ]
+.RB [ \-vdhr46D ]
 .RB [ \-c 
 .IR class ]
 .RB [ \-t
@@ -29,7 +27,6 @@
 .RB [ \-C
 .IR configfile ]
 .SH "DESCRIPTION"
-.LP
 .B Unbound\-host
 uses the unbound validating resolver to query for the hostname and display
 results. With the \fB\-v\fR option it displays validation 
@@ -74,6 +71,10 @@ of trust that is built up from the trust anchor to the response, in order
 to validate the response message. Can be given as a DS or DNSKEY record.
 For example \-y "example.com DS 31560 5 1 1CFED84787E6E19CCF9372C1187325972FE546CD".
 .TP
+.B \-D
+Enables DNSSEC validation.  Reads the root anchor from the default configured
+root anchor at the default location, \fI@UNBOUND_ROOTKEY_FILE@\fR. 
+.TP
 .B \-f \fIkeyfile
 Reads keys from a file. Every line has a DS or DNSKEY record, in the format
 as for \-y. The zone file format, the same as dig and drill produce.
@@ -98,7 +99,6 @@ Use solely the IPv4 network for sending packets.
 .B \-6
 Use solely the IPv6 network for sending packets.
 .SH "EXAMPLES"
-.LP
 Some examples of use. The keys shown below are fakes, thus a security failure
 is encountered.
 .P

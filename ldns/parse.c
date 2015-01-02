@@ -218,6 +218,17 @@ sldns_fget_keyword_data_l(FILE *f, const char *keyword, const char *k_del, char 
        }
 }
 
+int
+sldns_bgetc(sldns_buffer *buffer)
+{
+	if (!sldns_buffer_available_at(buffer, buffer->_position, sizeof(uint8_t))) {
+		sldns_buffer_set_position(buffer, sldns_buffer_limit(buffer));
+		/* sldns_buffer_rewind(buffer);*/
+		return EOF;
+	}
+	return (int)sldns_buffer_read_u8(buffer);
+}
+
 ssize_t
 sldns_bget_token(sldns_buffer *b, char *token, const char *delim, size_t limit)
 {

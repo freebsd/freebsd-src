@@ -58,6 +58,8 @@
 
 /** if key has been created */
 static int key_created = 0;
+/** if the key was deleted, i.e. we have quit */
+static int key_deleted = 0;
 /** we hide the thread debug info with this key. */
 static ub_thread_key_t thr_debug_key;
 /** the list of threads, so all threads can be examined. NULL if unused. */
@@ -273,6 +275,15 @@ checklock_init(enum check_lock_type type, struct checked_lock** lock,
 		thr_debug_key);
 	if(!e)
 		fatal_exit("%s %s %d: out of memory", func, file, line);
+	if(!thr) {
+		/* this is called when log_init() calls lock_init()
+		 * functions, and the test check code has not yet
+		 * been initialised.  But luckily, the checklock_start()
+		 * routine can be called multiple times without ill effect.
+		 */
+		checklock_start();
+		thr = (struct thr_check*)pthread_getspecific(thr_debug_key);
+	}
 	if(!thr)
 		fatal_exit("%s %s %d: lock_init no thread info", func, file,
 			line);
@@ -676,6 +687,8 @@ static void* checklock_main(void* arg)
 /** init the main thread */
 void checklock_start(void)
 {
+	if(key_deleted)
+		return;
 	if(!key_created) {
 		struct thr_check* thisthr = (struct thr_check*)calloc(1, 
 			sizeof(struct thr_check));
@@ -696,6 +709,7 @@ void checklock_stop(void)
 {
 	if(key_created) {
 		int i;
+		key_deleted = 1;
 		if(check_locking_order)
 			fclose(thread_infos[0]->order_info);
 		free(thread_infos[0]);

@@ -795,3 +795,22 @@ dns_cache_store(struct module_env* env, struct query_info* msgqinf,
 	}
 	return 1;
 }
+
+int 
+dns_cache_prefetch_adjust(struct module_env* env, struct query_info* qinfo,
+        time_t adjust)
+{
+	struct msgreply_entry* msg;
+	msg = msg_cache_lookup(env, qinfo->qname, qinfo->qname_len,
+		qinfo->qtype, qinfo->qclass, *env->now, 1);
+	if(msg) {
+		struct reply_info* rep = (struct reply_info*)msg->entry.data;
+		if(rep) {
+			rep->prefetch_ttl += adjust;
+			lock_rw_unlock(&msg->entry.lock);
+			return 1;
+		}
+		lock_rw_unlock(&msg->entry.lock);
+	}
+	return 0;
+}

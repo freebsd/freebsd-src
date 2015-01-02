@@ -53,6 +53,7 @@
 #include "services/listen_dnsport.h"
 #include "services/cache/rrset.h"
 #include "services/cache/infra.h"
+#include "util/fptr_wlist.h"
 #include "util/data/msgreply.h"
 #include "util/module.h"
 #include "util/net_help.h"
@@ -83,7 +84,13 @@
 #    include "util/mini_event.h"
 #  endif
 #else
-#  include <event.h>
+#  ifdef HAVE_EVENT_H
+#    include <event.h>
+#  else
+#    include "event2/event.h"
+#    include "event2/event_struct.h"
+#    include "event2/event_compat.h"
+#  endif
 #endif
 
 #ifdef UB_ON_WINDOWS
@@ -95,8 +102,10 @@
 #  include "nss.h"
 #endif
 
+#ifdef HAVE_SBRK
 /** global debug value to keep track of heap memory allocation */
 void* unbound_start_brk = 0;
+#endif
 
 #if !defined(HAVE_EVENT_BASE_GET_METHOD) && (defined(HAVE_EV_LOOP) || defined(HAVE_EV_DEFAULT_LOOP))
 static const char* ev_backend2str(int b)
@@ -177,8 +186,6 @@ static void usage()
 	for(m = module_list_avail(); *m; m++)
 		printf(" %s", *m);
 	printf("\n");
-	printf("configured for %s on %s with options:%s\n",
-		CONFIGURE_TARGET, CONFIGURE_DATE, CONFIGURE_BUILD_WITH);
 	printf("BSD licensed, see LICENSE in source package for details.\n");
 	printf("Report bugs to %s\n", PACKAGE_BUGREPORT);
 }
@@ -262,8 +269,6 @@ checkrlimits(struct config_file* cfg)
 #ifdef HAVE_SETRLIMIT
 		if(setrlimit(RLIMIT_NOFILE, &rlim) < 0) {
 			log_warn("setrlimit: %s", strerror(errno));
-#else
-		if(1) {
 #endif
 			log_warn("cannot increase max open fds from %u to %u",
 				(unsigned)avail, (unsigned)total+10);
@@ -279,7 +284,9 @@ checkrlimits(struct config_file* cfg)
 			log_warn("increase ulimit or decrease threads, "
 				"ports in config to remove this warning");
 			return;
+#ifdef HAVE_SETRLIMIT
 		}
+#endif
 		log_warn("increased limit(open files) from %u to %u",
 			(unsigned)avail, (unsigned)total+10);
 	}
@@ -292,10 +299,14 @@ checkrlimits(struct config_file* cfg)
 /** set verbosity, check rlimits, cache settings */
 static void
 apply_settings(struct daemon* daemon, struct config_file* cfg, 
-	int cmdline_verbose)
+	int cmdline_verbose, int debug_mode)
 {
 	/* apply if they have changed */
 	verbosity = cmdline_verbose + cfg->verbosity;
+	if (debug_mode > 1) {
+		cfg->use_syslog = 0;
+		cfg->logfile = NULL;
+	}
 	daemon_apply_cfg(daemon, cfg);
 	checkrlimits(cfg);
 }
@@ -654,7 +665,7 @@ run_daemon(const char* cfgfile, int cmdline_verbose, int debug_mode)
 					cfgfile);
 			log_warn("Continuing with default config settings");
 		}
-		apply_settings(daemon, cfg, cmdline_verbose);
+		apply_settings(daemon, cfg, cmdline_verbose, debug_mode);
 	
 		/* prepare */
 		if(!daemon_open_shared_ports(daemon))
@@ -734,7 +745,7 @@ main(int argc, char* argv[])
 			verbosity++;
 			break;
 		case 'd':
-			debug_mode = 1;
+			debug_mode++;
 			break;
 		case 'w':
 			winopt = optarg;

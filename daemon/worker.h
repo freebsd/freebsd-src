@@ -43,6 +43,7 @@
 #ifndef DAEMON_WORKER_H
 #define DAEMON_WORKER_H
 
+#include "libunbound/worker.h"
 #include "util/netevent.h"
 #include "util/locks.h"
 #include "util/alloc.h"
@@ -50,6 +51,7 @@
 #include "util/data/msgparse.h"
 #include "daemon/stats.h"
 #include "util/module.h"
+#include "dnstap/dnstap.h"
 struct listen_dnsport;
 struct outside_network;
 struct config_file;
@@ -115,6 +117,11 @@ struct worker {
 
 	/** module environment passed to modules, changed for this thread */
 	struct module_env env;
+
+#ifdef USE_DNSTAP
+	/** dnstap environment, changed for this thread */
+	struct dt_env dtenv;
+#endif
 };
 
 /**
@@ -158,77 +165,9 @@ void worker_delete(struct worker* worker);
 void worker_send_cmd(struct worker* worker, enum worker_commands cmd);
 
 /**
- * Worker signal handler function. User argument is the worker itself.
- * @param sig: signal number.
- * @param arg: the worker (main worker) that handles signals.
- */
-void worker_sighandler(int sig, void* arg);
-
-/**
- * Worker service routine to send serviced queries to authoritative servers.
- * @param qname: query name. (host order)
- * @param qnamelen: length in bytes of qname, including trailing 0.
- * @param qtype: query type. (host order)
- * @param qclass: query class. (host order)
- * @param flags: host order flags word, with opcode and CD bit.
- * @param dnssec: if set, EDNS record will have DO bit set.
- * @param want_dnssec: signatures needed.
- * @param addr: where to.
- * @param addrlen: length of addr.
- * @param zone: wireformat dname of the zone.
- * @param zonelen: length of zone name.
- * @param q: wich query state to reactivate upon return.
- * @return: false on failure (memory or socket related). no query was
- *      sent.
- */
-struct outbound_entry* worker_send_query(uint8_t* qname, size_t qnamelen, 
-	uint16_t qtype, uint16_t qclass, uint16_t flags, int dnssec, 
-	int want_dnssec, struct sockaddr_storage* addr, socklen_t addrlen,
-	uint8_t* zone, size_t zonelen, struct module_qstate* q);
-
-/** 
- * process control messages from the main thread. Frees the control 
- * command message.
- * @param tube: tube control message came on.
- * @param msg: message contents.  Is freed.
- * @param len: length of message.
- * @param error: if error (NETEVENT_*) happened.
- * @param arg: user argument
- */
-void worker_handle_control_cmd(struct tube* tube, uint8_t* msg, size_t len,
-	int error, void* arg);
-
-/** handles callbacks from listening event interface */
-int worker_handle_request(struct comm_point* c, void* arg, int error,
-	struct comm_reply* repinfo);
-
-/** process incoming replies from the network */
-int worker_handle_reply(struct comm_point* c, void* arg, int error, 
-	struct comm_reply* reply_info);
-
-/** process incoming serviced query replies from the network */
-int worker_handle_service_reply(struct comm_point* c, void* arg, int error, 
-	struct comm_reply* reply_info);
-
-/** cleanup the cache to remove all rrset IDs from it, arg is worker */
-void worker_alloc_cleanup(void* arg);
-
-/**
  * Init worker stats - includes server_stats_init, outside network and mesh.
  * @param worker: the worker to init
  */
 void worker_stats_clear(struct worker* worker);
-
-/** statistics timer callback handler */
-void worker_stat_timer_cb(void* arg);
-
-/** probe timer callback handler */
-void worker_probe_timer_cb(void* arg);
-
-/** start accept callback handler */
-void worker_start_accept(void* arg);
-
-/** stop accept callback handler */
-void worker_stop_accept(void* arg);
 
 #endif /* DAEMON_WORKER_H */

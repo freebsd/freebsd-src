@@ -165,17 +165,6 @@ sldns_buffer_export(sldns_buffer *buffer)
 	return buffer->_data;
 }
 
-int
-sldns_bgetc(sldns_buffer *buffer)
-{
-	if (!sldns_buffer_available_at(buffer, buffer->_position, sizeof(uint8_t))) {
-		sldns_buffer_set_position(buffer, sldns_buffer_limit(buffer));
-		/* sldns_buffer_rewind(buffer);*/
-		return EOF;
-	}
-	return (int)sldns_buffer_read_u8(buffer);
-}
-
 void 
 sldns_buffer_copy(sldns_buffer* result, sldns_buffer* from)
 {

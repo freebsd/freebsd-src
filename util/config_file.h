@@ -273,6 +273,8 @@ struct config_file {
 	struct config_strlist* local_zones_nodefault;
 	/** local data RRs configged */
 	struct config_strlist* local_data;
+	/** unblock lan zones (reverse lookups for 10/8 and so on) */
+	int unblock_lan_zones;
 
 	/** remote control section. enable toggle. */
 	int remote_control_enable;
@@ -303,6 +305,38 @@ struct config_file {
 
 	/* maximum UDP response size */
 	size_t max_udp_size;
+
+	/* DNS64 prefix */
+	char* dns64_prefix;
+
+	/* Synthetize all AAAA record despite the presence of an authoritative one */
+	int dns64_synthall;
+
+	/** true to enable dnstap support */
+	int dnstap;
+	/** dnstap socket path */
+	char* dnstap_socket_path;
+	/** true to send "identity" via dnstap */
+	int dnstap_send_identity;
+	/** true to send "version" via dnstap */
+	int dnstap_send_version;
+	/** dnstap "identity", hostname is used if "". */
+	char* dnstap_identity;
+	/** dnstap "version", package version is used if "". */
+	char* dnstap_version;
+
+	/** true to log dnstap RESOLVER_QUERY message events */
+	int dnstap_log_resolver_query_messages;
+	/** true to log dnstap RESOLVER_RESPONSE message events */
+	int dnstap_log_resolver_response_messages;
+	/** true to log dnstap CLIENT_QUERY message events */
+	int dnstap_log_client_query_messages;
+	/** true to log dnstap CLIENT_RESPONSE message events */
+	int dnstap_log_client_response_messages;
+	/** true to log dnstap FORWARDER_QUERY message events */
+	int dnstap_log_forwarder_query_messages;
+	/** true to log dnstap FORWARDER_RESPONSE message events */
+	int dnstap_log_forwarder_response_messages;
 };
 
 /**
@@ -639,6 +673,18 @@ struct config_parser_state {
 
 /** global config parser object used during config parsing */
 extern struct config_parser_state* cfg_parser;
+/** init lex state */
+void init_cfg_parse(void);
+/** lex in file */
+extern FILE* ub_c_in;
+/** lex out file */
+extern FILE* ub_c_out;
+/** the yacc lex generated parse function */
+int ub_c_parse(void);
+/** the lexer function */
+int ub_c_lex(void);
+/** wrap function */
+int ub_c_wrap(void);
 /** parsing helpers: print error with file and line numbers */
 void ub_c_error(const char* msg);
 /** parsing helpers: print error with file and line numbers */

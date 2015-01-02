@@ -1,4 +1,4 @@
-.TH "unbound.conf" "5" "Mar 12, 2014" "NLnet Labs" "unbound 1.4.22"
+.TH "unbound.conf" "5" "Nov 18, 2014" "NLnet Labs" "unbound 1.5.0"
 .\"
 .\" unbound.conf.5 -- unbound.conf manual
 .\"
@@ -8,14 +8,11 @@
 .\"
 .\"
 .SH "NAME"
-.LP
 .B unbound.conf
 \- Unbound configuration file.
 .SH "SYNOPSIS"
-.LP
 .B unbound.conf
 .SH "DESCRIPTION"
-.LP
 .B unbound.conf
 is used to configure
 \fIunbound\fR(8).
@@ -65,7 +62,6 @@ server:
 	access\-control: 2001:DB8::/64 allow
 .fi
 .SH "FILE FORMAT"
-.LP
 There must be whitespace between keywords. Attribute keywords end with a colon ':'. An attribute
 is followed by its containing attributes, or a value.
 .P
@@ -169,11 +165,11 @@ Give a port number or a range of the form "low\-high", without spaces.
 .TP
 .B outgoing\-num\-tcp: \fI<number>
 Number of outgoing TCP buffers to allocate per thread. Default is 10. If set
-to 0, or if do_tcp is "no", no TCP queries to authoritative servers are done.
+to 0, or if do\-tcp is "no", no TCP queries to authoritative servers are done.
 .TP
 .B incoming\-num\-tcp: \fI<number>
 Number of incoming TCP buffers to allocate per thread. Default is 10. If set
-to 0, or if do_tcp is "no", no TCP queries from clients are accepted.
+to 0, or if do\-tcp is "no", no TCP queries from clients are accepted.
 .TP
 .B edns\-buffer\-size: \fI<number>
 Number of bytes size to advertise as the EDNS reassembly buffer size.
@@ -262,8 +258,9 @@ to so\-rcvbuf.
 .B so\-reuseport: \fI<yes or no>
 If yes, then open dedicated listening sockets for incoming queries for each
 thread and try to set the SO_REUSEPORT socket option on each socket.  May
-distribute incoming queries to threads more evenly.  Default is no.  Only
-supported on Linux >= 3.9.  You can enable it (on any platform and kernel),
+distribute incoming queries to threads more evenly.  Default is no.  On Linux
+it is supported in kernels >= 3.9.  On other systems, FreeBSD, OSX it may
+also work.  You can enable it (on any platform and kernel),
 it then attempts to open the port and passes the option if it was available
 at compile time, if that works it is used, if it fails, it continues
 silently (unless verbosity 3) without the option.
@@ -310,7 +307,9 @@ Enable or disable whether ip4 queries are answered or issued. Default is yes.
 .B do\-ip6: \fI<yes or no>
 Enable or disable whether ip6 queries are answered or issued. Default is yes.
 If disabled, queries are not answered on IPv6, and queries are not sent on
-IPv6 to the internet nameservers.
+IPv6 to the internet nameservers.  With this option you can disable the
+ipv6 transport for sending DNS traffic, it does not impact the contents of
+the DNS traffic, which may have ip4 and ip6 addresses in it.
 .TP
 .B do\-udp: \fI<yes or no>
 Enable or disable whether UDP queries are answered or issued. Default is yes.
@@ -778,6 +777,17 @@ Number of bytes size of the aggressive negative cache. Default is 1 megabyte.
 A plain number is in bytes, append 'k', 'm' or 'g' for kilobytes, megabytes
 or gigabytes (1024*1024 bytes in a megabyte).
 .TP
+.B unblock\-lan\-zones: \fI<yesno>
+Default is disabled.  If enabled, then for private address space,
+the reverse lookups are no longer filtered.  This allows unbound when
+running as dns service on a host where it provides service for that host,
+to put out all of the queries for the 'lan' upstream.  When enabled,
+only localhost, 127.0.0.1 reverse and ::1 reverse zones are configured
+with default local zones.  Disable the option when unbound is running
+as a (DHCP-) DNS network resolver for a group of machines, where such
+lookups should be filtered (RFC compliance), this also stops potential
+data leakage about the local network to the upstream DNS servers.
+.TP
 .B local\-zone: \fI<zone> <type>
 Configure a local zone. The type determines the answer to give if
 there is no match from local\-data. The types are deny, refuse, static,
@@ -894,6 +904,7 @@ records are provided.
 Reverse data for zones 0.in\-addr.arpa, 254.169.in\-addr.arpa, 
 2.0.192.in\-addr.arpa (TEST NET 1), 100.51.198.in\-addr.arpa (TEST NET 2),
 113.0.203.in\-addr.arpa (TEST NET 3), 255.255.255.255.in\-addr.arpa.
+And from 64.100.in\-addr.arpa to 127.100.in\-addr.arpa (Shared Address Space).
 .TP 10
 \h'5'\fIreverse RFC4291 IP6 unspecified\fR
 Reverse data for zone 
@@ -1071,6 +1082,19 @@ and the word "python" has to be put in the \fBmodule\-config:\fR option
 .TP
 .B python\-script: \fI<python file>\fR
 The script file to load. 
+.SS "DNS64 Module Options"
+.LP
+The dns64 module must be configured in the \fBmodule\-config:\fR "dns64
+validator iterator" directive and be compiled into the daemon to be
+enabled.  These settings go in the \fBserver:\fR section.
+.TP
+.B dns64\-prefix: \fI<IPv6 prefix>\fR
+This sets the DNS64 prefix to use to synthesize AAAA records with.
+It must be /96 or shorter.  The default prefix is 64:ff9b::/96.
+.TP
+.B dns64\-synthall: \fI<yes or no>\fR
+Debug option, default no.  If enabled, synthesize all AAAA records
+despite the presence of actual AAAA records.
 .SH "MEMORY CONTROL EXAMPLE"
 In the example config settings below memory usage is reduced. Some service
 levels are lower, notable very large data and a high TCP load are no longer

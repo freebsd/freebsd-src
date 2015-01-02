@@ -1,7 +1,7 @@
 #
 # Example configuration file.
 #
-# See unbound.conf(5) man page, version 1.4.22.
+# See unbound.conf(5) man page, version 1.5.0.
 #
 # this is a comment.
 
@@ -85,7 +85,7 @@ server:
 	# 0 is system default.  Use 4m to handle spikes on very busy servers.
 	# so-sndbuf: 0
 	
-	# on Linux(3.9+) use SO_REUSEPORT to distribute queries over threads.
+	# use SO_REUSEPORT to distribute queries over threads.
 	# so-reuseport: no
 
 	# EDNS reassembly buffer to advertise to UDP peers (the actual buffer
@@ -331,7 +331,7 @@ server:
 	# minimal-responses: no
 
 	# module configuration of the server. A string with identifiers
-	# separated by spaces. "iterator" or "validator iterator"
+	# separated by spaces. Syntax: "[dns64] [validator] iterator"
 	# module-config: "validator iterator"
 
 	# File with trusted keys, kept uptodate using RFC5011 probes,
@@ -437,7 +437,7 @@ server:
 	# the amount of memory to use for the negative cache (used for DLV).
 	# plain value in bytes or you can append k, m or G. default is "1Mb". 
 	# neg-cache-size: 1m
-
+	
 	# By default, for a number of zones a small default 'nothing here'
 	# reply is built-in.  Query traffic is thus blocked.  If you
 	# wish to serve such zone you can unblock them by uncommenting one
@@ -478,6 +478,14 @@ server:
 	# local-zone: "a.e.f.ip6.arpa." nodefault
 	# local-zone: "b.e.f.ip6.arpa." nodefault
 	# local-zone: "8.b.d.0.1.0.0.2.ip6.arpa." nodefault
+	# And for 64.100.in-addr.arpa. to 127.100.in-addr.arpa.
+	
+	# if unbound is running service for the local host then it is useful
+	# to perform lan-wide lookups to the upstream, and unblock the
+	# long list of local-zones above.  If this unbound is a dns server
+	# for a network of computers, disabled is better and stops information
+	# leakage of local lan information.
+	# unblock-lan-zones: no
 
 	# a number of locally served zones can be configured.
 	# 	local-zone: <zone> <type>
@@ -525,6 +533,10 @@ server:
 	# request upstream over SSL (with plain DNS inside the SSL stream).
 	# Default is no.  Can be turned on and off with unbound-control.
 	# ssl-upstream: no
+
+	# DNS64 prefix. Must be specified when DNS64 is use.
+	# Enable dns64 in module-config.  Used to synthesize IPv6 from IPv4.
+	# dns64-prefix: 64:ff9b::0/96
 
 # Python config section. To enable:
 # o use --with-pythonmodule to configure before compiling.

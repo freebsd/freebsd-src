@@ -244,7 +244,7 @@ get_builtin_ds(void)
 
 /** print hex data */
 static void
-print_data(char* msg, char* data, int len)
+print_data(const char* msg, const char* data, int len)
 {
 	int i;
 	printf("%s: ", msg);
@@ -268,8 +268,8 @@ ub_ctx_error_exit(struct ub_ctx* ctx, const char* str, const char* str2)
  * Create a new unbound context with the commandline settings applied
  */
 static struct ub_ctx* 
-create_unbound_context(char* res_conf, char* root_hints, char* debugconf,
-        int ip4only, int ip6only)
+create_unbound_context(const char* res_conf, const char* root_hints,
+	const char* debugconf, int ip4only, int ip6only)
 {
 	int r;
 	struct ub_ctx* ctx = ub_ctx_create();
@@ -306,7 +306,7 @@ create_unbound_context(char* res_conf, char* root_hints, char* debugconf,
 
 /** printout certificate in detail */
 static void
-verb_cert(char* msg, X509* x)
+verb_cert(const char* msg, X509* x)
 {
 	if(verb == 0 || verb == 1) return;
 	if(verb == 2) {
@@ -322,7 +322,7 @@ verb_cert(char* msg, X509* x)
 
 /** printout certificates in detail */
 static void
-verb_certs(char* msg, STACK_OF(X509)* sk)
+verb_certs(const char* msg, STACK_OF(X509)* sk)
 {
 	int i, num = sk_X509_num(sk);
 	if(verb == 0 || verb == 1) return;
@@ -360,7 +360,7 @@ read_cert_bio(BIO* bio)
 
 /* read the certificate file */
 static STACK_OF(X509)*
-read_cert_file(char* file)
+read_cert_file(const char* file)
 {
 	STACK_OF(X509)* sk;
 	FILE* in;
@@ -435,7 +435,7 @@ read_builtin_cert(void)
 
 /** read update cert file or use builtin */
 static STACK_OF(X509)*
-read_cert_or_builtin(char* file)
+read_cert_or_builtin(const char* file)
 {
 	STACK_OF(X509) *sk = read_cert_file(file);
 	if(!sk) {
@@ -459,7 +459,7 @@ do_list_builtin(void)
 
 /** printout IP address with message */
 static void
-verb_addr(char* msg, struct ip_list* ip)
+verb_addr(const char* msg, struct ip_list* ip)
 {
 	if(verb) {
 		char out[100];
@@ -526,7 +526,7 @@ RR_to_ip(int tp, char* data, int len, int port)
 
 /** Resolve name, type, class and add addresses to iplist */
 static void
-resolve_host_ip(struct ub_ctx* ctx, char* host, int port, int tp, int cl,
+resolve_host_ip(struct ub_ctx* ctx, const char* host, int port, int tp, int cl,
 	struct ip_list** head)
 {
 	struct ub_result* res = NULL;
@@ -561,29 +561,27 @@ resolve_host_ip(struct ub_ctx* ctx, char* host, int port, int tp, int cl,
 
 /** parse a text IP address into a sockaddr */
 static struct ip_list*
-parse_ip_addr(char* str, int port)
+parse_ip_addr(const char* str, int port)
 {
 	socklen_t len = 0;
-	struct sockaddr_storage* addr = NULL;
-	struct sockaddr_in6 a6;
-	struct sockaddr_in a;
+	union {
+		struct sockaddr_in6 a6;
+		struct sockaddr_in a;
+	} addr;
 	struct ip_list* ip;
 	uint16_t p = (uint16_t)port;
-	memset(&a6, 0, sizeof(a6));
-	memset(&a, 0, sizeof(a));
+	memset(&addr, 0, sizeof(addr));
 
-	if(inet_pton(AF_INET6, str, &a6.sin6_addr) > 0) {
+	if(inet_pton(AF_INET6, str, &addr.a6.sin6_addr) > 0) {
 		/* it is an IPv6 */
-		a6.sin6_family = AF_INET6;
-		a6.sin6_port = (in_port_t)htons(p);
-		addr = (struct sockaddr_storage*)&a6;
-		len = (socklen_t)sizeof(struct sockaddr_in6);
+		addr.a6.sin6_family = AF_INET6;
+		addr.a6.sin6_port = (in_port_t)htons(p);
+		len = (socklen_t)sizeof(addr.a6);
 	}
-	if(inet_pton(AF_INET, str, &a.sin_addr) > 0) {
+	if(inet_pton(AF_INET, str, &addr.a.sin_addr) > 0) {
 		/* it is an IPv4 */
-		a.sin_family = AF_INET;
-		a.sin_port = (in_port_t)htons(p);
-		addr = (struct sockaddr_storage*)&a;
+		addr.a.sin_family = AF_INET;
+		addr.a.sin_port = (in_port_t)htons(p);
 		len = (socklen_t)sizeof(struct sockaddr_in);
 	}
 	if(!len) return NULL;
@@ -593,7 +591,7 @@ parse_ip_addr(char* str, int port)
 		exit(0);
 	}
 	ip->len = len;
-	memmove(&ip->addr, addr, len);
+	memmove(&ip->addr, &addr, len);
 	if(verb) printf("server address is %s\n", str);
 	return ip;
 }
@@ -613,8 +611,8 @@ parse_ip_addr(char* str, int port)
  * @return list of IP addresses.
  */
 static struct ip_list*
-resolve_name(char* host, int port, char* res_conf, char* root_hints,
-	char* debugconf, int ip4only, int ip6only)
+resolve_name(const char* host, int port, const char* res_conf,
+	const char* root_hints, const char* debugconf, int ip4only, int ip6only)
 {
 	struct ub_ctx* ctx;
 	struct ip_list* list = NULL;
@@ -669,15 +667,6 @@ count_unused(struct ip_list* p)
 	return num;
 }
 
-static int get_random(void)
-{
-	int r;
-	if (RAND_bytes((unsigned char*)&r, (int)sizeof(r)) == 1) {
-		return r;
-	}
-	return (int)random();
-}
-
 /** pick random unused element from IP list */
 static struct ip_list*
 pick_random_ip(struct ip_list* list)
@@ -687,7 +676,7 @@ pick_random_ip(struct ip_list* list)
 	int sel;
 	if(num == 0) return NULL;
 	/* not perfect, but random enough */
-	sel = get_random() % num;
+	sel = (int)arc4random_uniform((uint32_t)num);
 	/* skip over unused elements that we did not select */
 	while(sel > 0 && p) {
 		if(!p->used) sel--;
@@ -810,7 +799,7 @@ TLS_shutdown(int fd, SSL* ssl, SSL_CTX* sslctx)
 
 /** write a line over SSL */
 static int
-write_ssl_line(SSL* ssl, char* str, char* sec)
+write_ssl_line(SSL* ssl, const char* str, const char* sec)
 {
 	char buf[1024];
 	size_t l;
@@ -1029,7 +1018,7 @@ do_chunked_read(SSL* ssl)
 
 /** start HTTP1.1 transaction on SSL */
 static int
-write_http_get(SSL* ssl, char* pathname, char* urlname)
+write_http_get(SSL* ssl, const char* pathname, const char* urlname)
 {
 	if(write_ssl_line(ssl, "GET /%s HTTP/1.1", pathname) &&
 	   write_ssl_line(ssl, "Host: %s", urlname) &&
@@ -1100,7 +1089,7 @@ read_http_result(SSL* ssl)
 
 /** https to an IP addr, return BIO with pathname or NULL */
 static BIO*
-https_to_ip(struct ip_list* ip, char* pathname, char* urlname)
+https_to_ip(struct ip_list* ip, const char* pathname, const char* urlname)
 {
 	int fd;
 	SSL* ssl;
@@ -1140,7 +1129,7 @@ https_to_ip(struct ip_list* ip, char* pathname, char* urlname)
  * @return a memory BIO with the file in it.
  */
 static BIO*
-https(struct ip_list* ip_list, char* pathname, char* urlname)
+https(struct ip_list* ip_list, const char* pathname, const char* urlname)
 {
 	struct ip_list* ip;
 	BIO* bio = NULL;
@@ -1222,7 +1211,7 @@ xml_selectbio(struct xml_data* data, const char* tag)
  * 	NOT zero terminated.
  * @param len: length of this part of the data.
  */
-void
+static void
 xml_charhandle(void *userData, const XML_Char *s, int len)
 {
 	struct xml_data* data = (struct xml_data*)userData;
@@ -1265,7 +1254,7 @@ xml_charhandle(void *userData, const XML_Char *s, int len)
  * @return the value or NULL. (ptr into atts).
  */
 static const XML_Char*
-find_att(const XML_Char **atts, XML_Char* name)
+find_att(const XML_Char **atts, const XML_Char* name)
 {
 	int i;
 	for(i=0; atts[i]; i+=2) {
@@ -1379,7 +1368,7 @@ handle_keydigest(struct xml_data* data, const XML_Char **atts)
 
 /** See if XML element equals the zone name */
 static int
-xml_is_zone_name(BIO* zone, char* name)
+xml_is_zone_name(BIO* zone, const char* name)
 {
 	char buf[1024];
 	char* z = NULL;
@@ -1611,8 +1600,6 @@ xml_parse(BIO* xml, time_t now)
 	XML_ParserFree(parser);
 
 	if(verb >= 4) {
-		char* pp = NULL;
-		int len;
 		(void)BIO_seek(data.ds, 0);
 		len = BIO_get_mem_data(data.ds, &pp);
 		printf("got DS bio %d: '", len);
@@ -1655,7 +1642,7 @@ get_usage_of_ex(X509* cert)
 
 /** get valid signers from the list of signers in the signature */
 static STACK_OF(X509)*
-get_valid_signers(PKCS7* p7, char* p7signer)
+get_valid_signers(PKCS7* p7, const char* p7signer)
 {
 	int i;
 	STACK_OF(X509)* validsigners = sk_X509_new_null();
@@ -1738,7 +1725,7 @@ get_valid_signers(PKCS7* p7, char* p7signer)
 
 /** verify a PKCS7 signature, false on failure */
 static int
-verify_p7sig(BIO* data, BIO* p7s, STACK_OF(X509)* trust, char* p7signer)
+verify_p7sig(BIO* data, BIO* p7s, STACK_OF(X509)* trust, const char* p7signer)
 {
 	PKCS7* p7;
 	X509_STORE *store = X509_STORE_new();
@@ -1816,7 +1803,7 @@ verify_p7sig(BIO* data, BIO* p7s, STACK_OF(X509)* trust, char* p7signer)
 
 /** write unsigned root anchor file, a 5011 revoked tp */
 static void
-write_unsigned_root(char* root_anchor_file)
+write_unsigned_root(const char* root_anchor_file)
 {
 	FILE* out;
 	time_t now = time(NULL);
@@ -1842,7 +1829,7 @@ write_unsigned_root(char* root_anchor_file)
 
 /** write root anchor file */
 static void
-write_root_anchor(char* root_anchor_file, BIO* ds)
+write_root_anchor(const char* root_anchor_file, BIO* ds)
 {
 	char* pp = NULL;
 	int len;
@@ -1868,8 +1855,8 @@ write_root_anchor(char* root_anchor_file, BIO* ds)
 
 /** Perform the verification and update of the trustanchor file */
 static void
-verify_and_update_anchor(char* root_anchor_file, BIO* xml, BIO* p7s,
-	STACK_OF(X509)* cert, char* p7signer)
+verify_and_update_anchor(const char* root_anchor_file, BIO* xml, BIO* p7s,
+	STACK_OF(X509)* cert, const char* p7signer)
 {
 	BIO* ds;
 
@@ -1897,10 +1884,11 @@ static void do_wsa_cleanup(void) { WSACleanup(); }
 
 /** perform actual certupdate work */
 static int
-do_certupdate(char* root_anchor_file, char* root_cert_file,
-	char* urlname, char* xmlname, char* p7sname, char* p7signer,
-	char* res_conf, char* root_hints, char* debugconf,
-	int ip4only, int ip6only, int port, struct ub_result* dnskey)
+do_certupdate(const char* root_anchor_file, const char* root_cert_file,
+	const char* urlname, const char* xmlname, const char* p7sname,
+	const char* p7signer, const char* res_conf, const char* root_hints,
+	const char* debugconf, int ip4only, int ip6only, int port,
+	struct ub_result* dnskey)
 {
 	STACK_OF(X509)* cert;
 	BIO *xml, *p7s;
@@ -1954,7 +1942,7 @@ do_certupdate(char* root_anchor_file, char* root_cert_file,
  * 	2 if it is OK.
  */
 static int
-try_read_anchor(char* file)
+try_read_anchor(const char* file)
 {
 	int empty = 1;
 	char line[10240];
@@ -1998,7 +1986,7 @@ try_read_anchor(char* file)
 
 /** Write the builtin root anchor to a file */
 static void
-write_builtin_anchor(char* file)
+write_builtin_anchor(const char* file)
 {
 	const char* builtin_root_anchor = get_builtin_ds();
 	FILE* out = fopen(file, "w");
@@ -2024,7 +2012,7 @@ write_builtin_anchor(char* file)
  * @return 0 if trustpoint is insecure, 1 on success.  Exit on failure.
  */
 static int
-provide_builtin(char* root_anchor_file, int* used_builtin)
+provide_builtin(const char* root_anchor_file, int* used_builtin)
 {
 	/* try to read it */
 	switch(try_read_anchor(root_anchor_file))
@@ -2046,7 +2034,7 @@ provide_builtin(char* root_anchor_file, int* used_builtin)
  * add an autotrust anchor for the root to the context
  */
 static void
-add_5011_probe_root(struct ub_ctx* ctx, char* root_anchor_file)
+add_5011_probe_root(struct ub_ctx* ctx, const char* root_anchor_file)
 {
 	int r;
 	r = ub_ctx_set_option(ctx, "auto-trust-anchor-file:", root_anchor_file);
@@ -2083,7 +2071,7 @@ prime_root_key(struct ub_ctx* ctx)
 
 /** see if ADDPEND keys exist in autotrust file (if possible) */
 static int
-read_if_pending_keys(char* file)
+read_if_pending_keys(const char* file)
 {
 	FILE* in = fopen(file, "r");
 	char line[8192];
@@ -2105,7 +2093,7 @@ read_if_pending_keys(char* file)
 
 /** read last successful probe time from autotrust file (if possible) */
 static int32_t
-read_last_success_time(char* file)
+read_last_success_time(const char* file)
 {
 	FILE* in = fopen(file, "r");
 	char line[1024];
@@ -2142,7 +2130,7 @@ read_last_success_time(char* file)
  * @return true if certupdate is ok.
  */
 static int
-probe_date_allows_certupdate(char* root_anchor_file)
+probe_date_allows_certupdate(const char* root_anchor_file)
 {
 	int has_pending_keys = read_if_pending_keys(root_anchor_file);
 	int32_t last_success = read_last_success_time(root_anchor_file);
@@ -2180,10 +2168,10 @@ probe_date_allows_certupdate(char* root_anchor_file)
 
 /** perform the unbound-anchor work */
 static int
-do_root_update_work(char* root_anchor_file, char* root_cert_file,
-	char* urlname, char* xmlname, char* p7sname, char* p7signer,
-	char* res_conf, char* root_hints, char* debugconf,
-	int ip4only, int ip6only, int force, int port)
+do_root_update_work(const char* root_anchor_file, const char* root_cert_file,
+	const char* urlname, const char* xmlname, const char* p7sname,
+	const char* p7signer, const char* res_conf, const char* root_hints,
+	const char* debugconf, int ip4only, int ip6only, int force, int port)
 {
 	struct ub_ctx* ctx;
 	struct ub_result* dnskey;
@@ -2233,15 +2221,15 @@ extern char* optarg;
 int main(int argc, char* argv[])
 {
 	int c;
-	char* root_anchor_file = ROOT_ANCHOR_FILE;
-	char* root_cert_file = ROOT_CERT_FILE;
-	char* urlname = URLNAME;
-	char* xmlname = XMLNAME;
-	char* p7sname = P7SNAME;
-	char* p7signer = P7SIGNER;
-	char* res_conf = NULL;
-	char* root_hints = NULL;
-	char* debugconf = NULL;
+	const char* root_anchor_file = ROOT_ANCHOR_FILE;
+	const char* root_cert_file = ROOT_CERT_FILE;
+	const char* urlname = URLNAME;
+	const char* xmlname = XMLNAME;
+	const char* p7sname = P7SNAME;
+	const char* p7signer = P7SIGNER;
+	const char* res_conf = NULL;
+	const char* root_hints = NULL;
+	const char* debugconf = NULL;
 	int dolist=0, ip4only=0, ip6only=0, force=0, port = HTTPS_PORT;
 	/* parse the options */
 	while( (c=getopt(argc, argv, "46C:FP:a:c:f:hln:r:s:u:vx:")) != -1) {
