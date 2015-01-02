@@ -151,6 +151,26 @@
 	    <entry>04&nbsp;November&nbsp;2014</entry>
 	    <entry><para>Remote code execution.</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:28.file.asc">SA-14:28.file</link></entry>
+	    <entry>10&nbsp;December&nbsp;2014</entry>
+	    <entry><para>Multiple vulnerabilities in &man.file.1; and
+		&man.libmagic.3;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:29.bind.asc">SA-14:29.bind</link></entry>
+	    <entry>10&nbsp;December&nbsp;2014</entry>
+	    <entry><para>Remote denial of service
+		vulnerability</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><link xlink:href="http://www.freebsd.org/security/advisories/FreeBSD-SA-14:31.ntp.asc">SA-14:31.ntp</link></entry>
+	    <entry>23&nbsp;December&nbsp;2014</entry>
+	    <entry><para>Multiple vulnerabilities</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
