@@ -52,7 +52,6 @@ MAN=	aac.4 \
 	${_apic.4} \
 	arcmsr.4 \
 	${_asmc.4} \
-	asr.4 \
 	ata.4 \
 	ath.4 \
 	ath_ahb.4 \
