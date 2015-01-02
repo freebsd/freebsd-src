@@ -55,6 +55,7 @@ MINSTALL?=	${INSTALL} -o ${MANOWN} -g ${MANGRP} -m ${MANMODE}
 CATDIR=		${MANDIR:H:S/$/\/cat/}
 CATEXT=		.cat
 MROFF_CMD?=	groff -Tascii -mtty-char -man -t
+MANDOC_CMD?=	mandoc
 
 MCOMPRESS_CMD?=	${COMPRESS_CMD}
 MCOMPRESS_EXT?=	${COMPRESS_EXT}
@@ -239,9 +240,9 @@ manlint:
 manlint: ${__page}lint
 ${__page}lint: ${__page}
 .if defined(MANFILTER)
-	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} -ww -z
+	${MANFILTER} < ${.ALLSRC} | ${MANDOC_CMD} -Tlint
 .else
-	${MROFF_CMD} -ww -z ${.ALLSRC}
+	${MANDOC_CMD} -Tlint ${.ALLSRC}
 .endif
 .endfor
 .endif
