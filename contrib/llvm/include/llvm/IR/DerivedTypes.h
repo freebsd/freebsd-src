@@ -188,7 +188,7 @@ class StructType : public CompositeType {
   StructType(const StructType &) LLVM_DELETED_FUNCTION;
   const StructType &operator=(const StructType &) LLVM_DELETED_FUNCTION;
   StructType(LLVMContext &C)
-    : CompositeType(C, StructTyID), SymbolTableEntry(0) {}
+    : CompositeType(C, StructTyID), SymbolTableEntry(nullptr) {}
   enum {
     /// This is the contents of the SubClassData field.
     SCDB_HasBody = 1,
@@ -249,10 +249,10 @@ public:
   bool isOpaque() const { return (getSubclassData() & SCDB_HasBody) == 0; }
 
   /// isSized - Return true if this is a sized type.
-  bool isSized() const;
+  bool isSized(SmallPtrSet<const Type*, 4> *Visited = nullptr) const;
   
   /// hasName - Return true if this is a named struct that has a non-empty name.
-  bool hasName() const { return SymbolTableEntry != 0; }
+  bool hasName() const { return SymbolTableEntry != nullptr; }
   
   /// getName - Return the name for this struct type if it has an identity.
   /// This may return an empty string for an unnamed struct type.  Do not call
@@ -398,6 +398,26 @@ public:
            "Cannot truncate vector element with odd bit-width");
     Type *EltTy = IntegerType::get(VTy->getContext(), EltBits / 2);
     return VectorType::get(EltTy, VTy->getNumElements());
+  }
+
+  /// VectorType::getHalfElementsVectorType - This static method returns
+  /// a VectorType with half as many elements as the input type and the
+  /// same element type.
+  ///
+  static VectorType *getHalfElementsVectorType(VectorType *VTy) {
+    unsigned NumElts = VTy->getNumElements();
+    assert ((NumElts & 1) == 0 &&
+            "Cannot halve vector with odd number of elements.");
+    return VectorType::get(VTy->getElementType(), NumElts/2);
+  }
+
+  /// VectorType::getDoubleElementsVectorType - This static method returns
+  /// a VectorType with twice  as many elements as the input type and the
+  /// same element type.
+  ///
+  static VectorType *getDoubleElementsVectorType(VectorType *VTy) {
+    unsigned NumElts = VTy->getNumElements();
+    return VectorType::get(VTy->getElementType(), NumElts*2);
   }
 
   /// isValidElementType - Return true if the specified type is valid as a

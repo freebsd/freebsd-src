@@ -35,13 +35,13 @@ public:
   ARMHazardRecognizer(const InstrItineraryData *ItinData,
                       const ScheduleDAG *DAG)
     : ScoreboardHazardRecognizer(ItinData, DAG, "post-RA-sched"),
-      LastMI(0) {}
+      LastMI(nullptr) {}
 
-  virtual HazardType getHazardType(SUnit *SU, int Stalls);
-  virtual void Reset();
-  virtual void EmitInstruction(SUnit *SU);
-  virtual void AdvanceCycle();
-  virtual void RecedeCycle();
+  HazardType getHazardType(SUnit *SU, int Stalls) override;
+  void Reset() override;
+  void EmitInstruction(SUnit *SU) override;
+  void AdvanceCycle() override;
+  void RecedeCycle() override;
 };
 
 } // end namespace llvm

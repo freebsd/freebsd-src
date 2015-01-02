@@ -72,7 +72,6 @@ static device_method_t xen_pci_methods[] = {
 
 static devclass_t pci_devclass;
 
-DECLARE_CLASS(pci_driver);
 DEFINE_CLASS_1(pci, xen_pci_driver, xen_pci_methods, sizeof(struct pci_softc),
     pci_driver);
 DRIVER_MODULE(xen_pci, pcib, xen_pci_driver, pci_devclass, 0, 0);

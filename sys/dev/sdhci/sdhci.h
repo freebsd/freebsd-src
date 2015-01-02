@@ -59,6 +59,8 @@
 #define	SDHCI_QUIRK_MISSING_CAPS			(1<<12)
 /* Hardware shifts the 136-bit response, don't do it in software. */
 #define	SDHCI_QUIRK_DONT_SHIFT_RESPONSE			(1<<13)
+/* Wait to see reset bit asserted before waiting for de-asserted  */
+#define	SDHCI_QUIRK_WAITFOR_RESET_ASSERTED		(1<<14)
 
 /*
  * Controller registers
@@ -182,8 +184,11 @@
 #define  SDHCI_INT_NORMAL_MASK	0x00007FFF
 #define  SDHCI_INT_ERROR_MASK	0xFFFF8000
 
-#define  SDHCI_INT_CMD_MASK	(SDHCI_INT_RESPONSE | SDHCI_INT_TIMEOUT | \
+#define  SDHCI_INT_CMD_ERROR_MASK 	(SDHCI_INT_TIMEOUT | \
 		SDHCI_INT_CRC | SDHCI_INT_END_BIT | SDHCI_INT_INDEX)
+
+#define  SDHCI_INT_CMD_MASK	(SDHCI_INT_RESPONSE | SDHCI_INT_CMD_ERROR_MASK)
+
 #define  SDHCI_INT_DATA_MASK	(SDHCI_INT_DATA_END | SDHCI_INT_DMA_END | \
 		SDHCI_INT_DATA_AVAIL | SDHCI_INT_SPACE_AVAIL | \
 		SDHCI_INT_DATA_TIMEOUT | SDHCI_INT_DATA_CRC | \

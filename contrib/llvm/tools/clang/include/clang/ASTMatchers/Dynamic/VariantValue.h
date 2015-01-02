@@ -17,14 +17,13 @@
 #ifndef LLVM_CLANG_AST_MATCHERS_DYNAMIC_VARIANT_VALUE_H
 #define LLVM_CLANG_AST_MATCHERS_DYNAMIC_VARIANT_VALUE_H
 
-#include <vector>
-
 #include "clang/ASTMatchers/ASTMatchers.h"
 #include "clang/ASTMatchers/ASTMatchersInternal.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/Twine.h"
-#include "llvm/Support/type_traits.h"
+#include <memory>
+#include <vector>
 
 namespace clang {
 namespace ast_matchers {
@@ -50,7 +49,8 @@ class VariantMatcher {
   class MatcherOps {
   public:
     virtual ~MatcherOps();
-    virtual bool canConstructFrom(const DynTypedMatcher &Matcher) const = 0;
+    virtual bool canConstructFrom(const DynTypedMatcher &Matcher,
+                                  bool &IsExactMatch) const = 0;
     virtual void constructFrom(const DynTypedMatcher &Matcher) = 0;
     virtual void constructVariadicOperator(
         ast_matchers::internal::VariadicOperatorFunction Func,
@@ -78,14 +78,15 @@ public:
   /// \brief Clones the provided matchers.
   ///
   /// They should be the result of a polymorphic matcher.
-  static VariantMatcher PolymorphicMatcher(ArrayRef<DynTypedMatcher> Matchers);
+  static VariantMatcher
+  PolymorphicMatcher(std::vector<DynTypedMatcher> Matchers);
 
   /// \brief Creates a 'variadic' operator matcher.
   ///
   /// It will bind to the appropriate type on getTypedMatcher<T>().
   static VariantMatcher VariadicOperatorMatcher(
       ast_matchers::internal::VariadicOperatorFunction Func,
-      ArrayRef<VariantMatcher> Args);
+      std::vector<VariantMatcher> Args);
 
   /// \brief Makes the matcher the "null" matcher.
   void reset();
@@ -145,7 +146,10 @@ private:
   public:
     typedef ast_matchers::internal::Matcher<T> MatcherT;
 
-    virtual bool canConstructFrom(const DynTypedMatcher &Matcher) const {
+    virtual bool canConstructFrom(const DynTypedMatcher &Matcher,
+                                  bool &IsExactMatch) const {
+      IsExactMatch = Matcher.getSupportedKind().isSame(
+          ast_type_traits::ASTNodeKind::getFromNodeKind<T>());
       return Matcher.canConvertTo<T>();
     }
 
@@ -156,34 +160,25 @@ private:
     virtual void constructVariadicOperator(
         ast_matchers::internal::VariadicOperatorFunction Func,
         ArrayRef<VariantMatcher> InnerMatchers) {
-      const size_t NumArgs = InnerMatchers.size();
-      MatcherT **InnerArgs = new MatcherT *[NumArgs]();
-      bool HasError = false;
-      for (size_t i = 0; i != NumArgs; ++i) {
+      std::vector<DynTypedMatcher> DynMatchers;
+      for (size_t i = 0, e = InnerMatchers.size(); i != e; ++i) {
         // Abort if any of the inner matchers can't be converted to
         // Matcher<T>.
         if (!InnerMatchers[i].hasTypedMatcher<T>()) {
-          HasError = true;
-          break;
+          return;
         }
-        InnerArgs[i] = new MatcherT(InnerMatchers[i].getTypedMatcher<T>());
+        DynMatchers.push_back(InnerMatchers[i].getTypedMatcher<T>());
       }
-      if (!HasError) {
-        Out.reset(new MatcherT(
-            new ast_matchers::internal::VariadicOperatorMatcherInterface<T>(
-                Func, ArrayRef<const MatcherT *>(InnerArgs, NumArgs))));
-      }
-      for (size_t i = 0; i != NumArgs; ++i) {
-        delete InnerArgs[i];
-      }
-      delete[] InnerArgs;
+      Out.reset(new MatcherT(
+          new ast_matchers::internal::VariadicOperatorMatcherInterface<T>(
+              Func, DynMatchers)));
     }
 
-    bool hasMatcher() const { return Out.get() != NULL; }
+    bool hasMatcher() const { return Out.get() != nullptr; }
     const MatcherT &matcher() const { return *Out; }
 
   private:
-    OwningPtr<MatcherT> Out;
+    std::unique_ptr<MatcherT> Out;
   };
 
   IntrusiveRefCntPtr<const Payload> Value;
@@ -213,6 +208,10 @@ public:
   VariantValue(unsigned Unsigned);
   VariantValue(const std::string &String);
   VariantValue(const VariantMatcher &Matchers);
+
+  /// \brief Returns true iff this is not an empty value.
+  LLVM_EXPLICIT operator bool() const { return hasValue(); }
+  bool hasValue() const { return Type != VT_Nothing; }
 
   /// \brief Unsigned value functions.
   bool isUnsigned() const;

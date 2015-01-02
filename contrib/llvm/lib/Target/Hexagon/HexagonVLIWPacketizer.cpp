@@ -16,41 +16,41 @@
 // prune the dependence.
 //
 //===----------------------------------------------------------------------===//
-#define DEBUG_TYPE "packets"
 #include "llvm/CodeGen/DFAPacketizer.h"
-#include "llvm/CodeGen/Passes.h"
-#include "llvm/CodeGen/MachineDominators.h"
-#include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/MachineLoopInfo.h"
-#include "llvm/CodeGen/ScheduleDAG.h"
-#include "llvm/CodeGen/ScheduleDAGInstrs.h"
-#include "llvm/CodeGen/LatencyPriorityQueue.h"
-#include "llvm/CodeGen/SchedulerRegistry.h"
-#include "llvm/CodeGen/MachineFrameInfo.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/CodeGen/MachineRegisterInfo.h"
-#include "llvm/CodeGen/MachineFunctionAnalysis.h"
-#include "llvm/CodeGen/ScheduleHazardRecognizer.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/Statistic.h"
-#include "llvm/Support/MathExtras.h"
-#include "llvm/MC/MCInstrItineraries.h"
-#include "llvm/Support/Compiler.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Debug.h"
 #include "Hexagon.h"
-#include "HexagonTargetMachine.h"
+#include "HexagonMachineFunctionInfo.h"
 #include "HexagonRegisterInfo.h"
 #include "HexagonSubtarget.h"
-#include "HexagonMachineFunctionInfo.h"
-
+#include "HexagonTargetMachine.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/CodeGen/LatencyPriorityQueue.h"
+#include "llvm/CodeGen/MachineDominators.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineFunctionAnalysis.h"
+#include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineLoopInfo.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/Passes.h"
+#include "llvm/CodeGen/ScheduleDAG.h"
+#include "llvm/CodeGen/ScheduleDAGInstrs.h"
+#include "llvm/CodeGen/ScheduleHazardRecognizer.h"
+#include "llvm/CodeGen/SchedulerRegistry.h"
+#include "llvm/MC/MCInstrItineraries.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/MathExtras.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include <map>
 #include <vector>
 
 using namespace llvm;
+
+#define DEBUG_TYPE "packets"
 
 static cl::opt<bool> PacketizeVolatiles("hexagon-packetize-volatiles",
       cl::ZeroOrMore, cl::Hidden, cl::init(true),
@@ -70,7 +70,7 @@ namespace {
       initializeHexagonPacketizerPass(*PassRegistry::getPassRegistry());
     }
 
-    void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesCFG();
       AU.addRequired<MachineDominatorTree>();
       AU.addRequired<MachineBranchProbabilityInfo>();
@@ -80,11 +80,11 @@ namespace {
       MachineFunctionPass::getAnalysisUsage(AU);
     }
 
-    const char *getPassName() const {
+    const char *getPassName() const override {
       return "Hexagon Packetizer";
     }
 
-    bool runOnMachineFunction(MachineFunction &Fn);
+    bool runOnMachineFunction(MachineFunction &Fn) override;
   };
   char HexagonPacketizer::ID = 0;
 
@@ -122,24 +122,25 @@ namespace {
                           const MachineBranchProbabilityInfo *MBPI);
 
     // initPacketizerState - initialize some internal flags.
-    void initPacketizerState();
+    void initPacketizerState() override;
 
     // ignorePseudoInstruction - Ignore bundling of pseudo instructions.
-    bool ignorePseudoInstruction(MachineInstr *MI, MachineBasicBlock *MBB);
+    bool ignorePseudoInstruction(MachineInstr *MI,
+                                 MachineBasicBlock *MBB) override;
 
     // isSoloInstruction - return true if instruction MI can not be packetized
     // with any other instruction, which means that MI itself is a packet.
-    bool isSoloInstruction(MachineInstr *MI);
+    bool isSoloInstruction(MachineInstr *MI) override;
 
     // isLegalToPacketizeTogether - Is it legal to packetize SUI and SUJ
     // together.
-    bool isLegalToPacketizeTogether(SUnit *SUI, SUnit *SUJ);
+    bool isLegalToPacketizeTogether(SUnit *SUI, SUnit *SUJ) override;
 
     // isLegalToPruneDependencies - Is it legal to prune dependece between SUI
     // and SUJ.
-    bool isLegalToPruneDependencies(SUnit *SUI, SUnit *SUJ);
+    bool isLegalToPruneDependencies(SUnit *SUI, SUnit *SUJ) override;
 
-    MachineBasicBlock::iterator addToPacket(MachineInstr *MI);
+    MachineBasicBlock::iterator addToPacket(MachineInstr *MI) override;
   private:
     bool IsCallDependent(MachineInstr* MI, SDep::Kind DepType, unsigned DepReg);
     bool PromoteToDotNew(MachineInstr* MI, SDep::Kind DepType,
@@ -238,20 +239,20 @@ bool HexagonPacketizer::runOnMachineFunction(MachineFunction &Fn) {
       // instruction stream until we find the nearest boundary.
       MachineBasicBlock::iterator I = RegionEnd;
       for(;I != MBB->begin(); --I, --RemainingCount) {
-        if (TII->isSchedulingBoundary(llvm::prior(I), MBB, Fn))
+        if (TII->isSchedulingBoundary(std::prev(I), MBB, Fn))
           break;
       }
       I = MBB->begin();
 
       // Skip empty scheduling regions.
       if (I == RegionEnd) {
-        RegionEnd = llvm::prior(RegionEnd);
+        RegionEnd = std::prev(RegionEnd);
         --RemainingCount;
         continue;
       }
       // Skip regions with one instruction.
-      if (I == llvm::prior(RegionEnd)) {
-        RegionEnd = llvm::prior(RegionEnd);
+      if (I == std::prev(RegionEnd)) {
+        RegionEnd = std::prev(RegionEnd);
         continue;
       }
 
@@ -391,7 +392,7 @@ static bool IsLoopN(MachineInstr *MI) {
 /// callee-saved register.
 static bool DoesModifyCalleeSavedReg(MachineInstr *MI,
                                      const TargetRegisterInfo *TRI) {
-  for (const uint16_t *CSR = TRI->getCalleeSavedRegs(); *CSR; ++CSR) {
+  for (const MCPhysReg *CSR = TRI->getCalleeSavedRegs(); *CSR; ++CSR) {
     unsigned CalleeSavedReg = *CSR;
     if (MI->modifiesRegister(CalleeSavedReg, TRI))
       return true;
@@ -604,7 +605,7 @@ bool HexagonPacketizerList::CanPromoteToNewValueStore( MachineInstr *MI,
     // evaluate identically
     unsigned predRegNumSrc = 0;
     unsigned predRegNumDst = 0;
-    const TargetRegisterClass* predRegClass = NULL;
+    const TargetRegisterClass* predRegClass = nullptr;
 
     // Get predicate register used in the source instruction
     for(unsigned opNum = 0; opNum < PacketMI->getNumOperands(); opNum++) {
@@ -681,7 +682,7 @@ bool HexagonPacketizerList::CanPromoteToNewValueStore( MachineInstr *MI,
     }
   }
 
-  // Make sure that for non POST_INC stores:
+  // Make sure that for non-POST_INC stores:
   // 1. The only use of reg is DepReg and no other registers.
   //    This handles V4 base+index registers.
   //    The following store can not be dot new.
@@ -1173,7 +1174,7 @@ bool HexagonPacketizerList::isLegalToPacketizeTogether(SUnit *SUI, SUnit *SUJ) {
       // of that (IsCallDependent) function. Bug 6216 is opened for this.
       //
       unsigned DepReg = 0;
-      const TargetRegisterClass* RC = NULL;
+      const TargetRegisterClass* RC = nullptr;
       if (DepType == SDep::Data) {
         DepReg = SUJ->Succs[i].getReg();
         RC = QRI->getMinimalPhysRegClass(DepReg);

@@ -69,7 +69,7 @@ public:
 
   /// getIfNamespace - If this is a namespace, return it.  This is equivalent to
   /// using a dynamic_cast, but doesn't require RTTI.
-  virtual PragmaNamespace *getIfNamespace() { return 0; }
+  virtual PragmaNamespace *getIfNamespace() { return nullptr; }
 };
 
 /// EmptyPragmaHandler - A pragma handler which takes no action, which can be
@@ -78,8 +78,8 @@ class EmptyPragmaHandler : public PragmaHandler {
 public:
   EmptyPragmaHandler();
 
-  virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
-                            Token &FirstToken);
+  void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
+                    Token &FirstToken) override;
 };
 
 /// PragmaNamespace - This PragmaHandler subdivides the namespace of pragmas,
@@ -114,10 +114,10 @@ public:
     return Handlers.empty();
   }
 
-  virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
-                            Token &FirstToken);
+  void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
+                    Token &FirstToken) override;
 
-  virtual PragmaNamespace *getIfNamespace() { return this; }
+  PragmaNamespace *getIfNamespace() override { return this; }
 };
 
 

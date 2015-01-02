@@ -7,8 +7,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "arm-disassembler"
-
 #include "llvm/MC/MCDisassembler.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
 #include "MCTargetDesc/ARMBaseInfo.h"
@@ -28,6 +26,8 @@
 #include <vector>
 
 using namespace llvm;
+
+#define DEBUG_TYPE "arm-disassembler"
 
 typedef MCDisassembler::DecodeStatus DecodeStatus;
 
@@ -90,20 +90,18 @@ class ARMDisassembler : public MCDisassembler {
 public:
   /// Constructor     - Initializes the disassembler.
   ///
-  ARMDisassembler(const MCSubtargetInfo &STI) :
-    MCDisassembler(STI) {
+  ARMDisassembler(const MCSubtargetInfo &STI, MCContext &Ctx) :
+    MCDisassembler(STI, Ctx) {
   }
 
   ~ARMDisassembler() {
   }
 
   /// getInstruction - See MCDisassembler.
-  DecodeStatus getInstruction(MCInst &instr,
-                              uint64_t &size,
-                              const MemoryObject &region,
-                              uint64_t address,
+  DecodeStatus getInstruction(MCInst &instr, uint64_t &size,
+                              const MemoryObject &region, uint64_t address,
                               raw_ostream &vStream,
-                              raw_ostream &cStream) const;
+                              raw_ostream &cStream) const override;
 };
 
 /// ThumbDisassembler - Thumb disassembler for all Thumb platforms.
@@ -111,20 +109,18 @@ class ThumbDisassembler : public MCDisassembler {
 public:
   /// Constructor     - Initializes the disassembler.
   ///
-  ThumbDisassembler(const MCSubtargetInfo &STI) :
-    MCDisassembler(STI) {
+  ThumbDisassembler(const MCSubtargetInfo &STI, MCContext &Ctx) :
+    MCDisassembler(STI, Ctx) {
   }
 
   ~ThumbDisassembler() {
   }
 
   /// getInstruction - See MCDisassembler.
-  DecodeStatus getInstruction(MCInst &instr,
-                              uint64_t &size,
-                              const MemoryObject &region,
-                              uint64_t address,
+  DecodeStatus getInstruction(MCInst &instr, uint64_t &size,
+                              const MemoryObject &region, uint64_t address,
                               raw_ostream &vStream,
-                              raw_ostream &cStream) const;
+                              raw_ostream &cStream) const override;
 
 private:
   mutable ITStatus ITBlock;
@@ -404,12 +400,16 @@ static DecodeStatus DecodeMRRC2(llvm::MCInst &Inst, unsigned Val,
                                 uint64_t Address, const void *Decoder);
 #include "ARMGenDisassemblerTables.inc"
 
-static MCDisassembler *createARMDisassembler(const Target &T, const MCSubtargetInfo &STI) {
-  return new ARMDisassembler(STI);
+static MCDisassembler *createARMDisassembler(const Target &T,
+                                             const MCSubtargetInfo &STI,
+                                             MCContext &Ctx) {
+  return new ARMDisassembler(STI, Ctx);
 }
 
-static MCDisassembler *createThumbDisassembler(const Target &T, const MCSubtargetInfo &STI) {
-  return new ThumbDisassembler(STI);
+static MCDisassembler *createThumbDisassembler(const Target &T,
+                                               const MCSubtargetInfo &STI,
+                                               MCContext &Ctx) {
+  return new ThumbDisassembler(STI, Ctx);
 }
 
 DecodeStatus ARMDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
@@ -860,9 +860,13 @@ DecodeStatus ThumbDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
 
 
 extern "C" void LLVMInitializeARMDisassembler() {
-  TargetRegistry::RegisterMCDisassembler(TheARMTarget,
+  TargetRegistry::RegisterMCDisassembler(TheARMLETarget,
                                          createARMDisassembler);
-  TargetRegistry::RegisterMCDisassembler(TheThumbTarget,
+  TargetRegistry::RegisterMCDisassembler(TheARMBETarget,
+                                         createARMDisassembler);
+  TargetRegistry::RegisterMCDisassembler(TheThumbLETarget,
+                                         createThumbDisassembler);
+  TargetRegistry::RegisterMCDisassembler(TheThumbBETarget,
                                          createThumbDisassembler);
 }
 

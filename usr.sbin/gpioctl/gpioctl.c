@@ -159,6 +159,7 @@ dump_pins(gpio_handle_t handle, int verbose)
 		}
 		printf("\n");
 	}
+	free(cfgs);
 }
 
 static void

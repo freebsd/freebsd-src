@@ -44,7 +44,6 @@ SUBDIR=	\
 	${_arcmsr} \
 	${_arcnet} \
 	${_asmc} \
-	${_asr} \
 	ata \
 	ath \
 	ath_pci \
@@ -246,9 +245,7 @@ SUBDIR=	\
 	netfpga10g \
 	${_netgraph} \
 	${_nfe} \
-	nfs_common \
 	nfscl \
-	nfsclient \
 	nfscommon \
 	nfslock \
 	nfslockd \
@@ -446,7 +443,6 @@ _pfsync=	pfsync
 
 .if ${MK_SOURCELESS_UCODE} != "no"
 _bce=		bce
-_cxgbe=		cxgbe
 _fatm=		fatm
 _fxp=		fxp
 _ispfw=		ispfw
@@ -458,6 +454,9 @@ _ti=		ti
 _txp=		txp
 .endif
 
+.if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} == "amd64"
+_cxgbe=		cxgbe
+.endif
 
 .if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips" && \
 	${MACHINE_CPUARCH} != "powerpc"
@@ -665,7 +664,6 @@ _xe=		xe
 .if ${MK_EISA} != "no"
 _ahb=		ahb
 .endif
-_asr=		asr
 _bios=		bios
 _cm=		cm
 .if ${MK_SOURCELESS_UCODE} != "no"

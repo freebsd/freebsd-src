@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * $FreeBSD: users/kaiwang27/elftc/libelftc.h 392 2009-05-31 19:17:46Z kaiwang27 $
- * $Id: libelftc.h 2863 2013-01-06 03:18:32Z jkoshy $
+ * $Id: libelftc.h 3031 2014-05-01 17:45:41Z jkoshy $
  */
 
 #ifndef	_LIBELFTC_H_
@@ -34,6 +34,9 @@
 
 #include <libelf.h>
 
+/*
+ * Types meant to be opaque to the consumers of these APIs.
+ */
 typedef struct _Elftc_Bfd_Target Elftc_Bfd_Target;
 typedef struct _Elftc_String_Table Elftc_String_Table;
 

@@ -1,4 +1,4 @@
-.\"	$Id: mandoc.1,v 1.125 2014/11/28 18:09:01 schwarze Exp $
+.\"	$Id: mandoc.1,v 1.128 2014/12/02 11:31:51 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2012, 2014 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: November 28 2014 $
+.Dd $Mdocdate: December 2 2014 $
 .Dt MANDOC 1
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@ or
 text from stdin, implying
 .Fl m Ns Cm andoc ,
 and produces
-.Fl T Ns Cm ascii
+.Fl T Ns Cm locale
 output.
 .Pp
 The options are as follows:
@@ -146,7 +146,7 @@ See
 .Sx Output Formats
 for available formats.
 Defaults to
-.Fl T Ns Cm ascii .
+.Fl T Ns Cm locale .
 .It Fl V
 Print version and exit.
 .It Fl W Ns Ar level
@@ -255,7 +255,6 @@ arguments, which correspond to output modes:
 .Bl -tag -width "-Tlocale"
 .It Fl T Ns Cm ascii
 Produce 7-bit ASCII output.
-This is the default.
 See
 .Sx ASCII Output .
 .It Fl T Ns Cm html
@@ -268,6 +267,7 @@ Implies
 .Fl W Ns Cm warning .
 .It Fl T Ns Cm locale
 Encode output using the current locale.
+This is the default.
 See
 .Sx Locale Output .
 .It Fl T Ns Cm man
@@ -299,8 +299,8 @@ If multiple input files are specified, these will be processed by the
 corresponding filter in-order.
 .Ss ASCII Output
 Output produced by
-.Fl T Ns Cm ascii ,
-which is the default, is rendered in standard 7-bit ASCII documented in
+.Fl T Ns Cm ascii
+is rendered in standard 7-bit ASCII documented in
 .Xr ascii 7 .
 .Pp
 Font styles are applied by using back-spaced encoding such that an
@@ -413,6 +413,8 @@ relative URI.
 .Ss Locale Output
 Locale-depending output encoding is triggered with
 .Fl T Ns Cm locale .
+This is the default.
+.Pp
 This option is not available on all systems: systems without locale
 support, or those whose internal representation is not natively UCS-4,
 will fall back to
@@ -803,6 +805,13 @@ Probably, there are author names lacking markup.
 See the
 .Xr mdoc 7
 manual for replacements.
+.It Sy "macro neither callable nor escaped"
+.Pq mdoc
+The name of a macro that is not callable appears on a macro line.
+It is printed verbatim.
+If the intention is to call it, move it to its own line;
+otherwise, escape it by prepending
+.Sq \e& .
 .It Sy "skipping paragraph macro"
 In
 .Xr mdoc 7
@@ -1047,6 +1056,14 @@ argument is invalid.
 The default font
 .Cm \efR
 is used instead.
+.It Sy "nothing follows prefix"
+.Pq mdoc
+A
+.Ic \&Pf
+macro has no argument, or only one argument and no macro follows
+on the same input line.
+This defeats its purpose; in particular, spacing is not suppressed
+before the text or macros following on the next input line.
 .It Sy "missing -std argument, adding it"
 .Pq mdoc
 An

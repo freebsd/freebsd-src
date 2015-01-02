@@ -35,15 +35,19 @@ foreach i = 0-4 in {
   def P#i  : NVPTXReg<"%p"#i>;  // Predicate
   def RS#i : NVPTXReg<"%rs"#i>; // 16-bit
   def R#i  : NVPTXReg<"%r"#i>;  // 32-bit
-  def RL#i : NVPTXReg<"%rl"#i>; // 64-bit
+  def RL#i : NVPTXReg<"%rd"#i>; // 64-bit
   def F#i  : NVPTXReg<"%f"#i>;  // 32-bit float
-  def FL#i : NVPTXReg<"%fl"#i>; // 64-bit float
+  def FL#i : NVPTXReg<"%fd"#i>; // 64-bit float
 
   // Arguments
   def ia#i : NVPTXReg<"%ia"#i>;
   def la#i : NVPTXReg<"%la"#i>;
   def fa#i : NVPTXReg<"%fa"#i>;
   def da#i : NVPTXReg<"%da"#i>;
+}
+
+foreach i = 0-31 in {
+  def ENVREG#i : NVPTXReg<"%envreg"#i>;
 }
 
 //===----------------------------------------------------------------------===//
@@ -61,4 +65,5 @@ def Float32ArgRegs : NVPTXRegClass<[f32], 32, (add (sequence "fa%u", 0, 4))>;
 def Float64ArgRegs : NVPTXRegClass<[f64], 64, (add (sequence "da%u", 0, 4))>;
 
 // Read NVPTXRegisterInfo.cpp to see how VRFrame and VRDepot are used.
-def SpecialRegs : NVPTXRegClass<[i32], 32, (add VRFrame, VRDepot)>;
+def SpecialRegs : NVPTXRegClass<[i32], 32, (add VRFrame, VRDepot,
+                                            (sequence "ENVREG%u", 0, 31))>;

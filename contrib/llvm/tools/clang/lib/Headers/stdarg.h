@@ -39,12 +39,14 @@ typedef __builtin_va_list va_list;
  */
 #define __va_copy(d,s) __builtin_va_copy(d,s)
 
-#if __STDC_VERSION__ >= 199900L || __cplusplus >= 201103L || !defined(__STRICT_ANSI__)
+#if __STDC_VERSION__ >= 199901L || __cplusplus >= 201103L || !defined(__STRICT_ANSI__)
 #define va_copy(dest, src)  __builtin_va_copy(dest, src)
 #endif
 
 /* Hack required to make standard headers work, at least on Ubuntu */
+#ifndef __GNUC_VA_LIST
 #define __GNUC_VA_LIST 1
+#endif
 typedef __builtin_va_list __gnuc_va_list;
 
 #endif /* __STDARG_H */

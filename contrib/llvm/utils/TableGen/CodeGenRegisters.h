@@ -15,14 +15,14 @@
 #ifndef CODEGEN_REGISTERS_H
 #define CODEGEN_REGISTERS_H
 
-#include "SetTheory.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SetVector.h"
-#include "llvm/CodeGen/ValueTypes.h"
+#include "llvm/CodeGen/MachineValueType.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/TableGen/Record.h"
+#include "llvm/TableGen/SetTheory.h"
 #include <cstdlib>
 #include <map>
 #include <set>
@@ -71,7 +71,7 @@ namespace llvm {
     // Returns NULL if this and Idx don't compose.
     CodeGenSubRegIndex *compose(CodeGenSubRegIndex *Idx) const {
       CompMap::const_iterator I = Composed.find(Idx);
-      return I == Composed.end() ? 0 : I->second;
+      return I == Composed.end() ? nullptr : I->second;
     }
 
     // Add a composite subreg index: this+A = B.
@@ -90,7 +90,8 @@ namespace llvm {
         B->Offset = Offset + A->Offset;
         B->Size = A->Size;
       }
-      return (Ins.second || Ins.first->second == B) ? 0 : Ins.first->second;
+      return (Ins.second || Ins.first->second == B) ? nullptr
+                                                    : Ins.first->second;
     }
 
     // Update the composite maps of components specified in 'ComposedOf'.
@@ -335,7 +336,7 @@ namespace llvm {
 
     // getSubClasses - Returns a constant BitVector of subclasses indexed by
     // EnumValue.
-    // The SubClasses vector includs an entry for this class.
+    // The SubClasses vector includes an entry for this class.
     const BitVector &getSubClasses() const { return SubClasses; }
 
     // getSuperClasses - Returns a list of super classes ordered by EnumValue.
@@ -373,11 +374,6 @@ namespace llvm {
       const CodeGenRegister::Set *Members;
       unsigned SpillSize;
       unsigned SpillAlignment;
-
-      Key(const Key &O)
-        : Members(O.Members),
-          SpillSize(O.SpillSize),
-          SpillAlignment(O.SpillAlignment) {}
 
       Key(const CodeGenRegister::Set *M, unsigned S = 0, unsigned A = 0)
         : Members(M), SpillSize(S), SpillAlignment(A) {}
@@ -419,7 +415,9 @@ namespace llvm {
     // contain this unit.
     unsigned RegClassUnitSetsIdx;
 
-    RegUnit() : Weight(0), RegClassUnitSetsIdx(0) { Roots[0] = Roots[1] = 0; }
+    RegUnit() : Weight(0), RegClassUnitSetsIdx(0) {
+      Roots[0] = Roots[1] = nullptr;
+    }
 
     ArrayRef<const CodeGenRegister*> getRoots() const {
       assert(!(Roots[1] && !Roots[0]) && "Invalid roots array");
@@ -577,7 +575,7 @@ namespace llvm {
 
     // Create a native register unit that is associated with one or two root
     // registers.
-    unsigned newRegUnit(CodeGenRegister *R0, CodeGenRegister *R1 = 0) {
+    unsigned newRegUnit(CodeGenRegister *R0, CodeGenRegister *R1 = nullptr) {
       RegUnits.resize(RegUnits.size() + 1);
       RegUnits.back().Roots[0] = R0;
       RegUnits.back().Roots[1] = R1;

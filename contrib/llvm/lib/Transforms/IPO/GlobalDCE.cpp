@@ -15,14 +15,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "globaldce"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
+#include "llvm/Transforms/Utils/CtorUtils.h"
 #include "llvm/Pass.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "globaldce"
 
 STATISTIC(NumAliases  , "Number of global aliases removed");
 STATISTIC(NumFunctions, "Number of functions removed");
@@ -38,7 +41,7 @@ namespace {
     // run - Do the GlobalDCE pass on the specified module, optionally updating
     // the specified callgraph to reflect the changes.
     //
-    bool runOnModule(Module &M);
+    bool runOnModule(Module &M) override;
 
   private:
     SmallPtrSet<GlobalValue*, 32> AliveGlobals;
@@ -53,6 +56,15 @@ namespace {
   };
 }
 
+/// Returns true if F contains only a single "ret" instruction.
+static bool isEmptyFunction(Function *F) {
+  BasicBlock &Entry = F->getEntryBlock();
+  if (Entry.size() != 1 || !isa<ReturnInst>(Entry.front()))
+    return false;
+  ReturnInst &RI = cast<ReturnInst>(Entry.front());
+  return RI.getReturnValue() == nullptr;
+}
+
 char GlobalDCE::ID = 0;
 INITIALIZE_PASS(GlobalDCE, "globaldce",
                 "Dead Global Elimination", false, false)
@@ -61,14 +73,23 @@ ModulePass *llvm::createGlobalDCEPass() { return new GlobalDCE(); }
 
 bool GlobalDCE::runOnModule(Module &M) {
   bool Changed = false;
-  
+
+  // Remove empty functions from the global ctors list.
+  Changed |= optimizeGlobalCtorsList(M, isEmptyFunction);
+
+  typedef std::multimap<const Comdat *, GlobalValue *> ComdatGVPairsTy;
+  ComdatGVPairsTy ComdatGVPairs;
+
   // Loop over the module, adding globals which are obviously necessary.
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
     Changed |= RemoveUnusedGlobalValue(*I);
     // Functions with external linkage are needed if they have a body
-    if (!I->isDiscardableIfUnused() &&
-        !I->isDeclaration() && !I->hasAvailableExternallyLinkage())
-      GlobalIsNeeded(I);
+    if (!I->isDeclaration() && !I->hasAvailableExternallyLinkage()) {
+      if (!I->isDiscardableIfUnused())
+        GlobalIsNeeded(I);
+      else if (const Comdat *C = I->getComdat())
+        ComdatGVPairs.insert(std::make_pair(C, I));
+    }
   }
 
   for (Module::global_iterator I = M.global_begin(), E = M.global_end();
@@ -76,17 +97,38 @@ bool GlobalDCE::runOnModule(Module &M) {
     Changed |= RemoveUnusedGlobalValue(*I);
     // Externally visible & appending globals are needed, if they have an
     // initializer.
-    if (!I->isDiscardableIfUnused() &&
-        !I->isDeclaration() && !I->hasAvailableExternallyLinkage())
-      GlobalIsNeeded(I);
+    if (!I->isDeclaration() && !I->hasAvailableExternallyLinkage()) {
+      if (!I->isDiscardableIfUnused())
+        GlobalIsNeeded(I);
+      else if (const Comdat *C = I->getComdat())
+        ComdatGVPairs.insert(std::make_pair(C, I));
+    }
   }
 
   for (Module::alias_iterator I = M.alias_begin(), E = M.alias_end();
        I != E; ++I) {
     Changed |= RemoveUnusedGlobalValue(*I);
     // Externally visible aliases are needed.
-    if (!I->isDiscardableIfUnused())
+    if (!I->isDiscardableIfUnused()) {
       GlobalIsNeeded(I);
+    } else if (const Comdat *C = I->getComdat()) {
+      ComdatGVPairs.insert(std::make_pair(C, I));
+    }
+  }
+
+  for (ComdatGVPairsTy::iterator I = ComdatGVPairs.begin(),
+                                 E = ComdatGVPairs.end();
+       I != E;) {
+    ComdatGVPairsTy::iterator UB = ComdatGVPairs.upper_bound(I->first);
+    bool CanDiscard = std::all_of(I, UB, [](ComdatGVPairsTy::value_type Pair) {
+      return Pair.second->isDiscardableIfUnused();
+    });
+    if (!CanDiscard) {
+      std::for_each(I, UB, [this](ComdatGVPairsTy::value_type Pair) {
+        GlobalIsNeeded(Pair.second);
+      });
+    }
+    I = UB;
   }
 
   // Now that all globals which are needed are in the AliveGlobals set, we loop
@@ -99,7 +141,7 @@ bool GlobalDCE::runOnModule(Module &M) {
        I != E; ++I)
     if (!AliveGlobals.count(I)) {
       DeadGlobalVars.push_back(I);         // Keep track of dead globals
-      I->setInitializer(0);
+      I->setInitializer(nullptr);
     }
 
   // The second pass drops the bodies of functions which are dead...
@@ -117,7 +159,7 @@ bool GlobalDCE::runOnModule(Module &M) {
        ++I)
     if (!AliveGlobals.count(I)) {
       DeadAliases.push_back(I);
-      I->setAliasee(0);
+      I->setAliasee(nullptr);
     }
 
   if (!DeadFunctions.empty()) {

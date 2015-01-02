@@ -11,20 +11,21 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "correlated-value-propagation"
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/LazyValueInfo.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "correlated-value-propagation"
 
 STATISTIC(NumPhis,      "Number of phis propagated");
 STATISTIC(NumSelects,   "Number of selects propagated");
@@ -48,9 +49,9 @@ namespace {
      initializeCorrelatedValuePropagationPass(*PassRegistry::getPassRegistry());
     }
 
-    bool runOnFunction(Function &F);
+    bool runOnFunction(Function &F) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.addRequired<LazyValueInfo>();
     }
   };
@@ -138,7 +139,7 @@ bool CorrelatedValuePropagation::processPHI(PHINode *P) {
 }
 
 bool CorrelatedValuePropagation::processMemAccess(Instruction *I) {
-  Value *Pointer = 0;
+  Value *Pointer = nullptr;
   if (LoadInst *L = dyn_cast<LoadInst>(I))
     Pointer = L->getPointerOperand();
   else
@@ -281,6 +282,9 @@ bool CorrelatedValuePropagation::processSwitch(SwitchInst *SI) {
 }
 
 bool CorrelatedValuePropagation::runOnFunction(Function &F) {
+  if (skipOptnoneFunction(F))
+    return false;
+
   LVI = &getAnalysis<LazyValueInfo>();
 
   bool FnChanged = false;

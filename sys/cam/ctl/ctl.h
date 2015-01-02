@@ -40,7 +40,6 @@
 #ifndef	_CTL_H_
 #define	_CTL_H_
 
-#define	ctl_min(x,y)	(((x) < (y)) ? (x) : (y))
 #define	CTL_RETVAL_COMPLETE	0
 #define	CTL_RETVAL_QUEUED	1
 #define	CTL_RETVAL_ALLOCATED	2

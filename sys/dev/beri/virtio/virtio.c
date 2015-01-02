@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/cdefs.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
@@ -64,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus_subr.h>
 
 #include <dev/beri/virtio/virtio.h>
-#include <dev/virtio/virtio.h>
 #include <dev/virtio/virtqueue.h>
 #include <dev/virtio/virtio_ring.h>
 #include <dev/altera/pio/pio.h>
@@ -156,7 +156,7 @@ vq_getchain(uint32_t offs, struct vqueue_info *vq,
 					break;
 				next = be16toh(vp->next);
 			}
-			paddr_unmap((void *)vindir, be32toh(vdir->len));
+			paddr_unmap(__DEVOLATILE(void *, vindir), be32toh(vdir->len));
 		}
 
 		if ((be16toh(vdir->flags) & VRING_DESC_F_NEXT) == 0)

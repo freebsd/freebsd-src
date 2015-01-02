@@ -10,7 +10,6 @@
 // This file implements the JIT interfaces for the Sparc target.
 //
 //===----------------------------------------------------------------------===//
-#define DEBUG_TYPE "jit"
 #include "SparcJITInfo.h"
 #include "Sparc.h"
 #include "SparcRelocations.h"
@@ -19,6 +18,8 @@
 #include "llvm/Support/Memory.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "jit"
 
 /// JITCompilerFunction - This contains the address of the JIT function used to
 /// compile a function lazily.
@@ -212,7 +213,8 @@ extern "C" void *SparcCompilationCallbackC(intptr_t StubAddr) {
 
 
 void SparcJITInfo::replaceMachineCodeForFunction(void *Old, void *New) {
-  assert(0 && "FIXME: Implement SparcJITInfo::replaceMachineCodeForFunction");
+  llvm_unreachable("FIXME: Implement SparcJITInfo::"
+                   "replaceMachineCodeForFunction");
 }
 
 

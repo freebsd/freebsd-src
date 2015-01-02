@@ -11,16 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "instcount"
 #include "llvm/Analysis/Passes.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/IR/Function.h"
-#include "llvm/InstVisitor.h"
+#include "llvm/IR/InstVisitor.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "instcount"
 
 STATISTIC(TotalInsts , "Number of instructions (of all types)");
 STATISTIC(TotalBlocks, "Number of basic blocks");
@@ -47,7 +48,7 @@ namespace {
 
     void visitInstruction(Instruction &I) {
       errs() << "Instruction Count does not know about " << I;
-      llvm_unreachable(0);
+      llvm_unreachable(nullptr);
     }
   public:
     static char ID; // Pass identification, replacement for typeid
@@ -55,12 +56,12 @@ namespace {
       initializeInstCountPass(*PassRegistry::getPassRegistry());
     }
 
-    virtual bool runOnFunction(Function &F);
+    bool runOnFunction(Function &F) override;
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();
     }
-    virtual void print(raw_ostream &O, const Module *M) const {}
+    void print(raw_ostream &O, const Module *M) const override {}
 
   };
 }
