@@ -118,6 +118,11 @@ CFLAGS+=	${DEBUG_FLAGS}
 CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
 .endif
 
+# Temporary workaround for PR 196407, which contains the fascinating details.
+.if ${MACHINE_CPUARCH} == arm
+CFLAGS.clang+=	-mllvm -arm-use-movt=0
+.endif
+
 .if ${MACHINE_CPUARCH} == powerpc
 CFLAGS+=	-mlongcall -fno-omit-frame-pointer
 .endif
