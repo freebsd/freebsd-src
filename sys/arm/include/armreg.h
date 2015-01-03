@@ -41,6 +41,8 @@
 #ifndef MACHINE_ARMREG_H
 #define MACHINE_ARMREG_H
 
+#include <machine/acle-compat.h>
+
 #define INSN_SIZE	4
 #define INSN_COND_MASK	0xf0000000	/* Condition mask */
 #define PSR_MODE        0x0000001f      /* mode mask */
@@ -351,10 +353,10 @@
 #define	CACHE_UNI_CACHE		4
 
 /* Fault status register definitions */
-
-#define FAULT_TYPE_MASK 0x0f
 #define FAULT_USER      0x10
 
+#if __ARM_ARCH < 6
+#define FAULT_TYPE_MASK 0x0f
 #define FAULT_WRTBUF_0  0x00 /* Vector Exception */
 #define FAULT_WRTBUF_1  0x02 /* Terminal Exception */
 #define FAULT_BUSERR_0  0x04 /* External Abort on Linefetch -- Section */
@@ -377,14 +379,36 @@
 #define	FAULT_EXTERNAL	0x400	/* External abort (armv6+) */
 #define	FAULT_WNR	0x800	/* Write-not-Read access (armv6+) */
 
-/* Fault status register definitions - v6+ */
-#define	FSR_STATUS_TO_IDX(fsr)	(((fsr) & 0xF) | 			\
-				 (((fsr) & (1 << 10)>> (10 - 4))))
-#define	FSR_LPAE		(1 <<  9) /* LPAE indicator */
-#define	FSR_WNR			(1 << 11) /* Write-not-Read access */
-#define	FSR_EXT			(1 << 12) /* DECERR/SLVERR for external*/
-#define	FSR_CM			(1 << 13) /* Cache maintenance fault */
+#else /* __ARM_ARCH < 6 */
 
+#define FAULT_ALIGN		0x001	/* Alignment Fault */
+#define FAULT_DEBUG		0x002	/* Debug Event */
+#define FAULT_ACCESS_L1		0x003	/* Access Bit (L1) */
+#define FAULT_ICACHE		0x004	/* Instruction cache maintenance */
+#define FAULT_TRAN_L1		0x005	/* Translation Fault (L1) */
+#define FAULT_ACCESS_L2		0x006	/* Access Bit (L2) */
+#define FAULT_TRAN_L2		0x007	/* Translation Fault (L2) */
+#define FAULT_EA_PREC		0x008	/* External Abort */
+#define FAULT_DOMAIN_L1		0x009	/* Domain Fault (L1) */
+#define FAULT_DOMAIN_L2		0x00B	/* Domain Fault (L2) */
+#define FAULT_EA_TRAN_L1	0x00C	/* External Translation Abort (L1) */
+#define FAULT_PERM_L1		0x00D	/* Permission Fault (L1) */
+#define FAULT_EA_TRAN_L2	0x00E	/* External Translation Abort (L2) */
+#define FAULT_PERM_L2		0x00F	/* Permission Fault (L2) */
+#define FAULT_TLB_CONFLICT	0x010	/* Permission Fault (L2) */
+#define FAULT_EA_IMPREC		0x016	/* Asynchronous External Abort */
+#define FAULT_PE_IMPREC		0x018	/* Asynchronous Parity Error */
+#define FAULT_PARITY		0x019	/* Parity Error */
+#define FAULT_PE_TRAN_L1	0x01C	/* Parity Error on Translation (L1) */
+#define FAULT_PE_TRAN_L2	0x01E	/* Parity Error on Translation (L2) */
+
+#define FSR_TO_FAULT(fsr)	(((fsr) & 0xF) | 			\
+				 ((((fsr) & (1 << 10)) >> (10 - 4))))
+#define FSR_LPAE		(1 <<  9) /* LPAE indicator */
+#define FSR_WNR			(1 << 11) /* Write-not-Read access */
+#define FSR_EXT			(1 << 12) /* DECERR/SLVERR for external*/
+#define FSR_CM			(1 << 13) /* Cache maintenance fault */
+#endif /* !__ARM_ARCH < 6 */
 
 /*
  * Address of the vector page, low and high versions.
