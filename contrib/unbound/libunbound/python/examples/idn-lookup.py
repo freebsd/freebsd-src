@@ -43,20 +43,20 @@ ctx.resolvconf("/etc/resolv.conf")
 #The unicode IDN string is automatically converted (if necessary)
 status, result = ctx.resolve(u"www.háčkyčárky.cz", unbound.RR_TYPE_A, unbound.RR_CLASS_IN)
 if status == 0 and result.havedata:
-    print "Result:"
-    print "      raw data:", result.data
+    print("Result:")
+    print("      raw data:", result.data)
     for k in result.data.address_list:
-        print "      address:%s" % k
+        print("      address:%s" % k)
 
 status, result = ctx.resolve(u"háčkyčárky.cz", unbound.RR_TYPE_MX, unbound.RR_CLASS_IN)
 if status == 0 and result.havedata:
-    print "Result:"
-    print "      raw data:", result.data
+    print("Result:")
+    print("      raw data:", result.data)
     for k in result.data.mx_list_idn:
-        print "      priority:%d address:%s" % k
+        print("      priority:%d address:%s" % k)
 
 status, result = ctx.resolve(unbound.reverse('217.31.204.66')+'.in-addr.arpa', unbound.RR_TYPE_PTR, unbound.RR_CLASS_IN)
 if status == 0 and result.havedata:
-    print "Result.data:", result.data
+    print("Result.data:", result.data)
     for k in result.data.domain_list_idn:
-        print "      dname:%s" % k
+        print("      dname:%s" % k)

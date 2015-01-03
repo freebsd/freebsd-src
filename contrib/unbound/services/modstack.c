@@ -43,6 +43,7 @@
 #include "services/modstack.h"
 #include "util/module.h"
 #include "util/fptr_wlist.h"
+#include "dns64/dns64.h"
 #include "iterator/iterator.h"
 #include "validator/validator.h"
 
@@ -59,12 +60,12 @@ count_modules(const char* s)
                 return 0;
         while(*s) {
                 /* skip whitespace */
-                while(*s && isspace((int)*s))
+                while(*s && isspace((unsigned char)*s))
                         s++;
-                if(*s && !isspace((int)*s)) {
+                if(*s && !isspace((unsigned char)*s)) {
                         /* skip identifier */
                         num++;
-                        while(*s && !isspace((int)*s))
+                        while(*s && !isspace((unsigned char)*s))
                                 s++;
                 }
         }
@@ -116,6 +117,7 @@ module_list_avail(void)
 {
         /* these are the modules available */
         static const char* names[] = {
+		"dns64",
 #ifdef WITH_PYTHONMODULE
 		"python", 
 #endif
@@ -133,6 +135,7 @@ static fbgetfunctype*
 module_funcs_avail(void)
 {
         static struct module_func_block* (*fb[])(void) = {
+		&dns64_get_funcblock,
 #ifdef WITH_PYTHONMODULE
 		&pythonmod_get_funcblock, 
 #endif
@@ -149,7 +152,7 @@ module_func_block* module_factory(const char** str)
         const char* s = *str;
 	const char** names = module_list_avail();
 	fbgetfunctype* fb = module_funcs_avail();
-        while(*s && isspace((int)*s))
+        while(*s && isspace((unsigned char)*s))
                 s++;
 	while(names[i]) {
                 if(strncmp(names[i], s, strlen(names[i])) == 0) {

@@ -3,27 +3,27 @@ from unbound import ub_ctx, RR_TYPE_A, RR_TYPE_RRSIG, RR_TYPE_NSEC, RR_TYPE_NSEC
 import ldns
 
 def dnssecParse(domain, rrType=RR_TYPE_A):
-    print "Resolving domain", domain
+    print("Resolving domain", domain)
     s, r = resolver.resolve(domain)
-    print "status: %s, secure: %s, rcode: %s, havedata: %s, answer_len; %s" % (s, r.secure, r.rcode_str, r.havedata, r.answer_len)
+    print("status: %s, secure: %s, rcode: %s, havedata: %s, answer_len; %s" % (s, r.secure, r.rcode_str, r.havedata, r.answer_len))
     
     s, pkt = ldns.ldns_wire2pkt(r.packet)
     if s != 0:
         raise RuntimeError("Error parsing DNS packet")
 
     rrsigs = pkt.rr_list_by_type(RR_TYPE_RRSIG, ldns.LDNS_SECTION_ANSWER)
-    print "RRSIGs from answer:", rrsigs
+    print("RRSIGs from answer:", rrsigs)
     
     rrsigs = pkt.rr_list_by_type(RR_TYPE_RRSIG, ldns.LDNS_SECTION_AUTHORITY)
-    print "RRSIGs from authority:", rrsigs
+    print("RRSIGs from authority:", rrsigs)
     
     nsecs = pkt.rr_list_by_type(RR_TYPE_NSEC, ldns.LDNS_SECTION_AUTHORITY)
-    print "NSECs:", nsecs
+    print("NSECs:", nsecs)
     
     nsec3s = pkt.rr_list_by_type(RR_TYPE_NSEC3, ldns.LDNS_SECTION_AUTHORITY)
-    print "NSEC3s:", nsec3s
+    print("NSEC3s:", nsec3s)
     
-    print "---"
+    print("---")
 
 
 resolver = ub_ctx()
