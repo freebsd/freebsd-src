@@ -417,6 +417,37 @@ ar934x_chip_reset_nfc(int active)
 	}
 }
 
+/*
+ * Configure the GPIO output mux setup.
+ *
+ * The AR934x introduced an output mux which allowed
+ * certain functions to be configured on any pin.
+ * Specifically, the switch PHY link LEDs and
+ * WMAC external RX LNA switches are not limited to
+ * a specific GPIO pin.
+ */
+static void
+ar934x_chip_gpio_output_configure(int gpio, uint8_t func)
+{
+	uint32_t reg, s;
+	uint32_t t;
+
+	if (gpio > AR934X_GPIO_COUNT)
+		return;
+
+	reg = AR934X_GPIO_REG_OUT_FUNC0 + 4 * (gpio / 4);
+	s = 8 * (gpio % 4);
+
+	/* read-modify-write */
+	t = ATH_READ_REG(AR71XX_GPIO_BASE + reg);
+	t &= ~(0xff << s);
+	t |= func << s;
+	ATH_WRITE_REG(AR71XX_GPIO_BASE + reg, t);
+
+	/* flush write */
+	ATH_READ_REG(AR71XX_GPIO_BASE + reg);
+}
+
 struct ar71xx_cpu_def ar934x_chip_def = {
 	&ar934x_chip_detect_mem_size,
 	&ar934x_chip_detect_sys_frequency,
@@ -434,4 +465,5 @@ struct ar71xx_cpu_def ar934x_chip_def = {
 	&ar934x_chip_reset_wmac,
 	&ar934x_chip_init_gmac,
 	&ar934x_chip_reset_nfc,
+	&ar934x_chip_gpio_output_configure,
 };
