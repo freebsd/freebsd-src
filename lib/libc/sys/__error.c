@@ -32,14 +32,17 @@ __FBSDID("$FreeBSD$");
 
 extern int errno;
 
-/*
- * Declare a weak reference in case the application is not linked
- * with libpthread.
- */
-__weak_reference(__error_unthreaded, __error);
-
 int *
 __error_unthreaded(void)
 {
 	return(&errno);
+}
+
+int *(*__error_selector)(void) = __error_unthreaded;
+
+int *
+__error(void)
+{
+
+	return (__error_selector());
 }
