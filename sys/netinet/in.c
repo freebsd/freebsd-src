@@ -1012,20 +1012,19 @@ in_lltable_new(struct in_addr addr4, u_int flags)
 	if (lle == NULL)		/* NB: caller generates msg */
 		return NULL;
 
-	lle->base.r_l3addr.addr4 = addr4;
+	lle->r_l3addr.addr4 = addr4;
 
 	/*
 	 * For IPv4 this will trigger "arpresolve" to generate
 	 * an ARP request.
 	 */
-	lle->base.la_expire = time_uptime; /* mark expired */
-	lle->base.lle_refcnt = 1;
-	lle->base.lle_free = in_lltable_free;
-	LLE_LOCK_INIT(&lle->base);
-	callout_init_rw(&lle->base.la_timer, &lle->base.lle_lock,
-	    CALLOUT_RETURNUNLOCKED);
+	lle->la_expire = time_uptime; /* mark expired */
+	lle->lle_refcnt = 1;
+	lle->lle_free = in_lltable_free;
+	LLE_LOCK_INIT(lle);
+	callout_init_rw(&lle->la_timer, &lle->lle_lock, CALLOUT_RETURNUNLOCKED);
 
-	return (&lle->base);
+	return (lle);
 }
 
 #define IN_ARE_MASKED_ADDR_EQUAL(d, a, m)	(			\
