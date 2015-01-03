@@ -7,7 +7,6 @@
  * See LICENSE for the license.
  *
  */
-
 #include "config.h"
 
 #include <ctype.h>
@@ -328,6 +327,27 @@ domain-insecure{COLON}		{ YDVAR(1, VAR_DOMAIN_INSECURE) }
 minimal-responses{COLON}	{ YDVAR(1, VAR_MINIMAL_RESPONSES) }
 rrset-roundrobin{COLON}		{ YDVAR(1, VAR_RRSET_ROUNDROBIN) }
 max-udp-size{COLON}		{ YDVAR(1, VAR_MAX_UDP_SIZE) }
+dns64-prefix{COLON}		{ YDVAR(1, VAR_DNS64_PREFIX) }
+dns64-synthall{COLON}		{ YDVAR(1, VAR_DNS64_SYNTHALL) }
+dnstap{COLON}			{ YDVAR(0, VAR_DNSTAP) }
+dnstap-enable{COLON}		{ YDVAR(1, VAR_DNSTAP_ENABLE) }
+dnstap-socket-path{COLON}	{ YDVAR(1, VAR_DNSTAP_SOCKET_PATH) }
+dnstap-send-identity{COLON}	{ YDVAR(1, VAR_DNSTAP_SEND_IDENTITY) }
+dnstap-send-version{COLON}	{ YDVAR(1, VAR_DNSTAP_SEND_VERSION) }
+dnstap-identity{COLON}		{ YDVAR(1, VAR_DNSTAP_IDENTITY) }
+dnstap-version{COLON}		{ YDVAR(1, VAR_DNSTAP_VERSION) }
+dnstap-log-resolver-query-messages{COLON}	{
+		YDVAR(1, VAR_DNSTAP_LOG_RESOLVER_QUERY_MESSAGES) }
+dnstap-log-resolver-response-messages{COLON}	{
+		YDVAR(1, VAR_DNSTAP_LOG_RESOLVER_RESPONSE_MESSAGES) }
+dnstap-log-client-query-messages{COLON}		{
+		YDVAR(1, VAR_DNSTAP_LOG_CLIENT_QUERY_MESSAGES) }
+dnstap-log-client-response-messages{COLON}	{
+		YDVAR(1, VAR_DNSTAP_LOG_CLIENT_RESPONSE_MESSAGES) }
+dnstap-log-forwarder-query-messages{COLON}	{
+		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_QUERY_MESSAGES) }
+dnstap-log-forwarder-response-messages{COLON}	{
+		YDVAR(1, VAR_DNSTAP_LOG_FORWARDER_RESPONSE_MESSAGES) }
 <INITIAL,val>{NEWLINE}		{ LEXOUT(("NL\n")); cfg_parser->line++; }
 
 	/* Quoted strings. Strip leading and ending quotes */
