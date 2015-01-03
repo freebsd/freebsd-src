@@ -2067,14 +2067,14 @@ in6_lltable_new(const struct in6_addr *addr6, u_int flags)
 	if (lle == NULL)		/* NB: caller generates msg */
 		return NULL;
 
-	lle->base.r_l3addr.addr6 = *addr6;
-	lle->base.lle_refcnt = 1;
-	lle->base.lle_free = in6_lltable_free;
-	LLE_LOCK_INIT(&lle->base);
-	callout_init_rw(&lle->base.ln_timer_ch, &lle->base.lle_lock,
+	lle->r_l3addr.addr6 = *addr6;
+	lle->lle_refcnt = 1;
+	lle->lle_free = in6_lltable_free;
+	LLE_LOCK_INIT(lle);
+	callout_init_rw(&lle->ln_timer_ch, &lle->lle_lock,
 	    CALLOUT_RETURNUNLOCKED);
 
-	return (&lle->base);
+	return (lle);
 }
 
 static int
