@@ -237,19 +237,34 @@ cfiscsi_pdu_update_cmdsn(const struct icl_pdu *request)
 	}
 #endif
 
-	/*
-	 * The target MUST silently ignore any non-immediate command outside
-	 * of this range.
-	 */
-	if (cmdsn < cs->cs_cmdsn || cmdsn > cs->cs_cmdsn + maxcmdsn_delta) {
-		CFISCSI_SESSION_UNLOCK(cs);
-		CFISCSI_SESSION_WARN(cs, "received PDU with CmdSN %d, "
-		    "while expected CmdSN was %d", cmdsn, cs->cs_cmdsn);
-		return (true);
-	}
+	if ((request->ip_bhs->bhs_opcode & ISCSI_BHS_OPCODE_IMMEDIATE) == 0) {
+		/*
+		 * The target MUST silently ignore any non-immediate command
+		 * outside of this range.
+		 */
+		if (ISCSI_SNLT(cmdsn, cs->cs_cmdsn) ||
+		    ISCSI_SNGT(cmdsn, cs->cs_cmdsn + maxcmdsn_delta)) {
+			CFISCSI_SESSION_UNLOCK(cs);
+			CFISCSI_SESSION_WARN(cs, "received PDU with CmdSN %u, "
+			    "while expected %u", cmdsn, cs->cs_cmdsn);
+			return (true);
+		}
 
-	if ((request->ip_bhs->bhs_opcode & ISCSI_BHS_OPCODE_IMMEDIATE) == 0)
+		/*
+		 * We don't support multiple connections now, so any
+		 * discontinuity in CmdSN means lost PDUs.  Since we don't
+		 * support PDU retransmission -- terminate the connection.
+		 */
+		if (cmdsn != cs->cs_cmdsn) {
+			CFISCSI_SESSION_UNLOCK(cs);
+			CFISCSI_SESSION_WARN(cs, "received PDU with CmdSN %u, "
+			    "while expected %u; dropping connection",
+			    cmdsn, cs->cs_cmdsn);
+			cfiscsi_session_terminate(cs);
+			return (true);
+		}
 		cs->cs_cmdsn++;
+	}
 
 	CFISCSI_SESSION_UNLOCK(cs);
 
@@ -895,6 +910,16 @@ cfiscsi_pdu_handle_data_out(struct icl_pdu *request)
 		cfiscsi_session_terminate(cs);
 		return;
 	}
+
+	if (cdw->cdw_datasn != ntohl(bhsdo->bhsdo_datasn)) {
+		CFISCSI_SESSION_WARN(cs, "received Data-Out PDU with "
+		    "DataSN %u, while expected %u; dropping connection",
+		    ntohl(bhsdo->bhsdo_datasn), cdw->cdw_datasn);
+		icl_pdu_free(request);
+		cfiscsi_session_terminate(cs);
+		return;
+	}
+	cdw->cdw_datasn++;
 
 	io = cdw->cdw_ctl_io;
 	KASSERT((io->io_hdr.flags & CTL_FLAG_DATA_MASK) != CTL_FLAG_DATA_IN,
@@ -2654,6 +2679,7 @@ cfiscsi_datamove_out(union ctl_io *io)
 	cdw->cdw_target_transfer_tag = target_transfer_tag;
 	cdw->cdw_initiator_task_tag = bhssc->bhssc_initiator_task_tag;
 	cdw->cdw_r2t_end = io->scsiio.kern_data_len;
+	cdw->cdw_datasn = 0;
 
 	/* Set initial data pointer for the CDW respecting ext_data_filled. */
 	if (io->scsiio.kern_sg_entries > 0) {
