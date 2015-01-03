@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 #include <netinet/in_kdtrace.h>
 #include <net/if_llatbl.h>
+#include <net/if_llatbl_var.h>
 #include <netinet/if_ether.h>
 #include <netinet6/in6_var.h>
 #include <netinet/ip6.h>
@@ -814,6 +815,15 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 
 	return (-1);
 }
+
+
+struct llentry *
+nd6_lookup(struct in6_addr *addr, u_int flags, struct ifnet *ifp)
+{
+
+	return (lltable_lookup_lle(LLTABLE6(ifp), flags, addr));
+}
+
 
 /*
  * Nuke neighbor cache/prefix/default router management table, right before

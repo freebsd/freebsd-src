@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
 #include <net/if_llatbl.h>
+#include <net/if_llatbl_var.h>
 #include <net/route.h>
 
 #include <netinet/if_ether.h>
@@ -397,8 +398,8 @@ toe_lle_event(void *arg __unused, struct llentry *lle, int evt)
 
 	LLE_WLOCK_ASSERT(lle);
 
-	ifp = lle->lle_tbl->llt_ifp;
-	sa_family = lle->lle_tbl->llt_af;
+	ifp = lltable_get_ifp(lle->lle_tbl);
+	sa_family = lltable_get_af(lle->lle_tbl);
 
 #if 0
 	/* XXX: Do not panic, ignore event instead */

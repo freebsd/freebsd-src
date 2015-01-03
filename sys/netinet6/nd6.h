@@ -403,7 +403,9 @@ _check_in6_addr_typecast(const struct in6_addr *paddr)
 #define	lltable_create_lle6(i, f, a)	\
 	lltable_create_lle(LLTABLE6(i), (f), _check_in6_addr_typecast(a))
 
-#define	nd6_lookup(a, f, i)	lltable_lookup_lle6((i), (f), (a))
+struct llentry *nd6_lookup(struct in6_addr *addr, u_int flags,
+    struct ifnet *ifp);
+
 #define	ND6_EXCLUSIVE		LLE_EXCLUSIVE
 
 

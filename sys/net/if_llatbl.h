@@ -24,7 +24,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #ifndef	_NET_IF_LLATBL_H_
@@ -34,19 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in.h>
 
 struct ifnet;
-struct sysctl_req;
-struct rt_msghdr;
-struct rt_addrinfo;
-
 struct llentry;
 LIST_HEAD(llentries, llentry);
-
-extern struct rwlock lltable_rwlock;
-#define	LLTABLE_RLOCK()		rw_rlock(&lltable_rwlock)
-#define	LLTABLE_RUNLOCK()	rw_runlock(&lltable_rwlock)
-#define	LLTABLE_WLOCK()		rw_wlock(&lltable_rwlock)
-#define	LLTABLE_WUNLOCK()	rw_wunlock(&lltable_rwlock)
-#define	LLTABLE_LOCK_ASSERT()	rw_assert(&lltable_rwlock, RA_LOCKED)
 
 struct llentry {
 	/* FIELDS PROTECTED BY IFDATA LOCK */
@@ -88,7 +76,6 @@ struct llentry {
 		struct callout	ln_timer_ch;
 		struct callout  la_timer;
 	} lle_timer;
-	/* NB: struct sockaddr must immediately follow */
 };
 
 #define	LLE_WLOCK(lle)		rw_wlock(&(lle)->lle_lock)
@@ -135,62 +122,6 @@ struct llentry {
 #define	ln_timer_ch	lle_timer.ln_timer_ch
 #define	la_timer	lle_timer.la_timer
 
-#ifndef LLTBL_HASHTBL_SIZE
-#define	LLTBL_HASHTBL_SIZE	32	/* default 32 ? */
-#endif
-
-#ifndef LLTBL_HASHMASK
-#define	LLTBL_HASHMASK	(LLTBL_HASHTBL_SIZE - 1)
-#endif
-
-typedef	struct llentry *(llt_lookup_t)(struct lltable *, u_int flags,
-    const void *paddr);
-typedef	struct llentry *(llt_create_t)(struct lltable *, u_int flags,
-    const void *paddr);
-typedef	int (llt_delete_addr_t)(struct lltable *, u_int flags,
-    const struct sockaddr *l3addr);
-typedef int (llt_dump_entry_t)(struct lltable *, struct llentry *,
-    struct sysctl_req *);
-typedef uint32_t (llt_hash_t)(const struct llentry *);
-typedef int (llt_match_prefix_t)(const struct sockaddr *,
-    const struct sockaddr *, u_int, struct llentry *);
-typedef void (llt_clear_entry_t)(struct lltable *, struct llentry *);
-typedef void (llt_free_tbl_t)(struct lltable *);
-typedef void (llt_link_entry_t)(struct lltable *, struct llentry *);
-typedef void (llt_unlink_entry_t)(struct llentry *);
-typedef int (llt_prepare_sentry_t)(struct lltable *, struct llentry *,
-    struct rt_addrinfo *);
-typedef const void *(llt_get_sa_addr_t)(const struct sockaddr *l3addr);
-typedef void (llt_fill_sa_entry_t)(const struct llentry *, struct sockaddr *);
-
-typedef int (llt_foreach_cb_t)(struct lltable *, struct llentry *, void *);
-typedef int (llt_foreach_entry_t)(struct lltable *, llt_foreach_cb_t *, void *);
-
-
-struct lltable {
-	SLIST_ENTRY(lltable)	llt_link;
-	struct llentries	lle_head[LLTBL_HASHTBL_SIZE];
-	int			llt_af;
-	struct ifnet		*llt_ifp;
-
-	llt_lookup_t		*llt_lookup;
-	llt_create_t		*llt_create;
-	llt_delete_addr_t	*llt_delete_addr;
-	llt_dump_entry_t	*llt_dump_entry;
-	llt_hash_t		*llt_hash;
-	llt_match_prefix_t	*llt_match_prefix;
-	llt_clear_entry_t	*llt_clear_entry;
-	llt_foreach_entry_t	*llt_foreach_entry;
-	llt_link_entry_t	*llt_link_entry;
-	llt_unlink_entry_t	*llt_unlink_entry;
-	llt_prepare_sentry_t	*llt_prepare_static_entry;
-	llt_get_sa_addr_t	*llt_get_sa_addr;
-	llt_fill_sa_entry_t	*llt_fill_sa_entry;
-	llt_free_tbl_t		*llt_free_tbl;
-};
-
-MALLOC_DECLARE(M_LLTABLE);
-
 /*
  * LLE flags used by fast path code
  */
@@ -210,77 +141,6 @@ MALLOC_DECLARE(M_LLTABLE);
 #define	LLE_UNLOCKED	0x0100	/* return lle unlocked  */
 #define	LLE_EXCLUSIVE	0x0200	/* return lle wlocked  */
 
-#define LLATBL_HASH(key, mask) \
-	(((((((key >> 8) ^ key) >> 8) ^ key) >> 8) ^ key) & mask)
-
-void		lltable_link(struct lltable *);
-void		lltable_free(struct lltable *);
-void		lltable_prefix_free(int, struct sockaddr *,
-		    struct sockaddr *, u_int);
-#if 0
-void		lltable_drain(int);
-#endif
-int		lltable_sysctl_dumparp(int, struct sysctl_req *);
-
-struct llentry  *llentry_alloc(struct ifnet *, struct lltable *,
-		    struct sockaddr_storage *);
-
-/* helper functions */
-size_t		lltable_drop_entry_queue(struct llentry *);
-
-/*
- * Generic link layer address lookup function.
- */
-static __inline struct llentry *
-lltable_lookup_lle(struct lltable *llt, u_int flags,
-    const void *paddr)
-{
-
-	return (llt->llt_lookup(llt, flags, paddr));
-}
-
-static __inline struct llentry *
-lltable_create_lle(struct lltable *llt, u_int flags,
-    const void *paddr)
-{
-
-	return (llt->llt_create(llt, flags, paddr));
-}
-
-static __inline int
-lltable_delete_addr(struct lltable *llt, u_int flags,
-    const struct sockaddr *l3addr)
-{
-
-	return llt->llt_delete_addr(llt, flags, l3addr);
-}
-
-static __inline void
-lltable_link_entry(struct lltable *llt, struct llentry *lle)
-{
-
-	llt->llt_link_entry(llt, lle);
-}
-
-static __inline void
-lltable_unlink_entry(struct lltable *llt, struct llentry *lle)
-{
-
-	llt->llt_unlink_entry(lle);
-}
-
-static __inline void
-lltable_fill_sa_entry(const struct llentry *lle, struct sockaddr *sa)
-{
-	struct lltable *llt;
-
-	llt = lle->lle_tbl;
-
-	llt->llt_fill_sa_entry(lle, sa);
-}
-
-int		lla_rt_output(struct rt_msghdr *, struct rt_addrinfo *);
-
 #include <sys/eventhandler.h>
 enum {
 	LLENTRY_RESOLVED,
@@ -290,4 +150,21 @@ enum {
 };
 typedef void (*lle_event_fn)(void *, struct llentry *, int);
 EVENTHANDLER_DECLARE(lle_event, lle_event_fn);
+
+struct sysctl_req;
+struct rt_msghdr;
+struct rt_addrinfo;
+int lltable_sysctl_dumparp(int af, struct sysctl_req *wr);
+int lla_rt_output(struct rt_msghdr *, struct rt_addrinfo *);
+
+void lltable_fill_sa_entry(const struct llentry *lle, struct sockaddr *sa);
+void lltable_prefix_free(int af, struct sockaddr *prefix, struct sockaddr *mask,
+    u_int flags);
+struct ifnet *lltable_get_ifp(const struct lltable *llt);
+int lltable_get_af(const struct lltable *llt);
+
+/* XXX: Remove after converting flowtable */
+struct llentry *llentry_alloc(struct ifnet *ifp, struct lltable *lt,
+    struct sockaddr_storage *dst);
+
 #endif  /* _NET_IF_LLATBL_H_ */
