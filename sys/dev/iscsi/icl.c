@@ -193,7 +193,7 @@ icl_pdu_free(struct icl_pdu *ip)
  * Allocate icl_pdu with empty BHS to fill up by the caller.
  */
 struct icl_pdu *
-icl_pdu_new_bhs(struct icl_conn *ic, int flags)
+icl_pdu_new(struct icl_conn *ic, int flags)
 {
 	struct icl_pdu *ip;
 
