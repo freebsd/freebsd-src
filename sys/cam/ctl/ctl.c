@@ -9601,6 +9601,7 @@ ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len)
 	struct scsi_vpd_supported_pages *pages;
 	int sup_page_size;
 	struct ctl_lun *lun;
+	int p;
 
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
@@ -9634,27 +9635,30 @@ ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len)
 	else
 		pages->device = (SID_QUAL_LU_OFFLINE << 5) | T_DIRECT;
 
-	pages->length = SCSI_EVPD_NUM_SUPPORTED_PAGES;
+	p = 0;
 	/* Supported VPD pages */
-	pages->page_list[0] = SVPD_SUPPORTED_PAGES;
+	pages->page_list[p++] = SVPD_SUPPORTED_PAGES;
 	/* Serial Number */
-	pages->page_list[1] = SVPD_UNIT_SERIAL_NUMBER;
+	pages->page_list[p++] = SVPD_UNIT_SERIAL_NUMBER;
 	/* Device Identification */
-	pages->page_list[2] = SVPD_DEVICE_ID;
+	pages->page_list[p++] = SVPD_DEVICE_ID;
 	/* Extended INQUIRY Data */
-	pages->page_list[3] = SVPD_EXTENDED_INQUIRY_DATA;
+	pages->page_list[p++] = SVPD_EXTENDED_INQUIRY_DATA;
 	/* Mode Page Policy */
-	pages->page_list[4] = SVPD_MODE_PAGE_POLICY;
+	pages->page_list[p++] = SVPD_MODE_PAGE_POLICY;
 	/* SCSI Ports */
-	pages->page_list[5] = SVPD_SCSI_PORTS;
+	pages->page_list[p++] = SVPD_SCSI_PORTS;
 	/* Third-party Copy */
-	pages->page_list[6] = SVPD_SCSI_TPC;
-	/* Block limits */
-	pages->page_list[7] = SVPD_BLOCK_LIMITS;
-	/* Block Device Characteristics */
-	pages->page_list[8] = SVPD_BDC;
-	/* Logical Block Provisioning */
-	pages->page_list[9] = SVPD_LBP;
+	pages->page_list[p++] = SVPD_SCSI_TPC;
+	if (lun != NULL && lun->be_lun->lun_type == T_DIRECT) {
+		/* Block limits */
+		pages->page_list[p++] = SVPD_BLOCK_LIMITS;
+		/* Block Device Characteristics */
+		pages->page_list[p++] = SVPD_BDC;
+		/* Logical Block Provisioning */
+		pages->page_list[p++] = SVPD_LBP;
+	}
+	pages->length = p;
 
 	ctl_set_success(ctsio);
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
@@ -10236,13 +10240,12 @@ ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len)
 static int
 ctl_inquiry_evpd(struct ctl_scsiio *ctsio)
 {
+	struct ctl_lun *lun;
 	struct scsi_inquiry *cdb;
 	int alloc_len, retval;
 
+	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 	cdb = (struct scsi_inquiry *)ctsio->cdb;
-
-	retval = CTL_RETVAL_COMPLETE;
-
 	alloc_len = scsi_2btoul(cdb->length);
 
 	switch (cdb->page_code) {
@@ -10268,15 +10271,22 @@ ctl_inquiry_evpd(struct ctl_scsiio *ctsio)
 		retval = ctl_inquiry_evpd_tpc(ctsio, alloc_len);
 		break;
 	case SVPD_BLOCK_LIMITS:
+		if (lun == NULL || lun->be_lun->lun_type != T_DIRECT)
+			goto err;
 		retval = ctl_inquiry_evpd_block_limits(ctsio, alloc_len);
 		break;
 	case SVPD_BDC:
+		if (lun == NULL || lun->be_lun->lun_type != T_DIRECT)
+			goto err;
 		retval = ctl_inquiry_evpd_bdc(ctsio, alloc_len);
 		break;
 	case SVPD_LBP:
+		if (lun == NULL || lun->be_lun->lun_type != T_DIRECT)
+			goto err;
 		retval = ctl_inquiry_evpd_lbp(ctsio, alloc_len);
 		break;
 	default:
+err:
 		ctl_set_invalid_field(ctsio,
 				      /*sks_valid*/ 1,
 				      /*command*/ 1,
