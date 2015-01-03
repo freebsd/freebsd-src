@@ -59,6 +59,11 @@ struct local_zones;
 struct ub_randstate;
 struct daemon_remote;
 
+#include "dnstap/dnstap_config.h"
+#ifdef USE_DNSTAP
+struct dt_env;
+#endif
+
 /**
  * Structure holding worker list.
  * Holds globally visible information.
@@ -77,6 +82,8 @@ struct daemon {
 	struct listen_port** ports;
 	/** size of ports array */
 	size_t num_ports;
+	/** reuseport is enabled if true */
+	int reuseport;
 	/** port number for remote that has ports opened. */
 	int rc_port;
 	/** listening ports for remote control */
@@ -107,6 +114,10 @@ struct daemon {
 	struct timeval time_last_stat;
 	/** time when daemon started */
 	struct timeval time_boot;
+#ifdef USE_DNSTAP
+	/** the dnstap environment master value, copied and changed by threads*/
+	struct dt_env* dtenv;
+#endif
 };
 
 /**
