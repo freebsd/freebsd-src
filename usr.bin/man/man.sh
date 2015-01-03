@@ -311,7 +311,7 @@ man_display_page() {
 		return
 	fi
 
-	testline="mandoc -Tlint -Werror 2>/dev/null"
+	testline="mandoc -Tlint -Wfatal 2>/dev/null"
 	pipeline="mandoc | $MANPAGER"
 
 	if ! eval "$cattool $manpage | $testline" ;then
