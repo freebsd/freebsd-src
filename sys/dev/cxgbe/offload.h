@@ -147,6 +147,7 @@ struct tom_tunables {
 	int indsz;
 	int ddp_thres;
 	int rx_coalesce;
+	int tx_align;
 };
 
 int t4_register_uld(struct uld_info *);
