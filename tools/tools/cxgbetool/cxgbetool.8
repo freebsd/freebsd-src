@@ -1,4 +1,4 @@
-." Copyright (c) 2015, Chelsio Inc
+.\" Copyright (c) 2015, Chelsio Inc
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -93,7 +93,7 @@ The rest consists of a command and any parameters required by that command.
 .It Cm clearstats Ar port_id
 Clear all transmit, receive, and error statistics of all queues associated
 with a port.
-The total number of ports attached to a nexus is listed in 
+The total number of ports attached to a nexus is listed in
 .Va dev.t4nex.%d.nports
 and the 0 based
 .Ar port_id
@@ -407,7 +407,6 @@ Class Weighted Round Robin.
 .It Sy cl-wrr
 Channel Rate Limiting.
 .El
-.Pp
 .It Sy mode Ar scheduler-mode
 The mode in which the scheduling class is going to operate:
 .Pp
@@ -425,7 +424,6 @@ mode, all of the "flows" bound to the class would be  limited  to  an
 aggregate bandwidth of 10Mb/s; but in
 .Cm flow
 mode, each of the "flows" bound to the scheduling class would be limited to 10Mb/s.
-.Pp
 .It Sy rate-unit Ar scheduler-rate-unit
 The units of the scheduler rate constraints:
 .Pp
@@ -446,19 +444,14 @@ percent of port rate.
 .It Sy absolute
 Kb/s.
 .El
-.Pp
 .It Sy channel Ar scheduler-channel-index
 The scheduling channel to which the scheduling class will be bound.
-.Pp
 .It Sy class Ar scheduler-class-index
 The scheduling class being programmed.
-.Pp
 .It Sy min-rate Ar minimum-rate
 The minimum guaranteed rate to which a rate-limiting scheduling class hierarchy will have access.
-.Pp
 .It Sy max-rate Ar maximum-rate
 The maximum rate for a rate-limiting scheduling class hierarchy.
-.Pp
 .It Sy weight Ar round-robin-weight
 The weight to be used for a weighted-round-robin scheduling hierarchy.
 .It Sy pkt-size Ar average-packet-size
