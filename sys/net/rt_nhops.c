@@ -74,6 +74,7 @@
 #include <netinet6/scope6_var.h>
 
 #include <net/if_llatbl.h>
+#include <net/if_llatbl_var.h>
 
 #include <net/if_types.h>
 #include <netinet/if_ether.h>

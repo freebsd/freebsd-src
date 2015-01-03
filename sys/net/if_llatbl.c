@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 #include <net/if_llatbl.h>
+#include <net/if_llatbl_var.h>
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_var.h>
@@ -430,6 +431,64 @@ lltable_unlink(struct lltable *llt)
 	SLIST_REMOVE(&V_lltables, llt, lltable, llt_link);
 	LLTABLE_WUNLOCK();
 
+}
+
+/*
+ * External methods used by lltable consumers
+ */
+
+struct llentry *
+lltable_create_lle(struct lltable *llt, u_int flags,
+    const void *paddr)
+{
+
+	return (llt->llt_create(llt, flags, paddr));
+}
+
+int
+lltable_delete_addr(struct lltable *llt, u_int flags,
+    const struct sockaddr *l3addr)
+{
+
+	return llt->llt_delete_addr(llt, flags, l3addr);
+}
+
+void
+lltable_link_entry(struct lltable *llt, struct llentry *lle)
+{
+
+	llt->llt_link_entry(llt, lle);
+}
+
+void
+lltable_unlink_entry(struct lltable *llt, struct llentry *lle)
+{
+
+	llt->llt_unlink_entry(lle);
+}
+
+void
+lltable_fill_sa_entry(const struct llentry *lle, struct sockaddr *sa)
+{
+	struct lltable *llt;
+
+	llt = lle->lle_tbl;
+
+	llt->llt_fill_sa_entry(lle, sa);
+}
+
+struct ifnet *
+lltable_get_ifp(const struct lltable *llt)
+{
+
+	return (llt->llt_ifp);
+}
+
+int
+lltable_get_af(const struct lltable *llt)
+{
+
+	return (llt->llt_af);
 }
 
 /*
