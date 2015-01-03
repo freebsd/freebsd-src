@@ -1138,50 +1138,6 @@ in_lltable_find_dst(struct lltable *llt, struct in_addr dst)
 	return (lle);
 }
 
-static int
-in_lltable_delete(struct lltable *llt, u_int flags,
-    const struct sockaddr *l3addr)
-{
-	const struct sockaddr_in *sin = (const struct sockaddr_in *)l3addr;
-	struct ifnet *ifp = llt->llt_ifp;
-	struct llentry *lle;
-
-	IF_AFDATA_CFG_UNLOCK_ASSERT(ifp);
-	KASSERT(l3addr->sa_family == AF_INET,
-	    ("sin_family %d", l3addr->sa_family));
-
-	IF_AFDATA_CFG_WLOCK(ifp);
-	lle = in_lltable_find_dst(llt, sin->sin_addr);
-	if (lle == NULL) {
-		IF_AFDATA_CFG_WUNLOCK(ifp);
-#ifdef DIAGNOSTIC
-		log(LOG_INFO, "interface address is missing from cache = %p\n",
-		    lle);
-#endif
-		return (ENOENT);
-	}
-
-	/* Skipping LLE_IFADDR record */
-	if ((lle->la_flags & LLE_IFADDR) != 0 && (flags & LLE_IFADDR) == 0) {
-		IF_AFDATA_CFG_WUNLOCK(ifp);
-		return (0);
-	}
-
-	LLE_WLOCK(lle);
-	IF_AFDATA_RUN_WLOCK(ifp);
-	lltable_unlink_entry(llt, lle);
-	IF_AFDATA_RUN_WUNLOCK(ifp);
-	IF_AFDATA_CFG_WUNLOCK(ifp);
-
-	EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
-#ifdef DIAGNOSTIC
-		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
-#endif
-	llt->llt_clear_entry(llt, lle);
-
-	return (0);
-}
-
 static struct llentry *
 in_lltable_create(struct lltable *llt, u_int flags, const void *paddr)
 {
@@ -1315,7 +1271,6 @@ in_domifattach(struct ifnet *ifp)
 
 	llt->llt_lookup = in_lltable_lookup;
 	llt->llt_create = in_lltable_create;
-	llt->llt_delete_addr = in_lltable_delete;
 	llt->llt_dump_entry = in_lltable_dump_entry;
 	llt->llt_hash = in_lltable_hash;
 	llt->llt_get_sa_addr = in_lltable_get_sa_addr;

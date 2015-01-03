@@ -445,14 +445,6 @@ lltable_create_lle(struct lltable *llt, u_int flags,
 	return (llt->llt_create(llt, flags, paddr));
 }
 
-int
-lltable_delete_addr(struct lltable *llt, u_int flags,
-    const struct sockaddr *l3addr)
-{
-
-	return llt->llt_delete_addr(llt, flags, l3addr);
-}
-
 void
 lltable_link_entry(struct lltable *llt, struct llentry *lle)
 {
@@ -581,8 +573,34 @@ lla_rt_output(struct rt_msghdr *rtm, struct rt_addrinfo *info)
 		break;
 
 	case RTM_DELETE:
-		error = lltable_delete_addr(llt, 0, dst);
-		return (error == 0 ? 0 : ENOENT);
+		l3addr = llt->llt_get_sa_addr(dst);
+
+		IF_AFDATA_CFG_WLOCK(ifp);
+		lle = lltable_lookup_lle(llt, LLE_UNLOCKED, l3addr);
+
+		if (lle == NULL) {
+			IF_AFDATA_CFG_WUNLOCK(ifp);
+			return (ENOENT);
+		}
+
+		/* Skipping LLE_IFADDR record */
+		if ((lle->la_flags & LLE_IFADDR) != 0) {
+			IF_AFDATA_CFG_WUNLOCK(ifp);
+			return (0);
+		}
+
+		LLE_WLOCK(lle);
+		IF_AFDATA_RUN_WLOCK(ifp);
+		lltable_unlink_entry(llt, lle);
+		IF_AFDATA_RUN_WUNLOCK(ifp);
+		IF_AFDATA_CFG_WUNLOCK(ifp);
+
+#ifdef DIAGNOSTIC
+		log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
+#endif
+		EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
+		llt->llt_clear_entry(llt, lle);
+		break;
 
 	default:
 		error = EINVAL;

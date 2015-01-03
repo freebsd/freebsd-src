@@ -2185,49 +2185,6 @@ in6_lltable_find_dst(struct lltable *llt, const struct in6_addr *dst)
 	return (lle);
 }
 
-static int
-in6_lltable_delete(struct lltable *llt, u_int flags,
-	const struct sockaddr *l3addr)
-{
-	const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)l3addr;
-	struct ifnet *ifp;
-	struct llentry *lle;
-
-	ifp = llt->llt_ifp;
-
-	IF_AFDATA_CFG_UNLOCK_ASSERT(ifp);
-	KASSERT(l3addr->sa_family == AF_INET6,
-	    ("sin_family %d", l3addr->sa_family));
-
-	IF_AFDATA_CFG_WLOCK(ifp);
-	lle = in6_lltable_find_dst(llt, &sin6->sin6_addr);
-
-	if (lle == NULL) {
-		IF_AFDATA_CFG_WUNLOCK(ifp);
-		return (ENOENT);
-	}
-
-	/* Skipping LLE_IFADDR record */
-	if ((lle->la_flags & LLE_IFADDR) != 0 && (flags & LLE_IFADDR) == 0) {
-		IF_AFDATA_CFG_WUNLOCK(ifp);
-		return (0);
-	}
-
-	LLE_WLOCK(lle);
-	IF_AFDATA_RUN_WLOCK(ifp);
-	lltable_unlink_entry(llt, lle);
-	IF_AFDATA_RUN_WUNLOCK(ifp);
-	IF_AFDATA_CFG_WUNLOCK(ifp);
-
-#ifdef DIAGNOSTIC
-	log(LOG_INFO, "ifaddr cache = %p is deleted\n", lle);
-#endif
-	EVENTHANDLER_INVOKE(lle_event, lle, LLENTRY_DELETED);
-	llt->llt_clear_entry(llt, lle);
-	
-	return (0);
-}
-
 static struct llentry *
 in6_lltable_create(struct lltable *llt, u_int flags,
 	const void *paddr)
@@ -2389,7 +2346,6 @@ in6_domifattach(struct ifnet *ifp)
 
 	llt->llt_lookup = in6_lltable_lookup;
 	llt->llt_create = in6_lltable_create;
-	llt->llt_delete_addr = in6_lltable_delete;
 	llt->llt_dump_entry = in6_lltable_dump_entry;
 	llt->llt_hash = in6_lltable_hash;
 	llt->llt_get_sa_addr = in6_lltable_get_sa_addr;
