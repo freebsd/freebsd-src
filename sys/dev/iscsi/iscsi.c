@@ -274,7 +274,7 @@ iscsi_session_logout(struct iscsi_session *is)
 	struct icl_pdu *request;
 	struct iscsi_bhs_logout_request *bhslr;
 
-	request = icl_pdu_new_bhs(is->is_conn, M_NOWAIT);
+	request = icl_pdu_new(is->is_conn, M_NOWAIT);
 	if (request == NULL)
 		return;
 
@@ -593,7 +593,7 @@ iscsi_callout(void *context)
 	if (is->is_timeout < 2)
 		return;
 
-	request = icl_pdu_new_bhs(is->is_conn, M_NOWAIT);
+	request = icl_pdu_new(is->is_conn, M_NOWAIT);
 	if (request == NULL) {
 		ISCSI_SESSION_WARN(is, "failed to allocate PDU");
 		return;
@@ -811,7 +811,7 @@ iscsi_pdu_handle_nop_in(struct icl_pdu *response)
 		icl_pdu_get_data(response, 0, data, datasize);
 	}
 
-	request = icl_pdu_new_bhs(response->ip_conn, M_NOWAIT);
+	request = icl_pdu_new(response->ip_conn, M_NOWAIT);
 	if (request == NULL) {
 		ISCSI_SESSION_WARN(is, "failed to allocate memory; "
 		    "reconnecting");
@@ -1179,7 +1179,7 @@ iscsi_pdu_handle_r2t(struct icl_pdu *response)
 			return;
 		}
 
-		request = icl_pdu_new_bhs(response->ip_conn, M_NOWAIT);
+		request = icl_pdu_new(response->ip_conn, M_NOWAIT);
 		if (request == NULL) {
 			icl_pdu_free(response);
 			iscsi_session_reconnect(is);
@@ -1583,7 +1583,7 @@ iscsi_ioctl_daemon_send(struct iscsi_softc *sc,
 		}
 	}
 
-	ip = icl_pdu_new_bhs(is->is_conn, M_WAITOK);
+	ip = icl_pdu_new(is->is_conn, M_WAITOK);
 	memcpy(ip->ip_bhs, ids->ids_bhs, sizeof(*ip->ip_bhs));
 	if (datalen > 0) {
 		error = icl_pdu_append_data(ip, data, datalen, M_WAITOK);
@@ -2067,7 +2067,7 @@ iscsi_action_abort(struct iscsi_session *is, union ccb *ccb)
 		return;
 	}
 
-	request = icl_pdu_new_bhs(is->is_conn, M_NOWAIT);
+	request = icl_pdu_new(is->is_conn, M_NOWAIT);
 	if (request == NULL) {
 		ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 		xpt_done(ccb);
@@ -2121,7 +2121,7 @@ iscsi_action_scsiio(struct iscsi_session *is, union ccb *ccb)
 	}
 #endif
 
-	request = icl_pdu_new_bhs(is->is_conn, M_NOWAIT);
+	request = icl_pdu_new(is->is_conn, M_NOWAIT);
 	if (request == NULL) {
 		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
 			xpt_freeze_devq(ccb->ccb_h.path, 1);

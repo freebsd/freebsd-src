@@ -191,7 +191,7 @@ static struct icl_pdu *
 cfiscsi_pdu_new_response(struct icl_pdu *request, int flags)
 {
 
-	return (icl_pdu_new_bhs(request->ip_conn, flags));
+	return (icl_pdu_new(request->ip_conn, flags));
 }
 
 static bool
@@ -1057,7 +1057,7 @@ cfiscsi_callout(void *context)
 	if (cs->cs_timeout < 2)
 		return;
 
-	cp = icl_pdu_new_bhs(cs->cs_conn, M_NOWAIT);
+	cp = icl_pdu_new(cs->cs_conn, M_NOWAIT);
 	if (cp == NULL) {
 		CFISCSI_SESSION_WARN(cs, "failed to allocate memory");
 		return;
@@ -1672,7 +1672,7 @@ cfiscsi_ioctl_terminate(struct ctl_iscsi *ci)
 		    strcmp(cs->cs_initiator_addr, citp->initiator_addr) != 0)
 			continue;
 
-		response = icl_pdu_new_bhs(cs->cs_conn, M_NOWAIT);
+		response = icl_pdu_new(cs->cs_conn, M_NOWAIT);
 		if (response == NULL) {
 			/*
 			 * Oh well.  Just terminate the connection.
@@ -1722,7 +1722,7 @@ cfiscsi_ioctl_logout(struct ctl_iscsi *ci)
 		    strcmp(cs->cs_initiator_addr, cilp->initiator_addr) != 0)
 			continue;
 
-		response = icl_pdu_new_bhs(cs->cs_conn, M_NOWAIT);
+		response = icl_pdu_new(cs->cs_conn, M_NOWAIT);
 		if (response == NULL) {
 			ci->status = CTL_ISCSI_ERROR;
 			snprintf(ci->error_str, sizeof(ci->error_str),
@@ -1892,7 +1892,7 @@ cfiscsi_ioctl_send(struct ctl_iscsi *ci)
 		}
 	}
 
-	ip = icl_pdu_new_bhs(cs->cs_conn, M_WAITOK);
+	ip = icl_pdu_new(cs->cs_conn, M_WAITOK);
 	memcpy(ip->ip_bhs, cisp->bhs, sizeof(*ip->ip_bhs));
 	if (datalen > 0) {
 		icl_pdu_append_data(ip, data, datalen, M_WAITOK);
