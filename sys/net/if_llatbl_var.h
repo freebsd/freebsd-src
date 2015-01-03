@@ -50,8 +50,6 @@ typedef	struct llentry *(llt_lookup_t)(struct lltable *, u_int flags,
     const void *paddr);
 typedef	struct llentry *(llt_create_t)(struct lltable *, u_int flags,
     const void *paddr);
-typedef	int (llt_delete_addr_t)(struct lltable *, u_int flags,
-    const struct sockaddr *l3addr);
 typedef int (llt_dump_entry_t)(struct lltable *, struct llentry *,
     struct sysctl_req *);
 typedef uint32_t (llt_hash_t)(const struct llentry *);
@@ -78,7 +76,6 @@ struct lltable {
 
 	llt_lookup_t		*llt_lookup;
 	llt_create_t		*llt_create;
-	llt_delete_addr_t	*llt_delete_addr;
 	llt_dump_entry_t	*llt_dump_entry;
 	llt_hash_t		*llt_hash;
 	llt_match_prefix_t	*llt_match_prefix;
@@ -114,8 +111,6 @@ lltable_lookup_lle(struct lltable *llt, u_int flags,
 
 struct llentry *lltable_create_lle(struct lltable *llt, u_int flags,
     const void *paddr);
-int lltable_delete_addr(struct lltable *llt, u_int flags,
-    const struct sockaddr *l3addr);
 void lltable_link_entry(struct lltable *llt, struct llentry *lle);
 void lltable_unlink_entry(struct lltable *llt, struct llentry *lle);
 
