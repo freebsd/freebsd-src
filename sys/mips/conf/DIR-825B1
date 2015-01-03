@@ -61,7 +61,7 @@ options 	AR71XX_REALMEM=64*1024*1024
 
 options 	AR71XX_ENV_UBOOT
 
-options 	MSDOSFS			# Read MSDOS filesystems; useful for USB/CF
+# options 	MSDOSFS			# Read MSDOS filesystems; useful for USB/CF
 
 # options 	MD_ROOT
 # options 	MD_ROOT_SIZE="6144"
