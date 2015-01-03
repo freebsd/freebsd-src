@@ -47,6 +47,7 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 
+#include <machine/altivec.h>
 #include <machine/cpu.h>
 #include <machine/elf.h>
 #include <machine/reg.h>
@@ -147,9 +148,24 @@ SYSINIT(oelf32, SI_SUB_EXEC, SI_ORDER_ANY,
 	&freebsd_brand_oinfo);
 
 void
-elf32_dump_thread(struct thread *td __unused, void *dst __unused,
-    size_t *off __unused)
+elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 {
+	size_t len;
+	struct pcb *pcb;
+
+	len = 0;
+	pcb = td->td_pcb;
+	if (pcb->pcb_flags & PCB_VEC) {
+		save_vec_nodrop(td);
+		if (dst != NULL) {
+			len += elf32_populate_note(NT_PPC_VMX,
+			    &pcb->pcb_vec, dst,
+			    sizeof(pcb->pcb_vec), NULL);
+		} else
+			len += elf32_populate_note(NT_PPC_VMX, NULL, NULL,
+			    sizeof(pcb->pcb_vec), NULL);
+	}
+	*off = len;
 }
 
 #ifndef __powerpc64__
