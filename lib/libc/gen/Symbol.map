@@ -533,6 +533,15 @@ FBSDprivate_1.0 {
 	_libc_sem_post_compat;
 	_libc_sem_getvalue_compat;
 
+	__libc_pause;
+	__libc_raise;
+	__libc_sleep;
+	__libc_tcdrain;
+	__libc_usleep;
+	__libc_wait;
+	__libc_wait3;
+	__libc_waitpid;
+
 	__elf_aux_vector;
 	__pthread_map_stacks_exec;
 	__fillcontextx;

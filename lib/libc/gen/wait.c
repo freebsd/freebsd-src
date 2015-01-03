@@ -40,11 +40,23 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include "un-namespace.h"
 
+#include "libc_private.h"
+
+#pragma weak wait
 pid_t
-__wait(int *istat)
+wait(int *istat)
 {
-	return (_wait4(WAIT_ANY, istat, 0, (struct rusage *)0));
+
+	return (((pid_t (*)(int *))
+	    __libc_interposing[INTERPOS_wait])(istat));
 }
 
-__weak_reference(__wait, wait);
-__weak_reference(__wait, _wait);
+pid_t
+__libc_wait(int *istat)
+{
+
+	return (__sys_wait4(WAIT_ANY, istat, 0, NULL));
+}
+
+__weak_reference(__libc_wait, __wait);
+__weak_reference(__libc_wait, _wait);
