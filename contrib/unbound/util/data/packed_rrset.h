@@ -189,7 +189,7 @@ enum sec_status {
  *	o base struct
  *	o rr_len size_t array
  *	o rr_data uint8_t* array
- *	o rr_ttl uint32_t array (after size_t and ptrs because those may be
+ *	o rr_ttl time_t array (after size_t and ptrs because those may be
  *		64bit and this array before those would make them unaligned).
  *		Since the stuff before is 32/64bit, rr_ttl is 32 bit aligned.
  *	o rr_data rdata wireformats

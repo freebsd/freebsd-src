@@ -95,6 +95,7 @@ usage()
 	printf("  flush_zone <name>		flush everything at or under name\n");
 	printf("  				from rr and dnssec caches\n");
 	printf("  flush_bogus			flush all bogus data\n");
+	printf("  flush_negative		flush all negative data\n");
 	printf("  flush_stats 			flush statistics, make zero\n");
 	printf("  flush_requestlist 		drop queries that are worked on\n");
 	printf("  dump_requestlist		show what is worked on\n");
@@ -148,6 +149,8 @@ setup_ctx(struct config_file* cfg)
 		ssl_err("could not allocate SSL_CTX pointer");
         if(!(SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2) & SSL_OP_NO_SSLv2))
 		ssl_err("could not set SSL_OP_NO_SSLv2");
+        if(!(SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv3) & SSL_OP_NO_SSLv3))
+		ssl_err("could not set SSL_OP_NO_SSLv3");
 	if(!SSL_CTX_use_certificate_file(ctx,c_cert,SSL_FILETYPE_PEM) ||
 		!SSL_CTX_use_PrivateKey_file(ctx,c_key,SSL_FILETYPE_PEM)
 		|| !SSL_CTX_check_private_key(ctx))
@@ -200,15 +203,14 @@ contact_server(const char* svr, struct config_file* cfg, int statuscmd)
 #endif
 	}
 	if(connect(fd, (struct sockaddr*)&addr, addrlen) < 0) {
-		log_addr(0, "address", &addr, addrlen);
 #ifndef USE_WINSOCK
-		log_err("connect: %s", strerror(errno));
+		log_err_addr("connect", strerror(errno), &addr, addrlen);
 		if(errno == ECONNREFUSED && statuscmd) {
 			printf("unbound is stopped\n");
 			exit(3);
 		}
 #else
-		log_err("connect: %s", wsa_strerror(WSAGetLastError()));
+		log_err_addr("connect", wsa_strerror(WSAGetLastError()), &addr, addrlen);
 		if(WSAGetLastError() == WSAECONNREFUSED && statuscmd) {
 			printf("unbound is stopped\n");
 			exit(3);
