@@ -94,6 +94,7 @@ typedef int (*__dl_iterate_hdr_callback)(struct dl_phdr_info *, size_t, void *);
 extern int dl_iterate_phdr(__dl_iterate_hdr_callback, void *);
 int _rtld_addr_phdr(const void *, struct dl_phdr_info *);
 int _rtld_get_stack_prot(void);
+int _rtld_is_dlopened(void *);
 
 #ifdef __ARM_EABI__
 void * dl_unwind_find_exidx(const void *, int *);
