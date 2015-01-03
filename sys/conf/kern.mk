@@ -7,6 +7,7 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
 		-Wundef -Wno-pointer-sign ${FORMAT_EXTENSIONS} \
 		-Wmissing-include-dirs -fdiagnostics-show-option \
+		-Wno-unknown-pragmas \
 		${CWARNEXTRA}
 #
 # The following flags are next up for working on:
@@ -27,8 +28,7 @@ NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
 # some incentive to fix them eventually.
 CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 		-Wno-error-parentheses-equality -Wno-error-unused-function \
-		-Wno-error-pointer-sign -Wno-error-format -Wno-error-parentheses \
-		-Wno-unknown-pragmas
+		-Wno-error-pointer-sign -Wno-error-format -Wno-error-parentheses
 .endif
 
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40300
