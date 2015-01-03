@@ -152,7 +152,7 @@ icl_conn_receive(struct icl_conn *ic, size_t len)
 }
 
 static struct icl_pdu *
-icl_pdu_new(struct icl_conn *ic, int flags)
+icl_pdu_new_empty(struct icl_conn *ic, int flags)
 {
 	struct icl_pdu *ip;
 
@@ -197,7 +197,7 @@ icl_pdu_new(struct icl_conn *ic, int flags)
 {
 	struct icl_pdu *ip;
 
-	ip = icl_pdu_new(ic, flags);
+	ip = icl_pdu_new_empty(ic, flags);
 	if (ip == NULL)
 		return (NULL);
 
@@ -547,7 +547,7 @@ icl_conn_receive_pdu(struct icl_conn *ic, size_t *availablep)
 	if (ic->ic_receive_state == ICL_CONN_STATE_BHS) {
 		KASSERT(ic->ic_receive_pdu == NULL,
 		    ("ic->ic_receive_pdu != NULL"));
-		request = icl_pdu_new(ic, M_NOWAIT);
+		request = icl_pdu_new_empty(ic, M_NOWAIT);
 		if (request == NULL) {
 			ICL_DEBUG("failed to allocate PDU; "
 			    "dropping connection");
