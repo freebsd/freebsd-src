@@ -20,14 +20,31 @@
 #include "lldb/Core/ValueObjectConstResult.h"
 #include "lldb/Host/Endian.h"
 #include "lldb/Symbol/ClangASTContext.h"
-#include "lldb/Target/ObjCLanguageRuntime.h"
 #include "lldb/Target/Target.h"
+#include "lldb/Target/Thread.h"
 
 #include <algorithm>
 
 using namespace lldb;
 using namespace lldb_private;
 using namespace lldb_private::formatters;
+
+StackFrame*
+lldb_private::formatters::GetViableFrame (ExecutionContext exe_ctx)
+{
+    StackFrame* frame = exe_ctx.GetFramePtr();
+    if (frame)
+        return frame;
+    
+    Process* process = exe_ctx.GetProcessPtr();
+    if (!process)
+        return nullptr;
+    
+    ThreadSP thread_sp(process->GetThreadList().GetSelectedThread());
+    if (thread_sp)
+        return thread_sp->GetSelectedFrame().get();
+    return nullptr;
+}
 
 bool
 lldb_private::formatters::ExtractValueFromObjCExpression (ValueObject &valobj,
@@ -44,7 +61,7 @@ lldb_private::formatters::ExtractValueFromObjCExpression (ValueObject &valobj,
     ExecutionContext exe_ctx (valobj.GetExecutionContextRef());
     lldb::ValueObjectSP result_sp;
     Target* target = exe_ctx.GetTargetPtr();
-    StackFrame* stack_frame = exe_ctx.GetFramePtr();
+    StackFrame* stack_frame = GetViableFrame(exe_ctx);
     if (!target || !stack_frame)
         return false;
     
@@ -78,7 +95,7 @@ lldb_private::formatters::ExtractSummaryFromObjCExpression (ValueObject &valobj,
     ExecutionContext exe_ctx (valobj.GetExecutionContextRef());
     lldb::ValueObjectSP result_sp;
     Target* target = exe_ctx.GetTargetPtr();
-    StackFrame* stack_frame = exe_ctx.GetFramePtr();
+    StackFrame* stack_frame = GetViableFrame(exe_ctx);
     if (!target || !stack_frame)
         return false;
     
@@ -116,7 +133,7 @@ lldb_private::formatters::CallSelectorOnObject (ValueObject &valobj,
     ExecutionContext exe_ctx (valobj.GetExecutionContextRef());
     lldb::ValueObjectSP result_sp;
     Target* target = exe_ctx.GetTargetPtr();
-    StackFrame* stack_frame = exe_ctx.GetFramePtr();
+    StackFrame* stack_frame = GetViableFrame(exe_ctx);
     if (!target || !stack_frame)
         return valobj_sp;
     
@@ -153,7 +170,7 @@ lldb_private::formatters::CallSelectorOnObject (ValueObject &valobj,
     ExecutionContext exe_ctx (valobj.GetExecutionContextRef());
     lldb::ValueObjectSP result_sp;
     Target* target = exe_ctx.GetTargetPtr();
-    StackFrame* stack_frame = exe_ctx.GetFramePtr();
+    StackFrame* stack_frame = GetViableFrame(exe_ctx);
     if (!target || !stack_frame)
         return valobj_sp;
     
@@ -576,7 +593,11 @@ bool
 lldb_private::formatters::Char16SummaryProvider (ValueObject& valobj, Stream& stream)
 {
     DataExtractor data;
-    valobj.GetData(data);
+    Error error;
+    valobj.GetData(data, error);
+    
+    if (error.Fail())
+        return false;
     
     std::string value;
     valobj.GetValueAsCString(lldb::eFormatUnicode16, value);
@@ -590,7 +611,11 @@ bool
 lldb_private::formatters::Char32SummaryProvider (ValueObject& valobj, Stream& stream)
 {
     DataExtractor data;
-    valobj.GetData(data);
+    Error error;
+    valobj.GetData(data, error);
+    
+    if (error.Fail())
+        return false;
     
     std::string value;
     valobj.GetValueAsCString(lldb::eFormatUnicode32, value);
@@ -604,7 +629,11 @@ bool
 lldb_private::formatters::WCharSummaryProvider (ValueObject& valobj, Stream& stream)
 {
     DataExtractor data;
-    valobj.GetData(data);
+    Error error;
+    valobj.GetData(data, error);
+    
+    if (error.Fail())
+        return false;
     
     clang::ASTContext* ast = valobj.GetClangType().GetASTContext();
     
@@ -954,6 +983,61 @@ ReadAsciiBufferAndDumpToStream (lldb::addr_t location,
 }
 
 bool
+lldb_private::formatters::NSTaggedString_SummaryProvider (ObjCLanguageRuntime::ClassDescriptorSP descriptor, Stream& stream)
+{
+    if (!descriptor)
+        return false;
+    uint64_t len_bits = 0, data_bits = 0;
+    if (!descriptor->GetTaggedPointerInfo(&len_bits,&data_bits,nullptr))
+        return false;
+    
+    static const int g_MaxNonBitmaskedLen = 7; //TAGGED_STRING_UNPACKED_MAXLEN
+    static const int g_SixbitMaxLen = 9;
+    static const int g_fiveBitMaxLen = 11;
+    
+    static const char *sixBitToCharLookup = "eilotrm.apdnsIc ufkMShjTRxgC4013" "bDNvwyUL2O856P-B79AFKEWV_zGJ/HYX";
+    
+    if (len_bits > g_fiveBitMaxLen)
+        return false;
+    
+    // this is a fairly ugly trick - pretend that the numeric value is actually a char*
+    // this works under a few assumptions:
+    // little endian architecture
+    // sizeof(uint64_t) > g_MaxNonBitmaskedLen
+    if (len_bits <= g_MaxNonBitmaskedLen)
+    {
+        stream.Printf("@\"%s\"",(const char*)&data_bits);
+        return true;
+    }
+    
+    // if the data is bitmasked, we need to actually process the bytes
+    uint8_t bitmask = 0;
+    uint8_t shift_offset = 0;
+    
+    if (len_bits <= g_SixbitMaxLen)
+    {
+        bitmask = 0x03f;
+        shift_offset = 6;
+    }
+    else
+    {
+        bitmask = 0x01f;
+        shift_offset = 5;
+    }
+    
+    std::vector<uint8_t> bytes;
+    bytes.resize(len_bits);
+    for (; len_bits > 0; data_bits >>= shift_offset, --len_bits)
+    {
+        uint8_t packed = data_bits & bitmask;
+        bytes.insert(bytes.begin(), sixBitToCharLookup[packed]);
+    }
+    
+    stream.Printf("@\"%s\"",&bytes[0]);
+    return true;
+}
+
+bool
 lldb_private::formatters::NSStringSummaryProvider (ValueObject& valobj, Stream& stream)
 {
     ProcessSP process_sp = valobj.GetProcessSP();
@@ -982,6 +1066,12 @@ lldb_private::formatters::NSStringSummaryProvider (ValueObject& valobj, Stream& 
     if (!class_name || !*class_name)
         return false;
     
+    bool is_tagged_ptr = (0 == strcmp(class_name,"NSTaggedPointerString")) && descriptor->GetTaggedPointerInfo();
+    // for a tagged pointer, the descriptor has everything we need
+    if (is_tagged_ptr)
+        return NSTaggedString_SummaryProvider(descriptor, stream);
+    
+    // if not a tagged pointer that we know about, try the normal route
     uint64_t info_bits_location = valobj_addr + ptr_size;
     if (process_sp->GetByteOrder() != lldb::eByteOrderLittle)
         info_bits_location += 3;
@@ -1144,7 +1234,10 @@ lldb_private::formatters::NSAttributedStringSummaryProvider (ValueObject& valobj
     if (!child_ptr_sp)
         return false;
     DataExtractor data;
-    child_ptr_sp->GetData(data);
+    Error error;
+    child_ptr_sp->GetData(data, error);
+    if (error.Fail())
+        return false;
     ValueObjectSP child_sp(child_ptr_sp->CreateValueObjectFromData("string_data", data, exe_ctx, type));
     child_sp->GetValueAsUnsigned(0);
     if (child_sp)
@@ -1218,7 +1311,10 @@ lldb_private::formatters::ObjCSELSummaryProvider (ValueObject& valobj, Stream& s
     else
     {
         DataExtractor data;
-        valobj.GetData(data);
+        Error error;
+        valobj.GetData(data, error);
+        if (error.Fail())
+            return false;
         valobj_sp = ValueObject::CreateValueObjectFromData("text", data, exe_ctx, charstar);
     }
     

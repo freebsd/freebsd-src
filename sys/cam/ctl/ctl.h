@@ -40,7 +40,6 @@
 #ifndef	_CTL_H_
 #define	_CTL_H_
 
-#define	ctl_min(x,y)	(((x) < (y)) ? (x) : (y))
 #define	CTL_RETVAL_COMPLETE	0
 #define	CTL_RETVAL_QUEUED	1
 #define	CTL_RETVAL_ALLOCATED	2
@@ -206,6 +205,7 @@ struct ctl_be_arg;
 void ctl_init_opts(ctl_options_t *opts, int num_args, struct ctl_be_arg *args);
 void ctl_free_opts(ctl_options_t *opts);
 char * ctl_get_opt(ctl_options_t *opts, const char *name);
+int ctl_expand_number(const char *buf, uint64_t *num);
 
 #endif	/* _KERNEL */
 

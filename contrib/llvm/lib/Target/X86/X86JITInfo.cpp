@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "jit"
 #include "X86JITInfo.h"
 #include "X86Relocations.h"
 #include "X86Subtarget.h"
@@ -23,6 +22,8 @@
 #include <cstdlib>
 #include <cstring>
 using namespace llvm;
+
+#define DEBUG_TYPE "jit"
 
 // Determine the platform we're running on
 #if defined (__x86_64__) || defined (_M_AMD64) || defined (_M_X64)
@@ -427,17 +428,22 @@ X86JITInfo::getLazyResolverFunction(JITCompilerFn F) {
   TsanIgnoreWritesEnd();
 
 #if defined (X86_32_JIT) && !defined (_MSC_VER)
-  if (Subtarget->hasSSE1())
+#if defined(__SSE__)
+  // SSE Callback should be called for SSE-enabled LLVM.
+  return X86CompilationCallback_SSE;
+#else
+  if (useSSE)
     return X86CompilationCallback_SSE;
+#endif
 #endif
 
   return X86CompilationCallback;
 }
 
-X86JITInfo::X86JITInfo(X86TargetMachine &tm) : TM(tm) {
-  Subtarget = &TM.getSubtarget<X86Subtarget>();
+X86JITInfo::X86JITInfo(bool UseSSE) {
+  useSSE = UseSSE;
   useGOT = 0;
-  TLSOffset = 0;
+  TLSOffset = nullptr;
 }
 
 void *X86JITInfo::emitGlobalValueIndirectSym(const GlobalValue* GV, void *ptr,

@@ -60,7 +60,7 @@ typedef u_long	fptrdiff_t;
 
 #define	MCOUNT								\
 	__asm__(".text");						\
-	__asm__(".align	0");						\
+	__asm__(".align	2");						\
 	__asm__(".type	__mcount ,%function");				\
 	__asm__(".global	__mcount");				\
 	__asm__("__mcount:");						\

@@ -219,6 +219,10 @@ ports_build() (
 
 	ports_recurse . $PORTS_WE_WANT 
 
+	if [ "x${PKG_DIR}" != "x" ] ; then
+		mkdir -p ${PKG_DIR}
+	fi
+
 	# Now build & install them
 	for p in `cat /tmp/_.plist`
 	do
@@ -231,9 +235,7 @@ ports_build() (
 
 			(
 			cd $p
-			make clean ${PORTS_OPTS}
-			make all ${PORTS_OPTS}
-			make install ${PORTS_OPTS}
+			make clean all install ${PORTS_OPTS}
 			) > _.$b 2>&1 < /dev/null
 			continue
 		fi

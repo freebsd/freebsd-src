@@ -14,6 +14,7 @@
 #ifndef LLVM_CODEGEN_MACHINESSAUPDATER_H
 #define LLVM_CODEGEN_MACHINESSAUPDATER_H
 
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/Compiler.h"
 
 namespace llvm {
@@ -26,7 +27,6 @@ namespace llvm {
   class TargetRegisterClass;
   template<typename T> class SmallVectorImpl;
   template<typename T> class SSAUpdaterTraits;
-  class BumpPtrAllocator;
 
 /// MachineSSAUpdater - This class updates SSA form for a set of virtual
 /// registers defined in multiple blocks.  This is used when code duplication
@@ -57,7 +57,7 @@ public:
   /// MachineSSAUpdater constructor.  If InsertedPHIs is specified, it will be
   /// filled in with all PHI Nodes created by rewriting.
   explicit MachineSSAUpdater(MachineFunction &MF,
-                             SmallVectorImpl<MachineInstr*> *InsertedPHIs = 0);
+                        SmallVectorImpl<MachineInstr*> *InsertedPHIs = nullptr);
   ~MachineSSAUpdater();
 
   /// Initialize - Reset this object to get ready for a new set of SSA
@@ -105,7 +105,6 @@ public:
   void RewriteUse(MachineOperand &U);
 
 private:
-  void ReplaceRegWith(unsigned OldReg, unsigned NewReg);
   unsigned GetValueAtEndOfBlockInternal(MachineBasicBlock *BB);
 
   void operator=(const MachineSSAUpdater&) LLVM_DELETED_FUNCTION;

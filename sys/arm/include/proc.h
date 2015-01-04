@@ -48,6 +48,7 @@ struct md_utrap {
 struct mdthread {
 	int	md_spinlock_count;	/* (k) */
 	register_t md_saved_cspr;	/* (k) */
+	register_t md_spurflt_addr;     /* (k) Spurious page fault address. */
 	int md_ptrace_instr;
 	int md_ptrace_addr;
 	register_t md_tp;

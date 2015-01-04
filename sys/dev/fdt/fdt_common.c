@@ -75,6 +75,12 @@ fdt_get_range_by_busaddr(phandle_t node, u_long addr, u_long *base,
 	u_long bus_addr, par_bus_addr, pbase, psize;
 	int err, i, len, tuple_size, tuples;
 
+	if (node == 0) {
+		*base = 0;
+		*size = ULONG_MAX;
+		return (0);
+	}
+
 	if ((fdt_addrsize_cells(node, &addr_cells, &size_cells)) != 0)
 		return (ENXIO);
 	/*
@@ -91,9 +97,8 @@ fdt_get_range_by_busaddr(phandle_t node, u_long addr, u_long *base,
 	if (len > sizeof(ranges))
 		return (ENOMEM);
 	if (len == 0) {
-		*base = 0;
-		*size = ULONG_MAX;
-		return (0);
+		return (fdt_get_range_by_busaddr(OF_parent(node), addr,
+		    base, size));
 	}
 
 	if (OF_getprop(node, "ranges", ranges, sizeof(ranges)) <= 0)

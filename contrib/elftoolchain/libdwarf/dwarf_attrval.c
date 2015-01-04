@@ -26,7 +26,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: dwarf_attrval.c 2072 2011-10-27 03:26:49Z jkoshy $");
+ELFTC_VCSID("$Id: dwarf_attrval.c 2977 2014-01-21 20:13:31Z kaiwang27 $");
 
 int
 dwarf_attrval_flag(Dwarf_Die die, Dwarf_Half attr, Dwarf_Bool *valp, Dwarf_Error *err)

@@ -19,10 +19,12 @@ namespace lldb_private
     typedef lldb::ABISP (*ABICreateInstance) (const ArchSpec &arch);
     typedef Disassembler* (*DisassemblerCreateInstance) (const ArchSpec &arch, const char *flavor);
     typedef DynamicLoader* (*DynamicLoaderCreateInstance) (Process* process, bool force);
+    typedef lldb::JITLoaderSP (*JITLoaderCreateInstance) (Process *process, bool force);
     typedef ObjectContainer* (*ObjectContainerCreateInstance) (const lldb::ModuleSP &module_sp, lldb::DataBufferSP& data_sp, lldb::offset_t data_offset, const FileSpec *file, lldb::offset_t offset, lldb::offset_t length);
     typedef size_t (*ObjectFileGetModuleSpecifications) (const FileSpec &file, lldb::DataBufferSP& data_sp, lldb::offset_t data_offset, lldb::offset_t file_offset, lldb::offset_t length, ModuleSpecList &module_specs);
     typedef ObjectFile* (*ObjectFileCreateInstance) (const lldb::ModuleSP &module_sp, lldb::DataBufferSP& data_sp, lldb::offset_t data_offset, const FileSpec* file, lldb::offset_t file_offset, lldb::offset_t length);
     typedef ObjectFile* (*ObjectFileCreateMemoryInstance) (const lldb::ModuleSP &module_sp, lldb::DataBufferSP& data_sp, const lldb::ProcessSP &process_sp, lldb::addr_t offset);
+    typedef bool (*ObjectFileSaveCore) (const lldb::ProcessSP &process_sp, const FileSpec &outfile, Error &error);
     typedef LogChannel* (*LogChannelCreateInstance) ();
     typedef EmulateInstruction * (*EmulateInstructionCreateInstance) (const ArchSpec &arch, InstructionType inst_type);
     typedef OperatingSystem* (*OperatingSystemCreateInstance) (Process *process, bool force);
@@ -34,10 +36,10 @@ namespace lldb_private
     typedef SymbolVendor* (*SymbolVendorCreateInstance) (const lldb::ModuleSP &module_sp, lldb_private::Stream *feedback_strm);   // Module can be NULL for default system symbol vendor
     typedef bool (*BreakpointHitCallback) (void *baton, StoppointCallbackContext *context, lldb::user_id_t break_id, lldb::user_id_t break_loc_id);
     typedef bool (*WatchpointHitCallback) (void *baton, StoppointCallbackContext *context, lldb::user_id_t watch_id);
-    typedef lldb::ThreadPlanSP (*ThreadPlanShouldStopHereCallback) (ThreadPlan *current_plan, Flags &flags, void *baton);
+    typedef bool (*ThreadPlanShouldStopHereCallback) (ThreadPlan *current_plan, Flags &flags, lldb::FrameComparison operation, void *baton);
+    typedef lldb::ThreadPlanSP (*ThreadPlanStepFromHereCallback) (ThreadPlan *current_plan, Flags &flags, lldb::FrameComparison operation, void *baton);
     typedef UnwindAssembly* (*UnwindAssemblyCreateInstance) (const ArchSpec &arch);
     typedef int (*ComparisonFunction)(const void *, const void *);
-    typedef bool (*CommandOverrideCallback)(void *baton, const char **argv);
     typedef void (*DebuggerInitializeCallback)(Debugger &debugger);
 
 } // namespace lldb_private

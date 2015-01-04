@@ -222,13 +222,13 @@ void LiveRange::extendSegmentEndTo(iterator I, SlotIndex NewEnd) {
   VNInfo *ValNo = I->valno;
 
   // Search for the first segment that we can't merge with.
-  iterator MergeTo = llvm::next(I);
+  iterator MergeTo = std::next(I);
   for (; MergeTo != end() && NewEnd >= MergeTo->end; ++MergeTo) {
     assert(MergeTo->valno == ValNo && "Cannot merge with differing values!");
   }
 
   // If NewEnd was in the middle of a segment, make sure to get its endpoint.
-  I->end = std::max(NewEnd, prior(MergeTo)->end);
+  I->end = std::max(NewEnd, std::prev(MergeTo)->end);
 
   // If the newly formed segment now touches the segment after it and if they
   // have the same value number, merge the two segments into one segment.
@@ -239,7 +239,7 @@ void LiveRange::extendSegmentEndTo(iterator I, SlotIndex NewEnd) {
   }
 
   // Erase any dead segments.
-  segments.erase(llvm::next(I), MergeTo);
+  segments.erase(std::next(I), MergeTo);
 }
 
 
@@ -274,7 +274,7 @@ LiveRange::extendSegmentStartTo(iterator I, SlotIndex NewStart) {
     MergeTo->end = I->end;
   }
 
-  segments.erase(llvm::next(MergeTo), llvm::next(I));
+  segments.erase(std::next(MergeTo), std::next(I));
   return MergeTo;
 }
 
@@ -285,7 +285,7 @@ LiveRange::iterator LiveRange::addSegmentFrom(Segment S, iterator From) {
   // If the inserted segment starts in the middle or right at the end of
   // another segment, just extend that segment to contain the segment of S.
   if (it != begin()) {
-    iterator B = prior(it);
+    iterator B = std::prev(it);
     if (S.valno == B->valno) {
       if (B->start <= Start && B->end >= Start) {
         extendSegmentEndTo(B, End);
@@ -331,13 +331,13 @@ LiveRange::iterator LiveRange::addSegmentFrom(Segment S, iterator From) {
 /// the value. If there is no live range before Kill, return NULL.
 VNInfo *LiveRange::extendInBlock(SlotIndex StartIdx, SlotIndex Kill) {
   if (empty())
-    return 0;
+    return nullptr;
   iterator I = std::upper_bound(begin(), end(), Kill.getPrevSlot());
   if (I == begin())
-    return 0;
+    return nullptr;
   --I;
   if (I->end <= StartIdx)
-    return 0;
+    return nullptr;
   if (I->end < Kill)
     extendSegmentEndTo(I, Kill);
   return I->valno;
@@ -389,7 +389,7 @@ void LiveRange::removeSegment(SlotIndex Start, SlotIndex End,
   I->end = Start;   // Trim the old segment.
 
   // Insert the new one.
-  segments.insert(llvm::next(I), Segment(End, OldEnd, ValNo));
+  segments.insert(std::next(I), Segment(End, OldEnd, ValNo));
 }
 
 /// removeValNo - Remove all the segments defined by the specified value#.
@@ -433,9 +433,9 @@ void LiveRange::join(LiveRange &Other,
 
     iterator OutIt = begin();
     OutIt->valno = NewVNInfo[LHSValNoAssignments[OutIt->valno->id]];
-    for (iterator I = llvm::next(OutIt), E = end(); I != E; ++I) {
+    for (iterator I = std::next(OutIt), E = end(); I != E; ++I) {
       VNInfo* nextValNo = NewVNInfo[LHSValNoAssignments[I->valno->id]];
-      assert(nextValNo != 0 && "Huh?");
+      assert(nextValNo && "Huh?");
 
       // If this live range has the same value # as its immediate predecessor,
       // and if they are neighbors, remove one Segment.  This happens when we
@@ -638,13 +638,13 @@ void LiveRange::verify() const {
     assert(I->start.isValid());
     assert(I->end.isValid());
     assert(I->start < I->end);
-    assert(I->valno != 0);
+    assert(I->valno != nullptr);
     assert(I->valno->id < valnos.size());
     assert(I->valno == valnos[I->valno->id]);
-    if (llvm::next(I) != E) {
-      assert(I->end <= llvm::next(I)->start);
-      if (I->end == llvm::next(I)->start)
-        assert(I->valno != llvm::next(I)->valno);
+    if (std::next(I) != E) {
+      assert(I->end <= std::next(I)->start);
+      if (I->end == std::next(I)->start)
+        assert(I->valno != std::next(I)->valno);
     }
   }
 }
@@ -857,7 +857,7 @@ unsigned ConnectedVNInfoEqClasses::Classify(const LiveInterval *LI) {
   EqClass.clear();
   EqClass.grow(LI->getNumValNums());
 
-  const VNInfo *used = 0, *unused = 0;
+  const VNInfo *used = nullptr, *unused = nullptr;
 
   // Determine connections.
   for (LiveInterval::const_vni_iterator I = LI->vni_begin(), E = LI->vni_end();
@@ -905,8 +905,8 @@ void ConnectedVNInfoEqClasses::Distribute(LiveInterval *LIV[],
   // Rewrite instructions.
   for (MachineRegisterInfo::reg_iterator RI = MRI.reg_begin(LI.reg),
        RE = MRI.reg_end(); RI != RE;) {
-    MachineOperand &MO = RI.getOperand();
-    MachineInstr *MI = MO.getParent();
+    MachineOperand &MO = *RI;
+    MachineInstr *MI = RI->getParent();
     ++RI;
     // DBG_VALUE instructions don't have slot indexes, so get the index of the
     // instruction before them.

@@ -4,7 +4,6 @@
 
 SUBDIR=		dtmalloc	\
 		dtnfscl		\
-		dtnfsclient	\
 		dtrace		\
 		dtraceall	\
 		dtrace_test	\

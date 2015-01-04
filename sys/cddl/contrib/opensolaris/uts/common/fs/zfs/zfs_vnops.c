@@ -1548,7 +1548,7 @@ zfs_lookup(vnode_t *dvp, char *nm, vnode_t **vpp, struct componentname *cnp,
 	/*
 	 * Insert name into cache (as non-existent) if appropriate.
 	 */
-	if (error == ENOENT && (cnp->cn_flags & MAKEENTRY) && nameiop != CREATE)
+	if (error == ENOENT && (cnp->cn_flags & MAKEENTRY) != 0)
 		cache_enter(dvp, *vpp, cnp);
 	/*
 	 * Insert name into cache if appropriate.
@@ -6180,15 +6180,20 @@ zfs_freebsd_create(ap)
 {
 	struct componentname *cnp = ap->a_cnp;
 	vattr_t *vap = ap->a_vap;
-	int mode;
+	int error, mode;
 
 	ASSERT(cnp->cn_flags & SAVENAME);
 
 	vattr_init_mask(vap);
 	mode = vap->va_mode & ALLPERMS;
 
-	return (zfs_create(ap->a_dvp, cnp->cn_nameptr, vap, !EXCL, mode,
-	    ap->a_vpp, cnp->cn_cred, cnp->cn_thread));
+	error = zfs_create(ap->a_dvp, cnp->cn_nameptr, vap, !EXCL, mode,
+	    ap->a_vpp, cnp->cn_cred, cnp->cn_thread);
+#ifdef FREEBSD_NAMECACHE
+	if (error == 0 && (cnp->cn_flags & MAKEENTRY) != 0)
+		cache_enter(ap->a_dvp, *ap->a_vpp, cnp);
+#endif
+	return (error);
 }
 
 static int

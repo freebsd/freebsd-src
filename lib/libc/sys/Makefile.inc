@@ -20,17 +20,61 @@ NOASM+=  clock_gettime.o gettimeofday.o
 PSEUDO+= _clock_gettime.o _gettimeofday.o
 
 # Sources common to both syscall interfaces:
-SRCS+=	stack_protector.c stack_protector_compat.c __error.c
+SRCS+=	\
+	stack_protector.c \
+	stack_protector_compat.c \
+	__error.c \
+	interposing_table.c
+
 .if ${MK_SYSCALL_COMPAT} != "no"
-SYSCALL_COMPAT_SRCS=	fcntl.c ftruncate.c lseek.c mmap.c pread.c \
-	pwrite.c truncate.c
+SYSCALL_COMPAT_SRCS= \
+	ftruncate.c \
+	lseek.c \
+	mmap.c \
+	pread.c \
+	pwrite.c \
+	truncate.c
 SRCS+=	${SYSCALL_COMPAT_SRCS}
 NOASM+=	${SYSCALL_COMPAT_SRCS:S/.c/.o/}
-PSEUDO+= _fcntl.o
 .endif
-SRCS+= sigwait.c
-NOASM+= sigwait.o
-PSEUDO+= _sigwait.o
+
+INTERPOSED = \
+	accept \
+	accept4 \
+	aio_suspend \
+	close \
+	connect \
+	fcntl \
+	fsync \
+	fork \
+	msync \
+	nanosleep \
+	open \
+	openat \
+	poll \
+	pselect \
+	read \
+	readv \
+	recvfrom \
+	recvmsg \
+	select \
+	sendmsg \
+	sendto \
+	setcontext \
+	sigaction \
+	sigprocmask \
+	sigsuspend \
+	sigtimedwait \
+	sigwait \
+	sigwaitinfo \
+	swapcontext \
+	wait4 \
+	write \
+	writev
+
+SRCS+=	${INTERPOSED:S/$/.c/}
+NOASM+=	${INTERPOSED:S/$/.o/}
+PSEUDO+=	${INTERPOSED:C/^.*$/_&.o/}
 
 # Add machine dependent asm sources:
 SRCS+=${MDASM}

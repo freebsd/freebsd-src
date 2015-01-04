@@ -401,8 +401,8 @@ cfcs_datamove(union ctl_io *io)
 	     i < cam_sg_count && j < ctl_sg_count;) {
 		uint8_t *cam_ptr, *ctl_ptr;
 
-		len_to_copy = ctl_min(cam_sglist[i].ds_len - cam_watermark,
-				      ctl_sglist[j].len - ctl_watermark);
+		len_to_copy = MIN(cam_sglist[i].ds_len - cam_watermark,
+				  ctl_sglist[j].len - ctl_watermark);
 
 		cam_ptr = (uint8_t *)cam_sglist[i].ds_addr;
 		cam_ptr = cam_ptr + cam_watermark;

@@ -614,7 +614,8 @@ trap_check(struct trapframe *frame)
 {
 
 #ifdef KDTRACE_HOOKS
-	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame))
+	if (dtrace_trap_func != NULL &&
+	    (*dtrace_trap_func)(frame, frame->tf_trapno) != 0)
 		return;
 #endif
 	trap(frame);

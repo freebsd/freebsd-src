@@ -50,6 +50,7 @@
 //  L   -> long (e.g. Li for 'long int')
 //  LL  -> long long
 //  LLL -> __int128_t (e.g. LLLi)
+//  W   -> int64_t
 //  S   -> signed
 //  U   -> unsigned
 //  I   -> Required to constant fold to an integer constant expression.
@@ -72,7 +73,7 @@
 //       be followed by ':headername:' to state which header this function
 //       comes from.
 //  i -> this is a runtime library implemented function without the
-//       '__builtin_' prefix. It will be implemented in compiter-rt or libgcc.
+//       '__builtin_' prefix. It will be implemented in compiler-rt or libgcc.
 //  p:N: -> this is a printf-like function whose Nth argument is the format
 //          string.
 //  P:N: -> similar to the p:N: attribute, but the function is like vprintf
@@ -444,6 +445,7 @@ BUILTIN(__builtin_strstr, "c*cC*cC*", "nF")
 BUILTIN(__builtin_return_address, "v*IUi", "n")
 BUILTIN(__builtin_extract_return_addr, "v*v*", "n")
 BUILTIN(__builtin_frame_address, "v*IUi", "n")
+BUILTIN(__builtin___clear_cache, "vc*c*", "n")
 BUILTIN(__builtin_flt_rounds, "i", "nc")
 BUILTIN(__builtin_setjmp, "iv**", "j")
 BUILTIN(__builtin_longjmp, "vv**i", "r")
@@ -677,8 +679,16 @@ BUILTIN(__builtin_rindex, "c*cC*i", "Fn")
 // Microsoft builtins.  These are only active with -fms-extensions.
 LANGBUILTIN(_alloca,      "v*z", "n", ALL_MS_LANGUAGES)
 LANGBUILTIN(__assume,     "vb",  "n", ALL_MS_LANGUAGES)
-LANGBUILTIN(__noop,       "v.",  "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(__noop,       "i.",  "n", ALL_MS_LANGUAGES)
 LANGBUILTIN(__debugbreak, "v",   "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(__va_start,   "vc**.", "nt", ALL_MS_LANGUAGES)
+LANGBUILTIN(_InterlockedCompareExchange, "LiLiD*LiLi", "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(_InterlockedCompareExchangePointer, "v*v*D*v*v*", "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(_InterlockedIncrement, "LiLiD*", "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(_InterlockedDecrement, "LiLiD*", "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(_InterlockedExchangeAdd, "LiLiD*Li", "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(_InterlockedExchangePointer, "v*v*D*v*", "n", ALL_MS_LANGUAGES)
+LANGBUILTIN(_InterlockedExchange, "LiLiD*Li", "n", ALL_MS_LANGUAGES)
 
 // C99 library functions
 // C99 stdlib.h
@@ -726,11 +736,16 @@ LIBBUILTIN(vscanf, "icC*Ra",      "fS:0:", "stdio.h", ALL_LANGUAGES)
 LIBBUILTIN(vfscanf, "iP*RcC*Ra",  "fS:1:", "stdio.h", ALL_LANGUAGES)
 LIBBUILTIN(vsscanf, "icC*RcC*Ra", "fS:1:", "stdio.h", ALL_LANGUAGES)
 // C99
+// In some systems setjmp is a macro that expands to _setjmp. We undefine
+// it here to avoid having two identical LIBBUILTIN entries.
 #undef setjmp
 LIBBUILTIN(setjmp, "iJ",          "fj",    "setjmp.h", ALL_LANGUAGES)
 LIBBUILTIN(longjmp, "vJi",        "fr",    "setjmp.h", ALL_LANGUAGES)
 
 // Non-C library functions, active in GNU mode only.
+// Functions with (returns_twice) attribute (marked as "j") are still active in
+// all languages, because losing this attribute would result in miscompilation
+// when these functions are used in non-GNU mode. PR16138.
 LIBBUILTIN(alloca, "v*z",         "f",     "stdlib.h", ALL_GNU_LANGUAGES)
 // POSIX string.h
 LIBBUILTIN(stpcpy, "c*c*cC*",     "f",     "string.h", ALL_GNU_LANGUAGES)
@@ -749,18 +764,16 @@ LIBBUILTIN(strcasecmp, "icC*cC*", "f",     "strings.h", ALL_GNU_LANGUAGES)
 LIBBUILTIN(strncasecmp, "icC*cC*z", "f",   "strings.h", ALL_GNU_LANGUAGES)
 // POSIX unistd.h
 LIBBUILTIN(_exit, "vi",           "fr",    "unistd.h", ALL_GNU_LANGUAGES)
-LIBBUILTIN(vfork, "p",            "fj",    "unistd.h", ALL_GNU_LANGUAGES)
+LIBBUILTIN(vfork, "p",            "fj",    "unistd.h", ALL_LANGUAGES)
 // POSIX setjmp.h
 
-// In some systems setjmp is a macro that expands to _setjmp. We undefine
-// it here to avoid having two identical LIBBUILTIN entries.
-LIBBUILTIN(_setjmp, "iJ",         "fj",   "setjmp.h", ALL_GNU_LANGUAGES)
-LIBBUILTIN(__sigsetjmp, "iSJi",   "fj",   "setjmp.h", ALL_GNU_LANGUAGES)
-LIBBUILTIN(sigsetjmp, "iSJi",     "fj",   "setjmp.h", ALL_GNU_LANGUAGES)
-LIBBUILTIN(setjmp_syscall, "iJ",  "fj",   "setjmp.h", ALL_GNU_LANGUAGES)
-LIBBUILTIN(savectx, "iJ",         "fj",   "setjmp.h", ALL_GNU_LANGUAGES)
-LIBBUILTIN(qsetjmp, "iJ",         "fj",   "setjmp.h", ALL_GNU_LANGUAGES)
-LIBBUILTIN(getcontext, "iK*",     "fj",   "setjmp.h", ALL_GNU_LANGUAGES)
+LIBBUILTIN(_setjmp, "iJ",         "fj",   "setjmp.h", ALL_LANGUAGES)
+LIBBUILTIN(__sigsetjmp, "iSJi",   "fj",   "setjmp.h", ALL_LANGUAGES)
+LIBBUILTIN(sigsetjmp, "iSJi",     "fj",   "setjmp.h", ALL_LANGUAGES)
+LIBBUILTIN(setjmp_syscall, "iJ",  "fj",   "setjmp.h", ALL_LANGUAGES)
+LIBBUILTIN(savectx, "iJ",         "fj",   "setjmp.h", ALL_LANGUAGES)
+LIBBUILTIN(qsetjmp, "iJ",         "fj",   "setjmp.h", ALL_LANGUAGES)
+LIBBUILTIN(getcontext, "iK*",     "fj",   "setjmp.h", ALL_LANGUAGES)
 
 LIBBUILTIN(_longjmp, "vJi",       "fr",    "setjmp.h", ALL_GNU_LANGUAGES)
 LIBBUILTIN(siglongjmp, "vSJi",    "fr",    "setjmp.h", ALL_GNU_LANGUAGES)
@@ -1137,6 +1150,21 @@ LIBBUILTIN(ctanh, "XdXd", "fnc", "complex.h", ALL_LANGUAGES)
 LIBBUILTIN(ctanhf, "XfXf", "fnc", "complex.h", ALL_LANGUAGES)
 LIBBUILTIN(ctanhl, "XLdXLd", "fnc", "complex.h", ALL_LANGUAGES)
 
+// __sinpi and friends are OS X specific library functions, but otherwise much
+// like the standard (non-complex) sin (etc).
+LIBBUILTIN(__sinpi, "dd", "fne", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(__sinpif, "ff", "fne", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(__cospi, "dd", "fne", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(__cospif, "ff", "fne", "math.h", ALL_LANGUAGES)
+
+LIBBUILTIN(__tanpi, "dd", "fne", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(__tanpif, "ff", "fne", "math.h", ALL_LANGUAGES)
+
+// Similarly, __exp10 is OS X only
+LIBBUILTIN(__exp10, "dd", "fne", "math.h", ALL_LANGUAGES)
+LIBBUILTIN(__exp10f, "ff", "fne", "math.h", ALL_LANGUAGES)
+
 // Blocks runtime Builtin math library functions
 LIBBUILTIN(_Block_object_assign, "vv*vC*iC", "f", "Blocks.h", ALL_LANGUAGES)
 LIBBUILTIN(_Block_object_dispose, "vvC*iC", "f", "Blocks.h", ALL_LANGUAGES)
@@ -1179,6 +1207,8 @@ BUILTIN(__builtin_smulll_overflow, "bSLLiCSLLiCSLLi*", "n")
 
 // Clang builtins (not available in GCC).
 BUILTIN(__builtin_addressof, "v*v&", "nct")
+BUILTIN(__builtin_operator_new, "v*z", "c")
+BUILTIN(__builtin_operator_delete, "vv*", "n")
 
 #undef BUILTIN
 #undef LIBBUILTIN

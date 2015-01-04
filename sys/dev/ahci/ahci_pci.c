@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 static int force_ahci = 1;
 TUNABLE_INT("hw.ahci.force", &force_ahci);
 
-static struct {
+static const struct {
 	uint32_t	id;
 	uint8_t		rev;
 	const char	*name;
@@ -479,14 +479,14 @@ static device_method_t ahci_methods[] = {
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
 	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
 	DEVMETHOD(bus_get_dma_tag,  ahci_get_dma_tag),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t ahci_driver = {
         "ahci",
         ahci_methods,
         sizeof(struct ahci_controller)
 };
-DRIVER_MODULE(ahci, pci, ahci_driver, ahci_devclass, 0, 0);
+DRIVER_MODULE(ahci, pci, ahci_driver, ahci_devclass, NULL, NULL);
 static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(device_probe,     ahci_ata_probe),
 	DEVMETHOD(device_attach,    ahci_pci_attach),
@@ -499,11 +499,11 @@ static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
 	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t ahci_ata_driver = {
         "ahci",
         ahci_ata_methods,
         sizeof(struct ahci_controller)
 };
-DRIVER_MODULE(ahci, atapci, ahci_ata_driver, ahci_devclass, 0, 0);
+DRIVER_MODULE(ahci, atapci, ahci_ata_driver, ahci_devclass, NULL, NULL);

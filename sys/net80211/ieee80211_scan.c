@@ -698,6 +698,13 @@ ieee80211_cancel_scan(struct ieee80211vap *vap)
 		SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_CANCEL;
 		/* wake up the scan task */
 		scan_signal(ss);
+	} else {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+		    "%s: called; F_SCAN=%d, vap=%s, CANCEL=%d\n",
+		        __func__,
+			!! (ic->ic_flags & IEEE80211_F_SCAN),
+			(ss->ss_vap == vap ? "match" : "nomatch"),
+			!! (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL));
 	}
 	IEEE80211_UNLOCK(ic);
 }
@@ -724,6 +731,13 @@ ieee80211_cancel_anyscan(struct ieee80211vap *vap)
 		SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_CANCEL;
 		/* wake up the scan task */
 		scan_signal(ss);
+	} else {
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+		    "%s: called; F_SCAN=%d, vap=%s, CANCEL=%d\n",
+		        __func__,
+			!! (ic->ic_flags & IEEE80211_F_SCAN),
+			(ss->ss_vap == vap ? "match" : "nomatch"),
+			!! (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL));
 	}
 	IEEE80211_UNLOCK(ic);
 }
@@ -737,6 +751,8 @@ ieee80211_scan_next(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_scan_state *ss = ic->ic_scan;
+
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: called\n", __func__);
 
 	/* wake up the scan task */
 	IEEE80211_LOCK(ic);
@@ -753,6 +769,8 @@ ieee80211_scan_done(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct ieee80211_scan_state *ss;
+
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: called\n", __func__);
 
 	IEEE80211_LOCK(ic);
 	ss = ic->ic_scan;
@@ -807,6 +825,10 @@ scan_curchan(struct ieee80211_scan_state *ss, unsigned long maxdwell)
 {
 	struct ieee80211vap *vap  = ss->ss_vap;
 
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+	    "%s: calling; maxdwell=%lu\n",
+	    __func__,
+	    maxdwell);
 	IEEE80211_LOCK(vap->iv_ic);
 	if (ss->ss_flags & IEEE80211_SCAN_ACTIVE)
 		ieee80211_probe_curchan(vap, 0);
@@ -821,7 +843,6 @@ scan_signal(void *arg)
 	struct ieee80211_scan_state *ss = (struct ieee80211_scan_state *) arg;
 
 	IEEE80211_LOCK_ASSERT(ss->ss_ic);
-
 	cv_signal(&SCAN_PRIVATE(ss)->ss_scan_cv);
 }
 
@@ -833,6 +854,8 @@ static void
 scan_mindwell(struct ieee80211_scan_state *ss)
 {
 	struct ieee80211com *ic = ss->ss_ic;
+
+	IEEE80211_DPRINTF(ss->ss_vap, IEEE80211_MSG_SCAN, "%s: called\n", __func__);
 
 	IEEE80211_LOCK(ic);
 	scan_signal(ss);
@@ -882,13 +905,23 @@ scan_task(void *arg, int pending)
 	}
 
 	scanend = ticks + SCAN_PRIVATE(ss)->ss_duration;
+
+	/* XXX scan state can change! Re-validate scan state! */
+
 	IEEE80211_UNLOCK(ic);
 	ic->ic_scan_start(ic);		/* notify driver */
 	IEEE80211_LOCK(ic);
 
 	for (;;) {
+
 		scandone = (ss->ss_next >= ss->ss_last) ||
 		    (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL) != 0;
+
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN,
+		    "%s: loop start; scandone=%d\n",
+		    __func__,
+		    scandone);
+
 		if (scandone || (ss->ss_flags & IEEE80211_SCAN_GOTPICK) ||
 		    (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_ABORT) ||
 		     time_after(ticks + ss->ss_mindwell, scanend))
@@ -944,6 +977,8 @@ scan_task(void *arg, int pending)
 		ic->ic_scan_curchan(ss, maxdwell);
 		IEEE80211_LOCK(ic);
 
+		/* XXX scan state can change! Re-validate scan state! */
+
 		SCAN_PRIVATE(ss)->ss_chanmindwell = ticks + ss->ss_mindwell;
 		/* clear mindwell lock and initial channel change flush */
 		SCAN_PRIVATE(ss)->ss_iflags &= ~ISCAN_REP;
@@ -951,15 +986,20 @@ scan_task(void *arg, int pending)
 		if ((SCAN_PRIVATE(ss)->ss_iflags & (ISCAN_CANCEL|ISCAN_ABORT)))
 			continue;
 
+		IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: waiting\n", __func__);
 		/* Wait to be signalled to scan the next channel */
 		cv_wait(&SCAN_PRIVATE(ss)->ss_scan_cv, IEEE80211_LOCK_OBJ(ic));
 	}
+
+	IEEE80211_DPRINTF(vap, IEEE80211_MSG_SCAN, "%s: out\n", __func__);
+
 	if (SCAN_PRIVATE(ss)->ss_iflags & ISCAN_ABORT)
 		goto done;
 
 	IEEE80211_UNLOCK(ic);
 	ic->ic_scan_end(ic);		/* notify driver */
 	IEEE80211_LOCK(ic);
+	/* XXX scan state can change! Re-validate scan state! */
 
 	/*
 	 * Since a cancellation may have occured during one of the
@@ -969,10 +1009,10 @@ scan_task(void *arg, int pending)
 	    ((SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL) != 0)) {
 		/* XXX printf? */
 		if_printf(vap->iv_ifp,
-		    "%s: OOPS! scan cancelled during driver call!\n",
+		    "%s: OOPS! scan cancelled during driver call (1)!\n",
 		    __func__);
+		scandone = 1;
 	}
-	scandone |= ((SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL) != 0);
 
 	/*
 	 * Record scan complete time.  Note that we also do
@@ -1030,6 +1070,19 @@ scan_task(void *arg, int pending)
 	    "%s: %s, [ticks %u, dwell min %lu scanend %lu]\n",
 	    __func__, scandone ? "done" : "stopped",
 	    ticks, ss->ss_mindwell, scanend);
+
+	/*
+	 * Since a cancellation may have occured during one of the
+	 * driver calls (whilst unlocked), update scandone.
+	 */
+	if (scandone == 0 &&
+	    ((SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL) != 0)) {
+		/* XXX printf? */
+		if_printf(vap->iv_ifp,
+		    "%s: OOPS! scan cancelled during driver call (2)!\n",
+		    __func__);
+		scandone = 1;
+	}
 
 	/*
 	 * Clear the SCAN bit first in case frames are

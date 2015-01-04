@@ -18,9 +18,9 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Type.h"
-#include "llvm/Support/GetElementPtrTypeIterator.h"
 
 namespace llvm {
 
@@ -209,6 +209,10 @@ public:
     setNoInfs();
     setNoSignedZeros();
     setAllowReciprocal();
+  }
+
+  void operator&=(const FastMathFlags &OtherFlags) {
+    Flags &= OtherFlags.Flags;
   }
 };
 
@@ -472,6 +476,36 @@ public:
   }
 
 };
+
+class PtrToIntOperator
+    : public ConcreteOperator<Operator, Instruction::PtrToInt> {
+  friend class PtrToInt;
+  friend class ConstantExpr;
+
+public:
+  Value *getPointerOperand() {
+    return getOperand(0);
+  }
+  const Value *getPointerOperand() const {
+    return getOperand(0);
+  }
+  static unsigned getPointerOperandIndex() {
+    return 0U;                      // get index for modifying correct operand
+  }
+
+  /// getPointerOperandType - Method to return the pointer operand as a
+  /// PointerType.
+  Type *getPointerOperandType() const {
+    return getPointerOperand()->getType();
+  }
+
+  /// getPointerAddressSpace - Method to return the address space of the
+  /// pointer operand.
+  unsigned getPointerAddressSpace() const {
+    return cast<PointerType>(getPointerOperandType())->getAddressSpace();
+  }
+};
+
 
 } // End llvm namespace
 

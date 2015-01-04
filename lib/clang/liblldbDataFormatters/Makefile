@@ -27,7 +27,9 @@ SRCS=	CF.cpp \
 	TypeSynthetic.cpp \
 	ValueObjectPrinter.cpp
 
-TGHDRS=	DiagnosticCommonKinds \
+TGHDRS=	AttrList \
+	Attrs \
+	DiagnosticCommonKinds \
 	DeclNodes \
 	StmtNodes \
 	CommentCommandList

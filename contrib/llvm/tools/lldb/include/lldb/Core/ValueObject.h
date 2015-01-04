@@ -35,7 +35,7 @@ namespace lldb_private {
 /// ValueObject:
 ///
 /// This abstract class provides an interface to a particular value, be it a register, a local or global variable,
-/// that is evaluated in some particular scope.  The ValueObject also has the capibility of being the "child" of
+/// that is evaluated in some particular scope.  The ValueObject also has the capability of being the "child" of
 /// some other variable object, and in turn of having children.  
 /// If a ValueObject is a root variable object - having no parent - then it must be constructed with respect to some
 /// particular ExecutionContextScope.  If it is a child, it inherits the ExecutionContextScope from its parent.
@@ -380,7 +380,7 @@ public:
     GetTypeImpl ();
 
     //------------------------------------------------------------------
-    // Sublasses must implement the functions below.
+    // Subclasses must implement the functions below.
     //------------------------------------------------------------------
     virtual uint64_t
     GetByteSize() = 0;
@@ -389,10 +389,13 @@ public:
     GetValueType() const = 0;
 
     //------------------------------------------------------------------
-    // Sublasses can implement the functions below.
+    // Subclasses can implement the functions below.
     //------------------------------------------------------------------
     virtual ConstString
     GetTypeName();
+    
+    virtual ConstString
+    GetDisplayTypeName();
     
     virtual ConstString
     GetQualifiedTypeName();
@@ -426,6 +429,9 @@ public:
     {
         return false;
     }
+    
+    bool
+    IsBaseClass (uint32_t& depth);
     
     virtual bool
     IsDereferenceOfParent ()
@@ -465,7 +471,7 @@ public:
         return true;
     }
 
-    virtual off_t
+    virtual lldb::offset_t
     GetByteOffset()
     {
         return 0;
@@ -528,7 +534,7 @@ public:
     GetDeclaration (Declaration &decl);
 
     //------------------------------------------------------------------
-    // The functions below should NOT be modified by sublasses
+    // The functions below should NOT be modified by subclasses
     //------------------------------------------------------------------
     const Error &
     GetError();
@@ -671,6 +677,9 @@ public:
     GetSyntheticChildAtOffset(uint32_t offset, const ClangASTType& type, bool can_create);
     
     virtual lldb::ValueObjectSP
+    GetSyntheticBase (uint32_t offset, const ClangASTType& type, bool can_create);
+
+    virtual lldb::ValueObjectSP
     GetDynamicValue (lldb::DynamicValueType valueType);
     
     lldb::DynamicValueType
@@ -712,6 +721,10 @@ public:
     {
     }
 
+    // Find the address of the C++ vtable pointer
+    virtual lldb::addr_t
+    GetCPPVTableAddress(AddressType &address_type);
+    
     virtual lldb::ValueObjectSP
     Cast (const ClangASTType &clang_ast_type);
     
@@ -762,7 +775,7 @@ public:
     
     static lldb::ValueObjectSP
     CreateValueObjectFromData (const char* name,
-                               DataExtractor& data,
+                               const DataExtractor& data,
                                const ExecutionContext& exe_ctx,
                                ClangASTType type);
     
@@ -793,7 +806,7 @@ public:
 					uint32_t item_count = 1);
     
     virtual uint64_t
-    GetData (DataExtractor& data);
+    GetData (DataExtractor& data, Error &error);
     
     virtual bool
     SetData (DataExtractor &data, Error &error);
@@ -961,7 +974,7 @@ protected:
         void
         SetChildrenCount (size_t count)
         {
-            m_children_count = count;
+            Clear(count);
         }
         
         size_t
@@ -971,10 +984,10 @@ protected:
         }
         
         void
-        Clear()
+        Clear(size_t new_count = 0)
         {
-            m_children_count = 0;
             Mutex::Locker locker(m_mutex);
+            m_children_count = new_count;
             m_children.clear();
         }
         
@@ -1127,7 +1140,7 @@ protected:
     ClearDynamicTypeInformation ();
     
     //------------------------------------------------------------------
-    // Sublasses must implement the functions below.
+    // Subclasses must implement the functions below.
     //------------------------------------------------------------------
     
     virtual ClangASTType

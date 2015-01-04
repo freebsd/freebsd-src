@@ -430,7 +430,7 @@ linux_getcwd(struct thread *td, struct linux_getcwd_args *args)
 
 	path = (char *)malloc(len, M_TEMP, M_WAITOK);
 
-	error = kern___getcwd(td, path, UIO_SYSSPACE, len);
+	error = kern___getcwd(td, (u_char *)path, UIO_SYSSPACE, len);
 	if (!error) {
 		lenused = strlen(path) + 1;
 		if (lenused <= args->bufsize) {
@@ -450,11 +450,8 @@ linux_getcwd(struct thread *td, struct linux_getcwd_args *args)
 		 * limit it to N/2 vnodes for an N byte buffer.
 		 */
 
-		mtx_lock(&Giant);
 		error = linux_getcwd_common (td->td_proc->p_fd->fd_cdir, NULL,
 		    &bp, path, len/2, GETCWD_CHECK_ACCESS, td);
-		mtx_unlock(&Giant);
-
 		if (error)
 			goto out;
 		lenused = bend - bp;

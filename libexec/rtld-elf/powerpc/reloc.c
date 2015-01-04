@@ -483,7 +483,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 	 */
 	offset = target - (Elf_Addr)wherep;
 
-	if (abs(offset) < 32*1024*1024) {     /* inside 32MB? */
+	if (abs((int)offset) < 32*1024*1024) {     /* inside 32MB? */
 		/* b    value   # branch directly */
 		*wherep = 0x48000000 | (offset & 0x03fffffc);
 		__syncicache(wherep, 4);

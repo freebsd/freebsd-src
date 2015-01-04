@@ -40,7 +40,7 @@
 
 #include "elfcopy.h"
 
-ELFTC_VCSID("$Id: main.c 2970 2013-12-01 15:22:12Z kaiwang27 $");
+ELFTC_VCSID("$Id: main.c 3111 2014-12-20 08:33:01Z kaiwang27 $");
 
 enum options
 {
@@ -1109,7 +1109,8 @@ strip_main(struct elfcopy *ecp, int argc, char **argv)
 
 	if (ecp->strip == 0 &&
 	    ((ecp->flags & DISCARD_LOCAL) == 0) &&
-	    ((ecp->flags & DISCARD_LLABEL) == 0))
+	    ((ecp->flags & DISCARD_LLABEL) == 0) &&
+	    lookup_symop_list(ecp, NULL, SYMOP_STRIP) == NULL)
 		ecp->strip = STRIP_ALL;
 	if (optind == argc)
 		strip_usage();

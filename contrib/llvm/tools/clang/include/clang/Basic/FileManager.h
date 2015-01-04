@@ -17,16 +17,17 @@
 
 #include "clang/Basic/FileSystemOptions.h"
 #include "clang/Basic/LLVM.h"
+#include "clang/Basic/VirtualFileSystem.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Allocator.h"
-#include "llvm/Support/FileSystem.h"
+#include <memory>
 // FIXME: Enhance libsystem to support inode and other fields in stat.
 #include <sys/types.h>
+#include <map>
 
 #ifdef _MSC_VER
 typedef unsigned short mode_t;
@@ -48,17 +49,17 @@ class DirectoryEntry {
   const char *Name;   // Name of the directory.
   friend class FileManager;
 public:
-  DirectoryEntry() : Name(0) {}
+  DirectoryEntry() : Name(nullptr) {}
   const char *getName() const { return Name; }
 };
 
 /// \brief Cached information about one file (either on disk
 /// or in the virtual file system).
 ///
-/// If the 'FD' member is valid, then this FileEntry has an open file
+/// If the 'File' member is valid, then this FileEntry has an open file
 /// descriptor for the file.
 class FileEntry {
-  const char *Name;           // Name of the file.
+  std::string Name;           // Name of the file.
   off_t Size;                 // File size in bytes.
   time_t ModTime;             // Modification time of file.
   const DirectoryEntry *Dir;  // Directory file lives in.
@@ -66,33 +67,34 @@ class FileEntry {
   llvm::sys::fs::UniqueID UniqueID;
   bool IsNamedPipe;
   bool InPCH;
+  bool IsValid;               // Is this \c FileEntry initialized and valid?
 
-  /// FD - The file descriptor for the file entry if it is opened and owned
-  /// by the FileEntry.  If not, this is set to -1.
-  mutable int FD;
+  /// \brief The open file, if it is owned by the \p FileEntry.
+  mutable std::unique_ptr<vfs::File> File;
   friend class FileManager;
 
+  void closeFile() const {
+    File.reset(); // rely on destructor to close File
+  }
+
+  void operator=(const FileEntry &) LLVM_DELETED_FUNCTION;
+
 public:
-  FileEntry(llvm::sys::fs::UniqueID UniqueID, bool IsNamedPipe, bool InPCH)
-      : Name(0), UniqueID(UniqueID), IsNamedPipe(IsNamedPipe), InPCH(InPCH),
-        FD(-1) {}
-  // Add a default constructor for use with llvm::StringMap
   FileEntry()
-      : Name(0), UniqueID(0, 0), IsNamedPipe(false), InPCH(false), FD(-1) {}
+      : UniqueID(0, 0), IsNamedPipe(false), InPCH(false), IsValid(false)
+  {}
 
-  FileEntry(const FileEntry &FE) {
-    memcpy(this, &FE, sizeof(FE));
-    assert(FD == -1 && "Cannot copy a file-owning FileEntry");
+  // FIXME: this is here to allow putting FileEntry in std::map.  Once we have
+  // emplace, we shouldn't need a copy constructor anymore.
+  /// Intentionally does not copy fields that are not set in an uninitialized
+  /// \c FileEntry.
+  FileEntry(const FileEntry &FE) : UniqueID(FE.UniqueID),
+      IsNamedPipe(FE.IsNamedPipe), InPCH(FE.InPCH), IsValid(FE.IsValid) {
+    assert(!isValid() && "Cannot copy an initialized FileEntry");
   }
 
-  void operator=(const FileEntry &FE) {
-    memcpy(this, &FE, sizeof(FE));
-    assert(FD == -1 && "Cannot assign a file-owning FileEntry");
-  }
-
-  ~FileEntry();
-
-  const char *getName() const { return Name; }
+  const char *getName() const { return Name.c_str(); }
+  bool isValid() const { return IsValid; }
   off_t getSize() const { return Size; }
   unsigned getUID() const { return UID; }
   const llvm::sys::fs::UniqueID &getUniqueID() const { return UniqueID; }
@@ -119,16 +121,14 @@ struct FileData;
 /// as a single file.
 ///
 class FileManager : public RefCountedBase<FileManager> {
+  IntrusiveRefCntPtr<vfs::FileSystem> FS;
   FileSystemOptions FileSystemOpts;
 
-  class UniqueDirContainer;
-  class UniqueFileContainer;
-
   /// \brief Cache for existing real directories.
-  UniqueDirContainer &UniqueRealDirs;
+  std::map<llvm::sys::fs::UniqueID, DirectoryEntry> UniqueRealDirs;
 
   /// \brief Cache for existing real files.
-  UniqueFileContainer &UniqueRealFiles;
+  std::map<llvm::sys::fs::UniqueID, FileEntry> UniqueRealFiles;
 
   /// \brief The virtual directories that we have allocated.
   ///
@@ -169,17 +169,18 @@ class FileManager : public RefCountedBase<FileManager> {
   unsigned NumDirCacheMisses, NumFileCacheMisses;
 
   // Caching.
-  OwningPtr<FileSystemStatCache> StatCache;
+  std::unique_ptr<FileSystemStatCache> StatCache;
 
   bool getStatValue(const char *Path, FileData &Data, bool isFile,
-                    int *FileDescriptor);
+                    std::unique_ptr<vfs::File> *F);
 
   /// Add all ancestors of the given path (pointing to either a file
   /// or a directory) as virtual directories.
   void addAncestorsAsVirtualDirs(StringRef Path);
 
 public:
-  FileManager(const FileSystemOptions &FileSystemOpts);
+  FileManager(const FileSystemOptions &FileSystemOpts,
+              IntrusiveRefCntPtr<vfs::FileSystem> FS = nullptr);
   ~FileManager();
 
   /// \brief Installs the provided FileSystemStatCache object within
@@ -226,6 +227,10 @@ public:
   /// \brief Returns the current file system options
   const FileSystemOptions &getFileSystemOptions() { return FileSystemOpts; }
 
+  IntrusiveRefCntPtr<vfs::FileSystem> getVirtualFileSystem() const {
+    return FS;
+  }
+
   /// \brief Retrieve a file entry for a "virtual" file that acts as
   /// if there were a file with the given name on disk.
   ///
@@ -236,17 +241,20 @@ public:
   /// \brief Open the specified file as a MemoryBuffer, returning a new
   /// MemoryBuffer if successful, otherwise returning null.
   llvm::MemoryBuffer *getBufferForFile(const FileEntry *Entry,
-                                       std::string *ErrorStr = 0,
-                                       bool isVolatile = false);
+                                       std::string *ErrorStr = nullptr,
+                                       bool isVolatile = false,
+                                       bool ShouldCloseOpenFile = true);
   llvm::MemoryBuffer *getBufferForFile(StringRef Filename,
-                                       std::string *ErrorStr = 0);
+                                       std::string *ErrorStr = nullptr);
 
   /// \brief Get the 'stat' information for the given \p Path.
   ///
   /// If the path is relative, it will be resolved against the WorkingDir of the
   /// FileManager's FileSystemOptions.
+  ///
+  /// \returns false on success, true on error.
   bool getNoncachedStatValue(StringRef Path,
-                             llvm::sys::fs::file_status &Result);
+                             vfs::Status &Result);
 
   /// \brief Remove the real file \p Entry from the cache.
   void invalidateCache(const FileEntry *Entry);

@@ -67,6 +67,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <libufs.h>
 #include <paths.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -361,7 +362,7 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 	/*
 	 * Dump the main inode structure.
 	 */
-	snprintf(comment, sizeof(comment), "Inode 0x%08x", inode);
+	snprintf(comment, sizeof(comment), "Inode 0x%08jx", (uintmax_t)inode);
 	if (level & 0x100) {
 		DBG_DUMP_INO(&sblock,
 		    comment,
@@ -385,8 +386,8 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 			(size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
-		snprintf(comment, sizeof(comment), "Inode 0x%08x: indirect 0",
-		    inode);
+		snprintf(comment, sizeof(comment), "Inode 0x%08jx: indirect 0",
+		    (uintmax_t)inode);
 		DBG_DUMP_IBLK(&sblock,
 		    comment,
 		    i1blk,
@@ -401,8 +402,8 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 			(size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
-		snprintf(comment, sizeof(comment), "Inode 0x%08x: indirect 1",
-		    inode);
+		snprintf(comment, sizeof(comment), "Inode 0x%08jx: indirect 1",
+		    (uintmax_t)inode);
 		DBG_DUMP_IBLK(&sblock,
 		    comment,
 		    i2blk,
@@ -416,7 +417,8 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 				err(1, "bread: %s", disk.d_error);
 			}
 			snprintf(comment, sizeof(comment),
-			    "Inode 0x%08x: indirect 1->%d", inode, ind2ctr);
+			    "Inode 0x%08jx: indirect 1->%d", (uintmax_t)inode,
+			    ind2ctr);
 			DBG_DUMP_IBLK(&sblock,
 			    comment,
 			    i1blk,
@@ -432,8 +434,8 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 			(size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
-		snprintf(comment, sizeof(comment), "Inode 0x%08x: indirect 2",
-		    inode);
+		snprintf(comment, sizeof(comment), "Inode 0x%08jx: indirect 2",
+		    (uintmax_t)inode);
 #define SQUARE(a) ((a)*(a))
 		DBG_DUMP_IBLK(&sblock,
 		    comment,
@@ -450,7 +452,8 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 				err(1, "bread: %s", disk.d_error);
 			}
 			snprintf(comment, sizeof(comment),
-			    "Inode 0x%08x: indirect 2->%d", inode, ind3ctr);
+			    "Inode 0x%08jx: indirect 2->%d", (uintmax_t)inode,
+			    ind3ctr);
 			DBG_DUMP_IBLK(&sblock,
 			    comment,
 			    i2blk,
@@ -466,8 +469,8 @@ dump_whole_ufs1_inode(ino_t inode, int level)
 					err(1, "bread: %s", disk.d_error);
 				}
 				snprintf(comment, sizeof(comment),
-				    "Inode 0x%08x: indirect 2->%d->%d", inode,
-				    ind3ctr, ind3ctr);
+				    "Inode 0x%08jx: indirect 2->%d->%d",
+				    (uintmax_t)inode, ind3ctr, ind3ctr);
 				DBG_DUMP_IBLK(&sblock,
 				    comment,
 				    i1blk,
@@ -513,7 +516,7 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 	/*
 	 * Dump the main inode structure.
 	 */
-	snprintf(comment, sizeof(comment), "Inode 0x%08x", inode);
+	snprintf(comment, sizeof(comment), "Inode 0x%08jx", (uintmax_t)inode);
 	if (level & 0x100) {
 		DBG_DUMP_INO(&sblock, comment, ino);
 	}
@@ -535,7 +538,8 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 			(size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
-		snprintf(comment, sizeof(comment), "Inode 0x%08x: indirect 0", inode);
+		snprintf(comment, sizeof(comment), "Inode 0x%08jx: indirect 0",
+		    (uintmax_t)inode);
 		DBG_DUMP_IBLK(&sblock, comment, i1blk, (size_t)rb);
 		rb -= howmany(sblock.fs_bsize, sizeof(ufs2_daddr_t));
 	}
@@ -547,7 +551,8 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 			(size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
-		snprintf(comment, sizeof(comment), "Inode 0x%08x: indirect 1", inode);
+		snprintf(comment, sizeof(comment), "Inode 0x%08jx: indirect 1",
+		    (uintmax_t)inode);
 		DBG_DUMP_IBLK(&sblock,
 			comment,
 			i2blk,
@@ -561,7 +566,8 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 				err(1, "bread: %s", disk.d_error);
 			}
 			snprintf(comment, sizeof(comment),
-				"Inode 0x%08x: indirect 1->%d", inode, ind2ctr);
+				"Inode 0x%08jx: indirect 1->%d",
+				(uintmax_t)inode, ind2ctr);
 			DBG_DUMP_IBLK(&sblock, comment, i1blk, (size_t)rb);
 			rb -= howmany(sblock.fs_bsize, sizeof(ufs2_daddr_t));
 		}
@@ -574,7 +580,8 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 			(size_t)sblock.fs_bsize) == -1) {
 			err(1, "bread: %s", disk.d_error);
 		}
-		snprintf(comment, sizeof(comment), "Inode 0x%08x: indirect 2", inode);
+		snprintf(comment, sizeof(comment), "Inode 0x%08jx: indirect 2",
+		    (uintmax_t)inode);
 #define SQUARE(a) ((a)*(a))
 		DBG_DUMP_IBLK(&sblock,
 			comment,
@@ -591,7 +598,8 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 				err(1, "bread: %s", disk.d_error);
 			}
 			snprintf(comment, sizeof(comment),
-				"Inode 0x%08x: indirect 2->%d", inode, ind3ctr);
+				"Inode 0x%08jx: indirect 2->%d",
+				(uintmax_t)inode, ind3ctr);
 			DBG_DUMP_IBLK(&sblock,
 				comment,
 				i2blk,
@@ -605,8 +613,8 @@ dump_whole_ufs2_inode(ino_t inode, int level)
 					err(1, "bread: %s", disk.d_error);
 				}
 				snprintf(comment, sizeof(comment),
-					"Inode 0x%08x: indirect 2->%d->%d", inode,
-					ind3ctr, ind3ctr);
+					"Inode 0x%08jx: indirect 2->%d->%d",
+					(uintmax_t)inode, ind3ctr, ind3ctr);
 				DBG_DUMP_IBLK(&sblock, comment, i1blk, (size_t)rb);
 				rb -= howmany(sblock.fs_bsize, sizeof(ufs2_daddr_t));
 			}

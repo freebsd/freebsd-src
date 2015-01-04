@@ -23,32 +23,24 @@ class X86TargetMachine;
 class X86Subtarget;
 
 class X86SelectionDAGInfo : public TargetSelectionDAGInfo {
-  /// Subtarget - Keep a pointer to the X86Subtarget around so that we can
-  /// make the right decision when generating code for different targets.
-  const X86Subtarget *Subtarget;
-
-  const X86TargetLowering &TLI;
-
 public:
-  explicit X86SelectionDAGInfo(const X86TargetMachine &TM);
+  explicit X86SelectionDAGInfo(const DataLayout &DL);
   ~X86SelectionDAGInfo();
 
-  virtual
   SDValue EmitTargetCodeForMemset(SelectionDAG &DAG, SDLoc dl,
                                   SDValue Chain,
                                   SDValue Dst, SDValue Src,
                                   SDValue Size, unsigned Align,
                                   bool isVolatile,
-                                  MachinePointerInfo DstPtrInfo) const;
+                                  MachinePointerInfo DstPtrInfo) const override;
 
-  virtual
   SDValue EmitTargetCodeForMemcpy(SelectionDAG &DAG, SDLoc dl,
                                   SDValue Chain,
                                   SDValue Dst, SDValue Src,
                                   SDValue Size, unsigned Align,
                                   bool isVolatile, bool AlwaysInline,
                                   MachinePointerInfo DstPtrInfo,
-                                  MachinePointerInfo SrcPtrInfo) const;
+                                  MachinePointerInfo SrcPtrInfo) const override;
 };
 
 }

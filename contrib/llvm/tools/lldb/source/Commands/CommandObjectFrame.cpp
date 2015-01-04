@@ -204,7 +204,7 @@ protected:
             
             if (m_options.relative_frame_offset < 0)
             {
-                if (frame_idx >= -m_options.relative_frame_offset)
+                if (static_cast<int32_t>(frame_idx) >= -m_options.relative_frame_offset)
                     frame_idx += m_options.relative_frame_offset;
                 else
                 {
@@ -224,7 +224,7 @@ protected:
                 // I don't want "up 20" where "20" takes you past the top of the stack to produce
                 // an error, but rather to just go to the top.  So I have to count the stack here...
                 const uint32_t num_frames = thread->GetStackFrameCount();
-                if (num_frames - frame_idx > m_options.relative_frame_offset)
+                if (static_cast<int32_t>(num_frames - frame_idx) > m_options.relative_frame_offset)
                     frame_idx += m_options.relative_frame_offset;
                 else
                 {
@@ -291,8 +291,8 @@ protected:
 OptionDefinition
 CommandObjectFrameSelect::CommandOptions::g_option_table[] =
 {
-{ LLDB_OPT_SET_1, false, "relative", 'r', OptionParser::eRequiredArgument, NULL, 0, eArgTypeOffset, "A relative frame index offset from the current frame index."},
-{ 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
+{ LLDB_OPT_SET_1, false, "relative", 'r', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeOffset, "A relative frame index offset from the current frame index."},
+{ 0, false, NULL, 0, 0, NULL, NULL, 0, eArgTypeNone, NULL }
 };
 
 #pragma mark CommandObjectFrameVariable
@@ -471,7 +471,7 @@ protected:
                             if (regex.GetErrorAsCString(regex_error, sizeof(regex_error)))
                                 result.GetErrorStream().Printf ("error: %s\n", regex_error);
                             else
-                                result.GetErrorStream().Printf ("error: unkown regex error when compiling '%s'\n", name_cstr);
+                                result.GetErrorStream().Printf ("error: unknown regex error when compiling '%s'\n", name_cstr);
                         }
                     }
                     else // No regex, either exact variable names or variable expressions.
