@@ -166,6 +166,8 @@ static bool matched_symbol(SymLook *, const Obj_Entry *, Sym_Match_Result *,
 void r_debug_state(struct r_debug *, struct link_map *) __noinline;
 void _r_debug_postinit(struct link_map *) __noinline;
 
+int __sys_openat(int, const char *, int, ...);
+
 /*
  * Data declarations.
  */
@@ -2824,7 +2826,7 @@ search_library_pathfds(const char *name, const char *path, int *fdp)
 		dirfd = parse_libdir(fdstr);
 		if (dirfd < 0)
 			break;
-		fd = openat(dirfd, name, O_RDONLY | O_CLOEXEC);
+		fd = __sys_openat(dirfd, name, O_RDONLY | O_CLOEXEC);
 		if (fd >= 0) {
 			*fdp = fd;
 			len = strlen(fdstr) + strlen(name) + 3;
