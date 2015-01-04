@@ -106,6 +106,7 @@ FBSD_1.3 {
 
 FBSD_1.4 {
 	atexit_b;
+	bsearch_b;
 	heapsort_b;
 	mergesort_b;
 	qsort_b;
@@ -117,4 +118,5 @@ FBSD_1.4 {
 FBSDprivate_1.0 {
 	__system;
 	_system;
+	__libc_system;
 };

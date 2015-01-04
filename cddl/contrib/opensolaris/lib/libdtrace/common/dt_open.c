@@ -29,6 +29,11 @@
 #if defined(sun)
 #include <sys/modctl.h>
 #include <sys/systeminfo.h>
+#else
+/* FreeBSD */
+#include <sys/param.h>
+#include <sys/module.h>
+#include <sys/linker.h>
 #endif
 #include <sys/resource.h>
 

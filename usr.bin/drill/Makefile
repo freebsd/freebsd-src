@@ -12,8 +12,6 @@ CFLAGS+= -I${LDNSDIR}
 NO_WERROR= true
 MAN=	drill.1
 
-DPADD+=	${LIBLDNS} ${LIBCRYPTO}
-LDADD+=	-lldns -lcrypto
-USEPRIVATELIB= ldns
+LIBADD=	ldns crypto
 
 .include <bsd.prog.mk>

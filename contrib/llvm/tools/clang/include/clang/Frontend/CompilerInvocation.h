@@ -47,15 +47,17 @@ class DiagnosticsEngine;
 /// When errors are encountered, return false and, if Diags is non-null,
 /// report the error(s).
 bool ParseDiagnosticArgs(DiagnosticOptions &Opts, llvm::opt::ArgList &Args,
-                         DiagnosticsEngine *Diags = 0);
+                         DiagnosticsEngine *Diags = nullptr);
 
 class CompilerInvocationBase : public RefCountedBase<CompilerInvocation> {
-protected:
+  void operator=(const CompilerInvocationBase &) LLVM_DELETED_FUNCTION;
+
+public:
   /// Options controlling the language variant.
-  IntrusiveRefCntPtr<LangOptions> LangOpts;
+  std::shared_ptr<LangOptions> LangOpts;
 
   /// Options controlling the target.
-  IntrusiveRefCntPtr<TargetOptions> TargetOpts;
+  std::shared_ptr<TargetOptions> TargetOpts;
 
   /// Options controlling the diagnostic engine.
   IntrusiveRefCntPtr<DiagnosticOptions> DiagnosticOpts;
@@ -66,17 +68,17 @@ protected:
   /// Options controlling the preprocessor (aside from \#include handling).
   IntrusiveRefCntPtr<PreprocessorOptions> PreprocessorOpts;
 
-public:
   CompilerInvocationBase();
+  ~CompilerInvocationBase();
 
   CompilerInvocationBase(const CompilerInvocationBase &X);
   
-  LangOptions *getLangOpts() { return LangOpts.getPtr(); }
-  const LangOptions *getLangOpts() const { return LangOpts.getPtr(); }
+  LangOptions *getLangOpts() { return LangOpts.get(); }
+  const LangOptions *getLangOpts() const { return LangOpts.get(); }
 
-  TargetOptions &getTargetOpts() { return *TargetOpts.getPtr(); }
+  TargetOptions &getTargetOpts() { return *TargetOpts.get(); }
   const TargetOptions &getTargetOpts() const {
-    return *TargetOpts.getPtr();
+    return *TargetOpts.get();
   }
 
   DiagnosticOptions &getDiagnosticOpts() const { return *DiagnosticOpts; }
@@ -203,6 +205,14 @@ public:
 
   /// @}
 };
+
+namespace vfs {
+  class FileSystem;
+}
+
+IntrusiveRefCntPtr<vfs::FileSystem>
+createVFSFromCompilerInvocation(const CompilerInvocation &CI,
+                                DiagnosticsEngine &Diags);
 
 } // end namespace clang
 

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -57,15 +58,34 @@ __FBSDID("$FreeBSD$");
 #include "sfxge.h"
 #include "sfxge_rx.h"
 
-#define SFXGE_CAP (IFCAP_VLAN_MTU | \
+#define	SFXGE_CAP (IFCAP_VLAN_MTU | \
 		   IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | IFCAP_TSO |	\
 		   IFCAP_JUMBO_MTU | IFCAP_LRO |			\
 		   IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE)
-#define SFXGE_CAP_ENABLE SFXGE_CAP
-#define SFXGE_CAP_FIXED (IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | \
+#define	SFXGE_CAP_ENABLE SFXGE_CAP
+#define	SFXGE_CAP_FIXED (IFCAP_VLAN_MTU | IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | \
 			 IFCAP_JUMBO_MTU | IFCAP_LINKSTATE)
 
 MALLOC_DEFINE(M_SFXGE, "sfxge", "Solarflare 10GigE driver");
+
+
+SYSCTL_NODE(_hw, OID_AUTO, sfxge, CTLFLAG_RD, 0,
+	    "SFXGE driver parameters");
+
+#define	SFXGE_PARAM_RX_RING	SFXGE_PARAM(rx_ring)
+static int sfxge_rx_ring_entries = SFXGE_NDESCS;
+TUNABLE_INT(SFXGE_PARAM_RX_RING, &sfxge_rx_ring_entries);
+SYSCTL_INT(_hw_sfxge, OID_AUTO, rx_ring, CTLFLAG_RDTUN,
+	   &sfxge_rx_ring_entries, 0,
+	   "Maximum number of descriptors in a receive ring");
+
+#define	SFXGE_PARAM_TX_RING	SFXGE_PARAM(tx_ring)
+static int sfxge_tx_ring_entries = SFXGE_NDESCS;
+TUNABLE_INT(SFXGE_PARAM_TX_RING, &sfxge_tx_ring_entries);
+SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_ring, CTLFLAG_RDTUN,
+	   &sfxge_tx_ring_entries, 0,
+	   "Maximum number of descriptors in a transmit ring");
+
 
 static void
 sfxge_reset(void *arg, int npending);
@@ -78,7 +98,7 @@ sfxge_start(struct sfxge_softc *sc)
 	sx_assert(&sc->softc_lock, LA_XLOCKED);
 
 	if (sc->init_state == SFXGE_STARTED)
-		return 0;
+		return (0);
 
 	if (sc->init_state != SFXGE_REGISTERED) {
 		rc = EINVAL;
@@ -223,7 +243,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			ifp->if_mtu = ifr->ifr_mtu;
 			error = sfxge_start(sc);
 			sx_xunlock(&sc->softc_lock);
-			if (error) {
+			if (error != 0) {
 				ifp->if_flags &= ~IFF_UP;
 				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 				if_down(ifp);
@@ -287,7 +307,7 @@ sfxge_ifnet_fini(struct ifnet *ifp)
 	if_free(ifp);
 }
 
-static int 
+static int
 sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 {
 	const efx_nic_cfg_t *encp = efx_nic_cfg_get(sc->enp);
@@ -314,8 +334,8 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 	ifp->if_qflush = sfxge_if_qflush;
 #else
 	ifp->if_start = sfxge_if_start;
-	IFQ_SET_MAXLEN(&ifp->if_snd, SFXGE_NDESCS - 1);
-	ifp->if_snd.ifq_drv_maxlen = SFXGE_NDESCS - 1;
+	IFQ_SET_MAXLEN(&ifp->if_snd, sc->txq_entries - 1);
+	ifp->if_snd.ifq_drv_maxlen = sc->txq_entries - 1;
 	IFQ_SET_READY(&ifp->if_snd);
 
 	mtx_init(&sc->tx_lock, "txq", NULL, MTX_DEF);
@@ -324,11 +344,11 @@ sfxge_ifnet_init(struct ifnet *ifp, struct sfxge_softc *sc)
 	if ((rc = sfxge_port_ifmedia_init(sc)) != 0)
 		goto fail;
 
-	return 0;
+	return (0);
 
 fail:
 	ether_ifdetach(sc->ifnet);
-	return rc;
+	return (rc);
 }
 
 void
@@ -347,7 +367,7 @@ sfxge_bar_init(struct sfxge_softc *sc)
 {
 	efsys_bar_t *esbp = &sc->bar;
 
-	esbp->esb_rid = PCIR_BAR(EFX_MEM_BAR);	
+	esbp->esb_rid = PCIR_BAR(EFX_MEM_BAR);
 	if ((esbp->esb_res = bus_alloc_resource_any(sc->dev, SYS_RES_MEMORY,
 	    &esbp->esb_rid, RF_ACTIVE)) == NULL) {
 		device_printf(sc->dev, "Cannot allocate BAR region %d\n",
@@ -386,7 +406,7 @@ sfxge_create(struct sfxge_softc *sc)
 		device_get_sysctl_ctx(dev),
 		SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 		OID_AUTO, "stats", CTLFLAG_RD, NULL, "Statistics");
-	if (!sc->stats_node) {
+	if (sc->stats_node == NULL) {
 		error = ENOMEM;
 		goto fail;
 	}
@@ -413,6 +433,26 @@ sfxge_create(struct sfxge_softc *sc)
 	    &sc->bar, &sc->enp_lock, &enp)) != 0)
 		goto fail3;
 	sc->enp = enp;
+
+	if (!ISP2(sfxge_rx_ring_entries) ||
+	    !(sfxge_rx_ring_entries & EFX_RXQ_NDESCS_MASK)) {
+		log(LOG_ERR, "%s=%d must be power of 2 from %u to %u",
+		    SFXGE_PARAM_RX_RING, sfxge_rx_ring_entries,
+		    EFX_RXQ_MINNDESCS, EFX_RXQ_MAXNDESCS);
+		error = EINVAL;
+		goto fail_rx_ring_entries;
+	}
+	sc->rxq_entries = sfxge_rx_ring_entries;
+
+	if (!ISP2(sfxge_tx_ring_entries) ||
+	    !(sfxge_tx_ring_entries & EFX_TXQ_NDESCS_MASK)) {
+		log(LOG_ERR, "%s=%d must be power of 2 from %u to %u",
+		    SFXGE_PARAM_TX_RING, sfxge_tx_ring_entries,
+		    EFX_TXQ_MINNDESCS, EFX_TXQ_MAXNDESCS);
+		error = EINVAL;
+		goto fail_tx_ring_entries;
+	}
+	sc->txq_entries = sfxge_tx_ring_entries;
 
 	/* Initialize MCDI to talk to the microcontroller. */
 	if ((error = sfxge_mcdi_init(sc)) != 0)
@@ -486,6 +526,8 @@ fail5:
 	sfxge_mcdi_fini(sc);
 
 fail4:
+fail_tx_ring_entries:
+fail_rx_ring_entries:
 	sc->enp = NULL;
 	efx_nic_destroy(enp);
 	mtx_destroy(&sc->enp_lock);
@@ -554,14 +596,14 @@ sfxge_vpd_handler(SYSCTL_HANDLER_ARGS)
 	struct sfxge_softc *sc = arg1;
 	efx_vpd_value_t value;
 	int rc;
-	
+
 	value.evv_tag = arg2 >> 16;
 	value.evv_keyword = arg2 & 0xffff;
 	if ((rc = efx_vpd_get(sc->enp, sc->vpd_data, sc->vpd_size, &value))
 	    != 0)
-		return rc;
+		return (rc);
 
-	return SYSCTL_OUT(req, value.evv_value, value.evv_length);
+	return (SYSCTL_OUT(req, value.evv_value, value.evv_length));
 }
 
 static void
@@ -623,12 +665,12 @@ sfxge_vpd_init(struct sfxge_softc *sc)
 	for (keyword[1] = 'A'; keyword[1] <= 'Z'; keyword[1]++)
 		sfxge_vpd_try_add(sc, vpd_list, EFX_VPD_RO, keyword);
 
-	return 0;
-	
+	return (0);
+
 fail2:
 	free(sc->vpd_data, M_SFXGE);
 fail:
-	return rc;
+	return (rc);
 }
 
 static void
@@ -745,12 +787,12 @@ sfxge_probe(device_t dev)
 	pci_device_id = pci_get_device(dev);
 
 	rc = efx_family(pci_vendor_id, pci_device_id, &family);
-	if (rc)
-		return ENXIO;
+	if (rc != 0)
+		return (ENXIO);
 
 	KASSERT(family == EFX_FAMILY_SIENA, ("impossible controller family"));
 	device_set_desc(dev, "Solarflare SFC9000 family");
-	return 0;
+	return (0);
 }
 
 static device_method_t sfxge_methods[] = {

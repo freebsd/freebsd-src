@@ -684,7 +684,7 @@ vdev_disk_io_intr(buf_t *bp)
 	 * Rather than teach the rest of the stack about other error
 	 * possibilities (EFAULT, etc), we normalize the error value here.
 	 */
-	zio->io_error = (geterror(bp) != 0 ? EIO : 0);
+	zio->io_error = (geterror(bp) != 0 ? SET_ERROR(EIO) : 0);
 
 	if (zio->io_error == 0 && bp->b_resid != 0)
 		zio->io_error = SET_ERROR(EIO);
@@ -715,7 +715,7 @@ vdev_disk_ioctl_done(void *zio_arg, int error)
 	zio_interrupt(zio);
 }
 
-static int
+static void
 vdev_disk_io_start(zio_t *zio)
 {
 	vdev_t *vd = zio->io_vd;
@@ -730,15 +730,17 @@ vdev_disk_io_start(zio_t *zio)
 	 * Nothing to be done here but return failure.
 	 */
 	if (dvd == NULL || (dvd->vd_ldi_offline && dvd->vd_lh == NULL)) {
-		zio->io_error = ENXIO;
-		return (ZIO_PIPELINE_CONTINUE);
+		zio->io_error = SET_ERROR(ENXIO);
+		zio_interrupt(zio);
+		return;
 	}
 
 	if (zio->io_type == ZIO_TYPE_IOCTL) {
 		/* XXPOLICY */
 		if (!vdev_readable(vd)) {
 			zio->io_error = SET_ERROR(ENXIO);
-			return (ZIO_PIPELINE_CONTINUE);
+			zio_interrupt(zio);
+			return;
 		}
 
 		switch (zio->io_cmd) {
@@ -769,7 +771,7 @@ vdev_disk_io_start(zio_t *zio)
 				 * and will call vdev_disk_ioctl_done()
 				 * upon completion.
 				 */
-				return (ZIO_PIPELINE_STOP);
+				return;
 			}
 
 			if (error == ENOTSUP || error == ENOTTY) {
@@ -790,8 +792,11 @@ vdev_disk_io_start(zio_t *zio)
 			zio->io_error = SET_ERROR(ENOTSUP);
 		}
 
-		return (ZIO_PIPELINE_CONTINUE);
+		zio_execute(zio);
+		return;
 	}
+
+	ASSERT(zio->io_type == ZIO_TYPE_READ || zio->io_type == ZIO_TYPE_WRITE);
 
 	vb = kmem_alloc(sizeof (vdev_buf_t), KM_SLEEP);
 
@@ -811,8 +816,6 @@ vdev_disk_io_start(zio_t *zio)
 
 	/* ldi_strategy() will return non-zero only on programming errors */
 	VERIFY(ldi_strategy(dvd->vd_lh, bp) == 0);
-
-	return (ZIO_PIPELINE_STOP);
 }
 
 static void

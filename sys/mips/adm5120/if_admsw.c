@@ -925,7 +925,7 @@ admsw_txintr(struct admsw_softc *sc, int prio)
 		gotone = 1;
 		/* printf("clear tx slot %d\n",i); */
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		sc->sc_txfree++;
 	}
@@ -1047,7 +1047,7 @@ admsw_rxintr(struct admsw_softc *sc, int high)
 
 		m = ds->ds_mbuf;
 		if (admsw_add_rxlbuf(sc, i) != 0) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			ADMSW_INIT_RXLDESC(sc, i);
 			bus_dmamap_sync(sc->sc_bufs_dmat, ds->ds_dmamap,
 			    BUS_DMASYNC_PREREAD);
@@ -1066,7 +1066,7 @@ admsw_rxintr(struct admsw_softc *sc, int high)
 
 		/* Pass it on. */
 		(*ifp->if_input)(ifp, m);
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 	}
 
 	/* Update the receive pointer. */

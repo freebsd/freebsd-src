@@ -124,7 +124,8 @@ enum	{ PF_ADDR_ADDRMASK, PF_ADDR_NOROUTE, PF_ADDR_DYNIFTL,
 #define PFRES_MAXSTATES	12		/* State limit */
 #define PFRES_SRCLIMIT	13		/* Source node/conn limit */
 #define PFRES_SYNPROXY	14		/* SYN proxy */
-#define PFRES_MAX	15		/* total+1 */
+#define PFRES_MAPFAILED	15		/* pf_map_addr() failed */
+#define PFRES_MAX	16		/* total+1 */
 
 #define PFRES_NAMES { \
 	"match", \
@@ -142,10 +143,61 @@ enum	{ PF_ADDR_ADDRMASK, PF_ADDR_NOROUTE, PF_ADDR_DYNIFTL,
 	"state-limit", \
 	"src-limit", \
 	"synproxy", \
+	"map-failed", \
 	NULL \
 }
 
+/* Counters for other things we want to keep track of */
+#define LCNT_STATES		0	/* states */
+#define LCNT_SRCSTATES		1	/* max-src-states */
+#define LCNT_SRCNODES		2	/* max-src-nodes */
+#define LCNT_SRCCONN		3	/* max-src-conn */
+#define LCNT_SRCCONNRATE	4	/* max-src-conn-rate */
+#define LCNT_OVERLOAD_TABLE	5	/* entry added to overload table */
+#define LCNT_OVERLOAD_FLUSH	6	/* state entries flushed */
+#define LCNT_MAX		7	/* total+1 */
+
+#define LCNT_NAMES { \
+	"max states per rule", \
+	"max-src-states", \
+	"max-src-nodes", \
+	"max-src-conn", \
+	"max-src-conn-rate", \
+	"overload table insertion", \
+	"overload flush states", \
+	NULL \
+}
+
+/* state operation counters */
+#define FCNT_STATE_SEARCH	0
+#define FCNT_STATE_INSERT	1
+#define FCNT_STATE_REMOVALS	2
+#define FCNT_MAX		3
+
+/* src_node operation counters */
+#define SCNT_SRC_NODE_SEARCH	0
+#define SCNT_SRC_NODE_INSERT	1
+#define SCNT_SRC_NODE_REMOVALS	2
+#define SCNT_MAX		3
+
 #define	PF_TABLE_NAME_SIZE	32
 #define	PF_QNAME_SIZE		64
+
+struct pf_status {
+	uint64_t	counters[PFRES_MAX];
+	uint64_t	lcounters[LCNT_MAX];
+	uint64_t	fcounters[FCNT_MAX];
+	uint64_t	scounters[SCNT_MAX];
+	uint64_t	pcounters[2][2][3];
+	uint64_t	bcounters[2][2];
+	uint32_t	running;
+	uint32_t	states;
+	uint32_t	src_nodes;
+	uint32_t	since;
+	uint32_t	debug;
+	uint32_t	hostid;
+	char		ifname[IFNAMSIZ];
+	uint8_t		pf_chksum[PF_MD5_DIGEST_LENGTH];
+};
 
 #endif	/* _NET_PF_H_ */

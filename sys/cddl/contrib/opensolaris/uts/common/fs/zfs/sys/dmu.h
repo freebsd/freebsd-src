@@ -25,6 +25,7 @@
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  * Copyright 2013 DEY Storage Systems, Inc.
+ * Copyright 2014 HybridCluster. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -248,7 +249,7 @@ void zfs_znode_byteswap(void *buf, size_t size);
  * The maximum number of bytes that can be accessed as part of one
  * operation, including metadata.
  */
-#define	DMU_MAX_ACCESS (10<<20) /* 10MB */
+#define	DMU_MAX_ACCESS (32 * 1024 * 1024) /* 32MB */
 #define	DMU_MAX_DELETEBLKCNT (20480) /* ~5MB of indirect blocks */
 
 #define	DMU_USERUSED_OBJECT	(-1ULL)
@@ -341,7 +342,7 @@ uint64_t dmu_object_alloc(objset_t *os, dmu_object_type_t ot,
 int dmu_object_claim(objset_t *os, uint64_t object, dmu_object_type_t ot,
     int blocksize, dmu_object_type_t bonus_type, int bonus_len, dmu_tx_t *tx);
 int dmu_object_reclaim(objset_t *os, uint64_t object, dmu_object_type_t ot,
-    int blocksize, dmu_object_type_t bonustype, int bonuslen);
+    int blocksize, dmu_object_type_t bonustype, int bonuslen, dmu_tx_t *txp);
 
 /*
  * Free an object from this objset.
@@ -485,12 +486,6 @@ void dmu_buf_rele_array(dmu_buf_t **, int numbufs, void *tag);
  *
  * user_ptr is for use by the user and can be obtained via dmu_buf_get_user().
  *
- * user_data_ptr_ptr should be NULL, or a pointer to a pointer which
- * will be set to db->db_data when you are allowed to access it.  Note
- * that db->db_data (the pointer) can change when you do dmu_buf_read(),
- * dmu_buf_tryupgrade(), dmu_buf_will_dirty(), or dmu_buf_will_fill().
- * *user_data_ptr_ptr will be set to the new value when it changes.
- *
  * If non-NULL, pageout func will be called when this buffer is being
  * excised from the cache, so that you can clean up the data structure
  * pointed to by user_ptr.
@@ -498,17 +493,16 @@ void dmu_buf_rele_array(dmu_buf_t **, int numbufs, void *tag);
  * dmu_evict_user() will call the pageout func for all buffers in a
  * objset with a given pageout func.
  */
-void *dmu_buf_set_user(dmu_buf_t *db, void *user_ptr, void *user_data_ptr_ptr,
+void *dmu_buf_set_user(dmu_buf_t *db, void *user_ptr,
     dmu_buf_evict_func_t *pageout_func);
 /*
  * set_user_ie is the same as set_user, but request immediate eviction
  * when hold count goes to zero.
  */
 void *dmu_buf_set_user_ie(dmu_buf_t *db, void *user_ptr,
-    void *user_data_ptr_ptr, dmu_buf_evict_func_t *pageout_func);
-void *dmu_buf_update_user(dmu_buf_t *db_fake, void *old_user_ptr,
-    void *user_ptr, void *user_data_ptr_ptr,
     dmu_buf_evict_func_t *pageout_func);
+void *dmu_buf_update_user(dmu_buf_t *db_fake, void *old_user_ptr,
+    void *user_ptr, dmu_buf_evict_func_t *pageout_func);
 void dmu_evict_user(objset_t *os, dmu_buf_evict_func_t *func);
 
 /*
@@ -616,6 +610,7 @@ void dmu_write(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 void dmu_prealloc(objset_t *os, uint64_t object, uint64_t offset, uint64_t size,
 	dmu_tx_t *tx);
 int dmu_read_uio(objset_t *os, uint64_t object, struct uio *uio, uint64_t size);
+int dmu_read_uio_dbuf(dmu_buf_t *zdb, struct uio *uio, uint64_t size);
 int dmu_write_uio(objset_t *os, uint64_t object, struct uio *uio, uint64_t size,
     dmu_tx_t *tx);
 int dmu_write_uio_dbuf(dmu_buf_t *zdb, struct uio *uio, uint64_t size,
@@ -644,6 +639,7 @@ void xuio_stat_wbuf_copied();
 void xuio_stat_wbuf_nocopy();
 
 extern int zfs_prefetch_disable;
+extern int zfs_max_recordsize;
 
 /*
  * Asynchronously try to read in the data.
@@ -661,7 +657,8 @@ typedef struct dmu_object_info {
 	uint8_t doi_indirection;		/* 2 = dnode->indirect->data */
 	uint8_t doi_checksum;
 	uint8_t doi_compress;
-	uint8_t doi_pad[5];
+	uint8_t doi_nblkptr;
+	uint8_t doi_pad[4];
 	uint64_t doi_physical_blocks_512;	/* data + metadata, 512b blks */
 	uint64_t doi_max_offset;
 	uint64_t doi_fill_count;		/* number of non-empty blocks */

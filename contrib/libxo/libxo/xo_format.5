@@ -1,0 +1,657 @@
+.\" #
+.\" # Copyright (c) 2014, Juniper Networks, Inc.
+.\" # All rights reserved.
+.\" # This SOFTWARE is licensed under the LICENSE provided in the
+.\" # ../Copyright file. By downloading, installing, copying, or 
+.\" # using the SOFTWARE, you agree to be bound by the terms of that
+.\" # LICENSE.
+.\" # Phil Shafer, July 2014
+.\" 
+.Dd July, 2014
+.Dt LIBXO 3
+.Os
+.Sh NAME
+.Nm xo_format
+.Nd content of format descriptors for xo_emit
+.Sh DESCRIPTION
+.Pp
+.Em libxo
+uses format strings to control the rendering of data into
+various output styles, including
+.Em text ,
+.Em XML ,
+.EM JSON ,
+and
+.Em HTML .
+Each format string contains a set of zero or more
+.Dq field descriptions ,
+which describe independent data fields.  Each
+field description contains a set of
+.Dq modifiers ,
+a
+.Dq content string ,
+and zero, one, or two
+.Dq format descriptors .
+The modifiers tell
+.Em libxo
+what the field is and how to treat it, while the format descriptors are
+formatting instructions using
+.Xr printf 3 -style
+format strings, telling
+libxo how to format the field.  The field description is placed inside
+a set of braces, with a colon
+.Ql ( \&: )
+after the modifiers and a slash
+.Ql ( \&/ )
+before each format descriptors.  Text may be intermixed with
+field descriptions within the format string.
+.Pp
+The field description is given as follows:
+.Bd -literal -offset indent
+    '{' [ role | modifier ]* ':' [ content ]
+            [ '/' field-format [ '/' encoding-format ]] '}'
+.Ed
+.Pp
+The role describes the function of the field, while the modifiers
+enable optional behaviors.  The contents, field-format, and
+encoding-format are used in varying ways, based on the role.  These
+are described in the following sections.
+.Pp
+In the following example, three field descriptors appear.  The first
+is a padding field containing three spaces of padding, the second is a
+label ("In stock"), and the third is a value field ("in-stock").  The
+in-stock field has a "%u" format that will parse the next argument
+passed to the xo_emit function as an unsigned integer.
+.Bd -literal -offset indent
+        xo_emit("{P:   }{Lwc:In stock}{:in-stock/%u}\\n", 65);
+.Ed
+.Pp
+This single line of code can generate text ("In stock: 65\\n"), XML
+("<in-stock>65</in-stock>"), JSON ('"in-stock": 6'), or HTML (too
+lengthy to be listed here).
+.Ss Modifier Roles
+Modifiers are optional, and indicate the role and formatting of the
+content.  The roles are listed below; only one role is permitted:
+.Pp
+.Bl -column "M" "Name12341234"
+.It Sy "M  Name           Description"
+.It D "decoration  " "Field is non-text (e.g. colon, comma)"
+.It E "error       " "Field is an error message"
+.It L "label       " "Field is text that prefixes a value"
+.It N "note        " "Field is text that follows a value"
+.It P "padding     " "Field is spaces needed for vertical alignment"
+.It T "title       " "Field is a title value for headings"
+.It U "units       " "Field is the units for the previous value field"
+.It V "value       " "Field is the name of field (the default)"
+.It W "warning     " "Field is a warning message"
+.It \&[ "start anchor" "Begin a section of anchored variable-width text"
+.It \&] "stop anchor " "End a section of anchored variable-width text"
+.El
+.Pp
+.Ss The Decoration Role ({D:})
+Decorations are typically punctuation marks such as colons,
+semi-colons, and commas used to decorate the text and make it simpler
+for human readers.  By marking these distinctly, HTML usage scenarios
+can use CSS to direct their display parameters.
+.Bd -literal -offset indent
+    xo_emit("{D:((}{:name}{D:))}\\n", name);
+.Ed
+.Ss The Label Role ({L:})
+Labels are text that appears before a value.
+.Bd -literal -offset indent
+    xo_emit("{Lwc:Cost}{:cost/%u}\\n", cost);
+.Ed
+.Ss The Note Role ({N:})
+Notes are text that appears after a value.
+.Bd -literal -offset indent
+    xo_emit("{:cost/%u} {N:per year}\\n", cost);
+.Ed
+.Ss The Padding Role ({P:})
+Padding represents whitespace used before and between fields.
+The padding content can be either static, when placed directly within
+the field descriptor, or a printf-style format descriptor can be used,
+if preceded by a slash ("/"):
+.Bd -literal -offset indent
+    xo_emit("{P:        }{Lwc:Cost}{:cost/%u}\\n", cost);
+    xo_emit("{P:/30s}{Lwc:Cost}{:cost/%u}\\n", "", cost);
+.Ed
+.Ss The Title Role ({T:})
+Title are heading or column headers that are meant to be displayed to
+the user.  The title can be either static, when placed directly within
+the field descriptor, or a printf-style format descriptor can be used,
+if preceded by a slash ("/"):
+.Bd -literal -offset indent
+    xo_emit("{T:Interface Statistics}\\n");
+    xo_emit("{T:/%20.20s}{T:/%6.6s}\\n", "Item Name", "Cost");
+.Ed
+.Ss The Units Role ({U:})
+Units are the dimension by which values are measured, such as degrees,
+miles, bytes, and decibels.  The units field carries this information
+for the previous value field.
+.Bd -literal -offset indent
+    xo_emit("{Lwc:Distance}{:distance/%u}{Uw:miles}\\n", miles);
+.Ed
+.Pp
+Note that the sense of the 'w' modifier is reversed for units;
+a blank is added before the contents, rather than after it.
+.Pp
+When the
+.Em XOF_UNITS
+flag is set, units are rendered in XML as the
+.Dq units
+attribute:
+.Bd -literal -offset indent
+    <distance units="miles">50</distance>
+.Ed
+.Pp
+Units can also be rendered in HTML as the "data-units" attribute:
+.Bd -literal -offset indent
+    <div class="data" data-tag="distance" data-units="miles"
+         data-xpath="/top/data/distance">50</div>
+.Ed
+.Ss The Value Role ({V:} and {:})
+The value role is used to represent the a data value that is
+interesting for the non-display output styles (XML and JSON).  Value
+is the default role; if no other role designation is given, the field
+is a value.  The field name must appear within the field descriptor,
+followed by one or two format descriptors.  The first format
+descriptor is used for display styles (TEXT and HTML), while the
+second one is used for encoding styles (XML and JSON).  If no second
+format is given, the encoding format defaults to the first format,
+with any minimum width removed.  If no first format is given, both
+format descriptors default to "%s".
+.Bd -literal -offset indent
+    xo_emit("{:length/%02u}x{:width/%02u}x{:height/%02u}\\n",
+            length, width, height);
+    xo_emit("{:author} wrote \"{:poem}\" in {:year/%4d}\\n,
+            author, poem, year);
+.Ed
+.Ss The Anchor Modifiers ({[:} and {]:})
+The anchor roles allow a set of strings by be padded as a group,
+but still be visible to xo_emit as distinct fields.  Either the start
+or stop anchor can give a field width and it can be either directly in
+the descriptor or passed as an argument.  Any fields between the start
+and stop anchor are padded to meet the minimum width given.
+.Pp
+To give a width directly, encode it as the content of the anchor tag:
+.Bd -literal -offset indent
+    xo_emit("({[:10}{:min/%d}/{:max/%d}{]:})\\n", min, max);
+.Ed
+.Pp
+To pass a width as an argument, use "%d" as the format, which must
+appear after the "/".  Note that only "%d" is supported for widths.
+Using any other value could ruin your day.
+.Bd -literal -offset indent
+    xo_emit("({[:/%d}{:min/%d}/{:max/%d}{]:})\\n", width, min, max);
+.Ed
+.Pp
+If the width is negative, padding will be added on the right, suitable
+for left justification.  Otherwise the padding will be added to the
+left of the fields between the start and stop anchors, suitable for
+right justification.  If the width is zero, nothing happens.  If the
+number of columns of output between the start and stop anchors is less
+than the absolute value of the given width, nothing happens.
+.Pp
+Widths over 8k are considered probable errors and not supported.  If
+.Em XOF_WARN
+is set, a warning will be generated.
+.Ss Modifier Flags
+The modifiers can also include the following flags, which modify the
+content emitted for some output styles:
+.Pp
+.Bl -column M "Name12341234"
+.It Sy M "Name        Description"
+.It c "colon       " "A colon (":") is appended after the label"
+.It d "display     " "Only emit field for display styles (text/HTML)"
+.It e "encoding    " "Only emit for encoding styles (XML/JSON)"
+.It k "key         " "Field is a key, suitable for XPath predicates"
+.It n "no-quotes   " "Do not quote the field when using JSON style"
+.It q "quotes      " "Quote the field when using JSON style"
+.It w "white space " "A blank (" ") is appended after the label"
+.El
+.Pp
+For example, the modifier string "Lwc" means the field has a label
+role (text that describes the next field) and should be followed by a
+colon ('c') and a space ('w').  The modifier string "Vkq" means the
+field is has value role, that it is a key for the current instance, and
+that the value should be quoted when encoded for JSON.
+.Ss The Colon Modifier ({c:})
+The colon modifier appends a single colon to the data value:
+.Bd -literal -offset indent
+    EXAMPLE:
+      xo_emit("{Lc:Name}{:name}\\n", "phil");
+    TEXT:
+      Name:phil
+.Ed
+.Pp
+The colon modifier is only used for the TEXT and HTML output
+styles. It is commonly combined with the space modifier ('{w:').
+It is purely a convenience feature.
+.Ss The Display Modifier ({d:})
+The display modifier indicated the field should only be generated for
+the display output styles, TEXT and HTML.
+.Bd -literal -offset indent
+    EXAMPLE:
+      xo_emit("{Lcw:Name}{d:name} {:id/%d}\\n", "phil", 1);
+    TEXT:
+      Name: phil 1
+    XML:
+      <id>1</id>
+.Ed
+.Pp
+The display modifier is the opposite of the encoding modifier, and
+they are often used to give to distinct views of the underlying data.
+.Ss The Encoding Modifier ({e:})
+The display modifier indicated the field should only be generated for
+the display output styles, TEXT and HTML.
+.Bd -literal -offset indent
+    EXAMPLE:
+      xo_emit("{Lcw:Name}{:name} {e:id/%d}\\n", "phil", 1);
+    TEXT:
+      Name: phil
+    XML:
+      <name>phil</name><id>1</id>
+.Ed
+.Pp
+The encoding modifier is the opposite of the display modifier, and
+they are often used to give to distinct views of the underlying data.
+.Ss The Key Modifier ({k:})
+The key modifier is used to indicate that a particular field helps
+uniquely identify an instance of list data.
+.Bd -literal -offset indent
+    EXAMPLE:
+        xo_open_list("user");
+        for (i = 0; i < num_users; i++) {
+	    xo_open_instance("user");
+            xo_emit("User {k:name} has {:count} tickets\\n",
+               user[i].u_name, user[i].u_tickets);
+            xo_close_instance("user");
+        }
+        xo_close_list("user");
+.Ed
+.Pp
+Currently the key modifier is only used when generating XPath value
+for the HTML output style when
+.Em XOF_XPATH
+is set, but other uses are likely in the near future.
+.Ss The No-Quotes Modifier ({n:})
+The no-quotes modifier (and its twin, the 'quotes' modifier) affect
+the quoting of values in the JSON output style.  JSON uses quotes for
+string value, but no quotes for numeric, boolean, and null data.
+xo_emit applies a simple heuristic to determine whether quotes are
+needed, but often this needs to be controlled by the caller.
+.Bd -literal -offset indent
+    EXAMPLE:
+      const char *bool = is_true ? "true" : "false";
+      xo_emit("{n:fancy/%s}", bool);
+    JSON:
+      "fancy": true
+.Ed
+.Ss The Quotes Modifier ({q:})
+The quotes modifier (and its twin, the 'no-quotes' modifier) affect
+the quoting of values in the JSON output style.  JSON uses quotes for
+string value, but no quotes for numeric, boolean, and null data.
+xo_emit applies a simple heuristic to determine whether quotes are
+needed, but often this needs to be controlled by the caller.
+.Bd -literal -offset indent
+    EXAMPLE:
+      xo_emit("{q:time/%d}", 2014);
+    JSON:
+      "year": "2014"
+.Ed
+.Ss The White Space Modifier ({w:})
+The white space modifier appends a single space to the data value:
+.Bd -literal -offset indent
+    EXAMPLE:
+      xo_emit("{Lw:Name}{:name}\\n", "phil");
+    TEXT:
+      Name phil
+.Ed
+.Pp
+The white space modifier is only used for the TEXT and HTML output
+styles. It is commonly combined with the colon modifier ('{c:').
+It is purely a convenience feature.
+.Pp
+Note that the sense of the 'w' modifier is reversed for the units role
+({Uw:}); a blank is added before the contents, rather than after it.
+.Ss Field Formatting
+The field format is similar to the format string for
+.Xr printf 3 .
+It's used varies based on the role of the field, but generally is used to
+format the field's contents.
+.Pp
+If not provided, the format string defaults to "%s".
+.Pp
+Note a field definition can contain zero or more printf-style
+.Dq directives ,
+which are sequences that start with a '%' and end with a
+one of following characters: "diouxXDOUeEfFgGaAcCsSp".  Each directive
+is matched by one of more arguments to the xo_emit function.
+.Pp
+The format string has the form:
+.Bd -literal -offset indent
+  '%' format-modifier * format-character
+.Ed
+.Pp
+The format- modifier can be:
+.Bl -bullet
+.It
+a '#' character, indicating the output value should be prefixed with
+'0x', typically to indicate a base 16 (hex) value.
+.It
+a minus sign ('-'), indicating the output value should be padded on
+the right instead of the left.
+.It
+a leading zero ('0') indicating the output value should be padded on the
+left with zeroes instead of spaces (' ').
+.It
+one or more digits ('0' - '9') indicating the minimum width of the
+argument.  If the width in columns of the output value is less that
+the minumum width, the value will be padded to reach the minimum.
+.It
+a period followed by one or more digits indicating the maximum
+number of bytes which will be examined for a string argument, or the maximum
+width for a non-string argument.  When handling ASCII strings this is
+functions as the field width but for multi-byte characters, a single
+character may be composed of multiple bytes.
+xo_emit will never dereference memory beyond the given number of bytes.
+.It
+a second period followed by one or more digits indicating the maximum
+width for a string argument.  This modifier cannot be given for non-string
+arguments. 
+.It
+one or more 'h' characters, indicating shorter input data.
+.It
+one or more 'l' characters, indicating longer input data.
+.It
+a 'z' character, indicating a 'size_t' argument.
+.It
+a 't' character, indicating a 'ptrdiff_t' argument.
+.It
+a ' ' character, indicating a space should be emitted before
+positive numbers.
+.It
+a '+' character, indicating sign should emitted before any number.
+.El
+.Pp
+Note that 'q', 'D', 'O', and 'U' are considered deprecated and will be
+removed eventually.
+.Pp
+The format character is described in the following table:
+.Pp
+.Bl -column C "Argument Type12"
+.It Sy "C Argument Type   Format"
+.It d "int            " "base 10 (decimal)"
+.It i "int            " "base 10 (decimal)"
+.It o "int            " "base 8 (octal)"
+.It u "unsigned       " "base 10 (decimal)"
+.It x "unsigned       " "base 16 (hex)"
+.It X "unsigned long  " "base 16 (hex)"
+.It D "long           " "base 10 (decimal)"
+.It O "unsigned long  " "base 8 (octal)"
+.It U "unsigned long  " "base 10 (decimal)"
+.It e "double         " "[-]d.ddde+-dd"
+.It E "double         " "[-]d.dddE+-dd"
+.It f "double         " "[-]ddd.ddd"
+.It F "double         " "[-]ddd.ddd"
+.It g "double         " "as 'e' or 'f'"
+.It G "double         " "as 'E' or 'F'"
+.It a "double         " "[-]0xh.hhhp[+-]d"
+.It A "double         " "[-]0Xh.hhhp[+-]d"
+.It c "unsigned char  " "a character"
+.It C "wint_t         " "a character"
+.It s "char *         " "a UTF-8 string"
+.It S "wchar_t *      " "a unicode/WCS string"
+.It p "void *         " "'%#lx'"
+.El
+.Pp
+The 'h' and 'l' modifiers affect the size and treatment of the
+argument:
+.Bl -column "Mod" "d, i         " "o, u, x, X         "
+.It Sy "Mod" "d, i        " "o, u, x, X"
+.It "hh " "signed char " "unsigned char"
+.It "h  " "short       " "unsigned short"
+.It "l  " "long        " "unsigned long"
+.It "ll " "long long   " "unsigned long long"
+.It "j  " "intmax_t    " "uintmax_t"
+.It "t  " "ptrdiff_t   " "ptrdiff_t"
+.It "z  " "size_t      " "size_t"
+.It "q  " "quad_t      " "u_quad_t"
+.El
+.Pp
+.Ss UTF-8 and Locale Strings
+All strings for libxo must be UTF-8.  libxo will handle turning them
+into locale-based strings for display to the user.
+.Pp
+For strings, the 'h' and 'l' modifiers affect the interpretation of
+the bytes pointed to argument.  The default '%s' string is a 'char *'
+pointer to a string encoded as UTF-8.  Since UTF-8 is compatible with
+.Em ASCII
+data, a normal 7-bit
+.Em ASCII
+ string can be used.  '%ls' expects a
+'wchar_t *' pointer to a wide-character string, encoded as a 32-bit
+Unicode values.  '%hs' expects a 'char *' pointer to a multi-byte
+string encoded with the current locale, as given by the
+.Em LC_CTYPE ,
+.Em LANG ,
+or
+.Em LC_ALL
+environment varibles.  The first of this list of
+variables is used and if none of the variables, the locale defaults to
+.Em UTF-8.
+.Pp
+libxo will
+convert these arguments as needed to either UTF-8 (for XML, JSON, and
+HTML styles) or locale-based strings for display in text style.
+.Bd -literal -offset indent
+   xo_emit("Alll strings are utf-8 content {:tag/%ls}",
+           L"except for wide strings");
+.Ed
+.Pp
+"%S" is equivalent to "%ls".
+.Pp
+For example, a function is passed a locale-base name, a hat size,
+and a time value.  The hat size is formatted in a UTF-8 (ASCII)
+string, and the time value is formatted into a wchar_t string.
+.Bd -literal -offset indent
+    void print_order (const char *name, int size,
+                      struct tm *timep) {
+        char buf[32];
+        const char *size_val = "unknown";
+
+	if (size > 0)
+            snprintf(buf, sizeof(buf), "%d", size);
+            size_val = buf;
+        }
+
+        wchar_t when[32];
+        wcsftime(when, sizeof(when), L"%d%b%y", timep);
+
+        xo_emit("The hat for {:name/%hs} is {:size/%s}.\\n",
+                name, size_val);
+        xo_emit("It was ordered on {:order-time/%ls}.\\n",
+                when);
+    }
+.Ed
+.Pp
+It is important to note that xo_emit will perform the conversion
+required to make appropriate output.  Text style output uses the
+current locale (as described above), while XML, JSON, and HTML use
+UTF-8.
+.Pp
+UTF-8 and locale-encoded strings can use multiple bytes to encode one
+column of data.  The traditional "precision'" (aka "max-width") value
+for "%s" printf formatting becomes overloaded since it specifies both
+the number of bytes that can be safely referenced and the maximum
+number of columns to emit.  xo_emit uses the precision as the former,
+and adds a third value for specifying the maximum number of columns.
+.Pp
+In this example, the name field is printed with a minimum of 3 columns
+and a maximum of 6.  Up to ten bytes are in used in filling those
+columns. 
+.Bd -literal -offset indent
+    xo_emit("{:name/%3.10.6s}", name);
+.Ed
+.Ss Characters Outside of Field Definitions
+Characters in the format string are not part of a field definition are
+copied to the output for the TEXT style, and are ignored for the JSON
+and XML styles.  For HTML, these characters are placed in a <div> with
+class "text".
+.Bd -literal -offset indent
+  EXAMPLE:
+      xo_emit("The hat is {:size/%s}.\\n", size_val);
+  TEXT:
+      The hat is extra small.
+  XML:
+      <size>extra small</size>
+  JSON:
+      "size": "extra small"
+  HTML:
+      <div class="text">The hat is </div>
+      <div class="data" data-tag="size">extra small</div>
+      <div class="text">.</div>
+.Ed
+.Ss "%n" is Not Supported
+libxo does not support the '%n' directive.  It's a bad idea and we
+just don't do it.
+.Ss The Encoding Format (eformat)
+The "eformat" string is the format string used when encoding the field
+for JSON and XML.  If not provided, it defaults to the primary format
+with any minimum width removed.  If the primary is not given, both
+default to "%s".
+.Sh EXAMPLE
+In this example, the value for the number of items in stock is emitted:
+.Bd -literal -offset indent
+        xo_emit("{P:   }{Lwc:In stock}{:in-stock/%u}\\n",
+                instock);
+.Ed
+.Pp
+This call will generate the following output:
+.Bd -literal -offset indent
+  TEXT: 
+       In stock: 144
+  XML:
+      <in-stock>144</in-stock>
+  JSON:
+      "in-stock": 144,
+  HTML:
+      <div class="line">
+        <div class="padding">   </div>
+        <div class="label">In stock</div>
+        <div class="decoration">:</div>
+        <div class="padding"> </div>
+        <div class="data" data-tag="in-stock">144</div>
+      </div>
+.Ed
+.Pp
+Clearly HTML wins the verbosity award, and this output does
+not include
+.Em XOF_XPATH
+or
+.Em XOF_INFO
+data, which would expand the penultimate line to:
+.Bd -literal -offset indent
+       <div class="data" data-tag="in-stock"
+          data-xpath="/top/data/item/in-stock"
+          data-type="number"
+          data-help="Number of items in stock">144</div>
+.Ed
+.Sh WHAT MAKES A GOOD FIELD NAME?
+To make useful, consistent field names, follow these guidelines:
+.Pp
+.Ss Use lower case, even for TLAs
+Lower case is more civilized.  Even TLAs should be lower case
+to avoid scenarios where the differences between "XPath" and
+"Xpath" drive your users crazy.  Using "xpath" is simpler and better.
+.Ss Use hyphens, not underscores
+Use of hyphens is traditional in XML, and the
+.Em XOF_UNDERSCORES
+flag can be used to generate underscores in JSON, if desired.
+But the raw field name should use hyphens.
+.Se Use full words
+Don't abbreviate especially when the abbreviation is not obvious or
+not widely used.  Use "data-size", not "dsz" or "dsize".  Use
+"interface" instead of "ifname", "if-name", "iface", "if", or "intf".
+.Se Use <verb>-<units>
+Using the form <verb>-<units> or <verb>-<classifier>-<units> helps in
+making consistent, useful names, avoiding the situation where one app
+uses "sent-packet" and another "packets-sent" and another
+"packets-we-have-sent".  The <units> can be dropped when it is
+obvious, as can obvious words in the classification.
+Use "receive-after-window-packets" instead of
+"received-packets-of-data-after-window".
+.Se Reuse existing field names
+Nothing's worse than writing expressions like:
+.Bd -literal -offset indent
+    if ($src1/process[pid == $pid]/name == 
+        $src2/proc-table/proc/p[process-id == $pid]/proc-name) {
+        ...
+    }
+.Ed
+.Pp
+Find someone else who is expressing similar data and follow their
+field's and hierarchy.  Remember the quote is not
+.Dq Consistency is the hobgoblin of little minds
+but
+.Dq A foolish consistency is the hobgoblin of little minds.
+.Ss Think about your users
+Have empathy for your users, choosing clear and useful fields that
+contain clear and useful data.  You may need to augment the display
+content with
+.Xr xo_attr 3
+calls or "{e:}" fields to make the data useful.
+.Ss Don't use an arbitrary number postfix
+What does "errors2" mean?  No one will know.  "errors-after-restart"
+would be a better choice.  Think of you users, and think of the
+future.  If you make "errors2", the next guy will happily make
+"errors3" and before you know it, someone will be asking what's the
+difference between errors37 and errors63.
+.Ss Be consistent, uniform, unsurprising, and predictable
+Think of your field vocabulary as an API.  You want it useful,
+expressive, meaningful, direct, and obvious.  You want the client
+application's programmer to move between without the need to
+understand a variety of opinions on how fields are named.  They should
+see the system as a single cohesive whole, not a sack of cats.
+.Pp
+Field names constitute the means by which client programmers interact
+with our system.  By choosing wise names now, you are making their
+lives better.
+.Pp
+After using
+.Xr xolint 1
+to find errors in your field descriptors, use
+.Dq "xolint -V"
+to spell check your field names and to detect different
+names for the same data.
+.Dq dropped-short
+and
+.Dq dropped-too-short
+are both reasonable names, but using them both will lead users to ask the
+difference between the two fields.  If there isn't a difference,
+use only one of the field names.  If there is a difference, change the
+names to make that difference more obvious.
+.Sh ADDITIONAL DOCUMENTATION
+.Pp
+Complete documentation can be found on github:
+.Bd -literal -offset indent
+http://juniper.github.io/libxo/libxo-manual.html
+.Ed
+.Pp
+libxo lives on github as:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo
+.Ed
+.Pp
+The latest release of libxo is available at:
+.Bd -literal -offset indent
+https://github.com/Juniper/libxo/releases
+.Ed
+.Sh SEE ALSO
+.Xr xo_emit 3
+.Sh HISTORY
+The
+.Fa libxo
+library was added in FreeBSD 11.0.
+.Sh AUTHOR
+Phil Shafer

@@ -60,17 +60,17 @@
 /*
  * Maximum number of LUNs we support at the moment.  MUST be a power of 2.
  */
-#define	CTL_MAX_LUNS		256
+#define	CTL_MAX_LUNS		1024
 
 /*
  * Maximum number of initiators per port.
  */
-#define	CTL_MAX_INIT_PER_PORT	2048 // Was 16
+#define	CTL_MAX_INIT_PER_PORT	2048
 
 /*
  * Maximum number of ports registered at one time.
  */
-#define	CTL_MAX_PORTS		128
+#define	CTL_MAX_PORTS		256
 
 /*
  * Maximum number of initiators we support.
@@ -363,7 +363,8 @@ struct ctl_port_list {
 typedef enum {
 	CTL_LUN_NOSTATUS,
 	CTL_LUN_OK,
-	CTL_LUN_ERROR
+	CTL_LUN_ERROR,
+	CTL_LUN_WARNING
 } ctl_lun_status;
 
 #define	CTL_ERROR_STR_LEN	160

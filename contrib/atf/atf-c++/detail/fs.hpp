@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2007 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,10 +22,9 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 
-#if !defined(_ATF_CXX_FS_HPP_)
-#define _ATF_CXX_FS_HPP_
+#if !defined(ATF_CXX_DETAIL_FS_HPP)
+#define ATF_CXX_DETAIL_FS_HPP
 
 extern "C" {
 #include <sys/types.h>
@@ -42,7 +38,7 @@ extern "C" {
 #include <string>
 
 extern "C" {
-#include "../../atf-c/detail/fs.h"
+#include "atf-c/detail/fs.h"
 }
 
 namespace atf {
@@ -388,4 +384,4 @@ void rmdir(const path&);
 } // namespace fs
 } // namespace atf
 
-#endif // !defined(_ATF_CXX_FS_HPP_)
+#endif // !defined(ATF_CXX_DETAIL_FS_HPP)

@@ -5,7 +5,6 @@ MAN=	boot98cfg.8
 
 WARNS?=	2
 
-DPADD=	${LIBGEOM}
-LDADD=	-lgeom
+LIBADD=	geom
 
 .include <bsd.prog.mk>

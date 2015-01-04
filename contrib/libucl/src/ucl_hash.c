@@ -66,6 +66,20 @@ ucl_hash_insert (ucl_hash_t* hashlin, const ucl_object_t *obj,
 	HASH_ADD_KEYPTR (hh, hashlin->buckets, key, keylen, node);
 }
 
+void ucl_hash_replace (ucl_hash_t* hashlin, const ucl_object_t *old,
+		const ucl_object_t *new)
+{
+	ucl_hash_node_t *node;
+
+	HASH_FIND (hh, hashlin->buckets, old->key, old->keylen, node);
+	if (node != NULL) {
+		/* Direct replacement */
+		node->data = new;
+		node->hh.key = new->key;
+		node->hh.keylen = new->keylen;
+	}
+}
+
 const void*
 ucl_hash_iterate (ucl_hash_t *hashlin, ucl_hash_iter_t *iter)
 {
@@ -122,5 +136,6 @@ ucl_hash_delete (ucl_hash_t* hashlin, const ucl_object_t *obj)
 
 	if (found) {
 		HASH_DELETE (hh, hashlin->buckets, found);
+		UCL_FREE (sizeof (ucl_hash_node_t), found);
 	}
 }

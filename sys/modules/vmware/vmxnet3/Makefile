@@ -23,8 +23,6 @@
 # SUCH DAMAGE.
 #
 
-.include <src.opts.mk>
-
 .PATH: ${.CURDIR}/../../../dev/vmware/vmxnet3
 
 KMOD=	if_vmx
@@ -34,17 +32,5 @@ SRCS+=	bus_if.h device_if.h pci_if.h opt_inet.h opt_inet6.h
 # With VMXNET3_LEGACY_TX, the driver will use the non-multiqueue
 # capable if_start interface.
 #CFLAGS+= -DVMXNET3_LEGACY_TX
-
-.if !defined(KERNBUILDDIR)
-.if ${MK_INET_SUPPORT} != "no"
-opt_inet.h:
-	@echo "#define INET 1" > ${.TARGET}
-.endif
-
-.if ${MK_INET6_SUPPORT} != "no"
-opt_inet6.h:
-	@echo "#define INET6 1" > ${.TARGET}
-.endif
-.endif
 
 .include <bsd.kmod.mk>

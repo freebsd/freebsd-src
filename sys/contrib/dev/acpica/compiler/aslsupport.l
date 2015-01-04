@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,7 +42,6 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
 /* Configuration */
 
 #define ASL_SPACES_PER_TAB      4
@@ -68,6 +67,15 @@ typedef struct asl_file_node
 /* File stack for the "Include" operator (NOT #include operator) */
 
 ASL_FILE_NODE               *Gbl_IncludeFileStack = NULL;
+
+
+void
+AslParserCleanup (
+    void)
+{
+
+    yy_delete_buffer (YY_CURRENT_BUFFER);
+}
 
 
 /*******************************************************************************
@@ -259,7 +267,11 @@ AslPushInputFileStack (
 
     /* Reset the global line count and filename */
 
-    Gbl_Files[ASL_FILE_INPUT].Filename = Filename;
+    Gbl_Files[ASL_FILE_INPUT].Filename =
+        UtStringCacheCalloc (strlen (Filename) + 1);
+
+    strcpy (Gbl_Files[ASL_FILE_INPUT].Filename, Filename);
+
     Gbl_CurrentLineNumber = 1;
     yyin = InputFile;
 }
@@ -797,7 +809,7 @@ CompletedString:
      */
     *StringBuffer = 0;
 
-    CleanString = UtGetStringBuffer (strlen (MsgBuffer) + 1);
+    CleanString = UtStringCacheCalloc (strlen (MsgBuffer) + 1);
     if (!CleanString)
     {
         AslCommonError (ASL_ERROR, ASL_MSG_MEMORY_ALLOCATION,

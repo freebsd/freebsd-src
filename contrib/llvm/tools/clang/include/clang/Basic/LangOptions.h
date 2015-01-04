@@ -19,7 +19,6 @@
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/ObjCRuntime.h"
 #include "clang/Basic/Visibility.h"
-#include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include <string>
 
 namespace clang {
@@ -53,17 +52,24 @@ protected:
 
 /// \brief Keeps track of the various options that can be
 /// enabled, which controls the dialect of C or C++ that is accepted.
-class LangOptions : public RefCountedBase<LangOptions>, public LangOptionsBase {
+class LangOptions : public LangOptionsBase {
 public:
   typedef clang::Visibility Visibility;
   
   enum GCMode { NonGC, GCOnly, HybridGC };
-  enum StackProtectorMode { SSPOff, SSPOn, SSPReq };
+  enum StackProtectorMode { SSPOff, SSPOn, SSPStrong, SSPReq };
   
   enum SignedOverflowBehaviorTy {
     SOB_Undefined,  // Default C standard behavior.
     SOB_Defined,    // -fwrapv
     SOB_Trapping    // -ftrapv
+  };
+
+  enum PragmaMSPointersToMembersKind {
+    PPTMK_BestCase,
+    PPTMK_FullGeneralitySingleInheritance,
+    PPTMK_FullGeneralityMultipleInheritance,
+    PPTMK_FullGeneralityVirtualInheritance
   };
 
   enum AddrSpaceMapMangling { ASMM_Target, ASMM_On, ASMM_Off };

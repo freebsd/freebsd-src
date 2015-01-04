@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2008 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,7 +22,8 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+
+#include "atf-c++/macros.hpp"
 
 extern "C" {
 #include <fcntl.h>
@@ -37,14 +35,14 @@ extern "C" {
 #include <iostream>
 #include <stdexcept>
 
-#include "macros.hpp"
-#include "utils.hpp"
+#include <atf-c++.hpp>
 
-#include "detail/fs.hpp"
-#include "detail/process.hpp"
-#include "detail/sanity.hpp"
-#include "detail/test_helpers.hpp"
-#include "detail/text.hpp"
+#include "atf-c++/detail/fs.hpp"
+#include "atf-c++/detail/process.hpp"
+#include "atf-c++/detail/sanity.hpp"
+#include "atf-c++/detail/test_helpers.hpp"
+#include "atf-c++/detail/text.hpp"
+#include "atf-c++/utils.hpp"
 
 // ------------------------------------------------------------------------
 // Auxiliary functions.
@@ -757,7 +755,6 @@ ATF_TEST_CASE_BODY(require_errno)
 // Tests cases for the header file.
 // ------------------------------------------------------------------------
 
-HEADER_TC(include, "atf-c++/macros.hpp");
 BUILD_TC(use, "macros_hpp_test.cpp",
          "Tests that the macros provided by the atf-c++/macros.hpp file "
          "do not cause syntax errors when used",
@@ -809,7 +806,6 @@ ATF_INIT_TEST_CASES(tcs)
     ATF_ADD_TEST_CASE(tcs, require_errno);
 
     // Add the test cases for the header file.
-    ATF_ADD_TEST_CASE(tcs, include);
     ATF_ADD_TEST_CASE(tcs, use);
     ATF_ADD_TEST_CASE(tcs, detect_unused_tests);
 }

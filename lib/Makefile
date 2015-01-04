@@ -42,13 +42,17 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcrypt \
 	libdevinfo \
 	libdevstat \
+	libdpv \
 	libdwarf \
 	libedit \
+	${_libelftc} \
+	${_libevent} \
 	libexecinfo \
 	libexpat \
 	libfetch \
+	libfigpar \
 	libgeom \
-	${_libgpib} \
+	libgpio \
 	${_libgssapi} \
 	${_librpcsec_gss} \
 	${_libiconv_modules} \
@@ -69,6 +73,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libnetgraph} \
 	${_libngatm} \
 	libnv \
+	libohash \
 	libopie \
 	libpam \
 	libpcap \
@@ -86,6 +91,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libsmb} \
 	${_libsmdb} \
 	${_libsmutil} \
+	libsqlite3 \
 	libstand \
 	libstdbuf \
 	libstdthreads \
@@ -104,6 +110,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libvgl} \
 	${_libvmmapi} \
 	libwrap \
+	libxo \
 	liby \
 	${_libypclnt} \
 	libz \
@@ -126,7 +133,7 @@ SUBDIR_DEPEND_libcam= libsbuf
 SUBDIR_DEPEND_libcapsicum= libnv
 SUBDIR_DEPEND_libcasper= libcapsicum libnv libpjdlog
 SUBDIR_DEPEND_libdevstat= libkvm
-SUBDIR_DEPEND_libdiaglog= ncurses
+SUBDIR_DEPEND_libdpv= libfigpar ncurses libutil
 SUBDIR_DEPEND_libedit= ncurses
 SUBDIR_DEPEND_libg++= msun
 SUBDIR_DEPEND_libgeom= libexpat libsbuf
@@ -183,8 +190,8 @@ _clang=		clang
 _cuse=		libcuse
 .endif
 
-.if ${MK_GPIB} != "no"
-_libgpib=	libgpib
+.if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
+_libelftc=	libelftc
 .endif
 
 .if ${MK_GSSAPI} != "no"
@@ -223,6 +230,10 @@ _libnetgraph=	libnetgraph
 
 .if ${MK_NIS} != "no"
 _libypclnt=	libypclnt
+.endif
+
+.if ${MK_PF} != "no"
+_libevent=	libevent
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
@@ -270,8 +281,10 @@ _libsmutil=	libsmutil
 _libtelnet=	libtelnet
 .endif
 
-.if ${MK_TESTS} != "no"
+.if ${MK_TESTS_SUPPORT} != "no"
 _atf=		atf
+.endif
+.if ${MK_TESTS} != "no"
 _tests=		tests
 .endif
 

@@ -54,6 +54,9 @@ CWARNFLAGS+=	-Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls\
 .if !defined(NO_WMISSING_VARIABLE_DECLARATIONS)
 CWARNFLAGS.clang+=	-Wmissing-variable-declarations
 .endif
+.if !defined(NO_WTHREAD_SAFETY)
+CWARNFLAGS.clang+=	-Wthread-safety
+.endif
 .endif # WARNS >= 6
 .if ${WARNS} >= 2 && ${WARNS} <= 4
 # XXX Delete -Wuninitialized by default for now -- the compiler doesn't
@@ -107,13 +110,15 @@ CWARNFLAGS+=	-Wno-format
 CWARNFLAGS+=	-Wno-unknown-pragmas
 .endif # IGNORE_PRAGMA
 
+# We need this conditional because many places that use it
+# only enable it for some files with CLFAGS.$FILE+=${CLANG_NO_IAS}.
+# unconditionally, and can't easily use the CFLAGS.clang=
+# mechanism.
 .if ${COMPILER_TYPE} == "clang"
-# Would love to do this unconditionally, but can't due to its use in
-# kernel build coupled with CFLAGS.${TARGET} feature
 CLANG_NO_IAS=	 -no-integrated-as
 .endif
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
-		 -mllvm -enable-load-pre=false -mllvm -simplifycfg-dup-ret
+		 -mllvm -simplifycfg-dup-ret -mllvm -enable-gvn=false
 CFLAGS.clang+=	 -Qunused-arguments
 .if ${MACHINE_CPUARCH} == "sparc64"
 # Don't emit .cfi directives, since we must use GNU as on sparc64, for now.

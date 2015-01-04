@@ -168,6 +168,12 @@ regions_to_avail(vm_paddr_t *avail, uint32_t exflags)
 		end   = hwp->size + start;
 		realmem += arm32_btop(end - start);
 		for (exi = 0, exp = exregions; exi < excnt; ++exi, ++exp) {
+			/*
+			 * If the excluded region does not match given flags,
+			 * continue checking with the next excluded region.
+			 */
+			if ((exp->flags & exflags) == 0)
+				continue;
 			xstart = exp->addr;
 			xend   = exp->size + xstart;
 			/*

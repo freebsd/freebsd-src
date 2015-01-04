@@ -795,7 +795,7 @@ calldaemon:
 	         * caching...)
 	         */
 #if 0
-		if ((cnp->cn_flags & MAKEENTRY) && nameiop != CREATE) {
+		if ((cnp->cn_flags & MAKEENTRY) != 0) {
 			FS_DEBUG("inserting NULL into cache\n");
 			cache_enter(dvp, NULL, cnp);
 		}
@@ -1721,7 +1721,6 @@ fuse_vnop_write(struct vop_write_args *ap)
         vm_page_t *a_m;
         int a_count;
         int a_reqpage;
-        vm_ooffset_t a_offset;
     };
 */
 static int

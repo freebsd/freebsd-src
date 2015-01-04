@@ -410,9 +410,9 @@ kern_shmat(td, shmid, shmaddr, shmflg)
 	}
 
 	vm_object_reference(shmseg->object);
-	rv = vm_map_find(&p->p_vmspace->vm_map, shmseg->object,
-	    0, &attach_va, size, 0, shmaddr != NULL ? VMFS_NO_SPACE :
-	    VMFS_OPTIMAL_SPACE, prot, prot, MAP_INHERIT_SHARE);
+	rv = vm_map_find(&p->p_vmspace->vm_map, shmseg->object, 0, &attach_va,
+	    size, 0, shmaddr != NULL ? VMFS_NO_SPACE : VMFS_OPTIMAL_SPACE,
+	    prot, prot, MAP_INHERIT_SHARE | MAP_PREFAULT_PARTIAL);
 	if (rv != KERN_SUCCESS) {
 		vm_object_deallocate(shmseg->object);
 		error = ENOMEM;
@@ -910,11 +910,11 @@ shminit()
 	shmexit_hook = &shmexit_myhook;
 	shmfork_hook = &shmfork_myhook;
 
-	error = syscall_helper_register(shm_syscalls);
+	error = syscall_helper_register(shm_syscalls, SY_THR_STATIC_KLD);
 	if (error != 0)
 		return (error);
 #ifdef COMPAT_FREEBSD32
-	error = syscall32_helper_register(shm32_syscalls);
+	error = syscall32_helper_register(shm32_syscalls, SY_THR_STATIC_KLD);
 	if (error != 0)
 		return (error);
 #endif

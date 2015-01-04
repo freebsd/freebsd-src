@@ -30,11 +30,14 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: libelf_data.c 2225 2011-11-26 18:55:54Z jkoshy $");
+ELFTC_VCSID("$Id: libelf_data.c 3080 2014-07-28 08:46:17Z jkoshy $");
 
 int
 _libelf_xlate_shtype(uint32_t sht)
 {
+	/*
+	 * Look for known section types.
+	 */
 	switch (sht) {
 	case SHT_DYNAMIC:
 		return (ELF_T_DYN);
@@ -82,18 +85,19 @@ _libelf_xlate_shtype(uint32_t sht)
 		return (ELF_T_VNEED);
 	case SHT_SUNW_versym:	/* == SHT_GNU_versym */
 		return (ELF_T_HALF);
-
-	case SHT_ARM_PREEMPTMAP:
-	case SHT_ARM_ATTRIBUTES:
-	case SHT_ARM_DEBUGOVERLAY:
-	case SHT_ARM_OVERLAYSECTION:
-	case SHT_MIPS_DWARF:
-	case SHT_MIPS_REGINFO:
-	case SHT_MIPS_OPTIONS:
-	case SHT_AMD64_UNWIND:	/* == SHT_IA_64_UNWIND == SHT_ARM_EXIDX */
-		return (ELF_T_BYTE);
-
 	default:
+		/*
+		 * Values in the range [SHT_LOOS..SHT_HIUSER] (i.e.,
+		 * OS, processor and user-defined section types) are
+		 * legal, but since we do not know anything more about
+		 * their semantics, we return a type of ELF_T_BYTE.
+		 */
+		if (sht >= SHT_LOOS && sht <= SHT_HIUSER)
+			return (ELF_T_BYTE);
+
+		/*
+		 * Other values are unsupported.
+		 */
 		return (-1);
 	}
 }

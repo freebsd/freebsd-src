@@ -478,7 +478,7 @@ out:
 	 * the file might not be found and thus putting it into the namecache
 	 * might be seen as negative caching.
 	 */
-	if ((cnp->cn_flags & MAKEENTRY) && nameiop != CREATE)
+	if ((cnp->cn_flags & MAKEENTRY) != 0)
 		cache_enter(dvp, *vpp, cnp);
 
 	return (error);
@@ -987,7 +987,7 @@ nandfs_check_possible(struct vnode *vp, struct vattr *vap, mode_t mode)
 		 * Normal nodes: check if we're on a read-only mounted
 		 * filingsystem and bomb out if we're trying to write.
 		 */
-		if ((mode & VWRITE) && (vp->v_mount->mnt_flag & MNT_RDONLY))
+		if ((mode & VMODIFY_PERMS) && (vp->v_mount->mnt_flag & MNT_RDONLY))
 			return (EROFS);
 		break;
 	case VBLK:
@@ -1411,6 +1411,8 @@ nandfs_create(struct vop_create_args *ap)
 		return (error);
 	}
 	*vpp = NTOV(node);
+	if ((cnp->cn_flags & MAKEENTRY) != 0)
+		cache_enter(dvp, *vpp, cnp);
 
 	DPRINTF(VNCALL, ("created file vp %p nandnode %p ino %jx\n", *vpp, node,
 	    (uintmax_t)node->nn_ino));

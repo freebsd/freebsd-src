@@ -1564,7 +1564,7 @@ fatm_intr_drain_rx(struct fatm_softc *sc)
 			ATM_PH_SETVCI(&aph, vci);
 
 			ifp = sc->ifp;
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 			vc->ipackets++;
 			vc->ibytes += m0->m_pkthdr.len;
@@ -1974,7 +1974,7 @@ fatm_tx(struct fatm_softc *sc, struct mbuf *m, struct card_vcc *vc, u_int mlen)
 	error = bus_dmamap_load_mbuf(sc->tx_tag, q->map, m,
 	    fatm_tpd_load, tpd, BUS_DMA_NOWAIT);
 	if(error) {
-		sc->ifp->if_oerrors++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
 		if_printf(sc->ifp, "mbuf loaded error=%d\n", error);
 		m_freem(m);
 		return (0);
@@ -2025,7 +2025,7 @@ fatm_tx(struct fatm_softc *sc, struct mbuf *m, struct card_vcc *vc, u_int mlen)
 	BARRIER_W(sc);
 
 	sc->txcnt++;
-	sc->ifp->if_opackets++;
+	if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
 	vc->obytes += m->m_pkthdr.len;
 	vc->opackets++;
 

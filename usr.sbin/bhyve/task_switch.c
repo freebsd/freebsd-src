@@ -725,6 +725,21 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	assert(paging->cpu_mode == CPU_MODE_PROTECTED);
 
 	/*
+	 * Calculate the %eip to store in the old TSS before modifying the
+	 * 'inst_length'.
+	 */
+	eip = vmexit->rip + vmexit->inst_length;
+
+	/*
+	 * Set the 'inst_length' to '0'.
+	 *
+	 * If an exception is triggered during emulation of the task switch
+	 * then the exception handler should return to the instruction that
+	 * caused the task switch as opposed to the subsequent instruction.
+	 */
+	vmexit->inst_length = 0;
+
+	/*
 	 * Section 4.6, "Access Rights" in Intel SDM Vol 3.
 	 * The following page table accesses are implicitly supervisor mode:
 	 * - accesses to GDT or LDT to load segment descriptors
@@ -839,7 +854,6 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	}
 
 	/* Save processor state in old TSS */
-	eip = vmexit->rip + vmexit->inst_length;
 	tss32_save(ctx, vcpu, task_switch, eip, &oldtss, ot_iov);
 
 	/*
@@ -870,7 +884,7 @@ vmexit_task_switch(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	 * the saved instruction pointer will belong to the new task.
 	 */
 	vmexit->rip = newtss.tss_eip;
-	vmexit->inst_length = 0;
+	assert(vmexit->inst_length == 0);
 
 	/* Load processor state from new TSS */
 	error = tss32_restore(ctx, vcpu, task_switch, ot_sel, &newtss, nt_iov);

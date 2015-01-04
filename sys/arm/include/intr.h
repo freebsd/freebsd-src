@@ -39,6 +39,10 @@
 #ifndef _MACHINE_INTR_H_
 #define _MACHINE_INTR_H_
 
+#ifdef FDT
+#include <dev/ofw/openfirm.h>
+#endif
+
 /* XXX move to std.* files? */
 #ifdef CPU_XSCALE_81342
 #define NIRQ		128
@@ -51,7 +55,7 @@
     defined(CPU_XSCALE_IXP435)
 #define NIRQ		64
 #elif defined(CPU_CORTEXA)
-#define NIRQ		160
+#define NIRQ		1020
 #elif defined(CPU_KRAIT)
 #define NIRQ		288
 #elif defined(CPU_ARM1136) || defined(CPU_ARM1176)
@@ -82,5 +86,11 @@ extern int (*arm_config_irq)(int irq, enum intr_trigger trig,
 void arm_irq_memory_barrier(uintptr_t);
 
 void gic_init_secondary(void);
+int  gic_decode_fdt(uint32_t iparentnode, uint32_t *intrcells, int *interrupt,
+    int *trig, int *pol);
+
+#ifdef FDT
+int arm_fdt_map_irq(phandle_t, pcell_t *, int);
+#endif
 
 #endif	/* _MACHINE_INTR_H */

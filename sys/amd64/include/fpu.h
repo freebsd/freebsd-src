@@ -58,6 +58,7 @@ int	fpuformat(void);
 int	fpugetregs(struct thread *td);
 void	fpuinit(void);
 void	fpurestore(void *addr);
+void	fpuresume(void *addr);
 void	fpusave(void *addr);
 int	fpusetregs(struct thread *td, struct savefpu *addr,
 	    char *xfpustate, size_t xfpustate_size);

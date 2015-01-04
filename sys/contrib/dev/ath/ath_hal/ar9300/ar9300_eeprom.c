@@ -1606,6 +1606,7 @@ HAL_BOOL ar9300_ant_ctrl_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
     if ( AR_SREV_POSEIDON(ah) && (ahp->ah_lna_div_use_bt_ant_enable == TRUE) ) {
         value &= ~AR_SWITCH_TABLE_COM2_ALL;
         value |= ah->ah_config.ath_hal_ant_ctrl_comm2g_switch_enable;
+	HALDEBUG(ah, HAL_DEBUG_RESET, "%s: com2=0x%08x\n", __func__, value)
     }
 #endif  /* ATH_ANT_DIV_COMB */
     OS_REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM_2, AR_SWITCH_TABLE_COM2_ALL, value);
@@ -1711,6 +1712,8 @@ HAL_BOOL ar9300_ant_ctrl_apply(struct ath_hal *ah, HAL_BOOL is_2ghz)
             /* For WB225, need to swith ANT2 from BT to Wifi
              * This will not affect HB125 LNA diversity feature.
              */
+	     HALDEBUG(ah, HAL_DEBUG_RESET, "%s: com2=0x%08x\n", __func__,
+	         ah->ah_config.ath_hal_ant_ctrl_comm2g_switch_enable)
             OS_REG_RMW_FIELD(ah, AR_PHY_SWITCH_COM_2, AR_SWITCH_TABLE_COM2_ALL, 
                 ah->ah_config.ath_hal_ant_ctrl_comm2g_switch_enable);
             break;
@@ -1776,6 +1779,7 @@ ar9300_attenuation_margin_chain_get(struct ath_hal *ah, int chain,
     return 0;
 }
 
+#if 0
 HAL_BOOL ar9300_attenuation_apply(struct ath_hal *ah, u_int16_t channel)
 {
     u_int32_t value;
@@ -1814,6 +1818,75 @@ HAL_BOOL ar9300_attenuation_apply(struct ath_hal *ah, u_int16_t channel)
     }
     return 0;
 }
+#endif
+HAL_BOOL
+ar9300_attenuation_apply(struct ath_hal *ah, u_int16_t channel)
+{
+	int i;
+	uint32_t value;
+	uint32_t ext_atten_reg[3] = {
+	    AR_PHY_EXT_ATTEN_CTL_0,
+	    AR_PHY_EXT_ATTEN_CTL_1,
+	    AR_PHY_EXT_ATTEN_CTL_2
+	};
+
+	/*
+	 * If it's an AR9462 and we're receiving on the second
+	 * chain only, set the chain 0 details from chain 1
+	 * calibration.
+	 *
+	 * This is from ath9k.
+	 */
+	if (AR_SREV_JUPITER(ah) && (AH9300(ah)->ah_rx_chainmask == 0x2)) {
+		value = ar9300_attenuation_chain_get(ah, 1, channel);
+		OS_REG_RMW_FIELD(ah, ext_atten_reg[0],
+		    AR_PHY_EXT_ATTEN_CTL_XATTEN1_DB, value);
+		value = ar9300_attenuation_margin_chain_get(ah, 1, channel);
+		OS_REG_RMW_FIELD(ah, ext_atten_reg[0],
+		    AR_PHY_EXT_ATTEN_CTL_XATTEN1_MARGIN, value);
+	}
+
+	/*
+	 * Now, loop over the configured transmit chains and
+	 * load in the attenuation/margin settings as appropriate.
+	 */
+	for (i = 0; i < 3; i++) {
+		if ((AH9300(ah)->ah_tx_chainmask & (1 << i)) == 0)
+			continue;
+
+		value = ar9300_attenuation_chain_get(ah, i, channel);
+		OS_REG_RMW_FIELD(ah, ext_atten_reg[i],
+		    AR_PHY_EXT_ATTEN_CTL_XATTEN1_DB,
+		    value);
+
+		if (AR_SREV_POSEIDON(ah) &&
+		    (ar9300_rx_gain_index_get(ah) == 0) &&
+		    ah->ah_config.ath_hal_ext_atten_margin_cfg) {
+			value = 5;
+		} else {
+			value = ar9300_attenuation_margin_chain_get(ah, 0,
+			    channel);
+		}
+
+		/*
+		 * I'm not sure why it's loading in this setting into
+		 * the chain 0 margin regardless of the current chain.
+		 */
+		if (ah->ah_config.ath_hal_min_gainidx)
+			OS_REG_RMW_FIELD(ah,
+			    AR_PHY_EXT_ATTEN_CTL_0,
+			    AR_PHY_EXT_ATTEN_CTL_XATTEN1_MARGIN,
+			    value);
+
+		OS_REG_RMW_FIELD(ah,
+		    ext_atten_reg[i],
+		    AR_PHY_EXT_ATTEN_CTL_XATTEN1_MARGIN,
+		    value);
+	}
+
+	return (0);
+}
+
 
 static u_int16_t ar9300_quick_drop_get(struct ath_hal *ah, 
 								int chain, u_int16_t channel)

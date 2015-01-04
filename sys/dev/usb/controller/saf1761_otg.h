@@ -139,10 +139,13 @@ struct saf1761_otg_softc {
 	bus_space_tag_t sc_io_tag;
 	bus_space_handle_t sc_io_hdl;
 
+	uint32_t sc_host_async_busy_map[2];
 	uint32_t sc_host_async_map;
 	uint32_t sc_host_async_suspend_map;
+	uint32_t sc_host_intr_busy_map[2];
 	uint32_t sc_host_intr_map;
 	uint32_t sc_host_intr_suspend_map;
+	uint32_t sc_host_isoc_busy_map[2];
 	uint32_t sc_host_isoc_map;
 	uint32_t sc_host_isoc_suspend_map;
 	uint32_t sc_intr_enable;	/* enabled interrupts */

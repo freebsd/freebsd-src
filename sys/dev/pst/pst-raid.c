@@ -63,7 +63,7 @@ struct pst_softc {
 struct pst_request {
     struct pst_softc		*psc;		/* pointer to softc */
     u_int32_t			mfa;		/* frame addreess */
-    struct callout_handle	timeout_handle; /* handle for untimeout */
+    struct callout		timeout;	/* timeout timer */
     struct bio			*bp;		/* associated bio ptr */
 };
 
@@ -75,7 +75,7 @@ static int pst_shutdown(device_t);
 static void pst_start(struct pst_softc *);
 static void pst_done(struct iop_softc *, u_int32_t, struct i2o_single_reply *);
 static int pst_rw(struct pst_request *);
-static void pst_timeout(struct pst_request *);
+static void pst_timeout(void *);
 static void bpack(int8_t *, int8_t *, int);
 
 /* local vars */
@@ -97,7 +97,7 @@ pst_add_raid(struct iop_softc *sc, struct i2o_lct_entry *lct)
     psc->iop = sc;
     psc->lct = lct;
     device_set_softc(child, psc);
-    return bus_generic_attach(sc->dev);
+    return device_probe_and_attach(child);
 }
 
 static int
@@ -224,6 +224,7 @@ pst_start(struct pst_softc *psc)
 		iop_free_mfa(psc->iop, mfa);
 		return;
 	    }
+	    callout_init_mtx(&request->timeout, &psc->iop->mtx, 0);
 	    psc->iop->outstanding++;
 	    request->psc = psc;
 	    request->mfa = mfa;
@@ -245,7 +246,7 @@ pst_done(struct iop_softc *sc, u_int32_t mfa, struct i2o_single_reply *reply)
 	(struct pst_request *)reply->transaction_context;
     struct pst_softc *psc = request->psc;
 
-    untimeout((timeout_t *)pst_timeout, request, request->timeout_handle);
+    callout_stop(&request->timeout);
     request->bp->bio_resid = request->bp->bio_bcount - reply->donecount;
     biofinish(request->bp, NULL, reply->status ? EIO : 0);
     free(request, M_PSTRAID);
@@ -297,26 +298,25 @@ pst_rw(struct pst_request *request)
 
     request->psc->iop->reg->iqueue = request->mfa;
 
-    if (dumping)
-	request->timeout_handle.callout = NULL;
-    else
-	request->timeout_handle = 
-	    timeout((timeout_t*)pst_timeout, request, 10 * hz);
+    if (!dumping)
+	callout_reset(&request->timeout, 10 * hz, pst_timeout, request);
     return 0;
 }
 
 static void
-pst_timeout(struct pst_request *request)
+pst_timeout(void *arg)
 {
+    struct pst_request *request;
+
+    request = arg;
     printf("pst: timeout mfa=0x%08x cmd=0x%02x\n",
 	   request->mfa, request->bp->bio_cmd);
-    mtx_lock(&request->psc->iop->mtx);
+    mtx_assert(&request->psc->iop->mtx, MA_OWNED);
     iop_free_mfa(request->psc->iop, request->mfa);
     if ((request->mfa = iop_get_mfa(request->psc->iop)) == 0xffffffff) {
 	printf("pst: timeout no mfa possible\n");
 	biofinish(request->bp, NULL, EIO);
 	request->psc->iop->outstanding--;
-	mtx_unlock(&request->psc->iop->mtx);
 	return;
     }
     if (pst_rw(request)) {
@@ -324,7 +324,6 @@ pst_timeout(struct pst_request *request)
 	biofinish(request->bp, NULL, EIO);
 	request->psc->iop->outstanding--;
     }
-    mtx_unlock(&request->psc->iop->mtx);
 }
 
 static void

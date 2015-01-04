@@ -12,7 +12,6 @@ CFLAGS+=	-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
 
 .if ${MK_CLANG_FULL} != "no"
 CFLAGS+=	-DCLANG_ENABLE_ARCMT \
-		-DCLANG_ENABLE_REWRITER \
 		-DCLANG_ENABLE_STATIC_ANALYZER
 .endif # MK_CLANG_FULL
 
@@ -22,11 +21,10 @@ CFLAGS+=	-fno-strict-aliasing
 TARGET_ARCH?=	${MACHINE_ARCH}
 BUILD_ARCH?=	${MACHINE_ARCH}
 
-.if (${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "armv6") && \
-    ${MK_ARM_EABI} != "no"
-TARGET_ABI=	gnueabi
-.elif ${TARGET_ARCH} == "armv6hf"
+.if ${TARGET_ARCH:Marm*hf*} != ""
 TARGET_ABI=	gnueabihf
+.elif ${TARGET_ARCH:Marm*} != ""
+TARGET_ABI=	gnueabi
 .else
 TARGET_ABI=	unknown
 .endif
@@ -36,7 +34,7 @@ BUILD_TRIPLE?=	${BUILD_ARCH:C/amd64/x86_64/:C/armv6hf/armv6/}-unknown-freebsd11.
 CFLAGS+=	-DLLVM_DEFAULT_TARGET_TRIPLE=\"${TARGET_TRIPLE}\" \
 		-DLLVM_HOST_TRIPLE=\"${BUILD_TRIPLE}\" \
 		-DDEFAULT_SYSROOT=\"${TOOLS_PREFIX}\"
-CXXFLAGS+=	-fno-exceptions -fno-rtti
+CXXFLAGS+=	-std=c++11 -fno-exceptions -fno-rtti
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 
@@ -81,18 +79,13 @@ AttrDump.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 
-AttrIdentifierArg.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} -gen-clang-attr-identifier-arg-list \
+AttrHasAttributeImpl.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -gen-clang-attr-has-attribute-impl \
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 
 AttrImpl.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -gen-clang-attr-impl \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
-	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
-
-AttrLateParsed.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} -gen-clang-attr-late-parsed-list \
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 
@@ -116,6 +109,11 @@ AttrParsedAttrList.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 
+AttrParserStringSwitches.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -gen-clang-attr-parser-string-switches \
+	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
+	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
+
 AttrPCHRead.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -gen-clang-attr-pch-read \
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
@@ -123,11 +121,6 @@ AttrPCHRead.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 
 AttrPCHWrite.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	${CLANG_TBLGEN} -gen-clang-attr-pch-write \
-	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
-	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
-
-AttrSpellings.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} -gen-clang-attr-spelling-list \
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 
@@ -141,8 +134,8 @@ AttrTemplateInstantiate.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 
-AttrTypeArg.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${CLANG_TBLGEN} -gen-clang-attr-type-arg-list \
+AttrVisitor.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -gen-clang-attr-ast-visitor \
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/include/clang/Basic/Attr.td
 
@@ -221,12 +214,6 @@ Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/Options.td
 	    -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
 	    ${CLANG_SRCS}/include/clang/Driver/Options.td
 
-CC1AsOptions.inc.h: ${CLANG_SRCS}/include/clang/Driver/CC1AsOptions.td
-	${TBLGEN} -gen-opt-parser-defs \
-	    -I ${LLVM_SRCS}/include -I ${CLANG_SRCS}/include/clang/Driver \
-	    -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
-	    ${CLANG_SRCS}/include/clang/Driver/CC1AsOptions.td
-
 Checkers.inc.h: ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
 	${CLANG_TBLGEN} -gen-clang-sa-checkers \
 	    -I ${CLANG_SRCS}/include -d ${.TARGET:C/\.h$/.d/} -o ${.TARGET} \
@@ -237,5 +224,5 @@ Checkers.inc.h: ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
 .endfor
 
 SRCS+=		${TGHDRS:C/$/.inc.h/}
-DPADD+=		${TGHDRS:C/$/.inc.h/}
+DPSRCS+=	${TGHDRS:C/$/.inc.h/}
 CLEANFILES+=	${TGHDRS:C/$/.inc.h/} ${TGHDRS:C/$/.inc.d/}

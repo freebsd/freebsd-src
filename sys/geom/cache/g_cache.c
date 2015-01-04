@@ -73,7 +73,7 @@ sysctl_handle_pct(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error || !req->newptr)
 		return (error);
-	if (val < 0 || val > 100)
+	if (val > 100)
 		return (EINVAL);
 	if ((arg1 == &g_cache_used_lo && val > g_cache_used_hi) ||
 	    (arg1 == &g_cache_used_hi && g_cache_used_lo > val))

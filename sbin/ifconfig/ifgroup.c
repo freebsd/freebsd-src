@@ -86,9 +86,6 @@ getifgroups(int s)
 	struct ifgroupreq	 ifgr;
 	struct ifg_req		*ifg;
 
-	if (!verbose)
-		return;
-
 	memset(&ifgr, 0, sizeof(ifgr));
 	strlcpy(ifgr.ifgr_name, name, IFNAMSIZ);
 
@@ -121,6 +118,8 @@ getifgroups(int s)
 	}
 	if (cnt)
 		printf("\n");
+
+	free(ifgr.ifgr_groups);
 }
 
 static void

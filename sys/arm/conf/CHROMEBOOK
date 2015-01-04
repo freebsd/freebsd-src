@@ -22,7 +22,7 @@ ident		CHROMEBOOK
 
 hints		"CHROMEBOOK.hints"
 
-device		chrome_ec	# Chrome Embedded Controller
+device		chrome_ec_i2c	# Chrome Embedded Controller
 device		chrome_kb	# Chrome Keyboard
 
 # Framebuffer

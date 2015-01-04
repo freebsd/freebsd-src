@@ -2147,7 +2147,7 @@ arge_tx_locked(struct arge_softc *sc)
 
 		txd = &sc->arge_cdata.arge_txdesc[cons];
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
 		bus_dmamap_sync(sc->arge_cdata.arge_tx_tag, txd->tx_dmamap,
 		    BUS_DMASYNC_POSTWRITE);
@@ -2209,7 +2209,7 @@ arge_rx_locked(struct arge_softc *sc)
 		m->m_pkthdr.rcvif = ifp;
 		/* Skip 4 bytes of CRC */
 		m->m_pkthdr.len = m->m_len = packet_len - ETHER_CRC_LEN;
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		rx_npkts++;
 
 		ARGE_UNLOCK(sc);

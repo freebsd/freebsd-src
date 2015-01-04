@@ -43,6 +43,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/completion.h>
+#include <linux/string.h>
 
 #include <rdma/iw_cm.h>
 #include <rdma/ib_addr.h>

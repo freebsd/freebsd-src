@@ -24,12 +24,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 9, 2010
+.Dd October 8, 2014
 .Dt ALC 4
 .Os
 .Sh NAME
 .Nm alc
-.Nd Atheros AR813x/AR815x Gigabit/Fast Ethernet driver
+.Nd Atheros AR813x/AR815x/AR816x/AR817x Gigabit/Fast Ethernet driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -48,8 +48,8 @@ if_alc_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-device driver provides support for Atheros AR813x and AR815x PCI
-Express Gigabit/Fast Ethernet controllers.
+device driver provides support for Atheros AR813x, AR815x, AR816x
+and AR817x PCI Express Gigabit/Fast Ethernet controllers.
 .Pp
 All LOMs supported by the
 .Nm
@@ -58,9 +58,9 @@ segmentation offload (TSO), hardware VLAN tag stripping/insertion
 features, Wake On Lan (WOL) and an interrupt moderation mechanism
 as well as a 64-bit multicast hash filter.
 .Pp
-The AR813x and AR815x supports Jumbo Frames (up to 9216 and 6144
-bytes, respectively), which can be configured via the interface
-MTU setting.
+The AR813x, AR815x, AR816x and AR817x supports Jumbo Frames (up to
+9216, 6144, 9216 and 9216 bytes, respectively), which can be
+configured via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
 utility configures the adapter to receive and transmit Jumbo Frames.
@@ -112,6 +112,16 @@ Atheros AR8151 v2.0 PCI Express Gigabit Ethernet controller
 Atheros AR8152 v1.1 PCI Express Fast Ethernet controller
 .It
 Atheros AR8152 v2.0 PCI Express Fast Ethernet controller
+.It
+Atheros AR8161 PCI Express Gigabit Ethernet controller
+.It
+Atheros AR8162 PCI Express Fast Ethernet controller
+.It
+Atheros AR8171 PCI Express Gigabit Ethernet controller
+.It
+Atheros AR8172 PCI Express Fast Ethernet controller
+.It
+Killer E2200 Gigabit Ethernet controller
 .El
 .Sh LOADER TUNABLES
 Tunables can be set at the

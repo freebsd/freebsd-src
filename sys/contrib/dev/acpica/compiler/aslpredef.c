@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -251,10 +251,16 @@ ApCheckPredefinedReturnValue (
     const ACPI_PREDEFINED_INFO  *ThisName;
 
 
-    /* Check parent method for a match against the predefined name list */
-
+    /*
+     * Check parent method for a match against the predefined name list.
+     *
+     * Note: Disable compiler errors/warnings because any errors will be
+     * caught when analyzing the parent method. Eliminates duplicate errors.
+     */
+    Gbl_AllExceptionsDisabled = TRUE;
     Index = ApCheckForPredefinedName (MethodInfo->Op,
                 MethodInfo->Op->Asl.NameSeg);
+    Gbl_AllExceptionsDisabled = FALSE;
 
     switch (Index)
     {

@@ -203,7 +203,7 @@ ENTRY_NP(armv5_idcache_wbinv_all)
 	mcr	p15, 0, r0, c7, c5, 0	/* Flush I cache */
 	/* Fall through to purge Dcache. */
 
-ENTRY(armv5_dcache_wbinv_all)
+EENTRY(armv5_dcache_wbinv_all)
 .Larmv5_dcache_wbinv_all:
 	ldr	ip, .Larmv5_cache_data
 	ldmia	ip, {s_max, i_max, s_inc, i_inc}
@@ -219,8 +219,8 @@ ENTRY(armv5_dcache_wbinv_all)
 	bpl	1b			/* Next set */
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
+EEND(armv5_dcache_wbinv_all)
 END(armv5_idcache_wbinv_all)
-END(armv5_dcache_wbinv_all)
 
 .Larmv5_cache_data:
 	.word	_C_LABEL(armv5_dcache_sets_max)
@@ -236,7 +236,7 @@ END(armv5_dcache_wbinv_all)
  * four variables is assumed in the code above.  Hence the reason for
  * declaring them in the assembler file.
  */
-	.align 0
+	.align 2
 C_OBJECT(armv5_dcache_sets_max)
 	.space	4
 C_OBJECT(armv5_dcache_index_max)

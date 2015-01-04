@@ -2705,7 +2705,9 @@ static void arcmsr_execute_srb(void *arg, bus_dma_segment_t *dm_segs, int nseg, 
 	if (pccb->ccb_h.timeout != CAM_TIME_INFINITY)
 	{
 		arcmsr_callout_init(&srb->ccb_callout);
-		callout_reset(&srb->ccb_callout, ((pccb->ccb_h.timeout + (ARCMSR_TIMEOUT_DELAY * 1000)) * hz) / 1000, arcmsr_srb_timeout, srb);
+		callout_reset_sbt(&srb->ccb_callout, SBT_1MS *
+		    (pccb->ccb_h.timeout + (ARCMSR_TIMEOUT_DELAY * 1000)), 0,
+		    arcmsr_srb_timeout, srb, 0);
 		srb->srb_flags |= SRB_FLAG_TIMER_START;
 	}
 }

@@ -127,6 +127,7 @@ static const struct pci_id pci_ns8250_ids[] = {
 { 0x8086, 0x8813, 0xffff, 0, "Intel EG20T Serial Port 2", 0x10 },
 { 0x8086, 0x8814, 0xffff, 0, "Intel EG20T Serial Port 3", 0x10 },
 { 0x8086, 0x8c3d, 0xffff, 0, "Intel Lynx Point KT Controller", 0x10 },
+{ 0x8086, 0x8cbd, 0xffff, 0, "Intel Wildcat Point KT Controller", 0x10 },
 { 0x9710, 0x9820, 0x1000, 1, "NetMos NM9820 Serial Port", 0x10 },
 { 0x9710, 0x9835, 0x1000, 1, "NetMos NM9835 Serial Port", 0x10 },
 { 0x9710, 0x9865, 0xa000, 0x1000, "NetMos NM9865 Serial Port", 0x10 },
@@ -136,8 +137,8 @@ static const struct pci_id pci_ns8250_ids[] = {
 	"MosChip MCS9901 PCIe to Peripheral Controller", 0x10 },
 { 0x9710, 0x9904, 0xa000, 0x1000,
 	"MosChip MCS9904 PCIe to Peripheral Controller", 0x10 },
-{ 0x9710, 0x9922, 0xffff, 0,
-	"MosChip MCS9922 Multi I/O Controller", 0x10 },
+{ 0x9710, 0x9922, 0xa000, 0x1000,
+	"MosChip MCS9922 PCIe to Peripheral Controller", 0x10 },
 { 0xdeaf, 0x9051, 0xffff, 0, "Middle Digital PC Weasel Serial Port", 0x10 },
 { 0xffff, 0, 0xffff, 0, NULL, 0, 0}
 };

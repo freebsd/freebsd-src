@@ -45,6 +45,6 @@ enum vt_color_format {
 };
 
 /* Helper to fill color map used by driver */
-int vt_generate_vga_palette(uint32_t *palette, int format, uint32_t rmax,
+int vt_generate_cons_palette(uint32_t *palette, int format, uint32_t rmax,
     int roffset, uint32_t gmax, int goffset, uint32_t bmax, int boffset);
 

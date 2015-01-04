@@ -7,15 +7,13 @@
 .include <src.opts.mk>
 
 PROG=	m4
-CFLAGS+=-DEXTENDED -I${.CURDIR} -I${.CURDIR}/lib
-DPADD=	${LIBY} ${LIBL} ${LIBM}
-LDADD=	-ly -ll -lm
+CFLAGS+=-DEXTENDED -I${.CURDIR} -I${.CURDIR}/../../lib/libohash
+LIBADD=	y l m ohash
 
 NO_WMISSING_VARIABLE_DECLARATIONS=
 
 SRCS=	eval.c expr.c look.c main.c misc.c gnum4.c trace.c parser.y tokenizer.l
-.PATH: ${.CURDIR}/lib
-SRCS+=	ohash.c
+
 WARNS=	3
 
 tokenizer.o: parser.h

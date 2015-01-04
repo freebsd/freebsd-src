@@ -524,7 +524,7 @@ atpic_init(void *dummy __unused)
 		intr_register_source(&ai->at_intsrc);
 	}
 }
-SYSINIT(atpic_init, SI_SUB_INTR, SI_ORDER_SECOND + 1, atpic_init, NULL);
+SYSINIT(atpic_init, SI_SUB_INTR, SI_ORDER_FOURTH, atpic_init, NULL);
 
 void
 atpic_handle_intr(u_int vector, struct trapframe *frame)

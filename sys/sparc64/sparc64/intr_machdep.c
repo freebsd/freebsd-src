@@ -116,7 +116,7 @@ static void intr_assign_next_cpu(struct intr_vector *iv);
 static void intr_shuffle_irqs(void *arg __unused);
 #endif
 
-static int intr_assign_cpu(void *arg, u_char cpu);
+static int intr_assign_cpu(void *arg, int cpu);
 static void intr_execute_handlers(void *);
 static void intr_stray_level(struct trapframe *);
 static void intr_stray_vector(void *);
@@ -256,7 +256,7 @@ intr_init2()
 }
 
 static int
-intr_assign_cpu(void *arg, u_char cpu)
+intr_assign_cpu(void *arg, int cpu)
 {
 #ifdef SMP
 	struct pcpu *pc;

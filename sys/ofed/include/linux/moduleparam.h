@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,6 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #ifndef	_LINUX_MODULEPARAM_H_
 #define	_LINUX_MODULEPARAM_H_
 
@@ -81,6 +83,8 @@ param_sysinit(struct kernel_param *param)
 	SYSINIT(name##_param_sysinit, SI_SUB_DRIVERS, SI_ORDER_FIRST,	\
 	    param_sysinit, &__param_##name);
 
+#define module_param_string(name, string, len, perm)                    
+         
 #define	module_param_named(name, var, type, mode)			\
 	module_param_call(name, param_set_##type, param_get_##type, &var, mode)
 

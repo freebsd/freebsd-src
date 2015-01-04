@@ -100,7 +100,8 @@ __FBSDID("$FreeBSD$");
 #include "devd.h"		/* C compatible definitions */
 #include "devd.hh"		/* C++ class definitions */
 
-#define PIPE "/var/run/devd.pipe"
+#define STREAMPIPE "/var/run/devd.pipe"
+#define SEQPACKETPIPE "/var/run/devd.seqpacket.pipe"
 #define CF "/etc/devd.conf"
 #define SYSCTL "hw.bus.devctl_queue"
 
@@ -118,6 +119,11 @@ __FBSDID("$FreeBSD$");
 #define CLIENT_BUFSIZE 131072
 
 using namespace std;
+
+typedef struct client {
+	int fd;
+	int socktype;
+} client_t;
 
 extern FILE *yyin;
 extern int lineno;
@@ -822,12 +828,12 @@ process_event(char *buffer)
 }
 
 int
-create_socket(const char *name)
+create_socket(const char *name, int socktype)
 {
 	int fd, slen;
 	struct sockaddr_un sun;
 
-	if ((fd = socket(PF_LOCAL, SOCK_STREAM, 0)) < 0)
+	if ((fd = socket(PF_LOCAL, socktype, 0)) < 0)
 		err(1, "socket");
 	bzero(&sun, sizeof(sun));
 	sun.sun_family = AF_UNIX;
@@ -846,12 +852,13 @@ create_socket(const char *name)
 
 unsigned int max_clients = 10;	/* Default, can be overriden on cmdline. */
 unsigned int num_clients;
-list<int> clients;
+
+list<client_t> clients;
 
 void
 notify_clients(const char *data, int len)
 {
-	list<int>::iterator i;
+	list<client_t>::iterator i;
 
 	/*
 	 * Deliver the data to all clients.  Throw clients overboard at the
@@ -861,11 +868,17 @@ notify_clients(const char *data, int len)
 	 * kernel memory or tie up the limited number of available connections).
 	 */
 	for (i = clients.begin(); i != clients.end(); ) {
-		if (write(*i, data, len) != len) {
+		int flags;
+		if (i->socktype == SOCK_SEQPACKET)
+			flags = MSG_EOR;
+		else
+			flags = 0;
+
+		if (send(i->fd, data, len, flags) != len) {
 			--num_clients;
-			close(*i);
+			close(i->fd);
 			i = clients.erase(i);
-			devdlog(LOG_WARNING, "notify_clients: write() failed; "
+			devdlog(LOG_WARNING, "notify_clients: send() failed; "
 			    "dropping unresponsive client\n");
 		} else
 			++i;
@@ -877,7 +890,7 @@ check_clients(void)
 {
 	int s;
 	struct pollfd pfd;
-	list<int>::iterator i;
+	list<client_t>::iterator i;
 
 	/*
 	 * Check all existing clients to see if any of them have disappeared.
@@ -888,12 +901,12 @@ check_clients(void)
 	 */
 	pfd.events = 0;
 	for (i = clients.begin(); i != clients.end(); ) {
-		pfd.fd = *i;
+		pfd.fd = i->fd;
 		s = poll(&pfd, 1, 0);
 		if ((s < 0 && s != EINTR ) ||
 		    (s > 0 && (pfd.revents & POLLHUP))) {
 			--num_clients;
-			close(*i);
+			close(i->fd);
 			i = clients.erase(i);
 			devdlog(LOG_NOTICE, "check_clients:  "
 			    "dropping disconnected client\n");
@@ -903,9 +916,9 @@ check_clients(void)
 }
 
 void
-new_client(int fd)
+new_client(int fd, int socktype)
 {
-	int s;
+	client_t s;
 	int sndbuf_size;
 
 	/*
@@ -914,13 +927,14 @@ new_client(int fd)
 	 * by sending large buffers full of data we'll never read.
 	 */
 	check_clients();
-	s = accept(fd, NULL, NULL);
-	if (s != -1) {
+	s.socktype = socktype;
+	s.fd = accept(fd, NULL, NULL);
+	if (s.fd != -1) {
 		sndbuf_size = CLIENT_BUFSIZE;
-		if (setsockopt(s, SOL_SOCKET, SO_SNDBUF, &sndbuf_size,
+		if (setsockopt(s.fd, SOL_SOCKET, SO_SNDBUF, &sndbuf_size,
 		    sizeof(sndbuf_size)))
 			err(1, "setsockopt");
-		shutdown(s, SHUT_RD);
+		shutdown(s.fd, SHUT_RD);
 		clients.push_back(s);
 		++num_clients;
 	} else
@@ -934,7 +948,7 @@ event_loop(void)
 	int fd;
 	char buffer[DEVCTL_MAXBUF];
 	int once = 0;
-	int server_fd, max_fd;
+	int stream_fd, seqpacket_fd, max_fd;
 	int accepting;
 	timeval tv;
 	fd_set fds;
@@ -942,9 +956,10 @@ event_loop(void)
 	fd = open(PATH_DEVCTL, O_RDONLY | O_CLOEXEC);
 	if (fd == -1)
 		err(1, "Can't open devctl device %s", PATH_DEVCTL);
-	server_fd = create_socket(PIPE);
+	stream_fd = create_socket(STREAMPIPE, SOCK_STREAM);
+	seqpacket_fd = create_socket(SEQPACKETPIPE, SOCK_SEQPACKET);
 	accepting = 1;
-	max_fd = max(fd, server_fd) + 1;
+	max_fd = max(fd, max(stream_fd, seqpacket_fd)) + 1;
 	while (!romeo_must_die) {
 		if (!once && !no_daemon && !daemonize_quick) {
 			// Check to see if we have any events pending.
@@ -965,24 +980,28 @@ event_loop(void)
 		}
 		/*
 		 * When we've already got the max number of clients, stop
-		 * accepting new connections (don't put server_fd in the set),
-		 * shrink the accept() queue to reject connections quickly, and
-		 * poll the existing clients more often, so that we notice more
-		 * quickly when any of them disappear to free up client slots.
+		 * accepting new connections (don't put the listening sockets in
+		 * the set), shrink the accept() queue to reject connections
+		 * quickly, and poll the existing clients more often, so that we
+		 * notice more quickly when any of them disappear to free up
+		 * client slots.
 		 */
 		FD_ZERO(&fds);
 		FD_SET(fd, &fds);
 		if (num_clients < max_clients) {
 			if (!accepting) {
-				listen(server_fd, max_clients);
+				listen(stream_fd, max_clients);
+				listen(seqpacket_fd, max_clients);
 				accepting = 1;
 			}
-			FD_SET(server_fd, &fds);
+			FD_SET(stream_fd, &fds);
+			FD_SET(seqpacket_fd, &fds);
 			tv.tv_sec = 60;
 			tv.tv_usec = 0;
 		} else {
 			if (accepting) {
-				listen(server_fd, 0);
+				listen(stream_fd, 0);
+				listen(seqpacket_fd, 0);
 				accepting = 0;
 			}
 			tv.tv_sec = 2;
@@ -1022,8 +1041,14 @@ event_loop(void)
 				break;
 			}
 		}
-		if (FD_ISSET(server_fd, &fds))
-			new_client(server_fd);
+		if (FD_ISSET(stream_fd, &fds))
+			new_client(stream_fd, SOCK_STREAM);
+		/*
+		 * Aside from the socket type, both sockets use the same
+		 * protocol, so we can process clients the same way.
+		 */
+		if (FD_ISSET(seqpacket_fd, &fds))
+			new_client(seqpacket_fd, SOCK_SEQPACKET);
 	}
 	close(fd);
 }

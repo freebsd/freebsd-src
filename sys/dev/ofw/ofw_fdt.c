@@ -208,7 +208,7 @@ ofw_fdt_instance_to_package(ofw_t ofw, ihandle_t instance)
 {
 
 	/* Where real OF uses ihandles in the tree, FDT uses xref phandles */
-	return (OF_xref_phandle(instance));
+	return (OF_node_from_xref(instance));
 }
 
 /* Get the length of a property of a package. */
@@ -222,14 +222,14 @@ ofw_fdt_getproplen(ofw_t ofw, phandle_t package, const char *propname)
 	if (offset < 0)
 		return (-1);
 
-	if (strcmp(propname, "name") == 0) {
+	len = -1;
+	prop = fdt_get_property(fdtp, offset, propname, &len);
+
+	if (prop == NULL && strcmp(propname, "name") == 0) {
 		/* Emulate the 'name' property */
 		fdt_get_name(fdtp, offset, &len);
 		return (len + 1);
 	}
-
-	len = -1;
-	prop = fdt_get_property(fdtp, offset, propname, &len);
 
 	return (len);
 }
@@ -247,7 +247,9 @@ ofw_fdt_getprop(ofw_t ofw, phandle_t package, const char *propname, void *buf,
 	if (offset < 0)
 		return (-1);
 
-	if (strcmp(propname, "name") == 0) {
+	prop = fdt_getprop(fdtp, offset, propname, &len);
+
+	if (prop == NULL && strcmp(propname, "name") == 0) {
 		/* Emulate the 'name' property */
 		name = fdt_get_name(fdtp, offset, &len);
 		strncpy(buf, name, buflen);
@@ -256,7 +258,6 @@ ofw_fdt_getprop(ofw_t ofw, phandle_t package, const char *propname, void *buf,
 		return (len + 1);
 	}
 
-	prop = fdt_getprop(fdtp, offset, propname, &len);
 	if (prop == NULL)
 		return (-1);
 

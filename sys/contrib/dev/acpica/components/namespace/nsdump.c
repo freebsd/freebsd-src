@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -748,6 +748,13 @@ AcpiNsDumpOneObjectPath (
     }
 
     Node = AcpiNsValidateHandle (ObjHandle);
+    if (!Node)
+    {
+        /* Ignore bad node during namespace walk */
+
+        return (AE_OK);
+    }
+
     Pathname = AcpiNsGetExternalPathname (Node);
 
     PathIndent = 1;

@@ -481,14 +481,17 @@ child_process(e, u)
 				auto char	mailcmd[MAX_COMMAND];
 				auto char	hostname[MAXHOSTNAMELEN];
 
-				(void) gethostname(hostname, MAXHOSTNAMELEN);
+				if (gethostname(hostname, MAXHOSTNAMELEN) == -1)
+					hostname[0] = '\0';
+				hostname[sizeof(hostname) - 1] = '\0';
 				(void) snprintf(mailcmd, sizeof(mailcmd),
 					       MAILARGS, MAILCMD);
 				if (!(mail = cron_popen(mailcmd, "w", e))) {
 					warn("%s", MAILCMD);
 					(void) _exit(ERROR_EXIT);
 				}
-				fprintf(mail, "From: %s (Cron Daemon)\n", usernm);
+				fprintf(mail, "From: Cron Daemon <%s@%s>\n",
+					usernm, hostname);
 				fprintf(mail, "To: %s\n", mailto);
 				fprintf(mail, "Subject: Cron <%s@%s> %s\n",
 					usernm, first_word(hostname, "."),

@@ -89,12 +89,12 @@ main()
 	fi
 
 	prebuild_libs=$(
-		awk -F"${FS}" '{ print $2 }' ${LIBDEPENDS} |rs 0 1 |sort -u
+		awk -F"${FS}" '{ print $2 }' ${LIBDEPENDS} | tr ' ' '\n' |
+		    sort -u
 	)
 	echo "Libraries with dependents:"
 	echo
-	echo ${prebuild_libs} |
-	rs 0 1
+	echo ${prebuild_libs} | tr ' ' '\n'
 	echo
 
 	echo "List of interdependencies:"

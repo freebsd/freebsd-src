@@ -345,6 +345,37 @@ ctl_scsi_read_write(union ctl_io *io, uint8_t *data_ptr, uint32_t data_len,
 }
 
 void
+ctl_scsi_write_same(union ctl_io *io, uint8_t *data_ptr, uint32_t data_len,
+		    uint8_t byte2, uint64_t lba, uint32_t num_blocks,
+		    ctl_tag_type tag_type, uint8_t control)
+{
+	struct ctl_scsiio *ctsio;
+	struct scsi_write_same_16 *cdb;
+
+	ctl_scsi_zero_io(io);
+
+	io->io_hdr.io_type = CTL_IO_SCSI;
+	ctsio = &io->scsiio;
+	ctsio->cdb_len = sizeof(*cdb);
+	cdb = (struct scsi_write_same_16 *)ctsio->cdb;
+	cdb->opcode = WRITE_SAME_16;
+	cdb->byte2 = byte2;
+	scsi_u64to8b(lba, cdb->addr);
+	scsi_ulto4b(num_blocks, cdb->length);
+	cdb->group = 0;
+	cdb->control = control;
+
+	io->io_hdr.io_type = CTL_IO_SCSI;
+	io->io_hdr.flags = CTL_FLAG_DATA_OUT;
+	ctsio->tag_type = tag_type;
+	ctsio->ext_data_ptr = data_ptr;
+	ctsio->ext_data_len = data_len;
+	ctsio->ext_sg_entries = 0;
+	ctsio->ext_data_filled = 0;
+	ctsio->sense_len = SSD_FULL_SIZE;
+}
+
+void
 ctl_scsi_read_capacity(union ctl_io *io, uint8_t *data_ptr, uint32_t data_len,
 		       uint32_t addr, int reladr, int pmi,
 		       ctl_tag_type tag_type, uint8_t control)
@@ -700,6 +731,44 @@ ctl_scsi_task_string(struct ctl_taskio *taskio)
 }
 
 void
+ctl_io_sbuf(union ctl_io *io, struct sbuf *sb)
+{
+	const char *task_desc;
+	char path_str[64];
+
+	ctl_scsi_path_string(io, path_str, sizeof(path_str));
+
+	switch (io->io_hdr.io_type) {
+	case CTL_IO_SCSI:
+		sbuf_cat(sb, path_str);
+		ctl_scsi_command_string(&io->scsiio, NULL, sb);
+		sbuf_printf(sb, " Tag: %#x/%d\n",
+			    io->scsiio.tag_num, io->scsiio.tag_type);
+		break;
+	case CTL_IO_TASK:
+		sbuf_cat(sb, path_str);
+		task_desc = ctl_scsi_task_string(&io->taskio);
+		if (task_desc == NULL)
+			sbuf_printf(sb, "Unknown Task Action %d (%#x)",
+			    io->taskio.task_action, io->taskio.task_action);
+		else
+			sbuf_printf(sb, "Task Action: %s", task_desc);
+		switch (io->taskio.task_action) {
+		case CTL_TASK_ABORT_TASK:
+			sbuf_printf(sb, " Tag: %#x/%d\n",
+			    io->taskio.tag_num, io->taskio.tag_type);
+			break;
+		default:
+			sbuf_printf(sb, "\n");
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+void
 ctl_io_error_sbuf(union ctl_io *io, struct scsi_inquiry_data *inq_data,
 		  struct sbuf *sb)
 {
@@ -707,8 +776,9 @@ ctl_io_error_sbuf(union ctl_io *io, struct scsi_inquiry_data *inq_data,
 	char path_str[64];
 	unsigned int i;
 
-	status_desc = NULL;
+	ctl_io_sbuf(io, sb);
 
+	status_desc = NULL;
 	for (i = 0; i < (sizeof(ctl_status_table)/sizeof(ctl_status_table[0]));
 	     i++) {
 		if ((io->io_hdr.status & CTL_STATUS_MASK) ==
@@ -719,50 +789,6 @@ ctl_io_error_sbuf(union ctl_io *io, struct scsi_inquiry_data *inq_data,
 	}
 
 	ctl_scsi_path_string(io, path_str, sizeof(path_str));
-
-	switch (io->io_hdr.io_type) {
-	case CTL_IO_SCSI:
-		sbuf_cat(sb, path_str);
-
-		ctl_scsi_command_string(&io->scsiio, NULL, sb);
-
-		sbuf_printf(sb, "\n");
-
-		sbuf_printf(sb, "%sTag: 0x%04x, Type: %d\n", path_str,
-			    io->scsiio.tag_num, io->scsiio.tag_type);
-		break;
-	case CTL_IO_TASK: {
-		const char *task_desc;
-
-		sbuf_cat(sb, path_str);
-
-		task_desc = ctl_scsi_task_string(&io->taskio);
-
-		if (task_desc == NULL)
-			sbuf_printf(sb, "Unknown Task Action %d (%#x)",
-				    io->taskio.task_action,
-				    io->taskio.task_action);
-		else
-			sbuf_printf(sb, "Task Action: %s", task_desc);
-
-		sbuf_printf(sb, "\n");
-
-		switch (io->taskio.task_action) {
-		case CTL_TASK_ABORT_TASK:
-		case CTL_TASK_ABORT_TASK_SET:
-		case CTL_TASK_CLEAR_TASK_SET:
-			sbuf_printf(sb, "%sTag: 0x%04x, Type: %d\n", path_str,
-				    io->taskio.tag_num,
-				    io->taskio.tag_type);
-			break;
-		default:
-			break;
-		}
-		break;
-	}
-	default:
-		break;
-	}
 
 	sbuf_cat(sb, path_str);
 	if (status_desc == NULL)
@@ -784,21 +810,37 @@ ctl_io_error_sbuf(union ctl_io *io, struct scsi_inquiry_data *inq_data,
 }
 
 char *
+ctl_io_string(union ctl_io *io, char *str, int str_len)
+{
+	struct sbuf sb;
+
+	sbuf_new(&sb, str, str_len, SBUF_FIXEDLEN);
+	ctl_io_sbuf(io, &sb);
+	sbuf_finish(&sb);
+	return (sbuf_data(&sb));
+}
+
+char *
 ctl_io_error_string(union ctl_io *io, struct scsi_inquiry_data *inq_data,
 		    char *str, int str_len)
 {
 	struct sbuf sb;
 
 	sbuf_new(&sb, str, str_len, SBUF_FIXEDLEN);
-
 	ctl_io_error_sbuf(io, inq_data, &sb);
-
 	sbuf_finish(&sb);
-
 	return (sbuf_data(&sb));
 }
 
 #ifdef _KERNEL
+
+void
+ctl_io_print(union ctl_io *io)
+{
+	char str[512];
+
+	printf("%s", ctl_io_string(io, str, sizeof(str)));
+}
 
 void
 ctl_io_error_print(union ctl_io *io, struct scsi_inquiry_data *inq_data)
@@ -823,6 +865,37 @@ ctl_io_error_print(union ctl_io *io, struct scsi_inquiry_data *inq_data)
 	printf("%s", ctl_io_error_string(io, inq_data, str, sizeof(str)));
 #endif
 
+}
+
+void
+ctl_data_print(union ctl_io *io)
+{
+	char str[128];
+	char path_str[64];
+	struct sbuf sb;
+	int i, j, len;
+
+	if (io->io_hdr.io_type != CTL_IO_SCSI)
+		return;
+	if (io->io_hdr.flags & CTL_FLAG_BUS_ADDR)
+		return;
+	if (io->io_hdr.flags & CTL_FLAG_EDPTR_SGLIST)	/* XXX: Implement */
+		return;
+	ctl_scsi_path_string(io, path_str, sizeof(path_str));
+	len = min(io->scsiio.kern_data_len, 4096);
+	for (i = 0; i < len; ) {
+		sbuf_new(&sb, str, sizeof(str), SBUF_FIXEDLEN);
+		sbuf_cat(&sb, path_str);
+		sbuf_printf(&sb, " %#6x:%04x:", io->scsiio.tag_num, i);
+		for (j = 0; j < 16 && i < len; i++, j++) {
+			if (j == 8)
+				sbuf_cat(&sb, " ");
+			sbuf_printf(&sb, " %02x", io->scsiio.kern_data_ptr[i]);
+		}
+		sbuf_cat(&sb, "\n");
+		sbuf_finish(&sb);
+		printf("%s", sbuf_data(&sb));
+	}
 }
 
 #else /* _KERNEL */

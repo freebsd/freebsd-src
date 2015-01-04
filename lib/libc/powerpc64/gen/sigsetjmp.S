@@ -97,6 +97,7 @@ ENTRY(sigsetjmp)
 
 	li	%r3,0
 	blr
+END(sigsetjmp)
 
 ENTRY(siglongjmp)
 	ld	%r9,40 + 0*8(%r3)
@@ -141,5 +142,6 @@ ENTRY(siglongjmp)
 	bnelr
 	li	%r3,1
 	blr
+END(siglongjmp)
 
 	.section .note.GNU-stack,"",%progbits

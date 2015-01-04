@@ -2944,7 +2944,7 @@ dt_get_buf(dtrace_hdl_t *dtp, int cpu, dtrace_bufdesc_t **bufp)
 {
 	dtrace_optval_t size;
 	dtrace_bufdesc_t *buf = dt_zalloc(dtp, sizeof (*buf));
-	int error;
+	int error, rval;
 
 	if (buf == NULL)
 		return (-1);
@@ -2963,7 +2963,6 @@ dt_get_buf(dtrace_hdl_t *dtp, int cpu, dtrace_bufdesc_t **bufp)
 #else
 	if (dt_ioctl(dtp, DTRACEIOC_BUFSNAP, &buf) == -1) {
 #endif
-		dt_put_buf(dtp, buf);
 		/*
 		 * If we failed with ENOENT, it may be because the
 		 * CPU was unconfigured -- this is okay.  Any other
@@ -2971,10 +2970,12 @@ dt_get_buf(dtrace_hdl_t *dtp, int cpu, dtrace_bufdesc_t **bufp)
 		 */
 		if (errno == ENOENT) {
 			*bufp = NULL;
-			return (0);
-		}
+			rval = 0;
+		} else
+			rval = dt_set_errno(dtp, errno);
 
-		return (dt_set_errno(dtp, errno));
+		dt_put_buf(dtp, buf);
+		return (rval);
 	}
 
 	error = dt_unring_buf(dtp, buf);

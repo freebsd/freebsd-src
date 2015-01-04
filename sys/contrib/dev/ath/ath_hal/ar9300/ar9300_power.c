@@ -666,6 +666,7 @@ ar9300_set_power_mode(struct ath_hal *ah, HAL_POWER_MODE mode, int set_chip)
     HALDEBUG(ah, HAL_DEBUG_POWER_MGMT, "%s: %s -> %s (%s)\n", __func__,
         modes[ar9300_get_power_mode(ah)], modes[mode],
         set_chip ? "set chip " : "");
+    OS_MARK(ah, AH_MARK_CHIP_POWER, mode);
     
     switch (mode) {
     case HAL_PM_AWAKE:
@@ -719,8 +720,10 @@ ar9300_set_power_mode(struct ath_hal *ah, HAL_POWER_MODE mode, int set_chip)
     default:
         HALDEBUG(ah, HAL_DEBUG_POWER_MGMT,
             "%s: unknown power mode %u\n", __func__, mode);
+        OS_MARK(ah, AH_MARK_CHIP_POWER_DONE, -1);
         return AH_FALSE;
     }
+    OS_MARK(ah, AH_MARK_CHIP_POWER_DONE, status);
     return status;
 }
 

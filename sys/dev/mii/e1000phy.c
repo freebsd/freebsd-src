@@ -169,8 +169,12 @@ e1000phy_attach(device_t dev)
 	PHY_RESET(sc);
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & sc->mii_capmask;
-	if (sc->mii_capabilities & BMSR_EXTSTAT)
+	if (sc->mii_capabilities & BMSR_EXTSTAT) {
 		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
+		if ((sc->mii_extcapabilities &
+		    (EXTSR_1000TFDX | EXTSR_1000THDX)) != 0)
+			sc->mii_flags |= MIIF_HAVE_GTCR;
+	}
 	device_printf(dev, " ");
 	mii_phy_add_media(sc);
 	printf("\n");
@@ -319,8 +323,7 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		speed = 0;
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_1000_T:
-			if ((sc->mii_extcapabilities &
-			    (EXTSR_1000TFDX | EXTSR_1000THDX)) == 0)
+			if ((sc->mii_flags & MIIF_HAVE_GTCR) == 0)
 				return (EINVAL);
 			speed = E1000_CR_SPEED_1000;
 			break;
@@ -357,10 +360,9 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 		if (IFM_SUBTYPE(ife->ifm_media) == IFM_1000_T) {
 			gig |= E1000_1GCR_MS_ENABLE;
-			if ((ife->ifm_media & IFM_ETH_MASTER) != 0)	
+			if ((ife->ifm_media & IFM_ETH_MASTER) != 0)
 				gig |= E1000_1GCR_MS_VALUE;
-		} else if ((sc->mii_extcapabilities &
-		    (EXTSR_1000TFDX | EXTSR_1000THDX)) != 0)
+		} else if ((sc->mii_flags & MIIF_HAVE_GTCR) != 0)
 			gig = 0;
 		PHY_WRITE(sc, E1000_1GCR, gig);
 		PHY_WRITE(sc, E1000_AR, E1000_AR_SELECTOR_FIELD);
@@ -485,9 +487,14 @@ e1000phy_mii_phy_auto(struct mii_softc *sc, int media)
 		PHY_WRITE(sc, E1000_AR, reg | E1000_AR_SELECTOR_FIELD);
 	} else
 		PHY_WRITE(sc, E1000_AR, E1000_FA_1000X_FD | E1000_FA_1000X);
-	if ((sc->mii_extcapabilities & (EXTSR_1000TFDX | EXTSR_1000THDX)) != 0)
-		PHY_WRITE(sc, E1000_1GCR,
-		    E1000_1GCR_1000T_FD | E1000_1GCR_1000T);
+	if ((sc->mii_flags & MIIF_HAVE_GTCR) != 0) {
+		reg = 0;
+		if ((sc->mii_extcapabilities & EXTSR_1000TFDX) != 0)
+			reg |= E1000_1GCR_1000T_FD;
+		if ((sc->mii_extcapabilities & EXTSR_1000THDX) != 0)
+			reg |= E1000_1GCR_1000T;
+		PHY_WRITE(sc, E1000_1GCR, reg);
+	}
 	PHY_WRITE(sc, E1000_CR,
 	    E1000_CR_AUTO_NEG_ENABLE | E1000_CR_RESTART_AUTO_NEG);
 

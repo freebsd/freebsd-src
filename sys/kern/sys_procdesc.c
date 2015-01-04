@@ -78,6 +78,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/ucred.h>
+#include <sys/user.h>
 
 #include <security/audit/audit.h>
 
@@ -87,29 +88,25 @@ FEATURE(process_descriptors, "Process Descriptors");
 
 static uma_zone_t procdesc_zone;
 
-static fo_rdwr_t	procdesc_read;
-static fo_rdwr_t	procdesc_write;
-static fo_truncate_t	procdesc_truncate;
-static fo_ioctl_t	procdesc_ioctl;
 static fo_poll_t	procdesc_poll;
 static fo_kqfilter_t	procdesc_kqfilter;
 static fo_stat_t	procdesc_stat;
 static fo_close_t	procdesc_close;
-static fo_chmod_t	procdesc_chmod;
-static fo_chown_t	procdesc_chown;
+static fo_fill_kinfo_t	procdesc_fill_kinfo;
 
 static struct fileops procdesc_ops = {
-	.fo_read = procdesc_read,
-	.fo_write = procdesc_write,
-	.fo_truncate = procdesc_truncate,
-	.fo_ioctl = procdesc_ioctl,
+	.fo_read = invfo_rdwr,
+	.fo_write = invfo_rdwr,
+	.fo_truncate = invfo_truncate,
+	.fo_ioctl = invfo_ioctl,
 	.fo_poll = procdesc_poll,
 	.fo_kqfilter = procdesc_kqfilter,
 	.fo_stat = procdesc_stat,
 	.fo_close = procdesc_close,
-	.fo_chmod = procdesc_chmod,
-	.fo_chown = procdesc_chown,
+	.fo_chmod = invfo_chmod,
+	.fo_chown = invfo_chown,
 	.fo_sendfile = invfo_sendfile,
+	.fo_fill_kinfo = procdesc_fill_kinfo,
 	.fo_flags = DFLAG_PASSABLE,
 };
 
@@ -413,38 +410,6 @@ procdesc_close(struct file *fp, struct thread *td)
 }
 
 static int
-procdesc_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
-    int flags, struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-procdesc_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
-    int flags, struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-procdesc_truncate(struct file *fp, off_t length, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-procdesc_ioctl(struct file *fp, u_long com, void *data,
-    struct ucred *active_cred, struct thread *td)
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
 procdesc_poll(struct file *fp, int events, struct ucred *active_cred,
     struct thread *td)
 {
@@ -570,17 +535,13 @@ procdesc_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 }
 
 static int
-procdesc_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
-    struct thread *td)
+procdesc_fill_kinfo(struct file *fp, struct kinfo_file *kif,
+    struct filedesc *fdp)
 {
+	struct procdesc *pdp;
 
-	return (EOPNOTSUPP);
-}
-
-static int
-procdesc_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
-    struct thread *td)
-{
-
-	return (EOPNOTSUPP);
+	kif->kf_type = KF_TYPE_PROCDESC;
+	pdp = fp->f_data;
+	kif->kf_un.kf_proc.kf_pid = pdp->pd_pid;
+	return (0);
 }

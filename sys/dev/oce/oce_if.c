@@ -563,7 +563,7 @@ oce_multiq_start(struct ifnet *ifp, struct mbuf *m)
 	int queue_index = 0;
 	int status = 0;
 
-	if ((m->m_flags & M_FLOWID) != 0)
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		queue_index = m->m_pkthdr.flowid % sc->nwqs;
 
 	wq = sc->wq[queue_index];
@@ -989,7 +989,7 @@ retry:
 			pd->nsegs++;
 		}
 
-		sc->ifp->if_opackets++;
+		if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
 		wq->tx_stats.tx_reqs++;
 		wq->tx_stats.tx_wrbs += num_wqes;
 		wq->tx_stats.tx_bytes += m->m_pkthdr.len;
@@ -1275,9 +1275,9 @@ oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
 			break;
 		}
 		drbr_advance(ifp, br);
-		ifp->if_obytes += next->m_pkthdr.len;
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, next->m_pkthdr.len);
 		if (next->m_flags & M_MCAST)
-			ifp->if_omcasts++;
+			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
 		ETHER_BPF_MTAP(ifp, next);
 	}
 
@@ -1374,7 +1374,7 @@ oce_rx(struct oce_rq *rq, uint32_t rqe_idx, struct oce_nic_rx_cqe *cqe)
 			m->m_pkthdr.flowid = (rq->queue_index - 1);
 		else
 			m->m_pkthdr.flowid = rq->queue_index;
-		m->m_flags |= M_FLOWID;
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 #endif
 		/* This deternies if vlan tag is Valid */
 		if (oce_cqe_vtp_valid(sc, cqe)) { 
@@ -1394,7 +1394,7 @@ oce_rx(struct oce_rq *rq, uint32_t rqe_idx, struct oce_nic_rx_cqe *cqe)
 			}
 		}
 
-		sc->ifp->if_ipackets++;
+		if_inc_counter(sc->ifp, IFCOUNTER_IPACKETS, 1);
 #if defined(INET6) || defined(INET)
 		/* Try to queue to LRO */
 		if (IF_LRO_ENABLED(sc) &&
@@ -1637,7 +1637,7 @@ oce_rq_handler(void *arg)
 			oce_rx(rq, cqe->u0.s.frag_index, cqe);
 		} else {
 			rq->rx_stats.rxcp_err++;
-			sc->ifp->if_ierrors++;
+			if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 			/* Post L3/L4 errors to stack.*/
 			oce_rx(rq, cqe->u0.s.frag_index, cqe);
 		}
@@ -1731,7 +1731,9 @@ oce_attach_ifp(POCE_SOFTC sc)
 	sc->ifp->if_baudrate = IF_Gbps(10);
 
 #if __FreeBSD_version >= 1000000
-	sc->ifp->if_hw_tsomax = OCE_MAX_TSO_SIZE;
+	sc->ifp->if_hw_tsomax = 65536 - (ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN);
+	sc->ifp->if_hw_tsomaxsegcount = OCE_MAX_TX_ELEMENTS;
+	sc->ifp->if_hw_tsomaxsegsize = 4096;
 #endif
 
 	ether_ifattach(sc->ifp, sc->macaddr.mac_addr);

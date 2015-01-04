@@ -957,9 +957,9 @@ ata_promise_mio_softreset(device_t dev, int port)
 
     /* wait for BUSY to go inactive */
     for (timeout = 0; timeout < 100; timeout++) {
-	u_int8_t err, stat;
+	u_int8_t /* err, */ stat;
 
-	err = ATA_IDX_INB(ch, ATA_ERROR);
+	/* err = */ ATA_IDX_INB(ch, ATA_ERROR);
 	stat = ATA_IDX_INB(ch, ATA_STATUS);
 
 	//if (stat == err && timeout > (stat & ATA_S_BUSY ? 100 : 10))

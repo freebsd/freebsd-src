@@ -423,7 +423,7 @@ cas_attach(struct cas_softc *sc)
 	/*
 	 * Tell the upper layer(s) we support long frames/checksum offloads.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	if ((sc->sc_flags & CAS_NO_CSUM) == 0) {
 		ifp->if_capabilities |= IFCAP_HWCSUM;
@@ -642,18 +642,18 @@ cas_tick(void *arg)
 	/*
 	 * Unload collision and error counters.
 	 */
-	ifp->if_collisions +=
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
 	    CAS_READ_4(sc, CAS_MAC_NORM_COLL_CNT) +
-	    CAS_READ_4(sc, CAS_MAC_FIRST_COLL_CNT);
+	    CAS_READ_4(sc, CAS_MAC_FIRST_COLL_CNT));
 	v = CAS_READ_4(sc, CAS_MAC_EXCESS_COLL_CNT) +
 	    CAS_READ_4(sc, CAS_MAC_LATE_COLL_CNT);
-	ifp->if_collisions += v;
-	ifp->if_oerrors += v;
-	ifp->if_ierrors +=
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, v);
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, v);
+	if_inc_counter(ifp, IFCOUNTER_IERRORS,
 	    CAS_READ_4(sc, CAS_MAC_RX_LEN_ERR_CNT) +
 	    CAS_READ_4(sc, CAS_MAC_RX_ALIGN_ERR) +
 	    CAS_READ_4(sc, CAS_MAC_RX_CRC_ERR_CNT) +
-	    CAS_READ_4(sc, CAS_MAC_RX_CODE_VIOL);
+	    CAS_READ_4(sc, CAS_MAC_RX_CODE_VIOL));
 
 	/*
 	 * Then clear the hardware counters.
@@ -1581,7 +1581,7 @@ cas_tint(struct cas_softc *sc)
 
 		STAILQ_INSERT_TAIL(&sc->sc_txfreeq, txs, txs_q);
 
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		progress = 1;
 	}
 
@@ -1700,7 +1700,7 @@ cas_rint(struct cas_softc *sc)
 
 		if (__predict_false(
 		    (word4 & (CAS_RC4_BAD | CAS_RC4_LEN_MMATCH)) != 0)) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			device_printf(sc->sc_dev,
 			    "receive error: CRC error\n");
 			continue;
@@ -1750,7 +1750,7 @@ cas_rint(struct cas_softc *sc)
 			if (m != NULL) {
 				m->m_pkthdr.rcvif = ifp;
 				m->m_pkthdr.len = m->m_len = len;
-				ifp->if_ipackets++;
+				if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 				if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 					cas_rxcksum(m, CAS_GET(word4,
 					    CAS_RC4_TCP_CSUM));
@@ -1759,7 +1759,7 @@ cas_rint(struct cas_softc *sc)
 				(*ifp->if_input)(ifp, m);
 				CAS_LOCK(sc);
 			} else
-				ifp->if_iqdrops++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 
 			if ((word1 & CAS_RC1_RELEASE_HDR) != 0 &&
 			    refcount_release(&rxds->rxds_refcount) != 0)
@@ -1848,7 +1848,7 @@ cas_rint(struct cas_softc *sc)
 			if (m != NULL) {
 				m->m_pkthdr.rcvif = ifp;
 				m->m_pkthdr.len = len;
-				ifp->if_ipackets++;
+				if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 				if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 					cas_rxcksum(m, CAS_GET(word4,
 					    CAS_RC4_TCP_CSUM));
@@ -1857,7 +1857,7 @@ cas_rint(struct cas_softc *sc)
 				(*ifp->if_input)(ifp, m);
 				CAS_LOCK(sc);
 			} else
-				ifp->if_iqdrops++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 
 			if ((word1 & CAS_RC1_RELEASE_DATA) != 0 &&
 			    refcount_release(&rxds->rxds_refcount) != 0)
@@ -1949,7 +1949,7 @@ cas_eint(struct cas_softc *sc, u_int status)
 
 	CAS_LOCK_ASSERT(sc, MA_OWNED);
 
-	ifp->if_ierrors++;
+	if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 
 	device_printf(sc->sc_dev, "%s: status 0x%x", __func__, status);
 	if ((status & CAS_INTR_PCI_ERROR_INT) != 0) {
@@ -2049,7 +2049,7 @@ cas_intr_task(void *arg, int pending __unused)
 		status2 = CAS_READ_4(sc, CAS_MAC_TX_STATUS);
 		if ((status2 &
 		    (CAS_MAC_TX_UNDERRUN | CAS_MAC_TX_MAX_PKT_ERR)) != 0)
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		else if ((status2 & ~CAS_MAC_TX_FRAME_XMTD) != 0)
 			device_printf(sc->sc_dev,
 			    "MAC TX fault, status %x\n", status2);
@@ -2058,7 +2058,7 @@ cas_intr_task(void *arg, int pending __unused)
 	if (__predict_false(status & CAS_INTR_RX_MAC_INT)) {
 		status2 = CAS_READ_4(sc, CAS_MAC_RX_STATUS);
 		if ((status2 & CAS_MAC_RX_OVERFLOW) != 0)
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		else if ((status2 & ~CAS_MAC_RX_FRAME_RCVD) != 0)
 			device_printf(sc->sc_dev,
 			    "MAC RX fault, status %x\n", status2);
@@ -2135,7 +2135,7 @@ cas_watchdog(struct cas_softc *sc)
 		device_printf(sc->sc_dev, "device timeout\n");
 	else if (bootverbose)
 		device_printf(sc->sc_dev, "device timeout (no link)\n");
-	++ifp->if_oerrors;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	/* Try to get more packets going. */
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;

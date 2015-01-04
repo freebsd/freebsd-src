@@ -294,6 +294,10 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	SymCache *cache;
 	int r = -1;
 
+	if ((flags & SYMLOOK_IFUNC) != 0)
+		/* XXX not implemented */
+		return (0);
+
 	/*
 	 * The dynamic loader may be called from a thread, we have
 	 * limited amounts of stack available so we cannot use alloca().
@@ -479,7 +483,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 	 */
 	offset = target - (Elf_Addr)wherep;
 
-	if (abs(offset) < 32*1024*1024) {     /* inside 32MB? */
+	if (abs((int)offset) < 32*1024*1024) {     /* inside 32MB? */
 		/* b    value   # branch directly */
 		*wherep = 0x48000000 | (offset & 0x03fffffc);
 		__syncicache(wherep, 4);

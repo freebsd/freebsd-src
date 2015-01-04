@@ -614,8 +614,8 @@ xe_txintr(struct xe_softc *scp, uint8_t txst1)
 		coll = txst1 & XE_TXST1_RETRY_COUNT;
 		scp->tx_tpr = tpr;
 		scp->tx_queued -= sent;
-		ifp->if_opackets += sent;
-		ifp->if_collisions += coll;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, sent);
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS, coll);
 
 		/*
 		 * According to the Xircom manual, Dingo will
@@ -656,14 +656,14 @@ xe_macintr(struct xe_softc *scp, uint8_t rst0, uint8_t txst0, uint8_t txst1)
 	if (txst0 & XE_TXST0_NO_CARRIER || !(txst1 & XE_TXST1_LINK_STATUS)) {
 		/* XXX - Need to update media status here */
 		device_printf(scp->dev, "no carrier\n");
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		scp->mibdata.dot3StatsCarrierSenseErrors++;
 	}
 #endif
 	/* Excessive collisions -- try sending again */
 	if (txst0 & XE_TXST0_16_COLLISIONS) {
-		ifp->if_collisions += 16;
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS, 16);
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		scp->mibdata.dot3StatsExcessiveCollisions++;
 		scp->mibdata.dot3StatsMultipleCollisionFrames++;
 		scp->mibdata.dot3StatsCollFrequencies[15]++;
@@ -683,35 +683,35 @@ xe_macintr(struct xe_softc *scp, uint8_t rst0, uint8_t txst0, uint8_t txst1)
 			XE_SELECT_PAGE(0x0);
 		}
 		DPRINTF(1, ("\n"));
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		scp->mibdata.dot3StatsInternalMacTransmitErrors++;
 	}
 
 	/* Late collision -- just complain about it */
 	if (txst0 & XE_TXST0_LATE_COLLISION) {
 		device_printf(scp->dev, "late collision\n");
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		scp->mibdata.dot3StatsLateCollisions++;
 	}
 
 	/* SQE test failure -- just complain about it */
 	if (txst0 & XE_TXST0_SQE_FAIL) {
 		device_printf(scp->dev, "SQE test failure\n");
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		scp->mibdata.dot3StatsSQETestErrors++;
 	}
 
 	/* Packet too long -- what happens to these */
 	if (rst0 & XE_RST0_LONG_PACKET) {
 		device_printf(scp->dev, "received giant packet\n");
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		scp->mibdata.dot3StatsFrameTooLongs++;
 	}
 
 	/* CRC error -- packet dropped */
 	if (rst0 & XE_RST0_CRC_ERROR) {
 		device_printf(scp->dev, "CRC error\n");
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		scp->mibdata.dot3StatsFCSErrors++;
 	}
 }
@@ -743,7 +743,7 @@ xe_rxintr(struct xe_softc *scp, uint8_t rst0)
 			    len));
 
 			if (len == 0) {
-				ifp->if_iqdrops++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				continue;
 			}
 
@@ -760,7 +760,7 @@ xe_rxintr(struct xe_softc *scp, uint8_t rst0)
 			 */
 			MGETHDR(mbp, M_NOWAIT, MT_DATA);
 			if (mbp == NULL) {
-				ifp->if_iqdrops++;
+				if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 				continue;
 			}
 
@@ -768,7 +768,7 @@ xe_rxintr(struct xe_softc *scp, uint8_t rst0)
 				MCLGET(mbp, M_NOWAIT);
 				if ((mbp->m_flags & M_EXT) == 0) {
 					m_freem(mbp);
-					ifp->if_iqdrops++;
+					if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 					continue;
 				}
 			}
@@ -826,13 +826,13 @@ xe_rxintr(struct xe_softc *scp, uint8_t rst0)
 			XE_UNLOCK(scp);
 			(*ifp->if_input)(ifp, mbp);
 			XE_LOCK(scp);
-			ifp->if_ipackets++;
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 
 		} else if (rsr & XE_RSR_ALIGN_ERROR) {
 			/* Packet alignment error -- drop packet */
 			device_printf(scp->dev, "alignment error\n");
 			scp->mibdata.dot3StatsAlignmentErrors++;
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		}
 
 		/* Skip to next packet, if there is one */
@@ -842,7 +842,7 @@ xe_rxintr(struct xe_softc *scp, uint8_t rst0)
 	/* Clear receiver overruns now we have some free buffer space */
 	if (rst0 & XE_RST0_RX_OVERRUN) {
 		DEVPRINTF(1, (scp->dev, "receive overrun\n"));
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 		scp->mibdata.dot3StatsInternalMacReceiveErrors++;
 		XE_OUTB(XE_CR, XE_CR_CLEAR_OVERRUN);
 	}
@@ -923,7 +923,7 @@ xe_watchdog(void *arg)
 	if (scp->tx_timeout && --scp->tx_timeout == 0) {
    		device_printf(scp->dev, "watchdog timeout: resetting card\n");
 		scp->tx_timeouts++;
-		scp->ifp->if_oerrors += scp->tx_queued;
+		if_inc_counter(scp->ifp, IFCOUNTER_OERRORS, scp->tx_queued);
 		xe_stop(scp);
 		xe_reset(scp);
 		xe_init_locked(scp);

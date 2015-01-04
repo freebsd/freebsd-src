@@ -210,7 +210,7 @@ ehci_reset(ehci_softc_t *sc)
 			return (0);
 		}
 	}
-	device_printf(sc->sc_bus.bdev, "Reset timeout\n");
+	device_printf(sc->sc_bus.bdev, "reset timeout\n");
 	return (USB_ERR_IOERROR);
 }
 
@@ -285,7 +285,7 @@ ehci_init_sub(struct ehci_softc *sc)
 		}
 	}
 	if (hcr) {
-		device_printf(sc->sc_bus.bdev, "Run timeout\n");
+		device_printf(sc->sc_bus.bdev, "run timeout\n");
 		return (USB_ERR_IOERROR);
 	}
 	return (USB_ERR_NORMAL_COMPLETION);

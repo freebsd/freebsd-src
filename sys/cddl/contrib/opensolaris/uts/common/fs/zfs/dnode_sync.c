@@ -633,12 +633,11 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 	    dn->dn_free_txg <= tx->tx_txg;
 
 	/*
-	 * We will either remove a spill block when a file is being removed
-	 * or we have been asked to remove it.
+	 * Remove the spill block if we have been explicitly asked to
+	 * remove it, or if the object is being removed.
 	 */
-	if (dn->dn_rm_spillblk[txgoff] ||
-	    ((dnp->dn_flags & DNODE_FLAG_SPILL_BLKPTR) && freeing_dnode)) {
-		if ((dnp->dn_flags & DNODE_FLAG_SPILL_BLKPTR))
+	if (dn->dn_rm_spillblk[txgoff] || freeing_dnode) {
+		if (dnp->dn_flags & DNODE_FLAG_SPILL_BLKPTR)
 			kill_spill = B_TRUE;
 		dn->dn_rm_spillblk[txgoff] = 0;
 	}
@@ -684,6 +683,11 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 		return;
 	}
 
+	if (dn->dn_next_nlevels[txgoff]) {
+		dnode_increase_indirection(dn, tx);
+		dn->dn_next_nlevels[txgoff] = 0;
+	}
+
 	if (dn->dn_next_nblkptr[txgoff]) {
 		/* this should only happen on a realloc */
 		ASSERT(dn->dn_allocated_txg == tx->tx_txg);
@@ -706,11 +710,6 @@ dnode_sync(dnode_t *dn, dmu_tx_t *tx)
 		dnp->dn_nblkptr = dn->dn_next_nblkptr[txgoff];
 		dn->dn_next_nblkptr[txgoff] = 0;
 		mutex_exit(&dn->dn_mtx);
-	}
-
-	if (dn->dn_next_nlevels[txgoff]) {
-		dnode_increase_indirection(dn, tx);
-		dn->dn_next_nlevels[txgoff] = 0;
 	}
 
 	dbuf_sync_list(list, tx);

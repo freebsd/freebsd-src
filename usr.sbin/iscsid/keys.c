@@ -26,8 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <stdint.h>
@@ -115,7 +117,7 @@ keys_save(struct keys *keys, struct pdu *pdu)
 	for (i = 0; i < KEYS_MAX; i++) {
 		if (keys->keys_names[i] == NULL)
 			break;
- 		/*
+		/*
 		 * +1 for '=', +1 for '\0'.
 		 */
 		len += strlen(keys->keys_names[i]) +

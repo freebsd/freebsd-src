@@ -14,6 +14,7 @@ SRCS=	llvm-objdump.cpp \
 	MachODump.cpp
 
 LIBDEPS=llvmmcdisassembler \
+	llvmmcanalysis \
 	llvmdebuginfo \
 	llvmarmdisassembler \
 	llvmarmcodegen \
@@ -27,6 +28,7 @@ LIBDEPS=llvmmcdisassembler \
 	llvmmipsdesc \
 	llvmmipsinfo \
 	llvmmipsinstprinter \
+	llvmpowerpcdisassembler \
 	llvmpowerpccodegen \
 	llvmpowerpcasmparser \
 	llvmpowerpcdesc \
@@ -43,22 +45,25 @@ LIBDEPS=llvmmcdisassembler \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
-	llvmmcparser \
 	llvmcodegen \
-	llvmobjcarcopts \
 	llvmscalaropts \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmx86desc \
-	llvmx86info \
 	llvmtarget \
+	llvmx86desc \
+	llvmobject \
+	llvmmcparser \
+	llvmbitreader \
+	llvmcore \
+	llvmx86info \
 	llvmx86instprinter \
 	llvmmc \
-	llvmobject \
 	llvmx86utils \
-	llvmcore \
 	llvmsupport
 
 .include "../clang.prog.mk"
+
+DPADD+=	${LIBZ}
+LDADD+=	-lz

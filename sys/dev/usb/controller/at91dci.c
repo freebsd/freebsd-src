@@ -91,6 +91,9 @@
 #define	AT9100_DCI_PC2SC(pc) \
    AT9100_DCI_BUS2SC(USB_DMATAG_TO_XROOT((pc)->tag_parent)->bus)
 
+#define	AT9100_DCI_THREAD_IRQ \
+  (AT91_UDP_INT_BUS | AT91_UDP_INT_END_BR | AT91_UDP_INT_RXRSM | AT91_UDP_INT_RXSUSP)
+
 #ifdef USB_DEBUG
 static int at91dcidebug = 0;
 
@@ -296,17 +299,15 @@ at91dci_set_address(struct at91dci_softc *sc, uint8_t addr)
 }
 
 static uint8_t
-at91dci_setup_rx(struct at91dci_td *td)
+at91dci_setup_rx(struct at91dci_softc *sc, struct at91dci_td *td)
 {
-	struct at91dci_softc *sc;
 	struct usb_device_request req;
 	uint32_t csr;
 	uint32_t temp;
 	uint16_t count;
 
 	/* read out FIFO status */
-	csr = bus_space_read_4(td->io_tag, td->io_hdl,
-	    td->status_reg);
+	csr = AT91_UDP_READ_4(sc, td->status_reg);
 
 	DPRINTFN(5, "csr=0x%08x rem=%u\n", csr, td->remainder);
 
@@ -338,7 +339,7 @@ at91dci_setup_rx(struct at91dci_td *td)
 		goto not_complete;
 	}
 	/* receive data */
-	bus_space_read_multi_1(td->io_tag, td->io_hdl,
+	bus_space_read_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
 	    td->fifo_reg, (void *)&req, sizeof(req));
 
 	/* copy data into real buffer */
@@ -346,9 +347,6 @@ at91dci_setup_rx(struct at91dci_td *td)
 
 	td->offset = sizeof(req);
 	td->remainder = 0;
-
-	/* get pointer to softc */
-	sc = AT9100_DCI_PC2SC(td->pc);
 
 	/* sneak peek the set address */
 	if ((req.bmRequestType == UT_WRITE_DEVICE) &&
@@ -367,8 +365,7 @@ at91dci_setup_rx(struct at91dci_td *td)
 
 	/* write the direction of the control transfer */
 	AT91_CSR_ACK(csr, temp);
-	bus_space_write_4(td->io_tag, td->io_hdl,
-	    td->status_reg, csr);
+	AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 	return (0);			/* complete */
 
 not_complete:
@@ -383,15 +380,13 @@ not_complete:
 	if (temp) {
 		DPRINTFN(5, "clearing 0x%08x\n", temp);
 		AT91_CSR_ACK(csr, temp);
-		bus_space_write_4(td->io_tag, td->io_hdl,
-		    td->status_reg, csr);
+		AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 	}
 	return (1);			/* not complete */
-
 }
 
 static uint8_t
-at91dci_data_rx(struct at91dci_td *td)
+at91dci_data_rx(struct at91dci_softc *sc, struct at91dci_td *td)
 {
 	struct usb_page_search buf_res;
 	uint32_t csr;
@@ -406,8 +401,7 @@ at91dci_data_rx(struct at91dci_td *td)
 	/* check if any of the FIFO banks have data */
 repeat:
 	/* read out FIFO status */
-	csr = bus_space_read_4(td->io_tag, td->io_hdl,
-	    td->status_reg);
+	csr = AT91_UDP_READ_4(sc, td->status_reg);
 
 	DPRINTFN(5, "csr=0x%08x rem=%u\n", csr, td->remainder);
 
@@ -436,8 +430,7 @@ repeat:
 		if (temp) {
 			/* write command */
 			AT91_CSR_ACK(csr, temp);
-			bus_space_write_4(td->io_tag, td->io_hdl,
-			    td->status_reg, csr);
+			AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 		}
 		return (1);		/* not complete */
 	}
@@ -470,7 +463,7 @@ repeat:
 			buf_res.length = count;
 		}
 		/* receive data */
-		bus_space_read_multi_1(td->io_tag, td->io_hdl,
+		bus_space_read_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
 		    td->fifo_reg, buf_res.buffer, buf_res.length);
 
 		/* update counters */
@@ -495,8 +488,7 @@ repeat:
 
 	/* write command */
 	AT91_CSR_ACK(csr, temp);
-	bus_space_write_4(td->io_tag, td->io_hdl,
-	    td->status_reg, csr);
+	AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 
 	/*
 	 * NOTE: We may have to delay a little bit before
@@ -518,7 +510,7 @@ repeat:
 }
 
 static uint8_t
-at91dci_data_tx(struct at91dci_td *td)
+at91dci_data_tx(struct at91dci_softc *sc, struct at91dci_td *td)
 {
 	struct usb_page_search buf_res;
 	uint32_t csr;
@@ -531,8 +523,7 @@ at91dci_data_tx(struct at91dci_td *td)
 repeat:
 
 	/* read out FIFO status */
-	csr = bus_space_read_4(td->io_tag, td->io_hdl,
-	    td->status_reg);
+	csr = AT91_UDP_READ_4(sc, td->status_reg);
 
 	DPRINTFN(5, "csr=0x%08x rem=%u\n", csr, td->remainder);
 
@@ -552,8 +543,7 @@ repeat:
 		if (temp) {
 			/* write command */
 			AT91_CSR_ACK(csr, temp);
-			bus_space_write_4(td->io_tag, td->io_hdl,
-			    td->status_reg, csr);
+			AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 		}
 		return (1);		/* not complete */
 	} else {
@@ -569,7 +559,6 @@ repeat:
 		count = td->remainder;
 	}
 	while (count > 0) {
-
 		usbd_get_page(td->pc, td->offset, &buf_res);
 
 		/* get correct length */
@@ -577,7 +566,7 @@ repeat:
 			buf_res.length = count;
 		}
 		/* transmit data */
-		bus_space_write_multi_1(td->io_tag, td->io_hdl,
+		bus_space_write_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
 		    td->fifo_reg, buf_res.buffer, buf_res.length);
 
 		/* update counters */
@@ -588,8 +577,7 @@ repeat:
 
 	/* write command */
 	AT91_CSR_ACK(csr, temp);
-	bus_space_write_4(td->io_tag, td->io_hdl,
-	    td->status_reg, csr);
+	AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 
 	/* check remainder */
 	if (td->remainder == 0) {
@@ -605,19 +593,13 @@ repeat:
 }
 
 static uint8_t
-at91dci_data_tx_sync(struct at91dci_td *td)
+at91dci_data_tx_sync(struct at91dci_softc *sc, struct at91dci_td *td)
 {
-	struct at91dci_softc *sc;
 	uint32_t csr;
 	uint32_t temp;
 
-#if 0
-repeat:
-#endif
-
 	/* read out FIFO status */
-	csr = bus_space_read_4(td->io_tag, td->io_hdl,
-	    td->status_reg);
+	csr = AT91_UDP_READ_4(sc, td->status_reg);
 
 	DPRINTFN(5, "csr=0x%08x\n", csr);
 
@@ -637,8 +619,7 @@ repeat:
 	if (!(csr & AT91_UDP_CSR_TXCOMP)) {
 		goto not_complete;
 	}
-	sc = AT9100_DCI_PC2SC(td->pc);
-	if (sc->sc_dv_addr != 0xFF) {
+	if (td->status_reg == AT91_UDP_CSR(0) && sc->sc_dv_addr != 0xFF) {
 		/*
 		 * The AT91 has a special requirement with regard to
 		 * setting the address and that is to write the new
@@ -648,8 +629,7 @@ repeat:
 	}
 	/* write command */
 	AT91_CSR_ACK(csr, temp);
-	bus_space_write_4(td->io_tag, td->io_hdl,
-	    td->status_reg, csr);
+	AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 
 	return (0);			/* complete */
 
@@ -657,24 +637,26 @@ not_complete:
 	if (temp) {
 		/* write command */
 		AT91_CSR_ACK(csr, temp);
-		bus_space_write_4(td->io_tag, td->io_hdl,
-		    td->status_reg, csr);
+		AT91_UDP_WRITE_4(sc, td->status_reg, csr);
 	}
 	return (1);			/* not complete */
 }
 
-static uint8_t
+static void
 at91dci_xfer_do_fifo(struct usb_xfer *xfer)
 {
-	struct at91dci_softc *sc;
+	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 	struct at91dci_td *td;
 	uint8_t temp;
 
 	DPRINTFN(9, "\n");
 
 	td = xfer->td_transfer_cache;
+	if (td == NULL)
+		return;
+
 	while (1) {
-		if ((td->func) (td)) {
+		if ((td->func) (sc, td)) {
 			/* operation in progress */
 			break;
 		}
@@ -704,10 +686,9 @@ at91dci_xfer_do_fifo(struct usb_xfer *xfer)
 		if (temp & 1)
 			td->fifo_bank = 1;
 	}
-	return (1);			/* not complete */
+	return;
 
 done:
-	sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
 	temp = (xfer->endpointno & UE_ADDR);
 
 	/* update FIFO bank flag and multi buffer */
@@ -718,23 +699,42 @@ done:
 	}
 
 	/* compute all actual lengths */
+	xfer->td_transfer_cache = NULL;
+	sc->sc_xfer_complete = 1;
+}
 
-	at91dci_standard_done(xfer);
+static uint8_t
+at91dci_xfer_do_complete(struct usb_xfer *xfer)
+{
+	struct at91dci_td *td;
 
-	return (0);			/* complete */
+	DPRINTFN(9, "\n");
+	td = xfer->td_transfer_cache;
+	if (td == NULL) {
+		/* compute all actual lengths */
+		at91dci_standard_done(xfer);
+		return(1);
+	}
+	return (0);
 }
 
 static void
-at91dci_interrupt_poll(struct at91dci_softc *sc)
+at91dci_interrupt_poll_locked(struct at91dci_softc *sc)
 {
 	struct usb_xfer *xfer;
 
+	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry)
+		at91dci_xfer_do_fifo(xfer);
+}
+
+static void
+at91dci_interrupt_complete_locked(struct at91dci_softc *sc)
+{
+	struct usb_xfer *xfer;
 repeat:
 	TAILQ_FOREACH(xfer, &sc->sc_bus.intr_q.head, wait_entry) {
-		if (!at91dci_xfer_do_fifo(xfer)) {
-			/* queue has been modified */
+		if (at91dci_xfer_do_complete(xfer))
 			goto repeat;
-		}
 	}
 }
 
@@ -764,20 +764,47 @@ at91dci_vbus_interrupt(struct at91dci_softc *sc, uint8_t is_on)
 	}
 }
 
-void
-at91dci_interrupt(struct at91dci_softc *sc)
+int
+at91dci_filter_interrupt(void *arg)
 {
+	struct at91dci_softc *sc = arg;
+	int retval = FILTER_HANDLED;
 	uint32_t status;
 
-	USB_BUS_LOCK(&sc->sc_bus);
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
 
 	status = AT91_UDP_READ_4(sc, AT91_UDP_ISR);
 	status &= AT91_UDP_INT_DEFAULT;
 
-	if (!status) {
-		USB_BUS_UNLOCK(&sc->sc_bus);
-		return;
-	}
+	if (status & AT9100_DCI_THREAD_IRQ)
+		retval = FILTER_SCHEDULE_THREAD;
+
+	/* acknowledge interrupts */
+	AT91_UDP_WRITE_4(sc, AT91_UDP_ICR, status & ~AT9100_DCI_THREAD_IRQ);
+
+	/* poll FIFOs, if any */
+	at91dci_interrupt_poll_locked(sc);
+
+	if (sc->sc_xfer_complete != 0)
+		retval = FILTER_SCHEDULE_THREAD;
+
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
+
+	return (retval);
+}
+
+void
+at91dci_interrupt(void *arg)
+{
+	struct at91dci_softc *sc = arg;
+	uint32_t status;
+
+	USB_BUS_LOCK(&sc->sc_bus);
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
+
+	status = AT91_UDP_READ_4(sc, AT91_UDP_ISR);
+	status &= AT9100_DCI_THREAD_IRQ;
+
 	/* acknowledge interrupts */
 
 	AT91_UDP_WRITE_4(sc, AT91_UDP_ICR, status);
@@ -837,14 +864,12 @@ at91dci_interrupt(struct at91dci_softc *sc)
 		/* complete root HUB interrupt endpoint */
 		at91dci_root_intr(sc);
 	}
-	/* check for any endpoint interrupts */
 
-	if (status & AT91_UDP_INT_EPS) {
-
-		DPRINTFN(5, "real endpoint interrupt 0x%08x\n", status);
-
-		at91dci_interrupt_poll(sc);
+	if (sc->sc_xfer_complete != 0) {
+		sc->sc_xfer_complete = 0;
+		at91dci_interrupt_complete_locked(sc);
 	}
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
@@ -1049,12 +1074,17 @@ at91dci_timeout(void *arg)
 static void
 at91dci_start_standard_chain(struct usb_xfer *xfer)
 {
+	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
+
 	DPRINTFN(9, "\n");
 
-	/* poll one time */
-	if (at91dci_xfer_do_fifo(xfer)) {
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
 
-		struct at91dci_softc *sc = AT9100_DCI_BUS2SC(xfer->xroot->bus);
+	/* poll one time */
+	at91dci_xfer_do_fifo(xfer);
+
+	if (at91dci_xfer_do_complete(xfer) == 0) {
+
 		uint8_t ep_no = xfer->endpointno & UE_ADDR;
 
 		/*
@@ -1075,6 +1105,7 @@ at91dci_start_standard_chain(struct usb_xfer *xfer)
 			    &at91dci_timeout, xfer->timeout);
 		}
 	}
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 }
 
 static void
@@ -1216,6 +1247,8 @@ at91dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 	DPRINTFN(2, "xfer=%p, endpoint=%p, error=%d\n",
 	    xfer, xfer->endpoint, error);
 
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
+
 	if (xfer->flags_int.usb_mode == USB_MODE_DEVICE) {
 		ep_no = (xfer->endpointno & UE_ADDR);
 
@@ -1224,8 +1257,11 @@ at91dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 
 		DPRINTFN(15, "disable interrupts on endpoint %d\n", ep_no);
 	}
+
 	/* dequeue transfer and start next transfer */
 	usbd_transfer_done(xfer, error);
+
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 }
 
 static void
@@ -1248,11 +1284,14 @@ at91dci_set_stall(struct usb_device *udev,
 
 	/* set FORCESTALL */
 	sc = AT9100_DCI_BUS2SC(udev->bus);
+
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
 	csr_reg = (ep->edesc->bEndpointAddress & UE_ADDR);
 	csr_reg = AT91_UDP_CSR(csr_reg);
 	csr_val = AT91_UDP_READ_4(sc, csr_reg);
 	AT91_CSR_ACK(csr_val, AT91_UDP_CSR_FORCESTALL);
 	AT91_UDP_WRITE_4(sc, csr_reg, csr_val);
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 }
 
 static void
@@ -1269,6 +1308,9 @@ at91dci_clear_stall_sub(struct at91dci_softc *sc, uint8_t ep_no,
 		/* clearing stall is not needed */
 		return;
 	}
+
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
+
 	/* compute CSR register offset */
 	csr_reg = AT91_UDP_CSR(ep_no);
 
@@ -1349,6 +1391,8 @@ at91dci_clear_stall_sub(struct at91dci_softc *sc, uint8_t ep_no,
 
 	/* enable endpoint */
 	AT91_UDP_WRITE_4(sc, AT91_UDP_CSR(ep_no), csr_val);
+
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 }
 
 static void
@@ -1484,7 +1528,10 @@ at91dci_do_poll(struct usb_bus *bus)
 	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(bus);
 
 	USB_BUS_LOCK(&sc->sc_bus);
-	at91dci_interrupt_poll(sc);
+	USB_BUS_SPIN_LOCK(&sc->sc_bus);
+	at91dci_interrupt_poll_locked(sc);
+	at91dci_interrupt_complete_locked(sc);
+	USB_BUS_SPIN_UNLOCK(&sc->sc_bus);
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
@@ -2239,8 +2286,6 @@ at91dci_xfer_setup(struct usb_setup_params *parm)
 			td = USB_ADD_BYTES(parm->buf, parm->size[0]);
 
 			/* init TD */
-			td->io_tag = sc->sc_io_tag;
-			td->io_hdl = sc->sc_io_hdl;
 			td->max_packet_size = xfer->max_packet_size;
 			td->status_reg = AT91_UDP_CSR(ep_no);
 			td->fifo_reg = AT91_UDP_FDR(ep_no);

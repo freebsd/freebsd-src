@@ -1,9 +1,10 @@
 
 # $FreeBSD$
 
-.include <src.opts.mk>
+SYSDIR?=${.CURDIR}/../../..
+.include "${SYSDIR}/conf/kern.opts.mk"
 
-.PATH:	${.CURDIR}/../../../dev/aic7xxx
+.PATH:	${SYSDIR}/dev/aic7xxx
 KMOD=	ahc
 .if ${MK_EISA} != "no"
 SUBDIR+= ahc_eisa
@@ -20,20 +21,20 @@ REG_PRINT_OPT= -p aic7xxx_reg_print.c
 .endif
 BEFORE_DEPEND = ${GENSRCS}
 
-../aicasm/aicasm: ${.CURDIR}/../../../dev/aic7xxx/aicasm/*.[chyl]
+../aicasm/aicasm: ${SYSDIR}/dev/aic7xxx/aicasm/*.[chyl]
 	( cd ${.CURDIR}/../aicasm; ${MAKE} aicasm; )
 
 .if make(ahcfirmware)
 ahcfirmware: ${GENSRCS}
 ${GENSRCS}:								 \
-		${.CURDIR}/../../../dev/aic7xxx/aic7xxx.{reg,seq}	 \
-		${.CURDIR}/../../../cam/scsi/scsi_message.h 
-	../aicasm/aicasm ${INCLUDES} -I${.CURDIR}/../../../cam/scsi	 \
-			-I${.CURDIR}/../../../dev/aic7xxx		 \
+		${SYSDIR}/dev/aic7xxx/aic7xxx.{reg,seq}	 \
+		${SYSDIR}/cam/scsi/scsi_message.h 
+	../aicasm/aicasm ${INCLUDES} -I${SYSDIR}/cam/scsi	 \
+			-I${SYSDIR}/dev/aic7xxx		 \
 			-o aic7xxx_seq.h -r aic7xxx_reg.h		 \
 			${REG_PRINT_OPT}				 \
-			-i ${.CURDIR}/../../../dev/aic7xxx/aic7xxx_osm.h \
-			${.CURDIR}/../../../dev/aic7xxx/aic7xxx.seq
+			-i ${SYSDIR}/dev/aic7xxx/aic7xxx_osm.h \
+			${SYSDIR}/dev/aic7xxx/aic7xxx.seq
 .else
 ${GENSRCS}:
 	@echo "Error: ${.TARGET} is missing.  Run 'make ahcfirmware'"

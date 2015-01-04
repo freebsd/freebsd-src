@@ -34,6 +34,7 @@
 #define MLX4_CMD_H
 
 #include <linux/dma-mapping.h>
+#include <linux/types.h>
 
 enum {
 	/* initialization and general commands */
@@ -111,6 +112,7 @@ enum {
 	MLX4_CMD_INIT2INIT_QP	 = 0x2d,
 	MLX4_CMD_SUSPEND_QP	 = 0x32,
 	MLX4_CMD_UNSUSPEND_QP	 = 0x33,
+	MLX4_CMD_UPDATE_QP	 = 0x61,
 	/* special QP and management commands */
 	MLX4_CMD_CONF_SPECIAL_QP = 0x23,
 	MLX4_CMD_MAD_IFC	 = 0x24,
@@ -152,10 +154,6 @@ enum {
 	MLX4_CMD_QUERY_IF_STAT	 = 0X54,
 	MLX4_CMD_SET_IF_STAT	 = 0X55,
 
-	/* set port opcode modifiers */
-	MLX4_SET_PORT_PRIO2TC = 0x8,
-	MLX4_SET_PORT_SCHEDULER  = 0x9,
-
 	/* register/delete flow steering network rules */
 	MLX4_QP_FLOW_STEERING_ATTACH = 0x65,
 	MLX4_QP_FLOW_STEERING_DETACH = 0x66,
@@ -175,12 +173,14 @@ enum {
 
 enum {
 	/* set port opcode modifiers */
-	MLX4_SET_PORT_GENERAL   = 0x0,
-	MLX4_SET_PORT_RQP_CALC  = 0x1,
-	MLX4_SET_PORT_MAC_TABLE = 0x2,
-	MLX4_SET_PORT_VLAN_TABLE = 0x3,
-	MLX4_SET_PORT_PRIO_MAP  = 0x4,
-	MLX4_SET_PORT_GID_TABLE = 0x5,
+	MLX4_SET_PORT_GENERAL		= 0x0,
+	MLX4_SET_PORT_RQP_CALC		= 0x1,
+	MLX4_SET_PORT_MAC_TABLE		= 0x2,
+	MLX4_SET_PORT_VLAN_TABLE	= 0x3,
+	MLX4_SET_PORT_PRIO_MAP		= 0x4,
+	MLX4_SET_PORT_GID_TABLE		= 0x5,
+	MLX4_SET_PORT_PRIO2TC		= 0x8,
+	MLX4_SET_PORT_SCHEDULER		= 0x9
 };
 
 enum {
@@ -237,7 +237,21 @@ u32 mlx4_comm_get_version(void);
 int mlx4_set_vf_mac(struct mlx4_dev *dev, int port, int vf, u8 *mac);
 int mlx4_set_vf_vlan(struct mlx4_dev *dev, int port, int vf, u16 vlan, u8 qos);
 int mlx4_set_vf_spoofchk(struct mlx4_dev *dev, int port, int vf, bool setting);
+int mlx4_set_vf_link_state(struct mlx4_dev *dev, int port, int vf, int link_state);
+int mlx4_get_vf_link_state(struct mlx4_dev *dev, int port, int vf);
+/*
+ * mlx4_get_slave_default_vlan -
+ * retrun true if VST ( default vlan)
+ * if VST will fill vlan & qos (if not NULL)
+ */
+bool mlx4_get_slave_default_vlan(struct mlx4_dev *dev, int port, int slave, u16 *vlan, u8 *qos);
 
+enum {
+	IFLA_VF_LINK_STATE_AUTO,	/* link state of the uplink */
+	IFLA_VF_LINK_STATE_ENABLE,	/* link always up */
+	IFLA_VF_LINK_STATE_DISABLE,	/* link always down */
+	__IFLA_VF_LINK_STATE_MAX,
+};
 
 #define MLX4_COMM_GET_IF_REV(cmd_chan_ver) (u8)((cmd_chan_ver) >> 8)
 

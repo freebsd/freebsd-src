@@ -159,7 +159,7 @@ static int mlx4_ib_umem_write_mtt_block(struct mlx4_ib_dev *dev,
 	if (len & (mtt_size-1ULL)) {
 		WARN(1 ,
 		"write_block: len %llx is not aligned to mtt_size %llx\n",
-			len, mtt_size);
+			(long long)len, (long long)mtt_size);
 		return -EINVAL;
 	}
 
@@ -416,7 +416,7 @@ int mlx4_ib_umem_calc_optimal_mtt_size(struct ib_umem *umem,
 
 	WARN((total_len & ((1ULL<<block_shift)-1ULL)),
 		" misaligned total length detected (%llu, %llu)!",
-		total_len, block_shift);
+		(long long)total_len, (long long)block_shift);
 
 	*num_of_mtts = total_len >> block_shift;
 end:
@@ -426,7 +426,7 @@ end:
 		*/
 		WARN(1,
 		"mlx4_ib_umem_calc_optimal_mtt_size - unexpected shift %lld\n",
-		block_shift);
+		(long long)block_shift);
 
 		block_shift = min_shift;
 	}

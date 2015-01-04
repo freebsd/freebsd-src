@@ -283,7 +283,7 @@ mq_append(struct mq *q, struct mbuf *m)
 		*m_new = *m;	// copy
 		m_new->m_flags &= ~M_STACK;
 		m_new->__m_extbuf = p; // point to new buffer
-		pkt_copy(m->__m_extbuf, p, m->__m_extlen);
+		_pkt_copy(m->__m_extbuf, p, m->__m_extlen);
 		m_new->m_data = p + ofs;
 		m = m_new;
 	}
@@ -751,10 +751,15 @@ dummynet_send(struct mbuf *m)
 			/* extract the dummynet info, rename the tag
 			 * to carry reinject info.
 			 */
-			dst = pkt->dn_dir;
-			ifp = pkt->ifp;
-			tag->m_tag_cookie = MTAG_IPFW_RULE;
-			tag->m_tag_id = 0;
+			if (pkt->dn_dir == (DIR_OUT | PROTO_LAYER2) &&
+				pkt->ifp == NULL) {
+				dst = DIR_DROP;
+			} else {
+				dst = pkt->dn_dir;
+				ifp = pkt->ifp;
+				tag->m_tag_cookie = MTAG_IPFW_RULE;
+				tag->m_tag_id = 0;
+			}
 		}
 
 		switch (dst) {

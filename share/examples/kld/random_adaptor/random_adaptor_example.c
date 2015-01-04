@@ -35,17 +35,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/random.h>
 #include <sys/systm.h>
 
-#include <dev/random/live_entropy_sources.h>
-#include <dev/random/random_adaptors.h>
 #include <dev/random/randomdev.h>
+#include <dev/random/randomdev_soft.h>
+#include <dev/random/random_adaptors.h>
+#include <dev/random/live_entropy_sources.h>
 
-static int random_example_read(void *, int);
+static void live_random_example_init(void);
+static void live_random_example_deinit(void);
+static u_int live_random_example_read(void *, u_int);
 
-struct random_adaptor random_example = {
-	.ident = "Example RNG",
-	.source = RANDOM_PURE_BOGUS,	/* Make sure this is in
-					 * sys/random.h and is unique */
-	.read = random_example_read,
+struct random_adaptor live_random_example = {
+	.les_ident = "Example RNG",
+	.les_source = RANDOM_PURE_BOGUS, /* Make sure this is in
+					  * sys/random.h and is unique */
+	.les_read = live_random_example_read,
 };
 
 /*
@@ -58,8 +61,26 @@ getRandomNumber(void)
 	return 4;   /* chosen by fair dice roll, guaranteed to be random */
 }
 
-static int
-random_example_read(void *buf, int c)
+static void
+live_random_example_init(void)
+{
+
+	/* Do initialisation stuff here */
+}
+
+static void
+live_random_example_deinit(void)
+{
+
+	/* Do de-initialisation stuff here */
+}
+
+/* get <c> bytes of random stuff into <buf>. You may presume
+ * that <c> is a multiple of 2^n, with n>=3. A typical value
+ * is c=16.
+ */
+static u_int
+live_random_example_read(void *buf, u_int c)
 {
 	uint8_t *b;
 	int count;
@@ -69,22 +90,23 @@ random_example_read(void *buf, int c)
 	for (count = 0; count < c; count++)
 		b[count] = getRandomNumber();
 
-	printf("returning %d bytes of pure randomness\n", c);
+	/* printf("returning %d bytes of pure randomness\n", c); */
 	return (c);
 }
 
+/* ARGSUSED */
 static int
-random_example_modevent(module_t mod, int type, void *unused)
+live_random_example_modevent(module_t mod __unused, int type, void *unused __unused)
 {
 	int error = 0;
 
 	switch (type) {
 	case MOD_LOAD:
-		live_entropy_source_register(&random_example);
+		live_entropy_source_register(&live_random_example);
 		break;
 
 	case MOD_UNLOAD:
-		live_entropy_source_deregister(&random_example);
+		live_entropy_source_deregister(&live_random_example);
 		break;
 
 	case MOD_SHUTDOWN:
@@ -98,4 +120,6 @@ random_example_modevent(module_t mod, int type, void *unused)
 	return (error);
 }
 
-LIVE_ENTROPY_SRC_MODULE(live_entropy_source_example, random_example_modevent, 1);
+DEV_MODULE(live_random_example, live_random_example_modevent, NULL);
+MODULE_VERSION(live_random_example, 1);
+MODULE_DEPEND(live_random_example, randomdev, 1, 1, 1);

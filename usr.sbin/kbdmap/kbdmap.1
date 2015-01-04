@@ -29,7 +29,7 @@
 .Sh NAME
 .Nm kbdmap ,
 .Nm vidfont
-.Nd front end for syscons
+.Nd front end for syscons and vt
 .Sh SYNOPSIS
 .Nm
 .Op Fl K
@@ -106,8 +106,10 @@ preferred language
 .Sh FILES
 .Bl -tag -width ".Pa /usr/share/syscons/keymaps/INDEX.keymaps" -compact
 .It Pa /usr/share/syscons/keymaps/INDEX.keymaps
+.It Pa /usr/share/vt/keymaps/INDEX.keymaps
 database for keymaps
 .It Pa /usr/share/syscons/fonts/INDEX.fonts
+.It Pa /usr/share/vt/fonts/INDEX.fonts
 database for fonts
 .It Pa /etc/rc.conf
 default font
@@ -120,6 +122,8 @@ values
 .Xr dialog 1 ,
 .Xr kbdcontrol 1 ,
 .Xr vidcontrol 1 ,
+.Xr syscons 4 ,
+.Xr vt 4 ,
 .Xr kbdmap 5 ,
 .Xr rc.conf 5
 .Sh HISTORY

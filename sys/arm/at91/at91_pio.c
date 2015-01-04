@@ -591,6 +591,17 @@ at91_pio_gpio_set_deglitch(uint32_t pio, uint32_t data_mask, int use_deglitch)
 }
 
 void
+at91_pio_gpio_pullup(uint32_t pio, uint32_t data_mask, int do_pullup)
+{
+	uint32_t *PIO = (uint32_t *)(AT91_BASE + pio);
+
+	if (do_pullup)
+		PIO[PIO_PUER / 4] = data_mask;
+	else
+		PIO[PIO_PUDR / 4] = data_mask;
+}
+
+void
 at91_pio_gpio_set_interrupt(uint32_t pio, uint32_t data_mask,
 	int enable_interrupt)
 {
@@ -611,11 +622,20 @@ at91_pio_gpio_clear_interrupt(uint32_t pio)
 	return (PIO[PIO_ISR / 4]);
 }
 
+static void
+at91_pio_new_pass(device_t dev)
+{
+
+	device_printf(dev, "Pass %d\n", bus_current_pass);
+}
+
 static device_method_t at91_pio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		at91_pio_probe),
 	DEVMETHOD(device_attach,	at91_pio_attach),
 	DEVMETHOD(device_detach,	at91_pio_detach),
+
+	DEVMETHOD(bus_new_pass,		at91_pio_new_pass),
 
 	DEVMETHOD_END
 };
@@ -626,10 +646,5 @@ static driver_t at91_pio_driver = {
 	sizeof(struct at91_pio_softc),
 };
 
-#ifdef FDT
-DRIVER_MODULE(at91_pio, simplebus, at91_pio_driver, at91_pio_devclass, NULL,
-    NULL);
-#else
-DRIVER_MODULE(at91_pio, atmelarm, at91_pio_driver, at91_pio_devclass, NULL,
-    NULL);
-#endif
+EARLY_DRIVER_MODULE(at91_pio, at91_pinctrl, at91_pio_driver, at91_pio_devclass,
+    NULL, NULL, BUS_PASS_INTERRUPT);

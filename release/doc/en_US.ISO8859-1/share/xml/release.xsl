@@ -8,6 +8,7 @@
 
   <xsl:param name="release.url"/>
   <xsl:param name="release.branch"/>
+  <xsl:param name="release.maillist"/>
 
   <xsl:template name="user.footer.content">
     <p align="center"><small>This file, and other release-related documents,
@@ -18,7 +19,7 @@
       contacting &lt;<a href="mailto:questions@FreeBSD.org">questions@FreeBSD.org</a>&gt;.</small></p>
 
     <p align="center"><small>All users of FreeBSD <xsl:value-of select="$release.branch"/> should
-      subscribe to the &lt;<a href="mailto:current@FreeBSD.org">current@FreeBSD.org</a>&gt;
+      subscribe to the &lt;<a href="mailto:{$release.maillist}@FreeBSD.org"><xsl:value-of select="$release.maillist"/>@FreeBSD.org</a>&gt;
       mailing list.</small></p>
   
     <p align="center"><small>For questions about this documentation,

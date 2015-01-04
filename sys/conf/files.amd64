@@ -103,7 +103,6 @@ amd64/amd64/elf_machdep.c	standard
 amd64/amd64/exception.S		standard
 amd64/amd64/fpu.c		standard
 amd64/amd64/gdb_machdep.c	optional	gdb
-amd64/amd64/identcpu.c		standard
 amd64/amd64/in_cksum.c		optional	inet | inet6
 amd64/amd64/initcpu.c		standard
 amd64/amd64/io.c		optional	io
@@ -130,9 +129,14 @@ amd64/pci/pci_cfgreg.c		optional	pci
 cddl/contrib/opensolaris/common/atomic/amd64/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
 crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
+aesni_ghash.o			optional aesni				\
+	dependency	"$S/crypto/aesni/aesni_ghash.c"			\
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -msse4 -maes -mpclmul ${.IMPSRC}" \
+	no-implicit-rule						\
+	clean		"aesni_ghash.o"
 aesni_wrap.o			optional aesni				\
 	dependency	"$S/crypto/aesni/aesni_wrap.c"			\
-	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -maes ${.IMPSRC}" \
+	compile-with	"${CC} -c ${CFLAGS:C/^-O2$/-O3/:N-nostdinc} ${WERROR} ${PROF} -mmmx -msse -msse4 -maes ${.IMPSRC}" \
 	no-implicit-rule						\
 	clean		"aesni_wrap.o"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
@@ -144,7 +148,6 @@ dev/acpica/acpi_if.m		standard
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/agp/agp_amd64.c		optional	agp
 dev/agp/agp_i810.c		optional	agp
-dev/agp/agp_intel.c		optional	agp
 dev/agp/agp_via.c		optional	agp
 dev/amdsbwd/amdsbwd.c		optional	amdsbwd
 dev/amdtemp/amdtemp.c		optional	amdtemp
@@ -193,6 +196,26 @@ dev/ipmi/ipmi_smbios.c		optional	ipmi
 dev/ipmi/ipmi_ssif.c		optional	ipmi smbus
 dev/ipmi/ipmi_pci.c		optional	ipmi pci
 dev/ipmi/ipmi_linux.c		optional	ipmi compat_linux32
+dev/ixl/if_ixl.c		optional	ixl pci \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/if_ixlv.c		optional	ixlv pci \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/ixlvc.c			optional	ixlv pci \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/ixl_txrx.c		optional	ixl pci | ixlv pci \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_osdep.c		optional	ixl pci | ixlv pci \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_lan_hmc.c		optional	ixl pci | ixlv pci \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_hmc.c		optional	ixl pci | ixlv pci \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_common.c		optional	ixl pci | ixlv pci \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_nvm.c		optional	ixl pci | ixlv pci \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
+dev/ixl/i40e_adminq.c		optional	ixl pci | ixlv pci \
+	compile-with "${NORMAL_C} -I$S/dev/ixl"
 dev/fdc/fdc.c			optional	fdc
 dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
@@ -224,6 +247,7 @@ dev/hyperv/netvsc/hv_netvsc_drv_freebsd.c		optional	hyperv
 dev/hyperv/netvsc/hv_rndis_filter.c			optional	hyperv
 dev/hyperv/stordisengage/hv_ata_pci_disengage.c		optional	hyperv
 dev/hyperv/storvsc/hv_storvsc_drv_freebsd.c		optional	hyperv
+dev/hyperv/utilities/hv_kvp.c				optional	hyperv
 dev/hyperv/utilities/hv_util.c				optional	hyperv
 dev/hyperv/vmbus/hv_channel.c				optional	hyperv
 dev/hyperv/vmbus/hv_channel_mgmt.c			optional	hyperv
@@ -317,6 +341,8 @@ dev/viawd/viawd.c		optional	viawd
 dev/vmware/vmxnet3/if_vmx.c	optional	vmx
 dev/wbwd/wbwd.c			optional	wbwd
 dev/wpi/if_wpi.c		optional	wpi
+dev/xen/pci/xen_acpi_pci.c	optional	xenhvm
+dev/xen/pci/xen_pci.c		optional	xenhvm
 dev/isci/isci.c							optional isci
 dev/isci/isci_controller.c					optional isci
 dev/isci/isci_domain.c						optional isci
@@ -426,16 +452,6 @@ dev/isci/scil/scif_sas_task_request.c				optional isci
 dev/isci/scil/scif_sas_task_request_state_handlers.c		optional isci
 dev/isci/scil/scif_sas_task_request_states.c			optional isci
 dev/isci/scil/scif_sas_timer.c					optional isci
-dev/virtio/virtio.c			optional	virtio
-dev/virtio/virtqueue.c			optional	virtio
-dev/virtio/virtio_bus_if.m		optional	virtio
-dev/virtio/virtio_if.m			optional	virtio
-dev/virtio/pci/virtio_pci.c		optional	virtio_pci
-dev/virtio/network/if_vtnet.c		optional	vtnet
-dev/virtio/block/virtio_blk.c		optional	virtio_blk
-dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon
-dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi
-dev/virtio/random/virtio_random.c	optional	virtio_random
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/kern_clocksource.c		standard
@@ -477,6 +493,7 @@ compat/linux/linux_socket.c	optional	compat_linux32
 compat/linux/linux_stats.c	optional	compat_linux32
 compat/linux/linux_sysctl.c	optional	compat_linux32
 compat/linux/linux_time.c	optional	compat_linux32
+compat/linux/linux_timer.c	optional	compat_linux32
 compat/linux/linux_uid16.c	optional	compat_linux32
 compat/linux/linux_util.c	optional	compat_linux32
 dev/amr/amr_linux.c		optional	compat_linux32 amr
@@ -542,6 +559,7 @@ x86/x86/busdma_bounce.c		standard
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/fdt_machdep.c		optional	fdt
+x86/x86/identcpu.c		standard
 x86/x86/intr_machdep.c		standard
 x86/x86/io_apic.c		standard
 x86/x86/legacy.c		standard
@@ -560,3 +578,5 @@ x86/xen/pvcpu_enum.c		optional	xenhvm
 x86/xen/xen_apic.c		optional	xenhvm
 x86/xen/xenpv.c			optional	xenhvm
 x86/xen/xen_nexus.c		optional	xenhvm
+x86/xen/xen_msi.c		optional	xenhvm
+x86/xen/xen_pci_bus.c		optional	xenhvm

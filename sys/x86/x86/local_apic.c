@@ -55,7 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 
 #include <x86/apicreg.h>
-#include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
@@ -64,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/smp.h>
 #include <machine/specialreg.h>
+#include <x86/init.h>
 
 #ifdef DDB
 #include <sys/interrupt.h>
@@ -1331,9 +1331,6 @@ static void
 apic_init(void *dummy __unused)
 {
 	struct apic_enumerator *enumerator;
-#ifndef __amd64__
-	uint64_t apic_base;
-#endif
 	int retval, best;
 
 	/* We only support built in local APICs. */
@@ -1369,18 +1366,13 @@ apic_init(void *dummy __unused)
 		printf("APIC: Using the %s enumerator.\n",
 		    best_enum->apic_name);
 
-#ifndef __amd64__
+#ifdef I686_CPU
 	/*
 	 * To work around an errata, we disable the local APIC on some
 	 * CPUs during early startup.  We need to turn the local APIC back
 	 * on on such CPUs now.
 	 */
-	if (cpu == CPU_686 && cpu_vendor_id == CPU_VENDOR_INTEL &&
-	    (cpu_id & 0xff0) == 0x610) {
-		apic_base = rdmsr(MSR_APICBASE);
-		apic_base |= APICBASE_ENABLED;
-		wrmsr(MSR_APICBASE, apic_base);
-	}
+	ppro_reenable_apic();
 #endif
 
 	/* Probe the CPU's in the system. */
@@ -1447,9 +1439,9 @@ apic_setup_io(void *dummy __unused)
 		lapic_dump("BSP");
 
 	/* Enable the MSI "pic". */
-	msi_init();
+	init_ops.msi_init();
 }
-SYSINIT(apic_setup_io, SI_SUB_INTR, SI_ORDER_SECOND, apic_setup_io, NULL);
+SYSINIT(apic_setup_io, SI_SUB_INTR, SI_ORDER_THIRD, apic_setup_io, NULL);
 
 #ifdef SMP
 /*

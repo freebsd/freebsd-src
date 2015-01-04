@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/armreg.h>
 #include <machine/atags.h>
 #include <machine/cpu.h>
+#include <machine/cpuinfo.h>
 #include <machine/devmap.h>
 #include <machine/frame.h>
 #include <machine/intr.h>
@@ -109,6 +110,10 @@ __FBSDID("$FreeBSD$");
 #ifdef FDT
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
+#endif
+
+#ifdef DDB
+#include <ddb/ddb.h>
 #endif
 
 #ifdef DEBUG
@@ -131,9 +136,6 @@ int _min_memcpy_size = 0;
 int _min_bzero_size = 0;
 
 extern int *end;
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
 
 #ifdef FDT
 /*
@@ -377,7 +379,7 @@ cpu_startup(void *dummy)
 
 	bufinit();
 	vm_pager_bufferinit();
-	pcb->un_32.pcb32_sp = (u_int)thread0.td_kstack +
+	pcb->pcb_regs.sf_sp = (u_int)thread0.td_kstack +
 	    USPACE_SVC_STACK_TOP;
 	vector_page_setprot(VM_PROT_READ);
 	pmap_set_pcb_pagedir(pmap_kernel(), pcb);
@@ -620,7 +622,7 @@ spinlock_enter(void)
 
 	td = curthread;
 	if (td->td_md.md_spinlock_count == 0) {
-		cspr = disable_interrupts(I32_bit | F32_bit);
+		cspr = disable_interrupts(PSR_I | PSR_F);
 		td->td_md.md_spinlock_count = 1;
 		td->td_md.md_saved_cspr = cspr;
 	} else
@@ -747,7 +749,7 @@ sys_sigreturn(td, uap)
 	 */
 	spsr = uc.uc_mcontext.__gregs[_REG_CPSR];
 	if ((spsr & PSR_MODE) != PSR_USR32_MODE ||
-	    (spsr & (I32_bit | F32_bit)) != 0)
+	    (spsr & (PSR_I | PSR_F)) != 0)
 		return (EINVAL);
 		/* Restore register context. */
 	set_mcontext(td, &uc.uc_mcontext);
@@ -769,14 +771,18 @@ sys_sigreturn(td, uap)
 void
 makectx(struct trapframe *tf, struct pcb *pcb)
 {
-	pcb->un_32.pcb32_r8 = tf->tf_r8;
-	pcb->un_32.pcb32_r9 = tf->tf_r9;
-	pcb->un_32.pcb32_r10 = tf->tf_r10;
-	pcb->un_32.pcb32_r11 = tf->tf_r11;
-	pcb->un_32.pcb32_r12 = tf->tf_r12;
-	pcb->un_32.pcb32_pc = tf->tf_pc;
-	pcb->un_32.pcb32_lr = tf->tf_usr_lr;
-	pcb->un_32.pcb32_sp = tf->tf_usr_sp;
+	pcb->pcb_regs.sf_r4 = tf->tf_r4;
+	pcb->pcb_regs.sf_r5 = tf->tf_r5;
+	pcb->pcb_regs.sf_r6 = tf->tf_r6;
+	pcb->pcb_regs.sf_r7 = tf->tf_r7;
+	pcb->pcb_regs.sf_r8 = tf->tf_r8;
+	pcb->pcb_regs.sf_r9 = tf->tf_r9;
+	pcb->pcb_regs.sf_r10 = tf->tf_r10;
+	pcb->pcb_regs.sf_r11 = tf->tf_r11;
+	pcb->pcb_regs.sf_r12 = tf->tf_r12;
+	pcb->pcb_regs.sf_pc = tf->tf_pc;
+	pcb->pcb_regs.sf_lr = tf->tf_usr_lr;
+	pcb->pcb_regs.sf_sp = tf->tf_usr_sp;
 }
 
 /*
@@ -817,8 +823,7 @@ fake_preload_metadata(struct arm_boot_params *abp __unused)
 		lastaddr = *(uint32_t *)(KERNVIRTADDR + 8);
 		zend = lastaddr;
 		zstart = *(uint32_t *)(KERNVIRTADDR + 4);
-		ksym_start = zstart;
-		ksym_end = zend;
+		db_fetch_ksymtab(zstart, zend);
 	} else
 #endif
 		lastaddr = (vm_offset_t)&end;
@@ -912,6 +917,10 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 	vm_offset_t lastaddr = 0;
 	void *mdp;
 	void *kmdp;
+#ifdef DDB
+	vm_offset_t ksym_start;
+	vm_offset_t ksym_end;
+#endif
 
 	/*
 	 * Mask metadata pointer: it is supposed to be on page boundary. If
@@ -934,6 +943,7 @@ freebsd_parse_boot_param(struct arm_boot_params *abp)
 #ifdef DDB
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+	db_fetch_ksymtab(ksym_start, ksym_end);
 #endif
 	preload_addr_relocate = KERNVIRTADDR - abp->abp_physaddr;
 	return lastaddr;
@@ -1055,6 +1065,8 @@ initarm(struct arm_boot_params *abp)
 	arm_physmem_kernaddr = abp->abp_physaddr;
 
 	memsize = 0;
+
+	cpuinfo_init();
 	set_cpufuncs();
 
 	/*
@@ -1240,9 +1252,11 @@ initarm(struct arm_boot_params *abp)
 	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
 	print_kenv();
 
-	env = getenv("kernelname");
-	if (env != NULL)
+	env = kern_getenv("kernelname");
+	if (env != NULL) {
 		strlcpy(kernelname, env, sizeof(kernelname));
+		freeenv(env);
+	}
 
 	if (err_devmap != 0)
 		printf("WARNING: could not fully configure devmap, error=%d\n",
@@ -1278,7 +1292,6 @@ initarm(struct arm_boot_params *abp)
 
 	init_proc0(kernelstack.pv_va);
 
-	arm_intrnames_init();
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
 	pmap_bootstrap(freemempos, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;

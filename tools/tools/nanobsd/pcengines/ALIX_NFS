@@ -69,7 +69,6 @@ device		tun
 device		pty		
 device		md		
 device		gif		
-device		faith		
 device		firmware	
 device		bpf		
 device		uhci		

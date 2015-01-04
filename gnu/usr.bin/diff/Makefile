@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <src.opts.mk>
+
 DIFFSRC=${.CURDIR}/../../../contrib/diff/src
 .PATH: ${DIFFSRC} \
        ${.CURDIR}/../../../contrib/diff/lib \
@@ -22,9 +24,10 @@ CFLAGS+=-I${.CURDIR}/../../../contrib/diff/src
 CFLAGS+=-I${.CURDIR}/../../../contrib/diff/lib
 CFLAGS+=-I${DESTDIR}/usr/include/gnu
 
-SUBDIR+=doc
+LIBADD+=	gnuregex
 
-DPADD=	${LIBGNUREGEX}
-LDADD=	-lgnuregex
+.if ${MK_TESTS} != "no"
+SUBDIR+=	tests
+.endif
 
 .include <bsd.prog.mk>

@@ -35,8 +35,10 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/IR/DebugLoc.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/DebugLoc.h"
+
+#include <memory>
 
 namespace llvm {
   class AsmPrinter;
@@ -163,7 +165,7 @@ namespace llvm {
   ///
   class GCModuleInfo : public ImmutablePass {
     typedef StringMap<GCStrategy*> strategy_map_type;
-    typedef std::vector<GCStrategy*> list_type;
+    typedef std::vector<std::unique_ptr<GCStrategy>> list_type;
     typedef DenseMap<const Function*,GCFunctionInfo*> finfo_map_type;
 
     strategy_map_type StrategyMap;
@@ -178,7 +180,6 @@ namespace llvm {
     static char ID;
 
     GCModuleInfo();
-    ~GCModuleInfo();
 
     /// clear - Resets the pass. Any pass, which uses GCModuleInfo, should
     /// call it in doFinalization().

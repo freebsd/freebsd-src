@@ -191,10 +191,6 @@ smb_ctx_parseunc(struct smb_ctx *ctx, const char *unc, int sharetype,
 			smb_error("no user name required", 0);
 			return EINVAL;
 		}
-		if (*p1 == 0) {
-			smb_error("empty user name", 0);
-			return EINVAL;
-		}
 		error = smb_ctx_setuser(ctx, tmp);
 		if (error)
 			return error;
@@ -519,11 +515,6 @@ smb_ctx_resolve(struct smb_ctx *ctx)
 	ctx->ct_flags &= ~SMBCF_RESOLVED;
 	if (ssn->ioc_srvname[0] == 0) {
 		smb_error("no server name specified", 0);
-		return EINVAL;
-	}
-	if (ssn->ioc_user[0] == 0) {
-		smb_error("no user name specified for server %s",
-		    0, ssn->ioc_srvname);
 		return EINVAL;
 	}
 	if (ctx->ct_minlevel >= SMBL_SHARE && sh->ioc_share[0] == 0) {

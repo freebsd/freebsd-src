@@ -49,7 +49,9 @@ struct fdc_data {
 #define FDC_KTHREAD_ALIVE	0x2000 /* worker thread is alive */
 	struct	fd_data *fd;	/* The active drive */
 	int	retry;
+#ifndef PC98
 	int	fdout;		/* mirror of the w/o digital output reg */
+#endif
 	u_int	status[7];	/* copy of the registers */
 	enum	fdc_type fdct;	/* chip version of FDC */
 	int	fdc_errs;	/* number of logged errors */

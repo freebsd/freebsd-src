@@ -3219,10 +3219,10 @@ bxe_tpa_stop(struct bxe_softc          *sc,
 #if __FreeBSD_version >= 800000
         /* specify what RSS queue was used for this flow */
         m->m_pkthdr.flowid = fp->index;
-        m->m_flags |= M_FLOWID;
+        M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 #endif
 
-        if_incipackets(ifp, 1);
+        if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
         fp->eth_q_stats.rx_tpa_pkts++;
 
         /* pass the frame to the stack */
@@ -3454,7 +3454,7 @@ bxe_rxeof(struct bxe_softc    *sc,
 #if __FreeBSD_version >= 800000
         /* specify what RSS queue was used for this flow */
         m->m_pkthdr.flowid = fp->index;
-        m->m_flags |= M_FLOWID;
+        M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 #endif
 
 next_rx:
@@ -3465,7 +3465,7 @@ next_rx:
 
         /* pass the frame to the stack */
         if (__predict_true(m != NULL)) {
-            if_incipackets(ifp, 1);
+            if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
             rx_pkts++;
             if_input(ifp, m);
         }
@@ -4934,7 +4934,7 @@ bxe_ioctl(if_t ifp,
         BLOGD(sc, DBG_IOCTL,
               "Received SIOCSIFMEDIA/SIOCGIFMEDIA ioctl (cmd=%lu)\n",
               (command & 0xff));
-        error = ifmedia_ioctl_drv(ifp, ifr, &sc->ifmedia, command);
+        error = ifmedia_ioctl(ifp, ifr, &sc->ifmedia, command);
         break;
 
     case SIOCGPRIVATE_0:
@@ -4970,7 +4970,7 @@ bxe_ioctl(if_t ifp,
     default:
         BLOGD(sc, DBG_IOCTL, "Received Unknown Ioctl (cmd=%lu)\n",
               (command & 0xff));
-        error = ether_ioctl_drv(ifp, command, data);
+        error = ether_ioctl(ifp, command, data);
         break;
     }
 
@@ -6037,10 +6037,9 @@ bxe_tx_mq_start(struct ifnet *ifp,
 
     fp_index = 0; /* default is the first queue */
 
-    /* change the queue if using flow ID */
-    if ((m->m_flags & M_FLOWID) != 0) {
+    /* check if flowid is set */
+    if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
         fp_index = (m->m_pkthdr.flowid % sc->num_queues);
-    }
 
     fp = &sc->fp[fp_index];
 
@@ -6095,7 +6094,7 @@ bxe_mq_flush(struct ifnet *ifp)
         }
     }
 
-    if_qflush_drv(ifp);
+    if_qflush(ifp);
 }
 
 #endif /* FreeBSD_version >= 800000 */
@@ -12254,7 +12253,7 @@ bxe_link_report_locked(struct bxe_softc *sc)
 
     if (bxe_test_bit(BXE_LINK_REPORT_LINK_DOWN,
                      &cur_data.link_report_flags)) {
-        if_linkstate_change_drv(sc->ifp, LINK_STATE_DOWN);
+        if_link_state_change(sc->ifp, LINK_STATE_DOWN);
         BLOGI(sc, "NIC Link is Down\n");
     } else {
         const char *duplex;
@@ -12295,7 +12294,7 @@ bxe_link_report_locked(struct bxe_softc *sc)
             flow = "none";
         }
 
-        if_linkstate_change_drv(sc->ifp, LINK_STATE_UP);
+        if_link_state_change(sc->ifp, LINK_STATE_UP);
         BLOGI(sc, "NIC Link is Up, %d Mbps %s duplex, Flow control: %s\n",
               cur_data.line_speed, duplex, flow);
     }
@@ -12581,7 +12580,7 @@ bxe_set_uc_list(struct bxe_softc *sc)
 #if __FreeBSD_version < 800000
     IF_ADDR_LOCK(ifp);
 #else
-    if_addr_rlock_drv(ifp);
+    if_addr_rlock(ifp);
 #endif
 
     /* first schedule a cleanup up of old configuration */
@@ -12591,7 +12590,7 @@ bxe_set_uc_list(struct bxe_softc *sc)
 #if __FreeBSD_version < 800000
         IF_ADDR_UNLOCK(ifp);
 #else
-        if_addr_runlock_drv(ifp);
+        if_addr_runlock(ifp);
 #endif
         return (rc);
     }
@@ -12614,7 +12613,7 @@ bxe_set_uc_list(struct bxe_softc *sc)
 #if __FreeBSD_version < 800000
             IF_ADDR_UNLOCK(ifp);
 #else
-            if_addr_runlock_drv(ifp);
+            if_addr_runlock(ifp);
 #endif
             return (rc);
         }
@@ -12625,7 +12624,7 @@ bxe_set_uc_list(struct bxe_softc *sc)
 #if __FreeBSD_version < 800000
     IF_ADDR_UNLOCK(ifp);
 #else
-    if_addr_runlock_drv(ifp);
+    if_addr_runlock(ifp);
 #endif
 
     /* Execute the pending commands */
@@ -13275,10 +13274,11 @@ bxe_init_ifnet(struct bxe_softc *sc)
     }
 
     if_setsoftc(ifp, sc);
-    if_initname_drv(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
+    if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
     if_setflags(ifp, (IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST));
     if_setioctlfn(ifp, bxe_ioctl);
     if_setstartfn(ifp, bxe_tx_start);
+    if_setgetcounterfn(ifp, bxe_get_counter);
 #if __FreeBSD_version >= 800000
     if_settransmitfn(ifp, bxe_tx_mq_start);
     if_setqflushfn(ifp, bxe_mq_flush);
@@ -13325,7 +13325,7 @@ bxe_init_ifnet(struct bxe_softc *sc)
     sc->ifp = ifp;
 
     /* attach to the Ethernet interface list */
-    ether_ifattach_drv(ifp, sc->link_params.mac_addr);
+    ether_ifattach(ifp, sc->link_params.mac_addr);
 
     return (0);
 }
@@ -16215,7 +16215,7 @@ bxe_add_sysctls(struct bxe_softc *sc)
                       "version");
 
     SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "bc_version",
-                      CTLFLAG_RD, &sc->devinfo.bc_ver_str, 0,
+                      CTLFLAG_RD, sc->devinfo.bc_ver_str, 0,
                       "bootcode version");
 
     snprintf(sc->fw_ver_str, sizeof(sc->fw_ver_str), "%d.%d.%d.%d",
@@ -16224,7 +16224,7 @@ bxe_add_sysctls(struct bxe_softc *sc)
              BCM_5710_FW_REVISION_VERSION,
              BCM_5710_FW_ENGINEERING_VERSION);
     SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "fw_version",
-                      CTLFLAG_RD, &sc->fw_ver_str, 0,
+                      CTLFLAG_RD, sc->fw_ver_str, 0,
                       "firmware version");
 
     snprintf(sc->mf_mode_str, sizeof(sc->mf_mode_str), "%s",
@@ -16234,7 +16234,7 @@ bxe_add_sysctls(struct bxe_softc *sc)
          (sc->devinfo.mf_info.mf_mode == MULTI_FUNCTION_AFEX) ? "MF-AFEX" :
                                                                 "Unknown"));
     SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mf_mode",
-                      CTLFLAG_RD, &sc->mf_mode_str, 0,
+                      CTLFLAG_RD, sc->mf_mode_str, 0,
                       "multifunction mode");
 
     SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "mf_vnics",
@@ -16242,7 +16242,7 @@ bxe_add_sysctls(struct bxe_softc *sc)
                     "multifunction vnics per port");
 
     SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "mac_addr",
-                      CTLFLAG_RD, &sc->mac_addr_str, 0,
+                      CTLFLAG_RD, sc->mac_addr_str, 0,
                       "mac address");
 
     snprintf(sc->pci_link_str, sizeof(sc->pci_link_str), "%s x%d",
@@ -16252,12 +16252,12 @@ bxe_add_sysctls(struct bxe_softc *sc)
                                               "???GT/s"),
         sc->devinfo.pcie_link_width);
     SYSCTL_ADD_STRING(ctx, children, OID_AUTO, "pci_link",
-                      CTLFLAG_RD, &sc->pci_link_str, 0,
+                      CTLFLAG_RD, sc->pci_link_str, 0,
                       "pci link status");
 
     sc->debug = bxe_debug;
-    SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "debug",
-                    CTLFLAG_RW, &sc->debug, 0,
+    SYSCTL_ADD_ULONG(ctx, children, OID_AUTO, "debug",
+                    CTLFLAG_RW, &sc->debug,
                     "debug logging mode");
 
     sc->rx_budget = bxe_rx_budget;
@@ -16391,7 +16391,7 @@ bxe_attach(device_t dev)
     /* allocate device interrupts */
     if (bxe_interrupt_alloc(sc) != 0) {
         if (sc->ifp != NULL) {
-            ether_ifdetach_drv(sc->ifp);
+            ether_ifdetach(sc->ifp);
         }
         ifmedia_removeall(&sc->ifmedia);
         bxe_release_mutexes(sc);
@@ -16404,7 +16404,7 @@ bxe_attach(device_t dev)
     if (bxe_alloc_ilt_mem(sc) != 0) {
         bxe_interrupt_free(sc);
         if (sc->ifp != NULL) {
-            ether_ifdetach_drv(sc->ifp);
+            ether_ifdetach(sc->ifp);
         }
         ifmedia_removeall(&sc->ifmedia);
         bxe_release_mutexes(sc);
@@ -16418,7 +16418,7 @@ bxe_attach(device_t dev)
         bxe_free_ilt_mem(sc);
         bxe_interrupt_free(sc);
         if (sc->ifp != NULL) {
-            ether_ifdetach_drv(sc->ifp);
+            ether_ifdetach(sc->ifp);
         }
         ifmedia_removeall(&sc->ifmedia);
         bxe_release_mutexes(sc);
@@ -16508,7 +16508,7 @@ bxe_detach(device_t dev)
 
     /* release the network interface */
     if (ifp != NULL) {
-        ether_ifdetach_drv(ifp);
+        ether_ifdetach(ifp);
     }
     ifmedia_removeall(&sc->ifmedia);
 
@@ -16531,7 +16531,7 @@ bxe_detach(device_t dev)
 
     /* Release the FreeBSD interface. */
     if (sc->ifp != NULL) {
-        if_free_drv(sc->ifp);
+        if_free(sc->ifp);
     }
 
     pci_disable_busmaster(dev);

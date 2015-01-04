@@ -170,12 +170,27 @@ int zfs_vdev_async_write_active_max_dirty_percent = 60;
  * we include spans of optional I/Os to aid aggregation at the disk even when
  * they aren't able to help us aggregate at this level.
  */
-int zfs_vdev_aggregation_limit = SPA_MAXBLOCKSIZE;
+int zfs_vdev_aggregation_limit = SPA_OLD_MAXBLOCKSIZE;
 int zfs_vdev_read_gap_limit = 32 << 10;
 int zfs_vdev_write_gap_limit = 4 << 10;
 
 #ifdef __FreeBSD__
 SYSCTL_DECL(_vfs_zfs_vdev);
+
+static int sysctl_zfs_async_write_active_min_dirty_percent(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vfs_zfs_vdev, OID_AUTO, async_write_active_min_dirty_percent,
+    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RWTUN, 0, sizeof(int),
+    sysctl_zfs_async_write_active_min_dirty_percent, "I",
+    "Percentage of async write dirty data below which "
+    "async_write_min_active is used.");
+
+static int sysctl_zfs_async_write_active_max_dirty_percent(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vfs_zfs_vdev, OID_AUTO, async_write_active_max_dirty_percent,
+    CTLTYPE_UINT | CTLFLAG_MPSAFE | CTLFLAG_RWTUN, 0, sizeof(int),
+    sysctl_zfs_async_write_active_max_dirty_percent, "I",
+    "Percentage of async write dirty data above which "
+    "async_write_max_active is used.");
+
 SYSCTL_UINT(_vfs_zfs_vdev, OID_AUTO, max_active, CTLFLAG_RWTUN,
     &zfs_vdev_max_active, 0,
     "The maximum number of I/Os of all types active for each device.");
@@ -216,6 +231,44 @@ SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, read_gap_limit, CTLFLAG_RWTUN,
 SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, write_gap_limit, CTLFLAG_RWTUN,
     &zfs_vdev_write_gap_limit, 0,
     "Acceptable gap between two writes being aggregated");
+
+static int
+sysctl_zfs_async_write_active_min_dirty_percent(SYSCTL_HANDLER_ARGS)
+{
+	int val, err;
+
+	val = zfs_vdev_async_write_active_min_dirty_percent;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+	
+	if (val < 0 || val > 100 ||
+	    val >= zfs_vdev_async_write_active_max_dirty_percent)
+		return (EINVAL);
+
+	zfs_vdev_async_write_active_min_dirty_percent = val;
+
+	return (0);
+}
+
+static int
+sysctl_zfs_async_write_active_max_dirty_percent(SYSCTL_HANDLER_ARGS)
+{
+	int val, err;
+
+	val = zfs_vdev_async_write_active_max_dirty_percent;
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
+
+	if (val < 0 || val > 100 ||
+	    val <= zfs_vdev_async_write_active_min_dirty_percent)
+		return (EINVAL);
+
+	zfs_vdev_async_write_active_max_dirty_percent = val;
+
+	return (0);
+}
 #endif
 
 int
@@ -796,25 +849,14 @@ vdev_queue_io_done(zio_t *zio)
 
 	vq->vq_io_complete_ts = gethrtime();
 
-	if (zio->io_flags & ZIO_FLAG_QUEUE_IO_DONE) {
-		/*
-		 * Executing from a previous vdev_queue_io_done so
-		 * to avoid recursion we just unlock and return.
-		 */
-		mutex_exit(&vq->vq_lock);
-		return;
-	}
-
 	while ((nio = vdev_queue_io_to_issue(vq)) != NULL) {
 		mutex_exit(&vq->vq_lock);
-		nio->io_flags |= ZIO_FLAG_QUEUE_IO_DONE;
 		if (nio->io_done == vdev_queue_agg_io_done) {
 			zio_nowait(nio);
 		} else {
 			zio_vdev_io_reissue(nio);
 			zio_execute(nio);
 		}
-		nio->io_flags &= ~ZIO_FLAG_QUEUE_IO_DONE;
 		mutex_enter(&vq->vq_lock);
 	}
 

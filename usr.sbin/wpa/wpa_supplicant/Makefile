@@ -49,8 +49,7 @@ CFLAGS+=-DCONFIG_BACKEND_FILE \
 	-DCONFIG_GAS \
 	-DPKCS12_FUNCS
 #CFLAGS+= -g
-DPADD+=	${LIBPCAP} ${LIBUTIL}
-LDADD+=	-lpcap -lutil
+LIBADD=	pcap util
 
 # User customizations to the wpa_supplicant build environment
 CFLAGS+=${WPA_SUPPLICANT_CFLAGS}
@@ -127,8 +126,7 @@ NEED_FIPS186_2_PRF=y
 #
 .if !empty(CFLAGS:M*-DPCSC_FUNCS)
 SRCS+=	pcsc_funcs.c
-DPADD+=${LIBPTHREAD}
-LDADD+=-lpcsclite -lpthread
+LIBADD+=	pcslite pthread
 .endif
 
 .if !empty(CFLAGS:M*-DEAP_GPSK)

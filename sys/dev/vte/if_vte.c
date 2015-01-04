@@ -109,6 +109,7 @@ static int	vte_init_rx_ring(struct vte_softc *);
 static int	vte_init_tx_ring(struct vte_softc *);
 static void	vte_intr(void *);
 static int	vte_ioctl(struct ifnet *, u_long, caddr_t);
+static uint64_t	vte_get_counter(struct ifnet *, ift_counter);
 static void	vte_mac_config(struct vte_softc *);
 static int	vte_miibus_readreg(device_t, int, int);
 static void	vte_miibus_statchg(device_t);
@@ -449,6 +450,7 @@ vte_attach(device_t dev)
 	ifp->if_ioctl = vte_ioctl;
 	ifp->if_start = vte_start;
 	ifp->if_init = vte_init;
+	ifp->if_get_counter = vte_get_counter;
 	ifp->if_snd.ifq_drv_maxlen = VTE_TX_RING_CNT - 1;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
@@ -1171,7 +1173,7 @@ vte_watchdog(struct vte_softc *sc)
 
 	ifp = sc->vte_ifp;
 	if_printf(sc->vte_ifp, "watchdog timeout -- resetting\n");
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	vte_init_locked(sc);
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -1272,12 +1274,10 @@ static void
 vte_stats_update(struct vte_softc *sc)
 {
 	struct vte_hw_stats *stat;
-	struct ifnet *ifp;
 	uint16_t value;
 
 	VTE_LOCK_ASSERT(sc);
 
-	ifp = sc->vte_ifp;
 	stat = &sc->vte_stats;
 
 	CSR_READ_2(sc, VTE_MECISR);
@@ -1304,14 +1304,32 @@ vte_stats_update(struct vte_softc *sc)
 	value = CSR_READ_2(sc, VTE_CNT_PAUSE);
 	stat->tx_pause_frames += (value >> 8);
 	stat->rx_pause_frames += (value & 0xFF);
+}
 
-	/* Update ifp counters. */
-	ifp->if_opackets = stat->tx_frames;
-	ifp->if_collisions = stat->tx_late_colls;
-	ifp->if_oerrors = stat->tx_late_colls + stat->tx_underruns;
-	ifp->if_ipackets = stat->rx_frames;
-	ifp->if_ierrors = stat->rx_crcerrs + stat->rx_runts +
-	    stat->rx_long_frames + stat->rx_fifo_full;
+static uint64_t
+vte_get_counter(struct ifnet *ifp, ift_counter cnt)
+{
+	struct vte_softc *sc;
+	struct vte_hw_stats *stat;
+
+	sc = if_getsoftc(ifp);
+	stat = &sc->vte_stats;
+
+	switch (cnt) {
+	case IFCOUNTER_OPACKETS:
+		return (stat->tx_frames);
+	case IFCOUNTER_COLLISIONS:
+		return (stat->tx_late_colls);
+	case IFCOUNTER_OERRORS:
+		return (stat->tx_late_colls + stat->tx_underruns);
+	case IFCOUNTER_IPACKETS:
+		return (stat->rx_frames);
+	case IFCOUNTER_IERRORS:
+		return (stat->rx_crcerrs + stat->rx_runts +
+		    stat->rx_long_frames + stat->rx_fifo_full);
+	default:
+		return (if_get_counter_default(ifp, cnt));
+	}
 }
 
 static void
@@ -1503,7 +1521,7 @@ vte_rxeof(struct vte_softc *sc)
 			continue;
 		}
 		if (vte_newbuf(sc, rxd) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			rxd->rx_desc->drlen =
 			    htole16(MCLBYTES - sizeof(uint32_t));
 			rxd->rx_desc->drst = htole16(VTE_DRST_RX_OWN);

@@ -32,6 +32,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/drm2/i915/i915_drm.h>
 #include <dev/drm2/i915/i915_drv.h>
 #include <dev/drm2/i915/intel_drv.h>
+#include <contrib/dev/acpica/include/acpi.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <dev/acpica/acpivar.h>
 
 #define PCI_ASLE 0xe4
 #define PCI_ASLS 0xfc
@@ -144,7 +147,7 @@ struct opregion_asle {
 #define ACPI_DIGITAL_OUTPUT (3<<8)
 #define ACPI_LVDS_OUTPUT (4<<8)
 
-#ifdef CONFIG_ACPI
+#if 1
 static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -289,6 +292,7 @@ void intel_opregion_enable_asle(struct drm_device *dev)
 
 static struct intel_opregion *system_opregion;
 
+#if 0
 static int intel_opregion_video_event(struct notifier_block *nb,
 				      unsigned long val, void *data)
 {
@@ -319,6 +323,7 @@ static int intel_opregion_video_event(struct notifier_block *nb,
 static struct notifier_block intel_opregion_notifier = {
 	.notifier_call = intel_opregion_video_event,
 };
+#endif
 
 /*
  * Initialise the DIDL field in opregion. This passes a list of devices to
@@ -326,37 +331,72 @@ static struct notifier_block intel_opregion_notifier = {
  * (version 3)
  */
 
+static int acpi_is_video_device(ACPI_HANDLE devh) {
+	ACPI_HANDLE h;
+	if (ACPI_FAILURE(AcpiGetHandle(devh, "_DOD", &h)) ||
+		ACPI_FAILURE(AcpiGetHandle(devh, "_DOS", &h))) {
+		return 0;
+	}
+	return 1;
+}
+
 static void intel_didl_outputs(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_opregion *opregion = &dev_priv->opregion;
 	struct drm_connector *connector;
-	acpi_handle handle;
-	struct acpi_device *acpi_dev, *acpi_cdev, *acpi_video_bus = NULL;
-	unsigned long long device_id;
-	acpi_status status;
+	u32 device_id;
+	ACPI_HANDLE handle, acpi_video_bus, acpi_cdev;
+	ACPI_STATUS status;
 	int i = 0;
 
-	handle = DEVICE_ACPI_HANDLE(&dev->pdev->dev);
-	if (!handle || ACPI_FAILURE(acpi_bus_get_device(handle, &acpi_dev)))
+	handle = acpi_get_handle(dev->device);
+	if (!handle)
 		return;
 
-	if (acpi_is_video_device(acpi_dev))
-		acpi_video_bus = acpi_dev;
+	if (acpi_is_video_device(handle))
+		acpi_video_bus = handle;
 	else {
+		acpi_cdev = NULL;
+		acpi_video_bus = NULL;
+		while (AcpiGetNextObject(ACPI_TYPE_DEVICE, handle, acpi_cdev,
+					&acpi_cdev) != AE_NOT_FOUND) {
+			if (acpi_is_video_device(acpi_cdev)) {
+				acpi_video_bus = acpi_cdev;
+				break;
+			}
+		}
+#if 0
 		list_for_each_entry(acpi_cdev, &acpi_dev->children, node) {
 			if (acpi_is_video_device(acpi_cdev)) {
 				acpi_video_bus = acpi_cdev;
 				break;
 			}
 		}
+#endif
 	}
 
 	if (!acpi_video_bus) {
-		printk(KERN_WARNING "No ACPI video bus found\n");
+		device_printf(dev->device, "No ACPI video bus found\n");
 		return;
 	}
 
+	acpi_cdev = NULL;
+	while (AcpiGetNextObject(ACPI_TYPE_DEVICE, acpi_video_bus, acpi_cdev,
+				&acpi_cdev) != AE_NOT_FOUND) {
+		if (i >= 8) {
+			device_printf(dev->device, "More than 8 outputs detected\n");
+			return;
+		}
+		status = acpi_GetInteger(acpi_cdev, "_ADR", &device_id);
+		if (ACPI_SUCCESS(status)) {
+			if (!device_id)
+				goto blind_set;
+			opregion->acpi->didl[i] = (u32)(device_id & 0x0f0f);
+			i++;
+		}
+	}
+#if 0
 	list_for_each_entry(acpi_cdev, &acpi_video_bus->children, node) {
 		if (i >= 8) {
 			dev_printk(KERN_ERR, &dev->pdev->dev,
@@ -373,6 +413,7 @@ static void intel_didl_outputs(struct drm_device *dev)
 			i++;
 		}
 	}
+#endif
 
 end:
 	/* If fewer than 8 outputs, the list must be null terminated */
@@ -417,6 +458,25 @@ blind_set:
 	goto end;
 }
 
+static void intel_setup_cadls(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_opregion *opregion = &dev_priv->opregion;
+	int i = 0;
+	u32 disp_id;
+
+	/* Initialize the CADL field by duplicating the DIDL values.
+	 * Technically, this is not always correct as display outputs may exist,
+	 * but not active. This initialization is necessary for some Clevo
+	 * laptops that check this field before processing the brightness and
+	 * display switching hotkeys. Just like DIDL, CADL is NULL-terminated if
+	 * there are less than eight devices. */
+	do {
+		disp_id = opregion->acpi->didl[i];
+		opregion->acpi->cadl[i] = disp_id;
+	} while (++i < 8 && disp_id != 0);
+}
+
 void intel_opregion_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -426,8 +486,10 @@ void intel_opregion_init(struct drm_device *dev)
 		return;
 
 	if (opregion->acpi) {
-		if (drm_core_check_feature(dev, DRIVER_MODESET))
+		if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 			intel_didl_outputs(dev);
+			intel_setup_cadls(dev);
+		}
 
 		/* Notify BIOS we are ready to handle ACPI video ext notifs.
 		 * Right now, all the events are handled by the ACPI video module.
@@ -436,7 +498,9 @@ void intel_opregion_init(struct drm_device *dev)
 		opregion->acpi->drdy = 1;
 
 		system_opregion = opregion;
+#if 0
 		register_acpi_notifier(&intel_opregion_notifier);
+#endif
 	}
 
 	if (opregion->asle)
@@ -455,11 +519,13 @@ void intel_opregion_fini(struct drm_device *dev)
 		opregion->acpi->drdy = 0;
 
 		system_opregion = NULL;
+#if 0
 		unregister_acpi_notifier(&intel_opregion_notifier);
+#endif
 	}
 
 	/* just clear all opregion memory pointers now */
-	iounmap(opregion->header);
+	pmap_unmapdev((vm_offset_t)opregion->header, OPREGION_SIZE);
 	opregion->header = NULL;
 	opregion->acpi = NULL;
 	opregion->swsci = NULL;

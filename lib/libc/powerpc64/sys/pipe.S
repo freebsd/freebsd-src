@@ -49,5 +49,6 @@ ENTRY(pipe)
 	ld	%r0,16(%r1)
 	mtlr	%r0
 	blr
+END(pipe)
 
 	.section .note.GNU-stack,"",%progbits

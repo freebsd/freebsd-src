@@ -6,8 +6,6 @@
 
 PROG=	svn${SVNLITE}
 
-NO_PIE=	yes
-
 SRCS=	add-cmd.c blame-cmd.c cat-cmd.c changelist-cmd.c checkout-cmd.c \
 	cl-conflicts.c cleanup-cmd.c commit-cmd.c conflict-callbacks.c \
 	copy-cmd.c delete-cmd.c deprecated.c diff-cmd.c export-cmd.c \
@@ -41,18 +39,16 @@ LDADD=	-L${LIBSVN_CLIENTDIR} -lsvn_client \
 	-L${LIBSVN_SUBRDIR} -lsvn_subr \
 	-L${LIBSERFDIR} -lserf \
 	-L${LIBAPR_UTILDIR} -lapr-util \
-	-lbsdxml \
-	-L${LIBAPRDIR} -lapr \
-	-L${LIBSQLITEDIR} -lsqlite3 \
-	-lz -lcrypt -lmagic -lcrypto -lssl -lpthread
+	-L${LIBAPRDIR} -lapr
+LIBADD+=	bsdxml sqlite3 z magic crypto ssl pthread
 
 DPADD=	${LIBSVN_CLIENT} ${LIBSVN_WC} ${LIBSVN_RA} ${LIBSVN_RA_LOCAL} \
 	${LIBSVN_RA_SVN} ${LIBSVN_RA_SERF} ${LIBSVN_REPOS} \
 	${LIBSVN_FS} ${LIBSVN_FS_FS} ${LIBSVN_FS_UTIL} ${LIBSVN_DELTA} \
 	${LIBSVN_DIFF} ${LIBSVN_SUBR} ${LIBSERF} ${LIBAPR_UTIL} \
-	${LIBBSDXML} ${LIBAPR} ${LIBSQLITE} ${LIBZ} ${LIBCRYPT} ${LIBMAGIC} \
-	${LIBCRYPTO} ${LIBSSL} ${LIBPTHREAD}
+	${LIBAPR}
 
+CLEANFILES+=	svnlite.1
 .if(defined(ORGANIZATION) && !empty(ORGANIZATION))
 DPSRCS+=	freebsd-organization.h
 CLEANFILES+=	freebsd-organization.h

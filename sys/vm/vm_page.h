@@ -305,10 +305,10 @@ extern struct mtx_padalign pa_lock[];
  * both the MI and MD VM layers.  However, kernel loadable modules should not
  * directly set this flag.  They should call vm_page_reference() instead.
  *
- * PGA_WRITEABLE is set exclusively on managed pages by pmap_enter().  When it
- * does so, the page must be exclusive busied.  The MI VM layer must never
- * access this flag directly.  Instead, it should call
- * pmap_page_is_write_mapped().
+ * PGA_WRITEABLE is set exclusively on managed pages by pmap_enter().
+ * When it does so, the object must be locked, or the page must be
+ * exclusive busied.  The MI VM layer must never access this flag
+ * directly.  Instead, it should call pmap_page_is_write_mapped().
  *
  * PGA_EXECUTABLE may be set by pmap routines, and indicates that a page has
  * at least one executable mapping.  It is not consumed by the MI VM layer.
@@ -376,22 +376,36 @@ extern long first_page;			/* first physical page number */
 
 vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 
-/* page allocation classes: */
+/*
+ * Page allocation parameters for vm_page for the functions
+ * vm_page_alloc(), vm_page_grab(), vm_page_alloc_contig() and
+ * vm_page_alloc_freelist().  Some functions support only a subset
+ * of the flags, and ignore others, see the flags legend.
+ *
+ * Bits 0 - 1 define class.
+ * Bits 2 - 15 dedicated for flags.
+ * Legend:
+ * (a) - vm_page_alloc() supports the flag.
+ * (c) - vm_page_alloc_contig() supports the flag.
+ * (f) - vm_page_alloc_freelist() supports the flag.
+ * (g) - vm_page_grab() supports the flag.
+ * Bits above 15 define the count of additional pages that the caller
+ * intends to allocate.
+ */
 #define VM_ALLOC_NORMAL		0
 #define VM_ALLOC_INTERRUPT	1
 #define VM_ALLOC_SYSTEM		2
 #define	VM_ALLOC_CLASS_MASK	3
-/* page allocation flags: */
-#define	VM_ALLOC_WIRED		0x0020	/* non pageable */
-#define	VM_ALLOC_ZERO		0x0040	/* Try to obtain a zeroed page */
-#define	VM_ALLOC_NOOBJ		0x0100	/* No associated object */
-#define	VM_ALLOC_NOBUSY		0x0200	/* Do not busy the page */
-#define	VM_ALLOC_IFCACHED	0x0400	/* Fail if the page is not cached */
-#define	VM_ALLOC_IFNOTCACHED	0x0800	/* Fail if the page is cached */
-#define	VM_ALLOC_IGN_SBUSY	0x1000	/* vm_page_grab() only */
-#define	VM_ALLOC_NODUMP		0x2000	/* don't include in dump */
-#define	VM_ALLOC_SBUSY		0x4000	/* Shared busy the page */
-
+#define	VM_ALLOC_WIRED		0x0020	/* (acfg) Allocate non pageable page */
+#define	VM_ALLOC_ZERO		0x0040	/* (acfg) Try to obtain a zeroed page */
+#define	VM_ALLOC_NOOBJ		0x0100	/* (acg) No associated object */
+#define	VM_ALLOC_NOBUSY		0x0200	/* (acg) Do not busy the page */
+#define	VM_ALLOC_IFCACHED	0x0400	/* (ag) Fail if page is not cached */
+#define	VM_ALLOC_IFNOTCACHED	0x0800	/* (ag) Fail if page is cached */
+#define	VM_ALLOC_IGN_SBUSY	0x1000	/* (g) Ignore shared busy flag */
+#define	VM_ALLOC_NODUMP		0x2000	/* (ag) don't include in dump */
+#define	VM_ALLOC_SBUSY		0x4000	/* (acg) Shared busy the page */
+#define	VM_ALLOC_NOWAIT		0x8000	/* (g) Do not sleep, return NULL */
 #define	VM_ALLOC_COUNT_SHIFT	16
 #define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
 
@@ -533,8 +547,12 @@ void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
 #ifdef INVARIANTS
 void vm_page_object_lock_assert(vm_page_t m);
 #define	VM_PAGE_OBJECT_LOCK_ASSERT(m)	vm_page_object_lock_assert(m)
+void vm_page_assert_pga_writeable(vm_page_t m, uint8_t bits);
+#define	VM_PAGE_ASSERT_PGA_WRITEABLE(m, bits)				\
+	vm_page_assert_pga_writeable(m, bits)
 #else
 #define	VM_PAGE_OBJECT_LOCK_ASSERT(m)	(void)0
+#define	VM_PAGE_ASSERT_PGA_WRITEABLE(m, bits)	(void)0
 #endif
 
 /*
@@ -582,13 +600,7 @@ vm_page_aflag_set(vm_page_t m, uint8_t bits)
 {
 	uint32_t *addr, val;
 
-	/*
-	 * The PGA_WRITEABLE flag can only be set if the page is managed and
-	 * exclusive busied.  Currently, this flag is only set by pmap_enter().
-	 */
-	KASSERT((bits & PGA_WRITEABLE) == 0 ||
-	    ((m->oflags & VPO_UNMANAGED) == 0 && vm_page_xbusied(m)),
-	    ("vm_page_aflag_set: PGA_WRITEABLE and not exclusive busy"));
+	VM_PAGE_ASSERT_PGA_WRITEABLE(m, bits);
 
 	/*
 	 * Access the whole 32-bit word containing the aflags field with an

@@ -97,16 +97,73 @@ SDT_PROBE_DEFINE1(proc, kernel, , exit, "int");
 /* Hook for NFS teardown procedure. */
 void (*nlminfo_release_p)(struct proc *p);
 
+struct proc *
+proc_realparent(struct proc *child)
+{
+	struct proc *p, *parent;
+
+	sx_assert(&proctree_lock, SX_LOCKED);
+	if ((child->p_treeflag & P_TREE_ORPHANED) == 0) {
+		if (child->p_oppid == 0 ||
+		    child->p_pptr->p_pid == child->p_oppid)
+			parent = child->p_pptr;
+		else
+			parent = initproc;
+		return (parent);
+	}
+	for (p = child; (p->p_treeflag & P_TREE_FIRST_ORPHAN) == 0;) {
+		/* Cannot use LIST_PREV(), since the list head is not known. */
+		p = __containerof(p->p_orphan.le_prev, struct proc,
+		    p_orphan.le_next);
+		KASSERT((p->p_treeflag & P_TREE_ORPHANED) != 0,
+		    ("missing P_ORPHAN %p", p));
+	}
+	parent = __containerof(p->p_orphan.le_prev, struct proc,
+	    p_orphans.lh_first);
+	return (parent);
+}
+
+void
+reaper_abandon_children(struct proc *p, bool exiting)
+{
+	struct proc *p1, *p2, *ptmp;
+
+	sx_assert(&proctree_lock, SX_LOCKED);
+	KASSERT(p != initproc, ("reaper_abandon_children for initproc"));
+	if ((p->p_treeflag & P_TREE_REAPER) == 0)
+		return;
+	p1 = p->p_reaper;
+	LIST_FOREACH_SAFE(p2, &p->p_reaplist, p_reapsibling, ptmp) {
+		LIST_REMOVE(p2, p_reapsibling);
+		p2->p_reaper = p1;
+		p2->p_reapsubtree = p->p_reapsubtree;
+		LIST_INSERT_HEAD(&p1->p_reaplist, p2, p_reapsibling);
+		if (exiting && p2->p_pptr == p) {
+			PROC_LOCK(p2);
+			proc_reparent(p2, p1);
+			PROC_UNLOCK(p2);
+		}
+	}
+	KASSERT(LIST_EMPTY(&p->p_reaplist), ("p_reaplist not empty"));
+	p->p_treeflag &= ~P_TREE_REAPER;
+}
+
 static void
 clear_orphan(struct proc *p)
 {
+	struct proc *p1;
 
-	PROC_LOCK_ASSERT(p, MA_OWNED);
-
-	if (p->p_flag & P_ORPHAN) {
-		LIST_REMOVE(p, p_orphan);
-		p->p_flag &= ~P_ORPHAN;
+	sx_assert(&proctree_lock, SA_XLOCKED);
+	if ((p->p_treeflag & P_TREE_ORPHANED) == 0)
+		return;
+	if ((p->p_treeflag & P_TREE_FIRST_ORPHAN) != 0) {
+		p1 = LIST_NEXT(p, p_orphan);
+		if (p1 != NULL)
+			p1->p_treeflag |= P_TREE_FIRST_ORPHAN;
+		p->p_treeflag &= ~P_TREE_FIRST_ORPHAN;
 	}
+	LIST_REMOVE(p, p_orphan);
+	p->p_treeflag &= ~P_TREE_ORPHANED;
 }
 
 /*
@@ -128,7 +185,8 @@ sys_sys_exit(struct thread *td, struct sys_exit_args *uap)
 void
 exit1(struct thread *td, int rv)
 {
-	struct proc *p, *nq, *q;
+	struct proc *p, *nq, *q, *t;
+	struct thread *tdt;
 	struct vnode *ttyvp = NULL;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
@@ -149,13 +207,14 @@ exit1(struct thread *td, int rv)
 	 * MUST abort all other threads before proceeding past here.
 	 */
 	PROC_LOCK(p);
+	/*
+	 * First check if some other thread or external request got
+	 * here before us.  If so, act appropriately: exit or suspend.
+	 * We must ensure that stop requests are handled before we set
+	 * P_WEXIT.
+	 */
+	thread_suspend_check(0);
 	while (p->p_flag & P_HADTHREADS) {
-		/*
-		 * First check if some other thread got here before us.
-		 * If so, act appropriately: exit or suspend.
-		 */
-		thread_suspend_check(0);
-
 		/*
 		 * Kill off the other threads. This requires
 		 * some co-operation from other parts of the kernel
@@ -173,13 +232,19 @@ exit1(struct thread *td, int rv)
 		 * re-check all suspension request, the thread should
 		 * either be suspended there or exit.
 		 */
-		if (!thread_single(SINGLE_EXIT))
+		if (!thread_single(p, SINGLE_EXIT))
+			/*
+			 * All other activity in this process is now
+			 * stopped.  Threading support has been turned
+			 * off.
+			 */
 			break;
-
 		/*
-		 * All other activity in this process is now stopped.
-		 * Threading support has been turned off.
+		 * Recheck for new stop or suspend requests which
+		 * might appear while process lock was dropped in
+		 * thread_single().
 		 */
+		thread_suspend_check(0);
 	}
 	KASSERT(p->p_numthreads == 1,
 	    ("exit1: proc %p exiting with %d threads", p, p->p_numthreads));
@@ -232,8 +297,8 @@ exit1(struct thread *td, int rv)
 	AUDIT_SYSCALL_EXIT(0, td);
 #endif
 
-	/* Are we a task leader? */
-	if (p == p->p_leader) {
+	/* Are we a task leader with peers? */
+	if (p->p_peers != NULL && p == p->p_leader) {
 		mtx_lock(&ppeers_lock);
 		q = p->p_peers;
 		while (q != NULL) {
@@ -304,15 +369,17 @@ exit1(struct thread *td, int rv)
 	/*
 	 * Remove ourself from our leader's peer list and wake our leader.
 	 */
-	mtx_lock(&ppeers_lock);
-	if (p->p_leader->p_peers) {
-		q = p->p_leader;
-		while (q->p_peers != p)
-			q = q->p_peers;
-		q->p_peers = p->p_peers;
-		wakeup(p->p_leader);
+	if (p->p_leader->p_peers != NULL) {
+		mtx_lock(&ppeers_lock);
+		if (p->p_leader->p_peers != NULL) {
+			q = p->p_leader;
+			while (q->p_peers != p)
+				q = q->p_peers;
+			q->p_peers = p->p_peers;
+			wakeup(p->p_leader);
+		}
+		mtx_unlock(&ppeers_lock);
 	}
-	mtx_unlock(&ppeers_lock);
 
 	vmspace_exit(td);
 
@@ -409,24 +476,34 @@ exit1(struct thread *td, int rv)
 	WITNESS_WARN(WARN_PANIC, NULL, "process (pid %d) exiting", p->p_pid);
 
 	/*
-	 * Reparent all of our children to init.
+	 * Reparent all children processes:
+	 * - traced ones to the original parent (or init if we are that parent)
+	 * - the rest to init
 	 */
 	sx_xlock(&proctree_lock);
 	q = LIST_FIRST(&p->p_children);
 	if (q != NULL)		/* only need this if any child is S_ZOMB */
-		wakeup(initproc);
+		wakeup(q->p_reaper);
 	for (; q != NULL; q = nq) {
 		nq = LIST_NEXT(q, p_sibling);
 		PROC_LOCK(q);
-		proc_reparent(q, initproc);
 		q->p_sigparent = SIGCHLD;
-		/*
-		 * Traced processes are killed
-		 * since their existence means someone is screwing up.
-		 */
-		if (q->p_flag & P_TRACED) {
-			struct thread *temp;
 
+		if (!(q->p_flag & P_TRACED)) {
+			proc_reparent(q, q->p_reaper);
+		} else {
+			/*
+			 * Traced processes are killed since their existence
+			 * means someone is screwing up.
+			 */
+			t = proc_realparent(q);
+			if (t == p) {
+				proc_reparent(q, q->p_reaper);
+			} else {
+				PROC_LOCK(t);
+				proc_reparent(q, t);
+				PROC_UNLOCK(t);
+			}
 			/*
 			 * Since q was found on our children list, the
 			 * proc_reparent() call moved q to the orphan
@@ -435,8 +512,8 @@ exit1(struct thread *td, int rv)
 			 */
 			clear_orphan(q);
 			q->p_flag &= ~(P_TRACED | P_STOPPED_TRACE);
-			FOREACH_THREAD_IN_PROC(q, temp)
-				temp->td_dbgflags &= ~TDB_SUSPEND;
+			FOREACH_THREAD_IN_PROC(q, tdt)
+				tdt->td_dbgflags &= ~TDB_SUSPEND;
 			kern_psignal(q, SIGKILL);
 		}
 		PROC_UNLOCK(q);
@@ -510,7 +587,7 @@ exit1(struct thread *td, int rv)
 			mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
 			pp = p->p_pptr;
 			PROC_UNLOCK(pp);
-			proc_reparent(p, initproc);
+			proc_reparent(p, p->p_reaper);
 			p->p_sigparent = SIGCHLD;
 			PROC_LOCK(p->p_pptr);
 
@@ -523,8 +600,8 @@ exit1(struct thread *td, int rv)
 		} else
 			mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
 
-		if (p->p_pptr == initproc)
-			kern_psignal(p->p_pptr, SIGCHLD);
+		if (p->p_pptr == p->p_reaper || p->p_pptr == initproc)
+			childproc_exited(p);
 		else if (p->p_sigparent != 0) {
 			if (p->p_sigparent == SIGCHLD)
 				childproc_exited(p);
@@ -569,7 +646,9 @@ exit1(struct thread *td, int rv)
 	/*
 	 * Save our children's rusage information in our exit rusage.
 	 */
+	PROC_STATLOCK(p);
 	ruadd(&p->p_ru, &p->p_rux, &p->p_stats->p_cru, &p->p_crux);
+	PROC_STATUNLOCK(p);
 
 	/*
 	 * Make sure the scheduler takes this thread out of its tables etc.
@@ -772,7 +851,9 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	 * If we got the child via a ptrace 'attach', we need to give it back
 	 * to the old parent.
 	 */
-	if (p->p_oppid && (t = pfind(p->p_oppid)) != NULL) {
+	if (p->p_oppid != 0) {
+		t = proc_realparent(p);
+		PROC_LOCK(t);
 		PROC_LOCK(p);
 		proc_reparent(p, t);
 		p->p_oppid = 0;
@@ -793,6 +874,8 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options)
 	LIST_REMOVE(p, p_list);	/* off zombproc */
 	sx_xunlock(&allproc_lock);
 	LIST_REMOVE(p, p_sibling);
+	reaper_abandon_children(p, true);
+	LIST_REMOVE(p, p_reapsibling);
 	PROC_LOCK(p);
 	clear_orphan(p);
 	PROC_UNLOCK(p);
@@ -943,8 +1026,6 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 		return (0);
 	}
 
-	PROC_SLOCK(p);
-
 	if (siginfo != NULL) {
 		bzero(siginfo, sizeof(*siginfo));
 		siginfo->si_errno = 0;
@@ -991,7 +1072,9 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 	if (wrusage != NULL) {
 		rup = &wrusage->wru_self;
 		*rup = p->p_ru;
+		PROC_STATLOCK(p);
 		calcru(p, &rup->ru_utime, &rup->ru_stime);
+		PROC_STATUNLOCK(p);
 
 		rup = &wrusage->wru_children;
 		*rup = p->p_stats->p_cru;
@@ -999,10 +1082,10 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 	}
 
 	if (p->p_state == PRS_ZOMBIE) {
+		PROC_SLOCK(p);
 		proc_reap(td, p, status, options);
 		return (-1);
 	}
-	PROC_SUNLOCK(p);
 	PROC_UNLOCK(p);
 	return (1);
 }
@@ -1243,8 +1326,15 @@ proc_reparent(struct proc *child, struct proc *parent)
 
 	clear_orphan(child);
 	if (child->p_flag & P_TRACED) {
-		LIST_INSERT_HEAD(&child->p_pptr->p_orphans, child, p_orphan);
-		child->p_flag |= P_ORPHAN;
+		if (LIST_EMPTY(&child->p_pptr->p_orphans)) {
+			child->p_treeflag |= P_TREE_FIRST_ORPHAN;
+			LIST_INSERT_HEAD(&child->p_pptr->p_orphans, child,
+			    p_orphan);
+		} else {
+			LIST_INSERT_AFTER(LIST_FIRST(&child->p_pptr->p_orphans),
+			    child, p_orphan);
+		}
+		child->p_treeflag |= P_TREE_ORPHANED;
 	}
 
 	child->p_pptr = parent;

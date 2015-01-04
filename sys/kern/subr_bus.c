@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/cpuset.h>
 
 #include <net/vnet.h>
 
@@ -135,6 +136,7 @@ struct device {
 #define	DF_DONENOMATCH	0x20		/* don't execute DEVICE_NOMATCH again */
 #define	DF_EXTERNALSOFTC 0x40		/* softc not allocated by us */
 #define	DF_REBID	0x80		/* Can rebid after attach */
+#define	DF_SUSPENDED	0x100		/* Device is suspended. */
 	u_int	order;			/**< order from device_add_child_ordered() */
 	void	*ivars;			/**< instance variables  */
 	void	*softc;			/**< current driver's variables  */
@@ -283,6 +285,7 @@ static void
 device_sysctl_init(device_t dev)
 {
 	devclass_t dc = dev->devclass;
+	int domain;
 
 	if (dev->sysctl_tree != NULL)
 		return;
@@ -312,6 +315,10 @@ device_sysctl_init(device_t dev)
 	    OID_AUTO, "%parent", CTLTYPE_STRING | CTLFLAG_RD,
 	    dev, DEVICE_SYSCTL_PARENT, device_sysctl_handler, "A",
 	    "parent device");
+	if (bus_get_domain(dev, &domain) == 0)
+		SYSCTL_ADD_INT(&dev->sysctl_ctx,
+		    SYSCTL_CHILDREN(dev->sysctl_tree), OID_AUTO, "%domain",
+		    CTLFLAG_RD, NULL, domain, "NUMA domain");
 }
 
 static void
@@ -2849,7 +2856,7 @@ device_attach(device_t dev)
 	 * need to be adjusted on other platforms.
 	 */
 #ifdef RANDOM_DEBUG
-	printf("%s(): feeding %d bit(s) of entropy from %s%d\n",
+	printf("random: %s(): feeding %d bit(s) of entropy from %s%d\n",
 	    __func__, 4, dev->driver->name, dev->unit);
 #endif
 	random_harvest(&attachtime, sizeof(attachtime), 4, RANDOM_ATTACH);
@@ -3301,7 +3308,10 @@ resource_list_alloc(struct resource_list *rl, device_t bus, device_t child,
 			rle->flags |= RLE_ALLOCATED;
 			return (rle->res);
 		}
-		panic("resource_list_alloc: resource entry is busy");
+		device_printf(bus,
+		    "resource entry %#x type %d for child %s is busy\n", *rid,
+		    type, device_get_nameunit(child));
+		return (NULL);
 	}
 
 	if (isdefault) {
@@ -3631,6 +3641,39 @@ bus_generic_shutdown(device_t dev)
 }
 
 /**
+ * @brief Default function for suspending a child device.
+ *
+ * This function is to be used by a bus's DEVICE_SUSPEND_CHILD().
+ */
+int
+bus_generic_suspend_child(device_t dev, device_t child)
+{
+	int	error;
+
+	error = DEVICE_SUSPEND(child);
+
+	if (error == 0)
+		dev->flags |= DF_SUSPENDED;
+
+	return (error);
+}
+
+/**
+ * @brief Default function for resuming a child device.
+ *
+ * This function is to be used by a bus's DEVICE_RESUME_CHILD().
+ */
+int
+bus_generic_resume_child(device_t dev, device_t child)
+{
+
+	DEVICE_RESUME(child);
+	dev->flags &= ~DF_SUSPENDED;
+
+	return (0);
+}
+
+/**
  * @brief Helper function for implementing DEVICE_SUSPEND()
  *
  * This function can be used to help implement the DEVICE_SUSPEND()
@@ -3646,12 +3689,12 @@ bus_generic_suspend(device_t dev)
 	device_t	child, child2;
 
 	TAILQ_FOREACH(child, &dev->children, link) {
-		error = DEVICE_SUSPEND(child);
+		error = BUS_SUSPEND_CHILD(dev, child);
 		if (error) {
 			for (child2 = TAILQ_FIRST(&dev->children);
 			     child2 && child2 != child;
 			     child2 = TAILQ_NEXT(child2, link))
-				DEVICE_RESUME(child2);
+				BUS_RESUME_CHILD(dev, child2);
 			return (error);
 		}
 	}
@@ -3670,7 +3713,7 @@ bus_generic_resume(device_t dev)
 	device_t	child;
 
 	TAILQ_FOREACH(child, &dev->children, link) {
-		DEVICE_RESUME(child);
+		BUS_RESUME_CHILD(dev, child);
 		/* if resume fails, there's nothing we can usefully do... */
 	}
 	return (0);
@@ -3717,6 +3760,25 @@ bus_print_child_footer(device_t dev, device_t child)
 /**
  * @brief Helper function for implementing BUS_PRINT_CHILD().
  *
+ * This function prints out the VM domain for the given device.
+ *
+ * @returns the number of characters printed
+ */
+int
+bus_print_child_domain(device_t dev, device_t child)
+{
+	int domain;
+
+	/* No domain? Don't print anything */
+	if (BUS_GET_DOMAIN(dev, child, &domain) != 0)
+		return (0);
+
+	return (printf(" numa-domain %d", domain));
+}
+
+/**
+ * @brief Helper function for implementing BUS_PRINT_CHILD().
+ *
  * This function simply calls bus_print_child_header() followed by
  * bus_print_child_footer().
  *
@@ -3728,6 +3790,7 @@ bus_generic_print_child(device_t dev, device_t child)
 	int	retval = 0;
 
 	retval += bus_print_child_header(dev, child);
+	retval += bus_print_child_domain(dev, child);
 	retval += bus_print_child_footer(dev, child);
 
 	return (retval);
@@ -4142,6 +4205,16 @@ bus_generic_child_present(device_t dev, device_t child)
 	return (BUS_CHILD_PRESENT(device_get_parent(dev), dev));
 }
 
+int
+bus_generic_get_domain(device_t dev, device_t child, int *domain)
+{
+
+	if (dev->parent)
+		return (BUS_GET_DOMAIN(dev->parent, dev, domain));
+
+	return (ENOENT);
+}
+
 /*
  * Some convenience functions to make it easier for drivers to use the
  * resource-management functions.  All these really do is hide the
@@ -4472,6 +4545,18 @@ bus_get_dma_tag(device_t dev)
 	if (parent == NULL)
 		return (NULL);
 	return (BUS_GET_DMA_TAG(parent, dev));
+}
+
+/**
+ * @brief Wrapper function for BUS_GET_DOMAIN().
+ *
+ * This function simply calls the BUS_GET_DOMAIN() method of the
+ * parent of @p dev.
+ */
+int
+bus_get_domain(device_t dev, int *domain)
+{
+	return (BUS_GET_DOMAIN(device_get_parent(dev), dev, domain));
 }
 
 /* Resume all devices and then notify userland that we're up again. */

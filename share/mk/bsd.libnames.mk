@@ -8,13 +8,13 @@
 .error bsd.libnames.mk cannot be included directly.
 .endif
 
+.sinclude <src.libnames.mk>
+
 LIBCRT0?=	${DESTDIR}${LIBDIR}/crt0.o
 
 LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a
 LIBARCHIVE?=	${DESTDIR}${LIBDIR}/libarchive.a
 LIBASN1?=	${DESTDIR}${LIBDIR}/libasn1.a
-LIBATF_C?=	${DESTDIR}${LIBPRIVATEDIR}/libatf-c.a
-LIBATF_CXX?=	${DESTDIR}${LIBPRIVATEDIR}/libatf-c++.a
 LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
 LIBAUDITD?=	${DESTDIR}${LIBDIR}/libauditd.a
 LIBAVL?=	${DESTDIR}${LIBDIR}/libavl.a
@@ -43,23 +43,24 @@ LIBDEVINFO?=	${DESTDIR}${LIBDIR}/libdevinfo.a
 LIBDEVSTAT?=	${DESTDIR}${LIBDIR}/libdevstat.a
 LIBDIALOG?=	${DESTDIR}${LIBDIR}/libdialog.a
 LIBDNS?=	${DESTDIR}${LIBDIR}/libdns.a
+LIBDPV?=	${DESTDIR}${LIBDIR}/libdpv.a
 LIBDTRACE?=	${DESTDIR}${LIBDIR}/libdtrace.a
 LIBDWARF?=	${DESTDIR}${LIBDIR}/libdwarf.a
 LIBEDIT?=	${DESTDIR}${LIBDIR}/libedit.a
 LIBELF?=	${DESTDIR}${LIBDIR}/libelf.a
 LIBEXECINFO?=	${DESTDIR}${LIBDIR}/libexecinfo.a
 LIBFETCH?=	${DESTDIR}${LIBDIR}/libfetch.a
+LIBFIGPAR?=	${DESTDIR}${LIBDIR}/libfigpar.a
 LIBFL?=		"don't use LIBFL, use LIBL"
 LIBFORM?=	${DESTDIR}${LIBDIR}/libform.a
 LIBG2C?=	${DESTDIR}${LIBDIR}/libg2c.a
+LIBGPIO?=	${DESTDIR}${LIBDIR}/libgpio.a
 LIBGEOM?=	${DESTDIR}${LIBDIR}/libgeom.a
 LIBGNUREGEX?=	${DESTDIR}${LIBDIR}/libgnuregex.a
 LIBGSSAPI?=	${DESTDIR}${LIBDIR}/libgssapi.a
 LIBGSSAPI_KRB5?= ${DESTDIR}${LIBDIR}/libgssapi_krb5.a
 LIBHDB?=	${DESTDIR}${LIBDIR}/libhdb.a
 LIBHEIMBASE?=	${DESTDIR}${LIBDIR}/libheimbase.a
-LIBHEIMIPCC?=	${DESTDIR}${LIBPRIVATEDIR}/libheimipcc.a
-LIBHEIMIPCS?=	${DESTDIR}${LIBPRIVATEDIR}/libheimipcs.a
 LIBHEIMNTLM?=	${DESTDIR}${LIBDIR}/libheimntlm.a
 LIBHEIMSQLITE?=	${DESTDIR}${LIBDIR}/libheimsqlite.a
 LIBHX509?=	${DESTDIR}${LIBDIR}/libhx509.a
@@ -74,7 +75,6 @@ LIBKICONV?=	${DESTDIR}${LIBDIR}/libkiconv.a
 LIBKRB5?=	${DESTDIR}${LIBDIR}/libkrb5.a
 LIBKVM?=	${DESTDIR}${LIBDIR}/libkvm.a
 LIBL?=		${DESTDIR}${LIBDIR}/libl.a
-LIBLDNS?=	${DESTDIR}${LIBPRIVATEDIR}/libldns.a
 LIBLN?=		"don't use LIBLN, use LIBL"
 LIBLZMA?=	${DESTDIR}${LIBDIR}/liblzma.a
 LIBM?=		${DESTDIR}${LIBDIR}/libm.a
@@ -91,33 +91,7 @@ LIBNGATM?=	${DESTDIR}${LIBDIR}/libngatm.a
 LIBNV?=		${DESTDIR}${LIBDIR}/libnv.a
 LIBNVPAIR?=	${DESTDIR}${LIBDIR}/libnvpair.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
-
-# The static PAM library doesn't know its secondary dependencies,
-# so we have to specify them explicitly. Ths is an unfortunate,
-# but necessary departure from testing MK_ flags to define
-# values here.
 LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a
-MINUSLPAM=	-lpam
-.if defined(LDFLAGS) && !empty(LDFLAGS:M-static)
-.if ${MK_KERBEROS} != "no"
-LIBPAM+=	${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} \
-		${LIBROKEN} ${LIBCOM_ERR}
-MINUSLPAM+=	-lkrb5 -lhx509 -lasn1 -lcrypto -lcrypt -lroken -lcom_err
-.endif
-LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBCRYPT} \
-		${LIBUTIL} ${LIBOPIE} ${LIBMD}
-MINUSLPAM+=	-lradius -ltacplus -lcrypt \
-		-lutil -lopie -lmd
-.if ${MK_OPENSSH} != "no"
-LIBPAM+=	${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT}
-MINUSLPAM+=	-lssh -lcrypto -lcrypt
-.endif
-.if ${MK_NIS} != "no"
-LIBPAM+=	${LIBYPCLNT}
-MINUSLPAM+=	-lypclnt
-.endif
-.endif
-
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
 LIBPCAP?=	${DESTDIR}${LIBDIR}/libpcap.a
 LIBPJDLOG?=	${DESTDIR}${LIBDIR}/libpjdlog.a
@@ -134,19 +108,18 @@ LIBRTLD_DB?=	${DESTDIR}${LIBDIR}/librtld_db.a
 LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
 LIBSDP?=	${DESTDIR}${LIBDIR}/libsdp.a
 LIBSMB?=	${DESTDIR}${LIBDIR}/libsmb.a
-LIBSSH?=	${DESTDIR}${LIBPRIVATEDIR}/libssh.a
 LIBSSL?=	${DESTDIR}${LIBDIR}/libssl.a
+LIBSSP_NONSHARED?=	${DESTDIR}${LIBDIR}/libssp_nonshared.a
 LIBSTAND?=	${DESTDIR}${LIBDIR}/libstand.a
 LIBSTDCPLUSPLUS?= ${DESTDIR}${LIBDIR}/libstdc++.a
 LIBTACPLUS?=	${DESTDIR}${LIBDIR}/libtacplus.a
 LIBTERMCAP?=	${DESTDIR}${LIBDIR}/libtermcap.a
+LIBTERMCAPW?=	${DESTDIR}${LIBDIR}/libtermcapw.a
 LIBTERMLIB?=	"don't use LIBTERMLIB, use LIBTERMCAP"
 LIBTINFO?=	"don't use LIBTINFO, use LIBNCURSES"
-LIBUCL?=	${DESTDIR}${LIBPRIVATEDIR}/libucl.a
 LIBUFS?=	${DESTDIR}${LIBDIR}/libufs.a
 LIBUGIDFW?=	${DESTDIR}${LIBDIR}/libugidfw.a
 LIBUMEM?=	${DESTDIR}${LIBDIR}/libumem.a
-LIBUNBOUND?=	${DESTDIR}${LIBPRIVATEDIR}/libunbound.a
 LIBUSBHID?=	${DESTDIR}${LIBDIR}/libusbhid.a
 LIBUSB?=	${DESTDIR}${LIBDIR}/libusb.a
 LIBULOG?=	${DESTDIR}${LIBDIR}/libulog.a
@@ -163,3 +136,13 @@ LIBZ?=		${DESTDIR}${LIBDIR}/libz.a
 LIBZFS?=	${DESTDIR}${LIBDIR}/libzfs.a
 LIBZFS_CORE?=	${DESTDIR}${LIBDIR}/libzfs_core.a
 LIBZPOOL?=	${DESTDIR}${LIBDIR}/libzpool.a
+
+# enforce the 2 -lpthread and -lc to always be the last in that exact order
+.if defined(LDADD)
+.if ${LDADD:M-lpthread}
+LDADD:=	${LDADD:N-lpthread} -lpthread
+.endif
+.if ${LDADD:M-lc}
+LDADD:=	${LDADD:N-lc} -lc
+.endif
+.endif

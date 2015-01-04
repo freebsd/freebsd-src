@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,7 +40,6 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  */
-
 
 #include <contrib/dev/acpica/include/acpi.h>
 #include <contrib/dev/acpica/include/accommon.h>
@@ -513,6 +512,10 @@ AcpiDbTerminate (
         AcpiOsFree (AcpiGbl_DbBuffer);
         AcpiGbl_DbBuffer = NULL;
     }
+
+    /* Ensure that debug output is now disabled */
+
+    AcpiGbl_DbOutputFlags = ACPI_DB_DISABLE_OUTPUT;
 }
 
 

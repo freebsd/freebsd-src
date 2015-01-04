@@ -27,6 +27,9 @@
 <!-- The URL for obtaining this version of FreeBSD. -->
 <!ENTITY release.url "http://www.FreeBSD.org/snapshots/">
 
+<!-- The recommended mailing list to track. -->
+<!ENTITY release.maillist "current">
+
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
 <!-- WARNING: Do not forget to also change the release type in
@@ -68,6 +71,7 @@
 <!ENTITY arch.mips "mips">
 <!ENTITY arch.pc98 "pc98">
 <!ENTITY arch.powerpc "powerpc">
+<!ENTITY arch.powerpc64 "powerpc64">
 <!ENTITY arch.sparc64 "sparc64">
 
 <!-- The marker for MFCs. -->

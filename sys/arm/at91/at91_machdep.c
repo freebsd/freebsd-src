@@ -43,6 +43,8 @@
  * Created      : 17/09/94
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -110,6 +112,8 @@ __FBSDID("$FreeBSD$");
 
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
+
+extern struct bus_space at91_bs_tag;
 
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
 
@@ -193,15 +197,6 @@ const struct arm_devmap_entry at91_devmap[] = {
 	},
 	{ 0, 0, 0, 0, 0, }
 };
-
-/* Physical and virtual addresses for some global pages */
-
-struct pv_addr systempage;
-struct pv_addr msgbufpv;
-struct pv_addr irqstack;
-struct pv_addr undstack;
-struct pv_addr abtstack;
-struct pv_addr kernelstack;
 
 #ifdef LINUX_BOOT_ABI
 extern int membanks;
@@ -444,6 +439,16 @@ board_init(void)
 }
 #endif
 
+#ifndef FDT
+/* Physical and virtual addresses for some global pages */
+
+struct pv_addr msgbufpv;
+struct pv_addr kernelstack;
+struct pv_addr systempage;
+struct pv_addr irqstack;
+struct pv_addr abtstack;
+struct pv_addr undstack;
+
 void *
 initarm(struct arm_boot_params *abp)
 {
@@ -651,6 +656,7 @@ initarm(struct arm_boot_params *abp)
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
+#endif
 
 /*
  * These functions are handled elsewhere, so make them nops here.

@@ -50,7 +50,7 @@ sfxge_dma_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 
 	addr = arg;
 
-	if (error) {
+	if (error != 0) {
 		*addr = 0;
 		return;
 	}
@@ -82,7 +82,7 @@ retry:
 		return (0);
 	}
 #if defined(__i386__) || defined(__amd64__)
-	while (m && seg_count < maxsegs) {
+	while (m != NULL && seg_count < maxsegs) {
 		/*
 		 * firmware doesn't like empty segments
 		 */
@@ -164,11 +164,14 @@ sfxge_dma_alloc(struct sfxge_softc *sc, bus_size_t len, efsys_mem_t *esmp)
 
 	/*
 	 * The callback gets error information about the mapping
-	 * and will have set our vaddr to NULL if something went
+	 * and will have set esm_addr to 0 if something went
 	 * wrong.
 	 */
-	if (vaddr == NULL)
+	if (esmp->esm_addr == 0) {
+		bus_dmamem_free(esmp->esm_tag, esmp->esm_base, esmp->esm_map);
+		bus_dma_tag_destroy(esmp->esm_tag);		
 		return (ENOMEM);
+	}
 
 	esmp->esm_base = vaddr;
 
@@ -197,7 +200,7 @@ sfxge_dma_init(struct sfxge_softc *sc)
 	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* lock, lockarg */
-	    &sc->parent_dma_tag)) {
+	    &sc->parent_dma_tag) != 0) {
 		device_printf(sc->dev, "Cannot allocate parent DMA tag\n");
 		return (ENOMEM);
 	}

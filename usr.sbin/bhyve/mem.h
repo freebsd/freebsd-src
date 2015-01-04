@@ -48,6 +48,7 @@ struct mem_range {
 #define	MEM_F_READ		0x1
 #define	MEM_F_WRITE		0x2
 #define	MEM_F_RW		0x3
+#define	MEM_F_IMMUTABLE		0x4	/* mem_range cannot be unregistered */
 
 void	init_mem(void);
 int     emulate_mem(struct vmctx *, int vcpu, uint64_t paddr, struct vie *vie,

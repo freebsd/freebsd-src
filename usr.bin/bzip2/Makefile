@@ -8,8 +8,7 @@ CFLAGS+= -D_FILE_OFFSET_BITS=64
 
 WARNS?=	3
 
-DPADD=	${LIBBZ2}
-LDADD=	-lbz2
+LIBADD=	bz2
 
 LINKS=	${BINDIR}/bzip2 ${BINDIR}/bunzip2
 LINKS+=	${BINDIR}/bzip2 ${BINDIR}/bzcat

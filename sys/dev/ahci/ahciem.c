@@ -273,14 +273,14 @@ static device_method_t ahciem_methods[] = {
 	DEVMETHOD(device_detach,    ahci_em_detach),
 	DEVMETHOD(device_suspend,   ahci_em_suspend),
 	DEVMETHOD(device_resume,    ahci_em_resume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t ahciem_driver = {
         "ahciem",
         ahciem_methods,
         sizeof(struct ahci_enclosure)
 };
-DRIVER_MODULE(ahciem, ahci, ahciem_driver, ahciem_devclass, 0, 0);
+DRIVER_MODULE(ahciem, ahci, ahciem_driver, ahciem_devclass, NULL, NULL);
 
 static void
 ahci_em_setleds(device_t dev, int c)
@@ -344,7 +344,7 @@ ahci_em_led(void *priv, int onoff)
 }
 
 static int
-ahci_check_ids(device_t dev, union ccb *ccb)
+ahci_check_ids(union ccb *ccb)
 {
 
 	if (ccb->ccb_h.target_id != 0) {
@@ -554,7 +554,7 @@ ahciemaction(struct cam_sim *sim, union ccb *ccb)
 	dev = enc->dev;
 	switch (ccb->ccb_h.func_code) {
 	case XPT_ATA_IO:	/* Execute the requested I/O operation */
-		if (ahci_check_ids(dev, ccb))
+		if (ahci_check_ids(ccb))
 			return;
 		ahci_em_begin_transaction(dev, ccb);
 		return;

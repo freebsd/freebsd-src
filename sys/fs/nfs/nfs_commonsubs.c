@@ -219,7 +219,8 @@ nfsm_mbufuio(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 				}
 				mbufcp = NFSMTOD(mp, caddr_t);
 				len = mbuf_len(mp);
-				KASSERT(len > 0, ("len %d", len));
+				KASSERT(len >= 0,
+				    ("len %d, corrupted mbuf?", len));
 			}
 			xfer = (left > len) ? len : left;
 #ifdef notdef
@@ -820,7 +821,6 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 	struct dqblk dqb;
 	uid_t savuid;
 #endif
-
 	if (compare) {
 		retnotsup = 0;
 		error = nfsrv_getattrbits(nd, &attrbits, NULL, &retnotsup);
@@ -902,6 +902,12 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			    goto nfsmout;
 			if (compare && !(*retcmpp)) {
 			   NFSSETSUPP_ATTRBIT(&checkattrbits);
+
+			   /* Some filesystem do not support NFSv4ACL   */
+			   if (nfsrv_useacl == 0 || nfs_supportsnfsv4acls(vp) == 0) {
+				NFSCLRBIT_ATTRBIT(&checkattrbits, NFSATTRBIT_ACL);
+				NFSCLRBIT_ATTRBIT(&checkattrbits, NFSATTRBIT_ACLSUPPORT);
+		   	   }
 			   if (!NFSEQUAL_ATTRBIT(&retattrbits, &checkattrbits)
 			       || retnotsup)
 				*retcmpp = NFSERR_NOTSAME;
@@ -1052,7 +1058,7 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 		case NFSATTRBIT_ACL:
 			if (compare) {
 			  if (!(*retcmpp)) {
-			    if (nfsrv_useacl) {
+			    if (nfsrv_useacl && nfs_supportsnfsv4acls(vp)) {
 				NFSACL_T *naclp;
 
 				naclp = acl_alloc(M_WAITOK);
@@ -1073,21 +1079,22 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			    }
 			  }
 			} else {
-			    if (vp != NULL && aclp != NULL)
-				error = nfsrv_dissectacl(nd, aclp, &aceerr,
-				    &cnt, p);
-			    else
-				error = nfsrv_dissectacl(nd, NULL, &aceerr,
-				    &cnt, p);
-			    if (error)
-				goto nfsmout;
+				if (vp != NULL && aclp != NULL)
+				    error = nfsrv_dissectacl(nd, aclp, &aceerr,
+					&cnt, p);
+				else
+				    error = nfsrv_dissectacl(nd, NULL, &aceerr,
+					&cnt, p);
+				if (error)
+				    goto nfsmout;
 			}
+			
 			attrsum += cnt;
 			break;
 		case NFSATTRBIT_ACLSUPPORT:
 			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 			if (compare && !(*retcmpp)) {
-				if (nfsrv_useacl) {
+				if (nfsrv_useacl && nfs_supportsnfsv4acls(vp)) {
 					if (fxdr_unsigned(u_int32_t, *tl) !=
 					    NFSV4ACE_SUPTYPES)
 						*retcmpp = NFSERR_NOTSAME;
@@ -2090,6 +2097,7 @@ nfsv4_fillattr(struct nfsrv_descript *nd, struct mount *mp, vnode_t vp,
 			}
 		}
 	}
+
 	/*
 	 * Put out the attribute bitmap for the ones being filled in
 	 * and get the field for the number of attributes returned.

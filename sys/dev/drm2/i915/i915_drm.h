@@ -204,6 +204,8 @@ typedef struct drm_i915_sarea {
 #define DRM_I915_GEM_EXECBUFFER2	0x29
 #define DRM_I915_GET_SPRITE_COLORKEY 0x2a
 #define DRM_I915_SET_SPRITE_COLORKEY 0x2b
+#define DRM_I915_GEM_CONTEXT_CREATE	0x2d
+#define DRM_I915_GEM_CONTEXT_DESTROY	0x2e
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -248,6 +250,8 @@ typedef struct drm_i915_sarea {
 #define DRM_IOCTL_I915_OVERLAY_ATTRS	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_OVERLAY_ATTRS, struct drm_intel_overlay_attrs)
 #define DRM_IOCTL_I915_SET_SPRITE_COLORKEY DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_SET_SPRITE_COLORKEY, struct drm_intel_sprite_colorkey)
 #define DRM_IOCTL_I915_GET_SPRITE_COLORKEY DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_SET_SPRITE_COLORKEY, struct drm_intel_sprite_colorkey)
+#define DRM_IOCTL_I915_GEM_CONTEXT_CREATE	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_CREATE, struct drm_i915_gem_context_create)
+#define DRM_IOCTL_I915_GEM_CONTEXT_DESTROY	DRM_IOW (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_DESTROY, struct drm_i915_gem_context_destroy)
 
 /* Asynchronous page flipping:
  */
@@ -702,7 +706,7 @@ struct drm_i915_gem_exec_object2 {
 
 #define EXEC_OBJECT_NEEDS_FENCE (1<<0)
 	uint64_t flags;
-	uint64_t rsvd1;
+	uint64_t rsvd1; /* now used for context info */
 	uint64_t rsvd2;
 };
 
@@ -745,6 +749,12 @@ struct drm_i915_gem_execbuffer2 {
 
 /** Resets the SO write offset registers for transform feedback on gen7. */
 #define I915_EXEC_GEN7_SOL_RESET	(1<<8)
+
+#define I915_EXEC_CONTEXT_ID_MASK	(0xffffffff)
+#define i915_execbuffer2_set_context_id(eb2, context) \
+	(eb2).rsvd1 = context & I915_EXEC_CONTEXT_ID_MASK
+#define i915_execbuffer2_get_context_id(eb2) \
+	((eb2).rsvd1 & I915_EXEC_CONTEXT_ID_MASK)
 
 struct drm_i915_gem_pin {
 	/** Handle of the buffer to be pinned. */
@@ -966,6 +976,17 @@ struct drm_intel_sprite_colorkey {
 	uint32_t channel_mask;
 	uint32_t max_value;
 	uint32_t flags;
+};
+
+struct drm_i915_gem_context_create {
+	/*  output: id of new context*/
+	uint32_t ctx_id;
+	uint32_t pad;
+};
+
+struct drm_i915_gem_context_destroy {
+	uint32_t ctx_id;
+	uint32_t pad;
 };
 
 #endif				/* _I915_DRM_H_ */

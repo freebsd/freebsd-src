@@ -847,9 +847,6 @@ newroute(int argc, char **argv)
 			case K_PROTO2:
 				flags |= RTF_PROTO2;
 				break;
-			case K_PROTO3:
-				flags |= RTF_PROTO3;
-				break;
 			case K_PROXY:
 				nrflags |= F_PROXY;
 				break;
@@ -1533,9 +1530,19 @@ rtmsg(int cmd, int flags, int fib)
 	if (debugonly)
 		return (0);
 	if ((rlen = write(s, (char *)&m_rtmsg, l)) < 0) {
-		if (errno == EPERM)
+		switch (errno) {
+		case EPERM:
 			err(1, "writing to routing socket");
-		warn("writing to routing socket");
+			break;
+		case ESRCH:
+			warnx("route has not been found");
+			break;
+		case EEXIST:
+			/* Handled by newroute() */
+			break;
+		default:
+			warn("writing to routing socket");
+		}
 		return (-1);
 	}
 	if (cmd == RTM_GET) {
@@ -1580,7 +1587,7 @@ static const char routeflags[] =
     "\1UP\2GATEWAY\3HOST\4REJECT\5DYNAMIC\6MODIFIED\7DONE"
     "\012XRESOLVE\013LLINFO\014STATIC\015BLACKHOLE"
     "\017PROTO2\020PROTO1\021PRCLONING\022WASCLONED\023PROTO3"
-    "\025PINNED\026LOCAL\027BROADCAST\030MULTICAST\035STICKY";
+    "\024FIXEDMTU\025PINNED\026LOCAL\027BROADCAST\030MULTICAST\035STICKY";
 static const char ifnetflags[] =
     "\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5PTP\6b6\7RUNNING\010NOARP"
     "\011PPROMISC\012ALLMULTI\013OACTIVE\014SIMPLEX\015LINK0\016LINK1"

@@ -51,7 +51,7 @@ consolectl_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag,
 {
 
 	switch (cmd) {
-	case CONS_GETVERS: 
+	case CONS_GETVERS:
 		*(int*)data = 0x200;
 		return 0;
 	case CONS_MOUSECTL: {

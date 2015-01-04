@@ -92,20 +92,21 @@ int ipfw_check_frame(void *, struct mbuf **, struct ifnet *, int,
 SYSBEGIN(f1)
 
 SYSCTL_DECL(_net_inet_ip_fw);
-SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, enable,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw_enable), 0,
-    ipfw_chg_hook, "I", "Enable ipfw");
+SYSCTL_PROC(_net_inet_ip_fw, OID_AUTO, enable,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3,
+    &VNET_NAME(fw_enable), 0, ipfw_chg_hook, "I", "Enable ipfw");
 #ifdef INET6
 SYSCTL_DECL(_net_inet6_ip6_fw);
-SYSCTL_VNET_PROC(_net_inet6_ip6_fw, OID_AUTO, enable,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fw6_enable), 0,
-    ipfw_chg_hook, "I", "Enable ipfw+6");
+SYSCTL_PROC(_net_inet6_ip6_fw, OID_AUTO, enable,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3,
+    &VNET_NAME(fw6_enable), 0, ipfw_chg_hook, "I", "Enable ipfw+6");
 #endif /* INET6 */
 
 SYSCTL_DECL(_net_link_ether);
-SYSCTL_VNET_PROC(_net_link_ether, OID_AUTO, ipfw,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fwlink_enable), 0,
-    ipfw_chg_hook, "I", "Pass ether pkts through firewall");
+SYSCTL_PROC(_net_link_ether, OID_AUTO, ipfw,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3,
+    &VNET_NAME(fwlink_enable), 0, ipfw_chg_hook, "I",
+    "Pass ether pkts through firewall");
 
 SYSEND
 

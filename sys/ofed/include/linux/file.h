@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -106,12 +107,12 @@ get_unused_fd(void)
 }
 
 static inline struct linux_file *
-_alloc_file(int mode, const struct file_operations *fops)
+alloc_file(int mode, const struct file_operations *fops)
 {
 	struct linux_file *filp;
 
 	filp = kzalloc(sizeof(*filp), GFP_KERNEL);
-	if (filp == NULL) 
+	if (filp == NULL)
 		return (NULL);
 	filp->f_op = fops;
 	filp->f_mode = mode;
@@ -119,7 +120,20 @@ _alloc_file(int mode, const struct file_operations *fops)
 	return filp;
 }
 
-#define	alloc_file(mnt, root, mode, fops)	_alloc_file((mode), (fops))
+struct fd {
+	struct linux_file *linux_file;
+};
+
+static inline void fdput(struct fd fd)
+{
+	fput(fd.linux_file);
+}
+
+static inline struct fd fdget(unsigned int fd)
+{
+	struct linux_file *f = linux_fget(fd);
+	return (struct fd){f};
+}
 
 #define	file	linux_file
 #define	fget	linux_fget

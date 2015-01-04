@@ -30,6 +30,8 @@
 #define	EC_CMD_GET_VERSION	0x02
 #define	EC_CMD_MKBP_STATE	0x60
 #define	EC_CMD_VERSION0		0xdc
+#define	EC_CMD_RESEND_RESPONSE	0xdb
+#define	EC_CMD_GET_COMMS_STATUS	0x09
 
 int ec_command(uint8_t cmd, uint8_t *dout, uint8_t dout_len,
     uint8_t *dinp, uint8_t dinp_len);

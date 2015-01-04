@@ -295,13 +295,15 @@ SYSCTL_DECL(_net_inet_tcp_cc_vegas);
 SYSCTL_NODE(_net_inet_tcp_cc, OID_AUTO, vegas, CTLFLAG_RW, NULL,
     "Vegas related settings");
 
-SYSCTL_VNET_PROC(_net_inet_tcp_cc_vegas, OID_AUTO, alpha,
-    CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(vegas_alpha), 1, &vegas_alpha_handler,
-    "IU", "vegas alpha, specified as number of \"buffers\" (0 < alpha < beta)");
+SYSCTL_PROC(_net_inet_tcp_cc_vegas, OID_AUTO, alpha,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    &VNET_NAME(vegas_alpha), 1, &vegas_alpha_handler, "IU",
+    "vegas alpha, specified as number of \"buffers\" (0 < alpha < beta)");
 
-SYSCTL_VNET_PROC(_net_inet_tcp_cc_vegas, OID_AUTO, beta,
-    CTLTYPE_UINT|CTLFLAG_RW, &VNET_NAME(vegas_beta), 3, &vegas_beta_handler,
-    "IU", "vegas beta, specified as number of \"buffers\" (0 < alpha < beta)");
+SYSCTL_PROC(_net_inet_tcp_cc_vegas, OID_AUTO, beta,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW,
+    &VNET_NAME(vegas_beta), 3, &vegas_beta_handler, "IU",
+    "vegas beta, specified as number of \"buffers\" (0 < alpha < beta)");
 
 DECLARE_CC_MODULE(vegas, &vegas_cc_algo);
 MODULE_DEPEND(vegas, ertt, 1, 1, 1);

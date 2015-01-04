@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2014
+.Dd September 25, 2014
 .Dt NV 3
 .Os
 .Sh NAME
@@ -150,6 +150,8 @@
 .Fn nvlist_get_descriptor "const nvlist_t *nvl" "const char *name"
 .Ft "const void *"
 .Fn nvlist_get_binary "const nvlist_t *nvl" "const char *name" "size_t *sizep"
+.Ft "const nvlist_t *"
+.Fn nvlist_get_parent "const nvlist_t *nvl"
 .\"
 .Ft bool
 .Fn nvlist_take_bool "nvlist_t *nvl" "const char *name"
@@ -435,6 +437,10 @@ the value or use
 .Xr dnvlist 3
 extension, which allows to provide default value for a missing element.
 The nvlist must not be in error state.
+.Pp
+The
+.Fn nvlist_get_parent
+function allows to obtain the parent nvlist from the nested nvlist.
 .Pp
 The
 .Fn nvlist_take_bool ,

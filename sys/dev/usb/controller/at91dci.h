@@ -133,12 +133,11 @@
   bus_space_write_4((sc)->sc_io_tag, (sc)->sc_io_hdl, reg, data)
 
 struct at91dci_td;
+struct at91dci_softc;
 
-typedef uint8_t (at91dci_cmd_t)(struct at91dci_td *td);
+typedef uint8_t (at91dci_cmd_t)(struct at91dci_softc *sc, struct at91dci_td *td);
 
 struct at91dci_td {
-	bus_space_tag_t io_tag;
-	bus_space_handle_t io_hdl;
 	struct at91dci_td *obj_next;
 	at91dci_cmd_t *func;
 	struct usb_page_cache *pc;
@@ -221,6 +220,8 @@ struct at91dci_softc {
 	void    (*sc_pull_down) (void *arg);
 	void   *sc_pull_arg;
 
+	uint32_t sc_xfer_complete;
+
 	uint8_t	sc_rt_addr;		/* root HUB address */
 	uint8_t	sc_dv_addr;		/* device address */
 	uint8_t	sc_conf;		/* root HUB config */
@@ -235,7 +236,8 @@ struct at91dci_softc {
 
 usb_error_t at91dci_init(struct at91dci_softc *sc);
 void	at91dci_uninit(struct at91dci_softc *sc);
-void	at91dci_interrupt(struct at91dci_softc *sc);
+driver_filter_t at91dci_filter_interrupt;
+driver_intr_t at91dci_interrupt;
 void	at91dci_vbus_interrupt(struct at91dci_softc *sc, uint8_t is_on);
 
 #endif					/* _AT9100_DCI_H_ */

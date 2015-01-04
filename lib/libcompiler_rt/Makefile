@@ -144,8 +144,7 @@ SRCF+=	adddf3 \
 	truncdfsf2
 .endif
 
-.if ${MACHINE_CPUARCH} != "mips" && \
-    (${MACHINE_CPUARCH} != "arm" || ${MK_ARM_EABI} != "no")
+.if ${MACHINE_CPUARCH} != "mips"
 SRCF+=	divsi3 \
 	modsi3 \
 	udivsi3 \
@@ -165,16 +164,16 @@ SRCF+=	stdatomic
 .endif
 
 .for file in ${SRCF}
-. if ${MACHINE_ARCH} == "armv6hf" && exists(${CRTSRC}/${CRTARCH}/${file}vfp.S)
+. if ${MACHINE_ARCH:Marm*hf*} != "" && exists(${CRTSRC}/${CRTARCH}/${file}vfp.S)
 SRCS+= ${file}vfp.S
-. elif (${MACHINE_CPUARCH} != "arm" || ${MACHINE_ARCH} == "armv6hf") && exists(${CRTSRC}/${CRTARCH}/${file}.S)
+. elif !(${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH:Marm*hf*} == "") && exists(${CRTSRC}/${CRTARCH}/${file}.S)
 SRCS+=	${file}.S
 . else
 SRCS+=	${file}.c
 . endif
 .endfor
 
-.if ${MACHINE_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
+.if ${MACHINE_CPUARCH} == "arm"
 SRCS+=	aeabi_idivmod.S \
 	aeabi_ldivmod.S \
 	aeabi_memcmp.S \

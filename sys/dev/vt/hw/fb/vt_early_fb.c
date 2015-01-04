@@ -59,7 +59,10 @@ static struct vt_driver vt_fb_early_driver = {
 	.vd_probe = vt_efb_probe,
 	.vd_init = vt_efb_init,
 	.vd_blank = vt_fb_blank,
-	.vd_bitbltchr = vt_fb_bitbltchr,
+	.vd_bitblt_text = vt_fb_bitblt_text,
+	.vd_bitblt_bmp = vt_fb_bitblt_bitmap,
+	.vd_drawrect = vt_fb_drawrect,
+	.vd_setpixel = vt_fb_setpixel,
 	.vd_priority = VD_PRIORITY_GENERIC,
 };
 
@@ -90,25 +93,25 @@ vt_efb_initialize(struct fb_info *info)
 	 */
 	switch (info->fb_depth) {
 	case 8:
-		vt_generate_vga_palette(info->fb_cmap, COLOR_FORMAT_RGB,
+		vt_generate_cons_palette(info->fb_cmap, COLOR_FORMAT_RGB,
 		    0x7, 5, 0x7, 2, 0x3, 0);
 		break;
 	case 15:
-		vt_generate_vga_palette(info->fb_cmap, COLOR_FORMAT_RGB,
+		vt_generate_cons_palette(info->fb_cmap, COLOR_FORMAT_RGB,
 		    0x1f, 10, 0x1f, 5, 0x1f, 0);
 		break;
 	case 16:
-		vt_generate_vga_palette(info->fb_cmap, COLOR_FORMAT_RGB,
+		vt_generate_cons_palette(info->fb_cmap, COLOR_FORMAT_RGB,
 		    0x1f, 11, 0x3f, 5, 0x1f, 0);
 		break;
 	case 24:
 	case 32:
 #if BYTE_ORDER == BIG_ENDIAN
-		vt_generate_vga_palette(info->fb_cmap,
-		    COLOR_FORMAT_RGB, 255, 16, 255, 8, 255, 0);
-#else
-		vt_generate_vga_palette(info->fb_cmap,
+		vt_generate_cons_palette(info->fb_cmap,
 		    COLOR_FORMAT_RGB, 255, 0, 255, 8, 255, 16);
+#else
+		vt_generate_cons_palette(info->fb_cmap,
+		    COLOR_FORMAT_RGB, 255, 16, 255, 8, 255, 0);
 #endif
 #ifdef	FDT
 		for (i = 0; i < 16; i++) {
@@ -296,7 +299,6 @@ vt_efb_init(struct vt_device *vd)
 #else
 	vt_efb_initialize(info);
 #endif
-	fb_probe(info);
 	vt_fb_init(vd);
 
 	return (CN_INTERNAL);

@@ -436,8 +436,8 @@ trap(struct trapframe *frame)
 		case T_XMMFLT:		/* SIMD floating-point exception */
 		case T_FPOPFLT:		/* FPU operand fetch fault */
 			/*
-			 * XXXKIB for now disable any FPU traps in kernel
-			 * handler registration seems to be overkill
+			 * For now, supporting kernel handler
+			 * registration for FPU traps is overkill.
 			 */
 			trap_fatal(frame, 0);
 			goto out;
@@ -614,7 +614,8 @@ trap_check(struct trapframe *frame)
 {
 
 #ifdef KDTRACE_HOOKS
-	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame))
+	if (dtrace_trap_func != NULL &&
+	    (*dtrace_trap_func)(frame, frame->tf_trapno) != 0)
 		return;
 #endif
 	trap(frame);

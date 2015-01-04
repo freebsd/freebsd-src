@@ -40,20 +40,23 @@ if [ ! -x /usr/local/sbin/pkg ]; then
 	/usr/bin/make -C /usr/ports/ports-mgmt/pkg install clean
 fi
 
-PKG_ABI=$(pkg -vv | grep ^ABI | awk '{print $3}')
-PKG_ABI="${PKG_ABI%\";}"
-PKG_ABI="${PKG_ABI#\"}"
-export PKG_ABI
-export PKG_CACHEDIR="dvd/packages/${PKG_ABI}"
+export PKG_ABI=$(pkg config ABI)
+export PKG_REPODIR="dvd/packages/${PKG_ABI}"
 
-/bin/mkdir -p ${PKG_CACHEDIR}
+/bin/mkdir -p ${PKG_REPODIR}
 
 # Print pkg(8) information to make debugging easier.
 ${PKGCMD} -vv
 ${PKGCMD} update -f
-${PKGCMD} fetch -d ${DVD_PACKAGES}
+${PKGCMD} fetch -o ${PKG_REPODIR} -d ${DVD_PACKAGES}
 
-${PKGCMD} repo ${PKG_CACHEDIR}
+# Create the 'Latest/pkg.txz' symlink so 'pkg bootstrap' works
+# using the on-disc packages.
+mkdir -p ${PKG_REPODIR}/Latest
+(cd ${PKG_REPODIR}/Latest && \
+	ln -s ../All/$(${PKGCMD} rquery %n-%v pkg).txz pkg.txz)
+
+${PKGCMD} repo ${PKG_REPODIR}
 
 # Always exit '0', even if pkg(8) complains about conflicts.
 exit 0

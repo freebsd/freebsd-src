@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -541,7 +541,8 @@ AcpiDsExecEndOp (
                 return_ACPI_STATUS (AE_OK);
             }
 
-            ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Method invocation, Op=%p\n", Op));
+            ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
+                "Method invocation, Op=%p\n", Op));
 
             /*
              * (AML_METHODCALL) Op->Asl.Value.Arg->Asl.Node contains

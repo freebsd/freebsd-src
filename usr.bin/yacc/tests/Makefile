@@ -9,11 +9,15 @@ TEST_DIR=	${.CURDIR}/../../../contrib/byacc/test
 TESTSDIR=	${TESTSBASE}/usr.bin/yacc
 
 PLAIN_TESTS_SH=	yacc_tests
+# NOTE: due to caveats with how permissions are handled on FreeBSD
+# with root, this must be run as a non-privileged user; otherwise
+# the testcases will fail unexpectedly.
+TEST_METADATA.yacc_tests+=	required_user="unprivileged"
 
 SCRIPTS=	run_test
 SCRIPTSDIR=	${TESTSDIR}
 
-FILESGROUPS=	FILEStest FILEStest_yacc
+FILESGROUPS=	FILES FILEStest FILEStest_yacc
 
 FILEStestDIR=	${TESTSDIR}
 
@@ -245,36 +249,30 @@ FILEStest_yacc+=	help.error
 FILEStest_yacc+=	help.output
 FILEStest_yacc+=	no_b_opt.error
 FILEStest_yacc+=	no_b_opt.output
-# XXX: expected: `f - cannot open "nosuchfile.c"; gets
-# `e - line 0 of "nosuchfile.y", unexpected end-of-file`.
-#FILEStest_yacc+=	no_b_opt1.error
-#FILEStest_yacc+=	no_b_opt1.output
-#FILEStest_yacc+=	no_code_c.error
-#FILEStest_yacc+=	no_code_c.output
-#FILEStest_yacc+=	no_defines.error
-#FILEStest_yacc+=	no_defines.output
-#FILEStest_yacc+=	no_graph.error
-#FILEStest_yacc+=	no_graph.output
-#FILEStest_yacc+=	no_include.error
-#FILEStest_yacc+=	no_include.output
+FILEStest_yacc+=	no_b_opt1.error
+FILEStest_yacc+=	no_b_opt1.output
+FILEStest_yacc+=	no_code_c.error
+FILEStest_yacc+=	no_code_c.output
+FILEStest_yacc+=	no_defines.error
+FILEStest_yacc+=	no_defines.output
+FILEStest_yacc+=	no_graph.error
+FILEStest_yacc+=	no_graph.output
+FILEStest_yacc+=	no_include.error
+FILEStest_yacc+=	no_include.output
 FILEStest_yacc+=	no_opts.error
 FILEStest_yacc+=	no_opts.output
-# XXX: expected: `f - cannot open "nosuchfile.c"; gets
-# `e - line 0 of "nosuchfile.y", unexpected end-of-file`.
-#FILEStest_yacc+=	no_output.error
-#FILEStest_yacc+=	no_output.output
-#FILEStest_yacc+=	no_output1.error
-#FILEStest_yacc+=	no_output1.output
+FILEStest_yacc+=	no_output.error
+FILEStest_yacc+=	no_output.output
+FILEStest_yacc+=	no_output1.error
+FILEStest_yacc+=	no_output1.output
 FILEStest_yacc+=	no_output2.error
 FILEStest_yacc+=	no_output2.output
 FILEStest_yacc+=	no_p_opt.error
 FILEStest_yacc+=	no_p_opt.output
-# XXX: expected: `f - cannot open "nosuchfile.c"; gets
-# `e - line 0 of "nosuchfile.y", unexpected end-of-file`.
-#FILEStest_yacc+=	no_p_opt1.error
-#FILEStest_yacc+=	no_p_opt1.output
-#FILEStest_yacc+=	no_verbose.error
-#FILEStest_yacc+=	no_verbose.output
+FILEStest_yacc+=	no_p_opt1.error
+FILEStest_yacc+=	no_p_opt1.output
+FILEStest_yacc+=	no_verbose.error
+FILEStest_yacc+=	no_verbose.output
 FILEStest_yacc+=	nostdin.error
 FILEStest_yacc+=	nostdin.output
 FILEStest_yacc+=	ok_syntax1.error

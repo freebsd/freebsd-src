@@ -302,8 +302,8 @@ icintr(device_t dev, int event, char *ptr)
 		if (len <= ICHDRLEN)
 			goto err;
 		len -= ICHDRLEN;
-		sc->ic_ifp->if_ipackets++;
-		sc->ic_ifp->if_ibytes += len;
+		if_inc_counter(sc->ic_ifp, IFCOUNTER_IPACKETS, 1);
+		if_inc_counter(sc->ic_ifp, IFCOUNTER_IBYTES, len);
 		BPF_TAP(sc->ic_ifp, sc->ic_ifbuf, len + ICHDRLEN);
 		top = m_devget(sc->ic_ifbuf + ICHDRLEN, len, 0, sc->ic_ifp, 0);
 		if (top) {
@@ -316,7 +316,7 @@ icintr(device_t dev, int event, char *ptr)
 	err:
 		if_printf(sc->ic_ifp, "errors (%d)!\n", sc->ic_iferrs);
 		sc->ic_iferrs = 0;			/* reset error count */
-		sc->ic_ifp->if_ierrors++;
+		if_inc_counter(sc->ic_ifp, IFCOUNTER_IERRORS, 1);
 		break;
 
 	case INTR_RECEIVE:
@@ -373,7 +373,7 @@ icoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 
 	/* already sending? */
 	if (sc->ic_flags & IC_SENDING) {
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		goto error;
 	}
 		
@@ -386,7 +386,7 @@ icoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	do {
 		if (len + mm->m_len > sc->ic_ifp->if_mtu) {
 			/* packet too large */
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 			goto error;
 		}
 			
@@ -407,10 +407,10 @@ icoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	if (iicbus_block_write(parent, sc->ic_addr, sc->ic_obuf,
 				len + ICHDRLEN, &sent))
 
-		ifp->if_oerrors++;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	else {
-		ifp->if_opackets++;
-		ifp->if_obytes += len;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
+		if_inc_counter(ifp, IFCOUNTER_OBYTES, len);
 	}	
 
 	mtx_lock(&sc->ic_lock);

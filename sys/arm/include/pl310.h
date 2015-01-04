@@ -137,6 +137,8 @@
 #define		POWER_CTRL_ENABLE_GATING	(1 << 0)
 #define		POWER_CTRL_ENABLE_STANDBY	(1 << 1)
 
+struct intr_config_hook;
+
 struct pl310_softc {
 	device_t	sc_dev;
 	struct resource *sc_mem_res;
@@ -145,6 +147,7 @@ struct pl310_softc {
 	int		sc_enabled;
 	struct mtx	sc_mtx;
 	u_int		sc_rtl_revision;
+	struct intr_config_hook *sc_ich;
 };
 
 /**

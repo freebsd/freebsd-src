@@ -21,7 +21,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2013
+.Dd October 8, 2014
 .Dt LOCKSTAT 1
 .Os
 .Sh NAME
@@ -238,10 +238,11 @@ Average duration of the events in nanoseconds, as appropriate for the event.
 For the profiling event, duration means interrupt latency.
 .It Lock
 Address of the lock; displayed symbolically if possible.
-.It CPU+PIL
-CPU plus processor interrupt level (PIL).
-For example, if CPU 4 is interrupted while at PIL 6, this will be reported as
-cpu[4]+6.
+.It CPU+Pri_Class
+CPU plus the priority class of the interrupted thread.
+For example, if CPU 4 is interrupted while running a timeshare thread, this
+will be reported as
+.Ql cpu[4]+TShar .
 .It Caller
 Address of the caller; displayed symbolically if possible.
 .El

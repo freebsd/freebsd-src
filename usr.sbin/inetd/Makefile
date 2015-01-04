@@ -16,14 +16,12 @@ CFLAGS+= -DLOGIN_CAP
 CFLAGS+= -DINET6
 .endif
 
-DPADD=	${LIBUTIL} ${LIBWRAP}
-LDADD=	-lutil -lwrap
+LIBADD=	util wrap
 
 # XXX for src/release/picobsd
 .if !defined(RELEASE_CRUNCH)
 CFLAGS+= -DIPSEC
-DPADD+=	${LIBIPSEC}
-LDADD+=	-lipsec
+LIBADD+=	ipsec
 .endif
 
 .include <bsd.prog.mk>

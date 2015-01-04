@@ -41,8 +41,18 @@ struct init_ops {
 	void	(*parse_memmap)(caddr_t, vm_paddr_t *, int *);
 	u_int	(*mp_bootaddress)(u_int);
 	int	(*start_all_aps)(void);
+	void	(*msi_init)(void);
 };
 
 extern struct init_ops init_ops;
+
+/* Knob to disable acpi_cpu devices */
+extern bool acpi_cpu_disabled;
+
+/* Knob to disable acpi_hpet device */
+extern bool acpi_hpet_disabled;
+
+/* Knob to disable acpi_timer device */
+extern bool acpi_timer_disabled;
 
 #endif /* __X86_INIT_H__ */

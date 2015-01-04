@@ -30,7 +30,7 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  * $FreeBSD$
  *
  */
@@ -42,8 +42,8 @@
 #define	DEV_DV   2
 
 struct fw_isochreq {
-	unsigned char	ch:6,
-			tag:2;
+	unsigned char ch:6;
+	unsigned char tag:2;
 };
 
 struct fw_isobufreq {
@@ -247,15 +247,15 @@ struct fw_eui64 {
 	uint32_t hi, lo;
 };
 #define FW_EUI64_BYTE(eui, x) \
-	((((x)<4)?				\
-		((eui)->hi >> (8*(3-(x)))): 	\
-		((eui)->lo >> (8*(7-(x))))	\
+	((((x) < 4)?				\
+		((eui)->hi >> (8 * (3 - (x)))): \
+		((eui)->lo >> (8 * (7 - (x))))	\
 	) & 0xff)
 #define FW_EUI64_EQUAL(x, y) \
 	((x).hi == (y).hi && (x).lo == (y).lo)
 
 struct fw_asyreq {
-	struct fw_asyreq_t{
+	struct fw_asyreq_t {
 		unsigned char sped;
 		unsigned int type;
 #define FWASREQNODE	0
@@ -265,8 +265,8 @@ struct fw_asyreq {
 		unsigned short len;
 		union {
 			struct fw_eui64 eui;
-		}dst;
-	}req;
+		} dst;
+	} req;
 	struct fw_pkt pkt;
 	uint32_t data[512];
 };
@@ -406,7 +406,7 @@ struct fw_topology_map {
 	uint32_t generation;
 	uint32_t self_id_count:16,
 		 node_count:16;
-	union fw_self_id self_id[4*64];
+	union fw_self_id self_id[4 * 64];
 };
 
 struct fw_speed_map {
@@ -453,11 +453,6 @@ struct fw_crom_buf {
 #ifdef _KERNEL
 
 #define FWMAXNDMA 0x100 /* 8 bits DMA channel id. in device No. */
-
-#if defined(__DragonFly__) || __FreeBSD_version < 500000
-#define dev2unit(x)	((minor(x) & 0xff) | (minor(x) >> 8))
-#define unit2minor(x)	(((x) & 0xff) | (((x) << 8) & ~0xffff))
-#endif
 
 #define MAKEMINOR(f, u, s)	\
 	((f) | (((u) & 0xff) << 8) | (s & 0xff))

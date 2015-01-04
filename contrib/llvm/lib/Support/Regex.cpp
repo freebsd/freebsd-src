@@ -33,15 +33,17 @@ Regex::Regex(StringRef regex, unsigned Flags) {
 }
 
 Regex::~Regex() {
-  llvm_regfree(preg);
-  delete preg;
+  if (preg) {
+    llvm_regfree(preg);
+    delete preg;
+  }
 }
 
 bool Regex::isValid(std::string &Error) {
   if (!error)
     return true;
   
-  size_t len = llvm_regerror(error, preg, NULL, 0);
+  size_t len = llvm_regerror(error, preg, nullptr, 0);
   
   Error.resize(len - 1);
   llvm_regerror(error, preg, &Error[0], len);
@@ -169,9 +171,23 @@ std::string Regex::sub(StringRef Repl, StringRef String,
   return Res;
 }
 
+// These are the special characters matched in functions like "p_ere_exp".
+static const char RegexMetachars[] = "()^$|*+?.[]\\{}";
+
 bool Regex::isLiteralERE(StringRef Str) {
   // Check for regex metacharacters.  This list was derived from our regex
   // implementation in regcomp.c and double checked against the POSIX extended
   // regular expression specification.
-  return Str.find_first_of("()^$|*+?.[]\\{}") == StringRef::npos;
+  return Str.find_first_of(RegexMetachars) == StringRef::npos;
+}
+
+std::string Regex::escape(StringRef String) {
+  std::string RegexStr;
+  for (unsigned i = 0, e = String.size(); i != e; ++i) {
+    if (strchr(RegexMetachars, String[i]))
+      RegexStr += '\\';
+    RegexStr += String[i];
+  }
+
+  return RegexStr;
 }

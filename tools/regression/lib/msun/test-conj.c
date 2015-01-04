@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include "test-utils.h"
 
-#pragma	STDC CX_LIMITED_RANGE	off
+#pragma	STDC CX_LIMITED_RANGE	OFF
 
 /* Make sure gcc doesn't use builtin versions of these or honor __pure2. */
 static float complex (*libconjf)(float complex) = conjf;

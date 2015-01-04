@@ -274,7 +274,7 @@ ctf_fdopen(int fd, int *errp)
 	 */
 	if (nbytes >= (ssize_t) sizeof (Elf32_Ehdr) &&
 	    bcmp(&hdr.e32.e_ident[EI_MAG0], ELFMAG, SELFMAG) == 0) {
-#ifdef	_BIG_ENDIAN
+#if BYTE_ORDER == _BIG_ENDIAN
 		uchar_t order = ELFDATA2MSB;
 #else
 		uchar_t order = ELFDATA2LSB;

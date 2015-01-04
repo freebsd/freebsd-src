@@ -135,7 +135,7 @@ usb_make_raw_desc(struct usb_temp_setup *temp,
 
 			/* check if we have got a CDC union descriptor */
 
-			if ((raw[0] >= sizeof(struct usb_cdc_union_descriptor)) &&
+			if ((raw[0] == sizeof(struct usb_cdc_union_descriptor)) &&
 			    (raw[1] == UDESC_CS_INTERFACE) &&
 			    (raw[2] == UDESCSUB_CDC_UNION)) {
 				struct usb_cdc_union_descriptor *ud = (void *)dst;
@@ -150,7 +150,7 @@ usb_make_raw_desc(struct usb_temp_setup *temp,
 
 			/* check if we have got an interface association descriptor */
 
-			if ((raw[0] >= sizeof(struct usb_interface_assoc_descriptor)) &&
+			if ((raw[0] == sizeof(struct usb_interface_assoc_descriptor)) &&
 			    (raw[1] == UDESC_IFACE_ASSOC)) {
 				struct usb_interface_assoc_descriptor *iad = (void *)dst;
 
@@ -162,7 +162,7 @@ usb_make_raw_desc(struct usb_temp_setup *temp,
 
 			/* check if we have got a call management descriptor */
 
-			if ((raw[0] >= sizeof(struct usb_cdc_cm_descriptor)) &&
+			if ((raw[0] == sizeof(struct usb_cdc_cm_descriptor)) &&
 			    (raw[1] == UDESC_CS_INTERFACE) &&
 			    (raw[2] == UDESCSUB_CDC_CM)) {
 				struct usb_cdc_cm_descriptor *ccd = (void *)dst;
@@ -1367,6 +1367,9 @@ usb_temp_setup_by_index(struct usb_device *udev, uint16_t index)
 		break;
 	case USB_TEMP_MOUSE:
 		err = usb_temp_setup(udev, &usb_template_mouse);
+		break;
+	case USB_TEMP_PHONE:
+		err = usb_temp_setup(udev, &usb_template_phone);
 		break;
 	default:
 		return (USB_ERR_INVAL);

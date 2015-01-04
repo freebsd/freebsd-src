@@ -5,8 +5,7 @@ BINDIR=	/usr/local/bin
 MAN=
 
 SRCS=	main.c mwlstats.c
-USEPRIVATELIB=
-LDADD=-lbsdstat
+LIBADD=	bsdstat
 
 .include <bsd.prog.mk>
 

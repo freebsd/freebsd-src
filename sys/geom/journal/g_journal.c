@@ -172,7 +172,7 @@ g_journal_cache_switch_sysctl(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &cswitch, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	if (cswitch < 0 || cswitch > 100)
+	if (cswitch > 100)
 		return (EINVAL);
 	g_journal_cache_switch = cswitch;
 	g_journal_cache_low = (g_journal_cache_limit / 100) * cswitch;

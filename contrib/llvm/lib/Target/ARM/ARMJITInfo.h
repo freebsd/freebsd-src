@@ -14,7 +14,6 @@
 #ifndef ARMJITINFO_H
 #define ARMJITINFO_H
 
-#include "ARMMachineFunctionInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
@@ -53,45 +52,45 @@ namespace llvm {
     /// overwriting OLD with a branch to NEW.  This is used for self-modifying
     /// code.
     ///
-    virtual void replaceMachineCodeForFunction(void *Old, void *New);
+    void replaceMachineCodeForFunction(void *Old, void *New) override;
 
     /// emitGlobalValueIndirectSym - Use the specified JITCodeEmitter object
     /// to emit an indirect symbol which contains the address of the specified
     /// ptr.
-    virtual void *emitGlobalValueIndirectSym(const GlobalValue* GV, void *ptr,
-                                            JITCodeEmitter &JCE);
+    void *emitGlobalValueIndirectSym(const GlobalValue* GV, void *ptr,
+                                    JITCodeEmitter &JCE) override;
 
     // getStubLayout - Returns the size and alignment of the largest call stub
     // on ARM.
-    virtual StubLayout getStubLayout();
+    StubLayout getStubLayout() override;
 
     /// emitFunctionStub - Use the specified JITCodeEmitter object to emit a
     /// small native function that simply calls the function at the specified
     /// address.
-    virtual void *emitFunctionStub(const Function* F, void *Fn,
-                                   JITCodeEmitter &JCE);
+    void *emitFunctionStub(const Function* F, void *Fn,
+                           JITCodeEmitter &JCE) override;
 
     /// getLazyResolverFunction - Expose the lazy resolver to the JIT.
-    virtual LazyResolverFn getLazyResolverFunction(JITCompilerFn);
+    LazyResolverFn getLazyResolverFunction(JITCompilerFn) override;
 
     /// relocate - Before the JIT can run a block of code that has been emitted,
     /// it must rewrite the code to contain the actual addresses of any
     /// referenced global symbols.
-    virtual void relocate(void *Function, MachineRelocation *MR,
-                          unsigned NumRelocs, unsigned char* GOTBase);
+    void relocate(void *Function, MachineRelocation *MR,
+                  unsigned NumRelocs, unsigned char* GOTBase) override;
 
     /// hasCustomConstantPool - Allows a target to specify that constant
     /// pool address resolution is handled by the target.
-    virtual bool hasCustomConstantPool() const { return true; }
+    bool hasCustomConstantPool() const override { return true; }
 
     /// hasCustomJumpTables - Allows a target to specify that jumptables
     /// are emitted by the target.
-    virtual bool hasCustomJumpTables() const { return true; }
+    bool hasCustomJumpTables() const override { return true; }
 
     /// allocateSeparateGVMemory - If true, globals should be placed in
     /// separately allocated heap memory rather than in the same
     /// code memory allocated by JITCodeEmitter.
-    virtual bool allocateSeparateGVMemory() const {
+    bool allocateSeparateGVMemory() const override {
 #ifdef __APPLE__
       return true;
 #else
@@ -103,12 +102,7 @@ namespace llvm {
     /// Resize constant pool ids to CONSTPOOL_ENTRY addresses map; resize
     /// jump table ids to jump table bases map; remember if codegen relocation
     /// model is PIC.
-    void Initialize(const MachineFunction &MF, bool isPIC) {
-      const ARMFunctionInfo *AFI = MF.getInfo<ARMFunctionInfo>();
-      ConstPoolId2AddrMap.resize(AFI->getNumPICLabels());
-      JumpTableId2AddrMap.resize(AFI->getNumJumpTables());
-      IsPIC = isPIC;
-    }
+    void Initialize(const MachineFunction &MF, bool isPIC);
 
     /// getConstantPoolEntryAddr - The ARM target puts all constant
     /// pool entries into constant islands. This returns the address of the

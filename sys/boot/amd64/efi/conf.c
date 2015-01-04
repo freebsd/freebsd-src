@@ -62,8 +62,12 @@ struct file_format *file_formats[] = {
 };
 
 extern struct console efi_console;
+extern struct console comconsole;
+extern struct console nullconsole;
 
 struct console *consoles[] = {
 	&efi_console,
+	&comconsole,
+	&nullconsole,
 	NULL
 };

@@ -31,6 +31,9 @@
 #include <libutil.h>
 #include <inttypes.h>
 
+#include <sys/sysctl.h>
+#include <string.h>
+
 #include <libgeom.h>
 #include <dialog.h>
 #include <dlg_keys.h>
@@ -44,10 +47,16 @@ static char *boot_disk(struct gmesh *mesh);
 static char *wizard_partition(struct gmesh *mesh, const char *disk);
 
 int
-part_wizard(void) {
+part_wizard(const char *fsreq) {
 	int error;
 	struct gmesh mesh;
 	char *disk, *schemeroot;
+	const char *fstype;
+
+	if (fsreq != NULL)
+		fstype = fsreq;
+	else
+		fstype = "ufs";
 
 startwizard:
 	error = geom_gettree(&mesh);
@@ -70,11 +79,11 @@ startwizard:
 	dlg_put_backtitle();
 	error = geom_gettree(&mesh);
 
-	error = wizard_makeparts(&mesh, schemeroot, 1);
+	error = wizard_makeparts(&mesh, schemeroot, fstype, 1);
 	if (error)
 		goto startwizard;
 	free(schemeroot);
-	
+
 	geom_deletetree(&mesh);
 
 	return (0);
@@ -106,9 +115,9 @@ boot_disk(struct gmesh *mesh)
 			LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 				desc = type = NULL;
 				LIST_FOREACH(gc, &pp->lg_config, lg_config) {
-					if (strcmp(gc->lg_name, "type") == 0) 
+					if (strcmp(gc->lg_name, "type") == 0)
 						type = gc->lg_val;
-					if (strcmp(gc->lg_name, "descr") == 0) 
+					if (strcmp(gc->lg_name, "descr") == 0)
 						desc = gc->lg_val;
 				}
 
@@ -200,7 +209,7 @@ wizard_partition(struct gmesh *mesh, const char *disk)
 			break;
 
 	if (classp != NULL) {
-		LIST_FOREACH(gpart, &classp->lg_geom, lg_geom) 
+		LIST_FOREACH(gpart, &classp->lg_geom, lg_geom)
 			if (strcmp(gpart->lg_name, disk) == 0)
 				break;
 	}
@@ -282,21 +291,29 @@ query:
 }
 
 int
-wizard_makeparts(struct gmesh *mesh, const char *disk, int interactive)
+wizard_makeparts(struct gmesh *mesh, const char *disk, const char *fstype, int interactive)
 {
 	struct gmesh submesh;
 	struct gclass *classp;
 	struct ggeom *gp;
 	struct gprovider *pp;
 	intmax_t swapsize, available;
-	char swapsizestr[10], rootsizestr[10];
+	char swapsizestr[10], rootsizestr[10], *fsname;
+	char *fsnames[] = {"freebsd-ufs", "freebsd-zfs"};
 	int retval;
+
+	if (strcmp(fstype, "zfs") == 0) {
+		fsname = fsnames[1];
+	} else {
+		/* default to UFS */
+		fsname = fsnames[0];
+	}
 
 	LIST_FOREACH(classp, &mesh->lg_class, lg_class)
 		if (strcmp(classp->lg_name, "PART") == 0)
 			break;
 
-	LIST_FOREACH(gp, &classp->lg_geom, lg_geom) 
+	LIST_FOREACH(gp, &classp->lg_geom, lg_geom)
 		if (strcmp(gp->lg_name, disk) == 0)
 			break;
 
@@ -331,7 +348,7 @@ wizard_makeparts(struct gmesh *mesh, const char *disk, int interactive)
 
 	geom_gettree(&submesh);
 	pp = provider_for_name(&submesh, disk);
-	gpart_create(pp, "freebsd-ufs", rootsizestr, "/", NULL, 0);
+	gpart_create(pp, fsname, rootsizestr, "/", NULL, 0);
 	geom_deletetree(&submesh);
 
 	geom_gettree(&submesh);

@@ -33,6 +33,7 @@ MAN+= SSL_CTX_set_session_cache_mode.3
 MAN+= SSL_CTX_set_session_id_context.3
 MAN+= SSL_CTX_set_ssl_version.3
 MAN+= SSL_CTX_set_timeout.3
+MAN+= SSL_CTX_set_tlsext_ticket_key_cb.3
 MAN+= SSL_CTX_set_tmp_dh_callback.3
 MAN+= SSL_CTX_set_tmp_rsa_callback.3
 MAN+= SSL_CTX_set_verify.3

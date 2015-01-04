@@ -64,6 +64,7 @@ static const char rcsid[] =
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
@@ -111,10 +112,10 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	start = 0;
-	stop = BIG;
+	stop = SPSPMAX;
 
 	/*
-	 * Convert low and high args.  Strtoul(3) sets errno to
+	 * Convert low and high args.  Strtoumax(3) sets errno to
 	 * ERANGE if the number is too large, but, if there's
 	 * a leading minus sign it returns the negation of the
 	 * result of the conversion, which we'd rather disallow.
@@ -126,18 +127,20 @@ main(int argc, char *argv[])
 			errx(1, "negative numbers aren't permitted.");
 
 		errno = 0;
-		start = strtoul(argv[0], &p, 0);
+		start = strtoumax(argv[0], &p, 0);
 		if (errno)
 			err(1, "%s", argv[0]);
 		if (*p != '\0')
 			errx(1, "%s: illegal numeric format.", argv[0]);
 
 		errno = 0;
-		stop = strtoul(argv[1], &p, 0);
+		stop = strtoumax(argv[1], &p, 0);
 		if (errno)
 			err(1, "%s", argv[1]);
 		if (*p != '\0')
 			errx(1, "%s: illegal numeric format.", argv[1]);
+		if (stop > SPSPMAX)
+			errx(1, "%s: stop value too large.", argv[1]);
 		break;
 	case 1:
 		/* Start on the command line. */
@@ -145,7 +148,7 @@ main(int argc, char *argv[])
 			errx(1, "negative numbers aren't permitted.");
 
 		errno = 0;
-		start = strtoul(argv[0], &p, 0);
+		start = strtoumax(argv[0], &p, 0);
 		if (errno)
 			err(1, "%s", argv[0]);
 		if (*p != '\0')
@@ -186,7 +189,7 @@ read_num_buf(void)
 		if (*p == '-')
 			errx(1, "negative numbers aren't permitted.");
 		errno = 0;
-		val = strtoul(buf, &p, 0);
+		val = strtoumax(buf, &p, 0);
 		if (errno)
 			err(1, "%s", buf);
 		if (*p != '\n')
@@ -241,7 +244,7 @@ primes(ubig start, ubig stop)
 		for (p = &prime[0], factor = prime[0];
 		    factor < stop && p <= pr_limit; factor = *(++p)) {
 			if (factor >= start) {
-				printf(hflag ? "0x%lx\n" : "%lu\n", factor);
+				printf(hflag ? "%" PRIx64 "\n" : "%" PRIu64 "\n", factor);
 			}
 		}
 		/* return early if we are done */
@@ -304,7 +307,11 @@ primes(ubig start, ubig stop)
 		 */
 		for (q = table; q < tab_lim; ++q, start+=2) {
 			if (*q) {
-				printf(hflag ? "0x%lx\n" : "%lu\n", start);
+				if (start > SIEVEMAX) {
+					if (!isprime(start))
+						continue;
+				}
+				printf(hflag ? "%" PRIx64 "\n" : "%" PRIu64 "\n", start);
 			}
 		}
 	}

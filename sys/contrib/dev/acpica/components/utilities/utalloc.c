@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,6 +49,45 @@
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utalloc")
+
+
+#if !defined (USE_NATIVE_ALLOCATE_ZEROED)
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiOsAllocateZeroed
+ *
+ * PARAMETERS:  Size                - Size of the allocation
+ *
+ * RETURN:      Address of the allocated memory on success, NULL on failure.
+ *
+ * DESCRIPTION: Subsystem equivalent of calloc. Allocate and zero memory.
+ *              This is the default implementation. Can be overridden via the
+ *              USE_NATIVE_ALLOCATE_ZEROED flag.
+ *
+ ******************************************************************************/
+
+void *
+AcpiOsAllocateZeroed (
+    ACPI_SIZE               Size)
+{
+    void                    *Allocation;
+
+
+    ACPI_FUNCTION_ENTRY ();
+
+
+    Allocation = AcpiOsAllocate (Size);
+    if (Allocation)
+    {
+        /* Clear the memory block */
+
+        ACPI_MEMSET (Allocation, 0, Size);
+    }
+
+    return (Allocation);
+}
+
+#endif /* !USE_NATIVE_ALLOCATE_ZEROED */
 
 
 /*******************************************************************************
@@ -285,9 +324,13 @@ AcpiUtInitializeBuffer (
         return (AE_BUFFER_OVERFLOW);
 
     case ACPI_ALLOCATE_BUFFER:
-
-        /* Allocate a new buffer */
-
+        /*
+         * Allocate a new buffer. We directectly call AcpiOsAllocate here to
+         * purposefully bypass the (optionally enabled) internal allocation
+         * tracking mechanism since we only want to track internal
+         * allocations. Note: The caller should use AcpiOsFree to free this
+         * buffer created via ACPI_ALLOCATE_BUFFER.
+         */
         Buffer->Pointer = AcpiOsAllocate (RequiredLength);
         break;
 
@@ -320,96 +363,4 @@ AcpiUtInitializeBuffer (
 
     ACPI_MEMSET (Buffer->Pointer, 0, RequiredLength);
     return (AE_OK);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtAllocate
- *
- * PARAMETERS:  Size                - Size of the allocation
- *              Component           - Component type of caller
- *              Module              - Source file name of caller
- *              Line                - Line number of caller
- *
- * RETURN:      Address of the allocated memory on success, NULL on failure.
- *
- * DESCRIPTION: Subsystem equivalent of malloc.
- *
- ******************************************************************************/
-
-void *
-AcpiUtAllocate (
-    ACPI_SIZE               Size,
-    UINT32                  Component,
-    const char              *Module,
-    UINT32                  Line)
-{
-    void                    *Allocation;
-
-
-    ACPI_FUNCTION_TRACE_U32 (UtAllocate, Size);
-
-
-    /* Check for an inadvertent size of zero bytes */
-
-    if (!Size)
-    {
-        ACPI_WARNING ((Module, Line,
-            "Attempt to allocate zero bytes, allocating 1 byte"));
-        Size = 1;
-    }
-
-    Allocation = AcpiOsAllocate (Size);
-    if (!Allocation)
-    {
-        /* Report allocation error */
-
-        ACPI_WARNING ((Module, Line,
-            "Could not allocate size %u", (UINT32) Size));
-
-        return_PTR (NULL);
-    }
-
-    return_PTR (Allocation);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtAllocateZeroed
- *
- * PARAMETERS:  Size                - Size of the allocation
- *              Component           - Component type of caller
- *              Module              - Source file name of caller
- *              Line                - Line number of caller
- *
- * RETURN:      Address of the allocated memory on success, NULL on failure.
- *
- * DESCRIPTION: Subsystem equivalent of calloc. Allocate and zero memory.
- *
- ******************************************************************************/
-
-void *
-AcpiUtAllocateZeroed (
-    ACPI_SIZE               Size,
-    UINT32                  Component,
-    const char              *Module,
-    UINT32                  Line)
-{
-    void                    *Allocation;
-
-
-    ACPI_FUNCTION_ENTRY ();
-
-
-    Allocation = AcpiUtAllocate (Size, Component, Module, Line);
-    if (Allocation)
-    {
-        /* Clear the memory block */
-
-        ACPI_MEMSET (Allocation, 0, Size);
-    }
-
-    return (Allocation);
 }

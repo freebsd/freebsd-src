@@ -247,7 +247,7 @@ static int	pfsync_init(void);
 static void	pfsync_uninit(void);
 
 SYSCTL_NODE(_net, OID_AUTO, pfsync, CTLFLAG_RW, 0, "PFSYNC");
-SYSCTL_VNET_STRUCT(_net_pfsync, OID_AUTO, stats, CTLFLAG_RW,
+SYSCTL_STRUCT(_net_pfsync, OID_AUTO, stats, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(pfsyncstats), pfsyncstats,
     "PFSYNC statistics (struct pfsyncstats, net/if_pfsync.h)");
 SYSCTL_INT(_net_pfsync, OID_AUTO, carp_demotion_factor, CTLFLAG_RW,
@@ -570,11 +570,12 @@ cleanup_state:	/* pf_state_insert() frees the state keys. */
 	return (error);
 }
 
-static void
-pfsync_input(struct mbuf *m, __unused int off)
+static int
+pfsync_input(struct mbuf **mp, int *offp __unused, int proto __unused)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
 	struct pfsync_pkt pkt;
+	struct mbuf *m = *mp;
 	struct ip *ip = mtod(m, struct ip *);
 	struct pfsync_header *ph;
 	struct pfsync_subheader subh;
@@ -583,6 +584,7 @@ pfsync_input(struct mbuf *m, __unused int off)
 	int rv;
 	uint16_t count;
 
+	*mp = NULL;
 	V_pfsyncstats.pfsyncs_ipackets++;
 
 	/* Verify that we have a sync interface configured. */
@@ -596,8 +598,8 @@ pfsync_input(struct mbuf *m, __unused int off)
 		goto done;
 	}
 
-	sc->sc_ifp->if_ipackets++;
-	sc->sc_ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(sc->sc_ifp, IFCOUNTER_IPACKETS, 1);
+	if_inc_counter(sc->sc_ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 	/* verify that the IP TTL is 255. */
 	if (ip->ip_ttl != PFSYNC_DFLTTL) {
 		V_pfsyncstats.pfsyncs_badttl++;
@@ -613,7 +615,7 @@ pfsync_input(struct mbuf *m, __unused int off)
 	if (offset + sizeof(*ph) > m->m_len) {
 		if (m_pullup(m, offset + sizeof(*ph)) == NULL) {
 			V_pfsyncstats.pfsyncs_hdrops++;
-			return;
+			return (IPPROTO_DONE);
 		}
 		ip = mtod(m, struct ip *);
 	}
@@ -660,7 +662,7 @@ pfsync_input(struct mbuf *m, __unused int off)
 		rv = (*pfsync_acts[subh.action])(&pkt, m, offset, count);
 		if (rv == -1) {
 			PF_RULES_RUNLOCK();
-			return;
+			return (IPPROTO_DONE);
 		}
 
 		offset += rv;
@@ -669,6 +671,7 @@ pfsync_input(struct mbuf *m, __unused int off)
 
 done:
 	m_freem(m);
+	return (IPPROTO_DONE);
 }
 
 static int
@@ -1522,7 +1525,7 @@ pfsync_sendout(int schedswi)
 
 	m = m_get2(max_linkhdr + sc->sc_len, M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
-		sc->sc_ifp->if_oerrors++;
+		if_inc_counter(sc->sc_ifp, IFCOUNTER_OERRORS, 1);
 		V_pfsyncstats.pfsyncs_onomem++;
 		return;
 	}
@@ -1629,15 +1632,15 @@ pfsync_sendout(int schedswi)
 		return;
 	}
 
-	sc->sc_ifp->if_opackets++;
-	sc->sc_ifp->if_obytes += m->m_pkthdr.len;
+	if_inc_counter(sc->sc_ifp, IFCOUNTER_OPACKETS, 1);
+	if_inc_counter(sc->sc_ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
 	sc->sc_len = PFSYNC_MINPKT;
 
 	if (!_IF_QFULL(&sc->sc_ifp->if_snd))
 		_IF_ENQUEUE(&sc->sc_ifp->if_snd, m);
 	else {
 		m_freem(m);
-		sc->sc_ifp->if_snd.ifq_drops++;
+		if_inc_counter(sc->sc_ifp, IFCOUNTER_OQDROPS, 1);
 	}
 	if (schedswi)
 		swi_sched(V_pfsync_swi_cookie, 0);
@@ -2278,7 +2281,7 @@ static struct protosw in_pfsync_protosw = {
 	.pr_protocol =		IPPROTO_PFSYNC,
 	.pr_flags =		PR_ATOMIC|PR_ADDR,
 	.pr_input =		pfsync_input,
-	.pr_output =		(pr_output_t *)rip_output,
+	.pr_output =		rip_output,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 };

@@ -157,52 +157,52 @@ static const u_char fxp_cb_config_template[] = {
  * them.
  */
 static const struct fxp_ident fxp_ident_table[] = {
-    { 0x1029,	-1,	0, "Intel 82559 PCI/CardBus Pro/100" },
-    { 0x1030,	-1,	0, "Intel 82559 Pro/100 Ethernet" },
-    { 0x1031,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
-    { 0x1032,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
-    { 0x1033,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
-    { 0x1034,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
-    { 0x1035,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 Ethernet" },
-    { 0x1036,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 Ethernet" },
-    { 0x1037,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 Ethernet" },
-    { 0x1038,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
-    { 0x1039,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
-    { 0x103A,	-1,	4, "Intel 82801DB (ICH4) Pro/100 Ethernet" },
-    { 0x103B,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
-    { 0x103C,	-1,	4, "Intel 82801DB (ICH4) Pro/100 Ethernet" },
-    { 0x103D,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
-    { 0x103E,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
-    { 0x1050,	-1,	5, "Intel 82801BA (D865) Pro/100 VE Ethernet" },
-    { 0x1051,	-1,	5, "Intel 82562ET (ICH5/ICH5R) Pro/100 VE Ethernet" },
-    { 0x1059,	-1,	0, "Intel 82551QM Pro/100 M Mobile Connection" },
-    { 0x1064,	-1,	6, "Intel 82562EZ (ICH6)" },
-    { 0x1065,	-1,	6, "Intel 82562ET/EZ/GT/GZ PRO/100 VE Ethernet" },
-    { 0x1068,	-1,	6, "Intel 82801FBM (ICH6-M) Pro/100 VE Ethernet" },
-    { 0x1069,	-1,	6, "Intel 82562EM/EX/GX Pro/100 Ethernet" },
-    { 0x1091,	-1,	7, "Intel 82562GX Pro/100 Ethernet" },
-    { 0x1092,	-1,	7, "Intel Pro/100 VE Network Connection" },
-    { 0x1093,	-1,	7, "Intel Pro/100 VM Network Connection" },
-    { 0x1094,	-1,	7, "Intel Pro/100 946GZ (ICH7) Network Connection" },
-    { 0x1209,	-1,	0, "Intel 82559ER Embedded 10/100 Ethernet" },
-    { 0x1229,	0x01,	0, "Intel 82557 Pro/100 Ethernet" },
-    { 0x1229,	0x02,	0, "Intel 82557 Pro/100 Ethernet" },
-    { 0x1229,	0x03,	0, "Intel 82557 Pro/100 Ethernet" },
-    { 0x1229,	0x04,	0, "Intel 82558 Pro/100 Ethernet" },
-    { 0x1229,	0x05,	0, "Intel 82558 Pro/100 Ethernet" },
-    { 0x1229,	0x06,	0, "Intel 82559 Pro/100 Ethernet" },
-    { 0x1229,	0x07,	0, "Intel 82559 Pro/100 Ethernet" },
-    { 0x1229,	0x08,	0, "Intel 82559 Pro/100 Ethernet" },
-    { 0x1229,	0x09,	0, "Intel 82559ER Pro/100 Ethernet" },
-    { 0x1229,	0x0c,	0, "Intel 82550 Pro/100 Ethernet" },
-    { 0x1229,	0x0d,	0, "Intel 82550C Pro/100 Ethernet" },
-    { 0x1229,	0x0e,	0, "Intel 82550 Pro/100 Ethernet" },
-    { 0x1229,	0x0f,	0, "Intel 82551 Pro/100 Ethernet" },
-    { 0x1229,	0x10,	0, "Intel 82551 Pro/100 Ethernet" },
-    { 0x1229,	-1,	0, "Intel 82557/8/9 Pro/100 Ethernet" },
-    { 0x2449,	-1,	2, "Intel 82801BA/CAM (ICH2/3) Pro/100 Ethernet" },
-    { 0x27dc,	-1,	7, "Intel 82801GB (ICH7) 10/100 Ethernet" },
-    { 0,	-1,	0, NULL },
+    { 0x8086, 0x1029,	-1,	0, "Intel 82559 PCI/CardBus Pro/100" },
+    { 0x8086, 0x1030,	-1,	0, "Intel 82559 Pro/100 Ethernet" },
+    { 0x8086, 0x1031,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
+    { 0x8086, 0x1032,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
+    { 0x8086, 0x1033,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
+    { 0x8086, 0x1034,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
+    { 0x8086, 0x1035,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 Ethernet" },
+    { 0x8086, 0x1036,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 Ethernet" },
+    { 0x8086, 0x1037,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 Ethernet" },
+    { 0x8086, 0x1038,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
+    { 0x8086, 0x1039,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
+    { 0x8086, 0x103A,	-1,	4, "Intel 82801DB (ICH4) Pro/100 Ethernet" },
+    { 0x8086, 0x103B,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
+    { 0x8086, 0x103C,	-1,	4, "Intel 82801DB (ICH4) Pro/100 Ethernet" },
+    { 0x8086, 0x103D,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
+    { 0x8086, 0x103E,	-1,	4, "Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
+    { 0x8086, 0x1050,	-1,	5, "Intel 82801BA (D865) Pro/100 VE Ethernet" },
+    { 0x8086, 0x1051,	-1,	5, "Intel 82562ET (ICH5/ICH5R) Pro/100 VE Ethernet" },
+    { 0x8086, 0x1059,	-1,	0, "Intel 82551QM Pro/100 M Mobile Connection" },
+    { 0x8086, 0x1064,	-1,	6, "Intel 82562EZ (ICH6)" },
+    { 0x8086, 0x1065,	-1,	6, "Intel 82562ET/EZ/GT/GZ PRO/100 VE Ethernet" },
+    { 0x8086, 0x1068,	-1,	6, "Intel 82801FBM (ICH6-M) Pro/100 VE Ethernet" },
+    { 0x8086, 0x1069,	-1,	6, "Intel 82562EM/EX/GX Pro/100 Ethernet" },
+    { 0x8086, 0x1091,	-1,	7, "Intel 82562GX Pro/100 Ethernet" },
+    { 0x8086, 0x1092,	-1,	7, "Intel Pro/100 VE Network Connection" },
+    { 0x8086, 0x1093,	-1,	7, "Intel Pro/100 VM Network Connection" },
+    { 0x8086, 0x1094,	-1,	7, "Intel Pro/100 946GZ (ICH7) Network Connection" },
+    { 0x8086, 0x1209,	-1,	0, "Intel 82559ER Embedded 10/100 Ethernet" },
+    { 0x8086, 0x1229,	0x01,	0, "Intel 82557 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x02,	0, "Intel 82557 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x03,	0, "Intel 82557 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x04,	0, "Intel 82558 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x05,	0, "Intel 82558 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x06,	0, "Intel 82559 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x07,	0, "Intel 82559 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x08,	0, "Intel 82559 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x09,	0, "Intel 82559ER Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x0c,	0, "Intel 82550 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x0d,	0, "Intel 82550C Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x0e,	0, "Intel 82550 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x0f,	0, "Intel 82551 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	0x10,	0, "Intel 82551 Pro/100 Ethernet" },
+    { 0x8086, 0x1229,	-1,	0, "Intel 82557/8/9 Pro/100 Ethernet" },
+    { 0x8086, 0x2449,	-1,	2, "Intel 82801BA/CAM (ICH2/3) Pro/100 Ethernet" },
+    { 0x8086, 0x27dc,	-1,	7, "Intel 82801GB (ICH7) 10/100 Ethernet" },
+    { 0,      0,	-1,	0, NULL },
 };
 
 #ifdef FXP_IP_CSUM_WAR
@@ -374,18 +374,18 @@ fxp_dma_wait(struct fxp_softc *sc, volatile uint16_t *status,
 static const struct fxp_ident *
 fxp_find_ident(device_t dev)
 {
-	uint16_t devid;
+	uint16_t vendor;
+	uint16_t device;
 	uint8_t revid;
 	const struct fxp_ident *ident;
 
-	if (pci_get_vendor(dev) == FXP_VENDORID_INTEL) {
-		devid = pci_get_device(dev);
-		revid = pci_get_revid(dev);
-		for (ident = fxp_ident_table; ident->name != NULL; ident++) {
-			if (ident->devid == devid &&
-			    (ident->revid == revid || ident->revid == -1)) {
-				return (ident);
-			}
+	vendor = pci_get_vendor(dev);
+	device = pci_get_device(dev);
+	revid = pci_get_revid(dev);
+	for (ident = fxp_ident_table; ident->name != NULL; ident++) {
+		if (ident->vendor == vendor && ident->device == device &&
+		    (ident->revid == revid || ident->revid == -1)) {
+			return (ident);
 		}
 	}
 	return (NULL);
@@ -439,7 +439,7 @@ fxp_attach(device_t dev)
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	callout_init_mtx(&sc->stat_ch, &sc->sc_mtx, 0);
-	ifmedia_init_drv(&sc->sc_media, 0, fxp_serial_ifmedia_upd,
+	ifmedia_init(&sc->sc_media, 0, fxp_serial_ifmedia_upd,
 	    fxp_serial_ifmedia_sts);
 
 	ifp = sc->ifp = if_gethandle(IFT_ETHER);
@@ -628,7 +628,7 @@ fxp_attach(device_t dev)
 	/* For 82559 or later chips, Rx checksum offload is supported. */
 	if (sc->revision >= FXP_REV_82559_A0) {
 		/* 82559ER does not support Rx checksum offloading. */
-		if (sc->ident->devid != 0x1209)
+		if (sc->ident->device != 0x1209)
 			sc->flags |= FXP_FLAG_82559_RXCSUM;
 	}
 	/*
@@ -837,7 +837,7 @@ fxp_attach(device_t dev)
 		}
 	}
 
-	if_initname_drv(ifp, device_get_name(dev), device_get_unit(dev));
+	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	if_setdev(ifp, dev);
 	if_setinitfn(ifp, fxp_init);
 	if_setsoftc(ifp, sc);
@@ -873,7 +873,7 @@ fxp_attach(device_t dev)
 	/*
 	 * Attach the interface.
 	 */
-	ether_ifattach_drv(ifp, eaddr);
+	ether_ifattach(ifp, eaddr);
 
 	/*
 	 * Tell the upper layer(s) we support long frames.
@@ -904,7 +904,7 @@ fxp_attach(device_t dev)
 			       NULL, fxp_intr, sc, &sc->ih);
 	if (error) {
 		device_printf(dev, "could not setup irq\n");
-		ether_ifdetach_drv(sc->ifp);
+		ether_ifdetach(sc->ifp);
 		goto fail;
 	}
 
@@ -993,7 +993,7 @@ fxp_release(struct fxp_softc *sc)
 	if (sc->mcs_tag)
 		bus_dma_tag_destroy(sc->mcs_tag);
 	if (sc->ifp)
-		if_free_drv(sc->ifp);
+		if_free(sc->ifp);
 
 	mtx_destroy(&sc->sc_mtx);
 }
@@ -1008,7 +1008,7 @@ fxp_detach(device_t dev)
 
 #ifdef DEVICE_POLLING
 	if (if_getcapenable(sc->ifp) & IFCAP_POLLING)
-		ether_poll_deregister_drv(sc->ifp);
+		ether_poll_deregister(sc->ifp);
 #endif
 
 	FXP_LOCK(sc);
@@ -1023,7 +1023,7 @@ fxp_detach(device_t dev)
 	/*
 	 * Close down routes etc.
 	 */
-	ether_ifdetach_drv(sc->ifp);
+	ether_ifdetach(sc->ifp);
 
 	/*
 	 * Unhook interrupt before dropping lock. This is to prevent
@@ -1670,7 +1670,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 }
 
 #ifdef DEVICE_POLLING
-static poll_handler_drv_t fxp_poll;
+static poll_handler_t fxp_poll;
 
 static int
 fxp_poll(if_t ifp, enum poll_cmd cmd, int count)
@@ -2012,7 +2012,7 @@ fxp_intr_body(struct fxp_softc *sc, if_t ifp, uint8_t statack,
 				return (rx_npkts);
 		} else {
 			/* Reuse RFA and loaded DMA map. */
-			if_inciqdrops(ifp, 1);
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			fxp_discard_rfabuf(sc, rxp);
 		}
 		fxp_add_rfabuf(sc, rxp);
@@ -2070,10 +2070,12 @@ fxp_update_stats(struct fxp_softc *sc)
 		hsp->tx_tco += le16toh(sp->tx_tco);
 		hsp->rx_tco += le16toh(sp->rx_tco);
 
-		if_incopackets(ifp, le32toh(sp->tx_good));
-		if_inccollisions(ifp, le32toh(sp->tx_total_collisions));
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, le32toh(sp->tx_good));
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+		    le32toh(sp->tx_total_collisions));
 		if (sp->rx_good) {
-			if_incipackets(ifp, le32toh(sp->rx_good));
+			if_inc_counter(ifp, IFCOUNTER_IPACKETS,
+			    le32toh(sp->rx_good));
 			sc->rx_idle_secs = 0;
 		} else if (sc->flags & FXP_FLAG_RXBUG) {
 			/*
@@ -2081,7 +2083,7 @@ fxp_update_stats(struct fxp_softc *sc)
 			 */
 			sc->rx_idle_secs++;
 		}
-		if_incierrors(ifp,
+		if_inc_counter(ifp, IFCOUNTER_IERRORS,
 		    le32toh(sp->rx_crc_errors) +
 		    le32toh(sp->rx_alignment_errors) +
 		    le32toh(sp->rx_rnr_errors) +
@@ -2091,7 +2093,8 @@ fxp_update_stats(struct fxp_softc *sc)
 		 * threshold by another 512 bytes (64 * 8).
 		 */
 		if (sp->tx_underruns) {
-			if_incoerrors(ifp, le32toh(sp->tx_underruns));
+			if_inc_counter(ifp, IFCOUNTER_OERRORS,
+			    le32toh(sp->tx_underruns));
 			if (tx_threshold < 192)
 				tx_threshold += 64;
 		}
@@ -2244,7 +2247,7 @@ fxp_watchdog(struct fxp_softc *sc)
 		return;
 
 	device_printf(sc->dev, "device timeout\n");
-	if_incoerrors(ifp, 1);
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
 	fxp_init_body(sc, 1);
@@ -2874,10 +2877,10 @@ fxp_ioctl(if_t ifp, u_long command, caddr_t data)
 	case SIOCGIFMEDIA:
 		if (sc->miibus != NULL) {
 			mii = device_get_softc(sc->miibus);
-                        error = ifmedia_ioctl_drv(ifp, ifr,
+                        error = ifmedia_ioctl(ifp, ifr,
                             &mii->mii_media, command);
 		} else {
-                        error = ifmedia_ioctl_drv(ifp, ifr, &sc->sc_media, command);
+                        error = ifmedia_ioctl(ifp, ifr, &sc->sc_media, command);
 		}
 		break;
 
@@ -2887,7 +2890,7 @@ fxp_ioctl(if_t ifp, u_long command, caddr_t data)
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
-				error = ether_poll_register_drv(fxp_poll, ifp);
+				error = ether_poll_register(fxp_poll, ifp);
 				if (error)
 					return(error);
 				FXP_LOCK(sc);
@@ -2896,7 +2899,7 @@ fxp_ioctl(if_t ifp, u_long command, caddr_t data)
 				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 				FXP_UNLOCK(sc);
 			} else {
-				error = ether_poll_deregister_drv(ifp);
+				error = ether_poll_deregister(ifp);
 				/* Enable interrupts in any case */
 				FXP_LOCK(sc);
 				CSR_WRITE_1(sc, FXP_CSR_SCB_INTRCNTL, 0);
@@ -2966,7 +2969,7 @@ fxp_ioctl(if_t ifp, u_long command, caddr_t data)
 		break;
 
 	default:
-		error = ether_ioctl_drv(ifp, command, data);
+		error = ether_ioctl(ifp, command, data);
 	}
 	return (error);
 }

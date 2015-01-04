@@ -2,6 +2,7 @@
  * Copyright (c) 2010 Isilon Systems, Inc.
  * Copyright (c) 2010 iX Systems, Inc.
  * Copyright (c) 2010 Panasas, Inc.
+ * Copyright (c) 2013, 2014 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,8 +45,10 @@
 #ifdef INET
 static inline void inet_get_local_port_range(int *low, int *high)
 {
+	CURVNET_SET_QUIET(TD_TO_VNET(curthread));
 	*low = V_ipport_firstauto;
 	*high = V_ipport_lastauto;
+	CURVNET_RESTORE();
 }
 
 static inline void

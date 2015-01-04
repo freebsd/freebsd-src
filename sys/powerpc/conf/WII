@@ -77,7 +77,6 @@ device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.
 device		md		# Memory "disks"
 device		gif		# IPv6 and IPv4 tunneling
-device		faith		# IPv6-to-IPv4 relaying/(translation)
 device		firmware	# firmware assist module
 
 

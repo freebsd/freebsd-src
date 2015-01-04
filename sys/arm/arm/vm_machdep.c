@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/proc.h>
 #include <sys/socketvar.h>
-#include <sys/sf_buf.h>
 #include <sys/syscall.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -80,44 +79,8 @@ __FBSDID("$FreeBSD$");
  * struct switchframe and trapframe must both be a multiple of 8
  * for correct stack alignment.
  */
-CTASSERT(sizeof(struct switchframe) == 24);
+CTASSERT(sizeof(struct switchframe) == 48);
 CTASSERT(sizeof(struct trapframe) == 80);
-
-#ifndef NSFBUFS
-#define NSFBUFS		(512 + maxusers * 16)
-#endif
-
-static int nsfbufs;
-static int nsfbufspeak;
-static int nsfbufsused;
-
-SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufs, CTLFLAG_RDTUN, &nsfbufs, 0,
-    "Maximum number of sendfile(2) sf_bufs available");
-SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufspeak, CTLFLAG_RD, &nsfbufspeak, 0,
-    "Number of sendfile(2) sf_bufs at peak usage");
-SYSCTL_INT(_kern_ipc, OID_AUTO, nsfbufsused, CTLFLAG_RD, &nsfbufsused, 0,
-    "Number of sendfile(2) sf_bufs in use");
-
-static void     sf_buf_init(void *arg);
-SYSINIT(sock_sf, SI_SUB_MBUF, SI_ORDER_ANY, sf_buf_init, NULL);
-
-LIST_HEAD(sf_head, sf_buf);
-
-/*
- * A hash table of active sendfile(2) buffers
- */
-static struct sf_head *sf_buf_active;
-static u_long sf_buf_hashmask;
-
-#define SF_BUF_HASH(m)  (((m) - vm_page_array) & sf_buf_hashmask)
-
-static TAILQ_HEAD(, sf_buf) sf_buf_freelist;
-static u_int    sf_buf_alloc_want;
-
-/*
- * A lock used to synchronize access to the hash table and free list
- */
-static struct mtx sf_buf_lock;
 
 /*
  * Finish a fork operation, with process p2 nearly set up.
@@ -130,43 +93,55 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 {
 	struct pcb *pcb2;
 	struct trapframe *tf;
-	struct switchframe *sf;
 	struct mdproc *mdp2;
 
 	if ((flags & RFPROC) == 0)
 		return;
-	pcb2 = (struct pcb *)(td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
+
+	/* Point the pcb to the top of the stack */
+	pcb2 = (struct pcb *)
+	    (td2->td_kstack + td2->td_kstack_pages * PAGE_SIZE) - 1;
 #ifdef __XSCALE__
 #ifndef CPU_XSCALE_CORE3
 	pmap_use_minicache(td2->td_kstack, td2->td_kstack_pages * PAGE_SIZE);
 #endif
 #endif
 	td2->td_pcb = pcb2;
+	
+	/* Clone td1's pcb */
 	bcopy(td1->td_pcb, pcb2, sizeof(*pcb2));
+	
+	/* Point to mdproc and then copy over td1's contents */
 	mdp2 = &p2->p_md;
 	bcopy(&td1->td_proc->p_md, mdp2, sizeof(*mdp2));
-	pcb2->un_32.pcb32_sp = td2->td_kstack +
-	    USPACE_SVC_STACK_TOP - sizeof(*pcb2);
+
+	/* Point the frame to the stack in front of pcb and copy td1's frame */
+	td2->td_frame = (struct trapframe *)pcb2 - 1;
+	*td2->td_frame = *td1->td_frame;
+
+	/*
+	 * Create a new fresh stack for the new process.
+	 * Copy the trap frame for the return to user mode as if from a
+	 * syscall.  This copies most of the user mode register values.
+	 */
+	pmap_set_pcb_pagedir(vmspace_pmap(p2->p_vmspace), pcb2);
+	pcb2->pcb_regs.sf_r4 = (register_t)fork_return;
+	pcb2->pcb_regs.sf_r5 = (register_t)td2;
+	pcb2->pcb_regs.sf_lr = (register_t)fork_trampoline;
+	pcb2->pcb_regs.sf_sp = STACKALIGN(td2->td_frame);
+
 	pcb2->pcb_vfpcpu = -1;
 	pcb2->pcb_vfpstate.fpscr = VFPSCR_DN | VFPSCR_FZ;
-	pmap_activate(td2);
-	td2->td_frame = tf = (struct trapframe *)STACKALIGN(
-	    pcb2->un_32.pcb32_sp - sizeof(struct trapframe));
-	*tf = *td1->td_frame;
-	sf = (struct switchframe *)tf - 1;
-	sf->sf_r4 = (u_int)fork_return;
-	sf->sf_r5 = (u_int)td2;
-	sf->sf_pc = (u_int)fork_trampoline;
-	tf->tf_spsr &= ~PSR_C_bit;
+	
+	tf = td2->td_frame;
+	tf->tf_spsr &= ~PSR_C;
 	tf->tf_r0 = 0;
 	tf->tf_r1 = 0;
-	pcb2->un_32.pcb32_sp = (u_int)sf;
-	KASSERT((pcb2->un_32.pcb32_sp & 7) == 0,
-	    ("cpu_fork: Incorrect stack alignment"));
+
 
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
-	td2->td_md.md_saved_cspr = 0;
+	td2->td_md.md_saved_cspr = PSR_SVC32_MODE;;
 #ifdef ARM_TP_ADDRESS
 	td2->td_md.md_tp = *(register_t *)ARM_TP_ADDRESS;
 #else
@@ -182,106 +157,6 @@ cpu_thread_swapin(struct thread *td)
 void
 cpu_thread_swapout(struct thread *td)
 {
-}
-
-/*
- * Detatch mapped page and release resources back to the system.
- */
-void
-sf_buf_free(struct sf_buf *sf)
-{
-
-	 mtx_lock(&sf_buf_lock);
-	 sf->ref_count--;
-	 if (sf->ref_count == 0) {
-		 TAILQ_INSERT_TAIL(&sf_buf_freelist, sf, free_entry);
-		 nsfbufsused--;
-		 pmap_kremove(sf->kva);
-		 sf->m = NULL;
-		 LIST_REMOVE(sf, list_entry);
-		 if (sf_buf_alloc_want > 0)
-			 wakeup(&sf_buf_freelist);
-	 }
-	 mtx_unlock(&sf_buf_lock);
-}
-
-/*
- * Allocate a pool of sf_bufs (sendfile(2) or "super-fast" if you prefer. :-))
- */
-static void
-sf_buf_init(void *arg)
-{
-	struct sf_buf *sf_bufs;
-	vm_offset_t sf_base;
-	int i;
-
-	nsfbufs = NSFBUFS;
-	TUNABLE_INT_FETCH("kern.ipc.nsfbufs", &nsfbufs);
-		
-	sf_buf_active = hashinit(nsfbufs, M_TEMP, &sf_buf_hashmask);
-	TAILQ_INIT(&sf_buf_freelist);
-	sf_base = kva_alloc(nsfbufs * PAGE_SIZE);
-	sf_bufs = malloc(nsfbufs * sizeof(struct sf_buf), M_TEMP,
-	    M_NOWAIT | M_ZERO);
-	for (i = 0; i < nsfbufs; i++) {
-		sf_bufs[i].kva = sf_base + i * PAGE_SIZE;
-		TAILQ_INSERT_TAIL(&sf_buf_freelist, &sf_bufs[i], free_entry);
-	}
-	sf_buf_alloc_want = 0;
-	mtx_init(&sf_buf_lock, "sf_buf", NULL, MTX_DEF);
-}
-
-/*
- * Get an sf_buf from the freelist. Will block if none are available.
- */
-struct sf_buf *
-sf_buf_alloc(struct vm_page *m, int flags)
-{
-	struct sf_head *hash_list;
-	struct sf_buf *sf;
-	int error;
-
-	hash_list = &sf_buf_active[SF_BUF_HASH(m)];
-	mtx_lock(&sf_buf_lock);
-	LIST_FOREACH(sf, hash_list, list_entry) {
-		if (sf->m == m) {
-			sf->ref_count++;
-			if (sf->ref_count == 1) {
-				TAILQ_REMOVE(&sf_buf_freelist, sf, free_entry);
-				nsfbufsused++;
-				nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
-			}
-			goto done;
-		}
-	}
-	while ((sf = TAILQ_FIRST(&sf_buf_freelist)) == NULL) {
-		if (flags & SFB_NOWAIT)
-			goto done;
-		sf_buf_alloc_want++;
-		SFSTAT_INC(sf_allocwait);
-		error = msleep(&sf_buf_freelist, &sf_buf_lock,
-		    (flags & SFB_CATCH) ? PCATCH | PVM : PVM, "sfbufa", 0);
-		sf_buf_alloc_want--;
-	
-
-		/*
-		 * If we got a signal, don't risk going back to sleep.
-		 */
-		if (error)
-			goto done;
-	}
-	TAILQ_REMOVE(&sf_buf_freelist, sf, free_entry);
-	if (sf->m != NULL)
-		LIST_REMOVE(sf, list_entry);
-	LIST_INSERT_HEAD(hash_list, sf, list_entry);
-	sf->ref_count = 1;
-	sf->m = m;
-	nsfbufsused++;
-	nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
-	pmap_kenter(sf->kva, VM_PAGE_TO_PHYS(sf->m));
-done:
-	mtx_unlock(&sf_buf_lock);
-	return (sf);
 }
 
 void
@@ -327,7 +202,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 			frame->tf_r0 = td->td_retval[0];
 			frame->tf_r1 = td->td_retval[1];
 		}
-		frame->tf_spsr &= ~PSR_C_bit;   /* carry bit */
+		frame->tf_spsr &= ~PSR_C;   /* carry bit */
 		break;
 	case ERESTART:
 		/*
@@ -340,7 +215,7 @@ cpu_set_syscall_retval(struct thread *td, int error)
 		break;
 	default:
 		frame->tf_r0 = error;
-		frame->tf_spsr |= PSR_C_bit;    /* carry bit */
+		frame->tf_spsr |= PSR_C;    /* carry bit */
 		break;
 	}
 }
@@ -355,25 +230,21 @@ cpu_set_syscall_retval(struct thread *td, int error)
 void
 cpu_set_upcall(struct thread *td, struct thread *td0)
 {
-	struct trapframe *tf;
-	struct switchframe *sf;
 
 	bcopy(td0->td_frame, td->td_frame, sizeof(struct trapframe));
 	bcopy(td0->td_pcb, td->td_pcb, sizeof(struct pcb));
-	tf = td->td_frame;
-	sf = (struct switchframe *)tf - 1;
-	sf->sf_r4 = (u_int)fork_return;
-	sf->sf_r5 = (u_int)td;
-	sf->sf_pc = (u_int)fork_trampoline;
-	tf->tf_spsr &= ~PSR_C_bit;
-	tf->tf_r0 = 0;
-	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
-	KASSERT((td->td_pcb->un_32.pcb32_sp & 7) == 0,
-	    ("cpu_set_upcall: Incorrect stack alignment"));
+
+	td->td_pcb->pcb_regs.sf_r4 = (register_t)fork_return;
+	td->td_pcb->pcb_regs.sf_r5 = (register_t)td;
+	td->td_pcb->pcb_regs.sf_lr = (register_t)fork_trampoline;
+	td->td_pcb->pcb_regs.sf_sp = STACKALIGN(td->td_frame);
+
+	td->td_frame->tf_spsr &= ~PSR_C;
+	td->td_frame->tf_r0 = 0;
 
 	/* Setup to release spin count in fork_exit(). */
 	td->td_md.md_spinlock_count = 1;
-	td->td_md.md_saved_cspr = 0;
+	td->td_md.md_saved_cspr = PSR_SVC32_MODE;
 }
 
 /*
@@ -387,8 +258,7 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 {
 	struct trapframe *tf = td->td_frame;
 
-	tf->tf_usr_sp = STACKALIGN((int)stack->ss_sp + stack->ss_size
-	    - sizeof(struct trapframe));
+	tf->tf_usr_sp = STACKALIGN((int)stack->ss_sp + stack->ss_size);
 	tf->tf_pc = (int)entry;
 	tf->tf_r0 = (int)arg;
 	tf->tf_spsr = PSR_USR32_MODE;
@@ -426,9 +296,8 @@ cpu_thread_alloc(struct thread *td)
 	 * placed into the stack pointer which must be 8 byte aligned in
 	 * the ARM EABI.
 	 */
-	td->td_frame = (struct trapframe *)STACKALIGN((u_int)td->td_kstack +
-	    USPACE_SVC_STACK_TOP - sizeof(struct pcb) -
-	    sizeof(struct trapframe));
+	td->td_frame = (struct trapframe *)((caddr_t)td->td_pcb) - 1;
+
 #ifdef __XSCALE__
 #ifndef CPU_XSCALE_CORE3
 	pmap_use_minicache(td->td_kstack, td->td_kstack_pages * PAGE_SIZE);
@@ -455,16 +324,8 @@ cpu_thread_clean(struct thread *td)
 void
 cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 {
-	struct switchframe *sf;
-	struct trapframe *tf;
-	
-	tf = td->td_frame;
-	sf = (struct switchframe *)tf - 1;
-	sf->sf_r4 = (u_int)func;
-	sf->sf_r5 = (u_int)arg;
-	td->td_pcb->un_32.pcb32_sp = (u_int)sf;
-	KASSERT((td->td_pcb->un_32.pcb32_sp & 7) == 0,
-	    ("cpu_set_fork_handler: Incorrect stack alignment"));
+	td->td_pcb->pcb_regs.sf_r4 = (register_t)func;	/* function */
+	td->td_pcb->pcb_regs.sf_r5 = (register_t)arg;	/* first arg */
 }
 
 /*

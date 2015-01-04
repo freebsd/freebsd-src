@@ -189,6 +189,7 @@ struct uaudio_chan_alt {
 	uint8_t	iface_index;
 	uint8_t	iface_alt_index;
 	uint8_t channels;
+	uint8_t enable_sync;
 };
 
 struct uaudio_chan {
@@ -232,7 +233,7 @@ struct uaudio_chan {
 #define	UAUDIO_SYNC_LESS 2
 };
 
-#define	UMIDI_CABLES_MAX   16		/* units */
+#define	UMIDI_EMB_JACK_MAX   16		/* units */
 #define	UMIDI_TX_FRAMES	   256		/* units */
 #define	UMIDI_TX_BUFFER    (UMIDI_TX_FRAMES * 4)	/* bytes */
 
@@ -263,7 +264,7 @@ struct umidi_sub_chan {
 
 struct umidi_chan {
 
-	struct umidi_sub_chan sub[UMIDI_CABLES_MAX];
+	struct umidi_sub_chan sub[UMIDI_EMB_JACK_MAX];
 	struct mtx mtx;
 
 	struct usb_xfer *xfer[UMIDI_N_TRANSFER];
@@ -275,7 +276,7 @@ struct umidi_chan {
 	uint8_t	write_open_refcount;
 
 	uint8_t	curr_cable;
-	uint8_t	max_cable;
+	uint8_t	max_emb_jack;
 	uint8_t	valid;
 	uint8_t single_command;
 };
@@ -1481,6 +1482,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 	union uaudio_asid asid = { NULL };
 	union uaudio_asf1d asf1d = { NULL };
 	union uaudio_sed sed = { NULL };
+	struct usb_midi_streaming_endpoint_descriptor *msid = NULL;
 	usb_endpoint_descriptor_audio_t *ed1 = NULL;
 	const struct usb_audio_control_descriptor *acdp = NULL;
 	struct usb_config_descriptor *cd = usbd_get_config_descriptor(udev);
@@ -1498,6 +1500,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 	uint8_t bChannels;
 	uint8_t bBitResolution;
 	uint8_t audio_if = 0;
+	uint8_t midi_if = 0;
 	uint8_t uma_if_class;
 
 	while ((desc = usb_desc_foreach(cd, desc))) {
@@ -1533,7 +1536,8 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 			    ((id->bInterfaceClass == UICLASS_VENDOR) &&
 			    (sc->sc_uq_au_vendor_class != 0)));
 
-			if ((uma_if_class != 0) && (id->bInterfaceSubClass == UISUBCLASS_AUDIOSTREAM)) {
+			if ((uma_if_class != 0) &&
+			    (id->bInterfaceSubClass == UISUBCLASS_AUDIOSTREAM)) {
 				audio_if = 1;
 			} else {
 				audio_if = 0;
@@ -1545,13 +1549,16 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 				/*
 				 * XXX could allow multiple MIDI interfaces
 				 */
+				midi_if = 1;
 
 				if ((sc->sc_midi_chan.valid == 0) &&
-				    usbd_get_iface(udev, curidx)) {
+				    (usbd_get_iface(udev, curidx) != NULL)) {
 					sc->sc_midi_chan.iface_index = curidx;
 					sc->sc_midi_chan.iface_alt_index = alt_index;
 					sc->sc_midi_chan.valid = 1;
 				}
+			} else {
+				midi_if = 0;
 			}
 			asid.v1 = NULL;
 			asf1d.v1 = NULL;
@@ -1560,14 +1567,25 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		}
 
 		if (audio_if == 0) {
-			if ((acdp == NULL) &&
-			    (desc->bDescriptorType == UDESC_CS_INTERFACE) &&
-			    (desc->bDescriptorSubtype == UDESCSUB_AC_HEADER) &&
-			    (desc->bLength >= sizeof(*acdp))) {
-				acdp = (void *)desc;
-				audio_rev = UGETW(acdp->bcdADC);
-			}
+			if (midi_if == 0) {
+				if ((acdp == NULL) &&
+				    (desc->bDescriptorType == UDESC_CS_INTERFACE) &&
+				    (desc->bDescriptorSubtype == UDESCSUB_AC_HEADER) &&
+				    (desc->bLength >= sizeof(*acdp))) {
+					acdp = (void *)desc;
+					audio_rev = UGETW(acdp->bcdADC);
+				}
+			} else {
+				msid = (void *)desc;
 
+				/* get the maximum number of embedded jacks in use, if any */
+				if (msid->bLength >= sizeof(*msid) &&
+				    msid->bDescriptorType == UDESC_CS_ENDPOINT &&
+				    msid->bDescriptorSubtype == MS_GENERAL &&
+				    msid->bNumEmbMIDIJack > sc->sc_midi_chan.max_emb_jack) {
+					sc->sc_midi_chan.max_emb_jack = msid->bNumEmbMIDIJack;
+				}
+			}
 			/*
 			 * Don't collect any USB audio descriptors if
 			 * this is not an USB audio stream interface.
@@ -1659,21 +1677,10 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		} else if (audio_rev >= UAUDIO_VERSION_20) {
 
 			uint32_t dwFormat;
-			uint8_t bSubslotSize;
 
 			dwFormat = UGETDW(asid.v2->bmFormats);
 			bChannels = asid.v2->bNrChannels;
-			bBitResolution = asf1d.v2->bBitResolution;
-			bSubslotSize = asf1d.v2->bSubslotSize;
-
-			/* Map 4-byte aligned 24-bit samples into 32-bit */
-			if (bBitResolution == 24 && bSubslotSize == 4)
-				bBitResolution = 32;
-
-			if (bBitResolution != (bSubslotSize * 8)) {
-				DPRINTF("Invalid bSubslotSize\n");
-				goto next_ep;
-			}
+			bBitResolution = asf1d.v2->bSubslotSize * 8;
 
 			if ((bChannels != channels) ||
 			    (bBitResolution != bit_resolution)) {
@@ -1720,7 +1727,7 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 
 			wFormat = UGETW(asid.v1->wFormatTag);
 			bChannels = UAUDIO_MAX_CHAN(asf1d.v1->bNrChannels);
-			bBitResolution = asf1d.v1->bBitResolution;
+			bBitResolution = asf1d.v1->bSubFrameSize * 8;
 
 			if (asf1d.v1->bSamFreqType == 0) {
 				DPRINTFN(16, "Sample rate: %d-%dHz\n",
@@ -1791,6 +1798,14 @@ uaudio_chan_fill_info_sub(struct uaudio_softc *sc, struct usb_device *udev,
 		chan_alt->p_sed = sed;
 		chan_alt->iface_index = curidx;
 		chan_alt->iface_alt_index = alt_index;
+
+		if (UEP_HAS_SYNCADDR(ed1) && ed1->bSynchAddress != 0) {
+			DPRINTF("Sync endpoint will be used, if present\n");
+			chan_alt->enable_sync = 1;
+		} else {
+			DPRINTF("Sync endpoint will not be used\n");
+			chan_alt->enable_sync = 0;
+		}
 
 		usbd_set_parent_iface(sc->sc_udev, curidx,
 		    sc->sc_mixer_iface_index);
@@ -2068,8 +2083,10 @@ tr_transferred:
 		chn_intr(ch->pcm_ch);
 
 		/* start SYNC transfer, if any */
-		if ((ch->last_sync_time++ & 7) == 0)
-			usbd_transfer_start(ch->xfer[UAUDIO_NCHANBUFS]);
+		if (ch->usb_alt[ch->cur_alt].enable_sync != 0) {
+			if ((ch->last_sync_time++ & 7) == 0)
+				usbd_transfer_start(ch->xfer[UAUDIO_NCHANBUFS]);
+		}
 
 	case USB_ST_SETUP:
 		mfl = usbd_xfer_max_framelen(xfer);
@@ -2735,14 +2752,14 @@ uaudio_mixer_controls_create_ftu(struct uaudio_softc *sc)
 
 		uaudio_mixer_add_ctl(sc, &MIX(sc));
 
-		MIX(sc).wValue[0] = MAKE_WORD(9, chy + 1);
+		MIX(sc).wValue[0] = MAKE_WORD(9, chy + 1 + 8);
 		MIX(sc).type = MIX_SIGNED_16;
 		MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
 		MIX(sc).name = "effect_send";
 		MIX(sc).nchan = 1;
 		MIX(sc).update[0] = 1;
 		snprintf(MIX(sc).desc, sizeof(MIX(sc).desc),
-		    "Effect Send DIn%d Volume", chy + 1 + 8);
+		    "Effect Send DIn%d Volume", chy + 1);
 
 		uaudio_mixer_add_ctl(sc, &MIX(sc));
 	}
@@ -5230,8 +5247,7 @@ umidi_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 			 */
 			sub = &chan->sub[cn];
 
-			if ((cmd_len != 0) &&
-			    (cn < chan->max_cable) &&
+			if ((cmd_len != 0) && (cn < chan->max_emb_jack) &&
 			    (sub->read_open != 0)) {
 
 				/* Send data to the application */
@@ -5467,7 +5483,7 @@ tr_setup:
 			}
 
 			chan->curr_cable++;
-			if (chan->curr_cable >= chan->max_cable)
+			if (chan->curr_cable >= chan->max_emb_jack)
 				chan->curr_cable = 0;
 
 			if (chan->curr_cable == start_cable) {
@@ -5504,7 +5520,7 @@ umidi_sub_by_fifo(struct usb_fifo *fifo)
 	struct umidi_sub_chan *sub;
 	uint32_t n;
 
-	for (n = 0; n < UMIDI_CABLES_MAX; n++) {
+	for (n = 0; n < UMIDI_EMB_JACK_MAX; n++) {
 		sub = &chan->sub[n];
 		if ((sub->fifo.fp[USB_FIFO_RX] == fifo) ||
 		    (sub->fifo.fp[USB_FIFO_TX] == fifo)) {
@@ -5687,12 +5703,12 @@ umidi_probe(device_t dev)
 	if (chan->single_command != 0)
 		device_printf(dev, "Single command MIDI quirk enabled\n");
 
-	if ((chan->max_cable > UMIDI_CABLES_MAX) ||
-	    (chan->max_cable == 0)) {
-		chan->max_cable = UMIDI_CABLES_MAX;
+	if ((chan->max_emb_jack == 0) ||
+	    (chan->max_emb_jack > UMIDI_EMB_JACK_MAX)) {
+		chan->max_emb_jack = UMIDI_EMB_JACK_MAX;
 	}
 
-	for (n = 0; n < chan->max_cable; n++) {
+	for (n = 0; n < chan->max_emb_jack; n++) {
 
 		sub = &chan->sub[n];
 
@@ -5730,9 +5746,8 @@ umidi_detach(device_t dev)
 	struct umidi_chan *chan = &sc->sc_midi_chan;
 	uint32_t n;
 
-	for (n = 0; n < UMIDI_CABLES_MAX; n++) {
+	for (n = 0; n < UMIDI_EMB_JACK_MAX; n++)
 		usb_fifo_detach(&chan->sub[n].fifo);
-	}
 
 	mtx_lock(&chan->mtx);
 

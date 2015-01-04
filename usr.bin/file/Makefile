@@ -31,8 +31,7 @@ MAGICPATH?=	/usr/share/misc
 CFLAGS+= -DMAGIC='"${MAGICPATH}/magic"' -DHAVE_CONFIG_H
 CFLAGS+= -I${.CURDIR}/../../lib/libmagic
 
-DPADD=	${LIBMAGIC} ${LIBZ}
-LDADD=	-lmagic -lz
+LIBADD=	magic
 
 FILEVER!= awk '$$1 == "\#define" && $$2 == "VERSION" { print $$3; exit }' \
 			${.CURDIR}/../../lib/libmagic/config.h

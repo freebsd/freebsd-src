@@ -53,6 +53,7 @@ ucl_obj_dump (const ucl_object_t *obj, unsigned int shift)
 		if (obj->type == UCL_OBJECT) {
 			printf ("%stype: UCL_OBJECT\n", pre);
 			printf ("%svalue: %p\n", pre, obj->value.ov);
+			it_obj = NULL;
 			while ((cur = ucl_iterate_object (obj, &it_obj, true))) {
 				ucl_obj_dump (cur, shift + 2);
 			}

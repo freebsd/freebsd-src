@@ -512,7 +512,7 @@ smc_start_locked(struct ifnet *ifp)
 	len += (len & 1);
 	if (len > ETHER_MAX_LEN - ETHER_CRC_LEN) {
 		if_printf(ifp, "large packet discarded\n");
-		++ifp->if_oerrors;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		m_freem(m);
 		return; /* XXX readcheck? */
 	}
@@ -598,7 +598,7 @@ smc_task_tx(void *context, int pending)
 	 */
 	if (packet & ARR_FAILED) {
 		IFQ_DRV_PREPEND(&ifp->if_snd, m);
-		++ifp->if_oerrors;
+		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		smc_start_locked(ifp);
 		SMC_UNLOCK(sc);
@@ -655,7 +655,7 @@ smc_task_tx(void *context, int pending)
 	/*
 	 * Finish up.
 	 */
-	ifp->if_opackets++;
+	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	SMC_UNLOCK(sc);
 	BPF_MTAP(ifp, m0);
@@ -721,7 +721,7 @@ smc_task_rx(void *context, int pending)
 		if (status & (RX_TOOSHORT | RX_TOOLNG | RX_BADCRC | RX_ALGNERR)) {
 			smc_mmu_wait(sc);
 			smc_write_2(sc, MMUCR, MMUCR_CMD_RELEASE);
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			m_freem(m);
 			break;
 		}
@@ -777,7 +777,7 @@ smc_task_rx(void *context, int pending)
 		m = mhead;
 		mhead = mhead->m_next;
 		m->m_next = NULL;
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		(*ifp->if_input)(ifp, m);
 	}
 }
@@ -892,7 +892,7 @@ smc_task_intr(void *context, int pending)
 	 */
 	if (status & RX_OVRN_INT) {
 		smc_write_1(sc, ACK, RX_OVRN_INT);
-		ifp->if_ierrors++;
+		if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 	}
 
 	/*
@@ -909,10 +909,9 @@ smc_task_intr(void *context, int pending)
 		smc_select_bank(sc, 0);
 		counter = smc_read_2(sc, ECR);
 		smc_select_bank(sc, 2);
-		ifp->if_collisions +=
-		    (counter & ECR_SNGLCOL_MASK) >> ECR_SNGLCOL_SHIFT;
-		ifp->if_collisions +=
-		    (counter & ECR_MULCOL_MASK) >> ECR_MULCOL_SHIFT;
+		if_inc_counter(ifp, IFCOUNTER_COLLISIONS,
+		    ((counter & ECR_SNGLCOL_MASK) >> ECR_SNGLCOL_SHIFT) +
+		    ((counter & ECR_MULCOL_MASK) >> ECR_MULCOL_SHIFT));
 
 		/*
 		 * See if there are any packets to transmit.

@@ -33,9 +33,10 @@
 . /etc/rc.subr
 . /etc/network.subr
 
-name="network"
-start_cmd="network_start"
-stop_cmd="network_stop"
+name="netif"
+rcvar="${name}_enable"
+start_cmd="netif_start"
+stop_cmd="netif_stop"
 cloneup_cmd="clone_up"
 clonedown_cmd="clone_down"
 clear_cmd="doclear"
@@ -47,7 +48,7 @@ cmdifn=
 set_rcvar_obsolete ipv6_enable ipv6_activate_all_interfaces
 set_rcvar_obsolete ipv6_prefer
 
-network_start()
+netif_start()
 {
 	local _if
 
@@ -71,7 +72,7 @@ network_start()
 	ifnet_rename $cmdifn
 
 	# Configure the interface(s).
-	network_common ifn_start $cmdifn
+	netif_common ifn_start $cmdifn
 
 	if [ -f /etc/rc.d/ipfilter ] ; then
 		# Resync ipfilter
@@ -87,19 +88,19 @@ network_start()
 	fi
 }
 
-network_stop()
+netif_stop()
 {
 	_clone_down=1
-	network_stop0 $*
+	netif_stop0 $*
 }
 
 doclear()
 {
 	_clone_down=
-	network_stop0 $*
+	netif_stop0 $*
 }
 
-network_stop0()
+netif_stop0()
 {
 	local _if
 
@@ -108,7 +109,7 @@ network_stop0()
 	cmdifn=$*
 
 	# Deconfigure the interface(s)
-	network_common ifn_stop $cmdifn
+	netif_common ifn_stop $cmdifn
 
 	# Destroy cloned interfaces
 	if [ -n "$_clone_down" ]; then
@@ -126,28 +127,28 @@ vnet_up()
 {
 	cmdifn=$*
 
-	network_common ifn_vnetup $cmdifn
+	netif_common ifn_vnetup $cmdifn
 }
 
 vnet_down()
 {
 	cmdifn=$*
 
-	network_common ifn_vnetdown $cmdifn
+	netif_common ifn_vnetdown $cmdifn
 }
 
-# network_common routine
+# netif_common routine
 #	Common configuration subroutine for network interfaces. This
 #	routine takes all the preparatory steps needed for configuriing
 #	an interface and then calls $routine.
-network_common()
+netif_common()
 {
 	local _cooked_list _tmp_list _fail _func _ok _str _cmdifn
 
 	_func=
 
 	if [ -z "$1" ]; then
-		err 1 "network_common(): No function name specified."
+		err 1 "netif_common(): No function name specified."
 	else
 		_func="$1"
 		shift

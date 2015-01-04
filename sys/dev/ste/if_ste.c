@@ -622,7 +622,7 @@ ste_rxeof(struct ste_softc *sc, int count)
 	 	 * comes up in the ring.
 		 */
 		if (rxstat & STE_RXSTAT_FRAME_ERR) {
-			ifp->if_ierrors++;
+			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			cur_rx->ste_ptr->ste_status = 0;
 			continue;
 		}
@@ -639,7 +639,7 @@ ste_rxeof(struct ste_softc *sc, int count)
 		 * can do in this situation.
 		 */
 		if (ste_newbuf(sc, cur_rx) != 0) {
-			ifp->if_iqdrops++;
+			if_inc_counter(ifp, IFCOUNTER_IQDROPS, 1);
 			cur_rx->ste_ptr->ste_status = 0;
 			continue;
 		}
@@ -647,7 +647,7 @@ ste_rxeof(struct ste_softc *sc, int count)
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = total_len;
 
-		ifp->if_ipackets++;
+		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
 		STE_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		STE_LOCK(sc);
@@ -690,7 +690,7 @@ ste_txeoc(struct ste_softc *sc)
 		if ((txstat & (STE_TXSTATUS_UNDERRUN |
 		    STE_TXSTATUS_EXCESSCOLLS | STE_TXSTATUS_RECLAIMERR |
 		    STE_TXSTATUS_STATSOFLOW)) != 0) {
-			ifp->if_oerrors++;
+			if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 #ifdef	STE_SHOW_TXERRORS
 			device_printf(sc->ste_dev, "TX error : 0x%b\n",
 			    txstat & 0xFF, STE_ERR_BITS);
@@ -791,7 +791,7 @@ ste_txeof(struct ste_softc *sc)
 		m_freem(cur_tx->ste_mbuf);
 		cur_tx->ste_mbuf = NULL;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		ifp->if_opackets++;
+		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		sc->ste_cdata.ste_tx_cnt--;
 		STE_INC(idx, STE_TX_LIST_CNT);
 	}
@@ -860,13 +860,13 @@ ste_stats_update(struct ste_softc *sc)
 	stats->tx_carrsense_errs += CSR_READ_1(sc, STE_STAT_CARRIER_ERR);
 	val = CSR_READ_1(sc, STE_STAT_SINGLE_COLLS);
 	stats->tx_single_colls += val;
-	ifp->if_collisions += val;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, val);
 	val = CSR_READ_1(sc, STE_STAT_MULTI_COLLS);
 	stats->tx_multi_colls += val;
-	ifp->if_collisions += val;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, val);
 	val += CSR_READ_1(sc, STE_STAT_LATE_COLLS);
 	stats->tx_late_colls += val;
-	ifp->if_collisions += val;
+	if_inc_counter(ifp, IFCOUNTER_COLLISIONS, val);
 	stats->tx_frames_defered += CSR_READ_1(sc, STE_STAT_TX_DEFER);
 	stats->tx_excess_defers += CSR_READ_1(sc, STE_STAT_TX_EXDEFER);
 	stats->tx_abort += CSR_READ_1(sc, STE_STAT_TX_ABORT);
@@ -1024,7 +1024,7 @@ ste_attach(device_t dev)
 	/*
 	 * Tell the upper layer(s) we support long frames.
 	 */
-	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	if (pci_find_cap(dev, PCIY_PMG, &pmc) == 0)
 		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
@@ -1960,7 +1960,7 @@ ste_watchdog(struct ste_softc *sc)
 	if (sc->ste_timer == 0 || --sc->ste_timer)
 		return;
 
-	ifp->if_oerrors++;
+	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 	if_printf(ifp, "watchdog timeout\n");
 
 	ste_txeof(sc);

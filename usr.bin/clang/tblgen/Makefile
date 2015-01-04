@@ -31,9 +31,7 @@ SRCS=	AsmMatcherEmitter.cpp \
 	OptParserEmitter.cpp \
 	PseudoLoweringEmitter.cpp \
 	RegisterInfoEmitter.cpp \
-	SetTheory.cpp \
 	SubtargetEmitter.cpp \
-	TGValueTypes.cpp \
 	TableGen.cpp \
 	X86DisassemblerTables.cpp \
 	X86ModRMFilters.cpp \
@@ -41,7 +39,5 @@ SRCS=	AsmMatcherEmitter.cpp \
 
 LIBDEPS=llvmtablegen \
 	llvmsupport
-
-NO_PIE=	yes
 
 .include "../clang.prog.mk"

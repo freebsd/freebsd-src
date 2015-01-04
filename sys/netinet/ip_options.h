@@ -47,7 +47,8 @@ struct ipopt_tag {
 	struct	ipoptrt ip_srcrt;
 };
 
-extern	int	ip_doopts;		/* process or ignore IP options */
+VNET_DECLARE(int, ip_doopts);		/* process or ignore IP options */
+#define	V_ip_doopts	VNET(ip_doopts)
 
 int		 ip_checkrouteralert(struct mbuf *);
 int		 ip_dooptions(struct mbuf *, int);

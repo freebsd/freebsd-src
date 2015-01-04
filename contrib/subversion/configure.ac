@@ -1280,10 +1280,6 @@ if test "$RUBY" != "none"; then
       RUBY="none"
       AC_MSG_WARN([The detected Ruby is between 1.9 and 1.9.3])
       AC_MSG_WARN([Only 1.8.x and 1.9.3 releases are supported at this time])
-    elif test \(  "$RUBY_MAJOR" -eq "1" -a "$RUBY_MINOR" -eq "9" -a "$RUBY_TEENY" -eq "3" \); then
-      #Warn about 1.9.3 support
-      AC_MSG_WARN([WARNING: The detected Ruby is 1.9.3])
-      AC_MSG_WARN([WARNING: Only 1.8.x releases are fully supported, 1.9.3 support is new])
     fi
   else
     AC_MSG_RESULT([no])

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2013, Intel Corp.
+ * Copyright (C) 2000 - 2014, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -108,7 +108,7 @@ AcpiTbFindTable (
         {
             /* Table is not currently mapped, map it */
 
-            Status = AcpiTbVerifyTable (&AcpiGbl_RootTableList.Tables[i]);
+            Status = AcpiTbValidateTable (&AcpiGbl_RootTableList.Tables[i]);
             if (ACPI_FAILURE (Status))
             {
                 return_ACPI_STATUS (Status);

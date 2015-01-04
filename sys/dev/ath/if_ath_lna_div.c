@@ -209,6 +209,10 @@ bad:
 	return (error);
 }
 
+/*
+ * XXX need to low_rssi_thresh config from ath9k, to support CUS198
+ * antenna diversity correctly.
+ */
 static HAL_BOOL
 ath_is_alt_ant_ratio_better(int alt_ratio, int maxdelta, int mindelta,
     int main_rssi_avg, int alt_rssi_avg, int pkt_count)

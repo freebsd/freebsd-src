@@ -417,7 +417,9 @@ svn_opt_subcommand_help3(const char *subcommand,
                               _("\"%s\": unknown command.\n\n"), subcommand);
 
   if (err) {
-    svn_handle_error2(err, stderr, FALSE, "svn: ");
+    /* Issue #3014: Don't print anything on broken pipes. */
+    if (err->apr_err != SVN_ERR_IO_PIPE_WRITE_ERROR)
+      svn_handle_error2(err, stderr, FALSE, "svn: ");
     svn_error_clear(err);
   }
 }

@@ -90,4 +90,6 @@ _atf=		atf
 _tests=		tests
 .endif
 
+.include <bsd.arch.inc.mk>
+
 .include <bsd.subdir.mk>

@@ -212,10 +212,11 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 
 	p = get_device_type(devstr, type);
 
-	/*
-	 * Empty device string, or unknown device name, or a bare, known 
-	 * device name. 
-	 */
+	/* Ignore optional spaces after the device name. */
+	while (*p == ' ')
+		p++;
+
+	/* Unknown device name, or a known name without unit number.  */
 	if ((*type == -1) || (*p == '\0')) {
 		return;
 	}
@@ -555,6 +556,75 @@ command_sysinfo(int argc, char *argv[])
 	ub_dump_si(si);
 	return (CMD_OK);
 }
+
+enum ubenv_action {
+	UBENV_UNKNOWN,
+	UBENV_SHOW,
+	UBENV_IMPORT
+};
+
+static void
+handle_uboot_env_var(enum ubenv_action action, const char * var)
+{
+	const char * val;
+	char ubv[128];
+
+	/*
+	 * If the user prepended "uboot." (which is how they usually see these
+	 * names) strip it off as a convenience.
+	 */
+	if (strncmp(var, "uboot.", 6) == 0) {
+		snprintf(ubv, sizeof(ubv), "%s", &var[6]);
+		var = ubv;
+	}
+	val = ub_env_get(var);
+	if (action == UBENV_SHOW) {
+		if (val == NULL)
+			printf("uboot.%s is not set\n", var);
+		else
+			printf("uboot.%s=%s\n", var, val);
+	} else if (action == UBENV_IMPORT) {
+		if (val != NULL) {
+			snprintf(ubv, sizeof(ubv), "uboot.%s", var);
+			setenv(ubv, val, 1);
+		}
+	}
+}
+
+static int
+command_ubenv(int argc, char *argv[])
+{
+	enum ubenv_action action;
+	const char *var;
+	int i;
+
+	action = UBENV_UNKNOWN;
+	if (argc > 1) {
+		if (strcasecmp(argv[1], "import") == 0)
+			action = UBENV_IMPORT;
+		else if (strcasecmp(argv[1], "show") == 0)
+			action = UBENV_SHOW;
+	}
+	if (action == UBENV_UNKNOWN) {
+		command_errmsg = "usage: 'ubenv <import|show> [var ...]";
+		return (CMD_ERROR);
+	}
+
+	if (argc > 2) {
+		for (i = 2; i < argc; i++)
+			handle_uboot_env_var(action, argv[i]);
+	} else {
+		var = NULL;
+		for (;;) {
+			if ((var = ub_env_enum(var)) == NULL)
+				break;
+			handle_uboot_env_var(action, var);
+		}
+	}
+
+	return (CMD_OK);
+}
+COMMAND_SET(ubenv, "ubenv", "show or import U-Boot env vars", command_ubenv);
 
 #ifdef LOADER_FDT_SUPPORT
 /*

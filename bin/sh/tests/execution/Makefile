@@ -1,9 +1,11 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
+TESTSDIR=	${TESTSBASE}/bin/sh/${.CURDIR:T}
 
-FILESDIR=	${TESTSBASE}/bin/sh/execution
-KYUAFILE=	no
+.PATH: ${.CURDIR:H}
+ATF_TESTS_SH=	functional_test
+
+FILESDIR=	${TESTSDIR}
 
 FILES=		bg1.0
 FILES+=		bg2.0
@@ -42,6 +44,7 @@ FILES+=		set-n4.0
 FILES+=		set-x1.0
 FILES+=		set-x2.0
 FILES+=		set-x3.0
+FILES+=		set-x4.0
 FILES+=		shellproc1.0
 FILES+=		subshell1.0 subshell1.0.stdout
 FILES+=		subshell2.0

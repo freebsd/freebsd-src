@@ -1,6 +1,6 @@
 /* original parser id follows */
 /* yysccsid[] = "@(#)yaccpar	1.9 (Berkeley) 02/21/93" */
-/* (use YYMAJOR/YYMINOR for ifdefs dependent on parser version) */
+/* (use YYMAJOR/YYMINOR for ifdefs dependent of parser version) */
 
 #define YYBYACC 1
 #define YYMAJOR 1
@@ -354,11 +354,11 @@ yyerror(const char* s)
 #endif /* YYBTYACC */
 
 #if YYDEBUG
-#include <stdio.h>		/* needed for printf */
+#include <stdio.h>         /* needed for printf */
 #endif
 
-#include <stdlib.h>	/* needed for malloc, etc */
-#include <string.h>	/* needed for memset */
+#include <stdlib.h>        /* needed for malloc, etc */
+#include <string.h>        /* needed for memset */
 
 /* allocate initial stack or double stack size, up to YYMAXDEPTH */
 static int yygrowstack(YYSTACKDATA *data)
@@ -542,8 +542,8 @@ yyloop:
             /* in trial mode; save scanner results for future parse attempts */
             if (yylvp == yylvlim)
             {   /* Enlarge lexical value queue */
-                int p = yylvp - yylvals;
-                int s = yylvlim - yylvals;
+                size_t p = (size_t) (yylvp - yylvals);
+                size_t s = (size_t) (yylvlim - yylvals);
 
                 s += YYLVQUEUEGROWTH;
                 if ((yylexemes = (short *)   realloc(yylexemes, s * sizeof(short))) == NULL) goto yyenomem;
@@ -639,12 +639,12 @@ yyloop:
             save->state           = yystate;
             save->errflag         = yyerrflag;
             save->yystack.s_mark  = save->yystack.s_base + (yystack.s_mark - yystack.s_base);
-            memcpy (save->yystack.s_base, yystack.s_base, (yystack.s_mark - yystack.s_base + 1) * sizeof(short));
+            memcpy (save->yystack.s_base, yystack.s_base, (size_t) (yystack.s_mark - yystack.s_base + 1) * sizeof(short));
             save->yystack.l_mark  = save->yystack.l_base + (yystack.l_mark - yystack.l_base);
-            memcpy (save->yystack.l_base, yystack.l_base, (yystack.l_mark - yystack.l_base + 1) * sizeof(YYSTYPE));
+            memcpy (save->yystack.l_base, yystack.l_base, (size_t) (yystack.l_mark - yystack.l_base + 1) * sizeof(YYSTYPE));
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
             save->yystack.p_mark  = save->yystack.p_base + (yystack.p_mark - yystack.p_base);
-            memcpy (save->yystack.p_base, yystack.p_base, (yystack.p_mark - yystack.p_base + 1) * sizeof(YYLTYPE));
+            memcpy (save->yystack.p_base, yystack.p_base, (size_t) (yystack.p_mark - yystack.p_base + 1) * sizeof(YYLTYPE));
 #endif
             ctry                  = yytable[yyn];
             if (yyctable[ctry] == -1)
@@ -699,7 +699,7 @@ yyloop:
                 yylexp--;
                 yychar = YYEMPTY;
             }
-            save->lexeme = yylvp - yylvals;
+            save->lexeme = (int) (yylvp - yylvals);
             yyps->save   = save;
         }
         if (yytable[yyn] == ctry)
@@ -793,14 +793,14 @@ yyerrhandler:
             yyerrctx->state          = yystate;
             yyerrctx->errflag        = yyerrflag;
             yyerrctx->yystack.s_mark = yyerrctx->yystack.s_base + (yystack.s_mark - yystack.s_base);
-            memcpy (yyerrctx->yystack.s_base, yystack.s_base, (yystack.s_mark - yystack.s_base + 1) * sizeof(short));
+            memcpy (yyerrctx->yystack.s_base, yystack.s_base, (size_t) (yystack.s_mark - yystack.s_base + 1) * sizeof(short));
             yyerrctx->yystack.l_mark = yyerrctx->yystack.l_base + (yystack.l_mark - yystack.l_base);
-            memcpy (yyerrctx->yystack.l_base, yystack.l_base, (yystack.l_mark - yystack.l_base + 1) * sizeof(YYSTYPE));
+            memcpy (yyerrctx->yystack.l_base, yystack.l_base, (size_t) (yystack.l_mark - yystack.l_base + 1) * sizeof(YYSTYPE));
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
             yyerrctx->yystack.p_mark = yyerrctx->yystack.p_base + (yystack.p_mark - yystack.p_base);
-            memcpy (yyerrctx->yystack.p_base, yystack.p_base, (yystack.p_mark - yystack.p_base + 1) * sizeof(YYLTYPE));
+            memcpy (yyerrctx->yystack.p_base, yystack.p_base, (size_t) (yystack.p_mark - yystack.p_base + 1) * sizeof(YYLTYPE));
 #endif
-            yyerrctx->lexeme         = yylvp - yylvals;
+            yyerrctx->lexeme         = (int) (yylvp - yylvals);
         }
         yylvp          = yylvals   + save->lexeme;
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
@@ -809,12 +809,12 @@ yyerrhandler:
         yylexp         = yylexemes + save->lexeme;
         yychar         = YYEMPTY;
         yystack.s_mark = yystack.s_base + (save->yystack.s_mark - save->yystack.s_base);
-        memcpy (yystack.s_base, save->yystack.s_base, (yystack.s_mark - yystack.s_base + 1) * sizeof(short));
+        memcpy (yystack.s_base, save->yystack.s_base, (size_t) (yystack.s_mark - yystack.s_base + 1) * sizeof(short));
         yystack.l_mark = yystack.l_base + (save->yystack.l_mark - save->yystack.l_base);
-        memcpy (yystack.l_base, save->yystack.l_base, (yystack.l_mark - yystack.l_base + 1) * sizeof(YYSTYPE));
+        memcpy (yystack.l_base, save->yystack.l_base, (size_t) (yystack.l_mark - yystack.l_base + 1) * sizeof(YYSTYPE));
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
         yystack.p_mark = yystack.p_base + (save->yystack.p_mark - save->yystack.p_base);
-        memcpy (yystack.p_base, save->yystack.p_base, (yystack.p_mark - yystack.p_base + 1) * sizeof(YYLTYPE));
+        memcpy (yystack.p_base, save->yystack.p_base, (size_t) (yystack.p_mark - yystack.p_base + 1) * sizeof(YYLTYPE));
 #endif
         ctry           = ++save->ctry;
         yystate        = save->state;
@@ -844,12 +844,12 @@ yyerrhandler:
             yylloc         = yylpp[-1];
 #endif
             yystack.s_mark = yystack.s_base + (yyerrctx->yystack.s_mark - yyerrctx->yystack.s_base);
-            memcpy (yystack.s_base, yyerrctx->yystack.s_base, (yystack.s_mark - yystack.s_base + 1) * sizeof(short));
+            memcpy (yystack.s_base, yyerrctx->yystack.s_base, (size_t) (yystack.s_mark - yystack.s_base + 1) * sizeof(short));
             yystack.l_mark = yystack.l_base + (yyerrctx->yystack.l_mark - yyerrctx->yystack.l_base);
-            memcpy (yystack.l_base, yyerrctx->yystack.l_base, (yystack.l_mark - yystack.l_base + 1) * sizeof(YYSTYPE));
+            memcpy (yystack.l_base, yyerrctx->yystack.l_base, (size_t) (yystack.l_mark - yystack.l_base + 1) * sizeof(YYSTYPE));
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
             yystack.p_mark = yystack.p_base + (yyerrctx->yystack.p_mark - yyerrctx->yystack.p_base);
-            memcpy (yystack.p_base, yyerrctx->yystack.p_base, (yystack.p_mark - yystack.p_base + 1) * sizeof(YYLTYPE));
+            memcpy (yystack.p_base, yyerrctx->yystack.p_base, (size_t) (yystack.p_mark - yystack.p_base + 1) * sizeof(YYLTYPE));
 #endif
             yystate        = yyerrctx->state;
             yyFreeState(yyerrctx);
@@ -1052,8 +1052,8 @@ yyreduce:
                 /* in trial mode; save scanner results for future parse attempts */
                 if (yylvp == yylvlim)
                 {   /* Enlarge lexical value queue */
-                    int p = yylvp - yylvals;
-                    int s = yylvlim - yylvals;
+                    size_t p = (size_t) (yylvp - yylvals);
+                    size_t s = (size_t) (yylvlim - yylvals);
 
                     s += YYLVQUEUEGROWTH;
                     if ((yylexemes = (short *)   realloc(yylexemes, s * sizeof(short))) == NULL)
@@ -1156,12 +1156,12 @@ yyvalid:
     yylexp         = yylexemes + yypath->lexeme;
     yychar         = YYEMPTY;
     yystack.s_mark = yystack.s_base + (yypath->yystack.s_mark - yypath->yystack.s_base);
-    memcpy (yystack.s_base, yypath->yystack.s_base, (yystack.s_mark - yystack.s_base + 1) * sizeof(short));
+    memcpy (yystack.s_base, yypath->yystack.s_base, (size_t) (yystack.s_mark - yystack.s_base + 1) * sizeof(short));
     yystack.l_mark = yystack.l_base + (yypath->yystack.l_mark - yypath->yystack.l_base);
-    memcpy (yystack.l_base, yypath->yystack.l_base, (yystack.l_mark - yystack.l_base + 1) * sizeof(YYSTYPE));
+    memcpy (yystack.l_base, yypath->yystack.l_base, (size_t) (yystack.l_mark - yystack.l_base + 1) * sizeof(YYSTYPE));
 #if defined(YYLTYPE) || defined(YYLTYPE_IS_DECLARED)
     yystack.p_mark = yystack.p_base + (yypath->yystack.p_mark - yypath->yystack.p_base);
-    memcpy (yystack.p_base, yypath->yystack.p_base, (yystack.p_mark - yystack.p_base + 1) * sizeof(YYLTYPE));
+    memcpy (yystack.p_base, yypath->yystack.p_base, (size_t) (yystack.p_mark - yystack.p_base + 1) * sizeof(YYLTYPE));
 #endif
     yystate        = yypath->state;
     goto yyloop;

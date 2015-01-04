@@ -34,6 +34,7 @@
 
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 
 #ifdef FDT
 #include <dev/ofw/ofw_bus_subr.h>
@@ -41,7 +42,12 @@
 
 #include "gpio_if.h"
 
+#ifdef FDT
+#define	GPIOBUS_IVAR(d) (struct gpiobus_ivar *)				\
+	&((struct ofw_gpiobus_devinfo *)device_get_ivars(d))->opd_dinfo
+#else
 #define	GPIOBUS_IVAR(d) (struct gpiobus_ivar *) device_get_ivars(d)
+#endif
 #define	GPIOBUS_SOFTC(d) (struct gpiobus_softc *) device_get_softc(d)
 #define	GPIOBUS_LOCK(_sc) mtx_lock(&(_sc)->sc_mtx)
 #define	GPIOBUS_UNLOCK(_sc) mtx_unlock(&(_sc)->sc_mtx)
@@ -51,9 +57,13 @@
 #define	GPIOBUS_ASSERT_LOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_OWNED)
 #define	GPIOBUS_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED)
 
+#define	GPIOBUS_WAIT		1
+#define	GPIOBUS_DONTWAIT	2
+
 struct gpiobus_softc
 {
 	struct mtx	sc_mtx;		/* bus mutex */
+	struct rman	sc_intr_rman;	/* isr resources */
 	device_t	sc_busdev;	/* bus device */
 	device_t	sc_owner;	/* bus owner */
 	device_t	sc_dev;		/* driver device */
@@ -63,6 +73,7 @@ struct gpiobus_softc
 
 struct gpiobus_ivar
 {
+	struct resource_list	rl;	/* isr resource list */
 	uint32_t	npins;	/* pins total */
 	uint32_t	*flags;	/* pins flags */
 	uint32_t	*pins;	/* pins map */
@@ -83,7 +94,8 @@ gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
 
 device_t ofw_gpiobus_add_fdt_child(device_t, phandle_t);
 #endif
-void gpiobus_print_pins(struct gpiobus_ivar *);
+int gpio_check_flags(uint32_t, uint32_t);
+int gpiobus_init_softc(device_t);
 
 extern driver_t gpiobus_driver;
 

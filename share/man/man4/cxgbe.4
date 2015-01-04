@@ -240,8 +240,19 @@ The default is -1 which lets the driver pick a pad boundary.
 Controls the hardware response to congestion.
 -1 disables congestion feedback and is not recommended.
 0 instructs the hardware to backpressure its pipeline on congestion.
-This usually results in the port emitting pause frames.
+This usually results in the port emitting PAUSE frames.
 1 instructs the hardware to drop frames destined for congested queues.
+.It Va hw.cxgbe.pause_settings
+PAUSE frame settings.
+Bit 0 is rx_pause, bit 1 is tx_pause.
+rx_pause = 1 instructs the hardware to heed incoming PAUSE frames, 0 instructs
+it to ignore them.
+tx_pause = 1 allows the hardware to emit PAUSE frames when its receive FIFO
+reaches a high threshold, 0 prohibits the hardware from emitting PAUSE frames.
+The default is 3 (both rx_pause and tx_pause = 1).
+This tunable establishes the default PAUSE settings for all ports.
+Settings can be displayed and controlled on a per-port basis via the
+dev.cxgbe.X.pause_settings (dev.cxl.X.pause_settings for T5 cards) sysctl.
 .It Va hw.cxgbe.buffer_packing
 Allow the hardware to deliver multiple frames in the same receive buffer
 opportunistically.

@@ -66,8 +66,13 @@ extern "C" {
  *		|			 |
  *		|			 |
  *		+--------> NOFILL -------+
+ *
+ * DB_SEARCH is an invalid state for a dbuf. It is used by dbuf_free_range
+ * to find all dbufs in a range of a dnode and must be less than any other
+ * dbuf_states_t (see comment on dn_dbufs in dnode.h).
  */
 typedef enum dbuf_states {
+	DB_SEARCH = -1,
 	DB_UNCACHED,
 	DB_FILL,
 	DB_NOFILL,
@@ -213,9 +218,6 @@ typedef struct dmu_buf_impl {
 	/* pointer to most recent dirty record for this buffer */
 	dbuf_dirty_record_t *db_last_dirty;
 
-	/* Creation time of dbuf (see comment in dbuf_compare). */
-	hrtime_t db_creation;
-
 	/*
 	 * Our link on the owner dnodes's dn_dbufs list.
 	 * Protected by its dn_dbufs_mtx.
@@ -226,7 +228,6 @@ typedef struct dmu_buf_impl {
 
 	/* stuff we store for the user (see dmu_buf_set_user) */
 	void *db_user_ptr;
-	void **db_user_data_ptr_ptr;
 	dmu_buf_evict_func_t *db_evict_func;
 
 	uint8_t db_immediate_evict;

@@ -1,8 +1,8 @@
-dnl $Id: configure.ac 741 2013-09-07 13:34:02Z des $
+dnl $Id: configure.ac 816 2014-09-12 07:50:22Z des $
 
 AC_PREREQ([2.62])
-AC_REVISION([$Id: configure.ac 741 2013-09-07 13:34:02Z des $])
-AC_INIT([OpenPAM], [20130907], [des@des.no], [openpam], [http://www.openpam.org/])
+AC_REVISION([$Id: configure.ac 816 2014-09-12 07:50:22Z des $])
+AC_INIT([OpenPAM], [20140912], [des@des.no], [openpam], [http://www.openpam.org/])
 AC_CONFIG_SRCDIR([lib/libpam/pam_start.c])
 AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([foreign])
@@ -85,7 +85,7 @@ AC_CHECK_FUNCS([asprintf vasprintf])
 AC_CHECK_FUNCS([dlfunc fdlopen])
 AC_CHECK_FUNCS([fpurge])
 AC_CHECK_FUNCS([setlogmask])
-AC_CHECK_FUNCS([strlcat strlcmp strlcpy])
+AC_CHECK_FUNCS([strlcat strlcmp strlcpy strlset])
 
 saved_LIBS="${LIBS}"
 LIBS=""

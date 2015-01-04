@@ -9,8 +9,6 @@ CFLAGS+=	-I${.CURDIR}/../common \
 		-I${.CURDIR}/../../libc/include
 CFLAGS+=	-fno-omit-frame-pointer
 
-NO_PIE=	yes
-
 all: ${OBJS}
 
 CLEANFILES=	${OBJS}

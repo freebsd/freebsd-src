@@ -102,7 +102,7 @@ sfxge_ev_rx(void *arg, uint32_t label, uint32_t id, uint32_t size,
 	if (rxq->init_state != SFXGE_RXQ_STARTED)
 		goto done;
 
-	expected = rxq->pending++ & (SFXGE_NDESCS - 1);
+	expected = rxq->pending++ & rxq->ptr_mask;
 	if (id != expected) {
 		evq->exception = B_TRUE;
 
@@ -226,7 +226,7 @@ sfxge_get_txq_by_label(struct sfxge_evq *evq, enum sfxge_txq_type label)
 	KASSERT((evq->index == 0 && label < SFXGE_TXQ_NTYPES) ||
 	    (label == SFXGE_TXQ_IP_TCP_UDP_CKSUM), ("unexpected txq label"));
 	index = (evq->index == 0) ? label : (evq->index - 1 + SFXGE_TXQ_NTYPES);
-	return evq->sc->txq[index];
+	return (evq->sc->txq[index]);
 }
 
 static boolean_t
@@ -247,10 +247,10 @@ sfxge_ev_tx(void *arg, uint32_t label, uint32_t id)
 	if (txq->init_state != SFXGE_TXQ_STARTED)
 		goto done;
 
-	stop = (id + 1) & (SFXGE_NDESCS - 1);
-	id = txq->pending & (SFXGE_NDESCS - 1);
+	stop = (id + 1) & txq->ptr_mask;
+	id = txq->pending & txq->ptr_mask;
 
-	delta = (stop >= id) ? (stop - id) : (SFXGE_NDESCS - id + stop);
+	delta = (stop >= id) ? (stop - id) : (txq->entries - id + stop);
 	txq->pending += delta;
 
 	evq->tx_done++;
@@ -443,7 +443,7 @@ sfxge_ev_stat_handler(SYSCTL_HANDLER_ARGS)
 
 	sfxge_ev_stat_update(sc);
 
-	return SYSCTL_OUT(req, &sc->ev_stats[id], sizeof(sc->ev_stats[id]));
+	return (SYSCTL_OUT(req, &sc->ev_stats[id], sizeof(sc->ev_stats[id])));
 }
 
 static void
@@ -493,7 +493,7 @@ sfxge_int_mod_handler(SYSCTL_HANDLER_ARGS)
 
 	sx_xlock(&sc->softc_lock);
 
-	if (req->newptr) {
+	if (req->newptr != NULL) {
 		if ((error = SYSCTL_IN(req, &moderation, sizeof(moderation)))
 		    != 0)
 			goto out;
@@ -520,14 +520,14 @@ sfxge_int_mod_handler(SYSCTL_HANDLER_ARGS)
 out:
 	sx_xunlock(&sc->softc_lock);
 
-	return error;
+	return (error);
 }
 
 static boolean_t
 sfxge_ev_initialized(void *arg)
 {
 	struct sfxge_evq *evq;
-	
+
 	evq = (struct sfxge_evq *)arg;
 
 	KASSERT(evq->init_state == SFXGE_EVQ_STARTING,
@@ -635,7 +635,7 @@ sfxge_ev_qstop(struct sfxge_softc *sc, unsigned int index)
 
 	efx_ev_qdestroy(evq->common);
 	efx_sram_buf_tbl_clear(sc->enp, evq->buf_base_id,
-	    EFX_EVQ_NBUFS(SFXGE_NEVS));
+	    EFX_EVQ_NBUFS(evq->entries));
 	mtx_unlock(&evq->lock);
 }
 
@@ -654,15 +654,15 @@ sfxge_ev_qstart(struct sfxge_softc *sc, unsigned int index)
 	    ("evq->init_state != SFXGE_EVQ_INITIALIZED"));
 
 	/* Clear all events. */
-	(void)memset(esmp->esm_base, 0xff, EFX_EVQ_SIZE(SFXGE_NEVS));
+	(void)memset(esmp->esm_base, 0xff, EFX_EVQ_SIZE(evq->entries));
 
 	/* Program the buffer table. */
 	if ((rc = efx_sram_buf_tbl_set(sc->enp, evq->buf_base_id, esmp,
-	    EFX_EVQ_NBUFS(SFXGE_NEVS))) != 0)
-		return rc;
+	    EFX_EVQ_NBUFS(evq->entries))) != 0)
+		return (rc);
 
 	/* Create the common code event queue. */
-	if ((rc = efx_ev_qcreate(sc->enp, index, esmp, SFXGE_NEVS,
+	if ((rc = efx_ev_qcreate(sc->enp, index, esmp, evq->entries,
 	    evq->buf_base_id, &evq->common)) != 0)
 		goto fail;
 
@@ -705,7 +705,7 @@ fail2:
 	efx_ev_qdestroy(evq->common);
 fail:
 	efx_sram_buf_tbl_clear(sc->enp, evq->buf_base_id,
-	    EFX_EVQ_NBUFS(SFXGE_NEVS));
+	    EFX_EVQ_NBUFS(evq->entries));
 
 	return (rc);
 }
@@ -746,7 +746,7 @@ sfxge_ev_start(struct sfxge_softc *sc)
 
 	/* Initialize the event module */
 	if ((rc = efx_ev_init(sc->enp)) != 0)
-		return rc;
+		return (rc);
 
 	/* Start the event queues */
 	for (index = 0; index < intr->n_alloc; index++) {
@@ -802,15 +802,31 @@ sfxge_ev_qinit(struct sfxge_softc *sc, unsigned int index)
 	sc->evq[index] = evq;
 	esmp = &evq->mem;
 
+	/* Build an event queue with room for one event per tx and rx buffer,
+	 * plus some extra for link state events and MCDI completions.
+	 * There are three tx queues in the first event queue and one in
+	 * other.
+	 */
+	if (index == 0)
+		evq->entries =
+			ROUNDUP_POW_OF_TWO(sc->rxq_entries +
+					   3 * sc->txq_entries +
+					   128);
+	else
+		evq->entries =
+			ROUNDUP_POW_OF_TWO(sc->rxq_entries +
+					   sc->txq_entries +
+					   128);
+
 	/* Initialise TX completion list */
 	evq->txqs = &evq->txq;
 
 	/* Allocate DMA space. */
-	if ((rc = sfxge_dma_alloc(sc, EFX_EVQ_SIZE(SFXGE_NEVS), esmp)) != 0)
+	if ((rc = sfxge_dma_alloc(sc, EFX_EVQ_SIZE(evq->entries), esmp)) != 0)
 		return (rc);
 
 	/* Allocate buffer table entries. */
-	sfxge_sram_buf_tbl_alloc(sc, EFX_EVQ_NBUFS(SFXGE_NEVS),
+	sfxge_sram_buf_tbl_alloc(sc, EFX_EVQ_NBUFS(evq->entries),
 				 &evq->buf_base_id);
 
 	mtx_init(&evq->lock, "evq", NULL, MTX_DEF);

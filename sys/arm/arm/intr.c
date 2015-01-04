@@ -36,19 +36,29 @@
  * Soft interrupt and other generic interrupt functions.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/syslog.h>
+#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/conf.h>
+
 #include <machine/atomic.h>
 #include <machine/intr.h>
 #include <machine/cpu.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <machine/fdt.h>
+#endif
 
 #define	INTRNAME_LEN	(MAXCOMLEN + 1)
 
@@ -75,8 +85,8 @@ size_t sintrnames = sizeof(intrnames);
  * assumptions of vmstat(8) and the kdb "show intrcnt" command, the two
  * consumers of this data.
  */
-void
-arm_intrnames_init(void)
+static void
+intr_init(void *unused)
 {
 	int i;
 
@@ -85,6 +95,38 @@ arm_intrnames_init(void)
 		    INTRNAME_LEN - 1, "");
 	}
 }
+
+SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
+
+#ifdef FDT
+int
+arm_fdt_map_irq(phandle_t iparent, pcell_t *intr, int icells)
+{
+	fdt_pic_decode_t intr_decode;
+	phandle_t intr_parent;
+	int i, rv, interrupt, trig, pol;
+
+	intr_parent = OF_node_from_xref(iparent);
+	for (i = 0; i < icells; i++)
+		intr[i] = cpu_to_fdt32(intr[i]);
+
+	for (i = 0; fdt_pic_table[i] != NULL; i++) {
+		intr_decode = fdt_pic_table[i];
+		rv = intr_decode(intr_parent, intr, &interrupt, &trig, &pol);
+
+		if (rv == 0) {
+			/* This was recognized as our PIC and decoded. */
+			interrupt = FDT_MAP_IRQ(intr_parent, interrupt);
+			return (interrupt);
+		}
+	}
+
+	/* Not in table, so guess */
+	interrupt = FDT_MAP_IRQ(intr_parent, fdt32_to_cpu(intr[0]));
+
+	return (interrupt);
+}
+#endif
 
 void
 arm_setup_irqhandler(const char *name, driver_filter_t *filt,

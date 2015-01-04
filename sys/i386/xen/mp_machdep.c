@@ -598,22 +598,13 @@ init_secondary(void)
 	for (addr = 0; addr < NKPT * NBPDR - 1; addr += PAGE_SIZE)
 		invlpg(addr);
 
-	/* set up FPU state on the AP */
-	npxinit();
 #if 0
-	
-	/* set up SSE registers */
-	enable_sse();
+	/* set up SSE/NX */
+	initializecpu();
 #endif
-#if 0 && defined(PAE)
-	/* Enable the PTE no-execute bit. */
-	if ((amd_feature & AMDID_NX) != 0) {
-		uint64_t msr;
 
-		msr = rdmsr(MSR_EFER) | EFER_NXE;
-		wrmsr(MSR_EFER, msr);
-	}
-#endif
+	/* set up FPU state on the AP */
+	npxinit(false);
 #if 0
 	/* A quick check from sanity claus */
 	if (PCPU_GET(apic_id) != lapic_id()) {

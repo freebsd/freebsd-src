@@ -252,7 +252,7 @@ atm_input(struct ifnet *ifp, struct atm_pseudohdr *ah, struct mbuf *m,
 #ifdef MAC
 	mac_ifnet_create_mbuf(ifp, m);
 #endif
-	ifp->if_ibytes += m->m_pkthdr.len;
+	if_inc_counter(ifp, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
 	if (ng_atm_input_p != NULL) {
 		(*ng_atm_input_p)(ifp, &m, ah, rxhand);

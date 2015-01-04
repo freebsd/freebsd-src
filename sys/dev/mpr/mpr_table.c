@@ -118,6 +118,7 @@ struct mpr_table_lookup mpr_linkrate_names[] = {
 	{"1.5Gbps",			0x08},
 	{"3.0Gbps",			0x09},
 	{"6.0Gbps",			0x0a},
+	{"12.0Gbps",			0x0b},
 	{NULL, 0},
 	{"LinkRate Unknown",		0x00}
 };

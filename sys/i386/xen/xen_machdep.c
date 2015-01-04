@@ -165,7 +165,7 @@ xen_boothowto(char *envp)
 
 	/* get equivalents from the environment */
 	for (i = 0; howto_names[i].ev != NULL; i++)
-		if (getenv(howto_names[i].ev) != NULL)
+		if (kern_getenv(howto_names[i].ev) != NULL)
 			howto |= howto_names[i].mask;
 	return howto;
 }

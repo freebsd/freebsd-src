@@ -156,6 +156,13 @@ cninit(void)
 	 * Make the best console the preferred console.
 	 */
 	cnselect(best_cn);
+
+#ifdef EARLY_PRINTF
+	/*
+	 * Release early console.
+	 */
+	early_putc = NULL;
+#endif
 }
 
 void
@@ -505,6 +512,13 @@ cnputs(char *p)
 	int unlock_reqd = 0;
 
 	if (use_cnputs_mtx) {
+	  	/*
+		 * NOTE: Debug prints and/or witness printouts in
+		 * console driver clients can cause the "cnputs_mtx"
+		 * mutex to recurse. Simply return if that happens.
+		 */
+		if (mtx_owned(&cnputs_mtx))
+			return;
 		mtx_lock_spin(&cnputs_mtx);
 		unlock_reqd = 1;
 	}
@@ -607,6 +621,7 @@ SYSINIT(cndev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, cn_drvinit, NULL);
 #ifdef HAS_TIMER_SPKR
 
 static int beeping;
+static struct callout beeping_timer;
 
 static void
 sysbeepstop(void *chan)
@@ -629,11 +644,18 @@ sysbeep(int pitch, int period)
 	timer_spkr_setfreq(pitch);
 	if (!beeping) {
 		beeping = period;
-		timeout(sysbeepstop, (void *)NULL, period);
+		callout_reset(&beeping_timer, period, sysbeepstop, NULL);
 	}
 	return (0);
 }
 
+static void
+sysbeep_init(void *unused)
+{
+
+	callout_init(&beeping_timer, CALLOUT_MPSAFE);
+}
+SYSINIT(sysbeep, SI_SUB_SOFTINTR, SI_ORDER_ANY, sysbeep_init, NULL);
 #else
 
 /*
@@ -681,10 +703,10 @@ vty_enabled(unsigned vty)
 				vty_selected = vty_prefer;
 				break;
 			}
-#if defined(DEV_SC)
-			vty_selected = VTY_SC;
-#elif defined(DEV_VT)
+#if defined(DEV_VT)
 			vty_selected = VTY_VT;
+#elif defined(DEV_SC)
+			vty_selected = VTY_SC;
 #endif
 		} while (0);
 

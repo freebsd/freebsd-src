@@ -347,6 +347,7 @@ struct ar9300_txc {
 
 /* ds_status2 */
 #define AR_data_len          0x00000fff
+#define AR_data_len_S        0
 #define AR_rx_more           0x00001000
 #define AR_num_delim         0x003fc000
 #define AR_num_delim_S       14

@@ -1,4 +1,3 @@
 # $FreeBSD$
 
-# Blank, to override Makefile.i386 since Makefile.$MACHINE is included before 
-# Makefile.$MACHINE_ARCH
+SUBDIR+=		libstand32

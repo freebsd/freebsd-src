@@ -16,8 +16,10 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_parse.c,v 1.5.18.4 2007/08/27 03:34:24 marka Exp $";
+static const char rcsid[] = "$Id: ns_parse.c,v 1.10 2009/01/23 19:59:16 each Exp $";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /* Import. */
 
@@ -46,6 +48,9 @@ static void	setsection(ns_msg *msg, ns_sect sect);
 #define RETERR(err) \
 	do { errno = (err); if (errno == errno) return (-1); } while (0)
 #endif
+
+#define PARSE_FMT_PRESO 0	/* Parse using presentation-format names */
+#define PARSE_FMT_WIRE 1	/* Parse using network-format names */
 
 /* Public. */
 
@@ -102,7 +107,6 @@ ns_initparse(const u_char *msg, int msglen, ns_msg *handle) {
 	const u_char *eom = msg + msglen;
 	int i;
 
-	memset(handle, 0x5e, sizeof *handle);
 	handle->_msg = msg;
 	handle->_eom = eom;
 	if (msg + NS_INT16SZ > eom)
@@ -166,6 +170,68 @@ ns_parserr(ns_msg *handle, ns_sect section, int rrnum, ns_rr *rr) {
 	/* Do the parse. */
 	b = dn_expand(handle->_msg, handle->_eom,
 		      handle->_msg_ptr, rr->name, NS_MAXDNAME);
+	if (b < 0)
+		return (-1);
+	handle->_msg_ptr += b;
+	if (handle->_msg_ptr + NS_INT16SZ + NS_INT16SZ > handle->_eom)
+		RETERR(EMSGSIZE);
+	NS_GET16(rr->type, handle->_msg_ptr);
+	NS_GET16(rr->rr_class, handle->_msg_ptr);
+	if (section == ns_s_qd) {
+		rr->ttl = 0;
+		rr->rdlength = 0;
+		rr->rdata = NULL;
+	} else {
+		if (handle->_msg_ptr + NS_INT32SZ + NS_INT16SZ > handle->_eom)
+			RETERR(EMSGSIZE);
+		NS_GET32(rr->ttl, handle->_msg_ptr);
+		NS_GET16(rr->rdlength, handle->_msg_ptr);
+		if (handle->_msg_ptr + rr->rdlength > handle->_eom)
+			RETERR(EMSGSIZE);
+		rr->rdata = handle->_msg_ptr;
+		handle->_msg_ptr += rr->rdlength;
+	}
+	if (++handle->_rrnum > handle->_counts[(int)section])
+		setsection(handle, (ns_sect)((int)section + 1));
+
+	/* All done. */
+	return (0);
+}
+
+/*
+ * This is identical to the above but uses network-format (uncompressed) names.
+ */
+int
+ns_parserr2(ns_msg *handle, ns_sect section, int rrnum, ns_rr2 *rr) {
+	int b;
+	int tmp;
+
+	/* Make section right. */
+	if ((tmp = section) < 0 || section >= ns_s_max)
+		RETERR(ENODEV);
+	if (section != handle->_sect)
+		setsection(handle, section);
+
+	/* Make rrnum right. */
+	if (rrnum == -1)
+		rrnum = handle->_rrnum;
+	if (rrnum < 0 || rrnum >= handle->_counts[(int)section])
+		RETERR(ENODEV);
+	if (rrnum < handle->_rrnum)
+		setsection(handle, section);
+	if (rrnum > handle->_rrnum) {
+		b = ns_skiprr(handle->_msg_ptr, handle->_eom, section,
+			      rrnum - handle->_rrnum);
+
+		if (b < 0)
+			return (-1);
+		handle->_msg_ptr += b;
+		handle->_rrnum = rrnum;
+	}
+
+	/* Do the parse. */
+	b = ns_name_unpack2(handle->_msg, handle->_eom, handle->_msg_ptr,
+			    rr->nname, NS_MAXNNAME, &rr->nnamel);
 	if (b < 0)
 		return (-1);
 	handle->_msg_ptr += b;

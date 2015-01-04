@@ -30,7 +30,7 @@
 #define	_DDB_DB_SYM_H_
 
 /*
- * 	Author: Alessandro Forin, Carnegie Mellon University
+ *	Author: Alessandro Forin, Carnegie Mellon University
  *	Date:	8/90
  */
 
