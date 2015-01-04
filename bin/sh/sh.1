@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd September 21, 2014
+.Dd November 7, 2014
 .Dt SH 1
 .Os
 .Sh NAME
@@ -2516,7 +2516,8 @@ and so on,
 decreasing the value of
 .Li $#
 by one.
-If there are zero positional parameters, shifting does not do anything.
+For portability, shifting if there are zero positional parameters
+should be avoided, since the shell may abort.
 .It Ic test
 A built-in equivalent of
 .Xr test 1 .
