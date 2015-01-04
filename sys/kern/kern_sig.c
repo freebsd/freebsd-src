@@ -3177,7 +3177,8 @@ corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 	sbuf_delete(&sb);
 
 	cmode = S_IRUSR | S_IWUSR;
-	oflags = VN_OPEN_NOAUDIT | (capmode_coredump ? VN_OPEN_NOCAPCHECK : 0);
+	oflags = VN_OPEN_NOAUDIT | VN_OPEN_NAMECACHE |
+	    (capmode_coredump ? VN_OPEN_NOCAPCHECK : 0);
 
 	/*
 	 * If the core format has a %I in it, then we need to check

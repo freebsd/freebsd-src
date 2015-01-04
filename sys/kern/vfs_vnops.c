@@ -215,6 +215,8 @@ restart:
 					return (error);
 				goto restart;
 			}
+			if ((vn_open_flags & VN_OPEN_NAMECACHE) != 0)
+				ndp->ni_cnd.cn_flags |= MAKEENTRY;
 #ifdef MAC
 			error = mac_vnode_check_create(cred, ndp->ni_dvp,
 			    &ndp->ni_cnd, vap);
