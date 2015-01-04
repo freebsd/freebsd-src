@@ -211,8 +211,6 @@ setup_pio(device_t dev, char *name, device_t *pio_dev)
 	SLIST_FOREACH(ic, &fdt_ic_list_head, fdt_ics) {
 		if (ic->iph == pio_node) {
 			*pio_dev = ic->dev;
-			PIO_CONFIGURE(*pio_dev, PIO_OUT_ALL,
-					PIO_UNMASK_ALL);
 			return (0);
 		}
 	}
