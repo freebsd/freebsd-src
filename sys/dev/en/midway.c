@@ -1935,7 +1935,7 @@ en_mget(struct en_softc *sc, u_int pktlen)
 	m->m_pkthdr.rcvif = NULL;
 	m->m_pkthdr.len = pktlen;
 	m->m_len = EN_RX1BUF;
-	MH_ALIGN(m, EN_RX1BUF);
+	M_ALIGN(m, EN_RX1BUF);
 	if (m->m_len >= totlen) {
 		m->m_len = totlen;
 

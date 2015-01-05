@@ -304,11 +304,7 @@ typedef struct callout sctp_os_timer_t;
 #define SCTP_BUF_RECVIF(m) (m->m_pkthdr.rcvif)
 #define SCTP_BUF_PREPEND	M_PREPEND
 
-#define SCTP_ALIGN_TO_END(m, len) if(m->m_flags & M_PKTHDR) { \
-                                     MH_ALIGN(m, len); \
-                                  } else if ((m->m_flags & M_EXT) == 0) { \
-                                     M_ALIGN(m, len); \
-                                  }
+#define SCTP_ALIGN_TO_END(m, len) M_ALIGN(m, len)
 
 /* We make it so if you have up to 4 threads
  * writing based on the default size of
