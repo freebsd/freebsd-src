@@ -810,42 +810,6 @@ m_last(struct mbuf *m)
 	    ("%s: attempted use of a free mbuf!", __func__))
 
 /*
- * Set the m_data pointer of a newly-allocated mbuf (m_get/MGET) to place an
- * object of the specified size at the end of the mbuf, longword aligned.
- */
-#define	M_ALIGN(m, len) do {						\
-	KASSERT(!((m)->m_flags & (M_PKTHDR|M_EXT)),			\
-		("%s: M_ALIGN not normal mbuf", __func__));		\
-	KASSERT((m)->m_data == (m)->m_dat,				\
-		("%s: M_ALIGN not a virgin mbuf", __func__));		\
-	(m)->m_data += (MLEN - (len)) & ~(sizeof(long) - 1);		\
-} while (0)
-
-/*
- * As above, for mbufs allocated with m_gethdr/MGETHDR or initialized by
- * M_DUP/MOVE_PKTHDR.
- */
-#define	MH_ALIGN(m, len) do {						\
-	KASSERT((m)->m_flags & M_PKTHDR && !((m)->m_flags & M_EXT),	\
-		("%s: MH_ALIGN not PKTHDR mbuf", __func__));		\
-	KASSERT((m)->m_data == (m)->m_pktdat,				\
-		("%s: MH_ALIGN not a virgin mbuf", __func__));		\
-	(m)->m_data += (MHLEN - (len)) & ~(sizeof(long) - 1);		\
-} while (0)
-
-/*
- * As above, for mbuf with external storage.
- */
-#define	MEXT_ALIGN(m, len) do {						\
-	KASSERT((m)->m_flags & M_EXT,					\
-		("%s: MEXT_ALIGN not an M_EXT mbuf", __func__));	\
-	KASSERT((m)->m_data == (m)->m_ext.ext_buf,			\
-		("%s: MEXT_ALIGN not a virgin mbuf", __func__));	\
-	(m)->m_data += ((m)->m_ext.ext_size - (len)) &			\
-	    ~(sizeof(long) - 1); 					\
-} while (0)
-
-/*
  * Return the address of the start of the buffer associated with an mbuf,
  * handling external storage, packet-header mbufs, and regular data mbufs.
  */
@@ -862,6 +826,41 @@ m_last(struct mbuf *m)
 	(((m)->m_flags & M_EXT) ? (m)->m_ext.ext_size :			\
 	 ((m)->m_flags & M_PKTHDR) ? MHLEN :				\
 	 MLEN)
+
+/*
+ * Set the m_data pointer of a newly allocated mbuf to place an object of the
+ * specified size at the end of the mbuf, longword aligned.
+ *
+ * NB: Historically, we had M_ALIGN(), MH_ALIGN(), and MEXT_ALIGN() as
+ * separate macros, each asserting that it was called at the proper moment.
+ * This required callers to themselves test the storage type and call the
+ * right one.  Rather than require callers to be aware of those layout
+ * decisions, we centralize here.
+ */
+static __inline void
+m_align(struct mbuf *m, int len)
+{
+#ifdef INVARIANTS
+	const char *msg = "%s: not a virgin mbuf";
+#endif
+	int adjust;
+
+	KASSERT(m->m_data == M_START(m), (msg, __func__));
+
+	if (m->m_flags & M_EXT) {
+		adjust = m->m_ext.ext_size - len;
+	} else if (m->m_flags & M_PKTHDR) {
+		adjust = MHLEN - len;
+	} else {
+		adjust = MLEN - len;
+	}
+
+	m->m_data += adjust &~ (sizeof(long)-1);
+}
+
+#define	M_ALIGN(m, len)		m_align(m, len)
+#define	MH_ALIGN(m, len)	m_align(m, len)
+#define	MEXT_ALIGN(m, len)	m_align(m, len)
 
 /*
  * Compute the amount of space available before the current start of data in

@@ -2212,7 +2212,7 @@ igmp_v1v2_queue_report(struct in_multi *inm, const int type)
 	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOMEM);
-	MH_ALIGN(m, sizeof(struct ip) + sizeof(struct igmp));
+	M_ALIGN(m, sizeof(struct ip) + sizeof(struct igmp));
 
 	m->m_pkthdr.len = sizeof(struct ip) + sizeof(struct igmp);
 
@@ -2793,7 +2793,7 @@ igmp_v3_enqueue_group_record(struct ifqueue *ifq, struct in_multi *inm,
 		if (m == NULL) {
 			m = m_gethdr(M_NOWAIT, MT_DATA);
 			if (m)
-				MH_ALIGN(m, IGMP_LEADINGSPACE);
+				M_ALIGN(m, IGMP_LEADINGSPACE);
 		}
 		if (m == NULL)
 			return (-ENOMEM);
@@ -2917,7 +2917,7 @@ igmp_v3_enqueue_group_record(struct ifqueue *ifq, struct in_multi *inm,
 		if (m == NULL) {
 			m = m_gethdr(M_NOWAIT, MT_DATA);
 			if (m)
-				MH_ALIGN(m, IGMP_LEADINGSPACE);
+				M_ALIGN(m, IGMP_LEADINGSPACE);
 		}
 		if (m == NULL)
 			return (-ENOMEM);
@@ -3073,7 +3073,7 @@ igmp_v3_enqueue_filter_change(struct ifqueue *ifq, struct in_multi *inm)
 				if (m == NULL) {
 					m = m_gethdr(M_NOWAIT, MT_DATA);
 					if (m)
-						MH_ALIGN(m, IGMP_LEADINGSPACE);
+						M_ALIGN(m, IGMP_LEADINGSPACE);
 				}
 				if (m == NULL) {
 					CTR1(KTR_IGMPV3,
