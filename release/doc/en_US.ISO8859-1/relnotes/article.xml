@@ -182,7 +182,13 @@
     <sect2 xml:id="userland">
       <title>Userland Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="275040">A new file configuration library,
+	&man.figpar.3;, has been added to the base system.</para>
+
+      <para revision="275040">A new utility, &man.dpv.1;, has been
+	added to the base system, providing a &man.dialog.1;-style
+	progress view from one or more input streams.  A corresponding
+	library, &man.dpv.3;, has also been added.</para>
 
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
