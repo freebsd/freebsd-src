@@ -108,7 +108,7 @@ fstyp_ntfs(FILE *fp, char *label, size_t size)
 
 	bf = (struct ntfs_bootfile *)read_buf(fp, 0, 512);
 	if (bf == NULL || strncmp(bf->bf_sysid, "NTFS    ", 8) != 0)
-		return (1);
+		goto fail;
 
 	mftrecsz = bf->bf_mftrecsz;
 	recsize = (mftrecsz > 0) ? (mftrecsz * bf->bf_bps * bf->bf_spc) : (1 << -mftrecsz);
