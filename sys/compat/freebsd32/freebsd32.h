@@ -387,4 +387,10 @@ struct kld32_file_stat {
 	char	pathname[MAXPATHLEN];
 };
 
+struct procctl_reaper_pids32 {
+	u_int	rp_count;
+	u_int	rp_pad0[15];
+	uint32_t rp_pids;
+};
+
 #endif /* !_COMPAT_FREEBSD32_FREEBSD32_H_ */
