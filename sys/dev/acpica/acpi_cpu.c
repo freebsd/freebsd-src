@@ -85,6 +85,7 @@ struct acpi_cpu_softc {
     int			 cpu_prev_sleep;/* Last idle sleep duration. */
     int			 cpu_features;	/* Child driver supported features. */
     /* Runtime state. */
+    int			 cpu_non_c2;	/* Index of lowest non-C2 state. */
     int			 cpu_non_c3;	/* Index of lowest non-C3 state. */
     u_int		 cpu_cx_stats[MAX_CX_STATES];/* Cx usage history. */
     /* Values for sysctl. */
@@ -668,8 +669,10 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
     cx_ptr->type = ACPI_STATE_C1;
     cx_ptr->trans_lat = 0;
     cx_ptr++;
+    sc->cpu_non_c2 = sc->cpu_cx_count;
     sc->cpu_non_c3 = sc->cpu_cx_count;
     sc->cpu_cx_count++;
+    cpu_deepest_sleep = 1;
 
     /* 
      * The spec says P_BLK must be 6 bytes long.  However, some systems
@@ -695,6 +698,7 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
 	    cx_ptr++;
 	    sc->cpu_non_c3 = sc->cpu_cx_count;
 	    sc->cpu_cx_count++;
+	    cpu_deepest_sleep = 2;
 	}
     }
     if (sc->cpu_p_blk_len < 6)
@@ -711,7 +715,7 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
 	    cx_ptr->trans_lat = AcpiGbl_FADT.C3Latency;
 	    cx_ptr++;
 	    sc->cpu_cx_count++;
-	    cpu_can_deep_sleep = 1;
+	    cpu_deepest_sleep = 3;
 	}
     }
 }
@@ -757,6 +761,7 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 	count = MAX_CX_STATES;
     }
 
+    sc->cpu_non_c2 = 0;
     sc->cpu_non_c3 = 0;
     sc->cpu_cx_count = 0;
     cx_ptr = sc->cpu_cx_states;
@@ -768,6 +773,7 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
     cx_ptr->type = ACPI_STATE_C0;
     cx_ptr++;
     sc->cpu_cx_count++;
+    cpu_deepest_sleep = 1;
 
     /* Set up all valid states. */
     for (i = 0; i < count; i++) {
@@ -788,6 +794,7 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 		/* This is the first C1 state.  Use the reserved slot. */
 		sc->cpu_cx_states[0] = *cx_ptr;
 	    } else {
+		sc->cpu_non_c2 = sc->cpu_cx_count;
 		sc->cpu_non_c3 = sc->cpu_cx_count;
 		cx_ptr++;
 		sc->cpu_cx_count++;
@@ -795,6 +802,8 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 	    continue;
 	case ACPI_STATE_C2:
 	    sc->cpu_non_c3 = sc->cpu_cx_count;
+	    if (cpu_deepest_sleep < 2)
+		    cpu_deepest_sleep = 2;
 	    break;
 	case ACPI_STATE_C3:
 	default:
@@ -804,7 +813,7 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 				 device_get_unit(sc->cpu_dev), i));
 		continue;
 	    } else
-		cpu_can_deep_sleep = 1;
+		cpu_deepest_sleep = 3;
 	    break;
 	}
 
@@ -993,7 +1002,9 @@ acpi_cpu_idle(sbintime_t sbt)
     if (sbt >= 0 && us > (sbt >> 12))
 	us = (sbt >> 12);
     cx_next_idx = 0;
-    if (cpu_disable_deep_sleep)
+    if (cpu_disable_c2_sleep)
+	i = min(sc->cpu_cx_lowest, sc->cpu_non_c2);
+    else if (cpu_disable_c3_sleep)
 	i = min(sc->cpu_cx_lowest, sc->cpu_non_c3);
     else
 	i = sc->cpu_cx_lowest;
