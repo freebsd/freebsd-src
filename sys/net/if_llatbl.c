@@ -94,7 +94,7 @@ lltable_foreach_lle(struct lltable *llt, llt_foreach_cb_t *f, void *farg)
 
 	error = 0;
 
-	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
+	for (i = 0; i < llt->llt_hsize; i++) {
 		LIST_FOREACH_SAFE(lle, &llt->lle_head[i], lle_next, next) {
 			error = f(llt, lle, farg);
 			if (error != 0)
@@ -151,15 +151,15 @@ static void
 llentry_link(struct lltable *llt, struct llentry *lle)
 {
 	struct llentries *lleh;
-	uint32_t hashkey;
+	uint32_t hashidx;
 
 	if ((lle->la_flags & LLE_LINKED) != 0)
 		return;
 
 	IF_AFDATA_RUN_WLOCK_ASSERT(llt->llt_ifp);
 
-	hashkey = llt->llt_hash(lle);
-	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
+	hashidx = llt->llt_hash(lle, llt->llt_hsize);
+	lleh = &llt->lle_head[hashidx];
 
 	lle->lle_tbl  = llt;
 	lle->lle_head = lleh;
@@ -274,10 +274,28 @@ lltable_free_cb(struct lltable *llt, struct llentry *lle, void *farg)
 	return (0);
 }
 
+struct lltable *
+lltable_allocate_htbl(uint32_t hsize)
+{
+	struct lltable *llt;
+	int i;
+
+	llt = malloc(sizeof(struct lltable), M_LLTABLE, M_WAITOK | M_ZERO);
+	llt->llt_hsize = hsize;
+	llt->lle_head = malloc(sizeof(struct llentries) * hsize,
+	    M_LLTABLE, M_WAITOK | M_ZERO);
+
+	for (i = 0; i < llt->llt_hsize; i++)
+		LIST_INIT(&llt->lle_head[i]);
+
+	return (llt);
+}
+
 static void
 lltable_free_tbl(struct lltable *llt)
 {
 
+	free(llt->lle_head, M_LLTABLE);
 	free(llt, M_LLTABLE);
 }
 
@@ -370,7 +388,7 @@ lltable_drain(int af)
 		if (llt->llt_af != af)
 			continue;
 
-		for (i=0; i < LLTBL_HASHTBL_SIZE; i++) {
+		for (i=0; i < llt->llt_hsize; i++) {
 			LIST_FOREACH(lle, &llt->lle_head[i], lle_next) {
 				LLE_WLOCK(lle);
 				if (lle->la_hold) {
@@ -703,7 +721,7 @@ llatbl_llt_show(struct lltable *llt)
 	db_printf("llt=%p llt_af=%d llt_ifp=%p\n",
 	    llt, llt->llt_af, llt->llt_ifp);
 
-	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++) {
+	for (i = 0; i < llt->llt_hsize; i++) {
 		LIST_FOREACH(lle, &llt->lle_head[i], lle_next) {
 
 			llatbl_lle_show((struct llentry_sa *)lle);

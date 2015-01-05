@@ -35,24 +35,13 @@ extern struct rwlock lltable_rwlock;
 #define	LLTABLE_WUNLOCK()	rw_wunlock(&lltable_rwlock)
 #define	LLTABLE_LOCK_ASSERT()	rw_assert(&lltable_rwlock, RA_LOCKED)
 
-#ifndef LLTBL_HASHTBL_SIZE
-#define	LLTBL_HASHTBL_SIZE	32	/* default 32 ? */
-#endif
-
-#ifndef LLTBL_HASHMASK
-#define	LLTBL_HASHMASK	(LLTBL_HASHTBL_SIZE - 1)
-#endif
-
-#define LLATBL_HASH(key, mask) \
-	(((((((key >> 8) ^ key) >> 8) ^ key) >> 8) ^ key) & mask)
-
 typedef	struct llentry *(llt_lookup_t)(struct lltable *, u_int flags,
     const void *paddr);
 typedef	struct llentry *(llt_create_t)(struct lltable *, u_int flags,
     const void *paddr);
 typedef int (llt_dump_entry_t)(struct lltable *, struct llentry *,
     struct sysctl_req *);
-typedef uint32_t (llt_hash_t)(const struct llentry *);
+typedef uint32_t (llt_hash_t)(const struct llentry *, uint32_t);
 typedef int (llt_match_prefix_t)(const struct sockaddr *,
     const struct sockaddr *, u_int, struct llentry *);
 typedef void (llt_clear_entry_t)(struct lltable *, struct llentry *);
@@ -70,8 +59,9 @@ typedef int (llt_foreach_entry_t)(struct lltable *, llt_foreach_cb_t *, void *);
 
 struct lltable {
 	SLIST_ENTRY(lltable)	llt_link;
-	struct llentries	lle_head[LLTBL_HASHTBL_SIZE];
 	int			llt_af;
+	int			llt_hsize;
+	struct llentries	*lle_head;
 	struct ifnet		*llt_ifp;
 
 	llt_lookup_t		*llt_lookup;
@@ -93,6 +83,7 @@ MALLOC_DECLARE(M_LLTABLE);
 
 void lltable_link(struct lltable *llt);
 void lltable_free(struct lltable *llt);
+struct lltable *lltable_allocate_htbl(uint32_t hsize);
 
 /* helper functions */
 size_t lltable_drop_entry_queue(struct llentry *);
