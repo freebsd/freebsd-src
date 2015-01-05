@@ -840,7 +840,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		m->m_pkthdr.len = len;
 		m->m_pkthdr.rcvif = NULL;
 		m->m_len = len;
-		MH_ALIGN(m, m->m_len);
+		M_ALIGN(m, m->m_len);
 		m->m_flags |= M_MCAST;
 		ip = mtod(m, struct ip *);
 		ip->ip_v = IPVERSION;
@@ -892,7 +892,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		m->m_pkthdr.len = len;
 		m->m_pkthdr.rcvif = NULL;
 		m->m_len = len;
-		MH_ALIGN(m, m->m_len);
+		M_ALIGN(m, m->m_len);
 		m->m_flags |= M_MCAST;
 		ip6 = mtod(m, struct ip6_hdr *);
 		bzero(ip6, sizeof(*ip6));
