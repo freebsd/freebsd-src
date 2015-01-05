@@ -634,7 +634,7 @@ usage(void)
 "             [-r rej-name] [-V t | nil | never] [-x number] [-z backup-ext]\n"
 "             [--posix] [origfile [patchfile]]\n"
 "       patch <patchfile\n");
-	my_exit(EXIT_SUCCESS);
+	my_exit(EXIT_FAILURE);
 }
 
 /*
