@@ -198,6 +198,10 @@
 	progress view from one or more input streams.  A corresponding
 	library, &man.dpv.3;, has also been added.</para>
 
+      <para revision="275945">The &man.elfdump.1; utility has been
+	updated to support capability mode provided by
+	&man.capsicum.4;.</para>
+
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
 
