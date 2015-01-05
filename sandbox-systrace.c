@@ -1,4 +1,4 @@
-/* $OpenBSD: sandbox-systrace.c,v 1.9 2014/01/31 16:39:19 tedu Exp $ */
+/* $OpenBSD: sandbox-systrace.c,v 1.13 2014/07/17 00:10:56 djm Exp $ */
 /*
  * Copyright (c) 2011 Damien Miller <djm@mindrot.org>
  *
@@ -52,7 +52,17 @@ struct sandbox_policy {
 static const struct sandbox_policy preauth_policy[] = {
 	{ SYS_open, SYSTR_POLICY_NEVER },
 
+#ifdef SYS_getentropy
+	/* OpenBSD 5.6 and newer use getentropy(2) to seed arc4random(3). */
+	{ SYS_getentropy, SYSTR_POLICY_PERMIT },
+#else
+	/* Previous releases used sysctl(3)'s kern.arnd variable. */
 	{ SYS___sysctl, SYSTR_POLICY_PERMIT },
+#endif
+
+#ifdef SYS_sendsyslog
+ 	{ SYS_sendsyslog, SYSTR_POLICY_PERMIT },
+#endif
 	{ SYS_close, SYSTR_POLICY_PERMIT },
 	{ SYS_exit, SYSTR_POLICY_PERMIT },
 	{ SYS_getpid, SYSTR_POLICY_PERMIT },

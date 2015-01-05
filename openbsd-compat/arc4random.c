@@ -87,7 +87,7 @@ _rs_stir(void)
 		_rs_init(rnd, sizeof(rnd));
 	} else
 		_rs_rekey(rnd, sizeof(rnd));
-	memset(rnd, 0, sizeof(rnd));
+	explicit_bzero(rnd, sizeof(rnd));
 
 	/* invalidate rs_buf */
 	rs_have = 0;
@@ -229,7 +229,7 @@ arc4random_buf(void *_buf, size_t n)
 		buf[i] = r & 0xff;
 		r >>= 8;
 	}
-	i = r = 0;
+	explicit_bzero(&r, sizeof(r));
 }
 #endif /* !defined(HAVE_ARC4RANDOM_BUF) && defined(HAVE_ARC4RANDOM) */
 

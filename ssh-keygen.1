@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.120 2014/02/05 20:13:25 naddy Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.122 2014/03/31 13:39:34 jmc Exp $
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,7 +35,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd $Mdocdate: February 5 2014 $
+.Dd $Mdocdate: March 31 2014 $
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -46,7 +46,7 @@
 .Nm ssh-keygen
 .Op Fl q
 .Op Fl b Ar bits
-.Op Fl t Ar type
+.Op Fl t Cm dsa | ecdsa | ed25519 | rsa | rsa1
 .Op Fl N Ar new_passphrase
 .Op Fl C Ar comment
 .Op Fl f Ar output_keyfile
@@ -332,6 +332,10 @@ in the format specified by the
 .Fl m
 option and print an OpenSSH compatible private
 (or public) key to stdout.
+This option allows importing keys from other software, including several
+commercial SSH implementations.
+The default import format is
+.Dq RFC4716 .
 .It Fl J Ar num_lines
 Exit after screening the specified number of lines
 while performing DH candidate screening using the
@@ -350,10 +354,6 @@ while performing DH candidate screening using the
 option.
 This will be used to skip lines in the input file that have already been
 processed if the job is restarted.
-This option allows importing keys from other software, including several
-commercial SSH implementations.
-The default import format is
-.Dq RFC4716 .
 .It Fl k
 Generate a KRL file.
 In this mode,
@@ -514,7 +514,7 @@ section for details.
 Test DH group exchange candidate primes (generated using the
 .Fl G
 option) for safety.
-.It Fl t Ar type
+.It Fl t Cm dsa | ecdsa | ed25519 | rsa | rsa1
 Specifies the type of key to create.
 The possible values are
 .Dq rsa1

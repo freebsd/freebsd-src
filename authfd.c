@@ -1,4 +1,4 @@
-/* $OpenBSD: authfd.c,v 1.92 2014/01/31 16:39:19 tedu Exp $ */
+/* $OpenBSD: authfd.c,v 1.93 2014/04/29 18:01:49 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -40,9 +40,6 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <sys/socket.h>
-
-#include <openssl/evp.h>
-#include <openssl/crypto.h>
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -313,8 +310,10 @@ ssh_get_first_identity(AuthenticationConnection *auth, char **comment, int versi
 Key *
 ssh_get_next_identity(AuthenticationConnection *auth, char **comment, int version)
 {
+#ifdef WITH_SSH1
 	int keybits;
 	u_int bits;
+#endif
 	u_char *blob;
 	u_int blen;
 	Key *key = NULL;
@@ -328,6 +327,7 @@ ssh_get_next_identity(AuthenticationConnection *auth, char **comment, int versio
 	 * error if the packet is too short or contains corrupt data.
 	 */
 	switch (version) {
+#ifdef WITH_SSH1
 	case 1:
 		key = key_new(KEY_RSA1);
 		bits = buffer_get_int(&auth->identities);
@@ -339,6 +339,7 @@ ssh_get_next_identity(AuthenticationConnection *auth, char **comment, int versio
 			logit("Warning: identity keysize mismatch: actual %d, announced %u",
 			    BN_num_bits(key->rsa->n), bits);
 		break;
+#endif
 	case 2:
 		blob = buffer_get_string(&auth->identities, &blen);
 		*comment = buffer_get_string(&auth->identities, NULL);
@@ -361,6 +362,7 @@ ssh_get_next_identity(AuthenticationConnection *auth, char **comment, int versio
  * supported) and 1 corresponding to protocol version 1.1.
  */
 
+#ifdef WITH_SSH1
 int
 ssh_decrypt_challenge(AuthenticationConnection *auth,
     Key* key, BIGNUM *challenge,
@@ -410,6 +412,7 @@ ssh_decrypt_challenge(AuthenticationConnection *auth,
 	buffer_free(&buffer);
 	return success;
 }
+#endif
 
 /* ask agent to sign data, returns -1 on error, 0 on success */
 int
@@ -457,6 +460,7 @@ ssh_agent_sign(AuthenticationConnection *auth,
 
 /* Encode key for a message to the agent. */
 
+#ifdef WITH_SSH1
 static void
 ssh_encode_identity_rsa1(Buffer *b, RSA *key, const char *comment)
 {
@@ -470,6 +474,7 @@ ssh_encode_identity_rsa1(Buffer *b, RSA *key, const char *comment)
 	buffer_put_bignum(b, key->p);	/* ssh key->q, SSL key->p */
 	buffer_put_cstring(b, comment);
 }
+#endif
 
 static void
 ssh_encode_identity_ssh2(Buffer *b, Key *key, const char *comment)
@@ -493,6 +498,7 @@ ssh_add_identity_constrained(AuthenticationConnection *auth, Key *key,
 	buffer_init(&msg);
 
 	switch (key->type) {
+#ifdef WITH_SSH1
 	case KEY_RSA1:
 		type = constrained ?
 		    SSH_AGENTC_ADD_RSA_ID_CONSTRAINED :
@@ -500,6 +506,8 @@ ssh_add_identity_constrained(AuthenticationConnection *auth, Key *key,
 		buffer_put_char(&msg, type);
 		ssh_encode_identity_rsa1(&msg, key->rsa, comment);
 		break;
+#endif
+#ifdef WITH_OPENSSL
 	case KEY_RSA:
 	case KEY_RSA_CERT:
 	case KEY_RSA_CERT_V00:
@@ -508,6 +516,7 @@ ssh_add_identity_constrained(AuthenticationConnection *auth, Key *key,
 	case KEY_DSA_CERT_V00:
 	case KEY_ECDSA:
 	case KEY_ECDSA_CERT:
+#endif
 	case KEY_ED25519:
 	case KEY_ED25519_CERT:
 		type = constrained ?
@@ -552,12 +561,15 @@ ssh_remove_identity(AuthenticationConnection *auth, Key *key)
 
 	buffer_init(&msg);
 
+#ifdef WITH_SSH1
 	if (key->type == KEY_RSA1) {
 		buffer_put_char(&msg, SSH_AGENTC_REMOVE_RSA_IDENTITY);
 		buffer_put_int(&msg, BN_num_bits(key->rsa->n));
 		buffer_put_bignum(&msg, key->rsa->e);
 		buffer_put_bignum(&msg, key->rsa->n);
-	} else if (key->type != KEY_UNSPEC) {
+	} else
+#endif
+	if (key->type != KEY_UNSPEC) {
 		key_to_blob(key, &blob, &blen);
 		buffer_put_char(&msg, SSH2_AGENTC_REMOVE_IDENTITY);
 		buffer_put_string(&msg, blob, blen);

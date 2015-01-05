@@ -34,11 +34,16 @@
 #endif
 
 #include <errno.h>
-#ifdef HAVE_POLL_H
-#include <poll.h>
-#endif
 #include <string.h>
 #include <stdarg.h>
+
+#ifdef HAVE_POLL_H
+# include <poll.h>
+#else
+# ifdef HAVE_SYS_POLL_H
+#  include <sys/poll.h>
+# endif
+#endif
 
 #include "log.h"
 #include "monitor_fdpass.h"

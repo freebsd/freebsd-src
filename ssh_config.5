@@ -33,8 +33,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh_config.5,v 1.185 2014/02/23 20:11:36 djm Exp $
-.Dd $Mdocdate: February 23 2014 $
+.\" $OpenBSD: ssh_config.5,v 1.191 2014/07/15 15:54:14 millert Exp $
+.Dd $Mdocdate: July 15 2014 $
 .Dt SSH_CONFIG 5
 .Os
 .Sh NAME
@@ -342,30 +342,47 @@ in order of preference.
 Multiple ciphers must be comma-separated.
 The supported ciphers are:
 .Pp
-.Dq 3des-cbc ,
-.Dq aes128-cbc ,
-.Dq aes192-cbc ,
-.Dq aes256-cbc ,
-.Dq aes128-ctr ,
-.Dq aes192-ctr ,
-.Dq aes256-ctr ,
-.Dq aes128-gcm@openssh.com ,
-.Dq aes256-gcm@openssh.com ,
-.Dq arcfour128 ,
-.Dq arcfour256 ,
-.Dq arcfour ,
-.Dq blowfish-cbc ,
-.Dq cast128-cbc ,
-and
-.Dq chacha20-poly1305@openssh.com .
+.Bl -item -compact -offset indent
+.It
+3des-cbc
+.It
+aes128-cbc
+.It
+aes192-cbc
+.It
+aes256-cbc
+.It
+aes128-ctr
+.It
+aes192-ctr
+.It
+aes256-ctr
+.It
+aes128-gcm@openssh.com
+.It
+aes256-gcm@openssh.com
+.It
+arcfour
+.It
+arcfour128
+.It
+arcfour256
+.It
+blowfish-cbc
+.It
+cast128-cbc
+.It
+chacha20-poly1305@openssh.com
+.El
 .Pp
 The default is:
-.Bd -literal -offset 3n
-aes128-ctr,aes192-ctr,aes256-ctr,arcfour256,arcfour128,
+.Bd -literal -offset indent
+aes128-ctr,aes192-ctr,aes256-ctr,
 aes128-gcm@openssh.com,aes256-gcm@openssh.com,
 chacha20-poly1305@openssh.com,
-aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,aes192-cbc,
-aes256-cbc,arcfour
+arcfour256,arcfour128,
+aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,
+aes192-cbc,aes256-cbc,arcfour
 .Ed
 .Pp
 The list of available ciphers may also be obtained using the
@@ -482,14 +499,16 @@ specified on the command line,
 .Ql %p
 the destination port,
 .Ql %r
-by the remote login username, and
+by the remote login username,
 .Ql %u
 by the username of the user running
-.Xr ssh 1 .
+.Xr ssh 1 , and
+.Ql \&%C
+by a hash of the concatenation: %l%h%p%r.
 It is recommended that any
 .Cm ControlPath
 used for opportunistic connection sharing include
-at least %h, %p, and %r.
+at least %h, %p, and %r (or alternatively %C).
 This ensures that shared connections are uniquely identified.
 .It Cm ControlPersist
 When used in conjunction with
@@ -746,6 +765,12 @@ If the hostname contains the character sequence
 .Ql %h ,
 then this will be replaced with the host name specified on the command line
 (this is useful for manipulating unqualified names).
+The character sequence
+.Ql %%
+will be replaced by a single
+.Ql %
+character, which may be used when specifying IPv6 link-local addresses.
+.Pp
 The default is the name given on the command line.
 Numeric IP addresses are also permitted (both on the command line and in
 .Cm HostName
@@ -893,8 +918,8 @@ The default is:
 curve25519-sha256@libssh.org,
 ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,
 diffie-hellman-group-exchange-sha256,
-diffie-hellman-group-exchange-sha1,
 diffie-hellman-group14-sha1,
+diffie-hellman-group-exchange-sha1,
 diffie-hellman-group1-sha1
 .Ed
 .It Cm LocalCommand
@@ -916,7 +941,9 @@ The following escape character substitutions will be performed:
 .Ql %r
 (remote user name) or
 .Ql %u
-(local user name).
+(local user name) or
+.Ql \&%C
+by a hash of the concatenation: %l%h%p%r.
 .Pp
 The command is run synchronously and does not have access to the
 session of the
@@ -974,13 +1001,14 @@ calculate the MAC after encryption (encrypt-then-mac).
 These are considered safer and their use recommended.
 The default is:
 .Bd -literal -offset indent
-hmac-md5-etm@openssh.com,hmac-sha1-etm@openssh.com,
 umac-64-etm@openssh.com,umac-128-etm@openssh.com,
 hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,
-hmac-ripemd160-etm@openssh.com,hmac-sha1-96-etm@openssh.com,
-hmac-md5-96-etm@openssh.com,
-hmac-md5,hmac-sha1,umac-64@openssh.com,umac-128@openssh.com,
-hmac-sha2-256,hmac-sha2-512,hmac-ripemd160,
+umac-64@openssh.com,umac-128@openssh.com,
+hmac-sha2-256,hmac-sha2-512,
+hmac-md5-etm@openssh.com,hmac-sha1-etm@openssh.com,
+hmac-ripemd160-etm@openssh.com,
+hmac-sha1-96-etm@openssh.com,hmac-md5-96-etm@openssh.com,
+hmac-md5,hmac-sha1,hmac-ripemd160,
 hmac-sha1-96,hmac-md5-96
 .Ed
 .It Cm NoHostAuthenticationForLocalhost
@@ -1058,8 +1086,11 @@ The default is
 .It Cm ProxyCommand
 Specifies the command to use to connect to the server.
 The command
-string extends to the end of the line, and is executed with
-the user's shell.
+string extends to the end of the line, and is executed
+using the user's shell
+.Ql exec
+directive to avoid a lingering shell process.
+.Pp
 In the command string, any occurrence of
 .Ql %h
 will be substituted by the host name to
@@ -1272,6 +1303,33 @@ channel to request a response from the server.
 The default
 is 0, indicating that these messages will not be sent to the server.
 This option applies to protocol version 2 only.
+.It Cm StreamLocalBindMask
+Sets the octal file creation mode mask
+.Pq umask
+used when creating a Unix-domain socket file for local or remote
+port forwarding.
+This option is only used for port forwarding to a Unix-domain socket file.
+.Pp
+The default value is 0177, which creates a Unix-domain socket file that is
+readable and writable only by the owner.
+Note that not all operating systems honor the file mode on Unix-domain
+socket files.
+.It Cm StreamLocalBindUnlink
+Specifies whether to remove an existing Unix-domain socket file for local
+or remote port forwarding before creating a new one.
+If the socket file already exists and
+.Cm StreamLocalBindUnlink
+is not enabled,
+.Nm ssh
+will be unable to forward the port to the Unix-domain socket file.
+This option is only used for port forwarding to a Unix-domain socket file.
+.Pp
+The argument must be
+.Dq yes
+or
+.Dq no .
+The default is
+.Dq no .
 .It Cm StrictHostKeyChecking
 If this flag is set to
 .Dq yes ,

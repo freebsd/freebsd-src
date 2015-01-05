@@ -420,6 +420,9 @@
 /* Define to 1 if you have the `EVP_MD_CTX_init' function. */
 #undef HAVE_EVP_MD_CTX_INIT
 
+/* Define to 1 if you have the `EVP_ripemd160' function. */
+#undef HAVE_EVP_RIPEMD160
+
 /* Define to 1 if you have the `EVP_sha256' function. */
 #undef HAVE_EVP_SHA256
 
@@ -767,6 +770,9 @@
 
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the `memset_s' function. */
+#undef HAVE_MEMSET_S
 
 /* Define to 1 if you have the `mkdtemp' function. */
 #undef HAVE_MKDTEMP
@@ -1324,9 +1330,6 @@
 /* Define if va_copy exists */
 #undef HAVE_VA_COPY
 
-/* Define to 1 if you have the `vhangup' function. */
-#undef HAVE_VHANGUP
-
 /* Define to 1 if you have the <vis.h> header file. */
 #undef HAVE_VIS_H
 
@@ -1386,9 +1389,6 @@
 
 /* Define if pututxline updates lastlog too */
 #undef LASTLOG_WRITE_PUTUTXLINE
-
-/* Define if you want TCP Wrappers support */
-#undef LIBWRAP
 
 /* Define to whatever link() returns for "not supported" if it doesn't return
    EOPNOTSUPP. */
@@ -1662,8 +1662,14 @@
 /* Define if you want IRIX project management */
 #undef WITH_IRIX_PROJECT
 
+/* use libcrypto for cryptography */
+#undef WITH_OPENSSL
+
 /* Define if you want SELinux support. */
 #undef WITH_SELINUX
+
+/* include SSH protocol version 1 support */
+#undef WITH_SSH1
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */

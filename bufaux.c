@@ -1,70 +1,40 @@
-/* $OpenBSD: bufaux.c,v 1.57 2014/04/16 23:22:45 djm Exp $ */
+/* $OpenBSD: bufaux.c,v 1.60 2014/04/30 05:29:56 djm Exp $ */
 /*
- * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
- *                    All rights reserved
- * Auxiliary functions for storing and retrieving various data types to/from
- * Buffers.
+ * Copyright (c) 2012 Damien Miller <djm@mindrot.org>
  *
- * As far as I am concerned, the code I have written for this software
- * can be used freely for any purpose.  Any derived versions of this
- * software must be clearly marked as such, and if the derived work is
- * incompatible with the protocol description in the RFC file, it must be
- * called by a name other than "ssh" or "Secure Shell".
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
- *
- * SSH2 packet format added by Markus Friedl
- * Copyright (c) 2000 Markus Friedl.  All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
+
+/* Emulation wrappers for legacy OpenSSH buffer API atop sshbuf */
 
 #include "includes.h"
 
 #include <sys/types.h>
 
-#include <openssl/bn.h>
-
-#include <string.h>
-#include <stdarg.h>
-#include <stdlib.h>
-
-#include "xmalloc.h"
 #include "buffer.h"
 #include "log.h"
-#include "misc.h"
-
-/*
- * Returns integers from the buffer (msb first).
- */
+#include "ssherr.h"
 
 int
-buffer_get_short_ret(u_short *ret, Buffer *buffer)
+buffer_get_short_ret(u_short *v, Buffer *buffer)
 {
-	u_char buf[2];
+	int ret;
 
-	if (buffer_get_ret(buffer, (char *) buf, 2) == -1)
-		return (-1);
-	*ret = get_u16(buf);
-	return (0);
+	if ((ret = sshbuf_get_u16(buffer, v)) != 0) {
+		error("%s: %s", __func__, ssh_err(ret));
+		return -1;
+	}
+	return 0;
 }
 
 u_short
@@ -73,21 +43,21 @@ buffer_get_short(Buffer *buffer)
 	u_short ret;
 
 	if (buffer_get_short_ret(&ret, buffer) == -1)
-		fatal("buffer_get_short: buffer error");
+		fatal("%s: buffer error", __func__);
 
 	return (ret);
 }
 
 int
-buffer_get_int_ret(u_int *ret, Buffer *buffer)
+buffer_get_int_ret(u_int *v, Buffer *buffer)
 {
-	u_char buf[4];
+	int ret;
 
-	if (buffer_get_ret(buffer, (char *) buf, 4) == -1)
-		return (-1);
-	if (ret != NULL)
-		*ret = get_u32(buf);
-	return (0);
+	if ((ret = sshbuf_get_u32(buffer, v)) != 0) {
+		error("%s: %s", __func__, ssh_err(ret));
+		return -1;
+	}
+	return 0;
 }
 
 u_int
@@ -96,21 +66,21 @@ buffer_get_int(Buffer *buffer)
 	u_int ret;
 
 	if (buffer_get_int_ret(&ret, buffer) == -1)
-		fatal("buffer_get_int: buffer error");
+		fatal("%s: buffer error", __func__);
 
 	return (ret);
 }
 
 int
-buffer_get_int64_ret(u_int64_t *ret, Buffer *buffer)
+buffer_get_int64_ret(u_int64_t *v, Buffer *buffer)
 {
-	u_char buf[8];
+	int ret;
 
-	if (buffer_get_ret(buffer, (char *) buf, 8) == -1)
-		return (-1);
-	if (ret != NULL)
-		*ret = get_u64(buf);
-	return (0);
+	if ((ret = sshbuf_get_u64(buffer, v)) != 0) {
+		error("%s: %s", __func__, ssh_err(ret));
+		return -1;
+	}
+	return 0;
 }
 
 u_int64_t
@@ -119,78 +89,52 @@ buffer_get_int64(Buffer *buffer)
 	u_int64_t ret;
 
 	if (buffer_get_int64_ret(&ret, buffer) == -1)
-		fatal("buffer_get_int: buffer error");
+		fatal("%s: buffer error", __func__);
 
 	return (ret);
 }
 
-/*
- * Stores integers in the buffer, msb first.
- */
 void
 buffer_put_short(Buffer *buffer, u_short value)
 {
-	char buf[2];
+	int ret;
 
-	put_u16(buf, value);
-	buffer_append(buffer, buf, 2);
+	if ((ret = sshbuf_put_u16(buffer, value)) != 0)
+		fatal("%s: %s", __func__, ssh_err(ret));
 }
 
 void
 buffer_put_int(Buffer *buffer, u_int value)
 {
-	char buf[4];
+	int ret;
 
-	put_u32(buf, value);
-	buffer_append(buffer, buf, 4);
+	if ((ret = sshbuf_put_u32(buffer, value)) != 0)
+		fatal("%s: %s", __func__, ssh_err(ret));
 }
 
 void
 buffer_put_int64(Buffer *buffer, u_int64_t value)
 {
-	char buf[8];
+	int ret;
 
-	put_u64(buf, value);
-	buffer_append(buffer, buf, 8);
+	if ((ret = sshbuf_put_u64(buffer, value)) != 0)
+		fatal("%s: %s", __func__, ssh_err(ret));
 }
 
-/*
- * Returns an arbitrary binary string from the buffer.  The string cannot
- * be longer than 256k.  The returned value points to memory allocated
- * with xmalloc; it is the responsibility of the calling function to free
- * the data.  If length_ptr is non-NULL, the length of the returned data
- * will be stored there.  A null character will be automatically appended
- * to the returned string, and is not counted in length.
- */
 void *
 buffer_get_string_ret(Buffer *buffer, u_int *length_ptr)
 {
+	size_t len;
+	int ret;
 	u_char *value;
-	u_int len;
 
-	/* Get the length. */
-	if (buffer_get_int_ret(&len, buffer) != 0) {
-		error("buffer_get_string_ret: cannot extract length");
-		return (NULL);
+	if ((ret = sshbuf_get_string(buffer, &value, &len)) != 0) {
+		error("%s: %s", __func__, ssh_err(ret));
+		return NULL;
 	}
-	if (len > 256 * 1024) {
-		error("buffer_get_string_ret: bad string length %u", len);
-		return (NULL);
-	}
-	/* Allocate space for the string.  Add one byte for a null character. */
-	value = xmalloc(len + 1);
-	/* Get the string. */
-	if (buffer_get_ret(buffer, value, len) == -1) {
-		error("buffer_get_string_ret: buffer_get failed");
-		free(value);
-		return (NULL);
-	}
-	/* Append a null character to make processing easier. */
-	value[len] = '\0';
-	/* Optionally return the length of the string. */
-	if (length_ptr)
-		*length_ptr = len;
-	return (value);
+	if (length_ptr != NULL)
+		*length_ptr = len;  /* Safe: sshbuf never stores len > 2^31 */
+	return value;
 }
 
 void *
@@ -199,31 +143,24 @@ buffer_get_string(Buffer *buffer, u_int *length_ptr)
 	void *ret;
 
 	if ((ret = buffer_get_string_ret(buffer, length_ptr)) == NULL)
-		fatal("buffer_get_string: buffer error");
+		fatal("%s: buffer error", __func__);
 	return (ret);
 }
 
 char *
 buffer_get_cstring_ret(Buffer *buffer, u_int *length_ptr)
 {
-	u_int length;
-	char *cp, *ret = buffer_get_string_ret(buffer, &length);
+	size_t len;
+	int ret;
+	char *value;
 
-	if (ret == NULL)
+	if ((ret = sshbuf_get_cstring(buffer, &value, &len)) != 0) {
+		error("%s: %s", __func__, ssh_err(ret));
 		return NULL;
-	if ((cp = memchr(ret, '\0', length)) != NULL) {
-		/* XXX allow \0 at end-of-string for a while, remove later */
-		if (cp == ret + length - 1)
-			error("buffer_get_cstring_ret: string contains \\0");
-		else {
-			explicit_bzero(ret, length);
-			free(ret);
-			return NULL;
-		}
 	}
 	if (length_ptr != NULL)
-		*length_ptr = length;
-	return ret;
+		*length_ptr = len;  /* Safe: sshbuf never stores len > 2^31 */
+	return value;
 }
 
 char *
@@ -232,162 +169,91 @@ buffer_get_cstring(Buffer *buffer, u_int *length_ptr)
 	char *ret;
 
 	if ((ret = buffer_get_cstring_ret(buffer, length_ptr)) == NULL)
-		fatal("buffer_get_cstring: buffer error");
+		fatal("%s: buffer error", __func__);
 	return ret;
 }
 
-void *
+const void *
 buffer_get_string_ptr_ret(Buffer *buffer, u_int *length_ptr)
 {
-	void *ptr;
-	u_int len;
+	size_t len;
+	int ret;
+	const u_char *value;
 
-	if (buffer_get_int_ret(&len, buffer) != 0)
-		return NULL;
-	if (len > 256 * 1024) {
-		error("buffer_get_string_ptr: bad string length %u", len);
+	if ((ret = sshbuf_get_string_direct(buffer, &value, &len)) != 0) {
+		error("%s: %s", __func__, ssh_err(ret));
 		return NULL;
 	}
-	ptr = buffer_ptr(buffer);
-	buffer_consume(buffer, len);
-	if (length_ptr)
-		*length_ptr = len;
-	return (ptr);
+	if (length_ptr != NULL)
+		*length_ptr = len;  /* Safe: sshbuf never stores len > 2^31 */
+	return value;
 }
 
-void *
+const void *
 buffer_get_string_ptr(Buffer *buffer, u_int *length_ptr)
 {
-	void *ret;
+	const void *ret;
 
 	if ((ret = buffer_get_string_ptr_ret(buffer, length_ptr)) == NULL)
-		fatal("buffer_get_string_ptr: buffer error");
+		fatal("%s: buffer error", __func__);
 	return (ret);
 }
 
-/*
- * Stores and arbitrary binary string in the buffer.
- */
 void
 buffer_put_string(Buffer *buffer, const void *buf, u_int len)
 {
-	buffer_put_int(buffer, len);
-	buffer_append(buffer, buf, len);
+	int ret;
+
+	if ((ret = sshbuf_put_string(buffer, buf, len)) != 0)
+		fatal("%s: %s", __func__, ssh_err(ret));
 }
+
 void
 buffer_put_cstring(Buffer *buffer, const char *s)
 {
-	if (s == NULL)
-		fatal("buffer_put_cstring: s == NULL");
-	buffer_put_string(buffer, s, strlen(s));
+	int ret;
+
+	if ((ret = sshbuf_put_cstring(buffer, s)) != 0)
+		fatal("%s: %s", __func__, ssh_err(ret));
 }
 
-/*
- * Returns a character from the buffer (0 - 255).
- */
 int
-buffer_get_char_ret(u_char *ret, Buffer *buffer)
+buffer_get_char_ret(char *v, Buffer *buffer)
 {
-	if (buffer_get_ret(buffer, ret, 1) == -1) {
-		error("buffer_get_char_ret: buffer_get_ret failed");
-		return (-1);
+	int ret;
+
+	if ((ret = sshbuf_get_u8(buffer, (u_char *)v)) != 0) {
+		error("%s: %s", __func__, ssh_err(ret));
+		return -1;
 	}
-	return (0);
+	return 0;
 }
 
 int
 buffer_get_char(Buffer *buffer)
 {
-	u_char ch;
+	char ch;
 
 	if (buffer_get_char_ret(&ch, buffer) == -1)
-		fatal("buffer_get_char: buffer error");
-	return ch;
+		fatal("%s: buffer error", __func__);
+	return (u_char) ch;
 }
 
-/*
- * Stores a character in the buffer.
- */
 void
 buffer_put_char(Buffer *buffer, int value)
 {
-	char ch = value;
+	int ret;
 
-	buffer_append(buffer, &ch, 1);
+	if ((ret = sshbuf_put_u8(buffer, value)) != 0)
+		fatal("%s: %s", __func__, ssh_err(ret));
 }
 
-/* Pseudo bignum functions */
-
-void *
-buffer_get_bignum2_as_string_ret(Buffer *buffer, u_int *length_ptr)
-{
-	u_int len;
-	u_char *bin, *p, *ret;
-
-	if ((p = bin = buffer_get_string_ret(buffer, &len)) == NULL) {
-		error("%s: invalid bignum", __func__);
-		return NULL;
-	}
-
-	if (len > 0 && (bin[0] & 0x80)) {
-		error("%s: negative numbers not supported", __func__);
-		free(bin);
-		return NULL;
-	}
-	if (len > 8 * 1024) {
-		error("%s: cannot handle BN of size %d", __func__, len);
-		free(bin);
-		return NULL;
-	}
-	/* Skip zero prefix on numbers with the MSB set */
-	if (len > 1 && bin[0] == 0x00 && (bin[1] & 0x80) != 0) {
-		p++;
-		len--;
-	}
-	ret = xmalloc(len);
-	memcpy(ret, p, len);
-	explicit_bzero(p, len);
-	free(bin);
-	return ret;
-}
-
-void *
-buffer_get_bignum2_as_string(Buffer *buffer, u_int *l)
-{
-	void *ret = buffer_get_bignum2_as_string_ret(buffer, l);
-
-	if (ret == NULL)
-		fatal("%s: buffer error", __func__);
-	return ret;
-}
-
-/*
- * Stores a string using the bignum encoding rules (\0 pad if MSB set).
- */
 void
 buffer_put_bignum2_from_string(Buffer *buffer, const u_char *s, u_int l)
 {
-	u_char *buf, *p;
-	int pad = 0;
+	int ret;
 
-	if (l > 8 * 1024)
-		fatal("%s: length %u too long", __func__, l);
-	/* Skip leading zero bytes */
-	for (; l > 0 && *s == 0; l--, s++)
-		;
-	p = buf = xmalloc(l + 1);
-	/*
-	 * If most significant bit is set then prepend a zero byte to
-	 * avoid interpretation as a negative number.
-	 */
-	if (l > 0 && (s[0] & 0x80) != 0) {
-		*p++ = '\0';
-		pad = 1;
-	}
-	memcpy(p, s, l);
-	buffer_put_string(buffer, buf, l + pad);
-	explicit_bzero(buf, l + pad);
-	free(buf);
+	if ((ret = sshbuf_put_bignum2_bytes(buffer, s, l)) != 0)
+		fatal("%s: %s", __func__, ssh_err(ret));
 }
-
 

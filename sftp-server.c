@@ -29,6 +29,9 @@
 #ifdef HAVE_SYS_STATVFS_H
 #include <sys/statvfs.h>
 #endif
+#ifdef HAVE_SYS_PRCTL_H
+#include <sys/prctl.h>
+#endif
 
 #include <dirent.h>
 #include <errno.h>
@@ -1522,6 +1525,17 @@ sftp_server_main(int argc, char **argv, struct passwd *user_pw)
 	}
 
 	log_init(__progname, log_level, log_facility, log_stderr);
+
+#if defined(HAVE_PRCTL) && defined(PR_SET_DUMPABLE)
+	/*
+	 * On Linux, we should try to avoid making /proc/self/{mem,maps}
+	 * available to the user so that sftp access doesn't automatically
+	 * imply arbitrary code execution access that will break
+	 * restricted configurations.
+	 */
+	if (prctl(PR_SET_DUMPABLE, 0) != 0)
+		fatal("unable to make the process undumpable");
+#endif /* defined(HAVE_PRCTL) && defined(PR_SET_DUMPABLE) */
 
 	if ((cp = getenv("SSH_CONNECTION")) != NULL) {
 		client_addr = xstrdup(cp);

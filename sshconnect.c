@@ -1,4 +1,4 @@
-/* $OpenBSD: sshconnect.c,v 1.246 2014/02/06 22:21:01 djm Exp $ */
+/* $OpenBSD: sshconnect.c,v 1.251 2014/07/15 15:54:14 millert Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -54,9 +54,9 @@
 #include "sshconnect.h"
 #include "hostfile.h"
 #include "log.h"
+#include "misc.h"
 #include "readconf.h"
 #include "atomicio.h"
-#include "misc.h"
 #include "dns.h"
 #include "roaming.h"
 #include "monitor_fdpass.h"
@@ -65,6 +65,7 @@
 
 char *client_version_string = NULL;
 char *server_version_string = NULL;
+Key *previous_host_key = NULL;
 
 static int matching_host_key_dns = 0;
 
@@ -709,7 +710,7 @@ check_host_cert(const char *host, const Key *host_key)
 		error("%s", reason);
 		return 0;
 	}
-	if (buffer_len(&host_key->cert->critical) != 0) {
+	if (buffer_len(host_key->cert->critical) != 0) {
 		error("Certificate for %s contains unsupported "
 		    "critical options(s)", host);
 		return 0;
@@ -1217,36 +1218,60 @@ fail:
 int
 verify_host_key(char *host, struct sockaddr *hostaddr, Key *host_key)
 {
-	int flags = 0;
+	int r = -1, flags = 0;
 	char *fp;
+	Key *plain = NULL;
 
 	fp = key_fingerprint(host_key, SSH_FP_MD5, SSH_FP_HEX);
 	debug("Server host key: %s %s", key_type(host_key), fp);
 	free(fp);
 
-	/* XXX certs are not yet supported for DNS */
-	if (!key_is_cert(host_key) && options.verify_host_key_dns &&
-	    verify_host_key_dns(host, hostaddr, host_key, &flags) == 0) {
-		if (flags & DNS_VERIFY_FOUND) {
-
-			if (options.verify_host_key_dns == 1 &&
-			    flags & DNS_VERIFY_MATCH &&
-			    flags & DNS_VERIFY_SECURE)
-				return 0;
-
-			if (flags & DNS_VERIFY_MATCH) {
-				matching_host_key_dns = 1;
-			} else {
-				warn_changed_key(host_key);
-				error("Update the SSHFP RR in DNS with the new "
-				    "host key to get rid of this message.");
-			}
-		}
+	if (key_equal(previous_host_key, host_key)) {
+		debug("%s: server host key matches cached key", __func__);
+		return 0;
 	}
 
-	return check_host_key(host, hostaddr, options.port, host_key, RDRW,
+	if (options.verify_host_key_dns) {
+		/*
+		 * XXX certs are not yet supported for DNS, so downgrade
+		 * them and try the plain key.
+		 */
+		plain = key_from_private(host_key);
+		if (key_is_cert(plain))
+			key_drop_cert(plain);
+		if (verify_host_key_dns(host, hostaddr, plain, &flags) == 0) {
+			if (flags & DNS_VERIFY_FOUND) {
+				if (options.verify_host_key_dns == 1 &&
+				    flags & DNS_VERIFY_MATCH &&
+				    flags & DNS_VERIFY_SECURE) {
+					key_free(plain);
+					r = 0;
+					goto done;
+				}
+				if (flags & DNS_VERIFY_MATCH) {
+					matching_host_key_dns = 1;
+				} else {
+					warn_changed_key(plain);
+					error("Update the SSHFP RR in DNS "
+					    "with the new host key to get rid "
+					    "of this message.");
+				}
+			}
+		}
+		key_free(plain);
+	}
+
+	r = check_host_key(host, hostaddr, options.port, host_key, RDRW,
 	    options.user_hostfiles, options.num_user_hostfiles,
 	    options.system_hostfiles, options.num_system_hostfiles);
+
+done:
+	if (r == 0 && host_key != NULL) {
+		key_free(previous_host_key);
+		previous_host_key = key_from_private(host_key);
+	}
+
+	return r;
 }
 
 /*
@@ -1282,8 +1307,12 @@ ssh_login(Sensitive *sensitive, const char *orighost,
 		ssh_kex2(host, hostaddr, port);
 		ssh_userauth2(local_user, server_user, host, sensitive);
 	} else {
+#ifdef WITH_SSH1
 		ssh_kex(host, hostaddr);
 		ssh_userauth1(local_user, server_user, host, sensitive);
+#else
+		fatal("ssh1 is not unsupported");
+#endif
 	}
 	free(local_user);
 }

@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11.c,v 1.11 2013/11/13 13:48:20 markus Exp $ */
+/* $OpenBSD: ssh-pkcs11.c,v 1.14 2014/06/24 01:13:21 djm Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -520,7 +520,7 @@ pkcs11_fetch_keys_filter(struct pkcs11_provider *p, CK_ULONG slotidx,
 			key = key_new(KEY_UNSPEC);
 			key->rsa = rsa;
 			key->type = KEY_RSA;
-			key->flags |= KEY_FLAG_EXT;
+			key->flags |= SSHKEY_FLAG_EXT;
 			if (pkcs11_key_included(keysp, nkeys, key)) {
 				key_free(key);
 			} else {

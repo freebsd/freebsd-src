@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-add.c,v 1.109 2014/02/02 03:44:31 djm Exp $ */
+/* $OpenBSD: ssh-add.c,v 1.113 2014/07/09 14:15:56 benno Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -62,6 +62,7 @@
 #include "authfile.h"
 #include "pathnames.h"
 #include "misc.h"
+#include "ssherr.h"
 
 /* argv0 */
 extern char *__progname;
@@ -170,7 +171,7 @@ add_file(AuthenticationConnection *ac, const char *filename, int key_only)
 	Key *private, *cert;
 	char *comment = NULL;
 	char msg[1024], *certpath = NULL;
-	int fd, perms_ok, ret = -1;
+	int r, fd, perms_ok, ret = -1;
 	Buffer keyblob;
 
 	if (strcmp(filename, "-") == 0) {
@@ -201,12 +202,18 @@ add_file(AuthenticationConnection *ac, const char *filename, int key_only)
 	close(fd);
 
 	/* At first, try empty passphrase */
-	private = key_parse_private(&keyblob, filename, "", &comment);
+	if ((r = sshkey_parse_private_fileblob(&keyblob, "", filename,
+	    &private, &comment)) != 0 && r != SSH_ERR_KEY_WRONG_PASSPHRASE)
+		fatal("Cannot parse %s: %s", filename, ssh_err(r));
+	/* try last */
+	if (private == NULL && pass != NULL) {
+		if ((r = sshkey_parse_private_fileblob(&keyblob, pass, filename,
+		    &private, &comment)) != 0 &&
+		    r != SSH_ERR_KEY_WRONG_PASSPHRASE)
+			fatal("Cannot parse %s: %s", filename, ssh_err(r));
+	}
 	if (comment == NULL)
 		comment = xstrdup(filename);
-	/* try last */
-	if (private == NULL && pass != NULL)
-		private = key_parse_private(&keyblob, filename, pass, NULL);
 	if (private == NULL) {
 		/* clear passphrase since it did not work */
 		clear_pass();
@@ -220,8 +227,11 @@ add_file(AuthenticationConnection *ac, const char *filename, int key_only)
 				buffer_free(&keyblob);
 				return -1;
 			}
-			private = key_parse_private(&keyblob, filename, pass,
-			    &comment);
+			if ((r = sshkey_parse_private_fileblob(&keyblob,
+			     pass, filename, &private, NULL)) != 0 &&
+			    r != SSH_ERR_KEY_WRONG_PASSPHRASE)
+				fatal("Cannot parse %s: %s",
+					    filename, ssh_err(r));
 			if (private != NULL)
 				break;
 			clear_pass();
@@ -426,6 +436,8 @@ main(int argc, char **argv)
 	seed_rng();
 
 	OpenSSL_add_all_algorithms();
+
+	setlinebuf(stdout);
 
 	/* At first, get a connection to the authentication agent. */
 	ac = ssh_get_authentication_connection();
