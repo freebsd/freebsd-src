@@ -1,0 +1,261 @@
+.\"-
+.\" Copyright (c) 2015 Alexander V. Chernikov <melifaro@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 5, 2015
+.Dt LLTABLE 9
+.Os
+.Sh NAME
+.Nm lltable
+.Nd "Link Level address Table"
+.Sh SYNOPSIS
+.In net/if_llatbl.h
+.In net/if_llatbl_var.h
+.\"
+.Ft void
+.Fn lltable_link "struct lltable *llt"
+.Ft void
+.Fn lltable_free "struct lltable *llt"
+.Ft struct ifnet *
+.Fn lltable_get_ifp "const struct lltable *llt"
+.Ft int
+.Fn lltable_get_af "const struct lltable *llt"
+.Ft void
+.Fo lltable_fill_sa_entry
+.Fa "const struct llentry *lle" "struct sockaddr *sa"
+.Fc
+.Ft typedef struct llentry *
+.Fn (llt_lookup_t) "struct lltable *" "u_int flags" "const void *paddr"
+.Ft typedef struct llentry *
+.Fn (llt_create_t) "struct lltable *" "u_int flags" "const void *paddr"
+.Ft typedef int
+.Fn (llt_dump_entry_t) "struct lltable *" "struct llentry *" "struct sysctl_req *"
+.Ft typedef uint32_t
+.Fn (llt_hash_t) "const struct llentry *"
+.Ft typedef int
+.Fo (llt_match_prefix_t)
+.Fa "const struct sockaddr *" "const struct sockaddr *" "u_int" "struct llentry *"
+.Fc
+.Ft typedef void
+.Fn (llt_clear_entry_t) "struct lltable *" "struct llentry *"
+.Ft typedef void
+.Fn (llt_free_tbl_t) "struct lltable *"
+.Ft typedef void
+.Fn (llt_link_entry_t) "struct lltable *" "struct llentry *"
+.Ft typedef void
+.Fn (llt_unlink_entry_t) "struct llentry *"
+.Ft typedef int
+.Fo (llt_prepare_sentry_t)
+.Fa "struct lltable *" "struct llentry * struct rt_addrinfo *"
+.Fc
+.Ft typedef const void *
+.Fn (llt_get_sa_addr_t) "const struct sockaddr *l3addr"
+.Ft typedef void
+.Fn (llt_fill_sa_entry_t) "const struct llentry *" "struct sockaddr *"
+.Ft typedef int
+.Fn (llt_foreach_cb_t) "struct lltable *" "struct llentry *" "void *"
+.Ft typedef int
+.Fn (llt_foreach_entry_t) "struct lltable *" "llt_foreach_cb_t *" "void *"
+.\"
+.Sh DESCRIPTION
+Link level tables provides abstract interface to manage mappings between
+addresses and their link level counterparts.
+.Pp
+Should not be used directly in places other than implementation for particular address
+family.
+.Pp
+The following objects are used in
+.Nm :
+.Ss lle
+(link level entry), described in
+.Xr llentry 9
+holds generic and per address family mapping between L3 address (IPv4/IPv6) and
+link-layer address (MAC), resolution/management protocol (arp/ndp) state,
+timers, packet queue (for unresolved addresses) and other data.
+.Ss llt
+(
+.Vt "struct lltable"
+) holds pointers to lle storage and all address family dependent functions for
+managing entries in given table.
+.Sh STORAGE MODEL
+Currently, both IPv4 and IPv6 storage are implemented as chained hash table.
+Tables are non-resizable and default size is LLTBL_HASHTBL_SIZE (32).
+.Sh LOCKING MODEL
+.Nm
+uses dual-locking model for each table.
+All control-plane (e.g. message processing/timers/etc) operations are protected
+with afdata configuration rwlock. Fast path operations are protected with
+afdata runtime rmlock.
+Additionally, lle is protected by per-lle rwlock.
+.Pp
+Table changes (entry insertion/removal) are protected with both (e.g. CFG and
+RUN) locks.
+LLE changes (first 64 bytes used by fast path code) are protected with
+CFG, RUN and LLE locks.
+Other LLE fields are protected by LLE lock,
+.Pp
+The following lock order must be maintained:
+.Bd -literal -offset indent
+TABLE CFG lock
+LLE lock
+TABLE RUN lock
+.Ed
+.Sh EVENT HANDLERS
+.Nm
+invokes
+.Fa lle_event
+.Xr EVENTHANDLER 9
+event each time when lle changed its state.
+Pointer to
+.Pq Vt "struct llentry *"
+is passed as the first argument, new state follows.
+There are 4 different abstract states and mapping to actual protocol states
+varies.
+Current states are:
+.Bd -literal -offset indent
+LLENTRY_RESOLVED
+LLENTRY_TIMEDOUT
+LLENTRY_DELETED
+LLENTRY_EXPIRED
+.Ed
+.Pp
+Note that handler is invoked with lle lock held.
+.Sh HELPER LLTABLE FUNCTIONS
+Use
+.Fn lltable_get_ifp
+and
+.Fn lltable_get_af
+functions to retrieve interface and address family of
+.Nm
+.Pp
+.Fn lltable_fill_sa_entry
+can be used to store address of lle inside provided
+.Vt "struct sockaddr"
+buffer.
+It is caller responsibility to ensure that sockaddr buffer size is enough.
+.Vt "struct sockaddr_storage"
+should be used for cases when address family is unknown.
+.Sh NEW LLTABLE
+To create new type of link-level table you need to implement all callbacks
+described in
+.Sx MANDATORY CALLBACKS
+section. If you use non-default storage model you also have to implement all
+non-mandatory callbacks. If (unlikely) protocol address or link layer address
+can't fit into embedded lle storage it is safe to use private version of
+.Vt "struct llentry"
+with additional data necessary for your implementation.
+.Pp
+To use new code you need to create new
+.Nm
+instance (typically happens in
+.Xr domain 9
+ifattach handler). Caller has to allocate
+.Vt "struct lltable" ,
+fill address family, interface and all necessary methods. To bring new table
+online you need to call
+.Fn lltable_link
+.Pp
+To free it (with draining of all data) call
+.Fn lltable_free
+.Sh MANDATORY CALLBACKS
+The most important method is
+.Fn llt_lookup .
+Function needs to find pointer to
+.Vt "struct llentry"
+in supplied table based on address pointer. Additionally, function
+has to handle lookup flags (typically responcible for lle locking).
+Table locking is done by the caller.
+.Pp
+To allocate new
+.Vt "struct llentry"
+entry stack calls
+.Fn llt_create .
+Function is responsible for allocating memory and setting initial configuration
+for the entry. Called by the stack, table lock is not held. Can return NULL.
+.Pp
+To dump
+.Vt "struct llentry"
+entry via binary sysctl interface stack calls
+.Fn llt_dump_entry .
+Function is responsible for preparing data in
+.Xr route 4
+format and calling
+.Fn SYSCTL_OUT
+to push data.
+.Pp
+To make valid lle entry from routing socket-provided data (static arp/ndp)
+.Fn llt_prepare_static_entry
+callback has to be implemented.
+.Pp
+If default storage model is used, you need to provide
+.Fn llt_hash
+implementation for default
+.Fn llt_link_entry
+and
+.Fn llt_unlink_entry
+callbacks to work. Function is mandatory for default storage model.
+.Pp
+To filter entries based on "match prefix" criteria, stacks uses
+.Fn llt_match_prefix
+callback.
+.Pp
+To free an entry stack calls
+.Fn llt_clear_entry .
+This functions unlinks entry from table (if not already), stops timers,
+sets deleted flag, drops packets queue and frees entry.
+.Pp
+To permit stack work with both addresses and sockaddrs,
+.Fn llt_get_sa_addr
+and
+.Fn llt_fill_sa_entry
+callbacks has to be implemented. The former retrieves address pointer
+from
+.Vt "struct sockaddr"
+while the latter makes valid
+.Vt "struct sockaddr" from provided address.
+.Sh STORAGE SPECIFIC CALLBACKS
+To permit stack adding and deleting items to custom storage
+.Fn llt_link_entry
+and
+.Fn llt_unlink_entry
+needs to be implemented.
+.Pp
+In order to be able to traverse all items in table,
+.Fn llt_foreach_entry
+callback needs to be implemented.
+.Pp
+Custom
+.Fn llt_free_tbl
+callback has to be provided to ease cleanng up case for the stack.
+Callback has to flush/free all entries for given table, free all allocated
+structures and storage itself.
+.Sh SEE ALSO
+.Xr rtentry 9 ,
+.Xr arp 4
+.Sh AUTHORS
+.An -nosplit
+This manpage was written by
+.An Alexander V. Chernikov.
