@@ -98,7 +98,7 @@
 static int at91dcidebug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, at91dci, CTLFLAG_RW, 0, "USB at91dci");
-SYSCTL_INT(_hw_usb_at91dci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_at91dci, OID_AUTO, debug, CTLFLAG_RWTUN,
     &at91dcidebug, 0, "at91dci debug level");
 #endif
 

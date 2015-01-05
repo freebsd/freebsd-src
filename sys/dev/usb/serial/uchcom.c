@@ -97,7 +97,7 @@ __FBSDID("$FreeBSD$");
 static int uchcom_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uchcom, CTLFLAG_RW, 0, "USB uchcom");
-SYSCTL_INT(_hw_usb_uchcom, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uchcom, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uchcom_debug, 0, "uchcom debug level");
 #endif
 
