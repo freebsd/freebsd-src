@@ -960,7 +960,8 @@ usbd_transfer_setup(struct usb_device *udev,
 #if USB_HAVE_BUSDMA
 			usb_dma_tag_setup(&info->dma_parent_tag,
 			    parm->dma_tag_p, udev->bus->dma_parent_tag[0].tag,
-			    xfer_mtx, &usb_bdma_done_event, 32, parm->dma_tag_max);
+			    xfer_mtx, &usb_bdma_done_event, udev->bus->dma_bits,
+			    parm->dma_tag_max);
 #endif
 
 			info->bus = udev->bus;
