@@ -93,7 +93,7 @@ SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RWTUN, &uhub_debug, 0,
 #if USB_HAVE_POWERD
 static int usb_power_timeout = 30;	/* seconds */
 
-SYSCTL_INT(_hw_usb, OID_AUTO, power_timeout, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, power_timeout, CTLFLAG_RWTUN,
     &usb_power_timeout, 0, "USB power timeout");
 #endif
 
