@@ -989,6 +989,11 @@ in_purgemaddrs(struct ifnet *ifp)
 	IN_MULTI_UNLOCK();
 }
 
+
+#define	IN_LLTBL_DEFAULT_HSIZE	32
+#define	IN_LLTBL_HASH(k, h) \
+	(((((((k >> 8) ^ k) >> 8) ^ k) >> 8) ^ k) & ((h) - 1))
+
 /*
  * Frees unlinked record.
  * This function is called by the timer functions
@@ -1086,17 +1091,17 @@ in_lltable_rtcheck(struct ifnet *ifp, u_int flags, struct in_addr dst)
 }
 
 static inline uint32_t
-in_lltable_hash_dst(const struct in_addr dst)
+in_lltable_hash_dst(const struct in_addr dst, uint32_t hsize)
 {
 
-	return (dst.s_addr);
+	return (IN_LLTBL_HASH(dst.s_addr, hsize));
 }
 
 static uint32_t
-in_lltable_hash(const struct llentry *lle)
+in_lltable_hash(const struct llentry *lle, uint32_t hsize)
 {
 	
-	return (in_lltable_hash_dst(lle->r_l3addr.addr4));
+	return (in_lltable_hash_dst(lle->r_l3addr.addr4, hsize));
 }
 
 static const void *
@@ -1126,10 +1131,10 @@ in_lltable_find_dst(struct lltable *llt, struct in_addr dst)
 {
 	struct llentry *lle;
 	struct llentries *lleh;
-	u_int hashkey;
+	u_int hashidx;
 
-	hashkey = dst.s_addr;
-	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
+	hashidx = in_lltable_hash_dst(dst, llt->llt_hsize);
+	lleh = &llt->lle_head[hashidx];
 	LIST_FOREACH(lle, lleh, lle_next) {
 		if (lle->r_l3addr.addr4.s_addr == dst.s_addr)
 			break;
@@ -1256,18 +1261,14 @@ in_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 	return (error);
 }
 
-void *
-in_domifattach(struct ifnet *ifp)
+static struct lltable *
+in_lltattach(struct ifnet *ifp)
 {
-	struct in_ifinfo *ii;
 	struct lltable *llt;
-	int i;
 
-	llt = malloc(sizeof(struct lltable), M_LLTABLE, M_WAITOK | M_ZERO);
+	llt = lltable_allocate_htbl(IN_LLTBL_DEFAULT_HSIZE);
 	llt->llt_af = AF_INET;
 	llt->llt_ifp = ifp;
-	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++)
-		LIST_INIT(&llt->lle_head[i]);
 
 	llt->llt_lookup = in_lltable_lookup;
 	llt->llt_create = in_lltable_create;
@@ -1280,8 +1281,16 @@ in_domifattach(struct ifnet *ifp)
 	llt->llt_prepare_static_entry = arp_lltable_prepare_static_entry;
 	lltable_link(llt);
 
+	return (llt);
+}
+
+void *
+in_domifattach(struct ifnet *ifp)
+{
+	struct in_ifinfo *ii;
+
 	ii = malloc(sizeof(struct in_ifinfo), M_IFADDR, M_WAITOK|M_ZERO);
-	ii->ii_llt = llt;
+	ii->ii_llt = in_lltattach(ifp);
 	ii->ii_igmp = igmp_domifattach(ifp);
 
 	return ii;

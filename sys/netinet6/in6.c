@@ -2047,6 +2047,10 @@ in6_if2idlen(struct ifnet *ifp)
 
 #include <sys/sysctl.h>
 
+#define	IN6_LLTBL_DEFAULT_HSIZE	32
+#define	IN6_LLTBL_HASH(k, h) \
+	(((((((k >> 8) ^ k) >> 8) ^ k) >> 8) ^ k) & ((h) - 1))
+
 /*
  * Frees already unlinked @lle.
  */
@@ -2133,17 +2137,17 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 }
 
 static inline uint32_t
-in6_lltable_hash_dst(const struct in6_addr *dst)
+in6_lltable_hash_dst(const struct in6_addr *dst, uint32_t hsize)
 {
 
-	return (dst->s6_addr32[3]);
+	return (IN6_LLTBL_HASH(dst->s6_addr32[3], hsize));
 }
 
 static uint32_t
-in6_lltable_hash(const struct llentry *lle)
+in6_lltable_hash(const struct llentry *lle, uint32_t hsize)
 {
 	
-	return (in6_lltable_hash_dst(&lle->r_l3addr.addr6));
+	return (in6_lltable_hash_dst(&lle->r_l3addr.addr6, hsize));
 }
 
 static const void *
@@ -2173,10 +2177,10 @@ in6_lltable_find_dst(struct lltable *llt, const struct in6_addr *dst)
 {
 	struct llentry *lle;
 	struct llentries *lleh;
-	u_int hashkey;
+	u_int hashidx;
 
-	hashkey = in6_lltable_hash_dst(dst);
-	lleh = &llt->lle_head[LLATBL_HASH(hashkey, LLTBL_HASHMASK)];
+	hashidx = in6_lltable_hash_dst(dst, llt->llt_hsize);
+	lleh = &llt->lle_head[hashidx];
 	LIST_FOREACH(lle, lleh, lle_next) {
 		if (IN6_ARE_ADDR_EQUAL(&lle->r_l3addr.addr6, dst) != 0)
 			break;
@@ -2307,12 +2311,33 @@ in6_lltable_dump_entry(struct lltable *llt, struct llentry *lle,
 	return (error);
 }
 
+static struct lltable *
+in6_lltattach(struct ifnet *ifp)
+{
+	struct lltable *llt;
+
+	llt = lltable_allocate_htbl(IN6_LLTBL_DEFAULT_HSIZE);
+	llt->llt_af = AF_INET6;
+	llt->llt_ifp = ifp;
+
+	llt->llt_lookup = in6_lltable_lookup;
+	llt->llt_create = in6_lltable_create;
+	llt->llt_dump_entry = in6_lltable_dump_entry;
+	llt->llt_hash = in6_lltable_hash;
+	llt->llt_get_sa_addr = in6_lltable_get_sa_addr;
+	llt->llt_fill_sa_entry = in6_lltable_fill_sa_entry;
+	llt->llt_clear_entry = nd6_lltable_clear_entry;
+	llt->llt_match_prefix = in6_lltable_match_prefix;
+	llt->llt_prepare_static_entry = nd6_lltable_prepare_static_entry;
+	lltable_link(llt);
+
+	return (llt);
+}
+
 void *
 in6_domifattach(struct ifnet *ifp)
 {
 	struct in6_ifextra *ext;
-	struct lltable *llt;
-	int i;
 
 	/* There are not IPv6-capable interfaces. */
 	switch (ifp->if_type) {
@@ -2338,24 +2363,7 @@ in6_domifattach(struct ifnet *ifp)
 	ext->nd_ifinfo = nd6_ifattach(ifp);
 	ext->scope6_id = scope6_ifattach(ifp);
 
-	llt = malloc(sizeof(struct lltable), M_LLTABLE, M_WAITOK | M_ZERO);
-	llt->llt_af = AF_INET6;
-	llt->llt_ifp = ifp;
-	for (i = 0; i < LLTBL_HASHTBL_SIZE; i++)
-		LIST_INIT(&llt->lle_head[i]);
-
-	llt->llt_lookup = in6_lltable_lookup;
-	llt->llt_create = in6_lltable_create;
-	llt->llt_dump_entry = in6_lltable_dump_entry;
-	llt->llt_hash = in6_lltable_hash;
-	llt->llt_get_sa_addr = in6_lltable_get_sa_addr;
-	llt->llt_fill_sa_entry = in6_lltable_fill_sa_entry;
-	llt->llt_clear_entry = nd6_lltable_clear_entry;
-	llt->llt_match_prefix = in6_lltable_match_prefix;
-	llt->llt_prepare_static_entry = nd6_lltable_prepare_static_entry;
-	lltable_link(llt);
-	ext->lltable = llt;
-
+	ext->lltable = in6_lltattach(ifp);
 	ext->mld_ifinfo = mld_domifattach(ifp);
 
 	return ext;
