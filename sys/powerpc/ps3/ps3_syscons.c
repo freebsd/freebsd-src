@@ -155,7 +155,8 @@ ps3fb_remap(void)
 	sc->fb_info.fb_pbase = fb_paddr;
 	for (va = 0; va < PS3FB_SIZE; va += PAGE_SIZE)
 		pmap_kenter_attr(0x10000000 + va, fb_paddr + va,
-		    VM_MEMATTR_WRITE_COMBINING); 
+		    VM_MEMATTR_WRITE_COMBINING);
+	sc->fb_info.fb_flags &= ~FB_FLAG_NOWRITE;
 }
 
 static int
@@ -175,10 +176,12 @@ ps3fb_init(struct vt_device *vd)
 	sc->fb_info.fb_bpp = sc->fb_info.fb_stride / sc->fb_info.fb_width * 8;
 
 	/*
-	 * The loader puts the FB at 0x10000000, so use that for now.
+	 * Arbitrarily choose address for the framebuffer
 	 */
 
 	sc->fb_info.fb_vbase = 0x10000000;
+	sc->fb_info.fb_flags |= FB_FLAG_NOWRITE; /* Not available yet */
+	sc->fb_info.fb_cmsize = 16;
 
 	/* 32-bit VGA palette */
 	vt_generate_cons_palette(sc->fb_info.fb_cmap, COLOR_FORMAT_RGB,
