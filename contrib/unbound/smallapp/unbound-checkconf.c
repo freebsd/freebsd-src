@@ -416,7 +416,7 @@ morechecks(struct config_file* cfg, const char* fname)
 		endpwent();
 	}
 #endif
-	if(cfg->remote_control_enable) {
+	if(cfg->remote_control_enable && cfg->remote_control_use_cert) {
 		check_chroot_string("server-key-file", &cfg->server_key_file,
 			cfg->chrootdir, cfg);
 		check_chroot_string("server-cert-file", &cfg->server_cert_file,

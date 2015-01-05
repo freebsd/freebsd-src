@@ -207,4 +207,13 @@ int create_udp_sock(int family, int socktype, struct sockaddr* addr,
 int create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 	int* reuseport);
 
+/**
+ * Create and bind local listening socket
+ * @param path: path to the socket.
+ * @param noproto: on error, this is set true if cause is that local sockets
+ *	are not supported.
+ * @return: the socket. -1 on error.
+ */
+int create_local_accept_sock(char* path, int* noproto);
+
 #endif /* LISTEN_DNSPORT_H */
