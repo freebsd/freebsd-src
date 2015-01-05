@@ -173,13 +173,13 @@ typedef pthread_func_t pthread_func_entry_t[2];
 
 extern pthread_func_entry_t __thr_jtable[];
 
-extern int *(*__error_selector)(void);
+void	__set_error_selector(int *(*arg)(void));
 int	_pthread_mutex_init_calloc_cb_stub(pthread_mutex_t *mutex,
 	    void *(calloc_cb)(__size_t, __size_t));
 
 typedef int (*interpos_func_t)(void);
 interpos_func_t *__libc_interposing_slot(int interposno);
-extern interpos_func_t __libc_interposing[];
+extern interpos_func_t __libc_interposing[] __hidden;
 
 enum {
 	INTERPOS_accept,

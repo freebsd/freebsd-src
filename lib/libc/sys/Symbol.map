@@ -1045,8 +1045,7 @@ FBSDprivate_1.0 {
 	__sys_write;
 	_writev;
 	__sys_writev;
-	__error_unthreaded;
-	__error_selector;
+	__set_error_selector;
 	nlm_syscall;
 	gssd_syscall;
 	__libc_interposing_slot;

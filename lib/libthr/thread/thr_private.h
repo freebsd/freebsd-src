@@ -914,7 +914,7 @@ void _thr_tsd_unload(struct dl_phdr_info *phdr_info) __hidden;
 void _thr_sigact_unload(struct dl_phdr_info *phdr_info) __hidden;
 void _thr_stack_fix_protection(struct pthread *thrd);
 
-int *__error_threaded(void);
+int *__error_threaded(void) __hidden;
 void __thr_interpose_libc(void) __hidden;
 pid_t __thr_fork(void);
 int __thr_pause(void) __hidden;
