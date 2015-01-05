@@ -382,9 +382,17 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node, struct resource_list *rl)
 	if (nintr > 0) {
 		if (OF_searchencprop(node, "interrupt-parent", &iparent,
 		    sizeof(iparent)) == -1) {
-			device_printf(dev, "No interrupt-parent found, "
-			    "assuming direct parent\n");
-			iparent = OF_parent(node);
+			for (iparent = node; iparent != 0;
+			    iparent = OF_parent(node)) {
+				if (OF_hasprop(iparent, "interrupt-controller"))
+					break;
+			}
+			if (iparent == 0) {
+				device_printf(dev, "No interrupt-parent found, "
+				    "assuming direct parent\n");
+				iparent = OF_parent(node);
+			}
+			iparent = OF_xref_from_node(iparent);
 		}
 		if (OF_searchencprop(OF_node_from_xref(iparent), 
 		    "#interrupt-cells", &icells, sizeof(icells)) == -1) {
@@ -430,3 +438,4 @@ ofw_bus_intr_to_rl(device_t dev, phandle_t node, struct resource_list *rl)
 	free(intr, M_OFWPROP);
 	return (err);
 }
+
