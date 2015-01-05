@@ -1,4 +1,4 @@
-/* $OpenBSD: scp.c,v 1.179 2013/11/20 20:53:10 deraadt Exp $ */
+/* $OpenBSD: scp.c,v 1.180 2014/06/24 02:21:01 djm Exp $ */
 /*
  * scp - secure remote copy.  This is basically patched BSD rcp which
  * uses ssh to do the data transfer (instead of using rcmd).
@@ -747,7 +747,7 @@ source(int argc, char **argv)
 	static BUF buffer;
 	BUF *bp;
 	off_t i, statbytes;
-	size_t amt;
+	size_t amt, nr;
 	int fd = -1, haderr, indx;
 	char *last, *name, buf[2048], encname[MAXPATHLEN];
 	int len;
@@ -820,12 +820,16 @@ next:			if (fd != -1) {
 			if (i + (off_t)amt > stb.st_size)
 				amt = stb.st_size - i;
 			if (!haderr) {
-				if (atomicio(read, fd, bp->buf, amt) != amt)
+				if ((nr = atomicio(read, fd,
+				    bp->buf, amt)) != amt) {
 					haderr = errno;
+					memset(bp->buf + nr, 0, amt - nr);
+				}
 			}
 			/* Keep writing after error to retain sync */
 			if (haderr) {
 				(void)atomicio(vwrite, remout, bp->buf, amt);
+				memset(bp->buf, 0, amt);
 				continue;
 			}
 			if (atomicio6(vwrite, remout, bp->buf, amt, scpio,

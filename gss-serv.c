@@ -1,4 +1,4 @@
-/* $OpenBSD: gss-serv.c,v 1.26 2014/02/26 20:28:44 djm Exp $ */
+/* $OpenBSD: gss-serv.c,v 1.27 2014/07/03 03:34:09 djm Exp $ */
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -97,13 +97,13 @@ static OM_uint32
 ssh_gssapi_acquire_cred(Gssctxt *ctx)
 {
 	OM_uint32 status;
-	char lname[MAXHOSTNAMELEN];
+	char lname[NI_MAXHOST];
 	gss_OID_set oidset;
 
 	gss_create_empty_oid_set(&status, &oidset);
 	gss_add_oid_set_member(&status, ctx->oid, &oidset);
 
-	if (gethostname(lname, MAXHOSTNAMELEN)) {
+	if (gethostname(lname, sizeof(lname))) {
 		gss_release_oid_set(&status, &oidset);
 		return (-1);
 	}

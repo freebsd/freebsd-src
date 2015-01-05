@@ -1,13 +1,18 @@
-#	$OpenBSD: try-ciphers.sh,v 1.22 2013/11/21 03:18:51 djm Exp $
+#	$OpenBSD: try-ciphers.sh,v 1.23 2014/04/21 22:15:37 djm Exp $
 #	Placed in the Public Domain.
 
 tid="try ciphers"
+
+cp $OBJ/sshd_proxy $OBJ/sshd_proxy_bak
 
 for c in `${SSH} -Q cipher`; do
 	n=0
 	for m in `${SSH} -Q mac`; do
 		trace "proto 2 cipher $c mac $m"
 		verbose "test $tid: proto 2 cipher $c mac $m"
+		cp $OBJ/sshd_proxy_bak $OBJ/sshd_proxy
+		echo "Ciphers=$c" >> $OBJ/sshd_proxy
+		echo "MACs=$m" >> $OBJ/sshd_proxy
 		${SSH} -F $OBJ/ssh_proxy -2 -m $m -c $c somehost true
 		if [ $? -ne 0 ]; then
 			fail "ssh -2 failed with mac $m cipher $c"

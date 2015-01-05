@@ -1,4 +1,4 @@
-/* $OpenBSD: dns.c,v 1.29 2013/05/17 00:13:13 djm Exp $ */
+/* $OpenBSD: dns.c,v 1.31 2014/06/24 01:13:21 djm Exp $ */
 
 /*
  * Copyright (c) 2003 Wesley Griffin. All rights reserved.
@@ -34,6 +34,8 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
+#include <stdlib.h>
 
 #include "xmalloc.h"
 #include "key.h"
@@ -93,6 +95,11 @@ dns_read_key(u_int8_t *algorithm, u_int8_t *digest_type,
 		break;
 	case KEY_ECDSA:
 		*algorithm = SSHFP_KEY_ECDSA;
+		if (!*digest_type)
+			*digest_type = SSHFP_HASH_SHA256;
+		break;
+	case KEY_ED25519:
+		*algorithm = SSHFP_KEY_ED25519;
 		if (!*digest_type)
 			*digest_type = SSHFP_HASH_SHA256;
 		break;
