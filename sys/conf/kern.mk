@@ -29,9 +29,16 @@ NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
 CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 		-Wno-error-parentheses-equality -Wno-error-unused-function \
 		-Wno-error-pointer-sign -Wno-error-format -Wno-error-parentheses
+
+CLANG_NO_IAS= -no-integrated-as
+.if ${COMPILER_VERSION} < 30500
+# XXX: clang < 3.5 integrated-as doesn't grok .codeNN directives
+CLANG_NO_IAS34= -no-integrated-as
+.endif
 .endif
 
 .if ${COMPILER_TYPE} == "gcc"
+GCC_MS_EXTENSIONS= -fms-extensions
 .if ${COMPILER_VERSION} >= 40300
 # Catch-all for all the things that are in our tree, but for which we're
 # not yet ready for this compiler. Note: we likely only really "support"
@@ -168,9 +175,8 @@ CFLAGS+=	-fstack-protector
 CFLAGS+=	-gdwarf-2
 .endif
 
-CFLAGS+= ${CWARNEXTRA}
-
-CFLAGS+= ${CFLAGS.${COMPILER_TYPE}}
+CFLAGS+= ${CWARNEXTRA} ${CWARNFLAGS} ${CWARNFLAGS.${.IMPSRC:T}}
+CFLAGS+= ${CFLAGS.${COMPILER_TYPE}} ${CFLAGS.${.IMPSRC}}
 
 # Tell bmake not to mistake standard targets for things to be searched for
 # or expect to ever be up-to-date.
@@ -199,6 +205,3 @@ CFLAGS+=        -std=iso9899:1999
 .else # CSTD
 CFLAGS+=        -std=${CSTD}
 .endif # CSTD
-
-# Pull in any CWARNFLAGS the modules have added.
-CFLAGS+= ${CWARNFLAGS} ${CWARNFLAGS.${.IMPSRC:T}}
