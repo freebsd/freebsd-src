@@ -56,6 +56,10 @@
 #endif
 #include <fcntl.h>
 
+#ifdef HAVE_SYS_UN_H
+#include <sys/un.h>
+#endif
+
 /** number of queued TCP connections for listen() */
 #define TCP_BACKLOG 256 
 
@@ -570,6 +574,56 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 	}
 	return s;
 }
+
+int
+create_local_accept_sock(char *path, int* noproto)
+{
+#ifdef HAVE_SYS_UN_H
+	int s;
+	struct sockaddr_un sun;
+
+	sun.sun_len = sizeof(sun);
+	sun.sun_family = AF_LOCAL;
+	strlcpy(sun.sun_path, path, 104);
+
+	if ((s = socket(PF_LOCAL, SOCK_STREAM, 0)) == -1) {
+		log_err("Cannot create local socket %s (%s)",
+			path, strerror(errno));
+		return -1;
+	}
+
+	if (unlink(path) && errno != ENOENT) {
+		/* The socket already exists and cannot be removed */
+		log_err("Cannot remove old local socket %s (%s)",
+			path, strerror(errno));
+		return -1;
+	}
+
+	if (bind(s, (struct sockaddr *)&sun,
+		sizeof(struct sockaddr_un)) == -1) {
+		log_err("Cannot bind local socket %s (%s)",
+			path, strerror(errno));
+		return -1;
+	}
+
+	if (!fd_set_nonblock(s)) {
+		log_err("Cannot set non-blocking mode");
+		return -1;
+	}
+
+	if (listen(s, TCP_BACKLOG) == -1) {
+		log_err("can't listen: %s", strerror(errno));
+		return -1;
+	}
+
+	return s;
+#else
+	log_err("Local sockets are not supported");
+	*noproto = 1;
+	return -1;
+#endif
+}
+
 
 /**
  * Create socket from getaddrinfo results

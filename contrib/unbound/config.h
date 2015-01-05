@@ -381,6 +381,9 @@
 /* Define to 1 if you have the <sys/uio.h> header file. */
 #define HAVE_SYS_UIO_H 1
 
+/* Define to 1 if you have the <sys/un.h> header file. */
+#define HAVE_SYS_UN_H 1
+
 /* Define to 1 if you have the <sys/wait.h> header file. */
 #define HAVE_SYS_WAIT_H 1
 
@@ -429,7 +432,8 @@
 /* if lex has yylex_destroy */
 #define LEX_HAS_YYLEX_DESTROY 1
 
-/* Define to the sub-directory where libtool stores uninstalled libraries. */
+/* Define to the sub-directory in which libtool stores uninstalled libraries.
+   */
 #define LT_OBJDIR ".libs/"
 
 /* Define to the maximum message length to pass to syslog. */
