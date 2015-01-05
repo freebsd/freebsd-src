@@ -163,7 +163,13 @@
       <sect3 xml:id="disks">
 	<title>Disks and Storage</title>
 
-	<para>&nbsp;</para>
+	<para revision="274939" contrib="sponsor" sponsor="&ix;">The
+	  &man.ctld.8; utility has been updated to include support for
+	  registering <acronym>iSCSI</acronym> targets and portals on
+	  <acronym>iSNS</acronym> servers.  This provides a mechanism
+	  which allows <acronym>iSCSI</acronym> initiators to find
+	  targets and portals without requiring active
+	  discovery.</para>
       </sect3>
 
       <sect3 xml:id="fs">
