@@ -32,13 +32,21 @@ __FBSDID("$FreeBSD$");
 
 extern int errno;
 
-int *
+static int *
 __error_unthreaded(void)
 {
-	return(&errno);
+
+	return (&errno);
 }
 
-int *(*__error_selector)(void) = __error_unthreaded;
+static int *(*__error_selector)(void) = __error_unthreaded;
+
+void
+__set_error_selector(int *(*arg)(void))
+{
+
+	__error_selector = arg;
+}
 
 int *
 __error(void)
