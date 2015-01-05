@@ -592,8 +592,8 @@ nd6_llinfo_timer(void *arg)
 			EVENTHANDLER_INVOKE(lle_event, ln, LLENTRY_EXPIRED);
 			nd6_free(ln, 1);
 			ln = NULL;
-		}
-		LLE_WUNLOCK(ln);
+		} else
+			LLE_WUNLOCK(ln);
 		break;
 
 	case ND6_LLINFO_DELAY:
