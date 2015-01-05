@@ -267,11 +267,21 @@ retry:
 		 * Scan the active and zombie procs to check whether this pid
 		 * is in use.  Remember the lowest pid that's greater
 		 * than trypid, so we can avoid checking for a while.
+		 *
+		 * Avoid reuse of the process group id, session id or
+		 * the reaper subtree id.  Note that for process group
+		 * and sessions, the amount of reserved pids is
+		 * limited by process limit.  For the subtree ids, the
+		 * id is kept reserved only while there is a
+		 * non-reaped process in the subtree, so amount of
+		 * reserved pids is limited by process limit times
+		 * two.
 		 */
 		p = LIST_FIRST(&allproc);
 again:
 		for (; p != NULL; p = LIST_NEXT(p, p_list)) {
 			while (p->p_pid == trypid ||
+			    p->p_reapsubtree == trypid ||
 			    (p->p_pgrp != NULL &&
 			    (p->p_pgrp->pg_id == trypid ||
 			    (p->p_session != NULL &&
@@ -618,12 +628,22 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	 * of init.  This effectively disassociates the child from the
 	 * parent.
 	 */
-	if (flags & RFNOWAIT)
-		pptr = initproc;
-	else
+	if ((flags & RFNOWAIT) != 0) {
+		pptr = p1->p_reaper;
+		p2->p_reaper = pptr;
+	} else {
+		p2->p_reaper = (p1->p_treeflag & P_TREE_REAPER) != 0 ?
+		    p1 : p1->p_reaper;
 		pptr = p1;
+	}
 	p2->p_pptr = pptr;
 	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
+	LIST_INIT(&p2->p_reaplist);
+	LIST_INSERT_HEAD(&p2->p_reaper->p_reaplist, p2, p_reapsibling);
+	if (p2->p_reaper == p1)
+		p2->p_reapsubtree = p2->p_pid;
+	else
+		p2->p_reapsubtree = p1->p_reapsubtree;		
 	sx_xunlock(&proctree_lock);
 
 	/* Inform accounting that we have forked. */

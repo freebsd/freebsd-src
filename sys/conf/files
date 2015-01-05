@@ -2916,6 +2916,7 @@ kern/kern_pmc.c			standard
 kern/kern_poll.c		optional device_polling
 kern/kern_priv.c		standard
 kern/kern_proc.c		standard
+kern/kern_procctl.c		standard
 kern/kern_prot.c		standard
 kern/kern_racct.c		standard
 kern/kern_rangelock.c		standard

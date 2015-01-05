@@ -592,6 +592,14 @@ struct proc {
 	LIST_ENTRY(proc) p_orphan;	/* (e) List of orphan processes. */
 	LIST_HEAD(, proc) p_orphans;	/* (e) Pointer to list of orphans. */
 	u_int		p_treeflag;	/* (e) P_TREE flags */
+	struct proc	*p_reaper;	/* (e) My reaper. */
+	LIST_HEAD(, proc) p_reaplist;	/* (e) List of my descendants
+					       (if I am reaper). */
+	LIST_ENTRY(proc) p_reapsibling;	/* (e) List of siblings - descendants of
+					       the same reaper. */
+	pid_t		p_reapsubtree;	/* (e) Pid of the direct child of the
+					       reaper which spawned
+					       our subtree. */
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -648,6 +656,7 @@ struct proc {
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
 #define	P_TREE_FIRST_ORPHAN	0x00000002	/* First element of orphan
 						   list */
+#define	P_TREE_REAPER		0x00000004	/* Reaper of subtree */
 
 /*
  * These were process status values (p_stat), now they are only used in
@@ -897,6 +906,7 @@ void	proc_reparent(struct proc *child, struct proc *newparent);
 struct	pstats *pstats_alloc(void);
 void	pstats_fork(struct pstats *src, struct pstats *dst);
 void	pstats_free(struct pstats *ps);
+void	reaper_abandon_children(struct proc *p, bool exiting);
 int	securelevel_ge(struct ucred *cr, int level);
 int	securelevel_gt(struct ucred *cr, int level);
 void	sess_hold(struct session *);
