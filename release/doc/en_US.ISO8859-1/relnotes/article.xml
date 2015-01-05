@@ -175,7 +175,9 @@
       <sect3 xml:id="fs">
 	<title>File Systems</title>
 
-	<para>&nbsp;</para>
+	<para revision="275490">A new tunable,
+	  <literal>vfs.zfs.spa_slop_shift</literal>, has been added,
+	  which controls how much space is reserved by default.</para>
       </sect3>
     </sect2>
 
