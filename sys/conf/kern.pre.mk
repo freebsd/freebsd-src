@@ -103,13 +103,7 @@ CFLAGS.gcc+=${CFLAGS_ARCH_PARAMS}
 WERROR?= -Werror
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
-ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
-
-.if ${COMPILER_TYPE} == "clang"
-CLANG_NO_IAS= -no-integrated-as
-.else
-GCC_MS_EXTENSIONS= -fms-extensions
-.endif
+ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS} ${ASM_CFLAGS.${.IMPSRC}} 
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
 CFLAGS+=	-DGPROF
