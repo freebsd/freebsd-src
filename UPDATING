@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150105:
+	The default Unbound configuration now enables remote control
+	using a local socket.  Users who have already enabled the
+	local_unbound service should regenerate their configuration
+	by running "service local_unbound setup" as root.
+	
 20150102:
 	The GNU texinfo and GNU info pages have been removed.
 	To be able to view GNU info pages please install texinfo from ports.
