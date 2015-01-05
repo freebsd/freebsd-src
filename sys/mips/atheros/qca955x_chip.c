@@ -161,8 +161,7 @@ qca955x_chip_detect_sys_frequency(void)
 	u_ar71xx_wdt_freq = ref_rate;
 	u_ar71xx_uart_freq = ref_rate;
 	u_ar71xx_mdio_freq = ref_rate;
-
-
+	u_ar71xx_refclk = ref_rate;
 }
 
 static void
