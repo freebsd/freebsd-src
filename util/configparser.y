@@ -95,6 +95,7 @@ extern struct config_parser_state* cfg_parser;
 %token VAR_PRIVATE_DOMAIN VAR_REMOTE_CONTROL VAR_CONTROL_ENABLE
 %token VAR_CONTROL_INTERFACE VAR_CONTROL_PORT VAR_SERVER_KEY_FILE
 %token VAR_SERVER_CERT_FILE VAR_CONTROL_KEY_FILE VAR_CONTROL_CERT_FILE
+%token VAR_CONTROL_USE_CERT
 %token VAR_EXTENDED_STATISTICS VAR_LOCAL_DATA_PTR VAR_JOSTLE_TIMEOUT
 %token VAR_STUB_PRIME VAR_UNWANTED_REPLY_THRESHOLD VAR_LOG_TIME_ASCII
 %token VAR_DOMAIN_INSECURE VAR_PYTHON VAR_PYTHON_SCRIPT VAR_VAL_SIG_SKEW_MIN
@@ -1270,7 +1271,7 @@ contents_rc: contents_rc content_rc
 	| ;
 content_rc: rc_control_enable | rc_control_interface | rc_control_port |
 	rc_server_key_file | rc_server_cert_file | rc_control_key_file |
-	rc_control_cert_file
+	rc_control_cert_file | rc_control_use_cert
 	;
 rc_control_enable: VAR_CONTROL_ENABLE STRING_ARG
 	{
@@ -1296,6 +1297,16 @@ rc_control_interface: VAR_CONTROL_INTERFACE STRING_ARG
 		OUTYY(("P(control_interface:%s)\n", $2));
 		if(!cfg_strlist_insert(&cfg_parser->cfg->control_ifs, $2))
 			yyerror("out of memory");
+	}
+	;
+rc_control_use_cert: VAR_CONTROL_USE_CERT STRING_ARG
+	{
+		OUTYY(("P(control_use_cert:%s)\n", $2));
+		if(strcmp($2, "yes") != 0 && strcmp($2, "no") != 0)
+			yyerror("expected yes or no.");
+		else cfg_parser->cfg->remote_control_use_cert =
+			(strcmp($2, "yes")==0);
+		free($2);
 	}
 	;
 rc_server_key_file: VAR_SERVER_KEY_FILE STRING_ARG

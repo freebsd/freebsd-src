@@ -315,6 +315,7 @@ remote-control{COLON}		{ YDVAR(0, VAR_REMOTE_CONTROL) }
 control-enable{COLON}		{ YDVAR(1, VAR_CONTROL_ENABLE) }
 control-interface{COLON}	{ YDVAR(1, VAR_CONTROL_INTERFACE) }
 control-port{COLON}		{ YDVAR(1, VAR_CONTROL_PORT) }
+control-use-cert{COLON}		{ YDVAR(1, VAR_CONTROL_USE_CERT) }
 server-key-file{COLON}		{ YDVAR(1, VAR_SERVER_KEY_FILE) }
 server-cert-file{COLON}		{ YDVAR(1, VAR_SERVER_CERT_FILE) }
 control-key-file{COLON}		{ YDVAR(1, VAR_CONTROL_KEY_FILE) }
