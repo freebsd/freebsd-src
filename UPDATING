@@ -114,7 +114,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	LOCAL_DIRS.
 
 20141109:
-	faith(4) and faithd(8) has been removed from base system. It
+	faith(4) and faithd(8) have been removed from the base system. Faith
 	has been obsolete for a very long time.
 
 20141104:
@@ -137,7 +137,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 
 20141102:
 	pjdfstest has been integrated into kyua as an opt-in test suite.
-	Please see share/doc/pjdfstest/README for a more details on how to
+	Please see share/doc/pjdfstest/README for more details on how to
 	execute it.
 
 20141009:
@@ -159,7 +159,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 
 20140729:
 	The ofwfb driver, used to provide a graphics console on PowerPC when
-	using vt(4), no longer allows mmap() of all of physical memory. This
+	using vt(4), no longer allows mmap() of all physical memory. This
 	will prevent Xorg on PowerPC with some ATI graphics cards from
 	initializing properly unless x11-servers/xorg-server is updated to
 	1.12.4_8 or newer.
