@@ -192,6 +192,8 @@ struct config_file {
 	char* chrootdir;
 	/** username to change to, if not "". */
 	char* username;
+	uid_t uid;
+	gid_t gid;
 	/** working directory */
 	char* directory;
 	/** filename to log to. */
@@ -282,6 +284,8 @@ struct config_file {
 	struct config_strlist* control_ifs;
 	/** port number for the control port */
 	int control_port;
+	/** use certificates for remote control */
+	int remote_control_use_cert;
 	/** private key file for server */
 	char* server_key_file;
 	/** certificate file for server */

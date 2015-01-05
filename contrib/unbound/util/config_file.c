@@ -60,6 +60,9 @@
 #ifdef HAVE_GLOB_H
 # include <glob.h>
 #endif
+#ifdef HAVE_PWD_H
+#include <pwd.h>
+#endif
 
 /** global config during parsing */
 struct config_parser_state* cfg_parser = 0;
@@ -131,6 +134,8 @@ config_create(void)
 		goto error_exit;
 	init_outgoing_availports(cfg->outgoing_avail_ports, 65536);
 	if(!(cfg->username = strdup(UB_USERNAME))) goto error_exit;
+	cfg->uid = (uid_t)-1;
+	cfg->gid = (gid_t)-1;
 #ifdef HAVE_CHROOT
 	if(!(cfg->chrootdir = strdup(CHROOT_DIR))) goto error_exit;
 #endif
@@ -799,6 +804,17 @@ config_read(struct config_file* cfg, const char* filename, const char* chroot)
 		errno=EINVAL;
 		return 0;
 	}
+
+#ifdef HAVE_GETPWNAM
+	/* translate username into uid and gid */
+	if(cfg->username && cfg->username[0]) {
+		struct passwd *pwd;
+		if((pwd = getpwnam(cfg->username)) == NULL)
+			log_err("user '%s' does not exist.", cfg->username);
+		cfg->uid = pwd->pw_uid;
+		cfg->gid = pwd->pw_gid;
+	}
+#endif
 	return 1;
 }
 
