@@ -40,10 +40,15 @@ if [ ! -x /usr/local/sbin/pkg ]; then
 	/usr/bin/make -C /usr/ports/ports-mgmt/pkg install clean
 fi
 
+export DVD_DIR="dvd/packages"
 export PKG_ABI=$(pkg config ABI)
-export PKG_REPODIR="dvd/packages/${PKG_ABI}"
+export PKG_ALTABI=$(pkg config ALTABI 2>/dev/null)
+export PKG_REPODIR="${DVD_DIR}/${PKG_ABI}"
 
 /bin/mkdir -p ${PKG_REPODIR}
+if [ ! -z "${PKG_ALTABI}" ]; then
+	ln -s ${PKG_ABI} ${PKG_ALTABI}
+fi
 
 # Print pkg(8) information to make debugging easier.
 ${PKGCMD} -vv
