@@ -40,6 +40,7 @@
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/cpuset.h>
+#include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -52,6 +53,7 @@
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_media.h>
+#include <net/vnet.h>
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
