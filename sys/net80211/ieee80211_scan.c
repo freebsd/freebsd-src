@@ -260,29 +260,6 @@ ieee80211_scan_update_locked(struct ieee80211vap *vap,
 	}
 }
 
-/*
- * XXX TODO: should be a global method!
- */
-static char
-channel_type(const struct ieee80211_channel *c)
-{
-	if (IEEE80211_IS_CHAN_ST(c))
-		return 'S';
-	if (IEEE80211_IS_CHAN_108A(c))
-		return 'T';
-	if (IEEE80211_IS_CHAN_108G(c))
-		return 'G';
-	if (IEEE80211_IS_CHAN_HT(c))
-		return 'n';
-	if (IEEE80211_IS_CHAN_A(c))
-		return 'a';
-	if (IEEE80211_IS_CHAN_ANYG(c))
-		return 'g';
-	if (IEEE80211_IS_CHAN_B(c))
-		return 'b';
-	return 'f';
-}
-
 void
 ieee80211_scan_dump_channels(const struct ieee80211_scan_state *ss)
 {
@@ -295,7 +272,7 @@ ieee80211_scan_dump_channels(const struct ieee80211_scan_state *ss)
 		const struct ieee80211_channel *c = ss->ss_chans[i];
 
 		printf("%s%u%c", sep, ieee80211_chan2ieee(ic, c),
-			channel_type(c));
+		    ieee80211_channel_type_char(c));
 		sep = ", ";
 	}
 }
