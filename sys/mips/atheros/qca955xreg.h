@@ -35,6 +35,19 @@
 #define	REV_ID_MAJOR_QCA9558		0x1130
 #define	QCA955X_REV_ID_REVISION_MASK	0xf
 
+/* Big enough to cover APB and SPI, and most peripherals */
+/*
+ * it needs to cover SPI because right now the if_ath_ahb
+ * code uses rman to map in the SPI address into memory
+ * to read data instead of us squirreling it away at early
+ * boot-time and using the firmware interface.
+ *
+ * if_ath_ahb.c should use the same firmware interface
+ * that if_ath_pci.c uses.
+ */
+#define QCA955X_APB_BASE        0x18000000
+#define QCA955X_APB_SIZE        0x08000000
+
 #define	QCA955X_PCI_MEM_BASE0		0x10000000
 #define	QCA955X_PCI_MEM_BASE1		0x12000000
 #define	QCA955X_PCI_MEM_SIZE		0x02000000
