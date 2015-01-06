@@ -290,8 +290,6 @@ static void		 pf_route6(struct mbuf **, struct pf_rule *, int,
 
 int in4_cksum(struct mbuf *m, u_int8_t nxt, int off, int len);
 
-VNET_DECLARE(int, pf_end_threads);
-
 VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 
 #define	PACKET_LOOPED(pd)	((pd)->pf_mtag &&			\

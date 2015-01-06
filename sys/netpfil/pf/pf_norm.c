@@ -162,7 +162,8 @@ pf_normalize_init(void)
 	uma_zone_set_max(V_pf_frent_z, PFFRAG_FRENT_HIWAT);
 	uma_zone_set_warning(V_pf_frent_z, "PF frag entries limit reached");
 
-	mtx_init(&pf_frag_mtx, "pf fragments", NULL, MTX_DEF);
+	if (IS_DEFAULT_VNET(curvnet))
+	    mtx_init(&pf_frag_mtx, "pf fragments", NULL, MTX_DEF);
 
 	TAILQ_INIT(&V_pf_fragqueue);
 	TAILQ_INIT(&V_pf_cachequeue);
