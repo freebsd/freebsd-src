@@ -297,25 +297,6 @@ qca955x_configure_gmac(uint32_t gmac_cfg)
 static void
 qca955x_chip_init_usb_peripheral(void)
 {
-#if 0
-	uint32_t reg;
-
-	reg = ATH_READ_REG(AR934X_RESET_REG_BOOTSTRAP);
-	if (reg & AR934X_BOOTSTRAP_USB_MODE_DEVICE)
-		return;
-
-	ar71xx_device_stop(AR934X_RESET_USBSUS_OVERRIDE);
-	DELAY(100);
-
-	ar71xx_device_start(AR934X_RESET_USB_PHY);
-	DELAY(100);
-
-	ar71xx_device_start(AR934X_RESET_USB_PHY_ANALOG);
-	DELAY(100);
-
-	ar71xx_device_start(AR934X_RESET_USB_HOST);
-	DELAY(100);
-#endif
 }
 
 static void
