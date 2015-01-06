@@ -822,8 +822,7 @@ network_alloc_rx_buffers(struct netfront_info *sc)
 			goto no_mbuf;
 		}
 
-		m_cljget(m_new, M_NOWAIT, MJUMPAGESIZE);
-		if ((m_new->m_flags & M_EXT) == 0) {
+		if (m_cljget(m_new, M_NOWAIT, MJUMPAGESIZE) == NULL) {
 			printf("%s: m_cljget failed\n", __func__);
 			m_freem(m_new);
 
