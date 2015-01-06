@@ -47,7 +47,7 @@ export PKG_REPODIR="${DVD_DIR}/${PKG_ABI}"
 
 /bin/mkdir -p ${PKG_REPODIR}
 if [ ! -z "${PKG_ALTABI}" ]; then
-	ln -s ${PKG_ABI} ${PKG_ALTABI}
+	(cd ${DVD_DIR} && ln -s ${PKG_ABI} ${PKG_ALTABI})
 fi
 
 # Print pkg(8) information to make debugging easier.
