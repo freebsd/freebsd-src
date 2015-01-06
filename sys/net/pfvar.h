@@ -829,7 +829,6 @@ typedef int pflog_packet_t(struct pfi_kif *, struct mbuf *, sa_family_t,
     struct pf_ruleset *, struct pf_pdesc *, int);
 extern pflog_packet_t		*pflog_packet_ptr;
 
-#define	V_pf_end_threads	VNET(pf_end_threads)
 #endif /* _KERNEL */
 
 #define	PFSYNC_FLAG_SRCNODE	0x04
