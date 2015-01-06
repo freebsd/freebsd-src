@@ -1,39 +1,42 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
-$debug = 0;
 system("mkdir -p NEW DIFF");
 
-if(@ARGV == 1) {
-  open(TESTLIST, "TESTLIST") || die "can not open TESTLIST: $!\n";
-  $wanted = $ARGV[0];
-  #print "Searching for test case $wanted\n";
-  while(<TESTLIST>) {
-    #print "Processing $_\n";
-    next unless (/^$wanted/);
-
-    chop;
-    ($name,$input,$output,$options)=split(/\s+/,$_, 4);
-    last;
-  }
-  close(TESTLIST);
-
-  die "Can not find test $wanted\n" unless defined($input);
-
-} elsif(@ARGV == 4) {
-  $name=$ARGV[0];
-  $input=$ARGV[1];
-  $output=$ARGV[2];
-  $options=$ARGV[3];
-} else {
-  print "Usage: TESTonce name [input output options]\n";
+if(@ARGV != 4) {
+  print "Usage: TESTonce name input output options\n";
   exit 20;
 }
 
-print "Running $name. \n" if $debug;
-print "   Input: $input, OUTPUT: $output, OPTIONS: $options\n" if $debug;
+$name=$ARGV[0];
+$input=$ARGV[1];
+$output=$ARGV[2];
+$options=$ARGV[3];
 
-print "    ";
-exec("../tcpdump 2>/dev/null -n -r $input $options | tee NEW/$output | diff -w - $output >DIFF/$output.diff");
-@cores = glob("core*");
-exit 10 if (@cores > 0);
-exit 0;
+if ($^O eq 'MSWin32') {
+  $r = system "..\\windump -n -r $input $options 2>NUL | tee NEW/$output | diff -w $output - >DIFF/$output.diff";
+ }
+else {
+  $r = system "../tcpdump 2>/dev/null -n -r $input $options | tee NEW/$output | diff -w $output - >DIFF/$output.diff";
+}
+
+if($r == 0) {
+  printf "    %-30s: passed\n", $name;
+  unlink "DIFF/$output.diff";
+  exit 0;
+}
+printf "    %-30s: TEST FAILED", $name;
+open FOUT, '>>failure-outputs.txt';
+printf FOUT "Failed test: $name\n\n";
+close FOUT;
+system "cat DIFF/$output.diff >> failure-outputs.txt";
+
+if($r == -1) {
+  print " (failed to execute: $!)\n";
+  exit 30;
+}
+if($r & 127) {
+  printf " (terminated with signal %u, %s coredump)\n", ($r & 127), ($r & 128) ? 'with' : 'without';
+  exit ($r & 128) ? 10 : 20;
+}
+print "\n";
+exit $r >> 8;

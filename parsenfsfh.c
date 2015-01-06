@@ -40,11 +40,7 @@
  * Western Research Laboratory
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/parsenfsfh.c,v 1.29 2006-06-13 22:21:38 guy Exp $ (LBL)";
-#endif
-
+#define NETDISSECT_REWORKED
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -83,7 +79,7 @@ static const char rcsid[] _U_ =
 
 #ifdef	ultrix
 /* Nasty hack to keep the Ultrix C compiler from emitting bogus warnings */
-#define	XFF(x)	((u_int32_t)(x))
+#define	XFF(x)	((uint32_t)(x))
 #else
 #define	XFF(x)	(x)
 #endif
@@ -110,17 +106,14 @@ static const char rcsid[] _U_ =
 static int is_UCX(const unsigned char *);
 
 void
-Parse_fh(fh, len, fsidp, inop, osnamep, fsnamep, ourself)
-register const unsigned char *fh;
-int len _U_;
-my_fsid *fsidp;
-ino_t *inop;
-const char **osnamep;		/* if non-NULL, return OS name here */
-const char **fsnamep;		/* if non-NULL, return server fs name here (for VMS) */
-int ourself;		/* true if file handle was generated on this host */
+Parse_fh(register const unsigned char *fh, int len _U_, my_fsid *fsidp,
+	 uint32_t *inop,
+	 const char **osnamep, /* if non-NULL, return OS name here */
+	 const char **fsnamep, /* if non-NULL, return server fs name here (for VMS) */
+	 int ourself)	/* true if file handle was generated on this host */
 {
 	register const unsigned char *fhp = fh;
-	u_int32_t temp;
+	uint32_t temp;
 	int fhtype = FHT_UNKNOWN;
 	int i;
 
@@ -264,8 +257,7 @@ int ourself;		/* true if file handle was generated on this host */
 	    fsidp->Fsid_dev.Major = fhp[6];
 	    fsidp->fsid_code = 0;
 
-	    temp = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
-	    *inop = temp;
+	    *inop = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
 
 	    if (osnamep)
 		*osnamep = "Auspex";
@@ -276,8 +268,7 @@ int ourself;		/* true if file handle was generated on this host */
 	    fsidp->Fsid_dev.Major = fhp[1];
 	    fsidp->fsid_code = 0;
 
-	    temp = make_uint32(fhp[15], fhp[14], fhp[13], fhp[12]);
-	    *inop = temp;
+	    *inop = make_uint32(fhp[15], fhp[14], fhp[13], fhp[12]);
 
 	    if (osnamep)
 		*osnamep = "BSD 4.4";
@@ -291,8 +282,7 @@ int ourself;		/* true if file handle was generated on this host */
 	    fsidp->Fsid_dev.Minor = temp & 0xFFFFF;
 	    fsidp->Fsid_dev.Major = (temp>>20) & 0xFFF;
 
-	    temp = make_uint32(fhp[15], fhp[14], fhp[13], fhp[12]);
-	    *inop = temp;
+	    *inop = make_uint32(fhp[15], fhp[14], fhp[13], fhp[12]);
 	    if (osnamep)
 		*osnamep = "OSF";
 	    break;
@@ -302,8 +292,7 @@ int ourself;		/* true if file handle was generated on this host */
 	    fsidp->Fsid_dev.Major = fhp[2];
 	    fsidp->fsid_code = 0;
 
-	    temp = make_uint32(fhp[8], fhp[9], fhp[10], fhp[11]);
-	    *inop = temp;
+	    *inop = make_uint32(fhp[8], fhp[9], fhp[10], fhp[11]);
 
 	    if (osnamep)
 		*osnamep = "IRIX4";
@@ -314,8 +303,7 @@ int ourself;		/* true if file handle was generated on this host */
 	    fsidp->Fsid_dev.Major = make_uint16(fhp[0], fhp[1]);
 	    fsidp->fsid_code = make_uint32(fhp[4], fhp[5], fhp[6], fhp[7]);
 
-	    temp = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
-	    *inop = temp;
+	    *inop = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
 
 	    if (osnamep)
 		*osnamep = "IRIX5";
@@ -337,8 +325,7 @@ int ourself;		/* true if file handle was generated on this host */
 	    fsidp->Fsid_dev.Major = fhp[2];
 	    fsidp->fsid_code = make_uint32(fhp[4], fhp[5], fhp[6], fhp[7]);
 
-	    temp = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
-	    *inop = temp;
+	    *inop = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
 
 	    if (osnamep)
 		*osnamep = "SUNOS4";
@@ -351,8 +338,7 @@ int ourself;		/* true if file handle was generated on this host */
 	    fsidp->Fsid_dev.Minor = temp & 0x3FFFF;
 	    fsidp->fsid_code = make_uint32(fhp[4], fhp[5], fhp[6], fhp[7]);
 
-	    temp = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
-	    *inop = temp;
+	    *inop = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
 
 	    if (osnamep)
 		*osnamep = "SUNOS5";
@@ -378,7 +364,7 @@ int ourself;		/* true if file handle was generated on this host */
 		memcpy((char *)fsidp, (char *)fh, 14);
 	    }
 	    else {
-		u_int32_t tempa[4];	/* at least 16 bytes, maybe more */
+		uint32_t tempa[4];	/* at least 16 bytes, maybe more */
 
 		memset((char *)tempa, 0, sizeof(tempa));
 		memcpy((char *)tempa, (char *)fh, 14); /* ensure alignment */
@@ -403,8 +389,7 @@ int ourself;		/* true if file handle was generated on this host */
 	    fsidp->Fsid_dev.Major = make_uint16(fhp[0], fhp[1]);
 	    fsidp->fsid_code = make_uint32(fhp[4], fhp[5], fhp[6], fhp[7]);
 
-	    temp = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
-	    *inop = temp;
+	    *inop = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
 
 	    if (osnamep)
 		*osnamep = "AIX32";
@@ -416,8 +401,7 @@ int ourself;		/* true if file handle was generated on this host */
 	    fsidp->Fsid_dev.Minor = temp;
 	    fsidp->fsid_code = make_uint32(fhp[4], fhp[5], fhp[6], fhp[7]);
 
-	    temp = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
-	    *inop = temp;
+	    *inop = make_uint32(fhp[12], fhp[13], fhp[14], fhp[15]);
 
 	    if (osnamep)
 		*osnamep = "HPUX9";
@@ -459,14 +443,13 @@ int ourself;		/* true if file handle was generated on this host */
  *	(3) followed by string of nulls
  */
 static int
-is_UCX(fhp)
-const unsigned char *fhp;
+is_UCX(const unsigned char *fhp)
 {
 	register int i;
 	int seen_null = 0;
 
 	for (i = 1; i < 14; i++) {
-	    if (isprint(fhp[i])) {
+	    if (ND_ISPRINT(fhp[i])) {
 		if (seen_null)
 		   return(0);
 		else
