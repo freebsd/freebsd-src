@@ -55,11 +55,6 @@
 #include <config.h>
 #endif 
 
-#ifndef lint
-static const char rcsid[] _U_ =
-     "@(#) $Header: /tcpdump/master/libpcap/Win32/Src/getaddrinfo.c,v 1.3 2008-09-15 23:37:51 guy Exp $";
-#endif
-
 #include <pcap-stdinc.h>
 #if 0
 #include <sys/sysctl.h>
