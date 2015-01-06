@@ -102,10 +102,13 @@ MALLOC_DEFINE(PFI_MTYPE, "pf_ifnet", "pf(4) interface database");
 LIST_HEAD(pfi_list, pfi_kif);
 static VNET_DEFINE(struct pfi_list, pfi_unlinked_kifs);
 #define	V_pfi_unlinked_kifs	VNET(pfi_unlinked_kifs)
+
 static struct mtx pfi_unlnkdkifs_mtx;
+MTX_SYSINIT(pfi_unlnkdkifs_mtx, &pfi_unlnkdkifs_mtx, "pf unlinked interfaces",
+    MTX_DEF);
 
 void
-pfi_initialize(void)
+pfi_vnet_initialize(void)
 {
 	struct ifg_group *ifg;
 	struct ifnet *ifp;
@@ -168,8 +171,6 @@ pfi_cleanup(void)
 		LIST_REMOVE(p, pfik_list);
 		free(p, PFI_MTYPE);
 	}
-
-	mtx_destroy(&pfi_unlnkdkifs_mtx);
 
 	free(V_pfi_buffer, PFI_MTYPE);
 }
