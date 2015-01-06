@@ -185,27 +185,6 @@ ieee80211_swscan_vdetach(struct ieee80211vap *vap)
 	}
 }
 
-/* XXX should be a global net80211 function */
-static char
-channel_type(const struct ieee80211_channel *c)
-{
-	if (IEEE80211_IS_CHAN_ST(c))
-		return 'S';
-	if (IEEE80211_IS_CHAN_108A(c))
-		return 'T';
-	if (IEEE80211_IS_CHAN_108G(c))
-		return 'G';
-	if (IEEE80211_IS_CHAN_HT(c))
-		return 'n';
-	if (IEEE80211_IS_CHAN_A(c))
-		return 'a';
-	if (IEEE80211_IS_CHAN_ANYG(c))
-		return 'g';
-	if (IEEE80211_IS_CHAN_B(c))
-		return 'b';
-	return 'f';
-}
-
 void
 ieee80211_swscan_set_scan_duration(struct ieee80211vap *vap, u_int duration)
 {
@@ -667,8 +646,9 @@ scan_task(void *arg, int pending)
 		    "%s: chan %3d%c -> %3d%c [%s, dwell min %lums max %lums]\n",
 		    __func__,
 		    ieee80211_chan2ieee(ic, ic->ic_curchan),
-		        channel_type(ic->ic_curchan),
-		    ieee80211_chan2ieee(ic, chan), channel_type(chan),
+		    ieee80211_channel_type_char(ic->ic_curchan),
+		    ieee80211_chan2ieee(ic, chan),
+		    ieee80211_channel_type_char(chan),
 		    (ss->ss_flags & IEEE80211_SCAN_ACTIVE) &&
 			(chan->ic_flags & IEEE80211_CHAN_PASSIVE) == 0 ?
 			"active" : "passive",
@@ -878,7 +858,7 @@ ieee80211_swscan_add_scan(struct ieee80211vap *vap,
 			    "%s: chan %3d%c min dwell met (%u > %lu)\n",
 			    __func__,
 			    ieee80211_chan2ieee(ic, ic->ic_curchan),
-				channel_type(ic->ic_curchan),
+			    ieee80211_channel_type_char(ic->ic_curchan),
 			    ticks, SCAN_PRIVATE(ss)->ss_chanmindwell);
 			SCAN_PRIVATE(ss)->ss_iflags |= ISCAN_MINDWELL;
 			/*
