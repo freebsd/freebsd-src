@@ -34,6 +34,9 @@ options 	UFS_ACL			#Support for access control lists
 options 	UFS_DIRHASH		#Improve performance on big directories
 options 	ROOTDEVNAME=\"ufs:ada0\"
 
+options 	GEOM_LABEL		# Provides labelization
+options 	GEOM_PART_GPT		# GUID Partition Tables.
+options 	GEOM_RAID		# Soft RAID functionality.
 
 # Debugging for use in -current
 #options 	DEADLKRES		#Enable the deadlock resolver
