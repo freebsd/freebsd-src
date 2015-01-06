@@ -163,6 +163,7 @@ dtrace_dof_init(void)
 	size_t shstridx, symtabidx = 0, dynsymidx = 0;
 	unsigned char *buf;
 	int fixedprobes;
+	uint64_t aligned_filesz;
 #endif
 
 	if (getenv("DTRACE_DOF_INIT_DISABLE") != NULL)
@@ -226,7 +227,9 @@ dtrace_dof_init(void)
 
 	while ((char *) dof < (char *) dofdata->d_buf + dofdata->d_size) {
 		fixedprobes = 0;
-		dof_next = (void *) ((char *) dof + dof->dofh_filesz);
+		aligned_filesz = (shdr.sh_addralign == 0 ? dof->dofh_filesz :
+		    roundup2(dof->dofh_filesz, shdr.sh_addralign));
+		dof_next = (void *) ((char *) dof + aligned_filesz);
 #endif
 
 	if (dof->dofh_ident[DOF_ID_MAG0] != DOF_MAG_MAG0 ||
