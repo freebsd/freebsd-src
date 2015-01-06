@@ -1109,29 +1109,13 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 {
 	struct vcpu *vcpu;
 	const char *wmesg;
-	int error, t, vcpu_halted, vm_halted;
+	int t, vcpu_halted, vm_halted;
 
 	KASSERT(!CPU_ISSET(vcpuid, &vm->halted_cpus), ("vcpu already halted"));
 
 	vcpu = &vm->vcpu[vcpuid];
 	vcpu_halted = 0;
 	vm_halted = 0;
-
-	/*
-	 * The typical way to halt a cpu is to execute: "sti; hlt"
-	 *
-	 * STI sets RFLAGS.IF to enable interrupts. However, the processor
-	 * remains in an "interrupt shadow" for an additional instruction
-	 * following the STI. This guarantees that "sti; hlt" sequence is
-	 * atomic and a pending interrupt will be recognized after the HLT.
-	 *
-	 * After the HLT emulation is done the vcpu is no longer in an
-	 * interrupt shadow and a pending interrupt can be injected on
-	 * the next entry into the guest.
-	 */
-	error = vm_set_register(vm, vcpuid, VM_REG_GUEST_INTR_SHADOW, 0);
-	KASSERT(error == 0, ("%s: error %d clearing interrupt shadow",
-	    __func__, error));
 
 	vcpu_lock(vcpu);
 	while (1) {
@@ -1741,6 +1725,7 @@ int
 vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *exception)
 {
 	struct vcpu *vcpu;
+	int error;
 
 	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
 		return (EINVAL);
@@ -1764,6 +1749,16 @@ vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *exception)
 		    vcpu->exception.vector);
 		return (EBUSY);
 	}
+
+	/*
+	 * From section 26.6.1 "Interruptibility State" in Intel SDM:
+	 *
+	 * Event blocking by "STI" or "MOV SS" is cleared after guest executes
+	 * one instruction or incurs an exception.
+	 */
+	error = vm_set_register(vm, vcpuid, VM_REG_GUEST_INTR_SHADOW, 0);
+	KASSERT(error == 0, ("%s: error %d clearing interrupt shadow",
+	    __func__, error));
 
 	vcpu->exception_pending = 1;
 	vcpu->exception = *exception;
