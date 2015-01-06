@@ -554,6 +554,7 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	pml4_pa = svm_sc->nptp;
 	for (i = 0; i < VM_MAXCPU; i++) {
 		vcpu = svm_get_vcpu(svm_sc, i);
+		vcpu->nextrip = ~0;
 		vcpu->lastcpu = NOCPU;
 		vcpu->vmcb_pa = vtophys(&vcpu->vmcb);
 		vmcb_init(svm_sc, i, iopm_pa, msrpm_pa, pml4_pa);
@@ -1479,14 +1480,23 @@ svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
 {
 	struct vmcb_ctrl *ctrl;
 	struct vmcb_state *state;
+	struct svm_vcpu *vcpustate;
 	uint8_t v_tpr;
 	int vector, need_intr_window, pending_apic_vector;
 
 	state = svm_get_vmcb_state(sc, vcpu);
 	ctrl  = svm_get_vmcb_ctrl(sc, vcpu);
+	vcpustate = svm_get_vcpu(sc, vcpu);
 
 	need_intr_window = 0;
 	pending_apic_vector = 0;
+
+	if (vcpustate->nextrip != state->rip) {
+		ctrl->intr_shadow = 0;
+		VCPU_CTR2(sc->vm, vcpu, "Guest interrupt blocking "
+		    "cleared due to rip change: %#lx/%#lx",
+		    vcpustate->nextrip, state->rip);
+	}
 
 	/*
 	 * Inject pending events or exceptions for this vcpu.
@@ -1957,6 +1967,9 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		/* #VMEXIT disables interrupts so re-enable them here. */ 
 		enable_gintr();
+
+		/* Update 'nextrip' */
+		vcpustate->nextrip = state->rip;
 
 		/* Handle #VMEXIT and if required return to user space. */
 		handled = svm_vmexit(svm_sc, vcpu, vmexit);
