@@ -1703,13 +1703,11 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 			}
 			sc->sc_advbase = carpr.carpr_advbase;
 		}
-		if (carpr.carpr_advskew > 0) {
-			if (carpr.carpr_advskew >= 255) {
-				error = EINVAL;
-				break;
-			}
-			sc->sc_advskew = carpr.carpr_advskew;
+		if (carpr.carpr_advskew >= 255) {
+			error = EINVAL;
+			break;
 		}
+		sc->sc_advskew = carpr.carpr_advskew;
 		if (carpr.carpr_key[0] != '\0') {
 			bcopy(carpr.carpr_key, sc->sc_key, sizeof(sc->sc_key));
 			carp_hmac_prepare(sc);
