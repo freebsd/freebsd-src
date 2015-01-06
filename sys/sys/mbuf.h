@@ -667,7 +667,7 @@ m_getcl(int how, short type, int flags)
 	return (uma_zalloc_arg(zone_pack, &args, how));
 }
 
-static __inline void
+static __inline int
 m_clget(struct mbuf *m, int how)
 {
 
@@ -683,6 +683,7 @@ m_clget(struct mbuf *m, int how)
 		zone_drain(zone_pack);
 		uma_zalloc_arg(zone_clust, m, how);
 	}
+	return (m->m_flags & M_EXT);
 }
 
 /*

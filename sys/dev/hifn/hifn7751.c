@@ -1890,8 +1890,7 @@ hifn_crypto(
 				goto err_srcmap;
 			}
 			if (totlen >= MINCLSIZE) {
-				MCLGET(m0, M_NOWAIT);
-				if ((m0->m_flags & M_EXT) == 0) {
+				if (!(MCLGET(m0, M_NOWAIT))) {
 					hifnstats.hst_nomem_mcl++;
 					err = sc->sc_cmdu ? ERESTART : ENOMEM;
 					m_freem(m0);
@@ -1913,8 +1912,7 @@ hifn_crypto(
 				}
 				len = MLEN;
 				if (totlen >= MINCLSIZE) {
-					MCLGET(m, M_NOWAIT);
-					if ((m->m_flags & M_EXT) == 0) {
+					if (!(MCLGET(m, M_NOWAIT))) {
 						hifnstats.hst_nomem_mcl++;
 						err = sc->sc_cmdu ? ERESTART : ENOMEM;
 						mlast->m_next = m;
