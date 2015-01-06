@@ -11,6 +11,11 @@ Using BPF:
     same, and the configure script should detect that it's on an AIX
     system and choose BPF even if the devices aren't there.
 
+    Also note that tcpdump _binary_ compiled on AIX 4 may have a problem
+    doing the initial loading of the BPF driver if copied to AIX 5 and
+    run there (GH #52). tcpdump binary natively compiled on AIX 5 should
+    not have this issue.
+
 (2) If libpcap doesn't compile on your machine when configured to use
     BPF, or if the workarounds fail to make it work correctly, you
     should send to tcpdump-workers@lists.tcpdump.org a detailed bug
@@ -22,7 +27,7 @@ Using BPF:
     If you fix the problems yourself, please submit a patch by forking
     the branch at
 
-	https://github.com/mcr/libpcap/issues
+	https://github.com/the-tcpdump-group/libpcap/issues
 
     and issuing a pull request, so we can incorporate the fixes into the
     next release.
