@@ -189,7 +189,6 @@ static struct cdevsw pf_cdevsw = {
 
 static volatile VNET_DEFINE(int, pf_pfil_hooked);
 #define V_pf_pfil_hooked	VNET(pf_pfil_hooked)
-VNET_DEFINE(int,		pf_end_threads);
 
 struct rwlock			pf_rules_lock;
 struct sx			pf_ioctl_lock;
@@ -276,10 +275,13 @@ pfattach(void)
 	for (int i = 0; i < SCNT_MAX; i++)
 		V_pf_status.scounters[i] = counter_u64_alloc(M_WAITOK);
 
-	if ((error = kproc_create(pf_purge_thread, curvnet, NULL, 0, 0,
-	    "pf purge")) != 0)
-		/* XXXGL: leaked all above. */
-		return (error);
+	if (IS_DEFAULT_VNET(curvnet)) {
+	    if ((error = kproc_create(pf_purge_thread, curvnet, NULL, 0, 0,
+		"pf purge")) != 0) {
+		    /* XXXGL: leaked all above. */
+		    return (error);
+	    }
+	}
 	if ((error = swi_add(NULL, "pf send", pf_intr, curvnet, SWI_NET,
 	    INTR_MPSAFE, &V_pf_swi_cookie)) != 0)
 		/* XXXGL: leaked all above. */
@@ -3759,11 +3761,6 @@ pf_unload(void)
 	}
 	PF_RULES_WLOCK();
 	shutdown_pf();
-	V_pf_end_threads = 1;
-	while (V_pf_end_threads < 2) {
-		wakeup_one(pf_purge_thread);
-		rw_sleep(pf_purge_thread, &pf_rules_lock, 0, "pftmo", 0);
-	}
 	pf_normalize_cleanup();
 	pfi_cleanup();
 	pfr_cleanup();
@@ -3813,3 +3810,6 @@ static moduledata_t pf_mod = {
 
 DECLARE_MODULE(pf, pf_mod, SI_SUB_PSEUDO, SI_ORDER_FIRST);
 MODULE_VERSION(pf, PF_MODVER);
+
+VNET_SYSINIT(vnet_pf_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY - 255,
+	    vnet_pf_init, NULL);
