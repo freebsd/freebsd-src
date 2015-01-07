@@ -7,7 +7,7 @@
 
 #include <sys/types.h>
 
-#define VERSION "1.13.1"
+#define VERSION "1.13.2"
 #define HAVE_DIRENT_NAMLEN 1
 #define HAVE_FGETLN 1
 #define HAVE_FTS 1
@@ -24,6 +24,11 @@
 #define HAVE_SQLITE3_ERRSTR 0
 #define HAVE_OHASH 1
 #define HAVE_MANPATH 1
+
+#define BINM_APROPOS "apropos"
+#define BINM_MAN "man"
+#define BINM_WHATIS "whatis"
+#define BINM_MAKEWHATIS "makewhatis"
 
 #if !defined(__BEGIN_DECLS)
 #  ifdef __cplusplus

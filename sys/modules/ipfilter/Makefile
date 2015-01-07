@@ -31,4 +31,3 @@ CWARNFLAGS.ip_proxy.c=		${NO_WSELF_ASSIGN} -Wno-unused
 CWARNFLAGS.ip_scan.c=		-Wno-unused
 CWARNFLAGS.ip_state.c=		-Wno-unused
 CWARNFLAGS.ip_sync.c=		-Wno-unused
-CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}

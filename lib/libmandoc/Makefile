@@ -6,7 +6,7 @@ MDOCMLDIR=	${.CURDIR}/../../contrib/mdocml
 LIB=	mandoc
 #NO_PIC=
 INTERNALLIB=
-MAN=	mandoc.3
+MAN=	mandoc.3 mandoc_headers.3
 LIBMAN_SRCS=	man.c \
 		man_hash.c \
 		man_macro.c \

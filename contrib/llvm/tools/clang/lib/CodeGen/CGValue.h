@@ -110,7 +110,8 @@ class LValue {
     Simple,       // This is a normal l-value, use getAddress().
     VectorElt,    // This is a vector element l-value (V[i]), use getVector*
     BitField,     // This is a bitfield l-value, use getBitfield*.
-    ExtVectorElt  // This is an extended vector subset, use getExtVectorComp
+    ExtVectorElt, // This is an extended vector subset, use getExtVectorComp
+    GlobalReg     // This is a register l-value, use getGlobalReg()
   } LVType;
 
   llvm::Value *V;
@@ -168,7 +169,7 @@ class LValue {
 private:
   void Initialize(QualType Type, Qualifiers Quals,
                   CharUnits Alignment,
-                  llvm::MDNode *TBAAInfo = 0) {
+                  llvm::MDNode *TBAAInfo = nullptr) {
     this->Type = Type;
     this->Quals = Quals;
     this->Alignment = Alignment.getQuantity();
@@ -179,7 +180,7 @@ private:
     this->Ivar = this->ObjIsArray = this->NonGC = this->GlobalObjCRef = false;
     this->ImpreciseLifetime = false;
     this->ThreadLocalRef = false;
-    this->BaseIvarExp = 0;
+    this->BaseIvarExp = nullptr;
 
     // Initialize fields for TBAA.
     this->TBAABaseType = Type;
@@ -192,6 +193,7 @@ public:
   bool isVectorElt() const { return LVType == VectorElt; }
   bool isBitField() const { return LVType == BitField; }
   bool isExtVectorElt() const { return LVType == ExtVectorElt; }
+  bool isGlobalReg() const { return LVType == GlobalReg; }
 
   bool isVolatileQualified() const { return Quals.hasVolatile(); }
   bool isRestrictQualified() const { return Quals.hasRestrict(); }
@@ -286,9 +288,12 @@ public:
     return *BitFieldInfo;
   }
 
+  // global register lvalue
+  llvm::Value *getGlobalReg() const { assert(isGlobalReg()); return V; }
+
   static LValue MakeAddr(llvm::Value *address, QualType type,
                          CharUnits alignment, ASTContext &Context,
-                         llvm::MDNode *TBAAInfo = 0) {
+                         llvm::MDNode *TBAAInfo = nullptr) {
     Qualifiers qs = type.getQualifiers();
     qs.setObjCGCAttr(Context.getObjCGCAttrKind(type));
 
@@ -332,6 +337,16 @@ public:
     R.LVType = BitField;
     R.V = Addr;
     R.BitFieldInfo = &Info;
+    R.Initialize(type, type.getQualifiers(), Alignment);
+    return R;
+  }
+
+  static LValue MakeGlobalReg(llvm::Value *Reg,
+                              QualType type,
+                              CharUnits Alignment) {
+    LValue R;
+    R.LVType = GlobalReg;
+    R.V = Reg;
     R.Initialize(type, type.getQualifiers(), Alignment);
     return R;
   }
@@ -390,7 +405,7 @@ public:
   /// ignored - Returns an aggregate value slot indicating that the
   /// aggregate value is being ignored.
   static AggValueSlot ignored() {
-    return forAddr(0, CharUnits(), Qualifiers(), IsNotDestructed,
+    return forAddr(nullptr, CharUnits(), Qualifiers(), IsNotDestructed,
                    DoesNotNeedGCBarriers, IsNotAliased);
   }
 
@@ -460,7 +475,7 @@ public:
   }
 
   bool isIgnored() const {
-    return Addr == 0;
+    return Addr == nullptr;
   }
 
   CharUnits getAlignment() const {

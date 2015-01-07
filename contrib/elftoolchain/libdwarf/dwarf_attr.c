@@ -27,7 +27,7 @@
 
 #include "_libdwarf.h"
 
-ELFTC_VCSID("$Id: dwarf_attr.c 2072 2011-10-27 03:26:49Z jkoshy $");
+ELFTC_VCSID("$Id: dwarf_attr.c 3064 2014-06-06 19:35:55Z kaiwang27 $");
 
 int
 dwarf_attr(Dwarf_Die die, Dwarf_Half attr, Dwarf_Attribute *atp,
@@ -114,6 +114,23 @@ dwarf_hasattr(Dwarf_Die die, Dwarf_Half attr, Dwarf_Bool *ret_bool,
 }
 
 int
+dwarf_attroffset(Dwarf_Attribute at, Dwarf_Off *ret_off, Dwarf_Error *error)
+{
+	Dwarf_Debug dbg;
+
+	dbg = at != NULL ? at->at_die->die_dbg : NULL;
+
+	if (at == NULL || ret_off == NULL) {
+		DWARF_SET_ERROR(dbg, error, DW_DLE_ARGUMENT);
+		return (DW_DLV_ERROR);
+	}
+
+	*ret_off = at->at_offset;
+
+	return (DW_DLV_OK);
+}
+
+int
 dwarf_lowpc(Dwarf_Die die, Dwarf_Addr *ret_lowpc, Dwarf_Error *error)
 {
 	Dwarf_Attribute at;
@@ -139,8 +156,17 @@ dwarf_lowpc(Dwarf_Die die, Dwarf_Addr *ret_lowpc, Dwarf_Error *error)
 int
 dwarf_highpc(Dwarf_Die die, Dwarf_Addr *ret_highpc, Dwarf_Error *error)
 {
+
+	return (dwarf_highpc_b(die, ret_highpc, NULL, NULL, error));
+}
+
+int
+dwarf_highpc_b(Dwarf_Die die, Dwarf_Addr *ret_highpc, Dwarf_Half *ret_form,
+    enum Dwarf_Form_Class *ret_class, Dwarf_Error *error)
+{
 	Dwarf_Attribute at;
 	Dwarf_Debug dbg;
+	Dwarf_CU cu;
 
 	dbg = die != NULL ? die->die_dbg : NULL;
 
@@ -155,6 +181,17 @@ dwarf_highpc(Dwarf_Die die, Dwarf_Addr *ret_highpc, Dwarf_Error *error)
 	}
 
 	*ret_highpc = at->u[0].u64;
+
+	if (ret_form != NULL) {
+		*ret_form = at->at_form;
+	}
+
+	if (ret_class != NULL) {
+		cu = die->die_cu;
+		*ret_class = dwarf_get_form_class(cu->cu_version,
+		    DW_AT_high_pc, cu->cu_length_size == 4 ? 4 : 8,
+		    at->at_form);
+	}
 
 	return (DW_DLV_OK);
 }

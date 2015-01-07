@@ -56,11 +56,11 @@ HEADER {
 };
 
 #
-# Get total number of pins
+# Get maximum pin number
 #
 METHOD int pin_max {
 	device_t dev;
-	int *npins;
+	int *maxpin;
 };
 
 #

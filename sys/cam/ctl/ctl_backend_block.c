@@ -2302,32 +2302,32 @@ ctl_be_block_create(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 		snprintf(tmpstr, sizeof(tmpstr), "MYSERIAL%4d",
 			 softc->num_luns);
 		strncpy((char *)be_lun->ctl_be_lun.serial_num, tmpstr,
-			ctl_min(sizeof(be_lun->ctl_be_lun.serial_num),
+			MIN(sizeof(be_lun->ctl_be_lun.serial_num),
 			sizeof(tmpstr)));
 
 		/* Tell the user what we used for a serial number */
 		strncpy((char *)params->serial_num, tmpstr,
-			ctl_min(sizeof(params->serial_num), sizeof(tmpstr)));
+			MIN(sizeof(params->serial_num), sizeof(tmpstr)));
 	} else { 
 		strncpy((char *)be_lun->ctl_be_lun.serial_num,
 			params->serial_num,
-			ctl_min(sizeof(be_lun->ctl_be_lun.serial_num),
+			MIN(sizeof(be_lun->ctl_be_lun.serial_num),
 			sizeof(params->serial_num)));
 	}
 	if ((params->flags & CTL_LUN_FLAG_DEVID) == 0) {
 		snprintf(tmpstr, sizeof(tmpstr), "MYDEVID%4d", softc->num_luns);
 		strncpy((char *)be_lun->ctl_be_lun.device_id, tmpstr,
-			ctl_min(sizeof(be_lun->ctl_be_lun.device_id),
+			MIN(sizeof(be_lun->ctl_be_lun.device_id),
 			sizeof(tmpstr)));
 
 		/* Tell the user what we used for a device ID */
 		strncpy((char *)params->device_id, tmpstr,
-			ctl_min(sizeof(params->device_id), sizeof(tmpstr)));
+			MIN(sizeof(params->device_id), sizeof(tmpstr)));
 	} else {
 		strncpy((char *)be_lun->ctl_be_lun.device_id,
 			params->device_id,
-			ctl_min(sizeof(be_lun->ctl_be_lun.device_id),
-				sizeof(params->device_id)));
+			MIN(sizeof(be_lun->ctl_be_lun.device_id),
+			    sizeof(params->device_id)));
 	}
 
 	TASK_INIT(&be_lun->io_task, /*priority*/0, ctl_be_block_worker, be_lun);

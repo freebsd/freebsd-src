@@ -11,7 +11,7 @@
 #include <stddef.h>
 
 // C Includes
-#if !defined(_MSC_VER)
+#if !defined(_WIN32)
 #include <arpa/inet.h>
 #endif
 #include <assert.h>
@@ -90,6 +90,7 @@ GetFamilyLength (sa_family_t family)
         case AF_INET6: return sizeof(struct sockaddr_in6);
     }
     assert(0 && "Unsupported address family");
+    return 0;
 }
 
 socklen_t

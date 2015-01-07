@@ -47,7 +47,7 @@ protected:
   void RegisterManagedStatic(void *(*creator)(), void (*deleter)(void*)) const;
 public:
   /// isConstructed - Return true if this object has not been created yet.
-  bool isConstructed() const { return Ptr != 0; }
+  bool isConstructed() const { return Ptr != nullptr; }
 
   void destroy() const;
 };
@@ -103,9 +103,6 @@ void llvm_shutdown();
 /// llvm_shutdown() when it is destroyed.
 struct llvm_shutdown_obj {
   llvm_shutdown_obj() { }
-  explicit llvm_shutdown_obj(bool multithreaded) {
-    if (multithreaded) llvm_start_multithreaded();
-  }
   ~llvm_shutdown_obj() { llvm_shutdown(); }
 };
 

@@ -106,11 +106,11 @@ Some I2C interfaces are available:
 .Sh BUS FREQUENCY CONFIGURATION
 The operating frequency of an I2C bus may be fixed or configurable.
 The bus may be used as part of some larger standard interface, and that
-interface specification may require a fixed frequency.  
-The driver for that hardware would not honor an attempt to configure a 
+interface specification may require a fixed frequency.
+The driver for that hardware would not honor an attempt to configure a
 different speed.
 A general purpose I2C bus, such as those found in many embedded systems,
-will often support multiple bus frequencies.  
+will often support multiple bus frequencies.
 .Pp
 When a system supports multiple I2C busses, a different frequency can
 be configured for each bus by number, represented by the
@@ -145,7 +145,7 @@ The same variable can be changed at any time with
 Reset the bus using
 .Xr i2c 8
 or the
-.Xr iic 4 
+.Xr iic 4
 .Va I2CRSTCARD
 ioctl to make the change take effect.
 .Sh SEE ALSO

@@ -21,7 +21,7 @@
 namespace llvm {
   namespace MachO {
     // Enums from <mach-o/loader.h>
-    enum LLVM_ENUM_INT_TYPE(uint32_t) {
+    enum : uint32_t {
       // Constants for the "magic" field in llvm::MachO::mach_header and
       // llvm::MachO::mach_header_64
       MH_MAGIC    = 0xFEEDFACEu,
@@ -76,12 +76,12 @@ namespace llvm {
       MH_DEAD_STRIPPABLE_DYLIB   = 0x00400000u
     };
 
-    enum LLVM_ENUM_INT_TYPE(uint32_t) {
+    enum : uint32_t {
       // Flags for the "cmd" field in llvm::MachO::load_command
       LC_REQ_DYLD    = 0x80000000u
     };
 
-    enum LoadCommandType LLVM_ENUM_INT_TYPE(uint32_t) {
+    enum LoadCommandType : uint32_t {
       // Constants for the "cmd" field in llvm::MachO::load_command
       LC_SEGMENT              = 0x00000001u,
       LC_SYMTAB               = 0x00000002u,
@@ -128,10 +128,11 @@ namespace llvm {
       LC_SOURCE_VERSION       = 0x0000002Au,
       LC_DYLIB_CODE_SIGN_DRS  = 0x0000002Bu,
       //                        0x0000002Cu,
-      LC_LINKER_OPTIONS       = 0x0000002Du
+      LC_LINKER_OPTIONS       = 0x0000002Du,
+      LC_LINKER_OPTIMIZATION_HINT = 0x0000002Eu
     };
 
-    enum LLVM_ENUM_INT_TYPE(uint32_t) {
+    enum : uint32_t {
       // Constant bits for the "flags" field in llvm::MachO::segment_command
       SG_HIGHVM              = 0x1u,
       SG_FVMLIB              = 0x2u,
@@ -147,48 +148,100 @@ namespace llvm {
       SECTION_ATTRIBUTES_SYS = 0x00ffff00u  // SECTION_ATTRIBUTES_SYS
     };
 
-    enum SectionType {
+    /// These are the section type and attributes fields.  A MachO section can
+    /// have only one Type, but can have any of the attributes specified.
+    enum SectionType : uint32_t {
       // Constant masks for the "flags[7:0]" field in llvm::MachO::section and
       // llvm::MachO::section_64 (mask "flags" with SECTION_TYPE)
+
+      /// S_REGULAR - Regular section.
       S_REGULAR                             = 0x00u,
+      /// S_ZEROFILL - Zero fill on demand section.
       S_ZEROFILL                            = 0x01u,
+      /// S_CSTRING_LITERALS - Section with literal C strings.
       S_CSTRING_LITERALS                    = 0x02u,
+      /// S_4BYTE_LITERALS - Section with 4 byte literals.
       S_4BYTE_LITERALS                      = 0x03u,
+      /// S_8BYTE_LITERALS - Section with 8 byte literals.
       S_8BYTE_LITERALS                      = 0x04u,
+      /// S_LITERAL_POINTERS - Section with pointers to literals.
       S_LITERAL_POINTERS                    = 0x05u,
+      /// S_NON_LAZY_SYMBOL_POINTERS - Section with non-lazy symbol pointers.
       S_NON_LAZY_SYMBOL_POINTERS            = 0x06u,
+      /// S_LAZY_SYMBOL_POINTERS - Section with lazy symbol pointers.
       S_LAZY_SYMBOL_POINTERS                = 0x07u,
+      /// S_SYMBOL_STUBS - Section with symbol stubs, byte size of stub in
+      /// the Reserved2 field.
       S_SYMBOL_STUBS                        = 0x08u,
+      /// S_MOD_INIT_FUNC_POINTERS - Section with only function pointers for
+      /// initialization.
       S_MOD_INIT_FUNC_POINTERS              = 0x09u,
+      /// S_MOD_TERM_FUNC_POINTERS - Section with only function pointers for
+      /// termination.
       S_MOD_TERM_FUNC_POINTERS              = 0x0au,
+      /// S_COALESCED - Section contains symbols that are to be coalesced.
       S_COALESCED                           = 0x0bu,
+      /// S_GB_ZEROFILL - Zero fill on demand section (that can be larger than 4
+      /// gigabytes).
       S_GB_ZEROFILL                         = 0x0cu,
+      /// S_INTERPOSING - Section with only pairs of function pointers for
+      /// interposing.
       S_INTERPOSING                         = 0x0du,
+      /// S_16BYTE_LITERALS - Section with only 16 byte literals.
       S_16BYTE_LITERALS                     = 0x0eu,
+      /// S_DTRACE_DOF - Section contains DTrace Object Format.
       S_DTRACE_DOF                          = 0x0fu,
+      /// S_LAZY_DYLIB_SYMBOL_POINTERS - Section with lazy symbol pointers to
+      /// lazy loaded dylibs.
       S_LAZY_DYLIB_SYMBOL_POINTERS          = 0x10u,
+      /// S_THREAD_LOCAL_REGULAR - Thread local data section.
       S_THREAD_LOCAL_REGULAR                = 0x11u,
+      /// S_THREAD_LOCAL_ZEROFILL - Thread local zerofill section.
       S_THREAD_LOCAL_ZEROFILL               = 0x12u,
+      /// S_THREAD_LOCAL_VARIABLES - Section with thread local variable
+      /// structure data.
       S_THREAD_LOCAL_VARIABLES              = 0x13u,
+      /// S_THREAD_LOCAL_VARIABLE_POINTERS - Section with pointers to thread
+      /// local structures.
       S_THREAD_LOCAL_VARIABLE_POINTERS      = 0x14u,
-      S_THREAD_LOCAL_INIT_FUNCTION_POINTERS = 0x15u
+      /// S_THREAD_LOCAL_INIT_FUNCTION_POINTERS - Section with thread local
+      /// variable initialization pointers to functions.
+      S_THREAD_LOCAL_INIT_FUNCTION_POINTERS = 0x15u,
+
+      LAST_KNOWN_SECTION_TYPE = S_THREAD_LOCAL_INIT_FUNCTION_POINTERS
     };
 
-    enum LLVM_ENUM_INT_TYPE(uint32_t) {
+    enum : uint32_t {
       // Constant masks for the "flags[31:24]" field in llvm::MachO::section and
       // llvm::MachO::section_64 (mask "flags" with SECTION_ATTRIBUTES_USR)
+
+      /// S_ATTR_PURE_INSTRUCTIONS - Section contains only true machine
+      /// instructions.
       S_ATTR_PURE_INSTRUCTIONS   = 0x80000000u,
+      /// S_ATTR_NO_TOC - Section contains coalesced symbols that are not to be
+      /// in a ranlib table of contents.
       S_ATTR_NO_TOC              = 0x40000000u,
+      /// S_ATTR_STRIP_STATIC_SYMS - Ok to strip static symbols in this section
+      /// in files with the MY_DYLDLINK flag.
       S_ATTR_STRIP_STATIC_SYMS   = 0x20000000u,
+      /// S_ATTR_NO_DEAD_STRIP - No dead stripping.
       S_ATTR_NO_DEAD_STRIP       = 0x10000000u,
+      /// S_ATTR_LIVE_SUPPORT - Blocks are live if they reference live blocks.
       S_ATTR_LIVE_SUPPORT        = 0x08000000u,
+      /// S_ATTR_SELF_MODIFYING_CODE - Used with i386 code stubs written on by
+      /// dyld.
       S_ATTR_SELF_MODIFYING_CODE = 0x04000000u,
+      /// S_ATTR_DEBUG - A debug section.
       S_ATTR_DEBUG               = 0x02000000u,
 
       // Constant masks for the "flags[23:8]" field in llvm::MachO::section and
       // llvm::MachO::section_64 (mask "flags" with SECTION_ATTRIBUTES_SYS)
+
+      /// S_ATTR_SOME_INSTRUCTIONS - Section contains some machine instructions.
       S_ATTR_SOME_INSTRUCTIONS   = 0x00000400u,
+      /// S_ATTR_EXT_RELOC - Section has external relocation entries.
       S_ATTR_EXT_RELOC           = 0x00000200u,
+      /// S_ATTR_LOC_RELOC - Section has local relocation entries.
       S_ATTR_LOC_RELOC           = 0x00000100u,
 
       // Constant masks for the value of an indirect symbol in an indirect
@@ -307,22 +360,41 @@ namespace llvm {
     enum {
       // Constant masks for the "n_desc" field in llvm::MachO::nlist and
       // llvm::MachO::nlist_64
+      // The low 3 bits are the for the REFERENCE_TYPE.
+      REFERENCE_TYPE                            = 0x7,
+      REFERENCE_FLAG_UNDEFINED_NON_LAZY         = 0,
+      REFERENCE_FLAG_UNDEFINED_LAZY             = 1,
+      REFERENCE_FLAG_DEFINED                    = 2,
+      REFERENCE_FLAG_PRIVATE_DEFINED            = 3,
+      REFERENCE_FLAG_PRIVATE_UNDEFINED_NON_LAZY = 4,
+      REFERENCE_FLAG_PRIVATE_UNDEFINED_LAZY     = 5,
+      // Flag bits (some overlap with the library ordinal bits).
       N_ARM_THUMB_DEF   = 0x0008u,
+      REFERENCED_DYNAMICALLY = 0x0010u,
       N_NO_DEAD_STRIP   = 0x0020u,
       N_WEAK_REF        = 0x0040u,
       N_WEAK_DEF        = 0x0080u,
-      N_SYMBOL_RESOLVER = 0x0100u
+      N_SYMBOL_RESOLVER = 0x0100u,
+      N_ALT_ENTRY       = 0x0200u,
+      // For undefined symbols coming from libraries, see GET_LIBRARY_ORDINAL()
+      // as these are in the top 8 bits.
+      SELF_LIBRARY_ORDINAL   = 0x0,
+      MAX_LIBRARY_ORDINAL    = 0xfd,
+      DYNAMIC_LOOKUP_ORDINAL = 0xfe,
+      EXECUTABLE_ORDINAL     = 0xff 
     };
 
     enum StabType {
       // Constant values for the "n_type" field in llvm::MachO::nlist and
-      // llvm::MachO::nlist_64 when "(n_type & NlistMaskStab) != 0"
+      // llvm::MachO::nlist_64 when "(n_type & N_STAB) != 0"
       N_GSYM    = 0x20u,
       N_FNAME   = 0x22u,
       N_FUN     = 0x24u,
       N_STSYM   = 0x26u,
       N_LCSYM   = 0x28u,
       N_BNSYM   = 0x2Eu,
+      N_PC      = 0x30u,
+      N_AST     = 0x32u,
       N_OPT     = 0x3Cu,
       N_RSYM    = 0x40u,
       N_SLINE   = 0x44u,
@@ -348,7 +420,7 @@ namespace llvm {
       N_LENG    = 0xFEu
     };
 
-    enum LLVM_ENUM_INT_TYPE(uint32_t) {
+    enum : uint32_t {
       // Constant values for the r_symbolnum field in an
       // llvm::MachO::relocation_info structure when r_extern is 0.
       R_ABS = 0,
@@ -402,6 +474,34 @@ namespace llvm {
       ARM_THUMB_32BIT_BRANCH       = 7, // obsolete
       ARM_RELOC_HALF               = 8,
       ARM_RELOC_HALF_SECTDIFF      = 9,
+
+      // Constant values for the r_type field in an ARM64 architecture
+      // llvm::MachO::relocation_info or llvm::MachO::scattered_relocation_info
+      // structure.
+
+      // For pointers.
+      ARM64_RELOC_UNSIGNED            = 0,
+      // Must be followed by an ARM64_RELOC_UNSIGNED
+      ARM64_RELOC_SUBTRACTOR          = 1,
+      // A B/BL instruction with 26-bit displacement.
+      ARM64_RELOC_BRANCH26            = 2,
+      // PC-rel distance to page of target.
+      ARM64_RELOC_PAGE21              = 3,
+      // Offset within page, scaled by r_length.
+      ARM64_RELOC_PAGEOFF12           = 4,
+      // PC-rel distance to page of GOT slot.
+      ARM64_RELOC_GOT_LOAD_PAGE21     = 5,
+      // Offset within page of GOT slot, scaled by r_length.
+      ARM64_RELOC_GOT_LOAD_PAGEOFF12  = 6,
+      // For pointers to GOT slots.
+      ARM64_RELOC_POINTER_TO_GOT      = 7,
+      // PC-rel distance to page of TLVP slot.
+      ARM64_RELOC_TLVP_LOAD_PAGE21    = 8,
+      // Offset within page of TLVP slot, scaled by r_length.
+      ARM64_RELOC_TLVP_LOAD_PAGEOFF12 = 9,
+      // Must be followed by ARM64_RELOC_PAGE21 or ARM64_RELOC_PAGEOFF12.
+      ARM64_RELOC_ADDEND              = 10,
+
 
       // Constant values for the r_type field in an x86_64 architecture
       // llvm::MachO::relocation_info or llvm::MachO::scattered_relocation_info
@@ -739,9 +839,10 @@ namespace llvm {
     };
 
     struct version_min_command {
-      uint32_t cmd;
-      uint32_t cmdsize;
-      uint32_t version;
+      uint32_t cmd;       // LC_VERSION_MIN_MACOSX or
+                          // LC_VERSION_MIN_IPHONEOS
+      uint32_t cmdsize;   // sizeof(struct version_min_command)
+      uint32_t version;   // X.Y.Z is encoded in nibbles xxxx.yy.zz
       uint32_t reserved;
     };
 
@@ -858,6 +959,13 @@ namespace llvm {
     };
 
     // Structs from <mach-o/nlist.h>
+    struct nlist_base {
+      uint32_t n_strx;
+      uint8_t n_type;
+      uint8_t n_sect;
+      uint16_t n_desc;
+    };
+
     struct nlist {
       uint32_t n_strx;
       uint8_t n_type;
@@ -873,6 +981,206 @@ namespace llvm {
       uint16_t n_desc;
       uint64_t n_value;
     };
+
+
+    // Byte order swapping functions for MachO structs
+
+    inline void swapStruct(mach_header &mh) {
+      sys::swapByteOrder(mh.magic);
+      sys::swapByteOrder(mh.cputype);
+      sys::swapByteOrder(mh.cpusubtype);
+      sys::swapByteOrder(mh.filetype);
+      sys::swapByteOrder(mh.ncmds);
+      sys::swapByteOrder(mh.sizeofcmds);
+      sys::swapByteOrder(mh.flags);
+    }
+
+    inline void swapStruct(mach_header_64 &H) {
+      sys::swapByteOrder(H.magic);
+      sys::swapByteOrder(H.cputype);
+      sys::swapByteOrder(H.cpusubtype);
+      sys::swapByteOrder(H.filetype);
+      sys::swapByteOrder(H.ncmds);
+      sys::swapByteOrder(H.sizeofcmds);
+      sys::swapByteOrder(H.flags);
+      sys::swapByteOrder(H.reserved);
+    }
+
+    inline void swapStruct(load_command &lc) {
+      sys::swapByteOrder(lc.cmd);
+      sys::swapByteOrder(lc.cmdsize);
+    }
+
+    inline void swapStruct(symtab_command &lc) {
+      sys::swapByteOrder(lc.cmd);
+      sys::swapByteOrder(lc.cmdsize);
+      sys::swapByteOrder(lc.symoff);
+      sys::swapByteOrder(lc.nsyms);
+      sys::swapByteOrder(lc.stroff);
+      sys::swapByteOrder(lc.strsize);
+    }
+
+    inline void swapStruct(segment_command_64 &seg) {
+      sys::swapByteOrder(seg.cmd);
+      sys::swapByteOrder(seg.cmdsize);
+      sys::swapByteOrder(seg.vmaddr);
+      sys::swapByteOrder(seg.vmsize);
+      sys::swapByteOrder(seg.fileoff);
+      sys::swapByteOrder(seg.filesize);
+      sys::swapByteOrder(seg.maxprot);
+      sys::swapByteOrder(seg.initprot);
+      sys::swapByteOrder(seg.nsects);
+      sys::swapByteOrder(seg.flags);
+    }
+
+    inline void swapStruct(segment_command &seg) {
+      sys::swapByteOrder(seg.cmd);
+      sys::swapByteOrder(seg.cmdsize);
+      sys::swapByteOrder(seg.vmaddr);
+      sys::swapByteOrder(seg.vmsize);
+      sys::swapByteOrder(seg.fileoff);
+      sys::swapByteOrder(seg.filesize);
+      sys::swapByteOrder(seg.maxprot);
+      sys::swapByteOrder(seg.initprot);
+      sys::swapByteOrder(seg.nsects);
+      sys::swapByteOrder(seg.flags);
+    }
+
+    inline void swapStruct(section_64 &sect) {
+      sys::swapByteOrder(sect.addr);
+      sys::swapByteOrder(sect.size);
+      sys::swapByteOrder(sect.offset);
+      sys::swapByteOrder(sect.align);
+      sys::swapByteOrder(sect.reloff);
+      sys::swapByteOrder(sect.nreloc);
+      sys::swapByteOrder(sect.flags);
+      sys::swapByteOrder(sect.reserved1);
+      sys::swapByteOrder(sect.reserved2);
+    }
+
+    inline void swapStruct(section &sect) {
+      sys::swapByteOrder(sect.addr);
+      sys::swapByteOrder(sect.size);
+      sys::swapByteOrder(sect.offset);
+      sys::swapByteOrder(sect.align);
+      sys::swapByteOrder(sect.reloff);
+      sys::swapByteOrder(sect.nreloc);
+      sys::swapByteOrder(sect.flags);
+      sys::swapByteOrder(sect.reserved1);
+      sys::swapByteOrder(sect.reserved2);
+    }
+
+    inline void swapStruct(dyld_info_command &info) {
+      sys::swapByteOrder(info.cmd);
+      sys::swapByteOrder(info.cmdsize);
+      sys::swapByteOrder(info.rebase_off);
+      sys::swapByteOrder(info.rebase_size);
+      sys::swapByteOrder(info.bind_off);
+      sys::swapByteOrder(info.bind_size);
+      sys::swapByteOrder(info.weak_bind_off);
+      sys::swapByteOrder(info.weak_bind_size);
+      sys::swapByteOrder(info.lazy_bind_off);
+      sys::swapByteOrder(info.lazy_bind_size);
+      sys::swapByteOrder(info.export_off);
+      sys::swapByteOrder(info.export_size);
+    }
+
+    inline void swapStruct(dylib_command &d) {
+      sys::swapByteOrder(d.cmd);
+      sys::swapByteOrder(d.cmdsize);
+      sys::swapByteOrder(d.dylib.name);
+      sys::swapByteOrder(d.dylib.timestamp);
+      sys::swapByteOrder(d.dylib.current_version);
+      sys::swapByteOrder(d.dylib.compatibility_version);
+    }
+
+    inline void swapStruct(dylinker_command &d) {
+      sys::swapByteOrder(d.cmd);
+      sys::swapByteOrder(d.cmdsize);
+      sys::swapByteOrder(d.name);
+    }
+
+    inline void swapStruct(entry_point_command &e) {
+      sys::swapByteOrder(e.cmd);
+      sys::swapByteOrder(e.cmdsize);
+      sys::swapByteOrder(e.entryoff);
+      sys::swapByteOrder(e.stacksize);
+    }
+
+    inline void swapStruct(dysymtab_command &dst) {
+      sys::swapByteOrder(dst.cmd);
+      sys::swapByteOrder(dst.cmdsize);
+      sys::swapByteOrder(dst.ilocalsym);
+      sys::swapByteOrder(dst.nlocalsym);
+      sys::swapByteOrder(dst.iextdefsym);
+      sys::swapByteOrder(dst.nextdefsym);
+      sys::swapByteOrder(dst.iundefsym);
+      sys::swapByteOrder(dst.nundefsym);
+      sys::swapByteOrder(dst.tocoff);
+      sys::swapByteOrder(dst.ntoc);
+      sys::swapByteOrder(dst.modtaboff);
+      sys::swapByteOrder(dst.nmodtab);
+      sys::swapByteOrder(dst.extrefsymoff);
+      sys::swapByteOrder(dst.nextrefsyms);
+      sys::swapByteOrder(dst.indirectsymoff);
+      sys::swapByteOrder(dst.nindirectsyms);
+      sys::swapByteOrder(dst.extreloff);
+      sys::swapByteOrder(dst.nextrel);
+      sys::swapByteOrder(dst.locreloff);
+      sys::swapByteOrder(dst.nlocrel);
+    }
+
+    inline void swapStruct(any_relocation_info &reloc) {
+      sys::swapByteOrder(reloc.r_word0);
+      sys::swapByteOrder(reloc.r_word1);
+    }
+
+    inline void swapStruct(nlist_base &S) {
+      sys::swapByteOrder(S.n_strx);
+      sys::swapByteOrder(S.n_desc);
+    }
+
+    inline void swapStruct(nlist &sym) {
+      sys::swapByteOrder(sym.n_strx);
+      sys::swapByteOrder(sym.n_desc);
+      sys::swapByteOrder(sym.n_value);
+    }
+
+    inline void swapStruct(nlist_64 &sym) {
+      sys::swapByteOrder(sym.n_strx);
+      sys::swapByteOrder(sym.n_desc);
+      sys::swapByteOrder(sym.n_value);
+    }
+
+    inline void swapStruct(linkedit_data_command &C) {
+      sys::swapByteOrder(C.cmd);
+      sys::swapByteOrder(C.cmdsize);
+      sys::swapByteOrder(C.dataoff);
+      sys::swapByteOrder(C.datasize);
+    }
+
+    inline void swapStruct(linker_options_command &C) {
+      sys::swapByteOrder(C.cmd);
+      sys::swapByteOrder(C.cmdsize);
+      sys::swapByteOrder(C.count);
+    }
+
+    inline void swapStruct(version_min_command&C) {
+      sys::swapByteOrder(C.cmd);
+      sys::swapByteOrder(C.cmdsize);
+      sys::swapByteOrder(C.version);
+      sys::swapByteOrder(C.reserved);
+    }
+
+    inline void swapStruct(data_in_code_entry &C) {
+      sys::swapByteOrder(C.offset);
+      sys::swapByteOrder(C.length);
+      sys::swapByteOrder(C.kind);
+    }
+
+    inline void swapStruct(uint32_t &C) {
+      sys::swapByteOrder(C);
+    }
 
     // Get/Set functions from <mach-o/nlist.h>
 
@@ -893,7 +1201,7 @@ namespace llvm {
     }
 
     // Enums from <mach/machine.h>
-    enum LLVM_ENUM_INT_TYPE(uint32_t) {
+    enum : uint32_t {
       // Capability bits used in the definition of cpu_type.
       CPU_ARCH_MASK  = 0xff000000,   // Mask for architecture bits
       CPU_ARCH_ABI64 = 0x01000000    // 64 bit ABI
@@ -908,15 +1216,16 @@ namespace llvm {
    /* CPU_TYPE_MIPS      = 8, */
       CPU_TYPE_MC98000   = 10, // Old Motorola PowerPC
       CPU_TYPE_ARM       = 12,
+      CPU_TYPE_ARM64     = CPU_TYPE_ARM | CPU_ARCH_ABI64,
       CPU_TYPE_SPARC     = 14,
       CPU_TYPE_POWERPC   = 18,
       CPU_TYPE_POWERPC64 = CPU_TYPE_POWERPC | CPU_ARCH_ABI64
     };
 
-    enum LLVM_ENUM_INT_TYPE(uint32_t) {
+    enum : uint32_t {
       // Capability bits used in the definition of cpusubtype.
-      CPU_SUB_TYPE_MASK  = 0xff000000,   // Mask for architecture bits
-      CPU_SUB_TYPE_LIB64 = 0x80000000,   // 64 bit libraries
+      CPU_SUBTYPE_MASK  = 0xff000000,   // Mask for architecture bits
+      CPU_SUBTYPE_LIB64 = 0x80000000,   // 64 bit libraries
 
       // Special CPU subtype constants.
       CPU_SUBTYPE_MULTIPLE = ~0u
@@ -973,12 +1282,16 @@ namespace llvm {
       CPU_SUBTYPE_ARM_V5TEJ   = 7,
       CPU_SUBTYPE_ARM_XSCALE  = 8,
       CPU_SUBTYPE_ARM_V7      = 9,
-      CPU_SUBTYPE_ARM_V7F     = 10,
+      //  unused  ARM_V7F     = 10,
       CPU_SUBTYPE_ARM_V7S     = 11,
       CPU_SUBTYPE_ARM_V7K     = 12,
       CPU_SUBTYPE_ARM_V6M     = 14,
       CPU_SUBTYPE_ARM_V7M     = 15,
       CPU_SUBTYPE_ARM_V7EM    = 16
+    };
+
+    enum CPUSubTypeARM64 {
+      CPU_SUBTYPE_ARM64_ALL   = 0
     };
 
     enum CPUSubTypeSPARC {

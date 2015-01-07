@@ -223,8 +223,7 @@ key_sendup(struct socket *so, struct sadb_msg *msg, u_int len, int target)
 			n->m_len = MLEN;
 		}
 		if (tlen >= MCLBYTES) {	/*XXX better threshold? */
-			MCLGET(n, M_NOWAIT);
-			if ((n->m_flags & M_EXT) == 0) {
+			if (!(MCLGET(n, M_NOWAIT))) {
 				m_free(n);
 				m_freem(m);
 				PFKEYSTAT_INC(in_nomem);

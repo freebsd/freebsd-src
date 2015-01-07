@@ -587,6 +587,11 @@ class Operand<ValueType ty> : DAGOperand {
   string OperandType = "OPERAND_UNKNOWN";
   dag MIOperandInfo = (ops);
 
+  // MCOperandPredicate - Optionally, a code fragment operating on
+  // const MCOperand &MCOp, and returning a bool, to indicate if
+  // the value of MCOp is valid for the specific subclass of Operand
+  code MCOperandPredicate;
+
   // ParserMatchClass - The "match class" that operands of this type fit
   // in. Match classes are used to define the order in which instructions are
   // match, to ensure that which instructions gets matched is deterministic.
@@ -685,6 +690,27 @@ class InstrInfo {
   //
   // This option is a temporary migration help. It will go away.
   bit guessInstructionProperties = 1;
+
+  // TableGen's instruction encoder generator has support for matching operands
+  // to bit-field variables both by name and by position. While matching by
+  // name is preferred, this is currently not possible for complex operands,
+  // and some targets still reply on the positional encoding rules. When
+  // generating a decoder for such targets, the positional encoding rules must
+  // be used by the decoder generator as well.
+  //
+  // This option is temporary; it will go away once the TableGen decoder
+  // generator has better support for complex operands and targets have
+  // migrated away from using positionally encoded operands.
+  bit decodePositionallyEncodedOperands = 0;
+
+  // When set, this indicates that there will be no overlap between those
+  // operands that are matched by ordering (positional operands) and those
+  // matched by name.
+  //
+  // This option is temporary; it will go away once the TableGen decoder
+  // generator has better support for complex operands and targets have
+  // migrated away from using positionally encoded operands.
+  bit noNamedPositionallyEncodedOperands = 0;
 }
 
 // Standard Pseudo Instructions.
@@ -702,7 +728,7 @@ def INLINEASM : Instruction {
   let AsmString = "";
   let neverHasSideEffects = 1;  // Note side effect is encoded in an operand.
 }
-def PROLOG_LABEL : Instruction {
+def CFI_INSTRUCTION : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins i32imm:$id);
   let AsmString = "";
@@ -802,16 +828,18 @@ def LIFETIME_END : Instruction {
 }
 def STACKMAP : Instruction {
   let OutOperandList = (outs);
-  let InOperandList = (ins i32imm:$id, i32imm:$nbytes, variable_ops);
+  let InOperandList = (ins i64imm:$id, i32imm:$nbytes, variable_ops);
   let isCall = 1;
   let mayLoad = 1;
+  let usesCustomInserter = 1;
 }
 def PATCHPOINT : Instruction {
   let OutOperandList = (outs unknown:$dst);
-  let InOperandList = (ins i32imm:$id, i32imm:$nbytes, unknown:$callee,
+  let InOperandList = (ins i64imm:$id, i32imm:$nbytes, unknown:$callee,
                        i32imm:$nargs, i32imm:$cc, variable_ops);
   let isCall = 1;
   let mayLoad = 1;
+  let usesCustomInserter = 1;
 }
 }
 
@@ -927,10 +955,15 @@ class MnemonicAlias<string From, string To, string VariantName = ""> {
 /// InstAlias - This defines an alternate assembly syntax that is allowed to
 /// match an instruction that has a different (more canonical) assembly
 /// representation.
-class InstAlias<string Asm, dag Result, bit Emit = 0b1> {
+class InstAlias<string Asm, dag Result, int Emit = 1> {
   string AsmString = Asm;      // The .s format to match the instruction with.
   dag ResultInst = Result;     // The MCInst to generate.
-  bit EmitAlias = Emit;        // Emit the alias instead of what's aliased.
+
+  // This determines which order the InstPrinter detects aliases for
+  // printing. A larger value makes the alias more likely to be
+  // emitted. The Instruction's own definition is notionally 0.5, so 0
+  // disables printing and 1 enables it if there are no conflicting aliases.
+  int EmitPriority = Emit;
 
   // Predicates - Predicates that must be true for this to match.
   list<Predicate> Predicates = [];
@@ -947,7 +980,7 @@ class AsmWriter {
   // AsmWriterClassName - This specifies the suffix to use for the asmwriter
   // class.  Generated AsmWriter classes are always prefixed with the target
   // name.
-  string AsmWriterClassName  = "AsmPrinter";
+  string AsmWriterClassName  = "InstPrinter";
 
   // Variant - AsmWriters can be of multiple different variants.  Variants are
   // used to support targets that need to emit assembly code in ways that are
@@ -957,21 +990,8 @@ class AsmWriter {
   // == 1, will expand to "y".
   int Variant = 0;
 
-
-  // FirstOperandColumn/OperandSpacing - If the assembler syntax uses a columnar
-  // layout, the asmwriter can actually generate output in this columns (in
-  // verbose-asm mode).  These two values indicate the width of the first column
-  // (the "opcode" area) and the width to reserve for subsequent operands.  When
-  // verbose asm mode is enabled, operands will be indented to respect this.
-  int FirstOperandColumn = -1;
-
   // OperandSpacing - Space between operand columns.
   int OperandSpacing = -1;
-
-  // isMCAsmWriter - Is this assembly writer for an MC emitter? This controls
-  // generation of the printInstruction() method. For MC printers, it takes
-  // an MCInstr* operand, otherwise it takes a MachineInstr*.
-  bit isMCAsmWriter = 0;
 }
 def DefaultAsmWriter : AsmWriter;
 

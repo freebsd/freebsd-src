@@ -68,7 +68,7 @@
 static int u3g_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, u3g, CTLFLAG_RW, 0, "USB 3g");
-SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RWTUN,
     &u3g_debug, 0, "Debug level");
 #endif
 

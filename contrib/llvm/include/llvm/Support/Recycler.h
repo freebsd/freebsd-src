@@ -17,12 +17,11 @@
 
 #include "llvm/ADT/ilist.h"
 #include "llvm/Support/AlignOf.h"
+#include "llvm/Support/Allocator.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <cassert>
 
 namespace llvm {
-
-class BumpPtrAllocator;
 
 /// PrintRecyclingAllocatorStats - Helper for RecyclingAllocator for
 /// printing statistics.
@@ -100,10 +99,10 @@ public:
 
   template<class SubClass, class AllocatorType>
   SubClass *Allocate(AllocatorType &Allocator) {
-    assert(sizeof(SubClass) <= Size &&
-           "Recycler allocation size is less than object size!");
-    assert(AlignOf<SubClass>::Alignment <= Align &&
-           "Recycler allocation alignment is less than object alignment!");
+    static_assert(AlignOf<SubClass>::Alignment <= Align,
+                  "Recycler allocation alignment is less than object align!");
+    static_assert(sizeof(SubClass) <= Size,
+                  "Recycler allocation size is less than object size!");
     return !FreeList.empty() ?
            reinterpret_cast<SubClass *>(FreeList.remove(FreeList.begin())) :
            static_cast<SubClass *>(Allocator.Allocate(Size, Align));

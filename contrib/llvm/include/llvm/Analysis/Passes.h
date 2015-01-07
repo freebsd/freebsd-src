@@ -95,27 +95,6 @@ namespace llvm {
 
   //===--------------------------------------------------------------------===//
   //
-  // createDSAAPass - This pass implements simple context sensitive alias
-  // analysis.
-  //
-  ModulePass *createDSAAPass();
-
-  //===--------------------------------------------------------------------===//
-  //
-  // createDSOptPass - This pass uses DSA to do a series of simple
-  // optimizations.
-  //
-  ModulePass *createDSOptPass();
-
-  //===--------------------------------------------------------------------===//
-  //
-  // createSteensgaardPass - This pass uses the data structure graphs to do a
-  // simple context insensitive alias analysis.
-  //
-  ModulePass *createSteensgaardPass();
-
-  //===--------------------------------------------------------------------===//
-  //
   /// createLazyValueInfoPass - This creates an instance of the LazyValueInfo
   /// pass.
   FunctionPass *createLazyValueInfoPass();
@@ -163,6 +142,10 @@ namespace llvm {
   // information and prints it with -analyze.
   //
   FunctionPass *createMemDepPrinter();
+
+  // createJumpInstrTableInfoPass - This creates a pass that stores information
+  // about the jump tables created by JumpInstrTables
+  ImmutablePass *createJumpInstrTableInfoPass();
 }
 
 #endif
