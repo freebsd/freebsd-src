@@ -6,4 +6,4 @@ Set to use
 .Xr strings 1 ,
 and
 .Xr strip 1
-from the elftoolchain project instead of GNU binutils.
+from GNU binutils instead of the ELF Tool Chain project.
