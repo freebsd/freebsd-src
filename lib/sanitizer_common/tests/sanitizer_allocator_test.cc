@@ -17,11 +17,11 @@
 #include "sanitizer_common/sanitizer_flags.h"
 
 #include "sanitizer_test_utils.h"
+#include "sanitizer_pthread_wrappers.h"
 
 #include "gtest/gtest.h"
 
 #include <stdlib.h>
-#include <pthread.h>
 #include <algorithm>
 #include <vector>
 #include <set>
@@ -328,6 +328,7 @@ TEST(SanitizerCommon, SizeClassAllocator64Overflow) {
 }
 #endif
 
+#if !defined(_WIN32)  // FIXME: This currently fails on Windows.
 TEST(SanitizerCommon, LargeMmapAllocator) {
   LargeMmapAllocator<> a;
   a.Init();
@@ -403,6 +404,7 @@ TEST(SanitizerCommon, LargeMmapAllocator) {
   CHECK_NE(p, (char *)a.GetBlockBegin(p + page_size));
   a.Deallocate(&stats, p);
 }
+#endif
 
 template
 <class PrimaryAllocator, class SecondaryAllocator, class AllocatorCache>
@@ -477,11 +479,13 @@ TEST(SanitizerCommon, CombinedAllocator64Compact) {
 }
 #endif
 
+#if !defined(_WIN32)  // FIXME: This currently fails on Windows.
 TEST(SanitizerCommon, CombinedAllocator32Compact) {
   TestCombinedAllocator<Allocator32Compact,
       LargeMmapAllocator<>,
       SizeClassAllocatorLocalCache<Allocator32Compact> > ();
 }
+#endif
 
 template <class AllocatorCache>
 void TestSizeClassAllocatorLocalCache() {
@@ -553,8 +557,8 @@ TEST(SanitizerCommon, AllocatorLeakTest) {
   uptr total_used_memory = 0;
   for (int i = 0; i < 100; i++) {
     pthread_t t;
-    EXPECT_EQ(0, pthread_create(&t, 0, AllocatorLeakTestWorker, &a));
-    EXPECT_EQ(0, pthread_join(t, 0));
+    PTHREAD_CREATE(&t, 0, AllocatorLeakTestWorker, &a);
+    PTHREAD_JOIN(t, 0);
     if (i == 0)
       total_used_memory = a.TotalMemoryUsed();
     EXPECT_EQ(a.TotalMemoryUsed(), total_used_memory);
@@ -595,8 +599,8 @@ TEST(Allocator, AllocatorCacheDeallocNewThread) {
   params->allocator = &allocator;
   params->class_id = class_id;
   pthread_t t;
-  EXPECT_EQ(0, pthread_create(&t, 0, DeallocNewThreadWorker, params));
-  EXPECT_EQ(0, pthread_join(t, 0));
+  PTHREAD_CREATE(&t, 0, DeallocNewThreadWorker, params);
+  PTHREAD_JOIN(t, 0);
 }
 #endif
 
@@ -625,9 +629,9 @@ TEST(Allocator, Stress) {
   }
 }
 
-TEST(Allocator, InternalAllocFailure) {
-  EXPECT_DEATH(Ident(InternalAlloc(10 << 20)),
-               "Unexpected mmap in InternalAllocator!");
+TEST(Allocator, LargeAlloc) {
+  void *p = InternalAlloc(10 << 20);
+  InternalFree(p);
 }
 
 TEST(Allocator, ScopedBuffer) {
@@ -793,5 +797,66 @@ TEST(SanitizerCommon, SizeClassAllocator64PopulateFreeListOOM) {
   delete a;
 }
 #endif
+
+TEST(SanitizerCommon, TwoLevelByteMap) {
+  const u64 kSize1 = 1 << 6, kSize2 = 1 << 12;
+  const u64 n = kSize1 * kSize2;
+  TwoLevelByteMap<kSize1, kSize2> m;
+  m.TestOnlyInit();
+  for (u64 i = 0; i < n; i += 7) {
+    m.set(i, (i % 100) + 1);
+  }
+  for (u64 j = 0; j < n; j++) {
+    if (j % 7)
+      EXPECT_EQ(m[j], 0);
+    else
+      EXPECT_EQ(m[j], (j % 100) + 1);
+  }
+
+  m.TestOnlyUnmap();
+}
+
+
+typedef TwoLevelByteMap<1 << 12, 1 << 13, TestMapUnmapCallback> TestByteMap;
+
+struct TestByteMapParam {
+  TestByteMap *m;
+  size_t shard;
+  size_t num_shards;
+};
+
+void *TwoLevelByteMapUserThread(void *param) {
+  TestByteMapParam *p = (TestByteMapParam*)param;
+  for (size_t i = p->shard; i < p->m->size(); i += p->num_shards) {
+    size_t val = (i % 100) + 1;
+    p->m->set(i, val);
+    EXPECT_EQ((*p->m)[i], val);
+  }
+  return 0;
+}
+
+TEST(SanitizerCommon, ThreadedTwoLevelByteMap) {
+  TestByteMap m;
+  m.TestOnlyInit();
+  TestMapUnmapCallback::map_count = 0;
+  TestMapUnmapCallback::unmap_count = 0;
+  static const int kNumThreads = 4;
+  pthread_t t[kNumThreads];
+  TestByteMapParam p[kNumThreads];
+  for (int i = 0; i < kNumThreads; i++) {
+    p[i].m = &m;
+    p[i].shard = i;
+    p[i].num_shards = kNumThreads;
+    PTHREAD_CREATE(&t[i], 0, TwoLevelByteMapUserThread, &p[i]);
+  }
+  for (int i = 0; i < kNumThreads; i++) {
+    PTHREAD_JOIN(t[i], 0);
+  }
+  EXPECT_EQ((uptr)TestMapUnmapCallback::map_count, m.size1());
+  EXPECT_EQ((uptr)TestMapUnmapCallback::unmap_count, 0UL);
+  m.TestOnlyUnmap();
+  EXPECT_EQ((uptr)TestMapUnmapCallback::map_count, m.size1());
+  EXPECT_EQ((uptr)TestMapUnmapCallback::unmap_count, m.size1());
+}
 
 #endif  // #if TSAN_DEBUG==0

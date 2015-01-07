@@ -31,6 +31,7 @@ enum MutexType {
   MutexTypeAtExit,
   MutexTypeMBlock,
   MutexTypeJavaMBlock,
+  MutexTypeDDetector,
 
   // This must be the last.
   MutexTypeCount
@@ -65,17 +66,22 @@ class Mutex {
 typedef GenericScopedLock<Mutex> Lock;
 typedef GenericScopedReadLock<Mutex> ReadLock;
 
-class DeadlockDetector {
+class InternalDeadlockDetector {
  public:
-  DeadlockDetector();
+  InternalDeadlockDetector();
   void Lock(MutexType t);
   void Unlock(MutexType t);
+  void CheckNoLocks();
  private:
   u64 seq_;
   u64 locked_[MutexTypeCount];
 };
 
 void InitializeMutex();
+
+// Checks that the current thread does not hold any runtime locks
+// (e.g. when returning from an interceptor).
+void CheckNoLocks(ThreadState *thr);
 
 }  // namespace __tsan
 

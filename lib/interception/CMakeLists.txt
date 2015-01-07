@@ -10,6 +10,7 @@ set(INTERCEPTION_SOURCES
 include_directories(..)
 
 set(INTERCEPTION_CFLAGS ${SANITIZER_COMMON_CFLAGS})
+append_no_rtti_flag(INTERCEPTION_CFLAGS)
 
 if(APPLE)
   # Build universal binary on APPLE.
@@ -19,10 +20,6 @@ if(APPLE)
       SOURCES ${INTERCEPTION_SOURCES}
       CFLAGS ${INTERCEPTION_CFLAGS})
   endforeach()
-elseif(ANDROID)
-  add_library(RTInterception.arm.android OBJECT ${INTERCEPTION_SOURCES})
-  set_target_compile_flags(RTInterception.arm.android
-    ${INTERCEPTION_CFLAGS})
 else()
   # Otherwise, build separate libraries for each target.
   foreach(arch ${SANITIZER_COMMON_SUPPORTED_ARCH})

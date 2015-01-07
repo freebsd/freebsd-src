@@ -14,8 +14,6 @@
 #include "sanitizer_common.h"
 #include "sanitizer_flags.h"
 #include "sanitizer_libc.h"
-#include "sanitizer_stacktrace.h"
-#include "sanitizer_symbolizer.h"
 
 namespace __sanitizer {
 
@@ -28,19 +26,73 @@ uptr GetPageSizeCached() {
   return PageSize;
 }
 
+StaticSpinMutex report_file_mu;
+ReportFile report_file = {&report_file_mu, kStderrFd, "", "", 0};
 
-// By default, dump to stderr. If |log_to_file| is true and |report_fd_pid|
-// isn't equal to the current PID, try to obtain file descriptor by opening
-// file "report_path_prefix.<PID>".
-fd_t report_fd = kStderrFd;
+void RawWrite(const char *buffer) {
+  report_file.Write(buffer, internal_strlen(buffer));
+}
 
-// Set via __sanitizer_set_report_path.
-bool log_to_file = false;
-char report_path_prefix[sizeof(report_path_prefix)];
+void ReportFile::ReopenIfNecessary() {
+  mu->CheckLocked();
+  if (fd == kStdoutFd || fd == kStderrFd) return;
 
-// PID of process that opened |report_fd|. If a fork() occurs, the PID of the
-// child thread will be different from |report_fd_pid|.
-uptr report_fd_pid = 0;
+  uptr pid = internal_getpid();
+  // If in tracer, use the parent's file.
+  if (pid == stoptheworld_tracer_pid)
+    pid = stoptheworld_tracer_ppid;
+  if (fd != kInvalidFd) {
+    // If the report file is already opened by the current process,
+    // do nothing. Otherwise the report file was opened by the parent
+    // process, close it now.
+    if (fd_pid == pid)
+      return;
+    else
+      internal_close(fd);
+  }
+
+  internal_snprintf(full_path, kMaxPathLength, "%s.%zu", path_prefix, pid);
+  uptr openrv = OpenFile(full_path, true);
+  if (internal_iserror(openrv)) {
+    const char *ErrorMsgPrefix = "ERROR: Can't open file: ";
+    internal_write(kStderrFd, ErrorMsgPrefix, internal_strlen(ErrorMsgPrefix));
+    internal_write(kStderrFd, full_path, internal_strlen(full_path));
+    Die();
+  }
+  fd = openrv;
+  fd_pid = pid;
+}
+
+void ReportFile::SetReportPath(const char *path) {
+  if (!path)
+    return;
+  uptr len = internal_strlen(path);
+  if (len > sizeof(path_prefix) - 100) {
+    Report("ERROR: Path is too long: %c%c%c%c%c%c%c%c...\n",
+           path[0], path[1], path[2], path[3],
+           path[4], path[5], path[6], path[7]);
+    Die();
+  }
+
+  SpinMutexLock l(mu);
+  if (fd != kStdoutFd && fd != kStderrFd && fd != kInvalidFd)
+    internal_close(fd);
+  fd = kInvalidFd;
+  if (internal_strcmp(path, "stdout") == 0) {
+    fd = kStdoutFd;
+  } else if (internal_strcmp(path, "stderr") == 0) {
+    fd = kStderrFd;
+  } else {
+    internal_snprintf(path_prefix, kMaxPathLength, "%s", path);
+  }
+}
+
+// PID of the tracer task in StopTheWorld. It shares the address space with the
+// main process, but has a different PID and thus requires special handling.
+uptr stoptheworld_tracer_pid = 0;
+// Cached pid of parent process - if the parent process dies, we want to keep
+// writing to the same log file.
+uptr stoptheworld_tracer_ppid = 0;
 
 static DieCallbackType DieCallback;
 void SetDieCallback(DieCallbackType callback) {
@@ -86,7 +138,7 @@ uptr ReadFileToBuffer(const char *file_name, char **buff,
     if (internal_iserror(openrv)) return 0;
     fd_t fd = openrv;
     UnmapOrDie(*buff, *buff_size);
-    *buff = (char*)MmapOrDie(size, __FUNCTION__);
+    *buff = (char*)MmapOrDie(size, __func__);
     *buff_size = size;
     // Read up to one page at a time.
     read_len = 0;
@@ -150,31 +202,19 @@ const char *StripPathPrefix(const char *filepath,
   return pos;
 }
 
-void PrintSourceLocation(InternalScopedString *buffer, const char *file,
-                         int line, int column) {
-  CHECK(file);
-  buffer->append("%s",
-                 StripPathPrefix(file, common_flags()->strip_path_prefix));
-  if (line > 0) {
-    buffer->append(":%d", line);
-    if (column > 0)
-      buffer->append(":%d", column);
-  }
-}
-
-void PrintModuleAndOffset(InternalScopedString *buffer, const char *module,
-                          uptr offset) {
-  buffer->append("(%s+0x%zx)",
-                 StripPathPrefix(module, common_flags()->strip_path_prefix),
-                 offset);
+const char *StripModuleName(const char *module) {
+  if (module == 0)
+    return 0;
+  if (const char *slash_pos = internal_strrchr(module, '/'))
+    return slash_pos + 1;
+  return module;
 }
 
 void ReportErrorSummary(const char *error_message) {
   if (!common_flags()->print_summary)
     return;
-  InternalScopedBuffer<char> buff(kMaxSummaryLength);
-  internal_snprintf(buff.data(), buff.size(),
-                    "SUMMARY: %s: %s", SanitizerToolName, error_message);
+  InternalScopedString buff(kMaxSummaryLength);
+  buff.append("SUMMARY: %s: %s", SanitizerToolName, error_message);
   __sanitizer_report_error_summary(buff.data());
 }
 
@@ -182,27 +222,12 @@ void ReportErrorSummary(const char *error_type, const char *file,
                         int line, const char *function) {
   if (!common_flags()->print_summary)
     return;
-  InternalScopedBuffer<char> buff(kMaxSummaryLength);
-  internal_snprintf(
-      buff.data(), buff.size(), "%s %s:%d %s", error_type,
-      file ? StripPathPrefix(file, common_flags()->strip_path_prefix) : "??",
-      line, function ? function : "??");
+  InternalScopedString buff(kMaxSummaryLength);
+  buff.append("%s %s:%d %s", error_type,
+              file ? StripPathPrefix(file, common_flags()->strip_path_prefix)
+                   : "??",
+              line, function ? function : "??");
   ReportErrorSummary(buff.data());
-}
-
-void ReportErrorSummary(const char *error_type, StackTrace *stack) {
-  if (!common_flags()->print_summary)
-    return;
-  AddressInfo ai;
-#if !SANITIZER_GO
-  if (stack->size > 0 && Symbolizer::Get()->IsAvailable()) {
-    // Currently, we include the first stack frame into the report summary.
-    // Maybe sometimes we need to choose another frame (e.g. skip memcpy/etc).
-    uptr pc = StackTrace::GetPreviousInstructionPc(stack->trace[0]);
-    Symbolizer::Get()->SymbolizeCode(pc, &ai, 1);
-  }
-#endif
-  ReportErrorSummary(error_type, ai.file, ai.line, ai.function);
 }
 
 LoadedModule::LoadedModule(const char *module_name, uptr base_address) {
@@ -211,10 +236,11 @@ LoadedModule::LoadedModule(const char *module_name, uptr base_address) {
   n_ranges_ = 0;
 }
 
-void LoadedModule::addAddressRange(uptr beg, uptr end) {
+void LoadedModule::addAddressRange(uptr beg, uptr end, bool executable) {
   CHECK_LT(n_ranges_, kMaxNumberOfAddressRanges);
   ranges_[n_ranges_].beg = beg;
   ranges_[n_ranges_].end = end;
+  exec_[n_ranges_] = executable;
   n_ranges_++;
 }
 
@@ -226,15 +252,20 @@ bool LoadedModule::containsAddress(uptr address) const {
   return false;
 }
 
-char *StripModuleName(const char *module) {
-  if (module == 0)
-    return 0;
-  const char *short_module_name = internal_strrchr(module, '/');
-  if (short_module_name)
-    short_module_name += 1;
-  else
-    short_module_name = module;
-  return internal_strdup(short_module_name);
+static atomic_uintptr_t g_total_mmaped;
+
+void IncreaseTotalMmap(uptr size) {
+  if (!common_flags()->mmap_limit_mb) return;
+  uptr total_mmaped =
+      atomic_fetch_add(&g_total_mmaped, size, memory_order_relaxed) + size;
+  // Since for now mmap_limit_mb is not a user-facing flag, just kill
+  // a program. Use RAW_CHECK to avoid extra mmaps in reporting.
+  RAW_CHECK((total_mmaped >> 20) < common_flags()->mmap_limit_mb);
+}
+
+void DecreaseTotalMmap(uptr size) {
+  if (!common_flags()->mmap_limit_mb) return;
+  atomic_fetch_sub(&g_total_mmaped, size, memory_order_relaxed);
 }
 
 }  // namespace __sanitizer
@@ -243,35 +274,7 @@ using namespace __sanitizer;  // NOLINT
 
 extern "C" {
 void __sanitizer_set_report_path(const char *path) {
-  if (!path)
-    return;
-  uptr len = internal_strlen(path);
-  if (len > sizeof(report_path_prefix) - 100) {
-    Report("ERROR: Path is too long: %c%c%c%c%c%c%c%c...\n",
-           path[0], path[1], path[2], path[3],
-           path[4], path[5], path[6], path[7]);
-    Die();
-  }
-  if (report_fd != kStdoutFd &&
-      report_fd != kStderrFd &&
-      report_fd != kInvalidFd)
-    internal_close(report_fd);
-  report_fd = kInvalidFd;
-  log_to_file = false;
-  if (internal_strcmp(path, "stdout") == 0) {
-    report_fd = kStdoutFd;
-  } else if (internal_strcmp(path, "stderr") == 0) {
-    report_fd = kStderrFd;
-  } else {
-    internal_strncpy(report_path_prefix, path, sizeof(report_path_prefix));
-    report_path_prefix[len] = '\0';
-    log_to_file = true;
-  }
-}
-
-void NOINLINE __sanitizer_sandbox_on_notify(void *reserved) {
-  (void)reserved;
-  PrepareForSandboxing();
+  report_file.SetReportPath(path);
 }
 
 void __sanitizer_report_error_summary(const char *error_summary) {

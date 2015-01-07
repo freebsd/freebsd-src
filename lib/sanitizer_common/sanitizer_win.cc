@@ -17,9 +17,10 @@
 
 #define WIN32_LEAN_AND_MEAN
 #define NOGDI
-#include <stdlib.h>
-#include <io.h>
 #include <windows.h>
+#include <dbghelp.h>
+#include <io.h>
+#include <stdlib.h>
 
 #include "sanitizer_common.h"
 #include "sanitizer_libc.h"
@@ -64,6 +65,7 @@ uptr GetThreadSelf() {
   return GetTid();
 }
 
+#if !SANITIZER_GO
 void GetThreadStackTopAndBottom(bool at_initialization, uptr *stack_top,
                                 uptr *stack_bottom) {
   CHECK(stack_top);
@@ -76,12 +78,14 @@ void GetThreadStackTopAndBottom(bool at_initialization, uptr *stack_top,
   *stack_top = (uptr)mbi.BaseAddress + mbi.RegionSize;
   *stack_bottom = (uptr)mbi.AllocationBase;
 }
+#endif  // #if !SANITIZER_GO
 
 void *MmapOrDie(uptr size, const char *mem_type) {
   void *rv = VirtualAlloc(0, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
   if (rv == 0) {
-    Report("ERROR: Failed to allocate 0x%zx (%zd) bytes of %s\n",
-           size, size, mem_type);
+    Report("ERROR: %s failed to "
+           "allocate 0x%zx (%zd) bytes of %s (error code: %d)\n",
+           SanitizerToolName, size, size, mem_type, GetLastError());
     CHECK("unable to mmap" && 0);
   }
   return rv;
@@ -89,8 +93,9 @@ void *MmapOrDie(uptr size, const char *mem_type) {
 
 void UnmapOrDie(void *addr, uptr size) {
   if (VirtualFree(addr, size, MEM_DECOMMIT) == 0) {
-    Report("ERROR: Failed to deallocate 0x%zx (%zd) bytes at address %p\n",
-           size, size, addr);
+    Report("ERROR: %s failed to "
+           "deallocate 0x%zx (%zd) bytes at address %p (error code: %d)\n",
+           SanitizerToolName, size, size, addr, GetLastError());
     CHECK("unable to unmap" && 0);
   }
 }
@@ -101,13 +106,19 @@ void *MmapFixedNoReserve(uptr fixed_addr, uptr size) {
   void *p = VirtualAlloc((LPVOID)fixed_addr, size,
       MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
   if (p == 0)
-    Report("ERROR: Failed to allocate 0x%zx (%zd) bytes at %p (%d)\n",
-           size, size, fixed_addr, GetLastError());
+    Report("ERROR: %s failed to "
+           "allocate %p (%zd) bytes at %p (error code: %d)\n",
+           SanitizerToolName, size, size, fixed_addr, GetLastError());
   return p;
 }
 
 void *MmapFixedOrDie(uptr fixed_addr, uptr size) {
   return MmapFixedNoReserve(fixed_addr, size);
+}
+
+void *MmapNoReserveOrDie(uptr size, const char *mem_type) {
+  // FIXME: make this really NoReserve?
+  return MmapOrDie(size, mem_type);
 }
 
 void *Mprotect(uptr fixed_addr, uptr size) {
@@ -126,6 +137,10 @@ bool MemoryRangeIsAvailable(uptr range_start, uptr range_end) {
 }
 
 void *MapFileToMemory(const char *file_name, uptr *buff_size) {
+  UNIMPLEMENTED();
+}
+
+void *MapWritableFileToMemory(void *addr, uptr size, uptr fd, uptr offset) {
   UNIMPLEMENTED();
 }
 
@@ -176,15 +191,16 @@ void DumpProcessMap() {
   UNIMPLEMENTED();
 }
 
-void DisableCoreDumper() {
-  UNIMPLEMENTED();
+void DisableCoreDumperIfNecessary() {
+  // Do nothing.
 }
 
 void ReExec() {
   UNIMPLEMENTED();
 }
 
-void PrepareForSandboxing() {
+void PrepareForSandboxing(__sanitizer_sandbox_arguments *args) {
+  (void)args;
   // Nothing here for now.
 }
 
@@ -193,6 +209,14 @@ bool StackSizeIsUnlimited() {
 }
 
 void SetStackSizeLimitInBytes(uptr limit) {
+  UNIMPLEMENTED();
+}
+
+bool AddressSpaceIsUnlimited() {
+  UNIMPLEMENTED();
+}
+
+void SetAddressSpaceUnlimited() {
   UNIMPLEMENTED();
 }
 
@@ -215,7 +239,7 @@ u64 NanoTime() {
 
 void Abort() {
   abort();
-  _exit(-1);  // abort is not NORETURN on Windows.
+  internal__exit(-1);  // abort is not NORETURN on Windows.
 }
 
 uptr GetListOfModules(LoadedModule *modules, uptr max_modules,
@@ -266,13 +290,48 @@ uptr internal_read(fd_t fd, void *buf, uptr count) {
 uptr internal_write(fd_t fd, const void *buf, uptr count) {
   if (fd != kStderrFd)
     UNIMPLEMENTED();
-  HANDLE err = GetStdHandle(STD_ERROR_HANDLE);
-  if (err == 0)
-    return 0;  // FIXME: this might not work on some apps.
-  DWORD ret;
-  if (!WriteFile(err, buf, count, &ret, 0))
+
+  static HANDLE output_stream = 0;
+  // Abort immediately if we know printing is not possible.
+  if (output_stream == INVALID_HANDLE_VALUE)
     return 0;
-  return ret;
+
+  // If called for the first time, try to use stderr to output stuff,
+  // falling back to stdout if anything goes wrong.
+  bool fallback_to_stdout = false;
+  if (output_stream == 0) {
+    output_stream = GetStdHandle(STD_ERROR_HANDLE);
+    // We don't distinguish "no such handle" from error.
+    if (output_stream == 0)
+      output_stream = INVALID_HANDLE_VALUE;
+
+    if (output_stream == INVALID_HANDLE_VALUE) {
+      // Retry with stdout?
+      output_stream = GetStdHandle(STD_OUTPUT_HANDLE);
+      if (output_stream == 0)
+        output_stream = INVALID_HANDLE_VALUE;
+      if (output_stream == INVALID_HANDLE_VALUE)
+        return 0;
+    } else {
+      // Successfully got an stderr handle.  However, if WriteFile() fails,
+      // we can still try to fallback to stdout.
+      fallback_to_stdout = true;
+    }
+  }
+
+  DWORD ret;
+  if (WriteFile(output_stream, buf, count, &ret, 0))
+    return ret;
+
+  // Re-try with stdout if using a valid stderr handle fails.
+  if (fallback_to_stdout) {
+    output_stream = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (output_stream == 0)
+      output_stream = INVALID_HANDLE_VALUE;
+    if (output_stream != INVALID_HANDLE_VALUE)
+      return internal_write(fd, buf, count);
+  }
+  return 0;
 }
 
 uptr internal_stat(const char *path, void *buf) {
@@ -305,7 +364,19 @@ uptr internal_sched_yield() {
 }
 
 void internal__exit(int exitcode) {
-  _exit(exitcode);
+  ExitProcess(exitcode);
+}
+
+uptr internal_ftruncate(fd_t fd, uptr size) {
+  UNIMPLEMENTED();
+}
+
+uptr internal_rename(const char *oldpath, const char *newpath) {
+  UNIMPLEMENTED();
+}
+
+uptr GetRSS() {
+  return 0;
 }
 
 // ---------------------- BlockingMutex ---------------- {{{1
@@ -376,33 +447,83 @@ void GetThreadStackAndTls(bool main, uptr *stk_addr, uptr *stk_size,
 #endif
 }
 
-void StackTrace::SlowUnwindStack(uptr pc, uptr max_depth) {
+#if !SANITIZER_GO
+void BufferedStackTrace::SlowUnwindStack(uptr pc, uptr max_depth) {
+  CHECK_GE(max_depth, 2);
   // FIXME: CaptureStackBackTrace might be too slow for us.
   // FIXME: Compare with StackWalk64.
   // FIXME: Look at LLVMUnhandledExceptionFilter in Signals.inc
   size = CaptureStackBackTrace(2, Min(max_depth, kStackTraceMax),
                                (void**)trace, 0);
+  if (size == 0)
+    return;
+
   // Skip the RTL frames by searching for the PC in the stacktrace.
   uptr pc_location = LocatePcInTrace(pc);
   PopStackFrames(pc_location);
 }
 
-void MaybeOpenReportFile() {
-  // Windows doesn't have native fork, and we don't support Cygwin or other
-  // environments that try to fake it, so the initial report_fd will always be
-  // correct.
+void BufferedStackTrace::SlowUnwindStackWithContext(uptr pc, void *context,
+                                                    uptr max_depth) {
+  CONTEXT ctx = *(CONTEXT *)context;
+  STACKFRAME64 stack_frame;
+  memset(&stack_frame, 0, sizeof(stack_frame));
+  size = 0;
+#if defined(_WIN64)
+  int machine_type = IMAGE_FILE_MACHINE_AMD64;
+  stack_frame.AddrPC.Offset = ctx.Rip;
+  stack_frame.AddrFrame.Offset = ctx.Rbp;
+  stack_frame.AddrStack.Offset = ctx.Rsp;
+#else
+  int machine_type = IMAGE_FILE_MACHINE_I386;
+  stack_frame.AddrPC.Offset = ctx.Eip;
+  stack_frame.AddrFrame.Offset = ctx.Ebp;
+  stack_frame.AddrStack.Offset = ctx.Esp;
+#endif
+  stack_frame.AddrPC.Mode = AddrModeFlat;
+  stack_frame.AddrFrame.Mode = AddrModeFlat;
+  stack_frame.AddrStack.Mode = AddrModeFlat;
+  while (StackWalk64(machine_type, GetCurrentProcess(), GetCurrentThread(),
+                     &stack_frame, &ctx, NULL, &SymFunctionTableAccess64,
+                     &SymGetModuleBase64, NULL) &&
+         size < Min(max_depth, kStackTraceMax)) {
+    trace_buffer[size++] = (uptr)stack_frame.AddrPC.Offset;
+  }
 }
+#endif  // #if !SANITIZER_GO
 
-void RawWrite(const char *buffer) {
-  static const char *kRawWriteError =
-      "RawWrite can't output requested buffer!\n";
-  uptr length = (uptr)internal_strlen(buffer);
-  if (length != internal_write(report_fd, buffer, length)) {
+void ReportFile::Write(const char *buffer, uptr length) {
+  SpinMutexLock l(mu);
+  ReopenIfNecessary();
+  if (length != internal_write(fd, buffer, length)) {
     // stderr may be closed, but we may be able to print to the debugger
     // instead.  This is the case when launching a program from Visual Studio,
     // and the following routine should write to its console.
     OutputDebugStringA(buffer);
   }
+}
+
+void SetAlternateSignalStack() {
+  // FIXME: Decide what to do on Windows.
+}
+
+void UnsetAlternateSignalStack() {
+  // FIXME: Decide what to do on Windows.
+}
+
+void InstallDeadlySignalHandlers(SignalHandlerType handler) {
+  (void)handler;
+  // FIXME: Decide what to do on Windows.
+}
+
+bool IsDeadlySignal(int signum) {
+  // FIXME: Decide what to do on Windows.
+  return false;
+}
+
+bool IsAccessibleMemoryRange(uptr beg, uptr size) {
+  // FIXME: Actually implement this function.
+  return true;
 }
 
 }  // namespace __sanitizer

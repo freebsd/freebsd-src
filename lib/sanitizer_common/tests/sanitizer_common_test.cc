@@ -15,6 +15,9 @@
 #include "sanitizer_common/sanitizer_flags.h"
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_platform.h"
+
+#include "sanitizer_pthread_wrappers.h"
+
 #include "gtest/gtest.h"
 
 namespace __sanitizer {
@@ -113,6 +116,9 @@ TEST(SanitizerCommon, InternalMmapVector) {
     vector.pop_back();
     EXPECT_EQ((uptr)i, vector.size());
   }
+  InternalMmapVector<uptr> empty_vector(0);
+  CHECK_GT(empty_vector.capacity(), 0U);
+  CHECK_EQ(0U, empty_vector.size());
 }
 
 void TestThreadInfo(bool main) {
@@ -156,8 +162,8 @@ TEST(SanitizerCommon, ThreadStackTlsMain) {
 TEST(SanitizerCommon, ThreadStackTlsWorker) {
   InitTlsSize();
   pthread_t t;
-  pthread_create(&t, 0, WorkerThread, 0);
-  pthread_join(t, 0);
+  PTHREAD_CREATE(&t, 0, WorkerThread, 0);
+  PTHREAD_JOIN(t, 0);
 }
 
 bool UptrLess(uptr a, uptr b) {
@@ -218,42 +224,6 @@ TEST(SanitizerCommon, InternalScopedString) {
   str.append("0123456789");
   EXPECT_EQ(9U, str.length());
   EXPECT_STREQ("012345678", str.data());
-}
-
-TEST(SanitizerCommon, PrintSourceLocation) {
-  InternalScopedString str(128);
-  PrintSourceLocation(&str, "/dir/file.cc", 10, 5);
-  EXPECT_STREQ("/dir/file.cc:10:5", str.data());
-
-  str.clear();
-  PrintSourceLocation(&str, "/dir/file.cc", 11, 0);
-  EXPECT_STREQ("/dir/file.cc:11", str.data());
-
-  str.clear();
-  PrintSourceLocation(&str, "/dir/file.cc", 0, 0);
-  EXPECT_STREQ("/dir/file.cc", str.data());
-
-  // Check that we strip file prefix if necessary.
-  const char *old_strip_path_prefix = common_flags()->strip_path_prefix;
-  common_flags()->strip_path_prefix = "/dir/";
-  str.clear();
-  PrintSourceLocation(&str, "/dir/file.cc", 10, 5);
-  EXPECT_STREQ("file.cc:10:5", str.data());
-  common_flags()->strip_path_prefix = old_strip_path_prefix;
-}
-
-TEST(SanitizerCommon, PrintModuleAndOffset) {
-  InternalScopedString str(128);
-  PrintModuleAndOffset(&str, "/dir/exe", 0x123);
-  EXPECT_STREQ("(/dir/exe+0x123)", str.data());
-
-  // Check that we strip file prefix if necessary.
-  const char *old_strip_path_prefix = common_flags()->strip_path_prefix;
-  common_flags()->strip_path_prefix = "/dir/";
-  str.clear();
-  PrintModuleAndOffset(&str, "/dir/exe", 0x123);
-  EXPECT_STREQ("(exe+0x123)", str.data());
-  common_flags()->strip_path_prefix = old_strip_path_prefix;
 }
 
 }  // namespace __sanitizer

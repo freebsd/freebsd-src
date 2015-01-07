@@ -38,19 +38,24 @@ class MutexSet {
   uptr Size() const;
   Desc Get(uptr i) const;
 
+  void operator=(const MutexSet &other) {
+    internal_memcpy(this, &other, sizeof(*this));
+  }
+
  private:
-#ifndef TSAN_GO
+#ifndef SANITIZER_GO
   uptr size_;
   Desc descs_[kMaxSize];
 #endif
 
   void RemovePos(uptr i);
+  MutexSet(const MutexSet&);
 };
 
 // Go does not have mutexes, so do not spend memory and time.
 // (Go sync.Mutex is actually a semaphore -- can be unlocked
 // in different goroutine).
-#ifdef TSAN_GO
+#ifdef SANITIZER_GO
 MutexSet::MutexSet() {}
 void MutexSet::Add(u64 id, bool write, u64 epoch) {}
 void MutexSet::Del(u64 id, bool write) {}
@@ -62,4 +67,4 @@ MutexSet::Desc MutexSet::Get(uptr i) const { return Desc(); }
 
 }  // namespace __tsan
 
-#endif  // TSAN_REPORT_H
+#endif  // TSAN_MUTEXSET_H
