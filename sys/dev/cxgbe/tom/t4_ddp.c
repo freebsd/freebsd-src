@@ -98,24 +98,26 @@ t4_dump_tcb(struct adapter *sc, int tid)
 
 #define MAX_DDP_BUFFER_SIZE		(M_TCB_RX_DDP_BUF0_LEN)
 static int
-alloc_ppods(struct tom_data *td, int n)
+alloc_ppods(struct tom_data *td, int n, u_int *ppod_addr)
 {
-	vmem_addr_t ppod;
+	vmem_addr_t v;
+	int rc;
 
 	MPASS(n > 0);
 
-	if (vmem_alloc(td->ppod_arena, n, M_NOWAIT | M_FIRSTFIT, &ppod) != 0)
-		return (-1);
-	return ((int)ppod);
+	rc = vmem_alloc(td->ppod_arena, PPOD_SZ(n), M_NOWAIT | M_FIRSTFIT, &v);
+	*ppod_addr = (u_int)v;
+
+	return (rc);
 }
 
 static void
-free_ppods(struct tom_data *td, int ppod, int n)
+free_ppods(struct tom_data *td, u_int ppod_addr, int n)
 {
 
 	MPASS(n > 0);
 
-	vmem_free(td->ppod_arena, ppod, n);
+	vmem_free(td->ppod_arena, (vmem_addr_t)ppod_addr, PPOD_SZ(n));
 }
 
 static inline int
@@ -137,7 +139,7 @@ free_ddp_buffer(struct tom_data *td, struct ddp_buffer *db)
 		free(db->pages, M_CXGBE);
 
 	if (db->nppods > 0)
-		free_ppods(td, G_PPOD_TAG(db->tag), db->nppods);
+		free_ppods(td, db->ppod_addr, db->nppods);
 
 	free(db, M_CXGBE);
 }
@@ -652,6 +654,7 @@ alloc_ddp_buffer(struct tom_data *td, vm_page_t *pages, int npages, int offset,
 			break;
 	}
 have_pgsz:
+	MPASS(idx <= M_PPOD_PGSZ);
 
 	db = malloc(sizeof(*db), M_CXGBE, M_NOWAIT);
 	if (db == NULL) {
@@ -660,16 +663,13 @@ have_pgsz:
 	}
 
 	nppods = pages_to_nppods(npages, t4_ddp_pgsz[idx]);
-	ppod = alloc_ppods(td, nppods);
-	if (ppod < 0) {
+	if (alloc_ppods(td, nppods, &db->ppod_addr) != 0) {
 		free(db, M_CXGBE);
 		CTR4(KTR_CXGBE, "%s: no pods, nppods %d, resid %d, pgsz %d",
 		    __func__, nppods, len, t4_ddp_pgsz[idx]);
 		return (NULL);
 	}
-
-	KASSERT(idx <= M_PPOD_PGSZ && ppod <= M_PPOD_TAG,
-	    ("%s: DDP pgsz_idx = %d, ppod = %d", __func__, idx, ppod));
+	ppod = (db->ppod_addr - td->ppod_start) / PPOD_SIZE;
 
 	db->tag = V_PPOD_PGSZ(idx) | V_PPOD_TAG(ppod);
 	db->nppods = nppods;
@@ -695,7 +695,8 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct ddp_buffer *db)
 	struct ulp_mem_io *ulpmc;
 	struct ulptx_idata *ulpsc;
 	struct pagepod *ppod;
-	int i, j, k, n, chunk, len, ddp_pgsz, idx, ppod_addr;
+	int i, j, k, n, chunk, len, ddp_pgsz, idx;
+	u_int ppod_addr;
 	uint32_t cmd;
 
 	cmd = htobe32(V_ULPTX_CMD(ULP_TX_MEM_WRITE));
@@ -704,7 +705,7 @@ write_page_pods(struct adapter *sc, struct toepcb *toep, struct ddp_buffer *db)
 	else
 		cmd |= htobe32(F_T5_ULP_MEMIO_IMM);
 	ddp_pgsz = t4_ddp_pgsz[G_PPOD_PGSZ(db->tag)];
-	ppod_addr = sc->vres.ddp.start + G_PPOD_TAG(db->tag) * PPOD_SIZE;
+	ppod_addr = db->ppod_addr;
 	for (i = 0; i < db->nppods; ppod_addr += chunk) {
 
 		/* How many page pods are we writing in this cycle */
@@ -937,10 +938,10 @@ no_ddp:
 void
 t4_init_ddp(struct adapter *sc, struct tom_data *td)
 {
-	int nppods = sc->vres.ddp.size / PPOD_SIZE;
 
-	td->ppod_arena = vmem_create("DDP page pods", 0, nppods, 1, 32,
-	    M_FIRSTFIT | M_NOWAIT);
+	td->ppod_start = sc->vres.ddp.start;
+	td->ppod_arena = vmem_create("DDP page pods", sc->vres.ddp.start,
+	    sc->vres.ddp.size, 1, 32, M_FIRSTFIT | M_NOWAIT);
 
 	t4_register_cpl_handler(sc, CPL_RX_DATA_DDP, do_rx_data_ddp);
 	t4_register_cpl_handler(sc, CPL_RX_DDP_COMPLETE, do_rx_ddp_complete);

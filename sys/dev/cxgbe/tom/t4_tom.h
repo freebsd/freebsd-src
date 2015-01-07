@@ -83,6 +83,7 @@ struct ofld_tx_sdesc {
 
 struct ddp_buffer {
 	uint32_t tag;	/* includes color, page pod addr, and DDP page size */
+	u_int ppod_addr;
 	int nppods;
 	int offset;
 	int len;
@@ -192,6 +193,7 @@ struct tom_data {
 	u_long listen_mask;
 	int lctx_count;		/* # of lctx in the hash table */
 
+	u_int ppod_start;
 	vmem_t *ppod_arena;
 
 	struct mtx clip_table_lock;
