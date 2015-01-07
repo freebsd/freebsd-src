@@ -31,6 +31,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150107:
+	ELF tools addr2line, elfcopy (strip), nm, size, and strings are now
+	taken from the ELF Tool Chain project rather than GNU binutils. They
+	should be drop-in replacements, with the addition of arm64 support.
+	The WITHOUT_ELFTOOLCHAIN_TOOLS= knob may be used to obtain the
+	binutils tools, if necessary.
+
 20150105:
 	The default Unbound configuration now enables remote control
 	using a local socket.  Users who have already enabled the
