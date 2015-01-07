@@ -4,7 +4,7 @@
  
 ident		MALTA64
 
-include		"MALTA_COMMON"
+include		"std.MALTA"
  
 machine		mips mips64el	# Malta supports both, so it isn't in std.malta
  
