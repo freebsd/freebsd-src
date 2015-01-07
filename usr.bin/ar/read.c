@@ -102,7 +102,8 @@ read_archive(struct bsdar *bsdar, char mode)
 			continue;
 		}
 
-		name = archive_entry_pathname(entry);
+		if ((name = archive_entry_pathname(entry)) == NULL)
+			break;
 
 		/* Skip pseudo members. */
 		if (strcmp(name, "/") == 0 || strcmp(name, "//") == 0)
