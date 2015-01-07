@@ -19,11 +19,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/util.c,v 1.109 2007-01-29 09:59:42 hannes Exp $ (LBL)";
-#endif
-
+#define NETDISSECT_REWORKED
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -32,7 +28,6 @@ static const char rcsid[] _U_ =
 
 #include <sys/stat.h>
 
-#include <errno.h>
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
@@ -156,5 +151,25 @@ read_infile(char *fname)
 	}
 	cp[cc] = '\0';
 	return (cp);
+}
+#endif
+
+#ifdef LBL_ALIGN
+/*
+ * Some compilers try to optimize memcpy(), using the alignment constraint
+ * on the argument pointer type.  by using this function, we try to avoid the
+ * optimization.
+ */
+void
+unaligned_memcpy(void *p, const void *q, size_t l)
+{
+	memcpy(p, q, l);
+}
+
+/* As with memcpy(), so with memcmp(). */
+int
+unaligned_memcmp(const void *p, const void *q, size_t l)
+{
+	return (memcmp(p, q, l));
 }
 #endif

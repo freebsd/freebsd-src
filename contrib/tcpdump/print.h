@@ -54,15 +54,23 @@ int	tcpdump_printf(netdissect_options *ndo _U_, const char *fmt, ...)
 struct print_info	get_print_info(int type);
 
 void	pretty_print_packet(struct print_info *print_info,
-	    const struct pcap_pkthdr *h, __capability const u_char *sp);
+	    const struct pcap_pkthdr *h, __capability const u_char *sp,
+	    u_int packets_captured);
 
 void	ndo_default_print(netdissect_options *ndo, const u_char *bp,
 	    u_int length);
 void	default_print(const u_char *bp, u_int length);
 
-void	ndo_error(netdissect_options *ndo _U_, const char *fmt, ...)
-	    __attribute__ ((noreturn, format (printf, 2, 3)));
-void	ndo_warning(netdissect_options *ndo _U_, const char *fmt, ...)
-	    __attribute__ ((format (printf, 2, 3)));
+void ndo_error(netdissect_options *ndo, const char *fmt, ...)
+	__attribute__((noreturn))
+#ifdef __ATTRIBUTE___FORMAT_OK
+	__attribute__((format (printf, 2, 3)))
+#endif /* __ATTRIBUTE___FORMAT_OK */
+    ;
+void ndo_warning(netdissect_options *ndo, const char *fmt, ...)
+#ifdef __ATTRIBUTE___FORMAT_OK
+	__attribute__((format (printf, 2, 3)))
+#endif /* __ATTRIBUTE___FORMAT_OK */
+    ;
 
-void	init_print(u_int32_t localnet, u_int32_t mask);
+void	init_print(uint32_t localnet, uint32_t mask, uint32_t timezone_offset);

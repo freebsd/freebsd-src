@@ -28,7 +28,7 @@ CFLAGS+=	-DLBL_ALIGN
 LIBADD=	l pcap
 .if ${MK_CASPER} != "no"
 LIBADD+=	capsicum
-CFLAGS+=-DHAVE_LIBCAPSICUM
+CFLAGS+=-DHAVE_CAPSICUM
 .endif
 .if ${MK_OPENSSL} != "no"
 LIBADD+=	crypto

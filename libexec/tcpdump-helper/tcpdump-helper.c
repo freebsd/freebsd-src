@@ -71,6 +71,7 @@
 #include "cheri_tcpdump_system.h"
 #include "tcpdump-helper.h"
 
+#include "tcpdump-stdinc.h"
 #include "netdissect.h"
 #include "interface.h"
 #include "print.h"
@@ -99,7 +100,7 @@ static void	dispatch_dissector(register_t op, u_int length,
     void *carg1, void *carg2);
 
 static int
-invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
+invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask, uint32_t timezone_offset,
     const netdissect_options *ndo,
     const char *ndo_espsecret)
 {
@@ -136,7 +137,7 @@ invoke_init(bpf_u_int32 localnet, bpf_u_int32 netmask,
 	gndo->ndo_error = ndo_error;
 	gndo->ndo_warning = ndo_warning;
 
-	init_print(localnet, netmask);
+	init_print(localnet, netmask, timezone_offset);
 
 	printinfo.ndo_type = 1;
 	printinfo.ndo = gndo;
@@ -188,7 +189,7 @@ invoke(register_t op, register_t arg1, register_t arg2,
 #ifdef DEBUG
 		printf("calling invoke_init\n");
 #endif
-		return (invoke_init(arg1, arg2, ndo, ndo_espsecret));
+		return (invoke_init(arg1, arg2, arg3, ndo, ndo_espsecret));
 
 	case TCPDUMP_HELPER_OP_PRINT_PACKET:
 #ifdef DEBUG
@@ -287,401 +288,402 @@ dispatch_dissector(register_t op, u_int length, register_t arg2,
 		break;
 
 	case TCPDUMP_HELPER_OP_TELNET_PRINT:
-		_telnet_print(bp, length);
+		_telnet_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_AARP_PRINT:
-		_aarp_print(bp, length);
+		_aarp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_AODV_PRINT:
-		_aodv_print(bp, length, arg2);
+		_aodv_print(ndo, bp, length, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_ATALK_PRINT:
-		_atalk_print(bp, length);
+		_atalk_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_ATM_PRINT:
-		_atm_print(arg2, arg3, arg4, bp, length, arg5);
+		_atm_print(ndo, arg2, arg3, arg4, bp, length, arg5);
 		break;
 
 	case TCPDUMP_HELPER_OP_OAM_PRINT:
-		_oam_print(bp, length, arg2);
+		_oam_print(ndo, bp, length, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_BOOTP_PRINT:
-		_bootp_print(bp, length);
+		_bootp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_BGP_PRINT:
-		_bgp_print(bp, length);
+		_bgp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_BEEP_PRINT:
-		_beep_print(bp, length);
+		_beep_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_CNFP_PRINT:
-		_cnfp_print(bp, bp2);
+		_cnfp_print(ndo, bp, bp2);
 		break;
 
 	case TCPDUMP_HELPER_OP_DECNET_PRINT:
-		_decnet_print(bp, length, arg2);
+		_decnet_print(ndo, bp, length, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_DVMRP_PRINT:
-		_dvmrp_print(bp, length);
+		_dvmrp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_EGP_PRINT:
-		_egp_print(bp, length);
+		_egp_print(ndo, bp, length);
 		break;
 
+	/* XXX-BD: not converted.  Is it in upstream? */
 	case TCPDUMP_HELPER_OP_PFSYNC_IP_PRINT:
 		_pfsync_ip_print(bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_FDDI_PRINT:
-		_fddi_print(bp, length, arg2);
+		_fddi_print(ndo, bp, length, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_GRE_PRINT:
-		_gre_print(bp, length);
+		_gre_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_ICMP_PRINT:
-		_icmp_print(bp, length, bp2, arg2);
+		_icmp_print(ndo, bp, length, bp2, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_IGMP_PRINT:
-		_igmp_print(bp, length);
+		_igmp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_IGRP_PRINT:
-		_igrp_print(bp, length, bp2);
+		_igrp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_IPX_PRINT:
-		_ipx_print(bp, length);
+		_ipx_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_ISOCLNS_PRINT:
-		_isoclns_print(bp, length, arg2);
+		_isoclns_print(ndo, bp, length, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_KRB_PRINT:
-		_krb_print(bp);
+		_krb_print(ndo, bp);
 		break;
 
 	case TCPDUMP_HELPER_OP_MSDP_PRINT:
-		_msdp_print(bp, length);
+		_msdp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_NFSREPLY_PRINT:
-		_nfsreply_print(bp, length, bp2);
+		_nfsreply_print(ndo, bp, length, bp2);
 		break;
 
 	case TCPDUMP_HELPER_OP_NFSREQ_PRINT:
-		_nfsreq_print(bp, length, bp2);
+		_nfsreq_print_noaddr(ndo, bp, length, bp2);
 		break;
 
 	case TCPDUMP_HELPER_OP_NS_PRINT:
-		_ns_print(bp, length, arg2);
+		_ns_print(ndo, bp, length, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_NTP_PRINT:
-		_ntp_print(bp, length);
+		_ntp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_OSPF_PRINT:
-		_ospf_print(bp, length, bp2);
+		_ospf_print(ndo, bp, length, bp2);
 		break;
 
 	case TCPDUMP_HELPER_OP_OLSR_PRINT:
-		_olsr_print(bp, length, arg2);
+		_olsr_print(ndo, bp, length, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_PIMV1_PRINT:
-		_pimv1_print(bp, length);
+		_pimv1_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_CISCO_AUTORP_PRINT:
-		_cisco_autorp_print(bp, length);
+		_cisco_autorp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_RSVP_PRINT:
-		_rsvp_print(bp, length);
+		_rsvp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_LDP_PRINT:
-		_ldp_print(bp, length);
+		_ldp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_LLDP_PRINT:
-		_lldp_print(bp, length);
+		_lldp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_RPKI_RTR_PRINT:
-		_rpki_rtr_print(bp, length);
+		_rpki_rtr_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_LMP_PRINT:
-		_lmp_print(bp, length);
+		_lmp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_LSPPING_PRINT:
-		_lspping_print(bp, length);
+		_lspping_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_LWAPP_CONTROL_PRINT:
-		_lwapp_control_print(bp, length, arg2);
+		_lwapp_control_print(ndo, bp, length, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_LWAPP_DATA_PRINT:
-		_lwapp_data_print(bp, length);
+		_lwapp_data_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_EIGRP_PRINT:
-		_eigrp_print(bp, length);
+		_eigrp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_MOBILE_PRINT:
-		_mobile_print(bp, length);
+		_mobile_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_PIM_PRINT:
-		_pim_print(bp, length, arg2);
+		_pim_print(ndo, bp, length, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_Q933_PRINT:
-		_q933_print(bp, length);
+		_q933_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_VQP_PRINT:
-		_vqp_print(bp, length);
+		_vqp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_RIP_PRINT:
-		_rip_print(bp, length);
+		_rip_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_LANE_PRINT:
-		_lane_print(bp, length, arg2);
+		_lane_print(ndo, bp, length, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_SNMP_PRINT:
-		_snmp_print(bp, length);
+		_snmp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_SUNRPCREQUEST_PRINT:
-		_sunrpcrequest_print(bp, length, bp2);
+		_sunrpcrequest_print(ndo, bp, length, bp2);
 		break;
 
 	case TCPDUMP_HELPER_OP_TCP_PRINT:
-		_tcp_print(bp, length, bp2, arg2);
+		_tcp_print(ndo, bp, length, bp2, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_TFTP_PRINT:
-		_tftp_print(bp, length);
+		_tftp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_TIMED_PRINT:
-		_timed_print(bp);
+		_timed_print(ndo, bp);
 		break;
 
 	case TCPDUMP_HELPER_OP_UDLD_PRINT:
-		_udld_print(bp, length);
+		_udld_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_UDP_PRINT:
-		_udp_print(bp, length, bp2, arg2);
+		_udp_print(ndo, bp, length, bp2, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_VTP_PRINT:
-		_vtp_print(bp, length);
+		_vtp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_WB_PRINT:
-		_wb_print(bp, length);
+		_wb_print(ndo, bp, length);
 		break;
 
 #if 0
 	case TCPDUMP_HELPER_OP_RX_PRINT:
-		_rx_print(bp, length, arg2, arg3, bp2);
+		_rx_print(ndo, bp, length, arg2, arg3, bp2);
 		break;
 #endif
 
 	case TCPDUMP_HELPER_OP_NETBEUI_PRINT:
-		_netbeui_print(arg2, bp, length);
+		_netbeui_print(ndo, arg2, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_IPX_NETBIOS_PRINT:
-		_ipx_netbios_print(bp, length);
+		_ipx_netbios_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_NBT_TCP_PRINT:
-		_nbt_tcp_print(bp, length);
+		_nbt_tcp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_NBT_UDP137_PRINT:
-		_nbt_udp137_print(bp, length);
+		_nbt_udp137_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_NBT_UDP138_PRINT:
-		_nbt_udp138_print(bp, length);
+		_nbt_udp138_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_SMB_TCP_PRINT:
-		_smb_tcp_print(bp, length);
+		_smb_tcp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_L2TP_PRINT:
-		_l2tp_print(bp, length);
+		_l2tp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_VRRP_PRINT:
-		_vrrp_print(bp, length, arg2);
+		_vrrp_print(ndo, bp, length, bp2, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_CARP_PRINT:
-		_carp_print(bp, length, arg2);
+		_carp_print(ndo, bp, length, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_SLOW_PRINT:
-		_slow_print(bp, length);
+		_slow_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_SFLOW_PRINT:
-		_sflow_print(bp, length);
+		_sflow_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_MPCP_PRINT:
-		_mpcp_print(bp, length);
+		_mpcp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_CFM_PRINT:
-		_cfm_print(bp, length);
+		_cfm_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_PGM_PRINT:
-		_pgm_print(bp, length, bp2);
+		_pgm_print(ndo, bp, length, bp2);
 		break;
 
 	case TCPDUMP_HELPER_OP_CDP_PRINT:
-		_cdp_print(bp, length, arg2);
+		_cdp_print(ndo, bp, length, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_DTP_PRINT:
-		_dtp_print(bp, length);
+		_dtp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_STP_PRINT:
-		_stp_print(bp, length);
+		_stp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_RADIUS_PRINT:
-		_radius_print(bp, length);
+		_radius_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_LWRES_PRINT:
-		_lwres_print(bp, length);
+		_lwres_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_PPTP_PRINT:
-		_pptp_print(bp);
+		_pptp_print(ndo, bp);
 		break;
 
 	case TCPDUMP_HELPER_OP_DCCP_PRINT:
-		_dccp_print(bp, bp2, length);
+		_dccp_print(ndo, bp, bp2, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_SCTP_PRINT:
-		_sctp_print(bp, bp2, length);
+		_sctp_print(ndo, bp, bp2, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_FORCES_PRINT:
-		_forces_print(bp, length);
+		_forces_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_MPLS_PRINT:
-		_mpls_print(bp, length);
+		_mpls_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_ZEPHYR_PRINT:
-		_zephyr_print(bp, length);
+		_zephyr_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_ZMTP1_PRINT:
-		_zmtp1_print(bp, length);
+		_zmtp1_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_HSRP_PRINT:
-		_hsrp_print(bp, length);
+		_hsrp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_BFD_PRINT:
-		_bfd_print(bp, length, arg2);
+		_bfd_print(ndo, bp, length, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_SIP_PRINT:
-		_sip_print(bp, length);
+		_sip_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_SYSLOG_PRINT:
-		_syslog_print(bp, length);
+		_syslog_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_VXLAN_PRINT:
-		_vxlan_print(bp, length);
+		_vxlan_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_OTV_PRINT:
-		_otv_print(bp, length);
+		_otv_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_TOKEN_PRINT:
-		_token_print(bp, length, arg2);
+		_token_print(ndo, bp, length, arg2);
 		break;
 
 	case TCPDUMP_HELPER_OP_FR_PRINT:
-		_fr_print(bp, length);
+		_fr_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_MFR_PRINT:
-		_mfr_print(bp, length);
+		_mfr_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_LLAP_PRINT:
-		_llap_print(bp, length);
+		_llap_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_PPPOE_PRINT:
-		_pppoe_print(bp, length);
+		_pppoe_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_PPP_PRINT:
-		_ppp_print(bp, length);
+		_ppp_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_CHDLC_PRINT:
-		_chdlc_print(bp, length);
+		_chdlc_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_RIPNG_PRINT:
-		_ripng_print(bp, length);
+		_ripng_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_OSPF6_PRINT:
-		_ospf6_print(bp, length);
+		_ospf6_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_DHCP6_PRINT:
-		_dhcp6_print(bp, length);
+		_dhcp6_print(ndo, bp, length);
 		break;
 
 	case TCPDUMP_HELPER_OP_BABEL_PRINT:
-		_babel_print(bp, length);
+		_babel_print(ndo, bp, length);
 		break;
 
 	default:
@@ -767,7 +769,7 @@ invoke_dissector(void *func, u_int length, register_t arg2,
 		op = TCPDUMP_HELPER_OP_MSDP_PRINT;
 	else if (func == (void *)_nfsreply_print)
 		op = TCPDUMP_HELPER_OP_NFSREPLY_PRINT;
-	else if (func == (void *)_nfsreq_print)
+	else if (func == (void *)_nfsreq_print_noaddr)
 		op = TCPDUMP_HELPER_OP_NFSREQ_PRINT;
 	else if (func == (void *)_ns_print)
 		op = TCPDUMP_HELPER_OP_NS_PRINT;

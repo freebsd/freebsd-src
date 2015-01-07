@@ -31,8 +31,11 @@ LDFLAGS+=	-Wl,--script=${.CURDIR}/../../lib/libc_cheri/sandbox.ld \
 		-nostdlib
 
 # Contains a table of formats selected by a function so safe-ish
-CFLAGS.print-icmp.c= -Wno-format-nonliteral
-CFLAGS.util-print.c= -Wno-format-nonliteral
+CFLAGS.print-icmp.c=	-Wno-format-nonliteral
+CFLAGS.util-print.c=	-Wno-format-nonliteral
+
+# Seemingly safe(ish) generated sscanf
+CFLAGS.print-rx.c=	-Wno-format-nonliteral
 
 .if ${MACHINE_CPUARCH} != "i386"
 CFLAGS+=	-DLBL_ALIGN

@@ -42,7 +42,6 @@
 #include <net/bpf.h>
 #include <net/ethernet.h>
 #include <netinet/in.h>
-#include <netinet/ip.h>
 
 #include <cheri/cheri_enter.h>
 #include <cheri/sandbox.h>
@@ -60,6 +59,7 @@
 #include "cheri_tcpdump_control.h"
 #include "cheri_tcpdump_system.h"
 
+#include "tcpdump-stdinc.h"
 #include "extract.h"
 #include "netdissect.h"
 #include "interface.h"
@@ -122,6 +122,7 @@ STAILQ_HEAD(tcpdump_sandbox_list, tcpdump_sandbox);
 
 u_int32_t	g_localnet;
 u_int32_t	g_mask;
+u_int32_t	g_timezone_offset;
 int		g_type = -1;
 int		g_mode;
 int		g_sandboxes = 1;
@@ -409,7 +410,7 @@ tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
 		gndo->ndo_snapend = NULL;
 		/* XXXBD: don't pass in ndo_espsecret */
 		ret = sandbox_object_cinvoke(sb->tds_sandbox_object,
-		    TCPDUMP_HELPER_OP_INIT, g_localnet, g_mask, 0, 0, 0, 0, 0,
+		    TCPDUMP_HELPER_OP_INIT, g_localnet, g_mask, g_timezone_offset, 0, 0, 0, 0,
 		    cheri_ptrperm(gndo, sizeof(netdissect_options),
 			CHERI_PERM_LOAD | CHERI_PERM_LOAD_CAP),
 		    (__capability void*)gndo->ndo_espsecret,
@@ -534,7 +535,7 @@ poll_ctdc_config(void)
 }
 
 void
-init_print(u_int32_t localnet, u_int32_t mask)
+init_print(uint32_t localnet, uint32_t mask, uint32_t timezone_offset)
 {
 	char *control_file;
 	int control_fd = -1, i;
@@ -553,6 +554,7 @@ init_print(u_int32_t localnet, u_int32_t mask)
 
 	g_localnet = localnet;
 	g_mask = mask;
+	g_timezone_offset = timezone_offset;
 	g_max_lifetime = ctdc->ctdc_sb_max_lifetime;
 	g_max_packets = ctdc->ctdc_sb_max_packets;
 	g_reset = ctdc->ctdc_reset;
@@ -602,7 +604,7 @@ get_print_info(int type)
 
 void
 pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
-    __capability const u_char *sp)
+    __capability const u_char *sp, u_int packets_captured)
 {
 	int ret;
 	struct tcpdump_sandbox *sb;
@@ -612,7 +614,10 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
 	if (ctdc->ctdc_colorize)
 		set_color_default();
 
-	ts_print(&h->ts);
+	if (print_info->ndo->ndo_packet_number)
+		printf("%5u  ", packets_captured);
+
+	ts_print(print_info->ndo, &h->ts);
 
 	sb = tcpdump_sandbox_find(&sandboxes, g_type, h->caplen, sp);
 	if (sb == NULL) {
@@ -632,7 +637,7 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
 		set_color_default();
 
 	/* XXX-BD: cast should be safe as we're unsandboxed */
-	raw_print(h, (const u_char *)sp, (ret >= 0 && (u_int)ret <= h->caplen) ? ret : 0);
+	raw_print(print_info->ndo, h, (const u_char *)sp, (ret >= 0 && (u_int)ret <= h->caplen) ? ret : 0);
 }
 
 /*

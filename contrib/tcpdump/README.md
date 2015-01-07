@@ -1,33 +1,35 @@
-@(#) $Header: /tcpdump/master/tcpdump/README,v 1.68 2008-12-15 00:05:27 guy Exp $ (LBL)
+# tcpdump
 
-TCPDUMP 4.x.y
-Now maintained by "The Tcpdump Group"
-See 		www.tcpdump.org
+[![Build
+Status](https://travis-ci.org/the-tcpdump-group/tcpdump.png)](https://travis-ci.org/the-tcpdump-group/tcpdump)
+
+TCPDUMP 4.x.y  
+Now maintained by "The Tcpdump Group"  
+See 		www.tcpdump.org  
 
 Please send inquiries/comments/reports to:
-	tcpdump-workers@lists.tcpdump.org
+
+* tcpdump-workers@lists.tcpdump.org
 
 Anonymous Git is available via:
+
 	git clone git://bpf.tcpdump.org/tcpdump
 
-Version 4.x.y of TCPDUMP can be retrieved with the CVS tag "tcpdump_4_xrely":
-	cvs -d :pserver:cvs.tcpdump.org:/tcpdump/master checkout -r tcpdump_4_xrely tcpdump
+Please submit patches by forking the branch on GitHub at:
 
-Please submit patches by forking the branch on GitHub at
-
-	http://github.com/mcr/tcpdump/tree/master
+*	http://github.com/the-tcpdump-group/tcpdump/tree/master
 
 and issuing a pull request.
 
-formerly from 	Lawrence Berkeley National Laboratory
-		Network Research Group <tcpdump@ee.lbl.gov>
-		ftp://ftp.ee.lbl.gov/tcpdump.tar.Z (3.4)
+formerly from 	Lawrence Berkeley National Laboratory  
+		Network Research Group <tcpdump@ee.lbl.gov>  
+		ftp://ftp.ee.lbl.gov/old/tcpdump.tar.Z (3.4)
 
 This directory contains source code for tcpdump, a tool for network
 monitoring and data acquisition.  This software was originally
 developed by the Network Research Group at the Lawrence Berkeley
 National Laboratory.  The original distribution is available via
-anonymous ftp to ftp.ee.lbl.gov, in tcpdump.tar.Z.  More recent
+anonymous ftp to `ftp.ee.lbl.gov`, in `tcpdump.tar.Z`.  More recent
 development is performed at tcpdump.org, http://www.tcpdump.org/
 
 Tcpdump uses libpcap, a system-independent interface for user-level
@@ -36,7 +38,7 @@ build libpcap, also originally from LBL and now being maintained by
 tcpdump.org; see http://www.tcpdump.org/ .
 
 Once libpcap is built (either install it or make sure it's in
-../libpcap), you can build tcpdump using the procedure in the INSTALL
+`../libpcap`), you can build tcpdump using the procedure in the `INSTALL.txt`
 file.
 
 The program is loosely based on SMI's "etherfind" although none of the
@@ -50,20 +52,20 @@ manual entry, with no access to the source of tcpdump or etherfind.
 
 Over the past few years, tcpdump has been steadily improved by the
 excellent contributions from the Internet community (just browse
-through the CHANGES file).  We are grateful for all the input.
+through the `CHANGES` file).  We are grateful for all the input.
 
 Richard Stevens gives an excellent treatment of the Internet protocols
-in his book ``TCP/IP Illustrated, Volume 1''. If you want to learn more
+in his book *"TCP/IP Illustrated, Volume 1"*. If you want to learn more
 about tcpdump and how to interpret its output, pick up this book.
 
 Some tools for viewing and analyzing tcpdump trace files are available
 from the Internet Traffic Archive:
 
-	http://www.acm.org/sigcomm/ITA/
+* http://www.sigcomm.org/ITA/
 
 Another tool that tcpdump users might find useful is tcpslice:
 
-	ftp://ftp.ee.lbl.gov/tcpslice.tar.Z
+* https://github.com/the-tcpdump-group/tcpslice
 
 It is a program that can be used to extract portions of tcpdump binary
 trace files. See the above distribution for further details and
@@ -72,14 +74,14 @@ documentation.
 Problems, bugs, questions, desirable enhancements, etc. should be sent
 to the address "tcpdump-workers@lists.tcpdump.org".  Bugs, support
 requests, and feature requests may also be submitted on the GitHub issue
-tracker for tcpdump at
+tracker for tcpdump at:
 
-	https://github.com/mcr/tcpdump/issues
+* https://github.com/the-tcpdump-group/tcpdump/issues
 
 Source code contributions, etc. should be sent to the email address
-above or submitted by forking the branch on GitHub at
+above or submitted by forking the branch on GitHub at:
 
-	http://github.com/mcr/tcpdump/tree/master
+* http://github.com/the-tcpdump-group/tcpdump/tree/master
 
 and issuing a pull request.
 
@@ -90,6 +92,7 @@ Current versions can be found at www.tcpdump.org.
 original text by: Steve McCanne, Craig Leres, Van Jacobson
 
 -------------------------------------
+```
 This directory also contains some short awk programs intended as
 examples of ways to reduce tcpdump data when you're tracking
 particular network problems:
@@ -237,3 +240,4 @@ The method was:
   - Once a week, tell your funding agent that you're discovering
     wonderful things and you'll write up that research report
     "real soon now".
+```
