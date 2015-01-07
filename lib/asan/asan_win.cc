@@ -21,6 +21,7 @@
 
 #include "asan_interceptors.h"
 #include "asan_internal.h"
+#include "asan_report.h"
 #include "asan_thread.h"
 #include "sanitizer_common/sanitizer_libc.h"
 #include "sanitizer_common/sanitizer_mutex.h"
@@ -34,11 +35,6 @@ extern "C" {
 }
 
 namespace __asan {
-
-// ---------------------- Stacktraces, symbols, etc. ---------------- {{{1
-static BlockingMutex dbghelp_lock(LINKER_INITIALIZED);
-static bool dbghelp_initialized = false;
-#pragma comment(lib, "dbghelp.lib")
 
 // ---------------------- TSD ---------------- {{{1
 static bool tsd_key_inited = false;
@@ -75,17 +71,9 @@ void *AsanDoesNotSupportStaticLinkage() {
   return 0;
 }
 
-void SetAlternateSignalStack() {
-  // FIXME: Decide what to do on Windows.
-}
+void AsanCheckDynamicRTPrereqs() {}
 
-void UnsetAlternateSignalStack() {
-  // FIXME: Decide what to do on Windows.
-}
-
-void InstallSignalHandlers() {
-  // FIXME: Decide what to do on Windows.
-}
+void AsanCheckIncompatibleRT() {}
 
 void AsanPlatformThreadInit() {
   // Nothing here for now.
@@ -95,54 +83,82 @@ void ReadContextStack(void *context, uptr *stack, uptr *ssize) {
   UNIMPLEMENTED();
 }
 
-}  // namespace __asan
-
-// ---------------------- Interface ---------------- {{{1
-using namespace __asan;  // NOLINT
-
-extern "C" {
-SANITIZER_INTERFACE_ATTRIBUTE NOINLINE
-bool __asan_symbolize(const void *addr, char *out_buffer, int buffer_size) {
-  BlockingMutexLock lock(&dbghelp_lock);
-  if (!dbghelp_initialized) {
-    SymSetOptions(SYMOPT_DEFERRED_LOADS |
-                  SYMOPT_UNDNAME |
-                  SYMOPT_LOAD_LINES);
-    CHECK(SymInitialize(GetCurrentProcess(), 0, TRUE));
-    // FIXME: We don't call SymCleanup() on exit yet - should we?
-    dbghelp_initialized = true;
-  }
-
-  // See http://msdn.microsoft.com/en-us/library/ms680578(VS.85).aspx
-  char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(CHAR)];
-  PSYMBOL_INFO symbol = (PSYMBOL_INFO)buffer;
-  symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
-  symbol->MaxNameLen = MAX_SYM_NAME;
-  DWORD64 offset = 0;
-  BOOL got_objname = SymFromAddr(GetCurrentProcess(),
-                                 (DWORD64)addr, &offset, symbol);
-  if (!got_objname)
-    return false;
-
-  DWORD  unused;
-  IMAGEHLP_LINE64 info;
-  info.SizeOfStruct = sizeof(IMAGEHLP_LINE64);
-  BOOL got_fileline = SymGetLineFromAddr64(GetCurrentProcess(),
-                                           (DWORD64)addr, &unused, &info);
-  int written = 0;
-  out_buffer[0] = '\0';
-  // FIXME: it might be useful to print out 'obj' or 'obj+offset' info too.
-  if (got_fileline) {
-    written += internal_snprintf(out_buffer + written, buffer_size - written,
-                        " %s %s:%d", symbol->Name,
-                        info.FileName, info.LineNumber);
-  } else {
-    written += internal_snprintf(out_buffer + written, buffer_size - written,
-                        " %s+0x%p", symbol->Name, offset);
-  }
-  return true;
+void AsanOnSIGSEGV(int, void *siginfo, void *context) {
+  UNIMPLEMENTED();
 }
-}  // extern "C"
 
+static LPTOP_LEVEL_EXCEPTION_FILTER default_seh_handler;
+
+SignalContext SignalContext::Create(void *siginfo, void *context) {
+  EXCEPTION_RECORD *exception_record = (EXCEPTION_RECORD*)siginfo;
+  CONTEXT *context_record = (CONTEXT*)context;
+
+  uptr pc = (uptr)exception_record->ExceptionAddress;
+#ifdef _WIN64
+  uptr bp = (uptr)context_record->Rbp;
+  uptr sp = (uptr)context_record->Rsp;
+#else
+  uptr bp = (uptr)context_record->Ebp;
+  uptr sp = (uptr)context_record->Esp;
+#endif
+  uptr access_addr = exception_record->ExceptionInformation[1];
+
+  return SignalContext(context, access_addr, pc, sp, bp);
+}
+
+static long WINAPI SEHHandler(EXCEPTION_POINTERS *info) {
+  EXCEPTION_RECORD *exception_record = info->ExceptionRecord;
+  CONTEXT *context = info->ContextRecord;
+
+  if (exception_record->ExceptionCode == EXCEPTION_ACCESS_VIOLATION ||
+      exception_record->ExceptionCode == EXCEPTION_IN_PAGE_ERROR) {
+    const char *description =
+        (exception_record->ExceptionCode == EXCEPTION_ACCESS_VIOLATION)
+            ? "access-violation"
+            : "in-page-error";
+    SignalContext sig = SignalContext::Create(exception_record, context);
+    ReportSIGSEGV(description, sig);
+  }
+
+  // FIXME: Handle EXCEPTION_STACK_OVERFLOW here.
+
+  return default_seh_handler(info);
+}
+
+// We want to install our own exception handler (EH) to print helpful reports
+// on access violations and whatnot.  Unfortunately, the CRT initializers assume
+// they are run before any user code and drop any previously-installed EHs on
+// the floor, so we can't install our handler inside __asan_init.
+// (See crt0dat.c in the CRT sources for the details)
+//
+// Things get even more complicated with the dynamic runtime, as it finishes its
+// initialization before the .exe module CRT begins to initialize.
+//
+// For the static runtime (-MT), it's enough to put a callback to
+// __asan_set_seh_filter in the last section for C initializers.
+//
+// For the dynamic runtime (-MD), we want link the same
+// asan_dynamic_runtime_thunk.lib to all the modules, thus __asan_set_seh_filter
+// will be called for each instrumented module.  This ensures that at least one
+// __asan_set_seh_filter call happens after the .exe module CRT is initialized.
+extern "C" SANITIZER_INTERFACE_ATTRIBUTE
+int __asan_set_seh_filter() {
+  // We should only store the previous handler if it's not our own handler in
+  // order to avoid loops in the EH chain.
+  auto prev_seh_handler = SetUnhandledExceptionFilter(SEHHandler);
+  if (prev_seh_handler != &SEHHandler)
+    default_seh_handler = prev_seh_handler;
+  return 0;
+}
+
+#if !ASAN_DYNAMIC
+// Put a pointer to __asan_set_seh_filter at the end of the global list
+// of C initializers, after the default EH is set by the CRT.
+#pragma section(".CRT$XIZ", long, read)  // NOLINT
+static __declspec(allocate(".CRT$XIZ"))
+    int (*__intercept_seh)() = __asan_set_seh_filter;
+#endif
+
+}  // namespace __asan
 
 #endif  // _WIN32

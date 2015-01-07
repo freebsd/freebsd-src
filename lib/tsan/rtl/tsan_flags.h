@@ -14,34 +14,28 @@
 #ifndef TSAN_FLAGS_H
 #define TSAN_FLAGS_H
 
-// ----------- ATTENTION -------------
-// ThreadSanitizer user may provide its implementation of weak
-// symbol __tsan::OverrideFlags(__tsan::Flags). Therefore, this
-// header may be included in the user code, and shouldn't include
-// other headers from TSan or common sanitizer runtime.
-
 #include "sanitizer_common/sanitizer_flags.h"
+#include "sanitizer_common/sanitizer_deadlock_detector_interface.h"
 
 namespace __tsan {
 
-struct Flags : CommonFlags {
+struct Flags : DDFlags {
   // Enable dynamic annotations, otherwise they are no-ops.
   bool enable_annotations;
-  // Supress a race report if we've already output another race report
+  // Suppress a race report if we've already output another race report
   // with the same stack.
   bool suppress_equal_stacks;
-  // Supress a race report if we've already output another race report
+  // Suppress a race report if we've already output another race report
   // on the same address.
   bool suppress_equal_addresses;
-  // Suppress weird race reports that can be seen if JVM is embed
-  // into the process.
-  bool suppress_java;
   // Turns off bug reporting entirely (useful for benchmarking).
   bool report_bugs;
   // Report thread leaks at exit?
   bool report_thread_leaks;
   // Report destruction of a locked mutex?
   bool report_destroy_locked;
+  // Report incorrect usages of mutexes and mutex annotations?
+  bool report_mutex_bugs;
   // Report violations of async signal-safety
   // (e.g. malloc() call from a signal handler).
   bool report_signal_unsafe;
@@ -50,10 +44,6 @@ struct Flags : CommonFlags {
   // If set, all atomics are effectively sequentially consistent (seq_cst),
   // regardless of what user actually specified.
   bool force_seq_cst_atomics;
-  // Suppressions filename.
-  const char *suppressions;
-  // Print matched suppressions at exit.
-  bool print_suppressions;
   // Print matched "benign" races at exit.
   bool print_benign;
   // Override exit status if something was reported.
@@ -87,6 +77,8 @@ struct Flags : CommonFlags {
   // 1 - reasonable level of synchronization (write->read)
   // 2 - global synchronization of all IO operations
   int io_sync;
+  // Die after multi-threaded fork if the child creates new threads.
+  bool die_after_fork;
 };
 
 Flags *flags();

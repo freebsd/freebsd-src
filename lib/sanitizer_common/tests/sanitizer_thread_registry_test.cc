@@ -11,6 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 #include "sanitizer_common/sanitizer_thread_registry.h"
+
+#include "sanitizer_pthread_wrappers.h"
+
 #include "gtest/gtest.h"
 
 #include <vector>
@@ -48,7 +51,7 @@ static uptr get_uid(u32 tid) {
 
 static bool HasName(ThreadContextBase *tctx, void *arg) {
   char *name = (char*)arg;
-  return (tctx->name && 0 == internal_strcmp(tctx->name, name));
+  return (0 == internal_strcmp(tctx->name, name));
 }
 
 static bool HasUid(ThreadContextBase *tctx, void *arg) {
@@ -104,13 +107,13 @@ static void TestRegistry(ThreadRegistry *registry, bool has_quarantine) {
             registry->FindThread(HasUid, (void*)0x1234));
   // Detach and finish and join remaining threads.
   for (u32 i = 6; i <= 10; i++) {
-    registry->DetachThread(i);
+    registry->DetachThread(i, 0);
     registry->FinishThread(i);
   }
   for (u32 i = 0; i < new_tids.size(); i++) {
     u32 tid = new_tids[i];
     registry->StartThread(tid, 0, 0);
-    registry->DetachThread(tid);
+    registry->DetachThread(tid, 0);
     registry->FinishThread(tid);
   }
   CheckThreadQuantity(registry, exp_total, 1, 1);
@@ -203,10 +206,10 @@ static void ThreadedTestRegistry(ThreadRegistry *registry) {
   for (int i = 0; i < kNumShards; i++) {
     args[i].registry = registry;
     args[i].shard = i + 1;
-    pthread_create(&threads[i], 0, RunThread, &args[i]);
+    PTHREAD_CREATE(&threads[i], 0, RunThread, &args[i]);
   }
   for (int i = 0; i < kNumShards; i++) {
-    pthread_join(threads[i], 0);
+    PTHREAD_JOIN(threads[i], 0);
   }
   // Check that each thread created/started/joined correct amount
   // of "threads" in thread_registry.

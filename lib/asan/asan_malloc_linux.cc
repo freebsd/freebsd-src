@@ -15,47 +15,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "sanitizer_common/sanitizer_platform.h"
-#if SANITIZER_LINUX
+#if SANITIZER_FREEBSD || SANITIZER_LINUX
 
+#include "sanitizer_common/sanitizer_tls_get_addr.h"
 #include "asan_allocator.h"
 #include "asan_interceptors.h"
 #include "asan_internal.h"
 #include "asan_stack.h"
-
-#if SANITIZER_ANDROID
-DECLARE_REAL_AND_INTERCEPTOR(void*, malloc, uptr size)
-DECLARE_REAL_AND_INTERCEPTOR(void, free, void *ptr)
-DECLARE_REAL_AND_INTERCEPTOR(void*, calloc, uptr nmemb, uptr size)
-DECLARE_REAL_AND_INTERCEPTOR(void*, realloc, void *ptr, uptr size)
-DECLARE_REAL_AND_INTERCEPTOR(void*, memalign, uptr boundary, uptr size)
-
-struct MallocDebug {
-  void* (*malloc)(uptr bytes);
-  void  (*free)(void* mem);
-  void* (*calloc)(uptr n_elements, uptr elem_size);
-  void* (*realloc)(void* oldMem, uptr bytes);
-  void* (*memalign)(uptr alignment, uptr bytes);
-};
-
-const MallocDebug asan_malloc_dispatch ALIGNED(32) = {
-  WRAP(malloc), WRAP(free), WRAP(calloc), WRAP(realloc), WRAP(memalign)
-};
-
-extern "C" const MallocDebug* __libc_malloc_dispatch;
-
-namespace __asan {
-void ReplaceSystemMalloc() {
-  __libc_malloc_dispatch = &asan_malloc_dispatch;
-}
-}  // namespace __asan
-
-#else  // ANDROID
-
-namespace __asan {
-void ReplaceSystemMalloc() {
-}
-}  // namespace __asan
-#endif  // ANDROID
 
 // ---------------------- Replacement functions ---------------- {{{1
 using namespace __asan;  // NOLINT
@@ -76,7 +42,7 @@ INTERCEPTOR(void*, malloc, uptr size) {
 }
 
 INTERCEPTOR(void*, calloc, uptr nmemb, uptr size) {
-  if (!asan_inited) {
+  if (UNLIKELY(!asan_inited)) {
     // Hack: dlsym calls calloc before REAL(calloc) is retrieved from dlsym.
     const uptr kCallocPoolSize = 1024;
     static uptr calloc_memory_for_dlsym[kCallocPoolSize];
@@ -101,8 +67,17 @@ INTERCEPTOR(void*, memalign, uptr boundary, uptr size) {
   return asan_memalign(boundary, size, &stack, FROM_MALLOC);
 }
 
-INTERCEPTOR(void*, __libc_memalign, uptr align, uptr s)
-  ALIAS("memalign");
+INTERCEPTOR(void*, aligned_alloc, uptr boundary, uptr size) {
+  GET_STACK_TRACE_MALLOC;
+  return asan_memalign(boundary, size, &stack, FROM_MALLOC);
+}
+
+INTERCEPTOR(void*, __libc_memalign, uptr boundary, uptr size) {
+  GET_STACK_TRACE_MALLOC;
+  void *res = asan_memalign(boundary, size, &stack, FROM_MALLOC);
+  DTLS_on_libc_memalign(res, size * boundary);
+  return res;
+}
 
 INTERCEPTOR(uptr, malloc_usable_size, void *ptr) {
   GET_CURRENT_PC_BP_SP;
@@ -148,4 +123,64 @@ INTERCEPTOR(void, malloc_stats, void) {
   __asan_print_accumulated_stats();
 }
 
-#endif  // SANITIZER_LINUX
+#if SANITIZER_ANDROID
+// Format of __libc_malloc_dispatch has changed in Android L.
+// While we are moving towards a solution that does not depend on bionic
+// internals, here is something to support both K* and L releases.
+struct MallocDebugK {
+  void *(*malloc)(uptr bytes);
+  void (*free)(void *mem);
+  void *(*calloc)(uptr n_elements, uptr elem_size);
+  void *(*realloc)(void *oldMem, uptr bytes);
+  void *(*memalign)(uptr alignment, uptr bytes);
+  uptr (*malloc_usable_size)(void *mem);
+};
+
+struct MallocDebugL {
+  void *(*calloc)(uptr n_elements, uptr elem_size);
+  void (*free)(void *mem);
+  fake_mallinfo (*mallinfo)(void);
+  void *(*malloc)(uptr bytes);
+  uptr (*malloc_usable_size)(void *mem);
+  void *(*memalign)(uptr alignment, uptr bytes);
+  int (*posix_memalign)(void **memptr, uptr alignment, uptr size);
+  void* (*pvalloc)(uptr size);
+  void *(*realloc)(void *oldMem, uptr bytes);
+  void* (*valloc)(uptr size);
+};
+
+ALIGNED(32) const MallocDebugK asan_malloc_dispatch_k = {
+    WRAP(malloc),  WRAP(free),     WRAP(calloc),
+    WRAP(realloc), WRAP(memalign), WRAP(malloc_usable_size)};
+
+ALIGNED(32) const MallocDebugL asan_malloc_dispatch_l = {
+    WRAP(calloc),         WRAP(free),               WRAP(mallinfo),
+    WRAP(malloc),         WRAP(malloc_usable_size), WRAP(memalign),
+    WRAP(posix_memalign), WRAP(pvalloc),            WRAP(realloc),
+    WRAP(valloc)};
+
+namespace __asan {
+void ReplaceSystemMalloc() {
+  void **__libc_malloc_dispatch_p =
+      (void **)AsanDlSymNext("__libc_malloc_dispatch");
+  if (__libc_malloc_dispatch_p) {
+    // Decide on K vs L dispatch format by the presence of
+    // __libc_malloc_default_dispatch export in libc.
+    void *default_dispatch_p = AsanDlSymNext("__libc_malloc_default_dispatch");
+    if (default_dispatch_p)
+      *__libc_malloc_dispatch_p = (void *)&asan_malloc_dispatch_k;
+    else
+      *__libc_malloc_dispatch_p = (void *)&asan_malloc_dispatch_l;
+  }
+}
+}  // namespace __asan
+
+#else  // SANITIZER_ANDROID
+
+namespace __asan {
+void ReplaceSystemMalloc() {
+}
+}  // namespace __asan
+#endif  // SANITIZER_ANDROID
+
+#endif  // SANITIZER_FREEBSD || SANITIZER_LINUX

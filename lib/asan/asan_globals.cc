@@ -22,6 +22,7 @@
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_mutex.h"
 #include "sanitizer_common/sanitizer_placement_new.h"
+#include "sanitizer_common/sanitizer_stackdepot.h"
 
 namespace __asan {
 
@@ -45,6 +46,14 @@ typedef InternalMmapVector<DynInitGlobal> VectorOfGlobals;
 // Lazy-initialized and never deleted.
 static VectorOfGlobals *dynamic_init_globals;
 
+// We want to remember where a certain range of globals was registered.
+struct GlobalRegistrationSite {
+  u32 stack_id;
+  Global *g_first, *g_last;
+};
+typedef InternalMmapVector<GlobalRegistrationSite> GlobalRegistrationSiteVector;
+static GlobalRegistrationSiteVector *global_registration_site_vector;
+
 ALWAYS_INLINE void PoisonShadowForGlobal(const Global *g, u8 value) {
   FastPoisonShadow(g->beg, g->size_with_redzone, value);
 }
@@ -62,23 +71,72 @@ ALWAYS_INLINE void PoisonRedZones(const Global &g) {
   }
 }
 
-static void ReportGlobal(const Global &g, const char *prefix) {
-  Report("%s Global: beg=%p size=%zu/%zu name=%s module=%s dyn_init=%zu\n",
-         prefix, (void*)g.beg, g.size, g.size_with_redzone, g.name,
-         g.module_name, g.has_dynamic_init);
+const uptr kMinimalDistanceFromAnotherGlobal = 64;
+
+bool IsAddressNearGlobal(uptr addr, const __asan_global &g) {
+  if (addr <= g.beg - kMinimalDistanceFromAnotherGlobal) return false;
+  if (addr >= g.beg + g.size_with_redzone) return false;
+  return true;
 }
 
-bool DescribeAddressIfGlobal(uptr addr, uptr size) {
+static void ReportGlobal(const Global &g, const char *prefix) {
+  Report("%s Global[%p]: beg=%p size=%zu/%zu name=%s module=%s dyn_init=%zu\n",
+         prefix, &g, (void *)g.beg, g.size, g.size_with_redzone, g.name,
+         g.module_name, g.has_dynamic_init);
+  if (g.location) {
+    Report("  location (%p): name=%s[%p], %d %d\n", g.location,
+           g.location->filename, g.location->filename, g.location->line_no,
+           g.location->column_no);
+  }
+}
+
+static bool DescribeOrGetInfoIfGlobal(uptr addr, uptr size, bool print,
+                                      Global *output_global) {
   if (!flags()->report_globals) return false;
   BlockingMutexLock lock(&mu_for_globals);
   bool res = false;
   for (ListOfGlobals *l = list_of_all_globals; l; l = l->next) {
     const Global &g = *l->g;
-    if (flags()->report_globals >= 2)
-      ReportGlobal(g, "Search");
-    res |= DescribeAddressRelativeToGlobal(addr, size, g);
+    if (print) {
+      if (flags()->report_globals >= 2)
+        ReportGlobal(g, "Search");
+      res |= DescribeAddressRelativeToGlobal(addr, size, g);
+    } else {
+      if (IsAddressNearGlobal(addr, g)) {
+        CHECK(output_global);
+        *output_global = g;
+        return true;
+      }
+    }
   }
   return res;
+}
+
+bool DescribeAddressIfGlobal(uptr addr, uptr size) {
+  return DescribeOrGetInfoIfGlobal(addr, size, /* print */ true,
+                                   /* output_global */ nullptr);
+}
+
+bool GetInfoForAddressIfGlobal(uptr addr, AddressDescription *descr) {
+  Global g = {};
+  if (DescribeOrGetInfoIfGlobal(addr, /* size */ 1, /* print */ false, &g)) {
+    internal_strncpy(descr->name, g.name, descr->name_size);
+    descr->region_address = g.beg;
+    descr->region_size = g.size;
+    descr->region_kind = "global";
+    return true;
+  }
+  return false;
+}
+
+u32 FindRegistrationSite(const Global *g) {
+  CHECK(global_registration_site_vector);
+  for (uptr i = 0, n = global_registration_site_vector->size(); i < n; i++) {
+    GlobalRegistrationSite &grs = (*global_registration_site_vector)[i];
+    if (g >= grs.g_first && g <= grs.g_last)
+      return grs.stack_id;
+  }
+  return 0;
 }
 
 // Register a global variable.
@@ -92,6 +150,20 @@ static void RegisterGlobal(const Global *g) {
   CHECK(AddrIsInMem(g->beg));
   CHECK(AddrIsAlignedByGranularity(g->beg));
   CHECK(AddrIsAlignedByGranularity(g->size_with_redzone));
+  if (flags()->detect_odr_violation) {
+    // Try detecting ODR (One Definition Rule) violation, i.e. the situation
+    // where two globals with the same name are defined in different modules.
+    if (__asan_region_is_poisoned(g->beg, g->size_with_redzone)) {
+      // This check may not be enough: if the first global is much larger
+      // the entire redzone of the second global may be within the first global.
+      for (ListOfGlobals *l = list_of_all_globals; l; l = l->next) {
+        if (g->beg == l->g->beg &&
+            (flags()->detect_odr_violation >= 2 || g->size != l->g->size))
+          ReportODRViolation(g, FindRegistrationSite(g),
+                             l->g, FindRegistrationSite(l->g));
+      }
+    }
+  }
   if (flags()->poison_heap)
     PoisonRedZones(*g);
   ListOfGlobals *l = new(allocator_for_globals) ListOfGlobals;
@@ -144,7 +216,18 @@ using namespace __asan;  // NOLINT
 // Register an array of globals.
 void __asan_register_globals(__asan_global *globals, uptr n) {
   if (!flags()->report_globals) return;
+  GET_STACK_TRACE_FATAL_HERE;
+  u32 stack_id = StackDepotPut(stack);
   BlockingMutexLock lock(&mu_for_globals);
+  if (!global_registration_site_vector)
+    global_registration_site_vector =
+        new(allocator_for_globals) GlobalRegistrationSiteVector(128);
+  GlobalRegistrationSite site = {stack_id, &globals[0], &globals[n - 1]};
+  global_registration_site_vector->push_back(site);
+  if (flags()->report_globals >= 2) {
+    PRINT_CURRENT_STACK();
+    Printf("=== ID %d; %p %p\n", stack_id, &globals[0], &globals[n - 1]);
+  }
   for (uptr i = 0; i < n; i++) {
     RegisterGlobal(&globals[i]);
   }

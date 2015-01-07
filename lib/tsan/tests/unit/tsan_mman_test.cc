@@ -11,24 +11,14 @@
 //
 //===----------------------------------------------------------------------===//
 #include <limits>
+#include <sanitizer/allocator_interface.h>
 #include "tsan_mman.h"
 #include "tsan_rtl.h"
 #include "gtest/gtest.h"
 
-extern "C" {
-uptr __tsan_get_current_allocated_bytes();
-uptr __tsan_get_heap_size();
-uptr __tsan_get_free_bytes();
-uptr __tsan_get_unmapped_bytes();
-uptr __tsan_get_estimated_allocated_size(uptr size);
-bool __tsan_get_ownership(void *p);
-uptr __tsan_get_allocated_size(void *p);
-}
-
 namespace __tsan {
 
 TEST(Mman, Internal) {
-  ScopedInRtl in_rtl;
   char *p = (char*)internal_alloc(MBlockScopedBuf, 10);
   EXPECT_NE(p, (char*)0);
   char *p2 = (char*)internal_alloc(MBlockScopedBuf, 20);
@@ -45,7 +35,6 @@ TEST(Mman, Internal) {
 }
 
 TEST(Mman, User) {
-  ScopedInRtl in_rtl;
   ThreadState *thr = cur_thread();
   uptr pc = 0;
   char *p = (char*)user_alloc(thr, pc, 10);
@@ -53,26 +42,13 @@ TEST(Mman, User) {
   char *p2 = (char*)user_alloc(thr, pc, 20);
   EXPECT_NE(p2, (char*)0);
   EXPECT_NE(p2, p);
-  MBlock *b = user_mblock(thr, p);
-  EXPECT_NE(b, (MBlock*)0);
-  EXPECT_EQ(b->Size(), (uptr)10);
-  MBlock *b2 = user_mblock(thr, p2);
-  EXPECT_NE(b2, (MBlock*)0);
-  EXPECT_EQ(b2->Size(), (uptr)20);
-  for (int i = 0; i < 10; i++) {
-    p[i] = 42;
-    EXPECT_EQ(b, user_mblock(thr, p + i));
-  }
-  for (int i = 0; i < 20; i++) {
-    ((char*)p2)[i] = 42;
-    EXPECT_EQ(b2, user_mblock(thr, p2 + i));
-  }
+  EXPECT_EQ(10U, user_alloc_usable_size(p));
+  EXPECT_EQ(20U, user_alloc_usable_size(p2));
   user_free(thr, pc, p);
   user_free(thr, pc, p2);
 }
 
 TEST(Mman, UserRealloc) {
-  ScopedInRtl in_rtl;
   ThreadState *thr = cur_thread();
   uptr pc = 0;
   {
@@ -118,49 +94,53 @@ TEST(Mman, UserRealloc) {
 }
 
 TEST(Mman, UsableSize) {
-  ScopedInRtl in_rtl;
   ThreadState *thr = cur_thread();
   uptr pc = 0;
   char *p = (char*)user_alloc(thr, pc, 10);
   char *p2 = (char*)user_alloc(thr, pc, 20);
-  EXPECT_EQ(0U, user_alloc_usable_size(thr, pc, NULL));
-  EXPECT_EQ(10U, user_alloc_usable_size(thr, pc, p));
-  EXPECT_EQ(20U, user_alloc_usable_size(thr, pc, p2));
+  EXPECT_EQ(0U, user_alloc_usable_size(NULL));
+  EXPECT_EQ(10U, user_alloc_usable_size(p));
+  EXPECT_EQ(20U, user_alloc_usable_size(p2));
   user_free(thr, pc, p);
   user_free(thr, pc, p2);
+  EXPECT_EQ(0U, user_alloc_usable_size((void*)0x4123));
 }
 
 TEST(Mman, Stats) {
-  ScopedInRtl in_rtl;
   ThreadState *thr = cur_thread();
 
-  uptr alloc0 = __tsan_get_current_allocated_bytes();
-  uptr heap0 = __tsan_get_heap_size();
-  uptr free0 = __tsan_get_free_bytes();
-  uptr unmapped0 = __tsan_get_unmapped_bytes();
+  uptr alloc0 = __sanitizer_get_current_allocated_bytes();
+  uptr heap0 = __sanitizer_get_heap_size();
+  uptr free0 = __sanitizer_get_free_bytes();
+  uptr unmapped0 = __sanitizer_get_unmapped_bytes();
 
-  EXPECT_EQ(__tsan_get_estimated_allocated_size(10), (uptr)10);
-  EXPECT_EQ(__tsan_get_estimated_allocated_size(20), (uptr)20);
-  EXPECT_EQ(__tsan_get_estimated_allocated_size(100), (uptr)100);
+  EXPECT_EQ(10U, __sanitizer_get_estimated_allocated_size(10));
+  EXPECT_EQ(20U, __sanitizer_get_estimated_allocated_size(20));
+  EXPECT_EQ(100U, __sanitizer_get_estimated_allocated_size(100));
 
   char *p = (char*)user_alloc(thr, 0, 10);
-  EXPECT_EQ(__tsan_get_ownership(p), true);
-  EXPECT_EQ(__tsan_get_allocated_size(p), (uptr)10);
+  EXPECT_TRUE(__sanitizer_get_ownership(p));
+  EXPECT_EQ(10U, __sanitizer_get_allocated_size(p));
 
-  EXPECT_EQ(__tsan_get_current_allocated_bytes(), alloc0 + 16);
-  EXPECT_GE(__tsan_get_heap_size(), heap0);
-  EXPECT_EQ(__tsan_get_free_bytes(), free0);
-  EXPECT_EQ(__tsan_get_unmapped_bytes(), unmapped0);
+  EXPECT_EQ(alloc0 + 16, __sanitizer_get_current_allocated_bytes());
+  EXPECT_GE(__sanitizer_get_heap_size(), heap0);
+  EXPECT_EQ(free0, __sanitizer_get_free_bytes());
+  EXPECT_EQ(unmapped0, __sanitizer_get_unmapped_bytes());
 
   user_free(thr, 0, p);
 
-  EXPECT_EQ(__tsan_get_current_allocated_bytes(), alloc0);
-  EXPECT_GE(__tsan_get_heap_size(), heap0);
-  EXPECT_EQ(__tsan_get_free_bytes(), free0);
-  EXPECT_EQ(__tsan_get_unmapped_bytes(), unmapped0);
+  EXPECT_EQ(alloc0, __sanitizer_get_current_allocated_bytes());
+  EXPECT_GE(__sanitizer_get_heap_size(), heap0);
+  EXPECT_EQ(free0, __sanitizer_get_free_bytes());
+  EXPECT_EQ(unmapped0, __sanitizer_get_unmapped_bytes());
 }
 
 TEST(Mman, CallocOverflow) {
+#if TSAN_DEBUG
+  // EXPECT_DEATH clones a thread with 4K stack,
+  // which is overflown by tsan memory accesses functions in debug mode.
+  return;
+#endif
   size_t kArraySize = 4096;
   volatile size_t kMaxSizeT = std::numeric_limits<size_t>::max();
   volatile size_t kArraySize2 = kMaxSizeT / kArraySize + 10;

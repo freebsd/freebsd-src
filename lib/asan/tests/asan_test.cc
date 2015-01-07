@@ -25,26 +25,9 @@ NOINLINE void *malloc_bbb(size_t size) {
 NOINLINE void *malloc_aaa(size_t size) {
   void *res = malloc_bbb(size); break_optimization(0); return res;}
 
-#ifndef __APPLE__
-NOINLINE void *memalign_fff(size_t alignment, size_t size) {
-  void *res = memalign/**/(alignment, size); break_optimization(0); return res;}
-NOINLINE void *memalign_eee(size_t alignment, size_t size) {
-  void *res = memalign_fff(alignment, size); break_optimization(0); return res;}
-NOINLINE void *memalign_ddd(size_t alignment, size_t size) {
-  void *res = memalign_eee(alignment, size); break_optimization(0); return res;}
-NOINLINE void *memalign_ccc(size_t alignment, size_t size) {
-  void *res = memalign_ddd(alignment, size); break_optimization(0); return res;}
-NOINLINE void *memalign_bbb(size_t alignment, size_t size) {
-  void *res = memalign_ccc(alignment, size); break_optimization(0); return res;}
-NOINLINE void *memalign_aaa(size_t alignment, size_t size) {
-  void *res = memalign_bbb(alignment, size); break_optimization(0); return res;}
-#endif  // __APPLE__
-
-
 NOINLINE void free_ccc(void *p) { free(p); break_optimization(0);}
 NOINLINE void free_bbb(void *p) { free_ccc(p); break_optimization(0);}
 NOINLINE void free_aaa(void *p) { free_bbb(p); break_optimization(0);}
-
 
 template<typename T>
 NOINLINE void uaf_test(int size, int off) {
@@ -90,19 +73,19 @@ TEST(AddressSanitizer, VariousMallocsTest) {
   *c = 0;
   delete c;
 
-#if !defined(__APPLE__) && !defined(ANDROID) && !defined(__ANDROID__)
+#if SANITIZER_TEST_HAS_POSIX_MEMALIGN
   int *pm;
   int pm_res = posix_memalign((void**)&pm, kPageSize, kPageSize);
   EXPECT_EQ(0, pm_res);
   free(pm);
-#endif
+#endif  // SANITIZER_TEST_HAS_POSIX_MEMALIGN
 
-#if !defined(__APPLE__)
+#if SANITIZER_TEST_HAS_MEMALIGN
   int *ma = (int*)memalign(kPageSize, kPageSize);
   EXPECT_EQ(0U, (uintptr_t)ma % kPageSize);
   ma[123] = 0;
   free(ma);
-#endif  // __APPLE__
+#endif  // SANITIZER_TEST_HAS_MEMALIGN
 }
 
 TEST(AddressSanitizer, CallocTest) {
@@ -124,18 +107,25 @@ TEST(AddressSanitizer, CallocReturnsZeroMem) {
       EXPECT_EQ(x[size / 4], 0);
       memset(x, 0x42, size);
       free(Ident(x));
+#if !defined(_WIN32)
+      // FIXME: OOM on Windows. We should just make this a lit test
+      // with quarantine size set to 1.
       free(Ident(malloc(Ident(1 << 27))));  // Try to drain the quarantine.
+#endif
     }
   }
 }
 
+// No valloc on Windows or Android.
+#if !defined(_WIN32) && !defined(__ANDROID__)
 TEST(AddressSanitizer, VallocTest) {
   void *a = valloc(100);
   EXPECT_EQ(0U, (uintptr_t)a % kPageSize);
   free(a);
 }
+#endif
 
-#ifndef __APPLE__
+#if SANITIZER_TEST_HAS_PVALLOC
 TEST(AddressSanitizer, PvallocTest) {
   char *a = (char*)pvalloc(kPageSize + 100);
   EXPECT_EQ(0U, (uintptr_t)a % kPageSize);
@@ -147,8 +137,10 @@ TEST(AddressSanitizer, PvallocTest) {
   a[101] = 1;  // we should not report an error here.
   free(a);
 }
-#endif  // __APPLE__
+#endif  // SANITIZER_TEST_HAS_PVALLOC
 
+#if !defined(_WIN32)
+// FIXME: Use an equivalent of pthread_setspecific on Windows.
 void *TSDWorker(void *test_key) {
   if (test_key) {
     pthread_setspecific(*(pthread_key_t*)test_key, (void*)0xfeedface);
@@ -178,6 +170,7 @@ TEST(AddressSanitizer, DISABLED_TSDTest) {
   PTHREAD_JOIN(th, NULL);
   pthread_key_delete(test_key);
 }
+#endif
 
 TEST(AddressSanitizer, UAF_char) {
   const char *uaf_string = "AddressSanitizer:.*heap-use-after-free";
@@ -191,18 +184,27 @@ TEST(AddressSanitizer, UAF_char) {
 TEST(AddressSanitizer, UAF_long_double) {
   if (sizeof(long double) == sizeof(double)) return;
   long double *p = Ident(new long double[10]);
-  EXPECT_DEATH(Ident(p)[12] = 0, "WRITE of size 1[06]");
-  EXPECT_DEATH(Ident(p)[0] = Ident(p)[12], "READ of size 1[06]");
+  EXPECT_DEATH(Ident(p)[12] = 0, "WRITE of size 1[026]");
+  EXPECT_DEATH(Ident(p)[0] = Ident(p)[12], "READ of size 1[026]");
   delete [] Ident(p);
 }
 
+#if !defined(_WIN32)
 struct Packed5 {
   int x;
   char c;
 } __attribute__((packed));
-
+#else
+# pragma pack(push, 1)
+struct Packed5 {
+  int x;
+  char c;
+};
+# pragma pack(pop)
+#endif
 
 TEST(AddressSanitizer, UAF_Packed5) {
+  static_assert(sizeof(Packed5) == 5, "Please check the keywords used");
   Packed5 *p = Ident(new Packed5[2]);
   EXPECT_DEATH(p[0] = p[3], "READ of size 5");
   EXPECT_DEATH(p[3] = p[0], "WRITE of size 5");
@@ -299,12 +301,14 @@ TEST(AddressSanitizer, LargeMallocTest) {
 }
 
 TEST(AddressSanitizer, HugeMallocTest) {
-  if (SANITIZER_WORDSIZE != 64) return;
+  if (SANITIZER_WORDSIZE != 64 || ASAN_AVOID_EXPENSIVE_TESTS) return;
   size_t n_megs = 4100;
-  TestLargeMalloc(n_megs << 20);
+  EXPECT_DEATH(Ident((char*)malloc(n_megs << 20))[-1] = 0,
+               "is located 1 bytes to the left|"
+               "AddressSanitizer failed to allocate");
 }
 
-#ifndef __APPLE__
+#if SANITIZER_TEST_HAS_MEMALIGN
 void MemalignRun(size_t align, size_t size, int idx) {
   char *p = (char *)memalign(align, size);
   Ident(p)[idx] = 0;
@@ -320,7 +324,7 @@ TEST(AddressSanitizer, memalign) {
                  "is located 1 bytes to the right");
   }
 }
-#endif
+#endif  // SANITIZER_TEST_HAS_MEMALIGN
 
 void *ManyThreadsWorker(void *a) {
   for (int iter = 0; iter < 100; iter++) {
@@ -379,12 +383,12 @@ TEST(AddressSanitizer, ZeroSizeMallocTest) {
   void *ptr = Ident(malloc(0));
   EXPECT_TRUE(NULL != ptr);
   free(ptr);
-#if !defined(__APPLE__) && !defined(ANDROID) && !defined(__ANDROID__)
+#if SANITIZER_TEST_HAS_POSIX_MEMALIGN
   int pm_res = posix_memalign(&ptr, 1<<20, 0);
   EXPECT_EQ(0, pm_res);
   EXPECT_TRUE(NULL != ptr);
   free(ptr);
-#endif
+#endif  // SANITIZER_TEST_HAS_POSIX_MEMALIGN
   int *int_ptr = new int[0];
   int *int_ptr2 = new int[0];
   EXPECT_TRUE(NULL != int_ptr);
@@ -394,7 +398,7 @@ TEST(AddressSanitizer, ZeroSizeMallocTest) {
   delete[] int_ptr2;
 }
 
-#ifndef __APPLE__
+#if SANITIZER_TEST_HAS_MALLOC_USABLE_SIZE
 static const char *kMallocUsableSizeErrorMsg =
   "AddressSanitizer: attempting to call malloc_usable_size()";
 
@@ -412,7 +416,7 @@ TEST(AddressSanitizer, MallocUsableSizeTest) {
   EXPECT_DEATH(malloc_usable_size(array), kMallocUsableSizeErrorMsg);
   delete int_ptr;
 }
-#endif
+#endif  // SANITIZER_TEST_HAS_MALLOC_USABLE_SIZE
 
 void WrongFree() {
   int *x = (int*)malloc(100 * sizeof(int));
@@ -421,12 +425,14 @@ void WrongFree() {
   free(x + 1);
 }
 
+#if !defined(_WIN32)  // FIXME: This should be a lit test.
 TEST(AddressSanitizer, WrongFreeTest) {
   EXPECT_DEATH(WrongFree(), ASAN_PCRE_DOTALL
                "ERROR: AddressSanitizer: attempting free.*not malloc"
                ".*is located 4 bytes inside of 400-byte region"
                ".*allocated by thread");
 }
+#endif
 
 void DoubleFree() {
   int *x = (int*)malloc(100 * sizeof(int));
@@ -437,6 +443,7 @@ void DoubleFree() {
   abort();
 }
 
+#if !defined(_WIN32)  // FIXME: This should be a lit test.
 TEST(AddressSanitizer, DoubleFreeTest) {
   EXPECT_DEATH(DoubleFree(), ASAN_PCRE_DOTALL
                "ERROR: AddressSanitizer: attempting double-free"
@@ -444,20 +451,22 @@ TEST(AddressSanitizer, DoubleFreeTest) {
                ".*freed by thread T0 here"
                ".*previously allocated by thread T0 here");
 }
+#endif
 
 template<int kSize>
 NOINLINE void SizedStackTest() {
   char a[kSize];
   char  *A = Ident((char*)&a);
+  const char *expected_death = "AddressSanitizer: stack-buffer-";
   for (size_t i = 0; i < kSize; i++)
     A[i] = i;
-  EXPECT_DEATH(A[-1] = 0, "");
-  EXPECT_DEATH(A[-20] = 0, "");
-  EXPECT_DEATH(A[-31] = 0, "");
-  EXPECT_DEATH(A[kSize] = 0, "");
-  EXPECT_DEATH(A[kSize + 1] = 0, "");
-  EXPECT_DEATH(A[kSize + 10] = 0, "");
-  EXPECT_DEATH(A[kSize + 31] = 0, "");
+  EXPECT_DEATH(A[-1] = 0, expected_death);
+  EXPECT_DEATH(A[-5] = 0, expected_death);
+  EXPECT_DEATH(A[kSize] = 0, expected_death);
+  EXPECT_DEATH(A[kSize + 1] = 0, expected_death);
+  EXPECT_DEATH(A[kSize + 5] = 0, expected_death);
+  if (kSize > 16)
+    EXPECT_DEATH(A[kSize + 31] = 0, expected_death);
 }
 
 TEST(AddressSanitizer, SimpleStackTest) {
@@ -478,6 +487,9 @@ TEST(AddressSanitizer, SimpleStackTest) {
   SizedStackTest<128>();
 }
 
+#if !defined(_WIN32)
+// FIXME: It's a bit hard to write multi-line death test expectations
+// in a portable way.  Anyways, this should just be turned into a lit test.
 TEST(AddressSanitizer, ManyStackObjectsTest) {
   char XXX[10];
   char YYY[20];
@@ -486,6 +498,7 @@ TEST(AddressSanitizer, ManyStackObjectsTest) {
   Ident(YYY);
   EXPECT_DEATH(Ident(ZZZ)[-1] = 0, ASAN_PCRE_DOTALL "XXX.*YYY.*ZZZ");
 }
+#endif
 
 #if 0  // This test requires online symbolizer.
 // Moved to lit_tests/stack-oob-frames.cc.
@@ -538,6 +551,24 @@ NOINLINE void LongJmpFunc1(jmp_buf buf) {
   longjmp(buf, 1);
 }
 
+NOINLINE void TouchStackFunc() {
+  int a[100];  // long array will intersect with redzones from LongJmpFunc1.
+  int *A = Ident(a);
+  for (int i = 0; i < 100; i++)
+    A[i] = i*i;
+}
+
+// Test that we handle longjmp and do not report false positives on stack.
+TEST(AddressSanitizer, LongJmpTest) {
+  static jmp_buf buf;
+  if (!setjmp(buf)) {
+    LongJmpFunc1(buf);
+  } else {
+    TouchStackFunc();
+  }
+}
+
+#if !defined(_WIN32)  // Only basic longjmp is available on Windows.
 NOINLINE void BuiltinLongJmpFunc1(jmp_buf buf) {
   // create three red zones for these two stack objects.
   int a;
@@ -571,27 +602,9 @@ NOINLINE void SigLongJmpFunc1(sigjmp_buf buf) {
   siglongjmp(buf, 1);
 }
 
-
-NOINLINE void TouchStackFunc() {
-  int a[100];  // long array will intersect with redzones from LongJmpFunc1.
-  int *A = Ident(a);
-  for (int i = 0; i < 100; i++)
-    A[i] = i*i;
-}
-
-// Test that we handle longjmp and do not report fals positives on stack.
-TEST(AddressSanitizer, LongJmpTest) {
-  static jmp_buf buf;
-  if (!setjmp(buf)) {
-    LongJmpFunc1(buf);
-  } else {
-    TouchStackFunc();
-  }
-}
-
-#if !defined(__ANDROID__) && \
+#if !defined(__ANDROID__) && !defined(__arm__) && \
     !defined(__powerpc64__) && !defined(__powerpc__)
-// Does not work on Power:
+// Does not work on Power and ARM:
 // https://code.google.com/p/address-sanitizer/issues/detail?id=185
 TEST(AddressSanitizer, BuiltinLongJmpTest) {
   static jmp_buf buf;
@@ -601,7 +614,8 @@ TEST(AddressSanitizer, BuiltinLongJmpTest) {
     TouchStackFunc();
   }
 }
-#endif  // not defined(__ANDROID__)
+#endif  // !defined(__ANDROID__) && !defined(__powerpc64__) &&
+        // !defined(__powerpc__) && !defined(__arm__)
 
 TEST(AddressSanitizer, UnderscopeLongJmpTest) {
   static jmp_buf buf;
@@ -620,8 +634,10 @@ TEST(AddressSanitizer, SigLongJmpTest) {
     TouchStackFunc();
   }
 }
+#endif
 
-#ifdef __EXCEPTIONS
+// FIXME: Why does clang-cl define __EXCEPTIONS?
+#if defined(__EXCEPTIONS) && !defined(_WIN32)
 NOINLINE void ThrowFunc() {
   // create three red zones for these two stack objects.
   int a;
@@ -688,12 +704,19 @@ TEST(AddressSanitizer, Store128Test) {
 }
 #endif
 
+// FIXME: All tests that use this function should be turned into lit tests.
 string RightOOBErrorMessage(int oob_distance, bool is_write) {
   assert(oob_distance >= 0);
   char expected_str[100];
   sprintf(expected_str, ASAN_PCRE_DOTALL
-          "buffer-overflow.*%s.*located %d bytes to the right",
-          is_write ? "WRITE" : "READ", oob_distance);
+#if !GTEST_USES_SIMPLE_RE
+          "buffer-overflow.*%s.*"
+#endif
+          "located %d bytes to the right",
+#if !GTEST_USES_SIMPLE_RE
+          is_write ? "WRITE" : "READ",
+#endif
+          oob_distance);
   return string(expected_str);
 }
 
@@ -705,11 +728,19 @@ string RightOOBReadMessage(int oob_distance) {
   return RightOOBErrorMessage(oob_distance, /*is_write*/false);
 }
 
+// FIXME: All tests that use this function should be turned into lit tests.
 string LeftOOBErrorMessage(int oob_distance, bool is_write) {
   assert(oob_distance > 0);
   char expected_str[100];
-  sprintf(expected_str, ASAN_PCRE_DOTALL "%s.*located %d bytes to the left",
-          is_write ? "WRITE" : "READ", oob_distance);
+  sprintf(expected_str,
+#if !GTEST_USES_SIMPLE_RE
+          ASAN_PCRE_DOTALL "%s.*"
+#endif
+          "located %d bytes to the left",
+#if !GTEST_USES_SIMPLE_RE
+          is_write ? "WRITE" : "READ",
+#endif
+          oob_distance);
   return string(expected_str);
 }
 
@@ -738,7 +769,7 @@ char* MallocAndMemsetString(size_t size) {
   return MallocAndMemsetString(size, 'z');
 }
 
-#if defined(__linux__) && !defined(ANDROID) && !defined(__ANDROID__)
+#if defined(__linux__) && !defined(__ANDROID__)
 #define READ_TEST(READ_N_BYTES)                                          \
   char *x = new char[10];                                                \
   int fd = open("/proc/self/stat", O_RDONLY);                            \
@@ -761,7 +792,7 @@ TEST(AddressSanitizer, pread64) {
 TEST(AddressSanitizer, read) {
   READ_TEST(read(fd, x, 15));
 }
-#endif  // defined(__linux__) && !defined(ANDROID) && !defined(__ANDROID__)
+#endif  // defined(__linux__) && !defined(__ANDROID__)
 
 // This test case fails
 // Clang optimizes memcpy/memset calls which lead to unaligned access
@@ -801,7 +832,7 @@ NOINLINE static int LargeFunction(bool do_bad_access) {
   x[18]++;
   x[19]++;
 
-  delete x;
+  delete[] x;
   return res;
 }
 
@@ -863,6 +894,7 @@ void ThreadedTestSpawn() {
   PTHREAD_JOIN(t, 0);
 }
 
+#if !defined(_WIN32)  // FIXME: This should be a lit test.
 TEST(AddressSanitizer, ThreadedTest) {
   EXPECT_DEATH(ThreadedTestSpawn(),
                ASAN_PCRE_DOTALL
@@ -870,6 +902,7 @@ TEST(AddressSanitizer, ThreadedTest) {
                ".*Thread T.*created"
                ".*Thread T.*created");
 }
+#endif
 
 void *ThreadedTestFunc(void *unused) {
   // Check if prctl(PR_SET_NAME) is supported. Return if not.
@@ -1064,7 +1097,8 @@ TEST(AddressSanitizer, PthreadExitTest) {
   }
 }
 
-#ifdef __EXCEPTIONS
+// FIXME: Why does clang-cl define __EXCEPTIONS?
+#if defined(__EXCEPTIONS) && !defined(_WIN32)
 NOINLINE static void StackReuseAndException() {
   int large_stack[1000];
   Ident(large_stack);
@@ -1082,12 +1116,14 @@ TEST(AddressSanitizer, DISABLED_StressStackReuseAndExceptionsTest) {
 }
 #endif
 
+#if !defined(_WIN32)
 TEST(AddressSanitizer, MlockTest) {
   EXPECT_EQ(0, mlockall(MCL_CURRENT));
   EXPECT_EQ(0, mlock((void*)0x12345, 0x5678));
   EXPECT_EQ(0, munlockall());
   EXPECT_EQ(0, munlock((void*)0x987, 0x654));
 }
+#endif
 
 struct LargeStruct {
   int foo[100];
@@ -1111,10 +1147,15 @@ TEST(AddressSanitizer, AttributeNoSanitizeAddressTest) {
   Ident(NoSanitizeAddress)();
 }
 
-// It doesn't work on Android, as calls to new/delete go through malloc/free.
-// Neither it does on OS X, see
-// https://code.google.com/p/address-sanitizer/issues/detail?id=131.
-#if !defined(ANDROID) && !defined(__ANDROID__) && !defined(__APPLE__)
+// The new/delete/etc mismatch checks don't work on Android,
+//   as calls to new/delete go through malloc/free.
+// OS X support is tracked here:
+//   https://code.google.com/p/address-sanitizer/issues/detail?id=131
+// Windows support is tracked here:
+//   https://code.google.com/p/address-sanitizer/issues/detail?id=309
+#if !defined(__ANDROID__) && \
+    !defined(__APPLE__) && \
+    !defined(_WIN32)
 static string MismatchStr(const string &str) {
   return string("AddressSanitizer: alloc-dealloc-mismatch \\(") + str;
 }
@@ -1229,6 +1270,7 @@ TEST(AddressSanitizer, LongDoubleNegativeTest) {
   memcpy(Ident(&c), Ident(&b), sizeof(long double));
 }
 
+#if !defined(_WIN32)
 TEST(AddressSanitizer, pthread_getschedparam) {
   int policy;
   struct sched_param param;
@@ -1241,3 +1283,4 @@ TEST(AddressSanitizer, pthread_getschedparam) {
   int res = pthread_getschedparam(pthread_self(), &policy, &param);
   ASSERT_EQ(0, res);
 }
+#endif

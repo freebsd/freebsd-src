@@ -30,24 +30,9 @@
 
 // Build-time configuration options.
 
-// If set, asan will install its own SEGV signal handler.
-#ifndef ASAN_NEEDS_SEGV
-# if SANITIZER_ANDROID == 1
-#  define ASAN_NEEDS_SEGV 0
-# else
-#  define ASAN_NEEDS_SEGV 1
-# endif
-#endif
-
 // If set, asan will intercept C++ exception api call(s).
 #ifndef ASAN_HAS_EXCEPTIONS
 # define ASAN_HAS_EXCEPTIONS 1
-#endif
-
-// If set, asan uses the values of SHADOW_SCALE and SHADOW_OFFSET
-// provided by the instrumented objects. Otherwise constants are used.
-#ifndef ASAN_FLEXIBLE_MAPPING_AND_OFFSET
-# define ASAN_FLEXIBLE_MAPPING_AND_OFFSET 0
 #endif
 
 // If set, values like allocator chunk size, as well as defaults for some flags
@@ -60,36 +45,56 @@
 # endif
 #endif
 
-#ifndef ASAN_USE_PREINIT_ARRAY
-# define ASAN_USE_PREINIT_ARRAY (SANITIZER_LINUX && !SANITIZER_ANDROID)
+#ifndef ASAN_DYNAMIC
+# ifdef PIC
+#  define ASAN_DYNAMIC 1
+# else
+#  define ASAN_DYNAMIC 0
+# endif
 #endif
 
 // All internal functions in asan reside inside the __asan namespace
 // to avoid namespace collisions with the user programs.
-// Seperate namespace also makes it simpler to distinguish the asan run-time
+// Separate namespace also makes it simpler to distinguish the asan run-time
 // functions from the instrumented user code in a profile.
 namespace __asan {
 
 class AsanThread;
 using __sanitizer::StackTrace;
 
+struct SignalContext {
+  void *context;
+  uptr addr;
+  uptr pc;
+  uptr sp;
+  uptr bp;
+
+  SignalContext(void *context, uptr addr, uptr pc, uptr sp, uptr bp) :
+      context(context), addr(addr), pc(pc), sp(sp), bp(bp) {
+  }
+
+  // Creates signal context in a platform-specific manner.
+  static SignalContext Create(void *siginfo, void *context);
+};
+
+void AsanInitFromRtl();
+
 // asan_rtl.cc
 void NORETURN ShowStatsAndAbort();
 
-void ReplaceOperatorsNewAndDelete();
 // asan_malloc_linux.cc / asan_malloc_mac.cc
 void ReplaceSystemMalloc();
 
 // asan_linux.cc / asan_mac.cc / asan_win.cc
 void *AsanDoesNotSupportStaticLinkage();
+void AsanCheckDynamicRTPrereqs();
+void AsanCheckIncompatibleRT();
 
 void GetPcSpBp(void *context, uptr *pc, uptr *sp, uptr *bp);
+void AsanOnSIGSEGV(int, void *siginfo, void *context);
 
 void MaybeReexec();
 bool AsanInterceptsSignal(int signum);
-void SetAlternateSignalStack();
-void UnsetAlternateSignalStack();
-void InstallSignalHandlers();
 void ReadContextStack(void *context, uptr *stack, uptr *ssize);
 void AsanPlatformThreadInit();
 void StopInitOrderChecking();
@@ -102,7 +107,11 @@ void PlatformTSDDtor(void *tsd);
 
 void AppendToErrorMessageBuffer(const char *buffer);
 
-// Platfrom-specific options.
+void ParseExtraActivationFlags();
+
+void *AsanDlSymNext(const char *sym);
+
+// Platform-specific options.
 #if SANITIZER_MAC
 bool PlatformHasDifferentMemcpyAndMemmove();
 # define PLATFORM_HAS_DIFFERENT_MEMCPY_AND_MEMMOVE \
@@ -114,9 +123,9 @@ bool PlatformHasDifferentMemcpyAndMemmove();
 // Add convenient macro for interface functions that may be represented as
 // weak hooks.
 #define ASAN_MALLOC_HOOK(ptr, size) \
-  if (&__asan_malloc_hook) __asan_malloc_hook(ptr, size)
+  if (&__sanitizer_malloc_hook) __sanitizer_malloc_hook(ptr, size)
 #define ASAN_FREE_HOOK(ptr) \
-  if (&__asan_free_hook) __asan_free_hook(ptr)
+  if (&__sanitizer_free_hook) __sanitizer_free_hook(ptr)
 #define ASAN_ON_ERROR() \
   if (&__asan_on_error) __asan_on_error()
 
@@ -136,9 +145,14 @@ const int kAsanStackPartialRedzoneMagic = 0xf4;
 const int kAsanStackAfterReturnMagic = 0xf5;
 const int kAsanInitializationOrderMagic = 0xf6;
 const int kAsanUserPoisonedMemoryMagic = 0xf7;
+const int kAsanContiguousContainerOOBMagic = 0xfc;
 const int kAsanStackUseAfterScopeMagic = 0xf8;
 const int kAsanGlobalRedzoneMagic = 0xf9;
 const int kAsanInternalHeapMagic = 0xfe;
+const int kAsanArrayCookieMagic = 0xac;
+const int kAsanIntraObjectRedzone = 0xbb;
+const int kAsanAllocaLeftMagic = 0xca;
+const int kAsanAllocaRightMagic = 0xcb;
 
 static const uptr kCurrentStackFrameMagic = 0x41B58AB3;
 static const uptr kRetiredStackFrameMagic = 0x45E0360E;

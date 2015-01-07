@@ -15,13 +15,16 @@
 
 #include "sanitizer_allocator_internal.h"
 #include "sanitizer_common.h"
+#include "sanitizer_flags.h"
 #include "sanitizer_libc.h"
+#include "sanitizer_placement_new.h"
 
 namespace __sanitizer {
 
 static const char *const kTypeStrings[SuppressionTypeCount] = {
-  "none", "race", "mutex", "thread", "signal", "leak", "called_from_lib"
-};
+    "none", "race", "mutex", "thread", "signal", "leak", "called_from_lib",
+    "deadlock", "vptr_check", "interceptor_name", "interceptor_via_fun",
+    "interceptor_via_lib"};
 
 bool TemplateMatch(char *templ, const char *str) {
   if (str == 0 || str[0] == 0)
@@ -65,8 +68,41 @@ bool TemplateMatch(char *templ, const char *str) {
   return true;
 }
 
+ALIGNED(64) static char placeholder[sizeof(SuppressionContext)];
+static SuppressionContext *suppression_ctx = 0;
+
+SuppressionContext::SuppressionContext() : suppressions_(1), can_parse_(true) {
+  internal_memset(has_suppresson_type_, 0, sizeof(has_suppresson_type_));
+}
+
+SuppressionContext *SuppressionContext::Get() {
+  CHECK(suppression_ctx);
+  return suppression_ctx;
+}
+
+void SuppressionContext::InitIfNecessary() {
+  if (suppression_ctx)
+    return;
+  suppression_ctx = new(placeholder) SuppressionContext;
+  if (common_flags()->suppressions[0] == '\0')
+    return;
+  char *suppressions_from_file;
+  uptr buffer_size;
+  uptr contents_size =
+      ReadFileToBuffer(common_flags()->suppressions, &suppressions_from_file,
+                       &buffer_size, 1 << 26 /* max_len */);
+  if (contents_size == 0) {
+    Printf("%s: failed to read suppressions file '%s'\n", SanitizerToolName,
+           common_flags()->suppressions);
+    Die();
+  }
+  suppression_ctx->Parse(suppressions_from_file);
+}
+
 bool SuppressionContext::Match(const char *str, SuppressionType type,
                                Suppression **s) {
+  if (!has_suppresson_type_[type])
+    return false;
   can_parse_ = false;
   uptr i;
   for (i = 0; i < suppressions_.size(); i++)
@@ -122,6 +158,7 @@ void SuppressionContext::Parse(const char *str) {
       s.hit_count = 0;
       s.weight = 0;
       suppressions_.push_back(s);
+      has_suppresson_type_[s.type] = true;
     }
     if (end[0] == 0)
       break;
@@ -131,6 +168,10 @@ void SuppressionContext::Parse(const char *str) {
 
 uptr SuppressionContext::SuppressionCount() const {
   return suppressions_.size();
+}
+
+bool SuppressionContext::HasSuppressionType(SuppressionType type) const {
+  return has_suppresson_type_[type];
 }
 
 const Suppression *SuppressionContext::SuppressionAt(uptr i) const {

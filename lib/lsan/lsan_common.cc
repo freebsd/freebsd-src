@@ -17,6 +17,7 @@
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_flags.h"
 #include "sanitizer_common/sanitizer_placement_new.h"
+#include "sanitizer_common/sanitizer_procmaps.h"
 #include "sanitizer_common/sanitizer_stackdepot.h"
 #include "sanitizer_common/sanitizer_stacktrace.h"
 #include "sanitizer_common/sanitizer_stoptheworld.h"
@@ -26,7 +27,8 @@
 #if CAN_SANITIZE_LEAKS
 namespace __lsan {
 
-// This mutex is used to prevent races between DoLeakCheck and IgnoreObject.
+// This mutex is used to prevent races between DoLeakCheck and IgnoreObject, and
+// also to protect the global list of root regions.
 BlockingMutex global_mutex(LINKER_INITIALIZED);
 
 THREADLOCAL int disable_counter;
@@ -34,65 +36,90 @@ bool DisabledInThisThread() { return disable_counter > 0; }
 
 Flags lsan_flags;
 
-static void InitializeFlags() {
+static void InitializeFlags(bool standalone) {
   Flags *f = flags();
   // Default values.
   f->report_objects = false;
   f->resolution = 0;
   f->max_leaks = 0;
   f->exitcode = 23;
-  f->suppressions="";
   f->use_registers = true;
   f->use_globals = true;
   f->use_stacks = true;
   f->use_tls = true;
+  f->use_root_regions = true;
   f->use_unaligned = false;
-  f->verbosity = 0;
+  f->use_poisoned = false;
   f->log_pointers = false;
   f->log_threads = false;
 
   const char *options = GetEnv("LSAN_OPTIONS");
   if (options) {
-    ParseFlag(options, &f->use_registers, "use_registers");
-    ParseFlag(options, &f->use_globals, "use_globals");
-    ParseFlag(options, &f->use_stacks, "use_stacks");
-    ParseFlag(options, &f->use_tls, "use_tls");
-    ParseFlag(options, &f->use_unaligned, "use_unaligned");
-    ParseFlag(options, &f->report_objects, "report_objects");
-    ParseFlag(options, &f->resolution, "resolution");
+    ParseFlag(options, &f->use_registers, "use_registers", "");
+    ParseFlag(options, &f->use_globals, "use_globals", "");
+    ParseFlag(options, &f->use_stacks, "use_stacks", "");
+    ParseFlag(options, &f->use_tls, "use_tls", "");
+    ParseFlag(options, &f->use_root_regions, "use_root_regions", "");
+    ParseFlag(options, &f->use_unaligned, "use_unaligned", "");
+    ParseFlag(options, &f->use_poisoned, "use_poisoned", "");
+    ParseFlag(options, &f->report_objects, "report_objects", "");
+    ParseFlag(options, &f->resolution, "resolution", "");
     CHECK_GE(&f->resolution, 0);
-    ParseFlag(options, &f->max_leaks, "max_leaks");
+    ParseFlag(options, &f->max_leaks, "max_leaks", "");
     CHECK_GE(&f->max_leaks, 0);
-    ParseFlag(options, &f->verbosity, "verbosity");
-    ParseFlag(options, &f->log_pointers, "log_pointers");
-    ParseFlag(options, &f->log_threads, "log_threads");
-    ParseFlag(options, &f->exitcode, "exitcode");
-    ParseFlag(options, &f->suppressions, "suppressions");
+    ParseFlag(options, &f->log_pointers, "log_pointers", "");
+    ParseFlag(options, &f->log_threads, "log_threads", "");
+    ParseFlag(options, &f->exitcode, "exitcode", "");
   }
+
+  // Set defaults for common flags (only in standalone mode) and parse
+  // them from LSAN_OPTIONS.
+  CommonFlags *cf = common_flags();
+  if (standalone) {
+    SetCommonFlagsDefaults(cf);
+    cf->external_symbolizer_path = GetEnv("LSAN_SYMBOLIZER_PATH");
+    cf->malloc_context_size = 30;
+    cf->detect_leaks = true;
+  }
+  ParseCommonFlagsFromString(cf, options);
 }
 
-SuppressionContext *suppression_ctx;
+#define LOG_POINTERS(...)                           \
+  do {                                              \
+    if (flags()->log_pointers) Report(__VA_ARGS__); \
+  } while (0);
+
+#define LOG_THREADS(...)                           \
+  do {                                             \
+    if (flags()->log_threads) Report(__VA_ARGS__); \
+  } while (0);
+
+static bool suppressions_inited = false;
 
 void InitializeSuppressions() {
-  CHECK(!suppression_ctx);
-  ALIGNED(64) static char placeholder_[sizeof(SuppressionContext)];
-  suppression_ctx = new(placeholder_) SuppressionContext;
-  char *suppressions_from_file;
-  uptr buffer_size;
-  if (ReadFileToBuffer(flags()->suppressions, &suppressions_from_file,
-                       &buffer_size, 1 << 26 /* max_len */))
-    suppression_ctx->Parse(suppressions_from_file);
-  if (flags()->suppressions[0] && !buffer_size) {
-    Printf("LeakSanitizer: failed to read suppressions file '%s'\n",
-           flags()->suppressions);
-    Die();
-  }
+  CHECK(!suppressions_inited);
+  SuppressionContext::InitIfNecessary();
   if (&__lsan_default_suppressions)
-    suppression_ctx->Parse(__lsan_default_suppressions());
+    SuppressionContext::Get()->Parse(__lsan_default_suppressions());
+  suppressions_inited = true;
 }
 
-void InitCommonLsan() {
-  InitializeFlags();
+struct RootRegion {
+  const void *begin;
+  uptr size;
+};
+
+InternalMmapVector<RootRegion> *root_regions;
+
+void InitializeRootRegions() {
+  CHECK(!root_regions);
+  ALIGNED(64) static char placeholder[sizeof(InternalMmapVector<RootRegion>)];
+  root_regions = new(placeholder) InternalMmapVector<RootRegion>(1);
+}
+
+void InitCommonLsan(bool standalone) {
+  InitializeFlags(standalone);
+  InitializeRootRegions();
   if (common_flags()->detect_leaks) {
     // Initialization which can fail or print warnings should only be done if
     // LSan is actually enabled.
@@ -101,9 +128,9 @@ void InitCommonLsan() {
   }
 }
 
-class Decorator: private __sanitizer::AnsiColorDecorator {
+class Decorator: public __sanitizer::SanitizerCommonDecorator {
  public:
-  Decorator() : __sanitizer::AnsiColorDecorator(PrintsToTtyCached()) { }
+  Decorator() : SanitizerCommonDecorator() { }
   const char *Error() { return Red(); }
   const char *Leak() { return Blue(); }
   const char *End() { return Default(); }
@@ -132,8 +159,7 @@ void ScanRangeForPointers(uptr begin, uptr end,
                           Frontier *frontier,
                           const char *region_type, ChunkTag tag) {
   const uptr alignment = flags()->pointer_alignment();
-  if (flags()->log_pointers)
-    Report("Scanning %s range %p-%p.\n", region_type, begin, end);
+  LOG_POINTERS("Scanning %s range %p-%p.\n", region_type, begin, end);
   uptr pp = begin;
   if (pp % alignment)
     pp = pp + alignment - pp % alignment;
@@ -148,10 +174,19 @@ void ScanRangeForPointers(uptr begin, uptr end,
     // Reachable beats ignored beats leaked.
     if (m.tag() == kReachable) continue;
     if (m.tag() == kIgnored && tag != kReachable) continue;
+
+    // Do this check relatively late so we can log only the interesting cases.
+    if (!flags()->use_poisoned && WordIsPoisoned(pp)) {
+      LOG_POINTERS(
+          "%p is poisoned: ignoring %p pointing into chunk %p-%p of size "
+          "%zu.\n",
+          pp, p, chunk, chunk + m.requested_size(), m.requested_size());
+      continue;
+    }
+
     m.set_tag(tag);
-    if (flags()->log_pointers)
-      Report("%p: found %p pointing into chunk %p-%p of size %zu.\n", pp, p,
-             chunk, chunk + m.requested_size(), m.requested_size());
+    LOG_POINTERS("%p: found %p pointing into chunk %p-%p of size %zu.\n", pp, p,
+                 chunk, chunk + m.requested_size(), m.requested_size());
     if (frontier)
       frontier->push_back(chunk);
   }
@@ -170,7 +205,7 @@ static void ProcessThreads(SuspendedThreadsList const &suspended_threads,
   uptr registers_end = registers_begin + registers.size();
   for (uptr i = 0; i < suspended_threads.thread_count(); i++) {
     uptr os_id = static_cast<uptr>(suspended_threads.GetThreadID(i));
-    if (flags()->log_threads) Report("Processing thread %d.\n", os_id);
+    LOG_THREADS("Processing thread %d.\n", os_id);
     uptr stack_begin, stack_end, tls_begin, tls_end, cache_begin, cache_end;
     bool thread_found = GetThreadRangesLocked(os_id, &stack_begin, &stack_end,
                                               &tls_begin, &tls_end,
@@ -178,8 +213,7 @@ static void ProcessThreads(SuspendedThreadsList const &suspended_threads,
     if (!thread_found) {
       // If a thread can't be found in the thread registry, it's probably in the
       // process of destruction. Log this event and move on.
-      if (flags()->log_threads)
-        Report("Thread %d not found in registry.\n", os_id);
+      LOG_THREADS("Thread %d not found in registry.\n", os_id);
       continue;
     }
     uptr sp;
@@ -196,14 +230,12 @@ static void ProcessThreads(SuspendedThreadsList const &suspended_threads,
                            "REGISTERS", kReachable);
 
     if (flags()->use_stacks) {
-      if (flags()->log_threads)
-        Report("Stack at %p-%p, SP = %p.\n", stack_begin, stack_end, sp);
+      LOG_THREADS("Stack at %p-%p (SP = %p).\n", stack_begin, stack_end, sp);
       if (sp < stack_begin || sp >= stack_end) {
         // SP is outside the recorded stack range (e.g. the thread is running a
         // signal handler on alternate stack). Again, consider the entire stack
         // range to be reachable.
-        if (flags()->log_threads)
-          Report("WARNING: stack pointer not in stack range.\n");
+        LOG_THREADS("WARNING: stack pointer not in stack range.\n");
       } else {
         // Shrink the stack range to ignore out-of-scope values.
         stack_begin = sp;
@@ -214,7 +246,7 @@ static void ProcessThreads(SuspendedThreadsList const &suspended_threads,
     }
 
     if (flags()->use_tls) {
-      if (flags()->log_threads) Report("TLS at %p-%p.\n", tls_begin, tls_end);
+      LOG_THREADS("TLS at %p-%p.\n", tls_begin, tls_end);
       if (cache_begin == cache_end) {
         ScanRangeForPointers(tls_begin, tls_end, frontier, "TLS", kReachable);
       } else {
@@ -229,6 +261,37 @@ static void ProcessThreads(SuspendedThreadsList const &suspended_threads,
           ScanRangeForPointers(cache_end, tls_end, frontier, "TLS", kReachable);
       }
     }
+  }
+}
+
+static void ProcessRootRegion(Frontier *frontier, uptr root_begin,
+                              uptr root_end) {
+  MemoryMappingLayout proc_maps(/*cache_enabled*/true);
+  uptr begin, end, prot;
+  while (proc_maps.Next(&begin, &end,
+                        /*offset*/ 0, /*filename*/ 0, /*filename_size*/ 0,
+                        &prot)) {
+    uptr intersection_begin = Max(root_begin, begin);
+    uptr intersection_end = Min(end, root_end);
+    if (intersection_begin >= intersection_end) continue;
+    bool is_readable = prot & MemoryMappingLayout::kProtectionRead;
+    LOG_POINTERS("Root region %p-%p intersects with mapped region %p-%p (%s)\n",
+                 root_begin, root_end, begin, end,
+                 is_readable ? "readable" : "unreadable");
+    if (is_readable)
+      ScanRangeForPointers(intersection_begin, intersection_end, frontier,
+                           "ROOT", kReachable);
+  }
+}
+
+// Scans root regions for heap pointers.
+static void ProcessRootRegions(Frontier *frontier) {
+  if (!flags()->use_root_regions) return;
+  CHECK(root_regions);
+  for (uptr i = 0; i < root_regions->size(); i++) {
+    RootRegion region = (*root_regions)[i];
+    uptr begin_addr = reinterpret_cast<uptr>(region.begin);
+    ProcessRootRegion(frontier, begin_addr, begin_addr + region.size);
   }
 }
 
@@ -266,41 +329,37 @@ static void CollectIgnoredCb(uptr chunk, void *arg) {
 // Sets the appropriate tag on each chunk.
 static void ClassifyAllChunks(SuspendedThreadsList const &suspended_threads) {
   // Holds the flood fill frontier.
-  Frontier frontier(GetPageSizeCached());
+  Frontier frontier(1);
 
-  if (flags()->use_globals)
-    ProcessGlobalRegions(&frontier);
+  ProcessGlobalRegions(&frontier);
   ProcessThreads(suspended_threads, &frontier);
+  ProcessRootRegions(&frontier);
   FloodFillTag(&frontier, kReachable);
   // The check here is relatively expensive, so we do this in a separate flood
   // fill. That way we can skip the check for chunks that are reachable
   // otherwise.
-  if (flags()->log_pointers)
-    Report("Processing platform-specific allocations.\n");
+  LOG_POINTERS("Processing platform-specific allocations.\n");
   ProcessPlatformSpecificAllocations(&frontier);
   FloodFillTag(&frontier, kReachable);
 
-  if (flags()->log_pointers)
-    Report("Scanning ignored chunks.\n");
+  LOG_POINTERS("Scanning ignored chunks.\n");
   CHECK_EQ(0, frontier.size());
   ForEachChunk(CollectIgnoredCb, &frontier);
   FloodFillTag(&frontier, kIgnored);
 
   // Iterate over leaked chunks and mark those that are reachable from other
   // leaked chunks.
-  if (flags()->log_pointers)
-    Report("Scanning leaked chunks.\n");
+  LOG_POINTERS("Scanning leaked chunks.\n");
   ForEachChunk(MarkIndirectlyLeakedCb, 0 /* arg */);
 }
 
 static void PrintStackTraceById(u32 stack_trace_id) {
   CHECK(stack_trace_id);
-  uptr size = 0;
-  const uptr *trace = StackDepotGet(stack_trace_id, &size);
-  StackTrace::PrintStack(trace, size);
+  StackDepotGet(stack_trace_id).Print();
 }
 
-// ForEachChunk callback. Aggregates unreachable chunks into a LeakReport.
+// ForEachChunk callback. Aggregates information about unreachable chunks into
+// a LeakReport.
 static void CollectLeaksCb(uptr chunk, void *arg) {
   CHECK(arg);
   LeakReport *leak_report = reinterpret_cast<LeakReport *>(arg);
@@ -309,32 +368,22 @@ static void CollectLeaksCb(uptr chunk, void *arg) {
   if (!m.allocated()) return;
   if (m.tag() == kDirectlyLeaked || m.tag() == kIndirectlyLeaked) {
     uptr resolution = flags()->resolution;
+    u32 stack_trace_id = 0;
     if (resolution > 0) {
-      uptr size = 0;
-      const uptr *trace = StackDepotGet(m.stack_trace_id(), &size);
-      size = Min(size, resolution);
-      leak_report->Add(StackDepotPut(trace, size), m.requested_size(), m.tag());
+      StackTrace stack = StackDepotGet(m.stack_trace_id());
+      stack.size = Min(stack.size, resolution);
+      stack_trace_id = StackDepotPut(stack);
     } else {
-      leak_report->Add(m.stack_trace_id(), m.requested_size(), m.tag());
+      stack_trace_id = m.stack_trace_id();
     }
-  }
-}
-
-// ForEachChunkCallback. Prints addresses of unreachable chunks.
-static void PrintLeakedCb(uptr chunk, void *arg) {
-  chunk = GetUserBegin(chunk);
-  LsanMetadata m(chunk);
-  if (!m.allocated()) return;
-  if (m.tag() == kDirectlyLeaked || m.tag() == kIndirectlyLeaked) {
-    Printf("%s leaked %zu byte object at %p.\n",
-           m.tag() == kDirectlyLeaked ? "Directly" : "Indirectly",
-           m.requested_size(), chunk);
+    leak_report->AddLeakedChunk(chunk, stack_trace_id, m.requested_size(),
+                                m.tag());
   }
 }
 
 static void PrintMatchedSuppressions() {
   InternalMmapVector<Suppression *> matched(1);
-  suppression_ctx->GetMatched(&matched);
+  SuppressionContext::Get()->GetMatched(&matched);
   if (!matched.size())
     return;
   const char *line = "-----------------------------------------------------";
@@ -347,12 +396,6 @@ static void PrintMatchedSuppressions() {
   Printf("%s\n\n", line);
 }
 
-static void PrintLeaked() {
-  Printf("\n");
-  Printf("Reporting individual objects:\n");
-  ForEachChunk(PrintLeakedCb, 0 /* arg */);
-}
-
 struct DoLeakCheckParam {
   bool success;
   LeakReport leak_report;
@@ -363,11 +406,8 @@ static void DoLeakCheckCallback(const SuspendedThreadsList &suspended_threads,
   DoLeakCheckParam *param = reinterpret_cast<DoLeakCheckParam *>(arg);
   CHECK(param);
   CHECK(!param->success);
-  CHECK(param->leak_report.IsEmpty());
   ClassifyAllChunks(suspended_threads);
   ForEachChunk(CollectLeaksCb, &param->leak_report);
-  if (!param->leak_report.IsEmpty() && flags()->report_objects)
-    PrintLeaked();
   param->success = true;
 }
 
@@ -378,7 +418,7 @@ void DoLeakCheck() {
   if (already_done) return;
   already_done = true;
   if (&__lsan_is_turned_off && __lsan_is_turned_off())
-    return;
+      return;
 
   DoLeakCheckParam param;
   param.success = false;
@@ -392,8 +432,9 @@ void DoLeakCheck() {
     Report("LeakSanitizer has encountered a fatal error.\n");
     Die();
   }
-  uptr have_unsuppressed = param.leak_report.ApplySuppressions();
-  if (have_unsuppressed) {
+  param.leak_report.ApplySuppressions();
+  uptr unsuppressed_count = param.leak_report.UnsuppressedLeakCount();
+  if (unsuppressed_count > 0) {
     Decorator d;
     Printf("\n"
            "================================================================="
@@ -401,38 +442,49 @@ void DoLeakCheck() {
     Printf("%s", d.Error());
     Report("ERROR: LeakSanitizer: detected memory leaks\n");
     Printf("%s", d.End());
-    param.leak_report.PrintLargest(flags()->max_leaks);
+    param.leak_report.ReportTopLeaks(flags()->max_leaks);
   }
-  if (have_unsuppressed || (flags()->verbosity >= 1)) {
+  if (common_flags()->print_suppressions)
     PrintMatchedSuppressions();
+  if (unsuppressed_count > 0) {
     param.leak_report.PrintSummary();
+    if (flags()->exitcode) {
+      if (common_flags()->coverage)
+        __sanitizer_cov_dump();
+      internal__exit(flags()->exitcode);
+    }
   }
-  if (have_unsuppressed && flags()->exitcode)
-    internal__exit(flags()->exitcode);
 }
 
 static Suppression *GetSuppressionForAddr(uptr addr) {
-  static const uptr kMaxAddrFrames = 16;
-  InternalScopedBuffer<AddressInfo> addr_frames(kMaxAddrFrames);
-  for (uptr i = 0; i < kMaxAddrFrames; i++) new (&addr_frames[i]) AddressInfo();
-  uptr addr_frames_num = Symbolizer::Get()->SymbolizeCode(
-      addr, addr_frames.data(), kMaxAddrFrames);
-  for (uptr i = 0; i < addr_frames_num; i++) {
-    Suppression* s;
-    if (suppression_ctx->Match(addr_frames[i].function, SuppressionLeak, &s) ||
-        suppression_ctx->Match(addr_frames[i].file, SuppressionLeak, &s) ||
-        suppression_ctx->Match(addr_frames[i].module, SuppressionLeak, &s))
-      return s;
+  Suppression *s = nullptr;
+
+  // Suppress by module name.
+  const char *module_name;
+  uptr module_offset;
+  if (Symbolizer::GetOrInit()->GetModuleNameAndOffsetForPC(addr, &module_name,
+                                                           &module_offset) &&
+      SuppressionContext::Get()->Match(module_name, SuppressionLeak, &s))
+    return s;
+
+  // Suppress by file or function name.
+  SymbolizedStack *frames = Symbolizer::GetOrInit()->SymbolizePC(addr);
+  for (SymbolizedStack *cur = frames; cur; cur = cur->next) {
+    if (SuppressionContext::Get()->Match(cur->info.function, SuppressionLeak,
+                                         &s) ||
+        SuppressionContext::Get()->Match(cur->info.file, SuppressionLeak, &s)) {
+      break;
+    }
   }
-  return 0;
+  frames->ClearAll();
+  return s;
 }
 
 static Suppression *GetSuppressionForStack(u32 stack_trace_id) {
-  uptr size = 0;
-  const uptr *trace = StackDepotGet(stack_trace_id, &size);
-  for (uptr i = 0; i < size; i++) {
-    Suppression *s =
-        GetSuppressionForAddr(StackTrace::GetPreviousInstructionPc(trace[i]));
+  StackTrace stack = StackDepotGet(stack_trace_id);
+  for (uptr i = 0; i < stack.size; i++) {
+    Suppression *s = GetSuppressionForAddr(
+        StackTrace::GetPreviousInstructionPc(stack.trace[i]));
     if (s) return s;
   }
   return 0;
@@ -441,26 +493,35 @@ static Suppression *GetSuppressionForStack(u32 stack_trace_id) {
 ///// LeakReport implementation. /////
 
 // A hard limit on the number of distinct leaks, to avoid quadratic complexity
-// in LeakReport::Add(). We don't expect to ever see this many leaks in
-// real-world applications.
+// in LeakReport::AddLeakedChunk(). We don't expect to ever see this many leaks
+// in real-world applications.
 // FIXME: Get rid of this limit by changing the implementation of LeakReport to
 // use a hash table.
 const uptr kMaxLeaksConsidered = 5000;
 
-void LeakReport::Add(u32 stack_trace_id, uptr leaked_size, ChunkTag tag) {
+void LeakReport::AddLeakedChunk(uptr chunk, u32 stack_trace_id,
+                                uptr leaked_size, ChunkTag tag) {
   CHECK(tag == kDirectlyLeaked || tag == kIndirectlyLeaked);
   bool is_directly_leaked = (tag == kDirectlyLeaked);
-  for (uptr i = 0; i < leaks_.size(); i++)
+  uptr i;
+  for (i = 0; i < leaks_.size(); i++) {
     if (leaks_[i].stack_trace_id == stack_trace_id &&
         leaks_[i].is_directly_leaked == is_directly_leaked) {
       leaks_[i].hit_count++;
       leaks_[i].total_size += leaked_size;
-      return;
+      break;
     }
-  if (leaks_.size() == kMaxLeaksConsidered) return;
-  Leak leak = { /* hit_count */ 1, leaked_size, stack_trace_id,
-                is_directly_leaked, /* is_suppressed */ false };
-  leaks_.push_back(leak);
+  }
+  if (i == leaks_.size()) {
+    if (leaks_.size() == kMaxLeaksConsidered) return;
+    Leak leak = { next_id_++, /* hit_count */ 1, leaked_size, stack_trace_id,
+                  is_directly_leaked, /* is_suppressed */ false };
+    leaks_.push_back(leak);
+  }
+  if (flags()->report_objects) {
+    LeakedObject obj = {leaks_[i].id, chunk, leaked_size};
+    leaked_objects_.push_back(obj);
+  }
 }
 
 static bool LeakComparator(const Leak &leak1, const Leak &leak2) {
@@ -470,7 +531,7 @@ static bool LeakComparator(const Leak &leak1, const Leak &leak2) {
     return leak1.is_directly_leaked;
 }
 
-void LeakReport::PrintLargest(uptr num_leaks_to_print) {
+void LeakReport::ReportTopLeaks(uptr num_leaks_to_report) {
   CHECK(leaks_.size() <= kMaxLeaksConsidered);
   Printf("\n");
   if (leaks_.size() == kMaxLeaksConsidered)
@@ -478,28 +539,46 @@ void LeakReport::PrintLargest(uptr num_leaks_to_print) {
            "reported.\n",
            kMaxLeaksConsidered);
 
-  uptr unsuppressed_count = 0;
-  for (uptr i = 0; i < leaks_.size(); i++)
-    if (!leaks_[i].is_suppressed) unsuppressed_count++;
-  if (num_leaks_to_print > 0 && num_leaks_to_print < unsuppressed_count)
-    Printf("The %zu largest leak(s):\n", num_leaks_to_print);
+  uptr unsuppressed_count = UnsuppressedLeakCount();
+  if (num_leaks_to_report > 0 && num_leaks_to_report < unsuppressed_count)
+    Printf("The %zu top leak(s):\n", num_leaks_to_report);
   InternalSort(&leaks_, leaks_.size(), LeakComparator);
-  uptr leaks_printed = 0;
-  Decorator d;
+  uptr leaks_reported = 0;
   for (uptr i = 0; i < leaks_.size(); i++) {
     if (leaks_[i].is_suppressed) continue;
-    Printf("%s", d.Leak());
-    Printf("%s leak of %zu byte(s) in %zu object(s) allocated from:\n",
-           leaks_[i].is_directly_leaked ? "Direct" : "Indirect",
-           leaks_[i].total_size, leaks_[i].hit_count);
-    Printf("%s", d.End());
-    PrintStackTraceById(leaks_[i].stack_trace_id);
-    leaks_printed++;
-    if (leaks_printed == num_leaks_to_print) break;
+    PrintReportForLeak(i);
+    leaks_reported++;
+    if (leaks_reported == num_leaks_to_report) break;
   }
-  if (leaks_printed < unsuppressed_count) {
-    uptr remaining = unsuppressed_count - leaks_printed;
+  if (leaks_reported < unsuppressed_count) {
+    uptr remaining = unsuppressed_count - leaks_reported;
     Printf("Omitting %zu more leak(s).\n", remaining);
+  }
+}
+
+void LeakReport::PrintReportForLeak(uptr index) {
+  Decorator d;
+  Printf("%s", d.Leak());
+  Printf("%s leak of %zu byte(s) in %zu object(s) allocated from:\n",
+         leaks_[index].is_directly_leaked ? "Direct" : "Indirect",
+         leaks_[index].total_size, leaks_[index].hit_count);
+  Printf("%s", d.End());
+
+  PrintStackTraceById(leaks_[index].stack_trace_id);
+
+  if (flags()->report_objects) {
+    Printf("Objects leaked above:\n");
+    PrintLeakedObjectsForLeak(index);
+    Printf("\n");
+  }
+}
+
+void LeakReport::PrintLeakedObjectsForLeak(uptr index) {
+  u32 leak_id = leaks_[index].id;
+  for (uptr j = 0; j < leaked_objects_.size(); j++) {
+    if (leaked_objects_[j].leak_id == leak_id)
+      Printf("%p (%zu bytes)\n", leaked_objects_[j].addr,
+             leaked_objects_[j].size);
   }
 }
 
@@ -511,27 +590,30 @@ void LeakReport::PrintSummary() {
       bytes += leaks_[i].total_size;
       allocations += leaks_[i].hit_count;
   }
-  InternalScopedBuffer<char> summary(kMaxSummaryLength);
-  internal_snprintf(summary.data(), summary.size(),
-                    "%zu byte(s) leaked in %zu allocation(s).", bytes,
-                    allocations);
+  InternalScopedString summary(kMaxSummaryLength);
+  summary.append("%zu byte(s) leaked in %zu allocation(s).", bytes,
+                 allocations);
   ReportErrorSummary(summary.data());
 }
 
-uptr LeakReport::ApplySuppressions() {
-  uptr unsuppressed_count = 0;
+void LeakReport::ApplySuppressions() {
   for (uptr i = 0; i < leaks_.size(); i++) {
     Suppression *s = GetSuppressionForStack(leaks_[i].stack_trace_id);
     if (s) {
       s->weight += leaks_[i].total_size;
       s->hit_count += leaks_[i].hit_count;
       leaks_[i].is_suppressed = true;
-    } else {
-    unsuppressed_count++;
     }
   }
-  return unsuppressed_count;
 }
+
+uptr LeakReport::UnsuppressedLeakCount() {
+  uptr result = 0;
+  for (uptr i = 0; i < leaks_.size(); i++)
+    if (!leaks_[i].is_suppressed) result++;
+  return result;
+}
+
 }  // namespace __lsan
 #endif  // CAN_SANITIZE_LEAKS
 
@@ -547,13 +629,51 @@ void __lsan_ignore_object(const void *p) {
   // locked.
   BlockingMutexLock l(&global_mutex);
   IgnoreObjectResult res = IgnoreObjectLocked(p);
-  if (res == kIgnoreObjectInvalid && flags()->verbosity >= 2)
-    Report("__lsan_ignore_object(): no heap object found at %p", p);
-  if (res == kIgnoreObjectAlreadyIgnored && flags()->verbosity >= 2)
-    Report("__lsan_ignore_object(): "
+  if (res == kIgnoreObjectInvalid)
+    VReport(1, "__lsan_ignore_object(): no heap object found at %p", p);
+  if (res == kIgnoreObjectAlreadyIgnored)
+    VReport(1, "__lsan_ignore_object(): "
            "heap object at %p is already being ignored\n", p);
-  if (res == kIgnoreObjectSuccess && flags()->verbosity >= 3)
-    Report("__lsan_ignore_object(): ignoring heap object at %p\n", p);
+  if (res == kIgnoreObjectSuccess)
+    VReport(1, "__lsan_ignore_object(): ignoring heap object at %p\n", p);
+#endif  // CAN_SANITIZE_LEAKS
+}
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void __lsan_register_root_region(const void *begin, uptr size) {
+#if CAN_SANITIZE_LEAKS
+  BlockingMutexLock l(&global_mutex);
+  CHECK(root_regions);
+  RootRegion region = {begin, size};
+  root_regions->push_back(region);
+  VReport(1, "Registered root region at %p of size %llu\n", begin, size);
+#endif  // CAN_SANITIZE_LEAKS
+}
+
+SANITIZER_INTERFACE_ATTRIBUTE
+void __lsan_unregister_root_region(const void *begin, uptr size) {
+#if CAN_SANITIZE_LEAKS
+  BlockingMutexLock l(&global_mutex);
+  CHECK(root_regions);
+  bool removed = false;
+  for (uptr i = 0; i < root_regions->size(); i++) {
+    RootRegion region = (*root_regions)[i];
+    if (region.begin == begin && region.size == size) {
+      removed = true;
+      uptr last_index = root_regions->size() - 1;
+      (*root_regions)[i] = (*root_regions)[last_index];
+      root_regions->pop_back();
+      VReport(1, "Unregistered root region at %p of size %llu\n", begin, size);
+      break;
+    }
+  }
+  if (!removed) {
+    Report(
+        "__lsan_unregister_root_region(): region at %p of size %llu has not "
+        "been registered.\n",
+        begin, size);
+    Die();
+  }
 #endif  // CAN_SANITIZE_LEAKS
 }
 

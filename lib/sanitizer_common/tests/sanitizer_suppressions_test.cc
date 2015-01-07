@@ -66,9 +66,21 @@ TEST(Suppressions, TypeStrings) {
   CHECK(!internal_strcmp(SuppressionTypeString(SuppressionSignal), "signal"));
   CHECK(!internal_strcmp(SuppressionTypeString(SuppressionLeak), "leak"));
   CHECK(!internal_strcmp(SuppressionTypeString(SuppressionLib),
-      "called_from_lib"));
+                         "called_from_lib"));
+  CHECK(
+      !internal_strcmp(SuppressionTypeString(SuppressionDeadlock), "deadlock"));
+  CHECK(!internal_strcmp(SuppressionTypeString(SuppressionVptrCheck),
+                         "vptr_check"));
+  CHECK(!internal_strcmp(SuppressionTypeString(SuppressionInterceptorName),
+                         "interceptor_name"));
+  CHECK(
+      !internal_strcmp(SuppressionTypeString(SuppressionInterceptorViaFunction),
+                       "interceptor_via_fun"));
+  CHECK(
+      !internal_strcmp(SuppressionTypeString(SuppressionInterceptorViaLibrary),
+                       "interceptor_via_lib"));
   // Ensure this test is up-to-date when suppression types are added.
-  CHECK_EQ(SuppressionTypeCount, 7);
+  CHECK_EQ(12, SuppressionTypeCount);
 }
 
 class SuppressionContextTest : public ::testing::Test {
@@ -147,6 +159,16 @@ TEST_F(SuppressionContextTest, ParseType) {
   EXPECT_EQ(0, strcmp((*Suppressions())[1].templ, "bar"));
   EXPECT_EQ((*Suppressions())[0].type, SuppressionRace);
   EXPECT_EQ(0, strcmp((*Suppressions())[0].templ, "foo"));
+}
+
+TEST_F(SuppressionContextTest, HasSuppressionType) {
+  ctx_->Parse(
+    "race:foo\n"
+    "thread:bar\n");
+  EXPECT_TRUE(ctx_->HasSuppressionType(SuppressionRace));
+  EXPECT_TRUE(ctx_->HasSuppressionType(SuppressionThread));
+  EXPECT_FALSE(ctx_->HasSuppressionType(SuppressionMutex));
+  EXPECT_FALSE(ctx_->HasSuppressionType(SuppressionSignal));
 }
 
 }  // namespace __sanitizer

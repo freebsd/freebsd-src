@@ -198,14 +198,12 @@ template<class SizeClassAllocator> struct SizeClassAllocatorLocalCache;
 
 // Memory allocator statistics
 enum AllocatorStat {
-  AllocatorStatMalloced,
-  AllocatorStatFreed,
-  AllocatorStatMmapped,
-  AllocatorStatUnmapped,
+  AllocatorStatAllocated,
+  AllocatorStatMapped,
   AllocatorStatCount
 };
 
-typedef u64 AllocatorStatCounters[AllocatorStatCount];
+typedef uptr AllocatorStatCounters[AllocatorStatCount];
 
 // Per-thread stats, live in per-thread cache.
 class AllocatorStats {
@@ -214,16 +212,21 @@ class AllocatorStats {
     internal_memset(this, 0, sizeof(*this));
   }
 
-  void Add(AllocatorStat i, u64 v) {
+  void Add(AllocatorStat i, uptr v) {
     v += atomic_load(&stats_[i], memory_order_relaxed);
     atomic_store(&stats_[i], v, memory_order_relaxed);
   }
 
-  void Set(AllocatorStat i, u64 v) {
+  void Sub(AllocatorStat i, uptr v) {
+    v = atomic_load(&stats_[i], memory_order_relaxed) - v;
     atomic_store(&stats_[i], v, memory_order_relaxed);
   }
 
-  u64 Get(AllocatorStat i) const {
+  void Set(AllocatorStat i, uptr v) {
+    atomic_store(&stats_[i], v, memory_order_relaxed);
+  }
+
+  uptr Get(AllocatorStat i) const {
     return atomic_load(&stats_[i], memory_order_relaxed);
   }
 
@@ -231,7 +234,7 @@ class AllocatorStats {
   friend class AllocatorGlobalStats;
   AllocatorStats *next_;
   AllocatorStats *prev_;
-  atomic_uint64_t stats_[AllocatorStatCount];
+  atomic_uintptr_t stats_[AllocatorStatCount];
 };
 
 // Global stats, used for aggregation and querying.
@@ -260,7 +263,7 @@ class AllocatorGlobalStats : public AllocatorStats {
   }
 
   void Get(AllocatorStatCounters s) const {
-    internal_memset(s, 0, AllocatorStatCount * sizeof(u64));
+    internal_memset(s, 0, AllocatorStatCount * sizeof(uptr));
     SpinMutexLock l(&mu_);
     const AllocatorStats *stats = this;
     for (;;) {
@@ -270,6 +273,9 @@ class AllocatorGlobalStats : public AllocatorStats {
       if (stats == this)
         break;
     }
+    // All stats must be non-negative.
+    for (int i = 0; i < AllocatorStatCount; i++)
+      s[i] = ((sptr)s[i]) >= 0 ? s[i] : 0;
   }
 
  private:
@@ -455,6 +461,11 @@ class SizeClassAllocator64 {
     }
   }
 
+  static uptr AdditionalSize() {
+    return RoundUpTo(sizeof(RegionInfo) * kNumClassesRounded,
+                     GetPageSizeCached());
+  }
+
   typedef SizeClassMap SizeClassMapT;
   static const uptr kNumClasses = SizeClassMap::kNumClasses;
   static const uptr kNumClassesRounded = SizeClassMap::kNumClassesRounded;
@@ -483,11 +494,6 @@ class SizeClassAllocator64 {
     uptr n_allocated, n_freed;  // Just stats.
   };
   COMPILER_CHECK(sizeof(RegionInfo) >= kCacheLineSize);
-
-  static uptr AdditionalSize() {
-    return RoundUpTo(sizeof(RegionInfo) * kNumClassesRounded,
-                     GetPageSizeCached());
-  }
 
   RegionInfo *GetRegionInfo(uptr class_id) {
     CHECK_LT(class_id, kNumClasses);
@@ -522,7 +528,7 @@ class SizeClassAllocator64 {
         map_size += kUserMapSize;
       CHECK_GE(region->mapped_user + map_size, end_idx);
       MapWithCallback(region_beg + region->mapped_user, map_size);
-      stat->Add(AllocatorStatMmapped, map_size);
+      stat->Add(AllocatorStatMapped, map_size);
       region->mapped_user += map_size;
     }
     uptr total_count = (region->mapped_user - beg_idx - size)
@@ -587,7 +593,69 @@ class FlatByteMap {
   u8 map_[kSize];
 };
 
-// FIXME: Also implement TwoLevelByteMap.
+// TwoLevelByteMap maps integers in range [0, kSize1*kSize2) to u8 values.
+// It is implemented as a two-dimensional array: array of kSize1 pointers
+// to kSize2-byte arrays. The secondary arrays are mmaped on demand.
+// Each value is initially zero and can be set to something else only once.
+// Setting and getting values from multiple threads is safe w/o extra locking.
+template <u64 kSize1, u64 kSize2, class MapUnmapCallback = NoOpMapUnmapCallback>
+class TwoLevelByteMap {
+ public:
+  void TestOnlyInit() {
+    internal_memset(map1_, 0, sizeof(map1_));
+    mu_.Init();
+  }
+  void TestOnlyUnmap() {
+    for (uptr i = 0; i < kSize1; i++) {
+      u8 *p = Get(i);
+      if (!p) continue;
+      MapUnmapCallback().OnUnmap(reinterpret_cast<uptr>(p), kSize2);
+      UnmapOrDie(p, kSize2);
+    }
+  }
+
+  uptr size() const { return kSize1 * kSize2; }
+  uptr size1() const { return kSize1; }
+  uptr size2() const { return kSize2; }
+
+  void set(uptr idx, u8 val) {
+    CHECK_LT(idx, kSize1 * kSize2);
+    u8 *map2 = GetOrCreate(idx / kSize2);
+    CHECK_EQ(0U, map2[idx % kSize2]);
+    map2[idx % kSize2] = val;
+  }
+
+  u8 operator[] (uptr idx) const {
+    CHECK_LT(idx, kSize1 * kSize2);
+    u8 *map2 = Get(idx / kSize2);
+    if (!map2) return 0;
+    return map2[idx % kSize2];
+  }
+
+ private:
+  u8 *Get(uptr idx) const {
+    CHECK_LT(idx, kSize1);
+    return reinterpret_cast<u8 *>(
+        atomic_load(&map1_[idx], memory_order_acquire));
+  }
+
+  u8 *GetOrCreate(uptr idx) {
+    u8 *res = Get(idx);
+    if (!res) {
+      SpinMutexLock l(&mu_);
+      if (!(res = Get(idx))) {
+        res = (u8*)MmapOrDie(kSize2, "TwoLevelByteMap");
+        MapUnmapCallback().OnMap(reinterpret_cast<uptr>(res), kSize2);
+        atomic_store(&map1_[idx], reinterpret_cast<uptr>(res),
+                     memory_order_release);
+      }
+    }
+    return res;
+  }
+
+  atomic_uintptr_t map1_[kSize1];
+  StaticSpinMutex mu_;
+};
 
 // SizeClassAllocator32 -- allocator for 32-bit address space.
 // This allocator can theoretically be used on 64-bit arch, but there it is less
@@ -779,7 +847,7 @@ class SizeClassAllocator32 {
     uptr res = reinterpret_cast<uptr>(MmapAlignedOrDie(kRegionSize, kRegionSize,
                                       "SizeClassAllocator32"));
     MapUnmapCallback().OnMap(res, kRegionSize);
-    stat->Add(AllocatorStatMmapped, kRegionSize);
+    stat->Add(AllocatorStatMapped, kRegionSize);
     CHECK_EQ(0U, (res & (kRegionSize - 1)));
     possible_regions.set(ComputeRegionId(res), static_cast<u8>(class_id));
     return res;
@@ -845,7 +913,7 @@ struct SizeClassAllocatorLocalCache {
   void *Allocate(SizeClassAllocator *allocator, uptr class_id) {
     CHECK_NE(class_id, 0UL);
     CHECK_LT(class_id, kNumClasses);
-    stats_.Add(AllocatorStatMalloced, SizeClassMap::Size(class_id));
+    stats_.Add(AllocatorStatAllocated, SizeClassMap::Size(class_id));
     PerClass *c = &per_class_[class_id];
     if (UNLIKELY(c->count == 0))
       Refill(allocator, class_id);
@@ -860,7 +928,7 @@ struct SizeClassAllocatorLocalCache {
     // If the first allocator call on a new thread is a deallocation, then
     // max_count will be zero, leading to check failure.
     InitCache();
-    stats_.Add(AllocatorStatFreed, SizeClassMap::Size(class_id));
+    stats_.Sub(AllocatorStatAllocated, SizeClassMap::Size(class_id));
     PerClass *c = &per_class_[class_id];
     CHECK_NE(c->max_count, 0UL);
     if (UNLIKELY(c->count == c->max_count))
@@ -947,12 +1015,15 @@ class LargeMmapAllocator {
     if (map_size < size) return AllocatorReturnNull();  // Overflow.
     uptr map_beg = reinterpret_cast<uptr>(
         MmapOrDie(map_size, "LargeMmapAllocator"));
+    CHECK(IsAligned(map_beg, page_size_));
     MapUnmapCallback().OnMap(map_beg, map_size);
     uptr map_end = map_beg + map_size;
     uptr res = map_beg + page_size_;
     if (res & (alignment - 1))  // Align.
       res += alignment - (res & (alignment - 1));
-    CHECK_EQ(0, res & (alignment - 1));
+    CHECK(IsAligned(res, alignment));
+    CHECK(IsAligned(res, page_size_));
+    CHECK_GE(res + size, map_beg);
     CHECK_LE(res + size, map_end);
     Header *h = GetHeader(res);
     h->size = size;
@@ -971,8 +1042,8 @@ class LargeMmapAllocator {
       stats.currently_allocated += map_size;
       stats.max_allocated = Max(stats.max_allocated, stats.currently_allocated);
       stats.by_size_log[size_log]++;
-      stat->Add(AllocatorStatMalloced, map_size);
-      stat->Add(AllocatorStatMmapped, map_size);
+      stat->Add(AllocatorStatAllocated, map_size);
+      stat->Add(AllocatorStatMapped, map_size);
     }
     return reinterpret_cast<void*>(res);
   }
@@ -990,8 +1061,8 @@ class LargeMmapAllocator {
       chunks_sorted_ = false;
       stats.n_frees++;
       stats.currently_allocated -= h->map_size;
-      stat->Add(AllocatorStatFreed, h->map_size);
-      stat->Add(AllocatorStatUnmapped, h->map_size);
+      stat->Sub(AllocatorStatAllocated, h->map_size);
+      stat->Sub(AllocatorStatMapped, h->map_size);
     }
     MapUnmapCallback().OnUnmap(h->map_beg, h->map_size);
     UnmapOrDie(reinterpret_cast<void*>(h->map_beg), h->map_size);
@@ -1184,14 +1255,15 @@ class CombinedAllocator {
     if (alignment > 8)
       size = RoundUpTo(size, alignment);
     void *res;
-    if (primary_.CanAllocate(size, alignment))
+    bool from_primary = primary_.CanAllocate(size, alignment);
+    if (from_primary)
       res = cache->Allocate(&primary_, primary_.ClassID(size));
     else
       res = secondary_.Allocate(&stats_, size, alignment);
     if (alignment > 8)
       CHECK_EQ(reinterpret_cast<uptr>(res) & (alignment - 1), 0);
-    if (cleared && res)
-      internal_memset(res, 0, size);
+    if (cleared && res && from_primary)
+      internal_bzero_aligned16(res, RoundUpTo(size, 16));
     return res;
   }
 

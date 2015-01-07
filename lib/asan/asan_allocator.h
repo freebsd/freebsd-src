@@ -17,6 +17,7 @@
 
 #include "asan_internal.h"
 #include "asan_interceptors.h"
+#include "sanitizer_common/sanitizer_allocator.h"
 #include "sanitizer_common/sanitizer_list.h"
 
 namespace __asan {
@@ -31,6 +32,7 @@ static const uptr kNumberOfSizeClasses = 255;
 struct AsanChunk;
 
 void InitializeAllocator();
+void ReInitializeAllocator();
 
 class AsanChunkView {
  public:
@@ -42,8 +44,9 @@ class AsanChunkView {
   uptr UsedSize();  // Size requested by the user.
   uptr AllocTid();
   uptr FreeTid();
-  void GetAllocStack(StackTrace *stack);
-  void GetFreeStack(StackTrace *stack);
+  bool Eq(const AsanChunkView &c) const { return chunk_ == c.chunk_; }
+  StackTrace GetAllocStack();
+  StackTrace GetFreeStack();
   bool AddrIsInside(uptr addr, uptr access_size, sptr *offset) {
     if (addr >= Beg() && (addr + access_size) <= End()) {
       *offset = addr - Beg();
@@ -90,31 +93,66 @@ class AsanChunkFifoList: public IntrusiveList<AsanChunk> {
   uptr size_;
 };
 
-struct AsanThreadLocalMallocStorage {
-  explicit AsanThreadLocalMallocStorage(LinkerInitialized x)
-      { }
-  AsanThreadLocalMallocStorage() {
-    CHECK(REAL(memset));
-    REAL(memset)(this, 0, sizeof(AsanThreadLocalMallocStorage));
-  }
-
-  uptr quarantine_cache[16];
-  uptr allocator2_cache[96 * (512 * 8 + 16)];  // Opaque.
-  void CommitBack();
+struct AsanMapUnmapCallback {
+  void OnMap(uptr p, uptr size) const;
+  void OnUnmap(uptr p, uptr size) const;
 };
 
-void *asan_memalign(uptr alignment, uptr size, StackTrace *stack,
-                    AllocType alloc_type);
-void asan_free(void *ptr, StackTrace *stack, AllocType alloc_type);
+#if SANITIZER_CAN_USE_ALLOCATOR64
+# if defined(__powerpc64__)
+const uptr kAllocatorSpace =  0xa0000000000ULL;
+const uptr kAllocatorSize  =  0x20000000000ULL;  // 2T.
+# else
+const uptr kAllocatorSpace = 0x600000000000ULL;
+const uptr kAllocatorSize  =  0x40000000000ULL;  // 4T.
+# endif
+typedef DefaultSizeClassMap SizeClassMap;
+typedef SizeClassAllocator64<kAllocatorSpace, kAllocatorSize, 0 /*metadata*/,
+    SizeClassMap, AsanMapUnmapCallback> PrimaryAllocator;
+#else  // Fallback to SizeClassAllocator32.
+static const uptr kRegionSizeLog = 20;
+static const uptr kNumRegions = SANITIZER_MMAP_RANGE_SIZE >> kRegionSizeLog;
+# if SANITIZER_WORDSIZE == 32
+typedef FlatByteMap<kNumRegions> ByteMap;
+# elif SANITIZER_WORDSIZE == 64
+typedef TwoLevelByteMap<(kNumRegions >> 12), 1 << 12> ByteMap;
+# endif
+typedef CompactSizeClassMap SizeClassMap;
+typedef SizeClassAllocator32<0, SANITIZER_MMAP_RANGE_SIZE, 16,
+  SizeClassMap, kRegionSizeLog,
+  ByteMap,
+  AsanMapUnmapCallback> PrimaryAllocator;
+#endif  // SANITIZER_CAN_USE_ALLOCATOR64
 
-void *asan_malloc(uptr size, StackTrace *stack);
-void *asan_calloc(uptr nmemb, uptr size, StackTrace *stack);
-void *asan_realloc(void *p, uptr size, StackTrace *stack);
-void *asan_valloc(uptr size, StackTrace *stack);
-void *asan_pvalloc(uptr size, StackTrace *stack);
+typedef SizeClassAllocatorLocalCache<PrimaryAllocator> AllocatorCache;
+typedef LargeMmapAllocator<AsanMapUnmapCallback> SecondaryAllocator;
+typedef CombinedAllocator<PrimaryAllocator, AllocatorCache,
+    SecondaryAllocator> Allocator;
+
+
+struct AsanThreadLocalMallocStorage {
+  uptr quarantine_cache[16];
+  AllocatorCache allocator2_cache;
+  void CommitBack();
+ private:
+  // These objects are allocated via mmap() and are zero-initialized.
+  AsanThreadLocalMallocStorage() {}
+};
+
+void *asan_memalign(uptr alignment, uptr size, BufferedStackTrace *stack,
+                    AllocType alloc_type);
+void asan_free(void *ptr, BufferedStackTrace *stack, AllocType alloc_type);
+void asan_sized_free(void *ptr, uptr size, BufferedStackTrace *stack,
+                     AllocType alloc_type);
+
+void *asan_malloc(uptr size, BufferedStackTrace *stack);
+void *asan_calloc(uptr nmemb, uptr size, BufferedStackTrace *stack);
+void *asan_realloc(void *p, uptr size, BufferedStackTrace *stack);
+void *asan_valloc(uptr size, BufferedStackTrace *stack);
+void *asan_pvalloc(uptr size, BufferedStackTrace *stack);
 
 int asan_posix_memalign(void **memptr, uptr alignment, uptr size,
-                          StackTrace *stack);
+                        BufferedStackTrace *stack);
 uptr asan_malloc_usable_size(void *ptr, uptr pc, uptr bp);
 
 uptr asan_mz_size(const void *ptr);

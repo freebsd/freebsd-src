@@ -15,7 +15,7 @@
 
 #include "tsan_defs.h"
 #include "tsan_mutex.h"
-#include "tsan_sync.h"
+#include "tsan_stack_trace.h"
 #include "tsan_mutexset.h"
 
 namespace __tsan {
@@ -42,27 +42,21 @@ enum EventType {
 typedef u64 Event;
 
 struct TraceHeader {
-  StackTrace stack0;  // Start stack for the trace.
+#ifndef SANITIZER_GO
+  BufferedStackTrace stack0;  // Start stack for the trace.
+#else
+  VarSizeStackTrace stack0;
+#endif
   u64        epoch0;  // Start epoch for the trace.
   MutexSet   mset0;
-#ifndef TSAN_GO
-  uptr       stack0buf[kTraceStackSize];
-#endif
 
-  TraceHeader()
-#ifndef TSAN_GO
-      : stack0(stack0buf, kTraceStackSize)
-#else
-      : stack0()
-#endif
-      , epoch0() {
-  }
+  TraceHeader() : stack0(), epoch0() {}
 };
 
 struct Trace {
   TraceHeader headers[kTraceParts];
   Mutex mtx;
-#ifndef TSAN_GO
+#ifndef SANITIZER_GO
   // Must be last to catch overflow as paging fault.
   // Go shadow stack is dynamically allocated.
   uptr shadow_stack[kShadowStackSize];

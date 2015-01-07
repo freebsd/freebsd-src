@@ -17,7 +17,6 @@
 #include "asan_allocator.h"
 #include "asan_internal.h"
 #include "asan_fake_stack.h"
-#include "asan_stack.h"
 #include "asan_stats.h"
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_libc.h"
@@ -56,12 +55,14 @@ COMPILER_CHECK(sizeof(AsanThreadContext) <= 256);
 // AsanThread are stored in TSD and destroyed when the thread dies.
 class AsanThread {
  public:
-  static AsanThread *Create(thread_callback_t start_routine, void *arg);
+  static AsanThread *Create(thread_callback_t start_routine, void *arg,
+                            u32 parent_tid, StackTrace *stack, bool detached);
   static void TSDDtor(void *tsd);
   void Destroy();
 
   void Init();  // Should be called from the thread itself.
-  thread_return_t ThreadStart(uptr os_id);
+  thread_return_t ThreadStart(uptr os_id,
+                              atomic_uintptr_t *signal_thread_is_registered);
 
   uptr stack_top() { return stack_top_; }
   uptr stack_bottom() { return stack_bottom_; }
@@ -72,18 +73,23 @@ class AsanThread {
   AsanThreadContext *context() { return context_; }
   void set_context(AsanThreadContext *context) { context_ = context; }
 
-  const char *GetFrameNameByAddr(uptr addr, uptr *offset, uptr *frame_pc);
+  struct StackFrameAccess {
+    uptr offset;
+    uptr frame_pc;
+    const char *frame_descr;
+  };
+  bool GetStackFrameAccessByAddr(uptr addr, StackFrameAccess *access);
 
   bool AddrIsInStack(uptr addr) {
     return addr >= stack_bottom_ && addr < stack_top_;
   }
 
-  void DeleteFakeStack() {
+  void DeleteFakeStack(int tid) {
     if (!fake_stack_) return;
     FakeStack *t = fake_stack_;
     fake_stack_ = 0;
     SetTLSFakeStack(0);
-    t->Destroy();
+    t->Destroy(tid);
   }
 
   bool has_fake_stack() {
@@ -101,14 +107,19 @@ class AsanThread {
   // True is this thread is currently unwinding stack (i.e. collecting a stack
   // trace). Used to prevent deadlocks on platforms where libc unwinder calls
   // malloc internally. See PR17116 for more details.
-  bool isUnwinding() const { return unwinding; }
-  void setUnwinding(bool b) { unwinding = b; }
+  bool isUnwinding() const { return unwinding_; }
+  void setUnwinding(bool b) { unwinding_ = b; }
+
+  // True if we are in a deadly signal handler.
+  bool isInDeadlySignal() const { return in_deadly_signal_; }
+  void setInDeadlySignal(bool b) { in_deadly_signal_ = b; }
 
   AsanThreadLocalMallocStorage &malloc_storage() { return malloc_storage_; }
   AsanStats &stats() { return stats_; }
 
  private:
-  AsanThread() : unwinding(false) {}
+  // NOTE: There is no AsanThread constructor. It is allocated
+  // via mmap() and *must* be valid in zero-initialized state.
   void SetThreadStackAndTls();
   void ClearShadowForThreadStackAndTLS();
   FakeStack *AsyncSignalSafeLazyInitFakeStack();
@@ -116,18 +127,19 @@ class AsanThread {
   AsanThreadContext *context_;
   thread_callback_t start_routine_;
   void *arg_;
-  uptr  stack_top_;
-  uptr  stack_bottom_;
+  uptr stack_top_;
+  uptr stack_bottom_;
   // stack_size_ == stack_top_ - stack_bottom_;
   // It needs to be set in a async-signal-safe manner.
-  uptr  stack_size_;
+  uptr stack_size_;
   uptr tls_begin_;
   uptr tls_end_;
 
   FakeStack *fake_stack_;
   AsanThreadLocalMallocStorage malloc_storage_;
   AsanStats stats_;
-  bool unwinding;
+  bool unwinding_;
+  bool in_deadly_signal_;
 };
 
 // ScopedUnwinding is a scope for stacktracing member of a context
@@ -142,9 +154,18 @@ class ScopedUnwinding {
   AsanThread *thread;
 };
 
-struct CreateThreadContextArgs {
+// ScopedDeadlySignal is a scope for handling deadly signals.
+class ScopedDeadlySignal {
+ public:
+  explicit ScopedDeadlySignal(AsanThread *t) : thread(t) {
+    if (thread) thread->setInDeadlySignal(true);
+  }
+  ~ScopedDeadlySignal() {
+    if (thread) thread->setInDeadlySignal(false);
+  }
+
+ private:
   AsanThread *thread;
-  StackTrace *stack;
 };
 
 // Returns a single instance of registry.

@@ -1,6 +1,6 @@
 DEBUG=0
-LDFLAGS=-ldl -lpthread -pie
-CXXFLAGS = -fPIE -fno-rtti -g -Wall -Werror \
+LDFLAGS=-ldl -lrt -lpthread -pie
+CXXFLAGS = -std=c++11 -fPIE -fno-rtti -g -Wall -Werror \
 					 -DGTEST_HAS_RTTI=0 -DTSAN_DEBUG=$(DEBUG) -DSANITIZER_DEBUG=$(DEBUG)
 CLANG=clang
 FILECHECK=FileCheck
@@ -31,6 +31,7 @@ RTL_TEST_OBJ=$(patsubst %.cc,%.o,$(RTL_TEST_SRC))
 UNIT_TEST_SRC=$(wildcard tests/unit/*_test.cc)
 UNIT_TEST_OBJ=$(patsubst %.cc,%.o,$(UNIT_TEST_SRC))
 UNIT_TEST_HDR=$(wildcard rtl/*.h) $(wildcard ../sanitizer_common/*.h)
+LIT_TESTS_PATH=../../test/tsan
 
 INCLUDES=-Irtl -I.. -I../../include $(GTEST_INCLUDE)
 
@@ -60,7 +61,7 @@ test: libtsan tsan_test
 
 run: all
 	(ulimit -s 8192; ./tsan_test)
-	CC=$(CLANG) CXX=$(CLANG)++ FILECHECK=$(FILECHECK) ./lit_tests/test_output.sh
+	CC=$(CLANG) CXX=$(CLANG)++ FILECHECK=$(FILECHECK) $(LIT_TESTS_PATH)/test_output.sh
 
 presubmit:
 	../sanitizer_common/scripts/check_lint.sh
@@ -70,12 +71,14 @@ presubmit:
 	# Release build with clang.
 	$(MAKE) -f Makefile.old clean
 	$(MAKE) -f Makefile.old run DEBUG=0 -j 16 CC=$(CLANG) CXX=$(CLANG)++
+	./check_memcpy.sh
 	# Debug build with gcc
 	$(MAKE) -f Makefile.old clean
 	$(MAKE) -f Makefile.old run DEBUG=1 -j 16 CC=gcc CXX=g++
 	# Release build with gcc
 	$(MAKE) -f Makefile.old clean
 	$(MAKE) -f Makefile.old run DEBUG=0 -j 16 CC=gcc CXX=g++
+	./check_memcpy.sh
 	./check_analyze.sh
 	# Sanity check for Go runtime
 	(cd go && ./buildgo.sh)

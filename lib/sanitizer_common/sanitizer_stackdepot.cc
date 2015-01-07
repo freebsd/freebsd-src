@@ -12,193 +12,118 @@
 //===----------------------------------------------------------------------===//
 
 #include "sanitizer_stackdepot.h"
+
 #include "sanitizer_common.h"
-#include "sanitizer_internal_defs.h"
-#include "sanitizer_mutex.h"
-#include "sanitizer_atomic.h"
+#include "sanitizer_stackdepotbase.h"
 
 namespace __sanitizer {
 
-const int kTabSize = 1024 * 1024;  // Hash table size.
-const int kPartBits = 8;
-const int kPartShift = sizeof(u32) * 8 - kPartBits - 1;
-const int kPartCount = 1 << kPartBits;  // Number of subparts in the table.
-const int kPartSize = kTabSize / kPartCount;
-const int kMaxId = 1 << kPartShift;
-
-struct StackDesc {
-  StackDesc *link;
+struct StackDepotNode {
+  StackDepotNode *link;
   u32 id;
-  u32 hash;
+  atomic_uint32_t hash_and_use_count; // hash_bits : 12; use_count : 20;
   uptr size;
   uptr stack[1];  // [size]
+
+  static const u32 kTabSizeLog = 20;
+  // Lower kTabSizeLog bits are equal for all items in one bucket.
+  // We use these bits to store the per-stack use counter.
+  static const u32 kUseCountBits = kTabSizeLog;
+  static const u32 kMaxUseCount = 1 << kUseCountBits;
+  static const u32 kUseCountMask = (1 << kUseCountBits) - 1;
+  static const u32 kHashMask = ~kUseCountMask;
+
+  typedef StackTrace args_type;
+  bool eq(u32 hash, const args_type &args) const {
+    u32 hash_bits =
+        atomic_load(&hash_and_use_count, memory_order_relaxed) & kHashMask;
+    if ((hash & kHashMask) != hash_bits || args.size != size) return false;
+    uptr i = 0;
+    for (; i < size; i++) {
+      if (stack[i] != args.trace[i]) return false;
+    }
+    return true;
+  }
+  static uptr storage_size(const args_type &args) {
+    return sizeof(StackDepotNode) + (args.size - 1) * sizeof(uptr);
+  }
+  static u32 hash(const args_type &args) {
+    // murmur2
+    const u32 m = 0x5bd1e995;
+    const u32 seed = 0x9747b28c;
+    const u32 r = 24;
+    u32 h = seed ^ (args.size * sizeof(uptr));
+    for (uptr i = 0; i < args.size; i++) {
+      u32 k = args.trace[i];
+      k *= m;
+      k ^= k >> r;
+      k *= m;
+      h *= m;
+      h ^= k;
+    }
+    h ^= h >> 13;
+    h *= m;
+    h ^= h >> 15;
+    return h;
+  }
+  static bool is_valid(const args_type &args) {
+    return args.size > 0 && args.trace;
+  }
+  void store(const args_type &args, u32 hash) {
+    atomic_store(&hash_and_use_count, hash & kHashMask, memory_order_relaxed);
+    size = args.size;
+    internal_memcpy(stack, args.trace, size * sizeof(uptr));
+  }
+  args_type load() const {
+    return args_type(&stack[0], size);
+  }
+  StackDepotHandle get_handle() { return StackDepotHandle(this); }
+
+  typedef StackDepotHandle handle_type;
 };
 
-static struct {
-  StaticSpinMutex mtx;  // Protects alloc of new blocks for region allocator.
-  atomic_uintptr_t region_pos;  // Region allocator for StackDesc's.
-  atomic_uintptr_t region_end;
-  atomic_uintptr_t tab[kTabSize];  // Hash table of StackDesc's.
-  atomic_uint32_t seq[kPartCount];  // Unique id generators.
-} depot;
+COMPILER_CHECK(StackDepotNode::kMaxUseCount == (u32)kStackDepotMaxUseCount);
 
-static StackDepotStats stats;
+u32 StackDepotHandle::id() { return node_->id; }
+int StackDepotHandle::use_count() {
+  return atomic_load(&node_->hash_and_use_count, memory_order_relaxed) &
+         StackDepotNode::kUseCountMask;
+}
+void StackDepotHandle::inc_use_count_unsafe() {
+  u32 prev =
+      atomic_fetch_add(&node_->hash_and_use_count, 1, memory_order_relaxed) &
+      StackDepotNode::kUseCountMask;
+  CHECK_LT(prev + 1, StackDepotNode::kMaxUseCount);
+}
+
+// FIXME(dvyukov): this single reserved bit is used in TSan.
+typedef StackDepotBase<StackDepotNode, 1, StackDepotNode::kTabSizeLog>
+    StackDepot;
+static StackDepot theDepot;
 
 StackDepotStats *StackDepotGetStats() {
-  return &stats;
+  return theDepot.GetStats();
 }
 
-static u32 hash(const uptr *stack, uptr size) {
-  // murmur2
-  const u32 m = 0x5bd1e995;
-  const u32 seed = 0x9747b28c;
-  const u32 r = 24;
-  u32 h = seed ^ (size * sizeof(uptr));
-  for (uptr i = 0; i < size; i++) {
-    u32 k = stack[i];
-    k *= m;
-    k ^= k >> r;
-    k *= m;
-    h *= m;
-    h ^= k;
-  }
-  h ^= h >> 13;
-  h *= m;
-  h ^= h >> 15;
-  return h;
+u32 StackDepotPut(StackTrace stack) {
+  StackDepotHandle h = theDepot.Put(stack);
+  return h.valid() ? h.id() : 0;
 }
 
-static StackDesc *tryallocDesc(uptr memsz) {
-  // Optimisic lock-free allocation, essentially try to bump the region ptr.
-  for (;;) {
-    uptr cmp = atomic_load(&depot.region_pos, memory_order_acquire);
-    uptr end = atomic_load(&depot.region_end, memory_order_acquire);
-    if (cmp == 0 || cmp + memsz > end)
-      return 0;
-    if (atomic_compare_exchange_weak(
-        &depot.region_pos, &cmp, cmp + memsz,
-        memory_order_acquire))
-      return (StackDesc*)cmp;
-  }
+StackDepotHandle StackDepotPut_WithHandle(StackTrace stack) {
+  return theDepot.Put(stack);
 }
 
-static StackDesc *allocDesc(uptr size) {
-  // First, try to allocate optimisitically.
-  uptr memsz = sizeof(StackDesc) + (size - 1) * sizeof(uptr);
-  StackDesc *s = tryallocDesc(memsz);
-  if (s)
-    return s;
-  // If failed, lock, retry and alloc new superblock.
-  SpinMutexLock l(&depot.mtx);
-  for (;;) {
-    s = tryallocDesc(memsz);
-    if (s)
-      return s;
-    atomic_store(&depot.region_pos, 0, memory_order_relaxed);
-    uptr allocsz = 64 * 1024;
-    if (allocsz < memsz)
-      allocsz = memsz;
-    uptr mem = (uptr)MmapOrDie(allocsz, "stack depot");
-    stats.mapped += allocsz;
-    atomic_store(&depot.region_end, mem + allocsz, memory_order_release);
-    atomic_store(&depot.region_pos, mem, memory_order_release);
-  }
+StackTrace StackDepotGet(u32 id) {
+  return theDepot.Get(id);
 }
 
-static u32 find(StackDesc *s, const uptr *stack, uptr size, u32 hash) {
-  // Searches linked list s for the stack, returns its id.
-  for (; s; s = s->link) {
-    if (s->hash == hash && s->size == size) {
-      uptr i = 0;
-      for (; i < size; i++) {
-        if (stack[i] != s->stack[i])
-          break;
-      }
-      if (i == size)
-        return s->id;
-    }
-  }
-  return 0;
+void StackDepotLockAll() {
+  theDepot.LockAll();
 }
 
-static StackDesc *lock(atomic_uintptr_t *p) {
-  // Uses the pointer lsb as mutex.
-  for (int i = 0;; i++) {
-    uptr cmp = atomic_load(p, memory_order_relaxed);
-    if ((cmp & 1) == 0
-        && atomic_compare_exchange_weak(p, &cmp, cmp | 1,
-                                        memory_order_acquire))
-      return (StackDesc*)cmp;
-    if (i < 10)
-      proc_yield(10);
-    else
-      internal_sched_yield();
-  }
-}
-
-static void unlock(atomic_uintptr_t *p, StackDesc *s) {
-  DCHECK_EQ((uptr)s & 1, 0);
-  atomic_store(p, (uptr)s, memory_order_release);
-}
-
-u32 StackDepotPut(const uptr *stack, uptr size) {
-  if (stack == 0 || size == 0)
-    return 0;
-  uptr h = hash(stack, size);
-  atomic_uintptr_t *p = &depot.tab[h % kTabSize];
-  uptr v = atomic_load(p, memory_order_consume);
-  StackDesc *s = (StackDesc*)(v & ~1);
-  // First, try to find the existing stack.
-  u32 id = find(s, stack, size, h);
-  if (id)
-    return id;
-  // If failed, lock, retry and insert new.
-  StackDesc *s2 = lock(p);
-  if (s2 != s) {
-    id = find(s2, stack, size, h);
-    if (id) {
-      unlock(p, s2);
-      return id;
-    }
-  }
-  uptr part = (h % kTabSize) / kPartSize;
-  id = atomic_fetch_add(&depot.seq[part], 1, memory_order_relaxed) + 1;
-  stats.n_uniq_ids++;
-  CHECK_LT(id, kMaxId);
-  id |= part << kPartShift;
-  CHECK_NE(id, 0);
-  CHECK_EQ(id & (1u << 31), 0);
-  s = allocDesc(size);
-  s->id = id;
-  s->hash = h;
-  s->size = size;
-  internal_memcpy(s->stack, stack, size * sizeof(uptr));
-  s->link = s2;
-  unlock(p, s);
-  return id;
-}
-
-const uptr *StackDepotGet(u32 id, uptr *size) {
-  if (id == 0)
-    return 0;
-  CHECK_EQ(id & (1u << 31), 0);
-  // High kPartBits contain part id, so we need to scan at most kPartSize lists.
-  uptr part = id >> kPartShift;
-  for (int i = 0; i != kPartSize; i++) {
-    uptr idx = part * kPartSize + i;
-    CHECK_LT(idx, kTabSize);
-    atomic_uintptr_t *p = &depot.tab[idx];
-    uptr v = atomic_load(p, memory_order_consume);
-    StackDesc *s = (StackDesc*)(v & ~1);
-    for (; s; s = s->link) {
-      if (s->id == id) {
-        *size = s->size;
-        return s->stack;
-      }
-    }
-  }
-  *size = 0;
-  return 0;
+void StackDepotUnlockAll() {
+  theDepot.UnlockAll();
 }
 
 bool StackDepotReverseMap::IdDescPair::IdComparator(
@@ -209,10 +134,10 @@ bool StackDepotReverseMap::IdDescPair::IdComparator(
 
 StackDepotReverseMap::StackDepotReverseMap()
     : map_(StackDepotGetStats()->n_uniq_ids + 100) {
-  for (int idx = 0; idx < kTabSize; idx++) {
-    atomic_uintptr_t *p = &depot.tab[idx];
+  for (int idx = 0; idx < StackDepot::kTabSize; idx++) {
+    atomic_uintptr_t *p = &theDepot.tab[idx];
     uptr v = atomic_load(p, memory_order_consume);
-    StackDesc *s = (StackDesc*)(v & ~1);
+    StackDepotNode *s = (StackDepotNode*)(v & ~1);
     for (; s; s = s->link) {
       IdDescPair pair = {s->id, s};
       map_.push_back(pair);
@@ -221,18 +146,15 @@ StackDepotReverseMap::StackDepotReverseMap()
   InternalSort(&map_, map_.size(), IdDescPair::IdComparator);
 }
 
-const uptr *StackDepotReverseMap::Get(u32 id, uptr *size) {
-  if (!map_.size()) return 0;
+StackTrace StackDepotReverseMap::Get(u32 id) {
+  if (!map_.size())
+    return StackTrace();
   IdDescPair pair = {id, 0};
   uptr idx = InternalBinarySearch(map_, 0, map_.size(), pair,
                                   IdDescPair::IdComparator);
-  if (idx > map_.size()) {
-    *size = 0;
-    return 0;
-  }
-  StackDesc *desc = map_[idx].desc;
-  *size = desc->size;
-  return desc->stack;
+  if (idx > map_.size())
+    return StackTrace();
+  return map_[idx].desc->load();
 }
 
 }  // namespace __sanitizer

@@ -29,6 +29,8 @@ void *internal_memchr(const void *s, int c, uptr n);
 int internal_memcmp(const void* s1, const void* s2, uptr n);
 void *internal_memcpy(void *dest, const void *src, uptr n);
 void *internal_memmove(void *dest, const void *src, uptr n);
+// Set [s, s + n) to 0. Both s and n should be 16-aligned.
+void internal_bzero_aligned16(void *s, uptr n);
 // Should not be used in performance-critical places.
 void *internal_memset(void *s, int c, uptr n);
 char* internal_strchr(const char *s, int c);
@@ -72,6 +74,7 @@ uptr internal_open(const char *filename, int flags, u32 mode);
 
 uptr internal_read(fd_t fd, void *buf, uptr count);
 uptr internal_write(fd_t fd, const void *buf, uptr count);
+uptr internal_ftruncate(fd_t fd, uptr size);
 
 // OS
 uptr internal_filesize(fd_t fd);  // -1 on error.
@@ -81,6 +84,7 @@ uptr internal_fstat(fd_t fd, void *buf);
 uptr internal_dup2(int oldfd, int newfd);
 uptr internal_readlink(const char *path, char *buf, uptr bufsize);
 uptr internal_unlink(const char *path);
+uptr internal_rename(const char *oldpath, const char *newpath);
 void NORETURN internal__exit(int exitcode);
 uptr internal_lseek(fd_t fd, OFF_T offset, int whence);
 
@@ -89,11 +93,15 @@ uptr internal_waitpid(int pid, int *status, int options);
 uptr internal_getpid();
 uptr internal_getppid();
 
+int internal_fork();
+
 // Threading
 uptr internal_sched_yield();
 
 // Error handling
 bool internal_iserror(uptr retval, int *rverrno = 0);
+
+int internal_sigaction(int signum, const void *act, void *oldact);
 
 }  // namespace __sanitizer
 
