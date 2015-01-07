@@ -2,8 +2,6 @@
 #
 # $FreeBSD$
 
-machine		mips mipsel	# Malta supports both, so it isn't in std.malta
-
 options 	YAMON
 
 # Don't build any modules yet.
