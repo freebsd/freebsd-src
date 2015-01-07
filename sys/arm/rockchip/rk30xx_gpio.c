@@ -79,10 +79,14 @@ struct rk30_gpio_softc {
 	bus_space_tag_t		sc_bst;
 	bus_space_handle_t	sc_bsh;
 	void *			sc_intrhand;
+	int			sc_bank;
 	int			sc_gpio_npins;
 	struct gpio_pin		sc_gpio_pins[RK30_GPIO_PINS];
 };
 
+/* We use our base address to find out our bank number. */
+static unsigned long rk30_gpio_base_addr[4] =
+	{ 0x2000a000, 0x2003c000, 0x2003e000, 0x20080000 };
 static struct rk30_gpio_softc *rk30_gpio_sc = NULL;
 
 typedef int (*gpios_phandler_t)(phandle_t, pcell_t *, int);
@@ -153,17 +157,28 @@ rk30_gpio_set_function(struct rk30_gpio_softc *sc, uint32_t pin, uint32_t func)
 static void
 rk30_gpio_set_pud(struct rk30_gpio_softc *sc, uint32_t pin, uint32_t state)
 {
-	uint32_t bank;
-
-	bank = pin / 32;
+	uint32_t pud;
 
 	/* Must be called with lock held. */
 	RK30_GPIO_LOCK_ASSERT(sc);
-
-	if (bank == 0 && pin < 12)
-		rk30_pmu_gpio_pud(pin, state);
+	switch (state) {
+	case GPIO_PIN_PULLUP:
+		pud = RK30_GPIO_PULLUP;
+		break;
+	case GPIO_PIN_PULLDOWN:
+		pud = RK30_GPIO_PULLDOWN;
+		break;
+	default:
+		pud = RK30_GPIO_NONE;
+	}
+	/*
+	 * The pull up/down registers for GPIO0A and half of GPIO0B
+	 * (the first 12 pins on bank 0) are at a different location.
+	 */
+	if (sc->sc_bank == 0 && pin < 12)
+		rk30_pmu_gpio_pud(pin, pud);
 	else
-		rk30_grf_gpio_pud(bank, pin, state);
+		rk30_grf_gpio_pud(sc->sc_bank, pin, pud);
 }
 
 static void
@@ -183,22 +198,15 @@ rk30_gpio_pin_configure(struct rk30_gpio_softc *sc, struct gpio_pin *pin,
 			pin->gp_flags |= GPIO_PIN_INPUT;
 		rk30_gpio_set_function(sc, pin->gp_pin, pin->gp_flags);
 	}
-
 	/* Manage Pull-up/pull-down. */
-	pin->gp_flags &= ~(GPIO_PIN_PULLUP|GPIO_PIN_PULLDOWN);
-	if (flags & (GPIO_PIN_PULLUP|GPIO_PIN_PULLDOWN)) {
-		if (flags & GPIO_PIN_PULLUP) {
+	pin->gp_flags &= ~(GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN);
+	if (flags & (GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)) {
+		if (flags & GPIO_PIN_PULLUP)
 			pin->gp_flags |= GPIO_PIN_PULLUP;
-			rk30_gpio_set_pud(sc, pin->gp_pin, 
-			    RK30_GPIO_PULLUP);
-		} else {
+		else
 			pin->gp_flags |= GPIO_PIN_PULLDOWN;
-			rk30_gpio_set_pud(sc, pin->gp_pin, 
-			    RK30_GPIO_PULLDOWN);
-		}
-	} else
-		rk30_gpio_set_pud(sc, pin->gp_pin, RK30_GPIO_NONE);
-
+	}
+	rk30_gpio_set_pud(sc, pin->gp_pin, pin->gp_flags);
 	RK30_GPIO_UNLOCK(sc);
 }
 
@@ -386,13 +394,11 @@ rk30_gpio_attach(device_t dev)
 	struct rk30_gpio_softc *sc = device_get_softc(dev);
 	int i, rid;
 	phandle_t gpio;
+	unsigned long start;
 
 	if (rk30_gpio_sc)
 		return (ENXIO);
-
 	sc->sc_dev = dev;
-
-	mtx_init(&sc->sc_mtx, "rk30 gpio", "gpio", MTX_DEF);
 
 	rid = 0;
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
@@ -401,9 +407,23 @@ rk30_gpio_attach(device_t dev)
 		device_printf(dev, "cannot allocate memory window\n");
 		return (ENXIO);
 	}
-
 	sc->sc_bst = rman_get_bustag(sc->sc_mem_res);
 	sc->sc_bsh = rman_get_bushandle(sc->sc_mem_res);
+	/* Check the unit we are attaching by our base address. */
+	sc->sc_bank = -1;
+	start = rman_get_start(sc->sc_mem_res);
+	for (i = 0; i < nitems(rk30_gpio_base_addr); i++) {
+		if (rk30_gpio_base_addr[i] == start) {
+			sc->sc_bank = i;
+			break;
+		}
+	}
+	if (sc->sc_bank == -1) {
+		device_printf(dev,
+		    "unsupported device unit (only GPIO0..3 are supported)\n");
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
+		return (ENXIO);
+	}
 
 	rid = 0;
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
@@ -420,6 +440,8 @@ rk30_gpio_attach(device_t dev)
 	if (!OF_hasprop(gpio, "gpio-controller"))
 		/* Node is not a GPIO controller. */
 		goto fail;
+
+	mtx_init(&sc->sc_mtx, "rk30 gpio", "gpio", MTX_DEF);
 
 	/* Initialize the software controlled pins. */
 	for (i = 0; i < RK30_GPIO_PINS; i++) {
