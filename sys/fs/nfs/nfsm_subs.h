@@ -46,9 +46,6 @@
 /*
  * First define what the actual subs. return
  */
-#define	M_HASCL(m)	((m)->m_flags & M_EXT)
-#define	NFSMSIZ(m)	((M_HASCL(m))?MCLBYTES: 			\
-				(((m)->m_flags & M_PKTHDR)?MHLEN:MLEN))
 #define	NFSM_DATAP(m, s)	(m)->m_data += (s)
 
 /*
