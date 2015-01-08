@@ -3872,9 +3872,9 @@ dashutdown(void * arg, int howto)
 #else /* !_KERNEL */
 
 /*
- * XXX This is only left out of the kernel build to silence warnings.  If,
- * for some reason this function is used in the kernel, the ifdefs should
- * be moved so it is included both in the kernel and userland.
+ * XXX These are only left out of the kernel build to silence warnings.  If,
+ * for some reason these functions are used in the kernel, the ifdefs should
+ * be moved so they are included both in the kernel and userland.
  */
 void
 scsi_format_unit(struct ccb_scsiio *csio, u_int32_t retries,
@@ -3899,6 +3899,59 @@ scsi_format_unit(struct ccb_scsiio *csio, u_int32_t retries,
 		      dxfer_len,
 		      sense_len,
 		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_read_defects(struct ccb_scsiio *csio, uint32_t retries,
+		  void (*cbfcnp)(struct cam_periph *, union ccb *),
+		  uint8_t tag_action, uint8_t list_format,
+		  uint32_t addr_desc_index, uint8_t *data_ptr,
+		  uint32_t dxfer_len, int minimum_cmd_size, 
+		  uint8_t sense_len, uint32_t timeout)
+{
+	uint8_t cdb_len;
+
+	/*
+	 * These conditions allow using the 10 byte command.  Otherwise we
+	 * need to use the 12 byte command.
+	 */
+	if ((minimum_cmd_size <= 10)
+	 && (addr_desc_index == 0) 
+	 && (dxfer_len <= SRDD10_MAX_LENGTH)) {
+		struct scsi_read_defect_data_10 *cdb10;
+
+		cdb10 = (struct scsi_read_defect_data_10 *)
+			&csio->cdb_io.cdb_bytes;
+
+		cdb_len = sizeof(*cdb10);
+		bzero(cdb10, cdb_len);
+                cdb10->opcode = READ_DEFECT_DATA_10;
+                cdb10->format = list_format;
+                scsi_ulto2b(dxfer_len, cdb10->alloc_length);
+	} else {
+		struct scsi_read_defect_data_12 *cdb12;
+
+		cdb12 = (struct scsi_read_defect_data_12 *)
+			&csio->cdb_io.cdb_bytes;
+
+		cdb_len = sizeof(*cdb12);
+		bzero(cdb12, cdb_len);
+                cdb12->opcode = READ_DEFECT_DATA_12;
+                cdb12->format = list_format;
+                scsi_ulto4b(dxfer_len, cdb12->alloc_length);
+		scsi_ulto4b(addr_desc_index, cdb12->address_descriptor_index);
+	}
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/ CAM_DIR_IN,
+		      tag_action,
+		      data_ptr,
+		      dxfer_len,
+		      sense_len,
+		      cdb_len,
 		      timeout);
 }
 
