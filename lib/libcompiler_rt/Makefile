@@ -14,16 +14,18 @@ CRTARCH=x86_64
 CRTARCH=${MACHINE_CPUARCH}
 .endif
 
-CRTSRC=${.CURDIR}/../../contrib/compiler-rt/lib
+CRTSRC=${.CURDIR}/../../contrib/compiler-rt/lib/builtins
 
 .PATH: ${CRTSRC}/${CRTARCH} ${CRTSRC}
 
 SRCF=	absvdi2 \
 	absvsi2 \
 	absvti2 \
+	addtf3 \
 	addvdi3 \
 	addvsi3 \
 	addvti3 \
+	apple_versioning \
 	ashldi3 \
 	ashlti3 \
 	ashrdi3 \
@@ -44,6 +46,7 @@ SRCF=	absvdi2 \
 	divmoddi4 \
 	divmodsi4 \
 	divsc3 \
+	divtf3 \
 	divti3 \
 	divxc3 \
 	enable_execute_stack \
@@ -79,6 +82,7 @@ SRCF=	absvdi2 \
 	floatuntidf \
 	floatuntisf \
 	floatuntixf \
+	gcc_personality_v0 \
 	int_util \
 	lshrdi3 \
 	lshrti3 \
@@ -90,6 +94,7 @@ SRCF=	absvdi2 \
 	mulosi4 \
 	muloti4 \
 	mulsc3 \
+	multf3 \
 	multi3 \
 	mulvdi3 \
 	mulvsi3 \
@@ -112,6 +117,7 @@ SRCF=	absvdi2 \
 	powisf2 \
 	powitf2 \
 	powixf2 \
+	subtf3 \
 	subvdi3 \
 	subvsi3 \
 	subvti3 \
@@ -174,14 +180,62 @@ SRCS+=	${file}.c
 .endfor
 
 .if ${MACHINE_CPUARCH} == "arm"
-SRCS+=	aeabi_idivmod.S \
+SRCS+=	aeabi_dcmp.S \
+	aeabi_div0.S \
+	aeabi_fcmp.S \
+	aeabi_idivmod.S \
 	aeabi_ldivmod.S \
 	aeabi_memcmp.S \
 	aeabi_memcpy.S \
 	aeabi_memmove.S \
 	aeabi_memset.S \
 	aeabi_uidivmod.S \
-	aeabi_uldivmod.S
+	aeabi_uldivmod.S \
+	bswapdi2.S \
+	bswapsi2.S \
+	eqdf2.S \
+	eqsf2.S \
+	floatunssidf.S \
+	floatunssisf.S \
+	gedf2.S \
+	gesf2.S \
+	gtdf2.S \
+	gtsf2.S \
+	ledf2.S \
+	lesf2.S \
+	ltdf2.S \
+	ltsf2.S \
+	nedf2.S \
+	nesf2.S \
+	restore_vfp_d8_d15_regs.S \
+	save_vfp_d8_d15_regs.S \
+	switch16.S \
+	switch32.S \
+	switch8.S \
+	switchu8.S \
+	sync_fetch_and_add_4.S \
+	sync_fetch_and_add_8.S \
+	sync_fetch_and_and_4.S \
+	sync_fetch_and_and_8.S \
+	sync_fetch_and_max_4.S \
+	sync_fetch_and_max_8.S \
+	sync_fetch_and_min_4.S \
+	sync_fetch_and_min_8.S \
+	sync_fetch_and_nand_4.S \
+	sync_fetch_and_nand_8.S \
+	sync_fetch_and_or_4.S \
+	sync_fetch_and_or_8.S \
+	sync_fetch_and_sub_4.S \
+	sync_fetch_and_sub_8.S \
+	sync_fetch_and_umax_4.S \
+	sync_fetch_and_umax_8.S \
+	sync_fetch_and_umin_4.S \
+	sync_fetch_and_umin_8.S \
+	sync_fetch_and_xor_4.S \
+	sync_fetch_and_xor_8.S \
+	sync_synchronize.S \
+	unorddf2.S \
+	unordsf2.S
 .endif
 
 .if ${MK_INSTALLLIB} != "no"
