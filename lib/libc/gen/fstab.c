@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <vis.h>
 #include "un-namespace.h"
 
 static FILE *_fs_fp;
@@ -150,11 +151,17 @@ fstabscan()
 		while ((cp = strsep(&p, " \t\n")) != NULL && *cp == '\0')
 			;
 		_fs_fstab.fs_spec = cp;
-		if (!_fs_fstab.fs_spec || *_fs_fstab.fs_spec == '#')
+		if (_fs_fstab.fs_spec == NULL || *_fs_fstab.fs_spec == '#')
 			continue;
+		if (strunvis(_fs_fstab.fs_spec, _fs_fstab.fs_spec) < 0)
+			goto bad;
 		while ((cp = strsep(&p, " \t\n")) != NULL && *cp == '\0')
 			;
 		_fs_fstab.fs_file = cp;
+		if (_fs_fstab.fs_file == NULL)
+			goto bad;
+		if (strunvis(_fs_fstab.fs_file, _fs_fstab.fs_file) < 0)
+			goto bad;
 		fixfsfile();
 		while ((cp = strsep(&p, " \t\n")) != NULL && *cp == '\0')
 			;
