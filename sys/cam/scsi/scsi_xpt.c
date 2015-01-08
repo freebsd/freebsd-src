@@ -755,7 +755,8 @@ again:
 		 * serial number check finish, we attempt to figure out
 		 * whether we still have the same device.
 		 */
-		if ((periph->path->device->flags & CAM_DEV_UNCONFIGURED) == 0) {
+		if (((periph->path->device->flags & CAM_DEV_UNCONFIGURED) == 0)
+		 && ((softc->flags & PROBE_INQUIRY_CKSUM) == 0)) {
 
 			MD5Init(&softc->context);
 			MD5Update(&softc->context, (unsigned char *)inq_buf,
