@@ -40,6 +40,7 @@ if [ ! -f /usr/ports/Makefile ]; then
 fi
 
 if [ ! -x /usr/local/sbin/pkg ]; then
+	/etc/rc.d/ldconfig restart
 	/usr/bin/make -C /usr/ports/ports-mgmt/pkg install clean
 fi
 
