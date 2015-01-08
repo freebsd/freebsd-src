@@ -6,6 +6,8 @@
 PROG=	sed
 SRCS=	compile.c main.c misc.c process.c
 
+WARNS?=	2
+
 .if ${MK_TESTS} != "no"
 SUBDIR+= tests
 .endif
