@@ -5696,6 +5696,8 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 				}
 			}
 		}
+		isp_fcp_reset_crn(fc, /*tgt*/0, /*tgt_set*/ 0);
+
 		isp_prt(isp, ISP_LOGINFO, "Chan %d: %s", bus, msg);
 		break;
 	}
@@ -5747,6 +5749,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		if (lp->dev_map_idx) {
 			tgt = lp->dev_map_idx - 1;
 			isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "arrived at", tgt, (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
+			isp_fcp_reset_crn(fc, tgt, /*tgt_set*/ 1);
 			isp_make_here(isp, bus, tgt);
 		} else {
 			isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "arrived", (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
@@ -5783,6 +5786,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 				tgt = lp->dev_map_idx - 1;
 				isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "changed at", tgt,
 				    (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
+				isp_fcp_reset_crn(fc, tgt, /*tgt_set*/ 1);
 			} else {
 				isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "changed", (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
 			}
@@ -5795,6 +5799,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 		va_end(ap);
 		isp_gen_role_str(buf, sizeof (buf), lp->prli_word3);
 		if (lp->dev_map_idx) {
+			fc = ISP_FC_PC(isp, bus);
 			tgt = lp->dev_map_idx - 1;
 			isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "stayed at", tgt,
 		    	    (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
@@ -5829,6 +5834,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, ...)
 			}
 			tgt = lp->dev_map_idx - 1;
 			isp_prt(isp, ISP_LOGCONFIG, prom2, bus, lp->portid, lp->handle, buf, "gone zombie at", tgt, (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
+			isp_fcp_reset_crn(fc, tgt, /*tgt_set*/ 1);
 		} else if (lp->announced == 0) {
 			isp_prt(isp, ISP_LOGCONFIG, prom0, bus, lp->portid, lp->handle, buf, "departed", (uint32_t) (lp->port_wwn >> 32), (uint32_t) lp->port_wwn);
 		}
@@ -6375,6 +6381,33 @@ isp_common_dmateardown(ispsoftc_t *isp, struct ccb_scsiio *csio, uint32_t hdl)
 		bus_dmamap_sync(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap, BUS_DMASYNC_POSTWRITE);
 	}
 	bus_dmamap_unload(isp->isp_osinfo.dmat, PISP_PCMD(csio)->dmap);
+}
+
+/*
+ * Reset the command reference number for all LUNs on a specific target
+ * (needed when a target arrives again) or for all targets on a port
+ * (needed for events like a LIP).
+ */
+void
+isp_fcp_reset_crn(struct isp_fc *fc, uint32_t tgt, int tgt_set)
+{
+	int i;
+	struct isp_nexus *nxp;
+
+	if (tgt_set == 0)
+		isp_prt(fc->isp, ISP_LOG_SANCFG, "resetting CRN on all targets");
+	else
+		isp_prt(fc->isp, ISP_LOG_SANCFG, "resetting CRN target %u", tgt);
+
+	for (i = 0; i < NEXUS_HASH_WIDTH; i++) {
+		nxp = fc->nexus_hash[i];
+		while (nxp) {
+			if ((tgt_set != 0) && (tgt == nxp->tgt))
+				nxp->crnseed = 0;
+
+			nxp = nxp->next;
+		}
+	}
 }
 
 int
