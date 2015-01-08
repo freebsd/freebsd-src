@@ -17,7 +17,6 @@ nodevice	hptmv
 nodevice	ida
 
 # The following drivers don't work with PAE enabled.
-makeoptions	WITHOUT_MODULES+="asr ncr pst"
-nodevice	asr
+makeoptions	WITHOUT_MODULES+="ncr pst"
 nodevice	ncr
 nodevice	pst

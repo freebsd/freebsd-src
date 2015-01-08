@@ -38,11 +38,13 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
+#include "libc_private.h"
+
 /*
  * Backwards compatible pause.
  */
 int
-__pause(void)
+__libc_pause(void)
 {
 	sigset_t oset;
 
@@ -50,5 +52,15 @@ __pause(void)
 		return (-1);
 	return (_sigsuspend(&oset));
 }
-__weak_reference(__pause, pause);
-__weak_reference(__pause, _pause);
+
+#pragma weak pause
+int
+pause(void)
+{
+
+	return (((int (*)(void))
+	    __libc_interposing[INTERPOS_pause])());
+}
+
+__weak_reference(__libc_pause, __pause);
+__weak_reference(__libc_pause, _pause);

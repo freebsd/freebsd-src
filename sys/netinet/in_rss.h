@@ -112,10 +112,10 @@ u_int	rss_gethashconfig(void);
 uint32_t	rss_hash_ip4_4tuple(struct in_addr src, u_short srcport,
 		    struct in_addr dst, u_short dstport);
 uint32_t	rss_hash_ip4_2tuple(struct in_addr src, struct in_addr dst);
-uint32_t	rss_hash_ip6_4tuple(struct in6_addr src, u_short srcport,
-		    struct in6_addr dst, u_short dstport);
-uint32_t	rss_hash_ip6_2tuple(struct in6_addr src,
-		    struct in6_addr dst);
+uint32_t	rss_hash_ip6_4tuple(const struct in6_addr *src, u_short srcport,
+		    const struct in6_addr *dst, u_short dstport);
+uint32_t	rss_hash_ip6_2tuple(const struct in6_addr *src,
+		    const struct in6_addr *dst);
 
 /*
  * Network stack interface to query desired CPU affinity of a packet.

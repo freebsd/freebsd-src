@@ -117,8 +117,7 @@ ipoib_alloc_map_mb(struct ipoib_dev_priv *priv, struct ipoib_rx_buf *rx_req,
 	if (mb == NULL)
 		return (NULL);
 	for (i = 0, m = mb; m != NULL; m = m->m_next, i++) {
-		m->m_len = (m->m_flags & M_EXT) ? m->m_ext.ext_size :
-		    ((m->m_flags & M_PKTHDR) ? MHLEN : MLEN);
+		m->m_len = M_SIZE(m);
 		mb->m_pkthdr.len += m->m_len;
 		rx_req->mapping[i] = ib_dma_map_single(priv->ca,
 		    mtod(m, void *), m->m_len, DMA_FROM_DEVICE);

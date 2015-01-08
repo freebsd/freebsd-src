@@ -188,6 +188,10 @@ struct comm_point {
 		comm_ssl_shake_hs_write
 	} ssl_shake_state;
 
+	/* -------- dnstap ------- */
+	/** the dnstap environment */
+	struct dt_env* dtenv;
+
 	/** is this a UDP, TCP-accept or TCP socket. */
 	enum comm_point_type {
 		/** UDP socket - handle datagrams. */

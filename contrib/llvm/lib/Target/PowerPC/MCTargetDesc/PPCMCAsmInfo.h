@@ -21,18 +21,15 @@ namespace llvm {
 class Triple;
 
   class PPCMCAsmInfoDarwin : public MCAsmInfoDarwin {
-    virtual void anchor();
+    void anchor() override;
   public:
-    /// This version of the constructor is here to maintain ABI compatibility
-    /// with LLVM 3.4.0.
-    explicit PPCMCAsmInfoDarwin(bool is64Bit);
     explicit PPCMCAsmInfoDarwin(bool is64Bit, const Triple&);
   };
 
   class PPCLinuxMCAsmInfo : public MCAsmInfoELF {
-    virtual void anchor();
+    void anchor() override;
   public:
-    explicit PPCLinuxMCAsmInfo(bool is64Bit);
+    explicit PPCLinuxMCAsmInfo(bool is64Bit, const Triple&);
   };
 
 } // namespace llvm

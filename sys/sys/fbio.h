@@ -135,9 +135,10 @@ struct fb_info {
 	void		*fb_priv;	/* First argument for read/write. */
 	const char	*fb_name;
 	uint32_t	fb_flags;
+#define	FB_FLAG_NOMMAP		1	/* mmap unsupported. */
+#define	FB_FLAG_NOWRITE		2	/* disable writes for the time being */
 	int		fb_stride;
 	int		fb_bpp;		/* bits per pixel */
-#define	FB_FLAG_NOMMAP		1	/* mmap unsupported. */
 	uint32_t	fb_cmap[16];
 };
 

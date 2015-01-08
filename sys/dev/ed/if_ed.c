@@ -1323,10 +1323,7 @@ ed_get_packet(struct ed_softc *sc, bus_size_t buf, u_short len)
 	 */
 	if ((len + 2) > MHLEN) {
 		/* Attach an mbuf cluster */
-		MCLGET(m, M_NOWAIT);
-
-		/* Insist on getting a cluster */
-		if ((m->m_flags & M_EXT) == 0) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			m_freem(m);
 			return;
 		}

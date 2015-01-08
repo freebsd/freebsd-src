@@ -1154,7 +1154,7 @@ devclass_add_driver(devclass_t dc, driver_t *driver, int pass, devclass_t *dcp)
  * well as busclass.  Each layer will attempt to detach the driver
  * from any devices that are children of the bus's devclass.  The function
  * will return an error if a device fails to detach.
- * 
+ *
  * We do a full search here of the devclass list at each iteration
  * level to save storing children-lists in the devclass structure.  If
  * we ever move beyond a few dozen devices doing this, we may need to
@@ -1370,7 +1370,7 @@ devclass_get_name(devclass_t dc)
  *
  * @param dc		the devclass to search
  * @param unit		the unit number to search for
- * 
+ *
  * @returns		the device with the given unit number or @c
  *			NULL if there is no such device
  */
@@ -1387,7 +1387,7 @@ devclass_get_device(devclass_t dc, int unit)
  *
  * @param dc		the devclass to search
  * @param unit		the unit number to search for
- * 
+ *
  * @returns		the softc field of the device with the given
  *			unit number or @c NULL if there is no such
  *			device
@@ -1825,14 +1825,14 @@ device_print_child(device_t dev, device_t child)
  * This creates a new device and adds it as a child of an existing
  * parent device. The new device will be added after the last existing
  * child with order zero.
- * 
+ *
  * @param dev		the device which will be the parent of the
  *			new child device
  * @param name		devclass name for new device or @c NULL if not
  *			specified
  * @param unit		unit number for new device or @c -1 if not
  *			specified
- * 
+ *
  * @returns		the new device
  */
 device_t
@@ -1847,7 +1847,7 @@ device_add_child(device_t dev, const char *name, int unit)
  * This creates a new device and adds it as a child of an existing
  * parent device. The new device will be added after the last existing
  * child with the same order.
- * 
+ *
  * @param dev		the device which will be the parent of the
  *			new child device
  * @param order		a value which is used to partially sort the
@@ -1858,7 +1858,7 @@ device_add_child(device_t dev, const char *name, int unit)
  *			specified
  * @param unit		unit number for new device or @c -1 if not
  *			specified
- * 
+ *
  * @returns		the new device
  */
 device_t
@@ -1906,7 +1906,7 @@ device_add_child_ordered(device_t dev, u_int order, const char *name, int unit)
  * This function deletes a device along with all of its children. If
  * the device currently has a driver attached to it, the device is
  * detached first using device_detach().
- * 
+ *
  * @param dev		the parent device
  * @param child		the device to delete
  *
@@ -1949,7 +1949,7 @@ device_delete_child(device_t dev, device_t child)
  * any, using the device_delete_child() function for each device it
  * finds. If a child device cannot be deleted, this function will
  * return an error code.
- * 
+ *
  * @param dev		the parent device
  *
  * @retval 0		success
@@ -2765,7 +2765,7 @@ device_probe(device_t dev)
 		}
 		return (-1);
 	}
-	if ((error = device_probe_child(dev->parent, dev)) != 0) {		
+	if ((error = device_probe_child(dev->parent, dev)) != 0) {
 		if (bus_current_pass == BUS_PASS_DEFAULT &&
 		    !(dev->flags & DF_DONENOMATCH)) {
 			BUS_PROBE_NOMATCH(dev->parent, dev);
@@ -3008,7 +3008,7 @@ resource_list_init(struct resource_list *rl)
  * This function frees the memory for all resource entries on the list
  * (if any).
  *
- * @param rl		the resource list to free		
+ * @param rl		the resource list to free
  */
 void
 resource_list_free(struct resource_list *rl)
@@ -3218,7 +3218,7 @@ resource_list_delete(struct resource_list *rl, int type, int rid)
  * @param flags		any extra flags to control the resource
  *			allocation - see @c RF_XXX flags in
  *			<sys/rman.h> for details
- * 
+ *
  * @returns		the resource which was allocated or @c NULL if no
  *			resource could be allocated
  */
@@ -3275,7 +3275,7 @@ resource_list_reserve(struct resource_list *rl, device_t bus, device_t child,
  * @param flags		any extra flags to control the resource
  *			allocation - see @c RF_XXX flags in
  *			<sys/rman.h> for details
- * 
+ *
  * @returns		the resource which was allocated or @c NULL if no
  *			resource could be allocated
  */
@@ -3337,17 +3337,17 @@ resource_list_alloc(struct resource_list *rl, device_t bus, device_t child,
 
 /**
  * @brief Helper function for implementing BUS_RELEASE_RESOURCE()
- * 
+ *
  * Implement BUS_RELEASE_RESOURCE() using a resource list. Normally
  * used with resource_list_alloc().
- * 
+ *
  * @param rl		the resource list which was allocated from
  * @param bus		the parent device of @p child
  * @param child		the device which is requesting a release
  * @param type		the type of resource to release
  * @param rid		the resource identifier
  * @param res		the resource to release
- * 
+ *
  * @retval 0		success
  * @retval non-zero	a standard unix error code indicating what
  *			error condition prevented the operation
@@ -3405,7 +3405,7 @@ resource_list_release(struct resource_list *rl, device_t bus, device_t child,
  * @param bus		the parent device of @p child
  * @param child		the device whose active resources are being released
  * @param type		the type of resources to release
- * 
+ *
  * @retval 0		success
  * @retval EBUSY	at least one resource was active
  */
@@ -3447,7 +3447,7 @@ resource_list_release_active(struct resource_list *rl, device_t bus,
  * @param type		the type of resource to release
  * @param rid		the resource identifier
  * @param res		the resource to release
- * 
+ *
  * @retval 0		success
  * @retval non-zero	a standard unix error code indicating what
  *			error condition prevented the operation
@@ -3487,7 +3487,7 @@ resource_list_unreserve(struct resource_list *rl, device_t bus, device_t child,
  * @param type		type type of resource entry to print
  * @param format	printf(9) format string to print resource
  *			start and end values
- * 
+ *
  * @returns		the number of characters printed
  */
 int
@@ -3522,7 +3522,7 @@ resource_list_print_type(struct resource_list *rl, const char *name, int type,
  * @brief Releases all the resources in a list.
  *
  * @param rl		The resource list to purge.
- * 
+ *
  * @returns		nothing
  */
 void
@@ -3798,7 +3798,7 @@ bus_generic_print_child(device_t dev, device_t child)
 
 /**
  * @brief Stub function for implementing BUS_READ_IVAR().
- * 
+ *
  * @returns ENOENT
  */
 int
@@ -3810,7 +3810,7 @@ bus_generic_read_ivar(device_t dev, device_t child, int index,
 
 /**
  * @brief Stub function for implementing BUS_WRITE_IVAR().
- * 
+ *
  * @returns ENOENT
  */
 int
@@ -3822,7 +3822,7 @@ bus_generic_write_ivar(device_t dev, device_t child, int index,
 
 /**
  * @brief Stub function for implementing BUS_GET_RESOURCE_LIST().
- * 
+ *
  * @returns NULL
  */
 struct resource_list *
@@ -3889,7 +3889,7 @@ bus_generic_new_pass(device_t dev)
  */
 int
 bus_generic_setup_intr(device_t dev, device_t child, struct resource *irq,
-    int flags, driver_filter_t *filter, driver_intr_t *intr, void *arg, 
+    int flags, driver_filter_t *filter, driver_intr_t *intr, void *arg,
     void **cookiep)
 {
 	/* Propagate up the bus hierarchy until someone handles it. */
@@ -4668,7 +4668,7 @@ DECLARE_MODULE(rootbus, root_bus_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
  *
  * This function begins the autoconfiguration process by calling
  * device_probe_and_attach() for each child of the @c root0 device.
- */ 
+ */
 void
 root_bus_configure(void)
 {

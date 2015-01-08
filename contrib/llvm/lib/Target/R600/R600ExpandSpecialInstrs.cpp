@@ -33,16 +33,16 @@ private:
   static char ID;
   const R600InstrInfo *TII;
 
-  bool ExpandInputPerspective(MachineInstr& MI);
-  bool ExpandInputConstant(MachineInstr& MI);
+  void SetFlagInNewMI(MachineInstr *NewMI, const MachineInstr *OldMI,
+      unsigned Op);
 
 public:
   R600ExpandSpecialInstrsPass(TargetMachine &tm) : MachineFunctionPass(ID),
-    TII(0) { }
+    TII(nullptr) { }
 
-  virtual bool runOnMachineFunction(MachineFunction &MF);
+  bool runOnMachineFunction(MachineFunction &MF) override;
 
-  const char *getPassName() const {
+  const char *getPassName() const override {
     return "R600 Expand special instructions pass";
   }
 };
@@ -53,6 +53,15 @@ char R600ExpandSpecialInstrsPass::ID = 0;
 
 FunctionPass *llvm::createR600ExpandSpecialInstrsPass(TargetMachine &TM) {
   return new R600ExpandSpecialInstrsPass(TM);
+}
+
+void R600ExpandSpecialInstrsPass::SetFlagInNewMI(MachineInstr *NewMI,
+    const MachineInstr *OldMI, unsigned Op) {
+  int OpIdx = TII->getOperandIdx(*OldMI, Op);
+  if (OpIdx > -1) {
+    uint64_t Val = OldMI->getOperand(OpIdx).getImm();
+    TII->setImmOperand(NewMI, Op, Val);
+  }
 }
 
 bool R600ExpandSpecialInstrsPass::runOnMachineFunction(MachineFunction &MF) {
@@ -66,7 +75,7 @@ bool R600ExpandSpecialInstrsPass::runOnMachineFunction(MachineFunction &MF) {
     MachineBasicBlock::iterator I = MBB.begin();
     while (I != MBB.end()) {
       MachineInstr &MI = *I;
-      I = llvm::next(I);
+      I = std::next(I);
 
       // Expand LDS_*_RET instructions
       if (TII->isLDSRetInstr(MI.getOpcode())) {
@@ -325,6 +334,12 @@ bool R600ExpandSpecialInstrsPass::runOnMachineFunction(MachineFunction &MF) {
         if (NotLast) {
           TII->addFlag(NewMI, 0, MO_FLAG_NOT_LAST);
         }
+        SetFlagInNewMI(NewMI, &MI, AMDGPU::OpName::clamp);
+        SetFlagInNewMI(NewMI, &MI, AMDGPU::OpName::literal);
+        SetFlagInNewMI(NewMI, &MI, AMDGPU::OpName::src0_abs);
+        SetFlagInNewMI(NewMI, &MI, AMDGPU::OpName::src1_abs);
+        SetFlagInNewMI(NewMI, &MI, AMDGPU::OpName::src0_neg);
+        SetFlagInNewMI(NewMI, &MI, AMDGPU::OpName::src1_neg);
       }
       MI.eraseFromParent();
     }

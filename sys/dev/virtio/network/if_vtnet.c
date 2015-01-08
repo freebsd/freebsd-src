@@ -586,6 +586,8 @@ vtnet_setup_features(struct vtnet_softc *sc)
 
 	vtnet_negotiate_features(sc);
 
+	if (virtio_with_feature(dev, VIRTIO_RING_F_INDIRECT_DESC))
+		sc->vtnet_flags |= VTNET_FLAG_INDIRECT;
 	if (virtio_with_feature(dev, VIRTIO_RING_F_EVENT_IDX))
 		sc->vtnet_flags |= VTNET_FLAG_EVENT_IDX;
 
@@ -2889,7 +2891,7 @@ vtnet_reinit(struct vtnet_softc *sc)
 	if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_TSO4)
 		hwassist |= CSUM_TSO;
 	if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_TSO6)
-		hwassist |= CSUM_TSO; /* No CSUM_TSO_IPV6. */
+		hwassist |= CSUM_IP6_TSO;
 	if_setflags(ifp, IF_HWASSIST, hwassist);
 
 	if (sc->vtnet_flags & VTNET_FLAG_CTRL_VQ)
@@ -3548,7 +3550,7 @@ vtnet_set_tx_intr_threshold(struct vtnet_softc *sc)
 	 * Without indirect descriptors, leave enough room for the most
 	 * segments we handle.
 	 */
-	if (virtio_with_feature(dev, VIRTIO_RING_F_INDIRECT_DESC) == 0 &&
+	if ((sc->vtnet_flags & VTNET_FLAG_INDIRECT) == 0 &&
 	    thresh < sc->vtnet_tx_nsegs)
 		thresh = sc->vtnet_tx_nsegs;
 

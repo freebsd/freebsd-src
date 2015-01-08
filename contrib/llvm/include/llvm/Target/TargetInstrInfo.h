@@ -29,6 +29,7 @@ class MachineRegisterInfo;
 class MDNode;
 class MCInst;
 class MCSchedModel;
+class MCSymbolRefExpr;
 class SDNode;
 class ScheduleHazardRecognizer;
 class SelectionDAG;
@@ -36,6 +37,7 @@ class ScheduleDAG;
 class TargetRegisterClass;
 class TargetRegisterInfo;
 class BranchProbability;
+class TargetSubtargetInfo;
 
 template<class T> class SmallVectorImpl;
 
@@ -66,7 +68,7 @@ public:
   /// rematerializable, meaning it has no side effects and requires no operands
   /// that aren't always available.
   bool isTriviallyReMaterializable(const MachineInstr *MI,
-                                   AliasAnalysis *AA = 0) const {
+                                   AliasAnalysis *AA = nullptr) const {
     return MI->getOpcode() == TargetOpcode::IMPLICIT_DEF ||
            (MI->getDesc().isRematerializable() &&
             (isReallyTriviallyReMaterializable(MI, AA) ||
@@ -230,7 +232,7 @@ public:
   virtual MachineInstr *
   convertToThreeAddress(MachineFunction::iterator &MFI,
                    MachineBasicBlock::iterator &MBBI, LiveVariables *LV) const {
-    return 0;
+    return nullptr;
   }
 
   /// commuteInstruction - If a target has any instructions that are
@@ -257,7 +259,7 @@ public:
   /// aggressive checks.
   virtual bool produceSameValue(const MachineInstr *MI0,
                                 const MachineInstr *MI1,
-                                const MachineRegisterInfo *MRI = 0) const;
+                                const MachineRegisterInfo *MRI = nullptr) const;
 
   /// AnalyzeBranch - Analyze the branching code at the end of MBB, returning
   /// true if it cannot be understood (e.g. it's a switch dispatch or isn't
@@ -320,6 +322,20 @@ public:
   /// used by the tail merging pass.
   virtual void ReplaceTailWithBranchTo(MachineBasicBlock::iterator Tail,
                                        MachineBasicBlock *NewDest) const;
+
+  /// getUnconditionalBranch - Get an instruction that performs an unconditional
+  /// branch to the given symbol.
+  virtual void
+  getUnconditionalBranch(MCInst &MI,
+                         const MCSymbolRefExpr *BranchTarget) const {
+    llvm_unreachable("Target didn't implement "
+                     "TargetInstrInfo::getUnconditionalBranch!");
+  }
+
+  /// getTrap - Get a machine trap instruction
+  virtual void getTrap(MCInst &MI) const {
+    llvm_unreachable("Target didn't implement TargetInstrInfo::getTrap!");
+  }
 
   /// isLegalToSplitMBBAt - Return true if it's legal to split the given basic
   /// block at the specified instruction (i.e. instruction would be the start
@@ -555,7 +571,7 @@ protected:
                                           MachineInstr* MI,
                                           const SmallVectorImpl<unsigned> &Ops,
                                           int FrameIndex) const {
-    return 0;
+    return nullptr;
   }
 
   /// foldMemoryOperandImpl - Target-dependent implementation for
@@ -565,7 +581,7 @@ protected:
                                               MachineInstr* MI,
                                           const SmallVectorImpl<unsigned> &Ops,
                                               MachineInstr* LoadMI) const {
-    return 0;
+    return nullptr;
   }
 
 public:
@@ -597,7 +613,7 @@ public:
   /// value.
   virtual unsigned getOpcodeAfterMemoryUnfold(unsigned Opc,
                                       bool UnfoldLoad, bool UnfoldStore,
-                                      unsigned *LoadRegIndex = 0) const {
+                                      unsigned *LoadRegIndex = nullptr) const {
     return 0;
   }
 
@@ -728,7 +744,7 @@ public:
   /// use for this target when scheduling the machine instructions before
   /// register allocation.
   virtual ScheduleHazardRecognizer*
-  CreateTargetHazardRecognizer(const TargetMachine *TM,
+  CreateTargetHazardRecognizer(const TargetSubtargetInfo *STI,
                                const ScheduleDAG *DAG) const;
 
   /// CreateTargetMIHazardRecognizer - Allocate and return a hazard recognizer
@@ -780,7 +796,7 @@ public:
                         const MachineRegisterInfo *MRI,
                         unsigned &FoldAsLoadDefReg,
                         MachineInstr *&DefMI) const {
-    return 0;
+    return nullptr;
   }
 
   /// FoldImmediate - 'Reg' is known to be defined by a move immediate
@@ -838,7 +854,7 @@ public:
   /// PredCost.
   virtual unsigned getInstrLatency(const InstrItineraryData *ItinData,
                                    const MachineInstr *MI,
-                                   unsigned *PredCost = 0) const;
+                                   unsigned *PredCost = nullptr) const;
 
   virtual unsigned getPredicationCost(const MachineInstr *MI) const;
 
@@ -1003,7 +1019,7 @@ public:
   /// Create machine specific model for scheduling.
   virtual DFAPacketizer*
     CreateTargetScheduleState(const TargetMachine*, const ScheduleDAG*) const {
-    return NULL;
+    return nullptr;
   }
 
 private:

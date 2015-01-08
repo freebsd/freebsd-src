@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include "vioapic.h"
 #include "vlapic.h"
 #include "vpmtmr.h"
+#include "vrtc.h"
 #include "vmm_ipi.h"
 #include "vmm_stat.h"
 #include "vmm_lapic.h"
@@ -136,6 +137,7 @@ struct vm {
 	struct vatpic	*vatpic;		/* (i) virtual atpic */
 	struct vatpit	*vatpit;		/* (i) virtual atpit */
 	struct vpmtmr	*vpmtmr;		/* (i) virtual ACPI PM timer */
+	struct vrtc	*vrtc;			/* (o) virtual RTC */
 	volatile cpuset_t active_cpus;		/* (i) active vcpus */
 	int		suspend;		/* (i) stop VM execution */
 	volatile cpuset_t suspended_cpus; 	/* (i) suspended vcpus */
@@ -375,6 +377,8 @@ vm_init(struct vm *vm, bool create)
 	vm->vatpic = vatpic_init(vm);
 	vm->vatpit = vatpit_init(vm);
 	vm->vpmtmr = vpmtmr_init(vm);
+	if (create)
+		vm->vrtc = vrtc_init(vm);
 
 	CPU_ZERO(&vm->active_cpus);
 
@@ -437,6 +441,10 @@ vm_cleanup(struct vm *vm, bool destroy)
 	if (vm->iommu != NULL)
 		iommu_destroy_domain(vm->iommu);
 
+	if (destroy)
+		vrtc_cleanup(vm->vrtc);
+	else
+		vrtc_reset(vm->vrtc);
 	vpmtmr_cleanup(vm->vpmtmr);
 	vatpit_cleanup(vm->vatpit);
 	vhpet_cleanup(vm->vhpet);
@@ -1101,29 +1109,13 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 {
 	struct vcpu *vcpu;
 	const char *wmesg;
-	int error, t, vcpu_halted, vm_halted;
+	int t, vcpu_halted, vm_halted;
 
 	KASSERT(!CPU_ISSET(vcpuid, &vm->halted_cpus), ("vcpu already halted"));
 
 	vcpu = &vm->vcpu[vcpuid];
 	vcpu_halted = 0;
 	vm_halted = 0;
-
-	/*
-	 * The typical way to halt a cpu is to execute: "sti; hlt"
-	 *
-	 * STI sets RFLAGS.IF to enable interrupts. However, the processor
-	 * remains in an "interrupt shadow" for an additional instruction
-	 * following the STI. This guarantees that "sti; hlt" sequence is
-	 * atomic and a pending interrupt will be recognized after the HLT.
-	 *
-	 * After the HLT emulation is done the vcpu is no longer in an
-	 * interrupt shadow and a pending interrupt can be injected on
-	 * the next entry into the guest.
-	 */
-	error = vm_set_register(vm, vcpuid, VM_REG_GUEST_INTR_SHADOW, 0);
-	KASSERT(error == 0, ("%s: error %d clearing interrupt shadow",
-	    __func__, error));
 
 	vcpu_lock(vcpu);
 	while (1) {
@@ -1733,6 +1725,7 @@ int
 vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *exception)
 {
 	struct vcpu *vcpu;
+	int error;
 
 	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
 		return (EINVAL);
@@ -1756,6 +1749,16 @@ vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *exception)
 		    vcpu->exception.vector);
 		return (EBUSY);
 	}
+
+	/*
+	 * From section 26.6.1 "Interruptibility State" in Intel SDM:
+	 *
+	 * Event blocking by "STI" or "MOV SS" is cleared after guest executes
+	 * one instruction or incurs an exception.
+	 */
+	error = vm_set_register(vm, vcpuid, VM_REG_GUEST_INTR_SHADOW, 0);
+	KASSERT(error == 0, ("%s: error %d clearing interrupt shadow",
+	    __func__, error));
 
 	vcpu->exception_pending = 1;
 	vcpu->exception = *exception;
@@ -2220,6 +2223,13 @@ vm_pmtmr(struct vm *vm)
 {
 
 	return (vm->vpmtmr);
+}
+
+struct vrtc *
+vm_rtc(struct vm *vm)
+{
+
+	return (vm->vrtc);
 }
 
 enum vm_reg_name

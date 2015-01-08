@@ -53,6 +53,12 @@
 #define	LIBELF_BYTEORDER	ELFDATA2LSB
 #define	LIBELF_CLASS		ELFCLASS64
 
+#elif	defined(__aarch64__)
+
+#define	LIBELF_ARCH		EM_AARCH64
+#define	LIBELF_BYTEORDER	ELFDATA2LSB
+#define	LIBELF_CLASS		ELFCLASS64
+
 #elif	defined(__arm__)
 
 #define	LIBELF_ARCH		EM_ARM

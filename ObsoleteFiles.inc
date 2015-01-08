@@ -38,6 +38,74 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150102: removal of texinfo
+OLD_FILES+=usr/bin/info
+OLD_FILES+=usr/bin/infokey
+OLD_FILES+=usr/bin/install-info
+OLD_FILES+=usr/bin/makeinfo
+OLD_FILES+=usr/bin/texindex
+OLD_FILES+=usr/share/info/am-utils.info.gz
+OLD_FILES+=usr/share/info/as-utils.info.gz
+OLD_FILES+=usr/share/info/binutils.info.gz
+OLD_FILES+=usr/share/info/com_err.info.gz
+OLD_FILES+=usr/share/info/diff.info.gz
+OLD_FILES+=usr/share/info/gdb.info.gz
+OLD_FILES+=usr/share/info/gdbint.info.gz
+OLD_FILES+=usr/share/info/gperf.info.gz
+OLD_FILES+=usr/share/info/grep.info.gz
+OLD_FILES+=usr/share/info/groff.info.gz
+OLD_FILES+=usr/share/info/heimdal.info.gz
+OLD_FILES+=usr/share/info/history.info.gz
+OLD_FILES+=usr/share/info/info-stnd.info.gz
+OLD_FILES+=usr/share/info/info.info.gz
+OLD_FILES+=usr/share/info/ld.info.gz
+OLD_FILES+=usr/share/info/regex.info.gz
+OLD_FILES+=usr/share/info/rluserman.info.gz
+OLD_FILES+=usr/share/info/stabs.info.gz
+OLD_FILES+=usr/share/info/texinfo.info.gz
+OLD_FILES+=usr/share/man/man1/info.1.gz
+OLD_FILES+=usr/share/man/man1/infokey.1.gz
+OLD_FILES+=usr/share/man/man1/install-info.1.gz
+OLD_FILES+=usr/share/man/man1/makeinfo.1.gz
+OLD_FILES+=usr/share/man/man1/texindex.1.gz
+OLD_FILES+=usr/share/man/man5/info.5.gz
+OLD_FILES+=usr/share/man/man5/texinfo.5.gz
+# 20141231: new clang import which bumps version from 3.4.1 to 3.5.0.
+OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.4.1/altivec.h
+OLD_FILES+=usr/include/clang/3.4.1/ammintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/arm_neon.h
+OLD_FILES+=usr/include/clang/3.4.1/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/avxintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/cpuid.h
+OLD_FILES+=usr/include/clang/3.4.1/emmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/immintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.4.1/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.4.1/mmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/module.map
+OLD_FILES+=usr/include/clang/3.4.1/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/prfchwintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/rdseedintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/shaintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/smmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/tbmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/x86intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/xopintrin.h
+OLD_DIRS+=usr/include/clang/3.4.1
 # 20141226: Remove gpib/ieee488
 OLD_FILES+=usr/include/dev/ieee488/ibfoo_int.h
 OLD_FILES+=usr/include/dev/ieee488/tnt4882.h
@@ -240,7 +308,6 @@ OLD_DIRS+=usr/include/clang/3.4
 OLD_FILES+=usr/share/mk/src.opts.mk
 # 20140505: Reject PR kern/187551
 OLD_DIRS+=usr/tests/sbin/ifconfig
-OLD_FILES+=usr/tests/sbin/ifconfig/Kyuafile
 OLD_FILES+=usr/tests/sbin/ifconfig/fibs_test
 # 20140502: Removal of lindev(4)
 OLD_FILES+=usr/share/man/man4/lindev.4.gz
