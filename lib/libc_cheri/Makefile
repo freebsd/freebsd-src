@@ -287,7 +287,7 @@ CFLAGS+=	-I${LIBC_DIR}/include			\
 .PATH: ${LIBC_DIR}/softfloat/bits64
 .PATH: ${LIBC_DIR}/stdlib
 .PATH: ${LIBC_DIR}/stdtime
-.PATH: ${.CURDIR}/../../contrib/compiler-rt/lib
+.PATH: ${.CURDIR}/../../contrib/compiler-rt/lib/builtins
 .PATH: ${.CURDIR}/../../contrib/gdtoa
 .PATH: ${.CURDIR}/../../sys/kern
 .PATH: ${.CURDIR}/../../contrib/tzcode/stdtime

@@ -68,14 +68,14 @@ SRCS+=	bcmp.c bcopy.c bzero.c ffs.c memccpy.c memchr.c memcmp.c memcpy.c \
 .PATH: ${LIBC}/arm/gen
 
 # Compiler support functions
-.PATH: ${.CURDIR}/../../../contrib/compiler-rt/lib/
+.PATH: ${.CURDIR}/../../../contrib/compiler-rt/lib/builtins/
 # __clzsi2 and ctzsi2 for various builtin functions
 SRCS+=	clzsi2.c ctzsi2.c
 # Divide and modulus functions called by the compiler
 SRCS+=	 divmoddi4.c  divmodsi4.c  divdi3.c  divsi3.c  moddi3.c  modsi3.c
 SRCS+=	udivmoddi4.c udivmodsi4.c udivdi3.c udivsi3.c umoddi3.c umodsi3.c
 
-.PATH: ${.CURDIR}/../../../contrib/compiler-rt/lib/arm/
+.PATH: ${.CURDIR}/../../../contrib/compiler-rt/lib/builtins/arm/
 SRCS+=	aeabi_idivmod.S aeabi_ldivmod.S aeabi_uidivmod.S aeabi_uldivmod.S
 SRCS+=	aeabi_memcmp.S aeabi_memcpy.S aeabi_memmove.S aeabi_memset.S
 
