@@ -27,7 +27,7 @@ sysutils/screen
 www/firefox
 www/links
 x11-drivers/xf86-video-vmware
-x11/gnome2
+x11/gnome3
 x11/kde4
 x11/xorg"
 
