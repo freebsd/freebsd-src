@@ -110,6 +110,10 @@
 .Aq Fl f Ar format
 .Op Fl P
 .Op Fl G
+.Op Fl q
+.Op Fl s
+.Op Fl S Ar offset
+.Op Fl X
 .Nm
 .Ic modepage
 .Op device id
@@ -513,18 +517,16 @@ connecting to that device.
 Note that this can have a destructive impact
 on the system.
 .It Ic defects
-Send the SCSI READ DEFECT DATA (10) command (0x37) to the given device, and
+Send the
+.Tn SCSI
+READ DEFECT DATA (10) command (0x37) or the 
+.Tn SCSI
+READ DEFECT DATA (12) command (0xB7) to the given device, and
 print out any combination of: the total number of defects, the primary
 defect list (PLIST), and the grown defect list (GLIST).
 .Bl -tag -width 11n
 .It Fl f Ar format
-The three format options are:
-.Em block ,
-to print out the list as logical blocks,
-.Em bfi ,
-to print out the list in bytes from index format, and
-.Em phys ,
-to print out the list in physical sector format.
+Specify the requested format of the defect list.
 The format argument is
 required.
 Most drives support the physical sector format.
@@ -541,12 +543,52 @@ If the drive uses a non-standard sense code to report that it does not
 support the requested format,
 .Nm
 will probably see the error as a failure to complete the request.
+.Pp
+The format options are:
+.Bl -tag -width 9n
+.It block
+Print out the list as logical blocks.
+This is limited to 32-bit block sizes, and isn't supported by many modern
+drives.
+.It longblock
+Print out the list as logical blocks.
+This option uses a 64-bit block size.
+.It bfi 
+Print out the list in bytes from index format.
+.It extbfi
+Print out the list in extended bytes from index format.
+The extended format allows for ranges of blocks to be printed.
+.It phys 
+Print out the list in physical sector format.
+Most drives support this format.
+.It extphys
+Print out the list in extended physical sector format.
+The extended format allows for ranges of blocks to be printed.
+.El
+.Pp
 .It Fl G
 Print out the grown defect list.
 This is a list of bad blocks that have
 been remapped since the disk left the factory.
 .It Fl P
 Print out the primary defect list.
+This is the list of defects that were present in the factory.
+.It Fl q
+When printing status information with
+.Fl s ,
+only print the number of defects.
+.It Fl s
+Just print the number of defects, not the list of defects.
+.It Fl S Ar offset
+Specify the starting offset into the defect list.
+This implies using the
+.Tn SCSI
+READ DEFECT DATA (12) command, as the 10 byte version of the command
+doesn't support the address descriptor index field.
+Not all drives support the 12 byte command, and some drives that support
+the 12 byte command don't support the address descriptor index field.
+.It Fl X
+Print out defects in hexadecimal (base 16) form instead of base 10 form.
 .El
 .Pp
 If neither
