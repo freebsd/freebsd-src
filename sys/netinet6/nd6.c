@@ -134,6 +134,8 @@ static struct llentry *nd6_free(struct llentry *, int);
 static void nd6_llinfo_timer(void *);
 static void clear_llinfo_pqueue(struct llentry *);
 static void nd6_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
+static int nd6_output_lle(struct ifnet *, struct ifnet *, struct mbuf *,
+	struct sockaddr_in6 *);
 
 static VNET_DEFINE(struct callout, nd6_slowtimo_ch);
 #define	V_nd6_slowtimo_ch		VNET(nd6_slowtimo_ch)
@@ -1646,42 +1648,8 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		ln->ln_state = newstate;
 
 		if (ln->ln_state == ND6_LLINFO_STALE) {
-			/*
-			 * XXX: since nd6_output() below will cause
-			 * state tansition to DELAY and reset the timer,
-			 * we must set the timer now, although it is actually
-			 * meaningless.
-			 */
-			nd6_llinfo_settimer_locked(ln, (long)V_nd6_gctimer * hz);
-
-			if (ln->la_hold) {
-				struct mbuf *m_hold, *m_hold_next;
-
-				/*
-				 * reset the la_hold in advance, to explicitly
-				 * prevent a la_hold lookup in nd6_output()
-				 * (wouldn't happen, though...)
-				 */
-				for (m_hold = ln->la_hold, ln->la_hold = NULL;
-				    m_hold; m_hold = m_hold_next) {
-					m_hold_next = m_hold->m_nextpkt;
-					m_hold->m_nextpkt = NULL;
-
-					/*
-					 * we assume ifp is not a p2p here, so
-					 * just set the 2nd argument as the
-					 * 1st one.
-					 */
-					nd6_output_lle(ifp, ifp, m_hold, L3_ADDR_SIN6(ln), NULL, ln, &chain);
-				}
-				/*
-				 * If we have mbufs in the chain we need to do
-				 * deferred transmit. Copy the address from the
-				 * llentry before dropping the lock down below.
-				 */
-				if (chain != NULL)
-					memcpy(&sin6, L3_ADDR_SIN6(ln), sizeof(sin6));
-			}
+			if (ln->la_hold != NULL)
+				nd6_grab_holdchain(ln, &chain, &sin6);
 		} else if (ln->ln_state == ND6_LLINFO_INCOMPLETE) {
 			/* probe right away */
 			nd6_llinfo_settimer_locked((void *)ln, 0);
@@ -1764,8 +1732,8 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 		if (static_route)
 			ln = NULL;
 	}
-	if (chain)
-		nd6_output_flush(ifp, ifp, chain, &sin6);
+	if (chain != NULL)
+		nd6_flush_holdchain(ifp, ifp, chain, &sin6);
 	
 	/*
 	 * When the link-layer address of a router changes, select the
@@ -1833,6 +1801,79 @@ nd6_slowtimo(void *arg)
 	CURVNET_RESTORE();
 }
 
+void
+nd6_grab_holdchain(struct llentry *ln, struct mbuf **chain,
+    struct sockaddr_in6 *sin6)
+{
+
+	LLE_WLOCK_ASSERT(ln);
+
+	*chain = ln->la_hold;
+	ln->la_hold = NULL;
+	memcpy(sin6, L3_ADDR_SIN6(ln), sizeof(*sin6));
+
+	if (ln->ln_state == ND6_LLINFO_STALE) {
+
+		/*
+		 * The first time we send a packet to a
+		 * neighbor whose entry is STALE, we have
+		 * to change the state to DELAY and a sets
+		 * a timer to expire in DELAY_FIRST_PROBE_TIME
+		 * seconds to ensure do neighbor unreachability
+		 * detection on expiration.
+		 * (RFC 2461 7.3.3)
+		 */
+		ln->la_asked = 0;
+		ln->ln_state = ND6_LLINFO_DELAY;
+		nd6_llinfo_settimer_locked(ln, (long)V_nd6_delay * hz);
+	}
+}
+
+static int
+nd6_output_ifp(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
+    struct sockaddr_in6 *dst)
+{
+	int error;
+	int ip6len;
+	struct ip6_hdr *ip6;
+	struct m_tag *mtag;
+
+#ifdef MAC
+	mac_netinet6_nd6_send(ifp, m);
+#endif
+
+	/*
+	 * If called from nd6_ns_output() (NS), nd6_na_output() (NA),
+	 * icmp6_redirect_output() (REDIRECT) or from rip6_output() (RS, RA
+	 * as handled by rtsol and rtadvd), mbufs will be tagged for SeND
+	 * to be diverted to user space.  When re-injected into the kernel,
+	 * send_output() will directly dispatch them to the outgoing interface.
+	 */
+	if (send_sendso_input_hook != NULL) {
+		mtag = m_tag_find(m, PACKET_TAG_ND_OUTGOING, NULL);
+		if (mtag != NULL) {
+			ip6 = mtod(m, struct ip6_hdr *);
+			ip6len = sizeof(struct ip6_hdr) + ntohs(ip6->ip6_plen);
+			/* Use the SEND socket */
+			error = send_sendso_input_hook(m, ifp, SND_OUT,
+			    ip6len);
+			/* -1 == no app on SEND socket */
+			if (error == 0 || error != -1)
+			    return (error);
+		}
+	}
+
+	m_clrprotoflags(m);	/* Avoid confusing lower layers. */
+	IP_PROBE(send, NULL, NULL, mtod(m, struct ip6_hdr *), ifp, NULL,
+	    mtod(m, struct ip6_hdr *));
+
+	if ((ifp->if_flags & IFF_LOOPBACK) == 0)
+		origifp = ifp;
+
+	error = (*ifp->if_output)(origifp, m, (struct sockaddr *)dst, NULL);
+	return (error);
+}
+
 /*
  * IPv6 packet output - light version.
  * Checks if destination LLE exists and is in proper state
@@ -1844,7 +1885,6 @@ nd6_output(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
     struct sockaddr_in6 *dst, struct rtentry *rt0)
 {
 	struct llentry *ln = NULL;
-	int error = 0;
 
 	/* discard the packet if IPv6 operation is disabled on the interface */
 	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)) {
@@ -1875,50 +1915,14 @@ nd6_output(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 		/* Fall back to slow processing path */
 		if (ln != NULL)
 			LLE_RUNLOCK(ln);
-		return (nd6_output_lle(ifp, origifp, m, dst, rt0, NULL, NULL));
+		return (nd6_output_lle(ifp, origifp, m, dst));
 	}
 
 sendpkt:
 	if (ln != NULL)
 		LLE_RUNLOCK(ln);
 
-#ifdef MAC
-	mac_netinet6_nd6_send(ifp, m);
-#endif
-
-	/*
-	 * If called from nd6_ns_output() (NS), nd6_na_output() (NA),
-	 * icmp6_redirect_output() (REDIRECT) or from rip6_output() (RS, RA
-	 * as handled by rtsol and rtadvd), mbufs will be tagged for SeND
-	 * to be diverted to user space.  When re-injected into the kernel,
-	 * send_output() will directly dispatch them to the outgoing interface.
-	 */
-	if (send_sendso_input_hook != NULL) {
-		struct m_tag *mtag;
-		struct ip6_hdr *ip6;
-		int ip6len;
-		mtag = m_tag_find(m, PACKET_TAG_ND_OUTGOING, NULL);
-		if (mtag != NULL) {
-			ip6 = mtod(m, struct ip6_hdr *);
-			ip6len = sizeof(struct ip6_hdr) + ntohs(ip6->ip6_plen);
-			/* Use the SEND socket */
-			error = send_sendso_input_hook(m, ifp, SND_OUT,
-			    ip6len);
-			/* -1 == no app on SEND socket */
-			if (error == 0 || error != -1)
-			    return (error);
-		}
-	}
-
-	m_clrprotoflags(m);	/* Avoid confusing lower layers. */
-	IP_PROBE(send, NULL, NULL, mtod(m, struct ip6_hdr *), ifp, NULL,
-	    mtod(m, struct ip6_hdr *));
-
-	if ((ifp->if_flags & IFF_LOOPBACK) == 0)
-		origifp = ifp;
-	
-	error = (*ifp->if_output)(origifp, m, (struct sockaddr *)dst, NULL);
-	return (error);
+	return (nd6_output_ifp(ifp, origifp, m, dst));
 }
 
 
@@ -1931,35 +1935,19 @@ sendpkt:
  *   in that case packets are queued in &chain.
  *
  */
-int
+static int
 nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
-    struct sockaddr_in6 *dst, struct rtentry *rt0, struct llentry *lle,
-	struct mbuf **chain)
+    struct sockaddr_in6 *dst)
 {
-	struct m_tag *mtag;
-	struct ip6_hdr *ip6;
-	int error = 0;
+	struct llentry *lle = NULL;
 	int flags = 0;
-	int has_lle = 0;
-	int ip6len;
 
-#ifdef INVARIANTS
-	if (lle != NULL) {
-		
-		LLE_WLOCK_ASSERT(lle);
-
-		KASSERT(chain != NULL, (" lle locked but no mbuf chain pointer passed"));
-	}
-#endif
 	KASSERT(m != NULL, ("NULL mbuf, nothing to send"));
 	/* discard the packet if IPv6 operation is disabled on the interface */
 	if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED)) {
 		m_freem(m);
 		return (ENETDOWN); /* better error? */
 	}
-
-	if (lle != NULL)
-		has_lle = 1;
 
 	if (IN6_IS_ADDR_MULTICAST(&dst->sin6_addr))
 		goto sendpkt;
@@ -2076,88 +2064,23 @@ nd6_output_lle(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *m,
 		    (long)ND_IFINFO(ifp)->retrans * hz / 1000);
 		LLE_WUNLOCK(lle);
 		nd6_ns_output(ifp, NULL, &dst->sin6_addr, lle, 0);
-		if (has_lle != 0)
-			LLE_WLOCK(lle);
-	} else if (has_lle == 0) {
-		/*
-		 * We did the lookup (no lle arg) so we
-		 * need to do the unlock here.
-		 */
+	} else {
+		/* We did the lookup so we need to do the unlock here. */
 		LLE_WUNLOCK(lle);
 	}
 
 	return (0);
 
   sendpkt:
-	/*
-	 * ln is valid and the caller did not pass in 
-	 * an llentry
-	 */
-	if (lle != NULL && has_lle == 0)
+	if (lle != NULL)
 		LLE_WUNLOCK(lle);
 
-#ifdef MAC
-	mac_netinet6_nd6_send(ifp, m);
-#endif
-
-	/*
-	 * If called from nd6_ns_output() (NS), nd6_na_output() (NA),
-	 * icmp6_redirect_output() (REDIRECT) or from rip6_output() (RS, RA
-	 * as handled by rtsol and rtadvd), mbufs will be tagged for SeND
-	 * to be diverted to user space.  When re-injected into the kernel,
-	 * send_output() will directly dispatch them to the outgoing interface.
-	 */
-	if (send_sendso_input_hook != NULL) {
-		mtag = m_tag_find(m, PACKET_TAG_ND_OUTGOING, NULL);
-		if (mtag != NULL) {
-			ip6 = mtod(m, struct ip6_hdr *);
-			ip6len = sizeof(struct ip6_hdr) + ntohs(ip6->ip6_plen);
-			/* Use the SEND socket */
-			error = send_sendso_input_hook(m, ifp, SND_OUT,
-			    ip6len);
-			/* -1 == no app on SEND socket */
-			if (error == 0 || error != -1)
-			    return (error);
-		}
-	}
-
-	/*
-	 * We were passed in a pointer to an lle with the lock held 
-	 * this means that we can't call if_output as we will
-	 * recurse on the lle lock - so what we do is we create
-	 * a list of mbufs to send and transmit them in the caller
-	 * after the lock is dropped
-	 */
-	if (has_lle != 0) {
-		if (*chain == NULL)
-			*chain = m;
-		else {
-			struct mbuf *mb;
-
-			/*
-			 * append mbuf to end of deferred chain
-			 */
-			mb = *chain;
-			while (mb->m_nextpkt != NULL)
-				mb = mb->m_nextpkt;
-			mb->m_nextpkt = m;
-		}
-		return (error);
-	}
-	m_clrprotoflags(m);	/* Avoid confusing lower layers. */
-	IP_PROBE(send, NULL, NULL, mtod(m, struct ip6_hdr *), ifp, NULL,
-	    mtod(m, struct ip6_hdr *));
-
-	if ((ifp->if_flags & IFF_LOOPBACK) == 0)
-		origifp = ifp;
-
-	error = (*ifp->if_output)(origifp, m, (struct sockaddr *)dst, NULL);
-	return (error);
+	return (nd6_output_ifp(ifp, origifp, m, dst));
 }
 
 
 int
-nd6_output_flush(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain,
+nd6_flush_holdchain(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain,
     struct sockaddr_in6 *dst)
 {
 	struct mbuf *m, *m_head;
@@ -2173,7 +2096,7 @@ nd6_output_flush(struct ifnet *ifp, struct ifnet *origifp, struct mbuf *chain,
 	while (m_head) {
 		m = m_head;
 		m_head = m_head->m_nextpkt;
-		error = (*ifp->if_output)(ifp, m, (struct sockaddr *)dst, NULL);
+		error = nd6_output_ifp(ifp, origifp, m, dst);
 	}
 
 	/*
