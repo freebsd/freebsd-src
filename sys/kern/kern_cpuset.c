@@ -1118,7 +1118,7 @@ sys_cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 			error = intr_getaffinity(uap->id, mask);
 			break;
 		case CPU_WHICH_DOMAIN:
-			if (uap->id >= vm_ndomains)
+			if (uap->id < 0 || uap->id >= vm_ndomains)
 				error = ESRCH;
 			else
 				CPU_COPY(&cpuset_domain[uap->id], mask);
