@@ -3639,16 +3639,10 @@ flags_out:
 			policy = sprstat->sprstat_policy;
 #if defined(SCTP_DETAILED_STR_STATS)
 			if ((stcb != NULL) &&
-			    (policy != SCTP_PR_SCTP_NONE) &&
 			    (sid < stcb->asoc.streamoutcnt) &&
-			    ((policy == SCTP_PR_SCTP_ALL) ||
-			    (PR_SCTP_VALID_POLICY(policy)))) {
-#else
-			if ((stcb != NULL) &&
 			    (policy != SCTP_PR_SCTP_NONE) &&
-			    (sid < stcb->asoc.streamoutcnt) &&
-			    (policy == SCTP_PR_SCTP_ALL)) {
-#endif
+			    ((policy <= SCTP_PR_SCTP_MAX) ||
+			    (policy == SCTP_PR_SCTP_ALL))) {
 				if (policy == SCTP_PR_SCTP_ALL) {
 					sprstat->sprstat_abandoned_unsent = stcb->asoc.strmout[sid].abandoned_unsent[0];
 					sprstat->sprstat_abandoned_sent = stcb->asoc.strmout[sid].abandoned_sent[0];
@@ -3656,6 +3650,13 @@ flags_out:
 					sprstat->sprstat_abandoned_unsent = stcb->asoc.strmout[sid].abandoned_unsent[policy];
 					sprstat->sprstat_abandoned_sent = stcb->asoc.strmout[sid].abandoned_sent[policy];
 				}
+#else
+			if ((stcb != NULL) &&
+			    (sid < stcb->asoc.streamoutcnt) &&
+			    (policy == SCTP_PR_SCTP_ALL)) {
+				sprstat->sprstat_abandoned_unsent = stcb->asoc.strmout[sid].abandoned_unsent[0];
+				sprstat->sprstat_abandoned_sent = stcb->asoc.strmout[sid].abandoned_sent[0];
+#endif
 				SCTP_TCB_UNLOCK(stcb);
 				*optsize = sizeof(struct sctp_prstatus);
 			} else {
@@ -3675,8 +3676,8 @@ flags_out:
 			policy = sprstat->sprstat_policy;
 			if ((stcb != NULL) &&
 			    (policy != SCTP_PR_SCTP_NONE) &&
-			    ((policy == SCTP_PR_SCTP_ALL) ||
-			    (PR_SCTP_VALID_POLICY(policy)))) {
+			    ((policy <= SCTP_PR_SCTP_MAX) ||
+			    (policy == SCTP_PR_SCTP_ALL))) {
 				if (policy == SCTP_PR_SCTP_ALL) {
 					sprstat->sprstat_abandoned_unsent = stcb->asoc.abandoned_unsent[0];
 					sprstat->sprstat_abandoned_sent = stcb->asoc.abandoned_sent[0];
@@ -6037,7 +6038,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			SCTP_CHECK_AND_CAST(info, optval, struct sctp_default_prinfo, optsize);
 			SCTP_FIND_STCB(inp, stcb, info->pr_assoc_id);
 
-			if (PR_SCTP_INVALID_POLICY(info->pr_policy)) {
+			if (info->pr_policy > SCTP_PR_SCTP_MAX) {
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 				error = EINVAL;
 				break;

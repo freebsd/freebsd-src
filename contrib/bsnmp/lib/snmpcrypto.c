@@ -366,7 +366,7 @@ snmp_pdu_decrypt(const struct snmp_pdu *pdu)
 	return (SNMP_CODE_OK);
 }
 
-int
+enum snmp_code
 snmp_passwd_to_keys(struct snmp_user *user, char *passwd __unused)
 {
 	if (user->auth_proto == SNMP_AUTH_NOAUTH &&
@@ -378,7 +378,7 @@ snmp_passwd_to_keys(struct snmp_user *user, char *passwd __unused)
 	return (SNMP_CODE_FAILED);
 }
 
-int
+enum snmp_code
 snmp_get_local_keys(struct snmp_user *user, uint8_t *eid __unused,
     uint32_t elen __unused)
 {

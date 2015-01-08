@@ -106,20 +106,36 @@
 			status = "okay";
 		};
 
+		pio2: pio@c0022000 {
+			compatible = "altr,pio";
+			reg = <0xc0022000 0x1000>; /* recv */
+			interrupts = < 77 >;
+			interrupt-parent = <&GIC>;
+			status = "okay";
+		};
+
+		pio3: pio@c0023000 {
+			compatible = "altr,pio";
+			reg = <0xc0023000 0x1000>; /* send */
+			interrupts = < 83 >; /* not in use on arm side */
+			interrupt-parent = <&GIC>;
+			status = "okay";
+		};
+
 		beri_vtblk: vtblk@00001000 {
 			compatible = "sri-cambridge,beri-vtblk";
 			reg = <0x00001000 0x1000>;
 			pio-recv = <&pio0>;
 			pio-send = <&pio1>;
 			beri-mem = <&beri_mem0>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		beri_vtnet: vtnet@00002000 {
 			compatible = "sri-cambridge,beri-vtnet";
 			reg = <0x00002000 0x1000>;
-			pio-recv = <&pio0>;
-			pio-send = <&pio1>;
+			pio-recv = <&pio2>;
+			pio-send = <&pio3>;
 			beri-mem = <&beri_mem0>;
 			status = "okay";
 		};

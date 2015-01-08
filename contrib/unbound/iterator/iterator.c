@@ -120,6 +120,7 @@ iter_new(struct module_qstate* qstate, int id)
 	iq->query_restart_count = 0;
 	iq->referral_count = 0;
 	iq->sent_count = 0;
+	iq->target_count = NULL;
 	iq->wait_priming_stub = 0;
 	iq->refetch_glue = 0;
 	iq->dnssec_expected = 0;
@@ -445,6 +446,26 @@ handle_cname_response(struct module_qstate* qstate, struct iter_qstate* iq,
 	return 1;
 }
 
+/** create target count structure for this query */
+static void
+target_count_create(struct iter_qstate* iq)
+{
+	if(!iq->target_count) {
+		iq->target_count = (int*)calloc(2, sizeof(int));
+		/* if calloc fails we simply do not track this number */
+		if(iq->target_count)
+			iq->target_count[0] = 1;
+	}
+}
+
+static void
+target_count_increase(struct iter_qstate* iq, int num)
+{
+	target_count_create(iq);
+	if(iq->target_count)
+		iq->target_count[1] += num;
+}
+
 /**
  * Generate a subrequest.
  * Generate a local request event. Local events are tied to this module, and
@@ -516,6 +537,10 @@ generate_sub_request(uint8_t* qname, size_t qnamelen, uint16_t qtype,
 		subiq = (struct iter_qstate*)subq->minfo[id];
 		memset(subiq, 0, sizeof(*subiq));
 		subiq->num_target_queries = 0;
+		target_count_create(iq);
+		subiq->target_count = iq->target_count;
+		if(iq->target_count)
+			iq->target_count[0] ++; /* extra reference */
 		subiq->num_current_queries = 0;
 		subiq->depth = iq->depth+1;
 		outbound_list_init(&subiq->outlist);
@@ -1342,6 +1367,12 @@ query_for_targets(struct module_qstate* qstate, struct iter_qstate* iq,
 
 	if(iq->depth == ie->max_dependency_depth)
 		return 0;
+	if(iq->depth > 0 && iq->target_count &&
+		iq->target_count[1] > MAX_TARGET_COUNT) {
+		verbose(VERB_QUERY, "request has exceeded the maximum "
+			"number of glue fetches %d", iq->target_count[1]);
+		return 0;
+	}
 
 	iter_mark_cycle_targets(qstate, iq->dp);
 	missing = (int)delegpt_count_missing_targets(iq->dp);
@@ -1524,6 +1555,7 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 			return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
 		}
 		iq->num_target_queries += qs;
+		target_count_increase(iq, qs);
 		if(qs != 0) {
 			qstate->ext_state[id] = module_wait_subquery;
 			return 0; /* and wait for them */
@@ -1531,6 +1563,12 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 	}
 	if(iq->depth == ie->max_dependency_depth) {
 		verbose(VERB_QUERY, "maxdepth and need more nameservers, fail");
+		return error_response_cache(qstate, id, LDNS_RCODE_SERVFAIL);
+	}
+	if(iq->depth > 0 && iq->target_count &&
+		iq->target_count[1] > MAX_TARGET_COUNT) {
+		verbose(VERB_QUERY, "request has exceeded the maximum "
+			"number of glue fetches %d", iq->target_count[1]);
 		return error_response_cache(qstate, id, LDNS_RCODE_SERVFAIL);
 	}
 	/* mark cycle targets for parent-side lookups */
@@ -1562,6 +1600,7 @@ processLastResort(struct module_qstate* qstate, struct iter_qstate* iq,
 		if(query_count != 0) { /* suspend to await results */
 			verbose(VERB_ALGO, "try parent-side glue lookup");
 			iq->num_target_queries += query_count;
+			target_count_increase(iq, query_count);
 			qstate->ext_state[id] = module_wait_subquery;
 			return 0;
 		}
@@ -1717,6 +1756,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 			return error_response(qstate, id, LDNS_RCODE_SERVFAIL);
 		}
 		iq->num_target_queries += extra;
+		target_count_increase(iq, extra);
 		if(iq->num_target_queries > 0) {
 			/* wait to get all targets, we want to try em */
 			verbose(VERB_ALGO, "wait for all targets for fallback");
@@ -1757,6 +1797,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 		/* errors ignored, these targets are not strictly necessary for
 		 * this result, we do not have to reply with SERVFAIL */
 		iq->num_target_queries += extra;
+		target_count_increase(iq, extra);
 	}
 
 	/* Add the current set of unused targets to our queue. */
@@ -1802,6 +1843,7 @@ processQueryTargets(struct module_qstate* qstate, struct iter_qstate* iq,
 					return 1;
 				}
 				iq->num_target_queries += qs;
+				target_count_increase(iq, qs);
 			}
 			/* Since a target query might have been made, we 
 			 * need to check again. */
@@ -2894,6 +2936,8 @@ iter_clear(struct module_qstate* qstate, int id)
 	iq = (struct iter_qstate*)qstate->minfo[id];
 	if(iq) {
 		outbound_list_clear(&iq->outlist);
+		if(iq->target_count && --iq->target_count[0] == 0)
+			free(iq->target_count);
 		iq->num_current_queries = 0;
 	}
 	qstate->minfo[id] = NULL;

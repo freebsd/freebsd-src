@@ -142,7 +142,7 @@ ahci_ctlr_reset(device_t dev)
 	}
 	if (timeout == 0) {
 		device_printf(dev, "AHCI controller reset failure\n");
-		return ENXIO;
+		return (ENXIO);
 	}
 	/* Reenable AHCI mode */
 	ATA_OUTL(ctlr->r_mem, AHCI_GHC, AHCI_GHC_AE);
@@ -225,18 +225,18 @@ ahci_attach(device_t dev)
 		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid,
 		    ctlr->r_mem);
 		rman_fini(&ctlr->sc_iomem);
-		return ENXIO;
+		return (ENXIO);
 	}
 
 	ahci_ctlr_setup(dev);
 
 	/* Setup interrupts. */
-	if (ahci_setup_interrupt(dev)) {
+	if ((error = ahci_setup_interrupt(dev)) != 0) {
 		bus_dma_tag_destroy(ctlr->dma_tag);
 		bus_release_resource(dev, SYS_RES_MEMORY, ctlr->r_rid,
 		    ctlr->r_mem);
 		rman_fini(&ctlr->sc_iomem);
-		return ENXIO;
+		return (error);
 	}
 
 	i = 0;
@@ -315,7 +315,7 @@ ahci_attach(device_t dev)
 			device_set_ivars(child, (void *)(intptr_t)-1);
 	}
 	bus_generic_attach(dev);
-	return 0;
+	return (0);
 }
 
 int
@@ -356,6 +356,14 @@ ahci_setup_interrupt(device_t dev)
 		device_printf(dev, "Falling back to one MSI\n");
 		ctlr->numirqs = 1;
 	}
+
+	/* Ensure we don't overrun irqs. */
+	if (ctlr->numirqs > AHCI_MAX_IRQS) {
+		device_printf(dev, "Too many irqs %d > %d (clamping)\n",
+		    ctlr->numirqs, AHCI_MAX_IRQS);
+		ctlr->numirqs = AHCI_MAX_IRQS;
+	}
+
 	/* Allocate all IRQs. */
 	for (i = 0; i < ctlr->numirqs; i++) {
 		ctlr->irqs[i].ctlr = ctlr;
@@ -372,7 +380,7 @@ ahci_setup_interrupt(device_t dev)
 		if (!(ctlr->irqs[i].r_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 		    &ctlr->irqs[i].r_irq_rid, RF_SHAREABLE | RF_ACTIVE))) {
 			device_printf(dev, "unable to map interrupt\n");
-			return ENXIO;
+			return (ENXIO);
 		}
 		if ((bus_setup_intr(dev, ctlr->irqs[i].r_irq, ATA_INTR_FLAGS, NULL,
 		    (ctlr->irqs[i].mode != AHCI_IRQ_MODE_ONE) ? ahci_intr :
@@ -381,7 +389,7 @@ ahci_setup_interrupt(device_t dev)
 		    &ctlr->irqs[i], &ctlr->irqs[i].handle))) {
 			/* SOS XXX release r_irq */
 			device_printf(dev, "unable to setup interrupt\n");
-			return ENXIO;
+			return (ENXIO);
 		}
 		if (ctlr->numirqs > 1) {
 			bus_describe_intr(dev, ctlr->irqs[i].r_irq,
@@ -529,7 +537,7 @@ ahci_release_resource(device_t dev, device_t child, int type, int rid,
 		return (0);
 	case SYS_RES_IRQ:
 		if (rid != ATA_IRQ_RID)
-			return ENOENT;
+			return (ENOENT);
 		return (0);
 	}
 	return (EINVAL);
@@ -860,14 +868,14 @@ static device_method_t ahcich_methods[] = {
 	DEVMETHOD(device_detach,    ahci_ch_detach),
 	DEVMETHOD(device_suspend,   ahci_ch_suspend),
 	DEVMETHOD(device_resume,    ahci_ch_resume),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t ahcich_driver = {
         "ahcich",
         ahcich_methods,
         sizeof(struct ahci_channel)
 };
-DRIVER_MODULE(ahcich, ahci, ahcich_driver, ahcich_devclass, 0, 0);
+DRIVER_MODULE(ahcich, ahci, ahcich_driver, ahcich_devclass, NULL, NULL);
 
 struct ahci_dc_cb_args {
 	bus_addr_t maddr;

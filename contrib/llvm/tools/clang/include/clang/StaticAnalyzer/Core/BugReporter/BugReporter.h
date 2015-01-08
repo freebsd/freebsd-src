@@ -19,6 +19,7 @@
 #include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporterVisitor.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/FoldingSet.h"
@@ -143,19 +144,18 @@ private:
 
 public:
   BugReport(BugType& bt, StringRef desc, const ExplodedNode *errornode)
-    : BT(bt), DeclWithIssue(0), Description(desc), ErrorNode(errornode),
+    : BT(bt), DeclWithIssue(nullptr), Description(desc), ErrorNode(errornode),
       ConfigurationChangeToken(0), DoNotPrunePath(false) {}
 
   BugReport(BugType& bt, StringRef shortDesc, StringRef desc,
             const ExplodedNode *errornode)
-    : BT(bt), DeclWithIssue(0), ShortDescription(shortDesc), Description(desc),
-      ErrorNode(errornode), ConfigurationChangeToken(0),
+    : BT(bt), DeclWithIssue(nullptr), ShortDescription(shortDesc),
+      Description(desc), ErrorNode(errornode), ConfigurationChangeToken(0),
       DoNotPrunePath(false) {}
 
-  BugReport(BugType& bt, StringRef desc, PathDiagnosticLocation l)
-    : BT(bt), DeclWithIssue(0), Description(desc), Location(l), ErrorNode(0),
-      ConfigurationChangeToken(0),
-      DoNotPrunePath(false) {}
+  BugReport(BugType &bt, StringRef desc, PathDiagnosticLocation l)
+    : BT(bt), DeclWithIssue(nullptr), Description(desc), Location(l),
+      ErrorNode(nullptr), ConfigurationChangeToken(0), DoNotPrunePath(false) {}
 
   /// \brief Create a BugReport with a custom uniqueing location.
   ///
@@ -166,7 +166,7 @@ public:
   /// the allocation site, rather then the location where the bug is reported.
   BugReport(BugType& bt, StringRef desc, const ExplodedNode *errornode,
             PathDiagnosticLocation LocationToUnique, const Decl *DeclToUnique)
-    : BT(bt), DeclWithIssue(0), Description(desc),
+    : BT(bt), DeclWithIssue(nullptr), Description(desc),
       UniqueingLocation(LocationToUnique),
       UniqueingDecl(DeclToUnique),
       ErrorNode(errornode), ConfigurationChangeToken(0),
@@ -463,7 +463,12 @@ public:
   /// reports.
   void emitReport(BugReport *R);
 
-  void EmitBasicReport(const Decl *DeclWithIssue,
+  void EmitBasicReport(const Decl *DeclWithIssue, const CheckerBase *Checker,
+                       StringRef BugName, StringRef BugCategory,
+                       StringRef BugStr, PathDiagnosticLocation Loc,
+                       ArrayRef<SourceRange> Ranges = None);
+
+  void EmitBasicReport(const Decl *DeclWithIssue, CheckName CheckName,
                        StringRef BugName, StringRef BugCategory,
                        StringRef BugStr, PathDiagnosticLocation Loc,
                        ArrayRef<SourceRange> Ranges = None);
@@ -473,7 +478,8 @@ private:
 
   /// \brief Returns a BugType that is associated with the given name and
   /// category.
-  BugType *getBugTypeForName(StringRef name, StringRef category);
+  BugType *getBugTypeForName(CheckName CheckName, StringRef name,
+                             StringRef category);
 };
 
 // FIXME: Get rid of GRBugReporter.  It's the wrong abstraction.
@@ -505,9 +511,8 @@ public:
   ///
   /// \return True if the report was valid and a path was generated,
   ///         false if the reports should be considered invalid.
-  virtual bool generatePathDiagnostic(PathDiagnostic &PD,
-                                      PathDiagnosticConsumer &PC,
-                                      ArrayRef<BugReport*> &bugReports);
+  bool generatePathDiagnostic(PathDiagnostic &PD, PathDiagnosticConsumer &PC,
+                              ArrayRef<BugReport*> &bugReports) override;
 
   /// classof - Used by isa<>, cast<>, and dyn_cast<>.
   static bool classof(const BugReporter* R) {

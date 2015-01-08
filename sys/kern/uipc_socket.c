@@ -1310,11 +1310,14 @@ restart:
 				resid = 0;
 				if (flags & MSG_EOR)
 					top->m_flags |= M_EOR;
-			} else if (resid > 0) {
+			} else {
 				/*
 				 * Copy the data from userland into a mbuf
-				 * chain.  If no data is to be copied in,
-				 * a single empty mbuf is returned.
+				 * chain.  If resid is 0, which can happen
+				 * only if we have control to send, then
+				 * a single empty mbuf is returned.  This
+				 * is a workaround to prevent protocol send
+				 * methods to panic.
 				 */
 				top = m_uiotombuf(uio, M_WAITOK, space,
 				    (atomic ? max_hdr : 0),
@@ -2002,7 +2005,7 @@ restart:
 
 	/* Socket buffer got some data that we shall deliver now. */
 	if (sbavail(sb) > 0 && !(flags & MSG_WAITALL) &&
-	    ((sb->sb_flags & SS_NBIO) ||
+	    ((so->so_state & SS_NBIO) ||
 	     (flags & (MSG_DONTWAIT|MSG_NBIO)) ||
 	     sbavail(sb) >= sb->sb_lowat ||
 	     sbavail(sb) >= uio->uio_resid ||

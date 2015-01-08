@@ -499,8 +499,8 @@ cfi_datamove(union ctl_io *io)
 	     i < ext_sg_entries && j < kern_sg_entries;) {
 		uint8_t *ext_ptr, *kern_ptr;
 
-		len_to_copy = ctl_min(ext_sglist[i].len - ext_watermark,
-				      kern_sglist[j].len - kern_watermark);
+		len_to_copy = MIN(ext_sglist[i].len - ext_watermark,
+				  kern_sglist[j].len - kern_watermark);
 
 		ext_ptr = (uint8_t *)ext_sglist[i].addr;
 		ext_ptr = ext_ptr + ext_watermark;
@@ -1103,8 +1103,8 @@ cfi_metatask_bbr_errorparse(struct cfi_metatask *metatask, union ctl_io *io)
 
 	metatask->taskinfo.bbrread.scsi_status = io->scsiio.scsi_status;
 	memcpy(&metatask->taskinfo.bbrread.sense_data, &io->scsiio.sense_data,
-	       ctl_min(sizeof(metatask->taskinfo.bbrread.sense_data),
-		       sizeof(io->scsiio.sense_data)));
+	       MIN(sizeof(metatask->taskinfo.bbrread.sense_data),
+		   sizeof(io->scsiio.sense_data)));
 
 	if (io->scsiio.scsi_status == SCSI_STATUS_RESERV_CONFLICT) {
 		metatask->status = CFI_MT_ERROR;

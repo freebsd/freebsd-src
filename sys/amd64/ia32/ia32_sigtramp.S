@@ -86,34 +86,14 @@ ia32_osigcode:
  * executed, we would have a window where the ring 0 code is
  * executed with the wrong gsbase.
  *
- * Instead, reflect the lcall $7,$0 back to ring 3 trampoline
- * which sets up the frame for int $0x80.
+ * Instead, set LDT descriptor 0 as code segment, which reflects
+ * the lcall $7,$0 back to ring 3 trampoline.  The trampoline sets up
+ * the frame for int $0x80.
  */
 	ALIGN_TEXT
 lcall_tramp:
-	.code64
-	/*
-	 * There, we are in 64bit mode and need to return to 32bit.
-	 * First, convert call frame from 64 to 32 bit format.
-	 */
-	pushq	%rax
-	movl	16(%rsp),%eax
-	movl	%eax,20(%rsp)	/* ret %cs */
-	movl	8(%rsp),%eax
-	movl	%eax,16(%rsp)	/* ret %rip -> %eip */
-	popq	%rax
-	addq	$8,%rsp
-	/* Now return to 32bit */
-	pushq	$0x33 /* _ucode32sel UPL */
-	callq	1f
-1:
-	addq	$2f-1b,(%rsp)
-	lretq
-2:
-	/* Back in 32bit mode */
-	.code32
 	cmpl	$SYS_vfork,%eax
-	je	4f
+	je	1f
 	pushl	%ebp
 	movl	%esp,%ebp
 	pushl	0x24(%ebp) /* arg 6 */
@@ -122,21 +102,20 @@ lcall_tramp:
 	pushl	0x18(%ebp)
 	pushl	0x14(%ebp)
 	pushl	0x10(%ebp) /* arg 1 */
-	pushl	0xc(%ebp)  /* gap */
+	subl	$4,%esp   /* gap */
 	int	$0x80
 	leavel
-3:
 	lretl
-4:
+1:
 	/*
 	 * vfork handling is special and relies on the libc stub saving
-	 * the return ip in %ecx.  If vfork failed, then there is no
-	 * child which can corrupt the frame created by call gate.
+	 * the return ip in %ecx.  Also, we assume that the call was done
+	 * with ucode32 selector in %cs.
 	 */
 	int	$0x80
-	jb	3b
-	addl	$8,%esp
-	jmpl	*%ecx
+	movl	$0x33,4(%esp)	/* GUCODE32_SEL | SEL_UPL */
+	movl	%ecx,(%esp)
+	lretl
 #endif
 
 	ALIGN_TEXT

@@ -20,14 +20,14 @@ namespace llvm {
   /// 64-bit PowerPC Linux.
   class PPC64LinuxTargetObjectFile : public TargetLoweringObjectFileELF {
 
-    virtual void Initialize(MCContext &Ctx, const TargetMachine &TM);
+    void Initialize(MCContext &Ctx, const TargetMachine &TM) override;
 
-    virtual const MCSection *
-    SelectSectionForGlobal(const GlobalValue *GV, SectionKind Kind,
-                           Mangler *Mang, const TargetMachine &TM) const;
+    const MCSection *SelectSectionForGlobal(const GlobalValue *GV,
+                                        SectionKind Kind, Mangler &Mang,
+                                        const TargetMachine &TM) const override;
 
     /// \brief Describe a TLS variable address within debug info.
-    virtual const MCExpr *getDebugThreadLocalSymbol(const MCSymbol *Sym) const;
+    const MCExpr *getDebugThreadLocalSymbol(const MCSymbol *Sym) const override;
   };
 
 }  // end namespace llvm

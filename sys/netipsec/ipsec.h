@@ -81,21 +81,15 @@ struct secpolicyindex {
 
 /* Security Policy Data Base */
 struct secpolicy {
-	LIST_ENTRY(secpolicy) chain;
-	struct mtx lock;
+	TAILQ_ENTRY(secpolicy) chain;
 
-	u_int refcnt;			/* reference count */
 	struct secpolicyindex spidx;	/* selector */
-	u_int32_t id;			/* It's unique number on the system. */
-	u_int state;			/* 0: dead, others: alive */
-#define IPSEC_SPSTATE_DEAD	0
-#define IPSEC_SPSTATE_ALIVE	1
-	u_int policy;			/* policy_type per pfkeyv2.h */
-	u_int16_t scangen;		/* scan generation # */
 	struct ipsecrequest *req;
 				/* pointer to the ipsec request tree, */
 				/* if policy == IPSEC else this value == NULL.*/
-
+	u_int refcnt;			/* reference count */
+	u_int policy;			/* policy_type per pfkeyv2.h */
+	u_int32_t id;			/* It's unique number on the system. */
 	/*
 	 * lifetime handler.
 	 * the policy can be used without limitiation if both lifetime and
@@ -108,13 +102,6 @@ struct secpolicy {
 	long lifetime;		/* duration of the lifetime of this policy */
 	long validtime;		/* duration this policy is valid without use */
 };
-
-#define	SECPOLICY_LOCK_INIT(_sp) \
-	mtx_init(&(_sp)->lock, "ipsec policy", NULL, MTX_DEF)
-#define	SECPOLICY_LOCK(_sp)		mtx_lock(&(_sp)->lock)
-#define	SECPOLICY_UNLOCK(_sp)		mtx_unlock(&(_sp)->lock)
-#define	SECPOLICY_LOCK_DESTROY(_sp)	mtx_destroy(&(_sp)->lock)
-#define	SECPOLICY_LOCK_ASSERT(_sp)	mtx_assert(&(_sp)->lock, MA_OWNED)
 
 /* Request for IPsec */
 struct ipsecrequest {
@@ -279,7 +266,6 @@ VNET_DECLARE(int, ipsec_integrity);
 #endif
 
 VNET_PCPUSTAT_DECLARE(struct ipsecstat, ipsec4stat);
-VNET_DECLARE(struct secpolicy, ip4_def_policy);
 VNET_DECLARE(int, ip4_esp_trans_deflev);
 VNET_DECLARE(int, ip4_esp_net_deflev);
 VNET_DECLARE(int, ip4_ah_trans_deflev);
@@ -292,7 +278,6 @@ VNET_DECLARE(int, crypto_support);
 
 #define	IPSECSTAT_INC(name)	\
     VNET_PCPUSTAT_ADD(struct ipsecstat, ipsec4stat, name, 1)
-#define	V_ip4_def_policy	VNET(ip4_def_policy)
 #define	V_ip4_esp_trans_deflev	VNET(ip4_esp_trans_deflev)
 #define	V_ip4_esp_net_deflev	VNET(ip4_esp_net_deflev)
 #define	V_ip4_ah_trans_deflev	VNET(ip4_ah_trans_deflev)

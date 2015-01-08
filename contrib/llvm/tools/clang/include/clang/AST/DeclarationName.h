@@ -29,6 +29,7 @@ namespace clang {
   class DeclarationNameExtra;
   class IdentifierInfo;
   class MultiKeywordSelector;
+  enum OverloadedOperatorKind : int;
   class QualType;
   class Type;
   class TypeSourceInfo;
@@ -116,20 +117,20 @@ private:
     NameKind Kind = getNameKind();
     if (Kind >= CXXConstructorName && Kind <= CXXConversionFunctionName)
       return reinterpret_cast<CXXSpecialName *>(Ptr & ~PtrMask);
-    return 0;
+    return nullptr;
   }
 
   /// getAsCXXOperatorIdName
   CXXOperatorIdName *getAsCXXOperatorIdName() const {
     if (getNameKind() == CXXOperatorName)
       return reinterpret_cast<CXXOperatorIdName *>(Ptr & ~PtrMask);
-    return 0;
+    return nullptr;
   }
 
   CXXLiteralOperatorIdName *getAsCXXLiteralOperatorIdName() const {
     if (getNameKind() == CXXLiteralOperatorName)
       return reinterpret_cast<CXXLiteralOperatorIdName *>(Ptr & ~PtrMask);
-    return 0;
+    return nullptr;
   }
 
   // Construct a declaration name from the name of a C++ constructor,
@@ -221,7 +222,7 @@ public:
   IdentifierInfo *getAsIdentifierInfo() const {
     if (isIdentifier())
       return reinterpret_cast<IdentifierInfo *>(Ptr);
-    return 0;
+    return nullptr;
   }
 
   /// getAsOpaqueInteger - Get the representation of this declaration

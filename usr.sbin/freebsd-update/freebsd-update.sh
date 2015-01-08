@@ -1395,6 +1395,7 @@ fetch_filter_metadata () {
 	# matter, since we add a leading "/" when we use paths later.
 	cut -f 3- -d '|' $1 |
 	    sed -e 's,/|d|,|d|,' |
+	    sed -e 's,/|-|,|-|,' |
 	    sort -u > $1.tmp
 
 	# Figure out which lines to ignore and remove them.
@@ -2263,7 +2264,7 @@ upgrade_oldall_to_oldnew () {
 }
 
 # Helper for upgrade_merge: Return zero true iff the two files differ only
-# in the contents of their $FreeBSD$ tags.
+# in the contents of their RCS tags.
 samef () {
 	X=`sed -E 's/\\$FreeBSD.*\\$/\$FreeBSD\$/' < $1 | ${SHA256}`
 	Y=`sed -E 's/\\$FreeBSD.*\\$/\$FreeBSD\$/' < $2 | ${SHA256}`
@@ -2359,7 +2360,7 @@ upgrade_merge () {
 		# Ask the user to handle any files which didn't merge.
 		while read F; do
 			# If the installed file differs from the version in
-			# the old release only due to $FreeBSD$ tag expansion
+			# the old release only due to RCS tag expansion
 			# then just use the version in the new release.
 			if samef merge/old/${F} merge/${OLDRELNUM}/${F}; then
 				cp merge/${RELNUM}/${F} merge/new/${F}
@@ -2381,14 +2382,14 @@ manually...
 		# of merging files.
 		while read F; do
 			# Skip files which haven't changed except possibly
-			# in their $FreeBSD$ tags.
+			# in their RCS tags.
 			if [ -f merge/old/${F} ] && [ -f merge/new/${F} ] &&
 			    samef merge/old/${F} merge/new/${F}; then
 				continue
 			fi
 
 			# Skip files where the installed file differs from
-			# the old file only due to $FreeBSD$ tags.
+			# the old file only due to RCS tags.
 			if [ -f merge/old/${F} ] &&
 			    [ -f merge/${OLDRELNUM}/${F} ] &&
 			    samef merge/old/${F} merge/${OLDRELNUM}/${F}; then

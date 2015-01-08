@@ -202,6 +202,7 @@ static driver_t vtmmio_driver = {
 devclass_t vtmmio_devclass;
 
 DRIVER_MODULE(virtio_mmio, simplebus, vtmmio_driver, vtmmio_devclass, 0, 0);
+DRIVER_MODULE(virtio_mmio, ofwbus, vtmmio_driver, vtmmio_devclass, 0, 0);
 MODULE_VERSION(virtio_mmio, 1);
 MODULE_DEPEND(virtio_mmio, simplebus, 1, 1, 1);
 MODULE_DEPEND(virtio_mmio, virtio, 1, 1, 1);
@@ -504,6 +505,8 @@ vtmmio_alloc_virtqueues(device_t dev, int flags, int nvqs,
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc->vtmmio_vqs == NULL)
 		return (ENOMEM);
+
+	vtmmio_write_config_4(sc, VIRTIO_MMIO_GUEST_PAGE_SIZE, 1 << PAGE_SHIFT);
 
 	for (idx = 0; idx < nvqs; idx++) {
 		vqx = &sc->vtmmio_vqs[idx];

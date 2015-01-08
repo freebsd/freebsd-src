@@ -225,7 +225,7 @@ EmitRegUnitPressure(raw_ostream &OS, const CodeGenRegBank &RegBank,
   for (unsigned i = 0; i < NumSets; ++i ) {
     OS << "    \"" << RegBank.getRegSetAt(i).Name << "\",\n";
   }
-  OS << "    0 };\n"
+  OS << "    nullptr };\n"
      << "  return PressureNameTable[Idx];\n"
      << "}\n\n";
 
@@ -831,7 +831,7 @@ RegisterInfoEmitter::runMCDesc(raw_ostream &OS, CodeGenTarget &Target,
 
   // Emit the table of register unit roots. Each regunit has one or two root
   // registers.
-  OS << "extern const uint16_t " << TargetName << "RegUnitRoots[][2] = {\n";
+  OS << "extern const MCPhysReg " << TargetName << "RegUnitRoots[][2] = {\n";
   for (unsigned i = 0, e = RegBank.getNumNativeRegUnits(); i != e; ++i) {
     ArrayRef<const CodeGenRegister*> Roots = RegBank.getRegUnit(i).getRoots();
     assert(!Roots.empty() && "All regunits must have a root register.");
@@ -858,7 +858,7 @@ RegisterInfoEmitter::runMCDesc(raw_ostream &OS, CodeGenTarget &Target,
 
     // Emit the register list now.
     OS << "  // " << Name << " Register Class...\n"
-       << "  const uint16_t " << Name
+       << "  const MCPhysReg " << Name
        << "[] = {\n    ";
     for (unsigned i = 0, e = Order.size(); i != e; ++i) {
       Record *Reg = Order[i];
@@ -917,7 +917,7 @@ RegisterInfoEmitter::runMCDesc(raw_ostream &OS, CodeGenTarget &Target,
     uint64_t Value = 0;
     for (unsigned b = 0, be = BI->getNumBits(); b != be; ++b) {
       if (BitInit *B = dyn_cast<BitInit>(BI->getBit(b)))
-      Value |= (uint64_t)B->getValue() << b;
+        Value |= (uint64_t)B->getValue() << b;
     }
     OS << "  " << Value << ",\n";
   }
@@ -965,23 +965,24 @@ RegisterInfoEmitter::runTargetHeader(raw_ostream &OS, CodeGenTarget &Target,
   OS << "struct " << ClassName << " : public TargetRegisterInfo {\n"
      << "  explicit " << ClassName
      << "(unsigned RA, unsigned D = 0, unsigned E = 0, unsigned PC = 0);\n"
-     << "  virtual bool needsStackRealignment(const MachineFunction &) const\n"
+     << "  bool needsStackRealignment(const MachineFunction &) const override\n"
      << "     { return false; }\n";
   if (!RegBank.getSubRegIndices().empty()) {
-    OS << "  virtual unsigned composeSubRegIndicesImpl"
-       << "(unsigned, unsigned) const;\n"
-      << "  virtual const TargetRegisterClass *"
-      "getSubClassWithSubReg(const TargetRegisterClass*, unsigned) const;\n";
+    OS << "  unsigned composeSubRegIndicesImpl"
+       << "(unsigned, unsigned) const override;\n"
+       << "  const TargetRegisterClass *getSubClassWithSubReg"
+       << "(const TargetRegisterClass*, unsigned) const override;\n";
   }
-  OS << "  virtual const RegClassWeight &getRegClassWeight("
-     << "const TargetRegisterClass *RC) const;\n"
-     << "  virtual unsigned getRegUnitWeight(unsigned RegUnit) const;\n"
-     << "  virtual unsigned getNumRegPressureSets() const;\n"
-     << "  virtual const char *getRegPressureSetName(unsigned Idx) const;\n"
-     << "  virtual unsigned getRegPressureSetLimit(unsigned Idx) const;\n"
-     << "  virtual const int *getRegClassPressureSets("
-     << "const TargetRegisterClass *RC) const;\n"
-     << "  virtual const int *getRegUnitPressureSets(unsigned RegUnit) const;\n"
+  OS << "  const RegClassWeight &getRegClassWeight("
+     << "const TargetRegisterClass *RC) const override;\n"
+     << "  unsigned getRegUnitWeight(unsigned RegUnit) const override;\n"
+     << "  unsigned getNumRegPressureSets() const override;\n"
+     << "  const char *getRegPressureSetName(unsigned Idx) const override;\n"
+     << "  unsigned getRegPressureSetLimit(unsigned Idx) const override;\n"
+     << "  const int *getRegClassPressureSets("
+     << "const TargetRegisterClass *RC) const override;\n"
+     << "  const int *getRegUnitPressureSets("
+     << "unsigned RegUnit) const override;\n"
      << "};\n\n";
 
   ArrayRef<CodeGenRegisterClass*> RegisterClasses = RegBank.getRegClasses();
@@ -1067,7 +1068,7 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
   // Now that all of the structs have been emitted, emit the instances.
   if (!RegisterClasses.empty()) {
     OS << "\nstatic const TargetRegisterClass *const "
-       << "NullRegClasses[] = { NULL };\n\n";
+       << "NullRegClasses[] = { nullptr };\n\n";
 
     // Emit register class bit mask tables. The first bit mask emitted for a
     // register class, RC, is the set of sub-classes, including RC itself.
@@ -1134,7 +1135,7 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
          << RC.getName() << "Superclasses[] = {\n";
       for (unsigned i = 0; i != Supers.size(); ++i)
         OS << "  &" << Supers[i]->getQualifiedName() << "RegClass,\n";
-      OS << "  NULL\n};\n\n";
+      OS << "  nullptr\n};\n\n";
     }
 
     // Emit methods.
@@ -1188,7 +1189,7 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
       else
         OS << RC.getName() << "Superclasses,\n    ";
       if (RC.AltOrderSelect.empty())
-        OS << "0\n";
+        OS << "nullptr\n";
       else
         OS << RC.getName() << "GetRawAllocationOrder\n";
       OS << "  };\n\n";
@@ -1257,7 +1258,7 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
        << "  if (!Idx) return RC;\n  --Idx;\n"
        << "  assert(Idx < " << SubRegIndices.size() << " && \"Bad subreg\");\n"
        << "  unsigned TV = Table[RC->getID()][Idx];\n"
-       << "  return TV ? getRegClass(TV - 1) : 0;\n}\n\n";
+       << "  return TV ? getRegClass(TV - 1) : nullptr;\n}\n\n";
   }
 
   EmitRegUnitPressure(OS, RegBank, ClassName);
@@ -1266,7 +1267,7 @@ RegisterInfoEmitter::runTargetDesc(raw_ostream &OS, CodeGenTarget &Target,
   OS << "extern const MCRegisterDesc " << TargetName << "RegDesc[];\n";
   OS << "extern const MCPhysReg " << TargetName << "RegDiffLists[];\n";
   OS << "extern const char " << TargetName << "RegStrings[];\n";
-  OS << "extern const uint16_t " << TargetName << "RegUnitRoots[][2];\n";
+  OS << "extern const MCPhysReg " << TargetName << "RegUnitRoots[][2];\n";
   OS << "extern const uint16_t " << TargetName << "SubRegIdxLists[];\n";
   OS << "extern const MCRegisterInfo::SubRegCoveredBits "
      << TargetName << "SubRegIdxRanges[];\n";

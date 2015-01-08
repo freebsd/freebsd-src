@@ -45,8 +45,6 @@ MLINKS+=grep.1 zgrep.1 grep.1 zegrep.1 grep.1 zfgrep.1
 gnugrep.1: grep.1
 	cp ${.ALLSRC} ${.TARGET}
 
-SUBDIR+=doc
-
 check:	all
 	@failed=0; total=0; \
 	for tst in ${TESTS}; do \

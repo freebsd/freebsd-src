@@ -1702,7 +1702,7 @@ ieee80211_add_xrates(uint8_t *frm, const struct ieee80211_rateset *rs)
 /* 
  * Add an ssid element to a frame.
  */
-static uint8_t *
+uint8_t *
 ieee80211_add_ssid(uint8_t *frm, const uint8_t *ssid, u_int len)
 {
 	*frm++ = IEEE80211_ELEMID_SSID;

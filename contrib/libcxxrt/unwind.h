@@ -27,7 +27,7 @@
 extern "C" {
 #endif
 
-#ifdef __arm__
+#if defined(__arm__) && !defined(__ARM_DWARF_EH__)
 #include "unwind-arm.h"
 #else
 #include "unwind-itanium.h"

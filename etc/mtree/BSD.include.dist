@@ -9,6 +9,10 @@
     ..
     arpa
     ..
+    atf-c
+    ..
+    atf-c++
+    ..
     bsm
     ..
     bsnmp
@@ -92,7 +96,7 @@
         ..
     ..
     clang
-        3.4.1
+        3.5.0
         ..
     ..
     crypto

@@ -780,7 +780,7 @@ sis_rxfilter_sis(struct sis_softc *sc)
 
 	filter = CSR_READ_4(sc, SIS_RXFILT_CTL);
 	if (filter & SIS_RXFILTCTL_ENABLE) {
-		CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter & ~SIS_RXFILT_CTL);
+		CSR_WRITE_4(sc, SIS_RXFILT_CTL, filter & ~SIS_RXFILTCTL_ENABLE);
 		CSR_READ_4(sc, SIS_RXFILT_CTL);
 	}
 	filter &= ~(SIS_RXFILTCTL_ALLPHYS | SIS_RXFILTCTL_BROAD |

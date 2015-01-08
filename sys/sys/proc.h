@@ -513,6 +513,11 @@ struct proc {
 	struct proc	*p_pptr;	/* (c + e) Pointer to parent process. */
 	LIST_ENTRY(proc) p_sibling;	/* (e) List of sibling processes. */
 	LIST_HEAD(, proc) p_children;	/* (e) Pointer to list of children. */
+	struct proc	*p_reaper;	/* (e) My reaper. */
+	LIST_HEAD(, proc) p_reaplist;	/* (e) List of my descendants
+					       (if I am reaper). */
+	LIST_ENTRY(proc) p_reapsibling;	/* (e) List of siblings - descendants of
+					       the same reaper. */
 	struct mtx	p_mtx;		/* (n) Lock for this struct. */
 	struct mtx	p_statmtx;	/* Lock for the stats */
 	struct mtx	p_itimmtx;	/* Lock for the virt/prof timers */
@@ -570,6 +575,9 @@ struct proc {
 	rlim_t		p_cpulimit;	/* (c) Current CPU limit in seconds. */
 	signed char	p_nice;		/* (c) Process "nice" value. */
 	int		p_fibnum;	/* in this routing domain XXX MRT */
+	pid_t		p_reapsubtree;	/* (e) Pid of the direct child of the
+					       reaper which spawned
+					       our subtree. */
 /* End area that is copied on creation. */
 #define	p_endcopy	p_xstat
 
@@ -671,6 +679,7 @@ struct proc {
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
 #define	P_TREE_FIRST_ORPHAN	0x00000002	/* First element of orphan
 						   list */
+#define	P_TREE_REAPER		0x00000004	/* Reaper of subtree */
 
 /*
  * These were process status values (p_stat), now they are only used in
@@ -920,6 +929,7 @@ void	proc_reparent(struct proc *child, struct proc *newparent);
 struct	pstats *pstats_alloc(void);
 void	pstats_fork(struct pstats *src, struct pstats *dst);
 void	pstats_free(struct pstats *ps);
+void	reaper_abandon_children(struct proc *p, bool exiting);
 int	securelevel_ge(struct ucred *cr, int level);
 int	securelevel_gt(struct ucred *cr, int level);
 void	sess_hold(struct session *);

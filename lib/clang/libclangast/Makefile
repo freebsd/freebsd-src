@@ -65,6 +65,7 @@ SRCS=	APValue.cpp \
 TGHDRS=	AttrDump \
 	AttrImpl \
 	AttrList \
+	AttrVisitor \
 	Attrs \
 	CommentCommandInfo \
 	CommentCommandList \
