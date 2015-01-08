@@ -389,7 +389,7 @@ vm_create(const char *name, struct vm **retvm)
 	if (name == NULL || strlen(name) >= VM_MAX_NAMELEN)
 		return (EINVAL);
 
-	vmspace = VMSPACE_ALLOC(VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS);
+	vmspace = VMSPACE_ALLOC(0, VM_MAXUSER_ADDRESS);
 	if (vmspace == NULL)
 		return (ENOMEM);
 

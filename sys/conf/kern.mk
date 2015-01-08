@@ -39,7 +39,8 @@ CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 CWARNEXTRA?=	-Wno-error=inline -Wno-error=enum-compare -Wno-error=unused-but-set-variable \
 		-Wno-error=aggressive-loop-optimizations -Wno-error=maybe-uninitialized \
 		-Wno-error=array-bounds -Wno-error=address \
-		-Wno-error=cast-qual -Wno-error=sequence-point -Wno-error=attributes
+		-Wno-error=cast-qual -Wno-error=sequence-point -Wno-error=attributes \
+		-Wno-error=strict-overflow -Wno-error=overflow
 .endif
 
 # External compilers may not support our format extensions.  Allow them

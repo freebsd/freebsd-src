@@ -4,7 +4,6 @@
 PROG=	snapinfo
 MAN=	snapinfo.8
 
-DPADD=	${LIBUFS}
-LDADD=	-lufs
+LIBADD=	ufs
 
-.include <bsd.prog.mk>               
+.include <bsd.prog.mk>

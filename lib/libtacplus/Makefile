@@ -28,8 +28,7 @@ LIB=		tacplus
 SRCS=		taclib.c
 INCS=		taclib.h
 CFLAGS+=	-Wall
-DPADD=		${LIBMD}
-LDADD=		-lmd
+LIBADD=		md
 SHLIB_MAJOR=	5
 MAN=		libtacplus.3 tacplus.conf.5
 

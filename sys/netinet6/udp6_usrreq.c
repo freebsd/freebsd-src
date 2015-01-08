@@ -158,7 +158,6 @@ udp6_append(struct inpcb *inp, struct mbuf *n, int off,
 	/* Check AH/ESP integrity. */
 	if (ipsec6_in_reject(n, inp)) {
 		m_freem(n);
-		IPSEC6STAT_INC(ips_in_polvio);
 		return;
 	}
 #endif /* IPSEC */
@@ -837,7 +836,6 @@ udp6_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr6,
 		 */
 #ifdef	RSS
 		m->m_pkthdr.flowid = rss_hash_ip6_2tuple(*faddr, *laddr);
-		m->m_flags |= M_FLOWID;
 		M_HASHTYPE_SET(m, M_HASHTYPE_RSS_IPV6);
 #endif
 		flags = 0;

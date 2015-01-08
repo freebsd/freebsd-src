@@ -41,8 +41,7 @@ NETBSD_ATF_TESTS_C+=	tanh_test
 
 CSTD=		c99
 
-LDADD+=		-lm
-DPADD+=		${LIBM}
+LIBADD+=	m
 #COPTS+=	-Wfloat-equal
 
 # Copied from lib/msun/Makefile

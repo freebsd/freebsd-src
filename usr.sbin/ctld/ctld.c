@@ -643,10 +643,11 @@ static int
 parse_addr_port(char *arg, const char *def_port, struct addrinfo **ai)
 {
 	struct addrinfo hints;
-	char *addr, *ch;
+	char *str, *addr, *ch;
 	const char *port;
 	int error, colons = 0;
 
+	str = arg = strdup(arg);
 	if (arg[0] == '[') {
 		/*
 		 * IPv6 address in square brackets, perhaps with port.
@@ -659,8 +660,10 @@ parse_addr_port(char *arg, const char *def_port, struct addrinfo **ai)
 			port = def_port;
 		} else if (arg[0] == ':') {
 			port = arg + 1;
-		} else
+		} else {
+			free(str);
 			return (1);
+		}
 	} else {
 		/*
 		 * Either IPv6 address without brackets - and without
@@ -687,9 +690,8 @@ parse_addr_port(char *arg, const char *def_port, struct addrinfo **ai)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 	error = getaddrinfo(addr, port, &hints, ai);
-	if (error != 0)
-		return (1);
-	return (0);
+	free(str);
+	return ((error != 0) ? 1 : 0);
 }
 
 int
@@ -1602,7 +1604,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	struct portal *oldp, *newp;
 	struct isns *oldns, *newns;
 	pid_t otherpid;
-	int changed, cumulated_error = 0, error;
+	int changed, cumulated_error = 0, error, sockbuf;
 	int one = 1;
 
 	if (oldconf->conf_debug != newconf->conf_debug) {
@@ -1662,6 +1664,16 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		 */
 		newtarg = target_find(newconf, oldtarg->t_name);
 		if (newtarg == NULL) {
+			error = kernel_port_remove(oldtarg);
+			if (error != 0) {
+				log_warnx("failed to remove target %s",
+				    oldtarg->t_name);
+				/*
+				 * XXX: Uncomment after fixing the root cause.
+				 *
+				 * cumulated_error++;
+				 */
+			}
 			TAILQ_FOREACH_SAFE(oldlun, &oldtarg->t_luns, l_next,
 			    tmplun) {
 				log_debugx("target %s not found in new "
@@ -1678,7 +1690,6 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 					cumulated_error++;
 				}
 			}
-			kernel_port_remove(oldtarg);
 			continue;
 		}
 
@@ -1812,8 +1823,18 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 				cumulated_error++;
 			}
 		}
-		if (oldtarg == NULL)
-			kernel_port_add(newtarg);
+		if (oldtarg == NULL) {
+			error = kernel_port_add(newtarg);
+			if (error != 0) {
+				log_warnx("failed to add target %s",
+				    newtarg->t_name);
+				/*
+				 * XXX: Uncomment after fixing the root cause.
+				 *
+				 * cumulated_error++;
+				 */
+			}
+		}
 	}
 
 	/*
@@ -1880,6 +1901,16 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 				cumulated_error++;
 				continue;
 			}
+			sockbuf = SOCKBUF_SIZE;
+			if (setsockopt(newp->p_socket, SOL_SOCKET, SO_RCVBUF,
+			    &sockbuf, sizeof(sockbuf)) == -1)
+				log_warn("setsockopt(SO_RCVBUF) failed "
+				    "for %s", newp->p_listen);
+			sockbuf = SOCKBUF_SIZE;
+			if (setsockopt(newp->p_socket, SOL_SOCKET, SO_SNDBUF,
+			    &sockbuf, sizeof(sockbuf)) == -1)
+				log_warn("setsockopt(SO_SNDBUF) failed "
+				    "for %s", newp->p_listen);
 			error = setsockopt(newp->p_socket, SOL_SOCKET,
 			    SO_REUSEADDR, &one, sizeof(one));
 			if (error != 0) {

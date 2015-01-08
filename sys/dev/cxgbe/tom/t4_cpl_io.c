@@ -1086,7 +1086,7 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 #ifdef USE_DDP_RX_FLOW_CONTROL
 		toep->rx_credits -= m->m_len;	/* adjust for F_RX_FC_DDP */
 #endif
-		sbappendstream_locked(sb, m);
+		sbappendstream_locked(sb, m, 0);
 		toep->sb_cc = sbused(sb);
 	}
 	socantrcvmore_locked(so);	/* unlocks the sockbuf */
@@ -1586,7 +1586,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	    ("%s: sb %p has more data (%d) than last time (%d).",
 	    __func__, sb, sbused(sb), toep->sb_cc));
 	toep->rx_credits += toep->sb_cc - sbused(sb);
-	sbappendstream_locked(sb, m);
+	sbappendstream_locked(sb, m, 0);
 	toep->sb_cc = sbused(sb);
 	sorwakeup_locked(so);
 	SOCKBUF_UNLOCK_ASSERT(sb);

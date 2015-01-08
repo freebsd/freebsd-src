@@ -208,6 +208,8 @@ struct pr_usrreqs {
 #define	PRUS_OOB	0x1
 #define	PRUS_EOF	0x2
 #define	PRUS_MORETOCOME	0x4
+#define	PRUS_NOTREADY	0x8
+	int	(*pru_ready)(struct socket *so, struct mbuf *m, int count);
 	int	(*pru_sense)(struct socket *so, struct stat *sb);
 	int	(*pru_shutdown)(struct socket *so);
 	int	(*pru_flush)(struct socket *so, int direction);
@@ -251,6 +253,7 @@ int	pru_rcvd_notsupp(struct socket *so, int flags);
 int	pru_rcvoob_notsupp(struct socket *so, struct mbuf *m, int flags);
 int	pru_send_notsupp(struct socket *so, int flags, struct mbuf *m,
 	    struct sockaddr *addr, struct mbuf *control, struct thread *td);
+int	pru_ready_notsupp(struct socket *so, struct mbuf *m, int count);
 int	pru_sense_null(struct socket *so, struct stat *sb);
 int	pru_shutdown_notsupp(struct socket *so);
 int	pru_sockaddr_notsupp(struct socket *so, struct sockaddr **nam);

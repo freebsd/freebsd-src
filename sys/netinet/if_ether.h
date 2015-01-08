@@ -132,8 +132,8 @@ _check_in_addr_typecast(const struct in_addr *paddr)
 #define	lltable_create_lle4(i, f, a)	\
 	lltable_create_lle(LLTABLE(i), (f), _check_in_addr_typecast(a))
 
-int	arpresolve(struct ifnet *ifp, struct rtentry *rt, struct mbuf *m,
-	    const struct sockaddr *dst, u_char *desten, struct llentry **lle);
+int	arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
+	    const struct sockaddr *dst, u_char *desten, uint32_t *pflags);
 int	arpresolve_fast(struct ifnet *ifp, struct in_addr dst, u_int mflags,
 	    u_char *dst_addr);
 void	arprequest(struct ifnet *, const struct in_addr *,

@@ -12,7 +12,8 @@ GDBLIBS= ${OBJ_GDB}/libgdb/libgdb.a
 # global symbols visible.
 LDFLAGS+= -Wl,-E
 
-DPADD=	${GDBLIBS} ${BULIBS} ${LIBM} ${LIBREADLINE} ${LIBTERMCAPW} ${LIBGNUREGEX}
-LDADD=	${GDBLIBS} ${BULIBS} -lm ${LDREADLINE} -ltermcapw -lgnuregex
+DPADD=	${GDBLIBS} ${BULIBS}
+LDADD=	${GDBLIBS} ${BULIBS}
+LIBADD+=	m readline ncursesw gnuregex
 
 .include <bsd.prog.mk>

@@ -146,7 +146,7 @@ static void	arp_update_lle(struct arphdr *, struct in_addr, struct ifnet *,
     int , struct llentry *);
 #endif
 static int	arpresolve_slow(struct ifnet *, int is_gw, struct mbuf *,
-    const struct sockaddr *, u_char *, struct llentry **);
+    const struct sockaddr *, u_char *, uint32_t *pflags); 
 
 static const struct netisr_handler arp_nh = {
 	.nh_name = "arp",
@@ -479,28 +479,29 @@ arpresolve_fast(struct ifnet *ifp, struct in_addr dst, u_int mflags,
  * Resolve an IP address into an ethernet address.
  * On input:
  *    ifp is the interface we use
- *    rt0 is the route to the final destination (possibly useless)
+ *    is_gw != if @dst represents gateway to some destination
  *    m is the mbuf. May be NULL if we don't have a packet.
  *    dst is the next hop,
  *    desten is where we want the address.
+ *    flags returns lle entry flags.
  *
- * On success, desten is filled in and the function returns 0;
+ * On success, desten and flags are filled in and the function returns 0;
  * If the packet must be held pending resolution, we return EWOULDBLOCK
  * On other errors, we return the corresponding error code.
  * Note that m_freem() handles NULL.
  */
 int
-arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
-	const struct sockaddr *dst, u_char *desten, struct llentry **lle)
+arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
+	const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
 {
 	struct llentry *la = NULL;
 	struct in_addr dst4;
-	int is_gw;
 	IF_AFDATA_RUN_TRACKER;
 
 	dst4 = SIN(dst)->sin_addr;
+	if (pflags != NULL)
+		*pflags = 0;
 
-	*lle = NULL;
 	if (m != NULL) {
 		if (m->m_flags & M_BCAST) {
 			/* broadcast */
@@ -523,18 +524,18 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 		if (la->r_kick != 0)
 			la->r_kick = 0; /* Notify that entry was used */
 		IF_AFDATA_RUN_RUNLOCK(ifp);
-		*lle = la;
+		if (pflags != NULL)
+			*pflags = la->la_flags;
 		return (0);
 	}
 	IF_AFDATA_RUN_RUNLOCK(ifp);
 
-	is_gw = (rt0 != NULL) ? (rte_get_flags(rt0) & RTF_GATEWAY) : 0;
-	return (arpresolve_slow(ifp, is_gw, m, dst, desten, lle));
+	return (arpresolve_slow(ifp, is_gw, m, dst, desten, pflags));
 }
 
 static int
 arpresolve_slow(struct ifnet *ifp, int is_gw, struct mbuf *m,
-	const struct sockaddr *dst, u_char *desten, struct llentry **lle)
+	const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
 {
 	struct llentry *la, *la_tmp;
 	struct mbuf *curr = NULL;
@@ -543,7 +544,6 @@ arpresolve_slow(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	int create, error;
 
 	create = 0;
-	*lle = NULL;
 	dst4 = SIN(dst)->sin_addr;
 
 	IF_AFDATA_RLOCK(ifp);
@@ -597,7 +597,8 @@ arpresolve_slow(struct ifnet *ifp, int is_gw, struct mbuf *m,
 			la->la_preempt--;
 		}
 #endif
-		*lle = la;
+		if (pflags != NULL)
+			*pflags = la->la_flags;
 		error = 0;
 		goto done;
 	}
@@ -644,7 +645,7 @@ arpresolve_slow(struct ifnet *ifp, int is_gw, struct mbuf *m,
 	if (la->la_asked < V_arp_maxtries)
 		error = EWOULDBLOCK;	/* First request. */
 	else
-		error = (is_gw != 0) ?  EHOSTUNREACH : EHOSTDOWN;
+		error = is_gw != 0 ? EHOSTUNREACH : EHOSTDOWN;
 
 	if (la->la_asked == 0 || la->la_expire != time_uptime) {
 		int canceled;

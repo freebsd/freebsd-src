@@ -29,20 +29,17 @@ CFLAGS+=	-I${TELNETDIR}/telnet
 
 LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
 
-DPADD=		${LIBUTIL} ${LIBTERMCAPW} ${LIBTELNET}
-LDADD=		-lutil -ltermcapw ${LIBTELNET}
+LIBADD=		telnet util ncursesw
 
 .if ${MK_OPENSSL} != "no"
 SRCS+=		authenc.c
 CFLAGS+=	-DAUTHENTICATION -DENCRYPTION
-DPADD+=		${LIBMP} ${LIBCRYPTO} ${LIBCRYPT} ${LIBPAM}
-LDADD+=		-lmp -lcrypto -lcrypt ${MINUSLPAM}
+LIBADD+=	mp crypto pam
 .endif
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+=	-DKRB5 -DFORWARD -Dnet_write=telnet_net_write
-DPADD+=		${LIBKRB5} ${LIBHX509} ${LIBASN1} ${LIBROKEN} ${LIBCOM_ERR}
-LDADD+=		-lkrb5 -lhx509 -lasn1 -lroken -lcom_err
+LIBADD+=	krb5 roken
 .endif
 
 .include <bsd.prog.mk>

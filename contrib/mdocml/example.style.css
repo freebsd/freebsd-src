@@ -1,4 +1,4 @@
-/* $Id: example.style.css,v 1.49 2011/12/15 12:18:57 kristaps Exp $ */
+/* $Id: example.style.css,v 1.53 2014/09/27 11:16:24 kristaps Exp $ */
 /*
  * This is an example style-sheet provided for mandoc(1) and the -Thtml
  * or -Txhtml output mode.
@@ -20,11 +20,11 @@ div.mandoc div.subsection	{ } /* Sub-sections (Ss, SS). */
 div.mandoc table.synopsis	{ } /* SYNOPSIS section table. */
 div.mandoc table.foot		{ } /* Document footer. */
 div.mandoc td.foot-date		{ width: 50%; } /* Document footer: date. */
-div.mandoc td.foot-os		{ width: 50%; text-align: right; } /* Document footer: OS/source. */
+div.mandoc td.foot-os		{ width: 50%; } /* Document footer: OS/source. */
 div.mandoc table.head		{ } /* Document header. */
 div.mandoc td.head-ltitle	{ width: 10%; } /* Document header: left-title. */
-div.mandoc td.head-vol		{ width: 80%; text-align: center; } /* Document header: volume. */
-div.mandoc td.head-rtitle	{ width: 10%; text-align: right; } /* Document header: right-title. */
+div.mandoc td.head-vol		{ width: 80%; } /* Document header: volume. */
+div.mandoc td.head-rtitle	{ width: 10%; } /* Document header: right-title. */
 div.mandoc .display		{ } /* All Bd, D1, Dl. */
 div.mandoc .list		{ } /* All Bl. */
 div.mandoc i			{ } /* Italic: BI, IB, I, (implicit). */
@@ -108,3 +108,4 @@ div.mandoc ol.list-enum		{ padding-left: 2em; }
 div.mandoc li.list-enum		{ }
 div.mandoc span.eqn		{ } /* Equation modes.  See eqn(7). */
 div.mandoc table.tbl		{ } /* Table modes.  See tbl(7). */
+div.mandoc div.spacer		{ margin: 1em 0; }

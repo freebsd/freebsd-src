@@ -285,6 +285,7 @@ static void
 device_sysctl_init(device_t dev)
 {
 	devclass_t dc = dev->devclass;
+	int domain;
 
 	if (dev->sysctl_tree != NULL)
 		return;
@@ -314,6 +315,10 @@ device_sysctl_init(device_t dev)
 	    OID_AUTO, "%parent", CTLTYPE_STRING | CTLFLAG_RD,
 	    dev, DEVICE_SYSCTL_PARENT, device_sysctl_handler, "A",
 	    "parent device");
+	if (bus_get_domain(dev, &domain) == 0)
+		SYSCTL_ADD_INT(&dev->sysctl_ctx,
+		    SYSCTL_CHILDREN(dev->sysctl_tree), OID_AUTO, "%domain",
+		    CTLFLAG_RD, NULL, domain, "NUMA domain");
 }
 
 static void
@@ -4540,6 +4545,18 @@ bus_get_dma_tag(device_t dev)
 	if (parent == NULL)
 		return (NULL);
 	return (BUS_GET_DMA_TAG(parent, dev));
+}
+
+/**
+ * @brief Wrapper function for BUS_GET_DOMAIN().
+ *
+ * This function simply calls the BUS_GET_DOMAIN() method of the
+ * parent of @p dev.
+ */
+int
+bus_get_domain(device_t dev, int *domain)
+{
+	return (BUS_GET_DOMAIN(device_get_parent(dev), dev, domain));
 }
 
 /* Resume all devices and then notify userland that we're up again. */

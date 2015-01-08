@@ -287,7 +287,8 @@ unixdomainpr(struct xunpcb *xunp, struct xsocket *so)
 	} else {
 		printf("%8lx %-6.6s %6u %6u %8lx %8lx %8lx %8lx",
 		    (long)so->so_pcb, socktype[so->so_type], so->so_rcv.sb_cc,
-		    so->so_snd.sb_cc, (long)unp->unp_vnode, (long)unp->unp_conn,
+		    so->so_snd.sb_cc, (long)unp->unp_vnode,
+		    (long)unp->unp_conn,
 		    (long)LIST_FIRST(&unp->unp_refs),
 		    (long)LIST_NEXT(unp, unp_reflink));
 	}

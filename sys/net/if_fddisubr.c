@@ -101,8 +101,8 @@ fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	int loop_copy = 0, error = 0, hdrcmplt = 0;
  	u_char esrc[FDDI_ADDR_LEN], edst[FDDI_ADDR_LEN];
 	struct fddi_header *fh;
-#if defined(INET) || defined(INET6)
-	struct llentry *lle;
+#ifdef INET
+	int is_gw;
 #endif
 
 #ifdef MAC
@@ -121,8 +121,11 @@ fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET: {
-		/* XXX: Pass is_gw flag */
-		error = arpresolve(ifp, NULL, m, dst, edst, &lle);
+		is_gw = 0;
+		if (ro != NULL && ro->ro_rt != NULL &&
+		    (ro->ro_rt->rt_flags & RTF_GATEWAY) != 0)
+			is_gw = 1;
+		error = arpresolve(ifp, is_gw, m, dst, edst, NULL);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
 		type = htons(ETHERTYPE_IP);
@@ -158,7 +161,7 @@ fddi_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, &lle);
+		error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, NULL);
 		if (error)
 			return (error); /* Something bad happened */
 		type = htons(ETHERTYPE_IPV6);

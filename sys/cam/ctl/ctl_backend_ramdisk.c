@@ -238,9 +238,10 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 	if (io->scsiio.kern_sg_entries > 0)
 		free(io->scsiio.kern_data_ptr, M_RAMDISK);
 	io->scsiio.kern_rel_offset += io->scsiio.kern_data_len;
-	if ((io->io_hdr.port_status == 0)
-	 && ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0)
-	 && ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
+	if (io->io_hdr.flags & CTL_FLAG_ABORT) {
+		;
+	} else if ((io->io_hdr.port_status == 0) &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)) {
 		if (io->io_hdr.ctl_private[CTL_PRIV_BACKEND].integer > 0) {
 			mtx_lock(&be_lun->queue_lock);
 			STAILQ_INSERT_TAIL(&be_lun->cont_queue,
@@ -250,10 +251,10 @@ ctl_backend_ramdisk_move_done(union ctl_io *io)
 			    &be_lun->io_task);
 			return (0);
 		}
-		io->io_hdr.status = CTL_SUCCESS;
-	} else if ((io->io_hdr.port_status != 0)
-	      && ((io->io_hdr.flags & CTL_FLAG_ABORT) == 0)
-	      && ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE)){
+		ctl_set_success(&io->scsiio);
+	} else if ((io->io_hdr.port_status != 0) &&
+	    ((io->io_hdr.status & CTL_STATUS_MASK) == CTL_STATUS_NONE ||
+	     (io->io_hdr.status & CTL_STATUS_MASK) == CTL_SUCCESS)) {
 		/*
 		 * For hardware error sense keys, the sense key
 		 * specific value is defined to be a retry count,
@@ -966,8 +967,31 @@ ctl_backend_ramdisk_config_write(union ctl_io *io)
 static int
 ctl_backend_ramdisk_config_read(union ctl_io *io)
 {
-	/*
-	 * XXX KDM need to implement!!
-	 */
-	return (0);
+	int retval = 0;
+
+	switch (io->scsiio.cdb[0]) {
+	case SERVICE_ACTION_IN:
+		if (io->scsiio.cdb[1] == SGLS_SERVICE_ACTION) {
+			/* We have nothing to tell, leave default data. */
+			ctl_config_read_done(io);
+			retval = CTL_RETVAL_COMPLETE;
+			break;
+		}
+		ctl_set_invalid_field(&io->scsiio,
+				      /*sks_valid*/ 1,
+				      /*command*/ 1,
+				      /*field*/ 1,
+				      /*bit_valid*/ 1,
+				      /*bit*/ 4);
+		ctl_config_read_done(io);
+		retval = CTL_RETVAL_COMPLETE;
+		break;
+	default:
+		ctl_set_invalid_opcode(&io->scsiio);
+		ctl_config_read_done(io);
+		retval = CTL_RETVAL_COMPLETE;
+		break;
+	}
+
+	return (retval);
 }

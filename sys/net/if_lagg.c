@@ -247,14 +247,14 @@ SYSCTL_INT(_net_link_lagg, OID_AUTO, failover_rx_all, CTLFLAG_RW | CTLFLAG_VNET,
     &VNET_NAME(lagg_failover_rx_all), 0,
     "Accept input from any interface in a failover lagg");
 
-/* Default value for using M_FLOWID */
+/* Default value for using flowid */
 static VNET_DEFINE(int, def_use_flowid) = 1;
 #define	V_def_use_flowid	VNET(def_use_flowid)
 SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_flowid, CTLFLAG_RWTUN,
     &VNET_NAME(def_use_flowid), 0,
     "Default setting for using flow id for load sharing");
 
-/* Default value for using M_FLOWID */
+/* Default value for flowid shift */
 static VNET_DEFINE(int, def_flowid_shift) = 16;
 #define	V_def_flowid_shift	VNET(def_flowid_shift)
 SYSCTL_INT(_net_link_lagg, OID_AUTO, default_flowid_shift, CTLFLAG_RWTUN,
@@ -2148,7 +2148,8 @@ lagg_lb_start(struct lagg_softc *sc, struct mbuf *m)
 	struct lagg_port *lp = NULL;
 	uint32_t p = 0;
 
-	if ((sc->sc_opts & LAGG_OPT_USE_FLOWID) && (m->m_flags & M_FLOWID))
+	if ((sc->sc_opts & LAGG_OPT_USE_FLOWID) &&
+	    M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		p = m->m_pkthdr.flowid >> sc->flowid_shift;
 	else
 		p = lagg_hashmbuf(sc, m, lb->lb_key);

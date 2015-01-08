@@ -1,4 +1,4 @@
-.\"	$Id: mdoc.7,v 1.223 2013/12/25 14:09:32 schwarze Exp $
+.\"	$Id: mdoc.7,v 1.244 2014/11/28 18:36:35 schwarze Exp $
 .\"
 .\" Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
 .\" Copyright (c) 2010, 2011, 2013 Ingo Schwarze <schwarze@openbsd.org>
@@ -15,7 +15,7 @@
 .\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 .\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 .\"
-.Dd $Mdocdate: December 25 2013 $
+.Dd $Mdocdate: November 28 2014 $
 .Dt MDOC 7
 .Os
 .Sh NAME
@@ -125,7 +125,7 @@ file for a utility
 \&.Nm progname
 \&.Nd one line about what it does
 \&.\e\(dq .Sh LIBRARY
-\&.\e\(dq For sections 2, 3, & 9 only.
+\&.\e\(dq For sections 2, 3, and 9 only.
 \&.\e\(dq Not used in OpenBSD.
 \&.Sh SYNOPSIS
 \&.Nm progname
@@ -135,20 +135,22 @@ file for a utility
 The
 \&.Nm
 utility processes files ...
+\&.\e\(dq .Sh CONTEXT
+\&.\e\(dq For section 9 functions only.
 \&.\e\(dq .Sh IMPLEMENTATION NOTES
 \&.\e\(dq Not used in OpenBSD.
 \&.\e\(dq .Sh RETURN VALUES
-\&.\e\(dq For sections 2, 3, & 9 only.
+\&.\e\(dq For sections 2, 3, and 9 function return values only.
 \&.\e\(dq .Sh ENVIRONMENT
-\&.\e\(dq For sections 1, 6, 7, & 8 only.
+\&.\e\(dq For sections 1, 6, 7, and 8 only.
 \&.\e\(dq .Sh FILES
 \&.\e\(dq .Sh EXIT STATUS
-\&.\e\(dq For sections 1, 6, & 8 only.
+\&.\e\(dq For sections 1, 6, and 8 only.
 \&.\e\(dq .Sh EXAMPLES
 \&.\e\(dq .Sh DIAGNOSTICS
-\&.\e\(dq For sections 1, 4, 6, 7, & 8 only.
+\&.\e\(dq For sections 1, 4, 6, 7, 8, and 9 printf/stderr messages only.
 \&.\e\(dq .Sh ERRORS
-\&.\e\(dq For sections 2, 3, & 9 only.
+\&.\e\(dq For sections 2, 3, 4, and 9 errno settings only.
 \&.\e\(dq .Sh SEE ALSO
 \&.\e\(dq .Xr foobar 1
 \&.\e\(dq .Sh STANDARDS
@@ -318,6 +320,9 @@ macro followed by a non-standard section name, and each having
 several subsections, like in the present
 .Nm
 manual.
+.It Em CONTEXT
+This section lists the contexts in which functions can be called in section 9.
+The contexts are autoconf, process, or interrupt.
 .It Em IMPLEMENTATION NOTES
 Implementation-specific notes should be kept here.
 This is useful when implementing standard functions that may have side
@@ -358,8 +363,12 @@ Example usages.
 This often contains snippets of well-formed, well-tested invocations.
 Make sure that examples work properly!
 .It Em DIAGNOSTICS
-Documents error conditions.
-This is most useful in section 4 manuals.
+Documents error messages.
+In section 4 and 9 manuals, these are usually messages printed by the
+kernel to the console and to the kernel log.
+In section 1, 6, 7, and 8, these are usually messages printed by
+userland programs to the standard error output.
+.Pp
 Historically, this section was used in place of
 .Em EXIT STATUS
 for manuals in sections 1, 6, and 8; however, this practise is
@@ -369,7 +378,9 @@ See
 .Sx \&Bl
 .Fl diag .
 .It Em ERRORS
-Documents error handling in sections 2, 3, and 9.
+Documents
+.Xr errno 2
+settings in sections 2, 3, 4, and 9.
 .Pp
 See
 .Sx \&Er .
@@ -377,7 +388,7 @@ See
 References other manuals with related topics.
 This section should exist for most manuals.
 Cross-references should conventionally be ordered first by section, then
-alphabetically.
+alphabetically (ignoring case).
 .Pp
 References to other documentation concerning the topic of the manual page,
 for example authoritative books or journal articles, may also be
@@ -422,7 +433,7 @@ in the alphabetical
 .Ss Document preamble and NAME section macros
 .Bl -column "Brq, Bro, Brc" description
 .It Sx \&Dd Ta document date: Cm $\&Mdocdate$ | Ar month day , year
-.It Sx \&Dt Ta document title: Ar TITLE section Op Ar volume | arch
+.It Sx \&Dt Ta document title: Ar TITLE section Op Ar arch
 .It Sx \&Os Ta operating system version: Op Ar system Op Ar version
 .It Sx \&Nm Ta document name (one argument)
 .It Sx \&Nd Ta document description (one line)
@@ -457,7 +468,7 @@ in the alphabetical
 .It Sx \&Pf Ta prefix, no following horizontal space (one argument)
 .It Sx \&Ns Ta roman font, no preceding horizontal space (no arguments)
 .It Sx \&Ap Ta apostrophe without surrounding whitespace (no arguments)
-.It Sx \&Sm Ta switch horizontal spacing mode: Cm on | off
+.It Sx \&Sm Ta switch horizontal spacing mode: Op Cm on | off
 .It Sx \&Bk , \&Ek Ta keep block: Fl words
 .It Sx \&br Ta force output line break in text mode (no arguments)
 .It Sx \&sp Ta force vertical space: Op Ar height
@@ -502,7 +513,6 @@ in the alphabetical
 .It Sx \&Cd Ta kernel configuration declaration (>0 arguments)
 .It Sx \&Ad Ta memory address (>0 arguments)
 .It Sx \&Ms Ta mathematical symbol (>0 arguments)
-.It Sx \&Tn Ta tradename (>0 arguments)
 .El
 .Ss Physical markup
 .Bl -column "Brq, Bro, Brc" description
@@ -530,7 +540,6 @@ in the alphabetical
 .It Sx \&Ex Fl std Ta standard command exit values: Op Ar utility ...
 .It Sx \&Rv Fl std Ta standard function return values: Op Ar function ...
 .It Sx \&St Ta reference to a standards document (one argument)
-.It Sx \&Ux Ta Ux
 .It Sx \&At Ta At
 .It Sx \&Bx Ta Bx
 .It Sx \&Bsx Ta Bsx
@@ -741,9 +750,8 @@ See also
 .Sx \&Dx ,
 .Sx \&Fx ,
 .Sx \&Nx ,
-.Sx \&Ox ,
 and
-.Sx \&Ux .
+.Sx \&Ox .
 .Ss \&Bc
 Close a
 .Sx \&Bo
@@ -929,8 +937,11 @@ The
 .Fl width
 and
 .Fl offset
-arguments accept scaling widths as described in
-.Xr roff 7
+arguments accept macro names as described for
+.Sx \&Bd
+.Fl offset ,
+scaling widths as described in
+.Xr roff 7 ,
 or use the length of the given string.
 The
 .Fl offset
@@ -1107,10 +1118,10 @@ See also
 .Sx \&Dx ,
 .Sx \&Fx ,
 .Sx \&Nx ,
-.Sx \&Ox ,
 and
-.Sx \&Ux .
+.Sx \&Ox .
 .Ss \&Bt
+Supported only for compatibility, do not use this in new manuals.
 Prints
 .Dq is currently in beta test.
 .Ss \&Bx
@@ -1130,9 +1141,8 @@ See also
 .Sx \&Dx ,
 .Sx \&Fx ,
 .Sx \&Nx ,
-.Sx \&Ox ,
 and
-.Sx \&Ux .
+.Sx \&Ox .
 .Ss \&Cd
 Kernel configuration declaration.
 This denotes strings accepted by
@@ -1175,20 +1185,19 @@ See also
 and
 .Sx \&Dl .
 .Ss \&Db
-Switch debugging mode.
-Its syntax is as follows:
-.Pp
-.D1 Pf \. Sx \&Db Cm on | off
-.Pp
-This macro is ignored by
-.Xr mandoc 1 .
+This macro is obsolete.
+No replacement is needed.
+It is ignored by
+.Xr mandoc 1
+and groff including its arguments.
+It was formerly used to toggle a debugging mode.
 .Ss \&Dc
 Close a
 .Sx \&Do
 block.
 Does not have any tail arguments.
 .Ss \&Dd
-Document date.
+Document date for display in the page footer.
 This is the mandatory first macro of any
 .Nm
 manual.
@@ -1217,8 +1226,11 @@ the special string
 .Dq $\&Mdocdate$
 can be given as an argument.
 .It
-A few alternative date formats are accepted as well
-and converted to the standard form.
+The traditional, purely numeric
+.Xr man 7
+format
+.Ar year Ns \(en Ns Ar month Ns \(en Ns Ar day
+is accepted, too.
 .It
 If a date string cannot be parsed, it is used verbatim.
 .It
@@ -1235,7 +1247,7 @@ See also
 and
 .Sx \&Os .
 .Ss \&Dl
-One-line intended display.
+One-line indented display.
 This is formatted as literal text and is useful for commands and
 invocations.
 It is followed by a newline.
@@ -1278,98 +1290,64 @@ See also
 and
 .Sx \&Do .
 .Ss \&Dt
-Document title.
+Document title for display in the page header.
 This is the mandatory second macro of any
 .Nm
 file.
 Its syntax is as follows:
 .Bd -ragged -offset indent
 .Pf \. Sx \&Dt
-.Oo
-.Ar title
-.Oo
+.Ar TITLE
 .Ar section
-.Op Ar volume
 .Op Ar arch
-.Oc
-.Oc
 .Ed
 .Pp
 Its arguments are as follows:
-.Bl -tag -width Ds -offset Ds
-.It Ar title
+.Bl -tag -width section -offset 2n
+.It Ar TITLE
 The document's title (name), defaulting to
-.Dq UNKNOWN
+.Dq UNTITLED
 if unspecified.
-It should be capitalised.
+To achieve a uniform appearance of page header lines,
+it should by convention be all caps.
 .It Ar section
 The manual section.
 This may be one of
-.Ar 1
+.Cm 1
 .Pq utilities ,
-.Ar 2
+.Cm 2
 .Pq system calls ,
-.Ar 3
+.Cm 3
 .Pq libraries ,
-.Ar 3p
+.Cm 3p
 .Pq Perl libraries ,
-.Ar 4
+.Cm 4
 .Pq devices ,
-.Ar 5
+.Cm 5
 .Pq file formats ,
-.Ar 6
+.Cm 6
 .Pq games ,
-.Ar 7
+.Cm 7
 .Pq miscellaneous ,
-.Ar 8
+.Cm 8
 .Pq system utilities ,
-.Ar 9
+.Cm 9
 .Pq kernel functions ,
-.Ar X11
+.Cm X11
 .Pq X Window System ,
-.Ar X11R6
+.Cm X11R6
 .Pq X Window System ,
-.Ar unass
+.Cm unass
 .Pq unassociated ,
-.Ar local
+.Cm local
 .Pq local system ,
-.Ar draft
+.Cm draft
 .Pq draft manual ,
 or
-.Ar paper
+.Cm paper
 .Pq paper .
 It should correspond to the manual's filename suffix and defaults to
-.Dq 1
-if unspecified.
-.It Ar volume
-This overrides the volume inferred from
-.Ar section .
-This field is optional, and if specified, must be one of
-.Ar USD
-.Pq users' supplementary documents ,
-.Ar PS1
-.Pq programmers' supplementary documents ,
-.Ar AMD
-.Pq administrators' supplementary documents ,
-.Ar SMM
-.Pq system managers' manuals ,
-.Ar URM
-.Pq users' reference manuals ,
-.Ar PRM
-.Pq programmers' reference manuals ,
-.Ar KM
-.Pq kernel manuals ,
-.Ar IND
-.Pq master index ,
-.Ar MMI
-.Pq master index ,
-.Ar LOCAL
-.Pq local manuals ,
-.Ar LOC
-.Pq local manuals ,
-or
-.Ar CON
-.Pq contributed manuals .
+the empty string if unspecified.
 .It Ar arch
 This specifies the machine architecture a manual page applies to,
 where relevant, for example
@@ -1378,17 +1356,11 @@ where relevant, for example
 .Cm i386 ,
 or
 .Cm sparc64 .
-The list of supported architectures varies by operating system.
-For the full list of all architectures recognized by
-.Xr mandoc 1 ,
-see the file
-.Pa arch.in
-in the source distribution.
+The list of valid architectures varies by operating system.
 .El
 .Pp
 Examples:
 .Dl \&.Dt FOO 1
-.Dl \&.Dt FOO 4 KM
 .Dl \&.Dt FOO 9 i386
 .Pp
 See also
@@ -1430,9 +1402,8 @@ See also
 .Sx \&Bx ,
 .Sx \&Fx ,
 .Sx \&Nx ,
-.Sx \&Ox ,
 and
-.Sx \&Ux .
+.Sx \&Ox .
 .Ss \&Ec
 Close a scope started by
 .Sx \&Eo .
@@ -1463,16 +1434,29 @@ See also
 and
 .Sx \&It .
 .Ss \&Em
-Denotes text that should be
-.Em emphasised .
-Note that this is a presentation term and should not be used for
-stylistically decorating technical terms.
-Depending on the output device, this is usually represented
-using an italic font or underlined characters.
+Request an italic font.
+If the output device does not provide that, underline.
+.Pp
+This is most often used for stress emphasis (not to be confused with
+importance, see
+.Sx \&Sy ) .
+In the rare cases where none of the semantic markup macros fit,
+it can also be used for technical terms and placeholders, except
+that for syntax elements,
+.Sx \&Sy
+and
+.Sx \&Ar
+are preferred, respectively.
 .Pp
 Examples:
-.Dl \&.Em Warnings!
-.Dl \&.Em Remarks :
+.Bd -literal -compact -offset indent
+Selected lines are those
+\&.Em not
+matching any of the specified patterns.
+Some of the functions use a
+\&.Em hold space
+to save the pattern space for subsequent retrieval.
+.Ed
 .Pp
 See also
 .Sx \&Bf ,
@@ -1481,8 +1465,14 @@ See also
 and
 .Sx \&Sy .
 .Ss \&En
-This macro is obsolete and not implemented in
-.Xr mandoc 1 .
+This macro is obsolete.
+Use
+.Sx \&Eo
+or any of the other enclosure macros.
+.Pp
+It encloses its argument in the delimiters specified by the last
+.Sx \&Es
+macro.
 .Ss \&Eo
 An arbitrary enclosure.
 Its syntax is as follows:
@@ -1508,7 +1498,14 @@ See also
 .Sx \&Dv
 for general constants.
 .Ss \&Es
-This macro is obsolete and not implemented.
+This macro is obsolete.
+Use
+.Sx \&Eo
+or any of the other enclosure macros.
+.Pp
+It takes two arguments, defining the delimiters to be used by subsequent
+.Sx \&En
+macros.
 .Ss \&Ev
 Environmental variables such as those specified in
 .Xr environ 7 .
@@ -1540,23 +1537,35 @@ arguments are treated as separate utilities.
 See also
 .Sx \&Rv .
 .Ss \&Fa
-Function argument.
+Function argument or parameter.
 Its syntax is as follows:
 .Bd -ragged -offset indent
 .Pf \. Sx \&Fa
-.Op Cm argtype
-.Cm argname
+.Qo
+.Op Ar argtype
+.Op Ar argname
+.Qc Ar \&...
 .Ed
 .Pp
-This may be invoked for names with or without the corresponding type.
-It is also used to specify the field name of a structure.
+Each argument may be a name and a type (recommended for the
+.Em SYNOPSIS
+section), a name alone (for function invocations),
+or a type alone (for function prototypes).
+If both a type and a name are given or if the type consists of multiple
+words, all words belonging to the same function argument have to be
+given in a single argument to the
+.Sx \&Fa
+macro.
+.Pp
+This macro is also used to specify the field name of a structure.
+.Pp
 Most often, the
 .Sx \&Fa
 macro is used in the
 .Em SYNOPSIS
 within
 .Sx \&Fo
-section when documenting multi-line function prototypes.
+blocks when documenting multi-line function prototypes.
 If invoked with multiple arguments, the arguments are separated by a
 comma.
 Furthermore, if the following macro is another
@@ -1566,7 +1575,7 @@ the last argument will also have a trailing comma.
 Examples:
 .Dl \&.Fa \(dqconst char *p\(dq
 .Dl \&.Fa \(dqint a\(dq \(dqint b\(dq \(dqint c\(dq
-.Dl \&.Fa foo
+.Dl \&.Fa \(dqchar *\(dq size_t
 .Pp
 See also
 .Sx \&Fo .
@@ -1669,7 +1678,7 @@ Invocations usually occur in the following context:
 .br
 .Pf \. Sx \&Fo Ar funcname
 .br
-.Pf \. Sx \&Fa Oo Ar argtype Oc Ar argname
+.Pf \. Sx \&Fa Qq Ar argtype Ar argname
 .br
 \&.\.\.
 .br
@@ -1688,13 +1697,10 @@ See also
 and
 .Sx \&Ft .
 .Ss \&Fr
-This macro is obsolete and not implemented in
-.Xr mandoc 1 .
+This macro is obsolete.
+No replacement markup is needed.
 .Pp
-It was used to show function return values.
-The syntax was:
-.Pp
-.Dl Pf . Sx \&Fr Ar value
+It was used to show numerical function return values in an italic font.
 .Ss \&Ft
 A function type.
 Its syntax is as follows:
@@ -1733,9 +1739,8 @@ See also
 .Sx \&Bx ,
 .Sx \&Dx ,
 .Sx \&Nx ,
-.Sx \&Ox ,
 and
-.Sx \&Ux .
+.Sx \&Ox .
 .Ss \&Hf
 This macro is not implemented in
 .Xr mandoc 1 .
@@ -2053,9 +2058,8 @@ See also
 .Sx \&Bx ,
 .Sx \&Dx ,
 .Sx \&Fx ,
-.Sx \&Ox ,
 and
-.Sx \&Ux .
+.Sx \&Ox .
 .Ss \&Oc
 Close multi-line
 .Sx \&Oo
@@ -2084,7 +2088,7 @@ Examples:
 See also
 .Sx \&Oo .
 .Ss \&Os
-Document operating system version.
+Operating system version for display in the page footer.
 This is the mandatory third macro of
 any
 .Nm
@@ -2109,8 +2113,12 @@ See also
 and
 .Sx \&Dt .
 .Ss \&Ot
-This macro is obsolete and not implemented in
-.Xr mandoc 1 .
+This macro is obsolete.
+Use
+.Sx \&Ft
+instead; with
+.Xr mandoc 1 ,
+both have the same effect.
 .Pp
 Historical
 .Nm
@@ -2132,9 +2140,8 @@ See also
 .Sx \&Bx ,
 .Sx \&Dx ,
 .Sx \&Fx ,
-.Sx \&Nx ,
 and
-.Sx \&Ux .
+.Sx \&Nx .
 .Ss \&Pa
 An absolute or relative file system path, or a file or directory name.
 If an argument is not provided, the character
@@ -2308,7 +2315,7 @@ and
 Switches the spacing mode for output generated from macros.
 Its syntax is as follows:
 .Pp
-.D1 Pf \. Sx \&Sm Cm on | off
+.D1 Pf \. Sx \&Sm Op Cm on | off
 .Pp
 By default, spacing is
 .Cm on .
@@ -2317,6 +2324,11 @@ When switched
 no white space is inserted between macro arguments and between the
 output generated from adjacent macros, but text lines
 still get normal spacing between words and sentences.
+.Pp
+When called without an argument, the
+.Sx \&Sm
+macro toggles the spacing mode.
+Using this is not recommended because it makes the code harder to read.
 .Ss \&So
 Multi-line version of
 .Sx \&Sq .
@@ -2354,113 +2366,228 @@ and
 .Sx \&Sx .
 .Ss \&St
 Replace an abbreviation for a standard with the full form.
-The following standards are recognised:
+The following standards are recognised.
+Where multiple lines are given without a blank line in between,
+they all refer to the same standard, and using the first form
+is recommended.
+.Bl -tag -width 1n
+.It C language standards
 .Pp
-.Bl -tag -width "-p1003.1g-2000X" -compact
-.It \-p1003.1-88
-.St -p1003.1-88
-.It \-p1003.1-90
-.St -p1003.1-90
-.It \-p1003.1-96
-.St -p1003.1-96
-.It \-p1003.1-2001
-.St -p1003.1-2001
-.It \-p1003.1-2004
-.St -p1003.1-2004
-.It \-p1003.1-2008
-.St -p1003.1-2008
-.It \-p1003.1
-.St -p1003.1
-.It \-p1003.1b
-.St -p1003.1b
-.It \-p1003.1b-93
-.St -p1003.1b-93
-.It \-p1003.1c-95
-.St -p1003.1c-95
-.It \-p1003.1d-99
-.St -p1003.1d-99
-.It \-p1003.1g-2000
-.St -p1003.1g-2000
-.It \-p1003.1i-95
-.St -p1003.1i-95
-.It \-p1003.1j-2000
-.St -p1003.1j-2000
-.It \-p1003.1q-2000
-.St -p1003.1q-2000
-.It \-p1003.2
-.St -p1003.2
-.It \-p1003.2-92
-.St -p1003.2-92
-.It \-p1003.2a-92
-.St -p1003.2a-92
-.It \-p1387.2
-.St -p1387.2
-.It \-p1387.2-95
-.St -p1387.2-95
-.It \-isoC
-.St -isoC
-.It \-isoC-90
-.St -isoC-90
-.It \-isoC-amd1
-.St -isoC-amd1
-.It \-isoC-tcor1
-.St -isoC-tcor1
-.It \-isoC-tcor2
-.St -isoC-tcor2
-.It \-isoC-99
-.St -isoC-99
-.It \-isoC-2011
-.St -isoC-2011
-.It \-iso9945-1-90
-.St -iso9945-1-90
-.It \-iso9945-1-96
-.St -iso9945-1-96
-.It \-iso9945-2-93
-.St -iso9945-2-93
+.Bl -tag -width "-p1003.1g-2000" -compact
 .It \-ansiC
 .St -ansiC
 .It \-ansiC-89
 .St -ansiC-89
+.It \-isoC
+.St -isoC
+.It \-isoC-90
+.St -isoC-90
+.br
+The original C standard.
+.Pp
+.It \-isoC-amd1
+.St -isoC-amd1
+.Pp
+.It \-isoC-tcor1
+.St -isoC-tcor1
+.Pp
+.It \-isoC-tcor2
+.St -isoC-tcor2
+.Pp
+.It \-isoC-99
+.St -isoC-99
 .It \-ansiC-99
 .St -ansiC-99
-.It \-ieee754
-.St -ieee754
-.It \-iso8802-3
-.St -iso8802-3
-.It \-iso8601
-.St -iso8601
-.It \-ieee1275-94
-.St -ieee1275-94
+.br
+The second major version of the C language standard.
+.Pp
+.It \-isoC-2011
+.St -isoC-2011
+.br
+The third major version of the C language standard.
+.El
+.It POSIX.1 before the Single UNIX Specification
+.Pp
+.Bl -tag -width "-p1003.1g-2000" -compact
+.It \-p1003.1-88
+.St -p1003.1-88
+.It \-p1003.1
+.St -p1003.1
+.br
+The original POSIX standard, based on ANSI C.
+.Pp
+.It \-p1003.1-90
+.St -p1003.1-90
+.It \-iso9945-1-90
+.St -iso9945-1-90
+.br
+The first update of POSIX.1.
+.Pp
+.It \-p1003.1b-93
+.St -p1003.1b-93
+.It \-p1003.1b
+.St -p1003.1b
+.br
+Real-time extensions.
+.Pp
+.It \-p1003.1c-95
+.St -p1003.1c-95
+.br
+POSIX thread interfaces.
+.Pp
+.It \-p1003.1i-95
+.St -p1003.1i-95
+.br
+Technical Corrigendum.
+.Pp
+.It \-p1003.1-96
+.St -p1003.1-96
+.It \-iso9945-1-96
+.St -iso9945-1-96
+.br
+Includes POSIX.1-1990, 1b, 1c, and 1i.
+.El
+.It X/Open Portability Guide version 4 and related standards
+.Pp
+.Bl -tag -width "-p1003.1g-2000" -compact
 .It \-xpg3
 .St -xpg3
+.br
+An XPG4 precursor, published in 1989.
+.Pp
+.It \-p1003.2
+.St -p1003.2
+.It \-p1003.2-92
+.St -p1003.2-92
+.It \-iso9945-2-93
+.St -iso9945-2-93
+.br
+An XCU4 precursor.
+.Pp
+.It \-p1003.2a-92
+.St -p1003.2a-92
+.br
+Updates to POSIX.2.
+.Pp
 .It \-xpg4
 .St -xpg4
+.br
+Based on POSIX.1 and POSIX.2, published in 1992.
+.El
+.It Single UNIX Specification version 1 and related standards
+.Pp
+.Bl -tag -width "-p1003.1g-2000" -compact
+.It \-susv1
+.St -susv1
 .It \-xpg4.2
 .St -xpg4.2
-.It \-xpg4.3
-.St -xpg4.3
-.It \-xbd5
-.St -xbd5
-.It \-xcu5
-.St -xcu5
+.br
+This standard was published in 1994.
+It was used as the basis for UNIX 95 certification.
+The following three refer to parts of it.
+.Pp
 .It \-xsh4.2
 .St -xsh4.2
+.Pp
+.It \-xcurses4.2
+.St -xcurses4.2
+.Pp
+.It \-p1003.1g-2000
+.St -p1003.1g-2000
+.br
+Networking APIs, including sockets.
+.Pp
+.It \-xpg4.3
+.St -xpg4.3
+.Pp
+.It \-svid4
+.St -svid4 ,
+.br
+Published in 1995.
+.El
+.It Single UNIX Specification version 2 and related standards
+.Pp
+.Bl -tag -width "-p1003.1g-2000" -compact
+.It \-susv2
+.St -susv2
+This Standard was published in 1997
+and is also called X/Open Portability Guide version 5.
+It was used as the basis for UNIX 98 certification.
+The following refer to parts of it.
+.Pp
+.It \-xbd5
+.St -xbd5
+.Pp
 .It \-xsh5
 .St -xsh5
+.Pp
+.It \-xcu5
+.St -xcu5
+.Pp
 .It \-xns5
 .St -xns5
 .It \-xns5.2
 .St -xns5.2
-.It \-xns5.2d2.0
-.St -xns5.2d2.0
-.It \-xcurses4.2
-.St -xcurses4.2
-.It \-susv2
-.St -susv2
+.El
+.It Single UNIX Specification version 3 and related standards
+.Pp
+.Bl -tag -width "-p1003.1g-2000X" -compact
+.It \-p1003.1d-99
+.St -p1003.1d-99
+.br
+Additional real-time extensions.
+.Pp
+.It \-p1003.1-2001
+.St -p1003.1-2001
 .It \-susv3
 .St -susv3
-.It \-svid4
-.St -svid4
+.br
+This standard is based on C99, SUSv2, POSIX.1-1996, 1d, and 1j.
+It is also called X/Open Portability Guide version 6.
+It is used as the basis for UNIX 03 certification.
+.Pp
+.It \-p1003.1-2004
+.St -p1003.1-2004
+.br
+The second and last Technical Corrigendum.
+.El
+.It Single UNIX Specification version 4
+.Pp
+.Bl -tag -width "-p1003.1g-2000" -compact
+.It \-p1003.1-2008
+.St -p1003.1-2008
+.It \-susv4
+.St -susv4
+.br
+This standard is also called
+X/Open Portability Guide version 7.
+.Pp
+.It \-p1003.1-2013
+.St -p1003.1-2013
+.br
+This is the first Technical Corrigendum.
+.El
+.It Other standards
+.Pp
+.Bl -tag -width "-p1003.1g-2000" -compact
+.It \-ieee754
+.St -ieee754
+.br
+Floating-point arithmetic.
+.Pp
+.It \-iso8601
+.St -iso8601
+.br
+Representation of dates and times, published in 1988.
+.Pp
+.It \-iso8802-3
+.St -iso8802-3
+.br
+Ethernet local area networks.
+.Pp
+.It \-ieee1275-94
+.St -ieee1275-94
+.El
 .El
 .Ss \&Sx
 Reference a section or subsection in the same manual page.
@@ -2475,10 +2602,24 @@ See also
 and
 .Sx \&Ss .
 .Ss \&Sy
-Format enclosed arguments in symbolic
-.Pq Dq boldface .
-Note that this is a presentation term and should not be used for
-stylistically decorating technical terms.
+Request a boldface font.
+.Pp
+This is most often used to indicate importance or seriousness (not to be
+confused with stress emphasis, see
+.Sx \&Em ) .
+When none of the semantic macros fit, it is also adequate for syntax
+elements that have to be given or that appear verbatim.
+.Pp
+Examples:
+.Bd -literal -compact -offset indent
+\&.Sy Warning :
+If
+\&.Sy s
+appears in the owner permissions, set-user-ID mode is set.
+This utility replaces the former
+\&.Sy dumpdir
+program.
+.Ed
 .Pp
 See also
 .Sx \&Bf ,
@@ -2492,44 +2633,36 @@ Table cell separator in
 lists; can only be used below
 .Sx \&It .
 .Ss \&Tn
-Format a tradename.
-.Pp
-Since this macro is often implemented to use a small caps font,
-it has historically been used for acronyms (like ASCII) as well.
-Such usage is not recommended because it would use the same macro
-sometimes for semantical annotation, sometimes for physical formatting.
-.Pp
-Examples:
-.Dl \&.Tn IBM
+Supported only for compatibility, do not use this in new manuals.
+Even though the macro name
+.Pq Dq tradename
+suggests a semantic function, historic usage is inconsistent, mostly
+using it as a presentation-level macro to request a small caps font.
 .Ss \&Ud
+Supported only for compatibility, do not use this in new manuals.
 Prints out
 .Dq currently under development.
 .Ss \&Ux
-Format the
-.Ux
-name.
-Accepts no argument.
-.Pp
-Examples:
-.Dl \&.Ux
-.Pp
-See also
-.Sx \&At ,
-.Sx \&Bsx ,
-.Sx \&Bx ,
-.Sx \&Dx ,
-.Sx \&Fx ,
-.Sx \&Nx ,
-and
-.Sx \&Ox .
+Supported only for compatibility, do not use this in new manuals.
+Prints out
+.Dq Ux .
 .Ss \&Va
 A variable name.
 .Pp
 Examples:
 .Dl \&.Va foo
 .Dl \&.Va const char *bar ;
+.Pp
+For function arguments and parameters, use
+.Sx \&Fa
+instead.
+For declarations of global variables in the
+.Em SYNOPSIS
+section, use
+.Sx \&Vt .
 .Ss \&Vt
 A variable type.
+.Pp
 This is also used for indicating global variables in the
 .Em SYNOPSIS
 section, in which case a variable name is also specified.
@@ -2544,18 +2677,21 @@ In the former case, this macro starts a new output line,
 and a blank line is inserted in front if there is a preceding
 function definition or include directive.
 .Pp
-Note that this should not be confused with
-.Sx \&Ft ,
-which is used for function return types.
-.Pp
 Examples:
 .Dl \&.Vt unsigned char
 .Dl \&.Vt extern const char * const sys_signame[] \&;
 .Pp
+For parameters in function prototypes, use
+.Sx \&Fa
+instead, for function return types
+.Sx \&Ft ,
+and for variable names outside the
+.Em SYNOPSIS
+section
+.Sx \&Va ,
+even when including a type with the name.
 See also
-.Sx MANUAL STRUCTURE
-and
-.Sx \&Va .
+.Sx MANUAL STRUCTURE .
 .Ss \&Xc
 Close a scope opened by
 .Sx \&Xo .
@@ -2773,6 +2909,7 @@ end of the line.
 .It Sx \&D1  Ta    \&No     Ta    \&Yes
 .It Sx \&Dl  Ta    \&No     Ta    Yes
 .It Sx \&Dq  Ta    Yes      Ta    Yes
+.It Sx \&En  Ta    Yes      Ta    Yes
 .It Sx \&Op  Ta    Yes      Ta    Yes
 .It Sx \&Pq  Ta    Yes      Ta    Yes
 .It Sx \&Ql  Ta    Yes      Ta    Yes
@@ -2850,16 +2987,15 @@ then the macro accepts an arbitrary number of arguments.
 .It Sx \&Dv  Ta    Yes      Ta    Yes      Ta    >0
 .It Sx \&Dx  Ta    Yes      Ta    Yes      Ta    n
 .It Sx \&Em  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&En  Ta    \&No     Ta    \&No     Ta    0
 .It Sx \&Er  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Es  Ta    \&No     Ta    \&No     Ta    0
+.It Sx \&Es  Ta    Yes      Ta    Yes      Ta    2
 .It Sx \&Ev  Ta    Yes      Ta    Yes      Ta    >0
 .It Sx \&Ex  Ta    \&No     Ta    \&No     Ta    n
 .It Sx \&Fa  Ta    Yes      Ta    Yes      Ta    >0
 .It Sx \&Fd  Ta    \&No     Ta    \&No     Ta    >0
 .It Sx \&Fl  Ta    Yes      Ta    Yes      Ta    n
 .It Sx \&Fn  Ta    Yes      Ta    Yes      Ta    >0
-.It Sx \&Fr  Ta    \&No     Ta    \&No     Ta    n
+.It Sx \&Fr  Ta    Yes      Ta    Yes      Ta    >0
 .It Sx \&Ft  Ta    Yes      Ta    Yes      Ta    >0
 .It Sx \&Fx  Ta    Yes      Ta    Yes      Ta    n
 .It Sx \&Hf  Ta    \&No     Ta    \&No     Ta    n
@@ -2876,13 +3012,13 @@ then the macro accepts an arbitrary number of arguments.
 .It Sx \&Ns  Ta    Yes      Ta    Yes      Ta    0
 .It Sx \&Nx  Ta    Yes      Ta    Yes      Ta    n
 .It Sx \&Os  Ta    \&No     Ta    \&No     Ta    n
-.It Sx \&Ot  Ta    \&No     Ta    \&No     Ta    n
+.It Sx \&Ot  Ta    Yes      Ta    Yes      Ta    >0
 .It Sx \&Ox  Ta    Yes      Ta    Yes      Ta    n
 .It Sx \&Pa  Ta    Yes      Ta    Yes      Ta    n
 .It Sx \&Pf  Ta    Yes      Ta    Yes      Ta    1
 .It Sx \&Pp  Ta    \&No     Ta    \&No     Ta    0
 .It Sx \&Rv  Ta    \&No     Ta    \&No     Ta    n
-.It Sx \&Sm  Ta    \&No     Ta    \&No     Ta    1
+.It Sx \&Sm  Ta    \&No     Ta    \&No     Ta    <2
 .It Sx \&St  Ta    \&No     Ta    Yes      Ta    1
 .It Sx \&Sx  Ta    Yes      Ta    Yes      Ta    >0
 .It Sx \&Sy  Ta    Yes      Ta    Yes      Ta    >0
@@ -2998,8 +3134,9 @@ Manually switching the font using the
 .Ql \ef
 font escape sequences is never required.
 .Sh COMPATIBILITY
-This section documents compatibility between mandoc and other
-troff implementations, at this time limited to GNU troff
+This section provides an incomplete list of compatibility issues
+between mandoc and other troff implementations, at this time limited
+to GNU troff
 .Pq Qq groff .
 The term
 .Qq historic groff
@@ -3108,7 +3245,7 @@ certain list types.
 can only be called by other macros, but not at the beginning of a line.
 .It
 .Sx \&%C
-is not implemented.
+is not implemented (up to and including groff-1.22.2).
 .It
 Historic groff only allows up to eight or nine arguments per macro input
 line, depending on the exact situation.
@@ -3126,7 +3263,7 @@ in new groff and mandoc.
 .Sq \ef
 .Pq font face
 and
-.Sq \ef
+.Sq \eF
 .Pq font family face
 .Sx Text Decoration
 escapes behave irregularly when specified within line-macro scopes.
@@ -3143,41 +3280,11 @@ The following features are unimplemented in mandoc:
 .Fl file Ar file .
 .It
 .Sx \&Bd
-.Fl offset Ar center
+.Fl offset Cm center
 and
-.Fl offset Ar right .
+.Fl offset Cm right .
 Groff does not implement centred and flush-right rendering either,
 but produces large indentations.
-.It
-The
-.Sq \eh
-.Pq horizontal position ,
-.Sq \ev
-.Pq vertical position ,
-.Sq \em
-.Pq text colour ,
-.Sq \eM
-.Pq text filling colour ,
-.Sq \ez
-.Pq zero-length character ,
-.Sq \ew
-.Pq string length ,
-.Sq \ek
-.Pq horizontal position marker ,
-.Sq \eo
-.Pq text overstrike ,
-and
-.Sq \es
-.Pq text size
-escape sequences are all discarded in mandoc.
-.It
-The
-.Sq \ef
-scaling unit is accepted by mandoc, but rendered as the default unit.
-.It
-In quoted literals, groff allows pairwise double-quotes to produce a
-standalone double-quote in formatted output.
-This is not supported by mandoc.
 .El
 .Sh SEE ALSO
 .Xr man 1 ,

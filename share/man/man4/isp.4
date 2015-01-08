@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2007
+.Dd December 1, 2014
 .Dt ISP 4
 .Os
 .Sh NAME
@@ -136,6 +136,8 @@ Dell Branded version of the QLogic 2312 Fibre Channel PCI cards.
 Qlogic 2422 Optical Fibre Channel PCI cards (4 Gigabit)
 .It Qlogic 2432
 Qlogic 2432 Optical Fibre Channel PCIe cards (4 Gigabit)
+.It Qlogic 2432
+Qlogic 2532 Optical Fibre Channel PCIe cards (8 Gigabit)
 .El
 .Sh CONFIGURATION OPTIONS
 Target mode support may be enabled with the
@@ -197,6 +199,8 @@ A hint to define default role for isp instance (target, initiator, both).
 A hint value for a driver debug level (see the file
 .Pa /usr/src/sys/dev/isp/ispvar.h
 for the values.
+.It Va hint.isp.0.vports
+A hint to create specified number of additional virtual ports.
 .El
 .Sh SYSCTL OPTIONS
 .Bl -tag -width indent

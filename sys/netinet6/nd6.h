@@ -438,7 +438,7 @@ int nd6_need_cache(struct ifnet *);
 int nd6_add_ifa_lle(struct in6_ifaddr *);
 void nd6_rem_ifa_lle(struct in6_ifaddr *);
 int nd6_storelladdr(struct ifnet *, struct mbuf *,
-	const struct sockaddr *, u_char *, struct llentry **);
+	const struct sockaddr *, u_char *, uint32_t *); 
 void nd6_lltable_clear_entry(struct lltable *, struct llentry *);
 int nd6_lltable_prepare_static_entry(struct lltable *, struct llentry *,
 	struct rt_addrinfo *);
@@ -451,6 +451,7 @@ void nd6_ns_input(struct mbuf *, int, int);
 void nd6_ns_output(struct ifnet *, const struct in6_addr *,
 	const struct in6_addr *, const struct in6_addr *, int);
 caddr_t nd6_ifptomac(struct ifnet *);
+void nd6_dad_init(void);
 void nd6_dad_start(struct ifaddr *, int);
 void nd6_dad_stop(struct ifaddr *);
 

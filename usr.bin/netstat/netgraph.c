@@ -119,7 +119,7 @@ netgraphprotopr(u_long off, const char *name, int af1 __unused,
 		if (Aflag)
 			printf("%8lx ", (u_long) this);
 		printf("%-5.5s %6u %6u ",
-		    name, sockb.so_rcv.sb_cc, sockb.so_snd.sb_cc);
+		    name, sockb.so_rcv.sb_ccc, sockb.so_snd.sb_ccc);
 
 		/* Get info on associated node */
 		if (ngpcb.node_id == 0 || csock == -1)

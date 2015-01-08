@@ -6,7 +6,6 @@ MAN=		sdpcontrol.8
 SRCS=		sdpcontrol.c search.c
 WARNS?=		2
 
-DPADD=		${LIBBLUETOOTH} ${LIBSDP}
-LDADD=		-lbluetooth -lsdp
+LIBADD=		bluetooth sdp
 
 .include <bsd.prog.mk>

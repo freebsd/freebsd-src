@@ -508,6 +508,7 @@ typedef struct {
 #define	NT_PROCSTAT_OSREL	14	/* Procstat osreldate data. */
 #define	NT_PROCSTAT_PSSTRINGS	15	/* Procstat ps_strings data. */
 #define	NT_PROCSTAT_AUXV	16	/* Procstat auxv data. */
+#define	NT_X86_XSTATE	0x202	/* x86 XSAVE extended state. */
 
 /* Symbol Binding - ELFNN_ST_BIND - st_info */
 #define	STB_LOCAL	0	/* Local symbol */

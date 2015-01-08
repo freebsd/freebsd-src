@@ -122,8 +122,7 @@ outqstr(const char *p, struct output *file)
 		outstr("''", file);
 		return;
 	}
-	/* Caller will handle '=' if necessary */
-	if (p[strcspn(p, "|&;<>()$`\\\"' \t\n*?[~#")] == '\0' ||
+	if (p[strcspn(p, "|&;<>()$`\\\"' \t\n*?[~#=")] == '\0' ||
 			strcmp(p, "[") == 0) {
 		outstr(p, file);
 		return;

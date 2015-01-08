@@ -2,8 +2,7 @@
 
 BINDIR= /usr/libexec/bsdinstall
 PROG=	distextract
-DPADD=	${LIBARCHIVE} ${LIBNCURSESW} ${LIBDIALOG} ${LIBM}
-LDADD=	-larchive -lncursesw -ldialog -lm
+LIBADD=	archive ncursesw dialog m
 
 WARNS?=	6
 MAN=

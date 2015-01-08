@@ -746,10 +746,6 @@ passin:
 		IPSTAT_INC(ips_cantforward);
 		m_freem(m);
 	} else {
-#ifdef IPSEC
-		if (ip_ipsec_fwd(m))
-			goto bad;
-#endif /* IPSEC */
 		ip_forward(m, dchg);
 	}
 	return;
@@ -784,7 +780,7 @@ ours:
 	 * note that we do not visit this with protocols with pcb layer
 	 * code - like udp/tcp/raw ip.
 	 */
-	if (ip_ipsec_input(m))
+	if (ip_ipsec_input(m, ip->ip_p) != 0)
 		goto bad;
 #endif /* IPSEC */
 
@@ -1195,7 +1191,6 @@ found:
 	if (rss_mbuf_software_hash_v4(m, 0, &rss_hash, &rss_type) == 0) {
 		m->m_pkthdr.flowid = rss_hash;
 		M_HASHTYPE_SET(m, rss_type);
-		m->m_flags |= M_FLOWID;
 	}
 
 	/*
@@ -1425,6 +1420,13 @@ ip_forward(struct mbuf *m, int srcrt)
 		m_freem(m);
 		return;
 	}
+#ifdef IPSEC
+	if (ip_ipsec_fwd(m) != 0) {
+		IPSTAT_INC(ips_cantforward);
+		m_freem(m);
+		return;
+	}
+#endif /* IPSEC */
 #ifdef IPSTEALTH
 	if (!V_ipstealth) {
 #endif

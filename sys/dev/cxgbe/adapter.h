@@ -57,6 +57,7 @@
 #include "common/t4_msg.h"
 #include "firmware/t4fw_interface.h"
 
+#define KTR_CXGBE	KTR_SPARE3
 MALLOC_DECLARE(M_CXGBE);
 #define CXGBE_UNIMPLEMENTED(s) \
     panic("%s (%s, line %d) not implemented yet.", s, __FILE__, __LINE__)
@@ -695,6 +696,7 @@ struct sge {
 	struct sge_iq **iqmap;	/* iq->cntxt_id to iq mapping */
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
 
+	int pad_boundary;
 	int pack_boundary;
 	int8_t safe_hwidx1;	/* may not have room for metadata */
 	int8_t safe_hwidx2;	/* with room for metadata and maybe more */

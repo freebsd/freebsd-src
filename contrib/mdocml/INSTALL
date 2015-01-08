@@ -1,0 +1,188 @@
+$Id: INSTALL,v 1.5 2014/08/18 13:27:47 kristaps Exp $
+
+About mdocml, the portable mandoc distribution
+----------------------------------------------
+The mandoc manpage compiler toolset is a suite of tools compiling
+mdoc(7), the roff(7) macro language of choice for BSD manual pages,
+and man(7), the predominant historical language for UNIX manuals.
+The toolset does not yet implement man(1); that is only scheduled
+for the next release, 1.13.2.  It can, however, already serve to
+translate source manpages to the output displayed by man(1).
+For general information, see <http://mdocml.bsd.lv/>.
+
+In this document, we describe the installation and deployment of
+mandoc(1), first as a simple, standalone formatter, and then as part of
+the man(1) system.
+
+In case you have questions or want to provide feedback, read
+<http://mdocml.bsd.lv/contact.html>.  Consider subscribing to the
+discuss@ mailing list mentioned on that page.  If you intend to
+help with the development of mandoc, consider subscribing to the
+tech@ mailing list, too.
+
+Enjoy using the mandoc toolset!
+
+Ingo Schwarze, Karlsruhe, August 2014
+
+
+Installation
+------------
+Before manually installing mandoc on your system, please check
+whether the newest version of mandoc is already installed by default
+or available via a binary package or a ports system.  A list of the
+latest bundled and ported versions of mandoc for various operating
+systems is maintained at <http://mdocml.bsd.lv/ports.html>.
+
+If mandoc is installed, you can check the version by running "mandoc -V".
+You can find the version contained in this distribution tarball
+by running "./configure".
+
+Regarding how packages and ports are maintained for your operating
+system, please consult your operating system documentation.
+To install mandoc manually, the following steps are needed:
+
+1. If you want to build the CGI program, man.cgi(8), too, run the
+command "echo BUILD_CGI=1 > configure.local".  Then run "cp
+cgi.h.examples cgi.h" and edit cgi.h as desired.
+
+2. Run "./configure".
+This script attempts autoconfiguration of mandoc for your system.
+Read both its standard output and the file "Makefile.local" it
+generates.  If anything looks wrong or different from what you
+wish, read the file "configure.local.example", create and edit
+a file "configure.local", and re-run "./configure" until the
+result seems right to you.
+
+3. Run "make".
+Any POSIX-compatible make, in particular both BSD make and GNU make,
+should work.  If the build fails, look at "configure.local.example"
+and go back to step 2.
+
+4. Run "make -n install" and check whether everything will be
+installed to the intended places.  Otherwise, put some *DIR variables
+into "configure.local" and go back to step 2.
+
+5. Run "sudo make install".  If you intend to build a binary
+package using some kind of fake root mechanism, you may need a
+command like "make DESTDIR=... install".  Read the *-install targets
+in the "Makefile" to understand how DESTDIR is used.
+
+6. To set up a man.cgi(8) server, read its manual page.
+
+7. To use mandoc(1) as your man(1) formatter, read the "Deployment"
+section below.
+
+
+Understanding mandoc dependencies
+---------------------------------
+The mandoc(1), preconv(1), and demandoc(1) utilities have no external
+dependencies.  However, makewhatis(8) and apropos(1) depend on the
+following software:
+
+1. The SQLite database system, see <http://sqlite.org/>.
+The recommended version of SQLite is 3.8.4.3 or newer.  The mandoc
+toolset is known to work with version 3.7.5 or newer.  Versions
+older than 3.8.3 may not achieve full performance due to the
+missing SQLITE_DETERMINISTIC optimization flag.  Versions older
+than 3.8.0 may not show full error information if opening a database
+fails due to the missing sqlite3_errstr() API.  Both are very minor
+problems, apropos(1) is fully usable with SQLite 3.7.5.  Versions
+older than 3.7.5 may or may not work, they have not been tested.
+
+1.2. The fts(3) directory traversion functions.
+If your system does not have them, the bundled compatibility version
+will be used, so you need not worry in that case.  But be careful: the
+glibc version of fts(3) is known to be broken on 32bit platforms,
+see <https://sourceware.org/bugzilla/show_bug.cgi?id=15838>.
+If you run into that problem, set "HAVE_FTS=0" in configure.local.
+
+1.3. Marc Espie's ohash(3) library.
+If your system does not have it, the bundled compatibility version
+will be used, so you probably need not worry about it.
+
+
+Checking autoconfiguration quality
+----------------------------------
+If you want to check whether automatic configuration works well
+on your platform, consider the following:
+
+The mandoc package intentionally does not use GNU autoconf because
+we consider that toolset a blatant example of overengineering that
+is obsolete nowadays, since all modern operating systems are now
+reasonably close to POSIX and do not need arcane shell magic any
+longer.  If your system does need such magic, consider upgrading
+to reasonably modern POSIX-compliant tools rather than asking for
+autoconf-style workarounds.
+
+As far as mandoc is using any features not mandated by ANSI X3.159-1989
+("ANSI C") or IEEE Std 1003.1-2008 ("POSIX") that some modern systems
+do not have, we intend to provide autoconfiguration tests and
+compat_*.c implementations.  Please report any that turn out to be
+missing.  Note that while we do strive to produce portable code,
+we do not slavishly restrict ourselves to POSIX-only interfaces.
+For improved security and readability, we do use well-designed,
+modern interfaces like reallocarray(3) even if they are still rather
+uncommon, of course bundling compat_*.c implementations as needed.
+
+Where mandoc is using ANSI C or POSIX features that some systems
+still lack and that compat_*.c implementations can be provided for
+without too much hassle, we will consider adding them, too, so
+please report whatever is missing on your platform.
+
+The following steps can be used to manually check the automatic
+configuration on your platform:
+
+1. Run "make distclean".
+
+2. Run "./configure"
+
+3. Read the file "config.log".  It shows the compiler commands used
+to test the libraries installed on your system and the standard
+output and standard error output these commands produce.  Watch out
+for unexpected failures.  Those are most likely to happen if headers
+or libraries are installed in unusual places or interfaces defined
+in unusual headers.  You can also look at the file "config.h" and
+check that no "#define HAVE_*" differ from your expectations.
+
+
+Deployment
+----------
+If you want to integrate the mandoc(1) tools with your existing
+man(1) system as a formatter, then contact us first: on systems without
+mandoc(1) as the default, you may have your work cut out for you!
+Usually, you can have your default installation and mandoc(1) work right
+alongside each other by using user-specific versions of the files
+mentioned below.
+
+0. Back up each file you want to change!
+
+1. First see whether your system has "/etc/man.conf" or "/etc/manpath.conf"
+(if it has neither, but man(1) is functional, then let us know) or,
+if running as your own user, a per-user override file.  In either
+case, find where man(1) is executing nroff(1) or groff(1) to format
+manuals.  Replace these calls with mandoc(1).
+
+2. Then make sure that man(1) isn't running preprocessors, so you may
+need to replace tbl(1), eqn(1), and similar references with cat(1).
+Some man(1) implementations, like that on Mac OSX, let you run "man -d"
+to see how the formatter is invoked.  Use this to test your changes.  On
+Mac OS X, for instance, man(1) will prepend all files with ".ll" and
+".nr" to set the terminal size, so you need to pass "tail -n+2 |
+mandoc(1)" to disregard them.
+
+3. Finally, make sure that mandoc(1) is actually being invoked instead
+of cached pages being pulled up.  You can usually do this by commenting
+out NOCACHE or similar.
+
+mandoc(1) still has a long way to go in understanding non-trivial
+low-level roff(7) markup embedded in some man(7) pages.  On the BSD
+systems using mandoc(1), third-party software is generally vetted
+on whether it may be formatted with mandoc(1).  If not, groff(1)
+is pulled in as a dependency and used to install a pre-formatted
+"catpage" intead of directly as manual page source.
+
+For more background on switching operating systems to use mandoc(1)
+instead of groff(1) to format manuals, see the two BSDCan presentations
+by Ingo Schwarze:
+<http://www.openbsd.org/papers/bsdcan11-mandoc-openbsd.html>
+<http://www.openbsd.org/papers/bsdcan14-mandoc.pdf>

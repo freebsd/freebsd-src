@@ -1,4 +1,4 @@
-/*	$Id: mdoc_hash.c,v 1.18 2011/07/24 18:15:14 kristaps Exp $ */
+/*	$Id: mdoc_hash.c,v 1.21 2014/08/10 23:54:41 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -14,9 +14,7 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
 #include <sys/types.h>
 
@@ -28,10 +26,10 @@
 #include <string.h>
 
 #include "mdoc.h"
-#include "mandoc.h"
 #include "libmdoc.h"
 
 static	unsigned char	 table[27 * 12];
+
 
 /*
  * XXX - this hash has global scope, so if intended for use as a library
@@ -77,7 +75,7 @@ mdoc_hash_find(const char *p)
 		major = 12 * (tolower((unsigned char)p[1]) - 97);
 	else if ('1' == p[1])
 		major = 12 * 26;
-	else 
+	else
 		return(MDOC_MAX);
 
 	if (p[2] && p[3])

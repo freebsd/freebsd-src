@@ -574,6 +574,7 @@ vn_canvmio(struct vnode *vp)
 /*
  * Finally, include the default set of vnode operations.
  */
+typedef void vop_getpages_iodone_t(void *, vm_page_t *, int, int);
 #include "vnode_if.h"
 
 /* vn_open_flags */

@@ -176,6 +176,9 @@ gpart bootcode -p /boot/gptzfsboot -i 1 ada0
 .Sh HISTORY
 .Nm
 appeared in FreeBSD 7.3.
+.Sh AUTHORS
+This manual page was written by
+.An Andriy Gapon Aq avg@FreeBSD.org .
 .Sh BUGS
 .Nm
 looks for ZFS meta-data only in MBR partitions
@@ -188,6 +191,3 @@ found at the fixed offsets relative to a slice, then
 .Nm
 will recognize the partition as a part of a ZFS pool,
 but this is not guaranteed to happen.
-.Sh AUTHORS
-This manual page was written by
-.An Andriy Gapon Aq avg@FreeBSD.org .

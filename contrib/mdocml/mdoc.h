@@ -1,4 +1,4 @@
-/*	$Id: mdoc.h,v 1.125 2013/12/24 19:11:45 schwarze Exp $ */
+/*	$Id: mdoc.h,v 1.131 2014/07/29 13:58:18 schwarze Exp $ */
 /*
  * Copyright (c) 2008, 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
  *
@@ -140,6 +140,7 @@ enum	mdoct {
 	MDOC_sp,
 	MDOC__U,
 	MDOC_Ta,
+	MDOC_ll,
 	MDOC_MAX
 };
 
@@ -186,7 +187,7 @@ enum	mdoc_type {
 	MDOC_ROOT
 };
 
-/* 
+/*
  * Section (named/unnamed) of `Sh'.   Note that these appear in the
  * conventional order imposed by mdoc.7.  In the case of SEC_NONE, no
  * section has been invoked (this shouldn't happen).  SEC_CUSTOM refers
@@ -198,6 +199,7 @@ enum	mdoc_sec {
 	SEC_LIBRARY, /* LIBRARY */
 	SEC_SYNOPSIS, /* SYNOPSIS */
 	SEC_DESCRIPTION, /* DESCRIPTION */
+	SEC_CONTEXT, /* CONTEXT */
 	SEC_IMPLEMENTATION, /* IMPLEMENTATION NOTES */
 	SEC_RETURN_VALUES, /* RETURN VALUES */
 	SEC_ENVIRONMENT,  /* ENVIRONMENT */
@@ -214,7 +216,7 @@ enum	mdoc_sec {
 	SEC_CAVEATS, /* CAVEATS */
 	SEC_BUGS, /* BUGS */
 	SEC_SECURITY, /* SECURITY */
-	SEC_CUSTOM, 
+	SEC_CUSTOM,
 	SEC__MAX
 };
 
@@ -228,11 +230,11 @@ struct	mdoc_meta {
 	char		 *name; /* leading `Nm' name */
 };
 
-/* 
- * An argument to a macro (multiple values = `-column xxx yyy'). 
+/*
+ * An argument to a macro (multiple values = `-column xxx yyy').
  */
 struct	mdoc_argv {
-	enum mdocargt  	  arg; /* type of argument */
+	enum mdocargt	  arg; /* type of argument */
 	int		  line;
 	int		  pos;
 	size_t		  sz; /* elements in "value" */
@@ -244,7 +246,7 @@ struct	mdoc_argv {
  * blocks have multiple instances of the same arguments spread across
  * the HEAD, BODY, TAIL, and BLOCK node types.
  */
-struct 	mdoc_arg {
+struct	mdoc_arg {
 	size_t		  argc;
 	struct mdoc_argv *argv;
 	unsigned int	  refcnt;
@@ -278,7 +280,7 @@ enum	mdoc_list {
 
 enum	mdoc_disp {
 	DISP__NONE = 0,
-	DISP_centred, /* -centered */
+	DISP_centered, /* -centered */
 	DISP_ragged, /* -ragged */
 	DISP_unfilled, /* -unfilled */
 	DISP_filled, /* -filled */
@@ -332,15 +334,16 @@ struct	mdoc_rs {
  * provided, etc.
  */
 union	mdoc_data {
-	struct mdoc_an 	  An;
+	struct mdoc_an	  An;
 	struct mdoc_bd	  Bd;
 	struct mdoc_bf	  Bf;
 	struct mdoc_bl	  Bl;
+	struct mdoc_node *Es;
 	struct mdoc_rs	  Rs;
 };
 
-/* 
- * Single node in tree-linked AST. 
+/*
+ * Single node in tree-linked AST.
  */
 struct	mdoc_node {
 	struct mdoc_node *parent; /* parent AST node */
@@ -389,6 +392,7 @@ struct	mdoc;
 
 const struct mdoc_node *mdoc_node(const struct mdoc *);
 const struct mdoc_meta *mdoc_meta(const struct mdoc *);
+void mdoc_deroff(char **, const struct mdoc_node *);
 
 __END_DECLS
 

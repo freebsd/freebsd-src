@@ -22,8 +22,7 @@ LINKS+=	${BINDIR}/grep ${BINDIR}/egrep \
 MLINKS=	grep.1 egrep.1 grep.1 fgrep.1
 .endif
 
-DPADD=	${LIBGNUREGEX} ${LIBBZ2}
-LDADD=	-lgnuregex -lbz2
+LIBADD=	gnuregex bz2
 
 .if ${MK_BSD_GREP} != "yes"
 LINKS+=	${BINDIR}/grep ${BINDIR}/bzgrep \
@@ -33,8 +32,7 @@ MLINKS+=grep.1 bzgrep.1 grep.1 bzegrep.1 grep.1 bzfgrep.1
 .endif
 
 .if defined(GREP_LIBZ) && !empty(GREP_LIBZ)
-LDADD+=	-lz
-DPADD+=	${LIBZ}
+LIBADD+=	z
 CFLAGS+=-DHAVE_LIBZ=1
 .if ${MK_BSD_GREP} != "yes"
 LINKS+=	${BINDIR}/grep ${BINDIR}/zgrep \

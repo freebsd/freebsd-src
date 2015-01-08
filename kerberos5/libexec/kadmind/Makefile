@@ -9,10 +9,9 @@ SRCS=	rpc.c \
 
 CFLAGS+=-I${KRB5DIR}/lib/krb5 -I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/roken \
 	${LDAPCFLAGS}
-DPADD=	${LIBKADM5SRV} ${LIBGSSAPI} ${LIBHDB} ${LIBKRB5} ${LIBROKEN} \
-	${LIBASN1} ${LIBVERS} ${LIBCRYPTO} ${LIBCRYPT} ${LDAPDPADD}
-LDADD=	-lkadm5srv -lgssapi -lhdb -lkrb5 -lroken \
-	-lasn1 ${LIBVERS} -lcrypto -lcrypt ${LDAPLDADD}
+LIBADD=	kadm5srv gssapi hdb krb5 roken vers
+DPADD=	${LDAPDPADD}
+LDADD=	${LDAPLDADD}
 LDFLAGS=${LDAPLDFLAGS}
 
 .include <bsd.prog.mk>

@@ -409,11 +409,11 @@ dsl_dataset_hold_obj(dsl_pool_t *dp, uint64_t dsobj, void *tag,
 		    offsetof(dmu_sendarg_t, dsa_link));
 
 		if (doi.doi_type == DMU_OTN_ZAP_METADATA) {
-			err = zap_contains(mos, dsobj, DS_FIELD_LARGE_BLOCKS);
-			if (err == 0)
+			int zaperr = zap_contains(mos, dsobj, DS_FIELD_LARGE_BLOCKS);
+			if (zaperr != ENOENT) {
+				VERIFY0(zaperr);
 				ds->ds_large_blocks = B_TRUE;
-			else
-				ASSERT3U(err, ==, ENOENT);
+			}
 		}
 
 		if (err == 0) {
@@ -644,16 +644,14 @@ dsl_dataset_rele(dsl_dataset_t *ds, void *tag)
 void
 dsl_dataset_disown(dsl_dataset_t *ds, void *tag)
 {
-	ASSERT(ds->ds_owner == tag && ds->ds_dbuf != NULL);
+	ASSERT3P(ds->ds_owner, ==, tag);
+	ASSERT(ds->ds_dbuf != NULL);
 
 	mutex_enter(&ds->ds_lock);
 	ds->ds_owner = NULL;
 	mutex_exit(&ds->ds_lock);
 	dsl_dataset_long_rele(ds, tag);
-	if (ds->ds_dbuf != NULL)
-		dsl_dataset_rele(ds, tag);
-	else
-		dsl_dataset_evict(NULL, ds);
+	dsl_dataset_rele(ds, tag);
 }
 
 boolean_t

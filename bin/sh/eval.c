@@ -774,15 +774,7 @@ xtracecommand(struct arglist *varlist, struct arglist *arglist)
 	for (sp = arglist->list ; sp ; sp = sp->next) {
 		if (sep != 0)
 			out2c(' ');
-		/* Disambiguate command looking like assignment. */
-		if (sp == arglist->list &&
-				strchr(sp->text, '=') != NULL &&
-				strchr(sp->text, '\'') == NULL) {
-			out2c('\'');
-			out2str(sp->text);
-			out2c('\'');
-		} else
-			out2qstr(sp->text);
+		out2qstr(sp->text);
 		sep = ' ';
 	}
 	out2c('\n');

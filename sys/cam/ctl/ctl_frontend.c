@@ -136,9 +136,9 @@ ctl_frontend_find(char *frontend_name)
 }
 
 int
-ctl_port_register(struct ctl_port *port, int master_shelf)
+ctl_port_register(struct ctl_port *port)
 {
-	struct ctl_io_pool *pool;
+	void *pool;
 	int port_num;
 	int retval;
 
@@ -176,7 +176,7 @@ ctl_port_register(struct ctl_port *port, int master_shelf)
 	 * pending sense queue on the next command, whether or not it is
 	 * a REQUEST SENSE.
 	 */
-	retval = ctl_pool_create(control_softc, CTL_POOL_FETD,
+	retval = ctl_pool_create(control_softc, port->port_name,
 				 port->num_requested_ctl_io + 20, &pool);
 	if (retval != 0) {
 		free(port->wwpn_iid, M_CTL);
@@ -193,7 +193,7 @@ error:
 		STAILQ_INIT(&port->options);
 
 	mtx_lock(&control_softc->ctl_lock);
-	port->targ_port = port_num + (master_shelf != 0 ? 0 : CTL_MAX_PORTS);
+	port->targ_port = port_num + control_softc->port_offset;
 	STAILQ_INSERT_TAIL(&port->frontend->port_list, port, fe_links);
 	STAILQ_INSERT_TAIL(&control_softc->port_list, port, links);
 	control_softc->ctl_ports[port_num] = port;

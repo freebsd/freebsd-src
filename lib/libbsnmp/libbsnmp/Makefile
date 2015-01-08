@@ -15,8 +15,7 @@ CFLAGS+= -DHAVE_STDINT_H -DHAVE_INTTYPES_H -DQUADFMT='"llu"' -DQUADXFMT='"llx"'
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+= -DHAVE_LIBCRYPTO
-DPADD+= ${LIBCRYPTO}
-LDADD+= -lcrypto
+LIBADD=	crypto
 .endif
 
 SRCS=	asn1.c snmp.c snmpagent.c snmpclient.c snmpcrypto.c support.c

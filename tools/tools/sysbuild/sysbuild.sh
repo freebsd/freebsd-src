@@ -226,8 +226,7 @@ ports_build() (
 		t=`echo $p | sed 's,/usr/ports/,,'`
 		pn=`cd $p && make package-name`
 
-		if [ "x$p" == "x/usr/ports/ports-mgmt/pkg" -o \
-		     "x$p" == "x/freebsd/ports/ports-mgmt/pkg" ] ; then
+		if [ "x`basename $p`" == "xpkg" ] ; then
 			log_it "Very Special: $t ($pn)"
 
 			(

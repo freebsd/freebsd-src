@@ -73,7 +73,9 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	u_int32_t prid;
 	u_int32_t cfg0;
 	u_int32_t cfg1;
+#ifndef CPU_CNMIPS
 	u_int32_t cfg2;
+#endif
 #if defined(CPU_CNMIPS)
 	u_int32_t cfg4;
 #endif

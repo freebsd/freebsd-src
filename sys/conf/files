@@ -660,6 +660,8 @@ dev/altera/sdcard/altera_sdcard_disk.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_io.c	optional altera_sdcard
 dev/altera/sdcard/altera_sdcard_fdt.c	optional altera_sdcard fdt
 dev/altera/sdcard/altera_sdcard_nexus.c	optional altera_sdcard
+dev/altera/pio/pio.c		optional altera_pio
+dev/altera/pio/pio_if.m		optional altera_pio
 dev/amdpm/amdpm.c		optional amdpm pci | nfpm pci
 dev/amdsmb/amdsmb.c		optional amdsmb pci
 dev/amr/amr.c			optional amr
@@ -1797,7 +1799,6 @@ dev/ixgbe/ixgbe_dcb_82599.c	optional ixgbe inet \
 dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
-dev/joy/joy_pccard.c		optional joy pccard
 dev/kbdmux/kbdmux.c		optional kbdmux
 dev/ksyms/ksyms.c		optional ksyms
 dev/le/am7990.c			optional le
@@ -2571,6 +2572,19 @@ dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
 dev/vge/if_vge.c		optional vge
 dev/viapm/viapm.c		optional viapm pci
+dev/virtio/virtio.c			optional	virtio
+dev/virtio/virtqueue.c			optional	virtio
+dev/virtio/virtio_bus_if.m		optional	virtio
+dev/virtio/virtio_if.m			optional	virtio
+dev/virtio/pci/virtio_pci.c		optional	virtio_pci
+dev/virtio/mmio/virtio_mmio.c		optional	virtio_mmio
+dev/virtio/mmio/virtio_mmio_if.m	optional	virtio_mmio
+dev/virtio/network/if_vtnet.c		optional	vtnet
+dev/virtio/block/virtio_blk.c		optional	virtio_blk
+dev/virtio/balloon/virtio_balloon.c	optional	virtio_balloon
+dev/virtio/scsi/virtio_scsi.c		optional	virtio_scsi
+dev/virtio/random/virtio_random.c	optional	virtio_random
+dev/virtio/console/virtio_console.c	optional	virtio_console
 dev/vkbd/vkbd.c			optional vkbd
 dev/vr/if_vr.c			optional vr pci
 dev/vt/colors/vt_termcolors.c	optional vt
@@ -2637,6 +2651,7 @@ dev/xen/blkback/blkback.c	optional xen | xenhvm
 dev/xen/console/console.c	optional xen | xenhvm
 dev/xen/console/xencons_ring.c	optional xen | xenhvm
 dev/xen/control/control.c	optional xen | xenhvm
+dev/xen/grant_table/grant_table.c	optional xen | xenhvm
 dev/xen/netback/netback.c	optional xen | xenhvm
 dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
@@ -3208,6 +3223,7 @@ libkern/strtoq.c		standard
 libkern/strtoul.c		standard
 libkern/strtouq.c		standard
 libkern/strvalid.c		standard
+libkern/timingsafe_bcmp.c	standard
 net/bpf.c			standard
 net/bpf_buffer.c		optional bpf
 net/bpf_jitter.c		optional bpf_jitter
@@ -3866,6 +3882,8 @@ opencrypto/cryptodev.c		optional cryptodev
 opencrypto/cryptodev_if.m	optional crypto
 opencrypto/cryptosoft.c		optional crypto
 opencrypto/cryptodeflate.c	optional crypto
+opencrypto/gmac.c		optional crypto
+opencrypto/gfmult.c		optional crypto
 opencrypto/rmd160.c		optional crypto | ipsec
 opencrypto/skipjack.c		optional crypto
 opencrypto/xform.c		optional crypto
@@ -3987,7 +4005,6 @@ vm/vm_reserv.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
-xen/gnttab.c			optional xen | xenhvm
 xen/features.c			optional xen | xenhvm
 xen/xenbus/xenbus_if.m		optional xen | xenhvm
 xen/xenbus/xenbus.c		optional xen | xenhvm

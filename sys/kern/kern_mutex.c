@@ -881,7 +881,7 @@ _mtx_init(volatile uintptr_t *c, const char *name, const char *type, int opts)
 	m = mtxlock2mtx(c);
 
 	MPASS((opts & ~(MTX_SPIN | MTX_QUIET | MTX_RECURSE |
-		MTX_NOWITNESS | MTX_DUPOK | MTX_NOPROFILE)) == 0);
+	    MTX_NOWITNESS | MTX_DUPOK | MTX_NOPROFILE | MTX_NEW)) == 0);
 	ASSERT_ATOMIC_LOAD_PTR(m->mtx_lock,
 	    ("%s: mtx_lock not aligned for %s: %p", __func__, name,
 	    &m->mtx_lock));
@@ -907,6 +907,8 @@ _mtx_init(volatile uintptr_t *c, const char *name, const char *type, int opts)
 		flags |= LO_DUPOK;
 	if (opts & MTX_NOPROFILE)
 		flags |= LO_NOPROFILE;
+	if (opts & MTX_NEW)
+		flags |= LO_NEW;
 
 	/* Initialize mutex. */
 	lock_init(&m->lock_object, class, name, type, flags);
@@ -968,7 +970,10 @@ mutex_init(void)
 	mtx_init(&blocked_lock, "blocked lock", NULL, MTX_SPIN);
 	blocked_lock.mtx_lock = 0xdeadc0de;	/* Always blocked. */
 	mtx_init(&proc0.p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
-	mtx_init(&proc0.p_slock, "process slock", NULL, MTX_SPIN | MTX_RECURSE);
+	mtx_init(&proc0.p_slock, "process slock", NULL, MTX_SPIN);
+	mtx_init(&proc0.p_statmtx, "pstatl", NULL, MTX_SPIN);
+	mtx_init(&proc0.p_itimmtx, "pitiml", NULL, MTX_SPIN);
+	mtx_init(&proc0.p_profmtx, "pprofl", NULL, MTX_SPIN);
 	mtx_init(&devmtx, "cdev", NULL, MTX_DEF);
 	mtx_lock(&Giant);
 }

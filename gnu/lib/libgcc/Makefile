@@ -28,8 +28,7 @@ CFLAGS+=	-DIN_GCC -DIN_LIBGCC2 -D__GCC_FLOAT_NOT_NEEDED \
 		-I${.CURDIR}/../../usr.bin/cc/cc_tools
 
 LDFLAGS+=	-nodefaultlibs
-DPADD+=		${LIBC}
-LDADD+=		-lc
+LIBADD+=	c
 
 OBJS=		# added to below in various ways depending on TARGET_CPUARCH
 
@@ -119,8 +118,7 @@ LIB1ASMSRC =	lib1funcs.asm
 LIB1ASMFUNCS =  _dvmd_tls _bb_init_func
 LIB2ADDEH =	unwind-arm.c libunwind.S pr-support.c unwind-c.c
 # Some compilers generate __aeabi_ functions libgcc_s is missing
-DPADD+=		${LIBCOMPILER_RT}
-LDADD+=		-lcompiler_rt
+LIBADD+=	compiler_rt
 .endif
 
 .if ${TARGET_CPUARCH} == mips

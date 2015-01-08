@@ -348,15 +348,13 @@ static int addr_resolve(struct sockaddr *src_in,
 	struct sockaddr_in6 *sin6;
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
-#if defined(INET) || defined(INET6)
-	struct llentry *lle;
-#endif
 	struct nhopu_extended nhu;
 	uint32_t fibnum;
 	in_port_t port;
 	u_char edst[MAX_ADDR_LEN];
 	int multi;
 	int bcast;
+	int is_gw = 0;
 	int error = 0;
 
 	/*
@@ -447,6 +445,8 @@ static int addr_resolve(struct sockaddr *src_in,
 			fib_free_nh_ext(fibnum, &nhu);
 		return -EHOSTUNREACH;
 	}
+	if (rte->rt_flags & RTF_GATEWAY)
+		is_gw = 1;
 	/*
 	 * If it's not multicast or broadcast and the route doesn't match the
 	 * requested interface return unreachable.  Otherwise fetch the
@@ -484,12 +484,12 @@ mcast:
 #ifdef INET
 	case AF_INET:
 		/* XXX: Pass NH flags to generate proper error */
-		error = arpresolve(ifp, NULL, NULL, dst_in, edst, &lle);
+		error = arpresolve(ifp, is_gw, NULL, dst_in, edst, NULL);
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, NULL, dst_in, (u_char *)edst, &lle);
+		error = nd6_storelladdr(ifp, NULL, dst_in, (u_char *)edst,NULL);
 		break;
 #endif
 	default:

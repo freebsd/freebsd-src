@@ -1582,8 +1582,8 @@ ahci_execute_transaction(struct ahci_slot *slot)
 		return;
 	}
 	/* Start command execution timeout */
-	callout_reset(&slot->timeout, (int)ccb->ccb_h.timeout * hz / 2000,
-	    (timeout_t*)ahci_timeout, slot);
+	callout_reset_sbt(&slot->timeout, SBT_1MS * ccb->ccb_h.timeout / 2,
+	    0, (timeout_t*)ahci_timeout, slot, 0);
 	return;
 }
 
@@ -1618,9 +1618,9 @@ ahci_rearm_timeout(struct ahci_channel *ch)
 			continue;
 		if ((ch->toslots & (1 << i)) == 0)
 			continue;
-		callout_reset(&slot->timeout,
-		    (int)slot->ccb->ccb_h.timeout * hz / 2000,
-		    (timeout_t*)ahci_timeout, slot);
+		callout_reset_sbt(&slot->timeout,
+    	    	    SBT_1MS * slot->ccb->ccb_h.timeout / 2, 0,
+		    (timeout_t*)ahci_timeout, slot, 0);
 	}
 }
 
@@ -1652,9 +1652,9 @@ ahci_timeout(struct ahci_slot *slot)
 			slot->state = AHCI_SLOT_EXECUTING;
 		}
 
-		callout_reset(&slot->timeout,
-		    (int)slot->ccb->ccb_h.timeout * hz / 2000,
-		    (timeout_t*)ahci_timeout, slot);
+		callout_reset_sbt(&slot->timeout,
+	    	    SBT_1MS * slot->ccb->ccb_h.timeout / 2, 0,
+		    (timeout_t*)ahci_timeout, slot, 0);
 		return;
 	}
 

@@ -97,11 +97,22 @@ SUBDIR+=contrib/ofed
 #
 SUBDIR+=etc
 
-# These are last, since it is nice to at least get the base system
-# rebuilt before you do them.
-.for _DIR in ${LOCAL_LIB_DIRS} ${LOCAL_DIRS}
+# Local directories are last, since it is nice to at least get the base
+# system rebuilt before you do them.
+.for _DIR in ${LOCAL_DIRS}
 .if exists(${.CURDIR}/${_DIR}/Makefile)
-SUBDIR+= ${_DIR}
+SUBDIR+=	${_DIR}
+.endif
+.endfor
+# Add LOCAL_LIB_DIRS, but only if they will not be picked up as a SUBDIR
+# of a LOCAL_DIRS directory.  This allows LOCAL_DIRS=foo and
+# LOCAL_LIB_DIRS=foo/lib to behave as expected.
+.for _DIR in ${LOCAL_DIRS:M*/} ${LOCAL_DIRS:N*/:S|$|/|}
+_REDUNDENT_LIB_DIRS+=    ${LOCAL_LIB_DIRS:M${_DIR}*}
+.endfor
+.for _DIR in ${LOCAL_LIB_DIRS}
+.if empty(_REDUNDENT_LIB_DIRS:M${_DIR}) && exists(${.CURDIR}/${_DIR}/Makefile)
+SUBDIR+=	${_DIR}
 .endif
 .endfor
 .endif
@@ -691,6 +702,11 @@ buildworld_epilogue:
 buildenvvars:
 	@echo ${WMAKEENV:Q}
 
+.if ${.TARGETS:Mbuildenv}
+.if ${.MAKEFLAGS:M-j}
+.error The buildenv target is incompatible with -j
+.endif
+.endif
 buildenv:
 	@echo Entering world for ${TARGET_ARCH}:${TARGET}
 	@cd ${.CURDIR} && env ${WMAKEENV} ${BUILDENV_SHELL} || true
@@ -774,6 +790,11 @@ ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 	ln lockf make mkdir mtree mv pwd_mkdb \
 	rm sed services_mkdb sh sysctl test true uname wc ${_zoneinfo} \
 	${LOCAL_ITOOLS}
+
+# Needed for share/man
+.if ${MK_MAN} != "no"
+ITOOLS+=makewhatis
+.endif
 
 #
 # distributeworld
@@ -1399,6 +1420,14 @@ _kgzip=		usr.sbin/kgzip
 # If we're given an XAS, don't build binutils.
 .if ${XAS:M/*} == "" && ${MK_BINUTILS_BOOTSTRAP} != "no"
 _binutils=	gnu/usr.bin/binutils
+.if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
+_elftctools=	lib/libelftc \
+		usr.bin/addr2line \
+		usr.bin/elfcopy \
+		usr.bin/nm \
+		usr.bin/size \
+		usr.bin/strings
+.endif
 .endif
 
 # If an full path to an external cross compiler is given, don't build
@@ -1418,6 +1447,7 @@ cross-tools: .MAKE
     ${_clang_libs} \
     ${_clang} \
     ${_binutils} \
+    ${_elftctools} \
     ${_cc} \
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
@@ -1475,6 +1505,7 @@ native-xtools: .MAKE
     ${_clang_tblgen} \
     usr.bin/ar \
     ${_binutils} \
+    ${_elftctools} \
     ${_cc} \
     ${_gcc_tools} \
     ${_clang_libs} \
@@ -2013,7 +2044,8 @@ _xb-worldtmp:
 
 _xb-bootstrap-tools:
 .for _tool in \
-    ${_clang_tblgen}
+    ${_clang_tblgen} \
+    ${_gperf}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 	cd ${.CURDIR}/${_tool} && \
 	${CDMAKE} DIRPRFX=${_tool}/ obj && \
@@ -2029,6 +2061,7 @@ _xb-build-tools:
 _xb-cross-tools:
 .for _tool in \
     ${_binutils} \
+    ${_elftctools} \
     usr.bin/ar \
     ${_clang_libs} \
     ${_clang} \
@@ -2061,6 +2094,7 @@ _xi-cross-tools:
 	@echo "_xi-cross-tools"
 .for _tool in \
     ${_binutils} \
+    ${_elftctools} \
     usr.bin/ar \
     ${_clang_libs} \
     ${_clang} \

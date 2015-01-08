@@ -89,8 +89,8 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	struct mbuf *mtail;
 	int unicast, dgl, foff;
 	static int next_dgl;
-#if defined(INET) || defined(INET6)
-	struct llentry *lle;
+#ifdef INET
+	int is_gw;
 #endif
 
 #ifdef MAC
@@ -140,8 +140,9 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		 * doesn't fit into the arp model.
 		 */
 		if (unicast) {
-			/* XXX: Pass is_gw flag */
-			error = arpresolve(ifp, NULL, m, dst, (u_char *) destfw, &lle);
+			is_gw = 0;
+			/* XXX: do proper @ni checks for NHF_GATEWAY */
+			error = arpresolve(ifp, is_gw, m, dst, (u_char *) destfw, NULL);
 			if (error)
 				return (error == EWOULDBLOCK ? 0 : error);
 		}
@@ -171,7 +172,7 @@ firewire_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	case AF_INET6:
 		if (unicast) {
 			error = nd6_storelladdr(fc->fc_ifp, m, dst,
-			    (u_char *) destfw, &lle);
+			    (u_char *) destfw, NULL);
 			if (error)
 				return (error);
 		}

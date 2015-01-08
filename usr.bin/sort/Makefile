@@ -13,12 +13,10 @@ CLEANFILES+= sort.1
 
 .if ${MK_SORT_THREADS} != "no"
 CFLAGS+= -DSORT_THREADS
-LDADD= -lpthread -lmd
-DPADD= ${LIBPTHREAD} ${LIBMD}
+LIBADD=	pthread md
 MAN_SUB+= -e 's|%%THREADS%%||g'
 .else
-LDADD= -lmd
-DPADD= ${LIBMD}
+LIBADD=	md
 MAN_SUB+= -e 's|%%THREADS%%|\.\\"|g'
 .endif
 

@@ -9,8 +9,7 @@ CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}
 CFLAGS+=-fexceptions
 .endif
 CFLAGS+=-Winline -Wall
-DPADD=	${LIBPTHREAD}
-LDADD=	-lpthread
+LIBADD=	pthread
 
 WARNS?=	2
 

@@ -337,7 +337,7 @@ done:
 	if (home == NULL || *home == '\0')
 		return (startp);
 	if (quotes)
-		STPUTS_QUOTES(home, SQSYNTAX, expdest);
+		STPUTS_QUOTES(home, DQSYNTAX, expdest);
 	else
 		STPUTS(home, expdest);
 	return (p);

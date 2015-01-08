@@ -40,9 +40,11 @@
 
 struct mlx4_alloc_ucontext_resp {
 	struct ibv_get_context_resp	ibv_resp;
+	__u32				dev_caps;
 	__u32				qp_tab_size;
 	__u16				bf_reg_size;
 	__u16				bf_regs_per_page;
+	__u32				cqe_size;
 };
 
 struct mlx4_alloc_pd_resp {

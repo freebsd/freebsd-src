@@ -25,9 +25,8 @@ SRCS+=	gss-genr.c
 MAN=	sshd.8 sshd_config.5
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 
-DPADD=	${LIBSSH} ${LIBUTIL} ${LIBWRAP} ${LIBPAM}
-LDADD=	${LDSSH} -lutil -lwrap ${MINUSLPAM}
-USEPRIVATELIB= ssh
+# pam should always happen before ssh here for static linking
+LIBADD=	pam ssh util wrap
 
 .if ${MK_LDNS} != "no"
 CFLAGS+=	-DHAVE_LDNS=1
@@ -38,34 +37,19 @@ CFLAGS+=	-DHAVE_LDNS=1
 
 .if ${MK_AUDIT} != "no"
 CFLAGS+= -DUSE_BSM_AUDIT -DHAVE_GETAUDIT_ADDR
-DPADD+=  ${LIBBSM}
-LDADD+=  -lbsm
+LIBADD+=	bsm
 .endif
 
 .if ${MK_KERBEROS_SUPPORT} != "no"
 CFLAGS+= -include krb5_config.h
-DPADD+=	 ${LIBGSSAPI_KRB5} ${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBASN1} \
-	${LIBCOM_ERR} ${LIBROKEN} ${LIBWIND} ${LIBHEIMBASE} ${LIBHEIMIPCC}
-LDADD+=	 -lgssapi_krb5 -lgssapi -lkrb5 -lhx509 -lasn1 \
-	-lcom_err -lroken -lwind -lheimbase ${LDHEIMIPCC}
+LIBADD+=	gssapi_krb5 gssapi krb5
 .endif
 
 .if ${MK_OPENSSH_NONE_CIPHER} != "no"
 CFLAGS+= -DNONE_CIPHER_ENABLED
 .endif
 
-DPADD+= ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
-LDADD+= -lcrypt -lcrypto -lz
-
-# Fix the order of NEEDED entries for libthr and libc. The libthr
-# needs to interpose libc symbols, leaving the libthr loading as
-# dependency of krb causes reversed order and broken interposing. Put
-# the threading library last on the linker command line, just before
-# the -lc added by a compiler driver.
-.if ${MK_KERBEROS_SUPPORT} != "no"
-DPADD+= ${LIBPTHREAD}
-LDADD+= -lpthread
-.endif
+LIBADD+=	crypto
 
 .if defined(LOCALBASE)
 CFLAGS+= -DXAUTH_PATH=\"${LOCALBASE}/bin/xauth\"

@@ -2571,9 +2571,7 @@ fgetvp_rights(struct thread *td, int fd, cap_rights_t *needrightsp,
 	int error;
 #endif
 
-	if (td == NULL || (fdp = td->td_proc->p_fd) == NULL)
-		return (EBADF);
-
+	fdp = td->td_proc->p_fd;
 	fp = fget_locked(fdp, fd);
 	if (fp == NULL || fp->f_ops == &badfileops)
 		return (EBADF);
@@ -3098,6 +3096,7 @@ export_vnode_to_kinfo(struct vnode *vp, int fd, int fflags,
 	if (error == 0)
 		kif->kf_status |= KF_ATTR_VALID;
 	kif->kf_flags = xlate_fflags(fflags);
+	cap_rights_init(&kif->kf_cap_rights);
 	kif->kf_fd = fd;
 	kif->kf_ref_count = -1;
 	kif->kf_offset = -1;
