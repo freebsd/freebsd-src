@@ -342,7 +342,7 @@ srat_walk_table(acpi_subtable_handler *handler, void *arg)
 }
 
 /*
- * Setup per-CPU ACPI IDs.
+ * Setup per-CPU domain IDs.
  */
 static void
 srat_set_cpus(void *dummy)
@@ -363,6 +363,7 @@ srat_set_cpus(void *dummy)
 			panic("SRAT: CPU with APIC ID %u is not known",
 			    pc->pc_apic_id);
 		pc->pc_domain = cpu->domain;
+		CPU_SET(i, &cpuset_domain[cpu->domain]);
 		if (bootverbose)
 			printf("SRAT: CPU %u has memory domain %d\n", i,
 			    cpu->domain);
