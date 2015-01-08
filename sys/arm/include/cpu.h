@@ -8,14 +8,13 @@
 #include <machine/armreg.h>
 #include <machine/frame.h>
 
-#if __ARM_ARCH >= 6
-#include <machine/cpu-v6.h>
-#endif
-
 void	cpu_halt(void);
 void	swi_vm(void *);
 
 #ifdef _KERNEL
+#if __ARM_ARCH >= 6
+#include <machine/cpu-v6.h>
+#endif
 static __inline uint64_t
 get_cyclecount(void)
 {
