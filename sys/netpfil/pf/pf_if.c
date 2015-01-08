@@ -117,10 +117,6 @@ pfi_vnet_initialize(void)
 	V_pfi_buffer_max = 64;
 	V_pfi_buffer = malloc(V_pfi_buffer_max * sizeof(*V_pfi_buffer),
 	    PFI_MTYPE, M_WAITOK);
-
-	if (IS_DEFAULT_VNET(curvnet))
-	    mtx_init(&pfi_unlnkdkifs_mtx, "pf unlinked interfaces", NULL, MTX_DEF);
-
 	kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
 	PF_RULES_WLOCK();
 	V_pfi_all = pfi_kif_attach(kif, IFG_ALL);
