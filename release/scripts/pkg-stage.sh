@@ -33,6 +33,9 @@ x11/xorg"
 
 # If NOPORTS is set for the release, do not attempt to build pkg(8).
 if [ ! -f /usr/ports/Makefile ]; then
+	echo "*** /usr/ports is missing!    ***"
+	echo "*** Skipping pkg-stage.sh     ***"
+	echo "*** Unset NOPORTS to fix this ***"
 	exit 0
 fi
 
