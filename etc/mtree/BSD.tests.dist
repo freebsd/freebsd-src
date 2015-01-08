@@ -358,6 +358,8 @@
         ..
         ncal
         ..
+        opensm
+        ..
         printf
         ..
         sed
