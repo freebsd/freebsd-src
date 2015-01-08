@@ -196,8 +196,7 @@ m_getm2(struct mbuf *m, int len, int how, short type, int flags)
 		}
 
 		/* Book keeping. */
-		len -= (mb->m_flags & M_EXT) ? mb->m_ext.ext_size :
-			((mb->m_flags & M_PKTHDR) ? MHLEN : MLEN);
+		len -= M_SIZE(mb);
 		if (mtail != NULL)
 			mtail->m_next = mb;
 		else
@@ -430,11 +429,8 @@ m_sanity(struct mbuf *m0, int sanitize)
 		 * unrelated kernel memory before or after us is trashed.
 		 * No way to recover from that.
 		 */
-		a = ((m->m_flags & M_EXT) ? m->m_ext.ext_buf :
-			((m->m_flags & M_PKTHDR) ? (caddr_t)(&m->m_pktdat) :
-			 (caddr_t)(&m->m_dat)) );
-		b = (caddr_t)(a + (m->m_flags & M_EXT ? m->m_ext.ext_size :
-			((m->m_flags & M_PKTHDR) ? MHLEN : MLEN)));
+		a = M_START(m);
+		b = a + M_SIZE(m);
 		if ((caddr_t)m->m_data < a)
 			M_SANITY_ACTION("m_data outside mbuf data range left");
 		if ((caddr_t)m->m_data > b)
