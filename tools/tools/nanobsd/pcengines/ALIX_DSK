@@ -14,7 +14,7 @@ options 	FFS
 options 	SOFTUPDATES		
 options 	UFS_ACL			
 options 	UFS_DIRHASH		
-options 	NFSCL			# New Network Filesystem Client
+options 	NFSCL			# Network Filesystem Client
 options 	NFSLOCKD		
 options 	MSDOSFS			
 options 	CD9660			
