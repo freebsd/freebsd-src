@@ -1813,8 +1813,7 @@ tl_encap(sc, c, m_head)
 			return(1);
 		}
 		if (m_head->m_pkthdr.len > MHLEN) {
-			MCLGET(m_new, M_NOWAIT);
-			if (!(m_new->m_flags & M_EXT)) {
+			if (!(MCLGET(m_new, M_NOWAIT))) {
 				m_freem(m_new);
 				if_printf(ifp, "no memory for tx list\n");
 				return(1);

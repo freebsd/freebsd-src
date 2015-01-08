@@ -431,7 +431,7 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 
 	icmp6len = sizeof(*nd_ns);
 	m->m_pkthdr.len = m->m_len = sizeof(*ip6) + icmp6len;
-	m->m_data += max_linkhdr;	/* or MH_ALIGN() equivalent? */
+	m->m_data += max_linkhdr;	/* or M_ALIGN() equivalent? */
 
 	/* fill neighbor solicitation packet */
 	ip6 = mtod(m, struct ip6_hdr *);
@@ -1003,7 +1003,7 @@ nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 
 	icmp6len = sizeof(*nd_na);
 	m->m_pkthdr.len = m->m_len = sizeof(struct ip6_hdr) + icmp6len;
-	m->m_data += max_linkhdr;	/* or MH_ALIGN() equivalent? */
+	m->m_data += max_linkhdr;	/* or M_ALIGN() equivalent? */
 
 	/* fill neighbor advertisement packet */
 	ip6 = mtod(m, struct ip6_hdr *);

@@ -261,7 +261,7 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 	m->m_len = sizeof(*ah) + 2 * sizeof(struct in_addr) +
 		2 * ifp->if_addrlen;
 	m->m_pkthdr.len = m->m_len;
-	MH_ALIGN(m, m->m_len);
+	M_ALIGN(m, m->m_len);
 	ah = mtod(m, struct arphdr *);
 	bzero((caddr_t)ah, m->m_len);
 #ifdef MAC

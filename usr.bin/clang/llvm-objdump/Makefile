@@ -16,6 +16,13 @@ SRCS=	llvm-objdump.cpp \
 LIBDEPS=llvmmcdisassembler \
 	llvmmcanalysis \
 	llvmdebuginfo \
+	llvmaarch64disassembler \
+	llvmaarch64codegen \
+	llvmaarch64asmparser \
+	llvmaarch64desc \
+	llvmaarch64info \
+	llvmaarch64instprinter \
+	llvmaarch64utils \
 	llvmarmdisassembler \
 	llvmarmcodegen \
 	llvmarmasmparser \

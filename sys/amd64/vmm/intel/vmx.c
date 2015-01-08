@@ -941,6 +941,7 @@ vmx_vminit(struct vm *vm, pmap_t pmap)
 		vmx->cap[i].proc_ctls = procbased_ctls;
 		vmx->cap[i].proc_ctls2 = procbased_ctls2;
 
+		vmx->state[i].nextrip = ~0;
 		vmx->state[i].lastcpu = NOCPU;
 		vmx->state[i].vpid = vpid[i];
 
@@ -1169,11 +1170,23 @@ vmx_inject_nmi(struct vmx *vmx, int vcpu)
 }
 
 static void
-vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic)
+vmx_inject_interrupts(struct vmx *vmx, int vcpu, struct vlapic *vlapic,
+    uint64_t guestrip)
 {
 	int vector, need_nmi_exiting, extint_pending;
 	uint64_t rflags, entryinfo;
 	uint32_t gi, info;
+
+	if (vmx->state[vcpu].nextrip != guestrip) {
+		gi = vmcs_read(VMCS_GUEST_INTERRUPTIBILITY);
+		if (gi & HWINTR_BLOCKING) {
+			VCPU_CTR2(vmx->vm, vcpu, "Guest interrupt blocking "
+			    "cleared due to rip change: %#lx/%#lx",
+			    vmx->state[vcpu].nextrip, guestrip);
+			gi &= ~HWINTR_BLOCKING;
+			vmcs_write(VMCS_GUEST_INTERRUPTIBILITY, gi);
+		}
+	}
 
 	if (vm_entry_intinfo(vmx->vm, vcpu, &entryinfo)) {
 		KASSERT((entryinfo & VMCS_INTR_VALID) != 0, ("%s: entry "
@@ -2540,7 +2553,7 @@ vmx_exit_handle_nmi(struct vmx *vmx, int vcpuid, struct vm_exit *vmexit)
 }
 
 static int
-vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
+vmx_run(void *arg, int vcpu, register_t rip, pmap_t pmap,
     void *rendezvous_cookie, void *suspend_cookie)
 {
 	int rc, handled, launched;
@@ -2550,7 +2563,6 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 	struct vmcs *vmcs;
 	struct vm_exit *vmexit;
 	struct vlapic *vlapic;
-	uint64_t rip;
 	uint32_t exit_reason;
 
 	vmx = arg;
@@ -2578,11 +2590,13 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 	 */
 	vmcs_write(VMCS_HOST_CR3, rcr3());
 
-	vmcs_write(VMCS_GUEST_RIP, startrip);
+	vmcs_write(VMCS_GUEST_RIP, rip);
 	vmx_set_pcpu_defaults(vmx, vcpu, pmap);
 	do {
-		handled = UNHANDLED;
+		KASSERT(vmcs_guest_rip() == rip, ("%s: vmcs guest rip mismatch "
+		    "%#lx/%#lx", __func__, vmcs_guest_rip(), rip));
 
+		handled = UNHANDLED;
 		/*
 		 * Interrupts are disabled from this point on until the
 		 * guest starts executing. This is done for the following
@@ -2602,7 +2616,7 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 		 * pmap_invalidate_ept().
 		 */
 		disable_intr();
-		vmx_inject_interrupts(vmx, vcpu, vlapic);
+		vmx_inject_interrupts(vmx, vcpu, vlapic, rip);
 
 		/*
 		 * Check for vcpu suspension after injecting events because
@@ -2611,20 +2625,20 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 		 */
 		if (vcpu_suspended(suspend_cookie)) {
 			enable_intr();
-			vm_exit_suspended(vmx->vm, vcpu, vmcs_guest_rip());
+			vm_exit_suspended(vmx->vm, vcpu, rip);
 			break;
 		}
 
 		if (vcpu_rendezvous_pending(rendezvous_cookie)) {
 			enable_intr();
-			vm_exit_rendezvous(vmx->vm, vcpu, vmcs_guest_rip());
+			vm_exit_rendezvous(vmx->vm, vcpu, rip);
 			break;
 		}
 
 		if (vcpu_should_yield(vm, vcpu)) {
 			enable_intr();
-			vm_exit_astpending(vmx->vm, vcpu, vmcs_guest_rip());
-			vmx_astpending_trace(vmx, vcpu, vmexit->rip);
+			vm_exit_astpending(vmx->vm, vcpu, rip);
+			vmx_astpending_trace(vmx, vcpu, rip);
 			handled = HANDLED;
 			break;
 		}
@@ -2638,6 +2652,9 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 		vmexit->u.vmx.exit_reason = exit_reason = vmcs_exit_reason();
 		vmexit->u.vmx.exit_qualification = vmcs_exit_qualification();
 
+		/* Update 'nextrip' */
+		vmx->state[vcpu].nextrip = rip;
+
 		if (rc == VMX_GUEST_VMEXIT) {
 			vmx_exit_handle_nmi(vmx, vcpu, vmexit);
 			enable_intr();
@@ -2648,6 +2665,7 @@ vmx_run(void *arg, int vcpu, register_t startrip, pmap_t pmap,
 		}
 		launched = 1;
 		vmx_exit_trace(vmx, vcpu, rip, exit_reason, handled);
+		rip = vmexit->rip;
 	} while (handled);
 
 	/*

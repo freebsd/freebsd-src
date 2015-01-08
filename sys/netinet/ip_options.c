@@ -500,7 +500,7 @@ ip_insertoptions(struct mbuf *m, struct mbuf *opt, int *phlen)
 	}
 	if (p->ipopt_dst.s_addr)
 		ip->ip_dst = p->ipopt_dst;
-	if (m->m_flags & M_EXT || m->m_data - optlen < m->m_pktdat) {
+	if (!M_WRITABLE(m) || M_LEADINGSPACE(m) < optlen) {
 		n = m_gethdr(M_NOWAIT, MT_DATA);
 		if (n == NULL) {
 			*phlen = 0;

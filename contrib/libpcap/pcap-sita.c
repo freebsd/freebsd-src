@@ -24,8 +24,6 @@
  *  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
- /* $Id: pcap-sita.c */
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -55,40 +53,37 @@
 #define LIVE			1
 
 typedef struct iface {
-	struct iface	*next;					/* a pointer to the next interface */
-	char			*name;					/* this interface's name on Wireshark */
-	char			*IOPname;				/* this interface's name on an IOP */
-	uint32_t		iftype;					/* the type of interface (DLT values) */
+	struct iface	*next;		/* a pointer to the next interface */
+	char		*name;		/* this interface's name */
+	char		*IOPname;	/* this interface's name on an IOP */
+	uint32_t	iftype;		/* the type of interface (DLT values) */
 } iface_t;
 
 typedef struct unit {
-	char				*ip;				/* this unit's IP address (as extracted from /etc/hosts) */
-	int					fd;					/* the connection to this unit (if it exists) */
-	int					find_fd;			/* a big kludge to avoid my programming limitations since I could have this unit open for findalldevs purposes */
-	int					first_time;			/* 0 = just opened via acn_open_live(),  ie. the first time, NZ = nth time */
-	struct sockaddr_in	*serv_addr;			/* the address control block for comms to this unit */
-	int					chassis;
-	int					geoslot;
-	iface_t				*iface;				/* a pointer to a linked list of interface structures */
-	char				*imsg;				/* a pointer to an inbound message */
-	int					len;				/* the current size of the inbound message */
+	char			*ip;		/* this unit's IP address (as extracted from /etc/hosts) */
+	int			fd;		/* the connection to this unit (if it exists) */
+	int			find_fd;	/* a big kludge to avoid my programming limitations since I could have this unit open for findalldevs purposes */
+	int			first_time;	/* 0 = just opened via acn_open_live(),  ie. the first time, NZ = nth time */
+	struct sockaddr_in	*serv_addr;	/* the address control block for comms to this unit */
+	int			chassis;
+	int			geoslot;
+	iface_t			*iface;		/* a pointer to a linked list of interface structures */
+	char			*imsg;		/* a pointer to an inbound message */
+	int			len;		/* the current size of the inbound message */
 } unit_t;
 
-static char			*errorString;
 static unit_t		units[MAX_CHASSIS+1][MAX_GEOSLOT+1];	/* we use indexes of 1 through 8, but we reserve/waste index 0 */
-static fd_set		readfds;								/* a place to store the file descriptors for the connections to the IOPs */
-static fd_set		working_set;
-static int			max_fs;
-static char			static_buf[32];
+static fd_set		readfds;				/* a place to store the file descriptors for the connections to the IOPs */
+static int		max_fs;
 
-pcap_if_t			*acn_if_list;							/* pcap's list of available interfaces */
+pcap_if_t		*acn_if_list;		/* pcap's list of available interfaces */
 
 static void dump_interface_list(void) {
 	pcap_if_t		*iff;
 	pcap_addr_t		*addr;
-	int				longest_name_len = 0;
+	int			longest_name_len = 0;
 	char			*n, *d, *f;
-	int				if_number = 0;
+	int			if_number = 0;
 
 	iff = acn_if_list;
 	while (iff) {
@@ -405,18 +400,16 @@ static void acn_freealldevs(void) {
 	}
 }
 
-static char *nonUnified_port_num(unit_t *u, int IOPportnum) {
+static void nonUnified_IOP_port_name(char *buf, size_t bufsize, const char *proto, unit_t *u) {
 
-	sprintf(static_buf, "%d_%d", u->chassis, u->geoslot);
-	return static_buf;
+	snprintf(buf, bufsize, "%s_%d_%d", proto, u->chassis, u->geoslot);
 }
 
-static char *unified_port_num(unit_t *u, int IOPportnum) {
+static void unified_IOP_port_name(char *buf, size_t bufsize, const char *proto, unit_t *u, int IOPportnum) {
 	int			portnum;
 
 	portnum = ((u->chassis - 1) * 64) + ((u->geoslot - 1) * 8) + IOPportnum + 1;
-	sprintf(static_buf, "%d", portnum);
-	return static_buf;
+	snprintf(buf, bufsize, "%s_%d", proto, portnum);
 }
 
 static char *translate_IOP_to_pcap_name(unit_t *u, char *IOPname, bpf_u_int32 iftype) {
@@ -448,24 +441,38 @@ static char *translate_IOP_to_pcap_name(unit_t *u, char *IOPname, bpf_u_int32 if
 	if (strncmp(IOPname, "lo", 2) == 0) {
 		IOPportnum = atoi(&IOPname[2]);
 		switch (iftype) {
-			case DLT_EN10MB:	proto = "lo";		port = nonUnified_port_num(u, IOPportnum);	break;
-			default:			proto = "???";		port = unified_port_num(u, IOPportnum);		break;
+			case DLT_EN10MB:
+				nonUnified_IOP_port_name(buf, sizeof buf, "lo", u);
+				break;
+			default:
+				unified_IOP_port_name(buf, sizeof buf, "???", u, IOPportnum);
+				break;
 		}
 	} else if (strncmp(IOPname, "eth", 3) == 0) {
 		IOPportnum = atoi(&IOPname[3]);
 		switch (iftype) {
-			case DLT_EN10MB:	proto = "eth";		port = nonUnified_port_num(u, IOPportnum);	break;
-			default:			proto = "???";		port = unified_port_num(u, IOPportnum);		break;
+			case DLT_EN10MB:
+				nonUnified_IOP_port_name(buf, sizeof buf, "eth", u);
+				break;
+			default:
+				unified_IOP_port_name(buf, sizeof buf, "???", u, IOPportnum);
+				break;
 		}
 	} else if (strncmp(IOPname, "wan", 3) == 0) {
 		IOPportnum = atoi(&IOPname[3]);
 		switch (iftype) {
-			case DLT_SITA:		proto = "wan";		port = unified_port_num(u, IOPportnum);		break;
-			default:			proto = "???";		port = unified_port_num(u, IOPportnum);		break;
+			case DLT_SITA:
+				unified_IOP_port_name(buf, sizeof buf, "wan", u, IOPportnum);
+				break;
+			default:
+				unified_IOP_port_name(buf, sizeof buf, "???", u, IOPportnum);
+				break;
 		}
+	} else {
+		fprintf(stderr, "Error... invalid IOP name %s\n", IOPname);
+		return NULL;
 	}
 
-	sprintf(buf, "%s_%s", proto, port);		/* compose the user's name for that IOP port name */
 	name = malloc(strlen(buf) + 1);			/* get memory for that name */
         if (name == NULL) {    /* oops, we didn't get the memory requested     */
                 fprintf(stderr, "Error...couldn't allocate memory for IOP port name...value of errno is: %d\n", errno);
@@ -714,6 +721,8 @@ static void wait_for_all_answers(void) {
 
 	while (1) {
 		int flag = 0;
+		fd_set working_set;
+
 		for (fd = 0; fd <= max_fs; fd++) {								/* scan the list of descriptors we may be listening to */
 			if (FD_ISSET(fd, &readfds)) flag = 1;						/* and see if there are any still set */
 		}
@@ -931,7 +940,7 @@ static int pcap_read_acn(pcap_t *handle, int max_packets, pcap_handler callback,
 	struct pcap_pkthdr	pcap_header;
 
 	//printf("pcap_read_acn()\n");			// fulko
-	acn_start_monitor(handle->fd, handle->snapshot, handle->md.timeout, handle->md.clear_promisc, handle->direction);	/* maybe tell him to start monitoring */
+	acn_start_monitor(handle->fd, handle->snapshot, handle->opt.timeout, handle->opt.promisc, handle->direction);	/* maybe tell him to start monitoring */
 	//printf("pcap_read_acn() after start monitor\n");			// fulko
 
 	handle->bp = packet_header;
@@ -976,7 +985,6 @@ static int pcap_activate_sita(pcap_t *handle) {
 	    &handle->linktype);
 	if (fd == -1)
 		return PCAP_ERROR;
-	handle->md.clear_promisc = handle->md.promisc;
 	handle->fd = fd;
 	handle->bufsize = handle->snapshot;
 
@@ -1002,7 +1010,7 @@ static int pcap_activate_sita(pcap_t *handle) {
 pcap_t *pcap_create_interface(const char *device, char *ebuf) {
 	pcap_t *p;
 
-	p = pcap_create_common(device, ebuf);
+	p = pcap_create_common(device, ebuf, 0);
 	if (p == NULL)
 		return (NULL);
 

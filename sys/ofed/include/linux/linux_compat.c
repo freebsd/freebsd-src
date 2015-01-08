@@ -174,6 +174,13 @@ kobject_kfree_name(struct kobject *kobj)
 
 struct kobj_type kfree_type = { .release = kobject_kfree };
 
+static void
+dev_release(struct device *dev)
+{
+	pr_debug("dev_release: %s\n", dev_name(dev));
+	kfree(dev);
+}
+
 struct device *
 device_create(struct class *class, struct device *parent, dev_t devt,
     void *drvdata, const char *fmt, ...)
@@ -186,6 +193,7 @@ device_create(struct class *class, struct device *parent, dev_t devt,
 	dev->class = class;
 	dev->devt = devt;
 	dev->driver_data = drvdata;
+	dev->release = dev_release;
 	va_start(args, fmt);
 	kobject_set_name_vargs(&dev->kobj, fmt, args);
 	va_end(args);

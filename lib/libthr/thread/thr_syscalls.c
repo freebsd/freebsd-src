@@ -692,7 +692,7 @@ void
 __thr_interpose_libc(void)
 {
 
-	__error_selector = __error_threaded;
+	__set_error_selector(__error_threaded);
 #define	SLOT(name)					\
 	*(__libc_interposing_slot(INTERPOS_##name)) =	\
 	    (interpos_func_t)__thr_##name;

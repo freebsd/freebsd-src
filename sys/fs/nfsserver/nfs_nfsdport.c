@@ -575,7 +575,7 @@ nfsvno_readlink(struct vnode *vp, struct ucred *cred, struct thread *p,
 	while (len < NFS_MAXPATHLEN) {
 		NFSMGET(mp);
 		MCLGET(mp, M_WAITOK);
-		mp->m_len = NFSMSIZ(mp);
+		mp->m_len = M_SIZE(mp);
 		if (len == 0) {
 			mp3 = mp2 = mp;
 		} else {

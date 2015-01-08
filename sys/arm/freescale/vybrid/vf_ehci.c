@@ -259,6 +259,7 @@ vybrid_ehci_attach(device_t dev)
 	sc->sc_bus.parent = dev;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
 
 	if (bus_alloc_resources(dev, vybrid_ehci_spec, esc->res)) {
 		device_printf(dev, "could not allocate resources\n");

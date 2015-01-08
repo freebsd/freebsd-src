@@ -82,67 +82,73 @@ LIBDEPS=\
 	clangbasic \
 	clanglex \
 	\
-	llvmoption \
-	llvmarmasmparser \
-	llvmarmcodegen \
-	llvminstrumentation \
-	llvmirreader \
-	llvmlinker \
-	llvmmipsasmparser \
-	llvmmipscodegen \
-	llvmmipsdisassembler \
-	llvmobjcarcopts \
-	llvmpowerpccodegen \
-	llvmx86asmparser \
-	llvmx86codegen \
-	llvmx86disassembler \
-	llvmmcjit \
 	llvmmcdisassembler \
-	llvmarmdisassembler \
-	llvmselectiondag \
+	llvmobjcarcopts \
+	llvmprofiledata \
+	llvmoption \
+	llvmlinker \
+	llvmmcjit \
+	llvmruntimedyld \
+	llvmjit \
+	llvmexecutionengine \
+	llvmirreader \
 	llvmipo \
+	llvmvectorize \
+	llvminstrumentation \
 	llvmbitwriter \
 	llvmasmparser \
-	llvminterpreter \
-	llvmjit \
+	llvmaarch64disassembler \
+	llvmaarch64codegen \
+	llvmaarch64asmparser \
+	llvmaarch64desc \
+	llvmaarch64info \
+	llvmaarch64instprinter \
+	llvmaarch64utils \
+	llvmarmdisassembler \
+	llvmarmcodegen \
+	llvmarmasmparser \
 	llvmarmdesc \
-	llvmasmprinter \
+	llvmarminfo \
+	llvmarminstprinter \
+	llvmmipsdisassembler \
+	llvmmipscodegen \
+	llvmmipsasmparser \
 	llvmmipsdesc \
+	llvmmipsinfo \
 	llvmmipsinstprinter \
-	llvmpowerpcdesc \
-	llvmpowerpcinstprinter \
-	llvmpowerpcasmparser \
 	llvmpowerpcdisassembler \
-	llvmprofiledata \
-	llvmruntimedyld \
-	llvmvectorize \
-	llvmx86desc \
-	llvmx86instprinter \
-	llvmexecutionengine \
-	llvmcodegen \
-	llvmscalaropts \
+	llvmpowerpccodegen \
+	llvmpowerpcasmparser \
+	llvmpowerpcdesc \
+	llvmpowerpcinfo \
+	llvmpowerpcinstprinter \
 	llvmsparcdisassembler \
 	llvmsparccodegen \
 	llvmsparcasmparser \
 	llvmsparcdesc \
 	llvmsparcinfo \
 	llvmsparcinstprinter \
-	llvmarminfo \
-	llvmarminstprinter \
-	llvmmcparser \
-	llvmmipsinfo \
-	llvmpowerpcinfo \
-	llvmx86info \
-	llvmx86utils \
-	llvmobject \
-	llvmbitreader \
+	llvmx86disassembler \
+	llvmx86asmparser \
+	llvmx86codegen \
+	llvmselectiondag \
+	llvmasmprinter \
+	llvmcodegen \
+	llvmscalaropts \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
 	llvmtarget \
+	llvmx86desc \
+	llvmobject \
+	llvmmcparser \
+	llvmbitreader \
 	llvmcore \
+	llvmx86info \
+	llvmx86instprinter \
 	llvmmc \
+	llvmx86utils \
 	llvmsupport
 
 .include "../clang.prog.mk"

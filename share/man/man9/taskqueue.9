@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 24, 2014
+.Dd January 4, 2015
 .Dt TASKQUEUE 9
 .Os
 .Sh NAME
@@ -285,10 +285,16 @@ The
 .Fn taskqueue_drain_all
 function is used to wait for all pending and running tasks that
 are enqueued on the taskqueue to finish.
-The caller must arrange that the tasks are not re-enqueued.
-Note that
+Tasks posted to the taskqueue after
 .Fn taskqueue_drain_all
-currently does not handle tasks with delayed enqueueing.
+begins processing,
+including pending enqueues scheduled by a previous call to 
+.Fn taskqueue_enqueue_timeout ,
+do not extend the wait time of
+.Fn taskqueue_drain_all
+and may complete after 
+.Fn taskqueue_drain_all
+returns.
 .Pp
 The
 .Fn taskqueue_block

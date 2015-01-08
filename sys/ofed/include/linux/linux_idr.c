@@ -77,6 +77,7 @@ idr_destroy(struct idr *idr)
 {
 	struct idr_layer *il, *iln;
 
+	idr_remove_all(idr);
 	mtx_lock(&idr->lock);
 	for (il = idr->free; il != NULL; il = iln) {
 		iln = il->ary[0];

@@ -30,6 +30,7 @@
 
 #ifndef __T4_TOM_H__
 #define __T4_TOM_H__
+#include <sys/vmem.h>
 
 #define LISTEN_HASH_SIZE 32
 
@@ -80,18 +81,12 @@ struct ofld_tx_sdesc {
 	uint8_t tx_credits;	/* firmware tx credits (unit is 16B) */
 };
 
-struct ppod_region {
-	TAILQ_ENTRY(ppod_region) link;
-	int used;	/* # of pods used by this region */
-	int free;	/* # of contiguous pods free right after this region */
-};
-
 struct ddp_buffer {
 	uint32_t tag;	/* includes color, page pod addr, and DDP page size */
+	u_int ppod_addr;
 	int nppods;
 	int offset;
 	int len;
-	struct ppod_region ppod_region;
 	int npages;
 	vm_page_t *pages;
 };
@@ -179,8 +174,6 @@ struct listen_ctx {
 	TAILQ_HEAD(, synq_entry) synq;
 };
 
-TAILQ_HEAD(ppod_head, ppod_region);
-
 struct clip_entry {
 	TAILQ_ENTRY(clip_entry) link;
 	struct in6_addr lip;	/* local IPv6 address */
@@ -200,11 +193,8 @@ struct tom_data {
 	u_long listen_mask;
 	int lctx_count;		/* # of lctx in the hash table */
 
-	struct mtx ppod_lock;
-	int nppods;
-	int nppods_free;	/* # of available ppods */
-	int nppods_free_head;	/* # of available ppods at the begining */
-	struct ppod_head ppods;
+	u_int ppod_start;
+	vmem_t *ppod_arena;
 
 	struct mtx clip_table_lock;
 	struct clip_head clip_table;

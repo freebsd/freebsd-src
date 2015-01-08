@@ -7,7 +7,14 @@ PROG_CXX=llvm-ar
 SRCDIR=	tools/llvm-ar
 SRCS=	llvm-ar.cpp
 
-LIBDEPS=llvmarmdisassembler \
+LIBDEPS=llvmaarch64disassembler \
+	llvmaarch64codegen \
+	llvmaarch64asmparser \
+	llvmaarch64desc \
+	llvmaarch64info \
+	llvmaarch64instprinter \
+	llvmaarch64utils \
+	llvmarmdisassembler \
 	llvmarmcodegen \
 	llvmarmasmparser \
 	llvmarmdesc \

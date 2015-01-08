@@ -308,7 +308,6 @@ OLD_DIRS+=usr/include/clang/3.4
 OLD_FILES+=usr/share/mk/src.opts.mk
 # 20140505: Reject PR kern/187551
 OLD_DIRS+=usr/tests/sbin/ifconfig
-OLD_FILES+=usr/tests/sbin/ifconfig/Kyuafile
 OLD_FILES+=usr/tests/sbin/ifconfig/fibs_test
 # 20140502: Removal of lindev(4)
 OLD_FILES+=usr/share/man/man4/lindev.4.gz
