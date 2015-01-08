@@ -234,6 +234,7 @@ CROSSENV+=	GROFF_BIN_PATH=${WORLDTMP}/legacy/usr/bin \
 		GROFF_TMAC_PATH=${WORLDTMP}/legacy/usr/share/tmac
 .endif
 
+_BOOTSTRAP_MAKEINFO?=	${MK_INFO}
 # bootstrap-tools stage
 BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${BPATH}:${PATH} \
@@ -248,6 +249,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		SSP_CFLAGS= \
 		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
 		-DNO_PIC -DWITHOUT_PROFILE -DNO_SHARED \
+		_BOOTSTRAP_MAKEINFO=${_BOOTSTRAP_MAKEINFO} \
 		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF -DEARLY_BUILD
 
 # build-tools stage
@@ -729,6 +731,7 @@ MTREE_MAGIC?=	mtree 2.0
 
 distributeworld installworld: installcheck installcheck_UGID
 	mkdir -p ${INSTALLTMP}
+	export PATH=${BPATH}:${PATH} ; \
 	progs=$$(for prog in ${ITOOLS}; do \
 		if progpath=`which $$prog`; then \
 			echo $$progpath; \
@@ -1167,6 +1170,11 @@ _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
 _dtc= gnu/usr.bin/dtc
 .endif
 
+.if ${_BOOTSTRAP_MAKEINFO} != "no"
+_texinfo=	gnu/usr.bin/texinfo/libtxi \
+		gnu/usr.bin/texinfo/makeinfo \
+		gnu/usr.bin/texinfo/install-info
+.endif
 #	Please document (add comment) why something is in 'bootstrap-tools'.
 #	Try to bound the building of the bootstrap-tool to just the
 #	FreeBSD versions that need the tool built at this stage of the build.
@@ -1193,7 +1201,8 @@ bootstrap-tools:
     ${_gensnmptree} \
     usr.sbin/config \
     ${_crunchgen} \
-    ${_nmtree}
+    ${_nmtree} \
+    ${_texinfo}
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
 		cd ${.CURDIR}/${_tool}; \
 		${MAKE} DIRPRFX=${_tool}/ obj; \
@@ -1219,11 +1228,6 @@ _gcc_tools= gnu/usr.bin/cc/cc_tools
 
 .if ${MK_KERBEROS} != "no"
 _kerberos5_tools= kerberos5/tools
-.endif
-
-.if ${MK_INFO} != "no"
-_texinfo=	gnu/usr.bin/texinfo/libtxi \
-		gnu/usr.bin/texinfo/makeinfo
 .endif
 
 .if ${MK_RESCUE} != "no"
@@ -1257,15 +1261,6 @@ build-tools:
 		${MAKE} DIRPRFX=${_tool}/ obj; \
 		${MAKE} DIRPRFX=${_tool}/ depend; \
 		${MAKE} DIRPRFX=${_tool}/ all
-.endfor
-.for _tool in \
-    ${_texinfo}
-	${_+_}@${ECHODIR} "===> ${_tool} (obj,depend,all,install)"; \
-		cd ${.CURDIR}/${_tool} && \
-		${MAKE} DIRPRFX=${_tool}/ obj && \
-		${MAKE} DIRPRFX=${_tool}/ depend && \
-		${MAKE} DIRPRFX=${_tool}/ all && \
-		${MAKE} DIRPRFX=${_tool}/ install DESTDIR=${WORLDTMP}
 .endfor
 
 
