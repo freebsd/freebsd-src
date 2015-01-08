@@ -15,7 +15,7 @@ makeoptions	KERNVIRTADDR=0xc0000000
 options 	KERNPHYSADDR=0x20000000
 options 	KERNVIRTADDR=0xc0000000
 
-makeoptions	MODULES_OVERRIDE=""
+makeoptions	MODULES_OVERRIDE="dtb/atmel"
 
 # list all boards here, but not just yet (no multiboard in mainline).
 options 	ARM_MANY_BOARD
