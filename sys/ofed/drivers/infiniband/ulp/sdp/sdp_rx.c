@@ -116,8 +116,7 @@ sdp_post_recv(struct sdp_sock *ssk)
 		return -1;
 	}
 	for (m = mb; m != NULL; m = m->m_next) {
-		m->m_len = (m->m_flags & M_EXT) ? m->m_ext.ext_size :
-                        ((m->m_flags & M_PKTHDR) ? MHLEN : MLEN);
+		m->m_len = M_SIZE(m);
 		mb->m_pkthdr.len += m->m_len;
 	}
 	h = mtod(mb, struct sdp_bsdh *);
