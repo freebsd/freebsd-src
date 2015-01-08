@@ -89,7 +89,9 @@ ehci_ps3_attach(device_t dev)
 	sc->sc_bus.parent = dev;
 	sc->sc_bus.devices = sc->sc_devices;
 	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
+	sc->sc_bus.dma_bits = 32;
 
+	/* get all DMA memory */
 	if (usb_bus_mem_alloc_all(&sc->sc_bus,
 	    USB_GET_DMA_TAG(dev), &ehci_iterate_hw_softc))
 		return (ENOMEM);

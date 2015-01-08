@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int rsu_debug = 0;
 SYSCTL_NODE(_hw_usb, OID_AUTO, rsu, CTLFLAG_RW, 0, "USB rsu");
-SYSCTL_INT(_hw_usb_rsu, OID_AUTO, debug, CTLFLAG_RW, &rsu_debug, 0,
+SYSCTL_INT(_hw_usb_rsu, OID_AUTO, debug, CTLFLAG_RWTUN, &rsu_debug, 0,
     "Debug level");
 #endif
 
@@ -328,11 +328,11 @@ rsu_attach(device_t self)
 	if (sc->cut != 3)
 		sc->cut = (sc->cut >> 1) + 1;
 	error = rsu_read_rom(sc);
+	RSU_UNLOCK(sc);
 	if (error != 0) {
 		device_printf(self, "could not read ROM\n");
 		goto fail_rom;
 	}
-	RSU_UNLOCK(sc);
 	IEEE80211_ADDR_COPY(sc->sc_bssid, &sc->rom[0x12]);
 	device_printf(self, "MAC/BB RTL8712 cut %d\n", sc->cut);
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);

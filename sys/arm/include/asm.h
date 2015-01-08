@@ -46,7 +46,7 @@
 #define	_ASM_LABEL(x)	x
 
 #ifndef _ALIGN_TEXT
-# define _ALIGN_TEXT .align 0
+# define _ALIGN_TEXT .align 2
 #endif
 
 #if defined(__ARM_EABI__) && !defined(_STANDALONE)
@@ -129,11 +129,11 @@
 	pclabel: add	got, got, pc
 #ifdef __thumb__
 #define	GOT_INITSYM(gotsym,pclabel) \
-	.align 0;		\
+	.align 2;		\
 	gotsym: .word _C_LABEL(_GLOBAL_OFFSET_TABLE_) - (pclabel+4)
 #else
 #define	GOT_INITSYM(gotsym,pclabel) \
-	.align 0;		\
+	.align 2;		\
 	gotsym: .word _C_LABEL(_GLOBAL_OFFSET_TABLE_) - (pclabel+8)
 #endif
 

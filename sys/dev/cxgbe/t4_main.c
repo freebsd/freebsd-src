@@ -4699,7 +4699,7 @@ t4_sysctls(struct adapter *sc)
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "ddp_stats",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
-	    sysctl_ddp_stats, "A", "DDP statistics");
+	    sysctl_ddp_stats, "A", "non-TCP DDP statistics");
 
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "devlog",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
@@ -4801,6 +4801,10 @@ t4_sysctls(struct adapter *sc)
 		sc->tt.rx_coalesce = 1;
 		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "rx_coalesce",
 		    CTLFLAG_RW, &sc->tt.rx_coalesce, 0, "receive coalescing");
+
+		sc->tt.tx_align = 1;
+		SYSCTL_ADD_INT(ctx, children, OID_AUTO, "tx_align",
+		    CTLFLAG_RW, &sc->tt.tx_align, 0, "chop and align payload");
 	}
 #endif
 

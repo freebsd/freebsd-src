@@ -98,7 +98,7 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 kmemphys:
 			o = v & PAGE_MASK;
 			c = min(uio->uio_resid, (u_int)(PAGE_SIZE - o));
-			vd = PHYS_TO_DMAP(v);
+			vd = PHYS_TO_DMAP_RAW(v);
 			if (vd < DMAP_MIN_ADDRESS ||
 			    (vd > DMAP_MIN_ADDRESS + dmaplimit &&
 			    vd <= DMAP_MAX_ADDRESS) ||
@@ -112,7 +112,7 @@ kmemphys:
 			v = uio->uio_offset;
 
 			if (v >= DMAP_MIN_ADDRESS && v < DMAP_MAX_ADDRESS) {
-				v = DMAP_TO_PHYS(v);
+				v = DMAP_TO_PHYS_RAW(v);
 				goto kmemphys;
 			}
 

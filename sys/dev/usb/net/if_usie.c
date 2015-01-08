@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 static int usie_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, usie, CTLFLAG_RW, 0, "sierra USB modem");
-SYSCTL_INT(_hw_usb_usie, OID_AUTO, debug, CTLFLAG_RW, &usie_debug, 0,
+SYSCTL_INT(_hw_usb_usie, OID_AUTO, debug, CTLFLAG_RWTUN, &usie_debug, 0,
     "usie debug level");
 #endif
 

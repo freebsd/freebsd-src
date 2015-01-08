@@ -196,8 +196,7 @@ m_getm2(struct mbuf *m, int len, int how, short type, int flags)
 		}
 
 		/* Book keeping. */
-		len -= (mb->m_flags & M_EXT) ? mb->m_ext.ext_size :
-			((mb->m_flags & M_PKTHDR) ? MHLEN : MLEN);
+		len -= M_SIZE(mb);
 		if (mtail != NULL)
 			mtail->m_next = mb;
 		else
@@ -430,11 +429,8 @@ m_sanity(struct mbuf *m0, int sanitize)
 		 * unrelated kernel memory before or after us is trashed.
 		 * No way to recover from that.
 		 */
-		a = ((m->m_flags & M_EXT) ? m->m_ext.ext_buf :
-			((m->m_flags & M_PKTHDR) ? (caddr_t)(&m->m_pktdat) :
-			 (caddr_t)(&m->m_dat)) );
-		b = (caddr_t)(a + (m->m_flags & M_EXT ? m->m_ext.ext_size :
-			((m->m_flags & M_PKTHDR) ? MHLEN : MLEN)));
+		a = M_START(m);
+		b = a + M_SIZE(m);
 		if ((caddr_t)m->m_data < a)
 			M_SANITY_ACTION("m_data outside mbuf data range left");
 		if ((caddr_t)m->m_data > b)
@@ -574,13 +570,8 @@ m_prepend(struct mbuf *m, int len, int how)
 		m_move_pkthdr(mn, m);
 	mn->m_next = m;
 	m = mn;
-	if(m->m_flags & M_PKTHDR) {
-		if (len < MHLEN)
-			MH_ALIGN(m, len);
-	} else {
-		if (len < MLEN)
-			M_ALIGN(m, len);
-	}
+	if (len < M_SIZE(m))
+		M_ALIGN(m, len);
 	m->m_len = len;
 	return (m);
 }
@@ -1226,7 +1217,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 			goto extpacket;
 		if (remain > MHLEN) {
 			/* m can't be the lead packet */
-			MH_ALIGN(n, 0);
+			M_ALIGN(n, 0);
 			n->m_next = m_split(m, len, wait);
 			if (n->m_next == NULL) {
 				(void) m_free(n);
@@ -1236,7 +1227,7 @@ m_split(struct mbuf *m0, int len0, int wait)
 				return (n);
 			}
 		} else
-			MH_ALIGN(n, remain);
+			M_ALIGN(n, remain);
 	} else if (remain == 0) {
 		n = m->m_next;
 		m->m_next = NULL;
@@ -1885,33 +1876,6 @@ m_mbuftouio(struct uio *uio, struct mbuf *m, int len)
 	}
 
 	return (0);
-}
-
-/*
- * Set the m_data pointer of a newly-allocated mbuf
- * to place an object of the specified size at the
- * end of the mbuf, longword aligned.
- */
-void
-m_align(struct mbuf *m, int len)
-{
-#ifdef INVARIANTS
-	const char *msg = "%s: not a virgin mbuf";
-#endif
-	int adjust;
-
-	if (m->m_flags & M_EXT) {
-		KASSERT(m->m_data == m->m_ext.ext_buf, (msg, __func__));
-		adjust = m->m_ext.ext_size - len;
-	} else if (m->m_flags & M_PKTHDR) {
-		KASSERT(m->m_data == m->m_pktdat, (msg, __func__));
-		adjust = MHLEN - len;
-	} else {
-		KASSERT(m->m_data == m->m_dat, (msg, __func__));
-		adjust = MLEN - len;
-	}
-
-	m->m_data += adjust &~ (sizeof(long)-1);
 }
 
 /*

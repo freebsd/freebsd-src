@@ -38,8 +38,19 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
+#include "libc_private.h"
+
+#pragma weak usleep
 int
-__usleep(useconds_t useconds)
+usleep(useconds_t useconds)
+{
+
+	return (((int (*)(useconds_t))
+	    __libc_interposing[INTERPOS_usleep])(useconds));
+}
+
+int
+__libc_usleep(useconds_t useconds)
 {
 	struct timespec time_to_sleep;
 
@@ -48,5 +59,5 @@ __usleep(useconds_t useconds)
 	return (_nanosleep(&time_to_sleep, NULL));
 }
 
-__weak_reference(__usleep, usleep);
-__weak_reference(__usleep, _usleep);
+__weak_reference(__libc_usleep, __usleep);
+__weak_reference(__libc_usleep, _usleep);

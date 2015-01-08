@@ -288,7 +288,7 @@ static const STRUCT_USB_HOST_ID uhso_devs[] = {
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uhso, CTLFLAG_RW, 0, "USB uhso");
 static int uhso_autoswitch = 1;
-SYSCTL_INT(_hw_usb_uhso, OID_AUTO, auto_switch, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uhso, OID_AUTO, auto_switch, CTLFLAG_RWTUN,
     &uhso_autoswitch, 0, "Automatically switch to modem mode");
 
 #ifdef USB_DEBUG
@@ -298,7 +298,7 @@ static int uhso_debug = UHSO_DEBUG;
 static int uhso_debug = -1;
 #endif
 
-SYSCTL_INT(_hw_usb_uhso, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uhso, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uhso_debug, 0, "Debug level");
 
 #define UHSO_DPRINTF(n, x, ...) {\
@@ -595,7 +595,7 @@ uhso_attach(device_t self)
 	    CTLFLAG_RD, uhso_port[UHSO_IFACE_PORT(sc->sc_type)], 0,
 	    "Port available at this interface");
 	SYSCTL_ADD_PROC(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "radio",
-	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, uhso_radio_sysctl, "I", "Enable radio");
+	    CTLTYPE_INT | CTLFLAG_RWTUN, sc, 0, uhso_radio_sysctl, "I", "Enable radio");
 
 	/*
 	 * The default interface description on most Option devices isn't
