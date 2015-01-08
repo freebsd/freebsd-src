@@ -11,7 +11,7 @@ export PERMISSIVE="YES"
 export REPO_AUTOUPDATE="NO"
 export PKGCMD="/usr/sbin/pkg -d"
 
-DVD_PACKAGES="archivers/unzip
+_DVD_PACKAGES="archivers/unzip
 devel/subversion
 devel/subversion-static
 emulators/linux_base-f10
@@ -52,6 +52,25 @@ export PKG_REPODIR="${DVD_DIR}/${PKG_ABI}"
 /bin/mkdir -p ${PKG_REPODIR}
 if [ ! -z "${PKG_ALTABI}" ]; then
 	(cd ${DVD_DIR} && ln -s ${PKG_ABI} ${PKG_ALTABI})
+fi
+
+# Ensure the ports listed in _DVD_PACKAGES exist to sanitize the
+# final list.
+for _P in ${_DVD_PACKAGES}; do
+	if [ -d "/usr/ports/${_P}" ]; then
+		DVD_PACKAGES="${DVD_PACKAGES} ${_P}"
+	else
+		echo "*** Skipping nonexistent port: ${_P}"
+	fi
+done
+
+# Make sure the package list is not empty.
+if [ -z "${DVD_PACKAGES}" ]; then
+	echo "*** The package list is empty."
+	echo "*** Something is very wrong."
+	# Exit '0' so the rest of the build process continues
+	# so other issues (if any) can be addressed as well.
+	exit 0
 fi
 
 # Print pkg(8) information to make debugging easier.
