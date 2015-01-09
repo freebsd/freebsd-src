@@ -5,6 +5,15 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 0.9.8zc and OpenSSL 0.9.8zd [8 Jan 2015]
+
+      o Fix for CVE-2014-3571
+      o Fix for CVE-2014-3569
+      o Fix for CVE-2014-3572
+      o Fix for CVE-2015-0204
+      o Fix for CVE-2014-8275
+      o Fix for CVE-2014-3570
+
   Major changes between OpenSSL 0.9.8zb and OpenSSL 0.9.8zc [15 Oct 2014]:
 
       o Fix for CVE-2014-3513
