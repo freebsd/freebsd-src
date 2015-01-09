@@ -5650,7 +5650,6 @@ public:
       LongDoubleWidth = LongDoubleAlign = 64;
       LongDoubleFormat = &llvm::APFloat::IEEEdouble;
       IntMaxType = SignedLong;
-      UIntMaxType = UnsignedLong;
     }
     setN64ABITypes();
     SuitableAlign = 128;
