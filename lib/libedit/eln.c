@@ -77,7 +77,6 @@ public const char *
 el_gets(EditLine *el, int *nread)
 {
 	const wchar_t *tmp;
-	const char *ret;
 	int nwread;
 
 	*nread = 0;
