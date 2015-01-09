@@ -1,6 +1,6 @@
-.\"	$NetBSD: editline.3,v 1.70 2009/07/05 21:55:24 perry Exp $
+.\"	$NetBSD: editline.3,v 1.84 2014/12/25 13:39:41 wiz Exp $
 .\"
-.\" Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
+.\" Copyright (c) 1997-2014 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
 .\" This file was contributed to The NetBSD Foundation by Luke Mewburn.
@@ -28,33 +28,52 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 5, 2009
+.Dd December 25, 2014
 .Dt EDITLINE 3
 .Os
 .Sh NAME
 .Nm editline ,
 .Nm el_init ,
+.Nm el_init_fd ,
 .Nm el_end ,
 .Nm el_reset ,
 .Nm el_gets ,
+.Nm el_wgets ,
 .Nm el_getc ,
+.Nm el_wgetc ,
 .Nm el_push ,
+.Nm el_wpush ,
 .Nm el_parse ,
+.Nm el_wparse ,
 .Nm el_set ,
+.Nm el_wset ,
 .Nm el_get ,
+.Nm el_wget ,
 .Nm el_source ,
 .Nm el_resize ,
+.Nm el_cursor ,
 .Nm el_line ,
+.Nm el_wline ,
 .Nm el_insertstr ,
+.Nm el_winsertstr ,
 .Nm el_deletestr ,
+.Nm el_wdeletestr ,
 .Nm history_init ,
+.Nm history_winit ,
 .Nm history_end ,
+.Nm history_wend ,
 .Nm history ,
+.Nm history_w ,
 .Nm tok_init ,
+.Nm tok_winit ,
 .Nm tok_end ,
+.Nm tok_wend ,
 .Nm tok_reset ,
+.Nm tok_wreset ,
 .Nm tok_line ,
+.Nm tok_wline ,
 .Nm tok_str
+.Nm tok_wstr
 .Nd line editor, history and tokenization functions
 .Sh LIBRARY
 .Lb libedit
@@ -62,51 +81,86 @@
 .In histedit.h
 .Ft EditLine *
 .Fn el_init "const char *prog" "FILE *fin" "FILE *fout" "FILE *ferr"
+.Ft EditLine *
+.Fn el_init_fd "const char *prog" "FILE *fin" "FILE *fout" "FILE *ferr" "int fdin" "int fdout" "int fderr"
 .Ft void
 .Fn el_end "EditLine *e"
 .Ft void
 .Fn el_reset "EditLine *e"
 .Ft const char *
 .Fn el_gets "EditLine *e" "int *count"
+.Ft const wchar_t *
+.Fn el_wgets "EditLine *e" "int *count"
 .Ft int
 .Fn el_getc "EditLine *e" "char *ch"
+.Ft int
+.Fn el_wgetc "EditLine *e" "wchar_t *ch"
 .Ft void
-.Fn el_push "EditLine *e" "char *str"
+.Fn el_push "EditLine *e" "const char *str"
+.Ft void
+.Fn el_wpush "EditLine *e" "const wchar_t *str"
 .Ft int
 .Fn el_parse "EditLine *e" "int argc" "const char *argv[]"
 .Ft int
+.Fn el_wparse "EditLine *e" "int argc" "const wchar_t *argv[]"
+.Ft int
 .Fn el_set "EditLine *e" "int op" "..."
 .Ft int
+.Fn el_wset "EditLine *e" "int op" "..."
+.Ft int
 .Fn el_get "EditLine *e" "int op" "..."
+.Ft int
+.Fn el_wget "EditLine *e" "int op" "..."
 .Ft int
 .Fn el_source "EditLine *e" "const char *file"
 .Ft void
 .Fn el_resize "EditLine *e"
+.Fn int
+.Fn el_cursor "EditLine *e" "int count"
 .Ft const LineInfo *
 .Fn el_line "EditLine *e"
+.Ft const LineInfoW *
+.Fn el_wline "EditLine *e"
 .Ft int
 .Fn el_insertstr "EditLine *e" "const char *str"
+.Ft int
+.Fn el_winsertstr "EditLine *e" "const wchar_t *str"
 .Ft void
 .Fn el_deletestr "EditLine *e" "int count"
+.Ft void
+.Fn el_wdeletestr "EditLine *e" "int count"
 .Ft History *
 .Fn history_init
+.Ft HistoryW *
+.Fn history_winit
 .Ft void
 .Fn history_end "History *h"
+.Ft void
+.Fn history_wend "HistoryW *h"
 .Ft int
 .Fn history "History *h" "HistEvent *ev" "int op" "..."
+.Ft int
+.Fn history_w "HistoryW *h" "HistEventW *ev" "int op" "..."
 .Ft Tokenizer *
 .Fn tok_init "const char *IFS"
+.Ft TokenizerW *
+.Fn tok_winit "const wchar_t *IFS"
 .Ft void
 .Fn tok_end "Tokenizer *t"
 .Ft void
+.Fn tok_wend "TokenizerW *t"
+.Ft void
 .Fn tok_reset "Tokenizer *t"
+.Ft void
+.Fn tok_wreset "TokenizerW *t"
 .Ft int
-.Fo tok_line
-.Fa "Tokenizer *t" "const LineInfo *li" "int *argc" "const char **argv[]"
-.Fa "int *cursorc" "int *cursoro"
-.Fc
+.Fn tok_line "Tokenizer *t" "const LineInfo *li" "int *argc" "const char **argv[]" "int *cursorc" "int *cursoro"
+.Ft int
+.Fn tok_wline "TokenizerW *t" "const LineInfoW *li" "int *argc" "const wchar_t **argv[]" "int *cursorc" "int *cursoro"
 .Ft int
 .Fn tok_str "Tokenizer *t" "const char *str" "int *argc" "const char **argv[]"
+.Ft int
+.Fn tok_wstr "TokenizerW *t" "const wchar_t *str" "int *argc" "const wchar_t **argv[]"
 .Sh DESCRIPTION
 The
 .Nm
@@ -126,14 +180,21 @@ The line editing functions use a common data structure,
 .Fa EditLine ,
 which is created by
 .Fn el_init
+or
+.Fn el_init_fd
 and freed by
 .Fn el_end .
+.Pp
+The wide-character functions behave the same way as their narrow
+counterparts.
 .Pp
 The following functions are available:
 .Bl -tag -width 4n
 .It Fn el_init
 Initialise the line editor, and return a data structure
-to be used by all other line editing functions.
+to be used by all other line editing functions, or
+.Dv NULL
+on failure.
 .Fa prog
 is the name of the invoking program, used when reading the
 .Xr editrc 5
@@ -146,11 +207,20 @@ are the input, output, and error streams (respectively) to use.
 In this documentation, references to
 .Dq the tty
 are actually to this input/output stream combination.
+.It Fn el_init_fd
+Like
+.Fn el_init
+but allows specifying file descriptors for the
+.Xr stdio 3
+corresponding streams, in case those were created with
+.Xr funopen 3 .
 .It Fn el_end
 Clean up and finish with
 .Fa e ,
 assumed to have been created with
-.Fn el_init .
+.Fn el_init
+or
+.Fn el_init_fd .
 .It Fn el_reset
 Reset the tty and the parser.
 This should be called after an error which may have upset the tty's
@@ -174,7 +244,10 @@ and must be copied if the data is to be retained.
 Read a character from the tty.
 .Fa ch
 is modified to contain the character read.
-Returns the number of characters read if successful, \-1 otherwise.
+Returns the number of characters read if successful, \-1 otherwise,
+in which case
+.Dv errno
+can be inspected for the cause.
 .It Fn el_push
 Pushes
 .Fa str
@@ -196,7 +269,7 @@ to execute builtin
 .Nm
 commands.
 If the command is prefixed with
-.Dq prog:
+.Dq prog :
 then
 .Fn el_parse
 will only execute the command if
@@ -209,7 +282,7 @@ The return value is
 \-1 if the command is unknown,
 0 if there was no error or
 .Dq prog
-did not match, or
+didn't match, or
 1 if the command returned an error.
 Refer to
 .Xr editrc 5
@@ -221,6 +294,7 @@ parameters.
 .Fa op
 determines which parameter to set, and each operation has its
 own parameter list.
+Returns 0 on success, \-1 on failure.
 .Pp
 The following values for
 .Fa op
@@ -385,6 +459,14 @@ check this
 (using
 .Fn el_get )
 to determine if editing should be enabled or not.
+.It Dv EL_UNBUFFERED , Fa "int flag"
+If
+.Fa flag
+is zero,
+unbuffered mode is disabled (the default).
+In unbuffered mode,
+.Fn el_gets
+will return immediately after processing a single character.
 .It Dv EL_GETCFN , Fa "int (*f)(EditLine *, char *c)"
 Define the character reading function as
 .Fa f ,
@@ -396,7 +478,7 @@ and
 .Fn el_getc .
 The builtin function can be set or restored with the special function
 name
-.Dv EL_BUILTIN_GETCFN .
+.Dq Dv EL_BUILTIN_GETCFN .
 .It Dv EL_CLIENTDATA , Fa "void *data"
 Register
 .Fa data
@@ -454,7 +536,7 @@ If
 is not
 .Dv NULL ,
 return the start/stop literal prompt character in it.
-.It Dv EL_EDITOR , Fa "const char *"
+.It Dv EL_EDITOR , Fa "const char **"
 Return the name of the editor, which will be one of
 .Dq emacs
 or
@@ -478,7 +560,7 @@ above).
 Return non-zero if editing is enabled.
 .It Dv EL_GETCFN , Fa "int (**f)(EditLine *, char *)"
 Return a pointer to the function that read characters, which is equal to
-.Dv EL_BUILTIN_GETCFN
+.Dq Dv EL_BUILTIN_GETCFN
 in the case of the default builtin function.
 .It Dv EL_CLIENTDATA , Fa "void **data"
 Retrieve
@@ -487,10 +569,7 @@ previously registered with the corresponding
 .Fn el_set
 call.
 .It Dv EL_UNBUFFERED , Fa "int"
-Sets or clears unbuffered mode.
-In this mode,
-.Fn el_gets
-will return immediately after processing a single character.
+Return non-zero if unbuffered mode is enabled.
 .It Dv EL_PREP_TERM , Fa "int"
 Sets or clears terminal editing mode.
 .It Dv EL_GETFP , Fa "int fd", Fa "FILE **fp"
@@ -531,6 +610,8 @@ Refer to
 .Xr editrc 5
 for details on the format of
 .Fa file .
+.Fn el_source
+returns 0 on success and \-1 on error.
 .It Fn el_resize
 Must be called if the terminal size changes.
 If
@@ -538,9 +619,14 @@ If
 has been set with
 .Fn el_set ,
 then this is done automatically.
-Otherwise, it is the responsibility of the application to call
+Otherwise, it's the responsibility of the application to call
 .Fn el_resize
 on the appropriate occasions.
+.It Fn el_cursor
+Move the cursor to the right (if positive) or to the left (if negative)
+.Fa count
+characters.
+Returns the resulting offset of the cursor from the beginning of the line.
 .It Fn el_line
 Return the editing information for the current line in a
 .Fa LineInfo
@@ -568,7 +654,7 @@ Insert
 into the line at the cursor.
 Returns \-1 if
 .Fa str
-is empty or will not fit, and 0 otherwise.
+is empty or won't fit, and 0 otherwise.
 .It Fn el_deletestr
 Delete
 .Fa count
@@ -586,7 +672,9 @@ The following functions are available:
 .Bl -tag -width 4n
 .It Fn history_init
 Initialise the history list, and return a data structure
-to be used by all other history list functions.
+to be used by all other history list functions, or
+.Dv NULL
+on failure.
 .It Fn history_end
 Clean up and finish with
 .Fa h ,
@@ -623,7 +711,7 @@ Fa "history_sfun_t set" , Fa "history_vfun_t clear" , \
 Fa "history_efun_t enter" , Fa "history_efun_t add"
 Define functions to perform various history operations.
 .Fa ptr
-is the argument given to a function when it is invoked.
+is the argument given to a function when it's invoked.
 .It Dv H_FIRST
 Return the first element in the history.
 .It Dv H_LAST
@@ -655,12 +743,12 @@ as a new element to the history, and, if necessary,
 removing the oldest entry to keep the list to the created size.
 If
 .Dv H_SETUNIQUE
-was has been called with a non-zero arguments, the element
+has been called with a non-zero argument, the element
 will not be entered into the history if its contents match
 the ones of the current history element.
 If the element is entered
 .Fn history
-returns 1, if it is ignored as a duplicate returns 0.
+returns 1; if it is ignored as a duplicate returns 0.
 Finally
 .Fn history
 returns \-1 if an error occurred.
@@ -682,9 +770,11 @@ Load the history list stored in
 .It Dv H_SAVE , Fa "const char *file"
 Save the history list to
 .Fa file .
-.It Dv H_SAVE_FP , Fa "FILE*"
+.It Dv H_SAVE_FP , Fa "FILE *fp"
 Save the history list to the opened
-.Fa FILE* .
+.Ft FILE
+pointer
+.Fa fp .
 .It Dv H_SETUNIQUE , Fa "int unique"
 Set flag that adjacent identical event strings should not be entered
 into the history.
@@ -701,9 +791,8 @@ The caller is responsible for free'ing the string in the returned
 .Fa HistEvent .
 .El
 .Pp
-The
 .Fn history
-function returns \*[Ge] 0 if the operation
+returns \*[Gt]= 0 if the operation
 .Fa op
 succeeds.
 Otherwise, \-1 is returned and
@@ -747,7 +836,7 @@ and before a new line is to be tokenized.
 .It Fn tok_line
 Tokenize
 .Fa li ,
-if successful, modify
+If successful, modify:
 .Fa argv
 to contain the words,
 .Fa argc
@@ -774,12 +863,14 @@ and
 .Aq newline .
 A positive exit code indicates that another line should be read
 and tokenization attempted again.
+.
 .It Fn tok_str
 A simpler form of
 .Fn tok_line ;
 .Fa str
 is a NUL terminated string to tokenize.
 .El
+.
 .\"XXX.Sh EXAMPLES
 .\"XXX: provide some examples
 .Sh SEE ALSO
@@ -796,10 +887,9 @@ library first appeared in
 .Dv CC_REDISPLAY
 appeared in
 .Nx 1.3 .
-.Dv CC_REFRESH_BEEP
-and
+.Dv CC_REFRESH_BEEP ,
 .Dv EL_EDITMODE
-appeared in
+and the readline emulation appeared in
 .Nx 1.4 .
 .Dv EL_RPROMPT
 appeared in
@@ -817,6 +907,10 @@ wrote this manual and implemented
 .Dv EL_EDITMODE ,
 and
 .Dv EL_RPROMPT .
+.An Jaromir Dolecek
+implemented the readline emulation.
+.An Johny Mattsson
+implemented wide-character support.
 .Sh BUGS
 At this time, it is the responsibility of the caller to
 check the result of the
