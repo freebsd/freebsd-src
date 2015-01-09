@@ -36,8 +36,6 @@ SRCF=	absvdi2 \
 	clzti2 \
 	cmpdi2 \
 	cmpti2 \
-	comparedf2 \
-	comparesf2 \
 	ctzdi2 \
 	ctzsi2 \
 	ctzti2 \
@@ -150,6 +148,11 @@ SRCF+=	adddf3 \
 	truncdfsf2
 .endif
 
+.if ${MACHINE_CPUARCH} != "arm"
+SRCF+=	comparedf2 \
+	comparesf2
+.endif
+
 .if ${MACHINE_CPUARCH} != "mips"
 SRCF+=	divsi3 \
 	modsi3 \
@@ -180,9 +183,7 @@ SRCS+=	${file}.c
 .endfor
 
 .if ${MACHINE_CPUARCH} == "arm"
-SRCS+=	aeabi_dcmp.S \
-	aeabi_div0.S \
-	aeabi_fcmp.S \
+SRCS+=	aeabi_div0.c \
 	aeabi_idivmod.S \
 	aeabi_ldivmod.S \
 	aeabi_memcmp.S \
@@ -193,49 +194,11 @@ SRCS+=	aeabi_dcmp.S \
 	aeabi_uldivmod.S \
 	bswapdi2.S \
 	bswapsi2.S \
-	eqdf2.S \
-	eqsf2.S \
-	floatunssidf.S \
-	floatunssisf.S \
-	gedf2.S \
-	gesf2.S \
-	gtdf2.S \
-	gtsf2.S \
-	ledf2.S \
-	lesf2.S \
-	ltdf2.S \
-	ltsf2.S \
-	nedf2.S \
-	nesf2.S \
-	restore_vfp_d8_d15_regs.S \
-	save_vfp_d8_d15_regs.S \
 	switch16.S \
 	switch32.S \
 	switch8.S \
 	switchu8.S \
-	sync_fetch_and_add_4.S \
-	sync_fetch_and_add_8.S \
-	sync_fetch_and_and_4.S \
-	sync_fetch_and_and_8.S \
-	sync_fetch_and_max_4.S \
-	sync_fetch_and_max_8.S \
-	sync_fetch_and_min_4.S \
-	sync_fetch_and_min_8.S \
-	sync_fetch_and_nand_4.S \
-	sync_fetch_and_nand_8.S \
-	sync_fetch_and_or_4.S \
-	sync_fetch_and_or_8.S \
-	sync_fetch_and_sub_4.S \
-	sync_fetch_and_sub_8.S \
-	sync_fetch_and_umax_4.S \
-	sync_fetch_and_umax_8.S \
-	sync_fetch_and_umin_4.S \
-	sync_fetch_and_umin_8.S \
-	sync_fetch_and_xor_4.S \
-	sync_fetch_and_xor_8.S \
-	sync_synchronize.S \
-	unorddf2.S \
-	unordsf2.S
+	sync_synchronize.S
 .endif
 
 .if ${MK_INSTALLLIB} != "no"
