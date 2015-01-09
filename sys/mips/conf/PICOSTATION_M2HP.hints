@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-# arge1 MDIO bus
+# arge0 MDIO bus
 hint.argemdio.0.at="nexus0"
-hint.argemdio.0.maddr=0x1a000000
+hint.argemdio.0.maddr=0x19000000
 hint.argemdio.0.msize=0x1000
 hint.argemdio.0.order=0
 
