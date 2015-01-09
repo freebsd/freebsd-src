@@ -8,7 +8,7 @@ SRCDIR=	lib/Target/AArch64/Disassembler
 INCDIR=	lib/Target/AArch64
 SRCS=	AArch64Disassembler.cpp
 
-.if ${MK_CLANG_EXTRAS} != "no" || .${MK_LLDB} != "no"
+.if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
 SRCS+=	AArch64ExternalSymbolizer.cpp
 .endif
 
