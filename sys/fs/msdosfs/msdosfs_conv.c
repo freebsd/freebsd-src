@@ -234,11 +234,7 @@ l2u[256] = {
  * null.
  */
 int
-dos2unixfn(dn, un, lower, pmp)
-	u_char dn[11];
-	u_char *un;
-	int lower;
-	struct msdosfsmount *pmp;
+dos2unixfn(u_char dn[11], u_char *un, int lower, struct msdosfsmount *pmp)
 {
 	size_t i;
 	int thislong = 0;
