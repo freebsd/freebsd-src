@@ -2213,8 +2213,6 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
 		*pflags = 0;
 	IF_AFDATA_UNLOCK_ASSERT(ifp);
 	if (m != NULL && m->m_flags & M_MCAST) {
-		int i;
-
 		switch (ifp->if_type) {
 		case IFT_ETHER:
 		case IFT_FDDI:
@@ -2228,17 +2226,6 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
 		case IFT_ISO88025:
 			ETHER_MAP_IPV6_MULTICAST(&SIN6(dst)->sin6_addr,
 						 desten);
-			return (0);
-		case IFT_IEEE1394:
-			/*
-			 * netbsd can use if_broadcastaddr, but we don't do so
-			 * to reduce # of ifdef.
-			 */
-			for (i = 0; i < ifp->if_addrlen; i++)
-				desten[i] = ~0;
-			return (0);
-		case IFT_ARCNET:
-			*desten = 0;
 			return (0);
 		default:
 			m_freem(m);
