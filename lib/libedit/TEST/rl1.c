@@ -1,11 +1,11 @@
-/*	$NetBSD: filecomplete.h,v 1.9 2009/12/30 22:37:40 christos Exp $	*/
+/*	$NetBSD: rl1.c,v 1.1 2010/09/16 20:08:51 christos Exp $	*/
 
 /*-
- * Copyright (c) 1997 The NetBSD Foundation, Inc.
+ * Copyright (c) 2010 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Jaromir Dolecek.
+ * by Christos Zoulas.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,23 +27,27 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
-#ifndef _FILECOMPLETE_H_
-#define _FILECOMPLETE_H_
 
-int fn_complete(EditLine *,
-    char *(*)(const char *, int),
-    char **(*)(const char *, int, int),
-    const Char *, const Char *, const char *(*)(const char *), size_t,
-    int *, int *, int *, int *,
-    const Char *(*)(const Char *, const Char *),
-    Char *(*)(const Char *),
-    char *(*)(const char *));
+#include <sys/cdefs.h>
+#if !defined(lint)
+__RCSID("$NetBSD: rl1.c,v 1.1 2010/09/16 20:08:51 christos Exp $");
+#endif /* not lint  */
+__FBSDID("$FreeBSD$");
 
-void fn_display_match_list(EditLine *, char **, size_t, size_t);
-char *fn_tilde_expand(const char *);
-char *fn_filename_completion_function(const char *, int);
+/*
+ * test.c: A little test program
+ */
+#include <stdio.h>
+#include <readline/readline.h>
 
-#endif
+int
+main(int argc, char *argv[])
+{
+	char *p;
+	while ((p = readline("hi$")) != NULL) {
+		add_history(p);
+		printf("%d %s\n", history_length, p);
+	}
+	return 0;
+}
