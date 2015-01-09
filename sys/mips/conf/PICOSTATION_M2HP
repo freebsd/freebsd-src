@@ -66,3 +66,6 @@ device		arswitch
 # Enable GPIO
 device         gpio
 device         gpioled
+
+# RNG
+device        random
