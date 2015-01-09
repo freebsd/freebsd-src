@@ -167,7 +167,10 @@ arc_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, m, dst, (u_char *)&adst, NULL);
+		if ((m->m_flags & M_MCAST) != NULL)
+			adst = arcbroadcastaddr; /* ARCnet broadcast address */
+		else
+			error = nd6_storelladdr(ifp, m, dst, (u_char *)&adst, NULL);
 		if (error)
 			return (error);
 		atype = ARCTYPE_INET6;
