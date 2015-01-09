@@ -122,8 +122,6 @@
         ..
         ic
         ..
-        ieee488
-        ..
         iicbus
         ..
         io
@@ -231,8 +229,6 @@
         posix
         ..
     ..
-    gpib
-    ..
     gssapi
     ..
     infiniband
@@ -312,8 +308,6 @@
     protocols
     ..
     rdma
-    ..
-    readline
     ..
     rpc
     ..
