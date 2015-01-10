@@ -189,6 +189,12 @@
       &man.sysctl.8; with individual <literal>kern.vt.kbd_*</literal>
       variants.</para>
 
+    <para revision="273598">The &man.hpet.4; driver has been updated
+      to create a
+      <filename>/dev/hept<replaceable>N</replaceable></filename>
+      device, providing access to <acronym>HPET</acronym> from
+      userspace.</para>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
 
