@@ -548,13 +548,12 @@ OLD_FILES+=usr/bin/llvm-bcanalyzer
 OLD_FILES+=usr/bin/llvm-diff
 OLD_FILES+=usr/bin/llvm-dis
 OLD_FILES+=usr/bin/llvm-extract
-OLD_FILES+=usr/bin/llvm-ld
 OLD_FILES+=usr/bin/llvm-link
 OLD_FILES+=usr/bin/llvm-mc
 OLD_FILES+=usr/bin/llvm-nm
 OLD_FILES+=usr/bin/llvm-objdump
 OLD_FILES+=usr/bin/llvm-rtdyld
-OLD_FILES+=usr/bin/llvm-stub
+OLD_FILES+=usr/bin/llvm-symbolizer
 OLD_FILES+=usr/bin/macho-dump
 OLD_FILES+=usr/bin/opt
 OLD_FILES+=usr/share/man/man1/bugpoint.1.gz
@@ -566,9 +565,9 @@ OLD_FILES+=usr/share/man/man1/llvm-bcanalyzer.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-diff.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-dis.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-extract.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-ld.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-link.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-nm.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-symbolizer.1.gz
 OLD_FILES+=usr/share/man/man1/opt.1.gz
 .endif
 
