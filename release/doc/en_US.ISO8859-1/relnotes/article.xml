@@ -452,6 +452,16 @@
       updated to add support for <acronym>POSIX</acronym>-2001
       features <literal>%U</literal> and <literal>%W</literal>.</para>
 
+    <para revision="272274">The &os; installation utility,
+      &man.bsdinstall.8;, has been updated to set the
+      <literal>canmount</literal> &man.zfs.8; property to
+      <literal>off</literal> for the
+      <filename class="directory">/var</filename> dataset, preventing
+      the contents of directories within <filename
+	class="directory">/var</filename> from conflicting when using
+      multiple boot environments, such as that provided by <filename
+	role="package">sysutils/beadm</filename>.</para>
+
     <sect3 xml:id="abi-compat">
       <title><acronym>ABI</acronym> Compatibility</title>
 
