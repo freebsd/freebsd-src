@@ -173,6 +173,12 @@
       <literal>kern.vty=vt</literal> to &man.loader.conf.5; and
       reboot the system.</para>
 
+    <para revision="271697" arch="powerpc">Support for &man.dtrace.1;
+      stack tracing has been fixed for &os;/&arch.powerpc;, using the
+      <literal>trapexit()</literal> and
+      <literal>asttrapexit()</literal> functions instead of checking
+      within addressed kernel space.</para>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization support</title>
 
