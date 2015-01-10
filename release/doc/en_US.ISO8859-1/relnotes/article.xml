@@ -191,7 +191,7 @@
 
     <para revision="273598">The &man.hpet.4; driver has been updated
       to create a
-      <filename>/dev/hept<replaceable>N</replaceable></filename>
+      <filename>/dev/hpet<replaceable>N</replaceable></filename>
       device, providing access to <acronym>HPET</acronym> from
       userspace.</para>
 
