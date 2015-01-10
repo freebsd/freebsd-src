@@ -232,6 +232,10 @@
 
       <para revision="260921">The &man.nand.4; device is enabled for
 	ARM devices by default.</para>
+
+      <para revision="273264" arch="armv6">An issue that could cause
+	instability when detecting <acronym>SD</acronym> cards on the
+	Raspberry Pi <acronym>SOC</acronym> has been fixed.</para>
     </sect3>
 
     <sect3 xml:id="boot">
