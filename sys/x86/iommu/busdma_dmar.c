@@ -96,11 +96,11 @@ static device_t
 dmar_get_requester(device_t dev, uint16_t *rid)
 {
 	devclass_t pci_class;
-	device_t pci, pcib, requester;
+	device_t l, pci, pcib, pcip, pcibp, requester;
 	int cap_offset;
 
 	pci_class = devclass_find("pci");
-	requester = dev;
+	l = requester = dev;
 
 	*rid = pci_get_rid(dev);
 
@@ -110,19 +110,17 @@ dmar_get_requester(device_t dev, uint16_t *rid)
 	 * unit.
 	 */
 	for (;;) {
-		pci = device_get_parent(dev);
-		KASSERT(pci != NULL, ("NULL parent for pci%d:%d:%d:%d",
-		    pci_get_domain(dev), pci_get_bus(dev), pci_get_slot(dev),
-		    pci_get_function(dev)));
+		pci = device_get_parent(l);
+		KASSERT(pci != NULL, ("dmar_get_requester(%s): NULL parent "
+		    "for %s", device_get_name(dev), device_get_name(l)));
 		KASSERT(device_get_devclass(pci) == pci_class,
-		    ("Non-pci parent for pci%d:%d:%d:%d",
-		    pci_get_domain(dev), pci_get_bus(dev), pci_get_slot(dev),
-		    pci_get_function(dev)));
+		    ("dmar_get_requester(%s): non-pci parent %s for %s",
+		    device_get_name(dev), device_get_name(pci),
+		    device_get_name(l)));
 
 		pcib = device_get_parent(pci);
-		KASSERT(pcib != NULL, ("NULL bridge for pci%d:%d:%d:%d",
-		    pci_get_domain(dev), pci_get_bus(dev), pci_get_slot(dev),
-		    pci_get_function(dev)));
+		KASSERT(pcib != NULL, ("dmar_get_requester(%s): NULL bridge "
+		    "for %s", device_get_name(dev), device_get_name(pci)));
 
 		/*
 		 * The parent of our "bridge" isn't another PCI bus,
@@ -130,18 +128,28 @@ dmar_get_requester(device_t dev, uint16_t *rid)
 		 * port, and the requester ID won't be translated
 		 * further.
 		 */
-		if (device_get_devclass(device_get_parent(pcib)) != pci_class)
+		pcip = device_get_parent(pcib);
+		if (device_get_devclass(pcip) != pci_class)
 			break;
+		pcibp = device_get_parent(pcip);
 
-		if (pci_find_cap(dev, PCIY_EXPRESS, &cap_offset) != 0) {
+		if (pci_find_cap(l, PCIY_EXPRESS, &cap_offset) == 0) {
+			/*
+			 * Do not stop the loop even if the target
+			 * device is PCIe, because it is possible (but
+			 * unlikely) to have a PCI->PCIe bridge
+			 * somewhere in the hierarchy.
+			 */
+			l = pcib;
+		} else {
 			/*
 			 * Device is not PCIe, it cannot be seen as a
 			 * requester by DMAR unit.
 			 */
-			requester = pcib;
+			requester = pcibp;
 
-			/* Check whether the bus above is PCIe. */
-			if (pci_find_cap(pcib, PCIY_EXPRESS,
+			/* Check whether the bus above the bridge is PCIe. */
+			if (pci_find_cap(pcibp, PCIY_EXPRESS,
 			    &cap_offset) == 0) {
 				/*
 				 * The current device is not PCIe, but
@@ -159,7 +167,7 @@ dmar_get_requester(device_t dev, uint16_t *rid)
 				 * same page tables for taken and
 				 * non-taken transactions.
 				 */
-				*rid = PCI_RID(pci_get_bus(dev), 0, 0);
+				*rid = PCI_RID(pci_get_bus(l), 0, 0);
 			} else {
 				/*
 				 * Neither the device nor the bridge
@@ -170,14 +178,8 @@ dmar_get_requester(device_t dev, uint16_t *rid)
 				 */
 				*rid = pci_get_rid(pcib);
 			}
+			l = pcibp;
 		}
-		/*
-		 * Do not stop the loop even if the target device is
-		 * PCIe, because it is possible (but unlikely) to have
-		 * a PCI->PCIe bridge somewhere in the hierarchy.
-		 */
-
-		dev = pcib;
 	}
 	return (requester);
 }
