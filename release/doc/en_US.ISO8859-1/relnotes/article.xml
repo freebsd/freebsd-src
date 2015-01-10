@@ -404,6 +404,13 @@
     <para revision="271482">Support for adding empty partitions has
       been added to the &man.mkimg.1; utility.</para>
 
+    <para revision="272166">The &man.primes.6; utility has been
+      updated to correctly enumerate prime numbers between
+      <literal>4295098369</literal> and
+      <literal>3825123056546413050</literal>, which prior to this
+      change, it would be possible for returned values to be
+      incorrectly identified as prime numbers.</para>
+
     <sect3 xml:id="abi-compat">
       <title><acronym>ABI</acronym> Compatibility</title>
 
