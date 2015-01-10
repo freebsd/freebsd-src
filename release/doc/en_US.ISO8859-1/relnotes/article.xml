@@ -382,6 +382,10 @@
       defaults to <filename class="directory">/usr/local</filename>
       if unset.</para>
 
+    <para revision="270745">The &man.ps.1; utility has been updated
+      to include a new keyword, <quote>tracer</quote>, which displays
+      the parent <acronym>PID</acronym> of a child process.</para>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
