@@ -20,6 +20,7 @@ SUBDIR+=bugpoint \
 	llvm-nm \
 	llvm-objdump \
 	llvm-rtdyld \
+	llvm-symbolizer \
 	macho-dump \
 	opt
 .endif
