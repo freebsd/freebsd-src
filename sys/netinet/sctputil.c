@@ -217,6 +217,7 @@ sctp_log_fr(uint32_t biggest_tsn, uint32_t biggest_new_tsn, uint32_t tsn, int fr
 	    sctp_clog.x.misc.log4);
 }
 
+#ifdef SCTP_MBUF_LOGGING
 void
 sctp_log_mb(struct mbuf *m, int from)
 {
@@ -241,6 +242,18 @@ sctp_log_mb(struct mbuf *m, int from)
 	    sctp_clog.x.misc.log3,
 	    sctp_clog.x.misc.log4);
 }
+
+void
+sctp_log_mbc(struct mbuf *m, int from)
+{
+	struct mbuf *mat;
+
+	for (mat = m; mat; mat = SCTP_BUF_NEXT(mat)) {
+		sctp_log_mb(mat, from);
+	}
+}
+
+#endif
 
 void
 sctp_log_strm_del(struct sctp_queued_to_read *control, struct sctp_queued_to_read *poschk, int from)
@@ -413,7 +426,8 @@ sctp_log_rwnd_set(uint8_t from, uint32_t peers_rwnd, uint32_t flight_size, uint3
 	    sctp_clog.x.misc.log4);
 }
 
-void
+#ifdef SCTP_MBCNT_LOGGING
+static void
 sctp_log_mbcnt(uint8_t from, uint32_t total_oq, uint32_t book, uint32_t total_mbcnt_q, uint32_t mbcnt)
 {
 	struct sctp_cwnd_log sctp_clog;
@@ -430,6 +444,8 @@ sctp_log_mbcnt(uint8_t from, uint32_t total_oq, uint32_t book, uint32_t total_mb
 	    sctp_clog.x.misc.log3,
 	    sctp_clog.x.misc.log4);
 }
+
+#endif
 
 void
 sctp_misc_ints(uint8_t from, uint32_t a, uint32_t b, uint32_t c, uint32_t d)
@@ -6157,9 +6173,7 @@ struct mbuf *
 sctp_m_free(struct mbuf *m)
 {
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-		if (SCTP_BUF_IS_EXTENDED(m)) {
-			sctp_log_mb(m, SCTP_MBUF_IFREE);
-		}
+		sctp_log_mb(m, SCTP_MBUF_IFREE);
 	}
 	return (m_free(m));
 }
