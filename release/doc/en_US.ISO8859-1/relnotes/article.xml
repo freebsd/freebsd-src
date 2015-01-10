@@ -196,7 +196,7 @@
       userspace.</para>
 
     <sect3 xml:id="kernel-virtualization">
-      <title>Virtualization support</title>
+      <title>Virtualization Support</title>
 
       <para revision="260410">Support for the <quote>Virtual Interrupt
 	  Delivery</quote> feature of &intel;&nbsp;VT-x is enabled if
@@ -238,7 +238,7 @@
     </sect3>
 
     <sect3 xml:id="kernel-arm">
-      <title>ARM support</title>
+      <title>ARM Support</title>
 
       <para revision="260921">The &man.nand.4; device is enabled for
 	ARM devices by default.</para>
@@ -591,7 +591,7 @@
     <sect3 xml:id="abi-compat">
       <title><acronym>ABI</acronym> Compatibility</title>
 
-      <para revision="271982">The &linux; compatiblity version has
+      <para revision="271982">The &linux; compatibility version has
 	been updated to <literal>2.6.18</literal>.  The
 	<literal>compat.linux.osrelease</literal> &man.sysctl.8; is
 	evaluated when building the <filename
@@ -684,7 +684,7 @@
 </sect1>
 
 <sect1 xml:id="upgrade">
-  <title>Upgrading from previous releases of &os;</title>
+  <title>Upgrading from Previous Releases of &os;</title>
 
   <para arch="amd64,i386">Binary upgrades between RELEASE versions
     (and snapshots of the various security branches) are supported
