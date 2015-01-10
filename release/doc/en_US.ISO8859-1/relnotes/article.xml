@@ -277,6 +277,10 @@
 	<para revision="266770">Support for the &intel;
 	  Centrino&trade; Wireless-N 105 chipset has been
 	  added.</para>
+
+	<para revision="272089">A bug in &man.ipfw.4; that could
+	  potentially lead to a kernel panic when using
+	  &man.dummynet.4; at layer 2 has been fixed.</para>
       </sect4>
     </sect3>
 
