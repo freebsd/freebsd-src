@@ -446,13 +446,48 @@ gif_qflush(struct ifnet *ifp __unused)
 
 }
 
+#define	MTAG_GIF	1080679712
+static int
+gif_check_nesting(struct ifnet *ifp, struct mbuf *m)
+{
+	struct m_tag *mtag;
+	int count;
+
+	/*
+	 * gif may cause infinite recursion calls when misconfigured.
+	 * We'll prevent this by detecting loops.
+	 *
+	 * High nesting level may cause stack exhaustion.
+	 * We'll prevent this by introducing upper limit.
+	 */
+	count = 1;
+	mtag = NULL;
+	while ((mtag = m_tag_locate(m, MTAG_GIF, 0, mtag)) != NULL) {
+		if (*(struct ifnet **)(mtag + 1) == ifp) {
+			log(LOG_NOTICE, "%s: loop detected\n", ifp->if_xname);
+			return (EIO);
+		}
+		count++;
+	}
+	if (count > V_max_gif_nesting) {
+		log(LOG_NOTICE,
+		    "%s: if_output recursively called too many times(%d)\n",
+		    if_name(ifp), count);
+		return (EIO);
+	}
+	mtag = m_tag_alloc(MTAG_GIF, 0, sizeof(struct ifnet *), M_NOWAIT);
+	if (mtag == NULL)
+		return (ENOMEM);
+	*(struct ifnet **)(mtag + 1) = ifp;
+	m_tag_prepend(m, mtag);
+	return (0);
+}
+
 int
 gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	struct route *ro)
 {
-	struct m_tag *mtag;
 	uint32_t af;
-	int gif_called;
 	int error = 0;
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
@@ -465,42 +500,9 @@ gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 		goto err;
 	}
 
-	/*
-	 * gif may cause infinite recursion calls when misconfigured.
-	 * We'll prevent this by detecting loops.
-	 *
-	 * High nesting level may cause stack exhaustion.
-	 * We'll prevent this by introducing upper limit.
-	 */
-	gif_called = 1;
-	mtag = m_tag_locate(m, MTAG_GIF, MTAG_GIF_CALLED, NULL);
-	while (mtag != NULL) {
-		if (*(struct ifnet **)(mtag + 1) == ifp) {
-			log(LOG_NOTICE,
-			    "gif_output: loop detected on %s\n",
-			    (*(struct ifnet **)(mtag + 1))->if_xname);
-			error = EIO;	/* is there better errno? */
-			goto err;
-		}
-		mtag = m_tag_locate(m, MTAG_GIF, MTAG_GIF_CALLED, mtag);
-		gif_called++;
-	}
-	if (gif_called > V_max_gif_nesting) {
-		log(LOG_NOTICE,
-		    "gif_output: recursively called too many times(%d)\n",
-		    gif_called);
-		error = EIO;	/* is there better errno? */
+	error = gif_check_nesting(ifp, m);
+	if (error != 0)
 		goto err;
-	}
-	mtag = m_tag_alloc(MTAG_GIF, MTAG_GIF_CALLED, sizeof(struct ifnet *),
-	    M_NOWAIT);
-	if (mtag == NULL) {
-		error = ENOMEM;
-		goto err;
-	}
-	*(struct ifnet **)(mtag + 1) = ifp;
-	m_tag_prepend(m, mtag);
-
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &af, sizeof(af));
