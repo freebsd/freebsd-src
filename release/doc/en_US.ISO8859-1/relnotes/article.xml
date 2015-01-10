@@ -281,6 +281,10 @@
 	<para revision="272089">A bug in &man.ipfw.4; that could
 	  potentially lead to a kernel panic when using
 	  &man.dummynet.4; at layer 2 has been fixed.</para>
+
+	<para revision="272730">The &man.alc.4; driver has been
+	  updated to support AR816x and AR817x ethernet
+	  controllers.</para>
       </sect4>
     </sect3>
 
