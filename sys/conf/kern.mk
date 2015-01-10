@@ -28,7 +28,7 @@ NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
 # some incentive to fix them eventually.
 CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
 		-Wno-error-parentheses-equality -Wno-error-unused-function \
-		-Wno-error-pointer-sign -Wno-error-format -Wno-error-parentheses
+		-Wno-error-pointer-sign
 
 CLANG_NO_IAS= -no-integrated-as
 .if ${COMPILER_VERSION} < 30500
