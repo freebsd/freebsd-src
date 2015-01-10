@@ -386,6 +386,9 @@
       to include a new keyword, <quote>tracer</quote>, which displays
       the parent <acronym>PID</acronym> of a child process.</para>
 
+    <para revision="271482">Support for adding empty partitions has
+      been added to the &man.mkimg.1; utility.</para>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
