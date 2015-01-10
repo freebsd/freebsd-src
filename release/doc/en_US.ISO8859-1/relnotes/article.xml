@@ -600,9 +600,6 @@
     <para revision="260445">&man.byacc.1; has been updated to version
       20140101.</para>
 
-    <para revision="261037"><application>OpenSSL</application> has
-      been updated to version 1.0.1.f.</para>
-
     <para revision="261071">&man.jemalloc.3; has been updated to
       version 3.5.0.</para>
 
@@ -630,6 +627,9 @@
 
     <para revision="276577"><application>file</application> has been
       updated to version 5.22.</para>
+
+    <para revision="273146"><application>OpenSSL</application> has
+      been updated to version 1.0.1j.</para>
   </sect2>
 
   <sect2 xml:id="ports">
