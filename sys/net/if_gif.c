@@ -118,6 +118,7 @@ void	(*ng_gif_input_orphan_p)(struct ifnet *ifp, struct mbuf *m, int af);
 void	(*ng_gif_attach_p)(struct ifnet *ifp);
 void	(*ng_gif_detach_p)(struct ifnet *ifp);
 
+static int	gif_check_nesting(struct ifnet *, struct mbuf *);
 static int	gif_set_tunnel(struct ifnet *, struct sockaddr *,
     struct sockaddr *);
 static void	gif_delete_tunnel(struct ifnet *);
@@ -351,18 +352,32 @@ gif_transmit(struct ifnet *ifp, struct mbuf *m)
 	uint8_t proto, ecn;
 	int error;
 
+#ifdef MAC
+	error = mac_ifnet_check_transmit(ifp, m);
+	if (error) {
+		m_freem(m);
+		goto err;
+	}
+#endif
 	error = ENETDOWN;
 	sc = ifp->if_softc;
-	if (sc->gif_family == 0) {
+	if ((ifp->if_flags & IFF_MONITOR) != 0 ||
+	    (ifp->if_flags & IFF_UP) == 0 ||
+	    sc->gif_family == 0 ||
+	    (error = gif_check_nesting(ifp, m)) != 0) {
 		m_freem(m);
 		goto err;
 	}
 	/* Now pull back the af that we stashed in the csum_data. */
-	af = m->m_pkthdr.csum_data;
+	if (ifp->if_bridge)
+		af = AF_LINK;
+	else
+		af = m->m_pkthdr.csum_data;
+	m->m_flags &= ~(M_BCAST|M_MCAST);
+	M_SETFIB(m, sc->gif_fibnum);
 	BPF_MTAP2(ifp, &af, sizeof(af), m);
 	if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 	if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
-	M_SETFIB(m, sc->gif_fibnum);
 	/* inner AF-specific encapsulation */
 	ecn = 0;
 	switch (af) {
@@ -488,28 +503,11 @@ gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	struct route *ro)
 {
 	uint32_t af;
-	int error = 0;
-#ifdef MAC
-	error = mac_ifnet_check_transmit(ifp, m);
-	if (error)
-		goto err;
-#endif
-	if ((ifp->if_flags & IFF_MONITOR) != 0 ||
-	    (ifp->if_flags & IFF_UP) == 0) {
-		error = ENETDOWN;
-		goto err;
-	}
 
-	error = gif_check_nesting(ifp, m);
-	if (error != 0)
-		goto err;
-	m->m_flags &= ~(M_BCAST|M_MCAST);
 	if (dst->sa_family == AF_UNSPEC)
 		bcopy(dst->sa_data, &af, sizeof(af));
 	else
 		af = dst->sa_family;
-	if (ifp->if_bridge)
-		af = AF_LINK;
 	/*
 	 * Now save the af in the inbound pkt csum data, this is a cheat since
 	 * we are using the inbound csum_data field to carry the af over to
@@ -517,10 +515,6 @@ gif_output(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	 */
 	m->m_pkthdr.csum_data = af;
 	return (ifp->if_transmit(ifp, m));
-err:
-	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
-	m_freem(m);
-	return (error);
 }
 
 void
