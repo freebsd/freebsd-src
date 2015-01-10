@@ -465,6 +465,12 @@
     <para revision="272350">The <literal>MK_ARM_EABI</literal>
       &man.src.conf.5; option has been removed.</para>
 
+    <para revision="272488">Userland &man.ctf.5; support in
+      &man.dtrace.1; has been added.  With this change, &man.dtrace.1;
+      is able to resolve type info for function and
+      <acronym>USDT</acronym> probe arguments, and function return
+      values.</para>
+
     <sect3 xml:id="abi-compat">
       <title><acronym>ABI</acronym> Compatibility</title>
 
