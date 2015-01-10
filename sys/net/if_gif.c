@@ -464,7 +464,7 @@ gif_check_nesting(struct ifnet *ifp, struct mbuf *m)
 	mtag = NULL;
 	while ((mtag = m_tag_locate(m, MTAG_GIF, 0, mtag)) != NULL) {
 		if (*(struct ifnet **)(mtag + 1) == ifp) {
-			log(LOG_NOTICE, "%s: loop detected\n", ifp->if_xname);
+			log(LOG_NOTICE, "%s: loop detected\n", if_name(ifp));
 			return (EIO);
 		}
 		count++;
