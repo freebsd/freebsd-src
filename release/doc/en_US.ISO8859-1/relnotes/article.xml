@@ -385,7 +385,11 @@
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
-      <para>&nbsp;</para>
+      <para revision="270676">The &man.rc.8; subsystem has been
+	updated to allow configuring services in <filename
+	  class="directory">&dollar;{LOCALBASE}/etc/rc.conf.d/</filename>.
+	If <literal>LOCALBASE</literal> is unset, it defaults to
+	<filename class="directory">/usr/local</filename>.</para>
     </sect3>
   </sect2>
 
