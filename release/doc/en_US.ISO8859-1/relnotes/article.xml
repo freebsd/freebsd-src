@@ -294,6 +294,13 @@
 	<para revision="272730">The &man.alc.4; driver has been
 	  updated to support AR816x and AR817x ethernet
 	  controllers.</para>
+
+	<para revision="273331">The &man.vxlan.4; driver has been
+	  added, which creates a virtual Layer 2 (Ethernet) network
+	  overlaid in a Layer 3 (IP/UDP) network.  The &man.vxlan.4;
+	  driver is analogous to &man.vlan.4;, but is designed to be
+	  better suited for large, multiple-tenant datacenter
+	  environments.</para>
       </sect4>
     </sect3>
 
