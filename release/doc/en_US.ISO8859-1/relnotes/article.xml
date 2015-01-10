@@ -550,6 +550,12 @@
       <acronym>USDT</acronym> probe arguments, and function return
       values.</para>
 
+    <para revision="272842,272848" contrib="sponsor"
+      sponsor="&ff;">The &man.dl.iterate.phdr.3; library has been
+      changed to always return the path name of the
+      <acronym>ELF</acronym> object in the
+      <literal>dlpi_name</literal> structure member.</para>
+
     <sect3 xml:id="abi-compat">
       <title><acronym>ABI</acronym> Compatibility</title>
 
