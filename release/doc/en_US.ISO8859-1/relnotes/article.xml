@@ -376,6 +376,12 @@
       shared library is no longer installed, allowing the Ports
       Collection to use a modern version of the library.</para>
 
+    <para revision="270675">The &man.mailwrapper.8; utility has been
+      updated to use &man.mailer.conf.5; from the
+      <literal>LOCALBASE</literal> environment variable, which
+      defaults to <filename class="directory">/usr/local</filename>
+      if unset.</para>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
