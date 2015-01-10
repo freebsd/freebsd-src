@@ -225,6 +225,10 @@
 	  Hardware</quote>, uses para-virtualized drivers for boot
 	and I/O, and uses hardware virtualization extensions for all
 	other tasks, without the need for emulation.</para>
+
+      <para revision="273515">The &man.virtio.console.4; driver has
+	been added, which provides an interface to VirtIO console
+	devices through a &man.tty.4; device.</para>
     </sect3>
 
     <sect3 xml:id="kernel-arm">
