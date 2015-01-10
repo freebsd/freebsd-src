@@ -462,6 +462,9 @@
       multiple boot environments, such as that provided by <filename
 	role="package">sysutils/beadm</filename>.</para>
 
+    <para revision="272350">The <literal>MK_ARM_EABI</literal>
+      &man.src.conf.5; option has been removed.</para>
+
     <sect3 xml:id="abi-compat">
       <title><acronym>ABI</acronym> Compatibility</title>
 
