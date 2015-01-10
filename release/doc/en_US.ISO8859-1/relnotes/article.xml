@@ -448,6 +448,10 @@
       </tgroup>
     </informaltable>
 
+    <para revision="272273">The &man.strptime.3; library has been
+      updated to add support for <acronym>POSIX</acronym>-2001
+      features <literal>%U</literal> and <literal>%W</literal>.</para>
+
     <sect3 xml:id="abi-compat">
       <title><acronym>ABI</acronym> Compatibility</title>
 
