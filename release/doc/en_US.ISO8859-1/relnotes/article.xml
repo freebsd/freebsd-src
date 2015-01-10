@@ -400,6 +400,17 @@
     <para revision="271482">Support for adding empty partitions has
       been added to the &man.mkimg.1; utility.</para>
 
+    <sect3 xml:id="abi-compat">
+      <title><acronym>ABI</acronym> Compatibility</title>
+
+      <para revision="271982">The &linux; compatiblity version has
+	been updated to <literal>2.6.18</literal>.  The
+	<literal>compat.linux.osrelease</literal> &man.sysctl.8; is
+	evaluated when building the <filename
+	  role="package">emulators/linux-c6</filename> and related
+	ports.</para>
+    </sect3>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
