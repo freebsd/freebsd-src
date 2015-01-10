@@ -509,7 +509,7 @@ arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
 			    ifp->if_broadcastaddr, ifp->if_addrlen);
 			return (0);
 		}
-		if (m->m_flags & M_MCAST && ifp->if_type != IFT_ARCNET) {
+		if (m->m_flags & M_MCAST) {
 			/* multicast */
 			ETHER_MAP_IP_MULTICAST(&dst4, desten);
 			return (0);

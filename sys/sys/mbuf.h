@@ -848,14 +848,7 @@ m_align(struct mbuf *m, int len)
 
 	KASSERT(m->m_data == M_START(m), (msg, __func__));
 
-	if (m->m_flags & M_EXT) {
-		adjust = m->m_ext.ext_size - len;
-	} else if (m->m_flags & M_PKTHDR) {
-		adjust = MHLEN - len;
-	} else {
-		adjust = MLEN - len;
-	}
-
+	adjust = M_SIZE(m) - len;
 	m->m_data += adjust &~ (sizeof(long)-1);
 }
 
