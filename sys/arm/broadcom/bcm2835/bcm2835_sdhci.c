@@ -124,6 +124,7 @@ struct bcm_sdhci_softc {
 	bus_dma_tag_t		sc_dma_tag;
 	bus_dmamap_t		sc_dma_map;
 	vm_paddr_t		sc_sdhci_buffer_phys;
+	uint32_t		cmd_and_mode;
 };
 
 static int bcm_sdhci_probe(device_t);
@@ -341,6 +342,14 @@ bcm_sdhci_read_2(device_t dev, struct sdhci_slot *slot, bus_size_t off)
 	struct bcm_sdhci_softc *sc = device_get_softc(dev);
 	uint32_t val = RD4(sc, off & ~3);
 
+	/*
+	 * Standard 32-bit handling of command and transfer mode.
+	 */
+	if (off == SDHCI_TRANSFER_MODE) {
+		return (sc->cmd_and_mode >> 16);
+	} else if (off == SDHCI_COMMAND_FLAGS) {
+		return (sc->cmd_and_mode & 0x0000ffff);
+	}
 	return ((val >> (off & 3)*8) & 0xffff);
 }
 
@@ -375,16 +384,15 @@ static void
 bcm_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_t val)
 {
 	struct bcm_sdhci_softc *sc = device_get_softc(dev);
-	static uint32_t cmd_and_trandfer_mode;
 	uint32_t val32;
 	if (off == SDHCI_COMMAND_FLAGS)
-		val32 = cmd_and_trandfer_mode;
+		val32 = sc->cmd_and_mode;
 	else
 		val32 = RD4(sc, off & ~3);
 	val32 &= ~(0xffff << (off & 3)*8);
 	val32 |= (val << (off & 3)*8);
 	if (off == SDHCI_TRANSFER_MODE)
-		cmd_and_trandfer_mode = val32;
+		sc->cmd_and_mode = val32;
 	else
 		WR4(sc, off & ~3, val32);
 }
