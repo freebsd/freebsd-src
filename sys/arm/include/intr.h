@@ -68,8 +68,8 @@ int arm_intrng_config_irq(int, enum intr_trigger, enum intr_polarity);
 #ifdef SMP
 void arm_init_secondary_ic(void);
 void arm_ipi_map_irq(device_t, u_int, u_int);
-void arm_unmask_ipi(int);
-void arm_mask_ipi(int);
+void arm_unmask_ipi(u_int);
+void arm_mask_ipi(u_int);
 #endif
 
 #else

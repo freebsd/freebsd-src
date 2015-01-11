@@ -42,12 +42,12 @@ CODE {
 		return (0);
 	}
 
-	static void null_pic_bind(device_t dev, int irq, cpuset_t cpumask)
+	static void null_pic_bind(device_t dev, u_int irq, cpuset_t cpumask)
 	{
 		return;
 	}
 
-	static void null_pic_ipi_send(device_t dev, cpuset_t cpus, int ipi)
+	static void null_pic_ipi_send(device_t dev, cpuset_t cpus, u_int ipi)
 	{
 		return;
 	}
@@ -70,7 +70,7 @@ CODE {
 
 METHOD int config {
 	device_t	dev;
-	int		irq;
+	u_int		irq;
 	enum intr_trigger trig;
 	enum intr_polarity pol;
 };
@@ -78,30 +78,30 @@ METHOD int config {
 METHOD int translate {
 	device_t	dev;
 	pcell_t		*cells;
-	int		*irq;
+	u_int		*irq;
 	enum intr_trigger *trig;
 	enum intr_polarity *pol;
 } DEFAULT null_pic_translate;
 
 METHOD void bind {
 	device_t	dev;
-	int		irq;
+	u_int		irq;
 	cpuset_t	cpumask;
 } DEFAULT null_pic_bind;
 
 METHOD void eoi {
 	device_t	dev;
-	int		irq;
+	u_int		irq;
 };
 
 METHOD void mask {
 	device_t	dev;
-	int		irq;
+	u_int		irq;
 };
 
 METHOD void unmask {
 	device_t	dev;
-	int		irq;
+	u_int		irq;
 };
 
 METHOD void init_secondary {
@@ -111,7 +111,7 @@ METHOD void init_secondary {
 METHOD void ipi_send {
 	device_t	dev;
 	cpuset_t	cpus;
-	int		ipi;
+	u_int		ipi;
 } DEFAULT null_pic_ipi_send;
 
 METHOD void ipi_clear {

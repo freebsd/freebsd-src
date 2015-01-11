@@ -127,12 +127,20 @@ static struct arm_gic_softc *arm_gic_sc = NULL;
 static int arm_gic_probe(device_t);
 static int arm_gic_attach(device_t);
 static void arm_gic_init_secondary(device_t);
-static int arm_gic_config(device_t, int, enum intr_trigger, enum intr_polarity);
-static void arm_gic_mask(device_t, int);
-static void arm_gic_unmask(device_t, int);
-static void arm_gic_ipi_send(device_t, cpuset_t, int);
-static int arm_gic_ipi_read(device_t dev, int i);
-static void arm_gic_ipi_clear(device_t, int);
+
+#ifdef ARM_INTRNG
+static int arm_gic_intr(void *);
+static pic_config_t arm_gic_config;
+static pic_mask_t arm_gic_mask;
+static pic_unmask_t arm_gic_unmask;
+static pic_eoi_t arm_gic_eoi;
+static pic_init_secondary_t arm_gic_init_secondary;
+#ifdef SMP
+static pic_ipi_send_t arm_gic_ipi_send;
+static pic_ipi_read_t arm_gic_ipi_read;
+static pic_ipi_clear_t arm_gic_ipi_clear;
+#endif
+#endif
 
 #define	gic_c_read_4(_sc, _reg)		\
     bus_space_read_4((_sc)->gic_c_bst, (_sc)->gic_c_bsh, (_reg))
@@ -143,10 +151,7 @@ static void arm_gic_ipi_clear(device_t, int);
 #define	gic_d_write_4(_sc, _reg, _val)		\
     bus_space_write_4((_sc)->gic_d_bst, (_sc)->gic_d_bsh, (_reg), (_val))
 
-#ifdef ARM_INTRNG
-static int arm_gic_intr(void *);
-static void arm_gic_eoi(device_t, int);
-#else
+#ifndef ARM_INTRNG
 static int gic_config_irq(int irq, enum intr_trigger trig,
     enum intr_polarity pol);
 static void gic_post_filter(void *);
@@ -390,7 +395,7 @@ arm_gic_intr(void *arg)
 #endif
 
 static int
-arm_gic_config(device_t dev, int irq, enum intr_trigger trig,
+arm_gic_config(device_t dev, u_int irq, enum intr_trigger trig,
     enum intr_polarity pol)
 {
 	struct arm_gic_softc *sc = device_get_softc(dev);
@@ -398,7 +403,7 @@ arm_gic_config(device_t dev, int irq, enum intr_trigger trig,
 	uint32_t mask;
 
 	/* Function is public-accessible, so validate input arguments */
-	if ((irq < 0) || (irq >= sc->nirqs))
+	if (irq >= sc->nirqs)
 		goto invalid_args;
 	if ((trig != INTR_TRIGGER_EDGE) && (trig != INTR_TRIGGER_LEVEL) &&
 	    (trig != INTR_TRIGGER_CONFORM))
@@ -444,7 +449,7 @@ invalid_args:
 
 #ifdef ARM_INTRNG
 static void
-arm_gic_eoi(device_t dev, int irq)
+arm_gic_eoi(device_t dev, u_int irq)
 {
 	struct arm_gic_softc *sc = device_get_softc(dev);
 
@@ -457,7 +462,7 @@ arm_gic_eoi(device_t dev, int irq)
 
 
 static void
-arm_gic_mask(device_t dev, int irq)
+arm_gic_mask(device_t dev, u_int irq)
 {
 	struct arm_gic_softc *sc = device_get_softc(dev);
 
@@ -466,7 +471,7 @@ arm_gic_mask(device_t dev, int irq)
 }
 
 static void
-arm_gic_unmask(device_t dev, int irq)
+arm_gic_unmask(device_t dev, u_int irq)
 {
 	struct arm_gic_softc *sc = device_get_softc(dev);
 
@@ -478,7 +483,7 @@ arm_gic_unmask(device_t dev, int irq)
 
 #ifdef SMP
 static void
-arm_gic_ipi_send(device_t dev, cpuset_t cpus, int ipi)
+arm_gic_ipi_send(device_t dev, cpuset_t cpus, u_int ipi)
 {
 	struct arm_gic_softc *sc = device_get_softc(dev);
 	uint32_t val = 0, i;

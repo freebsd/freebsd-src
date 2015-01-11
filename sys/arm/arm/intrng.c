@@ -586,7 +586,7 @@ pic_ipi_read(int ipi)
 }
 
 void
-arm_unmask_ipi(int ipi)
+arm_unmask_ipi(u_int ipi)
 {
 
 	KASSERT(ipi < ARM_IPI_COUNT, ("invalid IPI %u", ipi));
@@ -595,7 +595,7 @@ arm_unmask_ipi(int ipi)
 }
 
 void
-arm_mask_ipi(int ipi)
+arm_mask_ipi(u_int ipi)
 {
 
 	KASSERT(ipi < ARM_IPI_COUNT, ("invalid IPI %u", ipi));
