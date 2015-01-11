@@ -208,6 +208,11 @@
       state (suspend to <acronym>RAM</acronym>) has been corrected
       in the &man.acpi.4; and &man.pci.4; drivers.</para>
 
+    <para revision="274733" arch="powerpc">The power management unit
+      subsystem has been updated to support power button events on
+      certain &arch.powerpc; hardware, such as aluminum
+      PowerBook&nbsp;&reg;.</para>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization Support</title>
 
