@@ -302,6 +302,15 @@ for any of the errors specified for the routines
 .Xr fclose 3
 and
 .Xr fflush 3 .
+.Pp
+The
+.Fn fmemopen
+function
+may also fail and set
+.Va errno
+if the
+.Fa size
+argument is 0.
 .Sh SEE ALSO
 .Xr open 2 ,
 .Xr fclose 3 ,
