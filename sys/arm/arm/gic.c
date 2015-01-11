@@ -127,9 +127,7 @@ static struct arm_gic_softc *arm_gic_sc = NULL;
 static int arm_gic_probe(device_t);
 static int arm_gic_attach(device_t);
 static void arm_gic_init_secondary(device_t);
-static int arm_gic_intr(void *);
 static int arm_gic_config(device_t, int, enum intr_trigger, enum intr_polarity);
-static void arm_gic_eoi(device_t, int);
 static void arm_gic_mask(device_t, int);
 static void arm_gic_unmask(device_t, int);
 static void arm_gic_ipi_send(device_t, cpuset_t, int);
@@ -145,7 +143,10 @@ static void arm_gic_ipi_clear(device_t, int);
 #define	gic_d_write_4(_sc, _reg, _val)		\
     bus_space_write_4((_sc)->gic_d_bst, (_sc)->gic_d_bsh, (_reg), (_val))
 
-#ifndef ARM_INTRNG
+#ifdef ARM_INTRNG
+static int arm_gic_intr(void *);
+static void arm_gic_eoi(device_t, int);
+#else
 static int gic_config_irq(int irq, enum intr_trigger trig,
     enum intr_polarity pol);
 static void gic_post_filter(void *);
@@ -475,6 +476,7 @@ arm_gic_unmask(device_t dev, int irq)
 	gic_d_write_4(sc, GICD_ISENABLER(irq >> 5), (1UL << (irq & 0x1F)));
 }
 
+#ifdef SMP
 static void
 arm_gic_ipi_send(device_t dev, cpuset_t cpus, int ipi)
 {
@@ -510,6 +512,7 @@ arm_gic_ipi_clear(device_t dev, int ipi)
 {
 	/* no-op */
 }
+#endif
 
 #ifndef ARM_INTRNG
 static void
@@ -558,6 +561,7 @@ gic_init_secondary(void)
 	arm_gic_init_secondary(arm_gic_sc->gic_dev);
 }
 
+#ifdef SMP
 void
 pic_ipi_send(cpuset_t cpus, u_int ipi)
 {
@@ -578,7 +582,8 @@ pic_ipi_clear(int ipi)
 
 	arm_gic_ipi_clear(arm_gic_sc->gic_dev, ipi);
 }
-#endif
+#endif /* SMP */
+#endif /* ARM_INTRNG */
 
 static device_method_t arm_gic_methods[] = {
 	/* Device interface */
@@ -592,9 +597,11 @@ static device_method_t arm_gic_methods[] = {
 	DEVMETHOD(pic_unmask,		arm_gic_unmask),
 	DEVMETHOD(pic_eoi,		arm_gic_eoi),
 	DEVMETHOD(pic_init_secondary,	arm_gic_init_secondary),
+#ifdef SMP
 	DEVMETHOD(pic_ipi_send,		arm_gic_ipi_send),
 	DEVMETHOD(pic_ipi_clear,	arm_gic_ipi_clear),
 	DEVMETHOD(pic_ipi_read,		arm_gic_ipi_read),
+#endif
 #endif
 
 	{ 0, 0 }
