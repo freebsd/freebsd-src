@@ -1594,7 +1594,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	/* __getcwd */
 	case 326: {
 		struct __getcwd_args *p = params;
-		uarg[0] = (intptr_t) p->buf; /* u_char * */
+		uarg[0] = (intptr_t) p->buf; /* char * */
 		uarg[1] = p->buflen; /* u_int */
 		*n_args = 2;
 		break;
@@ -5698,7 +5698,7 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 	case 326:
 		switch(ndx) {
 		case 0:
-			p = "u_char *";
+			p = "char *";
 			break;
 		case 1:
 			p = "u_int";
