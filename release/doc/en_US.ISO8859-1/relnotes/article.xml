@@ -719,6 +719,10 @@
 
     <para revision="273146"><application>OpenSSL</application> has
       been updated to version 1.0.1j.</para>
+
+    <para revision="275718">The <application>binutils</application>
+      suite of utilities has been updated to include upstream patches
+      that add new relocations for &arch.powerpc; support.</para>
   </sect2>
 
   <sect2 xml:id="ports">
