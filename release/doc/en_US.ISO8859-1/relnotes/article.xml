@@ -275,6 +275,11 @@
       <para revision="273264" arch="armv6">An issue that could cause
 	instability when detecting <acronym>SD</acronym> cards on the
 	Raspberry Pi <acronym>SOC</acronym> has been fixed.</para>
+
+      <para revision="275963">The <literal>bcm2835_cpufreq</literal>
+	driver has been added, which supports <acronym>CPU</acronym>
+	frequency and voltage control on the Raspberry Pi
+	<acronym>SOC</acronym>.</para>
     </sect3>
 
     <sect3 xml:id="boot">
