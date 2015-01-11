@@ -47,7 +47,6 @@
 
 /* Map phandle/intpin pair to global IRQ number */ 
 #define	FDT_MAP_IRQ(node, pin)	(arm_fdt_map_irq(node, pin))
-#define	FDT_DESCRIBE_IRQ(irq)	(arm_describe_irq(irq))
 
 #else
 
@@ -56,7 +55,6 @@
 
 /* Map phandle/intpin pair to global IRQ number */
 #define	FDT_MAP_IRQ(node, pin)	(pin)
-#define	FDT_DESCRIBE_IRQ(irq)	(arm_describe_irq(irq))
 
 #endif	/* ARM_INTRNG */
 

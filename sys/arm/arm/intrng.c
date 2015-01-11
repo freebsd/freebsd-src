@@ -55,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+#include <dev/fdt/fdt_common.h>
+
 #include "pic_if.h"
 
 #define	INTRNAME_LEN	(MAXCOMLEN + 1)
@@ -265,7 +267,7 @@ resirq_encode(u_int picidx, u_int irqidx)
 }
 
 static u_int
-resirq_decode(int resirq, struct arm_intr_controller **pic, 
+resirq_decode(u_int resirq, struct arm_intr_controller **pic, 
    struct arm_intr_handler **pih)
 {
 	struct arm_intr_controller *ic;
@@ -353,15 +355,12 @@ arm_fdt_map_irq(phandle_t icnode, pcell_t *cells, int ncells)
 	return (ih->ih_resirq);
 }
 
-const char *
-arm_describe_irq(int resirq)
+int
+fdt_describe_irq(char *buf, u_int len, u_int resirq)
 {
 	struct arm_intr_controller *ic;
 	struct arm_intr_handler *ih;
-	int irqidx;
-	static char buffer[INTRNAME_LEN];
-
-	/* XXX static buffer, can this be called after APs released? */
+	int irqidx, rv;
 
 	irqidx = resirq_decode(resirq, &ic, &ih);
 	KASSERT(ic != NULL, ("%s: bad resirq 0x%08x", resirq));
@@ -371,13 +370,13 @@ arm_describe_irq(int resirq)
 		 * IC device name nor interrupt number. All we can do is to
 		 * use its index (fdt names are unbounded length).
 		 */
-		snprintf(buffer, sizeof(buffer), "ic%d.%d", ic->ic_idx, irqidx);
+		rv = snprintf(buf, len, "ic%d.%d", ic->ic_idx, irqidx);
 	} else {
 		KASSERT(ih != NULL, ("%s: no handler for resirq 0x%08x\n", resirq));
-		snprintf(buffer, sizeof(buffer), "%s.%d", 
+		rv = snprintf(buf, len, "%s.%d",
 		    device_get_nameunit(ih->ih_ic->ic_dev), ih->ih_hwirq);
 	}
-	return (buffer);
+	return (rv);
 }
 
 void
@@ -416,7 +415,7 @@ arm_register_pic(device_t dev, int flags)
 	}
 
 	/*
-	 * arm_describe_irq() has to print fake names earlier when the device
+	 * fdt_describe_irq() has to print fake names earlier when the device
 	 * issn't registered yet, emit a string that has the same fake name in
 	 * it, so that earlier output links to this device.
 	 */

@@ -126,16 +126,16 @@ arm_fdt_map_irq(phandle_t iparent, pcell_t *intr, int icells)
 
 	return (interrupt);
 }
-#endif
 
-const char *
-arm_describe_irq(int irq)
+int
+fdt_describe_irq(char *buf, u_int len, u_int irq)
 {
-	static char buffer[8];
+	int rv;
 
-	sprintf(buffer, "%d", irq);
-	return (buffer);
+	rv = snprintf(buf, len, "%u", irq);
+	return (rv);
 }
+#endif
 
 void
 arm_setup_irqhandler(const char *name, driver_filter_t *filt,

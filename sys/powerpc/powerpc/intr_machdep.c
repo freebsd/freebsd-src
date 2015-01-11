@@ -61,6 +61,7 @@
  */
 
 #include "opt_isa.h"
+#include "opt_platform.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -84,6 +85,10 @@
 #include <machine/md_var.h>
 #include <machine/smp.h>
 #include <machine/trap.h>
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#endif
 
 #include "pic_if.h"
 
@@ -604,3 +609,12 @@ stray:
 	if (i != NULL)
 		PIC_MASK(i->pic, i->intline);
 }
+
+#ifdef FDT
+int
+fdt_describe_irq(char *buf, u_int len, u_int irq)
+{
+
+	return (snprintf(buf, len, "%u", irq));
+}
+#endif

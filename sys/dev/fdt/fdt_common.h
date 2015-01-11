@@ -79,6 +79,7 @@ extern u_char fdt_static_dtb;
 int fdt_addrsize_cells(phandle_t, int *, int *);
 u_long fdt_data_get(void *, int);
 int fdt_data_to_res(pcell_t *, int, int, u_long *, u_long *);
+int fdt_describe_irq(char *, u_int, u_int);
 phandle_t fdt_find_compatible(phandle_t, const char *, int);
 phandle_t fdt_depth_search_compatible(phandle_t, const char *, int);
 int fdt_get_mem_regions(struct mem_region *, int *, uint32_t *);

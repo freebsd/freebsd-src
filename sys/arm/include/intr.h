@@ -115,7 +115,6 @@ extern int (*arm_config_irq)(int irq, enum intr_trigger trig,
 
 #endif /* !ARM_INTRNG */
 
-const char *arm_describe_irq(int irq);
 void arm_intrnames_init(void);
 void arm_irq_memory_barrier(uintptr_t);
 

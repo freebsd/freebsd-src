@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <machine/fdt.h>
+#include <dev/fdt/fdt_common.h>
 
 struct simplebus_range {
 	uint64_t bus;
@@ -408,7 +408,8 @@ static int
 simplebus_print_irqs(struct resource_list *rl)
 {
 	struct resource_list_entry *rle;
-	int printed, retval;
+	int err, printed, retval;
+	char buf[16];
 
 	printed = 0;
 	retval = 0;
@@ -417,8 +418,11 @@ simplebus_print_irqs(struct resource_list *rl)
 		if (rle->type != SYS_RES_IRQ)
 			continue;
 
-		retval += printf("%s", printed ? "," : " irq ");
-		retval += printf("%s", FDT_DESCRIBE_IRQ(rle->start));
+		err = fdt_describe_irq(buf, sizeof(buf), rle->start);
+		if (err < 0)
+			snprintf(buf, sizeof(buf), "???");
+
+		retval += printf("%s%s", printed ? "," : " irq ", buf);
 		printed++;
 	}
 
