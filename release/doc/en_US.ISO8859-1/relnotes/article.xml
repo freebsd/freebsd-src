@@ -681,6 +681,10 @@
 	updated to use the new &man.dpv.3; library to display progress
 	when extracting the &os; distributions.</para>
 
+      <para revision="271539">The &man.bsdinstall.8; partition editor
+	and &man.sade.8; utility have been updated to include native
+	<acronym>ZFS</acronym> support.</para>
+
       <sect3 xml:id="abi-compat">
 	<title><acronym>ABI</acronym> Compatibility</title>
 
