@@ -307,6 +307,8 @@
             ..
             ncal
             ..
+            opensm
+            ..
             printf
             ..
             sed
