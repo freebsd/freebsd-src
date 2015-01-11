@@ -578,6 +578,10 @@
       <para revision="271482">Support for adding empty partitions has
 	been added to the &man.mkimg.1; utility.</para>
 
+      <para revision="271539">The &man.bsdinstall.8; partition editor
+	and &man.sade.8; utility have been updated to include native
+	<acronym>ZFS</acronym> support.</para>
+
       <para revision="272166">The &man.primes.6; utility has been
 	updated to correctly enumerate prime numbers between
 	<literal>4295098369</literal> and
@@ -680,10 +684,6 @@
       <para revision="275874">The &man.bsdinstall.8; utility has been
 	updated to use the new &man.dpv.3; library to display progress
 	when extracting the &os; distributions.</para>
-
-      <para revision="271539">The &man.bsdinstall.8; partition editor
-	and &man.sade.8; utility have been updated to include native
-	<acronym>ZFS</acronym> support.</para>
 
       <sect3 xml:id="abi-compat">
 	<title><acronym>ABI</acronym> Compatibility</title>
