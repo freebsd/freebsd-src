@@ -433,6 +433,12 @@
 
       <para revision="276526">The <literal>asr(4)</literal> driver has
 	been removed, and is no longer supported.</para>
+
+      <para revision="275461" contrib="sponsor" sponsor="&ix;">The
+	&man.ctl.4; subsystem has been updated, increasing the ports
+	limit from <literal>128</literal> to <literal>256</literal>,
+	and <acronym>LUN</acronym> limit from <literal>256</literal>
+	to <literal>1024</literal>.</para>
     </sect3>
 
     <sect3 xml:id="fs">
