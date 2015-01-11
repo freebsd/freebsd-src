@@ -326,11 +326,11 @@ rsu_attach(device_t self)
 	if (sc->cut != 3)
 		sc->cut = (sc->cut >> 1) + 1;
 	error = rsu_read_rom(sc);
+	RSU_UNLOCK(sc);
 	if (error != 0) {
 		device_printf(self, "could not read ROM\n");
 		goto fail_rom;
 	}
-	RSU_UNLOCK(sc);
 	IEEE80211_ADDR_COPY(sc->sc_bssid, &sc->rom[0x12]);
 	device_printf(self, "MAC/BB RTL8712 cut %d\n", sc->cut);
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
