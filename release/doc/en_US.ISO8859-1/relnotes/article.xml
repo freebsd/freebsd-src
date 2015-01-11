@@ -203,6 +203,11 @@
       entering <literal>set kern.vty=sc</literal> at the
       &man.loader.8; prompt.</para>
 
+    <para revision="274386">An issue that could cause a system to
+      hang when entering <acronym>ACPI</acronym> <literal>S3</literal>
+      state (suspend to <acronym>RAM</acronym>) has been corrected
+      in the &man.acpi.4; and &man.pci.4; drivers.</para>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization Support</title>
 
