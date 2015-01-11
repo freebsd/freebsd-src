@@ -16,7 +16,7 @@
   <pubdate>$FreeBSD$</pubdate>
 
   <copyright>
-    <year>2014</year>
+    <year>2015</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation
       Project</holder>
   </copyright>
@@ -173,8 +173,30 @@
       <literal>kern.vty=vt</literal> to &man.loader.conf.5; and
       reboot the system.</para>
 
+    <para revision="271697" arch="powerpc">Support for &man.dtrace.1;
+      stack tracing has been fixed for &os;/&arch.powerpc;, using the
+      <literal>trapexit()</literal> and
+      <literal>asttrapexit()</literal> functions instead of checking
+      within addressed kernel space.</para>
+
+    <para revision="271705">Hardware context support has been
+      added to the <literal>drm/i915</literal> driver, adding
+      support for <application>Mesa</application> 9.2 and
+      later.</para>
+
+    <para revision="273178">The &man.vt.4; driver has been updated,
+      replacing the bitmapped <literal>kern.vt.spclkeys</literal>
+      &man.sysctl.8; with individual <literal>kern.vt.kbd_*</literal>
+      variants.</para>
+
+    <para revision="273598">The &man.hpet.4; driver has been updated
+      to create a
+      <filename>/dev/hpet<replaceable>N</replaceable></filename>
+      device, providing access to <acronym>HPET</acronym> from
+      userspace.</para>
+
     <sect3 xml:id="kernel-virtualization">
-      <title>Virtualization support</title>
+      <title>Virtualization Support</title>
 
       <para revision="260410">Support for the <quote>Virtual Interrupt
 	  Delivery</quote> feature of &intel;&nbsp;VT-x is enabled if
@@ -209,13 +231,21 @@
 	  Hardware</quote>, uses para-virtualized drivers for boot
 	and I/O, and uses hardware virtualization extensions for all
 	other tasks, without the need for emulation.</para>
+
+      <para revision="273515">The &man.virtio.console.4; driver has
+	been added, which provides an interface to VirtIO console
+	devices through a &man.tty.4; device.</para>
     </sect3>
 
     <sect3 xml:id="kernel-arm">
-      <title>ARM support</title>
+      <title>ARM Support</title>
 
       <para revision="260921">The &man.nand.4; device is enabled for
 	ARM devices by default.</para>
+
+      <para revision="273264" arch="armv6">An issue that could cause
+	instability when detecting <acronym>SD</acronym> cards on the
+	Raspberry Pi <acronym>SOC</acronym> has been fixed.</para>
     </sect3>
 
     <sect3 xml:id="boot">
@@ -266,6 +296,21 @@
 	<para revision="266770">Support for the &intel;
 	  Centrino&trade; Wireless-N 105 chipset has been
 	  added.</para>
+
+	<para revision="272089">A bug in &man.ipfw.4; that could
+	  potentially lead to a kernel panic when using
+	  &man.dummynet.4; at layer 2 has been fixed.</para>
+
+	<para revision="272730">The &man.alc.4; driver has been
+	  updated to support AR816x and AR817x ethernet
+	  controllers.</para>
+
+	<para revision="273331">The &man.vxlan.4; driver has been
+	  added, which creates a virtual Layer 2 (Ethernet) network
+	  overlaid in a Layer 3 (IP/UDP) network.  The &man.vxlan.4;
+	  driver is analogous to &man.vlan.4;, but is designed to be
+	  better suited for large, multiple-tenant datacenter
+	  environments.</para>
       </sect4>
     </sect3>
 
@@ -275,6 +320,81 @@
       <para revision="263140">Support for the IPX network transport
 	protocol has been removed, and will not be supported in
 	&os;&nbsp;11 and later releases.</para>
+
+      <para revision="272720" contrib="sponsor"
+	sponsor="&limelight;">Support for <acronym>PLPMTUD</acronym>
+	blackhole detection (<acronym>RFC</acronym> 4821) has been
+	added to the &man.tcp.4; stack, disabled by default.  New
+	control tunables have been added:</para>
+
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="2">
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="1*"/>
+	  <thead>
+	    <row>
+	      <entry>Tunable</entry>
+	      <entry>Description</entry>
+	    </row>
+	  </thead>
+
+	  <tbody>
+	    <row>
+	      <entry><literal>net.inet.tcp.pmtud_blackhole_detection</literal></entry>
+	      <entry>Enables or disables <acronym>PLPMTUD</acronym>
+		blackhole detection</entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>net.inet.tcp.pmtud_blackhole_mss</literal></entry>
+	      <entry><acronym>MSS</acronym> to try for IPv4</entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>net.inet.tcp.v6pmtud_blackhole_mss</literal></entry>
+	      <entry><acronym>MSS to try for IPv6</acronym></entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
+
+      <para>New monitoring &man.sysctl.8;s haven been added:</para>
+
+      <informaltable frame="none" pgwide="0">
+	<tgroup cols="2">
+	  <colspec colwidth="1*"/>
+	  <colspec colwidth="1*"/>
+	  <thead>
+	    <row>
+	      <entry>Tunable</entry>
+	      <entry>Description</entry>
+	    </row>
+	  </thead>
+
+	  <tbody>
+	    <row>
+	      <entry><literal>net.inet.tcp.pmtud_blackhole_activated</literal></entry>
+	      <entry>Number of times the code was activated to attempt
+		downshifting the <acronym>MSS</acronym></entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>net.inet.tcp.pmtud_blackhole_min_activated</literal></entry>
+	      <entry>Number of times the blackhole
+		<acronym>MSS</acronym> was used in an attempt to
+		downshift</entry>
+	    </row>
+
+	    <row>
+	      <entry><literal>net.inet.tcp.pmtud_blackhole_failed</literal></entry>
+	      <entry>Number of times that the blackhole failed to
+		connect after downshifting the
+		<acronym>MSS</acronym></entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
+
     </sect3>
 
     <sect3 xml:id="disks">
@@ -283,12 +403,23 @@
       <para revision="267359">Support for the
 	<literal>disklabel64</literal> partitioning scheme has been
 	added to &man.gpart.8;.</para>
+
+      <para revision="276526">The <literal>asr(4)</literal> driver has
+	been removed, and is no longer supported.</para>
     </sect3>
 
     <sect3 xml:id="fs">
       <title>File Systems</title>
 
-      <para>&nbsp;</para>
+	<para revision="r270096" contrib="sponsor" sponsor="&ff;">The
+	  new filesystem automount facility, &man.autofs.5;, has been
+	  added.  The new &man.autofs.5; facility is similar to that
+	  found in other &unix;-like operating systems, such as
+	  OS&nbsp;X&trade; and Solaris&trade;.  The &man.autofs.5;
+	  facility uses a &sun;-compatible &man.auto.master.5;
+	  configuration file, and is administered with the
+	  &man.automount.8; userland utility, and the
+	  &man.automountd.8; and &man.autounmountd.8; daemons.</para>
 
       <sect4 xml:id="fs-zfs">
 	<title>ZFS</title>
@@ -365,10 +496,126 @@
       shared library is no longer installed, allowing the Ports
       Collection to use a modern version of the library.</para>
 
+    <para revision="270675">The &man.mailwrapper.8; utility has been
+      updated to use &man.mailer.conf.5; from the
+      <literal>LOCALBASE</literal> environment variable, which
+      defaults to <filename class="directory">/usr/local</filename>
+      if unset.</para>
+
+    <para revision="270745">The &man.ps.1; utility has been updated
+      to include a new keyword, <quote>tracer</quote>, which displays
+      the <acronym>PID</acronym> of the tracing process.</para>
+
+    <para revision="271482">Support for adding empty partitions has
+      been added to the &man.mkimg.1; utility.</para>
+
+    <para revision="272166">The &man.primes.6; utility has been
+      updated to correctly enumerate prime numbers between
+      <literal>4295098369</literal> and
+      <literal>3825123056546413050</literal>, which prior to this
+      change, it would be possible for returned values to be
+      incorrectly identified as prime numbers.</para>
+
+    <para revision="272198">The &man.mkimg.1; utility has been
+      updated to include three options used to print information
+      about &man.mkimg.1; itself:</para>
+
+    <informaltable frame="none" pgwide="0">
+      <tgroup cols="2">
+	<colspec colwidth="1*"/>
+	<colspec colwidth="1*"/>
+	<thead>
+	  <row>
+	    <entry>Option</entry>
+	    <entry>Output</entry>
+	  </row>
+	</thead>
+
+	<tbody>
+	  <row>
+	    <entry><literal>--version</literal></entry>
+	    <entry>The current version of the &man.mkimg.1;
+	      utility</entry>
+	  </row>
+
+	  <row>
+	    <entry><literal>--formats</literal></entry>
+	    <entry>The disk image file formats supported by
+	      &man.mkimg.1;</entry>
+	  </row>
+
+	  <row>
+	    <entry><literal>--schemes</literal></entry>
+	    <entry>The partition schemes supported by
+	      &man.mkimg.1;</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
+
+    <para revision="272273">The &man.strptime.3; library has been
+      updated to add support for <acronym>POSIX</acronym>-2001
+      features <literal>%U</literal> and <literal>%W</literal>.</para>
+
+    <para revision="272274">The &os; installation utility,
+      &man.bsdinstall.8;, has been updated to set the
+      <literal>canmount</literal> &man.zfs.8; property to
+      <literal>off</literal> for the
+      <filename class="directory">/var</filename> dataset, preventing
+      the contents of directories within <filename
+	class="directory">/var</filename> from conflicting when using
+      multiple boot environments, such as that provided by <filename
+	role="package">sysutils/beadm</filename>.</para>
+
+    <para revision="272350">The <literal>MK_ARM_EABI</literal>
+      &man.src.conf.5; option has been removed.</para>
+
+    <para revision="272488">Userland &man.ctf.5; support in
+      &man.dtrace.1; has been added.  With this change, &man.dtrace.1;
+      is able to resolve type info for function and
+      <acronym>USDT</acronym> probe arguments, and function return
+      values.</para>
+
+    <para revision="272842,272848" contrib="sponsor"
+      sponsor="&ff;">The &man.dl.iterate.phdr.3; library has been
+      changed to always return the path name of the
+      <acronym>ELF</acronym> object in the
+      <literal>dlpi_name</literal> structure member.</para>
+
+    <para revision="273806" contrib="sponsor" sponsor="&chelsio;">A
+      userland library for Chelsio Terminator 5 based iWARP cards
+      has been added, allowing userland <acronym>RDMA</acronym>
+      applications to work over compatible
+      <acronym>NIC</acronym>s.</para>
+
+    <sect3 xml:id="abi-compat">
+      <title><acronym>ABI</acronym> Compatibility</title>
+
+      <para revision="271982">The &linux; compatibility version has
+	been updated to <literal>2.6.18</literal>.  The
+	<literal>compat.linux.osrelease</literal> &man.sysctl.8; is
+	evaluated when building the <filename
+	  role="package">emulators/linux-c6</filename> and related
+	ports.</para>
+    </sect3>
+
     <sect3 xml:id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
-      <para>&nbsp;</para>
+      <para revision="270676">The &man.rc.8; subsystem has been
+	updated to allow configuring services in <filename
+	  class="directory">&dollar;{LOCALBASE}/etc/rc.conf.d/</filename>.
+	If <literal>LOCALBASE</literal> is unset, it defaults to
+	<filename class="directory">/usr/local</filename>.</para>
+    </sect3>
+
+    <sect3 xml:id="periodic-scripts">
+      <title><filename>/etc/periodic</filename> Scripts</title>
+
+      <para revision="271321">The daily &man.periodic.8; script
+	<filename>110.clean-tmps</filename> has been updated to
+	avoid crossing filesystem mount boundaries when cleaning
+	files in <filename class="directory">/tmp</filename>.</para>
     </sect3>
   </sect2>
 
@@ -384,9 +631,6 @@
 
     <para revision="260445">&man.byacc.1; has been updated to version
       20140101.</para>
-
-    <para revision="261037"><application>OpenSSL</application> has
-      been updated to version 1.0.1.f.</para>
 
     <para revision="261071">&man.jemalloc.3; has been updated to
       version 3.5.0.</para>
@@ -412,6 +656,12 @@
 
     <para revision="267256"><application>OpenSSL</application> has
       been updated to version 1.0.1h.</para>
+
+    <para revision="276577"><application>file</application> has been
+      updated to version 5.22.</para>
+
+    <para revision="273146"><application>OpenSSL</application> has
+      been updated to version 1.0.1j.</para>
   </sect2>
 
   <sect2 xml:id="ports">
@@ -434,7 +684,7 @@
 </sect1>
 
 <sect1 xml:id="upgrade">
-  <title>Upgrading from previous releases of &os;</title>
+  <title>Upgrading from Previous Releases of &os;</title>
 
   <para arch="amd64,i386">Binary upgrades between RELEASE versions
     (and snapshots of the various security branches) are supported

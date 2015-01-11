@@ -52,7 +52,6 @@ MAN=	aac.4 \
 	${_apic.4} \
 	arcmsr.4 \
 	${_asmc.4} \
-	asr.4 \
 	ata.4 \
 	ath.4 \
 	ath_ahb.4 \
@@ -130,6 +129,7 @@ MAN=	aac.4 \
 	esp.4 \
 	est.4 \
 	et.4 \
+	etherswitch.4 \
 	eventtimers.4 \
 	exca.4 \
 	fatm.4 \

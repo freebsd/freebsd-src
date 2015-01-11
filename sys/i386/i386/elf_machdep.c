@@ -26,6 +26,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_cpu.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
@@ -46,6 +48,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/elf.h>
 #include <machine/md_var.h>
 #include <machine/npx.h>
+
+#if !defined(CPU_DISABLE_SSE) && defined(I686_CPU)
+#define CPU_ENABLE_SSE
+#endif
 
 struct sysentvec elf32_freebsd_sysvec = {
 	.sv_size	= SYS_MAXSYSCALL,
@@ -137,10 +143,13 @@ SYSINIT(kelf32, SI_SUB_EXEC, SI_ORDER_ANY,
 void
 elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 {
+#ifdef CPU_ENABLE_SSE
 	void *buf;
+#endif
 	size_t len;
 
 	len = 0;
+#ifdef CPU_ENABLE_SSE
 	if (use_xsave) {
 		if (dst != NULL) {
 			npxgetregs(td);
@@ -153,6 +162,7 @@ elf32_dump_thread(struct thread *td, void *dst, size_t *off)
 			len += elf32_populate_note(NT_X86_XSTATE, NULL, NULL,
 			    cpu_max_ext_state_size, NULL);
 	}
+#endif
 	*off = len;
 }
 

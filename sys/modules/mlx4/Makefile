@@ -15,4 +15,3 @@ CFLAGS+= -Wno-cast-qual -Wno-pointer-arith ${GCC_MS_EXTENSIONS}
 CFLAGS+= -fms-extensions
 
 CWARNFLAGS.mcg.c=	-Wno-unused
-CWARNFLAGS+=		${CWARNFLAGS.${.IMPSRC:T}}

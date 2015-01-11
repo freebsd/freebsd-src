@@ -80,4 +80,5 @@ struct	dumperinfo;
 void	dump_add_page(vm_paddr_t);
 void	dump_drop_page(vm_paddr_t);
 int	minidumpsys(struct dumperinfo *);
+
 #endif /* !_MACHINE_MD_VAR_H_ */

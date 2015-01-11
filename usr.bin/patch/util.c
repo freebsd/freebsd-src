@@ -428,7 +428,7 @@ checked_in(char *file)
 void
 version(void)
 {
-	fprintf(stderr, "patch 2.0-12u10 FreeBSD\n");
+	printf("patch 2.0-12u10 FreeBSD\n");
 	my_exit(EXIT_SUCCESS);
 }
 

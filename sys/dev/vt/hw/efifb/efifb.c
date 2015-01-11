@@ -37,9 +37,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/fbio.h>
 #include <sys/linker.h>
-#include <sys/bus.h>
-#include <sys/module.h>
-#include <sys/rman.h>
 
 #include "opt_platform.h"
 
@@ -182,53 +179,3 @@ vt_efifb_remap(void *xinfo)
 	    info->fb_size, VM_MEMATTR_WRITE_COMBINING);
 }
 
-/* Dummy NewBus functions to reserve the resources used by the efifb driver */
-static void
-vtefifb_identify(driver_t *driver, device_t parent)
-{
-
-	if (local_info.fb_pbase == 0 || local_info.fb_size == 0)
-		return;
-
-	if (BUS_ADD_CHILD(parent, 0, driver->name, 0) == NULL)
-		panic("Unable to attach vt_efifb console");
-}
-
-static int
-vtefifb_probe(device_t dev)
-{
-
-	device_set_desc(dev, "vt_efifb driver");
-	return (BUS_PROBE_NOWILDCARD);
-}
-
-static int
-vtefifb_attach(device_t dev)
-{
-	struct resource *pseudo_phys_res;
-	int res_id;
-
-	res_id = 0;
-	pseudo_phys_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &res_id, local_info.fb_pbase,
-	    local_info.fb_pbase + local_info.fb_size,
-	    local_info.fb_size, RF_ACTIVE);
-	if (pseudo_phys_res == NULL)
-		panic("Unable to reserve vt_efifb memory");
-	return (0);
-}
-
-/*-------------------- Private Device Attachment Data  -----------------------*/
-static device_method_t vtefifb_methods[] = {
-	/* Device interface */
-	DEVMETHOD(device_identify,	vtefifb_identify),
-	DEVMETHOD(device_probe,         vtefifb_probe),
-	DEVMETHOD(device_attach,        vtefifb_attach),
-
-	DEVMETHOD_END
-};
-
-DEFINE_CLASS_0(vtefifb, vtefifb_driver, vtefifb_methods, 0);
-devclass_t vtefifb_devclass;
-
-DRIVER_MODULE(vtefifb, nexus, vtefifb_driver, vtefifb_devclass, NULL, NULL);

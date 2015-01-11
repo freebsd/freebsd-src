@@ -15,8 +15,8 @@
 #ifndef LLVM_CODEGEN_SCHEDULEDAGINSTRS_H
 #define LLVM_CODEGEN_SCHEDULEDAGINSTRS_H
 
-#include "llvm/ADT/SparseSet.h"
 #include "llvm/ADT/SparseMultiSet.h"
+#include "llvm/ADT/SparseSet.h"
 #include "llvm/CodeGen/ScheduleDAG.h"
 #include "llvm/CodeGen/TargetSchedule.h"
 #include "llvm/Support/Compiler.h"
@@ -43,7 +43,7 @@ namespace llvm {
   };
 
   /// Record a physical register access.
-  /// For non data-dependent uses, OpIdx == -1.
+  /// For non-data-dependent uses, OpIdx == -1.
   struct PhysRegSUOper {
     SUnit *SU;
     int OpIdx;
@@ -88,9 +88,13 @@ namespace llvm {
     /// isPostRA flag indicates vregs cannot be present.
     bool IsPostRA;
 
+    /// True if the DAG builder should remove kill flags (in preparation for
+    /// rescheduling).
+    bool RemoveKillFlags;
+
     /// The standard DAG builder does not normally include terminators as DAG
     /// nodes because it does not create the necessary dependencies to prevent
-    /// reordering. A specialized scheduler can overide
+    /// reordering. A specialized scheduler can override
     /// TargetInstrInfo::isSchedulingBoundary then enable this flag to indicate
     /// it has taken responsibility for scheduling the terminator correctly.
     bool CanHandleTerminators;
@@ -145,14 +149,20 @@ namespace llvm {
     DbgValueVector DbgValues;
     MachineInstr *FirstDbgValue;
 
+    /// Set of live physical registers for updating kill flags.
+    BitVector LiveRegs;
+
   public:
     explicit ScheduleDAGInstrs(MachineFunction &mf,
                                const MachineLoopInfo &mli,
                                const MachineDominatorTree &mdt,
                                bool IsPostRAFlag,
-                               LiveIntervals *LIS = 0);
+                               bool RemoveKillFlags = false,
+                               LiveIntervals *LIS = nullptr);
 
     virtual ~ScheduleDAGInstrs() {}
+
+    bool isPostRA() const { return IsPostRA; }
 
     /// \brief Expose LiveIntervals for use in DAG mutators and such.
     LiveIntervals *getLIS() const { return LIS; }
@@ -196,8 +206,9 @@ namespace llvm {
 
     /// buildSchedGraph - Build SUnits from the MachineBasicBlock that we are
     /// input.
-    void buildSchedGraph(AliasAnalysis *AA, RegPressureTracker *RPTracker = 0,
-                         PressureDiffs *PDiffs = 0);
+    void buildSchedGraph(AliasAnalysis *AA,
+                         RegPressureTracker *RPTracker = nullptr,
+                         PressureDiffs *PDiffs = nullptr);
 
     /// addSchedBarrierDeps - Add dependencies from instructions in the current
     /// list of instructions being scheduled to scheduling barrier. We want to
@@ -219,29 +230,40 @@ namespace llvm {
     /// the level of the whole MachineFunction. By default does nothing.
     virtual void finalizeSchedule() {}
 
-    virtual void dumpNode(const SUnit *SU) const;
+    void dumpNode(const SUnit *SU) const override;
 
     /// Return a label for a DAG node that points to an instruction.
-    virtual std::string getGraphNodeLabel(const SUnit *SU) const;
+    std::string getGraphNodeLabel(const SUnit *SU) const override;
 
     /// Return a label for the region of code covered by the DAG.
-    virtual std::string getDAGName() const;
+    std::string getDAGName() const override;
 
+    /// \brief Fix register kill flags that scheduling has made invalid.
+    void fixupKills(MachineBasicBlock *MBB);
   protected:
     void initSUnits();
     void addPhysRegDataDeps(SUnit *SU, unsigned OperIdx);
     void addPhysRegDeps(SUnit *SU, unsigned OperIdx);
     void addVRegDefDeps(SUnit *SU, unsigned OperIdx);
     void addVRegUseDeps(SUnit *SU, unsigned OperIdx);
+
+    /// \brief PostRA helper for rewriting kill flags.
+    void startBlockForKills(MachineBasicBlock *BB);
+
+    /// \brief Toggle a register operand kill flag.
+    ///
+    /// Other adjustments may be made to the instruction if necessary. Return
+    /// true if the operand has been deleted, false if not.
+    bool toggleKillFlag(MachineInstr *MI, MachineOperand &MO);
   };
 
   /// newSUnit - Creates a new SUnit and return a ptr to it.
   inline SUnit *ScheduleDAGInstrs::newSUnit(MachineInstr *MI) {
 #ifndef NDEBUG
-    const SUnit *Addr = SUnits.empty() ? 0 : &SUnits[0];
+    const SUnit *Addr = SUnits.empty() ? nullptr : &SUnits[0];
 #endif
     SUnits.push_back(SUnit(MI, (unsigned)SUnits.size()));
-    assert((Addr == 0 || Addr == &SUnits[0]) &&
+    assert((Addr == nullptr || Addr == &SUnits[0]) &&
            "SUnits std::vector reallocated on the fly!");
     SUnits.back().OrigNode = &SUnits.back();
     return &SUnits.back();
@@ -251,7 +273,7 @@ namespace llvm {
   inline SUnit *ScheduleDAGInstrs::getSUnit(MachineInstr *MI) const {
     DenseMap<MachineInstr*, SUnit*>::const_iterator I = MISUnitMap.find(MI);
     if (I == MISUnitMap.end())
-      return 0;
+      return nullptr;
     return I->second;
   }
 } // namespace llvm

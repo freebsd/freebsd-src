@@ -89,7 +89,6 @@ CFLAGS+=	-D_KERNEL
 CFLAGS+=	-DKLD_MODULE
 
 # Don't use any standard or source-relative include directories.
-CSTD=		c99
 NOSTDINC=	-nostdinc
 CFLAGS:=	${CFLAGS:N-I*} ${NOSTDINC} ${INCLMAGIC} ${CFLAGS:M-I*}
 .if defined(KERNBUILDDIR)
@@ -117,6 +116,13 @@ LDFLAGS+=	-d -warn-common
 CFLAGS+=	${DEBUG_FLAGS}
 .if ${MACHINE_CPUARCH} == amd64
 CFLAGS+=	-fno-omit-frame-pointer -mno-omit-leaf-frame-pointer
+.endif
+
+# Temporary workaround for PR 196407, which contains the fascinating details.
+# Don't allow clang to use fpu instructions or registers in kernel modules.
+.if ${MACHINE_CPUARCH} == arm
+CFLAGS.clang+=	-mllvm -arm-use-movt=0
+CFLAGS.clang+=	-mfpu=none
 .endif
 
 .if ${MACHINE_CPUARCH} == powerpc
@@ -364,7 +370,7 @@ MFILES?= dev/acpica/acpi_if.m dev/acpi_support/acpi_wmi_if.m \
 	dev/agp/agp_if.m dev/ata/ata_if.m dev/eisa/eisa_if.m \
 	dev/fb/fb_if.m dev/gpio/gpio_if.m dev/gpio/gpiobus_if.m \
 	dev/iicbus/iicbb_if.m dev/iicbus/iicbus_if.m \
-	dev/mmc/mmcbr_if.m dev/mmc/mmcbus_if.m \
+	dev/mbox/mbox_if.m dev/mmc/mmcbr_if.m dev/mmc/mmcbus_if.m \
 	dev/mii/miibus_if.m dev/mvs/mvs_if.m dev/ofw/ofw_bus_if.m \
 	dev/pccard/card_if.m dev/pccard/power_if.m dev/pci/pci_if.m \
 	dev/pci/pcib_if.m dev/ppbus/ppbus_if.m \

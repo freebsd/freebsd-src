@@ -200,12 +200,33 @@ let mayLoad = 1, hasExtraDefRegAllocReq = 1 in
 defm VLDM : vfp_ldst_mult<"vldm", 1, IIC_fpLoad_m, IIC_fpLoad_mu>;
 
 let mayStore = 1, hasExtraSrcRegAllocReq = 1 in
-defm VSTM : vfp_ldst_mult<"vstm", 0, IIC_fpLoad_m, IIC_fpLoad_mu>;
+defm VSTM : vfp_ldst_mult<"vstm", 0, IIC_fpStore_m, IIC_fpStore_mu>;
 
 } // neverHasSideEffects
 
 def : MnemonicAlias<"vldm", "vldmia">;
 def : MnemonicAlias<"vstm", "vstmia">;
+
+// FLDM/FSTM - Load / Store multiple single / double precision registers for
+// pre-ARMv6 cores.
+// These instructions are deprecated!
+def : VFP2MnemonicAlias<"fldmias", "vldmia">;
+def : VFP2MnemonicAlias<"fldmdbs", "vldmdb">;
+def : VFP2MnemonicAlias<"fldmeas", "vldmdb">;
+def : VFP2MnemonicAlias<"fldmfds", "vldmia">;
+def : VFP2MnemonicAlias<"fldmiad", "vldmia">;
+def : VFP2MnemonicAlias<"fldmdbd", "vldmdb">;
+def : VFP2MnemonicAlias<"fldmead", "vldmdb">;
+def : VFP2MnemonicAlias<"fldmfdd", "vldmia">;
+
+def : VFP2MnemonicAlias<"fstmias", "vstmia">;
+def : VFP2MnemonicAlias<"fstmdbs", "vstmdb">;
+def : VFP2MnemonicAlias<"fstmeas", "vstmia">;
+def : VFP2MnemonicAlias<"fstmfds", "vstmdb">;
+def : VFP2MnemonicAlias<"fstmiad", "vstmia">;
+def : VFP2MnemonicAlias<"fstmdbd", "vstmdb">;
+def : VFP2MnemonicAlias<"fstmead", "vstmia">;
+def : VFP2MnemonicAlias<"fstmfdd", "vstmdb">;
 
 def : InstAlias<"vpush${p} $r", (VSTMDDB_UPD SP, pred:$p, dpr_reglist:$r)>,
                 Requires<[HasVFP2]>;
@@ -247,13 +268,19 @@ multiclass vfp_ldstx_mult<string asm, bit L_bit> {
     AXXI4<(outs GPR:$wb), (ins GPR:$Rn, pred:$p, dpr_reglist:$regs, variable_ops),
           IndexModeUpd, !strconcat(asm, "dbx${p}\t$Rn!, $regs"), "$Rn = $wb", []> {
     let Inst{24-23} = 0b10;         // Decrement Before
-    let Inst{21}    = 1;
+    let Inst{21}    = 1;            // Writeback
     let Inst{20}    = L_bit;
   }
 }
 
 defm FLDM : vfp_ldstx_mult<"fldm", 1>;
 defm FSTM : vfp_ldstx_mult<"fstm", 0>;
+
+def : VFP2MnemonicAlias<"fldmeax", "fldmdbx">;
+def : VFP2MnemonicAlias<"fldmfdx", "fldmiax">;
+
+def : VFP2MnemonicAlias<"fstmeax", "fstmiax">;
+def : VFP2MnemonicAlias<"fstmfdx", "fstmdbx">;
 
 //===----------------------------------------------------------------------===//
 // FP Binary Operations.
@@ -524,12 +551,6 @@ def VCVTBSH: ASuI<0b11101, 0b11, 0b0011, 0b01, 0, (outs SPR:$Sd), (ins SPR:$Sm),
                  /* FIXME */ IIC_fpCVTHS, "vcvtb", ".f16.f32\t$Sd, $Sm",
                  [/* For disassembly only; pattern left blank */]>;
 
-def : Pat<(f32_to_f16 SPR:$a),
-          (i32 (COPY_TO_REGCLASS (VCVTBSH SPR:$a), GPR))>;
-
-def : Pat<(f16_to_f32 GPR:$a),
-          (VCVTBHS (COPY_TO_REGCLASS GPR:$a, SPR))>;
-
 def VCVTTHS: ASuI<0b11101, 0b11, 0b0010, 0b11, 0, (outs SPR:$Sd), (ins SPR:$Sm),
                  /* FIXME */ IIC_fpCVTSH, "vcvtt", ".f32.f16\t$Sd, $Sm",
                  [/* For disassembly only; pattern left blank */]>;
@@ -591,6 +612,19 @@ def VCVTTDH : ADuI<0b11101, 0b11, 0b0011, 0b11, 0,
   let Inst{3-0}   = Dm{3-0};
   let Inst{5}     = Dm{4};
 }
+
+def : Pat<(fp_to_f16 SPR:$a),
+          (i32 (COPY_TO_REGCLASS (VCVTBSH SPR:$a), GPR))>;
+
+def : Pat<(fp_to_f16 (f64 DPR:$a)),
+          (i32 (COPY_TO_REGCLASS (VCVTBDH DPR:$a), GPR))>;
+
+def : Pat<(f16_to_fp GPR:$a),
+          (VCVTBHS (COPY_TO_REGCLASS GPR:$a, SPR))>;
+
+def : Pat<(f64 (f16_to_fp GPR:$a)),
+          (VCVTBHD (COPY_TO_REGCLASS GPR:$a, SPR))>;
+
 
 multiclass vcvt_inst<string opc, bits<2> rm> {
   let PostEncoderMethod = "", DecoderNamespace = "VFPV8" in {
@@ -1639,7 +1673,7 @@ def FCONSTS : VFPAI<(outs SPR:$Sd), (ins vfp_f32imm:$imm),
 //===----------------------------------------------------------------------===//
 // Assembler aliases.
 //
-// A few mnemnoic aliases for pre-unifixed syntax. We don't guarantee to
+// A few mnemonic aliases for pre-unifixed syntax. We don't guarantee to
 // support them all, but supporting at least some of the basics is
 // good to be friendly.
 def : VFP2MnemonicAlias<"flds", "vldr">;
@@ -1735,3 +1769,14 @@ def : VFP2InstAlias<"vmov${p}.f64 $Dn, $Rt, $Rt2",
 // VMOVD does.
 def : VFP2InstAlias<"vmov${p} $Sd, $Sm",
                     (VMOVS SPR:$Sd, SPR:$Sm, pred:$p)>;
+
+// FCONSTD/FCONSTS alias for vmov.f64/vmov.f32
+// These aliases provide added functionality over vmov.f instructions by
+// allowing users to write assembly containing encoded floating point constants
+// (e.g. #0x70 vs #1.0).  Without these alises there is no way for the
+// assembler to accept encoded fp constants (but the equivalent fp-literal is
+// accepted directly by vmovf).
+def : VFP3InstAlias<"fconstd${p} $Dd, $val",
+                    (FCONSTD DPR:$Dd, vfp_f64imm:$val, pred:$p)>;
+def : VFP3InstAlias<"fconsts${p} $Sd, $val",
+                    (FCONSTS SPR:$Sd, vfp_f32imm:$val, pred:$p)>;

@@ -386,8 +386,7 @@ ipf_send_reset(fin)
 	if (m == NULL)
 		return -1;
 	if (sizeof(*tcp2) + hlen > MLEN) {
-		MCLGET(m, M_NOWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			FREE_MB_T(m);
 			return -1;
 		}
@@ -610,8 +609,7 @@ ipf_send_icmp_err(type, fin, dst)
 			code = icmptoicmp6unreach[code];
 
 		if (iclen + max_linkhdr + fin->fin_plen > avail) {
-			MCLGET(m, M_NOWAIT);
-			if ((m->m_flags & M_EXT) == 0) {
+			if (!(MCLGET(m, M_NOWAIT))) {
 				FREE_MB_T(m);
 				return -1;
 			}

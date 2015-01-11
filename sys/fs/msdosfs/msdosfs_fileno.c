@@ -68,8 +68,7 @@ static int msdosfs_fileno_compare(struct msdosfs_fileno *,
 
 /* Initialize file number mapping structures. */
 void
-msdosfs_fileno_init(mp)
-	struct mount *mp;
+msdosfs_fileno_init(struct mount *mp)
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 
@@ -82,8 +81,7 @@ msdosfs_fileno_init(mp)
 
 /* Free 32-bit file number generation structures. */
 void
-msdosfs_fileno_free(mp)
-	struct mount *mp;
+msdosfs_fileno_free(struct mount *mp)
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 	struct msdosfs_fileno *mf, *next;
@@ -98,9 +96,7 @@ msdosfs_fileno_free(mp)
 
 /* Map a 64-bit file number into a 32-bit one. */
 uint32_t
-msdosfs_fileno_map(mp, fileno)
-	struct mount *mp;
-	uint64_t fileno;
+msdosfs_fileno_map(struct mount *mp, uint64_t fileno)
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 	struct msdosfs_fileno key, *mf, *tmf;
@@ -142,8 +138,7 @@ msdosfs_fileno_map(mp, fileno)
 
 /* Compare by 64-bit file number. */
 static int
-msdosfs_fileno_compare(fa, fb)
-	struct msdosfs_fileno *fa, *fb;
+msdosfs_fileno_compare(struct msdosfs_fileno *fa, struct msdosfs_fileno *fb)
 {
 
 	if (fa->mf_fileno64 > fb->mf_fileno64)

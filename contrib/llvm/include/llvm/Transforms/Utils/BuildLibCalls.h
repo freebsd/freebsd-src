@@ -21,7 +21,7 @@ namespace llvm {
   class Value;
   class DataLayout;
   class TargetLibraryInfo;
-  
+
   /// CastToCStr - Return V if it is an i8*, otherwise cast it to i8*.
   Value *CastToCStr(Value *V, IRBuilder<> &B);
 
@@ -83,6 +83,14 @@ namespace llvm {
   Value *EmitUnaryFloatFnCall(Value *Op, StringRef Name, IRBuilder<> &B,
                               const AttributeSet &Attrs);
 
+  /// EmitUnaryFloatFnCall - Emit a call to the binary function named 'Name'
+  /// (e.g. 'fmin').  This function is known to take type matching 'Op1' and
+  /// 'Op2' and return one value with the same type.  If 'Op1/Op2' are long
+  /// double, 'l' is added as the suffix of name, if 'Op1/Op2' are float, we
+  /// add a 'f' suffix.
+  Value *EmitBinaryFloatFnCall(Value *Op1, Value *Op2, StringRef Name,
+                                  IRBuilder<> &B, const AttributeSet &Attrs);
+
   /// EmitPutChar - Emit a call to the putchar function.  This assumes that Char
   /// is an integer.
   Value *EmitPutChar(Value *Char, IRBuilder<> &B, const DataLayout *TD,
@@ -116,6 +124,7 @@ namespace llvm {
     virtual void replaceCall(Value *With) = 0;
     virtual bool isFoldable(unsigned SizeCIOp, unsigned SizeArgOp,
                             bool isString) const = 0;
+
   public:
     virtual ~SimplifyFortifiedLibCalls();
     bool fold(CallInst *CI, const DataLayout *TD, const TargetLibraryInfo *TLI);

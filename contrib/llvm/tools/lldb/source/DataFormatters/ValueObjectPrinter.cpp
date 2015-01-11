@@ -222,7 +222,11 @@ ValueObjectPrinter::PrintTypeIfNeeded ()
     {
         // Some ValueObjects don't have types (like registers sets). Only print
         // the type if there is one to print
-        ConstString qualified_type_name(m_valobj->GetQualifiedTypeName());
+        ConstString qualified_type_name;
+        if (options.m_be_raw)
+            qualified_type_name = m_valobj->GetQualifiedTypeName();
+        else
+            qualified_type_name = m_valobj->GetDisplayTypeName();
         if (qualified_type_name)
             m_stream->Printf("(%s) ", qualified_type_name.GetCString());
         else
@@ -341,7 +345,7 @@ ValueObjectPrinter::PrintValueAndSummaryIfNeeded (bool& value_printed,
             // the value if this thing is nil
             // (but show the value if the user passes a format explicitly)
             TypeSummaryImpl* entry = GetSummaryFormatter();
-            if (!IsNil() && !m_value.empty() && (entry == NULL || (entry->DoesPrintValue() || options.m_format != eFormatDefault) || m_summary.empty()) && !options.m_hide_value)
+            if (!IsNil() && !m_value.empty() && (entry == NULL || (entry->DoesPrintValue(m_valobj) || options.m_format != eFormatDefault) || m_summary.empty()) && !options.m_hide_value)
             {
                 m_stream->Printf(" %s", m_value.c_str());
                 value_printed = true;
@@ -426,7 +430,7 @@ ValueObjectPrinter::ShouldPrintChildren (bool is_failed_description,
         
         TypeSummaryImpl* entry = GetSummaryFormatter();
 
-        return (!entry || entry->DoesPrintChildren() || m_summary.empty());
+        return (!entry || entry->DoesPrintChildren(m_valobj) || m_summary.empty());
     }
     return false;
 }

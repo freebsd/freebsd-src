@@ -40,8 +40,19 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
+#include "libc_private.h"
+
+#pragma weak sleep
 unsigned int
-__sleep(unsigned int seconds)
+sleep(unsigned int seconds)
+{
+
+	return (((unsigned int (*)(unsigned int))
+	    __libc_interposing[INTERPOS_sleep])(seconds));
+}
+
+unsigned int
+__libc_sleep(unsigned int seconds)
 {
 	struct timespec time_to_sleep;
 	struct timespec time_remaining;
@@ -51,7 +62,7 @@ __sleep(unsigned int seconds)
 	 * the maximum value for a time_t is >= INT_MAX.
 	 */
 	if (seconds > INT_MAX)
-		return (seconds - INT_MAX + __sleep(INT_MAX));
+		return (seconds - INT_MAX + __libc_sleep(INT_MAX));
 
 	time_to_sleep.tv_sec = seconds;
 	time_to_sleep.tv_nsec = 0;
@@ -63,5 +74,5 @@ __sleep(unsigned int seconds)
 		(time_remaining.tv_nsec != 0)); /* round up */
 }
 
-__weak_reference(__sleep, sleep);
-__weak_reference(__sleep, _sleep);
+__weak_reference(__libc_sleep, __sleep);
+__weak_reference(__libc_sleep, _sleep);

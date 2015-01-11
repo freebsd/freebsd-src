@@ -28,8 +28,7 @@ MLINKS+= clang.1 cc.1 \
 	clang.1 cpp.1
 .endif
 
-TGHDRS=	CC1AsOptions \
-	DiagnosticCommonKinds \
+TGHDRS=	DiagnosticCommonKinds \
 	DiagnosticDriverKinds \
 	DiagnosticFrontendKinds \
 	DiagnosticLexKinds \
@@ -43,9 +42,6 @@ _clangstaticanalyzer= \
 	clangstaticanalyzercore
 _clangarcmigrate= \
 	clangarcmigrate
-_clangrewriter= \
-	clangrewritefrontend \
-	clangrewritecore
 .endif # MK_CLANG_FULL
 
 LIBDEPS=clangfrontendtool \
@@ -55,23 +51,32 @@ LIBDEPS=clangfrontendtool \
 	clangcodegen \
 	clangparse \
 	clangsema \
+	clangrewritefrontend \
+	clangrewrite \
 	${_clangstaticanalyzer} \
 	${_clangarcmigrate} \
-	${_clangrewriter} \
 	clanganalysis \
 	clangedit \
 	clangast \
-	clangbasic \
 	clanglex \
+	clangbasic \
+	llvmprofiledata \
 	llvmoption \
+	llvmobjcarcopts \
 	llvmlinker \
 	llvmirreader \
 	llvmipo \
 	llvmvectorize \
 	llvminstrumentation \
 	llvmbitwriter \
-	llvmbitreader \
 	llvmasmparser \
+	llvmaarch64disassembler \
+	llvmaarch64codegen \
+	llvmaarch64asmparser \
+	llvmaarch64desc \
+	llvmaarch64info \
+	llvmaarch64instprinter \
+	llvmaarch64utils \
 	llvmarmdisassembler \
 	llvmarmcodegen \
 	llvmarmasmparser \
@@ -84,6 +89,7 @@ LIBDEPS=clangfrontendtool \
 	llvmmipsdesc \
 	llvmmipsinfo \
 	llvmmipsinstprinter \
+	llvmpowerpcdisassembler \
 	llvmpowerpccodegen \
 	llvmpowerpcasmparser \
 	llvmpowerpcdesc \
@@ -100,22 +106,25 @@ LIBDEPS=clangfrontendtool \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
-	llvmmcparser \
 	llvmcodegen \
-	llvmobjcarcopts \
 	llvmscalaropts \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmx86desc \
-	llvmx86info \
 	llvmtarget \
+	llvmx86desc \
+	llvmobject \
+	llvmmcparser \
+	llvmbitreader \
+	llvmcore \
+	llvmx86info \
 	llvmx86instprinter \
 	llvmmc \
-	llvmobject \
 	llvmx86utils \
-	llvmcore \
 	llvmsupport
 
 .include "../clang.prog.mk"
+
+DPADD+=	${LIBZ}
+LDADD+=	-lz

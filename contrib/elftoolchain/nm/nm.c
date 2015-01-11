@@ -48,7 +48,7 @@
 
 #include "_elftc.h"
 
-ELFTC_VCSID("$Id: nm.c 2484 2012-04-07 15:52:05Z kaiwang27 $");
+ELFTC_VCSID("$Id: nm.c 3124 2014-12-21 05:46:28Z kaiwang27 $");
 
 /* symbol information list */
 STAILQ_HEAD(sym_head, sym_entry);
@@ -248,6 +248,7 @@ static const struct option nm_longopts[] = {
 	{ "defined-only",	no_argument,		&nm_opts.def_only, 1},
 	{ "demangle",		optional_argument,	NULL,		'C' },
 	{ "dynamic",		no_argument,		NULL,		'D' },
+	{ "extern-only",	no_argument,		NULL,		'g' },
 	{ "format",		required_argument,	NULL,		'F' },
 	{ "help",		no_argument,		NULL,		'h' },
 	{ "line-numbers",	no_argument,		NULL,		'l' },
@@ -2042,7 +2043,7 @@ usage(int exitcode)
 \n  -f                        Produce full output (default).\
 \n      --format=format       Display output in specific format.  Allowed\
 \n                            formats are: \"bsd\", \"posix\" and \"sysv\".\
-\n  -g                        Display only global symbol information.\
+\n  -g, --extern-only         Display only global symbol information.\
 \n  -h, --help                Show this help message.\
 \n  -l, --line-numbers        Display filename and linenumber using\
 \n                            debugging information.\

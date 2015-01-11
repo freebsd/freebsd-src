@@ -59,7 +59,8 @@ def ext_integer_complex : Extension<
   "complex integer types are a GNU extension">, InGroup<GNUComplexInteger>;
 def ext_thread_before : Extension<"'__thread' before '%0'">;
 def ext_keyword_as_ident : ExtWarn<
-  "keyword '%0' will be treated as an identifier %select{here|for the remainder of the translation unit}1">,
+  "keyword '%0' will be made available as an identifier "
+  "%select{here|for the remainder of the translation unit}1">,
   InGroup<KeywordCompat>;
 
 def error_empty_enum : Error<"use of empty enum">;
@@ -68,7 +69,7 @@ def err_invalid_short_spec : Error<"'short %0' is invalid">;
 def err_invalid_long_spec : Error<"'long %0' is invalid">;
 def err_invalid_longlong_spec : Error<"'long long %0' is invalid">;
 def err_invalid_complex_spec : Error<"'_Complex %0' is invalid">;
-def err_friend_storage_spec : Error<"'%0' is invalid in friend declarations">;
+def err_friend_decl_spec : Error<"'%0' is invalid in friend declarations">;
 
 def ext_ident_list_in_param : Extension<
   "type-less parameter names in function declaration">;
@@ -148,18 +149,6 @@ def err_expected_expression : Error<"expected expression">;
 def err_expected_type : Error<"expected a type">;
 def err_expected_external_declaration : Error<"expected external declaration">;
 def err_extraneous_closing_brace : Error<"extraneous closing brace ('}')">;
-def err_expected_ident : Error<"expected identifier">;
-def err_expected_ident_lparen : Error<"expected identifier or '('">;
-def err_expected_ident_lbrace : Error<"expected identifier or '{'">;
-def err_expected_lbrace : Error<"expected '{'">;
-def err_expected_lparen : Error<"expected '('">;
-def err_expected_lparen_or_lbrace : Error<"expected '(' or '{'">;
-def err_expected_rparen : Error<"expected ')'">;
-def err_expected_lsquare : Error<"expected '['">;
-def err_expected_rsquare : Error<"expected ']'">;
-def err_expected_rbrace : Error<"expected '}'">;
-def err_expected_greater : Error<"expected '>'">;
-def err_expected_ggg : Error<"expected '>>>'">;
 def err_expected_semi_declaration : Error<
   "expected ';' at end of declaration">;
 def err_expected_semi_decl_list : Error<
@@ -185,18 +174,16 @@ def err_expected_method_body : Error<"expected method body">;
 def err_invalid_token_after_toplevel_declarator : Error<
   "expected ';' after top level declarator">;
 def err_invalid_token_after_declarator_suggest_equal : Error<
-  "invalid '%0' at end of declaration; did you mean '='?">;
+  "invalid %0 at end of declaration; did you mean '='?">;
 def err_expected_statement : Error<"expected statement">;
 def err_expected_lparen_after : Error<"expected '(' after '%0'">;
-def err_expected_lparen_after_id : Error<"expected '(' after %0">;
+def err_expected_rparen_after : Error<"expected ')' after '%0'">;
+def err_expected_punc : Error<"expected ')' or ',' after '%0'">;
 def err_expected_less_after : Error<"expected '<' after '%0'">;
-def err_expected_equal_after : Error<"expected '=' after %0">;
-def err_expected_comma : Error<"expected ','">;
 def err_expected_lbrace_in_compound_literal : Error<
   "expected '{' in compound literal">;
 def err_expected_while : Error<"expected 'while' in do/while loop">;
 
-def err_expected_semi_after : Error<"expected ';' after %0">;
 def err_expected_semi_after_stmt : Error<"expected ';' after %0 statement">;
 def err_expected_semi_after_expr : Error<"expected ';' after expression">;
 def err_extraneous_token_before_semi : Error<"extraneous '%0' before ';'">;
@@ -206,7 +193,7 @@ def err_expected_semi_after_method_proto : Error<
 def err_expected_semi_after_namespace_name : Error<
   "expected ';' after namespace name">;
 def err_unexpected_namespace_attributes_alias : Error<
-  "attributes can not be specified on namespace alias">;
+  "attributes cannot be specified on namespace alias">;
 def err_inline_namespace_alias : Error<"namespace alias cannot be inline">;
 def err_namespace_nonnamespace_scope : Error<
   "namespaces can only be defined in global or namespace scope">;
@@ -217,7 +204,8 @@ def err_expected_semi_after_attribute_list : Error<
 def err_expected_semi_after_static_assert : Error<
   "expected ';' after static_assert">;
 def err_expected_semi_for : Error<"expected ';' in 'for' statement specifier">;
-def err_expected_colon_after : Error<"expected ':' after %0">;
+def err_single_decl_assign_in_for_range : Error<
+  "range-based 'for' statement uses ':', not '='">;
 def warn_missing_selector_name : Warning<
   "%0 used as the name of the previous parameter rather than as part "
   "of the selector">,
@@ -238,6 +226,8 @@ def err_expected_selector_for_method : Error<
 def err_expected_property_name : Error<"expected property name">;
 
 def err_unexpected_at : Error<"unexpected '@' in program">;
+def err_atimport : Error<
+"use of '@import' when modules are disabled">;
 
 def err_invalid_reference_qualifier_application : Error<
   "'%0' qualifier may not be applied to a reference">;
@@ -287,6 +277,13 @@ def ext_for_range : ExtWarn<
 def warn_cxx98_compat_for_range : Warning<
   "range-based for loop is incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
+def ext_for_range_identifier : ExtWarn<
+  "range-based for loop with implicit deduced type is a C++1z extension">,
+  InGroup<CXX1z>;
+def warn_cxx1y_compat_for_range_identifier : Warning<
+  "range-based for loop with implicit deduced type is incompatible with "
+  "C++ standards before C++1z">,
+  InGroup<CXXPre1zCompat>, DefaultIgnore;
 def err_for_range_expected_decl : Error<
   "for range declaration must declare a variable">;
 def err_argument_required_after_attribute : Error<
@@ -343,16 +340,16 @@ def warn_vector_long_decl_spec_combination : Warning<
   "Use of 'long' with '__vector' is deprecated">, InGroup<Deprecated>;
 def err_friend_invalid_in_context : Error<
   "'friend' used outside of class">;
-def err_unknown_typename : Error<
-  "unknown type name %0">;
 def err_use_of_tag_name_without_tag : Error<
   "must use '%1' tag to refer to type %0%select{| in this scope}2">;
 def err_templated_using_directive : Error<
   "cannot template a using directive">;
 def err_templated_using_declaration : Error<
   "cannot template a using declaration">;
-def err_unexected_colon_in_nested_name_spec : Error<
+def err_unexpected_colon_in_nested_name_spec : Error<
   "unexpected ':' in nested name specifier; did you mean '::'?">;
+def err_unexpected_token_in_nested_name_spec : Error<
+  "'%0' cannot be a part of nested name specifier; did you mean ':'?">;
 def err_bool_redeclaration : Error<
   "redeclaration of C++ built-in type 'bool'">;
 def ext_c11_static_assert : Extension<
@@ -364,6 +361,8 @@ def err_paren_after_colon_colon : Error<
   "unexpected parenthesis after '::'">;
 def err_function_definition_not_allowed : Error<
   "function definition is not allowed here">;
+def err_expected_end_of_enumerator : Error<
+  "expected '= constant-expression' or end of enumerator definition">;
 
 /// Objective-C parser diagnostics
 def err_expected_minus_or_plus : Error<
@@ -424,7 +423,7 @@ def err_objc_concat_string : Error<"unexpected token after Objective-C string">;
 def err_expected_objc_container : Error<
   "'@end' must appear in an Objective-C context">;
 def err_unexpected_protocol_qualifier : Error<
-  "@implementation declaration can not be protocol qualified">;
+  "@implementation declaration cannot be protocol qualified">;
 def err_objc_unexpected_atend : Error<
   "'@end' appears where closing brace '}' is expected">;
 def error_property_ivar_decl : Error<
@@ -449,6 +448,8 @@ def err_invalid_operator_on_type : Error<
   "cannot use %select{dot|arrow}0 operator on a type">;
 def err_expected_unqualified_id : Error<
   "expected %select{identifier|unqualified-id}0">;
+def err_brackets_go_after_unqualified_id : Error<
+  "brackets go after the %select{identifier|unqualified-id}0">;
 def err_unexpected_unqualified_id : Error<"type-id cannot have a name">;
 def err_func_def_no_params : Error<
   "function definition does not declare parameters">;
@@ -480,9 +481,6 @@ def warn_cxx98_compat_noexcept_decl : Warning<
   "noexcept specifications are incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
 def err_expected_catch : Error<"expected catch">;
-def err_expected_lbrace_or_comma : Error<"expected '{' or ','">;
-def err_expected_rbrace_or_comma : Error<"expected '}' or ','">;
-def err_expected_rsquare_or_comma : Error<"expected ']' or ','">;
 def err_using_namespace_in_class : Error<
   "'using namespace' is not allowed in classes">;
 def err_constructor_bad_name : Error<
@@ -504,8 +502,7 @@ def ext_abstract_pack_declarator_parens : ExtWarn<
   "ISO C++11 requires a parenthesized pack declaration to have a name">,
   InGroup<DiagGroup<"anonymous-pack-parens">>;
 def err_function_is_not_record : Error<
-  "unexpected '%select{.|->}0' in function call; perhaps remove the "
-  "'%select{.|->}0'?">;
+  "unexpected %0 in function call; perhaps remove the %0?">;
 
 // C++ derived classes
 def err_dup_virtual : Error<"duplicate 'virtual' in base specifier">;
@@ -535,10 +532,12 @@ def warn_cxx98_compat_nullptr : Warning<
 def warn_cxx98_compat_alignas : Warning<"'alignas' is incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
 def warn_cxx98_compat_attribute : Warning<
-  "attributes are incompatible with C++98">,
+  "C++11 attribute syntax is incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
 def err_cxx11_attribute_forbids_arguments : Error<
-  "attribute '%0' cannot have an argument list">;
+  "attribute %0 cannot have an argument list">;
+def err_attribute_requires_arguments : Error<
+  "parentheses must be omitted if %0 attribute's argument list is empty">;
 def err_cxx11_attribute_forbids_ellipsis : Error<
   "attribute '%0' cannot be used as an attribute pack">;
 def err_cxx11_attribute_repeated : Error<
@@ -549,8 +548,6 @@ def err_l_square_l_square_not_attribute : Error<
   "introducing an attribute">;
 def err_ms_declspec_type : Error<
   "__declspec attributes must be an identifier or string literal">;
-def warn_ms_declspec_unknown : Warning<
-  "unknown __declspec attribute %0 ignored">, InGroup<UnknownAttributes>;
 def err_ms_property_no_getter_or_putter : Error<
   "property does not specify a getter or a putter">;
 def err_ms_property_unknown_accessor : Error<
@@ -576,10 +573,17 @@ def err_expected_comma_greater : Error<
   "expected ',' or '>' in template-parameter-list">;
 def err_class_on_template_template_param : Error<
   "template template parameter requires 'class' after the parameter list">;
+def ext_template_template_param_typename : ExtWarn<
+  "template template parameter using 'typename' is a C++1z extension">,
+  InGroup<CXX1z>;
+def warn_cxx1y_compat_template_template_param_typename : Warning<
+  "template template parameter using 'typename' is "
+  "incompatible with C++ standards before C++1z">,
+  InGroup<CXXPre1zCompat>, DefaultIgnore;
 def err_template_spec_syntax_non_template : Error<
   "identifier followed by '<' indicates a class template specialization but "
-  "%0 %select{does not refer to a template|refers to a function "
-  "template|<unused>|refers to a template template parameter}1">;
+  "%0 %select{does not refer to a template|refers to a function template|"
+  "<unused>|refers to a variable template|<unused>}1">;
 def err_id_after_template_in_nested_name_spec : Error<
   "expected template name after 'template' keyword in nested name specifier">;
 def err_two_right_angle_brackets_need_space : Error<
@@ -639,16 +643,13 @@ def err_expected_qualified_after_typename : Error<
   "expected a qualified name after 'typename'">;
 def warn_expected_qualified_after_typename : ExtWarn<
   "expected a qualified name after 'typename'">;
-def err_expected_semi_after_tagdecl : Error<
-  "expected ';' after %0">;
 
 def err_typename_refers_to_non_type_template : Error<
-  "typename specifier refers to a non-template">;
+  "typename specifier refers to a non-type template">;
 def err_expected_type_name_after_typename : Error<
   "expected an identifier or template-id after '::'">;
 def err_explicit_spec_non_template : Error<
-  "explicit %select{specialization|instantiation}0 of non-template "
-  "%select{class|struct|union|interface}1 %2">;
+  "explicit %select{specialization|instantiation}0 of non-template %1 %2">;
   
 def err_default_template_template_parameter_not_template : Error<
   "default template argument for a template template parameter must be a class "
@@ -744,7 +745,8 @@ def warn_cxx98_compat_lambda : Warning<
   "lambda expressions are incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
 def err_lambda_missing_parens : Error<
-  "lambda requires '()' before %select{'mutable'|return type}0">;
+  "lambda requires '()' before %select{'mutable'|return type|"
+  "attribute specifier}0">;
 
 // Availability attribute
 def err_expected_version : Error<
@@ -753,6 +755,13 @@ def err_zero_version : Error<
   "version number must have non-zero major, minor, or sub-minor version">;
 def err_availability_expected_platform : Error<
   "expected a platform name, e.g., 'macosx'">;
+  
+// objc_bridge_related attribute
+def err_objcbridge_related_expected_related_class : Error<
+  "expected a related ObjectiveC class name, e.g., 'NSColor'">;
+def err_objcbridge_related_selector_name : Error<
+  "expected a class method selector with single argument, e.g., 'colorWithCGColor:'">;
+
 def err_availability_expected_change : Error<
   "expected 'introduced', 'deprecated', or 'obsoleted'">;
 def err_availability_unknown_change : Error<
@@ -769,35 +778,82 @@ def warn_availability_and_unavailable : Warning<
 def err_type_safety_unknown_flag : Error<
   "invalid comparison flag %0; use 'layout_compatible' or 'must_be_null'">;
 
+// Type traits
+def err_type_trait_arity : Error<
+  "type trait requires %0%select{| or more}1 argument%select{|s}2; have "
+  "%3 argument%s3">;
+
 // Language specific pragmas
 // - Generic warnings
 def warn_pragma_expected_lparen : Warning<
-  "missing '(' after '#pragma %0' - ignoring">;
+  "missing '(' after '#pragma %0' - ignoring">, InGroup<IgnoredPragmas>;
 def warn_pragma_expected_rparen : Warning<
-  "missing ')' after '#pragma %0' - ignoring">;
+  "missing ')' after '#pragma %0' - ignoring">, InGroup<IgnoredPragmas>;
 def warn_pragma_expected_identifier : Warning<
-  "expected identifier in '#pragma %0' - ignored">;  
+  "expected identifier in '#pragma %0' - ignored">, InGroup<IgnoredPragmas>;
+def warn_pragma_expected_section_name : Warning<
+  "expected a string literal for the section name in '#pragma %0' - ignored">,
+  InGroup<IgnoredPragmas>;
+def warn_pragma_expected_section_push_pop_or_name : Warning<
+  "expected push, pop or a string literal for the section name in '#pragma %0' - ignored">,
+  InGroup<IgnoredPragmas>;
+def warn_pragma_expected_section_label_or_name : Warning<
+  "expected a stack label or a string literal for the section name in '#pragma %0' - ignored">,
+  InGroup<IgnoredPragmas>;
+def warn_pragma_expected_init_seg : Warning<
+  "expected 'compiler', 'lib', 'user', or a string literal for the section name in '#pragma %0' - ignored">,
+  InGroup<IgnoredPragmas>;
+def warn_pragma_expected_integer : Warning<
+  "expected integer between %0 and %1 inclusive in '#pragma %2' - ignored">,
+  InGroup<IgnoredPragmas>;
 def warn_pragma_ms_struct : Warning<
-  "incorrect use of '#pragma ms_struct on|off' - ignored">;  
+  "incorrect use of '#pragma ms_struct on|off' - ignored">,
+  InGroup<IgnoredPragmas>;
 def warn_pragma_extra_tokens_at_eol : Warning<
-  "extra tokens at end of '#pragma %0' - ignored">; 
+  "extra tokens at end of '#pragma %0' - ignored">,
+  InGroup<IgnoredPragmas>;
+def warn_pragma_expected_punc : Warning<
+  "expected ')' or ',' in '#pragma %0'">, InGroup<IgnoredPragmas>;
+def warn_pragma_expected_non_wide_string : Warning<
+  "expected non-wide string literal in '#pragma %0'">, InGroup<IgnoredPragmas>;
+// - Generic errors
+def err_pragma_missing_argument : Error<
+  "missing argument to '#pragma %0'; expected %1">;
 // - #pragma options
 def warn_pragma_options_expected_align : Warning<
-  "expected 'align' following '#pragma options' - ignored">;
+  "expected 'align' following '#pragma options' - ignored">,
+  InGroup<IgnoredPragmas>;
 def warn_pragma_align_expected_equal : Warning<
-  "expected '=' following '#pragma %select{align|options align}0' - ignored">;
+  "expected '=' following '#pragma %select{align|options align}0' - ignored">,
+  InGroup<IgnoredPragmas>;
 def warn_pragma_align_invalid_option : Warning<
-  "invalid alignment option in '#pragma %select{align|options align}0' - ignored">;
+  "invalid alignment option in '#pragma %select{align|options align}0' - ignored">,
+  InGroup<IgnoredPragmas>;
 // - #pragma pack
-def warn_pragma_pack_invalid_action : Warning<
-  "unknown action for '#pragma pack' - ignored">;
+def warn_pragma_unsupported_action : Warning<
+  "known but unsupported action '%1' for '#pragma %0' - ignored">,
+  InGroup<IgnoredPragmas>;
+def warn_pragma_invalid_specific_action : Warning<
+  "unknown action '%1' for '#pragma %0' - ignored">,
+  InGroup<IgnoredPragmas>;
+def warn_pragma_expected_action_or_r_paren : Warning<
+  "expected action or ')' in '#pragma %0' - ignored">,
+  InGroup<IgnoredPragmas>;
+def warn_pragma_invalid_action : Warning<
+  "unknown action for '#pragma %0' - ignored">,
+  InGroup<IgnoredPragmas>;
 def warn_pragma_pack_malformed : Warning<
-  "expected integer or identifier in '#pragma pack' - ignored">;
+  "expected integer or identifier in '#pragma pack' - ignored">,
+  InGroup<IgnoredPragmas>;
 // - #pragma unused
 def warn_pragma_unused_expected_var : Warning<
-  "expected '#pragma unused' argument to be a variable name">;
-def warn_pragma_unused_expected_punc : Warning<
-  "expected ')' or ',' in '#pragma unused'">;
+  "expected '#pragma unused' argument to be a variable name">,
+  InGroup<IgnoredPragmas>;
+// - #pragma init_seg
+def warn_pragma_init_seg_unsupported_target : Warning<
+  "'#pragma init_seg' is only supported when targeting a "
+  "Microsoft environment">,
+  InGroup<IgnoredPragmas>;
 // - #pragma fp_contract
 def err_pragma_fp_contract_scope : Error<
   "'#pragma fp_contract' can only appear at file scope or at the start of a "
@@ -810,6 +866,16 @@ def err_pragma_comment_unknown_kind : Error<"unknown kind of pragma comment">;
 def err_pragma_detect_mismatch_malformed : Error<
   "pragma detect_mismatch is malformed; it requires two comma-separated "
   "string literals">;
+// - #pragma pointers_to_members
+def err_pragma_pointers_to_members_unknown_kind : Error<
+  "unexpected %0, expected to see one of %select{|'best_case', 'full_generality', }1"
+  "'single_inheritance', 'multiple_inheritance', or 'virtual_inheritance'">;
+// - #pragma clang optimize on/off
+def err_pragma_optimize_invalid_argument : Error<
+  "unexpected argument '%0' to '#pragma clang optimize'; "
+  "expected 'on' or 'off'">;
+def err_pragma_optimize_extra_argument : Error<
+  "unexpected extra argument '%0' to '#pragma clang optimize'">;
 
 // OpenCL Section 6.8.g
 def err_not_opencl_storage_class_specifier : Error<
@@ -817,11 +883,11 @@ def err_not_opencl_storage_class_specifier : Error<
 
 // OpenCL EXTENSION pragma (OpenCL 1.1 [9.1])
 def warn_pragma_expected_colon : Warning<
-  "missing ':' after %0 - ignoring">;
+  "missing ':' after %0 - ignoring">, InGroup<IgnoredPragmas>;
 def warn_pragma_expected_enable_disable : Warning<
-  "expected 'enable' or 'disable' - ignoring">;
+  "expected 'enable' or 'disable' - ignoring">, InGroup<IgnoredPragmas>;
 def warn_pragma_unknown_extension : Warning<
-  "unknown OpenCL extension %0 - ignoring">;
+  "unknown OpenCL extension %0 - ignoring">, InGroup<IgnoredPragmas>;
 
 def err_seh_expected_handler : Error<
   "expected '__except' or '__finally' block">;
@@ -836,21 +902,35 @@ def err_seh___finally_block : Error<
   "%0 only allowed in __finally block">;
 
 // OpenMP support.
-def warn_pragma_omp_ignored : Warning <
+def warn_pragma_omp_ignored : Warning<
   "unexpected '#pragma omp ...' in program">, InGroup<SourceUsesOpenMP>, DefaultIgnore;
-def warn_omp_extra_tokens_at_eol : Warning <
+def warn_omp_extra_tokens_at_eol : Warning<
   "extra tokens at the end of '#pragma omp %0' are ignored">,
   InGroup<ExtraTokens>;
-def err_omp_unknown_directive : Error <
+def err_omp_unknown_directive : Error<
   "expected an OpenMP directive">;
-def err_omp_unexpected_directive : Error <
+def err_omp_unexpected_directive : Error<
   "unexpected OpenMP directive '#pragma omp %0'">;
-def err_omp_expected_punc : Error <
-  "expected ',' or ')' in %select{'#pragma omp %1'|'%1' clause}0">;
-def err_omp_unexpected_clause : Error <
+def err_omp_expected_punc : Error<
+  "expected ',' or ')' in '%0' %select{clause|directive}1">;
+def err_omp_unexpected_clause : Error<
   "unexpected OpenMP clause '%0' in directive '#pragma omp %1'">;
-def err_omp_more_one_clause : Error <
+def err_omp_more_one_clause : Error<
   "directive '#pragma omp %0' cannot contain more than one '%1' clause">;
+def err_omp_immediate_directive : Error<
+  "'#pragma omp %0' cannot be an immediate substatement">;
+def err_omp_expected_identifier_for_critical : Error<
+  "expected identifier specifying the name of the 'omp critical' directive">;
+
+// Pragma loop support.
+def err_pragma_loop_invalid_option : Error<
+  "%select{invalid|missing}0 option%select{ %1|}0; expected vectorize, "
+  "vectorize_width, interleave, interleave_count, unroll, or unroll_count">;
+
+// Pragma unroll support.
+def warn_pragma_unroll_cuda_value_in_parens : Warning<
+  "argument to '#pragma unroll' should not be in parentheses in CUDA C/C++">,
+  InGroup<CudaCompat>;
 } // end of Parse Issue category.
 
 let CategoryName = "Modules Issue" in {

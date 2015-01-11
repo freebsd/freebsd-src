@@ -256,7 +256,13 @@ DWARFDebugLine::DumpStatementOpcodes(Log *log, const DWARFDataExtractor& debug_l
                             prologue.file_names.push_back(fileEntry);
                         }
                         break;
-
+                            
+                    case DW_LNE_set_discriminator:
+                        {
+                            uint64_t discriminator = debug_line_data.GetULEB128(&offset);
+                            log->Printf( "0x%8.8x: DW_LNE_set_discriminator (0x%" PRIx64 ")", op_offset, discriminator);
+                        }
+                        break;
                     default:
                         log->Printf( "0x%8.8x: DW_LNE_??? (%2.2x) - Skipping unknown upcode", op_offset, opcode);
                         // Length doesn't include the zero opcode byte or the length itself, but
@@ -412,7 +418,7 @@ DWARFDebugLine::ParsePrologue(const DWARFDataExtractor& debug_line_data, lldb::o
     const char * s;
     prologue->total_length      = debug_line_data.GetDWARFInitialLength(offset_ptr);
     prologue->version           = debug_line_data.GetU16(offset_ptr);
-    if (prologue->version != 2)
+    if (prologue->version < 2 || prologue->version > 3)
       return false;
 
     prologue->prologue_length   = debug_line_data.GetDWARFOffset(offset_ptr);
@@ -480,7 +486,7 @@ DWARFDebugLine::ParseSupportFiles (const lldb::ModuleSP &module_sp,
     (void)debug_line_data.GetDWARFInitialLength(&offset);
     const char * s;
     uint32_t version = debug_line_data.GetU16(&offset);
-    if (version != 2)
+    if (version < 2 || version > 3)
       return false;
 
     const dw_offset_t end_prologue_offset = debug_line_data.GetDWARFOffset(&offset) + offset;
@@ -666,7 +672,7 @@ DWARFDebugLine::ParseStatementTable
                 // The files are numbered, starting at 1, in the order in which they
                 // appear; the names in the prologue come before names defined by
                 // the DW_LNE_define_file instruction. These numbers are used in the
-                // the file register of the state machine.
+                // file register of the state machine.
                 {
                     FileNameEntry fileEntry;
                     fileEntry.name      = debug_line_data.GetCStr(offset_ptr);
@@ -789,7 +795,7 @@ DWARFDebugLine::ParseStatementTable
                 // as a multiple of LEB128 operands for each opcode.
                 {
                     uint8_t i;
-                    assert (opcode - 1 < prologue->standard_opcode_lengths.size());
+                    assert (static_cast<size_t>(opcode - 1) < prologue->standard_opcode_lengths.size());
                     const uint8_t opcode_length = prologue->standard_opcode_lengths[opcode - 1];
                     for (i=0; i<opcode_length; ++i)
                         debug_line_data.Skip_LEB128(offset_ptr);

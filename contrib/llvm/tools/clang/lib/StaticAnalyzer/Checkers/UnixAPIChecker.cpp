@@ -30,7 +30,7 @@ using namespace ento;
 
 namespace {
 class UnixAPIChecker : public Checker< check::PreStmt<CallExpr> > {
-  mutable OwningPtr<BugType> BT_open, BT_pthreadOnce, BT_mallocZero;
+  mutable std::unique_ptr<BugType> BT_open, BT_pthreadOnce, BT_mallocZero;
   mutable Optional<uint64_t> Val_O_CREAT;
 
 public:
@@ -57,19 +57,13 @@ private:
                             const unsigned numArgs,
                             const unsigned sizeArg,
                             const char *fn) const;
+  void LazyInitialize(std::unique_ptr<BugType> &BT, const char *name) const {
+    if (BT)
+      return;
+    BT.reset(new BugType(this, name, categories::UnixAPI));
+  }
 };
 } //end anonymous namespace
-
-//===----------------------------------------------------------------------===//
-// Utility functions.
-//===----------------------------------------------------------------------===//
-
-static inline void LazyInitialize(OwningPtr<BugType> &BT,
-                                  const char *name) {
-  if (BT)
-    return;
-  BT.reset(new BugType(name, categories::UnixAPI));
-}
 
 //===----------------------------------------------------------------------===//
 // "open" (man 2 open)
@@ -86,6 +80,7 @@ void UnixAPIChecker::CheckOpen(CheckerContext &C, const CallExpr *CE) const {
       // FIXME: We need a more general way of getting the O_CREAT value.
       // We could possibly grovel through the preprocessor state, but
       // that would require passing the Preprocessor object to the ExprEngine.
+      // See also: MallocChecker.cpp / M_ZERO.
       return;
     }
   }
@@ -119,7 +114,7 @@ void UnixAPIChecker::CheckOpen(CheckerContext &C, const CallExpr *CE) const {
 
   // Check if maskedFlags is non-zero.
   ProgramStateRef trueState, falseState;
-  llvm::tie(trueState, falseState) = state->assume(maskedFlags);
+  std::tie(trueState, falseState) = state->assume(maskedFlags);
 
   // Only emit an error if the value of 'maskedFlags' is properly
   // constrained;
@@ -199,7 +194,7 @@ static bool IsZeroByteAllocation(ProgramStateRef state,
                                 const SVal argVal,
                                 ProgramStateRef *trueState,
                                 ProgramStateRef *falseState) {
-  llvm::tie(*trueState, *falseState) =
+  std::tie(*trueState, *falseState) =
     state->assume(argVal.castAs<DefinedSVal>());
   
   return (*falseState && !*trueState);
@@ -207,7 +202,7 @@ static bool IsZeroByteAllocation(ProgramStateRef state,
 
 // Generates an error report, indicating that the function whose name is given
 // will perform a zero byte allocation.
-// Returns false if an error occured, true otherwise.
+// Returns false if an error occurred, true otherwise.
 bool UnixAPIChecker::ReportZeroByteAllocation(CheckerContext &C,
                                               ProgramStateRef falseState,
                                               const Expr *arg,
@@ -217,7 +212,7 @@ bool UnixAPIChecker::ReportZeroByteAllocation(CheckerContext &C,
     return false;
 
   LazyInitialize(BT_mallocZero,
-    "Undefined allocation of 0 bytes (CERT MEM04-C; CWE-131)");
+                 "Undefined allocation of 0 bytes (CERT MEM04-C; CWE-131)");
 
   SmallString<256> S;
   llvm::raw_svector_ostream os(S);    
@@ -244,7 +239,7 @@ void UnixAPIChecker::BasicAllocationCheck(CheckerContext &C,
 
   // Check if the allocation size is 0.
   ProgramStateRef state = C.getState();
-  ProgramStateRef trueState = NULL, falseState = NULL;
+  ProgramStateRef trueState = nullptr, falseState = nullptr;
   const Expr *arg = CE->getArg(sizeArg);
   SVal argVal = state->getSVal(arg, C.getLocationContext());
 
@@ -269,7 +264,7 @@ void UnixAPIChecker::CheckCallocZero(CheckerContext &C,
     return;
 
   ProgramStateRef state = C.getState();
-  ProgramStateRef trueState = NULL, falseState = NULL;
+  ProgramStateRef trueState = nullptr, falseState = nullptr;
 
   unsigned int i;
   for (i = 0; i < nArgs; i++) {
@@ -348,7 +343,7 @@ void UnixAPIChecker::checkPreStmt(const CallExpr *CE,
       .Case("reallocf", &UnixAPIChecker::CheckReallocfZero)
       .Cases("alloca", "__builtin_alloca", &UnixAPIChecker::CheckAllocaZero)
       .Case("valloc", &UnixAPIChecker::CheckVallocZero)
-      .Default(NULL);
+      .Default(nullptr);
 
   if (SC)
     (this->*SC)(C, CE);

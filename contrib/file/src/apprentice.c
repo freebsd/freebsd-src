@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: apprentice.c,v 1.227 2014/11/28 02:46:39 christos Exp $")
+FILE_RCSID("@(#)$File: apprentice.c,v 1.229 2015/01/01 17:07:34 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -528,6 +528,7 @@ file_ms_alloc(int flags)
 	ms->name_max = FILE_NAME_MAX;
 	ms->elf_shnum_max = FILE_ELF_SHNUM_MAX;
 	ms->elf_phnum_max = FILE_ELF_PHNUM_MAX;
+	ms->elf_notes_max = FILE_ELF_NOTES_MAX;
 	return ms;
 free:
 	free(ms);
@@ -1604,6 +1605,145 @@ check_cond(struct magic_set *ms, int cond, uint32_t cont_level)
 }
 #endif /* ENABLE_CONDITIONALS */
 
+private int
+parse_indirect_modifier(struct magic_set *ms, struct magic *m, const char **lp)
+{
+	const char *l = *lp;
+
+	while (!isspace((unsigned char)*++l))
+		switch (*l) {
+		case CHAR_INDIRECT_RELATIVE:
+			m->str_flags |= INDIRECT_RELATIVE;
+			break;
+		default:
+			if (ms->flags & MAGIC_CHECK)
+				file_magwarn(ms, "indirect modifier `%c' "
+					"invalid", *l);
+			*lp = l;
+			return -1;
+		}
+	*lp = l;
+	return 0;
+}
+
+private void
+parse_op_modifier(struct magic_set *ms, struct magic *m, const char **lp,
+    int op)
+{
+	const char *l = *lp;
+	char *t;
+	uint64_t val;
+
+	++l;
+	m->mask_op |= op;
+	val = (uint64_t)strtoull(l, &t, 0);
+	l = t;
+	m->num_mask = file_signextend(ms, m, val);
+	eatsize(&l);
+	*lp = l;
+}
+
+private int
+parse_string_modifier(struct magic_set *ms, struct magic *m, const char **lp)
+{
+	const char *l = *lp;
+	char *t;
+	int have_range = 0;
+
+	while (!isspace((unsigned char)*++l)) {
+		switch (*l) {
+		case '0':  case '1':  case '2':
+		case '3':  case '4':  case '5':
+		case '6':  case '7':  case '8':
+		case '9':
+			if (have_range && (ms->flags & MAGIC_CHECK))
+				file_magwarn(ms, "multiple ranges");
+			have_range = 1;
+			m->str_range = CAST(uint32_t, strtoul(l, &t, 0));
+			if (m->str_range == 0)
+				file_magwarn(ms, "zero range");
+			l = t - 1;
+			break;
+		case CHAR_COMPACT_WHITESPACE:
+			m->str_flags |= STRING_COMPACT_WHITESPACE;
+			break;
+		case CHAR_COMPACT_OPTIONAL_WHITESPACE:
+			m->str_flags |= STRING_COMPACT_OPTIONAL_WHITESPACE;
+			break;
+		case CHAR_IGNORE_LOWERCASE:
+			m->str_flags |= STRING_IGNORE_LOWERCASE;
+			break;
+		case CHAR_IGNORE_UPPERCASE:
+			m->str_flags |= STRING_IGNORE_UPPERCASE;
+			break;
+		case CHAR_REGEX_OFFSET_START:
+			m->str_flags |= REGEX_OFFSET_START;
+			break;
+		case CHAR_BINTEST:
+			m->str_flags |= STRING_BINTEST;
+			break;
+		case CHAR_TEXTTEST:
+			m->str_flags |= STRING_TEXTTEST;
+			break;
+		case CHAR_TRIM:
+			m->str_flags |= STRING_TRIM;
+			break;
+		case CHAR_PSTRING_1_LE:
+#define SET_LENGTH(a) m->str_flags = (m->str_flags & ~PSTRING_LEN) | (a)
+			if (m->type != FILE_PSTRING)
+				goto bad;
+			SET_LENGTH(PSTRING_1_LE);
+			break;
+		case CHAR_PSTRING_2_BE:
+			if (m->type != FILE_PSTRING)
+				goto bad;
+			SET_LENGTH(PSTRING_2_BE);
+			break;
+		case CHAR_PSTRING_2_LE:
+			if (m->type != FILE_PSTRING)
+				goto bad;
+			SET_LENGTH(PSTRING_2_LE);
+			break;
+		case CHAR_PSTRING_4_BE:
+			if (m->type != FILE_PSTRING)
+				goto bad;
+			SET_LENGTH(PSTRING_4_BE);
+			break;
+		case CHAR_PSTRING_4_LE:
+			switch (m->type) {
+			case FILE_PSTRING:
+			case FILE_REGEX:
+				break;
+			default:
+				goto bad;
+			}
+			SET_LENGTH(PSTRING_4_LE);
+			break;
+		case CHAR_PSTRING_LENGTH_INCLUDES_ITSELF:
+			if (m->type != FILE_PSTRING)
+				goto bad;
+			m->str_flags |= PSTRING_LENGTH_INCLUDES_ITSELF;
+			break;
+		default:
+		bad:
+			if (ms->flags & MAGIC_CHECK)
+				file_magwarn(ms, "string modifier `%c' "
+					"invalid", *l);
+			goto out;
+		}
+		/* allow multiple '/' for readability */
+		if (l[1] == '/' && !isspace((unsigned char)l[2]))
+			l++;
+	}
+	if (string_modifier_check(ms, m) == -1)
+		goto out;
+	*lp = l;
+	return 0;
+out:
+	*lp = l;
+	return -1;
+}
+
 /*
  * parse one line from magic file, put into magic[index++] if valid
  */
@@ -1873,118 +2013,27 @@ parse(struct magic_set *ms, struct magic_entry *me, const char *line,
 	m->str_range = 0;
 	m->str_flags = m->type == FILE_PSTRING ? PSTRING_1_LE : 0;
 	if ((op = get_op(*l)) != -1) {
-		if (!IS_STRING(m->type)) {
-			uint64_t val;
-			++l;
-			m->mask_op |= op;
-			val = (uint64_t)strtoull(l, &t, 0);
-			l = t;
-			m->num_mask = file_signextend(ms, m, val);
-			eatsize(&l);
-		}
-		else if (op == FILE_OPDIVIDE) {
-			int have_range = 0;
-			while (!isspace((unsigned char)*++l)) {
-				switch (*l) {
-				case '0':  case '1':  case '2':
-				case '3':  case '4':  case '5':
-				case '6':  case '7':  case '8':
-				case '9':
-					if (have_range &&
-					    (ms->flags & MAGIC_CHECK))
-						file_magwarn(ms,
-						    "multiple ranges");
-					have_range = 1;
-					m->str_range = CAST(uint32_t,
-					    strtoul(l, &t, 0));
-					if (m->str_range == 0)
-						file_magwarn(ms,
-						    "zero range");
-					l = t - 1;
-					break;
-				case CHAR_COMPACT_WHITESPACE:
-					m->str_flags |=
-					    STRING_COMPACT_WHITESPACE;
-					break;
-				case CHAR_COMPACT_OPTIONAL_WHITESPACE:
-					m->str_flags |=
-					    STRING_COMPACT_OPTIONAL_WHITESPACE;
-					break;
-				case CHAR_IGNORE_LOWERCASE:
-					m->str_flags |= STRING_IGNORE_LOWERCASE;
-					break;
-				case CHAR_IGNORE_UPPERCASE:
-					m->str_flags |= STRING_IGNORE_UPPERCASE;
-					break;
-				case CHAR_REGEX_OFFSET_START:
-					m->str_flags |= REGEX_OFFSET_START;
-					break;
-				case CHAR_BINTEST:
-					m->str_flags |= STRING_BINTEST;
-					break;
-				case CHAR_TEXTTEST:
-					m->str_flags |= STRING_TEXTTEST;
-					break;
-				case CHAR_TRIM:
-					m->str_flags |= STRING_TRIM;
-					break;
-				case CHAR_PSTRING_1_LE:
-					if (m->type != FILE_PSTRING)
-						goto bad;
-					m->str_flags = (m->str_flags & ~PSTRING_LEN) | PSTRING_1_LE;
-					break;
-				case CHAR_PSTRING_2_BE:
-					if (m->type != FILE_PSTRING)
-						goto bad;
-					m->str_flags = (m->str_flags & ~PSTRING_LEN) | PSTRING_2_BE;
-					break;
-				case CHAR_PSTRING_2_LE:
-					if (m->type != FILE_PSTRING)
-						goto bad;
-					m->str_flags = (m->str_flags & ~PSTRING_LEN) | PSTRING_2_LE;
-					break;
-				case CHAR_PSTRING_4_BE:
-					if (m->type != FILE_PSTRING)
-						goto bad;
-					m->str_flags = (m->str_flags & ~PSTRING_LEN) | PSTRING_4_BE;
-					break;
-				case CHAR_PSTRING_4_LE:
-					switch (m->type) {
-					case FILE_PSTRING:
-					case FILE_REGEX:
-						break;
-					default:
-						goto bad;
-					}
-					m->str_flags = (m->str_flags & ~PSTRING_LEN) | PSTRING_4_LE;
-					break;
-				case CHAR_PSTRING_LENGTH_INCLUDES_ITSELF:
-					if (m->type != FILE_PSTRING)
-						goto bad;
-					m->str_flags |= PSTRING_LENGTH_INCLUDES_ITSELF;
-					break;
-				default:
-				bad:
-					if (ms->flags & MAGIC_CHECK)
-						file_magwarn(ms,
-						    "string extension `%c' "
-						    "invalid", *l);
-					return -1;
-				}
-				/* allow multiple '/' for readability */
-				if (l[1] == '/' &&
-				    !isspace((unsigned char)l[2]))
-					l++;
-			}
-			if (string_modifier_check(ms, m) == -1)
+		if (IS_STRING(m->type)) {
+			int r;
+
+			if (op != FILE_OPDIVIDE) {
+				if (ms->flags & MAGIC_CHECK)
+					file_magwarn(ms,
+					    "invalid string/indirect op: "
+					    "`%c'", *t);
 				return -1;
-		}
-		else {
-			if (ms->flags & MAGIC_CHECK)
-				file_magwarn(ms, "invalid string op: %c", *t);
-			return -1;
-		}
+			}
+
+			if (m->type == FILE_INDIRECT)
+				r = parse_indirect_modifier(ms, m, &l);
+			else
+				r = parse_string_modifier(ms, m, &l);
+			if (r == -1)
+				return -1;
+		} else
+			parse_op_modifier(ms, m, &l, op);
 	}
+
 	/*
 	 * We used to set mask to all 1's here, instead let's just not do
 	 * anything if mask = 0 (unless you have a better idea)

@@ -18,7 +18,6 @@
 #include <vector>
 
 // Other libraries and framework includes
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallVector.h"
 #include "clang/AST/TemplateBase.h"
 
@@ -44,6 +43,9 @@ public:
     ClangASTContext (const char *triple = NULL);
 
     ~ClangASTContext();
+    
+    static ClangASTContext*
+    GetASTContext (clang::ASTContext* ast_ctx);
 
     clang::ASTContext *
     getASTContext();
@@ -72,8 +74,7 @@ public:
     clang::DiagnosticConsumer *
     getDiagnosticConsumer();
 
-    clang::TargetOptions *
-    getTargetOptions();
+    std::shared_ptr<clang::TargetOptions> &getTargetOptions();
 
     clang::TargetInfo *
     getTargetInfo();
@@ -94,7 +95,7 @@ public:
     HasExternalSource ();
 
     void
-    SetExternalSource (llvm::OwningPtr<clang::ExternalASTSource> &ast_source_ap);
+    SetExternalSource (llvm::IntrusiveRefCntPtr<clang::ExternalASTSource> &ast_source_ap);
 
     void
     RemoveExternalSource ();
@@ -259,8 +260,8 @@ public:
             return 0;
         }
 
-        llvm::SmallVector<const char *, 8> names;
-        llvm::SmallVector<clang::TemplateArgument, 8> args;        
+        llvm::SmallVector<const char *, 2> names;
+        llvm::SmallVector<clang::TemplateArgument, 2> args;
     };
 
     clang::FunctionTemplateDecl *
@@ -395,6 +396,29 @@ public:
                            const ClangASTType &integer_qual_type);
     
     //------------------------------------------------------------------
+    // Integer type functions
+    //------------------------------------------------------------------
+    
+    ClangASTType
+    GetIntTypeFromBitSize (size_t bit_size, bool is_signed)
+    {
+        return GetIntTypeFromBitSize (getASTContext(), bit_size, is_signed);
+    }
+    
+    static ClangASTType
+    GetIntTypeFromBitSize (clang::ASTContext *ast,
+                           size_t bit_size, bool is_signed);
+    
+    ClangASTType
+    GetPointerSizedIntType (bool is_signed)
+    {
+        return GetPointerSizedIntType (getASTContext(), is_signed);
+    }
+    
+    static ClangASTType
+    GetPointerSizedIntType (clang::ASTContext *ast, bool is_signed);
+    
+    //------------------------------------------------------------------
     // Floating point functions
     //------------------------------------------------------------------
     
@@ -419,7 +443,7 @@ protected:
     std::unique_ptr<clang::SourceManager>           m_source_manager_ap;
     std::unique_ptr<clang::DiagnosticsEngine>       m_diagnostics_engine_ap;
     std::unique_ptr<clang::DiagnosticConsumer>      m_diagnostic_consumer_ap;
-    llvm::IntrusiveRefCntPtr<clang::TargetOptions>  m_target_options_rp;
+    std::shared_ptr<clang::TargetOptions>           m_target_options_rp;
     std::unique_ptr<clang::TargetInfo>              m_target_info_ap;
     std::unique_ptr<clang::IdentifierTable>         m_identifier_table_ap;
     std::unique_ptr<clang::SelectorTable>           m_selector_table_ap;
