@@ -606,6 +606,13 @@
       applications to work over compatible
       <acronym>NIC</acronym>s.</para>
 
+    <para revision="274394">The &man.bsdconfig.8; utility has been
+      updated to skip the initial &man.tzsetup.8;
+      <acronym>UTC</acronym> versus wall-clock time prompt when run
+      in a virtual machine, determined when the
+      <literal>kern.vm_guest</literal> &man.sysctl.8; is set to
+      <literal>1</literal>.</para>
+
     <sect3 xml:id="abi-compat">
       <title><acronym>ABI</acronym> Compatibility</title>
 
