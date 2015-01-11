@@ -745,6 +745,13 @@
     <para revision="275718">The <application>binutils</application>
       suite of utilities has been updated to include upstream patches
       that add new relocations for &arch.powerpc; support.</para>
+
+    <para revision="276551">The <application>texinfo</application>
+      utility and <literal>info</literal> pages were removed from the
+      base system.  The <filename
+	role="package">print/texinfo</filename> port should be
+      installed on systems where <literal>info</literal> pages are
+      needed.</para>
   </sect2>
 
   <sect2 xml:id="ports">
