@@ -1093,7 +1093,7 @@ is_wildcard_addr(struct sockaddr_storage *sas)
 #ifdef INCLUDE_IPV6_SUPPORT
 	if (sas->ss_family == AF_INET6 &&
 	    memcmp(&((struct sockaddr_in6*)sas)->sin6_addr, &in6addr_any,
-		   sizeof(in6addr_any) == 0))
+		   sizeof(in6addr_any)) == 0)
 		return 1;
 #endif
 
