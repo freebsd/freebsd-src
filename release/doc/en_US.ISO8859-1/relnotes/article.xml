@@ -319,6 +319,11 @@
 	  driver is analogous to &man.vlan.4;, but is designed to be
 	  better suited for large, multiple-tenant datacenter
 	  environments.</para>
+
+	<para revision="274246" contrib="sponsor"
+	  sponsor="&yandex;">The &man.gre.4; driver has been
+	  significantly overhauled, and has been split into two
+	  separate modules, &man.gre.4; and &man.me.4;.</para>
       </sect4>
     </sect3>
 
