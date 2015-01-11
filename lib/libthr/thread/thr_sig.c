@@ -515,23 +515,6 @@ _thr_signal_deinit(void)
 }
 
 int
-__thr_pause(void)
-{
-	sigset_t oset;
-
-	if (_sigprocmask(SIG_BLOCK, NULL, &oset) == -1)
-		return (-1);
-	return (__thr_sigsuspend(&oset));
-}
-
-int
-__thr_raise(int sig)
-{
-
-	return (_thr_send_sig(_get_curthread(), sig));
-}
-
-int
 __thr_sigaction(int sig, const struct sigaction *act, struct sigaction *oact)
 {
 	struct sigaction newact, oldact, oldact2;

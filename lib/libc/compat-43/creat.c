@@ -38,21 +38,16 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 
-__weak_reference(__libc_creat, __creat);
-__weak_reference(__libc_creat, _creat);
+__weak_reference(__creat, creat);
+__weak_reference(__creat, _creat);
 
 #pragma weak creat
 int
-creat(const char *path, mode_t mode)
+__creat(const char *path, mode_t mode)
 {
 
-	return (((int (*)(const char *, mode_t))
-	    __libc_interposing[INTERPOS_creat])(path, mode));
+	return (((int (*)(int, const char *, int, ...))
+	    __libc_interposing[INTERPOS_openat])(AT_FDCWD, path, O_WRONLY |
+	    O_CREAT | O_TRUNC, mode));
 }
 
-int
-__libc_creat(const char *path, mode_t mode)
-{
-
-	return(__sys_open(path, O_WRONLY | O_CREAT | O_TRUNC, mode));
-}

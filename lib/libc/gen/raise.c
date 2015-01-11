@@ -38,21 +38,15 @@ __FBSDID("$FreeBSD$");
 
 #include "libc_private.h"
 
-__weak_reference(__libc_raise, __raise);
-__weak_reference(__libc_raise, _raise);
-
-#pragma weak raise
-int
-raise(int s)
-{
-
-	return (((int (*)(int))
-	    __libc_interposing[INTERPOS_raise])(s));
-}
+__weak_reference(__raise, raise);
+__weak_reference(__raise, _raise);
 
 int
-__libc_raise(int s)
+__raise(int s)
 {
+	long id;
 
-	return (kill(getpid(), s));
+	if (__sys_thr_self(&id) == -1)
+		return (-1);
+	return (__sys_thr_kill(id, s));
 }

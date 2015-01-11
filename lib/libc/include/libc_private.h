@@ -187,17 +187,14 @@ enum {
 	INTERPOS_aio_suspend,
 	INTERPOS_close,
 	INTERPOS_connect,
-	INTERPOS_creat,
 	INTERPOS_fcntl,
 	INTERPOS_fsync,
 	INTERPOS_fork,
 	INTERPOS_msync,
 	INTERPOS_nanosleep,
-	INTERPOS_open,
 	INTERPOS_openat,
 	INTERPOS_poll,
 	INTERPOS_pselect,
-	INTERPOS_raise,
 	INTERPOS_recvfrom,
 	INTERPOS_recvmsg,
 	INTERPOS_select,
@@ -212,16 +209,10 @@ enum {
 	INTERPOS_sigwaitinfo,
 	INTERPOS_swapcontext,
 	INTERPOS_system,
-	INTERPOS_sleep,
 	INTERPOS_tcdrain,
-	INTERPOS_usleep,
-	INTERPOS_pause,
 	INTERPOS_read,
 	INTERPOS_readv,
-	INTERPOS_wait,
-	INTERPOS_wait3,
 	INTERPOS_wait4,
-	INTERPOS_waitpid,
 	INTERPOS_write,
 	INTERPOS_writev,
 	INTERPOS__pthread_mutex_init_calloc_cb,
@@ -353,23 +344,17 @@ int		__sys_sigwait(const __sigset_t *, int *);
 int		__sys_sigwaitinfo(const __sigset_t *, struct __siginfo *);
 int		__sys_swapcontext(struct __ucontext *,
 		    const struct __ucontext *);
+int		__sys_thr_kill(long, int);
+int		__sys_thr_self(long *);
 int		__sys_truncate(const char *, __off_t);
 __pid_t		__sys_wait4(__pid_t, int *, int, struct rusage *);
 __ssize_t	__sys_write(int, const void *, __size_t);
 __ssize_t	__sys_writev(int, const struct iovec *, int);
 
-int		__libc_creat(const char *path, __mode_t mode);
-int		__libc_pause(void);
-int		__libc_raise(int);
 int		__libc_sigwait(const __sigset_t * __restrict,
 		    int * restrict sig);
 int		__libc_system(const char *);
-unsigned int	__libc_sleep(unsigned int);
 int		__libc_tcdrain(int);
-int		__libc_usleep(__useconds_t);
-__pid_t		__libc_wait(int *);
-__pid_t		__libc_wait3(int *, int, struct rusage *);
-__pid_t		__libc_waitpid(__pid_t, int *, int);
 int		__fcntl_compat(int fd, int cmd, ...);
 
 /* execve() with PATH processing to implement posix_spawnp() */

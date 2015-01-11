@@ -99,10 +99,6 @@ __FBSDID("$FreeBSD$");
 extern int __fcntl_compat(int, int, ...);
 #endif
 
-/*
- * Cancellation behavior:
- *   If thread is canceled, no socket is created.
- */
 static int
 __thr_accept(int s, struct sockaddr *addr, socklen_t *addrlen)
 {
@@ -189,25 +185,6 @@ __thr_connect(int fd, const struct sockaddr *name, socklen_t namelen)
  	return (ret);
 }
 
-
-/*
- * Cancellation behavior:
- *   If thread is canceled, file is not created.
- */
-static int
-__thr_creat(const char *path, mode_t mode)
-{
-	struct pthread *curthread;
-	int ret;
-
-	curthread = _get_curthread();
-	_thr_cancel_enter(curthread);
-	ret = __libc_creat(path, mode);
-	_thr_cancel_leave(curthread, ret == -1);
-	
-	return (ret);
-}
-
 /*
  * Cancellation behavior:
  *   According to specification, only F_SETLKW is a cancellation point.
@@ -291,35 +268,6 @@ __thr_nanosleep(const struct timespec *time_to_sleep,
 	_thr_cancel_enter(curthread);
 	ret = __sys_nanosleep(time_to_sleep, time_remaining);
 	_thr_cancel_leave(curthread, 1);
-
-	return (ret);
-}
-
-/*
- * Cancellation behavior:
- *   If the thread is canceled, file is not opened.
- */
-static int
-__thr_open(const char *path, int flags,...)
-{
-	struct pthread *curthread;
-	int mode, ret;
-	va_list	ap;
-
-	/* Check if the file is being created: */
-	if ((flags & O_CREAT) != 0) {
-		/* Get the creation mode: */
-		va_start(ap, flags);
-		mode = va_arg(ap, int);
-		va_end(ap);
-	} else {
-		mode = 0;
-	}
-	
-	curthread = _get_curthread();
-	_thr_cancel_enter(curthread);
-	ret = __sys_open(path, flags, mode);
-	_thr_cancel_leave(curthread, ret == -1);
 
 	return (ret);
 }
@@ -523,19 +471,6 @@ __thr_sendto(int s, const void *m, size_t l, int f, const struct sockaddr *t,
 	return (ret);
 }
 
-static unsigned int
-__thr_sleep(unsigned int seconds)
-{
-	struct pthread *curthread;
-	unsigned int ret;
-
-	curthread = _get_curthread();
-	_thr_cancel_enter(curthread);
-	ret = __libc_sleep(seconds);
-	_thr_cancel_leave(curthread, 1);
-	return (ret);
-}
-
 static int
 __thr_system(const char *string)
 {
@@ -567,55 +502,6 @@ __thr_tcdrain(int fd)
 	return (ret);
 }
 
-static int
-__thr_usleep(useconds_t useconds)
-{
-	struct pthread *curthread;
-	int ret;
-
-	curthread = _get_curthread();
-	_thr_cancel_enter(curthread);
-	ret = __libc_usleep(useconds);
-	_thr_cancel_leave(curthread, 1);
-	return (ret);
-}
-
-/*
- * Cancellation behavior:
- *   Thread may be canceled at start, but if the system call returns
- *   a child pid, the thread is not canceled.
- */
-static pid_t
-__thr_wait(int *istat)
-{
-	struct pthread *curthread;
-	pid_t ret;
-
-	curthread = _get_curthread();
-	_thr_cancel_enter(curthread);
-	ret = __libc_wait(istat);
-	_thr_cancel_leave(curthread, ret <= 0);
-	return (ret);
-}
-
-/*
- * Cancellation behavior:
- *   Thread may be canceled at start, but if the system call returns
- *   a child pid, the thread is not canceled.
- */
-static pid_t
-__thr_wait3(int *status, int options, struct rusage *rusage)
-{
-	struct pthread *curthread;
-	pid_t ret;
-
-	curthread = _get_curthread();
-	_thr_cancel_enter(curthread);
-	ret = __libc_wait3(status, options, rusage);
-	_thr_cancel_leave(curthread, ret <= 0);
-	return (ret);
-}
-
 /*
  * Cancellation behavior:
  *   Thread may be canceled at start, but if the system call returns
@@ -630,24 +516,6 @@ __thr_wait4(pid_t pid, int *status, int options, struct rusage *rusage)
 	curthread = _get_curthread();
 	_thr_cancel_enter(curthread);
 	ret = __sys_wait4(pid, status, options, rusage);
-	_thr_cancel_leave(curthread, ret <= 0);
-	return (ret);
-}
-
-/*
- * Cancellation behavior:
- *   Thread may be canceled at start, but if the system call returns
- *   a child pid, the thread is not canceled.
- */
-static pid_t
-__thr_waitpid(pid_t wpid, int *status, int options)
-{
-	struct pthread *curthread;
-	pid_t ret;
-
-	curthread = _get_curthread();
-	_thr_cancel_enter(curthread);
-	ret = __libc_waitpid(wpid, status, options);
 	_thr_cancel_leave(curthread, ret <= 0);
 	return (ret);
 }
@@ -701,17 +569,14 @@ __thr_interpose_libc(void)
 	SLOT(aio_suspend);
 	SLOT(close);
 	SLOT(connect);
-	SLOT(creat);
 	SLOT(fcntl);
 	SLOT(fsync);
 	SLOT(fork);
 	SLOT(msync);
 	SLOT(nanosleep);
-	SLOT(open);
 	SLOT(openat);
 	SLOT(poll);
 	SLOT(pselect);
-	SLOT(raise);
 	SLOT(read);
 	SLOT(readv);
 	SLOT(recvfrom);
@@ -728,14 +593,8 @@ __thr_interpose_libc(void)
 	SLOT(sigwaitinfo);
 	SLOT(swapcontext);
 	SLOT(system);
-	SLOT(sleep);
 	SLOT(tcdrain);
-	SLOT(usleep);
-	SLOT(pause);
-	SLOT(wait);
-	SLOT(wait3);
 	SLOT(wait4);
-	SLOT(waitpid);
 	SLOT(write);
 	SLOT(writev);
 #undef SLOT
