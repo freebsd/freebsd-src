@@ -636,6 +636,10 @@
       providing a wrapper around the &man.gpio.4; kernel
       interface.</para>
 
+    <para revision="275680" contrib="sponsor" sponsor="&ff;">The
+      &man.fstyp.8; utility has been added, which is used to determine
+      the filesystem on a specified device.</para>
+
     <sect3 xml:id="abi-compat">
       <title><acronym>ABI</acronym> Compatibility</title>
 
