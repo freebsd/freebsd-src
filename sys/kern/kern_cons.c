@@ -505,6 +505,13 @@ cnputs(char *p)
 	int unlock_reqd = 0;
 
 	if (use_cnputs_mtx) {
+	  	/*
+		 * NOTE: Debug prints and/or witness printouts in
+		 * console driver clients can cause the "cnputs_mtx"
+		 * mutex to recurse. Simply return if that happens.
+		 */
+		if (mtx_owned(&cnputs_mtx))
+			return;
 		mtx_lock_spin(&cnputs_mtx);
 		unlock_reqd = 1;
 	}
