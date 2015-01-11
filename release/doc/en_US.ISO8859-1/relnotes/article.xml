@@ -444,15 +444,15 @@
     <sect3 xml:id="fs">
       <title>File Systems</title>
 
-	<para revision="r270096" contrib="sponsor" sponsor="&ff;">The
-	  new filesystem automount facility, &man.autofs.5;, has been
-	  added.  The new &man.autofs.5; facility is similar to that
-	  found in other &unix;-like operating systems, such as
-	  OS&nbsp;X&trade; and Solaris&trade;.  The &man.autofs.5;
-	  facility uses a &sun;-compatible &man.auto.master.5;
-	  configuration file, and is administered with the
-	  &man.automount.8; userland utility, and the
-	  &man.automountd.8; and &man.autounmountd.8; daemons.</para>
+      <para revision="270096" contrib="sponsor" sponsor="&ff;">The
+	new filesystem automount facility, &man.autofs.5;, has been
+	added.  The new &man.autofs.5; facility is similar to that
+	found in other &unix;-like operating systems, such as
+	OS&nbsp;X&trade; and Solaris&trade;.  The &man.autofs.5;
+	facility uses a &sun;-compatible &man.auto.master.5;
+	configuration file, and is administered with the
+	&man.automount.8; userland utility, and the &man.automountd.8;
+	and &man.autounmountd.8; daemons.</para>
 
       <sect4 xml:id="fs-zfs">
 	<title>ZFS</title>
