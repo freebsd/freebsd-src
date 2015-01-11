@@ -653,6 +653,10 @@
       &man.fstyp.8; utility has been added, which is used to determine
       the filesystem on a specified device.</para>
 
+    <para revision="275874">The &man.bsdinstall.8; utility has been
+      updated to use the new &man.dpv.3; library to display progress
+      when extracting the &os; distributions.</para>
+
     <sect3 xml:id="abi-compat">
       <title><acronym>ABI</acronym> Compatibility</title>
 
