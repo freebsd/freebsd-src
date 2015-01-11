@@ -464,7 +464,13 @@
       <sect4 xml:id="fs-zfs">
 	<title>ZFS</title>
 
-	<para>&nbsp;</para>
+	<para revision="275748">The <literal>arc_meta_limit</literal>
+	  statistics are now visible through the
+	  <literal>kstat</literal> &man.sysctl.8;.  As a result of
+	  this change, the <literal>vfs.zfs.arc_meta_used</literal>
+	  &man.sysctl.8; has been removed, and replaced with the
+	  <literal>kstat.zfs.misc.arcstats.arc_meta_used</literal>
+	  &man.sysctl.8;.</para>
       </sect4>
     </sect3>
   </sect2>
