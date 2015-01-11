@@ -213,6 +213,10 @@
       certain &arch.powerpc; hardware, such as aluminum
       PowerBook&nbsp;&reg;.</para>
 
+    <para revision="275171,275190" arch="powerpc">The &man.hwpmc.4;
+      driver has been updated to correct performance counter sampling
+      on G4 (MPC74xxx) and G5 class processors.</para>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization Support</title>
 
