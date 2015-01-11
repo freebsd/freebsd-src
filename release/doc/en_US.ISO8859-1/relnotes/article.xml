@@ -649,6 +649,11 @@
 	  class="directory">&dollar;{LOCALBASE}/etc/rc.conf.d/</filename>.
 	If <literal>LOCALBASE</literal> is unset, it defaults to
 	<filename class="directory">/usr/local</filename>.</para>
+
+      <para revision="275299">The <filename>mrouted</filename>
+	&man.rc.8; script has been removed from the base system.  An
+	equivalent script is available from the <filename
+	  role="package">net/mrouted</filename> port.</para>
     </sect3>
 
     <sect3 xml:id="periodic-scripts">
