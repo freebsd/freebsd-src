@@ -5,7 +5,8 @@
 OPENSM=	${.CURDIR}/../../management/opensm
 .PATH:	${OPENSM}/osmtest ${OPENSM}/man
 
-BINDIR=	${TESTSBASE}/usr.bin/opensm
+# NOTE: FreeBSD-9 has currently no ${TESTSBASE}
+#BINDIR=	${TESTSBASE}/usr.bin/opensm
 PROG=	osmtest
 
 SRCS=	main.c \
