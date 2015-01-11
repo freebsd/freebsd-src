@@ -622,6 +622,10 @@
       updated to support capability mode provided by
       &man.capsicum.4;.</para>
 
+    <para revision="274987">The &man.gpio.3; library has been added,
+      providing a wrapper around the &man.gpio.4; kernel
+      interface.</para>
+
     <sect3 xml:id="abi-compat">
       <title><acronym>ABI</acronym> Compatibility</title>
 
