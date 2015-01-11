@@ -984,7 +984,6 @@ sdhci_finish_data(struct sdhci_slot *slot)
 {
 	struct mmc_data *data = slot->curcmd->data;
 
-	slot->data_done = 1;
 	/* Interrupt aggregation: Restore command interrupt.
 	 * Auxiliary restore point for the case when data interrupt
 	 * happened first. */
@@ -993,7 +992,7 @@ sdhci_finish_data(struct sdhci_slot *slot)
 		    slot->intmask |= SDHCI_INT_RESPONSE);
 	}
 	/* Unload rest of data from DMA buffer. */
-	if (slot->flags & SDHCI_USE_DMA) {
+	if (!slot->data_done && (slot->flags & SDHCI_USE_DMA)) {
 		if (data->flags & MMC_DATA_READ) {
 			size_t left = data->len - slot->offset;
 			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
@@ -1004,6 +1003,7 @@ sdhci_finish_data(struct sdhci_slot *slot)
 			bus_dmamap_sync(slot->dmatag, slot->dmamap, 
 			    BUS_DMASYNC_POSTWRITE);
 	}
+	slot->data_done = 1;
 	/* If there was error - reset the host. */
 	if (slot->curcmd->error) {
 		sdhci_reset(slot, SDHCI_RESET_CMD);
@@ -1171,12 +1171,7 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 	}
 	if (slot->curcmd->error) {
 		/* No need to continue after any error. */
-		if (slot->flags & PLATFORM_DATA_STARTED) {
-			slot->flags &= ~PLATFORM_DATA_STARTED;
-			SDHCI_PLATFORM_FINISH_TRANSFER(slot->bus, slot);
-		} else
-			sdhci_finish_data(slot);
-		return;
+		goto done;
 	}
 
 	/* Handle PIO interrupt. */
@@ -1232,6 +1227,15 @@ sdhci_data_irq(struct sdhci_slot *slot, uint32_t intmask)
 			SDHCI_PLATFORM_FINISH_TRANSFER(slot->bus, slot);
 		} else
 			sdhci_finish_data(slot);
+	}
+done:
+	if (slot->curcmd != NULL && slot->curcmd->error != 0) {
+		if (slot->flags & PLATFORM_DATA_STARTED) {
+			slot->flags &= ~PLATFORM_DATA_STARTED;
+			SDHCI_PLATFORM_FINISH_TRANSFER(slot->bus, slot);
+		} else
+			sdhci_finish_data(slot);
+		return;
 	}
 }
 
