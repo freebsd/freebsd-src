@@ -1044,14 +1044,6 @@ vfs_cache_lookup(ap)
 	return (error);
 }
 
-
-#ifndef _SYS_SYSPROTO_H_
-struct  __getcwd_args {
-	u_char	*buf;
-	u_int	buflen;
-};
-#endif
-
 /*
  * XXX All of these sysctls would probably be more productive dead.
  */
@@ -1070,7 +1062,7 @@ sys___getcwd(td, uap)
 }
 
 int
-kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg, u_int buflen)
+kern___getcwd(struct thread *td, char *buf, enum uio_seg bufseg, u_int buflen)
 {
 	char *bp, *tmpbuf;
 	struct filedesc *fdp;
