@@ -201,21 +201,19 @@ xhci_pci_attach(device_t self)
 
 	usb_callout_init_mtx(&sc->sc_callout, &sc->sc_bus.bus_mtx, 0);
 
-	sc->sc_irq_rid = 0;
+	rid = 0;
 	if (xhci_use_msi) {
-		count = pci_msi_count(self);
-		if (count >= 1) {
-			count = 1;
-			if (pci_alloc_msi(self, &count) == 0) {
-				if (bootverbose)
-					device_printf(self, "MSI enabled\n");
-				sc->sc_irq_rid = 1;
-			}
+		count = 1;
+		if (pci_alloc_msi(self, &count) == 0) {
+			if (bootverbose)
+				device_printf(self, "MSI enabled\n");
+			rid = 1;
 		}
 	}
-	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ,
-	    &sc->sc_irq_rid, RF_SHAREABLE | RF_ACTIVE);
+	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE | (rid != 0 ? 0 : RF_SHAREABLE));
 	if (sc->sc_irq_res == NULL) {
+		pci_release_msi(self);
 		device_printf(self, "Could not allocate IRQ\n");
 		/* goto error; FALLTHROUGH - use polling */
 	}
@@ -232,16 +230,22 @@ xhci_pci_attach(device_t self)
 		err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
 		    NULL, (driver_intr_t *)xhci_interrupt, sc, &sc->sc_intr_hdl);
 		if (err != 0) {
+			bus_release_resource(self, SYS_RES_IRQ,
+			    rman_get_rid(sc->sc_irq_res), sc->sc_irq_res);
+			sc->sc_irq_res = NULL;
+			pci_release_msi(self);
 			device_printf(self, "Could not setup IRQ, err=%d\n", err);
 			sc->sc_intr_hdl = NULL;
 		}
 	}
-	if (sc->sc_irq_res == NULL || sc->sc_intr_hdl == NULL ||
-	    xhci_use_polling() != 0) {
-		device_printf(self, "Interrupt polling at %dHz\n", hz);
-		USB_BUS_LOCK(&sc->sc_bus);
-		xhci_interrupt_poll(sc);
-		USB_BUS_UNLOCK(&sc->sc_bus);
+	if (sc->sc_irq_res == NULL || sc->sc_intr_hdl == NULL) {
+		if (xhci_use_polling() != 0) {
+			device_printf(self, "Interrupt polling at %dHz\n", hz);
+			USB_BUS_LOCK(&sc->sc_bus);
+			xhci_interrupt_poll(sc);
+			USB_BUS_UNLOCK(&sc->sc_bus);
+		} else
+			goto error;
 	}
 
 	/* On Intel chipsets reroute ports from EHCI to XHCI controller. */
@@ -304,11 +308,10 @@ xhci_pci_detach(device_t self)
 		sc->sc_intr_hdl = NULL;
 	}
 	if (sc->sc_irq_res) {
-		if (sc->sc_irq_rid == 1)
-			pci_release_msi(self);
-		bus_release_resource(self, SYS_RES_IRQ, sc->sc_irq_rid,
-		    sc->sc_irq_res);
+		bus_release_resource(self, SYS_RES_IRQ,
+		    rman_get_rid(sc->sc_irq_res), sc->sc_irq_res);
 		sc->sc_irq_res = NULL;
+		pci_release_msi(self);
 	}
 	if (sc->sc_io_res) {
 		bus_release_resource(self, SYS_RES_MEMORY, PCI_XHCI_CBMEM,
