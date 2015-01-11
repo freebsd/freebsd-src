@@ -195,6 +195,14 @@
       device, providing access to <acronym>HPET</acronym> from
       userspace.</para>
 
+    <para revision="274085">The &man.vt.4; driver has been made the
+      default system console driver.  The &man.syscons.4; driver is
+      still available, and can be enabled by adding
+      <literal>kern.vty=sc</literal> in &man.loader.conf.5;.
+      Alternatively, &man.syscons.4; can be enabled at boot time by
+      entering <literal>set kern.vty=sc</literal> at the
+      &man.loader.8; prompt.</para>
+
     <sect3 xml:id="kernel-virtualization">
       <title>Virtualization Support</title>
 
