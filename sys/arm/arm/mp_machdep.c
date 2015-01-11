@@ -149,7 +149,9 @@ init_secondary(int cpu)
 {
 	struct pcpu *pc;
 	uint32_t loop_counter;
+#ifndef ARM_INTRNG
 	int start = 0, end = 0;
+#endif
 
 	cpu_setup(NULL);
 	setttb(pmap_pa);
@@ -200,6 +202,11 @@ init_secondary(int cpu)
 	mtx_unlock_spin(&ap_boot_mtx);
 
 	/* Enable ipi */
+#ifdef ARM_INTRNG
+	for (int i = 0; i < ARM_IPI_COUNT; i++)
+		arm_unmask_ipi(i);
+#else
+
 #ifdef IPI_IRQ_START
 	start = IPI_IRQ_START;
 #ifdef IPI_IRQ_END
@@ -209,12 +216,9 @@ init_secondary(int cpu)
 #endif
 #endif
 				
-	for (int i = 0; i < ARM_IPI_COUNT; i++)
-#ifdef ARM_INTRNG
-		arm_unmask_ipi(i);
-#else
+	for (int i = start; i <= end; i++)
 		arm_unmask_irq(i);
-#endif
+#endif /* !ARM_INTRNG */
 	enable_interrupts(PSR_I);
 
 	loop_counter = 0;
