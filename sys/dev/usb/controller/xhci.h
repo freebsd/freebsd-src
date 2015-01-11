@@ -311,11 +311,23 @@ struct xhci_dev_endpoint_trbs {
 	struct xhci_trb		trb[XHCI_MAX_ENDPOINTS][XHCI_MAX_TRANSFERS];
 };
 
-#define	XHCI_TD_PAGE_NBUF	17	/* units, room enough for 64Kbytes */
-#define	XHCI_TD_PAGE_SIZE	4096	/* bytes */
-#define	XHCI_TD_PAYLOAD_MAX	(XHCI_TD_PAGE_SIZE * (XHCI_TD_PAGE_NBUF - 1))
+#if (USB_PAGE_SIZE < 4096)
+#error "The XHCI driver needs a pagesize above or equal to 4K"
+#endif
+
+/* Define the maximum payload which we will handle in a single TRB */
+#define	XHCI_TD_PAYLOAD_MAX	65536	/* bytes */
+
+/* Define the maximum payload of a single scatter-gather list element */
+#define	XHCI_TD_PAGE_SIZE \
+  ((USB_PAGE_SIZE < XHCI_TD_PAYLOAD_MAX) ? USB_PAGE_SIZE : XHCI_TD_PAYLOAD_MAX)
+
+/* Define the maximum length of the scatter-gather list */
+#define	XHCI_TD_PAGE_NBUF \
+  (((XHCI_TD_PAYLOAD_MAX + XHCI_TD_PAGE_SIZE - 1) / XHCI_TD_PAGE_SIZE) + 1)
 
 struct xhci_td {
+	/* one LINK TRB has been added to the TRB array */
 	struct xhci_trb		td_trb[XHCI_TD_PAGE_NBUF + 1];
 
 /*
@@ -432,6 +444,8 @@ struct xhci_softc {
 	struct usb_process	sc_config_proc;
 	struct usb_bus_msg	sc_config_msg[2];
 
+	struct usb_callout	sc_callout;
+
 	xhci_port_route_t	*sc_port_route;
 
 	union xhci_hub_desc	sc_hub_desc;
@@ -441,7 +455,6 @@ struct xhci_softc {
 
 	struct usb_device	*sc_devices[XHCI_MAX_DEVICES];
 	struct resource		*sc_io_res;
-	int			sc_irq_rid;
 	struct resource		*sc_irq_res;
 
 	void			*sc_intr_hdl;
@@ -498,6 +511,7 @@ struct xhci_softc {
 
 /* prototypes */
 
+uint8_t 	xhci_use_polling(void);
 usb_error_t xhci_halt_controller(struct xhci_softc *);
 usb_error_t xhci_init(struct xhci_softc *, device_t);
 usb_error_t xhci_start_controller(struct xhci_softc *);

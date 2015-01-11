@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int xhcidebug;
 static int xhciroute;
+static int xhcipolling;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, xhci, CTLFLAG_RW, 0, "USB XHCI");
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
@@ -94,6 +95,9 @@ TUNABLE_INT("hw.usb.xhci.debug", &xhcidebug);
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, xhci_port_route, CTLFLAG_RW | CTLFLAG_TUN,
     &xhciroute, 0, "Routing bitmap for switching EHCI ports to XHCI controller");
 TUNABLE_INT("hw.usb.xhci.xhci_port_route", &xhciroute);
+SYSCTL_INT(_hw_usb_xhci, OID_AUTO, use_polling, CTLFLAG_RW | CTLFLAG_TUN,
+    &xhcipolling, 0, "Set to enable software interrupt polling for XHCI controller");
+TUNABLE_INT("hw.usb.xhci.use_polling", &xhcipolling);
 #else
 #define	xhciroute 0
 #endif
@@ -180,6 +184,16 @@ xhci_dump_device(struct xhci_softc *sc, struct xhci_slot_ctx *psl)
 	DPRINTFN(5, "dwSctx3=0x%08x\n", xhci_ctx_get_le32(sc, &psl->dwSctx3));
 }
 #endif
+
+uint8_t
+xhci_use_polling(void)
+{
+#ifdef USB_DEBUG
+	return (xhcipolling != 0);
+#else
+	return (0);
+#endif
+}
 
 static void
 xhci_iterate_hw_softc(struct usb_bus *bus, usb_bus_mem_sub_cb_t *cb)
@@ -2252,6 +2266,7 @@ xhci_configure_mask(struct usb_device *udev, uint32_t mask, uint8_t drop)
 		temp |= XHCI_SCTX_0_CTX_NUM_SET(x + 1);
 		xhci_ctx_set_le32(sc, &pinp->ctx_slot.dwSctx0, temp);
 	}
+	usb_pc_cpu_flush(&sc->sc_hw.devs[index].input_pc);
 	return (0);
 }
 
@@ -2339,10 +2354,14 @@ xhci_configure_endpoint(struct usb_device *udev,
 	    XHCI_EPCTX_1_MAXB_SET(max_packet_count) |
 	    XHCI_EPCTX_1_MAXP_SIZE_SET(max_packet_size);
 
-	if ((udev->parent_hs_hub != NULL) || (udev->address != 0)) {
-		if (type != UE_ISOCHRONOUS)
-			temp |= XHCI_EPCTX_1_CERR_SET(3);
-	}
+	/*
+	 * Always enable the "three strikes and you are gone" feature
+	 * except for ISOCHRONOUS endpoints. This is suggested by
+	 * section 4.3.3 in the XHCI specification about device slot
+	 * initialisation.
+	 */
+	if (type != UE_ISOCHRONOUS)
+		temp |= XHCI_EPCTX_1_CERR_SET(3);
 
 	switch (type) {
 	case UE_CONTROL:
