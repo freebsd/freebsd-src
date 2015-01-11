@@ -2595,7 +2595,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		/* This should not happen */
 		return (NULL);
 	}
-	if ((*stcb == NULL) && to) {
+	if (*stcb == NULL) {
 		/* Yep, lets check */
 		*stcb = sctp_findassociation_ep_addr(inp_p, to, netp, dst, NULL);
 		if (*stcb == NULL) {
@@ -2633,9 +2633,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 				}
 			}
 		}
-	}
-	if (to == NULL) {
-		return (NULL);
 	}
 	cookie_len -= SCTP_SIGNATURE_SIZE;
 	if (*stcb == NULL) {
