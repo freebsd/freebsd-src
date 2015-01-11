@@ -618,6 +618,10 @@
       <literal>kern.vm_guest</literal> &man.sysctl.8; is set to
       <literal>1</literal>.</para>
 
+    <para revision="274960">The &man.elfdump.1; utility has been
+      updated to support capability mode provided by
+      &man.capsicum.4;.</para>
+
     <sect3 xml:id="abi-compat">
       <title><acronym>ABI</acronym> Compatibility</title>
 
