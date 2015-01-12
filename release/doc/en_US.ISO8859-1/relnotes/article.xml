@@ -20,6 +20,8 @@
 
     <pubdate>$FreeBSD$</pubdate>
 
+    <!-- Last rev: 276986 -->
+
     <copyright>
       <year>2015</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation
@@ -116,7 +118,9 @@
     <sect2 xml:id="kernel">
       <title>Kernel Changes</title>
 
-      <para>&nbsp;</para>
+      <para revision="276986">Throttling via <acronym>ACPI</acronym>
+	and <acronym>P4TCC</acronym> via &man.device.hints.5; have
+	been turned off by default.</para>
 
       <sect3 xml:id="kernel-virtualization">
 	<title>Virtualization Support</title>
