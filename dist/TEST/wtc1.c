@@ -170,7 +170,7 @@ main(int argc, char *argv[])
 #endif
 
 		if (gotsig) {
-			(void)fprintf(stderr, "Got signal %d.\n", gotsig);
+			(void)fprintf(stderr, "Got signal %d.\n", (int)gotsig);
 			gotsig = 0;
 			el_reset(el);
 		}

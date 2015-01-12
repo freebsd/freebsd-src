@@ -1,4 +1,4 @@
-/*	$NetBSD: el.c,v 1.71 2012/09/11 11:58:53 christos Exp $	*/
+/*	$NetBSD: el.c,v 1.73 2014/06/18 18:12:28 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)el.c	8.2 (Berkeley) 1/3/94";
 #else
-__RCSID("$NetBSD: el.c,v 1.71 2012/09/11 11:58:53 christos Exp $");
+__RCSID("$NetBSD: el.c,v 1.73 2014/06/18 18:12:28 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -60,6 +60,14 @@ __RCSID("$NetBSD: el.c,v 1.71 2012/09/11 11:58:53 christos Exp $");
 public EditLine *
 el_init(const char *prog, FILE *fin, FILE *fout, FILE *ferr)
 {
+    return el_init_fd(prog, fin, fout, ferr, fileno(fin), fileno(fout),
+	fileno(ferr));
+}
+
+public EditLine *
+el_init_fd(const char *prog, FILE *fin, FILE *fout, FILE *ferr,
+    int fdin, int fdout, int fderr)
+{
 	EditLine *el = el_malloc(sizeof(*el));
 
 	if (el == NULL)
@@ -71,9 +79,9 @@ el_init(const char *prog, FILE *fin, FILE *fout, FILE *ferr)
 	el->el_outfile = fout;
 	el->el_errfile = ferr;
 
-	el->el_infd = fileno(fin);
-	el->el_outfd = fileno(fout);
-	el->el_errfd = fileno(ferr);
+	el->el_infd = fdin;
+	el->el_outfd = fdout;
+	el->el_errfd = fderr;
 
 	el->el_prog = Strdup(ct_decode_string(prog, &el->el_scratch));
 	if (el->el_prog == NULL) {
@@ -183,6 +191,13 @@ FUN(el,set)(EditLine *el, int op, ...)
 		el_zfunc_t p = va_arg(ap, el_zfunc_t);
 		void *arg = va_arg(ap, void *);
 		rv = ch_resizefun(el, p, arg);
+		break;
+	}
+
+	case EL_ALIAS_TEXT: {
+		el_afunc_t p = va_arg(ap, el_afunc_t);
+		void *arg = va_arg(ap, void *);
+		rv = ch_aliasfun(el, p, arg);
 		break;
 	}
 

@@ -1,4 +1,4 @@
-/*	$NetBSD: tc1.c,v 1.5 2010/04/18 21:17:47 christos Exp $	*/
+/*	$NetBSD: tc1.c,v 1.6 2014/06/18 20:12:15 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -42,7 +42,7 @@ __COPYRIGHT("@(#) Copyright (c) 1992, 1993\n\
 #if 0
 static char sccsid[] = "@(#)test.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: tc1.c,v 1.5 2010/04/18 21:17:47 christos Exp $");
+__RCSID("$NetBSD: tc1.c,v 1.6 2014/06/18 20:12:15 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -189,7 +189,7 @@ main(int argc, char *argv[])
 
 #endif
 		if (gotsig) {
-			(void) fprintf(stderr, "Got signal %d.\n", gotsig);
+			(void) fprintf(stderr, "Got signal %d.\n", (int)gotsig);
 			gotsig = 0;
 			el_reset(el);
 		}

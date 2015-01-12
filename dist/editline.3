@@ -1,6 +1,6 @@
-.\"	$NetBSD: editline.3,v 1.77 2012/09/11 20:29:58 christos Exp $
+.\"	$NetBSD: editline.3,v 1.84 2014/12/25 13:39:41 wiz Exp $
 .\"
-.\" Copyright (c) 1997-2003 The NetBSD Foundation, Inc.
+.\" Copyright (c) 1997-2014 The NetBSD Foundation, Inc.
 .\" All rights reserved.
 .\"
 .\" This file was contributed to The NetBSD Foundation by Luke Mewburn.
@@ -26,12 +26,13 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd September 11, 2012
+.Dd December 25, 2014
 .Dt EDITLINE 3
 .Os
 .Sh NAME
 .Nm editline ,
 .Nm el_init ,
+.Nm el_init_fd ,
 .Nm el_end ,
 .Nm el_reset ,
 .Nm el_gets ,
@@ -48,6 +49,7 @@
 .Nm el_wget ,
 .Nm el_source ,
 .Nm el_resize ,
+.Nm el_cursor ,
 .Nm el_line ,
 .Nm el_wline ,
 .Nm el_insertstr ,
@@ -77,6 +79,8 @@
 .In histedit.h
 .Ft EditLine *
 .Fn el_init "const char *prog" "FILE *fin" "FILE *fout" "FILE *ferr"
+.Ft EditLine *
+.Fn el_init_fd "const char *prog" "FILE *fin" "FILE *fout" "FILE *ferr" "int fdin" "int fdout" "int fderr"
 .Ft void
 .Fn el_end "EditLine *e"
 .Ft void
@@ -109,8 +113,12 @@
 .Fn el_source "EditLine *e" "const char *file"
 .Ft void
 .Fn el_resize "EditLine *e"
+.Fn int
+.Fn el_cursor "EditLine *e" "int count"
 .Ft const LineInfo *
 .Fn el_line "EditLine *e"
+.Ft const LineInfoW *
+.Fn el_wline "EditLine *e"
 .Ft int
 .Fn el_insertstr "EditLine *e" "const char *str"
 .Ft int
@@ -170,6 +178,8 @@ The line editing functions use a common data structure,
 .Fa EditLine ,
 which is created by
 .Fn el_init
+or
+.Fn el_init_fd
 and freed by
 .Fn el_end .
 .Pp
@@ -180,7 +190,9 @@ The following functions are available:
 .Bl -tag -width 4n
 .It Fn el_init
 Initialise the line editor, and return a data structure
-to be used by all other line editing functions.
+to be used by all other line editing functions, or
+.Dv NULL
+on failure.
 .Fa prog
 is the name of the invoking program, used when reading the
 .Xr editrc 5
@@ -193,11 +205,20 @@ are the input, output, and error streams (respectively) to use.
 In this documentation, references to
 .Dq the tty
 are actually to this input/output stream combination.
+.It Fn el_init_fd
+Like
+.Fn el_init
+but allows specifying file descriptors for the
+.Xr stdio 3
+corresponding streams, in case those were created with
+.Xr funopen 3 .
 .It Fn el_end
 Clean up and finish with
 .Fa e ,
 assumed to have been created with
-.Fn el_init .
+.Fn el_init
+or
+.Fn el_init_fd .
 .It Fn el_reset
 Reset the tty and the parser.
 This should be called after an error which may have upset the tty's
@@ -271,6 +292,7 @@ parameters.
 .Fa op
 determines which parameter to set, and each operation has its
 own parameter list.
+Returns 0 on success, \-1 on failure.
 .Pp
 The following values for
 .Fa op
@@ -581,13 +603,13 @@ If
 is
 .Dv NULL ,
 try
-.Pa $PWD/.editrc
-then
 .Pa $HOME/.editrc .
 Refer to
 .Xr editrc 5
 for details on the format of
 .Fa file .
+.Fn el_source
+returns 0 on success and \-1 on error.
 .It Fn el_resize
 Must be called if the terminal size changes.
 If
@@ -598,6 +620,11 @@ then this is done automatically.
 Otherwise, it's the responsibility of the application to call
 .Fn el_resize
 on the appropriate occasions.
+.It Fn el_cursor
+Move the cursor to the right (if positive) or to the left (if negative)
+.Fa count
+characters.
+Returns the resulting offset of the cursor from the beginning of the line.
 .It Fn el_line
 Return the editing information for the current line in a
 .Fa LineInfo
@@ -643,7 +670,9 @@ The following functions are available:
 .Bl -tag -width 4n
 .It Fn history_init
 Initialise the history list, and return a data structure
-to be used by all other history list functions.
+to be used by all other history list functions, or
+.Dv NULL
+on failure.
 .It Fn history_end
 Clean up and finish with
 .Fa h ,
@@ -712,12 +741,12 @@ as a new element to the history, and, if necessary,
 removing the oldest entry to keep the list to the created size.
 If
 .Dv H_SETUNIQUE
-was has been called with a non-zero arguments, the element
+has been called with a non-zero argument, the element
 will not be entered into the history if its contents match
 the ones of the current history element.
 If the element is entered
 .Fn history
-returns 1, if it is ignored as a duplicate returns 0.
+returns 1; if it is ignored as a duplicate returns 0.
 Finally
 .Fn history
 returns \-1 if an error occurred.
@@ -739,6 +768,11 @@ Load the history list stored in
 .It Dv H_SAVE , Fa "const char *file"
 Save the history list to
 .Fa file .
+.It Dv H_SAVE_FP , Fa "FILE *fp"
+Save the history list to the opened
+.Ft FILE
+pointer
+.Fa fp .
 .It Dv H_SETUNIQUE , Fa "int unique"
 Set flag that adjacent identical event strings should not be entered
 into the history.
@@ -859,17 +893,22 @@ and the readline emulation appeared in
 appeared in
 .Nx 1.5 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
-library was written by Christos Zoulas.
-Luke Mewburn wrote this manual and implemented
+library was written by
+.An Christos Zoulas .
+.An Luke Mewburn
+wrote this manual and implemented
 .Dv CC_REDISPLAY ,
 .Dv CC_REFRESH_BEEP ,
 .Dv EL_EDITMODE ,
 and
 .Dv EL_RPROMPT .
-Jaromir Dolecek implemented the readline emulation.
-Johny Mattsson implemented wide-character support.
+.An Jaromir Dolecek
+implemented the readline emulation.
+.An Johny Mattsson
+implemented wide-character support.
 .Sh BUGS
 At this time, it is the responsibility of the caller to
 check the result of the
