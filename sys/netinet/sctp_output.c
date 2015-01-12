@@ -8917,12 +8917,11 @@ sctp_send_cookie_echo(struct mbuf *m,
 	struct sctp_tmit_chunk *chk;
 	uint16_t ptype, plen;
 
+	SCTP_TCB_LOCK_ASSERT(stcb);
 	/* First find the cookie in the param area */
 	cookie = NULL;
 	at = offset + sizeof(struct sctp_init_chunk);
-
-	SCTP_TCB_LOCK_ASSERT(stcb);
-	do {
+	for (;;) {
 		phdr = sctp_get_next_param(m, at, &parm, sizeof(parm));
 		if (phdr == NULL) {
 			return (-3);
@@ -8949,13 +8948,8 @@ sctp_send_cookie_echo(struct mbuf *m,
 			break;
 		}
 		at += SCTP_SIZE32(plen);
-	} while (phdr);
-	if (cookie == NULL) {
-		/* Did not find the cookie */
-		return (-3);
 	}
 	/* ok, we got the cookie lets change it into a cookie echo chunk */
-
 	/* first the change from param to cookie */
 	hdr = mtod(cookie, struct sctp_chunkhdr *);
 	hdr->chunk_type = SCTP_COOKIE_ECHO;
