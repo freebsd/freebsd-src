@@ -143,40 +143,41 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 {
 	struct fb_info *info;
 	uint32_t c;
-	u_int o;
+	u_int o, h;
 
 	info = vd->vd_softc;
 	c = info->fb_cmap[color];
 
 	switch (FBTYPE_GET_BYTESPP(info)) {
 	case 1:
-		for (o = 0; o < info->fb_stride; o++)
-			info->wr1(info, o, c);
+		for (h = 0; h < info->fb_height; h++)
+			for (o = 0; o < info->fb_stride; o++)
+				info->wr1(info, h*info->fb_stride + o, c);
 		break;
 	case 2:
-		for (o = 0; o < info->fb_stride; o += 2)
-			info->wr2(info, o, c);
+		for (h = 0; h < info->fb_height; h++)
+			for (o = 0; o < info->fb_stride; o += 2)
+				info->wr2(info, h*info->fb_stride + o, c);
 		break;
 	case 3:
-		/* line 0 */
-		for (o = 0; o < info->fb_stride; o += 3) {
-			info->wr1(info, o, (c >> 16) & 0xff);
-			info->wr1(info, o + 1, (c >> 8) & 0xff);
-			info->wr1(info, o + 2, c & 0xff);
-		}
+		for (h = 0; h < info->fb_height; h++)
+			for (o = 0; o < info->fb_stride; o += 3) {
+				info->wr1(info, h*info->fb_stride + o,
+				    (c >> 16) & 0xff);
+				info->wr1(info, h*info->fb_stride + o + 1,
+				    (c >> 8) & 0xff);
+				info->wr1(info, h*info->fb_stride + o + 2,
+				    c & 0xff);
+			}
 		break;
 	case 4:
-		for (o = 0; o < info->fb_stride; o += 4)
-			info->wr4(info, o, c);
+		for (h = 0; h < info->fb_height; h++)
+			for (o = 0; o < info->fb_stride; o += 4)
+				info->wr4(info, h*info->fb_stride + o, c);
 		break;
 	default:
 		/* panic? */
 		return;
-	}
-	/* Copy line0 to all other lines. */
-	/* XXX will copy with borders. */
-	for (o = info->fb_stride; o < info->fb_size; o += info->fb_stride) {
-		info->copy(info, o, 0, info->fb_stride);
 	}
 }
 
