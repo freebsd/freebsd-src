@@ -7958,22 +7958,6 @@ again_one_more_time:
 		} else {
 			skip_data_for_this_net = 0;
 		}
-		if ((net->ro.ro_rt) && (net->ro.ro_rt->rt_ifp)) {
-			/*
-			 * if we have a route and an ifp check to see if we
-			 * have room to send to this guy
-			 */
-			struct ifnet *ifp;
-
-			ifp = net->ro.ro_rt->rt_ifp;
-			if ((ifp->if_snd.ifq_len + 2) >= ifp->if_snd.ifq_maxlen) {
-				SCTP_STAT_INCR(sctps_ifnomemqueued);
-				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_MAXBURST_ENABLE) {
-					sctp_log_maxburst(stcb, net, ifp->if_snd.ifq_len, ifp->if_snd.ifq_maxlen, SCTP_MAX_IFP_APPLIED);
-				}
-				continue;
-			}
-		}
 		switch (((struct sockaddr *)&net->ro._l_addr)->sa_family) {
 #ifdef INET
 		case AF_INET:
