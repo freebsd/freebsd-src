@@ -111,6 +111,7 @@ fatblock(struct msdosfsmount *pmp, u_long ofs, u_long *bnp, u_long *sizep,
  *	    If this pointer is null then don't return this quantity.
  * cnp	  - address of where to place the filesystem relative cluster number.
  *	    If this pointer is null then don't return this quantity.
+ * sp     - pointer to returned block size
  *
  * NOTE: Either bnp or cnp must be non-null.
  * This function has one side effect.  If the requested file relative cluster
@@ -443,7 +444,8 @@ clusterfree(struct msdosfsmount *pmp, u_long cluster, u_long *oldcnp)
  * the msdosfsmount structure. This is left to the caller.
  */
 int
-fatentry(int function, struct msdosfsmount *pmp, u_long cn, u_long *oldcontents,   u_long  newcontents)
+fatentry(int function, struct msdosfsmount *pmp, u_long cn, u_long *oldcontents,
+    u_long newcontents)
 {
 	int error;
 	u_long readcn;
