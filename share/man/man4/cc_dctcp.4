@@ -40,18 +40,23 @@ throughput and minimise latency in data center networks by utilising the
 proportion of Explicit Congestion Notification (ECN) marks received from capable
 hardware as a congestion signal.
 .Pp
-DCTCP uses fraction of ECN marked packets to update congestion window. The
-window reduction ratio is always <= 1/2. Only when all of the packets are
+DCTCP uses fraction of ECN marked packets to update congestion window.
+The window reduction ratio is always <= 1/2.
+Only when all of the packets are
 marked, congestion window is halved.
 .Pp
 In order to keep the accuracy of the ECN marked fraction, a DCTCP receiver
 mirrors back incoming (or missing) CE marks by setting (or clearing) ECE marks.
 This feedback methodology is also adopted when the receiver uses delayed ACK.
 .Pp
-FreeBSD DCTCP implementation includes two minor modifications for the one-sided
-deployment. Considering the situation that DCTCP is used as sender and classic
+The
+.Fx
+DCTCP implementation includes two minor modifications for the one-sided
+deployment.
+Considering the situation that DCTCP is used as sender and classic
 ECN is used as receiver, DCTCP sets the CWR flag as the reaction to the ECE
-flag. In addition, when classic ECN is used as sender and DCTCP is used as
+flag.
+In addition, when classic ECN is used as sender and DCTCP is used as
 receiver, DCTCP avoids to mirror back ACKs only when the CWR flag is
 set in the incoming packet.
 .Pp
@@ -75,6 +80,7 @@ Default is 16.
 .It Va slowstart
 A trigger to halve congestion window after slow start.
 Default does nothing to halve window.
+.El
 .Sh SEE ALSO
 .Xr cc_chd 4 ,
 .Xr cc_cubic 4 ,
@@ -120,8 +126,8 @@ University, Japan.
 The
 .Nm
 congestion control module and this manual page were written by
-.An Midori Kato katoon@sfc.wide.ad.jp
+.An Midori Kato Mt katoon@sfc.wide.ad.jp
 and
-.An Lars Eggert lars@netapp.com
+.An Lars Eggert Mt lars@netapp.com
 with help and modifications from
-.An Hiren Panchasara hiren@FreeBSD.org
+.An Hiren Panchasara Mt hiren@FreeBSD.org
