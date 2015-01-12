@@ -31,11 +31,13 @@ __FBSDID("$FreeBSD$");
 */
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/clock.h>
 #include <sys/time.h>
 #include <sys/bus.h>
+#include <sys/reboot.h>
 #include <sys/resource.h>
 #include <sys/rman.h>
 
@@ -45,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+#include <arm/ti/am335x/am335x_rtcvar.h>
 
 #include "iicbus_if.h"
 
@@ -56,6 +60,10 @@ __FBSDID("$FreeBSD$");
 /* TPS65217 Reisters */
 #define TPS65217_CHIPID_REG	0x00
 #define TPS65217_STATUS_REG	0x0A
+#define	TPS65217_STATUS_OFF		(1U << 7)
+#define	TPS65217_STATUS_ACPWR		(1U << 3)
+#define	TPS65217_STATUS_USBPWR		(1U << 2)
+#define	TPS65217_STATUS_BT		(1U << 0)
 
 #define MAX_IIC_DATA_SIZE	2
 
@@ -65,6 +73,8 @@ struct am335x_pmic_softc {
 	uint32_t		sc_addr;
 	struct intr_config_hook enum_hook;
 };
+
+static void am335x_pmic_shutdown(void *, int);
 
 static int
 am335x_pmic_read(device_t dev, uint8_t addr, uint8_t *data, uint8_t size)
@@ -77,7 +87,6 @@ am335x_pmic_read(device_t dev, uint8_t addr, uint8_t *data, uint8_t size)
 	return (iicbus_transfer(dev, msg, 2));
 }
 
-#ifdef notyet
 static int
 am335x_pmic_write(device_t dev, uint8_t address, uint8_t *data, uint8_t size)
 {
@@ -95,7 +104,6 @@ am335x_pmic_write(device_t dev, uint8_t address, uint8_t *data, uint8_t size)
 
 	return (iicbus_transfer(dev, msg, 1));
 }
-#endif
 
 static int
 am335x_pmic_probe(device_t dev)
@@ -146,6 +154,9 @@ am335x_pmic_start(void *xdev)
 	am335x_pmic_read(dev, TPS65217_STATUS_REG, &reg, 1);
 	device_printf(dev, "%s powered by %s\n", name, pwr[(reg>>2)&0x03]);
 
+	EVENTHANDLER_REGISTER(shutdown_final, am335x_pmic_shutdown, dev,
+	    SHUTDOWN_PRI_LAST);
+
 	config_intrhook_disestablish(&sc->enum_hook);
 }
 
@@ -163,6 +174,22 @@ am335x_pmic_attach(device_t dev)
 		return (ENOMEM);
 
 	return (0);
+}
+
+static void
+am335x_pmic_shutdown(void *xdev, int howto)
+{
+	device_t dev;
+	uint8_t reg;
+
+	if (!(howto & RB_POWEROFF))
+		return;
+	dev = (device_t)xdev;
+	/* Set the OFF bit on status register to start the shutdown sequence. */
+	reg = TPS65217_STATUS_OFF;
+	am335x_pmic_write(dev, TPS65217_STATUS_REG, &reg, 1);
+	/* Toggle pmic_pwr_enable to shutdown the PMIC. */
+	am335x_rtc_pmic_pwr_toggle();
 }
 
 static device_method_t am335x_pmic_methods[] = {

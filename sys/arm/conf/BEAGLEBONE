@@ -101,6 +101,8 @@ device		iic
 device		ti_i2c
 device		am335x_pmic		# AM335x Power Management IC (TPC65217)
 
+device		am335x_rtc		# RTC support (power management only)
+
 # Console and misc
 device		uart
 device		uart_ns8250
