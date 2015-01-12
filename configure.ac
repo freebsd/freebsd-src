@@ -938,6 +938,12 @@ if test $ac_cv_func_daemon = yes; then
 ])
 fi
 
+AC_CHECK_MEMBERS([struct sockaddr_un.sun_len],,,[
+AC_INCLUDES_DEFAULT
+#ifdef HAVE_SYS_UN_H
+#include <sys/un.h>
+#endif
+])
 AC_CHECK_MEMBERS([struct in_pktinfo.ipi_spec_dst],,,[
 AC_INCLUDES_DEFAULT
 #if HAVE_SYS_PARAM_H
