@@ -568,16 +568,22 @@ typedef enum {
 } ift_counter;
 
 typedef enum {
+	/* uint16_t */
+	IF_INDEX,
 	/* uint32_t */
-	IF_FLAGS = 1,
+	IF_FLAGS,
 	IF_CAPABILITIES,
 	IF_CAPENABLE,
 	IF_MTU,
+	IF_FIB,
 	/* uint64_t */
 	IF_HWASSIST,
 	IF_BAUDRATE,
 	/* pointers */
 	IF_DRIVER_SOFTC,
+	IF_LLADDR,
+	IF_BPF,
+	IF_NAME,
 } ift_feature;
 
 typedef struct ifnet * if_t;
@@ -701,18 +707,14 @@ void	if_detach(if_t);
 void	if_input(if_t, struct mbuf *);
 void	if_mtap(if_t, struct mbuf *, void *, u_int);
 void	if_inc_counter(if_t, ift_counter, int64_t);
-uint64_t if_get_counter_default(if_t, ift_counter);
 void	if_link_state_change(if_t, int);
+void	if_set(if_t, ift_feature, uint64_t);
 void *	if_getsoftc(if_t, ift_feature);
-char *	if_lladdr(if_t);
-void	if_setflags(if_t, ift_feature, uint64_t);
-uint64_t if_flagbits(if_t, ift_feature, uint64_t, uint64_t, uint64_t);
-#define	if_getflags(ifp, f)	if_flagbits((ifp), (f), 0, 0, 0)
-#define	if_addflags(ifp, f, a)	if_flagbits((ifp), (f), (a), 0, 0)
-#define	if_clrflags(ifp, f, c)	if_flagbits((ifp), (f), 0, (c), 0)
-#define	if_xorflags(ifp, f, x)	if_flagbits((ifp), (f), 0, 0, (x))
-void	if_capenable(if_t, uint64_t);
 int	if_printf(if_t, const char *, ...) __printflike(2, 3);
+uint64_t if_get(if_t, ift_feature);
+uint64_t if_flagbits(if_t, ift_feature, uint64_t, uint64_t, uint64_t);
+uint64_t if_get_counter_default(if_t, ift_counter);
+
 /*
  * Traversing through interface address lists.
  */
@@ -722,5 +724,42 @@ typedef	void	ifmaddr_cb_t(void *, struct sockaddr *);
 void	if_foreach_addr(if_t, ifaddr_cb_t, void *);
 void	if_foreach_maddr(if_t, ifmaddr_cb_t, void *);
 
+/*
+ * Type-enforcing inliners over declared above functions.
+ */
+static inline uint64_t
+if_addflags(if_t ifp, ift_feature f, uint64_t add)
+{
+
+	return (if_flagbits(ifp, f, add, 0, 0));
+}
+
+static inline uint64_t
+if_clrflags(if_t ifp, ift_feature f, uint64_t clr)
+{
+
+	return (if_flagbits(ifp, f, 0, clr, 0));
+}
+
+static inline uint64_t
+if_xorflags(if_t ifp, ift_feature f, uint64_t xor)
+{
+
+	return (if_flagbits(ifp, f, 0, 0, xor));
+}
+
+static inline char *
+if_lladdr(if_t ifp)
+{
+
+	return ((char *)(if_getsoftc(ifp, IF_LLADDR)));
+}
+
+static inline const char *
+if_name(if_t ifp)
+{
+
+	return ((char *)(if_getsoftc(ifp, IF_NAME)));
+}
 #endif /* _KERNEL */
 #endif /* !_NET_IF_H_ */

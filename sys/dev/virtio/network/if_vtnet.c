@@ -481,7 +481,7 @@ vtnet_resume(device_t dev)
 	ifp = sc->vtnet_ifp;
 
 	VTNET_CORE_LOCK(sc);
-	if (if_getflags(ifp, IF_FLAGS) & IFF_UP)
+	if (if_get(ifp, IF_FLAGS) & IFF_UP)
 		vtnet_init_locked(sc);
 	sc->vtnet_flags &= ~VTNET_FLAG_SUSPENDED;
 	VTNET_CORE_UNLOCK(sc);
@@ -1001,7 +1001,7 @@ vtnet_change_mtu(struct vtnet_softc *sc, int new_mtu)
 	} else
 		clsize = MJUMPAGESIZE;
 
-	if_setflags(ifp, IF_MTU, new_mtu);
+	if_set(ifp, IF_MTU, new_mtu);
 	sc->vtnet_rx_new_clsize = clsize;
 
 	if (sc->vtnet_flags & VTNET_FLAG_RUNNING) {
@@ -1025,7 +1025,7 @@ vtnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 	case SIOCSIFMTU:
-		if (if_getflags(ifp, IF_MTU) != ifr->ifr_mtu) {
+		if (if_get(ifp, IF_MTU) != ifr->ifr_mtu) {
 			VTNET_CORE_LOCK(sc);
 			error = vtnet_change_mtu(sc, ifr->ifr_mtu);
 			VTNET_CORE_UNLOCK(sc);
@@ -1034,11 +1034,11 @@ vtnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFFLAGS:
 		VTNET_CORE_LOCK(sc);
-		if ((if_getflags(ifp, IF_FLAGS) & IFF_UP) == 0) {
+		if ((if_get(ifp, IF_FLAGS) & IFF_UP) == 0) {
 			if (sc->vtnet_flags & VTNET_FLAG_RUNNING)
 				vtnet_stop(sc);
 		} else if (sc->vtnet_flags & VTNET_FLAG_RUNNING) {
-			if ((if_getflags(ifp, IF_FLAGS) ^ sc->vtnet_if_flags) &
+			if ((if_get(ifp, IF_FLAGS) ^ sc->vtnet_if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI)) {
 				if (sc->vtnet_flags & VTNET_FLAG_CTRL_RX)
 					vtnet_rx_filter(sc);
@@ -1049,7 +1049,7 @@ vtnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 			vtnet_init_locked(sc);
 
 		if (error == 0)
-			sc->vtnet_if_flags = if_getflags(ifp, IF_FLAGS);
+			sc->vtnet_if_flags = if_get(ifp, IF_FLAGS);
 		VTNET_CORE_UNLOCK(sc);
 		break;
 
@@ -1070,7 +1070,7 @@ vtnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFCAP:
 		VTNET_CORE_LOCK(sc);
-		capenable = if_getflags(ifp, IF_CAPENABLE);
+		capenable = if_get(ifp, IF_CAPENABLE);
 		mask = ifr->ifr_reqcap ^ capenable;
 
 		if (mask & IFCAP_TXCSUM)
@@ -1110,7 +1110,7 @@ vtnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 
 		VTNET_CORE_UNLOCK(sc);
 
-		if_capenable(ifp, capenable);
+		if_set(ifp, IF_CAPENABLE, capenable);
 
 		break;
 
@@ -1653,7 +1653,7 @@ vtnet_rxq_input(struct vtnet_rxq *rxq, struct mbuf *m,
 	sc = rxq->vtnrx_sc;
 	ifp = sc->vtnet_ifp;
 
-	if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWTAGGING) {
+	if (if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWTAGGING) {
 		eh = mtod(m, struct ether_header *);
 		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
 			vtnet_vlan_tag_remove(m);
@@ -2711,8 +2711,8 @@ vtnet_virtio_reinit(struct vtnet_softc *sc)
 	 * features. Transmit features are disabled only on our side
 	 * via IF_CAPEANBLE and IF_HWASSIST.
 	 */
-	caps = if_getflags(ifp, IF_CAPABILITIES);
-	capenable = if_getflags(ifp, IF_CAPENABLE);
+	caps = if_get(ifp, IF_CAPABILITIES);
+	capenable = if_get(ifp, IF_CAPENABLE);
 	if (caps & mask) {
 		/*
 		 * We require both IPv4 and IPv6 offloading to be enabled
@@ -2754,7 +2754,7 @@ vtnet_init_rx_filters(struct vtnet_softc *sc)
 		vtnet_rx_filter_mac(sc);
 	}
 
-	if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWFILTER)
+	if (if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWFILTER)
 		vtnet_rx_filter_vlan(sc);
 }
 
@@ -2883,15 +2883,15 @@ vtnet_reinit(struct vtnet_softc *sc)
 	vtnet_set_active_vq_pairs(sc);
 
 	hwassist = 0;
-	if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_TXCSUM)
+	if (if_get(ifp, IF_CAPENABLE) & IFCAP_TXCSUM)
 		hwassist |= VTNET_CSUM_OFFLOAD;
-	if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_TXCSUM_IPV6)
+	if (if_get(ifp, IF_CAPENABLE) & IFCAP_TXCSUM_IPV6)
 		hwassist |= VTNET_CSUM_OFFLOAD_IPV6;
-	if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_TSO4)
+	if (if_get(ifp, IF_CAPENABLE) & IFCAP_TSO4)
 		hwassist |= CSUM_TSO;
-	if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_TSO6)
+	if (if_get(ifp, IF_CAPENABLE) & IFCAP_TSO6)
 		hwassist |= CSUM_IP6_TSO;
-	if_setflags(ifp, IF_HWASSIST, hwassist);
+	if_set(ifp, IF_HWASSIST, hwassist);
 
 	if (sc->vtnet_flags & VTNET_FLAG_CTRL_VQ)
 		vtnet_init_rx_filters(sc);
@@ -3140,15 +3140,15 @@ vtnet_rx_filter(struct vtnet_softc *sc)
 	VTNET_CORE_LOCK_ASSERT(sc);
 
 	if (vtnet_set_promisc(sc,
-	    if_getflags(ifp, IF_FLAGS) & IFF_PROMISC) != 0)
+	    if_get(ifp, IF_FLAGS) & IFF_PROMISC) != 0)
 		device_printf(dev, "cannot %s promiscuous mode\n",
-		    if_getflags(ifp, IF_FLAGS) & IFF_PROMISC ?
+		    if_get(ifp, IF_FLAGS) & IFF_PROMISC ?
 		    "enable" : "disable");
 
 	if (vtnet_set_allmulti(sc,
-	    if_getflags(ifp, IF_FLAGS) & IFF_ALLMULTI) != 0)
+	    if_get(ifp, IF_FLAGS) & IFF_ALLMULTI) != 0)
 		device_printf(dev, "cannot %s all-multicast mode\n",
-		    if_getflags(ifp, IF_FLAGS) & IFF_ALLMULTI ?
+		    if_get(ifp, IF_FLAGS) & IFF_ALLMULTI ?
 		    "enable" : "disable");
 }
 
@@ -3345,7 +3345,7 @@ vtnet_update_vlan_filter(struct vtnet_softc *sc, int add, uint16_t tag)
 	else
 		sc->vtnet_vlan_filter[idx] &= ~(1 << bit);
 
-	if ((if_getflags(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWFILTER) &&
+	if ((if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWFILTER) &&
 	    vtnet_exec_vlan_filter(sc, add, tag) != 0) {
 		device_printf(sc->vtnet_dev,
 		    "cannot %s VLAN %d %s the host filter table\n",
@@ -3385,7 +3385,7 @@ vtnet_is_link_up(struct vtnet_softc *sc)
 	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
 
-	if ((if_getflags(ifp, IF_CAPABILITIES) & IFCAP_LINKSTATE) == 0)
+	if ((if_get(ifp, IF_CAPABILITIES) & IFCAP_LINKSTATE) == 0)
 		status = VIRTIO_NET_S_LINK_UP;
 	else
 		status = virtio_read_dev_config_2(dev,

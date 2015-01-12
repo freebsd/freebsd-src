@@ -1505,18 +1505,23 @@ if_rtdel(struct radix_node *rn, void *arg)
  * Managing different integer values and bitmasks of an ifnet.
  */
 static void
-if_getfeature(if_t ifp, ift_feature f, uint32_t **f32, uint64_t **f64,
-    void **ptr)
+if_getfeature(if_t ifp, ift_feature f, uint64_t **f64, void **ptr,
+    uint32_t **f32, uint16_t **f16)
 {
 
-	if (f32)
-		*f32 = NULL;
 	if (f64)
 		*f64 = NULL;
 	if (ptr)
 		*ptr = NULL;
+	if (f32)
+		*f32 = NULL;
+	if (f16)
+		*f16 = NULL;
 
 	switch (f) {
+	case IF_INDEX:
+		*f16 = &ifp->if_index;
+		break;
 	case IF_FLAGS:
 		*f32 = &ifp->if_flags;
 		break;
@@ -1529,24 +1534,74 @@ if_getfeature(if_t ifp, ift_feature f, uint32_t **f32, uint64_t **f64,
 	case IF_MTU:
 		*f32 = &ifp->if_mtu;
 		break;
+	case IF_FIB:
+		*f32 = &ifp->if_fib;
+		break;
 	case IF_HWASSIST:
 		*f64 = &ifp->if_hwassist;
 		break;
 	case IF_BAUDRATE:
 		*f64 = &ifp->if_baudrate;
 		break;
+	case IF_DRIVER_SOFTC:
+		*ptr = ifp->if_softc;
+		break;
+	case IF_LLADDR:
+		*ptr = LLADDR((struct sockaddr_dl *)(ifp->if_addr->ifa_addr));
+		break;
+	case IF_BPF:
+		*ptr = ifp->if_bpf;
+		break;
+	case IF_NAME:
+		*ptr = ifp->if_xname;
+		break;
 	default:
 		panic("%s: unknown feature %d", __func__, f);
 	};
 }
 
+/* Changing some flags may require some actions. */
+static void
+if_set_special(if_t ifp, ift_feature f)
+{
+
+	switch (f) {
+	case IF_CAPABILITIES:
+	{
+		uint64_t capabilities, capenable;
+		/*
+		 * If IF_CAPABILITIES have been reduced, then IF_CAPENABLE
+		 * should be reduced, too.
+		 */
+		capabilities = if_get(ifp, IF_CAPABILITIES);
+		capenable = if_get(ifp, IF_CAPENABLE);
+		if ((capenable & capabilities) != capenable) {
+			capenable &= capabilities;
+			if_set(ifp, IF_CAPENABLE, capenable);
+		}
+		break;
+	}
+	case IF_CAPENABLE:
+		/*
+		 * Modifying if_capenable may require extra actions, e.g.
+		 * reconfiguring capenable on vlans.
+		 */
+		if (ifp->if_vlantrunk != NULL)
+			(*vlan_trunk_cap_p)(ifp); 
+		break;
+	default:
+		break;
+	}
+}
+
 void
-if_setflags(if_t ifp, ift_feature f, uint64_t set)
+if_set(if_t ifp, ift_feature f, uint64_t set)
 {
 	uint64_t *f64;
 	uint32_t *f32;
 
-	if_getfeature(ifp, f, &f32, &f64, NULL);
+	if_getfeature(ifp, f, &f64, NULL, &f32, NULL);
+	KASSERT(f32 != NULL || f64 != NULL, ("%s: no feature %d", __func__, f));
 	if (f32 != NULL) {
 		KASSERT(set <= UINT32_MAX,
 		    ("%s: value of 0x%jx for feature %d",
@@ -1555,30 +1610,16 @@ if_setflags(if_t ifp, ift_feature f, uint64_t set)
 	} else {
 		*f64 = set;
 	}
+	if_set_special(ifp, f);
 }
 
 uint64_t
 if_flagbits(if_t ifp, ift_feature f, uint64_t set, uint64_t clr, uint64_t xor)
 {
-	uint64_t *f64;
+	uint64_t *f64, rv, old;
 	uint32_t *f32;
 
-#ifdef INVARIANTS
-	switch (f) {
-	case IF_CAPABILITIES:
-		if (set || clr || xor)
-			panic("IF_CAPABILITIES can't be modified");
-		break;
-	case IF_CAPENABLE:
-		if (set || clr || xor)
-			panic("IF_CAPENABLE must be modified by if_capenable");
-		break;
-	default:
-		break;
-	}
-#endif
-
-	if_getfeature(ifp, f, &f32, &f64, NULL);
+	if_getfeature(ifp, f, &f64, NULL, &f32, NULL);
 	if (f32 != NULL) {
 		KASSERT(set <= UINT32_MAX,
 		    ("%s: value of 0x%jx for feature %d",
@@ -1589,54 +1630,52 @@ if_flagbits(if_t ifp, ift_feature f, uint64_t set, uint64_t clr, uint64_t xor)
 		KASSERT(xor <= UINT32_MAX,
 		    ("%s: value of 0x%jx for feature %d",
 		    __func__, (uintmax_t )xor, f));
+		old = *f32;
 		*f32 |= set;
 		*f32 &= ~clr;
 		*f32 ^= xor;
-		return (*f32);
+		rv = *f32;
 	} else {
+		old = *f64;
 		*f64 |= set;
 		*f64 &= ~clr;
 		*f64 ^= xor;
-		return (*f64);
+		rv = *f64;
 	}
+
+	if (rv != old)
+		if_set_special(ifp, f);
+
+	return (rv);
 }
 
-/*
- * Modifying if_capenable may require extra actions, e.g. reconfiguring
- * capenable on vlans.
- */
-void
-if_capenable(if_t ifp, uint64_t capenable)
+uint64_t
+if_get(if_t ifp, ift_feature f)
 {
+	uint64_t *f64;
+	uint32_t *f32;
+	uint16_t *f16;
 
-	KASSERT(capenable <= UINT32_MAX, ("%s: extra bits in 0x%jx",
-	    __func__, (uintmax_t )capenable));
+	if_getfeature(ifp, f, &f64, NULL, &f32, &f16);
+	KASSERT(f16 != NULL || f32 != NULL || f64 != NULL,
+	    ("%s: no feature %d", __func__, f));
+	if (f64 != NULL)
+		return (*f64);
+	if (f32 != NULL)
+		return (*f32);
+	if (f16 != NULL)
+		return (*f16);
 
-	ifp->if_capenable = capenable;
-
-	if (ifp->if_vlantrunk != NULL)
-		(*vlan_trunk_cap_p)(ifp); 
+	return (EDOOFUS);
 }
 
 void *
 if_getsoftc(if_t ifp, ift_feature f)
 {
+	void *ptr;
 
-	switch (f) {
-	case IF_DRIVER_SOFTC:
-		return (ifp->if_softc);
-	default:
-		panic("%s: unknown feature %d", __func__, f);
-	}
-}
-
-char *
-if_lladdr(if_t ifp)
-{
-	struct sockaddr_dl *sdl;
-
-	sdl = (struct sockaddr_dl *)(ifp->if_addr->ifa_addr);
-	return (LLADDR(sdl));
+	if_getfeature(ifp, f, NULL, &ptr, NULL, NULL);
+	return (ptr);
 }
 
 /*

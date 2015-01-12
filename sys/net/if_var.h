@@ -527,13 +527,6 @@ if_addrlen(const if_t ifp)
 
 	return (ifp->if_drv->ifdrv_addrlen);
 }
-
-static inline const char *
-if_name(if_t ifp)
-{
-
-	return (ifp->if_xname);
-}
 #endif /* _KERNEL */
 
 #include <net/ifq.h>	/* XXXAO: temporary unconditional include */

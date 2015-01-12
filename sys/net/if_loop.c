@@ -241,7 +241,7 @@ looutput(if_t ifp, struct mbuf *m, const struct sockaddr *dst,
 #if 1	/* XXX */
 	switch (af) {
 	case AF_INET:
-		if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_RXCSUM) {
+		if (if_get(ifp, IF_CAPENABLE) & IFCAP_RXCSUM) {
 			m->m_pkthdr.csum_data = 0xffff;
 			m->m_pkthdr.csum_flags = LO_CSUM_SET;
 		}
@@ -396,22 +396,21 @@ loioctl(if_t ifp, u_long cmd, caddr_t data)
 		break;
 
 	case SIOCSIFMTU:
-		if_setflags(ifp, IF_MTU, ifr->ifr_mtu);
+		if_set(ifp, IF_MTU, ifr->ifr_mtu);
 		break;
 
 	case SIOCSIFFLAGS:
 		break;
 
 	case SIOCSIFCAP:
-		mask = if_getflags(ifp, IF_CAPENABLE) ^ ifr->ifr_reqcap;
+		mask = if_get(ifp, IF_CAPENABLE) ^ ifr->ifr_reqcap;
 		if ((mask & IFCAP_RXCSUM) != 0)
 			if_xorflags(ifp, IF_CAPENABLE, IFCAP_RXCSUM);
 		if ((mask & IFCAP_TXCSUM) != 0)
 			if_xorflags(ifp, IF_CAPENABLE, IFCAP_TXCSUM);
 		if ((mask & IFCAP_RXCSUM_IPV6) != 0) {
 #if 0
-			if_xorflags(ifp, IF_CAPENABLE,
-			    IFCAP_RXCSUM_IPV6);
+			if_xorflags(ifp, IF_CAPENABLE, IFCAP_RXCSUM_IPV6);
 #else
 			error = EOPNOTSUPP;
 			break;
@@ -419,18 +418,17 @@ loioctl(if_t ifp, u_long cmd, caddr_t data)
 		}
 		if ((mask & IFCAP_TXCSUM_IPV6) != 0) {
 #if 0
-			if_xorflags(ifp, IF_CAPENABLE,
-			    IFCAP_TXCSUM_IPV6);
+			if_xorflags(ifp, IF_CAPENABLE, IFCAP_TXCSUM_IPV6);
 #else
 			error = EOPNOTSUPP;
 			break;
 #endif
 		}
-		if_setflags(ifp, IF_HWASSIST, 0);
-		if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_TXCSUM)
-			if_setflags(ifp, IF_HWASSIST, LO_CSUM_FEATURES);
+		if_set(ifp, IF_HWASSIST, 0);
+		if (if_get(ifp, IF_CAPENABLE) & IFCAP_TXCSUM)
+			if_set(ifp, IF_HWASSIST, LO_CSUM_FEATURES);
 #if 0
-		if (if_getflags(ifp, IF_CAPENABLE) & IFCAP_TXCSUM_IPV6)
+		if (if_get(ifp, IF_CAPENABLE) & IFCAP_TXCSUM_IPV6)
 			if_addflags(ifp, IF_HWASSIST, LO_CSUM_FEATURES6);
 #endif
 		break;
