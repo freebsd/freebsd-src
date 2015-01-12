@@ -86,6 +86,7 @@ MAN=	aac.4 \
 	cc_cdg.4 \
 	cc_chd.4 \
 	cc_cubic.4 \
+	cc_dctcp.4 \
 	cc_hd.4 \
 	cc_htcp.4 \
 	cc_newreno.4 \
