@@ -65,14 +65,33 @@ ixl_mq_start(struct ifnet *ifp, struct mbuf *m)
 	struct ixl_queue	*que;
 	struct tx_ring		*txr;
 	int 			err, i;
+#ifdef RSS
+	u32			bucket_id;
+#endif
 
-	/* Which queue to use */
-	if ((m->m_flags & M_FLOWID) != 0)
-		i = m->m_pkthdr.flowid % vsi->num_queues;
-	else
+	/*
+	** Which queue to use:
+	**
+	** When doing RSS, map it to the same outbound
+	** queue as the incoming flow would be mapped to.
+	** If everything is setup correctly, it should be
+	** the same bucket that the current CPU we're on is.
+	*/
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
+#ifdef  RSS
+		if (rss_hash2bucket(m->m_pkthdr.flowid,
+		    M_HASHTYPE_GET(m), &bucket_id) == 0) {
+			i = bucket_id % vsi->num_queues;
+                } else
+#endif
+                        i = m->m_pkthdr.flowid % vsi->num_queues;
+        } else
 		i = curcpu % vsi->num_queues;
-
-	/* Check for a hung queue and pick alternative */
+	/*
+	** This may not be perfect, but until something
+	** better comes along it will keep from scheduling
+	** on stalled queues.
+	*/
 	if (((1 << i) & vsi->active_queues) == 0)
 		i = ffsl(vsi->active_queues);
 
@@ -1542,8 +1561,11 @@ ixl_rxeof(struct ixl_queue *que, int count)
 			rxr->bytes += sendmp->m_pkthdr.len;
 			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 				ixl_rx_checksum(sendmp, status, error, ptype);
+#ifdef RSS
+		/* XXX Work in Progress, fix the build for now */
+#endif
 			sendmp->m_pkthdr.flowid = que->msix;
-			sendmp->m_flags |= M_FLOWID;
+			M_HASHTYPE_SET(sendmp, M_HASHTYPE_OPAQUE);
 		}
 next_desc:
 		bus_dmamap_sync(rxr->dma.tag, rxr->dma.map,
