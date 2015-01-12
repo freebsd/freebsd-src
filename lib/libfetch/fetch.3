@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2013
+.Dd October 15, 2014
 .Dt FETCH 3
 .Os
 .Sh NAME
@@ -438,15 +438,17 @@ input (see
 .Pp
 By default
 .Nm libfetch
-allows SSLv3 and TLSv1 when negotiating the connecting with the remote
+allows TLSv1 and newer when negotiating the connecting with the remote
 peer.
-You can change this behavior by setting the environment variable
+You can change this behavior by setting the
 .Ev SSL_ALLOW_SSL2
-to allow SSLv2 (not recommended) and
-.Ev SSL_NO_SSL3
-or
-.Ev SSL_NO_TLS1
-to disable the respective methods.
+and
+.Ev SSL_ALLOW_SSL3
+environment variables to allow SSLv2 and SSLv3, respectively, and
+.Ev SSL_NO_TLS1 ,
+.Ev SSL_NO_TLS1_1 and
+.Ev SSL_NO_TLS1_2
+to disable TLS 1.0, 1.1 and 1.2 respectively.
 .Sh AUTHENTICATION
 Apart from setting the appropriate environment variables and
 specifying the user name and password in the URL or the
@@ -646,6 +648,8 @@ Same as
 for compatibility.
 .It Ev SSL_ALLOW_SSL2
 Allow SSL version 2 when negotiating the connection (not recommended).
+.It Ev SSL_ALLOW_SSL3
+Allow SSL version 3 when negotiating the connection (not recommended).
 .It Ev SSL_CA_CERT_FILE
 CA certificate bundle containing trusted CA certificates.
 Default value:
@@ -660,10 +664,12 @@ PEM encoded client key in case key and client certificate
 are stored separately.
 .It Ev SSL_CRL_FILE
 File containing certificate revocation list.
-.It Ev SSL_NO_SSL3
-Don't allow SSL version 3 when negotiating the connection.
 .It Ev SSL_NO_TLS1
-Don't allow TLV version 1 when negotiating the connection.
+Do not allow TLS version 1.0 when negotiating the connection.
+.It Ev SSL_NO_TLS1_1
+Do not allow TLS version 1.1 when negotiating the connection.
+.It Ev SSL_NO_TLS1_2
+Do not allow TLS version 1.2 when negotiating the connection.
 .It Ev SSL_NO_VERIFY_HOSTNAME
 If set, do not verify that the hostname matches the subject of the
 certificate presented by the server.
