@@ -905,8 +905,6 @@ passout:
 		u_int32_t id = htonl(ip6_randomid());
 		u_char nextproto;
 
-		int qslots = ifp->if_snd.ifq_maxlen - ifp->if_snd.ifq_len;
-
 		/*
 		 * Too large for the destination or interface;
 		 * fragment if possible.
@@ -922,18 +920,6 @@ passout:
 			in6_ifstat_inc(ifp, ifs6_out_fragfail);
 			goto bad;
 		}
-
-		/*
-		 * Verify that we have any chance at all of being able to queue
-		 *      the packet or packet fragments
-		 */
-		if (qslots <= 0 || ((u_int)qslots * (mtu - hlen)
-		    < tlen  /* - hlen */)) {
-			error = ENOBUFS;
-			IP6STAT_INC(ip6s_odropped);
-			goto bad;
-		}
-
 
 		/*
 		 * If the interface will not calculate checksums on
