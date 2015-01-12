@@ -201,6 +201,7 @@ config_create(void)
 	cfg->remote_control_enable = 0;
 	cfg->control_ifs = NULL;
 	cfg->control_port = UNBOUND_CONTROL_PORT;
+	cfg->remote_control_use_cert = 1;
 	cfg->minimal_responses = 0;
 	cfg->rrset_roundrobin = 0;
 	cfg->max_udp_size = 4096;
@@ -805,16 +806,6 @@ config_read(struct config_file* cfg, const char* filename, const char* chroot)
 		return 0;
 	}
 
-#ifdef HAVE_GETPWNAM
-	/* translate username into uid and gid */
-	if(cfg->username && cfg->username[0]) {
-		struct passwd *pwd;
-		if((pwd = getpwnam(cfg->username)) == NULL)
-			log_err("user '%s' does not exist.", cfg->username);
-		cfg->uid = pwd->pw_uid;
-		cfg->gid = pwd->pw_gid;
-	}
-#endif
 	return 1;
 }
 
@@ -1201,6 +1192,20 @@ config_apply(struct config_file* config)
 	MINIMAL_RESPONSES = config->minimal_responses;
 	RRSET_ROUNDROBIN = config->rrset_roundrobin;
 	log_set_time_asc(config->log_time_ascii);
+}
+
+void config_lookup_uid(struct config_file* cfg)
+{
+#ifdef HAVE_GETPWNAM
+	/* translate username into uid and gid */
+	if(cfg->username && cfg->username[0]) {
+		struct passwd *pwd;
+		if((pwd = getpwnam(cfg->username)) == NULL)
+			log_err("user '%s' does not exist.", cfg->username);
+		cfg->uid = pwd->pw_uid;
+		cfg->gid = pwd->pw_gid;
+	}
+#endif
 }
 
 /** 
