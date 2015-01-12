@@ -263,6 +263,10 @@ void	mii_phy_reset(struct mii_softc *);
 void	mii_phy_setmedia(struct mii_softc *sc);
 void	mii_phy_update(struct mii_softc *, int);
 int	mii_phy_tick(struct mii_softc *);
+int	mii_phy_mac_match(struct mii_softc *, const char *);
+int	mii_dev_mac_match(device_t, const char *);
+void	*mii_phy_mac_softc(struct mii_softc *);
+void	*mii_dev_mac_softc(device_t);
 
 const struct mii_phydesc * mii_phy_match(const struct mii_attach_args *ma,
     const struct mii_phydesc *mpd);
