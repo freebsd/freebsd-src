@@ -92,8 +92,16 @@ struct mb_args {
  *	 LP64: 32
  */
 struct m_hdr {
-	struct mbuf	*mh_next;	/* next buffer in chain */
-	struct mbuf	*mh_nextpkt;	/* next chain in queue/record */
+	union {
+		struct mbuf		*m;
+		SLIST_ENTRY(mbuf)	slist;
+		STAILQ_ENTRY(mbuf)	stailq;
+	}		 mh_next;	/* next buffer in chain */
+	union {
+		struct mbuf		*m;
+		SLIST_ENTRY(mbuf)	slist;
+		STAILQ_ENTRY(mbuf)	stailq;
+	}		 mh_nextpkt;	/* next chain in queue/record */
 	caddr_t		 mh_data;	/* location of data */
 	int32_t		 mh_len;	/* amount of data in this mbuf */
 	uint32_t	 mh_type:8,	/* type of data in this mbuf */
@@ -196,12 +204,16 @@ struct mbuf {
 		char	M_databuf[MLEN];		/* !M_PKTHDR, !M_EXT */
 	} M_dat;
 };
-#define	m_next		m_hdr.mh_next
+#define	m_next		m_hdr.mh_next.m
+#define	m_slist		m_hdr.mh_next.slist
+#define	m_stailq	m_hdr.mh_next.stailq
 #define	m_len		m_hdr.mh_len
 #define	m_data		m_hdr.mh_data
 #define	m_type		m_hdr.mh_type
 #define	m_flags		m_hdr.mh_flags
-#define	m_nextpkt	m_hdr.mh_nextpkt
+#define	m_nextpkt	m_hdr.mh_nextpkt.m
+#define	m_slistpkt	m_hdr.mh_nextpkt.slist
+#define	m_stailqpkt	m_hdr.mh_nextpkt.stailq
 #define	m_pkthdr	M_dat.MH.MH_pkthdr
 #define	m_ext		M_dat.MH.MH_dat.MH_ext
 #define	m_pktdat	M_dat.MH.MH_dat.MH_databuf
