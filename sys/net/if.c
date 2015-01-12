@@ -1739,40 +1739,6 @@ if_data_copy(struct ifnet *ifp, struct if_data *ifd)
 }
 
 /*
- * Wrapper functions for struct ifnet address list locking macros.  These are
- * used by kernel modules to avoid encoding programming interface or binary
- * interface assumptions that may be violated when kernel-internal locking
- * approaches change.
- */
-void
-if_addr_rlock(struct ifnet *ifp)
-{
-
-	IF_ADDR_RLOCK(ifp);
-}
-
-void
-if_addr_runlock(struct ifnet *ifp)
-{
-
-	IF_ADDR_RUNLOCK(ifp);
-}
-
-void
-if_maddr_rlock(if_t ifp)
-{
-
-	IF_ADDR_RLOCK((struct ifnet *)ifp);
-}
-
-void
-if_maddr_runlock(if_t ifp)
-{
-
-	IF_ADDR_RUNLOCK((struct ifnet *)ifp);
-}
-
-/*
  * Initialization, destruction and refcounting functions for ifaddrs.
  */
 struct ifaddr *

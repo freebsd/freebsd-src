@@ -182,16 +182,6 @@ struct ifnet {
 #define	IF_ADDR_LOCK_ASSERT(if)	rw_assert(&(if)->if_addr_lock, RA_LOCKED)
 #define	IF_ADDR_WLOCK_ASSERT(if) rw_assert(&(if)->if_addr_lock, RA_WLOCKED)
 
-/*
- * Function variations on locking macros intended to be used by loadable
- * kernel modules in order to divorce them from the internals of address list
- * locking.
- */
-void	if_addr_rlock(struct ifnet *ifp);	/* if_addrhead */
-void	if_addr_runlock(struct ifnet *ifp);	/* if_addrhead */
-void	if_maddr_rlock(if_t ifp);	/* if_multiaddrs */
-void	if_maddr_runlock(if_t ifp);	/* if_multiaddrs */
-
 #ifdef _KERNEL
 #ifdef _SYS_EVENTHANDLER_H_
 /* interface link layer address change event */
