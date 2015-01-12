@@ -79,16 +79,16 @@ typedef u_short mifi_t;		/* type of a mif index */
 #define	IF_SETSIZE	256
 #endif
 
-typedef	u_int32_t	if_mask;
-#define	NIFBITS	(sizeof(if_mask) * NBBY)	/* bits per mask */
+typedef	uint32_t	mrt6_ifmask;
+#define	NIFBITS	(sizeof(mrt6_ifmask) * NBBY)	/* bits per mask */
 
 #ifndef howmany
 #define	howmany(x, y)	(((x) + ((y) - 1)) / (y))
 #endif
 
-typedef	struct if_set {
-	if_mask	ifs_bits[howmany(IF_SETSIZE, NIFBITS)];
-} if_set;
+typedef	struct mrt6_ifset {
+	mrt6_ifmask	ifs_bits[howmany(IF_SETSIZE, NIFBITS)];
+} mrt6_ifset;
 
 #define	IF_SET(n, p)	((p)->ifs_bits[(n)/NIFBITS] |= (1 << ((n) % NIFBITS)))
 #define	IF_CLR(n, p)	((p)->ifs_bits[(n)/NIFBITS] &= ~(1 << ((n) % NIFBITS)))
@@ -114,7 +114,7 @@ struct mf6cctl {
 	struct sockaddr_in6 mf6cc_origin;	/* IPv6 origin of mcasts */
 	struct sockaddr_in6 mf6cc_mcastgrp; /* multicast group associated */
 	mifi_t		mf6cc_parent;	/* incoming ifindex */
-	struct if_set	mf6cc_ifset;	/* set of forwarding ifs */
+	struct mrt6_ifset mf6cc_ifset;	/* set of forwarding ifs */
 };
 
 /*
@@ -220,7 +220,7 @@ struct mf6c {
 	struct sockaddr_in6  mf6c_origin;	/* IPv6 origin of mcasts     */
 	struct sockaddr_in6  mf6c_mcastgrp;	/* multicast group associated*/
 	mifi_t		 mf6c_parent;		/* incoming IF               */
-	struct if_set	 mf6c_ifset;		/* set of outgoing IFs */
+	struct mrt6_ifset mf6c_ifset;		/* set of outgoing IFs */
 
 	u_quad_t	mf6c_pkt_cnt;		/* pkt count for src-grp     */
 	u_quad_t	mf6c_byte_cnt;		/* byte count for src-grp    */
