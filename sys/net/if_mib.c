@@ -103,8 +103,8 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 		if_data_copy(ifp, &ifmd.ifmd_data);
 
 		ifmd.ifmd_flags = ifp->if_flags;
-		ifmd.ifmd_snd_len = ifp->if_snd.ifq_len;
-		ifmd.ifmd_snd_maxlen = ifp->if_snd.ifq_maxlen;
+		ifmd.ifmd_snd_len = 0;		/* XXXGL */
+		ifmd.ifmd_snd_maxlen = 0;	/* XXXGL */
 		ifmd.ifmd_snd_drops = if_get_counter(ifp, IFCOUNTER_OQDROPS);
 
 		error = SYSCTL_OUT(req, &ifmd, sizeof ifmd);

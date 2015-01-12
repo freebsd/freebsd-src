@@ -655,6 +655,7 @@ struct ifdriver {
 	uint8_t		ifdrv_addrlen;	/* media address length */
 	uint32_t	ifdrv_dlt;	/* from net/bpf.h */
 	uint32_t	ifdrv_dlt_hdrlen;
+	uint32_t	ifdrv_maxqlen;	/* max queue length for if_snd */
 	/*
 	 * Owned by stack.  Drivers shouldn't initialize these!
 	 */
@@ -723,6 +724,14 @@ typedef	void	ifaddr_cb_t(void *, struct sockaddr *, struct sockaddr *,
 typedef	void	ifmaddr_cb_t(void *, struct sockaddr *);
 void	if_foreach_addr(if_t, ifaddr_cb_t, void *);
 void	if_foreach_maddr(if_t, ifmaddr_cb_t, void *);
+
+/*
+ * Generic software send queue manipulation.
+ */
+int	if_snd_len(if_t);
+int	if_snd_enqueue(if_t, struct mbuf *);
+struct mbuf * if_snd_dequeue(if_t);
+void	if_snd_prepend(if_t, struct mbuf *);
 
 /*
  * Type-enforcing inliners over declared above functions.

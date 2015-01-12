@@ -123,7 +123,6 @@ struct ifnet {
 	time_t		if_epoch;	/* uptime at attach or stat reset */
 	struct timeval	if_lastchange;	/* time of last administrative change */
 
-	struct  ifaltq if_snd;		/* output queue (includes altq) */
 	struct	task if_linktask;	/* task for link change events */
 
 	/* Addresses of different protocol families assigned to this if. */
@@ -149,6 +148,7 @@ struct ifnet {
 
 	/* Additional features hung off the interface. */
 	u_int	if_fib;			/* interface FIB */
+	struct	ifqueue *if_snd;	/* software send queue */
 	struct	vnet *if_vnet;		/* pointer to network stack instance */
 	struct	vnet *if_home_vnet;	/* where this ifnet originates from */
 	struct  ifvlantrunk *if_vlantrunk; /* pointer to 802.1q data */
@@ -454,6 +454,14 @@ if_transmit(if_t ifp, struct mbuf *m)
 	return (ifp->if_ops->ifop_transmit(ifp, m));
 }
 
+static inline void
+if_qflush(if_t ifp)
+{
+
+	if (ifp->if_ops->ifop_qflush != NULL)
+		ifp->if_ops->ifop_qflush(ifp);
+}
+
 static inline int
 if_output(if_t ifp, struct mbuf *m, const struct sockaddr *dst,
     struct route *ro)
@@ -518,7 +526,4 @@ if_addrlen(const if_t ifp)
 	return (ifp->if_drv->ifdrv_addrlen);
 }
 #endif /* _KERNEL */
-
-#include <net/ifq.h>	/* XXXAO: temporary unconditional include */
-
 #endif /* !_NET_IF_VAR_H_ */

@@ -102,6 +102,7 @@
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");
 
+int	ifqmaxlen = IFQ_MAXLEN;
 SYSCTL_INT(_net_link, OID_AUTO, ifqmaxlen, CTLFLAG_RDTUN,
     &ifqmaxlen, 0, "max send queue size");
 
@@ -173,6 +174,9 @@ static int	if_getgroupmembers(struct ifgroupreq *);
 static void	if_delgroups(struct ifnet *);
 static void	if_attach_internal(struct ifnet *, int);
 static void	if_detach_internal(struct ifnet *, int);
+static struct ifqueue * if_snd_alloc(int);
+static void	if_snd_free(struct ifqueue *);
+static void	if_snd_qflush(if_t);
 
 #ifdef INET6
 /*
@@ -183,7 +187,6 @@ extern void	nd6_setmtu(struct ifnet *);
 #endif
 
 VNET_DEFINE(int, if_index);
-int	ifqmaxlen = IFQ_MAXLEN;
 VNET_DEFINE(struct ifnethead, ifnet);	/* depend on static init XXX */
 VNET_DEFINE(struct ifgrouphead, ifg_head);
 
@@ -456,11 +459,17 @@ ifdriver_bless(struct ifdriver *ifdrv, struct iftype *ift)
 #undef COPY
 	}
 
-	KASSERT((ifdrv->ifdrv_ops.ifop_transmit == NULL &&
-	    ifdrv->ifdrv_ops.ifop_qflush == NULL) ||   
-            (ifdrv->ifdrv_ops.ifop_transmit != NULL &&
-	    ifdrv->ifdrv_ops.ifop_qflush != NULL),
-            ("transmit and qflush must both either be set or both be NULL"));
+	/*
+	 * If driver has ifdrv_maxqlen defined, then it opts-in
+	 * for * generic software queue, and thus for default
+	 * ifop_qflush.
+	 */
+	if (ifdrv->ifdrv_maxqlen > 0) {
+		KASSERT(ifdrv->ifdrv_ops.ifop_qflush == NULL,
+		    ("%s: fdrv_maxqlen > 0 and ifop_qflush",
+		    ifdrv->ifdrv_name));
+		ifdrv->ifdrv_ops.ifop_qflush = if_snd_qflush;
+	}
 
 	if (ifdrv->ifdrv_ops.ifop_get_counter == NULL)
 		ifdrv->ifdrv_ops.ifop_get_counter = if_get_counter_default;
@@ -543,6 +552,9 @@ if_attach(struct if_attach_args *ifat)
 	} else
 		ifp->if_tsomax = ifdrv->ifdrv_tsomax;
 
+	if (ifdrv->ifdrv_maxqlen > 0)
+		ifp->if_snd = if_snd_alloc(ifdrv->ifdrv_maxqlen);
+
 	IF_ADDR_LOCK_INIT(ifp);
 	IF_AFDATA_LOCK_INIT(ifp);
 	TASK_INIT(&ifp->if_linktask, 0, do_link_state_change, ifp);
@@ -557,8 +569,6 @@ if_attach(struct if_attach_args *ifat)
 		    ifdrv->ifdrv_name, ifat->ifat_dunit);
 	else
 		strlcpy(ifp->if_xname, ifdrv->ifdrv_name, IFNAMSIZ);
-
-	ifq_init(&ifp->if_snd, ifp); /* XXXGL */
 
 	ifindex_alloc(ifp);
 	refcount_init(&ifp->if_refcount, 1);
@@ -627,7 +637,8 @@ if_free_internal(struct ifnet *ifp)
 		free(ifp->if_description, M_IFDESCR);
 	IF_AFDATA_DESTROY(ifp);
 	IF_ADDR_LOCK_DESTROY(ifp);
-	ifq_delete(&ifp->if_snd);
+	if (ifp->if_snd)
+		if_snd_free(ifp->if_snd);
 
 	for (int i = 0; i < IFCOUNTERS; i++)
 		counter_u64_free(ifp->if_counters[i]);
@@ -674,28 +685,6 @@ if_rele(struct ifnet *ifp)
 	if (!refcount_release(&ifp->if_refcount))
 		return;
 	if_free_internal(ifp);
-}
-
-void
-ifq_init(struct ifaltq *ifq, struct ifnet *ifp)
-{
-	
-	mtx_init(&ifq->ifq_mtx, ifp->if_xname, "if send queue", MTX_DEF);
-
-	if (ifq->ifq_maxlen == 0) 
-		ifq->ifq_maxlen = ifqmaxlen;
-
-	ifq->altq_type = 0;
-	ifq->altq_disc = NULL;
-	ifq->altq_flags &= ALTQF_CANTCHANGE;
-	ifq->altq_tbr  = NULL;
-	ifq->altq_ifp  = ifp;
-}
-
-void
-ifq_delete(struct ifaltq *ifq)
-{
-	mtx_destroy(&ifq->ifq_mtx);
 }
 
 /*
@@ -2251,6 +2240,7 @@ if_unroute(struct ifnet *ifp, int flag, int fam)
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
 			pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
+	if_qflush(ifp);
 
 	if (ifp->if_carp)
 		(*carp_linkstate_p)(ifp);
@@ -2363,32 +2353,6 @@ if_up(struct ifnet *ifp)
 {
 
 	if_route(ifp, IFF_UP, AF_UNSPEC);
-}
-
-/*
- * Flush an interface queue.
- */
-void
-if_qflush(struct ifnet *ifp)
-{
-	struct mbuf *m, *n;
-	struct ifaltq *ifq;
-	
-	ifq = &ifp->if_snd;
-	IFQ_LOCK(ifq);
-#ifdef ALTQ
-	if (ALTQ_IS_ENABLED(ifq))
-		ALTQ_PURGE(ifq);
-#endif
-	n = ifq->ifq_head;
-	while ((m = n) != 0) {
-		n = m->m_nextpkt;
-		m_freem(m);
-	}
-	ifq->ifq_head = 0;
-	ifq->ifq_tail = 0;
-	ifq->ifq_len = 0;
-	IFQ_UNLOCK(ifq);
 }
 
 /*
@@ -3682,6 +3646,101 @@ if_foreach_maddr(if_t ifp, ifmaddr_cb_t cb, void *cb_arg)
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
 		(*cb)(cb_arg, ifma->ifma_addr);
 	IF_ADDR_RUNLOCK(ifp);
+}
+
+/*
+ * Generic software queue, that many non-high-end drivers use.  For now
+ * it is minimalistic version of classic BSD ifqueue, but we can swap it
+ * to any other implementation later.
+ */
+struct ifqueue {
+	struct mbufq	ifq_mbq;
+	struct mtx	ifq_mtx;
+};
+
+static struct ifqueue *
+if_snd_alloc(int maxlen)
+{
+	struct ifqueue *ifq;
+
+	ifq = malloc(sizeof(struct ifqueue), M_IFNET, M_WAITOK);
+	mbufq_init(&ifq->ifq_mbq, maxlen);
+	mtx_init(&ifq->ifq_mtx, "ifqueue", NULL, MTX_DEF);
+
+	return (ifq);
+}
+
+static void
+if_snd_free(struct ifqueue *ifq)
+{
+
+	mtx_destroy(&ifq->ifq_mtx);
+	free(ifq, M_IFNET);
+}
+
+/*
+ * Flush software interface queue.
+ */
+static void
+if_snd_qflush(if_t ifp)
+{
+	struct ifqueue *ifq;
+	struct mbuf *m, *n;
+	
+	ifq = ifp->if_snd;
+	mtx_lock(&ifq->ifq_mtx);
+	n = mbufq_flush(&ifq->ifq_mbq);
+	mtx_unlock(&ifq->ifq_mtx);
+	while ((m = n) != NULL) {
+		n = m->m_nextpkt;
+		m_freem(m);
+	}
+}
+
+int
+if_snd_len(if_t ifp)
+{
+	struct ifqueue *ifq = ifp->if_snd;
+
+	return (mbufq_len(&ifq->ifq_mbq));
+}
+
+int
+if_snd_enqueue(struct ifnet *ifp, struct mbuf *m)
+{
+	struct ifqueue *ifq = ifp->if_snd;
+	int error;
+
+	mtx_lock(&ifq->ifq_mtx);
+	error = mbufq_enqueue(&ifq->ifq_mbq, m);
+	mtx_unlock(&ifq->ifq_mtx);
+	if (error) {
+		m_freem(m);
+		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
+	}
+	return (error);
+}
+
+struct mbuf *
+if_snd_dequeue(if_t ifp)
+{
+	struct ifqueue *ifq = ifp->if_snd;
+	struct mbuf *m;
+
+	mtx_lock(&ifq->ifq_mtx);
+	m = mbufq_dequeue(&ifq->ifq_mbq);
+	mtx_unlock(&ifq->ifq_mtx);
+	return (m);
+}
+
+void
+if_snd_prepend(if_t ifp, struct mbuf *m)
+{
+	struct ifqueue *ifq = ifp->if_snd;
+
+	mtx_lock(&ifq->ifq_mtx);
+	mbufq_prepend(&ifq->ifq_mbq, m);
+	mtx_unlock(&ifq->ifq_mtx);
 }
 
 /*
