@@ -1,4 +1,4 @@
-/*	$NetBSD: read.c,v 1.69 2012/09/11 12:31:08 christos Exp $	*/
+/*	$NetBSD: read.c,v 1.71 2014/07/06 18:15:34 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)read.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: read.c,v 1.69 2012/09/11 12:31:08 christos Exp $");
+__RCSID("$NetBSD: read.c,v 1.71 2014/07/06 18:15:34 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -341,6 +341,13 @@ read_char(EditLine *el, Char *cp)
 		}
 	}
 
+	/* Test for EOF */
+	if (num_read == 0) {
+		errno = 0;
+		*cp = '\0';
+		return 0;
+	}
+
 #ifdef WIDECHAR
 	if (el->el_flags & CHARSET_IS_UTF8) {
 		if (!utf8_islead((unsigned char)cbuf[0]))
@@ -590,7 +597,7 @@ FUN(el,gets)(EditLine *el, int *nread)
 			    el->el_line.cursor = el->el_line.buffer;
 			break;
 		}
-		if ((unsigned int)cmdnum >= (unsigned int)el->el_map.nfunc) {	/* BUG CHECK command */
+		if ((size_t)cmdnum >= el->el_map.nfunc) {	/* BUG CHECK command */
 #ifdef DEBUG_EDIT
 			(void) fprintf(el->el_errfile,
 			    "ERROR: illegal command from key 0%o\r\n", ch);

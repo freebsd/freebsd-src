@@ -1,4 +1,4 @@
-/*	$NetBSD: chared.c,v 1.37 2012/07/18 17:12:39 christos Exp $	*/
+/*	$NetBSD: chared.c,v 1.40 2014/06/18 18:12:28 christos Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -37,7 +37,7 @@
 #if 0
 static char sccsid[] = "@(#)chared.c	8.1 (Berkeley) 6/4/93";
 #else
-__RCSID("$NetBSD: chared.c,v 1.37 2012/07/18 17:12:39 christos Exp $");
+__RCSID("$NetBSD: chared.c,v 1.40 2014/06/18 18:12:28 christos Exp $");
 #endif
 #endif /* not lint && not SCCSID */
 
@@ -434,6 +434,8 @@ ch_init(EditLine *el)
 	el->el_chared.c_kill.last	= el->el_chared.c_kill.buf;
 	el->el_chared.c_resizefun	= NULL;
 	el->el_chared.c_resizearg	= NULL;
+	el->el_chared.c_aliasfun	= NULL;
+	el->el_chared.c_aliasarg	= NULL;
 
 	el->el_map.current		= el->el_map.key;
 
@@ -644,6 +646,25 @@ el_deletestr(EditLine *el, int n)
 		el->el_line.cursor = el->el_line.buffer;
 }
 
+/* el_cursor():
+ *	Move the cursor to the left or the right of the current position
+ */
+public int
+el_cursor(EditLine *el, int n)
+{
+	if (n == 0)
+		goto out;
+
+	el->el_line.cursor += n;
+
+	if (el->el_line.cursor < el->el_line.buffer)
+		el->el_line.cursor = el->el_line.buffer;
+	if (el->el_line.cursor > el->el_line.lastchar)
+		el->el_line.cursor = el->el_line.lastchar;
+out:
+	return (int)(el->el_line.cursor - el->el_line.buffer);
+}
+
 /* c_gets():
  *	Get a string
  */
@@ -736,5 +757,13 @@ ch_resizefun(EditLine *el, el_zfunc_t f, void *a)
 {
 	el->el_chared.c_resizefun = f;
 	el->el_chared.c_resizearg = a;
+	return 0;
+}
+
+protected int
+ch_aliasfun(EditLine *el, el_afunc_t f, void *a)
+{
+	el->el_chared.c_aliasfun = f;
+	el->el_chared.c_aliasarg = a;
 	return 0;
 }

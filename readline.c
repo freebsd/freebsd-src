@@ -1,4 +1,4 @@
-/*	$NetBSD: readline.c,v 1.105 2012/07/12 18:46:20 christos Exp $	*/
+/*	$NetBSD: readline.c,v 1.113 2014/10/18 08:33:23 snj Exp $	*/
 
 /*-
  * Copyright (c) 1997 The NetBSD Foundation, Inc.
@@ -31,7 +31,7 @@
 
 #include "config.h"
 #if !defined(lint) && !defined(SCCSID)
-__RCSID("$NetBSD: readline.c,v 1.105 2012/07/12 18:46:20 christos Exp $");
+__RCSID("$NetBSD: readline.c,v 1.113 2014/10/18 08:33:23 snj Exp $");
 #endif /* not lint && not SCCSID */
 
 #include <sys/types.h>
@@ -84,6 +84,14 @@ VFunction *rl_event_hook = NULL;
 KEYMAP_ENTRY_ARRAY emacs_standard_keymap,
     emacs_meta_keymap,
     emacs_ctlx_keymap;
+/*
+ * The following is not implemented; we always catch signals in the
+ * libedit fashion: set handlers on entry to el_gets() and clear them
+ * on the way out. This simplistic approach works for most cases; if
+ * it does not work for your application, please let us know.
+ */
+int rl_catch_signals = 1;
+int rl_catch_sigwinch = 1;
 
 int history_base = 1;		/* probably never subject to change */
 int history_length = 0;
@@ -109,7 +117,6 @@ char *rl_terminal_name = NULL;
 int rl_already_prompted = 0;
 int rl_filename_completion_desired = 0;
 int rl_ignore_completion_duplicates = 0;
-int rl_catch_signals = 1;
 int readline_echoing_p = 1;
 int _rl_print_completions_horizontally = 0;
 VFunction *rl_redisplay_function = NULL;
@@ -229,13 +236,20 @@ static const char *
 _default_history_file(void)
 {
 	struct passwd *p;
-	static char path[PATH_MAX];
+	static char *path;
+	size_t len;
 
-	if (*path)
+	if (path)
 		return path;
+
 	if ((p = getpwuid(getuid())) == NULL)
 		return NULL;
-	(void)snprintf(path, sizeof(path), "%s/.history", p->pw_dir);
+
+	len = strlen(p->pw_dir) + sizeof("/.history");
+	if ((path = malloc(len)) == NULL)
+		return NULL;
+
+	(void)snprintf(path, len, "%s/.history", p->pw_dir);
 	return path;
 }
 
@@ -324,7 +338,7 @@ rl_initialize(void)
 	el_set(e, EL_SIGNAL, rl_catch_signals);
 
 	/* set default mode to "emacs"-style and read setting afterwards */
-	/* so this can be overriden */
+	/* so this can be overridden */
 	el_set(e, EL_EDITOR, "emacs");
 	if (rl_terminal_name != NULL)
 		el_set(e, EL_TERMINAL, rl_terminal_name);
@@ -620,7 +634,7 @@ get_history_event(const char *cmd, int *cindex, int qchar)
  * returns 0 if data was not modified, 1 if it was and 2 if the string
  * should be only printed and not executed; in case of error,
  * returns -1 and *result points to NULL
- * it's callers responsibility to free() string returned in *result
+ * it's the caller's responsibility to free() the string returned in *result
  */
 static int
 _history_expand_command(const char *command, size_t offs, size_t cmdlen,
@@ -1468,6 +1482,9 @@ clear_history(void)
 {
 	HistEvent ev;
 
+	if (h == NULL || e == NULL)
+		rl_initialize();
+
 	(void)history(h, &ev, H_CLEAR);
 	history_length = 0;
 }
@@ -1677,7 +1694,7 @@ filename_completion_function(const char *name, int state)
  * which starts with supplied text
  * text contains a partial username preceded by random character
  * (usually '~'); state resets search from start (??? should we do that anyway)
- * it's callers responsibility to free returned value
+ * it's the caller's responsibility to free the returned value
  */
 char *
 username_completion_function(const char *text, int state)
@@ -1927,7 +1944,7 @@ rl_add_defun(const char *name, Function *fun, int c)
 	map[(unsigned char)c] = fun;
 	el_set(e, EL_ADDFN, name, name, rl_bind_wrapper);
 	vis(dest, c, VIS_WHITE|VIS_NOSLASH, 0);
-	el_set(e, EL_BIND, dest, name);
+	el_set(e, EL_BIND, dest, name, NULL);
 	return 0;
 }
 
@@ -1953,7 +1970,7 @@ rl_callback_read_char(void)
 		} else
 			wbuf = NULL;
 		(*(void (*)(const char *))rl_linefunc)(wbuf);
-		//el_set(e, EL_UNBUFFERED, 1);
+		el_set(e, EL_UNBUFFERED, 1);
 	}
 }
 
@@ -2035,7 +2052,7 @@ rl_variable_bind(const char *var, const char *value)
 	 * The proper return value is undocument, but this is what the
 	 * readline source seems to do.
 	 */
-	return el_set(e, EL_BIND, "", var, value) == -1 ? 1 : 0;
+	return el_set(e, EL_BIND, "", var, value, NULL) == -1 ? 1 : 0;
 }
 
 void
@@ -2104,9 +2121,9 @@ void
 rl_get_screen_size(int *rows, int *cols)
 {
 	if (rows)
-		el_get(e, EL_GETTC, "li", rows);
+		el_get(e, EL_GETTC, "li", rows, (void *)0);
 	if (cols)
-		el_get(e, EL_GETTC, "co", cols);
+		el_get(e, EL_GETTC, "co", cols, (void *)0);
 }
 
 void
@@ -2114,9 +2131,9 @@ rl_set_screen_size(int rows, int cols)
 {
 	char buf[64];
 	(void)snprintf(buf, sizeof(buf), "%d", rows);
-	el_set(e, EL_SETTC, "li", buf);
+	el_set(e, EL_SETTC, "li", buf, NULL);
 	(void)snprintf(buf, sizeof(buf), "%d", cols);
-	el_set(e, EL_SETTC, "co", buf);
+	el_set(e, EL_SETTC, "co", buf, NULL);
 }
 
 char **
