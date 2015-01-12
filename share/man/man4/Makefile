@@ -131,6 +131,7 @@ MAN=	aac.4 \
 	esp.4 \
 	est.4 \
 	et.4 \
+	etherswitch.4 \
 	eventtimers.4 \
 	exca.4 \
 	faith.4 \
