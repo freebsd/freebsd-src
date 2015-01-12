@@ -124,15 +124,15 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 
 	case IFDATA_DRIVERNAME:
 		/* 20 is enough for 64bit ints */
-		dlen = strlen(ifp->if_drv->ifdrv_dname) + 20 + 1;
+		dlen = strlen(ifp->if_drv->ifdrv_name) + 20 + 1;
 		if ((dbuf = malloc(dlen, M_TEMP, M_NOWAIT)) == NULL) {
 			error = ENOMEM;
 			goto out;
 		}
 		if (ifp->if_dunit == IF_DUNIT_NONE)
-			strcpy(dbuf, ifp->if_drv->ifdrv_dname);
+			strcpy(dbuf, ifp->if_drv->ifdrv_name);
 		else
-			sprintf(dbuf, "%s%d", ifp->if_drv->ifdrv_dname,
+			sprintf(dbuf, "%s%d", ifp->if_drv->ifdrv_name,
 			    ifp->if_dunit);
 
 		error = SYSCTL_OUT(req, dbuf, strlen(dbuf) + 1);

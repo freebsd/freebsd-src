@@ -473,7 +473,7 @@ ifdriver_bless(struct ifdriver *ifdrv, struct iftype *ift)
 		KASSERT(ifdrv->ifdrv_tsomax->tsomax_bytes == 0 ||
 		    ifdrv->ifdrv_tsomax->tsomax_bytes >= (IP_MAXPACKET / 8),
 		    ("%s: tsomax_bytes is outside of range",
-		    ifdrv->ifdrv_dname));
+		    ifdrv->ifdrv_name));
 #endif
 
 	ifdrv->ifdrv_flags |= IFDRV_BLESSED;
@@ -535,7 +535,7 @@ if_attach(struct if_attach_args *ifat)
 		KASSERT(ifat->ifat_tsomax->tsomax_bytes == 0 ||
 		    ifat->ifat_tsomax->tsomax_bytes >= (IP_MAXPACKET / 8),
 		    ("%s: tsomax_bytes is outside of range",
-		    ifdrv->ifdrv_dname));
+		    ifdrv->ifdrv_name));
 		ifp->if_tsomax = malloc(sizeof(struct iftsomax), M_IFNET,
 		    M_WAITOK);
 		bcopy(ifat->ifat_tsomax, ifp->if_tsomax,
@@ -554,9 +554,9 @@ if_attach(struct if_attach_args *ifat)
 	ifp->if_dunit = ifat->ifat_dunit;
 	if (ifat->ifat_dunit != IF_DUNIT_NONE)
 		snprintf(ifp->if_xname, IFNAMSIZ, "%s%d",
-		    ifdrv->ifdrv_dname, ifat->ifat_dunit);
+		    ifdrv->ifdrv_name, ifat->ifat_dunit);
 	else
-		strlcpy(ifp->if_xname, ifdrv->ifdrv_dname, IFNAMSIZ);
+		strlcpy(ifp->if_xname, ifdrv->ifdrv_name, IFNAMSIZ);
 
 	ifq_init(&ifp->if_snd, ifp); /* XXXGL */
 
@@ -738,7 +738,7 @@ if_tsomax_update(if_t ifp, const struct iftsomax *new)
 
 	KASSERT(ifp->if_tsomax != ifp->if_drv->ifdrv_tsomax,
 	    ("%s: interface %s (driver %s) has static if_tsomax", __func__,
-	    ifp->if_xname, ifp->if_drv->ifdrv_dname));
+	    ifp->if_xname, ifp->if_drv->ifdrv_name));
 
 	if (ifp->if_tsomax->tsomax_bytes != new->tsomax_bytes) {
 		ifp->if_tsomax->tsomax_bytes = new->tsomax_bytes;

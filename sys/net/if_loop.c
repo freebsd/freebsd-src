@@ -107,7 +107,7 @@ static struct ifdriver lo_ifdrv = {
 		.ifop_ioctl = loioctl,
 		.ifop_output = looutput,
 	},
-	.ifdrv_dname = loname,
+	.ifdrv_name = loname,
 	.ifdrv_type = IFT_LOOP,
 	.ifdrv_dlt = DLT_NULL,
 	.ifdrv_dlt_hdrlen = sizeof(uint32_t),

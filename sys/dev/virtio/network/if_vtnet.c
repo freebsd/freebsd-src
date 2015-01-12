@@ -304,7 +304,7 @@ static struct ifdriver vtnet_ifdrv = {
 		.ifop_transmit = vtnet_txq_mq_start,
 		.ifop_qflush = vtnet_qflush,
 	},
-	.ifdrv_dname = "vtnet",
+	.ifdrv_name = "vtnet",
 	.ifdrv_type = IFT_ETHER,
 	.ifdrv_hdrlen = sizeof(struct ether_vlan_header),
 };

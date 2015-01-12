@@ -638,12 +638,12 @@ struct ifdriver {
 	struct ifops		ifdrv_ops;
 	struct iftsomax		*ifdrv_tsomax;
 	/*
-	 * The ifdrv_dname must be a pointer to storage which will last as
+	 * The ifdrv_name must be a pointer to storage which will last as
 	 * long as any interface does.  For physical devices, the result of
 	 * device_get_name(dev) is a good choice and for pseudo-devices a
 	 * static string works well.
 	 */
-	const char *	ifdrv_dname;
+	const char *	ifdrv_name;
 	ifType		ifdrv_type;	/* from if_types.h */
 	uint8_t		ifdrv_hdrlen;	/* media header length */
 	uint8_t		ifdrv_addrlen;	/* media address length */
