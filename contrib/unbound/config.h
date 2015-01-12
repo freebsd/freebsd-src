@@ -351,6 +351,9 @@
 /* Define to 1 if `ipi_spec_dst' is a member of `struct in_pktinfo'. */
 /* #undef HAVE_STRUCT_IN_PKTINFO_IPI_SPEC_DST */
 
+/* Define to 1 if `sun_len' is a member of `struct sockaddr_un'. */
+#define HAVE_STRUCT_SOCKADDR_UN_SUN_LEN 1
+
 /* Define if you have Swig libraries and header files. */
 /* #undef HAVE_SWIG */
 

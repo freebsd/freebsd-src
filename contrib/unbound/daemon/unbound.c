@@ -441,8 +441,6 @@ static void
 perform_setup(struct daemon* daemon, struct config_file* cfg, int debug_mode,
 	const char** cfgfile)
 {
-	log_assert(cfg);
-
 #ifdef HAVE_GETPWNAM
 	struct passwd *pwd = NULL;
 
@@ -653,6 +651,7 @@ run_daemon(const char* cfgfile, int cmdline_verbose, int debug_mode)
 			log_warn("Continuing with default config settings");
 		}
 		apply_settings(daemon, cfg, cmdline_verbose, debug_mode);
+		config_lookup_uid(cfg);
 	
 		/* prepare */
 		if(!daemon_open_shared_ports(daemon))

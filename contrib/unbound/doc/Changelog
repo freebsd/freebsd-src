@@ -1,6 +1,11 @@
 8 December 2014: Wouter
 	- Fix CVE-2014-8602: denial of service by making resolver chase
 	  endless series of delegations.
+	- patch for remote control over local sockets, from Dag-Erling
+	  Smorgrav, Ilya Bakulin.  Use control-interface: /path/sock and
+	  control-use-cert: no.
+	- Fixup that patch and uid lookup (only for daemon).
+	- coded the default of control-use-cert, to yes.
 
 1 December 2014: Wouter
 	- Fix bug#632: unbound fails to build on AArch64, protects

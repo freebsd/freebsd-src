@@ -142,6 +142,7 @@ timeval_divide(struct timeval* avg, const struct timeval* sum, size_t d)
  * The following function was generated using the openssl utility, using
  * the command : "openssl dhparam -dsaparam -C 512"
  */
+#ifndef S_SPLINT_S
 DH *get_dh512()
 {
 	static unsigned char dh512_p[]={
@@ -170,6 +171,7 @@ DH *get_dh512()
 	dh->length = 160;
 	return(dh);
 }
+#endif /* SPLINT */
 
 struct daemon_remote*
 daemon_remote_create(struct config_file* cfg)
@@ -299,6 +301,7 @@ void daemon_remote_delete(struct daemon_remote* rc)
  * @param nr: port nr
  * @param list: list head
  * @param noproto_is_err: if lack of protocol support is an error.
+ * @param cfg: config with username for chown of unix-sockets.
  * @return false on failure.
  */
 static int
@@ -326,7 +329,7 @@ add_open(const char* ip, int nr, struct listen_port** list, int noproto_is_err,
 		if(fd != -1) {
 			if (cfg->username && cfg->username[0])
 				chown(ip, cfg->uid, cfg->gid);
-			chmod(ip, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
+			chmod(ip, (mode_t)(S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP));
 		}
 	} else {
 		hints.ai_socktype = SOCK_STREAM;
