@@ -3846,13 +3846,7 @@ sctp_add_cookie(struct mbuf *init, int init_offset,
 	}
 #ifdef SCTP_MBUF_LOGGING
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-		struct mbuf *mat;
-
-		for (mat = copy_init; mat; mat = SCTP_BUF_NEXT(mat)) {
-			if (SCTP_BUF_IS_EXTENDED(mat)) {
-				sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-			}
-		}
+		sctp_log_mbc(copy_init, SCTP_MBUF_ICOPY);
 	}
 #endif
 	copy_initack = SCTP_M_COPYM(initack, initack_offset, M_COPYALL,
@@ -3864,13 +3858,7 @@ sctp_add_cookie(struct mbuf *init, int init_offset,
 	}
 #ifdef SCTP_MBUF_LOGGING
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-		struct mbuf *mat;
-
-		for (mat = copy_initack; mat; mat = SCTP_BUF_NEXT(mat)) {
-			if (SCTP_BUF_IS_EXTENDED(mat)) {
-				sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-			}
-		}
+		sctp_log_mbc(copy_initack, SCTP_MBUF_ICOPY);
 	}
 #endif
 	/* easy side we just drop it on the end */
@@ -6482,13 +6470,7 @@ error_out:
 			appendchain = SCTP_M_COPYM(clonechain, 0, M_COPYALL, M_NOWAIT);
 #ifdef SCTP_MBUF_LOGGING
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-				struct mbuf *mat;
-
-				for (mat = appendchain; mat; mat = SCTP_BUF_NEXT(mat)) {
-					if (SCTP_BUF_IS_EXTENDED(mat)) {
-						sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-					}
-				}
+				sctp_log_mbc(appendchain, SCTP_MBUF_ICOPY);
 			}
 #endif
 		}
@@ -6581,13 +6563,7 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 		}
 #ifdef SCTP_MBUF_LOGGING
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-			struct mbuf *mat;
-
-			for (mat = m; mat; mat = SCTP_BUF_NEXT(mat)) {
-				if (SCTP_BUF_IS_EXTENDED(mat)) {
-					sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-				}
-			}
+			sctp_log_mbc(m, SCTP_MBUF_ICOPY);
 		}
 #endif
 	} else {
@@ -7371,13 +7347,7 @@ dont_do_it:
 		}
 #ifdef SCTP_MBUF_LOGGING
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-			struct mbuf *mat;
-
-			for (mat = chk->data; mat; mat = SCTP_BUF_NEXT(mat)) {
-				if (SCTP_BUF_IS_EXTENDED(mat)) {
-					sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-				}
-			}
+			sctp_log_mbc(chk->data, SCTP_MBUF_ICOPY);
 		}
 #endif
 		/* Pull off the data */
@@ -8947,12 +8917,11 @@ sctp_send_cookie_echo(struct mbuf *m,
 	struct sctp_tmit_chunk *chk;
 	uint16_t ptype, plen;
 
+	SCTP_TCB_LOCK_ASSERT(stcb);
 	/* First find the cookie in the param area */
 	cookie = NULL;
 	at = offset + sizeof(struct sctp_init_chunk);
-
-	SCTP_TCB_LOCK_ASSERT(stcb);
-	do {
+	for (;;) {
 		phdr = sctp_get_next_param(m, at, &parm, sizeof(parm));
 		if (phdr == NULL) {
 			return (-3);
@@ -8973,25 +8942,14 @@ sctp_send_cookie_echo(struct mbuf *m,
 			}
 #ifdef SCTP_MBUF_LOGGING
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-				struct mbuf *mat;
-
-				for (mat = cookie; mat; mat = SCTP_BUF_NEXT(mat)) {
-					if (SCTP_BUF_IS_EXTENDED(mat)) {
-						sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-					}
-				}
+				sctp_log_mbc(cookie, SCTP_MBUF_ICOPY);
 			}
 #endif
 			break;
 		}
 		at += SCTP_SIZE32(plen);
-	} while (phdr);
-	if (cookie == NULL) {
-		/* Did not find the cookie */
-		return (-3);
 	}
 	/* ok, we got the cookie lets change it into a cookie echo chunk */
-
 	/* first the change from param to cookie */
 	hdr = mtod(cookie, struct sctp_chunkhdr *);
 	hdr->chunk_type = SCTP_COOKIE_ECHO;
@@ -9045,13 +9003,7 @@ sctp_send_heartbeat_ack(struct sctp_tcb *stcb,
 	}
 #ifdef SCTP_MBUF_LOGGING
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-		struct mbuf *mat;
-
-		for (mat = outchain; mat; mat = SCTP_BUF_NEXT(mat)) {
-			if (SCTP_BUF_IS_EXTENDED(mat)) {
-				sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-			}
-		}
+		sctp_log_mbc(outchain, SCTP_MBUF_ICOPY);
 	}
 #endif
 	chdr = mtod(outchain, struct sctp_chunkhdr *);
@@ -9330,13 +9282,7 @@ sctp_send_asconf_ack(struct sctp_tcb *stcb)
 		}
 #ifdef SCTP_MBUF_LOGGING
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-			struct mbuf *mat;
-
-			for (mat = m_ack; mat; mat = SCTP_BUF_NEXT(mat)) {
-				if (SCTP_BUF_IS_EXTENDED(mat)) {
-					sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-				}
-			}
+			sctp_log_mbc(m_ack, SCTP_MBUF_ICOPY);
 		}
 #endif
 

@@ -283,10 +283,10 @@ static int ael1002_intr_noop(struct cphy *phy)
 /*
  * Get link status for a 10GBASE-R device.
  */
-static int get_link_status_r(struct cphy *phy, int *link_ok, int *speed,
+static int get_link_status_r(struct cphy *phy, int *link_state, int *speed,
 			     int *duplex, int *fc)
 {
-	if (link_ok) {
+	if (link_state) {
 		unsigned int stat0, stat1, stat2;
 		int err = mdio_read(phy, MDIO_DEV_PMA_PMD, PMD_RSD, &stat0);
 
@@ -296,10 +296,16 @@ static int get_link_status_r(struct cphy *phy, int *link_ok, int *speed,
 			err = mdio_read(phy, MDIO_DEV_XGXS, XS_LN_STAT, &stat2);
 		if (err)
 			return err;
-		*link_ok = (stat0 & stat1 & (stat2 >> 12)) & 1;
 
-		if (*link_ok == 0)
-			return (0);
+		stat0 &= 1;
+		stat1 &= 1;
+		stat2 = (stat2 >> 12) & 1;
+		if (stat0 & stat1 & stat2)
+			*link_state = PHY_LINK_UP;
+		else if (stat0 == 1 && stat1 == 0 && stat2 == 1)
+			*link_state = PHY_LINK_PARTIAL;
+		else
+			*link_state = PHY_LINK_DOWN;
 	}
 	if (speed)
 		*speed = SPEED_10000;
@@ -1345,10 +1351,8 @@ static int ael2005_intr_handler(struct cphy *phy)
 		return ret;
 
 	ret |= cause;
-	if (!ret) {
-		(void) ael2005_reset(phy, 0);
+	if (!ret)
 		ret |= cphy_cause_link_change;
-	}
 	return ret;
 }
 
@@ -2156,10 +2160,10 @@ int t3_ael2020_phy_prep(pinfo_t *pinfo, int phy_addr,
 /*
  * Get link status for a 10GBASE-X device.
  */
-static int get_link_status_x(struct cphy *phy, int *link_ok, int *speed,
+static int get_link_status_x(struct cphy *phy, int *link_state, int *speed,
 			     int *duplex, int *fc)
 {
-	if (link_ok) {
+	if (link_state) {
 		unsigned int stat0, stat1, stat2;
 		int err = mdio_read(phy, MDIO_DEV_PMA_PMD, PMD_RSD, &stat0);
 
@@ -2169,7 +2173,10 @@ static int get_link_status_x(struct cphy *phy, int *link_ok, int *speed,
 			err = mdio_read(phy, MDIO_DEV_XGXS, XS_LN_STAT, &stat2);
 		if (err)
 			return err;
-		*link_ok = (stat0 & (stat1 >> 12) & (stat2 >> 12)) & 1;
+		if ((stat0 & (stat1 >> 12) & (stat2 >> 12)) & 1)
+			*link_state = PHY_LINK_UP;
+		else
+			*link_state = PHY_LINK_DOWN;
 	}
 	if (speed)
 		*speed = SPEED_10000;
@@ -2230,10 +2237,10 @@ static int xaui_direct_reset(struct cphy *phy, int wait)
 	return 0;
 }
 
-static int xaui_direct_get_link_status(struct cphy *phy, int *link_ok,
+static int xaui_direct_get_link_status(struct cphy *phy, int *link_state,
 				       int *speed, int *duplex, int *fc)
 {
-	if (link_ok) {
+	if (link_state) {
 		unsigned int status;
 		adapter_t *adapter = phy->adapter;
 
@@ -2245,7 +2252,7 @@ static int xaui_direct_get_link_status(struct cphy *phy, int *link_ok,
 				     XGM_REG(A_XGM_SERDES_STAT2, phy->addr)) |
 			 t3_read_reg(adapter,
 				     XGM_REG(A_XGM_SERDES_STAT3, phy->addr));
-		*link_ok = !(status & F_LOWSIG0);
+		*link_state = status & F_LOWSIG0 ? PHY_LINK_DOWN : PHY_LINK_UP;
 	}
 	if (speed)
 		*speed = SPEED_10000;

@@ -75,6 +75,13 @@
 			interrupt-parent = <&AINTC>;
 		};
 
+		rtc: rtc@44E3E000 {
+			compatible = "ti,da830-rtc";
+			reg = <0x44E3E000 0x1000>;
+			interrupts = < 75 76 >;
+			interrupt-parent = <&AINTC>;
+		};
+
 		adc0: adc@44E0D000 {
 			compatible = "ti,adc";
 			reg = <0x44E0D000 0x2000>;

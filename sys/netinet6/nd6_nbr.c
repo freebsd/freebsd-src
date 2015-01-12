@@ -626,7 +626,6 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	struct llentry *ln = NULL;
 	union nd_opts ndopts;
 	struct mbuf *chain = NULL;
-	struct m_tag *mtag;
 	struct sockaddr_in6 sin6;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
@@ -653,6 +652,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	is_router = ((flags & ND_NA_FLAG_ROUTER) != 0);
 	is_solicited = ((flags & ND_NA_FLAG_SOLICITED) != 0);
 	is_override = ((flags & ND_NA_FLAG_OVERRIDE) != 0);
+	memset(&sin6, 0, sizeof(sin6));
 
 	taddr6 = nd_na->nd_na_target;
 	if (in6_setscope(&taddr6, ifp, NULL))
@@ -891,43 +891,15 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 *  rt->rt_flags &= ~RTF_REJECT;
 	 */
 	ln->la_asked = 0;
-	if (ln->la_hold) {
-		struct mbuf *m_hold, *m_hold_next;
-
-		/*
-		 * reset the la_hold in advance, to explicitly
-		 * prevent a la_hold lookup in nd6_output()
-		 * (wouldn't happen, though...)
-		 */
-		for (m_hold = ln->la_hold, ln->la_hold = NULL;
-		    m_hold; m_hold = m_hold_next) {
-			m_hold_next = m_hold->m_nextpkt;
-			m_hold->m_nextpkt = NULL;
-			/*
-			 * we assume ifp is not a loopback here, so just set
-			 * the 2nd argument as the 1st one.
-			 */
-
-			if (send_sendso_input_hook != NULL) {
-				mtag = m_tag_get(PACKET_TAG_ND_OUTGOING,
-				    sizeof(unsigned short), M_NOWAIT);
-				if (mtag == NULL)
-					goto bad;
-				m_tag_prepend(m, mtag);
-			}
-
-			nd6_output_lle(ifp, ifp, m_hold, L3_ADDR_SIN6(ln), NULL, ln, &chain);
-		}
-	}
+	if (ln->la_hold != NULL)
+		nd6_grab_holdchain(ln, &chain, &sin6);
  freeit:
-	if (ln != NULL) {
-		if (chain)
-			memcpy(&sin6, L3_ADDR_SIN6(ln), sizeof(sin6));
+	if (ln != NULL)
 		LLE_WUNLOCK(ln);
 
-		if (chain)
-			nd6_output_flush(ifp, ifp, chain, &sin6);
-	}
+	if (chain != NULL)
+		nd6_flush_holdchain(ifp, ifp, chain, &sin6);
+
 	if (checklink)
 		pfxlist_onlink_check();
 

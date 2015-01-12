@@ -28,5 +28,4 @@ FBSD_1.2 {
 FBSDprivate_1.0 {
 	__creat;
 	_creat;
-	__libc_creat;
 };
