@@ -639,10 +639,10 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	case NGM_FLOW_COOKIE:
 		switch (msg->header.cmd) {
 		case NGM_LINK_IS_UP:
-			ifp->if_drv_flags |= IFF_DRV_RUNNING;
+			if_link_state_change(ifp, LINK_STATE_UP);
 			break;
 		case NGM_LINK_IS_DOWN:
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+			if_link_state_change(ifp, LINK_STATE_DOWN);
 			break;
 		default:
 			break;
