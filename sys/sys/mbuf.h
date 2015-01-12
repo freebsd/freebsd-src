@@ -1257,6 +1257,13 @@ mbufq_full(struct mbufq *mq)
 }
 
 static inline int
+mbufq_len(struct mbufq *mq)
+{
+
+	return (mq->mq_len);
+}
+
+static inline int
 mbufq_enqueue(struct mbufq *mq, struct mbuf *m)
 {
 
