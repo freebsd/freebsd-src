@@ -367,7 +367,6 @@ loioctl(if_t ifp, u_long cmd, caddr_t data)
 	switch (cmd) {
 	case SIOCSIFADDR:
 		if_addflags(ifp, IF_FLAGS, IFF_UP);
-		if_addflags(ifp, IF_DRV_FLAGS, IFF_DRV_RUNNING);
 		/*
 		 * Everything else is done at a higher level.
 		 */

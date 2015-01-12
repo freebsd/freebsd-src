@@ -1483,10 +1483,6 @@ nd6_dad_ns_output(struct dadq *dp, struct ifaddr *ifa)
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		return;
 	}
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		return;
-	}
-
 	dp->dad_ns_ocount++;
 	nd6_ns_output(ifp, NULL, &ia->ia_addr.sin6_addr, NULL, 1);
 }

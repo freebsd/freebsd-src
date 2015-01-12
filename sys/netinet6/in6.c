@@ -1917,8 +1917,7 @@ in6if_do_dad(struct ifnet *ifp)
 	 * XXX: we should rather mark "tentative" on such addresses,
 	 * and do DAD after the interface becomes ready.
 	 */
-	if (!((ifp->if_flags & IFF_UP) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
+	if ((ifp->if_flags & IFF_UP) == 0)
 		return (0);
 
 	return (1);

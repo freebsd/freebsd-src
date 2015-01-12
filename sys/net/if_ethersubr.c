@@ -176,8 +176,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	M_PROFILE(m);
 	if (ifp->if_flags & IFF_MONITOR)
 		senderr(ENETDOWN);
-	if (!((ifp->if_flags & IFF_UP) &&
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING)))
+	if ((ifp->if_flags & IFF_UP) == 0)
 		senderr(ENETDOWN);
 
 	hlen = ETHER_HDR_LEN;
@@ -386,13 +385,6 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 		m_freem(m);
 		return;
 	}
-#ifdef DIAGNOSTIC
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		if_printf(ifp, "discard frame at !IFF_DRV_RUNNING\n");
-		m_freem(m);
-		return;
-	}
-#endif
 	/*
 	 * Do consistency checks to verify assumptions
 	 * made by code past this point.

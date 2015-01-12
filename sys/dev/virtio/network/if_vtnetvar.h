@@ -142,6 +142,7 @@ struct vtnet_softc {
 #define VTNET_FLAG_MULTIQ	 0x0200
 #define VTNET_FLAG_INDIRECT	 0x0400
 #define VTNET_FLAG_EVENT_IDX	 0x0800
+#define	VTNET_FLAG_RUNNING	 0x1000
 
 	int			 vtnet_link_active;
 	int			 vtnet_hdr_size;

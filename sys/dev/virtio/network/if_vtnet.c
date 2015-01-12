@@ -1004,8 +1004,8 @@ vtnet_change_mtu(struct vtnet_softc *sc, int new_mtu)
 	if_setflags(ifp, IF_MTU, new_mtu);
 	sc->vtnet_rx_new_clsize = clsize;
 
-	if (if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) {
-		if_clrflags(ifp, IF_DRV_FLAGS, IFF_DRV_RUNNING);
+	if (sc->vtnet_flags & VTNET_FLAG_RUNNING) {
+		sc->vtnet_flags &= ~VTNET_FLAG_RUNNING;
 		vtnet_init_locked(sc);
 	}
 
@@ -1035,9 +1035,9 @@ vtnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 	case SIOCSIFFLAGS:
 		VTNET_CORE_LOCK(sc);
 		if ((if_getflags(ifp, IF_FLAGS) & IFF_UP) == 0) {
-			if (if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING)
+			if (sc->vtnet_flags & VTNET_FLAG_RUNNING)
 				vtnet_stop(sc);
-		} else if (if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) {
+		} else if (sc->vtnet_flags & VTNET_FLAG_RUNNING) {
 			if ((if_getflags(ifp, IF_FLAGS) ^ sc->vtnet_if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI)) {
 				if (sc->vtnet_flags & VTNET_FLAG_CTRL_RX)
@@ -1058,7 +1058,7 @@ vtnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		if ((sc->vtnet_flags & VTNET_FLAG_CTRL_RX) == 0)
 			break;
 		VTNET_CORE_LOCK(sc);
-		if (if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING)
+		if (sc->vtnet_flags & VTNET_FLAG_RUNNING)
 			vtnet_rx_filter_mac(sc);
 		VTNET_CORE_UNLOCK(sc);
 		break;
@@ -1103,9 +1103,8 @@ vtnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
 		if (mask & IFCAP_VLAN_HWTAGGING)
 			capenable ^= IFCAP_VLAN_HWTAGGING;
 
-		if (reinit &&
-		    (if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING)) {
-			if_clrflags(ifp, IF_DRV_FLAGS, IFF_DRV_RUNNING);
+		if (reinit && (sc->vtnet_flags & VTNET_FLAG_RUNNING)) {
+			sc->vtnet_flags &= ~VTNET_FLAG_RUNNING;
 			vtnet_init_locked(sc);
 		}
 
@@ -1776,7 +1775,7 @@ vtnet_rxq_eof(struct vtnet_rxq *rxq)
 		vtnet_rxq_input(rxq, m, hdr);
 
 		/* Must recheck after dropping the Rx lock. */
-		if ((if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) == 0)
+		if ((sc->vtnet_flags & VTNET_FLAG_RUNNING) == 0)
 			break;
 	}
 
@@ -1813,7 +1812,7 @@ vtnet_rx_vq_intr(void *xrxq)
 	VTNET_RXQ_LOCK(rxq);
 
 again:
-	if ((if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) == 0) {
+	if ((sc->vtnet_flags & VTNET_FLAG_RUNNING) == 0) {
 		VTNET_RXQ_UNLOCK(rxq);
 		return;
 	}
@@ -1850,7 +1849,7 @@ vtnet_rxq_tq_intr(void *xrxq, int pending)
 
 	VTNET_RXQ_LOCK(rxq);
 
-	if ((if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) == 0) {
+	if ((sc->vtnet_flags & VTNET_FLAG_RUNNING) == 0) {
 		VTNET_RXQ_UNLOCK(rxq);
 		return;
 	}
@@ -2188,7 +2187,7 @@ vtnet_txq_mq_start_locked(struct vtnet_txq *txq, struct mbuf *m)
 
 	VTNET_TXQ_LOCK_ASSERT(txq);
 
-	if ((if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) == 0 ||
+	if ((sc->vtnet_flags & VTNET_FLAG_RUNNING) == 0 ||
 	    sc->vtnet_link_active == 0) {
 		if (m != NULL)
 			error = buf_ring_enqueue(br, m);
@@ -2304,7 +2303,7 @@ vtnet_txq_tq_intr(void *xtxq, int pending)
 
 	VTNET_TXQ_LOCK(txq);
 
-	if ((if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) == 0) {
+	if ((sc->vtnet_flags & VTNET_FLAG_RUNNING) == 0) {
 		VTNET_TXQ_UNLOCK(txq);
 		return;
 	}
@@ -2377,7 +2376,7 @@ vtnet_tx_vq_intr(void *xtxq)
 
 	VTNET_TXQ_LOCK(txq);
 
-	if ((if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING) == 0) {
+	if ((sc->vtnet_flags & VTNET_FLAG_RUNNING) == 0) {
 		VTNET_TXQ_UNLOCK(txq);
 		return;
 	}
@@ -2530,7 +2529,7 @@ vtnet_tick(void *xsc)
 		timedout |= vtnet_watchdog(&sc->vtnet_txqs[i]);
 
 	if (timedout != 0) {
-		if_clrflags(ifp, IF_DRV_FLAGS, IFF_DRV_RUNNING);
+		sc->vtnet_flags &= ~VTNET_FLAG_RUNNING;
 		vtnet_init_locked(sc);
 	} else
 		callout_schedule(&sc->vtnet_tick_ch, hz);
@@ -2667,7 +2666,7 @@ vtnet_stop(struct vtnet_softc *sc)
 
 	VTNET_CORE_LOCK_ASSERT(sc);
 
-	if_clrflags(ifp, IF_DRV_FLAGS, IFF_DRV_RUNNING);
+	sc->vtnet_flags &= ~VTNET_FLAG_RUNNING;
 	sc->vtnet_link_active = 0;
 	callout_stop(&sc->vtnet_tick_ch);
 
@@ -2902,7 +2901,7 @@ vtnet_reinit(struct vtnet_softc *sc)
 		return (error);
 
 	vtnet_enable_interrupts(sc);
-	if_addflags(ifp, IF_DRV_FLAGS, IFF_DRV_RUNNING);
+	sc->vtnet_flags |= VTNET_FLAG_RUNNING;
 
 	return (0);
 }
@@ -2918,7 +2917,7 @@ vtnet_init_locked(struct vtnet_softc *sc)
 
 	VTNET_CORE_LOCK_ASSERT(sc);
 
-	if (if_getflags(ifp, IF_DRV_FLAGS) & IFF_DRV_RUNNING)
+	if (sc->vtnet_flags & VTNET_FLAG_RUNNING)
 		return;
 
 	vtnet_stop(sc);

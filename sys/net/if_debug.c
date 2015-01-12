@@ -69,7 +69,6 @@ if_show_ifnet(struct ifnet *ifp)
 	IF_DB_PRINTF("%p", if_label);
 	IF_DB_PRINTF("%u", if_pcount);
 	IF_DB_PRINTF("0x%08x", if_flags);
-	IF_DB_PRINTF("0x%08x", if_drv_flags);
 	IF_DB_PRINTF("0x%08x", if_capabilities);
 	IF_DB_PRINTF("0x%08x", if_capenable);
 	IF_DB_PRINTF("%p", if_snd.ifq_head);

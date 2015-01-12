@@ -143,11 +143,11 @@ struct if_data {
 #define	IFF_LOOPBACK	0x8		/* (i) is a loopback net */
 #define	IFF_POINTOPOINT	0x10		/* (i) is a point-to-point link */
 /*			0x20		   was IFF_SMART */
-#define	IFF_DRV_RUNNING	0x40		/* (d) resources allocated */
+#define	IFF_RUNNING	0x40		/* (d) resources allocated */
 #define	IFF_NOARP	0x80		/* (n) no address resolution protocol */
 #define	IFF_PROMISC	0x100		/* (n) receive all packets */
 #define	IFF_ALLMULTI	0x200		/* (n) receive all multicast packets */
-#define	IFF_DRV_OACTIVE	0x400		/* (d) tx hardware queue is full */
+#define	IFF_OACTIVE	0x400		/* (d) tx hardware queue is full */
 #define	IFF_SIMPLEX	0x800		/* (i) can't hear own transmissions */
 #define	IFF_LINK0	0x1000		/* per link layer defined bit */
 #define	IFF_LINK1	0x2000		/* per link layer defined bit */
@@ -160,18 +160,10 @@ struct if_data {
 #define	IFF_STATICARP	0x80000		/* (n) static ARP */
 #define	IFF_DYING	0x200000	/* (n) interface is winding down */
 #define	IFF_RENAMING	0x400000	/* (n) interface is being renamed */
-/*
- * Old names for driver flags so that user space tools can continue to use
- * the old (portable) names.
- */
-#ifndef _KERNEL
-#define	IFF_RUNNING	IFF_DRV_RUNNING
-#define	IFF_OACTIVE	IFF_DRV_OACTIVE
-#endif
 
 /* flags set internally only: */
 #define	IFF_CANTCHANGE \
-	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_DRV_RUNNING|IFF_DRV_OACTIVE|\
+	(IFF_BROADCAST|IFF_POINTOPOINT|IFF_RUNNING|IFF_OACTIVE|\
 	    IFF_SIMPLEX|IFF_MULTICAST|IFF_ALLMULTI|IFF_PROMISC|\
 	    IFF_DYING|IFF_CANTCONFIG)
 
@@ -578,7 +570,6 @@ typedef enum {
 typedef enum {
 	/* uint32_t */
 	IF_FLAGS = 1,
-	IF_DRV_FLAGS,
 	IF_CAPABILITIES,
 	IF_CAPENABLE,
 	IF_MTU,
@@ -598,7 +589,6 @@ typedef int	(*if_output_t)(if_t, struct mbuf *, const struct sockaddr *,
     struct route *);
 typedef int	(*if_ioctl_t)(if_t, u_long, caddr_t);
 typedef uint64_t (*if_get_counter_t)(if_t, ift_counter);
-typedef void	(*if_start_t)(if_t);
 typedef void	(*if_qflush_t)(if_t);
 typedef int	(*if_resolvemulti_t)(if_t, struct sockaddr **,
     struct sockaddr *);
@@ -616,7 +606,6 @@ struct ifops {
 	if_ioctl_t	ifop_ioctl;	/* ioctl routine */
 	if_get_counter_t ifop_get_counter; /* get counter values */
 	if_init_t	ifop_init;	/* init routine */
-	if_start_t	ifop_start;	/* initiate output routine */
 	if_qflush_t	ifop_qflush;	/* flush any queue */	
 	if_resolvemulti_t ifop_resolvemulti; /* validate/resolve multicast */
 	if_reassign_t	ifop_reassign;	/* reassign to vnet routine */

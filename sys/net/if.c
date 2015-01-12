@@ -162,7 +162,6 @@ static void	if_freemulti(struct ifmultiaddr *);
 static void	if_grow(void);
 static void	if_route(struct ifnet *, int flag, int fam);
 static int	if_setflag(struct ifnet *, int, int, int *, int);
-static int	if_transmit_start(struct ifnet *ifp, struct mbuf *m);
 static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	if_rtdel(struct radix_node *, void *);
@@ -444,7 +443,6 @@ ifdriver_bless(struct ifdriver *ifdrv, struct iftype *ift)
 		COPY(ifop_ioctl);
 		COPY(ifop_get_counter);
 		COPY(ifop_init);
-		COPY(ifop_start);
 		COPY(ifop_qflush);
 		COPY(ifop_resolvemulti);
 		COPY(ifop_reassign);
@@ -463,10 +461,6 @@ ifdriver_bless(struct ifdriver *ifdrv, struct iftype *ift)
             (ifdrv->ifdrv_ops.ifop_transmit != NULL &&
 	    ifdrv->ifdrv_ops.ifop_qflush != NULL),
             ("transmit and qflush must both either be set or both be NULL"));
-	if (ifdrv->ifdrv_ops.ifop_transmit == NULL) {
-		ifdrv->ifdrv_ops.ifop_transmit = if_transmit_start;
-		ifdrv->ifdrv_ops.ifop_qflush = if_qflush;
-	}
 
 	if (ifdrv->ifdrv_ops.ifop_get_counter == NULL)
 		ifdrv->ifdrv_ops.ifop_get_counter = if_get_counter_default;
@@ -1526,9 +1520,6 @@ if_getfeature(if_t ifp, ift_feature f, uint32_t **f32, uint64_t **f64,
 	case IF_FLAGS:
 		*f32 = &ifp->if_flags;
 		break;
-	case IF_DRV_FLAGS:
-		*f32 = &ifp->if_drv_flags;
-		break;
 	case IF_CAPABILITIES:
 		*f32 = &ifp->if_capabilities;
 		break;
@@ -2453,7 +2444,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCGIFFLAGS:
-		temp_flags = ifp->if_flags | ifp->if_drv_flags;
+		temp_flags = ifp->if_flags;
 		ifr->ifr_flags = temp_flags & 0xffff;
 		ifr->ifr_flagshigh = temp_flags >> 16;
 		break;
@@ -2973,10 +2964,6 @@ if_setflag(struct ifnet *ifp, int flag, int pflag, int *refcount, int onswitch)
 	struct ifreq ifr;
 	int error;
 	int oldflags, oldcount;
-
-	/* Sanity checks to catch programming errors */
-	KASSERT((flag & (IFF_DRV_OACTIVE|IFF_DRV_RUNNING)) == 0,
-	    ("%s: setting driver-owned flag %d", __func__, flag));
 
 	if (onswitch)
 		KASSERT(*refcount >= 0,
@@ -3651,44 +3638,6 @@ if_printf(struct ifnet *ifp, const char * fmt, ...)
 	retval += vprintf(fmt, ap);
 	va_end(ap);
 	return (retval);
-}
-
-/*
- * Backwards compatibility interface for drivers 
- * that have not implemented if_transmit.
- */
-static int
-if_transmit_start(struct ifnet *ifp, struct mbuf *m)
-{
-	int error;
-
-	IFQ_HANDOFF(ifp, m, error);
-	return (error);
-}
-
-int
-if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp, int adjust)
-{
-	int active = 0;
-
-	IF_LOCK(ifq);
-	if (_IF_QFULL(ifq)) {
-		IF_UNLOCK(ifq);
-		if_inc_counter(ifp, IFCOUNTER_OQDROPS, 1);
-		m_freem(m);
-		return (0);
-	}
-	if (ifp != NULL) {
-		if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len + adjust);
-		if (m->m_flags & (M_BCAST|M_MCAST))
-			if_inc_counter(ifp, IFCOUNTER_OMCASTS, 1);
-		active = ifp->if_drv_flags & IFF_DRV_OACTIVE;
-	}
-	_IF_ENQUEUE(ifq, m);
-	IF_UNLOCK(ifq);
-	if (ifp != NULL && !active)
-		if_start(ifp);
-	return (1);
 }
 
 int

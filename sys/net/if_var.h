@@ -109,7 +109,6 @@ struct ifnet {
 
 	/* Variable fields that are touched by the stack and drivers. */
 	uint32_t	if_flags;	/* up/down, broadcast, etc. */
-	uint32_t	if_drv_flags;	/* driver-managed status flags */
 	uint32_t	if_capabilities;/* interface features & capabilities */
 	uint32_t	if_capenable;	/* enabled features & capabilities */
 	void	*if_linkmib;		/* link-type-specific MIB data */
@@ -463,13 +462,6 @@ if_transmit(if_t ifp, struct mbuf *m)
 {
 
 	return (ifp->if_ops->ifop_transmit(ifp, m));
-}
-
-static inline void
-if_start(if_t ifp)
-{
-
-	return (ifp->if_ops->ifop_start(ifp));
 }
 
 static inline int

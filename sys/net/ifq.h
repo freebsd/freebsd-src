@@ -157,8 +157,6 @@ int	if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp,
 #define	IF_HANDOFF_ADJ(ifq, m, ifp, adj)	\
 	if_handoff((struct ifqueue *)ifq, m, ifp, adj)
 
-void	if_start(struct ifnet *);
-
 #define	IFQ_ENQUEUE(ifq, m, err)					\
 do {									\
 	IF_LOCK(ifq);							\

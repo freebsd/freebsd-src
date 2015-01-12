@@ -1252,7 +1252,7 @@ rt_ifmsg(struct ifnet *ifp)
 		return;
 	ifm = mtod(m, struct if_msghdr *);
 	ifm->ifm_index = ifp->if_index;
-	ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
+	ifm->ifm_flags = ifp->if_flags;
 	if_data_copy(ifp, &ifm->ifm_data);
 	ifm->ifm_addrs = 0;
 	rt_dispatch(m, AF_UNSPEC);
@@ -1557,7 +1557,7 @@ sysctl_iflist_ifml(struct ifnet *ifp, struct rt_addrinfo *info,
 
 		ifm32 = (struct if_msghdrl32 *)ifm;
 		ifm32->ifm_addrs = info->rti_addrs;
-		ifm32->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
+		ifm32->ifm_flags = ifp->if_flags;
 		ifm32->ifm_index = ifp->if_index;
 		ifm32->_ifm_spare1 = 0;
 		ifm32->ifm_len = sizeof(*ifm32);
@@ -1567,7 +1567,7 @@ sysctl_iflist_ifml(struct ifnet *ifp, struct rt_addrinfo *info,
 #endif
 	{
 		ifm->ifm_addrs = info->rti_addrs;
-		ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
+		ifm->ifm_flags = ifp->if_flags;
 		ifm->ifm_index = ifp->if_index;
 		ifm->_ifm_spare1 = 0;
 		ifm->ifm_len = sizeof(*ifm);
@@ -1595,14 +1595,14 @@ sysctl_iflist_ifm(struct ifnet *ifp, struct rt_addrinfo *info,
 
 		ifm32 = (struct if_msghdr32 *)ifm;
 		ifm32->ifm_addrs = info->rti_addrs;
-		ifm32->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
+		ifm32->ifm_flags = ifp->if_flags;
 		ifm32->ifm_index = ifp->if_index;
 		ifd = &ifm32->ifm_data;
 	} else
 #endif
 	{
 		ifm->ifm_addrs = info->rti_addrs;
-		ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
+		ifm->ifm_flags = ifp->if_flags;
 		ifm->ifm_index = ifp->if_index;
 		ifd = &ifm->ifm_data;
 	}
