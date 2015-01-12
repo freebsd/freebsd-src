@@ -427,6 +427,12 @@ void config_delete(struct config_file* config);
 void config_apply(struct config_file* config);
 
 /**
+ * Find username, sets uid and gid.
+ * @param config: the config structure.
+ */
+void config_lookup_uid(struct config_file* config);
+
+/**
  * Set the given keyword to the given value.
  * @param config: where to store config
  * @param option: option name, including the ':' character.

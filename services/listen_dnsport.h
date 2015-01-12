@@ -214,6 +214,6 @@ int create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
  *	are not supported.
  * @return: the socket. -1 on error.
  */
-int create_local_accept_sock(char* path, int* noproto);
+int create_local_accept_sock(const char* path, int* noproto);
 
 #endif /* LISTEN_DNSPORT_H */

@@ -140,7 +140,7 @@ static void ssl_err(const char* s)
 static SSL_CTX*
 setup_ctx(struct config_file* cfg)
 {
-	char* s_cert, *c_key, *c_cert;
+	char* s_cert=NULL, *c_key=NULL, *c_cert=NULL;
 	SSL_CTX* ctx;
 
 	if(cfg->remote_control_use_cert) {
@@ -206,9 +206,11 @@ contact_server(const char* svr, struct config_file* cfg, int statuscmd)
 	} else if(svr[0] == '/') {
 		struct sockaddr_un* sun = (struct sockaddr_un *) &addr;
 		sun->sun_family = AF_LOCAL;
-		sun->sun_len = sizeof(sun);
-		strlcpy(sun->sun_path, svr, 104);
-		addrlen = sizeof(struct sockaddr_un);
+#ifdef HAVE_STRUCT_SOCKADDR_UN_SUN_LEN
+		sun->sun_len = (sa_family_t)sizeof(sun);
+#endif
+		(void)strlcpy(sun->sun_path, svr, sizeof(sun->sun_path));
+		addrlen = (socklen_t)sizeof(struct sockaddr_un);
 		addrfamily = AF_LOCAL;
 #endif
 	} else {

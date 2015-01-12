@@ -976,7 +976,7 @@ default is 8953.
 If you change this and permissions have been dropped, you must restart
 the server for the change to take effect.
 .TP 5
-.B control-use-cert: \fI<yes or no>
+.B control\-use\-cert: \fI<yes or no>
 Whether to require certificate authentication of control connections.
 The default is "yes".
 This should not be changed unless there are other mechanisms in place
