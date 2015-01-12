@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>	/* XXXGL: if_rlreg.h contamination */
 
 #include <net/if.h>
-#include <net/if_arp.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>

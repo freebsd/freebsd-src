@@ -40,13 +40,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>		/* XXXGL: if_rlreg.h contamination */
+#include <sys/mutex.h>		/* XXXGL: if_rlreg.h contamination */
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/bus.h>
 #include <sys/taskqueue.h>	/* XXXGL: if_rlreg.h contamination */
 
 #include <net/if.h>
-#include <net/if_arp.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
