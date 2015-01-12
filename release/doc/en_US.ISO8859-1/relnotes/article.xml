@@ -20,7 +20,7 @@
 
     <pubdate>$FreeBSD$</pubdate>
 
-    <!-- Last rev: 276986 -->
+    <!-- Last rev: 276991 -->
 
     <copyright>
       <year>2015</year>
@@ -205,6 +205,13 @@
       <para revision="275945">The &man.elfdump.1; utility has been
 	updated to support capability mode provided by
 	&man.capsicum.4;.</para>
+
+      <para revision="276991">The &man.termcap.5; file is installed
+	as-is from sources, instead of reordering, creating
+	<filename>/etc/termcap.db</filename> by default, providing
+	a performance improvements to applications that use the
+	&man.termcap.5; database, such as &man.vi.1; and
+	&man.ncurses.3;.</para>
 
       <sect3 xml:id="rc-scripts">
 	<title><filename>/etc/rc.d</filename> Scripts</title>
