@@ -82,10 +82,9 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	ssize_t orig_resid;
 	u_long v, vd;
 	u_int c;
-	int error, sflags;
+	int error;
 
 	error = 0;
-	sflags = curthread_pflags_set(TDP_DEVMEMIO);
 	orig_resid = uio->uio_resid;
 	while (uio->uio_resid > 0 && error == 0) {
 		iov = uio->uio_iov;
@@ -151,7 +150,6 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			break;
 		}
 	}
-	curthread_pflags_restore(sflags);
 	/*
 	 * Don't return error if any byte was written.  Read and write
 	 * can return error only if no i/o was performed.
