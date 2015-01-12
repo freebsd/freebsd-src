@@ -5047,7 +5047,6 @@ sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 
 	vrf = sctp_find_vrf(vrf_id);
 	if (vrf == NULL) {
-stage_right:
 		if (holds_lock == 0)
 			SCTP_IPI_ADDR_RUNLOCK();
 		return (NULL);
@@ -5067,15 +5066,6 @@ stage_right:
 		return (NULL);
 	}
 	LIST_FOREACH(sctp_ifap, hash_head, next_bucket) {
-		if (sctp_ifap == NULL) {
-#ifdef INVARIANTS
-			panic("Huh LIST_FOREACH corrupt");
-			goto stage_right;
-#else
-			SCTP_PRINTF("LIST corrupt of sctp_ifap's?\n");
-			goto stage_right;
-#endif
-		}
 		if (addr->sa_family != sctp_ifap->address.sa.sa_family)
 			continue;
 #ifdef INET
