@@ -645,3 +645,33 @@ mii_oui(u_int id1, u_int id2)
 	    (mii_bitreverse((h >> 8) & 0xff) << 8) |
 	    mii_bitreverse(h & 0xff));
 }
+
+int
+mii_phy_mac_match(struct mii_softc *mii, const char *name)
+{
+
+	return (strcmp(device_get_name(device_get_parent(mii->mii_dev)),
+	    name) == 0);
+}
+
+int
+mii_dev_mac_match(device_t parent, const char *name)
+{
+
+	return (strcmp(device_get_name(device_get_parent(
+	    device_get_parent(parent))), name) == 0);
+}
+
+void *
+mii_phy_mac_softc(struct mii_softc *mii)
+{
+
+	return (device_get_softc(device_get_parent(mii->mii_dev)));
+}
+
+void *
+mii_dev_mac_softc(device_t parent)
+{
+
+	return (device_get_softc(device_get_parent(device_get_parent(parent))));
+}
