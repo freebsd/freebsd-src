@@ -652,7 +652,7 @@ struct in6_multi {
 	struct ip6_msource_tree	 in6m_srcs;	/* tree of sources */
 	u_long			 in6m_nsrc;	/* # of tree entries */
 
-	struct ifqueue		 in6m_scq;	/* queue of pending
+	struct mbufq		 in6m_scq;	/* queue of pending
 						 * state-change packets */
 	struct timeval		 in6m_lastgsrtv;	/* last G-S-R query */
 	uint16_t		 in6m_sctimer;	/* state-change timer */

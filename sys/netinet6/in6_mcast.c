@@ -479,7 +479,7 @@ in6_mc_get(struct ifnet *ifp, const struct in6_addr *group,
 	inm->in6m_ifma = ifma;
 	inm->in6m_refcount = 1;
 	inm->in6m_state = MLD_NOT_MEMBER;
-	IFQ_SET_MAXLEN(&inm->in6m_scq, MLD_MAX_STATE_CHANGES);
+	mbufq_init(&inm->in6m_scq, MLD_MAX_STATE_CHANGES);
 
 	inm->in6m_st[0].iss_fmode = MCAST_UNDEFINED;
 	inm->in6m_st[1].iss_fmode = MCAST_UNDEFINED;
@@ -1074,7 +1074,7 @@ in6m_purge(struct in6_multi *inm)
 		inm->in6m_nsrc--;
 	}
 	/* Free state-change requests that might be queued. */
-	_IF_DRAIN(&inm->in6m_scq);
+	mbufq_drain(&inm->in6m_scq);
 }
 
 /*
@@ -2804,7 +2804,7 @@ in6m_print(const struct in6_multi *inm)
 	    inm->in6m_timer,
 	    in6m_state_str(inm->in6m_state),
 	    inm->in6m_refcount,
-	    inm->in6m_scq.ifq_len);
+	    mbufq_len(&inm->in6m_scq));
 	printf("mli %p nsrc %lu sctimer %u scrv %u\n",
 	    inm->in6m_mli,
 	    inm->in6m_nsrc,
