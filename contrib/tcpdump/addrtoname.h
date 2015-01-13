@@ -23,8 +23,6 @@
 
 /* Name to address translation routines. */
 
-#include "packetbody.h"
-
 enum {
     LINKADDR_ETHER,
     LINKADDR_FRELAY,

@@ -39,8 +39,6 @@
 #include <stdint.h>
 #endif
 
-#include "packetbody.h"
-
 #if !defined(HAVE_SNPRINTF)
 int snprintf(char *, size_t, const char *, ...)
      __attribute__((format(printf, 3, 4)));

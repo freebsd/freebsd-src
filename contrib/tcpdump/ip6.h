@@ -69,8 +69,6 @@
 #ifndef _NETINET_IP6_H_
 #define _NETINET_IP6_H_
 
-#include "packetbody.h"
-
 /*
  * Definition for internet protocol version 6.
  * RFC 2460

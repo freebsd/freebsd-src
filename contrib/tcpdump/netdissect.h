@@ -40,8 +40,6 @@
 
 #include <stdarg.h>
 
-#include "packetbody.h"
-
 #if !defined(HAVE_SNPRINTF)
 int snprintf (char *str, size_t sz, const char *format, ...)
      __attribute__ ((format (printf, 3, 4)));
