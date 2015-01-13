@@ -1364,6 +1364,63 @@ ixl_rx_discard(struct rx_ring *rxr, int i)
 	return;
 }
 
+#ifdef RSS
+/*
+** i40e_ptype_to_hash: parse the packet type
+** to determine the appropriate hash.
+*/
+static inline int
+ixl_ptype_to_hash(u8 ptype)
+{
+        struct i40e_rx_ptype_decoded	decoded;
+	u8				ex = 0
+
+	decode = decode_rx_desc_ptype(ptype);
+	ex = decoded.outer_frag;
+
+	if (!decoded.known)
+		return M_HASHTYPE_OPAQUE;
+
+	if (decoded.outer_ip == I40E_RX_PTYPE_OUTER_L2) 
+		return M_HASHTYPE_OPAQUE;
+
+	/* Note: anything that gets to this point is IP */
+        if (decoded.outer_ip_ver == I40E_RX_PTYPE_OUTER_IPV6) { 
+		switch (decoded.inner_prot) {
+			case I40E_RX_PTYPE_INNER_PROT_TCP:
+				if (ex)
+					return M_HASHTYPE_RSS_TCP_IPV6_EX;
+				else
+					return M_HASHTYPE_RSS_TCP_IPV6;
+			case I40E_RX_PTYPE_INNER_PROT_UDP:
+				if (ex)
+					return M_HASHTYPE_RSS_UDP_IPV6_EX;
+				else
+					return M_HASHTYPE_RSS_UDP_IPV6;
+			default:
+				if (ex)
+					return M_HASHTYPE_RSS_IPV6_EX;
+				else
+					return M_HASHTYPE_RSS_IPV6;
+		}
+	}
+        if (decoded.outer_ip_ver == I40E_RX_PTYPE_OUTER_IPV4) { 
+		switch (decoded.inner_prot) {
+			case I40E_RX_PTYPE_INNER_PROT_TCP:
+					return M_HASHTYPE_RSS_TCP_IPV4;
+			case I40E_RX_PTYPE_INNER_PROT_UDP:
+				if (ex)
+					return M_HASHTYPE_RSS_UDP_IPV4_EX;
+				else
+					return M_HASHTYPE_RSS_UDP_IPV4;
+			default:
+					return M_HASHTYPE_RSS_IPV4;
+		}
+	}
+	/* We should never get here!! */
+	return M_HASHTYPE_OPAQUE;
+}
+#endif /* RSS */
 
 /*********************************************************************
  *
@@ -1562,10 +1619,13 @@ ixl_rxeof(struct ixl_queue *que, int count)
 			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 				ixl_rx_checksum(sendmp, status, error, ptype);
 #ifdef RSS
-		/* XXX Work in Progress, fix the build for now */
-#endif
+			sendmp->m_pkthdr.flowid =
+			    le32toh(cur->wb.qword0.hi_dword.rss);
+			M_HASHTYPE_SET(sendmp, ixl_ptype_to_hash(ptype));
+#else
 			sendmp->m_pkthdr.flowid = que->msix;
 			M_HASHTYPE_SET(sendmp, M_HASHTYPE_OPAQUE);
+#endif
 		}
 next_desc:
 		bus_dmamap_sync(rxr->dma.tag, rxr->dma.map,
