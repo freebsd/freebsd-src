@@ -310,7 +310,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		break;
 	case VM_INJECT_EXCEPTION:
 		vmexc = (struct vm_exception *)data;
-		error = vm_inject_exception(sc->vm, vmexc->cpuid, vmexc);
+		error = vm_inject_exception(sc->vm, vmexc->cpuid,
+		    vmexc->vector, vmexc->error_code_valid, vmexc->error_code,
+		    vmexc->restart_instruction);
 		break;
 	case VM_INJECT_NMI:
 		vmnmi = (struct vm_nmi *)data;

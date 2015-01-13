@@ -63,6 +63,7 @@ struct vm_exception {
 	int		vector;
 	uint32_t	error_code;
 	int		error_code_valid;
+	int		restart_instruction;
 };
 
 struct vm_lapic_msi {
