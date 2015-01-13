@@ -568,8 +568,6 @@ typedef enum {
 } ift_counter;
 
 typedef enum {
-	/* uint16_t */
-	IF_INDEX,
 	/* uint32_t */
 	IF_FLAGS,
 	IF_CAPABILITIES,

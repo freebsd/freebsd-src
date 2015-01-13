@@ -1494,23 +1494,18 @@ if_rtdel(struct radix_node *rn, void *arg)
  * Managing different integer values and bitmasks of an ifnet.
  */
 static void
-if_getfeature(if_t ifp, ift_feature f, uint64_t **f64, void **ptr,
-    uint32_t **f32, uint16_t **f16)
+if_getfeature(if_t ifp, ift_feature f, uint32_t **f32, uint64_t **f64,
+    void **ptr)
 {
 
+	if (f32)
+		*f32 = NULL;
 	if (f64)
 		*f64 = NULL;
 	if (ptr)
 		*ptr = NULL;
-	if (f32)
-		*f32 = NULL;
-	if (f16)
-		*f16 = NULL;
 
 	switch (f) {
-	case IF_INDEX:
-		*f16 = &ifp->if_index;
-		break;
 	case IF_FLAGS:
 		*f32 = &ifp->if_flags;
 		break;
@@ -1589,7 +1584,7 @@ if_set(if_t ifp, ift_feature f, uint64_t set)
 	uint64_t *f64;
 	uint32_t *f32;
 
-	if_getfeature(ifp, f, &f64, NULL, &f32, NULL);
+	if_getfeature(ifp, f, &f32, &f64, NULL);
 	KASSERT(f32 != NULL || f64 != NULL, ("%s: no feature %d", __func__, f));
 	if (f32 != NULL) {
 		KASSERT(set <= UINT32_MAX,
@@ -1608,7 +1603,7 @@ if_flagbits(if_t ifp, ift_feature f, uint64_t set, uint64_t clr, uint64_t xor)
 	uint64_t *f64, rv, old;
 	uint32_t *f32;
 
-	if_getfeature(ifp, f, &f64, NULL, &f32, NULL);
+	if_getfeature(ifp, f, &f32, &f64, NULL);
 	if (f32 != NULL) {
 		KASSERT(set <= UINT32_MAX,
 		    ("%s: value of 0x%jx for feature %d",
@@ -1643,17 +1638,14 @@ if_get(if_t ifp, ift_feature f)
 {
 	uint64_t *f64;
 	uint32_t *f32;
-	uint16_t *f16;
 
-	if_getfeature(ifp, f, &f64, NULL, &f32, &f16);
-	KASSERT(f16 != NULL || f32 != NULL || f64 != NULL,
+	if_getfeature(ifp, f, &f32, &f64, NULL);
+	KASSERT(f32 != NULL || f64 != NULL,
 	    ("%s: no feature %d", __func__, f));
 	if (f64 != NULL)
 		return (*f64);
 	if (f32 != NULL)
 		return (*f32);
-	if (f16 != NULL)
-		return (*f16);
 
 	return (EDOOFUS);
 }
@@ -1663,7 +1655,7 @@ if_getsoftc(if_t ifp, ift_feature f)
 {
 	void *ptr;
 
-	if_getfeature(ifp, f, NULL, &ptr, NULL, NULL);
+	if_getfeature(ifp, f, NULL, NULL, &ptr);
 	return (ptr);
 }
 
