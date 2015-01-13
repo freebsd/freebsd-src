@@ -40,6 +40,7 @@
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_rss.h"
 #include "ixl.h"
 
 /* Local Prototypes */

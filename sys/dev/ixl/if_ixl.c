@@ -41,7 +41,7 @@
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixl_driver_version[] = "1.3.0";
+char ixl_driver_version[] = "1.3.1";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -3212,12 +3212,12 @@ static void ixl_config_rss(struct ixl_vsi *vsi)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP);
 	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER);
+        if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
+		set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6);
 	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
         if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP);
-        if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6_EX)
-                set_hena |= IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP;
 #else
 	set_hena =
 		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
