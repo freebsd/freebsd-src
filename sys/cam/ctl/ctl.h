@@ -40,7 +40,6 @@
 #ifndef	_CTL_H_
 #define	_CTL_H_
 
-#define	ctl_min(x,y)	(((x) < (y)) ? (x) : (y))
 #define	CTL_RETVAL_COMPLETE	0
 #define	CTL_RETVAL_QUEUED	1
 #define	CTL_RETVAL_ALLOCATED	2
@@ -127,7 +126,8 @@ typedef enum {
 	CTL_UA_RES_RELEASE	= 0x0800,
 	CTL_UA_REG_PREEMPT  	= 0x1000,
 	CTL_UA_ASYM_ACC_CHANGE  = 0x2000,
-	CTL_UA_CAPACITY_CHANGED = 0x4000
+	CTL_UA_CAPACITY_CHANGED = 0x4000,
+	CTL_UA_THIN_PROV_THRES	= 0x8000
 } ctl_ua_type;
 
 #ifdef	_KERNEL
@@ -156,7 +156,7 @@ int ctl_port_list(struct ctl_port_entry *entries, int num_entries_alloced,
  * Put a string into an sbuf, escaping characters that are illegal or not
  * recommended in XML.  Note this doesn't escape everything, just > < and &.
  */
-int ctl_sbuf_printf_esc(struct sbuf *sb, char *str);
+int ctl_sbuf_printf_esc(struct sbuf *sb, char *str, int size);
 
 int ctl_ffz(uint32_t *mask, uint32_t size);
 int ctl_set_mask(uint32_t *mask, uint32_t bit);
@@ -178,10 +178,14 @@ int ctl_debugconf_sp_sense_handler(struct ctl_scsiio *ctsio,
 int ctl_debugconf_sp_select_handler(struct ctl_scsiio *ctsio,
 				    struct ctl_page_index *page_index,
 				    uint8_t *page_ptr);
+int ctl_lbp_log_sense_handler(struct ctl_scsiio *ctsio,
+				   struct ctl_page_index *page_index,
+				   int pc);
 int ctl_config_move_done(union ctl_io *io);
 void ctl_datamove(union ctl_io *io);
 void ctl_done(union ctl_io *io);
 void ctl_data_submit_done(union ctl_io *io);
+void ctl_config_read_done(union ctl_io *io);
 void ctl_config_write_done(union ctl_io *io);
 void ctl_portDB_changed(int portnum);
 void ctl_init_isc_msg(void);
@@ -201,6 +205,7 @@ struct ctl_be_arg;
 void ctl_init_opts(ctl_options_t *opts, int num_args, struct ctl_be_arg *args);
 void ctl_free_opts(ctl_options_t *opts);
 char * ctl_get_opt(ctl_options_t *opts, const char *name);
+int ctl_expand_number(const char *buf, uint64_t *num);
 
 #endif	/* _KERNEL */
 

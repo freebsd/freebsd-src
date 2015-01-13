@@ -378,7 +378,7 @@ hv_util_probe(device_t dev)
 	    const char *p = vmbus_get_type(dev);
 	    if (service_table[i].enabled && !memcmp(p, &service_table[i].guid, sizeof(hv_guid))) {
 		device_set_softc(dev, (void *) (&service_table[i]));
-		rtn_value = 0;
+		rtn_value = BUS_PROBE_DEFAULT;
 	    }
 	}
 

@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/random.h>
 #include <sys/rwlock.h>
 #include <sys/sbuf.h>
 #include <sys/sched.h>
@@ -144,6 +145,8 @@ static LIST_HEAD(,uma_slab) uma_boot_pages =
 
 /* This mutex protects the boot time pages list */
 static struct mtx_padalign uma_boot_pages_mtx;
+
+static struct sx uma_drain_lock;
 
 /* Is the VM done starting up? */
 static int booted = 0;
@@ -1831,9 +1834,6 @@ uma_startup(void *bootmem, int boot_pages)
 	zone_ctor(zones, sizeof(struct uma_zone), &args, M_WAITOK);
 
 #ifdef UMA_DEBUG
-	printf("Initializing pcpu cache locks.\n");
-#endif
-#ifdef UMA_DEBUG
 	printf("Creating slab and hash zones.\n");
 #endif
 
@@ -1875,6 +1875,7 @@ uma_startup2(void)
 {
 	booted = UMA_STARTUP2;
 	bucket_enable();
+	sx_init(&uma_drain_lock, "umadrain");
 #ifdef UMA_DEBUG
 	printf("UMA startup2 complete.\n");
 #endif
@@ -1929,6 +1930,8 @@ uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 
 {
 	struct uma_zctor_args args;
+	uma_zone_t res;
+	bool locked;
 
 	/* This stuff is essential for the zone ctor */
 	memset(&args, 0, sizeof(args));
@@ -1942,7 +1945,16 @@ uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 	args.flags = flags;
 	args.keg = NULL;
 
-	return (zone_alloc_item(zones, &args, M_WAITOK));
+	if (booted < UMA_STARTUP2) {
+		locked = false;
+	} else {
+		sx_slock(&uma_drain_lock);
+		locked = true;
+	}
+	res = zone_alloc_item(zones, &args, M_WAITOK);
+	if (locked)
+		sx_sunlock(&uma_drain_lock);
+	return (res);
 }
 
 /* See uma.h */
@@ -1952,6 +1964,8 @@ uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
 {
 	struct uma_zctor_args args;
 	uma_keg_t keg;
+	uma_zone_t res;
+	bool locked;
 
 	keg = zone_first_keg(master);
 	memset(&args, 0, sizeof(args));
@@ -1965,8 +1979,17 @@ uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
 	args.flags = keg->uk_flags | UMA_ZONE_SECONDARY;
 	args.keg = keg;
 
+	if (booted < UMA_STARTUP2) {
+		locked = false;
+	} else {
+		sx_slock(&uma_drain_lock);
+		locked = true;
+	}
 	/* XXX Attaches only one keg of potentially many. */
-	return (zone_alloc_item(zones, &args, M_WAITOK));
+	res = zone_alloc_item(zones, &args, M_WAITOK);
+	if (locked)
+		sx_sunlock(&uma_drain_lock);
+	return (res);
 }
 
 /* See uma.h */
@@ -2084,7 +2107,9 @@ void
 uma_zdestroy(uma_zone_t zone)
 {
 
+	sx_slock(&uma_drain_lock);
 	zone_free_item(zones, zone, NULL, SKIP_NONE);
+	sx_sunlock(&uma_drain_lock);
 }
 
 /* See uma.h */
@@ -2096,6 +2121,12 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 	uma_bucket_t bucket;
 	int lockfail;
 	int cpu;
+
+#if 0
+	/* XXX: FIX!! Do not enable this in CURRENT!! MarkM */
+	/* The entropy here is desirable, but the harvesting is expensive */
+	random_harvest(&(zone->uz_name), sizeof(void *), 1, RANDOM_UMA_ALLOC);
+#endif
 
 	/* This is the fast path allocation */
 #ifdef UMA_DEBUG_ALLOC_1
@@ -2127,6 +2158,11 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 			    	zone->uz_fini(item, zone->uz_size);
 				return (NULL);
 			}
+#if 0
+			/* XXX: FIX!! Do not enable this in CURRENT!! MarkM */
+			/* The entropy here is desirable, but the harvesting is expensive */
+			random_harvest(&item, sizeof(void *), 1, RANDOM_UMA_ALLOC);
+#endif
 			return (item);
 		}
 		/* This is unfortunate but should not be fatal. */
@@ -2169,6 +2205,11 @@ zalloc_start:
 #endif
 		if (flags & M_ZERO)
 			uma_zero_item(item, zone);
+#if 0
+		/* XXX: FIX!! Do not enable this in CURRENT!! MarkM */
+		/* The entropy here is desirable, but the harvesting is expensive */
+		random_harvest(&item, sizeof(void *), 1, RANDOM_UMA_ALLOC);
+#endif
 		return (item);
 	}
 
@@ -2289,6 +2330,11 @@ zalloc_start:
 zalloc_item:
 	item = zone_alloc_item(zone, udata, flags);
 
+#if 0
+	/* XXX: FIX!! Do not enable this in CURRENT!! MarkM */
+	/* The entropy here is desirable, but the harvesting is expensive */
+	random_harvest(&item, sizeof(void *), 1, RANDOM_UMA_ALLOC);
+#endif
 	return (item);
 }
 
@@ -2635,6 +2681,19 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
 	uma_bucket_t bucket;
 	int lockfail;
 	int cpu;
+
+#if 0
+	/* XXX: FIX!! Do not enable this in CURRENT!! MarkM */
+	/* The entropy here is desirable, but the harvesting is expensive */
+	struct entropy {
+		const void *uz_name;
+		const void *item;
+	} entropy;
+
+	entropy.uz_name = zone->uz_name;
+	entropy.item = item;
+	random_harvest(&entropy, sizeof(struct entropy), 2, RANDOM_UMA_ALLOC);
+#endif
 
 #ifdef UMA_DEBUG_ALLOC_1
 	printf("Freeing item %p to %s(%p)\n", item, zone->uz_name, zone);
@@ -3170,6 +3229,7 @@ uma_reclaim(void)
 #ifdef UMA_DEBUG
 	printf("UMA: vm asked us to release pages!\n");
 #endif
+	sx_xlock(&uma_drain_lock);
 	bucket_enable();
 	zone_foreach(zone_drain);
 	if (vm_page_count_min()) {
@@ -3184,6 +3244,7 @@ uma_reclaim(void)
 	zone_drain(slabzone);
 	zone_drain(slabrefzone);
 	bucket_zone_drain();
+	sx_xunlock(&uma_drain_lock);
 }
 
 /* See uma.h */

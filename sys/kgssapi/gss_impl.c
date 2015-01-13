@@ -70,7 +70,7 @@ kgss_init(void *dummy)
 
 	LIST_INIT(&kgss_mechs);
 	error = syscall_register(&gssd_syscall_offset, &gssd_syscall_sysent,
-	    &gssd_syscall_prev_sysent);
+	    &gssd_syscall_prev_sysent, SY_THR_STATIC_KLD);
 	if (error)
 		printf("Can't register GSSD syscall\n");
 	else

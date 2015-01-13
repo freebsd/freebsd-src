@@ -61,11 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <sys/proc.h>
-#include <net/if.h>
-#include <netinet/in.h>
-#include <nfs/nfsproto.h>
-#include <nfsclient/nfs.h>
-#include <nfs/nfsdiskless.h>
 #include <x86/apicreg.h>
 #include <machine/cpu.h>
 #include <machine/pcb.h>
@@ -156,8 +151,6 @@ ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_GS32SD, offsetof(struct pcb, pcb_gs32sd));
 ASSYM(PCB_TSSP, offsetof(struct pcb, pcb_tssp));
 ASSYM(PCB_SAVEFPU, offsetof(struct pcb, pcb_save));
-ASSYM(PCB_SAVEFPU_SIZE, sizeof(struct savefpu));
-ASSYM(PCB_USERFPU, sizeof(struct pcb));
 ASSYM(PCB_EFER, offsetof(struct pcb, pcb_efer));
 ASSYM(PCB_STAR, offsetof(struct pcb, pcb_star));
 ASSYM(PCB_LSTAR, offsetof(struct pcb, pcb_lstar));

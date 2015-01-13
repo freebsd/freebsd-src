@@ -345,8 +345,15 @@ db_unwind_tab(struct unwind_state *state)
 	/*
 	 * The program counter was not updated, load it from the link register.
 	 */
-	if (state->registers[PC] == 0)
+	if (state->registers[PC] == 0) {
 		state->registers[PC] = state->registers[LR];
+
+		/*
+		 * If the program counter changed, flag it in the update mask.
+		 */
+		if (state->start_pc != state->registers[PC])
+			state->update_mask |= 1 << PC;
+	}
 
 	return 0;
 }
@@ -382,7 +389,7 @@ db_stack_trace_cmd(struct unwind_state *state)
 			} else {
 				/* A prel31 offset to the unwind table */
 				state->insn = (uint32_t *)
-				    ((uintptr_t)&index->insn + 
+				    ((uintptr_t)&index->insn +
 				     db_expand_prel31(index->insn));
 			}
 			/* Run the unwind function */
@@ -407,7 +414,7 @@ db_stack_trace_cmd(struct unwind_state *state)
 		    state->registers[SP], state->registers[FP]);
 
 		/* Don't print the registers we have already printed */
-		upd_mask = state->update_mask & 
+		upd_mask = state->update_mask &
 		    ~((1 << SP) | (1 << FP) | (1 << LR) | (1 << PC));
 		sep = "\n\t";
 		for (i = 0, reg = 0; upd_mask != 0; upd_mask >>= 1, reg++) {
@@ -421,7 +428,7 @@ db_stack_trace_cmd(struct unwind_state *state)
 					i = 0;
 				} else
 					sep = " ";
-				
+
 			}
 		}
 		db_printf("\n");
@@ -436,7 +443,6 @@ db_stack_trace_cmd(struct unwind_state *state)
 		 * message (maybe it needs a STOP_UNWINDING).
 		 */
 		if (index->insn == EXIDX_CANTUNWIND) {
-			db_printf("Unable to unwind further\n");
 			finished = true;
 		} else if (state->registers[PC] < VM_MIN_KERNEL_ADDRESS) {
 			db_printf("Unable to unwind into user mode\n");
@@ -603,14 +609,14 @@ db_trace_thread(struct thread *thr, int count)
 		ctx = kdb_thr_ctx(thr);
 
 #ifdef __ARM_EABI__
-		state.registers[FP] = ctx->un_32.pcb32_r11;
-		state.registers[SP] = ctx->un_32.pcb32_sp;
-		state.registers[LR] = ctx->un_32.pcb32_lr;
-		state.registers[PC] = ctx->un_32.pcb32_pc;
+		state.registers[FP] = ctx->pcb_regs.sf_r11;
+		state.registers[SP] = ctx->pcb_regs.sf_sp;
+		state.registers[LR] = ctx->pcb_regs.sf_lr;
+		state.registers[PC] = ctx->pcb_regs.sf_pc;
 
 		db_stack_trace_cmd(&state);
 #else
-		db_stack_trace_cmd(ctx->un_32.pcb32_r11, -1, TRUE);
+		db_stack_trace_cmd(ctx->pcb_regs.sf_r11, -1, TRUE);
 #endif
 	} else
 		db_trace_self();

@@ -4,7 +4,7 @@
 
 PROG=	bhyve
 
-DEBUG_FLAGS= -g -O0 
+DEBUG_FLAGS= -g -O0
 
 MAN=	bhyve.8
 
@@ -31,7 +31,6 @@ SRCS=	\
 	pci_virtio_rnd.c	\
 	pci_uart.c		\
 	pm.c			\
-	pmtmr.c			\
 	post.c			\
 	rtc.c			\
 	smbiostbl.c		\
@@ -44,8 +43,7 @@ SRCS=	\
 .PATH:	${.CURDIR}/../../sys/amd64/vmm
 SRCS+=	vmm_instruction_emul.c
 
-DPADD=	${LIBVMMAPI} ${LIBMD} ${LIBUTIL} ${LIBPTHREAD}
-LDADD=	-lvmmapi -lmd -lutil -lpthread
+LIBADD=	vmmapi md util pthread
 
 WARNS?=	2
 

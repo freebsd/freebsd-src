@@ -40,16 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
-#include <machine/resource.h>
-#include <machine/intr.h>
-#include <sys/gpio.h>
 
-#include <arm/ti/tivar.h>
 #include <arm/ti/ti_scm.h>
-#include <arm/ti/omap4/omap4var.h>
-#include <arm/ti/omap4/omap4_reg.h>
+#include <arm/ti/omap4/omap4_scm_padconf.h>
 
 
 /*
@@ -68,53 +61,6 @@ __FBSDID("$FreeBSD$");
  *	that is supplied to the top level driver.
  *
  */
-
-#define CONTROL_PADCONF_WAKEUP_EVENT     (1UL << 15)
-#define CONTROL_PADCONF_WAKEUP_ENABLE    (1UL << 14)
-#define CONTROL_PADCONF_OFF_PULL_UP      (1UL << 13)
-#define CONTROL_PADCONF_OFF_PULL_ENABLE  (1UL << 12)
-#define CONTROL_PADCONF_OFF_OUT_HIGH     (1UL << 11)
-#define CONTROL_PADCONF_OFF_OUT_ENABLE   (1UL << 10)
-#define CONTROL_PADCONF_OFF_ENABLE       (1UL << 9)
-#define CONTROL_PADCONF_INPUT_ENABLE     (1UL << 8)
-#define CONTROL_PADCONF_PULL_UP          (1UL << 4)
-#define CONTROL_PADCONF_PULL_ENABLE      (1UL << 3)
-#define CONTROL_PADCONF_MUXMODE_MASK     (0x7)
-
-#define CONTROL_PADCONF_SATE_MASK        ( CONTROL_PADCONF_WAKEUP_EVENT \
-                                         | CONTROL_PADCONF_WAKEUP_ENABLE \
-                                         | CONTROL_PADCONF_OFF_PULL_UP \
-                                         | CONTROL_PADCONF_OFF_PULL_ENABLE \
-                                         | CONTROL_PADCONF_OFF_OUT_HIGH \
-                                         | CONTROL_PADCONF_OFF_OUT_ENABLE \
-                                         | CONTROL_PADCONF_OFF_ENABLE \
-                                         | CONTROL_PADCONF_INPUT_ENABLE \
-                                         | CONTROL_PADCONF_PULL_UP \
-                                         | CONTROL_PADCONF_PULL_ENABLE )
-
-/* Active pin states */
-#define PADCONF_PIN_OUTPUT              0
-#define PADCONF_PIN_INPUT               CONTROL_PADCONF_INPUT_ENABLE
-#define PADCONF_PIN_INPUT_PULLUP        ( CONTROL_PADCONF_INPUT_ENABLE \
-                                        | CONTROL_PADCONF_PULL_ENABLE \
-                                        | CONTROL_PADCONF_PULL_UP)
-#define PADCONF_PIN_INPUT_PULLDOWN      ( CONTROL_PADCONF_INPUT_ENABLE \
-                                        | CONTROL_PADCONF_PULL_ENABLE )
-
-/* Off mode states */
-#define PADCONF_PIN_OFF_NONE            0
-#define PADCONF_PIN_OFF_OUTPUT_HIGH	    ( CONTROL_PADCONF_OFF_ENABLE \
-                                        | CONTROL_PADCONF_OFF_OUT_ENABLE \
-                                        | CONTROL_PADCONF_OFF_OUT_HIGH)
-#define PADCONF_PIN_OFF_OUTPUT_LOW      ( CONTROL_PADCONF_OFF_ENABLE \
-                                        | CONTROL_PADCONF_OFF_OUT_ENABLE)
-#define PADCONF_PIN_OFF_INPUT_PULLUP    ( CONTROL_PADCONF_OFF_ENABLE \
-                                        | CONTROL_PADCONF_OFF_PULL_ENABLE \
-                                        | CONTROL_PADCONF_OFF_PULL_UP)
-#define PADCONF_PIN_OFF_INPUT_PULLDOWN  ( CONTROL_PADCONF_OFF_ENABLE \
-                                        | CONTROL_PADCONF_OFF_PULL_ENABLE)
-#define PADCONF_PIN_OFF_WAKEUPENABLE	CONTROL_PADCONF_WAKEUP_ENABLE
-
 
 #define _PINDEF(r, b, gp, gm, m0, m1, m2, m3, m4, m5, m6, m7) \
 	{	.reg_off = r, \
@@ -355,50 +301,3 @@ const struct ti_scm_device ti_scm_dev = {
 	.padstate		= (struct ti_scm_padstate *) &ti_padstate_devmap,
 	.padconf		= (struct ti_scm_padconf *) &ti_padconf_devmap,
 };
-
-int
-ti_scm_padconf_set_gpioflags(uint32_t gpio, uint32_t flags)
-{
-	unsigned int state = 0;
-	/* First the SCM driver needs to be told to put the pad into GPIO mode */
-	if (flags & GPIO_PIN_OUTPUT)
-		state = PADCONF_PIN_OUTPUT;
-	else if (flags & GPIO_PIN_INPUT) {
-		if (flags & GPIO_PIN_PULLUP)
-			state = PADCONF_PIN_INPUT_PULLUP;
-		else if (flags & GPIO_PIN_PULLDOWN)
-			state = PADCONF_PIN_INPUT_PULLDOWN;
-		else
-			state = PADCONF_PIN_INPUT;
-	}
-	return ti_scm_padconf_set_gpiomode(gpio, state);
-}
-
-void
-ti_scm_padconf_get_gpioflags(uint32_t gpio, uint32_t *flags)
-{
-	unsigned int state;
-	/* Get the current pin state */
-	if (ti_scm_padconf_get_gpiomode(gpio, &state) != 0)
-		*flags = 0;
-	else {
-		switch (state) {
-			case PADCONF_PIN_OUTPUT:
-				*flags = GPIO_PIN_OUTPUT;
-				break;
-			case PADCONF_PIN_INPUT:
-				*flags = GPIO_PIN_INPUT;
-				break;
-			case PADCONF_PIN_INPUT_PULLUP:
-				*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLUP;
-				break;
-			case PADCONF_PIN_INPUT_PULLDOWN:
-				*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLDOWN;
-				break;
-			default:
-				*flags = 0;
-				break;
-		}
-	}
-}
-

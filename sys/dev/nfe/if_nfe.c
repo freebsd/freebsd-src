@@ -345,8 +345,8 @@ nfe_detect_msik9(struct nfe_softc *sc)
 	int found;
 
 	found = 0;
-	m = getenv("smbios.planar.maker");
-	p = getenv("smbios.planar.product");
+	m = kern_getenv("smbios.planar.maker");
+	p = kern_getenv("smbios.planar.product");
 	if (m != NULL && p != NULL) {
 		if (strcmp(m, maker) == 0 && strcmp(p, product) == 0)
 			found = 1;
@@ -839,8 +839,8 @@ nfe_can_use_msix(struct nfe_softc *sc)
 	 * Search base board manufacturer and product name table
 	 * to see this system has a known MSI/MSI-X issue.
 	 */
-	maker = getenv("smbios.planar.maker");
-	product = getenv("smbios.planar.product");
+	maker = kern_getenv("smbios.planar.maker");
+	product = kern_getenv("smbios.planar.product");
 	use_msix = 1;
 	if (maker != NULL && product != NULL) {
 		count = sizeof(msix_blacklists) / sizeof(msix_blacklists[0]);

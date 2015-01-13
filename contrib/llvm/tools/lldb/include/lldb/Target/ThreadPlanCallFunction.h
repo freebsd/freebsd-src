@@ -52,9 +52,6 @@ public:
     virtual bool
     StopOthers ();
     
-    virtual void
-    SetStopOthers (bool new_value);
-
     virtual lldb::StateType
     GetPlanRunState ();
 
@@ -128,7 +125,10 @@ public:
         m_takedown_done = true;
     }
     
-protected:    
+    virtual void
+    SetStopOthers (bool new_value);
+    
+protected:
     void ReportRegisterState (const char *message);
 
     virtual bool

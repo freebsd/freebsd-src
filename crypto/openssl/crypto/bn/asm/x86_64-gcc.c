@@ -189,7 +189,7 @@ BN_ULONG bn_add_words (BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,int 
 
 	if (n <= 0) return 0;
 
-	asm (
+	asm volatile (
 	"	subq	%2,%2		\n"
 	".p2align 4			\n"
 	"1:	movq	(%4,%2,8),%0	\n"
@@ -200,7 +200,7 @@ BN_ULONG bn_add_words (BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,int 
 	"	sbbq	%0,%0		\n"
 		: "=&a"(ret),"+c"(n),"=&r"(i)
 		: "r"(rp),"r"(ap),"r"(bp)
-		: "cc"
+		: "cc", "memory"
 	);
 
   return ret&1;
@@ -212,7 +212,7 @@ BN_ULONG bn_sub_words (BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,int 
 
 	if (n <= 0) return 0;
 
-	asm (
+	asm volatile (
 	"	subq	%2,%2		\n"
 	".p2align 4			\n"
 	"1:	movq	(%4,%2,8),%0	\n"
@@ -223,7 +223,7 @@ BN_ULONG bn_sub_words (BN_ULONG *rp, const BN_ULONG *ap, const BN_ULONG *bp,int 
 	"	sbbq	%0,%0		\n"
 		: "=&a"(ret),"+c"(n),"=&r"(i)
 		: "r"(rp),"r"(ap),"r"(bp)
-		: "cc"
+		: "cc", "memory"
 	);
 
   return ret&1;
@@ -273,6 +273,10 @@ BN_ULONG bn_sub_words(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n)
 /* sqr_add_c(a,i,c0,c1,c2)  -- c+=a[i]^2 for three word number c=(c2,c1,c0) */
 /* sqr_add_c2(a,i,c0,c1,c2) -- c+=2*a[i]*a[j] for three word number c=(c2,c1,c0) */
 
+/*
+ * Keep in mind that carrying into high part of multiplication result
+ * can not overflow, because it cannot be all-ones.
+ */
 #if 0
 /* original macros are kept for reference purposes */
 #define mul_add_c(a,b,c0,c1,c2) {	\
@@ -287,10 +291,10 @@ BN_ULONG bn_sub_words(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n)
 	BN_ULONG ta=(a),tb=(b),t0;	\
 	t1 = BN_UMULT_HIGH(ta,tb);	\
 	t0 = ta * tb;			\
-	t2 = t1+t1; c2 += (t2<t1)?1:0;	\
-	t1 = t0+t0; t2 += (t1<t0)?1:0;	\
-	c0 += t1; t2 += (c0<t1)?1:0;	\
+	c0 += t0; t2 = t1+((c0<t0)?1:0);\
 	c1 += t2; c2 += (c1<t2)?1:0;	\
+	c0 += t0; t1 += (c0<t0)?1:0;	\
+	c1 += t1; c2 += (c1<t1)?1:0;	\
 	}
 #else
 #define mul_add_c(a,b,c0,c1,c2)	do {	\
@@ -328,22 +332,14 @@ BN_ULONG bn_sub_words(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n)
 		: "=a"(t1),"=d"(t2)	\
 		: "a"(a),"m"(b)		\
 		: "cc");		\
-	asm ("addq %0,%0; adcq %2,%1"	\
-		: "+d"(t2),"+r"(c2)	\
-		: "g"(0)		\
-		: "cc");		\
-	asm ("addq %0,%0; adcq %2,%1"	\
-		: "+a"(t1),"+d"(t2)	\
-		: "g"(0)		\
-		: "cc");		\
-	asm ("addq %2,%0; adcq %3,%1"	\
-		: "+r"(c0),"+d"(t2)	\
-		: "a"(t1),"g"(0)	\
-		: "cc");		\
-	asm ("addq %2,%0; adcq %3,%1"	\
-		: "+r"(c1),"+r"(c2)	\
-		: "d"(t2),"g"(0)	\
-		: "cc");		\
+	asm ("addq %3,%0; adcq %4,%1; adcq %5,%2"	\
+		: "+r"(c0),"+r"(c1),"+r"(c2)		\
+		: "r"(t1),"r"(t2),"g"(0)		\
+		: "cc");				\
+	asm ("addq %3,%0; adcq %4,%1; adcq %5,%2"	\
+		: "+r"(c0),"+r"(c1),"+r"(c2)		\
+		: "r"(t1),"r"(t2),"g"(0)		\
+		: "cc");				\
 	} while (0)
 #endif
 

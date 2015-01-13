@@ -44,13 +44,11 @@ CFLAGS+=${CANCELPOINTS_CFLAGS}
 #
 # Link with static libcompiler_rt.a.
 #
-DPADD+=	${LIBCOMPILER_RT}
 LDFLAGS+= -nodefaultlibs
-LDADD+= -lcompiler_rt
+LIBADD+=	compiler_rt
 
 .if ${MK_SSP} != "no"
-DPADD+= ${LIBSSP_NONSHARED}
-LDADD+= -lssp_nonshared
+LIBADD+=	ssp_nonshared
 .endif
 
 # Extras that live in either libc.a or libc_nonshared.a
@@ -157,6 +155,12 @@ libkern.${LIBC_ARCH}:: ${KMSRCS}
 .if defined(KMSRCS) && !empty(KMSRCS)
 	cp -fp ${.ALLSRC} ${DESTDIR}/sys/libkern/${LIBC_ARCH}
 .endif
+
+.if ${MK_SYSCALL_COMPAT} != "no"
+CFLAGS+=-DSYSCALL_COMPAT
+.endif
+
+.include <bsd.arch.inc.mk>
 
 .include <bsd.lib.mk>
 

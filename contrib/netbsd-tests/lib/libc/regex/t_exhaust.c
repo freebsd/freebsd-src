@@ -45,7 +45,7 @@ __RCSID("$NetBSD: t_exhaust.c,v 1.7 2011/11/16 18:37:31 christos Exp $");
 #include <stdlib.h>
 #include <err.h>
 #include <atf-c.h>
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <sys/resource.h>
 #endif
 
@@ -179,7 +179,7 @@ ATF_TC_HEAD(regcomp_too_big, tc)
 	    " crash, but return a proper error code");
 	// libtre needs it.
 	atf_tc_set_md_var(tc, "timeout", "600");
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	atf_tc_set_md_var(tc, "require.memory", "64M");
 #else
 	atf_tc_set_md_var(tc, "require.memory", "120M");
@@ -189,12 +189,12 @@ ATF_TC_HEAD(regcomp_too_big, tc)
 ATF_TC_BODY(regcomp_too_big, tc)
 {
 	regex_t re;
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	struct rlimit limit;
 #endif
 	int e;
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	limit.rlim_cur = limit.rlim_max = 64 * 1024 * 1024;
 	ATF_REQUIRE(setrlimit(RLIMIT_VMEM, &limit) != -1);
 #endif

@@ -21,10 +21,10 @@
 #include "SIISelLowering.h"
 #include "SIInstrInfo.h"
 #include "llvm/Analysis/Passes.h"
-#include "llvm/Analysis/Verifier.h"
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/Passes.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/PassManager.h"
 #include "llvm/Support/TargetRegistry.h"
@@ -32,7 +32,6 @@
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/Scalar.h"
 #include <llvm/CodeGen/Passes.h>
-
 
 using namespace llvm;
 
@@ -42,12 +41,26 @@ extern "C" void LLVMInitializeR600Target() {
 }
 
 static ScheduleDAGInstrs *createR600MachineScheduler(MachineSchedContext *C) {
-  return new ScheduleDAGMI(C, new R600SchedStrategy());
+  return new ScheduleDAGMILive(C, make_unique<R600SchedStrategy>());
 }
 
 static MachineSchedRegistry
 SchedCustomRegistry("r600", "Run R600's custom scheduler",
                     createR600MachineScheduler);
+
+static std::string computeDataLayout(const AMDGPUSubtarget &ST) {
+  std::string Ret = "e-p:32:32";
+
+  if (ST.is64bit()) {
+    // 32-bit local, and region pointers. 64-bit private, global, and constant.
+    Ret += "-p1:64:64-p2:64:64-p3:32:32-p4:64:64-p5:32:32-p24:64:64";
+  }
+
+  Ret += "-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256"
+         "-v512:512-v1024:1024-v2048:2048-n32:64";
+
+  return Ret;
+}
 
 AMDGPUTargetMachine::AMDGPUTargetMachine(const Target &T, StringRef TT,
     StringRef CPU, StringRef FS,
@@ -58,7 +71,7 @@ AMDGPUTargetMachine::AMDGPUTargetMachine(const Target &T, StringRef TT,
 :
   LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OptLevel),
   Subtarget(TT, CPU, FS),
-  Layout(Subtarget.getDataLayout()),
+  Layout(computeDataLayout(Subtarget)),
   FrameLowering(TargetFrameLowering::StackGrowsUp,
                 64 * 16 // Maximum stack alignment (long16)
                , 0),
@@ -66,12 +79,11 @@ AMDGPUTargetMachine::AMDGPUTargetMachine(const Target &T, StringRef TT,
   InstrItins(&Subtarget.getInstrItineraryData()) {
   // TLInfo uses InstrInfo so it must be initialized after.
   if (Subtarget.getGeneration() <= AMDGPUSubtarget::NORTHERN_ISLANDS) {
-    InstrInfo.reset(new R600InstrInfo(*this));
     TLInfo.reset(new R600TargetLowering(*this));
   } else {
-    InstrInfo.reset(new SIInstrInfo(*this));
     TLInfo.reset(new SITargetLowering(*this));
   }
+  setRequiresStructuredCFG(true);
   initAsmInfo();
 }
 
@@ -88,20 +100,21 @@ public:
     return getTM<AMDGPUTargetMachine>();
   }
 
-  virtual ScheduleDAGInstrs *
-  createMachineScheduler(MachineSchedContext *C) const {
+  ScheduleDAGInstrs *
+  createMachineScheduler(MachineSchedContext *C) const override {
     const AMDGPUSubtarget &ST = TM->getSubtarget<AMDGPUSubtarget>();
     if (ST.getGeneration() <= AMDGPUSubtarget::NORTHERN_ISLANDS)
       return createR600MachineScheduler(C);
-    return 0;
+    return nullptr;
   }
 
-  virtual bool addPreISel();
-  virtual bool addInstSelector();
-  virtual bool addPreRegAlloc();
-  virtual bool addPostRegAlloc();
-  virtual bool addPreSched2();
-  virtual bool addPreEmitPass();
+  virtual void addCodeGenPrepare();
+  bool addPreISel() override;
+  bool addInstSelector() override;
+  bool addPreRegAlloc() override;
+  bool addPostRegAlloc() override;
+  bool addPreSched2() override;
+  bool addPreEmitPass() override;
 };
 } // End of anonymous namespace
 
@@ -121,13 +134,23 @@ void AMDGPUTargetMachine::addAnalysisPasses(PassManagerBase &PM) {
   PM.add(createAMDGPUTargetTransformInfoPass(this));
 }
 
+void AMDGPUPassConfig::addCodeGenPrepare() {
+  const AMDGPUSubtarget &ST = TM->getSubtarget<AMDGPUSubtarget>();
+  if (ST.isPromoteAllocaEnabled()) {
+    addPass(createAMDGPUPromoteAlloca(ST));
+    addPass(createSROAPass());
+  }
+
+  TargetPassConfig::addCodeGenPrepare();
+}
+
 bool
 AMDGPUPassConfig::addPreISel() {
   const AMDGPUSubtarget &ST = TM->getSubtarget<AMDGPUSubtarget>();
   addPass(createFlattenCFGPass());
   if (ST.IsIRStructurizerEnabled())
     addPass(createStructurizeCFGPass());
-  if (ST.getGeneration() > AMDGPUSubtarget::NORTHERN_ISLANDS) {
+  if (ST.getGeneration() >= AMDGPUSubtarget::SOUTHERN_ISLANDS) {
     addPass(createSinkingPass());
     addPass(createSITypeRewriter());
     addPass(createSIAnnotateControlFlowPass());
@@ -139,17 +162,23 @@ AMDGPUPassConfig::addPreISel() {
 
 bool AMDGPUPassConfig::addInstSelector() {
   addPass(createAMDGPUISelDag(getAMDGPUTargetMachine()));
+  addPass(createSILowerI1CopiesPass());
   return false;
 }
 
 bool AMDGPUPassConfig::addPreRegAlloc() {
-  addPass(createAMDGPUConvertToISAPass(*TM));
   const AMDGPUSubtarget &ST = TM->getSubtarget<AMDGPUSubtarget>();
 
   if (ST.getGeneration() <= AMDGPUSubtarget::NORTHERN_ISLANDS) {
     addPass(createR600VectorRegMerger(*TM));
   } else {
     addPass(createSIFixSGPRCopiesPass(*TM));
+    // SIFixSGPRCopies can generate a lot of duplicate instructions,
+    // so we need to run MachineCSE afterwards.
+    addPass(&MachineCSEID);
+    addPass(createSIShrinkInstructionsPass());
+    initializeSIFixSGPRLiveRangesPass(*PassRegistry::getPassRegistry());
+    insertPass(&RegisterCoalescerID, &SIFixSGPRLiveRangesID);
   }
   return false;
 }
@@ -157,6 +186,7 @@ bool AMDGPUPassConfig::addPreRegAlloc() {
 bool AMDGPUPassConfig::addPostRegAlloc() {
   const AMDGPUSubtarget &ST = TM->getSubtarget<AMDGPUSubtarget>();
 
+  addPass(createSIShrinkInstructionsPass());
   if (ST.getGeneration() > AMDGPUSubtarget::NORTHERN_ISLANDS) {
     addPass(createSIInsertWaits(*TM));
   }
@@ -167,7 +197,7 @@ bool AMDGPUPassConfig::addPreSched2() {
   const AMDGPUSubtarget &ST = TM->getSubtarget<AMDGPUSubtarget>();
 
   if (ST.getGeneration() <= AMDGPUSubtarget::NORTHERN_ISLANDS)
-    addPass(createR600EmitClauseMarkers(*TM));
+    addPass(createR600EmitClauseMarkers());
   if (ST.isIfCvtEnabled())
     addPass(&IfConverterID);
   if (ST.getGeneration() <= AMDGPUSubtarget::NORTHERN_ISLANDS)
@@ -178,7 +208,7 @@ bool AMDGPUPassConfig::addPreSched2() {
 bool AMDGPUPassConfig::addPreEmitPass() {
   const AMDGPUSubtarget &ST = TM->getSubtarget<AMDGPUSubtarget>();
   if (ST.getGeneration() <= AMDGPUSubtarget::NORTHERN_ISLANDS) {
-    addPass(createAMDGPUCFGStructurizerPass(*TM));
+    addPass(createAMDGPUCFGStructurizerPass());
     addPass(createR600ExpandSpecialInstrsPass(*TM));
     addPass(&FinalizeMachineBundlesID);
     addPass(createR600Packetizer(*TM));

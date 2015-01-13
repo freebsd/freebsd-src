@@ -238,6 +238,13 @@ ofw_gpiobus_setup_devinfo(device_t dev, phandle_t node)
 		free(dinfo, M_DEVBUF);
 		return (NULL);
 	}
+	/* And now the interrupt resources. */
+	resource_list_init(&dinfo->opd_dinfo.rl);
+	if (ofw_bus_intr_to_rl(dev, node, &dinfo->opd_dinfo.rl) != 0) {
+		ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
+		free(dinfo, M_DEVBUF);
+		return (NULL);
+	}
 
 	return (dinfo);
 }
@@ -246,6 +253,7 @@ static void
 ofw_gpiobus_destroy_devinfo(struct ofw_gpiobus_devinfo *dinfo)
 {
 
+	resource_list_free(&dinfo->opd_dinfo.rl);
 	ofw_bus_gen_destroy_devinfo(&dinfo->opd_obdinfo);
 	free(dinfo, M_DEVBUF);
 }
@@ -264,33 +272,13 @@ ofw_gpiobus_probe(device_t dev)
 static int
 ofw_gpiobus_attach(device_t dev)
 {
-	struct gpiobus_softc *sc;
+	int err;
 	phandle_t child;
 
-	sc = GPIOBUS_SOFTC(dev);
-	sc->sc_busdev = dev;
-	sc->sc_dev = device_get_parent(dev);
-
-	/* Read the pin max. value */
-	if (GPIO_PIN_MAX(sc->sc_dev, &sc->sc_npins) != 0)
-		return (ENXIO);
-
-	KASSERT(sc->sc_npins != 0, ("GPIO device with no pins"));
-
-	/*
-	 * Increase to get number of pins.
-	 */
-	sc->sc_npins++;
-
-	sc->sc_pins_mapped = malloc(sizeof(int) * sc->sc_npins, M_DEVBUF, 
-	    M_NOWAIT | M_ZERO);
-
-	if (!sc->sc_pins_mapped)
-		return (ENOMEM);
-
-	/* Init the bus lock. */
-	GPIOBUS_LOCK_INIT(sc);
-
+	err = gpiobus_init_softc(dev);
+	if (err != 0)
+		return (err);
+ 
 	bus_generic_probe(dev);
 	bus_enumerate_hinted_children(dev);
 
@@ -336,21 +324,6 @@ ofw_gpiobus_add_child(device_t dev, u_int order, const char *name, int unit)
 	return (child);
 }
 
-static int
-ofw_gpiobus_print_child(device_t dev, device_t child)
-{
-	struct ofw_gpiobus_devinfo *devi;
-	int retval = 0;
-
-	devi = device_get_ivars(child);
-	retval += bus_print_child_header(dev, child);
-	retval += printf(" at pin(s) ");
-	gpiobus_print_pins(&devi->opd_dinfo);
-	retval += bus_print_child_footer(dev, child);
-
-	return (retval);
-}
-
 static const struct ofw_bus_devinfo *
 ofw_gpiobus_get_devinfo(device_t bus, device_t dev)
 {
@@ -368,7 +341,6 @@ static device_method_t ofw_gpiobus_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_child_pnpinfo_str,	ofw_bus_gen_child_pnpinfo_str),
-	DEVMETHOD(bus_print_child,	ofw_gpiobus_print_child),
 	DEVMETHOD(bus_add_child,	ofw_gpiobus_add_child),
 
 	/* ofw_bus interface */

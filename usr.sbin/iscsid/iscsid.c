@@ -160,7 +160,7 @@ connection_new(unsigned int session_id, const uint8_t isid[8], uint16_t tsih,
 #ifdef ICL_KERNEL_PROXY
 	struct iscsi_daemon_connect idc;
 #endif
-	int error;
+	int error, sockbuf;
 
 	conn = calloc(1, sizeof(*conn));
 	if (conn == NULL)
@@ -237,6 +237,14 @@ connection_new(unsigned int session_id, const uint8_t isid[8], uint16_t tsih,
 		fail(conn, strerror(errno));
 		log_err(1, "failed to create socket for %s", from_addr);
 	}
+	sockbuf = SOCKBUF_SIZE;
+	if (setsockopt(conn->conn_socket, SOL_SOCKET, SO_RCVBUF,
+	    &sockbuf, sizeof(sockbuf)) == -1)
+		log_warn("setsockopt(SO_RCVBUF) failed");
+	sockbuf = SOCKBUF_SIZE;
+	if (setsockopt(conn->conn_socket, SOL_SOCKET, SO_SNDBUF,
+	    &sockbuf, sizeof(sockbuf)) == -1)
+		log_warn("setsockopt(SO_SNDBUF) failed");
 	if (from_ai != NULL) {
 		error = bind(conn->conn_socket, from_ai->ai_addr,
 		    from_ai->ai_addrlen);

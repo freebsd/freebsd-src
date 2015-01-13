@@ -550,6 +550,13 @@
 #define MIPS_CONFIG1_EP			0x00000002	/* EJTAG implemented */
 #define MIPS_CONFIG1_FP			0x00000001	/* FPU implemented */
 
+#define MIPS_CONFIG2_SA_SHIFT		0		/* Secondary cache associativity */
+#define MIPS_CONFIG2_SA_MASK		0xf
+#define MIPS_CONFIG2_SL_SHIFT		4		/* Secondary cache line size */
+#define MIPS_CONFIG2_SL_MASK		0xf
+#define MIPS_CONFIG2_SS_SHIFT		8		/* Secondary cache sets per way */
+#define MIPS_CONFIG2_SS_MASK		0xf
+
 #define MIPS_CONFIG4_MMUSIZEEXT		0x000000FF	/* bits 7.. 0 MMU Size Extension */
 #define MIPS_CONFIG4_MMUEXTDEF		0x0000C000	/* bits 15.14 MMU Extension Definition */
 #define MIPS_CONFIG4_MMUEXTDEF_MMUSIZEEXT	0x00004000 /* This values denotes CONFIG4 bits  */

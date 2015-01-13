@@ -39,7 +39,9 @@ __RCSID("$NetBSD: t_setrlimit.c,v 1.4 2012/06/12 23:56:19 christos Exp $");
 #include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
+#ifdef __NetBSD__
 #include <lwp.h>
+#endif
 #include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -438,6 +440,7 @@ ATF_TC_BODY(setrlimit_nproc, tc)
 		atf_tc_fail("RLIMIT_NPROC not enforced");
 }
 
+#ifdef __NetBSD__
 ATF_TC(setrlimit_nthr);
 ATF_TC_HEAD(setrlimit_nthr, tc)
 {
@@ -474,6 +477,7 @@ ATF_TC_BODY(setrlimit_nthr, tc)
 	makecontext(&c, func, 1, &lwpid);
 	ATF_CHECK_ERRNO(EAGAIN, _lwp_create(&c, 0, &lwpid) == -1);
 }
+#endif
 
 ATF_TC(setrlimit_perm);
 ATF_TC_HEAD(setrlimit_perm, tc)
@@ -494,7 +498,11 @@ ATF_TC_BODY(setrlimit_perm, tc)
 
 		ATF_REQUIRE(getrlimit(rlimit[i], &res) == 0);
 
+#ifdef __FreeBSD__
+		if (res.rlim_max == INT64_MAX) /* Overflow. */
+#else
 		if (res.rlim_max == UINT64_MAX) /* Overflow. */
+#endif
 			continue;
 
 		errno = 0;
@@ -516,7 +524,9 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, setrlimit_nofile_2);
 	ATF_TP_ADD_TC(tp, setrlimit_nproc);
 	ATF_TP_ADD_TC(tp, setrlimit_perm);
+#ifdef __NetBSD__
 	ATF_TP_ADD_TC(tp, setrlimit_nthr);
+#endif
 
 	return atf_no_error();
 }

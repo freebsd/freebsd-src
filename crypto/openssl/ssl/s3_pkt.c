@@ -183,6 +183,8 @@ int ssl3_read_n(SSL *s, int n, int max, int extend)
 	 * at once (as long as it fits into the buffer). */
 	if (SSL_version(s) == DTLS1_VERSION || SSL_version(s) == DTLS1_BAD_VER)
 		{
+		if (left == 0 && extend)
+			return 0;
 		if (left > 0 && n > left)
 			n = left;
 		}
@@ -273,6 +275,12 @@ int ssl3_read_n(SSL *s, int n, int max, int extend)
 	return(n);
 	}
 
+/* MAX_EMPTY_RECORDS defines the number of consecutive, empty records that will
+ * be processed per call to ssl3_get_record. Without this limit an attacker
+ * could send empty records at a faster rate than we can process and cause
+ * ssl3_get_record to loop forever. */
+#define MAX_EMPTY_RECORDS 32
+
 /* Call this to get a new input record.
  * It will return <= 0 if more data is needed, normally due to an error
  * or non-blocking IO.
@@ -293,6 +301,7 @@ static int ssl3_get_record(SSL *s)
 	short version;
 	unsigned mac_size, orig_len;
 	size_t extra;
+	unsigned empty_record_count = 0;
 
 	rr= &(s->s3->rrec);
 	sess=s->session;
@@ -523,7 +532,17 @@ printf("\n");
 	s->packet_length=0;
 
 	/* just read a 0 length packet */
-	if (rr->length == 0) goto again;
+	if (rr->length == 0)
+		{
+		empty_record_count++;
+		if (empty_record_count > MAX_EMPTY_RECORDS)
+			{
+			al=SSL_AD_UNEXPECTED_MESSAGE;
+			SSLerr(SSL_F_SSL3_GET_RECORD,SSL_R_RECORD_TOO_SMALL);
+			goto f_err;
+			}
+		goto again;
+		}
 
 #if 0
 fprintf(stderr, "Ultimate Record type=%d, Length=%d\n", rr->type, rr->length);
@@ -839,8 +858,7 @@ static int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
 		wr->length += eivlen;
 		}
 
-	/* ssl3_enc can only have an error on read */
-	s->method->ssl3_enc->enc(s,1);
+	if(s->method->ssl3_enc->enc(s,1)<1) goto err;
 
 	/* record length after mac and block padding */
 	s2n(wr->length,plen);

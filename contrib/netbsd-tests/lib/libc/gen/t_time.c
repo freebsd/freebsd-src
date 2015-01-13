@@ -31,7 +31,7 @@
 #include <sys/cdefs.h>
 __RCSID("$NetBSD: t_time.c,v 1.2 2011/11/11 05:03:38 jruoho Exp $");
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <sys/time.h>
 #endif
 #include <atf-c.h>

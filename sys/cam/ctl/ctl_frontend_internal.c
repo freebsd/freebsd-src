@@ -244,8 +244,6 @@ cfi_init(void)
 	memset(softc, 0, sizeof(*softc));
 
 	mtx_init(&softc->lock, "CTL frontend mutex", NULL, MTX_DEF);
-	softc->flags |= CTL_FLAG_MASTER_SHELF;
-
 	STAILQ_INIT(&softc->lun_list);
 	STAILQ_INIT(&softc->metatask_list);
 	sprintf(softc->fe_name, "kernel");
@@ -264,7 +262,7 @@ cfi_init(void)
 	port->max_targets = 15;
 	port->max_target_id = 15;
 
-	if (ctl_port_register(port, (softc->flags & CTL_FLAG_MASTER_SHELF)) != 0) 
+	if (ctl_port_register(port) != 0)
 	{
 		printf("%s: internal frontend registration failed\n", __func__);
 		return (0);
@@ -501,8 +499,8 @@ cfi_datamove(union ctl_io *io)
 	     i < ext_sg_entries && j < kern_sg_entries;) {
 		uint8_t *ext_ptr, *kern_ptr;
 
-		len_to_copy = ctl_min(ext_sglist[i].len - ext_watermark,
-				      kern_sglist[j].len - kern_watermark);
+		len_to_copy = MIN(ext_sglist[i].len - ext_watermark,
+				  kern_sglist[j].len - kern_watermark);
 
 		ext_ptr = (uint8_t *)ext_sglist[i].addr;
 		ext_ptr = ext_ptr + ext_watermark;
@@ -763,11 +761,6 @@ cfi_done(union ctl_io *io)
 			struct cfi_lun_io *new_lun_io;
 
 			new_io = ctl_alloc_io(softc->port.ctl_pool_ref);
-			if (new_io == NULL) {
-				printf("%s: unable to allocate ctl_io for "
-				       "error recovery\n", __func__);
-				goto done;
-			}
 			ctl_zero_io(new_io);
 
 			new_io->io_hdr.io_type = CTL_IO_TASK;
@@ -969,12 +962,6 @@ cfi_lun_probe(struct cfi_lun *lun, int have_lock)
 		union ctl_io *io;
 
 		io = ctl_alloc_io(lun->softc->port.ctl_pool_ref);
-		if (io == NULL) {
-			printf("%s: unable to alloc ctl_io for target %ju "
-			       "lun %d probe\n", __func__,
-			       (uintmax_t)lun->target_id.id, lun->lun_id);
-			return;
-		}
 		ctl_scsi_inquiry(io,
 				 /*data_ptr*/(uint8_t *)&lun->inq_data,
 				 /*data_len*/ sizeof(lun->inq_data),
@@ -1016,12 +1003,6 @@ cfi_lun_probe(struct cfi_lun *lun, int have_lock)
 		union ctl_io *io;
 
 		io = ctl_alloc_io(lun->softc->port.ctl_pool_ref);
-		if (io == NULL) {
-			printf("%s: unable to alloc ctl_io for target %ju "
-			       "lun %d probe\n", __func__,
-			       (uintmax_t)lun->target_id.id, lun->lun_id);
-			return;
-		}
 
 		dataptr = malloc(sizeof(struct scsi_read_capacity_data_long),
 				 M_CTL_CFI, M_NOWAIT);
@@ -1122,8 +1103,8 @@ cfi_metatask_bbr_errorparse(struct cfi_metatask *metatask, union ctl_io *io)
 
 	metatask->taskinfo.bbrread.scsi_status = io->scsiio.scsi_status;
 	memcpy(&metatask->taskinfo.bbrread.sense_data, &io->scsiio.sense_data,
-	       ctl_min(sizeof(metatask->taskinfo.bbrread.sense_data),
-		       sizeof(io->scsiio.sense_data)));
+	       MIN(sizeof(metatask->taskinfo.bbrread.sense_data),
+		   sizeof(io->scsiio.sense_data)));
 
 	if (io->scsiio.scsi_status == SCSI_STATUS_RESERV_CONFLICT) {
 		metatask->status = CFI_MT_ERROR;
@@ -1396,7 +1377,7 @@ cfi_action(struct cfi_metatask *metatask)
 			if (SID_TYPE(&lun->inq_data) != T_DIRECT)
 				continue;
 			da_luns++;
-			io = ctl_alloc_io(softc->port.ctl_pool_ref);
+			io = ctl_alloc_io_nowait(softc->port.ctl_pool_ref);
 			if (io != NULL) {
 				ios_allocated++;
 				STAILQ_INSERT_TAIL(&tmp_io_list, &io->io_hdr,
@@ -1550,7 +1531,7 @@ cfi_action(struct cfi_metatask *metatask)
 
 		}
 
-		io = ctl_alloc_io(softc->port.ctl_pool_ref);
+		io = ctl_alloc_io_nowait(softc->port.ctl_pool_ref);
 		if (io == NULL) {
 			metatask->status = CFI_MT_ERROR;
 			metatask->taskinfo.bbrread.status = CFI_BBR_NO_MEM;

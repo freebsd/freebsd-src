@@ -1733,8 +1733,9 @@ cxgb_transmit(struct ifnet *ifp, struct mbuf *m)
 		m_freem(m);
 		return (0);
 	}
-	
-	if (m->m_flags & M_FLOWID)
+
+	/* check if flowid is set */
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)	
 		qidx = (m->m_pkthdr.flowid % pi->nqsets) + pi->first_qset;
 
 	qs = &pi->adapter->sge.qs[qidx];
@@ -2899,9 +2900,10 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			
 			eop = get_packet(adap, drop_thresh, qs, mh, r);
 			if (eop) {
-				if (r->rss_hdr.hash_type && !adap->timestamp)
-					mh->mh_head->m_flags |= M_FLOWID;
-				mh->mh_head->m_pkthdr.flowid = rss_hash;
+				if (r->rss_hdr.hash_type && !adap->timestamp) {
+					M_HASHTYPE_SET(mh->mh_head, M_HASHTYPE_OPAQUE);
+					mh->mh_head->m_pkthdr.flowid = rss_hash;
+				}
 			}
 			
 			ethpad = 2;
@@ -3365,7 +3367,7 @@ t3_add_attach_sysctls(adapter_t *sc)
 	/* random information */
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, 
 	    "firmware_version",
-	    CTLFLAG_RD, &sc->fw_version,
+	    CTLFLAG_RD, sc->fw_version,
 	    0, "firmware version");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO,
 	    "hw_revision",
@@ -3373,7 +3375,7 @@ t3_add_attach_sysctls(adapter_t *sc)
 	    0, "chip model");
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO, 
 	    "port_types",
-	    CTLFLAG_RD, &sc->port_types,
+	    CTLFLAG_RD, sc->port_types,
 	    0, "type of ports");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 	    "enable_debug",
@@ -3502,7 +3504,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "starved",
 			    CTLFLAG_RD, &qs->rspq.starved,
 			    0, "#times starved");
-			SYSCTL_ADD_ULONG(ctx, rspqpoidlist, OID_AUTO, "phys_addr",
+			SYSCTL_ADD_UAUTO(ctx, rspqpoidlist, OID_AUTO, "phys_addr",
 			    CTLFLAG_RD, &qs->rspq.phys_addr,
 			    "physical_address_of the queue");
 			SYSCTL_ADD_UINT(ctx, rspqpoidlist, OID_AUTO, "dump_start",
@@ -3538,7 +3540,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "in_use",
 			    CTLFLAG_RD, &txq->in_use,
 			    0, "#tunneled packet slots in use");
-			SYSCTL_ADD_ULONG(ctx, txqpoidlist, OID_AUTO, "frees",
+			SYSCTL_ADD_UQUAD(ctx, txqpoidlist, OID_AUTO, "frees",
 			    CTLFLAG_RD, &txq->txq_frees,
 			    "#tunneled packets freed");
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "skipped",
@@ -3553,7 +3555,7 @@ t3_add_configured_sysctls(adapter_t *sc)
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "stopped_flags",
 			    CTLFLAG_RD, &qs->txq_stopped,
 			    0, "tx queues stopped");
-			SYSCTL_ADD_ULONG(ctx, txqpoidlist, OID_AUTO, "phys_addr",
+			SYSCTL_ADD_UAUTO(ctx, txqpoidlist, OID_AUTO, "phys_addr",
 			    CTLFLAG_RD, &txq->phys_addr,
 			    "physical_address_of the queue");
 			SYSCTL_ADD_UINT(ctx, txqpoidlist, OID_AUTO, "qgen",

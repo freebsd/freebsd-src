@@ -150,6 +150,8 @@ int scsi_low_version_major = 2;
 int scsi_low_version_minor = 17;
 
 static struct scsi_low_softc_tab sl_tab = LIST_HEAD_INITIALIZER(sl_tab);
+static struct mtx sl_tab_lock;
+MTX_SYSINIT(sl_tab_lock, &sl_tab_lock, "scsi low table", MTX_DEF);
 
 /**************************************************************
  * Debug, Run test and Statics
@@ -365,21 +367,10 @@ static void scsi_low_poll_cam(struct cam_sim *);
 void scsi_low_scsi_action_cam(struct cam_sim *, union ccb *);
 
 static int scsi_low_attach_cam(struct scsi_low_softc *);
-static int scsi_low_world_start_cam(struct scsi_low_softc *);
-static int scsi_low_dettach_cam(struct scsi_low_softc *);
+static int scsi_low_detach_cam(struct scsi_low_softc *);
 static int scsi_low_ccb_setup_cam(struct scsi_low_softc *, struct slccb *);
 static int scsi_low_done_cam(struct scsi_low_softc *, struct slccb *);
-static void scsi_low_timeout_cam(struct scsi_low_softc *, int, int);
 
-struct scsi_low_osdep_funcs scsi_low_osdep_funcs_cam = {
-	scsi_low_attach_cam,
-	scsi_low_world_start_cam,
-	scsi_low_dettach_cam,
-	scsi_low_ccb_setup_cam,
-	scsi_low_done_cam,
-	scsi_low_timeout_cam
-};
-	
 struct scsi_low_error_code scsi_low_error_code_cam[] = {
 	{0,			CAM_REQ_CMP},
 	{SENSEIO, 		CAM_AUTOSNS_VALID | CAM_REQ_CMP_ERR},
@@ -409,12 +400,13 @@ scsi_low_poll_cam(sim)
 {
 	struct scsi_low_softc *slp = SIM2SLP(sim);
 
+	SCSI_LOW_ASSERT_LOCKED(slp);
 	(*slp->sl_funcs->scsi_low_poll) (slp);
 
-	if (slp->sl_si.si_poll_count ++ >= 
+	if (slp->sl_poll_count ++ >= 
 	    SCSI_LOW_CAM_POLL_HZ / SCSI_LOW_TIMEOUT_HZ)
 	{
-		slp->sl_si.si_poll_count = 0;
+		slp->sl_poll_count = 0;
 		scsi_low_timeout_check(slp);
 	}
 }
@@ -429,8 +421,9 @@ scsi_low_scsi_action_cam(sim, ccb)
 	struct lun_info *li;
 	struct slccb *cb;
 	u_int lun, flags, msg, target;
-	int s, rv;
+	int rv;
 
+	SCSI_LOW_ASSERT_LOCKED(slp);
 	target = (u_int) (ccb->ccb_h.target_id);
 	lun = (u_int) ccb->ccb_h.target_lun;
 
@@ -469,7 +462,6 @@ scsi_low_scsi_action_cam(sim, ccb)
 		else
 			flags = CCB_SCSIIO;
 
-		s = splcam();
 		li = scsi_low_alloc_li(ti, lun, 1);
 
 		if (ti->ti_setup_msg != 0)
@@ -485,7 +477,6 @@ scsi_low_scsi_action_cam(sim, ccb)
 			scsi_low_test_abort(slp, ti, li);
 		}
 #endif	/* SCSI_LOW_DEBUG */
-		splx(s);
 		break;
 
 	case XPT_EN_LUN:		/* Enable LUN as a target */
@@ -508,10 +499,8 @@ scsi_low_scsi_action_cam(sim, ccb)
 		}
 #endif	/* SCSI_LOW_DIAGNOSTIC */
 
-		s = splcam();
 		cb = scsi_low_find_ccb(slp, target, lun, ccb->cab.abort_ccb);
 		rv = scsi_low_abort_ccb(slp, cb);
-		splx(s);
 
 		if (rv == 0)
 			ccb->ccb_h.status = CAM_REQ_CMP;
@@ -540,7 +529,6 @@ scsi_low_scsi_action_cam(sim, ccb)
 		if (lun == CAM_LUN_WILDCARD)
 			lun = 0;
 
-		s = splcam();
 		scsi = &cts->proto_specific.scsi;
 		spi = &cts->xport_specific.spi;
 		if ((spi->valid & (CTS_SPI_VALID_BUS_WIDTH |
@@ -587,7 +575,6 @@ scsi_low_scsi_action_cam(sim, ccb)
 			if ((slp->sl_show_result & SHOW_CALCF_RES) != 0)
 				scsi_low_calcf_show(li);
 		}
-		splx(s);
 
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -612,7 +599,6 @@ scsi_low_scsi_action_cam(sim, ccb)
 		if (lun == CAM_LUN_WILDCARD)
 			lun = 0;
 
-		s = splcam();
 		li = scsi_low_alloc_li(ti, lun, 1);
 		if (li != NULL && cts->type == CTS_TYPE_CURRENT_SETTINGS) {
 			struct ccb_trans_settings_scsi *scsi =
@@ -658,7 +644,6 @@ scsi_low_scsi_action_cam(sim, ccb)
 		} else
 			ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 settings_out:
-		splx(s);
 		xpt_done(ccb);
 		break;
 	}
@@ -670,9 +655,7 @@ settings_out:
 	}
 
 	case XPT_RESET_BUS:		/* Reset the specified SCSI bus */
-		s = splcam();
 		scsi_low_restart(slp, SCSI_LOW_RESTART_HARD, NULL);
-		splx(s);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -711,10 +694,8 @@ settings_out:
 		else
 			flags = CCB_NORETRY | CCB_URGENT;
 
-		s = splcam();
 		li = scsi_low_alloc_li(ti, lun, 1);
 		scsi_low_enqueue(slp, ti, li, cb, flags, msg);
-		splx(s);
 		break;
 
 	case XPT_PATH_INQ: {		/* Path routing inquiry */
@@ -774,51 +755,47 @@ scsi_low_attach_cam(slp)
 	 * ask the adapter what subunits are present
 	 */
 	tagged_openings = min(slp->sl_openings, SCSI_LOW_MAXNEXUS);
-	slp->sl_si.sim = cam_sim_alloc(scsi_low_scsi_action_cam,
+	slp->sl_sim = cam_sim_alloc(scsi_low_scsi_action_cam,
 				scsi_low_poll_cam,
 				device_get_name(slp->sl_dev), slp,
-				device_get_unit(slp->sl_dev), &Giant,
+				device_get_unit(slp->sl_dev), &slp->sl_lock,
 				slp->sl_openings, tagged_openings, devq);
 
-	if (slp->sl_si.sim == NULL) {
+	if (slp->sl_sim == NULL) {
 		cam_simq_free(devq);
 	 	return ENODEV;
 	}
 
-	if (xpt_bus_register(slp->sl_si.sim, NULL, 0) != CAM_SUCCESS) {
-		free(slp->sl_si.sim, M_SCSILOW);
+	SCSI_LOW_LOCK(slp);
+	if (xpt_bus_register(slp->sl_sim, slp->sl_dev, 0) != CAM_SUCCESS) {
+		cam_sim_free(slp->sl_sim, TRUE);
+		SCSI_LOW_UNLOCK(slp);
 	 	return ENODEV;
 	}
        
-	if (xpt_create_path(&slp->sl_si.path, /*periph*/NULL,
-			cam_sim_path(slp->sl_si.sim), CAM_TARGET_WILDCARD,
+	if (xpt_create_path(&slp->sl_path, /*periph*/NULL,
+			cam_sim_path(slp->sl_sim), CAM_TARGET_WILDCARD,
 			CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-		xpt_bus_deregister(cam_sim_path(slp->sl_si.sim));
-		cam_sim_free(slp->sl_si.sim, /*free_simq*/TRUE);
+		xpt_bus_deregister(cam_sim_path(slp->sl_sim));
+		cam_sim_free(slp->sl_sim, /*free_simq*/TRUE);
+		SCSI_LOW_UNLOCK(slp);
 		return ENODEV;
 	}
 
 	slp->sl_show_result = SHOW_CALCF_RES;		/* OK ? */
+	SCSI_LOW_UNLOCK(slp);
 	return 0;
 }
 
 static int
-scsi_low_world_start_cam(slp)
+scsi_low_detach_cam(slp)
 	struct scsi_low_softc *slp;
 {
 
-	return 0;
-}
-
-static int
-scsi_low_dettach_cam(slp)
-	struct scsi_low_softc *slp;
-{
-
-	xpt_async(AC_LOST_DEVICE, slp->sl_si.path, NULL);
-	xpt_free_path(slp->sl_si.path);
-	xpt_bus_deregister(cam_sim_path(slp->sl_si.sim));
-	cam_sim_free(slp->sl_si.sim, /* free_devq */ TRUE);
+	xpt_async(AC_LOST_DEVICE, slp->sl_path, NULL);
+	xpt_free_path(slp->sl_path);
+	xpt_bus_deregister(cam_sim_path(slp->sl_sim));
+	cam_sim_free(slp->sl_sim, /* free_devq */ TRUE);
 	return 0;
 }
 
@@ -906,48 +883,6 @@ scsi_low_done_cam(slp, cb)
 	return 0;
 }
 
-static void
-scsi_low_timeout_cam(slp, ch, action)
-	struct scsi_low_softc *slp;
-	int ch;
-	int action;
-{
-
-	switch (ch)
-	{
-	case SCSI_LOW_TIMEOUT_CH_IO:
-		switch (action)
-		{
-		case SCSI_LOW_TIMEOUT_START:
-			slp->sl_si.timeout_ch = timeout(scsi_low_timeout, slp,
-				hz / SCSI_LOW_TIMEOUT_HZ);
-			break;
-		case SCSI_LOW_TIMEOUT_STOP:
-			untimeout(scsi_low_timeout, slp, slp->sl_si.timeout_ch);
-			break;
-		}
-		break;
-
-	case SCSI_LOW_TIMEOUT_CH_ENGAGE:
-		switch (action)
-		{
-		case SCSI_LOW_TIMEOUT_START:
-			slp->sl_si.engage_ch = timeout(scsi_low_engage, slp, 1);
-			break;
-		case SCSI_LOW_TIMEOUT_STOP:
-			untimeout(scsi_low_engage, slp, slp->sl_si.engage_ch);
-			break;
-		}
-		break;
-	case SCSI_LOW_TIMEOUT_CH_RECOVER:
-		break;
-	}
-}
-
-/*=============================================================
- * END OF OS switch  (All OS depend fucntions should be above)
- =============================================================*/
-
 /**************************************************************
  * scsi low deactivate and activate
  **************************************************************/
@@ -965,15 +900,10 @@ int
 scsi_low_deactivate(slp)
 	struct scsi_low_softc *slp;
 {
-	int s;
 
-	s = splcam();
 	slp->sl_flags |= HW_INACTIVE;
-	(*slp->sl_osdep_fp->scsi_low_osdep_timeout)
-		(slp, SCSI_LOW_TIMEOUT_CH_IO, SCSI_LOW_TIMEOUT_STOP);
-	(*slp->sl_osdep_fp->scsi_low_osdep_timeout)
-		(slp, SCSI_LOW_TIMEOUT_CH_ENGAGE, SCSI_LOW_TIMEOUT_STOP);
-	splx(s);
+	callout_stop(&slp->sl_timeout_timer);
+	callout_stop(&slp->sl_engage_timer);
 	return 0;
 }
 
@@ -981,21 +911,18 @@ int
 scsi_low_activate(slp)
 	struct scsi_low_softc *slp;
 {
-	int error, s;
+	int error;
 
-	s = splcam();
 	slp->sl_flags &= ~HW_INACTIVE;
 	if ((error = scsi_low_restart(slp, SCSI_LOW_RESTART_HARD, NULL)) != 0)
 	{
 		slp->sl_flags |= HW_INACTIVE;
-		splx(s);
 		return error;
 	}
 
 	slp->sl_timeout_count = 0;
-	(*slp->sl_osdep_fp->scsi_low_osdep_timeout)
-		(slp, SCSI_LOW_TIMEOUT_CH_IO, SCSI_LOW_TIMEOUT_START);
-	splx(s);
+	callout_reset(&slp->sl_timeout_timer, hz / SCSI_LOW_TIMEOUT_HZ,
+	    scsi_low_timeout, slp);
 	return 0;
 }
 
@@ -1063,15 +990,15 @@ scsi_low_engage(arg)
 	void *arg;
 {
 	struct scsi_low_softc *slp = arg;
-	int s = splcam();
 
+	SCSI_LOW_ASSERT_LOCKED(slp);
 	switch (slp->sl_rstep)
 	{
 	case 0:
 		slp->sl_rstep ++;
 		(*slp->sl_funcs->scsi_low_power) (slp, SCSI_LOW_ENGAGE);
-		(*slp->sl_osdep_fp->scsi_low_osdep_timeout) (slp, 
-			SCSI_LOW_TIMEOUT_CH_ENGAGE, SCSI_LOW_TIMEOUT_START);
+		callout_reset(&slp->sl_engage_timer, hz / 1000,
+		    scsi_low_engage, slp);
 		break;
 
 	case 1:
@@ -1083,7 +1010,6 @@ scsi_low_engage(arg)
 	case 2:
 		break;
 	}
-	splx(s);
 }
 
 static int
@@ -1098,8 +1024,7 @@ scsi_low_init(slp, flags)
 	/* clear power control timeout */
 	if ((slp->sl_flags & HW_POWERCTRL) != 0)
 	{
-		(*slp->sl_osdep_fp->scsi_low_osdep_timeout) (slp, 
-			SCSI_LOW_TIMEOUT_CH_ENGAGE, SCSI_LOW_TIMEOUT_STOP);
+		callout_stop(&slp->sl_engage_timer);
 		slp->sl_flags &= ~(HW_POWDOWN | HW_RESUME);
 		slp->sl_active = 1;
 		slp->sl_powc = SCSI_LOW_POWDOWN_TC;
@@ -1273,13 +1198,10 @@ scsi_low_timeout(arg)
 	void *arg;
 {
 	struct scsi_low_softc *slp = arg;
-	int s;
 
-	s = splcam();
+	SCSI_LOW_ASSERT_LOCKED(slp);
 	(void) scsi_low_timeout_check(slp);
-	(*slp->sl_osdep_fp->scsi_low_osdep_timeout)
-		(slp, SCSI_LOW_TIMEOUT_CH_IO, SCSI_LOW_TIMEOUT_START);
-	splx(s);
+	callout_schedule(&slp->sl_timeout_timer, hz / SCSI_LOW_TIMEOUT_HZ);
 }
 
 static int
@@ -1459,12 +1381,7 @@ scsi_low_attach(slp, openings, ntargs, nluns, targsize, lunsize)
 {
 	struct targ_info *ti;
 	struct lun_info *li;
-	int s, i, nccb, rv;
-
-	slp->sl_osdep_fp = &scsi_low_osdep_funcs_cam;
-
-	if (slp->sl_osdep_fp == NULL)
-		panic("scsi_low: interface not spcified");
+	int i, nccb, rv;
 
 	if (ntargs > SCSI_LOW_NTARGETS)
 	{
@@ -1503,31 +1420,32 @@ scsi_low_attach(slp, openings, ntargs, nluns, targsize, lunsize)
 	TAILQ_INIT(&slp->sl_start);
 
 	/* call os depend attach */
-	s = splcam();
-	rv = (*slp->sl_osdep_fp->scsi_low_osdep_attach) (slp);
+	rv = scsi_low_attach_cam(slp);
 	if (rv != 0)
 	{
-		splx(s);
 		device_printf(slp->sl_dev,
 		    "scsi_low_attach: osdep attach failed\n");
-		return EINVAL;
+		return (rv);
 	}
 
 	/* check hardware */
 	DELAY(1000);	/* wait for 1ms */
+	SCSI_LOW_LOCK(slp);
 	if (scsi_low_init(slp, SCSI_LOW_RESTART_HARD) != 0)
 	{
-		splx(s);
 		device_printf(slp->sl_dev,
 		    "scsi_low_attach: initialization failed\n");
+		SCSI_LOW_UNLOCK(slp);
 		return EINVAL;
 	}
 
 	/* start watch dog */
 	slp->sl_timeout_count = 0;
-	(*slp->sl_osdep_fp->scsi_low_osdep_timeout)
-		 (slp, SCSI_LOW_TIMEOUT_CH_IO, SCSI_LOW_TIMEOUT_START);
+	callout_reset(&slp->sl_timeout_timer, hz / SCSI_LOW_TIMEOUT_HZ,
+	    scsi_low_timeout, slp);
+	mtx_lock(&sl_tab_lock);
 	LIST_INSERT_HEAD(&sl_tab, slp, sl_chain);
+	mtx_unlock(&sl_tab_lock);
 
 	/* fake call */
 	scsi_low_abort_ccb(slp, scsi_low_find_ccb(slp, 0, 0, NULL));
@@ -1536,38 +1454,40 @@ scsi_low_attach(slp, openings, ntargs, nluns, targsize, lunsize)
 	/* probing devices */
 	scsi_low_start_up(slp);
 #endif	/* SCSI_LOW_START_UP_CHECK */
+	SCSI_LOW_UNLOCK(slp);
 
-	/* call os depend attach done*/
-	(*slp->sl_osdep_fp->scsi_low_osdep_world_start) (slp);
-	splx(s);
 	return 0;
 }
 
 int
-scsi_low_dettach(slp)
+scsi_low_detach(slp)
 	struct scsi_low_softc *slp;
 {
-	int s, rv;
+	int rv;
 
-	s = splcam();
+	SCSI_LOW_LOCK(slp);
 	if (scsi_low_is_busy(slp) != 0)
 	{
-		splx(s);
+		SCSI_LOW_UNLOCK(slp);
 		return EBUSY;
 	}
 
 	scsi_low_deactivate(slp);
 
-	rv = (*slp->sl_osdep_fp->scsi_low_osdep_dettach) (slp);
+	rv = scsi_low_detach_cam(slp);
 	if (rv != 0)
 	{
-		splx(s);
+		SCSI_LOW_UNLOCK(slp);
 		return EBUSY;
 	}
 
 	scsi_low_free_ti(slp);
+	SCSI_LOW_UNLOCK(slp);
+	callout_drain(&slp->sl_timeout_timer);
+	callout_drain(&slp->sl_engage_timer);
+	mtx_lock(&sl_tab_lock);
 	LIST_REMOVE(slp, sl_chain);
-	splx(s);
+	mtx_unlock(&sl_tab_lock);
 	return 0;
 }
 
@@ -1753,9 +1673,8 @@ scsi_low_resume(slp)
 		slp->sl_flags |= HW_RESUME;
 		slp->sl_rstep = 0;
 		(*slp->sl_funcs->scsi_low_power) (slp, SCSI_LOW_ENGAGE);
-		(*slp->sl_osdep_fp->scsi_low_osdep_timeout)
-					(slp, SCSI_LOW_TIMEOUT_CH_ENGAGE,
-				         SCSI_LOW_TIMEOUT_START);
+		callout_reset(&slp->sl_engage_timer, hz / 1000,
+		    scsi_low_engage, slp);
 		return EJUSTRETURN;
 	}
 	return 0;
@@ -1839,7 +1758,7 @@ scsi_low_cmd_start:
 	else if (li->li_state >= SCSI_LOW_LUN_OK)
 	{
 		cb->ccb_flags &= ~CCB_INTERNAL;
-		rv = (*slp->sl_osdep_fp->scsi_low_osdep_ccb_setup) (slp, cb);
+		rv = scsi_low_ccb_setup_cam(slp, cb);
 		if (cb->ccb_msgoutflag != 0)
 		{
 			scsi_low_ccb_message_exec(slp, cb);
@@ -2199,7 +2118,7 @@ scsi_low_done(slp, cb)
 	/* call OS depend done */
 	if (cb->osdep != NULL)
 	{
-		rv = (*slp->sl_osdep_fp->scsi_low_osdep_done) (slp, cb);
+		rv = scsi_low_done_cam(slp, cb);
 		if (rv == EJUSTRETURN)
 			goto retry;
 	}
@@ -3140,7 +3059,7 @@ cmd_link_start:
 
 	scsi_low_init_msgsys(slp, ti);
 
-	(*slp->sl_osdep_fp->scsi_low_osdep_ccb_setup) (slp, ncb);
+	scsi_low_ccb_setup_cam(slp, ncb);
 
 	if (ncb->ccb_tcmax < SCSI_LOW_MIN_TOUT)
 		ncb->ccb_tcmax = SCSI_LOW_MIN_TOUT;

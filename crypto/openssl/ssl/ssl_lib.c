@@ -383,13 +383,7 @@ SSL *SSL_new(SSL_CTX *ctx)
 	return(s);
 err:
 	if (s != NULL)
-		{
-		if (s->cert != NULL)
-			ssl_cert_free(s->cert);
-		if (s->ctx != NULL)
-			SSL_CTX_free(s->ctx); /* decrement reference count */
-		OPENSSL_free(s);
-		}
+		SSL_free(s);
 	SSLerr(SSL_F_SSL_NEW,ERR_R_MALLOC_FAILURE);
 	return(NULL);
 	}
@@ -1080,19 +1074,6 @@ long SSL_ctrl(SSL *s,int cmd,long larg,void *parg)
 		l=s->max_cert_list;
 		s->max_cert_list=larg;
 		return(l);
-	case SSL_CTRL_SET_MTU:
-#ifndef OPENSSL_NO_DTLS1
-		if (larg < (long)dtls1_min_mtu())
-			return 0;
-#endif
-
-		if (SSL_version(s) == DTLS1_VERSION ||
-		    SSL_version(s) == DTLS1_BAD_VER)
-			{
-			s->d1->mtu = larg;
-			return larg;
-			}
-		return 0;
 	case SSL_CTRL_SET_MAX_SEND_FRAGMENT:
 		if (larg < 512 || larg > SSL3_RT_MAX_PLAIN_LENGTH)
 			return 0;
@@ -1387,6 +1368,8 @@ int ssl_cipher_list_to_bytes(SSL *s,STACK_OF(SSL_CIPHER) *sk,unsigned char *p,
 
 	if (sk == NULL) return(0);
 	q=p;
+	if (put_cb == NULL)
+		put_cb = s->method->put_cipher_by_char;
 
 	for (i=0; i<sk_SSL_CIPHER_num(sk); i++)
 		{
@@ -1411,24 +1394,36 @@ int ssl_cipher_list_to_bytes(SSL *s,STACK_OF(SSL_CIPHER) *sk,unsigned char *p,
 		    !(s->srp_ctx.srp_Mask & SSL_kSRP))
 		    continue;
 #endif /* OPENSSL_NO_SRP */
-		j = put_cb ? put_cb(c,p) : ssl_put_cipher_by_char(s,c,p);
+		j = put_cb(c,p);
 		p+=j;
 		}
-	/* If p == q, no ciphers and caller indicates an error. Otherwise
-	 * add SCSV if not renegotiating.
-	 */
-	if (p != q && !s->renegotiate)
+	/* If p == q, no ciphers; caller indicates an error.
+	 * Otherwise, add applicable SCSVs. */
+	if (p != q)
 		{
-		static SSL_CIPHER scsv =
+		if (!s->renegotiate)
 			{
-			0, NULL, SSL3_CK_SCSV, 0, 0, 0, 0, 0, 0, 0, 0, 0
-			};
-		j = put_cb ? put_cb(&scsv,p) : ssl_put_cipher_by_char(s,&scsv,p);
-		p+=j;
+			static SSL_CIPHER scsv =
+				{
+				0, NULL, SSL3_CK_SCSV, 0, 0, 0, 0, 0, 0, 0, 0, 0
+				};
+			j = put_cb(&scsv,p);
+			p+=j;
 #ifdef OPENSSL_RI_DEBUG
-		fprintf(stderr, "SCSV sent by client\n");
+			fprintf(stderr, "TLS_EMPTY_RENEGOTIATION_INFO_SCSV sent by client\n");
 #endif
-		}
+			}
+
+		if (s->mode & SSL_MODE_SEND_FALLBACK_SCSV)
+			{
+			static SSL_CIPHER scsv =
+				{
+				0, NULL, SSL3_CK_FALLBACK_SCSV, 0, 0, 0, 0, 0, 0, 0, 0, 0
+				};
+			j = put_cb(&scsv,p);
+			p+=j;
+			}
+ 		}
 
 	return(p-q);
 	}
@@ -1439,11 +1434,12 @@ STACK_OF(SSL_CIPHER) *ssl_bytes_to_cipher_list(SSL *s,unsigned char *p,int num,
 	const SSL_CIPHER *c;
 	STACK_OF(SSL_CIPHER) *sk;
 	int i,n;
+
 	if (s->s3)
 		s->s3->send_connection_binding = 0;
 
 	n=ssl_put_cipher_by_char(s,NULL,NULL);
-	if ((num%n) != 0)
+	if (n == 0 || (num%n) != 0)
 		{
 		SSLerr(SSL_F_SSL_BYTES_TO_CIPHER_LIST,SSL_R_ERROR_IN_RECEIVED_CIPHER_LIST);
 		return(NULL);
@@ -1458,7 +1454,7 @@ STACK_OF(SSL_CIPHER) *ssl_bytes_to_cipher_list(SSL *s,unsigned char *p,int num,
 
 	for (i=0; i<num; i+=n)
 		{
-		/* Check for SCSV */
+		/* Check for TLS_EMPTY_RENEGOTIATION_INFO_SCSV */
 		if (s->s3 && (n != 3 || !p[0]) &&
 			(p[n-2] == ((SSL3_CK_SCSV >> 8) & 0xff)) &&
 			(p[n-1] == (SSL3_CK_SCSV & 0xff)))
@@ -1475,6 +1471,24 @@ STACK_OF(SSL_CIPHER) *ssl_bytes_to_cipher_list(SSL *s,unsigned char *p,int num,
 #ifdef OPENSSL_RI_DEBUG
 			fprintf(stderr, "SCSV received by server\n");
 #endif
+			continue;
+			}
+
+		/* Check for TLS_FALLBACK_SCSV */
+		if ((n != 3 || !p[0]) &&
+			(p[n-2] == ((SSL3_CK_FALLBACK_SCSV >> 8) & 0xff)) &&
+			(p[n-1] == (SSL3_CK_FALLBACK_SCSV & 0xff)))
+			{
+			/* The SCSV indicates that the client previously tried a higher version.
+			 * Fail if the current version is an unexpected downgrade. */
+			if (!SSL_ctrl(s, SSL_CTRL_CHECK_PROTO_VERSION, 0, NULL))
+				{
+				SSLerr(SSL_F_SSL_BYTES_TO_CIPHER_LIST,SSL_R_INAPPROPRIATE_FALLBACK);
+				if (s->s3)
+					ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_INAPPROPRIATE_FALLBACK);
+				goto err;
+				}
+			p += n;
 			continue;
 			}
 
@@ -2080,7 +2094,7 @@ void ssl_set_cert_masks(CERT *c, const SSL_CIPHER *cipher)
 	
 
 #ifdef CIPHER_DEBUG
-	printf("rt=%d rte=%d dht=%d ecdht=%d re=%d ree=%d rs=%d ds=%d dhr=%d dhd=%d\n",
+	fprintf(stderr,"rt=%d rte=%d dht=%d ecdht=%d re=%d ree=%d rs=%d ds=%d dhr=%d dhd=%d\n",
 	        rsa_tmp,rsa_tmp_export,dh_tmp,have_ecdh_tmp,
 		rsa_enc,rsa_enc_export,rsa_sign,dsa_sign,dh_rsa,dh_dsa);
 #endif
@@ -2944,19 +2958,52 @@ SSL_CTX *SSL_get_SSL_CTX(const SSL *ssl)
 
 SSL_CTX *SSL_set_SSL_CTX(SSL *ssl, SSL_CTX* ctx)
 	{
+	CERT *ocert = ssl->cert;
 	if (ssl->ctx == ctx)
 		return ssl->ctx;
 #ifndef OPENSSL_NO_TLSEXT
 	if (ctx == NULL)
 		ctx = ssl->initial_ctx;
 #endif
-	if (ssl->cert != NULL)
-		ssl_cert_free(ssl->cert);
 	ssl->cert = ssl_cert_dup(ctx->cert);
+	if (ocert != NULL)
+		{
+		int i;
+		/* Copy negotiated digests from original */
+		for (i = 0; i < SSL_PKEY_NUM; i++)
+			{
+			CERT_PKEY *cpk = ocert->pkeys + i;
+			CERT_PKEY *rpk = ssl->cert->pkeys + i;
+			rpk->digest = cpk->digest;
+			}
+		ssl_cert_free(ocert);
+		}
+
+	/*
+	 * Program invariant: |sid_ctx| has fixed size (SSL_MAX_SID_CTX_LENGTH),
+	 * so setter APIs must prevent invalid lengths from entering the system.
+	 */
+	OPENSSL_assert(ssl->sid_ctx_length <= sizeof(ssl->sid_ctx));
+
+	/*
+	 * If the session ID context matches that of the parent SSL_CTX,
+	 * inherit it from the new SSL_CTX as well. If however the context does
+	 * not match (i.e., it was set per-ssl with SSL_set_session_id_context),
+	 * leave it unchanged.
+	 */
+	if ((ssl->ctx != NULL) &&
+		(ssl->sid_ctx_length == ssl->ctx->sid_ctx_length) &&
+		(memcmp(ssl->sid_ctx, ssl->ctx->sid_ctx, ssl->sid_ctx_length) == 0))
+		{
+		ssl->sid_ctx_length = ctx->sid_ctx_length;
+		memcpy(&ssl->sid_ctx, &ctx->sid_ctx, sizeof(ssl->sid_ctx));
+		}
+
 	CRYPTO_add(&ctx->references,1,CRYPTO_LOCK_SSL_CTX);
 	if (ssl->ctx != NULL)
 		SSL_CTX_free(ssl->ctx); /* decrement reference count */
 	ssl->ctx = ctx;
+
 	return(ssl->ctx);
 	}
 

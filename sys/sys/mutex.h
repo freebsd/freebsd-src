@@ -52,6 +52,7 @@
 #define MTX_RECURSE	0x00000004	/* Option: lock allowed to recurse */
 #define	MTX_NOWITNESS	0x00000008	/* Don't do any witness checking. */
 #define MTX_NOPROFILE   0x00000020	/* Don't profile this lock */
+#define	MTX_NEW		0x00000040	/* Don't check for double-init */
 
 /*
  * Option flags passed to certain lock/unlock routines, through the use

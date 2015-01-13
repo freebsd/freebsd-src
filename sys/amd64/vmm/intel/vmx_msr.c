@@ -376,9 +376,31 @@ vmx_rdmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t *val, bool *retu)
 int
 vmx_wrmsr(struct vmx *vmx, int vcpuid, u_int num, uint64_t val, bool *retu)
 {
-	int error = 0;
-
+	uint64_t changed;
+	int error;
+	
+	error = 0;
 	switch (num) {
+	case MSR_IA32_MISC_ENABLE:
+		changed = val ^ misc_enable;
+		/*
+		 * If the host has disabled the NX feature then the guest
+		 * also cannot use it. However, a Linux guest will try to
+		 * enable the NX feature by writing to the MISC_ENABLE MSR.
+		 *
+		 * This can be safely ignored because the memory management
+		 * code looks at CPUID.80000001H:EDX.NX to check if the
+		 * functionality is actually enabled.
+		 */
+		changed &= ~(1UL << 34);
+
+		/*
+		 * Punt to userspace if any other bits are being modified.
+		 */
+		if (changed)
+			error = EINVAL;
+
+		break;
 	default:
 		error = EINVAL;
 		break;

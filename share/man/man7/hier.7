@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2014
+.Dd November 10, 2014
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@ default bootstrapping configuration files; see
 .Xr loader.conf 5
 .It Pa dtb/
 Compiled flattened device tree (FDT) files; see
-.Xr fdt 4 
+.Xr fdt 4
 and
 .Xr dtc 1
 .It Pa firmware/
@@ -64,8 +64,8 @@ third-party loadable kernel modules;
 see
 .Xr kldstat 8
 .It Pa zfs/
-Contains 
-.Xr zfs 8 
+Contains
+.Xr zfs 8
 zpool cache files.
 .El
 .It Pa /cdrom/
@@ -380,6 +380,8 @@ shared libraries for compatibility
 .It Pa aout/
 a.out backward compatibility libraries
 .El
+.It Pa debug/
+standalone debug data for the base system libraries and binaries
 .It Pa dtrace/
 DTrace library scripts
 .It Pa engines/

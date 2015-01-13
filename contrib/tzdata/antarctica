@@ -4,10 +4,10 @@
 # From Paul Eggert (1999-11-15):
 # To keep things manageable, we list only locations occupied year-round; see
 # COMNAP - Stations and Bases
-# <http://www.comnap.aq/comnap/comnap.nsf/P/Stations/>
+# http://www.comnap.aq/comnap/comnap.nsf/P/Stations/
 # and
 # Summary of the Peri-Antarctic Islands (1998-07-23)
-# <http://www.spri.cam.ac.uk/bob/periant.htm>
+# http://www.spri.cam.ac.uk/bob/periant.htm
 # for information.
 # Unless otherwise specified, we have no time zone information.
 #
@@ -63,7 +63,7 @@ Rule	ChileAQ	2012	max	-	Sep	Sun>=2	4:00u	1:00	S
 # Heard Island, McDonald Islands (uninhabited)
 #	previously sealers and scientific personnel wintered
 #	Margaret Turner reports
-#	<http://web.archive.org/web/20021204222245/http://www.dstc.qut.edu.au/DST/marg/daylight.html>
+#	http://web.archive.org/web/20021204222245/http://www.dstc.qut.edu.au/DST/marg/daylight.html
 #	(1999-09-30) that they're UTC+5, with no DST;
 #	presumably this is when they have visitors.
 #
@@ -103,32 +103,30 @@ Rule	ChileAQ	2012	max	-	Sep	Sun>=2	4:00u	1:00	S
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Antarctica/Casey	0	-	zzz	1969
-			8:00	-	AWST	2009 Oct 18 2:00
+			8:00	-	AWST	2009 Oct 18  2:00
 						# Australian Western Std Time
-			11:00	-	CAST	2010 Mar 5 2:00
-						# Casey Time
-			8:00	-	AWST	2011 Oct 28 2:00
+			11:00	-	CAST	2010 Mar  5  2:00  # Casey Time
+			8:00	-	AWST	2011 Oct 28  2:00
 			11:00	-	CAST	2012 Feb 21 17:00u
 			8:00	-	AWST
 Zone Antarctica/Davis	0	-	zzz	1957 Jan 13
-			7:00	-	DAVT	1964 Nov # Davis Time
+			7:00	-	DAVT	1964 Nov    # Davis Time
 			0	-	zzz	1969 Feb
-			7:00	-	DAVT	2009 Oct 18 2:00
+			7:00	-	DAVT	2009 Oct 18  2:00
 			5:00	-	DAVT	2010 Mar 10 20:00u
-			7:00	-	DAVT	2011 Oct 28 2:00
+			7:00	-	DAVT	2011 Oct 28  2:00
 			5:00	-	DAVT	2012 Feb 21 20:00u
 			7:00	-	DAVT
 Zone Antarctica/Mawson	0	-	zzz	1954 Feb 13
-			6:00	-	MAWT	2009 Oct 18 2:00
-						# Mawson Time
+			6:00	-	MAWT	2009 Oct 18  2:00 # Mawson Time
 			5:00	-	MAWT
 # References:
 # Casey Weather (1998-02-26)
-# <http://www.antdiv.gov.au/aad/exop/sfo/casey/casey_aws.html>
+# http://www.antdiv.gov.au/aad/exop/sfo/casey/casey_aws.html
 # Davis Station, Antarctica (1998-02-26)
-# <http://www.antdiv.gov.au/aad/exop/sfo/davis/video.html>
+# http://www.antdiv.gov.au/aad/exop/sfo/davis/video.html
 # Mawson Station, Antarctica (1998-02-25)
-# <http://www.antdiv.gov.au/aad/exop/sfo/mawson/video.html>
+# http://www.antdiv.gov.au/aad/exop/sfo/mawson/video.html
 
 # Belgium - year-round base
 # Princess Elisabeth, Queen Maud Land, -713412+0231200, since 2007
@@ -154,7 +152,7 @@ Zone Antarctica/Mawson	0	-	zzz	1954 Feb 13
 # France - year-round bases (also see "France & Italy")
 #
 # From Antoine Leca (1997-01-20):
-# Time data are from Nicole Pailleau at the IFRTP
+# Time data entries are from Nicole Pailleau at the IFRTP
 # (French Institute for Polar Research and Technology).
 # She confirms that French Southern Territories and Terre Adélie bases
 # don't observe daylight saving time, even if Terre Adélie supplies came
@@ -174,7 +172,7 @@ Zone Antarctica/Mawson	0	-	zzz	1954 Feb 13
 #	fishing stations operated variously 1819/1931
 #
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone Indian/Kerguelen	0	-	zzz	1950	# Port-aux-Français
+Zone Indian/Kerguelen	0	-	zzz	1950 # Port-aux-Français
 			5:00	-	TFT	# ISO code TF Time
 #
 # year-round base in the main continent
@@ -217,7 +215,7 @@ Zone Antarctica/Syowa	0	-	zzz	1957 Jan 29
 			3:00	-	SYOT	# Syowa Time
 # See:
 # NIPR Antarctic Research Activities (1999-08-17)
-# <http://www.nipr.ac.jp/english/ara01.html>
+# http://www.nipr.ac.jp/english/ara01.html
 
 # S Korea - year-round base
 # Jang Bogo, Terra Nova Bay, -743700+1641205 since 2014
@@ -264,7 +262,7 @@ Rule	Troll	2005	max	-	Mar	lastSun	1:00u	2:00	CEST
 Rule	Troll	2004	max	-	Oct	lastSun	1:00u	0:00	UTC
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Antarctica/Troll	0	-	zzz	2005 Feb 12
-     			0:00	Troll	%s
+			0:00	Troll	%s
 
 # Poland - year-round base
 # Arctowski, King George Island, -620945-0582745, since 1977
@@ -281,8 +279,8 @@ Zone Antarctica/Troll	0	-	zzz	2005 Feb 12
 #	year-round from 1960/61 to 1992
 
 # Vostok, since 1957-12-16, temporarily closed 1994-02/1994-11
-# From Craig Mundell (1994-12-15)
-# <http://quest.arc.nasa.gov/antarctica/QA/computers/Directions,Time,ZIP>:
+# From Craig Mundell (1994-12-15):
+# http://quest.arc.nasa.gov/antarctica/QA/computers/Directions,Time,ZIP
 # Vostok, which is one of the Russian stations, is set on the same
 # time as Moscow, Russia.
 #

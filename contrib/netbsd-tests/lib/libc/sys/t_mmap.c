@@ -72,7 +72,15 @@ __RCSID("$NetBSD: t_mmap.c,v 1.7 2012/06/14 17:47:58 bouyer Exp $");
 #include <string.h>
 #include <unistd.h>
 #include <paths.h>
+#ifdef __NetBSD__
 #include <machine/disklabel.h>
+#endif
+
+#ifdef __FreeBSD__
+#include <sys/disklabel.h>
+#include <sys/stat.h>
+#include <stdint.h>
+#endif
 
 static long	page = 0;
 static char	path[] = "mmap";
@@ -155,6 +163,7 @@ map_sighandler(int signo)
 	_exit(signo);
 }
 
+#ifdef __NetBSD__
 ATF_TC(mmap_block);
 ATF_TC_HEAD(mmap_block, tc)
 {
@@ -199,6 +208,7 @@ ATF_TC_BODY(mmap_block, tc)
 
 	ATF_REQUIRE(munmap(map, 4096) == 0);
 }
+#endif
 
 ATF_TC(mmap_err);
 ATF_TC_HEAD(mmap_err, tc)
@@ -468,8 +478,15 @@ ATF_TC_BODY(mmap_va0, tc)
 	 * Make an anonymous fixed mapping at zero address. If the address
 	 * is restricted as noted in security(7), the syscall should fail.
 	 */
+#ifdef __FreeBSD__
+	if (sysctlbyname("security.bsd.map_at_zero", &val, &len, NULL, 0) != 0)
+		atf_tc_fail("failed to read security.bsd.map_at_zero");
+	val = !val; /* 1 == enable  map at zero */
+#endif
+#ifdef __NetBSD__
 	if (sysctlbyname("vm.user_va0_disable", &val, &len, NULL, 0) != 0)
 		atf_tc_fail("failed to read vm.user_va0_disable");
+#endif
 
 	map = mmap(NULL, page, PROT_EXEC, flags, -1, 0);
 	map_check(map, val);
@@ -492,7 +509,9 @@ ATF_TP_ADD_TCS(tp)
 	page = sysconf(_SC_PAGESIZE);
 	ATF_REQUIRE(page >= 0);
 
+#ifdef __NetBSD__
 	ATF_TP_ADD_TC(tp, mmap_block);
+#endif
 	ATF_TP_ADD_TC(tp, mmap_err);
 	ATF_TP_ADD_TC(tp, mmap_loan);
 	ATF_TP_ADD_TC(tp, mmap_prot_1);

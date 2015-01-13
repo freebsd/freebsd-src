@@ -604,7 +604,7 @@ init_secondary(void)
 #endif
 
 	/* set up FPU state on the AP */
-	npxinit();
+	npxinit(false);
 #if 0
 	/* A quick check from sanity claus */
 	if (PCPU_GET(apic_id) != lapic_id()) {

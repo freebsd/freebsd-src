@@ -2,8 +2,9 @@
 
 PROG=	slc
 LIBROKEN_A=     ${.OBJDIR}/../../lib/libroken/libroken.a
-LDADD=  ${LIBROKEN_A} ${LIBVERS}
-DPADD=  ${LIBROKEN_A} ${LIBVERS}
+LIBADD=	vers
+LDADD=  ${LIBROKEN_A}
+DPADD=  ${LIBROKEN_A}
 MAN=
 
 SRCS=	roken.h \

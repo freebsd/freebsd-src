@@ -535,7 +535,8 @@ int ssl3_enc(SSL *s, int send)
 			/* otherwise, rec->length >= bs */
 			}
 		
-		EVP_Cipher(ds,rec->data,rec->input,l);
+		if(EVP_Cipher(ds,rec->data,rec->input,l) < 1)
+			return -1;
 
 		if (EVP_MD_CTX_md(s->read_hash) != NULL)
 			mac_size = EVP_MD_CTX_size(s->read_hash);
@@ -900,7 +901,7 @@ int ssl3_alert_code(int code)
 	case SSL_AD_BAD_CERTIFICATE_STATUS_RESPONSE: return(SSL3_AD_HANDSHAKE_FAILURE);
 	case SSL_AD_BAD_CERTIFICATE_HASH_VALUE: return(SSL3_AD_HANDSHAKE_FAILURE);
 	case SSL_AD_UNKNOWN_PSK_IDENTITY:return(TLS1_AD_UNKNOWN_PSK_IDENTITY);
+	case SSL_AD_INAPPROPRIATE_FALLBACK:return(TLS1_AD_INAPPROPRIATE_FALLBACK);
 	default:			return(-1);
 		}
 	}
-

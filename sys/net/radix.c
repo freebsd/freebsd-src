@@ -528,7 +528,7 @@ rn_addmask(void *n_arg, struct radix_node_head *maskhead, int search, int skip)
 	R_Zalloc(x, struct radix_node *, RADIX_MAX_KEY_LEN + 2 * sizeof (*x));
 	if ((saved_x = x) == 0)
 		return (0);
-	netmask = cp = (caddr_t)(x + 2);
+	netmask = cp = (unsigned char *)(x + 2);
 	bcopy(addmask_key, cp, mlen);
 	x = rn_insert(cp, maskhead, &maskduplicated, x);
 	if (maskduplicated) {

@@ -119,163 +119,139 @@ static struct {
 	char	*name;
 	int	dev_id;
 	char	*description;
-	int	access;
+	int	flag_rdonly;
 } acpi_asus_wmi_sysctls[] = {
 	{
 		.name		= "hw_switch",
 		.dev_id		= ASUS_WMI_DEVID_HW_SWITCH,
 		.description	= "hw_switch",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "wireless_led",
 		.dev_id		= ASUS_WMI_DEVID_WIRELESS_LED,
 		.description	= "Wireless LED control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "cwap",
 		.dev_id		= ASUS_WMI_DEVID_CWAP,
 		.description	= "Alt+F2 function",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "wlan",
 		.dev_id		= ASUS_WMI_DEVID_WLAN,
 		.description	= "WLAN power control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "bluetooth",
 		.dev_id		= ASUS_WMI_DEVID_BLUETOOTH,
 		.description	= "Bluetooth power control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "gps",
 		.dev_id		= ASUS_WMI_DEVID_GPS,
 		.description	= "GPS power control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "wimax",
 		.dev_id		= ASUS_WMI_DEVID_WIMAX,
 		.description	= "WiMAX power control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "wwan3g",
 		.dev_id		= ASUS_WMI_DEVID_WWAN3G,
 		.description	= "WWAN-3G power control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "uwb",
 		.dev_id		= ASUS_WMI_DEVID_UWB,
 		.description	= "UWB power control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "led1",
 		.dev_id		= ASUS_WMI_DEVID_LED1,
 		.description	= "LED1 control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "led2",
 		.dev_id		= ASUS_WMI_DEVID_LED2,
 		.description	= "LED2 control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "led3",
 		.dev_id		= ASUS_WMI_DEVID_LED3,
 		.description	= "LED3 control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "led4",
 		.dev_id		= ASUS_WMI_DEVID_LED4,
 		.description	= "LED4 control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "led5",
 		.dev_id		= ASUS_WMI_DEVID_LED5,
 		.description	= "LED5 control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "led6",
 		.dev_id		= ASUS_WMI_DEVID_LED6,
 		.description	= "LED6 control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "backlight",
 		.dev_id		= ASUS_WMI_DEVID_BACKLIGHT,
 		.description	= "LCD backlight on/off control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "brightness",
 		.dev_id		= ASUS_WMI_DEVID_BRIGHTNESS,
 		.description	= "LCD backlight brightness control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "kbd_backlight",
 		.dev_id		= ASUS_WMI_DEVID_KBD_BACKLIGHT,
 		.description	= "Keyboard backlight brightness control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "light_sensor",
 		.dev_id		= ASUS_WMI_DEVID_LIGHT_SENSOR,
 		.description	= "Ambient light sensor",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "camera",
 		.dev_id		= ASUS_WMI_DEVID_CAMERA,
 		.description	= "Camera power control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "cardreader",
 		.dev_id		= ASUS_WMI_DEVID_CARDREADER,
 		.description	= "Cardreader power control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "touchpad",
 		.dev_id		= ASUS_WMI_DEVID_TOUCHPAD,
 		.description	= "Touchpad control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "touchpad_led",
 		.dev_id		= ASUS_WMI_DEVID_TOUCHPAD_LED,
 		.description	= "Touchpad LED control",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
 	},
 	{
 		.name		= "themperature",
 		.dev_id		= ASUS_WMI_DEVID_THERMAL_CTRL,
 		.description	= "Temperature (C)",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "fan_speed",
 		.dev_id		= ASUS_WMI_DEVID_FAN_CTRL,
 		.description	= "Fan speed (0-3)",
-		.access		= CTLTYPE_INT | CTLFLAG_RD
+		.flag_rdonly	= 1
 	},
 	{
 		.name		= "processor_state",
 		.dev_id		= ASUS_WMI_DEVID_PROCESSOR_STATE,
-		.description	= "Processor state",
-		.access		= CTLTYPE_INT | CTLFLAG_RW
+		.flag_rdonly	= 1
 	},
 	{ NULL, 0, NULL, 0 }
 };
@@ -449,12 +425,21 @@ next:
 			break;
 		}
 
-		SYSCTL_ADD_PROC(sc->sysctl_ctx,
-		    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
-		    acpi_asus_wmi_sysctls[i].name,
-		    acpi_asus_wmi_sysctls[i].access,
-		    sc, i, acpi_asus_wmi_sysctl, "I",
-		    acpi_asus_wmi_sysctls[i].description);
+		if (acpi_asus_wmi_sysctls[i].flag_rdonly != 0) {
+			SYSCTL_ADD_PROC(sc->sysctl_ctx,
+			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
+			    acpi_asus_wmi_sysctls[i].name,
+			    CTLTYPE_INT | CTLFLAG_RD,
+			    sc, i, acpi_asus_wmi_sysctl, "I",
+			    acpi_asus_wmi_sysctls[i].description);
+		} else {
+			SYSCTL_ADD_PROC(sc->sysctl_ctx,
+			    SYSCTL_CHILDREN(sc->sysctl_tree), OID_AUTO,
+			    acpi_asus_wmi_sysctls[i].name,
+			    CTLTYPE_INT | CTLFLAG_RW,
+			    sc, i, acpi_asus_wmi_sysctl, "I",
+			    acpi_asus_wmi_sysctls[i].description);
+		}
 	}
 	ACPI_SERIAL_END(asus_wmi);
 

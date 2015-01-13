@@ -6,7 +6,6 @@ MAN=		l2control.8
 SRCS=		l2cap.c l2control.c
 WARNS?=		2
 
-DPADD=		${LIBBLUETOOTH}
-LDADD=		-lbluetooth
+LIBADD=		bluetooth
 
 .include <bsd.prog.mk>

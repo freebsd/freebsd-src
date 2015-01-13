@@ -592,23 +592,23 @@ getjob_nonotfound(const char *name)
 
 	if (name == NULL) {
 #if JOBS
-currentjob:	if ((jp = getcurjob(NULL)) == NULL)
-			error("No current job");
-		return (jp);
+		name = "%+";
 #else
 		error("No current job");
 #endif
-	} else if (name[0] == '%') {
+	}
+	if (name[0] == '%') {
 		if (is_digit(name[1])) {
 			jobno = number(name + 1);
 			if (jobno > 0 && jobno <= njobs
 			 && jobtab[jobno - 1].used != 0)
 				return &jobtab[jobno - 1];
 #if JOBS
-		} else if (name[1] == '%' && name[2] == '\0') {
-			goto currentjob;
-		} else if (name[1] == '+' && name[2] == '\0') {
-			goto currentjob;
+		} else if ((name[1] == '%' || name[1] == '+') &&
+		    name[2] == '\0') {
+			if ((jp = getcurjob(NULL)) == NULL)
+				error("No current job");
+			return (jp);
 		} else if (name[1] == '-' && name[2] == '\0') {
 			if ((jp = getcurjob(NULL)) == NULL ||
 			    (jp = getcurjob(jp)) == NULL)
@@ -1288,13 +1288,43 @@ commandtext(union node *n)
 
 
 static void
+cmdtxtdogroup(union node *n)
+{
+	cmdputs("; do ");
+	cmdtxt(n);
+	cmdputs("; done");
+}
+
+
+static void
+cmdtxtredir(union node *n, const char *op, int deffd)
+{
+	char s[2];
+
+	if (n->nfile.fd != deffd) {
+		s[0] = n->nfile.fd + '0';
+		s[1] = '\0';
+		cmdputs(s);
+	}
+	cmdputs(op);
+	if (n->type == NTOFD || n->type == NFROMFD) {
+		if (n->ndup.dupfd >= 0)
+			s[0] = n->ndup.dupfd + '0';
+		else
+			s[0] = '-';
+		s[1] = '\0';
+		cmdputs(s);
+	} else {
+		cmdtxt(n->nfile.fname);
+	}
+}
+
+
+static void
 cmdtxt(union node *n)
 {
 	union node *np;
 	struct nodelist *lp;
-	const char *p;
-	int i;
-	char s[2];
 
 	if (n == NULL)
 		return;
@@ -1339,14 +1369,13 @@ cmdtxt(union node *n)
 		break;
 	case NWHILE:
 		cmdputs("while ");
-		goto until;
+		cmdtxt(n->nbinary.ch1);
+		cmdtxtdogroup(n->nbinary.ch2);
+		break;
 	case NUNTIL:
 		cmdputs("until ");
-until:
 		cmdtxt(n->nbinary.ch1);
-		cmdputs("; do ");
-		cmdtxt(n->nbinary.ch2);
-		cmdputs("; done");
+		cmdtxtdogroup(n->nbinary.ch2);
 		break;
 	case NFOR:
 		cmdputs("for ");
@@ -1381,36 +1410,25 @@ until:
 		cmdputs(n->narg.text);
 		break;
 	case NTO:
-		p = ">";  i = 1;  goto redir;
+		cmdtxtredir(n, ">", 1);
+		break;
 	case NAPPEND:
-		p = ">>";  i = 1;  goto redir;
+		cmdtxtredir(n, ">>", 1);
+		break;
 	case NTOFD:
-		p = ">&";  i = 1;  goto redir;
+		cmdtxtredir(n, ">&", 1);
+		break;
 	case NCLOBBER:
-		p = ">|"; i = 1; goto redir;
+		cmdtxtredir(n, ">|", 1);
+		break;
 	case NFROM:
-		p = "<";  i = 0;  goto redir;
+		cmdtxtredir(n, "<", 0);
+		break;
 	case NFROMTO:
-		p = "<>";  i = 0;  goto redir;
+		cmdtxtredir(n, "<>", 0);
+		break;
 	case NFROMFD:
-		p = "<&";  i = 0;  goto redir;
-redir:
-		if (n->nfile.fd != i) {
-			s[0] = n->nfile.fd + '0';
-			s[1] = '\0';
-			cmdputs(s);
-		}
-		cmdputs(p);
-		if (n->type == NTOFD || n->type == NFROMFD) {
-			if (n->ndup.dupfd >= 0)
-				s[0] = n->ndup.dupfd + '0';
-			else
-				s[0] = '-';
-			s[1] = '\0';
-			cmdputs(s);
-		} else {
-			cmdtxt(n->nfile.fname);
-		}
+		cmdtxtredir(n, "<&", 0);
 		break;
 	case NHERE:
 	case NXHERE:

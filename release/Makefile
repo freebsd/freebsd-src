@@ -56,10 +56,16 @@ ${_V}!=	eval $$(awk '/^${_V}=/{print}' ${.CURDIR}/../sys/conf/newvers.sh); echo 
 .for _V in ${TARGET_ARCH}
 .if !empty(TARGET:M${_V})
 OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}
+VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET}
 .else
 OSRELEASE=	${TYPE}-${REVISION}-${BRANCH}-${TARGET}-${TARGET_ARCH}
+VOLUME_LABEL=	${REVISION:C/[.-]/_/g}_${BRANCH:C/[.-]/_/g}_${TARGET_ARCH}
 .endif
 .endfor
+.endif
+
+.if !defined(VOLUME_LABEL) || empty(VOLUME_LABEL)
+VOLUME_LABEL=	FreeBSD_Install
 .endif
 
 .if !exists(${DOCDIR})
@@ -174,6 +180,7 @@ system: packagesystem
 	echo sendmail_enable=\"NONE\" > release/etc/rc.conf
 	echo hostid_enable=\"NO\" >> release/etc/rc.conf
 	echo debug.witness.trace=0 >> release/etc/sysctl.conf
+	echo vfs.mountroot.timeout=\"10\" >> release/boot/loader.conf
 	cp ${.CURDIR}/rc.local release/etc
 	touch ${.TARGET}
 
@@ -199,6 +206,7 @@ bootonly: packagesystem
 	echo sendmail_enable=\"NONE\" > bootonly/etc/rc.conf
 	echo hostid_enable=\"NO\" >> bootonly/etc/rc.conf
 	echo debug.witness.trace=0 >> bootonly/etc/sysctl.conf
+	echo vfs.mountroot.timeout=\"10\" >> bootonly/boot/loader.conf
 	cp ${.CURDIR}/rc.local bootonly/etc
 
 dvd:
@@ -221,18 +229,19 @@ dvd:
 	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
 	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
 	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
+	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
 	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	touch ${.TARGET}
 
 release.iso: disc1.iso
 disc1.iso: system
-	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} release
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} release
 
 dvd1.iso: dvd pkg-stage
-	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} dvd
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ${.TARGET} dvd
 
 bootonly.iso: bootonly
-	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b FreeBSD_Install ${.TARGET} bootonly
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ${.TARGET} bootonly
 
 memstick: memstick.img
 memstick.img: system

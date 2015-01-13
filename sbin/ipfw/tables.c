@@ -1908,7 +1908,7 @@ ipfw_list_values(int ac, char *av[])
 	for (i = 0; i < olh->count; i++) {
 		table_show_value(buf, sizeof(buf), (ipfw_table_value *)v,
 		    vmask, 0);
-		printf("[%u] refs=%ju %s\n", v->spare1, v->refcnt, buf);
+		printf("[%u] refs=%lu %s\n", v->spare1, (u_long)v->refcnt, buf);
 		v = (struct _table_value *)((caddr_t)v + olh->objsize);
 	}
 

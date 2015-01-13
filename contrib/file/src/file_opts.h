@@ -43,6 +43,12 @@ OPT('0', "print0", 0, "               terminate filenames with ASCII NUL\n")
 #if defined(HAVE_UTIME) || defined(HAVE_UTIMES)
 OPT('p', "preserve-date", 0, "        preserve access times on files\n")
 #endif
+OPT('P', "parameter", 0, "            set file engine parameter limits\n"
+    "                               indir        15 recursion limit for indirection\n"
+    "                               name         30 use limit for name/use magic\n"
+    "                               elf_notes   256 max ELF notes processed\n"
+    "                               elf_phnum   128 max ELF prog sections processed\n"
+    "                               elf_shnum 32768 max ELF sections processed\n")
 OPT('r', "raw", 0, "                  don't translate unprintable chars to \\ooo\n")
 OPT('s', "special-files", 0, "        treat special (block/char devices) files as\n"
     "                             ordinary ones\n")

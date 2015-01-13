@@ -220,15 +220,8 @@ racct_get_available(struct proc *p, int resource)
 	return (UINT64_MAX);
 }
 
-static inline void
-racct_create(struct racct **racctp)
-{
-}
-
-static inline void
-racct_destroy(struct racct **racctp)
-{
-}
+#define	racct_create(x)
+#define	racct_destroy(x)
 
 static inline int
 racct_proc_fork(struct proc *parent, struct proc *child)

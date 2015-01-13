@@ -80,6 +80,7 @@ struct node	*node_new_map(struct node *parent, char *key, char *options,
 		    char *map, const char *config_file, int config_line);
 struct node	*node_find(struct node *root, const char *mountpoint);
 bool		node_is_direct_map(const struct node *n);
+bool		node_has_wildcards(const struct node *n);
 char	*node_path(const struct node *n);
 char	*node_options(const struct node *n);
 void	node_expand_ampersand(struct node *root, const char *key);
@@ -88,7 +89,8 @@ int	node_expand_defined(struct node *root);
 void	node_expand_indirect_maps(struct node *n);
 void	node_print(const struct node *n);
 void	parse_master(struct node *root, const char *path);
-void	parse_map(struct node *parent, const char *map, const char *args);
+void	parse_map(struct node *parent, const char *map, const char *args,
+	    bool *wildcards);
 char	*defined_expand(const char *string);
 void	defined_init(void);
 void	defined_parse_and_add(char *def);

@@ -460,7 +460,7 @@ ixgbe_attach(device_t dev)
 
         SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-			OID_AUTO, "enable_aim", CTLTYPE_INT|CTLFLAG_RW,
+			OID_AUTO, "enable_aim", CTLFLAG_RW,
 			&ixgbe_enable_aim, 1, "Interrupt Moderation");
 
 	/*
@@ -827,7 +827,7 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 	 * If everything is setup correctly, it should be the
 	 * same bucket that the current CPU we're on is.
 	 */
-	if ((m->m_flags & M_FLOWID) != 0) {
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) {
 #ifdef	RSS
 		if (rss_hash2bucket(m->m_pkthdr.flowid,
 		    M_HASHTYPE_GET(m), &bucket_id) == 0) {
@@ -2542,17 +2542,16 @@ ixgbe_setup_msix(struct adapter *adapter)
 
 	/* Figure out a reasonable auto config value */
 	queues = (mp_ncpus > (msgs-1)) ? (msgs-1) : mp_ncpus;
+
+	/* Override based on tuneable */
+	if (ixgbe_num_queues != 0)
+		queues = ixgbe_num_queues;
+
 #ifdef	RSS
 	/* If we're doing RSS, clamp at the number of RSS buckets */
 	if (queues > rss_getnumbuckets())
 		queues = rss_getnumbuckets();
 #endif
-
-	if (ixgbe_num_queues != 0)
-		queues = ixgbe_num_queues;
-	/* Set max queues to 8 when autoconfiguring */
-	else if ((ixgbe_num_queues == 0) && (queues > 8))
-		queues = 8;
 
 	/* reflect correct sysctl value */
 	ixgbe_num_queues = queues;
@@ -4377,6 +4376,20 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 		srrctl &= ~IXGBE_SRRCTL_BSIZEPKT_MASK;
 		srrctl |= bufsz;
 		srrctl |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
+
+		/*
+		 * Set DROP_EN iff we have no flow control and >1 queue.
+		 * Note that srrctl was cleared shortly before during reset,
+		 * so we do not need to clear the bit, but do it just in case
+		 * this code is moved elsewhere.
+		 */
+		if (adapter->num_queues > 1 &&
+		    adapter->fc == ixgbe_fc_none) {
+			srrctl |= IXGBE_SRRCTL_DROP_EN;
+		} else {
+			srrctl &= ~IXGBE_SRRCTL_DROP_EN;
+		}
+
 		IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(i), srrctl);
 
 		/* Setup the HW Rx Head and Tail Descriptor Pointers */
@@ -4729,7 +4742,6 @@ ixgbe_rxeof(struct ix_queue *que)
 #ifdef RSS
 			sendmp->m_pkthdr.flowid =
 			    le32toh(cur->wb.lower.hi_dword.rss);
-			sendmp->m_flags |= M_FLOWID;
 			switch (pkt_info & IXGBE_RXDADV_RSSTYPE_MASK) {
 			case IXGBE_RXDADV_RSSTYPE_IPV4_TCP:
 				M_HASHTYPE_SET(sendmp, M_HASHTYPE_RSS_TCP_IPV4);
@@ -4760,11 +4772,12 @@ ixgbe_rxeof(struct ix_queue *que)
 				break;
 			default:
 				/* XXX fallthrough */
-				M_HASHTYPE_SET(sendmp, M_HASHTYPE_NONE);
+				M_HASHTYPE_SET(sendmp, M_HASHTYPE_OPAQUE);
+				break;
 			}
 #else /* RSS */
 			sendmp->m_pkthdr.flowid = que->msix;
-			sendmp->m_flags |= M_FLOWID;
+			M_HASHTYPE_SET(sendmp, M_HASHTYPE_OPAQUE);
 #endif /* RSS */
 #endif /* FreeBSD_version */
 		}
@@ -5928,6 +5941,7 @@ ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS)
 	ixgbe_fc_enable(&adapter->hw);
 	return error;
 }
+
 
 /*
 ** Control link advertise speed:

@@ -621,13 +621,13 @@ fcu_attach_fans(device_t dev)
 					      OID_AUTO, sysctl_name,
 					      CTLFLAG_RD, 0, "Fan Information");
 			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-				       "minrpm", CTLTYPE_INT | CTLFLAG_RD,
-				       &(sc->sc_fans[i].fan.min_rpm),
-				       sizeof(int), "Minimum allowed RPM");
+				       "minrpm", CTLFLAG_RD,
+				       &(sc->sc_fans[i].fan.min_rpm), 0,
+				       "Minimum allowed RPM");
 			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-				       "maxrpm", CTLTYPE_INT | CTLFLAG_RD,
-				       &(sc->sc_fans[i].fan.max_rpm),
-				       sizeof(int), "Maximum allowed RPM");
+				       "maxrpm", CTLFLAG_RD,
+				       &(sc->sc_fans[i].fan.max_rpm), 0,
+				       "Maximum allowed RPM");
 			/* I use i to pass the fan id. */
 			SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
 					"rpm", CTLTYPE_INT | CTLFLAG_RW, dev, i,
@@ -641,13 +641,13 @@ fcu_attach_fans(device_t dev)
 					      OID_AUTO, sysctl_name,
 					      CTLFLAG_RD, 0, "Fan Information");
 			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-				       "minpwm", CTLTYPE_INT | CTLFLAG_RD,
-				       &(sc->sc_fans[i].fan.min_rpm),
-				       sizeof(int), "Minimum allowed PWM in %");
+				       "minpwm", CTLFLAG_RD,
+				       &(sc->sc_fans[i].fan.min_rpm), 0,
+				       "Minimum allowed PWM in %");
 			SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
-				       "maxpwm", CTLTYPE_INT | CTLFLAG_RD,
-				       &(sc->sc_fans[i].fan.max_rpm),
-				       sizeof(int), "Maximum allowed PWM in %");
+				       "maxpwm", CTLFLAG_RD,
+				       &(sc->sc_fans[i].fan.max_rpm), 0,
+				       "Maximum allowed PWM in %");
 			/* I use i to pass the fan id or'ed with the type
 			 * of info I want to display/modify.
 			 */

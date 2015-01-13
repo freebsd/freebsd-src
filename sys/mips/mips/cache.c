@@ -260,19 +260,42 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 			panic("no pdcache_wb_range");
 	}
 
-	/* XXXMIPS: No secondary cache handlers yet */
-#ifdef notyet
-	if (mips_sdcache_size) {
-		if (!mips_cache_ops.mco_sdcache_wbinv_all)
-			panic("no sdcache_wbinv_all");
-		if (!mips_cache_ops.mco_sdcache_wbinv_range)
-			panic("no sdcache_wbinv_range");
-		if (!mips_cache_ops.mco_sdcache_wbinv_range_index)
-			panic("no sdcache_wbinv_range_index");
-		if (!mips_cache_ops.mco_sdcache_inv_range)
-			panic("no sdcache_inv_range");
-		if (!mips_cache_ops.mco_sdcache_wb_range)
-			panic("no sdcache_wb_range");
+	/* L2 data cache */
+	if (!cpuinfo->l2.dc_size) {
+		/* No L2 found, ignore */
+		return;
 	}
+
+	switch (cpuinfo->l2.dc_linesize) {
+	case 32:
+		mips_cache_ops.mco_sdcache_wbinv_all =
+			mipsNN_sdcache_wbinv_all_32;
+		mips_cache_ops.mco_sdcache_wbinv_range =
+			mipsNN_sdcache_wbinv_range_32;
+		mips_cache_ops.mco_sdcache_wbinv_range_index =
+			mipsNN_sdcache_wbinv_range_index_32;
+		mips_cache_ops.mco_sdcache_inv_range =
+			mipsNN_sdcache_inv_range_32;
+		mips_cache_ops.mco_sdcache_wb_range =
+			mipsNN_sdcache_wb_range_32;
+		break;
+	case 128:
+		mips_cache_ops.mco_sdcache_wbinv_all =
+			mipsNN_sdcache_wbinv_all_128;
+		mips_cache_ops.mco_sdcache_wbinv_range =
+			mipsNN_sdcache_wbinv_range_128;
+		mips_cache_ops.mco_sdcache_wbinv_range_index =
+			mipsNN_sdcache_wbinv_range_index_128;
+		mips_cache_ops.mco_sdcache_inv_range =
+			mipsNN_sdcache_inv_range_128;
+		mips_cache_ops.mco_sdcache_wb_range =
+			mipsNN_sdcache_wb_range_128;
+		break;
+	default:
+#ifdef CACHE_DEBUG
+		printf("  no sdcache ops for %d byte lines",
+		    cpuinfo->l2.dc_linesize);
 #endif
+		break;
+	}
 }

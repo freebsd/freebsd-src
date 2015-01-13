@@ -65,13 +65,13 @@ text_receive(struct connection *conn)
 	 */
 	if ((bhstr->bhstr_flags & BHSTR_FLAGS_CONTINUE) != 0)
 		log_errx(1, "received Text PDU with unsupported \"C\" flag");
-	if (ntohl(bhstr->bhstr_cmdsn) < conn->conn_cmdsn) {
+	if (ISCSI_SNLT(ntohl(bhstr->bhstr_cmdsn), conn->conn_cmdsn)) {
 		log_errx(1, "received Text PDU with decreasing CmdSN: "
-		    "was %d, is %d", conn->conn_cmdsn, ntohl(bhstr->bhstr_cmdsn));
+		    "was %u, is %u", conn->conn_cmdsn, ntohl(bhstr->bhstr_cmdsn));
 	}
 	if (ntohl(bhstr->bhstr_expstatsn) != conn->conn_statsn) {
 		log_errx(1, "received Text PDU with wrong StatSN: "
-		    "is %d, should be %d", ntohl(bhstr->bhstr_expstatsn),
+		    "is %u, should be %u", ntohl(bhstr->bhstr_expstatsn),
 		    conn->conn_statsn);
 	}
 	conn->conn_cmdsn = ntohl(bhstr->bhstr_cmdsn);
@@ -120,14 +120,14 @@ logout_receive(struct connection *conn)
 	if ((bhslr->bhslr_reason & 0x7f) != BHSLR_REASON_CLOSE_SESSION)
 		log_debugx("received Logout PDU with invalid reason 0x%x; "
 		    "continuing anyway", bhslr->bhslr_reason & 0x7f);
-	if (ntohl(bhslr->bhslr_cmdsn) < conn->conn_cmdsn) {
+	if (ISCSI_SNLT(ntohl(bhslr->bhslr_cmdsn), conn->conn_cmdsn)) {
 		log_errx(1, "received Logout PDU with decreasing CmdSN: "
-		    "was %d, is %d", conn->conn_cmdsn,
+		    "was %u, is %u", conn->conn_cmdsn,
 		    ntohl(bhslr->bhslr_cmdsn));
 	}
 	if (ntohl(bhslr->bhslr_expstatsn) != conn->conn_statsn) {
 		log_errx(1, "received Logout PDU with wrong StatSN: "
-		    "is %d, should be %d", ntohl(bhslr->bhslr_expstatsn),
+		    "is %u, should be %u", ntohl(bhslr->bhslr_expstatsn),
 		    conn->conn_statsn);
 	}
 	conn->conn_cmdsn = ntohl(bhslr->bhslr_cmdsn);
@@ -160,7 +160,7 @@ logout_new_response(struct pdu *request)
 }
 
 static void
-discovery_add_target(struct keys *response_keys, struct target *targ)
+discovery_add_target(struct keys *response_keys, const struct target *targ)
 {
 	struct portal *portal;
 	char *buf;
@@ -201,13 +201,75 @@ discovery_add_target(struct keys *response_keys, struct target *targ)
 	}
 }
 
+static bool
+discovery_target_filtered_out(const struct connection *conn,
+    const struct target *targ)
+{
+	const struct auth_group *ag;
+	const struct portal_group *pg;
+	const struct auth *auth;
+	int error;
+
+	ag = targ->t_auth_group;
+	pg = conn->conn_portal->p_portal_group;
+
+	assert(pg->pg_discovery_auth_group != PG_FILTER_UNKNOWN);
+
+	if (pg->pg_discovery_filter >= PG_FILTER_PORTAL &&
+	    auth_portal_check(ag, &conn->conn_initiator_sa) != 0) {
+		log_debugx("initiator does not match initiator portals "
+		    "allowed for target \"%s\"; skipping", targ->t_name);
+		return (true);
+	}
+
+	if (pg->pg_discovery_filter >= PG_FILTER_PORTAL_NAME &&
+	    auth_name_check(ag, conn->conn_initiator_name) != 0) {
+		log_debugx("initiator does not match initiator names "
+		    "allowed for target \"%s\"; skipping", targ->t_name);
+		return (true);
+	}
+
+	if (pg->pg_discovery_filter >= PG_FILTER_PORTAL_NAME_AUTH &&
+	    ag->ag_type != AG_TYPE_NO_AUTHENTICATION) {
+		if (conn->conn_chap == NULL) {
+			assert(pg->pg_discovery_auth_group->ag_type ==
+			    AG_TYPE_NO_AUTHENTICATION);
+
+			log_debugx("initiator didn't authenticate, but target "
+			    "\"%s\" requires CHAP; skipping", targ->t_name);
+			return (true);
+		}
+
+		assert(conn->conn_user != NULL);
+		auth = auth_find(ag, conn->conn_user);
+		if (auth == NULL) {
+			log_debugx("CHAP user \"%s\" doesn't match target "
+			    "\"%s\"; skipping", conn->conn_user, targ->t_name);
+			return (true);
+		}
+
+		error = chap_authenticate(conn->conn_chap, auth->a_secret);
+		if (error != 0) {
+			log_debugx("password for CHAP user \"%s\" doesn't "
+			    "match target \"%s\"; skipping",
+			    conn->conn_user, targ->t_name);
+			return (true);
+		}
+	}
+
+	return (false);
+}
+
 void
 discovery(struct connection *conn)
 {
 	struct pdu *request, *response;
 	struct keys *request_keys, *response_keys;
-	struct target *targ;
+	const struct portal_group *pg;
+	const struct target *targ;
 	const char *send_targets;
+
+	pg = conn->conn_portal->p_portal_group;
 
 	log_debugx("beginning discovery session; waiting for Text PDU");
 	request = text_receive(conn);
@@ -222,26 +284,31 @@ discovery(struct connection *conn)
 	response_keys = keys_new();
 
 	if (strcmp(send_targets, "All") == 0) {
-		TAILQ_FOREACH(targ,
-		    &conn->conn_portal->p_portal_group->pg_conf->conf_targets,
-		    t_next) {
-			if (targ->t_portal_group !=
-			    conn->conn_portal->p_portal_group) {
+		TAILQ_FOREACH(targ, &pg->pg_conf->conf_targets, t_next) {
+			if (targ->t_portal_group != pg) {
 				log_debugx("not returning target \"%s\"; "
 				    "belongs to a different portal group",
 				    targ->t_name);
 				continue;
 			}
+			if (discovery_target_filtered_out(conn, targ)) {
+				/* Ignore this target. */
+				continue;
+			}
 			discovery_add_target(response_keys, targ);
 		}
 	} else {
-		targ = target_find(conn->conn_portal->p_portal_group->pg_conf,
-		    send_targets);
+		targ = target_find(pg->pg_conf, send_targets);
 		if (targ == NULL) {
 			log_debugx("initiator requested information on unknown "
 			    "target \"%s\"; returning nothing", send_targets);
-		} else
-			discovery_add_target(response_keys, targ);
+		} else {
+			if (discovery_target_filtered_out(conn, targ)) {
+				/* Ignore this target. */
+			} else {
+				discovery_add_target(response_keys, targ);
+			}
+		}
 	}
 	keys_save(response_keys, response);
 

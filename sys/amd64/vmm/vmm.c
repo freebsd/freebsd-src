@@ -74,6 +74,8 @@ __FBSDID("$FreeBSD$");
 #include "vhpet.h"
 #include "vioapic.h"
 #include "vlapic.h"
+#include "vpmtmr.h"
+#include "vrtc.h"
 #include "vmm_ipi.h"
 #include "vmm_stat.h"
 #include "vmm_lapic.h"
@@ -134,6 +136,8 @@ struct vm {
 	struct vioapic	*vioapic;		/* (i) virtual ioapic */
 	struct vatpic	*vatpic;		/* (i) virtual atpic */
 	struct vatpit	*vatpit;		/* (i) virtual atpit */
+	struct vpmtmr	*vpmtmr;		/* (i) virtual ACPI PM timer */
+	struct vrtc	*vrtc;			/* (o) virtual RTC */
 	volatile cpuset_t active_cpus;		/* (i) active vcpus */
 	int		suspend;		/* (i) stop VM execution */
 	volatile cpuset_t suspended_cpus; 	/* (i) suspended vcpus */
@@ -205,6 +209,11 @@ static int vmm_ipinum;
 SYSCTL_INT(_hw_vmm, OID_AUTO, ipinum, CTLFLAG_RD, &vmm_ipinum, 0,
     "IPI vector used for vcpu notifications");
 
+static int trace_guest_exceptions;
+SYSCTL_INT(_hw_vmm, OID_AUTO, trace_guest_exceptions, CTLFLAG_RDTUN,
+    &trace_guest_exceptions, 0,
+    "Trap into hypervisor on all guest exceptions and reflect them back");
+
 static void
 vcpu_cleanup(struct vm *vm, int i, bool destroy)
 {
@@ -246,6 +255,13 @@ vcpu_init(struct vm *vm, int vcpu_id, bool create)
 	vcpu->guest_xcr0 = XFEATURE_ENABLED_X87;
 	fpu_save_area_reset(vcpu->guestfpu);
 	vmm_stat_init(vcpu->stats);
+}
+
+int
+vcpu_trace_exceptions(struct vm *vm, int vcpuid)
+{
+
+	return (trace_guest_exceptions);
 }
 
 struct vm_exit *
@@ -360,6 +376,9 @@ vm_init(struct vm *vm, bool create)
 	vm->vhpet = vhpet_init(vm);
 	vm->vatpic = vatpic_init(vm);
 	vm->vatpit = vatpit_init(vm);
+	vm->vpmtmr = vpmtmr_init(vm);
+	if (create)
+		vm->vrtc = vrtc_init(vm);
 
 	CPU_ZERO(&vm->active_cpus);
 
@@ -386,7 +405,7 @@ vm_create(const char *name, struct vm **retvm)
 	if (name == NULL || strlen(name) >= VM_MAX_NAMELEN)
 		return (EINVAL);
 
-	vmspace = VMSPACE_ALLOC(VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS);
+	vmspace = VMSPACE_ALLOC(0, VM_MAXUSER_ADDRESS);
 	if (vmspace == NULL)
 		return (ENOMEM);
 
@@ -422,6 +441,11 @@ vm_cleanup(struct vm *vm, bool destroy)
 	if (vm->iommu != NULL)
 		iommu_destroy_domain(vm->iommu);
 
+	if (destroy)
+		vrtc_cleanup(vm->vrtc);
+	else
+		vrtc_reset(vm->vrtc);
+	vpmtmr_cleanup(vm->vpmtmr);
 	vatpit_cleanup(vm->vatpit);
 	vhpet_cleanup(vm->vhpet);
 	vatpic_cleanup(vm->vatpic);
@@ -1085,29 +1109,13 @@ vm_handle_hlt(struct vm *vm, int vcpuid, bool intr_disabled, bool *retu)
 {
 	struct vcpu *vcpu;
 	const char *wmesg;
-	int error, t, vcpu_halted, vm_halted;
+	int t, vcpu_halted, vm_halted;
 
 	KASSERT(!CPU_ISSET(vcpuid, &vm->halted_cpus), ("vcpu already halted"));
 
 	vcpu = &vm->vcpu[vcpuid];
 	vcpu_halted = 0;
 	vm_halted = 0;
-
-	/*
-	 * The typical way to halt a cpu is to execute: "sti; hlt"
-	 *
-	 * STI sets RFLAGS.IF to enable interrupts. However, the processor
-	 * remains in an "interrupt shadow" for an additional instruction
-	 * following the STI. This guarantees that "sti; hlt" sequence is
-	 * atomic and a pending interrupt will be recognized after the HLT.
-	 *
-	 * After the HLT emulation is done the vcpu is no longer in an
-	 * interrupt shadow and a pending interrupt can be injected on
-	 * the next entry into the guest.
-	 */
-	error = vm_set_register(vm, vcpuid, VM_REG_GUEST_INTR_SHADOW, 0);
-	KASSERT(error == 0, ("%s: error %d clearing interrupt shadow",
-	    __func__, error));
 
 	vcpu_lock(vcpu);
 	while (1) {
@@ -1231,7 +1239,7 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	mem_region_read_t mread;
 	mem_region_write_t mwrite;
 	enum vm_cpu_mode cpu_mode;
-	int cs_d, error;
+	int cs_d, error, length;
 
 	vcpu = &vm->vcpu[vcpuid];
 	vme = &vcpu->exitinfo;
@@ -1245,11 +1253,21 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 
 	VCPU_CTR1(vm, vcpuid, "inst_emul fault accessing gpa %#lx", gpa);
 
-	vie_init(vie);
-
 	/* Fetch, decode and emulate the faulting instruction */
-	error = vmm_fetch_instruction(vm, vcpuid, paging, vme->rip,
-	    vme->inst_length, vie);
+	if (vie->num_valid == 0) {
+		/*
+		 * If the instruction length is not known then assume a
+		 * maximum size instruction.
+		 */
+		length = vme->inst_length ? vme->inst_length : VIE_INST_SIZE;
+		error = vmm_fetch_instruction(vm, vcpuid, paging, vme->rip,
+		    length, vie);
+	} else {
+		/*
+		 * The instruction bytes have already been copied into 'vie'
+		 */
+		error = 0;
+	}
 	if (error == 1)
 		return (0);		/* Resume guest to handle page fault */
 	else if (error == -1)
@@ -1260,6 +1278,12 @@ vm_handle_inst_emul(struct vm *vm, int vcpuid, bool *retu)
 	if (vmm_decode_instruction(vm, vcpuid, gla, cpu_mode, cs_d, vie) != 0)
 		return (EFAULT);
 
+	/*
+	 * If the instruction length is not specified the update it now.
+	 */
+	if (vme->inst_length == 0)
+		vme->inst_length = vie->num_processed;
+ 
 	/* return to userland unless this is an in-kernel emulated device */
 	if (gpa >= DEFAULT_APIC_BASE && gpa < DEFAULT_APIC_BASE + PAGE_SIZE) {
 		mread = lapic_mmio_read;
@@ -1701,6 +1725,7 @@ int
 vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *exception)
 {
 	struct vcpu *vcpu;
+	int error;
 
 	if (vcpuid < 0 || vcpuid >= VM_MAXCPU)
 		return (EINVAL);
@@ -1724,6 +1749,16 @@ vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *exception)
 		    vcpu->exception.vector);
 		return (EBUSY);
 	}
+
+	/*
+	 * From section 26.6.1 "Interruptibility State" in Intel SDM:
+	 *
+	 * Event blocking by "STI" or "MOV SS" is cleared after guest executes
+	 * one instruction or incurs an exception.
+	 */
+	error = vm_set_register(vm, vcpuid, VM_REG_GUEST_INTR_SHADOW, 0);
+	KASSERT(error == 0, ("%s: error %d clearing interrupt shadow",
+	    __func__, error));
 
 	vcpu->exception_pending = 1;
 	vcpu->exception = *exception;
@@ -1934,7 +1969,7 @@ vmm_is_pptdev(int bus, int slot, int func)
 	/* set pptdevs="1/2/3 4/5/6 7/8/9 10/11/12" */
 	found = 0;
 	for (i = 0; names[i] != NULL && !found; i++) {
-		cp = val = getenv(names[i]);
+		cp = val = kern_getenv(names[i]);
 		while (cp != NULL && *cp != '\0') {
 			if ((cp2 = strchr(cp, ' ')) != NULL)
 				*cp2 = '\0';
@@ -2181,6 +2216,20 @@ struct vatpit *
 vm_atpit(struct vm *vm)
 {
 	return (vm->vatpit);
+}
+
+struct vpmtmr *
+vm_pmtmr(struct vm *vm)
+{
+
+	return (vm->vpmtmr);
+}
+
+struct vrtc *
+vm_rtc(struct vm *vm)
+{
+
+	return (vm->vrtc);
 }
 
 enum vm_reg_name

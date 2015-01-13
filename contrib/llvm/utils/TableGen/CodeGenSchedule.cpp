@@ -7,12 +7,10 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines structures to encapsulate the machine model as decribed in
+// This file defines structures to encapsulate the machine model as described in
 // the target description.
 //
 //===----------------------------------------------------------------------===//
-
-#define DEBUG_TYPE "subtarget-emitter"
 
 #include "CodeGenSchedule.h"
 #include "CodeGenTarget.h"
@@ -22,6 +20,8 @@
 #include "llvm/TableGen/Error.h"
 
 using namespace llvm;
+
+#define DEBUG_TYPE "subtarget-emitter"
 
 #ifndef NDEBUG
 static void dumpIdxVec(const IdxVec &V) {
@@ -39,8 +39,8 @@ static void dumpIdxVec(const SmallVectorImpl<unsigned> &V) {
 namespace {
 // (instrs a, b, ...) Evaluate and union all arguments. Identical to AddOp.
 struct InstrsOp : public SetTheory::Operator {
-  virtual void apply(SetTheory &ST, DagInit *Expr, SetTheory::RecSet &Elts,
-                     ArrayRef<SMLoc> Loc) {
+  void apply(SetTheory &ST, DagInit *Expr, SetTheory::RecSet &Elts,
+             ArrayRef<SMLoc> Loc) override {
     ST.evaluate(Expr->arg_begin(), Expr->arg_end(), Elts, Loc);
   }
 };
@@ -58,8 +58,8 @@ struct InstRegexOp : public SetTheory::Operator {
   InstRegexOp(const CodeGenTarget &t): Target(t) {}
 
   void apply(SetTheory &ST, DagInit *Expr, SetTheory::RecSet &Elts,
-             ArrayRef<SMLoc> Loc) {
-    SmallVector<Regex*, 4> RegexList;
+             ArrayRef<SMLoc> Loc) override {
+    SmallVector<Regex, 4> RegexList;
     for (DagInit::const_arg_iterator
            AI = Expr->arg_begin(), AE = Expr->arg_end(); AI != AE; ++AI) {
       StringInit *SI = dyn_cast<StringInit>(*AI);
@@ -72,17 +72,15 @@ struct InstRegexOp : public SetTheory::Operator {
         pat.insert(0, "^(");
         pat.insert(pat.end(), ')');
       }
-      RegexList.push_back(new Regex(pat));
+      RegexList.push_back(Regex(pat));
     }
     for (CodeGenTarget::inst_iterator I = Target.inst_begin(),
            E = Target.inst_end(); I != E; ++I) {
-      for (SmallVectorImpl<Regex*>::iterator
-             RI = RegexList.begin(), RE = RegexList.end(); RI != RE; ++RI) {
-        if ((*RI)->match((*I)->TheDef->getName()))
+      for (auto &R : RegexList) {
+        if (R.match((*I)->TheDef->getName()))
           Elts.insert((*I)->TheDef);
       }
     }
-    DeleteContainerPointers(RegexList);
   }
 };
 } // end anonymous namespace
@@ -429,7 +427,7 @@ void CodeGenSchedModels::expandRWSeqForProc(
   const CodeGenProcModel &ProcModel) const {
 
   const CodeGenSchedRW &SchedWrite = getSchedRW(RWIdx, IsRead);
-  Record *AliasDef = 0;
+  Record *AliasDef = nullptr;
   for (RecIter AI = SchedWrite.Aliases.begin(), AE = SchedWrite.Aliases.end();
        AI != AE; ++AI) {
     const CodeGenSchedRW &AliasRW = getSchedRW((*AI)->getValueAsDef("AliasRW"));
@@ -1315,7 +1313,7 @@ static void inferFromTransitions(ArrayRef<PredTransition> LastTransitions,
     IdxVec ProcIndices(I->ProcIndices.begin(), I->ProcIndices.end());
     CodeGenSchedTransition SCTrans;
     SCTrans.ToClassIdx =
-      SchedModels.addSchedClass(/*ItinClassDef=*/0, OperWritesVariant,
+      SchedModels.addSchedClass(/*ItinClassDef=*/nullptr, OperWritesVariant,
                                 OperReadsVariant, ProcIndices);
     SCTrans.ProcIndices = ProcIndices;
     // The final PredTerm is unique set of predicates guarding the transition.
@@ -1473,10 +1471,22 @@ void CodeGenSchedModels::collectProcResources() {
     Record *ModelDef = (*WRI)->getValueAsDef("SchedModel");
     addWriteRes(*WRI, getProcModel(ModelDef).Index);
   }
+  RecVec SWRDefs = Records.getAllDerivedDefinitions("SchedWriteRes");
+  for (RecIter WRI = SWRDefs.begin(), WRE = SWRDefs.end(); WRI != WRE; ++WRI) {
+    Record *ModelDef = (*WRI)->getValueAsDef("SchedModel");
+    addWriteRes(*WRI, getProcModel(ModelDef).Index);
+  }
   RecVec RADefs = Records.getAllDerivedDefinitions("ReadAdvance");
   for (RecIter RAI = RADefs.begin(), RAE = RADefs.end(); RAI != RAE; ++RAI) {
     Record *ModelDef = (*RAI)->getValueAsDef("SchedModel");
     addReadAdvance(*RAI, getProcModel(ModelDef).Index);
+  }
+  RecVec SRADefs = Records.getAllDerivedDefinitions("SchedReadAdvance");
+  for (RecIter RAI = SRADefs.begin(), RAE = SRADefs.end(); RAI != RAE; ++RAI) {
+    if ((*RAI)->getValueInit("SchedModel")->isComplete()) {
+      Record *ModelDef = (*RAI)->getValueAsDef("SchedModel");
+      addReadAdvance(*RAI, getProcModel(ModelDef).Index);
+    }
   }
   // Add ProcResGroups that are defined within this processor model, which may
   // not be directly referenced but may directly specify a buffer size.
@@ -1609,7 +1619,7 @@ Record *CodeGenSchedModels::findProcResUnits(Record *ProcResKind,
   if (ProcResKind->isSubClassOf("ProcResourceUnits"))
     return ProcResKind;
 
-  Record *ProcUnitDef = 0;
+  Record *ProcUnitDef = nullptr;
   RecVec ProcResourceDefs =
     Records.getAllDerivedDefinitions("ProcResourceUnits");
 

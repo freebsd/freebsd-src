@@ -40,7 +40,6 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/file.h>
-#include <linux/mount.h>
 #include <linux/cdev.h>
 
 #include <asm/uaccess.h>

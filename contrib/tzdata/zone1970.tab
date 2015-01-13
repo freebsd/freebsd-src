@@ -29,8 +29,8 @@
 # most populous zones first, where that does not contradict (1).
 #
 # This table is intended as an aid for users, to help them select time
-# zone data appropriate for their practical needs.  It is not intended
-# to take or endorse any position on legal or territorial claims.
+# zone data entries appropriate for their practical needs.  It is not
+# intended to take or endorse any position on legal or territorial claims.
 #
 #country-
 #codes	coordinates	TZ	comments
@@ -45,7 +45,7 @@ AQ	-6736+06253	Antarctica/Mawson	Mawson Station, Holme Bay
 AQ	-6835+07758	Antarctica/Davis	Davis Station, Vestfold Hills
 AQ	-6617+11031	Antarctica/Casey	Casey Station, Bailey Peninsula
 AQ	-7824+10654	Antarctica/Vostok	Vostok Station, Lake Vostok
-AQ	-6640+14001	Antarctica/DumontDUrville	Dumont-d'Urville Station, Terre Adelie
+AQ	-6640+14001	Antarctica/DumontDUrville	Dumont-d'Urville Station, Adélie Land
 AQ	-690022+0393524	Antarctica/Syowa	Syowa Station, E Ongul I
 AQ	-720041+0023206	Antarctica/Troll	Troll Station, Queen Maud Land
 AR	-3436-05827	America/Argentina/Buenos_Aires	Buenos Aires (BA, CF)
@@ -265,7 +265,8 @@ PE	-1203-07703	America/Lima
 PF	-1732-14934	Pacific/Tahiti	Society Islands
 PF	-0900-13930	Pacific/Marquesas	Marquesas Islands
 PF	-2308-13457	Pacific/Gambier	Gambier Islands
-PG	-0930+14710	Pacific/Port_Moresby
+PG	-0930+14710	Pacific/Port_Moresby	most locations
+PG	-0613+15534	Pacific/Bougainville	Bougainville
 PH	+1435+12100	Asia/Manila
 PK	+2452+06703	Asia/Karachi
 PL	+5215+02100	Europe/Warsaw
@@ -316,7 +317,7 @@ SY	+3330+03618	Asia/Damascus
 TC	+2128-07108	America/Grand_Turk
 TD	+1207+01503	Africa/Ndjamena
 TF	-492110+0701303	Indian/Kerguelen	Kerguelen, St Paul I, Amsterdam I
-TH,KH,LA,VN	+1345+10031	Asia/Bangkok
+TH,KH,LA,VN	+1345+10031	Asia/Bangkok	most of Indochina
 TJ	+3835+06848	Asia/Dushanbe
 TK	-0922-17114	Pacific/Fakaofo
 TL	-0833+12535	Asia/Dili
@@ -324,7 +325,7 @@ TM	+3757+05823	Asia/Ashgabat
 TN	+3648+01011	Africa/Tunis
 TO	-2110-17510	Pacific/Tongatapu
 TR	+4101+02858	Europe/Istanbul
-TT,AG,AI,BL,DM,GD,GP,MF,LC,KN,MS,VC,VG,VI	+1039-06131	America/Port_of_Spain
+TT,AG,AI,BL,DM,GD,GP,KN,LC,MF,MS,VC,VG,VI	+1039-06131	America/Port_of_Spain
 TV	-0831+17913	Pacific/Funafuti
 TW	+2503+12130	Asia/Taipei
 UA	+5026+03031	Europe/Kiev	most locations
@@ -364,6 +365,7 @@ UY	-3453-05611	America/Montevideo
 UZ	+3940+06648	Asia/Samarkand	west Uzbekistan
 UZ	+4120+06918	Asia/Tashkent	east Uzbekistan
 VE	+1030-06656	America/Caracas
+VN	+1045+10640	Asia/Ho_Chi_Minh	south Vietnam
 VU	-1740+16825	Pacific/Efate
 WF	-1318-17610	Pacific/Wallis
 WS	-1350-17144	Pacific/Apia

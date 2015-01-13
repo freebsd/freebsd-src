@@ -286,7 +286,7 @@ install(char *pkgname)
 	}
 
 	s = (inst_rootfs == NULL) ? "/install.iso" : inst_rootfs;
-	if (file_loadraw("mfs_root", s) == NULL) {
+	if (file_loadraw(s, "mfs_root") == NULL) {
 		error = errno;
 		command_errmsg = "cannot load root file system";
 		goto fail;

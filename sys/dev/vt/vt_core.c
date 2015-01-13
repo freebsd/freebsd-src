@@ -114,6 +114,7 @@ const struct terminal_class vt_termclass = {
 
 #define	VT_LOCK(vd)	mtx_lock(&(vd)->vd_lock)
 #define	VT_UNLOCK(vd)	mtx_unlock(&(vd)->vd_lock)
+#define	VT_LOCK_ASSERT(vd, what)	mtx_assert(&(vd)->vd_lock, what)
 
 #define	VT_UNIT(vw)	((vw)->vw_device->vd_unit * VT_MAXWINDOWS + \
 			(vw)->vw_number)
@@ -283,12 +284,18 @@ vt_resume_flush_timer(struct vt_device *vd, int ms)
 static void
 vt_suspend_flush_timer(struct vt_device *vd)
 {
+	/*
+	 * As long as this function is called locked, callout_stop()
+	 * has the same effect like callout_drain() with regard to
+	 * preventing the callback function from executing.
+	 */
+	VT_LOCK_ASSERT(vd, MA_OWNED);
 
 	if (!(vd->vd_flags & VDF_ASYNC) ||
 	    !atomic_cmpset_int(&vd->vd_timer_armed, 1, 0))
 		return;
 
-	callout_drain(&vd->vd_timer);
+	callout_stop(&vd->vd_timer);
 }
 
 static void
@@ -825,7 +832,9 @@ vt_processkey(keyboard_t *kbd, struct vt_device *vd, int c)
 				terminal_input_char(vw->vw_terminal, 0x1b);
 			}
 #endif
-
+#if defined(KDB)
+			kdb_alt_break(c, &vd->vd_altbrk);
+#endif
 			terminal_input_char(vw->vw_terminal, KEYCHAR(c));
 		} else
 			terminal_input_raw(vw->vw_terminal, c);
@@ -866,7 +875,6 @@ vt_allocate_keyboard(struct vt_device *vd)
 	keyboard_info_t	 ki;
 
 	idx0 = kbd_allocate("kbdmux", -1, vd, vt_kbdevent, vd);
-	vd->vd_keyboard = idx0;
 	if (idx0 >= 0) {
 		DPRINTF(20, "%s: kbdmux allocated, idx = %d\n", __func__, idx0);
 		k0 = kbd_get_keyboard(idx0);
@@ -894,6 +902,7 @@ vt_allocate_keyboard(struct vt_device *vd)
 			return (-1);
 		}
 	}
+	vd->vd_keyboard = idx0;
 	DPRINTF(20, "%s: vd_keyboard = %d\n", __func__, vd->vd_keyboard);
 
 	return (idx0);
@@ -1532,6 +1541,7 @@ vt_change_font(struct vt_window *vw, struct vt_font *vf)
 	terminal_mute(tm, 1);
 	vtbuf_grow(&vw->vw_buf, &size, vw->vw_buf.vb_history_size);
 	terminal_set_winsize_blank(tm, &wsz, 0, NULL);
+	terminal_set_cursor(tm, &vw->vw_buf.vb_cursor);
 	terminal_mute(tm, 0);
 
 	/* Actually apply the font to the current window. */
@@ -2207,12 +2217,20 @@ skip_thunk:
 	case PIO_VFONT: {
 		struct vt_font *vf;
 
+		if (vd->vd_flags & VDF_TEXTMODE)
+			return (ENOTSUP);
+
 		error = vtfont_load((void *)data, &vf);
 		if (error != 0)
 			return (error);
 
 		error = vt_change_font(vw, vf);
 		vtfont_unref(vf);
+		return (error);
+	}
+	case PIO_VFONT_DEFAULT: {
+		/* Reset to default font. */
+		error = vt_change_font(vw, &vt_font_default);
 		return (error);
 	}
 	case GIO_SCRNMAP: {
@@ -2498,6 +2516,8 @@ vt_upgrade(struct vt_device *vd)
 
 	if (!vty_enabled(VTY_VT))
 		return;
+	if (main_vd->vd_driver == NULL)
+		return;
 
 	for (i = 0; i < VT_MAXWINDOWS; i++) {
 		vw = vd->vd_windows[i];
@@ -2591,7 +2611,9 @@ vt_allocate(struct vt_driver *drv, void *softc)
 
 	if (vd->vd_flags & VDF_ASYNC) {
 		/* Stop vt_flush periodic task. */
+		VT_LOCK(vd);
 		vt_suspend_flush_timer(vd);
+		VT_UNLOCK(vd);
 		/*
 		 * Mute current terminal until we done. vt_change_font (called
 		 * from vt_resize) will unmute it.

@@ -38,12 +38,14 @@ class BitVector;
 class EdgeBundles;
 class MachineBasicBlock;
 class MachineLoopInfo;
+class MachineBlockFrequencyInfo;
 
 class SpillPlacement  : public MachineFunctionPass {
   struct Node;
   const MachineFunction *MF;
   const EdgeBundles *bundles;
   const MachineLoopInfo *loops;
+  const MachineBlockFrequencyInfo *MBFI;
   Node *nodes;
 
   // Nodes that are active in the current computation. Owned by the prepare()
@@ -63,7 +65,7 @@ class SpillPlacement  : public MachineFunctionPass {
 public:
   static char ID; // Pass identification, replacement for typeid.
 
-  SpillPlacement() : MachineFunctionPass(ID), nodes(0) {}
+  SpillPlacement() : MachineFunctionPass(ID), nodes(nullptr) {}
   ~SpillPlacement() { releaseMemory(); }
 
   /// BorderConstraint - A basic block has separate constraints for entry and
@@ -145,9 +147,9 @@ public:
   }
 
 private:
-  virtual bool runOnMachineFunction(MachineFunction&);
-  virtual void getAnalysisUsage(AnalysisUsage&) const;
-  virtual void releaseMemory();
+  bool runOnMachineFunction(MachineFunction&) override;
+  void getAnalysisUsage(AnalysisUsage&) const override;
+  void releaseMemory() override;
 
   void activate(unsigned);
 };

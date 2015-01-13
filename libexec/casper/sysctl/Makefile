@@ -6,8 +6,7 @@ PROG=	sysctl
 
 SRCS=	sysctl.c
 
-DPADD=	${LIBCAPSICUM} ${LIBCASPER} ${LIBNV} ${LIBPJDLOG} ${LIBUTIL}
-LDADD=	-lcapsicum -lcasper -lnv -lpjdlog -lutil
+LIBADD=	casper nv pjdlog
 
 BINDIR=	/libexec/casper
 

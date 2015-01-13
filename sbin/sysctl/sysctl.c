@@ -679,15 +679,18 @@ strIKtoi(const char *str, char **endptrp)
 	p = &str[len - 1];
 	if (*p == 'C' || *p == 'F') {
 		temp = strtof(str, endptrp);
-		if (*endptrp != str && *endptrp == p && errno != 0) {
+		if (*endptrp != str && *endptrp == p && errno == 0) {
 			if (*p == 'F')
 				temp = (temp - 32) * 5 / 9;
+			*endptrp = NULL;
 			return (temp * 10 + 2732);
 		}
 	} else {
 		kelv = (int)strtol(str, endptrp, 10);
-		if (*endptrp != str && *endptrp == p && errno != 0)
+		if (*endptrp != str && *endptrp == p && errno == 0) {
+			*endptrp = NULL;
 			return (kelv);
+		}
 	}
 
 	errno = ERANGE;

@@ -81,15 +81,13 @@ dbuf_compare(const void *x1, const void *x2)
 		return (1);
 	}
 
-	if (d1->db_state < d2->db_state) {
+	if (d1->db_state == DB_SEARCH) {
+		ASSERT3S(d2->db_state, !=, DB_SEARCH);
 		return (-1);
-	}
-	if (d1->db_state > d2->db_state) {
+	} else if (d2->db_state == DB_SEARCH) {
+		ASSERT3S(d1->db_state, !=, DB_SEARCH);
 		return (1);
 	}
-
-	ASSERT3S(d1->db_state, !=, DB_SEARCH);
-	ASSERT3S(d2->db_state, !=, DB_SEARCH);
 
 	if ((uintptr_t)d1 < (uintptr_t)d2) {
 		return (-1);
@@ -513,10 +511,10 @@ dnode_allocate(dnode_t *dn, dmu_object_type_t ot, int blocksize, int ibs,
 {
 	int i;
 
+	ASSERT3U(blocksize, <=,
+	    spa_maxblocksize(dmu_objset_spa(dn->dn_objset)));
 	if (blocksize == 0)
 		blocksize = 1 << zfs_default_bs;
-	else if (blocksize > SPA_MAXBLOCKSIZE)
-		blocksize = SPA_MAXBLOCKSIZE;
 	else
 		blocksize = P2ROUNDUP(blocksize, SPA_MINBLOCKSIZE);
 
@@ -597,7 +595,8 @@ dnode_reallocate(dnode_t *dn, dmu_object_type_t ot, int blocksize,
 	int nblkptr;
 
 	ASSERT3U(blocksize, >=, SPA_MINBLOCKSIZE);
-	ASSERT3U(blocksize, <=, SPA_MAXBLOCKSIZE);
+	ASSERT3U(blocksize, <=,
+	    spa_maxblocksize(dmu_objset_spa(dn->dn_objset)));
 	ASSERT0(blocksize % SPA_MINBLOCKSIZE);
 	ASSERT(dn->dn_object != DMU_META_DNODE_OBJECT || dmu_tx_private_ok(tx));
 	ASSERT(tx->tx_txg != 0);
@@ -1120,7 +1119,7 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag,
 			zrl_init(&dnh[i].dnh_zrlock);
 			dnh[i].dnh_dnode = NULL;
 		}
-		if (winner = dmu_buf_set_user(&db->db, children_dnodes, NULL,
+		if (winner = dmu_buf_set_user(&db->db, children_dnodes,
 		    dnode_buf_pageout)) {
 
 			for (i = 0; i < epb; i++) {
@@ -1352,10 +1351,9 @@ dnode_set_blksz(dnode_t *dn, uint64_t size, int ibs, dmu_tx_t *tx)
 	dmu_buf_impl_t *db;
 	int err;
 
+	ASSERT3U(size, <=, spa_maxblocksize(dmu_objset_spa(dn->dn_objset)));
 	if (size == 0)
 		size = SPA_MINBLOCKSIZE;
-	if (size > SPA_MAXBLOCKSIZE)
-		size = SPA_MAXBLOCKSIZE;
 	else
 		size = P2ROUNDUP(size, SPA_MINBLOCKSIZE);
 

@@ -248,6 +248,23 @@ checksum offloading is enabled.
 Counter of frames discarded due to an incorrect UDP checksum when
 checksum offloading is enabled.
 .El
+.Sh SEE ALSO
+.Xr miibus 4 ,
+.Xr ifconfig 8
+.Rs
+.%T "Zynq-7000 SoC Technical Reference Manual (Xilinx doc UG585)"
+.%U http://www.xilinx.com/support/documentation/user_guides/\:ug585-Zynq-7000-TRM.pdf
+.Re
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+driver and this manual page was written by
+.An Thomas Skibo Aq Mt thomasskibo@yahoo.com .
 .Sh BUGS
 The GEM can perform TCP/UDP/IP checksum offloading.
 However, when transmit checksum offloading is enabled, the GEM generates and
@@ -277,21 +294,3 @@ If the bug does not exist in other versions of this device, the
 work-around can be disabled by setting the dev.cgem.%d.rxhangwar
 .Xr sysctl 8
 variable to 0.
-.Pp
-.Sh SEE ALSO
-.Xr miibus 4 ,
-.Xr ifconfig 8
-.Rs
-.%T "Zynq-7000 SoC Technical Reference Manual (Xilinx doc UG585)"
-.%U http://www.xilinx.com/support/documentation/user_guides/\:ug585-Zynq-7000-TRM.pdf
-.Re
-.Sh HISTORY
-The
-.Nm
-device driver first appeared in
-.Fx 10.0 .
-.Sh AUTHORS
-The
-.Nm
-driver and this manual page was written by
-.An Thomas Skibo Aq Mt thomasskibo@yahoo.com .

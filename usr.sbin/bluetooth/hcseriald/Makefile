@@ -5,7 +5,6 @@ PROG=		hcseriald
 MAN=		hcseriald.8
 WARNS?=		2
 
-DPADD=		${LIBNETGRAPH}
-LDADD=		-lnetgraph
+LIBADD=		netgraph
 
 .include <bsd.prog.mk>

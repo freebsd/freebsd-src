@@ -26,6 +26,7 @@ CXXABI_1.3 {
     __cxa_pure_virtual;
     __cxa_rethrow;
     __cxa_throw;
+    __cxa_throw_bad_array_new_length;
     __cxa_type_match;
     __cxa_vec_cctor;
     __cxa_vec_cleanup;
@@ -273,6 +274,9 @@ CXXRT_1.0 {
         "std::bad_alloc::bad_alloc(std::bad_alloc const&)";
         "std::bad_alloc::bad_alloc()";
         "std::bad_alloc::operator=(std::bad_alloc const&)";
+        "std::bad_array_new_length::bad_array_new_length(std::bad_array_new_length const&)";
+        "std::bad_array_new_length::bad_array_new_length()";
+        "std::bad_array_new_length::operator=(std::bad_array_new_length const&)";
 
     };
     __cxa_allocate_dependent_exception;
@@ -307,6 +311,7 @@ GLIBCXX_3.4 {
         "std::bad_typeid::~bad_typeid()";
         "std::exception::~exception()";
         "std::bad_alloc::~bad_alloc()";
+        "std::bad_array_new_length::~bad_array_new_length()";
 
         "std::exception::what() const";
 
@@ -320,17 +325,20 @@ GLIBCXX_3.4 {
         "vtable for std::bad_typeid";
         "vtable for std::exception";
         "vtable for std::type_info";
+        "vtable for std::bad_array_new_length";
 
         "typeinfo for std::bad_alloc";
         "typeinfo for std::bad_typeid";
         "typeinfo for std::bad_cast";
         "typeinfo for std::exception";
         "typeinfo for std::type_info";
+        "typeinfo for std::bad_array_new_length";
         "typeinfo name for std::bad_alloc";
         "typeinfo name for std::bad_typeid";
         "typeinfo name for std::bad_cast";
         "typeinfo name for std::exception";
         "typeinfo name for std::type_info";
+        "typeinfo name for std::bad_array_new_length";
 
     };
 };
@@ -340,6 +348,7 @@ GLIBCXX_3.4.9 {
         "std::bad_typeid::what() const";
         "std::bad_cast::what() const";
         "std::bad_alloc::what() const";
+        "std::bad_array_new_length::what() const";
     };
 } GLIBCXX_3.4;
 

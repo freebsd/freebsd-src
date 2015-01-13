@@ -126,7 +126,8 @@ hash32_strne(const void *buf, size_t len, int end, const char **ep,
 uint32_t jenkins_hash(const void *, size_t, uint32_t);
 uint32_t jenkins_hash32(const uint32_t *, size_t, uint32_t);
 
-uint32_t murmur3_aligned_32(const void *data, size_t len, uint32_t seed);
+uint32_t murmur3_32_hash(const void *, size_t, uint32_t);
+uint32_t murmur3_32_hash32(const uint32_t *, size_t, uint32_t);
 
 #endif /* _KERNEL */
 

@@ -98,6 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usbhid.h>
 #include <dev/usb/usb_cdc.h>
 #include "usbdevs.h"
+#include "usb_if.h"
 
 #include <dev/usb/usb_ioctl.h>
 
@@ -112,11 +113,11 @@ __FBSDID("$FreeBSD$");
 static int umodem_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, umodem, CTLFLAG_RW, 0, "USB umodem");
-SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_umodem, OID_AUTO, debug, CTLFLAG_RWTUN,
     &umodem_debug, 0, "Debug level");
 #endif
 
-static const STRUCT_USB_HOST_ID umodem_devs[] = {
+static const STRUCT_USB_DUAL_ID umodem_dual_devs[] = {
 	/* Generic Modem class match */
 	{USB_IFACE_CLASS(UICLASS_CDC),
 		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
@@ -124,8 +125,11 @@ static const STRUCT_USB_HOST_ID umodem_devs[] = {
 	{USB_IFACE_CLASS(UICLASS_CDC),
 		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
 		USB_IFACE_PROTOCOL(UIPROTO_CDC_NONE)},
+};
+
+static const STRUCT_USB_HOST_ID umodem_host_devs[] = {
 	/* Huawei Modem class match */
-	{USB_IFACE_CLASS(UICLASS_CDC),
+	{USB_VENDOR(USB_VENDOR_HUAWEI),USB_IFACE_CLASS(UICLASS_CDC),
 		USB_IFACE_SUBCLASS(UISUBCLASS_ABSTRACT_CONTROL_MODEL),
 		USB_IFACE_PROTOCOL(0xFF)},
 	/* Kyocera AH-K3001V */
@@ -145,6 +149,7 @@ static const STRUCT_USB_HOST_ID umodem_devs[] = {
 enum {
 	UMODEM_BULK_WR,
 	UMODEM_BULK_RD,
+	UMODEM_INTR_WR,
 	UMODEM_INTR_RD,
 	UMODEM_N_TRANSFER,
 };
@@ -169,14 +174,19 @@ struct umodem_softc {
 	uint8_t	sc_cm_over_data;
 	uint8_t	sc_cm_cap;		/* CM capabilities */
 	uint8_t	sc_acm_cap;		/* ACM capabilities */
+	uint8_t	sc_line_coding[32];	/* used in USB device mode */
+	uint8_t	sc_abstract_state[32];	/* used in USB device mode */
 };
 
 static device_probe_t umodem_probe;
 static device_attach_t umodem_attach;
 static device_detach_t umodem_detach;
+static usb_handle_request_t umodem_handle_request;
+
 static void umodem_free_softc(struct umodem_softc *);
 
-static usb_callback_t umodem_intr_callback;
+static usb_callback_t umodem_intr_read_callback;
+static usb_callback_t umodem_intr_write_callback;
 static usb_callback_t umodem_write_callback;
 static usb_callback_t umodem_read_callback;
 
@@ -207,31 +217,45 @@ static const struct usb_config umodem_config[UMODEM_N_TRANSFER] = {
 	[UMODEM_BULK_WR] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
-		.direction = UE_DIR_OUT,
+		.direction = UE_DIR_TX,
 		.if_index = 0,
 		.bufsize = UMODEM_BUF_SIZE,
 		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
 		.callback = &umodem_write_callback,
+		.usb_mode = USB_MODE_DUAL,
 	},
 
 	[UMODEM_BULK_RD] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
-		.direction = UE_DIR_IN,
+		.direction = UE_DIR_RX,
 		.if_index = 0,
 		.bufsize = UMODEM_BUF_SIZE,
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.callback = &umodem_read_callback,
+		.usb_mode = USB_MODE_DUAL,
+	},
+
+	[UMODEM_INTR_WR] = {
+		.type = UE_INTERRUPT,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_TX,
+		.if_index = 1,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,.no_pipe_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &umodem_intr_write_callback,
+		.usb_mode = USB_MODE_DEVICE,
 	},
 
 	[UMODEM_INTR_RD] = {
 		.type = UE_INTERRUPT,
 		.endpoint = UE_ADDR_ANY,
-		.direction = UE_DIR_IN,
+		.direction = UE_DIR_RX,
 		.if_index = 1,
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,.no_pipe_ok = 1,},
 		.bufsize = 0,	/* use wMaxPacketSize */
-		.callback = &umodem_intr_callback,
+		.callback = &umodem_intr_read_callback,
+		.usb_mode = USB_MODE_HOST,
 	},
 };
 
@@ -252,6 +276,10 @@ static const struct ucom_callback umodem_callback = {
 };
 
 static device_method_t umodem_methods[] = {
+	/* USB interface */
+	DEVMETHOD(usb_handle_request, umodem_handle_request),
+
+	/* Device interface */
 	DEVMETHOD(device_probe, umodem_probe),
 	DEVMETHOD(device_attach, umodem_attach),
 	DEVMETHOD(device_detach, umodem_detach),
@@ -279,13 +307,14 @@ umodem_probe(device_t dev)
 
 	DPRINTFN(11, "\n");
 
-	if (uaa->usb_mode != USB_MODE_HOST)
-		return (ENXIO);
-
-	error = usbd_lookup_id_by_uaa(umodem_devs, sizeof(umodem_devs), uaa);
-	if (error)
-		return (error);
-
+	error = usbd_lookup_id_by_uaa(umodem_host_devs,
+	    sizeof(umodem_host_devs), uaa);
+	if (error) {
+		error = usbd_lookup_id_by_uaa(umodem_dual_devs,
+		    sizeof(umodem_dual_devs), uaa);
+		if (error)
+			return (error);
+	}
 	return (BUS_PROBE_GENERIC);
 }
 
@@ -400,18 +429,22 @@ umodem_attach(device_t dev)
 	    umodem_config, UMODEM_N_TRANSFER,
 	    sc, &sc->sc_mtx);
 	if (error) {
+		device_printf(dev, "Can't setup transfer\n");
 		goto detach;
 	}
 
-	/* clear stall at first run */
-	mtx_lock(&sc->sc_mtx);
-	usbd_xfer_set_stall(sc->sc_xfer[UMODEM_BULK_WR]);
-	usbd_xfer_set_stall(sc->sc_xfer[UMODEM_BULK_RD]);
-	mtx_unlock(&sc->sc_mtx);
+	/* clear stall at first run, if USB host mode */
+	if (uaa->usb_mode == USB_MODE_HOST) {
+		mtx_lock(&sc->sc_mtx);
+		usbd_xfer_set_stall(sc->sc_xfer[UMODEM_BULK_WR]);
+		usbd_xfer_set_stall(sc->sc_xfer[UMODEM_BULK_RD]);
+		mtx_unlock(&sc->sc_mtx);
+	}
 
 	error = ucom_attach(&sc->sc_super_ucom, &sc->sc_ucom, 1, sc,
 	    &umodem_callback, &sc->sc_mtx);
 	if (error) {
+		device_printf(dev, "Can't attach com\n");
 		goto detach;
 	}
 	ucom_set_pnpinfo_usb(&sc->sc_super_ucom, dev);
@@ -482,6 +515,7 @@ umodem_start_write(struct ucom_softc *ucom)
 {
 	struct umodem_softc *sc = ucom->sc_parent;
 
+	usbd_transfer_start(sc->sc_xfer[UMODEM_INTR_WR]);
 	usbd_transfer_start(sc->sc_xfer[UMODEM_BULK_WR]);
 }
 
@@ -490,6 +524,7 @@ umodem_stop_write(struct ucom_softc *ucom)
 {
 	struct umodem_softc *sc = ucom->sc_parent;
 
+	usbd_transfer_stop(sc->sc_xfer[UMODEM_INTR_WR]);
 	usbd_transfer_stop(sc->sc_xfer[UMODEM_BULK_WR]);
 }
 
@@ -684,7 +719,34 @@ umodem_cfg_set_break(struct ucom_softc *ucom, uint8_t onoff)
 }
 
 static void
-umodem_intr_callback(struct usb_xfer *xfer, usb_error_t error)
+umodem_intr_write_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	int actlen;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_TRANSFERRED:
+
+		DPRINTF("Transferred %d bytes\n", actlen);
+
+		/* FALLTHROUGH */
+	case USB_ST_SETUP:
+tr_setup:
+		break;
+
+	default:			/* Error */
+		if (error != USB_ERR_CANCELLED) {
+			/* start clear stall */
+			usbd_xfer_set_stall(xfer);
+			goto tr_setup;
+		}
+		break;
+	}
+}
+
+static void
+umodem_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct usb_cdc_notification pkt;
 	struct umodem_softc *sc = usbd_xfer_softc(xfer);
@@ -905,4 +967,57 @@ umodem_poll(struct ucom_softc *ucom)
 {
 	struct umodem_softc *sc = ucom->sc_parent;
 	usbd_transfer_poll(sc->sc_xfer, UMODEM_N_TRANSFER);
+}
+
+static int
+umodem_handle_request(device_t dev,
+    const void *preq, void **pptr, uint16_t *plen,
+    uint16_t offset, uint8_t *pstate)
+{
+	struct umodem_softc *sc = device_get_softc(dev);
+	const struct usb_device_request *req = preq;
+	uint8_t is_complete = *pstate;
+
+	DPRINTF("sc=%p\n", sc);
+
+	if (!is_complete) {
+		if ((req->bmRequestType == UT_WRITE_CLASS_INTERFACE) &&
+		    (req->bRequest == UCDC_SET_LINE_CODING) &&
+		    (req->wIndex[0] == sc->sc_ctrl_iface_no) &&
+		    (req->wIndex[1] == 0x00) &&
+		    (req->wValue[0] == 0x00) &&
+		    (req->wValue[1] == 0x00)) {
+			if (offset == 0) {
+				*plen = sizeof(sc->sc_line_coding);
+				*pptr = &sc->sc_line_coding;
+			} else {
+				*plen = 0;
+			}
+			return (0);
+		} else if ((req->bmRequestType == UT_WRITE_CLASS_INTERFACE) &&
+		    (req->wIndex[0] == sc->sc_ctrl_iface_no) &&
+		    (req->wIndex[1] == 0x00) &&
+		    (req->bRequest == UCDC_SET_COMM_FEATURE)) {
+			if (offset == 0) {
+				*plen = sizeof(sc->sc_abstract_state);
+				*pptr = &sc->sc_abstract_state;
+			} else {
+				*plen = 0;
+			}
+			return (0);
+		} else if ((req->bmRequestType == UT_WRITE_CLASS_INTERFACE) &&
+		    (req->wIndex[0] == sc->sc_ctrl_iface_no) &&
+		    (req->wIndex[1] == 0x00) &&
+		    (req->bRequest == UCDC_SET_CONTROL_LINE_STATE)) {
+			*plen = 0;
+			return (0);
+		} else if ((req->bmRequestType == UT_WRITE_CLASS_INTERFACE) &&
+		    (req->wIndex[0] == sc->sc_ctrl_iface_no) &&
+		    (req->wIndex[1] == 0x00) &&
+		    (req->bRequest == UCDC_SEND_BREAK)) {
+			*plen = 0;
+			return (0);
+		}
+	}
+	return (ENXIO);			/* use builtin handler */
 }

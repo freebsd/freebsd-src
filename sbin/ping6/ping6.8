@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 5, 2013
+.Dd September 22, 2014
 .Dt PING6 8
 .Os
 .Sh NAME
@@ -63,6 +63,12 @@ packets to network hosts
 .Ek
 .Bk -words
 .Op Fl i Ar wait
+.Ek
+.Bk -words
+.Op Fl x Ar waittime
+.Ek
+.Bk -words
+.Op Fl X Ar timeout
 .Ek
 .Bk -words
 .Op Fl l Ar preload
@@ -191,6 +197,15 @@ The default is to wait for one second between each packet.
 This option is incompatible with the
 .Fl f
 option.
+.It Fl x Ar waittime
+Time in milliseconds to wait for a reply for each packet sent.
+If a reply arrives later,
+the packet is not printed as replied,
+but considered as replied when calculating statistics.
+.It Fl X Ar timeout
+Specify a timeout,
+in seconds,
+before ping exits regardless of how many packets have been received.
 .It Fl l Ar preload
 If
 .Ar preload

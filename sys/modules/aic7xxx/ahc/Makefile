@@ -35,7 +35,11 @@ ${GENSRCS}:								 \
 			${REG_PRINT_OPT}				 \
 			-i ${SYSDIR}/dev/aic7xxx/aic7xxx_osm.h \
 			${SYSDIR}/dev/aic7xxx/aic7xxx.seq
-.else
+.elif defined(.MAKE.LEVEL)
+# This target interfers with fmake's world view and causes this message
+# to appear when building the tree from 8.x worlds where fmake is the
+# default. fmake doens't define .MAKE.LEVEL so key off that to omit it,
+# while still allowing more-modern makes to theoretically update things.
 ${GENSRCS}:
 	@echo "Error: ${.TARGET} is missing.  Run 'make ahcfirmware'"
 .endif

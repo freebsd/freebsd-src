@@ -26,8 +26,10 @@
 .Op Fl c Ar appearance
 .Oo
 .Fl f
+.Oo
 .Op Ar size
 .Ar file
+.Oc
 .Oc
 .Op Fl g Ar geometry
 .Op Fl h Ar size
@@ -136,8 +138,10 @@ The latter is actually a simulation.
 Print out current output screen map.
 .It Xo
 .Fl f
+.Oo
 .Op Ar size
 .Ar file
+.Oc
 .Xc
 Load font
 .Ar file
@@ -157,6 +161,14 @@ command to load the font of your choice.
 may be omitted, in this case
 .Nm
 will try to guess it from the size of font file.
+.Pp
+When using
+.Xr vt 4
+both
+.Ar size
+and
+.Ar font
+can be omitted, and the default font will be loaded.
 .Pp
 Note that older video cards, such as MDA and CGA, do not support
 software font.

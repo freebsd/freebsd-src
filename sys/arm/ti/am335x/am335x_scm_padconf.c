@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/tivar.h>
 #include <arm/ti/ti_scm.h>
 
+#include <arm/ti/am335x/am335x_scm_padconf.h>
+
 #define _PIN(r, b, gp, gm, m0, m1, m2, m3, m4, m5, m6, m7) \
 	{	.reg_off = r, \
 		.gpio_pin = gp, \
@@ -61,18 +63,6 @@ __FBSDID("$FreeBSD$");
 		.muxmodes[6] = m6, \
 		.muxmodes[7] = m7, \
 	}
-
-#define SLEWCTRL	(0x01 << 6) /* faster(0) or slower(1) slew rate. */
-#define RXACTIVE	(0x01 << 5) /* Input enable value for the Pad */
-#define PULLTYPESEL	(0x01 << 4) /* Pad pullup/pulldown type selection */
-#define PULLUDEN	(0x01 << 3) /* Pullup/pulldown disabled */
-
-#define PADCONF_OUTPUT			(0)
-#define PADCONF_OUTPUT_PULLUP		(PULLTYPESEL)
-#define PADCONF_INPUT			(RXACTIVE | PULLUDEN)
-#define PADCONF_INPUT_PULLUP		(RXACTIVE | PULLTYPESEL)
-#define PADCONF_INPUT_PULLDOWN		(RXACTIVE)
-#define PADCONF_INPUT_PULLUP_SLOW	(PADCONF_INPUT_PULLUP | SLEWCTRL)
 
 const static struct ti_scm_padstate ti_padstate_devmap[] = {
 	{"output",		PADCONF_OUTPUT },
@@ -311,54 +301,3 @@ const struct ti_scm_device ti_scm_dev = {
 	.padstate		= (struct ti_scm_padstate *) &ti_padstate_devmap,
 	.padconf		= (struct ti_scm_padconf *) &ti_padconf_devmap,
 };
-
-int
-ti_scm_padconf_set_gpioflags(uint32_t gpio, uint32_t flags)
-{
-	unsigned int state = 0;
-	if (flags & GPIO_PIN_OUTPUT) {
-		if (flags & GPIO_PIN_PULLUP)
-			state = PADCONF_OUTPUT_PULLUP;
-		else
-			state = PADCONF_OUTPUT;
-	} else if (flags & GPIO_PIN_INPUT) {
-		if (flags & GPIO_PIN_PULLUP)
-			state = PADCONF_INPUT_PULLUP;
-		else if (flags & GPIO_PIN_PULLDOWN)
-			state = PADCONF_INPUT_PULLDOWN;
-		else
-			state = PADCONF_INPUT;
-	}
-	return ti_scm_padconf_set_gpiomode(gpio, state);
-}
-
-void
-ti_scm_padconf_get_gpioflags(uint32_t gpio, uint32_t *flags)
-{
-	unsigned int state;
-	if (ti_scm_padconf_get_gpiomode(gpio, &state) != 0)
-		*flags = 0;
-	else {
-		switch (state) {
-			case PADCONF_OUTPUT:
-				*flags = GPIO_PIN_OUTPUT;
-				break;
-			case PADCONF_OUTPUT_PULLUP:
-				*flags = GPIO_PIN_OUTPUT | GPIO_PIN_PULLUP;
-				break;
-			case PADCONF_INPUT:
-				*flags = GPIO_PIN_INPUT;
-				break;
-			case PADCONF_INPUT_PULLUP:
-				*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLUP;
-				break;
-			case PADCONF_INPUT_PULLDOWN:
-				*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLDOWN;
-				break;
-			default:
-				*flags = 0;
-				break;
-		}
-	}
-}
-

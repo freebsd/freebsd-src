@@ -346,16 +346,16 @@ rss_hash_ip4_4tuple(struct in_addr src, u_short srcport, struct in_addr dst,
  * Hash an IPv6 2-tuple.
  */
 uint32_t
-rss_hash_ip6_2tuple(struct in6_addr src, struct in6_addr dst)
+rss_hash_ip6_2tuple(const struct in6_addr *src, const struct in6_addr *dst)
 {
-	uint8_t data[sizeof(src) + sizeof(dst)];
+	uint8_t data[sizeof(*src) + sizeof(*dst)];
 	u_int datalen;
 
 	datalen = 0;
-	bcopy(&src, &data[datalen], sizeof(src));
-	datalen += sizeof(src);
-	bcopy(&dst, &data[datalen], sizeof(dst));
-	datalen += sizeof(dst);
+	bcopy(src, &data[datalen], sizeof(*src));
+	datalen += sizeof(*src);
+	bcopy(dst, &data[datalen], sizeof(*dst));
+	datalen += sizeof(*dst);
 	return (rss_hash(datalen, data));
 }
 
@@ -363,18 +363,18 @@ rss_hash_ip6_2tuple(struct in6_addr src, struct in6_addr dst)
  * Hash an IPv6 4-tuple.
  */
 uint32_t
-rss_hash_ip6_4tuple(struct in6_addr src, u_short srcport,
-    struct in6_addr dst, u_short dstport)
+rss_hash_ip6_4tuple(const struct in6_addr *src, u_short srcport,
+    const struct in6_addr *dst, u_short dstport)
 {
-	uint8_t data[sizeof(src) + sizeof(dst) + sizeof(srcport) +
+	uint8_t data[sizeof(*src) + sizeof(*dst) + sizeof(srcport) +
 	    sizeof(dstport)];
 	u_int datalen;
 
 	datalen = 0;
-	bcopy(&src, &data[datalen], sizeof(src));
-	datalen += sizeof(src);
-	bcopy(&dst, &data[datalen], sizeof(dst));
-	datalen += sizeof(dst);
+	bcopy(src, &data[datalen], sizeof(*src));
+	datalen += sizeof(*src);
+	bcopy(dst, &data[datalen], sizeof(*dst));
+	datalen += sizeof(*dst);
 	bcopy(&srcport, &data[datalen], sizeof(srcport));
 	datalen += sizeof(srcport);
 	bcopy(&dstport, &data[datalen], sizeof(dstport));
@@ -568,6 +568,8 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 	const struct ip *ip;
 	const struct tcphdr *th;
 	const struct udphdr *uh;
+	uint32_t flowid;
+	uint32_t flowtype;
 	uint8_t proto;
 	int iphlen;
 	int is_frag = 0;
@@ -617,12 +619,10 @@ rss_mbuf_software_hash_v4(const struct mbuf *m, int dir, uint32_t *hashval,
 	 * then we shouldn't just "trust" the 2-tuple hash.  We need
 	 * a 4-tuple hash.
 	 */
-	if (m->m_flags & M_FLOWID) {
-		uint32_t flowid, flowtype;
+	flowid = m->m_pkthdr.flowid;
+	flowtype = M_HASHTYPE_GET(m);
 
-		flowid = m->m_pkthdr.flowid;
-		flowtype = M_HASHTYPE_GET(m);
-
+	if (flowtype != M_HASHTYPE_NONE) {
 		switch (proto) {
 		case IPPROTO_UDP:
 			if ((rss_gethashconfig_local() & RSS_HASHTYPE_RSS_UDP_IPV4) &&
@@ -743,7 +743,6 @@ rss_soft_m2cpuid(struct mbuf *m, uintptr_t source, u_int *cpuid)
 		/* hash was done; update */
 		m->m_pkthdr.flowid = hash_val;
 		M_HASHTYPE_SET(m, hash_type);
-		m->m_flags |= M_FLOWID;
 		*cpuid = rss_hash2cpuid(m->m_pkthdr.flowid, M_HASHTYPE_GET(m));
 	} else { /* ret < 0 */
 		/* no hash was done */

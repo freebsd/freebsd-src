@@ -65,7 +65,9 @@ SBCommandInterpreter::SBCommandInterpreter (CommandInterpreter *interpreter) :
 
     if (log)
         log->Printf ("SBCommandInterpreter::SBCommandInterpreter (interpreter=%p)"
-                     " => SBCommandInterpreter(%p)", interpreter, m_opaque_ptr);
+                     " => SBCommandInterpreter(%p)",
+                     static_cast<void*>(interpreter),
+                     static_cast<void*>(m_opaque_ptr));
 }
 
 SBCommandInterpreter::SBCommandInterpreter(const SBCommandInterpreter &rhs) :
@@ -129,12 +131,14 @@ SBCommandInterpreter::HandleCommand (const char *command_line, SBCommandReturnOb
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
 
     if (log)
-        log->Printf ("SBCommandInterpreter(%p)::HandleCommand (command=\"%s\", SBCommandReturnObject(%p), add_to_history=%i)", 
-                     m_opaque_ptr, command_line, result.get(), add_to_history);
+        log->Printf ("SBCommandInterpreter(%p)::HandleCommand (command=\"%s\", SBCommandReturnObject(%p), add_to_history=%i)",
+                     static_cast<void*>(m_opaque_ptr), command_line,
+                     static_cast<void*>(result.get()), add_to_history);
 
     result.Clear();
     if (command_line && m_opaque_ptr)
     {
+        result.ref().SetInteractive(false);
         m_opaque_ptr->HandleCommand (command_line, add_to_history ? eLazyBoolYes : eLazyBoolNo, result.ref());
     }
     else
@@ -150,7 +154,9 @@ SBCommandInterpreter::HandleCommand (const char *command_line, SBCommandReturnOb
         SBStream sstr;
         result.GetDescription (sstr);
         log->Printf ("SBCommandInterpreter(%p)::HandleCommand (command=\"%s\", SBCommandReturnObject(%p): %s, add_to_history=%i) => %i", 
-                     m_opaque_ptr, command_line, result.get(), sstr.GetData(), add_to_history, result.GetStatus());
+                     static_cast<void*>(m_opaque_ptr), command_line,
+                     static_cast<void*>(result.get()), sstr.GetData(),
+                     add_to_history, result.GetStatus());
     }
 
     return result.GetStatus();
@@ -166,23 +172,27 @@ SBCommandInterpreter::HandleCompletion (const char *current_line,
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
     int num_completions = 0;
-    
+
     // Sanity check the arguments that are passed in:
     // cursor & last_char have to be within the current_line.
     if (current_line == NULL || cursor == NULL || last_char == NULL)
         return 0;
-    
+
     if (cursor < current_line || last_char < current_line)
         return 0;
-        
+
     size_t current_line_size = strlen (current_line);
-    if (cursor - current_line > current_line_size || last_char - current_line > current_line_size)
+    if (cursor - current_line > static_cast<ptrdiff_t>(current_line_size) ||
+        last_char - current_line > static_cast<ptrdiff_t>(current_line_size))
         return 0;
-        
+
     if (log)
         log->Printf ("SBCommandInterpreter(%p)::HandleCompletion (current_line=\"%s\", cursor at: %" PRId64 ", last char at: %" PRId64 ", match_start_point: %d, max_return_elements: %d)",
-                     m_opaque_ptr, current_line, (uint64_t) (cursor - current_line), (uint64_t) (last_char - current_line), match_start_point, max_return_elements);
-                     
+                     static_cast<void*>(m_opaque_ptr), current_line,
+                     static_cast<uint64_t>(cursor - current_line),
+                     static_cast<uint64_t>(last_char - current_line),
+                     match_start_point, max_return_elements);
+
     if (m_opaque_ptr)
     {
         lldb_private::StringList lldb_matches;
@@ -193,8 +203,9 @@ SBCommandInterpreter::HandleCompletion (const char *current_line,
         matches.AppendList (temp_list);
     }
     if (log)
-        log->Printf ("SBCommandInterpreter(%p)::HandleCompletion - Found %d completions.", m_opaque_ptr, num_completions);
-        
+        log->Printf ("SBCommandInterpreter(%p)::HandleCompletion - Found %d completions.",
+                     static_cast<void*>(m_opaque_ptr), num_completions);
+
     return num_completions;
 }
 
@@ -253,9 +264,9 @@ SBCommandInterpreter::GetProcess ()
 
     if (log)
         log->Printf ("SBCommandInterpreter(%p)::GetProcess () => SBProcess(%p)", 
-                     m_opaque_ptr, process_sp.get());
+                     static_cast<void*>(m_opaque_ptr),
+                     static_cast<void*>(process_sp.get()));
 
-    
     return sb_process;
 }
 
@@ -266,12 +277,12 @@ SBCommandInterpreter::GetDebugger ()
     if (m_opaque_ptr)
         sb_debugger.reset(m_opaque_ptr->GetDebugger().shared_from_this());
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
-    
+
     if (log)
         log->Printf ("SBCommandInterpreter(%p)::GetDebugger () => SBDebugger(%p)",
-                     m_opaque_ptr, sb_debugger.get());
-    
-    
+                     static_cast<void*>(m_opaque_ptr),
+                     static_cast<void*>(sb_debugger.get()));
+
     return sb_debugger;
 }
 
@@ -315,8 +326,8 @@ SBCommandInterpreter::SourceInitFileInHomeDirectory (SBCommandReturnObject &resu
 
     if (log)
         log->Printf ("SBCommandInterpreter(%p)::SourceInitFileInHomeDirectory (&SBCommandReturnObject(%p))", 
-                     m_opaque_ptr, result.get());
-
+                     static_cast<void*>(m_opaque_ptr),
+                     static_cast<void*>(result.get()));
 }
 
 void
@@ -340,7 +351,8 @@ SBCommandInterpreter::SourceInitFileInCurrentWorkingDirectory (SBCommandReturnOb
 
     if (log)
         log->Printf ("SBCommandInterpreter(%p)::SourceInitFileInCurrentWorkingDirectory (&SBCommandReturnObject(%p))", 
-                     m_opaque_ptr, result.get());
+                     static_cast<void*>(m_opaque_ptr),
+                     static_cast<void*>(result.get()));
 }
 
 SBBroadcaster
@@ -352,7 +364,7 @@ SBCommandInterpreter::GetBroadcaster ()
 
     if (log)
         log->Printf ("SBCommandInterpreter(%p)::GetBroadcaster() => SBBroadcaster(%p)", 
-                     m_opaque_ptr, broadcaster.get());
+                     static_cast<void*>(m_opaque_ptr), static_cast<void*>(broadcaster.get()));
 
     return broadcaster;
 }

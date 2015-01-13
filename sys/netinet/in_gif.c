@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
-#include <netinet/in_gif.h>
 #include <netinet/in_var.h>
 #include <netinet/ip_encap.h>
 #include <netinet/ip_ecn.h>
@@ -70,9 +69,10 @@ __FBSDID("$FreeBSD$");
 
 static int gif_validate4(const struct ip *, struct gif_softc *,
 	struct ifnet *);
+static int in_gif_input(struct mbuf **, int *, int);
 
 extern  struct domain inetdomain;
-struct protosw in_gif_protosw = {
+static struct protosw in_gif_protosw = {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		0/* IPPROTO_IPV[46] */,
@@ -83,9 +83,10 @@ struct protosw in_gif_protosw = {
 	.pr_usrreqs =		&rip_usrreqs
 };
 
-VNET_DEFINE(int, ip_gif_ttl) = GIF_TTL;
+#define GIF_TTL		30
+static VNET_DEFINE(int, ip_gif_ttl) = GIF_TTL;
 #define	V_ip_gif_ttl		VNET(ip_gif_ttl)
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_ip, IPCTL_GIF_TTL, gifttl, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(ip_gif_ttl), 0, "");
 
 int
@@ -103,8 +104,6 @@ in_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 		len += ETHERIP_ALIGN;
 #endif
 	M_PREPEND(m, len, M_NOWAIT);
-	if (m != NULL && m->m_len < len)
-		m = m_pullup(m, len);
 	if (m == NULL)
 		return (ENOBUFS);
 #ifndef __NO_STRICT_ALIGNMENT
@@ -135,7 +134,7 @@ in_gif_output(struct ifnet *ifp, struct mbuf *m, int proto, uint8_t ecn)
 	return (ip_output(m, NULL, NULL, 0, NULL, NULL));
 }
 
-int
+static int
 in_gif_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct mbuf *m = *mp;
@@ -169,7 +168,6 @@ in_gif_input(struct mbuf **mp, int *offp, int proto)
 static int
 gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 {
-	struct in_ifaddr *ia4;
 
 	GIF_RLOCK_ASSERT(sc);
 
@@ -187,19 +185,6 @@ gif_validate4(const struct ip *ip, struct gif_softc *sc, struct ifnet *ifp)
 	case 255:
 		return (0);
 	}
-
-	/* reject packets with broadcast on source */
-	/* XXXRW: should use hash lists? */
-	IN_IFADDR_RLOCK();
-	TAILQ_FOREACH(ia4, &V_in_ifaddrhead, ia_link) {
-		if ((ia4->ia_ifa.ifa_ifp->if_flags & IFF_BROADCAST) == 0)
-			continue;
-		if (ip->ip_src.s_addr == ia4->ia_broadaddr.sin_addr.s_addr) {
-			IN_IFADDR_RUNLOCK();
-			return (0);
-		}
-	}
-	IN_IFADDR_RUNLOCK();
 
 	/* ingress filters on outer source */
 	if ((GIF2IFP(sc)->if_flags & IFF_LINK2) == 0 && ifp) {

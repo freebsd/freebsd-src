@@ -1493,13 +1493,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		    the_len, M_NOWAIT);
 #ifdef SCTP_MBUF_LOGGING
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-			struct mbuf *mat;
-
-			for (mat = dmbuf; mat; mat = SCTP_BUF_NEXT(mat)) {
-				if (SCTP_BUF_IS_EXTENDED(mat)) {
-					sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-				}
-			}
+			sctp_log_mbc(dmbuf, SCTP_MBUF_ICOPY);
 		}
 #endif
 	} else {
@@ -2296,7 +2290,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
     struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, struct sctp_inpcb *inp,
     struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t * high_tsn,
-    uint8_t use_mflowid, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid,
     uint32_t vrf_id, uint16_t port)
 {
 	struct sctp_data_chunk *ch, chunk_buf;
@@ -2391,7 +2385,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_19;
 				sctp_abort_association(inp, stcb, m, iphlen,
 				    src, dst, sh, op_err,
-				    use_mflowid, mflowid,
+				    mflowtype, mflowid,
 				    vrf_id, port);
 				return (2);
 			}
@@ -2406,7 +2400,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_19;
 				sctp_abort_association(inp, stcb, m, iphlen,
 				    src, dst, sh, op_err,
-				    use_mflowid, mflowid,
+				    mflowtype, mflowid,
 				    vrf_id, port);
 				return (2);
 			}
@@ -2475,7 +2469,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 					    m, iphlen,
 					    src, dst,
 					    sh, op_err,
-					    use_mflowid, mflowid,
+					    mflowtype, mflowid,
 					    vrf_id, port);
 					return (2);
 				}

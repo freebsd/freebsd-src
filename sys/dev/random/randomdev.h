@@ -35,28 +35,33 @@
 
 typedef void random_init_func_t(void);
 typedef void random_deinit_func_t(void);
-typedef int random_block_func_t(int);
-typedef int random_read_func_t(void *, int);
-typedef int random_poll_func_t(int, struct thread *);
-typedef void random_reseed_func_t(void);
 
-struct random_adaptor {
-	struct selinfo		rsel;
-	const char		*ident;
-	int			seeded;
-	unsigned		priority;
-	random_init_func_t	*init;
-	random_deinit_func_t	*deinit;
-	random_block_func_t	*block;
-	random_read_func_t	*read;
-	random_poll_func_t	*poll;
-	random_reseed_func_t	*reseed;
-};
+void randomdev_init_harvester(void (*)(const void *, u_int, u_int, enum random_entropy_source));
+void randomdev_init_reader(u_int (*)(uint8_t *, u_int));
+void randomdev_deinit_harvester(void);
+void randomdev_deinit_reader(void);
 
-struct random_hardware_source {
-	const char		*ident;
-	enum esource		source;
-	random_read_func_t	*read;
-};
+/* Stub/fake routines for when no entropy processor is loaded */
+extern u_int dummy_random_read_phony(uint8_t *, u_int);
+
+/* kern.random sysctls */
+#ifdef SYSCTL_DECL	/* from sysctl.h */
+SYSCTL_DECL(_kern_random);
+
+/* If this was C++, the macro below would be a template */
+#define RANDOM_CHECK_UINT(name, min, max)				\
+static int								\
+random_check_uint_##name(SYSCTL_HANDLER_ARGS)				\
+{									\
+	if (oidp->oid_arg1 != NULL) {					\
+		 if (*(u_int *)(oidp->oid_arg1) <= (min))		\
+			*(u_int *)(oidp->oid_arg1) = (min);		\
+		 else if (*(u_int *)(oidp->oid_arg1) > (max))		\
+			*(u_int *)(oidp->oid_arg1) = (max);		\
+	}								\
+        return (sysctl_handle_int(oidp, oidp->oid_arg1, oidp->oid_arg2,	\
+		req));							\
+}
+#endif /* SYSCTL_DECL */
 
 #endif

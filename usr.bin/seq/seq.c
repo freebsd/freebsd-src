@@ -1,4 +1,4 @@
-/*	$NetBSD: seq.c,v 1.5 2008/07/21 14:19:26 lukem Exp $	*/
+/*	$NetBSD: seq.c,v 1.7 2010/05/27 08:40:19 dholland Exp $	*/
 /*
  * Copyright (c) 2005 The NetBSD Foundation, Inc.
  * All rights reserved.
@@ -158,6 +158,8 @@ main(int argc, char *argv[])
 		if (!valid_format(fmt))
 			errx(1, "invalid format string: `%s'", fmt);
 		fmt = unescape(fmt);
+		if (!valid_format(fmt))
+			errx(1, "invalid format string");
 		/*
 	         * XXX to be bug for bug compatible with Plan 9 add a
 		 * newline if none found at the end of the format string.
@@ -225,39 +227,56 @@ numeric(const char *s)
 static int
 valid_format(const char *fmt)
 {
-	int conversions = 0;
+	unsigned conversions = 0;
 
 	while (*fmt != '\0') {
 		/* scan for conversions */
-		if (*fmt != '\0' && *fmt != '%') {
-			do {
-				fmt++;
-			} while (*fmt != '\0' && *fmt != '%');
+		if (*fmt != '%') {
+			fmt++;
+			continue;
 		}
-		/* scan a conversion */
-		if (*fmt != '\0') {
-			do {
+		fmt++;
+
+		/* allow %% but not things like %10% */
+		if (*fmt == '%') {
+			fmt++;
+			continue;
+		}
+
+		/* flags */
+		while (*fmt != '\0' && strchr("#0- +'", *fmt)) {
+			fmt++;
+		}
+
+		/* field width */
+		while (*fmt != '\0' && strchr("0123456789", *fmt)) {
+			fmt++;
+		}
+
+		/* precision */
+		if (*fmt == '.') {
+			fmt++;
+			while (*fmt != '\0' && strchr("0123456789", *fmt)) {
 				fmt++;
+			}
+		}
 
-				/* ok %% */
-				if (*fmt == '%') {
-					fmt++;
-					break;
-				}
-				/* valid conversions */
-				if (strchr("eEfgG", *fmt) &&
-				    conversions++ < 1) {
-					fmt++;
-					break;
-				}
-				/* flags, width and precision */
-				if (isdigit((unsigned char)*fmt) ||
-				    strchr("+- 0#.", *fmt))
-					continue;
-
-				/* oops! bad conversion format! */
-				return (0);
-			} while (*fmt != '\0');
+		/* conversion */
+		switch (*fmt) {
+		    case 'A':
+		    case 'a':
+		    case 'E':
+		    case 'e':
+		    case 'F':
+		    case 'f':
+		    case 'G':
+		    case 'g':
+			/* floating point formats are accepted */
+			conversions++;
+			break;
+		    default:
+			/* anything else is not */
+			return 0;
 		}
 	}
 

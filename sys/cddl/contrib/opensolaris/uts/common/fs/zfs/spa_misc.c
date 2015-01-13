@@ -401,6 +401,9 @@ zfs_deadman_init()
  * See also the comments in zfs_space_check_t.
  */
 int spa_slop_shift = 5;
+SYSCTL_INT(_vfs_zfs, OID_AUTO, spa_slop_shift, CTLFLAG_RWTUN,
+    &spa_slop_shift, 0,
+    "Shift value of reserved space (1/(2^spa_slop_shift)).");
 
 /*
  * ==========================================================================
@@ -2047,4 +2050,13 @@ boolean_t
 spa_debug_enabled(spa_t *spa)
 {
 	return (spa->spa_debug);
+}
+
+int
+spa_maxblocksize(spa_t *spa)
+{
+	if (spa_feature_is_enabled(spa, SPA_FEATURE_LARGE_BLOCKS))
+		return (SPA_MAXBLOCKSIZE);
+	else
+		return (SPA_OLD_MAXBLOCKSIZE);
 }

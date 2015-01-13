@@ -1035,11 +1035,9 @@ qsync(struct mount *mp)
 	 * Check if the mount point has any quotas.
 	 * If not, simply return.
 	 */
-	UFS_LOCK(ump);
 	for (i = 0; i < MAXQUOTAS; i++)
 		if (ump->um_quotas[i] != NULLVP)
 			break;
-	UFS_UNLOCK(ump);
 	if (i == MAXQUOTAS)
 		return (0);
 	/*
@@ -1084,11 +1082,9 @@ qsyncvp(struct vnode *vp)
 	 * Check if the mount point has any quotas.
 	 * If not, simply return.
 	 */
-	UFS_LOCK(ump);
 	for (i = 0; i < MAXQUOTAS; i++)
 		if (ump->um_quotas[i] != NULLVP)
 			break;
-	UFS_UNLOCK(ump);
 	if (i == MAXQUOTAS)
 		return (0);
 	/*

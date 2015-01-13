@@ -34,6 +34,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <openssl/md5.h>
 
 #include <iscsi_ioctl.h>
 
@@ -43,6 +44,7 @@
 #define	CONN_DIGEST_CRC32C		1
 
 #define CONN_MUTUAL_CHALLENGE_LEN	1024
+#define	SOCKBUF_SIZE			1048576
 
 struct connection {
 	int			conn_iscsi_fd;
@@ -60,8 +62,7 @@ struct connection {
 	size_t			conn_max_data_segment_length;
 	size_t			conn_max_burst_length;
 	size_t			conn_first_burst_length;
-	char			conn_mutual_challenge[CONN_MUTUAL_CHALLENGE_LEN];
-	unsigned char		conn_mutual_id;
+	struct chap		*conn_mutual_chap;
 };
 
 struct pdu {
@@ -79,6 +80,35 @@ struct keys {
 	char			*keys_data;
 	size_t			keys_data_len;
 };
+
+#define	CHAP_CHALLENGE_LEN	1024
+
+struct chap {
+	unsigned char	chap_id;
+	char		chap_challenge[CHAP_CHALLENGE_LEN];
+	char		chap_response[MD5_DIGEST_LENGTH];
+};
+
+struct rchap {
+	char		*rchap_secret;
+	unsigned char	rchap_id;
+	void		*rchap_challenge;
+	size_t		rchap_challenge_len;
+};
+
+struct chap		*chap_new(void);
+char			*chap_get_id(const struct chap *chap);
+char			*chap_get_challenge(const struct chap *chap);
+int			chap_receive(struct chap *chap, const char *response);
+int			chap_authenticate(struct chap *chap,
+			    const char *secret);
+void			chap_delete(struct chap *chap);
+
+struct rchap		*rchap_new(const char *secret);
+int			rchap_receive(struct rchap *rchap,
+			    const char *id, const char *challenge);
+char			*rchap_get_response(struct rchap *rchap);
+void			rchap_delete(struct rchap *rchap);
 
 struct keys		*keys_new(void);
 void			keys_delete(struct keys *key);

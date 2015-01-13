@@ -351,6 +351,12 @@ options 	COMPAT_FREEBSD6
 # Enable FreeBSD7 compatibility syscalls
 options 	COMPAT_FREEBSD7
 
+# Enable FreeBSD9 compatibility syscalls
+options 	COMPAT_FREEBSD9
+
+# Enable FreeBSD10 compatibility syscalls
+options 	COMPAT_FREEBSD10
+
 #
 # These three options provide support for System V Interface
 # Definition-style interprocess communication, in the form of shared
@@ -795,6 +801,10 @@ device		ether
 #  according to IEEE 802.1Q.
 device		vlan
 
+# The `vxlan' device implements the VXLAN encapsulation of Ethernet
+# frames in UDP packets according to RFC7348.
+device		vxlan
+
 #  The `wlan' device provides generic code to support 802.11
 #  drivers, including host AP mode; it is MANDATORY for the wi,
 #  and ath drivers and will eventually be required by all 802.11 drivers.
@@ -869,18 +879,18 @@ device		tun
 #  The `gif' device implements IPv6 over IP4 tunneling,
 #  IPv4 over IPv6 tunneling, IPv4 over IPv4 tunneling and
 #  IPv6 over IPv6 tunneling.
-#  The `gre' device implements two types of IP4 over IP4 tunneling:
-#  GRE and MOBILE, as specified in the RFC1701 and RFC2004.
+#  The `gre' device implements GRE (Generic Routing Encapsulation) tunneling,
+#  as specified in the RFC 2784 and RFC 2890.
+#  The `me' device implements Minimal Encapsulation within IPv4 as
+#  specified in the RFC 2004.
 #  The XBONEHACK option allows the same pair of addresses to be configured on
 #  multiple gif interfaces.
 device		gif
 device		gre
+device		me
 options 	XBONEHACK
 
-#  The `faith' device captures packets sent to it and diverts them
-#  to the IPv4/IPv6 translation daemon.
 #  The `stf' device implements 6to4 encapsulation.
-device		faith
 device		stf
 
 # The pf packet filter consists of three devices:
@@ -1009,7 +1019,7 @@ options 	DUMMYNET
 
 # One of these is mandatory:
 options 	FFS			#Fast filesystem
-options 	NFSCLIENT		#Network File System client
+options 	NFSCL			#Network File System client
 
 # The rest are optional:
 options 	AUTOFS			#Automounter filesystem
@@ -1017,10 +1027,8 @@ options 	CD9660			#ISO 9660 filesystem
 options 	FDESCFS			#File descriptor filesystem
 options 	FUSE			#FUSE support module
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
-options 	NFSSERVER		#Network File System server
 options 	NFSLOCKD		#Network Lock Manager
-options 	NFSCL			#New Network Filesystem Client
-options 	NFSD			#New Network Filesystem Server
+options 	NFSD			#Network Filesystem Server
 options 	KGSSAPI			#Kernel GSSAPI implementation
 
 options 	NULLFS			#NULL filesystem
@@ -1089,8 +1097,6 @@ options 	NFS_MINATTRTIMO=3	# VREG attrib cache timeout in sec
 options 	NFS_MAXATTRTIMO=60
 options 	NFS_MINDIRATTRTIMO=30	# VDIR attrib cache timeout in sec
 options 	NFS_MAXDIRATTRTIMO=60
-options 	NFS_GATHERDELAY=10	# Default write gather delay (msec)
-options 	NFS_WDELAYHASHSIZ=16	# and with this
 options 	NFS_DEBUG		# Enable NFS Debugging
 
 #
@@ -1911,8 +1917,6 @@ device		xmphy		# XaQti XMAC II
 # cas:	Sun Cassini/Cassini+ and National Semiconductor DP83065 Saturn
 # cm:	Arcnet SMC COM90c26 / SMC COM90c56
 #	(and SMC COM90c66 in '56 compatibility mode) adapters.
-# cxgbe: Support for PCI express 10Gb/1Gb adapters based on the Chelsio T4
-#       (Terminator 4) ASIC.
 # dc:   Support for PCI fast ethernet adapters based on the DEC/Intel 21143
 #       and various workalikes including:
 #       the ADMtek AL981 Comet and AN985 Centaur, the ASIX Electronics
@@ -2089,7 +2093,6 @@ device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # PCI Ethernet NICs.
-device		cxgbe		# Chelsio T4 10GbE PCIe adapter
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet
 device		igb		# Intel Pro/1000 PCIE Gigabit Ethernet
@@ -2347,19 +2350,6 @@ options		SND_PCM_64
 options		SND_OLDSTEREO
 
 #
-# IEEE-488 hardware:
-# pcii:		PCIIA cards (uPD7210 based isa cards)
-# tnt4882:	National Instruments PCI-GPIB card.
-
-device	pcii
-hint.pcii.0.at="isa"
-hint.pcii.0.port="0x2e1"
-hint.pcii.0.irq="5"
-hint.pcii.0.drq="1"
-
-device	tnt4882
-
-#
 # Miscellaneous hardware:
 #
 # scd: Sony CD-ROM using proprietary (non-ATAPI) interface
@@ -2586,7 +2576,7 @@ device		pcfclock
 # Kernel BOOTP support
 
 options 	BOOTP		# Use BOOTP to obtain IP address/hostname
-				# Requires NFSCLIENT and NFS_ROOT
+				# Requires NFSCL and NFS_ROOT
 options 	BOOTP_NFSROOT	# NFS mount root filesystem using BOOTP info
 options 	BOOTP_NFSV3	# Use NFS v3 to NFS mount root
 options 	BOOTP_COMPAT	# Workaround for broken bootp daemons.
@@ -2778,7 +2768,7 @@ options 	U3G_DEBUG
 
 # options for ukbd:
 options 	UKBD_DFLT_KEYMAP	# specify the built-in keymap
-makeoptions	UKBD_DFLT_KEYMAP=it.iso
+makeoptions	UKBD_DFLT_KEYMAP=jp.pc98
 
 # options for uplcom:
 options 	UPLCOM_INTR_INTERVAL=100	# interrupt pipe interval
@@ -2983,10 +2973,10 @@ options 	BROOKTREE_ALLOC_PAGES=(217*4+1)
 options 	MAXFILES=999
 
 # Random number generator
-options 	RANDOM_YARROW	# Yarrow RNG
-##options 	RANDOM_FORTUNA	# Fortuna RNG - not yet implemented
+# Only ONE of the below two may be used; they are mutually exclusive.
+options 	RANDOM_YARROW	# Yarrow CSPRNG (Default)
+#options 	RANDOM_FORTUNA	# Fortuna CSPRNG
 options 	RANDOM_DEBUG	# Debugging messages
-options 	RANDOM_RWFILE	# Read and write entropy cache
 
 # Module to enable execution of application via emulators like QEMU
 options         IMAGACT_BINMISC

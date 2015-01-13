@@ -1127,9 +1127,8 @@ ng_btsocket_l2cap_process_l2ca_write_rsp(struct ng_mesg *msg,
 	/*
  	 * Check if we have more data to send
  	 */
-
 	sbdroprecord(&pcb->so->so_snd);
-	if (pcb->so->so_snd.sb_cc > 0) {
+	if (sbavail(&pcb->so->so_snd) > 0) {
 		if (ng_btsocket_l2cap_send2(pcb) == 0)
 			ng_btsocket_l2cap_timeout(pcb);
 		else
@@ -2513,7 +2512,7 @@ ng_btsocket_l2cap_send2(ng_btsocket_l2cap_pcb_p pcb)
 	
 	mtx_assert(&pcb->pcb_mtx, MA_OWNED);
 
-	if (pcb->so->so_snd.sb_cc == 0)
+	if (sbavail(&pcb->so->so_snd) == 0)
 		return (EINVAL); /* XXX */
 
 	m = m_dup(pcb->so->so_snd.sb_mb, M_NOWAIT);

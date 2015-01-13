@@ -47,8 +47,10 @@ CFLAGS.clang += -mfpu=none
 
 .if !empty(DDB_ENABLED)
 CFLAGS += -funwind-tables
-# clang requires us to tell it to emit assembly with unwind information
-CFLAGS.clang += -mllvm -arm-enable-ehabi
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} < 30500
+# clang < 3.5.0 requires us to tell it to emit assembly with unwind information
+CFLAGS += -mllvm -arm-enable-ehabi
+.endif
 .endif
 
 # hack because genassym.c includes sys/bus.h which includes these.
@@ -77,6 +79,7 @@ FILES_CPU_FUNC = \
 	$S/$M/$M/cpufunc_asm_pj4b.S $S/$M/$M/cpufunc_asm_armv6.S \
 	$S/$M/$M/cpufunc_asm_armv7.S
 
+.if defined(KERNPHYSADDR)
 KERNEL_EXTRA=trampoline
 KERNEL_EXTRA_INSTALL=kernel.gz.tramp
 trampoline: ${KERNEL_KO}.tramp
@@ -121,6 +124,7 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	    ${KERNEL_KO}.gz.tramp.bin
 	rm ${KERNEL_KO}.tmp.gz ${KERNEL_KO}.tramp.noheader opt_kernname.h \
 	    inflate-tramp.o tmphack.S
+.endif
 
 %BEFORE_DEPEND
 

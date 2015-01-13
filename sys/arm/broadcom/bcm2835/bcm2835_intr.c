@@ -83,10 +83,10 @@ struct bcm_intc_softc {
 
 static struct bcm_intc_softc *bcm_intc_sc = NULL;
 
-#define	intc_read_4(reg)		\
-    bus_space_read_4(bcm_intc_sc->intc_bst, bcm_intc_sc->intc_bsh, reg)
-#define	intc_write_4(reg, val)		\
-    bus_space_write_4(bcm_intc_sc->intc_bst, bcm_intc_sc->intc_bsh, reg, val)
+#define	intc_read_4(_sc, reg)		\
+    bus_space_read_4((_sc)->intc_bst, (_sc)->intc_bsh, (reg))
+#define	intc_write_4(_sc, reg, val)		\
+    bus_space_write_4((_sc)->intc_bst, (_sc)->intc_bsh, (reg), (val))
 
 static int
 bcm_intc_probe(device_t dev)
@@ -145,6 +145,7 @@ DRIVER_MODULE(intc, simplebus, bcm_intc_driver, bcm_intc_devclass, 0, 0);
 int
 arm_get_next_irq(int last_irq)
 {
+	struct bcm_intc_softc *sc = bcm_intc_sc;
 	uint32_t pending;
 	int32_t irq = last_irq + 1;
 
@@ -154,7 +155,7 @@ arm_get_next_irq(int last_irq)
 
 	/* TODO: should we mask last_irq? */
 	if (irq < BANK1_START) {
-		pending = intc_read_4(INTC_PENDING_BASIC);
+		pending = intc_read_4(sc, INTC_PENDING_BASIC);
 		if ((pending & 0xFF) == 0) {
 			irq  = BANK1_START;	/* skip to next bank */
 		} else do {
@@ -164,7 +165,7 @@ arm_get_next_irq(int last_irq)
 		} while (irq < BANK1_START);
 	}
 	if (irq < BANK2_START) {
-		pending = intc_read_4(INTC_PENDING_BANK1);
+		pending = intc_read_4(sc, INTC_PENDING_BANK1);
 		if (pending == 0) {
 			irq  = BANK2_START;	/* skip to next bank */
 		} else do {
@@ -174,7 +175,7 @@ arm_get_next_irq(int last_irq)
 		} while (irq < BANK2_START);
 	}
 	if (irq < BANK3_START) {
-		pending = intc_read_4(INTC_PENDING_BANK2);
+		pending = intc_read_4(sc, INTC_PENDING_BANK2);
 		if (pending != 0) do {
 			if (pending & (1 << IRQ_BANK2(irq)))
 				return irq;
@@ -187,14 +188,15 @@ arm_get_next_irq(int last_irq)
 void
 arm_mask_irq(uintptr_t nb)
 {
+	struct bcm_intc_softc *sc = bcm_intc_sc;
 	dprintf("%s: %d\n", __func__, nb);
 
 	if (IS_IRQ_BASIC(nb))
-		intc_write_4(INTC_DISABLE_BASIC, (1 << nb));
+		intc_write_4(sc, INTC_DISABLE_BASIC, (1 << nb));
 	else if (IS_IRQ_BANK1(nb))
-		intc_write_4(INTC_DISABLE_BANK1, (1 << IRQ_BANK1(nb)));
+		intc_write_4(sc, INTC_DISABLE_BANK1, (1 << IRQ_BANK1(nb)));
 	else if (IS_IRQ_BANK2(nb))
-		intc_write_4(INTC_DISABLE_BANK2, (1 << IRQ_BANK2(nb)));
+		intc_write_4(sc, INTC_DISABLE_BANK2, (1 << IRQ_BANK2(nb)));
 	else
 		printf("arm_mask_irq: Invalid IRQ number: %d\n", nb);
 }
@@ -202,14 +204,15 @@ arm_mask_irq(uintptr_t nb)
 void
 arm_unmask_irq(uintptr_t nb)
 {
+	struct bcm_intc_softc *sc = bcm_intc_sc;
 	dprintf("%s: %d\n", __func__, nb);
 
 	if (IS_IRQ_BASIC(nb))
-		intc_write_4(INTC_ENABLE_BASIC, (1 << nb));
+		intc_write_4(sc, INTC_ENABLE_BASIC, (1 << nb));
 	else if (IS_IRQ_BANK1(nb))
-		intc_write_4(INTC_ENABLE_BANK1, (1 << IRQ_BANK1(nb)));
+		intc_write_4(sc, INTC_ENABLE_BANK1, (1 << IRQ_BANK1(nb)));
 	else if (IS_IRQ_BANK2(nb))
-		intc_write_4(INTC_ENABLE_BANK2, (1 << IRQ_BANK2(nb)));
+		intc_write_4(sc, INTC_ENABLE_BANK2, (1 << IRQ_BANK2(nb)));
 	else
 		printf("arm_mask_irq: Invalid IRQ number: %d\n", nb);
 }

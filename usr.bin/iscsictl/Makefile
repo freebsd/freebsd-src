@@ -4,10 +4,9 @@ PROG=		iscsictl
 SRCS=		iscsictl.c periphs.c parse.y token.l y.tab.h
 CFLAGS+=	-I${.CURDIR}
 CFLAGS+=	-I${.CURDIR}/../../sys/dev/iscsi
-MAN=		iscsictl.8
+MAN=		iscsi.conf.5 iscsictl.8
 
-DPADD=		${LIBCAM} ${LIBUTIL} 
-LDADD=		-lcam -lutil
+LIBADD=		cam util
 
 YFLAGS+=	-v
 LFLAGS+=	-i

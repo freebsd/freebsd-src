@@ -32,7 +32,6 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/mlx4/driver.h>
 #include <linux/in.h>

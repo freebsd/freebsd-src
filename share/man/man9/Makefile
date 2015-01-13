@@ -46,6 +46,7 @@ MAN=	accept_filter.9 \
 	BUS_SETUP_INTR.9 \
 	bus_space.9 \
 	byteorder.9 \
+	casuword.9 \
 	cd.9 \
 	condvar.9 \
 	config_intrhook.9 \
@@ -344,6 +345,7 @@ MAN=	accept_filter.9 \
 	vmem.9 \
 	vn_fullpath.9 \
 	vn_isdisk.9 \
+	vnet.9 \
 	vnode.9 \
 	VOP_ACCESS.9 \
 	VOP_ACLCHECK.9 \
@@ -581,6 +583,9 @@ MLINKS+=condvar.9 cv_broadcast.9 \
 MLINKS+=config_intrhook.9 config_intrhook_disestablish.9 \
 	config_intrhook.9 config_intrhook_establish.9
 MLINKS+=contigmalloc.9 contigfree.9
+MLINKS+=casuword.9 casueword.9 \
+	casuword.9 casueword32.9 \
+	casuword.9 casuword32.9
 MLINKS+=copy.9 copyin.9 \
 	copy.9 copyin_nofault.9 \
 	copy.9 copyinstr.9 \
@@ -688,7 +693,10 @@ MLINKS+=fetch.9 fubyte.9 \
 	fetch.9 fuword.9 \
 	fetch.9 fuword16.9 \
 	fetch.9 fuword32.9 \
-	fetch.9 fuword64.9
+	fetch.9 fuword64.9 \
+	fetch.9 fueword.9 \
+	fetch.9 fueword32.9 \
+	fetch.9 fueword64.9
 MLINKS+=firmware.9 firmware_get.9 \
 	firmware.9 firmware_put.9 \
 	firmware.9 firmware_register.9 \
@@ -1072,6 +1080,8 @@ MLINKS+=microuptime.9 binuptime.9 \
 	microuptime.9 sbinuptime.9
 MLINKS+=mi_switch.9 cpu_switch.9 \
 	mi_switch.9 cpu_throw.9
+MLINKS+=mod_cc.9 CCV.9 \
+	mod_cc.9 DECLARE_CC_MODULE.9
 MLINKS+=mtx_pool.9 mtx_pool_alloc.9 \
 	mtx_pool.9 mtx_pool_create.9 \
 	mtx_pool.9 mtx_pool_destroy.9 \
@@ -1499,6 +1509,7 @@ MLINKS+=sysctl.9 SYSCTL_DECL.9 \
 	sysctl.9 SYSCTL_ADD_ROOT_NODE.9 \
 	sysctl.9 SYSCTL_ADD_STRING.9 \
 	sysctl.9 SYSCTL_ADD_STRUCT.9 \
+	sysctl.9 SYSCTL_ADD_UAUTO.9 \
 	sysctl.9 SYSCTL_ADD_UINT.9 \
 	sysctl.9 SYSCTL_ADD_ULONG.9 \
 	sysctl.9 SYSCTL_ADD_UQUAD.9 \
@@ -1567,12 +1578,16 @@ MLINKS+=timeout.9 callout.9 \
 	timeout.9 callout_pending.9 \
 	timeout.9 callout_reset.9 \
 	timeout.9 callout_reset_curcpu.9 \
-	timeout.9 callout_reset_sbt.9 \
 	timeout.9 callout_reset_on.9 \
+	timeout.9 callout_reset_sbt.9 \
+	timeout.9 callout_reset_sbt_curcpu.9 \
 	timeout.9 callout_reset_sbt_on.9 \
 	timeout.9 callout_schedule.9 \
 	timeout.9 callout_schedule_curcpu.9 \
 	timeout.9 callout_schedule_on.9 \
+	timeout.9 callout_schedule_sbt.9 \
+	timeout.9 callout_schedule_sbt_curcpu.9 \
+	timeout.9 callout_schedule_sbt_on.9 \
 	timeout.9 callout_stop.9 \
 	timeout.9 untimeout.9
 MLINKS+=ucred.9 cred_update_thread.9 \
@@ -1724,6 +1739,7 @@ MLINKS+=VOP_OPENCLOSE.9 VOP_CLOSE.9 \
 MLINKS+=VOP_RDWR.9 VOP_READ.9 \
 	VOP_RDWR.9 VOP_WRITE.9
 MLINKS+=VOP_REMOVE.9 VOP_RMDIR.9
+MLINKS+=vnet.9 vimage.9
 MLINKS+=vref.9 VREF.9
 MLINKS+=vrele.9 vput.9 \
 	vrele.9 vunref.9

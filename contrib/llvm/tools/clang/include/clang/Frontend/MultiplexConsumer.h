@@ -17,7 +17,7 @@
 
 #include "clang/Basic/LLVM.h"
 #include "clang/Sema/SemaConsumer.h"
-#include "llvm/ADT/OwningPtr.h"
+#include <memory>
 #include <vector>
 
 namespace clang {
@@ -33,28 +33,35 @@ public:
   ~MultiplexConsumer();
 
   // ASTConsumer
-  virtual void Initialize(ASTContext &Context);
-  virtual void HandleCXXStaticMemberVarInstantiation(VarDecl *VD);
-  virtual bool HandleTopLevelDecl(DeclGroupRef D);
-  virtual void HandleInterestingDecl(DeclGroupRef D);
-  virtual void HandleTranslationUnit(ASTContext &Ctx);
-  virtual void HandleTagDeclDefinition(TagDecl *D);
-  virtual void HandleCXXImplicitFunctionInstantiation(FunctionDecl *D);
-  virtual void HandleTopLevelDeclInObjCContainer(DeclGroupRef D);
-  virtual void CompleteTentativeDefinition(VarDecl *D);
-  virtual void HandleVTable(CXXRecordDecl *RD, bool DefinitionRequired);
-  virtual ASTMutationListener *GetASTMutationListener();
-  virtual ASTDeserializationListener *GetASTDeserializationListener();
-  virtual void PrintStats();
+  void Initialize(ASTContext &Context) override;
+  void HandleCXXStaticMemberVarInstantiation(VarDecl *VD) override;
+  bool HandleTopLevelDecl(DeclGroupRef D) override;
+  void HandleInlineMethodDefinition(CXXMethodDecl *D) override;
+  void HandleInterestingDecl(DeclGroupRef D) override;
+  void HandleTranslationUnit(ASTContext &Ctx) override;
+  void HandleTagDeclDefinition(TagDecl *D) override;
+  void HandleTagDeclRequiredDefinition(const TagDecl *D) override;
+  void HandleCXXImplicitFunctionInstantiation(FunctionDecl *D) override;
+  void HandleTopLevelDeclInObjCContainer(DeclGroupRef D) override;
+  void HandleImplicitImportDecl(ImportDecl *D) override;
+  void HandleLinkerOptionPragma(llvm::StringRef Opts) override;
+  void HandleDetectMismatch(llvm::StringRef Name,
+                            llvm::StringRef Value) override;
+  void HandleDependentLibrary(llvm::StringRef Lib) override;
+  void CompleteTentativeDefinition(VarDecl *D) override;
+  void HandleVTable(CXXRecordDecl *RD, bool DefinitionRequired) override;
+  ASTMutationListener *GetASTMutationListener() override;
+  ASTDeserializationListener *GetASTDeserializationListener() override;
+  void PrintStats() override;
 
   // SemaConsumer
-  virtual void InitializeSema(Sema &S);
-  virtual void ForgetSema();
+  void InitializeSema(Sema &S) override;
+  void ForgetSema() override;
 
 private:
   std::vector<ASTConsumer*> Consumers;  // Owns these.
-  OwningPtr<MultiplexASTMutationListener> MutationListener;
-  OwningPtr<MultiplexASTDeserializationListener> DeserializationListener;
+  std::unique_ptr<MultiplexASTMutationListener> MutationListener;
+  std::unique_ptr<MultiplexASTDeserializationListener> DeserializationListener;
 };
 
 }  // end namespace clang

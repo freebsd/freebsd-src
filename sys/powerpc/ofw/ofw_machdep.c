@@ -141,11 +141,9 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 	cell_t address_cells, size_cells;
 	cell_t OFmem[4 * PHYS_AVAIL_SZ];
 	int sz, i, j;
-	int apple_hack_mode;
 	phandle_t phandle;
 
 	sz = 0;
-	apple_hack_mode = 0;
 
 	/*
 	 * Get #address-cells from root node, defaulting to 1 if it cannot
@@ -328,6 +326,9 @@ openfirmware_core(void *args)
 	int		result;
 	register_t	oldmsr;
 
+	if (openfirmware_entry == NULL)
+		return (-1);
+
 	/*
 	 * Turn off exceptions - we really don't want to end up
 	 * anywhere unexpected with PCPU set to something strange
@@ -402,7 +403,12 @@ openfirmware(void *args)
 	int result;
 	#ifdef SMP
 	struct ofw_rv_args rv_args;
+	#endif
 
+	if (openfirmware_entry == NULL)
+		return (-1);
+
+	#ifdef SMP
 	rv_args.args = args;
 	rv_args.in_progress = 1;
 	smp_rendezvous(smp_no_rendevous_barrier, ofw_rendezvous_dispatch,

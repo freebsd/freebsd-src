@@ -252,7 +252,7 @@ static const	struct	optlist	ipopts[20] = {
 };
 
 #ifdef USE_INET6
-static struct optlist ip6exthdr[] = {
+static const struct optlist ip6exthdr[] = {
 	{ IPPROTO_HOPOPTS,		0x000001 },
 	{ IPPROTO_IPV6,			0x000002 },
 	{ IPPROTO_ROUTING,		0x000004 },

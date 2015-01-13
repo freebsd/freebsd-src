@@ -3846,13 +3846,7 @@ sctp_add_cookie(struct mbuf *init, int init_offset,
 	}
 #ifdef SCTP_MBUF_LOGGING
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-		struct mbuf *mat;
-
-		for (mat = copy_init; mat; mat = SCTP_BUF_NEXT(mat)) {
-			if (SCTP_BUF_IS_EXTENDED(mat)) {
-				sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-			}
-		}
+		sctp_log_mbc(copy_init, SCTP_MBUF_ICOPY);
 	}
 #endif
 	copy_initack = SCTP_M_COPYM(initack, initack_offset, M_COPYALL,
@@ -3864,13 +3858,7 @@ sctp_add_cookie(struct mbuf *init, int init_offset,
 	}
 #ifdef SCTP_MBUF_LOGGING
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-		struct mbuf *mat;
-
-		for (mat = copy_initack; mat; mat = SCTP_BUF_NEXT(mat)) {
-			if (SCTP_BUF_IS_EXTENDED(mat)) {
-				sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-			}
-		}
+		sctp_log_mbc(copy_initack, SCTP_MBUF_ICOPY);
 	}
 #endif
 	/* easy side we just drop it on the end */
@@ -3999,7 +3987,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
     uint32_t v_tag,
     uint16_t port,
     union sctp_sockstore *over_addr,
-    uint8_t use_mflowid, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid,
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     int so_locked SCTP_UNUSED
 #else
@@ -4090,18 +4078,11 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			SCTP_BUF_NEXT(newm) = m;
 			m = newm;
 			if (net != NULL) {
-#ifdef INVARIANTS
-				if (net->flowidset == 0) {
-					panic("Flow ID not set");
-				}
-#endif
 				m->m_pkthdr.flowid = net->flowid;
-				m->m_flags |= M_FLOWID;
+				M_HASHTYPE_SET(m, net->flowtype);
 			} else {
-				if (use_mflowid != 0) {
-					m->m_pkthdr.flowid = mflowid;
-					m->m_flags |= M_FLOWID;
-				}
+				m->m_pkthdr.flowid = mflowid;
+				M_HASHTYPE_SET(m, mflowtype);
 			}
 			packet_length = sctp_calculate_len(m);
 			ip = mtod(m, struct ip *);
@@ -4379,18 +4360,11 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			SCTP_BUF_NEXT(newm) = m;
 			m = newm;
 			if (net != NULL) {
-#ifdef INVARIANTS
-				if (net->flowidset == 0) {
-					panic("Flow ID not set");
-				}
-#endif
 				m->m_pkthdr.flowid = net->flowid;
-				m->m_flags |= M_FLOWID;
+				M_HASHTYPE_SET(m, net->flowtype);
 			} else {
-				if (use_mflowid != 0) {
-					m->m_pkthdr.flowid = mflowid;
-					m->m_flags |= M_FLOWID;
-				}
+				m->m_pkthdr.flowid = mflowid;
+				M_HASHTYPE_SET(m, mflowtype);
 			}
 			packet_length = sctp_calculate_len(m);
 
@@ -5484,7 +5458,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
     struct mbuf *init_pkt, int iphlen, int offset,
     struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, struct sctp_init_chunk *init_chk,
-    uint8_t use_mflowid, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid,
     uint32_t vrf_id, uint16_t port, int hold_inp_lock)
 {
 	struct sctp_association *asoc;
@@ -5536,7 +5510,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
 		    "Address added");
 		sctp_send_abort(init_pkt, iphlen, src, dst, sh, 0, op_err,
-		    use_mflowid, mflowid,
+		    mflowtype, mflowid,
 		    vrf_id, port);
 		return;
 	}
@@ -5555,7 +5529,7 @@ do_a_abort:
 		}
 		sctp_send_abort(init_pkt, iphlen, src, dst, sh,
 		    init_chk->init.initiate_tag, op_err,
-		    use_mflowid, mflowid,
+		    mflowtype, mflowid,
 		    vrf_id, port);
 		return;
 	}
@@ -6112,7 +6086,7 @@ do_a_abort:
 	    0, 0,
 	    inp->sctp_lport, sh->src_port, init_chk->init.initiate_tag,
 	    port, over_addr,
-	    use_mflowid, mflowid,
+	    mflowtype, mflowid,
 	    SCTP_SO_NOT_LOCKED);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 }
@@ -6496,13 +6470,7 @@ error_out:
 			appendchain = SCTP_M_COPYM(clonechain, 0, M_COPYALL, M_NOWAIT);
 #ifdef SCTP_MBUF_LOGGING
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-				struct mbuf *mat;
-
-				for (mat = appendchain; mat; mat = SCTP_BUF_NEXT(mat)) {
-					if (SCTP_BUF_IS_EXTENDED(mat)) {
-						sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-					}
-				}
+				sctp_log_mbc(appendchain, SCTP_MBUF_ICOPY);
 			}
 #endif
 		}
@@ -6595,13 +6563,7 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 		}
 #ifdef SCTP_MBUF_LOGGING
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-			struct mbuf *mat;
-
-			for (mat = m; mat; mat = SCTP_BUF_NEXT(mat)) {
-				if (SCTP_BUF_IS_EXTENDED(mat)) {
-					sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-				}
-			}
+			sctp_log_mbc(m, SCTP_MBUF_ICOPY);
 		}
 #endif
 	} else {
@@ -6748,7 +6710,7 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 	if (do_chunk_output)
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_USR_SEND, SCTP_SO_NOT_LOCKED);
 	else if (added_control) {
-		int num_out = 0, reason = 0, now_filled = 0;
+		int num_out, reason, now_filled = 0;
 		struct timeval now;
 		int frag_point;
 
@@ -7385,13 +7347,7 @@ dont_do_it:
 		}
 #ifdef SCTP_MBUF_LOGGING
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-			struct mbuf *mat;
-
-			for (mat = chk->data; mat; mat = SCTP_BUF_NEXT(mat)) {
-				if (SCTP_BUF_IS_EXTENDED(mat)) {
-					sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-				}
-			}
+			sctp_log_mbc(chk->data, SCTP_MBUF_ICOPY);
 		}
 #endif
 		/* Pull off the data */
@@ -7814,6 +7770,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 	int quit_now = 0;
 
 	*num_out = 0;
+	*reason_code = 0;
 	auth_keyid = stcb->asoc.authinfo.active_keyid;
 	if ((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) ||
 	    (asoc->state & SCTP_STATE_SHUTDOWN_RECEIVED) ||
@@ -8000,22 +7957,6 @@ again_one_more_time:
 			skip_data_for_this_net = 1;
 		} else {
 			skip_data_for_this_net = 0;
-		}
-		if ((net->ro.ro_rt) && (net->ro.ro_rt->rt_ifp)) {
-			/*
-			 * if we have a route and an ifp check to see if we
-			 * have room to send to this guy
-			 */
-			struct ifnet *ifp;
-
-			ifp = net->ro.ro_rt->rt_ifp;
-			if ((ifp->if_snd.ifq_len + 2) >= ifp->if_snd.ifq_maxlen) {
-				SCTP_STAT_INCR(sctps_ifnomemqueued);
-				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_MAXBURST_ENABLE) {
-					sctp_log_maxburst(stcb, net, ifp->if_snd.ifq_len, ifp->if_snd.ifq_maxlen, SCTP_MAX_IFP_APPLIED);
-				}
-				continue;
-			}
 		}
 		switch (((struct sockaddr *)&net->ro._l_addr)->sa_family) {
 #ifdef INET
@@ -8960,12 +8901,11 @@ sctp_send_cookie_echo(struct mbuf *m,
 	struct sctp_tmit_chunk *chk;
 	uint16_t ptype, plen;
 
+	SCTP_TCB_LOCK_ASSERT(stcb);
 	/* First find the cookie in the param area */
 	cookie = NULL;
 	at = offset + sizeof(struct sctp_init_chunk);
-
-	SCTP_TCB_LOCK_ASSERT(stcb);
-	do {
+	for (;;) {
 		phdr = sctp_get_next_param(m, at, &parm, sizeof(parm));
 		if (phdr == NULL) {
 			return (-3);
@@ -8986,25 +8926,14 @@ sctp_send_cookie_echo(struct mbuf *m,
 			}
 #ifdef SCTP_MBUF_LOGGING
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-				struct mbuf *mat;
-
-				for (mat = cookie; mat; mat = SCTP_BUF_NEXT(mat)) {
-					if (SCTP_BUF_IS_EXTENDED(mat)) {
-						sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-					}
-				}
+				sctp_log_mbc(cookie, SCTP_MBUF_ICOPY);
 			}
 #endif
 			break;
 		}
 		at += SCTP_SIZE32(plen);
-	} while (phdr);
-	if (cookie == NULL) {
-		/* Did not find the cookie */
-		return (-3);
 	}
 	/* ok, we got the cookie lets change it into a cookie echo chunk */
-
 	/* first the change from param to cookie */
 	hdr = mtod(cookie, struct sctp_chunkhdr *);
 	hdr->chunk_type = SCTP_COOKIE_ECHO;
@@ -9058,13 +8987,7 @@ sctp_send_heartbeat_ack(struct sctp_tcb *stcb,
 	}
 #ifdef SCTP_MBUF_LOGGING
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-		struct mbuf *mat;
-
-		for (mat = outchain; mat; mat = SCTP_BUF_NEXT(mat)) {
-			if (SCTP_BUF_IS_EXTENDED(mat)) {
-				sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-			}
-		}
+		sctp_log_mbc(outchain, SCTP_MBUF_ICOPY);
 	}
 #endif
 	chdr = mtod(outchain, struct sctp_chunkhdr *);
@@ -9343,13 +9266,7 @@ sctp_send_asconf_ack(struct sctp_tcb *stcb)
 		}
 #ifdef SCTP_MBUF_LOGGING
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-			struct mbuf *mat;
-
-			for (mat = m_ack; mat; mat = SCTP_BUF_NEXT(mat)) {
-				if (SCTP_BUF_IS_EXTENDED(mat)) {
-					sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-				}
-			}
+			sctp_log_mbc(m_ack, SCTP_MBUF_ICOPY);
 		}
 #endif
 
@@ -9945,7 +9862,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 	 */
 	struct sctp_association *asoc;
 	struct sctp_nets *net;
-	int error = 0, num_out = 0, tot_out = 0, ret = 0, reason_code = 0;
+	int error = 0, num_out, tot_out = 0, ret = 0, reason_code;
 	unsigned int burst_cnt = 0;
 	struct timeval now;
 	int now_filled = 0;
@@ -10952,7 +10869,7 @@ static void
 sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, uint32_t vtag,
     uint8_t type, struct mbuf *cause,
-    uint8_t use_mflowid, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid,
     uint32_t vrf_id, uint16_t port)
 {
 	struct mbuf *o_pak;
@@ -11032,10 +10949,8 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 	SCTP_BUF_RESV_UF(mout, max_linkhdr);
 	SCTP_BUF_LEN(mout) = len;
 	SCTP_BUF_NEXT(mout) = cause;
-	if (use_mflowid != 0) {
-		mout->m_pkthdr.flowid = mflowid;
-		mout->m_flags |= M_FLOWID;
-	}
+	mout->m_pkthdr.flowid = mflowid;
+	M_HASHTYPE_SET(mout, mflowtype);
 #ifdef INET
 	ip = NULL;
 #endif
@@ -11221,11 +11136,11 @@ sctp_send_resp_msg(struct sockaddr *src, struct sockaddr *dst,
 void
 sctp_send_shutdown_complete2(struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh,
-    uint8_t use_mflowid, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid,
     uint32_t vrf_id, uint16_t port)
 {
 	sctp_send_resp_msg(src, dst, sh, 0, SCTP_SHUTDOWN_COMPLETE, NULL,
-	    use_mflowid, mflowid,
+	    mflowtype, mflowid,
 	    vrf_id, port);
 }
 
@@ -12044,7 +11959,7 @@ skip_stuff:
 void
 sctp_send_abort(struct mbuf *m, int iphlen, struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, uint32_t vtag, struct mbuf *cause,
-    uint8_t use_mflowid, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid,
     uint32_t vrf_id, uint16_t port)
 {
 	/* Don't respond to an ABORT with an ABORT. */
@@ -12054,7 +11969,7 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sockaddr *src, struct sockadd
 		return;
 	}
 	sctp_send_resp_msg(src, dst, sh, vtag, SCTP_ABORT_ASSOCIATION, cause,
-	    use_mflowid, mflowid,
+	    mflowtype, mflowid,
 	    vrf_id, port);
 	return;
 }
@@ -12062,11 +11977,11 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sockaddr *src, struct sockadd
 void
 sctp_send_operr_to(struct sockaddr *src, struct sockaddr *dst,
     struct sctphdr *sh, uint32_t vtag, struct mbuf *cause,
-    uint8_t use_mflowid, uint32_t mflowid,
+    uint8_t mflowtype, uint32_t mflowid,
     uint32_t vrf_id, uint16_t port)
 {
 	sctp_send_resp_msg(src, dst, sh, vtag, SCTP_OPERATION_ERROR, cause,
-	    use_mflowid, mflowid,
+	    mflowtype, mflowid,
 	    vrf_id, port);
 	return;
 }

@@ -8,12 +8,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
-#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/Analysis/CFG.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Type.h"
+#include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 
 /// DemoteRegToStack - This function takes a virtual register computed by an
@@ -25,23 +25,23 @@ AllocaInst *llvm::DemoteRegToStack(Instruction &I, bool VolatileLoads,
                                    Instruction *AllocaPoint) {
   if (I.use_empty()) {
     I.eraseFromParent();
-    return 0;
+    return nullptr;
   }
 
   // Create a stack slot to hold the value.
   AllocaInst *Slot;
   if (AllocaPoint) {
-    Slot = new AllocaInst(I.getType(), 0,
+    Slot = new AllocaInst(I.getType(), nullptr,
                           I.getName()+".reg2mem", AllocaPoint);
   } else {
     Function *F = I.getParent()->getParent();
-    Slot = new AllocaInst(I.getType(), 0, I.getName()+".reg2mem",
+    Slot = new AllocaInst(I.getType(), nullptr, I.getName()+".reg2mem",
                           F->getEntryBlock().begin());
   }
 
   // Change all of the users of the instruction to read from the stack slot.
   while (!I.use_empty()) {
-    Instruction *U = cast<Instruction>(I.use_back());
+    Instruction *U = cast<Instruction>(I.user_back());
     if (PHINode *PN = dyn_cast<PHINode>(U)) {
       // If this is a PHI node, we can't insert a load of the value before the
       // use.  Instead insert the load in the predecessor block corresponding
@@ -56,7 +56,7 @@ AllocaInst *llvm::DemoteRegToStack(Instruction &I, bool VolatileLoads,
       for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i)
         if (PN->getIncomingValue(i) == &I) {
           Value *&V = Loads[PN->getIncomingBlock(i)];
-          if (V == 0) {
+          if (!V) {
             // Insert the load into the predecessor block
             V = new LoadInst(Slot, I.getName()+".reload", VolatileLoads,
                              PN->getIncomingBlock(i)->getTerminator());
@@ -110,17 +110,17 @@ AllocaInst *llvm::DemoteRegToStack(Instruction &I, bool VolatileLoads,
 AllocaInst *llvm::DemotePHIToStack(PHINode *P, Instruction *AllocaPoint) {
   if (P->use_empty()) {
     P->eraseFromParent();
-    return 0;
+    return nullptr;
   }
 
   // Create a stack slot to hold the value.
   AllocaInst *Slot;
   if (AllocaPoint) {
-    Slot = new AllocaInst(P->getType(), 0,
+    Slot = new AllocaInst(P->getType(), nullptr,
                           P->getName()+".reg2mem", AllocaPoint);
   } else {
     Function *F = P->getParent()->getParent();
-    Slot = new AllocaInst(P->getType(), 0, P->getName()+".reg2mem",
+    Slot = new AllocaInst(P->getType(), nullptr, P->getName()+".reg2mem",
                           F->getEntryBlock().begin());
   }
 

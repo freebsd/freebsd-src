@@ -285,6 +285,8 @@ int vm_assign_pptdev(struct vm *vm, int bus, int slot, int func);
 int vm_unassign_pptdev(struct vm *vm, int bus, int slot, int func);
 struct vatpic *vm_atpic(struct vm *vm);
 struct vatpit *vm_atpit(struct vm *vm);
+struct vpmtmr *vm_pmtmr(struct vm *vm);
+struct vrtc *vm_rtc(struct vm *vm);
 
 /*
  * Inject exception 'vme' into the guest vcpu. This function returns 0 on
@@ -357,6 +359,8 @@ void vm_copyin(struct vm *vm, int vcpuid, struct vm_copyinfo *copyinfo,
     void *kaddr, size_t len);
 void vm_copyout(struct vm *vm, int vcpuid, const void *kaddr,
     struct vm_copyinfo *copyinfo, size_t len);
+
+int vcpu_trace_exceptions(struct vm *vm, int vcpuid);
 #endif	/* KERNEL */
 
 #define	VM_MAXCPU	16			/* maximum virtual cpus */
@@ -487,6 +491,7 @@ enum vm_exitcode {
 	VM_EXITCODE_TASK_SWITCH,
 	VM_EXITCODE_MONITOR,
 	VM_EXITCODE_MWAIT,
+	VM_EXITCODE_SVM,
 	VM_EXITCODE_MAX
 };
 
@@ -564,6 +569,14 @@ struct vm_exit {
 			int		inst_type;
 			int		inst_error;
 		} vmx;
+		/*
+		 * SVM specific payload.
+		 */
+		struct {
+			uint64_t	exitcode;
+			uint64_t	exitinfo1;
+			uint64_t	exitinfo2;
+		} svm;
 		struct {
 			uint32_t	code;		/* ecx value */
 			uint64_t	wval;

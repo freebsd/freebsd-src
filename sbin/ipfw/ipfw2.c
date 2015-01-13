@@ -1225,9 +1225,10 @@ print_ip(struct buf_pr *bp, struct format_opts *fo, ipfw_insn_ip *cmd,
 	else {		/* numeric IP followed by some kind of mask */
 		ia = (struct in_addr *)&a[0];
 		bprintf(bp, "%s", inet_ntoa(*ia));
-		if (mb < 0)
-			bprintf(bp, ":%s", inet_ntoa(*ia ) );
-		else if (mb < 32)
+		if (mb < 0) {
+			ia = (struct in_addr *)&a[1];
+			bprintf(bp, ":%s", inet_ntoa(*ia));
+		} else if (mb < 32)
 			bprintf(bp, "/%d", mb);
 	}
 	if (len > 1)
@@ -2138,7 +2139,7 @@ ipfw_sets_handler(char *av[])
 {
 	uint32_t masks[2];
 	int i;
-	uint8_t cmd, new_set, rulenum;
+	uint8_t cmd, rulenum;
 	ipfw_range_tlv rt;
 	char *msg;
 	size_t size;
@@ -2202,7 +2203,7 @@ ipfw_sets_handler(char *av[])
 		if (!isdigit(*(av[0])) || (cmd == 3 && rt.set > RESVD_SET) ||
 			(cmd == 2 && rt.start_rule == IPFW_DEFAULT_RULE) )
 			errx(EX_DATAERR, "invalid source number %s\n", av[0]);
-		if (!isdigit(*(av[2])) || new_set > RESVD_SET)
+		if (!isdigit(*(av[2])) || rt.new_set > RESVD_SET)
 			errx(EX_DATAERR, "invalid dest. set %s\n", av[1]);
 		i = do_range_cmd(cmd, &rt);
 	} else if (_substrcmp(*av, "disable") == 0 ||
@@ -2530,7 +2531,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	int lac;
 	char **lav;
 	char *endptr;
-	size_t read;
+	size_t readsz;
 	struct buf_pr bp;
 	ipfw_obj_ctlv *ctlv, *tstate;
 	ipfw_obj_tlv *rbase;
@@ -2542,7 +2543,8 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 	rbase = NULL;
 	dynbase = NULL;
 	dynsz = 0;
-	read = sizeof(*cfg);
+	readsz = sizeof(*cfg);
+	rcnt = 0;
 
 	fo->set_mask = cfg->set_mask;
 
@@ -2552,7 +2554,7 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 		/* We've requested static rules */
 		if (ctlv->head.type == IPFW_TLV_TBLNAME_LIST) {
 			fo->tstate = ctlv;
-			read += ctlv->head.length;
+			readsz += ctlv->head.length;
 			ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv +
 			    ctlv->head.length);
 		}
@@ -2560,15 +2562,15 @@ ipfw_show_config(struct cmdline_opts *co, struct format_opts *fo,
 		if (ctlv->head.type == IPFW_TLV_RULE_LIST) {
 			rbase = (ipfw_obj_tlv *)(ctlv + 1);
 			rcnt = ctlv->count;
-			read += ctlv->head.length;
+			readsz += ctlv->head.length;
 			ctlv = (ipfw_obj_ctlv *)((caddr_t)ctlv +
 			    ctlv->head.length);
 		}
 	}
 
-	if ((cfg->flags & IPFW_CFG_GET_STATES) && (read != sz))  {
+	if ((cfg->flags & IPFW_CFG_GET_STATES) && (readsz != sz))  {
 		/* We may have some dynamic states */
-		dynsz = sz - read;
+		dynsz = sz - readsz;
 		/* Skip empty header */
 		if (dynsz != sizeof(ipfw_obj_ctlv))
 			dynbase = (caddr_t)ctlv;
@@ -4685,6 +4687,7 @@ ipfw_add(char *av[])
 	ipfw_obj_ctlv *ctlv, *tstate;
 
 	rbufsize = sizeof(rulebuf);
+	memset(rulebuf, 0, rbufsize);
 	memset(&ts, 0, sizeof(ts));
 
 	/* Optimize case with no tables */

@@ -47,7 +47,11 @@ static void		sighandler(int);
 static const size_t	maxiter = 2000;
 
 static void
+#ifdef __FreeBSD__
+sighandler(int signo __unused)
+#else
 sighandler(int signo)
+#endif
 {
 	/* Nothing. */
 }
@@ -129,7 +133,9 @@ ATF_TC_BODY(getrusage_utime_back, tc)
 	/*
 	 * Test that two consecutive calls are sane.
 	 */
+#ifdef __NetBSD__
 	atf_tc_expect_fail("PR kern/30115");
+#endif
 
 	for (i = 0; i < maxiter; i++) {
 
@@ -148,7 +154,9 @@ ATF_TC_BODY(getrusage_utime_back, tc)
 			atf_tc_fail("user time went backwards");
 	}
 
+#ifdef __NetBSD__
 	atf_tc_fail("anticipated error did not occur");
+#endif
 }
 
 ATF_TC(getrusage_utime_zero);
@@ -161,6 +169,11 @@ ATF_TC_BODY(getrusage_utime_zero, tc)
 {
 	struct rusage ru;
 	size_t i;
+
+#ifdef __FreeBSD__
+	atf_tc_skip("this testcase passes/fails sporadically on FreeBSD/i386 "
+	    "@ r273153 (at least)");
+#endif
 
 	/*
 	 * Test that getrusage(2) does not return

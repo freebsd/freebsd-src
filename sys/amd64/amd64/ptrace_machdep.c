@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 static int
 cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 {
+	struct ptrace_xstate_info info;
 	char *savefpu;
 	int error;
 
@@ -49,14 +50,14 @@ cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 		return (EOPNOTSUPP);
 
 	switch (req) {
-	case PT_GETXSTATE:
+	case PT_GETXSTATE_OLD:
 		fpugetregs(td);
 		savefpu = (char *)(get_pcb_user_save_td(td) + 1);
 		error = copyout(savefpu, addr,
 		    cpu_max_ext_state_size - sizeof(struct savefpu));
 		break;
 
-	case PT_SETXSTATE:
+	case PT_SETXSTATE_OLD:
 		if (data > cpu_max_ext_state_size - sizeof(struct savefpu)) {
 			error = EINVAL;
 			break;
@@ -67,6 +68,36 @@ cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 			fpugetregs(td);
 			error = fpusetxstate(td, savefpu, data);
 		}
+		free(savefpu, M_TEMP);
+		break;
+
+	case PT_GETXSTATE_INFO:
+		if (data != sizeof(info)) {
+			error  = EINVAL;
+			break;
+		}
+		info.xsave_len = cpu_max_ext_state_size;
+		info.xsave_mask = xsave_mask;
+		error = copyout(&info, addr, data);
+		break;
+
+	case PT_GETXSTATE:
+		fpugetregs(td);
+		savefpu = (char *)(get_pcb_user_save_td(td));
+		error = copyout(savefpu, addr, cpu_max_ext_state_size);
+		break;
+
+	case PT_SETXSTATE:
+		if (data > cpu_max_ext_state_size) {
+			error = EINVAL;
+			break;
+		}
+		savefpu = malloc(data, M_TEMP, M_WAITOK);
+		error = copyin(addr, savefpu, data);
+		if (error == 0)
+			error = fpusetregs(td, (struct savefpu *)savefpu,
+			    savefpu + sizeof(struct savefpu), data -
+			    sizeof(struct savefpu));
 		free(savefpu, M_TEMP);
 		break;
 
@@ -81,8 +112,6 @@ cpu_ptrace_xstate(struct thread *td, int req, void *addr, int data)
 #ifdef COMPAT_FREEBSD32
 #define PT_I386_GETXMMREGS	(PT_FIRSTMACH + 0)
 #define PT_I386_SETXMMREGS	(PT_FIRSTMACH + 1)
-#define PT_I386_GETXSTATE	(PT_FIRSTMACH + 2)
-#define PT_I386_SETXSTATE	(PT_FIRSTMACH + 3)
 
 static int
 cpu32_ptrace(struct thread *td, int req, void *addr, int data)
@@ -104,12 +133,12 @@ cpu32_ptrace(struct thread *td, int req, void *addr, int data)
 		fpstate->sv_env.en_mxcsr &= cpu_mxcsr_mask;
 		break;
 
-	case PT_I386_GETXSTATE:
-		error = cpu_ptrace_xstate(td, PT_GETXSTATE, addr, data);
-		break;
-
-	case PT_I386_SETXSTATE:
-		error = cpu_ptrace_xstate(td, PT_SETXSTATE, addr, data);
+	case PT_GETXSTATE_OLD:
+	case PT_SETXSTATE_OLD:
+	case PT_GETXSTATE_INFO:
+	case PT_GETXSTATE:
+	case PT_SETXSTATE:
+		error = cpu_ptrace_xstate(td, req, addr, data);
 		break;
 
 	default:
@@ -131,13 +160,16 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 		return (cpu32_ptrace(td, req, addr, data));
 #endif
 
-	/* Support old values of PT_GETXSTATE and PT_SETXSTATE. */
+	/* Support old values of PT_GETXSTATE_OLD and PT_SETXSTATE_OLD. */
 	if (req == PT_FIRSTMACH + 0)
-		req = PT_GETXSTATE;
+		req = PT_GETXSTATE_OLD;
 	if (req == PT_FIRSTMACH + 1)
-		req = PT_SETXSTATE;
+		req = PT_SETXSTATE_OLD;
 
 	switch (req) {
+	case PT_GETXSTATE_OLD:
+	case PT_SETXSTATE_OLD:
+	case PT_GETXSTATE_INFO:
 	case PT_GETXSTATE:
 	case PT_SETXSTATE:
 		error = cpu_ptrace_xstate(td, req, addr, data);

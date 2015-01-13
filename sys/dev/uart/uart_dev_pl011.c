@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #define	DR_OE		(1 << 11)	/* Overrun error */
 
 #define	UART_FR		0x06		/* Flag register */
+#define	FR_TXFF		(1 << 5)	/* Transmit FIFO/reg full */
 #define	FR_RXFF		(1 << 6)	/* Receive FIFO/reg full */
 #define	FR_TXFE		(1 << 7)	/* Transmit FIFO/reg empty */
 
@@ -194,7 +195,8 @@ static void
 uart_pl011_putc(struct uart_bas *bas, int c)
 {
 
-	while (!(__uart_getreg(bas, UART_FR) & FR_TXFE))
+	/* Wait when TX FIFO full. Push character otherwise. */
+	while (__uart_getreg(bas, UART_FR) & FR_TXFF)
 		;
 	__uart_setreg(bas, UART_DR, c & 0xff);
 }

@@ -322,7 +322,7 @@ ixv_attach(device_t dev)
                 
 	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 			SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
-			OID_AUTO, "enable_aim", CTLTYPE_INT|CTLFLAG_RW,
+			OID_AUTO, "enable_aim", CTLFLAG_RW,
 			&ixv_enable_aim, 1, "Interrupt Moderation");
 
 	/* Set up the timer callout */
@@ -580,7 +580,7 @@ ixv_mq_start(struct ifnet *ifp, struct mbuf *m)
 	int 		i = 0, err = 0;
 
 	/* Which queue to use */
-	if ((m->m_flags & M_FLOWID) != 0)
+	if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
 		i = m->m_pkthdr.flowid % adapter->num_queues;
 
 	txr = &adapter->tx_rings[i];
@@ -3464,7 +3464,7 @@ ixv_rxeof(struct ix_queue *que, int count)
 				ixv_rx_checksum(staterr, sendmp, ptype);
 #if __FreeBSD_version >= 800000
 			sendmp->m_pkthdr.flowid = que->msix;
-			sendmp->m_flags |= M_FLOWID;
+			M_HASHTYPE_SET(sendmp, M_HASHTYPE_OPAQUE);
 #endif
 		}
 next_desc:
@@ -4001,6 +4001,6 @@ ixv_add_rx_process_limit(struct adapter *adapter, const char *name,
         *limit = value;
         SYSCTL_ADD_INT(device_get_sysctl_ctx(adapter->dev),
             SYSCTL_CHILDREN(device_get_sysctl_tree(adapter->dev)),
-            OID_AUTO, name, CTLTYPE_INT|CTLFLAG_RW, limit, value, description);
+            OID_AUTO, name, CTLFLAG_RW, limit, value, description);
 }
 

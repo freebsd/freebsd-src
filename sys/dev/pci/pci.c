@@ -268,13 +268,24 @@ static const struct pci_quirk pci_quirks[] = {
 	{ 0x43851002, PCI_QUIRK_UNMAP_REG,	0x14,	0 },
 
 	/*
-	 * Atheros AR8161/AR8162/E2200 ethernet controller has a bug that
+	 * Atheros AR8161/AR8162/E2200 Ethernet controllers have a bug that
 	 * MSI interrupt does not assert if PCIM_CMD_INTxDIS bit of the
 	 * command register is set.
 	 */
 	{ 0x10911969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
 	{ 0xE0911969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
 	{ 0x10901969, PCI_QUIRK_MSI_INTX_BUG,	0,	0 },
+
+	/*
+	 * Broadcom BCM5714(S)/BCM5715(S)/BCM5780(S) Ethernet MACs don't
+	 * issue MSI interrupts with PCIM_CMD_INTxDIS set either.
+	 */
+	{ 0x166814e4, PCI_QUIRK_MSI_INTX_BUG,	0,	0 }, /* BCM5714 */
+	{ 0x166914e4, PCI_QUIRK_MSI_INTX_BUG,	0,	0 }, /* BCM5714S */
+	{ 0x166a14e4, PCI_QUIRK_MSI_INTX_BUG,	0,	0 }, /* BCM5780 */
+	{ 0x166b14e4, PCI_QUIRK_MSI_INTX_BUG,	0,	0 }, /* BCM5780S */
+	{ 0x167814e4, PCI_QUIRK_MSI_INTX_BUG,	0,	0 }, /* BCM5715 */
+	{ 0x167914e4, PCI_QUIRK_MSI_INTX_BUG,	0,	0 }, /* BCM5715S */
 
 	{ 0 }
 };
@@ -3270,14 +3281,14 @@ pci_reserve_secbus(device_t bus, device_t dev, pcicfgregs *cfg,
 
 	case 0x00dd10de:
 		/* Compaq R3000 BIOS sets wrong subordinate bus number. */
-		if ((cp = getenv("smbios.planar.maker")) == NULL)
+		if ((cp = kern_getenv("smbios.planar.maker")) == NULL)
 			break;
 		if (strncmp(cp, "Compal", 6) != 0) {
 			freeenv(cp);
 			break;
 		}
 		freeenv(cp);
-		if ((cp = getenv("smbios.planar.product")) == NULL)
+		if ((cp = kern_getenv("smbios.planar.product")) == NULL)
 			break;
 		if (strncmp(cp, "08A0", 4) != 0) {
 			freeenv(cp);
@@ -3651,7 +3662,7 @@ pci_set_power_child(device_t dev, device_t child, int state)
 	dinfo = device_get_ivars(child);
 	dstate = state;
 	if (device_is_attached(child) &&
-	    PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
+	    PCIB_POWER_FOR_SLEEP(pcib, child, &dstate) == 0)
 		pci_set_powerstate(child, dstate);
 }
 
@@ -3866,14 +3877,16 @@ pci_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 			mte->mte_handlers++;
 		}
 
-		if (!pci_has_quirk(pci_get_devid(dev),
-		    PCI_QUIRK_MSI_INTX_BUG)) {
-			/*
-			 * Make sure that INTx is disabled if we are
-			 * using MSI/MSIX
-			 */
+		/*
+		 * Make sure that INTx is disabled if we are using MSI/MSI-X,
+		 * unless the device is affected by PCI_QUIRK_MSI_INTX_BUG,
+		 * in which case we "enable" INTx so MSI/MSI-X actually works.
+		 */
+		if (!pci_has_quirk(pci_get_devid(child),
+		    PCI_QUIRK_MSI_INTX_BUG))
 			pci_set_command_bit(dev, child, PCIM_CMD_INTxDIS);
-		}
+		else
+			pci_clear_command_bit(dev, child, PCIM_CMD_INTxDIS);
 	bad:
 		if (error) {
 			(void)bus_generic_teardown_intr(dev, child, irq,

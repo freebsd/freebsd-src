@@ -117,7 +117,7 @@ keys_save(struct keys *keys, struct pdu *pdu)
 	for (i = 0; i < KEYS_MAX; i++) {
 		if (keys->keys_names[i] == NULL)
 			break;
- 		/*
+		/*
 		 * +1 for '=', +1 for '\0'.
 		 */
 		len += strlen(keys->keys_names[i]) +

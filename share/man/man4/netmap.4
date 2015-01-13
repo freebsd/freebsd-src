@@ -104,7 +104,6 @@ various aspects of the
 and
 .Nm VALE
 architecture, features and usage.
-.Pp
 .Sh ARCHITECTURE
 .Nm
 supports raw packet I/O through a
@@ -141,11 +140,10 @@ and
 ports
 by default use separate memory regions,
 but can be independently configured to share memory.
-.Pp
 .Sh ENTERING AND EXITING NETMAP MODE
 The following section describes the system calls to create
 and control
-.Nm netmap 
+.Nm netmap
 ports (including
 .Nm VALE
 and
@@ -210,7 +208,6 @@ A
 on the file descriptor removes the binding,
 and returns the NIC to normal mode (reconnecting the data path
 to the host stack), or destroys the virtual port.
-.Pp
 .Sh DATA STRUCTURES
 The data structures in the mmapped memory region are detailed in
 .Xr sys/net/netmap.h ,
@@ -246,7 +243,6 @@ contains the index of the first of these free rings,
 which are connected in a list (the first uint32_t of each
 buffer being the index of the next buffer in the list).
 A 0 indicates the end of the list.
-.Pp
 .It Dv struct netmap_ring (one per ring)
 .Bd -literal
 struct netmap_ring {
@@ -269,7 +265,6 @@ Implements transmit and receive rings, with read/write
 pointers, metadata and and an array of
 .Pa slots
 describing the buffers.
-.Pp
 .It Dv struct netmap_slot (one per buffer)
 .Bd -literal
 struct netmap_slot {
@@ -370,7 +365,6 @@ are pushed to the port, and
 .Va tail
 may advance if further slots have become available.
 Below is an example of the evolution of a TX ring:
-.Pp
 .Bd -literal
     after the syscall, slots between cur and tail are (a)vailable
               head=cur   tail
@@ -403,7 +397,6 @@ A transmit ring with pending transmissions has
 The function
 .Va int nm_tx_pending(ring)
 implements this test.
-.Pp
 .Ss RECEIVE RINGS
 On receive rings, after a
 .Nm
@@ -447,7 +440,6 @@ Below is an example of the evolution of an RX ring:
                  v  v           v
      RX  [.......hhhRRRRRRRRRRRR....]
 .Ed
-.Pp
 .Sh SLOTS AND PACKET BUFFERS
 Normally, packets should be stored in the netmap-allocated buffers
 assigned to slots when ports are bound to a file descriptor.
@@ -460,7 +452,6 @@ it MUST be used when the buf_idx in the slot is changed.
 This can be used to implement
 zero-copy forwarding, see
 .Sx ZERO-COPY FORWARDING .
-.Pp
 .It NS_REPORT
 reports when this buffer has been transmitted.
 Normally,
@@ -538,7 +529,6 @@ A file descriptor obtained through
 .Pa /dev/netmap
 also supports the ioctl supported by network devices, see
 .Xr netintro 4 .
-.Pp
 .Bl -tag -width XXXX
 .It Dv NIOCGINFO
 returns EINVAL if the named port does not support netmap.
@@ -546,7 +536,6 @@ Otherwise, it returns 0 and (advisory) information
 about the port.
 Note that all the information below can change before the
 interface is actually put in netmap mode.
-.Pp
 .Bl -tag -width XX
 .It Pa nr_memsize
 indicates the size of the
@@ -608,13 +597,12 @@ that application libraries (such as the
 .Nm nm_open
 indicated below) can use to indicate the specific set of rings.
 In the example below, "netmap:foo" is any valid netmap port name.
-.Pp
 .Bl -tag -width XXXXX
 .It NR_REG_ALL_NIC                         "netmap:foo"
 (default) all hardware ring pairs
 .It NR_REG_SW            "netmap:foo^"
 the ``host rings'', connecting to the host stack.
-.It NR_REG_NIC_SW        "netmap:foo+
+.It NR_REG_NIC_SW        "netmap:foo+"
 all hardware rings and the host rings
 .It NR_REG_ONE_NIC       "netmap:foo-i"
 only the i-th hardware ring pair, where the number is in
@@ -749,7 +737,6 @@ of the packet is successful, or 0 on error;
 similar to pcap_dispatch(), applies a callback to incoming packets
 .It Va u_char * nm_nextpkt(struct nm_desc *d, struct nm_pkthdr *hdr)
 similar to pcap_next(), fetches the next packet
-.Pp
 .El
 .Sh SUPPORTED DEVICES
 .Nm
@@ -790,7 +777,6 @@ are controlled through sysctl variables on FreeBSD
 .Em ( dev.netmap.* )
 and module parameters on Linux
 .Em ( /sys/module/netmap_lin/parameters/* ) :
-.Pp
 .Bl -tag -width indent
 .It Va dev.netmap.admode: 0
 Controls the use of native or emulated adapter mode.
@@ -858,42 +844,6 @@ OS primitives, see
 In particular,
 .Xr pthread_setaffinity_np 3
 may be of use.
-.Sh CAVEATS
-No matter how fast the CPU and OS are,
-achieving line rate on 10G and faster interfaces
-requires hardware with sufficient performance.
-Several NICs are unable to sustain line rate with
-small packet sizes. Insufficient PCIe or memory bandwidth
-can also cause reduced performance.
-.Pp
-Another frequent reason for low performance is the use
-of flow control on the link: a slow receiver can limit
-the transmit speed.
-Be sure to disable flow control when running high
-speed experiments.
-.Pp
-.Ss SPECIAL NIC FEATURES
-.Nm
-is orthogonal to some NIC features such as
-multiqueue, schedulers, packet filters.
-.Pp
-Multiple transmit and receive rings are supported natively
-and can be configured with ordinary OS tools,
-such as
-.Xr ethtool
-or
-device-specific sysctl variables.
-The same goes for Receive Packet Steering (RPS)
-and filtering of incoming traffic.
-.Pp
-.Nm
-.Em does not use
-features such as
-.Em checksum offloading , TCP segmentation offloading ,
-.Em encryption , VLAN encapsulation/decapsulation ,
-etc. .
-When using netmap to exchange packets with the host stack,
-make sure to disable these features.
 .Sh EXAMPLES
 .Ss TEST PROGRAMS
 .Nm
@@ -935,7 +885,7 @@ The following code implements a traffic generator
 .Pp
 .Bd -literal -compact
 #include <net/netmap_user.h>
-...
+\&...
 void sender(void)
 {
     struct netmap_if *nifp;
@@ -970,7 +920,7 @@ A simple receiver can be implemented using the helper functions
 .Bd -literal -compact
 #define NETMAP_WITH_LIBS
 #include <net/netmap_user.h>
-...
+\&...
 void receiver(void)
 {
     struct nm_desc *d;
@@ -1037,10 +987,8 @@ Other
 .Nm
 clients attached to the same switch can now communicate
 with the network card or the host.
-.Pp
 .Sh SEE ALSO
-.Pp
-http://info.iet.unipi.it/~luigi/netmap/
+.Pa http://info.iet.unipi.it/~luigi/netmap/
 .Pp
 Luigi Rizzo, Revisiting network I/O APIs: the netmap framework,
 Communications of the ACM, 55 (3), pp.45-51, March 2012
@@ -1073,3 +1021,39 @@ and
 .Nm VALE
 have been funded by the European Commission within FP7 Projects
 CHANGE (257422) and OPENLAB (287581).
+.Sh CAVEATS
+No matter how fast the CPU and OS are,
+achieving line rate on 10G and faster interfaces
+requires hardware with sufficient performance.
+Several NICs are unable to sustain line rate with
+small packet sizes. Insufficient PCIe or memory bandwidth
+can also cause reduced performance.
+.Pp
+Another frequent reason for low performance is the use
+of flow control on the link: a slow receiver can limit
+the transmit speed.
+Be sure to disable flow control when running high
+speed experiments.
+.Pp
+.Ss SPECIAL NIC FEATURES
+.Nm
+is orthogonal to some NIC features such as
+multiqueue, schedulers, packet filters.
+.Pp
+Multiple transmit and receive rings are supported natively
+and can be configured with ordinary OS tools,
+such as
+.Xr ethtool
+or
+device-specific sysctl variables.
+The same goes for Receive Packet Steering (RPS)
+and filtering of incoming traffic.
+.Pp
+.Nm
+.Em does not use
+features such as
+.Em checksum offloading , TCP segmentation offloading ,
+.Em encryption , VLAN encapsulation/decapsulation ,
+etc. .
+When using netmap to exchange packets with the host stack,
+make sure to disable these features.

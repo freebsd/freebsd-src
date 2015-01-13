@@ -116,7 +116,7 @@ static void
 g_dev_init(struct g_class *mp)
 {
 
-	dumpdev = getenv("dumpdev");
+	dumpdev = kern_getenv("dumpdev");
 }
 
 static void
@@ -127,14 +127,14 @@ g_dev_fini(struct g_class *mp)
 }
 
 static int
-g_dev_setdumpdev(struct cdev *dev)
+g_dev_setdumpdev(struct cdev *dev, struct thread *td)
 {
 	struct g_kerneldump kd;
 	struct g_consumer *cp;
 	int error, len;
 
 	if (dev == NULL)
-		return (set_dumper(NULL, NULL));
+		return (set_dumper(NULL, NULL, td));
 
 	cp = dev->si_drv2;
 	len = sizeof(kd);
@@ -142,7 +142,7 @@ g_dev_setdumpdev(struct cdev *dev)
 	kd.length = OFF_MAX;
 	error = g_io_getattr("GEOM::kerneldump", cp, &len, &kd);
 	if (error == 0) {
-		error = set_dumper(&kd.di, devtoname(dev));
+		error = set_dumper(&kd.di, devtoname(dev), td);
 		if (error == 0)
 			dev->si_flags |= SI_DUMPDEV;
 	}
@@ -157,7 +157,7 @@ init_dumpdev(struct cdev *dev)
 		return;
 	if (strcmp(devtoname(dev), dumpdev) != 0)
 		return;
-	if (g_dev_setdumpdev(dev) == 0) {
+	if (g_dev_setdumpdev(dev, curthread) == 0) {
 		freeenv(dumpdev);
 		dumpdev = NULL;
 	}
@@ -302,7 +302,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	for (len = MIN(strlen(gp->name), sizeof(buf) - 15); len > 0; len--) {
 		snprintf(buf, sizeof(buf), "kern.devalias.%s", gp->name);
 		buf[14 + len] = 0;
-		val = getenv(buf);
+		val = kern_getenv(buf);
 		if (val != NULL) {
 			snprintf(buf, sizeof(buf), "%s%s",
 			    val, gp->name + len);
@@ -453,9 +453,9 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		break;
 	case DIOCSKERNELDUMP:
 		if (*(u_int *)data == 0)
-			error = g_dev_setdumpdev(NULL);
+			error = g_dev_setdumpdev(NULL, td);
 		else
-			error = g_dev_setdumpdev(dev);
+			error = g_dev_setdumpdev(dev, td);
 		break;
 	case DIOCGFLUSH:
 		error = g_io_flush(cp);
@@ -510,6 +510,16 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		if (error == 0 && *(char *)data == '\0')
 			error = ENOENT;
 		break;
+	case DIOCGATTR: {
+		struct diocgattr_arg *arg = (struct diocgattr_arg *)data;
+
+		if (arg->len > sizeof(arg->value)) {
+			error = EINVAL;
+			break;
+		}
+		error = g_io_getattr(arg->name, cp, &arg->len, &arg->value);
+		break;
+	}
 	default:
 		if (cp->provider->geom->ioctl != NULL) {
 			error = cp->provider->geom->ioctl(cp->provider, cmd, data, fflag, td);
@@ -663,7 +673,7 @@ g_dev_orphan(struct g_consumer *cp)
 
 	/* Reset any dump-area set on this device */
 	if (dev->si_flags & SI_DUMPDEV)
-		(void)set_dumper(NULL, NULL);
+		(void)set_dumper(NULL, NULL, curthread);
 
 	/* Destroy the struct cdev *so we get no more requests */
 	destroy_dev_sched_cb(dev, g_dev_callback, cp);

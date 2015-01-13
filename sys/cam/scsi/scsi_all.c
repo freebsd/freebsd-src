@@ -1106,13 +1106,13 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x04, 0x09, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, self-test in progress") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x0A, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x0A, SS_TUR | SSQ_MANY | SSQ_DECREMENT_COUNT | ENXIO,
 	    "Logical unit not accessible, asymmetric access state transition")},
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x0B, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x0B, SS_FATAL | ENXIO,
 	    "Logical unit not accessible, target port in standby state") },
 	/* DTLPWROMAEBKVF */
-	{ SST(0x04, 0x0C, SS_RDEF,	/* XXX TBD */
+	{ SST(0x04, 0x0C, SS_FATAL | ENXIO,
 	    "Logical unit not accessible, target port in unavailable state") },
 	/*              F */
 	{ SST(0x04, 0x0D, SS_RDEF,	/* XXX TBD */
@@ -1733,7 +1733,7 @@ static struct asc_table_entry asc_table[] = {
 	{ SST(0x27, 0x06, SS_RDEF,	/* XXX TBD */
 	    "Conditional write protect") },
 	/* D         B    */
-	{ SST(0x27, 0x07, SS_RDEF,	/* XXX TBD */
+	{ SST(0x27, 0x07, SS_FATAL | ENOSPC,
 	    "Space allocation failed write protect") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x28, 0x00, SS_FATAL | ENXIO,

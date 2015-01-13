@@ -58,6 +58,7 @@ struct cfiscsi_data_wait {
 	char				*cdw_sg_addr;
 	size_t				cdw_sg_len;
 	uint32_t			cdw_r2t_end;
+	uint32_t			cdw_datasn;
 };
 
 #define CFISCSI_SESSION_STATE_INVALID		0
@@ -115,6 +116,7 @@ struct cfiscsi_softc {
 	unsigned int			last_session_id;
 	TAILQ_HEAD(, cfiscsi_target)	targets;
 	TAILQ_HEAD(, cfiscsi_session)	sessions;
+	struct cv			sessions_cv;
 #ifdef ICL_KERNEL_PROXY
 	struct icl_listen		*listener;
 	struct cv			accept_cv;

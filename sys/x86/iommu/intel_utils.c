@@ -354,20 +354,46 @@ dmar_map_pgtbl(vm_object_t obj, vm_pindex_t idx, int flags,
 }
 
 void
-dmar_unmap_pgtbl(struct sf_buf *sf, bool coherent)
+dmar_unmap_pgtbl(struct sf_buf *sf)
 {
-	vm_page_t m;
 
-	m = sf_buf_page(sf);
 	sf_buf_free(sf);
 	sched_unpin();
+}
 
+static void
+dmar_flush_transl_to_ram(struct dmar_unit *unit, void *dst, size_t sz)
+{
+
+	if (DMAR_IS_COHERENT(unit))
+		return;
 	/*
 	 * If DMAR does not snoop paging structures accesses, flush
 	 * CPU cache to memory.
 	 */
-	if (!coherent)
-		pmap_invalidate_cache_pages(&m, 1);
+	pmap_invalidate_cache_range((uintptr_t)dst, (uintptr_t)dst + sz,
+	    TRUE);
+}
+
+void
+dmar_flush_pte_to_ram(struct dmar_unit *unit, dmar_pte_t *dst)
+{
+
+	dmar_flush_transl_to_ram(unit, dst, sizeof(*dst));
+}
+
+void
+dmar_flush_ctx_to_ram(struct dmar_unit *unit, dmar_ctx_entry_t *dst)
+{
+
+	dmar_flush_transl_to_ram(unit, dst, sizeof(*dst));
+}
+
+void
+dmar_flush_root_to_ram(struct dmar_unit *unit, dmar_root_entry_t *dst)
+{
+
+	dmar_flush_transl_to_ram(unit, dst, sizeof(*dst));
 }
 
 /*

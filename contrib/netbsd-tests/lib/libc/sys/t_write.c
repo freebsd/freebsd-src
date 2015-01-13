@@ -32,7 +32,9 @@ __COPYRIGHT("@(#) Copyright (c) 2008\
 __RCSID("$NetBSD: t_write.c,v 1.2 2011/10/19 16:19:30 jruoho Exp $");
 
 #include <sys/uio.h>
+#ifdef __NetBSD__
 #include <sys/syslimits.h>
+#endif
 
 #include <atf-c.h>
 #include <errno.h>
@@ -43,13 +45,21 @@ __RCSID("$NetBSD: t_write.c,v 1.2 2011/10/19 16:19:30 jruoho Exp $");
 #include <string.h>
 #include <unistd.h>
 
+#ifdef __FreeBSD__
+#include <limits.h>
+#endif
+
 static void		 sighandler(int);
 
 static bool		 fail = false;
 static const char	*path = "write";
 
 static void
+#ifdef __FreeBSD__
+sighandler(int signo __unused)
+#else
 sighandler(int signo)
+#endif
 {
 	fail = false;
 }

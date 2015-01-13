@@ -28,7 +28,7 @@
 .\"     @(#)recv.2	8.3 (Berkeley) 2/21/94
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2013
+.Dd October 15, 2014
 .Dt RECV 2
 .Os
 .Sh NAME
@@ -324,9 +324,9 @@ In this case the descriptors are
 closed, any pending data can be returned by another call to
 .Fn recvmsg .
 .It Bq Er EAGAIN
-The socket is marked non-blocking, and the receive operation
+The socket is marked non-blocking and the receive operation
 would block, or
-a receive timeout had been set,
+a receive timeout had been set
 and the timeout expired before data were received.
 .It Bq Er EINTR
 The receive was interrupted by delivery of a signal before

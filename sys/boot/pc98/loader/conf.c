@@ -61,19 +61,19 @@ struct fs_ops *file_system[] = {
     &ext2fs_fsops,
     &dosfs_fsops,
     &cd9660_fsops,
-    &splitfs_fsops,
-#ifdef LOADER_GZIP_SUPPORT
-    &gzipfs_fsops,
-#endif
-#ifdef LOADER_BZIP2_SUPPORT
-    &bzipfs_fsops,
-#endif
 #ifdef LOADER_NFS_SUPPORT 
     &nfs_fsops,
 #endif
 #ifdef LOADER_TFTP_SUPPORT
     &tftp_fsops,
 #endif
+#ifdef LOADER_GZIP_SUPPORT
+    &gzipfs_fsops,
+#endif
+#ifdef LOADER_BZIP2_SUPPORT
+    &bzipfs_fsops,
+#endif
+    &splitfs_fsops,
     NULL
 };
 

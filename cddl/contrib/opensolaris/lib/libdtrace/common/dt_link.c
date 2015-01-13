@@ -685,8 +685,8 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	elf_file.ehdr.e_machine = EM_ARM;
 #elif defined(__mips__)
 	elf_file.ehdr.e_machine = EM_MIPS;
-#elif defined(__powerpc__)
-	elf_file.ehdr.e_machine = EM_PPC;
+#elif defined(__powerpc64__)
+	elf_file.ehdr.e_machine = EM_PPC64;
 #elif defined(__sparc)
 	elf_file.ehdr.e_machine = EM_SPARCV9;
 #elif defined(__i386) || defined(__amd64)
@@ -784,21 +784,32 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 
 static int
 dt_symtab_lookup(Elf_Data *data_sym, int nsym, uintptr_t addr, uint_t shn,
-    GElf_Sym *sym)
+    GElf_Sym *sym, int uses_funcdesc, Elf *elf)
 {
 	int i, ret = -1;
+	Elf64_Addr symval;
+	Elf_Scn *opd_scn;
+	Elf_Data *opd_desc;
 	GElf_Sym s;
 
 	for (i = 0; i < nsym && gelf_getsym(data_sym, i, sym) != NULL; i++) {
-		if (GELF_ST_TYPE(sym->st_info) == STT_FUNC &&
-		    shn == sym->st_shndx &&
-		    sym->st_value <= addr &&
-		    addr < sym->st_value + sym->st_size) {
-			if (GELF_ST_BIND(sym->st_info) == STB_GLOBAL)
-				return (0);
+		if (GELF_ST_TYPE(sym->st_info) == STT_FUNC) {
+			symval = sym->st_value;
+			if (uses_funcdesc) {
+				opd_scn = elf_getscn(elf, sym->st_shndx);
+				opd_desc = elf_rawdata(opd_scn, NULL);
+				symval =
+				    *(uint64_t*)((char *)opd_desc->d_buf + symval);
+			}
+			if ((uses_funcdesc || shn == sym->st_shndx) &&
+			    symval <= addr &&
+			    addr < symval + sym->st_size) {
+				if (GELF_ST_BIND(sym->st_info) == STB_GLOBAL)
+					return (0);
 
-			ret = 0;
-			s = *sym;
+				ret = 0;
+				s = *sym;
+			}
 		}
 	}
 
@@ -1375,7 +1386,8 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 				continue;
 
 			if (dt_symtab_lookup(data_sym, isym, rela.r_offset,
-			    shdr_rel.sh_info, &fsym) != 0) {
+			    shdr_rel.sh_info, &fsym,
+			    (emachine1 == EM_PPC64), elf) != 0) {
 				dt_strtab_destroy(strtab);
 				goto err;
 			}
@@ -1536,7 +1548,8 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			p = strhyphenate(p + 3); /* strlen("___") */
 
 			if (dt_symtab_lookup(data_sym, isym, rela.r_offset,
-			    shdr_rel.sh_info, &fsym) != 0)
+			    shdr_rel.sh_info, &fsym,
+			    (emachine1 == EM_PPC64), elf) != 0)
 				goto err;
 
 			if (fsym.st_name > data_str->d_size)

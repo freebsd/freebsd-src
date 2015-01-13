@@ -21,6 +21,7 @@
 #include "lldb/Interpreter/PythonDataObjects.h"
 #endif
 #include "lldb/Target/ExecutionContext.h"
+#include "lldb/Target/Target.h"
 #include "lldb/Utility/Utils.h"
 // Project includes
 #include "Utility/StringExtractorGDBRemote.h"
@@ -199,7 +200,7 @@ GDBRemoteRegisterContext::ReadRegisterBytes (const RegisterInfo *reg_info, DataE
                 const uint32_t prim_reg = reg_info->value_regs[idx];
                 if (prim_reg == LLDB_INVALID_REGNUM)
                     break;
-                // We have a valid primordial regsiter as our constituent.
+                // We have a valid primordial register as our constituent.
                 // Grab the corresponding register info.
                 const RegisterInfo *prim_reg_info = GetRegisterInfoAtIndex(prim_reg);
                 if (prim_reg_info == NULL)
@@ -232,11 +233,20 @@ GDBRemoteRegisterContext::ReadRegisterBytes (const RegisterInfo *reg_info, DataE
 
     if (&data != &m_reg_data)
     {
+#if defined (LLDB_CONFIGURATION_DEBUG)
+        assert (m_reg_data.GetByteSize() >= reg_info->byte_offset + reg_info->byte_size);
+#endif  
+        // If our register context and our register info disagree, which should never happen, don't
+        // read past the end of the buffer.
+        if (m_reg_data.GetByteSize() < reg_info->byte_offset + reg_info->byte_size)
+            return false;
+
         // If we aren't extracting into our own buffer (which
         // only happens when this function is called from
         // ReadRegisterValue(uint32_t, Scalar&)) then
         // we transfer bytes from our buffer into the data
         // buffer that was passed in
+
         data.SetByteOrder (m_reg_data.GetByteOrder());
         data.SetData (m_reg_data, reg_info->byte_offset, reg_info->byte_size);
     }
@@ -322,6 +332,16 @@ GDBRemoteRegisterContext::WriteRegisterBytes (const lldb_private::RegisterInfo *
 //    if (gdb_comm.IsRunning())
 //        return false;
 
+
+#if defined (LLDB_CONFIGURATION_DEBUG)
+    assert (m_reg_data.GetByteSize() >= reg_info->byte_offset + reg_info->byte_size);
+#endif
+
+    // If our register context and our register info disagree, which should never happen, don't
+    // overwrite past the end of the buffer.
+    if (m_reg_data.GetByteSize() < reg_info->byte_offset + reg_info->byte_size)
+        return false;
+
     // Grab a pointer to where we are going to put this register
     uint8_t *dst = const_cast<uint8_t*>(m_reg_data.PeekData(reg_info->byte_offset, reg_info->byte_size));
 
@@ -389,7 +409,7 @@ GDBRemoteRegisterContext::WriteRegisterBytes (const lldb_private::RegisterInfo *
                             const uint32_t reg = reg_info->value_regs[idx];
                             if (reg == LLDB_INVALID_REGNUM)
                                 break;
-                            // We have a valid primordial regsiter as our constituent.
+                            // We have a valid primordial register as our constituent.
                             // Grab the corresponding register info.
                             const RegisterInfo *value_reg_info = GetRegisterInfoAtIndex(reg);
                             if (value_reg_info == NULL)
@@ -502,6 +522,8 @@ GDBRemoteRegisterContext::ReadAllRegisterValues (lldb::DataBufferSP &data_sp)
 
     StringExtractorGDBRemote response;
 
+    const bool use_g_packet = gdb_comm.AvoidGPackets ((ProcessGDBRemote *)process) == false;
+
     Mutex::Locker locker;
     if (gdb_comm.GetSequenceMutex (locker, "Didn't get sequence mutex for read all registers."))
     {
@@ -519,29 +541,62 @@ GDBRemoteRegisterContext::ReadAllRegisterValues (lldb::DataBufferSP &data_sp)
                 packet_len = ::snprintf (packet, sizeof(packet), "g");
             assert (packet_len < ((int)sizeof(packet) - 1));
 
-            if (gdb_comm.SendPacketAndWaitForResponse(packet, packet_len, response, false) == GDBRemoteCommunication::PacketResult::Success)
+            if (use_g_packet && gdb_comm.SendPacketAndWaitForResponse(packet, packet_len, response, false) == GDBRemoteCommunication::PacketResult::Success)
             {
-                if (response.IsErrorResponse())
-                    return false;
-
-                std::string &response_str = response.GetStringRef();
-                if (isxdigit(response_str[0]))
+                int packet_len = 0;
+                if (thread_suffix_supported)
+                    packet_len = ::snprintf (packet, sizeof(packet), "g;thread:%4.4" PRIx64, m_thread.GetProtocolID());
+                else
+                    packet_len = ::snprintf (packet, sizeof(packet), "g");
+                assert (packet_len < ((int)sizeof(packet) - 1));
+    
+                if (gdb_comm.SendPacketAndWaitForResponse(packet, packet_len, response, false) == GDBRemoteCommunication::PacketResult::Success)
                 {
-                    response_str.insert(0, 1, 'G');
-                    if (thread_suffix_supported)
+                    if (response.IsErrorResponse())
+                        return false;
+    
+                    std::string &response_str = response.GetStringRef();
+                    if (isxdigit(response_str[0]))
                     {
-                        char thread_id_cstr[64];
-                        ::snprintf (thread_id_cstr, sizeof(thread_id_cstr), ";thread:%4.4" PRIx64 ";", m_thread.GetProtocolID());
-                        response_str.append (thread_id_cstr);
+                        response_str.insert(0, 1, 'G');
+                        if (thread_suffix_supported)
+                        {
+                            char thread_id_cstr[64];
+                            ::snprintf (thread_id_cstr, sizeof(thread_id_cstr), ";thread:%4.4" PRIx64 ";", m_thread.GetProtocolID());
+                            response_str.append (thread_id_cstr);
+                        }
+                        data_sp.reset (new DataBufferHeap (response_str.c_str(), response_str.size()));
+                        return true;
                     }
-                    data_sp.reset (new DataBufferHeap (response_str.c_str(), response_str.size()));
-                    return true;
                 }
+            }
+            else
+            {
+                // For the use_g_packet == false case, we're going to read each register 
+                // individually and store them as binary data in a buffer instead of as ascii
+                // characters.
+                const RegisterInfo *reg_info;
+
+                // data_sp will take ownership of this DataBufferHeap pointer soon.
+                DataBufferSP reg_ctx(new DataBufferHeap(m_reg_info.GetRegisterDataByteSize(), 0));
+
+                for (uint32_t i = 0; (reg_info = GetRegisterInfoAtIndex (i)) != NULL; i++)
+                {
+                    if (reg_info->value_regs) // skip registers that are slices of real registers
+                        continue;
+                    ReadRegisterBytes (reg_info, m_reg_data);
+                    // ReadRegisterBytes saves the contents of the register in to the m_reg_data buffer
+                }
+                memcpy (reg_ctx->GetBytes(), m_reg_data.GetDataStart(), m_reg_info.GetRegisterDataByteSize());
+
+                data_sp = reg_ctx;
+                return true;
             }
         }
     }
     else
     {
+
         Log *log (ProcessGDBRemoteLog::GetLogIfAnyCategoryIsSet (GDBR_LOG_THREAD | GDBR_LOG_PACKETS));
         if (log)
         {
@@ -575,6 +630,8 @@ GDBRemoteRegisterContext::WriteAllRegisterValues (const lldb::DataBufferSP &data
 
     GDBRemoteCommunicationClient &gdb_comm (((ProcessGDBRemote *)process)->GetGDBRemote());
 
+    const bool use_g_packet = gdb_comm.AvoidGPackets ((ProcessGDBRemote *)process) == false;
+
     StringExtractorGDBRemote response;
     Mutex::Locker locker;
     if (gdb_comm.GetSequenceMutex (locker, "Didn't get sequence mutex for write all registers."))
@@ -588,63 +645,126 @@ GDBRemoteRegisterContext::WriteAllRegisterValues (const lldb::DataBufferSP &data
             // as well.
             const char *G_packet = (const char *)data_sp->GetBytes();
             size_t G_packet_len = data_sp->GetByteSize();
-            if (gdb_comm.SendPacketAndWaitForResponse (G_packet,
-                                                       G_packet_len,
-                                                       response,
-                                                       false) == GDBRemoteCommunication::PacketResult::Success)
+            if (use_g_packet
+                && gdb_comm.SendPacketAndWaitForResponse (G_packet,
+                                                          G_packet_len,
+                                                          response,
+                                                          false) == GDBRemoteCommunication::PacketResult::Success)
             {
-                if (response.IsOKResponse())
-                    return true;
-                else if (response.IsErrorResponse())
+                // The data_sp contains the entire G response packet including the
+                // G, and if the thread suffix is supported, it has the thread suffix
+                // as well.
+                const char *G_packet = (const char *)data_sp->GetBytes();
+                size_t G_packet_len = data_sp->GetByteSize();
+                if (gdb_comm.SendPacketAndWaitForResponse (G_packet,
+                                                           G_packet_len,
+                                                           response,
+                                                           false) == GDBRemoteCommunication::PacketResult::Success)
                 {
-                    uint32_t num_restored = 0;
-                    // We need to manually go through all of the registers and
-                    // restore them manually
-
-                    response.GetStringRef().assign (G_packet, G_packet_len);
-                    response.SetFilePos(1); // Skip the leading 'G'
-                    DataBufferHeap buffer (m_reg_data.GetByteSize(), 0);
-                    DataExtractor restore_data (buffer.GetBytes(),
-                                                buffer.GetByteSize(),
-                                                m_reg_data.GetByteOrder(),
-                                                m_reg_data.GetAddressByteSize());
-
-                    const uint32_t bytes_extracted = response.GetHexBytes ((void *)restore_data.GetDataStart(),
-                                                                           restore_data.GetByteSize(),
-                                                                           '\xcc');
-
-                    if (bytes_extracted < restore_data.GetByteSize())
-                        restore_data.SetData(restore_data.GetDataStart(), bytes_extracted, m_reg_data.GetByteOrder());
-
-                    //ReadRegisterBytes (const RegisterInfo *reg_info, RegisterValue &value, DataExtractor &data)
-                    const RegisterInfo *reg_info;
-                    // We have to march the offset of each register along in the
-                    // buffer to make sure we get the right offset.
-                    uint32_t reg_byte_offset = 0;
-                    for (uint32_t reg_idx=0; (reg_info = GetRegisterInfoAtIndex (reg_idx)) != NULL; ++reg_idx, reg_byte_offset += reg_info->byte_size)
+                    if (response.IsOKResponse())
+                        return true;
+                    else if (response.IsErrorResponse())
                     {
-                        const uint32_t reg = reg_info->kinds[eRegisterKindLLDB];
+                        uint32_t num_restored = 0;
+                        // We need to manually go through all of the registers and
+                        // restore them manually
+    
+                        response.GetStringRef().assign (G_packet, G_packet_len);
+                        response.SetFilePos(1); // Skip the leading 'G'
 
-                        // Skip composite registers.
-                        if (reg_info->value_regs)
-                            continue;
+                        // G_packet_len is hex-ascii characters plus prefix 'G' plus suffix thread specifier.
+                        // This means buffer will be a little more than 2x larger than necessary but we resize
+                        // it down once we've extracted all hex ascii chars from the packet.
+                        DataBufferHeap buffer (G_packet_len, 0);
+                        DataExtractor restore_data (buffer.GetBytes(),
+                                                    buffer.GetByteSize(),
+                                                    m_reg_data.GetByteOrder(),
+                                                    m_reg_data.GetAddressByteSize());
+    
+                        const uint32_t bytes_extracted = response.GetHexBytes ((void *)restore_data.GetDataStart(),
+                                                                               restore_data.GetByteSize(),
+                                                                               '\xcc');
+    
+                        if (bytes_extracted < restore_data.GetByteSize())
+                            restore_data.SetData(restore_data.GetDataStart(), bytes_extracted, m_reg_data.GetByteOrder());
+    
+                        const RegisterInfo *reg_info;
 
-                        // Only write down the registers that need to be written
-                        // if we are going to be doing registers individually.
-                        bool write_reg = true;
-                        const uint32_t reg_byte_size = reg_info->byte_size;
+                        // The g packet contents may either include the slice registers (registers defined in
+                        // terms of other registers, e.g. eax is a subset of rax) or not.  The slice registers 
+                        // should NOT be in the g packet, but some implementations may incorrectly include them.
+                        // 
+                        // If the slice registers are included in the packet, we must step over the slice registers 
+                        // when parsing the packet -- relying on the RegisterInfo byte_offset field would be incorrect.
+                        // If the slice registers are not included, then using the byte_offset values into the
+                        // data buffer is the best way to find individual register values.
 
-                        const char *restore_src = (const char *)restore_data.PeekData(reg_byte_offset, reg_byte_size);
-                        if (restore_src)
+                        uint64_t size_including_slice_registers = 0;
+                        uint64_t size_not_including_slice_registers = 0;
+                        uint64_t size_by_highest_offset = 0;
+
+                        for (uint32_t reg_idx=0; (reg_info = GetRegisterInfoAtIndex (reg_idx)) != NULL; ++reg_idx)
                         {
-                            if (GetRegisterIsValid(reg))
+                            size_including_slice_registers += reg_info->byte_size;
+                            if (reg_info->value_regs == NULL)
+                                size_not_including_slice_registers += reg_info->byte_size;
+                            if (reg_info->byte_offset >= size_by_highest_offset)
+                                size_by_highest_offset = reg_info->byte_offset + reg_info->byte_size;
+                        }
+
+                        bool use_byte_offset_into_buffer;
+                        if (size_by_highest_offset == restore_data.GetByteSize())
+                        {
+                            // The size of the packet agrees with the highest offset: + size in the register file
+                            use_byte_offset_into_buffer = true;
+                        }
+                        else if (size_not_including_slice_registers == restore_data.GetByteSize())
+                        {
+                            // The size of the packet is the same as concatenating all of the registers sequentially,
+                            // skipping the slice registers
+                            use_byte_offset_into_buffer = true;
+                        }
+                        else if (size_including_slice_registers == restore_data.GetByteSize())
+                        {
+                            // The slice registers are present in the packet (when they shouldn't be).
+                            // Don't try to use the RegisterInfo byte_offset into the restore_data, it will
+                            // point to the wrong place.
+                            use_byte_offset_into_buffer = false;
+                        }
+                        else {
+                            // None of our expected sizes match the actual g packet data we're looking at.
+                            // The most conservative approach here is to use the running total byte offset.
+                            use_byte_offset_into_buffer = false;
+                        }
+
+                        // In case our register definitions don't include the correct offsets,
+                        // keep track of the size of each reg & compute offset based on that.
+                        uint32_t running_byte_offset = 0;
+                        for (uint32_t reg_idx=0; (reg_info = GetRegisterInfoAtIndex (reg_idx)) != NULL; ++reg_idx, running_byte_offset += reg_info->byte_size)
+                        {
+                            // Skip composite aka slice registers (e.g. eax is a slice of rax).
+                            if (reg_info->value_regs)
+                                continue;
+
+                            const uint32_t reg = reg_info->kinds[eRegisterKindLLDB];
+
+                            uint32_t register_offset;
+                            if (use_byte_offset_into_buffer)
                             {
-                                const char *current_src = (const char *)m_reg_data.PeekData(reg_byte_offset, reg_byte_size);
-                                if (current_src)
-                                    write_reg = memcmp (current_src, restore_src, reg_byte_size) != 0;
+                                register_offset = reg_info->byte_offset;
+                            }
+                            else
+                            {
+                                register_offset = running_byte_offset;
                             }
 
-                            if (write_reg)
+                            // Only write down the registers that need to be written
+                            // if we are going to be doing registers individually.
+                            bool write_reg = true;
+                            const uint32_t reg_byte_size = reg_info->byte_size;
+    
+                            const char *restore_src = (const char *)restore_data.PeekData(register_offset, reg_byte_size);
+                            if (restore_src)
                             {
                                 StreamString packet;
                                 packet.Printf ("P%x=", reg);
@@ -662,14 +782,88 @@ GDBRemoteRegisterContext::WriteAllRegisterValues (const lldb::DataBufferSP &data
                                                                           response,
                                                                           false) == GDBRemoteCommunication::PacketResult::Success)
                                 {
-                                    if (response.IsOKResponse())
-                                        ++num_restored;
+                                    const char *current_src = (const char *)m_reg_data.PeekData(register_offset, reg_byte_size);
+                                    if (current_src)
+                                        write_reg = memcmp (current_src, restore_src, reg_byte_size) != 0;
+                                }
+    
+                                if (write_reg)
+                                {
+                                    StreamString packet;
+                                    packet.Printf ("P%x=", reg);
+                                    packet.PutBytesAsRawHex8 (restore_src,
+                                                              reg_byte_size,
+                                                              lldb::endian::InlHostByteOrder(),
+                                                              lldb::endian::InlHostByteOrder());
+    
+                                    if (thread_suffix_supported)
+                                        packet.Printf (";thread:%4.4" PRIx64 ";", m_thread.GetProtocolID());
+    
+                                    SetRegisterIsValid(reg, false);
+                                    if (gdb_comm.SendPacketAndWaitForResponse(packet.GetString().c_str(),
+                                                                              packet.GetString().size(),
+                                                                              response,
+                                                                              false) == GDBRemoteCommunication::PacketResult::Success)
+                                    {
+                                        if (response.IsOKResponse())
+                                            ++num_restored;
+                                    }
                                 }
                             }
                         }
+                        return num_restored > 0;
                     }
-                    return num_restored > 0;
                 }
+            }
+            else
+            {
+                // For the use_g_packet == false case, we're going to write each register 
+                // individually.  The data buffer is binary data in this case, instead of 
+                // ascii characters.
+
+                bool arm64_debugserver = false;
+                if (m_thread.GetProcess().get())
+                {
+                    const ArchSpec &arch = m_thread.GetProcess()->GetTarget().GetArchitecture();
+                    if (arch.IsValid()
+                        && arch.GetMachine() == llvm::Triple::aarch64
+                        && arch.GetTriple().getVendor() == llvm::Triple::Apple
+                        && arch.GetTriple().getOS() == llvm::Triple::IOS)
+                    {
+                        arm64_debugserver = true;
+                    }
+                }
+                uint32_t num_restored = 0;
+                const RegisterInfo *reg_info;
+                for (uint32_t i = 0; (reg_info = GetRegisterInfoAtIndex (i)) != NULL; i++)
+                {
+                    if (reg_info->value_regs) // skip registers that are slices of real registers
+                        continue;
+                    // Skip the fpsr and fpcr floating point status/control register writing to
+                    // work around a bug in an older version of debugserver that would lead to
+                    // register context corruption when writing fpsr/fpcr.
+                    if (arm64_debugserver &&
+                        (strcmp (reg_info->name, "fpsr") == 0 || strcmp (reg_info->name, "fpcr") == 0))
+                    {
+                        continue;
+                    }
+                    StreamString packet;
+                    packet.Printf ("P%x=", reg_info->kinds[eRegisterKindLLDB]);
+                    packet.PutBytesAsRawHex8 (data_sp->GetBytes() + reg_info->byte_offset, reg_info->byte_size, lldb::endian::InlHostByteOrder(), lldb::endian::InlHostByteOrder());
+                    if (thread_suffix_supported)
+                        packet.Printf (";thread:%4.4" PRIx64 ";", m_thread.GetProtocolID());
+
+                    SetRegisterIsValid(reg_info, false);
+                    if (gdb_comm.SendPacketAndWaitForResponse(packet.GetString().c_str(),
+                                                              packet.GetString().size(),
+                                                              response,
+                                                              false) == GDBRemoteCommunication::PacketResult::Success)
+                    {
+                        if (response.IsOKResponse())
+                            ++num_restored;
+                    }
+                }
+                return num_restored > 0;
             }
         }
     }
@@ -693,7 +887,7 @@ GDBRemoteRegisterContext::WriteAllRegisterValues (const lldb::DataBufferSP &data
 
 
 uint32_t
-GDBRemoteRegisterContext::ConvertRegisterKindToRegisterNumber (uint32_t kind, uint32_t num)
+GDBRemoteRegisterContext::ConvertRegisterKindToRegisterNumber (lldb::RegisterKind kind, uint32_t num)
 {
     return m_reg_info.ConvertRegisterKindToRegisterNumber (kind, num);
 }

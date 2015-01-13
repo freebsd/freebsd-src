@@ -56,7 +56,7 @@ ATF_TC_BODY(getcwd_err, tc)
 	ATF_REQUIRE(getcwd(buf, 0) == NULL);
 	ATF_REQUIRE(errno == EINVAL);
 
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 	errno = 0;
 
 	ATF_REQUIRE(getcwd((void *)-1, sizeof(buf)) == NULL);

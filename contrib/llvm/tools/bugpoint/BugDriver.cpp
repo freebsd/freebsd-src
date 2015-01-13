@@ -17,7 +17,7 @@
 #include "ToolRunner.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
-#include "llvm/Linker.h"
+#include "llvm/Linker/Linker.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileUtilities.h"
@@ -70,12 +70,16 @@ BugDriver::BugDriver(const char *toolname, bool find_bugs,
                      unsigned timeout, unsigned memlimit, bool use_valgrind,
                      LLVMContext& ctxt)
   : Context(ctxt), ToolName(toolname), ReferenceOutputFile(OutputFile),
-    Program(0), Interpreter(0), SafeInterpreter(0), gcc(0),
-    run_find_bugs(find_bugs), Timeout(timeout),
+    Program(nullptr), Interpreter(nullptr), SafeInterpreter(nullptr),
+    gcc(nullptr), run_find_bugs(find_bugs), Timeout(timeout),
     MemoryLimit(memlimit), UseValgrind(use_valgrind) {}
 
 BugDriver::~BugDriver() {
   delete Program;
+  if (Interpreter != SafeInterpreter)
+    delete Interpreter;
+  delete SafeInterpreter;
+  delete gcc;
 }
 
 
@@ -112,18 +116,18 @@ Module *llvm::ParseInputFile(const std::string &Filename,
 // parsed), and false on success.
 //
 bool BugDriver::addSources(const std::vector<std::string> &Filenames) {
-  assert(Program == 0 && "Cannot call addSources multiple times!");
+  assert(!Program && "Cannot call addSources multiple times!");
   assert(!Filenames.empty() && "Must specify at least on input filename!");
 
   // Load the first input file.
   Program = ParseInputFile(Filenames[0], Context);
-  if (Program == 0) return true;
+  if (!Program) return true;
 
   outs() << "Read input file      : '" << Filenames[0] << "'\n";
 
   for (unsigned i = 1, e = Filenames.size(); i != e; ++i) {
-    OwningPtr<Module> M(ParseInputFile(Filenames[i], Context));
-    if (M.get() == 0) return true;
+    std::unique_ptr<Module> M(ParseInputFile(Filenames[i], Context));
+    if (!M.get()) return true;
 
     outs() << "Linking in input file: '" << Filenames[i] << "'\n";
     std::string ErrorMessage;

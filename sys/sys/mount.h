@@ -361,7 +361,7 @@ void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
 #define	MNTK_SUSPEND2	0x04000000	/* block secondary writes */
 #define	MNTK_SUSPENDED	0x10000000	/* write operations are suspended */
-#define	MNTK_UNUSED25	0x20000000	/*  --available-- */
+#define	MNTK_SUSPENDABLE	0x20000000 /* writes can be suspended */
 #define MNTK_LOOKUP_SHARED	0x40000000 /* FS supports shared lock lookups */
 #define	MNTK_NOKNOTE	0x80000000	/* Don't send KNOTEs from VOP hooks */
 
@@ -916,6 +916,9 @@ vfs_init_t		vfs_stdinit;
 vfs_uninit_t		vfs_stduninit;
 vfs_extattrctl_t	vfs_stdextattrctl;
 vfs_sysctl_t		vfs_stdsysctl;
+
+void	syncer_suspend(void);
+void	syncer_resume(void);
 
 #else /* !_KERNEL */
 

@@ -135,7 +135,7 @@ extern int YYPARSE_DECL();
 
 #define recur 257
 #define YYERRCODE 256
-typedef short YYINT;
+typedef int YYINT;
 static const YYINT err_syntax20_lhs[] = {                -1,
     0,
 };

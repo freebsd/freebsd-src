@@ -1468,15 +1468,15 @@ mxge_add_sysctls(mxge_softc_t *sc)
 	/* random information */
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO,
 		       "firmware_version",
-		       CTLFLAG_RD, &sc->fw_version,
+		       CTLFLAG_RD, sc->fw_version,
 		       0, "firmware version");
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO,
 		       "serial_number",
-		       CTLFLAG_RD, &sc->serial_number_string,
+		       CTLFLAG_RD, sc->serial_number_string,
 		       0, "serial number");
 	SYSCTL_ADD_STRING(ctx, children, OID_AUTO,
 		       "product_code",
-		       CTLFLAG_RD, &sc->product_code_string,
+		       CTLFLAG_RD, sc->product_code_string,
 		       0, "product_code");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO,
 		       "pcie_link_width",
@@ -2719,7 +2719,7 @@ mxge_rx_done_big(struct mxge_slice_state *ss, uint32_t len,
 	/* flowid only valid if RSS hashing is enabled */
 	if (sc->num_slices > 1) {
 		m->m_pkthdr.flowid = (ss - sc->ss);
-		m->m_flags |= M_FLOWID;
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	}
 	/* pass the frame up the stack */
 	(*ifp->if_input)(ifp, m);
@@ -2787,7 +2787,7 @@ mxge_rx_done_small(struct mxge_slice_state *ss, uint32_t len,
 	/* flowid only valid if RSS hashing is enabled */
 	if (sc->num_slices > 1) {
 		m->m_pkthdr.flowid = (ss - sc->ss);
-		m->m_flags |= M_FLOWID;
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	}
 	/* pass the frame up the stack */
 	(*ifp->if_input)(ifp, m);

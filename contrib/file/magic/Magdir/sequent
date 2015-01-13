@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: sequent,v 1.11 2014/06/02 19:27:54 christos Exp $
+# $File: sequent,v 1.12 2014/08/16 16:07:12 christos Exp $
 # sequent:  file(1) magic for Sequent machines
 #
 # Sequent information updated by Don Dwiggins <atsun!dwiggins>.
@@ -28,9 +28,6 @@
 >16	lelong	>0		not stripped
 >124	lelong	>0		version %d
 0	leshort	0x32eb		SYMMETRY i386 executable (invalid @ 0)
->16	lelong	>0		not stripped
->124	lelong	>0		version %d
-0	leshort	0x42eb		SYMMETRY i386 standalone executable
 >16	lelong	>0		not stripped
 >124	lelong	>0		version %d
 # http://en.wikipedia.org/wiki/Sequent_Computer_Systems

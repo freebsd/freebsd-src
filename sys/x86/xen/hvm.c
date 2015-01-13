@@ -97,8 +97,6 @@ DPCPU_DEFINE(struct vcpu_info, vcpu_local_info);
 DPCPU_DEFINE(struct vcpu_info *, vcpu_info);
 
 /*------------------ Hypervisor Access Shared Memory Regions -----------------*/
-/** Hypercall table accessed via HYPERVISOR_*_op() methods. */
-extern char *hypercall_page;
 shared_info_t *HYPERVISOR_shared_info;
 start_info_t *HYPERVISOR_start_info;
 

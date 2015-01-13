@@ -52,7 +52,6 @@ MAN=	aac.4 \
 	${_apic.4} \
 	arcmsr.4 \
 	${_asmc.4} \
-	asr.4 \
 	ata.4 \
 	ath.4 \
 	ath_ahb.4 \
@@ -87,6 +86,7 @@ MAN=	aac.4 \
 	cc_cdg.4 \
 	cc_chd.4 \
 	cc_cubic.4 \
+	cc_dctcp.4 \
 	cc_hd.4 \
 	cc_htcp.4 \
 	cc_newreno.4 \
@@ -130,9 +130,9 @@ MAN=	aac.4 \
 	esp.4 \
 	est.4 \
 	et.4 \
+	etherswitch.4 \
 	eventtimers.4 \
 	exca.4 \
-	faith.4 \
 	fatm.4 \
 	fd.4 \
 	fdc.4 \
@@ -157,7 +157,6 @@ MAN=	aac.4 \
 	geom_uncompress.4 \
 	geom_uzip.4 \
 	gif.4 \
-	gpib.4 \
 	gpio.4 \
 	gpioiic.4 \
 	gpioled.4 \
@@ -252,6 +251,7 @@ MAN=	aac.4 \
 	malo.4 \
 	mcd.4 \
 	md.4 \
+	me.4 \
 	mem.4 \
 	meteor.4 \
 	mfi.4 \
@@ -372,7 +372,6 @@ MAN=	aac.4 \
 	pci.4 \
 	pcib.4 \
 	pcic.4 \
-	pcii.4 \
 	pcm.4 \
 	pcn.4 \
 	${_pf.4} \
@@ -495,7 +494,6 @@ MAN=	aac.4 \
 	ti.4 \
 	timecounters.4 \
 	tl.4 \
-	tnt4882.4 \
 	${_tpm.4} \
 	trm.4 \
 	tty.4 \
@@ -563,10 +561,12 @@ MAN=	aac.4 \
 	${_virtio.4} \
 	${_virtio_balloon.4} \
 	${_virtio_blk.4} \
+	${_virtio_console.4} \
 	${_virtio_random.4} \
 	${_virtio_scsi.4} \
 	vkbd.4 \
 	vlan.4 \
+	vxlan.4 \
 	${_vmx.4} \
 	vpo.4 \
 	vr.4 \
@@ -634,7 +634,6 @@ MLINKS+=en.4 if_en.4
 MLINKS+=enc.4 if_enc.4
 MLINKS+=epair.4 if_epair.4
 MLINKS+=et.4 if_et.4
-MLINKS+=faith.4 if_faith.4
 MLINKS+=fatm.4 if_fatm.4
 MLINKS+=fd.4 stderr.4 \
 	fd.4 stdin.4 \
@@ -743,6 +742,7 @@ MLINKS+=urndis.4 if_urndis.4
 MLINKS+=${_urtw.4} ${_if_urtw.4}
 MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
+MLINKS+=vxlan.4 if_vxlan.4
 MLINKS+=${_vmx.4} ${_if_vmx.4}
 MLINKS+=vpo.4 imm.4
 MLINKS+=vr.4 if_vr.4
@@ -812,6 +812,7 @@ _nxge.4=	nxge.4
 _virtio.4=	virtio.4
 _virtio_balloon.4=virtio_balloon.4
 _virtio_blk.4=	virtio_blk.4
+_virtio_console.4=virtio_console.4
 _virtio_random.4= virtio_random.4
 _virtio_scsi.4= virtio_scsi.4
 _vmx.4=		vmx.4
