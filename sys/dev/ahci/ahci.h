@@ -591,7 +591,8 @@ enum ahci_err_type {
 	"\015NOMSI"		\
 	"\016ATI_PMP_BUG"	\
 	"\017MAXIO_64K"		\
-	"\020SATA1_UNIT0"
+	"\020SATA1_UNIT0"	\
+	"\021ABAR0"
 
 int ahci_attach(device_t dev);
 int ahci_detach(device_t dev);
