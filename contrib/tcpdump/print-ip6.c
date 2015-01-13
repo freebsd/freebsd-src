@@ -70,7 +70,7 @@ nextproto6_cksum(const struct ip6_hdr *ip6,
         ph.ph_len = htonl(len);
         ph.ph_nxt = next_proto;
 
-        vec[0].ptr = cheri_ptr(&ph, sizeof(ph));
+        vec[0].ptr = (void *)&ph;
         vec[0].len = sizeof(ph);
         vec[1].ptr = data;
         vec[1].len = len;

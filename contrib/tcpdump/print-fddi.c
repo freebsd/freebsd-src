@@ -218,8 +218,8 @@ fddi_hdr_print(const struct fddi_header *fddip,
 {
 	const char *srcname, *dstname;
 
-	srcname = etheraddr_string(cheri_ptr((void *)fsrc, 6));
-	dstname = etheraddr_string(cheri_ptr((void *)fdst, 6));
+	srcname = etheraddr_string(fsrc);
+	dstname = etheraddr_string(fdst);
 
 	if (vflag)
 		(void) printf("%02x %s %s %d: ",
@@ -276,8 +276,8 @@ _fddi_print(const u_char *p, u_int length, u_int caplen)
 	/* Frame Control field determines interpretation of packet */
 	if ((fddip->fddi_fc & FDDIFC_CLFF) == FDDIFC_LLC_ASYNC) {
 		/* Try to print the LLC-layer header & higher layers */
-		if (llc_print(p, length, caplen, cheri_ptr(ESRC(&ehdr), 6),
-		    cheri_ptr(EDST(&ehdr), 6), &extracted_ethertype) == 0) {
+		if (llc_print(p, length, caplen, ESRC(&ehdr),
+		    EDST(&ehdr), &extracted_ethertype) == 0) {
 			/*
 			 * Some kinds of LLC packet we cannot
 			 * handle intelligently

@@ -2494,17 +2494,14 @@ _isakmp_print(netdissect_options *ndo,
 
 	if (ndo->ndo_vflag) {
 		ND_PRINT((ndo," msgid "));
-		hexprint(ndo, cheri_ptr(&base.msgid, sizeof(base.msgid)),
-		    sizeof(base.msgid));
+		hexprint(ndo, &base.msgid, sizeof(base.msgid));
 	}
 
 	if (1 < ndo->ndo_vflag) {
 		ND_PRINT((ndo," cookie "));
-		hexprint(ndo, cheri_ptr(&base.i_ck, sizeof(base.i_ck)),
-		    sizeof(base.i_ck));
+		hexprint(ndo, &base.i_ck, sizeof(base.i_ck));
 		ND_PRINT((ndo,"->"));
-		hexprint(ndo, cheri_ptr(&base.r_ck, sizeof(base.r_ck)),
-		    sizeof(base.r_ck));
+		hexprint(ndo, &base.r_ck, sizeof(base.r_ck));
 	}
 	ND_PRINT((ndo,":"));
 

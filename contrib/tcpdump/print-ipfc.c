@@ -67,8 +67,8 @@ ipfc_hdr_print(const struct ipfc_header *ipfcp _U_,
 {
 	const char *srcname, *dstname;
 
-	srcname = etheraddr_string(cheri_ptr((void *)ipfcsrc, 6));
-	dstname = etheraddr_string(cheri_ptr((void *)ipfcdst, 6));
+	srcname = etheraddr_string(ipfcsrc);
+	dstname = etheraddr_string(ipfcdst);
 
 	/*
 	 * XXX - show the upper 16 bits?  Do so only if "vflag" is set?
@@ -101,8 +101,7 @@ ipfc_print(const u_char *p, u_int length, u_int caplen)
 	caplen -= IPFC_HDRLEN;
 
 	/* Try to print the LLC-layer header & higher layers */
-	if (llc_print(p, length, caplen, cheri_ptr(ESRC(&ehdr), 6),
-	    cheri_ptr(EDST(&ehdr), 6),
+	if (llc_print(p, length, caplen, ESRC(&ehdr), EDST(&ehdr),
 	    &extracted_ethertype) == 0) {
 		/*
 		 * Some kinds of LLC packet we cannot

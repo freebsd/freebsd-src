@@ -65,8 +65,8 @@ token_hdr_print(const struct token_header *trp, register u_int length,
 {
 	const char *srcname, *dstname;
 
-	srcname = etheraddr_string(cheri_ptr(fsrc, 6));
-	dstname = etheraddr_string(cheri_ptr(fdst, 6));
+	srcname = etheraddr_string(fsrc);
+	dstname = etheraddr_string(fdst);
 
 	if (vflag)
 		(void) printf("%02x %02x %s %s %d: ",
@@ -174,8 +174,7 @@ _token_print(const u_char *p, u_int length, u_int caplen)
 	/* Frame Control field determines interpretation of packet */
 	if (FRAME_TYPE(trp) == TOKEN_FC_LLC) {
 		/* Try to print the LLC-layer header & higher layers */
-		if (llc_print(p, length, caplen, cheri_ptr(ESRC(&ehdr), 6),
-		    cheri_ptr(EDST(&ehdr), 6),
+		if (llc_print(p, length, caplen, ESRC(&ehdr), EDST(&ehdr),
 		    &extracted_ethertype) == 0) {
 			/* ether_type not known, print raw packet */
 			if (!eflag)

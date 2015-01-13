@@ -27,6 +27,12 @@
 
 /* $FreeBSD$ */
 
+#include <sys/cdefs.h>
+
+#if !__has_feature(capabilities)
+#define	__capability
+#endif
+
 /* XXX: Could be opaque to tcpdump.c */
 struct print_info {
         netdissect_options *ndo;
@@ -48,7 +54,7 @@ int	tcpdump_printf(netdissect_options *ndo _U_, const char *fmt, ...)
 struct print_info	get_print_info(int type);
 
 void	pretty_print_packet(struct print_info *print_info,
-	    const struct pcap_pkthdr *h, const u_char *sp);
+	    const struct pcap_pkthdr *h, __capability const u_char *sp);
 
 void	ndo_default_print(netdissect_options *ndo, const u_char *bp,
 	    u_int length);
