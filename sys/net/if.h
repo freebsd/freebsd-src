@@ -706,6 +706,7 @@ void	if_detach(if_t);
 void	if_input(if_t, struct mbuf *);
 void	if_mtap(if_t, struct mbuf *, void *, u_int);
 void	if_inc_counter(if_t, ift_counter, int64_t);
+void	if_inc_txcounters(if_t, struct mbuf *);
 void	if_link_state_change(if_t, int);
 void	if_set(if_t, ift_feature, uint64_t);
 void *	if_getsoftc(if_t, ift_feature);

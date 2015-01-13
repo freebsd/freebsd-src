@@ -1670,6 +1670,19 @@ if_inc_counter(struct ifnet *ifp, ift_counter cnt, int64_t inc)
 }
 
 /*
+ * Account successful transmission of an mbuf.
+ */
+void
+if_inc_txcounters(struct ifnet *ifp, struct mbuf *m)
+{
+
+	counter_u64_add(ifp->if_counters[IFCOUNTER_OBYTES], m->m_pkthdr.len);
+	counter_u64_add(ifp->if_counters[IFCOUNTER_OPACKETS], 1);
+	if (m->m_flags & M_MCAST)
+		counter_u64_add(ifp->if_counters[IFCOUNTER_OMCASTS], 1);
+}
+
+/*
  * Copy data from ifnet to userland API structure if_data.
  */
 void
