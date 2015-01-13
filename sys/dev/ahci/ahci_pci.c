@@ -287,6 +287,7 @@ static const struct {
 	{0x11841039, 0x00, "SiS 966",		0},
 	{0x11851039, 0x00, "SiS 968",		0},
 	{0x01861039, 0x00, "SiS 968",		0},
+	{0xa01c177d, 0x00, "ThunderX SATA",	AHCI_Q_ABAR0},
 	{0x00000000, 0x00, NULL,		0}
 };
 
@@ -386,12 +387,16 @@ ahci_pci_attach(device_t dev)
 	    pci_get_subvendor(dev) == 0x1043 &&
 	    pci_get_subdevice(dev) == 0x81e4)
 		ctlr->quirks |= AHCI_Q_SATA1_UNIT0;
-	/* if we have a memory BAR(5) we are likely on an AHCI part */
 	ctlr->vendorid = pci_get_vendor(dev);
 	ctlr->deviceid = pci_get_device(dev);
 	ctlr->subvendorid = pci_get_subvendor(dev);
 	ctlr->subdeviceid = pci_get_subdevice(dev);
-	ctlr->r_rid = PCIR_BAR(5);
+
+	/* Default AHCI Base Address is BAR(5), Cavium uses BAR(0) */
+	if (ctlr->quirks & AHCI_Q_ABAR0)
+		ctlr->r_rid = PCIR_BAR(0);
+	else
+		ctlr->r_rid = PCIR_BAR(5);
 	if (!(ctlr->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return ENXIO;
