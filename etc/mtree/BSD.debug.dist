@@ -24,6 +24,14 @@
             games
             ..
             lib
+                clang
+                    3.5.0
+                        lib
+                            freebsd
+                            ..
+                        ..
+                    ..
+                ..
                 engines
                 ..
                 i18n
