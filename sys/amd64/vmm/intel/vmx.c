@@ -1784,7 +1784,7 @@ vmexit_inst_emul(struct vm_exit *vmexit, uint64_t gpa, uint64_t gla)
 {
 	struct vm_guest_paging *paging;
 	uint32_t csar;
-	
+
 	paging = &vmexit->u.inst_emul.paging;
 
 	vmexit->exitcode = VM_EXITCODE_INST_EMUL;
@@ -2073,12 +2073,11 @@ emulate_rdmsr(struct vmx *vmx, int vcpuid, u_int num, bool *retu)
 static int
 vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 {
-	int error, handled, in;
+	int error, errcode, errcode_valid, handled, in;
 	struct vmxctx *vmxctx;
 	struct vlapic *vlapic;
 	struct vm_inout_str *vis;
 	struct vm_task_switch *ts;
-	struct vm_exception vmexc;
 	uint32_t eax, ecx, edx, idtvec_info, idtvec_err, intr_info, inst_info;
 	uint32_t intr_type, intr_vec, reason;
 	uint64_t exitintinfo, qual, gpa;
@@ -2263,6 +2262,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	case EXIT_REASON_MTF:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_MTRAP, 1);
 		vmexit->exitcode = VM_EXITCODE_MTRAP;
+		vmexit->inst_length = 0;
 		break;
 	case EXIT_REASON_PAUSE:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_PAUSE, 1);
@@ -2389,15 +2389,15 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 			vmcs_write(VMCS_ENTRY_INST_LENGTH, vmexit->inst_length);
 
 		/* Reflect all other exceptions back into the guest */
-		bzero(&vmexc, sizeof(struct vm_exception));
-		vmexc.vector = intr_vec;
+		errcode_valid = errcode = 0;
 		if (intr_info & VMCS_INTR_DEL_ERRCODE) {
-			vmexc.error_code_valid = 1;
-			vmexc.error_code = vmcs_read(VMCS_EXIT_INTR_ERRCODE);
+			errcode_valid = 1;
+			errcode = vmcs_read(VMCS_EXIT_INTR_ERRCODE);
 		}
 		VCPU_CTR2(vmx->vm, vcpu, "Reflecting exception %d/%#x into "
-		    "the guest", vmexc.vector, vmexc.error_code);
-		error = vm_inject_exception(vmx->vm, vcpu, &vmexc);
+		    "the guest", intr_vec, errcode);
+		error = vm_inject_exception(vmx->vm, vcpu, intr_vec,
+		    errcode_valid, errcode, 0);
 		KASSERT(error == 0, ("%s: vm_inject_exception error %d",
 		    __func__, error));
 		return (1);
