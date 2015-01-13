@@ -955,7 +955,7 @@ send_mpa_req(struct c4iw_ep *ep)
 	if (mpa_rev_to_use == 2)
 		mpalen += sizeof(struct mpa_v2_conn_params);
 
-        mpa = malloc(mpalen, M_CXGBE, M_NOWAIT);
+	mpa = malloc(mpalen, M_CXGBE, M_NOWAIT);
 	if (mpa == NULL) {
 failed:
 		connect_reply_upcall(ep, -ENOMEM);
