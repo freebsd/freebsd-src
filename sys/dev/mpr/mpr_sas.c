@@ -1903,8 +1903,8 @@ mprsas_action_scsiio(struct mprsas_softc *sassc, union ccb *ccb)
 		cm->cm_desc.SCSIIO.DevHandle = htole16(targ->handle);
 	}
 
-	callout_reset(&cm->cm_callout, (ccb->ccb_h.timeout * hz) / 1000,
-	   mprsas_scsiio_timeout, cm);
+	callout_reset_sbt(&cm->cm_callout, SBT_1MS * ccb->ccb_h.timeout, 0,
+	   mprsas_scsiio_timeout, cm, 0);
 
 	targ->issued++;
 	targ->outstanding++;

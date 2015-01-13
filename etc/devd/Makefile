@@ -8,6 +8,9 @@ FILES+=	apple.conf
 
 .if ${MACHINE} == "amd64" || ${MACHINE} == "i386"
 FILES+=	asus.conf
+.if ${MK_HYPERV} != "no"
+FILES+=	hyperv.conf
+.endif
 .endif
 
 .if ${MK_USB} != "no"
@@ -16,10 +19,6 @@ FILES+=	uath.conf ulpt.conf usb.conf
 
 .if ${MK_ZFS} != "no"
 FILES+=	zfs.conf
-.endif
-
-.if ${MK_HYPERV} != "no"
-FILES+=	hyperv.conf
 .endif
 
 NO_OBJ=

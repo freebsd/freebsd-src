@@ -90,7 +90,7 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 struct td_sched {	
 	struct runq	*ts_runq;	/* Run-queue we're queued on. */
 	short		ts_flags;	/* TSF_* flags. */
-	u_char		ts_cpu;		/* CPU that we have affinity for. */
+	int		ts_cpu;		/* CPU that we have affinity for. */
 	int		ts_rltick;	/* Real last tick, for affinity. */
 	int		ts_slice;	/* Ticks of slice remaining. */
 	u_int		ts_slptime;	/* Number of ticks we vol. slept */

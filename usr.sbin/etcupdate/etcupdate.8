@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2013
+.Dd October 29, 2014
 .Dt ETCUPDATE 8
 .Os
 .Sh NAME
@@ -608,12 +608,11 @@ Default log file.
 .Sh EXIT STATUS
 .Ex -std
 .Sh EXAMPLES
-If the source tree matches the currently installed world,
-then the following can be used to bootstrap
-.Nm
-so that it can be used for future upgrades:
+To compare the files in
+.Pa /etc
+with the stock versions:
 .Pp
-.Dl "etcupdate extract"
+.Dl "etcupdate diff"
 .Pp
 To merge changes after an upgrade via the buildworld and installworld process:
 .Pp
@@ -622,6 +621,59 @@ To merge changes after an upgrade via the buildworld and installworld process:
 To resolve any conflicts generated during a merge:
 .Pp
 .Dl "etcupdate resolve"
+.Ss Bootstrapping
+The
+.Nm
+utility may need to be bootstrapped before it can be used.
+The
+.Cm diff
+command will fail with an error about a missing reference tree if
+bootstrapping is needed.
+.Pp
+Bootstrapping
+.Nm
+requires a source tree that matches the currently installed world.
+The easiest way to ensure this is to bootstrap
+.Nm
+before updating the source tree to start the next world upgrade cycle.
+First,
+generate a reference tree:
+.Pp
+.Dl "etcupdate extract"
+.Pp
+Second,
+use the
+.Cm diff
+command to compare the reference tree to your current files in
+.Pa /etc .
+Undesired differences should be removed using an editor,
+.Xr patch 1 ,
+or by copying files from the reference tree
+.Po
+located at
+.Pa /var/db/etcupdate/current
+by default
+.Pc
+.
+.Pp
+If the tree at
+.Pa /usr/src
+is already newer than the currently installed world,
+a new tree matching the currently installed world can be checked out to
+a temporary location.
+The reference tree for
+.Nm
+can then be generated via:
+.Pp
+.Dl "etcupdate extract -s /path/to/tree"
+.Pp
+The
+.Cm diff
+command can be used as above to remove undesired differences.
+Afterwards,
+the changes in the tree at
+.Pa /usr/src
+can be merged via a regular merge.
 .Sh DIAGNOSTICS
 The following warning messages may be generated during a merge.
 Note that several of these warnings cover obscure cases that should occur

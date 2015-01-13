@@ -182,8 +182,8 @@ wiigpio_attach(device_t dev)
 		    "GPIO_PIN_INPUT" : "GPIO_PIN_OUTPUT");
 #endif
 	}
-	device_add_child(dev, "gpioc", device_get_unit(dev));
-	device_add_child(dev, "gpiobus", device_get_unit(dev));
+	device_add_child(dev, "gpioc", -1);
+	device_add_child(dev, "gpiobus", -1);
 	/*
 	 * We will be responsible for powering off the system.
 	 */
@@ -294,11 +294,6 @@ wiigpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 	uint32_t reg, pinbank, pinmask;
 
 	if (pin >= WIIGPIO_NPINS)
-		return (EINVAL);
-	if ((flags & ~(GPIO_PIN_OUTPUT|GPIO_PIN_INPUT)) != 0)
-		return (EINVAL);
-	if ((flags & (GPIO_PIN_OUTPUT|GPIO_PIN_INPUT)) == 
-	    (GPIO_PIN_OUTPUT|GPIO_PIN_INPUT))
 		return (EINVAL);
 	sc = device_get_softc(dev);
 	pinbank = WIIGPIO_PINBANK(pin);

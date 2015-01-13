@@ -41,6 +41,7 @@ struct {
 
 struct bcm_bsc_softc {
 	device_t		sc_dev;
+	device_t		sc_iicbus;
 	struct mtx		sc_mtx;
 	struct resource *	sc_mem_res;
 	struct resource *	sc_irq_res;

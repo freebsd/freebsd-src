@@ -1447,7 +1447,7 @@ mpr_setup_sysctl(struct mpr_softc *sc)
 	    "Disable the use of MSI interrupts");
 
 	SYSCTL_ADD_STRING(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
-	    OID_AUTO, "firmware_version", CTLFLAG_RW, &sc->fw_version,
+	    OID_AUTO, "firmware_version", CTLFLAG_RW, sc->fw_version,
 	    strlen(sc->fw_version), "firmware version");
 
 	SYSCTL_ADD_STRING(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),

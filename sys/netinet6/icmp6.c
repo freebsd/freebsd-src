@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_ipsec.h"
 
 #include <sys/param.h>
 #include <sys/domain.h>
@@ -109,11 +108,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/mld6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet6/send.h>
-
-#ifdef IPSEC
-#include <netipsec/ipsec.h>
-#include <netipsec/key.h>
-#endif
 
 extern struct domain inet6domain;
 
@@ -369,8 +363,6 @@ icmp6_error(struct mbuf *m, int type, int code, int param)
 
 	preplen = sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr);
 	M_PREPEND(m, preplen, M_NOWAIT);	/* FIB is also copied over. */
-	if (m && m->m_len < preplen)
-		m = m_pullup(m, preplen);
 	if (m == NULL) {
 		nd6log((LOG_DEBUG, "ENOBUFS in icmp6_error %d\n", __LINE__));
 		return;
@@ -480,22 +472,6 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 		    ip6_sprintf(ip6bufs, &ip6->ip6_src)));
 		ICMP6STAT_INC(icp6s_checksum);
 		goto freeit;
-	}
-
-	if (faithprefix_p != NULL && (*faithprefix_p)(&ip6->ip6_dst)) {
-		/*
-		 * Deliver very specific ICMP6 type only.
-		 * This is important to deliver TOOBIG.  Otherwise PMTUD
-		 * will not work.
-		 */
-		switch (icmp6->icmp6_type) {
-		case ICMP6_DST_UNREACH:
-		case ICMP6_PACKET_TOO_BIG:
-		case ICMP6_TIME_EXCEEDED:
-			break;
-		default:
-			goto freeit;
-		}
 	}
 
 	ICMP6STAT_INC(icp6s_inhist[icmp6->icmp6_type]);
@@ -1313,7 +1289,8 @@ ni6_input(struct mbuf *m, int off)
 			goto bad;
 		/* else it's a link-local multicast, fine */
 	} else {		/* unicast or anycast */
-		if ((ia6 = ip6_getdstifaddr(m)) == NULL)
+		ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
+		if (ia6 == NULL)
 			goto bad; /* XXX impossible */
 
 		if ((ia6->ia6_flags & IN6_IFF_TEMPORARY) &&
@@ -1763,7 +1740,7 @@ ni6_addrs(struct icmp6_nodeinfo *ni6, struct mbuf *m, struct ifnet **ifpp,
 	}
 
 	IFNET_RLOCK_NOSLEEP();
-	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		addrsofif = 0;
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -1850,7 +1827,7 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 	ifp = ifp0 ? ifp0 : TAILQ_FIRST(&V_ifnet);
   again:
 
-	for (; ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
+	for (; ifp; ifp = TAILQ_NEXT(ifp, if_link)) {
 		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET6)
@@ -2136,13 +2113,13 @@ icmp6_rip6_input(struct mbuf **mp, int off)
 void
 icmp6_reflect(struct mbuf *m, size_t off)
 {
+	struct in6_addr src, *srcp = NULL;
 	struct ip6_hdr *ip6;
 	struct icmp6_hdr *icmp6;
 	struct in6_ifaddr *ia = NULL;
+	struct ifnet *outif = NULL;
 	int plen;
 	int type, code;
-	struct ifnet *outif = NULL;
-	struct in6_addr origdst, src, *srcp = NULL;
 
 	/* too short to reflect */
 	if (off < sizeof(struct ip6_hdr)) {
@@ -2189,43 +2166,18 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	type = icmp6->icmp6_type; /* keep type for statistics */
 	code = icmp6->icmp6_code; /* ditto. */
 
-	origdst = ip6->ip6_dst;
-	/*
-	 * ip6_input() drops a packet if its src is multicast.
-	 * So, the src is never multicast.
-	 */
-	ip6->ip6_dst = ip6->ip6_src;
-
 	/*
 	 * If the incoming packet was addressed directly to us (i.e. unicast),
 	 * use dst as the src for the reply.
 	 * The IN6_IFF_NOTREADY case should be VERY rare, but is possible
 	 * (for example) when we encounter an error while forwarding procedure
 	 * destined to a duplicated address of ours.
-	 * Note that ip6_getdstifaddr() may fail if we are in an error handling
-	 * procedure of an outgoing packet of our own, in which case we need
-	 * to search in the ifaddr list.
 	 */
-	if (!IN6_IS_ADDR_MULTICAST(&origdst)) {
-		if ((ia = ip6_getdstifaddr(m))) {
-			if (!(ia->ia6_flags &
-			    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY)))
-				srcp = &ia->ia_addr.sin6_addr;
-		} else {
-			struct sockaddr_in6 d;
-
-			bzero(&d, sizeof(d));
-			d.sin6_family = AF_INET6;
-			d.sin6_len = sizeof(d);
-			d.sin6_addr = origdst;
-			ia = (struct in6_ifaddr *)
-			    ifa_ifwithaddr((struct sockaddr *)&d);
-			if (ia &&
-			    !(ia->ia6_flags &
-			    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY))) {
-				srcp = &ia->ia_addr.sin6_addr;
-			}
-		}
+	if (!IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
+		ia = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
+		if (ia != NULL && !(ia->ia6_flags &
+		    (IN6_IFF_ANYCAST|IN6_IFF_NOTREADY)))
+			srcp = &ia->ia_addr.sin6_addr;
 	}
 
 	if (srcp == NULL) {
@@ -2257,7 +2209,11 @@ icmp6_reflect(struct mbuf *m, size_t off)
 		}
 		srcp = &src;
 	}
-
+	/*
+	 * ip6_input() drops a packet if its src is multicast.
+	 * So, the src is never multicast.
+	 */
+	ip6->ip6_dst = ip6->ip6_src;
 	ip6->ip6_src = *srcp;
 	ip6->ip6_flow = 0;
 	ip6->ip6_vfc &= ~IPV6_VERSION_MASK;
@@ -2508,9 +2464,6 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	sdst.sin6_len = sizeof(struct sockaddr_in6);
 	bcopy(&reddst6, &sdst.sin6_addr, sizeof(struct in6_addr));
 	pfctlinput(PRC_REDIRECT_HOST, (struct sockaddr *)&sdst);
-#ifdef IPSEC
-	key_sa_routechange((struct sockaddr *)&sdst);
-#endif /* IPSEC */
     }
 
  freeit:

@@ -533,6 +533,11 @@ int EVP_DecryptFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
 			return(0);
 			}
 		OPENSSL_assert(b <= sizeof ctx->final);
+
+		/*
+		 * The following assumes that the ciphertext has been authenticated.
+		 * Otherwise it provides a padding oracle.
+		 */
 		n=ctx->final[b-1];
 		if (n == 0 || n > (int)b)
 			{
@@ -678,4 +683,3 @@ int EVP_CIPHER_CTX_copy(EVP_CIPHER_CTX *out, const EVP_CIPHER_CTX *in)
 		return in->cipher->ctrl((EVP_CIPHER_CTX *)in, EVP_CTRL_COPY, 0, out);
 	return 1;
 	}
-

@@ -2,7 +2,6 @@
 
 PROG = unzip
 CSTD = c99
-DPADD = ${LIBARCHIVE} ${LIBZ}
-LDADD = -larchive -lz
+LIBADD=	archive
 
 .include <bsd.prog.mk>

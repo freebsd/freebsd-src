@@ -15,7 +15,7 @@ makeoptions	KERNVIRTADDR=0xc0000000
 options 	KERNPHYSADDR=0x20000000
 options 	KERNVIRTADDR=0xc0000000
 
-makeoptions	MODULES_OVERRIDE=""
+makeoptions	MODULES_OVERRIDE="dtb/atmel"
 
 # list all boards here, but not just yet (no multiboard in mainline).
 options 	ARM_MANY_BOARD
@@ -44,8 +44,8 @@ options 	UFS_ACL			# Support for access control lists
 options 	UFS_DIRHASH		# Improve performance on big directories
 options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
 options 	MD_ROOT			# MD is a potential root device
-options 	NFSCL			# New Network Filesystem Client
-options 	NFSD			# New Network Filesystem Server
+options 	NFSCL			# Network Filesystem Client
+options 	NFSD			# Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCL
 options 	TMPFS			# Efficient memory filesystem
@@ -60,6 +60,8 @@ options 	GEOM_LABEL		# Provides labelization
 options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
 options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
 options 	COMPAT_FREEBSD7		# Compatible with FreeBSD7
+options 	COMPAT_FREEBSD9		# Compatible with FreeBSD9
+options 	COMPAT_FREEBSD10	# Compatible with FreeBSD10
 options 	SCSI_DELAY=5000		# Delay (in ms) before probing SCSI
 options 	KTRACE			# ktrace(1) support
 options 	STACK			# stack(9) support
@@ -141,7 +143,6 @@ device		vlan			# 802.1Q VLAN support
 device		tun			# Packet tunnel.
 device		md			# Memory "disks"
 device		gif			# IPv6 and IPv4 tunneling
-device		faith			# IPv6-to-IPv4 relaying (translation)
 #device		firmware		# firmware assist module
 
 # SCSI peripherals

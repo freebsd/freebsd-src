@@ -206,41 +206,41 @@ static int sysctl_ipfw_dyn_max(SYSCTL_HANDLER_ARGS);
 SYSBEGIN(f2)
 
 SYSCTL_DECL(_net_inet_ip_fw);
-SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_buckets,
-    CTLFLAG_RW, &VNET_NAME(dyn_buckets_max), 0,
+SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, dyn_buckets,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(dyn_buckets_max), 0,
     "Max number of dyn. buckets");
-SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, curr_dyn_buckets,
-    CTLFLAG_RD, &VNET_NAME(curr_dyn_buckets), 0,
+SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, curr_dyn_buckets,
+    CTLFLAG_VNET | CTLFLAG_RD, &VNET_NAME(curr_dyn_buckets), 0,
     "Current Number of dyn. buckets");
-SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, dyn_count,
-    CTLTYPE_UINT|CTLFLAG_RD, 0, 0, sysctl_ipfw_dyn_count, "IU",
+SYSCTL_PROC(_net_inet_ip_fw, OID_AUTO, dyn_count,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RD, 0, 0, sysctl_ipfw_dyn_count, "IU",
     "Number of dyn. rules");
-SYSCTL_VNET_PROC(_net_inet_ip_fw, OID_AUTO, dyn_max,
-    CTLTYPE_UINT|CTLFLAG_RW, 0, 0, sysctl_ipfw_dyn_max, "IU",
+SYSCTL_PROC(_net_inet_ip_fw, OID_AUTO, dyn_max,
+    CTLFLAG_VNET | CTLTYPE_UINT | CTLFLAG_RW, 0, 0, sysctl_ipfw_dyn_max, "IU",
     "Max number of dyn. rules");
-SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_ack_lifetime,
-    CTLFLAG_RW, &VNET_NAME(dyn_ack_lifetime), 0,
+SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, dyn_ack_lifetime,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(dyn_ack_lifetime), 0,
     "Lifetime of dyn. rules for acks");
-SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_syn_lifetime,
-    CTLFLAG_RW, &VNET_NAME(dyn_syn_lifetime), 0,
+SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, dyn_syn_lifetime,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(dyn_syn_lifetime), 0,
     "Lifetime of dyn. rules for syn");
-SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_fin_lifetime,
-    CTLFLAG_RW, &VNET_NAME(dyn_fin_lifetime), 0,
+SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, dyn_fin_lifetime,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(dyn_fin_lifetime), 0,
     "Lifetime of dyn. rules for fin");
-SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_rst_lifetime,
-    CTLFLAG_RW, &VNET_NAME(dyn_rst_lifetime), 0,
+SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, dyn_rst_lifetime,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(dyn_rst_lifetime), 0,
     "Lifetime of dyn. rules for rst");
-SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_udp_lifetime,
-    CTLFLAG_RW, &VNET_NAME(dyn_udp_lifetime), 0,
+SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, dyn_udp_lifetime,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(dyn_udp_lifetime), 0,
     "Lifetime of dyn. rules for UDP");
-SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime,
-    CTLFLAG_RW, &VNET_NAME(dyn_short_lifetime), 0,
+SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, dyn_short_lifetime,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(dyn_short_lifetime), 0,
     "Lifetime of dyn. rules for other situations");
-SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive,
-    CTLFLAG_RW, &VNET_NAME(dyn_keepalive), 0,
+SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, dyn_keepalive,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(dyn_keepalive), 0,
     "Enable keepalives for dyn. rules");
-SYSCTL_VNET_UINT(_net_inet_ip_fw, OID_AUTO, dyn_keep_states,
-    CTLFLAG_RW, &VNET_NAME(dyn_keep_states), 0,
+SYSCTL_UINT(_net_inet_ip_fw, OID_AUTO, dyn_keep_states,
+    CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(dyn_keep_states), 0,
     "Do not flush dynamic states on rule deletion");
 
 SYSEND
@@ -592,8 +592,9 @@ add_dyn_rule(struct ipfw_flow_id *id, int i, u_int8_t dyn_type, struct ip_fw *ru
 	if (r == NULL) {
 		if (last_log != time_uptime) {
 			last_log = time_uptime;
-			log(LOG_DEBUG, "ipfw: %s: Cannot allocate rule\n",
-			    __func__);
+			log(LOG_DEBUG,
+			    "ipfw: Cannot allocate dynamic state, "
+			    "consider increasing net.inet.ip.fw.dyn_max\n");
 		}
 		return NULL;
 	}
@@ -1385,7 +1386,7 @@ ipfw_dyn_init(struct ip_fw_chain *chain)
         V_dyn_keepalive = 1;    /* do send keepalives */
 	V_dyn_keepalive_last = time_uptime;
         
-        V_dyn_max = 4096;       /* max # of dynamic rules */
+        V_dyn_max = 16384; /* max # of dynamic rules */
 
 	V_ipfw_dyn_rule_zone = uma_zcreate("IPFW dynamic rule",
 	    sizeof(ipfw_dyn_rule), NULL, NULL, NULL, NULL,

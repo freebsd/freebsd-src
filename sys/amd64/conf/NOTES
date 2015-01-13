@@ -215,7 +215,7 @@ hint.atkbd.0.irq="1"
 
 # Options for atkbd:
 options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
-makeoptions	ATKBD_DFLT_KEYMAP=jp.106
+makeoptions	ATKBD_DFLT_KEYMAP=fr.dvorak
 
 # `flags' for atkbd:
 #       0x01    Force detection of keyboard, else we always assume a keyboard
@@ -300,6 +300,7 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 
 # bxe:  Broadcom NetXtreme II (BCM5771X/BCM578XX) PCIe 10Gb Ethernet
 #       adapters.
+# cxgbe: Chelsio T4/T5 1GbE/10GbE/40GbE PCIe Ethernet adapters
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 #       HP PC Lan+, various PC Card devices
 #       (requires miibus)
@@ -322,6 +323,7 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 #	Requires the wpi firmware module
 
 device		bxe		# Broadcom NetXtreme II BCM5771X/BCM578XX 10GbE
+device		cxgbe		# Chelsio T4/T5 1GbE/10GbE/40GbE
 device		ed		# NE[12]000, SMC Ultra, 3c503, DS8390 cards
 options 	ED_3C503
 options 	ED_HPP
@@ -492,6 +494,7 @@ device		virtio_blk	# VirtIO Block device
 device		virtio_scsi	# VirtIO SCSI device
 device		virtio_balloon	# VirtIO Memory Balloon device
 device		virtio_random	# VirtIO Entropy device
+device		virtio_console	# VirtIO Console device
 
 device 		hyperv		# HyperV drivers
 

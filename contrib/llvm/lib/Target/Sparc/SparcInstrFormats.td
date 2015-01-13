@@ -51,37 +51,50 @@ class F2_1<bits<3> op2Val, dag outs, dag ins, string asmstr, list<dag> pattern>
   let Inst{29-25} = rd;
 }
 
-class F2_2<bits<3> op2Val, dag outs, dag ins, string asmstr,
+class F2_2<bits<3> op2Val, bit annul, dag outs, dag ins, string asmstr,
            list<dag> pattern> : F2<outs, ins, asmstr, pattern> {
   bits<4>   cond;
-  bit       annul = 0;     // currently unused
-
   let op2         = op2Val;
 
   let Inst{29}    = annul;
   let Inst{28-25} = cond;
 }
 
-class F2_3<bits<3> op2Val, bits<2> ccVal, dag outs, dag ins, string asmstr,
-           list<dag> pattern>
-   : InstSP<outs, ins, asmstr, pattern> {
-  bit      annul;
+class F2_3<bits<3> op2Val, bit annul, bit pred,
+           dag outs, dag ins, string asmstr, list<dag> pattern>
+      : InstSP<outs, ins, asmstr, pattern> {
+  bits<2>  cc;
   bits<4>  cond;
-  bit      pred;
   bits<19> imm19;
 
   let op          = 0;    // op = 0
 
-  bit annul       = 0;    // currently unused
-  let pred        = 1;    // default is predict taken
-
   let Inst{29}    = annul;
   let Inst{28-25} = cond;
   let Inst{24-22} = op2Val;
-  let Inst{21-20} = ccVal;
+  let Inst{21-20} = cc;
   let Inst{19}    = pred;
   let Inst{18-0}  = imm19;
 }
+
+class F2_4<bits<3> cond, bit annul, bit pred,
+           dag outs, dag ins, string asmstr, list<dag> pattern>
+      : InstSP<outs, ins, asmstr, pattern> {
+  bits<16> imm16;
+  bits<5>  rs1;
+
+  let op          = 0;    // op = 0
+
+  let Inst{29}    = annul;
+  let Inst{28}    = 0;
+  let Inst{27-25} = cond;
+  let Inst{24-22} = 0b011;
+  let Inst{21-20} = imm16{15-14};
+  let Inst{19}    = pred;
+  let Inst{18-14} = rs1;
+  let Inst{13-0}  = imm16{13-0};
+}
+
 
 //===----------------------------------------------------------------------===//
 // Format #3 instruction classes in the Sparc
@@ -159,7 +172,6 @@ class F3_3c<bits<2> opVal, bits<6> op3val, bits<9> opfval, dag outs, dag ins,
 
   let op         = opVal;
   let op3        = op3val;
-  let rd         = 0;
 
   let Inst{13-5} = opfval;   // fp opcode
   let Inst{4-0}  = rs2;
@@ -218,44 +230,101 @@ class F4_1<bits<6> op3, dag outs, dag ins,
             string asmstr, list<dag> pattern>
       : F4<op3, outs, ins, asmstr, pattern> {
 
-  bits<3> cc;
+  bit    intcc;
+  bits<2> cc;
   bits<4> cond;
   bits<5> rs2;
 
   let Inst{4-0}   = rs2;
-  let Inst{11}    = cc{0};
-  let Inst{12}    = cc{1};
+  let Inst{12-11} = cc;
   let Inst{13}    = 0;
   let Inst{17-14} = cond;
-  let Inst{18}    = cc{2};
+  let Inst{18}    = intcc;
 
 }
 
 class F4_2<bits<6> op3, dag outs, dag ins,
             string asmstr, list<dag> pattern>
       : F4<op3, outs, ins, asmstr, pattern> {
-  bits<3>  cc;
+  bit      intcc;
+  bits<2>  cc;
   bits<4>  cond;
   bits<11> simm11;
 
   let Inst{10-0}  = simm11;
-  let Inst{11}    = cc{0};
-  let Inst{12}    = cc{1};
+  let Inst{12-11} = cc;
   let Inst{13}    = 1;
   let Inst{17-14} = cond;
-  let Inst{18}    = cc{2};
+  let Inst{18}    = intcc;
 }
 
 class F4_3<bits<6> op3, bits<6> opf_low, dag outs, dag ins,
            string asmstr, list<dag> pattern>
       : F4<op3, outs, ins, asmstr, pattern> {
   bits<4> cond;
-  bits<3> opf_cc;
+  bit     intcc;
+  bits<2> opf_cc;
   bits<5> rs2;
 
   let Inst{18}     = 0;
   let Inst{17-14}  = cond;
-  let Inst{13-11}  = opf_cc;
+  let Inst{13}     = intcc;
+  let Inst{12-11}  = opf_cc;
   let Inst{10-5}   = opf_low;
   let Inst{4-0}    = rs2;
+}
+
+class F4_4r<bits<6> op3, bits<5> opf_low, bits<3> rcond, dag outs, dag ins,
+            string asmstr, list<dag> pattern>
+       : F4<op3, outs, ins, asmstr, pattern> {
+  bits <5> rs1;
+  bits <5> rs2;
+  let Inst{18-14} = rs1;
+  let Inst{13}    = 0;  // IsImm
+  let Inst{12-10} = rcond;
+  let Inst{9-5}   = opf_low;
+  let Inst{4-0}   = rs2;
+}
+
+
+class F4_4i<bits<6> op3, bits<3> rcond, dag outs, dag ins,
+            string asmstr, list<dag> pattern>
+       : F4<op3, outs, ins, asmstr, pattern> {
+  bits<5> rs1;
+  bits<10> simm10;
+  let Inst{18-14} = rs1;
+  let Inst{13}    = 1;  // IsImm
+  let Inst{12-10} = rcond;
+  let Inst{9-0}   = simm10;
+}
+
+
+class TRAPSP<bits<6> op3Val, bit isimm, dag outs, dag ins, string asmstr,
+       list<dag> pattern>: F3<outs, ins, asmstr, pattern> {
+
+   bits<4> cond;
+   bits<2> cc;
+
+   let op = 0b10;
+   let rd{4} = 0;
+   let rd{3-0} = cond;
+   let op3 = op3Val;
+   let Inst{13} = isimm;
+   let Inst{12-11} = cc;
+
+}
+
+class TRAPSPrr<bits<6> op3Val, dag outs, dag ins, string asmstr,
+    list<dag> pattern>: TRAPSP<op3Val, 0, outs, ins, asmstr, pattern> {
+   bits<5> rs2;
+
+   let Inst{10-5} = 0;
+   let Inst{4-0}  = rs2;
+}
+class TRAPSPri<bits<6> op3Val, dag outs, dag ins, string asmstr,
+    list<dag> pattern>: TRAPSP<op3Val, 1, outs, ins, asmstr, pattern> {
+   bits<8> imm;
+
+   let Inst{10-8} = 0;
+   let Inst{7-0}  = imm;
 }

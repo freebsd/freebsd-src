@@ -78,6 +78,12 @@ struct autofs_daemon_done {
 	int		add_id;
 
 	/*
+	 * Set to 1 if the map may contain wildcard entries;
+	 * otherwise autofs will do negative caching.
+	 */
+	int		add_wildcards;
+
+	/*
 	 * Error number, possibly returned to userland.
 	 */
 	int		add_error;

@@ -6,8 +6,7 @@ PROG=	dns
 
 SRCS=	dns.c
 
-DPADD=	${LIBCAPSICUM} ${LIBCASPER} ${LIBNV} ${LIBPJDLOG} ${LIBUTIL}
-LDADD=	-lcapsicum -lcasper -lnv -lpjdlog -lutil
+LIBADD=	casper nv
 
 BINDIR=	/libexec/casper
 

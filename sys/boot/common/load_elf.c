@@ -240,6 +240,7 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
     Elf_Ehdr	*ehdr;
     Elf_Phdr	*phdr, *php;
     Elf_Shdr	*shdr;
+    char	*shstr;
     int		ret;
     vm_offset_t firstaddr;
     vm_offset_t lastaddr;
@@ -248,6 +249,7 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
     Elf_Addr	ssym, esym;
     Elf_Dyn	*dp;
     Elf_Addr	adp;
+    Elf_Addr	ctors;
     int		ndp;
     int		symstrindex;
     int		symtabindex;
@@ -383,10 +385,11 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
     lastaddr = roundup(lastaddr, sizeof(long));
 
     /*
-     * Now grab the symbol tables.  This isn't easy if we're reading a
-     * .gz file.  I think the rule is going to have to be that you must
-     * strip a file to remove symbols before gzipping it so that we do not
-     * try to lseek() on it.
+     * Get the section headers.  We need this for finding the .ctors
+     * section as well as for loading any symbols.  Both may be hard
+     * to do if reading from a .gz file as it involves seeking.  I
+     * think the rule is going to have to be that you must strip a
+     * file to remove symbols before gzipping it.
      */
     chunk = ehdr->e_shnum * ehdr->e_shentsize;
     if (chunk == 0 || ehdr->e_shoff == 0)
@@ -399,6 +402,33 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
     }
     file_addmetadata(fp, MODINFOMD_SHDR, chunk, shdr);
 
+    /*
+     * Read the section string table and look for the .ctors section.
+     * We need to tell the kernel where it is so that it can call the
+     * ctors.
+     */
+    chunk = shdr[ehdr->e_shstrndx].sh_size;
+    if (chunk) {
+	shstr = alloc_pread(ef->fd, shdr[ehdr->e_shstrndx].sh_offset, chunk);
+	if (shstr) {
+	    for (i = 0; i < ehdr->e_shnum; i++) {
+		if (strcmp(shstr + shdr[i].sh_name, ".ctors") != 0)
+		    continue;
+		ctors = shdr[i].sh_addr;
+		file_addmetadata(fp, MODINFOMD_CTORS_ADDR, sizeof(ctors),
+		    &ctors);
+		size = shdr[i].sh_size;
+		file_addmetadata(fp, MODINFOMD_CTORS_SIZE, sizeof(size),
+		    &size);
+		break;
+	    }
+	    free(shstr);
+	}
+    }
+
+    /*
+     * Now load any symbols.
+     */
     symtabindex = -1;
     symstrindex = -1;
     for (i = 0; i < ehdr->e_shnum; i++) {
@@ -610,6 +640,14 @@ struct mod_metadata64 {
 	u_int64_t	md_cval;	/* common string label */
 };
 #endif
+#if defined(__amd64__) && __ELF_WORD_SIZE == 32
+struct mod_metadata32 {
+	int		md_version;	/* structure version MDTV_* */  
+	int		md_type;	/* type of entry MDT_* */
+	u_int32_t	md_data;	/* specific data */
+	u_int32_t	md_cval;	/* common string label */
+};
+#endif
 
 int
 __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
@@ -617,6 +655,8 @@ __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
     struct mod_metadata md;
 #if (defined(__i386__) || defined(__powerpc__)) && __ELF_WORD_SIZE == 64
     struct mod_metadata64 md64;
+#elif defined(__amd64__) && __ELF_WORD_SIZE == 32
+    struct mod_metadata32 md32;
 #endif
     struct mod_depend *mdepend;
     struct mod_version mver;
@@ -652,6 +692,18 @@ __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
 	md.md_type = md64.md_type;
 	md.md_cval = (const char *)(uintptr_t)md64.md_cval;
 	md.md_data = (void *)(uintptr_t)md64.md_data;
+#elif defined(__amd64__) && __ELF_WORD_SIZE == 32
+	COPYOUT(v, &md32, sizeof(md32));
+	error = __elfN(reloc_ptr)(fp, ef, v, &md32, sizeof(md32));
+	if (error == EOPNOTSUPP) {
+	    md32.md_cval += ef->off;
+	    md32.md_data += ef->off;
+	} else if (error != 0)
+	    return (error);
+	md.md_version = md32.md_version;
+	md.md_type = md32.md_type;
+	md.md_cval = (const char *)(uintptr_t)md32.md_cval;
+	md.md_data = (void *)(uintptr_t)md32.md_data;
 #else
 	COPYOUT(v, &md, sizeof(md));
 	error = __elfN(reloc_ptr)(fp, ef, v, &md, sizeof(md));

@@ -103,21 +103,21 @@ static VNET_DEFINE(int, arp_maxhold) = 1;
 #define	V_arp_proxyall		VNET(arp_proxyall)
 #define	V_arp_maxhold		VNET(arp_maxhold)
 
-SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_RW,
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, max_age, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(arpt_keep), 0,
 	"ARP entry lifetime in seconds");
-SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, maxtries, CTLFLAG_RW,
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, maxtries, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(arp_maxtries), 0,
 	"ARP resolution attempts before returning error");
-SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, proxyall, CTLFLAG_RW,
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, proxyall, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(arp_proxyall), 0,
 	"Enable proxy ARP for all suitable requests");
-SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, wait, CTLFLAG_RW,
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, wait, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(arpt_down), 0,
 	"Incomplete ARP entry lifetime in seconds");
 SYSCTL_VNET_PCPUSTAT(_net_link_ether_arp, OID_AUTO, stats, struct arpstat,
     arpstat, "ARP statistics (struct arpstat, net/if_arp.h)");
-SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, maxhold, CTLFLAG_RW,
+SYSCTL_INT(_net_link_ether_inet, OID_AUTO, maxhold, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(arp_maxhold), 0,
 	"Number of packets to hold per ARP entry");
 
@@ -261,7 +261,7 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
 	m->m_len = sizeof(*ah) + 2 * sizeof(struct in_addr) +
 		2 * ifp->if_addrlen;
 	m->m_pkthdr.len = m->m_len;
-	MH_ALIGN(m, m->m_len);
+	M_ALIGN(m, m->m_len);
 	ah = mtod(m, struct arphdr *);
 	bzero((caddr_t)ah, m->m_len);
 #ifdef MAC
@@ -286,19 +286,20 @@ arprequest(struct ifnet *ifp, const struct in_addr *sip,
  * Resolve an IP address into an ethernet address.
  * On input:
  *    ifp is the interface we use
- *    rt0 is the route to the final destination (possibly useless)
+ *    is_gw != if @dst represents gateway to some destination
  *    m is the mbuf. May be NULL if we don't have a packet.
  *    dst is the next hop,
  *    desten is where we want the address.
+ *    flags returns lle entry flags.
  *
- * On success, desten is filled in and the function returns 0;
+ * On success, desten and flags are filled in and the function returns 0;
  * If the packet must be held pending resolution, we return EWOULDBLOCK
  * On other errors, we return the corresponding error code.
  * Note that m_freem() handles NULL.
  */
 int
-arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
-	const struct sockaddr *dst, u_char *desten, struct llentry **lle)
+arpresolve(struct ifnet *ifp, int is_gw, struct mbuf *m,
+	const struct sockaddr *dst, u_char *desten, uint32_t *pflags)
 {
 	struct llentry *la = 0;
 	u_int flags = 0;
@@ -306,7 +307,9 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	struct mbuf *next = NULL;
 	int error, renew;
 
-	*lle = NULL;
+	if (pflags != NULL)
+		*pflags = 0;
+
 	if (m != NULL) {
 		if (m->m_flags & M_BCAST) {
 			/* broadcast */
@@ -314,7 +317,7 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 			    ifp->if_broadcastaddr, ifp->if_addrlen);
 			return (0);
 		}
-		if (m->m_flags & M_MCAST && ifp->if_type != IFT_ARCNET) {
+		if (m->m_flags & M_MCAST) {
 			/* multicast */
 			ETHER_MAP_IP_MULTICAST(&SIN(dst)->sin_addr, desten);
 			return (0);
@@ -354,7 +357,8 @@ retry:
 			la->la_preempt--;
 		}
 
-		*lle = la;
+		if (pflags != NULL)
+			*pflags = la->la_flags;
 		error = 0;
 		goto done;
 	}
@@ -412,8 +416,7 @@ retry:
 	if (la->la_asked < V_arp_maxtries)
 		error = EWOULDBLOCK;	/* First request. */
 	else
-		error = rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) ?
-		    EHOSTUNREACH : EHOSTDOWN;
+		error = is_gw != 0 ? EHOSTUNREACH : EHOSTDOWN;
 
 	if (renew) {
 		int canceled;

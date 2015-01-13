@@ -393,10 +393,6 @@ For wildcard sockets, this can restrict connections to IPv6 only.
 .\".Ox
 .\"IPv6 sockets are always IPv6-only, so the socket option is read-only
 .\"(not modifiable).
-.It Dv IPV6_FAITH Fa "int *"
-Get or set the status of whether
-.Xr faith 4
-connections can be made to this socket.
 .It Dv IPV6_USE_MIN_MTU Fa "int *"
 Get or set whether the minimal IPv6 maximum transmission unit (MTU) size
 will be used to avoid fragmentation from occurring for subsequent
@@ -657,8 +653,8 @@ An ancillary data object was improperly formed.
 .Xr if_nametoindex 3 ,
 .Xr bpf 4 ,
 .Xr icmp6 4 ,
-.Xr ip 4 ,
 .Xr inet6 4 ,
+.Xr ip 4 ,
 .Xr netintro 4 ,
 .Xr tcp 4 ,
 .Xr udp 4

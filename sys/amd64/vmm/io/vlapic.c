@@ -912,8 +912,12 @@ vlapic_set_tpr(struct vlapic *vlapic, uint8_t val)
 {
 	struct LAPIC *lapic = vlapic->apic_page;
 
-	lapic->tpr = val;
-	vlapic_update_ppr(vlapic);
+	if (lapic->tpr != val) {
+		VCPU_CTR2(vlapic->vm, vlapic->vcpuid, "vlapic TPR changed "
+		    "from %#x to %#x", lapic->tpr, val);
+		lapic->tpr = val;
+		vlapic_update_ppr(vlapic);
+	}
 }
 
 static uint8_t

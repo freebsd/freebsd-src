@@ -2,8 +2,7 @@
 # $FreeBSD$
 
 PROG=	tunefs
-DPADD=	${LIBUFS}
-LDADD=	-lufs
+LIBADD=	ufs
 MAN=	tunefs.8
 
 WARNS=	3

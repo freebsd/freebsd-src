@@ -171,17 +171,12 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
 	STPUTC('\0', expdest);
 	p = grabstackstr(expdest);
 	exparg.lastp = &exparg.list;
-	/*
-	 * TODO - EXP_REDIR
-	 */
 	if (flag & EXP_FULL) {
 		ifsbreakup(p, &exparg);
 		*exparg.lastp = NULL;
 		exparg.lastp = &exparg.list;
 		expandmeta(exparg.list, flag);
 	} else {
-		if (flag & EXP_REDIR) /*XXX - for now, just remove escapes */
-			rmescapes(p);
 		sp = (struct strlist *)stalloc(sizeof (struct strlist));
 		sp->text = p;
 		*exparg.lastp = sp;
@@ -209,7 +204,7 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
  * expansion, and tilde expansion if requested via EXP_TILDE/EXP_VARTILDE.
  * Processing ends at a CTLENDVAR or CTLENDARI character as well as '\0'.
  * This is used to expand word in ${var+word} etc.
- * If EXP_FULL, EXP_CASE or EXP_REDIR are set, keep and/or generate CTLESC
+ * If EXP_FULL or EXP_CASE are set, keep and/or generate CTLESC
  * characters to allow for further processing.
  * If EXP_FULL is set, also preserve CTLQUOTEMARK characters.
  */
@@ -217,7 +212,7 @@ static char *
 argstr(char *p, int flag)
 {
 	char c;
-	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);	/* do CTLESC */
+	int quotes = flag & (EXP_FULL | EXP_CASE);	/* do CTLESC */
 	int firsteq = 1;
 	int split_lit;
 	int lit_quoted;
@@ -303,7 +298,7 @@ exptilde(char *p, int flag)
 	char c, *startp = p;
 	struct passwd *pw;
 	char *home;
-	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
+	int quotes = flag & (EXP_FULL | EXP_CASE);
 
 	while ((c = *p) != '\0') {
 		switch(c) {
@@ -337,7 +332,7 @@ done:
 	if (home == NULL || *home == '\0')
 		return (startp);
 	if (quotes)
-		STPUTS_QUOTES(home, SQSYNTAX, expdest);
+		STPUTS_QUOTES(home, DQSYNTAX, expdest);
 	else
 		STPUTS(home, expdest);
 	return (p);
@@ -437,7 +432,7 @@ expbackq(union node *cmd, int quoted, int flag)
 	char lastc;
 	int startloc = dest - stackblock();
 	char const *syntax = quoted? DQSYNTAX : BASESYNTAX;
-	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
+	int quotes = flag & (EXP_FULL | EXP_CASE);
 	size_t nnl;
 
 	INTOFF;
@@ -637,7 +632,7 @@ evalvar(char *p, int flag)
 	int varlen;
 	int varlenb;
 	int easy;
-	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
+	int quotes = flag & (EXP_FULL | EXP_CASE);
 
 	varflags = (unsigned char)*p++;
 	subtype = varflags & VSTYPE;
@@ -878,30 +873,28 @@ varvalue(const char *name, int quoted, int subtype, int flag)
 	int num;
 	char *p;
 	int i;
-	char sep;
+	char sep[2];
 	char **ap;
 
 	switch (*name) {
 	case '$':
 		num = rootpid;
-		goto numvar;
+		break;
 	case '?':
 		num = oexitstatus;
-		goto numvar;
+		break;
 	case '#':
 		num = shellparam.nparam;
-		goto numvar;
+		break;
 	case '!':
 		num = backgndpidval();
-numvar:
-		expdest = cvtnum(num, expdest);
 		break;
 	case '-':
 		for (i = 0 ; i < NOPTS ; i++) {
 			if (optlist[i].val)
 				STPUTC(optlist[i].letter, expdest);
 		}
-		break;
+		return;
 	case '@':
 		if (flag & EXP_FULL && quoted) {
 			for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
@@ -909,22 +902,25 @@ numvar:
 				if (*ap)
 					STPUTC('\0', expdest);
 			}
-			break;
+			return;
 		}
 		/* FALLTHROUGH */
 	case '*':
 		if (ifsset())
-			sep = ifsval()[0];
+			sep[0] = ifsval()[0];
 		else
-			sep = ' ';
+			sep[0] = ' ';
+		sep[1] = '\0';
 		for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
 			strtodest(p, flag, subtype, quoted);
 			if (!*ap)
 				break;
-			if (sep || (flag & EXP_FULL && !quoted && **ap != '\0'))
-				STPUTC(sep, expdest);
+			if (sep[0])
+				strtodest(sep, flag, subtype, quoted);
+			else if (flag & EXP_FULL && !quoted && **ap != '\0')
+				STPUTC('\0', expdest);
 		}
-		break;
+		return;
 	default:
 		if (is_digit(*name)) {
 			num = atoi(name);
@@ -933,11 +929,12 @@ numvar:
 			else if (num > 0 && num <= shellparam.nparam)
 				p = shellparam.p[num - 1];
 			else
-				break;
+				return;
 			strtodest(p, flag, subtype, quoted);
 		}
-		break;
+		return;
 	}
+	expdest = cvtnum(num, expdest);
 }
 
 
@@ -1102,27 +1099,25 @@ expandmeta(struct strlist *str, int flag __unused)
 	struct strlist **savelastp;
 	struct strlist *sp;
 	char c;
-	/* TODO - EXP_REDIR */
 
 	while (str) {
-		if (fflag)
-			goto nometa;
-		p = str->text;
-		for (;;) {			/* fast check for meta chars */
-			if ((c = *p++) == '\0')
-				goto nometa;
-			if (c == '*' || c == '?' || c == '[')
-				break;
-		}
 		savelastp = exparg.lastp;
-		INTOFF;
-		expmeta(expdir, str->text);
-		INTON;
+		if (!fflag) {
+			p = str->text;
+			for (; (c = *p) != '\0'; p++) {
+				/* fast check for meta chars */
+				if (c == '*' || c == '?' || c == '[') {
+					INTOFF;
+					expmeta(expdir, str->text);
+					INTON;
+					break;
+				}
+			}
+		}
 		if (exparg.lastp == savelastp) {
 			/*
 			 * no matches
 			 */
-nometa:
 			*exparg.lastp = str;
 			rmescapes(str->text);
 			exparg.lastp = &str->next;

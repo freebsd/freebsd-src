@@ -32,6 +32,7 @@
  */
 
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <bluetooth.h>
 #include <ctype.h>
 #include <err.h>
@@ -49,6 +50,7 @@
 #include <syslog.h>
 #include <termios.h>
 #include <unistd.h>
+#include <libutil.h>
 
 #define SPPD_IDENT		"rfcomm_sppd"
 #define SPPD_BUFFER_SIZE	1024
@@ -58,7 +60,7 @@ int		rfcomm_channel_lookup	(bdaddr_t const *local,
 					 bdaddr_t const *remote, 
 					 int service, int *channel, int *error);
 
-static int	sppd_ttys_open	(char const *tty, int *amaster, int *aslave);
+static int	sppd_ttys_open	(char **tty, int *amaster, int *aslave);
 static int	sppd_read	(int fd, char *buffer, int size);
 static int	sppd_write	(int fd, char *buffer, int size);
 static void	sppd_sighandler	(int s);
@@ -74,7 +76,8 @@ main(int argc, char *argv[])
 	struct sockaddr_rfcomm	 ra;
 	bdaddr_t		 addr;
 	int			 n, background, channel, service,
-				 s, amaster, aslave, fd, doserver;
+				 s, amaster, aslave, fd, doserver,
+				 dopty;
 	fd_set			 rfd;
 	char			*tty = NULL, *ep = NULL, buf[SPPD_BUFFER_SIZE];
 
@@ -82,9 +85,10 @@ main(int argc, char *argv[])
 	background = channel = 0;
 	service = SDP_SERVICE_CLASS_SERIAL_PORT;
 	doserver = 0;
+	dopty = 0;
 
 	/* Parse command line options */
-	while ((n = getopt(argc, argv, "a:bc:t:hS")) != -1) {
+	while ((n = getopt(argc, argv, "a:bc:thS")) != -1) {
 		switch (n) { 
 		case 'a': /* BDADDR */
 			if (!bt_aton(optarg, &addr)) {
@@ -130,11 +134,8 @@ main(int argc, char *argv[])
 			background = 1;
 			break;
 
-		case 't': /* Slave TTY name */
-			if (optarg[0] != '/')
-				asprintf(&tty, "%s%s", _PATH_DEV, optarg);
-			else
-				tty = optarg;
+		case 't': /* Open pseudo TTY */
+			dopty = 1;
 			break;
 
 		case 'S':
@@ -173,18 +174,18 @@ main(int argc, char *argv[])
 		err(1, "Could not sigaction(SIGCHLD)");
 
 	/* Open TTYs */
-	if (tty == NULL) {
+	if (dopty) {
+		if (sppd_ttys_open(&tty, &amaster, &aslave) < 0)
+			exit(1);
+
+		fd = amaster;
+	} else {
 		if (background)
 			usage();
 
 		amaster = STDIN_FILENO;
 		fd = STDOUT_FILENO;
-	} else {
-		if (sppd_ttys_open(tty, &amaster, &aslave) < 0)
-			exit(1);
-		
-		fd = amaster;
-	}		
+	}
 
 	/* Open RFCOMM connection */
 
@@ -287,6 +288,10 @@ main(int argc, char *argv[])
 	openlog(SPPD_IDENT, LOG_NDELAY|LOG_PERROR|LOG_PID, LOG_DAEMON);
 	syslog(LOG_INFO, "Starting on %s...", (tty != NULL)? tty : "stdin/stdout");
 
+	/* Print used tty on stdout for wrappers to pick up */
+	if (!background)
+		fprintf(stdout, "%s\n", tty);
+
 	for (done = 0; !done; ) {
 		FD_ZERO(&rfd);
 		FD_SET(amaster, &rfd);
@@ -359,70 +364,20 @@ main(int argc, char *argv[])
 
 /* Open TTYs */
 static int
-sppd_ttys_open(char const *tty, int *amaster, int *aslave)
+sppd_ttys_open(char **tty, int *amaster, int *aslave)
 {
-	char		 pty[PATH_MAX], *slash;
-	struct group	*gr = NULL;
-	gid_t		 ttygid;
+	char		 pty[PATH_MAX];
 	struct termios	 tio;
-
-	/*
-	 * Construct master PTY name. The slave tty name must be less then
-	 * PATH_MAX characters in length, must contain '/' character and 
-	 * must not end with '/'.
-	 */
-
-	if (strlen(tty) >= sizeof(pty)) {
-		syslog(LOG_ERR, "Slave tty name is too long");
-		return (-1);
-	}
-
-	strlcpy(pty, tty, sizeof(pty));
-	slash = strrchr(pty, '/');
-	if (slash == NULL || slash[1] == '\0') {
-		syslog(LOG_ERR, "Invalid slave tty name (%s)", tty);
-		return (-1);
-	}
-
-	slash[1] = 'p';
-	
-	if (strcmp(pty, tty) == 0) {
-		syslog(LOG_ERR, "Master and slave tty are the same (%s)", tty);
-		return (-1);
-	}
-
-	if ((*amaster = open(pty, O_RDWR, 0)) < 0) {
-		syslog(LOG_ERR, "Could not open(%s). %s", pty, strerror(errno));
-		return (-1);
-	}
-
-	/*
-	 * Slave TTY
-	 */
-
-	if ((gr = getgrnam("tty")) != NULL)
-		ttygid = gr->gr_gid;
-	else
-		ttygid = -1;
-
-	(void) chown(tty, getuid(), ttygid);
-	(void) chmod(tty, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP);
-	(void) revoke(tty);
-
-	if ((*aslave = open(tty, O_RDWR, 0)) < 0) {
-		syslog(LOG_ERR, "Could not open(%s). %s", tty, strerror(errno));
-		close(*amaster);
-		return (-1);
-	}
-
-	/*
-	 * Make slave TTY raw
-	 */
 
 	cfmakeraw(&tio);
 
-	if (tcsetattr(*aslave, TCSANOW, &tio) < 0) {
-		syslog(LOG_ERR, "Could not tcsetattr(). %s", strerror(errno));
+	if (openpty(amaster, aslave, pty, &tio, NULL) == -1) {
+		syslog(LOG_ERR, "Could not openpty(). %s", strerror(errno));
+		return (-1);
+	}
+
+	if ((*tty = strdup(pty)) == NULL) {
+		syslog(LOG_ERR, "Could not strdup(). %s", strerror(errno));
 		close(*aslave);
 		close(*amaster);
 		return (-1);
@@ -496,7 +451,7 @@ usage(void)
 "\t-a address Peer address (required in client mode)\n" \
 "\t-b         Run in background\n" \
 "\t-c channel RFCOMM channel to connect to or listen on\n" \
-"\t-t tty     TTY name (required in background mode)\n" \
+"\t-t         use slave pseudo tty (required in background mode)\n" \
 "\t-S         Server mode\n" \
 "\t-h         Display this message\n", SPPD_IDENT);
 	exit(255);

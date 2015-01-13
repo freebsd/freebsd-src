@@ -970,6 +970,9 @@ static void mlx4_en_do_set_rx_mode(struct work_struct *work)
 			/* Important note: the following call for if_link_state_change
 			 * is needed for interface up scenario (start port, link state
 			 * change) */
+			/* update netif baudrate */
+			priv->dev->if_baudrate =
+			    IF_Mbps(priv->port_state.link_speed);
 			if_link_state_change(priv->dev, LINK_STATE_UP);
 			en_dbg(HW, priv, "Link Up\n");
 		}
@@ -1186,6 +1189,9 @@ static void mlx4_en_linkstate(struct work_struct *work)
 		if (linkstate == MLX4_DEV_EVENT_PORT_DOWN) {
 			en_info(priv, "Link Down\n");
 			if_link_state_change(priv->dev, LINK_STATE_DOWN);
+			/* update netif baudrate */
+			priv->dev->if_baudrate = 0;
+
 		/* make sure the port is up before notifying the OS. 
 		 * This is tricky since we get here on INIT_PORT and 
 		 * in such case we can't tell the OS the port is up.
@@ -1193,6 +1199,10 @@ static void mlx4_en_linkstate(struct work_struct *work)
 		 * in set_rx_mode.
 		 * */
 		} else if (priv->port_up && (linkstate == MLX4_DEV_EVENT_PORT_UP)){
+			if (mlx4_en_QUERY_PORT(priv->mdev, priv->port))
+				en_info(priv, "Query port failed\n");
+			priv->dev->if_baudrate =
+			    IF_Mbps(priv->port_state.link_speed);
 			en_info(priv, "Link Up\n");
 			if_link_state_change(priv->dev, LINK_STATE_UP);
 		}
@@ -1978,7 +1988,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev->if_softc = priv;
 	if_initname(dev, "mlxen", atomic_fetchadd_int(&mlx4_en_unit, 1));
 	dev->if_mtu = ETHERMTU;
-	dev->if_baudrate = 1000000000;
 	dev->if_init = mlx4_en_open;
 	dev->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	dev->if_ioctl = mlx4_en_ioctl;
@@ -2335,9 +2344,11 @@ static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv)
         struct sysctl_oid_list *node_list;
         struct sysctl_oid *coal;
         struct sysctl_oid_list *coal_list;
+	const char *pnameunit;
 
         dev = priv->dev;
         ctx = &priv->conf_ctx;
+	pnameunit = device_get_nameunit(priv->mdev->pdev->dev.bsddev);
 
         sysctl_ctx_init(ctx);
         priv->sysctl = SYSCTL_ADD_NODE(ctx, SYSCTL_STATIC_CHILDREN(_hw),
@@ -2350,10 +2361,10 @@ static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv)
             CTLFLAG_RW, &priv->msg_enable, 0,
             "Driver message enable bitfield");
         SYSCTL_ADD_UINT(ctx, node_list, OID_AUTO, "rx_rings",
-            CTLTYPE_INT | CTLFLAG_RD, &priv->rx_ring_num, 0,
+            CTLFLAG_RD, &priv->rx_ring_num, 0,
             "Number of receive rings");
         SYSCTL_ADD_UINT(ctx, node_list, OID_AUTO, "tx_rings",
-            CTLTYPE_INT | CTLFLAG_RD, &priv->tx_ring_num, 0,
+            CTLFLAG_RD, &priv->tx_ring_num, 0,
             "Number of transmit rings");
         SYSCTL_ADD_PROC(ctx, node_list, OID_AUTO, "rx_size",
             CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
@@ -2367,6 +2378,12 @@ static void mlx4_en_sysctl_conf(struct mlx4_en_priv *priv)
         SYSCTL_ADD_PROC(ctx, node_list, OID_AUTO, "rx_ppp",
             CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, priv, 0,
             mlx4_en_set_rx_ppp, "I", "RX Per-priority pause");
+        SYSCTL_ADD_UINT(ctx, node_list, OID_AUTO, "port_num",
+            CTLFLAG_RD, &priv->port, 0,
+            "Port Number");
+        SYSCTL_ADD_STRING(ctx, node_list, OID_AUTO, "device_name",
+	    CTLFLAG_RD, __DECONST(void *, pnameunit), 0,
+	    "PCI device name");
 
         /* Add coalescer configuration. */
         coal = SYSCTL_ADD_NODE(ctx, node_list, OID_AUTO,

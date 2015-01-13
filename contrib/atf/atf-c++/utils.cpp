@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2007 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,7 +22,8 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+
+#include "atf-c++/utils.hpp"
 
 extern "C" {
 #include "atf-c/utils.h"
@@ -33,8 +31,6 @@ extern "C" {
 
 #include <cstdlib>
 #include <iostream>
-
-#include "utils.hpp"
 
 void
 atf::utils::cat_file(const std::string& path, const std::string& prefix)

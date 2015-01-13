@@ -36,8 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/socket.h>
 #include <sys/mbuf.h>
-#include <sys/syslog.h>
-#include <sys/callout.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -54,8 +52,6 @@ extern int	in_inithead(void **head, int off);
 #ifdef VIMAGE
 extern int	in_detachhead(void **head, int off);
 #endif
-
-#define RTPRF_OURS		RTF_PROTO3	/* set on routes we manage */
 
 /*
  * Do what we need to do when inserting a route.
@@ -94,242 +90,20 @@ in_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
 		rt->rt_flags |= RTF_MULTICAST;
 
-	if (rt->rt_mtu == 0 && rt->rt_ifp != NULL)
-		rt->rt_mtu = rt->rt_ifp->if_mtu;
+	if (rt->rt_ifp != NULL) {
+
+		/*
+		 * Check route MTU:
+		 * inherit interface MTU if not set or
+		 * check if MTU is too large.
+		 */
+		if (rt->rt_mtu == 0) {
+			rt->rt_mtu = rt->rt_ifp->if_mtu;
+		} else if (rt->rt_mtu > rt->rt_ifp->if_mtu)
+			rt->rt_mtu = rt->rt_ifp->if_mtu;
+	}
 
 	return (rn_addroute(v_arg, n_arg, head, treenodes));
-}
-
-/*
- * This code is the inverse of in_clsroute: on first reference, if we
- * were managing the route, stop doing so and set the expiration timer
- * back off again.
- */
-static struct radix_node *
-in_matroute(void *v_arg, struct radix_node_head *head)
-{
-	struct radix_node *rn = rn_match(v_arg, head);
-	struct rtentry *rt = (struct rtentry *)rn;
-
-	if (rt) {
-		RT_LOCK(rt);
-		if (rt->rt_flags & RTPRF_OURS) {
-			rt->rt_flags &= ~RTPRF_OURS;
-			rt->rt_expire = 0;
-		}
-		RT_UNLOCK(rt);
-	}
-	return rn;
-}
-
-static VNET_DEFINE(int, rtq_reallyold) = 60*60; /* one hour is "really old" */
-#define	V_rtq_reallyold		VNET(rtq_reallyold)
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTEXPIRE, rtexpire, CTLFLAG_RW,
-    &VNET_NAME(rtq_reallyold), 0,
-    "Default expiration time on dynamically learned routes");
-
-/* never automatically crank down to less */
-static VNET_DEFINE(int, rtq_minreallyold) = 10;
-#define	V_rtq_minreallyold	VNET(rtq_minreallyold)
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTMINEXPIRE, rtminexpire, CTLFLAG_RW,
-    &VNET_NAME(rtq_minreallyold), 0,
-    "Minimum time to attempt to hold onto dynamically learned routes");
-
-/* 128 cached routes is "too many" */
-static VNET_DEFINE(int, rtq_toomany) = 128;
-#define	V_rtq_toomany		VNET(rtq_toomany)
-SYSCTL_VNET_INT(_net_inet_ip, IPCTL_RTMAXCACHE, rtmaxcache, CTLFLAG_RW,
-    &VNET_NAME(rtq_toomany), 0,
-    "Upper limit on dynamically learned routes");
-
-/*
- * On last reference drop, mark the route as belong to us so that it can be
- * timed out.
- */
-static void
-in_clsroute(struct radix_node *rn, struct radix_node_head *head)
-{
-	struct rtentry *rt = (struct rtentry *)rn;
-
-	RT_LOCK_ASSERT(rt);
-
-	if (!(rt->rt_flags & RTF_UP))
-		return;			/* prophylactic measures */
-
-	if (rt->rt_flags & RTPRF_OURS)
-		return;
-
-	if (!(rt->rt_flags & RTF_DYNAMIC))
-		return;
-
-	/*
-	 * If rtq_reallyold is 0, just delete the route without
-	 * waiting for a timeout cycle to kill it.
-	 */
-	if (V_rtq_reallyold != 0) {
-		rt->rt_flags |= RTPRF_OURS;
-		rt->rt_expire = time_uptime + V_rtq_reallyold;
-	} else
-		rt_expunge(head, rt);
-}
-
-struct rtqk_arg {
-	struct radix_node_head *rnh;
-	int draining;
-	int killed;
-	int found;
-	int updating;
-	time_t nextstop;
-};
-
-/*
- * Get rid of old routes.  When draining, this deletes everything, even when
- * the timeout is not expired yet.  When updating, this makes sure that
- * nothing has a timeout longer than the current value of rtq_reallyold.
- */
-static int
-in_rtqkill(struct radix_node *rn, void *rock)
-{
-	struct rtqk_arg *ap = rock;
-	struct rtentry *rt = (struct rtentry *)rn;
-	int err;
-
-	RADIX_NODE_HEAD_WLOCK_ASSERT(ap->rnh);
-
-	if (rt->rt_flags & RTPRF_OURS) {
-		ap->found++;
-
-		if (ap->draining || rt->rt_expire <= time_uptime) {
-			if (rt->rt_refcnt > 0)
-				panic("rtqkill route really not free");
-
-			err = in_rtrequest(RTM_DELETE,
-					(struct sockaddr *)rt_key(rt),
-					rt->rt_gateway, rt_mask(rt),
-					rt->rt_flags | RTF_RNH_LOCKED, 0,
-					rt->rt_fibnum);
-			if (err) {
-				log(LOG_WARNING, "in_rtqkill: error %d\n", err);
-			} else {
-				ap->killed++;
-			}
-		} else {
-			if (ap->updating &&
-			    (rt->rt_expire - time_uptime > V_rtq_reallyold))
-				rt->rt_expire = time_uptime + V_rtq_reallyold;
-			ap->nextstop = lmin(ap->nextstop, rt->rt_expire);
-		}
-	}
-
-	return 0;
-}
-
-#define RTQ_TIMEOUT	60*10	/* run no less than once every ten minutes */
-static VNET_DEFINE(int, rtq_timeout) = RTQ_TIMEOUT;
-static VNET_DEFINE(struct callout, rtq_timer);
-
-#define	V_rtq_timeout		VNET(rtq_timeout)
-#define	V_rtq_timer		VNET(rtq_timer)
-
-static void in_rtqtimo_one(void *rock);
-
-static void
-in_rtqtimo(void *rock)
-{
-	CURVNET_SET((struct vnet *) rock);
-	int fibnum;
-	void *newrock;
-	struct timeval atv;
-
-	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-		newrock = rt_tables_get_rnh(fibnum, AF_INET);
-		if (newrock != NULL)
-			in_rtqtimo_one(newrock);
-	}
-	atv.tv_usec = 0;
-	atv.tv_sec = V_rtq_timeout;
-	callout_reset(&V_rtq_timer, tvtohz(&atv), in_rtqtimo, rock);
-	CURVNET_RESTORE();
-}
-
-static void
-in_rtqtimo_one(void *rock)
-{
-	struct radix_node_head *rnh = rock;
-	struct rtqk_arg arg;
-	static time_t last_adjusted_timeout = 0;
-
-	arg.found = arg.killed = 0;
-	arg.rnh = rnh;
-	arg.nextstop = time_uptime + V_rtq_timeout;
-	arg.draining = arg.updating = 0;
-	RADIX_NODE_HEAD_LOCK(rnh);
-	rnh->rnh_walktree(rnh, in_rtqkill, &arg);
-	RADIX_NODE_HEAD_UNLOCK(rnh);
-
-	/*
-	 * Attempt to be somewhat dynamic about this:
-	 * If there are ``too many'' routes sitting around taking up space,
-	 * then crank down the timeout, and see if we can't make some more
-	 * go away.  However, we make sure that we will never adjust more
-	 * than once in rtq_timeout seconds, to keep from cranking down too
-	 * hard.
-	 */
-	if ((arg.found - arg.killed > V_rtq_toomany) &&
-	    (time_uptime - last_adjusted_timeout >= V_rtq_timeout) &&
-	    V_rtq_reallyold > V_rtq_minreallyold) {
-		V_rtq_reallyold = 2 * V_rtq_reallyold / 3;
-		if (V_rtq_reallyold < V_rtq_minreallyold) {
-			V_rtq_reallyold = V_rtq_minreallyold;
-		}
-
-		last_adjusted_timeout = time_uptime;
-#ifdef DIAGNOSTIC
-		log(LOG_DEBUG, "in_rtqtimo: adjusted rtq_reallyold to %d\n",
-		    V_rtq_reallyold);
-#endif
-		arg.found = arg.killed = 0;
-		arg.updating = 1;
-		RADIX_NODE_HEAD_LOCK(rnh);
-		rnh->rnh_walktree(rnh, in_rtqkill, &arg);
-		RADIX_NODE_HEAD_UNLOCK(rnh);
-	}
-
-}
-
-void
-in_rtqdrain(void)
-{
-	VNET_ITERATOR_DECL(vnet_iter);
-	struct radix_node_head *rnh;
-	struct rtqk_arg arg;
-	int 	fibnum;
-
-	VNET_LIST_RLOCK_NOSLEEP();
-	VNET_FOREACH(vnet_iter) {
-		CURVNET_SET(vnet_iter);
-
-		for ( fibnum = 0; fibnum < rt_numfibs; fibnum++) {
-			rnh = rt_tables_get_rnh(fibnum, AF_INET);
-			arg.found = arg.killed = 0;
-			arg.rnh = rnh;
-			arg.nextstop = 0;
-			arg.draining = 1;
-			arg.updating = 0;
-			RADIX_NODE_HEAD_LOCK(rnh);
-			rnh->rnh_walktree(rnh, in_rtqkill, &arg);
-			RADIX_NODE_HEAD_UNLOCK(rnh);
-		}
-		CURVNET_RESTORE();
-	}
-	VNET_LIST_RUNLOCK_NOSLEEP();
-}
-
-void
-in_setmatchfunc(struct radix_node_head *rnh, int val)
-{
-
-	rnh->rnh_matchaddr = (val != 0) ? rn_match : in_matroute;
 }
 
 static int _in_rt_was_here;
@@ -341,29 +115,14 @@ in_inithead(void **head, int off)
 {
 	struct radix_node_head *rnh;
 
-	/* XXX MRT
-	 * This can be called from vfs_export.c too in which case 'off'
-	 * will be 0. We know the correct value so just use that and
-	 * return directly if it was 0.
-	 * This is a hack that replaces an even worse hack on a bad hack
-	 * on a bad design. After RELENG_7 this should be fixed but that
-	 * will change the ABI, so for now do it this way.
-	 */
 	if (!rn_inithead(head, 32))
 		return 0;
 
 	rnh = *head;
 	RADIX_NODE_HEAD_LOCK_INIT(rnh);
 
-	if (off == 0)		/* XXX MRT  see above */
-		return 1;	/* only do the rest for a real routing table */
-
 	rnh->rnh_addaddr = in_addroute;
-	in_setmatchfunc(rnh, V_drop_redirect);
-	rnh->rnh_close = in_clsroute;
 	if (_in_rt_was_here == 0 ) {
-		callout_init(&V_rtq_timer, CALLOUT_MPSAFE);
-		callout_reset(&V_rtq_timer, 1, in_rtqtimo, curvnet);
 		_in_rt_was_here = 1;
 	}
 	return 1;
@@ -374,7 +133,6 @@ int
 in_detachhead(void **head, int off)
 {
 
-	callout_drain(&V_rtq_timer);
 	return (1);
 }
 #endif

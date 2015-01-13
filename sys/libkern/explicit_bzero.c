@@ -7,7 +7,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#ifdef _KERNEL
 #include <sys/libkern.h>
+#else
+#include <string.h>
+#endif /* _KERNEL */
 
 __attribute__((weak)) void __explicit_bzero_hook(void *, size_t);
 

@@ -137,7 +137,7 @@ pcblist_sysctl(int proto, const char *name, char **bufp, int istcp __unused)
 static void
 sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb)
 {
-	xsb->sb_cc = sb->sb_cc;
+	xsb->sb_cc = sb->sb_ccc;
 	xsb->sb_hiwat = sb->sb_hiwat;
 	xsb->sb_mbcnt = sb->sb_mbcnt;
 	xsb->sb_mcnt = sb->sb_mcnt;
@@ -479,7 +479,8 @@ protopr(u_long off, const char *name, int af1, int proto)
 				printf("%6u %6u %6u ", tp->t_sndrexmitpack,
 				       tp->t_rcvoopack, tp->t_sndzerowin);
 		} else {
-			printf("%6u %6u ", so->so_rcv.sb_cc, so->so_snd.sb_cc);
+			printf("%6u %6u ",
+			    so->so_rcv.sb_cc, so->so_snd.sb_cc);
 		}
 		if (numeric_port) {
 			if (inp->inp_vflag & INP_IPV4) {

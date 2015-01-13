@@ -1146,3 +1146,55 @@ vm_set_intinfo(struct vmctx *ctx, int vcpu, uint64_t info1)
 	error = ioctl(ctx->fd, VM_SET_INTINFO, &vmii);
 	return (error);
 }
+
+int
+vm_rtc_write(struct vmctx *ctx, int offset, uint8_t value)
+{
+	struct vm_rtc_data rtcdata;
+	int error;
+
+	bzero(&rtcdata, sizeof(struct vm_rtc_data));
+	rtcdata.offset = offset;
+	rtcdata.value = value;
+	error = ioctl(ctx->fd, VM_RTC_WRITE, &rtcdata);
+	return (error);
+}
+
+int
+vm_rtc_read(struct vmctx *ctx, int offset, uint8_t *retval)
+{
+	struct vm_rtc_data rtcdata;
+	int error;
+
+	bzero(&rtcdata, sizeof(struct vm_rtc_data));
+	rtcdata.offset = offset;
+	error = ioctl(ctx->fd, VM_RTC_READ, &rtcdata);
+	if (error == 0)
+		*retval = rtcdata.value;
+	return (error);
+}
+
+int
+vm_rtc_settime(struct vmctx *ctx, time_t secs)
+{
+	struct vm_rtc_time rtctime;
+	int error;
+
+	bzero(&rtctime, sizeof(struct vm_rtc_time));
+	rtctime.secs = secs;
+	error = ioctl(ctx->fd, VM_RTC_SETTIME, &rtctime);
+	return (error);
+}
+
+int
+vm_rtc_gettime(struct vmctx *ctx, time_t *secs)
+{
+	struct vm_rtc_time rtctime;
+	int error;
+
+	bzero(&rtctime, sizeof(struct vm_rtc_time));
+	error = ioctl(ctx->fd, VM_RTC_GETTIME, &rtctime);
+	if (error == 0)
+		*secs = rtctime.secs;
+	return (error);
+}

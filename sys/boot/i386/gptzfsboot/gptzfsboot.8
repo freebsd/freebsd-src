@@ -56,7 +56,7 @@ itself was loaded.
 Other disks are probed in BIOS defined order.
 After a disk is probed and
 .Nm
-determines that the whole disk is not a ZFS pool member, then
+determines that the whole disk is not a ZFS pool member, the
 individual partitions are probed in their partition table order.
 Currently GPT and MBR partition schemes are supported.
 With the GPT scheme, only partitions of type
@@ -103,9 +103,9 @@ accepts all the options that
 .Xr boot 8
 supports.
 .Pp
-Filesystem specification and the path to
+The filesystem specification and the path to
 .Xr zfsloader 8
-is different from
+are different from
 .Xr boot 8 .
 The format is
 .Pp
@@ -176,6 +176,9 @@ gpart bootcode -p /boot/gptzfsboot -i 1 ada0
 .Sh HISTORY
 .Nm
 appeared in FreeBSD 7.3.
+.Sh AUTHORS
+This manual page was written by
+.An Andriy Gapon Aq avg@FreeBSD.org .
 .Sh BUGS
 .Nm
 looks for ZFS meta-data only in MBR partitions
@@ -188,6 +191,3 @@ found at the fixed offsets relative to a slice, then
 .Nm
 will recognize the partition as a part of a ZFS pool,
 but this is not guaranteed to happen.
-.Sh AUTHORS
-This manual page was written by
-.An Andriy Gapon Aq avg@FreeBSD.org .

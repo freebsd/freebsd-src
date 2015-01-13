@@ -6,7 +6,7 @@
 #
 
 # PROVIDE: defaultroute
-# REQUIRE: devd faith netif stf
+# REQUIRE: devd netif stf
 # KEYWORD: nojail
 
 . /etc/rc.subr

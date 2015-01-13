@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 
 #include <machine/cpu.h>
+#include <machine/dump.h>
 #include <machine/pcb.h>
 #include <machine/smp.h>
 
@@ -827,9 +828,14 @@ SYSCTL_STRING(_kern_shutdown, OID_AUTO, dumpdevname, CTLFLAG_RD,
 
 /* Registration of dumpers */
 int
-set_dumper(struct dumperinfo *di, const char *devname)
+set_dumper(struct dumperinfo *di, const char *devname, struct thread *td)
 {
 	size_t wantcopy;
+	int error;
+
+	error = priv_check(td, PRIV_SETDUMPER);
+	if (error != 0)
+		return (error);
 
 	if (di == NULL) {
 		bzero(&dumper, sizeof dumper);

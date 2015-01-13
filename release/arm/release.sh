@@ -127,6 +127,14 @@ main() {
 			BATCH=1 FORCE_PKG_REGISTER=1 install clean distclean
 	done
 
+	# Certain u-boot versions hardcode the use of a host gcc, and gcc's
+	# build relies on having gperf installed.
+	eval chroot ${CHROOTDIR} make -C /usr/src/gnu/usr.bin/gperf \
+		WITH_GCC=1 ${WORLD_FLAGS} obj
+	eval chroot ${CHROOTDIR} make -C /usr/src/gnu/usr.bin/gperf \
+		WITH_GCC=1 ${WORLD_FLAGS} -j1 depend all
+	eval chroot ${CHROOTDIR} make -C /usr/src/gnu/usr.bin/gperf \
+		WITH_GCC=1 ${WORLD_FLAGS} -j1 install
 	eval chroot ${CHROOTDIR} make -C /usr/src/gnu/usr.bin/cc \
 		WITH_GCC=1 ${WORLD_FLAGS} -j1 obj depend all install
 

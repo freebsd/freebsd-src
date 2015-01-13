@@ -12,7 +12,6 @@ WARNS?=	3
 
 CFLAGS+= -I${.CURDIR}/../cron
 
-DPADD=	${LIBCRON} ${LIBMD} ${LIBUTIL}
-LDADD=	${LIBCRON} -lmd -lutil
+LIBADD=	cron md util
 
 .include <bsd.prog.mk>

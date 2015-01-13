@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "iicbus_if.h"
 
 static void bcm_bsc_intr(void *);
+static int bcm_bsc_detach(device_t);
 
 static void
 bcm_bsc_modifyreg(struct bcm_bsc_softc *sc, uint32_t off, uint32_t mask,
@@ -72,10 +73,8 @@ bcm_bsc_clock_proc(SYSCTL_HANDLER_ARGS)
 {
 	struct bcm_bsc_softc *sc;
 	uint32_t clk;
-	int error;
 
 	sc = (struct bcm_bsc_softc *)arg1;
-
 	BCM_BSC_LOCK(sc);
 	clk = BCM_BSC_READ(sc, BCM_BSC_CLOCK);
 	BCM_BSC_UNLOCK(sc);
@@ -83,20 +82,8 @@ bcm_bsc_clock_proc(SYSCTL_HANDLER_ARGS)
 	if (clk == 0)
 		clk = 32768;
 	clk = BCM_BSC_CORE_CLK / clk;
-	error = sysctl_handle_int(oidp, &clk, sizeof(clk), req);
-	if (error != 0 || req->newptr == NULL)
-		return (error);
 
-	clk = BCM_BSC_CORE_CLK / clk;
-	if (clk % 2)
-		clk--;
-	if (clk > 0xffff)
-		clk = 0xffff;
-	BCM_BSC_LOCK(sc);
-	BCM_BSC_WRITE(sc, BCM_BSC_CLOCK, clk);
-	BCM_BSC_UNLOCK(sc);
-
-	return (0);
+	return (sysctl_handle_int(oidp, &clk, 0, req));
 }
 
 static int
@@ -192,7 +179,7 @@ bcm_bsc_sysctl_init(struct bcm_bsc_softc *sc)
 	ctx = device_get_sysctl_ctx(sc->sc_dev);
 	tree_node = device_get_sysctl_tree(sc->sc_dev);
 	tree = SYSCTL_CHILDREN(tree_node);
-	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "clock",
+	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "frequency",
 	    CTLFLAG_RW | CTLTYPE_UINT, sc, sizeof(*sc),
 	    bcm_bsc_clock_proc, "IU", "I2C BUS clock frequency");
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "clock_stretch",
@@ -210,6 +197,8 @@ static void
 bcm_bsc_reset(struct bcm_bsc_softc *sc)
 {
 
+	/* Enable the BSC Controller, disable interrupts. */
+	BCM_BSC_WRITE(sc, BCM_BSC_CTRL, BCM_BSC_CTRL_I2CEN);
 	/* Clear pending interrupts. */
 	BCM_BSC_WRITE(sc, BCM_BSC_STATUS, BCM_BSC_STATUS_CLKT |
 	    BCM_BSC_STATUS_ERR | BCM_BSC_STATUS_DONE);
@@ -302,11 +291,14 @@ bcm_bsc_attach(device_t dev)
 
 	/* Enable the BSC controller.  Flush the FIFO. */
 	BCM_BSC_LOCK(sc);
-	BCM_BSC_WRITE(sc, BCM_BSC_CTRL, BCM_BSC_CTRL_I2CEN);
 	bcm_bsc_reset(sc);
 	BCM_BSC_UNLOCK(sc);
 
-	device_add_child(dev, "iicbus", -1);
+	sc->sc_iicbus = device_add_child(dev, "iicbus", -1);
+	if (sc->sc_iicbus == NULL) {
+		bcm_bsc_detach(dev);
+		return (ENXIO);
+	}
 
 	return (bus_generic_attach(dev));
 }
@@ -351,9 +343,8 @@ bcm_bsc_intr(void *arg)
 	/* Check for errors. */
 	if (status & (BCM_BSC_STATUS_CLKT | BCM_BSC_STATUS_ERR)) {
 		/* Disable interrupts. */
-		BCM_BSC_WRITE(sc, BCM_BSC_CTRL, BCM_BSC_CTRL_I2CEN);
-		sc->sc_flags |= BCM_I2C_ERROR;
 		bcm_bsc_reset(sc);
+		sc->sc_flags |= BCM_I2C_ERROR;
 		wakeup(sc->sc_dev);
 		BCM_BSC_UNLOCK(sc);
 		return;
@@ -375,7 +366,6 @@ bcm_bsc_intr(void *arg)
 
 	if (status & BCM_BSC_STATUS_DONE) {
 		/* Disable interrupts. */
-		BCM_BSC_WRITE(sc, BCM_BSC_CTRL, BCM_BSC_CTRL_I2CEN);
 		bcm_bsc_reset(sc);
 		wakeup(sc->sc_dev);
 	}
@@ -395,7 +385,7 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 
 	/* If the controller is busy wait until it is available. */
 	while (sc->sc_flags & BCM_I2C_BUSY)
-		mtx_sleep(dev, &sc->sc_mtx, 0, "bcm_bsc", 0);
+		mtx_sleep(dev, &sc->sc_mtx, 0, "bscbusw", 0);
 
 	/* Now we have control over the BSC controller. */
 	sc->sc_flags = BCM_I2C_BUSY;
@@ -439,22 +429,43 @@ bcm_bsc_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		    BCM_BSC_CTRL_ST | read | intr);
 
 		/* Wait for the transaction to complete. */
-		err = mtx_sleep(dev, &sc->sc_mtx, 0, "bcm_bsc", hz);
+		err = mtx_sleep(dev, &sc->sc_mtx, 0, "bsciow", hz);
 
-		/* Check if we have a timeout or an I2C error. */
-		if ((sc->sc_flags & BCM_I2C_ERROR) || err == EWOULDBLOCK) {
-			device_printf(sc->sc_dev, "I2C error\n");
+		/* Check for errors. */
+		if (err == 0 && (sc->sc_flags & BCM_I2C_ERROR))
 			err = EIO;
+		if (err != 0)
 			break;
-		}
 	}
 
 	/* Clean the controller flags. */
 	sc->sc_flags = 0;
 
+	/* Wake up the threads waiting for bus. */
+	wakeup(dev);
+
 	BCM_BSC_UNLOCK(sc);
 
 	return (err);
+}
+
+static int
+bcm_bsc_iicbus_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
+{
+	struct bcm_bsc_softc *sc;
+	uint32_t busfreq;
+
+	sc = device_get_softc(dev);
+	BCM_BSC_LOCK(sc);
+	bcm_bsc_reset(sc);
+	if (sc->sc_iicbus == NULL)
+		busfreq = 100000;
+	else
+		busfreq = IICBUS_GET_FREQUENCY(sc->sc_iicbus, speed);
+	BCM_BSC_WRITE(sc, BCM_BSC_CLOCK, BCM_BSC_CORE_CLK / busfreq);
+	BCM_BSC_UNLOCK(sc);
+
+	return (IIC_ENOADDR);
 }
 
 static phandle_t
@@ -472,6 +483,7 @@ static device_method_t bcm_bsc_methods[] = {
 	DEVMETHOD(device_detach,	bcm_bsc_detach),
 
 	/* iicbus interface */
+	DEVMETHOD(iicbus_reset,		bcm_bsc_iicbus_reset),
 	DEVMETHOD(iicbus_callback,	iicbus_null_callback),
 	DEVMETHOD(iicbus_transfer,	bcm_bsc_transfer),
 

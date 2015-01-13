@@ -207,6 +207,7 @@ struct terminal {
 
 struct terminal *terminal_alloc(const struct terminal_class *tc, void *softc);
 void	terminal_maketty(struct terminal *tm, const char *fmt, ...);
+void	terminal_set_cursor(struct terminal *tm, const term_pos_t *pos);
 void	terminal_set_winsize_blank(struct terminal *tm,
     const struct winsize *size, int blank, const term_attr_t *attr);
 void	terminal_set_winsize(struct terminal *tm, const struct winsize *size);

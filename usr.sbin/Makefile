@@ -29,6 +29,7 @@ SUBDIR=	adduser \
 	extattr \
 	extattrctl \
 	fifolog \
+	fstyp \
 	fwcontrol \
 	getfmac \
 	getpmac \
@@ -93,6 +94,7 @@ SUBDIR=	adduser \
 	trpt \
 	tzsetup \
 	ugidfw \
+	vigr \
 	vipw \
 	wake \
 	watch \
@@ -160,7 +162,6 @@ SUBDIR+=	gpioctl
 .endif
 
 .if ${MK_INET6} != "no"
-SUBDIR+=	faithd
 SUBDIR+=	ip6addrctl
 SUBDIR+=	mld6query
 SUBDIR+=	ndp

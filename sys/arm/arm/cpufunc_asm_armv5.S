@@ -194,7 +194,6 @@ ENTRY(armv5_idcache_wbinv_range)
 END(armv5_idcache_wbinv_range)
 
 ENTRY_NP(armv5_idcache_wbinv_all)
-armv5_idcache_wbinv_all:
 .Larmv5_idcache_wbinv_all:
 	/*
 	 * We assume that the code here can never be out of sync with the
@@ -237,7 +236,7 @@ END(armv5_idcache_wbinv_all)
  * four variables is assumed in the code above.  Hence the reason for
  * declaring them in the assembler file.
  */
-	.align 0
+	.align 2
 C_OBJECT(armv5_dcache_sets_max)
 	.space	4
 C_OBJECT(armv5_dcache_index_max)

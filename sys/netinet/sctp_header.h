@@ -450,6 +450,11 @@ struct sctp_pktdrop_chunk {
 
 /**********STREAM RESET STUFF ******************/
 
+struct sctp_stream_reset_request {
+	struct sctp_paramhdr ph;
+	uint32_t request_seq;
+}                         SCTP_PACKED;
+
 struct sctp_stream_reset_out_request {
 	struct sctp_paramhdr ph;
 	uint32_t request_seq;	/* monotonically increasing seq no */
@@ -463,7 +468,6 @@ struct sctp_stream_reset_in_request {
 	uint32_t request_seq;
 	uint16_t list_of_streams[];	/* if not all list of streams */
 }                            SCTP_PACKED;
-
 
 struct sctp_stream_reset_tsn_request {
 	struct sctp_paramhdr ph;

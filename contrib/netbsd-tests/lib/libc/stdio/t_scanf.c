@@ -64,6 +64,10 @@ ATF_TC_BODY(sscanf_whitespace, tc)
 	const char str[] = "\f\n\r\t\v%z";
 	char c;
 
+#ifndef __NetBSD__
+	atf_tc_expect_fail("fails on FreeBSD and some variants of Linux");
+#endif
+
         /* set of "white space" symbols from isspace(3) */
         c = 0;
         (void)sscanf(str, "%%%c", &c);

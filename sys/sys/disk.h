@@ -14,6 +14,7 @@
 #define	_SYS_DISK_H_
 
 #include <sys/ioccom.h>
+#include <sys/types.h>
 
 #ifdef _KERNEL
 
@@ -123,5 +124,15 @@ void disk_err(struct bio *bp, const char *what, int blkdone, int nl);
 	 * identify the physical location of the device, not the current
 	 * occupant of that location.
 	 */
+
+struct diocgattr_arg {
+	char name[64];
+	int len;
+	union {
+		char str[DISK_IDENT_SIZE];
+		off_t off;
+	} value;
+};
+#define	DIOCGATTR _IOWR('d', 142, struct diocgattr_arg)
 
 #endif /* _SYS_DISK_H_ */

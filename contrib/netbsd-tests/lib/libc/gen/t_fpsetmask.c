@@ -1,4 +1,4 @@
-/*	$NetBSD: t_fpsetmask.c,v 1.13 2014/02/09 21:26:07 jmmv Exp $ */
+/*	$NetBSD: t_fpsetmask.c,v 1.14 2014/11/04 00:20:19 justin Exp $ */
 
 /*-
  * Copyright (c) 1995 The NetBSD Foundation, Inc.
@@ -29,7 +29,6 @@
 #include <sys/param.h>
 
 #include <atf-c.h>
-#include <atf-c/config.h>
 
 #include <stdio.h>
 #include <signal.h>

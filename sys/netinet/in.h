@@ -428,8 +428,7 @@ __END_DECLS
 #define	IP_RECVIF		20   /* bool; receive reception if w/dgram */
 /* for IPSEC */
 #define	IP_IPSEC_POLICY		21   /* int; set/get security policy */
-#define	IP_FAITH		22   /* bool; accept FAITH'ed connections */
-
+				     /* unused; was IP_FAITH */
 #define	IP_ONESBCAST		23   /* bool: send all-ones broadcast */
 #define	IP_BINDANY		24   /* bool: allow bind to any address */
 #define	IP_BINDMULTI		25   /* bool: allow multiple listeners on a tuple */
@@ -620,9 +619,9 @@ int	getsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
 #ifdef notyet
 #define	IPCTL_DEFMTU		4	/* default MTU */
 #endif
-#define	IPCTL_RTEXPIRE		5	/* cloned route expiration time */
-#define	IPCTL_RTMINEXPIRE	6	/* min value for expiration time */
-#define	IPCTL_RTMAXCACHE	7	/* trigger level for dynamic expire */
+/*	IPCTL_RTEXPIRE		5	deprecated */
+/*	IPCTL_RTMINEXPIRE	6	deprecated */
+/*	IPCTL_RTMAXCACHE	7	deprecated */
 #define	IPCTL_SOURCEROUTE	8	/* may perform source routes */
 #define	IPCTL_DIRECTEDBROADCAST	9	/* may re-broadcast received packets */
 #define	IPCTL_INTRQMAXLEN	10	/* max length of netisr queue */
@@ -630,7 +629,7 @@ int	getsourcefilter(int, uint32_t, struct sockaddr *, socklen_t,
 #define	IPCTL_STATS		12	/* ipstat structure */
 #define	IPCTL_ACCEPTSOURCEROUTE	13	/* may accept source routed packets */
 #define	IPCTL_FASTFORWARDING	14	/* use fast IP forwarding code */
-#define	IPCTL_KEEPFAITH		15	/* FAITH IPv4->IPv6 translater ctl */
+					/* 15, unused, was: IPCTL_KEEPFAITH  */
 #define	IPCTL_GIF_TTL		16	/* default TTL for gif encap packet */
 
 #endif /* __BSD_VISIBLE */

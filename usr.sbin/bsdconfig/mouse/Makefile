@@ -10,7 +10,4 @@ FILES=		INDEX USAGE
 SCRIPTSDIR=	${FILESDIR}
 SCRIPTS=	disable enable flags mouse port type
 
-beforeinstall:
-	mkdir -p ${DESTDIR}${FILESDIR}
-
 .include <bsd.prog.mk>

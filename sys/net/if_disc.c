@@ -67,7 +67,6 @@ struct disc_softc {
 
 static int	discoutput(struct ifnet *, struct mbuf *,
 		    const struct sockaddr *, struct route *);
-static void	discrtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	discioctl(struct ifnet *, u_long, caddr_t);
 static int	disc_clone_create(struct if_clone *, int, caddr_t);
 static void	disc_clone_destroy(struct ifnet *);
@@ -198,31 +197,19 @@ discoutput(struct ifnet *ifp, struct mbuf *m, const struct sockaddr *dst,
 	return (0);
 }
 
-/* ARGSUSED */
-static void
-discrtrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
-{
-
-	RT_LOCK_ASSERT(rt);
-	rt->rt_mtu = DSMTU;
-}
-
 /*
  * Process an ioctl request.
  */
 static int
 discioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct ifaddr *ifa;
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0;
 
 	switch (cmd) {
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
-		ifa = (struct ifaddr *)data;
-		if (ifa != 0)
-			ifa->ifa_rtrequest = discrtrequest;
+
 		/*
 		 * Everything else is done at a higher level.
 		 */

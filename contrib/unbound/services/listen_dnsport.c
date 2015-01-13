@@ -56,8 +56,12 @@
 #endif
 #include <fcntl.h>
 
+#ifdef HAVE_SYS_UN_H
+#include <sys/un.h>
+#endif
+
 /** number of queued TCP connections for listen() */
-#define TCP_BACKLOG 5 
+#define TCP_BACKLOG 256 
 
 /**
  * Debug print of the getaddrinfo returned address.
@@ -153,8 +157,8 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 #endif
 		}
 #endif /* SO_REUSEADDR */
-#if defined(__linux__) && defined(SO_REUSEPORT)
-		/* Linux specific: try to set SO_REUSEPORT so that incoming
+#ifdef SO_REUSEPORT
+		/* try to set SO_REUSEPORT so that incoming
 		 * queries are distributed evenly among the receiving threads.
 		 * Each thread must have its own socket bound to the same port,
 		 * with SO_REUSEPORT set on each socket.
@@ -172,7 +176,7 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		}
 #else
 		(void)reuseport;
-#endif /* defined(__linux__) && defined(SO_REUSEPORT) */
+#endif /* defined(SO_REUSEPORT) */
 	}
 	if(rcv) {
 #ifdef SO_RCVBUF
@@ -362,11 +366,26 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 # endif /* IPv6 MTU */
 	} else if(family == AF_INET) {
 #  if defined(IP_MTU_DISCOVER) && defined(IP_PMTUDISC_DONT)
+/* linux 3.15 has IP_PMTUDISC_OMIT, Hannes Frederic Sowa made it so that
+ * PMTU information is not accepted, but fragmentation is allowed
+ * if and only if the packet size exceeds the outgoing interface MTU
+ * (and also uses the interface mtu to determine the size of the packets).
+ * So there won't be any EMSGSIZE error.  Against DNS fragmentation attacks.
+ * FreeBSD already has same semantics without setting the option. */
+#    if defined(IP_PMTUDISC_OMIT)
+		int action = IP_PMTUDISC_OMIT;
+#    else
 		int action = IP_PMTUDISC_DONT;
+#    endif
 		if (setsockopt(s, IPPROTO_IP, IP_MTU_DISCOVER, 
 			&action, (socklen_t)sizeof(action)) < 0) {
 			log_err("setsockopt(..., IP_MTU_DISCOVER, "
-				"IP_PMTUDISC_DONT...) failed: %s",
+#    if defined(IP_PMTUDISC_OMIT)
+				"IP_PMTUDISC_OMIT"
+#    else
+				"IP_PMTUDISC_DONT"
+#    endif
+				"...) failed: %s",
 				strerror(errno));
 #    ifndef USE_WINSOCK
 			close(s);
@@ -404,8 +423,7 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 		if(family==AF_INET6 && errno==EINVAL)
 			*noproto = 1;
 		else if(errno != EADDRINUSE) {
-			log_err("can't bind socket: %s", strerror(errno));
-			log_addr(0, "failed address",
+			log_err_addr("can't bind socket", strerror(errno),
 				(struct sockaddr_storage*)addr, addrlen);
 		}
 #endif /* EADDRINUSE */
@@ -413,9 +431,8 @@ create_udp_sock(int family, int socktype, struct sockaddr* addr,
 #else /* USE_WINSOCK */
 		if(WSAGetLastError() != WSAEADDRINUSE &&
 			WSAGetLastError() != WSAEADDRNOTAVAIL) {
-			log_err("can't bind socket: %s", 
-				wsa_strerror(WSAGetLastError()));
-			log_addr(0, "failed address",
+			log_err_addr("can't bind socket", 
+				wsa_strerror(WSAGetLastError()),
 				(struct sockaddr_storage*)addr, addrlen);
 		}
 		closesocket(s);
@@ -478,8 +495,8 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 		return -1;
 	}
 #endif /* SO_REUSEADDR */
-#if defined(__linux__) && defined(SO_REUSEPORT)
-	/* Linux specific: try to set SO_REUSEPORT so that incoming
+#ifdef SO_REUSEPORT
+	/* try to set SO_REUSEPORT so that incoming
 	 * connections are distributed evenly among the receiving threads.
 	 * Each thread must have its own socket bound to the same port,
 	 * with SO_REUSEPORT set on each socket.
@@ -497,7 +514,7 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 	}
 #else
 	(void)reuseport;
-#endif /* defined(__linux__) && defined(SO_REUSEPORT) */
+#endif /* defined(SO_REUSEPORT) */
 #if defined(IPV6_V6ONLY)
 	if(addr->ai_family == AF_INET6 && v6only) {
 		if(setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY, 
@@ -523,16 +540,14 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 		if(addr->ai_family==AF_INET6 && errno==EINVAL)
 			*noproto = 1;
 		else {
-			log_err("can't bind socket: %s", strerror(errno));
-			log_addr(0, "failed address",
+			log_err_addr("can't bind socket", strerror(errno),
 				(struct sockaddr_storage*)addr->ai_addr,
 				addr->ai_addrlen);
 		}
 		close(s);
 #else
-		log_err("can't bind socket: %s", 
-			wsa_strerror(WSAGetLastError()));
-		log_addr(0, "failed address",
+		log_err_addr("can't bind socket", 
+			wsa_strerror(WSAGetLastError()),
 			(struct sockaddr_storage*)addr->ai_addr,
 			addr->ai_addrlen);
 		closesocket(s);
@@ -559,6 +574,61 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 	}
 	return s;
 }
+
+int
+create_local_accept_sock(const char *path, int* noproto)
+{
+#ifdef HAVE_SYS_UN_H
+	int s;
+	struct sockaddr_un sun;
+
+#ifdef HAVE_STRUCT_SOCKADDR_UN_SUN_LEN
+	/* this member exists on BSDs, not Linux */
+	sun.sun_len = (sa_family_t)sizeof(sun);
+#endif
+	sun.sun_family = AF_LOCAL;
+	/* length is 92-108, 104 on FreeBSD */
+	(void)strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
+
+	if ((s = socket(PF_LOCAL, SOCK_STREAM, 0)) == -1) {
+		log_err("Cannot create local socket %s (%s)",
+			path, strerror(errno));
+		return -1;
+	}
+
+	if (unlink(path) && errno != ENOENT) {
+		/* The socket already exists and cannot be removed */
+		log_err("Cannot remove old local socket %s (%s)",
+			path, strerror(errno));
+		return -1;
+	}
+
+	if (bind(s, (struct sockaddr *)&sun,
+		(socklen_t)sizeof(struct sockaddr_un)) == -1) {
+		log_err("Cannot bind local socket %s (%s)",
+			path, strerror(errno));
+		return -1;
+	}
+
+	if (!fd_set_nonblock(s)) {
+		log_err("Cannot set non-blocking mode");
+		return -1;
+	}
+
+	if (listen(s, TCP_BACKLOG) == -1) {
+		log_err("can't listen: %s", strerror(errno));
+		return -1;
+	}
+
+	(void)noproto; /*unused*/
+	return s;
+#else
+	log_err("Local sockets are not supported");
+	*noproto = 1;
+	return -1;
+#endif
+}
+
 
 /**
  * Create socket from getaddrinfo results
@@ -837,7 +907,7 @@ listen_cp_insert(struct comm_point* c, struct listen_dnsport* front)
 struct listen_dnsport* 
 listen_create(struct comm_base* base, struct listen_port* ports,
 	size_t bufsize, int tcp_accept_count, void* sslctx,
-	comm_point_callback_t* cb, void *cb_arg)
+	struct dt_env* dtenv, comm_point_callback_t* cb, void *cb_arg)
 {
 	struct listen_dnsport* front = (struct listen_dnsport*)
 		malloc(sizeof(struct listen_dnsport));
@@ -871,6 +941,7 @@ listen_create(struct comm_base* base, struct listen_port* ports,
 			listen_delete(front);
 			return NULL;
 		}
+		cp->dtenv = dtenv;
 		cp->do_not_close = 1;
 		if(!listen_cp_insert(cp, front)) {
 			log_err("malloc failed");

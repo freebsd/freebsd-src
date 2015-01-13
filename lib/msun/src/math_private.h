@@ -454,9 +454,15 @@ typedef union {
  * (0.0+I)*(y+0.0*I) and laboriously computing the full complex product.
  * In particular, I*Inf is corrupted to NaN+I*Inf, and I*-0 is corrupted
  * to -0.0+I*0.0.
+ *
+ * The C11 standard introduced the macros CMPLX(), CMPLXF() and CMPLXL()
+ * to construct complex values.  Compilers that conform to the C99
+ * standard require the following functions to avoid the above issues.
  */
+
+#ifndef CMPLXF
 static __inline float complex
-cpackf(float x, float y)
+CMPLXF(float x, float y)
 {
 	float_complex z;
 
@@ -464,9 +470,11 @@ cpackf(float x, float y)
 	IMAGPART(z) = y;
 	return (z.f);
 }
+#endif
 
+#ifndef CMPLX
 static __inline double complex
-cpack(double x, double y)
+CMPLX(double x, double y)
 {
 	double_complex z;
 
@@ -474,9 +482,11 @@ cpack(double x, double y)
 	IMAGPART(z) = y;
 	return (z.f);
 }
+#endif
 
+#ifndef CMPLXL
 static __inline long double complex
-cpackl(long double x, long double y)
+CMPLXL(long double x, long double y)
 {
 	long_double_complex z;
 
@@ -484,6 +494,8 @@ cpackl(long double x, long double y)
 	IMAGPART(z) = y;
 	return (z.f);
 }
+#endif
+
 #endif /* _COMPLEX_H */
  
 #ifdef __GNUCLIKE_ASM

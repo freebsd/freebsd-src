@@ -39,6 +39,7 @@
 #include <sys/socket.h>
 #include <stdbool.h>
 #include <libutil.h>
+#include <openssl/md5.h>
 
 #define	DEFAULT_CONFIG_PATH		"/etc/ctl.conf"
 #define	DEFAULT_PIDFILE			"/var/run/ctld.pid"
@@ -47,6 +48,7 @@
 #define	MAX_NAME_LEN			223
 #define	MAX_DATA_SEGMENT_LENGTH		(128 * 1024)
 #define	MAX_BURST_LENGTH		16776192
+#define	SOCKBUF_SIZE			1048576
 
 struct auth {
 	TAILQ_ENTRY(auth)		a_next;
@@ -102,13 +104,21 @@ struct portal {
 	int				p_socket;
 };
 
+#define	PG_FILTER_UNKNOWN		0
+#define	PG_FILTER_NONE			1
+#define	PG_FILTER_PORTAL		2
+#define	PG_FILTER_PORTAL_NAME		3
+#define	PG_FILTER_PORTAL_NAME_AUTH	4
+
 struct portal_group {
 	TAILQ_ENTRY(portal_group)	pg_next;
 	struct conf			*pg_conf;
 	char				*pg_name;
 	struct auth_group		*pg_discovery_auth_group;
+	int				pg_discovery_filter;
 	bool				pg_unassigned;
 	TAILQ_HEAD(, portal)		pg_portals;
+	char				*pg_redirection;
 
 	uint16_t			pg_tag;
 };
@@ -143,6 +153,14 @@ struct target {
 	struct portal_group		*t_portal_group;
 	char				*t_name;
 	char				*t_alias;
+	char				*t_redirection;
+};
+
+struct isns {
+	TAILQ_ENTRY(isns)		i_next;
+	struct conf			*i_conf;
+	char				*i_addr;
+	struct addrinfo			*i_ai;
 };
 
 struct conf {
@@ -150,6 +168,9 @@ struct conf {
 	TAILQ_HEAD(, target)		conf_targets;
 	TAILQ_HEAD(, auth_group)	conf_auth_groups;
 	TAILQ_HEAD(, portal_group)	conf_portal_groups;
+	TAILQ_HEAD(, isns)		conf_isns;
+	int				conf_isns_period;
+	int				conf_isns_timeout;
 	int				conf_debug;
 	int				conf_timeout;
 	int				conf_maxproc;
@@ -189,6 +210,8 @@ struct connection {
 	int			conn_immediate_data;
 	int			conn_header_digest;
 	int			conn_data_digest;
+	const char		*conn_user;
+	struct chap		*conn_chap;
 };
 
 struct pdu {
@@ -207,6 +230,35 @@ struct keys {
 	size_t		keys_data_len;
 };
 
+#define	CHAP_CHALLENGE_LEN	1024
+
+struct chap {
+	unsigned char	chap_id;
+	char		chap_challenge[CHAP_CHALLENGE_LEN];
+	char		chap_response[MD5_DIGEST_LENGTH];
+};
+
+struct rchap {
+	char		*rchap_secret;
+	unsigned char	rchap_id;
+	void		*rchap_challenge;
+	size_t		rchap_challenge_len;
+};
+
+struct chap		*chap_new(void);
+char			*chap_get_id(const struct chap *chap);
+char			*chap_get_challenge(const struct chap *chap);
+int			chap_receive(struct chap *chap, const char *response);
+int			chap_authenticate(struct chap *chap,
+			    const char *secret);
+void			chap_delete(struct chap *chap);
+
+struct rchap		*rchap_new(const char *secret);
+int			rchap_receive(struct rchap *rchap,
+			    const char *id, const char *challenge);
+char			*rchap_get_response(struct rchap *rchap);
+void			rchap_delete(struct rchap *rchap);
+
 struct conf		*conf_new(void);
 struct conf		*conf_new_from_file(const char *path);
 struct conf		*conf_new_from_kernel(void);
@@ -217,7 +269,7 @@ struct auth_group	*auth_group_new(struct conf *conf, const char *name);
 void			auth_group_delete(struct auth_group *ag);
 struct auth_group	*auth_group_find(const struct conf *conf,
 			    const char *name);
-int			auth_group_set_type_str(struct auth_group *ag,
+int			auth_group_set_type(struct auth_group *ag,
 			    const char *type);
 
 const struct auth	*auth_new_chap(struct auth_group *ag,
@@ -233,11 +285,15 @@ const struct auth_name	*auth_name_new(struct auth_group *ag,
 bool			auth_name_defined(const struct auth_group *ag);
 const struct auth_name	*auth_name_find(const struct auth_group *ag,
 			    const char *initiator_name);
+int			auth_name_check(const struct auth_group *ag,
+			    const char *initiator_name);
 
 const struct auth_portal	*auth_portal_new(struct auth_group *ag,
 				    const char *initiator_portal);
 bool			auth_portal_defined(const struct auth_group *ag);
 const struct auth_portal	*auth_portal_find(const struct auth_group *ag,
+				    const struct sockaddr_storage *sa);
+int				auth_portal_check(const struct auth_group *ag,
 				    const struct sockaddr_storage *sa);
 
 struct portal_group	*portal_group_new(struct conf *conf, const char *name);
@@ -246,11 +302,23 @@ struct portal_group	*portal_group_find(const struct conf *conf,
 			    const char *name);
 int			portal_group_add_listen(struct portal_group *pg,
 			    const char *listen, bool iser);
+int			portal_group_set_filter(struct portal_group *pg,
+			    const char *filter);
+int			portal_group_set_redirection(struct portal_group *pg,
+			    const char *addr);
+
+int			isns_new(struct conf *conf, const char *addr);
+void			isns_delete(struct isns *is);
+void			isns_register(struct isns *isns, struct isns *oldisns);
+void			isns_check(struct isns *isns);
+void			isns_deregister(struct isns *isns);
 
 struct target		*target_new(struct conf *conf, const char *name);
 void			target_delete(struct target *target);
 struct target		*target_find(struct conf *conf,
 			    const char *name);
+int			target_set_redirection(struct target *target,
+			    const char *addr);
 
 struct lun		*lun_new(struct target *target, int lun_id);
 void			lun_delete(struct lun *lun);
@@ -324,6 +392,7 @@ void			log_debugx(const char *, ...) __printflike(1, 2);
 
 char			*checked_strdup(const char *);
 bool			valid_iscsi_name(const char *name);
+void			set_timeout(int timeout, int fatal);
 bool			timed_out(void);
 
 #endif /* !CTLD_H */

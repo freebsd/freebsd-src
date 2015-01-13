@@ -74,6 +74,7 @@ struct autofs_node {
 	struct vnode			*an_vnode;
 	struct sx			an_vnode_lock;
 	bool				an_cached;
+	bool				an_wildcards;
 	struct callout			an_callout;
 	int				an_retries;
 	struct timespec			an_ctime;
@@ -97,6 +98,7 @@ struct autofs_request {
 	int				ar_id;
 	bool				ar_done;
 	int				ar_error;
+	bool				ar_wildcards;
 	bool				ar_in_progress;
 	char				ar_from[MAXPATHLEN];
 	char				ar_path[MAXPATHLEN];
@@ -131,6 +133,7 @@ int	autofs_trigger(struct autofs_node *anp, const char *component,
 	    int componentlen);
 bool	autofs_cached(struct autofs_node *anp, const char *component,
 	    int componentlen);
+void	autofs_flush(struct autofs_mount *amp);
 bool	autofs_ignore_thread(const struct thread *td);
 int	autofs_node_new(struct autofs_node *parent, struct autofs_mount *amp,
 	    const char *name, int namelen, struct autofs_node **anpp);

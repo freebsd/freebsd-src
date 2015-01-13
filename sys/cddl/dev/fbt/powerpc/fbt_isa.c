@@ -48,6 +48,7 @@
 
 #define	FBT_ENTRY	"entry"
 #define	FBT_RETURN	"return"
+#define	FBT_AFRAMES	7
 
 int
 fbt_invop(uintptr_t addr, uintptr_t *stack, uintptr_t rval)
@@ -116,9 +117,17 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	int j;
 	uint32_t *instr, *limit;
 
-	/* PowerPC64 uses '.' prefixes on symbol names, ignore it. */
+#ifdef __powerpc64__
+	/*
+	 * PowerPC64 uses '.' prefixes on symbol names, ignore it, but only
+	 * allow symbols with the '.' prefix, so that we don't get the function
+	 * descriptor instead.
+	 */
 	if (name[0] == '.')
 		name++;
+	else
+		return (0);
+#endif
 
 	if (strncmp(name, "dtrace_", 7) == 0 &&
 	    strncmp(name, "dtrace_safe_", 12) != 0) {
@@ -147,7 +156,7 @@ fbt_provide_module_function(linker_file_t lf, int symindx,
 	fbt = malloc(sizeof (fbt_probe_t), M_FBT, M_WAITOK | M_ZERO);
 	fbt->fbtp_name = name;
 	fbt->fbtp_id = dtrace_probe_create(fbt_id, modname,
-	    name, FBT_ENTRY, 7, fbt);
+	    name, FBT_ENTRY, FBT_AFRAMES, fbt);
 	fbt->fbtp_patchpoint = instr;
 	fbt->fbtp_ctl = lf;
 	fbt->fbtp_loadcnt = lf->loadcnt;
@@ -210,7 +219,7 @@ again:
 
 	if (retfbt == NULL) {
 		fbt->fbtp_id = dtrace_probe_create(fbt_id, modname,
-		    name, FBT_RETURN, 7, fbt);
+		    name, FBT_RETURN, FBT_AFRAMES, fbt);
 	} else {
 		retfbt->fbtp_next = fbt;
 		fbt->fbtp_id = retfbt->fbtp_id;
@@ -228,6 +237,9 @@ again:
 		fbt->fbtp_rval = DTRACE_INVOP_RET;
 	else
 		fbt->fbtp_rval = DTRACE_INVOP_JUMP;
+
+	fbt->fbtp_roffset =
+	    (uintptr_t)((uint8_t *)instr - (uint8_t *)symval->value);
 
 	fbt->fbtp_savedval = *instr;
 	fbt->fbtp_patchval = FBT_PATCHVAL;

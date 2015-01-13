@@ -1656,7 +1656,7 @@ g_raid_launch_provider(struct g_raid_volume *vol)
                         "kern.devalias.%s", name);
                 snprintf(buf1, sizeof(buf1),
                         "ar%d", vol->v_global_id);
-                setenv(announce_buf, buf1);
+                kern_setenv(announce_buf, buf1);
         }
 
 	pp = g_new_providerf(sc->sc_geom, "%s", name);

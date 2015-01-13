@@ -110,10 +110,11 @@ DPCPU_DEFINE(struct xen_intr_pcpu_data, xen_intr_pcpu) = {
 
 DPCPU_DECLARE(struct vcpu_info *, vcpu_info);
 
-#define is_valid_evtchn(x)	((x) != 0)
-
 #define	XEN_EEXIST		17 /* Xen "already exists" error */
 #define	XEN_ALLOCATE_VECTOR	0 /* Allocate a vector for this event channel */
+#define	XEN_INVALID_EVTCHN	0 /* Invalid event channel */
+
+#define	is_valid_evtchn(x)	((x) != XEN_INVALID_EVTCHN)
 
 struct xenisrc {
 	struct intsrc	xi_intsrc;
@@ -123,6 +124,7 @@ struct xenisrc {
 	evtchn_port_t	xi_port;
 	int		xi_pirq;
 	int		xi_virq;
+	void		*xi_cookie;
 	u_int		xi_close:1;	/* close on unbind? */
 	u_int		xi_shared:1;	/* Shared with other domains. */
 	u_int		xi_activehi:1;
@@ -365,6 +367,7 @@ xen_intr_release_isrc(struct xenisrc *isrc)
 	isrc->xi_cpu = 0;
 	isrc->xi_type = EVTCHN_TYPE_UNBOUND;
 	isrc->xi_port = 0;
+	isrc->xi_cookie = NULL;
 	mtx_unlock(&xen_intr_isrc_lock);
 	return (0);
 }
@@ -419,17 +422,37 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 	xen_intr_port_to_isrc[local_port] = isrc;
 	mtx_unlock(&xen_intr_isrc_lock);
 
-	error = intr_add_handler(device_get_nameunit(intr_owner),
-				 isrc->xi_vector, filter, handler, arg,
-				 flags|INTR_EXCL, port_handlep);
+	/* Assign the opaque handler (the event channel port) */
+	*port_handlep = &isrc->xi_port;
+
+#ifdef SMP
+	if (type == EVTCHN_TYPE_PORT) {
+		/*
+		 * By default all interrupts are assigned to vCPU#0
+		 * unless specified otherwise, so shuffle them to balance
+		 * the interrupt load.
+		 */
+		xen_intr_assign_cpu(&isrc->xi_intsrc, intr_next_cpu());
+	}
+#endif
+
+	if (filter == NULL && handler == NULL) {
+		/*
+		 * No filter/handler provided, leave the event channel
+		 * masked and without a valid handler, the caller is
+		 * in charge of setting that up.
+		 */
+		*isrcp = isrc;
+		return (0);
+	}
+
+	error = xen_intr_add_handler(intr_owner, filter, handler, arg, flags,
+	    *port_handlep);
 	if (error != 0) {
-		device_printf(intr_owner,
-			      "xen_intr_bind_irq: intr_add_handler failed\n");
 		xen_intr_release_isrc(isrc);
 		return (error);
 	}
 	*isrcp = isrc;
-	evtchn_unmask_port(local_port);
 	return (0);
 }
 
@@ -446,13 +469,16 @@ xen_intr_bind_isrc(struct xenisrc **isrcp, evtchn_port_t local_port,
 static struct xenisrc *
 xen_intr_isrc(xen_intr_handle_t handle)
 {
-	struct intr_handler *ih;
+	evtchn_port_t port;
 
-	ih = handle;
-	if (ih == NULL || ih->ih_event == NULL)
+	if (handle == NULL)
 		return (NULL);
 
-	return (ih->ih_event->ie_source);
+	port = *(evtchn_port_t *)handle;
+	if (!is_valid_evtchn(port) || port >= NR_EVENT_CHANNELS)
+		return (NULL);
+
+	return (xen_intr_port_to_isrc[port]);
 }
 
 /**
@@ -836,7 +862,7 @@ xen_intr_assign_cpu(struct intsrc *base_isrc, u_int apic_id)
 	struct evtchn_bind_vcpu bind_vcpu;
 	struct xenisrc *isrc;
 	u_int to_cpu, vcpu_id;
-	int error;
+	int error, masked;
 
 #ifdef XENHVM
 	if (xen_vector_callback_enabled == 0)
@@ -854,6 +880,11 @@ xen_intr_assign_cpu(struct intsrc *base_isrc, u_int apic_id)
 		return (EINVAL);
 	}
 
+	/*
+	 * Mask the event channel while binding it to prevent interrupt
+	 * delivery with an inconsistent state in isrc->xi_cpu.
+	 */
+	masked = evtchn_test_and_set_mask(isrc->xi_port);
 	if ((isrc->xi_type == EVTCHN_TYPE_VIRQ) ||
 		(isrc->xi_type == EVTCHN_TYPE_IPI)) {
 		/*
@@ -864,29 +895,25 @@ xen_intr_assign_cpu(struct intsrc *base_isrc, u_int apic_id)
 		evtchn_cpu_mask_port(isrc->xi_cpu, isrc->xi_port);
 		isrc->xi_cpu = to_cpu;
 		evtchn_cpu_unmask_port(isrc->xi_cpu, isrc->xi_port);
-		mtx_unlock(&xen_intr_isrc_lock);
-		return (0);
+		goto out;
 	}
 
 	bind_vcpu.port = isrc->xi_port;
 	bind_vcpu.vcpu = vcpu_id;
 
-	/*
-	 * Allow interrupts to be fielded on the new VCPU before
-	 * we ask the hypervisor to deliver them there.
-	 */
-	evtchn_cpu_unmask_port(to_cpu, isrc->xi_port);
 	error = HYPERVISOR_event_channel_op(EVTCHNOP_bind_vcpu, &bind_vcpu);
 	if (isrc->xi_cpu != to_cpu) {
 		if (error == 0) {
 			/* Commit to new binding by removing the old one. */
 			evtchn_cpu_mask_port(isrc->xi_cpu, isrc->xi_port);
 			isrc->xi_cpu = to_cpu;
-		} else {
-			/* Roll-back to previous binding. */
-			evtchn_cpu_mask_port(to_cpu, isrc->xi_port);
+			evtchn_cpu_unmask_port(isrc->xi_cpu, isrc->xi_port);
 		}
 	}
+
+out:
+	if (masked == 0)
+		evtchn_unmask_port(isrc->xi_port);
 	mtx_unlock(&xen_intr_isrc_lock);
 	return (0);
 #else
@@ -1446,22 +1473,24 @@ xen_intr_describe(xen_intr_handle_t port_handle, const char *fmt, ...)
 	va_start(ap, fmt);
 	vsnprintf(descr, sizeof(descr), fmt, ap);
 	va_end(ap);
-	return (intr_describe(isrc->xi_vector, port_handle, descr));
+	return (intr_describe(isrc->xi_vector, isrc->xi_cookie, descr));
 }
 
 void
 xen_intr_unbind(xen_intr_handle_t *port_handlep)
 {
-	struct intr_handler *handler;
 	struct xenisrc *isrc;
 
-	handler = *port_handlep;
+	KASSERT(port_handlep != NULL,
+	    ("NULL xen_intr_handle_t passed to xen_intr_unbind"));
+
+	isrc = xen_intr_isrc(*port_handlep);
 	*port_handlep = NULL;
-	isrc = xen_intr_isrc(handler);
 	if (isrc == NULL)
 		return;
 
-	intr_remove_handler(handler);
+	if (isrc->xi_cookie != NULL)
+		intr_remove_handler(isrc->xi_cookie);
 	xen_intr_release_isrc(isrc);
 }
 
@@ -1490,6 +1519,29 @@ xen_intr_port(xen_intr_handle_t handle)
 		return (0);
 	
 	return (isrc->xi_port);
+}
+
+int
+xen_intr_add_handler(device_t dev, driver_filter_t filter,
+    driver_intr_t handler, void *arg, enum intr_type flags,
+    xen_intr_handle_t handle)
+{
+	struct xenisrc *isrc;
+	int error;
+
+	isrc = xen_intr_isrc(handle);
+	if (isrc == NULL || isrc->xi_cookie != NULL)
+		return (EINVAL);
+
+	error = intr_add_handler(device_get_nameunit(dev), isrc->xi_vector,
+	    filter, handler, arg, flags|INTR_EXCL, &isrc->xi_cookie);
+	if (error != 0) {
+		device_printf(dev,
+		    "xen_intr_add_handler: intr_add_handler failed: %d\n",
+		    error);
+	}
+
+	return (error);
 }
 
 #ifdef DDB

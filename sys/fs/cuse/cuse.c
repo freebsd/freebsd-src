@@ -142,6 +142,7 @@ static struct cuse_server *cuse_alloc_unit[CUSE_DEVICES_MAX];
 static int cuse_alloc_unit_id[CUSE_DEVICES_MAX];
 static struct cuse_memory cuse_mem[CUSE_ALLOC_UNIT_MAX];
 
+static void cuse_server_wakeup_all_client_locked(struct cuse_server *pcs);
 static void cuse_client_kqfilter_read_detach(struct knote *kn);
 static void cuse_client_kqfilter_write_detach(struct knote *kn);
 static int cuse_client_kqfilter_read_event(struct knote *kn, long hint);
@@ -648,6 +649,8 @@ cuse_server_free(void *arg)
 		return;
 	}
 	cuse_server_is_closing(pcs);
+	/* final client wakeup, if any */
+	cuse_server_wakeup_all_client_locked(pcs);
 
 	TAILQ_REMOVE(&cuse_server_head, pcs, entry);
 
@@ -716,6 +719,9 @@ cuse_server_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 
 	cuse_lock();
 	cuse_server_is_closing(pcs);
+	/* final client wakeup, if any */
+	cuse_server_wakeup_all_client_locked(pcs);
+
 	knlist_clear(&pcs->selinfo.si_note, 1);
 	cuse_unlock();
 
@@ -918,6 +924,18 @@ cuse_server_wakeup_locked(struct cuse_server *pcs)
 {
 	selwakeup(&pcs->selinfo);
 	KNOTE_LOCKED(&pcs->selinfo.si_note, 0);
+}
+
+static void
+cuse_server_wakeup_all_client_locked(struct cuse_server *pcs)
+{
+	struct cuse_client *pcc;
+
+	TAILQ_FOREACH(pcc, &pcs->hcli, entry) {
+		pcc->cflags |= (CUSE_CLI_KNOTE_NEED_READ |
+		    CUSE_CLI_KNOTE_NEED_WRITE);
+	}
+	cuse_server_wakeup_locked(pcs);
 }
 
 static int
@@ -1226,11 +1244,7 @@ cuse_server_ioctl(struct cdev *dev, unsigned long cmd,
 		 * We don't know which direction caused the event.
 		 * Wakeup both!
 		 */
-		TAILQ_FOREACH(pcc, &pcs->hcli, entry) {
-			pcc->cflags |= (CUSE_CLI_KNOTE_NEED_READ |
-			    CUSE_CLI_KNOTE_NEED_WRITE);
-		}
-		cuse_server_wakeup_locked(pcs);
+		cuse_server_wakeup_all_client_locked(pcs);
 		cuse_unlock();
 		break;
 
@@ -1677,7 +1691,7 @@ cuse_client_poll(struct cdev *dev, int events, struct thread *td)
 
 	error = cuse_client_get(&pcc);
 	if (error != 0)
-		return (POLLNVAL);
+		goto pollnval;
 
 	temp = 0;
 
@@ -1705,8 +1719,10 @@ cuse_client_poll(struct cdev *dev, int events, struct thread *td)
 	error = cuse_client_receive_command_locked(pccmd, 0, 0);
 	cuse_unlock();
 
+	cuse_cmd_unlock(pccmd);
+
 	if (error < 0) {
-		revents = POLLNVAL;
+		goto pollnval;
 	} else {
 		revents = 0;
 		if (error & CUSE_POLL_READ)
@@ -1716,10 +1732,12 @@ cuse_client_poll(struct cdev *dev, int events, struct thread *td)
 		if (error & CUSE_POLL_ERROR)
 			revents |= (events & POLLHUP);
 	}
-
-	cuse_cmd_unlock(pccmd);
-
 	return (revents);
+
+ pollnval:
+	/* XXX many clients don't understand POLLNVAL */
+	return (events & (POLLHUP | POLLPRI | POLLIN |
+	    POLLRDNORM | POLLOUT | POLLWRNORM));
 }
 
 static int

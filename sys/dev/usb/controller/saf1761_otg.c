@@ -58,6 +58,7 @@
 #include <sys/callout.h>
 #include <sys/malloc.h>
 #include <sys/priv.h>
+#include <sys/libkern.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
@@ -99,9 +100,9 @@ static
 SYSCTL_NODE(_hw_usb, OID_AUTO, saf1761_otg, CTLFLAG_RW, 0,
     "USB SAF1761 DCI");
 
-SYSCTL_INT(_hw_usb_saf1761_otg, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_saf1761_otg, OID_AUTO, debug, CTLFLAG_RWTUN,
     &saf1761_otg_debug, 0, "SAF1761 DCI debug level");
-SYSCTL_INT(_hw_usb_saf1761_otg, OID_AUTO, forcefs, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_saf1761_otg, OID_AUTO, forcefs, CTLFLAG_RWTUN,
     &saf1761_otg_forcefs, 0, "SAF1761 DCI force FULL speed");
 #endif
 
@@ -130,6 +131,7 @@ static void saf1761_otg_do_poll(struct usb_bus *);
 static void saf1761_otg_standard_done(struct usb_xfer *);
 static void saf1761_otg_intr_set(struct usb_xfer *, uint8_t);
 static void saf1761_otg_root_intr(struct saf1761_otg_softc *);
+static void saf1761_otg_enable_psof(struct saf1761_otg_softc *, uint8_t);
 
 /*
  * Here is a list of what the SAF1761 chip can support. The main
@@ -214,7 +216,8 @@ saf1761_otg_wakeup_peer(struct saf1761_otg_softc *sc)
 static uint8_t
 saf1761_host_channel_alloc(struct saf1761_otg_softc *sc, struct saf1761_otg_td *td)
 {
-	uint32_t x;
+	uint32_t map;
+	int x;
 
 	if (td->channel < SOTG_HOST_CHANNEL_MAX)
 		return (0);
@@ -225,32 +228,38 @@ saf1761_host_channel_alloc(struct saf1761_otg_softc *sc, struct saf1761_otg_td *
 
 	switch (td->ep_type) {
 	case UE_INTERRUPT:
-		for (x = 0; x != 32; x++) {
-			if (sc->sc_host_intr_map & (1 << x))
-				continue;
-			sc->sc_host_intr_map |= (1 << x);
-			td->channel = 32 + x;
-			return (0);
-		}
-		break;
+		map = ~(sc->sc_host_intr_map |
+		    sc->sc_host_intr_busy_map[0] |
+		    sc->sc_host_intr_busy_map[1]);
+		/* find first set bit */
+		x = ffs(map) - 1;
+		if (x < 0 || x > 31)
+			break;
+		sc->sc_host_intr_map |= (1U << x);
+		td->channel = 32 + x;
+		return (0);
 	case UE_ISOCHRONOUS:
-		for (x = 0; x != 32; x++) {
-			if (sc->sc_host_isoc_map & (1 << x))
-				continue;
-			sc->sc_host_isoc_map |= (1 << x);
-			td->channel = x;
-			return (0);
-		}
-		break;
+		map = ~(sc->sc_host_isoc_map |
+		    sc->sc_host_isoc_busy_map[0] |
+		    sc->sc_host_isoc_busy_map[1]);
+		/* find first set bit */
+		x = ffs(map) - 1;
+		if (x < 0 || x > 31)
+			break;
+		sc->sc_host_isoc_map |= (1U << x);
+		td->channel = x;
+		return (0);
 	default:
-		for (x = 0; x != 32; x++) {
-			if (sc->sc_host_async_map & (1 << x))
-				continue;
-			sc->sc_host_async_map |= (1 << x);
-			td->channel = 64 + x;
-			return (0);
-		}
-		break;
+		map = ~(sc->sc_host_async_map |
+		    sc->sc_host_async_busy_map[0] |
+		    sc->sc_host_async_busy_map[1]);
+		/* find first set bit */
+		x = ffs(map) - 1;
+		if (x < 0 || x > 31)
+			break;
+		sc->sc_host_async_map |= (1U << x);
+		td->channel = 64 + x;
+		return (0);
 	}
 	return (1);
 }
@@ -267,28 +276,32 @@ saf1761_host_channel_free(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 	case UE_INTERRUPT:
 		x = td->channel - 32;
 		td->channel = SOTG_HOST_CHANNEL_MAX;
-		sc->sc_host_intr_map &= ~(1 << x);
-		sc->sc_host_intr_suspend_map &= ~(1 << x);
+		sc->sc_host_intr_map &= ~(1U << x);
+		sc->sc_host_intr_suspend_map &= ~(1U << x);
+		sc->sc_host_intr_busy_map[0] |= (1U << x);
 		SAF1761_WRITE_LE_4(sc, SOTG_INT_PTD_SKIP_PTD,
 		    (~sc->sc_host_intr_map) | sc->sc_host_intr_suspend_map);
 		break;
 	case UE_ISOCHRONOUS:
 		x = td->channel;
 		td->channel = SOTG_HOST_CHANNEL_MAX;
-		sc->sc_host_isoc_map &= ~(1 << x);
-		sc->sc_host_isoc_suspend_map &= ~(1 << x);
+		sc->sc_host_isoc_map &= ~(1U << x);
+		sc->sc_host_isoc_suspend_map &= ~(1U << x);
+		sc->sc_host_isoc_busy_map[0] |= (1U << x);
 		SAF1761_WRITE_LE_4(sc, SOTG_ISO_PTD_SKIP_PTD,
 		    (~sc->sc_host_isoc_map) | sc->sc_host_isoc_suspend_map);
 		break;
 	default:
 		x = td->channel - 64;
 		td->channel = SOTG_HOST_CHANNEL_MAX;
-		sc->sc_host_async_map &= ~(1 << x);
-		sc->sc_host_async_suspend_map &= ~(1 << x);
+		sc->sc_host_async_map &= ~(1U << x);
+		sc->sc_host_async_suspend_map &= ~(1U << x);
+		sc->sc_host_async_busy_map[0] |= (1U << x);
 		SAF1761_WRITE_LE_4(sc, SOTG_ATL_PTD_SKIP_PTD,
 		    (~sc->sc_host_async_map) | sc->sc_host_async_suspend_map);
 		break;
 	}
+	saf1761_otg_enable_psof(sc, 1);
 }
 
 static uint32_t
@@ -510,7 +523,10 @@ saf1761_host_bulk_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 			td->error_any = 1;
 			goto complete;
 		}
-		count = (status & SOTG_PTD_DW3_XFER_COUNT);
+		if (td->dw1_value & SOTG_PTD_DW1_ENABLE_SPLIT)
+			count = (status & SOTG_PTD_DW3_XFER_COUNT_SPLIT);
+		else
+			count = (status & SOTG_PTD_DW3_XFER_COUNT_HS);
 		got_short = 0;
 
 		/* verify the packet byte count */
@@ -700,7 +716,10 @@ saf1761_host_intr_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 			td->error_any = 1;
 			goto complete;
 		}
-		count = (status & SOTG_PTD_DW3_XFER_COUNT);
+		if (td->dw1_value & SOTG_PTD_DW1_ENABLE_SPLIT)
+			count = (status & SOTG_PTD_DW3_XFER_COUNT_SPLIT);
+		else
+			count = (status & SOTG_PTD_DW3_XFER_COUNT_HS);
 		got_short = 0;
 
 		/* verify the packet byte count */
@@ -750,10 +769,14 @@ saf1761_host_intr_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW7, 0);
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW6, 0);
 
-	temp = (0xFC << td->uframe) & 0xFF;	/* complete split */
+	if (td->dw1_value & SOTG_PTD_DW1_ENABLE_SPLIT) {
+		temp = (0xFC << td->uframe) & 0xFF;	/* complete split */
+	} else {
+		temp = 0;
+	}
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW5, temp);
 
-	temp = (1U << td->uframe);		/* start split */
+	temp = (1U << td->uframe);		/* start mask or start split */
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW4, temp);
 
 	temp = SOTG_PTD_DW3_ACTIVE | (td->toggle << 25) | SOTG_PTD_DW3_CERR_3;
@@ -840,10 +863,14 @@ saf1761_host_intr_data_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW7, 0);
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW6, 0);
 
-	temp = (0xFC << td->uframe) & 0xFF;	/* complete split */
+	if (td->dw1_value & SOTG_PTD_DW1_ENABLE_SPLIT) {
+		temp = (0xFC << td->uframe) & 0xFF;	/* complete split */
+	} else {
+		temp = 0;
+	}
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW5, temp);
 
-	temp = (1U << td->uframe);		/* start split */
+	temp = (1U << td->uframe);		/* start mask or start split */
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW4, temp);
 
 	temp = SOTG_PTD_DW3_ACTIVE | (td->toggle << 25) | SOTG_PTD_DW3_CERR_3;
@@ -895,7 +922,10 @@ saf1761_host_isoc_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 		} else if (status & SOTG_PTD_DW3_HALTED) {
 			goto complete;
 		}
-		count = (status & SOTG_PTD_DW3_XFER_COUNT);
+		if (td->dw1_value & SOTG_PTD_DW1_ENABLE_SPLIT)
+			count = (status & SOTG_PTD_DW3_XFER_COUNT_SPLIT);
+		else
+			count = (status & SOTG_PTD_DW3_XFER_COUNT_HS);
 
 		/* verify the packet byte count */
 		if (count != td->max_packet_size) {
@@ -930,16 +960,21 @@ saf1761_host_isoc_data_rx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW7, 0);
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW6, 0);
 
-	temp = (0xFC << td->uframe) & 0xFF;	/* complete split */
+	if (td->dw1_value & SOTG_PTD_DW1_ENABLE_SPLIT) {
+		temp = (0xFC << (td->uframe & 7)) & 0xFF;	/* complete split */
+	} else {
+		temp = 0;
+	}
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW5, temp);
 
-	temp = (1U << td->uframe);		/* start split */
+	temp = (1U << (td->uframe & 7));	/* start mask or start split */
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW4, temp);
 
 	temp = SOTG_PTD_DW3_ACTIVE | SOTG_PTD_DW3_CERR_3;
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW3, temp);
 
-	temp = (SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8);
+	temp = (SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8) |
+	    (td->uframe & 0xF8);
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW2, temp);
 
 	temp = td->dw1_value | (1 << 10) /* IN-PID */ | (td->ep_index >> 1);
@@ -982,7 +1017,6 @@ saf1761_host_isoc_data_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 		} else if (status & SOTG_PTD_DW3_HALTED) {
 			goto complete;
 		}
-
 		goto complete;
 	}
 	if (saf1761_host_channel_alloc(sc, td))
@@ -1005,13 +1039,14 @@ saf1761_host_isoc_data_tx(struct saf1761_otg_softc *sc, struct saf1761_otg_td *t
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW6, 0);
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW5, 0);
 
-	temp = (1U << td->uframe);		/* start split */
+	temp = (1U << (td->uframe & 7));	/* start mask or start split */
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW4, temp);
 
 	temp = SOTG_PTD_DW3_ACTIVE | SOTG_PTD_DW3_CERR_3;
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW3, temp);
 
-	temp = (SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8);
+	temp = (SOTG_HC_MEMORY_ADDR(SOTG_DATA_ADDR(td->channel)) << 8) |
+	    (td->uframe & 0xF8);
 	SAF1761_WRITE_LE_4(sc, pdt_addr + SOTG_PTD_DW2, temp);
 
 	temp = td->dw1_value | (0 << 10) /* OUT-PID */ | (td->ep_index >> 1);
@@ -1462,6 +1497,17 @@ saf1761_otg_interrupt_poll_locked(struct saf1761_otg_softc *sc)
 }
 
 static void
+saf1761_otg_enable_psof(struct saf1761_otg_softc *sc, uint8_t on)
+{
+	if (on) {
+		sc->sc_intr_enable |= SOTG_DCINTERRUPT_IEPSOF;
+	} else {
+		sc->sc_intr_enable &= ~SOTG_DCINTERRUPT_IEPSOF;
+	}
+	SAF1761_WRITE_LE_4(sc, SOTG_DCINTERRUPT_EN, sc->sc_intr_enable);
+}
+
+static void
 saf1761_otg_wait_suspend(struct saf1761_otg_softc *sc, uint8_t on)
 {
 	if (on) {
@@ -1542,6 +1588,27 @@ saf1761_otg_filter_interrupt(void *arg)
 	(void) SAF1761_READ_LE_4(sc, SOTG_ATL_PTD_DONE_PTD);
 	(void) SAF1761_READ_LE_4(sc, SOTG_INT_PTD_DONE_PTD);
 	(void) SAF1761_READ_LE_4(sc, SOTG_ISO_PTD_DONE_PTD);
+
+	if (status & SOTG_DCINTERRUPT_IEPSOF) {
+		if ((sc->sc_host_async_busy_map[1] | sc->sc_host_async_busy_map[0] |
+		     sc->sc_host_intr_busy_map[1] | sc->sc_host_intr_busy_map[0] |
+		     sc->sc_host_isoc_busy_map[1] | sc->sc_host_isoc_busy_map[0]) != 0) {
+			/* busy waiting is active */
+			retval = FILTER_SCHEDULE_THREAD;
+
+			sc->sc_host_async_busy_map[1] = sc->sc_host_async_busy_map[0];
+			sc->sc_host_async_busy_map[0] = 0;
+
+			sc->sc_host_intr_busy_map[1] = sc->sc_host_intr_busy_map[0];
+			sc->sc_host_intr_busy_map[0] = 0;
+
+			sc->sc_host_isoc_busy_map[1] = sc->sc_host_isoc_busy_map[0];
+			sc->sc_host_isoc_busy_map[0] = 0;
+		} else {
+			/* busy waiting is not active */
+			saf1761_otg_enable_psof(sc, 0);
+		}
+	}
 
 	if (status & SAF1761_DCINTERRUPT_THREAD_IRQ)
 		retval = FILTER_SCHEDULE_THREAD;
@@ -1676,6 +1743,8 @@ saf1761_otg_setup_standard_chain(struct usb_xfer *xfer)
 	uint8_t ep_type;
 	uint8_t need_sync;
 	uint8_t is_host;
+	uint8_t uframe_start;
+	uint8_t uframe_interval;
 
 	DPRINTFN(9, "addr=%d endpt=%d sumlen=%d speed=%d\n",
 	    xfer->address, UE_GET_ADDR(xfer->endpointno),
@@ -1729,15 +1798,25 @@ saf1761_otg_setup_standard_chain(struct usb_xfer *xfer)
 		x = 0;
 	}
 
+	uframe_start = 0;
+	uframe_interval = 0;
+
 	if (x != xfer->nframes) {
 		if (xfer->endpointno & UE_DIR_IN) {
 			if (is_host) {
-				if (ep_type == UE_INTERRUPT)
+				if (ep_type == UE_INTERRUPT) {
 					temp.func = &saf1761_host_intr_data_rx;
-				else if (ep_type == UE_ISOCHRONOUS)
+				} else if (ep_type == UE_ISOCHRONOUS) {
 					temp.func = &saf1761_host_isoc_data_rx;
-				else
+					uframe_start = (SAF1761_READ_LE_4(sc, SOTG_FRINDEX) + 8) &
+					    (SOTG_FRINDEX_MASK & ~7);
+					if (xfer->xroot->udev->speed == USB_SPEED_HIGH)
+						uframe_interval = 1U << xfer->fps_shift;
+					else
+						uframe_interval = 8U;
+				} else {
 					temp.func = &saf1761_host_bulk_data_rx;
+				}
 				need_sync = 0;
 			} else {
 				temp.func = &saf1761_device_data_tx;
@@ -1745,12 +1824,19 @@ saf1761_otg_setup_standard_chain(struct usb_xfer *xfer)
 			}
 		} else {
 			if (is_host) {
-				if (ep_type == UE_INTERRUPT)
+				if (ep_type == UE_INTERRUPT) {
 					temp.func = &saf1761_host_intr_data_tx;
-				else if (ep_type == UE_ISOCHRONOUS)
+				} else if (ep_type == UE_ISOCHRONOUS) {
 					temp.func = &saf1761_host_isoc_data_tx;
-				else
+					uframe_start = (SAF1761_READ_LE_4(sc, SOTG_FRINDEX) + 8) &
+					    (SOTG_FRINDEX_MASK & ~7);
+					if (xfer->xroot->udev->speed == USB_SPEED_HIGH)
+						uframe_interval = 1U << xfer->fps_shift;
+					else
+						uframe_interval = 8U;
+				} else {
 					temp.func = &saf1761_host_bulk_data_tx;
+				}
 				need_sync = 0;
 			} else {
 				temp.func = &saf1761_device_data_rx;
@@ -1798,6 +1884,12 @@ saf1761_otg_setup_standard_chain(struct usb_xfer *xfer)
 
 		if (xfer->flags_int.isochronous_xfr) {
 			temp.offset += temp.len;
+
+			/* stamp the starting point for this transaction */
+			temp.td->uframe = uframe_start;
+
+			/* advance to next */
+			uframe_start += uframe_interval;
 		} else {
 			/* get next Page Cache pointer */
 			temp.pc = xfer->frbuffers + x;
@@ -3395,17 +3487,8 @@ saf1761_otg_xfer_setup(struct usb_setup_params *parm)
 			td->ep_index = ep_no;
 			td->ep_type = ep_type;
 			td->dw1_value = dw1;
-			if (ep_type == UE_ISOCHRONOUS) {
-				if (parm->udev->speed == USB_SPEED_HIGH) {
-					uint8_t uframe_index = (ntd - 1 - n);
-					uframe_index <<= usbd_xfer_get_fps_shift(xfer);
-					td->uframe = (uframe_index & 7);
-				} else {
-					td->uframe = 0;
-				}
-			} else {
-				td->uframe = 0;
-			}
+			td->uframe = 0;
+
 			if (ep_type == UE_INTERRUPT) {
 				if (xfer->interval > 32)
 					td->interval = (32 / 2) << 3;
@@ -3534,19 +3617,19 @@ saf1761_otg_device_resume(struct usb_device *udev)
 		switch (td->ep_type) {
 		case UE_INTERRUPT:
 			x = td->channel - 32;
-			sc->sc_host_intr_suspend_map &= ~(1 << x);
+			sc->sc_host_intr_suspend_map &= ~(1U << x);
 			SAF1761_WRITE_LE_4(sc, SOTG_INT_PTD_SKIP_PTD,
 			    (~sc->sc_host_intr_map) | sc->sc_host_intr_suspend_map);
 			break;
 		case UE_ISOCHRONOUS:
 			x = td->channel;
-			sc->sc_host_isoc_suspend_map &= ~(1 << x);
+			sc->sc_host_isoc_suspend_map &= ~(1U << x);
 			SAF1761_WRITE_LE_4(sc, SOTG_ISO_PTD_SKIP_PTD,
 			    (~sc->sc_host_isoc_map) | sc->sc_host_isoc_suspend_map);
 			break;
 		default:
 			x = td->channel - 64;
-			sc->sc_host_async_suspend_map &= ~(1 << x);
+			sc->sc_host_async_suspend_map &= ~(1U << x);
 			SAF1761_WRITE_LE_4(sc, SOTG_ATL_PTD_SKIP_PTD,
 			    (~sc->sc_host_async_map) | sc->sc_host_async_suspend_map);
 			break;
@@ -3590,19 +3673,19 @@ saf1761_otg_device_suspend(struct usb_device *udev)
 		switch (td->ep_type) {
 		case UE_INTERRUPT:
 			x = td->channel - 32;
-			sc->sc_host_intr_suspend_map |= (1 << x);
+			sc->sc_host_intr_suspend_map |= (1U << x);
 			SAF1761_WRITE_LE_4(sc, SOTG_INT_PTD_SKIP_PTD,
 			    (~sc->sc_host_intr_map) | sc->sc_host_intr_suspend_map);
 			break;
 		case UE_ISOCHRONOUS:
 			x = td->channel;
-			sc->sc_host_isoc_suspend_map |= (1 << x);
+			sc->sc_host_isoc_suspend_map |= (1U << x);
 			SAF1761_WRITE_LE_4(sc, SOTG_ISO_PTD_SKIP_PTD,
 			    (~sc->sc_host_isoc_map) | sc->sc_host_isoc_suspend_map);
 			break;
 		default:
 			x = td->channel - 64;
-			sc->sc_host_async_suspend_map |= (1 << x);
+			sc->sc_host_async_suspend_map |= (1U << x);
 			SAF1761_WRITE_LE_4(sc, SOTG_ATL_PTD_SKIP_PTD,
 			    (~sc->sc_host_async_map) | sc->sc_host_async_suspend_map);
 			break;

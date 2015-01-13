@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 20, 2014
+.Dd November 22, 2014
 .Dt AUTOMOUNT 8
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Nm
 .Op Fl D Ar name=value
 .Op Fl L
+.Op Fl c
 .Op Fl f
 .Op Fl o Ar options
 .Op Fl v
@@ -64,6 +65,9 @@ and any direct maps, then print them to standard output.
 When specified more than once, all the maps, including indirect ones,
 will be parsed and shown.
 This is useful when debugging configuration problems.
+.It Fl c
+Flush caches, discarding possibly stale information obtained from maps
+and directory services.
 .It Fl f
 Force unmount, to be used with
 .Fl u .

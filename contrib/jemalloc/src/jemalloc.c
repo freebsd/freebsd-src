@@ -2061,6 +2061,13 @@ jemalloc_postfork_child(void)
 	ctl_postfork_child();
 }
 
+void
+_malloc_first_thread(void)
+{
+
+	(void)malloc_mutex_first_thread();
+}
+
 /******************************************************************************/
 /*
  * The following functions are used for TLS allocation/deallocation in static

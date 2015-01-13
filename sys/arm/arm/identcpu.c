@@ -193,6 +193,8 @@ const struct cpuidtab cpuids[] = {
 	  generic_steppings },
 	{ CPU_ID_CORTEXA15R3,	CPU_CLASS_CORTEXA,	"Cortex A15-r3",
 	  generic_steppings },
+	{ CPU_ID_CORTEXA17,	CPU_CLASS_CORTEXA,	"Cortex A17",
+	  generic_steppings },
 	{ CPU_ID_KRAIT,		CPU_CLASS_KRAIT,	"Krait",
 	  generic_steppings },
 
@@ -457,7 +459,7 @@ identify_arm_cpu(void)
 
 	if (arm_cache_level) {
 		printf("LoUU:%d LoC:%d LoUIS:%d \n", CPU_CLIDR_LOUU(arm_cache_level) + 1,
-		    arm_cache_loc, CPU_CLIDR_LOUIS(arm_cache_level) + 1);
+		    arm_cache_loc + 1, CPU_CLIDR_LOUIS(arm_cache_level) + 1);
 		i = 0;
 		while (((type = CPU_CLIDR_CTYPE(arm_cache_level, i)) != 0) && i < 7) {
 			printf("Cache level %d: \n", i + 1);

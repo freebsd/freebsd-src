@@ -36,6 +36,10 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 
+#ifdef __FreeBSD__
+#include <sys/socket.h>
+#endif
+
 static const char *path = "listen";
 
 ATF_TC_WITH_CLEANUP(listen_err);

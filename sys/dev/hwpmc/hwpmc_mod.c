@@ -192,6 +192,7 @@ static int	pmc_detach_process(struct proc *p, struct pmc *pm);
 static int	pmc_detach_one_process(struct proc *p, struct pmc *pm,
     int flags);
 static void	pmc_destroy_owner_descriptor(struct pmc_owner *po);
+static void	pmc_destroy_pmc_descriptor(struct pmc *pm);
 static struct pmc_owner *pmc_find_owner_descriptor(struct proc *p);
 static int	pmc_find_pmc(pmc_id_t pmcid, struct pmc **pm);
 static struct pmc *pmc_find_pmc_descriptor_in_process(struct pmc_owner *po,
@@ -319,7 +320,8 @@ static struct syscall_module_data pmc_syscall_mod = {
 	NULL,
 	&pmc_syscall_num,
 	&pmc_sysent,
-	{ 0, NULL }
+	{ 0, NULL },
+	SY_THR_STATIC_KLD,
 };
 
 static moduledata_t pmc_mod = {
@@ -748,6 +750,7 @@ pmc_remove_owner(struct pmc_owner *po)
 		    ("[pmc,%d] owner %p != po %p", __LINE__, pm->pm_owner, po));
 
 		pmc_release_pmc_descriptor(pm);	/* will unlink from the list */
+		pmc_destroy_pmc_descriptor(pm);
 	}
 
 	KASSERT(po->po_sscount == 0,
@@ -2160,9 +2163,7 @@ pmc_allocate_pmc_descriptor(void)
 static void
 pmc_destroy_pmc_descriptor(struct pmc *pm)
 {
-	(void) pm;
 
-#ifdef	DEBUG
 	KASSERT(pm->pm_state == PMC_STATE_DELETED ||
 	    pm->pm_state == PMC_STATE_FREE,
 	    ("[pmc,%d] destroying non-deleted PMC", __LINE__));
@@ -2173,7 +2174,8 @@ pmc_destroy_pmc_descriptor(struct pmc *pm)
 	KASSERT(pm->pm_runcount == 0,
 	    ("[pmc,%d] pmc has non-zero run count %d", __LINE__,
 		pm->pm_runcount));
-#endif
+
+	free(pm, M_PMC);
 }
 
 static void
@@ -2206,10 +2208,10 @@ pmc_wait_for_pmc_idle(struct pmc *pm)
  *  - detaches the PMC from hardware
  *  - unlinks all target threads that were attached to it
  *  - removes the PMC from its owner's list
- *  - destroy's the PMC private mutex
+ *  - destroys the PMC private mutex
  *
- * Once this function completes, the given pmc pointer can be safely
- * FREE'd by the caller.
+ * Once this function completes, the given pmc pointer can be freed by
+ * calling pmc_destroy_pmc_descriptor().
  */
 
 static void
@@ -2359,8 +2361,6 @@ pmc_release_pmc_descriptor(struct pmc *pm)
 		LIST_REMOVE(pm, pm_next);
 		pm->pm_owner = NULL;
 	}
-
-	pmc_destroy_pmc_descriptor(pm);
 }
 
 /*
@@ -3367,7 +3367,6 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 
 		if (n == (int) md->pmd_npmc) {
 			pmc_destroy_pmc_descriptor(pmc);
-			free(pmc, M_PMC);
 			pmc = NULL;
 			error = EINVAL;
 			break;
@@ -3403,7 +3402,6 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			    (error = pcd->pcd_config_pmc(cpu, adjri, pmc)) != 0) {
 				(void) pcd->pcd_release_pmc(cpu, adjri, pmc);
 				pmc_destroy_pmc_descriptor(pmc);
-				free(pmc, M_PMC);
 				pmc = NULL;
 				pmc_restore_cpu_binding(&pb);
 				error = EPERM;
@@ -3431,7 +3429,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		if ((error =
 		    pmc_register_owner(curthread->td_proc, pmc)) != 0) {
 			pmc_release_pmc_descriptor(pmc);
-			free(pmc, M_PMC);
+			pmc_destroy_pmc_descriptor(pmc);
 			pmc = NULL;
 			break;
 		}
@@ -3674,8 +3672,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		po = pm->pm_owner;
 		pmc_release_pmc_descriptor(pm);
 		pmc_maybe_remove_owner(po);
-
-		free(pm, M_PMC);
+		pmc_destroy_pmc_descriptor(pm);
 	}
 	break;
 
@@ -4752,8 +4749,9 @@ pmc_initialize(void)
 	if (pmc_callchaindepth <= 0 ||
 	    pmc_callchaindepth > PMC_CALLCHAIN_DEPTH_MAX) {
 		(void) printf("hwpmc: tunable \"callchaindepth\"=%d out of "
-		    "range.\n", pmc_callchaindepth);
-		pmc_callchaindepth = PMC_CALLCHAIN_DEPTH;
+		    "range - using %d.\n", pmc_callchaindepth,
+		    PMC_CALLCHAIN_DEPTH_MAX);
+		pmc_callchaindepth = PMC_CALLCHAIN_DEPTH_MAX;
 	}
 
 	md = pmc_md_initialize();

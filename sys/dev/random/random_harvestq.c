@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000-2013 Mark R V Murray
+ * Copyright (c) 2000-2014 Mark R V Murray
  * Copyright (c) 2013 Arthur Mesh
  * Copyright (c) 2004 Robert N. M. Watson
  * All rights reserved.
@@ -42,230 +42,293 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/random.h>
-#include <sys/selinfo.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/unistd.h>
 
 #include <machine/cpu.h>
-#include <machine/vmparam.h>
 
 #include <dev/random/randomdev.h>
-#include <dev/random/randomdev_soft.h>
 #include <dev/random/random_adaptors.h>
 #include <dev/random/random_harvestq.h>
 #include <dev/random/live_entropy_sources.h>
-#include <dev/random/rwfile.h>
 
-#define RANDOM_FIFO_MAX	1024	/* How many events to queue up */
+/* List for the dynamic sysctls */
+static struct sysctl_ctx_list random_clist;
 
 /*
- * The harvest mutex protects the consistency of the entropy fifos and
+ * How many events to queue up. We create this many items in
+ * an 'empty' queue, then transfer them to the 'harvest' queue with
+ * supplied junk. When used, they are transferred back to the
+ * 'empty' queue.
+ */
+#define RANDOM_FIFO_MAX	1024
+
+/*
+ * The harvest mutex protects the consistency of the entropy Fifos and
  * empty fifo and other associated structures.
  */
-struct mtx	harvest_mtx;
+static struct mtx harvest_mtx;
 
-/* Lockable FIFO queue holding entropy buffers */
-struct entropyfifo {
-	int count;
-	STAILQ_HEAD(harvestlist, harvest) head;
-};
+/*
+ * Lockable FIFO ring buffer holding entropy events
+ * If ring_in == ring_out,
+ *     the buffer is empty.
+ * If (ring_in + 1) == ring_out (MOD RANDOM_FIFO_MAX),
+ *     the buffer is full.
+ *
+ * The ring_in variable needs locking as there are multiple
+ * sources to the ring. Only the sources may change ring_in,
+ * but the consumer may examine it.
+ *
+ * The ring_out variable does not need locking as there is
+ * only one consumer. Only the consumer may change ring_out,
+ * but the sources may examine it.
+ */
+static struct entropyfifo {
+	struct harvest_event ring[RANDOM_FIFO_MAX];
+	volatile u_int ring_in;
+	volatile u_int ring_out;
+} entropyfifo;
 
-/* Empty entropy buffers */
-static struct entropyfifo emptyfifo;
+/* Round-robin destination cache. */
+u_int harvest_destination[ENTROPYSOURCE];
 
-/* Harvested entropy */
-static struct entropyfifo harvestfifo;
+/* Function called to process one harvested stochastic event */
+void (*harvest_process_event)(struct harvest_event *);
+
+/* Allow the sysadmin to select the broad category of
+ * entropy types to harvest.
+ */
+static u_int harvest_source_mask = ((1U << RANDOM_ENVIRONMENTAL_END) - 1);
+
+/* Pool count is used by anything needing to know how many entropy
+ * pools are currently being maintained.
+ * This is of use to (e.g.) the live source feed where we need to give
+ * all the pools a top-up.
+ */
+int harvest_pool_count;
 
 /* <0 to end the kthread, 0 to let it run, 1 to flush the harvest queues */
-int random_kthread_control = 0;
+static int random_kthread_control = 0;
 
 static struct proc *random_kthread_proc;
 
-#ifdef RANDOM_RWFILE
-static const char *entropy_files[] = {
-	"/entropy",
-	NULL
-};
-#endif
-
-/* Deal with entropy cached externally if this is present.
- * Lots of policy may eventually arrive in this function.
- * Called after / is mounted.
- */
 static void
-random_harvestq_cache(void *arg __unused)
+random_kthread(void *arg __unused)
 {
-	uint8_t *keyfile, *data;
-	size_t size, i;
-#ifdef RANDOM_RWFILE
-	const char **entropy_file;
-	uint8_t *zbuf;
-	int error;
-#endif
+        u_int maxloop, ring_out;
 
-	/* Get stuff that may have been preloaded by loader(8) */
-	keyfile = preload_search_by_type("/boot/entropy");
-	if (keyfile != NULL) {
-		data = preload_fetch_addr(keyfile);
-		size = preload_fetch_size(keyfile);
-		if (data != NULL && size != 0) {
-			for (i = 0; i < size; i += 16)
-				random_harvestq_internal(get_cyclecount(), data + i, 16, 16, RANDOM_CACHED);
-			printf("random: read %zu bytes from preloaded cache\n", size);
-			bzero(data, size);
-		}
-		else
-			printf("random: no preloaded entropy cache available\n");
-	}
-
-#ifdef RANDOM_RWFILE
-	/* Read and attempt to overwrite the entropy cache files.
-	 * If the file exists, can be read and then overwritten,
-	 * then use it. Ignore it otherwise, but print out what is
-	 * going on.
+	/*
+	 * Process until told to stop.
+	 *
+	 * Locking is not needed as this is the only place we modify ring_out, and
+	 * we only examine ring_in without changing it. Both of these are volatile,
+	 * and this is a unique thread.
 	 */
-	data = malloc(PAGE_SIZE, M_ENTROPY, M_WAITOK);
-	zbuf = __DECONST(void *, zero_region);
-	for (entropy_file = entropy_files; *entropy_file; entropy_file++) {
-		error = randomdev_read_file(*entropy_file, data, PAGE_SIZE);
-		if (error == 0) {
-			printf("random: entropy cache '%s' provides %ld bytes\n", *entropy_file, (long)PAGE_SIZE);
-			error = randomdev_write_file(*entropy_file, zbuf, PAGE_SIZE);
-			if (error == 0) {
-				printf("random: entropy cache '%s' contents used and successfully overwritten\n", *entropy_file);
-				for (i = 0; i < PAGE_SIZE; i += 16)
-					random_harvestq_internal(get_cyclecount(), data + i, 16, 16, RANDOM_CACHED);
-			}
-			else
-				printf("random: entropy cache '%s' not overwritten and therefore not used; error = %d\n", *entropy_file, error);
-		}
-		else
-			printf("random: entropy cache '%s' not present or unreadable; error = %d\n", *entropy_file, error);
-	}
-	bzero(data, PAGE_SIZE);
-	free(data, M_ENTROPY);
-#endif
-}
-EVENTHANDLER_DEFINE(mountroot, random_harvestq_cache, NULL, 0);
+	while (random_kthread_control >= 0) {
 
-static void
-random_kthread(void *arg)
-{
-	STAILQ_HEAD(, harvest) local_queue;
-	struct harvest *event = NULL;
-	int local_count;
-	event_proc_f entropy_processor = arg;
+		/* Deal with events, if any. Restrict the number we do in one go. */
+		maxloop = RANDOM_FIFO_MAX;
+		while (entropyfifo.ring_out != entropyfifo.ring_in) {
 
-	STAILQ_INIT(&local_queue);
-	local_count = 0;
+			ring_out = (entropyfifo.ring_out + 1)%RANDOM_FIFO_MAX;
+			harvest_process_event(entropyfifo.ring + ring_out);
+			/* Modifying ring_out here ONLY. Sufficient for atomicity? */
+			entropyfifo.ring_out = ring_out;
 
-	/* Process until told to stop */
-	mtx_lock_spin(&harvest_mtx);
-	for (; random_kthread_control >= 0;) {
+			/* The ring may be filled quickly so don't loop forever.  */
+			if (--maxloop)
+				break;
 
-		/*
-		 * Grab all the entropy events.
-		 * Drain entropy source records into a thread-local
-		 * queue for processing while not holding the mutex.
-		 */
-		STAILQ_CONCAT(&local_queue, &harvestfifo.head);
-		local_count += harvestfifo.count;
-		harvestfifo.count = 0;
-
-		/*
-		 * Deal with events, if any.
-		 * Then transfer the used events back into the empty fifo.
-		 */
-		if (!STAILQ_EMPTY(&local_queue)) {
-			mtx_unlock_spin(&harvest_mtx);
-			STAILQ_FOREACH(event, &local_queue, next)
-				entropy_processor(event);
-			mtx_lock_spin(&harvest_mtx);
-			STAILQ_CONCAT(&emptyfifo.head, &local_queue);
-			emptyfifo.count += local_count;
-			local_count = 0;
 		}
 
-		KASSERT(local_count == 0, ("random_kthread: local_count %d",
-		    local_count));
-
 		/*
-		 * Do only one round of the hardware sources for now.
-		 * Later we'll need to make it rate-adaptive.
+		 * Give the fast hardware sources a go
 		 */
-		mtx_unlock_spin(&harvest_mtx);
-		live_entropy_sources_feed(1, entropy_processor);
-		mtx_lock_spin(&harvest_mtx);
+		live_entropy_sources_feed();
 
 		/*
 		 * If a queue flush was commanded, it has now happened,
 		 * and we can mark this by resetting the command.
+		 * A negative value, however, terminates the thread.
 		 */
 
 		if (random_kthread_control == 1)
 			random_kthread_control = 0;
 
-		/* Work done, so don't belabour the issue */
-		msleep_spin_sbt(&random_kthread_control, &harvest_mtx,
-		    "-", SBT_1S/10, 0, C_PREL(1));
+		/* Some work is done, so give the rest of the OS a chance. */
+		tsleep_sbt(&random_kthread_control, 0, "-", SBT_1S/10, 0, C_PREL(1));
 
 	}
-	mtx_unlock_spin(&harvest_mtx);
 
-	random_set_wakeup_exit(&random_kthread_control);
+	randomdev_set_wakeup_exit(&random_kthread_control);
 	/* NOTREACHED */
 }
 
 void
-random_harvestq_init(event_proc_f cb)
+random_harvestq_flush(void)
 {
+
+	/* Command a entropy queue flush and wait for it to finish */
+	random_kthread_control = 1;
+	while (random_kthread_control)
+		pause("-", hz/10);
+}
+
+/* ARGSUSED */
+RANDOM_CHECK_UINT(harvestmask, 0, ((1U << RANDOM_ENVIRONMENTAL_END) - 1));
+
+/* ARGSUSED */
+static int
+random_print_harvestmask(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sbuf;
 	int error, i;
-	struct harvest *np;
 
-	/* Initialise the harvest fifos */
-
-	/* Contains the currently unused event structs. */
-	STAILQ_INIT(&emptyfifo.head);
-	for (i = 0; i < RANDOM_FIFO_MAX; i++) {
-		np = malloc(sizeof(struct harvest), M_ENTROPY, M_WAITOK);
-		STAILQ_INSERT_TAIL(&emptyfifo.head, np, next);
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error == 0) {
+		sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+		for (i = RANDOM_ENVIRONMENTAL_END - 1; i >= 0; i--)
+			sbuf_cat(&sbuf, (harvest_source_mask & (1U << i)) ? "1" : "0");
+		error = sbuf_finish(&sbuf);
+		sbuf_delete(&sbuf);
 	}
-	emptyfifo.count = RANDOM_FIFO_MAX;
 
-	/* Will contain the queued-up events. */
-	STAILQ_INIT(&harvestfifo.head);
-	harvestfifo.count = 0;
+	return (error);
+}
 
+static const char *(random_source_descr[]) = {
+	"CACHED",
+	"ATTACH",
+	"KEYBOARD",
+	"MOUSE",
+	"NET_TUN",
+	"NET_ETHER",
+	"NET_NG",
+	"INTERRUPT",
+	"SWI",
+	"UMA_ALLOC",
+	"", /* "ENVIRONMENTAL_END" */
+	"PURE_OCTEON",
+	"PURE_SAFE",
+	"PURE_GLXSB",
+	"PURE_UBSEC",
+	"PURE_HIFN",
+	"PURE_RDRAND",
+	"PURE_NEHEMIAH",
+	"PURE_RNDTEST",
+	/* "ENTROPYSOURCE" */
+};
+
+/* ARGSUSED */
+static int
+random_print_harvestmask_symbolic(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sbuf;
+	int error, i;
+
+	error = sysctl_wire_old_buffer(req, 0);
+	if (error == 0) {
+		sbuf_new_for_sysctl(&sbuf, NULL, 128, req);
+		for (i = RANDOM_ENVIRONMENTAL_END - 1; i >= 0; i--) {
+			sbuf_cat(&sbuf, (i == RANDOM_ENVIRONMENTAL_END - 1) ? "" : ",");
+			sbuf_cat(&sbuf, (harvest_source_mask & (1U << i)) ? random_source_descr[i] : "");
+		}
+		error = sbuf_finish(&sbuf);
+		sbuf_delete(&sbuf);
+	}
+
+	return (error);
+}
+
+void
+random_harvestq_init(void (*event_processor)(struct harvest_event *), int poolcount)
+{
+	uint8_t *keyfile, *data;
+	int error;
+	size_t size, j;
+	struct sysctl_oid *random_sys_o;
+
+#ifdef RANDOM_DEBUG
+	printf("random: %s\n", __func__);
+#endif
+
+	random_sys_o = SYSCTL_ADD_NODE(&random_clist,
+	    SYSCTL_STATIC_CHILDREN(_kern_random),
+	    OID_AUTO, "harvest", CTLFLAG_RW, 0,
+	    "Entropy Device Parameters");
+
+	SYSCTL_ADD_PROC(&random_clist,
+	    SYSCTL_CHILDREN(random_sys_o),
+	    OID_AUTO, "mask", CTLTYPE_UINT | CTLFLAG_RW,
+	    &harvest_source_mask, ((1U << RANDOM_ENVIRONMENTAL_END) - 1),
+	    random_check_uint_harvestmask, "IU",
+	    "Entropy harvesting mask");
+
+	SYSCTL_ADD_PROC(&random_clist,
+	    SYSCTL_CHILDREN(random_sys_o),
+	    OID_AUTO, "mask_bin", CTLTYPE_STRING | CTLFLAG_RD,
+	    NULL, 0, random_print_harvestmask, "A", "Entropy harvesting mask (printable)");
+
+	SYSCTL_ADD_PROC(&random_clist,
+	    SYSCTL_CHILDREN(random_sys_o),
+	    OID_AUTO, "mask_symbolic", CTLTYPE_STRING | CTLFLAG_RD,
+	    NULL, 0, random_print_harvestmask_symbolic, "A", "Entropy harvesting mask (symbolic)");
+
+	/* Point to the correct event_processing function */
+	harvest_process_event = event_processor;
+
+	/* Store the pool count (used by live source feed) */
+	harvest_pool_count = poolcount;
+
+	/* Initialise the harvesting mutex and in/out indexes. */
 	mtx_init(&harvest_mtx, "entropy harvest mutex", NULL, MTX_SPIN);
+	entropyfifo.ring_in = entropyfifo.ring_out = 0U;
 
 	/* Start the hash/reseed thread */
-	error = kproc_create(random_kthread, cb,
-	    &random_kthread_proc, RFHIGHPID, 0, "rand_harvestq"); /* RANDOM_CSPRNG_NAME */
+	error = kproc_create(random_kthread, NULL,
+	    &random_kthread_proc, RFHIGHPID, 0, "rand_harvestq");
 
 	if (error != 0)
 		panic("Cannot create entropy maintenance thread.");
+
+	/* Get entropy that may have been preloaded by loader(8)
+	 * and use it to pre-charge the entropy harvest queue.
+	 */
+	keyfile = preload_search_by_type("/boot/entropy");
+	if (keyfile != NULL) {
+		data = preload_fetch_addr(keyfile);
+		size = preload_fetch_size(keyfile);
+		if (data != NULL && size != 0) {
+			for (j = 0; j < size; j += 16)
+				random_harvestq_internal(data + j, 16, 16, RANDOM_CACHED);
+			printf("random: read %zu bytes from preloaded cache\n", size);
+			bzero(data, size);
+		}
+		else
+			printf("random: no preloaded entropy cache\n");
+	}
+
 }
 
 void
 random_harvestq_deinit(void)
 {
-	struct harvest *np;
 
-	/* Destroy the harvest fifos */
-	while (!STAILQ_EMPTY(&emptyfifo.head)) {
-		np = STAILQ_FIRST(&emptyfifo.head);
-		STAILQ_REMOVE_HEAD(&emptyfifo.head, next);
-		free(np, M_ENTROPY);
-	}
-	emptyfifo.count = 0;
-	while (!STAILQ_EMPTY(&harvestfifo.head)) {
-		np = STAILQ_FIRST(&harvestfifo.head);
-		STAILQ_REMOVE_HEAD(&harvestfifo.head, next);
-		free(np, M_ENTROPY);
-	}
-	harvestfifo.count = 0;
+#ifdef RANDOM_DEBUG
+	printf("random: %s\n", __func__);
+#endif
+
+	/*
+	 * Command the hash/reseed thread to end and wait for it to finish
+	 */
+	random_kthread_control = -1;
+	tsleep(&random_kthread_control, 0, "term", 0);
 
 	mtx_destroy(&harvest_mtx);
+
+	sysctl_ctx_free(&random_clist);
 }
 
 /*
@@ -278,45 +341,42 @@ random_harvestq_deinit(void)
  * check a few lines below. This includes the "always-on" sources
  * like the Intel "rdrand" or the VIA Nehamiah "xstore" sources.
  */
+/* XXXRW: get_cyclecount() is cheap on most modern hardware, where cycle
+ * counters are built in, but on older hardware it will do a real time clock
+ * read which can be quite expensive.
+ */
 void
-random_harvestq_internal(u_int64_t somecounter, const void *entropy,
-    u_int count, u_int bits, enum esource origin)
+random_harvestq_internal(const void *entropy, u_int count, u_int bits,
+    enum random_entropy_source origin)
 {
-	struct harvest *event;
+	struct harvest_event *event;
+	u_int ring_in;
 
 	KASSERT(origin >= RANDOM_START && origin < ENTROPYSOURCE,
 	    ("random_harvest_internal: origin %d invalid\n", origin));
 
-	/* Lockless read to avoid lock operations if fifo is full. */
-	if (harvestfifo.count >= RANDOM_FIFO_MAX)
+	/* Mask out unwanted sources */
+	if (!(harvest_source_mask & (1U << origin)))
 		return;
 
+	/* Lock ring_in against multi-thread contention */
 	mtx_lock_spin(&harvest_mtx);
+	ring_in = (entropyfifo.ring_in + 1)%RANDOM_FIFO_MAX;
+	if (ring_in != entropyfifo.ring_out) {
+		/* The ring is not full */
+		event = entropyfifo.ring + ring_in;
 
-	/*
-	 * On't overfill the harvest queue; this could steal all
-	 * our memory.
-	 */
-	if (harvestfifo.count < RANDOM_FIFO_MAX) {
-		event = STAILQ_FIRST(&emptyfifo.head);
-		if (event != NULL) {
-			/* Add the harvested data to the fifo */
-			STAILQ_REMOVE_HEAD(&emptyfifo.head, next);
-			emptyfifo.count--;
-			event->somecounter = somecounter;
-			event->size = count;
-			event->bits = bits;
-			event->source = origin;
+		/* Stash the harvested stuff in the *event buffer */
+		count = MIN(count, HARVESTSIZE);
+		event->he_somecounter = get_cyclecount();
+		event->he_size = count;
+		event->he_bits = bits;
+		event->he_source = origin;
+		event->he_destination = harvest_destination[origin]++;
+		memcpy(event->he_entropy, entropy, count);
+		memset(event->he_entropy + count, 0, HARVESTSIZE - count);
 
-			/* XXXX Come back and make this dynamic! */
-			count = MIN(count, HARVESTSIZE);
-			memcpy(event->entropy, entropy, count);
-
-			STAILQ_INSERT_TAIL(&harvestfifo.head,
-			    event, next);
-			harvestfifo.count++;
-		}
+		entropyfifo.ring_in = ring_in;
 	}
-
 	mtx_unlock_spin(&harvest_mtx);
 }

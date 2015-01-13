@@ -392,6 +392,7 @@ int	bus_activate_resource(device_t dev, int type, int rid,
 int	bus_deactivate_resource(device_t dev, int type, int rid,
 				struct resource *r);
 bus_dma_tag_t bus_get_dma_tag(device_t dev);
+int	bus_get_domain(device_t dev, int *domain);
 int	bus_release_resource(device_t dev, int type, int rid,
 			     struct resource *r);
 int	bus_free_resource(device_t dev, int type, struct resource *r);

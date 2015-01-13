@@ -35,10 +35,15 @@
 
 #include <linux/mutex.h>
 #include <linux/inetdevice.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/module.h>
+#include <linux/notifier.h>
 #include <net/route.h>
 #include <net/netevent.h>
 #include <rdma/ib_addr.h>
+#include <netinet/if_ether.h>
+
 
 MODULE_AUTHOR("Sean Hefty");
 MODULE_DESCRIPTION("IB Address Translation");
@@ -189,13 +194,11 @@ static void set_timeout(unsigned long time)
 {
 	unsigned long delay;
 
-	cancel_delayed_work(&work);
-
 	delay = time - jiffies;
 	if ((long)delay <= 0)
 		delay = 1;
 
-	queue_delayed_work(addr_wq, &work, delay);
+	mod_delayed_work(addr_wq, &work, delay);
 }
 
 static void queue_req(struct addr_req *req)
@@ -344,14 +347,12 @@ static int addr_resolve(struct sockaddr *src_in,
 	struct sockaddr_in6 *sin6;
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
-#if defined(INET) || defined(INET6)
-	struct llentry *lle;
-#endif
 	struct rtentry *rte;
 	in_port_t port;
 	u_char edst[MAX_ADDR_LEN];
 	int multi;
 	int bcast;
+	int is_gw = 0;
 	int error = 0;
 
 	/*
@@ -427,6 +428,8 @@ static int addr_resolve(struct sockaddr *src_in,
 			RTFREE_LOCKED(rte);
 		return -EHOSTUNREACH;
 	}
+	if (rte->rt_flags & RTF_GATEWAY)
+		is_gw = 1;
 	/*
 	 * If it's not multicast or broadcast and the route doesn't match the
 	 * requested interface return unreachable.  Otherwise fetch the
@@ -464,12 +467,12 @@ mcast:
 	switch (dst_in->sa_family) {
 #ifdef INET
 	case AF_INET:
-		error = arpresolve(ifp, rte, NULL, dst_in, edst, &lle);
+		error = arpresolve(ifp, is_gw, NULL, dst_in, edst, NULL);
 		break;
 #endif
 #ifdef INET6
 	case AF_INET6:
-		error = nd6_storelladdr(ifp, NULL, dst_in, (u_char *)edst, &lle);
+		error = nd6_storelladdr(ifp, NULL, dst_in, (u_char *)edst,NULL);
 		break;
 #endif
 	default:
@@ -620,7 +623,7 @@ static struct notifier_block nb = {
 	.notifier_call = netevent_callback
 };
 
-static int addr_init(void)
+static int __init addr_init(void)
 {
 	INIT_DELAYED_WORK(&work, process_req);
 	addr_wq = create_singlethread_workqueue("ib_addr");
@@ -631,7 +634,7 @@ static int addr_init(void)
 	return 0;
 }
 
-static void addr_cleanup(void)
+static void __exit addr_cleanup(void)
 {
 	unregister_netevent_notifier(&nb);
 	destroy_workqueue(addr_wq);

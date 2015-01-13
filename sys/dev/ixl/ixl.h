@@ -93,7 +93,7 @@
 #include "i40e_type.h"
 #include "i40e_prototype.h"
 
-#ifdef IXL_DEBUG
+#if defined(IXL_DEBUG) || defined(IXL_DEBUG_SYSCTL)
 #include <sys/sbuf.h>
 
 #define MAC_FORMAT "%02x:%02x:%02x:%02x:%02x:%02x"
@@ -101,7 +101,13 @@
 	(mac_addr)[0], (mac_addr)[1], (mac_addr)[2], (mac_addr)[3], \
 	(mac_addr)[4], (mac_addr)[5]
 #define ON_OFF_STR(is_set) ((is_set) ? "On" : "Off")
+#endif /* IXL_DEBUG || IXL_DEBUG_SYSCTL */
 
+#ifdef IXL_DEBUG
+/* Enable debug sysctls */
+#ifndef IXL_DEBUG_SYSCTL
+#define IXL_DEBUG_SYSCTL 1
+#endif
 
 #define _DBG_PRINTF(S, ...)		printf("%s: " S "\n", __func__, ##__VA_ARGS__)
 #define _DEV_DBG_PRINTF(dev, S, ...)	device_printf(dev, "%s: " S "\n", __func__, ##__VA_ARGS__)
@@ -128,7 +134,7 @@
 
 #define HW_DEBUGOUT(...)		if (DEBUG_HW) _DBG_PRINTF(__VA_ARGS__)
 
-#else
+#else /* no IXL_DEBUG */
 #define DEBUG_INIT  0
 #define DEBUG_IOCTL 0
 #define DEBUG_HW    0
@@ -144,7 +150,7 @@
 #define IOCTL_DBG_IF2(...)
 #define IOCTL_DBG_IF(...)
 #define HW_DEBUGOUT(...)
-#endif
+#endif /* IXL_DEBUG */
 
 /* Tunables */
 
@@ -162,7 +168,9 @@
 /*
 ** Default number of entries in Tx queue buf_ring.
 */
-#define DEFAULT_TXBRSZ	(4096 * 4096)
+#define SMALL_TXBRSZ 4096
+/* This may require mbuf cluster tuning */
+#define DEFAULT_TXBRSZ (SMALL_TXBRSZ * SMALL_TXBRSZ)
 
 /* Alignment for rings */
 #define DBA_ALIGN	128
@@ -194,7 +202,7 @@
 
 #define MAX_MULTICAST_ADDR	128
 
-#define IXL_BAR		3
+#define IXL_BAR			3
 #define IXL_ADM_LIMIT		2
 #define IXL_TSO_SIZE		65535
 #define IXL_TX_BUF_SZ		((u32) 1514)
@@ -208,10 +216,11 @@
 #define IXL_ITR_NONE		3
 #define IXL_QUEUE_EOL		0x7FF
 #define IXL_MAX_FRAME		0x2600
-#define IXL_MAX_TX_SEGS	8 
+#define IXL_MAX_TX_SEGS		8
 #define IXL_MAX_TSO_SEGS	66 
 #define IXL_SPARSE_CHAIN	6
 #define IXL_QUEUE_HUNG		0x80000000
+#define IXL_KEYSZ		10
 
 /* ERJ: hardware can support ~1.5k filters between all functions */
 #define IXL_MAX_FILTERS	256
@@ -291,7 +300,6 @@
 #define IXL_SET_OQDROPS(vsi, odrops)	(vsi)->ifp->if_snd.ifq_drops = (odrops)
 #define IXL_SET_NOPROTO(vsi, count)	(vsi)->noproto = (count)
 #endif
-
 
 /*
  *****************************************************************************
@@ -476,6 +484,7 @@ struct ixl_vsi {
 	struct i40e_eth_stats	eth_stats;
 	struct i40e_eth_stats	eth_stats_offsets;
 	bool 			stat_offsets_loaded;
+	/* VSI stat counters */
 	u64			ipackets;
 	u64			ierrors;
 	u64			opackets;
@@ -523,7 +532,8 @@ ixl_get_filter(struct ixl_vsi *vsi)
 	/* create a new empty filter */
 	f = malloc(sizeof(struct ixl_mac_filter),
 	    M_DEVBUF, M_NOWAIT | M_ZERO);
-	SLIST_INSERT_HEAD(&vsi->ftl, f, next);
+	if (f)
+		SLIST_INSERT_HEAD(&vsi->ftl, f, next);
 
 	return (f);
 }

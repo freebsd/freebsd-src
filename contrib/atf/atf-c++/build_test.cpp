@@ -1,6 +1,3 @@
-//
-// Automated Testing Framework (atf)
-//
 // Copyright (c) 2009 The NetBSD Foundation, Inc.
 // All rights reserved.
 //
@@ -25,30 +22,24 @@
 // IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
 // OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 // IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+
+#include "atf-c++/build.hpp"
 
 #include <cstring>
 #include <iostream>
 
-#include "../atf-c/h_build.h"
+#include <atf-c++.hpp>
 
-#include "build.hpp"
-#include "config.hpp"
-#include "macros.hpp"
+extern "C" {
+#include "atf-c/h_build.h"
+}
 
-#include "detail/env.hpp"
-#include "detail/process.hpp"
-#include "detail/test_helpers.hpp"
+#include "atf-c++/detail/env.hpp"
+#include "atf-c++/detail/process.hpp"
 
 // ------------------------------------------------------------------------
 // Auxiliary functions.
 // ------------------------------------------------------------------------
-
-namespace atf {
-    namespace config {
-        void __reinit(void);
-    }
-}
 
 template< class C >
 void
@@ -168,7 +159,6 @@ ATF_TEST_CASE_BODY(c_o)
         verbose_set_env("ATF_BUILD_CC", test->cc);
         verbose_set_env("ATF_BUILD_CFLAGS", test->cflags);
         verbose_set_env("ATF_BUILD_CPPFLAGS", test->cppflags);
-        atf::config::__reinit();
 
         atf::process::argv_array argv =
             atf::build::c_o(test->sfile, test->ofile,
@@ -190,7 +180,6 @@ ATF_TEST_CASE_BODY(cpp)
 
         verbose_set_env("ATF_BUILD_CPP", test->cpp);
         verbose_set_env("ATF_BUILD_CPPFLAGS", test->cppflags);
-        atf::config::__reinit();
 
         atf::process::argv_array argv =
             atf::build::cpp(test->sfile, test->ofile,
@@ -213,7 +202,6 @@ ATF_TEST_CASE_BODY(cxx_o)
         verbose_set_env("ATF_BUILD_CXX", test->cxx);
         verbose_set_env("ATF_BUILD_CXXFLAGS", test->cxxflags);
         verbose_set_env("ATF_BUILD_CPPFLAGS", test->cppflags);
-        atf::config::__reinit();
 
         atf::process::argv_array argv =
             atf::build::cxx_o(test->sfile, test->ofile,
@@ -221,12 +209,6 @@ ATF_TEST_CASE_BODY(cxx_o)
         check_equal_argvs(argv, test->expargv);
     }
 }
-
-// ------------------------------------------------------------------------
-// Tests cases for the header file.
-// ------------------------------------------------------------------------
-
-HEADER_TC(include, "atf-c++/build.hpp");
 
 // ------------------------------------------------------------------------
 // Main.
@@ -241,7 +223,4 @@ ATF_INIT_TEST_CASES(tcs)
     ATF_ADD_TEST_CASE(tcs, c_o);
     ATF_ADD_TEST_CASE(tcs, cpp);
     ATF_ADD_TEST_CASE(tcs, cxx_o);
-
-    // Add the test cases for the header file.
-    ATF_ADD_TEST_CASE(tcs, include);
 }

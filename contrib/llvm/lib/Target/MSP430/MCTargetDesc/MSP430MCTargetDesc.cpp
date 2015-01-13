@@ -20,6 +20,8 @@
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/TargetRegistry.h"
 
+using namespace llvm;
+
 #define GET_INSTRINFO_MC_DESC
 #include "MSP430GenInstrInfo.inc"
 
@@ -28,8 +30,6 @@
 
 #define GET_REGINFO_MC_DESC
 #include "MSP430GenRegisterInfo.inc"
-
-using namespace llvm;
 
 static MCInstrInfo *createMSP430MCInstrInfo() {
   MCInstrInfo *X = new MCInstrInfo();
@@ -66,7 +66,7 @@ static MCInstPrinter *createMSP430MCInstPrinter(const Target &T,
                                                 const MCSubtargetInfo &STI) {
   if (SyntaxVariant == 0)
     return new MSP430InstPrinter(MAI, MII, MRI);
-  return 0;
+  return nullptr;
 }
 
 extern "C" void LLVMInitializeMSP430TargetMC() {

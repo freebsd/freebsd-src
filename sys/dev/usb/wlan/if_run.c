@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #ifdef	RUN_DEBUG
 int run_debug = 0;
 static SYSCTL_NODE(_hw_usb, OID_AUTO, run, CTLFLAG_RW, 0, "USB run");
-SYSCTL_INT(_hw_usb_run, OID_AUTO, debug, CTLFLAG_RW, &run_debug, 0,
+SYSCTL_INT(_hw_usb_run, OID_AUTO, debug, CTLFLAG_RWTUN, &run_debug, 0,
     "run debug level");
 #endif
 
@@ -4913,6 +4913,12 @@ run_update_beacon(struct ieee80211vap *vap, int item)
 	}
 
 	setbit(rvp->bo.bo_flags, item);
+	if (rvp->beacon_mbuf == NULL) {
+		rvp->beacon_mbuf = ieee80211_beacon_alloc(vap->iv_bss,
+		    &rvp->bo);
+		if (rvp->beacon_mbuf == NULL)
+			return;
+	}
 	ieee80211_beacon_update(vap->iv_bss, &rvp->bo, rvp->beacon_mbuf, mcast);
 
 	i = RUN_CMDQ_GET(&sc->cmdq_store);

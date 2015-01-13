@@ -105,7 +105,7 @@ struct cctl_lun_nv {
 };
 
 /*
- * Backend LUN information.  
+ * Backend LUN information.
  */
 struct cctl_lun {
 	uint64_t lun_id;
@@ -237,7 +237,7 @@ cctl_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "lun") == 0) {
 		devlist->cur_lun = NULL;
 	} else if (strcmp(name, "ctllunlist") == 0) {
-		
+		/* Nothing. */
 	} else {
 		struct cctl_lun_nv *nv;
 
@@ -342,7 +342,7 @@ cctl_end_pelement(void *user_data, const char *name)
 	} else if (strcmp(name, "targ_port") == 0) {
 		devlist->cur_port = NULL;
 	} else if (strcmp(name, "ctlportlist") == 0) {
-		
+		/* Nothing. */
 	} else {
 		struct cctl_lun_nv *nv;
 

@@ -147,11 +147,9 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	if (inp != NULL) {
 		INP_LOCK_ASSERT(inp);
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
-		if (((flags & IP_NODEFAULTFLOWID) == 0) &&
-		    inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID)) {
+		if ((flags & IP_NODEFAULTFLOWID) == 0) {
 			m->m_pkthdr.flowid = inp->inp_flowid;
 			M_HASHTYPE_SET(m, inp->inp_flowtype);
-			m->m_flags |= M_FLOWID;
 		}
 	}
 
@@ -322,20 +320,10 @@ again:
 	 * Calculate MTU.  If we have a route that is up, use that,
 	 * otherwise use the interface's MTU.
 	 */
-	if (rte != NULL && (rte->rt_flags & (RTF_UP|RTF_HOST))) {
-		/*
-		 * This case can happen if the user changed the MTU
-		 * of an interface after enabling IP on it.  Because
-		 * most netifs don't keep track of routes pointing to
-		 * them, there is no way for one to update all its
-		 * routes when the MTU is changed.
-		 */
-		if (rte->rt_mtu > ifp->if_mtu)
-			rte->rt_mtu = ifp->if_mtu;
+	if (rte != NULL && (rte->rt_flags & (RTF_UP|RTF_HOST)))
 		mtu = rte->rt_mtu;
-	} else {
+	else
 		mtu = ifp->if_mtu;
-	}
 	/* Catch a possible divide by zero later. */
 	KASSERT(mtu > 0, ("%s: mtu %d <= 0, rte=%p (rt_flags=0x%08x) ifp=%p",
 	    __func__, mtu, rte, (rte != NULL) ? rte->rt_flags : 0, ifp));
@@ -473,7 +461,7 @@ again:
 
 sendit:
 #ifdef IPSEC
-	switch(ip_ipsec_output(&m, inp, &flags, &error)) {
+	switch(ip_ipsec_output(&m, inp, &error)) {
 	case 1:
 		goto bad;
 	case -1:
@@ -991,7 +979,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_RECVDSTADDR:
 		case IP_RECVTTL:
 		case IP_RECVIF:
-		case IP_FAITH:
 		case IP_ONESBCAST:
 		case IP_DONTFRAG:
 		case IP_RECVTOS:
@@ -1056,10 +1043,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 
 			case IP_RECVIF:
 				OPTSET(INP_RECVIF);
-				break;
-
-			case IP_FAITH:
-				OPTSET(INP_FAITH);
 				break;
 
 			case IP_ONESBCAST:
@@ -1200,7 +1183,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_RECVTTL:
 		case IP_RECVIF:
 		case IP_PORTRANGE:
-		case IP_FAITH:
 		case IP_ONESBCAST:
 		case IP_DONTFRAG:
 		case IP_BINDANY:
@@ -1257,10 +1239,6 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 					optval = IP_PORTRANGE_LOW;
 				else
 					optval = 0;
-				break;
-
-			case IP_FAITH:
-				optval = OPTBIT(INP_FAITH);
 				break;
 
 			case IP_ONESBCAST:

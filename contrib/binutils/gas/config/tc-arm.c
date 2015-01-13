@@ -6079,7 +6079,7 @@ parse_operands (char *str, const unsigned char *pattern)
 
 /* Functions for operand encoding.  ARM, then Thumb.  */
 
-#define rotate_left(v, n) (v << n | v >> (32 - n))
+#define rotate_left(v, n) (v << (n % 32) | v >> ((32 - n) % 32))
 
 /* If VAL can be encoded in the immediate field of an ARM instruction,
    return the encoded form.  Otherwise, return FAIL.  */
@@ -6789,7 +6789,11 @@ do_co_reg (void)
 {
   inst.instruction |= inst.operands[0].reg << 8;
   inst.instruction |= inst.operands[1].imm << 21;
-  inst.instruction |= inst.operands[2].reg << 12;
+  /* If this is a vector we are using the APSR_nzcv syntax, encode as r15 */
+  if (inst.operands[2].isvec != 0)
+    inst.instruction |= 15 << 12;
+  else
+    inst.instruction |= inst.operands[2].reg << 12;
   inst.instruction |= inst.operands[3].reg << 16;
   inst.instruction |= inst.operands[4].reg;
   inst.instruction |= inst.operands[5].imm << 5;
@@ -15055,7 +15059,7 @@ static const struct asm_opcode insns[] =
  TCE(stc,	c000000, ec000000, 3, (RCP, RCN, ADDRGLDC),	        lstc,   lstc),
  TC3(stcl,	c400000, ec400000, 3, (RCP, RCN, ADDRGLDC),	        lstc,   lstc),
  TCE(mcr,	e000010, ee000010, 6, (RCP, I7b, RR, RCN, RCN, oI7b),   co_reg, co_reg),
- TCE(mrc,	e100010, ee100010, 6, (RCP, I7b, RR, RCN, RCN, oI7b),   co_reg, co_reg),
+ TCE(mrc,	e100010, ee100010, 6, (RCP, I7b, APSR_RR, RCN, RCN, oI7b),   co_reg, co_reg),
 
 #undef ARM_VARIANT
 #define ARM_VARIANT &arm_ext_v2s /* ARM 3 - swp instructions.  */
@@ -15114,7 +15118,7 @@ static const struct asm_opcode insns[] =
  TUF(stc2l,	c400000, fc400000, 3, (RCP, RCN, ADDRGLDC),		        lstc,	lstc),
  TUF(cdp2,	e000000, fe000000, 6, (RCP, I15b, RCN, RCN, RCN, oI7b), cdp,    cdp),
  TUF(mcr2,	e000010, fe000010, 6, (RCP, I7b, RR, RCN, RCN, oI7b),   co_reg, co_reg),
- TUF(mrc2,	e100010, fe100010, 6, (RCP, I7b, RR, RCN, RCN, oI7b),   co_reg, co_reg),
+ TUF(mrc2,	e100010, fe100010, 6, (RCP, I7b, APSR_RR, RCN, RCN, oI7b),   co_reg, co_reg),
 
 #undef ARM_VARIANT
 #define ARM_VARIANT &arm_ext_v5exp /*  ARM Architecture 5TExP.  */

@@ -23,7 +23,9 @@ SRCS=	addrtoname.c \
 	print-802_11.c \
 	print-802_15_4.c \
 	print-ah.c \
+	print-ahcp.c \
 	print-aodv.c \
+	print-aoe.c \
 	print-ap1394.c \
 	print-arcnet.c \
 	print-arp.c \
@@ -35,6 +37,7 @@ SRCS=	addrtoname.c \
 	print-bgp.c \
 	print-bootp.c \
 	print-bt.c \
+	print-calm-fast.c \
 	print-carp.c \
 	print-cdp.c \
 	print-cfm.c \
@@ -55,6 +58,7 @@ SRCS=	addrtoname.c \
 	print-fddi.c \
 	print-forces.c \
 	print-fr.c \
+	print-geonet.c \
 	print-gre.c \
 	print-hsrp.c \
 	print-icmp.c \
@@ -75,22 +79,28 @@ SRCS=	addrtoname.c \
 	print-llc.c \
 	print-lldp.c \
 	print-lmp.c \
+	print-loopback.c \
 	print-lspping.c \
 	print-lwapp.c \
 	print-lwres.c \
+	print-m3ua.c \
 	print-mobile.c \
 	print-mpcp.c \
 	print-mpls.c \
+	print-mptcp.c \
 	print-msdp.c \
 	print-msnlb.c \
 	print-nfs.c \
 	print-ntp.c \
 	print-null.c \
 	print-olsr.c \
+	print-openflow.c \
+	print-openflow-1.0.c \
 	print-ospf.c \
 	print-otv.c \
 	print-pgm.c \
 	print-pim.c \
+	print-pktap.c \
 	print-ppi.c \
 	print-ppp.c \
 	print-pppoe.c \
@@ -160,16 +170,13 @@ CFLAGS+=	-DINET6
 CFLAGS+=	-DLBL_ALIGN
 .endif
 
-DPADD=	${LIBL} ${LIBPCAP}
-LDADD=	-ll -lpcap
+LIBADD=	l pcap
 .if ${MK_CASPER} != "no"
-DPADD+=	${LIBCAPSICUM} ${LIBNV}
-LDADD+=	-lcapsicum -lnv
-CFLAGS+=-DHAVE_LIBCAPSICUM
+LIBADD+=	capsicum
+CFLAGS+=-DHAVE_CAPSICUM
 .endif
 .if ${MK_OPENSSL} != "no"
-DPADD+= ${LIBCRYPTO}
-LDADD+= -lcrypto
+LIBADD+=	crypto
 CFLAGS+= -I${DESTDIR}/usr/include/openssl
 CFLAGS+= -DHAVE_LIBCRYPTO -DHAVE_OPENSSL_EVP_H
 .endif

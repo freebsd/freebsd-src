@@ -95,6 +95,9 @@ platform_devmap_init(void)
 	/* scu */
 	arm_devmap_add_entry(0xfff00000, 0x100000);
 
+	/* FPGA memory window, 256MB */
+	arm_devmap_add_entry(0xd0000000, 0x10000000);
+
 	return (0);
 }
 

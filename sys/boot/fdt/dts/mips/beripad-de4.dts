@@ -80,6 +80,11 @@
 */
 	};
 
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x40000000>;		// 1G at 0x0
+	};
+
 	soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -92,12 +97,7 @@
 		compatible = "simple-bus", "mips,mips4k";
 		ranges = <>;
 
-		memory {
-			device_type = "memory";
-			reg = <0x0 0x40000000>;		// 1G at 0x0
-		};
-
-		beripic: beripic@7f804000 {
+		beripic0: beripic@7f804000 {
 			compatible = "sri-cambridge,beri-pic";
 			interrupt-controller;
 			#address-cells = <0>;
@@ -117,14 +117,14 @@
 			reg-shift = <2>;
 			clock-frequency = <50000000>;
 			interrupts = <6>;
-			interrupt-parent = <&beripic>;
+			interrupt-parent = <&beripic0>;
 		};
 
 		serial@7f000000 {
 			compatible = "altera,jtag_uart-11_0";
 			reg = <0x7f000000 0x40>;
 			interrupts = <0>;
-			interrupt-parent = <&beripic>;
+			interrupt-parent = <&beripic0>;
 		};
 
 		serial@7f001000 {
@@ -198,7 +198,7 @@
 			       0x7f007420 0x20>;
 			// RX, TX
 			interrupts = <1 2>;
-			interrupt-parent = <&beripic>;
+			interrupt-parent = <&beripic0>;
 		};
 
 		ethernet@7f005000 {
@@ -211,11 +211,12 @@
 			       0x7f005420 0x20>;
 			// RX, TX
 			interrupts = <11 12>;
-			interrupt-parent = <&beripic>;
+			interrupt-parent = <&beripic0>;
 		};
 
 		touchscreen@70400000 {
 			compatible = "sri-cambridge,mtl";
+			panel-size = < 800 480 >;
 			reg = <0x70400000 0x1000
 			       0x70000000 0x177000
 			       0x70177000 0x2000>;
@@ -227,7 +228,7 @@
 			       0x7f140000 0x4>;
 			// IRQ 4 is DC, IRQ 5 is HC.
 			interrupts = <4 5>;
-			interrupt-parent = <&beripic>;
+			interrupt-parent = <&beripic0>;
 		};
 
 		avgen@0x7f009000 {

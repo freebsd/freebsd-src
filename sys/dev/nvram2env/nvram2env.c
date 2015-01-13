@@ -263,7 +263,7 @@ nvram2env_attach(device_t dev)
 				if (bootverbose)
 					printf("ENV: %s=%s\n", pair, value);
 #endif
-				setenv(pair, value);
+				kern_setenv(pair, value);
 
 				if (strcasecmp(pair, "WAN_MAC_ADDR") == 0) {
 					/* Alias for MAC address of eth0 */
@@ -271,7 +271,7 @@ nvram2env_attach(device_t dev)
 						printf("ENV: aliasing "
 						    "WAN_MAC_ADDR to ethaddr"
 						    " = %s\n",  value);
-					setenv("ethaddr", value);
+					kern_setenv("ethaddr", value);
 				}
 				else if (strcasecmp(pair, "LAN_MAC_ADDR") == 0){
 					/* Alias for MAC address of eth1 */
@@ -279,7 +279,7 @@ nvram2env_attach(device_t dev)
 						printf("ENV: aliasing "
 						    "LAN_MAC_ADDR to eth1addr"
 						    " = %s\n",  value);
-					setenv("eth1addr", value);
+					kern_setenv("eth1addr", value);
 				}
 
 				if (strcmp(pair, "bootverbose") == 0)

@@ -45,7 +45,11 @@ __RCSID("$NetBSD: t_nanosleep.c,v 1.3 2013/03/31 16:47:16 christos Exp $");
 #include <unistd.h>
 
 static void
+#ifdef __FreeBSD__
+handler(int signo __unused)
+#else
 handler(int signo)
+#endif
 {
 	/* Nothing. */
 }

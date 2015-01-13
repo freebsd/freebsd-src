@@ -78,11 +78,6 @@
 #ifdef INET6
 #include <netinet6/nd6.h>
 #endif
-
-int (*ef_inputp)(struct ifnet*, struct ether_header *eh, struct mbuf *m);
-int (*ef_outputp)(struct ifnet *ifp, struct mbuf **mp,
-		const struct sockaddr *dst, short *tp, int *hlen);
-
 #include <security/mac/mac_framework.h>
 
 #ifdef CTASSERT
@@ -119,9 +114,6 @@ static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,
 static	void ether_reassign(struct ifnet *, struct vnet *, char *);
 #endif
 
-/* XXX: should be in an arp support file, not here */
-static MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
-
 #define	ETHER_IS_BROADCAST(addr) \
 	(bcmp(etherbroadcastaddr, (addr), ETHER_ADDR_LEN) == 0)
 
@@ -155,18 +147,25 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 {
 	short type;
 	int error = 0, hdrcmplt = 0;
-	u_char esrc[ETHER_ADDR_LEN], edst[ETHER_ADDR_LEN];
+	u_char edst[ETHER_ADDR_LEN];
 	struct llentry *lle = NULL;
 	struct rtentry *rt0 = NULL;
 	struct ether_header *eh;
 	struct pf_mtag *t;
 	int loop_copy = 1;
 	int hlen;	/* link layer header length */
+	int is_gw = 0;
+	uint32_t pflags = 0;
 
 	if (ro != NULL) {
-		if (!(m->m_flags & (M_BCAST | M_MCAST)))
+		if (!(m->m_flags & (M_BCAST | M_MCAST))) {
 			lle = ro->ro_lle;
+			if (lle != NULL)
+				pflags = lle->la_flags;
+		}
 		rt0 = ro->ro_rt;
+		if (rt0 != NULL && (rt0->rt_flags & RTF_GATEWAY) != 0)
+			is_gw = 1;
 	}
 #ifdef MAC
 	error = mac_ifnet_check_transmit(ifp, m);
@@ -185,10 +184,10 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	switch (dst->sa_family) {
 #ifdef INET
 	case AF_INET:
-		if (lle != NULL && (lle->la_flags & LLE_VALID))
+		if (lle != NULL && (pflags & LLE_VALID) != 0)
 			memcpy(edst, &lle->ll_addr.mac16, sizeof(edst));
 		else
-			error = arpresolve(ifp, rt0, m, dst, edst, &lle);
+			error = arpresolve(ifp, is_gw, m, dst, edst, &pflags);
 		if (error)
 			return (error == EWOULDBLOCK ? 0 : error);
 		type = htons(ETHERTYPE_IP);
@@ -223,10 +222,11 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 #endif
 #ifdef INET6
 	case AF_INET6:
-		if (lle != NULL && (lle->la_flags & LLE_VALID))
+		if (lle != NULL && (pflags & LLE_VALID))
 			memcpy(edst, &lle->ll_addr.mac16, sizeof(edst));
 		else
-			error = nd6_storelladdr(ifp, m, dst, (u_char *)edst, &lle);
+			error = nd6_storelladdr(ifp, m, dst, (u_char *)edst,
+			    &pflags);
 		if (error)
 			return error;
 		type = htons(ETHERTYPE_IPV6);
@@ -235,10 +235,8 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	case pseudo_AF_HDRCMPLT:
 	    {
 		const struct ether_header *eh;
-		
+
 		hdrcmplt = 1;
-		eh = (const struct ether_header *)dst->sa_data;
-		(void)memcpy(esrc, eh->ether_shost, sizeof (esrc));
 		/* FALLTHROUGH */
 
 	case AF_UNSPEC:
@@ -253,7 +251,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		senderr(EAFNOSUPPORT);
 	}
 
-	if (lle != NULL && (lle->la_flags & LLE_IFADDR)) {
+	if ((pflags & LLE_IFADDR) != 0) {
 		update_mbuf_csumflags(m, m);
 		return (if_simloop(ifp, m, dst->sa_family, 0));
 	}
@@ -266,15 +264,11 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 	if (m == NULL)
 		senderr(ENOBUFS);
 	eh = mtod(m, struct ether_header *);
-	(void)memcpy(&eh->ether_type, &type,
-		sizeof(eh->ether_type));
-	(void)memcpy(eh->ether_dhost, edst, sizeof (edst));
-	if (hdrcmplt)
-		(void)memcpy(eh->ether_shost, esrc,
-			sizeof(eh->ether_shost));
-	else
-		(void)memcpy(eh->ether_shost, IF_LLADDR(ifp),
-			sizeof(eh->ether_shost));
+	if (hdrcmplt == 0) {
+		memcpy(&eh->ether_type, &type, sizeof(eh->ether_type));
+		memcpy(eh->ether_dhost, edst, sizeof (edst));
+		memcpy(eh->ether_shost, IF_LLADDR(ifp),sizeof(eh->ether_shost));
+	}
 
 	/*
 	 * If a simplex interface, and the packet is being sent to our
@@ -330,7 +324,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 #endif
 
 	/* Handle ng_ether(4) processing, if any */
-	if (IFP2AC(ifp)->ac_netgraph != NULL) {
+	if (ifp->if_l2com != NULL) {
 		KASSERT(ng_ether_output_p != NULL,
 		    ("ng_ether_output_p is NULL"));
 		if ((error = (*ng_ether_output_p)(ifp, &m)) != 0) {
@@ -521,7 +515,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 	M_SETFIB(m, ifp->if_fib);
 
 	/* Allow ng_ether(4) to claim this frame. */
-	if (IFP2AC(ifp)->ac_netgraph != NULL) {
+	if (ifp->if_l2com != NULL) {
 		KASSERT(ng_ether_input_p != NULL,
 		    ("%s: ng_ether_input_p is NULL", __func__));
 		m->m_flags &= ~M_PROMISC;
@@ -576,8 +570,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 			m->m_flags |= M_PROMISC;
 	}
 
-	if (harvest.ethernet)
-		random_harvest(&(m->m_data), 12, 2, RANDOM_NET_ETHER);
+	random_harvest(&(m->m_data), 12, 2, RANDOM_NET_ETHER);
 
 	ether_demux(ifp, m);
 	CURVNET_RESTORE();
@@ -781,7 +774,7 @@ discard:
 	 * hand the packet to it for last chance processing;
 	 * otherwise dispose of it.
 	 */
-	if (IFP2AC(ifp)->ac_netgraph != NULL) {
+	if (ifp->if_l2com != NULL) {
 		KASSERT(ng_ether_input_orphan_p != NULL,
 		    ("ng_ether_input_orphan_p is NULL"));
 		/*
@@ -867,7 +860,7 @@ ether_ifdetach(struct ifnet *ifp)
 	sdl = (struct sockaddr_dl *)(ifp->if_addr->ifa_addr);
 	uuid_ether_del(LLADDR(sdl));
 
-	if (IFP2AC(ifp)->ac_netgraph != NULL) {
+	if (ifp->if_l2com != NULL) {
 		KASSERT(ng_ether_detach_p != NULL,
 		    ("ng_ether_detach_p is NULL"));
 		(*ng_ether_detach_p)(ifp);
@@ -882,7 +875,7 @@ void
 ether_reassign(struct ifnet *ifp, struct vnet *new_vnet, char *unused __unused)
 {
 
-	if (IFP2AC(ifp)->ac_netgraph != NULL) {
+	if (ifp->if_l2com != NULL) {
 		KASSERT(ng_ether_detach_p != NULL,
 		    ("ng_ether_detach_p is NULL"));
 		(*ng_ether_detach_p)(ifp);
@@ -1093,46 +1086,8 @@ ether_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 	}
 }
 
-static void*
-ether_alloc(u_char type, struct ifnet *ifp)
-{
-	struct arpcom	*ac;
-	
-	ac = malloc(sizeof(struct arpcom), M_ARPCOM, M_WAITOK | M_ZERO);
-	ac->ac_ifp = ifp;
-
-	return (ac);
-}
-
-static void
-ether_free(void *com, u_char type)
-{
-
-	free(com, M_ARPCOM);
-}
-
-static int
-ether_modevent(module_t mod, int type, void *data)
-{
-
-	switch (type) {
-	case MOD_LOAD:
-		if_register_com_alloc(IFT_ETHER, ether_alloc, ether_free);
-		break;
-	case MOD_UNLOAD:
-		if_deregister_com_alloc(IFT_ETHER);
-		break;
-	default:
-		return EOPNOTSUPP;
-	}
-
-	return (0);
-}
-
 static moduledata_t ether_mod = {
-	"ether",
-	ether_modevent,
-	0
+	.name = "ether",
 };
 
 void

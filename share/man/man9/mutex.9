@@ -28,7 +28,7 @@
 .\"	from BSDI $Id: mutex.4,v 1.1.2.3 1998/04/27 22:53:13 ewv Exp $
 .\" $FreeBSD$
 .\"
-.Dd November 16, 2011
+.Dd December 13, 2014
 .Dt MUTEX 9
 .Os
 .Sh NAME
@@ -177,13 +177,17 @@ It may contain either
 or
 .Dv MTX_SPIN
 but not both.
-See below for additional initialization options.
-It is not permissible to pass the same
-.Fa mutex
-to
+If the kernel has been compiled with
+.Cd "option INVARIANTS" ,
 .Fn mtx_init
-multiple times without intervening calls to
-.Fn mtx_destroy .
+will assert that the
+.Fa mutex
+has not been initialized multiple times without intervening calls to
+.Fn mtx_destroy
+unless the
+.Dv MTX_NEW
+option is specified.
+See below for additional initialization options.
 .Pp
 The
 .Fn mtx_lock
@@ -453,6 +457,8 @@ to ignore this lock.
 Witness should not log messages about duplicate locks being acquired.
 .It Dv MTX_NOPROFILE
 Do not profile this lock.
+.It Dv MTX_NEW
+Do not check for double-init.
 .El
 .Ss Lock and Unlock Flags
 The flags passed to the

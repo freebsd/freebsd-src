@@ -47,13 +47,21 @@
 static sig_atomic_t keep_going = 1;
 
 static void
+#ifdef __FreeBSD__
+sig_handler(int signum __unused)
+#else
 sig_handler(int signum)
+#endif
 {
 	keep_going = 0;
 }
 
 static void
+#ifdef __FreeBSD__
+sigchld(int signum __unused)
+#else
 sigchld(int signum)
+#endif
 {
 }
 

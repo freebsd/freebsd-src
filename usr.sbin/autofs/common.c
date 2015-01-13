@@ -498,6 +498,19 @@ node_is_direct_map(const struct node *n)
 	return (true);
 }
 
+bool
+node_has_wildcards(const struct node *n)
+{
+	const struct node *child;
+
+	TAILQ_FOREACH(child, &n->n_children, n_next) {
+		if (strcmp(child->n_key, "*") == 0)
+			return (true);
+	}
+
+	return (false);
+}
+
 static void
 node_expand_maps(struct node *n, bool indirect)
 {
@@ -526,7 +539,7 @@ node_expand_maps(struct node *n, bool indirect)
 			log_debugx("map \"%s\" is a direct map, parsing",
 			    child->n_map);
 		}
-		parse_map(child, child->n_map, NULL);
+		parse_map(child, child->n_map, NULL, NULL);
 	}
 }
 
@@ -663,8 +676,8 @@ node_print(const struct node *n)
 		node_print_indent(child, 0);
 }
 
-struct node *
-node_find(struct node *node, const char *path)
+static struct node *
+node_find_x(struct node *node, const char *path)
 {
 	struct node *child, *found;
 	char *tmp;
@@ -689,11 +702,22 @@ node_find(struct node *node, const char *path)
 	free(tmp);
 
 	TAILQ_FOREACH(child, &node->n_children, n_next) {
-		found = node_find(child, path);
+		found = node_find_x(child, path);
 		if (found != NULL)
 			return (found);
 	}
 
+	return (node);
+}
+
+struct node *
+node_find(struct node *root, const char *path)
+{
+	struct node *node;
+
+	node = node_find_x(root, path);
+	if (node == root)
+		return (NULL);
 	return (node);
 }
 
@@ -996,7 +1020,8 @@ parse_included_map(struct node *parent, const char *map)
 }
 
 void
-parse_map(struct node *parent, const char *map, const char *key)
+parse_map(struct node *parent, const char *map, const char *key,
+    bool *wildcards)
 {
 	char *path = NULL;
 	int error, ret;
@@ -1007,8 +1032,14 @@ parse_map(struct node *parent, const char *map, const char *key)
 
 	log_debugx("parsing map \"%s\"", map);
 
-	if (map[0] == '-')
+	if (wildcards != NULL)
+		*wildcards = false;
+
+	if (map[0] == '-') {
+		if (wildcards != NULL)
+			*wildcards = true;
 		return (parse_special_map(parent, map, key));
+	}
 
 	if (map[0] == '/') {
 		path = checked_strdup(map);
@@ -1034,6 +1065,9 @@ parse_map(struct node *parent, const char *map, const char *key)
 
 	if (executable) {
 		log_debugx("map \"%s\" is executable", map);
+
+		if (wildcards != NULL)
+			*wildcards = true;
 
 		if (key != NULL) {
 			yyin = auto_popen(path, key, NULL);

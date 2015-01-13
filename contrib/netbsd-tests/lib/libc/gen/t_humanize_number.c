@@ -34,7 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <libutil.h>
 #else
 #include <util.h>
@@ -82,7 +82,7 @@ const struct hnopts {
 	/*
 	 * Truncated output.  Rev. 1.7 produces "1.0 K".
 	 */
-#if !defined(__FreeBSD__)
+#ifndef __FreeBSD__
 	{ 6, 1000, "A", HN_AUTOSCALE, HN_DECIMAL, -1, "" },
 
 	/*

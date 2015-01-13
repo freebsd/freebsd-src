@@ -37,7 +37,7 @@ __RCSID("$NetBSD: t_tls_static.c,v 1.2 2012/01/17 20:34:57 joerg Exp $");
 #include <atf-c.h>
 #include <pthread.h>
 
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 #include <sys/tls.h>
 #endif
 

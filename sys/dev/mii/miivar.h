@@ -45,13 +45,6 @@
 struct mii_softc;
 
 /*
- * Callbacks from MII layer into network interface device driver.
- */
-typedef	int (*mii_readreg_t)(struct device *, int, int);
-typedef	void (*mii_writereg_t)(struct device *, int, int, int);
-typedef	void (*mii_statchg_t)(struct device *);
-
-/*
  * A network interface driver has one of these structures in its softc.
  * It is the interface from the network interface driver to the MII
  * layer.
@@ -73,13 +66,6 @@ struct mii_data {
 	 */
 	u_int mii_media_status;
 	u_int mii_media_active;
-
-	/*
-	 * Calls from MII layer into network interface driver.
-	 */
-	mii_readreg_t mii_readreg;
-	mii_writereg_t mii_writereg;
-	mii_statchg_t mii_statchg;
 };
 typedef struct mii_data mii_data_t;
 
@@ -263,6 +249,10 @@ void	mii_phy_reset(struct mii_softc *);
 void	mii_phy_setmedia(struct mii_softc *sc);
 void	mii_phy_update(struct mii_softc *, int);
 int	mii_phy_tick(struct mii_softc *);
+int	mii_phy_mac_match(struct mii_softc *, const char *);
+int	mii_dev_mac_match(device_t, const char *);
+void	*mii_phy_mac_softc(struct mii_softc *);
+void	*mii_dev_mac_softc(device_t);
 
 const struct mii_phydesc * mii_phy_match(const struct mii_attach_args *ma,
     const struct mii_phydesc *mpd);

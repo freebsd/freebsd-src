@@ -152,8 +152,6 @@ static struct ipfw_sopt_handler	scodes[] = {
  * static variables followed by global ones
  */
 
-#ifndef USERSPACE
-
 static VNET_DEFINE(uma_zone_t, ipfw_cntr_zone);
 #define	V_ipfw_cntr_zone		VNET(ipfw_cntr_zone)
 
@@ -162,7 +160,7 @@ ipfw_init_counters()
 {
 
 	V_ipfw_cntr_zone = uma_zcreate("IPFW counters",
-	    sizeof(ip_fw_cntr), NULL, NULL, NULL, NULL,
+	    IPFW_RULE_CNTR_SIZE, NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, UMA_ZONE_PCPU);
 }
 
@@ -191,35 +189,6 @@ free_rule(struct ip_fw *rule)
 	uma_zfree(V_ipfw_cntr_zone, rule->cntr);
 	free(rule, M_IPFW);
 }
-#else
-void
-ipfw_init_counters()
-{
-}
-
-void
-ipfw_destroy_counters()
-{
-}
-
-struct ip_fw *
-ipfw_alloc_rule(struct ip_fw_chain *chain, size_t rulesize)
-{
-	struct ip_fw *rule;
-
-	rule = malloc(rulesize, M_IPFW, M_WAITOK | M_ZERO);
-
-	return (rule);
-}
-
-static void
-free_rule(struct ip_fw *rule)
-{
-
-	free(rule, M_IPFW);
-}
-
-#endif
 
 
 /*
@@ -2535,30 +2504,33 @@ ipfw_del_sopt_handler(struct ipfw_sopt_handler *sh, size_t count)
 static int
 ipfw_flush_sopt_data(struct sockopt_data *sd)
 {
-#define	RULE_MAXSIZE	(512*sizeof(u_int32_t))
+	struct sockopt *sopt;
 	int error;
 	size_t sz;
 
-	if ((sz = sd->koff) == 0)
+	sz = sd->koff;
+	if (sz == 0)
 		return (0);
 
-	if (sd->sopt->sopt_dir == SOPT_GET) {
-		error = sooptcopyout(sd->sopt, sd->kbuf, sz);
+	sopt = sd->sopt;
+
+	if (sopt->sopt_dir == SOPT_GET) {
+		error = copyout(sd->kbuf, sopt->sopt_val, sz);
 		if (error != 0)
 			return (error);
 	}
 
 	memset(sd->kbuf, 0, sd->ksize);
-	sd->ktotal += sd->koff;
+	sd->ktotal += sz;
 	sd->koff = 0;
 	if (sd->ktotal + sd->ksize < sd->valsize)
 		sd->kavail = sd->ksize;
 	else
 		sd->kavail = sd->valsize - sd->ktotal;
 
-	/* Update sopt buffer */
-	sd->sopt->sopt_valsize = sd->ktotal;
-	sd->sopt->sopt_val = sd->sopt_val + sd->ktotal;
+	/* Update sopt buffer data */
+	sopt->sopt_valsize = sd->ktotal;
+	sopt->sopt_val = sd->sopt_val + sd->ktotal;
 
 	return (0);
 }

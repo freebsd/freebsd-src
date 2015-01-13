@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/time.h>
 #include <geom/geom_disk.h>
 
 #include <dev/mmc/mmcbrvar.h>
@@ -86,6 +87,8 @@ struct mmcsd_softc {
 	daddr_t eblock, eend;	/* Range remaining after the last erase. */
 	int running;
 	int suspend;
+	int log_count;
+	struct timeval log_time;
 };
 
 static const char *errmsg[] =
@@ -98,6 +101,8 @@ static const char *errmsg[] =
 	"Invalid",
 	"NO MEMORY"
 };
+
+#define	LOG_PPS		5 /* Log no more than 5 errors per second. */
 
 /* bus entry points */
 static int mmcsd_attach(device_t dev);
@@ -155,14 +160,36 @@ mmcsd_attach(device_t dev)
 	d->d_dump = mmcsd_dump;
 	d->d_name = "mmcsd";
 	d->d_drv1 = sc;
-	d->d_maxsize = 4*1024*1024;	/* Maximum defined SD card AU size. */
 	d->d_sectorsize = mmc_get_sector_size(dev);
+	d->d_maxsize = mmc_get_max_data(dev) * d->d_sectorsize;
 	d->d_mediasize = (off_t)mmc_get_media_size(dev) * d->d_sectorsize;
 	d->d_stripeoffset = 0;
 	d->d_stripesize = mmc_get_erase_sector(dev) * d->d_sectorsize;
 	d->d_unit = device_get_unit(dev);
 	d->d_flags = DISKFLAG_CANDELETE;
 	d->d_delmaxsize = mmc_get_erase_sector(dev) * d->d_sectorsize * 1; /* conservative */
+	/*
+	 * The d_fw* values are fake. However, layout is aided by making the
+	 * number of fwsectors equal to the erase sectors from the drive since
+	 * we set the stripe size equal to that. We set fwheads such that there
+	 * are ~20 cylinder groups since all values are somewhat arbitrary here
+	 * and this gives good behavior with ffs without wasting too much
+	 * space.  Sadly, geom_part wants to round partitions to these
+	 * values. While not bad, in and of itself, the values we present here
+	 * will almost certainly be different then the values that USB SD
+	 * adapters use and there's too much variation between brands to just
+	 * use those values here.  Also SD to ATA adapters favor traditional
+	 * ata sizes, which are different again from the USB adapters (which
+	 * favor SCSI values). This rounding leads to a loss of up to 5% of the
+	 * usable space (usually much less, but that's why 20 was selected: to
+	 * limit this effect at a few percent). gpart needs a way to override
+	 * this behavior for situations like this, but doesn't provide
+	 * one. Perhaps this behavior should be tunable as well, but maybe that
+	 * belongs in the disk layer.  These values will be much better than
+	 * the default ones.
+	 */
+	d->d_fwsectors = mmc_get_erase_sector(dev);
+	d->d_fwheads = mmc_get_media_size(dev) / (d->d_fwsectors * 20);
 	strlcpy(d->d_ident, mmc_get_card_sn_string(dev), sizeof(d->d_ident));
 	strlcpy(d->d_descr, mmc_get_card_id_string(dev), sizeof(d->d_descr));
 
@@ -367,8 +394,10 @@ mmcsd_rw(struct mmcsd_softc *sc, struct bio *bp)
 		}
 		MMCBUS_WAIT_FOR_REQUEST(mmcbr, dev, &req);
 		if (req.cmd->error != MMC_ERR_NONE) {
-			device_printf(dev, "Error indicated: %d %s\n",
-			    req.cmd->error, mmcsd_errmsg(req.cmd->error));
+			if (ppsratecheck(&sc->log_time, &sc->log_count, LOG_PPS)) {
+				device_printf(dev, "Error indicated: %d %s\n",
+				    req.cmd->error, mmcsd_errmsg(req.cmd->error));
+			}
 			break;
 		}
 		block += numblocks;

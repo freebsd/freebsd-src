@@ -14,16 +14,18 @@ CRTARCH=x86_64
 CRTARCH=${MACHINE_CPUARCH}
 .endif
 
-CRTSRC=${.CURDIR}/../../contrib/compiler-rt/lib
+CRTSRC=${.CURDIR}/../../contrib/compiler-rt/lib/builtins
 
 .PATH: ${CRTSRC}/${CRTARCH} ${CRTSRC}
 
 SRCF=	absvdi2 \
 	absvsi2 \
 	absvti2 \
+	addtf3 \
 	addvdi3 \
 	addvsi3 \
 	addvti3 \
+	apple_versioning \
 	ashldi3 \
 	ashlti3 \
 	ashrdi3 \
@@ -34,8 +36,6 @@ SRCF=	absvdi2 \
 	clzti2 \
 	cmpdi2 \
 	cmpti2 \
-	comparedf2 \
-	comparesf2 \
 	ctzdi2 \
 	ctzsi2 \
 	ctzti2 \
@@ -44,6 +44,7 @@ SRCF=	absvdi2 \
 	divmoddi4 \
 	divmodsi4 \
 	divsc3 \
+	divtf3 \
 	divti3 \
 	divxc3 \
 	enable_execute_stack \
@@ -79,6 +80,7 @@ SRCF=	absvdi2 \
 	floatuntidf \
 	floatuntisf \
 	floatuntixf \
+	gcc_personality_v0 \
 	int_util \
 	lshrdi3 \
 	lshrti3 \
@@ -90,6 +92,7 @@ SRCF=	absvdi2 \
 	mulosi4 \
 	muloti4 \
 	mulsc3 \
+	multf3 \
 	multi3 \
 	mulvdi3 \
 	mulvsi3 \
@@ -112,6 +115,7 @@ SRCF=	absvdi2 \
 	powisf2 \
 	powitf2 \
 	powixf2 \
+	subtf3 \
 	subvdi3 \
 	subvsi3 \
 	subvti3 \
@@ -144,6 +148,11 @@ SRCF+=	adddf3 \
 	truncdfsf2
 .endif
 
+.if ${MACHINE_CPUARCH} != "arm"
+SRCF+=	comparedf2 \
+	comparesf2
+.endif
+
 .if ${MACHINE_CPUARCH} != "mips"
 SRCF+=	divsi3 \
 	modsi3 \
@@ -174,14 +183,22 @@ SRCS+=	${file}.c
 .endfor
 
 .if ${MACHINE_CPUARCH} == "arm"
-SRCS+=	aeabi_idivmod.S \
+SRCS+=	aeabi_div0.c \
+	aeabi_idivmod.S \
 	aeabi_ldivmod.S \
 	aeabi_memcmp.S \
 	aeabi_memcpy.S \
 	aeabi_memmove.S \
 	aeabi_memset.S \
 	aeabi_uidivmod.S \
-	aeabi_uldivmod.S
+	aeabi_uldivmod.S \
+	bswapdi2.S \
+	bswapsi2.S \
+	switch16.S \
+	switch32.S \
+	switch8.S \
+	switchu8.S \
+	sync_synchronize.S
 .endif
 
 .if ${MK_INSTALLLIB} != "no"

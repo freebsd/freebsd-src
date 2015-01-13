@@ -14,7 +14,6 @@ SRCS=	pawd.c amq_clnt.c amq_xdr.c
 
 CFLAGS+= -I${.CURDIR}/../../../contrib/amd/amq
 
-DPADD=	${LIBAMU}
-LDADD=	${LIBAMU}
+LIBADD=	amu
 
 .include <bsd.prog.mk>

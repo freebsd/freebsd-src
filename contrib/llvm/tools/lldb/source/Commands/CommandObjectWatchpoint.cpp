@@ -28,6 +28,8 @@
 #include "lldb/Symbol/VariableList.h"
 #include "lldb/Target/Target.h"
 
+#include "llvm/ADT/StringRef.h"
+
 #include <vector>
 
 using namespace lldb;
@@ -60,14 +62,6 @@ CheckTargetForWatchpointOperations(Target *target, CommandReturnObject &result)
     }
     // Target passes our checks, return true.
     return true;
-}
-
-// FIXME: This doesn't seem to be the right place for this functionality.
-#include "llvm/ADT/StringRef.h"
-static inline void StripLeadingSpaces(llvm::StringRef &Str)
-{
-    while (!Str.empty() && isspace(Str[0]))
-        Str = Str.substr(1);
 }
 
 // Equivalent class: {"-", "to", "To", "TO"} of range specifier array.
@@ -335,16 +329,16 @@ private:
 OptionDefinition
 CommandObjectWatchpointList::CommandOptions::g_option_table[] =
 {
-    { LLDB_OPT_SET_1, false, "brief",    'b', OptionParser::eNoArgument, NULL, 0, eArgTypeNone,
+    { LLDB_OPT_SET_1, false, "brief",    'b', OptionParser::eNoArgument, NULL, NULL, 0, eArgTypeNone,
         "Give a brief description of the watchpoint (no location info)."},
 
-    { LLDB_OPT_SET_2, false, "full",    'f', OptionParser::eNoArgument, NULL, 0, eArgTypeNone,
+    { LLDB_OPT_SET_2, false, "full",    'f', OptionParser::eNoArgument, NULL, NULL, 0, eArgTypeNone,
         "Give a full description of the watchpoint and its locations."},
 
-    { LLDB_OPT_SET_3, false, "verbose", 'v', OptionParser::eNoArgument, NULL, 0, eArgTypeNone,
+    { LLDB_OPT_SET_3, false, "verbose", 'v', OptionParser::eNoArgument, NULL, NULL, 0, eArgTypeNone,
         "Explain everything we know about the watchpoint (for debugging debugger bugs)." },
 
-    { 0, false, NULL, 0, 0, NULL, 0, eArgTypeNone, NULL }
+    { 0, false, NULL, 0, 0, NULL, NULL, 0, eArgTypeNone, NULL }
 };
 
 //-------------------------------------------------------------------------
@@ -397,7 +391,7 @@ protected:
         {
             // No watchpoint selected; enable all currently set watchpoints.
             target->EnableAllWatchpoints();
-            result.AppendMessageWithFormat("All watchpoints enabled. (%zu watchpoints)\n", num_watchpoints);
+            result.AppendMessageWithFormat("All watchpoints enabled. (%" PRIu64 " watchpoints)\n", (uint64_t)num_watchpoints);
             result.SetStatus(eReturnStatusSuccessFinishNoResult);
         }
         else
@@ -476,7 +470,7 @@ protected:
             // No watchpoint selected; disable all currently set watchpoints.
             if (target->DisableAllWatchpoints())
             {
-                result.AppendMessageWithFormat("All watchpoints disabled. (%zu watchpoints)\n", num_watchpoints);
+                result.AppendMessageWithFormat("All watchpoints disabled. (%" PRIu64 " watchpoints)\n", (uint64_t)num_watchpoints);
                 result.SetStatus(eReturnStatusSuccessFinishNoResult);
             }
             else
@@ -564,7 +558,7 @@ protected:
             else
             {
                 target->RemoveAllWatchpoints();
-                result.AppendMessageWithFormat("All watchpoints removed. (%zu watchpoints)\n", num_watchpoints);
+                result.AppendMessageWithFormat("All watchpoints removed. (%" PRIu64 " watchpoints)\n", (uint64_t)num_watchpoints);
             }
             result.SetStatus (eReturnStatusSuccessFinishNoResult);
         }
@@ -706,7 +700,7 @@ protected:
         if (command.GetArgumentCount() == 0)
         {
             target->IgnoreAllWatchpoints(m_options.m_ignore_count);
-            result.AppendMessageWithFormat("All watchpoints ignored. (%zu watchpoints)\n", num_watchpoints);
+            result.AppendMessageWithFormat("All watchpoints ignored. (%" PRIu64 " watchpoints)\n", (uint64_t)num_watchpoints);
             result.SetStatus (eReturnStatusSuccessFinishNoResult);
         }
         else
@@ -740,8 +734,8 @@ private:
 OptionDefinition
 CommandObjectWatchpointIgnore::CommandOptions::g_option_table[] =
 {
-    { LLDB_OPT_SET_ALL, true, "ignore-count", 'i', OptionParser::eRequiredArgument, NULL, 0, eArgTypeCount, "Set the number of times this watchpoint is skipped before stopping." },
-    { 0,                false, NULL,            0 , 0,                 NULL, 0,    eArgTypeNone, NULL }
+    { LLDB_OPT_SET_ALL, true, "ignore-count", 'i', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeCount, "Set the number of times this watchpoint is skipped before stopping." },
+    { 0,                false, NULL,            0 , 0,                 NULL, NULL, 0,    eArgTypeNone, NULL }
 };
 
 
@@ -903,8 +897,8 @@ private:
 OptionDefinition
 CommandObjectWatchpointModify::CommandOptions::g_option_table[] =
 {
-{ LLDB_OPT_SET_ALL, false, "condition",    'c', OptionParser::eRequiredArgument, NULL, 0, eArgTypeExpression, "The watchpoint stops only if this condition expression evaluates to true."},
-{ 0,                false, NULL,            0 , 0,                 NULL, 0,    eArgTypeNone, NULL }
+{ LLDB_OPT_SET_ALL, false, "condition",    'c', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeExpression, "The watchpoint stops only if this condition expression evaluates to true."},
+{ 0,                false, NULL,            0 , 0,                 NULL, NULL, 0,    eArgTypeNone, NULL }
 };
 
 //-------------------------------------------------------------------------
@@ -1099,8 +1093,8 @@ protected:
         }
         else
         {
-            result.AppendErrorWithFormat("Watchpoint creation failed (addr=0x%" PRIx64 ", size=%zu, variable expression='%s').\n",
-                                         addr, size, command.GetArgumentAtIndex(0));
+            result.AppendErrorWithFormat("Watchpoint creation failed (addr=0x%" PRIx64 ", size=%" PRIu64 ", variable expression='%s').\n",
+                                         addr, (uint64_t)size, command.GetArgumentAtIndex(0));
             if (error.AsCString(NULL))
                 result.AppendError(error.AsCString());
             result.SetStatus(eReturnStatusFailed);
@@ -1262,11 +1256,11 @@ protected:
         options.SetTryAllThreads(true);
         options.SetTimeoutUsec(0);
         
-        ExecutionResults expr_result = target->EvaluateExpression (expr, 
+        ExpressionResults expr_result = target->EvaluateExpression (expr, 
                                                                    frame, 
                                                                    valobj_sp,
                                                                    options);
-        if (expr_result != eExecutionCompleted)
+        if (expr_result != eExpressionCompleted)
         {
             result.GetErrorStream().Printf("error: expression evaluation of address to watch failed\n");
             result.GetErrorStream().Printf("expression evaluated: %s\n", expr);
@@ -1308,8 +1302,8 @@ protected:
         }
         else
         {
-            result.AppendErrorWithFormat("Watchpoint creation failed (addr=0x%" PRIx64 ", size=%zu).\n",
-                                         addr, size);
+            result.AppendErrorWithFormat("Watchpoint creation failed (addr=0x%" PRIx64 ", size=%" PRIu64 ").\n",
+                                         addr, (uint64_t)size);
             if (error.AsCString(NULL))
                 result.AppendError(error.AsCString());
             result.SetStatus(eReturnStatusFailed);

@@ -566,7 +566,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	/*
 	 * Grab booted kernel's name
 	 */
-        env = getenv("kernelname");
+        env = kern_getenv("kernelname");
         if (env != NULL) {
 		strlcpy(kernelname, env, sizeof(kernelname));
 		freeenv(env);
@@ -757,6 +757,10 @@ db_trap_glue(struct trapframe *frame)
 		|| frame->exc == EXC_BPT
 		|| frame->exc == EXC_DSI)) {
 		int type = frame->exc;
+
+		/* Ignore DTrace traps. */
+		if (*(uint32_t *)frame->srr0 == EXC_DTRACE) 
+			return (0);
 		if (type == EXC_PGM && (frame->srr1 & 0x20000)) {
 			type = T_BREAKPOINT;
 		}

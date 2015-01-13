@@ -1,7 +1,4 @@
-/*
- * Automated Testing Framework (atf)
- *
- * Copyright (c) 2008 The NetBSD Foundation, Inc.
+/* Copyright (c) 2008 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,18 +21,16 @@
  * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER
  * IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
- * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+ * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.  */
 
-#if !defined(ATF_C_TEXT_H)
-#define ATF_C_TEXT_H
+#if !defined(ATF_C_DETAIL_TEXT_H)
+#define ATF_C_DETAIL_TEXT_H
 
 #include <stdarg.h>
 #include <stdbool.h>
 
+#include <atf-c/detail/list.h>
 #include <atf-c/error_fwd.h>
-
-#include "list.h"
 
 atf_error_t atf_text_for_each_word(const char *, const char *,
                                    atf_error_t (*)(const char *, void *),
@@ -46,4 +41,4 @@ atf_error_t atf_text_split(const char *, const char *, atf_list_t *);
 atf_error_t atf_text_to_bool(const char *, bool *);
 atf_error_t atf_text_to_long(const char *, long *);
 
-#endif /* ATF_C_TEXT_H */
+#endif /* !defined(ATF_C_DETAIL_TEXT_H) */

@@ -98,6 +98,7 @@ struct imx6_anatop_softc {
 	uint32_t	cpu_maxmv;
 	uint32_t	cpu_maxmhz_hw;
 	boolean_t	cpu_overclock_enable;
+	boolean_t	cpu_init_done;
 	uint32_t	refosc_mhz;
 	void		*temp_intrhand;
 	uint32_t	temp_high_val;
@@ -623,6 +624,31 @@ intr_setup(void *arg)
 	config_intrhook_disestablish(&sc->intr_setup_hook);
 }
 
+static void
+imx6_anatop_new_pass(device_t dev)
+{
+	struct imx6_anatop_softc *sc;
+	const int cpu_init_pass = BUS_PASS_CPU + BUS_PASS_ORDER_MIDDLE;
+
+	/*
+	 * We attach during BUS_PASS_BUS (because some day we will be a
+	 * simplebus that has regulator devices as children), but some of our
+	 * init work cannot be done until BUS_PASS_CPU (we rely on other devices
+	 * that attach on the CPU pass).
+	 */
+	sc = device_get_softc(dev);
+	if (!sc->cpu_init_done && bus_current_pass >= cpu_init_pass) {
+		sc->cpu_init_done = true;
+		cpufreq_initialize(sc);
+		initialize_tempmon(sc);
+		if (bootverbose) {
+			device_printf(sc->dev, "CPU %uMHz @ %umV\n", 
+			    sc->cpu_curmhz, sc->cpu_curmv);
+		}
+	}
+	bus_generic_new_pass(dev);
+}
+
 static int
 imx6_anatop_detach(device_t dev)
 {
@@ -666,13 +692,13 @@ imx6_anatop_attach(device_t dev)
 	imx6_anatop_write_4(IMX6_ANALOG_PMU_MISC0_SET, 
 	    IMX6_ANALOG_PMU_MISC0_SELFBIASOFF);
 
-	cpufreq_initialize(sc);
-	initialize_tempmon(sc);
+	/*
+	 * Some day, when we're ready to deal with the actual anatop regulators
+	 * that are described in fdt data as children of this "bus", this would
+	 * be the place to invoke a simplebus helper routine to instantiate the
+	 * children from the fdt data.
+	 */
 
-	if (bootverbose) {
-		device_printf(sc->dev, "CPU %uMHz @ %umV\n", sc->cpu_curmhz,
-		    sc->cpu_curmv);
-	}
 	err = 0;
 
 out:
@@ -715,6 +741,9 @@ static device_method_t imx6_anatop_methods[] = {
 	DEVMETHOD(device_attach, imx6_anatop_attach),
 	DEVMETHOD(device_detach, imx6_anatop_detach),
 
+	/* Bus interface */
+	DEVMETHOD(bus_new_pass,  imx6_anatop_new_pass),
+
 	DEVMETHOD_END
 };
 
@@ -727,5 +756,7 @@ static driver_t imx6_anatop_driver = {
 static devclass_t imx6_anatop_devclass;
 
 EARLY_DRIVER_MODULE(imx6_anatop, simplebus, imx6_anatop_driver,
-    imx6_anatop_devclass, 0, 0, BUS_PASS_CPU + BUS_PASS_ORDER_FIRST + 1);
+    imx6_anatop_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
+EARLY_DRIVER_MODULE(imx6_anatop, ofwbus, imx6_anatop_driver,
+    imx6_anatop_devclass, 0, 0, BUS_PASS_BUS + BUS_PASS_ORDER_MIDDLE);
 

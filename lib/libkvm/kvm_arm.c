@@ -132,8 +132,10 @@ _kvm_initvtop(kvm_t *kd)
 	u_long kernbase, physaddr, pa;
 	pd_entry_t *l1pt;
 	Elf32_Ehdr *ehdr;
+	Elf32_Phdr *phdr;
 	size_t hdrsz;
 	char minihdr[8];
+	int found, i;
 
 	if (!kd->rawdump) {
 		if (pread(kd->pmfd, &minihdr, 8, 0) == 8) {
@@ -158,19 +160,33 @@ _kvm_initvtop(kvm_t *kd)
 	hdrsz = ehdr->e_phoff + ehdr->e_phentsize * ehdr->e_phnum;
 	if (_kvm_maphdrs(kd, hdrsz) == -1)
 		return (-1);
-	nl[0].n_name = "kernbase";
-	nl[1].n_name = NULL;
-	if (kvm_nlist(kd, nl) != 0)
-		kernbase = KERNBASE;
-	else
-		kernbase = nl[0].n_value;
 
-	nl[0].n_name = "physaddr";
-	if (kvm_nlist(kd, nl) != 0) {
-		_kvm_err(kd, kd->program, "couldn't get phys addr");
-		return (-1);
+	phdr = (Elf32_Phdr *)((uint8_t *)ehdr + ehdr->e_phoff);
+	found = 0;
+	for (i = 0; i < ehdr->e_phnum; i++) {
+		if (phdr[i].p_type == PT_DUMP_DELTA) {
+			kernbase = phdr[i].p_vaddr;
+			physaddr = phdr[i].p_paddr;
+			found = 1;
+			break;
+		}
 	}
-	physaddr = nl[0].n_value;
+
+	nl[1].n_name = NULL;
+	if (!found) {
+		nl[0].n_name = "kernbase";
+		if (kvm_nlist(kd, nl) != 0)
+			kernbase = KERNBASE;
+		else
+			kernbase = nl[0].n_value;
+
+		nl[0].n_name = "physaddr";
+		if (kvm_nlist(kd, nl) != 0) {
+			_kvm_err(kd, kd->program, "couldn't get phys addr");
+			return (-1);
+		}
+		physaddr = nl[0].n_value;
+	}
 	nl[0].n_name = "kernel_l1pa";
 	if (kvm_nlist(kd, nl) != 0) {
 		_kvm_err(kd, kd->program, "bad namelist");
@@ -212,7 +228,7 @@ _kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 	struct vmstate *vm = kd->vmst;
 	pd_entry_t pd;
 	pt_entry_t pte;
-	u_long pte_pa;
+	off_t pte_pa;
 
 	if (kd->vmst->minidump)
 		return (_kvm_minidump_kvatop(kd, va, pa));
@@ -228,7 +244,7 @@ _kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 		return  (_kvm_pa2off(kd, *pa, pa, L1_S_SIZE));
 	}
 	pte_pa = (pd & L1_ADDR_MASK) + l2pte_index(va) * sizeof(pte);
-	_kvm_pa2off(kd, pte_pa, (off_t *)&pte_pa, L1_S_SIZE);
+	_kvm_pa2off(kd, pte_pa, &pte_pa, L1_S_SIZE);
 	if (lseek(kd->pmfd, pte_pa, 0) == -1) {
 		_kvm_syserr(kd, kd->program, "_kvm_kvatop: lseek");
 		goto invalid;

@@ -197,7 +197,6 @@
 ./etc/rc.d/dmesg
 ./etc/rc.d/dumpon
 ./etc/rc.d/encswap
-./etc/rc.d/faith
 ./etc/rc.d/fsck
 ./etc/rc.d/ftp-proxy
 ./etc/rc.d/ftpd

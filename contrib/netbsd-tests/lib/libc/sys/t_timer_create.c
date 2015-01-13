@@ -38,7 +38,11 @@ static timer_t t;
 static bool fail = true;
 
 static void
+#ifdef __FreeBSD__
+timer_signal_handler(int signo, siginfo_t *si, void *osi __unused)
+#else
 timer_signal_handler(int signo, siginfo_t *si, void *osi)
+#endif
 {
 	timer_t *tp;
 

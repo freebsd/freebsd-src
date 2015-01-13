@@ -31,6 +31,128 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150107:
+	ELF tools addr2line, elfcopy (strip), nm, size, and strings are now
+	taken from the ELF Tool Chain project rather than GNU binutils. They
+	should be drop-in replacements, with the addition of arm64 support.
+	The WITHOUT_ELFTOOLCHAIN_TOOLS= knob may be used to obtain the
+	binutils tools, if necessary.
+
+20150105:
+	The default Unbound configuration now enables remote control
+	using a local socket.  Users who have already enabled the
+	local_unbound service should regenerate their configuration
+	by running "service local_unbound setup" as root.
+	
+20150102:
+	The GNU texinfo and GNU info pages have been removed.
+	To be able to view GNU info pages please install texinfo from ports.
+
+20141231:
+	Clang, llvm and lldb have been upgraded to 3.5.0 release.
+
+	As of this release, a prerequisite for building clang, llvm and lldb is
+	a C++11 capable compiler and C++11 standard library.  This means that to
+	be able to successfully build the cross-tools stage of buildworld, with
+	clang as the bootstrap compiler, your system compiler or cross compiler
+	should either be clang 3.3 or later, or gcc 4.8 or later, and your
+	system C++ library should be libc++, or libdstdc++ from gcc 4.8 or
+	later.
+
+	On any standard FreeBSD 10.x or 11.x installation, where clang and
+	libc++ are on by default (that is, on x86 or arm), this should work out
+	of the box.
+
+	On 9.x installations where clang is enabled by default, e.g. on x86 and
+	powerpc, libc++ will not be enabled by default, so libc++ should be
+	built (with clang) and installed first.  If both clang and libc++ are
+	missing, build clang first, then use it to build libc++.
+
+	On 8.x and earlier installations, upgrade to 9.x first, and then follow
+	the instructions for 9.x above.
+
+	Sparc64 and mips users are unaffected, as they still use gcc 4.2.1 by
+	default, and do not build clang.
+
+	Many embedded systems are resource constrained, and will not be able to
+	build clang in a reasonable time, or in some cases at all.  In those
+	cases, cross building bootable systems on amd64 is a workaround.
+
+	This new version of clang introduces a number of new warnings, of which
+	the following are most likely to appear:
+
+	-Wabsolute-value
+
+	This warns in two cases, for both C and C++:
+	* When the code is trying to take the absolute value of an unsigned
+	  quantity, which is effectively a no-op, and almost never what was
+	  intended.  The code should be fixed, if at all possible.  If you are
+	  sure that the unsigned quantity can be safely cast to signed, without
+	  loss of information or undefined behavior, you can add an explicit
+	  cast, or disable the warning.
+
+	* When the code is trying to take an absolute value, but the called
+	  abs() variant is for the wrong type, which can lead to truncation.
+	  If you want to disable the warning instead of fixing the code, please
+	  make sure that truncation will not occur, or it might lead to unwanted
+	  side-effects.
+
+	-Wtautological-undefined-compare and
+	-Wundefined-bool-conversion
+
+	These warn when C++ code is trying to compare 'this' against NULL, while
+	'this' should never be NULL in well-defined C++ code.  However, there is
+	some legacy (pre C++11) code out there, which actively abuses this
+	feature, which was less strictly defined in previous C++ versions.
+
+	Squid and openjdk do this, for example.  The warning can be turned off
+	for C++98 and earlier, but compiling the code in C++11 mode might result
+	in unexpected behavior; for example, the parts of the program that are
+	unreachable could be optimized away.
+
+20141222:
+	The old NFS client and server (kernel options NFSCLIENT, NFSSERVER)
+	kernel sources have been removed. The .h files remain, since some
+	utilities include them. This will need to be fixed later.
+	If "mount -t oldnfs ..." is attempted, it will fail.
+	If the "-o" option on mountd(8), nfsd(8) or nfsstat(1) is used,
+	the utilities will report errors.
+
+20141121:
+	The handling of LOCAL_LIB_DIRS has been altered to skip addition of
+	directories to top level SUBDIR variable when their parent
+	directory is included in LOCAL_DIRS.  Users with build systems with
+	such hierarchies and without SUBDIR entries in the parent
+	directory Makefiles should add them or add the directories to
+	LOCAL_DIRS.
+
+20141109:
+	faith(4) and faithd(8) have been removed from the base system. Faith
+	has been obsolete for a very long time.
+
+20141104:
+	vt(4), the new console driver, is enabled by default. It brings
+	support for Unicode and double-width characters, as well as
+	support for UEFI and integration with the KMS kernel video
+	drivers.
+
+	You may need to update your console settings in /etc/rc.conf,
+	most probably the keymap. During boot, /etc/rc.d/syscons will
+	indicate what you need to do.
+
+	vt(4) still has issues and lacks some features compared to
+	syscons(4). See the wiki for up-to-date information:
+	  https://wiki.freebsd.org/Newcons
+
+	If you want to keep using syscons(4), you can do so by adding
+	the following line to /boot/loader.conf:
+	  kern.vty=sc
+
+20141102:
+	pjdfstest has been integrated into kyua as an opt-in test suite.
+	Please see share/doc/pjdfstest/README for more details on how to
+	execute it.
+
 20141009:
 	gperf has been removed from the base system for architectures
 	that use clang. Ports that require gperf will obtain it from the
@@ -50,7 +172,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 
 20140729:
 	The ofwfb driver, used to provide a graphics console on PowerPC when
-	using vt(4), no longer allows mmap() of all of physical memory. This
+	using vt(4), no longer allows mmap() of all physical memory. This
 	will prevent Xorg on PowerPC with some ATI graphics cards from
 	initializing properly unless x11-servers/xorg-server is updated to
 	1.12.4_8 or newer.
@@ -71,6 +193,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	The GNU texinfo and GNU info pages are not built and installed
 	anymore, WITH_INFO knob has been added to allow to built and install
 	them again.
+	UPDATE: see 20150102 entry on texinfo's removal
 
 20140708:
 	The GNU readline library is now an INTERNALLIB - that is, it is
@@ -810,8 +933,8 @@ COMMON ITEMS:
 	2.) update the ZFS boot block on your boot drive
 
 	The following example updates the ZFS boot block on the first
-	partition (freebsd-boot) of a GPT partitioned drive ad0:
-	"gpart bootcode -p /boot/gptzfsboot -i 1 ad0"
+	partition (freebsd-boot) of a GPT partitioned drive ada0:
+	"gpart bootcode -p /boot/gptzfsboot -i 1 ada0"
 
 	Non-boot pools do not need these updates.
 

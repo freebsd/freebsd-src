@@ -29,43 +29,46 @@
 #ifndef SYS_DEV_RANDOM_RANDOM_ADAPTORS_H_INCLUDED
 #define SYS_DEV_RANDOM_RANDOM_ADAPTORS_H_INCLUDED
 
-#include <sys/eventhandler.h>
-
 MALLOC_DECLARE(M_ENTROPY);
 
-struct random_adaptors {
-	LIST_ENTRY(random_adaptors) entries;	/* list of providers */
-	const char		*name;		/* name of random adaptor */
-	struct random_adaptor	*rsp;
+typedef void random_adaptor_init_func_t(void);
+typedef void random_adaptor_deinit_func_t(void);
+typedef void random_adaptor_read_func_t(uint8_t *, u_int);
+typedef void random_adaptor_write_func_t(uint8_t *, u_int);
+typedef int random_adaptor_seeded_func_t(void);
+typedef void random_adaptor_reseed_func_t(void);
+
+struct random_adaptor {
+	const char			*ra_ident;
+	int				 ra_priority;
+	random_adaptor_init_func_t	*ra_init;
+	random_adaptor_deinit_func_t	*ra_deinit;
+	random_adaptor_read_func_t	*ra_read;
+	random_adaptor_write_func_t	*ra_write;
+	random_adaptor_reseed_func_t	*ra_reseed;
+	random_adaptor_seeded_func_t	*ra_seeded;
 };
 
-struct random_adaptor *random_adaptor_get(const char *);
-int random_adaptor_register(const char *, struct random_adaptor *);
-void random_adaptor_choose(struct random_adaptor **);
+struct random_adaptors {
+	LIST_ENTRY(random_adaptors) rra_entries;	/* list of providers */
+	const char		*rra_name;		/* name of random adaptor */
+	struct random_adaptor	*rra_ra;
+};
 
-extern struct random_adaptor *random_adaptor;
+/* Dummy "always-block" pseudo-device */
+extern struct random_adaptor randomdev_dummy;
 
-/*
- * random_adaptor's should be registered prior to
- * random module (SI_SUB_DRIVERS/SI_ORDER_MIDDLE)
- */
-#define RANDOM_ADAPTOR_MODULE(name, modevent, ver)		\
-    static moduledata_t name##_mod = {				\
-	#name,							\
-	modevent,						\
-	0							\
-    };								\
-    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS,		\
-		   SI_ORDER_SECOND);				\
-    MODULE_VERSION(name, ver);					\
-    MODULE_DEPEND(name, random, 1, 1, 1);
+void random_adaptors_init(void);
+void random_adaptors_deinit(void);
 
-typedef void (*random_adaptor_attach_hook)(void *, struct random_adaptor *);
-EVENTHANDLER_DECLARE(random_adaptor_attach, random_adaptor_attach_hook);
+void random_adaptor_register(const char *, struct random_adaptor *);
+void random_adaptor_deregister(const char *);
 
-/* kern.random sysctls */
-#ifdef SYSCTL_DECL	/* from sysctl.h */
-SYSCTL_DECL(_kern_random);
-#endif /* SYSCTL_DECL */
+int random_adaptor_read(struct cdev *, struct uio *, int);
+int random_adaptor_write(struct cdev *, struct uio *, int);
+int random_adaptor_poll(struct cdev *, int, struct thread *);
+
+int random_adaptor_read_rate(void);
+void random_adaptor_unblock(void);
 
 #endif /* SYS_DEV_RANDOM_RANDOM_ADAPTORS_H_INCLUDED */

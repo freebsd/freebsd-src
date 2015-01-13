@@ -5,8 +5,7 @@
 PROG=	pmcstat
 MAN=	pmcstat.8
 
-DPADD=	${LIBELF} ${LIBKVM} ${LIBPMC} ${LIBM} ${LIBNCURSESW}
-LDADD=	-lelf -lkvm -lpmc -lm -lncursesw
+LIBADD=	elf kvm pmc m ncursesw
 
 SRCS=	pmcstat.c pmcstat.h pmcstat_log.c \
 pmcpl_callgraph.c pmcpl_gprof.c pmcpl_annotate.c \

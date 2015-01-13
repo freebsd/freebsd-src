@@ -4,7 +4,6 @@ PROG =	rpc.rquotad
 SRCS =	rquotad.c
 MAN  =	rpc.rquotad.8
 
-DPADD=	${LIBRPCSVC} ${LIBUTIL}
-LDADD=	-lrpcsvc -lutil
+LIBADD=	rpcsvc util
 
 .include <bsd.prog.mk>

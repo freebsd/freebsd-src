@@ -5,12 +5,11 @@ MAN=	ping6.8
 
 CFLAGS+=-DIPSEC -DKAME_SCOPEID -DUSE_RFC2292BIS \
 	-DHAVE_ARC4RANDOM
-WARNS?=	2
+WARNS?=	3
 
 BINOWN=	root
 BINMODE=4555
 
-LDADD=	-lipsec -lm -lmd
-DPADD= ${LIBIPSEC} ${LIBM} ${LIBMD}
+LIBADD=	ipsec m md
 
 .include <bsd.prog.mk>

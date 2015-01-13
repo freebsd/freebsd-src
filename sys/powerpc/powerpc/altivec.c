@@ -43,6 +43,46 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/psl.h>
 
+static void
+save_vec_int(struct thread *td)
+{
+	int	msr;
+	struct	pcb *pcb;
+
+	pcb = td->td_pcb;
+
+	/*
+	 * Temporarily re-enable the vector unit during the save
+	 */
+	msr = mfmsr();
+	mtmsr(msr | PSL_VEC);
+	isync();
+
+	/*
+	 * Save the vector registers and VSCR to the PCB
+	 */
+#define STVX(n)   __asm ("stvx %1,0,%0" \
+		:: "b"(pcb->pcb_vec.vr[n]), "n"(n));
+	STVX(0);	STVX(1);	STVX(2);	STVX(3);
+	STVX(4);	STVX(5);	STVX(6);	STVX(7);
+	STVX(8);	STVX(9);	STVX(10);	STVX(11);
+	STVX(12);	STVX(13);	STVX(14);	STVX(15);
+	STVX(16);	STVX(17);	STVX(18);	STVX(19);
+	STVX(20);	STVX(21);	STVX(22);	STVX(23);
+	STVX(24);	STVX(25);	STVX(26);	STVX(27);
+	STVX(28);	STVX(29);	STVX(30);	STVX(31);
+#undef STVX
+
+	__asm __volatile("mfvscr 0; stvewx 0,0,%0" :: "b"(&pcb->pcb_vec.vscr));
+
+	/*
+	 * Disable vector unit again
+	 */
+	isync();
+	mtmsr(msr);
+
+}
+
 void
 enable_vec(struct thread *td)
 {
@@ -107,40 +147,11 @@ enable_vec(struct thread *td)
 void
 save_vec(struct thread *td)
 {
-	int	msr;
-	struct	pcb *pcb;
+	struct pcb *pcb;
 
 	pcb = td->td_pcb;
 
-	/*
-	 * Temporarily re-enable the vector unit during the save
-	 */
-	msr = mfmsr();
-	mtmsr(msr | PSL_VEC);
-	isync();
-
-	/*
-	 * Save the vector registers and VSCR to the PCB
-	 */
-#define STVX(n)   __asm ("stvx %1,0,%0" \
-		:: "b"(pcb->pcb_vec.vr[n]), "n"(n));
-	STVX(0);	STVX(1);	STVX(2);	STVX(3);
-	STVX(4);	STVX(5);	STVX(6);	STVX(7);
-	STVX(8);	STVX(9);	STVX(10);	STVX(11);
-	STVX(12);	STVX(13);	STVX(14);	STVX(15);
-	STVX(16);	STVX(17);	STVX(18);	STVX(19);
-	STVX(20);	STVX(21);	STVX(22);	STVX(23);
-	STVX(24);	STVX(25);	STVX(26);	STVX(27);
-	STVX(28);	STVX(29);	STVX(30);	STVX(31);
-#undef STVX
-
-	__asm __volatile("mfvscr 0; stvewx 0,0,%0" :: "b"(&pcb->pcb_vec.vscr));
-
-	/*
-	 * Disable vector unit again
-	 */
-	isync();
-	mtmsr(msr);
+	save_vec_int(td);
 
 	/*
 	 * Clear the current vec thread and pcb's CPU id
@@ -150,3 +161,19 @@ save_vec(struct thread *td)
 	PCPU_SET(vecthread, NULL);
 }
 
+/*
+ * Save altivec state without dropping ownership.  This will only save state if
+ * the current vector-thread is `td'.
+ */
+void
+save_vec_nodrop(struct thread *td)
+{
+	struct thread *vtd;
+
+	vtd = PCPU_GET(vecthread);
+	if (td != vtd) {
+		return;
+	}
+
+	save_vec_int(td);
+}

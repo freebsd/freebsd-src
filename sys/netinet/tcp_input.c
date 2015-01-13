@@ -130,29 +130,29 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
 
 VNET_DEFINE(int, blackhole) = 0;
 #define	V_blackhole		VNET(blackhole)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(blackhole), 0,
     "Do not send RST on segments to closed ports");
 
 VNET_DEFINE(int, tcp_delack_enabled) = 1;
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_delack_enabled), 0,
     "Delay ACK to try and piggyback it onto a data packet");
 
 VNET_DEFINE(int, drop_synfin) = 0;
 #define	V_drop_synfin		VNET(drop_synfin)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, drop_synfin, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(drop_synfin), 0,
     "Drop TCP packets with SYN+FIN set");
 
 VNET_DEFINE(int, tcp_do_rfc3042) = 1;
 #define	V_tcp_do_rfc3042	VNET(tcp_do_rfc3042)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3042, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc3042), 0,
     "Enable RFC 3042 (Limited Transmit)");
 
 VNET_DEFINE(int, tcp_do_rfc3390) = 1;
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc3390), 0,
     "Enable RFC 3390 (Increasing TCP's Initial Congestion Window)");
 
@@ -160,64 +160,64 @@ SYSCTL_NODE(_net_inet_tcp, OID_AUTO, experimental, CTLFLAG_RW, 0,
     "Experimental TCP extensions");
 
 VNET_DEFINE(int, tcp_do_initcwnd10) = 1;
-SYSCTL_VNET_INT(_net_inet_tcp_experimental, OID_AUTO, initcwnd10, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp_experimental, OID_AUTO, initcwnd10, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_initcwnd10), 0,
     "Enable RFC 6928 (Increasing initial CWND to 10)");
 
 VNET_DEFINE(int, tcp_do_rfc3465) = 1;
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, rfc3465, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3465, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_rfc3465), 0,
     "Enable RFC 3465 (Appropriate Byte Counting)");
 
 VNET_DEFINE(int, tcp_abc_l_var) = 2;
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, abc_l_var, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, abc_l_var, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_abc_l_var), 2,
     "Cap the max cwnd increment during slow-start to this number of segments");
 
 static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, ecn, CTLFLAG_RW, 0, "TCP ECN");
 
 VNET_DEFINE(int, tcp_do_ecn) = 0;
-SYSCTL_VNET_INT(_net_inet_tcp_ecn, OID_AUTO, enable, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp_ecn, OID_AUTO, enable, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_ecn), 0,
     "TCP ECN support");
 
 VNET_DEFINE(int, tcp_ecn_maxretries) = 1;
-SYSCTL_VNET_INT(_net_inet_tcp_ecn, OID_AUTO, maxretries, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp_ecn, OID_AUTO, maxretries, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_ecn_maxretries), 0,
     "Max retries before giving up on ECN");
 
 VNET_DEFINE(int, tcp_insecure_syn) = 0;
 #define	V_tcp_insecure_syn	VNET(tcp_insecure_syn)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, insecure_syn, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, insecure_syn, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_insecure_syn), 0,
     "Follow RFC793 instead of RFC5961 criteria for accepting SYN packets");
 
 VNET_DEFINE(int, tcp_insecure_rst) = 0;
 #define	V_tcp_insecure_rst	VNET(tcp_insecure_rst)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, insecure_rst, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, insecure_rst, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_insecure_rst), 0,
     "Follow RFC793 instead of RFC5961 criteria for accepting RST packets");
 
 VNET_DEFINE(int, tcp_recvspace) = 1024*64;
 #define	V_tcp_recvspace	VNET(tcp_recvspace)
-SYSCTL_VNET_INT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, TCPCTL_RECVSPACE, recvspace, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_recvspace), 0, "Initial receive socket buffer size");
 
 VNET_DEFINE(int, tcp_do_autorcvbuf) = 1;
 #define	V_tcp_do_autorcvbuf	VNET(tcp_do_autorcvbuf)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, recvbuf_auto, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_auto, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_do_autorcvbuf), 0,
     "Enable automatic receive buffer sizing");
 
 VNET_DEFINE(int, tcp_autorcvbuf_inc) = 16*1024;
 #define	V_tcp_autorcvbuf_inc	VNET(tcp_autorcvbuf_inc)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, recvbuf_inc, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_inc, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_autorcvbuf_inc), 0,
     "Incrementor step size of automatic receive buffer");
 
 VNET_DEFINE(int, tcp_autorcvbuf_max) = 2*1024*1024;
 #define	V_tcp_autorcvbuf_max	VNET(tcp_autorcvbuf_max)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, recvbuf_max, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_max, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(tcp_autorcvbuf_max), 0,
     "Max size of automatic receive buffer");
 
@@ -498,6 +498,41 @@ do { \
 	    (tlen <= tp->t_maxopd) &&					\
 	    (V_tcp_delack_enabled || (tp->t_flags & TF_NEEDSYN)))
 
+static void inline
+cc_ecnpkt_handler(struct tcpcb *tp, struct tcphdr *th, uint8_t iptos)
+{
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	if (CC_ALGO(tp)->ecnpkt_handler != NULL) {
+		switch (iptos & IPTOS_ECN_MASK) {
+		case IPTOS_ECN_CE:
+		    tp->ccv->flags |= CCF_IPHDR_CE;
+		    break;
+		case IPTOS_ECN_ECT0:
+		    tp->ccv->flags &= ~CCF_IPHDR_CE;
+		    break;
+		case IPTOS_ECN_ECT1:
+		    tp->ccv->flags &= ~CCF_IPHDR_CE;
+		    break;
+		}
+
+		if (th->th_flags & TH_CWR)
+			tp->ccv->flags |= CCF_TCPHDR_CWR;
+		else
+			tp->ccv->flags &= ~CCF_TCPHDR_CWR;
+
+		if (tp->t_flags & TF_DELACK)
+			tp->ccv->flags |= CCF_DELACK;
+		else
+			tp->ccv->flags &= ~CCF_DELACK;
+
+		CC_ALGO(tp)->ecnpkt_handler(tp->ccv);
+
+		if (tp->ccv->flags & CCF_ACKNOW)
+			tcp_timer_activate(tp, TT_DELACK, tcp_delacktime);
+	}
+}
+
 /*
  * TCP input handling is split into multiple parts:
  *   tcp6_input is a thin wrapper around tcp_input for the extended
@@ -513,6 +548,7 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 {
 	struct mbuf *m = *mp;
 	struct in6_ifaddr *ia6;
+	struct ip6_hdr *ip6;
 
 	IP6_EXTHDR_CHECK(m, *offp, sizeof(struct tcphdr), IPPROTO_DONE);
 
@@ -520,7 +556,8 @@ tcp6_input(struct mbuf **mp, int *offp, int proto)
 	 * draft-itojun-ipv6-tcp-to-anycast
 	 * better place to put this in?
 	 */
-	ia6 = ip6_getdstifaddr(m);
+	ip6 = mtod(m, struct ip6_hdr *);
+	ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
 	if (ia6 && (ia6->ia6_flags & IN6_IFF_ANYCAST)) {
 		struct ip6_hdr *ip6;
 
@@ -882,24 +919,20 @@ findpcb:
 		goto dropwithreset;
 	}
 	INP_WLOCK_ASSERT(inp);
-	if (!(inp->inp_flags & INP_HW_FLOWID)
-	    && (m->m_flags & M_FLOWID)
-	    && ((inp->inp_socket == NULL)
-		|| !(inp->inp_socket->so_options & SO_ACCEPTCONN))) {
-		inp->inp_flags |= INP_HW_FLOWID;
-		inp->inp_flags &= ~INP_SW_FLOWID;
+	if ((inp->inp_flowtype == M_HASHTYPE_NONE) &&
+	    (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE) &&
+	    ((inp->inp_socket == NULL) ||
+	    (inp->inp_socket->so_options & SO_ACCEPTCONN) == 0)) {
 		inp->inp_flowid = m->m_pkthdr.flowid;
 		inp->inp_flowtype = M_HASHTYPE_GET(m);
 	}
 #ifdef IPSEC
 #ifdef INET6
 	if (isipv6 && ipsec6_in_reject(m, inp)) {
-		IPSEC6STAT_INC(ips_in_polvio);
 		goto dropunlock;
 	} else
 #endif /* INET6 */
 	if (ipsec4_in_reject(m, inp) != 0) {
-		IPSECSTAT_INC(ips_in_polvio);
 		goto dropunlock;
 	}
 #endif /* IPSEC */
@@ -1251,7 +1284,7 @@ relocked:
 		if (isipv6 && !V_ip6_use_deprecated) {
 			struct in6_ifaddr *ia6;
 
-			ia6 = ip6_getdstifaddr(m);
+			ia6 = in6ifa_ifwithaddr(&ip6->ip6_dst, 0 /* XXX */);
 			if (ia6 != NULL &&
 			    (ia6->ia6_flags & IN6_IFF_DEPRECATED)) {
 				ifa_free(&ia6->ia_ifa);
@@ -1532,6 +1565,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			TCPSTAT_INC(tcps_ecn_ect1);
 			break;
 		}
+
+		/* Process a packet differently from RFC3168. */
+		cc_ecnpkt_handler(tp, th, iptos);
+
 		/* Congestion experienced. */
 		if (thflags & TH_ECE) {
 			cc_cong_signal(tp, th, CC_ECN);
@@ -1743,7 +1780,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					tcp_timer_activate(tp, TT_REXMT,
 						      tp->t_rxtcur);
 				sowwakeup(so);
-				if (so->so_snd.sb_cc)
+				if (sbavail(&so->so_snd))
 					(void) tcp_output(tp);
 				goto check_delack;
 			}
@@ -1853,7 +1890,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					    newsize, so, NULL))
 						so->so_rcv.sb_flags &= ~SB_AUTOSIZE;
 				m_adj(m, drop_hdrlen);	/* delayed header drop */
-				sbappendstream_locked(&so->so_rcv, m);
+				sbappendstream_locked(&so->so_rcv, m, 0);
 			}
 			/* NB: sorwakeup_locked() does an implicit unlock. */
 			sorwakeup_locked(so);
@@ -2524,7 +2561,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 					 * Otherwise we would send pure ACKs.
 					 */
 					SOCKBUF_LOCK(&so->so_snd);
-					avail = so->so_snd.sb_cc -
+					avail = sbavail(&so->so_snd) -
 					    (tp->snd_nxt - tp->snd_una);
 					SOCKBUF_UNLOCK(&so->so_snd);
 					if (avail > 0)
@@ -2659,10 +2696,10 @@ process_ACK:
 		cc_ack_received(tp, th, CC_ACK);
 
 		SOCKBUF_LOCK(&so->so_snd);
-		if (acked > so->so_snd.sb_cc) {
-			tp->snd_wnd -= so->so_snd.sb_cc;
+		if (acked > sbavail(&so->so_snd)) {
+			tp->snd_wnd -= sbavail(&so->so_snd);
 			mfree = sbcut_locked(&so->so_snd,
-			    (int)so->so_snd.sb_cc);
+			    (int)sbavail(&so->so_snd));
 			ourfinisacked = 1;
 		} else {
 			mfree = sbcut_locked(&so->so_snd, acked);
@@ -2788,7 +2825,7 @@ step6:
 		 * actually wanting to send this much urgent data.
 		 */
 		SOCKBUF_LOCK(&so->so_rcv);
-		if (th->th_urp + so->so_rcv.sb_cc > sb_max) {
+		if (th->th_urp + sbavail(&so->so_rcv) > sb_max) {
 			th->th_urp = 0;			/* XXX */
 			thflags &= ~TH_URG;		/* XXX */
 			SOCKBUF_UNLOCK(&so->so_rcv);	/* XXX */
@@ -2810,7 +2847,7 @@ step6:
 		 */
 		if (SEQ_GT(th->th_seq+th->th_urp, tp->rcv_up)) {
 			tp->rcv_up = th->th_seq + th->th_urp;
-			so->so_oobmark = so->so_rcv.sb_cc +
+			so->so_oobmark = sbavail(&so->so_rcv) +
 			    (tp->rcv_up - tp->rcv_nxt) - 1;
 			if (so->so_oobmark == 0)
 				so->so_rcv.sb_state |= SBS_RCVATMARK;
@@ -2880,7 +2917,7 @@ dodata:							/* XXX */
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 				m_freem(m);
 			else
-				sbappendstream_locked(&so->so_rcv, m);
+				sbappendstream_locked(&so->so_rcv, m, 0);
 			/* NB: sorwakeup_locked() does an implicit unlock. */
 			sorwakeup_locked(so);
 		} else {

@@ -176,7 +176,7 @@ dtrace_optval_t dtrace_ustackframes_default = 20;
 dtrace_optval_t dtrace_jstackframes_default = 50;
 dtrace_optval_t dtrace_jstackstrsize_default = 512;
 int		dtrace_msgdsize_max = 128;
-hrtime_t	dtrace_chill_max = 500 * (NANOSEC / MILLISEC);	/* 500 ms */
+hrtime_t	dtrace_chill_max = MSEC2NSEC(500);		/* 500 ms */
 hrtime_t	dtrace_chill_interval = NANOSEC;		/* 1000 ms */
 int		dtrace_devdepth_max = 32;
 int		dtrace_err_verbose;
@@ -13052,7 +13052,7 @@ dtrace_dof_property(const char *name)
 	char *p;
 	char *p_env;
 
-	if ((p_env = getenv(name)) == NULL)
+	if ((p_env = kern_getenv(name)) == NULL)
 		return (NULL);
 
 	len = strlen(p_env) / 2;
@@ -13782,7 +13782,7 @@ dtrace_dof_slurp(dof_hdr_t *dof, dtrace_vstate_t *vstate, cred_t *cr,
 		if (!(sec->dofs_flags & DOF_SECF_LOAD))
 			continue; /* just ignore non-loadable sections */
 
-		if (sec->dofs_align & (sec->dofs_align - 1)) {
+		if (!ISP2(sec->dofs_align)) {
 			dtrace_dof_error(dof, "bad section alignment");
 			return (-1);
 		}
@@ -17947,6 +17947,5 @@ SYSINIT(dtrace_anon_init, SI_SUB_DTRACE_ANON, SI_ORDER_FIRST, dtrace_anon_init, 
 
 DEV_MODULE(dtrace, dtrace_modevent, NULL);
 MODULE_VERSION(dtrace, 1);
-MODULE_DEPEND(dtrace, cyclic, 1, 1, 1);
 MODULE_DEPEND(dtrace, opensolaris, 1, 1, 1);
 #endif

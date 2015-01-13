@@ -41,6 +41,10 @@ __RCSID("$NetBSD: t_link.c,v 1.2 2014/04/21 14:39:36 martin Exp $");
 #include <string.h>
 #include <unistd.h>
 
+#ifdef __FreeBSD__
+#include <limits.h>
+#endif
+
 static const char	*getpath(void);
 static char		 path[] = "link";
 static const char	*pathl;

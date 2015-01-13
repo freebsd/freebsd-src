@@ -221,7 +221,7 @@ struct mbuf {
 #define	M_MCAST		0x00000020 /* send/received as link-level multicast */
 #define	M_PROMISC	0x00000040 /* packet was not for us */
 #define	M_VLANTAG	0x00000080 /* ether_vtag is valid */
-#define	M_FLOWID	0x00000100 /* deprecated: flowid is valid */
+#define	M_UNUSED_8	0x00000100 /* --available-- */
 #define	M_NOFREE	0x00000200 /* do not free mbuf, embedded in cluster */
 
 #define	M_PROTO1	0x00001000 /* protocol-specific */
@@ -248,7 +248,7 @@ struct mbuf {
  * Flags preserved when copying m_pkthdr.
  */
 #define M_COPYFLAGS \
-    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_PROMISC|M_VLANTAG|M_FLOWID| \
+    (M_PKTHDR|M_EOR|M_RDONLY|M_BCAST|M_MCAST|M_PROMISC|M_VLANTAG| \
      M_PROTOFLAGS)
 
 /*
@@ -256,7 +256,7 @@ struct mbuf {
  */
 #define	M_FLAG_BITS \
     "\20\1M_EXT\2M_PKTHDR\3M_EOR\4M_RDONLY\5M_BCAST\6M_MCAST" \
-    "\7M_PROMISC\10M_VLANTAG\11M_FLOWID"
+    "\7M_PROMISC\10M_VLANTAG"
 #define	M_FLAG_PROTOBITS \
     "\15M_PROTO1\16M_PROTO2\17M_PROTO3\20M_PROTO4\21M_PROTO5" \
     "\22M_PROTO6\23M_PROTO7\24M_PROTO8\25M_PROTO9\26M_PROTO10" \
@@ -393,7 +393,7 @@ void sf_ext_free(void *, void *);
  * Outbound flags that are set by upper protocol layers requesting lower
  * layers, or ideally the hardware, to perform these offloading tasks.
  * For outbound packets this field and its flags can be directly tested
- * against if_data.ifi_hwassist.
+ * against ifnet if_hwassist.
  */
 #define	CSUM_IP			0x00000001	/* IP header checksum offload */
 #define	CSUM_IP_UDP		0x00000002	/* UDP checksum offload */
@@ -667,7 +667,7 @@ m_getcl(int how, short type, int flags)
 	return (uma_zalloc_arg(zone_pack, &args, how));
 }
 
-static __inline void
+static __inline int
 m_clget(struct mbuf *m, int how)
 {
 
@@ -683,6 +683,7 @@ m_clget(struct mbuf *m, int how)
 		zone_drain(zone_pack);
 		uma_zalloc_arg(zone_clust, m, how);
 	}
+	return (m->m_flags & M_EXT);
 }
 
 /*
@@ -757,7 +758,10 @@ static __inline void
 m_clrprotoflags(struct mbuf *m)
 {
 
-	m->m_flags &= ~M_PROTOFLAGS;
+	while (m) {
+		m->m_flags &= ~M_PROTOFLAGS;
+		m = m->m_next;
+	}
 }
 
 static __inline struct mbuf *
@@ -807,42 +811,6 @@ m_last(struct mbuf *m)
 	    ("%s: attempted use of a free mbuf!", __func__))
 
 /*
- * Set the m_data pointer of a newly-allocated mbuf (m_get/MGET) to place an
- * object of the specified size at the end of the mbuf, longword aligned.
- */
-#define	M_ALIGN(m, len) do {						\
-	KASSERT(!((m)->m_flags & (M_PKTHDR|M_EXT)),			\
-		("%s: M_ALIGN not normal mbuf", __func__));		\
-	KASSERT((m)->m_data == (m)->m_dat,				\
-		("%s: M_ALIGN not a virgin mbuf", __func__));		\
-	(m)->m_data += (MLEN - (len)) & ~(sizeof(long) - 1);		\
-} while (0)
-
-/*
- * As above, for mbufs allocated with m_gethdr/MGETHDR or initialized by
- * M_DUP/MOVE_PKTHDR.
- */
-#define	MH_ALIGN(m, len) do {						\
-	KASSERT((m)->m_flags & M_PKTHDR && !((m)->m_flags & M_EXT),	\
-		("%s: MH_ALIGN not PKTHDR mbuf", __func__));		\
-	KASSERT((m)->m_data == (m)->m_pktdat,				\
-		("%s: MH_ALIGN not a virgin mbuf", __func__));		\
-	(m)->m_data += (MHLEN - (len)) & ~(sizeof(long) - 1);		\
-} while (0)
-
-/*
- * As above, for mbuf with external storage.
- */
-#define	MEXT_ALIGN(m, len) do {						\
-	KASSERT((m)->m_flags & M_EXT,					\
-		("%s: MEXT_ALIGN not an M_EXT mbuf", __func__));	\
-	KASSERT((m)->m_data == (m)->m_ext.ext_buf,			\
-		("%s: MEXT_ALIGN not a virgin mbuf", __func__));	\
-	(m)->m_data += ((m)->m_ext.ext_size - (len)) &			\
-	    ~(sizeof(long) - 1); 					\
-} while (0)
-
-/*
  * Return the address of the start of the buffer associated with an mbuf,
  * handling external storage, packet-header mbufs, and regular data mbufs.
  */
@@ -859,6 +827,34 @@ m_last(struct mbuf *m)
 	(((m)->m_flags & M_EXT) ? (m)->m_ext.ext_size :			\
 	 ((m)->m_flags & M_PKTHDR) ? MHLEN :				\
 	 MLEN)
+
+/*
+ * Set the m_data pointer of a newly allocated mbuf to place an object of the
+ * specified size at the end of the mbuf, longword aligned.
+ *
+ * NB: Historically, we had M_ALIGN(), MH_ALIGN(), and MEXT_ALIGN() as
+ * separate macros, each asserting that it was called at the proper moment.
+ * This required callers to themselves test the storage type and call the
+ * right one.  Rather than require callers to be aware of those layout
+ * decisions, we centralize here.
+ */
+static __inline void
+m_align(struct mbuf *m, int len)
+{
+#ifdef INVARIANTS
+	const char *msg = "%s: not a virgin mbuf";
+#endif
+	int adjust;
+
+	KASSERT(m->m_data == M_START(m), (msg, __func__));
+
+	adjust = M_SIZE(m) - len;
+	m->m_data += adjust &~ (sizeof(long)-1);
+}
+
+#define	M_ALIGN(m, len)		m_align(m, len)
+#define	MH_ALIGN(m, len)	m_align(m, len)
+#define	MEXT_ALIGN(m, len)	m_align(m, len)
 
 /*
  * Compute the amount of space available before the current start of data in
@@ -931,7 +927,6 @@ extern int		nmbclusters;	/* Maximum number of clusters */
 struct uio;
 
 void		 m_adj(struct mbuf *, int);
-void		 m_align(struct mbuf *, int);
 int		 m_apply(struct mbuf *, int, int,
 		    int (*)(void *, void *, u_int), void *);
 int		 m_append(struct mbuf *, int, c_caddr_t);
@@ -944,13 +939,11 @@ struct mbuf	*m_collapse(struct mbuf *, int, int);
 void		 m_copyback(struct mbuf *, int, int, c_caddr_t);
 void		 m_copydata(const struct mbuf *, int, int, caddr_t);
 struct mbuf	*m_copym(struct mbuf *, int, int, int);
-struct mbuf	*m_copymdata(struct mbuf *, struct mbuf *,
-		    int, int, int, int);
 struct mbuf	*m_copypacket(struct mbuf *, int);
 void		 m_copy_pkthdr(struct mbuf *, struct mbuf *);
 struct mbuf	*m_copyup(struct mbuf *, int, int);
 struct mbuf	*m_defrag(struct mbuf *, int);
-void		 m_demote(struct mbuf *, int);
+void		 m_demote(struct mbuf *, int, int);
 struct mbuf	*m_devget(char *, int, int, struct ifnet *,
 		    void (*)(char *, caddr_t, u_int));
 struct mbuf	*m_dup(struct mbuf *, int);

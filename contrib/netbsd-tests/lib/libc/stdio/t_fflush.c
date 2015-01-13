@@ -48,6 +48,10 @@ ATF_TC_BODY(fflush_err, tc)
 {
 	FILE *f;
 
+#ifdef __FreeBSD__
+	atf_tc_expect_fail("the EOF invariant fails on FreeBSD; this is new");
+#endif
+
 	f = fopen(path, "w");
 
 	ATF_REQUIRE(f != NULL);

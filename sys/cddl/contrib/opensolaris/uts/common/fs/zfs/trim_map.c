@@ -146,10 +146,8 @@ trim_map_create(vdev_t *vd)
 {
 	trim_map_t *tm;
 
-	ASSERT(vd->vdev_ops->vdev_op_leaf);
-
-	if (!zfs_trim_enabled)
-		return;
+	ASSERT(zfs_trim_enabled && !vd->vdev_notrim &&
+		vd->vdev_ops->vdev_op_leaf);
 
 	tm = kmem_zalloc(sizeof (*tm), KM_SLEEP);
 	mutex_init(&tm->tm_lock, NULL, MUTEX_DEFAULT, NULL);
@@ -246,17 +244,23 @@ trim_map_segment_add(trim_map_t *tm, uint64_t start, uint64_t end, uint64_t txg)
 		ts_after->ts_start = ts_before->ts_start;
 		ts_after->ts_txg = txg;
 		ts_after->ts_time = time;
+		list_remove(&tm->tm_head, ts_after);
+		list_insert_tail(&tm->tm_head, ts_after);
 		kmem_free(ts_before, sizeof (*ts_before));
 	} else if (merge_before) {
 		TRIM_MAP_SINC(tm, end - ts_before->ts_end);
 		ts_before->ts_end = end;
 		ts_before->ts_txg = txg;
 		ts_before->ts_time = time;
+		list_remove(&tm->tm_head, ts_before);
+		list_insert_tail(&tm->tm_head, ts_before);
 	} else if (merge_after) {
 		TRIM_MAP_SINC(tm, ts_after->ts_start - start);
 		ts_after->ts_start = start;
 		ts_after->ts_txg = txg;
 		ts_after->ts_time = time;
+		list_remove(&tm->tm_head, ts_after);
+		list_insert_tail(&tm->tm_head, ts_after);
 	} else {
 		TRIM_MAP_SINC(tm, end - start);
 		TRIM_MAP_QINC(tm);
