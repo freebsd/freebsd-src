@@ -1849,7 +1849,7 @@ static int
 xl_rxeof(struct xl_softc *sc)
 {
 	struct mbuf		*m;
-	struct ifnet		*ifp = sc->xl_ifp;
+	if_t			ifp = sc->xl_ifp;
 	struct xl_chain_onefrag	*cur_rx;
 	int			total_len;
 	int			rx_npkts = 0;
@@ -2163,7 +2163,7 @@ static void
 xl_intr(void *arg)
 {
 	struct xl_softc		*sc = arg;
-	struct ifnet		*ifp = sc->xl_ifp;
+	if_t			ifp = sc->xl_ifp;
 	u_int16_t		status;
 
 	XL_LOCK(sc);
@@ -2225,7 +2225,7 @@ xl_intr(void *arg)
 
 #ifdef DEVICE_POLLING
 static int
-xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
+xl_poll(if_t ifp, enum poll_cmd cmd, int count)
 {
 	struct xl_softc *sc = ifp->if_softc;
 	int rx_npkts = 0;
@@ -2238,7 +2238,7 @@ xl_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 }
 
 static int
-xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
+xl_poll_locked(if_t ifp, enum poll_cmd cmd, int count)
 {
 	struct xl_softc *sc = ifp->if_softc;
 	int rx_npkts;
@@ -2308,7 +2308,7 @@ xl_tick(void *xsc)
 static void
 xl_stats_update(struct xl_softc *sc)
 {
-	struct ifnet		*ifp = sc->xl_ifp;
+	if_t			ifp = sc->xl_ifp;
 	struct xl_stats		xl_stats;
 	u_int8_t		*p;
 	int			i;
@@ -2351,7 +2351,7 @@ static int
 xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 {
 	struct mbuf		*m_new;
-	struct ifnet		*ifp = sc->xl_ifp;
+	if_t			ifp = sc->xl_ifp;
 	int			error, i, nseg, total_len;
 	u_int32_t		status;
 
@@ -2876,7 +2876,7 @@ xl_init_locked(struct xl_softc *sc)
  * Set media options.
  */
 static int
-xl_ifmedia_upd(struct ifnet *ifp)
+xl_ifmedia_upd(if_t ifp)
 {
 	struct xl_softc		*sc;
 	struct ifmedia		*ifm = NULL;
@@ -2920,7 +2920,7 @@ xl_ifmedia_upd(struct ifnet *ifp)
  * Report current media status.
  */
 static void
-xl_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+xl_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct xl_softc		*sc;
 	u_int32_t		icfg;
@@ -2993,7 +2993,7 @@ xl_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static int
-xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+xl_ioctl(if_t ifp, u_long command, caddr_t data)
 {
 	struct xl_softc		*sc;
 	struct ifreq		*ifr = (struct ifreq *) data;
@@ -3100,7 +3100,7 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 static int
 xl_watchdog(struct xl_softc *sc)
 {
-	struct ifnet		*ifp = sc->xl_ifp;
+	if_t			ifp = sc->xl_ifp;
 	u_int16_t		status = 0;
 	int			misintr;
 
@@ -3251,7 +3251,7 @@ static int
 xl_resume(device_t dev)
 {
 	struct xl_softc		*sc;
-	struct ifnet		*ifp;
+	if_t			ifp;
 
 	sc = device_get_softc(dev);
 	ifp = sc->xl_ifp;
@@ -3271,7 +3271,7 @@ xl_resume(device_t dev)
 static void
 xl_setwol(struct xl_softc *sc)
 {
-	struct ifnet		*ifp;
+	if_t			ifp;
 	u_int16_t		cfg, pmstat;
 
 	if ((sc->xl_flags & XL_FLAG_WOL) == 0)
