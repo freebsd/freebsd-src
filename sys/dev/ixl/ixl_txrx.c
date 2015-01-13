@@ -1108,8 +1108,8 @@ int
 ixl_init_rx_ring(struct ixl_queue *que)
 {
 	struct	rx_ring 	*rxr = &que->rxr;
-#if defined(INET6) || defined(INET)
 	struct ixl_vsi		*vsi = que->vsi;
+#if defined(INET6) || defined(INET)
 	struct ifnet		*ifp = vsi->ifp;
 	struct lro_ctrl		*lro = &rxr->lro;
 #endif
