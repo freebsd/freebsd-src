@@ -406,6 +406,19 @@ ifmedia_baudrate(int mword)
 	/* Not known. */
 	return (0);
 }
+
+int
+ifmedia_link_state(u_int mstatus)
+{
+
+	if (mstatus & IFM_AVALID) {
+		if (mstatus & IFM_ACTIVE)
+			return (LINK_STATE_UP);
+		else
+			return (LINK_STATE_DOWN);
+	} else
+		return (LINK_STATE_UNKNOWN);
+}
  
 #ifdef IFMEDIA_DEBUG
 struct ifmedia_description ifm_type_descriptions[] =
