@@ -2106,7 +2106,7 @@ linux_ioctl_console(struct thread *td, struct linux_ioctl_args *args)
 /*
  * Criteria for interface name translation
  */
-#define IFP_IS_ETH(ifp) (ifp->if_type == IFT_ETHER)
+#define IFP_IS_ETH(ifp) (if_type(ifp) == IFT_ETHER)
 
 /*
  * Interface function used by linprocfs (at the time of writing). It's not
@@ -2299,10 +2299,9 @@ linux_gifflags(struct thread *td, struct ifnet *ifp, struct l_ifreq *ifr)
 {
 	l_short flags;
 
-	flags = (ifp->if_flags | ifp->if_drv_flags) & 0xffff;
+	flags = ifp->if_flags & 0xffff;
 	/* these flags have no Linux equivalent */
-	flags &= ~(IFF_DRV_OACTIVE|IFF_SIMPLEX|
-	    IFF_LINK0|IFF_LINK1|IFF_LINK2);
+	flags &= ~(IFF_SIMPLEX|IFF_LINK0|IFF_LINK1|IFF_LINK2);
 	/* Linux' multicast flag is in a different bit */
 	if (flags & IFF_MULTICAST) {
 		flags &= ~IFF_MULTICAST;
@@ -2322,13 +2321,13 @@ linux_gifhwaddr(struct ifnet *ifp, struct l_ifreq *ifr)
 	struct sockaddr_dl *sdl;
 	struct l_sockaddr lsa;
 
-	if (ifp->if_type == IFT_LOOP) {
+	if (if_type(ifp) == IFT_LOOP) {
 		bzero(&lsa, sizeof(lsa));
 		lsa.sa_family = ARPHRD_LOOPBACK;
 		return (copyout(&lsa, &ifr->ifr_hwaddr, sizeof(lsa)));
 	}
 
-	if (ifp->if_type != IFT_ETHER)
+	if (if_type(ifp) != IFT_ETHER)
 		return (ENOENT);
 
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
