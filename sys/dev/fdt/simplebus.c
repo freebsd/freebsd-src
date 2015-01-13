@@ -253,10 +253,6 @@ simplebus_setup_dinfo(device_t dev, phandle_t node)
 {
 	struct simplebus_softc *sc;
 	struct simplebus_devinfo *ndi;
-	uint32_t *reg;
-	uint64_t phys, size;
-	int i, j, k;
-	int nreg;
 
 	sc = device_get_softc(dev);
 
@@ -267,32 +263,7 @@ simplebus_setup_dinfo(device_t dev, phandle_t node)
 	}
 
 	resource_list_init(&ndi->rl);
-	nreg = OF_getencprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
-	if (nreg == -1)
-		nreg = 0;
-	if (nreg % (sc->acells + sc->scells) != 0) {
-		if (bootverbose)
-			device_printf(dev, "Malformed reg property on <%s>\n",
-			    ndi->obdinfo.obd_name);
-		nreg = 0;
-	}
-
-	for (i = 0, k = 0; i < nreg; i += sc->acells + sc->scells, k++) {
-		phys = size = 0;
-		for (j = 0; j < sc->acells; j++) {
-			phys <<= 32;
-			phys |= reg[i + j];
-		}
-		for (j = 0; j < sc->scells; j++) {
-			size <<= 32;
-			size |= reg[i + sc->acells + j];
-		}
-		
-		resource_list_add(&ndi->rl, SYS_RES_MEMORY, k,
-		    phys, phys + size - 1, size);
-	}
-	free(reg, M_OFWPROP);
-
+	ofw_bus_reg_to_rl(dev, node, sc->acells, sc->scells, &ndi->rl);
 	ofw_bus_intr_to_rl(dev, node, &ndi->rl);
 
 	return (ndi);
