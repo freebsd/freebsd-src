@@ -2545,9 +2545,11 @@ struct msk_softc {
 };
 
 #define	MSK_LOCK(_sc)		mtx_lock(&(_sc)->msk_mtx)
+#define	MSK_TRYLOCK(_sc)	mtx_trylock(&(_sc)->msk_mtx)
 #define	MSK_UNLOCK(_sc)		mtx_unlock(&(_sc)->msk_mtx)
 #define	MSK_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->msk_mtx, MA_OWNED)
 #define	MSK_IF_LOCK(_sc)	MSK_LOCK((_sc)->msk_softc)
+#define	MSK_IF_TRYLOCK(_sc)	MSK_TRYLOCK((_sc)->msk_softc)
 #define	MSK_IF_UNLOCK(_sc)	MSK_UNLOCK((_sc)->msk_softc)
 #define	MSK_IF_LOCK_ASSERT(_sc)	MSK_LOCK_ASSERT((_sc)->msk_softc)
 
@@ -2555,7 +2557,7 @@ struct msk_softc {
 
 /* Softc for each logical interface. */
 struct msk_if_softc {
-	struct ifnet		*msk_ifp;	/* interface info */
+	if_t			msk_ifp;	/* interface info */
 	device_t		msk_miibus;
 	device_t		msk_if_dev;
 	int32_t			msk_port;	/* port # on controller */
@@ -2563,19 +2565,20 @@ struct msk_if_softc {
 	int			msk_phytype;
 	int			msk_phyaddr;
 	uint32_t		msk_flags;
-#define	MSK_FLAG_MSI		0x0001
-#define	MSK_FLAG_FASTETHER	0x0004
-#define	MSK_FLAG_JUMBO		0x0008
-#define	MSK_FLAG_JUMBO_NOCSUM	0x0010
-#define	MSK_FLAG_RAMBUF		0x0020
-#define	MSK_FLAG_DESCV2		0x0040
-#define	MSK_FLAG_AUTOTX_CSUM	0x0080
-#define	MSK_FLAG_NOHWVLAN	0x0100
-#define	MSK_FLAG_NORXCHK	0x0200
-#define	MSK_FLAG_NORX_CSUM	0x0400
-#define	MSK_FLAG_SUSPEND	0x2000
-#define	MSK_FLAG_DETACH		0x4000
-#define	MSK_FLAG_LINK		0x8000
+#define	MSK_FLAG_MSI		0x00000001
+#define	MSK_FLAG_FASTETHER	0x00000004
+#define	MSK_FLAG_JUMBO		0x00000008
+#define	MSK_FLAG_JUMBO_NOCSUM	0x00000010
+#define	MSK_FLAG_RAMBUF		0x00000020
+#define	MSK_FLAG_DESCV2		0x00000040
+#define	MSK_FLAG_AUTOTX_CSUM	0x00000080
+#define	MSK_FLAG_NOHWVLAN	0x00000100
+#define	MSK_FLAG_NORXCHK	0x00000200
+#define	MSK_FLAG_NORX_CSUM	0x00000400
+#define	MSK_FLAG_SUSPEND	0x00002000
+#define	MSK_FLAG_DETACH		0x00004000
+#define	MSK_FLAG_LINK		0x00008000
+#define	MSK_FLAG_RUNNING	0x00010000
 	struct callout		msk_tick_ch;
 	int			msk_watchdog_timer;
 	uint32_t		msk_txq;	/* Tx. Async Queue offset */
