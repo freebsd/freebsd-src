@@ -492,6 +492,9 @@ ifdriver_bless(struct ifdriver *ifdrv, struct iftype *ift)
  * Allocate a struct ifnet and an index for an interface.  A layer 2
  * common structure will also be allocated if an allocation routine is
  * registered for the passed type.
+ *
+ * The only reason for this function to fail is failure to allocate a
+ * unit number, which is possible only if driver does cloning.
  */
 if_t
 if_attach(struct if_attach_args *ifat)
@@ -507,6 +510,23 @@ if_attach(struct if_attach_args *ifat)
 	    ("%s: version %d, expected %d",
 	    __func__, ifat->ifat_version, IF_ATTACH_VERSION));
 
+	ifdrv = ifat->ifat_drv;
+	ift = iftype_find(ifdrv->ifdrv_type);
+	if ((ifdrv->ifdrv_flags & IFDRV_BLESSED) == 0)
+		ifdriver_bless(ifdrv, ift);
+
+	if (ifdrv->ifdrv_clone != NULL) {
+		int error;
+
+		error = ifc_alloc_unit(ifdrv->ifdrv_clone, &ifat->ifat_dunit);
+		if (error) {
+			log(LOG_WARNING, "%s unit allocation failure: %d\n",
+			    ifdrv->ifdrv_name, error);
+			ifat->ifat_error = error;
+			return (NULL);
+		}
+	}
+
 	ifp = malloc(sizeof(struct ifnet), M_IFNET, M_WAITOK | M_ZERO);
 	for (int i = 0; i < IFCOUNTERS; i++)
 		ifp->if_counters[i] = counter_u64_alloc(M_WAITOK);
@@ -514,12 +534,6 @@ if_attach(struct if_attach_args *ifat)
 	mac_ifnet_init(ifp);
 	mac_ifnet_create(ifp);
 #endif
-
-	ifdrv = ifat->ifat_drv;
-	ift = iftype_find(ifdrv->ifdrv_type);
-
-	if ((ifdrv->ifdrv_flags & IFDRV_BLESSED) == 0)
-		ifdriver_bless(ifdrv, ift);
 
 	ifp->if_ops = &ifdrv->ifdrv_ops;
 	ifp->if_drv = ifdrv;
@@ -564,7 +578,9 @@ if_attach(struct if_attach_args *ifat)
 
 	/* XXXGL: there is no check that name is unique. */
 	ifp->if_dunit = ifat->ifat_dunit;
-	if (ifat->ifat_dunit != IF_DUNIT_NONE)
+	if (ifat->ifat_name)
+		strlcpy(ifp->if_xname, ifat->ifat_name, IFNAMSIZ);
+	else if (ifat->ifat_dunit != IFAT_DUNIT_NONE)
 		snprintf(ifp->if_xname, IFNAMSIZ, "%s%d",
 		    ifdrv->ifdrv_name, ifat->ifat_dunit);
 	else
@@ -917,6 +933,9 @@ if_detach(if_t ifp)
 
 	ifindex_free(ifp->if_index);
 	IFNET_WUNLOCK();
+
+	if (ifp->if_drv->ifdrv_clone != NULL)
+		ifc_free_unit(ifp->if_drv->ifdrv_clone, ifp->if_dunit);
 
 	if (refcount_release(&ifp->if_refcount))
 		if_free_internal(ifp);

@@ -648,6 +648,7 @@ struct ifdriver {
 	 * static string works well.
 	 */
 	const char *	ifdrv_name;
+	struct if_clone *ifdrv_clone;
 	ifType		ifdrv_type;	/* from if_types.h */
 	uint8_t		ifdrv_hdrlen;	/* media header length */
 	uint8_t		ifdrv_addrlen;	/* media address length */
@@ -671,11 +672,14 @@ struct if_attach_args {
 	uint8_t		ifat_spare8;
 	uint16_t	ifat_spare16;
 	uint32_t	ifat_spare32;
+	int		ifat_error;	/* Filled on return. */
 
 	struct ifdriver	*ifat_drv;
 	void 		*ifat_softc;	/* Driver private softc. */
 	const uint8_t	*ifat_lla;	/* Link-level address. */
-	int32_t		ifat_dunit;	/* unit or IF_DUNIT_NONE */
+	int32_t		ifat_dunit;	/* Specific unit or a hint. */
+#define	IFAT_DUNIT_NONE	(-1)
+	char *		ifat_name;	/* If driver wants a specific name. */
 	/*
 	 * Variables that may differ between two instances of a same
 	 * driver, but are constant within instance lifetime.

@@ -53,9 +53,6 @@ struct	netmap_adapter;
 #include <sys/rwlock.h>		/* XXX */
 #include <sys/sx.h>		/* XXX */
 #include <sys/_task.h>		/* if_link_task */
-
-#define	IF_DUNIT_NONE	-1
-
 #include <altq/if_altq.h>
 
 TAILQ_HEAD(ifnethead, ifnet);	/* we use TAILQs so that the order of */

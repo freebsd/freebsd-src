@@ -129,7 +129,7 @@ sysctl_ifdata(SYSCTL_HANDLER_ARGS) /* XXX bad syntax! */
 			error = ENOMEM;
 			goto out;
 		}
-		if (ifp->if_dunit == IF_DUNIT_NONE)
+		if (ifp->if_dunit == IFAT_DUNIT_NONE)
 			strcpy(dbuf, ifp->if_drv->ifdrv_name);
 		else
 			sprintf(dbuf, "%s%d", ifp->if_drv->ifdrv_name,
