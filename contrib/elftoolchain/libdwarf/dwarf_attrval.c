@@ -125,6 +125,7 @@ dwarf_attrval_signed(Dwarf_Die die, Dwarf_Half attr, Dwarf_Signed *valp, Dwarf_E
 		break;
 	case DW_FORM_data4:
 		*valp = (int32_t) at->u[0].s64;
+		break;
 	case DW_FORM_data8:
 	case DW_FORM_sdata:
 		*valp = at->u[0].s64;
