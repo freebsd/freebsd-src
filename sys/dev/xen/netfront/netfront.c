@@ -1741,7 +1741,6 @@ xn_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	int mask, error = 0;
 	switch(cmd) {
 	case SIOCSIFADDR:
-	case SIOCGIFADDR:
 #ifdef INET
 		XN_LOCK(sc);
 		if (ifa->ifa_addr->sa_family == AF_INET) {
