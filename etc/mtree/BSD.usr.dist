@@ -14,6 +14,14 @@
     lib
         aout
         ..
+        clang
+            3.5.0
+                lib
+                    freebsd
+                    ..
+                ..
+            ..
+        ..
         compat
             aout
             ..
