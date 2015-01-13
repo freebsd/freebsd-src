@@ -149,9 +149,8 @@ struct pci_dev {
 	uint16_t		device;
 	uint16_t		vendor;
 	unsigned int		irq;
-        unsigned int            devfn;
-        u8                      revision;
-        struct pci_devinfo      *bus; /* bus this device is on, equivalent to linux struct pci_bus */
+	unsigned int		devfn;
+	u8			revision;
 };
 
 static inline struct resource_list_entry *
@@ -577,6 +576,14 @@ pci_enable_msix(struct pci_dev *pdev, struct msix_entry *entries, int nreq)
 	avail = nreq;
 	if ((error = -pci_alloc_msix(pdev->dev.bsddev, &avail)) != 0)
 		return error;
+	/*
+	 * Handle case where "pci_alloc_msix()" may allocate less
+	 * interrupts than available and return with no error:
+	 */
+	if (avail < nreq) {
+		pci_release_msi(pdev->dev.bsddev);
+		return avail;
+	}
 	rle = _pci_get_rle(pdev, SYS_RES_IRQ, 1);
 	pdev->dev.msix = rle->start;
 	pdev->dev.msix_max = rle->start + avail;

@@ -1613,8 +1613,12 @@ static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 	eq = 0;
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB) {
 		for (j = 0; j < eq_per_port; j++) {
-			//sprintf(name, "mlx4-ib-%d-%d@%s",
-			//	i, j, dev->pdev->bus->conf.pd_name);
+			snprintf(name, sizeof(name), "mlx4-ib-%d-%d@%d:%d:%d:%d", i, j,
+			    pci_get_domain(dev->pdev->dev.bsddev),
+			    pci_get_bus(dev->pdev->dev.bsddev),
+			    PCI_SLOT(dev->pdev->devfn),
+			    PCI_FUNC(dev->pdev->devfn));
+
 			/* Set IRQ for specific name (per ring) */
 			if (mlx4_assign_eq(dev, name,
 					   &ibdev->eq_table[eq])) {
