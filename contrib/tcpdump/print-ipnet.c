@@ -21,10 +21,10 @@ const struct tok ipnet_values[] = {
 };
 
 static inline void
-ipnet_hdr_print(struct netdissect_options *ndo, packetbody_t bp, u_int length)
+ipnet_hdr_print(struct netdissect_options *ndo, const u_char *bp, u_int length)
 {
-	__capability const ipnet_hdr_t *hdr;
-	hdr = (__capability const ipnet_hdr_t *)bp;
+	const ipnet_hdr_t *hdr;
+	hdr = (const ipnet_hdr_t *)bp;
 
 	ND_PRINT((ndo, "%d > %d", hdr->iph_zsrc, hdr->iph_zdst));
 
@@ -44,9 +44,9 @@ ipnet_hdr_print(struct netdissect_options *ndo, packetbody_t bp, u_int length)
 }
 
 static void
-ipnet_print(struct netdissect_options *ndo, packetbody_t p, u_int length, u_int caplen)
+ipnet_print(struct netdissect_options *ndo, const u_char *p, u_int length, u_int caplen)
 {
-	__capability ipnet_hdr_t *hdr;
+	ipnet_hdr_t *hdr;
 
 	if (caplen < sizeof(ipnet_hdr_t)) {
 		ND_PRINT((ndo, "[|ipnet]"));
@@ -58,7 +58,7 @@ ipnet_print(struct netdissect_options *ndo, packetbody_t p, u_int length, u_int 
 
 	length -= sizeof(ipnet_hdr_t);
 	caplen -= sizeof(ipnet_hdr_t);
-	hdr = (__capability ipnet_hdr_t *)p;
+	hdr = (ipnet_hdr_t *)p;
 	p += sizeof(ipnet_hdr_t);
 
 	switch (hdr->iph_family) {
@@ -75,7 +75,7 @@ ipnet_print(struct netdissect_options *ndo, packetbody_t p, u_int length, u_int 
 
 	default:
 		if (!ndo->ndo_eflag)
-			ipnet_hdr_print(ndo, (__capability u_char *)hdr,
+			ipnet_hdr_print(ndo, (u_char *)hdr,
 					length + sizeof(ipnet_hdr_t));
 
 		if (!ndo->ndo_suppress_default_print)
@@ -92,7 +92,7 @@ ipnet_print(struct netdissect_options *ndo, packetbody_t p, u_int length, u_int 
  */
 u_int
 ipnet_if_print(struct netdissect_options *ndo,
-               const struct pcap_pkthdr *h, packetbody_t p)
+               const struct pcap_pkthdr *h, const u_char *p)
 {
 	ipnet_print(ndo, p, h->len, h->caplen);
 

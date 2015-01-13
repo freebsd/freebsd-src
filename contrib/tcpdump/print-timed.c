@@ -44,7 +44,7 @@ static const char *tsptype[TSPTYPENUMBER] =
   "TEST", "SETDATE", "SETDATEREQ", "LOOP" };
 
 void
-timed_print(packetbody_t bp)
+timed_print(const u_char *bp)
 {
 	if (!invoke_dissector((void *)_timed_print,
 	    snapend - bp, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -52,12 +52,12 @@ timed_print(packetbody_t bp)
 }
 
 void
-_timed_print(packetbody_t bp)
+_timed_print(const u_char *bp)
 {
-#define endof(x) ((packetbody_t)&(x) + sizeof (x))
-	__capability const struct tsp *tsp = (__capability const struct tsp *)bp;
+#define endof(x) ((const u_char *)&(x) + sizeof (x))
+	const struct tsp *tsp = (const struct tsp *)bp;
 	long sec, usec;
-	packetbody_t end;
+	const u_char *end;
 
 	if (endof(tsp->tsp_type) > snapend) {
 		fputs("[|timed]", stdout);

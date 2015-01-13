@@ -47,15 +47,15 @@ static const char rcsid[] _U_ =
 static u_int lastlen[2][256];
 static u_int lastconn = 255;
 
-static void sliplink_print(packetbody_t, __capability const struct ip *, u_int);
-static void compressed_sl_print(packetbody_t, __capability const struct ip *, u_int, int);
+static void sliplink_print(const u_char *, const struct ip *, u_int);
+static void compressed_sl_print(const u_char *, const struct ip *, u_int, int);
 
 u_int
-sl_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+sl_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	register u_int caplen = h->caplen;
 	register u_int length = h->len;
-	__capability const struct ip *ip;
+	const struct ip *ip;
 
 	if (caplen < SLIP_HDRLEN) {
 		printf("[|slip]");
@@ -64,18 +64,18 @@ sl_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 	length -= SLIP_HDRLEN;
 
-	ip = (__capability const struct ip *)(p + SLIP_HDRLEN);
+	ip = (const struct ip *)(p + SLIP_HDRLEN);
 
 	if (eflag)
 		sliplink_print(p, ip, length);
 
 	switch (IP_V(ip)) {
 	case 4:
-	        ip_print(gndo, (packetbody_t)ip, length);
+	        ip_print(gndo, (const u_char *)ip, length);
 		break;
 #ifdef INET6
 	case 6:
-		ip6_print(gndo, (packetbody_t)ip, length);
+		ip6_print(gndo, (const u_char *)ip, length);
 		break;
 #endif
 	default:
@@ -86,11 +86,11 @@ sl_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 }
 
 u_int
-sl_bsdos_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+sl_bsdos_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	register u_int caplen = h->caplen;
 	register u_int length = h->len;
-	__capability const struct ip *ip;
+	const struct ip *ip;
 
 	if (caplen < SLIP_HDRLEN) {
 		printf("[|slip]");
@@ -99,20 +99,20 @@ sl_bsdos_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 	length -= SLIP_HDRLEN;
 
-	ip = (__capability const struct ip *)(p + SLIP_HDRLEN);
+	ip = (const struct ip *)(p + SLIP_HDRLEN);
 
 #ifdef notdef
 	if (eflag)
 		sliplink_print(p, ip, length);
 #endif
 
-	ip_print(gndo, (packetbody_t)ip, length);
+	ip_print(gndo, (const u_char *)ip, length);
 
 	return (SLIP_HDRLEN);
 }
 
 static void
-sliplink_print(packetbody_t p, __capability const struct ip *ip,
+sliplink_print(const u_char *p, const struct ip *ip,
 	       register u_int length)
 {
 	int dir;
@@ -143,7 +143,7 @@ sliplink_print(packetbody_t p, __capability const struct ip *ip,
 		 * Get it from the link layer since sl_uncompress_tcp()
 		 * has restored the IP header copy to IPPROTO_TCP.
 		 */
-		lastconn = ((__capability const struct ip *)&p[SLX_CHDR])->ip_p;
+		lastconn = ((const struct ip *)&p[SLX_CHDR])->ip_p;
 		hlen = IP_HL(ip);
 		hlen += TH_OFF((struct tcphdr *)&((int *)ip)[hlen]);
 		lastlen[dir][lastconn] = length - (hlen << 2);
@@ -160,8 +160,8 @@ sliplink_print(packetbody_t p, __capability const struct ip *ip,
 	}
 }
 
-static packetbody_t
-print_sl_change(const char *str, packetbody_t cp)
+static const u_char *
+print_sl_change(const char *str, const u_char *cp)
 {
 	register u_int i;
 
@@ -173,8 +173,8 @@ print_sl_change(const char *str, packetbody_t cp)
 	return (cp);
 }
 
-static packetbody_t
-print_sl_winchange(packetbody_t cp)
+static const u_char *
+print_sl_winchange(const u_char *cp)
 {
 	register short i;
 
@@ -190,10 +190,10 @@ print_sl_winchange(packetbody_t cp)
 }
 
 static void
-compressed_sl_print(packetbody_t chdr, __capability const struct ip *ip,
+compressed_sl_print(const u_char *chdr, const struct ip *ip,
 		    u_int length, int dir)
 {
-	packetbody_t cp = chdr;
+	const u_char *cp = chdr;
 	register u_int flags, hlen;
 
 	flags = *cp++;

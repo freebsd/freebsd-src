@@ -486,7 +486,7 @@ static const struct tok rsvp_obj_generalized_uni_values[] = {
     { 0, NULL}
 };
 
-static int rsvp_intserv_print(packetbody_t, u_short);
+static int rsvp_intserv_print(const u_char *, u_short);
 
 /* 
  * this is a dissector for all the intserv defined
@@ -495,7 +495,7 @@ static int rsvp_intserv_print(packetbody_t, u_short);
  * returns the amount of bytes being processed
  */
 static int
-rsvp_intserv_print(packetbody_t tptr, u_short obj_tlen) {
+rsvp_intserv_print(const u_char *tptr, u_short obj_tlen) {
 
     int parameter_id,parameter_length;
     union {
@@ -636,7 +636,7 @@ rsvp_intserv_print(packetbody_t tptr, u_short obj_tlen) {
 }
 
 static int
-rsvp_obj_print (packetbody_t pptr
+rsvp_obj_print (const u_char *pptr
 #ifndef HAVE_LIBCRYPTO
 _U_
 #endif
@@ -644,14 +644,14 @@ _U_
 #ifndef HAVE_LIBCRYPTO
 _U_
 #endif
-, packetbody_t tptr,
+, const u_char *tptr,
                 const char *ident, u_int tlen) {
 
-    __capability const struct rsvp_object_header *rsvp_obj_header;
-    packetbody_t obj_tptr;
+    const struct rsvp_object_header *rsvp_obj_header;
+    const u_char *obj_tptr;
     union {
-        __capability const struct rsvp_obj_integrity_t *rsvp_obj_integrity;
-        __capability const struct rsvp_obj_frr_t *rsvp_obj_frr;
+        const struct rsvp_obj_integrity_t *rsvp_obj_integrity;
+        const struct rsvp_obj_frr_t *rsvp_obj_frr;
     } obj_ptr;
 
     u_short rsvp_obj_len,rsvp_obj_ctype,obj_tlen,intserv_serv_tlen;
@@ -669,7 +669,7 @@ _U_
         if (!TTEST2(*tptr, sizeof(struct rsvp_object_header)))
             goto trunc;
 
-        rsvp_obj_header = (__capability const struct rsvp_object_header *)tptr;
+        rsvp_obj_header = (const struct rsvp_object_header *)tptr;
         rsvp_obj_len=EXTRACT_16BITS(rsvp_obj_header->length);
         rsvp_obj_ctype=rsvp_obj_header->ctype;
 
@@ -1446,7 +1446,7 @@ _U_
 
         case RSVP_OBJ_FASTREROUTE:
             /* the differences between c-type 1 and 7 are minor */
-            obj_ptr.rsvp_obj_frr = (__capability const struct rsvp_obj_frr_t *)obj_tptr;
+            obj_ptr.rsvp_obj_frr = (const struct rsvp_obj_frr_t *)obj_tptr;
             bw.i = EXTRACT_32BITS(obj_ptr.rsvp_obj_frr->bandwidth);
 
             switch(rsvp_obj_ctype) {
@@ -1656,7 +1656,7 @@ _U_
             case RSVP_CTYPE_1:
                 if (obj_tlen < sizeof(struct rsvp_obj_integrity_t))
                     return-1;
-                obj_ptr.rsvp_obj_integrity = (__capability const struct rsvp_obj_integrity_t *)obj_tptr;
+                obj_ptr.rsvp_obj_integrity = (const struct rsvp_obj_integrity_t *)obj_tptr;
                 printf("%s  Key-ID 0x%04x%08x, Sequence 0x%08x%08x, Flags [%s]",
                        ident,
                        EXTRACT_16BITS(obj_ptr.rsvp_obj_integrity->key_id),
@@ -1804,7 +1804,7 @@ trunc:
 
 
 void
-rsvp_print(packetbody_t pptr, register u_int len)
+rsvp_print(const u_char *pptr, register u_int len)
 {
 	if (!invoke_dissector((void *)_rsvp_print,
 	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -1812,15 +1812,15 @@ rsvp_print(packetbody_t pptr, register u_int len)
 }
 
 void
-_rsvp_print(packetbody_t pptr, register u_int len)
+_rsvp_print(const u_char *pptr, register u_int len)
 {
-    __capability const struct rsvp_common_header *rsvp_com_header;
-    packetbody_t tptr, subtptr;
+    const struct rsvp_common_header *rsvp_com_header;
+    const u_char *tptr, *subtptr;
     u_short plen, tlen, subtlen;
 
     tptr=pptr;
 
-    rsvp_com_header = (__capability struct rsvp_common_header *)pptr;
+    rsvp_com_header = (struct rsvp_common_header *)pptr;
     TCHECK(*rsvp_com_header);
 
     /*
@@ -1876,7 +1876,7 @@ _rsvp_print(packetbody_t pptr, register u_int len)
     case RSVP_MSGTYPE_AGGREGATE:
         while(tlen > 0) {
             subtptr=tptr;
-            rsvp_com_header = (__capability const struct rsvp_common_header *)subtptr;
+            rsvp_com_header = (const struct rsvp_common_header *)subtptr;
             TCHECK(*rsvp_com_header);
 
             /*

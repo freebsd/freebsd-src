@@ -189,7 +189,7 @@ struct ip6_frag {
 #define IP6F_MORE_FRAG		0x0001	/* more-fragments flag */
 
 /* in print-ip6.c */
-extern int nextproto6_cksum(__capability const struct ip6_hdr *,
-			    __capability const u_int8_t *, u_int, u_int);
+extern int nextproto6_cksum(const struct ip6_hdr *,
+			    const u_int8_t *, u_int, u_int);
 
 #endif /* not _NETINET_IP6_H_ */

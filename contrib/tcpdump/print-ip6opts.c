@@ -68,10 +68,10 @@ static const char rcsid[] _U_ =
 #define IP6SOPT_AUTH          0x4
 #define IP6SOPT_AUTH_MINLEN     6
 
-static void ip6_sopt_print(packetbody_t, int);
+static void ip6_sopt_print(const u_char *, int);
 
 static void
-ip6_sopt_print(packetbody_t bp, int len)
+ip6_sopt_print(const u_char *bp, int len)
 {
     int i;
     int optlen;
@@ -136,7 +136,7 @@ trunc:
 }
 
 void
-ip6_opt_print(packetbody_t bp, int len)
+ip6_opt_print(const u_char *bp, int len)
 {
     int i;
     int optlen = 0;
@@ -289,10 +289,10 @@ trunc:
 }
 
 int
-hbhopt_print(packetbody_t bp)
+hbhopt_print(const u_char *bp)
 {
-    __capability const struct ip6_hbh *dp =
-	(__capability const struct ip6_hbh *)bp;
+    const struct ip6_hbh *dp =
+	(const struct ip6_hbh *)bp;
     int hbhlen = 0;
 
     TCHECK(dp->ip6h_len);
@@ -300,7 +300,7 @@ hbhopt_print(packetbody_t bp)
     TCHECK2(*dp, hbhlen);
     printf("HBH ");
     if (vflag)
-	ip6_opt_print((packetbody_t)dp + sizeof(*dp), hbhlen - sizeof(*dp));
+	ip6_opt_print((const u_char *)dp + sizeof(*dp), hbhlen - sizeof(*dp));
 
     return(hbhlen);
 
@@ -310,10 +310,10 @@ hbhopt_print(packetbody_t bp)
 }
 
 int
-dstopt_print(packetbody_t bp)
+dstopt_print(const u_char *bp)
 {
-    __capability const struct ip6_dest *dp =
-	(__capability const struct ip6_dest *)bp;
+    const struct ip6_dest *dp =
+	(const struct ip6_dest *)bp;
     int dstoptlen = 0;
 
     TCHECK(dp->ip6d_len);
@@ -321,7 +321,7 @@ dstopt_print(packetbody_t bp)
     TCHECK2(*dp, dstoptlen);
     printf("DSTOPT ");
     if (vflag) {
-	ip6_opt_print((packetbody_t)dp + sizeof(*dp),
+	ip6_opt_print((const u_char *)dp + sizeof(*dp),
 	    dstoptlen - sizeof(*dp));
     }
 

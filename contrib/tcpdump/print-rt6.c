@@ -41,15 +41,15 @@ static const char rcsid[] _U_ =
 #include "extract.h"
 
 int
-rt6_print(packetbody_t bp, packetbody_t bp2 _U_)
+rt6_print(const u_char *bp, const u_char *bp2 _U_)
 {
-	__capability const struct ip6_rthdr *dp;
-	__capability const struct ip6_rthdr0 *dp0;
-	packetbody_t ep;
+	const struct ip6_rthdr *dp;
+	const struct ip6_rthdr0 *dp0;
+	const u_char *ep;
 	int i, len;
-	__capability const struct in6_addr *addr;
+	const struct in6_addr *addr;
 
-	dp = (__capability const struct ip6_rthdr *)bp;
+	dp = (const struct ip6_rthdr *)bp;
 	len = dp->ip6r_len;
 
 	/* 'ep' points to the end of available data. */
@@ -70,7 +70,7 @@ rt6_print(packetbody_t bp, packetbody_t bp2 _U_)
 #endif
 	case IPV6_RTHDR_TYPE_0:
 	case IPV6_RTHDR_TYPE_2:			/* Mobile IPv6 ID-20 */
-		dp0 = (__capability const struct ip6_rthdr0 *)dp;
+		dp0 = (const struct ip6_rthdr0 *)dp;
 
 		TCHECK(dp0->ip6r0_reserved);
 		if (dp0->ip6r0_reserved || vflag) {

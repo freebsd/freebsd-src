@@ -55,8 +55,8 @@ static const char *ns_resp[] = {
 };
 
 /* skip over a domain name */
-static packetbody_t
-ns_nskip(packetbody_t cp)
+static const u_char *
+ns_nskip(const u_char *cp)
 {
 	register u_char i;
 
@@ -87,11 +87,11 @@ ns_nskip(packetbody_t cp)
 }
 
 /* print a <domain-name> */
-static packetbody_t
-blabel_print(packetbody_t cp)
+static const u_char *
+blabel_print(const u_char *cp)
 {
 	int bitlen, slen, b;
-	packetbody_t bitp, lim;
+	const u_char *bitp, *lim;
 	char tc;
 
 	if (!TTEST2(*cp, 1))
@@ -124,7 +124,7 @@ trunc:
 }
 
 static int
-labellen(packetbody_t cp)
+labellen(const u_char *cp)
 {
 	register u_int i;
 
@@ -146,11 +146,11 @@ labellen(packetbody_t cp)
 		return(i);
 }
 
-packetbody_t
-ns_nprint(packetbody_t cp, packetbody_t bp)
+const u_char *
+ns_nprint(const u_char *cp, const u_char *bp)
 {
 	register u_int i, l;
-	packetbody_t rp = NULL;
+	const u_char *rp = NULL;
 	register int compress = 0;
 	int chars_processed;
 	int elt;
@@ -230,8 +230,8 @@ ns_nprint(packetbody_t cp, packetbody_t bp)
 }
 
 /* print a <character-string> */
-static packetbody_t
-ns_cprint(packetbody_t cp)
+static const u_char *
+ns_cprint(const u_char *cp)
 {
 	register u_int i;
 
@@ -318,10 +318,10 @@ struct tok ns_class2str[] = {
 };
 
 /* print a query */
-static packetbody_t
-ns_qprint(packetbody_t cp, packetbody_t bp, int is_mdns)
+static const u_char *
+ns_qprint(const u_char *cp, const u_char *bp, int is_mdns)
 {
-	packetbody_t np = cp;
+	const u_char *np = cp;
 	register u_int i, class;
 
 	cp = ns_nskip(cp);
@@ -355,12 +355,12 @@ ns_qprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 }
 
 /* print a reply */
-static packetbody_t
-ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
+static const u_char *
+ns_rprint(const u_char *cp, const u_char *bp, int is_mdns)
 {
 	register u_int i, class, opt_flags = 0;
 	register u_short typ, len;
-	packetbody_t rp;
+	const u_char *rp;
 
 	if (vflag) {
 		putchar(' ');
@@ -578,7 +578,7 @@ ns_rprint(packetbody_t cp, packetbody_t bp, int is_mdns)
 }
 
 void
-ns_print(packetbody_t bp, u_int length, int is_mdns)
+ns_print(const u_char *bp, u_int length, int is_mdns)
 {
 	if (!invoke_dissector((void *)_ns_print,
 	    length, is_mdns, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -586,14 +586,14 @@ ns_print(packetbody_t bp, u_int length, int is_mdns)
 }
 
 void
-_ns_print(packetbody_t bp, u_int length, int is_mdns)
+_ns_print(const u_char *bp, u_int length, int is_mdns)
 {
-	__capability const HEADER *np;
+	const HEADER *np;
 	register int qdcount, ancount, nscount, arcount;
-	packetbody_t cp;
+	const u_char *cp;
 	u_int16_t b2;
 
-	np = (__capability const HEADER *)bp;
+	np = (const HEADER *)bp;
 	TCHECK(*np);
 	/* get the byte-order right */
 	qdcount = EXTRACT_16BITS(&np->qdcount);
@@ -615,7 +615,7 @@ _ns_print(packetbody_t bp, u_int length, int is_mdns)
 		if (qdcount != 1)
 			printf(" [%dq]", qdcount);
 		/* Print QUESTION section on -vv */
-		cp = (packetbody_t)(np + 1);
+		cp = (const u_char *)(np + 1);
 		while (qdcount--) {
 			if (qdcount < EXTRACT_16BITS(&np->qdcount) - 1)
 				putchar(',');
@@ -676,7 +676,7 @@ _ns_print(packetbody_t bp, u_int length, int is_mdns)
 		    DNS_CD(np) ? "%" : "");
 
 		/* any weirdness? */
-		b2 = EXTRACT_16BITS(((__capability u_short *)np)+1);
+		b2 = EXTRACT_16BITS(((u_short *)np)+1);
 		if (b2 & 0x6cf)
 			printf(" [b2&3=0x%x]", b2);
 
@@ -697,14 +697,14 @@ _ns_print(packetbody_t bp, u_int length, int is_mdns)
 		if (arcount)
 			printf(" [%dau]", arcount);
 
-		cp = (packetbody_t)(np + 1);
+		cp = (const u_char *)(np + 1);
 		if (qdcount--) {
-			cp = ns_qprint(cp, (packetbody_t) np, is_mdns);
+			cp = ns_qprint(cp, (const u_char *) np, is_mdns);
 			if (!cp)
 				goto trunc;
 			while (cp < snapend && qdcount--) {
-				cp = ns_qprint((packetbody_t)cp,
-					       (packetbody_t)np,
+				cp = ns_qprint((const u_char *)cp,
+					       (const u_char *)np,
 					       is_mdns);
 				if (!cp)
 					goto trunc;

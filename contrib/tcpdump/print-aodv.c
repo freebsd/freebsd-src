@@ -56,7 +56,7 @@ static void
 aodv_extension(const struct aodv_ext *ep, u_int length)
 {
 	u_int i;
-	__capability const struct aodv_hello *ah;
+	const struct aodv_hello *ah;
 
 	switch (ep->type) {
 	case AODV_EXT_HELLO:
@@ -70,7 +70,7 @@ aodv_extension(const struct aodv_ext *ep, u_int length)
 			return;
 		}
 		i -= sizeof(struct aodv_hello);
-		ah = (__capability void *)ep;
+		ah = (void *)ep;
 		printf("\n\text HELLO %ld ms",
 		    (unsigned long)EXTRACT_32BITS(&ah->interval));
 		break;
@@ -82,7 +82,7 @@ aodv_extension(const struct aodv_ext *ep, u_int length)
 }
 
 static void
-aodv_rreq(__capability const union aodv *ap, packetbody_t dat, u_int length)
+aodv_rreq(const union aodv *ap, const u_char *dat, u_int length)
 {
 	u_int i;
 
@@ -114,7 +114,7 @@ aodv_rreq(__capability const union aodv *ap, packetbody_t dat, u_int length)
 }
 
 static void
-aodv_rrep(__capability const union aodv *ap, packetbody_t dat, u_int length)
+aodv_rrep(const union aodv *ap, const u_char *dat, u_int length)
 {
 	u_int i;
 
@@ -143,10 +143,10 @@ aodv_rrep(__capability const union aodv *ap, packetbody_t dat, u_int length)
 }
 
 static void
-aodv_rerr(__capability const union aodv *ap, packetbody_t dat, u_int length)
+aodv_rerr(const union aodv *ap, const u_char *dat, u_int length)
 {
 	u_int i;
-	__capability const struct rerr_unreach *dp = NULL;
+	const struct rerr_unreach *dp = NULL;
 	int n, trunc;
 
 	if (snapend < dat) {
@@ -176,9 +176,9 @@ aodv_rerr(__capability const union aodv *ap, packetbody_t dat, u_int length)
 
 static void
 #ifdef INET6
-aodv_v6_rreq(__capability const union aodv *ap, packetbody_t dat, u_int length)
+aodv_v6_rreq(const union aodv *ap, const u_char *dat, u_int length)
 #else
-aodv_v6_rreq(__capability const union aodv *ap _U_, packetbody_t dat _U_, u_int length)
+aodv_v6_rreq(const union aodv *ap _U_, const u_char *dat _U_, u_int length)
 #endif
 {
 #ifdef INET6
@@ -216,9 +216,9 @@ aodv_v6_rreq(__capability const union aodv *ap _U_, packetbody_t dat _U_, u_int 
 
 static void
 #ifdef INET6
-aodv_v6_rrep(__capability const union aodv *ap, packetbody_t dat, u_int length)
+aodv_v6_rrep(const union aodv *ap, const u_char *dat, u_int length)
 #else
-aodv_v6_rrep(__capability const union aodv *ap _U_, packetbody_t dat _U_, u_int length)
+aodv_v6_rrep(const union aodv *ap _U_, const u_char *dat _U_, u_int length)
 #endif
 {
 #ifdef INET6
@@ -253,13 +253,13 @@ aodv_v6_rrep(__capability const union aodv *ap _U_, packetbody_t dat _U_, u_int 
 
 static void
 #ifdef INET6
-aodv_v6_rerr(__capability const union aodv *ap, u_int length)
+aodv_v6_rerr(const union aodv *ap, u_int length)
 #else
-aodv_v6_rerr(__capability const union aodv *ap _U_, u_int length)
+aodv_v6_rerr(const union aodv *ap _U_, u_int length)
 #endif
 {
 #ifdef INET6
-	__capability const struct rerr_unreach6 *dp6 = NULL;
+	const struct rerr_unreach6 *dp6 = NULL;
 	int i, j, n, trunc;
 
 	i = length - offsetof(struct aodv_rerr, r);
@@ -283,9 +283,9 @@ aodv_v6_rerr(__capability const union aodv *ap _U_, u_int length)
 
 static void
 #ifdef INET6
-aodv_v6_draft_01_rreq(__capability const union aodv *ap, packetbody_t dat, u_int length)
+aodv_v6_draft_01_rreq(const union aodv *ap, const u_char *dat, u_int length)
 #else
-aodv_v6_draft_01_rreq(__capability const union aodv *ap _U_, packetbody_t dat _U_,
+aodv_v6_draft_01_rreq(const union aodv *ap _U_, const u_char *dat _U_,
     u_int length)
 #endif
 {
@@ -324,9 +324,9 @@ aodv_v6_draft_01_rreq(__capability const union aodv *ap _U_, packetbody_t dat _U
 
 static void
 #ifdef INET6
-aodv_v6_draft_01_rrep(__capability const union aodv *ap, packetbody_t dat, u_int length)
+aodv_v6_draft_01_rrep(const union aodv *ap, const u_char *dat, u_int length)
 #else
-aodv_v6_draft_01_rrep(__capability const union aodv *ap _U_, packetbody_t dat _U_,
+aodv_v6_draft_01_rrep(const union aodv *ap _U_, const u_char *dat _U_,
     u_int length)
 #endif
 {
@@ -362,13 +362,13 @@ aodv_v6_draft_01_rrep(__capability const union aodv *ap _U_, packetbody_t dat _U
 
 static void
 #ifdef INET6
-aodv_v6_draft_01_rerr(__capability const union aodv *ap, u_int length)
+aodv_v6_draft_01_rerr(const union aodv *ap, u_int length)
 #else
-aodv_v6_draft_01_rerr(__capability const union aodv *ap _U_, u_int length)
+aodv_v6_draft_01_rerr(const union aodv *ap _U_, u_int length)
 #endif
 {
 #ifdef INET6
-	__capability const struct rerr_unreach6_draft_01 *dp6 = NULL;
+	const struct rerr_unreach6_draft_01 *dp6 = NULL;
 	int i, j, n, trunc;
 
 	i = length - offsetof(struct aodv_rerr, r);
@@ -391,7 +391,7 @@ aodv_v6_draft_01_rerr(__capability const union aodv *ap _U_, u_int length)
 }
 
 void
-aodv_print(packetbody_t dat, u_int length, int is_ip6)
+aodv_print(const u_char *dat, u_int length, int is_ip6)
 {
 	if (!invoke_dissector((void *)_aodv_print,
 	    length, is_ip6, 0, 0, 0, gndo, dat, NULL, NULL, NULL))
@@ -399,11 +399,11 @@ aodv_print(packetbody_t dat, u_int length, int is_ip6)
 }
 
 void
-_aodv_print(packetbody_t dat, u_int length, int is_ip6)
+_aodv_print(const u_char *dat, u_int length, int is_ip6)
 {
-	__capability const union aodv *ap;
+	const union aodv *ap;
 
-	ap = (__capability const union aodv *)dat;
+	ap = (const union aodv *)dat;
 	if (snapend < dat) {
 		/* XXX-BD: packet isn't truncated, we're off the end */
 		printf(" [|aodv]");

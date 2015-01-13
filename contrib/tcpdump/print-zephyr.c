@@ -38,23 +38,23 @@ static const char rcsid[] _U_ =
 #include "interface.h"
 
 struct z_packet {
-    packetbody_t version;
+    const u_char *version;
     int numfields;
     int kind;
-    packetbody_t uid;
+    const u_char *uid;
     int port;
     int auth;
     int authlen;
-    packetbody_t authdata;
-    packetbody_t class;
-    packetbody_t inst;
-    packetbody_t opcode;
-    packetbody_t sender;
-    packetbody_t recipient;
-    packetbody_t format;
+    const u_char *authdata;
+    const u_char *class;
+    const u_char *inst;
+    const u_char *opcode;
+    const u_char *sender;
+    const u_char *recipient;
+    const u_char *format;
     int cksum;
     int multi;
-    packetbody_t multi_uid;
+    const u_char *multi_uid;
     /* Other fields follow here.. */
 };
 
@@ -84,10 +84,10 @@ static struct tok z_types[] = {
 
 char z_buf[256];
 
-static packetbody_t
-parse_field(packetbody_t *pptr, int *len)
+static const u_char *
+parse_field(const u_char **pptr, int *len)
 {
-    packetbody_t s;
+    const u_char *s;
 
     if (*len <= 0 || !pptr || !*pptr)
 	return NULL;
@@ -107,7 +107,7 @@ parse_field(packetbody_t *pptr, int *len)
 }
 
 static const char *
-z_triple(packetbody_t class, packetbody_t inst, packetbody_t recipient)
+z_triple(const u_char *class, const u_char *inst, const u_char *recipient)
 {
     char *class_str, *inst_str, *recipient_str;
     class_str = p_strdup(class);
@@ -127,7 +127,7 @@ z_triple(packetbody_t class, packetbody_t inst, packetbody_t recipient)
 }
 
 static const char *
-str_to_lower(packetbody_t string)
+str_to_lower(const u_char *string)
 {
     char *s;
 
@@ -144,7 +144,7 @@ str_to_lower(packetbody_t string)
 }
 
 void
-zephyr_print(packetbody_t cp, int length)
+zephyr_print(const u_char *cp, int length)
 {
 	if (!invoke_dissector((void *)_zephyr_print,
 	    length, 0, 0, 0, 0, gndo, cp, NULL, NULL, NULL))
@@ -152,13 +152,13 @@ zephyr_print(packetbody_t cp, int length)
 }
 
 void
-_zephyr_print(packetbody_t cp, int length)
+_zephyr_print(const u_char *cp, int length)
 {
     char *buf;
     struct z_packet z;
-    packetbody_t parse = cp;
+    const u_char *parse = cp;
     int parselen = length;
-    packetbody_t s;
+    const u_char *s;
     int lose = 0;
 
     /* squelch compiler warnings */
@@ -220,7 +220,7 @@ _zephyr_print(packetbody_t cp, int length)
     printf(" %s", tok2str(z_types, "type %d", z.kind));
     if (z.kind == Z_PACKET_SERVACK) {
 	/* Initialization to silence warnings */
-	packetbody_t ackdata = NULL;
+	const u_char *ackdata = NULL;
 	PARSE_FIELD_STR(ackdata);
 	if (!lose && p_strcmp_static(ackdata, "SENT"))
 	    printf("/%s", str_to_lower(ackdata));
@@ -260,7 +260,7 @@ _zephyr_print(packetbody_t cp, int length)
 								   "-nodefs");
 		if (z.kind != Z_PACKET_SERVACK) {
 		    /* Initialization to silence warnings */
-		    packetbody_t c = NULL, i = NULL, r = NULL;
+		    const u_char *c = NULL, *i = NULL, *r = NULL;
 		    PARSE_FIELD_STR(c);
 		    PARSE_FIELD_STR(i);
 		    PARSE_FIELD_STR(r);
@@ -343,7 +343,7 @@ _zephyr_print(packetbody_t cp, int length)
     }
 
     if (!*z.recipient)
-	z.recipient = (__capability char *)"*";
+	z.recipient = (char *)"*";
 
     printf(" to %s", z_triple(z.class, z.inst, z.recipient));
     if (*z.opcode) {

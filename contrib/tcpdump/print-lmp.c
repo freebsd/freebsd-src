@@ -361,7 +361,7 @@ static const struct tok lmp_ctype_values[] = {
 };
 
 void
-lmp_print(packetbody_t pptr, register u_int len)
+lmp_print(const u_char *pptr, register u_int len)
 {
 	if (!invoke_dissector((void *)_lmp_print,
 	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -369,11 +369,11 @@ lmp_print(packetbody_t pptr, register u_int len)
 }
 
 void
-_lmp_print(packetbody_t pptr, register u_int len)
+_lmp_print(const u_char *pptr, register u_int len)
 {
-    __capability const struct lmp_common_header *lmp_com_header;
-    __capability const struct lmp_object_header *lmp_obj_header;
-    packetbody_t tptr, obj_tptr;
+    const struct lmp_common_header *lmp_com_header;
+    const struct lmp_object_header *lmp_obj_header;
+    const u_char *tptr, *obj_tptr;
     int tlen,lmp_obj_len,lmp_obj_ctype,obj_tlen;
     int hexdump;
     int offset,subobj_type,subobj_len,total_subobj_len;
@@ -385,7 +385,7 @@ _lmp_print(packetbody_t pptr, register u_int len)
     } bw;
 
     tptr=pptr;
-    lmp_com_header = (__capability const struct lmp_common_header *)pptr;
+    lmp_com_header = (const struct lmp_common_header *)pptr;
     TCHECK(*lmp_com_header);
 
     /*
@@ -424,7 +424,7 @@ _lmp_print(packetbody_t pptr, register u_int len)
         if (!TTEST2(*tptr, sizeof(struct lmp_object_header)))
             goto trunc;
 
-        lmp_obj_header = (__capability const struct lmp_object_header *)tptr;
+        lmp_obj_header = (const struct lmp_object_header *)tptr;
         lmp_obj_len=EXTRACT_16BITS(lmp_obj_header->length);
         lmp_obj_ctype=(lmp_obj_header->ctype)&0x7f;
 

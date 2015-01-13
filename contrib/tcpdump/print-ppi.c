@@ -18,13 +18,13 @@
 #ifdef DLT_PPI
 
 static inline void
-ppi_header_print(struct netdissect_options *ndo, packetbody_t bp, u_int length)
+ppi_header_print(struct netdissect_options *ndo, const u_char *bp, u_int length)
 {
-	__capability const ppi_header_t *hdr;
+	const ppi_header_t *hdr;
 	u_int32_t dlt;
 	u_int16_t len;
 
-	hdr = (__capability const ppi_header_t *)bp;
+	hdr = (const ppi_header_t *)bp;
 
 	len = EXTRACT_16BITS(&hdr->ppi_len);
 	dlt = EXTRACT_32BITS(&hdr->ppi_dlt);
@@ -42,11 +42,11 @@ ppi_header_print(struct netdissect_options *ndo, packetbody_t bp, u_int length)
 
 static void
 ppi_print(struct netdissect_options *ndo,
-               const struct pcap_pkthdr *h, packetbody_t p)
+               const struct pcap_pkthdr *h, const u_char *p)
 {
 	if_ndo_printer ndo_printer;
         if_printer printer;
-	__capability ppi_header_t *hdr;
+	ppi_header_t *hdr;
 	u_int caplen = h->caplen;
 	u_int length = h->len;
 	u_int32_t dlt;
@@ -55,7 +55,7 @@ ppi_print(struct netdissect_options *ndo,
 		ND_PRINT((ndo, "[|ppi]"));
 		return;
 	}
-	hdr = (__capability ppi_header_t *)p;
+	hdr = (ppi_header_t *)p;
 	dlt = EXTRACT_32BITS(&hdr->ppi_dlt);
 
 	if (ndo->ndo_eflag)
@@ -71,7 +71,7 @@ ppi_print(struct netdissect_options *ndo,
 		ndo_printer(ndo, h, p);
 	} else {
 		if (!ndo->ndo_eflag)
-			ppi_header_print(ndo, (packetbody_t)hdr,
+			ppi_header_print(ndo, (const u_char *)hdr,
 					length + sizeof(ppi_header_t));
 
 		if (!ndo->ndo_suppress_default_print)
@@ -87,7 +87,7 @@ ppi_print(struct netdissect_options *ndo,
  */
 u_int
 ppi_if_print(struct netdissect_options *ndo,
-               const struct pcap_pkthdr *h, packetbody_t p)
+               const struct pcap_pkthdr *h, const u_char *p)
 {
 	ppi_print(ndo, h, p);
 

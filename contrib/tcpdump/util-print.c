@@ -59,7 +59,7 @@ __fn_putchar(u_char c)
  * Return true if truncated.
  */
 int
-fn_print(packetbody_t s, packetbody_t ep)
+fn_print(const u_char *s, const u_char *ep)
 {
 	register int ret;
 	register u_char c;
@@ -82,7 +82,7 @@ fn_print(packetbody_t s, packetbody_t ep)
  * Return true if truncated.
  */
 int
-fn_printn(packetbody_t s, register u_int n, packetbody_t ep)
+fn_printn(const u_char *s, register u_int n, const u_char *ep)
 {
 	register u_char c;
 
@@ -101,7 +101,7 @@ fn_printn(packetbody_t s, register u_int n, packetbody_t ep)
  * Return true if truncated.
  */
 int
-fn_printzp(packetbody_t s, u_int n, packetbody_t ep)
+fn_printzp(const u_char *s, u_int n, const u_char *ep)
 {
 	register int ret;
 	register u_char c;
@@ -257,7 +257,7 @@ relts_print(int secs)
  */
 
 int
-print_unknown_data(packetbody_t cp, const char *ident, int len)
+print_unknown_data(const u_char *cp, const char *ident, int len)
 {
 	if (len < 0) {
 		printf("%sDissector error: print_unknown_data called with negative length",
@@ -439,7 +439,7 @@ mask2plen(u_int32_t mask)
 
 #ifdef INET6
 int
-mask62plen(packetbody_t mask)
+mask62plen(const u_char *mask)
 {
 	u_char bitmasks[9] = {
 		0x00,
@@ -467,7 +467,7 @@ mask62plen(packetbody_t mask)
 #endif /* INET6 */
 
 void
-safeputs(packetbody_t s, int maxlen)
+safeputs(const u_char *s, int maxlen)
 {
 	int idx = 0;
 
@@ -492,7 +492,7 @@ safeputchar(int c)
 
 
 const char *
-inet_ntop_cap(int af, __capability const void * restrict src,
+inet_ntop_cap(int af, const void * restrict src,
     char * restrict dst, socklen_t size)
 {
 	union {
@@ -515,7 +515,7 @@ inet_ntop_cap(int af, __capability const void * restrict src,
     
 #ifdef HAS_CHERI_CAPABILITIES
 char *
-p_strdup(packetbody_t data) {
+p_strdup(const u_char *data) {
         char *str;
         size_t len;
 
@@ -528,7 +528,7 @@ p_strdup(packetbody_t data) {
 }
 
 char *
-p_strndup(packetbody_t data, size_t n) {
+p_strndup(const u_char *data, size_t n) {
 	char *str;
 	size_t len;
 

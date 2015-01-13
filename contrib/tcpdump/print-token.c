@@ -50,7 +50,7 @@ static const char rcsid[] _U_ =
 
 /* Extract src, dst addresses */
 static inline void
-extract_token_addrs(__capability const struct token_header *trp, char *fsrc, char *fdst)
+extract_token_addrs(const struct token_header *trp, char *fsrc, char *fdst)
 {
 	p_memcpy_from_packet(fdst, trp->token_dhost, 6);
 	p_memcpy_from_packet(fsrc, trp->token_shost, 6);
@@ -60,7 +60,7 @@ extract_token_addrs(__capability const struct token_header *trp, char *fsrc, cha
  * Print the TR MAC header
  */
 static inline void
-token_hdr_print(__capability const struct token_header *trp, register u_int length,
+token_hdr_print(const struct token_header *trp, register u_int length,
 	   u_char *fsrc, u_char *fdst)
 {
 	const char *srcname, *dstname;
@@ -101,7 +101,7 @@ static const char *largest_frame[] = {
 };
 
 void
-token_print(packetbody_t p, u_int length, u_int caplen)
+token_print(const u_char *p, u_int length, u_int caplen)
 {
 	if (!invoke_dissector((void *)_token_print,
 	    length, caplen, 0, 0, 0, gndo, p, NULL, NULL, NULL))
@@ -109,15 +109,15 @@ token_print(packetbody_t p, u_int length, u_int caplen)
 }
 
 u_int
-_token_print(packetbody_t p, u_int length, u_int caplen)
+_token_print(const u_char *p, u_int length, u_int caplen)
 {
-	__capability const struct token_header *trp;
+	const struct token_header *trp;
 	u_short extracted_ethertype;
 	struct ether_header ehdr;
 	u_int route_len = 0, hdr_len = TOKEN_HDRLEN;
 	int seg;
 
-	trp = (__capability const struct token_header *)p;
+	trp = (const struct token_header *)p;
 
 	if (caplen < TOKEN_HDRLEN) {
 		printf("[|token-ring]");
@@ -208,7 +208,7 @@ _token_print(packetbody_t p, u_int length, u_int caplen)
  * is the number of bytes actually captured.
  */
 u_int
-token_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+token_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	return (_token_print(p, h->len, h->caplen));
 }

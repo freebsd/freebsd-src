@@ -47,7 +47,7 @@ static const char rcsid[] _U_ =
 
 /* Extract src, dst addresses */
 static inline void
-extract_ipfc_addrs(__capability const struct ipfc_header *ipfcp,
+extract_ipfc_addrs(const struct ipfc_header *ipfcp,
     u_char *ipfcsrc, u_char *ipfcdst)
 {
 	/*
@@ -62,7 +62,7 @@ extract_ipfc_addrs(__capability const struct ipfc_header *ipfcp,
  * Print the Network_Header
  */
 static inline void
-ipfc_hdr_print(__capability const struct ipfc_header *ipfcp _U_,
+ipfc_hdr_print(const struct ipfc_header *ipfcp _U_,
 	   register u_int length, const u_char *ipfcsrc, const u_char *ipfcdst)
 {
 	const char *srcname, *dstname;
@@ -77,9 +77,9 @@ ipfc_hdr_print(__capability const struct ipfc_header *ipfcp _U_,
 }
 
 static void
-ipfc_print(packetbody_t p, u_int length, u_int caplen)
+ipfc_print(const u_char *p, u_int length, u_int caplen)
 {
-	__capability const struct ipfc_header *ipfcp = (__capability const struct ipfc_header *)p;
+	const struct ipfc_header *ipfcp = (const struct ipfc_header *)p;
 	struct ether_header ehdr;
 	u_short extracted_ethertype;
 
@@ -127,7 +127,7 @@ ipfc_print(packetbody_t p, u_int length, u_int caplen)
  * is the number of bytes actually captured.
  */
 u_int
-ipfc_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+ipfc_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	ipfc_print(p, h->len, h->caplen);
 

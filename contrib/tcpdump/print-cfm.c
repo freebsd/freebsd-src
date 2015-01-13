@@ -42,8 +42,8 @@ static const char rcsid[] _U_ =
 /*
  * Prototypes
  */
-const char * cfm_egress_id_string(packetbody_t);
-int cfm_mgmt_addr_print(packetbody_t);
+const char * cfm_egress_id_string(const u_char *);
+int cfm_mgmt_addr_print(const u_char *);
 
 struct cfm_common_header_t {
     u_int8_t mdlevel_version;
@@ -237,7 +237,7 @@ static const struct tok cfm_tlv_senderid_chassisid_values[] = {
 
 
 int
-cfm_mgmt_addr_print(packetbody_t tptr) {
+cfm_mgmt_addr_print(const u_char *tptr) {
 
     u_int mgmt_addr_type;
     u_int hexdump =  FALSE;
@@ -278,7 +278,7 @@ cfm_mgmt_addr_print(packetbody_t tptr) {
  * The egress-ID string is a 16-Bit string plus a MAC address.
  */
 const char *
-cfm_egress_id_string(packetbody_t tptr) {
+cfm_egress_id_string(const u_char *tptr) {
     static char egress_id_buffer[80];
     
     snprintf(egress_id_buffer, sizeof(egress_id_buffer),
@@ -290,7 +290,7 @@ cfm_egress_id_string(packetbody_t tptr) {
 }
 
 void
-cfm_print(packetbody_t pptr, register u_int length)
+cfm_print(const u_char *pptr, register u_int length)
 {
 	if (!invoke_dissector((void *)_cfm_print,
 	    length, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -298,23 +298,23 @@ cfm_print(packetbody_t pptr, register u_int length)
 }
 
 void
-_cfm_print(packetbody_t pptr, register u_int length)
+_cfm_print(const u_char *pptr, register u_int length)
 {
-    __capability const struct cfm_common_header_t *cfm_common_header;
-    __capability const struct cfm_tlv_header_t *cfm_tlv_header;
-    packetbody_t tptr, tlv_ptr, ma_name, ma_nameformat, ma_namelength;
+    const struct cfm_common_header_t *cfm_common_header;
+    const struct cfm_tlv_header_t *cfm_tlv_header;
+    const u_char *tptr, *tlv_ptr, *ma_name, *ma_nameformat, *ma_namelength;
     u_int hexdump, tlen, cfm_tlv_len, cfm_tlv_type, ccm_interval;
 
 
     union {
-        __capability const struct cfm_ccm_t *cfm_ccm;
-        __capability const struct cfm_lbm_t *cfm_lbm;
-        __capability const struct cfm_ltm_t *cfm_ltm;
-        __capability const struct cfm_ltr_t *cfm_ltr;
+        const struct cfm_ccm_t *cfm_ccm;
+        const struct cfm_lbm_t *cfm_lbm;
+        const struct cfm_ltm_t *cfm_ltm;
+        const struct cfm_ltr_t *cfm_ltr;
     } msg_ptr;
 
     tptr=pptr;
-    cfm_common_header = (__capability const struct cfm_common_header_t *)pptr;
+    cfm_common_header = (const struct cfm_common_header_t *)pptr;
     TCHECK(*cfm_common_header);
 
     /*
@@ -346,7 +346,7 @@ _cfm_print(packetbody_t pptr, register u_int length)
 
     switch (cfm_common_header->opcode) {
     case CFM_OPCODE_CCM:
-        msg_ptr.cfm_ccm = (__capability const struct cfm_ccm_t *)tptr;
+        msg_ptr.cfm_ccm = (const struct cfm_ccm_t *)tptr;
 
         ccm_interval = CFM_EXTRACT_CCM_INTERVAL(cfm_common_header->flags);
         printf(", Flags [CCM Interval %u%s]",
@@ -384,7 +384,7 @@ _cfm_print(packetbody_t pptr, register u_int length)
             switch (msg_ptr.cfm_ccm->md_nameformat) {
             case CFM_CCM_MD_FORMAT_DNS:
             case CFM_CCM_MD_FORMAT_CHAR:
-                safeputs((packetbody_t)msg_ptr.cfm_ccm->md_name, msg_ptr.cfm_ccm->md_namelength);
+                safeputs((const u_char *)msg_ptr.cfm_ccm->md_name, msg_ptr.cfm_ccm->md_namelength);
                 break;
 
             case CFM_CCM_MD_FORMAT_MAC:
@@ -431,7 +431,7 @@ _cfm_print(packetbody_t pptr, register u_int length)
         break;
 
     case CFM_OPCODE_LTM:
-        msg_ptr.cfm_ltm = (__capability const struct cfm_ltm_t *)tptr;
+        msg_ptr.cfm_ltm = (const struct cfm_ltm_t *)tptr;
 
         printf(", Flags [%s]",
                bittok2str(cfm_ltm_flag_values, "none",  cfm_common_header->flags));
@@ -447,7 +447,7 @@ _cfm_print(packetbody_t pptr, register u_int length)
         break;
 
     case CFM_OPCODE_LTR:
-        msg_ptr.cfm_ltr = (__capability const struct cfm_ltr_t *)tptr;
+        msg_ptr.cfm_ltr = (const struct cfm_ltr_t *)tptr;
 
         printf(", Flags [%s]",
                bittok2str(cfm_ltr_flag_values, "none",  cfm_common_header->flags));
@@ -492,7 +492,7 @@ _cfm_print(packetbody_t pptr, register u_int length)
     tlen -= cfm_common_header->first_tlv_offset;
     
     while (tlen > 0) {
-        cfm_tlv_header = (__capability const struct cfm_tlv_header_t *)tptr;
+        cfm_tlv_header = (const struct cfm_tlv_header_t *)tptr;
 
         /* Enough to read the tlv type ? */
         TCHECK2(*tptr, 1);

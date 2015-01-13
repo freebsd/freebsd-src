@@ -89,7 +89,7 @@ struct ip6_mobility {
 #define IP6MOPT_AUTH_MINLEN    12
 
 static void
-mobility_opt_print(packetbody_t bp, int len)
+mobility_opt_print(const u_char *bp, int len)
 {
 	int i;
 	int optlen;
@@ -168,13 +168,13 @@ trunc:
  * Mobility Header
  */
 int
-mobility_print(packetbody_t bp, packetbody_t bp2 _U_)
+mobility_print(const u_char *bp, const u_char *bp2 _U_)
 {
-	__capability const struct ip6_mobility *mh;
-	packetbody_t ep;
+	const struct ip6_mobility *mh;
+	const u_char *ep;
 	int mhlen, hlen, type;
 
-	mh = (__capability const struct ip6_mobility *)bp;
+	mh = (const struct ip6_mobility *)bp;
 
 	/* 'ep' points to the end of available data. */
 	ep = snapend;

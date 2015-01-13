@@ -98,7 +98,7 @@ struct hsrp {
 };
 
 void
-hsrp_print(packetbody_t bp, register u_int len)
+hsrp_print(const u_char *bp, register u_int len)
 {
 	if (!invoke_dissector((void *)_hsrp_print,
 	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -106,9 +106,9 @@ hsrp_print(packetbody_t bp, register u_int len)
 }
 
 void
-_hsrp_print(packetbody_t bp, register u_int len)
+_hsrp_print(const u_char *bp, register u_int len)
 {
-	__capability struct hsrp *hp = (__capability struct hsrp *) bp;
+	struct hsrp *hp = (struct hsrp *) bp;
 
 	TCHECK(hp->hsrp_version);
 	printf("HSRPv%d", hp->hsrp_version);

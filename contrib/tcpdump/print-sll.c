@@ -51,7 +51,7 @@ const struct tok sll_pkttype_values[] = {
 };
 
 static inline void
-sll_print(__capability const struct sll_header *sllp, u_int length)
+sll_print(const struct sll_header *sllp, u_int length)
 {
 	u_short ether_type;
 
@@ -112,11 +112,11 @@ sll_print(__capability const struct sll_header *sllp, u_int length)
  * is the number of bytes actually captured.
  */
 u_int
-sll_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+sll_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int caplen = h->caplen;
 	u_int length = h->len;
-	__capability const struct sll_header *sllp;
+	const struct sll_header *sllp;
 	u_short ether_type;
 	u_short extracted_ethertype;
 
@@ -130,7 +130,7 @@ sll_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 		return (caplen);
 	}
 
-	sllp = (__capability const struct sll_header *)p;
+	sllp = (const struct sll_header *)p;
 
 	if (eflag)
 		sll_print(sllp, length);

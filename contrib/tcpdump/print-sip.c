@@ -33,7 +33,7 @@ static const char rcsid[] _U_ =
 #include "udp.h"
 
 void
-sip_print(packetbody_t pptr, register u_int len)
+sip_print(const u_char *pptr, register u_int len)
 {
 	if (!invoke_dissector((void *)_sip_print,
 	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -41,7 +41,7 @@ sip_print(packetbody_t pptr, register u_int len)
 }
 
 void
-_sip_print(packetbody_t pptr, register u_int len)
+_sip_print(const u_char *pptr, register u_int len)
 {
     u_int idx;
 

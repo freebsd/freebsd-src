@@ -54,19 +54,19 @@ typedef struct {
 } __attribute__((packed)) unaligned_u_int32_t;
 
 static inline u_int16_t
-EXTRACT_16BITS(__capability const void *p)
+EXTRACT_16BITS(const void *p)
 {
 	return ((u_int16_t)ntohs(((const unaligned_u_int16_t *)(p))->val));
 }
 
 static inline u_int32_t
-EXTRACT_32BITS(__capability const void *p)
+EXTRACT_32BITS(const void *p)
 {
 	return ((u_int32_t)ntohl(((const unaligned_u_int32_t *)(p))->val));
 }
 
 static inline u_int64_t
-EXTRACT_64BITS(__capability const void *p)
+EXTRACT_64BITS(const void *p)
 {
 	return ((u_int64_t)(((u_int64_t)ntohl(((const unaligned_u_int32_t *)(p) + 0)->val)) << 32 | \
 		((u_int64_t)ntohl(((const unaligned_u_int32_t *)(p) + 1)->val)) << 0));

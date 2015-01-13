@@ -39,10 +39,10 @@
 #include "interface.h"
 #include "extract.h"
 
-static void babel_print_v2(packetbody_t cp, u_int length);
+static void babel_print_v2(const u_char *cp, u_int length);
 
 void
-babel_print(packetbody_t cp, u_int length)
+babel_print(const u_char *cp, u_int length)
 {
 	if (!invoke_dissector((void *)_babel_print,
 	    length, 0, 0, 0, 0, gndo, cp, NULL, NULL, NULL))
@@ -50,7 +50,7 @@ babel_print(packetbody_t cp, u_int length)
 }
 
 void
-_babel_print(packetbody_t cp, u_int length) {
+_babel_print(const u_char *cp, u_int length) {
     printf("babel");
 
     TCHECK2(*cp, 4);
@@ -93,7 +93,7 @@ _babel_print(packetbody_t cp, u_int length) {
 #define MESSAGE_HMAC 12
 
 static const char *
-format_id(packetbody_t id)
+format_id(const u_char *id)
 {
     static char buf[25];
     snprintf(buf, 25, "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
@@ -136,7 +136,7 @@ format_address(const u_char *prefix)
 
 static int
 network_prefix(int ae, int plen, unsigned int omitted,
-               packetbody_t p, const unsigned char *dp,
+               const u_char *p, const unsigned char *dp,
                unsigned int len, unsigned char *p_r)
 {
     unsigned pb;
@@ -190,7 +190,7 @@ network_prefix(int ae, int plen, unsigned int omitted,
 }
 
 static int
-network_address(int ae, packetbody_t a, unsigned int len,
+network_address(int ae, const u_char *a, unsigned int len,
                 unsigned char *a_r)
 {
     return network_prefix(ae, -1, 0, a, NULL, len, a_r);
@@ -200,7 +200,7 @@ network_address(int ae, packetbody_t a, unsigned int len,
 	if ((i) + (l) > bodylen || (i) + (l) > length) goto corrupt;
 
 static void
-babel_print_v2(packetbody_t cp, u_int length) {
+babel_print_v2(const u_char *cp, u_int length) {
     u_int i;
     u_short bodylen;
     u_char v4_prefix[16] =
@@ -216,7 +216,7 @@ babel_print_v2(packetbody_t cp, u_int length) {
     /* Process the TLVs in the body */
     i = 0;
     while(i < bodylen) {
-        packetbody_t message;
+        const u_char *message;
         u_int type, len;
 
         message = cp + 4 + i;

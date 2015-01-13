@@ -52,7 +52,7 @@ static const char rcsid[] _U_ =
 #define DOP_ALIGN 4
 #define DOP_ROUNDUP(x)	((((int)(x)) + (DOP_ALIGN - 1)) & ~(DOP_ALIGN - 1))
 #define DOP_NEXT(d)\
-	((__capability struct dophdr *)((packetbody_t)(d) + \
+	((struct dophdr *)((const u_char *)(d) + \
 			  DOP_ROUNDUP(EXTRACT_16BITS(&(d)->dh_len) + sizeof(*(d)))))
 
 /*
@@ -180,11 +180,11 @@ struct pkt_prep {
 };
 
 static int
-wb_id(__capability const struct pkt_id *id, u_int len)
+wb_id(const struct pkt_id *id, u_int len)
 {
 	int i;
-	packetbody_t cp;
-	__capability const struct id_off *io;
+	const u_char *cp;
+	const struct id_off *io;
 	char c;
 	int nid;
 
@@ -203,8 +203,8 @@ wb_id(__capability const struct pkt_id *id, u_int len)
 
 	nid = EXTRACT_16BITS(&id->pi_ps.nid);
 	len -= sizeof(*io) * nid;
-	io = (__capability struct id_off *)(id + 1);
-	cp = (packetbody_t)(io + nid);
+	io = (struct id_off *)(id + 1);
+	cp = (const u_char *)(io + nid);
 	if (cp + len <= snapend) {
 		putchar('"');
 		(void)fn_print(cp, cp + len);
@@ -225,7 +225,7 @@ wb_id(__capability const struct pkt_id *id, u_int len)
 }
 
 static int
-wb_rreq(__capability const struct pkt_rreq *rreq, u_int len)
+wb_rreq(const struct pkt_rreq *rreq, u_int len)
 {
 	printf(" wb-rreq:");
 	if (len < sizeof(*rreq) || (u_char *)(rreq + 1) > snapend)
@@ -241,7 +241,7 @@ wb_rreq(__capability const struct pkt_rreq *rreq, u_int len)
 }
 
 static int
-wb_preq(__capability const struct pkt_preq *preq, u_int len)
+wb_preq(const struct pkt_preq *preq, u_int len)
 {
 	printf(" wb-preq:");
 	if (len < sizeof(*preq) || (u_char *)(preq + 1) > snapend)
@@ -255,27 +255,27 @@ wb_preq(__capability const struct pkt_preq *preq, u_int len)
 }
 
 static int
-wb_prep(__capability const struct pkt_prep *prep, u_int len)
+wb_prep(const struct pkt_prep *prep, u_int len)
 {
 	int n;
-	__capability const struct pgstate *ps;
-	packetbody_t ep = snapend;
+	const struct pgstate *ps;
+	const u_char *ep = snapend;
 
 	printf(" wb-prep:");
 	if (len < sizeof(*prep)) {
 		return (-1);
 	}
 	n = EXTRACT_32BITS(&prep->pp_n);
-	ps = (__capability const struct pgstate *)(prep + 1);
-	while (--n >= 0 && (packetbody_t)(ps + 1) <= ep) {
-		__capability const struct id_off *io, *ie;
+	ps = (const struct pgstate *)(prep + 1);
+	while (--n >= 0 && (const u_char *)(ps + 1) <= ep) {
+		const struct id_off *io, *ie;
 		char c = '<';
 
 		printf(" %u/%s:%u",
 		    EXTRACT_32BITS(&ps->slot),
 		    ipaddr_string(&ps->page.p_sid),
 		    EXTRACT_32BITS(&ps->page.p_uid));
-		io = (__capability struct id_off *)(ps + 1);
+		io = (struct id_off *)(ps + 1);
 		for (ie = io + ps->nid; io < ie && (u_char *)(io + 1) <= ep; ++io) {
 			printf("%c%s:%u", c, ipaddr_string(&io->id),
 			    EXTRACT_32BITS(&io->off));
@@ -285,7 +285,7 @@ wb_prep(__capability const struct pkt_prep *prep, u_int len)
 		/*
 		 * XXX-BD: what if this is a truncated struct id_off?
 		 */
-		ps = (__capability struct pgstate *)io;
+		ps = (struct pgstate *)io;
 	}
 	return ((u_char *)ps <= ep? 0 : -1);
 }
@@ -311,7 +311,7 @@ const char *dopstr[] = {
 };
 
 static int
-wb_dops(__capability const struct dophdr *dh, u_int32_t ss, u_int32_t es)
+wb_dops(const struct dophdr *dh, u_int32_t ss, u_int32_t es)
 {
 	printf(" <");
 	for ( ; ss <= es; ++ss) {
@@ -343,9 +343,9 @@ wb_dops(__capability const struct dophdr *dh, u_int32_t ss, u_int32_t es)
 }
 
 static int
-wb_rrep(__capability const struct pkt_rrep *rrep, u_int len)
+wb_rrep(const struct pkt_rrep *rrep, u_int len)
 {
-	__capability const struct pkt_dop *dop = &rrep->pr_dop;
+	const struct pkt_dop *dop = &rrep->pr_dop;
 
 	printf(" wb-rrep:");
 	if (len < sizeof(*rrep) || (u_char *)(rrep + 1) > snapend)
@@ -360,14 +360,14 @@ wb_rrep(__capability const struct pkt_rrep *rrep, u_int len)
 	    EXTRACT_32BITS(&dop->pd_eseq));
 
 	if (vflag)
-		return (wb_dops((__capability const struct dophdr *)(dop + 1),
+		return (wb_dops((const struct dophdr *)(dop + 1),
 		    EXTRACT_32BITS(&dop->pd_sseq),
 		    EXTRACT_32BITS(&dop->pd_eseq)));
 	return (0);
 }
 
 static int
-wb_drawop(__capability const struct pkt_dop *dop, u_int len)
+wb_drawop(const struct pkt_dop *dop, u_int len)
 {
 	printf(" wb-dop:");
 	if (len < sizeof(*dop) || (u_char *)(dop + 1) > snapend)
@@ -381,7 +381,7 @@ wb_drawop(__capability const struct pkt_dop *dop, u_int len)
 	    EXTRACT_32BITS(&dop->pd_eseq));
 
 	if (vflag)
-		return (wb_dops((__capability const struct dophdr *)(dop + 1),
+		return (wb_dops((const struct dophdr *)(dop + 1),
 				EXTRACT_32BITS(&dop->pd_sseq),
 				EXTRACT_32BITS(&dop->pd_eseq)));
 	return (0);
@@ -391,7 +391,7 @@ wb_drawop(__capability const struct pkt_dop *dop, u_int len)
  * Print whiteboard multicast packets.
  */
 void
-wb_print(packetbody_t hdr, register u_int len)
+wb_print(const u_char *hdr, register u_int len)
 {
 	if (!invoke_dissector((void *)_wb_print,
 	    len, 0, 0, 0, 0, gndo, hdr, NULL, NULL, NULL))
@@ -399,12 +399,12 @@ wb_print(packetbody_t hdr, register u_int len)
 }
 
 void
-_wb_print(packetbody_t hdr, register u_int len)
+_wb_print(const u_char *hdr, register u_int len)
 {
-	__capability const struct pkt_hdr *ph;
+	const struct pkt_hdr *ph;
 
-	ph = (__capability const struct pkt_hdr *)hdr;
-	if (len < sizeof(*ph) || (packetbody_t)(ph + 1) > snapend) {
+	ph = (const struct pkt_hdr *)hdr;
+	if (len < sizeof(*ph) || (const u_char *)(ph + 1) > snapend) {
 		printf("[|wb]");
 		return;
 	}
@@ -419,32 +419,32 @@ _wb_print(packetbody_t hdr, register u_int len)
 		return;
 
 	case PT_ID:
-		if (wb_id((__capability const struct pkt_id *)(ph + 1), len) >= 0)
+		if (wb_id((const struct pkt_id *)(ph + 1), len) >= 0)
 			return;
 		break;
 
 	case PT_RREQ:
-		if (wb_rreq((__capability const struct pkt_rreq *)(ph + 1), len) >= 0)
+		if (wb_rreq((const struct pkt_rreq *)(ph + 1), len) >= 0)
 			return;
 		break;
 
 	case PT_RREP:
-		if (wb_rrep((__capability const struct pkt_rrep *)(ph + 1), len) >= 0)
+		if (wb_rrep((const struct pkt_rrep *)(ph + 1), len) >= 0)
 			return;
 		break;
 
 	case PT_DRAWOP:
-		if (wb_drawop((__capability const struct pkt_dop *)(ph + 1), len) >= 0)
+		if (wb_drawop((const struct pkt_dop *)(ph + 1), len) >= 0)
 			return;
 		break;
 
 	case PT_PREQ:
-		if (wb_preq((__capability const struct pkt_preq *)(ph + 1), len) >= 0)
+		if (wb_preq((const struct pkt_preq *)(ph + 1), len) >= 0)
 			return;
 		break;
 
 	case PT_PREP:
-		if (wb_prep((__capability const struct pkt_prep *)(ph + 1), len) >= 0)
+		if (wb_prep((const struct pkt_prep *)(ph + 1), len) >= 0)
 			return;
 		break;
 

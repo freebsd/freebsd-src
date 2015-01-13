@@ -47,19 +47,19 @@ static const char rcsid[] _U_ =
 	}
 
 u_int
-enc_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+enc_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
 	int flags;
-	__capability const struct enchdr *hdr;
+	const struct enchdr *hdr;
 
 	if (caplen < ENC_HDRLEN) {
 		printf("[|enc]");
 		goto out;
 	}
 
-	hdr = (__capability struct enchdr *)p;
+	hdr = (struct enchdr *)p;
 	flags = hdr->flags;
 	if (flags == 0)
 		printf("(unprotected): ");

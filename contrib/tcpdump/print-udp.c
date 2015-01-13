@@ -108,7 +108,7 @@ struct rtcp_rr {
 #define RTCP_PT_APP	204
 
 static void
-vat_print(packetbody_t hdr, __capability const struct udphdr *up)
+vat_print(const u_char *hdr, const struct udphdr *up)
 {
 	/* vat/vt audio */
 	u_int ts = *(u_int16_t *)hdr;
@@ -119,8 +119,8 @@ vat_print(packetbody_t hdr, __capability const struct udphdr *up)
 			     ts & 0x3ff, ts >> 10);
 	} else {
 		/* probably vat */
-		u_int32_t i0 = EXTRACT_32BITS(&((__capability u_int *)hdr)[0]);
-		u_int32_t i1 = EXTRACT_32BITS(&((__capability u_int *)hdr)[1]);
+		u_int32_t i0 = EXTRACT_32BITS(&((u_int *)hdr)[0]);
+		u_int32_t i1 = EXTRACT_32BITS(&((u_int *)hdr)[1]);
 		printf("udp/vat %u c%d %u%s",
 			(u_int32_t)(EXTRACT_16BITS(&up->uh_ulen) - sizeof(*up) - 8),
 			i0 & 0xffff,
@@ -134,13 +134,13 @@ vat_print(packetbody_t hdr, __capability const struct udphdr *up)
 }
 
 static void
-rtp_print(packetbody_t hdr, u_int len, __capability const struct udphdr *up)
+rtp_print(const u_char *hdr, u_int len, const struct udphdr *up)
 {
 	/* rtp v1 or v2 */
-	__capability const u_int *ip = (__capability const u_int *)hdr;
+	const u_int *ip = (const u_int *)hdr;
 	u_int hasopt, hasext, contype, hasmarker;
-	u_int32_t i0 = EXTRACT_32BITS(&((__capability u_int *)hdr)[0]);
-	u_int32_t i1 = EXTRACT_32BITS(&((__capability u_int *)hdr)[1]);
+	u_int32_t i0 = EXTRACT_32BITS(&((u_int *)hdr)[0]);
+	u_int32_t i1 = EXTRACT_32BITS(&((u_int *)hdr)[1]);
 	u_int dlen = EXTRACT_16BITS(&up->uh_ulen) - sizeof(*up) - 8;
 	const char * ptype;
 
@@ -174,7 +174,7 @@ rtp_print(packetbody_t hdr, u_int len, __capability const struct udphdr *up)
 		i0 & 0xffff,
 		i1);
 	if (vflag) {
-		printf(" %u", EXTRACT_32BITS(&((__capability u_int *)hdr)[2]));
+		printf(" %u", EXTRACT_32BITS(&((u_int *)hdr)[2]));
 		if (hasopt) {
 			u_int i2, optlen;
 			do {
@@ -203,18 +203,18 @@ rtp_print(packetbody_t hdr, u_int len, __capability const struct udphdr *up)
 	}
 }
 
-static packetbody_t
-rtcp_print(packetbody_t hdr, packetbody_t ep)
+static const u_char *
+rtcp_print(const u_char *hdr, const u_char *ep)
 {
 	/* rtp v2 control (rtcp) */
-	__capability const struct rtcp_rr *rr = NULL;
-	__capability const struct rtcp_sr *sr;
-	__capability const struct rtcphdr *rh = (__capability const struct rtcphdr *)hdr;
+	const struct rtcp_rr *rr = NULL;
+	const struct rtcp_sr *sr;
+	const struct rtcphdr *rh = (const struct rtcphdr *)hdr;
 	u_int len;
 	u_int16_t flags;
 	int cnt;
 	double ts, dts;
-	if ((packetbody_t)(rh + 1) > ep) {
+	if ((const u_char *)(rh + 1) > ep) {
 		printf(" [|rtcp]");
 		return (ep);
 	}
@@ -223,7 +223,7 @@ rtcp_print(packetbody_t hdr, packetbody_t ep)
 	cnt = (flags >> 8) & 0x1f;
 	switch (flags & 0xff) {
 	case RTCP_PT_SR:
-		sr = (__capability const struct rtcp_sr *)(rh + 1);
+		sr = (const struct rtcp_sr *)(rh + 1);
 		printf(" sr");
 		if (len != cnt * sizeof(*rr) + sizeof(*sr) + sizeof(*rh))
 			printf(" [%d]", len);
@@ -238,13 +238,13 @@ rtcp_print(packetbody_t hdr, packetbody_t ep)
 		    4294967296.0);
 		printf(" @%.2f %u %up %ub", ts, EXTRACT_32BITS(&sr->sr_ts),
 		    EXTRACT_32BITS(&sr->sr_np), EXTRACT_32BITS(&sr->sr_nb));
-		rr = (__capability const struct rtcp_rr *)(sr + 1);
+		rr = (const struct rtcp_rr *)(sr + 1);
 		break;
 	case RTCP_PT_RR:
 		printf(" rr");
 		if (len != cnt * sizeof(*rr) + sizeof(*rh))
 			printf(" [%d]", len);
-		rr = (__capability const struct rtcp_rr *)(rh + 1);
+		rr = (const struct rtcp_rr *)(rh + 1);
 		if (vflag)
 			printf(" %u", EXTRACT_32BITS(&rh->rh_ssrc));
 		break;
@@ -284,32 +284,32 @@ rtcp_print(packetbody_t hdr, packetbody_t ep)
 	return (hdr + len);
 }
 
-static int udp_cksum(__capability const struct ip *ip,
-		     __capability const struct udphdr *up,
+static int udp_cksum(const struct ip *ip,
+		     const struct udphdr *up,
 		     register u_int len)
 {
-	return (nextproto4_cksum(ip, (packetbody_t)up, len,
+	return (nextproto4_cksum(ip, (const u_char *)up, len,
 	    IPPROTO_UDP));
 }
 
 #ifdef INET6
-static int udp6_cksum(__capability const struct ip6_hdr *ip6,
-		      __capability const struct udphdr *up,
+static int udp6_cksum(const struct ip6_hdr *ip6,
+		      const struct udphdr *up,
 		      u_int len)
 {
-	return (nextproto6_cksum(ip6, (packetbody_t)up, len,
+	return (nextproto6_cksum(ip6, (const u_char *)up, len,
 	    IPPROTO_UDP));
 }
 #endif
 
 static void
-udpipaddr_print(__capability const struct ip *ip, int sport, int dport)
+udpipaddr_print(const struct ip *ip, int sport, int dport)
 {
 #ifdef INET6
-	__capability const struct ip6_hdr *ip6;
+	const struct ip6_hdr *ip6;
 
 	if (IP_V(ip) == 6)
-		ip6 = (__capability const struct ip6_hdr *)ip;
+		ip6 = (const struct ip6_hdr *)ip;
 	else
 		ip6 = NULL;
 
@@ -359,7 +359,7 @@ udpipaddr_print(__capability const struct ip *ip, int sport, int dport)
 }
 
 void
-udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
+udp_print(const u_char *bp, u_int length, const u_char *bp2, int fragmented)
 {
 	if (!invoke_dissector((void *)_udp_print,
 	    length, fragmented, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
@@ -367,28 +367,28 @@ udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 }
 
 void
-_udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
+_udp_print(const u_char *bp, u_int length, const u_char *bp2, int fragmented)
 {
-	__capability const struct udphdr *up;
-	__capability const struct ip *ip;
-	packetbody_t cp;
-	packetbody_t ep = bp + length;
+	const struct udphdr *up;
+	const struct ip *ip;
+	const u_char *cp;
+	const u_char *ep = bp + length;
 	u_int16_t sport, dport, ulen;
 #ifdef INET6
-	__capability const struct ip6_hdr *ip6;
+	const struct ip6_hdr *ip6;
 #endif
 
 	if (ep > snapend)
 		ep = snapend;
-	up = (__capability const struct udphdr *)bp;
-	ip = (__capability const struct ip *)bp2;
+	up = (const struct udphdr *)bp;
+	ip = (const struct ip *)bp2;
 #ifdef INET6
 	if (IP_V(ip) == 6)
-		ip6 = (__capability const struct ip6_hdr *)bp2;
+		ip6 = (const struct ip6_hdr *)bp2;
 	else
 		ip6 = NULL;
 #endif /*INET6*/
-	cp = (packetbody_t)(up + 1);
+	cp = (const u_char *)(up + 1);
 	if (!TTEST(up->uh_dport)) {
 		udpipaddr_print(ip, -1, -1);
 		(void)printf("[|udp]");
@@ -410,7 +410,7 @@ _udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 		(void)printf("[|udp]");
 		return;
 	}
-	cp = (packetbody_t)(up + 1);
+	cp = (const u_char *)(up + 1);
 
 	ulen = EXTRACT_16BITS(&up->uh_ulen);
 	if (ulen < 8) {
@@ -419,35 +419,35 @@ _udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 		return;
 	}
 	if (packettype) {
-		__capability const struct sunrpc_msg *rp;
+		const struct sunrpc_msg *rp;
 		enum sunrpc_msg_type direction;
 
 		switch (packettype) {
 
 		case PT_VAT:
 			udpipaddr_print(ip, sport, dport);
-			vat_print((packetbody_t)(up + 1), up);
+			vat_print((const u_char *)(up + 1), up);
 			break;
 
 		case PT_WB:
 			udpipaddr_print(ip, sport, dport);
-			wb_print((packetbody_t)(up + 1), length);
+			wb_print((const u_char *)(up + 1), length);
 			break;
 
 		case PT_RPC:
-			rp = (__capability const struct sunrpc_msg *)(up + 1);
+			rp = (const struct sunrpc_msg *)(up + 1);
 			direction = (enum sunrpc_msg_type)EXTRACT_32BITS(&rp->rm_direction);
 			if (direction == SUNRPC_CALL)
-				sunrpcrequest_print((packetbody_t)rp, length,
-				    (packetbody_t)ip);
+				sunrpcrequest_print((const u_char *)rp, length,
+				    (const u_char *)ip);
 			else
-				nfsreply_print((packetbody_t)rp, length,
-				    (packetbody_t)ip);			/*XXX*/
+				nfsreply_print((const u_char *)rp, length,
+				    (const u_char *)ip);			/*XXX*/
 			break;
 
 		case PT_RTP:
 			udpipaddr_print(ip, sport, dport);
-			rtp_print((packetbody_t)(up + 1), length, up);
+			rtp_print((const u_char *)(up + 1), length, up);
 			break;
 
 		case PT_RTCP:
@@ -458,12 +458,12 @@ _udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 
 		case PT_SNMP:
 			udpipaddr_print(ip, sport, dport);
-			snmp_print((packetbody_t)(up + 1), length);
+			snmp_print((const u_char *)(up + 1), length);
 			break;
 
 		case PT_CNFP:
 			udpipaddr_print(ip, sport, dport);
-			cnfp_print(cp, (packetbody_t)ip);
+			cnfp_print(cp, (const u_char *)ip);
 			break;
 
 		case PT_TFTP:
@@ -473,7 +473,7 @@ _udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 
 		case PT_AODV:
 			udpipaddr_print(ip, sport, dport);
-			aodv_print((packetbody_t)(up + 1), length,
+			aodv_print((const u_char *)(up + 1), length,
 #ifdef INET6
 			    ip6 != NULL);
 #else
@@ -488,33 +488,33 @@ _udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 
 		case PT_VXLAN:
 			udpipaddr_print(ip, sport, dport);
-			vxlan_print((packetbody_t)(up + 1), length);
+			vxlan_print((const u_char *)(up + 1), length);
 			break;
 		}
 		return;
 	}
 
 	if (!qflag) {
-		__capability const struct sunrpc_msg *rp;
+		const struct sunrpc_msg *rp;
 		enum sunrpc_msg_type direction;
 
-		rp = (__capability const struct sunrpc_msg *)(up + 1);
+		rp = (const struct sunrpc_msg *)(up + 1);
 		if (TTEST(rp->rm_direction)) {
 			direction = (enum sunrpc_msg_type)EXTRACT_32BITS(&rp->rm_direction);
 			if (dport == NFS_PORT && direction == SUNRPC_CALL) {
-				nfsreq_print((packetbody_t)rp, length,
-				    (packetbody_t)ip);
+				nfsreq_print((const u_char *)rp, length,
+				    (const u_char *)ip);
 				return;
 			}
 			if (sport == NFS_PORT && direction == SUNRPC_REPLY) {
-				nfsreply_print((packetbody_t)rp, length,
-				    (packetbody_t)ip);
+				nfsreply_print((const u_char *)rp, length,
+				    (const u_char *)ip);
 				return;
 			}
 #ifdef notdef
 			if (dport == SUNRPC_PORT && direction == SUNRPC_CALL) {
-				sunrpcrequest_print((packetbody_t)rp, length,
-				    (packetbody_t)ip);
+				sunrpcrequest_print((const u_char *)rp, length,
+				    (const u_char *)ip);
 				return;
 			}
 #endif
@@ -574,50 +574,50 @@ _udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 	if (!qflag) {
 #define ISPORT(p) (dport == (p) || sport == (p))
 		if (ISPORT(NAMESERVER_PORT))
-			ns_print((packetbody_t)(up + 1), length, 0);
+			ns_print((const u_char *)(up + 1), length, 0);
 		else if (ISPORT(MULTICASTDNS_PORT))
-			ns_print((packetbody_t)(up + 1), length, 1);
+			ns_print((const u_char *)(up + 1), length, 1);
 		else if (ISPORT(TIMED_PORT))
-			timed_print((packetbody_t)(up + 1));
+			timed_print((const u_char *)(up + 1));
 		else if (ISPORT(TFTP_PORT))
-			tftp_print((packetbody_t)(up + 1), length);
+			tftp_print((const u_char *)(up + 1), length);
 		else if (ISPORT(IPPORT_BOOTPC) || ISPORT(IPPORT_BOOTPS))
-			bootp_print((packetbody_t)(up + 1), length);
+			bootp_print((const u_char *)(up + 1), length);
 		else if (ISPORT(RIP_PORT))
-			rip_print((packetbody_t)(up + 1), length);
+			rip_print((const u_char *)(up + 1), length);
 		else if (ISPORT(AODV_PORT))
-			aodv_print((packetbody_t)(up + 1), length,
+			aodv_print((const u_char *)(up + 1), length,
 #ifdef INET6
 			    ip6 != NULL);
 #else
 			    0);
 #endif
 	        else if (ISPORT(ISAKMP_PORT))
-			 isakmp_print(gndo, (packetbody_t)(up + 1), length, bp2);
+			 isakmp_print(gndo, (const u_char *)(up + 1), length, bp2);
   	        else if (ISPORT(ISAKMP_PORT_NATT))
-			 isakmp_rfc3948_print(gndo, (packetbody_t)(up + 1), length, bp2);
+			 isakmp_rfc3948_print(gndo, (const u_char *)(up + 1), length, bp2);
 #if 1 /*???*/
    	        else if (ISPORT(ISAKMP_PORT_USER1) || ISPORT(ISAKMP_PORT_USER2))
-			isakmp_print(gndo, (packetbody_t)(up + 1), length, bp2);
+			isakmp_print(gndo, (const u_char *)(up + 1), length, bp2);
 #endif
 		else if (ISPORT(SNMP_PORT) || ISPORT(SNMPTRAP_PORT))
-			snmp_print((packetbody_t)(up + 1), length);
+			snmp_print((const u_char *)(up + 1), length);
 		else if (ISPORT(NTP_PORT))
-			ntp_print((packetbody_t)(up + 1), length);
+			ntp_print((const u_char *)(up + 1), length);
 		else if (ISPORT(KERBEROS_PORT) || ISPORT(KERBEROS_SEC_PORT))
-			krb_print((packetbody_t)(up + 1));
+			krb_print((const u_char *)(up + 1));
 		else if (ISPORT(L2TP_PORT))
-			l2tp_print((packetbody_t)(up + 1), length);
+			l2tp_print((const u_char *)(up + 1), length);
 #ifdef TCPDUMP_DO_SMB
 		else if (ISPORT(NETBIOS_NS_PORT))
-			nbt_udp137_print((packetbody_t)(up + 1), length);
+			nbt_udp137_print((const u_char *)(up + 1), length);
 		else if (ISPORT(NETBIOS_DGRAM_PORT))
-			nbt_udp138_print((packetbody_t)(up + 1), length);
+			nbt_udp138_print((const u_char *)(up + 1), length);
 #endif
 		else if (dport == 3456)
-			vat_print((packetbody_t)(up + 1), up);
+			vat_print((const u_char *)(up + 1), up);
 		else if (ISPORT(ZEPHYR_SRV_PORT) || ISPORT(ZEPHYR_CLT_PORT))
-			zephyr_print((packetbody_t)(up + 1), length);
+			zephyr_print((const u_char *)(up + 1), length);
 		/*
 		 * Since there are 10 possible ports to check, I think
 		 * a <> test would be more efficient
@@ -625,65 +625,65 @@ _udp_print(packetbody_t bp, u_int length, packetbody_t bp2, int fragmented)
 #if 0
 		else if ((sport >= RX_PORT_LOW && sport <= RX_PORT_HIGH) ||
 			 (dport >= RX_PORT_LOW && dport <= RX_PORT_HIGH))
-			rx_print((packetbody_t)(up + 1), length, sport, dport,
-				 (packetbody_t)ip);
+			rx_print((const u_char *)(up + 1), length, sport, dport,
+				 (const u_char *)ip);
 #endif
 #ifdef INET6
 		else if (ISPORT(RIPNG_PORT))
-			ripng_print((packetbody_t)(up + 1), length);
+			ripng_print((const u_char *)(up + 1), length);
 		else if (ISPORT(DHCP6_SERV_PORT) || ISPORT(DHCP6_CLI_PORT))
-			dhcp6_print((packetbody_t)(up + 1), length);
+			dhcp6_print((const u_char *)(up + 1), length);
 		else if (ISPORT(BABEL_PORT) || ISPORT(BABEL_PORT_OLD))
-			babel_print((packetbody_t)(up + 1), length);
+			babel_print((const u_char *)(up + 1), length);
 #endif /*INET6*/
 		/*
 		 * Kludge in test for whiteboard packets.
 		 */
 		else if (dport == 4567)
-			wb_print((packetbody_t)(up + 1), length);
+			wb_print((const u_char *)(up + 1), length);
 		else if (ISPORT(CISCO_AUTORP_PORT))
-			cisco_autorp_print((packetbody_t)(up + 1), length);
+			cisco_autorp_print((const u_char *)(up + 1), length);
 		else if (ISPORT(RADIUS_PORT) ||
 			 ISPORT(RADIUS_NEW_PORT) ||
 			 ISPORT(RADIUS_ACCOUNTING_PORT) ||
 			 ISPORT(RADIUS_NEW_ACCOUNTING_PORT) )
-			radius_print((packetbody_t)(up + 1), length);
+			radius_print((const u_char *)(up + 1), length);
 		else if (dport == HSRP_PORT)
-			hsrp_print((packetbody_t)(up + 1), length);
+			hsrp_print((const u_char *)(up + 1), length);
 		else if (ISPORT(LWRES_PORT))
-			lwres_print((packetbody_t)(up + 1), length);
+			lwres_print((const u_char *)(up + 1), length);
 		else if (ISPORT(LDP_PORT))
-			ldp_print((packetbody_t)(up + 1), length);
+			ldp_print((const u_char *)(up + 1), length);
 		else if (ISPORT(OLSR_PORT))
-			olsr_print((packetbody_t)(up + 1), length,
+			olsr_print((const u_char *)(up + 1), length,
 #if INET6
 					(IP_V(ip) == 6) ? 1 : 0);
 #else
 					0);
 #endif
 		else if (ISPORT(MPLS_LSP_PING_PORT))
-			lspping_print((packetbody_t)(up + 1), length);
+			lspping_print((const u_char *)(up + 1), length);
 		else if (dport == BFD_CONTROL_PORT ||
 			 dport == BFD_ECHO_PORT )
-			bfd_print((packetbody_t)(up + 1), length, dport);
+			bfd_print((const u_char *)(up + 1), length, dport);
                 else if (ISPORT(LMP_PORT))
-			lmp_print((packetbody_t)(up + 1), length);
+			lmp_print((const u_char *)(up + 1), length);
 		else if (ISPORT(VQP_PORT))
-			vqp_print((packetbody_t)(up + 1), length);
+			vqp_print((const u_char *)(up + 1), length);
                 else if (ISPORT(SFLOW_PORT))
-                        sflow_print((packetbody_t)(up + 1), length);
+                        sflow_print((const u_char *)(up + 1), length);
 	        else if (dport == LWAPP_CONTROL_PORT)
-			lwapp_control_print((packetbody_t)(up + 1), length, 1);
+			lwapp_control_print((const u_char *)(up + 1), length, 1);
                 else if (sport == LWAPP_CONTROL_PORT)
-                        lwapp_control_print((packetbody_t)(up + 1), length, 0);
+                        lwapp_control_print((const u_char *)(up + 1), length, 0);
                 else if (ISPORT(LWAPP_DATA_PORT))
-                        lwapp_data_print((packetbody_t)(up + 1), length);
+                        lwapp_data_print((const u_char *)(up + 1), length);
                 else if (ISPORT(SIP_PORT))
-			sip_print((packetbody_t)(up + 1), length);
+			sip_print((const u_char *)(up + 1), length);
                 else if (ISPORT(SYSLOG_PORT))
-			syslog_print((packetbody_t)(up + 1), length);
+			syslog_print((const u_char *)(up + 1), length);
                 else if (ISPORT(OTV_PORT))
-			otv_print((packetbody_t)(up + 1), length);
+			otv_print((const u_char *)(up + 1), length);
 		else
 			(void)printf("UDP, length %u",
 			    (u_int32_t)(ulen - sizeof(*up)));

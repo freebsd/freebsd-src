@@ -70,7 +70,7 @@ struct rtentry;
  * is the number of bytes actually captured.
  */
 u_int
-sunatm_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+sunatm_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int caplen = h->caplen;
 	u_int length = h->len;

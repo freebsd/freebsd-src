@@ -135,9 +135,9 @@ const char *egp_reasons[] = {
 };
 
 static void
-egpnrprint(__capability const struct egp_packet *egp)
+egpnrprint(const struct egp_packet *egp)
 {
-	packetbody_t cp;
+	const u_char *cp;
 	u_int32_t addr;
 	register u_int32_t net;
 	register u_int netlen;
@@ -159,7 +159,7 @@ egpnrprint(__capability const struct egp_packet *egp)
 		net = 0;
 		netlen = 0;
 	}
-	cp = (packetbody_t)(egp + 1);
+	cp = (const u_char *)(egp + 1);
 
 	t_gateways = egp->egp_intgw + egp->egp_extgw;
 	for (gateways = 0; gateways < t_gateways; ++gateways) {
@@ -214,7 +214,7 @@ trunc:
 }
 
 void
-egp_print(packetbody_t bp, register u_int length)
+egp_print(const u_char *bp, register u_int length)
 {
 	if (!invoke_dissector((void *)_egp_print,
 	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -222,14 +222,14 @@ egp_print(packetbody_t bp, register u_int length)
 }
 
 void
-_egp_print(packetbody_t bp, register u_int length)
+_egp_print(const u_char *bp, register u_int length)
 {
-	__capability const struct egp_packet *egp;
+	const struct egp_packet *egp;
 	register int status;
 	register int code;
 	register int type;
 
-	egp = (__capability struct egp_packet *)bp;
+	egp = (struct egp_packet *)bp;
         if (!TTEST2(*egp, length)) {
 		printf("[|egp]");
 		return;

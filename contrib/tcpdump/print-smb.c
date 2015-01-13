@@ -27,14 +27,14 @@ static const char rcsid[] _U_ =
 static int request = 0;
 static int unicodestr = 0;
 
-packetbody_t startbuf = NULL;
+const u_char *startbuf = NULL;
 
 struct smbdescript {
     const char *req_f1;
     const char *req_f2;
     const char *rep_f1;
     const char *rep_f2;
-    void (*fn)(packetbody_t, packetbody_t, packetbody_t, packetbody_t);
+    void (*fn)(const u_char *, const u_char *, const u_char *, const u_char *);
 };
 
 struct smbdescriptint {
@@ -42,7 +42,7 @@ struct smbdescriptint {
     const char *req_f2;
     const char *rep_f1;
     const char *rep_f2;
-    void (*fn)(packetbody_t, packetbody_t, int, int);
+    void (*fn)(const u_char *, const u_char *, int, int);
 };
 
 struct smbfns
@@ -90,7 +90,7 @@ smbfindint(int id, struct smbfnsint *list)
 }
 
 static void
-trans2_findfirst(packetbody_t param, packetbody_t data, int pcnt, int dcnt)
+trans2_findfirst(const u_char *param, const u_char *data, int pcnt, int dcnt)
 {
     const char *fmt;
 
@@ -107,7 +107,7 @@ trans2_findfirst(packetbody_t param, packetbody_t data, int pcnt, int dcnt)
 }
 
 static void
-trans2_qfsinfo(packetbody_t param, packetbody_t data, int pcnt, int dcnt)
+trans2_qfsinfo(const u_char *param, const u_char *data, int pcnt, int dcnt)
 {
     static int level = 0;
     const char *fmt="";
@@ -170,12 +170,12 @@ struct smbfnsint trans2_fns[] = {
 
 
 static void
-print_trans2(packetbody_t words, packetbody_t dat, packetbody_t buf, packetbody_t maxbuf)
+print_trans2(const u_char *words, const u_char *dat, const u_char *buf, const u_char *maxbuf)
 {
     u_int bcc;
     static struct smbfnsint *fn = &trans2_fns[0];
-    packetbody_t data, param;
-    packetbody_t w = words + 1;
+    const u_char *data, *param;
+    const u_char *w = words + 1;
     const char *f1 = NULL, *f2 = NULL;
     int pcnt, dcnt;
 
@@ -240,9 +240,9 @@ trunc:
 
 
 static void
-print_browse(packetbody_t param, int paramlen, packetbody_t data, int datalen)
+print_browse(const u_char *param, int paramlen, const u_char *data, int datalen)
 {
-    packetbody_t maxbuf = data + datalen;
+    const u_char *maxbuf = data + datalen;
     int command;
 
     TCHECK(data[0]);
@@ -322,7 +322,7 @@ trunc:
 
 
 static void
-print_ipc(packetbody_t param, int paramlen, packetbody_t data, int datalen)
+print_ipc(const u_char *param, int paramlen, const u_char *data, int datalen)
 {
     if (paramlen)
 	smb_fdata(param, "Command=[w]\nStr1=[S]\nStr2=[S]\n", param + paramlen,
@@ -333,12 +333,12 @@ print_ipc(packetbody_t param, int paramlen, packetbody_t data, int datalen)
 
 
 static void
-print_trans(packetbody_t words, packetbody_t data1, packetbody_t buf, packetbody_t maxbuf)
+print_trans(const u_char *words, const u_char *data1, const u_char *buf, const u_char *maxbuf)
 {
     u_int bcc;
     const char *f1, *f2, *f3, *f4;
-    packetbody_t data, param;
-    packetbody_t w = words + 1;
+    const u_char *data, *param;
+    const u_char *w = words + 1;
     int datalen, paramlen;
 
     if (request) {
@@ -395,7 +395,7 @@ trunc:
 
 
 static void
-print_negprot(packetbody_t words, packetbody_t data, packetbody_t buf _U_, packetbody_t maxbuf)
+print_negprot(const u_char *words, const u_char *data, const u_char *buf _U_, const u_char *maxbuf)
 {
     u_int wct, bcc;
     const char *f1 = NULL, *f2 = NULL;
@@ -436,7 +436,7 @@ trunc:
 }
 
 static void
-print_sesssetup(packetbody_t words, packetbody_t data, packetbody_t buf _U_, packetbody_t maxbuf)
+print_sesssetup(const u_char *words, const u_char *data, const u_char *buf _U_, const u_char *maxbuf)
 {
     u_int wct, bcc;
     const char *f1 = NULL, *f2 = NULL;
@@ -480,10 +480,10 @@ trunc:
 }
 
 static void
-print_lockingandx(packetbody_t words, packetbody_t data, packetbody_t buf _U_, packetbody_t maxbuf)
+print_lockingandx(const u_char *words, const u_char *data, const u_char *buf _U_, const u_char *maxbuf)
 {
     u_int wct, bcc;
-    packetbody_t maxwords;
+    const u_char *maxwords;
     const char *f1 = NULL, *f2 = NULL;
 
     TCHECK(words[0]);
@@ -792,13 +792,13 @@ static struct smbfns smb_fns[] = {
  * print a SMB message
  */
 static void
-print_smb(packetbody_t buf, packetbody_t maxbuf)
+print_smb(const u_char *buf, const u_char *maxbuf)
 {
     u_int16_t flags2;
     int nterrcodes;
     int command;
     u_int32_t nterror;
-    packetbody_t words, maxwords, data;
+    const u_char *words, *maxwords, *data;
     struct smbfns *fn;
     const char *fmt_smbheader =
         "[P4]SMB Command   =  [B]\nError class   =  [BP1]\nError code    =  [d]\nFlags1        =  [B]\nFlags2        =  [B][P13]\nTree ID       =  [d]\nProc ID       =  [d]\nUID           =  [d]\nMID           =  [d]\nWord Count    =  [b]\n";
@@ -923,7 +923,7 @@ trunc:
  * print a NBT packet received across tcp on port 139
  */
 void
-nbt_tcp_print(packetbody_t data, int length)
+nbt_tcp_print(const u_char *data, int length)
 {
 	if (!invoke_dissector((void *)_nbt_tcp_print,
 	    length, 0, 0, 0, 0, gndo, data, NULL, NULL, NULL))
@@ -931,12 +931,12 @@ nbt_tcp_print(packetbody_t data, int length)
 }
 
 void
-_nbt_tcp_print(packetbody_t data, int length)
+_nbt_tcp_print(const u_char *data, int length)
 {
     int caplen;
     int type;
     u_int nbt_len;
-    packetbody_t maxbuf;
+    const u_char *maxbuf;
 
     if (length < 4)
 	goto trunc;
@@ -1042,7 +1042,7 @@ _nbt_tcp_print(packetbody_t data, int length)
 
 	case 0x83:
 	  {
-	    packetbody_t origdata;
+	    const u_char *origdata;
 	    int ecode;
 
 	    origdata = data;
@@ -1095,7 +1095,7 @@ trunc:
  * print a NBT packet received across udp on port 137
  */
 void
-nbt_udp137_print(packetbody_t data, int length)
+nbt_udp137_print(const u_char *data, int length)
 {
 	if (!invoke_dissector((void *)_nbt_udp137_print,
 	    length, 0, 0, 0, 0, gndo, data, NULL, NULL, NULL))
@@ -1103,13 +1103,13 @@ nbt_udp137_print(packetbody_t data, int length)
 }
 
 void
-_nbt_udp137_print(packetbody_t data, int length)
+_nbt_udp137_print(const u_char *data, int length)
 {
-    packetbody_t maxbuf = data + length;
+    const u_char *maxbuf = data + length;
     int name_trn_id, response, opcode, nm_flags, rcode;
     int qdcount, ancount, nscount, arcount;
     const char *opcodestr;
-    packetbody_t p;
+    const u_char *p;
     int total, i;
 
     TCHECK2(data[10], 2);
@@ -1264,7 +1264,7 @@ trunc:
  * Print an SMB-over-TCP packet received across tcp on port 445
  */
 void
-smb_tcp_print (packetbody_t data, int length)
+smb_tcp_print (const u_char *data, int length)
 {
 	if (!invoke_dissector((void *)_smb_tcp_print,
 	    length, 0, 0, 0, 0, gndo, data, NULL, NULL, NULL))
@@ -1272,11 +1272,11 @@ smb_tcp_print (packetbody_t data, int length)
 }
 
 void
-_smb_tcp_print (packetbody_t data, int length)
+_smb_tcp_print (const u_char *data, int length)
 {
     int caplen;
     u_int smb_len;
-    packetbody_t maxbuf;
+    const u_char *maxbuf;
 
     if (length < 4)
 	goto trunc;
@@ -1314,7 +1314,7 @@ trunc:
  * print a NBT packet received across udp on port 138
  */
 void
-nbt_udp138_print(packetbody_t data, int length)
+nbt_udp138_print(const u_char *data, int length)
 {
 	if (!invoke_dissector((void *)_nbt_udp138_print,
 	    length, 0, 0, 0, 0, gndo, data, NULL, NULL, NULL))
@@ -1322,9 +1322,9 @@ nbt_udp138_print(packetbody_t data, int length)
 }
 
 void
-_nbt_udp138_print(packetbody_t data, int length)
+_nbt_udp138_print(const u_char *data, int length)
 {
-    packetbody_t maxbuf = data + length;
+    const u_char *maxbuf = data + length;
 
     if (maxbuf > snapend)
 	maxbuf = snapend;
@@ -1414,7 +1414,7 @@ struct nbf_strings {
 };
 
 void
-netbeui_print(u_short control, packetbody_t data, int length)
+netbeui_print(u_short control, const u_char *data, int length)
 {
 	if (!invoke_dissector((void *)_netbeui_print,
 	    length, control, 0, 0, 0, gndo, data, NULL, NULL, NULL))
@@ -1422,12 +1422,12 @@ netbeui_print(u_short control, packetbody_t data, int length)
 }
 
 void
-_netbeui_print(u_short control, packetbody_t data, int length)
+_netbeui_print(u_short control, const u_char *data, int length)
 {
-    packetbody_t maxbuf = data + length;
+    const u_char *maxbuf = data + length;
     int len;
     int command;
-    packetbody_t data2;
+    const u_char *data2;
     int is_truncated = 0;
 
     if (maxbuf > snapend)
@@ -1520,7 +1520,7 @@ trunc:
  * print IPX-Netbios frames
  */
 void
-ipx_netbios_print(packetbody_t data, u_int length)
+ipx_netbios_print(const u_char *data, u_int length)
 {
 	if (!invoke_dissector((void *)_ipx_netbios_print,
 	    length, 0, 0, 0, 0, gndo, data, NULL, NULL, NULL))
@@ -1528,14 +1528,14 @@ ipx_netbios_print(packetbody_t data, u_int length)
 }
 
 void
-_ipx_netbios_print(packetbody_t data, u_int length)
+_ipx_netbios_print(const u_char *data, u_int length)
 {
     /*
      * this is a hack till I work out how to parse the rest of the
      * NetBIOS-over-IPX stuff
      */
     int i;
-    packetbody_t maxbuf;
+    const u_char *maxbuf;
 
     maxbuf = data + length;
     /* Don't go past the end of the captured data in the packet. */

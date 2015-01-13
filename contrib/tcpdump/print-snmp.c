@@ -329,10 +329,10 @@ struct obj_abrev {
 struct be {
 	u_int32_t asnlen;
 	union {
-		packetbody_t raw;
+		const u_char *raw;
 		int32_t integer;
 		u_int32_t uns;
-		packetbody_t str;
+		const u_char *str;
 	        struct {
 		        u_int32_t high;
 		        u_int32_t low;
@@ -404,7 +404,7 @@ const char *SnmpVersion[] = {
  * O/w, this returns the number of bytes parsed from "p".
  */
 static int
-asn1_parse(packetbody_t p, u_int len, struct be *elem)
+asn1_parse(const u_char *p, u_int len, struct be *elem)
 {
 	u_char form, class, id;
 	int i, hdr;
@@ -666,7 +666,7 @@ trunc:
 static int
 asn1_print(struct be *elem)
 {
-	packetbody_t p = elem->data.raw;
+	const u_char *p = elem->data.raw;
 	u_int32_t asnlen = elem->asnlen;
 	u_int32_t i;
 
@@ -1199,7 +1199,7 @@ smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
  * Decode SNMP varBind
  */
 static void
-varbind_print(u_char pduid, packetbody_t np, u_int length)
+varbind_print(u_char pduid, const u_char *np, u_int length)
 {
 	struct be elem;
 	int count = 0, ind;
@@ -1223,7 +1223,7 @@ varbind_print(u_char pduid, packetbody_t np, u_int length)
 	np = elem.data.raw;
 
 	for (ind = 1; length > 0; ind++) {
-		packetbody_t vbend;
+		const u_char *vbend;
 		u_int vblength;
 
 		fputs(" ", stdout);
@@ -1295,7 +1295,7 @@ varbind_print(u_char pduid, packetbody_t np, u_int length)
  * GetBulk, Inform, V2Trap, and Report
  */
 static void
-snmppdu_print(u_short pduid, packetbody_t np, u_int length)
+snmppdu_print(u_short pduid, const u_char *np, u_int length)
 {
 	struct be elem;
 	int count = 0, error;
@@ -1375,7 +1375,7 @@ snmppdu_print(u_short pduid, packetbody_t np, u_int length)
  * Decode SNMP Trap PDU
  */
 static void
-trappdu_print(packetbody_t np, u_int length)
+trappdu_print(const u_char *np, u_int length)
 {
 	struct be elem;
 	int count = 0, generic;
@@ -1465,7 +1465,7 @@ trappdu_print(packetbody_t np, u_int length)
  * Decode arbitrary SNMP PDUs.
  */
 static void
-pdu_print(packetbody_t np, u_int length, int version)
+pdu_print(const u_char *np, u_int length, int version)
 {
 	struct be pdu;
 	int count = 0;
@@ -1526,7 +1526,7 @@ pdu_print(packetbody_t np, u_int length, int version)
  * Decode a scoped SNMP PDU.
  */
 static void
-scopedpdu_print(packetbody_t np, u_int length, int version)
+scopedpdu_print(const u_char *np, u_int length, int version)
 {
 	char *buf;
 	struct be elem;
@@ -1582,7 +1582,7 @@ scopedpdu_print(packetbody_t np, u_int length, int version)
  * Decode SNMP Community Header (SNMPv1 and SNMPv2c)
  */
 static void
-community_print(packetbody_t np, u_int length, int version)
+community_print(const u_char *np, u_int length, int version)
 {
 	char *buf;
 	struct be elem;
@@ -1616,7 +1616,7 @@ community_print(packetbody_t np, u_int length, int version)
  * Decode SNMPv3 User-based Security Message Header (SNMPv3)
  */
 static void
-usm_print(packetbody_t np, u_int length)
+usm_print(const u_char *np, u_int length)
 {
 	char *buf;
         struct be elem;
@@ -1715,13 +1715,13 @@ usm_print(packetbody_t np, u_int length)
  * Decode SNMPv3 Message Header (SNMPv3)
  */
 static void
-v3msg_print(packetbody_t np, u_int length)
+v3msg_print(const u_char *np, u_int length)
 {
 	struct be elem;
 	int count = 0;
 	u_char flags;
 	int model;
-	packetbody_t xnp = np;
+	const u_char *xnp = np;
 	int xlength = length;
 
 	/* Sequence */
@@ -1852,7 +1852,7 @@ v3msg_print(packetbody_t np, u_int length)
  * Decode SNMP header and pass on to PDU printing routines
  */
 void
-snmp_print(packetbody_t np, u_int length)
+snmp_print(const u_char *np, u_int length)
 {
 	if (!invoke_dissector((void *)_snmp_print,
 	    length, 0, 0, 0, 0, gndo, np, NULL, NULL, NULL))
@@ -1860,7 +1860,7 @@ snmp_print(packetbody_t np, u_int length)
 }
 
 void
-_snmp_print(packetbody_t np, u_int length)
+_snmp_print(const u_char *np, u_int length)
 {
 	struct be elem;
 	int count = 0;

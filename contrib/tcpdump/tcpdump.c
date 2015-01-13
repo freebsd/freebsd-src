@@ -1844,7 +1844,7 @@ static void
 print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 {
 	struct print_info *print_info;
-	packetbody_t p;
+	__capability const u_char * p;
 
 	++packets_captured;
 

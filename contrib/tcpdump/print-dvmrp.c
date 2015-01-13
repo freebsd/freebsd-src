@@ -62,18 +62,18 @@ static const char rcsid[] _U_ =
 #define DVMRP_NF_DISABLED	0x20	/* administratively disabled */
 #define DVMRP_NF_QUERIER	0x40	/* I am the subnet's querier */
 
-static int print_probe(packetbody_t, packetbody_t, u_int);
-static int print_report(packetbody_t, packetbody_t, u_int);
-static int print_neighbors(packetbody_t, packetbody_t, u_int);
-static int print_neighbors2(packetbody_t, packetbody_t, u_int);
-static int print_prune(packetbody_t);
-static int print_graft(packetbody_t);
-static int print_graft_ack(packetbody_t);
+static int print_probe(const u_char *, const u_char *, u_int);
+static int print_report(const u_char *, const u_char *, u_int);
+static int print_neighbors(const u_char *, const u_char *, u_int);
+static int print_neighbors2(const u_char *, const u_char *, u_int);
+static int print_prune(const u_char *);
+static int print_graft(const u_char *);
+static int print_graft_ack(const u_char *);
 
 static u_int32_t target_level;
 
 void
-dvmrp_print(packetbody_t bp, register u_int len)
+dvmrp_print(const u_char *bp, register u_int len)
 {
 	if (!invoke_dissector((void *)_dvmrp_print,
 	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -81,9 +81,9 @@ dvmrp_print(packetbody_t bp, register u_int len)
 }
 
 void
-_dvmrp_print(packetbody_t bp, register u_int len)
+_dvmrp_print(const u_char *bp, register u_int len)
 {
-	packetbody_t ep;
+	const u_char *ep;
 	register u_char type;
 
 	ep = snapend;
@@ -174,7 +174,7 @@ trunc:
 }
 
 static int 
-print_report(packetbody_t bp, packetbody_t ep, register u_int len)
+print_report(const u_char *bp, const u_char *ep, register u_int len)
 {
 	register u_int32_t mask, origin;
 	register int metric, done;
@@ -230,7 +230,7 @@ trunc:
 }
 
 static int
-print_probe(packetbody_t bp, packetbody_t ep, register u_int len)
+print_probe(const u_char *bp, const u_char *ep, register u_int len)
 {
 	register u_int32_t genid;
 
@@ -262,9 +262,9 @@ trunc:
 }
 
 static int
-print_neighbors(packetbody_t bp, packetbody_t ep, register u_int len)
+print_neighbors(const u_char *bp, const u_char *ep, register u_int len)
 {
-	packetbody_t laddr;
+	const u_char *laddr;
 	register u_char metric;
 	register u_char thresh;
 	register int ncount;
@@ -292,9 +292,9 @@ trunc:
 }
 
 static int
-print_neighbors2(packetbody_t bp, packetbody_t ep, register u_int len)
+print_neighbors2(const u_char *bp, const u_char *ep, register u_int len)
 {
-	packetbody_t laddr;
+	const u_char *laddr;
 	register u_char metric, thresh, flags;
 	register int ncount;
 
@@ -340,7 +340,7 @@ trunc:
 }
 
 static int
-print_prune(packetbody_t bp)
+print_prune(const u_char *bp)
 {
 	TCHECK2(bp[0], 12);
 	printf(" src %s grp %s", ipaddr_string(bp), ipaddr_string(bp + 4));
@@ -353,7 +353,7 @@ trunc:
 }
 
 static int
-print_graft(packetbody_t bp)
+print_graft(const u_char *bp)
 {
 	TCHECK2(bp[0], 8);
 	printf(" src %s grp %s", ipaddr_string(bp), ipaddr_string(bp + 4));
@@ -363,7 +363,7 @@ trunc:
 }
 
 static int
-print_graft_ack(packetbody_t bp)
+print_graft_ack(const u_char *bp)
 {
 	TCHECK2(bp[0], 8);
 	printf(" src %s grp %s", ipaddr_string(bp), ipaddr_string(bp + 4));

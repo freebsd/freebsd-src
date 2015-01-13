@@ -122,14 +122,14 @@ static char tstr[] = " [|ospf3]";
 #endif /* WIN32 */
 
 /* Forwards */
-static void ospf6_print_ls_type(u_int, __capability const rtrid_t *);
-static int ospf6_print_lshdr(__capability const struct lsa6_hdr *);
-static int ospf6_print_lsa(__capability const struct lsa6 *);
-static int ospf6_decode_v3(__capability const struct ospf6hdr *, packetbody_t);
+static void ospf6_print_ls_type(u_int, const rtrid_t *);
+static int ospf6_print_lshdr(const struct lsa6_hdr *);
+static int ospf6_print_lsa(const struct lsa6 *);
+static int ospf6_decode_v3(const struct ospf6hdr *, const u_char *);
 
 
 static void
-ospf6_print_ls_type(register u_int ls_type, __capability const rtrid_t *ls_stateid)
+ospf6_print_ls_type(register u_int ls_type, const rtrid_t *ls_stateid)
 {
         printf("\n\t    %s LSA (%d), %s Scope%s, LSA-ID %s",
                tok2str(ospf6_lsa_values, "Unknown", ls_type & LS_TYPE_MASK),
@@ -140,7 +140,7 @@ ospf6_print_ls_type(register u_int ls_type, __capability const rtrid_t *ls_state
 }
 
 static int
-ospf6_print_lshdr(__capability const struct lsa6_hdr *lshp)
+ospf6_print_lshdr(const struct lsa6_hdr *lshp)
 {
 
 	TCHECK(lshp->ls_type);
@@ -160,10 +160,10 @@ trunc:
 }
 
 static int
-ospf6_print_lsaprefix(packetbody_t tptr, u_int lsa_length)
+ospf6_print_lsaprefix(const u_char *tptr, u_int lsa_length)
 {
-	__capability const struct lsa6_prefix *lsapp =
-	    (__capability const struct lsa6_prefix *)tptr;
+	const struct lsa6_prefix *lsapp =
+	    (const struct lsa6_prefix *)tptr;
 	u_int wordlen;
 	struct in6_addr prefix;
 
@@ -201,27 +201,27 @@ trunc:
  * Print a single link state advertisement.  If truncated return 1, else 0.
  */
 static int
-ospf6_print_lsa(__capability const struct lsa6 *lsap)
+ospf6_print_lsa(const struct lsa6 *lsap)
 {
-	__capability const struct rlalink6 *rlp;
+	const struct rlalink6 *rlp;
 #if 0
-	__capability const struct tos_metric *tosp;
+	const struct tos_metric *tosp;
 #endif
-	__capability const rtrid_t *ap;
+	const rtrid_t *ap;
 #if 0
-	__capability const struct aslametric *almp;
-	__capability const struct mcla *mcp;
+	const struct aslametric *almp;
+	const struct mcla *mcp;
 #endif
-	__capability const struct llsa *llsap;
-	__capability const struct lsa6_prefix *lsapp;
+	const struct llsa *llsap;
+	const struct lsa6_prefix *lsapp;
 #if 0
-	__capability const u_int32_t *lp;
+	const u_int32_t *lp;
 #endif
 	register u_int prefixes;
 	register int bytelen;
 	register u_int length, lsa_length;
 	u_int32_t flags32;
-	packetbody_t tptr;
+	const u_char *tptr;
 
 	if (ospf6_print_lshdr(&lsap->ls_hdr))
 		return (1);
@@ -237,7 +237,7 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
         if (length < sizeof(struct lsa6_hdr))
         	return (1);
         lsa_length = length - sizeof(struct lsa6_hdr);
-        tptr = (packetbody_t)lsap+sizeof(struct lsa6_hdr);
+        tptr = (const u_char *)lsap+sizeof(struct lsa6_hdr);
 
 	switch (EXTRACT_16BITS(&lsap->ls_hdr.ls_type)) {
 	case LS_TYPE_ROUTER | LS_SCOPE_AREA:
@@ -323,7 +323,7 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 		printf(", metric %u",
 			EXTRACT_32BITS(&lsap->lsa_un.un_inter_ap.inter_ap_metric) & SLA_MASK_METRIC);
 
-		tptr = (packetbody_t)lsap->lsa_un.un_inter_ap.inter_ap_prefix;
+		tptr = (const u_char *)lsap->lsa_un.un_inter_ap.inter_ap_prefix;
 		while (lsa_length != 0) {
 			bytelen = ospf6_print_lsaprefix(tptr, lsa_length);
 			if (bytelen < 0)
@@ -345,8 +345,8 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 		       EXTRACT_32BITS(&lsap->lsa_un.un_asla.asla_metric) &
 		       ASLA_MASK_METRIC);
 
-		tptr = (packetbody_t)lsap->lsa_un.un_asla.asla_prefix;
-		lsapp = (__capability const struct lsa6_prefix *)tptr;
+		tptr = (const u_char *)lsap->lsa_un.un_asla.asla_prefix;
+		lsapp = (const struct lsa6_prefix *)tptr;
 		bytelen = ospf6_print_lsaprefix(tptr, lsa_length);
 		if (bytelen < 0)
 			goto trunc;
@@ -354,9 +354,9 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 		tptr += bytelen;
 
 		if ((flags32 & ASLA_FLAG_FWDADDR) != 0) {
-			__capability const struct in6_addr *fwdaddr6;
+			const struct in6_addr *fwdaddr6;
 
-			fwdaddr6 = (__capability const struct in6_addr *)tptr;
+			fwdaddr6 = (const struct in6_addr *)tptr;
 			if (lsa_length < sizeof (*fwdaddr6))
 				return (1);
 			lsa_length -= sizeof (*fwdaddr6);
@@ -370,9 +370,9 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 			if (lsa_length < sizeof (u_int32_t))
 				return (1);
 			lsa_length -= sizeof (u_int32_t);
-			TCHECK(*(__capability const u_int32_t *)tptr);
+			TCHECK(*(const u_int32_t *)tptr);
 			printf(" tag %s",
-			       ipaddr_string((__capability const u_int32_t *)tptr));
+			       ipaddr_string((const u_int32_t *)tptr));
 			tptr += sizeof(u_int32_t);
 		}
 
@@ -380,9 +380,9 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
 			if (lsa_length < sizeof (u_int32_t))
 				return (1);
 			lsa_length -= sizeof (u_int32_t);
-			TCHECK(*(__capability const u_int32_t *)tptr);
+			TCHECK(*(const u_int32_t *)tptr);
 			printf(" RefLSID: %s",
-			       ipaddr_string((__capability const u_int32_t *)tptr));
+			       ipaddr_string((const u_int32_t *)tptr));
 			tptr += sizeof(u_int32_t);
 		}
 		break;
@@ -407,7 +407,7 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
                        ip6addr_string(&llsap->llsa_lladdr),
                        prefixes);
 
-		tptr = (packetbody_t)llsap->llsa_prefix;
+		tptr = (const u_char *)llsap->llsa_prefix;
 		while (prefixes > 0) {
 			bytelen = ospf6_print_lsaprefix(tptr, lsa_length);
 			if (bytelen < 0)
@@ -435,7 +435,7 @@ ospf6_print_lsa(__capability const struct lsa6 *lsap)
                 prefixes = EXTRACT_16BITS(&lsap->lsa_un.un_intra_ap.intra_ap_nprefix);
 		printf("\n\t      Prefixes %d:", prefixes);
 
-		tptr = (packetbody_t)lsap->lsa_un.un_intra_ap.intra_ap_prefix;
+		tptr = (const u_char *)lsap->lsa_un.un_intra_ap.intra_ap_prefix;
 		while (prefixes > 0) {
 			bytelen = ospf6_print_lsaprefix(tptr, lsa_length);
 			if (bytelen < 0)
@@ -473,13 +473,13 @@ trunc:
 }
 
 static int
-ospf6_decode_v3(__capability const struct ospf6hdr *op,
-    packetbody_t dataend)
+ospf6_decode_v3(const struct ospf6hdr *op,
+    const u_char *dataend)
 {
-	__capability const rtrid_t *ap;
-	__capability const struct lsr6 *lsrp;
-	__capability const struct lsa6_hdr *lshp;
-	__capability const struct lsa6 *lsap;
+	const rtrid_t *ap;
+	const struct lsr6 *lsrp;
+	const struct lsa6_hdr *lshp;
+	const struct lsa6 *lsap;
 	register int i;
 
 	switch (op->ospf6_type) {
@@ -507,7 +507,7 @@ ospf6_decode_v3(__capability const struct ospf6hdr *op,
 		if (vflag) {
 			printf("\n\t  Neighbor List:");
 			ap = op->ospf6_hello.hello_neighbor;
-			while ((packetbody_t)ap < dataend) {
+			while ((const u_char *)ap < dataend) {
 				TCHECK(*ap);
 				printf("\n\t    %s", ipaddr_string(ap));
 				++ap;
@@ -539,7 +539,7 @@ ospf6_decode_v3(__capability const struct ospf6hdr *op,
 	case OSPF_TYPE_LS_REQ:
 		if (vflag) {
 			lsrp = op->ospf6_lsr;
-			while ((packetbody_t)lsrp < dataend) {
+			while ((const u_char *)lsrp < dataend) {
 				TCHECK(*lsrp);
                                 printf("\n\t  Advertising Router %s",
                                        ipaddr_string(&lsrp->ls_router));
@@ -558,7 +558,7 @@ ospf6_decode_v3(__capability const struct ospf6hdr *op,
 			while (i--) {
 				if (ospf6_print_lsa(lsap))
 					goto trunc;
-				lsap = (__capability const struct lsa6 *)((packetbody_t)lsap +
+				lsap = (const struct lsa6 *)((const u_char *)lsap +
 				    EXTRACT_16BITS(&lsap->ls_hdr.ls_length));
 			}
 		}
@@ -584,7 +584,7 @@ trunc:
 }
 
 void
-ospf6_print(packetbody_t bp, register u_int length)
+ospf6_print(const u_char *bp, register u_int length)
 {
 	if (!invoke_dissector((void *)_ospf6_print,
 	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -592,13 +592,13 @@ ospf6_print(packetbody_t bp, register u_int length)
 }
 
 void
-_ospf6_print(packetbody_t bp, register u_int length)
+_ospf6_print(const u_char *bp, register u_int length)
 {
-	__capability const struct ospf6hdr *op;
-	packetbody_t dataend;
+	const struct ospf6hdr *op;
+	const u_char *dataend;
 	const char *cp;
 
-	op = (__capability const struct ospf6hdr *)bp;
+	op = (const struct ospf6hdr *)bp;
 
 	/* If the type is valid translate it, or just print the type */
 	/* value.  If it's not valid, say so and return */

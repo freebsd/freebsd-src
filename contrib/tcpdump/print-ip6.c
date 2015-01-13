@@ -50,8 +50,8 @@ static const char rcsid[] _U_ =
  * Compute a V6-style checksum by building a pseudoheader.
  */
 int
-nextproto6_cksum(__capability const struct ip6_hdr *ip6,
-		 __capability const u_int8_t *data,
+nextproto6_cksum(const struct ip6_hdr *ip6,
+		 const u_int8_t *data,
 		 u_int len, u_int next_proto)
 {
         struct {
@@ -82,19 +82,19 @@ nextproto6_cksum(__capability const struct ip6_hdr *ip6,
  * print an IP6 datagram.
  */
 void
-ip6_print(netdissect_options *ndo, packetbody_t bp, u_int length)
+ip6_print(netdissect_options *ndo, const u_char *bp, u_int length)
 {
-	__capability const struct ip6_hdr *ip6;
+	const struct ip6_hdr *ip6;
 	register int advance;
 	u_int len;
-	packetbody_t ipend;
-	packetbody_t cp;
+	const u_char *ipend;
+	const u_char *cp;
 	register u_int payload_len;
 	int nh;
 	int fragmented = 0;
 	u_int flow;
 
-	ip6 = (__capability const struct ip6_hdr *)bp;
+	ip6 = (const struct ip6_hdr *)bp;
 
 	TCHECK(*ip6);
 	if (length < sizeof (struct ip6_hdr)) {
@@ -142,14 +142,14 @@ ip6_print(netdissect_options *ndo, packetbody_t bp, u_int length)
 	if (ipend < ndo->ndo_snapend)
 		ndo->ndo_snapend = ipend;
 
-	cp = (packetbody_t)ip6;
+	cp = (const u_char *)ip6;
 	advance = sizeof(struct ip6_hdr);
 	nh = ip6->ip6_nxt;
 	while (cp < ndo->ndo_snapend && advance > 0) {
 		cp += advance;
 		len -= advance;
 
-		if (cp == (packetbody_t)(ip6 + 1) &&
+		if (cp == (const u_char *)(ip6 + 1) &&
 		    nh != IPPROTO_TCP && nh != IPPROTO_UDP &&
 		    nh != IPPROTO_DCCP && nh != IPPROTO_SCTP) {
 			(void)ND_PRINT((ndo, "%s > %s: ", ip6addr_string(&ip6->ip6_src),
@@ -166,7 +166,7 @@ ip6_print(netdissect_options *ndo, packetbody_t bp, u_int length)
 			nh = *cp;
 			break;
 		case IPPROTO_FRAGMENT:
-			advance = frag6_print(cp, (packetbody_t)ip6);
+			advance = frag6_print(cp, (const u_char *)ip6);
 			if (ndo->ndo_snapend <= cp + advance)
 				return;
 			nh = *cp;
@@ -185,27 +185,27 @@ ip6_print(netdissect_options *ndo, packetbody_t bp, u_int length)
 			 * which payload can be piggybacked atop a
 			 * mobility header.
 			 */
-			advance = mobility_print(cp, (packetbody_t)ip6);
+			advance = mobility_print(cp, (const u_char *)ip6);
 			nh = *cp;
 			return;
 		case IPPROTO_ROUTING:
-			advance = rt6_print(cp, (packetbody_t)ip6);
+			advance = rt6_print(cp, (const u_char *)ip6);
 			nh = *cp;
 			break;
 		case IPPROTO_SCTP:
-			sctp_print(cp, (packetbody_t)ip6, len);
+			sctp_print(cp, (const u_char *)ip6, len);
 			return;
 		case IPPROTO_DCCP:
-			dccp_print(cp, (packetbody_t)ip6, len);
+			dccp_print(cp, (const u_char *)ip6, len);
 			return;
 		case IPPROTO_TCP:
-			tcp_print(cp, len, (packetbody_t)ip6, fragmented);
+			tcp_print(cp, len, (const u_char *)ip6, fragmented);
 			return;
 		case IPPROTO_UDP:
-			udp_print(cp, len, (packetbody_t)ip6, fragmented);
+			udp_print(cp, len, (const u_char *)ip6, fragmented);
 			return;
 		case IPPROTO_ICMPV6:
-			icmp6_print(ndo, cp, len, (packetbody_t)ip6, fragmented);
+			icmp6_print(ndo, cp, len, (const u_char *)ip6, fragmented);
 			return;
 		case IPPROTO_AH:
 			advance = ah_print(cp);
@@ -214,7 +214,7 @@ ip6_print(netdissect_options *ndo, packetbody_t bp, u_int length)
 		case IPPROTO_ESP:
 		    {
 			int enh, padlen;
-			advance = esp_print(ndo, cp, len, (packetbody_t)ip6, &enh, &padlen);
+			advance = esp_print(ndo, cp, len, (const u_char *)ip6, &enh, &padlen);
 			nh = enh & 0xff;
 			len -= padlen;
 			break;
@@ -245,7 +245,7 @@ ip6_print(netdissect_options *ndo, packetbody_t bp, u_int length)
 			return;
 
                 case IPPROTO_PGM:
-                        pgm_print(cp, len, (packetbody_t)ip6);
+                        pgm_print(cp, len, (const u_char *)ip6);
                         return;
 
 		case IPPROTO_GRE:

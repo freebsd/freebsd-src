@@ -155,7 +155,7 @@ typedef enum _pgm_type {
 #endif
 
 void
-pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
+pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 {
 	if (!invoke_dissector((void *)_pgm_print,
 	    length, 0, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
@@ -163,29 +163,29 @@ pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 }
 
 void
-_pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
+_pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 {
-	__capability const struct pgm_header *pgm;
-	__capability const struct ip *ip;
+	const struct pgm_header *pgm;
+	const struct ip *ip;
 	register char ch;
 	u_int16_t sport, dport;
 	int addr_size;
-	__capability const void *nla;
+	const void *nla;
 	int nla_af;
 #ifdef INET6
 	char nla_buf[INET6_ADDRSTRLEN];
-	__capability const struct ip6_hdr *ip6;
+	const struct ip6_hdr *ip6;
 #else
 	char nla_buf[INET_ADDRSTRLEN];
 #endif
 	u_int8_t opt_type, opt_len, flags1, flags2;
 	u_int32_t seq, opts_len, len, offset;
 
-	pgm = (__capability struct pgm_header *)bp;
-	ip = (__capability struct ip *)bp2;
+	pgm = (struct pgm_header *)bp;
+	ip = (struct ip *)bp2;
 #ifdef INET6
 	if (IP_V(ip) == 6)
-		ip6 = (__capability struct ip6_hdr *)bp2;
+		ip6 = (struct ip6_hdr *)bp2;
 	else
 		ip6 = NULL;
 #else /* INET6 */
@@ -261,9 +261,9 @@ _pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
                      pgm->pgm_gsid[5]);
 	switch (pgm->pgm_type) {
 	case PGM_SPM: {
-	    __capability struct pgm_spm *spm;
+	    struct pgm_spm *spm;
 
-	    spm = (__capability struct pgm_spm *)(pgm + 1);
+	    spm = (struct pgm_spm *)(pgm + 1);
 	    TCHECK(*spm);
 
 	    switch (EXTRACT_16BITS(&spm->pgms_nla_afi)) {
@@ -281,7 +281,7 @@ _pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 		goto trunc;
 		break;
 	    }
-	    bp = (packetbody_t)(spm + 1);
+	    bp = (const u_char *)(spm + 1);
 	    TCHECK2(*bp, addr_size);
 	    nla = bp;
 	    bp += addr_size;
@@ -296,21 +296,21 @@ _pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 	}
 
 	case PGM_POLL: {
-	    __capability struct pgm_poll *poll;
+	    struct pgm_poll *poll;
 
-	    poll = (__capability struct pgm_poll *)(pgm + 1);
+	    poll = (struct pgm_poll *)(pgm + 1);
 	    TCHECK(*poll);
 	    (void)printf("POLL seq %u round %u",
 			 EXTRACT_32BITS(&poll->pgmp_seq),
                          EXTRACT_16BITS(&poll->pgmp_round));
-	    bp = (packetbody_t) (poll + 1);
+	    bp = (const u_char *) (poll + 1);
 	    break;
 	}
 	case PGM_POLR: {
-	    __capability struct pgm_polr *polr;
+	    struct pgm_polr *polr;
 	    u_int32_t ivl, rnd, mask;
 
-	    polr = (__capability struct pgm_polr *)(pgm + 1);
+	    polr = (struct pgm_polr *)(pgm + 1);
 	    TCHECK(*polr);
 
 	    switch (EXTRACT_16BITS(&polr->pgmp_nla_afi)) {
@@ -328,7 +328,7 @@ _pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 		goto trunc;
 		break;
 	    }
-	    bp = (packetbody_t) (polr + 1);
+	    bp = (const u_char *) (polr + 1);
 	    TCHECK2(*bp, addr_size);
 	    nla = bp;
 	    bp += addr_size;
@@ -353,34 +353,34 @@ _pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 	    break;
 	}
 	case PGM_ODATA: {
-	    __capability struct pgm_data *odata;
+	    struct pgm_data *odata;
 
-	    odata = (__capability struct pgm_data *)(pgm + 1);
+	    odata = (struct pgm_data *)(pgm + 1);
 	    TCHECK(*odata);
 	    (void)printf("ODATA trail %u seq %u",
 			 EXTRACT_32BITS(&odata->pgmd_trailseq),
 			 EXTRACT_32BITS(&odata->pgmd_seq));
-	    bp = (packetbody_t) (odata + 1);
+	    bp = (const u_char *) (odata + 1);
 	    break;
 	}
 
 	case PGM_RDATA: {
-	    __capability struct pgm_data *rdata;
+	    struct pgm_data *rdata;
 
-	    rdata = (__capability struct pgm_data *)(pgm + 1);
+	    rdata = (struct pgm_data *)(pgm + 1);
 	    TCHECK(*rdata);
 	    (void)printf("RDATA trail %u seq %u",
 			 EXTRACT_32BITS(&rdata->pgmd_trailseq),
 			 EXTRACT_32BITS(&rdata->pgmd_seq));
-	    bp = (packetbody_t) (rdata + 1);
+	    bp = (const u_char *) (rdata + 1);
 	    break;
 	}
 
 	case PGM_NAK:
 	case PGM_NULLNAK:
 	case PGM_NCF: {
-	    __capability struct pgm_nak *nak;
-	    __capability const void *source, *group;
+	    struct pgm_nak *nak;
+	    const void *source, *group;
 	    int source_af, group_af;
 #ifdef INET6
 	    char source_buf[INET6_ADDRSTRLEN], group_buf[INET6_ADDRSTRLEN];
@@ -388,7 +388,7 @@ _pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 	    char source_buf[INET_ADDRSTRLEN], group_buf[INET_ADDRSTRLEN];
 #endif
 
-	    nak = (__capability struct pgm_nak *)(pgm + 1);
+	    nak = (struct pgm_nak *)(pgm + 1);
 	    TCHECK(*nak);
 
 	    /*
@@ -410,7 +410,7 @@ _pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 		goto trunc;
 		break;
 	    }
-	    bp = (packetbody_t) (nak + 1);
+	    bp = (const u_char *) (nak + 1);
 	    TCHECK2(*bp, addr_size);
 	    source = bp;
 	    bp += addr_size;
@@ -463,13 +463,13 @@ _pgm_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 	}
 
 	case PGM_ACK: {
-	    __capability struct pgm_ack *ack;
+	    struct pgm_ack *ack;
 
-	    ack = (__capability struct pgm_ack *)(pgm + 1);
+	    ack = (struct pgm_ack *)(pgm + 1);
 	    TCHECK(*ack);
 	    (void)printf("ACK seq %u",
 			 EXTRACT_32BITS(&ack->pgma_rx_max_seq));
-	    bp = (packetbody_t) (ack + 1);
+	    bp = (const u_char *) (ack + 1);
 	    break;
 	}
 

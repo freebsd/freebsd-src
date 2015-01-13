@@ -92,7 +92,7 @@ static struct tok pf_directions[] = {
 #define	OPENBSD_AF_INET6	24
 
 static void
-pflog_print(__capability const struct pfloghdr *hdr)
+pflog_print(const struct pfloghdr *hdr)
 {
 	char ruleset[PFLOG_RULESET_NAME_SIZE + 1];
 	char ifname[IFNAMSIZ + 1];
@@ -120,12 +120,12 @@ pflog_print(__capability const struct pfloghdr *hdr)
 }
 
 u_int
-pflog_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+pflog_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int length = h->len;
 	u_int hdrlen;
 	u_int caplen = h->caplen;
-	__capability const struct pfloghdr *hdr;
+	const struct pfloghdr *hdr;
 	u_int8_t af;
 
 	/* check length */
@@ -135,7 +135,7 @@ pflog_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 	}
 
 #define MIN_PFLOG_HDRLEN	45
-	hdr = (__capability const struct pfloghdr *)p;
+	hdr = (const struct pfloghdr *)p;
 	if (hdr->length < MIN_PFLOG_HDRLEN) {
 		printf("[pflog: invalid header length!]");
 		return (hdr->length);	/* XXX: not really */
@@ -148,7 +148,7 @@ pflog_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 	}
 
 	/* print what we know */
-	hdr = (__capability const struct pfloghdr *)p;
+	hdr = (const struct pfloghdr *)p;
 	TCHECK(*hdr);
 	if (eflag)
 		pflog_print(hdr);

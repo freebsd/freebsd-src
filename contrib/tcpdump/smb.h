@@ -119,4 +119,4 @@
 #define PTR_DIFF(p1, p2) ((size_t)(((char *)(p1)) - (char *)(p2)))
 
 /* some protos */
-packetbody_t smb_fdata(packetbody_t, const char *, packetbody_t, int);
+const u_char *smb_fdata(const u_char *, const char *, const u_char *, int);

@@ -95,13 +95,13 @@ static struct tok pppoetag2str[] = {
 #define MAXTAGPRINT 80
 
 u_int
-pppoe_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+pppoe_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	return (_pppoe_print(p, h->len));
 }
 
 void
-pppoe_print(packetbody_t bp, u_int length)
+pppoe_print(const u_char *bp, u_int length)
 {
 	if (!invoke_dissector((void *)_pppoe_print,
 	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -109,11 +109,11 @@ pppoe_print(packetbody_t bp, u_int length)
 }
 
 u_int
-_pppoe_print(packetbody_t bp, u_int length)
+_pppoe_print(const u_char *bp, u_int length)
 {
 	u_int16_t pppoe_ver, pppoe_type, pppoe_code, pppoe_sessionid;
 	u_int pppoe_length;
-	packetbody_t pppoe_packet, pppoe_payload;
+	const u_char *pppoe_packet, *pppoe_payload;
 
 	if (length < PPPOE_HDRLEN) {
 		(void)printf("truncated-pppoe %u", length);
@@ -151,7 +151,7 @@ _pppoe_print(packetbody_t bp, u_int length)
 	if (pppoe_code) {
 		/* PPP session packets don't contain tags */
 		u_short tag_type = 0xffff, tag_len;
-		packetbody_t p = pppoe_payload;
+		const u_char *p = pppoe_payload;
 
 		/*
 		 * loop invariant:
@@ -167,7 +167,7 @@ _pppoe_print(packetbody_t bp, u_int length)
 
 			if (tag_len) {
 				unsigned isascii = 0, isgarbage = 0;
-				packetbody_t v;
+				const u_char *v;
 				char tag_str[MAXTAGPRINT];
 				unsigned tag_str_len = 0;
 

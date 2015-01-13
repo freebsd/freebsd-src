@@ -187,15 +187,15 @@ struct tok opcode[] = {
 extern struct tok ns_type2str[];
 extern struct tok ns_class2str[];
 
-static int lwres_printname(size_t, packetbody_t);
-static int lwres_printnamelen(packetbody_t);
-static int lwres_printbinlen(packetbody_t);
-static int lwres_printaddr(__capability lwres_addr_t *);
+static int lwres_printname(size_t, const u_char *);
+static int lwres_printnamelen(const u_char *);
+static int lwres_printbinlen(const u_char *);
+static int lwres_printaddr(lwres_addr_t *);
 
 static int
-lwres_printname(size_t l, packetbody_t p0)
+lwres_printname(size_t l, const u_char *p0)
 {
-	packetbody_t p;
+	const u_char *p;
 	size_t i;
 
 	p = p0;
@@ -215,7 +215,7 @@ lwres_printname(size_t l, packetbody_t p0)
 }
 
 static int
-lwres_printnamelen(packetbody_t p)
+lwres_printnamelen(const u_char *p)
 {
 	u_int16_t l;
 	int advance;
@@ -233,9 +233,9 @@ lwres_printnamelen(packetbody_t p)
 }
 
 static int
-lwres_printbinlen(packetbody_t p0)
+lwres_printbinlen(const u_char *p0)
 {
-	packetbody_t p;
+	const u_char *p;
 	u_int16_t l;
 	int i;
 
@@ -255,7 +255,7 @@ lwres_printbinlen(packetbody_t p0)
 }
 
 static int
-lwres_printaddr(__capability lwres_addr_t *ap)
+lwres_printaddr(lwres_addr_t *ap)
 {
 	u_int16_t l;
 	const char *p;
@@ -295,7 +295,7 @@ lwres_printaddr(__capability lwres_addr_t *ap)
 }
 
 void
-lwres_print(packetbody_t bp, u_int length)
+lwres_print(const u_char *bp, u_int length)
 {
 	if (!invoke_dissector((void *)_lwres_print,
 	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -303,16 +303,16 @@ lwres_print(packetbody_t bp, u_int length)
 }
 
 void
-_lwres_print(packetbody_t bp, u_int length)
+_lwres_print(const u_char *bp, u_int length)
 {
-	__capability const struct lwres_lwpacket *np;
+	const struct lwres_lwpacket *np;
 	u_int32_t v;
-	packetbody_t s;
+	const u_char *s;
 	int response;
 	int advance;
 	int unsupported = 0;
 
-	np = (__capability const struct lwres_lwpacket *)bp;
+	np = (const struct lwres_lwpacket *)bp;
 	TCHECK(np->authlength);
 
 	printf(" lwres");
@@ -320,7 +320,7 @@ _lwres_print(packetbody_t bp, u_int length)
 	if (vflag || v != LWRES_LWPACKETVERSION_0)
 		printf(" v%u", v);
 	if (v != LWRES_LWPACKETVERSION_0) {
-		s = (packetbody_t)np + EXTRACT_32BITS(&np->length);
+		s = (const u_char *)np + EXTRACT_32BITS(&np->length);
 		goto tail;
 	}
 
@@ -354,9 +354,9 @@ _lwres_print(packetbody_t bp, u_int length)
 		/*
 		 * queries
 		 */
-		__capability lwres_gabnrequest_t *gabn;
-		__capability lwres_gnbarequest_t *gnba;
-		__capability lwres_grbnrequest_t *grbn;
+		lwres_gabnrequest_t *gabn;
+		lwres_gnbarequest_t *gnba;
+		lwres_grbnrequest_t *grbn;
 		u_int32_t l;
 
 		gabn = NULL;
@@ -367,10 +367,10 @@ _lwres_print(packetbody_t bp, u_int length)
 		case LWRES_OPCODE_NOOP:
 			break;
 		case LWRES_OPCODE_GETADDRSBYNAME:
-			gabn = (__capability lwres_gabnrequest_t *)(np + 1);
+			gabn = (lwres_gabnrequest_t *)(np + 1);
 			TCHECK(gabn->namelen);
 			/* XXX gabn points to packed struct */
-			s = (packetbody_t)&gabn->namelen +
+			s = (const u_char *)&gabn->namelen +
 			    sizeof(gabn->namelen);
 			l = EXTRACT_16BITS(&gabn->namelen);
 
@@ -401,7 +401,7 @@ _lwres_print(packetbody_t bp, u_int length)
 			s += advance;
 			break;
 		case LWRES_OPCODE_GETNAMEBYADDR:
-			gnba = (__capability lwres_gnbarequest_t *)(np + 1);
+			gnba = (lwres_gnbarequest_t *)(np + 1);
 			TCHECK(gnba->addr);
 
 			/* BIND910: not used */
@@ -410,7 +410,7 @@ _lwres_print(packetbody_t bp, u_int length)
 				    EXTRACT_32BITS(&gnba->flags));
 			}
 
-			s = (packetbody_t)&gnba->addr;
+			s = (const u_char *)&gnba->addr;
 
 			advance = lwres_printaddr(&gnba->addr);
 			if (advance < 0)
@@ -419,7 +419,7 @@ _lwres_print(packetbody_t bp, u_int length)
 			break;
 		case LWRES_OPCODE_GETRDATABYNAME:
 			/* XXX no trace, not tested */
-			grbn = (__capability lwres_grbnrequest_t *)(np + 1);
+			grbn = (lwres_grbnrequest_t *)(np + 1);
 			TCHECK(grbn->namelen);
 
 			/* BIND910: not used */
@@ -436,7 +436,7 @@ _lwres_print(packetbody_t bp, u_int length)
 			}
 
 			/* XXX grbn points to packed struct */
-			s = (packetbody_t)&grbn->namelen +
+			s = (const u_char *)&grbn->namelen +
 			    sizeof(grbn->namelen);
 			l = EXTRACT_16BITS(&grbn->namelen);
 
@@ -453,9 +453,9 @@ _lwres_print(packetbody_t bp, u_int length)
 		/*
 		 * responses
 		 */
-		__capability lwres_gabnresponse_t *gabn;
-		__capability lwres_gnbaresponse_t *gnba;
-		__capability lwres_grbnresponse_t *grbn;
+		lwres_gabnresponse_t *gabn;
+		lwres_gnbaresponse_t *gnba;
+		lwres_grbnresponse_t *grbn;
 		u_int32_t l, na;
 		u_int32_t i;
 
@@ -467,10 +467,10 @@ _lwres_print(packetbody_t bp, u_int length)
 		case LWRES_OPCODE_NOOP:
 			break;
 		case LWRES_OPCODE_GETADDRSBYNAME:
-			gabn = (__capability lwres_gabnresponse_t *)(np + 1);
+			gabn = (lwres_gabnresponse_t *)(np + 1);
 			TCHECK(gabn->realnamelen);
 			/* XXX gabn points to packed struct */
-			s = (packetbody_t)&gabn->realnamelen +
+			s = (const u_char *)&gabn->realnamelen +
 			    sizeof(gabn->realnamelen);
 			l = EXTRACT_16BITS(&gabn->realnamelen);
 
@@ -500,17 +500,17 @@ _lwres_print(packetbody_t bp, u_int length)
 			/* addrs */
 			na = EXTRACT_16BITS(&gabn->naddrs);
 			for (i = 0; i < na; i++) {
-				advance = lwres_printaddr((__capability lwres_addr_t *)s);
+				advance = lwres_printaddr((lwres_addr_t *)s);
 				if (advance < 0)
 					goto trunc;
 				s += advance;
 			}
 			break;
 		case LWRES_OPCODE_GETNAMEBYADDR:
-			gnba = (__capability lwres_gnbaresponse_t *)(np + 1);
+			gnba = (lwres_gnbaresponse_t *)(np + 1);
 			TCHECK(gnba->realnamelen);
 			/* XXX gnba points to packed struct */
-			s = (packetbody_t)&gnba->realnamelen +
+			s = (const u_char *)&gnba->realnamelen +
 			    sizeof(gnba->realnamelen);
 			l = EXTRACT_16BITS(&gnba->realnamelen);
 
@@ -538,7 +538,7 @@ _lwres_print(packetbody_t bp, u_int length)
 			break;
 		case LWRES_OPCODE_GETRDATABYNAME:
 			/* XXX no trace, not tested */
-			grbn = (__capability lwres_grbnresponse_t *)(np + 1);
+			grbn = (lwres_grbnresponse_t *)(np + 1);
 			TCHECK(grbn->nsigs);
 
 			/* BIND910: not used */
@@ -559,7 +559,7 @@ _lwres_print(packetbody_t bp, u_int length)
 			    EXTRACT_16BITS(&grbn->nsigs));
 
 			/* XXX grbn points to packed struct */
-			s = (packetbody_t)&grbn->nsigs+ sizeof(grbn->nsigs);
+			s = (const u_char *)&grbn->nsigs+ sizeof(grbn->nsigs);
 
 			advance = lwres_printnamelen(s);
 			if (advance < 0)
@@ -598,7 +598,7 @@ _lwres_print(packetbody_t bp, u_int length)
 		printf(" [len: %u != %u]", EXTRACT_32BITS(&np->length),
 		    length);
 	}
-	if (!unsupported && s < (packetbody_t)np + EXTRACT_32BITS(&np->length))
+	if (!unsupported && s < (const u_char *)np + EXTRACT_32BITS(&np->length))
 		printf("[extra]");
 	return;
 

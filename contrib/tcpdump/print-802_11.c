@@ -637,7 +637,7 @@ static const char *reason_text[] = {
 #define NUM_REASONS	(sizeof reason_text / sizeof reason_text[0])
 
 static int
-wep_print(packetbody_t p)
+wep_print(const u_char *p)
 {
 	u_int32_t iv;
 
@@ -652,7 +652,7 @@ wep_print(packetbody_t p)
 }
 
 static int
-parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
+parse_elements(struct mgmt_body_t *pbody, const u_char *p, int offset,
     u_int length)
 {
 	u_int elementlen;
@@ -894,7 +894,7 @@ parse_elements(struct mgmt_body_t *pbody, packetbody_t p, int offset,
  *********************************************************************************/
 
 static int
-handle_beacon(packetbody_t p, u_int length)
+handle_beacon(const u_char *p, u_int length)
 {
 	struct mgmt_body_t pbody;
 	int offset = 0;
@@ -930,7 +930,7 @@ handle_beacon(packetbody_t p, u_int length)
 }
 
 static int
-handle_assoc_request(packetbody_t p, u_int length)
+handle_assoc_request(const u_char *p, u_int length)
 {
 	struct mgmt_body_t pbody;
 	int offset = 0;
@@ -957,7 +957,7 @@ handle_assoc_request(packetbody_t p, u_int length)
 }
 
 static int
-handle_assoc_response(packetbody_t p, u_int length)
+handle_assoc_response(const u_char *p, u_int length)
 {
 	struct mgmt_body_t pbody;
 	int offset = 0;
@@ -993,7 +993,7 @@ handle_assoc_response(packetbody_t p, u_int length)
 }
 
 static int
-handle_reassoc_request(packetbody_t p, u_int length)
+handle_reassoc_request(const u_char *p, u_int length)
 {
 	struct mgmt_body_t pbody;
 	int offset = 0;
@@ -1020,20 +1020,20 @@ handle_reassoc_request(packetbody_t p, u_int length)
 	ret = parse_elements(&pbody, p, offset, length);
 
 	PRINT_SSID(pbody);
-	printf(" AP : %s", etheraddr_string((__capability const u_char *)pbody.ap));
+	printf(" AP : %s", etheraddr_string((const u_char *)pbody.ap));
 
 	return ret;
 }
 
 static int
-handle_reassoc_response(packetbody_t p, u_int length)
+handle_reassoc_response(const u_char *p, u_int length)
 {
 	/* Same as a Association Reponse */
 	return handle_assoc_response(p, length);
 }
 
 static int
-handle_probe_request(packetbody_t p, u_int length)
+handle_probe_request(const u_char *p, u_int length)
 {
 	struct mgmt_body_t  pbody;
 	int offset = 0;
@@ -1050,7 +1050,7 @@ handle_probe_request(packetbody_t p, u_int length)
 }
 
 static int
-handle_probe_response(packetbody_t p, u_int length)
+handle_probe_response(const u_char *p, u_int length)
 {
 	struct mgmt_body_t  pbody;
 	int offset = 0;
@@ -1091,7 +1091,7 @@ handle_atim(void)
 }
 
 static int
-handle_disassoc(packetbody_t p, u_int length)
+handle_disassoc(const u_char *p, u_int length)
 {
 	struct mgmt_body_t  pbody;
 
@@ -1112,7 +1112,7 @@ handle_disassoc(packetbody_t p, u_int length)
 }
 
 static int
-handle_auth(packetbody_t p, u_int length)
+handle_auth(const u_char *p, u_int length)
 {
 	struct mgmt_body_t  pbody;
 	int offset = 0;
@@ -1165,7 +1165,7 @@ handle_auth(packetbody_t p, u_int length)
 }
 
 static int
-handle_deauth(const struct mgmt_header_t *pmh, packetbody_t p, u_int length)
+handle_deauth(const struct mgmt_header_t *pmh, const u_char *p, u_int length)
 {
 	struct mgmt_body_t  pbody;
 	int offset = 0;
@@ -1188,7 +1188,7 @@ handle_deauth(const struct mgmt_header_t *pmh, packetbody_t p, u_int length)
 	if (eflag) {
 		printf(": %s", reason);
 	} else {
-		printf(" (%s): %s", etheraddr_string((__capability const u_char *)pmh->sa), reason);
+		printf(" (%s): %s", etheraddr_string((const u_char *)pmh->sa), reason);
 	}
 	return 1;
 }
@@ -1252,7 +1252,7 @@ handle_deauth(const struct mgmt_header_t *pmh, packetbody_t p, u_int length)
 )
 
 static int
-handle_action(const struct mgmt_header_t *pmh, packetbody_t p, u_int length)
+handle_action(const struct mgmt_header_t *pmh, const u_char *p, u_int length)
 {
 	if (!TTEST2(*p, 2))
 		return 0;
@@ -1261,7 +1261,7 @@ handle_action(const struct mgmt_header_t *pmh, packetbody_t p, u_int length)
 	if (eflag) {
 		printf(": ");
 	} else {
-		printf(" (%s): ", etheraddr_string((__capability const u_char *)pmh->sa));
+		printf(" (%s): ", etheraddr_string((const u_char *)pmh->sa));
 	}
 	switch (p[0]) {
 	case 0: printf("Spectrum Management Act#%d", p[1]); break;
@@ -1292,7 +1292,7 @@ handle_action(const struct mgmt_header_t *pmh, packetbody_t p, u_int length)
 
 static int
 mgmt_body_print(u_int16_t fc, const struct mgmt_header_t *pmh,
-    packetbody_t p, u_int length)
+    const u_char *p, u_int length)
 {
 	switch (FC_SUBTYPE(fc)) {
 	case ST_ASSOC_REQUEST:
@@ -1352,7 +1352,7 @@ mgmt_body_print(u_int16_t fc, const struct mgmt_header_t *pmh,
  *********************************************************************************/
 
 static int
-ctrl_body_print(u_int16_t fc, packetbody_t p)
+ctrl_body_print(u_int16_t fc, const u_char *p)
 {
 	switch (FC_SUBTYPE(fc)) {
 	case CTRL_CONTROL_WRAPPER:
@@ -1365,8 +1365,8 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
 			return 0;
 		if (!eflag)
 			printf(" RA:%s TA:%s CTL(%x) SEQ(%u) ",
-			    etheraddr_string(((__capability const struct ctrl_bar_t *)p)->ra),
-			    etheraddr_string(((__capability const struct ctrl_bar_t *)p)->ta),
+			    etheraddr_string(((const struct ctrl_bar_t *)p)->ra),
+			    etheraddr_string(((const struct ctrl_bar_t *)p)->ta),
 			    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->ctl)),
 			    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->seq)));
 		break;
@@ -1376,7 +1376,7 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
 			return 0;
 		if (!eflag)
 			printf(" RA:%s ",
-			    etheraddr_string(((__capability const struct ctrl_ba_t *)p)->ra));
+			    etheraddr_string(((const struct ctrl_ba_t *)p)->ra));
 		break;
 	case CTRL_PS_POLL:
 		printf("Power Save-Poll");
@@ -1391,7 +1391,7 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
 			return 0;
 		if (!eflag)
 			printf(" TA:%s ",
-			    etheraddr_string(((__capability const struct ctrl_rts_t *)p)->ta));
+			    etheraddr_string(((const struct ctrl_rts_t *)p)->ta));
 		break;
 	case CTRL_CTS:
 		printf("Clear-To-Send");
@@ -1399,7 +1399,7 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
 			return 0;
 		if (!eflag)
 			printf(" RA:%s ",
-			    etheraddr_string(((__capability const struct ctrl_cts_t *)p)->ra));
+			    etheraddr_string(((const struct ctrl_cts_t *)p)->ra));
 		break;
 	case CTRL_ACK:
 		printf("Acknowledgment");
@@ -1407,7 +1407,7 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
 			return 0;
 		if (!eflag)
 			printf(" RA:%s ",
-			    etheraddr_string(((__capability const struct ctrl_ack_t *)p)->ra));
+			    etheraddr_string(((const struct ctrl_ack_t *)p)->ra));
 		break;
 	case CTRL_CF_END:
 		printf("CF-End");
@@ -1415,7 +1415,7 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
 			return 0;
 		if (!eflag)
 			printf(" RA:%s ",
-			    etheraddr_string(((__capability const struct ctrl_end_t *)p)->ra));
+			    etheraddr_string(((const struct ctrl_end_t *)p)->ra));
 		break;
 	case CTRL_END_ACK:
 		printf("CF-End+CF-Ack");
@@ -1423,7 +1423,7 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
 			return 0;
 		if (!eflag)
 			printf(" RA:%s ",
-			    etheraddr_string(((__capability const struct ctrl_end_ack_t *)p)->ra));
+			    etheraddr_string(((const struct ctrl_end_ack_t *)p)->ra));
 		break;
 	default:
 		printf("Unknown Ctrl Subtype");
@@ -1446,8 +1446,8 @@ ctrl_body_print(u_int16_t fc, packetbody_t p)
  */
 
 static void
-data_header_print(u_int16_t fc, packetbody_t p, packetbody_t *srcp,
-    packetbody_t *dstp)
+data_header_print(u_int16_t fc, const u_char *p, const u_char **srcp,
+    const u_char **dstp)
 {
 	u_int subtype = FC_SUBTYPE(fc);
 
@@ -1522,9 +1522,9 @@ data_header_print(u_int16_t fc, packetbody_t p, packetbody_t *srcp,
 }
 
 static void
-mgmt_header_print(packetbody_t p, packetbody_t *srcp, packetbody_t *dstp)
+mgmt_header_print(const u_char *p, const u_char **srcp, const u_char **dstp)
 {
-	__capability const struct mgmt_header_t *hp = (__capability const struct mgmt_header_t *) p;
+	const struct mgmt_header_t *hp = (const struct mgmt_header_t *) p;
 
 	if (srcp != NULL)
 		*srcp = hp->sa;
@@ -1539,8 +1539,8 @@ mgmt_header_print(packetbody_t p, packetbody_t *srcp, packetbody_t *dstp)
 }
 
 static void
-ctrl_header_print(u_int16_t fc, packetbody_t p, packetbody_t *srcp,
-    packetbody_t *dstp)
+ctrl_header_print(u_int16_t fc, const u_char *p, const u_char **srcp,
+    const u_char **dstp)
 {
 	if (srcp != NULL)
 		*srcp = NULL;
@@ -1552,42 +1552,42 @@ ctrl_header_print(u_int16_t fc, packetbody_t p, packetbody_t *srcp,
 	switch (FC_SUBTYPE(fc)) {
 	case CTRL_BAR:
 		printf(" RA:%s TA:%s CTL(%x) SEQ(%u) ",
-		    etheraddr_string(((__capability const struct ctrl_bar_t *)p)->ra),
-		    etheraddr_string(((__capability const struct ctrl_bar_t *)p)->ta),
-		    EXTRACT_LE_16BITS(&(((__capability const struct ctrl_bar_t *)p)->ctl)),
-		    EXTRACT_LE_16BITS(&(((__capability const struct ctrl_bar_t *)p)->seq)));
+		    etheraddr_string(((const struct ctrl_bar_t *)p)->ra),
+		    etheraddr_string(((const struct ctrl_bar_t *)p)->ta),
+		    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->ctl)),
+		    EXTRACT_LE_16BITS(&(((const struct ctrl_bar_t *)p)->seq)));
 		break;
 	case CTRL_BA:
 		printf("RA:%s ",
-		    etheraddr_string(((__capability const struct ctrl_ba_t *)p)->ra));
+		    etheraddr_string(((const struct ctrl_ba_t *)p)->ra));
 		break;
 	case CTRL_PS_POLL:
 		printf("BSSID:%s TA:%s ",
-		    etheraddr_string(((__capability const struct ctrl_ps_poll_t *)p)->bssid),
-		    etheraddr_string(((__capability const struct ctrl_ps_poll_t *)p)->ta));
+		    etheraddr_string(((const struct ctrl_ps_poll_t *)p)->bssid),
+		    etheraddr_string(((const struct ctrl_ps_poll_t *)p)->ta));
 		break;
 	case CTRL_RTS:
 		printf("RA:%s TA:%s ",
-		    etheraddr_string(((__capability const struct ctrl_rts_t *)p)->ra),
-		    etheraddr_string(((__capability const struct ctrl_rts_t *)p)->ta));
+		    etheraddr_string(((const struct ctrl_rts_t *)p)->ra),
+		    etheraddr_string(((const struct ctrl_rts_t *)p)->ta));
 		break;
 	case CTRL_CTS:
 		printf("RA:%s ",
-		    etheraddr_string(((__capability const struct ctrl_cts_t *)p)->ra));
+		    etheraddr_string(((const struct ctrl_cts_t *)p)->ra));
 		break;
 	case CTRL_ACK:
 		printf("RA:%s ",
-		    etheraddr_string(((__capability const struct ctrl_ack_t *)p)->ra));
+		    etheraddr_string(((const struct ctrl_ack_t *)p)->ra));
 		break;
 	case CTRL_CF_END:
 		printf("RA:%s BSSID:%s ",
-		    etheraddr_string(((__capability const struct ctrl_end_t *)p)->ra),
-		    etheraddr_string(((__capability const struct ctrl_end_t *)p)->bssid));
+		    etheraddr_string(((const struct ctrl_end_t *)p)->ra),
+		    etheraddr_string(((const struct ctrl_end_t *)p)->bssid));
 		break;
 	case CTRL_END_ACK:
 		printf("RA:%s BSSID:%s ",
-		    etheraddr_string(((__capability const struct ctrl_end_ack_t *)p)->ra),
-		    etheraddr_string(((__capability const struct ctrl_end_ack_t *)p)->bssid));
+		    etheraddr_string(((const struct ctrl_end_ack_t *)p)->ra),
+		    etheraddr_string(((const struct ctrl_end_ack_t *)p)->bssid));
 		break;
 	default:
 		printf("(H) Unknown Ctrl Subtype");
@@ -1634,7 +1634,7 @@ extract_header_length(u_int16_t fc)
 }
 
 static int
-extract_mesh_header_length(packetbody_t p)
+extract_mesh_header_length(const u_char *p)
 {
 	return (p[0] &~ 3) ? 0 : 6*(1 + (p[0] & 3));
 }
@@ -1645,8 +1645,8 @@ extract_mesh_header_length(packetbody_t p)
  * "srcp" and "dstp" aren't null.
  */
 static void
-ieee_802_11_hdr_print(u_int16_t fc, packetbody_t p, u_int hdrlen,
-    u_int meshdrlen, packetbody_t *srcp, packetbody_t *dstp)
+ieee_802_11_hdr_print(u_int16_t fc, const u_char *p, u_int hdrlen,
+    u_int meshdrlen, const u_char **srcp, const u_char **dstp)
 {
 	if (vflag) {
 		if (FC_MORE_DATA(fc))
@@ -1666,8 +1666,8 @@ ieee_802_11_hdr_print(u_int16_t fc, packetbody_t p, u_int hdrlen,
 			        &((const struct mgmt_header_t *)p)->duration));
 	}
 	if (meshdrlen != 0) {
-		__capability const struct meshcntl_t *mc =
-		    (__capability const struct meshcntl_t *)&p[hdrlen - meshdrlen];
+		const struct meshcntl_t *mc =
+		    (const struct meshcntl_t *)&p[hdrlen - meshdrlen];
 		int ae = mc->flags & 3;
 
 		printf("MeshData (AE %d TTL %u seq %u", ae, mc->ttl,
@@ -1705,12 +1705,12 @@ ieee_802_11_hdr_print(u_int16_t fc, packetbody_t p, u_int hdrlen,
 #endif
 
 static u_int
-ieee802_11_print(packetbody_t p, u_int length, u_int orig_caplen, int pad,
+ieee802_11_print(const u_char *p, u_int length, u_int orig_caplen, int pad,
     u_int fcslen)
 {
 	u_int16_t fc;
 	u_int caplen, hdrlen, meshdrlen;
-	packetbody_t src, dst;
+	const u_char *src, *dst;
 	u_short extracted_ethertype;
 
 	caplen = orig_caplen;
@@ -1813,7 +1813,7 @@ ieee802_11_print(packetbody_t p, u_int length, u_int orig_caplen, int pad,
  * is the number of bytes actually captured.
  */
 u_int
-ieee802_11_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+ieee802_11_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	return ieee802_11_print(p, h->len, h->caplen, 0, 0);
 }
@@ -2189,7 +2189,7 @@ print_radiotap_field(struct cpack_state *s, u_int32_t bit, u_int8_t *flags,
 }
 
 static u_int
-ieee802_11_radio_print(packetbody_t p, u_int length, u_int caplen)
+ieee802_11_radio_print(const u_char *p, u_int length, u_int caplen)
 {
 #define	BITNO_32(x) (((x) >> 16) ? 16 + BITNO_16((x) >> 16) : BITNO_16((x)))
 #define	BITNO_16(x) (((x) >> 8) ? 8 + BITNO_8((x) >> 8) : BITNO_8((x)))
@@ -2289,7 +2289,7 @@ out:
 }
 
 static u_int
-ieee802_11_avs_radio_print(packetbody_t p, u_int length, u_int caplen)
+ieee802_11_avs_radio_print(const u_char *p, u_int length, u_int caplen)
 {
 	u_int32_t caphdr_len;
 
@@ -2338,7 +2338,7 @@ ieee802_11_avs_radio_print(packetbody_t p, u_int length, u_int caplen)
  * indicate whether it's a Prism header or an AVS header).
  */
 u_int
-prism_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+prism_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int caplen = h->caplen;
 	u_int length = h->len;
@@ -2368,7 +2368,7 @@ prism_if_print(const struct pcap_pkthdr *h, packetbody_t p)
  * header, containing information such as radio information.
  */
 u_int
-ieee802_11_radio_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+ieee802_11_radio_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	return ieee802_11_radio_print(p, h->len, h->caplen);
 }
@@ -2379,7 +2379,7 @@ ieee802_11_radio_if_print(const struct pcap_pkthdr *h, packetbody_t p)
  * which we currently ignore.
  */
 u_int
-ieee802_11_radio_avs_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+ieee802_11_radio_avs_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	return ieee802_11_avs_radio_print(p, h->len, h->caplen);
 }

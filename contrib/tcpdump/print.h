@@ -48,11 +48,11 @@ int	tcpdump_printf(netdissect_options *ndo _U_, const char *fmt, ...)
 struct print_info	get_print_info(int type);
 
 void	pretty_print_packet(struct print_info *print_info,
-	    const struct pcap_pkthdr *h, packetbody_t sp);
+	    const struct pcap_pkthdr *h, const u_char *sp);
 
-void	ndo_default_print(netdissect_options *ndo, packetbody_t bp,
+void	ndo_default_print(netdissect_options *ndo, const u_char *bp,
 	    u_int length);
-void	default_print(packetbody_t bp, u_int length);
+void	default_print(const u_char *bp, u_int length);
 
 void	ndo_error(netdissect_options *ndo _U_, const char *fmt, ...)
 	    __attribute__ ((noreturn, format (printf, 2, 3)));

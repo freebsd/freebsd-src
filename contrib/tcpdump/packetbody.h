@@ -48,8 +48,6 @@
 #define	__capability
 #endif
 
-typedef __capability const u_char * packetbody_t;
-
 /*
  * Wrappers for str*() and mem*() functions on packet data.
  */
@@ -59,13 +57,13 @@ typedef __capability const u_char * packetbody_t;
 #define	p_memcpy_from_packet	memcpy_c_fromcap
 #define	p_strchr		strchr_c
 #define	p_strcmp_static(p, s) \
-	strcmp_c((p), (__capability const char *)(s))
-char	*p_strdup(packetbody_t data);
+	strcmp_c((p), (const char *)(s))
+char	*p_strdup(const u_char * data);
 #define p_strfree(str)		free(str)
 #define	p_strncmp_static(p, s, l) \
-	strncmp_c((p), (__capability const char *)(s), (l))
+	strncmp_c((p), (const char *)(s), (l))
 #define	p_strncpy		strncpy_c_fromcap
-char	*p_strndup(packetbody_t data, size_t n);
+char	*p_strndup(const u_char * data, size_t n);
 #define	p_strnlen		strnlen_c
 #define	p_strtol		strtol_c
 #else

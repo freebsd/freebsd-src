@@ -42,7 +42,7 @@ static const char rcsid[] _U_ =
  */
 
 u_int
-raw_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+raw_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	if (eflag)
 		printf("ip: ");

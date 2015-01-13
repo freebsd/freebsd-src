@@ -60,11 +60,11 @@ static const char rcsid[] _U_ =
 #define sockaddr_storage sockaddr
 #endif
 
-#define DECLARE_PRINTER(func) static packetbody_t ike##func##_print( \
+#define DECLARE_PRINTER(func) static const u_char *ike##func##_print( \
 		netdissect_options *ndo, u_char tpay,	              \
-		__capability const struct isakmp_gen *ext,	      \
+		const struct isakmp_gen *ext,	      \
 		u_int item_len, \
-		packetbody_t end_pointer, \
+		const u_char *end_pointer, \
 		u_int32_t phase,\
 		u_int32_t doi0, \
 		u_int32_t proto0, int depth)
@@ -97,29 +97,29 @@ DECLARE_PRINTER(v2_TS);
 DECLARE_PRINTER(v2_cp);
 DECLARE_PRINTER(v2_eap);
 
-static packetbody_t ikev2_e_print(netdissect_options *ndo,
+static const u_char *ikev2_e_print(netdissect_options *ndo,
 				   struct isakmp *base,
 				   u_char tpay,
-				   __capability const struct isakmp_gen *ext,
+				   const struct isakmp_gen *ext,
 				   u_int item_len,	
-				   packetbody_t end_pointer, 
+				   const u_char *end_pointer, 
 				   u_int32_t phase,
 				   u_int32_t doi0, 
 				   u_int32_t proto0, int depth);
 
 
-static packetbody_t ike_sub0_print(netdissect_options *ndo,u_char,
-	__capability const struct isakmp_gen *,
-	packetbody_t, u_int32_t, u_int32_t, u_int32_t, int);
-static packetbody_t ikev1_sub_print(netdissect_options *ndo,u_char,
-	__capability const struct isakmp_gen *,
-	packetbody_t, u_int32_t, u_int32_t, u_int32_t, int);
+static const u_char *ike_sub0_print(netdissect_options *ndo,u_char,
+	const struct isakmp_gen *,
+	const u_char *, u_int32_t, u_int32_t, u_int32_t, int);
+static const u_char *ikev1_sub_print(netdissect_options *ndo,u_char,
+	const struct isakmp_gen *,
+	const u_char *, u_int32_t, u_int32_t, u_int32_t, int);
 
-static packetbody_t ikev2_sub_print(netdissect_options *ndo,
+static const u_char *ikev2_sub_print(netdissect_options *ndo,
 				     struct isakmp *base,
 				     u_char np,
-				     __capability const struct isakmp_gen *ext,
-				     packetbody_t ep, u_int32_t phase,
+				     const struct isakmp_gen *ext,
+				     const u_char *ep, u_int32_t phase,
 				     u_int32_t doi, u_int32_t proto,
 				     int depth);
 
@@ -128,8 +128,8 @@ static char *numstr(int);
 
 static void
 ikev1_print(netdissect_options *ndo,
-	    packetbody_t bp,  u_int length,
-	    packetbody_t bp2, struct isakmp *base);
+	    const u_char *bp,  u_int length,
+	    const u_char *bp2, struct isakmp *base);
 
 #define MAXINITIATORS	20
 int ninitiator = 0;
@@ -160,10 +160,10 @@ static const char *npstr[] = {
 };
 
 /* isakmp->np */
-typedef packetbody_t npfunc_t(netdissect_options *ndo, u_char tpay, 
-				 __capability const struct isakmp_gen *ext,
+typedef const u_char *npfunc_t(netdissect_options *ndo, u_char tpay, 
+				 const struct isakmp_gen *ext,
 				 u_int item_len,
-				 packetbody_t end_pointer,
+				 const u_char *end_pointer,
 				 u_int32_t phase,
 				 u_int32_t doi0,
 				 u_int32_t proto0, int depth);
@@ -259,7 +259,7 @@ cookie_find(cookie_t *in)
 
 /* record initiator */
 static void
-cookie_record(cookie_t *in, packetbody_t bp2)
+cookie_record(cookie_t *in, const u_char *bp2)
 {
 	int i;
 	struct ip *ip;
@@ -328,7 +328,7 @@ cookie_record(cookie_t *in, packetbody_t bp2)
 #define cookie_isinitiator(x, y)	cookie_sidecheck((x), (y), 1)
 #define cookie_isresponder(x, y)	cookie_sidecheck((x), (y), 0)
 static int
-cookie_sidecheck(int i, packetbody_t bp2, int initiator)
+cookie_sidecheck(int i, const u_char *bp2, int initiator)
 {
 	struct sockaddr_storage ss;
 	struct sockaddr *sa;
@@ -406,9 +406,9 @@ cookie_sidecheck(int i, packetbody_t bp2, int initiator)
 }
 
 static void
-hexprint(netdissect_options *ndo, __capability const void *loc, size_t len)
+hexprint(netdissect_options *ndo, const void *loc, size_t len)
 {
-	packetbody_t p;
+	const u_char *p;
 	size_t i;
 
 	p = loc;
@@ -417,9 +417,9 @@ hexprint(netdissect_options *ndo, __capability const void *loc, size_t len)
 }
 
 static int
-rawprint(netdissect_options *ndo, __capability const void *loc, size_t len)
+rawprint(netdissect_options *ndo, const void *loc, size_t len)
 {
-	ND_TCHECK2(*(__capability const u_char *)loc, len);
+	ND_TCHECK2(*(const u_char *)loc, len);
 
 	hexprint(ndo, loc, len);
 	return 1;
@@ -432,10 +432,10 @@ trunc:
  * returns false if we run out of data buffer
  */
 static int ike_show_somedata(struct netdissect_options *ndo,
-			     packetbody_t cp, packetbody_t ep)
+			     const u_char *cp, const u_char *ep)
 {
 	/* there is too much data, just show some of it */
-	packetbody_t end = ep - 20;
+	const u_char *end = ep - 20;
 	int  elen = 20;
 	int   len = ep - cp;
 	if(len > 10) {
@@ -467,16 +467,16 @@ struct attrmap {
 	const char *value[30];	/*XXX*/
 };
 
-static packetbody_t
+static const u_char *
 ikev1_attrmap_print(netdissect_options *ndo,
-		    packetbody_t p, packetbody_t ep,
+		    const u_char *p, const u_char *ep,
 		    const struct attrmap *map, size_t nmap)
 {
-	__capability const u_int16_t *q;
+	const u_int16_t *q;
 	int totlen;
 	u_int32_t t, v;
 
-	q = (__capability const u_int16_t *)p;
+	q = (const u_int16_t *)p;
 	if (p[0] & 0x80)
 		totlen = 4;
 	else
@@ -507,14 +507,14 @@ ikev1_attrmap_print(netdissect_options *ndo,
 	return p + totlen;
 }
 
-static packetbody_t
-ikev1_attr_print(netdissect_options *ndo, packetbody_t p, packetbody_t ep)
+static const u_char *
+ikev1_attr_print(netdissect_options *ndo, const u_char *p, const u_char *ep)
 {
-	__capability const u_int16_t *q;
+	const u_int16_t *q;
 	int totlen;
 	u_int32_t t;
 
-	q = (__capability const u_int16_t *)p;
+	q = (const u_int16_t *)p;
 	if (p[0] & 0x80)
 		totlen = 4;
 	else
@@ -539,23 +539,23 @@ ikev1_attr_print(netdissect_options *ndo, packetbody_t p, packetbody_t ep)
 	return p + totlen;
 }
 
-static packetbody_t
+static const u_char *
 ikev1_sa_print(netdissect_options *ndo, u_char tpay _U_,
-	       __capability const struct isakmp_gen *ext,
+	       const struct isakmp_gen *ext,
 		u_int item_len _U_,
-		packetbody_t ep, u_int32_t phase, u_int32_t doi0 _U_,
+		const u_char *ep, u_int32_t phase, u_int32_t doi0 _U_,
 		u_int32_t proto0, int depth)
 {
-	__capability const struct ikev1_pl_sa *p;
+	const struct ikev1_pl_sa *p;
 	struct ikev1_pl_sa sa;
 	const u_int32_t *q;
 	u_int32_t doi, sit, ident;
-	packetbody_t cp, np;
+	const u_char *cp, *np;
 	int t;
 
 	ND_PRINT((ndo,"%s:", NPSTR(ISAKMP_NPTYPE_SA)));
 
-	p = (__capability const struct ikev1_pl_sa *)ext;
+	p = (const struct ikev1_pl_sa *)ext;
 	ND_TCHECK(*p);
 	p_memcpy_from_packet(&sa, ext, sizeof(sa));
 	doi = ntohl(sa.doi);
@@ -563,7 +563,7 @@ ikev1_sa_print(netdissect_options *ndo, u_char tpay _U_,
 	if (doi != 1) {
 		ND_PRINT((ndo," doi=%d", doi));
 		ND_PRINT((ndo," situation=%u", (u_int32_t)ntohl(sa.sit)));
-		return (packetbody_t)(p + 1);
+		return (const u_char *)(p + 1);
 	}
 
 	ND_PRINT((ndo," doi=ipsec"));
@@ -581,7 +581,7 @@ ikev1_sa_print(netdissect_options *ndo, u_char tpay _U_,
 	if (sit & 0x04)
 		ND_PRINT((ndo,"%sintegrity", t ? "+" : ""));
 
-	np = (packetbody_t)ext + sizeof(sa);
+	np = (const u_char *)ext + sizeof(sa);
 	if (sit != 0x01) {
 		ND_TCHECK2(*(ext + 1), sizeof(ident));
 		p_memcpy_from_packet(&ident, ext + 1, sizeof(ident));
@@ -589,7 +589,7 @@ ikev1_sa_print(netdissect_options *ndo, u_char tpay _U_,
 		np += sizeof(ident);
 	}
 
-	ext = (__capability struct isakmp_gen *)np;
+	ext = (struct isakmp_gen *)np;
 	ND_TCHECK(*ext);
 
 	cp = ikev1_sub_print(ndo, ISAKMP_NPTYPE_P, ext, ep, phase, doi, proto0,
@@ -601,19 +601,19 @@ trunc:
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev1_p_print(netdissect_options *ndo, u_char tpay _U_,
-	      __capability const struct isakmp_gen *ext, u_int item_len _U_,
-	       packetbody_t ep, u_int32_t phase, u_int32_t doi0,
+	      const struct isakmp_gen *ext, u_int item_len _U_,
+	       const u_char *ep, u_int32_t phase, u_int32_t doi0,
 	       u_int32_t proto0 _U_, int depth)
 {
-	__capability const struct ikev1_pl_p *p;
+	const struct ikev1_pl_p *p;
 	struct ikev1_pl_p prop;
-	packetbody_t cp;
+	const u_char *cp;
 
 	ND_PRINT((ndo,"%s:", NPSTR(ISAKMP_NPTYPE_P)));
 
-	p = (__capability const struct ikev1_pl_p *)ext;
+	p = (const struct ikev1_pl_p *)ext;
 	ND_TCHECK(*p);
 	p_memcpy_from_packet(&prop, ext, sizeof(prop));
 	ND_PRINT((ndo," #%d protoid=%s transform=%d",
@@ -624,7 +624,7 @@ ikev1_p_print(netdissect_options *ndo, u_char tpay _U_,
 			goto trunc;
 	}
 
-	ext = (__capability struct isakmp_gen *)((packetbody_t)(p + 1) + prop.spi_size);
+	ext = (struct isakmp_gen *)((const u_char *)(p + 1) + prop.spi_size);
 	ND_TCHECK(*ext);
 	
 	cp = ikev1_sub_print(ndo, ISAKMP_NPTYPE_T, ext, ep, phase, doi0,
@@ -764,23 +764,23 @@ const struct attrmap oakley_t_map[] = {
 	{ "order", 0, { NULL } },
 };
 
-static packetbody_t
+static const u_char *
 ikev1_t_print(netdissect_options *ndo, u_char tpay _U_,
-	      __capability const struct isakmp_gen *ext, u_int item_len,
-	      packetbody_t ep, u_int32_t phase _U_, u_int32_t doi _U_,
+	      const struct isakmp_gen *ext, u_int item_len,
+	      const u_char *ep, u_int32_t phase _U_, u_int32_t doi _U_,
 	      u_int32_t proto, int depth _U_)
 {
-	__capability const struct ikev1_pl_t *p;
+	const struct ikev1_pl_t *p;
 	struct ikev1_pl_t t;
-	packetbody_t cp;
+	const u_char *cp;
 	const char *idstr;
 	const struct attrmap *map;
 	size_t nmap;
-	packetbody_t ep2;
+	const u_char *ep2;
 
 	ND_PRINT((ndo,"%s:", NPSTR(ISAKMP_NPTYPE_T)));
 
-	p = (__capability struct ikev1_pl_t *)ext;
+	p = (struct ikev1_pl_t *)ext;
 	ND_TCHECK(*p);
 	p_memcpy_from_packet(&t, ext, sizeof(t));
 
@@ -816,8 +816,8 @@ ikev1_t_print(netdissect_options *ndo, u_char tpay _U_,
 		ND_PRINT((ndo," #%d id=%s ", t.t_no, idstr));
 	else
 		ND_PRINT((ndo," #%d id=%d ", t.t_no, t.t_id));
-	cp = (packetbody_t)(p + 1);
-	ep2 = (packetbody_t)p + item_len;
+	cp = (const u_char *)(p + 1);
+	ep2 = (const u_char *)p + item_len;
 	while (cp < ep && cp < ep2) {
 		if (map && nmap) {
 			cp = ikev1_attrmap_print(ndo, cp, (ep < ep2) ? ep : ep2,
@@ -833,10 +833,10 @@ trunc:
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev1_ke_print(netdissect_options *ndo, u_char tpay _U_,
-	       __capability const struct isakmp_gen *ext, u_int item_len _U_,
-	       packetbody_t ep _U_, u_int32_t phase _U_, u_int32_t doi _U_,
+	       const struct isakmp_gen *ext, u_int item_len _U_,
+	       const u_char *ep _U_, u_int32_t phase _U_, u_int32_t doi _U_,
 	       u_int32_t proto _U_, int depth _U_)
 {
 	struct isakmp_gen e;
@@ -851,20 +851,20 @@ ikev1_ke_print(netdissect_options *ndo, u_char tpay _U_,
 		if (!rawprint(ndo, ext + 1, ntohs(e.len) - 4))
 			goto trunc;
 	}
-	return (packetbody_t)ext + ntohs(e.len);
+	return (const u_char *)ext + ntohs(e.len);
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(ISAKMP_NPTYPE_KE)));
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev1_id_print(netdissect_options *ndo, u_char tpay _U_,
-	       __capability const struct isakmp_gen *ext, u_int item_len _U_,
-	       packetbody_t ep _U_, u_int32_t phase, u_int32_t doi _U_,
+	       const struct isakmp_gen *ext, u_int item_len _U_,
+	       const u_char *ep _U_, u_int32_t phase, u_int32_t doi _U_,
 	       u_int32_t proto _U_, int depth _U_)
 {
 #define USE_IPSECDOI_IN_PHASE1	1
-	__capability const struct ikev1_pl_id *p;
+	const struct ikev1_pl_id *p;
 	struct ikev1_pl_id id;
 	static const char *idtypestr[] = {
 		"IPv4", "IPv4net", "IPv6", "IPv6net",
@@ -875,15 +875,15 @@ ikev1_id_print(netdissect_options *ndo, u_char tpay _U_,
 		"keyid",
 	};
 	int len;
-	packetbody_t data;
+	const u_char *data;
 
 	ND_PRINT((ndo,"%s:", NPSTR(ISAKMP_NPTYPE_ID)));
 
-	p = (__capability const struct ikev1_pl_id *)ext;
+	p = (const struct ikev1_pl_id *)ext;
 	ND_TCHECK(*p);
 	p_memcpy_from_packet(&id,ext, sizeof(id));
 	if (sizeof(*p) < item_len) {
-		data = (packetbody_t)(p + 1);
+		data = (const u_char *)(p + 1);
 		len = item_len - sizeof(*p);
 	} else {
 		data = NULL;
@@ -954,7 +954,7 @@ ikev1_id_print(netdissect_options *ndo, u_char tpay _U_,
 		    }
 		case IPSECDOI_ID_IPV4_ADDR_SUBNET:
 		    {
-			packetbody_t mask;
+			const u_char *mask;
 			if (len < 8)
 				ND_PRINT((ndo," len=%d [bad: < 8]", len));
 			else {
@@ -1028,20 +1028,20 @@ ikev1_id_print(netdissect_options *ndo, u_char tpay _U_,
 				goto trunc;
 		}
 	}
-	return (packetbody_t)ext + item_len;
+	return (const u_char *)ext + item_len;
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(ISAKMP_NPTYPE_ID)));
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev1_cert_print(netdissect_options *ndo, u_char tpay _U_,
-		 __capability const struct isakmp_gen *ext, u_int item_len _U_,
-		 packetbody_t ep _U_, u_int32_t phase _U_,
+		 const struct isakmp_gen *ext, u_int item_len _U_,
+		 const u_char *ep _U_, u_int32_t phase _U_,
 		 u_int32_t doi0 _U_,
 		 u_int32_t proto0 _U_, int depth _U_)
 {
-	__capability const struct ikev1_pl_cert *p;
+	const struct ikev1_pl_cert *p;
 	struct ikev1_pl_cert cert;
 	static const char *certstr[] = {
 		"none",	"pkcs7", "pgp", "dns",
@@ -1051,7 +1051,7 @@ ikev1_cert_print(netdissect_options *ndo, u_char tpay _U_,
 
 	ND_PRINT((ndo,"%s:", NPSTR(ISAKMP_NPTYPE_CERT)));
 
-	p = (__capability const struct ikev1_pl_cert *)ext;
+	p = (const struct ikev1_pl_cert *)ext;
 	ND_TCHECK(*p);
 	p_memcpy_from_packet(&cert, ext, sizeof(cert));
 	ND_PRINT((ndo," len=%d", item_len - 4));
@@ -1061,19 +1061,19 @@ ikev1_cert_print(netdissect_options *ndo, u_char tpay _U_,
 		if (!rawprint(ndo, ext + 1, item_len - 4))
 			goto trunc;
 	}
-	return (packetbody_t)ext + item_len;
+	return (const u_char *)ext + item_len;
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(ISAKMP_NPTYPE_CERT)));
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev1_cr_print(netdissect_options *ndo, u_char tpay _U_,
-	       __capability const struct isakmp_gen *ext, u_int item_len _U_,
-	       packetbody_t ep _U_, u_int32_t phase _U_, u_int32_t doi0 _U_,
+	       const struct isakmp_gen *ext, u_int item_len _U_,
+	       const u_char *ep _U_, u_int32_t phase _U_, u_int32_t doi0 _U_,
 	       u_int32_t proto0 _U_, int depth _U_)
 {
-	__capability const struct ikev1_pl_cert *p;
+	const struct ikev1_pl_cert *p;
 	struct ikev1_pl_cert cert;
 	static const char *certstr[] = {
 		"none",	"pkcs7", "pgp", "dns",
@@ -1083,7 +1083,7 @@ ikev1_cr_print(netdissect_options *ndo, u_char tpay _U_,
 
 	ND_PRINT((ndo,"%s:", NPSTR(ISAKMP_NPTYPE_CR)));
 
-	p = (__capability const struct ikev1_pl_cert *)ext;
+	p = (const struct ikev1_pl_cert *)ext;
 	ND_TCHECK(*p);
 	p_memcpy_from_packet(&cert, ext, sizeof(cert));
 	ND_PRINT((ndo," len=%d", item_len - 4));
@@ -1093,16 +1093,16 @@ ikev1_cr_print(netdissect_options *ndo, u_char tpay _U_,
 		if (!rawprint(ndo, ext + 1, item_len - 4))
 			goto trunc;
 	}
-	return (packetbody_t)ext + item_len;
+	return (const u_char *)ext + item_len;
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(ISAKMP_NPTYPE_CR)));
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev1_hash_print(netdissect_options *ndo, u_char tpay _U_,
-		 __capability const struct isakmp_gen *ext, u_int item_len _U_,
-		 packetbody_t ep _U_, u_int32_t phase _U_, u_int32_t doi _U_,
+		 const struct isakmp_gen *ext, u_int item_len _U_,
+		 const u_char *ep _U_, u_int32_t phase _U_, u_int32_t doi _U_,
 		 u_int32_t proto _U_, int depth _U_)
 {
 	struct isakmp_gen e;
@@ -1117,16 +1117,16 @@ ikev1_hash_print(netdissect_options *ndo, u_char tpay _U_,
 		if (!rawprint(ndo, ext + 1, ntohs(e.len) - 4))
 			goto trunc;
 	}
-	return (packetbody_t)ext + ntohs(e.len);
+	return (const u_char *)ext + ntohs(e.len);
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(ISAKMP_NPTYPE_HASH)));
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev1_sig_print(netdissect_options *ndo, u_char tpay _U_,
-		__capability const struct isakmp_gen *ext, u_int item_len _U_,
-		packetbody_t ep _U_, u_int32_t phase _U_, u_int32_t doi _U_,
+		const struct isakmp_gen *ext, u_int item_len _U_,
+		const u_char *ep _U_, u_int32_t phase _U_, u_int32_t doi _U_,
 		u_int32_t proto _U_, int depth _U_)
 {
 	struct isakmp_gen e;
@@ -1141,17 +1141,17 @@ ikev1_sig_print(netdissect_options *ndo, u_char tpay _U_,
 		if (!rawprint(ndo, ext + 1, ntohs(e.len) - 4))
 			goto trunc;
 	}
-	return (packetbody_t)ext + ntohs(e.len);
+	return (const u_char *)ext + ntohs(e.len);
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(ISAKMP_NPTYPE_SIG)));
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev1_nonce_print(netdissect_options *ndo, u_char tpay _U_,
-		  __capability const struct isakmp_gen *ext,
+		  const struct isakmp_gen *ext,
 		  u_int item_len _U_,
-		  packetbody_t ep _U_,
+		  const u_char *ep _U_,
 		  u_int32_t phase _U_, u_int32_t doi _U_,
 		  u_int32_t proto _U_, int depth _U_)
 {
@@ -1168,25 +1168,25 @@ ikev1_nonce_print(netdissect_options *ndo, u_char tpay _U_,
 			goto trunc;
 	} else if (1 < ndo->ndo_vflag && 4 < ntohs(e.len)) {
 		ND_PRINT((ndo," "));
-		if (!ike_show_somedata(ndo, (packetbody_t)(ext + 1), ep))
+		if (!ike_show_somedata(ndo, (const u_char *)(ext + 1), ep))
 			goto trunc;
 	}
-	return (packetbody_t)ext + ntohs(e.len);
+	return (const u_char *)ext + ntohs(e.len);
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(ISAKMP_NPTYPE_NONCE)));
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev1_n_print(netdissect_options *ndo, u_char tpay _U_,
-	      __capability const struct isakmp_gen *ext, u_int item_len,
-	      packetbody_t ep, u_int32_t phase, u_int32_t doi0 _U_,
+	      const struct isakmp_gen *ext, u_int item_len,
+	      const u_char *ep, u_int32_t phase, u_int32_t doi0 _U_,
 	      u_int32_t proto0 _U_, int depth)
 {
-	__capability const struct ikev1_pl_n *p;
+	const struct ikev1_pl_n *p;
 	struct ikev1_pl_n n;
-	packetbody_t cp;
-	packetbody_t ep2;
+	const u_char *cp;
+	const u_char *ep2;
 	u_int32_t doi;
 	u_int32_t proto;
 	static const char *notify_error_str[] = {
@@ -1237,7 +1237,7 @@ ikev1_n_print(netdissect_options *ndo, u_char tpay _U_,
 
 	ND_PRINT((ndo,"%s:", NPSTR(ISAKMP_NPTYPE_N)));
 
-	p = (__capability const struct ikev1_pl_n *)ext;
+	p = (const struct ikev1_pl_n *)ext;
 	ND_TCHECK(*p);
 	p_memcpy_from_packet(&n, ext, sizeof(n));
 	doi = ntohl(n.doi);
@@ -1258,7 +1258,7 @@ ikev1_n_print(netdissect_options *ndo, u_char tpay _U_,
 			if (!rawprint(ndo, p + 1, n.spi_size))
 				goto trunc;
 		}
-		return (packetbody_t)(p + 1) + n.spi_size;
+		return (const u_char *)(p + 1) + n.spi_size;
 	}
 
 	ND_PRINT((ndo," doi=ipsec"));
@@ -1279,8 +1279,8 @@ ikev1_n_print(netdissect_options *ndo, u_char tpay _U_,
 			goto trunc;
 	}
 
-	cp = (packetbody_t)(p + 1) + n.spi_size;
-	ep2 = (packetbody_t)p + item_len;
+	cp = (const u_char *)(p + 1) + n.spi_size;
+	ep2 = (const u_char *)p + item_len;
 
 	if (cp < ep) {
 		ND_PRINT((ndo," orig=("));
@@ -1301,7 +1301,7 @@ ikev1_n_print(netdissect_options *ndo, u_char tpay _U_,
 			break;
 		case ISAKMP_NTYPE_NO_PROPOSAL_CHOSEN:
 			if (ikev1_sub_print(ndo, ISAKMP_NPTYPE_SA,
-					    (__capability struct isakmp_gen *)cp, ep, phase, doi, proto,
+					    (struct isakmp_gen *)cp, ep, phase, doi, proto,
 					    depth) == NULL)
 				return NULL;
 			break;
@@ -1313,28 +1313,28 @@ ikev1_n_print(netdissect_options *ndo, u_char tpay _U_,
 		}
 		ND_PRINT((ndo,")"));
 	}
-	return (packetbody_t)ext + item_len;
+	return (const u_char *)ext + item_len;
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(ISAKMP_NPTYPE_N)));
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev1_d_print(netdissect_options *ndo, u_char tpay _U_,
-	      __capability const struct isakmp_gen *ext, u_int item_len _U_,
-	      packetbody_t ep _U_, u_int32_t phase _U_, u_int32_t doi0 _U_,
+	      const struct isakmp_gen *ext, u_int item_len _U_,
+	      const u_char *ep _U_, u_int32_t phase _U_, u_int32_t doi0 _U_,
 	      u_int32_t proto0 _U_, int depth _U_)
 {
-	__capability const struct ikev1_pl_d *p;
+	const struct ikev1_pl_d *p;
 	struct ikev1_pl_d d;
-	packetbody_t q;
+	const u_char *q;
 	u_int32_t doi;
 	u_int32_t proto;
 	int i;
 
 	ND_PRINT((ndo,"%s:", NPSTR(ISAKMP_NPTYPE_D)));
 
-	p = (__capability const struct ikev1_pl_d *)ext;
+	p = (const struct ikev1_pl_d *)ext;
 	ND_TCHECK(*p);
 	p_memcpy_from_packet(&d, ext, sizeof(d));
 	doi = ntohl(d.doi);
@@ -1349,7 +1349,7 @@ ikev1_d_print(netdissect_options *ndo, u_char tpay _U_,
 	ND_PRINT((ndo," spilen=%u", d.spi_size));
 	ND_PRINT((ndo," nspi=%u", ntohs(d.num_spi)));
 	ND_PRINT((ndo," spi="));
-	q = (packetbody_t)(p + 1);
+	q = (const u_char *)(p + 1);
 	for (i = 0; i < ntohs(d.num_spi); i++) {
 		if (i != 0)
 			ND_PRINT((ndo,","));
@@ -1363,10 +1363,10 @@ trunc:
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev1_vid_print(netdissect_options *ndo, u_char tpay _U_,
-		__capability const struct isakmp_gen *ext,
-		u_int item_len _U_, packetbody_t ep _U_,
+		const struct isakmp_gen *ext,
+		u_int item_len _U_, const u_char *ep _U_,
 		u_int32_t phase _U_, u_int32_t doi _U_,
 		u_int32_t proto _U_, int depth _U_)
 {
@@ -1382,7 +1382,7 @@ ikev1_vid_print(netdissect_options *ndo, u_char tpay _U_,
 		if (!rawprint(ndo, ext + 1, ntohs(e.len) - 4))
 			goto trunc;
 	}
-	return (packetbody_t)ext + ntohs(e.len);
+	return (const u_char *)ext + ntohs(e.len);
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(ISAKMP_NPTYPE_VID)));
 	return NULL;
@@ -1400,9 +1400,9 @@ ikev2_pay_print(netdissect_options *ndo, const char *payname, int critical)
 	ND_PRINT((ndo,"%s%s:", payname, critical&0x80 ? "[C]" : ""));
 }
 
-static packetbody_t
+static const u_char *
 ikev2_gen_print(netdissect_options *ndo, u_char tpay,
-		__capability const struct isakmp_gen *ext)
+		const struct isakmp_gen *ext)
 {
 	struct isakmp_gen e;
 
@@ -1416,28 +1416,28 @@ ikev2_gen_print(netdissect_options *ndo, u_char tpay,
 		if (!rawprint(ndo, ext + 1, ntohs(e.len) - 4))
 			goto trunc;
 	}
-	return (packetbody_t)ext + ntohs(e.len);
+	return (const u_char *)ext + ntohs(e.len);
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(tpay)));
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev2_t_print(netdissect_options *ndo, u_char tpay _U_, int pcount,
-	      __capability const struct isakmp_gen *ext, u_int item_len,
-	      packetbody_t ep, u_int32_t phase _U_, u_int32_t doi _U_,
+	      const struct isakmp_gen *ext, u_int item_len,
+	      const u_char *ep, u_int32_t phase _U_, u_int32_t doi _U_,
 	      u_int32_t proto _U_, int depth _U_)
 {
-	__capability const struct ikev2_t *p;
+	const struct ikev2_t *p;
 	struct ikev2_t t;
 	u_int16_t  t_id;
-	packetbody_t cp;
+	const u_char *cp;
 	const char *idstr;
 	const struct attrmap *map;
 	size_t nmap;
-	packetbody_t ep2;
+	const u_char *ep2;
 
-	p = (__capability const struct ikev2_t *)ext;
+	p = (const struct ikev2_t *)ext;
 	ND_TCHECK(*p);
 	p_memcpy_from_packet(&t, ext, sizeof(t));
 	ikev2_pay_print(ndo, NPSTR(ISAKMP_NPTYPE_T), t.h.critical);
@@ -1483,8 +1483,8 @@ ikev2_t_print(netdissect_options *ndo, u_char tpay _U_, int pcount,
 		ND_PRINT((ndo," #%u type=%s id=%u ", pcount,
 			  STR_OR_ID(t.t_type, ikev2_t_type_map),
 			  t.t_id));
-	cp = (packetbody_t)(p + 1);
-	ep2 = (packetbody_t)p + item_len;
+	cp = (const u_char *)(p + 1);
+	ep2 = (const u_char *)p + item_len;
 	while (cp < ep && cp < ep2) {
 		if (map && nmap) {
 			cp = ikev1_attrmap_print(ndo, cp, (ep < ep2) ? ep : ep2,
@@ -1500,17 +1500,17 @@ trunc:
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev2_p_print(netdissect_options *ndo, u_char tpay _U_, int pcount _U_,
-	      __capability const struct isakmp_gen *ext, u_int item_len _U_,
-	       packetbody_t ep, u_int32_t phase, u_int32_t doi0,
+	      const struct isakmp_gen *ext, u_int item_len _U_,
+	       const u_char *ep, u_int32_t phase, u_int32_t doi0,
 	       u_int32_t proto0 _U_, int depth)
 {
-	__capability const struct ikev2_p *p;
+	const struct ikev2_p *p;
 	struct ikev2_p prop;
-	packetbody_t cp;
+	const u_char *cp;
 
-	p = (__capability struct ikev2_p *)ext;
+	p = (struct ikev2_p *)ext;
 	ND_TCHECK(*p);
 	p_memcpy_from_packet(&prop, ext, sizeof(prop));
 	ikev2_pay_print(ndo, NPSTR(ISAKMP_NPTYPE_P), prop.h.critical);
@@ -1524,7 +1524,7 @@ ikev2_p_print(netdissect_options *ndo, u_char tpay _U_, int pcount _U_,
 			goto trunc;
 	}
 
-	ext = (__capability struct isakmp_gen *)((packetbody_t)(p + 1) + prop.spi_size);
+	ext = (struct isakmp_gen *)((const u_char *)(p + 1) + prop.spi_size);
 	ND_TCHECK(*ext);
 
 	cp = ikev2_sub_print(ndo, NULL, ISAKMP_NPTYPE_T, ext, ep, phase, doi0,
@@ -1536,10 +1536,10 @@ trunc:
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev2_sa_print(netdissect_options *ndo, u_char tpay, 
-		__capability const struct isakmp_gen *ext1,
-		u_int item_len _U_, packetbody_t ep _U_,
+		const struct isakmp_gen *ext1,
+		u_int item_len _U_, const u_char *ep _U_,
 		u_int32_t phase _U_, u_int32_t doi _U_,
 		u_int32_t proto _U_, int depth _U_)
 {
@@ -1558,23 +1558,23 @@ ikev2_sa_print(netdissect_options *ndo, u_char tpay,
 			ext1+1, ep,
 			0, 0, 0, depth);
 
-	return (packetbody_t)ext1 + osa_length;
+	return (const u_char *)ext1 + osa_length;
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(tpay)));
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev2_ke_print(netdissect_options *ndo, u_char tpay, 
-		__capability const struct isakmp_gen *ext,
-		u_int item_len _U_, packetbody_t ep _U_,
+		const struct isakmp_gen *ext,
+		u_int item_len _U_, const u_char *ep _U_,
 		u_int32_t phase _U_, u_int32_t doi _U_,
 		u_int32_t proto _U_, int depth _U_)
 {
 	struct ikev2_ke ke;
-	__capability const struct ikev2_ke *k;
+	const struct ikev2_ke *k;
 
-	k = (__capability const struct ikev2_ke *)ext;
+	k = (const struct ikev2_ke *)ext;
 	ND_TCHECK(*ext);
 	p_memcpy_from_packet(&ke, ext, sizeof(ke));
 	ikev2_pay_print(ndo, NPSTR(tpay), ke.h.critical);
@@ -1587,23 +1587,23 @@ ikev2_ke_print(netdissect_options *ndo, u_char tpay,
 		if (!rawprint(ndo, k + 1, ntohs(ke.h.len) - 8))
 			goto trunc;
 	}
-	return (packetbody_t)ext + ntohs(ke.h.len);
+	return (const u_char *)ext + ntohs(ke.h.len);
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(tpay)));
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev2_ID_print(netdissect_options *ndo, u_char tpay, 
-		__capability const struct isakmp_gen *ext,
-		u_int item_len _U_, packetbody_t ep _U_,
+		const struct isakmp_gen *ext,
+		u_int item_len _U_, const u_char *ep _U_,
 		u_int32_t phase _U_, u_int32_t doi _U_,
 		u_int32_t proto _U_, int depth _U_)
 {
 	struct ikev2_id id;
 	int id_len, idtype_len, i;
 	unsigned int dumpascii, dumphex;
-	packetbody_t typedata;
+	const u_char *typedata;
 
 	ND_TCHECK(*ext);
 	p_memcpy_from_packet(&id, ext, sizeof(id));
@@ -1621,7 +1621,7 @@ ikev2_ID_print(netdissect_options *ndo, u_char tpay,
 	idtype_len =id_len - sizeof(struct ikev2_id);
 	dumpascii = 0;
 	dumphex   = 0;
-	typedata  = (packetbody_t)(ext)+sizeof(struct ikev2_id);
+	typedata  = (const u_char *)(ext)+sizeof(struct ikev2_id);
 
 	switch(id.type) {
 	case ID_IPV4_ADDR:
@@ -1669,43 +1669,43 @@ ikev2_ID_print(netdissect_options *ndo, u_char tpay,
 			goto trunc;
 	}
 
-	return (packetbody_t)ext + id_len;
+	return (const u_char *)ext + id_len;
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(tpay)));
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev2_cert_print(netdissect_options *ndo, u_char tpay, 
-		__capability const struct isakmp_gen *ext,
-		u_int item_len _U_, packetbody_t ep _U_,
+		const struct isakmp_gen *ext,
+		u_int item_len _U_, const u_char *ep _U_,
 		u_int32_t phase _U_, u_int32_t doi _U_,
 		u_int32_t proto _U_, int depth _U_)
 {
 	return ikev2_gen_print(ndo, tpay, ext);
 }
 
-static packetbody_t
+static const u_char *
 ikev2_cr_print(netdissect_options *ndo, u_char tpay, 
-		__capability const struct isakmp_gen *ext,
-		u_int item_len _U_, packetbody_t ep _U_,
+		const struct isakmp_gen *ext,
+		u_int item_len _U_, const u_char *ep _U_,
 		u_int32_t phase _U_, u_int32_t doi _U_,
 		u_int32_t proto _U_, int depth _U_)
 {
 	return ikev2_gen_print(ndo, tpay, ext);
 }
 
-static packetbody_t
+static const u_char *
 ikev2_auth_print(netdissect_options *ndo, u_char tpay, 
-		__capability const struct isakmp_gen *ext,
-		u_int item_len _U_, packetbody_t ep _U_,
+		const struct isakmp_gen *ext,
+		u_int item_len _U_, const u_char *ep _U_,
 		u_int32_t phase _U_, u_int32_t doi _U_,
 		u_int32_t proto _U_, int depth _U_)
 {
 	struct ikev2_auth a;
 	const char *v2_auth[]={ "invalid", "rsasig",
 				"shared-secret", "dsssig" };
-	packetbody_t authdata = (packetbody_t)ext + sizeof(a);
+	const u_char *authdata = (const u_char *)ext + sizeof(a);
 	unsigned int len;
 
 	ND_TCHECK(*ext);
@@ -1725,16 +1725,16 @@ ikev2_auth_print(netdissect_options *ndo, u_char tpay,
 		if(!ike_show_somedata(ndo, authdata, ep)) goto trunc;
 	}
 
-	return (packetbody_t)ext + len;
+	return (const u_char *)ext + len;
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(tpay)));
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev2_nonce_print(netdissect_options *ndo, u_char tpay, 
-		__capability const struct isakmp_gen *ext,
-		u_int item_len _U_, packetbody_t ep _U_,
+		const struct isakmp_gen *ext,
+		u_int item_len _U_, const u_char *ep _U_,
 		u_int32_t phase _U_, u_int32_t doi _U_,
 		u_int32_t proto _U_, int depth _U_)
 {
@@ -1751,32 +1751,32 @@ ikev2_nonce_print(netdissect_options *ndo, u_char tpay,
 			goto trunc;
 		ND_PRINT((ndo,") "));
 	} else if(ndo->ndo_vflag && 4 < ntohs(e.len)) {
-		if(!ike_show_somedata(ndo, (packetbody_t)(ext+1), ep)) goto trunc;
+		if(!ike_show_somedata(ndo, (const u_char *)(ext+1), ep)) goto trunc;
 	}
 
-	return (packetbody_t)ext + ntohs(e.len);
+	return (const u_char *)ext + ntohs(e.len);
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(tpay)));
 	return NULL;
 }
 
 /* notify payloads */
-static packetbody_t
+static const u_char *
 ikev2_n_print(netdissect_options *ndo, u_char tpay _U_, 
-		__capability const struct isakmp_gen *ext,
-		u_int item_len _U_, packetbody_t ep _U_,
+		const struct isakmp_gen *ext,
+		u_int item_len _U_, const u_char *ep _U_,
 		u_int32_t phase _U_, u_int32_t doi _U_,
 		u_int32_t proto _U_, int depth _U_)
 {
-	__capability const struct ikev2_n *p;
+	const struct ikev2_n *p;
 	struct ikev2_n n;
-	packetbody_t cp;
-	packetbody_t ep2;
+	const u_char *cp;
+	const u_char *ep2;
 	u_char showspi, showdata, showsomedata;
 	const char *notify_name;
 	u_int32_t type;
 
-	p = (__capability const struct ikev2_n *)ext;
+	p = (const struct ikev2_n *)ext;
 	ND_TCHECK(*p);
 	p_memcpy_from_packet(&n, ext, sizeof(n));
 	ikev2_pay_print(ndo, NPSTR(ISAKMP_NPTYPE_N), n.h.critical);
@@ -1947,8 +1947,8 @@ ikev2_n_print(netdissect_options *ndo, u_char tpay _U_,
 			goto trunc;
 	}
 
-	cp = (packetbody_t)(p + 1) + n.spi_size;
-	ep2 = (packetbody_t)p + item_len;
+	cp = (const u_char *)(p + 1) + n.spi_size;
+	ep2 = (const u_char *)p + item_len;
 
 	if(3 < ndo->ndo_vflag) {
 		showdata = 1;
@@ -1956,7 +1956,7 @@ ikev2_n_print(netdissect_options *ndo, u_char tpay _U_,
 
 	if ((showdata || (showsomedata && ep-cp < 30)) && cp < ep) {
 		ND_PRINT((ndo," data=("));
-		if (!rawprint(ndo, (packetbody_t)(cp), ep - cp))
+		if (!rawprint(ndo, (const u_char *)(cp), ep - cp))
 			goto trunc;
 
 		ND_PRINT((ndo,")"));
@@ -1965,31 +1965,31 @@ ikev2_n_print(netdissect_options *ndo, u_char tpay _U_,
 		if(!ike_show_somedata(ndo, cp, ep)) goto trunc;
 	}
 		
-	return (packetbody_t)ext + item_len;
+	return (const u_char *)ext + item_len;
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(ISAKMP_NPTYPE_N)));
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev2_d_print(netdissect_options *ndo, u_char tpay, 
-		__capability const struct isakmp_gen *ext,
-		u_int item_len _U_, packetbody_t ep _U_,
+		const struct isakmp_gen *ext,
+		u_int item_len _U_, const u_char *ep _U_,
 		u_int32_t phase _U_, u_int32_t doi _U_,
 		u_int32_t proto _U_, int depth _U_)
 {
 	return ikev2_gen_print(ndo, tpay, ext);
 }
 
-static packetbody_t
+static const u_char *
 ikev2_vid_print(netdissect_options *ndo, u_char tpay, 
-		__capability const struct isakmp_gen *ext,
-		u_int item_len _U_, packetbody_t ep _U_,
+		const struct isakmp_gen *ext,
+		u_int item_len _U_, const u_char *ep _U_,
 		u_int32_t phase _U_, u_int32_t doi _U_,
 		u_int32_t proto _U_, int depth _U_)
 {
 	struct isakmp_gen e;
-	packetbody_t vid;
+	const u_char *vid;
 	int i, len;
 
 	ND_TCHECK(*ext);
@@ -1997,7 +1997,7 @@ ikev2_vid_print(netdissect_options *ndo, u_char tpay,
 	ikev2_pay_print(ndo, NPSTR(tpay), e.critical);
 	ND_PRINT((ndo," len=%d vid=", ntohs(e.len) - 4));
 	
-	vid = (packetbody_t)(ext+1);
+	vid = (const u_char *)(ext+1);
 	len = ntohs(e.len) - 4;
 	ND_TCHECK2(*vid, len);
 	for(i=0; i<len; i++) {
@@ -2009,31 +2009,31 @@ ikev2_vid_print(netdissect_options *ndo, u_char tpay,
 		if (!rawprint(ndo, ext + 1, ntohs(e.len) - 4))
 			goto trunc;
 	}
-	return (packetbody_t)ext + ntohs(e.len);
+	return (const u_char *)ext + ntohs(e.len);
 trunc:
 	ND_PRINT((ndo," [|%s]", NPSTR(tpay)));
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev2_TS_print(netdissect_options *ndo, u_char tpay, 
-		__capability const struct isakmp_gen *ext,
-		u_int item_len _U_, packetbody_t ep _U_,
+		const struct isakmp_gen *ext,
+		u_int item_len _U_, const u_char *ep _U_,
 		u_int32_t phase _U_, u_int32_t doi _U_,
 		u_int32_t proto _U_, int depth _U_)
 {
 	return ikev2_gen_print(ndo, tpay, ext);
 }
 
-static packetbody_t
+static const u_char *
 ikev2_e_print(netdissect_options *ndo,
 #ifndef HAVE_LIBCRYPTO
 	      _U_
 #endif
 	      struct isakmp *base,
 	      u_char tpay, 
-	      __capability const struct isakmp_gen *ext,
-	      u_int item_len _U_, packetbody_t ep _U_,
+	      const struct isakmp_gen *ext,
+	      u_int item_len _U_, const u_char *ep _U_,
 #ifndef HAVE_LIBCRYPTO
 	      _U_
 #endif
@@ -2052,7 +2052,7 @@ ikev2_e_print(netdissect_options *ndo,
 	      int depth)
 {
 	struct isakmp_gen e;
-	packetbody_t dat;
+	const u_char *dat;
 	volatile int dlen;
 
 	ND_TCHECK(*ext);
@@ -2068,7 +2068,7 @@ ikev2_e_print(netdissect_options *ndo,
 			goto trunc;
 	}
 
-	dat = (packetbody_t)(ext+1);
+	dat = (const u_char *)(ext+1);
 	ND_TCHECK2(*dat, dlen);
 	
 #ifdef HAVE_LIBCRYPTO
@@ -2099,38 +2099,38 @@ trunc:
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev2_cp_print(netdissect_options *ndo, u_char tpay, 
-		__capability const struct isakmp_gen *ext,
-		u_int item_len _U_, packetbody_t ep _U_,
+		const struct isakmp_gen *ext,
+		u_int item_len _U_, const u_char *ep _U_,
 		u_int32_t phase _U_, u_int32_t doi _U_,
 		u_int32_t proto _U_, int depth _U_)
 {
 	return ikev2_gen_print(ndo, tpay, ext);
 }
 
-static packetbody_t
+static const u_char *
 ikev2_eap_print(netdissect_options *ndo, u_char tpay, 
-		__capability const struct isakmp_gen *ext,
-		u_int item_len _U_, packetbody_t ep _U_,
+		const struct isakmp_gen *ext,
+		u_int item_len _U_, const u_char *ep _U_,
 		u_int32_t phase _U_, u_int32_t doi _U_,
 		u_int32_t proto _U_, int depth _U_)
 {
 	return ikev2_gen_print(ndo, tpay, ext);
 }
 
-static packetbody_t
+static const u_char *
 ike_sub0_print(netdissect_options *ndo,
-		 u_char np, __capability const struct isakmp_gen *ext,
-		 packetbody_t ep,
+		 u_char np, const struct isakmp_gen *ext,
+		 const u_char *ep,
 
 	       u_int32_t phase, u_int32_t doi, u_int32_t proto, int depth)
 {
-	packetbody_t cp;
+	const u_char *cp;
 	struct isakmp_gen e;
 	u_int item_len;
 
-	cp = (packetbody_t)ext;
+	cp = (const u_char *)ext;
 	ND_TCHECK(*ext);
 	p_memcpy_from_packet(&e, ext, sizeof(e));
 
@@ -2161,17 +2161,17 @@ trunc:
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev1_sub_print(netdissect_options *ndo,
-		u_char np, __capability const struct isakmp_gen *ext,
-		packetbody_t ep,
+		u_char np, const struct isakmp_gen *ext,
+		const u_char *ep,
 		u_int32_t phase, u_int32_t doi, u_int32_t proto, int depth)
 {
-	packetbody_t cp;
+	const u_char *cp;
 	int i;
 	struct isakmp_gen e;
 
-	cp = (packetbody_t)ext;
+	cp = (const u_char *)ext;
 
 	while (np) {
 		ND_TCHECK(*ext);
@@ -2195,7 +2195,7 @@ ikev1_sub_print(netdissect_options *ndo,
 		}
 
 		np = e.np;
-		ext = (__capability struct isakmp_gen *)cp;
+		ext = (struct isakmp_gen *)cp;
 	}
 	return cp;
 trunc:
@@ -2213,16 +2213,16 @@ numstr(int x)
 
 static void
 ikev1_print(netdissect_options *ndo,
-	    packetbody_t bp,  u_int length,
-	    packetbody_t bp2, struct isakmp *base)
+	    const u_char *bp,  u_int length,
+	    const u_char *bp2, struct isakmp *base)
 {
-	__capability const struct isakmp *p;
-	packetbody_t ep;
+	const struct isakmp *p;
+	const u_char *ep;
 	u_char np;
 	int i;
 	int phase;
 	
-	p = (__capability const struct isakmp *)bp;
+	p = (const struct isakmp *)bp;
 	ep = ndo->ndo_snapend;
 	
 	phase = (*(u_int32_t *)base->msgid == 0) ? 1 : 2;
@@ -2256,7 +2256,7 @@ ikev1_print(netdissect_options *ndo,
 	}
 	
 	if (ndo->ndo_vflag) {
-		__capability const struct isakmp_gen *ext;
+		const struct isakmp_gen *ext;
 		int nparen;
 		
 		ND_PRINT((ndo,":"));
@@ -2274,7 +2274,7 @@ ikev1_print(netdissect_options *ndo,
 		nparen = 0;
 		CHECKLEN(p + 1, base->np);
 		np = base->np;
-		ext = (__capability const struct isakmp_gen *)(p + 1);
+		ext = (const struct isakmp_gen *)(p + 1);
 		ikev1_sub_print(ndo, np, ext, ep, phase, 0, 0, 0);
 	}
 	
@@ -2287,17 +2287,17 @@ done:
 	}
 }
 
-static packetbody_t
+static const u_char *
 ikev2_sub0_print(netdissect_options *ndo, struct isakmp *base,
 		 u_char np, int pcount,
-		 __capability const struct isakmp_gen *ext, packetbody_t ep,
+		 const struct isakmp_gen *ext, const u_char *ep,
 		 u_int32_t phase, u_int32_t doi, u_int32_t proto, int depth)
 {
-	packetbody_t cp;
+	const u_char *cp;
 	struct isakmp_gen e;
 	u_int item_len;
 
-	cp = (packetbody_t)ext;
+	cp = (const u_char *)ext;
 	ND_TCHECK(*ext);
 	p_memcpy_from_packet(&e, ext, sizeof(e));
 
@@ -2338,19 +2338,19 @@ trunc:
 	return NULL;
 }
 
-static packetbody_t
+static const u_char *
 ikev2_sub_print(netdissect_options *ndo,
 		struct isakmp *base,
-		u_char np, __capability const struct isakmp_gen *ext,
-		packetbody_t ep,
+		u_char np, const struct isakmp_gen *ext,
+		const u_char *ep,
 		u_int32_t phase, u_int32_t doi, u_int32_t proto, int depth)
 {
-	packetbody_t cp;
+	const u_char *cp;
 	int i;
 	int pcount;
 	struct isakmp_gen e;
 
-	cp = (packetbody_t)ext;
+	cp = (const u_char *)ext;
 	pcount = 0;						
 	while (np) {
 		pcount++;
@@ -2376,7 +2376,7 @@ ikev2_sub_print(netdissect_options *ndo,
 		}
 
 		np = e.np;
-		ext = (__capability const struct isakmp_gen *)cp;
+		ext = (const struct isakmp_gen *)cp;
 	}
 	return cp;
 trunc:
@@ -2386,15 +2386,15 @@ trunc:
 
 static void
 ikev2_print(netdissect_options *ndo,
-	    packetbody_t bp,  u_int length,
-	    packetbody_t bp2 _U_, struct isakmp *base)
+	    const u_char *bp,  u_int length,
+	    const u_char *bp2 _U_, struct isakmp *base)
 {
-	__capability const struct isakmp *p;
-	packetbody_t ep;
+	const struct isakmp *p;
+	const u_char *ep;
 	u_char np;
 	int phase;
 
-	p = (__capability const struct isakmp *)bp;
+	p = (const struct isakmp *)bp;
 	ep = ndo->ndo_snapend;
 
 	phase = (*(u_int32_t *)base->msgid == 0) ? 1 : 2;
@@ -2412,7 +2412,7 @@ ikev2_print(netdissect_options *ndo,
 	}
 
 	if (ndo->ndo_vflag) {
-		__capability const struct isakmp_gen *ext;
+		const struct isakmp_gen *ext;
 		int nparen;
 
 		ND_PRINT((ndo, ":"));
@@ -2431,7 +2431,7 @@ ikev2_print(netdissect_options *ndo,
 		CHECKLEN(p + 1, base->np)
 
 		np = base->np;
-		ext = (__capability const struct isakmp_gen *)(p + 1);
+		ext = (const struct isakmp_gen *)(p + 1);
 		ikev2_sub_print(ndo, base, np, ext, ep, phase, 0, 0, 0);
 	}
 
@@ -2446,8 +2446,8 @@ done:
 
 void
 isakmp_print(netdissect_options *ndo,
-	     packetbody_t bp, u_int length,
-	     packetbody_t bp2)
+	     const u_char *bp, u_int length,
+	     const u_char *bp2)
 {
 	if (!invoke_dissector((void *)_isakmp_print,
 	    length, 0, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
@@ -2456,12 +2456,12 @@ isakmp_print(netdissect_options *ndo,
 
 void
 _isakmp_print(netdissect_options *ndo,
-	     packetbody_t bp, u_int length,
-	     packetbody_t bp2)
+	     const u_char *bp, u_int length,
+	     const u_char *bp2)
 {
-	__capability const struct isakmp *p;
+	const struct isakmp *p;
 	struct isakmp base;
-	packetbody_t ep;
+	const u_char *ep;
 	int major, minor;
 
 #ifdef HAVE_LIBCRYPTO
@@ -2472,10 +2472,10 @@ _isakmp_print(netdissect_options *ndo,
 	}
 #endif
 
-	p = (__capability const struct isakmp *)bp;
+	p = (const struct isakmp *)bp;
 	ep = ndo->ndo_snapend;
 
-	if ((__capability const struct isakmp *)ep < p + 1) {
+	if ((const struct isakmp *)ep < p + 1) {
 		ND_PRINT((ndo,"[|isakmp]"));
 		return;
 	}
@@ -2521,8 +2521,8 @@ _isakmp_print(netdissect_options *ndo,
 
 void
 isakmp_rfc3948_print(netdissect_options *ndo,
-		     packetbody_t bp, u_int length,
-		     packetbody_t bp2)
+		     const u_char *bp, u_int length,
+		     const u_char *bp2)
 {
 	if (!invoke_dissector((void *)_isakmp_rfc3948_print,
 	    length, 0, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
@@ -2531,10 +2531,10 @@ isakmp_rfc3948_print(netdissect_options *ndo,
 
 void
 _isakmp_rfc3948_print(netdissect_options *ndo,
-		     packetbody_t bp, u_int length,
-		     packetbody_t bp2)
+		     const u_char *bp, u_int length,
+		     const u_char *bp2)
 {
-	packetbody_t ep;
+	const u_char *ep;
 	ep = ndo->ndo_snapend;
 
 	if(length == 1 && bp[0]==0xff) {

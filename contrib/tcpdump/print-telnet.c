@@ -107,11 +107,11 @@ numstr(int x)
 
 /* sp points to IAC byte */
 static int
-telnet_parse(packetbody_t sp, u_int length, int print)
+telnet_parse(const u_char *sp, u_int length, int print)
 {
 	int i, x;
 	u_int c;
-	packetbody_t osp, p;
+	const u_char *osp, *p;
 #define FETCH(c, sp, length) \
 	do { \
 		if (length < 1) \
@@ -225,7 +225,7 @@ pktend:
 }
 
 void
-telnet_print(packetbody_t sp, u_int length)
+telnet_print(const u_char *sp, u_int length)
 {
 	if (!invoke_dissector((void *)_telnet_print,
 	    length, 0, 0, 0, 0, gndo, sp, NULL, NULL, NULL))
@@ -233,10 +233,10 @@ telnet_print(packetbody_t sp, u_int length)
 }
 
 void
-_telnet_print(packetbody_t sp, u_int length)
+_telnet_print(const u_char *sp, u_int length)
 {
 	int first = 1;
-	packetbody_t osp;
+	const u_char *osp;
 	int l;
 
 	osp = sp;

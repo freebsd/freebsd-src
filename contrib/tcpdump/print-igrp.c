@@ -41,7 +41,7 @@ static const char rcsid[] _U_ =
 #include "extract.h"			/* must come after interface.h */
 
 static void
-igrp_entry_print(__capability const struct igrprte *igr, register int is_interior,
+igrp_entry_print(const struct igrprte *igr, register int is_interior,
     register int is_exterior)
 {
 	register u_int delay, bandwidth;
@@ -77,7 +77,7 @@ static struct tok op2str[] = {
 };
 
 void
-igrp_print(packetbody_t bp, u_int length, packetbody_t bp2)
+igrp_print(const u_char *bp, u_int length, const u_char *bp2)
 {
 	if (!invoke_dissector((void *)_igrp_print,
 	    length, 0, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
@@ -85,14 +85,14 @@ igrp_print(packetbody_t bp, u_int length, packetbody_t bp2)
 }
 
 void
-_igrp_print(packetbody_t bp, u_int length, packetbody_t bp2 _U_)
+_igrp_print(const u_char *bp, u_int length, const u_char *bp2 _U_)
 {
-	__capability const struct igrphdr *hdr;
-	__capability const u_char *cp;
+	const struct igrphdr *hdr;
+	const u_char *cp;
 	u_int nint, nsys, next;
 
-	hdr = (__capability const struct igrphdr *)bp;
-	cp = (packetbody_t)(hdr + 1);
+	hdr = (const struct igrphdr *)bp;
+	cp = (const u_char *)(hdr + 1);
         (void)printf("igrp:");
 
 	/* Header */
@@ -114,15 +114,15 @@ _igrp_print(packetbody_t bp, u_int length, packetbody_t bp2 _U_)
 	while (length >= IGRP_RTE_SIZE) {
 		if (nint > 0) {
 			TCHECK2(*cp, IGRP_RTE_SIZE);
-			igrp_entry_print((__capability const struct igrprte *)cp, 1, 0);
+			igrp_entry_print((const struct igrprte *)cp, 1, 0);
 			--nint;
 		} else if (nsys > 0) {
 			TCHECK2(*cp, IGRP_RTE_SIZE);
-			igrp_entry_print((__capability const struct igrprte *)cp, 0, 0);
+			igrp_entry_print((const struct igrprte *)cp, 0, 0);
 			--nsys;
 		} else if (next > 0) {
 			TCHECK2(*cp, IGRP_RTE_SIZE);
-			igrp_entry_print((__capability const struct igrprte *)cp, 0, 1);
+			igrp_entry_print((const struct igrprte *)cp, 0, 1);
 			--next;
 		} else {
 			(void)printf(" [extra bytes %d]", length);

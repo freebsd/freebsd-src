@@ -42,8 +42,8 @@ static const char rcsid[] _U_ =
 #include "ether.h"
 #include "bootp.h"
 
-static void rfc1048_print(packetbody_t);
-static void cmu_print(packetbody_t);
+static void rfc1048_print(const u_char *);
+static void cmu_print(const u_char *);
 static char *client_fqdn_flags(u_int flags);
 
 static char tstr[] = " [|bootp]";
@@ -63,7 +63,7 @@ static const struct tok bootp_op_values[] = {
  * Print bootp requests
  */
 void
-bootp_print(packetbody_t cp, u_int length)
+bootp_print(const u_char *cp, u_int length)
 {
 	if (!invoke_dissector((void *)_bootp_print,
 	    length, 0, 0, 0, 0, gndo, cp, NULL, NULL, NULL))
@@ -71,13 +71,13 @@ bootp_print(packetbody_t cp, u_int length)
 }
 
 void
-_bootp_print(packetbody_t cp, u_int length)
+_bootp_print(const u_char *cp, u_int length)
 {
-	__capability const struct bootp *bp;
+	const struct bootp *bp;
 	static const u_char vm_cmu[4] = VM_CMU;
 	static const u_char vm_rfc1048[4] = VM_RFC1048;
 
-	bp = (__capability const struct bootp *)cp;
+	bp = (const struct bootp *)cp;
 	TCHECK(bp->bp_op);
 
         printf("BOOTP/DHCP, %s",
@@ -374,7 +374,7 @@ static struct tok agent_suboption_values[] = {
 
 
 static void
-rfc1048_print(packetbody_t bp)
+rfc1048_print(const u_char *bp)
 {
 	register u_int16_t tag;
 	register u_int len;
@@ -785,16 +785,16 @@ trunc:
 }
 
 static void
-cmu_print(packetbody_t bp)
+cmu_print(const u_char *bp)
 {
-	__capability const struct cmu_vend *cmu;
+	const struct cmu_vend *cmu;
 
 #define PRINTCMUADDR(m, s) { TCHECK(cmu->m); \
     if (cmu->m.s_addr != 0) \
 	printf(" %s:%s", s, ipaddr_string(&cmu->m.s_addr)); }
 
 	printf(" vend-cmu");
-	cmu = (__capability const struct cmu_vend *)bp;
+	cmu = (const struct cmu_vend *)bp;
 
 	/* Only print if there are unknown bits */
 	TCHECK(cmu->v_flags);

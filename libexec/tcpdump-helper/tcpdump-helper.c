@@ -95,7 +95,7 @@ int	invoke(register_t op, register_t arg1, register_t arg2,
 	    void* carg1, void *carg2);
 static void	dispatch_dissector(register_t op, u_int length,
     register_t arg2, register_t arg3, register_t arg4, register_t arg5,
-    netdissect_options *ndo, packetbody_t bp, packetbody_t bp2,
+    netdissect_options *ndo, const u_char *bp, const u_char *bp2,
     void *carg1, void *carg2);
 
 static int
@@ -241,7 +241,7 @@ static void
 dispatch_dissector(register_t op, u_int length, register_t arg2,
     register_t arg3 _U_, register_t arg4 _U_, register_t arg5 _U_,
     netdissect_options *ndo,
-    packetbody_t bp, packetbody_t bp2, void *carg1 _U_, void *carg2 _U_)
+    const u_char *bp, const u_char *bp2, void *carg1 _U_, void *carg2 _U_)
 {
 	snapend = bp + length; /* set to end of capability? */
 
@@ -693,7 +693,7 @@ dispatch_dissector(register_t op, u_int length, register_t arg2,
 int
 invoke_dissector(void *func, u_int length, register_t arg2,
     register_t arg3 _U_, register_t arg4 _U_, register_t arg5 _U_,
-    netdissect_options *ndo, packetbody_t bp, packetbody_t bp2,
+    netdissect_options *ndo, const u_char *bp, const u_char *bp2,
     void *carg1 _U_, void *carg2 _U_)
 {
 	register_t op;

@@ -450,7 +450,7 @@ static int is_ubik(u_int32_t);
  */
 
 void
-rx_print(packetbody_t bp, int length, int sport, int dport, packetbody_t bp2)
+rx_print(const u_char *bp, int length, int sport, int dport, const u_char *bp2)
 {
 	if (!invoke_dissector((void *)_rx_print,
 	    length, sport, dport, 0, 0, gndo, bp, bp2, NULL, NULL))
@@ -458,7 +458,7 @@ rx_print(packetbody_t bp, int length, int sport, int dport, packetbody_t bp2)
 }
 
 void
-_rx_print(packetbody_t bp, int length, int sport, int dport, packetbody_t bp2)
+_rx_print(const u_char *bp, int length, int sport, int dport, const u_char *bp2)
 {
 	register struct rx_header *rxh;
 	int i;

@@ -60,7 +60,7 @@ static const char *dccp_feature_nums[] = {
 	"check data checksum",
 };
 
-static inline u_int dccp_csum_coverage(__capability const struct dccp_hdr* dh,
+static inline u_int dccp_csum_coverage(const struct dccp_hdr* dh,
     u_int len)
 {
 	u_int cov;
@@ -71,18 +71,18 @@ static inline u_int dccp_csum_coverage(__capability const struct dccp_hdr* dh,
 	return (cov > len)? len : cov;
 }
 
-static int dccp_cksum(__capability const struct ip *ip,
-    __capability const struct dccp_hdr *dh, u_int len)
+static int dccp_cksum(const struct ip *ip,
+    const struct dccp_hdr *dh, u_int len)
 {
-	return nextproto4_cksum(ip, (packetbody_t)(void *)dh,
+	return nextproto4_cksum(ip, (const u_char *)(void *)dh,
 	    dccp_csum_coverage(dh, len), IPPROTO_DCCP);
 }
 
 #ifdef INET6
-static int dccp6_cksum(__capability const struct ip6_hdr *ip6,
-    __capability const struct dccp_hdr *dh, u_int len)
+static int dccp6_cksum(const struct ip6_hdr *ip6,
+    const struct dccp_hdr *dh, u_int len)
 {
-	return nextproto6_cksum(ip6, (packetbody_t)(void *)dh,
+	return nextproto6_cksum(ip6, (const u_char *)(void *)dh,
 	    dccp_csum_coverage(dh, len), IPPROTO_DCCP);
 }
 #endif
@@ -94,14 +94,14 @@ static const char *dccp_reset_code(u_int8_t code)
 	return dccp_reset_codes[code];
 }
 
-static u_int64_t dccp_seqno(__capability const struct dccp_hdr *dh)
+static u_int64_t dccp_seqno(const struct dccp_hdr *dh)
 {
 	u_int32_t seq_high = DCCPH_SEQ(dh);
 	u_int64_t seqno = EXTRACT_24BITS(&seq_high) & 0xFFFFFF;
 
 	if (DCCPH_X(dh) != 0) {
-		__capability const struct dccp_hdr_ext *dhx =
-		    (__capability const struct dccp_hdr_ext *)(dh + 1);
+		const struct dccp_hdr_ext *dhx =
+		    (const struct dccp_hdr_ext *)(dh + 1);
 		seqno &= 0x00FFFF;  /* clear reserved field */
 		seqno = (seqno << 32) + EXTRACT_32BITS(&dhx->dccph_seq_low);
 	}
@@ -110,17 +110,17 @@ static u_int64_t dccp_seqno(__capability const struct dccp_hdr *dh)
 }
 
 static inline unsigned int
-dccp_basic_hdr_len(__capability const struct dccp_hdr *dh)
+dccp_basic_hdr_len(const struct dccp_hdr *dh)
 {
 	return sizeof(*dh) + (DCCPH_X(dh) ? sizeof(struct dccp_hdr_ext) : 0);
 }
 
-static void dccp_print_ack_no(__capability const u_char *bp)
+static void dccp_print_ack_no(const u_char *bp)
 {
-	__capability const struct dccp_hdr *dh =
-		(__capability const struct dccp_hdr *)bp;
-	__capability const struct dccp_hdr_ack_bits *dh_ack =
-		(__capability struct dccp_hdr_ack_bits *)(bp + dccp_basic_hdr_len(dh));
+	const struct dccp_hdr *dh =
+		(const struct dccp_hdr *)bp;
+	const struct dccp_hdr_ack_bits *dh_ack =
+		(struct dccp_hdr_ack_bits *)(bp + dccp_basic_hdr_len(dh));
 	u_int32_t ack_high;
 	u_int64_t ackno;
 
@@ -161,7 +161,7 @@ static inline unsigned int dccp_packet_hdr_len(const u_int8_t type)
 }
 #endif
 
-static int dccp_print_option(packetbody_t option);
+static int dccp_print_option(const u_char *option);
 
 /**
  * dccp_print - show dccp packet
@@ -170,7 +170,7 @@ static int dccp_print_option(packetbody_t option);
  * @len - lenght of ip packet
  */
 void
-dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
+dccp_print(const u_char *bp, const u_char *data2, u_int len)
 {
 	if (!invoke_dissector((void *)_dccp_print,
 	    len, 0, 0, 0, 0, gndo, bp, data2, NULL, NULL))
@@ -178,28 +178,28 @@ dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
 }
 
 void
-_dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
+_dccp_print(const u_char *bp, const u_char *data2, u_int len)
 {
-	__capability const struct dccp_hdr *dh;
-	__capability const struct ip *ip;
+	const struct dccp_hdr *dh;
+	const struct ip *ip;
 #ifdef INET6
-	__capability const struct ip6_hdr *ip6;
+	const struct ip6_hdr *ip6;
 #endif
-	packetbody_t cp;
+	const u_char *cp;
 	u_short sport, dport;
 	u_int hlen;
 	u_int extlen = 0;
 
-	dh = (__capability const struct dccp_hdr *)bp;
+	dh = (const struct dccp_hdr *)bp;
 
-	ip = (__capability struct ip *)data2;
+	ip = (struct ip *)data2;
 #ifdef INET6
 	if (IP_V(ip) == 6)
-		ip6 = (__capability const struct ip6_hdr *)data2;
+		ip6 = (const struct ip6_hdr *)data2;
 	else
 		ip6 = NULL;
 #endif /*INET6*/
-	cp = (packetbody_t)(dh + 1);
+	cp = (const u_char *)(dh + 1);
 	if (cp > snapend) {
 		printf("[Invalid packet|dccp]");
 		return;
@@ -263,8 +263,8 @@ _dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
 
 	switch (DCCPH_TYPE(dh)) {
 	case DCCP_PKT_REQUEST: {
-		__capability struct dccp_hdr_request *dhr =
-			(__capability struct dccp_hdr_request *)(bp + dccp_basic_hdr_len(dh));
+		struct dccp_hdr_request *dhr =
+			(struct dccp_hdr_request *)(bp + dccp_basic_hdr_len(dh));
 		TCHECK(*dhr);
 		(void)printf("request (service=%d) ",
 			     EXTRACT_32BITS(&dhr->dccph_req_service));
@@ -272,8 +272,8 @@ _dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
 		break;
 	}
 	case DCCP_PKT_RESPONSE: {
-		__capability struct dccp_hdr_response *dhr =
-			(__capability struct dccp_hdr_response *)(bp + dccp_basic_hdr_len(dh));
+		struct dccp_hdr_response *dhr =
+			(struct dccp_hdr_response *)(bp + dccp_basic_hdr_len(dh));
 		TCHECK(*dhr);
 		(void)printf("response (service=%d) ",
 			     EXTRACT_32BITS(&dhr->dccph_resp_service));
@@ -302,8 +302,8 @@ _dccp_print(packetbody_t bp, packetbody_t data2, u_int len)
 		extlen += 8;
 		break;
 	case DCCP_PKT_RESET: {
-		__capability struct dccp_hdr_reset *dhr =
-			(__capability struct dccp_hdr_reset *)(bp + dccp_basic_hdr_len(dh));
+		struct dccp_hdr_reset *dhr =
+			(struct dccp_hdr_reset *)(bp + dccp_basic_hdr_len(dh));
 		TCHECK(*dhr);
 		(void)printf("reset (code=%s) ",
 			     dccp_reset_code(dhr->dccph_reset_code));
@@ -357,7 +357,7 @@ trunc2:
 	return;
 }
 
-static int dccp_print_option(packetbody_t option)
+static int dccp_print_option(const u_char *option)
 {	
 	u_int8_t optlen, i;
 

@@ -189,7 +189,7 @@ print_fddi_fc(u_char fc)
 
 /* Extract src, dst addresses */
 static inline void
-extract_fddi_addrs(__capability const struct fddi_header *fddip, char *fsrc, char *fdst)
+extract_fddi_addrs(const struct fddi_header *fddip, char *fsrc, char *fdst)
 {
 	register int i;
 
@@ -213,7 +213,7 @@ extract_fddi_addrs(__capability const struct fddi_header *fddip, char *fsrc, cha
  * Print the FDDI MAC header
  */
 static inline void
-fddi_hdr_print(__capability const struct fddi_header *fddip,
+fddi_hdr_print(const struct fddi_header *fddip,
 	       register u_int length, const char *fsrc, const char *fdst)
 {
 	const char *srcname, *dstname;
@@ -235,13 +235,13 @@ fddi_hdr_print(__capability const struct fddi_header *fddip,
 }
 
 static inline void
-fddi_smt_print(packetbody_t p _U_, u_int length _U_)
+fddi_smt_print(const u_char *p _U_, u_int length _U_)
 {
 	printf("<SMT printer not yet implemented>");
 }
 
 void
-fddi_print(packetbody_t p, u_int length, u_int caplen)
+fddi_print(const u_char *p, u_int length, u_int caplen)
 {
 	if (!invoke_dissector((void *)_fddi_print,
 	    length, caplen, 0, 0, 0, gndo, p, NULL, NULL, NULL))
@@ -249,9 +249,9 @@ fddi_print(packetbody_t p, u_int length, u_int caplen)
 }
 
 void
-_fddi_print(packetbody_t p, u_int length, u_int caplen)
+_fddi_print(const u_char *p, u_int length, u_int caplen)
 {
-	__capability const struct fddi_header *fddip = (__capability const struct fddi_header *)p;
+	const struct fddi_header *fddip = (const struct fddi_header *)p;
 	struct ether_header ehdr;
 	u_short extracted_ethertype;
 
@@ -311,7 +311,7 @@ _fddi_print(packetbody_t p, u_int length, u_int caplen)
  * is the number of bytes actually captured.
  */
 u_int
-fddi_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+fddi_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	fddi_print(p, h->len, h->caplen);
 

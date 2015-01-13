@@ -250,13 +250,13 @@ struct lacp_marker_tlv_terminator_t {
     u_int8_t pad[50];
 }; 
 
-void slow_marker_lacp_print(packetbody_t, register u_int);
-void slow_oam_print(packetbody_t, register u_int);
+void slow_marker_lacp_print(const u_char *, register u_int);
+void slow_oam_print(const u_char *, register u_int);
 
-__capability const struct slow_common_header_t *slow_com_header;
+const struct slow_common_header_t *slow_com_header;
 
 void
-slow_print(packetbody_t pptr, register u_int len)
+slow_print(const u_char *pptr, register u_int len)
 {
 	if (!invoke_dissector((void *)_slow_print,
 	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -264,11 +264,11 @@ slow_print(packetbody_t pptr, register u_int len)
 }
 
 void
-_slow_print(packetbody_t pptr, register u_int len)
+_slow_print(const u_char *pptr, register u_int len)
 {
     int print_version;
 
-    slow_com_header = (__capability const struct slow_common_header_t *)pptr;
+    slow_com_header = (const struct slow_common_header_t *)pptr;
     TCHECK(*slow_com_header);
 
     /*
@@ -345,23 +345,23 @@ trunc:
     printf("\n\t\t packet exceeded snapshot");
 }
 
-void slow_marker_lacp_print(packetbody_t tptr, register u_int tlen) {
+void slow_marker_lacp_print(const u_char *tptr, register u_int tlen) {
 
-    __capability const struct tlv_header_t *tlv_header;
-    packetbody_t tlv_tptr;
+    const struct tlv_header_t *tlv_header;
+    const u_char *tlv_tptr;
     u_int tlv_len, tlv_tlen;
 
     union {
-        __capability const struct lacp_marker_tlv_terminator_t *lacp_marker_tlv_terminator;
-        __capability const struct lacp_tlv_actor_partner_info_t *lacp_tlv_actor_partner_info;
-        __capability const struct lacp_tlv_collector_info_t *lacp_tlv_collector_info;
-        __capability const struct marker_tlv_marker_info_t *marker_tlv_marker_info;
+        const struct lacp_marker_tlv_terminator_t *lacp_marker_tlv_terminator;
+        const struct lacp_tlv_actor_partner_info_t *lacp_tlv_actor_partner_info;
+        const struct lacp_tlv_collector_info_t *lacp_tlv_collector_info;
+        const struct marker_tlv_marker_info_t *marker_tlv_marker_info;
     } tlv_ptr;
     
     while(tlen>0) {
         /* did we capture enough for fully decoding the tlv header ? */
         TCHECK2(*tptr, sizeof(struct tlv_header_t));
-        tlv_header = (__capability const struct tlv_header_t *)tptr;
+        tlv_header = (const struct tlv_header_t *)tptr;
         tlv_len = tlv_header->length;
 
         printf("\n\t%s TLV (0x%02x), length %u",
@@ -391,7 +391,7 @@ void slow_marker_lacp_print(packetbody_t tptr, register u_int tlen) {
             /* those two TLVs have the same structure -> fall through */
         case ((SLOW_PROTO_LACP << 8) + LACP_TLV_ACTOR_INFO):
         case ((SLOW_PROTO_LACP << 8) + LACP_TLV_PARTNER_INFO):
-            tlv_ptr.lacp_tlv_actor_partner_info = (__capability const struct lacp_tlv_actor_partner_info_t *)tlv_tptr;
+            tlv_ptr.lacp_tlv_actor_partner_info = (const struct lacp_tlv_actor_partner_info_t *)tlv_tptr;
 
             printf("\n\t  System %s, System Priority %u, Key %u" \
                    ", Port %u, Port Priority %u\n\t  State Flags [%s]",
@@ -407,7 +407,7 @@ void slow_marker_lacp_print(packetbody_t tptr, register u_int tlen) {
             break;
 
         case ((SLOW_PROTO_LACP << 8) + LACP_TLV_COLLECTOR_INFO):
-            tlv_ptr.lacp_tlv_collector_info = (__capability const struct lacp_tlv_collector_info_t *)tlv_tptr;
+            tlv_ptr.lacp_tlv_collector_info = (const struct lacp_tlv_collector_info_t *)tlv_tptr;
 
             printf("\n\t  Max Delay %u",
                    EXTRACT_16BITS(tlv_ptr.lacp_tlv_collector_info->max_delay));
@@ -415,7 +415,7 @@ void slow_marker_lacp_print(packetbody_t tptr, register u_int tlen) {
             break;
 
         case ((SLOW_PROTO_MARKER << 8) + MARKER_TLV_MARKER_INFO):
-            tlv_ptr.marker_tlv_marker_info = (__capability const struct marker_tlv_marker_info_t *)tlv_tptr;
+            tlv_ptr.marker_tlv_marker_info = (const struct marker_tlv_marker_info_t *)tlv_tptr;
 
             printf("\n\t  Request System %s, Request Port %u, Request Transaction ID 0x%08x",
                    etheraddr_string(tlv_ptr.marker_tlv_marker_info->req_sys),
@@ -427,7 +427,7 @@ void slow_marker_lacp_print(packetbody_t tptr, register u_int tlen) {
             /* those two TLVs have the same structure -> fall through */
         case ((SLOW_PROTO_LACP << 8) + LACP_TLV_TERMINATOR):
         case ((SLOW_PROTO_MARKER << 8) + LACP_TLV_TERMINATOR):
-            tlv_ptr.lacp_marker_tlv_terminator = (__capability const struct lacp_marker_tlv_terminator_t *)tlv_tptr;
+            tlv_ptr.lacp_marker_tlv_terminator = (const struct lacp_marker_tlv_terminator_t *)tlv_tptr;
             if (tlv_len == 0) {
                 tlv_len = sizeof(tlv_ptr.lacp_marker_tlv_terminator->pad) +
                     sizeof(struct tlv_header_t);
@@ -461,7 +461,7 @@ trunc:
     printf("\n\t\t packet exceeded snapshot");
 }
 
-void slow_oam_print(packetbody_t tptr, register u_int tlen) {
+void slow_oam_print(const u_char *tptr, register u_int tlen) {
 
     u_int hexdump;
 
@@ -476,19 +476,19 @@ void slow_oam_print(packetbody_t tptr, register u_int tlen) {
     };
 
     union {
-        __capability const struct slow_oam_common_header_t *slow_oam_common_header;
-        __capability const struct slow_oam_tlv_header_t *slow_oam_tlv_header;
+        const struct slow_oam_common_header_t *slow_oam_common_header;
+        const struct slow_oam_tlv_header_t *slow_oam_tlv_header;
     } ptr;
 
     union {
-	__capability const struct slow_oam_info_t *slow_oam_info;
-        __capability const struct slow_oam_link_event_t *slow_oam_link_event;
-        __capability const struct slow_oam_variablerequest_t *slow_oam_variablerequest;
-        __capability const struct slow_oam_variableresponse_t *slow_oam_variableresponse;
-        __capability const struct slow_oam_loopbackctrl_t *slow_oam_loopbackctrl;
+	const struct slow_oam_info_t *slow_oam_info;
+        const struct slow_oam_link_event_t *slow_oam_link_event;
+        const struct slow_oam_variablerequest_t *slow_oam_variablerequest;
+        const struct slow_oam_variableresponse_t *slow_oam_variableresponse;
+        const struct slow_oam_loopbackctrl_t *slow_oam_loopbackctrl;
     } tlv;
     
-    ptr.slow_oam_common_header = (__capability struct slow_oam_common_header_t *)tptr;
+    ptr.slow_oam_common_header = (struct slow_oam_common_header_t *)tptr;
     tptr += sizeof(struct slow_oam_common_header_t);
     tlen -= sizeof(struct slow_oam_common_header_t);
 
@@ -501,7 +501,7 @@ void slow_oam_print(packetbody_t tptr, register u_int tlen) {
     switch (ptr.slow_oam_common_header->code) {
     case SLOW_OAM_CODE_INFO:
         while (tlen > 0) {
-            ptr.slow_oam_tlv_header = (__capability const struct slow_oam_tlv_header_t *)tptr;
+            ptr.slow_oam_tlv_header = (const struct slow_oam_tlv_header_t *)tptr;
             printf("\n\t  %s Information Type (%u), length %u",
                    tok2str(slow_oam_info_type_values, "Reserved",
                            ptr.slow_oam_tlv_header->type),
@@ -518,7 +518,7 @@ void slow_oam_print(packetbody_t tptr, register u_int tlen) {
                 
             case SLOW_OAM_INFO_TYPE_LOCAL: /* identical format - fall through */
             case SLOW_OAM_INFO_TYPE_REMOTE:
-                tlv.slow_oam_info = (__capability const struct slow_oam_info_t *)tptr;
+                tlv.slow_oam_info = (const struct slow_oam_info_t *)tptr;
                 
                 if (tlv.slow_oam_info->info_length !=
                     sizeof(struct slow_oam_info_t)) {
@@ -575,7 +575,7 @@ void slow_oam_print(packetbody_t tptr, register u_int tlen) {
 
     case SLOW_OAM_CODE_EVENT_NOTIF:
         while (tlen > 0) {
-            ptr.slow_oam_tlv_header = (__capability const struct slow_oam_tlv_header_t *)tptr;
+            ptr.slow_oam_tlv_header = (const struct slow_oam_tlv_header_t *)tptr;
             printf("\n\t  %s Link Event Type (%u), length %u",
                    tok2str(slow_oam_link_event_values, "Reserved",
                            ptr.slow_oam_tlv_header->type),
@@ -594,7 +594,7 @@ void slow_oam_print(packetbody_t tptr, register u_int tlen) {
             case SLOW_OAM_LINK_EVENT_ERR_FRM:
             case SLOW_OAM_LINK_EVENT_ERR_FRM_PER:
             case SLOW_OAM_LINK_EVENT_ERR_FRM_SUMM:
-                tlv.slow_oam_link_event = (__capability const struct slow_oam_link_event_t *)tptr;
+                tlv.slow_oam_link_event = (const struct slow_oam_link_event_t *)tptr;
                 
                 if (tlv.slow_oam_link_event->event_length !=
                     sizeof(struct slow_oam_link_event_t)) {
@@ -642,7 +642,7 @@ void slow_oam_print(packetbody_t tptr, register u_int tlen) {
         break;
  
     case SLOW_OAM_CODE_LOOPBACK_CTRL:
-        tlv.slow_oam_loopbackctrl = (__capability const struct slow_oam_loopbackctrl_t *)tptr;
+        tlv.slow_oam_loopbackctrl = (const struct slow_oam_loopbackctrl_t *)tptr;
         printf("\n\t  Command %s (%u)",
                tok2str(slow_oam_loopbackctrl_cmd_values,
                        "Unknown",

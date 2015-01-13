@@ -122,7 +122,7 @@ static struct tok vtp_stp_type_values[] = {
 };
 
 void
-vtp_print(packetbody_t pptr, u_int length)
+vtp_print(const u_char *pptr, u_int length)
 {
 	if (!invoke_dissector((void *)_vtp_print,
 	    length, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -130,12 +130,12 @@ vtp_print(packetbody_t pptr, u_int length)
 }
 
 void
-_vtp_print(packetbody_t pptr, u_int length)
+_vtp_print(const u_char *pptr, u_int length)
 {
     int type, len, name_len, tlv_len, tlv_value;
-    packetbody_t name_ptr, tptr;
+    const u_char *name_ptr, *tptr;
     char *name;
-    __capability const struct vtp_vlan_ *vtp_vlan;
+    const struct vtp_vlan_ *vtp_vlan;
 
     if (length < VTP_HEADER_LEN)
         goto trunc;
@@ -257,7 +257,7 @@ _vtp_print(packetbody_t pptr, u_int length)
 	    if (!TTEST2(*tptr, len))
 		goto trunc;
 
-	    vtp_vlan = (__capability const struct vtp_vlan_*)tptr;
+	    vtp_vlan = (const struct vtp_vlan_*)tptr;
 	    name_ptr = tptr + VTP_VLAN_INFO_OFFSET;
 	    name_len = p_strnlen(name_ptr, snapend - name_ptr) + 1;
 	    if ((name = malloc(name_len)) != NULL)

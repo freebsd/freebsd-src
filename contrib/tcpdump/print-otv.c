@@ -41,7 +41,7 @@
  */
 
 void
-otv_print(packetbody_t bp, u_int len)
+otv_print(const u_char *bp, u_int len)
 {
 	if (!invoke_dissector((void *)_otv_print,
 	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -49,7 +49,7 @@ otv_print(packetbody_t bp, u_int len)
 }
 
 void
-_otv_print(packetbody_t bp, u_int len)
+_otv_print(const u_char *bp, u_int len)
 {
     u_int8_t flags;
     u_int32_t overlay_id;

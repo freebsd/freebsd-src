@@ -47,13 +47,13 @@ struct rtentry;
 #include "addrtoname.h"
 
 /* Forwards */
-static int print_decnet_ctlmsg(__capability const union routehdr *, u_int, u_int);
+static int print_decnet_ctlmsg(const union routehdr *, u_int, u_int);
 static void print_t_info(int);
-static int print_l1_routes(packetbody_t, u_int);
-static int print_l2_routes(packetbody_t, u_int);
+static int print_l1_routes(const u_char *, u_int);
+static int print_l2_routes(const u_char *, u_int);
 static void print_i_info(int);
-static int print_elist(packetbody_t, u_int);
-static int print_nsp(packetbody_t, u_int);
+static int print_elist(const u_char *, u_int);
+static int print_nsp(const u_char *, u_int);
 static void print_reason(int);
 #ifdef	PRINT_NSPDATA
 static void pdata(u_char *, int);
@@ -64,7 +64,7 @@ extern char *dnet_htoa(struct dn_naddr *);
 #endif
 
 void
-decnet_print(packetbody_t ap, register u_int length,
+decnet_print(const u_char *ap, register u_int length,
 	     register u_int caplen)
 {
 	if (!invoke_dissector((void *)_decnet_print,
@@ -73,14 +73,14 @@ decnet_print(packetbody_t ap, register u_int length,
 }
 
 void
-_decnet_print(packetbody_t ap, register u_int length,
+_decnet_print(const u_char *ap, register u_int length,
 	     register u_int caplen)
 {
-	__capability const union routehdr *rhp;
+	const union routehdr *rhp;
 	register int mflags;
 	int dst, src, hops;
 	u_int nsplen, pktlen;
-	packetbody_t nspp;
+	const u_char *nspp;
 
 	if (length < sizeof(struct shorthdr)) {
 		(void)printf("[|decnet]");
@@ -99,7 +99,7 @@ _decnet_print(packetbody_t ap, register u_int length,
 	}
 	length = pktlen;
 
-	rhp = (__capability const union routehdr *)&(ap[sizeof(short)]);
+	rhp = (const union routehdr *)&(ap[sizeof(short)]);
 	TCHECK(rhp->rh_short.sh_flags);
 	mflags = EXTRACT_LE_8BITS(rhp->rh_short.sh_flags);
 
@@ -116,7 +116,7 @@ _decnet_print(packetbody_t ap, register u_int length,
 	    ap += padlen;
 	    length -= padlen;
 	    caplen -= padlen;
-	    rhp = (__capability const union routehdr *)&(ap[sizeof(short)]);
+	    rhp = (const union routehdr *)&(ap[sizeof(short)]);
 	    mflags = EXTRACT_LE_8BITS(rhp->rh_short.sh_flags);
 	}
 
@@ -184,7 +184,7 @@ trunc:
 }
 
 static int
-print_decnet_ctlmsg(__capability const union routehdr *rhp, u_int length,
+print_decnet_ctlmsg(const union routehdr *rhp, u_int length,
     u_int caplen)
 {
 	int mflags = EXTRACT_LE_8BITS(rhp->rh_short.sh_flags);
@@ -192,7 +192,7 @@ print_decnet_ctlmsg(__capability const union routehdr *rhp, u_int length,
 	int src, dst, info, blksize, eco, ueco, hello, other, vers;
 	etheraddr srcea, rtea;
 	int priority;
-	packetbody_t rhpx = (packetbody_t)rhp;
+	const u_char *rhpx = (const u_char *)rhp;
 	int ret;
 
 	switch (mflags & RMF_CTLMASK) {
@@ -307,7 +307,7 @@ print_decnet_ctlmsg(__capability const union routehdr *rhp, u_int length,
 
 	default:
 	    (void)printf("unknown control message");
-	    default_print((__capability u_char *)rhp, min(length, caplen));
+	    default_print((u_char *)rhp, min(length, caplen));
 	    ret = 1;
 	    break;
 	}
@@ -334,7 +334,7 @@ print_t_info(int info)
 }
 
 static int
-print_l1_routes(packetbody_t rp, u_int len)
+print_l1_routes(const u_char *rp, u_int len)
 {
 	int count;
 	int id;
@@ -364,7 +364,7 @@ trunc:
 }
 
 static int
-print_l2_routes(packetbody_t rp, u_int len)
+print_l2_routes(const u_char *rp, u_int len)
 {
 	int count;
 	int area;
@@ -412,14 +412,14 @@ print_i_info(int info)
 }
 
 static int
-print_elist(packetbody_t elp _U_, u_int len _U_)
+print_elist(const u_char *elp _U_, u_int len _U_)
 {
 	/* Not enough examples available for me to debug this */
 	return (1);
 }
 
 static int
-print_nsp(packetbody_t nspp, u_int nsplen)
+print_nsp(const u_char *nspp, u_int nsplen)
 {
 	const struct nsphdr *nsphp = (struct nsphdr *)nspp;
 	int dst, src, flags;

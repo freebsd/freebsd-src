@@ -74,7 +74,7 @@ struct tom_h {
 	u_int16_t flags;
 	u_int16_t op_msk;
 	const char *s;
-	int (*print) (packetbody_t pptr, register u_int len,
+	int (*print) (const u_char *pptr, register u_int len,
 		      u_int16_t op_msk, int indent);
 };
 
@@ -94,21 +94,21 @@ enum {
 };
 #define TOM_MAX_IND (_TOM_RSV_MAX - 1)
 
-int lfbselect_print(packetbody_t pptr, register u_int len,
+int lfbselect_print(const u_char *pptr, register u_int len,
 		    u_int16_t op_msk, int indent);
-int redirect_print(packetbody_t pptr, register u_int len,
+int redirect_print(const u_char *pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
-int asrtlv_print(packetbody_t pptr, register u_int len,
+int asrtlv_print(const u_char *pptr, register u_int len,
 		 u_int16_t op_msk, int indent);
-int asttlv_print(packetbody_t pptr, register u_int len,
+int asttlv_print(const u_char *pptr, register u_int len,
 		 u_int16_t op_msk, int indent);
-int gentltlv_print(packetbody_t pptr, register u_int len,
+int gentltlv_print(const u_char *pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
-int print_metailv(packetbody_t pptr, register u_int len,
+int print_metailv(const u_char *pptr, register u_int len,
 	      u_int16_t op_msk, int indent);
-int print_metatlv(packetbody_t pptr, register u_int len,
+int print_metatlv(const u_char *pptr, register u_int len,
 	      u_int16_t op_msk, int indent);
-int print_reddata(packetbody_t pptr, register u_int len,
+int print_reddata(const u_char *pptr, register u_int len,
 	      u_int16_t op_msk, int indent);
 
 static inline int tom_valid(u_int8_t tom)
@@ -230,7 +230,7 @@ const struct tok ForCES_LFBs[] = {
 	{0, NULL}
 };
 
-int forces_type_print(packetbody_t pptr, __capability const struct forcesh *fhdr,
+int forces_type_print(const u_char *pptr, const struct forcesh *fhdr,
 		  register u_int mlen, const struct tom_h *tops);
 
 enum {
@@ -274,15 +274,15 @@ struct optlv_h {
 	u_int16_t flags;
 	u_int16_t op_msk;
 	const char *s;
-	int (*print) (packetbody_t pptr, register u_int len,
+	int (*print) (const u_char *pptr, register u_int len,
 		      u_int16_t op_msk, int indent);
 };
 
-int genoptlv_print(packetbody_t pptr, register u_int len,
+int genoptlv_print(const u_char *pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
-int recpdoptlv_print(packetbody_t pptr, register u_int len,
+int recpdoptlv_print(const u_char *pptr, register u_int len,
 		     u_int16_t op_msk, int indent);
-int invoptlv_print(packetbody_t pptr, register u_int len,
+int invoptlv_print(const u_char *pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
 
 #define OP_MIN_SIZ 8
@@ -424,23 +424,23 @@ struct forces_tlv {
 	u_int16_t length;
 };
 
-int otlv_print(__capability const struct forces_tlv *otlv, u_int16_t op_msk, int indent);
+int otlv_print(const struct forces_tlv *otlv, u_int16_t op_msk, int indent);
 
 #define F_ALN_LEN(len) ( ((len)+ForCES_ALNL-1) & ~(ForCES_ALNL-1) )
-#define	GET_TOP_TLV(fhdr) ((__capability struct forces_tlv *)((fhdr) + sizeof (struct forcesh)))
+#define	GET_TOP_TLV(fhdr) ((struct forces_tlv *)((fhdr) + sizeof (struct forcesh)))
 #define TLV_SET_LEN(len)  (F_ALN_LEN(TLV_HDRL) + (len))
 #define TLV_ALN_LEN(len)  F_ALN_LEN(TLV_SET_LEN(len))
 #define TLV_RDAT_LEN(tlv) ((int)(EXTRACT_16BITS(&(tlv)->length) - TLV_SET_LEN(0))
-#define TLV_DATA(tlvp)   ((__capability void*)(((__capability char*)(tlvp)) + TLV_SET_LEN(0)))
+#define TLV_DATA(tlvp)   ((void*)(((char*)(tlvp)) + TLV_SET_LEN(0)))
 #define GO_NXT_TLV(tlv,rlen) ((rlen) -= F_ALN_LEN(EXTRACT_16BITS(&(tlv)->length)), \
-		              (__capability struct forces_tlv*)(((__capability char*)(tlv)) \
+		              (struct forces_tlv*)(((char*)(tlv)) \
 				      + F_ALN_LEN(EXTRACT_16BITS(&(tlv)->length))))
 #define ILV_SET_LEN(len)  (F_ALN_LEN(ILV_HDRL) + (len))
 #define ILV_ALN_LEN(len)  F_ALN_LEN(ILV_SET_LEN(len))
 #define ILV_RDAT_LEN(ilv) ((int)(EXTRACT_32BITS(&(ilv)->length)) - ILV_SET_LEN(0))
-#define ILV_DATA(ilvp)   ((__capability void*)(((__capability char*)(ilvp)) + ILV_SET_LEN(0)))
+#define ILV_DATA(ilvp)   ((void*)(((char*)(ilvp)) + ILV_SET_LEN(0)))
 #define GO_NXT_ILV(ilv,rlen) ((rlen) -= F_ALN_LEN(EXTRACT_32BITS(&(ilv)->length)), \
-		              (__capability struct forces_ilv *)(((__capability char*)(ilv)) \
+		              (struct forces_ilv *)(((char*)(ilv)) \
 				      + F_ALN_LEN(EXTRACT_32BITS(&(ilv)->length))))
 #define INVALID_RLEN -1
 #define INVALID_STLN -2
@@ -455,7 +455,7 @@ static const struct tok ForCES_TLV_err[] = {
 	{0, NULL}
 };
 
-static inline int tlv_valid(__capability const struct forces_tlv *tlv, u_int rlen)
+static inline int tlv_valid(const struct forces_tlv *tlv, u_int rlen)
 {
 	if (rlen < TLV_HDRL)
 		return INVALID_RLEN;
@@ -469,7 +469,7 @@ static inline int tlv_valid(__capability const struct forces_tlv *tlv, u_int rle
 	return 0;
 }
 
-static inline int ilv_valid(__capability const struct forces_ilv *ilv, u_int rlen)
+static inline int ilv_valid(const struct forces_ilv *ilv, u_int rlen)
 {
 	if (rlen < ILV_HDRL)
 		return INVALID_RLEN;
@@ -532,7 +532,7 @@ struct pdata_ops {
 	u_int16_t flags;
 	u_int16_t op_msk;
 	const char *s;
-	int (*print) (packetbody_t pptr, register u_int len,
+	int (*print) (const u_char *pptr, register u_int len,
 		      u_int16_t op_msk, int indent);
 };
 
@@ -573,23 +573,23 @@ static inline void chk_op_type(u_int16_t type, u_int16_t msk, u_int16_t omsk)
 
 }
 
-int fdatatlv_print(packetbody_t pptr, register u_int len,
+int fdatatlv_print(const u_char *pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
-int sdatailv_print(packetbody_t pptr, register u_int len,
+int sdatailv_print(const u_char *pptr, register u_int len,
 	       u_int16_t op_msk, int indent);
-int sdatatlv_print(packetbody_t pptr, register u_int len,
+int sdatatlv_print(const u_char *pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
-int pdatatlv_print(packetbody_t pptr, register u_int len,
+int pdatatlv_print(const u_char *pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
-int pkeyitlv_print(packetbody_t pptr, register u_int len,
+int pkeyitlv_print(const u_char *pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
 
-int pdatacnt_print(packetbody_t pptr, register u_int len,
+int pdatacnt_print(const u_char *pptr, register u_int len,
 	       u_int16_t IDcnt, u_int16_t op_msk, int indent);
-int pdata_print(packetbody_t pptr, register u_int len,
+int pdata_print(const u_char *pptr, register u_int len,
 	    u_int16_t op_msk, int indent);
 
-int prestlv_print(packetbody_t pptr, register u_int len,
+int prestlv_print(const u_char *pptr, register u_int len,
 		  u_int16_t op_msk, int indent);
 #define F_SELKEY 1
 

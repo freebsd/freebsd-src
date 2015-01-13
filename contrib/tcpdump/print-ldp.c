@@ -218,8 +218,8 @@ static const struct tok ldp_fec_martini_ifparm_vccv_cv_values[] = {
     { 0, NULL}
 };
 
-int ldp_msg_print(packetbody_t);
-int ldp_tlv_print(packetbody_t);
+int ldp_msg_print(const u_char *);
+int ldp_tlv_print(const u_char *);
    
 /* 
  * ldp tlv header
@@ -242,21 +242,21 @@ int ldp_tlv_print(packetbody_t);
     TCHECK2(*tptr, minlen); if (tlv_tlen < minlen) goto badtlv;
 
 int
-ldp_tlv_print(packetbody_t tptr) {
+ldp_tlv_print(const u_char *tptr) {
 
     struct ldp_tlv_header {
         u_int8_t type[2];
         u_int8_t length[2];
     };
 
-    __capability const struct ldp_tlv_header *ldp_tlv_header;
+    const struct ldp_tlv_header *ldp_tlv_header;
     u_short tlv_type,tlv_len,tlv_tlen,af,ft_flags;
     u_char fec_type;
     u_int ui,vc_info_len, vc_info_tlv_type, vc_info_tlv_len,idx;
     char buf[100];
     int i;
 
-    ldp_tlv_header = (__capability const struct ldp_tlv_header *)tptr;    
+    ldp_tlv_header = (const struct ldp_tlv_header *)tptr;    
     /* XXX-BD: compiler bug, ldp_tlv_header->length should work ok */
     tlv_len=EXTRACT_16BITS(&ldp_tlv_header->length);
     tlv_tlen=tlv_len;
@@ -545,7 +545,7 @@ badtlv:
 }
 
 void
-ldp_print(packetbody_t pptr, register u_int len)
+ldp_print(const u_char *pptr, register u_int len)
 {
 	if (!invoke_dissector((void *)_ldp_print,
 	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -553,7 +553,7 @@ ldp_print(packetbody_t pptr, register u_int len)
 }
 
 void
-_ldp_print(packetbody_t pptr, register u_int len)
+_ldp_print(const u_char *pptr, register u_int len)
 {
     int processed;
     while (len > (sizeof(struct ldp_common_header) + sizeof(struct ldp_msg_header))) {
@@ -567,17 +567,17 @@ _ldp_print(packetbody_t pptr, register u_int len)
 
 
 int
-ldp_msg_print(packetbody_t pptr) {
+ldp_msg_print(const u_char *pptr) {
 
-    __capability const struct ldp_common_header *ldp_com_header;
-    __capability const struct ldp_msg_header *ldp_msg_header;
-    packetbody_t tptr, msg_tptr;
+    const struct ldp_common_header *ldp_com_header;
+    const struct ldp_msg_header *ldp_msg_header;
+    const u_char *tptr, *msg_tptr;
     u_short tlen;
     u_short pdu_len,msg_len,msg_type,msg_tlen;
     int hexdump,processed;
 
     tptr=pptr;
-    ldp_com_header = (__capability const struct ldp_common_header *)pptr;
+    ldp_com_header = (const struct ldp_common_header *)pptr;
     TCHECK(*ldp_com_header);
 
     /*
@@ -612,7 +612,7 @@ ldp_msg_print(packetbody_t pptr) {
         /* did we capture enough for fully decoding the msg header ? */
         TCHECK2(*tptr, sizeof(struct ldp_msg_header));
 
-        ldp_msg_header = (__capability const struct ldp_msg_header *)tptr;
+        ldp_msg_header = (const struct ldp_msg_header *)tptr;
         msg_len=EXTRACT_16BITS(ldp_msg_header->length);
         msg_type=LDP_MASK_MSG_TYPE(EXTRACT_16BITS(ldp_msg_header->type));
 

@@ -51,7 +51,7 @@
 #include "addrtoname.h"
 
 void
-carp_print(packetbody_t bp, register u_int len, int ttl)
+carp_print(const u_char *bp, register u_int len, int ttl)
 {
 	if (!invoke_dissector((void *)_carp_print,
 	    len, ttl, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -59,7 +59,7 @@ carp_print(packetbody_t bp, register u_int len, int ttl)
 }
 
 void
-_carp_print(packetbody_t bp, register u_int len, int ttl)
+_carp_print(const u_char *bp, register u_int len, int ttl)
 {
 	int version, type;
 	const char *type_s;
@@ -82,7 +82,7 @@ _carp_print(packetbody_t bp, register u_int len, int ttl)
 	    bp[1], bp[5], bp[2], bp[3]);
 	if (vflag) {
 		struct cksum_vec vec[1];
-		vec[0].ptr = (packetbody_t)bp;
+		vec[0].ptr = (const u_char *)bp;
 		vec[0].len = len;
 		if (TTEST2(bp[0], len) && in_cksum(vec, 1))
 			printf(" (bad carp cksum %x!)",

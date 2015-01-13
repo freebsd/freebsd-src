@@ -79,7 +79,7 @@ struct nfrec {
 };
 
 void
-cnfp_print(packetbody_t cp, packetbody_t bp)
+cnfp_print(const u_char *cp, const u_char *bp)
 {
 	if (!invoke_dissector((void *)_cnfp_print,
 	    snapend - cp, 0, 0, 0, 0, gndo, cp, bp, NULL, NULL))
@@ -87,17 +87,17 @@ cnfp_print(packetbody_t cp, packetbody_t bp)
 }
 
 void
-_cnfp_print(packetbody_t cp, packetbody_t bp _U_)
+_cnfp_print(const u_char *cp, const u_char *bp _U_)
 {
-	__capability const struct nfhdr *nh;
-	__capability const struct nfrec *nr;
+	const struct nfhdr *nh;
+	const struct nfrec *nr;
 	struct protoent *pent;
 	int nrecs, ver;
 #if 0
 	time_t t;
 #endif
 
-	nh = (__capability const struct nfhdr *)cp;
+	nh = (const struct nfhdr *)cp;
 
 	if ((const u_char *)(nh + 1) > snapend)
 		return;
@@ -120,10 +120,10 @@ _cnfp_print(packetbody_t cp, packetbody_t bp _U_)
 
 	if (ver == 5 || ver == 6) {
 		printf("#%u, ", EXTRACT_32BITS(&nh->sequence));
-		nr = (__capability const struct nfrec *)&nh[1];
+		nr = (const struct nfrec *)&nh[1];
 		snaplen -= 24;
 	} else {
-		nr = (__capability const struct nfrec *)&nh->sequence;
+		nr = (const struct nfrec *)&nh->sequence;
 		snaplen -= 16;
 	}
 

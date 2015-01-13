@@ -118,10 +118,10 @@ struct pim {
 	u_short	pim_cksum;	/* IP style check sum */
 };
 
-static void pimv2_print(packetbody_t bp, register u_int len, u_int cksum);
+static void pimv2_print(const u_char *bp, register u_int len, u_int cksum);
 
 static void
-pimv1_join_prune_print(packetbody_t bp, register u_int len)
+pimv1_join_prune_print(const u_char *bp, register u_int len)
 {
 	int maddrlen, addrlen, ngroups, njoin, nprune;
 	int njp;
@@ -209,7 +209,7 @@ trunc:
 }
 
 void
-pimv1_print(packetbody_t bp, register u_int len)
+pimv1_print(const u_char *bp, register u_int len)
 {
 	if (!invoke_dissector((void *)_pimv1_print,
 	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -217,7 +217,7 @@ pimv1_print(packetbody_t bp, register u_int len)
 }
 
 void
-_pimv1_print(packetbody_t bp, register u_int len)
+_pimv1_print(const u_char *bp, register u_int len)
 {
 	register const u_char *ep;
 	register u_char type;
@@ -331,7 +331,7 @@ trunc:
  * This implements version 1+, dated Sept 9, 1998.
  */
 void
-cisco_autorp_print(packetbody_t bp, register u_int len)
+cisco_autorp_print(const u_char *bp, register u_int len)
 {
 	if (!invoke_dissector((void *)_cisco_autorp_print,
 	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -339,7 +339,7 @@ cisco_autorp_print(packetbody_t bp, register u_int len)
 }
 
 void
-_cisco_autorp_print(packetbody_t bp, register u_int len)
+_cisco_autorp_print(const u_char *bp, register u_int len)
 {
 	int type;
 	int numrps;
@@ -433,7 +433,7 @@ trunc:
 }
 
 void
-pim_print(packetbody_t bp, register u_int len, u_int cksum)
+pim_print(const u_char *bp, register u_int len, u_int cksum)
 {
 	if (!invoke_dissector((void *)_pim_print,
 	    len, cksum, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -441,7 +441,7 @@ pim_print(packetbody_t bp, register u_int len, u_int cksum)
 }
 
 void
-_pim_print(packetbody_t bp, register u_int len, u_int cksum)
+_pim_print(const u_char *bp, register u_int len, u_int cksum)
 {
 	register const u_char *ep;
 	register struct pim *pim = (struct pim *)bp;
@@ -545,7 +545,7 @@ enum pimv2_addrtype {
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  */
 static int
-pimv2_addr_print(packetbody_t bp, enum pimv2_addrtype at, int silent)
+pimv2_addr_print(const u_char *bp, enum pimv2_addrtype at, int silent)
 {
 	int af;
 	int len, hdrlen;
@@ -646,10 +646,10 @@ trunc:
 }
 
 static void
-pimv2_print(packetbody_t bp, register u_int len, u_int cksum)
+pimv2_print(const u_char *bp, register u_int len, u_int cksum)
 {
-	packetbody_t ep;
-	__capability const struct pim *pim = (__capability const struct pim *)bp;
+	const u_char *ep;
+	const struct pim *pim = (const struct pim *)bp;
 	int advance;
 
 	ep = snapend;
@@ -742,7 +742,7 @@ pimv2_print(packetbody_t bp, register u_int len, u_int cksum)
                         case PIMV2_HELLO_OPTION_ADDRESS_LIST_OLD:
                         case PIMV2_HELLO_OPTION_ADDRESS_LIST:
 				if (vflag > 1) {
-					packetbody_t ptr = bp;
+					const u_char *ptr = bp;
 					while (ptr < (bp+olen)) {
 						int local_advance;
 

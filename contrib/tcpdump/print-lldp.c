@@ -577,7 +577,7 @@ static const struct tok lldp_intf_numb_subtype_values[] = {
  * Print IEEE 802.1 private extensions. (802.1AB annex E)
  */
 static int
-lldp_private_8021_print(packetbody_t tptr, u_int tlv_len)
+lldp_private_8021_print(const u_char *tptr, u_int tlv_len)
 {
     int subtype, hexdump = FALSE;
     u_int sublen;
@@ -648,7 +648,7 @@ lldp_private_8021_print(packetbody_t tptr, u_int tlv_len)
  * Print IEEE 802.3 private extensions. (802.3bc)
  */
 static int
-lldp_private_8023_print(packetbody_t tptr, u_int tlv_len)
+lldp_private_8023_print(const u_char *tptr, u_int tlv_len)
 {
     int subtype, hexdump = FALSE;
 
@@ -712,7 +712,7 @@ lldp_private_8023_print(packetbody_t tptr, u_int tlv_len)
  * Extract 34bits of latitude/longitude coordinates.
  */
 static u_int64_t
-lldp_extract_latlon(packetbody_t tptr)
+lldp_extract_latlon(const u_char *tptr)
 {
     u_int64_t latlon;
 
@@ -726,7 +726,7 @@ lldp_extract_latlon(packetbody_t tptr)
  * Print private TIA extensions.
  */
 static int
-lldp_private_tia_print(packetbody_t tptr, u_int tlv_len)
+lldp_private_tia_print(const u_char *tptr, u_int tlv_len)
 {
     int subtype, hexdump = FALSE;
     u_int8_t location_format;
@@ -907,14 +907,14 @@ lldp_private_tia_print(packetbody_t tptr, u_int tlv_len)
  * Print DCBX Protocol fields (V 1.01).
  */
 static int
-lldp_private_dcbx_print(packetbody_t pptr, u_int len)
+lldp_private_dcbx_print(const u_char *pptr, u_int len)
 {
     int subtype, hexdump = FALSE;
     u_int8_t tval;
     u_int16_t tlv;
     u_int32_t i, pgval, uval;
     u_int tlen, tlv_type, tlv_len;
-    packetbody_t tptr, mptr;
+    const u_char *tptr, *mptr;
 
     if (len < 4) {
         return hexdump;
@@ -1067,11 +1067,11 @@ lldp_private_dcbx_print(packetbody_t pptr, u_int len)
 }
 
 static char *
-lldp_network_addr_print(packetbody_t tptr, u_int len) {
+lldp_network_addr_print(const u_char *tptr, u_int len) {
 
     u_int8_t af;
     static char buf[BUFSIZE];
-    const char * (*pfunc)(packetbody_t);
+    const char * (*pfunc)(const u_char *);
 
     if (len < 1)
       return NULL;
@@ -1112,10 +1112,10 @@ lldp_network_addr_print(packetbody_t tptr, u_int len) {
 }
 
 static int
-lldp_mgmt_addr_tlv_print(packetbody_t pptr, u_int len) {
+lldp_mgmt_addr_tlv_print(const u_char *pptr, u_int len) {
 
     u_int8_t mgmt_addr_len, intf_num_subtype, oid_len;
-    packetbody_t tptr;
+    const u_char *tptr;
     u_int tlen;
     char *mgmt_addr;
     
@@ -1173,7 +1173,7 @@ lldp_mgmt_addr_tlv_print(packetbody_t pptr, u_int len) {
 } 
 
 void
-lldp_print(packetbody_t pptr, register u_int len)
+lldp_print(const u_char *pptr, register u_int len)
 {
 	if (!invoke_dissector((void *)_lldp_print,
 	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -1181,13 +1181,13 @@ lldp_print(packetbody_t pptr, register u_int len)
 }
 
 void
-_lldp_print(packetbody_t pptr, register u_int len)
+_lldp_print(const u_char *pptr, register u_int len)
 {
 
     u_int8_t subtype;
     u_int16_t tlv, cap, ena_cap;
     u_int oui, tlen, hexdump, tlv_type, tlv_len;
-    packetbody_t tptr;
+    const u_char *tptr;
     char *network_addr;
     
     tptr = pptr;

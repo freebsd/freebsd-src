@@ -191,13 +191,13 @@ static char tstr[] = " [|ospf2]";
 #define inline __inline
 #endif /* WIN32 */
 
-static int ospf_print_lshdr(__capability const struct lsa_hdr *);
-static packetbody_t ospf_print_lsa(__capability const struct lsa *);
-static int ospf_decode_v2(__capability const struct ospfhdr *, packetbody_t);
-static int ospf_decode_lls(__capability const struct ospfhdr *, register u_int);
+static int ospf_print_lshdr(const struct lsa_hdr *);
+static const u_char *ospf_print_lsa(const struct lsa *);
+static int ospf_decode_v2(const struct ospfhdr *, const u_char *);
+static int ospf_decode_lls(const struct ospfhdr *, register u_int);
 
 int
-ospf_print_grace_lsa (packetbody_t tptr, u_int ls_length) {
+ospf_print_grace_lsa (const u_char *tptr, u_int ls_length) {
 
     u_int tlv_type, tlv_length;
 
@@ -279,7 +279,7 @@ trunc:
 }
 
 int
-ospf_print_te_lsa (packetbody_t tptr, u_int ls_length) {
+ospf_print_te_lsa (const u_char *tptr, u_int ls_length) {
 
     u_int tlv_type, tlv_length, subtlv_type, subtlv_length;
     u_int priority_level, te_class, count_srlg;
@@ -464,7 +464,7 @@ trunc:
 
 
 static int
-ospf_print_lshdr(__capability const struct lsa_hdr *lshp)
+ospf_print_lshdr(const struct lsa_hdr *lshp)
 {
         u_int ls_length;
 
@@ -531,7 +531,7 @@ static struct tok ospf_topology_values[] = {
  * Print all the per-topology metrics.
  */
 static void
-ospf_print_tos_metrics(__capability const union un_tos *tos)
+ospf_print_tos_metrics(const union un_tos *tos)
 {
     int metric_count;
     int toscount;
@@ -559,24 +559,24 @@ ospf_print_tos_metrics(__capability const union un_tos *tos)
  * field is less than the length of the LSA header, return NULl, else
  * return pointer to data past end of LSA.
  */
-static packetbody_t
-ospf_print_lsa(__capability const struct lsa *lsap)
+static const u_char *
+ospf_print_lsa(const struct lsa *lsap)
 {
-	__capability const u_int8_t *ls_end;
-	__capability const struct rlalink *rlp;
-	__capability const struct in_addr *ap;
-	__capability const struct aslametric *almp;
-	__capability const struct mcla *mcp;
-	__capability const u_int32_t *lp;
+	const u_int8_t *ls_end;
+	const struct rlalink *rlp;
+	const struct in_addr *ap;
+	const struct aslametric *almp;
+	const struct mcla *mcp;
+	const u_int32_t *lp;
 	register int j, tlv_type, tlv_length, topology;
 	register int ls_length;
-	packetbody_t tptr;
+	const u_char *tptr;
 
-	tptr = (packetbody_t)lsap->lsa_un.un_unknown; /* squelch compiler warnings */
+	tptr = (const u_char *)lsap->lsa_un.un_unknown; /* squelch compiler warnings */
         ls_length = ospf_print_lshdr(&lsap->ls_hdr);
         if (ls_length == -1)
                 return(NULL);
-	ls_end = (packetbody_t)lsap + ls_length;
+	ls_end = (const u_char *)lsap + ls_length;
 	ls_length -= sizeof(struct lsa_hdr);
 
 	switch (lsap->ls_hdr.ls_type) {
@@ -625,7 +625,7 @@ ospf_print_lsa(__capability const struct lsa *lsap)
 
                         ospf_print_tos_metrics(&rlp->un_tos);
 
-			rlp = (__capability struct rlalink *)((packetbody_t)(rlp + 1) +
+			rlp = (struct rlalink *)((const u_char *)(rlp + 1) +
 			    ((rlp->un_tos.link.link_tos_count) * sizeof(union un_tos)));
 		}
 		break;
@@ -748,7 +748,7 @@ ospf_print_lsa(__capability const struct lsa *lsap)
 
 	    switch (*(&lsap->ls_hdr.un_lsa_id.opaque_field.opaque_type)) {
             case LS_OPAQUE_TYPE_RI:
-		tptr = (packetbody_t)(&lsap->lsa_un.un_ri_tlv.type);
+		tptr = (const u_char *)(&lsap->lsa_un.un_ri_tlv.type);
 
 		while (ls_length != 0) {
                     TCHECK2(*tptr, 4);
@@ -796,14 +796,14 @@ ospf_print_lsa(__capability const struct lsa *lsap)
                 break;
 
             case LS_OPAQUE_TYPE_GRACE:
-                if (ospf_print_grace_lsa((packetbody_t)(&lsap->lsa_un.un_grace_tlv.type),
+                if (ospf_print_grace_lsa((const u_char *)(&lsap->lsa_un.un_grace_tlv.type),
                                          ls_length) == -1) {
                     return(ls_end);
                 }
                 break;
 
 	    case LS_OPAQUE_TYPE_TE:
-                if (ospf_print_te_lsa((packetbody_t)(&lsap->lsa_un.un_te_lsa_tlv.type),
+                if (ospf_print_te_lsa((const u_char *)(&lsap->lsa_un.un_te_lsa_tlv.type),
                                       ls_length) == -1) {
                     return(ls_end);
                 }
@@ -811,7 +811,7 @@ ospf_print_lsa(__capability const struct lsa *lsap)
 
             default:
                 if (vflag <= 1) {
-                    if(!print_unknown_data((packetbody_t)lsap->lsa_un.un_unknown,
+                    if(!print_unknown_data((const u_char *)lsap->lsa_un.un_unknown,
                                            "\n\t    ", ls_length))
                         return(ls_end);
                 } 
@@ -821,7 +821,7 @@ ospf_print_lsa(__capability const struct lsa *lsap)
 
         /* do we want to see an additionally hexdump ? */
         if (vflag> 1)
-            if(!print_unknown_data((packetbody_t)lsap->lsa_un.un_unknown,
+            if(!print_unknown_data((const u_char *)lsap->lsa_un.un_unknown,
                                    "\n\t    ", ls_length)) {
                 return(ls_end);
             }
@@ -832,11 +832,11 @@ trunc:
 }
 
 static int
-ospf_decode_lls(__capability const struct ospfhdr *op,
+ospf_decode_lls(const struct ospfhdr *op,
 		register u_int length)
 {
-    __capability const u_char *dptr;
-    __capability const u_char *dataend;
+    const u_char *dptr;
+    const u_char *dataend;
     register u_int length2;
     register u_int16_t lls_type, lls_len;
     register u_int32_t lls_flags;
@@ -859,8 +859,8 @@ ospf_decode_lls(__capability const struct ospfhdr *op,
 
     /* dig deeper if LLS data is available; see RFC4813 */
     length2 = EXTRACT_16BITS(&op->ospf_len);
-    dptr = (packetbody_t)op + length2;
-    dataend = (packetbody_t)op + length;
+    dptr = (const u_char *)op + length2;
+    dataend = (const u_char *)op + length;
 
     if (EXTRACT_16BITS(&op->ospf_authtype) == OSPF_AUTH_MD5) {
         dptr = dptr + op->ospf_authdata[3];
@@ -924,12 +924,12 @@ trunc:
 }
 
 static int
-ospf_decode_v2(__capability const struct ospfhdr *op, packetbody_t dataend)
+ospf_decode_v2(const struct ospfhdr *op, const u_char *dataend)
 {
-	__capability const struct in_addr *ap;
-	__capability const struct lsr *lsrp;
-	__capability const struct lsa_hdr *lshp;
-	__capability const struct lsa *lsap;
+	const struct in_addr *ap;
+	const struct lsr *lsrp;
+	const struct lsa_hdr *lshp;
+	const struct lsa *lsap;
 	register u_int32_t lsa_count,lsa_count_max;
 
 	switch (op->ospf_type) {
@@ -1030,7 +1030,7 @@ ospf_decode_v2(__capability const struct ospfhdr *op, packetbody_t dataend)
                 printf(", %d LSA%s",lsa_count_max, PLURAL_SUFFIX(lsa_count_max));
                 for (lsa_count=1;lsa_count <= lsa_count_max;lsa_count++) {
                     printf("\n\t  LSA #%u",lsa_count);
-                        lsap = (__capability const struct lsa *)ospf_print_lsa(lsap);
+                        lsap = (const struct lsa *)ospf_print_lsa(lsap);
                         if (lsap == NULL)
                                 goto trunc;
                 }
@@ -1052,7 +1052,7 @@ trunc:
 }
 
 void
-ospf_print(packetbody_t bp, register u_int length, packetbody_t bp2)
+ospf_print(const u_char *bp, register u_int length, const u_char *bp2)
 {
 	if (!invoke_dissector((void *)_ospf_print,
 	    length, 0, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
@@ -1060,13 +1060,13 @@ ospf_print(packetbody_t bp, register u_int length, packetbody_t bp2)
 }
 
 void
-_ospf_print(packetbody_t bp, register u_int length, packetbody_t bp2 _U_)
+_ospf_print(const u_char *bp, register u_int length, const u_char *bp2 _U_)
 {
-	__capability const struct ospfhdr *op;
-	__capability const u_char *dataend;
+	const struct ospfhdr *op;
+	const u_char *dataend;
 	const u_char *cp;
 
-	op = (__capability struct ospfhdr *)bp;
+	op = (struct ospfhdr *)bp;
 
         /* XXX Before we do anything else, strip off the MD5 trailer */
 	/* XXX-BD: should we truncate the capabilities? */
@@ -1126,7 +1126,7 @@ _ospf_print(packetbody_t bp, register u_int length, packetbody_t bp2 _U_)
 
 		case OSPF_AUTH_SIMPLE:
                         printf("\n\tSimple text password: ");
-                        safeputs((packetbody_t)op->ospf_authdata, OSPF_AUTH_SIMPLE_LEN);
+                        safeputs((const u_char *)op->ospf_authdata, OSPF_AUTH_SIMPLE_LEN);
 			break;
 
 		case OSPF_AUTH_MD5:
