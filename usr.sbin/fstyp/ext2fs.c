@@ -78,12 +78,6 @@ fstyp_ext2fs(FILE *fp, char *label, size_t size)
 	if (s_volume_name[0] == '/')
 		s_volume_name += 1;
 
-	/* Check for volume label */
-	if (s_volume_name[0] == '\0') {
-		free(fs);
-		return (1);
-	}
-
 	strlcpy(label, s_volume_name, size);
 	free(fs);
 
