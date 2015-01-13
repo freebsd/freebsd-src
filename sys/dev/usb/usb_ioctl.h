@@ -65,6 +65,7 @@ enum {
 	USB_TEMP_KBD,		/* USB Keyboard */
 	USB_TEMP_MOUSE,		/* USB Mouse */
 	USB_TEMP_PHONE,		/* USB Phone */
+	USB_TEMP_SERIALNET,	/* USB CDC Ethernet and Modem */
 	USB_TEMP_MAX,
 };
 
