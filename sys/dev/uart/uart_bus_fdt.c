@@ -74,7 +74,7 @@ static struct ofw_compat_data compat_data[] = {
 	{"atmel,at91rm9200-usart",(uintptr_t)&at91_usart_class},
 	{"atmel,at91sam9260-usart",(uintptr_t)&at91_usart_class},
 	{"cadence,uart",	(uintptr_t)&uart_cdnc_class},
-	{"exynos",		(uintptr_t)&uart_s3c2410_class},
+	{"exynos",		(uintptr_t)&uart_exynos4210_class},
 	{"fsl,imx6q-uart",	(uintptr_t)&uart_imx_class},
 	{"fsl,imx53-uart",	(uintptr_t)&uart_imx_class},
 	{"fsl,imx51-uart",	(uintptr_t)&uart_imx_class},
