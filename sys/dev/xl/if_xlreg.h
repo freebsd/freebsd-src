@@ -582,6 +582,7 @@ struct xl_type {
 #define XL_FLAG_USE_MMIO		0x0100
 #define	XL_FLAG_NO_MMIO			0x0200
 #define	XL_FLAG_WOL			0x0400
+#define	XL_FLAG_RUNNING			0x0800
 
 #define XL_NO_XCVR_PWR_MAGICBITS	0x0900
 
@@ -621,6 +622,7 @@ struct xl_softc {
 };
 
 #define XL_LOCK(_sc)		mtx_lock(&(_sc)->xl_mtx)
+#define XL_TRY_LOCK(_sc)	mtx_trylock(&(_sc)->xl_mtx)
 #define XL_UNLOCK(_sc)		mtx_unlock(&(_sc)->xl_mtx)
 #define XL_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->xl_mtx, MA_OWNED)
 
