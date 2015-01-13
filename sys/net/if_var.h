@@ -111,9 +111,10 @@ struct ifnet {
 	uint32_t	if_flags;	/* up/down, broadcast, etc. */
 	uint32_t	if_capabilities;/* interface features & capabilities */
 	uint32_t	if_capenable;	/* enabled features & capabilities */
-	void	*if_linkmib;		/* link-type-specific MIB data */
-	size_t	if_linkmiblen;		/* length of above data */
-	u_int	if_refcount;		/* reference count */
+	void		*if_linkmib;	/* link-type-specific MIB data */
+	size_t		if_linkmiblen;	/* length of above data */
+	u_int		if_refcount;	/* reference count */
+	u_int		if_fib;		/* interface FIB */
 
 	uint8_t		if_link_state;	/* current link state */
 	uint32_t	if_mtu;		/* maximum transmission unit */
@@ -147,7 +148,6 @@ struct ifnet {
 	int	if_afdata_initialized;
 
 	/* Additional features hung off the interface. */
-	u_int	if_fib;			/* interface FIB */
 	struct	ifqueue *if_snd;	/* software send queue */
 	struct	vnet *if_vnet;		/* pointer to network stack instance */
 	struct	vnet *if_home_vnet;	/* where this ifnet originates from */
