@@ -38,6 +38,14 @@ METHOD void linkchg {
 };
 
 #
+# Read software configuration data from device on MII bus.
+#
+METHOD uint64_t readvar {
+	device_t		dev;
+	int			var;
+};
+
+#
 # Notify bus that media has been set.
 #
 METHOD void mediainit {

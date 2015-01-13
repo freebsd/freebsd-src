@@ -40,13 +40,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>		/* XXXGL: if_b[cg]ereg.h contamination */
+#include <sys/mutex.h>		/* XXXGL: if_b[cg]ereg.h contamination */
 #include <sys/module.h>
 #include <sys/socket.h>
 #include <sys/bus.h>
 #include <sys/taskqueue.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/ethernet.h>
 #include <net/if_media.h>
 
@@ -55,7 +56,6 @@ __FBSDID("$FreeBSD$");
 #include "miidevs.h"
 
 #include <dev/mii/brgphyreg.h>
-#include <net/if_arp.h>
 #include <machine/bus.h>
 #include <dev/bge/if_bgereg.h>
 #include <dev/bce/if_bcereg.h>
@@ -878,7 +878,7 @@ brgphy_reset(struct mii_softc *sc)
 {
 	struct bge_softc *bge_sc = NULL;
 	struct bce_softc *bce_sc = NULL;
-	if_t ifp;
+	u_int mtu;
 	int i, val;
 
 	/*
@@ -928,7 +928,7 @@ brgphy_reset(struct mii_softc *sc)
 		return;
 	}
 
-	ifp = sc->mii_pdata->mii_ifp;
+	mtu = MIIBUS_READVAR(sc->mii_dev, IF_MTU);
 
 	/* Find the driver associated with this PHY. */
 	if (mii_phy_mac_match(sc, "bge"))
@@ -952,7 +952,7 @@ brgphy_reset(struct mii_softc *sc)
 			brgphy_fixup_jitter_bug(sc);
 
 		if (bge_sc->bge_flags & BGE_FLAG_JUMBO)
-			brgphy_jumbo_settings(sc, if_getmtu(ifp));
+			brgphy_jumbo_settings(sc, mtu);
 
 		if ((bge_sc->bge_phy_flags & BGE_PHY_NO_WIRESPEED) == 0)
 			brgphy_ethernet_wirespeed(sc);
@@ -1063,11 +1063,11 @@ brgphy_reset(struct mii_softc *sc)
 				(BCE_CHIP_REV(bce_sc) == BCE_CHIP_REV_Bx))
 				brgphy_fixup_disable_early_dac(sc);
 
-			brgphy_jumbo_settings(sc, if_getmtu(ifp));
+			brgphy_jumbo_settings(sc, mtu);
 			brgphy_ethernet_wirespeed(sc);
 		} else {
 			brgphy_fixup_ber_bug(sc);
-			brgphy_jumbo_settings(sc, if_getmtu(ifp));
+			brgphy_jumbo_settings(sc, mtu);
 			brgphy_ethernet_wirespeed(sc);
 		}
 	}

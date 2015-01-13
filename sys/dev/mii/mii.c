@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
 #include <net/if_media.h>
 
 #include <dev/mii/mii.h>
@@ -69,6 +68,7 @@ static miibus_readreg_t miibus_readreg;
 static miibus_statchg_t miibus_statchg;
 static miibus_writereg_t miibus_writereg;
 static miibus_linkchg_t miibus_linkchg;
+static miibus_readvar_t miibus_readvar;
 static miibus_mediainit_t miibus_mediainit;
 
 static unsigned char mii_bitreverse(unsigned char x);
@@ -92,6 +92,7 @@ static device_method_t miibus_methods[] = {
 	DEVMETHOD(miibus_writereg,	miibus_writereg),
 	DEVMETHOD(miibus_statchg,	miibus_statchg),
 	DEVMETHOD(miibus_linkchg,	miibus_linkchg),
+	DEVMETHOD(miibus_readvar,	miibus_readvar),
 	DEVMETHOD(miibus_mediainit,	miibus_mediainit),
 
 	DEVMETHOD_END
@@ -106,7 +107,6 @@ driver_t miibus_driver = {
 };
 
 struct miibus_ivars {
-	if_t		ifp;
 	ifm_change_cb_t	ifmedia_upd;
 	ifm_stat_cb_t	ifmedia_sts;
 	u_int		mii_flags;
@@ -146,9 +146,6 @@ miibus_attach(device_t dev)
 	ivars = device_get_ivars(dev);
 	ifmedia_init(&mii->mii_media, IFM_IMASK, ivars->ifmedia_upd,
 	    ivars->ifmedia_sts);
-	mii->mii_ifp = ivars->ifp;
-	if_setcapabilitiesbit(mii->mii_ifp, IFCAP_LINKSTATE, 0);
-	if_setcapenablebit(mii->mii_ifp, IFCAP_LINKSTATE, 0);
 	LIST_INIT(&mii->mii_phys);
 
 	return (bus_generic_attach(dev));
@@ -162,7 +159,6 @@ miibus_detach(device_t dev)
 	bus_generic_detach(dev);
 	mii = device_get_softc(dev);
 	ifmedia_removeall(&mii->mii_media);
-	mii->mii_ifp = NULL;
 
 	return (0);
 }
@@ -280,57 +276,42 @@ miibus_hinted_child(device_t dev, const char *name, int unit)
 		ma->mii_capmask = val;
 }
 
+/*
+ * The miibus just relays most devmethods to the parent.
+ */
 static int
 miibus_readreg(device_t dev, int phy, int reg)
 {
-	device_t		parent;
 
-	parent = device_get_parent(dev);
-	return (MIIBUS_READREG(parent, phy, reg));
+	return (MIIBUS_READREG(device_get_parent(dev), phy, reg));
 }
 
 static int
 miibus_writereg(device_t dev, int phy, int reg, int data)
 {
-	device_t		parent;
 
-	parent = device_get_parent(dev);
-	return (MIIBUS_WRITEREG(parent, phy, reg, data));
+	return (MIIBUS_WRITEREG(device_get_parent(dev), phy, reg, data));
 }
 
 static void
 miibus_statchg(device_t dev)
 {
-	device_t		parent;
-	struct mii_data		*mii;
 
-	parent = device_get_parent(dev);
-	MIIBUS_STATCHG(parent);
-
-	mii = device_get_softc(dev);
-	if_setbaudrate(mii->mii_ifp, ifmedia_baudrate(mii->mii_media_active));
+	MIIBUS_STATCHG(device_get_parent(dev));
 }
 
 static void
 miibus_linkchg(device_t dev)
 {
-	struct mii_data		*mii;
-	device_t		parent;
-	int			link_state;
 
-	parent = device_get_parent(dev);
-	MIIBUS_LINKCHG(parent);
+	MIIBUS_LINKCHG(device_get_parent(dev));
+}
 
-	mii = device_get_softc(dev);
+static uint64_t
+miibus_readvar(device_t dev, int var)
+{
 
-	if (mii->mii_media_status & IFM_AVALID) {
-		if (mii->mii_media_status & IFM_ACTIVE)
-			link_state = LINK_STATE_UP;
-		else
-			link_state = LINK_STATE_DOWN;
-	} else
-		link_state = LINK_STATE_UNKNOWN;
-	if_link_state_change(mii->mii_ifp, link_state);
+	return (MIIBUS_READVAR(device_get_parent(dev), var));
 }
 
 static void
@@ -358,9 +339,8 @@ miibus_mediainit(device_t dev)
  * the PHYs to the network interface driver parent.
  */
 int
-mii_attach(device_t dev, device_t *miibus, if_t ifp,
-    ifm_change_cb_t ifmedia_upd, ifm_stat_cb_t ifmedia_sts, int capmask,
-    int phyloc, int offloc, int flags)
+mii_attach(device_t dev, device_t *miibus, ifm_change_cb_t ifmedia_upd,
+    ifm_stat_cb_t ifmedia_sts, int capmask, int phyloc, int offloc, int flags)
 {
 	struct miibus_ivars *ivars;
 	struct mii_attach_args *args, ma;
@@ -395,7 +375,6 @@ mii_attach(device_t dev, device_t *miibus, if_t ifp,
 		ivars = malloc(sizeof(*ivars), M_DEVBUF, M_NOWAIT);
 		if (ivars == NULL)
 			return (ENOMEM);
-		ivars->ifp = ifp;
 		ivars->ifmedia_upd = ifmedia_upd;
 		ivars->ifmedia_sts = ifmedia_sts;
 		ivars->mii_flags = flags;
@@ -407,7 +386,7 @@ mii_attach(device_t dev, device_t *miibus, if_t ifp,
 		device_set_ivars(*miibus, ivars);
 	} else {
 		ivars = device_get_ivars(*miibus);
-		if (ivars->ifp != ifp || ivars->ifmedia_upd != ifmedia_upd ||
+		if (ivars->ifmedia_upd != ifmedia_upd ||
 		    ivars->ifmedia_sts != ifmedia_sts ||
 		    ivars->mii_flags != flags) {
 			printf("%s: non-matching invariant\n", __func__);
