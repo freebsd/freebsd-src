@@ -236,7 +236,6 @@ stp_print_config_bpdu(const struct stp_bpdu_ *stp_bpdu, u_int length)
 static void
 stp_print_mstp_bpdu(const struct stp_bpdu_ *stp_bpdu, u_int length)
 {
-    char 	   *name;
     const u_char   *ptr;
     u_int16_t	    v3len;
     u_int16_t	    len;
@@ -276,16 +275,14 @@ stp_print_mstp_bpdu(const struct stp_bpdu_ *stp_bpdu, u_int length)
            (float)EXTRACT_16BITS(&stp_bpdu->forward_delay) / STP_TIME_BASE);
 
     printf ("\n\tv3len %d, ", EXTRACT_16BITS(ptr + MST_BPDU_VER3_LEN_OFFSET));
-    name = p_strdup(ptr + MST_BPDU_CONFIG_NAME_OFFSET);
     printf("MCID Name %s, rev %u, "
             "\n\t\tdigest %08x%08x%08x%08x, ",
-            name == NULL ? "<null>" : name,
+            ptr + MST_BPDU_CONFIG_NAME_OFFSET,
 	          EXTRACT_16BITS(ptr + MST_BPDU_CONFIG_NAME_OFFSET + 32),
       	    EXTRACT_32BITS(ptr + MST_BPDU_CONFIG_DIGEST_OFFSET),
         	  EXTRACT_32BITS(ptr + MST_BPDU_CONFIG_DIGEST_OFFSET + 4),
 	          EXTRACT_32BITS(ptr + MST_BPDU_CONFIG_DIGEST_OFFSET + 8),
 	          EXTRACT_32BITS(ptr + MST_BPDU_CONFIG_DIGEST_OFFSET + 12));
-    p_strfree(name);
 
     printf ("CIST int-root-pathcost %u, ", 
             EXTRACT_32BITS(ptr + MST_BPDU_CIST_INT_PATH_COST_OFFSET));  
@@ -327,16 +324,14 @@ stp_print_mstp_bpdu(const struct stp_bpdu_ *stp_bpdu, u_int length)
 
     if ((length-offset) >= SPB_BPDU_MIN_LEN)
     {
-      name = p_strdup(ptr + offset + SPB_BPDU_CONFIG_NAME_OFFSET);
       printf("\n\tv4len %d AUXMCID Name %s, Rev %u, \n\t\tdigest %08x%08x%08x%08x",
               EXTRACT_16BITS (ptr + offset),
-              name == NULL ? "<null>" : name,
+              ptr + offset + SPB_BPDU_CONFIG_NAME_OFFSET,
               EXTRACT_16BITS(ptr + offset + SPB_BPDU_CONFIG_REV_OFFSET),
               EXTRACT_32BITS(ptr + offset + SPB_BPDU_CONFIG_DIGEST_OFFSET),
               EXTRACT_32BITS(ptr + offset + SPB_BPDU_CONFIG_DIGEST_OFFSET + 4),
               EXTRACT_32BITS(ptr + offset + SPB_BPDU_CONFIG_DIGEST_OFFSET + 8),
               EXTRACT_32BITS(ptr + offset + SPB_BPDU_CONFIG_DIGEST_OFFSET + 12));
-      p_strfree(name);
      
       printf("\n\tAgreement num %d, Discarded Agreement num %d, Agreement valid-"
               "flag %d, \n\tRestricted role-flag: %d, Format id %d cap %d, "

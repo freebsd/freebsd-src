@@ -104,13 +104,13 @@ pflog_print(const struct pfloghdr *hdr)
 		printf("rule %u/", rulenr);
 	else {
 		/* XXX-BD: string overflow risk in original */
-		p_strncpy(ruleset, hdr->ruleset,
+		strncpy(ruleset, hdr->ruleset,
 		    PFLOG_RULESET_NAME_SIZE);
 		ruleset[PFLOG_RULESET_NAME_SIZE] = '\0';
 		printf("rule %u.%s.%u/", rulenr, ruleset, subrulenr);
 	}
 
-	p_strncpy(ifname, hdr->ifname, IFNAMSIZ);
+	strncpy(ifname, hdr->ifname, IFNAMSIZ);
 	ifname[IFNAMSIZ] = '\0';
 	printf("%s: %s %s on %s: ",
 	    tok2str(pf_reasons, "unkn(%u)", hdr->reason),

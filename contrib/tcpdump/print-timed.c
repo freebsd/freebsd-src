@@ -109,7 +109,7 @@ _timed_print(const u_char *bp)
 		printf("%ld.%06ld", sec, usec);
 	}
 
-	end = p_memchr(tsp->tsp_name, '\0', snapend - (u_char *)tsp->tsp_name);
+	end = memchr(tsp->tsp_name, '\0', snapend - (u_char *)tsp->tsp_name);
 	if (end == NULL)
 		fputs(" [|timed]", stdout);
 	else {

@@ -164,7 +164,7 @@ network_prefix(int ae, int plen, unsigned int omitted,
             if (dp == NULL) return -1;
             memcpy(prefix, dp, 12 + omitted);
         }
-        if(pb > omitted) p_memcpy_from_packet(prefix + 12 + omitted, p, pb - omitted);
+        if(pb > omitted) memcpy(prefix + 12 + omitted, p, pb - omitted);
         break;
     case 2:
         if(omitted > 16 || (pb > omitted && len < pb - omitted))
@@ -173,13 +173,13 @@ network_prefix(int ae, int plen, unsigned int omitted,
             if (dp == NULL) return -1;
             memcpy(prefix, dp, omitted);
         }
-        if(pb > omitted) p_memcpy_from_packet(prefix + omitted, p, pb - omitted);
+        if(pb > omitted) memcpy(prefix + omitted, p, pb - omitted);
         break;
     case 3:
         if(pb > 8 && len < pb - 8) return -1;
         prefix[0] = 0xfe;
         prefix[1] = 0x80;
-        if(pb > 8) p_memcpy_from_packet(prefix + 8, p, pb - 8);
+        if(pb > 8) memcpy(prefix + 8, p, pb - 8);
         break;
     default:
         return -1;

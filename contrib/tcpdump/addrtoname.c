@@ -239,7 +239,7 @@ getname(const u_char *ap)
 	u_int32_t addr;
 	static struct hnamemem *p;		/* static for longjmp() */
 
-	p_memcpy_from_packet(&addr, ap, sizeof(addr));
+	memcpy(&addr, ap, sizeof(addr));
 	p = &hnametable[addr & (HASHNAMESIZE-1)];
 	for (; p->nxt; p = p->nxt) {
 		if (p->addr == addr)
@@ -295,7 +295,7 @@ getname6(const u_char *ap)
 	register const char *cp;
 	char ntop_buf[INET6_ADDRSTRLEN];
 
-	p_memcpy_from_packet(&addr, ap, sizeof(addr));
+	memcpy(&addr, ap, sizeof(addr));
 	p = &h6nametable[*(u_int16_t *)&addr.s6_addr[14] & (HASHNAMESIZE-1)];
 	for (; p->nxt; p = p->nxt) {
 		if (memcmp(&p->addr, &addr, sizeof(addr)) == 0)

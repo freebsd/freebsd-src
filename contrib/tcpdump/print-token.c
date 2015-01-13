@@ -52,8 +52,8 @@ static const char rcsid[] _U_ =
 static inline void
 extract_token_addrs(const struct token_header *trp, char *fsrc, char *fdst)
 {
-	p_memcpy_from_packet(fdst, trp->token_dhost, 6);
-	p_memcpy_from_packet(fsrc, trp->token_shost, 6);
+	memcpy(fdst, trp->token_dhost, 6);
+	memcpy(fsrc, trp->token_shost, 6);
 }
 
 /*

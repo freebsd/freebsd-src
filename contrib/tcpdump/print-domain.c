@@ -492,7 +492,7 @@ ns_rprint(const u_char *cp, const u_char *bp, int is_mdns)
 
 		if (!TTEST2(*cp, sizeof(struct in6_addr)))
 			return(NULL);
-		p_memcpy_from_packet(&addr, cp, sizeof(struct in6_addr));
+		memcpy(&addr, cp, sizeof(struct in6_addr));
 		printf(" %s",
 		    inet_ntop(AF_INET6, &addr, ntop_buf, sizeof(ntop_buf)));
 
@@ -516,7 +516,7 @@ ns_rprint(const u_char *cp, const u_char *bp, int is_mdns)
 			if (!TTEST2(*(cp + 1), sizeof(a) - pbyte))
 				return(NULL);
 			memset(&a, 0, sizeof(a));
-			p_memcpy_from_packet(&a.s6_addr[pbyte], cp + 1, sizeof(a) - pbyte);
+			memcpy(&a.s6_addr[pbyte], cp + 1, sizeof(a) - pbyte);
 			printf(" %u %s", pbit,
 			    inet_ntop(AF_INET6, &a, ntop_buf, sizeof(ntop_buf)));
 		}

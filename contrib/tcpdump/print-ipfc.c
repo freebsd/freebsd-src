@@ -54,8 +54,8 @@ extract_ipfc_addrs(const struct ipfc_header *ipfcp,
 	 * We assume that, as per RFC 2625, the lower 48 bits of the
 	 * source and destination addresses are MAC addresses.
 	 */
-	p_memcpy_from_packet(ipfcdst, &ipfcp->ipfc_dhost[2], 6);
-	p_memcpy_from_packet(ipfcsrc, &ipfcp->ipfc_shost[2], 6);
+	memcpy(ipfcdst, &ipfcp->ipfc_dhost[2], 6);
+	memcpy(ipfcsrc, &ipfcp->ipfc_shost[2], 6);
 }
 
 /*

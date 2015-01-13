@@ -122,12 +122,12 @@ ip_finddst(const struct ip *ip)
 		case IPOPT_LSRR:
 			if (len < 7)
 				break;
-			p_memcpy_from_packet(&retval, cp + len - 4, 4);
+			memcpy(&retval, cp + len - 4, 4);
 			return retval;
 		}
 	}
 trunc:
-	p_memcpy_from_packet(&retval, &ip->ip_dst.s_addr, sizeof(u_int32_t));
+	memcpy(&retval, &ip->ip_dst.s_addr, sizeof(u_int32_t));
 	return retval;
 }
 
@@ -152,9 +152,9 @@ nextproto4_cksum(const struct ip *ip,
 	ph.len = htons((u_int16_t)len);
 	ph.mbz = 0;
 	ph.proto = next_proto;
-	p_memcpy_from_packet(&ph.src, &ip->ip_src.s_addr, sizeof(u_int32_t));
+	memcpy(&ph.src, &ip->ip_src.s_addr, sizeof(u_int32_t));
 	if (IP_HL(ip) == 5)
-		p_memcpy_from_packet(&ph.dst, &ip->ip_dst.s_addr, sizeof(u_int32_t));
+		memcpy(&ph.dst, &ip->ip_dst.s_addr, sizeof(u_int32_t));
 	else
 		ph.dst = ip_finddst(ip);
 
@@ -711,7 +711,7 @@ ipN_print(const u_char *bp, register u_int length)
 		(void)printf("truncated-ip %d", length);
 		return;
 	}
-	p_memcpy_from_packet(&hdr, ip, 4);
+	memcpy(&hdr, ip, 4);
 	switch (IP_V(&hdr)) {
 	case 4:
 		ip_print (gndo, bp, length);

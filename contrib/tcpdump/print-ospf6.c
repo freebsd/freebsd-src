@@ -181,7 +181,7 @@ ospf6_print_lsaprefix(const u_char *tptr, u_int lsa_length)
 	lsa_length -= wordlen * 4;
 	TCHECK2(lsapp->lsa_p_prefix, wordlen * 4);
 	memset(&prefix, 0, sizeof(prefix));
-	p_memcpy_from_packet(&prefix, lsapp->lsa_p_prefix, wordlen * 4);
+	memcpy(&prefix, lsapp->lsa_p_prefix, wordlen * 4);
 	printf("\n\t\t%s/%d", ip6addr_string(&prefix),
 		lsapp->lsa_p_len);
         if (lsapp->lsa_p_opt) {

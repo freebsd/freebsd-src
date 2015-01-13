@@ -684,7 +684,7 @@ parse_elements(struct mgmt_body_t *pbody, const u_char *p, int offset,
 				return 0;
 			if (length < 2)
 				return 0;
-			p_memcpy_from_packet(&ssid, p + offset, 2);
+			memcpy(&ssid, p + offset, 2);
 			offset += 2;
 			length -= 2;
 			if (ssid.length != 0) {
@@ -694,7 +694,7 @@ parse_elements(struct mgmt_body_t *pbody, const u_char *p, int offset,
 					return 0;
 				if (length < ssid.length)
 					return 0;
-				p_memcpy_from_packet(&ssid.ssid, p + offset, ssid.length);
+				memcpy(&ssid.ssid, p + offset, ssid.length);
 				offset += ssid.length;
 				length -= ssid.length;
 			}
@@ -716,7 +716,7 @@ parse_elements(struct mgmt_body_t *pbody, const u_char *p, int offset,
 				return 0;
 			if (length < 2)
 				return 0;
-			p_memcpy_from_packet(&challenge, p + offset, 2);
+			memcpy(&challenge, p + offset, 2);
 			offset += 2;
 			length -= 2;
 			if (challenge.length != 0) {
@@ -727,7 +727,7 @@ parse_elements(struct mgmt_body_t *pbody, const u_char *p, int offset,
 					return 0;
 				if (length < challenge.length)
 					return 0;
-				p_memcpy_from_packet(&challenge.text, p + offset,
+				memcpy(&challenge.text, p + offset,
 				    challenge.length);
 				offset += challenge.length;
 				length -= challenge.length;
@@ -750,7 +750,7 @@ parse_elements(struct mgmt_body_t *pbody, const u_char *p, int offset,
 				return 0;
 			if (length < 2)
 				return 0;
-			p_memcpy_from_packet(&rates, p + offset, 2);
+			memcpy(&rates, p + offset, 2);
 			offset += 2;
 			length -= 2;
 			if (rates.length != 0) {
@@ -760,7 +760,7 @@ parse_elements(struct mgmt_body_t *pbody, const u_char *p, int offset,
 					return 0;
 				if (length < rates.length)
 					return 0;
-				p_memcpy_from_packet(&rates.rate, p + offset, rates.length);
+				memcpy(&rates.rate, p + offset, rates.length);
 				offset += rates.length;
 				length -= rates.length;
 			}
@@ -790,7 +790,7 @@ parse_elements(struct mgmt_body_t *pbody, const u_char *p, int offset,
 				return 0;
 			if (length < 3)
 				return 0;
-			p_memcpy_from_packet(&ds, p + offset, 3);
+			memcpy(&ds, p + offset, 3);
 			offset += 3;
 			length -= 3;
 			/*
@@ -810,7 +810,7 @@ parse_elements(struct mgmt_body_t *pbody, const u_char *p, int offset,
 				return 0;
 			if (length < 8)
 				return 0;
-			p_memcpy_from_packet(&cf, p + offset, 8);
+			memcpy(&cf, p + offset, 8);
 			offset += 8;
 			length -= 8;
 			/*
@@ -830,14 +830,14 @@ parse_elements(struct mgmt_body_t *pbody, const u_char *p, int offset,
 				return 0;
 			if (length < 2)
 				return 0;
-			p_memcpy_from_packet(&tim, p + offset, 2);
+			memcpy(&tim, p + offset, 2);
 			offset += 2;
 			length -= 2;
 			if (!TTEST2(*(p + offset), 3))
 				return 0;
 			if (length < 3)
 				return 0;
-			p_memcpy_from_packet(&tim.count, p + offset, 3);
+			memcpy(&tim.count, p + offset, 3);
 			offset += 3;
 			length -= 3;
 
@@ -849,7 +849,7 @@ parse_elements(struct mgmt_body_t *pbody, const u_char *p, int offset,
 				return 0;
 			if (length < (u_int)(tim.length - 3))
 				return 0;
-			p_memcpy_from_packet(tim.bitmap, p + (tim.length - 3),
+			memcpy(tim.bitmap, p + (tim.length - 3),
 			    (tim.length - 3));
 			offset += tim.length - 3;
 			length -= tim.length - 3;
@@ -908,7 +908,7 @@ handle_beacon(const u_char *p, u_int length)
 	if (length < IEEE802_11_TSTAMP_LEN + IEEE802_11_BCNINT_LEN +
 	    IEEE802_11_CAPINFO_LEN)
 		return 0;
-	p_memcpy_from_packet(&pbody.timestamp, p, IEEE802_11_TSTAMP_LEN);
+	memcpy(&pbody.timestamp, p, IEEE802_11_TSTAMP_LEN);
 	offset += IEEE802_11_TSTAMP_LEN;
 	length -= IEEE802_11_TSTAMP_LEN;
 	pbody.beacon_interval = EXTRACT_LE_16BITS(p+offset);
@@ -1013,7 +1013,7 @@ handle_reassoc_request(const u_char *p, u_int length)
 	pbody.listen_interval = EXTRACT_LE_16BITS(p+offset);
 	offset += IEEE802_11_LISTENINT_LEN;
 	length -= IEEE802_11_LISTENINT_LEN;
-	p_memcpy_from_packet(&pbody.ap, p+offset, IEEE802_11_AP_LEN);
+	memcpy(&pbody.ap, p+offset, IEEE802_11_AP_LEN);
 	offset += IEEE802_11_AP_LEN;
 	length -= IEEE802_11_AP_LEN;
 
@@ -1064,7 +1064,7 @@ handle_probe_response(const u_char *p, u_int length)
 	if (length < IEEE802_11_TSTAMP_LEN + IEEE802_11_BCNINT_LEN +
 	    IEEE802_11_CAPINFO_LEN)
 		return 0;
-	p_memcpy_from_packet(&pbody.timestamp, p, IEEE802_11_TSTAMP_LEN);
+	memcpy(&pbody.timestamp, p, IEEE802_11_TSTAMP_LEN);
 	offset += IEEE802_11_TSTAMP_LEN;
 	length -= IEEE802_11_TSTAMP_LEN;
 	pbody.beacon_interval = EXTRACT_LE_16BITS(p+offset);

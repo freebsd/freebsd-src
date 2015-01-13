@@ -339,7 +339,7 @@ _eigrp_print(const u_char *pptr, register u_int len)
             }
             byte_length = (bit_length + 7) / 8; /* variable length encoding */
             memset(prefix, 0, 4);
-            p_memcpy_from_packet(prefix,&tlv_ptr.eigrp_tlv_ip_int->destination,byte_length);
+            memcpy(prefix,&tlv_ptr.eigrp_tlv_ip_int->destination,byte_length);
 
             printf("\n\t    IPv4 prefix: %15s/%u, nexthop: ",
                    ipaddr_string(prefix),
@@ -368,7 +368,7 @@ _eigrp_print(const u_char *pptr, register u_int len)
             }
             byte_length = (bit_length + 7) / 8; /* variable length encoding */
             memset(prefix, 0, 4);
-            p_memcpy_from_packet(prefix,&tlv_ptr.eigrp_tlv_ip_ext->destination,byte_length);
+            memcpy(prefix,&tlv_ptr.eigrp_tlv_ip_ext->destination,byte_length);
 
             printf("\n\t    IPv4 prefix: %15s/%u, nexthop: ",
                    ipaddr_string(prefix),

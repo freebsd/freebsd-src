@@ -414,7 +414,7 @@ pptp_hostname_print(const u_char *hostname)
 {
 	char hostname_str[64];
 
-	p_strncpy(hostname_str, hostname, 64);
+	strncpy(hostname_str, hostname, 64);
 	printf(" HOSTNAME(%.64s)", hostname_str);
 }
 
@@ -580,7 +580,7 @@ pptp_subaddr_print(const u_char *subaddr)
 {
 	char buf[64];
 
-	p_strncpy(buf, subaddr, 64);
+	strncpy(buf, subaddr, 64);
 	printf(" SUB_ADDR(%.64s)", buf);
 }
 
@@ -589,7 +589,7 @@ pptp_vendor_print(const u_char *vendor)
 {
 	char buf[64];
 
-	p_strncpy(buf, vendor, 64);
+	strncpy(buf, vendor, 64);
 	printf(" VENDOR(%.64s)", buf);
 }
 
@@ -769,7 +769,7 @@ pptp_ocrq_print(const u_char *dat)
 	printf(" PHONE_NO_LEN(%u)", EXTRACT_16BITS(&ptr->phone_no_len));
 	TCHECK(ptr->reserved1);
 	TCHECK(ptr->phone_no);
-	p_strncpy(buf, ptr->phone_no, 64);
+	strncpy(buf, ptr->phone_no, 64);
 	printf(" PHONE_NO(%.64s)", buf);
 	TCHECK(ptr->subaddr);
 	pptp_subaddr_print(&ptr->subaddr[0]);
@@ -831,10 +831,10 @@ pptp_icrq_print(const u_char *dat)
 	TCHECK(ptr->dialing_no_len);
 	printf(" DIALING_NO_LEN(%u)", EXTRACT_16BITS(&ptr->dialing_no_len));
 	TCHECK(ptr->dialed_no);
-	p_strncpy(buf, ptr->dialed_no, 64);
+	strncpy(buf, ptr->dialed_no, 64);
 	printf(" DIALED_NO(%.64s)", buf);
 	TCHECK(ptr->dialing_no);
-	p_strncpy(buf, ptr->dialing_no, 64);
+	strncpy(buf, ptr->dialing_no, 64);
 	printf(" DIALING_NO(%.64s)", buf);
 	TCHECK(ptr->subaddr);
 	pptp_subaddr_print(&ptr->subaddr[0]);
@@ -928,7 +928,7 @@ pptp_cdn_print(const u_char *dat)
 	pptp_cause_code_print(&ptr->cause_code);
 	TCHECK(ptr->reserved1);
 	TCHECK(ptr->call_stats);
-	p_strncpy(buf, ptr->call_stats, 128);
+	strncpy(buf, ptr->call_stats, 128);
 	printf(" CALL_STATS(%.128s)", buf);
 
 	return;

@@ -1528,7 +1528,6 @@ pdu_print(const u_char *np, u_int length, int version)
 static void
 scopedpdu_print(const u_char *np, u_int length, int version)
 {
-	char *buf;
 	struct be elem;
 	int i, count = 0;
 
@@ -1571,9 +1570,7 @@ scopedpdu_print(const u_char *np, u_int length, int version)
 	length -= count;
 	np += count;
 
-	buf = p_strndup(elem.data.str, elem.asnlen);
-	printf("C=%.*s ", (int)elem.asnlen, buf == NULL ? "<null>" : buf);
-	p_strfree(buf);
+	printf("C=%.*s ", (int)elem.asnlen, elem.data.str);
 
 	pdu_print(np, length, version);
 }
@@ -1584,7 +1581,6 @@ scopedpdu_print(const u_char *np, u_int length, int version)
 static void
 community_print(const u_char *np, u_int length, int version)
 {
-	char *buf;
 	struct be elem;
 	int count = 0;
 
@@ -1598,13 +1594,10 @@ community_print(const u_char *np, u_int length, int version)
 	}
 	/* default community */
 	if (!(elem.asnlen == sizeof(DEF_COMMUNITY) - 1 &&
-	    p_strncmp_static(elem.data.str, DEF_COMMUNITY,
+	    strncmp(elem.data.str, DEF_COMMUNITY,
 	            sizeof(DEF_COMMUNITY) - 1) == 0)) {
 		/* ! "public" */
-		buf = p_strndup(elem.data.str, elem.asnlen);
-		printf("C=%.*s ", (int)elem.asnlen,
-		    buf == NULL ?  "<null>" : buf);
-		p_strfree(buf);
+		printf("C=%.*s ", (int)elem.asnlen, elem.data.str);
 	}
 	length -= count;
 	np += count;
@@ -1618,7 +1611,6 @@ community_print(const u_char *np, u_int length, int version)
 static void
 usm_print(const u_char *np, u_int length)
 {
-	char *buf;
         struct be elem;
 	int count = 0;
 
@@ -1681,9 +1673,7 @@ usm_print(const u_char *np, u_int length)
 	length -= count;
         np += count;
 
-	buf = p_strndup(elem.data.str, elem.asnlen);
-	printf("U=%.*s ", (int)elem.asnlen, buf == NULL ? "<null>" : buf);
-	free(buf);
+	printf("U=%.*s ", (int)elem.asnlen, elem.data.str);
 
 	/* msgAuthenticationParameters (OCTET STRING) */
 	if ((count = asn1_parse(np, length, &elem)) < 0)

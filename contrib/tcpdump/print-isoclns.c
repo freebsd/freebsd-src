@@ -2019,7 +2019,7 @@ isis_print_extd_ip_reach (const u_char *tptr, const char *ident, u_int16_t afi) 
     if (!TTEST2(*tptr, byte_length))
         return (0);
     memset(prefix, 0, sizeof prefix);   /* clear the copy buffer */
-    p_memcpy_from_packet(prefix,tptr,byte_length);    /* copy as much as is stored in the TLV */
+    memcpy(prefix,tptr,byte_length);    /* copy as much as is stored in the TLV */
     tptr+=byte_length;
     processed+=byte_length;
 

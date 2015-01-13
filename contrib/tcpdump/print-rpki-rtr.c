@@ -293,7 +293,7 @@ rpki_rtr_pdu_print (const u_char *tptr, u_int indent)
 		tlen -= 4;
 	    }
 	    if (text_length && (text_length <= tlen )) {
-		p_memcpy_from_packet(buf, tptr, MIN(sizeof(buf)-1, text_length));
+		memcpy(buf, tptr, MIN(sizeof(buf)-1, text_length));
 		buf[text_length] = '\0';
 		printf("%sError text: %s", indent_string(indent+2), buf);
 	    }

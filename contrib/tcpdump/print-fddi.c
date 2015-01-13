@@ -204,8 +204,8 @@ extract_fddi_addrs(const struct fddi_header *fddip, char *fsrc, char *fdst)
 			fsrc[i] = fddi_bit_swap[fddip->fddi_shost[i]];
 	}
 	else {
-		p_memcpy_from_packet(fdst, fddip->fddi_dhost, 6);
-		p_memcpy_from_packet(fsrc, fddip->fddi_shost, 6);
+		memcpy(fdst, fddip->fddi_dhost, 6);
+		memcpy(fsrc, fddip->fddi_shost, 6);
 	}
 }
 

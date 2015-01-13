@@ -132,9 +132,8 @@ vtp_print(const u_char *pptr, u_int length)
 void
 _vtp_print(const u_char *pptr, u_int length)
 {
-    int type, len, name_len, tlv_len, tlv_value;
+    int type, len, tlv_len, tlv_value;
     const u_char *name_ptr, *tptr;
-    char *name;
     const struct vtp_vlan_ *vtp_vlan;
 
     if (length < VTP_HEADER_LEN)
@@ -158,12 +157,9 @@ _vtp_print(const u_char *pptr, u_int length)
     }
 
     /* verbose mode print all fields */
-    name = p_strdup(tptr+4);
-    printf("\n\tDomain name: %s, %s: %u", 
-	   name == NULL ? "<null>" : name,
+    printf("\n\tDomain name: %s, %s: %u", tptr+4,
 	   tok2str(vtp_header_values,"Unknown",*(tptr+1)),
 	   *(tptr+2));
-    p_strfree(name);
 
     tptr += VTP_HEADER_LEN;
 
@@ -259,17 +255,13 @@ _vtp_print(const u_char *pptr, u_int length)
 
 	    vtp_vlan = (const struct vtp_vlan_*)tptr;
 	    name_ptr = tptr + VTP_VLAN_INFO_OFFSET;
-	    name_len = p_strnlen(name_ptr, snapend - name_ptr) + 1;
-	    if ((name = malloc(name_len)) != NULL)
-		p_strncpy(name, name_ptr, name_len);
 	    printf("\n\tVLAN info status %s, type %s, VLAN-id %u, MTU %u, SAID 0x%08x, Name %s",
 		   tok2str(vtp_vlan_status,"Unknown",vtp_vlan->status),
 		   tok2str(vtp_vlan_type_values,"Unknown",vtp_vlan->type),
 		   EXTRACT_16BITS(&vtp_vlan->vlanid),
 		   EXTRACT_16BITS(&vtp_vlan->mtu),
 		   EXTRACT_32BITS(&vtp_vlan->index),
-		   name == NULL ? "<null>" : name);
-	    free(name);
+		   name_ptr);
 
             /*
              * Vlan names are aligned to 32-bit boundaries.

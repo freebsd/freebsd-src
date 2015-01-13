@@ -117,7 +117,7 @@ _tftp_print(const u_char *bp, u_int length)
 			putchar('"');
 
 		/* Print the mode (RRQ and WRQ only) and any options */
-		while ((p = p_strchr(p, '\0')) != NULL) {
+		while ((p = strchr(p, '\0')) != NULL) {
 			if (length <= (u_int)(p - (const u_char *)&tp->th_block))
 				break;
 			p++;

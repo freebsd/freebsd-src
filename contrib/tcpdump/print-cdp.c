@@ -300,7 +300,7 @@ cdp_print_addr(const u_char *p, int l)
 		}
 #ifdef INET6
 		else if (pt == PT_IEEE_802_2 && pl == 8 &&
-		    p_memcmp(p, cheri_ptr(prot_ipv6, sizeof(prot_ipv6)), 8) == 0 && al == 16) {
+		    memcmp(p, cheri_ptr(prot_ipv6, sizeof(prot_ipv6)), 8) == 0 && al == 16) {
 			/*
 			 * IPv6: protocol type = IEEE 802.2 header,
 			 * protocol length = 8 (size of LLC+SNAP header),

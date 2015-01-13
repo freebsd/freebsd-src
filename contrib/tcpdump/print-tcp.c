@@ -287,16 +287,16 @@ _tcp_print(const u_char *bp, register u_int length,
                         if (sport > dport)
                                 rev = 1;
                         else if (sport == dport) {
-                                if (p_memcmp(src, dst, sizeof ip6->ip6_dst) > 0)
+                                if (memcmp(src, dst, sizeof ip6->ip6_dst) > 0)
                                         rev = 1;
                         }
                         if (rev) {
-                                p_memcpy_from_packet(&tha.src, dst, sizeof ip6->ip6_dst);
-                                p_memcpy_from_packet(&tha.dst, src, sizeof ip6->ip6_src);
+                                memcpy(&tha.src, dst, sizeof ip6->ip6_dst);
+                                memcpy(&tha.dst, src, sizeof ip6->ip6_src);
                                 tha.port = dport << 16 | sport;
                         } else {
-                                p_memcpy_from_packet(&tha.dst, dst, sizeof ip6->ip6_dst);
-                                p_memcpy_from_packet(&tha.src, src, sizeof ip6->ip6_src);
+                                memcpy(&tha.dst, dst, sizeof ip6->ip6_dst);
+                                memcpy(&tha.src, src, sizeof ip6->ip6_src);
                                 tha.port = sport << 16 | dport;
                         }
                 } else {
@@ -326,16 +326,16 @@ _tcp_print(const u_char *bp, register u_int length,
                         if (sport > dport)
                                 rev = 1;
                         else if (sport == dport) {
-                                if (p_memcmp(src, dst, sizeof ip->ip_dst) > 0)
+                                if (memcmp(src, dst, sizeof ip->ip_dst) > 0)
                                         rev = 1;
                         }
                         if (rev) {
-                                p_memcpy_from_packet(&tha.src, dst, sizeof ip->ip_dst);
-                                p_memcpy_from_packet(&tha.dst, src, sizeof ip->ip_src);
+                                memcpy(&tha.src, dst, sizeof ip->ip_dst);
+                                memcpy(&tha.dst, src, sizeof ip->ip_src);
                                 tha.port = dport << 16 | sport;
                         } else {
-                                p_memcpy_from_packet(&tha.dst, dst, sizeof ip->ip_dst);
-                                p_memcpy_from_packet(&tha.src, src, sizeof ip->ip_src);
+                                memcpy(&tha.dst, dst, sizeof ip->ip_dst);
+                                memcpy(&tha.src, src, sizeof ip->ip_src);
                                 tha.port = sport << 16 | dport;
                         }
                 }
@@ -346,7 +346,7 @@ _tcp_print(const u_char *bp, register u_int length,
                 if (sport > dport)
                         rev = 1;
                 else if (sport == dport) {
-                        if (p_memcmp(src, dst, sizeof ip->ip_dst) > 0)
+                        if (memcmp(src, dst, sizeof ip->ip_dst) > 0)
                                 rev = 1;
                 }
                 if (rev) {

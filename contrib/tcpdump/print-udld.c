@@ -94,7 +94,6 @@ udld_print (const u_char *pptr, u_int length)
 void
 _udld_print (const u_char *pptr, u_int length)
 {
-    char *buf;
     int code, type, len;
     const u_char *tptr;
 
@@ -151,9 +150,7 @@ _udld_print (const u_char *pptr, u_int length)
         case UDLD_PORT_ID_TLV:
         case UDLD_ECHO_TLV:
         case UDLD_DEVICE_NAME_TLV:
-	    buf = p_strdup(tptr);
-            printf(", %s", buf == NULL ? "<null>" : buf);
-	    p_strfree(buf);
+            printf(", %s", tptr);
             break;
 
         case UDLD_MESSAGE_INTERVAL_TLV: 

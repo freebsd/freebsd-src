@@ -730,10 +730,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			while (remain_len && *tp) {
 				label_len =  *tp++;
 				if (label_len < remain_len - 1) {
-					char *buf;
-					buf = p_strndup(tp, label_len);
-					printf("%.*s", label_len,
-					    buf == NULL ? "<null>" : buf);
+					printf("%.*s", label_len, tp);
 					tp += label_len;
 					remain_len -= (label_len + 1);
 					if(*tp) printf(".");
@@ -863,10 +860,10 @@ _dhcp6_print(const u_char *cp, u_int length)
 
 		TCHECK(dh6relay->dh6relay_peeraddr);
 
-		p_memcpy_from_packet(&addr6, dh6relay->dh6relay_linkaddr, sizeof (addr6));
+		memcpy(&addr6, dh6relay->dh6relay_linkaddr, sizeof (addr6));
 		printf("linkaddr=%s", ip6addr_string(&addr6));
 
-		p_memcpy_from_packet(&addr6, dh6relay->dh6relay_peeraddr, sizeof (addr6));
+		memcpy(&addr6, dh6relay->dh6relay_peeraddr, sizeof (addr6));
 		printf(" peeraddr=%s", ip6addr_string(&addr6));
 
 		dhcp6opt_print((const u_char *)(dh6relay + 1), ep);

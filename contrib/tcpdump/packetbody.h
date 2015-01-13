@@ -48,37 +48,4 @@
 #define	__capability
 #endif
 
-/*
- * Wrappers for str*() and mem*() functions on packet data.
- */
-#ifdef HAS_CHERI_CAPABILITIES
-#define	p_memchr		memchr_c
-#define	p_memcmp		memcmp_c
-#define	p_memcpy_from_packet	memcpy_c_fromcap
-#define	p_strchr		strchr_c
-#define	p_strcmp_static(p, s) \
-	strcmp_c((p), (const char *)(s))
-char	*p_strdup(const u_char * data);
-#define p_strfree(str)		free(str)
-#define	p_strncmp_static(p, s, l) \
-	strncmp_c((p), (const char *)(s), (l))
-#define	p_strncpy		strncpy_c_fromcap
-char	*p_strndup(const u_char * data, size_t n);
-#define	p_strnlen		strnlen_c
-#define	p_strtol		strtol_c
-#else
-#define	p_memchr		memchr
-#define	p_memcmp		memcmp
-#define	p_memcpy_from_packet	memcpy
-#define	p_strchr		strchr
-#define	p_strcmp_static		strcmp
-#define	p_strdup(str)		(char *)(str)
-#define	p_strfree(str)		do {} while(0)
-#define	p_strncmp_static	strncmp
-#define	p_strncpy		strncpy
-#define	p_strndup(str, n)	(char *)(str)
-#define	p_strnlen		strnlen
-#define	p_strtol		strtol
-#endif
-
 #endif /* __PACKETBODY_H__ */

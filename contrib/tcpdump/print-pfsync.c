@@ -209,15 +209,11 @@ pfsync_print(const struct pfsync_header *hdr, const u_char *bp,
 static void
 pfsync_print_clr(const void *bp)
 {
-	char *buf;
 	const struct pfsync_clr *clr = bp;
 
 	printf("\n\tcreatorid: %08x", htonl(clr->creatorid));
-	if (clr->ifname[0] != '\0') {
-		buf = p_strdup(clr->ifname);
-		printf(" interface: %s", buf == NULL ? "<null>" : buf);
-		p_strfree(buf);
-	}
+	if (clr->ifname[0] != '\0')
+		printf(" interface: %s", clr->ifname);
 }
 
 static void
@@ -385,7 +381,6 @@ print_src_dst(const struct pfsync_state_peer *src,
 static void
 print_state(const struct pfsync_state *s)
 {
-	char *buf;
 	const struct pfsync_state_peer *src, *dst;
 	const struct pfsync_state_key *sk, *nk;
 	int min, sec;
@@ -408,9 +403,7 @@ print_state(const struct pfsync_state *s)
 		if (s->proto == IPPROTO_ICMP || s->proto == IPPROTO_ICMPV6)
 			sk_ports[1] = nk->port[1];
 	}
-	buf = p_strdup(s->ifname);
-	printf("\t%s ", buf == NULL ? "<null>" : buf);
-	p_strfree(buf);
+	printf("\t%s ", s->ifname);
 	printf("proto %u ", s->proto);
 
 	print_host(&nk->addr[1], nk->port[1], s->af, NULL);
@@ -451,10 +444,10 @@ print_state(const struct pfsync_state *s)
 		expire /= 60;
 		printf(", expires in %.2u:%.2u:%.2u", expire, min, sec);
 
-		p_memcpy_from_packet(&packets[0], s->packets[0], sizeof(uint64_t));
-		p_memcpy_from_packet(&packets[1], s->packets[1], sizeof(uint64_t));
-		p_memcpy_from_packet(&bytes[0], s->bytes[0], sizeof(uint64_t));
-		p_memcpy_from_packet(&bytes[1], s->bytes[1], sizeof(uint64_t));
+		memcpy(&packets[0], s->packets[0], sizeof(uint64_t));
+		memcpy(&packets[1], s->packets[1], sizeof(uint64_t));
+		memcpy(&bytes[0], s->bytes[0], sizeof(uint64_t));
+		memcpy(&bytes[1], s->bytes[1], sizeof(uint64_t));
 		printf(", %ju:%ju pkts, %ju:%ju bytes",
 		    be64toh(packets[0]), be64toh(packets[1]),
 		    be64toh(bytes[0]), be64toh(bytes[1]));
@@ -466,7 +459,7 @@ print_state(const struct pfsync_state *s)
 	if (vflag > 1) {
 		uint64_t id;
 
-		p_memcpy_from_packet(&id, &s->id, sizeof(uint64_t));
+		memcpy(&id, &s->id, sizeof(uint64_t));
 		printf("\n\tid: %016jx creatorid: %08x",
 		    (uintmax_t )be64toh(id), ntohl(s->creatorid));
 	}
