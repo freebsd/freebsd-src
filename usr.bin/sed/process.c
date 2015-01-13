@@ -67,7 +67,7 @@ static SPACE HS, PS, SS, YS;
 #define	hs		HS.space
 #define	hsl		HS.len
 
-static __inline int	 applies(struct s_command *);
+static inline int	 applies(struct s_command *);
 static void		 do_tr(struct s_tr *);
 static void		 flush_appends(void);
 static void		 lputs(char *, size_t);
@@ -288,7 +288,7 @@ new:		if (!nflag && !pd)
  * Return TRUE if the command applies to the current line.  Sets the start
  * line for process ranges.  Interprets the non-select (``!'') flag.
  */
-static __inline int
+static inline int
 applies(struct s_command *cp)
 {
 	int r;
