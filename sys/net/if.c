@@ -1550,21 +1550,6 @@ if_set_special(if_t ifp, ift_feature f)
 {
 
 	switch (f) {
-	case IF_CAPABILITIES:
-	{
-		uint64_t capabilities, capenable;
-		/*
-		 * If IF_CAPABILITIES have been reduced, then IF_CAPENABLE
-		 * should be reduced, too.
-		 */
-		capabilities = if_get(ifp, IF_CAPABILITIES);
-		capenable = if_get(ifp, IF_CAPENABLE);
-		if ((capenable & capabilities) != capenable) {
-			capenable &= capabilities;
-			if_set(ifp, IF_CAPENABLE, capenable);
-		}
-		break;
-	}
 	case IF_CAPENABLE:
 		/*
 		 * Modifying if_capenable may require extra actions, e.g.
