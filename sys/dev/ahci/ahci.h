@@ -572,6 +572,7 @@ enum ahci_err_type {
 #define AHCI_Q_ATI_PMP_BUG	0x2000
 #define AHCI_Q_MAXIO_64K	0x4000
 #define AHCI_Q_SATA1_UNIT0	0x8000		/* need better method for this */
+#define AHCI_Q_ABAR0		0x10000
 
 #define AHCI_Q_BIT_STRING	\
 	"\020"			\
