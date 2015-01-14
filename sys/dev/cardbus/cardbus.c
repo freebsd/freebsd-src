@@ -106,6 +106,8 @@ cardbus_attach(device_t cbdev)
 		device_printf(cbdev, "failed to allocate bus number\n");
 		return (ENXIO);
 	}
+#else
+	device_printf(cbdev, "Your bus numbers may be AFU\n");
 #endif
 	return (0);
 }
