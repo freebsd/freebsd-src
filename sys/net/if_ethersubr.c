@@ -842,9 +842,6 @@ ether_ifdetach(struct ifnet *ifp)
 		    ("ng_ether_detach_p is NULL"));
 		(*ng_ether_detach_p)(ifp);
 	}
-
-	bpfdetach(ifp);
-	if_detach(ifp);
 }
 
 #ifdef VIMAGE
