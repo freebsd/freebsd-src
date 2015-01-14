@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 6, 2014
+.Dd January 14, 2015
 .Dt FSTYP 8
 .Os
 .Sh NAME
@@ -58,9 +58,9 @@ is built specifically to detect filesystem types, it differs from
 .Xr file 1
 in several ways.
 The output is machine-parsable, filesystem labels are supported,
-and only filesystems are identified.
-Security is improved with
-.Xr capsicum 4 .
+the utility runs sandboxed using
+.Xr capsicum 4 ,
+and does not try to recognize any file format other than filesystems.
 .Pp
 These options are available:
 .Bl -tag -width ".Fl l"
