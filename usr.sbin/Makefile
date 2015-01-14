@@ -262,6 +262,7 @@ SUBDIR+=	pkg
 SUBDIR+=	pmcannotate
 SUBDIR+=	pmccontrol
 SUBDIR+=	pmcstat
+SUBDIR+=	pmcstudy
 .endif
 
 .if ${MK_PORTSNAP} != "no"
