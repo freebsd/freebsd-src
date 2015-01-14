@@ -224,6 +224,8 @@ uma_zone_t	moea64_mpvo_zone; /* zone for pvo entries for managed pages */
 #define	BPVO_POOL_SIZE	327680
 static struct	pvo_entry *moea64_bpvo_pool;
 static int	moea64_bpvo_pool_index = 0;
+SYSCTL_INT(_machdep, OID_AUTO, moea64_allocated_bpvo_entries, CTLFLAG_RD, 
+    &moea64_bpvo_pool_index, 0, "");
 
 #define	VSID_NBPW	(sizeof(u_int32_t) * 8)
 #ifdef __powerpc64__
@@ -534,6 +536,11 @@ moea64_add_ofw_mappings(mmu_t mmup, phandle_t mmu, size_t sz)
 
 		DISABLE_TRANS(msr);
 		for (off = 0; off < translations[i].om_len; off += PAGE_SIZE) {
+			/* If this address is direct-mapped, skip remapping */
+			if (hw_direct_map && translations[i].om_va == pa_base &&
+			    moea64_calc_wimg(pa_base + off, VM_MEMATTR_DEFAULT) 			    == LPTE_M)
+				continue;
+
 			if (moea64_pvo_find_va(kernel_pmap,
 			    translations[i].om_va + off) != NULL)
 				continue;
