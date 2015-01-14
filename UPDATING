@@ -15,6 +15,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20150114:	p22	FreeBSD-SA-15:01.openssl
+	Fix multiple vulnerabilities in OpenSSL.  [SA-15:01]
+
 20141223:	p21	FreeBSD-SA-14:31.ntp
 			FreeBSD-EN-14:13.freebsd-update
 

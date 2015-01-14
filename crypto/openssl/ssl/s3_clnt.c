@@ -1120,8 +1120,21 @@ int ssl3_get_key_exchange(SSL *s)
 
 	if (!ok) return((int)n);
 
+	alg=s->s3->tmp.new_cipher->algorithms;
+	EVP_MD_CTX_init(&md_ctx);
+
 	if (s->s3->tmp.message_type != SSL3_MT_SERVER_KEY_EXCHANGE)
 		{
+		/*
+		 * Can't skip server key exchange if this is an ephemeral
+		 * ciphersuite.
+		 */
+		if (alg & (SSL_kEDH|SSL_kECDHE))
+			{
+			SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE, SSL_R_UNEXPECTED_MESSAGE);
+			al = SSL_AD_UNEXPECTED_MESSAGE;
+			goto f_err;
+			}
 		s->s3->tmp.reuse_message=1;
 		return(1);
 		}
@@ -1158,12 +1171,17 @@ int ssl3_get_key_exchange(SSL *s)
 		}
 
 	param_len=0;
-	alg=s->s3->tmp.new_cipher->algorithms;
-	EVP_MD_CTX_init(&md_ctx);
 
 #ifndef OPENSSL_NO_RSA
 	if (alg & SSL_kRSA)
 		{
+		/* Temporary RSA keys only allowed in export ciphersuites */
+		if (!SSL_C_IS_EXPORT(s->s3->tmp.new_cipher))
+			{
+			al=SSL_AD_UNEXPECTED_MESSAGE;
+			SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE,SSL_R_UNEXPECTED_MESSAGE);
+			goto f_err;
+			}
 		if ((rsa=RSA_new()) == NULL)
 			{
 			SSLerr(SSL_F_SSL3_GET_KEY_EXCHANGE,ERR_R_MALLOC_FAILURE);
