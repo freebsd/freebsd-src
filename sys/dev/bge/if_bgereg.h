@@ -2953,7 +2953,7 @@ struct bge_bcom_hack {
 #define	ASF_STACKUP		4
 
 struct bge_softc {
-	struct ifnet		*bge_ifp;	/* interface info */
+	if_t			bge_ifp;	/* interface info */
 	device_t		bge_dev;
 	struct mtx		bge_mtx;
 	device_t		bge_miibus;
@@ -2996,6 +2996,7 @@ struct bge_softc {
 #define	BGE_FLAG_4K_RDMA_BUG	0x10000000
 #define	BGE_FLAG_MBOX_REORDER	0x20000000
 #define	BGE_FLAG_RDMA_BUG	0x40000000
+#define	BGE_FLAG_RUNNING	0x80000000
 	uint32_t		bge_mfw_flags;	/* Management F/W flags */
 #define	BGE_MFW_ON_RXCPU	0x00000001
 #define	BGE_MFW_ON_APE		0x00000002
@@ -3060,6 +3061,7 @@ struct bge_softc {
 #define	BGE_LOCK_INIT(_sc, _name) \
 	mtx_init(&(_sc)->bge_mtx, _name, MTX_NETWORK_LOCK, MTX_DEF)
 #define	BGE_LOCK(_sc)		mtx_lock(&(_sc)->bge_mtx)
+#define	BGE_TRYLOCK(_sc)	mtx_trylock(&(_sc)->bge_mtx)
 #define	BGE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->bge_mtx, MA_OWNED)
 #define	BGE_UNLOCK(_sc)		mtx_unlock(&(_sc)->bge_mtx)
 #define	BGE_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->bge_mtx)

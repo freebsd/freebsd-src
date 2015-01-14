@@ -74,8 +74,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
+#include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
@@ -83,16 +85,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/taskqueue.h>
 
 #include <net/if.h>
-#include <net/if_var.h>
-#include <net/if_arp.h>
-#include <net/ethernet.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
-
-#include <net/bpf.h>
-
-#include <net/if_types.h>
-#include <net/if_vlan_var.h>
+#include <net/ethernet.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -422,8 +417,8 @@ static int bge_encap(struct bge_softc *, struct mbuf **, uint32_t *);
 static void bge_intr(void *);
 static int bge_msi_intr(void *);
 static void bge_intr_task(void *, int);
-static void bge_start_locked(if_t);
-static void bge_start(if_t);
+static int bge_start_locked(struct bge_softc *);
+static int bge_transmit(if_t, struct mbuf *);
 static int bge_ioctl(if_t, u_long, caddr_t);
 static void bge_init_locked(struct bge_softc *);
 static void bge_init(void *);
@@ -474,6 +469,7 @@ static void bge_writereg_ind(struct bge_softc *, int, int);
 static int bge_miibus_readreg(device_t, int, int);
 static int bge_miibus_writereg(device_t, int, int, int);
 static void bge_miibus_statchg(device_t);
+static uint64_t bge_miibus_readvar(device_t, int);
 #ifdef DEVICE_POLLING
 static int bge_poll(if_t ifp, enum poll_cmd cmd, int count);
 #endif
@@ -526,6 +522,7 @@ static device_method_t bge_methods[] = {
 	DEVMETHOD(miibus_readreg,	bge_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	bge_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	bge_miibus_statchg),
+	DEVMETHOD(miibus_readvar,	bge_miibus_readvar),
 
 	DEVMETHOD_END
 };
@@ -534,6 +531,20 @@ static driver_t bge_driver = {
 	"bge",
 	bge_methods,
 	sizeof(struct bge_softc)
+};
+
+static struct ifdriver bge_ifdrv = {
+	.ifdrv_ops = {
+		.ifop_origin = IFOP_ORIGIN_DRIVER,
+		.ifop_ioctl = bge_ioctl,
+		.ifop_init = bge_init,
+		.ifop_transmit = bge_transmit,
+		.ifop_get_counter = bge_get_counter,
+	},
+	.ifdrv_name = "bge",
+	.ifdrv_type = IFT_ETHER,
+	.ifdrv_hdrlen = sizeof(struct ether_vlan_header),
+	.ifdrv_maxqlen = BGE_TX_RING_CNT - 1,
 };
 
 static devclass_t bge_devclass;
@@ -1245,7 +1256,7 @@ bge_miibus_statchg(device_t dev)
 	uint32_t mac_mode, rx_mode, tx_mode;
 
 	sc = device_get_softc(dev);
-	if ((if_getdrvflags(sc->bge_ifp) & IFF_DRV_RUNNING) == 0)
+	if ((sc->bge_flags & BGE_FLAG_RUNNING) == 0)
 		return;
 	mii = device_get_softc(sc->bge_miibus);
 
@@ -1270,6 +1281,14 @@ bge_miibus_statchg(device_t dev)
 		}
 	} else
 		sc->bge_link = 0;
+
+        if (sc->bge_ifp != NULL) { 
+		if_set(sc->bge_ifp, IF_BAUDRATE,
+		    ifmedia_baudrate(mii->mii_media_active));
+		if_link_state_change(sc->bge_ifp,
+		    ifmedia_link_state(mii->mii_media_status));
+        }
+
 	if (sc->bge_link == 0)
 		return;
 
@@ -1308,6 +1327,23 @@ bge_miibus_statchg(device_t dev)
 	CSR_WRITE_4(sc, BGE_RX_MODE, rx_mode);
 }
 
+static uint64_t
+bge_miibus_readvar(device_t dev, int var)
+{
+	struct bge_softc *sc;
+	if_t ifp;
+
+	sc = device_get_softc(dev);
+	ifp = sc->bge_ifp;
+
+	switch (var) {
+	case IF_MTU:
+		return (if_get(ifp, IF_MTU));
+	default:
+		return (0);
+	}
+}
+
 /*
  * Intialize a standard receive ring descriptor.
  */
@@ -1321,7 +1357,7 @@ bge_newbuf_std(struct bge_softc *sc, int i)
 	int error, nsegs;
 
 	if (sc->bge_flags & BGE_FLAG_JUMBO_STD &&
-	    (if_getmtu(sc->bge_ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN +
+	    (if_get(sc->bge_ifp, IF_MTU) + ETHER_HDR_LEN + ETHER_CRC_LEN +
 	    ETHER_VLAN_ENCAP_LEN > (MCLBYTES - ETHER_ALIGN))) {
 		m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
 		if (m == NULL)
@@ -1605,36 +1641,38 @@ bge_setpromisc(struct bge_softc *sc)
 	ifp = sc->bge_ifp;
 
 	/* Enable or disable promiscuous mode as needed. */
-	if (if_getflags(ifp) & IFF_PROMISC)
+	if (if_get(ifp, IF_FLAGS) & IFF_PROMISC)
 		BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_PROMISC);
 	else
 		BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_PROMISC);
 }
 
 static void
+bge_hash_maddr(void *arg, struct sockaddr *maddr)
+{
+	struct sockaddr_dl *sdl = (struct sockaddr_dl *)maddr;
+	uint32_t *hashes = arg;
+	int h;
+
+	if (sdl->sdl_family != AF_LINK)
+		return;
+
+	h = ether_crc32_le(LLADDR(sdl), ETHER_ADDR_LEN) & 0x7F;
+	hashes[(h & 0x60) >> 5] |= 1 << (h & 0x1F);
+}
+
+static void
 bge_setmulti(struct bge_softc *sc)
 {
 	if_t ifp;
-	int mc_count = 0;
 	uint32_t hashes[4] = { 0, 0, 0, 0 };
-	int h, i, mcnt;
-	unsigned char *mta;
+	int i;
 
 	BGE_LOCK_ASSERT(sc);
 
 	ifp = sc->bge_ifp;
 
-	mc_count = if_multiaddr_count(ifp, -1);
-	mta = malloc(sizeof(unsigned char) *  ETHER_ADDR_LEN *
-	    mc_count, M_DEVBUF, M_NOWAIT);
-
-	if(mta == NULL) {
-		device_printf(sc->bge_dev, 
-		    "Failed to allocated temp mcast list\n");
-		return;
-	}
-
-	if (if_getflags(ifp) & IFF_ALLMULTI || if_getflags(ifp) & IFF_PROMISC) {
+	if (if_get(ifp, IF_FLAGS) & (IFF_ALLMULTI | IFF_PROMISC)) {
 		for (i = 0; i < 4; i++)
 			CSR_WRITE_4(sc, BGE_MAR0 + (i * 4), 0xFFFFFFFF);
 		return;
@@ -1644,17 +1682,10 @@ bge_setmulti(struct bge_softc *sc)
 	for (i = 0; i < 4; i++)
 		CSR_WRITE_4(sc, BGE_MAR0 + (i * 4), 0);
 
-	if_multiaddr_array(ifp, mta, &mcnt, mc_count);
-	for(i = 0; i < mcnt; i++) {
-		h = ether_crc32_le(mta + (i * ETHER_ADDR_LEN),
-		    ETHER_ADDR_LEN) & 0x7F;
-		hashes[(h & 0x60) >> 5] |= 1 << (h & 0x1F);
-	}
+	if_foreach_maddr(ifp, bge_hash_maddr, hashes);
 
 	for (i = 0; i < 4; i++)
 		CSR_WRITE_4(sc, BGE_MAR0 + (i * 4), hashes[i]);
-
-	free(mta, M_DEVBUF);
 }
 
 static void
@@ -1667,7 +1698,7 @@ bge_setvlan(struct bge_softc *sc)
 	ifp = sc->bge_ifp;
 
 	/* Enable or disable VLAN tag stripping as needed. */
-	if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING)
+	if (if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWTAGGING)
 		BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_KEEP_VLAN_DIAG);
 	else
 		BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_KEEP_VLAN_DIAG);
@@ -2001,7 +2032,7 @@ bge_blockinit(struct bge_softc *sc)
 	/* Configure mbuf pool watermarks */
 	if (BGE_IS_5717_PLUS(sc)) {
 		CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_READDMA_LOWAT, 0x0);
-		if (if_getmtu(sc->bge_ifp) > ETHERMTU) {
+		if (if_get(sc->bge_ifp, IF_MTU) > ETHERMTU) {
 			CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_MACRX_LOWAT, 0x7e);
 			CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_HIWAT, 0xea);
 		} else {
@@ -2318,9 +2349,9 @@ bge_blockinit(struct bge_softc *sc)
 
 	/* Set random backoff seed for TX */
 	CSR_WRITE_4(sc, BGE_TX_RANDOM_BACKOFF,
-	    (IF_LLADDR(sc->bge_ifp)[0] + IF_LLADDR(sc->bge_ifp)[1] +
-	    IF_LLADDR(sc->bge_ifp)[2] + IF_LLADDR(sc->bge_ifp)[3] +
-	    IF_LLADDR(sc->bge_ifp)[4] + IF_LLADDR(sc->bge_ifp)[5]) &
+	    (if_lladdr(sc->bge_ifp)[0] + if_lladdr(sc->bge_ifp)[1] +
+	    if_lladdr(sc->bge_ifp)[2] + if_lladdr(sc->bge_ifp)[3] +
+	    if_lladdr(sc->bge_ifp)[4] + if_lladdr(sc->bge_ifp)[5]) &
 	    BGE_TX_BACKOFF_SEED_MASK);
 
 	/* Set inter-packet gap */
@@ -3301,7 +3332,13 @@ bge_devinfo(struct bge_softc *sc)
 static int
 bge_attach(device_t dev)
 {
-	if_t ifp;
+	struct if_attach_args ifat = {
+		.ifat_version = IF_ATTACH_VERSION,
+		.ifat_drv = &bge_ifdrv,
+		.ifat_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST,
+		.ifat_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING |
+		    IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM,
+	};
 	struct bge_softc *sc;
 	uint32_t hwcfg = 0, misccfg, pcistate;
 	u_char eaddr[ETHER_ADDR_LEN];
@@ -3723,47 +3760,6 @@ bge_attach(device_t dev)
 	if (sc->bge_forced_udpcsum != 0)
 		sc->bge_csum_features |= CSUM_UDP;
 
-	/* Set up ifnet structure */
-	ifp = sc->bge_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		device_printf(sc->bge_dev, "failed to if_alloc()\n");
-		error = ENXIO;
-		goto fail;
-	}
-	if_setsoftc(ifp, sc);
-	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	if_setflags(ifp, IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST);
-	if_setioctlfn(ifp, bge_ioctl);
-	if_setstartfn(ifp, bge_start);
-	if_setinitfn(ifp, bge_init);
-	if_setgetcounterfn(ifp, bge_get_counter);
-	if_setsendqlen(ifp, BGE_TX_RING_CNT - 1);
-	if_setsendqready(ifp);
-	if_sethwassist(ifp, sc->bge_csum_features);
-	if_setcapabilities(ifp, IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING |
-	    IFCAP_VLAN_MTU);
-	if ((sc->bge_flags & (BGE_FLAG_TSO | BGE_FLAG_TSO3)) != 0) {
-		if_sethwassistbits(ifp, CSUM_TSO, 0);
-		if_setcapabilitiesbit(ifp, IFCAP_TSO4 | IFCAP_VLAN_HWTSO, 0);
-	}
-#ifdef IFCAP_VLAN_HWCSUM
-	if_setcapabilitiesbit(ifp, IFCAP_VLAN_HWCSUM, 0);
-#endif
-	if_setcapenable(ifp, if_getcapabilities(ifp));
-#ifdef DEVICE_POLLING
-	if_setcapabilitiesbit(ifp, IFCAP_POLLING, 0);
-#endif
-
-	/*
-	 * 5700 B0 chips do not support checksumming correctly due
-	 * to hardware bugs.
-	 */
-	if (sc->bge_chipid == BGE_CHIPID_BCM5700_B0) {
-		if_setcapabilitiesbit(ifp, 0, IFCAP_HWCSUM);
-		if_setcapenablebit(ifp, 0, IFCAP_HWCSUM);
-		if_sethwassist(ifp, 0);
-	}
-
 	/*
 	 * Figure out what sort of media we have by checking the
 	 * hardware config word in the first 32k of NIC internal memory,
@@ -3857,7 +3853,7 @@ bge_attach(device_t dev)
 again:
 		bge_asf_driver_up(sc);
 
-		error = mii_attach(dev, &sc->bge_miibus, ifp, 
+		error = mii_attach(dev, &sc->bge_miibus,
 		    (ifm_change_cb_t)bge_ifmedia_upd,
 		    (ifm_stat_cb_t)bge_ifmedia_sts, capmask, sc->bge_phy_addr, 
 		    MII_OFFSET_ANY, MIIF_DOPAUSE);
@@ -3892,14 +3888,6 @@ again:
                 sc->bge_flags |= BGE_FLAG_RX_ALIGNBUG;
 
 	/*
-	 * Call MI attach routine.
-	 */
-	ether_ifattach(ifp, eaddr);
-
-	/* Tell upper layer we support long frames. */
-	if_setifheaderlen(ifp, sizeof(struct ether_vlan_header));
-
-	/*
 	 * Hookup IRQ last.
 	 */
 	if (BGE_IS_5755_PLUS(sc) && sc->bge_flags & BGE_FLAG_MSI) {
@@ -3910,7 +3898,6 @@ again:
 		    taskqueue_thread_enqueue, &sc->bge_tq);
 		if (sc->bge_tq == NULL) {
 			device_printf(dev, "could not create taskqueue.\n");
-			ether_ifdetach(ifp);
 			error = ENOMEM;
 			goto fail;
 		}
@@ -3918,7 +3905,6 @@ again:
 		    "%s taskq", device_get_nameunit(sc->bge_dev));
 		if (error != 0) {
 			device_printf(dev, "could not start threads.\n");
-			ether_ifdetach(ifp);
 			goto fail;
 		}
 		error = bus_setup_intr(dev, sc->bge_irq,
@@ -3930,13 +3916,39 @@ again:
 		    &sc->bge_intrhand);
 
 	if (error) {
-		ether_ifdetach(ifp);
 		device_printf(sc->bge_dev, "couldn't set up irq\n");
+		goto fail;
 	}
 
+	/* Attach interface. */
+	ifat.ifat_softc = sc;
+	ifat.ifat_dunit = device_get_unit(dev);
+	ifat.ifat_lla = eaddr;
+	ifat.ifat_hwassist = sc->bge_csum_features;
+	if ((sc->bge_flags & (BGE_FLAG_TSO | BGE_FLAG_TSO3)) != 0) {
+		ifat.ifat_hwassist |= CSUM_TSO;
+		ifat.ifat_capabilities |= IFCAP_TSO4 | IFCAP_VLAN_HWTSO;
+	}
+	ifat.ifat_capenable = ifat.ifat_capabilities;
+#ifdef DEVICE_POLLING
+	ifat.ifat_capabilities |= IFCAP_POLLING;
+#endif
+	/*
+	 * 5700 B0 chips do not support checksumming correctly due
+	 * to hardware bugs.
+	 */
+	if (sc->bge_chipid == BGE_CHIPID_BCM5700_B0) {
+		ifat.ifat_capabilities &= ~IFCAP_HWCSUM;
+		ifat.ifat_capenable &= ~IFCAP_HWCSUM;
+		ifat.ifat_hwassist = 0;
+	}
+
+	sc->bge_ifp = if_attach(&ifat);
+
+	return (0);
+
 fail:
-	if (error)
-		bge_detach(dev);
+	bge_detach(dev);
 	return (error);
 }
 
@@ -3950,12 +3962,12 @@ bge_detach(device_t dev)
 	ifp = sc->bge_ifp;
 
 #ifdef DEVICE_POLLING
-	if (if_getcapenable(ifp) & IFCAP_POLLING)
+	if (if_get(ifp, IF_CAPENABLE) & IFCAP_POLLING)
 		ether_poll_deregister(ifp);
 #endif
 
 	if (device_is_attached(dev)) {
-		ether_ifdetach(ifp);
+		if_detach(ifp);
 		BGE_LOCK(sc);
 		bge_stop(sc);
 		BGE_UNLOCK(sc);
@@ -4003,9 +4015,6 @@ bge_release_resources(struct bge_softc *sc)
 	if (sc->bge_res2 != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 		    rman_get_rid(sc->bge_res2), sc->bge_res2);
-
-	if (sc->bge_ifp != NULL)
-		if_free(sc->bge_ifp);
 
 	bge_dma_free(sc);
 
@@ -4323,7 +4332,7 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_POSTWRITE);
 	if (BGE_IS_JUMBO_CAPABLE(sc) &&
-	    if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN + 
+	    if_get(ifp, IF_MTU) + ETHER_HDR_LEN + ETHER_CRC_LEN + 
 	    ETHER_VLAN_ENCAP_LEN > (MCLBYTES - ETHER_ALIGN))
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_POSTWRITE);
@@ -4336,7 +4345,7 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 		int			have_tag = 0;
 
 #ifdef DEVICE_POLLING
-		if (if_getcapenable(ifp) & IFCAP_POLLING) {
+		if (if_get(ifp, IF_CAPENABLE) & IFCAP_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
@@ -4348,7 +4357,7 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 		rxidx = cur_rx->bge_idx;
 		BGE_INC(rx_cons, sc->bge_return_ring_cnt);
 
-		if (if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING &&
+		if (if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWTAGGING &&
 		    cur_rx->bge_flags & BGE_RXBDFLAG_VLAN_TAG) {
 			have_tag = 1;
 			vlan_tag = cur_rx->bge_vlan_tag;
@@ -4397,7 +4406,7 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 		m->m_pkthdr.len = m->m_len = cur_rx->bge_len - ETHER_CRC_LEN;
 		m->m_pkthdr.rcvif = ifp;
 
-		if (if_getcapenable(ifp) & IFCAP_RXCSUM)
+		if (if_get(ifp, IF_CAPENABLE) & IFCAP_RXCSUM)
 			bge_rxcsum(sc, cur_rx, m);
 
 		/*
@@ -4417,7 +4426,7 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 			if_input(ifp, m);
 		rx_npkts++;
 
-		if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING))
+		if (!(sc->bge_flags & BGE_FLAG_RUNNING))
 			return (rx_npkts);
 	}
 
@@ -4513,19 +4522,22 @@ bge_txeof(struct bge_softc *sc, uint16_t tx_cons)
 		if (cur_tx->bge_flags & BGE_TXBDFLAG_END)
 			if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 		if (sc->bge_cdata.bge_tx_chain[idx] != NULL) {
+			struct mbuf *m;
+
 			bus_dmamap_sync(sc->bge_cdata.bge_tx_mtag,
 			    sc->bge_cdata.bge_tx_dmamap[idx],
 			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(sc->bge_cdata.bge_tx_mtag,
 			    sc->bge_cdata.bge_tx_dmamap[idx]);
-			m_freem(sc->bge_cdata.bge_tx_chain[idx]);
+
+			m = sc->bge_cdata.bge_tx_chain[idx];
 			sc->bge_cdata.bge_tx_chain[idx] = NULL;
+			if_inc_counter(ifp, IFCOUNTER_OBYTES, m->m_pkthdr.len);
+			m_freem(m);
 		}
 		sc->bge_txcnt--;
 		BGE_INC(sc->bge_tx_saved_considx, BGE_TX_RING_CNT);
 	}
-
-	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
 	if (sc->bge_txcnt == 0)
 		sc->bge_timer = 0;
 }
@@ -4534,13 +4546,13 @@ bge_txeof(struct bge_softc *sc, uint16_t tx_cons)
 static int
 bge_poll(if_t ifp, enum poll_cmd cmd, int count)
 {
-	struct bge_softc *sc = if_getsoftc(ifp);
+	struct bge_softc *sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	uint16_t rx_prod, tx_cons;
 	uint32_t statusword;
 	int rx_npkts = 0;
 
 	BGE_LOCK(sc);
-	if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
+	if (!(sc->bge_flags & BGE_FLAG_RUNNING)) {
 		BGE_UNLOCK(sc);
 		return (rx_npkts);
 	}
@@ -4572,13 +4584,13 @@ bge_poll(if_t ifp, enum poll_cmd cmd, int count)
 
 	sc->rxcycles = count;
 	rx_npkts = bge_rxeof(sc, rx_prod, 1);
-	if (!(if_getdrvflags(ifp) & IFF_DRV_RUNNING)) {
+	if (!(sc->bge_flags & BGE_FLAG_RUNNING)) {
 		BGE_UNLOCK(sc);
 		return (rx_npkts);
 	}
 	bge_txeof(sc, tx_cons);
-	if (!if_sendq_empty(ifp))
-		bge_start_locked(ifp);
+	if (if_snd_len(ifp))
+		bge_start_locked(sc);
 
 	BGE_UNLOCK(sc);
 	return (rx_npkts);
@@ -4611,7 +4623,7 @@ bge_intr_task(void *arg, int pending)
 	ifp = sc->bge_ifp;
 
 	BGE_LOCK(sc);
-	if ((if_getdrvflags(ifp) & IFF_DRV_RUNNING) == 0) {
+	if ((sc->bge_flags & BGE_FLAG_RUNNING) == 0) {
 		BGE_UNLOCK(sc);
 		return;
 	}
@@ -4640,18 +4652,18 @@ bge_intr_task(void *arg, int pending)
 	/* Let controller work. */
 	bge_writembx(sc, BGE_MBX_IRQ0_LO, status_tag);
 
-	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING &&
+	if (sc->bge_flags & BGE_FLAG_RUNNING &&
 	    sc->bge_rx_saved_considx != rx_prod) {
 		/* Check RX return ring producer/consumer. */
 		BGE_UNLOCK(sc);
 		bge_rxeof(sc, rx_prod, 0);
 		BGE_LOCK(sc);
 	}
-	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+	if (sc->bge_flags & BGE_FLAG_RUNNING) {
 		/* Check TX ring producer/consumer. */
 		bge_txeof(sc, tx_cons);
-		if (!if_sendq_empty(ifp))
-			bge_start_locked(ifp);
+		if (if_snd_len(ifp))
+			bge_start_locked(sc);
 	}
 	BGE_UNLOCK(sc);
 }
@@ -4671,7 +4683,7 @@ bge_intr(void *xsc)
 	ifp = sc->bge_ifp;
 
 #ifdef DEVICE_POLLING
-	if (if_getcapenable(ifp) & IFCAP_POLLING) {
+	if (if_get(ifp, IF_CAPENABLE) & IFCAP_POLLING) {
 		BGE_UNLOCK(sc);
 		return;
 	}
@@ -4720,19 +4732,18 @@ bge_intr(void *xsc)
 	    statusword || sc->bge_link_evt)
 		bge_link_upd(sc);
 
-	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+	if (sc->bge_flags & BGE_FLAG_RUNNING) {
 		/* Check RX return ring producer/consumer. */
 		bge_rxeof(sc, rx_prod, 1);
 	}
 
-	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+	if (sc->bge_flags & BGE_FLAG_RUNNING) {
 		/* Check TX ring producer/consumer. */
 		bge_txeof(sc, tx_cons);
 	}
 
-	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING &&
-	    !if_sendq_empty(ifp))
-		bge_start_locked(ifp);
+	if (sc->bge_flags & BGE_FLAG_RUNNING && if_snd_len(ifp))
+		bge_start_locked(sc);
 
 	BGE_UNLOCK(sc);
 }
@@ -5332,52 +5343,37 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
  * Main transmit routine. To avoid having to do mbuf copies, we put pointers
  * to the mbuf data regions directly in the transmit descriptors.
  */
-static void
-bge_start_locked(if_t ifp)
+static int
+bge_start_locked(struct bge_softc *sc)
 {
-	struct bge_softc *sc;
-	struct mbuf *m_head;
+	if_t ifp;
+	struct mbuf *m;
 	uint32_t prodidx;
-	int count;
+	int error, count;
 
-	sc = if_getsoftc(ifp);
 	BGE_LOCK_ASSERT(sc);
 
-	if (!sc->bge_link ||
-	    (if_getdrvflags(ifp) & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING)
-		return;
+	if (!sc->bge_link || (sc->bge_flags & BGE_FLAG_RUNNING) == 0)
+		return (ENETDOWN);
 
+	ifp = sc->bge_ifp;
 	prodidx = sc->bge_tx_prodidx;
-
-	for (count = 0; !if_sendq_empty(ifp);) {
-		if (sc->bge_txcnt > BGE_TX_RING_CNT - 16) {
-			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
-			break;
-		}
-		m_head = if_dequeue(ifp);
-		if (m_head == NULL)
-			break;
-
+	error = count = 0;
+	while (sc->bge_txcnt <= BGE_TX_RING_CNT - 16 &&
+	    (m = if_snd_dequeue(ifp)) != NULL) {
 		/*
 		 * Pack the data into the transmit ring. If we
 		 * don't have room, set the OACTIVE flag and wait
 		 * for the NIC to drain the ring.
 		 */
-		if (bge_encap(sc, &m_head, &prodidx)) {
-			if (m_head == NULL)
+		if (bge_encap(sc, &m, &prodidx)) {
+			if (m == NULL)
 				break;
-			if_sendq_prepend(ifp, m_head);
-			if_setdrvflagbits(ifp, IFF_DRV_OACTIVE, 0);
+			if_snd_prepend(ifp, m);
 			break;
 		}
 		++count;
-
-		/*
-		 * If there's a BPF listener, bounce a copy of this frame
-		 * to him.
-		 */
-		if_bpfmtap(ifp, m_head);
+		if_mtap(ifp, m, NULL, 0);
 	}
 
 	if (count > 0) {
@@ -5396,21 +5392,29 @@ bge_start_locked(if_t ifp)
 		 */
 		sc->bge_timer = BGE_TX_TIMEOUT;
 	}
+	
+	return (0);
 }
 
 /*
  * Main transmit routine. To avoid having to do mbuf copies, we put pointers
  * to the mbuf data regions directly in the transmit descriptors.
  */
-static void
-bge_start(if_t ifp)
+static int
+bge_transmit(if_t ifp, struct mbuf *m)
 {
 	struct bge_softc *sc;
+	int error;
 
-	sc = if_getsoftc(ifp);
-	BGE_LOCK(sc);
-	bge_start_locked(ifp);
+	if ((error = if_snd_enqueue(ifp, m)) != 0)
+		return (error);
+
+	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
+	if (BGE_TRYLOCK(sc) == 0)
+		return (0);
+	error = bge_start_locked(sc);
 	BGE_UNLOCK(sc);
+	return (error);
 }
 
 static void
@@ -5424,7 +5428,7 @@ bge_init_locked(struct bge_softc *sc)
 
 	ifp = sc->bge_ifp;
 
-	if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
+	if (sc->bge_flags & BGE_FLAG_RUNNING)
 		return;
 
 	/* Cancel pending I/O and flush buffers. */
@@ -5450,12 +5454,12 @@ bge_init_locked(struct bge_softc *sc)
 	ifp = sc->bge_ifp;
 
 	/* Specify MTU. */
-	CSR_WRITE_4(sc, BGE_RX_MTU, if_getmtu(ifp) +
+	CSR_WRITE_4(sc, BGE_RX_MTU, if_get(ifp, IF_MTU) +
 	    ETHER_HDR_LEN + ETHER_CRC_LEN +
-	    (if_getcapenable(ifp) & IFCAP_VLAN_MTU ? ETHER_VLAN_ENCAP_LEN : 0));
+	    (if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_MTU ? ETHER_VLAN_ENCAP_LEN : 0));
 
 	/* Load our MAC address. */
-	m = (uint16_t *)IF_LLADDR(sc->bge_ifp);
+	m = (uint16_t *)if_lladdr(sc->bge_ifp);
 	CSR_WRITE_4(sc, BGE_MAC_ADDR1_LO, htons(m[0]));
 	CSR_WRITE_4(sc, BGE_MAC_ADDR1_HI, (htons(m[1]) << 16) | htons(m[2]));
 
@@ -5473,10 +5477,10 @@ bge_init_locked(struct bge_softc *sc)
 		sc->bge_csum_features &= ~CSUM_UDP;
 	else
 		sc->bge_csum_features |= CSUM_UDP;
-	if (if_getcapabilities(ifp) & IFCAP_TXCSUM &&
-	    if_getcapenable(ifp) & IFCAP_TXCSUM) {
-		if_sethwassistbits(ifp, 0, (BGE_CSUM_FEATURES | CSUM_UDP));
-		if_sethwassistbits(ifp, sc->bge_csum_features, 0);
+	if (if_get(ifp, IF_CAPABILITIES) & IFCAP_TXCSUM &&
+	    if_get(ifp, IF_CAPENABLE) & IFCAP_TXCSUM) {
+		if_clrflags(ifp, IF_CAPABILITIES, BGE_CSUM_FEATURES | CSUM_UDP);
+		if_addflags(ifp, IF_CAPABILITIES, sc->bge_csum_features);
 	}
 
 	/* Init RX ring. */
@@ -5506,7 +5510,7 @@ bge_init_locked(struct bge_softc *sc)
 
 	/* Init jumbo RX ring. */
 	if (BGE_IS_JUMBO_CAPABLE(sc) &&
-	    if_getmtu(ifp) + ETHER_HDR_LEN + ETHER_CRC_LEN + 
+	    if_get(ifp, IF_MTU) + ETHER_HDR_LEN + ETHER_CRC_LEN + 
      	    ETHER_VLAN_ENCAP_LEN > (MCLBYTES - ETHER_ALIGN)) {
 		if (bge_init_rx_ring_jumbo(sc) != 0) {
 			device_printf(sc->bge_dev,
@@ -5568,7 +5572,7 @@ bge_init_locked(struct bge_softc *sc)
 
 #ifdef DEVICE_POLLING
 	/* Disable interrupts if we are polling. */
-	if (if_getcapenable(ifp) & IFCAP_POLLING) {
+	if (if_get(ifp, IF_CAPENABLE) & IFCAP_POLLING) {
 		BGE_SETBIT(sc, BGE_PCI_MISC_CTL,
 		    BGE_PCIMISCCTL_MASK_PCI_INTR);
 		bge_writembx(sc, BGE_MBX_IRQ0_LO, 1);
@@ -5582,8 +5586,7 @@ bge_init_locked(struct bge_softc *sc)
 	bge_writembx(sc, BGE_MBX_IRQ0_LO, 0);
 	}
 
-	if_setdrvflagbits(ifp, IFF_DRV_RUNNING, 0);
-	if_setdrvflagbits(ifp, 0, IFF_DRV_OACTIVE);
+	sc->bge_flags |= BGE_FLAG_RUNNING;
 
 	bge_ifmedia_upd_locked(ifp);
 
@@ -5606,7 +5609,7 @@ bge_init(void *xsc)
 static int
 bge_ifmedia_upd(if_t ifp)
 {
-	struct bge_softc *sc = if_getsoftc(ifp);
+	struct bge_softc *sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	int res;
 
 	BGE_LOCK(sc);
@@ -5619,7 +5622,7 @@ bge_ifmedia_upd(if_t ifp)
 static int
 bge_ifmedia_upd_locked(if_t ifp)
 {
-	struct bge_softc *sc = if_getsoftc(ifp);
+	struct bge_softc *sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct mii_data *mii;
 	struct mii_softc *miisc;
 	struct ifmedia *ifm;
@@ -5704,12 +5707,12 @@ bge_ifmedia_upd_locked(if_t ifp)
 static void
 bge_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
-	struct bge_softc *sc = if_getsoftc(ifp);
+	struct bge_softc *sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct mii_data *mii;
 
 	BGE_LOCK(sc);
 
-	if ((if_getflags(ifp) & IFF_UP) == 0) {
+	if ((if_get(ifp, IF_FLAGS) & IFF_UP) == 0) {
 		BGE_UNLOCK(sc);
 		return;
 	}
@@ -5744,7 +5747,7 @@ bge_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 static int
 bge_ioctl(if_t ifp, u_long command, caddr_t data)
 {
-	struct bge_softc *sc = if_getsoftc(ifp);
+	struct bge_softc *sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct ifreq *ifr = (struct ifreq *) data;
 	struct mii_data *mii;
 	int flags, mask, error = 0;
@@ -5763,10 +5766,10 @@ bge_ioctl(if_t ifp, u_long command, caddr_t data)
 			break;
 		}
 		BGE_LOCK(sc);
-		if (if_getmtu(ifp) != ifr->ifr_mtu) {
-			if_setmtu(ifp, ifr->ifr_mtu);
-			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-				if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
+		if (if_get(ifp, IF_MTU) != ifr->ifr_mtu) {
+			if_set(ifp, IF_MTU, ifr->ifr_mtu);
+			if (sc->bge_flags & BGE_FLAG_RUNNING) {
+				sc->bge_flags &= ~BGE_FLAG_RUNNING;
 				bge_init_locked(sc);
 			}
 		}
@@ -5774,7 +5777,7 @@ bge_ioctl(if_t ifp, u_long command, caddr_t data)
 		break;
 	case SIOCSIFFLAGS:
 		BGE_LOCK(sc);
-		if (if_getflags(ifp) & IFF_UP) {
+		if (if_get(ifp, IF_FLAGS) & IFF_UP) {
 			/*
 			 * If only the state of the PROMISC flag changed,
 			 * then just use the 'set promisc mode' command
@@ -5783,8 +5786,9 @@ bge_ioctl(if_t ifp, u_long command, caddr_t data)
 			 * waiting for it to start up, which may take a
 			 * second or two.  Similarly for ALLMULTI.
 			 */
-			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
-				flags = if_getflags(ifp) ^ sc->bge_if_flags;
+			if (sc->bge_flags & BGE_FLAG_RUNNING) {
+				flags = if_get(ifp, IF_FLAGS) ^
+				    sc->bge_if_flags;
 				if (flags & IFF_PROMISC)
 					bge_setpromisc(sc);
 				if (flags & IFF_ALLMULTI)
@@ -5792,17 +5796,17 @@ bge_ioctl(if_t ifp, u_long command, caddr_t data)
 			} else
 				bge_init_locked(sc);
 		} else {
-			if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+			if (sc->bge_flags & BGE_FLAG_RUNNING) {
 				bge_stop(sc);
 			}
 		}
-		sc->bge_if_flags = if_getflags(ifp);
+		sc->bge_if_flags = if_get(ifp, IF_FLAGS);
 		BGE_UNLOCK(sc);
 		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING) {
+		if (sc->bge_flags & BGE_FLAG_RUNNING) {
 			BGE_LOCK(sc);
 			bge_setmulti(sc);
 			BGE_UNLOCK(sc);
@@ -5821,7 +5825,7 @@ bge_ioctl(if_t ifp, u_long command, caddr_t data)
 		}
 		break;
 	case SIOCSIFCAP:
-		mask = ifr->ifr_reqcap ^ if_getcapenable(ifp);
+		mask = ifr->ifr_reqcap ^ if_get(ifp, IF_CAPENABLE);
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
@@ -5847,53 +5851,50 @@ bge_ioctl(if_t ifp, u_long command, caddr_t data)
 		}
 #endif
 		if ((mask & IFCAP_TXCSUM) != 0 &&
-		    (if_getcapabilities(ifp) & IFCAP_TXCSUM) != 0) {
-			if_togglecapenable(ifp, IFCAP_TXCSUM);
-			if ((if_getcapenable(ifp) & IFCAP_TXCSUM) != 0)
-				if_sethwassistbits(ifp,
-				    sc->bge_csum_features, 0);
+		    (if_get(ifp, IF_CAPABILITIES) & IFCAP_TXCSUM) != 0) {
+			if_xorflags(ifp, IF_CAPENABLE, IFCAP_TXCSUM);
+			if ((if_get(ifp, IF_CAPENABLE) & IFCAP_TXCSUM) != 0)
+				if_addflags(ifp, IF_HWASSIST,
+				    sc->bge_csum_features);
 			else
-				if_sethwassistbits(ifp, 0,
+				if_clrflags(ifp, IF_HWASSIST,
 				    sc->bge_csum_features);
 		}
 
 		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (if_getcapabilities(ifp) & IFCAP_RXCSUM) != 0)
-			if_togglecapenable(ifp, IFCAP_RXCSUM);
+		    (if_get(ifp, IF_CAPABILITIES) & IFCAP_RXCSUM) != 0)
+			if_xorflags(ifp, IF_CAPENABLE, IFCAP_RXCSUM);
 
 		if ((mask & IFCAP_TSO4) != 0 &&
-		    (if_getcapabilities(ifp) & IFCAP_TSO4) != 0) {
-			if_togglecapenable(ifp, IFCAP_TSO4);
-			if ((if_getcapenable(ifp) & IFCAP_TSO4) != 0)
-				if_sethwassistbits(ifp, CSUM_TSO, 0);
+		    (if_get(ifp, IF_CAPABILITIES) & IFCAP_TSO4) != 0) {
+			if_xorflags(ifp, IF_CAPENABLE, IFCAP_TSO4);
+			if ((if_get(ifp, IF_CAPENABLE) & IFCAP_TSO4) != 0)
+				if_addflags(ifp, IF_HWASSIST, CSUM_TSO);
 			else
-				if_sethwassistbits(ifp, 0, CSUM_TSO);
+				if_clrflags(ifp, IF_HWASSIST, CSUM_TSO);
 		}
 
 		if (mask & IFCAP_VLAN_MTU) {
-			if_togglecapenable(ifp, IFCAP_VLAN_MTU);
-			if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
+			if_xorflags(ifp, IF_CAPENABLE, IFCAP_VLAN_MTU);
+			sc->bge_flags &= ~BGE_FLAG_RUNNING;
 			bge_init(sc);
 		}
 
 		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
-		    (if_getcapabilities(ifp) & IFCAP_VLAN_HWTSO) != 0)
-			if_togglecapenable(ifp, IFCAP_VLAN_HWTSO);
+		    (if_get(ifp, IF_CAPABILITIES) & IFCAP_VLAN_HWTSO) != 0)
+			if_xorflags(ifp, IF_CAPENABLE, IFCAP_VLAN_HWTSO);
 		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
-		    (if_getcapabilities(ifp) & IFCAP_VLAN_HWTAGGING) != 0) {
-			if_togglecapenable(ifp, IFCAP_VLAN_HWTAGGING);
-			if ((if_getcapenable(ifp) & IFCAP_VLAN_HWTAGGING) == 0)
-				if_setcapenablebit(ifp, 0, IFCAP_VLAN_HWTSO);
+		    (if_get(ifp, IF_CAPABILITIES) & IFCAP_VLAN_HWTAGGING) != 0) {
+			if_xorflags(ifp, IF_CAPENABLE, IFCAP_VLAN_HWTAGGING);
+			if ((if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWTAGGING) == 0)
+				if_clrflags(ifp, IF_CAPENABLE, IFCAP_VLAN_HWTSO);
 			BGE_LOCK(sc);
 			bge_setvlan(sc);
 			BGE_UNLOCK(sc);
 		}
-#ifdef VLAN_CAPABILITIES
-		if_vlancap(ifp);
-#endif
 		break;
 	default:
-		error = ether_ioctl(ifp, command, data);
+		error = EOPNOTSUPP;
 		break;
 	}
 
@@ -5942,7 +5943,7 @@ bge_watchdog(struct bge_softc *sc)
 
 	if_printf(ifp, "watchdog timeout -- resetting\n");
 
-	if_setdrvflagbits(ifp, 0, IFF_DRV_RUNNING);
+	sc->bge_flags &= ~BGE_FLAG_RUNNING;
 	bge_init_locked(sc);
 
 	if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
@@ -6058,8 +6059,7 @@ bge_stop(struct bge_softc *sc)
 	if (bootverbose && sc->bge_link)
 		if_printf(sc->bge_ifp, "link DOWN\n");
 	sc->bge_link = 0;
-
-	if_setdrvflagbits(ifp, 0, (IFF_DRV_RUNNING | IFF_DRV_OACTIVE));
+	sc->bge_flags &= ~BGE_FLAG_RUNNING;
 }
 
 /*
@@ -6101,10 +6101,10 @@ bge_resume(device_t dev)
 	sc = device_get_softc(dev);
 	BGE_LOCK(sc);
 	ifp = sc->bge_ifp;
-	if (if_getflags(ifp) & IFF_UP) {
+	if (if_get(ifp, IF_FLAGS) & IFF_UP) {
 		bge_init_locked(sc);
-		if (if_getdrvflags(ifp) & IFF_DRV_RUNNING)
-			bge_start_locked(ifp);
+		if (sc->bge_flags & BGE_FLAG_RUNNING)
+			bge_start_locked(sc);
 	}
 	BGE_UNLOCK(sc);
 
@@ -6772,7 +6772,7 @@ bge_get_counter(if_t ifp, ift_counter cnt)
 	struct bge_softc *sc;
 	struct bge_mac_stats *stats;
 
-	sc = if_getsoftc(ifp);
+	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	if (!BGE_IS_5705_PLUS(sc))
 		return (if_get_counter_default(ifp, cnt));
 	stats = &sc->bge_mac_stats;
