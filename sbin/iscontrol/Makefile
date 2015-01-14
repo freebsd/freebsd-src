@@ -9,6 +9,6 @@ S= ${.CURDIR}/../../sys
 WARNS?=	3
 CFLAGS+=	-I$S
 
-MAN= iscsi.conf.5 iscontrol.8
+MAN= iscontrol.8
 
 .include <bsd.prog.mk>
