@@ -440,7 +440,7 @@ trim_map_vdev_commit(spa_t *spa, zio_t *zio, vdev_t *vd)
 	if (tm == NULL)
 		return;
 
-	timelimit = gethrtime() - trim_timeout * NANOSEC;
+	timelimit = gethrtime() - (hrtime_t)trim_timeout * NANOSEC;
 	if (vd->vdev_isl2cache) {
 		txgsafe = UINT64_MAX;
 		txgtarget = UINT64_MAX;
