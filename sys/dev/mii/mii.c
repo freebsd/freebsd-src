@@ -67,7 +67,6 @@ static bus_read_ivar_t miibus_read_ivar;
 static miibus_readreg_t miibus_readreg;
 static miibus_statchg_t miibus_statchg;
 static miibus_writereg_t miibus_writereg;
-static miibus_linkchg_t miibus_linkchg;
 static miibus_readvar_t miibus_readvar;
 static miibus_mediainit_t miibus_mediainit;
 
@@ -91,7 +90,6 @@ static device_method_t miibus_methods[] = {
 	DEVMETHOD(miibus_readreg,	miibus_readreg),
 	DEVMETHOD(miibus_writereg,	miibus_writereg),
 	DEVMETHOD(miibus_statchg,	miibus_statchg),
-	DEVMETHOD(miibus_linkchg,	miibus_linkchg),
 	DEVMETHOD(miibus_readvar,	miibus_readvar),
 	DEVMETHOD(miibus_mediainit,	miibus_mediainit),
 
@@ -298,13 +296,6 @@ miibus_statchg(device_t dev)
 {
 
 	MIIBUS_STATCHG(device_get_parent(dev));
-}
-
-static void
-miibus_linkchg(device_t dev)
-{
-
-	MIIBUS_LINKCHG(device_get_parent(dev));
 }
 
 static uint64_t

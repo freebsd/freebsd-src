@@ -312,7 +312,6 @@ static int msk_phy_writereg(struct msk_if_softc *, int, int, int);
 static int msk_miibus_readreg(device_t, int, int);
 static int msk_miibus_writereg(device_t, int, int, int);
 static void msk_miibus_statchg(device_t);
-static void msk_miibus_linkchg(device_t);
 
 static void msk_rxfilter(struct msk_if_softc *);
 static void msk_setvlan(struct msk_if_softc *, if_t);
@@ -358,7 +357,6 @@ static device_method_t msk_methods[] = {
 	DEVMETHOD(miibus_readreg,	msk_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	msk_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	msk_miibus_statchg),
-	DEVMETHOD(miibus_linkchg,	msk_miibus_linkchg),
 
 	DEVMETHOD_END
 };
@@ -582,22 +580,7 @@ msk_miibus_statchg(device_t dev)
 		}
 	}
 	if_set(ifp, IF_BAUDRATE, ifmedia_baudrate(mii->mii_media_active));
-}
-
-static void
-msk_miibus_linkchg(device_t dev)
-{
-	struct msk_if_softc *sc_if;
-	struct mii_data *mii;
-	if_t ifp;
-
-	sc_if = device_get_softc(dev);
-	mii = device_get_softc(sc_if->msk_miibus);
-	ifp = sc_if->msk_ifp;
-
-	if (ifp != NULL)
-		if_link_state_change(ifp,
-		    ifmedia_link_state(mii->mii_media_status));
+	if_link_state_change(ifp, ifmedia_link_state(mii->mii_media_status));
 }
 
 static void

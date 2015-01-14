@@ -279,7 +279,6 @@ static void xl_testpacket(struct xl_softc *);
 static int xl_miibus_readreg(device_t, int, int);
 static int xl_miibus_writereg(device_t, int, int, int);
 static void xl_miibus_statchg(device_t);
-static void xl_miibus_linkchg(device_t);
 static void xl_miibus_mediainit(device_t);
 
 /*
@@ -313,7 +312,6 @@ static device_method_t xl_methods[] = {
 	DEVMETHOD(miibus_readreg,	xl_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	xl_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	xl_miibus_statchg),
-	DEVMETHOD(miibus_linkchg,	xl_miibus_linkchg),
 	DEVMETHOD(miibus_mediainit,	xl_miibus_mediainit),
 
 	DEVMETHOD_END
@@ -477,25 +475,12 @@ xl_miibus_statchg(device_t dev)
 			macctl &= ~XL_MACCTRL_FLOW_CONTROL_ENB;
 	}
 	CSR_WRITE_1(sc, XL_W3_MAC_CTRL, macctl);
-	if (sc->xl_ifp != NULL)
+	if (sc->xl_ifp != NULL) {
 		if_set(sc->xl_ifp, IF_BAUDRATE,
 		    ifmedia_baudrate(mii->mii_media_active));
-}
-
-static void
-xl_miibus_linkchg(device_t dev)
-{
-	struct xl_softc *sc;
-	struct mii_data *mii;
-	if_t ifp;
-
-	sc = device_get_softc(dev);
-	mii = device_get_softc(sc->xl_miibus);
-	ifp = sc->xl_ifp;
-
-	if (ifp != NULL)
-		if_link_state_change(ifp,
+		if_link_state_change(sc->xl_ifp,
 		    ifmedia_link_state(mii->mii_media_status));
+	}
 }
 
 /*
