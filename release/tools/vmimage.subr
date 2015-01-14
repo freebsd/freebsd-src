@@ -84,6 +84,12 @@ vm_install_base() {
 			>> ${DESTDIR}/etc/fstab
 	fi
 
+	# Set hw.vga.textmode=1, with the assumption that the hypervisor
+	# will not be capable of using the graphics console mode. 
+	echo '# Comment the next line to enable graphical console mode' \
+		>> ${DESTDIR}/boot/loader.conf
+	echo 'hw.vga.textmode=1' >> ${DESTDIR}/boot/loader.conf
+
 	mkdir -p ${DESTDIR}/dev
 	mount -t devfs devfs ${DESTDIR}/dev
 	chroot ${DESTDIR} /usr/bin/newaliases
