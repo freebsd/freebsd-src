@@ -612,18 +612,6 @@ mii_pollstat(struct mii_data *mii)
 	}
 }
 
-/*
- * Inform the PHYs that the interface is down.
- */
-void
-mii_down(struct mii_data *mii)
-{
-	struct mii_softc *child;
-
-	LIST_FOREACH(child, &mii->mii_phys, mii_list)
-		mii_phy_down(child);
-}
-
 static unsigned char
 mii_bitreverse(unsigned char x)
 {
