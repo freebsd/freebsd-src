@@ -10,14 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -26,16 +23,60 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ptrace.h	8.1 (Berkeley) 6/11/93
- * $FreeBSD$
  */
 
-#ifndef _MACHINE_PTRACE_H_
-#define _MACHINE_PTRACE_H_
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#define	__HAVE_PTRACE_MACHDEP
+#include "opt_compat.h"
 
-#define PT_GETVRREGS	(PT_FIRSTMACH + 0)
-#define PT_SETVRREGS	(PT_FIRSTMACH + 1)
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/malloc.h>
+#include <sys/proc.h>
+#include <sys/ptrace.h>
+#include <sys/sysent.h>
+#include <machine/altivec.h>
+#include <machine/cpu.h>
+#include <machine/md_var.h>
+#include <machine/pcb.h>
 
-#endif
+int
+cpu_ptrace(struct thread *td, int req, void *addr, int data)
+{
+	int error;
+	struct pcb *pcb;
+	struct vec vec;
+
+	pcb = td->td_pcb;
+
+	bzero(&vec, sizeof(vec));
+
+	error = EINVAL;
+	switch (req) {
+	case PT_GETVRREGS:
+		if (!(cpu_features & PPC_FEATURE_HAS_ALTIVEC))
+			break;
+
+		if (pcb->pcb_flags & PCB_VEC) {
+			save_vec_nodrop(td);
+			memcpy(&vec, &pcb->pcb_vec, sizeof(vec));
+		}
+		error = copyout(&vec, addr, sizeof(vec));
+		break;
+	case PT_SETVRREGS:
+		if (!(cpu_features & PPC_FEATURE_HAS_ALTIVEC))
+			break;
+		error = copyin(addr, &vec, sizeof(vec));
+		if (error == 0) {
+			pcb->pcb_flags |= PCB_VEC;
+			memcpy(&pcb->pcb_vec, &vec, sizeof(vec));
+		}
+		break;
+
+	default:
+		break;
+	}
+
+	return (error);
+}
