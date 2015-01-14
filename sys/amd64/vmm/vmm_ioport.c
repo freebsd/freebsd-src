@@ -74,7 +74,7 @@ inout_instruction(struct vm_exit *vmexit)
 	static const char *iodesc[] = {
 		"outb", "outw", "outl",
 		"inb", "inw", "inl",
-		"outsb", "outsw", "outsd"
+		"outsb", "outsw", "outsd",
 		"insb", "insw", "insd",
 	};
 
