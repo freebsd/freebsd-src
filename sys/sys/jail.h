@@ -201,8 +201,6 @@ struct prison_racct {
 #define	PR_IP4_USER	0x00000004	/* Restrict IPv4 addresses */
 #define	PR_IP6_USER	0x00000008	/* Restrict IPv6 addresses */
 #define	PR_VNET		0x00000010	/* Virtual network stack */
-#define	PR_IP4_DISABLE	0x00000020	/* Disable IPv4 */
-#define	PR_IP6_DISABLE	0x00000040	/* Disable IPv6 */
 #define	PR_IP4_SADDRSEL	0x00000080	/* Do IPv4 src addr sel. or use the */
 					/* primary jail address. */
 #define	PR_IP6_SADDRSEL	0x00000100	/* Do IPv6 src addr sel. or use the */
