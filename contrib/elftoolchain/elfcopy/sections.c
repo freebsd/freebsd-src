@@ -777,6 +777,8 @@ resync_sections(struct elfcopy *ecp)
 			continue;
 
 		/* Align section offset. */
+		if (s->align == 0)
+			s->align = 1;
 		if (off <= s->off) {
 			if (!s->loadable)
 				s->off = roundup(off, s->align);
