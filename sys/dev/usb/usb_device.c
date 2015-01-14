@@ -2019,7 +2019,10 @@ usb_destroy_dev(struct usb_fs_privdata *pd)
 		usb_destroy_dev_sync(pd);
 		return;
 	}
-	
+
+	/* make sure we can re-use the device name */
+	delist_dev(pd->cdev);
+
 	USB_BUS_LOCK(bus);
 	LIST_INSERT_HEAD(&bus->pd_cleanup_list, pd, pd_next);
 	/* get cleanup going */
