@@ -105,6 +105,9 @@ static void *elf_note_thrmisc(void *, size_t *);
 #if defined(__i386__) || defined(__amd64__)
 static void *elf_note_x86_xstate(void *, size_t *);
 #endif
+#if defined(__powerpc__)
+static void *elf_note_powerpc_vmx(void *, size_t *);
+#endif
 static void *elf_note_procstat_auxv(void *, size_t *);
 static void *elf_note_procstat_files(void *, size_t *);
 static void *elf_note_procstat_groups(void *, size_t *);
@@ -347,6 +350,9 @@ elf_putnotes(pid_t pid, struct sbuf *sb, size_t *sizep)
 		elf_putnote(NT_THRMISC, elf_note_thrmisc, tids + i, sb);
 #if defined(__i386__) || defined(__amd64__)
 		elf_putnote(NT_X86_XSTATE, elf_note_x86_xstate, tids + i, sb);
+#endif
+#if defined(__powerpc__)
+		elf_putnote(NT_PPC_VMX, elf_note_powerpc_vmx, tids + i, sb);
 #endif
 	}
 
@@ -647,6 +653,32 @@ elf_note_x86_xstate(void *arg, size_t *sizep)
 	*(uint64_t *)(xstate + X86_XSTATE_XCR0_OFFSET) = info.xsave_mask;
 	*sizep = info.xsave_len;
 	return (xstate);
+}
+#endif
+
+#if defined(__powerpc__)
+static void *
+elf_note_powerpc_vmx(void *arg, size_t *sizep)
+{
+	lwpid_t tid;
+	struct vmxreg *vmx;
+	static bool has_vmx = true;
+	struct vmxreg info;
+
+	tid = *(lwpid_t *)arg;
+	if (has_vmx) {
+		if (ptrace(PT_GETVRREGS, tid, (void *)&info,
+		    sizeof(info)) != 0)
+			has_vmx = false;
+	}
+	if (!has_vmx) {
+		*sizep = 0;
+		return (NULL);
+	}
+	vmx = calloc(1, sizeof(*vmx));
+	memcpy(vmx, &info, sizeof(*vmx));
+	*sizep = sizeof(*vmx);
+	return (vmx);
 }
 #endif
 
