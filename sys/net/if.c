@@ -638,13 +638,9 @@ if_attach(struct if_attach_args *ifat)
 static void
 if_free_internal(struct ifnet *ifp)
 {
-	struct iftype *ift = ifp->if_type;
 
 	KASSERT((ifp->if_flags & IFF_DYING),
 	    ("if_free_internal: interface not dying"));
-
-	if (ift != NULL && ift->ift_detach != NULL)
-		ift->ift_detach(ifp);
 
 #ifdef MAC
 	mac_ifnet_destroy(ifp);
@@ -1012,6 +1008,11 @@ if_detach_internal(struct ifnet *ifp, int vmove)
 		devctl_notify("IFNET", ifp->if_xname, "DETACH", NULL);
 
 	if (!vmove) {
+		struct iftype *ift = ifp->if_type;
+
+		if (ift != NULL && ift->ift_detach != NULL)
+			ift->ift_detach(ifp);
+
 		/*
 		 * Prevent further calls into the device driver via ifnet.
 		 */
