@@ -776,7 +776,7 @@ DECLARE_ASN1_FUNCTIONS_fname(ASN1_TYPE, ASN1_ANY, ASN1_TYPE)
 int ASN1_TYPE_get(ASN1_TYPE *a);
 void ASN1_TYPE_set(ASN1_TYPE *a, int type, void *value);
 int ASN1_TYPE_set1(ASN1_TYPE *a, int type, const void *value);
-int            ASN1_TYPE_cmp(ASN1_TYPE *a, ASN1_TYPE *b);
+int            ASN1_TYPE_cmp(const ASN1_TYPE *a, const ASN1_TYPE *b);
 
 ASN1_OBJECT *	ASN1_OBJECT_new(void );
 void		ASN1_OBJECT_free(ASN1_OBJECT *a);
@@ -1329,6 +1329,7 @@ void ERR_load_ASN1_strings(void);
 #define ASN1_R_ILLEGAL_TIME_VALUE			 184
 #define ASN1_R_INTEGER_NOT_ASCII_FORMAT			 185
 #define ASN1_R_INTEGER_TOO_LARGE_FOR_LONG		 128
+#define ASN1_R_INVALID_BIT_STRING_BITS_LEFT		 220
 #define ASN1_R_INVALID_BMPSTRING_LENGTH			 129
 #define ASN1_R_INVALID_DIGIT				 130
 #define ASN1_R_INVALID_MIME_TYPE			 205
