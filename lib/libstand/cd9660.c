@@ -151,9 +151,14 @@ susp_lookup_record(struct open_file *f, const char *identifier,
 				return (NULL);
 			p = susp_buffer + isonum_733(shc->offset);
 			end = p + isonum_733(shc->length);
-		} else
+		} else {
 			/* Ignore this record and skip to the next. */
 			p += isonum_711(sh->length);
+
+			/* Avoid infinite loops with corrupted file systems */
+			if (isonum_711(sh->length) == 0)
+				return (NULL);
+		}
 	}
 	return (NULL);
 }
