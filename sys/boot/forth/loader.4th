@@ -143,13 +143,14 @@ include /boot/check-password.4th
   \ was succesfully loaded!
   any_conf_read? if
     s" loader_delay" getenv -1 = if
+      load_xen_throw
       load_kernel
       load_modules
     else
       drop
       ." Loading Kernel and Modules (Ctrl-C to Abort)" cr
       s" also support-functions" evaluate
-      s" set delay_command='load_kernel load_modules'" evaluate
+      s" set delay_command='load_xen_throw load_kernel load_modules'" evaluate
       s" set delay_showdots" evaluate
       delay_execute
     then
