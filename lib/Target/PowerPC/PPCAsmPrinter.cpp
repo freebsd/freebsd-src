@@ -373,7 +373,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     const MachineOperand &MO = MI->getOperand(1);
 
     // Map symbol -> label of TOC entry
-    assert(MO.isGlobal() || MO.isCPI() || MO.isJTI());
+    assert(MO.isGlobal() || MO.isCPI() || MO.isJTI() || MO.isBlockAddress());
     MCSymbol *MOSymbol = nullptr;
     if (MO.isGlobal())
       MOSymbol = getSymbol(MO.getGlobal());
@@ -381,6 +381,8 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
       MOSymbol = GetCPISymbol(MO.getIndex());
     else if (MO.isJTI())
       MOSymbol = GetJTISymbol(MO.getIndex());
+    else if (MO.isBlockAddress())
+      MOSymbol = GetBlockAddressSymbol(MO.getBlockAddress());
 
     MCSymbol *TOCEntry = lookUpOrCreateTOCEntry(MOSymbol);
 
@@ -397,6 +399,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
   }
   case PPC::LDtocJTI:
   case PPC::LDtocCPT:
+  case PPC::LDtocBA:
   case PPC::LDtoc: {
     // Transform %X3 = LDtoc <ga:@min1>, %X2
     LowerPPCMachineInstrToMCInst(MI, TmpInst, *this, Subtarget.isDarwin());
@@ -407,7 +410,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     const MachineOperand &MO = MI->getOperand(1);
 
     // Map symbol -> label of TOC entry
-    assert(MO.isGlobal() || MO.isCPI() || MO.isJTI());
+    assert(MO.isGlobal() || MO.isCPI() || MO.isJTI() || MO.isBlockAddress());
     MCSymbol *MOSymbol = nullptr;
     if (MO.isGlobal())
       MOSymbol = getSymbol(MO.getGlobal());
@@ -415,6 +418,8 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
       MOSymbol = GetCPISymbol(MO.getIndex());
     else if (MO.isJTI())
       MOSymbol = GetJTISymbol(MO.getIndex());
+    else if (MO.isBlockAddress())
+      MOSymbol = GetBlockAddressSymbol(MO.getBlockAddress());
 
     MCSymbol *TOCEntry = lookUpOrCreateTOCEntry(MOSymbol);
 
@@ -436,7 +441,8 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     // reference the symbol directly.
     TmpInst.setOpcode(PPC::ADDIS8);
     const MachineOperand &MO = MI->getOperand(2);
-    assert((MO.isGlobal() || MO.isCPI() || MO.isJTI()) &&
+    assert((MO.isGlobal() || MO.isCPI() || MO.isJTI() ||
+            MO.isBlockAddress()) &&
            "Invalid operand for ADDIStocHA!");
     MCSymbol *MOSymbol = nullptr;
     bool IsExternal = false;
@@ -456,9 +462,12 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
       MOSymbol = GetCPISymbol(MO.getIndex());
     else if (MO.isJTI())
       MOSymbol = GetJTISymbol(MO.getIndex());
+    else if (MO.isBlockAddress())
+      MOSymbol = GetBlockAddressSymbol(MO.getBlockAddress());
 
     if (IsExternal || IsNonLocalFunction || IsCommon || IsAvailExt ||
-        MO.isJTI() || TM.getCodeModel() == CodeModel::Large)
+        MO.isJTI() || MO.isBlockAddress() ||
+        TM.getCodeModel() == CodeModel::Large)
       MOSymbol = lookUpOrCreateTOCEntry(MOSymbol);
 
     const MCExpr *Exp =
@@ -477,12 +486,17 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     // associated TOC entry.  Otherwise reference the symbol directly.
     TmpInst.setOpcode(PPC::LD);
     const MachineOperand &MO = MI->getOperand(1);
-    assert((MO.isGlobal() || MO.isJTI() || MO.isCPI()) &&
+    assert((MO.isGlobal() || MO.isCPI() || MO.isJTI() ||
+            MO.isBlockAddress()) &&
            "Invalid operand for LDtocL!");
     MCSymbol *MOSymbol = nullptr;
 
     if (MO.isJTI())
       MOSymbol = lookUpOrCreateTOCEntry(GetJTISymbol(MO.getIndex()));
+    else if (MO.isBlockAddress()) {
+      MOSymbol = GetBlockAddressSymbol(MO.getBlockAddress());
+      MOSymbol = lookUpOrCreateTOCEntry(MOSymbol);
+    }
     else if (MO.isCPI()) {
       MOSymbol = GetCPISymbol(MO.getIndex());
       if (TM.getCodeModel() == CodeModel::Large)
@@ -573,6 +587,34 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
     return;
   }
 
+  case PPC::PPC32PICGOT: {
+    MCSymbol *GOTSymbol = OutContext.GetOrCreateSymbol(StringRef("_GLOBAL_OFFSET_TABLE_"));
+    MCSymbol *GOTRef = OutContext.CreateTempSymbol();
+    MCSymbol *NextInstr = OutContext.CreateTempSymbol();
+
+    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::BL)
+      // FIXME: We would like an efficient form for this, so we don't have to do
+      // a lot of extra uniquing.
+      .addExpr(MCSymbolRefExpr::Create(NextInstr, OutContext)));
+    const MCExpr *OffsExpr =
+      MCBinaryExpr::CreateSub(MCSymbolRefExpr::Create(GOTSymbol, OutContext),
+                                MCSymbolRefExpr::Create(GOTRef, OutContext),
+        OutContext);
+    OutStreamer.EmitLabel(GOTRef);
+    OutStreamer.EmitValue(OffsExpr, 4);
+    OutStreamer.EmitLabel(NextInstr);
+    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::MFLR)
+                                .addReg(MI->getOperand(0).getReg()));
+    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::LWZ)
+                                .addReg(MI->getOperand(1).getReg())
+                                .addImm(0)
+                                .addReg(MI->getOperand(0).getReg()));
+    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::ADD4)
+                                .addReg(MI->getOperand(0).getReg())
+                                .addReg(MI->getOperand(1).getReg())
+                                .addReg(MI->getOperand(0).getReg()));
+    return;
+  }
   case PPC::PPC32GOT: {
     MCSymbol *GOTSymbol = OutContext.GetOrCreateSymbol(StringRef("_GLOBAL_OFFSET_TABLE_"));
     const MCExpr *SymGotTlsL =
@@ -606,40 +648,25 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
                                 .addExpr(SymGotTlsGD));
     return;
   }
-  case PPC::ADDItlsgdL: {
+  case PPC::ADDItlsgdL:
     // Transform: %Xd = ADDItlsgdL %Xs, <ga:@sym>
     // Into:      %Xd = ADDI8 %Xs, sym@got@tlsgd@l
-    assert(Subtarget.isPPC64() && "Not supported for 32-bit PowerPC");
+  case PPC::ADDItlsgdL32: {
+    // Transform: %Rd = ADDItlsgdL32 %Rs, <ga:@sym>
+    // Into:      %Rd = ADDI %Rs, sym@got@tlsgd
     const MachineOperand &MO = MI->getOperand(2);
     const GlobalValue *GValue = MO.getGlobal();
     MCSymbol *MOSymbol = getSymbol(GValue);
     const MCExpr *SymGotTlsGD =
-      MCSymbolRefExpr::Create(MOSymbol, MCSymbolRefExpr::VK_PPC_GOT_TLSGD_LO,
+      MCSymbolRefExpr::Create(MOSymbol, Subtarget.isPPC64() ?
+                                         MCSymbolRefExpr::VK_PPC_GOT_TLSGD_LO :
+                                         MCSymbolRefExpr::VK_PPC_GOT_TLSGD,
                               OutContext);
-    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::ADDI8)
-                                .addReg(MI->getOperand(0).getReg())
-                                .addReg(MI->getOperand(1).getReg())
-                                .addExpr(SymGotTlsGD));
-    return;
-  }
-  case PPC::GETtlsADDR: {
-    // Transform: %X3 = GETtlsADDR %X3, <ga:@sym>
-    // Into:      BL8_NOP_TLS __tls_get_addr(sym@tlsgd)
-    assert(Subtarget.isPPC64() && "Not supported for 32-bit PowerPC");
-
-    StringRef Name = "__tls_get_addr";
-    MCSymbol *TlsGetAddr = OutContext.GetOrCreateSymbol(Name);
-    const MCSymbolRefExpr *TlsRef = 
-      MCSymbolRefExpr::Create(TlsGetAddr, MCSymbolRefExpr::VK_None, OutContext);
-    const MachineOperand &MO = MI->getOperand(2);
-    const GlobalValue *GValue = MO.getGlobal();
-    MCSymbol *MOSymbol = getSymbol(GValue);
-    const MCExpr *SymVar =
-      MCSymbolRefExpr::Create(MOSymbol, MCSymbolRefExpr::VK_PPC_TLSGD,
-                              OutContext);
-    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::BL8_NOP_TLS)
-                                .addExpr(TlsRef)
-                                .addExpr(SymVar));
+    EmitToStreamer(OutStreamer,
+                   MCInstBuilder(Subtarget.isPPC64() ? PPC::ADDI8 : PPC::ADDI)
+                   .addReg(MI->getOperand(0).getReg())
+                   .addReg(MI->getOperand(1).getReg())
+                   .addExpr(SymGotTlsGD));
     return;
   }
   case PPC::ADDIStlsldHA: {
@@ -658,72 +685,63 @@ void PPCAsmPrinter::EmitInstruction(const MachineInstr *MI) {
                                 .addExpr(SymGotTlsLD));
     return;
   }
-  case PPC::ADDItlsldL: {
+  case PPC::ADDItlsldL:
     // Transform: %Xd = ADDItlsldL %Xs, <ga:@sym>
     // Into:      %Xd = ADDI8 %Xs, sym@got@tlsld@l
-    assert(Subtarget.isPPC64() && "Not supported for 32-bit PowerPC");
+  case PPC::ADDItlsldL32: {
+    // Transform: %Rd = ADDItlsldL32 %Rs, <ga:@sym>
+    // Into:      %Rd = ADDI %Rs, sym@got@tlsld
     const MachineOperand &MO = MI->getOperand(2);
     const GlobalValue *GValue = MO.getGlobal();
     MCSymbol *MOSymbol = getSymbol(GValue);
     const MCExpr *SymGotTlsLD =
-      MCSymbolRefExpr::Create(MOSymbol, MCSymbolRefExpr::VK_PPC_GOT_TLSLD_LO,
+      MCSymbolRefExpr::Create(MOSymbol, Subtarget.isPPC64() ?
+                                         MCSymbolRefExpr::VK_PPC_GOT_TLSLD_LO :
+                                         MCSymbolRefExpr::VK_PPC_GOT_TLSLD,
                               OutContext);
-    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::ADDI8)
-                                .addReg(MI->getOperand(0).getReg())
-                                .addReg(MI->getOperand(1).getReg())
-                                .addExpr(SymGotTlsLD));
+    EmitToStreamer(OutStreamer,
+                   MCInstBuilder(Subtarget.isPPC64() ? PPC::ADDI8 : PPC::ADDI)
+                   .addReg(MI->getOperand(0).getReg())
+                   .addReg(MI->getOperand(1).getReg())
+                   .addExpr(SymGotTlsLD));
     return;
   }
-  case PPC::GETtlsldADDR: {
-    // Transform: %X3 = GETtlsldADDR %X3, <ga:@sym>
-    // Into:      BL8_NOP_TLS __tls_get_addr(sym@tlsld)
-    assert(Subtarget.isPPC64() && "Not supported for 32-bit PowerPC");
-
-    StringRef Name = "__tls_get_addr";
-    MCSymbol *TlsGetAddr = OutContext.GetOrCreateSymbol(Name);
-    const MCSymbolRefExpr *TlsRef = 
-      MCSymbolRefExpr::Create(TlsGetAddr, MCSymbolRefExpr::VK_None, OutContext);
-    const MachineOperand &MO = MI->getOperand(2);
-    const GlobalValue *GValue = MO.getGlobal();
-    MCSymbol *MOSymbol = getSymbol(GValue);
-    const MCExpr *SymVar =
-      MCSymbolRefExpr::Create(MOSymbol, MCSymbolRefExpr::VK_PPC_TLSLD,
-                              OutContext);
-    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::BL8_NOP_TLS)
-                                .addExpr(TlsRef)
-                                .addExpr(SymVar));
-    return;
-  }
-  case PPC::ADDISdtprelHA: {
+  case PPC::ADDISdtprelHA:
     // Transform: %Xd = ADDISdtprelHA %X3, <ga:@sym>
     // Into:      %Xd = ADDIS8 %X3, sym@dtprel@ha
-    assert(Subtarget.isPPC64() && "Not supported for 32-bit PowerPC");
+  case PPC::ADDISdtprelHA32: {
+    // Transform: %Rd = ADDISdtprelHA32 %R3, <ga:@sym>
+    // Into:      %Rd = ADDIS %R3, sym@dtprel@ha
     const MachineOperand &MO = MI->getOperand(2);
     const GlobalValue *GValue = MO.getGlobal();
     MCSymbol *MOSymbol = getSymbol(GValue);
     const MCExpr *SymDtprel =
       MCSymbolRefExpr::Create(MOSymbol, MCSymbolRefExpr::VK_PPC_DTPREL_HA,
                               OutContext);
-    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::ADDIS8)
-                                .addReg(MI->getOperand(0).getReg())
-                                .addReg(PPC::X3)
-                                .addExpr(SymDtprel));
+    EmitToStreamer(OutStreamer,
+                   MCInstBuilder(Subtarget.isPPC64() ? PPC::ADDIS8 : PPC::ADDIS)
+                   .addReg(MI->getOperand(0).getReg())
+                   .addReg(Subtarget.isPPC64() ? PPC::X3 : PPC::R3)
+                   .addExpr(SymDtprel));
     return;
   }
-  case PPC::ADDIdtprelL: {
+  case PPC::ADDIdtprelL:
     // Transform: %Xd = ADDIdtprelL %Xs, <ga:@sym>
     // Into:      %Xd = ADDI8 %Xs, sym@dtprel@l
-    assert(Subtarget.isPPC64() && "Not supported for 32-bit PowerPC");
+  case PPC::ADDIdtprelL32: {
+    // Transform: %Rd = ADDIdtprelL32 %Rs, <ga:@sym>
+    // Into:      %Rd = ADDI %Rs, sym@dtprel@l
     const MachineOperand &MO = MI->getOperand(2);
     const GlobalValue *GValue = MO.getGlobal();
     MCSymbol *MOSymbol = getSymbol(GValue);
     const MCExpr *SymDtprel =
       MCSymbolRefExpr::Create(MOSymbol, MCSymbolRefExpr::VK_PPC_DTPREL_LO,
                               OutContext);
-    EmitToStreamer(OutStreamer, MCInstBuilder(PPC::ADDI8)
-                                .addReg(MI->getOperand(0).getReg())
-                                .addReg(MI->getOperand(1).getReg())
-                                .addExpr(SymDtprel));
+    EmitToStreamer(OutStreamer,
+                   MCInstBuilder(Subtarget.isPPC64() ? PPC::ADDI8 : PPC::ADDI)
+                   .addReg(MI->getOperand(0).getReg())
+                   .addReg(MI->getOperand(1).getReg())
+                   .addExpr(SymDtprel));
     return;
   }
   case PPC::MFOCRF:
@@ -903,7 +921,7 @@ bool PPCLinuxAsmPrinter::doFinalization(Module &M) {
     for (MapVector<MCSymbol*, MCSymbol*>::iterator I = TOC.begin(),
          E = TOC.end(); I != E; ++I) {
       OutStreamer.EmitLabel(I->second);
-      MCSymbol *S = OutContext.GetOrCreateSymbol(I->first->getName());
+      MCSymbol *S = I->first;
       if (isPPC64)
         TS.emitTCEntry(*S);
       else

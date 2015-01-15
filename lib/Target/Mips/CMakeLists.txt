@@ -22,8 +22,10 @@ add_llvm_target(MipsCodeGen
   Mips16ISelDAGToDAG.cpp
   Mips16ISelLowering.cpp
   Mips16RegisterInfo.cpp
+  MipsABIInfo.cpp
   MipsAnalyzeImmediate.cpp
   MipsAsmPrinter.cpp
+  MipsCCState.cpp
   MipsCodeEmitter.cpp
   MipsConstantIslandPass.cpp
   MipsDelaySlotFiller.cpp
