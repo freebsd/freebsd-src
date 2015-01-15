@@ -188,6 +188,9 @@ def : Pat<(PPCcall (i64 texternalsym:$dst)),
 def : Pat<(PPCcall_nop (i64 texternalsym:$dst)),
           (BL8_NOP texternalsym:$dst)>;
 
+def : Pat<(PPCcall_nop_tls texternalsym:$func, tglobaltlsaddr:$sym),
+          (BL8_NOP_TLS texternalsym:$func, tglobaltlsaddr:$sym)>;
+
 // Atomic operations
 let usesCustomInserter = 1 in {
   let Defs = [CR0] in {
@@ -786,7 +789,7 @@ let canFoldAsLoad = 1, PPC970_Unit = 2 in {
 def LD   : DSForm_1<58, 0, (outs g8rc:$rD), (ins memrix:$src),
                     "ld $rD, $src", IIC_LdStLD,
                     [(set i64:$rD, (aligned4load ixaddr:$src))]>, isPPC64;
-// The following three definitions are selected for small code model only.
+// The following four definitions are selected for small code model only.
 // Otherwise, we need to create two instructions to form a 32-bit offset,
 // so we have a custom matcher for TOC_ENTRY in PPCDAGToDAGIsel::Select().
 def LDtoc: Pseudo<(outs g8rc:$rD), (ins tocentry:$disp, g8rc:$reg),
@@ -801,6 +804,10 @@ def LDtocCPT: Pseudo<(outs g8rc:$rD), (ins tocentry:$disp, g8rc:$reg),
                   "#LDtocCPT",
                   [(set i64:$rD,
                      (PPCtoc_entry tconstpool:$disp, i64:$reg))]>, isPPC64;
+def LDtocBA: Pseudo<(outs g8rc:$rD), (ins tocentry:$disp, g8rc:$reg),
+                  "#LDtocCPT",
+                  [(set i64:$rD,
+                     (PPCtoc_entry tblockaddress:$disp, i64:$reg))]>, isPPC64;
 
 let hasSideEffects = 1, isCodeGenOnly = 1, RST = 2, Defs = [X2] in
 def LDinto_toc: DSForm_1<58, 0, (outs), (ins memrix:$src),
@@ -872,11 +879,6 @@ def ADDItlsgdL : Pseudo<(outs g8rc:$rD), (ins g8rc_nox0:$reg, s16imm64:$disp),
                        [(set i64:$rD,
                          (PPCaddiTlsgdL i64:$reg, tglobaltlsaddr:$disp))]>,
                  isPPC64;
-def GETtlsADDR : Pseudo<(outs g8rc:$rD), (ins g8rc:$reg, tlsgd:$sym),
-                        "#GETtlsADDR",
-                        [(set i64:$rD,
-                          (PPCgetTlsAddr i64:$reg, tglobaltlsaddr:$sym))]>,
-                 isPPC64;
 def ADDIStlsldHA: Pseudo<(outs g8rc:$rD), (ins g8rc_nox0:$reg, s16imm64:$disp),
                          "#ADDIStlsldHA",
                          [(set i64:$rD,
@@ -887,11 +889,6 @@ def ADDItlsldL : Pseudo<(outs g8rc:$rD), (ins g8rc_nox0:$reg, s16imm64:$disp),
                        [(set i64:$rD,
                          (PPCaddiTlsldL i64:$reg, tglobaltlsaddr:$disp))]>,
                  isPPC64;
-def GETtlsldADDR : Pseudo<(outs g8rc:$rD), (ins g8rc:$reg, tlsgd:$sym),
-                          "#GETtlsldADDR",
-                          [(set i64:$rD,
-                            (PPCgetTlsldAddr i64:$reg, tglobaltlsaddr:$sym))]>,
-                   isPPC64;
 def ADDISdtprelHA: Pseudo<(outs g8rc:$rD), (ins g8rc_nox0:$reg, s16imm64:$disp),
                           "#ADDISdtprelHA",
                           [(set i64:$rD,

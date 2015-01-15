@@ -23,6 +23,7 @@
 #include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
+#include "MipsABIInfo.h"
 #include <string>
 
 #define GET_SUBTARGETINFO_HEADER
@@ -36,13 +37,6 @@ class MipsTargetMachine;
 class MipsSubtarget : public MipsGenSubtargetInfo {
   virtual void anchor();
 
-public:
-  // NOTE: O64 will not be supported.
-  enum MipsABIEnum {
-    UnknownABI, O32, N32, N64, EABI
-  };
-
-protected:
   enum MipsArchEnum {
     Mips1, Mips2, Mips32, Mips32r2, Mips32r6, Mips3, Mips4, Mips5, Mips64,
     Mips64r2, Mips64r6
@@ -51,8 +45,8 @@ protected:
   // Mips architecture version
   MipsArchEnum MipsArchVersion;
 
-  // Mips supported ABIs
-  MipsABIEnum MipsABI;
+  // Selected ABI
+  MipsABIInfo ABI;
 
   // IsLittle - The target is Little Endian
   bool IsLittle;
@@ -64,6 +58,9 @@ protected:
 
   // IsFPXX - MIPS O32 modeless ABI.
   bool IsFPXX;
+
+  // NoABICalls - Disable SVR4-style position-independent code.
+  bool NoABICalls;
 
   // IsFP64bit - The target processor has 64-bit floating point registers.
   bool IsFP64bit;
@@ -157,12 +154,12 @@ public:
   CodeGenOpt::Level getOptLevelToEnablePostRAScheduler() const override;
 
   /// Only O32 and EABI supported right now.
-  bool isABI_EABI() const { return MipsABI == EABI; }
-  bool isABI_N64() const { return MipsABI == N64; }
-  bool isABI_N32() const { return MipsABI == N32; }
-  bool isABI_O32() const { return MipsABI == O32; }
+  bool isABI_EABI() const { return ABI.IsEABI(); }
+  bool isABI_N64() const { return ABI.IsN64(); }
+  bool isABI_N32() const { return ABI.IsN32(); }
+  bool isABI_O32() const { return ABI.IsO32(); }
   bool isABI_FPXX() const { return isABI_O32() && IsFPXX; }
-  unsigned getTargetABI() const { return MipsABI; }
+  const MipsABIInfo &getABI() const { return ABI; }
 
   /// This constructor initializes the data members to match that
   /// of the specified triple.
@@ -200,16 +197,16 @@ public:
   bool hasCnMips() const { return HasCnMips; }
 
   bool isLittle() const { return IsLittle; }
+  bool isABICalls() const { return !NoABICalls; }
   bool isFPXX() const { return IsFPXX; }
   bool isFP64bit() const { return IsFP64bit; }
   bool useOddSPReg() const { return UseOddSPReg; }
   bool noOddSPReg() const { return !UseOddSPReg; }
   bool isNaN2008() const { return IsNaN2008bit; }
-  bool isNotFP64bit() const { return !IsFP64bit; }
   bool isGP64bit() const { return IsGP64bit; }
   bool isGP32bit() const { return !IsGP64bit; }
+  unsigned getGPRSizeInBytes() const { return isGP64bit() ? 8 : 4; }
   bool isSingleFloat() const { return IsSingleFloat; }
-  bool isNotSingleFloat() const { return !IsSingleFloat; }
   bool hasVFPU() const { return HasVFPU; }
   bool inMips16Mode() const { return InMips16Mode; }
   bool inMips16ModeDefault() const {
@@ -248,7 +245,6 @@ public:
   bool os16() const { return Os16;};
 
   bool isTargetNaCl() const { return TargetTriple.isOSNaCl(); }
-  bool isNotTargetNaCl() const { return !TargetTriple.isOSNaCl(); }
 
   // for now constant islands are on for the whole compilation unit but we only
   // really use them if in addition we are in mips16 mode

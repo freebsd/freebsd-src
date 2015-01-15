@@ -6,7 +6,7 @@ define i8 @cnt8(i8 %x) nounwind readnone {
   ret i8 %cnt
 ; OCTEON-LABEL: cnt8:
 ; OCTEON: jr   $ra
-; OCTEON: pop  $2, $1
+; OCTEON: pop  $2, [[R1:\$[0-9]+]]
 ; MIPS64-LABEL: cnt8:
 ; MIPS64-NOT: pop
 }
@@ -16,12 +16,12 @@ define i16 @cnt16(i16 %x) nounwind readnone {
   ret i16 %cnt
 ; OCTEON-LABEL: cnt16:
 ; OCTEON: jr   $ra
-; OCTEON: pop  $2, $1
+; OCTEON: pop  $2, [[R1:\$[0-9]+]]
 ; MIPS64-LABEL: cnt16:
 ; MIPS64-NOT: pop
 }
 
-define i32 @cnt32(i32 %x) nounwind readnone {
+define i32 @cnt32(i32 zeroext %x) nounwind readnone {
   %cnt = tail call i32 @llvm.ctpop.i32(i32 %x)
   ret i32 %cnt
 ; OCTEON-LABEL: cnt32:
