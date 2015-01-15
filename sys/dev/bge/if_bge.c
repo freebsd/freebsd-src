@@ -419,7 +419,7 @@ static int bge_msi_intr(void *);
 static void bge_intr_task(void *, int);
 static int bge_start_locked(struct bge_softc *);
 static int bge_transmit(if_t, struct mbuf *);
-static int bge_ioctl(if_t, u_long, caddr_t);
+static int bge_ioctl(if_t, u_long, void *, struct thread *);
 static void bge_init_locked(struct bge_softc *);
 static void bge_init(void *);
 static void bge_stop_block(struct bge_softc *, bus_size_t, uint32_t);
@@ -5745,7 +5745,7 @@ bge_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 }
 
 static int
-bge_ioctl(if_t ifp, u_long command, caddr_t data)
+bge_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 {
 	struct bge_softc *sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct ifreq *ifr = (struct ifreq *) data;

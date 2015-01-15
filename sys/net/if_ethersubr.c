@@ -941,7 +941,7 @@ ether_crc32_be(const uint8_t *buf, size_t len)
 }
 
 static int
-ether_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
+ether_ioctl(struct ifnet *ifp, u_long command, void *data, struct thread *td)
 {
 	struct ifaddr *ifa = (struct ifaddr *) data;
 	struct ifreq *ifr = (struct ifreq *) data;

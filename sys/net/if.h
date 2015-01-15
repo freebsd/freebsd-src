@@ -591,7 +591,7 @@ typedef void	(*if_input_t)(if_t, struct mbuf *);
 typedef int	(*if_transmit_t)(if_t, struct mbuf *);
 typedef int	(*if_output_t)(if_t, struct mbuf *, const struct sockaddr *,
     struct route *);
-typedef int	(*if_ioctl_t)(if_t, u_long, caddr_t);
+typedef int	(*if_ioctl_t)(if_t, u_long, void *, struct thread *);
 typedef uint64_t (*if_get_counter_t)(if_t, ift_counter);
 typedef void	(*if_qflush_t)(if_t);
 typedef int	(*if_resolvemulti_t)(if_t, struct sockaddr **,
@@ -715,6 +715,7 @@ void	if_link_state_change(if_t, int);
 void	if_set(if_t, ift_feature, uint64_t);
 void *	if_getsoftc(if_t, ift_feature);
 int	if_printf(if_t, const char *, ...) __printflike(2, 3);
+int	if_drvioctl(u_long, struct ifnet *, void *, struct thread *);
 uint64_t if_get(if_t, ift_feature);
 uint64_t if_flagbits(if_t, ift_feature, uint64_t, uint64_t, uint64_t);
 uint64_t if_get_counter_default(if_t, ift_counter);

@@ -1330,7 +1330,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 				error = EINVAL;
 			else {
 				ifp = d->bd_bif->bif_ifp;
-				error = if_ioctl(ifp, cmd, addr);
+				error = if_ioctl(ifp, cmd, addr, td);
 			}
 			break;
 		}

@@ -237,7 +237,7 @@ static void xl_intr(void *);
 static int xl_transmit(if_t, struct mbuf *);
 static void xl_start_locked(struct xl_softc *);
 static void xl_start_90xB_locked(struct xl_softc *);
-static int xl_ioctl(if_t, u_long, caddr_t);
+static int xl_ioctl(if_t, u_long, void *, struct thread *);
 static void xl_init(void *);
 static void xl_init_locked(struct xl_softc *);
 static void xl_stop(struct xl_softc *);
@@ -2978,7 +2978,7 @@ xl_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 }
 
 static int
-xl_ioctl(if_t ifp, u_long command, caddr_t data)
+xl_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 {
 	struct xl_softc		*sc;
 	struct ifreq		*ifr = (struct ifreq *) data;

@@ -84,7 +84,7 @@
 				    CSUM_IP_CHECKED | CSUM_IP_VALID | \
 				    CSUM_SCTP_VALID)
 int		if_simloop(if_t, struct mbuf *, int, int);
-static int	loioctl(if_t, u_long, caddr_t);
+static int	loioctl(if_t, u_long, void *, struct thread *);
 static int	looutput(if_t, struct mbuf *,
 		    const struct sockaddr *, struct route *);
 static int	lo_clone_create(struct if_clone *, int, caddr_t);
@@ -359,7 +359,7 @@ if_simloop(if_t ifp, struct mbuf *m, int af, int hlen)
  */
 /* ARGSUSED */
 int
-loioctl(if_t ifp, u_long cmd, caddr_t data)
+loioctl(if_t ifp, u_long cmd, void  *data, struct thread *td)
 {
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0, mask;

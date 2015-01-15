@@ -753,7 +753,7 @@ aifaddr_out:
 	}
 
 	default:
-		error = if_ioctl(ifp, cmd, data);
+		error = if_ioctl(ifp, cmd, data, td);
 		goto out;
 	}
 
@@ -1399,7 +1399,7 @@ in6_notify_ifa(struct ifnet *ifp, struct in6_ifaddr *ia,
 	}
 
 	if (ifacount <= 1) {
-		error = if_ioctl(ifp, SIOCSIFADDR, (caddr_t)ia);
+		error = if_ioctl(ifp, SIOCSIFADDR, ia, curthread);
 		if (error != 0 && error != EOPNOTSUPP)
 			return (error);
 	}

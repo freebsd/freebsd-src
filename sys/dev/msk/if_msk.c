@@ -280,7 +280,7 @@ static void msk_txeof(struct msk_if_softc *, int);
 static int msk_encap(struct msk_if_softc *, struct mbuf **);
 static int msk_transmit(if_t, struct mbuf *);
 static int msk_start(struct msk_if_softc *);
-static int msk_ioctl(if_t, u_long, caddr_t);
+static int msk_ioctl(if_t, u_long, void *, struct thread *);
 static void msk_set_prefetch(struct msk_softc *, int, bus_addr_t, uint32_t);
 static void msk_set_rambuffer(struct msk_if_softc *);
 static void msk_set_tx_stfwd(struct msk_if_softc *);
@@ -1066,7 +1066,7 @@ msk_mediastatus(if_t ifp, struct ifmediareq *ifmr)
 }
 
 static int
-msk_ioctl(if_t ifp, u_long command, caddr_t data)
+msk_ioctl(if_t ifp, u_long command, void  *data, struct thread *td)
 {
 	struct msk_if_softc *sc_if;
 	struct ifreq *ifr;

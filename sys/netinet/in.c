@@ -232,7 +232,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		/* We no longer support that old commands. */
 		return (EINVAL);
 	default:
-		return if_ioctl(ifp, cmd, data);
+		return (if_ioctl(ifp, cmd, data, td));
 	}
 
 	if (addr->sin_addr.s_addr != INADDR_ANY &&
@@ -434,7 +434,7 @@ in_aifaddr_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp, struct thread *td)
 	 * if this is its first address,
 	 * and to validate the address if necessary.
 	 */
-	error = if_ioctl(ifp, SIOCSIFADDR, (caddr_t)ia);
+	error = if_ioctl(ifp, SIOCSIFADDR, ia, td);
 	if (error != 0 && error != EOPNOTSUPP)
 		goto fail1;
 

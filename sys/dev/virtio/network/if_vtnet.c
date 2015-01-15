@@ -108,7 +108,7 @@ static void	vtnet_free_rx_filters(struct vtnet_softc *);
 static int	vtnet_alloc_virtqueues(struct vtnet_softc *);
 static void	vtnet_setup_interface(struct vtnet_softc *);
 static int	vtnet_change_mtu(struct vtnet_softc *, int);
-static int	vtnet_ioctl(if_t, u_long, caddr_t);
+static int	vtnet_ioctl(if_t, u_long, void *, struct thread *);
 static uint64_t	vtnet_get_counter(if_t, ift_counter);
 
 static int	vtnet_rxq_populate(struct vtnet_rxq *);
@@ -1013,7 +1013,7 @@ vtnet_change_mtu(struct vtnet_softc *sc, int new_mtu)
 }
 
 static int
-vtnet_ioctl(if_t ifp, u_long cmd, caddr_t data)
+vtnet_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 {
 	struct vtnet_softc *sc;
 	struct ifreq *ifr;

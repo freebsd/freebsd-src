@@ -166,7 +166,6 @@ static int	if_setflag(struct ifnet *, int, int, int *, int);
 static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	if_rtdel(struct radix_node *, void *);
-static int	ifhwioctl(u_long, struct ifnet *, caddr_t, struct thread *);
 static int	if_delmulti_locked(struct ifnet *, struct ifmultiaddr *, int);
 static void	do_link_state_change(void *, int);
 static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
@@ -2403,8 +2402,8 @@ ifunit(const char *name)
 /*
  * Hardware specific interface ioctls.
  */
-static int
-ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
+int
+if_drvioctl(u_long cmd, struct ifnet *ifp, void *data, struct thread *td)
 {
 	struct ifreq *ifr;
 	int error = 0;
@@ -2548,7 +2547,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		}
 		ifp->if_flags = (ifp->if_flags & IFF_CANTCHANGE) |
 			(new_flags &~ IFF_CANTCHANGE);
-		if_ioctl(ifp, cmd, data);
+		if_ioctl(ifp, cmd, data, td);
 		getmicrotime(&ifp->if_lastchange);
 		break;
 
@@ -2558,7 +2557,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (error);
 		if (ifr->ifr_reqcap & ~ifp->if_capabilities)
 			return (EINVAL);
-		error = if_ioctl(ifp, cmd, data);
+		error = if_ioctl(ifp, cmd, data, td);
 		if (error == 0)
 			getmicrotime(&ifp->if_lastchange);
 		break;
@@ -2647,7 +2646,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		error = priv_check(td, PRIV_NET_SETIFPHYS);
 		if (error)
 			return (error);
-		error = if_ioctl(ifp, cmd, data);
+		error = if_ioctl(ifp, cmd, data, td);
 		if (error == 0)
 			getmicrotime(&ifp->if_lastchange);
 		break;
@@ -2661,7 +2660,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (error);
 		if (ifr->ifr_mtu < IF_MINMTU || ifr->ifr_mtu > IF_MAXMTU)
 			return (EINVAL);
-		error = if_ioctl(ifp, cmd, data);
+		error = if_ioctl(ifp, cmd, data, td);
 		if (error == 0) {
 			getmicrotime(&ifp->if_lastchange);
 			rt_ifmsg(ifp);
@@ -2729,7 +2728,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		error = priv_check(td, PRIV_NET_HWIOCTL);
 		if (error)
 			return (error);
-		error = if_ioctl(ifp, cmd, data);
+		error = if_ioctl(ifp, cmd, data, td);
 		if (error == 0)
 			getmicrotime(&ifp->if_lastchange);
 		break;
@@ -2739,7 +2738,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	case SIOCGIFPDSTADDR:
 	case SIOCGIFMEDIA:
 	case SIOCGIFGENERIC:
-		error = if_ioctl(ifp, cmd, data);
+		error = if_ioctl(ifp, cmd, data, td);
 		break;
 
 	case SIOCSIFLLADDR:
@@ -2888,7 +2887,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		return (ENXIO);
 	}
 
-	error = ifhwioctl(cmd, ifp, data, td);
+	error = if_drvioctl(cmd, ifp, data, td);
 	if (error != ENOIOCTL) {
 		if_rele(ifp);
 		CURVNET_RESTORE();
@@ -2916,7 +2915,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	if (error == EOPNOTSUPP && ifp != NULL &&
 	    cmd != SIOCSIFADDR && cmd != SIOCSIFBRDADDR &&
 	    cmd != SIOCSIFDSTADDR && cmd != SIOCSIFNETMASK)
-		error = if_ioctl(ifp, cmd, data);
+		error = if_ioctl(ifp, cmd, data, td);
 
 	if ((oif_flags ^ ifp->if_flags) & IFF_UP) {
 #ifdef INET6
@@ -2980,7 +2979,7 @@ if_setflag(struct ifnet *ifp, int flag, int pflag, int *refcount, int onswitch)
 	/* Call down the driver since we've changed interface flags */
 	ifr.ifr_flags = ifp->if_flags & 0xffff;
 	ifr.ifr_flagshigh = ifp->if_flags >> 16;
-	error = if_ioctl(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
+	error = if_ioctl(ifp, SIOCSIFFLAGS, (caddr_t)&ifr, curthread);
 	if (error)
 		goto recover;
 	/* Notify userland that interface flags have changed */
@@ -3327,7 +3326,7 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa,
 	 * We are certain we have added something, so call down to the
 	 * interface to let them know about it.
 	 */
-	if_ioctl(ifp, SIOCADDMULTI, 0);
+	if_ioctl(ifp, SIOCADDMULTI, 0, curthread);
 
 	if ((llsa != NULL) && (llsa != (struct sockaddr *)&sdl))
 		link_free_sdl(llsa);
@@ -3384,7 +3383,7 @@ if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 		return (ENOENT);
 
 	if (lastref)
-		if_ioctl(ifp, SIOCDELMULTI, 0);
+		if_ioctl(ifp, SIOCDELMULTI, 0, curthread);
 
 	return (0);
 }
@@ -3451,7 +3450,7 @@ if_delmulti_ifma(struct ifmultiaddr *ifma)
 		 */
 		IF_ADDR_WUNLOCK(ifp);
 		if (lastref)
-			if_ioctl(ifp, SIOCDELMULTI, 0);
+			if_ioctl(ifp, SIOCDELMULTI, 0, curthread);
 	}
 }
 
@@ -3587,11 +3586,11 @@ if_setlladdr(struct ifnet *ifp, const u_char *lladdr, int len)
 		ifp->if_flags &= ~IFF_UP;
 		ifr.ifr_flags = ifp->if_flags & 0xffff;
 		ifr.ifr_flagshigh = ifp->if_flags >> 16;
-		if_ioctl(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
+		if_ioctl(ifp, SIOCSIFFLAGS, &ifr, curthread);
 		ifp->if_flags |= IFF_UP;
 		ifr.ifr_flags = ifp->if_flags & 0xffff;
 		ifr.ifr_flagshigh = ifp->if_flags >> 16;
-		if_ioctl(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
+		if_ioctl(ifp, SIOCSIFFLAGS, &ifr, curthread);
 #ifdef INET
 		/*
 		 * Also send gratuitous ARPs to notify other nodes about

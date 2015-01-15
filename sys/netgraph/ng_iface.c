@@ -117,7 +117,7 @@ typedef struct ng_iface_private *priv_p;
 
 /* Interface methods */
 static int	ng_iface_transmit(if_t, struct mbuf *);
-static int	ng_iface_ioctl(if_t, u_long cmd, caddr_t data);
+static int	ng_iface_ioctl(if_t, u_long, void *, struct thread *);
 static int	ng_iface_output(if_t, struct mbuf *m0,
     			const struct sockaddr *dst, struct route *ro);
 static int	ng_iface_send(if_t, struct mbuf *m, sa_family_t sa);
@@ -274,7 +274,7 @@ get_iffam_from_name(const char *name)
  * Process an ioctl for the virtual interface
  */
 static int
-ng_iface_ioctl(if_t ifp, u_long command, caddr_t data)
+ng_iface_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 {
 	struct ifreq *const ifr = (struct ifreq *) data;
 	int error = 0;
