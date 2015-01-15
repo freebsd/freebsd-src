@@ -1048,8 +1048,6 @@ destroy_devl(struct cdev *dev)
 	/* Remove name marking */
 	dev->si_flags &= ~SI_NAMED;
 
-	dev->si_refcount++;	/* Avoid race with dev_rel() */
-
 	/* If we are a child, remove us from the parents list */
 	if (dev->si_flags & SI_CHILD) {
 		LIST_REMOVE(dev, si_siblings);
