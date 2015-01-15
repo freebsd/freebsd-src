@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Peter Wemm <peter@FreeBSD.org>
+ * Copyright (c) 2014  Roger Pau Monné <royger@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,12 +26,26 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_METADATA_H_
-#define	_MACHINE_METADATA_H_
+#define ASM_FILE
+#include "multiboot.h"
 
-#define	MODINFOMD_SMAP		0x1001
-#define	MODINFOMD_SMAP_XATTR	0x1002
-#define	MODINFOMD_DTBP		0x1003
-#define	MODINFOMD_MODULEP	0x1006
+/*
+ * The multiboot specification requires the executable to be launched
+ * with %cs set to a flat read/execute segment with offset 0 and limit
+ * 0xFFFFFFFF, and the rest of the segment registers (%ds, %es, %fs,
+ * %gs, %ss) to flat read/write segments with the same offset and limit.
+ * This is already done by the BTX code before calling multiboot_tramp,
+ * so there is no need to do anything here.
+ */
 
-#endif /* !_MACHINE_METADATA_H_ */
+	.globl	multiboot_tramp
+multiboot_tramp:
+	/* Be sure that interrupts are disabled. */
+	cli
+
+	movl    $MULTIBOOT_BOOTLOADER_MAGIC, %eax
+	/* Get the entry point and address of the multiboot_info parameter. */
+	movl	8(%esp), %ebx
+	movl	4(%esp), %ecx
+
+	call    *%ecx

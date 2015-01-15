@@ -261,7 +261,7 @@ fdt_load_dtb_file(const char * filename)
 	oldbfp = file_findfile(NULL, "dtb");
 
 	/* Attempt to load and validate a new dtb from a file. */
-	if ((bfp = file_loadraw(filename, "dtb")) == NULL) {
+	if ((bfp = file_loadraw(filename, "dtb", 1)) == NULL) {
 		sprintf(command_errbuf, "failed to load file '%s'", filename);
 		return (1);
 	}
