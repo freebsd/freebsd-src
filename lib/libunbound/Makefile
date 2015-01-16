@@ -32,7 +32,7 @@ LIBADD=	ssl crypto pthread
 
 # Misnamed file in upstream source
 configlexer.l: configlexer.lex
-	cp -fp ${.ALLSRC} ${.TARGET}
+	${CP} ${.ALLSRC} ${.TARGET}
 CLEANFILES+= configlexer.l
 
 # Symbol prefix for lex and yacc

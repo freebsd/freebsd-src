@@ -43,7 +43,7 @@ MLINKS+=grep.1 zgrep.1 grep.1 zegrep.1 grep.1 zfgrep.1
 .endif
 
 gnugrep.1: grep.1
-	cp ${.ALLSRC} ${.TARGET}
+	${CP} ${.ALLSRC} ${.TARGET}
 
 check:	all
 	@failed=0; total=0; \
