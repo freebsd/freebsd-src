@@ -249,6 +249,13 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	ah->ah_btCoexDisable		= ar9300_bt_coex_disable;
 	ah->ah_btCoexEnable		= ar9300_bt_coex_enable;
 
+	/* MCI bluetooth functions */
+	ah->ah_btMciSetup		= ar9300_mci_setup;
+	ah->ah_btMciSendMessage		= ar9300_mci_send_message;
+	ah->ah_btMciGetInterrupt	= ar9300_mci_get_interrupt;
+	ah->ah_btMciGetState		= ar9300_mci_state;
+	ah->ah_btMciDetach		= ar9300_mci_detach;
+
 	/* LNA diversity functions */
 	ah->ah_divLnaConfGet = ar9300_ant_div_comb_get_config;
 	ah->ah_divLnaConfSet = ar9300_ant_div_comb_set_config;
