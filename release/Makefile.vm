@@ -13,7 +13,9 @@ VMBASE?=	vm
 CLOUDWARE?=	AZURE \
 		OPENSTACK
 AZURE_FORMAT=	vhdf
+AZURE_DESC=	Microsoft Azure platform image
 OPENSTACK_FORMAT=qcow2
+OPENSTACK_DESC=	OpenStack platform image
 
 .if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
 . for _CW in ${CLOUDWARE}
@@ -62,3 +64,10 @@ vm-image:
 	touch ${.TARGET}
 
 vm-cloudware:	${CLOUDTARGETS}
+
+list-cloudware:
+.if !empty(CLOUDWARE)
+. for _CW in ${CLOUDWARE}
+	@${ECHO} "${_CW:tu}: ${${_CW:tu}_DESC}"
+. endfor
+.endif
