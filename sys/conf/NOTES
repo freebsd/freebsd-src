@@ -1917,6 +1917,8 @@ device		xmphy		# XaQti XMAC II
 # cas:	Sun Cassini/Cassini+ and National Semiconductor DP83065 Saturn
 # cm:	Arcnet SMC COM90c26 / SMC COM90c56
 #	(and SMC COM90c66 in '56 compatibility mode) adapters.
+# cxgb: Chelsio T3 based 1GbE/10GbE PCIe Ethernet adapters.
+# cxgbe:Chelsio T4 and T5 based 1GbE/10GbE/40GbE PCIe Ethernet adapters.
 # dc:   Support for PCI fast ethernet adapters based on the DEC/Intel 21143
 #       and various workalikes including:
 #       the ADMtek AL981 Comet and AN985 Centaur, the ASIX Electronics
@@ -2065,6 +2067,7 @@ device		bge		# Broadcom BCM570xx Gigabit Ethernet
 device		cas		# Sun Cassini/Cassini+ and NS DP83065 Saturn
 device		cxgb		# Chelsio T3 10 Gigabit Ethernet
 device		cxgb_t3fw	# Chelsio T3 10 Gigabit Ethernet firmware
+device		cxgbe		# Chelsio T4 and T5 1GbE/10GbE/40GbE
 device		dc		# DEC/Intel 21143 and various workalikes
 device		et		# Agere ET1310 10/100/Gigabit Ethernet
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
