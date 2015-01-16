@@ -238,30 +238,15 @@ looutput(if_t ifp, struct mbuf *m, const struct sockaddr *dst,
 	else
 		af = dst->sa_family;
 
-#if 1	/* XXX */
 	switch (af) {
 	case AF_INET:
-		if (if_get(ifp, IF_CAPENABLE) & IFCAP_RXCSUM) {
-			m->m_pkthdr.csum_data = 0xffff;
-			m->m_pkthdr.csum_flags = LO_CSUM_SET;
-		}
+		m->m_pkthdr.csum_data = 0xffff;
+		m->m_pkthdr.csum_flags = LO_CSUM_SET;
 		m->m_pkthdr.csum_flags &= ~LO_CSUM_FEATURES;
 		break;
 	case AF_INET6:
-#if 0
-		/*
-		 * XXX-BZ for now always claim the checksum is good despite
-		 * any interface flags.   This is a workaround for 9.1-R and
-		 * a proper solution ought to be sought later.
-		 */
-		if (ifp->if_capenable & IFCAP_RXCSUM_IPV6) {
-			m->m_pkthdr.csum_data = 0xffff;
-			m->m_pkthdr.csum_flags = LO_CSUM_SET;
-		}
-#else
 		m->m_pkthdr.csum_data = 0xffff;
 		m->m_pkthdr.csum_flags = LO_CSUM_SET;
-#endif
 		m->m_pkthdr.csum_flags &= ~LO_CSUM_FEATURES6;
 		break;
 	default:
@@ -269,7 +254,6 @@ looutput(if_t ifp, struct mbuf *m, const struct sockaddr *dst,
 		m_freem(m);
 		return (EAFNOSUPPORT);
 	}
-#endif
 	return (if_simloop(ifp, m, af, 0));
 }
 
@@ -362,7 +346,7 @@ int
 loioctl(if_t ifp, u_long cmd, void  *data, struct thread *td)
 {
 	struct ifreq *ifr = (struct ifreq *)data;
-	int error = 0, mask;
+	int error = 0;
 
 	switch (cmd) {
 	case SIOCSIFADDR:
@@ -396,41 +380,7 @@ loioctl(if_t ifp, u_long cmd, void  *data, struct thread *td)
 		break;
 
 	case SIOCSIFMTU:
-		if_set(ifp, IF_MTU, ifr->ifr_mtu);
-		break;
-
 	case SIOCSIFFLAGS:
-		break;
-
-	case SIOCSIFCAP:
-		mask = if_get(ifp, IF_CAPENABLE) ^ ifr->ifr_reqcap;
-		if ((mask & IFCAP_RXCSUM) != 0)
-			if_xorflags(ifp, IF_CAPENABLE, IFCAP_RXCSUM);
-		if ((mask & IFCAP_TXCSUM) != 0)
-			if_xorflags(ifp, IF_CAPENABLE, IFCAP_TXCSUM);
-		if ((mask & IFCAP_RXCSUM_IPV6) != 0) {
-#if 0
-			if_xorflags(ifp, IF_CAPENABLE, IFCAP_RXCSUM_IPV6);
-#else
-			error = EOPNOTSUPP;
-			break;
-#endif
-		}
-		if ((mask & IFCAP_TXCSUM_IPV6) != 0) {
-#if 0
-			if_xorflags(ifp, IF_CAPENABLE, IFCAP_TXCSUM_IPV6);
-#else
-			error = EOPNOTSUPP;
-			break;
-#endif
-		}
-		if_set(ifp, IF_HWASSIST, 0);
-		if (if_get(ifp, IF_CAPENABLE) & IFCAP_TXCSUM)
-			if_set(ifp, IF_HWASSIST, LO_CSUM_FEATURES);
-#if 0
-		if (if_get(ifp, IF_CAPENABLE) & IFCAP_TXCSUM_IPV6)
-			if_addflags(ifp, IF_HWASSIST, LO_CSUM_FEATURES6);
-#endif
 		break;
 
 	default:
