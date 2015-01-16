@@ -301,41 +301,6 @@ cbb_print_config(device_t dev)
 	printf("\n");
 }
 
-static void
-cbb_pci_bridge_init(device_t brdev)
-{
-	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
-	u_int32_t membase, irq;
-
-	if (pci_get_powerstate(brdev) != PCI_POWERSTATE_D0) {
-		/* Reset the power state. */
-		device_printf(brdev, "chip is in D%d power mode "
-		    "-- setting to D0\n", pci_get_powerstate(brdev));
-		pci_set_powerstate(brdev, PCI_POWERSTATE_D0);
-	}
-	membase = rman_get_start(sc->base_res);
-	irq = rman_get_start(sc->irq_res);
-
-	pci_write_config(brdev, CBBR_SOCKBASE, membase, 4);
-	pci_write_config(brdev, PCIR_INTLINE, irq, 4);
-	PCI_ENABLE_IO(device_get_parent(brdev), brdev, SYS_RES_MEMORY);
-
-	exca_init(&sc->exca[0], brdev, sc->bst, sc->bsh, CBB_EXCA_OFFSET);
-	sc->chipinit(sc);
-
-	/* reset 16-bit pcmcia bus */
-	exca_clrb(&sc->exca[0], EXCA_INTR, EXCA_INTR_RESET);
-
-	/* turn off power */
-	cbb_power(brdev, CARD_OFF);
-
-	/* CSC Interrupt: Card detect interrupt on */
-	cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
-
-	/* reset interrupt */
-	cbb_set(sc, CBB_SOCKET_EVENT, cbb_get(sc, CBB_SOCKET_EVENT));
-}
-
 static int
 cbb_pci_attach(device_t brdev)
 {
@@ -380,9 +345,11 @@ cbb_pci_attach(device_t brdev)
 
 	sc->bst = rman_get_bustag(sc->base_res);
 	sc->bsh = rman_get_bushandle(sc->base_res);
+	exca_init(&sc->exca[0], brdev, sc->bst, sc->bsh, CBB_EXCA_OFFSET);
 	sc->exca[0].flags |= EXCA_HAS_MEMREG_WIN;
 	sc->exca[0].chipset = EXCA_CARDBUS;
 	sc->chipinit = cbb_chipinit;
+	sc->chipinit(sc);
 
 	/*Sysctls*/
 	sctx = device_get_sysctl_ctx(brdev);
@@ -460,7 +427,17 @@ cbb_pci_attach(device_t brdev)
 		goto err;
 	}
 
-	cbb_pci_bridge_init(brdev);
+	/* reset 16-bit pcmcia bus */
+	exca_clrb(&sc->exca[0], EXCA_INTR, EXCA_INTR_RESET);
+
+	/* turn off power */
+	cbb_power(brdev, CARD_OFF);
+
+	/* CSC Interrupt: Card detect interrupt on */
+	cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
+
+	/* reset interrupt */
+	cbb_set(sc, CBB_SOCKET_EVENT, cbb_get(sc, CBB_SOCKET_EVENT));
 
 	if (bootverbose)
 		cbb_print_config(brdev);
@@ -502,10 +479,10 @@ cbb_chipinit(struct cbb_softc *sc)
 	pci_write_config(sc->dev, PCIR_SECBUS_2, sc->bus.sec, 1);
 	pci_write_config(sc->dev, PCIR_SUBBUS_2, sc->bus.sub, 1);
 
-	/* Enable memory access */
+	/* Enable DMA, memory access for this card and I/O acces for children */
 	pci_enable_busmaster(sc->dev);
-	/* XXX: This should not be necessary, but some chipsets require it */
-	PCI_MASK_CONFIG(sc->dev, PCIR_COMMAND, | PCIM_CMD_PORTEN, 2);
+	pci_enable_io(sc->dev, SYS_RES_IOPORT);
+	pci_enable_io(sc->dev, SYS_RES_MEMORY);
 
 	/* disable Legacy IO */
 	switch (sc->chipset) {
@@ -919,11 +896,35 @@ cbb_pci_resume(device_t brdev)
 {
 	int	error = 0;
 	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
+	uint32_t tmp;
 
-	/* Reinitialize the hardware, ala attach */
-	cbb_pci_bridge_init(brdev);
+	/*
+	 * In the APM and early ACPI era, BIOSes saved the PCI config
+	 * registers. As chips became more complicated, that functionality moved
+	 * into the ACPI code / tables. We must therefore, restore the settings
+	 * we made here to make sure the device come back. Transitions to Dx
+	 * from D0 and back to D0 cause the bridge to lose its config space, so
+	 * all the bus mappings and such are preserved.
+	 *
+	 * For most drivers, the PCI layer handles this saving. However, since
+	 * there's much black magic and arcane art hidden in these few lines of
+	 * code that would be difficult to transition into the PCI
+	 * layer. chipinit was several years of trial and error to write.
+	 */
+	pci_write_config(brdev, CBBR_SOCKBASE, rman_get_start(sc->base_res), 4);
+	DEVPRINTF((brdev, "PCI Memory allocated: %08lx\n",
+	    rman_get_start(sc->base_res)));
 
-	/* Signal the thread to wakeup to see if we have any cards to work with. */
+	sc->chipinit(sc);
+
+	/* reset interrupt -- Do we really need to do this? */
+	tmp = cbb_get(sc, CBB_SOCKET_EVENT);
+	cbb_set(sc, CBB_SOCKET_EVENT, tmp);
+
+	/* CSC Interrupt: Card detect interrupt on */
+	cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
+
+	/* Signal the thread to wakeup. */
 	wakeup(&sc->intrhand);
 
 	error = bus_generic_resume(brdev);

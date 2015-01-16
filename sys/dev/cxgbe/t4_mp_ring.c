@@ -38,6 +38,11 @@ __FBSDID("$FreeBSD$");
 
 #include "t4_mp_ring.h"
 
+#if defined(__i386__)
+#define atomic_cmpset_acq_64 atomic_cmpset_64
+#define atomic_cmpset_rel_64 atomic_cmpset_64
+#endif
+
 union ring_state {
 	struct {
 		uint16_t pidx_head;

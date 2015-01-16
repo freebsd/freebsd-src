@@ -477,7 +477,7 @@ cbb_event_thread(void *arg)
 		 */
 		mtx_lock(&Giant);
 		status = cbb_get(sc, CBB_SOCKET_STATE);
-		DEVPRINTF((sc->dev, "Status is %#x\n", status));
+		DPRINTF(("Status is 0x%x\n", status));
 		if (!CBB_CARD_PRESENT(status)) {
 			not_a_card = 0;		/* We know card type */
 			cbb_removal(sc);
@@ -800,14 +800,13 @@ cbb_power(device_t brdev, int volts)
 	if (on) {
 		mtx_lock(&sc->mtx);
 		cnt = sc->powerintr;
-
 		/*
 		 * We have a shortish timeout of 500ms here.  Some bridges do
-		 * not generate a POWER_CYCLE event for 16-bit cards.  In those
-		 * cases, we have to cope the best we can, and having only a
-		 * short delay is better than the alternatives.  Others raise
-		 * the power cycle a smidge before it is really ready.  We deal
-		 * with those below.
+		 * not generate a POWER_CYCLE event for 16-bit cards.  In
+		 * those cases, we have to cope the best we can, and having
+		 * only a short delay is better than the alternatives.  Others
+		 * raise the power cycle a smidge before it is really ready.
+		 * We deal with those below.
 		 */
 		sane = 10;
 		while (!(cbb_get(sc, CBB_SOCKET_STATE) & CBB_STATE_POWER_CYCLE) &&
@@ -817,18 +816,19 @@ cbb_power(device_t brdev, int volts)
 
 		/*
 		 * Relax for 100ms.  Some bridges appear to assert this signal
-		 * right away, but before the card has stabilized.  Other cards
-		 * need need more time to cope up reliabily.  Experiments with
-		 * troublesome setups show this to be a "cheap" way to enhance
-		 * reliabilty.
+		 * right away, but before the card has stabilized.  Other
+		 * cards need need more time to cope up reliabily.
+		 * Experiments with troublesome setups show this to be a
+		 * "cheap" way to enhance reliabilty.  We need not do this for
+		 * "off" since we don't touch the card after we turn it off.
 		 */
 		pause("cbbPwr", min(hz / 10, 1));
 
 		/*
-		 * The TOPIC95B requires a little bit extra time to get its act
-		 * together, so delay for an additional 100ms.  Also as
-		 * documented below, it doesn't seem to set the POWER_CYCLE bit,
-		 * so don't whine if it never came on.
+		 * The TOPIC95B requires a little bit extra time to get its
+		 * act together, so delay for an additional 100ms.  Also as
+		 * documented below, it doesn't seem to set the POWER_CYCLE
+		 * bit, so don't whine if it never came on.
 		 */
 		if (sc->chipset == CB_TOPIC95)
 			pause("cbb95B", hz / 10);
@@ -838,27 +838,26 @@ cbb_power(device_t brdev, int volts)
 
 	/*
 	 * After the power is good, we can turn off the power interrupt.
-	 * However, the PC Card standard says that we must delay turning the CD
-	 * bit back on for a bit to allow for bouncyness on power down. We just
-	 * pause a little below to cover that. Most bridges don't seem to need
-	 * this delay.
+	 * However, the PC Card standard says that we must delay turning the
+	 * CD bit back on for a bit to allow for bouncyness on power down
+	 * (recall that we don't wait above for a power down, since we don't
+	 * get an interrupt for that).  We're called either from the suspend
+	 * code in which case we don't want to turn card change on again, or
+	 * we're called from the card insertion code, in which case the cbb
+	 * thread will turn it on for us before it waits to be woken by a
+	 * change event.
 	 *
-	 * NB: Topic95B doesn't set the power cycle bit.  We assume that
-	 * both it and the TOPIC95 behave the same, though despite efforts
-	 * to find one, the author never could locate a laptop with a TOPIC95
-	 * in it.
+	 * NB: Topic95B doesn't set the power cycle bit.  we assume that
+	 * both it and the TOPIC95 behave the same.
 	 */
 	cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_POWER);
 	status = cbb_get(sc, CBB_SOCKET_STATE);
 	if (on && sc->chipset != CB_TOPIC95) {
 		if ((status & CBB_STATE_POWER_CYCLE) == 0)
 			device_printf(sc->dev, "Power not on?\n");
-	} else {
-		pause("cbbDwn", hz / 10);
 	}
 	if (status & CBB_STATE_BAD_VCC_REQ) {
-		device_printf(sc->dev, "Bad Vcc requested status %#x %dV\n",
-		    status, volts);	
+		device_printf(sc->dev, "Bad Vcc requested\n");	
 		/*
 		 * Turn off the power, and try again.  Retrigger other
 		 * active interrupts via force register.  From NetBSD

@@ -105,7 +105,7 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 	KASSERT(curvnet == ifp->if_vnet,
 	    ("curvnet(%p) differs from iface vnet(%p)", curvnet, ifp->if_vnet));
 	chain = &V_layer3_chain;
-	IPFW_WLOCK(chain);
+	IPFW_UH_WLOCK(chain);
 	/* Check every nat entry... */
 	LIST_FOREACH(ptr, &chain->nat, _next) {
 		/* ...using nic 'ifp->if_xname' as dynamic alias address. */
@@ -117,13 +117,15 @@ ifaddr_change(void *arg __unused, struct ifnet *ifp)
 				continue;
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
+			IPFW_WLOCK(chain);
 			ptr->ip = ((struct sockaddr_in *)
 			    (ifa->ifa_addr))->sin_addr;
 			LibAliasSetAddress(ptr->lib, ptr->ip);
+			IPFW_WUNLOCK(chain);
 		}
 		if_addr_runlock(ifp);
 	}
-	IPFW_WUNLOCK(chain);
+	IPFW_UH_WUNLOCK(chain);
 }
 
 /*

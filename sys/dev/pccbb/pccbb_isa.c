@@ -206,15 +206,13 @@ cbb_isa_attach(device_t dev)
 static int
 cbb_isa_suspend(device_t dev)
 {
-
-	return 0;
+	return (0);
 }
 
 static int
 cbb_isa_resume(device_t dev)
 {
-
-	return 0;
+	return (0);
 }
 
 static device_method_t cbb_methods[] = {
