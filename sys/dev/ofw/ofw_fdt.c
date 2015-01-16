@@ -231,6 +231,13 @@ ofw_fdt_getproplen(ofw_t ofw, phandle_t package, const char *propname)
 		return (len + 1);
 	}
 
+	if (prop == NULL && offset == fdt_path_offset(fdtp, "/chosen")) {
+		if (strcmp(propname, "fdtbootcpu") == 0)
+			return (sizeof(cell_t));
+		if (strcmp(propname, "fdtmemreserv") == 0)
+			return (sizeof(uint64_t)*2*fdt_num_mem_rsv(fdtp));
+	}
+
 	return (len);
 }
 
@@ -242,6 +249,7 @@ ofw_fdt_getprop(ofw_t ofw, phandle_t package, const char *propname, void *buf,
 	const void *prop;
 	const char *name;
 	int len, offset;
+	uint32_t cpuid;
 
 	offset = fdt_phandle_offset(package);
 	if (offset < 0)
@@ -256,6 +264,18 @@ ofw_fdt_getprop(ofw_t ofw, phandle_t package, const char *propname, void *buf,
 		if (len + 1 > buflen)
 			len = buflen;
 		return (len + 1);
+	}
+
+	if (prop == NULL && offset == fdt_path_offset(fdtp, "/chosen")) {
+		if (strcmp(propname, "fdtbootcpu") == 0) {
+			cpuid = cpu_to_fdt32(fdt_boot_cpuid_phys(fdtp));
+			len = sizeof(cpuid);
+			prop = &cpuid;
+		}
+		if (strcmp(propname, "fdtmemreserv") == 0) {
+			prop = (char *)fdtp + fdt_off_mem_rsvmap(fdtp);
+			len = sizeof(uint64_t)*2*fdt_num_mem_rsv(fdtp);
+		}
 	}
 
 	if (prop == NULL)
