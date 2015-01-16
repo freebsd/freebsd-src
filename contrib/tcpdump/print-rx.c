@@ -701,63 +701,63 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 		}
 #endif
 
-#define STROUT(MAX) { unsigned int i; \
+#define STROUT(MAX) { unsigned int _i; \
 			TCHECK2(bp[0], sizeof(int32_t)); \
-			i = EXTRACT_32BITS(bp); \
-			if (i > (MAX)) \
+			_i = EXTRACT_32BITS(bp); \
+			if (_i > (MAX)) \
 				goto trunc; \
 			bp += sizeof(int32_t); \
 			printf(" \""); \
-			if (fn_printn(bp, i, snapend)) \
+			if (fn_printn(bp, _i, snapend)) \
 				goto trunc; \
 			printf("\""); \
-			bp += ((i + sizeof(int32_t) - 1) / sizeof(int32_t)) * sizeof(int32_t); \
+			bp += ((_i + sizeof(int32_t) - 1) / sizeof(int32_t)) * sizeof(int32_t); \
 		}
 
-#define INTOUT() { int i; \
+#define INTOUT() { int _i; \
 			TCHECK2(bp[0], sizeof(int32_t)); \
-			i = (int) EXTRACT_32BITS(bp); \
+			_i = (int) EXTRACT_32BITS(bp); \
 			bp += sizeof(int32_t); \
-			printf(" %d", i); \
+			printf(" %d", _i); \
 		}
 
-#define UINTOUT() { unsigned long i; \
+#define UINTOUT() { unsigned long _i; \
 			TCHECK2(bp[0], sizeof(int32_t)); \
-			i = EXTRACT_32BITS(bp); \
+			_i = EXTRACT_32BITS(bp); \
 			bp += sizeof(int32_t); \
-			printf(" %lu", i); \
+			printf(" %lu", _i); \
 		}
 
-#define UINT64OUT() { u_int64_t i; \
+#define UINT64OUT() { u_int64_t _i; \
 			TCHECK2(bp[0], sizeof(u_int64_t)); \
-			i = EXTRACT_64BITS(bp); \
+			_i = EXTRACT_64BITS(bp); \
 			bp += sizeof(u_int64_t); \
-			printf(" %" PRIu64, i); \
+			printf(" %" PRIu64, _i); \
 		}
 
-#define DATEOUT() { time_t t; struct tm *tm; char str[256]; \
+#define DATEOUT() { time_t _t; struct tm *tm; char str[256]; \
 			TCHECK2(bp[0], sizeof(int32_t)); \
-			t = (time_t) EXTRACT_32BITS(bp); \
+			_t = (time_t) EXTRACT_32BITS(bp); \
 			bp += sizeof(int32_t); \
-			tm = localtime(&t); \
+			tm = localtime(&_t); \
 			strftime(str, 256, "%Y/%m/%d %T", tm); \
 			printf(" %s", str); \
 		}
 
-#define STOREATTROUT() { unsigned long mask, i; \
+#define STOREATTROUT() { unsigned long mask, _i; \
 			TCHECK2(bp[0], (sizeof(int32_t)*6)); \
 			mask = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
 			if (mask) printf (" StoreStatus"); \
 		        if (mask & 1) { printf(" date"); DATEOUT(); } \
 			else bp += sizeof(int32_t); \
-			i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
-		        if (mask & 2) printf(" owner %lu", i);  \
-			i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
-		        if (mask & 4) printf(" group %lu", i); \
-			i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
-		        if (mask & 8) printf(" mode %lo", i & 07777); \
-			i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
-		        if (mask & 16) printf(" segsize %lu", i); \
+			_i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
+		        if (mask & 2) printf(" owner %lu", _i);  \
+			_i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
+		        if (mask & 4) printf(" group %lu", _i); \
+			_i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
+		        if (mask & 8) printf(" mode %lo", _i & 07777); \
+			_i = EXTRACT_32BITS(bp); bp += sizeof(int32_t); \
+		        if (mask & 16) printf(" segsize %lu", _i); \
 			/* undocumented in 3.3 docu */ \
 		        if (mask & 1024) printf(" fsync");  \
 		}
@@ -771,7 +771,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 			printf(" %d.%d", epoch, counter); \
 		}
 
-#define AFSUUIDOUT() {u_int32_t temp; int i; \
+#define AFSUUIDOUT() {u_int32_t temp; int _i; \
 			TCHECK2(bp[0], 11*sizeof(u_int32_t)); \
 			temp = EXTRACT_32BITS(bp); \
 			bp += sizeof(u_int32_t); \
@@ -782,7 +782,7 @@ rx_cache_find(const struct rx_header *rxh, const struct ip *ip, int sport,
 			temp = EXTRACT_32BITS(bp); \
 			bp += sizeof(u_int32_t); \
 			printf("%04x", temp); \
-			for (i = 0; i < 8; i++) { \
+			for (_i = 0; _i < 8; _i++) { \
 				temp = EXTRACT_32BITS(bp); \
 				bp += sizeof(u_int32_t); \
 				printf("%02x", (unsigned char) temp); \
@@ -1064,16 +1064,16 @@ fs_reply_print(register const u_char *bp, int length, int32_t opcode)
 			;
 		}
 	} else if (rxh->type == RX_PACKET_TYPE_ABORT) {
-		int i;
+		int _i;
 
 		/*
 		 * Otherwise, just print out the return code
 		 */
 		TCHECK2(bp[0], sizeof(int32_t));
-		i = (int) EXTRACT_32BITS(bp);
+		_i = (int) EXTRACT_32BITS(bp);
 		bp += sizeof(int32_t);
 
-		printf(" error %s", tok2str(afs_fs_errors, "#%d", i));
+		printf(" error %s", tok2str(afs_fs_errors, "#%d", _i));
 	} else {
 		printf(" strange fs reply of type %d", rxh->type);
 	}

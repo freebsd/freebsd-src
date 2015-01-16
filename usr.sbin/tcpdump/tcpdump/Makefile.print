@@ -93,6 +93,7 @@ SRCS+=	addrtoname.c \
 	print-rpki-rtr.c \
 	print-rrcp.c \
 	print-rsvp.c \
+	print-rx.c \
 	print-sctp.c \
 	print-sflow.c \
 	print-sip.c \
