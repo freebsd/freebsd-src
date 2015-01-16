@@ -504,10 +504,10 @@ decode_prefix4(const u_char *pptr, u_int itemlen, char *buf, u_int buflen)
 	ITEMCHECK(plenbytes);
 	memcpy(&addr, &pptr[1], plenbytes);
 	if (plen % 8) {
-		((u_char *)(&addr))[plenbytes - 1] &=
+		((u_char *)&addr)[plenbytes - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
-	snprintf(buf, buflen, "%s/%d", getname((const u_char *)&addr), plen);
+	snprintf(buf, buflen, "%s/%d", getname((u_char *)&addr), plen);
 	return 1 + plenbytes;
 
 trunc:
@@ -555,8 +555,8 @@ decode_labeled_prefix4(const u_char *pptr, u_int itemlen, char *buf, u_int bufle
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
         /* the label may get offsetted by 4 bits so lets shift it right */
-	snprintf(buf, buflen, "%s/%d-, label:%u %s",
-                 getname((const u_char *)&addr),
+	snprintf(buf, buflen, "%s/%d, label:%u %s",
+                 getname((u_char *)&addr),
                  plen,
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
@@ -623,7 +623,7 @@ trunc:
  * return the number of bytes read from the wire.
  */
 static int
-bgp_vpn_sg_print(const u_char *pptr, char *buf, u_int buflen) {
+bgp_vpn_sg_print (const u_char *pptr, char *buf, u_int buflen) {
 
     u_int8_t addr_length;
     u_int total_length, offset;
@@ -667,7 +667,7 @@ trunc:
  * we use bgp_vpn_rd_print for
  * printing route targets inside a NLRI */
 char *
-bgp_vpn_rd_print(const u_char *pptr) {
+bgp_vpn_rd_print (const u_char *pptr) {
 
    /* allocate space for the largest possible string */
     static char rd[sizeof("xxxxxxxxxx:xxxxx (xxx.xxx.xxx.xxx:xxxxx)")];
@@ -735,7 +735,7 @@ decode_rt_routing_info(const u_char *pptr, char *buf, u_int buflen)
 	}
 	snprintf(buf, buflen, "origin AS: %s, route target %s",
 	    as_printf(astostr, sizeof(astostr), EXTRACT_32BITS(pptr+1)),
-	    bgp_vpn_rd_print((const u_char *)&route_target));
+	    bgp_vpn_rd_print((u_char *)&route_target));
 
 	return 5 + (plen + 7) / 8;
 
@@ -770,7 +770,7 @@ decode_labeled_vpn_prefix4(const u_char *pptr, char *buf, u_int buflen)
         /* the label may get offsetted by 4 bits so lets shift it right */
 	snprintf(buf, buflen, "RD: %s, %s/%d, label:%u %s",
                  bgp_vpn_rd_print(pptr+4),
-                 getname((const u_char *)&addr),
+                 getname((u_char *)&addr),
                  plen,
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
@@ -1069,7 +1069,7 @@ decode_prefix6(const u_char *pd, u_int itemlen, char *buf, u_int buflen)
 		addr.s6_addr[plenbytes - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
-	snprintf(buf, buflen, "%s/%d", getname6((const u_char *)&addr), plen);
+	snprintf(buf, buflen, "%s/%d", getname6((u_char *)&addr), plen);
 	return 1 + plenbytes;
 
 trunc:
@@ -1109,7 +1109,7 @@ decode_labeled_prefix6(const u_char *pptr, u_int itemlen, char *buf, u_int bufle
 	}
         /* the label may get offsetted by 4 bits so lets shift it right */
 	snprintf(buf, buflen, "%s/%d, label:%u %s",
-                 getname6((const u_char *)&addr),
+                 getname6((u_char *)&addr),
                  plen,
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
@@ -1150,7 +1150,7 @@ decode_labeled_vpn_prefix6(const u_char *pptr, char *buf, u_int buflen)
         /* the label may get offsetted by 4 bits so lets shift it right */
 	snprintf(buf, buflen, "RD: %s, %s/%d, label:%u %s",
                  bgp_vpn_rd_print(pptr+4),
-                 getname6((const u_char *)&addr),
+                 getname6((u_char *)&addr),
                  plen,
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
@@ -1182,7 +1182,7 @@ decode_clnp_prefix(const u_char *pptr, char *buf, u_int buflen)
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
 	snprintf(buf, buflen, "%s/%d",
-                 isonsap_string((const u_char *)addr,(plen + 7) / 8),
+                 isonsap_string(addr,(plen + 7) / 8),
                  plen);
 
 	return 1 + (plen + 7) / 8;
@@ -1218,7 +1218,7 @@ decode_labeled_vpn_clnp_prefix(const u_char *pptr, char *buf, u_int buflen)
         /* the label may get offsetted by 4 bits so lets shift it right */
 	snprintf(buf, buflen, "RD: %s, %s/%d, label:%u %s",
                  bgp_vpn_rd_print(pptr+4),
-                 isonsap_string((const u_char *)addr,(plen + 7) / 8),
+                 isonsap_string(addr,(plen + 7) / 8),
                  plen,
                  EXTRACT_24BITS(pptr+1)>>4,
                  ((pptr[3]&1)==0) ? "(BOGUS: Bottom of Stack NOT set!)" : "(bottom)" );
@@ -1239,7 +1239,6 @@ trunc:
 static int
 bgp_attr_get_as_size (u_int8_t bgpa_type, const u_char *pptr, int len)
 {
-    int incr;
     const u_char *tptr = pptr;
 
     /*
@@ -1265,10 +1264,7 @@ bgp_attr_get_as_size (u_int8_t bgpa_type, const u_char *pptr, int len)
             goto trunc;
         }
         TCHECK(tptr[1]);
-	incr = 2 + tptr[1] * 2;
-	if ((tptr - pptr) + incr > len)
-		break;
-        tptr += incr;
+        tptr += 2 + tptr[1] * 2;
     }
 
     /*
@@ -2149,7 +2145,7 @@ bgp_attr_print(u_int atype, const u_char *pptr, u_int len)
 		tptr+=4;
                 len -=4;
 
-		/* XXX-BD: apparently harmless shadowning of atype */
+		/* XXX-BD: apparently harmless shadowing of atype */
                 while (len) {
                     u_int aflags, _atype, alenlen, alen;
                     
@@ -2311,7 +2307,7 @@ bgp_open_print(const u_char *dat, int length)
 	printf("my AS %s, ",
 	    as_printf(astostr, sizeof(astostr), ntohs(bgpo.bgpo_myas)));
 	printf("Holdtime %us, ", ntohs(bgpo.bgpo_holdtime));
-	printf("ID %s", getname((const u_char *)&bgpo.bgpo_id));
+	printf("ID %s", getname((u_char *)&bgpo.bgpo_id));
 	printf("\n\t  Optional parameters, length: %u", bgpo.bgpo_optlen);
 
         /* some little sanity checking */
@@ -2726,7 +2722,7 @@ _bgp_print(const u_char *dat, int length)
 
 		if (!TTEST2(p[0], sizeof(marker)))
 			break;
-		if (memcmp(p, (const u_char *)marker, sizeof(marker)) != 0) {
+		if (memcmp(p, marker, sizeof(marker)) != 0) {
 			p++;
 			continue;
 		}
