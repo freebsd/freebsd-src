@@ -474,6 +474,7 @@ _cardbus=	cardbus
 _cbb=		cbb
 _cpuctl=	cpuctl
 _cpufreq=	cpufreq
+_cs=		cs
 _dpms=		dpms
 _drm=		drm
 _drm2=		drm2
@@ -482,9 +483,11 @@ _dtrace=	dtrace
 .endif
 _ed=		ed
 _em=		em
+_ep=		ep
 _et=		et
 _exca=		exca
 _ext2fs=	ext2fs
+_fe=		fe
 _filemon=	filemon
 _i2c=		i2c
 .if ${MK_OFED} != "no" || defined(ALL_MODULES)
@@ -519,6 +522,7 @@ _vmware=	vmware
 _vxge=  	vxge
 _wbwd=		wbwd
 _wi=		wi
+_xe=		xe
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
 .endif
@@ -625,10 +629,7 @@ _coff=		coff
 .if ${MK_SOURCELESS_UCODE} != "no"
 _cp=		cp
 .endif
-_cs=		cs
 _elink=		elink
-_ep=		ep
-_fe=		fe
 _glxiic=	glxiic
 _glxsb=		glxsb
 _ibcs2=		ibcs2
@@ -644,7 +645,6 @@ _streams=	streams
 _stg=		stg
 _svr4=		svr4
 _wds=		wds
-_xe=		xe
 .if ${MACHINE} == "i386"
 .if ${MK_EISA} != "no"
 _ahb=		ahb
