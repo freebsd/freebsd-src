@@ -444,6 +444,15 @@ if_init(if_t ifp, void *sc)
 		return (ifp->if_ops->ifop_init(sc));
 }
 
+#undef if_input
+static inline void
+if_input(if_t ifp, struct mbuf *m)
+{
+
+	return (ifp->if_ops->ifop_input(ifp, m));
+}
+
+#undef if_transmit
 static inline int
 if_transmit(if_t ifp, struct mbuf *m)
 {

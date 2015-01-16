@@ -708,7 +708,6 @@ struct if_attach_args {
  */
 if_t	if_attach(struct if_attach_args *);
 void	if_detach(if_t);
-void	if_input(if_t, struct mbuf *);
 void	if_mtap(if_t, struct mbuf *, void *, u_int);
 void	if_inc_counter(if_t, ift_counter, int64_t);
 void	if_inc_txcounters(if_t, struct mbuf *);
@@ -720,6 +719,14 @@ int	if_drvioctl(u_long, struct ifnet *, void *, struct thread *);
 uint64_t if_get(if_t, ift_feature);
 uint64_t if_flagbits(if_t, ift_feature, uint64_t, uint64_t, uint64_t);
 uint64_t if_get_counter_default(if_t, ift_counter);
+
+/*
+ * Interface if_ops that are available for drivers.
+ */
+void	if_input_noinline(if_t, struct mbuf *);
+#define	if_input(ifp, m)	if_input_noinline(ifp, m)
+int	if_transmit_noinline(if_t, struct mbuf *);
+#define	if_transmit(ifp, m)	if_transmit_noinline(ifp, m)
 
 /*
  * Traversing through interface address lists.

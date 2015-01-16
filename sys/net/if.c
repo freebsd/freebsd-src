@@ -3720,8 +3720,15 @@ if_snd_prepend(if_t ifp, struct mbuf *m)
  * Implementation of if ops, that can be called from drivers.
  */
 void
-if_input(if_t ifp, struct mbuf *m)
+if_input_noinline(if_t ifp, struct mbuf *m)
 {
 
-	return (ifp->if_ops->ifop_input(ifp, m));
+	return (if_input(ifp, m));
+}
+
+int
+if_transmit_noinline(if_t ifp, struct mbuf *m)
+{
+
+	return (if_transmit(ifp, m));
 }
