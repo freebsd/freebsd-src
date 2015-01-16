@@ -1916,6 +1916,7 @@ zpool_scan(zpool_handle_t *zhp, pool_scan_func_t func)
 	}
 }
 
+#ifdef illumos
 /*
  * This provides a very minimal check whether a given string is likely a
  * c#t#d# style string.  Users of this are expected to do their own
@@ -1947,6 +1948,7 @@ ctd_check_path(char *str) {
 	}
 	return (CTD_CHECK(str));
 }
+#endif
 
 /*
  * Find a vdev that matches the search criteria specified. We use the
@@ -2002,6 +2004,7 @@ vdev_to_nvlist_iter(nvlist_t *nv, nvlist_t *search, boolean_t *avail_spare,
 		 *
 		 * Otherwise, all other searches are simple string compares.
 		 */
+#ifdef illumos
 		if (strcmp(srchkey, ZPOOL_CONFIG_PATH) == 0 &&
 		    ctd_check_path(val)) {
 			uint64_t wholedisk = 0;
@@ -2041,6 +2044,9 @@ vdev_to_nvlist_iter(nvlist_t *nv, nvlist_t *search, boolean_t *avail_spare,
 				break;
 			}
 		} else if (strcmp(srchkey, ZPOOL_CONFIG_TYPE) == 0 && val) {
+#else
+		if (strcmp(srchkey, ZPOOL_CONFIG_TYPE) == 0 && val) {
+#endif
 			char *type, *idx, *end, *p;
 			uint64_t id, vdev_id;
 
