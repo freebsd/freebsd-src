@@ -265,6 +265,11 @@ u_int	mii_oui(u_int, u_int);
 #define	MII_MODEL(id2)		(((id2) & IDR2_MODEL) >> 4)
 #define	MII_REV(id2)		((id2) & IDR2_REV)
 
+/* Arguments for miibus_readvar(). */
+enum {
+	MIIVAR_MTU,
+};
+
 #endif /* _KERNEL */
 
 #endif /* _DEV_MII_MIIVAR_H_ */

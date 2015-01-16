@@ -2561,9 +2561,10 @@ struct msk_if_softc {
 	device_t		msk_miibus;
 	device_t		msk_if_dev;
 	int32_t			msk_port;	/* port # on controller */
-	int			msk_framesize;
 	int			msk_phytype;
 	int			msk_phyaddr;
+	uint32_t		msk_framesize;
+	uint32_t		msk_capenable;
 	uint32_t		msk_flags;
 #define	MSK_FLAG_MSI		0x00000001
 #define	MSK_FLAG_FASTETHER	0x00000004

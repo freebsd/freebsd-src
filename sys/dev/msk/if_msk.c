@@ -156,6 +156,8 @@ static int jumbo_disable = 0;
 TUNABLE_INT("hw.msk.jumbo_disable", &jumbo_disable);
 
 #define MSK_CSUM_FEATURES	(CSUM_TCP | CSUM_UDP)
+#define	MSK_DEFAULT_FRAMESIZE	\
+	    (ETHERMTU + ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN)
 
 /*
  * Devices supported by this driver.
@@ -314,7 +316,7 @@ static int msk_miibus_writereg(device_t, int, int, int);
 static void msk_miibus_statchg(device_t);
 
 static void msk_rxfilter(struct msk_if_softc *);
-static void msk_setvlan(struct msk_if_softc *, if_t);
+static void msk_setvlan(struct msk_if_softc *);
 
 static void msk_stats_clear(struct msk_if_softc *);
 static void msk_stats_update(struct msk_if_softc *);
@@ -642,12 +644,12 @@ msk_rxfilter(struct msk_if_softc *sc_if)
 }
 
 static void
-msk_setvlan(struct msk_if_softc *sc_if, if_t ifp)
+msk_setvlan(struct msk_if_softc *sc_if)
 {
 	struct msk_softc *sc;
 
 	sc = sc_if->msk_softc;
-	if (if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWTAGGING) {
+	if (sc_if->msk_capenable & IFCAP_VLAN_HWTAGGING) {
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, RX_GMF_CTRL_T),
 		    RX_VLAN_STRIP_ON);
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
@@ -667,7 +669,7 @@ msk_rx_fill(struct msk_if_softc *sc_if, int jumbo)
 	int i;
 
 	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
-	    (if_get(sc_if->msk_ifp, IF_CAPENABLE) & IFCAP_RXCSUM) != 0) {
+	    (sc_if->msk_capenable & IFCAP_RXCSUM) != 0) {
 		/* Wait until controller executes OP_TCPSTART command. */
 		for (i = 100; i > 0; i--) {
 			DELAY(100);
@@ -733,7 +735,7 @@ msk_init_rx_ring(struct msk_if_softc *sc_if)
 	prod = 0;
 	/* Have controller know how to compute Rx checksum. */
 	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
-	    (if_get(sc_if->msk_ifp, IF_CAPENABLE) & IFCAP_RXCSUM)) {
+	    (sc_if->msk_capenable & IFCAP_RXCSUM)) {
 #ifdef MSK_64BIT_DMA
 		rxd = &sc_if->msk_cdata.msk_rxdesc[prod];
 		rxd->rx_m = NULL;
@@ -801,7 +803,7 @@ msk_init_jumbo_rx_ring(struct msk_if_softc *sc_if)
 	prod = 0;
 	/* Have controller know how to compute Rx checksum. */
 	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
-	    (if_get(sc_if->msk_ifp, IF_CAPENABLE) & IFCAP_RXCSUM) != 0) {
+	    (sc_if->msk_capenable & IFCAP_RXCSUM) != 0) {
 #ifdef MSK_64BIT_DMA
 		rxd = &sc_if->msk_cdata.msk_jumbo_rxdesc[prod];
 		rxd->rx_m = NULL;
@@ -1066,14 +1068,13 @@ msk_mediastatus(if_t ifp, struct ifmediareq *ifmr)
 }
 
 static int
-msk_ioctl(if_t ifp, u_long command, void  *data, struct thread *td)
+msk_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 {
 	struct msk_if_softc *sc_if;
 	struct ifreq *ifr;
 	struct mii_data	*mii;
 	int error, reinit, setvlan;
-	uint32_t flags, capenable, capabilities, mask;
-	uint64_t hwassist;
+	uint32_t flags, mask;
 
 	sc_if = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	ifr = (struct ifreq *)data;
@@ -1085,9 +1086,6 @@ msk_ioctl(if_t ifp, u_long command, void  *data, struct thread *td)
 			error = EINVAL;
 			break;
 		}
-		if (if_get(ifp, IF_MTU) == ifr->ifr_mtu)
-			break;
-
 		MSK_IF_LOCK(sc_if);
 		if (ifr->ifr_mtu > ETHERMTU) {
 			if ((sc_if->msk_flags & MSK_FLAG_JUMBO) == 0) {
@@ -1095,15 +1093,19 @@ msk_ioctl(if_t ifp, u_long command, void  *data, struct thread *td)
 				MSK_IF_UNLOCK(sc_if);
 				break;
 			}
-			if ((sc_if->msk_flags &
-			    MSK_FLAG_JUMBO_NOCSUM) != 0) {
-				if_clrflags(ifp, IF_HWASSIST,
-				    MSK_CSUM_FEATURES | CSUM_TSO);
-				if_clrflags(ifp, IF_CAPENABLE,
-				    IFCAP_TSO4 | IFCAP_TXCSUM);
+			if ((sc_if->msk_flags & MSK_FLAG_JUMBO_NOCSUM) != 0) {
+				struct ifreq tmp;
+
+				MSK_IF_UNLOCK(sc_if);
+				if_drvioctl(SIOCGIFCAP, ifp, &tmp, td);
+				tmp.ifr_reqcap = tmp.ifr_curcap &
+				    ~(MSK_CSUM_FEATURES | CSUM_TSO);
+				if_drvioctl(SIOCSIFCAP, ifp, &tmp, td);
+				MSK_IF_LOCK(sc_if);
 			}
 		}
-		if_set(ifp, IF_MTU, ifr->ifr_mtu);
+		sc_if->msk_framesize = ifr->ifr_mtu + ETHER_HDR_LEN +
+		    ETHER_VLAN_ENCAP_LEN;
 		if ((sc_if->msk_flags & MSK_FLAG_RUNNING) != 0) {
 			sc_if->msk_flags &= ~MSK_FLAG_RUNNING;
 			msk_init_locked(sc_if);
@@ -1140,57 +1142,27 @@ msk_ioctl(if_t ifp, u_long command, void  *data, struct thread *td)
 	case SIOCSIFCAP:
 		reinit = 0;
 		setvlan = 0;
-		MSK_IF_LOCK(sc_if);
-		capenable = if_get(ifp, IF_CAPENABLE);
-		capabilities = if_get(ifp, IF_CAPABILITIES);
-		hwassist = if_get(ifp, IF_HWASSIST);
-		mask = ifr->ifr_reqcap ^ capenable;
-		if ((mask & IFCAP_TXCSUM) != 0 &&
-		    (IFCAP_TXCSUM & capabilities) != 0) {
-			capenable ^= IFCAP_TXCSUM;
-			if ((IFCAP_TXCSUM & capenable) != 0)
-				hwassist |= MSK_CSUM_FEATURES;
-			else
-				hwassist &= ~MSK_CSUM_FEATURES;
-		}
+		ifr->ifr_hwassist = 0;
+		mask = ifr->ifr_reqcap ^ ifr->ifr_curcap;
+		if ((IFCAP_TXCSUM & ifr->ifr_reqcap) != 0)
+			ifr->ifr_hwassist |= MSK_CSUM_FEATURES;
 		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (IFCAP_RXCSUM & capabilities) != 0) {
-			capenable ^= IFCAP_RXCSUM;
-			if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0)
+		    (sc_if->msk_flags & MSK_FLAG_DESCV2) == 0)
 				reinit = 1;
-		}
-		if ((mask & IFCAP_VLAN_HWCSUM) != 0 &&
-		    (IFCAP_VLAN_HWCSUM & capabilities) != 0)
-			capenable ^= IFCAP_VLAN_HWCSUM;
-		if ((mask & IFCAP_TSO4) != 0 &&
-		    (IFCAP_TSO4 & capabilities) != 0) {
-			capenable ^= IFCAP_TSO4;
-			if ((IFCAP_TSO4 & capenable) != 0)
-				hwassist |= CSUM_TSO;
-			else
-				hwassist &= ~CSUM_TSO;
-		}
-		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
-		    (IFCAP_VLAN_HWTSO & capabilities) != 0)
-			capenable ^= IFCAP_VLAN_HWTSO;
-		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
-		    (IFCAP_VLAN_HWTAGGING & capabilities) != 0) {
-			capenable ^= IFCAP_VLAN_HWTAGGING;
-			if ((IFCAP_VLAN_HWTAGGING & capenable) == 0)
-				capenable &=
-				    ~(IFCAP_VLAN_HWTSO | IFCAP_VLAN_HWCSUM);
+		if ((IFCAP_TSO4 & ifr->ifr_reqcap) != 0)
+			ifr->ifr_hwassist |= CSUM_TSO;
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0)
 			setvlan = 1;
-		}
-		if (if_get(ifp, IF_MTU) > ETHERMTU &&
+		if (sc_if->msk_framesize > MSK_DEFAULT_FRAMESIZE &&
 		    (sc_if->msk_flags & MSK_FLAG_JUMBO_NOCSUM) != 0) {
-			hwassist &= ~(MSK_CSUM_FEATURES | CSUM_TSO);
-			capenable &= ~(IFCAP_TSO4 | IFCAP_TXCSUM);
+			ifr->ifr_hwassist &= ~(MSK_CSUM_FEATURES | CSUM_TSO);
+			ifr->ifr_reqcap &= ~(IFCAP_TSO4 | IFCAP_TXCSUM);
 		}
-		if_set(ifp, IF_HWASSIST, hwassist);
-		if_set(ifp, IF_CAPENABLE, capenable);
+		MSK_IF_LOCK(sc_if);
+		sc_if->msk_capenable = ifr->ifr_reqcap;
 		if (setvlan)
-			msk_setvlan(sc_if, ifp);
-		if (reinit > 0 && (sc_if->msk_flags & MSK_FLAG_RUNNING) != 0) {
+			msk_setvlan(sc_if);
+		if (reinit && (sc_if->msk_flags & MSK_FLAG_RUNNING) != 0) {
 			sc_if->msk_flags &= ~MSK_FLAG_RUNNING;
 			msk_init_locked(sc_if);
 		}
@@ -1727,8 +1699,10 @@ msk_attach(device_t dev)
 	ifat.ifat_lla = eaddr;
 	ifat.ifat_softc = sc_if;
 	ifat.ifat_dunit = device_get_unit(dev);
-
 	ifp = sc_if->msk_ifp = if_attach(&ifat);
+
+	sc_if->msk_capenable = ifat.ifat_capenable;
+	sc_if->msk_framesize = MSK_DEFAULT_FRAMESIZE;
 
 	return (0);
 
@@ -3197,7 +3171,7 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 	do {
 		rxlen = status >> 16;
 		if ((status & GMR_FS_VLAN) != 0 &&
-		    (if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWTAGGING) != 0)
+		    (sc_if->msk_capenable & IFCAP_VLAN_HWTAGGING) != 0)
 			rxlen -= ETHER_VLAN_ENCAP_LEN;
 		if ((sc_if->msk_flags & MSK_FLAG_NORXCHK) != 0) {
 			/*
@@ -3239,11 +3213,11 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 			msk_fixup_rx(m);
 #endif
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-		if ((if_get(ifp, IF_CAPENABLE) & IFCAP_RXCSUM) != 0)
+		if ((sc_if->msk_capenable & IFCAP_RXCSUM) != 0)
 			msk_rxcsum(sc_if, control, m);
 		/* Check for VLAN tagged packets. */
 		if ((status & GMR_FS_VLAN) != 0 &&
-		    (if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWTAGGING) != 0) {
+		    (sc_if->msk_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
 			m->m_pkthdr.ether_vtag = sc_if->msk_vtag;
 			m->m_flags |= M_VLANTAG;
 		}
@@ -3273,7 +3247,7 @@ msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 	do {
 		rxlen = status >> 16;
 		if ((status & GMR_FS_VLAN) != 0 &&
-		    (if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWTAGGING) != 0)
+		    (sc_if->msk_capenable & IFCAP_VLAN_HWTAGGING) != 0)
 			rxlen -= ETHER_VLAN_ENCAP_LEN;
 		if (len > sc_if->msk_framesize ||
 		    ((status & GMR_FS_ANY_ERR) != 0) ||
@@ -3304,11 +3278,11 @@ msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 			msk_fixup_rx(m);
 #endif
 		if_inc_counter(ifp, IFCOUNTER_IPACKETS, 1);
-		if (if_get(ifp, IF_CAPENABLE) & IFCAP_RXCSUM)
+		if (sc_if->msk_capenable & IFCAP_RXCSUM)
 			msk_rxcsum(sc_if, control, m);
 		/* Check for VLAN tagged packets. */
 		if ((status & GMR_FS_VLAN) != 0 &&
-		    (if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWTAGGING) != 0) {
+		    (sc_if->msk_capenable & IFCAP_VLAN_HWTAGGING) != 0) {
 			m->m_pkthdr.ether_vtag = sc_if->msk_vtag;
 			m->m_flags |= M_VLANTAG;
 		}
@@ -3752,7 +3726,7 @@ msk_set_tx_stfwd(struct msk_if_softc *sc_if)
 		CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T),
 		    TX_STFW_ENA);
 	} else {
-		if (if_get(ifp, IF_MTU) > ETHERMTU) {
+		if (sc_if->msk_framesize > MSK_DEFAULT_FRAMESIZE) {
 			/* Set Tx GMAC FIFO Almost Empty Threshold. */
 			CSR_WRITE_4(sc,
 			    MR_ADDR(sc_if->msk_port, TX_GMF_AE_THR),
@@ -3801,17 +3775,6 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	/* Cancel pending I/O and free all Rx/Tx buffers. */
 	msk_stop(sc_if);
 
-	if (if_get(ifp, IF_MTU) < ETHERMTU)
-		sc_if->msk_framesize = ETHERMTU;
-	else
-		sc_if->msk_framesize = if_get(ifp, IF_MTU);
-	sc_if->msk_framesize += ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN;
-	if (if_get(ifp, IF_MTU) > ETHERMTU &&
-	    (sc_if->msk_flags & MSK_FLAG_JUMBO_NOCSUM) != 0) {
-		if_clrflags(ifp, IF_HWASSIST, MSK_CSUM_FEATURES | CSUM_TSO);
-		if_clrflags(ifp, IF_CAPENABLE, IFCAP_TSO4 | IFCAP_TXCSUM);
-	}
-
 	/* GMAC Control reset. */
 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_RST_SET);
 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, GMAC_CTRL), GMC_RST_CLR);
@@ -3851,7 +3814,7 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	gmac = DATA_BLIND_VAL(DATA_BLIND_DEF) |
 	    GM_SMOD_VLAN_ENA | IPG_DATA_VAL(IPG_DATA_DEF);
 
-	if (if_get(ifp, IF_MTU) > ETHERMTU)
+	if (sc_if->msk_framesize > MSK_DEFAULT_FRAMESIZE)
 		gmac |= GM_SMOD_JUMBO_ENA;
 	GMAC_WRITE_2(sc, sc_if->msk_port, GM_SERIAL_MODE, gmac);
 
@@ -3913,7 +3876,7 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	CSR_WRITE_4(sc, MR_ADDR(sc_if->msk_port, TX_GMF_CTRL_T), GMF_OPER_ON);
 
 	/* Configure hardware VLAN tag insertion/stripping. */
-	msk_setvlan(sc_if, ifp);
+	msk_setvlan(sc_if);
 
 	if ((sc_if->msk_flags & MSK_FLAG_RAMBUF) == 0) {
 		/* Set Rx Pause threshold. */
@@ -3990,7 +3953,7 @@ msk_init_locked(struct msk_if_softc *sc_if)
 	/* Disable Rx checksum offload and RSS hash. */
 	reg = BMU_DIS_RX_RSS_HASH;
 	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
-	    (if_get(ifp, IF_CAPENABLE) & IFCAP_RXCSUM) != 0)
+	    (sc_if->msk_capenable & IFCAP_RXCSUM) != 0)
 		reg |= BMU_ENA_RX_CHKSUM;
 	else
 		reg |= BMU_DIS_RX_CHKSUM;

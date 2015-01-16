@@ -610,6 +610,7 @@ struct xl_softc {
 	struct xl_chain_data	xl_cdata;
 	struct callout		xl_tick_callout;
 	int			xl_wdog_timer;
+	uint32_t		xl_capenable;
 	int			xl_flags;
 	struct resource		*xl_fres;
 	bus_space_handle_t	xl_fhandle;

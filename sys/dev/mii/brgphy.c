@@ -928,7 +928,7 @@ brgphy_reset(struct mii_softc *sc)
 		return;
 	}
 
-	mtu = MIIBUS_READVAR(sc->mii_dev, IF_MTU);
+	mtu = MIIBUS_READVAR(sc->mii_dev, MIIVAR_MTU);
 
 	/* Find the driver associated with this PHY. */
 	if (mii_phy_mac_match(sc, "bge"))

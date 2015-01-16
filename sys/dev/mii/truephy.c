@@ -258,7 +258,7 @@ truephy_reset(struct mii_softc *sc)
 
 	mii_phy_reset(sc);
 
-	if (TRUEPHY_FRAMELEN((MIIBUS_READVAR(sc->mii_dev, IF_MTU)) > 2048)) {
+	if (TRUEPHY_FRAMELEN((MIIBUS_READVAR(sc->mii_dev, MIIVAR_MTU)) > 2048)) {
 		int conf;
 
 		conf = PHY_READ(sc, TRUEPHY_CONF);

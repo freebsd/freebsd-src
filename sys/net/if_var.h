@@ -470,14 +470,14 @@ if_output(if_t ifp, struct mbuf *m, const struct sockaddr *dst,
 static inline int
 if_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 {
-	struct iftype *ift = ifp->if_type;
 	int error = EOPNOTSUPP;
 
 	if (ifp->if_ops->ifop_ioctl != NULL)
 		error = ifp->if_ops->ifop_ioctl(ifp, cmd, data, td);
 
-	if (error == EOPNOTSUPP && ift->ift_ops.ifop_ioctl != NULL)
-		error = ift->ift_ops.ifop_ioctl(ifp, cmd, data, td);
+	if (error == EOPNOTSUPP && ifp->if_type != NULL &&
+	    ifp->if_type->ift_ops.ifop_ioctl != NULL)
+		error = ifp->if_type->ift_ops.ifop_ioctl(ifp, cmd, data, td);
 
 	return (error);
 }

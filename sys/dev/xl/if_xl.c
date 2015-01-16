@@ -1921,7 +1921,7 @@ again:
 		m->m_pkthdr.rcvif = ifp;
 		m->m_pkthdr.len = m->m_len = total_len;
 
-		if (if_get(ifp, IF_CAPENABLE) & IFCAP_RXCSUM) {
+		if (sc->xl_capenable & IFCAP_RXCSUM) {
 			/* Do IP checksum checking. */
 			if (rxstat & XL_RXSTAT_IPCKOK)
 				m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
@@ -2982,7 +2982,7 @@ xl_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 {
 	struct xl_softc		*sc;
 	struct ifreq		*ifr = (struct ifreq *) data;
-	uint32_t		flags, mask;
+	uint32_t		flags;
 	int			error = 0;
 	struct mii_data		*mii = NULL;
 
@@ -3026,19 +3026,15 @@ xl_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 			    &mii->mii_media, command);
 		break;
 	case SIOCSIFCAP:
-		mask = ifr->ifr_reqcap ^ if_get(ifp, IF_CAPENABLE);
 #ifdef DEVICE_POLLING
-		if ((mask & IFCAP_POLLING) != 0 &&
-		    (if_get(ifp, IF_CAPABILITIES) & IFCAP_POLLING) != 0) {
-			if_xorflags(ifp, IF_CAPENABLE, IFCAP_POLLING);
-			if ((if_get(ifp, IF_CAPENABLE) & IFCAP_POLLING) != 0) {
+		if (((ifr->ifr_reqcap ^ ifr->ifr_curcap) & IFCAP_POLLING)) {
+			if ((ifr->ifr_reqcap & IFCAP_POLLING) != 0) {
 				error = ether_poll_register(xl_poll, ifp);
 				if (error)
 					break;
 				XL_LOCK(sc);
 				/* Disable interrupts */
 				CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|0);
-				if_addflags(ifp, IF_CAPENABLE, IFCAP_POLLING);
 				XL_UNLOCK(sc);
 			} else {
 				error = ether_poll_deregister(ifp);
@@ -3052,27 +3048,16 @@ xl_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 					bus_space_write_4(sc->xl_ftag,
 					    sc->xl_fhandle, 4, 0x8000);
 				XL_UNLOCK(sc);
+				if (error)
+					break;
 			}
 		}
 #endif /* DEVICE_POLLING */
-		XL_LOCK(sc);
-		if ((mask & IFCAP_TXCSUM) != 0 &&
-		    (if_get(ifp, IF_CAPABILITIES) & IFCAP_TXCSUM) != 0) {
-			if_xorflags(ifp, IF_CAPENABLE, IFCAP_TXCSUM);
-			if ((if_get(ifp, IF_CAPENABLE) & IFCAP_TXCSUM) != 0)
-				if_addflags(ifp, IF_HWASSIST,
-				    XL905B_CSUM_FEATURES);
-			else
-				if_clrflags(ifp, IF_HWASSIST,
-				    XL905B_CSUM_FEATURES);
-		}
-		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (if_get(ifp, IF_CAPABILITIES) & IFCAP_RXCSUM) != 0)
-			if_xorflags(ifp, IF_CAPENABLE, IFCAP_RXCSUM);
-		if ((mask & IFCAP_WOL_MAGIC) != 0 &&
-		    (if_get(ifp, IF_CAPABILITIES) & IFCAP_WOL_MAGIC) != 0)
-			if_xorflags(ifp, IF_CAPENABLE, IFCAP_WOL_MAGIC);
-		XL_UNLOCK(sc);
+		sc->xl_capenable = ifr->ifr_reqcap;
+		if ((ifr->ifr_reqcap & IFCAP_TXCSUM) != 0)
+			ifr->ifr_hwassist = XL905B_CSUM_FEATURES;
+		else
+			ifr->ifr_hwassist = 0;
 		break;
 	default:
 		error = EOPNOTSUPP;
@@ -3267,16 +3252,16 @@ xl_setwol(struct xl_softc *sc)
 	/* Clear any pending PME events. */
 	CSR_READ_2(sc, XL_W7_BM_PME);
 	cfg = 0;
-	if ((if_get(ifp, IF_CAPENABLE) & IFCAP_WOL_MAGIC) != 0)
+	if ((sc->xl_capenable & IFCAP_WOL_MAGIC) != 0)
 		cfg |= XL_BM_PME_MAGIC;
 	CSR_WRITE_2(sc, XL_W7_BM_PME, cfg);
 	/* Enable RX. */
-	if ((if_get(ifp, IF_CAPENABLE) & IFCAP_WOL_MAGIC) != 0)
+	if ((sc->xl_capenable & IFCAP_WOL_MAGIC) != 0)
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_ENABLE);
 	/* Request PME. */
 	pmstat = pci_read_config(sc->xl_dev,
 	    sc->xl_pmcap + PCIR_POWER_STATUS, 2);
-	if ((if_get(ifp, IF_CAPENABLE) & IFCAP_WOL_MAGIC) != 0)
+	if ((sc->xl_capenable & IFCAP_WOL_MAGIC) != 0)
 		pmstat |= PCIM_PSTAT_PMEENABLE;
 	else
 		pmstat &= ~PCIM_PSTAT_PMEENABLE;

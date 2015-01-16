@@ -377,6 +377,11 @@ struct	ifreq {
 		struct	sockaddr ifru_dstaddr;
 		struct	sockaddr ifru_broadaddr;
 		struct	ifreq_buffer ifru_buffer;
+		struct {
+			uint32_t ifrucap_reqcap;	/* requested/returned */
+			uint32_t ifrucap_curcap;	/* current values */
+			uint64_t ifrucap_hwassist;	/* returned hwassist */
+		}	ifru_cap;
 		short	ifru_flags[2];
 		short	ifru_index;
 		int	ifru_jid;
@@ -385,7 +390,6 @@ struct	ifreq {
 		int	ifru_phys;
 		int	ifru_media;
 		caddr_t	ifru_data;
-		int	ifru_cap[2];
 		u_int	ifru_fib;
 	} ifr_ifru;
 #define	ifr_addr	ifr_ifru.ifru_addr	/* address */
@@ -400,8 +404,9 @@ struct	ifreq {
 #define ifr_phys	ifr_ifru.ifru_phys	/* physical wire */
 #define ifr_media	ifr_ifru.ifru_media	/* physical media */
 #define	ifr_data	ifr_ifru.ifru_data	/* for use by interface */
-#define	ifr_reqcap	ifr_ifru.ifru_cap[0]	/* requested capabilities */
-#define	ifr_curcap	ifr_ifru.ifru_cap[1]	/* current capabilities */
+#define	ifr_reqcap	ifr_ifru.ifru_cap.ifrucap_reqcap
+#define	ifr_curcap	ifr_ifru.ifru_cap.ifrucap_curcap
+#define	ifr_hwassist	ifr_ifru.ifru_cap.ifrucap_hwassist
 #define	ifr_index	ifr_ifru.ifru_index	/* interface index */
 #define	ifr_fib		ifr_ifru.ifru_fib	/* interface fib */
 };
@@ -570,12 +575,8 @@ typedef enum {
 typedef enum {
 	/* uint32_t */
 	IF_FLAGS,
-	IF_CAPABILITIES,
-	IF_CAPENABLE,
-	IF_MTU,
 	IF_FIB,
 	/* uint64_t */
-	IF_HWASSIST,
 	IF_BAUDRATE,
 	/* pointers */
 	IF_DRIVER_SOFTC,

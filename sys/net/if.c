@@ -1528,20 +1528,8 @@ if_getfeature(if_t ifp, ift_feature f, uint32_t **f32, uint64_t **f64,
 	case IF_FLAGS:
 		*f32 = &ifp->if_flags;
 		break;
-	case IF_CAPABILITIES:
-		*f32 = &ifp->if_capabilities;
-		break;
-	case IF_CAPENABLE:
-		*f32 = &ifp->if_capenable;
-		break;
-	case IF_MTU:
-		*f32 = &ifp->if_mtu;
-		break;
 	case IF_FIB:
 		*f32 = &ifp->if_fib;
-		break;
-	case IF_HWASSIST:
-		*f64 = &ifp->if_hwassist;
 		break;
 	case IF_BAUDRATE:
 		*f64 = &ifp->if_baudrate;
@@ -1563,25 +1551,6 @@ if_getfeature(if_t ifp, ift_feature f, uint32_t **f32, uint64_t **f64,
 	};
 }
 
-/* Changing some flags may require some actions. */
-static void
-if_set_special(if_t ifp, ift_feature f)
-{
-
-	switch (f) {
-	case IF_CAPENABLE:
-		/*
-		 * Modifying if_capenable may require extra actions, e.g.
-		 * reconfiguring capenable on vlans.
-		 */
-		if (ifp->if_vlantrunk != NULL)
-			(*vlan_trunk_cap_p)(ifp); 
-		break;
-	default:
-		break;
-	}
-}
-
 void
 if_set(if_t ifp, ift_feature f, uint64_t set)
 {
@@ -1598,13 +1567,12 @@ if_set(if_t ifp, ift_feature f, uint64_t set)
 	} else {
 		*f64 = set;
 	}
-	if_set_special(ifp, f);
 }
 
 uint64_t
 if_flagbits(if_t ifp, ift_feature f, uint64_t set, uint64_t clr, uint64_t xor)
 {
-	uint64_t *f64, rv, old;
+	uint64_t *f64;
 	uint32_t *f32;
 
 	if_getfeature(ifp, f, &f32, &f64, NULL);
@@ -1618,23 +1586,16 @@ if_flagbits(if_t ifp, ift_feature f, uint64_t set, uint64_t clr, uint64_t xor)
 		KASSERT(xor <= UINT32_MAX,
 		    ("%s: value of 0x%jx for feature %d",
 		    __func__, (uintmax_t )xor, f));
-		old = *f32;
 		*f32 |= set;
 		*f32 &= ~clr;
 		*f32 ^= xor;
-		rv = *f32;
+		return (*f32);
 	} else {
-		old = *f64;
 		*f64 |= set;
 		*f64 &= ~clr;
 		*f64 ^= xor;
-		rv = *f64;
+		return (*f64);
 	}
-
-	if (rv != old)
-		if_set_special(ifp, f);
-
-	return (rv);
 }
 
 uint64_t
@@ -2555,13 +2516,22 @@ if_drvioctl(u_long cmd, struct ifnet *ifp, void *data, struct thread *td)
 		error = priv_check(td, PRIV_NET_SETIFCAP);
 		if (error)
 			return (error);
+		if ((ifr->ifr_reqcap & IFCAP_VLAN_HWTSO) != 0)
+			ifr->ifr_reqcap |= IFCAP_VLAN_HWTAGGING;
 		if (ifr->ifr_reqcap & ~ifp->if_capabilities)
 			return (EINVAL);
+		if (ifr->ifr_reqcap == ifp->if_capenable)
+			return (0);
+		ifr->ifr_curcap = ifp->if_capenable;
 		error = if_ioctl(ifp, cmd, data, td);
-		if (error == 0)
+		if (error == 0) {
+			ifp->if_capenable = ifr->ifr_reqcap;
+			ifp->if_hwassist = ifr->ifr_hwassist;
 			getmicrotime(&ifp->if_lastchange);
+                	if (ifp->if_vlantrunk != NULL)
+                        	(*vlan_trunk_cap_p)(ifp);
+		}
 		break;
-
 #ifdef MAC
 	case SIOCSIFMAC:
 		error = mac_ifnet_ioctl_set(td->td_ucred, ifr, ifp);
@@ -2652,30 +2622,24 @@ if_drvioctl(u_long cmd, struct ifnet *ifp, void *data, struct thread *td)
 		break;
 
 	case SIOCSIFMTU:
-	{
-		u_long oldmtu = ifp->if_mtu;
-
 		error = priv_check(td, PRIV_NET_SETIFMTU);
 		if (error)
 			return (error);
 		if (ifr->ifr_mtu < IF_MINMTU || ifr->ifr_mtu > IF_MAXMTU)
 			return (EINVAL);
+		if (ifr->ifr_mtu == ifp->if_mtu)
+			return (0);
 		error = if_ioctl(ifp, cmd, data, td);
 		if (error == 0) {
+			ifp->if_mtu = ifr->ifr_mtu;
 			getmicrotime(&ifp->if_lastchange);
 			rt_ifmsg(ifp);
-		}
-		/*
-		 * If the link MTU changed, do network layer specific procedure.
-		 */
-		if (ifp->if_mtu != oldmtu) {
 #ifdef INET6
 			nd6_setmtu(ifp);
 #endif
 			rt_updatemtu(ifp);
 		}
 		break;
-	}
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:

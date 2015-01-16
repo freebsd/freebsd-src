@@ -1017,7 +1017,7 @@ vtnet_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 {
 	struct vtnet_softc *sc;
 	struct ifreq *ifr;
-	int reinit, capenable, mask, error;
+	int error;
 
 	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	ifr = (struct ifreq *) data;
@@ -1025,11 +1025,9 @@ vtnet_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 
 	switch (cmd) {
 	case SIOCSIFMTU:
-		if (if_get(ifp, IF_MTU) != ifr->ifr_mtu) {
-			VTNET_CORE_LOCK(sc);
-			error = vtnet_change_mtu(sc, ifr->ifr_mtu);
-			VTNET_CORE_UNLOCK(sc);
-		}
+		VTNET_CORE_LOCK(sc);
+		error = vtnet_change_mtu(sc, ifr->ifr_mtu);
+		VTNET_CORE_UNLOCK(sc);
 		break;
 
 	case SIOCSIFFLAGS:
@@ -1069,49 +1067,26 @@ vtnet_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 		break;
 
 	case SIOCSIFCAP:
-		VTNET_CORE_LOCK(sc);
-		capenable = if_get(ifp, IF_CAPENABLE);
-		mask = ifr->ifr_reqcap ^ capenable;
-
-		if (mask & IFCAP_TXCSUM)
-			capenable ^= IFCAP_TXCSUM;
-		if (mask & IFCAP_TXCSUM_IPV6)
-			capenable ^= IFCAP_TXCSUM_IPV6;
-		if (mask & IFCAP_TSO4)
-			capenable ^= IFCAP_TSO4;
-		if (mask & IFCAP_TSO6)
-			capenable ^= IFCAP_TSO6;
-
-		if (mask & (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO |
-		    IFCAP_VLAN_HWFILTER)) {
-			/* These Rx features require us to renegotiate. */
-			reinit = 1;
-
-			if (mask & IFCAP_RXCSUM)
-				capenable ^= IFCAP_RXCSUM;
-			if (mask & IFCAP_RXCSUM_IPV6)
-				capenable ^= IFCAP_RXCSUM_IPV6;
-			if (mask & IFCAP_LRO)
-				capenable ^= IFCAP_LRO;
-			if (mask & IFCAP_VLAN_HWFILTER)
-				capenable ^= IFCAP_VLAN_HWFILTER;
-		} else
-			reinit = 0;
-
-		if (mask & IFCAP_VLAN_HWTSO)
-			capenable ^= IFCAP_VLAN_HWTSO;
-		if (mask & IFCAP_VLAN_HWTAGGING)
-			capenable ^= IFCAP_VLAN_HWTAGGING;
-
-		if (reinit && (sc->vtnet_flags & VTNET_FLAG_RUNNING)) {
+		sc->vtnet_capenable = ifr->ifr_reqcap;
+		/* These Rx features require us to renegotiate. */
+		if ((ifr->ifr_reqcap ^ ifr->ifr_curcap) &
+		    (IFCAP_RXCSUM | IFCAP_RXCSUM_IPV6 | IFCAP_LRO |
+		    IFCAP_VLAN_HWFILTER) &&
+		    (sc->vtnet_flags & VTNET_FLAG_RUNNING)) {
+			VTNET_CORE_LOCK(sc);
 			sc->vtnet_flags &= ~VTNET_FLAG_RUNNING;
 			vtnet_init_locked(sc);
+			VTNET_CORE_UNLOCK(sc);
 		}
-
-		VTNET_CORE_UNLOCK(sc);
-
-		if_set(ifp, IF_CAPENABLE, capenable);
-
+		ifr->ifr_hwassist = 0;
+		if (ifr->ifr_reqcap & IFCAP_TXCSUM)
+			ifr->ifr_hwassist |= VTNET_CSUM_OFFLOAD;
+		if (ifr->ifr_reqcap & IFCAP_TXCSUM_IPV6)
+			ifr->ifr_hwassist |= VTNET_CSUM_OFFLOAD_IPV6;
+		if (ifr->ifr_reqcap & IFCAP_TSO4)
+			ifr->ifr_hwassist |= CSUM_TSO;
+		if (ifr->ifr_reqcap & IFCAP_TSO6)
+			ifr->ifr_hwassist |= CSUM_IP6_TSO;
 		break;
 
 	default:
@@ -1653,7 +1628,7 @@ vtnet_rxq_input(struct vtnet_rxq *rxq, struct mbuf *m,
 	sc = rxq->vtnrx_sc;
 	ifp = sc->vtnet_ifp;
 
-	if (if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWTAGGING) {
+	if (sc->vtnet_capenable & IFCAP_VLAN_HWTAGGING) {
 		eh = mtod(m, struct ether_header *);
 		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
 			vtnet_vlan_tag_remove(m);
@@ -2691,7 +2666,7 @@ vtnet_virtio_reinit(struct vtnet_softc *sc)
 	device_t dev;
 	struct ifnet *ifp;
 	uint64_t features;
-	uint32_t caps, capenable, mask;
+	uint32_t mask;
 	int error;
 
 	dev = sc->vtnet_dev;
@@ -2709,29 +2684,20 @@ vtnet_virtio_reinit(struct vtnet_softc *sc)
 	/*
 	 * Re-negotiate with the host, removing any disabled receive
 	 * features. Transmit features are disabled only on our side
-	 * via IF_CAPEANBLE and IF_HWASSIST.
+	 * via if_capenable and if_hwassist.
+	 *
+	 * We require both IPv4 and IPv6 offloading to be enabled
+	 * in order to negotiated it: VirtIO does not distinguish
+	 * between the two.
 	 */
-	caps = if_get(ifp, IF_CAPABILITIES);
-	capenable = if_get(ifp, IF_CAPENABLE);
-	if (caps & mask) {
-		/*
-		 * We require both IPv4 and IPv6 offloading to be enabled
-		 * in order to negotiated it: VirtIO does not distinguish
-		 * between the two.
-		 */
-		if ((capenable & mask) != mask)
-			features &= ~VIRTIO_NET_F_GUEST_CSUM;
-	}
+	if ((sc->vtnet_capenable & mask) != mask)
+		features &= ~VIRTIO_NET_F_GUEST_CSUM;
 
-	if (caps & IFCAP_LRO) {
-		if ((capenable & IFCAP_LRO) == 0)
-			features &= ~VTNET_LRO_FEATURES;
-	}
+	if ((sc->vtnet_capenable & IFCAP_LRO) == 0)
+		features &= ~VTNET_LRO_FEATURES;
 
-	if (caps & IFCAP_VLAN_HWFILTER) {
-		if ((capenable & IFCAP_VLAN_HWFILTER) == 0)
-			features &= ~VIRTIO_NET_F_CTRL_VLAN;
-	}
+	if ((sc->vtnet_capenable & IFCAP_VLAN_HWFILTER) == 0)
+		features &= ~VIRTIO_NET_F_CTRL_VLAN;
 
 	error = virtio_reinit(dev, features);
 	if (error)
@@ -2754,7 +2720,7 @@ vtnet_init_rx_filters(struct vtnet_softc *sc)
 		vtnet_rx_filter_mac(sc);
 	}
 
-	if (if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWFILTER)
+	if (sc->vtnet_capenable & IFCAP_VLAN_HWFILTER)
 		vtnet_rx_filter_vlan(sc);
 }
 
@@ -2871,7 +2837,6 @@ static int
 vtnet_reinit(struct vtnet_softc *sc)
 {
 	struct ifnet *ifp;
-	uint64_t hwassist;
 	int error;
 
 	ifp = sc->vtnet_ifp;
@@ -2881,17 +2846,6 @@ vtnet_reinit(struct vtnet_softc *sc)
 	vtnet_set_hwaddr(sc);
 
 	vtnet_set_active_vq_pairs(sc);
-
-	hwassist = 0;
-	if (if_get(ifp, IF_CAPENABLE) & IFCAP_TXCSUM)
-		hwassist |= VTNET_CSUM_OFFLOAD;
-	if (if_get(ifp, IF_CAPENABLE) & IFCAP_TXCSUM_IPV6)
-		hwassist |= VTNET_CSUM_OFFLOAD_IPV6;
-	if (if_get(ifp, IF_CAPENABLE) & IFCAP_TSO4)
-		hwassist |= CSUM_TSO;
-	if (if_get(ifp, IF_CAPENABLE) & IFCAP_TSO6)
-		hwassist |= CSUM_IP6_TSO;
-	if_set(ifp, IF_HWASSIST, hwassist);
 
 	if (sc->vtnet_flags & VTNET_FLAG_CTRL_VQ)
 		vtnet_init_rx_filters(sc);
@@ -3345,7 +3299,7 @@ vtnet_update_vlan_filter(struct vtnet_softc *sc, int add, uint16_t tag)
 	else
 		sc->vtnet_vlan_filter[idx] &= ~(1 << bit);
 
-	if ((if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWFILTER) &&
+	if ((sc->vtnet_capenable & IFCAP_VLAN_HWFILTER) &&
 	    vtnet_exec_vlan_filter(sc, add, tag) != 0) {
 		device_printf(sc->vtnet_dev,
 		    "cannot %s VLAN %d %s the host filter table\n",
@@ -3385,7 +3339,7 @@ vtnet_is_link_up(struct vtnet_softc *sc)
 	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
 
-	if ((if_get(ifp, IF_CAPABILITIES) & IFCAP_LINKSTATE) == 0)
+	if (!virtio_with_feature(dev, VIRTIO_NET_F_STATUS))
 		status = VIRTIO_NET_S_LINK_UP;
 	else
 		status = virtio_read_dev_config_2(dev,

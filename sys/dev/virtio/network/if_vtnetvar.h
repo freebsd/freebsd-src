@@ -129,6 +129,8 @@ struct vtnet_softc {
 	struct vtnet_rxq	*vtnet_rxqs;
 	struct vtnet_txq	*vtnet_txqs;
 
+	uint64_t		 vtnet_hwassist;
+	uint32_t		 vtnet_capenable;
 	uint32_t		 vtnet_flags;
 #define VTNET_FLAG_SUSPENDED	 0x0001
 #define VTNET_FLAG_MAC		 0x0002

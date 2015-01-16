@@ -3043,13 +3043,15 @@ struct bge_softc {
 	int			bge_forced_collapse;
 	int			bge_forced_udpcsum;
 	int			bge_msi;
-	int			bge_csum_features;
 	struct callout		bge_stat_ch;
 	uint32_t		bge_rx_discards;
 	uint32_t		bge_rx_inerrs;
 	uint32_t		bge_rx_nobds;
 	uint32_t		bge_tx_discards;
 	uint32_t		bge_tx_collisions;
+	uint32_t		bge_mtu;
+	uint32_t		bge_capenable;
+	uint64_t		bge_hwassist;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif /* DEVICE_POLLING */

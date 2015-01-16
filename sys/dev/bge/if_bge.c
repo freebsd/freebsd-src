@@ -116,7 +116,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/bge/if_bgereg.h>
 
-#define	BGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP)
 #define	ETHER_MIN_NOPAD		(ETHER_MIN_LEN - ETHER_CRC_LEN) /* i.e., 60 */
 
 MODULE_DEPEND(bge, pci, 1, 1, 1);
@@ -1331,14 +1330,12 @@ static uint64_t
 bge_miibus_readvar(device_t dev, int var)
 {
 	struct bge_softc *sc;
-	if_t ifp;
 
 	sc = device_get_softc(dev);
-	ifp = sc->bge_ifp;
 
 	switch (var) {
-	case IF_MTU:
-		return (if_get(ifp, IF_MTU));
+	case MIIVAR_MTU:
+		return (sc->bge_mtu);
 	default:
 		return (0);
 	}
@@ -1357,7 +1354,7 @@ bge_newbuf_std(struct bge_softc *sc, int i)
 	int error, nsegs;
 
 	if (sc->bge_flags & BGE_FLAG_JUMBO_STD &&
-	    (if_get(sc->bge_ifp, IF_MTU) + ETHER_HDR_LEN + ETHER_CRC_LEN +
+	    (sc->bge_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN +
 	    ETHER_VLAN_ENCAP_LEN > (MCLBYTES - ETHER_ALIGN))) {
 		m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
 		if (m == NULL)
@@ -1698,7 +1695,7 @@ bge_setvlan(struct bge_softc *sc)
 	ifp = sc->bge_ifp;
 
 	/* Enable or disable VLAN tag stripping as needed. */
-	if (if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWTAGGING)
+	if (sc->bge_capenable & IFCAP_VLAN_HWTAGGING)
 		BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_KEEP_VLAN_DIAG);
 	else
 		BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_KEEP_VLAN_DIAG);
@@ -2032,7 +2029,7 @@ bge_blockinit(struct bge_softc *sc)
 	/* Configure mbuf pool watermarks */
 	if (BGE_IS_5717_PLUS(sc)) {
 		CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_READDMA_LOWAT, 0x0);
-		if (if_get(sc->bge_ifp, IF_MTU) > ETHERMTU) {
+		if (sc->bge_mtu > ETHERMTU) {
 			CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_MACRX_LOWAT, 0x7e);
 			CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_HIWAT, 0xea);
 		} else {
@@ -3756,9 +3753,9 @@ bge_attach(device_t dev)
 	sc->bge_tx_max_coal_bds = 10;
 
 	/* Initialize checksum features to use. */
-	sc->bge_csum_features = BGE_CSUM_FEATURES;
+	sc->bge_hwassist = (CSUM_IP | CSUM_TCP);
 	if (sc->bge_forced_udpcsum != 0)
-		sc->bge_csum_features |= CSUM_UDP;
+		sc->bge_hwassist |= CSUM_UDP;
 
 	/*
 	 * Figure out what sort of media we have by checking the
@@ -3924,7 +3921,7 @@ again:
 	ifat.ifat_softc = sc;
 	ifat.ifat_dunit = device_get_unit(dev);
 	ifat.ifat_lla = eaddr;
-	ifat.ifat_hwassist = sc->bge_csum_features;
+	ifat.ifat_hwassist = sc->bge_hwassist;
 	if ((sc->bge_flags & (BGE_FLAG_TSO | BGE_FLAG_TSO3)) != 0) {
 		ifat.ifat_hwassist |= CSUM_TSO;
 		ifat.ifat_capabilities |= IFCAP_TSO4 | IFCAP_VLAN_HWTSO;
@@ -3942,7 +3939,8 @@ again:
 		ifat.ifat_capenable &= ~IFCAP_HWCSUM;
 		ifat.ifat_hwassist = 0;
 	}
-
+	sc->bge_capenable = ifat.ifat_capenable;
+	sc->bge_mtu = ETHERMTU;
 	sc->bge_ifp = if_attach(&ifat);
 
 	return (0);
@@ -3962,7 +3960,7 @@ bge_detach(device_t dev)
 	ifp = sc->bge_ifp;
 
 #ifdef DEVICE_POLLING
-	if (if_get(ifp, IF_CAPENABLE) & IFCAP_POLLING)
+	if (sc->bge_capenable & IFCAP_POLLING)
 		ether_poll_deregister(ifp);
 #endif
 
@@ -4332,7 +4330,7 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_POSTWRITE);
 	if (BGE_IS_JUMBO_CAPABLE(sc) &&
-	    if_get(ifp, IF_MTU) + ETHER_HDR_LEN + ETHER_CRC_LEN + 
+	    sc->bge_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN + 
 	    ETHER_VLAN_ENCAP_LEN > (MCLBYTES - ETHER_ALIGN))
 		bus_dmamap_sync(sc->bge_cdata.bge_rx_jumbo_ring_tag,
 		    sc->bge_cdata.bge_rx_jumbo_ring_map, BUS_DMASYNC_POSTWRITE);
@@ -4345,7 +4343,7 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 		int			have_tag = 0;
 
 #ifdef DEVICE_POLLING
-		if (if_get(ifp, IF_CAPENABLE) & IFCAP_POLLING) {
+		if (sc->bge_capenable & IFCAP_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
@@ -4357,7 +4355,7 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 		rxidx = cur_rx->bge_idx;
 		BGE_INC(rx_cons, sc->bge_return_ring_cnt);
 
-		if (if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWTAGGING &&
+		if (sc->bge_capenable & IFCAP_VLAN_HWTAGGING &&
 		    cur_rx->bge_flags & BGE_RXBDFLAG_VLAN_TAG) {
 			have_tag = 1;
 			vlan_tag = cur_rx->bge_vlan_tag;
@@ -4406,7 +4404,7 @@ bge_rxeof(struct bge_softc *sc, uint16_t rx_prod, int holdlck)
 		m->m_pkthdr.len = m->m_len = cur_rx->bge_len - ETHER_CRC_LEN;
 		m->m_pkthdr.rcvif = ifp;
 
-		if (if_get(ifp, IF_CAPENABLE) & IFCAP_RXCSUM)
+		if (sc->bge_capenable & IFCAP_RXCSUM)
 			bge_rxcsum(sc, cur_rx, m);
 
 		/*
@@ -4683,7 +4681,7 @@ bge_intr(void *xsc)
 	ifp = sc->bge_ifp;
 
 #ifdef DEVICE_POLLING
-	if (if_get(ifp, IF_CAPENABLE) & IFCAP_POLLING) {
+	if (sc->bge_capenable & IFCAP_POLLING) {
 		BGE_UNLOCK(sc);
 		return;
 	}
@@ -5204,7 +5202,7 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 			return (ENOBUFS);
 		csum_flags |= BGE_TXBDFLAG_CPU_PRE_DMA |
 		    BGE_TXBDFLAG_CPU_POST_DMA;
-	} else if ((m->m_pkthdr.csum_flags & sc->bge_csum_features) != 0) {
+	} else if ((m->m_pkthdr.csum_flags & sc->bge_hwassist) != 0) {
 		if (m->m_pkthdr.csum_flags & CSUM_IP)
 			csum_flags |= BGE_TXBDFLAG_IP_CSUM;
 		if (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP)) {
@@ -5454,9 +5452,9 @@ bge_init_locked(struct bge_softc *sc)
 	ifp = sc->bge_ifp;
 
 	/* Specify MTU. */
-	CSR_WRITE_4(sc, BGE_RX_MTU, if_get(ifp, IF_MTU) +
+	CSR_WRITE_4(sc, BGE_RX_MTU, sc->bge_mtu +
 	    ETHER_HDR_LEN + ETHER_CRC_LEN +
-	    (if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_MTU ? ETHER_VLAN_ENCAP_LEN : 0));
+	    (sc->bge_capenable & IFCAP_VLAN_MTU ? ETHER_VLAN_ENCAP_LEN : 0));
 
 	/* Load our MAC address. */
 	m = (uint16_t *)if_lladdr(sc->bge_ifp);
@@ -5474,14 +5472,9 @@ bge_init_locked(struct bge_softc *sc)
 
 	/* Override UDP checksum offloading. */
 	if (sc->bge_forced_udpcsum == 0)
-		sc->bge_csum_features &= ~CSUM_UDP;
+		sc->bge_hwassist &= ~CSUM_UDP;
 	else
-		sc->bge_csum_features |= CSUM_UDP;
-	if (if_get(ifp, IF_CAPABILITIES) & IFCAP_TXCSUM &&
-	    if_get(ifp, IF_CAPENABLE) & IFCAP_TXCSUM) {
-		if_clrflags(ifp, IF_CAPABILITIES, BGE_CSUM_FEATURES | CSUM_UDP);
-		if_addflags(ifp, IF_CAPABILITIES, sc->bge_csum_features);
-	}
+		sc->bge_hwassist |= CSUM_UDP;
 
 	/* Init RX ring. */
 	if (bge_init_rx_ring_std(sc) != 0) {
@@ -5510,7 +5503,7 @@ bge_init_locked(struct bge_softc *sc)
 
 	/* Init jumbo RX ring. */
 	if (BGE_IS_JUMBO_CAPABLE(sc) &&
-	    if_get(ifp, IF_MTU) + ETHER_HDR_LEN + ETHER_CRC_LEN + 
+	    sc->bge_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN + 
      	    ETHER_VLAN_ENCAP_LEN > (MCLBYTES - ETHER_ALIGN)) {
 		if (bge_init_rx_ring_jumbo(sc) != 0) {
 			device_printf(sc->bge_dev,
@@ -5572,7 +5565,7 @@ bge_init_locked(struct bge_softc *sc)
 
 #ifdef DEVICE_POLLING
 	/* Disable interrupts if we are polling. */
-	if (if_get(ifp, IF_CAPENABLE) & IFCAP_POLLING) {
+	if (sc->bge_capenable & IFCAP_POLLING) {
 		BGE_SETBIT(sc, BGE_PCI_MISC_CTL,
 		    BGE_PCIMISCCTL_MASK_PCI_INTR);
 		bge_writembx(sc, BGE_MBX_IRQ0_LO, 1);
@@ -5766,12 +5759,10 @@ bge_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 			break;
 		}
 		BGE_LOCK(sc);
-		if (if_get(ifp, IF_MTU) != ifr->ifr_mtu) {
-			if_set(ifp, IF_MTU, ifr->ifr_mtu);
-			if (sc->bge_flags & BGE_FLAG_RUNNING) {
-				sc->bge_flags &= ~BGE_FLAG_RUNNING;
-				bge_init_locked(sc);
-			}
+		sc->bge_mtu = ifr->ifr_mtu;
+		if (sc->bge_flags & BGE_FLAG_RUNNING) {
+			sc->bge_flags &= ~BGE_FLAG_RUNNING;
+			bge_init_locked(sc);
 		}
 		BGE_UNLOCK(sc);
 		break;
@@ -5825,7 +5816,7 @@ bge_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 		}
 		break;
 	case SIOCSIFCAP:
-		mask = ifr->ifr_reqcap ^ if_get(ifp, IF_CAPENABLE);
+		mask = ifr->ifr_reqcap ^ ifr->ifr_curcap;
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
@@ -5836,7 +5827,6 @@ bge_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 				BGE_SETBIT(sc, BGE_PCI_MISC_CTL,
 				    BGE_PCIMISCCTL_MASK_PCI_INTR);
 				bge_writembx(sc, BGE_MBX_IRQ0_LO, 1);
-				if_setcapenablebit(ifp, IFCAP_POLLING, 0);
 				BGE_UNLOCK(sc);
 			} else {
 				error = ether_poll_deregister(ifp);
@@ -5845,49 +5835,24 @@ bge_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 				BGE_CLRBIT(sc, BGE_PCI_MISC_CTL,
 				    BGE_PCIMISCCTL_MASK_PCI_INTR);
 				bge_writembx(sc, BGE_MBX_IRQ0_LO, 0);
-				if_setcapenablebit(ifp, 0, IFCAP_POLLING);
 				BGE_UNLOCK(sc);
+				if (error)
+					return (error);
 			}
 		}
 #endif
-		if ((mask & IFCAP_TXCSUM) != 0 &&
-		    (if_get(ifp, IF_CAPABILITIES) & IFCAP_TXCSUM) != 0) {
-			if_xorflags(ifp, IF_CAPENABLE, IFCAP_TXCSUM);
-			if ((if_get(ifp, IF_CAPENABLE) & IFCAP_TXCSUM) != 0)
-				if_addflags(ifp, IF_HWASSIST,
-				    sc->bge_csum_features);
-			else
-				if_clrflags(ifp, IF_HWASSIST,
-				    sc->bge_csum_features);
-		}
-
-		if ((mask & IFCAP_RXCSUM) != 0 &&
-		    (if_get(ifp, IF_CAPABILITIES) & IFCAP_RXCSUM) != 0)
-			if_xorflags(ifp, IF_CAPENABLE, IFCAP_RXCSUM);
-
-		if ((mask & IFCAP_TSO4) != 0 &&
-		    (if_get(ifp, IF_CAPABILITIES) & IFCAP_TSO4) != 0) {
-			if_xorflags(ifp, IF_CAPENABLE, IFCAP_TSO4);
-			if ((if_get(ifp, IF_CAPENABLE) & IFCAP_TSO4) != 0)
-				if_addflags(ifp, IF_HWASSIST, CSUM_TSO);
-			else
-				if_clrflags(ifp, IF_HWASSIST, CSUM_TSO);
-		}
-
+		sc->bge_capenable = ifr->ifr_reqcap;
+		ifr->ifr_hwassist = 0;
+		if ((sc->bge_capenable & IFCAP_TXCSUM) != 0)
+			ifr->ifr_hwassist = sc->bge_hwassist;
+		if ((sc->bge_capenable & IFCAP_TSO4) != 0 &&
+		    (sc->bge_flags & (BGE_FLAG_TSO | BGE_FLAG_TSO3)) != 0)
+			ifr->ifr_hwassist |= CSUM_TSO;
 		if (mask & IFCAP_VLAN_MTU) {
-			if_xorflags(ifp, IF_CAPENABLE, IFCAP_VLAN_MTU);
 			sc->bge_flags &= ~BGE_FLAG_RUNNING;
 			bge_init(sc);
 		}
-
-		if ((mask & IFCAP_VLAN_HWTSO) != 0 &&
-		    (if_get(ifp, IF_CAPABILITIES) & IFCAP_VLAN_HWTSO) != 0)
-			if_xorflags(ifp, IF_CAPENABLE, IFCAP_VLAN_HWTSO);
-		if ((mask & IFCAP_VLAN_HWTAGGING) != 0 &&
-		    (if_get(ifp, IF_CAPABILITIES) & IFCAP_VLAN_HWTAGGING) != 0) {
-			if_xorflags(ifp, IF_CAPENABLE, IFCAP_VLAN_HWTAGGING);
-			if ((if_get(ifp, IF_CAPENABLE) & IFCAP_VLAN_HWTAGGING) == 0)
-				if_clrflags(ifp, IF_CAPENABLE, IFCAP_VLAN_HWTSO);
+		if ((mask & IFCAP_VLAN_HWTAGGING) != 0) {
 			BGE_LOCK(sc);
 			bge_setvlan(sc);
 			BGE_UNLOCK(sc);

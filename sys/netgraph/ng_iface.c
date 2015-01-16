@@ -288,31 +288,23 @@ ng_iface_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 	case SIOCSIFADDR:
 		if_addflags(ifp, IF_FLAGS, IFF_UP);
 		break;
-	case SIOCGIFADDR:
-		break;
-	case SIOCSIFFLAGS:
-		break;
 
 	/* Set the interface MTU */
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu > NG_IFACE_MTU_MAX
 		    || ifr->ifr_mtu < NG_IFACE_MTU_MIN)
 			error = EINVAL;
-		else
-			if_set(ifp, IF_MTU, ifr->ifr_mtu);
 		break;
 
 	/* Stuff that's not supported */
+	case SIOCGIFADDR:
+	case SIOCSIFFLAGS:
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		error = 0;
-		break;
-	case SIOCSIFPHYS:
-		error = EOPNOTSUPP;
 		break;
 
 	default:
-		error = EINVAL;
+		error = EOPNOTSUPP;
 		break;
 	}
 	return (error);
