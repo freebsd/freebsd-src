@@ -43,6 +43,10 @@
 #include "opt_rss.h"
 #include "ixl.h"
 
+#ifdef RSS 
+#include <net/rss_config.h>
+#endif
+
 /* Local Prototypes */
 static void	ixl_rx_checksum(struct mbuf *, u32, u32, u8);
 static void	ixl_refresh_mbufs(struct ixl_queue *, int);
@@ -1367,7 +1371,7 @@ ixl_rx_discard(struct rx_ring *rxr, int i)
 
 #ifdef RSS
 /*
-** i40e_ptype_to_hash: parse the packet type
+** ixl_ptype_to_hash: parse the packet type
 ** to determine the appropriate hash.
 */
 static inline int
@@ -1376,7 +1380,7 @@ ixl_ptype_to_hash(u8 ptype)
         struct i40e_rx_ptype_decoded	decoded;
 	u8				ex = 0
 
-	decode = decode_rx_desc_ptype(ptype);
+	decoded = decode_rx_desc_ptype(ptype);
 	ex = decoded.outer_frag;
 
 	if (!decoded.known)
