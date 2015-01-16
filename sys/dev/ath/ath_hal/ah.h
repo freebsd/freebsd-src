@@ -1589,6 +1589,18 @@ struct ath_hal {
 	void	    __ahdecl(*ah_btCoexDisable)(struct ath_hal *);
 	int	    __ahdecl(*ah_btCoexEnable)(struct ath_hal *);
 
+	/* Bluetooth MCI methods */
+	void	    __ahdecl(*ah_btMciSetup)(struct ath_hal *,
+				uint32_t, void *, uint16_t, uint32_t);
+	HAL_BOOL    __ahdecl(*ah_btMciSendMessage)(struct ath_hal *,
+				uint8_t, uint32_t, uint32_t *, uint8_t,
+				HAL_BOOL, HAL_BOOL);
+	uint32_t    __ahdecl(*ah_btMciGetInterrupt)(struct ath_hal *,
+				uint32_t *, uint32_t *);
+	uint32_t    __ahdecl(*ah_btMciGetState)(struct ath_hal *,
+				uint32_t, uint32_t *);
+	void	    __ahdecl(*ah_btMciDetach)(struct ath_hal *);
+
 	/* LNA diversity configuration */
 	void	    __ahdecl(*ah_divLnaConfGet)(struct ath_hal *,
 				HAL_ANT_COMB_CONFIG *);
