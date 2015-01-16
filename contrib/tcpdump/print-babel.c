@@ -136,7 +136,7 @@ format_address(const u_char *prefix)
 
 static int
 network_prefix(int ae, int plen, unsigned int omitted,
-               const u_char *p, const unsigned char *dp,
+               const unsigned char *p, const unsigned char *dp,
                unsigned int len, unsigned char *p_r)
 {
     unsigned pb;
@@ -190,7 +190,7 @@ network_prefix(int ae, int plen, unsigned int omitted,
 }
 
 static int
-network_address(int ae, const u_char *a, unsigned int len,
+network_address(int ae, const unsigned char *a, unsigned int len,
                 unsigned char *a_r)
 {
     return network_prefix(ae, -1, 0, a, NULL, len, a_r);

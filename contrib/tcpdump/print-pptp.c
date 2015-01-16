@@ -34,7 +34,6 @@ static const char rcsid[] _U_ =
 #include <tcpdump-stdinc.h>
 
 #include <stdio.h>
-#include <string.h>
 
 #include "interface.h"
 #include "extract.h"
@@ -412,10 +411,7 @@ pptp_framing_type_print(const u_int32_t *framing_type)
 static void
 pptp_hostname_print(const u_char *hostname)
 {
-	char hostname_str[64];
-
-	strncpy(hostname_str, hostname, 64);
-	printf(" HOSTNAME(%.64s)", hostname_str);
+	printf(" HOSTNAME(%.64s)", hostname);
 }
 
 static void
@@ -463,8 +459,7 @@ pptp_recv_winsiz_print(const u_int16_t *recv_winsiz)
 }
 
 static void
-pptp_result_code_print(const u_int8_t *result_code,
-    int ctrl_msg_type)
+pptp_result_code_print(const u_int8_t *result_code, int ctrl_msg_type)
 {
 	printf(" RESULT_CODE(%u", *result_code);
 	if (vflag) {
@@ -578,19 +573,13 @@ pptp_result_code_print(const u_int8_t *result_code,
 static void
 pptp_subaddr_print(const u_char *subaddr)
 {
-	char buf[64];
-
-	strncpy(buf, subaddr, 64);
-	printf(" SUB_ADDR(%.64s)", buf);
+	printf(" SUB_ADDR(%.64s)", subaddr);
 }
 
 static void
 pptp_vendor_print(const u_char *vendor)
 {
-	char buf[64];
-
-	strncpy(buf, vendor, 64);
-	printf(" VENDOR(%.64s)", buf);
+	printf(" VENDOR(%.64s)", vendor);
 }
 
 /************************************/
@@ -599,8 +588,7 @@ pptp_vendor_print(const u_char *vendor)
 static void
 pptp_sccrq_print(const u_char *dat)
 {
-	struct pptp_msg_sccrq *ptr =
-	    (struct pptp_msg_sccrq *)dat;
+	struct pptp_msg_sccrq *ptr = (struct pptp_msg_sccrq *)dat;
 
 	TCHECK(ptr->proto_ver);
 	pptp_proto_ver_print(&ptr->proto_ver);
@@ -627,8 +615,7 @@ trunc:
 static void
 pptp_sccrp_print(const u_char *dat)
 {
-	struct pptp_msg_sccrp *ptr =
-	    (struct pptp_msg_sccrp *)dat;
+	struct pptp_msg_sccrp *ptr = (struct pptp_msg_sccrp *)dat;
 
 	TCHECK(ptr->proto_ver);
 	pptp_proto_ver_print(&ptr->proto_ver);
@@ -658,8 +645,7 @@ trunc:
 static void
 pptp_stopccrq_print(const u_char *dat)
 {
-	struct pptp_msg_stopccrq *ptr =
-	    (struct pptp_msg_stopccrq *)dat;
+	struct pptp_msg_stopccrq *ptr = (struct pptp_msg_stopccrq *)dat;
 
 	TCHECK(ptr->reason);
 	printf(" REASON(%u", ptr->reason);
@@ -692,8 +678,7 @@ trunc:
 static void
 pptp_stopccrp_print(const u_char *dat)
 {
-	struct pptp_msg_stopccrp *ptr =
-	    (struct pptp_msg_stopccrp *)dat;
+	struct pptp_msg_stopccrp *ptr = (struct pptp_msg_stopccrp *)dat;
 
 	TCHECK(ptr->result_code);
 	pptp_result_code_print(&ptr->result_code, PPTP_CTRL_MSG_TYPE_StopCCRP);
@@ -710,8 +695,7 @@ trunc:
 static void
 pptp_echorq_print(const u_char *dat)
 {
-	struct pptp_msg_echorq *ptr =
-	    (struct pptp_msg_echorq *)dat;
+	struct pptp_msg_echorq *ptr = (struct pptp_msg_echorq *)dat;
 
 	TCHECK(ptr->id);
 	pptp_id_print(&ptr->id);
@@ -725,8 +709,7 @@ trunc:
 static void
 pptp_echorp_print(const u_char *dat)
 {
-	struct pptp_msg_echorp *ptr =
-	    (struct pptp_msg_echorp *)dat;
+	struct pptp_msg_echorp *ptr = (struct pptp_msg_echorp *)dat;
 
 	TCHECK(ptr->id);
 	pptp_id_print(&ptr->id);
@@ -745,9 +728,7 @@ trunc:
 static void
 pptp_ocrq_print(const u_char *dat)
 {
-	char buf[64];
-	struct pptp_msg_ocrq *ptr =
-	(struct pptp_msg_ocrq *)dat;
+	struct pptp_msg_ocrq *ptr = (struct pptp_msg_ocrq *)dat;
 
 	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
@@ -769,8 +750,7 @@ pptp_ocrq_print(const u_char *dat)
 	printf(" PHONE_NO_LEN(%u)", EXTRACT_16BITS(&ptr->phone_no_len));
 	TCHECK(ptr->reserved1);
 	TCHECK(ptr->phone_no);
-	strncpy(buf, ptr->phone_no, 64);
-	printf(" PHONE_NO(%.64s)", buf);
+	printf(" PHONE_NO(%.64s)", ptr->phone_no);
 	TCHECK(ptr->subaddr);
 	pptp_subaddr_print(&ptr->subaddr[0]);
 
@@ -783,8 +763,7 @@ trunc:
 static void
 pptp_ocrp_print(const u_char *dat)
 {
-	struct pptp_msg_ocrp *ptr =
-	(struct pptp_msg_ocrp *)dat;
+	struct pptp_msg_ocrp *ptr = (struct pptp_msg_ocrp *)dat;
 
 	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
@@ -814,9 +793,7 @@ trunc:
 static void
 pptp_icrq_print(const u_char *dat)
 {
-	char buf[64];
-	struct pptp_msg_icrq *ptr =
-	(struct pptp_msg_icrq *)dat;
+	struct pptp_msg_icrq *ptr = (struct pptp_msg_icrq *)dat;
 
 	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
@@ -831,11 +808,9 @@ pptp_icrq_print(const u_char *dat)
 	TCHECK(ptr->dialing_no_len);
 	printf(" DIALING_NO_LEN(%u)", EXTRACT_16BITS(&ptr->dialing_no_len));
 	TCHECK(ptr->dialed_no);
-	strncpy(buf, ptr->dialed_no, 64);
-	printf(" DIALED_NO(%.64s)", buf);
+	printf(" DIALED_NO(%.64s)", ptr->dialed_no);
 	TCHECK(ptr->dialing_no);
-	strncpy(buf, ptr->dialing_no, 64);
-	printf(" DIALING_NO(%.64s)", buf);
+	printf(" DIALING_NO(%.64s)", ptr->dialing_no);
 	TCHECK(ptr->subaddr);
 	pptp_subaddr_print(&ptr->subaddr[0]);
 
@@ -848,8 +823,7 @@ trunc:
 static void
 pptp_icrp_print(const u_char *dat)
 {
-	struct pptp_msg_icrp *ptr =
-	(struct pptp_msg_icrp *)dat;
+	struct pptp_msg_icrp *ptr = (struct pptp_msg_icrp *)dat;
 
 	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
@@ -874,8 +848,7 @@ trunc:
 static void
 pptp_iccn_print(const u_char *dat)
 {
-	struct pptp_msg_iccn *ptr =
-	(struct pptp_msg_iccn *)dat;
+	struct pptp_msg_iccn *ptr = (struct pptp_msg_iccn *)dat;
 
 	TCHECK(ptr->peer_call_id);
 	pptp_peer_call_id_print(&ptr->peer_call_id);
@@ -898,8 +871,7 @@ trunc:
 static void
 pptp_ccrq_print(const u_char *dat)
 {
-	struct pptp_msg_ccrq *ptr =
-	(struct pptp_msg_ccrq *)dat;
+	struct pptp_msg_ccrq *ptr = (struct pptp_msg_ccrq *)dat;
 
 	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
@@ -914,9 +886,7 @@ trunc:
 static void
 pptp_cdn_print(const u_char *dat)
 {
-	char buf[128];
-	struct pptp_msg_cdn *ptr =
-	(struct pptp_msg_cdn *)dat;
+	struct pptp_msg_cdn *ptr = (struct pptp_msg_cdn *)dat;
 
 	TCHECK(ptr->call_id);
 	pptp_call_id_print(&ptr->call_id);
@@ -928,8 +898,7 @@ pptp_cdn_print(const u_char *dat)
 	pptp_cause_code_print(&ptr->cause_code);
 	TCHECK(ptr->reserved1);
 	TCHECK(ptr->call_stats);
-	strncpy(buf, ptr->call_stats, 128);
-	printf(" CALL_STATS(%.128s)", buf);
+	printf(" CALL_STATS(%.128s)", ptr->call_stats);
 
 	return;
 
@@ -940,8 +909,7 @@ trunc:
 static void
 pptp_wen_print(const u_char *dat)
 {
-	struct pptp_msg_wen *ptr =
-	(struct pptp_msg_wen *)dat;
+	struct pptp_msg_wen *ptr = (struct pptp_msg_wen *)dat;
 
 	TCHECK(ptr->peer_call_id);
 	pptp_peer_call_id_print(&ptr->peer_call_id);
@@ -968,8 +936,7 @@ trunc:
 static void
 pptp_sli_print(const u_char *dat)
 {
-	struct pptp_msg_sli *ptr =
-	(struct pptp_msg_sli *)dat;
+	struct pptp_msg_sli *ptr = (struct pptp_msg_sli *)dat;
 
 	TCHECK(ptr->peer_call_id);
 	pptp_peer_call_id_print(&ptr->peer_call_id);

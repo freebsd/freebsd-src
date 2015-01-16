@@ -49,10 +49,10 @@ struct rtentry;
 /* Forwards */
 static int print_decnet_ctlmsg(const union routehdr *, u_int, u_int);
 static void print_t_info(int);
-static int print_l1_routes(const u_char *, u_int);
-static int print_l2_routes(const u_char *, u_int);
+static int print_l1_routes(const char *, u_int);
+static int print_l2_routes(const char *, u_int);
 static void print_i_info(int);
-static int print_elist(const u_char *, u_int);
+static int print_elist(const char *, u_int);
 static int print_nsp(const u_char *, u_int);
 static void print_reason(int);
 #ifdef	PRINT_NSPDATA
@@ -64,7 +64,7 @@ extern char *dnet_htoa(struct dn_naddr *);
 #endif
 
 void
-decnet_print(const u_char *ap, register u_int length,
+decnet_print(register const u_char *ap, register u_int length,
 	     register u_int caplen)
 {
 	if (!invoke_dissector((void *)_decnet_print,
@@ -76,7 +76,7 @@ void
 _decnet_print(const u_char *ap, register u_int length,
 	     register u_int caplen)
 {
-	const union routehdr *rhp;
+	register const union routehdr *rhp;
 	register int mflags;
 	int dst, src, hops;
 	u_int nsplen, pktlen;
@@ -158,7 +158,7 @@ _decnet_print(const u_char *ap, register u_int length,
 	    break;
 	default:
 	    (void) printf("unknown message flags under mask");
-	    default_print(ap, min(length, caplen));
+	    default_print((u_char *)ap, min(length, caplen));
 	    return;
 	}
 
@@ -184,7 +184,7 @@ trunc:
 }
 
 static int
-print_decnet_ctlmsg(const union routehdr *rhp, u_int length,
+print_decnet_ctlmsg(register const union routehdr *rhp, u_int length,
     u_int caplen)
 {
 	int mflags = EXTRACT_LE_8BITS(rhp->rh_short.sh_flags);
@@ -192,7 +192,7 @@ print_decnet_ctlmsg(const union routehdr *rhp, u_int length,
 	int src, dst, info, blksize, eco, ueco, hello, other, vers;
 	etheraddr srcea, rtea;
 	int priority;
-	const u_char *rhpx = (const u_char *)rhp;
+	char *rhpx = (char *)rhp;
 	int ret;
 
 	switch (mflags & RMF_CTLMASK) {
@@ -334,7 +334,7 @@ print_t_info(int info)
 }
 
 static int
-print_l1_routes(const u_char *rp, u_int len)
+print_l1_routes(const char *rp, u_int len)
 {
 	int count;
 	int id;
@@ -364,7 +364,7 @@ trunc:
 }
 
 static int
-print_l2_routes(const u_char *rp, u_int len)
+print_l2_routes(const char *rp, u_int len)
 {
 	int count;
 	int area;
@@ -412,7 +412,7 @@ print_i_info(int info)
 }
 
 static int
-print_elist(const u_char *elp _U_, u_int len _U_)
+print_elist(const char *elp _U_, u_int len _U_)
 {
 	/* Not enough examples available for me to debug this */
 	return (1);

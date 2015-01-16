@@ -67,7 +67,6 @@ static const char rcsid[] _U_ =
 
 #include <tcpdump-stdinc.h>
 
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -329,7 +328,7 @@ struct obj_abrev {
 struct be {
 	u_int32_t asnlen;
 	union {
-		const u_char *raw;
+		const void *raw;
 		int32_t integer;
 		u_int32_t uns;
 		const u_char *str;
@@ -404,7 +403,7 @@ const char *SnmpVersion[] = {
  * O/w, this returns the number of bytes parsed from "p".
  */
 static int
-asn1_parse(const u_char *p, u_int len, struct be *elem)
+asn1_parse(register const u_char *p, u_int len, struct be *elem)
 {
 	u_char form, class, id;
 	int i, hdr;
@@ -666,7 +665,7 @@ trunc:
 static int
 asn1_print(struct be *elem)
 {
-	const u_char *p = elem->data.raw;
+	const u_char *p = (u_char *)elem->data.raw;
 	u_int32_t asnlen = elem->asnlen;
 	u_int32_t i;
 
@@ -1220,7 +1219,7 @@ varbind_print(u_char pduid, const u_char *np, u_int length)
 		printf("[%d extra after SEQ of varbind]", length - count);
 	/* descend */
 	length = elem.asnlen;
-	np = elem.data.raw;
+	np = (u_char *)elem.data.raw;
 
 	for (ind = 1; length > 0; ind++) {
 		const u_char *vbend;
@@ -1240,7 +1239,7 @@ varbind_print(u_char pduid, const u_char *np, u_int length)
 		vblength = length - count;
 		/* descend */
 		length = elem.asnlen;
-		np = elem.data.raw;
+		np = (u_char *)elem.data.raw;
 
 		/* objName (OID) */
 		if ((count = asn1_parse(np, length, &elem)) < 0)
@@ -1487,7 +1486,7 @@ pdu_print(const u_char *np, u_int length, int version)
 	fputs(" ", stdout);
 	/* descend into PDU */
 	length = pdu.asnlen;
-	np = pdu.data.raw;
+	np = (u_char *)pdu.data.raw;
 
 	if (version == SNMP_VERSION_1 &&
 	    (pdu.id == GETBULKREQ || pdu.id == INFORMREQ ||
@@ -1540,7 +1539,7 @@ scopedpdu_print(const u_char *np, u_int length, int version)
 		return;
 	}
 	length = elem.asnlen;
-	np = elem.data.raw;
+	np = (u_char *)elem.data.raw;
 
 	/* contextEngineID (OCTET STRING) */
 	if ((count = asn1_parse(np, length, &elem)) < 0)
@@ -1594,11 +1593,10 @@ community_print(const u_char *np, u_int length, int version)
 	}
 	/* default community */
 	if (!(elem.asnlen == sizeof(DEF_COMMUNITY) - 1 &&
-	    strncmp(elem.data.str, DEF_COMMUNITY,
-	            sizeof(DEF_COMMUNITY) - 1) == 0)) {
+	    strncmp((char *)elem.data.str, DEF_COMMUNITY,
+	            sizeof(DEF_COMMUNITY) - 1) == 0))
 		/* ! "public" */
 		printf("C=%.*s ", (int)elem.asnlen, elem.data.str);
-	}
 	length -= count;
 	np += count;
 
@@ -1623,7 +1621,7 @@ usm_print(const u_char *np, u_int length)
 		return;
 	}
 	length = elem.asnlen;
-	np = elem.data.raw;
+	np = (u_char *)elem.data.raw;
 
 	/* msgAuthoritativeEngineID (OCTET STRING) */
 	if ((count = asn1_parse(np, length, &elem)) < 0)
@@ -1723,7 +1721,7 @@ v3msg_print(const u_char *np, u_int length)
 		return;
 	}
 	length = elem.asnlen;
-	np = elem.data.raw;
+	np = (u_char *)elem.data.raw;
 
 	if (vflag) {
 		fputs("{ ", stdout);
@@ -1870,7 +1868,7 @@ _snmp_print(const u_char *np, u_int length)
 		printf("[%d extra after iSEQ]", length - count);
 	/* descend */
 	length = elem.asnlen;
-	np = elem.data.raw;
+	np = (u_char *)elem.data.raw;
 
 	/* Version (INTEGER) */
 	if ((count = asn1_parse(np, length, &elem)) < 0)

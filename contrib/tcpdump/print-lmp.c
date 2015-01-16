@@ -373,7 +373,7 @@ _lmp_print(const u_char *pptr, register u_int len)
 {
     const struct lmp_common_header *lmp_com_header;
     const struct lmp_object_header *lmp_obj_header;
-    const u_char *tptr, *obj_tptr;
+    const u_char *tptr,*obj_tptr;
     int tlen,lmp_obj_len,lmp_obj_ctype,obj_tlen;
     int hexdump;
     int offset,subobj_type,subobj_len,total_subobj_len;

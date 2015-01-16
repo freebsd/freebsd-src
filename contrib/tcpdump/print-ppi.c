@@ -71,7 +71,7 @@ ppi_print(struct netdissect_options *ndo,
 		ndo_printer(ndo, h, p);
 	} else {
 		if (!ndo->ndo_eflag)
-			ppi_header_print(ndo, (const u_char *)hdr,
+			ppi_header_print(ndo, (u_char *)hdr,
 					length + sizeof(ppi_header_t));
 
 		if (!ndo->ndo_suppress_default_print)

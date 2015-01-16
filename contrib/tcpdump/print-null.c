@@ -97,7 +97,7 @@ null_if_print(const struct pcap_pkthdr *h, const u_char *p)
 		return (NULL_HDRLEN);
 	}
 
-	memcpy(&family, p, sizeof(family));
+	memcpy((char *)&family, (char *)p, sizeof(family));
 
 	/*
 	 * This isn't necessarily in our host byte order; if this is

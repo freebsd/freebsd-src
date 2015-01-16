@@ -57,7 +57,7 @@ static const char rcsid[] _U_ =
 		(HEXDUMP_HEXSTUFF_PER_SHORT * HEXDUMP_SHORTS_PER_LINE)
 
 void
-ascii_print(const u_char *cp, register u_int length)
+ascii_print(register const u_char *cp, register u_int length)
 {
 	register int s;
 
@@ -75,7 +75,7 @@ ascii_print(const u_char *cp, register u_int length)
 
 void
 hex_and_ascii_print_with_offset(register const char *ident,
-    const u_char *cp, register u_int length, register u_int oset)
+    register const u_char *cp, register u_int length, register u_int oset)
 {
 	register u_int i;
 	register int s1, s2;
@@ -121,7 +121,7 @@ hex_and_ascii_print_with_offset(register const char *ident,
 }
 
 void
-hex_and_ascii_print(register const char *ident, const u_char *cp,
+hex_and_ascii_print(register const char *ident, register const u_char *cp,
     register u_int length)
 {
 	hex_and_ascii_print_with_offset(ident, cp, length, 0);
@@ -131,7 +131,7 @@ hex_and_ascii_print(register const char *ident, const u_char *cp,
  * telnet_print() wants this.  It is essentially default_print_unaligned()
  */
 void
-hex_print_with_offset(register const char *ident, const u_char *cp, register u_int length,
+hex_print_with_offset(register const char *ident, register const u_char *cp, register u_int length,
 		      register u_int oset)
 {
 	register u_int i, s;
@@ -158,7 +158,7 @@ hex_print_with_offset(register const char *ident, const u_char *cp, register u_i
  * just for completeness
  */
 void
-hex_print(register const char *ident, const u_char *cp, register u_int length)
+hex_print(register const char *ident, register const u_char *cp, register u_int length)
 {
 	hex_print_with_offset(ident, cp, length, 0);
 }

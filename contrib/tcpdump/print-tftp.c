@@ -72,7 +72,7 @@ static struct tok err2str[] = {
  * Print trivial file transfer program requests
  */
 void
-tftp_print(const u_char *bp, u_int length)
+tftp_print(register const u_char *bp, u_int length)
 {
 	if (!invoke_dissector((void *)_tftp_print,
 	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -82,9 +82,9 @@ tftp_print(const u_char *bp, u_int length)
 void
 _tftp_print(const u_char *bp, u_int length)
 {
-	 const struct tftphdr *tp;
-	const char *cp;
-	const u_char *p;
+	register const struct tftphdr *tp;
+	register const char *cp;
+	register const u_char *p;
 	register int opcode, i;
 	static char tstr[] = " [|tftp]";
 
@@ -107,7 +107,7 @@ _tftp_print(const u_char *bp, u_int length)
 	case RRQ:
 	case WRQ:
 	case OACK:
-		p = (const u_char *)tp->th_stuff;
+		p = (u_char *)tp->th_stuff;
 		putchar(' ');
 		/* Print filename or first option */
 		if (opcode != OACK)
@@ -117,7 +117,7 @@ _tftp_print(const u_char *bp, u_int length)
 			putchar('"');
 
 		/* Print the mode (RRQ and WRQ only) and any options */
-		while ((p = strchr(p, '\0')) != NULL) {
+		while ((p = (const u_char *)strchr((const char *)p, '\0')) != NULL) {
 			if (length <= (u_int)(p - (const u_char *)&tp->th_block))
 				break;
 			p++;

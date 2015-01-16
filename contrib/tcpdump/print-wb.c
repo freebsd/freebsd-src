@@ -52,7 +52,7 @@ static const char rcsid[] _U_ =
 #define DOP_ALIGN 4
 #define DOP_ROUNDUP(x)	((((int)(x)) + (DOP_ALIGN - 1)) & ~(DOP_ALIGN - 1))
 #define DOP_NEXT(d)\
-	((struct dophdr *)((const u_char *)(d) + \
+	((struct dophdr *)((u_char *)(d) + \
 			  DOP_ROUNDUP(EXTRACT_16BITS(&(d)->dh_len) + sizeof(*(d)))))
 
 /*
@@ -183,7 +183,7 @@ static int
 wb_id(const struct pkt_id *id, u_int len)
 {
 	int i;
-	const u_char *cp;
+	const char *cp;
 	const struct id_off *io;
 	char c;
 	int nid;
@@ -204,10 +204,10 @@ wb_id(const struct pkt_id *id, u_int len)
 	nid = EXTRACT_16BITS(&id->pi_ps.nid);
 	len -= sizeof(*io) * nid;
 	io = (struct id_off *)(id + 1);
-	cp = (const u_char *)(io + nid);
-	if (cp + len <= snapend) {
+	cp = (char *)(io + nid);
+	if ((u_char *)cp + len <= snapend) {
 		putchar('"');
-		(void)fn_print(cp, cp + len);
+		(void)fn_print((u_char *)cp, (u_char *)cp + len);
 		putchar('"');
 	}
 
@@ -267,7 +267,7 @@ wb_prep(const struct pkt_prep *prep, u_int len)
 	}
 	n = EXTRACT_32BITS(&prep->pp_n);
 	ps = (const struct pgstate *)(prep + 1);
-	while (--n >= 0 && (const u_char *)(ps + 1) <= ep) {
+	while (--n >= 0 && (u_char *)(ps + 1) <= ep) {
 		const struct id_off *io, *ie;
 		char c = '<';
 
@@ -391,7 +391,7 @@ wb_drawop(const struct pkt_dop *dop, u_int len)
  * Print whiteboard multicast packets.
  */
 void
-wb_print(const u_char *hdr, register u_int len)
+wb_print(register const void *hdr, register u_int len)
 {
 	if (!invoke_dissector((void *)_wb_print,
 	    len, 0, 0, 0, 0, gndo, hdr, NULL, NULL, NULL))
@@ -399,12 +399,12 @@ wb_print(const u_char *hdr, register u_int len)
 }
 
 void
-_wb_print(const u_char *hdr, register u_int len)
+_wb_print(const void *hdr, register u_int len)
 {
-	const struct pkt_hdr *ph;
+	register const struct pkt_hdr *ph;
 
 	ph = (const struct pkt_hdr *)hdr;
-	if (len < sizeof(*ph) || (const u_char *)(ph + 1) > snapend) {
+	if (len < sizeof(*ph) || (u_char *)(ph + 1) > snapend) {
 		printf("[|wb]");
 		return;
 	}
@@ -419,32 +419,32 @@ _wb_print(const u_char *hdr, register u_int len)
 		return;
 
 	case PT_ID:
-		if (wb_id((const struct pkt_id *)(ph + 1), len) >= 0)
+		if (wb_id((struct pkt_id *)(ph + 1), len) >= 0)
 			return;
 		break;
 
 	case PT_RREQ:
-		if (wb_rreq((const struct pkt_rreq *)(ph + 1), len) >= 0)
+		if (wb_rreq((struct pkt_rreq *)(ph + 1), len) >= 0)
 			return;
 		break;
 
 	case PT_RREP:
-		if (wb_rrep((const struct pkt_rrep *)(ph + 1), len) >= 0)
+		if (wb_rrep((struct pkt_rrep *)(ph + 1), len) >= 0)
 			return;
 		break;
 
 	case PT_DRAWOP:
-		if (wb_drawop((const struct pkt_dop *)(ph + 1), len) >= 0)
+		if (wb_drawop((struct pkt_dop *)(ph + 1), len) >= 0)
 			return;
 		break;
 
 	case PT_PREQ:
-		if (wb_preq((const struct pkt_preq *)(ph + 1), len) >= 0)
+		if (wb_preq((struct pkt_preq *)(ph + 1), len) >= 0)
 			return;
 		break;
 
 	case PT_PREP:
-		if (wb_prep((const struct pkt_prep *)(ph + 1), len) >= 0)
+		if (wb_prep((struct pkt_prep *)(ph + 1), len) >= 0)
 			return;
 		break;
 

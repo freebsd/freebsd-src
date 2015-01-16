@@ -73,7 +73,7 @@ static int print_graft_ack(const u_char *);
 static u_int32_t target_level;
 
 void
-dvmrp_print(const u_char *bp, register u_int len)
+dvmrp_print(register const u_char *bp, register u_int len)
 {
 	if (!invoke_dissector((void *)_dvmrp_print,
 	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -83,10 +83,10 @@ dvmrp_print(const u_char *bp, register u_int len)
 void
 _dvmrp_print(const u_char *bp, register u_int len)
 {
-	const u_char *ep;
+	register const u_char *ep;
 	register u_char type;
 
-	ep = snapend;
+	ep = (const u_char *)snapend;
 	if (bp >= ep)
 		return;
 
@@ -174,7 +174,8 @@ trunc:
 }
 
 static int 
-print_report(const u_char *bp, const u_char *ep, register u_int len)
+print_report(register const u_char *bp, register const u_char *ep,
+    register u_int len)
 {
 	register u_int32_t mask, origin;
 	register int metric, done;
@@ -230,7 +231,8 @@ trunc:
 }
 
 static int
-print_probe(const u_char *bp, const u_char *ep, register u_int len)
+print_probe(register const u_char *bp, register const u_char *ep,
+    register u_int len)
 {
 	register u_int32_t genid;
 
@@ -262,7 +264,8 @@ trunc:
 }
 
 static int
-print_neighbors(const u_char *bp, const u_char *ep, register u_int len)
+print_neighbors(register const u_char *bp, register const u_char *ep,
+    register u_int len)
 {
 	const u_char *laddr;
 	register u_char metric;
@@ -292,7 +295,8 @@ trunc:
 }
 
 static int
-print_neighbors2(const u_char *bp, const u_char *ep, register u_int len)
+print_neighbors2(register const u_char *bp, register const u_char *ep,
+    register u_int len)
 {
 	const u_char *laddr;
 	register u_char metric, thresh, flags;
@@ -340,7 +344,7 @@ trunc:
 }
 
 static int
-print_prune(const u_char *bp)
+print_prune(register const u_char *bp)
 {
 	TCHECK2(bp[0], 12);
 	printf(" src %s grp %s", ipaddr_string(bp), ipaddr_string(bp + 4));
@@ -353,7 +357,7 @@ trunc:
 }
 
 static int
-print_graft(const u_char *bp)
+print_graft(register const u_char *bp)
 {
 	TCHECK2(bp[0], 8);
 	printf(" src %s grp %s", ipaddr_string(bp), ipaddr_string(bp + 4));
@@ -363,7 +367,7 @@ trunc:
 }
 
 static int
-print_graft_ack(const u_char *bp)
+print_graft_ack(register const u_char *bp)
 {
 	TCHECK2(bp[0], 8);
 	printf(" src %s grp %s", ipaddr_string(bp), ipaddr_string(bp + 4));

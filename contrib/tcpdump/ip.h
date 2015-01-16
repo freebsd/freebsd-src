@@ -161,5 +161,4 @@ struct	ip_timestamp {
 #define	IP_MSS		576		/* default maximum segment size */
 
 /* in print-ip.c */
-extern int nextproto4_cksum(const struct ip *,
-    const u_int8_t *, u_int, u_int);
+extern int nextproto4_cksum(const struct ip *, const u_int8_t *, u_int, u_int);

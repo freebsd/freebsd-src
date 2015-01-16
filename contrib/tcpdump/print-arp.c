@@ -185,8 +185,8 @@ static u_char ezero[6];
 
 static void
 atmarp_addr_print(netdissect_options *ndo,
-		  const u_char *ha, u_int ha_len,
-		  const u_char *srca, u_int srca_len)
+		  const u_char *ha, u_int ha_len, const u_char *srca,
+    u_int srca_len)
 {
 	if (ha_len == 0)
 		ND_PRINT((ndo, "<No address>"));
@@ -295,7 +295,8 @@ trunc:
 }
 
 void
-arp_print(netdissect_options *ndo, const u_char *bp, u_int length, u_int caplen)
+arp_print(netdissect_options *ndo,
+	  const u_char *bp, u_int length, u_int caplen)
 {
 	if (!invoke_dissector((void *)_arp_print,
 	    length, caplen, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
@@ -303,7 +304,8 @@ arp_print(netdissect_options *ndo, const u_char *bp, u_int length, u_int caplen)
 }
 
 void
-_arp_print(netdissect_options *ndo, const u_char *bp, u_int length, u_int caplen)
+_arp_print(netdissect_options *ndo,
+	  const u_char *bp, u_int length, u_int caplen)
 {
 	const struct arp_pkthdr *ap;
 	u_short pro, hrd, op, linkaddr;

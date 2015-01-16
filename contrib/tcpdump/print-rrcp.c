@@ -82,7 +82,7 @@ static const struct tok opcode_values[] = {
  */
 void
 rrcp_print(netdissect_options *ndo,
-	  const u_char *cp,
+	  register const u_char *cp,
 	  u_int length)
 {
 	if (!invoke_dissector((void *)_rrcp_print,
@@ -98,7 +98,7 @@ _rrcp_print(netdissect_options *ndo,
 	const u_char *rrcp;
 	u_int8_t rrcp_proto;
 	u_int8_t rrcp_opcode;
-	const struct ether_header *ep;
+	register const struct ether_header *ep;
 	char proto_str[16];
 	char opcode_str[32];
 

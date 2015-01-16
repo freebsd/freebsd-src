@@ -52,16 +52,16 @@ static const char rcsid[] _U_ =
 static inline void
 extract_token_addrs(const struct token_header *trp, char *fsrc, char *fdst)
 {
-	memcpy(fdst, trp->token_dhost, 6);
-	memcpy(fsrc, trp->token_shost, 6);
+	memcpy(fdst, (const char *)trp->token_dhost, 6);
+	memcpy(fsrc, (const char *)trp->token_shost, 6);
 }
 
 /*
  * Print the TR MAC header
  */
 static inline void
-token_hdr_print(const struct token_header *trp, register u_int length,
-	   u_char *fsrc, u_char *fdst)
+token_hdr_print(register const struct token_header *trp, register u_int length,
+	   register const u_char *fsrc, register const u_char *fdst)
 {
 	const char *srcname, *dstname;
 

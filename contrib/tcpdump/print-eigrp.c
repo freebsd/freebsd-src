@@ -223,7 +223,7 @@ _eigrp_print(const u_char *pptr, register u_int len)
 {
     const struct eigrp_common_header *eigrp_com_header;
     const struct eigrp_tlv_header *eigrp_tlv_header;
-    const u_char *tptr, *tlv_tptr;
+    const u_char *tptr,*tlv_tptr;
     u_int tlen,eigrp_tlv_len,eigrp_tlv_type,tlv_tlen, byte_length, bit_length;
     u_int8_t prefix[4];
 

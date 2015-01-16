@@ -255,7 +255,7 @@ trunc:
 #define PT_IEEE_802_2		2	/* IEEE 802.2 LLC header */
 
 static int
-cdp_print_addr(const u_char *p, int l)
+cdp_print_addr(const u_char * p, int l)
 {
 	int pt, pl, al, num;
 	const u_char *endp = p + l;
@@ -353,7 +353,7 @@ trunc:
 
 
 static int
-cdp_print_prefixes(const u_char *p, int l)
+cdp_print_prefixes(const u_char * p, int l)
 {
 	if (l % 5)
 		goto trunc;
@@ -375,7 +375,7 @@ trunc:
 /* read in a <n>-byte number, MSB first
  * (of course this can handle max sizeof(long))
  */
-static unsigned long cdp_get_number(const u_char *p, int l)
+static unsigned long cdp_get_number(const u_char * p, int l)
 {
     unsigned long res=0;
     while( l>0 )

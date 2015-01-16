@@ -250,8 +250,8 @@ struct lacp_marker_tlv_terminator_t {
     u_int8_t pad[50];
 }; 
 
-void slow_marker_lacp_print(const u_char *, register u_int);
-void slow_oam_print(const u_char *, register u_int);
+void slow_marker_lacp_print(register const u_char *, register u_int);
+void slow_oam_print(register const u_char *, register u_int);
 
 const struct slow_common_header_t *slow_com_header;
 
@@ -345,7 +345,7 @@ trunc:
     printf("\n\t\t packet exceeded snapshot");
 }
 
-void slow_marker_lacp_print(const u_char *tptr, register u_int tlen) {
+void slow_marker_lacp_print(register const u_char *tptr, register u_int tlen) {
 
     const struct tlv_header_t *tlv_header;
     const u_char *tlv_tptr;
@@ -461,7 +461,7 @@ trunc:
     printf("\n\t\t packet exceeded snapshot");
 }
 
-void slow_oam_print(const u_char *tptr, register u_int tlen) {
+void slow_oam_print(register const u_char *tptr, register u_int tlen) {
 
     u_int hexdump;
 

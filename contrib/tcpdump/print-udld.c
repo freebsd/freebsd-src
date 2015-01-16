@@ -24,7 +24,6 @@
 
 #include <tcpdump-stdinc.h>
 
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -149,7 +148,7 @@ _udld_print (const u_char *pptr, u_int length)
         case UDLD_DEVICE_ID_TLV:
         case UDLD_PORT_ID_TLV:
         case UDLD_ECHO_TLV:
-        case UDLD_DEVICE_NAME_TLV:
+        case UDLD_DEVICE_NAME_TLV: 
             printf(", %s", tptr);
             break;
 

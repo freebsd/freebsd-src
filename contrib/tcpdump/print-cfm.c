@@ -42,8 +42,8 @@ static const char rcsid[] _U_ =
 /*
  * Prototypes
  */
-const char * cfm_egress_id_string(const u_char *);
-int cfm_mgmt_addr_print(const u_char *);
+const char * cfm_egress_id_string(register const u_char *);
+int cfm_mgmt_addr_print(register const u_char *);
 
 struct cfm_common_header_t {
     u_int8_t mdlevel_version;
@@ -237,7 +237,7 @@ static const struct tok cfm_tlv_senderid_chassisid_values[] = {
 
 
 int
-cfm_mgmt_addr_print(const u_char *tptr) {
+cfm_mgmt_addr_print(register const u_char *tptr) {
 
     u_int mgmt_addr_type;
     u_int hexdump =  FALSE;
@@ -278,7 +278,7 @@ cfm_mgmt_addr_print(const u_char *tptr) {
  * The egress-ID string is a 16-Bit string plus a MAC address.
  */
 const char *
-cfm_egress_id_string(const u_char *tptr) {
+cfm_egress_id_string(register const u_char *tptr) {
     static char egress_id_buffer[80];
     
     snprintf(egress_id_buffer, sizeof(egress_id_buffer),
@@ -302,7 +302,7 @@ _cfm_print(const u_char *pptr, register u_int length)
 {
     const struct cfm_common_header_t *cfm_common_header;
     const struct cfm_tlv_header_t *cfm_tlv_header;
-    const u_char *tptr, *tlv_ptr, *ma_name, *ma_nameformat, *ma_namelength;
+    const u_int8_t *tptr, *tlv_ptr, *ma_name, *ma_nameformat, *ma_namelength;
     u_int hexdump, tlen, cfm_tlv_len, cfm_tlv_type, ccm_interval;
 
 
@@ -384,7 +384,7 @@ _cfm_print(const u_char *pptr, register u_int length)
             switch (msg_ptr.cfm_ccm->md_nameformat) {
             case CFM_CCM_MD_FORMAT_DNS:
             case CFM_CCM_MD_FORMAT_CHAR:
-                safeputs((const u_char *)msg_ptr.cfm_ccm->md_name, msg_ptr.cfm_ccm->md_namelength);
+                safeputs((const char *)msg_ptr.cfm_ccm->md_name, msg_ptr.cfm_ccm->md_namelength);
                 break;
 
             case CFM_CCM_MD_FORMAT_MAC:
@@ -417,7 +417,7 @@ _cfm_print(const u_char *pptr, register u_int length)
         printf("\n\t  MA Name: ");
         switch (*ma_nameformat) {
         case CFM_CCM_MA_FORMAT_CHAR:
-            safeputs(ma_name, *ma_namelength);
+            safeputs((const char *)ma_name, *ma_namelength);
             break;
 
             /* FIXME add printers for those MA formats - hexdump for now */
@@ -594,7 +594,7 @@ _cfm_print(const u_char *pptr, register u_int length)
                 case CFM_CHASSIS_ID_LOCAL:
                 case CFM_CHASSIS_ID_CHASSIS_COMPONENT:
                 case CFM_CHASSIS_ID_PORT_COMPONENT:
-                    safeputs(tptr+1, chassis_id_length);
+                    safeputs((const char *)tptr+1, chassis_id_length);
                     break;
 
                 default:

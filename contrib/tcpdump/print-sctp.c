@@ -100,20 +100,20 @@ void _sctp_print(const u_char *bp,        /* beginning of sctp packet */
 #ifdef INET6
   const struct ip6_hdr *ip6;
 #endif
-  const u_char *endPacketPtr;
+  const void *endPacketPtr;
   u_short sourcePort, destPort;
   int chunkCount;
   const struct sctpChunkDesc *chunkDescPtr;
-  const u_char *nextChunk;
+  const void *nextChunk;
   const char *sep;
   int isforces = 0;
 
 
   sctpPktHdr = (const struct sctpHeader*) bp;
-  endPacketPtr = (const u_char *)sctpPktHdr+sctpPacketLength;
+  endPacketPtr = (const u_char*)sctpPktHdr+sctpPacketLength;
 
   if( (u_long) endPacketPtr > (u_long) snapend)
-    endPacketPtr = snapend;
+    endPacketPtr = (const void *) snapend;
   ip = (struct ip *)bp2;
 #ifdef INET6
   if (IP_V(ip) == 6)
@@ -170,9 +170,9 @@ void _sctp_print(const u_char *bp,        /* beginning of sctp packet */
   /* cycle through all chunks, printing information on each one */
   for (chunkCount = 0,
 	 chunkDescPtr = (const struct sctpChunkDesc *)
-	    ((const u_char *) sctpPktHdr + sizeof(struct sctpHeader));
+	    ((const u_char*) sctpPktHdr + sizeof(struct sctpHeader));
        chunkDescPtr != NULL &&
-	 ( (const u_char *)
+	 ( (const void *)
 	    ((const u_char *) chunkDescPtr + sizeof(struct sctpChunkDesc))
 	   <= endPacketPtr);
 
@@ -196,7 +196,7 @@ void _sctp_print(const u_char *bp,        /* beginning of sctp packet */
       if (align != 0)
 	align = 4 - align;
 
-      nextChunk = (const u_char *) (chunkEnd + align);
+      nextChunk = (const void *) (chunkEnd + align);
 
       printf("%s%d) ", sep, chunkCount+1);
       switch (chunkDescPtr->chunkID)
@@ -334,7 +334,7 @@ void _sctp_print(const u_char *bp,        /* beginning of sctp packet */
 	    for (frag = ( (const struct sctpSelectiveFrag *)
 			  ((const struct sctpSelectiveAck *) sack+1)),
 		   fragNo=0;
-		 (const u_char *)frag < nextChunk && fragNo < EXTRACT_16BITS(&sack->numberOfdesc);
+		 (const void *)frag < nextChunk && fragNo < EXTRACT_16BITS(&sack->numberOfdesc);
 		 frag++, fragNo++)
 	      printf("\n\t\t[gap ack block #%d: start = %u, end = %u] ",
 		     fragNo+1,
@@ -344,7 +344,7 @@ void _sctp_print(const u_char *bp,        /* beginning of sctp packet */
 
 	    /* print duplicate TSNs */
 	    for (dupTSN = (const u_char *)frag, tsnNo=0;
-		 (const u_char *) dupTSN < nextChunk && tsnNo<EXTRACT_16BITS(&sack->numDupTsns);
+		 (const void *) dupTSN < nextChunk && tsnNo<EXTRACT_16BITS(&sack->numDupTsns);
 		 dupTSN += 4, tsnNo++)
 	      printf("\n\t\t[dup TSN #%u: %u] ", tsnNo+1,
 	          EXTRACT_32BITS(dupTSN));

@@ -82,7 +82,7 @@ _ipx_print(const u_char *p, u_int length)
 	TCHECK(ipx->length);
 	length = EXTRACT_16BITS(&ipx->length);
 
-	ipx_decode(ipx, (const u_char *)ipx + ipxSize, length - ipxSize);
+	ipx_decode(ipx, (u_char *)ipx + ipxSize, length - ipxSize);
 	return;
 trunc:
 	printf("[|ipx %d]", length);
@@ -171,13 +171,13 @@ ipx_sap_print(const u_short *ipx, u_int length)
 	for (i = 0; i < 8 && length > 0; i++) {
 	    TCHECK(ipx[0]);
 	    (void)printf(" %s '", ipxsap_string(htons(EXTRACT_16BITS(&ipx[0]))));
-	    if (fn_printzp((const u_char *)&ipx[1], 48, snapend)) {
+	    if (fn_printzp((u_char *)&ipx[1], 48, snapend)) {
 		printf("'");
 		goto trunc;
 	    }
 	    TCHECK2(ipx[25], 10);
 	    printf("' addr %s",
-		ipxaddr_string(EXTRACT_32BITS(&ipx[25]), (const u_char *)&ipx[27]));
+		ipxaddr_string(EXTRACT_32BITS(&ipx[25]), (u_char *)&ipx[27]));
 	    ipx += 32;
 	    length -= 64;
 	}

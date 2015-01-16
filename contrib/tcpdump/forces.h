@@ -74,7 +74,7 @@ struct tom_h {
 	u_int16_t flags;
 	u_int16_t op_msk;
 	const char *s;
-	int (*print) (const u_char *pptr, register u_int len,
+	int (*print) (register const u_char * pptr, register u_int len,
 		      u_int16_t op_msk, int indent);
 };
 
@@ -94,21 +94,21 @@ enum {
 };
 #define TOM_MAX_IND (_TOM_RSV_MAX - 1)
 
-int lfbselect_print(const u_char *pptr, register u_int len,
+int lfbselect_print(register const u_char * pptr, register u_int len,
 		    u_int16_t op_msk, int indent);
-int redirect_print(const u_char *pptr, register u_int len,
+int redirect_print(register const u_char * pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
-int asrtlv_print(const u_char *pptr, register u_int len,
+int asrtlv_print(register const u_char * pptr, register u_int len,
 		 u_int16_t op_msk, int indent);
-int asttlv_print(const u_char *pptr, register u_int len,
+int asttlv_print(register const u_char * pptr, register u_int len,
 		 u_int16_t op_msk, int indent);
-int gentltlv_print(const u_char *pptr, register u_int len,
+int gentltlv_print(register const u_char * pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
-int print_metailv(const u_char *pptr, register u_int len,
+int print_metailv(register const u_char * pptr, register u_int len,
 	      u_int16_t op_msk, int indent);
-int print_metatlv(const u_char *pptr, register u_int len,
+int print_metatlv(register const u_char * pptr, register u_int len,
 	      u_int16_t op_msk, int indent);
-int print_reddata(const u_char *pptr, register u_int len,
+int print_reddata(register const u_char * pptr, register u_int len,
 	      u_int16_t op_msk, int indent);
 
 static inline int tom_valid(u_int8_t tom)
@@ -230,7 +230,7 @@ const struct tok ForCES_LFBs[] = {
 	{0, NULL}
 };
 
-int forces_type_print(const u_char *pptr, const struct forcesh *fhdr,
+int forces_type_print(register const u_char * pptr, const struct forcesh *fhdr,
 		  register u_int mlen, const struct tom_h *tops);
 
 enum {
@@ -274,15 +274,15 @@ struct optlv_h {
 	u_int16_t flags;
 	u_int16_t op_msk;
 	const char *s;
-	int (*print) (const u_char *pptr, register u_int len,
+	int (*print) (register const u_char * pptr, register u_int len,
 		      u_int16_t op_msk, int indent);
 };
 
-int genoptlv_print(const u_char *pptr, register u_int len,
+int genoptlv_print(register const u_char * pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
-int recpdoptlv_print(const u_char *pptr, register u_int len,
+int recpdoptlv_print(register const u_char * pptr, register u_int len,
 		     u_int16_t op_msk, int indent);
-int invoptlv_print(const u_char *pptr, register u_int len,
+int invoptlv_print(register const u_char * pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
 
 #define OP_MIN_SIZ 8
@@ -532,7 +532,7 @@ struct pdata_ops {
 	u_int16_t flags;
 	u_int16_t op_msk;
 	const char *s;
-	int (*print) (const u_char *pptr, register u_int len,
+	int (*print) (register const u_char * pptr, register u_int len,
 		      u_int16_t op_msk, int indent);
 };
 
@@ -573,23 +573,23 @@ static inline void chk_op_type(u_int16_t type, u_int16_t msk, u_int16_t omsk)
 
 }
 
-int fdatatlv_print(const u_char *pptr, register u_int len,
+int fdatatlv_print(register const u_char * pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
-int sdatailv_print(const u_char *pptr, register u_int len,
+int sdatailv_print(register const u_char * pptr, register u_int len,
 	       u_int16_t op_msk, int indent);
-int sdatatlv_print(const u_char *pptr, register u_int len,
+int sdatatlv_print(register const u_char * pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
-int pdatatlv_print(const u_char *pptr, register u_int len,
+int pdatatlv_print(register const u_char * pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
-int pkeyitlv_print(const u_char *pptr, register u_int len,
+int pkeyitlv_print(register const u_char * pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
 
-int pdatacnt_print(const u_char *pptr, register u_int len,
+int pdatacnt_print(register const u_char * pptr, register u_int len,
 	       u_int16_t IDcnt, u_int16_t op_msk, int indent);
-int pdata_print(const u_char *pptr, register u_int len,
+int pdata_print(register const u_char * pptr, register u_int len,
 	    u_int16_t op_msk, int indent);
 
-int prestlv_print(const u_char *pptr, register u_int len,
+int prestlv_print(register const u_char * pptr, register u_int len,
 		  u_int16_t op_msk, int indent);
 #define F_SELKEY 1
 

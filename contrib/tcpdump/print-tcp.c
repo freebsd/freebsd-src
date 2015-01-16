@@ -64,7 +64,7 @@ static int tcp_verify_signature(const struct ip *ip, const struct tcphdr *tp,
                                 const u_char *data, int length, const u_char *rcvsig);
 #endif
 
-static void print_tcp_rst_data(const u_char *sp, u_int length);
+static void print_tcp_rst_data(register const u_char *sp, u_int length);
 
 #define MAX_RST_DATA_LEN	30
 
@@ -125,17 +125,17 @@ struct tok tcp_option_values[] = {
         { 0, NULL }
 };
 
-static int tcp_cksum(const struct ip *ip,
-		     const struct tcphdr *tp,
+static int tcp_cksum(register const struct ip *ip,
+		     register const struct tcphdr *tp,
 		     register u_int len)
 {
-	return (nextproto4_cksum(ip, (const u_char *)tp, len,
+	return (nextproto4_cksum(ip, (const u_int8_t *)tp, len,
 	    IPPROTO_TCP));
 }
 
 void
-tcp_print(const u_char *bp, register u_int length,
-	  const u_char *bp2, int fragmented)
+tcp_print(register const u_char *bp, register u_int length,
+	  register const u_char *bp2, int fragmented)
 {
 	if (!invoke_dissector((void *)_tcp_print,
 	    length, fragmented, 0, 0, 0, NULL, bp, bp2, NULL, NULL))
@@ -146,8 +146,8 @@ void
 _tcp_print(const u_char *bp, register u_int length,
 	  const u_char *bp2, int fragmented)
 {
-        const struct tcphdr *tp;
-        const struct ip *ip;
+        register const struct tcphdr *tp;
+        register const struct ip *ip;
         register u_char flags;
         register u_int hlen;
         register char ch;
@@ -156,14 +156,14 @@ _tcp_print(const u_char *bp, register u_int length,
         u_int utoval;
         int threv;
 #ifdef INET6
-        const struct ip6_hdr *ip6;
+        register const struct ip6_hdr *ip6;
 #endif
 
-        tp = (const struct tcphdr *)bp;
-        ip = (const struct ip *)bp2;
+        tp = (struct tcphdr *)bp;
+        ip = (struct ip *)bp2;
 #ifdef INET6
         if (IP_V(ip) == 6)
-                ip6 = (const struct ip6_hdr *)bp2;
+                ip6 = (struct ip6_hdr *)bp2;
         else
                 ip6 = NULL;
 #endif /*INET6*/
@@ -188,29 +188,29 @@ _tcp_print(const u_char *bp, register u_int length,
 	 */
 	if (!qflag && hlen >= sizeof(*tp) && hlen <= length &&
 	    (length - hlen) >= 4) {
-		const u_char *fraglenp;
+		u_char *fraglenp;
 		u_int32_t fraglen;
-		const struct sunrpc_msg *rp;
+		register struct sunrpc_msg *rp;
 		enum sunrpc_msg_type direction;
 
-		fraglenp = (const u_char *)tp + hlen;
+		fraglenp = (u_char *)tp + hlen;
 		if (TTEST2(*fraglenp, 4)) {
 			fraglen = EXTRACT_32BITS(fraglenp) & 0x7FFFFFFF;
 			if (fraglen > (length - hlen) - 4)
 				fraglen = (length - hlen) - 4;
-			rp = (const struct sunrpc_msg *)(fraglenp + 4);
+			rp = (struct sunrpc_msg *)(fraglenp + 4);
 			if (TTEST(rp->rm_direction)) {
 				direction = (enum sunrpc_msg_type)EXTRACT_32BITS(&rp->rm_direction);
 				if (dport == NFS_PORT &&
 				    direction == SUNRPC_CALL) {
-					nfsreq_print((const u_char *)rp, fraglen,
-					    (const u_char *)ip);
+					nfsreq_print((u_char *)rp, fraglen,
+					    (u_char *)ip);
 					return;
 				}
 				if (sport == NFS_PORT &&
 				    direction == SUNRPC_REPLY) {
-					nfsreply_print((const u_char *)rp,
-					    fraglen, (const u_char *)ip);
+					nfsreply_print((u_char *)rp, fraglen,
+					    (u_char *)ip);
 					return;
 				}
 			}
@@ -269,8 +269,8 @@ _tcp_print(const u_char *bp, register u_int length,
         printf("Flags [%s]", bittok2str_nosep(tcp_flag_values, "none", flags));
 
         if (!Sflag && (flags & TH_ACK)) {
-                struct tcp_seq_hash *th;
-                const u_char *src, *dst;
+                register struct tcp_seq_hash *th;
+                const void *src, *dst;
                 register int rev;
                 struct tha tha;
                 /*
@@ -282,8 +282,8 @@ _tcp_print(const u_char *bp, register u_int length,
 #ifdef INET6
                 rev = 0;
                 if (ip6) {
-                        src = (const u_char *)&ip6->ip6_src;
-                        dst = (const u_char *)&ip6->ip6_dst;
+                        src = &ip6->ip6_src;
+                        dst = &ip6->ip6_dst;
                         if (sport > dport)
                                 rev = 1;
                         else if (sport == dport) {
@@ -321,8 +321,8 @@ _tcp_print(const u_char *bp, register u_int length,
                          * an issue?
                          */
                         memset(&tha, 0, sizeof(tha));
-                        src = (const u_char *)&ip->ip_src;
-                        dst = (const u_char *)&ip->ip_dst;
+                        src = &ip->ip_src;
+                        dst = &ip->ip_dst;
                         if (sport > dport)
                                 rev = 1;
                         else if (sport == dport) {
@@ -419,7 +419,7 @@ _tcp_print(const u_char *bp, register u_int length,
 #ifdef INET6
                 else if (IP_V(ip) == 6 && ip6->ip6_plen) {
                         if (TTEST2(tp->th_sport, length)) {
-                                sum = nextproto6_cksum(ip6, (const u_char *)tp, length, IPPROTO_TCP);
+                                sum = nextproto6_cksum(ip6, (const u_int8_t *)tp, length, IPPROTO_TCP);
                                 tcp_sum = EXTRACT_16BITS(&tp->th_sum);
 
                                 (void)printf(", cksum 0x%04x", tcp_sum);
@@ -455,7 +455,7 @@ _tcp_print(const u_char *bp, register u_int length,
          * Handle any options.
          */
         if (hlen > sizeof(*tp)) {
-                const u_char *cp;
+                register const u_char *cp;
                 register u_int i, opt, datalen;
                 register u_int len;
 
@@ -717,7 +717,7 @@ _tcp_print(const u_char *bp, register u_int length,
  */
 
 static void
-print_tcp_rst_data(const u_char *sp, u_int length)
+print_tcp_rst_data(register const u_char *sp, u_int length)
 {
         int c;
 

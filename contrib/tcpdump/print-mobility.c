@@ -174,7 +174,7 @@ mobility_print(const u_char *bp, const u_char *bp2 _U_)
 	const u_char *ep;
 	int mhlen, hlen, type;
 
-	mh = (const struct ip6_mobility *)bp;
+	mh = (struct ip6_mobility *)bp;
 
 	/* 'ep' points to the end of available data. */
 	ep = snapend;

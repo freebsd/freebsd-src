@@ -1017,7 +1017,7 @@ _nbt_tcp_print(const u_char *data, int length)
 		data + 4, 0);
 	    if (data == NULL)
 		break;
-	    if (nbt_len >= 4 && caplen >= 4 && memcmp(data,"\377SMB", 4) == 0) {
+	    if (nbt_len >= 4 && caplen >= 4 && memcmp(data,"\377SMB",4) == 0) {
 		if ((int)nbt_len > caplen) {
 		    if ((int)nbt_len > length)
 			printf("WARNING: Packet is continued in later TCP segments\n");
@@ -1346,7 +1346,7 @@ _nbt_udp138_print(const u_char *data, int length)
 	if (&data[3] >= maxbuf)
 	    goto out;
 
-	if (memcmp(data, "\377SMB", 4) == 0)
+	if (memcmp(data, "\377SMB",4) == 0)
 	    print_smb(data, maxbuf);
     }
 out:
@@ -1492,7 +1492,7 @@ _netbeui_print(u_short control, const u_char *data, int length)
     if (&data2[3] >= maxbuf)
 	goto out;
 
-    if (memcmp(data2, "\377SMB", 4) == 0)
+    if (memcmp(data2, "\377SMB",4) == 0)
 	print_smb(data2, maxbuf);
     else {
 	int i;

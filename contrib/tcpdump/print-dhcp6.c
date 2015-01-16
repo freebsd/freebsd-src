@@ -328,8 +328,8 @@ dhcp6stcode(int code)
 static void
 dhcp6opt_print(const u_char *cp, const u_char *ep)
 {
-	const struct dhcp6opt *dh6o;
-	const u_char *tp;
+	struct dhcp6opt *dh6o;
+	u_char *tp;
 	size_t i;
 	u_int16_t opttype;
 	size_t optlen;
@@ -341,7 +341,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 	while (cp < ep) {
 		if (ep < cp + sizeof(*dh6o))
 			goto trunc;
-		dh6o = (const struct dhcp6opt *)cp;
+		dh6o = (struct dhcp6opt *)cp;
 		TCHECK(*dh6o);
 		optlen = EXTRACT_16BITS(&dh6o->dh6opt_len);
 		if (ep < cp + sizeof(*dh6o) + optlen)
@@ -356,7 +356,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			switch (EXTRACT_16BITS(tp)) {
 			case 1:
 				if (optlen >= 2 + 6) {
@@ -408,7 +408,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			printf(" %s", ip6addr_string(&tp[0]));
 			printf(" pltime:%u vltime:%u",
 			    EXTRACT_32BITS(&tp[16]),
@@ -425,7 +425,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			for (i = 0; i < optlen; i += 2) {
 				printf(" %s",
 				    dhcp6opt_name(EXTRACT_16BITS(&tp[i])));
@@ -437,7 +437,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			printf(" %d)", *tp);
 			break;
 		case DH6OPT_ELAPSED_TIME:
@@ -445,12 +445,12 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			printf(" %d)", EXTRACT_16BITS(tp));
 			break;
 		case DH6OPT_RELAY_MSG:
 			printf(" (");
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			dhcp6_print(tp, optlen);
 			printf(")");
 			break;
@@ -459,7 +459,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			auth_proto = *tp;
 			switch (auth_proto) {
 			case DH6OPT_AUTHPROTO_DELAYED:
@@ -554,14 +554,14 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			 * Since we cannot predict the encoding, print hex dump
 			 * at most 10 characters.
 			 */
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			printf(" ");
 			for (i = 0; i < optlen && i < 10; i++)
 				printf("%02x", tp[i]);
 			printf("...)");
 			break;
 		case DH6OPT_RECONF_MSG:
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			switch (*tp) {
 			case DH6_RENEW:
 				printf(" for renew)");
@@ -589,7 +589,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			for (i = 0; i < optlen; i += 16)
 				printf(" %s", ip6addr_string(&tp[i]));
 			printf(")");
@@ -599,7 +599,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			printf(" %s)", dhcp6stcode(EXTRACT_16BITS(&tp[0])));
 			break;
 		case DH6OPT_IA_NA:
@@ -608,7 +608,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			printf(" IAID:%u T1:%u T2:%u",
 			    EXTRACT_32BITS(&tp[0]),
 			    EXTRACT_32BITS(&tp[4]),
@@ -624,7 +624,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			printf(" IAID:%u", EXTRACT_32BITS(tp));
 			if (optlen > 4) {
 				/* there are sub-options */
@@ -637,7 +637,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			printf(" %s/%d", ip6addr_string(&tp[9]), tp[8]);
 			printf(" pltime:%u vltime:%u",
 			    EXTRACT_32BITS(&tp[0]),
@@ -654,7 +654,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			printf(" %d)", EXTRACT_32BITS(tp));
 			break;
 		case DH6OPT_REMOTE_ID:
@@ -662,7 +662,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			printf(" %d ", EXTRACT_32BITS(tp));
 			/*
 			 * Print hex dump first 10 characters.
@@ -676,7 +676,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			switch (*tp) {
 			case 1:
 				printf(" by-address");
@@ -696,7 +696,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 			printf(")");
 			break;
 		case DH6OPT_CLIENT_DATA:
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			if (optlen > 0) {
 				/* there are encapsulated options */
 				dhcp6opt_print(tp, tp + optlen);
@@ -708,7 +708,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			printf(" %s ", ip6addr_string(&tp[0]));
 			/*
 			 * Print hex dump first 10 characters.
@@ -722,7 +722,7 @@ dhcp6opt_print(const u_char *cp, const u_char *ep)
 				printf(" ?)");
 				break;
 			}
-			tp = (const u_char *)(dh6o + 1);
+			tp = (u_char *)(dh6o + 1);
 			int remain_len = optlen;
 			printf(" ");
 			/* Encoding is described in section 3.1 of RFC 1035 */
@@ -768,20 +768,20 @@ dhcp6_print(const u_char *cp, u_int length)
 void
 _dhcp6_print(const u_char *cp, u_int length)
 {
-	const struct dhcp6 *dh6;
-	const struct dhcp6_relay *dh6relay;
+	struct dhcp6 *dh6;
+	struct dhcp6_relay *dh6relay;
 	const u_char *ep;
-	const u_char *extp;
+	u_char *extp;
 	const char *name;
 
 	printf("dhcp6");
 
-	ep = (const u_char *)snapend;
+	ep = (u_char *)snapend;
 	if (cp + length < ep)
 		ep = cp + length;
 
-	dh6 = (const struct dhcp6 *)cp;
-	dh6relay = (const struct dhcp6_relay *)cp;
+	dh6 = (struct dhcp6 *)cp;
+	dh6relay = (struct dhcp6_relay *)cp;
 	TCHECK(dh6->dh6_xid);
 	switch (dh6->dh6_msgtype) {
 	case DH6_SOLICIT:
@@ -853,7 +853,7 @@ _dhcp6_print(const u_char *cp, u_int length)
 	if (dh6->dh6_msgtype != DH6_RELAY_FORW &&
 	    dh6->dh6_msgtype != DH6_RELAY_REPLY) {
 		printf("xid=%x", EXTRACT_32BITS(&dh6->dh6_xid) & DH6_XIDMASK);
-		extp = (const u_char *)(dh6 + 1);
+		extp = (u_char *)(dh6 + 1);
 		dhcp6opt_print(extp, ep);
 	} else {		/* relay messages */
 		struct in6_addr addr6;
@@ -866,7 +866,7 @@ _dhcp6_print(const u_char *cp, u_int length)
 		memcpy(&addr6, dh6relay->dh6relay_peeraddr, sizeof (addr6));
 		printf(" peeraddr=%s", ip6addr_string(&addr6));
 
-		dhcp6opt_print((const u_char *)(dh6relay + 1), ep);
+		dhcp6opt_print((u_char *)(dh6relay + 1), ep);
 	}
 	/*(*/
 	printf(")");

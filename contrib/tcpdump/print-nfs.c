@@ -285,7 +285,8 @@ print_sattr3(const struct nfsv3_sattr *sa3, int verbose)
 }
 
 void
-nfsreply_print(const u_char *bp, u_int length, const u_char *bp2)
+nfsreply_print(register const u_char *bp, u_int length,
+	       register const u_char *bp2)
 {
 	if (!invoke_dissector((void *)_nfsreply_print,
 	    length, 0, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
@@ -295,7 +296,7 @@ nfsreply_print(const u_char *bp, u_int length, const u_char *bp2)
 void
 _nfsreply_print(const u_char *bp, u_int length, const u_char *bp2)
 {
-	const struct sunrpc_msg *rp;
+	register const struct sunrpc_msg *rp;
 	u_int32_t proc, vers, reply_stat;
 	char srcid[20], dstid[20];	/*fits 32bit*/
 	enum sunrpc_reject_stat rstat;
@@ -410,9 +411,9 @@ trunc:
  * If the packet was truncated, return 0.
  */
 static const u_int32_t *
-parsereq(const struct sunrpc_msg *rp, register u_int length)
+parsereq(register const struct sunrpc_msg *rp, register u_int length)
 {
-	const u_int32_t *dp;
+	register const u_int32_t *dp;
 	register u_int len;
 
 	/*
@@ -440,7 +441,7 @@ trunc:
  * If packet was truncated, return 0.
  */
 static const u_int32_t *
-parsefh( const u_int32_t *dp, int v3)
+parsefh(register const u_int32_t *dp, int v3)
 {
 	u_int len;
 
@@ -464,10 +465,10 @@ trunc:
  * If packet was truncated, return 0.
  */
 static const u_int32_t *
-parsefn(const u_int32_t *dp)
+parsefn(register const u_int32_t *dp)
 {
 	register u_int32_t len;
-	const u_char *cp;
+	register const u_char *cp;
 
 	/* Bail if we don't have the string length */
 	TCHECK(*dp);
@@ -480,7 +481,7 @@ parsefn(const u_int32_t *dp)
 	TCHECK2(*dp, ((len + 3) & ~3));
 #endif
 
-	cp = (const u_char *)dp;
+	cp = (u_char *)dp;
 	/* Update 32-bit pointer (NFS filenames padded to 32-bit boundaries) */
 	dp += ((len + 3) & ~3) / sizeof(*dp);
 	putchar('"');
@@ -505,7 +506,7 @@ trunc:
  * If packet was truncated (or there was some other error), return 0.
  */
 static const u_int32_t *
-parsefhn(const u_int32_t *dp, int v3)
+parsefhn(register const u_int32_t *dp, int v3)
 {
 	dp = parsefh(dp, v3);
 	if (dp == NULL)
@@ -515,7 +516,8 @@ parsefhn(const u_int32_t *dp, int v3)
 }
 
 void
-nfsreq_print(const u_char *bp, u_int length, const u_char *bp2)
+nfsreq_print(register const u_char *bp, u_int length,
+    register const u_char *bp2)
 {
 	if (!invoke_dissector((void *)_nfsreq_print,
 	    length, 0, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
@@ -525,7 +527,7 @@ nfsreq_print(const u_char *bp, u_int length, const u_char *bp2)
 void
 _nfsreq_print(const u_char *bp, u_int length, const u_char *bp2)
 {
-	const struct sunrpc_msg *rp;
+	register const struct sunrpc_msg *rp;
 	register const u_int32_t *dp;
 	nfs_type type;
 	int v3;
@@ -872,7 +874,7 @@ trunc:
  * additional hacking on the parser code.
  */
 static void
-nfs_printfh(const u_int32_t *dp, const u_int len)
+nfs_printfh(register const u_int32_t *dp, const u_int len)
 {
 	my_fsid fsid;
 	ino_t ino;
@@ -1071,9 +1073,9 @@ xid_map_find(const struct sunrpc_msg *rp, const u_char *bp, u_int32_t *proc,
  * If the packet was truncated, return 0.
  */
 static const u_int32_t *
-parserep(const struct sunrpc_msg *rp, register u_int length)
+parserep(register const struct sunrpc_msg *rp, register u_int length)
 {
-	const u_int32_t *dp;
+	register const u_int32_t *dp;
 	u_int len;
 	enum sunrpc_accept_stat astat;
 
@@ -1144,7 +1146,7 @@ parserep(const struct sunrpc_msg *rp, register u_int length)
 	}
 	/* successful return */
 	TCHECK2(*dp, sizeof(astat));
-	return ((u_int32_t *) (sizeof(astat) + ((const u_char *)dp)));
+	return ((u_int32_t *) (sizeof(astat) + ((char *)dp)));
 trunc:
 	return (0);
 }
@@ -1232,7 +1234,7 @@ parsefattr(const u_int32_t *dp, int verbose, int v3)
 			       EXTRACT_32BITS(&fap->fa2_ctime.nfsv2_usec));
 		}
 	}
-	return ((const u_int32_t *)((const u_char *)dp +
+	return ((const u_int32_t *)((unsigned char *)dp +
 		(v3 ? NFSX_V3FATTR : NFSX_V2FATTR)));
 trunc:
 	return (NULL);
@@ -1556,7 +1558,7 @@ trunc:
 static void
 interp_reply(const struct sunrpc_msg *rp, u_int32_t proc, u_int32_t vers, int length)
 {
-	const u_int32_t *dp;
+	register const u_int32_t *dp;
 	register int v3;
 	int er;
 

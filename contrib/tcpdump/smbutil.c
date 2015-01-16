@@ -222,9 +222,9 @@ name_extract(const u_char *buf, int ofs, const u_char *maxbuf, char *name)
  * return the total storage length of a mangled name
  */
 static int
-name_len(const u_char *s, const u_char *maxbuf)
+name_len(const unsigned char *s, const unsigned char *maxbuf)
 {
-    const u_char *s0 = s;
+    const unsigned char *s0 = s;
     unsigned char c;
 
     if (s >= maxbuf)
@@ -246,7 +246,7 @@ trunc:
 }
 
 static void
-print_asc(const u_char *buf, int len)
+print_asc(const unsigned char *buf, int len)
 {
     int i;
     for (i = 0; i < len; i++)
@@ -271,7 +271,7 @@ name_type_str(int name_type)
 }
 
 void
-print_data(const u_char *buf, int len)
+print_data(const unsigned char *buf, int len)
 {
     int i = 0;
 
@@ -646,15 +646,9 @@ smb_fdata1(const u_char *buf, const char *fmt, const u_char *maxbuf,
 	  }
 	case 's':
 	  {
-	    char *tbuf;
 	    int l = atoi(fmt + 1);
 	    TCHECK2(*buf, l);
-	    if ((tbuf = malloc(l + 1)) != NULL) {
-		strncpy(tbuf, buf, l);
-		tbuf[l] = '\0';
-	    }
-	    printf("%-*.*s", l, l, tbuf == NULL ? "<null>" : tbuf);
-	    free(tbuf);
+	    printf("%-*.*s", l, l, buf);
 	    buf += l;
 	    fmt++;
 	    while (isdigit((unsigned char)*fmt))
@@ -663,15 +657,8 @@ smb_fdata1(const u_char *buf, const char *fmt, const u_char *maxbuf,
 	  }
 	case 'c':
 	  {
-	    char *tbuf;
 	    TCHECK2(*buf, stringlen);
-	    if ((tbuf = malloc(stringlen + 1)) != NULL) {
-		strncpy(tbuf, buf, stringlen);
-		tbuf[stringlen] = '\0';
-	    }
-	    printf("%-*.*s", (int)stringlen, (int)stringlen,
-		tbuf == NULL ? "<null>" : tbuf);
-	    free(tbuf);
+	    printf("%-*.*s", (int)stringlen, (int)stringlen, buf);
 	    buf += stringlen;
 	    fmt++;
 	    while (isdigit((unsigned char)*fmt))
@@ -723,9 +710,7 @@ smb_fdata1(const u_char *buf, const char *fmt, const u_char *maxbuf,
 	    case 2:
 		TCHECK(buf[15]);
 		name_type = buf[15];
-		strncpy(nbuf, buf, 15);
-		nbuf[15] = '\0';
-		printf("%-15.15s NameType=0x%02X (%s)", nbuf, name_type,
+		printf("%-15.15s NameType=0x%02X (%s)", buf, name_type,
 		    name_type_str(name_type));
 		buf += 16;
 		break;

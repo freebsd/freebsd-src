@@ -47,7 +47,7 @@ static const char rcsid[] _U_ =
 	}
 
 u_int
-enc_if_print(const struct pcap_pkthdr *h, const u_char *p)
+enc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;

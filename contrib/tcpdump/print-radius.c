@@ -136,12 +136,12 @@ static struct tok radius_command_values[] = {
 /********************************/
 
 
-static void print_attr_string(const u_char *, u_int, u_short );
-static void print_attr_num(const u_char *, u_int, u_short );
-static void print_vendor_attr(const u_char *, u_int, u_short );
-static void print_attr_address(const u_char *, u_int, u_short);
-static void print_attr_time(const u_char *, u_int, u_short);
-static void print_attr_strange(const u_char *, u_int, u_short);
+static void print_attr_string(register u_char *, u_int, u_short );
+static void print_attr_num(register u_char *, u_int, u_short );
+static void print_vendor_attr(register u_char *, u_int, u_short );
+static void print_attr_address(register u_char *, u_int, u_short);
+static void print_attr_time(register u_char *, u_int, u_short);
+static void print_attr_strange(register u_char *, u_int, u_short);
 
 
 struct radius_hdr { u_int8_t  code; /* Radius packet code  */
@@ -337,7 +337,7 @@ struct attrtype { const char *name;      /* Attribute name                 */
                   const char **subtypes; /* Standard Values (if any)       */
                   u_char siz_subtypes;   /* Size of total standard values  */
                   u_char first_subtype;  /* First standard value is 0 or 1 */
-                  void (*print_func)(const u_char *, u_int, u_short );
+                  void (*print_func)(register u_char *, u_int, u_short );
                 } attr_type[]=
   {
      { NULL,                              NULL, 0, 0, NULL               },
@@ -445,7 +445,7 @@ struct attrtype { const char *name;      /* Attribute name                 */
 /* Returns nothing.          */
 /*****************************/
 static void
-print_attr_string(const u_char *data, u_int length, u_short attr_code )
+print_attr_string(register u_char *data, u_int length, u_short attr_code )
 {
    register u_int i;
 
@@ -501,7 +501,7 @@ print_attr_string(const u_char *data, u_int length, u_short attr_code )
  */
 
 static void
-print_vendor_attr(const u_char *data, u_int length, u_short attr_code _U_)
+print_vendor_attr(register u_char *data, u_int length, u_short attr_code _U_)
 {
     u_int idx;
     u_int vendor_id;
@@ -567,7 +567,7 @@ print_vendor_attr(const u_char *data, u_int length, u_short attr_code _U_)
 /* Returns nothing.           */
 /******************************/
 static void
-print_attr_num(const u_char *data, u_int length, u_short attr_code )
+print_attr_num(register u_char *data, u_int length, u_short attr_code )
 {
    u_int8_t tag;
    u_int32_t timeout;
@@ -683,7 +683,7 @@ print_attr_num(const u_char *data, u_int length, u_short attr_code )
 /* Returns nothing.          */
 /*****************************/
 static void
-print_attr_address(const u_char *data, u_int length, u_short attr_code )
+print_attr_address(register u_char *data, u_int length, u_short attr_code )
 {
    if (length != 4)
    {
@@ -726,7 +726,7 @@ print_attr_address(const u_char *data, u_int length, u_short attr_code )
 /*************************************/
 /* Returns nothing.                  */
 /*************************************/
-static void print_attr_time(const u_char *data, u_int length, u_short attr_code _U_)
+static void print_attr_time(register u_char *data, u_int length, u_short attr_code _U_)
 {
    time_t attr_time;
    char string[26];
@@ -758,7 +758,7 @@ static void print_attr_time(const u_char *data, u_int length, u_short attr_code 
 /***********************************/
 /* Returns nothing.                */
 /***********************************/
-static void print_attr_strange(const u_char *data, u_int length, u_short attr_code)
+static void print_attr_strange(register u_char *data, u_int length, u_short attr_code)
 {
    u_short len_data;
 
@@ -830,9 +830,9 @@ static void print_attr_strange(const u_char *data, u_int length, u_short attr_co
 
 
 static void
-radius_attrs_print(const u_char *attr, u_int length)
+radius_attrs_print(register const u_char *attr, u_int length)
 {
-   const struct radius_attr *rad_attr = (struct radius_attr *)attr;
+   register const struct radius_attr *rad_attr = (struct radius_attr *)attr;
    const char *attr_string;
 
    while (length > 0)
@@ -872,16 +872,16 @@ radius_attrs_print(const u_char *attr, u_int length)
          {
              if ( attr_type[rad_attr->type].print_func )
                  (*attr_type[rad_attr->type].print_func)(
-                     ((const u_char *)(rad_attr+1)),
+                     ((u_char *)(rad_attr+1)),
                      rad_attr->len - 2, rad_attr->type);
          }
      }
      /* do we also want to see a hex dump ? */
      if (vflag> 1)
-         print_unknown_data((const u_char *)rad_attr+2,"\n\t    ",(rad_attr->len)-2);
+         print_unknown_data((u_char *)rad_attr+2,"\n\t    ",(rad_attr->len)-2);
 
      length-=(rad_attr->len);
-     rad_attr = (struct radius_attr *)( ((const u_char *)(rad_attr))+rad_attr->len);
+     rad_attr = (struct radius_attr *)( ((char *)(rad_attr))+rad_attr->len);
    }
    return;
 
@@ -901,7 +901,7 @@ radius_print(const u_char *dat, u_int length)
 void
 _radius_print(const u_char *dat, u_int length)
 {
-   const struct radius_hdr *rad;
+   register const struct radius_hdr *rad;
    u_int len, auth_idx;
 
    TCHECK2(*dat, MIN_RADIUS_LEN);

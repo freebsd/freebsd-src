@@ -479,7 +479,7 @@ _lspping_print(const u_char *pptr, register u_int len)
     const struct lspping_common_header *lspping_com_header;
     const struct lspping_tlv_header *lspping_tlv_header;
     const struct lspping_tlv_header *lspping_subtlv_header;
-    const u_char *tptr, *tlv_tptr, *subtlv_tptr;
+    const u_char *tptr,*tlv_tptr,*subtlv_tptr;
     int tlen,lspping_tlv_len,lspping_tlv_type,tlv_tlen;
     int tlv_hexdump,subtlv_hexdump;
     int lspping_subtlv_len,lspping_subtlv_type;

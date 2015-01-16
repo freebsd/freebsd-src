@@ -60,8 +60,7 @@ static const char *dccp_feature_nums[] = {
 	"check data checksum",
 };
 
-static inline u_int dccp_csum_coverage(const struct dccp_hdr* dh,
-    u_int len)
+static inline u_int dccp_csum_coverage(const struct dccp_hdr* dh, u_int len)
 {
 	u_int cov;
 	
@@ -72,17 +71,16 @@ static inline u_int dccp_csum_coverage(const struct dccp_hdr* dh,
 }
 
 static int dccp_cksum(const struct ip *ip,
-    const struct dccp_hdr *dh, u_int len)
+	const struct dccp_hdr *dh, u_int len)
 {
-	return nextproto4_cksum(ip, (const u_char *)(void *)dh,
+	return nextproto4_cksum(ip, (const u_int8_t *)(void *)dh,
 	    dccp_csum_coverage(dh, len), IPPROTO_DCCP);
 }
 
 #ifdef INET6
-static int dccp6_cksum(const struct ip6_hdr *ip6,
-    const struct dccp_hdr *dh, u_int len)
+static int dccp6_cksum(const struct ip6_hdr *ip6, const struct dccp_hdr *dh, u_int len)
 {
-	return nextproto6_cksum(ip6, (const u_char *)(void *)dh,
+	return nextproto6_cksum(ip6, (const u_int8_t *)(void *)dh,
 	    dccp_csum_coverage(dh, len), IPPROTO_DCCP);
 }
 #endif
@@ -100,25 +98,23 @@ static u_int64_t dccp_seqno(const struct dccp_hdr *dh)
 	u_int64_t seqno = EXTRACT_24BITS(&seq_high) & 0xFFFFFF;
 
 	if (DCCPH_X(dh) != 0) {
-		const struct dccp_hdr_ext *dhx =
-		    (const struct dccp_hdr_ext *)(dh + 1);
+		const struct dccp_hdr_ext *dhx = (void *)(dh + 1);
+		u_int32_t seq_low = dhx->dccph_seq_low;
 		seqno &= 0x00FFFF;  /* clear reserved field */
-		seqno = (seqno << 32) + EXTRACT_32BITS(&dhx->dccph_seq_low);
+		seqno = (seqno << 32) + EXTRACT_32BITS(&seq_low);
 	}
 
 	return seqno;
 }
 
-static inline unsigned int
-dccp_basic_hdr_len(const struct dccp_hdr *dh)
+static inline unsigned int dccp_basic_hdr_len(const struct dccp_hdr *dh)
 {
 	return sizeof(*dh) + (DCCPH_X(dh) ? sizeof(struct dccp_hdr_ext) : 0);
 }
 
 static void dccp_print_ack_no(const u_char *bp)
 {
-	const struct dccp_hdr *dh =
-		(const struct dccp_hdr *)bp;
+	const struct dccp_hdr *dh = (const struct dccp_hdr *)bp;
 	const struct dccp_hdr_ack_bits *dh_ack =
 		(struct dccp_hdr_ack_bits *)(bp + dccp_basic_hdr_len(dh));
 	u_int32_t ack_high;
@@ -129,11 +125,13 @@ static void dccp_print_ack_no(const u_char *bp)
 	ackno = EXTRACT_24BITS(&ack_high) & 0xFFFFFF;
 
 	if (DCCPH_X(dh) != 0) {
+		u_int32_t ack_low;
+
 		TCHECK2(*dh_ack,8);
+		ack_low = dh_ack->dccph_ack_nr_low;
 
 		ackno &= 0x00FFFF;  /* clear reserved field */
-		ackno = (ackno << 32) +
-		    EXTRACT_32BITS(&dh_ack->dccph_ack_nr_low);
+		ackno = (ackno << 32) + EXTRACT_32BITS(&ack_low);
 	}
 
 	(void)printf("(ack=%" PRIu64 ") ", ackno);

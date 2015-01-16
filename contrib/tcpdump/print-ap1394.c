@@ -55,9 +55,9 @@ struct firewire_header {
 #define FIREWIRE_HDRLEN		18
 
 static inline void
-ap1394_hdr_print(const u_char *bp, u_int length)
+ap1394_hdr_print(register const u_char *bp, u_int length)
 {
-	const struct firewire_header *fp;
+	register const struct firewire_header *fp;
 	u_int16_t firewire_type;
 
 	fp = (const struct firewire_header *)bp;

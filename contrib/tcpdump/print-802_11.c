@@ -58,7 +58,7 @@ struct radiotap_state
 #define PRINT_SSID(p) \
 	if (p.ssid_present) { \
 		printf(" ("); \
-		fn_print_str(p.ssid.ssid); \
+		fn_print(p.ssid.ssid, NULL); \
 		printf(")"); \
 	}
 
@@ -1020,7 +1020,7 @@ handle_reassoc_request(const u_char *p, u_int length)
 	ret = parse_elements(&pbody, p, offset, length);
 
 	PRINT_SSID(pbody);
-	printf(" AP : %s", etheraddr_string((const u_char *)pbody.ap));
+	printf(" AP : %s", etheraddr_string( pbody.ap ));
 
 	return ret;
 }
@@ -1188,7 +1188,7 @@ handle_deauth(const struct mgmt_header_t *pmh, const u_char *p, u_int length)
 	if (eflag) {
 		printf(": %s", reason);
 	} else {
-		printf(" (%s): %s", etheraddr_string((const u_char *)pmh->sa), reason);
+		printf(" (%s): %s", etheraddr_string(pmh->sa), reason);
 	}
 	return 1;
 }
@@ -1261,7 +1261,7 @@ handle_action(const struct mgmt_header_t *pmh, const u_char *p, u_int length)
 	if (eflag) {
 		printf(": ");
 	} else {
-		printf(" (%s): ", etheraddr_string((const u_char *)pmh->sa));
+		printf(" (%s): ", etheraddr_string(pmh->sa));
 	}
 	switch (p[0]) {
 	case 0: printf("Spectrum Management Act#%d", p[1]); break;
@@ -1446,8 +1446,8 @@ ctrl_body_print(u_int16_t fc, const u_char *p)
  */
 
 static void
-data_header_print(u_int16_t fc, const u_char *p, const u_char **srcp,
-    const u_char **dstp)
+data_header_print(u_int16_t fc, const u_char *p, const u_int8_t **srcp,
+    const u_int8_t **dstp)
 {
 	u_int subtype = FC_SUBTYPE(fc);
 
@@ -1522,7 +1522,8 @@ data_header_print(u_int16_t fc, const u_char *p, const u_char **srcp,
 }
 
 static void
-mgmt_header_print(const u_char *p, const u_char **srcp, const u_char **dstp)
+mgmt_header_print(const u_char *p, const u_int8_t **srcp,
+    const u_int8_t **dstp)
 {
 	const struct mgmt_header_t *hp = (const struct mgmt_header_t *) p;
 
@@ -1539,8 +1540,8 @@ mgmt_header_print(const u_char *p, const u_char **srcp, const u_char **dstp)
 }
 
 static void
-ctrl_header_print(u_int16_t fc, const u_char *p, const u_char **srcp,
-    const u_char **dstp)
+ctrl_header_print(u_int16_t fc, const u_char *p, const u_int8_t **srcp,
+    const u_int8_t **dstp)
 {
 	if (srcp != NULL)
 		*srcp = NULL;
@@ -1646,7 +1647,7 @@ extract_mesh_header_length(const u_char *p)
  */
 static void
 ieee_802_11_hdr_print(u_int16_t fc, const u_char *p, u_int hdrlen,
-    u_int meshdrlen, const u_char **srcp, const u_char **dstp)
+    u_int meshdrlen, const u_int8_t **srcp, const u_int8_t **dstp)
 {
 	if (vflag) {
 		if (FC_MORE_DATA(fc))
@@ -1661,7 +1662,8 @@ ieee_802_11_hdr_print(u_int16_t fc, const u_char *p, u_int hdrlen,
 			printf("Strictly Ordered ");
 		if (FC_WEP(fc))
 			printf("WEP Encrypted ");
-		if (FC_TYPE(fc) != T_CTRL || FC_SUBTYPE(fc) != CTRL_PS_POLL) printf("%dus ",
+		if (FC_TYPE(fc) != T_CTRL || FC_SUBTYPE(fc) != CTRL_PS_POLL)
+			printf("%dus ",
 			    EXTRACT_LE_16BITS(
 			        &((const struct mgmt_header_t *)p)->duration));
 	}
@@ -1710,7 +1712,7 @@ ieee802_11_print(const u_char *p, u_int length, u_int orig_caplen, int pad,
 {
 	u_int16_t fc;
 	u_int caplen, hdrlen, meshdrlen;
-	const u_char *src, *dst;
+	const u_int8_t *src, *dst;
 	u_short extracted_ethertype;
 
 	caplen = orig_caplen;

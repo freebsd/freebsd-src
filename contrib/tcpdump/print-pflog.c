@@ -40,7 +40,6 @@ static const char rcsid[] _U_ =
 #include <tcpdump-stdinc.h>
 
 #include <stdio.h>
-#include <string.h>
 #include <pcap.h>
 
 #include "extract.h"
@@ -94,33 +93,24 @@ static struct tok pf_directions[] = {
 static void
 pflog_print(const struct pfloghdr *hdr)
 {
-	char ruleset[PFLOG_RULESET_NAME_SIZE + 1];
-	char ifname[IFNAMSIZ + 1];
 	u_int32_t rulenr, subrulenr;
 
 	rulenr = EXTRACT_32BITS(&hdr->rulenr);
 	subrulenr = EXTRACT_32BITS(&hdr->subrulenr);
 	if (subrulenr == (u_int32_t)-1)
 		printf("rule %u/", rulenr);
-	else {
-		/* XXX-BD: string overflow risk in original */
-		strncpy(ruleset, hdr->ruleset,
-		    PFLOG_RULESET_NAME_SIZE);
-		ruleset[PFLOG_RULESET_NAME_SIZE] = '\0';
-		printf("rule %u.%s.%u/", rulenr, ruleset, subrulenr);
-	}
+	else
+		printf("rule %u.%s.%u/", rulenr, hdr->ruleset, subrulenr);
 
-	strncpy(ifname, hdr->ifname, IFNAMSIZ);
-	ifname[IFNAMSIZ] = '\0';
 	printf("%s: %s %s on %s: ",
 	    tok2str(pf_reasons, "unkn(%u)", hdr->reason),
 	    tok2str(pf_actions, "unkn(%u)", hdr->action),
 	    tok2str(pf_directions, "unkn(%u)", hdr->dir),
-	    ifname);
+	    hdr->ifname);
 }
 
 u_int
-pflog_if_print(const struct pcap_pkthdr *h, const u_char *p)
+pflog_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
 	u_int length = h->len;
 	u_int hdrlen;
@@ -135,7 +125,7 @@ pflog_if_print(const struct pcap_pkthdr *h, const u_char *p)
 	}
 
 #define MIN_PFLOG_HDRLEN	45
-	hdr = (const struct pfloghdr *)p;
+	hdr = (struct pfloghdr *)p;
 	if (hdr->length < MIN_PFLOG_HDRLEN) {
 		printf("[pflog: invalid header length!]");
 		return (hdr->length);	/* XXX: not really */
@@ -148,7 +138,7 @@ pflog_if_print(const struct pcap_pkthdr *h, const u_char *p)
 	}
 
 	/* print what we know */
-	hdr = (const struct pfloghdr *)p;
+	hdr = (struct pfloghdr *)p;
 	TCHECK(*hdr);
 	if (eflag)
 		pflog_print(hdr);

@@ -44,7 +44,7 @@ static const char *tsptype[TSPTYPENUMBER] =
   "TEST", "SETDATE", "SETDATEREQ", "LOOP" };
 
 void
-timed_print(const u_char *bp)
+timed_print(register const u_char *bp)
 {
 	if (!invoke_dissector((void *)_timed_print,
 	    snapend - bp, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -54,8 +54,8 @@ timed_print(const u_char *bp)
 void
 _timed_print(const u_char *bp)
 {
-#define endof(x) ((const u_char *)&(x) + sizeof (x))
-	const struct tsp *tsp = (const struct tsp *)bp;
+#define endof(x) ((u_char *)&(x) + sizeof (x))
+	struct tsp *tsp = (struct tsp *)bp;
 	long sec, usec;
 	const u_char *end;
 
@@ -114,6 +114,6 @@ _timed_print(const u_char *bp)
 		fputs(" [|timed]", stdout);
 	else {
 		fputs(" name ", stdout);
-		fn_print(tsp->tsp_name, end);
+		fwrite(tsp->tsp_name, end - (u_char *)tsp->tsp_name, 1, stdout);
 	}
 }

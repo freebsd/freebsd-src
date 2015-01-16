@@ -56,7 +56,7 @@ static const char *ns_resp[] = {
 
 /* skip over a domain name */
 static const u_char *
-ns_nskip(const u_char *cp)
+ns_nskip(register const u_char *cp)
 {
 	register u_char i;
 
@@ -147,10 +147,10 @@ labellen(const u_char *cp)
 }
 
 const u_char *
-ns_nprint(const u_char *cp, const u_char *bp)
+ns_nprint(register const u_char *cp, register const u_char *bp)
 {
 	register u_int i, l;
-	const u_char *rp = NULL;
+	register const u_char *rp = NULL;
 	register int compress = 0;
 	int chars_processed;
 	int elt;
@@ -231,7 +231,7 @@ ns_nprint(const u_char *cp, const u_char *bp)
 
 /* print a <character-string> */
 static const u_char *
-ns_cprint(const u_char *cp)
+ns_cprint(register const u_char *cp)
 {
 	register u_int i;
 
@@ -319,9 +319,9 @@ struct tok ns_class2str[] = {
 
 /* print a query */
 static const u_char *
-ns_qprint(const u_char *cp, const u_char *bp, int is_mdns)
+ns_qprint(register const u_char *cp, register const u_char *bp, int is_mdns)
 {
-	const u_char *np = cp;
+	register const u_char *np = cp;
 	register u_int i, class;
 
 	cp = ns_nskip(cp);
@@ -356,11 +356,11 @@ ns_qprint(const u_char *cp, const u_char *bp, int is_mdns)
 
 /* print a reply */
 static const u_char *
-ns_rprint(const u_char *cp, const u_char *bp, int is_mdns)
+ns_rprint(register const u_char *cp, register const u_char *bp, int is_mdns)
 {
 	register u_int i, class, opt_flags = 0;
 	register u_short typ, len;
-	const u_char *rp;
+	register const u_char *rp;
 
 	if (vflag) {
 		putchar(' ');
@@ -578,7 +578,7 @@ ns_rprint(const u_char *cp, const u_char *bp, int is_mdns)
 }
 
 void
-ns_print(const u_char *bp, u_int length, int is_mdns)
+ns_print(register const u_char *bp, u_int length, int is_mdns)
 {
 	if (!invoke_dissector((void *)_ns_print,
 	    length, is_mdns, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -588,9 +588,9 @@ ns_print(const u_char *bp, u_int length, int is_mdns)
 void
 _ns_print(const u_char *bp, u_int length, int is_mdns)
 {
-	const HEADER *np;
+	register const HEADER *np;
 	register int qdcount, ancount, nscount, arcount;
-	const u_char *cp;
+	register const u_char *cp;
 	u_int16_t b2;
 
 	np = (const HEADER *)bp;
@@ -699,7 +699,7 @@ _ns_print(const u_char *bp, u_int length, int is_mdns)
 
 		cp = (const u_char *)(np + 1);
 		if (qdcount--) {
-			cp = ns_qprint(cp, (const u_char *) np, is_mdns);
+			cp = ns_qprint(cp, (const u_char *)np, is_mdns);
 			if (!cp)
 				goto trunc;
 			while (cp < snapend && qdcount--) {

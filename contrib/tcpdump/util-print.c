@@ -119,25 +119,6 @@ fn_printzp(const u_char *s, u_int n, const u_char *ep)
 	return (n == 0) ? 0 : ret;
 }
 
-/* Print null-terminated non-packet data */
-int
-fn_print_str(const u_char *s)
-{
-	register int ret;
-	register u_char c;
-
-	ret = 1;			/* assume truncated */
-	while (1) {
-		c = *s++;
-		if (c == '\0') {
-			ret = 0;
-			break;
-		}
-		__fn_putchar(c);
-	}
-	return(ret);
-}
-
 /*
  * Format the timestamp
  */
@@ -186,12 +167,12 @@ ts_print(register const struct timeval *tvp)
 		if (b_sec == 0) {
                         /* init timestamp for first packet */
                         b_usec = tvp->tv_usec;
-                        b_sec = tvp->tv_sec;                        
+                        b_sec = tvp->tv_sec;
                 }
 
                 d_usec = tvp->tv_usec - b_usec;
                 d_sec = tvp->tv_sec - b_sec;
-                
+
                 while (d_usec < 0) {
                     d_usec += 1000000;
                     d_sec--;
@@ -467,7 +448,7 @@ mask62plen(const u_char *mask)
 #endif /* INET6 */
 
 void
-safeputs(const u_char *s, int maxlen)
+safeputs(const char *s, int maxlen)
 {
 	int idx = 0;
 

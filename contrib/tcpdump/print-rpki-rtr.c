@@ -181,7 +181,7 @@ rpki_rtr_pdu_print (const u_char *tptr, u_int indent)
     u_int pdu_type, pdu_len, hexdump;
     const u_char *msg;
 
-    pdu_header = (const rpki_rtr_pdu *)tptr;
+    pdu_header = (rpki_rtr_pdu *)tptr;
     pdu_type = pdu_header->pdu_type;
     pdu_len = EXTRACT_32BITS(pdu_header->length);
     hexdump = FALSE;
@@ -226,9 +226,9 @@ rpki_rtr_pdu_print (const u_char *tptr, u_int indent)
 
     case RPKI_RTR_IPV4_PREFIX_PDU:
 	{
-	    const rpki_rtr_pdu_ipv4_prefix *pdu;
+	    rpki_rtr_pdu_ipv4_prefix *pdu;
 
-	    pdu = (const rpki_rtr_pdu_ipv4_prefix *)tptr;
+	    pdu = (rpki_rtr_pdu_ipv4_prefix *)tptr;
 	    printf("%sIPv4 Prefix %s/%u-%u, origin-as %u, flags 0x%02x",
 		   indent_string(indent+2),
 		   ipaddr_string(pdu->prefix),
@@ -240,9 +240,9 @@ rpki_rtr_pdu_print (const u_char *tptr, u_int indent)
 #ifdef INET6
     case RPKI_RTR_IPV6_PREFIX_PDU:
 	{
-	    const rpki_rtr_pdu_ipv6_prefix *pdu;
+	    rpki_rtr_pdu_ipv6_prefix *pdu;
 
-	    pdu = (const rpki_rtr_pdu_ipv6_prefix *)tptr;
+	    pdu = (rpki_rtr_pdu_ipv6_prefix *)tptr;
 	    printf("%sIPv6 Prefix %s/%u-%u, origin-as %u, flags 0x%02x",
 		   indent_string(indent+2),
 		   ip6addr_string(pdu->prefix),
@@ -254,11 +254,11 @@ rpki_rtr_pdu_print (const u_char *tptr, u_int indent)
 
     case RPKI_RTR_ERROR_REPORT_PDU:
 	{
-	    const rpki_rtr_pdu_error_report *pdu;
+	    rpki_rtr_pdu_error_report *pdu;
 	    u_int encapsulated_pdu_length, text_length, tlen, error_code;
 	    u_char buf[80];
 
-	    pdu = (const rpki_rtr_pdu_error_report *)tptr;
+	    pdu = (rpki_rtr_pdu_error_report *)tptr;
 	    encapsulated_pdu_length = EXTRACT_32BITS(pdu->encapsulated_pdu_length);
 	    tlen = pdu_len;
 
@@ -341,7 +341,7 @@ _rpki_rtr_print(const u_char *pptr, register u_int len)
 
         TCHECK2(*tptr, sizeof(rpki_rtr_pdu));
 
-	pdu_header = (const rpki_rtr_pdu *)tptr;
+	pdu_header = (rpki_rtr_pdu *)tptr;
         pdu_type = pdu_header->pdu_type;
         pdu_len = EXTRACT_32BITS(pdu_header->length);
 

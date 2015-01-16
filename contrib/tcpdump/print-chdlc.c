@@ -51,7 +51,7 @@ const struct tok chdlc_cast_values[] = {
 
 /* Standard CHDLC printer */
 u_int
-chdlc_if_print(const struct pcap_pkthdr *h, const u_char *p)
+chdlc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;

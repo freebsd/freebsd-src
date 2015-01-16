@@ -155,7 +155,8 @@ typedef enum _pgm_type {
 #endif
 
 void
-pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
+pgm_print(register const u_char *bp, register u_int length,
+	  register const u_char *bp2)
 {
 	if (!invoke_dissector((void *)_pgm_print,
 	    length, 0, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
@@ -165,8 +166,8 @@ pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 void
 _pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 {
-	const struct pgm_header *pgm;
-	const struct ip *ip;
+	register const struct pgm_header *pgm;
+	register const struct ip *ip;
 	register char ch;
 	u_int16_t sport, dport;
 	int addr_size;
@@ -174,7 +175,7 @@ _pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 	int nla_af;
 #ifdef INET6
 	char nla_buf[INET6_ADDRSTRLEN];
-	const struct ip6_hdr *ip6;
+	register const struct ip6_hdr *ip6;
 #else
 	char nla_buf[INET_ADDRSTRLEN];
 #endif
@@ -281,12 +282,12 @@ _pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 		goto trunc;
 		break;
 	    }
-	    bp = (const u_char *)(spm + 1);
+	    bp = (u_char *) (spm + 1);
 	    TCHECK2(*bp, addr_size);
 	    nla = bp;
 	    bp += addr_size;
 
-	    inet_ntop_cap(nla_af, nla, nla_buf, sizeof(nla_buf));
+	    inet_ntop(nla_af, nla, nla_buf, sizeof(nla_buf));
 	    (void)printf("SPM seq %u trail %u lead %u nla %s",
 			 EXTRACT_32BITS(&spm->pgms_seq),
                          EXTRACT_32BITS(&spm->pgms_trailseq),
@@ -303,7 +304,7 @@ _pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 	    (void)printf("POLL seq %u round %u",
 			 EXTRACT_32BITS(&poll->pgmp_seq),
                          EXTRACT_16BITS(&poll->pgmp_round));
-	    bp = (const u_char *) (poll + 1);
+	    bp = (u_char *) (poll + 1);
 	    break;
 	}
 	case PGM_POLR: {
@@ -328,12 +329,12 @@ _pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 		goto trunc;
 		break;
 	    }
-	    bp = (const u_char *) (polr + 1);
+	    bp = (u_char *) (polr + 1);
 	    TCHECK2(*bp, addr_size);
 	    nla = bp;
 	    bp += addr_size;
 
-	    inet_ntop_cap(nla_af, nla, nla_buf, sizeof(nla_buf));
+	    inet_ntop(nla_af, nla, nla_buf, sizeof(nla_buf));
 
 	    TCHECK2(*bp, sizeof(u_int32_t));
 	    ivl = EXTRACT_32BITS(bp);
@@ -360,7 +361,7 @@ _pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 	    (void)printf("ODATA trail %u seq %u",
 			 EXTRACT_32BITS(&odata->pgmd_trailseq),
 			 EXTRACT_32BITS(&odata->pgmd_seq));
-	    bp = (const u_char *) (odata + 1);
+	    bp = (u_char *) (odata + 1);
 	    break;
 	}
 
@@ -372,7 +373,7 @@ _pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 	    (void)printf("RDATA trail %u seq %u",
 			 EXTRACT_32BITS(&rdata->pgmd_trailseq),
 			 EXTRACT_32BITS(&rdata->pgmd_seq));
-	    bp = (const u_char *) (rdata + 1);
+	    bp = (u_char *) (rdata + 1);
 	    break;
 	}
 
@@ -410,7 +411,7 @@ _pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 		goto trunc;
 		break;
 	    }
-	    bp = (const u_char *) (nak + 1);
+	    bp = (u_char *) (nak + 1);
 	    TCHECK2(*bp, addr_size);
 	    source = bp;
 	    bp += addr_size;
@@ -442,8 +443,8 @@ _pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 	    /*
 	     * Options decoding can go here.
 	     */
-	    inet_ntop_cap(source_af, source, source_buf, sizeof(source_buf));
-	    inet_ntop_cap(group_af, group, group_buf, sizeof(group_buf));
+	    inet_ntop(source_af, source, source_buf, sizeof(source_buf));
+	    inet_ntop(group_af, group, group_buf, sizeof(group_buf));
 	    switch (pgm->pgm_type) {
 		case PGM_NAK:
 		    (void)printf("NAK ");
@@ -469,7 +470,7 @@ _pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 	    TCHECK(*ack);
 	    (void)printf("ACK seq %u",
 			 EXTRACT_32BITS(&ack->pgma_rx_max_seq));
-	    bp = (const u_char *) (ack + 1);
+	    bp = (u_char *) (ack + 1);
 	    break;
 	}
 
@@ -652,7 +653,7 @@ _pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 		    nla = bp;
 		    bp += addr_size;
 
-		    inet_ntop_cap(nla_af, nla, nla_buf, sizeof(nla_buf));
+		    inet_ntop(nla_af, nla, nla_buf, sizeof(nla_buf));
 		    (void)printf(" REDIRECT %s",  (char *)nla);
 		    opts_len -= 4 + addr_size;
 		    break;
@@ -792,7 +793,7 @@ _pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 		    nla = bp;
 		    bp += addr_size;
 
-		    inet_ntop_cap(nla_af, nla, nla_buf, sizeof(nla_buf));
+		    inet_ntop(nla_af, nla, nla_buf, sizeof(nla_buf));
 		    (void)printf(" PGMCC DATA %u %s", offset, (char*)nla);
 		    opts_len -= 16;
 		    break;
@@ -826,7 +827,7 @@ _pgm_print(const u_char *bp, register u_int length, const u_char *bp2)
 		    nla = bp;
 		    bp += addr_size;
 
-		    inet_ntop_cap(nla_af, nla, nla_buf, sizeof(nla_buf));
+		    inet_ntop(nla_af, nla, nla_buf, sizeof(nla_buf));
 		    (void)printf(" PGMCC FEEDBACK %u %s", offset, (char*)nla);
 		    opts_len -= 16;
 		    break;

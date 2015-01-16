@@ -38,23 +38,23 @@ static const char rcsid[] _U_ =
 #include "interface.h"
 
 struct z_packet {
-    const u_char *version;
+    char *version;
     int numfields;
     int kind;
-    const u_char *uid;
+    char *uid;
     int port;
     int auth;
     int authlen;
-    const u_char *authdata;
-    const u_char *class;
-    const u_char *inst;
-    const u_char *opcode;
-    const u_char *sender;
-    const u_char *recipient;
-    const u_char *format;
+    char *authdata;
+    char *class;
+    char *inst;
+    char *opcode;
+    char *sender;
+    const char *recipient;
+    char *format;
     int cksum;
     int multi;
-    const u_char *multi_uid;
+    char *multi_uid;
     /* Other fields follow here.. */
 };
 
@@ -84,30 +84,30 @@ static struct tok z_types[] = {
 
 char z_buf[256];
 
-static const u_char *
-parse_field(const u_char **pptr, int *len)
+static char *
+parse_field(char **pptr, int *len)
 {
-    const u_char *s;
+    char *s;
 
     if (*len <= 0 || !pptr || !*pptr)
 	return NULL;
-    if (*pptr > snapend)
+    if (*pptr > (char *) snapend)
 	return NULL;
 
     s = *pptr;
-    while (*pptr <= snapend && *len >= 0 && **pptr) {
+    while (*pptr <= (char *) snapend && *len >= 0 && **pptr) {
 	(*pptr)++;
 	(*len)--;
     }
     (*pptr)++;
     (*len)--;
-    if (*len < 0 || *pptr > snapend)
+    if (*len < 0 || *pptr > (char *) snapend)
 	return NULL;
     return s;
 }
 
 static const char *
-z_triple(const u_char *class, const u_char *inst, const u_char *recipient)
+z_triple(char *class, char *inst, const char *recipient)
 {
     if (!*recipient)
 	recipient = "*";
@@ -117,17 +117,15 @@ z_triple(const u_char *class, const u_char *inst, const u_char *recipient)
 }
 
 static const char *
-str_to_lower(const u_char *string)
+str_to_lower(char *string)
 {
-    char *s;
-
     strncpy(z_buf, string, sizeof(z_buf));
     z_buf[sizeof(z_buf)-1] = '\0';
 
-    s = z_buf;
-    while (*s) {
-	*s = tolower((unsigned char)(*s));
-	s++;
+    string = z_buf;
+    while (*string) {
+	*string = tolower((unsigned char)(*string));
+	string++;
     }
 
     return z_buf;
@@ -145,19 +143,19 @@ void
 _zephyr_print(const u_char *cp, int length)
 {
     struct z_packet z;
-    const u_char *parse = cp;
+    char *parse = (char *) cp;
     int parselen = length;
-    const u_char *s;
+    char *s;
     int lose = 0;
 
     /* squelch compiler warnings */
 
     z.kind = 0;
-    z.class = NULL;
-    z.inst = NULL;
-    z.opcode = NULL;
-    z.sender = NULL;
-    z.recipient = NULL;
+    z.class = 0;
+    z.inst = 0;
+    z.opcode = 0;
+    z.sender = 0;
+    z.recipient = 0;
 
 #define PARSE_STRING				\
 	s = parse_field(&parse, &parselen);	\
@@ -173,7 +171,7 @@ _zephyr_print(const u_char *cp, int length)
 
     PARSE_FIELD_STR(z.version);
     if (lose) return;
-    if (strcmp(z.version, "ZEPH"))
+    if (strncmp(z.version, "ZEPH", 4))
 	return;
 
     PARSE_FIELD_INT(z.numfields);
@@ -199,7 +197,7 @@ _zephyr_print(const u_char *cp, int length)
     }
 
     printf(" zephyr");
-    if (strcmp(z.version+4, "0.2")) {
+    if (strncmp(z.version+4, "0.2", 3)) {
 	printf(" v%s", z.version+4);
 	return;
     }
@@ -207,14 +205,12 @@ _zephyr_print(const u_char *cp, int length)
     printf(" %s", tok2str(z_types, "type %d", z.kind));
     if (z.kind == Z_PACKET_SERVACK) {
 	/* Initialization to silence warnings */
-	const u_char *ackdata = NULL;
+	char *ackdata = NULL;
 	PARSE_FIELD_STR(ackdata);
 	if (!lose && strcmp(ackdata, "SENT"))
 	    printf("/%s", str_to_lower(ackdata));
     }
-    if (*z.sender) {
-	printf(" %s", z.sender);
-    }
+    if (*z.sender) printf(" %s", z.sender);
 
     if (!strcmp(z.class, "USER_LOCATE")) {
 	if (!strcmp(z.opcode, "USER_HIDE"))
@@ -242,7 +238,7 @@ _zephyr_print(const u_char *cp, int length)
 								   "-nodefs");
 		if (z.kind != Z_PACKET_SERVACK) {
 		    /* Initialization to silence warnings */
-		    const u_char *c = NULL, *i = NULL, *r = NULL;
+		    char *c = NULL, *i = NULL, *r = NULL;
 		    PARSE_FIELD_STR(c);
 		    PARSE_FIELD_STR(i);
 		    PARSE_FIELD_STR(r);
@@ -325,7 +321,7 @@ _zephyr_print(const u_char *cp, int length)
     }
 
     if (!*z.recipient)
-	z.recipient = (char *)"*";
+	z.recipient = "*";
 
     printf(" to %s", z_triple(z.class, z.inst, z.recipient));
     if (*z.opcode)

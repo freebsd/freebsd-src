@@ -107,7 +107,6 @@ extern char *strsep(char **, const char *);
 	extern void func;		\
 	extern u_int _##func;
 
-
 extern const char *program_name;/* used to generate self-identifying messages */
 
 extern int32_t thiszone;	/* seconds offset from gmt to local time */
@@ -138,14 +137,9 @@ extern void relts_print(int);
 extern int fn_print(const u_char *, const u_char *);
 extern int fn_printn(const u_char *, u_int, const u_char *);
 extern int fn_printzp(const u_char *, u_int, const u_char *);
-extern int fn_print_str(const u_char *s);
 extern int mask2plen(u_int32_t);
 extern const char *tok2strary_internal(const char **, int, const char *, int);
 #define	tok2strary(a,f,i) tok2strary_internal(a, sizeof(a)/sizeof(a[0]),f,i)
-
-extern const char *inet_ntop_cap(int af,
-    const void * restrict src, char * restrict dst,
-    socklen_t size);
 
 extern const char *dnaddr_string(u_short);
 
@@ -157,7 +151,7 @@ extern char *read_infile(char *);
 extern char *copy_argv(char **);
 
 extern void safeputchar(int);
-extern void safeputs(const u_char *, int);
+extern void safeputs(const char *, int);
 
 extern const char *isonsap_string(const u_char *, register u_int);
 extern const char *protoid_string(const u_char *);
@@ -168,7 +162,7 @@ extern const char *dnnum_string(u_short);
 /* checksum routines */
 extern void init_checksum(void);
 extern u_int16_t verify_crc10_cksum(u_int16_t, const u_char *, int);
-extern u_int16_t create_osi_cksum(const u_char *, int, int);
+extern u_int16_t create_osi_cksum(const u_int8_t *, int, int);
 
 /* The printer routines. */
 
@@ -176,7 +170,8 @@ extern u_int16_t create_osi_cksum(const u_char *, int, int);
 
 extern int print_unknown_data(const u_char *, const char *,int);
 extern void ascii_print(const u_char *, u_int);
-extern void hex_and_ascii_print_with_offset(const char *, const u_char *, u_int, u_int);
+extern void hex_and_ascii_print_with_offset(const char *, const u_char *,
+	u_int, u_int);
 extern void hex_and_ascii_print(const char *, const u_char *, u_int);
 extern void hex_print_with_offset(const char *, const u_char *, u_int, u_int);
 extern void hex_print(const char *, const u_char *, u_int);
@@ -200,7 +195,6 @@ DISSECTOR_DECLARE(decnet_print(const u_char *, u_int, u_int));
 extern void default_print(const u_char *, u_int);
 DISSECTOR_DECLARE(dvmrp_print(const u_char *, u_int));
 DISSECTOR_DECLARE(egp_print(const u_char *, u_int));
-extern u_int enc_if_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int enc_if_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int pflog_if_print(const struct pcap_pkthdr *, const u_char *);
 DISSECTOR_DECLARE(pfsync_ip_print(const u_char *, u_int));
@@ -236,7 +230,7 @@ DISSECTOR_DECLARE(msdp_print(const u_char *, u_int));
 DISSECTOR_DECLARE(nfsreply_print(const u_char *, u_int, const u_char *));
 DISSECTOR_DECLARE(nfsreq_print(const u_char *, u_int, const u_char *));
 DISSECTOR_DECLARE(ns_print(const u_char *, u_int, int));
-extern const u_char *ns_nprint(const u_char *, const u_char *);
+extern const u_char * ns_nprint(register const u_char *, register const u_char *);
 DISSECTOR_DECLARE(ntp_print(const u_char *, u_int));
 extern u_int null_if_print(const struct pcap_pkthdr *, const u_char *);
 DISSECTOR_DECLARE(ospf_print(const u_char *, u_int, const u_char *));
@@ -262,7 +256,7 @@ extern u_int ppp_bsdos_if_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int pppoe_if_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int prism_if_print(const struct pcap_pkthdr *, const u_char *);
 DISSECTOR_DECLARE(q933_print(const u_char *, u_int));
-extern int vjc_print(const u_char *, u_short); /* XXX: Not sandboxed, simple */
+extern int vjc_print(const char *, u_short); /* XXX: Not sandboxed, simple */
 DISSECTOR_DECLARE(vqp_print(const u_char *, register u_int));
 extern u_int raw_if_print(const struct pcap_pkthdr *, const u_char *);
 DISSECTOR_DECLARE(rip_print(const u_char *, u_int));
@@ -275,7 +269,7 @@ extern u_int chdlc_if_print(const struct pcap_pkthdr *, const u_char *);
 DISSECTOR_DECLARE_UINT(chdlc_print(const u_char *, u_int));
 extern u_int juniper_atm1_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int juniper_atm2_print(const struct pcap_pkthdr *, const u_char *);
-extern u_int juniper_mfr_print(const struct pcap_pkthdr *, const u_char *);
+extern u_int juniper_mfr_print(const struct pcap_pkthdr *, register const u_char *);
 extern u_int juniper_mlfr_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int juniper_mlppp_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int juniper_pppoe_print(const struct pcap_pkthdr *, const u_char *);
@@ -298,9 +292,9 @@ DISSECTOR_DECLARE(timed_print(const u_char *));
 DISSECTOR_DECLARE(udld_print(const u_char *, u_int));
 DISSECTOR_DECLARE(udp_print(const u_char *, u_int, const u_char *, int));
 DISSECTOR_DECLARE(vtp_print(const u_char *, u_int));
-DISSECTOR_DECLARE(wb_print(const u_char *, u_int));
-extern int ah_print(const u_char *);
-extern int ipcomp_print(const u_char *, int *);
+DISSECTOR_DECLARE(wb_print(const void *, u_int));
+extern int ah_print(register const u_char *);
+extern int ipcomp_print(register const u_char *, int *);
 DISSECTOR_DECLARE(rx_print(const u_char *, int, int, int, const u_char *));
 DISSECTOR_DECLARE(netbeui_print(u_short, const u_char *, int));
 DISSECTOR_DECLARE(ipx_netbios_print(const u_char *, u_int));
@@ -357,7 +351,7 @@ extern int mask62plen(const u_char *);
 #endif /*INET6*/
 
 struct cksum_vec {
-	const u_char *	ptr;
+	const u_int8_t *ptr;
 	int		len;
 };
 extern u_int16_t in_cksum(const struct cksum_vec *, int);

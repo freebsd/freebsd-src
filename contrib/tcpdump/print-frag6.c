@@ -41,10 +41,10 @@ static const char rcsid[] _U_ =
 #include "extract.h"
 
 int
-frag6_print(const u_char *bp, const u_char *bp2)
+frag6_print(register const u_char *bp, register const u_char *bp2)
 {
-	const struct ip6_frag *dp;
-	const struct ip6_hdr *ip6;
+	register const struct ip6_frag *dp;
+	register const struct ip6_hdr *ip6;
 
 	dp = (const struct ip6_frag *)bp;
 	ip6 = (const struct ip6_hdr *)bp2;

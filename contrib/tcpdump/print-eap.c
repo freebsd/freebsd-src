@@ -160,7 +160,7 @@ static const struct tok eap_aka_subtype_values[] = {
  */
 void
 eap_print(netdissect_options *ndo,
-          const u_char *cp,
+          register const u_char *cp,
           u_int length)
 {
 	if (!invoke_dissector((void *)_eap_print,
@@ -225,14 +225,14 @@ _eap_print(netdissect_options *ndo _U_,
             case EAP_TYPE_IDENTITY:
                 if (len - 5 > 0) {
                     printf(", Identity: ");
-                    safeputs(tptr+5, len-5);
+                    safeputs((const char *)tptr+5, len-5);
                 }
                 break;
 
             case EAP_TYPE_NOTIFICATION:
                 if (len - 5 > 0) {
                     printf(", Notification: ");
-                    safeputs(tptr+5, len-5);
+                    safeputs((const char *)tptr+5, len-5);
                 }
                 break;
 

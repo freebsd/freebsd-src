@@ -51,7 +51,7 @@ const struct tok sll_pkttype_values[] = {
 };
 
 static inline void
-sll_print(const struct sll_header *sllp, u_int length)
+sll_print(register const struct sll_header *sllp, u_int length)
 {
 	u_short ether_type;
 
@@ -116,7 +116,7 @@ sll_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int caplen = h->caplen;
 	u_int length = h->len;
-	const struct sll_header *sllp;
+	register const struct sll_header *sllp;
 	u_short ether_type;
 	u_short extracted_ethertype;
 

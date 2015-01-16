@@ -1268,13 +1268,11 @@ trunc:
 static void
 ppp_hdlc(const u_char *p, int length)
 {
-	u_char *b, *t;
-	u_char c;
-	const u_char *s;
+	u_char *b, *s, *t, c;
 	int i, proto;
-	const u_char *se;
+	const void *se;
 
-	b = (u_char *)malloc(length);
+	b = (u_int8_t *)malloc(length);
 	if (b == NULL)
 		return;
 
@@ -1283,7 +1281,7 @@ ppp_hdlc(const u_char *p, int length)
 	 * Do this so that we dont overwrite the original packet
 	 * contents.
 	 */
-	for (s = p, t = b, i = length; i > 0; i--) {
+	for (s = (u_char *)p, t = b, i = length; i > 0; i--) {
 		c = *s++;
 		if (c == 0x7d) {
 			if (i > 1) {
@@ -1328,7 +1326,7 @@ ppp_hdlc(const u_char *p, int length)
 
 cleanup:
         snapend = se;
-	free((void *)b);
+	free(b);
         return;
 }
 
@@ -1398,7 +1396,7 @@ handle_ppp(u_int proto, const u_char *p, int length)
 
 /* Standard PPP printer */
 void
-ppp_print(const u_char *p, u_int length)
+ppp_print(register const u_char *p, u_int length)
 {
 	if (!invoke_dissector((void *)_ppp_print,
 	    length, 0, 0, 0, 0, gndo, p, NULL, NULL, NULL))
@@ -1476,7 +1474,7 @@ trunc:
 
 /* PPP I/F printer */
 u_int
-ppp_if_print(const struct pcap_pkthdr *h, const u_char *p)
+ppp_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
@@ -1542,7 +1540,7 @@ ppp_if_print(const struct pcap_pkthdr *h, const u_char *p)
  * This handles, for example, DLT_PPP_SERIAL in NetBSD.
  */
 u_int
-ppp_hdlc_if_print(const struct pcap_pkthdr *h, const u_char *p)
+ppp_hdlc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
@@ -1604,7 +1602,7 @@ ppp_hdlc_if_print(const struct pcap_pkthdr *h, const u_char *p)
 
 /* BSD/OS specific PPP printer */
 u_int
-ppp_bsdos_if_print(const struct pcap_pkthdr *h _U_, const u_char *p _U_)
+ppp_bsdos_if_print(const struct pcap_pkthdr *h _U_, register const u_char *p _U_)
 {
 	register int hdrlength;
 #ifdef __bsdi__

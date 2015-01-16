@@ -98,7 +98,7 @@ struct hsrp {
 };
 
 void
-hsrp_print(const u_char *bp, register u_int len)
+hsrp_print(register const u_int8_t *bp, register u_int len)
 {
 	if (!invoke_dissector((void *)_hsrp_print,
 	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))

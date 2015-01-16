@@ -446,14 +446,14 @@ static struct tok juniper_protocol_values[] = {
     { 0, NULL}
 };
 
-int ip_heuristic_guess(const u_char *, u_int);
-int juniper_ppp_heuristic_guess(const u_char *, u_int);
+int ip_heuristic_guess(register const u_char *, u_int);
+int juniper_ppp_heuristic_guess(register const u_char *, u_int);
 int juniper_read_tlv_value(const u_char *, u_int, u_int);
 static int juniper_parse_header (const u_char *, const struct pcap_pkthdr *, struct juniper_l2info_t *);
 
 #ifdef DLT_JUNIPER_GGSN
 u_int
-juniper_ggsn_print(const struct pcap_pkthdr *h, const u_char *p)
+juniper_ggsn_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
         struct juniper_ggsn_header {
@@ -471,7 +471,7 @@ juniper_ggsn_print(const struct pcap_pkthdr *h, const u_char *p)
             return l2info.header_len;
 
         p+=l2info.header_len;
-        gh = (const struct juniper_ggsn_header *)&l2info.cookie;
+        gh = (struct juniper_ggsn_header *)&l2info.cookie;
 
         if (eflag) {
             printf("proto %s (%u), vlan %u: ",
@@ -500,7 +500,7 @@ juniper_ggsn_print(const struct pcap_pkthdr *h, const u_char *p)
 
 #ifdef DLT_JUNIPER_ES
 u_int
-juniper_es_print(const struct pcap_pkthdr *h, const u_char *p)
+juniper_es_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
         struct juniper_ipsec_header {
@@ -519,7 +519,7 @@ juniper_es_print(const struct pcap_pkthdr *h, const u_char *p)
             return l2info.header_len;
 
         p+=l2info.header_len;
-        ih = (const struct juniper_ipsec_header *)p;
+        ih = (struct juniper_ipsec_header *)p;
 
         switch (ih->type) {
         case JUNIPER_IPSEC_O_ESP_ENCRYPT_ESP_AUTHEN_TYPE:
@@ -570,7 +570,7 @@ juniper_es_print(const struct pcap_pkthdr *h, const u_char *p)
 
 #ifdef DLT_JUNIPER_MONITOR
 u_int
-juniper_monitor_print(const struct pcap_pkthdr *h, const u_char *p)
+juniper_monitor_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
         struct juniper_monitor_header {
@@ -586,7 +586,7 @@ juniper_monitor_print(const struct pcap_pkthdr *h, const u_char *p)
             return l2info.header_len;
 
         p+=l2info.header_len;
-        mh = (const struct juniper_monitor_header *)p;
+        mh = (struct juniper_monitor_header *)p;
 
         if (eflag)
             printf("service-id %u, iif %u, pkt-type %u: ",
@@ -603,7 +603,7 @@ juniper_monitor_print(const struct pcap_pkthdr *h, const u_char *p)
 
 #ifdef DLT_JUNIPER_SERVICES
 u_int
-juniper_services_print(const struct pcap_pkthdr *h, const u_char *p)
+juniper_services_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
         struct juniper_services_header {
@@ -619,7 +619,7 @@ juniper_services_print(const struct pcap_pkthdr *h, const u_char *p)
             return l2info.header_len;
 
         p+=l2info.header_len;
-        sh = (const struct juniper_services_header *)p;
+        sh = (struct juniper_services_header *)p;
 
         if (eflag)
             printf("service-id %u flags 0x%02x service-set-id 0x%04x iif %u: ",
@@ -637,7 +637,7 @@ juniper_services_print(const struct pcap_pkthdr *h, const u_char *p)
 
 #ifdef DLT_JUNIPER_PPPOE
 u_int
-juniper_pppoe_print(const struct pcap_pkthdr *h, const u_char *p)
+juniper_pppoe_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -654,7 +654,7 @@ juniper_pppoe_print(const struct pcap_pkthdr *h, const u_char *p)
 
 #ifdef DLT_JUNIPER_ETHER
 u_int
-juniper_ether_print(const struct pcap_pkthdr *h, const u_char *p)
+juniper_ether_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -671,7 +671,7 @@ juniper_ether_print(const struct pcap_pkthdr *h, const u_char *p)
 
 #ifdef DLT_JUNIPER_PPP
 u_int
-juniper_ppp_print(const struct pcap_pkthdr *h, const u_char *p)
+juniper_ppp_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -688,7 +688,7 @@ juniper_ppp_print(const struct pcap_pkthdr *h, const u_char *p)
 
 #ifdef DLT_JUNIPER_FRELAY
 u_int
-juniper_frelay_print(const struct pcap_pkthdr *h, const u_char *p)
+juniper_frelay_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -705,7 +705,7 @@ juniper_frelay_print(const struct pcap_pkthdr *h, const u_char *p)
 
 #ifdef DLT_JUNIPER_CHDLC
 u_int
-juniper_chdlc_print(const struct pcap_pkthdr *h, const u_char *p)
+juniper_chdlc_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -722,7 +722,7 @@ juniper_chdlc_print(const struct pcap_pkthdr *h, const u_char *p)
 
 #ifdef DLT_JUNIPER_PPPOE_ATM
 u_int
-juniper_pppoe_atm_print(const struct pcap_pkthdr *h, const u_char *p)
+juniper_pppoe_atm_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 	u_int16_t extracted_ethertype;
@@ -749,7 +749,7 @@ juniper_pppoe_atm_print(const struct pcap_pkthdr *h, const u_char *p)
 
 #ifdef DLT_JUNIPER_MLPPP
 u_int
-juniper_mlppp_print(const struct pcap_pkthdr *h, const u_char *p)
+juniper_mlppp_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -810,7 +810,7 @@ juniper_mlppp_print(const struct pcap_pkthdr *h, const u_char *p)
 
 #ifdef DLT_JUNIPER_MFR
 u_int
-juniper_mfr_print(const struct pcap_pkthdr *h, const u_char *p)
+juniper_mfr_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -871,7 +871,7 @@ juniper_mfr_print(const struct pcap_pkthdr *h, const u_char *p)
 
 #ifdef DLT_JUNIPER_MLFR
 u_int
-juniper_mlfr_print(const struct pcap_pkthdr *h, const u_char *p)
+juniper_mlfr_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -912,7 +912,7 @@ juniper_mlfr_print(const struct pcap_pkthdr *h, const u_char *p)
 
 #ifdef DLT_JUNIPER_ATM1
 u_int
-juniper_atm1_print(const struct pcap_pkthdr *h, const u_char *p)
+juniper_atm1_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         u_int16_t extracted_ethertype;
 
@@ -960,7 +960,7 @@ juniper_atm1_print(const struct pcap_pkthdr *h, const u_char *p)
 
 #ifdef DLT_JUNIPER_ATM2
 u_int
-juniper_atm2_print(const struct pcap_pkthdr *h, const u_char *p)
+juniper_atm2_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         u_int16_t extracted_ethertype;
 
@@ -1011,7 +1011,7 @@ juniper_atm2_print(const struct pcap_pkthdr *h, const u_char *p)
 /* try to guess, based on all PPP protos that are supported in
  * a juniper router if the payload data is encapsulated using PPP */
 int
-juniper_ppp_heuristic_guess(const u_char *p, u_int length) {
+juniper_ppp_heuristic_guess(register const u_char *p, u_int length) {
 
     switch(EXTRACT_16BITS(p)) {
     case PPP_IP :
@@ -1040,7 +1040,7 @@ juniper_ppp_heuristic_guess(const u_char *p, u_int length) {
 }
 
 int
-ip_heuristic_guess(const u_char *p, u_int length) {
+ip_heuristic_guess(register const u_char *p, u_int length) {
 
     switch(p[0]) {
     case 0x45:

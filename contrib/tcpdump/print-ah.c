@@ -41,10 +41,10 @@ static const char rcsid[] _U_ =
 #include "extract.h"
 
 int
-ah_print(const u_char *bp)
+ah_print(register const u_char *bp)
 {
-	const struct ah *ah;
-	const u_char *ep;
+	register const struct ah *ah;
+	register const u_char *ep;
 	int sumlen;
 	u_int32_t spi;
 

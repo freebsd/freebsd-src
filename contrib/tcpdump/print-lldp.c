@@ -622,7 +622,7 @@ lldp_private_8021_print(const u_char *tptr, u_int tlv_len)
             return hexdump;
         }
         printf("\n\t    vlan name: ");
-        safeputs(tptr+7, sublen);
+        safeputs((const char *)tptr+7, sublen);
         break;
     case LLDP_PRIVATE_8021_SUBTYPE_PROTOCOL_IDENTITY:
         if (tlv_len < 5) {
@@ -633,7 +633,7 @@ lldp_private_8021_print(const u_char *tptr, u_int tlv_len)
             return hexdump;
         }
         printf("\n\t    protocol identity: ");
-        safeputs(tptr+5, sublen);
+        safeputs((const char *)tptr+5, sublen);
         break;
 
     default:
@@ -819,7 +819,7 @@ lldp_private_tia_print(const u_char *tptr, u_int tlv_len)
                    *(tptr+6));
 
             /* Country code */
-            safeputs(tptr+7, 2);
+            safeputs((const char *)(tptr+7), 2);
 
             lci_len = lci_len-3;
             tptr = tptr + 9;
@@ -847,7 +847,7 @@ lldp_private_tia_print(const u_char *tptr, u_int tlv_len)
 		    return hexdump;
 		}
 
-                safeputs(tptr, ca_len);
+                safeputs((const char *)tptr, ca_len);
                 tptr += ca_len;
                 lci_len -= ca_len;
             }
@@ -855,7 +855,7 @@ lldp_private_tia_print(const u_char *tptr, u_int tlv_len)
 
         case LLDP_TIA_LOCATION_DATA_FORMAT_ECS_ELIN:
             printf("\n\t    ECS ELIN id ");
-            safeputs(tptr+5, tlv_len-5);       
+            safeputs((const char *)tptr+5, tlv_len-5);       
             break;
 
         default:
@@ -892,7 +892,7 @@ lldp_private_tia_print(const u_char *tptr, u_int tlv_len)
     case LLDP_PRIVATE_TIA_SUBTYPE_INVENTORY_ASSET_ID:
         printf("\n\t  %s ",
                tok2str(lldp_tia_inventory_values, "unknown", subtype));
-        safeputs(tptr+4, tlv_len-4);
+        safeputs((const char *)tptr+4, tlv_len-4);
         break;
 
     default:
@@ -1165,7 +1165,7 @@ lldp_mgmt_addr_tlv_print(const u_char *pptr, u_int len) {
         }
         if (oid_len) {
             printf("\n\t  OID length %u", oid_len);
-            safeputs(tptr+1, oid_len);
+            safeputs((const char *)tptr+1, oid_len);
         }
     }
 
@@ -1173,7 +1173,7 @@ lldp_mgmt_addr_tlv_print(const u_char *pptr, u_int len) {
 } 
 
 void
-lldp_print(const u_char *pptr, register u_int len)
+lldp_print(register const u_char *pptr, register u_int len)
 {
 	if (!invoke_dissector((void *)_lldp_print,
 	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -1249,7 +1249,7 @@ _lldp_print(const u_char *pptr, register u_int len)
                 case LLDP_CHASSIS_CHASSIS_COMP_SUBTYPE:
                 case LLDP_CHASSIS_INTF_ALIAS_SUBTYPE:
                 case LLDP_CHASSIS_PORT_COMP_SUBTYPE:
-                    safeputs(tptr+1, tlv_len-1);
+                    safeputs((const char *)tptr+1, tlv_len-1);
                     break;
 
                 case LLDP_CHASSIS_NETWORK_ADDR_SUBTYPE:
@@ -1290,7 +1290,7 @@ _lldp_print(const u_char *pptr, register u_int len)
                 case LLDP_PORT_AGENT_CIRC_ID_SUBTYPE:
                 case LLDP_PORT_INTF_ALIAS_SUBTYPE:
                 case LLDP_PORT_PORT_COMP_SUBTYPE:
-                    safeputs(tptr+1, tlv_len-1);
+                    safeputs((const char *)tptr+1, tlv_len-1);
                     break;
 
                 case LLDP_PORT_NETWORK_ADDR_SUBTYPE:
@@ -1320,7 +1320,7 @@ _lldp_print(const u_char *pptr, register u_int len)
         case LLDP_PORT_DESCR_TLV:
             if (vflag) {
                 printf(": ");
-                safeputs(tptr, tlv_len);
+                safeputs((const char *)tptr, tlv_len);
             }
             break;
 
@@ -1330,13 +1330,13 @@ _lldp_print(const u_char *pptr, register u_int len)
              * similar to the CDP printer.
              */
             printf(": ");
-            safeputs(tptr, tlv_len);
+            safeputs((const char *)tptr, tlv_len);
             break;
 
         case LLDP_SYSTEM_DESCR_TLV:
             if (vflag) {
                 printf("\n\t  ");
-                safeputs(tptr, tlv_len);
+                safeputs((const char *)tptr, tlv_len);
             }
             break;
 

@@ -50,8 +50,7 @@ static const char rcsid[] _U_ =
  * Compute a V6-style checksum by building a pseudoheader.
  */
 int
-nextproto6_cksum(const struct ip6_hdr *ip6,
-		 const u_int8_t *data,
+nextproto6_cksum(const struct ip6_hdr *ip6, const u_int8_t *data,
 		 u_int len, u_int next_proto)
 {
         struct {
@@ -70,7 +69,7 @@ nextproto6_cksum(const struct ip6_hdr *ip6,
         ph.ph_len = htonl(len);
         ph.ph_nxt = next_proto;
 
-        vec[0].ptr = (void *)&ph;
+        vec[0].ptr = (const u_int8_t *)(void *)&ph;
         vec[0].len = sizeof(ph);
         vec[1].ptr = data;
         vec[1].len = len;
@@ -84,11 +83,11 @@ nextproto6_cksum(const struct ip6_hdr *ip6,
 void
 ip6_print(netdissect_options *ndo, const u_char *bp, u_int length)
 {
-	const struct ip6_hdr *ip6;
+	register const struct ip6_hdr *ip6;
 	register int advance;
 	u_int len;
 	const u_char *ipend;
-	const u_char *cp;
+	register const u_char *cp;
 	register u_int payload_len;
 	int nh;
 	int fragmented = 0;

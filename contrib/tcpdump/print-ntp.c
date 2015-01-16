@@ -52,8 +52,7 @@ static const char rcsid[] _U_ =
 
 static void p_sfix(const struct s_fixedpt *);
 static void p_ntp_time(const struct l_fixedpt *);
-static void p_ntp_delta(const struct l_fixedpt *,
-			const struct l_fixedpt *);
+static void p_ntp_delta(const struct l_fixedpt *, const struct l_fixedpt *);
 
 static struct tok ntp_mode_values[] = {
     { MODE_UNSPEC,    "unspecified" },
@@ -85,7 +84,7 @@ static struct tok ntp_stratum_values[] = {
  * Print ntp requests
  */
 void
-ntp_print(const u_char *cp, u_int length)
+ntp_print(register const u_char *cp, u_int length)
 {
 	if (!invoke_dissector((void *)_ntp_print,
 	    length, 0, 0, 0, 0, gndo, cp, NULL, NULL, NULL))
@@ -95,7 +94,7 @@ ntp_print(const u_char *cp, u_int length)
 void
 _ntp_print(const u_char *cp, u_int length)
 {
-	const struct ntpdata *bp;
+	register const struct ntpdata *bp;
 	int mode, version, leapind;
 
 	bp = (struct ntpdata *)cp;
@@ -152,7 +151,7 @@ _ntp_print(const u_char *cp, u_int length)
 		break;
 
 	case PRIM_REF:
-		if (fn_printn((const u_char *)&(bp->refid), 4, snapend))
+		if (fn_printn((u_char *)&(bp->refid), 4, snapend))
 			goto trunc;
 		break;
 
@@ -213,7 +212,7 @@ trunc:
 }
 
 static void
-p_sfix(const struct s_fixedpt *sfp)
+p_sfix(register const struct s_fixedpt *sfp)
 {
 	register int i;
 	register int f;
@@ -229,7 +228,7 @@ p_sfix(const struct s_fixedpt *sfp)
 #define	FMAXINT	(4294967296.0)	/* floating point rep. of MAXINT */
 
 static void
-p_ntp_time(const struct l_fixedpt *lfp)
+p_ntp_time(register const struct l_fixedpt *lfp)
 {
 	register int32_t i;
 	register u_int32_t uf;
@@ -263,8 +262,8 @@ p_ntp_time(const struct l_fixedpt *lfp)
 
 /* Prints time difference between *lfp and *olfp */
 static void
-p_ntp_delta(const struct l_fixedpt *olfp,
-	    const struct l_fixedpt *lfp)
+p_ntp_delta(register const struct l_fixedpt *olfp,
+	    register const struct l_fixedpt *lfp)
 {
 	register int32_t i;
 	register u_int32_t u, uf;

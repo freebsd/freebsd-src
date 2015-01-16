@@ -354,7 +354,7 @@ _icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 	const char *str, *fmt;
 	const struct ip *oip;
 	const struct udphdr *ouh;
-	const u_char *obj_tptr;
+        const u_int8_t *obj_tptr;
         u_int32_t raw_label;
         const u_char *snapend_save;
 	const struct icmp_mpls_ext_object_header_t *icmp_mpls_ext_object_header;
@@ -439,7 +439,7 @@ _icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 
 		case ICMP_UNREACH_NEEDFRAG:
 		    {
-			const struct mtu_discovery *mp;
+			register const struct mtu_discovery *mp;
 			mp = (struct mtu_discovery *)(u_char *)&dp->icmp_void;
 			mtu = EXTRACT_16BITS(&mp->nexthopmtu);
 			if (mtu) {
@@ -474,14 +474,14 @@ _icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 
 	case ICMP_ROUTERADVERT:
 	    {
-		const struct ih_rdiscovery *ihp;
-		const struct id_rdiscovery *idp;
+		register const struct ih_rdiscovery *ihp;
+		register const struct id_rdiscovery *idp;
 		u_int lifetime, num, size;
 
 		(void)snprintf(buf, sizeof(buf), "router advertisement");
 		cp = buf + strlen(buf);
 
-		ihp = (const struct ih_rdiscovery *)&dp->icmp_void;
+		ihp = (struct ih_rdiscovery *)&dp->icmp_void;
 		TCHECK(*ihp);
 		(void)strncpy(cp, " lifetime ", sizeof(buf) - (cp - buf));
 		cp = buf + strlen(buf);
@@ -511,7 +511,7 @@ _icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 			    " [size %d]", size);
 			break;
 		}
-		idp = (const struct id_rdiscovery *)&dp->icmp_data;
+		idp = (struct id_rdiscovery *)&dp->icmp_data;
 		while (num-- > 0) {
 			TCHECK(*idp);
 			(void)snprintf(cp, sizeof(buf) - (cp - buf), " {%s %u}",
@@ -589,7 +589,7 @@ _icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 	if (vflag && !fragmented) { /* don't attempt checksumming if this is a frag */
 		u_int16_t sum, icmp_sum;
 		if (TTEST2(*bp, plen)) {
-			vec[0].ptr = (const u_char *)dp;
+			vec[0].ptr = (const u_int8_t *)(void *)dp;
 			vec[0].len = plen;
 			sum = in_cksum(vec, 1);
 			if (sum != 0) {
@@ -608,7 +608,7 @@ _icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 	if (vflag >= 1 && !ICMP_INFOTYPE(dp->icmp_type)) {
 		bp += 8;
 		(void)printf("\n\t");
-		ip = (const struct ip *)bp;
+		ip = (struct ip *)bp;
 		snaplen = snapend - bp;
                 snapend_save = snapend;
 		ip_print(gndo, bp, EXTRACT_16BITS(&ip->ip_len));
@@ -629,7 +629,7 @@ _icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
              * however not all implementations set the length field proper.
              */
             if (!ext_dp->icmp_length) {
-                vec[0].ptr = (const u_char *)&ext_dp->icmp_ext_version_res;
+                vec[0].ptr = (const u_int8_t *)(void *)&ext_dp->icmp_ext_version_res;
                 vec[0].len = plen - ICMP_EXTD_MINLEN;
                 if (in_cksum(vec, 1)) {
                     return;
@@ -649,7 +649,7 @@ _icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
             }
 
             hlen = plen - ICMP_EXTD_MINLEN;
-            vec[0].ptr = (const u_char *)&ext_dp->icmp_ext_version_res;
+            vec[0].ptr = (const u_int8_t *)(void *)&ext_dp->icmp_ext_version_res;
             vec[0].len = hlen;
             printf(", checksum 0x%04x (%scorrect), length %u",
                    EXTRACT_16BITS(ext_dp->icmp_ext_checksum),
@@ -657,11 +657,11 @@ _icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
                    hlen);
 
             hlen -= 4; /* subtract common header size */
-            obj_tptr = (const u_char *)ext_dp->icmp_ext_data;
+            obj_tptr = (u_int8_t *)ext_dp->icmp_ext_data;
 
             while (hlen > sizeof(struct icmp_mpls_ext_object_header_t)) {
 
-                icmp_mpls_ext_object_header = (const struct icmp_mpls_ext_object_header_t *)obj_tptr;
+                icmp_mpls_ext_object_header = (struct icmp_mpls_ext_object_header_t *)obj_tptr;
                 TCHECK(*icmp_mpls_ext_object_header);
                 obj_tlen = EXTRACT_16BITS(icmp_mpls_ext_object_header->length);
                 obj_class_num = icmp_mpls_ext_object_header->class_num;

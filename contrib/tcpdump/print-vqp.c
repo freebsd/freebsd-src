@@ -106,7 +106,7 @@ static const struct tok vqp_obj_values[] = {
 };
 
 void
-vqp_print(const u_char *pptr, register u_int len) 
+vqp_print(register const u_char *pptr, register u_int len) 
 {
 	if (!invoke_dissector((void *)_vqp_print,
 	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -195,7 +195,7 @@ _vqp_print(const u_char *pptr, register u_int len)
 	case VQP_OBJ_VLAN_NAME:
 	case VQP_OBJ_VTP_DOMAIN:
 	case VQP_OBJ_ETHERNET_PKT:
-            safeputs(tptr, vqp_obj_len);
+            safeputs((const char *)tptr, vqp_obj_len);
             break;
             /* those objects have similar semantics - fall through */
 	case VQP_OBJ_MAC_ADDRESS:

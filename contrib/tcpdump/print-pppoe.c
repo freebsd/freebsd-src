@@ -95,13 +95,13 @@ static struct tok pppoetag2str[] = {
 #define MAXTAGPRINT 80
 
 u_int
-pppoe_if_print(const struct pcap_pkthdr *h, const u_char *p)
+pppoe_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
 	return (_pppoe_print(p, h->len));
 }
 
 void
-pppoe_print(const u_char *bp, u_int length)
+pppoe_print(register const u_char *bp, u_int length)
 {
 	if (!invoke_dissector((void *)_pppoe_print,
 	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))

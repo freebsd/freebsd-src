@@ -60,7 +60,7 @@ struct tok ip_option_values[] = {
  * print the recorded route in an IP RR, LSRR or SSRR option.
  */
 static void
-ip_printroute(const u_char *cp, u_int length)
+ip_printroute(register const u_char *cp, u_int length)
 {
 	register u_int ptr;
 	register u_int len;
@@ -135,8 +135,7 @@ trunc:
  * Compute a V4-style checksum by building a pseudoheader.
  */
 int
-nextproto4_cksum(const struct ip *ip,
-		 const u_char *data,
+nextproto4_cksum(const struct ip *ip, const u_int8_t *data,
 		 u_int len, u_int next_proto)
 {
 	struct phdr {
@@ -158,7 +157,7 @@ nextproto4_cksum(const struct ip *ip,
 	else
 		ph.dst = ip_finddst(ip);
 
-	vec[0].ptr = (const u_char *)(void *)&ph;
+	vec[0].ptr = (const u_int8_t *)(void *)&ph;
 	vec[0].len = sizeof(ph);
 	vec[1].ptr = data;
 	vec[1].len = len;
@@ -166,7 +165,7 @@ nextproto4_cksum(const struct ip *ip,
 }
 
 static void
-ip_printts(const u_char *cp, u_int length)
+ip_printts(register const u_char *cp, u_int length)
 {
 	register u_int ptr;
 	register u_int len;
@@ -231,7 +230,7 @@ done:
  * print IP options.
  */
 static void
-ip_optprint(const u_char *cp, u_int length)
+ip_optprint(register const u_char *cp, u_int length)
 {
 	register u_int option_len;
 	const char *sep = "";
@@ -647,12 +646,12 @@ _ip_print(netdissect_options *ndo,
 
             if ((hlen - sizeof(struct ip)) > 0) {
                 printf(", options (");
-                ip_optprint((const u_char *)(ipds->ip + 1), hlen - sizeof(struct ip));
+                ip_optprint((u_char *)(ipds->ip + 1), hlen - sizeof(struct ip));
                 printf(")");
             }
 
-	    if (!Kflag && ND_TTEST2(*ipds->ip, hlen)) {
-	        vec[0].ptr = (const u_char *)(void *)ipds->ip;
+	    if (!Kflag && (u_char *)ipds->ip + hlen <= ndo->ndo_snapend) {
+	        vec[0].ptr = (const u_int8_t *)(void *)ipds->ip;
 	        vec[0].len = hlen;
 	        sum = in_cksum(vec, 1);
 		if (sum != 0) {
@@ -701,17 +700,16 @@ _ip_print(netdissect_options *ndo,
 }
 
 void
-ipN_print(const u_char *bp, register u_int length)
+ipN_print(register const u_char *bp, register u_int length)
 {
-	const struct ip *ip;
-	struct ip hdr;
+	struct ip *ip, hdr;
 
-	ip = (const struct ip *)bp;
+	ip = (struct ip *)bp;
 	if (length < 4) {
 		(void)printf("truncated-ip %d", length);
 		return;
 	}
-	memcpy(&hdr, ip, 4);
+	memcpy (&hdr, (char *)ip, 4);
 	switch (IP_V(&hdr)) {
 	case 4:
 		ip_print (gndo, bp, length);

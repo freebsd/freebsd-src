@@ -89,8 +89,8 @@ cnfp_print(const u_char *cp, const u_char *bp)
 void
 _cnfp_print(const u_char *cp, const u_char *bp _U_)
 {
-	const struct nfhdr *nh;
-	const struct nfrec *nr;
+	register const struct nfhdr *nh;
+	register const struct nfrec *nr;
 	struct protoent *pent;
 	int nrecs, ver;
 #if 0

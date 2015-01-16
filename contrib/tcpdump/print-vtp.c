@@ -28,7 +28,6 @@
 
 #include <tcpdump-stdinc.h>
 
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -133,7 +132,7 @@ void
 _vtp_print(const u_char *pptr, u_int length)
 {
     int type, len, tlv_len, tlv_value;
-    const u_char *name_ptr, *tptr;
+    const u_char *tptr;
     const struct vtp_vlan_ *vtp_vlan;
 
     if (length < VTP_HEADER_LEN)
@@ -157,7 +156,8 @@ _vtp_print(const u_char *pptr, u_int length)
     }
 
     /* verbose mode print all fields */
-    printf("\n\tDomain name: %s, %s: %u", tptr+4,
+    printf("\n\tDomain name: %s, %s: %u", 
+	   (tptr+4),
 	   tok2str(vtp_header_values,"Unknown",*(tptr+1)),
 	   *(tptr+2));
 
@@ -253,15 +253,14 @@ _vtp_print(const u_char *pptr, u_int length)
 	    if (!TTEST2(*tptr, len))
 		goto trunc;
 
-	    vtp_vlan = (const struct vtp_vlan_*)tptr;
-	    name_ptr = tptr + VTP_VLAN_INFO_OFFSET;
+	    vtp_vlan = (struct vtp_vlan_*)tptr;
 	    printf("\n\tVLAN info status %s, type %s, VLAN-id %u, MTU %u, SAID 0x%08x, Name %s",
 		   tok2str(vtp_vlan_status,"Unknown",vtp_vlan->status),
 		   tok2str(vtp_vlan_type_values,"Unknown",vtp_vlan->type),
 		   EXTRACT_16BITS(&vtp_vlan->vlanid),
 		   EXTRACT_16BITS(&vtp_vlan->mtu),
 		   EXTRACT_32BITS(&vtp_vlan->index),
-		   name_ptr);
+		   (tptr + VTP_VLAN_INFO_OFFSET));
 
             /*
              * Vlan names are aligned to 32-bit boundaries.

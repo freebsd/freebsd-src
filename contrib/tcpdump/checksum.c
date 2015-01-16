@@ -141,7 +141,7 @@ init_checksum(void) {
  * The checksum field of the passed PDU does not need to be reset to zero.
  */
 u_int16_t
-create_osi_cksum (const u_char *pptr, int checksum_offset, int length)
+create_osi_cksum (const u_int8_t *pptr, int checksum_offset, int length)
 {
 
     int x;

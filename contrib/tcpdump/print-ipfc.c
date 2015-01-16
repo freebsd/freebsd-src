@@ -47,23 +47,24 @@ static const char rcsid[] _U_ =
 
 /* Extract src, dst addresses */
 static inline void
-extract_ipfc_addrs(const struct ipfc_header *ipfcp,
-    u_char *ipfcsrc, u_char *ipfcdst)
+extract_ipfc_addrs(const struct ipfc_header *ipfcp, char *ipfcsrc,
+    char *ipfcdst)
 {
 	/*
 	 * We assume that, as per RFC 2625, the lower 48 bits of the
 	 * source and destination addresses are MAC addresses.
 	 */
-	memcpy(ipfcdst, &ipfcp->ipfc_dhost[2], 6);
-	memcpy(ipfcsrc, &ipfcp->ipfc_shost[2], 6);
+	memcpy(ipfcdst, (const char *)&ipfcp->ipfc_dhost[2], 6);
+	memcpy(ipfcsrc, (const char *)&ipfcp->ipfc_shost[2], 6);
 }
 
 /*
  * Print the Network_Header
  */
 static inline void
-ipfc_hdr_print(const struct ipfc_header *ipfcp _U_,
-	   register u_int length, const u_char *ipfcsrc, const u_char *ipfcdst)
+ipfc_hdr_print(register const struct ipfc_header *ipfcp _U_,
+	   register u_int length, register const u_char *ipfcsrc,
+	   register const u_char *ipfcdst)
 {
 	const char *srcname, *dstname;
 
@@ -90,7 +91,7 @@ ipfc_print(const u_char *p, u_int length, u_int caplen)
 	/*
 	 * Get the network addresses into a canonical form
 	 */
-	extract_ipfc_addrs(ipfcp, ESRC(&ehdr), EDST(&ehdr));
+	extract_ipfc_addrs(ipfcp, (char *)ESRC(&ehdr), (char *)EDST(&ehdr));
 
 	if (eflag)
 		ipfc_hdr_print(ipfcp, length, ESRC(&ehdr), EDST(&ehdr));
@@ -126,7 +127,7 @@ ipfc_print(const u_char *p, u_int length, u_int caplen)
  * is the number of bytes actually captured.
  */
 u_int
-ipfc_if_print(const struct pcap_pkthdr *h, const u_char *p)
+ipfc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
 	ipfc_print(p, h->len, h->caplen);
 

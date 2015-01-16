@@ -218,8 +218,8 @@ static const struct tok ldp_fec_martini_ifparm_vccv_cv_values[] = {
     { 0, NULL}
 };
 
-int ldp_msg_print(const u_char *);
-int ldp_tlv_print(const u_char *);
+int ldp_msg_print(register const u_char *);
+int ldp_tlv_print(register const u_char *);
    
 /* 
  * ldp tlv header
@@ -242,7 +242,7 @@ int ldp_tlv_print(const u_char *);
     TCHECK2(*tptr, minlen); if (tlv_tlen < minlen) goto badtlv;
 
 int
-ldp_tlv_print(const u_char *tptr) {
+ldp_tlv_print(register const u_char *tptr) {
 
     struct ldp_tlv_header {
         u_int8_t type[2];
@@ -567,11 +567,11 @@ _ldp_print(const u_char *pptr, register u_int len)
 
 
 int
-ldp_msg_print(const u_char *pptr) {
+ldp_msg_print(register const u_char *pptr) {
 
     const struct ldp_common_header *ldp_com_header;
     const struct ldp_msg_header *ldp_msg_header;
-    const u_char *tptr, *msg_tptr;
+    const u_char *tptr,*msg_tptr;
     u_short tlen;
     u_short pdu_len,msg_len,msg_type,msg_tlen;
     int hexdump,processed;

@@ -567,11 +567,11 @@ struct isis_tlv_ptp_adj {
     u_int8_t neighbor_extd_local_circuit_id[4];
 };
 
-static void osi_print_cksum(const u_char *pptr, u_int16_t checksum,
+static void osi_print_cksum(const u_int8_t *pptr, u_int16_t checksum,
                             u_int checksum_offset, u_int length);
-static int clnp_print(const u_char *, u_int);
-static void esis_print(const u_char *, u_int);
-static int isis_print(const u_char *, u_int);
+static int clnp_print(const u_int8_t *, u_int);
+static void esis_print(const u_int8_t *, u_int);
+static int isis_print(const u_int8_t *, u_int);
 
 struct isis_metric_block {
     u_int8_t metric_default;
@@ -781,9 +781,9 @@ struct clnp_segment_header_t {
  * Decode CLNP packets.  Return 0 on error.
  */
 
-static int clnp_print (const u_char *pptr, u_int length)
+static int clnp_print (const u_int8_t *pptr, u_int length)
 {
-	const u_char *optr, *source_address, *dest_address;
+	const u_int8_t *optr,*source_address,*dest_address;
         u_int li,tlen,nsap_offset,source_address_length,dest_address_length, clnp_pdu_type, clnp_flags;
 	const struct clnp_header_t *clnp_header;
 	const struct clnp_segment_header_t *clnp_segment_header;
@@ -871,7 +871,7 @@ static int clnp_print (const u_char *pptr, u_int length)
         /* now walk the options */
         while (li >= 2) {
             u_int op, opli;
-            const u_char *tptr;
+            const u_int8_t *tptr;
             
             TCHECK2(*pptr, 2);
             if (li < 2) {
@@ -1036,9 +1036,9 @@ struct esis_header_t {
 };
 
 static void
-esis_print(const u_char *pptr, u_int length)
+esis_print(const u_int8_t *pptr, u_int length)
 {
-	const u_char *optr;
+	const u_int8_t *optr;
 	u_int li,esis_pdu_type,source_address_length, source_address_number;
 	const struct esis_header_t *esis_header;
 
@@ -1114,7 +1114,7 @@ esis_print(const u_char *pptr, u_int length)
 
 	switch (esis_pdu_type) {
 	case ESIS_PDU_REDIRECT: {
-		const u_char *dst, *snpa, *neta;
+		const u_int8_t *dst, *snpa, *neta;
 		u_int dstl, snpal, netal;
 
 		TCHECK(*pptr);
@@ -1242,7 +1242,7 @@ esis_print(const u_char *pptr, u_int length)
         /* now walk the options */
         while (li != 0) {
             u_int op, opli;
-            const u_char *tptr;
+            const u_int8_t *tptr;
             
             if (li < 2) {
                 printf(", bad opts/li");
@@ -1337,7 +1337,7 @@ isis_print_mcid (const struct isis_spb_mcid *mcid)
 }
 
 static int
-isis_print_mt_port_cap_subtlv (const u_char *tptr, int len)
+isis_print_mt_port_cap_subtlv (const u_int8_t *tptr, int len)
 {
   int stlv_type, stlv_len;
   const struct isis_subtlv_spb_mcid *subtlv_spb_mcid;
@@ -1364,7 +1364,7 @@ isis_print_mt_port_cap_subtlv (const u_char *tptr, int len)
         if (!TTEST2(*(tptr), ISIS_SUBTLV_SPB_MCID_MIN_LEN))
           goto trunctlv;
 
-        subtlv_spb_mcid = (const struct isis_subtlv_spb_mcid *)tptr;
+        subtlv_spb_mcid = (struct isis_subtlv_spb_mcid *)tptr;
 
         printf( "\n\t         MCID: ");
         isis_print_mcid (&(subtlv_spb_mcid->mcid));
@@ -1449,7 +1449,7 @@ isis_print_mt_port_cap_subtlv (const u_char *tptr, int len)
 }
 
 static int
-isis_print_mt_capability_subtlv (const u_char *tptr, int len)
+isis_print_mt_capability_subtlv (const u_int8_t *tptr, int len)
 {
   int stlv_type, stlv_len, tmp;
 
@@ -1566,7 +1566,7 @@ isis_print_mt_capability_subtlv (const u_char *tptr, int len)
 
 /* shared routine for printing system, node and lsp-ids */
 static char *
-isis_print_id(const u_char *cp, int id_len)
+isis_print_id(const u_int8_t *cp, int id_len)
 {
     int i;
     static char id[sizeof("xxxx.xxxx.xxxx.yy-zz")];
@@ -1611,7 +1611,7 @@ isis_print_metric_block (const struct isis_metric_block *isis_metric_block)
 }
 
 static int
-isis_print_tlv_ip_reach (const u_char *cp, const char *ident, int length)
+isis_print_tlv_ip_reach (const u_int8_t *cp, const char *ident, int length)
 {
 	int prefix_len;
 	const struct isis_tlv_ip_reach *tlv_ip_reach;
@@ -1677,7 +1677,7 @@ isis_print_tlv_ip_reach (const u_char *cp, const char *ident, int length)
  */
 
 static int
-isis_print_ip_reach_subtlv (const u_char *tptr,int subt,int subl,const char *ident) {
+isis_print_ip_reach_subtlv (const u_int8_t *tptr,int subt,int subl,const char *ident) {
 
         /* first lets see if we know the subTLVs name*/
 	printf("%s%s subTLV #%u, length: %u",
@@ -1730,7 +1730,7 @@ trunctlv:
  */
 
 static int
-isis_print_is_reach_subtlv (const u_char *tptr,u_int subt,u_int subl,const char *ident) {
+isis_print_is_reach_subtlv (const u_int8_t *tptr,u_int subt,u_int subl,const char *ident) {
 
         u_int te_class,priority_level,gmpls_switch_cap;
         union { /* int to float conversion buffer for several subTLVs */
@@ -1894,7 +1894,7 @@ trunctlv:
  */
 
 static int
-isis_print_ext_is_reach (const u_char *tptr,const char *ident, int tlv_type) {
+isis_print_ext_is_reach (const u_int8_t *tptr,const char *ident, int tlv_type) {
 
     char ident_buffer[20];
     int subtlv_type,subtlv_len,subtlv_sum_len;
@@ -1943,7 +1943,7 @@ isis_print_ext_is_reach (const u_char *tptr,const char *ident, int tlv_type) {
  */
 
 static int
-isis_print_mtid (const u_char *tptr,const char *ident) {
+isis_print_mtid (const u_int8_t *tptr,const char *ident) {
     
     if (!TTEST2(*tptr, 2))
         return(0);
@@ -1969,7 +1969,7 @@ isis_print_mtid (const u_char *tptr,const char *ident) {
  */
 
 static int
-isis_print_extd_ip_reach (const u_char *tptr, const char *ident, u_int16_t afi) {
+isis_print_extd_ip_reach (const u_int8_t *tptr, const char *ident, u_int16_t afi) {
 
     char ident_buffer[20];
 #ifdef INET6
@@ -2085,7 +2085,7 @@ isis_print_extd_ip_reach (const u_char *tptr, const char *ident, u_int16_t afi) 
  * Decode IS-IS packets.  Return 0 on error.
  */
 
-static int isis_print (const u_char *p, u_int length)
+static int isis_print (const u_int8_t *p, u_int length)
 {
     const struct isis_common_header *isis_header;
 
@@ -2102,7 +2102,7 @@ static int isis_print (const u_char *p, u_int length)
 
     u_int8_t pdu_type, max_area, id_length, tlv_type, tlv_len, tmp, alen, lan_alen, prefix_len;
     u_int8_t ext_is_len, ext_ip_len, mt_len;
-    const u_char *optr, *pptr, *tptr;
+    const u_int8_t *optr, *pptr, *tptr;
     u_short packet_len,pdu_len, key_id;
     u_int i,vendor_id;
     int sigcheck;
@@ -2339,7 +2339,7 @@ static int isis_print (const u_char *p, u_int length)
                EXTRACT_16BITS(header_lsp->checksum));
 
 
-        osi_print_cksum((const u_char *)header_lsp->lsp_id,
+        osi_print_cksum((u_int8_t *)header_lsp->lsp_id,
                         EXTRACT_16BITS(header_lsp->checksum), 12, length-12);
 
         /*
@@ -3098,7 +3098,7 @@ static int isis_print (const u_char *p, u_int length)
 }
 
 static void
-osi_print_cksum (const u_char *pptr, u_int16_t checksum,
+osi_print_cksum (const u_int8_t *pptr, u_int16_t checksum,
                     u_int checksum_offset, u_int length)
 {
         u_int16_t calculated_checksum;

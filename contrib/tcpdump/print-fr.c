@@ -199,7 +199,7 @@ fr_hdr_print(int length, u_int addr_len, u_int dlci, u_int8_t *flags, u_int16_t 
             (void)printf("Q.922, hdr-len %u, DLCI %u, Flags [%s], NLPID %s (0x%02x), length %u: ",
                          addr_len,
                          dlci,
-                         bittok2str(fr_header_flag_values, "none", *flags),
+                         bittok2str(fr_header_flag_values, "none", EXTRACT_32BITS(flags)),
                          tok2str(nlpid_values,"unknown", nlpid),
                          nlpid,
                          length);
@@ -207,7 +207,7 @@ fr_hdr_print(int length, u_int addr_len, u_int dlci, u_int8_t *flags, u_int16_t 
             (void)printf("Q.922, hdr-len %u, DLCI %u, Flags [%s], cisco-ethertype %s (0x%04x), length %u: ",
                          addr_len,
                          dlci,
-                         bittok2str(fr_header_flag_values, "none", *flags),
+                         bittok2str(fr_header_flag_values, "none", EXTRACT_32BITS(flags)),
                          tok2str(ethertype_values, "unknown", nlpid),
                          nlpid,
                          length);        
@@ -215,7 +215,7 @@ fr_hdr_print(int length, u_int addr_len, u_int dlci, u_int8_t *flags, u_int16_t 
 }
 
 u_int
-fr_if_print(const struct pcap_pkthdr *h, const u_char *p)
+fr_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
@@ -232,7 +232,7 @@ fr_if_print(const struct pcap_pkthdr *h, const u_char *p)
 }
 
 void
-fr_print(const u_char *p, u_int length)
+fr_print(register const u_char *p, u_int length)
 {
 	if (!invoke_dissector((void *)_fr_print,
 	    length, 0, 0, 0, 0, gndo, p, NULL, NULL, NULL))
@@ -345,7 +345,7 @@ _fr_print(const u_char *p, u_int length)
 }
 
 u_int
-mfr_if_print(const struct pcap_pkthdr *h, const u_char *p)
+mfr_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
@@ -406,7 +406,7 @@ struct ie_tlv_header_t {
 };
 
 void
-mfr_print(const u_char *p, u_int length)
+mfr_print(register const u_char *p, u_int length)
 {
 	if (!invoke_dissector((void *)_mfr_print,
 	    length, 0, 0, 0, 0, gndo, p, NULL, NULL, NULL))

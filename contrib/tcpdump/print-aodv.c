@@ -403,7 +403,7 @@ _aodv_print(const u_char *dat, u_int length, int is_ip6)
 {
 	const union aodv *ap;
 
-	ap = (const union aodv *)dat;
+	ap = (union aodv *)dat;
 	if (snapend < dat) {
 		/* XXX-BD: packet isn't truncated, we're off the end */
 		printf(" [|aodv]");

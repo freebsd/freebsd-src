@@ -236,7 +236,7 @@ stp_print_config_bpdu(const struct stp_bpdu_ *stp_bpdu, u_int length)
 static void
 stp_print_mstp_bpdu(const struct stp_bpdu_ *stp_bpdu, u_int length)
 {
-    const u_char   *ptr;
+    const u_char *ptr;
     u_int16_t	    v3len;
     u_int16_t	    len;
     u_int16_t	    msti;
@@ -372,7 +372,7 @@ _stp_print(const u_char *p, u_int length)
     u_int16_t              mstp_len;
     u_int16_t              spb_len;
     
-    stp_bpdu = (const struct stp_bpdu_*)p;
+    stp_bpdu = (struct stp_bpdu_*)p;
 
     /* Minimum STP Frame size. */
     if (length < 4)

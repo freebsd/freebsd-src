@@ -43,22 +43,20 @@
 #define	TCPSTATES
 #include <netinet/tcp_fsm.h>
 
-#include <stdlib.h>
 #include <string.h>
 
 #include "interface.h"
 #include "addrtoname.h"
 
-static void	pfsync_print(const struct pfsync_header *,
-		    const u_char *, u_int);
+static void	pfsync_print(struct pfsync_header *, const u_char *, u_int);
 static void	print_src_dst(const struct pfsync_state_peer *,
 		    const struct pfsync_state_peer *, uint8_t);
-static void	print_state(const struct pfsync_state *);
+static void	print_state(struct pfsync_state *);
 
 #ifdef notyet
 void
 pfsync_if_print(u_char *user, const struct pcap_pkthdr *h,
-    const u_char *p)
+    register const u_char *p)
 {
 	u_int caplen = h->caplen;
 
@@ -91,8 +89,7 @@ pfsync_ip_print(const u_char *bp, u_int len)
 void
 _pfsync_ip_print(const u_char *bp, u_int len)
 {
-	const struct pfsync_header *hdr =
-	    (const struct pfsync_header *)bp;
+	struct pfsync_header *hdr = (struct pfsync_header *)bp;
 
 	if (len < PFSYNC_HDRLEN)
 		printf("[|pfsync]");
@@ -137,10 +134,9 @@ struct pfsync_actions actions[] = {
 };
 
 static void
-pfsync_print(const struct pfsync_header *hdr, const u_char *bp,
-    u_int len)
+pfsync_print(struct pfsync_header *hdr, const u_char *bp, u_int len)
 {
-	const struct pfsync_subheader *subh;
+	struct pfsync_subheader *subh;
 	int count, plen, i;
 	u_int alen;
 
@@ -157,7 +153,7 @@ pfsync_print(const struct pfsync_header *hdr, const u_char *bp,
 		if (len < sizeof(*subh))
 			break;
 
-		subh = (const struct pfsync_subheader *)bp;
+		subh = (struct pfsync_subheader *)bp;
 		bp += sizeof(*subh);
 		len -= sizeof(*subh);
 		plen -= sizeof(*subh);
@@ -219,7 +215,7 @@ pfsync_print_clr(const void *bp)
 static void
 pfsync_print_state(const void *bp)
 {
-	const struct pfsync_state *st = bp;
+	struct pfsync_state *st = (struct pfsync_state *)bp;
 
 	putchar('\n');
 	print_state(st);
@@ -306,12 +302,12 @@ pfsync_print_tdb(const void *bp)
 }
 
 static void
-print_host(const struct pf_addr *addr, uint16_t port, sa_family_t af,
+print_host(struct pf_addr *addr, uint16_t port, sa_family_t af,
     const char *proto _U_)
 {
 	char buf[48];
 
-	if (inet_ntop_cap(af, addr, buf, sizeof(buf)) == NULL)
+	if (inet_ntop(af, addr, buf, sizeof(buf)) == NULL)
 		printf("?");
 	else
 		printf("%s", buf);
@@ -379,38 +375,35 @@ print_src_dst(const struct pfsync_state_peer *src,
 }
 
 static void
-print_state(const struct pfsync_state *s)
+print_state(struct pfsync_state *s)
 {
-	const struct pfsync_state_peer *src, *dst;
-	const struct pfsync_state_key *sk, *nk;
+	struct pfsync_state_peer *src, *dst;
+	struct pfsync_state_key *sk, *nk;
 	int min, sec;
-	int sk_ports[2];
 
 	if (s->direction == PF_OUT) {
 		src = &s->src;
 		dst = &s->dst;
 		sk = &s->key[PF_SK_STACK];
 		nk = &s->key[PF_SK_WIRE];
-		sk_ports[0] = sk->port[0];
 		if (s->proto == IPPROTO_ICMP || s->proto == IPPROTO_ICMPV6)
-			sk_ports[0]= nk->port[0];
+			sk->port[0] = nk->port[0];
 	} else {
 		src = &s->dst;
 		dst = &s->src;
 		sk = &s->key[PF_SK_WIRE];
 		nk = &s->key[PF_SK_STACK];
-		sk_ports[1] = sk->port[1];
 		if (s->proto == IPPROTO_ICMP || s->proto == IPPROTO_ICMPV6)
-			sk_ports[1] = nk->port[1];
+			sk->port[1] = nk->port[1];
 	}
 	printf("\t%s ", s->ifname);
 	printf("proto %u ", s->proto);
 
 	print_host(&nk->addr[1], nk->port[1], s->af, NULL);
 	if (PF_ANEQ(&nk->addr[1], &sk->addr[1], s->af) ||
-	    nk->port[1] != sk_ports[1]) {
+	    nk->port[1] != sk->port[1]) {
 		printf(" (");
-		print_host(&sk->addr[1], sk_ports[1], s->af, NULL);
+		print_host(&sk->addr[1], sk->port[1], s->af, NULL);
 		printf(")");
 	}
 	if (s->direction == PF_OUT)
@@ -419,9 +412,9 @@ print_state(const struct pfsync_state *s)
 		printf(" <- ");
 	print_host(&nk->addr[0], nk->port[0], s->af, NULL);
 	if (PF_ANEQ(&nk->addr[0], &sk->addr[0], s->af) ||
-	    nk->port[0] != sk_ports[0]) {
+	    nk->port[0] != sk->port[0]) {
 		printf(" (");
-		print_host(&sk->addr[0], sk_ports[0], s->af, NULL);
+		print_host(&sk->addr[0], sk->port[0], s->af, NULL);
 		printf(")");
 	}
 
@@ -444,10 +437,10 @@ print_state(const struct pfsync_state *s)
 		expire /= 60;
 		printf(", expires in %.2u:%.2u:%.2u", expire, min, sec);
 
-		memcpy(&packets[0], s->packets[0], sizeof(uint64_t));
-		memcpy(&packets[1], s->packets[1], sizeof(uint64_t));
-		memcpy(&bytes[0], s->bytes[0], sizeof(uint64_t));
-		memcpy(&bytes[1], s->bytes[1], sizeof(uint64_t));
+		bcopy(s->packets[0], &packets[0], sizeof(uint64_t));
+		bcopy(s->packets[1], &packets[1], sizeof(uint64_t));
+		bcopy(s->bytes[0], &bytes[0], sizeof(uint64_t));
+		bcopy(s->bytes[1], &bytes[1], sizeof(uint64_t));
 		printf(", %ju:%ju pkts, %ju:%ju bytes",
 		    be64toh(packets[0]), be64toh(packets[1]),
 		    be64toh(bytes[0]), be64toh(bytes[1]));
@@ -459,7 +452,7 @@ print_state(const struct pfsync_state *s)
 	if (vflag > 1) {
 		uint64_t id;
 
-		memcpy(&id, &s->id, sizeof(uint64_t));
+		bcopy(&s->id, &id, sizeof(uint64_t));
 		printf("\n\tid: %016jx creatorid: %08x",
 		    (uintmax_t )be64toh(id), ntohl(s->creatorid));
 	}

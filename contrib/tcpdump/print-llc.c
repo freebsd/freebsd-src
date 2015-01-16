@@ -161,7 +161,7 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 
 	if (caplen < 3) {
 		(void)printf("[|llc]");
-		default_print(p, caplen);
+		default_print((u_char *)p, caplen);
 		return(0);
 	}
 
@@ -187,7 +187,7 @@ llc_print(const u_char *p, u_int length, u_int caplen,
 		 */
 		if (caplen < 4) {
 			(void)printf("[|llc]");
-			default_print(p, caplen);
+			default_print((u_char *)p, caplen);
 			return(0);
 		}
 

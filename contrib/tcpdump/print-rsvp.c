@@ -1814,8 +1814,8 @@ rsvp_print(const u_char *pptr, register u_int len)
 void
 _rsvp_print(const u_char *pptr, register u_int len)
 {
-    const struct rsvp_common_header *rsvp_com_header;
-    const u_char *tptr, *subtptr;
+    struct rsvp_common_header *rsvp_com_header;
+    const u_char *tptr,*subtptr;
     u_short plen, tlen, subtlen;
 
     tptr=pptr;
@@ -1876,7 +1876,7 @@ _rsvp_print(const u_char *pptr, register u_int len)
     case RSVP_MSGTYPE_AGGREGATE:
         while(tlen > 0) {
             subtptr=tptr;
-            rsvp_com_header = (const struct rsvp_common_header *)subtptr;
+            rsvp_com_header = (struct rsvp_common_header *)subtptr;
             TCHECK(*rsvp_com_header);
 
             /*

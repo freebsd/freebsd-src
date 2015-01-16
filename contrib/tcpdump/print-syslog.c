@@ -82,7 +82,7 @@ static const struct tok syslog_facility_values[] = {
 };
 
 void
-syslog_print(const u_char *pptr, register u_int len)
+syslog_print(register const u_char *pptr, register u_int len)
 {
 	if (!invoke_dissector((void *)_syslog_print,
 	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))

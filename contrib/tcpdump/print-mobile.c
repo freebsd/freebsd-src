@@ -110,7 +110,7 @@ _mobile_print(const u_char *bp, u_int length)
 		(void)printf("> %s ",ipaddr_string(&mob->odst));
 		(void)printf("(oproto=%d)",proto>>8);
 	}
-	vec[0].ptr = (const u_int8_t *)mob;
+	vec[0].ptr = (const u_int8_t *)(void *)mob;
 	vec[0].len = osp ? 12 : 8;
 	if (in_cksum(vec, 1)!=0) {
 		(void)printf(" (bad checksum %d)",crc);

@@ -118,10 +118,10 @@ struct pim {
 	u_short	pim_cksum;	/* IP style check sum */
 };
 
-static void pimv2_print(const u_char *bp, register u_int len, u_int cksum);
+static void pimv2_print(register const u_char *bp, register u_int len, u_int cksum);
 
 static void
-pimv1_join_prune_print(const u_char *bp, register u_int len)
+pimv1_join_prune_print(register const u_char *bp, register u_int len)
 {
 	int maddrlen, addrlen, ngroups, njoin, nprune;
 	int njp;
@@ -209,7 +209,7 @@ trunc:
 }
 
 void
-pimv1_print(const u_char *bp, register u_int len)
+pimv1_print(register const u_char *bp, register u_int len)
 {
 	if (!invoke_dissector((void *)_pimv1_print,
 	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -331,7 +331,7 @@ trunc:
  * This implements version 1+, dated Sept 9, 1998.
  */
 void
-cisco_autorp_print(const u_char *bp, register u_int len)
+cisco_autorp_print(register const u_char *bp, register u_int len)
 {
 	if (!invoke_dissector((void *)_cisco_autorp_print,
 	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -433,7 +433,7 @@ trunc:
 }
 
 void
-pim_print(const u_char *bp, register u_int len, u_int cksum)
+pim_print(register const u_char *bp, register u_int len, u_int cksum)
 {
 	if (!invoke_dissector((void *)_pim_print,
 	    len, cksum, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -646,13 +646,13 @@ trunc:
 }
 
 static void
-pimv2_print(const u_char *bp, register u_int len, u_int cksum)
+pimv2_print(register const u_char *bp, register u_int len, u_int cksum)
 {
-	const u_char *ep;
-	const struct pim *pim = (const struct pim *)bp;
+	register const u_char *ep;
+	register struct pim *pim = (struct pim *)bp;
 	int advance;
 
-	ep = snapend;
+	ep = (const u_char *)snapend;
 	if (bp >= ep)
 		return;
 	if (ep > bp + len)

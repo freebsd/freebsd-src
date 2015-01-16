@@ -38,7 +38,7 @@ static const char rcsid[] _U_ =
 #include "addrtoname.h"
 #include "extract.h"
 
-static const u_char *c_print(const u_char *, const u_char *);
+static const u_char *c_print(register const u_char *, register const u_char *);
 static const u_char *krb4_print_hdr(const u_char *);
 static void krb4_print(const u_char *);
 
@@ -100,7 +100,7 @@ static struct tok kerr2str[] = {
 };
 
 static const u_char *
-c_print(const u_char *s, const u_char *ep)
+c_print(register const u_char *s, register const u_char *ep)
 {
 	register u_char c;
 	register int flag;
@@ -152,7 +152,7 @@ trunc:
 static void
 krb4_print(const u_char *cp)
 {
-	const struct krb *kp;
+	register const struct krb *kp;
 	u_char type;
 	u_short len;
 
@@ -161,7 +161,7 @@ krb4_print(const u_char *cp)
 #define IS_LENDIAN(kp)	(((kp)->type & 0x01) != 0)
 #define KTOHSP(kp, cp)	(IS_LENDIAN(kp) ? EXTRACT_LE_16BITS(cp) : EXTRACT_16BITS(cp))
 
-	kp = (const struct krb *)cp;
+	kp = (struct krb *)cp;
 
 	if ((&kp->type) >= snapend) {
 		fputs(tstr, stdout);
@@ -237,9 +237,9 @@ krb_print(const u_char *dat)
 void
 _krb_print(const u_char *dat)
 {
-	const struct krb *kp;
+	register const struct krb *kp;
 
-	kp = (const struct krb *)dat;
+	kp = (struct krb *)dat;
 
 	if (dat >= snapend) {
 		fputs(tstr, stdout);

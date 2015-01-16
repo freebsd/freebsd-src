@@ -94,7 +94,7 @@ static inline void
 ether_hdr_print(netdissect_options *ndo,
                 const u_char *bp, u_int length)
 {
-	const struct ether_header *ep;
+	register const struct ether_header *ep;
 	u_int16_t ether_type;
 
 	ep = (const struct ether_header *)bp;
@@ -130,8 +130,7 @@ ether_hdr_print(netdissect_options *ndo,
 void
 ether_print(netdissect_options *ndo,
             const u_char *p, u_int length, u_int caplen,
-            void (*print_encap_header)(netdissect_options *ndo, const u_char *),
-	    const u_char *encap_header_arg)
+            void (*print_encap_header)(netdissect_options *ndo, const u_char *), const u_char *encap_header_arg)
 {
 	struct ether_header *ep;
 	u_int orig_length;
@@ -169,7 +168,7 @@ recurse:
 			if (!ndo->ndo_eflag) {
 				if (print_encap_header != NULL)
 					(*print_encap_header)(ndo, encap_header_arg);
-				ether_hdr_print(ndo, (const u_char *)ep, orig_length);
+				ether_hdr_print(ndo, (u_char *)ep, orig_length);
 			}
 
 			if (!ndo->ndo_suppress_default_print)
@@ -220,7 +219,7 @@ recurse:
 			if (!ndo->ndo_eflag) {
 				if (print_encap_header != NULL)
 					(*print_encap_header)(ndo, encap_header_arg);
-				ether_hdr_print(ndo, (const u_char *)ep, orig_length);
+				ether_hdr_print(ndo, (u_char *)ep, orig_length);
 			}
 
 			if (!ndo->ndo_suppress_default_print)
@@ -232,7 +231,7 @@ recurse:
 			if (!ndo->ndo_eflag) {
 				if (print_encap_header != NULL)
 					(*print_encap_header)(ndo, encap_header_arg);
-				ether_hdr_print(ndo, (const u_char *)ep, orig_length);
+				ether_hdr_print(ndo, (u_char *)ep, orig_length);
 			}
 
 			if (!ndo->ndo_suppress_default_print)
