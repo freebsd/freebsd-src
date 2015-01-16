@@ -67,6 +67,11 @@ CTFFLAGS	?=	-L VERSION
 
 CTFCONVERT	?=	ctfconvert
 CTFMERGE	?=	ctfmerge
+
+# cp(1) is used to copy source files to ${.OBJDIR}, make sure it can handle
+# read-only files as non-root by passing -f.
+CP		?=	cp -f
+
 DTRACE		?=	dtrace
 .if defined(CFLAGS) && (${CFLAGS:M-g} != "")
 CTFFLAGS	+=	-g
