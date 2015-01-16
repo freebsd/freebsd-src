@@ -891,7 +891,6 @@ ctlfestart(struct cam_periph *periph, union ccb *start_ccb)
 	    (cmd_info->flags & CTLFE_CMD_PIECEWISE) == 0 &&
 	    ((io->io_hdr.flags & CTL_FLAG_DMA_QUEUED) == 0 ||
 	     io->io_hdr.status == CTL_SUCCESS)) {
-		io->io_hdr.flags |= CTL_FLAG_STATUS_SENT;
 		flags |= CAM_SEND_STATUS;
 		scsi_status = io->scsiio.scsi_status;
 		csio->sense_len = io->scsiio.sense_len;
@@ -1264,6 +1263,10 @@ ctlfedone(struct cam_periph *periph, union ccb *done_ccb)
 			xpt_schedule(periph, /*priority*/ 1);
 			break;
 		}
+
+		if ((done_ccb->ccb_h.flags & CAM_SEND_STATUS) &&
+		    (done_ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP)
+			io->io_hdr.flags |= CTL_FLAG_STATUS_SENT;
 
 		/*
 		 * If we were sending status back to the initiator, free up
