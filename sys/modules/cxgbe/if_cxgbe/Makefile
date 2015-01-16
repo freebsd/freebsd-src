@@ -23,6 +23,6 @@ SRCS+=	t4_tracer.c
 # Provide the timestamp of a packet in its header mbuf.
 #CFLAGS+= -DT4_PKT_TIMESTAMP
 
-CFLAGS+= -I${CXGBE}
+CFLAGS+= -I${CXGBE} -fms-extensions
 
 .include <bsd.kmod.mk>
