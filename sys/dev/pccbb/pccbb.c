@@ -1563,12 +1563,12 @@ cbb_write_ivar(device_t brdev, device_t child, int which, uintptr_t value)
 }
 
 int
-cbb_suspend(device_t self)
+cbb_suspend(device_t brdev)
 {
 	int			error = 0;
-	struct cbb_softc	*sc = device_get_softc(self);
+	struct cbb_softc	*sc = device_get_softc(brdev);
 
-	error = bus_generic_suspend(self);
+	error = bus_generic_suspend(brdev);
 	if (error != 0)
 		return (error);
 	cbb_set(sc, CBB_SOCKET_MASK, 0);	/* Quiet hardware */
@@ -1577,10 +1577,10 @@ cbb_suspend(device_t self)
 }
 
 int
-cbb_resume(device_t self)
+cbb_resume(device_t brdev)
 {
 	int	error = 0;
-	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(self);
+	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
 	uint32_t tmp;
 
 	/*
@@ -1596,8 +1596,8 @@ cbb_resume(device_t self)
 	 * code that would be difficult to transition into the PCI
 	 * layer. chipinit was several years of trial and error to write.
 	 */
-	pci_write_config(self, CBBR_SOCKBASE, rman_get_start(sc->base_res), 4);
-	DEVPRINTF((self, "PCI Memory allocated: %08lx\n",
+	pci_write_config(brdev, CBBR_SOCKBASE, rman_get_start(sc->base_res), 4);
+	DEVPRINTF((brdev, "PCI Memory allocated: %08lx\n",
 	    rman_get_start(sc->base_res)));
 
 	sc->chipinit(sc);
@@ -1612,7 +1612,7 @@ cbb_resume(device_t self)
 	/* Signal the thread to wakeup. */
 	wakeup(&sc->intrhand);
 
-	error = bus_generic_resume(self);
+	error = bus_generic_resume(brdev);
 
 	return (error);
 }
