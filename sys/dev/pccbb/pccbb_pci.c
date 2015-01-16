@@ -479,10 +479,10 @@ cbb_chipinit(struct cbb_softc *sc)
 	pci_write_config(sc->dev, PCIR_SECBUS_2, sc->bus.sec, 1);
 	pci_write_config(sc->dev, PCIR_SUBBUS_2, sc->bus.sub, 1);
 
-	/* Enable memory access */
+	/* Enable DMA, memory access for this card and I/O acces for children */
 	pci_enable_busmaster(sc->dev);
-	/* XXX: This should not be necessary, but some chipsets require it */
-	PCI_MASK_CONFIG(sc->dev, PCIR_COMMAND, | PCIM_CMD_PORTEN, 2);
+	pci_enable_io(sc->dev, SYS_RES_IOPORT);
+	pci_enable_io(sc->dev, SYS_RES_MEMORY);
 
 	/* disable Legacy IO */
 	switch (sc->chipset) {
