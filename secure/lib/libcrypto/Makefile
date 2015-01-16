@@ -400,7 +400,7 @@ opensslconf.h: opensslconf-x86.h
 .else
 opensslconf.h: opensslconf-${MACHINE_CPUARCH}.h
 .endif
-	cp -f ${.ALLSRC} ${.TARGET}
+	${CP} ${.ALLSRC} ${.TARGET}
 
 OLDSYMLINKS+=	libdes.a libdes.so libdes.so.3 libdes_p.a
 afterinstall:
