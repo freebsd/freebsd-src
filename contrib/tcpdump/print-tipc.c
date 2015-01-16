@@ -162,7 +162,7 @@ struct link_conf_tipc_pkthdr {
 #define TIPC_MEDIA_ID(w5)	(((w5) >> 0) & 0xFF)
 
 static void
-print_payload(netdissect_options *ndo, __capability const struct payload_tipc_pkthdr *ap)
+print_payload(netdissect_options *ndo, const struct payload_tipc_pkthdr *ap)
 {
 	u_int32_t w0, w1, w2;
 	u_int user;
@@ -227,7 +227,7 @@ trunc:
 }
 	 
 static void
-print_internal(netdissect_options *ndo, __capability const struct internal_tipc_pkthdr *ap)
+print_internal(netdissect_options *ndo, const struct internal_tipc_pkthdr *ap)
 {
 	u_int32_t w0, w1, w2, w4, w5, w9;
 	u_int user;
@@ -295,7 +295,7 @@ trunc:
 }
 
 static void
-print_link_conf(netdissect_options *ndo, __capability const struct link_conf_tipc_pkthdr *ap)
+print_link_conf(netdissect_options *ndo, const struct link_conf_tipc_pkthdr *ap)
 {
 	u_int32_t w0, w1, w5;
 	u_int user;
@@ -342,7 +342,7 @@ trunc:
 }
 
 void
-tipc_print(netdissect_options *ndo, packetbody_t bp, u_int length,
+tipc_print(netdissect_options *ndo, const u_char *bp, u_int length,
     u_int caplen)
 {
 	if (!invoke_dissector((void *)_tipc_print,
@@ -351,14 +351,14 @@ tipc_print(netdissect_options *ndo, packetbody_t bp, u_int length,
 }
 
 void
-_tipc_print(netdissect_options *ndo, packetbody_t bp, u_int length _U_,
+_tipc_print(netdissect_options *ndo, const u_char *bp, u_int length _U_,
     u_int caplen _U_)
 {
-	__capability const struct tipc_pkthdr *ap;
+	const struct tipc_pkthdr *ap;
 	u_int32_t w0;
 	u_int user;
 
-	ap = (__capability const struct tipc_pkthdr *)bp;
+	ap = (struct tipc_pkthdr *)bp;
 	ND_TCHECK(ap->w0);
 	w0 = EXTRACT_32BITS(&ap->w0);
 	user = TIPC_USER(w0);
@@ -371,11 +371,11 @@ _tipc_print(netdissect_options *ndo, packetbody_t bp, u_int length _U_,
 		case TIPC_USER_CRITICAL_IMPORTANCE:
 		case TIPC_USER_NAME_DISTRIBUTOR:
 		case TIPC_USER_CONN_MANAGER:
-			print_payload(ndo, (__capability const struct payload_tipc_pkthdr *)bp);
+			print_payload(ndo, (struct payload_tipc_pkthdr *)bp);
 			break;			 
 
 		case TIPC_USER_LINK_CONFIG:
-			print_link_conf(ndo, (__capability const struct link_conf_tipc_pkthdr *)bp);
+			print_link_conf(ndo, (struct link_conf_tipc_pkthdr *)bp);
 			break;
 
 		case TIPC_USER_BCAST_PROTOCOL:
@@ -383,7 +383,7 @@ _tipc_print(netdissect_options *ndo, packetbody_t bp, u_int length _U_,
 		case TIPC_USER_LINK_PROTOCOL:
 		case TIPC_USER_CHANGEOVER_PROTOCOL:
 		case TIPC_USER_MSG_FRAGMENTER:
-			print_internal(ndo, (__capability const struct internal_tipc_pkthdr *)bp);
+			print_internal(ndo, (struct internal_tipc_pkthdr *)bp);
 			break;
 
 	}

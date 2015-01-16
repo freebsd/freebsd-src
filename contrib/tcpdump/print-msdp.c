@@ -36,7 +36,7 @@ static const char rcsid[] _U_ =
 #define MSDP_TYPE_MAX	7
 
 void
-msdp_print(packetbody_t sp, u_int length)
+msdp_print(const unsigned char *sp, u_int length)
 {
 	if (!invoke_dissector((void *)_msdp_print,
 	    length, 0, 0, 0, 0, gndo, sp, NULL, NULL, NULL))
@@ -44,7 +44,7 @@ msdp_print(packetbody_t sp, u_int length)
 }
 
 void
-_msdp_print(packetbody_t sp, u_int length)
+_msdp_print(const u_char *sp, u_int length)
 {
 	unsigned int type, len;
 

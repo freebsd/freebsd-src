@@ -92,7 +92,7 @@ struct tok rstp_obj_port_role_values[] = {
 };
 
 static char *
-stp_print_bridge_id(packetbody_t p)
+stp_print_bridge_id(const u_char *p)
 {
     static char bridge_id_str[sizeof("pppp.aa:bb:cc:dd:ee:ff")];
 
@@ -104,13 +104,13 @@ stp_print_bridge_id(packetbody_t p)
 }
 
 static void
-stp_print_config_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int length)
+stp_print_config_bpdu(const struct stp_bpdu_ *stp_bpdu, u_int length)
 {
     printf(", Flags [%s]",
            bittok2str(stp_bpdu_flag_values, "none", stp_bpdu->flags));
 
     printf(", bridge-id %s.%04x, length %u",
-           stp_print_bridge_id((packetbody_t)&stp_bpdu->bridge_id),
+           stp_print_bridge_id((const u_char *)&stp_bpdu->bridge_id),
            EXTRACT_16BITS(&stp_bpdu->port_id), length);
 
     /* in non-verbose mode just print the bridge-id */
@@ -126,7 +126,7 @@ stp_print_config_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int lengt
            (float)EXTRACT_16BITS(&stp_bpdu->forward_delay) / STP_TIME_BASE);
 
     printf("\n\troot-id %s, root-pathcost %u",
-           stp_print_bridge_id((packetbody_t)&stp_bpdu->root_id),
+           stp_print_bridge_id((const u_char *)&stp_bpdu->root_id),
            EXTRACT_32BITS(&stp_bpdu->root_path_cost));
 
     /* Port role is only valid for 802.1w */
@@ -234,16 +234,15 @@ stp_print_config_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int lengt
 
 
 static void
-stp_print_mstp_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int length)
+stp_print_mstp_bpdu(const struct stp_bpdu_ *stp_bpdu, u_int length)
 {
-    char 	   *name;
-    packetbody_t    ptr;
+    const u_char *ptr;
     u_int16_t	    v3len;
     u_int16_t	    len;
     u_int16_t	    msti;
     u_int16_t	    offset;
 
-    ptr = (packetbody_t)stp_bpdu;
+    ptr = (const u_char *)stp_bpdu;
     printf(", CIST Flags [%s], length %u",
            bittok2str(stp_bpdu_flag_values, "none", stp_bpdu->flags), length);
 
@@ -260,11 +259,11 @@ stp_print_mstp_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int length)
                    RSTP_EXTRACT_PORT_ROLE(stp_bpdu->flags)));
 
     printf("CIST root-id %s, CIST ext-pathcost %u ",
-           stp_print_bridge_id((packetbody_t)&stp_bpdu->root_id),
+           stp_print_bridge_id((const u_char *)&stp_bpdu->root_id),
            EXTRACT_32BITS(&stp_bpdu->root_path_cost));
 
     printf("\n\tCIST regional-root-id %s, ",
-           stp_print_bridge_id((packetbody_t)&stp_bpdu->bridge_id));
+           stp_print_bridge_id((const u_char *)&stp_bpdu->bridge_id));
 
     printf("CIST port-id %04x, ", EXTRACT_16BITS(&stp_bpdu->port_id));
 
@@ -276,16 +275,14 @@ stp_print_mstp_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int length)
            (float)EXTRACT_16BITS(&stp_bpdu->forward_delay) / STP_TIME_BASE);
 
     printf ("\n\tv3len %d, ", EXTRACT_16BITS(ptr + MST_BPDU_VER3_LEN_OFFSET));
-    name = p_strdup(ptr + MST_BPDU_CONFIG_NAME_OFFSET);
     printf("MCID Name %s, rev %u, "
             "\n\t\tdigest %08x%08x%08x%08x, ",
-            name == NULL ? "<null>" : name,
+            ptr + MST_BPDU_CONFIG_NAME_OFFSET,
 	          EXTRACT_16BITS(ptr + MST_BPDU_CONFIG_NAME_OFFSET + 32),
       	    EXTRACT_32BITS(ptr + MST_BPDU_CONFIG_DIGEST_OFFSET),
         	  EXTRACT_32BITS(ptr + MST_BPDU_CONFIG_DIGEST_OFFSET + 4),
 	          EXTRACT_32BITS(ptr + MST_BPDU_CONFIG_DIGEST_OFFSET + 8),
 	          EXTRACT_32BITS(ptr + MST_BPDU_CONFIG_DIGEST_OFFSET + 12));
-    p_strfree(name);
 
     printf ("CIST int-root-pathcost %u, ", 
             EXTRACT_32BITS(ptr + MST_BPDU_CIST_INT_PATH_COST_OFFSET));  
@@ -327,16 +324,14 @@ stp_print_mstp_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int length)
 
     if ((length-offset) >= SPB_BPDU_MIN_LEN)
     {
-      name = p_strdup(ptr + offset + SPB_BPDU_CONFIG_NAME_OFFSET);
       printf("\n\tv4len %d AUXMCID Name %s, Rev %u, \n\t\tdigest %08x%08x%08x%08x",
               EXTRACT_16BITS (ptr + offset),
-              name == NULL ? "<null>" : name,
+              ptr + offset + SPB_BPDU_CONFIG_NAME_OFFSET,
               EXTRACT_16BITS(ptr + offset + SPB_BPDU_CONFIG_REV_OFFSET),
               EXTRACT_32BITS(ptr + offset + SPB_BPDU_CONFIG_DIGEST_OFFSET),
               EXTRACT_32BITS(ptr + offset + SPB_BPDU_CONFIG_DIGEST_OFFSET + 4),
               EXTRACT_32BITS(ptr + offset + SPB_BPDU_CONFIG_DIGEST_OFFSET + 8),
               EXTRACT_32BITS(ptr + offset + SPB_BPDU_CONFIG_DIGEST_OFFSET + 12));
-      p_strfree(name);
      
       printf("\n\tAgreement num %d, Discarded Agreement num %d, Agreement valid-"
               "flag %d, \n\tRestricted role-flag: %d, Format id %d cap %d, "
@@ -363,7 +358,7 @@ stp_print_mstp_bpdu(__capability const struct stp_bpdu_ *stp_bpdu, u_int length)
  * Print 802.1d / 802.1w / 802.1q (mstp) / 802.1aq (spb) packets.
  */
 void
-stp_print(packetbody_t p, u_int length)
+stp_print(const u_char *p, u_int length)
 {
 	if (!invoke_dissector((void *)_stp_print,
 	    length, 0, 0, 0, 0, gndo, p, NULL, NULL, NULL))
@@ -371,13 +366,13 @@ stp_print(packetbody_t p, u_int length)
 }
 
 void
-_stp_print(packetbody_t p, u_int length)
+_stp_print(const u_char *p, u_int length)
 {
-    __capability const struct stp_bpdu_ *stp_bpdu;
+    const struct stp_bpdu_ *stp_bpdu;
     u_int16_t              mstp_len;
     u_int16_t              spb_len;
     
-    stp_bpdu = (__capability const struct stp_bpdu_*)p;
+    stp_bpdu = (struct stp_bpdu_*)p;
 
     /* Minimum STP Frame size. */
     if (length < 4)

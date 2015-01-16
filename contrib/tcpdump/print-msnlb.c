@@ -49,7 +49,7 @@ struct msnlb_heartbeat_pkt {
 };
 
 void
-msnlb_print(netdissect_options *ndo, packetbody_t bp, u_int length)
+msnlb_print(netdissect_options *ndo, const u_char *bp, u_int length)
 {
 	if (!invoke_dissector((void *)_msnlb_print,
 	    length, 0, 0, 0, 0, ndo, bp, NULL, NULL, NULL))
@@ -57,11 +57,11 @@ msnlb_print(netdissect_options *ndo, packetbody_t bp, u_int length)
 }
 
 void
-_msnlb_print(netdissect_options *ndo, packetbody_t bp, u_int length _U_)
+_msnlb_print(netdissect_options *ndo, const u_char *bp, u_int length _U_)
 {
-	__capability const struct msnlb_heartbeat_pkt *hb;
+	const struct msnlb_heartbeat_pkt *hb;
 
-	hb = (__capability struct msnlb_heartbeat_pkt *)bp;
+	hb = (struct msnlb_heartbeat_pkt *)bp;
 	ND_TCHECK(*hb);
 
 	ND_PRINT((ndo, "MS NLB heartbeat, host priority: %u,",

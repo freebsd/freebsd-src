@@ -65,7 +65,7 @@ enum mpls_packet_type {
  * RFC3032: MPLS label stack encoding
  */
 void
-mpls_print(packetbody_t bp, u_int length)
+mpls_print(const u_char *bp, u_int length)
 {
 	if (!invoke_dissector((void *)_mpls_print,
 	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -73,9 +73,9 @@ mpls_print(packetbody_t bp, u_int length)
 }
 
 void
-_mpls_print(packetbody_t bp, u_int length)
+_mpls_print(const u_char *bp, u_int length)
 {
-	packetbody_t p;
+	const u_char *p;
 	u_int32_t label_entry;
 	u_int16_t label_stack_depth = 0;
 	enum mpls_packet_type pt = PT_UNKNOWN;

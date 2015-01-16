@@ -325,7 +325,7 @@ get_print_info(int type)
 
 void
 pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
-    packetbody_t sp)
+    const u_char *sp)
 {
 	u_int hdrlen;
 
@@ -345,13 +345,13 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
  * By default, print the specified data out in hex and ASCII.
  */
 void
-ndo_default_print(netdissect_options *ndo _U_, packetbody_t bp, u_int length)
+ndo_default_print(netdissect_options *ndo _U_, const u_char *bp, u_int length)
 {
 	hex_and_ascii_print("\n\t", bp, length); /* pass on lf and identation string */
 }
 
 void
-default_print(packetbody_t bp, u_int length)
+default_print(const u_char *bp, u_int length)
 {
 	ndo_default_print(gndo, bp, length);
 }

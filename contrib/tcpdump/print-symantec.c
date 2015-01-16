@@ -46,12 +46,12 @@ struct symantec_header {
 };
 
 static inline void
-symantec_hdr_print(packetbody_t bp, u_int length)
+symantec_hdr_print(register const u_char *bp, u_int length)
 {
-	__capability const struct symantec_header *sp;
+	register const struct symantec_header *sp;
 	u_int16_t etype;
 
-	sp = (__capability struct symantec_header *)bp;
+	sp = (const struct symantec_header *)bp;
 
 	etype = EXTRACT_16BITS(&sp->ether_type);
 	if (!qflag) {
@@ -78,11 +78,11 @@ symantec_hdr_print(packetbody_t bp, u_int length)
  * is the number of bytes actually captured.
  */
 u_int
-symantec_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+symantec_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int length = h->len;
 	u_int caplen = h->caplen;
-	__capability const struct symantec_header *sp;
+	struct symantec_header *sp;
 	u_short ether_type;
 
 	if (caplen < sizeof (struct symantec_header)) {
@@ -95,7 +95,7 @@ symantec_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 	length -= sizeof (struct symantec_header);
 	caplen -= sizeof (struct symantec_header);
-	sp = (__capability const struct symantec_header *)p;
+	sp = (struct symantec_header *)p;
 	p += sizeof (struct symantec_header);
 
 	ether_type = EXTRACT_16BITS(&sp->ether_type);
@@ -103,14 +103,14 @@ symantec_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 	if (ether_type <= ETHERMTU) {
 		/* ether_type not known, print raw packet */
 		if (!eflag)
-			symantec_hdr_print((packetbody_t)sp, length + sizeof (struct symantec_header));
+			symantec_hdr_print((u_char *)sp, length + sizeof (struct symantec_header));
 
 		if (!suppress_default_print)
 			default_print(p, caplen);
 	} else if (ethertype_print(gndo, ether_type, p, length, caplen) == 0) {
 		/* ether_type not known, print raw packet */
 		if (!eflag)
-			symantec_hdr_print((packetbody_t)sp, length + sizeof (struct symantec_header));
+			symantec_hdr_print((u_char *)sp, length + sizeof (struct symantec_header));
 
 		if (!suppress_default_print)
 			default_print(p, caplen);

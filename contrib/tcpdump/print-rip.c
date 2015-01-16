@@ -96,7 +96,7 @@ struct rip_netinfo {
 };
 
 static void
-rip_entry_print_v1(__capability const struct rip_netinfo *ni)
+rip_entry_print_v1(register const struct rip_netinfo *ni)
 {
 	register u_short family;
 
@@ -104,14 +104,14 @@ rip_entry_print_v1(__capability const struct rip_netinfo *ni)
 	family = EXTRACT_16BITS(&ni->rip_family);
 	if (family != BSD_AFNUM_INET && family != 0) {
 		printf("\n\t AFI %s, ", tok2str(bsd_af_values, "Unknown (%u)", family));
-                print_unknown_data((packetbody_t)&ni->rip_family,"\n\t  ",RIP_ROUTELEN);
+                print_unknown_data((u_int8_t *)&ni->rip_family,"\n\t  ",RIP_ROUTELEN);
 		return;
 	}
 	if (EXTRACT_16BITS(&ni->rip_tag) ||
 	    EXTRACT_32BITS(&ni->rip_dest_mask) ||
 	    EXTRACT_32BITS(&ni->rip_router)) {
 		/* MBZ fields not zero */
-                print_unknown_data((packetbody_t)&ni->rip_family,"\n\t  ",RIP_ROUTELEN);
+                print_unknown_data((u_int8_t *)&ni->rip_family,"\n\t  ",RIP_ROUTELEN);
 		return;
 	}
 	if (family == 0) {
@@ -126,7 +126,7 @@ rip_entry_print_v1(__capability const struct rip_netinfo *ni)
 }
 
 static unsigned
-rip_entry_print_v2(__capability const struct rip_netinfo *ni, const unsigned remaining)
+rip_entry_print_v2(register const struct rip_netinfo *ni, const unsigned remaining)
 {
 	register u_short family;
 
@@ -141,7 +141,7 @@ rip_entry_print_v2(__capability const struct rip_netinfo *ni, const unsigned rem
 				putchar (isprint(*p) ? *p : '.');
 		} else if (auth_type == 3) {
 			printf("\n\t  Auth header:");
-			printf(" Packet Len %u,", EXTRACT_16BITS((packetbody_t)ni + 4));
+			printf(" Packet Len %u,", EXTRACT_16BITS((u_int8_t *)ni + 4));
 			printf(" Key-ID %u,", *((u_int8_t *)ni + 6));
 			printf(" Auth Data Len %u,", *((u_int8_t *)ni + 7));
 			printf(" SeqNo %u,", EXTRACT_32BITS(&ni->rip_dest_mask));
@@ -149,16 +149,16 @@ rip_entry_print_v2(__capability const struct rip_netinfo *ni, const unsigned rem
 			printf(" MBZ %u", EXTRACT_32BITS(&ni->rip_metric));
 		} else if (auth_type == 1) {
 			printf("\n\t  Auth trailer:");
-			print_unknown_data((packetbody_t)&ni->rip_dest,"\n\t  ",remaining);
+			print_unknown_data((u_int8_t *)&ni->rip_dest,"\n\t  ",remaining);
 			return remaining; /* AT spans till the packet end */
                 } else {
 			printf("\n\t  Unknown (%u) Authentication data:",
 			       EXTRACT_16BITS(&ni->rip_tag));
-			print_unknown_data((packetbody_t)&ni->rip_dest,"\n\t  ",remaining);
+			print_unknown_data((u_int8_t *)&ni->rip_dest,"\n\t  ",remaining);
 		}
 	} else if (family != BSD_AFNUM_INET && family != 0) {
 		printf("\n\t  AFI %s", tok2str(bsd_af_values, "Unknown (%u)", family));
-                print_unknown_data((packetbody_t)&ni->rip_tag,"\n\t  ",RIP_ROUTELEN-2);
+                print_unknown_data((u_int8_t *)&ni->rip_tag,"\n\t  ",RIP_ROUTELEN-2);
 	} else { /* BSD_AFNUM_INET or AFI 0 */
 		printf("\n\t  AFI %s, %15s/%-2d, tag 0x%04x, metric: %u, next-hop: ",
                        tok2str(bsd_af_values, "%u", family),
@@ -175,7 +175,7 @@ rip_entry_print_v2(__capability const struct rip_netinfo *ni, const unsigned rem
 }
 
 void
-rip_print(packetbody_t dat, u_int length)
+rip_print(const u_char *dat, u_int length)
 {
 	if (!invoke_dissector((void *)_rip_print,
 	    length, 0, 0, 0, 0, gndo, dat, NULL, NULL, NULL))
@@ -183,10 +183,10 @@ rip_print(packetbody_t dat, u_int length)
 }
 
 void
-_rip_print(packetbody_t dat, u_int length)
+_rip_print(const u_char *dat, u_int length)
 {
-	__capability const struct rip *rp;
-	__capability const struct rip_netinfo *ni;
+	register const struct rip *rp;
+	register const struct rip_netinfo *ni;
 	register u_int i, j;
 
 	if (snapend < dat) {
@@ -202,7 +202,7 @@ _rip_print(packetbody_t dat, u_int length)
 	}
 	i -= sizeof(*rp);
 
-	rp = (__capability const struct rip *)dat;
+	rp = (struct rip *)dat;
 
         printf("%sRIPv%u",
                (vflag >= 1) ? "\n\t" : "",
@@ -221,7 +221,7 @@ _rip_print(packetbody_t dat, u_int length)
 		 *
 		 * so perhaps we should just dump the packet, in hex.
 		 */
-                print_unknown_data((packetbody_t)&rp->rip_cmd,"\n\t",length);
+                print_unknown_data((u_int8_t *)&rp->rip_cmd,"\n\t",length);
 		break;
 	default:
                 /* dump version and lets see if we know the commands name*/
@@ -239,7 +239,7 @@ _rip_print(packetbody_t dat, u_int length)
 		case RIPCMD_RESPONSE:
 			j = length / sizeof(*ni);
                         printf(", routes: %u%s", j, rp->rip_vers == 2 ? " or less" : "");
-			ni = (__capability const struct rip_netinfo *)(rp + 1);
+			ni = (struct rip_netinfo *)(rp + 1);
 			for (; i >= sizeof(*ni); ++ni) {
 				if (rp->rip_vers == 1)
 				{
@@ -264,14 +264,14 @@ _rip_print(packetbody_t dat, u_int length)
                     /* fall through */
 	        default:
                     if (vflag <= 1) {
-                        if(!print_unknown_data((packetbody_t)rp,"\n\t",length))
+                        if(!print_unknown_data((u_int8_t *)rp,"\n\t",length))
                             return;
                     }
                     break;
                 }
                 /* do we want to see an additionally hexdump ? */
                 if (vflag> 1) {
-                    if(!print_unknown_data((packetbody_t)rp,"\n\t",length))
+                    if(!print_unknown_data((u_int8_t *)rp,"\n\t",length))
                         return;
                 }
         }

@@ -14,4 +14,4 @@
  * Original code by Hannes Gredler (hannes@juniper.net)
  */
 
-extern char *bgp_vpn_rd_print(packetbody_t);
+extern char *bgp_vpn_rd_print (const u_char *);

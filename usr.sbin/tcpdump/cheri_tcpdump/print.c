@@ -65,8 +65,8 @@
 #include "interface.h"
 #include "print.h"
 
-typedef int(*sandbox_selector)(int dlt, size_t len, packetbody_t data,
-	    void *selector_dta);
+typedef int(*sandbox_selector)(int dlt, size_t len,
+	    __capability const u_char *data, void *selector_dta);
 
 struct tcpdump_sandbox {
 	STAILQ_ENTRY(tcpdump_sandbox)	 tds_entry;
@@ -220,7 +220,7 @@ tcpdump_sandbox_reset(struct tcpdump_sandbox *sb)
 
 static int
 tds_select_all(int dlt __unused, size_t len __unused,
-    packetbody_t data __unused, void *sd __unused)
+    __capability const u_char *data __unused, void *sd __unused)
 {
 
 	/* Accept all packets */
@@ -228,11 +228,12 @@ tds_select_all(int dlt __unused, size_t len __unused,
 }
 
 static int
-tds_select_ipv4(int dlt, size_t len, packetbody_t data, void *sd __unused)
+tds_select_ipv4(int dlt, size_t len, __capability const u_char *data,
+    void *sd __unused)
 {
-	__capability const struct ether_header *eh;
+	const struct ether_header *eh;
 
-	eh = (__capability struct ether_header *)data;
+	eh = (struct ether_header *)data;
 
 	if (dlt != DLT_EN10MB ||
 	    len < sizeof(struct ether_header) + sizeof(struct ip))
@@ -245,15 +246,15 @@ tds_select_ipv4(int dlt, size_t len, packetbody_t data, void *sd __unused)
 }
 
 static int
-tds_select_ipv4_fromlocal(int dlt, size_t len, packetbody_t data,
+tds_select_ipv4_fromlocal(int dlt, size_t len, __capability const u_char *data,
     void *sd __unused)
 {
-	__capability const struct ip *iphdr;
+	const struct ip *iphdr;
 
 	if (!tds_select_ipv4(dlt, len, data, sd))
 		return (0);
 
-	iphdr = (__capability const struct ip *)(data +
+	iphdr = (const struct ip *)(data +
 	    sizeof(struct ether_header));
 	if ((EXTRACT_32BITS(&iphdr->ip_src) & g_mask) == g_localnet)
 		return (1);
@@ -262,19 +263,20 @@ tds_select_ipv4_fromlocal(int dlt, size_t len, packetbody_t data,
 }
 
 static int
-tds_select_ipv4_hash(int dlt, size_t len, packetbody_t data, void *sd)
+tds_select_ipv4_hash(int dlt, size_t len, __capability const u_char *data,
+    void *sd)
 {
 	int mod;
-	packetbody_t ipaddr;
-	__capability struct ip *iphdr;
+	const u_char *ipaddr;
+	struct ip *iphdr;
 
 	if (!tds_select_ipv4(dlt, len, data, sd))
 		return (0);
 
 	mod = (int)sd;
 
-	iphdr = (__capability struct ip *)(data + sizeof(struct ether_header));
-	ipaddr = (__capability const u_char *)&(iphdr->ip_src);
+	iphdr = (struct ip *)(data + sizeof(struct ether_header));
+	ipaddr = (const u_char *)&(iphdr->ip_src);
 	if ((ipaddr[0] + ipaddr[1] + ipaddr[2] + ipaddr[3]) % g_sandboxes == mod)
 		return (1);
 
@@ -365,7 +367,7 @@ tcpdump_sandboxes_reset_all(struct tcpdump_sandbox_list *list)
 
 static struct tcpdump_sandbox *
 tcpdump_sandbox_find(struct tcpdump_sandbox_list *list, int dlt, size_t len,
-    packetbody_t data)
+    __capability const u_char *data)
 {
 	struct tcpdump_sandbox *sb;
 
@@ -379,11 +381,11 @@ tcpdump_sandbox_find(struct tcpdump_sandbox_list *list, int dlt, size_t len,
 
 static int
 tcpdump_sandbox_invoke(struct tcpdump_sandbox *sb,
-    const struct pcap_pkthdr *hdr, packetbody_t data)
+    const struct pcap_pkthdr *hdr, __capability const u_char *data)
 {
 	int i, ret;
 	struct timeval now;
-	packetbody_t save_packetp, save_snapend;
+	__capability const u_char *save_packetp, *save_snapend;
 
 	/* Reset the sandbox if time or packet count exceeded */
 	if (ctdc->ctdc_sb_max_packets > 0 &&
@@ -600,7 +602,7 @@ get_print_info(int type)
 
 void
 pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
-    packetbody_t sp)
+    __capability const u_char *sp)
 {
 	int ret;
 	struct tcpdump_sandbox *sb;
@@ -629,7 +631,8 @@ pretty_print_packet(struct print_info *print_info, const struct pcap_pkthdr *h,
 	if (ctdc->ctdc_colorize)
 		set_color_default();
 
-	raw_print(h, sp, (ret >= 0 && (u_int)ret <= h->caplen) ? ret : 0);
+	/* XXX-BD: cast should be safe as we're unsandboxed */
+	raw_print(h, (const u_char *)sp, (ret >= 0 && (u_int)ret <= h->caplen) ? ret : 0);
 }
 
 /*
@@ -644,7 +647,7 @@ tcpdump_printf(netdissect_options *ndo _U_, const char *fmt, ...)
 }
 
 void
-ndo_default_print(netdissect_options *ndo _U_, packetbody_t bp, u_int length)
+ndo_default_print(netdissect_options *ndo _U_, const u_char *bp, u_int length)
 {
 
 	abort();

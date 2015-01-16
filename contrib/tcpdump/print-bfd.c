@@ -167,7 +167,7 @@ static const struct tok bfd_v1_state_values[] = {
 };
 
 void
-bfd_print(packetbody_t pptr, register u_int len, register u_int port)
+bfd_print(const u_char *pptr, register u_int len, register u_int port)
 {
 	if (!invoke_dissector((void *)_bfd_print,
 	    len, port, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -175,13 +175,13 @@ bfd_print(packetbody_t pptr, register u_int len, register u_int port)
 }
 
 void
-_bfd_print(packetbody_t pptr, register u_int len, register u_int port)
+_bfd_print(const u_char *pptr, register u_int len, register u_int port)
 {
-        __capability const struct bfd_header_t *bfd_header;
+        const struct bfd_header_t *bfd_header;
         const struct bfd_auth_header_t *bfd_auth_header;
         u_int8_t version = 0;
 
-        bfd_header = (__capability const struct bfd_header_t *)pptr;
+        bfd_header = (const struct bfd_header_t *)pptr;
         if (port == BFD_CONTROL_PORT) {
             TCHECK(*bfd_header);
             version = BFD_EXTRACT_VERSION(bfd_header->version_diag);

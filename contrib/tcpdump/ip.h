@@ -34,8 +34,6 @@
  *	@(#)ip.h	8.2 (Berkeley) 6/1/94
  */
 
-#include "packetbody.h"
-
 /*
  * Definitions for internet protocol version 4.
  * Per RFC 791, September 1981.
@@ -163,5 +161,4 @@ struct	ip_timestamp {
 #define	IP_MSS		576		/* default maximum segment size */
 
 /* in print-ip.c */
-extern int nextproto4_cksum(__capability const struct ip *,
-    __capability const u_int8_t *, u_int, u_int);
+extern int nextproto4_cksum(const struct ip *, const u_int8_t *, u_int, u_int);

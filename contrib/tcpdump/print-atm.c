@@ -137,7 +137,7 @@ static const struct tok *oam_functype_values[16] = {
  * Print an RFC 1483 LLC-encapsulated ATM frame.
  */
 static void
-atm_llc_print(packetbody_t p, int length, int caplen)
+atm_llc_print(const u_char *p, int length, int caplen)
 {
 	u_short extracted_ethertype;
 
@@ -166,7 +166,7 @@ atm_llc_print(packetbody_t p, int length, int caplen)
  * is the number of bytes actually captured.
  */
 u_int
-atm_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+atm_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int caplen = h->caplen;
 	u_int length = h->len;
@@ -251,7 +251,7 @@ static struct tok msgtype2str[] = {
 };
 
 static void
-sig_print(packetbody_t p, int caplen)
+sig_print(const u_char *p, int caplen)
 {
 	bpf_u_int32 call_ref;
 
@@ -290,7 +290,7 @@ sig_print(packetbody_t p, int caplen)
  * Print an ATM PDU (such as an AAL5 PDU).
  */
 void
-atm_print(u_int vpi, u_int vci, u_int traftype, packetbody_t p, u_int length,
+atm_print(u_int vpi, u_int vci, u_int traftype, const u_char *p, u_int length,
     u_int caplen)
 {
 	if (!invoke_dissector((void *)_atm_print,
@@ -299,7 +299,7 @@ atm_print(u_int vpi, u_int vci, u_int traftype, packetbody_t p, u_int length,
 }
 
 void
-_atm_print(u_int vpi, u_int vci, u_int traftype, packetbody_t p, u_int length,
+_atm_print(u_int vpi, u_int vci, u_int traftype, const u_char *p, u_int length,
     u_int caplen)
 {
 	if (eflag)
@@ -363,7 +363,7 @@ struct oam_fm_ais_rdi_t {
 };
 
 void
-oam_print(packetbody_t p, u_int length, u_int hec)
+oam_print(const u_char *p, u_int length, u_int hec)
 {
 	if (!invoke_dissector((void *)_oam_print,
 	    length, hec, 0, 0, 0, gndo, p, NULL, NULL, NULL))
@@ -371,15 +371,15 @@ oam_print(packetbody_t p, u_int length, u_int hec)
 }
 
 void
-_oam_print(packetbody_t p, u_int length, u_int hec)
+_oam_print(const u_char *p, u_int length, u_int hec)
 {
     u_int32_t cell_header;
     u_int16_t vpi, vci, cksum, cksum_shouldbe, idx;
     u_int8_t  cell_type, func_type, payload, clp;
 
     union {
-        __capability const struct oam_fm_loopback_t *oam_fm_loopback;
-        __capability const struct oam_fm_ais_rdi_t *oam_fm_ais_rdi;
+        const struct oam_fm_loopback_t *oam_fm_loopback;
+        const struct oam_fm_ais_rdi_t *oam_fm_ais_rdi;
     } oam_ptr;
 
 
@@ -417,7 +417,7 @@ _oam_print(packetbody_t p, u_int length, u_int hec)
 
     switch (cell_type << 4 | func_type) {
     case (OAM_CELLTYPE_FM << 4 | OAM_FM_FUNCTYPE_LOOPBACK):
-        oam_ptr.oam_fm_loopback = (__capability const struct oam_fm_loopback_t *)(p + OAM_CELLTYPE_FUNCTYPE_LEN);
+        oam_ptr.oam_fm_loopback = (const struct oam_fm_loopback_t *)(p + OAM_CELLTYPE_FUNCTYPE_LEN);
         printf("\n\tLoopback-Indicator %s, Correlation-Tag 0x%08x",
                tok2str(oam_fm_loopback_indicator_values,
                        "Unknown",
@@ -439,7 +439,7 @@ _oam_print(packetbody_t p, u_int length, u_int hec)
 
     case (OAM_CELLTYPE_FM << 4 | OAM_FM_FUNCTYPE_AIS):
     case (OAM_CELLTYPE_FM << 4 | OAM_FM_FUNCTYPE_RDI):
-        oam_ptr.oam_fm_ais_rdi = (__capability const struct oam_fm_ais_rdi_t *)(p + OAM_CELLTYPE_FUNCTYPE_LEN);
+        oam_ptr.oam_fm_ais_rdi = (const struct oam_fm_ais_rdi_t *)(p + OAM_CELLTYPE_FUNCTYPE_LEN);
         printf("\n\tFailure-type 0x%02x", oam_ptr.oam_fm_ais_rdi->failure_type);
         printf("\n\tLocation-ID ");
         for (idx = 0; idx < sizeof(oam_ptr.oam_fm_ais_rdi->failure_location); idx++) {

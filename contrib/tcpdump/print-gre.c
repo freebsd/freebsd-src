@@ -82,14 +82,14 @@ struct tok gre_flag_values[] = {
 #define	GRESRE_IP	0x0800		/* IP */
 #define	GRESRE_ASN	0xfffe		/* ASN */
 
-void gre_print_0(packetbody_t, u_int);
-void gre_print_1(packetbody_t, u_int);
-void gre_sre_print(u_int16_t, u_int8_t, u_int8_t, packetbody_t, u_int);
-void gre_sre_ip_print(u_int8_t, u_int8_t, packetbody_t, u_int);
-void gre_sre_asn_print(u_int8_t, u_int8_t, packetbody_t, u_int);
+void gre_print_0(const u_char *, u_int);
+void gre_print_1(const u_char *, u_int);
+void gre_sre_print(u_int16_t, u_int8_t, u_int8_t, const u_char *, u_int);
+void gre_sre_ip_print(u_int8_t, u_int8_t, const u_char *, u_int);
+void gre_sre_asn_print(u_int8_t, u_int8_t, const u_char *, u_int);
 
 void
-gre_print(packetbody_t bp, u_int length)
+gre_print(const u_char *bp, u_int length)
 {
 	if (!invoke_dissector((void *)_gre_print,
 	    length, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -97,7 +97,7 @@ gre_print(packetbody_t bp, u_int length)
 }
 
 void
-_gre_print(packetbody_t bp, u_int length)
+_gre_print(const u_char *bp, u_int length)
 {
 	u_int len = length, vers;
 
@@ -124,7 +124,7 @@ _gre_print(packetbody_t bp, u_int length)
 }
 
 void
-gre_print_0(packetbody_t bp, u_int length)
+gre_print_0(const u_char *bp, u_int length)
 {
 	u_int len = length;
 	u_int16_t flags, prot;
@@ -246,7 +246,7 @@ trunc:
 }
 
 void
-gre_print_1(packetbody_t bp, u_int length)
+gre_print_1(const u_char *bp, u_int length)
 {
 	u_int len = length;
 	u_int16_t flags, prot;
@@ -327,7 +327,7 @@ trunc:
 
 void
 gre_sre_print(u_int16_t af, u_int8_t sreoff, u_int8_t srelen,
-    packetbody_t bp, u_int len)
+    const u_char *bp, u_int len)
 {
 	switch (af) {
 	case GRESRE_IP:
@@ -345,10 +345,10 @@ gre_sre_print(u_int16_t af, u_int8_t sreoff, u_int8_t srelen,
 	}
 }
 void
-gre_sre_ip_print(u_int8_t sreoff, u_int8_t srelen, packetbody_t bp, u_int len)
+gre_sre_ip_print(u_int8_t sreoff, u_int8_t srelen, const u_char *bp, u_int len)
 {
 	struct in_addr a;
-	packetbody_t up = bp;
+	const u_char *up = bp;
 
 	if (sreoff & 3) {
 		printf(", badoffset=%u", sreoff);
@@ -367,7 +367,7 @@ gre_sre_ip_print(u_int8_t sreoff, u_int8_t srelen, packetbody_t bp, u_int len)
 		if (len < 4 || srelen == 0)
 			return;
 
-		p_memcpy_from_packet(&a, bp, sizeof(a));
+		memcpy(&a, bp, sizeof(a));
 		printf(" %s%s",
 		    ((bp - up) == sreoff) ? "*" : "",
 		    inet_ntoa(a));
@@ -379,9 +379,9 @@ gre_sre_ip_print(u_int8_t sreoff, u_int8_t srelen, packetbody_t bp, u_int len)
 }
 
 void
-gre_sre_asn_print(u_int8_t sreoff, u_int8_t srelen, packetbody_t bp, u_int len)
+gre_sre_asn_print(u_int8_t sreoff, u_int8_t srelen, const u_char *bp, u_int len)
 {
-	packetbody_t up = bp;
+	const u_char *up = bp;
 
 	if (sreoff & 1) {
 		printf(", badoffset=%u", sreoff);

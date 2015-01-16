@@ -43,22 +43,20 @@
 #define	TCPSTATES
 #include <netinet/tcp_fsm.h>
 
-#include <stdlib.h>
 #include <string.h>
 
 #include "interface.h"
 #include "addrtoname.h"
 
-static void	pfsync_print(__capability const struct pfsync_header *,
-		    packetbody_t, u_int);
-static void	print_src_dst(__capability const struct pfsync_state_peer *,
-		    __capability const struct pfsync_state_peer *, uint8_t);
-static void	print_state(__capability const struct pfsync_state *);
+static void	pfsync_print(struct pfsync_header *, const u_char *, u_int);
+static void	print_src_dst(const struct pfsync_state_peer *,
+		    const struct pfsync_state_peer *, uint8_t);
+static void	print_state(struct pfsync_state *);
 
 #ifdef notyet
 void
 pfsync_if_print(u_char *user, const struct pcap_pkthdr *h,
-    packetbody_t p)
+    register const u_char *p)
 {
 	u_int caplen = h->caplen;
 
@@ -81,7 +79,7 @@ out:
 #endif /* notyet */
 
 void
-pfsync_ip_print(packetbody_t bp, u_int len)
+pfsync_ip_print(const u_char *bp, u_int len)
 {
 	if (!invoke_dissector((void *)_pfsync_ip_print,
 	    len, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -89,10 +87,9 @@ pfsync_ip_print(packetbody_t bp, u_int len)
 }
 
 void
-_pfsync_ip_print(packetbody_t bp, u_int len)
+_pfsync_ip_print(const u_char *bp, u_int len)
 {
-	__capability const struct pfsync_header *hdr =
-	    (__capability const struct pfsync_header *)bp;
+	struct pfsync_header *hdr = (struct pfsync_header *)bp;
 
 	if (len < PFSYNC_HDRLEN)
 		printf("[|pfsync]");
@@ -104,17 +101,17 @@ _pfsync_ip_print(packetbody_t bp, u_int len)
 struct pfsync_actions {
 	const char *name;
 	size_t len;
-	void (*print)(__capability const void *);
+	void (*print)(const void *);
 };
 
-static void	pfsync_print_clr(__capability const void *);
-static void	pfsync_print_state(__capability const void *);
-static void	pfsync_print_ins_ack(__capability const void *);
-static void	pfsync_print_upd_c(__capability const void *);
-static void	pfsync_print_upd_req(__capability const void *);
-static void	pfsync_print_del_c(__capability const void *);
-static void	pfsync_print_bus(__capability const void *);
-static void	pfsync_print_tdb(__capability const void *);
+static void	pfsync_print_clr(const void *);
+static void	pfsync_print_state(const void *);
+static void	pfsync_print_ins_ack(const void *);
+static void	pfsync_print_upd_c(const void *);
+static void	pfsync_print_upd_req(const void *);
+static void	pfsync_print_del_c(const void *);
+static void	pfsync_print_bus(const void *);
+static void	pfsync_print_tdb(const void *);
 
 struct pfsync_actions actions[] = {
 	{ "clear all", sizeof(struct pfsync_clr),	pfsync_print_clr },
@@ -137,10 +134,9 @@ struct pfsync_actions actions[] = {
 };
 
 static void
-pfsync_print(__capability const struct pfsync_header *hdr, packetbody_t bp,
-    u_int len)
+pfsync_print(struct pfsync_header *hdr, const u_char *bp, u_int len)
 {
-	__capability const struct pfsync_subheader *subh;
+	struct pfsync_subheader *subh;
 	int count, plen, i;
 	u_int alen;
 
@@ -157,7 +153,7 @@ pfsync_print(__capability const struct pfsync_header *hdr, packetbody_t bp,
 		if (len < sizeof(*subh))
 			break;
 
-		subh = (__capability const struct pfsync_subheader *)bp;
+		subh = (struct pfsync_subheader *)bp;
 		bp += sizeof(*subh);
 		len -= sizeof(*subh);
 		plen -= sizeof(*subh);
@@ -207,41 +203,37 @@ pfsync_print(__capability const struct pfsync_header *hdr, packetbody_t bp,
 }
 
 static void
-pfsync_print_clr(__capability const void *bp)
+pfsync_print_clr(const void *bp)
 {
-	char *buf;
-	__capability const struct pfsync_clr *clr = bp;
+	const struct pfsync_clr *clr = bp;
 
 	printf("\n\tcreatorid: %08x", htonl(clr->creatorid));
-	if (clr->ifname[0] != '\0') {
-		buf = p_strdup(clr->ifname);
-		printf(" interface: %s", buf == NULL ? "<null>" : buf);
-		p_strfree(buf);
-	}
+	if (clr->ifname[0] != '\0')
+		printf(" interface: %s", clr->ifname);
 }
 
 static void
-pfsync_print_state(__capability const void *bp)
+pfsync_print_state(const void *bp)
 {
-	__capability const struct pfsync_state *st = bp;
+	struct pfsync_state *st = (struct pfsync_state *)bp;
 
 	putchar('\n');
 	print_state(st);
 }
 
 static void
-pfsync_print_ins_ack(__capability const void *bp)
+pfsync_print_ins_ack(const void *bp)
 {
-	__capability const struct pfsync_ins_ack *iack = bp;
+	const struct pfsync_ins_ack *iack = bp;
 
 	printf("\n\tid: %016jx creatorid: %08x", (uintmax_t )be64toh(iack->id),
 	    ntohl(iack->creatorid));
 }
 
 static void
-pfsync_print_upd_c(__capability const void *bp)
+pfsync_print_upd_c(const void *bp)
 {
-	__capability const struct pfsync_upd_c *u = bp;
+	const struct pfsync_upd_c *u = bp;
 
 	printf("\n\tid: %016jx creatorid: %08x", (uintmax_t )be64toh(u->id),
 	    ntohl(u->creatorid));
@@ -252,27 +244,27 @@ pfsync_print_upd_c(__capability const void *bp)
 }
 
 static void
-pfsync_print_upd_req(__capability const void *bp)
+pfsync_print_upd_req(const void *bp)
 {
-	__capability const struct pfsync_upd_req *ur = bp;
+	const struct pfsync_upd_req *ur = bp;
 
 	printf("\n\tid: %016jx creatorid: %08x", (uintmax_t )be64toh(ur->id),
 	    ntohl(ur->creatorid));
 }
 
 static void
-pfsync_print_del_c(__capability const void *bp)
+pfsync_print_del_c(const void *bp)
 {
-	__capability const struct pfsync_del_c *d = bp;
+	const struct pfsync_del_c *d = bp;
 
 	printf("\n\tid: %016jx creatorid: %08x", (uintmax_t )be64toh(d->id),
 	    ntohl(d->creatorid));
 }
 
 static void
-pfsync_print_bus(__capability const void *bp)
+pfsync_print_bus(const void *bp)
 {
-	__capability const struct pfsync_bus *b = bp;
+	const struct pfsync_bus *b = bp;
 	uint32_t endtime;
 	int min, sec;
 	const char *status;
@@ -300,9 +292,9 @@ pfsync_print_bus(__capability const void *bp)
 }
 
 static void
-pfsync_print_tdb(__capability const void *bp)
+pfsync_print_tdb(const void *bp)
 {
-	__capability const struct pfsync_tdb *t = bp;
+	const struct pfsync_tdb *t = bp;
 
 	printf("\n\tspi: 0x%08x rpl: %ju cur_bytes: %ju",
 	    ntohl(t->spi), (uintmax_t )be64toh(t->rpl),
@@ -310,12 +302,12 @@ pfsync_print_tdb(__capability const void *bp)
 }
 
 static void
-print_host(__capability const struct pf_addr *addr, uint16_t port, sa_family_t af,
+print_host(struct pf_addr *addr, uint16_t port, sa_family_t af,
     const char *proto _U_)
 {
 	char buf[48];
 
-	if (inet_ntop_cap(af, addr, buf, sizeof(buf)) == NULL)
+	if (inet_ntop(af, addr, buf, sizeof(buf)) == NULL)
 		printf("?");
 	else
 		printf("%s", buf);
@@ -325,7 +317,7 @@ print_host(__capability const struct pf_addr *addr, uint16_t port, sa_family_t a
 }
 
 static void
-print_seq(__capability const struct pfsync_state_peer *p)
+print_seq(const struct pfsync_state_peer *p)
 {
 	if (p->seqdiff)
 		printf("[%u + %u](+%u)", ntohl(p->seqlo),
@@ -336,8 +328,8 @@ print_seq(__capability const struct pfsync_state_peer *p)
 }
 
 static void
-print_src_dst(__capability const struct pfsync_state_peer *src,
-    __capability const struct pfsync_state_peer *dst, uint8_t proto)
+print_src_dst(const struct pfsync_state_peer *src,
+    const struct pfsync_state_peer *dst, uint8_t proto)
 {
 
 	if (proto == IPPROTO_TCP) {
@@ -383,41 +375,35 @@ print_src_dst(__capability const struct pfsync_state_peer *src,
 }
 
 static void
-print_state(__capability const struct pfsync_state *s)
+print_state(struct pfsync_state *s)
 {
-	char *buf;
-	__capability const struct pfsync_state_peer *src, *dst;
-	__capability const struct pfsync_state_key *sk, *nk;
+	struct pfsync_state_peer *src, *dst;
+	struct pfsync_state_key *sk, *nk;
 	int min, sec;
-	int sk_ports[2];
 
 	if (s->direction == PF_OUT) {
 		src = &s->src;
 		dst = &s->dst;
 		sk = &s->key[PF_SK_STACK];
 		nk = &s->key[PF_SK_WIRE];
-		sk_ports[0] = sk->port[0];
 		if (s->proto == IPPROTO_ICMP || s->proto == IPPROTO_ICMPV6)
-			sk_ports[0]= nk->port[0];
+			sk->port[0] = nk->port[0];
 	} else {
 		src = &s->dst;
 		dst = &s->src;
 		sk = &s->key[PF_SK_WIRE];
 		nk = &s->key[PF_SK_STACK];
-		sk_ports[1] = sk->port[1];
 		if (s->proto == IPPROTO_ICMP || s->proto == IPPROTO_ICMPV6)
-			sk_ports[1] = nk->port[1];
+			sk->port[1] = nk->port[1];
 	}
-	buf = p_strdup(s->ifname);
-	printf("\t%s ", buf == NULL ? "<null>" : buf);
-	p_strfree(buf);
+	printf("\t%s ", s->ifname);
 	printf("proto %u ", s->proto);
 
 	print_host(&nk->addr[1], nk->port[1], s->af, NULL);
 	if (PF_ANEQ(&nk->addr[1], &sk->addr[1], s->af) ||
-	    nk->port[1] != sk_ports[1]) {
+	    nk->port[1] != sk->port[1]) {
 		printf(" (");
-		print_host(&sk->addr[1], sk_ports[1], s->af, NULL);
+		print_host(&sk->addr[1], sk->port[1], s->af, NULL);
 		printf(")");
 	}
 	if (s->direction == PF_OUT)
@@ -426,9 +412,9 @@ print_state(__capability const struct pfsync_state *s)
 		printf(" <- ");
 	print_host(&nk->addr[0], nk->port[0], s->af, NULL);
 	if (PF_ANEQ(&nk->addr[0], &sk->addr[0], s->af) ||
-	    nk->port[0] != sk_ports[0]) {
+	    nk->port[0] != sk->port[0]) {
 		printf(" (");
-		print_host(&sk->addr[0], sk_ports[0], s->af, NULL);
+		print_host(&sk->addr[0], sk->port[0], s->af, NULL);
 		printf(")");
 	}
 
@@ -451,10 +437,10 @@ print_state(__capability const struct pfsync_state *s)
 		expire /= 60;
 		printf(", expires in %.2u:%.2u:%.2u", expire, min, sec);
 
-		p_memcpy_from_packet(&packets[0], s->packets[0], sizeof(uint64_t));
-		p_memcpy_from_packet(&packets[1], s->packets[1], sizeof(uint64_t));
-		p_memcpy_from_packet(&bytes[0], s->bytes[0], sizeof(uint64_t));
-		p_memcpy_from_packet(&bytes[1], s->bytes[1], sizeof(uint64_t));
+		bcopy(s->packets[0], &packets[0], sizeof(uint64_t));
+		bcopy(s->packets[1], &packets[1], sizeof(uint64_t));
+		bcopy(s->bytes[0], &bytes[0], sizeof(uint64_t));
+		bcopy(s->bytes[1], &bytes[1], sizeof(uint64_t));
 		printf(", %ju:%ju pkts, %ju:%ju bytes",
 		    be64toh(packets[0]), be64toh(packets[1]),
 		    be64toh(bytes[0]), be64toh(bytes[1]));
@@ -466,7 +452,7 @@ print_state(__capability const struct pfsync_state *s)
 	if (vflag > 1) {
 		uint64_t id;
 
-		p_memcpy_from_packet(&id, &s->id, sizeof(uint64_t));
+		bcopy(&s->id, &id, sizeof(uint64_t));
 		printf("\n\tid: %016jx creatorid: %08x",
 		    (uintmax_t )be64toh(id), ntohl(s->creatorid));
 	}

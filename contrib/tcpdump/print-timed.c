@@ -44,7 +44,7 @@ static const char *tsptype[TSPTYPENUMBER] =
   "TEST", "SETDATE", "SETDATEREQ", "LOOP" };
 
 void
-timed_print(packetbody_t bp)
+timed_print(register const u_char *bp)
 {
 	if (!invoke_dissector((void *)_timed_print,
 	    snapend - bp, 0, 0, 0, 0, gndo, bp, NULL, NULL, NULL))
@@ -52,12 +52,12 @@ timed_print(packetbody_t bp)
 }
 
 void
-_timed_print(packetbody_t bp)
+_timed_print(const u_char *bp)
 {
-#define endof(x) ((packetbody_t)&(x) + sizeof (x))
-	__capability const struct tsp *tsp = (__capability const struct tsp *)bp;
+#define endof(x) ((u_char *)&(x) + sizeof (x))
+	struct tsp *tsp = (struct tsp *)bp;
 	long sec, usec;
-	packetbody_t end;
+	const u_char *end;
 
 	if (endof(tsp->tsp_type) > snapend) {
 		fputs("[|timed]", stdout);
@@ -109,11 +109,11 @@ _timed_print(packetbody_t bp)
 		printf("%ld.%06ld", sec, usec);
 	}
 
-	end = p_memchr(tsp->tsp_name, '\0', snapend - (u_char *)tsp->tsp_name);
+	end = memchr(tsp->tsp_name, '\0', snapend - (u_char *)tsp->tsp_name);
 	if (end == NULL)
 		fputs(" [|timed]", stdout);
 	else {
 		fputs(" name ", stdout);
-		fn_print(tsp->tsp_name, end);
+		fwrite(tsp->tsp_name, end - (u_char *)tsp->tsp_name, 1, stdout);
 	}
 }

@@ -82,7 +82,7 @@ static const char rcsid[] _U_ =
  * unused argument remind us that we should fix this some day.
  */
 int
-vjc_print(packetbody_t bp, u_short proto _U_)
+vjc_print(register const char *bp, u_short proto _U_)
 {
 	int i;
 

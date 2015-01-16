@@ -211,7 +211,7 @@ static const struct tok eigrp_ext_proto_id_values[] = {
 };
 
 void
-eigrp_print(packetbody_t pptr, register u_int len)
+eigrp_print(const u_char *pptr, register u_int len)
 {
 	if (!invoke_dissector((void *)_eigrp_print,
 	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -219,26 +219,26 @@ eigrp_print(packetbody_t pptr, register u_int len)
 }
 
 void
-_eigrp_print(packetbody_t pptr, register u_int len)
+_eigrp_print(const u_char *pptr, register u_int len)
 {
-    __capability const struct eigrp_common_header *eigrp_com_header;
-    __capability const struct eigrp_tlv_header *eigrp_tlv_header;
-    packetbody_t tptr, tlv_tptr;
+    const struct eigrp_common_header *eigrp_com_header;
+    const struct eigrp_tlv_header *eigrp_tlv_header;
+    const u_char *tptr,*tlv_tptr;
     u_int tlen,eigrp_tlv_len,eigrp_tlv_type,tlv_tlen, byte_length, bit_length;
     u_int8_t prefix[4];
 
     union {
-        __capability const struct eigrp_tlv_general_parm_t *eigrp_tlv_general_parm;
-        __capability const struct eigrp_tlv_sw_version_t *eigrp_tlv_sw_version;
-        __capability const struct eigrp_tlv_ip_int_t *eigrp_tlv_ip_int;
-        __capability const struct eigrp_tlv_ip_ext_t *eigrp_tlv_ip_ext;
-        __capability const struct eigrp_tlv_at_cable_setup_t *eigrp_tlv_at_cable_setup;
-        __capability const struct eigrp_tlv_at_int_t *eigrp_tlv_at_int;
-        __capability const struct eigrp_tlv_at_ext_t *eigrp_tlv_at_ext;
+        const struct eigrp_tlv_general_parm_t *eigrp_tlv_general_parm;
+        const struct eigrp_tlv_sw_version_t *eigrp_tlv_sw_version;
+        const struct eigrp_tlv_ip_int_t *eigrp_tlv_ip_int;
+        const struct eigrp_tlv_ip_ext_t *eigrp_tlv_ip_ext;
+        const struct eigrp_tlv_at_cable_setup_t *eigrp_tlv_at_cable_setup;
+        const struct eigrp_tlv_at_int_t *eigrp_tlv_at_int;
+        const struct eigrp_tlv_at_ext_t *eigrp_tlv_at_ext;
     } tlv_ptr;
 
     tptr=pptr;
-    eigrp_com_header = (__capability const struct eigrp_common_header *)pptr;
+    eigrp_com_header = (const struct eigrp_common_header *)pptr;
     TCHECK(*eigrp_com_header);
 
     /*
@@ -281,7 +281,7 @@ _eigrp_print(packetbody_t pptr, register u_int len)
         /* did we capture enough for fully decoding the object header ? */
         TCHECK2(*tptr, sizeof(struct eigrp_tlv_header));
 
-        eigrp_tlv_header = (__capability const struct eigrp_tlv_header *)tptr;
+        eigrp_tlv_header = (const struct eigrp_tlv_header *)tptr;
         eigrp_tlv_len=EXTRACT_16BITS(&eigrp_tlv_header->length);
         eigrp_tlv_type=EXTRACT_16BITS(&eigrp_tlv_header->type);
 
@@ -308,7 +308,7 @@ _eigrp_print(packetbody_t pptr, register u_int len)
         switch(eigrp_tlv_type) {
 
         case EIGRP_TLV_GENERAL_PARM:
-            tlv_ptr.eigrp_tlv_general_parm = (__capability const struct eigrp_tlv_general_parm_t *)tlv_tptr;
+            tlv_ptr.eigrp_tlv_general_parm = (const struct eigrp_tlv_general_parm_t *)tlv_tptr;
 
             printf("\n\t    holdtime: %us, k1 %u, k2 %u, k3 %u, k4 %u, k5 %u",
                    EXTRACT_16BITS(tlv_ptr.eigrp_tlv_general_parm->holdtime),
@@ -320,7 +320,7 @@ _eigrp_print(packetbody_t pptr, register u_int len)
             break;
 
         case EIGRP_TLV_SW_VERSION:
-            tlv_ptr.eigrp_tlv_sw_version = (__capability const struct eigrp_tlv_sw_version_t *)tlv_tptr;
+            tlv_ptr.eigrp_tlv_sw_version = (const struct eigrp_tlv_sw_version_t *)tlv_tptr;
 
             printf("\n\t    IOS version: %u.%u, EIGRP version %u.%u",
                    tlv_ptr.eigrp_tlv_sw_version->ios_major,
@@ -330,7 +330,7 @@ _eigrp_print(packetbody_t pptr, register u_int len)
             break;
 
         case EIGRP_TLV_IP_INT:
-            tlv_ptr.eigrp_tlv_ip_int = (__capability const struct eigrp_tlv_ip_int_t *)tlv_tptr;
+            tlv_ptr.eigrp_tlv_ip_int = (const struct eigrp_tlv_ip_int_t *)tlv_tptr;
 
             bit_length = tlv_ptr.eigrp_tlv_ip_int->plen;
             if (bit_length > 32) {
@@ -339,7 +339,7 @@ _eigrp_print(packetbody_t pptr, register u_int len)
             }
             byte_length = (bit_length + 7) / 8; /* variable length encoding */
             memset(prefix, 0, 4);
-            p_memcpy_from_packet(prefix,&tlv_ptr.eigrp_tlv_ip_int->destination,byte_length);
+            memcpy(prefix,&tlv_ptr.eigrp_tlv_ip_int->destination,byte_length);
 
             printf("\n\t    IPv4 prefix: %15s/%u, nexthop: ",
                    ipaddr_string(prefix),
@@ -359,7 +359,7 @@ _eigrp_print(packetbody_t pptr, register u_int len)
             break;
 
         case EIGRP_TLV_IP_EXT:
-            tlv_ptr.eigrp_tlv_ip_ext = (__capability const struct eigrp_tlv_ip_ext_t *)tlv_tptr;
+            tlv_ptr.eigrp_tlv_ip_ext = (const struct eigrp_tlv_ip_ext_t *)tlv_tptr;
 
             bit_length = tlv_ptr.eigrp_tlv_ip_ext->plen;
             if (bit_length > 32) {
@@ -368,7 +368,7 @@ _eigrp_print(packetbody_t pptr, register u_int len)
             }
             byte_length = (bit_length + 7) / 8; /* variable length encoding */
             memset(prefix, 0, 4);
-            p_memcpy_from_packet(prefix,&tlv_ptr.eigrp_tlv_ip_ext->destination,byte_length);
+            memcpy(prefix,&tlv_ptr.eigrp_tlv_ip_ext->destination,byte_length);
 
             printf("\n\t    IPv4 prefix: %15s/%u, nexthop: ",
                    ipaddr_string(prefix),
@@ -396,7 +396,7 @@ _eigrp_print(packetbody_t pptr, register u_int len)
             break;
 
         case EIGRP_TLV_AT_CABLE_SETUP:
-            tlv_ptr.eigrp_tlv_at_cable_setup = (__capability const struct eigrp_tlv_at_cable_setup_t *)tlv_tptr;
+            tlv_ptr.eigrp_tlv_at_cable_setup = (const struct eigrp_tlv_at_cable_setup_t *)tlv_tptr;
 
             printf("\n\t    Cable-range: %u-%u, Router-ID %u",
                    EXTRACT_16BITS(&tlv_ptr.eigrp_tlv_at_cable_setup->cable_start),
@@ -405,7 +405,7 @@ _eigrp_print(packetbody_t pptr, register u_int len)
             break;
 
         case EIGRP_TLV_AT_INT:
-            tlv_ptr.eigrp_tlv_at_int = (__capability const struct eigrp_tlv_at_int_t *)tlv_tptr;
+            tlv_ptr.eigrp_tlv_at_int = (const struct eigrp_tlv_at_int_t *)tlv_tptr;
 
             printf("\n\t     Cable-Range: %u-%u, nexthop: ",
                    EXTRACT_16BITS(&tlv_ptr.eigrp_tlv_at_int->cable_start),
@@ -428,7 +428,7 @@ _eigrp_print(packetbody_t pptr, register u_int len)
             break;
 
         case EIGRP_TLV_AT_EXT:
-            tlv_ptr.eigrp_tlv_at_ext = (__capability const struct eigrp_tlv_at_ext_t *)tlv_tptr;
+            tlv_ptr.eigrp_tlv_at_ext = (const struct eigrp_tlv_at_ext_t *)tlv_tptr;
 
             printf("\n\t     Cable-Range: %u-%u, nexthop: ",
                    EXTRACT_16BITS(&tlv_ptr.eigrp_tlv_at_ext->cable_start),

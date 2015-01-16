@@ -40,7 +40,7 @@ static const char rcsid[] _U_ =
 #include "ppp.h"
 #include "chdlc.h"
 
-static void chdlc_slarp_print(packetbody_t, u_int);
+static void chdlc_slarp_print(const u_char *, u_int);
 
 const struct tok chdlc_cast_values[] = { 
     { CHDLC_UNICAST, "unicast" },
@@ -51,7 +51,7 @@ const struct tok chdlc_cast_values[] = {
 
 /* Standard CHDLC printer */
 u_int
-chdlc_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+chdlc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
@@ -64,7 +64,7 @@ chdlc_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 }
 
 void
-chdlc_print(packetbody_t p, u_int length)
+chdlc_print(const u_char *p, u_int length)
 {
 	if (!invoke_dissector((void *)_chdlc_print,
 	    length, 0, 0, 0, 0, gndo, p, NULL, NULL, NULL))
@@ -72,7 +72,7 @@ chdlc_print(packetbody_t p, u_int length)
 }
 
 u_int
-_chdlc_print(packetbody_t p, u_int length)
+_chdlc_print(const u_char *p, u_int length)
 {
 	u_int proto;
 
@@ -152,16 +152,16 @@ struct cisco_slarp {
 #define SLARP_MAX_LEN	18
 
 static void
-chdlc_slarp_print(packetbody_t cp, u_int length)
+chdlc_slarp_print(const u_char *cp, u_int length)
 {
-	__capability const struct cisco_slarp *slarp;
+	const struct cisco_slarp *slarp;
         u_int sec,min,hrs,days;
 
         printf("SLARP (length: %u), ",length);
 	if (length < SLARP_MIN_LEN)
 		goto trunc;
 
-	slarp = (__capability const struct cisco_slarp *)cp;
+	slarp = (const struct cisco_slarp *)cp;
 	TCHECK2(*slarp, SLARP_MIN_LEN);
 	switch (EXTRACT_32BITS(&slarp->code)) {
 	case SLARP_REQUEST:

@@ -115,7 +115,7 @@ init_crc10_table(void)
 }
 
 u_int16_t
-verify_crc10_cksum(u_int16_t accum, packetbody_t p, int length)
+verify_crc10_cksum(u_int16_t accum, const u_char *p, int length)
 {
     register int i;
 
@@ -141,7 +141,7 @@ init_checksum(void) {
  * The checksum field of the passed PDU does not need to be reset to zero.
  */
 u_int16_t
-create_osi_cksum (packetbody_t pptr, int checksum_offset, int length)
+create_osi_cksum (const u_int8_t *pptr, int checksum_offset, int length)
 {
 
     int x;

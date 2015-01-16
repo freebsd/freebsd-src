@@ -45,16 +45,16 @@ static const char rcsid[] _U_ =
 #include "extract.h"
 
 
-static const char *ipxaddr_string(u_int32_t, packetbody_t);
-void ipx_decode(__capability const struct ipxHdr *, packetbody_t, u_int);
-void ipx_sap_print(__capability const u_short *, u_int);
-void ipx_rip_print(__capability const u_short *, u_int);
+static const char *ipxaddr_string(u_int32_t, const u_char *);
+void ipx_decode(const struct ipxHdr *, const u_char *, u_int);
+void ipx_sap_print(const u_short *, u_int);
+void ipx_rip_print(const u_short *, u_int);
 
 /*
  * Print IPX datagram packets.
  */
 void
-ipx_print(packetbody_t p, u_int length)
+ipx_print(const u_char *p, u_int length)
 {
 	if (!invoke_dissector((void *)_ipx_print,
 	    length, 0, 0, 0, 0, gndo, p, NULL, NULL, NULL))
@@ -62,9 +62,9 @@ ipx_print(packetbody_t p, u_int length)
 }
 
 void
-_ipx_print(packetbody_t p, u_int length)
+_ipx_print(const u_char *p, u_int length)
 {
-	__capability const struct ipxHdr *ipx = (__capability const struct ipxHdr *)p;
+	const struct ipxHdr *ipx = (const struct ipxHdr *)p;
 
 	if (!eflag)
 		printf("IPX ");
@@ -82,14 +82,14 @@ _ipx_print(packetbody_t p, u_int length)
 	TCHECK(ipx->length);
 	length = EXTRACT_16BITS(&ipx->length);
 
-	ipx_decode(ipx, (packetbody_t)ipx + ipxSize, length - ipxSize);
+	ipx_decode(ipx, (u_char *)ipx + ipxSize, length - ipxSize);
 	return;
 trunc:
 	printf("[|ipx %d]", length);
 }
 
 static const char *
-ipxaddr_string(u_int32_t net, packetbody_t node)
+ipxaddr_string(u_int32_t net, const u_char *node)
 {
     static char line[256];
 
@@ -100,7 +100,7 @@ ipxaddr_string(u_int32_t net, packetbody_t node)
 }
 
 void
-ipx_decode(__capability const struct ipxHdr *ipx, packetbody_t datap, u_int length)
+ipx_decode(const struct ipxHdr *ipx, const u_char *datap, u_int length)
 {
     register u_short dstSkt;
 
@@ -110,10 +110,10 @@ ipx_decode(__capability const struct ipxHdr *ipx, packetbody_t datap, u_int leng
 	(void)printf("ipx-ncp %d", length);
 	break;
       case IPX_SKT_SAP:
-	ipx_sap_print((__capability u_short *)datap, length);
+	ipx_sap_print((u_short *)datap, length);
 	break;
       case IPX_SKT_RIP:
-	ipx_rip_print((__capability u_short *)datap, length);
+	ipx_rip_print((u_short *)datap, length);
 	break;
       case IPX_SKT_NETBIOS:
 	(void)printf("ipx-netbios %d", length);
@@ -140,7 +140,7 @@ ipx_decode(__capability const struct ipxHdr *ipx, packetbody_t datap, u_int leng
 }
 
 void
-ipx_sap_print(__capability const u_short *ipx, u_int length)
+ipx_sap_print(const u_short *ipx, u_int length)
 {
     int command, i;
 
@@ -171,13 +171,13 @@ ipx_sap_print(__capability const u_short *ipx, u_int length)
 	for (i = 0; i < 8 && length > 0; i++) {
 	    TCHECK(ipx[0]);
 	    (void)printf(" %s '", ipxsap_string(htons(EXTRACT_16BITS(&ipx[0]))));
-	    if (fn_printzp((packetbody_t)&ipx[1], 48, snapend)) {
+	    if (fn_printzp((u_char *)&ipx[1], 48, snapend)) {
 		printf("'");
 		goto trunc;
 	    }
 	    TCHECK2(ipx[25], 10);
 	    printf("' addr %s",
-		ipxaddr_string(EXTRACT_32BITS(&ipx[25]), (packetbody_t)&ipx[27]));
+		ipxaddr_string(EXTRACT_32BITS(&ipx[25]), (u_char *)&ipx[27]));
 	    ipx += 32;
 	    length -= 64;
 	}
@@ -192,7 +192,7 @@ trunc:
 }
 
 void
-ipx_rip_print(__capability const u_short *ipx, u_int length)
+ipx_rip_print(const u_short *ipx, u_int length)
 {
     int command, i;
 

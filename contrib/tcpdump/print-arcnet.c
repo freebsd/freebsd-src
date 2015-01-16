@@ -38,7 +38,7 @@ static const char rcsid[] _U_ =
 #include "extract.h"
 #include "arcnet.h"
 
-static int arcnet_encap_print(u_char arctype, packetbody_t p,
+static int arcnet_encap_print(u_char arctype, const u_char *p,
     u_int length, u_int caplen);
 
 struct tok arctypemap[] = {
@@ -56,7 +56,7 @@ struct tok arctypemap[] = {
 };
 
 static inline void
-arcnet_print(packetbody_t bp, u_int length, int phds, int flag, u_int seqid)
+arcnet_print(const u_char *bp, u_int length, int phds, int flag, u_int seqid)
 {
 	const struct arc_header *ap;
 	const char *arctypename;
@@ -108,11 +108,11 @@ arcnet_print(packetbody_t bp, u_int length, int phds, int flag, u_int seqid)
  * is the number of bytes actually captured.
  */
 u_int
-arcnet_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+arcnet_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int caplen = h->caplen;
 	u_int length = h->len;
-	__capability const struct arc_header *ap;
+	const struct arc_header *ap;
 
 	int phds, flag = 0, archdrlen = 0;
 	u_int seqid = 0;
@@ -123,7 +123,7 @@ arcnet_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 		return (caplen);
 	}
 
-	ap = (__capability const struct arc_header *)p;
+	ap = (const struct arc_header *)p;
 	arc_type = ap->arc_type;
 
 	switch (arc_type) {
@@ -196,7 +196,7 @@ arcnet_if_print(const struct pcap_pkthdr *h, packetbody_t p)
  * extra "offset" field between the src/dest and packet type.
  */
 u_int
-arcnet_linux_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+arcnet_linux_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int caplen = h->caplen;
 	u_int length = h->len;
@@ -253,7 +253,7 @@ arcnet_linux_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 
 static int
-arcnet_encap_print(u_char arctype, packetbody_t p,
+arcnet_encap_print(u_char arctype, const u_char *p,
     u_int length, u_int caplen)
 {
 	switch (arctype) {

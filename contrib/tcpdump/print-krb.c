@@ -38,9 +38,9 @@ static const char rcsid[] _U_ =
 #include "addrtoname.h"
 #include "extract.h"
 
-static packetbody_t c_print(packetbody_t, packetbody_t);
-static packetbody_t krb4_print_hdr(packetbody_t);
-static void krb4_print(packetbody_t);
+static const u_char *c_print(register const u_char *, register const u_char *);
+static const u_char *krb4_print_hdr(const u_char *);
+static void krb4_print(const u_char *);
 
 #define AUTH_MSG_KDC_REQUEST			1<<1
 #define AUTH_MSG_KDC_REPLY			2<<1
@@ -99,8 +99,8 @@ static struct tok kerr2str[] = {
 	{ 0,				NULL}
 };
 
-static packetbody_t
-c_print(packetbody_t s, packetbody_t ep)
+static const u_char *
+c_print(register const u_char *s, register const u_char *ep)
 {
 	register u_char c;
 	register int flag;
@@ -128,8 +128,8 @@ c_print(packetbody_t s, packetbody_t ep)
 	return (s);
 }
 
-static packetbody_t
-krb4_print_hdr(packetbody_t cp)
+static const u_char *
+krb4_print_hdr(const u_char *cp)
 {
 	cp += 2;
 
@@ -150,9 +150,9 @@ trunc:
 }
 
 static void
-krb4_print(packetbody_t cp)
+krb4_print(const u_char *cp)
 {
-	__capability const struct krb *kp;
+	register const struct krb *kp;
 	u_char type;
 	u_short len;
 
@@ -161,7 +161,7 @@ krb4_print(packetbody_t cp)
 #define IS_LENDIAN(kp)	(((kp)->type & 0x01) != 0)
 #define KTOHSP(kp, cp)	(IS_LENDIAN(kp) ? EXTRACT_LE_16BITS(cp) : EXTRACT_16BITS(cp))
 
-	kp = (__capability const struct krb *)cp;
+	kp = (struct krb *)cp;
 
 	if ((&kp->type) >= snapend) {
 		fputs(tstr, stdout);
@@ -227,7 +227,7 @@ trunc:
 }
 
 void
-krb_print(packetbody_t dat)
+krb_print(const u_char *dat)
 {
 	if (!invoke_dissector((void *)_krb_print,
 	    snapend - dat, 0, 0, 0, 0, gndo, dat, NULL, NULL, NULL))
@@ -235,11 +235,11 @@ krb_print(packetbody_t dat)
 }
 
 void
-_krb_print(packetbody_t dat)
+_krb_print(const u_char *dat)
 {
-	__capability const struct krb *kp;
+	register const struct krb *kp;
 
-	kp = (__capability const struct krb *)dat;
+	kp = (struct krb *)dat;
 
 	if (dat >= snapend) {
 		fputs(tstr, stdout);
@@ -256,7 +256,7 @@ _krb_print(packetbody_t dat)
 
 	case 4:
 		printf(" v%d", kp->pvno);
-		krb4_print((packetbody_t)kp);
+		krb4_print((const u_char *)kp);
 		break;
 
 	case 106:

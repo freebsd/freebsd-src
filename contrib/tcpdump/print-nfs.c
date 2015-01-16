@@ -50,14 +50,14 @@ static const char rcsid[] _U_ =
 #include "rpc_auth.h"
 #include "rpc_msg.h"
 
-static void nfs_printfh(__capability const u_int32_t *, const u_int);
-static int xid_map_enter(__capability const struct sunrpc_msg *, packetbody_t);
-static int32_t xid_map_find(__capability const struct sunrpc_msg *, packetbody_t,
+static void nfs_printfh(const u_int32_t *, const u_int);
+static int xid_map_enter(const struct sunrpc_msg *, const u_char *);
+static int32_t xid_map_find(const struct sunrpc_msg *, const u_char *,
 			    u_int32_t *, u_int32_t *);
-static void interp_reply(__capability const struct sunrpc_msg *, u_int32_t, u_int32_t, int);
-static __capability const u_int32_t *parse_post_op_attr(__capability const u_int32_t *, int);
+static void interp_reply(const struct sunrpc_msg *, u_int32_t, u_int32_t, int);
+static const u_int32_t *parse_post_op_attr(const u_int32_t *, int);
 static void print_sattr3(const struct nfsv3_sattr *sa3, int verbose);
-static void print_nfsaddr(packetbody_t, const char *, const char *);
+static void print_nfsaddr(const u_char *, const char *, const char *);
 
 /*
  * Mapping of old NFS Version 2 RPC numbers to generic numbers.
@@ -159,7 +159,7 @@ static struct tok type2str[] = {
 };
 
 static void
-print_nfsaddr(packetbody_t bp, const char *s, const char *d)
+print_nfsaddr(const u_char *bp, const char *s, const char *d)
 {
 	struct ip *ip;
 #ifdef INET6
@@ -197,8 +197,8 @@ print_nfsaddr(packetbody_t bp, const char *s, const char *d)
 	(void)printf("%s.%s > %s.%s: ", srcaddr, s, dstaddr, d);
 }
 
-static __capability const u_int32_t *
-parse_sattr3(__capability const u_int32_t *dp, struct nfsv3_sattr *sa3)
+static const u_int32_t *
+parse_sattr3(const u_int32_t *dp, struct nfsv3_sattr *sa3)
 {
 	TCHECK(dp[0]);
 	sa3->sa_modeset = EXTRACT_32BITS(dp);
@@ -285,7 +285,8 @@ print_sattr3(const struct nfsv3_sattr *sa3, int verbose)
 }
 
 void
-nfsreply_print(packetbody_t bp, u_int length, packetbody_t bp2)
+nfsreply_print(register const u_char *bp, u_int length,
+	       register const u_char *bp2)
 {
 	if (!invoke_dissector((void *)_nfsreply_print,
 	    length, 0, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
@@ -293,9 +294,9 @@ nfsreply_print(packetbody_t bp, u_int length, packetbody_t bp2)
 }
 
 void
-_nfsreply_print(packetbody_t bp, u_int length, packetbody_t bp2)
+_nfsreply_print(const u_char *bp, u_int length, const u_char *bp2)
 {
-	__capability const struct sunrpc_msg *rp;
+	register const struct sunrpc_msg *rp;
 	u_int32_t proc, vers, reply_stat;
 	char srcid[20], dstid[20];	/*fits 32bit*/
 	enum sunrpc_reject_stat rstat;
@@ -304,7 +305,7 @@ _nfsreply_print(packetbody_t bp, u_int length, packetbody_t bp2)
 	enum sunrpc_auth_stat rwhy;
 
 	nfserr = 0;		/* assume no error */
-	rp = (__capability const struct sunrpc_msg *)bp;
+	rp = (const struct sunrpc_msg *)bp;
 
 	TCHECK(rp->rm_xid);
 	if (!nflag) {
@@ -409,16 +410,16 @@ trunc:
  * Return a pointer to the first file handle in the packet.
  * If the packet was truncated, return 0.
  */
-static __capability const u_int32_t *
-parsereq(__capability const struct sunrpc_msg *rp, register u_int length)
+static const u_int32_t *
+parsereq(register const struct sunrpc_msg *rp, register u_int length)
 {
-	__capability const u_int32_t *dp;
+	register const u_int32_t *dp;
 	register u_int len;
 
 	/*
 	 * find the start of the req data (if we captured it)
 	 */
-	dp = (__capability u_int32_t *)&rp->rm_call.cb_cred;
+	dp = (u_int32_t *)&rp->rm_call.cb_cred;
 	TCHECK(dp[1]);
 	len = EXTRACT_32BITS(&dp[1]);
 	if (len < length) {
@@ -439,8 +440,8 @@ trunc:
  * Print out an NFS file handle and return a pointer to following word.
  * If packet was truncated, return 0.
  */
-static __capability const u_int32_t *
-parsefh(__capability  const u_int32_t *dp, int v3)
+static const u_int32_t *
+parsefh(register const u_int32_t *dp, int v3)
 {
 	u_int len;
 
@@ -463,11 +464,11 @@ trunc:
  * Print out a file name and return pointer to 32-bit word past it.
  * If packet was truncated, return 0.
  */
-static __capability const u_int32_t *
-parsefn(__capability const u_int32_t *dp)
+static const u_int32_t *
+parsefn(register const u_int32_t *dp)
 {
 	register u_int32_t len;
-	packetbody_t cp;
+	register const u_char *cp;
 
 	/* Bail if we don't have the string length */
 	TCHECK(*dp);
@@ -480,7 +481,7 @@ parsefn(__capability const u_int32_t *dp)
 	TCHECK2(*dp, ((len + 3) & ~3));
 #endif
 
-	cp = (packetbody_t)dp;
+	cp = (u_char *)dp;
 	/* Update 32-bit pointer (NFS filenames padded to 32-bit boundaries) */
 	dp += ((len + 3) & ~3) / sizeof(*dp);
 	putchar('"');
@@ -504,8 +505,8 @@ trunc:
  * Return pointer to 32-bit word past file name.
  * If packet was truncated (or there was some other error), return 0.
  */
-static __capability const u_int32_t *
-parsefhn(__capability const u_int32_t *dp, int v3)
+static const u_int32_t *
+parsefhn(register const u_int32_t *dp, int v3)
 {
 	dp = parsefh(dp, v3);
 	if (dp == NULL)
@@ -515,7 +516,8 @@ parsefhn(__capability const u_int32_t *dp, int v3)
 }
 
 void
-nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
+nfsreq_print(register const u_char *bp, u_int length,
+    register const u_char *bp2)
 {
 	if (!invoke_dissector((void *)_nfsreq_print,
 	    length, 0, 0, 0, 0, gndo, bp, bp2, NULL, NULL))
@@ -523,10 +525,10 @@ nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
 }
 
 void
-_nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
+_nfsreq_print(const u_char *bp, u_int length, const u_char *bp2)
 {
-	__capability const struct sunrpc_msg *rp;
-	__capability register const u_int32_t *dp;
+	register const struct sunrpc_msg *rp;
+	register const u_int32_t *dp;
 	nfs_type type;
 	int v3;
 	u_int32_t proc;
@@ -535,7 +537,7 @@ _nfsreq_print(packetbody_t bp, u_int length, packetbody_t bp2)
 	char srcid[20], dstid[20];	/*fits 32bit*/
 
 	nfserr = 0;		/* assume no error */
-	rp = (__capability const struct sunrpc_msg *)bp;
+	rp = (const struct sunrpc_msg *)bp;
 
 	TCHECK(rp->rm_xid);
 	if (!nflag) {
@@ -872,7 +874,7 @@ trunc:
  * additional hacking on the parser code.
  */
 static void
-nfs_printfh(__capability const u_int32_t *dp, const u_int len)
+nfs_printfh(register const u_int32_t *dp, const u_int len)
 {
 	my_fsid fsid;
 	ino_t ino;
@@ -953,7 +955,7 @@ int	xid_map_next = 0;
 int	xid_map_hint = 0;
 
 static int
-xid_map_enter(__capability const struct sunrpc_msg *rp, packetbody_t bp)
+xid_map_enter(const struct sunrpc_msg *rp, const u_char *bp)
 {
 	struct ip *ip = NULL;
 #ifdef INET6
@@ -1004,7 +1006,7 @@ xid_map_enter(__capability const struct sunrpc_msg *rp, packetbody_t bp)
  * version in vers return, or returns -1 on failure
  */
 static int
-xid_map_find(__capability const struct sunrpc_msg *rp, packetbody_t bp, u_int32_t *proc,
+xid_map_find(const struct sunrpc_msg *rp, const u_char *bp, u_int32_t *proc,
 	     u_int32_t *vers)
 {
 	int i;
@@ -1070,10 +1072,10 @@ xid_map_find(__capability const struct sunrpc_msg *rp, packetbody_t bp, u_int32_
  * Return a pointer to the beginning of the actual results.
  * If the packet was truncated, return 0.
  */
-static __capability const u_int32_t *
-parserep(__capability const struct sunrpc_msg *rp, register u_int length)
+static const u_int32_t *
+parserep(register const struct sunrpc_msg *rp, register u_int length)
 {
-	__capability const u_int32_t *dp;
+	register const u_int32_t *dp;
 	u_int len;
 	enum sunrpc_accept_stat astat;
 
@@ -1092,7 +1094,7 @@ parserep(__capability const struct sunrpc_msg *rp, register u_int length)
 	 * representation.  Instead, we skip past the rp_stat field,
 	 * which is an "enum" and so occupies one 32-bit word.
 	 */
-	dp = ((__capability const u_int32_t *)&rp->rm_reply) + 1;
+	dp = ((const u_int32_t *)&rp->rm_reply) + 1;
 	TCHECK(dp[1]);
 	len = EXTRACT_32BITS(&dp[1]);
 	if (len >= length)
@@ -1144,13 +1146,13 @@ parserep(__capability const struct sunrpc_msg *rp, register u_int length)
 	}
 	/* successful return */
 	TCHECK2(*dp, sizeof(astat));
-	return ((__capability u_int32_t *) (sizeof(astat) + ((packetbody_t)dp)));
+	return ((u_int32_t *) (sizeof(astat) + ((char *)dp)));
 trunc:
 	return (0);
 }
 
-static __capability const u_int32_t *
-parsestatus(__capability const u_int32_t *dp, int *er)
+static const u_int32_t *
+parsestatus(const u_int32_t *dp, int *er)
 {
 	int errnum;
 
@@ -1170,12 +1172,12 @@ trunc:
 	return NULL;
 }
 
-static __capability const u_int32_t *
-parsefattr(__capability const u_int32_t *dp, int verbose, int v3)
+static const u_int32_t *
+parsefattr(const u_int32_t *dp, int verbose, int v3)
 {
-	__capability const struct nfs_fattr *fap;
+	const struct nfs_fattr *fap;
 
-	fap = (__capability const struct nfs_fattr *)dp;
+	fap = (const struct nfs_fattr *)dp;
 	TCHECK(fap->fa_gid);
 	if (verbose) {
 		printf(" %s %o ids %d/%d",
@@ -1187,7 +1189,7 @@ parsefattr(__capability const u_int32_t *dp, int verbose, int v3)
 		if (v3) {
 			TCHECK(fap->fa3_size);
 			printf(" sz %" PRIu64,
-				EXTRACT_64BITS((__capability u_int32_t *)&fap->fa3_size));
+				EXTRACT_64BITS((u_int32_t *)&fap->fa3_size));
 		} else {
 			TCHECK(fap->fa2_size);
 			printf(" sz %d", EXTRACT_32BITS(&fap->fa2_size));
@@ -1202,9 +1204,9 @@ parsefattr(__capability const u_int32_t *dp, int verbose, int v3)
 			       EXTRACT_32BITS(&fap->fa3_rdev.specdata1),
 			       EXTRACT_32BITS(&fap->fa3_rdev.specdata2));
 			printf(" fsid %" PRIx64,
-				EXTRACT_64BITS((__capability u_int32_t *)&fap->fa3_fsid));
+				EXTRACT_64BITS((u_int32_t *)&fap->fa3_fsid));
 			printf(" fileid %" PRIx64,
-				EXTRACT_64BITS((__capability u_int32_t *)&fap->fa3_fileid));
+				EXTRACT_64BITS((u_int32_t *)&fap->fa3_fileid));
 			printf(" a/m/ctime %u.%06u",
 			       EXTRACT_32BITS(&fap->fa3_atime.nfsv3_sec),
 			       EXTRACT_32BITS(&fap->fa3_atime.nfsv3_nsec));
@@ -1232,14 +1234,14 @@ parsefattr(__capability const u_int32_t *dp, int verbose, int v3)
 			       EXTRACT_32BITS(&fap->fa2_ctime.nfsv2_usec));
 		}
 	}
-	return ((__capability const u_int32_t *)((packetbody_t)dp +
+	return ((const u_int32_t *)((unsigned char *)dp +
 		(v3 ? NFSX_V3FATTR : NFSX_V2FATTR)));
 trunc:
 	return (NULL);
 }
 
 static int
-parseattrstat(__capability const u_int32_t *dp, int verbose, int v3)
+parseattrstat(const u_int32_t *dp, int verbose, int v3)
 {
 	int er;
 
@@ -1253,7 +1255,7 @@ parseattrstat(__capability const u_int32_t *dp, int verbose, int v3)
 }
 
 static int
-parsediropres(__capability const u_int32_t *dp)
+parsediropres(const u_int32_t *dp)
 {
 	int er;
 
@@ -1270,7 +1272,7 @@ parsediropres(__capability const u_int32_t *dp)
 }
 
 static int
-parselinkres(__capability const u_int32_t *dp, int v3)
+parselinkres(const u_int32_t *dp, int v3)
 {
 	int er;
 
@@ -1286,9 +1288,9 @@ parselinkres(__capability const u_int32_t *dp, int v3)
 }
 
 static int
-parsestatfs(__capability const u_int32_t *dp, int v3)
+parsestatfs(const u_int32_t *dp, int v3)
 {
-	__capability const struct nfs_statfs *sfsp;
+	const struct nfs_statfs *sfsp;
 	int er;
 
 	dp = parsestatus(dp, &er);
@@ -1309,18 +1311,18 @@ parsestatfs(__capability const u_int32_t *dp, int v3)
 
 	TCHECK2(*dp, (v3 ? NFSX_V3STATFS : NFSX_V2STATFS));
 
-	sfsp = (__capability const struct nfs_statfs *)dp;
+	sfsp = (const struct nfs_statfs *)dp;
 
 	if (v3) {
 		printf(" tbytes %" PRIu64 " fbytes %" PRIu64 " abytes %" PRIu64,
-			EXTRACT_64BITS((__capability u_int32_t *)&sfsp->sf_tbytes),
-			EXTRACT_64BITS((__capability u_int32_t *)&sfsp->sf_fbytes),
-			EXTRACT_64BITS((__capability u_int32_t *)&sfsp->sf_abytes));
+			EXTRACT_64BITS((u_int32_t *)&sfsp->sf_tbytes),
+			EXTRACT_64BITS((u_int32_t *)&sfsp->sf_fbytes),
+			EXTRACT_64BITS((u_int32_t *)&sfsp->sf_abytes));
 		if (vflag) {
 			printf(" tfiles %" PRIu64 " ffiles %" PRIu64 " afiles %" PRIu64 " invar %u",
-			       EXTRACT_64BITS((__capability u_int32_t *)&sfsp->sf_tfiles),
-			       EXTRACT_64BITS((__capability u_int32_t *)&sfsp->sf_ffiles),
-			       EXTRACT_64BITS((__capability u_int32_t *)&sfsp->sf_afiles),
+			       EXTRACT_64BITS((u_int32_t *)&sfsp->sf_tfiles),
+			       EXTRACT_64BITS((u_int32_t *)&sfsp->sf_ffiles),
+			       EXTRACT_64BITS((u_int32_t *)&sfsp->sf_afiles),
 			       EXTRACT_32BITS(&sfsp->sf_invarsec));
 		}
 	} else {
@@ -1338,7 +1340,7 @@ trunc:
 }
 
 static int
-parserddires(__capability const u_int32_t *dp)
+parserddires(const u_int32_t *dp)
 {
 	int er;
 
@@ -1361,8 +1363,8 @@ trunc:
 	return (0);
 }
 
-static __capability const u_int32_t *
-parse_wcc_attr(__capability const u_int32_t *dp)
+static const u_int32_t *
+parse_wcc_attr(const u_int32_t *dp)
 {
 	printf(" sz %" PRIu64, EXTRACT_64BITS(&dp[0]));
 	printf(" mtime %u.%06u ctime %u.%06u",
@@ -1374,8 +1376,8 @@ parse_wcc_attr(__capability const u_int32_t *dp)
 /*
  * Pre operation attributes. Print only if vflag > 1.
  */
-static __capability const u_int32_t *
-parse_pre_op_attr(__capability const u_int32_t *dp, int verbose)
+static const u_int32_t *
+parse_pre_op_attr(const u_int32_t *dp, int verbose)
 {
 	TCHECK(dp[0]);
 	if (!EXTRACT_32BITS(&dp[0]))
@@ -1395,8 +1397,8 @@ trunc:
 /*
  * Post operation attributes are printed if vflag >= 1
  */
-static __capability const u_int32_t *
-parse_post_op_attr(__capability const u_int32_t *dp, int verbose)
+static const u_int32_t *
+parse_post_op_attr(const u_int32_t *dp, int verbose)
 {
 	TCHECK(dp[0]);
 	if (!EXTRACT_32BITS(&dp[0]))
@@ -1410,8 +1412,8 @@ trunc:
 	return (NULL);
 }
 
-static __capability const u_int32_t *
-parse_wcc_data(__capability const u_int32_t *dp, int verbose)
+static const u_int32_t *
+parse_wcc_data(const u_int32_t *dp, int verbose)
 {
 	if (verbose > 1)
 		printf(" PRE:");
@@ -1423,8 +1425,8 @@ parse_wcc_data(__capability const u_int32_t *dp, int verbose)
 	return parse_post_op_attr(dp, verbose);
 }
 
-static __capability const u_int32_t *
-parsecreateopres(__capability const u_int32_t *dp, int verbose)
+static const u_int32_t *
+parsecreateopres(const u_int32_t *dp, int verbose)
 {
 	int er;
 
@@ -1454,7 +1456,7 @@ trunc:
 }
 
 static int
-parsewccres(__capability const u_int32_t *dp, int verbose)
+parsewccres(const u_int32_t *dp, int verbose)
 {
 	int er;
 
@@ -1463,8 +1465,8 @@ parsewccres(__capability const u_int32_t *dp, int verbose)
 	return parse_wcc_data(dp, verbose) != 0;
 }
 
-static __capability const u_int32_t *
-parsev3rddirres(__capability const u_int32_t *dp, int verbose)
+static const u_int32_t *
+parsev3rddirres(const u_int32_t *dp, int verbose)
 {
 	int er;
 
@@ -1487,9 +1489,9 @@ trunc:
 }
 
 static int
-parsefsinfo(__capability const u_int32_t *dp)
+parsefsinfo(const u_int32_t *dp)
 {
-	__capability struct nfsv3_fsinfo *sfp;
+	struct nfsv3_fsinfo *sfp;
 	int er;
 
 	if (!(dp = parsestatus(dp, &er)))
@@ -1501,7 +1503,7 @@ parsefsinfo(__capability const u_int32_t *dp)
 	if (er)
 		return (1);
 
-	sfp = (__capability struct nfsv3_fsinfo *)dp;
+	sfp = (struct nfsv3_fsinfo *)dp;
 	TCHECK(*sfp);
 	printf(" rtmax %u rtpref %u wtmax %u wtpref %u dtpref %u",
 	       EXTRACT_32BITS(&sfp->fs_rtmax),
@@ -1513,7 +1515,7 @@ parsefsinfo(__capability const u_int32_t *dp)
 		printf(" rtmult %u wtmult %u maxfsz %" PRIu64,
 		       EXTRACT_32BITS(&sfp->fs_rtmult),
 		       EXTRACT_32BITS(&sfp->fs_wtmult),
-		       EXTRACT_64BITS((__capability u_int32_t *)&sfp->fs_maxfilesize));
+		       EXTRACT_64BITS((u_int32_t *)&sfp->fs_maxfilesize));
 		printf(" delta %u.%06u ",
 		       EXTRACT_32BITS(&sfp->fs_timedelta.nfsv3_sec),
 		       EXTRACT_32BITS(&sfp->fs_timedelta.nfsv3_nsec));
@@ -1524,10 +1526,10 @@ trunc:
 }
 
 static int
-parsepathconf(__capability const u_int32_t *dp)
+parsepathconf(const u_int32_t *dp)
 {
 	int er;
-	__capability struct nfsv3_pathconf *spp;
+	struct nfsv3_pathconf *spp;
 
 	if (!(dp = parsestatus(dp, &er)))
 		return (0);
@@ -1538,7 +1540,7 @@ parsepathconf(__capability const u_int32_t *dp)
 	if (er)
 		return (1);
 
-	spp = (__capability struct nfsv3_pathconf *)dp;
+	spp = (struct nfsv3_pathconf *)dp;
 	TCHECK(*spp);
 
 	printf(" linkmax %u namemax %u %s %s %s %s",
@@ -1554,9 +1556,9 @@ trunc:
 }
 
 static void
-interp_reply(__capability const struct sunrpc_msg *rp, u_int32_t proc, u_int32_t vers, int length)
+interp_reply(const struct sunrpc_msg *rp, u_int32_t proc, u_int32_t vers, int length)
 {
-	__capability const u_int32_t *dp;
+	register const u_int32_t *dp;
 	register int v3;
 	int er;
 

@@ -149,8 +149,8 @@ static const struct oui_tok oui_to_tok[] = {
  * Returns non-zero IFF it succeeds in printing the header
  */
 int
-llc_print(packetbody_t p, u_int length, u_int caplen,
-	  packetbody_t esrc, packetbody_t edst, u_short *extracted_ethertype)
+llc_print(const u_char *p, u_int length, u_int caplen,
+	  const u_char *esrc, const u_char *edst, u_short *extracted_ethertype)
 {
 	u_int8_t dsap_field, dsap, ssap_field, ssap;
 	u_int16_t control;
@@ -161,7 +161,7 @@ llc_print(packetbody_t p, u_int length, u_int caplen,
 
 	if (caplen < 3) {
 		(void)printf("[|llc]");
-		default_print(p, caplen);
+		default_print((u_char *)p, caplen);
 		return(0);
 	}
 
@@ -187,7 +187,7 @@ llc_print(packetbody_t p, u_int length, u_int caplen,
 		 */
 		if (caplen < 4) {
 			(void)printf("[|llc]");
-			default_print(p, caplen);
+			default_print((u_char *)p, caplen);
 			return(0);
 		}
 
@@ -379,7 +379,7 @@ llc_print(packetbody_t p, u_int length, u_int caplen,
 }
 
 int
-snap_print(packetbody_t p, u_int length, u_int caplen, u_int bridge_pad)
+snap_print(const u_char *p, u_int length, u_int caplen, u_int bridge_pad)
 {
 	u_int32_t orgcode;
 	register u_short et;

@@ -233,13 +233,13 @@ extern cap_channel_t *capdns;
  * also needs to check whether they're present in the packet buffer.
  */
 const char *
-getname(packetbody_t ap)
+getname(const u_char *ap)
 {
 	register struct hostent *hp;
 	u_int32_t addr;
 	static struct hnamemem *p;		/* static for longjmp() */
 
-	p_memcpy_from_packet(&addr, ap, sizeof(addr));
+	memcpy(&addr, ap, sizeof(addr));
 	p = &hnametable[addr & (HASHNAMESIZE-1)];
 	for (; p->nxt; p = p->nxt) {
 		if (p->addr == addr)
@@ -287,7 +287,7 @@ getname(packetbody_t ap)
  * is assumed to be in network byte order.
  */
 const char *
-getname6(packetbody_t ap)
+getname6(const u_char *ap)
 {
 	register struct hostent *hp;
 	struct in6_addr addr;
@@ -295,7 +295,7 @@ getname6(packetbody_t ap)
 	register const char *cp;
 	char ntop_buf[INET6_ADDRSTRLEN];
 
-	p_memcpy_from_packet(&addr, ap, sizeof(addr));
+	memcpy(&addr, ap, sizeof(addr));
 	p = &h6nametable[*(u_int16_t *)&addr.s6_addr[14] & (HASHNAMESIZE-1)];
 	for (; p->nxt; p = p->nxt) {
 		if (memcmp(&p->addr, &addr, sizeof(addr)) == 0)
@@ -340,7 +340,7 @@ static const char hex[] = "0123456789abcdef";
 /* Find the hash node that corresponds the ether address 'ep' */
 
 static inline struct enamemem *
-lookup_emem(__capability const u_char *ep)
+lookup_emem(const u_char *ep)
 {
 	register u_int i, j, k;
 	struct enamemem *tp;
@@ -373,7 +373,7 @@ lookup_emem(__capability const u_char *ep)
  */
 
 static inline struct enamemem *
-lookup_bytestring(__capability const u_char *bs, const unsigned int nlen)
+lookup_bytestring(register const u_char *bs, const unsigned int nlen)
 {
 	struct enamemem *tp;
 	register u_int i, j, k;
@@ -407,12 +407,7 @@ lookup_bytestring(__capability const u_char *bs, const unsigned int nlen)
 	if (tp->e_bs == NULL)
 		error("lookup_bytestring: calloc");
 
-	/*
-	 * XXX-BD: open coded memcpy for portability between CHERI and
-	 * non-CHERI systems.
-	 */
-	for (i = 0; i < nlen; i++)
-		tp->e_bs[i] = bs[i];
+	memcpy(tp->e_bs, bs, nlen);
 	tp->e_nxt = (struct enamemem *)calloc(1, sizeof(*tp));
 	if (tp->e_nxt == NULL)
 		error("lookup_bytestring: calloc");
@@ -423,12 +418,12 @@ lookup_bytestring(__capability const u_char *bs, const unsigned int nlen)
 /* Find the hash node that corresponds the NSAP 'nsap' */
 
 static inline struct enamemem *
-lookup_nsap(packetbody_t nsap)
+lookup_nsap(register const u_char *nsap)
 {
 	register u_int i, j, k;
 	unsigned int nlen = *nsap;
 	struct enamemem *tp;
-	__capability const u_char *ensap = nsap + nlen - 6;
+	const u_char *ensap = nsap + nlen - 6;
 
 	if (nlen > 6) {
 		k = (ensap[0] << 8) | ensap[1];
@@ -492,7 +487,7 @@ lookup_protoid(const u_char *pi)
 }
 
 const char *
-etheraddr_string(__capability const u_char *ep)
+etheraddr_string(register const u_char *ep)
 {
 	register int i;
 	register char *cp;
@@ -539,7 +534,7 @@ etheraddr_string(__capability const u_char *ep)
 }
 
 const char *
-le64addr_string(__capability const u_char *ep)
+le64addr_string(const u_char *ep)
 {
 	const unsigned int len = 8;
 	register u_int i;
@@ -567,7 +562,7 @@ le64addr_string(__capability const u_char *ep)
 }
 
 const char *
-linkaddr_string(__capability const u_char *ep, const unsigned int type, const unsigned int len)
+linkaddr_string(const u_char *ep, const unsigned int type, const unsigned int len)
 {
 	register u_int i;
 	register char *cp;
@@ -655,7 +650,7 @@ protoid_string(register const u_char *pi)
 
 #define ISONSAP_MAX_LENGTH 20
 const char *
-isonsap_string(__capability const u_char *nsap, register u_int nsap_length)
+isonsap_string(const u_char *nsap, register u_int nsap_length)
 {
 	register u_int nsap_idx;
 	register char *cp;
@@ -898,7 +893,7 @@ init_etherarray(void)
 
 	/* Hardwire some ethernet names */
 	for (el = etherlist; el->name != NULL; ++el) {
-		tp = lookup_emem((__capability const u_char *)el->addr);
+		tp = lookup_emem(el->addr);
 		/* Don't override existing name */
 		if (tp->e_name != NULL)
 			continue;

@@ -31,7 +31,7 @@
 #define RESLEN	4
 
 int
-prestlv_print(packetbody_t pptr, register u_int len,
+prestlv_print(register const u_char * pptr, register u_int len,
 	      u_int16_t op_msk _U_, int indent)
 {
 	const struct forces_tlv *tlv = (struct forces_tlv *)pptr;
@@ -68,12 +68,12 @@ trunc:
 }
 
 int
-fdatatlv_print(packetbody_t pptr, register u_int len,
+fdatatlv_print(register const u_char * pptr, register u_int len,
 	       u_int16_t op_msk _U_, int indent)
 {
-	__capability const struct forces_tlv *tlv = (__capability const struct forces_tlv *)pptr;
+	const struct forces_tlv *tlv = (struct forces_tlv *)pptr;
 	u_int rlen;
-	__capability const u_char *tdp = (__capability const u_char *) TLV_DATA(tlv);
+	register const u_char *tdp = (u_char *) TLV_DATA(tlv);
 	u_int16_t type;
 
 	/*
@@ -102,11 +102,11 @@ trunc:
 }
 
 int
-sdatailv_print(packetbody_t pptr, register u_int len,
+sdatailv_print(register const u_char * pptr, register u_int len,
 	       u_int16_t op_msk _U_, int indent)
 {
 	u_int rlen;
-	__capability const struct forces_ilv *ilv = (__capability const struct forces_ilv *)pptr;
+	const struct forces_ilv *ilv = (struct forces_ilv *)pptr;
 	int invilv;
 
 	if (len < ILV_HDRL) {
@@ -117,7 +117,7 @@ sdatailv_print(packetbody_t pptr, register u_int len,
 	indent += 1;
 	while (rlen != 0) {
 		char *ib = indent_pr(indent, 1);
-		__capability const u_char *tdp = (__capability const u_char *) ILV_DATA(ilv);
+		register const u_char *tdp = (u_char *) ILV_DATA(ilv);
 		TCHECK(*ilv);
 		invilv = ilv_valid(ilv, rlen);
 		if (invilv) {
@@ -144,12 +144,12 @@ trunc:
 }
 
 int
-sdatatlv_print(packetbody_t pptr, register u_int len,
+sdatatlv_print(register const u_char * pptr, register u_int len,
 	       u_int16_t op_msk, int indent)
 {
-	__capability const struct forces_tlv *tlv = (__capability const struct forces_tlv *)pptr;
+	const struct forces_tlv *tlv = (struct forces_tlv *)pptr;
 	u_int rlen;
-	__capability const u_char *tdp = (__capability const u_char *) TLV_DATA(tlv);
+	register const u_char *tdp = (u_char *) TLV_DATA(tlv);
 	u_int16_t type;
 
 	/*
@@ -172,13 +172,13 @@ trunc:
 }
 
 int
-pkeyitlv_print(packetbody_t pptr, register u_int len,
+pkeyitlv_print(register const u_char * pptr, register u_int len,
 	       u_int16_t op_msk, int indent)
 {
-	__capability const struct forces_tlv *tlv = (__capability const struct forces_tlv *)pptr;
-	__capability const u_char *tdp = (__capability const u_char *) TLV_DATA(tlv);
-	__capability const u_char *dp = tdp + 4;
-	__capability const struct forces_tlv *kdtlv = (__capability const struct forces_tlv *)dp;
+	const struct forces_tlv *tlv = (struct forces_tlv *)pptr;
+	register const u_char *tdp = (u_char *) TLV_DATA(tlv);
+	register const u_char *dp = tdp + 4;
+	const struct forces_tlv *kdtlv = (struct forces_tlv *)dp;
 	u_int32_t id;
 	char *ib = indent_pr(indent, 0);
 	u_int16_t type, tll;
@@ -203,7 +203,7 @@ pkeyitlv_print(packetbody_t pptr, register u_int len,
 	 * go past the end of the containing TLV).
 	 */
 	tll = EXTRACT_16BITS(&kdtlv->length);
-	dp = (__capability const u_char *) TLV_DATA(kdtlv);
+	dp = (u_char *) TLV_DATA(kdtlv);
 	return fdatatlv_print(dp, tll, op_msk, indent);
 
 trunc:
@@ -212,7 +212,7 @@ trunc:
 }
 
 int
-pdatacnt_print(packetbody_t pptr, register u_int len,
+pdatacnt_print(register const u_char * pptr, register u_int len,
 	       u_int16_t IDcnt, u_int16_t op_msk, int indent)
 {
 	u_int i;
@@ -230,7 +230,7 @@ pdatacnt_print(packetbody_t pptr, register u_int len,
 		pptr += 4;
 	}
 	if (len) {
-		__capability const struct forces_tlv *pdtlv = (__capability const struct forces_tlv *)pptr;
+		const struct forces_tlv *pdtlv = (struct forces_tlv *)pptr;
 		u_int16_t type;
 		u_int16_t tll;
 		int pad = 0;
@@ -281,7 +281,7 @@ pdatacnt_print(packetbody_t pptr, register u_int len,
 
 			chk_op_type(type, op_msk, ops->op_msk);
 
-			if (ops->print((packetbody_t)pdtlv,
+			if (ops->print((const u_char *)pdtlv,
 					tll + pad + TLV_HDRL, op_msk,
 					indent + 2) == -1)
 				return -1;
@@ -307,10 +307,10 @@ trunc:
 }
 
 int
-pdata_print(packetbody_t pptr, register u_int len,
+pdata_print(register const u_char * pptr, register u_int len,
 	    u_int16_t op_msk, int indent)
 {
-	__capability const struct pathdata_h *pdh = (__capability const struct pathdata_h *)pptr;
+	const struct pathdata_h *pdh = (struct pathdata_h *)pptr;
 	char *ib = indent_pr(indent, 0);
 	u_int minsize = 0;
 	int more_pd = 0;
@@ -354,10 +354,10 @@ trunc:
 }
 
 int
-genoptlv_print(packetbody_t pptr, register u_int len,
+genoptlv_print(register const u_char * pptr, register u_int len,
 	       u_int16_t op_msk, int indent)
 {
-	__capability const struct forces_tlv *pdtlv = (__capability const struct forces_tlv *)pptr;
+	const struct forces_tlv *pdtlv = (struct forces_tlv *)pptr;
 	u_int16_t type;
 	int tll;
 	int invtlv;
@@ -375,7 +375,7 @@ genoptlv_print(packetbody_t pptr, register u_int len,
 		 * length is large enough but not too large (it doesn't
 		 * go past the end of the containing TLV).
 		 */
-		__capability const u_char *dp = (__capability const u_char *) TLV_DATA(pdtlv);
+		register const u_char *dp = (u_char *) TLV_DATA(pdtlv);
 		if (!ttlv_valid(type)) {
 			printf("%s TLV type 0x%x len %d\n",
 			       tok2str(ForCES_TLV_err, NULL, invtlv), type,
@@ -399,14 +399,14 @@ trunc:
 }
 
 int
-recpdoptlv_print(packetbody_t pptr, register u_int len,
+recpdoptlv_print(register const u_char * pptr, register u_int len,
 		 u_int16_t op_msk, int indent)
 {
-	__capability const struct forces_tlv *pdtlv = (__capability const struct forces_tlv *)pptr;
+	const struct forces_tlv *pdtlv = (struct forces_tlv *)pptr;
 	int tll;
 	int invtlv;
 	u_int16_t type;
-	__capability const u_char *dp;
+	register const u_char *dp;
 	char *ib;
 
 	while (len != 0) {
@@ -423,7 +423,7 @@ recpdoptlv_print(packetbody_t pptr, register u_int len,
 		 */
 		ib = indent_pr(indent, 0);
 		type = EXTRACT_16BITS(&pdtlv->type);
-		dp = (__capability const u_char *) TLV_DATA(pdtlv);
+		dp = (u_char *) TLV_DATA(pdtlv);
 		tll = EXTRACT_16BITS(&pdtlv->length) - TLV_HDRL;
 
 		if (vflag >= 3)
@@ -453,7 +453,7 @@ trunc:
 }
 
 int
-invoptlv_print(packetbody_t pptr, register u_int len,
+invoptlv_print(register const u_char * pptr, register u_int len,
 	       u_int16_t op_msk _U_, int indent)
 {
 	char *ib = indent_pr(indent, 1);
@@ -466,10 +466,10 @@ invoptlv_print(packetbody_t pptr, register u_int len,
 	return -1;
 }
 
-int otlv_print(__capability const struct forces_tlv *otlv, u_int16_t op_msk _U_, int indent)
+int otlv_print(const struct forces_tlv *otlv, u_int16_t op_msk _U_, int indent)
 {
 	int rc = 0;
-	__capability const u_char *dp = (__capability const u_char *) TLV_DATA(otlv);
+	register const u_char *dp = (u_char *) TLV_DATA(otlv);
 	u_int16_t type;
 	int tll;
 	char *ib = indent_pr(indent, 0);
@@ -514,7 +514,7 @@ trunc:
 #define ASTDLN	4
 #define ASTMCD	255
 int
-asttlv_print(packetbody_t pptr, register u_int len,
+asttlv_print(register const u_char * pptr, register u_int len,
 	     u_int16_t op_msk _U_, int indent)
 {
 	u_int32_t rescode;
@@ -571,7 +571,7 @@ trunc:
 #define ASRDLN	4
 #define ASRMCD	3
 int
-asrtlv_print(packetbody_t pptr, register u_int len,
+asrtlv_print(register const u_char * pptr, register u_int len,
 	     u_int16_t op_msk _U_, int indent)
 {
 	u_int32_t rescode;
@@ -624,7 +624,7 @@ trunc:
  * XXX - not used.
  */
 int
-gentltlv_print(packetbody_t pptr _U_, register u_int len,
+gentltlv_print(register const u_char * pptr _U_, register u_int len,
 	       u_int16_t op_msk _U_, int indent _U_)
 {
 	u_int dlen = len - TLV_HDRL;
@@ -638,14 +638,14 @@ gentltlv_print(packetbody_t pptr _U_, register u_int len,
 
 #define RD_MIN 8
 int
-print_metailv(packetbody_t pptr, register u_int len,
+print_metailv(register const u_char * pptr, register u_int len,
 	      u_int16_t op_msk _U_, int indent)
 {
 	u_int dlen;
 	u_int rlen;
 	char *ib = indent_pr(indent, 0);
 	/* XXX: check header length */
-	__capability const struct forces_ilv *ilv = (__capability const struct forces_ilv *)pptr;
+	const struct forces_ilv *ilv = (struct forces_ilv *)pptr;
 
 	/*
 	 * print_metatlv() has ensured that len (what remains in the
@@ -665,13 +665,13 @@ trunc:
 }
 
 int
-print_metatlv(packetbody_t pptr, register u_int len,
+print_metatlv(register const u_char * pptr, register u_int len,
 	      u_int16_t op_msk _U_, int indent)
 {
 	u_int dlen;
 	char *ib = indent_pr(indent, 0);
 	u_int rlen;
-	__capability const struct forces_ilv *ilv = (__capability const struct forces_ilv *)pptr;
+	const struct forces_ilv *ilv = (struct forces_ilv *)pptr;
 	int invilv;
 
 	/*
@@ -692,7 +692,7 @@ print_metatlv(packetbody_t pptr, register u_int len,
 		 * length is large enough but not too large (it doesn't
 		 * go past the end of the containing TLV).
 		 */
-		print_metailv((__capability const u_char *) ilv, rlen, 0, indent + 1);
+		print_metailv((u_char *) ilv, rlen, 0, indent + 1);
 
 		ilv = GO_NXT_ILV(ilv, rlen);
 	}
@@ -707,13 +707,13 @@ trunc:
 /*
 */
 int
-print_reddata(packetbody_t pptr, register u_int len,
+print_reddata(register const u_char * pptr, register u_int len,
 	      u_int16_t op_msk _U_, int indent _U_)
 {
 	u_int dlen;
 	u_int rlen;
 	int invtlv;
-	__capability const struct forces_tlv *tlv = (__capability const struct forces_tlv *)pptr;
+	const struct forces_tlv *tlv = (struct forces_tlv *)pptr;
 
 	/*
 	 * redirect_print() has ensured that len (what remains in the
@@ -752,10 +752,10 @@ trunc:
 }
 
 int
-redirect_print(packetbody_t pptr, register u_int len,
+redirect_print(register const u_char * pptr, register u_int len,
 	       u_int16_t op_msk _U_, int indent)
 {
-	__capability const struct forces_tlv *tlv = (__capability const struct forces_tlv *)pptr;
+	const struct forces_tlv *tlv = (struct forces_tlv *)pptr;
 	u_int dlen;
 	u_int rlen;
 	int invtlv;
@@ -785,9 +785,9 @@ redirect_print(packetbody_t pptr, register u_int len,
 		 * go past the end of the containing TLV).
 		 */
 		if (EXTRACT_16BITS(&tlv->type) == F_TLV_METD) {
-			print_metatlv((__capability const u_char *) TLV_DATA(tlv), rlen, 0, indent);
+			print_metatlv((u_char *) TLV_DATA(tlv), rlen, 0, indent);
 		} else if ((EXTRACT_16BITS(&tlv->type) == F_TLV_REDD)) {
-			print_reddata((__capability const u_char *) TLV_DATA(tlv), rlen, 0, indent);
+			print_reddata((u_char *) TLV_DATA(tlv), rlen, 0, indent);
 		} else {
 			printf("Unknown REDIRECT TLV 0x%x len %d\n",
 			       EXTRACT_16BITS(&tlv->type), EXTRACT_16BITS(&tlv->length));
@@ -814,11 +814,11 @@ trunc:
 #define OP_MIN 12
 
 int
-lfbselect_print(packetbody_t pptr, register u_int len,
+lfbselect_print(register const u_char * pptr, register u_int len,
 		u_int16_t op_msk, int indent)
 {
-	__capability const struct forces_lfbsh *lfbs;
-	__capability const struct forces_tlv *otlv;
+	const struct forces_lfbsh *lfbs;
+	const struct forces_tlv *otlv;
 	char *ib = indent_pr(indent, 0);
 	u_int dlen;
 	u_int rlen;
@@ -841,7 +841,7 @@ lfbselect_print(packetbody_t pptr, register u_int len,
 	 */
 	rlen = dlen - OP_OFF;
 
-	lfbs = (__capability const struct forces_lfbsh *)pptr;
+	lfbs = (const struct forces_lfbsh *)pptr;
 	TCHECK(*lfbs);
 	if (vflag >= 3) {
 		printf("\n%s%s(Classid %x) instance %x\n",
@@ -850,7 +850,7 @@ lfbselect_print(packetbody_t pptr, register u_int len,
 		       EXTRACT_32BITS(&lfbs->instance));
 	}
 
-	otlv = (__capability struct forces_tlv *)(lfbs + 1);
+	otlv = (struct forces_tlv *)(lfbs + 1);
 
 	indent += 1;
 	while (rlen != 0) {
@@ -872,7 +872,7 @@ lfbselect_print(packetbody_t pptr, register u_int len,
 			printf
 			    ("\t\tINValid oper-TLV type 0x%x length %d for this ForCES message\n",
 			     EXTRACT_16BITS(&otlv->type), EXTRACT_16BITS(&otlv->length));
-			invoptlv_print((__capability const u_char *)otlv, rlen, 0, indent);
+			invoptlv_print((u_char *)otlv, rlen, 0, indent);
 		}
 		otlv = GO_NXT_TLV(otlv, rlen);
 	}
@@ -892,10 +892,10 @@ trunc:
 }
 
 int
-forces_type_print(packetbody_t pptr, __capability const struct forcesh *fhdr _U_,
+forces_type_print(register const u_char * pptr, const struct forcesh *fhdr _U_,
 		  register u_int mlen, const struct tom_h *tops)
 {
-	__capability const struct forces_tlv *tltlv;
+	const struct forces_tlv *tltlv;
 	u_int rlen;
 	int invtlv;
 	int rc = 0;
@@ -953,7 +953,7 @@ forces_type_print(packetbody_t pptr, __capability const struct forcesh *fhdr _U_
 			       EXTRACT_16BITS(&tltlv->length),
 			       EXTRACT_16BITS(&tltlv->length) - TLV_HDRL);
 
-		rc = tops->print((__capability const u_char *) TLV_DATA(tltlv),
+		rc = tops->print((u_char *) TLV_DATA(tltlv),
 				 EXTRACT_16BITS(&tltlv->length), tops->op_msk, 9);
 		if (rc < 0) {
 			return -1;
@@ -981,7 +981,7 @@ trunc:
 }
 
 void
-forces_print(packetbody_t pptr, register u_int len)
+forces_print(const u_char *pptr, register u_int len)
 {
 	if (!invoke_dissector((void *)_forces_print,
 	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -989,15 +989,15 @@ forces_print(packetbody_t pptr, register u_int len)
 }
 
 void
-_forces_print(packetbody_t pptr, register u_int len)
+_forces_print(const u_char *pptr, register u_int len)
 {
-	__capability const struct forcesh *fhdr;
+	const struct forcesh *fhdr;
 	u_int mlen;
 	u_int32_t flg_raw;
 	const struct tom_h *tops;
 	int rc = 0;
 
-	fhdr = (__capability const struct forcesh *)pptr;
+	fhdr = (const struct forcesh *)pptr;
 	TCHECK(*fhdr);
 	if (!tom_valid(fhdr->fm_tom)) {
 		printf("Invalid ForCES message type %d\n", fhdr->fm_tom);

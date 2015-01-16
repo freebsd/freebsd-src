@@ -41,13 +41,13 @@ static const char rcsid[] _U_ =
 #include "extract.h"
 
 int
-frag6_print(packetbody_t bp, packetbody_t bp2)
+frag6_print(register const u_char *bp, register const u_char *bp2)
 {
-	__capability const struct ip6_frag *dp;
-	__capability const struct ip6_hdr *ip6;
+	register const struct ip6_frag *dp;
+	register const struct ip6_hdr *ip6;
 
-	dp = (__capability const struct ip6_frag *)bp;
-	ip6 = (__capability const struct ip6_hdr *)bp2;
+	dp = (const struct ip6_frag *)bp;
+	ip6 = (const struct ip6_hdr *)bp2;
 
 	TCHECK(dp->ip6f_offlg);
 

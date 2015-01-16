@@ -61,7 +61,7 @@ static const struct tok lecop2str[] = {
 };
 
 static void
-lane_hdr_print(netdissect_options *ndo, packetbody_t bp)
+lane_hdr_print(netdissect_options *ndo, const u_char *bp)
 {
 	(void)ND_PRINT((ndo, "lecid:%x ", EXTRACT_16BITS(bp)));
 }
@@ -75,7 +75,7 @@ lane_hdr_print(netdissect_options *ndo, packetbody_t bp)
  * This assumes 802.3, not 802.5, LAN emulation.
  */
 void
-lane_print(packetbody_t p, u_int length, u_int caplen)
+lane_print(const u_char *p, u_int length, u_int caplen)
 {
 	if (!invoke_dissector((void *)_lane_print,
 	    length, caplen, 0, 0, 0, gndo, p, NULL, NULL, NULL))
@@ -83,16 +83,16 @@ lane_print(packetbody_t p, u_int length, u_int caplen)
 }
 
 void
-_lane_print(packetbody_t p, u_int length, u_int caplen)
+_lane_print(const u_char *p, u_int length, u_int caplen)
 {
-	__capability struct lane_controlhdr *lec;
+	struct lane_controlhdr *lec;
 
 	if (caplen < sizeof(struct lane_controlhdr)) {
 		printf("[|lane]");
 		return;
 	}
 
-	lec = (__capability struct lane_controlhdr *)p;
+	lec = (struct lane_controlhdr *)p;
 	if (EXTRACT_16BITS(&lec->lec_header) == 0xff00) {
 		/*
 		 * LE Control.
@@ -118,7 +118,7 @@ _lane_print(packetbody_t p, u_int length, u_int caplen)
 }
 
 u_int
-lane_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+lane_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	lane_print(p, h->len, h->caplen);
 

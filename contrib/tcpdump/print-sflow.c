@@ -304,15 +304,15 @@ struct sflow_vlan_counter_t {
 };
 
 static int
-print_sflow_counter_generic(packetbody_t pointer, u_int len) {
+print_sflow_counter_generic(const u_char *pointer, u_int len) {
 
-    __capability const struct sflow_generic_counter_t *sflow_gen_counter;
+    const struct sflow_generic_counter_t *sflow_gen_counter;
 
     if (len < sizeof(struct sflow_generic_counter_t))
 	return 1;
 
 
-    sflow_gen_counter = (__capability const struct sflow_generic_counter_t *)pointer;
+    sflow_gen_counter = (const struct sflow_generic_counter_t *)pointer;
     printf("\n\t      ifindex %u, iftype %u, ifspeed %" PRIu64 ", ifdirection %u (%s)",
 	   EXTRACT_32BITS(sflow_gen_counter->ifindex),
 	   EXTRACT_32BITS(sflow_gen_counter->iftype),
@@ -349,14 +349,14 @@ print_sflow_counter_generic(packetbody_t pointer, u_int len) {
 }
 
 static int
-print_sflow_counter_ethernet(packetbody_t pointer, u_int len){
+print_sflow_counter_ethernet(const u_char *pointer, u_int len){
 
-    __capability const struct sflow_ethernet_counter_t *sflow_eth_counter;
+    const struct sflow_ethernet_counter_t *sflow_eth_counter;
 
     if (len < sizeof(struct sflow_ethernet_counter_t))
 	return 1;
 
-    sflow_eth_counter = (__capability const struct sflow_ethernet_counter_t *)pointer;
+    sflow_eth_counter = (const struct sflow_ethernet_counter_t *)pointer;
     printf("\n\t      align errors %u, fcs errors %u, single collision %u, multiple collision %u, test error %u",
 	   EXTRACT_32BITS(sflow_eth_counter->alignerrors),
 	   EXTRACT_32BITS(sflow_eth_counter->fcserrors),
@@ -378,20 +378,20 @@ print_sflow_counter_ethernet(packetbody_t pointer, u_int len){
 }
 
 static int
-print_sflow_counter_token_ring(packetbody_t pointer _U_, u_int len _U_) {
+print_sflow_counter_token_ring(const u_char *pointer _U_, u_int len _U_) {
 
     return 0;
 }
 
 static int
-print_sflow_counter_basevg(packetbody_t pointer, u_int len) {
+print_sflow_counter_basevg(const u_char *pointer, u_int len) {
 
-    __capability const struct sflow_100basevg_counter_t *sflow_100basevg_counter;
+    const struct sflow_100basevg_counter_t *sflow_100basevg_counter;
 
     if (len < sizeof(struct sflow_100basevg_counter_t))
 	return 1;
 
-    sflow_100basevg_counter = (__capability const struct sflow_100basevg_counter_t *)pointer;
+    sflow_100basevg_counter = (const struct sflow_100basevg_counter_t *)pointer;
     printf("\n\t      in high prio frames %u, in high prio octets %" PRIu64,
 	   EXTRACT_32BITS(sflow_100basevg_counter->in_highpriority_frames),
 	   EXTRACT_64BITS(sflow_100basevg_counter->in_highpriority_octets));
@@ -419,14 +419,14 @@ print_sflow_counter_basevg(packetbody_t pointer, u_int len) {
 }
 
 static int
-print_sflow_counter_vlan(packetbody_t pointer, u_int len) {
+print_sflow_counter_vlan(const u_char *pointer, u_int len) {
 
-    __capability const struct sflow_vlan_counter_t *sflow_vlan_counter;
+    const struct sflow_vlan_counter_t *sflow_vlan_counter;
     
     if (len < sizeof(struct sflow_vlan_counter_t))
 	return 1;
 
-    sflow_vlan_counter = (__capability const struct sflow_vlan_counter_t *)pointer;
+    sflow_vlan_counter = (const struct sflow_vlan_counter_t *)pointer;
     printf("\n\t      vlan_id %u, octets %" PRIu64
 	   ", unicast_pkt %u, multicast_pkt %u, broadcast_pkt %u, discards %u",
 	   EXTRACT_32BITS(sflow_vlan_counter->vlan_id),
@@ -448,14 +448,14 @@ struct sflow_processor_counter_t {
 };
 
 static int
-print_sflow_counter_processor(packetbody_t pointer, u_int len) {
+print_sflow_counter_processor(const u_char *pointer, u_int len) {
 
-    __capability const struct sflow_processor_counter_t *sflow_processor_counter;
+    const struct sflow_processor_counter_t *sflow_processor_counter;
 
     if (len < sizeof(struct sflow_processor_counter_t))
 	return 1;
 
-    sflow_processor_counter = (__capability const struct sflow_processor_counter_t *)pointer;
+    sflow_processor_counter = (const struct sflow_processor_counter_t *)pointer;
     printf("\n\t      5sec %u, 1min %u, 5min %u, total_mem %" PRIu64
 	   ", total_mem %" PRIu64,
 	   EXTRACT_32BITS(sflow_processor_counter->five_sec_util),
@@ -468,15 +468,15 @@ print_sflow_counter_processor(packetbody_t pointer, u_int len) {
 }
 
 static int
-sflow_print_counter_records(packetbody_t pointer, u_int len, u_int records) {
+sflow_print_counter_records(const u_char *pointer, u_int len, u_int records) {
 
     u_int nrecords;
-    packetbody_t tptr;
+    const u_char *tptr;
     u_int tlen;
     u_int counter_type;
     u_int counter_len;
     u_int enterprise;
-    __capability const struct sflow_counter_record_t *sflow_counter_record;
+    const struct sflow_counter_record_t *sflow_counter_record;
 
     nrecords = records;
     tptr = pointer;
@@ -486,7 +486,7 @@ sflow_print_counter_records(packetbody_t pointer, u_int len, u_int records) {
 	/* do we have the "header?" */
 	if (tlen < sizeof(struct sflow_counter_record_t))
 	    return 1;
-	sflow_counter_record = (__capability const struct sflow_counter_record_t *)tptr;
+	sflow_counter_record = (const struct sflow_counter_record_t *)tptr;
 
 	enterprise = EXTRACT_32BITS(sflow_counter_record->format);
 	counter_type = enterprise & 0x0FFF;
@@ -546,9 +546,9 @@ sflow_print_counter_records(packetbody_t pointer, u_int len, u_int records) {
 
 
 static int
-sflow_print_counter_sample(packetbody_t pointer, u_int len) {
+sflow_print_counter_sample(const u_char *pointer, u_int len) {
 
-    __capability const struct sflow_counter_sample_t *sflow_counter_sample;
+    const struct sflow_counter_sample_t *sflow_counter_sample;
     u_int           nrecords;
     u_int           typesource;
     u_int           type;
@@ -558,7 +558,7 @@ sflow_print_counter_sample(packetbody_t pointer, u_int len) {
     if (len < sizeof(struct sflow_counter_sample_t))
 	return 1;
 
-    sflow_counter_sample = (__capability const struct sflow_counter_sample_t *)pointer;
+    sflow_counter_sample = (const struct sflow_counter_sample_t *)pointer;
 
     typesource = EXTRACT_32BITS(sflow_counter_sample->typesource);
     nrecords   = EXTRACT_32BITS(sflow_counter_sample->records);
@@ -578,16 +578,16 @@ sflow_print_counter_sample(packetbody_t pointer, u_int len) {
 }
 
 static int
-sflow_print_expanded_counter_sample(packetbody_t pointer, u_int len) {
+sflow_print_expanded_counter_sample(const u_char *pointer, u_int len) {
 
-    __capability const struct sflow_expanded_counter_sample_t *sflow_expanded_counter_sample;
+    const struct sflow_expanded_counter_sample_t *sflow_expanded_counter_sample;
     u_int           nrecords;
 
 
     if (len < sizeof(struct sflow_expanded_counter_sample_t))
 	return 1;
 
-    sflow_expanded_counter_sample = (__capability const struct sflow_expanded_counter_sample_t *)pointer;
+    sflow_expanded_counter_sample = (const struct sflow_expanded_counter_sample_t *)pointer;
 
     nrecords = EXTRACT_32BITS(sflow_expanded_counter_sample->records);
 
@@ -604,14 +604,14 @@ sflow_print_expanded_counter_sample(packetbody_t pointer, u_int len) {
 }
 
 static int
-print_sflow_raw_packet(packetbody_t pointer, u_int len) {
+print_sflow_raw_packet(const u_char *pointer, u_int len) {
 
-    __capability const struct sflow_expanded_flow_raw_t *sflow_flow_raw;
+    const struct sflow_expanded_flow_raw_t *sflow_flow_raw;
 
     if (len < sizeof(struct sflow_expanded_flow_raw_t))
 	return 1;
 
-    sflow_flow_raw = (__capability const struct sflow_expanded_flow_raw_t *)pointer;
+    sflow_flow_raw = (const struct sflow_expanded_flow_raw_t *)pointer;
     printf("\n\t      protocol %s (%u), length %u, stripped bytes %u, header_size %u",
 	   tok2str(sflow_flow_raw_protocol_values,"Unknown",EXTRACT_32BITS(sflow_flow_raw->protocol)),
 	   EXTRACT_32BITS(sflow_flow_raw->protocol),
@@ -626,14 +626,14 @@ print_sflow_raw_packet(packetbody_t pointer, u_int len) {
 }
 
 static int
-print_sflow_ethernet_frame(packetbody_t pointer, u_int len) {
+print_sflow_ethernet_frame(const u_char *pointer, u_int len) {
 
-    __capability const struct sflow_ethernet_frame_t *sflow_ethernet_frame;
+    const struct sflow_ethernet_frame_t *sflow_ethernet_frame;
 
     if (len < sizeof(struct sflow_ethernet_frame_t))
 	return 1;
 
-    sflow_ethernet_frame = (__capability const struct sflow_ethernet_frame_t *)pointer;
+    sflow_ethernet_frame = (const struct sflow_ethernet_frame_t *)pointer;
 
     printf("\n\t      frame len %u, type %u",
 	   EXTRACT_32BITS(sflow_ethernet_frame->length),
@@ -643,14 +643,14 @@ print_sflow_ethernet_frame(packetbody_t pointer, u_int len) {
 }
 
 static int
-print_sflow_extended_switch_data(packetbody_t pointer, u_int len) {
+print_sflow_extended_switch_data(const u_char *pointer, u_int len) {
 
-    __capability const struct sflow_extended_switch_data_t *sflow_extended_sw_data;
+    const struct sflow_extended_switch_data_t *sflow_extended_sw_data;
 
     if (len < sizeof(struct sflow_extended_switch_data_t))
 	return 1;
 
-    sflow_extended_sw_data = (__capability const struct sflow_extended_switch_data_t *)pointer;
+    sflow_extended_sw_data = (const struct sflow_extended_switch_data_t *)pointer;
     printf("\n\t      src vlan %u, src pri %u, dst vlan %u, dst pri %u",
 	   EXTRACT_32BITS(sflow_extended_sw_data->src_vlan),
 	   EXTRACT_32BITS(sflow_extended_sw_data->src_pri),
@@ -661,15 +661,15 @@ print_sflow_extended_switch_data(packetbody_t pointer, u_int len) {
 }
 
 static int
-sflow_print_flow_records(packetbody_t pointer, u_int len, u_int records) {
+sflow_print_flow_records(const u_char *pointer, u_int len, u_int records) {
 
     u_int nrecords;
-    packetbody_t tptr;
+    const u_char *tptr;
     u_int tlen;
     u_int flow_type;
     u_int enterprise;
     u_int flow_len;
-    __capability const struct sflow_flow_record_t *sflow_flow_record;
+    const struct sflow_flow_record_t *sflow_flow_record;
 
     nrecords = records;
     tptr = pointer;
@@ -680,7 +680,7 @@ sflow_print_flow_records(packetbody_t pointer, u_int len, u_int records) {
 	if (tlen < sizeof(struct sflow_flow_record_t))
 	    return 1;
 
-	sflow_flow_record = (__capability const struct sflow_flow_record_t *)tptr;
+	sflow_flow_record = (const struct sflow_flow_record_t *)tptr;
 
 	/* so, the funky encoding means we cannot blythly mask-off
 	   bits, we must also check the enterprise. */
@@ -746,9 +746,9 @@ sflow_print_flow_records(packetbody_t pointer, u_int len, u_int records) {
 }
 
 static int
-sflow_print_flow_sample(packetbody_t pointer, u_int len) {
+sflow_print_flow_sample(const u_char *pointer, u_int len) {
 
-    __capability const struct sflow_flow_sample_t *sflow_flow_sample;
+    const struct sflow_flow_sample_t *sflow_flow_sample;
     u_int          nrecords;
     u_int          typesource;
     u_int          type;
@@ -757,7 +757,7 @@ sflow_print_flow_sample(packetbody_t pointer, u_int len) {
     if (len < sizeof(struct sflow_flow_sample_t))
 	return 1;
 
-    sflow_flow_sample = (__capability struct sflow_flow_sample_t *)pointer;
+    sflow_flow_sample = (struct sflow_flow_sample_t *)pointer;
 
     typesource = EXTRACT_32BITS(sflow_flow_sample->typesource);
     nrecords = EXTRACT_32BITS(sflow_flow_sample->records);
@@ -782,15 +782,15 @@ sflow_print_flow_sample(packetbody_t pointer, u_int len) {
 }
 
 static int
-sflow_print_expanded_flow_sample(packetbody_t pointer, u_int len) {
+sflow_print_expanded_flow_sample(const u_char *pointer, u_int len) {
 
-    __capability const struct sflow_expanded_flow_sample_t *sflow_expanded_flow_sample;
+    const struct sflow_expanded_flow_sample_t *sflow_expanded_flow_sample;
     u_int nrecords;
 
     if (len < sizeof(struct sflow_expanded_flow_sample_t))
 	return 1;
 
-    sflow_expanded_flow_sample = (__capability const struct sflow_expanded_flow_sample_t *)pointer;
+    sflow_expanded_flow_sample = (const struct sflow_expanded_flow_sample_t *)pointer;
 
     nrecords = EXTRACT_32BITS(sflow_expanded_flow_sample->records);
 
@@ -810,7 +810,7 @@ sflow_print_expanded_flow_sample(packetbody_t pointer, u_int len) {
 }
 
 void
-sflow_print(packetbody_t pptr, u_int len)
+sflow_print(const u_char *pptr, u_int len)
 {
 	if (!invoke_dissector((void *)_sflow_print,
 	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -818,12 +818,12 @@ sflow_print(packetbody_t pptr, u_int len)
 }
 
 void
-_sflow_print(packetbody_t pptr, u_int len)
+_sflow_print(const u_char *pptr, u_int len)
 {
-    __capability const struct sflow_datagram_t *sflow_datagram;
-    __capability const struct sflow_sample_header *sflow_sample;
+    const struct sflow_datagram_t *sflow_datagram;
+    const struct sflow_sample_header *sflow_sample;
 
-    packetbody_t tptr;
+    const u_char *tptr;
     u_int tlen;
     u_int32_t sflow_sample_type, sflow_sample_len;
     u_int32_t nsamples;
@@ -831,7 +831,7 @@ _sflow_print(packetbody_t pptr, u_int len)
 
     tptr = pptr;
     tlen = len;
-    sflow_datagram = (__capability const struct sflow_datagram_t *)pptr;
+    sflow_datagram = (const struct sflow_datagram_t *)pptr;
     TCHECK(*sflow_datagram);
 
     /*
@@ -870,7 +870,7 @@ _sflow_print(packetbody_t pptr, u_int len)
     tlen -= sizeof(const struct sflow_datagram_t);
 
     while (nsamples > 0 && tlen > 0) {
-        sflow_sample = (__capability const struct sflow_sample_header *)tptr;
+        sflow_sample = (const struct sflow_sample_header *)tptr;
         TCHECK(*sflow_sample);
 
         sflow_sample_type = (EXTRACT_32BITS(sflow_sample->format)&0x0FFF);

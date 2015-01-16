@@ -91,7 +91,7 @@ extract_header_length(u_int16_t fc)
 
 u_int
 ieee802_15_4_if_print(struct netdissect_options *ndo,
-                      const struct pcap_pkthdr *h, packetbody_t p)
+                      const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int caplen = h->caplen;
 	int hdrlen;

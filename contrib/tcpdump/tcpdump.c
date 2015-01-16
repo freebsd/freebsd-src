@@ -105,11 +105,15 @@ extern int SIZE_BUF;
 #include "pcap-missing.h"
 #include "print.h"
 
-
 #if __has_feature(capabilities)
+#include <machine/cheri.h>
+#include <machine/cheric.h>
+#include <machine/cherireg.h>
 #define cheri_string(str)	cheri_ptr((str), strlen(str) + 1)
 #else
+#define	cheri_ptrperm(ptr, len, perm)	(ptr);
 #define cheri_string(str)	(str)
+#define __capability
 #endif
 
 #ifndef PATH_MAX
@@ -1844,7 +1848,7 @@ static void
 print_packet(u_char *user, const struct pcap_pkthdr *h, const u_char *sp)
 {
 	struct print_info *print_info;
-	packetbody_t p;
+	__capability const u_char * p;
 
 	++packets_captured;
 

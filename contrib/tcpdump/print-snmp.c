@@ -67,7 +67,6 @@ static const char rcsid[] _U_ =
 
 #include <tcpdump-stdinc.h>
 
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -329,10 +328,10 @@ struct obj_abrev {
 struct be {
 	u_int32_t asnlen;
 	union {
-		packetbody_t raw;
+		const void *raw;
 		int32_t integer;
 		u_int32_t uns;
-		packetbody_t str;
+		const u_char *str;
 	        struct {
 		        u_int32_t high;
 		        u_int32_t low;
@@ -404,7 +403,7 @@ const char *SnmpVersion[] = {
  * O/w, this returns the number of bytes parsed from "p".
  */
 static int
-asn1_parse(packetbody_t p, u_int len, struct be *elem)
+asn1_parse(register const u_char *p, u_int len, struct be *elem)
 {
 	u_char form, class, id;
 	int i, hdr;
@@ -666,7 +665,7 @@ trunc:
 static int
 asn1_print(struct be *elem)
 {
-	packetbody_t p = elem->data.raw;
+	const u_char *p = (u_char *)elem->data.raw;
 	u_int32_t asnlen = elem->asnlen;
 	u_int32_t i;
 
@@ -1199,7 +1198,7 @@ smi_print_value(SmiNode *smiNode, u_char pduid, struct be *elem)
  * Decode SNMP varBind
  */
 static void
-varbind_print(u_char pduid, packetbody_t np, u_int length)
+varbind_print(u_char pduid, const u_char *np, u_int length)
 {
 	struct be elem;
 	int count = 0, ind;
@@ -1220,10 +1219,10 @@ varbind_print(u_char pduid, packetbody_t np, u_int length)
 		printf("[%d extra after SEQ of varbind]", length - count);
 	/* descend */
 	length = elem.asnlen;
-	np = elem.data.raw;
+	np = (u_char *)elem.data.raw;
 
 	for (ind = 1; length > 0; ind++) {
-		packetbody_t vbend;
+		const u_char *vbend;
 		u_int vblength;
 
 		fputs(" ", stdout);
@@ -1240,7 +1239,7 @@ varbind_print(u_char pduid, packetbody_t np, u_int length)
 		vblength = length - count;
 		/* descend */
 		length = elem.asnlen;
-		np = elem.data.raw;
+		np = (u_char *)elem.data.raw;
 
 		/* objName (OID) */
 		if ((count = asn1_parse(np, length, &elem)) < 0)
@@ -1295,7 +1294,7 @@ varbind_print(u_char pduid, packetbody_t np, u_int length)
  * GetBulk, Inform, V2Trap, and Report
  */
 static void
-snmppdu_print(u_short pduid, packetbody_t np, u_int length)
+snmppdu_print(u_short pduid, const u_char *np, u_int length)
 {
 	struct be elem;
 	int count = 0, error;
@@ -1375,7 +1374,7 @@ snmppdu_print(u_short pduid, packetbody_t np, u_int length)
  * Decode SNMP Trap PDU
  */
 static void
-trappdu_print(packetbody_t np, u_int length)
+trappdu_print(const u_char *np, u_int length)
 {
 	struct be elem;
 	int count = 0, generic;
@@ -1465,7 +1464,7 @@ trappdu_print(packetbody_t np, u_int length)
  * Decode arbitrary SNMP PDUs.
  */
 static void
-pdu_print(packetbody_t np, u_int length, int version)
+pdu_print(const u_char *np, u_int length, int version)
 {
 	struct be pdu;
 	int count = 0;
@@ -1487,7 +1486,7 @@ pdu_print(packetbody_t np, u_int length, int version)
 	fputs(" ", stdout);
 	/* descend into PDU */
 	length = pdu.asnlen;
-	np = pdu.data.raw;
+	np = (u_char *)pdu.data.raw;
 
 	if (version == SNMP_VERSION_1 &&
 	    (pdu.id == GETBULKREQ || pdu.id == INFORMREQ ||
@@ -1526,9 +1525,8 @@ pdu_print(packetbody_t np, u_int length, int version)
  * Decode a scoped SNMP PDU.
  */
 static void
-scopedpdu_print(packetbody_t np, u_int length, int version)
+scopedpdu_print(const u_char *np, u_int length, int version)
 {
-	char *buf;
 	struct be elem;
 	int i, count = 0;
 
@@ -1541,7 +1539,7 @@ scopedpdu_print(packetbody_t np, u_int length, int version)
 		return;
 	}
 	length = elem.asnlen;
-	np = elem.data.raw;
+	np = (u_char *)elem.data.raw;
 
 	/* contextEngineID (OCTET STRING) */
 	if ((count = asn1_parse(np, length, &elem)) < 0)
@@ -1571,9 +1569,7 @@ scopedpdu_print(packetbody_t np, u_int length, int version)
 	length -= count;
 	np += count;
 
-	buf = p_strndup(elem.data.str, elem.asnlen);
-	printf("C=%.*s ", (int)elem.asnlen, buf == NULL ? "<null>" : buf);
-	p_strfree(buf);
+	printf("C=%.*s ", (int)elem.asnlen, elem.data.str);
 
 	pdu_print(np, length, version);
 }
@@ -1582,9 +1578,8 @@ scopedpdu_print(packetbody_t np, u_int length, int version)
  * Decode SNMP Community Header (SNMPv1 and SNMPv2c)
  */
 static void
-community_print(packetbody_t np, u_int length, int version)
+community_print(const u_char *np, u_int length, int version)
 {
-	char *buf;
 	struct be elem;
 	int count = 0;
 
@@ -1598,14 +1593,10 @@ community_print(packetbody_t np, u_int length, int version)
 	}
 	/* default community */
 	if (!(elem.asnlen == sizeof(DEF_COMMUNITY) - 1 &&
-	    p_strncmp_static(elem.data.str, DEF_COMMUNITY,
-	            sizeof(DEF_COMMUNITY) - 1) == 0)) {
+	    strncmp((char *)elem.data.str, DEF_COMMUNITY,
+	            sizeof(DEF_COMMUNITY) - 1) == 0))
 		/* ! "public" */
-		buf = p_strndup(elem.data.str, elem.asnlen);
-		printf("C=%.*s ", (int)elem.asnlen,
-		    buf == NULL ?  "<null>" : buf);
-		p_strfree(buf);
-	}
+		printf("C=%.*s ", (int)elem.asnlen, elem.data.str);
 	length -= count;
 	np += count;
 
@@ -1616,9 +1607,8 @@ community_print(packetbody_t np, u_int length, int version)
  * Decode SNMPv3 User-based Security Message Header (SNMPv3)
  */
 static void
-usm_print(packetbody_t np, u_int length)
+usm_print(const u_char *np, u_int length)
 {
-	char *buf;
         struct be elem;
 	int count = 0;
 
@@ -1631,7 +1621,7 @@ usm_print(packetbody_t np, u_int length)
 		return;
 	}
 	length = elem.asnlen;
-	np = elem.data.raw;
+	np = (u_char *)elem.data.raw;
 
 	/* msgAuthoritativeEngineID (OCTET STRING) */
 	if ((count = asn1_parse(np, length, &elem)) < 0)
@@ -1681,9 +1671,7 @@ usm_print(packetbody_t np, u_int length)
 	length -= count;
         np += count;
 
-	buf = p_strndup(elem.data.str, elem.asnlen);
-	printf("U=%.*s ", (int)elem.asnlen, buf == NULL ? "<null>" : buf);
-	free(buf);
+	printf("U=%.*s ", (int)elem.asnlen, elem.data.str);
 
 	/* msgAuthenticationParameters (OCTET STRING) */
 	if ((count = asn1_parse(np, length, &elem)) < 0)
@@ -1715,13 +1703,13 @@ usm_print(packetbody_t np, u_int length)
  * Decode SNMPv3 Message Header (SNMPv3)
  */
 static void
-v3msg_print(packetbody_t np, u_int length)
+v3msg_print(const u_char *np, u_int length)
 {
 	struct be elem;
 	int count = 0;
 	u_char flags;
 	int model;
-	packetbody_t xnp = np;
+	const u_char *xnp = np;
 	int xlength = length;
 
 	/* Sequence */
@@ -1733,7 +1721,7 @@ v3msg_print(packetbody_t np, u_int length)
 		return;
 	}
 	length = elem.asnlen;
-	np = elem.data.raw;
+	np = (u_char *)elem.data.raw;
 
 	if (vflag) {
 		fputs("{ ", stdout);
@@ -1852,7 +1840,7 @@ v3msg_print(packetbody_t np, u_int length)
  * Decode SNMP header and pass on to PDU printing routines
  */
 void
-snmp_print(packetbody_t np, u_int length)
+snmp_print(const u_char *np, u_int length)
 {
 	if (!invoke_dissector((void *)_snmp_print,
 	    length, 0, 0, 0, 0, gndo, np, NULL, NULL, NULL))
@@ -1860,7 +1848,7 @@ snmp_print(packetbody_t np, u_int length)
 }
 
 void
-_snmp_print(packetbody_t np, u_int length)
+_snmp_print(const u_char *np, u_int length)
 {
 	struct be elem;
 	int count = 0;
@@ -1880,7 +1868,7 @@ _snmp_print(packetbody_t np, u_int length)
 		printf("[%d extra after iSEQ]", length - count);
 	/* descend */
 	length = elem.asnlen;
-	np = elem.data.raw;
+	np = (u_char *)elem.data.raw;
 
 	/* Version (INTEGER) */
 	if ((count = asn1_parse(np, length, &elem)) < 0)

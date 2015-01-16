@@ -175,13 +175,13 @@ indent_string (u_int indent)
  * Print a single PDU.
  */
 static void
-rpki_rtr_pdu_print (packetbody_t tptr, u_int indent)
+rpki_rtr_pdu_print (const u_char *tptr, u_int indent)
 {
-    __capability const rpki_rtr_pdu *pdu_header;
+    const rpki_rtr_pdu *pdu_header;
     u_int pdu_type, pdu_len, hexdump;
-    packetbody_t msg;
+    const u_char *msg;
 
-    pdu_header = (__capability const rpki_rtr_pdu *)tptr;
+    pdu_header = (rpki_rtr_pdu *)tptr;
     pdu_type = pdu_header->pdu_type;
     pdu_len = EXTRACT_32BITS(pdu_header->length);
     hexdump = FALSE;
@@ -200,7 +200,7 @@ rpki_rtr_pdu_print (packetbody_t tptr, u_int indent)
     case RPKI_RTR_SERIAL_NOTIFY_PDU:
     case RPKI_RTR_SERIAL_QUERY_PDU:
     case RPKI_RTR_END_OF_DATA_PDU:
-        msg = (packetbody_t)(pdu_header + 1);
+        msg = (const u_char *)(pdu_header + 1);
 	printf("%sSession ID: 0x%04x, Serial: %u",
 	       indent_string(indent+2),
 	       EXTRACT_16BITS(pdu_header->u.session_id),
@@ -226,9 +226,9 @@ rpki_rtr_pdu_print (packetbody_t tptr, u_int indent)
 
     case RPKI_RTR_IPV4_PREFIX_PDU:
 	{
-	    __capability const rpki_rtr_pdu_ipv4_prefix *pdu;
+	    rpki_rtr_pdu_ipv4_prefix *pdu;
 
-	    pdu = (__capability const rpki_rtr_pdu_ipv4_prefix *)tptr;
+	    pdu = (rpki_rtr_pdu_ipv4_prefix *)tptr;
 	    printf("%sIPv4 Prefix %s/%u-%u, origin-as %u, flags 0x%02x",
 		   indent_string(indent+2),
 		   ipaddr_string(pdu->prefix),
@@ -240,9 +240,9 @@ rpki_rtr_pdu_print (packetbody_t tptr, u_int indent)
 #ifdef INET6
     case RPKI_RTR_IPV6_PREFIX_PDU:
 	{
-	    __capability const rpki_rtr_pdu_ipv6_prefix *pdu;
+	    rpki_rtr_pdu_ipv6_prefix *pdu;
 
-	    pdu = (__capability const rpki_rtr_pdu_ipv6_prefix *)tptr;
+	    pdu = (rpki_rtr_pdu_ipv6_prefix *)tptr;
 	    printf("%sIPv6 Prefix %s/%u-%u, origin-as %u, flags 0x%02x",
 		   indent_string(indent+2),
 		   ip6addr_string(pdu->prefix),
@@ -254,11 +254,11 @@ rpki_rtr_pdu_print (packetbody_t tptr, u_int indent)
 
     case RPKI_RTR_ERROR_REPORT_PDU:
 	{
-	    __capability const rpki_rtr_pdu_error_report *pdu;
+	    rpki_rtr_pdu_error_report *pdu;
 	    u_int encapsulated_pdu_length, text_length, tlen, error_code;
 	    u_char buf[80];
 
-	    pdu = (__capability const rpki_rtr_pdu_error_report *)tptr;
+	    pdu = (rpki_rtr_pdu_error_report *)tptr;
 	    encapsulated_pdu_length = EXTRACT_32BITS(pdu->encapsulated_pdu_length);
 	    tlen = pdu_len;
 
@@ -293,7 +293,7 @@ rpki_rtr_pdu_print (packetbody_t tptr, u_int indent)
 		tlen -= 4;
 	    }
 	    if (text_length && (text_length <= tlen )) {
-		p_memcpy_from_packet(buf, tptr, MIN(sizeof(buf)-1, text_length));
+		memcpy(buf, tptr, MIN(sizeof(buf)-1, text_length));
 		buf[text_length] = '\0';
 		printf("%sError text: %s", indent_string(indent+2), buf);
 	    }
@@ -315,7 +315,7 @@ rpki_rtr_pdu_print (packetbody_t tptr, u_int indent)
 }
 
 void
-rpki_rtr_print(packetbody_t pptr, register u_int len)
+rpki_rtr_print(const u_char *pptr, register u_int len)
 {
 	if (!invoke_dissector((void *)_rpki_rtr_print,
 	    len, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -323,11 +323,11 @@ rpki_rtr_print(packetbody_t pptr, register u_int len)
 }
 
 void
-_rpki_rtr_print(packetbody_t pptr, register u_int len)
+_rpki_rtr_print(const u_char *pptr, register u_int len)
 {
     u_int tlen, pdu_type, pdu_len;
-    packetbody_t tptr;
-    __capability const rpki_rtr_pdu *pdu_header;
+    const u_char *tptr;
+    const rpki_rtr_pdu *pdu_header;
 
     tptr = pptr;
     tlen = len;
@@ -341,7 +341,7 @@ _rpki_rtr_print(packetbody_t pptr, register u_int len)
 
         TCHECK2(*tptr, sizeof(rpki_rtr_pdu));
 
-	pdu_header = (__capability const rpki_rtr_pdu *)tptr;
+	pdu_header = (rpki_rtr_pdu *)tptr;
         pdu_type = pdu_header->pdu_type;
         pdu_len = EXTRACT_32BITS(pdu_header->length);
 

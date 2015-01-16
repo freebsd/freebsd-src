@@ -60,7 +60,7 @@ struct tok ip_option_values[] = {
  * print the recorded route in an IP RR, LSRR or SSRR option.
  */
 static void
-ip_printroute(packetbody_t cp, u_int length)
+ip_printroute(register const u_char *cp, u_int length)
 {
 	register u_int ptr;
 	register u_int len;
@@ -90,14 +90,14 @@ ip_printroute(packetbody_t cp, u_int length)
  * calculation.
  */
 static u_int32_t
-ip_finddst(__capability const struct ip *ip)
+ip_finddst(const struct ip *ip)
 {
 	int length;
 	int len;
-	__capability const u_char *cp;
+	const u_char *cp;
 	u_int32_t retval;
 
-	cp = (__capability const u_char *)(ip + 1);
+	cp = (const u_char *)(ip + 1);
 	length = (IP_HL(ip) << 2) - sizeof(struct ip);
 
 	for (; length > 0; cp += len, length -= len) {
@@ -122,12 +122,12 @@ ip_finddst(__capability const struct ip *ip)
 		case IPOPT_LSRR:
 			if (len < 7)
 				break;
-			p_memcpy_from_packet(&retval, cp + len - 4, 4);
+			memcpy(&retval, cp + len - 4, 4);
 			return retval;
 		}
 	}
 trunc:
-	p_memcpy_from_packet(&retval, &ip->ip_dst.s_addr, sizeof(u_int32_t));
+	memcpy(&retval, &ip->ip_dst.s_addr, sizeof(u_int32_t));
 	return retval;
 }
 
@@ -135,8 +135,7 @@ trunc:
  * Compute a V4-style checksum by building a pseudoheader.
  */
 int
-nextproto4_cksum(__capability const struct ip *ip,
-		 packetbody_t data,
+nextproto4_cksum(const struct ip *ip, const u_int8_t *data,
 		 u_int len, u_int next_proto)
 {
 	struct phdr {
@@ -152,13 +151,13 @@ nextproto4_cksum(__capability const struct ip *ip,
 	ph.len = htons((u_int16_t)len);
 	ph.mbz = 0;
 	ph.proto = next_proto;
-	p_memcpy_from_packet(&ph.src, &ip->ip_src.s_addr, sizeof(u_int32_t));
+	memcpy(&ph.src, &ip->ip_src.s_addr, sizeof(u_int32_t));
 	if (IP_HL(ip) == 5)
-		p_memcpy_from_packet(&ph.dst, &ip->ip_dst.s_addr, sizeof(u_int32_t));
+		memcpy(&ph.dst, &ip->ip_dst.s_addr, sizeof(u_int32_t));
 	else
 		ph.dst = ip_finddst(ip);
 
-	vec[0].ptr = (packetbody_t)(void *)&ph;
+	vec[0].ptr = (const u_int8_t *)(void *)&ph;
 	vec[0].len = sizeof(ph);
 	vec[1].ptr = data;
 	vec[1].len = len;
@@ -166,7 +165,7 @@ nextproto4_cksum(__capability const struct ip *ip,
 }
 
 static void
-ip_printts(packetbody_t cp, u_int length)
+ip_printts(register const u_char *cp, u_int length)
 {
 	register u_int ptr;
 	register u_int len;
@@ -231,7 +230,7 @@ done:
  * print IP options.
  */
 static void
-ip_optprint(packetbody_t cp, u_int length)
+ip_optprint(register const u_char *cp, u_int length)
 {
 	register u_int option_len;
 	const char *sep = "";
@@ -314,8 +313,8 @@ static struct tok ip_frag_values[] = {
 };
 
 struct ip_print_demux_state {
-	__capability const struct ip *ip;
-	packetbody_t cp;
+	const struct ip *ip;
+	const u_char *cp;
 	u_int   len, off;
 	u_char  nh;
 	int     advance;
@@ -344,7 +343,7 @@ again:
 	{
 		int enh, padlen;
 		ipds->advance = esp_print(ndo, ipds->cp, ipds->len,
-				    (packetbody_t)ipds->ip,
+				    (const u_char *)ipds->ip,
 				    &enh, &padlen);
 		if (ipds->advance <= 0)
 			break;
@@ -367,28 +366,28 @@ again:
 	}
 
 	case IPPROTO_SCTP:
-		sctp_print(ipds->cp, (packetbody_t)ipds->ip, ipds->len);
+		sctp_print(ipds->cp, (const u_char *)ipds->ip, ipds->len);
 		break;
 
 	case IPPROTO_DCCP:
-		dccp_print(ipds->cp, (packetbody_t)ipds->ip, ipds->len);
+		dccp_print(ipds->cp, (const u_char *)ipds->ip, ipds->len);
 		break;
 
 	case IPPROTO_TCP:
 		/* pass on the MF bit plus the offset to detect fragments */
-		tcp_print(ipds->cp, ipds->len, (packetbody_t)ipds->ip,
+		tcp_print(ipds->cp, ipds->len, (const u_char *)ipds->ip,
 			  ipds->off & (IP_MF|IP_OFFMASK));
 		break;
 
 	case IPPROTO_UDP:
 		/* pass on the MF bit plus the offset to detect fragments */
-		udp_print(ipds->cp, ipds->len, (packetbody_t)ipds->ip,
+		udp_print(ipds->cp, ipds->len, (const u_char *)ipds->ip,
 			  ipds->off & (IP_MF|IP_OFFMASK));
 		break;
 
 	case IPPROTO_ICMP:
 		/* pass on the MF bit plus the offset to detect fragments */
-		icmp_print(ipds->cp, ipds->len, (packetbody_t)ipds->ip,
+		icmp_print(ipds->cp, ipds->len, (const u_char *)ipds->ip,
 			   ipds->off & (IP_MF|IP_OFFMASK));
 		break;
 
@@ -406,7 +405,7 @@ again:
 		 * match was the current protocol number
 		 * assignments say.
 		 */
-		igrp_print(ipds->cp, ipds->len, (packetbody_t)ipds->ip);
+		igrp_print(ipds->cp, ipds->len, (const u_char *)ipds->ip);
 		break;
 
 	case IPPROTO_EIGRP:
@@ -422,7 +421,7 @@ again:
 		break;
 
 	case IPPROTO_OSPF:
-		ospf_print(ipds->cp, ipds->len, (packetbody_t)ipds->ip);
+		ospf_print(ipds->cp, ipds->len, (const u_char *)ipds->ip);
 		break;
 
 	case IPPROTO_IGMP:
@@ -481,7 +480,7 @@ again:
 		break;
 
 	case IPPROTO_PGM:
-		pgm_print(ipds->cp, ipds->len, (packetbody_t)ipds->ip);
+		pgm_print(ipds->cp, ipds->len, (const u_char *)ipds->ip);
 		break;
 
 #if defined(HAVE_NET_PFVAR_H)
@@ -502,9 +501,9 @@ again:
 
 void
 ip_print_inner(netdissect_options *ndo,
-	       packetbody_t bp,
+	       const u_char *bp,
 	       u_int length, u_int nh,
-	       packetbody_t bp2)
+	       const u_char *bp2)
 {
 	if (!invoke_dissector((void *)_ip_print_inner,
 	    length, nh, 0, 0, 0, ndo, bp, bp2, NULL, NULL))
@@ -513,13 +512,13 @@ ip_print_inner(netdissect_options *ndo,
 
 void
 _ip_print_inner(netdissect_options *ndo,
-	       packetbody_t bp,
+	       const u_char *bp,
 	       u_int length, u_int nh,
-	       packetbody_t bp2)
+	       const u_char *bp2)
 {
 	struct ip_print_demux_state  ipd;
 
-	ipd.ip = (__capability const struct ip *)bp2;
+	ipd.ip = (const struct ip *)bp2;
 	ipd.cp = bp;
 	ipd.len  = length;
 	ipd.off  = 0;
@@ -535,7 +534,7 @@ _ip_print_inner(netdissect_options *ndo,
  */
 void
 ip_print(netdissect_options *ndo,
-	 packetbody_t bp,
+	 const u_char *bp,
 	 u_int length)
 {
 
@@ -546,18 +545,18 @@ ip_print(netdissect_options *ndo,
 
 void
 _ip_print(netdissect_options *ndo,
-	 packetbody_t bp,
+	 const u_char *bp,
 	 u_int length)
 {
 	struct ip_print_demux_state  ipd;
 	struct ip_print_demux_state *ipds=&ipd;
-	packetbody_t ipend;
+	const u_char *ipend;
 	u_int hlen;
 	struct cksum_vec vec[1];
 	u_int16_t sum, ip_sum;
 	struct protoent *proto;
 
-	ipds->ip = (__capability const struct ip *)bp;
+	ipds->ip = (const struct ip *)bp;
 	if (IP_V(ipds->ip) != 4) { /* print version if != 4 */
 	    printf("IP%u ", IP_V(ipds->ip));
 	    if (IP_V(ipds->ip) == 6)
@@ -647,12 +646,12 @@ _ip_print(netdissect_options *ndo,
 
             if ((hlen - sizeof(struct ip)) > 0) {
                 printf(", options (");
-                ip_optprint((packetbody_t)(ipds->ip + 1), hlen - sizeof(struct ip));
+                ip_optprint((u_char *)(ipds->ip + 1), hlen - sizeof(struct ip));
                 printf(")");
             }
 
-	    if (!Kflag && ND_TTEST2(*ipds->ip, hlen)) {
-	        vec[0].ptr = (packetbody_t)(void *)ipds->ip;
+	    if (!Kflag && (u_char *)ipds->ip + hlen <= ndo->ndo_snapend) {
+	        vec[0].ptr = (const u_int8_t *)(void *)ipds->ip;
 	        vec[0].len = hlen;
 	        sum = in_cksum(vec, 1);
 		if (sum != 0) {
@@ -670,7 +669,7 @@ _ip_print(netdissect_options *ndo,
 	 * level protocol.
 	 */
 	if ((ipds->off & 0x1fff) == 0) {
-		ipds->cp = (packetbody_t)ipds->ip + hlen;
+		ipds->cp = (const u_char *)ipds->ip + hlen;
 		ipds->nh = ipds->ip->ip_p;
 
 		if (ipds->nh != IPPROTO_TCP && ipds->nh != IPPROTO_UDP &&
@@ -701,17 +700,16 @@ _ip_print(netdissect_options *ndo,
 }
 
 void
-ipN_print(packetbody_t bp, register u_int length)
+ipN_print(register const u_char *bp, register u_int length)
 {
-	__capability const struct ip *ip;
-	struct ip hdr;
+	struct ip *ip, hdr;
 
-	ip = (__capability const struct ip *)bp;
+	ip = (struct ip *)bp;
 	if (length < 4) {
 		(void)printf("truncated-ip %d", length);
 		return;
 	}
-	p_memcpy_from_packet(&hdr, ip, 4);
+	memcpy (&hdr, (char *)ip, 4);
 	switch (IP_V(&hdr)) {
 	case 4:
 		ip_print (gndo, bp, length);

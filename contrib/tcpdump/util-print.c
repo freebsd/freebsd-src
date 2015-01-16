@@ -59,7 +59,7 @@ __fn_putchar(u_char c)
  * Return true if truncated.
  */
 int
-fn_print(packetbody_t s, packetbody_t ep)
+fn_print(const u_char *s, const u_char *ep)
 {
 	register int ret;
 	register u_char c;
@@ -82,7 +82,7 @@ fn_print(packetbody_t s, packetbody_t ep)
  * Return true if truncated.
  */
 int
-fn_printn(packetbody_t s, register u_int n, packetbody_t ep)
+fn_printn(const u_char *s, register u_int n, const u_char *ep)
 {
 	register u_char c;
 
@@ -101,7 +101,7 @@ fn_printn(packetbody_t s, register u_int n, packetbody_t ep)
  * Return true if truncated.
  */
 int
-fn_printzp(packetbody_t s, u_int n, packetbody_t ep)
+fn_printzp(const u_char *s, u_int n, const u_char *ep)
 {
 	register int ret;
 	register u_char c;
@@ -117,25 +117,6 @@ fn_printzp(packetbody_t s, u_int n, packetbody_t ep)
 		__fn_putchar(c);
 	}
 	return (n == 0) ? 0 : ret;
-}
-
-/* Print null-terminated non-packet data */
-int
-fn_print_str(const u_char *s)
-{
-	register int ret;
-	register u_char c;
-
-	ret = 1;			/* assume truncated */
-	while (1) {
-		c = *s++;
-		if (c == '\0') {
-			ret = 0;
-			break;
-		}
-		__fn_putchar(c);
-	}
-	return(ret);
 }
 
 /*
@@ -186,12 +167,12 @@ ts_print(register const struct timeval *tvp)
 		if (b_sec == 0) {
                         /* init timestamp for first packet */
                         b_usec = tvp->tv_usec;
-                        b_sec = tvp->tv_sec;                        
+                        b_sec = tvp->tv_sec;
                 }
 
                 d_usec = tvp->tv_usec - b_usec;
                 d_sec = tvp->tv_sec - b_sec;
-                
+
                 while (d_usec < 0) {
                     d_usec += 1000000;
                     d_sec--;
@@ -257,7 +238,7 @@ relts_print(int secs)
  */
 
 int
-print_unknown_data(packetbody_t cp, const char *ident, int len)
+print_unknown_data(const u_char *cp, const char *ident, int len)
 {
 	if (len < 0) {
 		printf("%sDissector error: print_unknown_data called with negative length",
@@ -439,7 +420,7 @@ mask2plen(u_int32_t mask)
 
 #ifdef INET6
 int
-mask62plen(packetbody_t mask)
+mask62plen(const u_char *mask)
 {
 	u_char bitmasks[9] = {
 		0x00,
@@ -467,7 +448,7 @@ mask62plen(packetbody_t mask)
 #endif /* INET6 */
 
 void
-safeputs(packetbody_t s, int maxlen)
+safeputs(const char *s, int maxlen)
 {
 	int idx = 0;
 
@@ -489,54 +470,3 @@ safeputchar(int c)
 	else
 		printf("\\0x%02x", ch);
 }
-
-
-const char *
-inet_ntop_cap(int af, __capability const void * restrict src,
-    char * restrict dst, socklen_t size)
-{
-	union {
-		struct in_addr	in;
-		struct in6_addr	in6;
-	} addr;
-
-	switch (af) {
-	case AF_INET:
-		p_memcpy_from_packet(&addr.in, src, sizeof(addr.in));
-		break;
-	case AF_INET6:
-		p_memcpy_from_packet(&addr.in, src, sizeof(addr.in));
-		break;
-	default:
-		return NULL;
-	}
-	return (inet_ntop(af, &addr, dst, size));
-}
-    
-#ifdef HAS_CHERI_CAPABILITIES
-char *
-p_strdup(packetbody_t data) {
-        char *str;
-        size_t len;
-
-        len = strnlen_c(data, snapend - data) + 1;
-        if ((str = malloc(len)) != NULL) {
-                strncpy_c_fromcap(str, data, len - 1);
-		str[len] = '\0';
-	}
-        return (str);
-}
-
-char *
-p_strndup(packetbody_t data, size_t n) {
-	char *str;
-	size_t len;
-
-	len = strnlen_c(data, n) + 1;
-	if ((str = malloc(len)) != NULL) {
-		strncpy_c_fromcap(str, data, len - 1);
-		str[len] = '\0';
-	}
-	return (str);
-}
-#endif

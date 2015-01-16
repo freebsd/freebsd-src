@@ -446,14 +446,14 @@ static struct tok juniper_protocol_values[] = {
     { 0, NULL}
 };
 
-int ip_heuristic_guess(packetbody_t, u_int);
-int juniper_ppp_heuristic_guess(packetbody_t, u_int);
-int juniper_read_tlv_value(packetbody_t, u_int, u_int);
-static int juniper_parse_header (packetbody_t, const struct pcap_pkthdr *, struct juniper_l2info_t *);
+int ip_heuristic_guess(register const u_char *, u_int);
+int juniper_ppp_heuristic_guess(register const u_char *, u_int);
+int juniper_read_tlv_value(const u_char *, u_int, u_int);
+static int juniper_parse_header (const u_char *, const struct pcap_pkthdr *, struct juniper_l2info_t *);
 
 #ifdef DLT_JUNIPER_GGSN
 u_int
-juniper_ggsn_print(const struct pcap_pkthdr *h, packetbody_t p)
+juniper_ggsn_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
         struct juniper_ggsn_header {
@@ -464,14 +464,14 @@ juniper_ggsn_print(const struct pcap_pkthdr *h, packetbody_t p)
             u_int8_t vlan_id[2];
             u_int8_t res[2];
         };
-        __capability const struct juniper_ggsn_header *gh;
+        const struct juniper_ggsn_header *gh;
 
         l2info.pictype = DLT_JUNIPER_GGSN;
         if(juniper_parse_header(p, h, &l2info) == 0)
             return l2info.header_len;
 
         p+=l2info.header_len;
-        gh = (__capability const struct juniper_ggsn_header *)&l2info.cookie;
+        gh = (struct juniper_ggsn_header *)&l2info.cookie;
 
         if (eflag) {
             printf("proto %s (%u), vlan %u: ",
@@ -500,7 +500,7 @@ juniper_ggsn_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 #ifdef DLT_JUNIPER_ES
 u_int
-juniper_es_print(const struct pcap_pkthdr *h, packetbody_t p)
+juniper_es_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
         struct juniper_ipsec_header {
@@ -512,14 +512,14 @@ juniper_es_print(const struct pcap_pkthdr *h, packetbody_t p)
             u_int8_t dst_ip[4];
         };
         u_int rewrite_len,es_type_bundle;
-        __capability const struct juniper_ipsec_header *ih;
+        const struct juniper_ipsec_header *ih;
 
         l2info.pictype = DLT_JUNIPER_ES;
         if(juniper_parse_header(p, h, &l2info) == 0)
             return l2info.header_len;
 
         p+=l2info.header_len;
-        ih = (__capability const struct juniper_ipsec_header *)p;
+        ih = (struct juniper_ipsec_header *)p;
 
         switch (ih->type) {
         case JUNIPER_IPSEC_O_ESP_ENCRYPT_ESP_AUTHEN_TYPE:
@@ -570,7 +570,7 @@ juniper_es_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 #ifdef DLT_JUNIPER_MONITOR
 u_int
-juniper_monitor_print(const struct pcap_pkthdr *h, packetbody_t p)
+juniper_monitor_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
         struct juniper_monitor_header {
@@ -579,14 +579,14 @@ juniper_monitor_print(const struct pcap_pkthdr *h, packetbody_t p)
             u_int8_t iif[2];
             u_int8_t service_id[4];
         };
-        __capability const struct juniper_monitor_header *mh;
+        const struct juniper_monitor_header *mh;
 
         l2info.pictype = DLT_JUNIPER_MONITOR;
         if(juniper_parse_header(p, h, &l2info) == 0)
             return l2info.header_len;
 
         p+=l2info.header_len;
-        mh = (__capability const struct juniper_monitor_header *)p;
+        mh = (struct juniper_monitor_header *)p;
 
         if (eflag)
             printf("service-id %u, iif %u, pkt-type %u: ",
@@ -603,7 +603,7 @@ juniper_monitor_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 #ifdef DLT_JUNIPER_SERVICES
 u_int
-juniper_services_print(const struct pcap_pkthdr *h, packetbody_t p)
+juniper_services_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
         struct juniper_services_header {
@@ -612,14 +612,14 @@ juniper_services_print(const struct pcap_pkthdr *h, packetbody_t p)
             u_int8_t svc_set_id[2];
             u_int8_t dir_iif[4];
         };
-        __capability const struct juniper_services_header *sh;
+        const struct juniper_services_header *sh;
 
         l2info.pictype = DLT_JUNIPER_SERVICES;
         if(juniper_parse_header(p, h, &l2info) == 0)
             return l2info.header_len;
 
         p+=l2info.header_len;
-        sh = (__capability const struct juniper_services_header *)p;
+        sh = (struct juniper_services_header *)p;
 
         if (eflag)
             printf("service-id %u flags 0x%02x service-set-id 0x%04x iif %u: ",
@@ -637,7 +637,7 @@ juniper_services_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 #ifdef DLT_JUNIPER_PPPOE
 u_int
-juniper_pppoe_print(const struct pcap_pkthdr *h, packetbody_t p)
+juniper_pppoe_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -654,7 +654,7 @@ juniper_pppoe_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 #ifdef DLT_JUNIPER_ETHER
 u_int
-juniper_ether_print(const struct pcap_pkthdr *h, packetbody_t p)
+juniper_ether_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -671,7 +671,7 @@ juniper_ether_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 #ifdef DLT_JUNIPER_PPP
 u_int
-juniper_ppp_print(const struct pcap_pkthdr *h, packetbody_t p)
+juniper_ppp_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -688,7 +688,7 @@ juniper_ppp_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 #ifdef DLT_JUNIPER_FRELAY
 u_int
-juniper_frelay_print(const struct pcap_pkthdr *h, packetbody_t p)
+juniper_frelay_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -705,7 +705,7 @@ juniper_frelay_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 #ifdef DLT_JUNIPER_CHDLC
 u_int
-juniper_chdlc_print(const struct pcap_pkthdr *h, packetbody_t p)
+juniper_chdlc_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -722,7 +722,7 @@ juniper_chdlc_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 #ifdef DLT_JUNIPER_PPPOE_ATM
 u_int
-juniper_pppoe_atm_print(const struct pcap_pkthdr *h, packetbody_t p)
+juniper_pppoe_atm_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 	u_int16_t extracted_ethertype;
@@ -749,7 +749,7 @@ juniper_pppoe_atm_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 #ifdef DLT_JUNIPER_MLPPP
 u_int
-juniper_mlppp_print(const struct pcap_pkthdr *h, packetbody_t p)
+juniper_mlppp_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -760,8 +760,8 @@ juniper_mlppp_print(const struct pcap_pkthdr *h, packetbody_t p)
         /* suppress Bundle-ID if frame was captured on a child-link
          * best indicator if the cookie looks like a proto */
         if (eflag &&
-            EXTRACT_16BITS(cheri_ptr(&l2info.cookie, 2)) != PPP_OSI &&
-            EXTRACT_16BITS(cheri_ptr(&l2info.cookie, 2)) !=  (PPP_ADDRESS << 8 | PPP_CONTROL))
+            EXTRACT_16BITS(&l2info.cookie) != PPP_OSI &&
+            EXTRACT_16BITS(&l2info.cookie) !=  (PPP_ADDRESS << 8 | PPP_CONTROL))
             printf("Bundle-ID %u: ",l2info.bundle);
 
         p+=l2info.header_len;
@@ -793,7 +793,7 @@ juniper_mlppp_print(const struct pcap_pkthdr *h, packetbody_t p)
         }
 
         /* zero length cookie ? */
-        switch (EXTRACT_16BITS(cheri_ptr(&l2info.cookie, 2))) {
+        switch (EXTRACT_16BITS(&l2info.cookie)) {
         case PPP_OSI:
             ppp_print(p-2,l2info.length+2);
             break;
@@ -810,7 +810,7 @@ juniper_mlppp_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 #ifdef DLT_JUNIPER_MFR
 u_int
-juniper_mfr_print(const struct pcap_pkthdr *h, packetbody_t p)
+juniper_mfr_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -850,7 +850,7 @@ juniper_mfr_print(const struct pcap_pkthdr *h, packetbody_t p)
         }
 
         /* suppress Bundle-ID if frame was captured on a child-link */
-        if (eflag && EXTRACT_32BITS(cheri_ptr(l2info.cookie, 4)) != 1) printf("Bundle-ID %u, ",l2info.bundle);
+        if (eflag && EXTRACT_32BITS(l2info.cookie) != 1) printf("Bundle-ID %u, ",l2info.bundle);
         switch (l2info.proto) {
         case (LLCSAP_ISONS<<8 | LLCSAP_ISONS):
             isoclns_print(p+1, l2info.length-1, l2info.caplen-1);
@@ -871,7 +871,7 @@ juniper_mfr_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 #ifdef DLT_JUNIPER_MLFR
 u_int
-juniper_mlfr_print(const struct pcap_pkthdr *h, packetbody_t p)
+juniper_mlfr_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         struct juniper_l2info_t l2info;
 
@@ -882,7 +882,7 @@ juniper_mlfr_print(const struct pcap_pkthdr *h, packetbody_t p)
         p+=l2info.header_len;
 
         /* suppress Bundle-ID if frame was captured on a child-link */
-        if (eflag && EXTRACT_32BITS(cheri_ptr(l2info.cookie, 4)) != 1) printf("Bundle-ID %u, ",l2info.bundle);
+        if (eflag && EXTRACT_32BITS(l2info.cookie) != 1) printf("Bundle-ID %u, ",l2info.bundle);
         switch (l2info.proto) {
         case (LLC_UI):
         case (LLC_UI<<8):
@@ -912,7 +912,7 @@ juniper_mlfr_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 #ifdef DLT_JUNIPER_ATM1
 u_int
-juniper_atm1_print(const struct pcap_pkthdr *h, packetbody_t p)
+juniper_atm1_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         u_int16_t extracted_ethertype;
 
@@ -960,7 +960,7 @@ juniper_atm1_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 #ifdef DLT_JUNIPER_ATM2
 u_int
-juniper_atm2_print(const struct pcap_pkthdr *h, packetbody_t p)
+juniper_atm2_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
         u_int16_t extracted_ethertype;
 
@@ -986,7 +986,7 @@ juniper_atm2_print(const struct pcap_pkthdr *h, packetbody_t p)
         }
 
         if (l2info.direction != JUNIPER_BPF_PKT_IN && /* ether-over-1483 encaps ? */
-            (EXTRACT_32BITS(cheri_ptr(l2info.cookie, 4)) & ATM2_GAP_COUNT_MASK)) {
+            (EXTRACT_32BITS(l2info.cookie) & ATM2_GAP_COUNT_MASK)) {
             ether_print(gndo, p, l2info.length, l2info.caplen, NULL, NULL);
             return l2info.header_len;
         }
@@ -1011,7 +1011,7 @@ juniper_atm2_print(const struct pcap_pkthdr *h, packetbody_t p)
 /* try to guess, based on all PPP protos that are supported in
  * a juniper router if the payload data is encapsulated using PPP */
 int
-juniper_ppp_heuristic_guess(packetbody_t p, u_int length) {
+juniper_ppp_heuristic_guess(register const u_char *p, u_int length) {
 
     switch(EXTRACT_16BITS(p)) {
     case PPP_IP :
@@ -1040,7 +1040,7 @@ juniper_ppp_heuristic_guess(packetbody_t p, u_int length) {
 }
 
 int
-ip_heuristic_guess(packetbody_t p, u_int length) {
+ip_heuristic_guess(register const u_char *p, u_int length) {
 
     switch(p[0]) {
     case 0x45:
@@ -1084,7 +1084,7 @@ ip_heuristic_guess(packetbody_t p, u_int length) {
 }
 
 int
-juniper_read_tlv_value(packetbody_t p, u_int tlv_type, u_int tlv_len) {
+juniper_read_tlv_value(const u_char *p, u_int tlv_type, u_int tlv_len) {
 
    int tlv_value;
 
@@ -1131,14 +1131,14 @@ juniper_read_tlv_value(packetbody_t p, u_int tlv_type, u_int tlv_len) {
 }
 
 static int
-juniper_parse_header (packetbody_t p, const struct pcap_pkthdr *h, struct juniper_l2info_t *l2info) {
+juniper_parse_header (const u_char *p, const struct pcap_pkthdr *h, struct juniper_l2info_t *l2info) {
 
     struct juniper_cookie_table_t *lp = juniper_cookie_table;
     u_int idx, jnx_ext_len, jnx_header_len = 0;
     u_int8_t tlv_type,tlv_len;
     u_int32_t control_word;
     int tlv_value;
-    packetbody_t tptr;
+    const u_char *tptr;
 
 
     l2info->header_len = 0;
@@ -1334,7 +1334,7 @@ juniper_parse_header (packetbody_t p, const struct pcap_pkthdr *h, struct junipe
             l2info->bundle = l2info->cookie[1];
             break;
         case AS_COOKIE_ID:
-            l2info->bundle = (EXTRACT_16BITS(cheri_ptr(&l2info->cookie[6], 2))>>3)&0xfff;
+            l2info->bundle = (EXTRACT_16BITS(&l2info->cookie[6])>>3)&0xfff;
             l2info->proto = (l2info->cookie[5])&JUNIPER_LSQ_L3_PROTO_MASK;            
             break;
         default:
@@ -1354,7 +1354,7 @@ juniper_parse_header (packetbody_t p, const struct pcap_pkthdr *h, struct junipe
             l2info->caplen -= 2;
             break;
         case AS_COOKIE_ID:
-            l2info->bundle = (EXTRACT_16BITS(cheri_ptr(&l2info->cookie[6], 2))>>3)&0xfff;
+            l2info->bundle = (EXTRACT_16BITS(&l2info->cookie[6])>>3)&0xfff;
             l2info->proto = (l2info->cookie[5])&JUNIPER_LSQ_L3_PROTO_MASK;
             break;
         default:
@@ -1377,7 +1377,7 @@ juniper_parse_header (packetbody_t p, const struct pcap_pkthdr *h, struct junipe
             l2info->caplen -= 2;
             break;
         case AS_COOKIE_ID:
-            l2info->bundle = (EXTRACT_16BITS(cheri_ptr(&l2info->cookie[6], 2))>>3)&0xfff;
+            l2info->bundle = (EXTRACT_16BITS(&l2info->cookie[6])>>3)&0xfff;
             l2info->proto = (l2info->cookie[5])&JUNIPER_LSQ_L3_PROTO_MASK;
             break;
         default:

@@ -48,16 +48,16 @@ struct ipcomp {
 #include "extract.h"
 
 int
-ipcomp_print(packetbody_t bp, int *nhdr _U_)
+ipcomp_print(register const u_char *bp, int *nhdr _U_)
 {
-	__capability const struct ipcomp *ipcomp;
-	packetbody_t ep;
+	register const struct ipcomp *ipcomp;
+	register const u_char *ep;
 	u_int16_t cpi;
 #if defined(HAVE_LIBZ) && defined(HAVE_ZLIB_H)
 	int advance;
 #endif
 
-	ipcomp = (__capability const struct ipcomp *)bp;
+	ipcomp = (struct ipcomp *)bp;
 	cpi = EXTRACT_16BITS(&ipcomp->comp_cpi);
 
 	/* 'ep' points to the end of available data. */

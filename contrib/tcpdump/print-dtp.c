@@ -23,7 +23,6 @@
 
 #include <tcpdump-stdinc.h>
 
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -47,7 +46,7 @@ static struct tok dtp_tlv_values[] = {
 };
 
 void
-dtp_print (packetbody_t pptr, u_int length)
+dtp_print (const u_char *pptr, u_int length)
 {
 	if (!invoke_dissector((void *)_dtp_print,
 	    length, 0, 0, 0, 0, gndo, pptr, NULL, NULL, NULL))
@@ -55,10 +54,10 @@ dtp_print (packetbody_t pptr, u_int length)
 }
 
 void
-_dtp_print (packetbody_t pptr, u_int length)
+_dtp_print (const u_char *pptr, u_int length)
 {
     int type, len;
-    packetbody_t tptr;
+    const u_char *tptr;
 
     if (length < DTP_HEADER_LEN)
         goto trunc;
@@ -99,12 +98,8 @@ _dtp_print (packetbody_t pptr, u_int length)
                type, len);
 
         switch (type) {
-	case DTP_DOMAIN_TLV: {
-		char *buf;
-		buf = p_strdup(tptr+4);
-		printf(", %s", buf == NULL ? "<null>" : buf);
-		p_strfree(buf);
-		}
+	case DTP_DOMAIN_TLV:
+		printf(", %s", tptr+4);
 		break;
 
 	case DTP_STATUS_TLV:            

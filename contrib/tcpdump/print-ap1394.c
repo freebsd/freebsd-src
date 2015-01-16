@@ -55,12 +55,12 @@ struct firewire_header {
 #define FIREWIRE_HDRLEN		18
 
 static inline void
-ap1394_hdr_print(packetbody_t bp, u_int length)
+ap1394_hdr_print(register const u_char *bp, u_int length)
 {
-	__capability const struct firewire_header *fp;
+	register const struct firewire_header *fp;
 	u_int16_t firewire_type;
 
-	fp = (__capability const struct firewire_header *)bp;
+	fp = (const struct firewire_header *)bp;
 
 	(void)printf("%s > %s",
 		     linkaddr_string(fp->firewire_dhost, LINKADDR_IEEE1394, FIREWIRE_EUI64_LEN),
@@ -85,11 +85,11 @@ ap1394_hdr_print(packetbody_t bp, u_int length)
  * is the number of bytes actually captured.
  */
 u_int
-ap1394_if_print(const struct pcap_pkthdr *h, packetbody_t p)
+ap1394_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int length = h->len;
 	u_int caplen = h->caplen;
-	__capability struct firewire_header *fp;
+	struct firewire_header *fp;
 	u_short ether_type;
 
 	if (caplen < FIREWIRE_HDRLEN) {
@@ -102,14 +102,14 @@ ap1394_if_print(const struct pcap_pkthdr *h, packetbody_t p)
 
 	length -= FIREWIRE_HDRLEN;
 	caplen -= FIREWIRE_HDRLEN;
-	fp = (__capability struct firewire_header *)p;
+	fp = (struct firewire_header *)p;
 	p += FIREWIRE_HDRLEN;
 
 	ether_type = EXTRACT_16BITS(&fp->firewire_type);
 	if (ethertype_print(gndo, ether_type, p, length, caplen) == 0) {
 		/* ether_type not known, print raw packet */
 		if (!eflag)
-			ap1394_hdr_print((__capability u_char *)fp, length + FIREWIRE_HDRLEN);
+			ap1394_hdr_print((u_char *)fp, length + FIREWIRE_HDRLEN);
 
 		if (!suppress_default_print)
 			default_print(p, caplen);
