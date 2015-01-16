@@ -7024,7 +7024,7 @@ ath_tx_update_tim(struct ath_softc *sc, struct ieee80211_node *ni,
 		/*
 		 * Don't bother grabbing the lock unless the queue is empty.
 		 */
-		if (&an->an_swq_depth != 0)
+		if (an->an_swq_depth != 0)
 			return;
 
 		if (an->an_is_powersave &&
