@@ -477,7 +477,7 @@ cbb_event_thread(void *arg)
 		 */
 		mtx_lock(&Giant);
 		status = cbb_get(sc, CBB_SOCKET_STATE);
-		DEVPRINTF((sc->dev, "Status is %#x\n", status));
+		DPRINTF(("Status is 0x%x\n", status));
 		if (!CBB_CARD_PRESENT(status)) {
 			not_a_card = 0;		/* We know card type */
 			cbb_removal(sc);
@@ -800,14 +800,13 @@ cbb_power(device_t brdev, int volts)
 	if (on) {
 		mtx_lock(&sc->mtx);
 		cnt = sc->powerintr;
-
 		/*
 		 * We have a shortish timeout of 500ms here.  Some bridges do
-		 * not generate a POWER_CYCLE event for 16-bit cards.  In those
-		 * cases, we have to cope the best we can, and having only a
-		 * short delay is better than the alternatives.  Others raise
-		 * the power cycle a smidge before it is really ready.  We deal
-		 * with those below.
+		 * not generate a POWER_CYCLE event for 16-bit cards.  In
+		 * those cases, we have to cope the best we can, and having
+		 * only a short delay is better than the alternatives.  Others
+		 * raise the power cycle a smidge before it is really ready.
+		 * We deal with those below.
 		 */
 		sane = 10;
 		while (!(cbb_get(sc, CBB_SOCKET_STATE) & CBB_STATE_POWER_CYCLE) &&
@@ -817,18 +816,19 @@ cbb_power(device_t brdev, int volts)
 
 		/*
 		 * Relax for 100ms.  Some bridges appear to assert this signal
-		 * right away, but before the card has stabilized.  Other cards
-		 * need need more time to cope up reliabily.  Experiments with
-		 * troublesome setups show this to be a "cheap" way to enhance
-		 * reliabilty.
+		 * right away, but before the card has stabilized.  Other
+		 * cards need need more time to cope up reliabily.
+		 * Experiments with troublesome setups show this to be a
+		 * "cheap" way to enhance reliabilty.  We need not do this for
+		 * "off" since we don't touch the card after we turn it off.
 		 */
 		pause("cbbPwr", min(hz / 10, 1));
 
 		/*
-		 * The TOPIC95B requires a little bit extra time to get its act
-		 * together, so delay for an additional 100ms.  Also as
-		 * documented below, it doesn't seem to set the POWER_CYCLE bit,
-		 * so don't whine if it never came on.
+		 * The TOPIC95B requires a little bit extra time to get its
+		 * act together, so delay for an additional 100ms.  Also as
+		 * documented below, it doesn't seem to set the POWER_CYCLE
+		 * bit, so don't whine if it never came on.
 		 */
 		if (sc->chipset == CB_TOPIC95)
 			pause("cbb95B", hz / 10);
@@ -838,27 +838,26 @@ cbb_power(device_t brdev, int volts)
 
 	/*
 	 * After the power is good, we can turn off the power interrupt.
-	 * However, the PC Card standard says that we must delay turning the CD
-	 * bit back on for a bit to allow for bouncyness on power down. We just
-	 * pause a little below to cover that. Most bridges don't seem to need
-	 * this delay.
+	 * However, the PC Card standard says that we must delay turning the
+	 * CD bit back on for a bit to allow for bouncyness on power down
+	 * (recall that we don't wait above for a power down, since we don't
+	 * get an interrupt for that).  We're called either from the suspend
+	 * code in which case we don't want to turn card change on again, or
+	 * we're called from the card insertion code, in which case the cbb
+	 * thread will turn it on for us before it waits to be woken by a
+	 * change event.
 	 *
-	 * NB: Topic95B doesn't set the power cycle bit.  We assume that
-	 * both it and the TOPIC95 behave the same, though despite efforts
-	 * to find one, the author never could locate a laptop with a TOPIC95
-	 * in it.
+	 * NB: Topic95B doesn't set the power cycle bit.  we assume that
+	 * both it and the TOPIC95 behave the same.
 	 */
 	cbb_clrb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_POWER);
 	status = cbb_get(sc, CBB_SOCKET_STATE);
 	if (on && sc->chipset != CB_TOPIC95) {
 		if ((status & CBB_STATE_POWER_CYCLE) == 0)
 			device_printf(sc->dev, "Power not on?\n");
-	} else {
-		pause("cbbDwn", hz / 10);
 	}
 	if (status & CBB_STATE_BAD_VCC_REQ) {
-		device_printf(sc->dev, "Bad Vcc requested status %#x %dV\n",
-		    status, volts);	
+		device_printf(sc->dev, "Bad Vcc requested\n");	
 		/*
 		 * Turn off the power, and try again.  Retrigger other
 		 * active interrupts via force register.  From NetBSD
@@ -1561,6 +1560,61 @@ cbb_write_ivar(device_t brdev, device_t child, int which, uintptr_t value)
 		return (EINVAL);
 	}
 	return (ENOENT);
+}
+
+int
+cbb_suspend(device_t self)
+{
+	int			error = 0;
+	struct cbb_softc	*sc = device_get_softc(self);
+
+	error = bus_generic_suspend(self);
+	if (error != 0)
+		return (error);
+	cbb_set(sc, CBB_SOCKET_MASK, 0);	/* Quiet hardware */
+	sc->cardok = 0;				/* Card is bogus now */
+	return (0);
+}
+
+int
+cbb_resume(device_t self)
+{
+	int	error = 0;
+	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(self);
+	uint32_t tmp;
+
+	/*
+	 * In the APM and early ACPI era, BIOSes saved the PCI config
+	 * registers. As chips became more complicated, that functionality moved
+	 * into the ACPI code / tables. We must therefore, restore the settings
+	 * we made here to make sure the device come back. Transitions to Dx
+	 * from D0 and back to D0 cause the bridge to lose its config space, so
+	 * all the bus mappings and such are preserved.
+	 *
+	 * For most drivers, the PCI layer handles this saving. However, since
+	 * there's much black magic and arcane art hidden in these few lines of
+	 * code that would be difficult to transition into the PCI
+	 * layer. chipinit was several years of trial and error to write.
+	 */
+	pci_write_config(self, CBBR_SOCKBASE, rman_get_start(sc->base_res), 4);
+	DEVPRINTF((self, "PCI Memory allocated: %08lx\n",
+	    rman_get_start(sc->base_res)));
+
+	sc->chipinit(sc);
+
+	/* reset interrupt -- Do we really need to do this? */
+	tmp = cbb_get(sc, CBB_SOCKET_EVENT);
+	cbb_set(sc, CBB_SOCKET_EVENT, tmp);
+
+	/* CSC Interrupt: Card detect interrupt on */
+	cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
+
+	/* Signal the thread to wakeup. */
+	wakeup(&sc->intrhand);
+
+	error = bus_generic_resume(self);
+
+	return (error);
 }
 
 int

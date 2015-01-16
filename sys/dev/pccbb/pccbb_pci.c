@@ -301,41 +301,6 @@ cbb_print_config(device_t dev)
 	printf("\n");
 }
 
-static void
-cbb_pci_bridge_init(device_t brdev)
-{
-	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
-	u_int32_t membase, irq;
-
-	if (pci_get_powerstate(brdev) != PCI_POWERSTATE_D0) {
-		/* Reset the power state. */
-		device_printf(brdev, "chip is in D%d power mode "
-		    "-- setting to D0\n", pci_get_powerstate(brdev));
-		pci_set_powerstate(brdev, PCI_POWERSTATE_D0);
-	}
-	membase = rman_get_start(sc->base_res);
-	irq = rman_get_start(sc->irq_res);
-
-	pci_write_config(brdev, CBBR_SOCKBASE, membase, 4);
-	pci_write_config(brdev, PCIR_INTLINE, irq, 4);
-	PCI_ENABLE_IO(device_get_parent(brdev), brdev, SYS_RES_MEMORY);
-
-	exca_init(&sc->exca[0], brdev, sc->bst, sc->bsh, CBB_EXCA_OFFSET);
-	sc->chipinit(sc);
-
-	/* reset 16-bit pcmcia bus */
-	exca_clrb(&sc->exca[0], EXCA_INTR, EXCA_INTR_RESET);
-
-	/* turn off power */
-	cbb_power(brdev, CARD_OFF);
-
-	/* CSC Interrupt: Card detect interrupt on */
-	cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
-
-	/* reset interrupt */
-	cbb_set(sc, CBB_SOCKET_EVENT, cbb_get(sc, CBB_SOCKET_EVENT));
-}
-
 static int
 cbb_pci_attach(device_t brdev)
 {
@@ -380,9 +345,11 @@ cbb_pci_attach(device_t brdev)
 
 	sc->bst = rman_get_bustag(sc->base_res);
 	sc->bsh = rman_get_bushandle(sc->base_res);
+	exca_init(&sc->exca[0], brdev, sc->bst, sc->bsh, CBB_EXCA_OFFSET);
 	sc->exca[0].flags |= EXCA_HAS_MEMREG_WIN;
 	sc->exca[0].chipset = EXCA_CARDBUS;
 	sc->chipinit = cbb_chipinit;
+	sc->chipinit(sc);
 
 	/*Sysctls*/
 	sctx = device_get_sysctl_ctx(brdev);
@@ -460,7 +427,17 @@ cbb_pci_attach(device_t brdev)
 		goto err;
 	}
 
-	cbb_pci_bridge_init(brdev);
+	/* reset 16-bit pcmcia bus */
+	exca_clrb(&sc->exca[0], EXCA_INTR, EXCA_INTR_RESET);
+
+	/* turn off power */
+	cbb_power(brdev, CARD_OFF);
+
+	/* CSC Interrupt: Card detect interrupt on */
+	cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
+
+	/* reset interrupt */
+	cbb_set(sc, CBB_SOCKET_EVENT, cbb_get(sc, CBB_SOCKET_EVENT));
 
 	if (bootverbose)
 		cbb_print_config(brdev);
@@ -900,45 +877,14 @@ cbb_write_config(device_t brdev, u_int b, u_int s, u_int f, u_int reg, uint32_t 
 	    b, s, f, reg, val, width);
 }
 
-static int
-cbb_pci_suspend(device_t brdev)
-{
-	int			error = 0;
-	struct cbb_softc	*sc = device_get_softc(brdev);
-
-	error = bus_generic_suspend(brdev);
-	if (error != 0)
-		return (error);
-	cbb_set(sc, CBB_SOCKET_MASK, 0);	/* Quiet hardware */
-	sc->cardok = 0;				/* Card is bogus now */
-	return (0);
-}
-
-static int
-cbb_pci_resume(device_t brdev)
-{
-	int	error = 0;
-	struct cbb_softc *sc = (struct cbb_softc *)device_get_softc(brdev);
-
-	/* Reinitialize the hardware, ala attach */
-	cbb_pci_bridge_init(brdev);
-
-	/* Signal the thread to wakeup to see if we have any cards to work with. */
-	wakeup(&sc->intrhand);
-
-	error = bus_generic_resume(brdev);
-
-	return (error);
-}
-
 static device_method_t cbb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,			cbb_pci_probe),
 	DEVMETHOD(device_attach,		cbb_pci_attach),
 	DEVMETHOD(device_detach,		cbb_detach),
 	DEVMETHOD(device_shutdown,		cbb_pci_shutdown),
-	DEVMETHOD(device_suspend,		cbb_pci_suspend),
-	DEVMETHOD(device_resume,		cbb_pci_resume),
+	DEVMETHOD(device_suspend,		cbb_suspend),
+	DEVMETHOD(device_resume,		cbb_resume),
 
 	/* bus methods */
 	DEVMETHOD(bus_read_ivar,		cbb_read_ivar),
