@@ -406,6 +406,16 @@ See
 for valid format values
 .Pq requires version 20140927 or later .
 .El
+.Pp
+For a list of supported
+.Va VMFORMATS
+values
+.Pq including cloud hosting provider formats
+along with a brief description, run:
+.Bd -literal -offset indent
+cd /usr/src
+make -C release list-vmtargets
+.Ed
 .Sh CLOUD HOSTING MACHINE IMAGES
 The
 .Fx
@@ -520,6 +530,12 @@ See
 for implementation details.
 .It Cm list-cloudware
 Displays the list of valid
+.Va CLOUDWARE
+values.
+.It Cm list-vmtargets
+Displays the list of valid
+.Va VMFORMAT
+and
 .Va CLOUDWARE
 values.
 .El
