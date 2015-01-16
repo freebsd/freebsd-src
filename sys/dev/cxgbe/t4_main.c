@@ -668,6 +668,14 @@ t4_attach(device_t dev)
 		goto done;
 	}
 
+#if defined(__i386__)
+	if ((cpu_feature & CPUID_CX8) == 0) {
+		device_printf(dev, "64 bit atomics not available.\n");
+		rc = ENOTSUP;
+		goto done;
+	}
+#endif
+
 	/* Prepare the firmware for operation */
 	rc = prep_firmware(sc);
 	if (rc != 0)
