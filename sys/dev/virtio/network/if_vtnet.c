@@ -1001,7 +1001,6 @@ vtnet_change_mtu(struct vtnet_softc *sc, int new_mtu)
 	} else
 		clsize = MJUMPAGESIZE;
 
-	if_set(ifp, IF_MTU, new_mtu);
 	sc->vtnet_rx_new_clsize = clsize;
 
 	if (sc->vtnet_flags & VTNET_FLAG_RUNNING) {
