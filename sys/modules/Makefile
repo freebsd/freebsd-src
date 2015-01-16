@@ -444,7 +444,7 @@ _txp=		txp
 .endif
 
 .if ${MK_SOURCELESS_UCODE} != "no" && ${MACHINE_CPUARCH} != "arm" && \
-	${MACHINE_CPUARCH} != "powerpc"
+	${MACHINE_ARCH} != "powerpc"
 _cxgbe=		cxgbe
 .endif
 
