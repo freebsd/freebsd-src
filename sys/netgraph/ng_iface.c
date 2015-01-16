@@ -71,7 +71,6 @@
 
 #include <net/bpf.h>
 #include <net/if.h>
-#include <net/if_var.h>		/* XXXGL: for if_transmit() and if_index. */
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
@@ -555,14 +554,18 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		    }
 
 		case NGM_IFACE_GET_IFINDEX:
+		    {
+			struct ifreq ifr;
+
 			NG_MKRESPONSE(resp, msg, sizeof(uint32_t), M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				break;
 			}
-			*((uint32_t *)resp->data) = ifp->if_index;
+			if_drvioctl(SIOCGIFINDEX, ifp, &ifr, curthread);
+			*((uint32_t *)resp->data) = ifr.ifr_index;
 			break;
-
+		    }
 		default:
 			error = EINVAL;
 			break;
