@@ -61,6 +61,8 @@
 #define	SDHCI_QUIRK_DONT_SHIFT_RESPONSE			(1<<13)
 /* Wait to see reset bit asserted before waiting for de-asserted  */
 #define	SDHCI_QUIRK_WAITFOR_RESET_ASSERTED		(1<<14)
+/* Leave controller in standard mode when putting card in HS mode. */
+#define	SDHCI_QUIRK_DONT_SET_HISPD_BIT			(1<<15)
 
 /*
  * Controller registers
