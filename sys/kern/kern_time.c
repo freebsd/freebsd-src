@@ -200,13 +200,10 @@ kern_clock_getcpuclockid2(struct thread *td, id_t id, int which,
 	switch (which) {
 	case CPUCLOCK_WHICH_PID:
 		if (id != 0) {
-			p = pfind(id);
-			if (p == NULL)
-				return (ESRCH);
-			error = p_cansee(td, p);
-			PROC_UNLOCK(p);
+			error = pget(id, PGET_CANSEE | PGET_NOTID, &p);
 			if (error != 0)
 				return (error);
+			PROC_UNLOCK(p);
 			pid = id;
 		} else {
 			pid = td->td_proc->p_pid;
