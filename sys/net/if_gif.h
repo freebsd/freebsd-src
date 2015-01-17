@@ -90,9 +90,6 @@ struct gif_softc {
 #define	GIF_MTU_MIN	(1280)	/* Minimum MTU */
 #define	GIF_MTU_MAX	(8192)	/* Maximum MTU */
 
-#define	MTAG_GIF	1080679712
-#define	MTAG_GIF_CALLED	0
-
 struct etherip_header {
 #if BYTE_ORDER == LITTLE_ENDIAN
 	u_int	eip_resvl:4,	/* reserved */
