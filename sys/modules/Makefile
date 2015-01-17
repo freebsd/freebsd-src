@@ -317,7 +317,7 @@ SUBDIR=	\
 	sis \
 	sk \
 	${_smbfs} \
-	${_sn} \
+	sn \
 	${_snc} \
 	snp \
 	${_sound} \
@@ -438,7 +438,6 @@ _ispfw=		ispfw
 _mwlfw=		mwlfw
 _ralfw=		ralfw
 _sf=		sf
-_sn=		sn
 _ti=		ti
 _txp=		txp
 .endif
