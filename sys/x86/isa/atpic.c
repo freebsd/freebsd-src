@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_auto_eoi.h"
 #include "opt_isa.h"
+#include "opt_mca.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
