@@ -250,6 +250,11 @@ ar9300_attach_freebsd_ops(struct ath_hal *ah)
 	ah->ah_btCoexEnable		= ar9300_bt_coex_enable;
 
 	/* MCI bluetooth functions */
+	if (AR_SREV_JUPITER(ah) || AR_SREV_APHRODITE(ah)) {
+		ah->ah_btCoexSetWeights = ar9300_mci_bt_coex_set_weights;
+		ah->ah_btCoexDisable = ar9300_mci_bt_coex_disable;
+		ah->ah_btCoexEnable = ar9300_mci_bt_coex_enable;
+	}
 	ah->ah_btMciSetup		= ar9300_mci_setup;
 	ah->ah_btMciSendMessage		= ar9300_mci_send_message;
 	ah->ah_btMciGetInterrupt	= ar9300_mci_get_interrupt;
