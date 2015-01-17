@@ -576,7 +576,7 @@ write_file(Elf *src, const char *srcname, Elf *dst, const char *dstname,
 			    shdr.sh_name);
 		}
 
-#if !defined(sun)
+#ifndef illumos
 		if (gelf_update_shdr(dscn, &shdr) == 0)
 			elfterminate(dstname, "Cannot update sect %s", sname);
 #endif
@@ -585,7 +585,7 @@ write_file(Elf *src, const char *srcname, Elf *dst, const char *dstname,
 			elfterminate(srcname, "Cannot get sect %s data", sname);
 		if ((ddata = elf_newdata(dscn)) == NULL)
 			elfterminate(dstname, "Can't make sect %s data", sname);
-#if defined(sun)
+#ifdef illumos
 		bcopy(sdata, ddata, sizeof (Elf_Data));
 #else
 		/*
@@ -645,7 +645,7 @@ write_file(Elf *src, const char *srcname, Elf *dst, const char *dstname,
 			}
 		}
 
-#if !defined(sun)
+#ifndef illumos
 		if (ddata->d_buf == NULL && sdata->d_buf != NULL) {
 			ddata->d_buf = xmalloc(shdr.sh_size);
 			bcopy(sdata->d_buf, ddata->d_buf, shdr.sh_size);
