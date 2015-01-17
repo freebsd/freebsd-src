@@ -238,6 +238,9 @@ ofw_fdt_getproplen(ofw_t ofw, phandle_t package, const char *propname)
 			return (sizeof(uint64_t)*2*fdt_num_mem_rsv(fdtp));
 	}
 
+	if (prop == NULL)
+		return (-1);
+
 	return (len);
 }
 
