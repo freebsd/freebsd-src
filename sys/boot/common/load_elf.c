@@ -77,7 +77,7 @@ static int __elfN(lookup_symbol)(struct preloaded_file *mp, elf_file_t ef, const
 static int __elfN(reloc_ptr)(struct preloaded_file *mp, elf_file_t ef,
     Elf_Addr p, void *val, size_t len);
 static int __elfN(parse_modmetadata)(struct preloaded_file *mp, elf_file_t ef,
-    u_int64_t p_start, u_int64_t p_end);
+    Elf_Addr p_start, Elf_Addr p_end);
 static symaddr_fn __elfN(symaddr);
 static char	*fake_modname(const char *name);
 
@@ -300,7 +300,7 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
     Elf_Size	size;
     u_int	fpcopy;
     Elf_Sym	sym;
-    u_int64_t	p_start, p_end;
+    Elf_Addr	p_start, p_end;
 
     dp = NULL;
     shdr = NULL;
@@ -712,7 +712,7 @@ __elfN(load_modmetadata)(struct preloaded_file *fp, u_int64_t dest)
 	Elf_Shdr		*sh_data[2];
 	char			*shstrtab = NULL;
 	size_t			 size;
-	u_int64_t		 p_start, p_end;
+	Elf_Addr		 p_start, p_end;
 
 	bzero(&ef, sizeof(struct elf_file));
 	ef.fd = -1;
@@ -820,7 +820,7 @@ out:
 
 int
 __elfN(parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef,
-    u_int64_t p_start, u_int64_t p_end)
+    Elf_Addr p_start, Elf_Addr p_end)
 {
     struct mod_metadata md;
 #if (defined(__i386__) || defined(__powerpc__)) && __ELF_WORD_SIZE == 64
