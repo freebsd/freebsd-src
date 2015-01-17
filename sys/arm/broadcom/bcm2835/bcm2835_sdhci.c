@@ -91,7 +91,7 @@ __FBSDID("$FreeBSD$");
  * HS mode still can be enabled with the tunable.
  */
 static int bcm2835_sdhci_min_freq = 400000;
-static int bcm2835_sdhci_hs = 0;
+static int bcm2835_sdhci_hs = 1;
 static int bcm2835_sdhci_pio_mode = 0;
 
 TUNABLE_INT("hw.bcm2835.sdhci.min_freq", &bcm2835_sdhci_min_freq);
@@ -235,6 +235,7 @@ bcm_sdhci_attach(device_t dev)
 	sc->sc_slot.caps |= (default_freq << SDHCI_CLOCK_BASE_SHIFT);
 	sc->sc_slot.quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK 
 		| SDHCI_QUIRK_BROKEN_TIMEOUT_VAL
+		| SDHCI_QUIRK_DONT_SET_HISPD_BIT
 		| SDHCI_QUIRK_MISSING_CAPS;
  
 	sdhci_init_slot(dev, &sc->sc_slot, 0);

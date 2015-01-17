@@ -696,7 +696,8 @@ sdhci_generic_update_ios(device_t brdev, device_t reqdev)
 		slot->hostctrl |= SDHCI_CTRL_4BITBUS;
 	else
 		slot->hostctrl &= ~SDHCI_CTRL_4BITBUS;
-	if (ios->timing == bus_timing_hs)
+	if (ios->timing == bus_timing_hs && 
+	    !(slot->quirks & SDHCI_QUIRK_DONT_SET_HISPD_BIT))
 		slot->hostctrl |= SDHCI_CTRL_HISPD;
 	else
 		slot->hostctrl &= ~SDHCI_CTRL_HISPD;
