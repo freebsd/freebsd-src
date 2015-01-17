@@ -2420,3 +2420,4 @@ static moduledata_t mlx4ib_mod = {
 DECLARE_MODULE(mlx4ib, mlx4ib_mod, SI_SUB_OFED_PREINIT, SI_ORDER_ANY);
 MODULE_DEPEND(mlx4ib, mlx4, 1, 1, 1);
 MODULE_DEPEND(mlx4ib, ibcore, 1, 1, 1);
+MODULE_DEPEND(mlx4ib, linuxapi, 1, 1, 1);
