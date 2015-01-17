@@ -484,6 +484,9 @@ ar9300_ani_control(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
              */
             is_on = param ? 1 : 0;
 
+            if (AR_SREV_JUPITER(ah) || AR_SREV_APHRODITE(ah))
+                goto skip_ws_det;
+
             /*
              * make register setting for default (weak sig detect ON)
              * come from INI file
@@ -528,6 +531,7 @@ ar9300_ani_control(struct ath_hal *ah, HAL_ANI_CMD cmd, int param)
                 m1_thresh_ext);
             OS_REG_RMW_FIELD(ah, AR_PHY_SFCORR_EXT, AR_PHY_SFCORR_EXT_M2_THRESH,
                 m2_thresh_ext);
+skip_ws_det:
             if (is_on) {
                 OS_REG_SET_BIT(ah, AR_PHY_SFCORR_LOW,
                     AR_PHY_SFCORR_LOW_USE_SELF_CORR_LOW);
