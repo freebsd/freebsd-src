@@ -406,7 +406,7 @@ zfs_fuid_map_id(zfsvfs_t *zfsvfs, uint64_t fuid,
 	domain = zfs_fuid_find_by_idx(zfsvfs, index);
 	ASSERT(domain != NULL);
 
-#ifdef sun
+#ifdef illumos
 	if (type == ZFS_OWNER || type == ZFS_ACE_USER) {
 		(void) kidmap_getuidbysid(crgetzone(cr), domain,
 		    FUID_RID(fuid), &id);
@@ -414,9 +414,9 @@ zfs_fuid_map_id(zfsvfs_t *zfsvfs, uint64_t fuid,
 		(void) kidmap_getgidbysid(crgetzone(cr), domain,
 		    FUID_RID(fuid), &id);
 	}
-#else	/* !sun */
+#else
 	id = UID_NOBODY;
-#endif	/* !sun */
+#endif
 	return (id);
 }
 
@@ -703,13 +703,13 @@ zfs_fuid_info_free(zfs_fuid_info_t *fuidp)
 boolean_t
 zfs_groupmember(zfsvfs_t *zfsvfs, uint64_t id, cred_t *cr)
 {
-#ifdef sun
+#ifdef illumos
 	ksid_t		*ksid = crgetsid(cr, KSID_GROUP);
 	ksidlist_t	*ksidlist = crgetsidlist(cr);
-#endif	/* !sun */
+#endif
 	uid_t		gid;
 
-#ifdef sun
+#ifdef illumos
 	if (ksid && ksidlist) {
 		int 		i;
 		ksid_t		*ksid_groups;
@@ -741,7 +741,7 @@ zfs_groupmember(zfsvfs_t *zfsvfs, uint64_t id, cred_t *cr)
 			}
 		}
 	}
-#endif	/* !sun */
+#endif	/* illumos */
 
 	/*
 	 * Not found in ksidlist, check posix groups

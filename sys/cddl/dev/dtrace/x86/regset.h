@@ -61,7 +61,7 @@ extern "C" {
 
 #define	REG_GSBASE	27
 #define	REG_FSBASE	26
-#if defined(sun)
+#ifdef illumos
 #define	REG_DS		25
 #define	REG_ES		24
 
@@ -89,7 +89,7 @@ extern "C" {
 #define	REG_R13		2
 #define	REG_R14		1
 #define	REG_R15		0
-#else
+#else	/* !illumos */
 #define	REG_SS		25
 #define	REG_RSP		24
 #define	REG_RFL		23
@@ -116,13 +116,13 @@ extern "C" {
 #define	REG_R13		2
 #define	REG_R14		1
 #define	REG_R15		0
-#endif
+#endif	/* illumos */
 
 /*
  * The names and offsets defined here are specified by i386 ABI suppl.
  */
 
-#if defined(sun)
+#ifdef illumos
 #define	SS		18	/* only stored on a privilege transition */
 #define	UESP		17	/* only stored on a privilege transition */
 #define	EFL		16
@@ -142,7 +142,7 @@ extern "C" {
 #define	ES		2
 #define	FS		1
 #define	GS		0
-#else
+#else	/* !illumos */
 #define	GS		18
 #define	SS		17	/* only stored on a privilege transition */
 #define	UESP		16	/* only stored on a privilege transition */
@@ -162,7 +162,7 @@ extern "C" {
 #define	DS		2
 #define	ES		1
 #define	FS		0
-#endif
+#endif	/* illumos */
 
 #define REG_PC  EIP
 #define REG_FP  EBP
