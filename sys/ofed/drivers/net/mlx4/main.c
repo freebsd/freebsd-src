@@ -3796,3 +3796,5 @@ static moduledata_t mlx4_mod = {
 };
 MODULE_VERSION(mlx4, 1);
 DECLARE_MODULE(mlx4, mlx4_mod, SI_SUB_OFED_PREINIT, SI_ORDER_ANY);
+MODULE_DEPEND(mlx4, linuxapi, 1, 1, 1);
+
