@@ -173,7 +173,7 @@ tdesc_namecmp(void *arg1, void *arg2)
 	return (!streq(tdp1->t_name, tdp2->t_name));
 }
 
-#if defined(sun)
+#ifdef illumos
 /*ARGSUSED1*/
 static int
 tdesc_print(void *data, void *private __unused)

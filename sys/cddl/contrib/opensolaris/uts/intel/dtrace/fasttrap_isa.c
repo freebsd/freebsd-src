@@ -28,7 +28,7 @@
  * Use is subject to license terms.
  */
 
-#if defined(sun)
+#ifdef illumos
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 #endif
 
@@ -37,7 +37,7 @@
 #include <sys/dtrace.h>
 #include <sys/dtrace_impl.h>
 #include <sys/cmn_err.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/regset.h>
 #include <sys/privregs.h>
 #include <sys/segments.h>
@@ -53,7 +53,7 @@
 #include <machine/pcb.h>
 #endif
 #include <sys/sysmacros.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/trap.h>
 #include <sys/archsystm.h>
 #else
@@ -97,7 +97,7 @@ uwrite(proc_t *p, void *kaddr, size_t len, uintptr_t uaddr)
 
 	return (proc_ops(UIO_WRITE, p, kaddr, uaddr, len));
 }
-#endif /* sun */
+#endif /* illumos */
 #ifdef __i386__
 #define	r_rax	r_eax
 #define	r_rbx	r_ebx
@@ -747,11 +747,11 @@ fasttrap_return_common(struct reg *rp, uintptr_t pc, pid_t pid,
 	fasttrap_tracepoint_t *tp;
 	fasttrap_bucket_t *bucket;
 	fasttrap_id_t *id;
-#if defined(sun)
+#ifdef illumos
 	kmutex_t *pid_mtx;
 #endif
 
-#if defined(sun)
+#ifdef illumos
 	pid_mtx = &cpu_core[CPU->cpu_id].cpuc_pid_lock;
 	mutex_enter(pid_mtx);
 #endif
@@ -769,7 +769,7 @@ fasttrap_return_common(struct reg *rp, uintptr_t pc, pid_t pid,
 	 * is not essential to the correct execution of the process.
 	 */
 	if (tp == NULL) {
-#if defined(sun)
+#ifdef illumos
 		mutex_exit(pid_mtx);
 #endif
 		return;
@@ -792,7 +792,7 @@ fasttrap_return_common(struct reg *rp, uintptr_t pc, pid_t pid,
 		    rp->r_rax, rp->r_rbx, 0, 0);
 	}
 
-#if defined(sun)
+#ifdef illumos
 	mutex_exit(pid_mtx);
 #endif
 }
@@ -800,7 +800,7 @@ fasttrap_return_common(struct reg *rp, uintptr_t pc, pid_t pid,
 static void
 fasttrap_sigsegv(proc_t *p, kthread_t *t, uintptr_t addr)
 {
-#if defined(sun)
+#ifdef illumos
 	sigqueue_t *sqp = kmem_zalloc(sizeof (sigqueue_t), KM_SLEEP);
 
 	sqp->sq_info.si_signo = SIGSEGV;
@@ -1001,13 +1001,13 @@ int
 fasttrap_pid_probe(struct reg *rp)
 {
 	proc_t *p = curproc;
-#if !defined(sun)
+#ifndef illumos
 	proc_t *pp;
 #endif
 	uintptr_t pc = rp->r_rip - 1;
 	uintptr_t new_pc = 0;
 	fasttrap_bucket_t *bucket;
-#if defined(sun)
+#ifdef illumos
 	kmutex_t *pid_mtx;
 #endif
 	fasttrap_tracepoint_t *tp, tp_local;
@@ -1044,7 +1044,7 @@ fasttrap_pid_probe(struct reg *rp)
 	 * parent. We know that there's only one thread of control in such a
 	 * process: this one.
 	 */
-#if defined(sun)
+#ifdef illumos
 	while (p->p_flag & SVFORK) {
 		p = p->p_parent;
 	}
@@ -1082,7 +1082,7 @@ fasttrap_pid_probe(struct reg *rp)
 	 * fasttrap_ioctl), or somehow we have mislaid this tracepoint.
 	 */
 	if (tp == NULL) {
-#if defined(sun)
+#ifdef illumos
 		mutex_exit(pid_mtx);
 #else
 		_PRELE(p);
@@ -1209,7 +1209,7 @@ fasttrap_pid_probe(struct reg *rp)
 	 * tracepoint again later if we need to light up any return probes.
 	 */
 	tp_local = *tp;
-#if defined(sun)
+#ifdef illumos
 	mutex_exit(pid_mtx);
 #else
 	PROC_UNLOCK(p);
@@ -1537,7 +1537,7 @@ fasttrap_pid_probe(struct reg *rp)
 		uint8_t scratch[2 * FASTTRAP_MAX_INSTR_SIZE + 7];
 #endif
 		uint_t i = 0;
-#if defined(sun)
+#ifdef illumos
 		klwp_t *lwp = ttolwp(curthread);
 
 		/*
@@ -1558,7 +1558,7 @@ fasttrap_pid_probe(struct reg *rp)
 		addr = USD_GETBASE(&lwp->lwp_pcb.pcb_gsdesc);
 		addr += sizeof (void *);
 #endif
-#else
+#else	/* !illumos */
 		fasttrap_scrspace_t *scrspace;
 		scrspace = fasttrap_scraddr(curthread, tp->ftt_proc);
 		if (scrspace == NULL) {
@@ -1574,7 +1574,7 @@ fasttrap_pid_probe(struct reg *rp)
 			break;
 		}
 		addr = scrspace->ftss_addr;
-#endif /* sun */
+#endif /* illumos */
 
 		/*
 		 * Generic Instruction Tracing
@@ -1760,7 +1760,7 @@ fasttrap_pid_probe(struct reg *rp)
 
 		ASSERT(i <= sizeof (scratch));
 
-#if defined(sun)
+#ifdef illumos
 		if (fasttrap_copyout(scratch, (char *)addr, i)) {
 #else
 		if (uwrite(p, scratch, i, addr)) {
@@ -1822,7 +1822,7 @@ done:
 
 	rp->r_rip = new_pc;
 
-#if !defined(sun)
+#ifndef illumos
 	PROC_LOCK(p);
 	proc_write_regs(curthread, rp);
 	_PRELE(p);
@@ -1844,7 +1844,7 @@ fasttrap_return_probe(struct reg *rp)
 	curthread->t_dtrace_scrpc = 0;
 	curthread->t_dtrace_astpc = 0;
 
-#if defined(sun)
+#ifdef illumos
 	/*
 	 * Treat a child created by a call to vfork(2) as if it were its
 	 * parent. We know that there's only one thread of control in such a
@@ -1917,7 +1917,7 @@ fasttrap_getreg(struct reg *rp, uint_t reg)
 	case REG_ERR:		return (rp->r_err);
 	case REG_RIP:		return (rp->r_rip);
 	case REG_CS:		return (rp->r_cs);
-#if defined(sun)
+#ifdef illumos
 	case REG_RFL:		return (rp->r_rfl);
 #endif
 	case REG_RSP:		return (rp->r_rsp);

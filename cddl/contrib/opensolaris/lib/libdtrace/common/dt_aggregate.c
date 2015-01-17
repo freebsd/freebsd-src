@@ -35,7 +35,7 @@
 #include <unistd.h>
 #include <dt_impl.h>
 #include <assert.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #else
 #include <sys/sysctl.h>
@@ -453,7 +453,7 @@ dt_aggregate_snap_cpu(dtrace_hdl_t *dtp, processorid_t cpu)
 
 	buf->dtbd_cpu = cpu;
 
-#if defined(sun)
+#ifdef illumos
 	if (dt_ioctl(dtp, DTRACEIOC_AGGSNAP, buf) == -1) {
 #else
 	if (dt_ioctl(dtp, DTRACEIOC_AGGSNAP, &buf) == -1) {

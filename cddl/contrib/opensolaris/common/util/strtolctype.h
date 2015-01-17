@@ -44,7 +44,7 @@ extern "C" {
  * safe in probe context.
  */
 
-#if defined(sun) &&	(defined(_KERNEL) || defined(_BOOT))
+#if defined(illumos) && (defined(_KERNEL) || defined(_BOOT))
 
 #define	isalnum(ch)	(isalpha(ch) || isdigit(ch))
 #define	isalpha(ch)	(isupper(ch) || islower(ch))

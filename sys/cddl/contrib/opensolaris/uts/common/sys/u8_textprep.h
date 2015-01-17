@@ -36,7 +36,7 @@
 extern "C" {
 #endif
 
-#ifdef sun
+#ifdef illumos
 /*
  * Unicode encoding conversion functions and their macros.
  */
@@ -58,7 +58,7 @@ extern int uconv_u32tou16(const uint32_t *, size_t *, uint16_t *, size_t *,
 extern int uconv_u32tou8(const uint32_t *, size_t *, uchar_t *, size_t *, int);
 extern int uconv_u8tou16(const uchar_t *, size_t *, uint16_t *, size_t *, int);
 extern int uconv_u8tou32(const uchar_t *, size_t *, uint32_t *, size_t *, int);
-#endif	/* sun */
+#endif	/* illumos */
 
 /*
  * UTF-8 text preparation functions and their macros.

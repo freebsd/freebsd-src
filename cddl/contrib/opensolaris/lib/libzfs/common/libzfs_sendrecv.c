@@ -949,7 +949,7 @@ dump_ioctl(zfs_handle_t *zhp, const char *fromsnap, uint64_t fromsnap_obj,
 		case EIO:
 		case ENOLINK:
 		case ENOSPC:
-#ifdef sun
+#ifdef illumos
 		case ENOSTR:
 #endif
 		case ENXIO:
