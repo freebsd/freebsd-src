@@ -663,7 +663,7 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * by the median we just loaded.  This will be initial (and max) value
 	 * of next noise floor calibration the baseband does.  
 	 */
-	for (i = 0; i < AR5416_NUM_NF_READINGS; i ++)
+	for (i = 0; i < AR5416_NUM_NF_READINGS; i ++) {
 
 		/* Don't write to EXT radio CCA registers unless in HT/40 mode */
 		/* XXX this check should really be cleaner! */
@@ -676,6 +676,7 @@ ar5416LoadNF(struct ath_hal *ah, const struct ieee80211_channel *chan)
 			val |= (((uint32_t)(-50) << 1) & 0x1ff);
 			OS_REG_WRITE(ah, ar5416_cca_regs[i], val);
 		}
+	}
 }
 
 /*
