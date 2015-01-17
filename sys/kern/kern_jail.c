@@ -799,7 +799,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET
 	error = vfs_getopt(opts, "ip4.addr", &op, &ip4s);
 	if (error == ENOENT)
-		ip4s = (pr_flags & PR_IP4_DISABLE) ? 0 : -1;
+		ip4s = 0;
 	else if (error != 0)
 		goto done_free;
 	else if (ip4s & (sizeof(*ip4) - 1)) {
@@ -857,7 +857,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET6
 	error = vfs_getopt(opts, "ip6.addr", &op, &ip6s);
 	if (error == ENOENT)
-		ip6s = (pr_flags & PR_IP6_DISABLE) ? 0 : -1;
+		ip6s = 0;
 	else if (error != 0)
 		goto done_free;
 	else if (ip6s & (sizeof(*ip6) - 1)) {
