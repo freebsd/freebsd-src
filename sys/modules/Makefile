@@ -502,7 +502,9 @@ _ipoib=         ipoib
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
+.if ${MK_OFED} != "no"
 _linuxapi=	linuxapi
+.endif
 _ndis=		ndis
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
