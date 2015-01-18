@@ -94,7 +94,7 @@ ext4_bmapext(struct vnode *vp, int32_t bn, int64_t *bnp, int *runp, int *runb)
 	struct inode *ip;
 	struct m_ext2fs *fs;
 	struct ext4_extent *ep;
-	struct ext4_extent_path path;
+	struct ext4_extent_path path = { .ep_bp = NULL };
 	daddr_t lbn;
 
 	ip = VTOI(vp);
