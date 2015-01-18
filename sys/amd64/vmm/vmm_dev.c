@@ -205,6 +205,7 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 	case VM_ACTIVATE_CPU:
 	case VM_SET_INTINFO:
 	case VM_GET_INTINFO:
+	case VM_RESTART_INSTRUCTION:
 		/*
 		 * XXX fragile, handle with care
 		 * Assumes that the first field of the ioctl data is the vcpu.
@@ -505,6 +506,9 @@ vmmdev_ioctl(struct cdev *cdev, u_long cmd, caddr_t data, int fflag,
 		error = 0;
 		rtctime = (struct vm_rtc_time *)data;
 		rtctime->secs = vrtc_get_time(sc->vm);
+		break;
+	case VM_RESTART_INSTRUCTION:
+		error = vm_restart_instruction(sc->vm, vcpu);
 		break;
 	default:
 		error = ENOTTY;

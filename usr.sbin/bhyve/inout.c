@@ -104,7 +104,7 @@ int
 emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 {
 	int addrsize, bytes, flags, in, port, prot, rep;
-	uint32_t val;
+	uint32_t eax, val;
 	inout_func_t handler;
 	void *arg;
 	int error, retval;
@@ -214,16 +214,20 @@ emulate_inout(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit, int strict)
 		}
 
 		/* Restart the instruction if more iterations remain */
-		if (retval == 0 && count != 0)
-			vmexit->inst_length = 0;
-	} else {
-		if (!in) {
-			val = vmexit->u.inout.eax & vie_size2mask(bytes);
+		if (retval == 0 && count != 0) {
+			error = vm_restart_instruction(ctx, vcpu);
+			assert(error == 0);
 		}
+	} else {
+		eax = vmexit->u.inout.eax;
+		val = eax & vie_size2mask(bytes);
 		retval = handler(ctx, vcpu, in, port, bytes, &val, arg);
 		if (retval == 0 && in) {
-			vmexit->u.inout.eax &= ~vie_size2mask(bytes);
-			vmexit->u.inout.eax |= val & vie_size2mask(bytes);
+			eax &= ~vie_size2mask(bytes);
+			eax |= val & vie_size2mask(bytes);
+			error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RAX,
+			    eax);
+			assert(error == 0);
 		}
 	}
 	return (retval);
