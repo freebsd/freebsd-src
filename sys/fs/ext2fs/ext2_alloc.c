@@ -443,11 +443,11 @@ static u_long
 ext2_dirpref(struct inode *pip)
 {
 	struct m_ext2fs *fs;
-	int cg, prefcg, dirsize, cgsize;
+	int cg, prefcg, cgsize;
 	u_int avgifree, avgbfree, avgndir, curdirsize;
 	u_int minifree, minbfree, maxndir;
 	u_int mincg, minndir;
-	u_int maxcontigdirs;
+	u_int dirsize, maxcontigdirs;
 
 	mtx_assert(EXT2_MTX(pip->i_ump), MA_OWNED);
 	fs = pip->i_e2fs;
@@ -498,10 +498,7 @@ ext2_dirpref(struct inode *pip)
 	curdirsize = avgndir ? (cgsize - avgbfree * fs->e2fs_bsize) / avgndir : 0;
 	if (dirsize < curdirsize)
 		dirsize = curdirsize;
-	if (dirsize <= 0)
-		maxcontigdirs = 0;		/* dirsize overflowed */
-	else
-		maxcontigdirs = min((avgbfree * fs->e2fs_bsize) / dirsize, 255);
+	maxcontigdirs = min((avgbfree * fs->e2fs_bsize) / dirsize, 255);
 	maxcontigdirs = min(maxcontigdirs, fs->e2fs_ipg / AFPDIR);
 	if (maxcontigdirs == 0)
 		maxcontigdirs = 1;
