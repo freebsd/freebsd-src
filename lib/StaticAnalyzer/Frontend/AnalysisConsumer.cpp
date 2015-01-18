@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Frontend/AnalysisConsumer.h"
+#include "ModelInjector.h"
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/DataRecursiveASTVisitor.h"
 #include "clang/AST/Decl.h"
@@ -21,8 +22,10 @@
 #include "clang/Analysis/Analyses/LiveVariables.h"
 #include "clang/Analysis/CFG.h"
 #include "clang/Analysis/CallGraph.h"
+#include "clang/Analysis/CodeInjector.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
+#include "clang/Frontend/CompilerInstance.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/StaticAnalyzer/Checkers/LocalCheckers.h"
 #include "clang/StaticAnalyzer/Core/AnalyzerOptions.h"
@@ -51,7 +54,7 @@ using llvm::SmallPtrSet;
 
 #define DEBUG_TYPE "AnalysisConsumer"
 
-static ExplodedNode::Auditor* CreateUbiViz();
+static std::unique_ptr<ExplodedNode::Auditor> CreateUbiViz();
 
 STATISTIC(NumFunctionTopLevel, "The # of functions at top level.");
 STATISTIC(NumFunctionsAnalyzed,
@@ -157,6 +160,7 @@ public:
   const std::string OutDir;
   AnalyzerOptionsRef Opts;
   ArrayRef<std::string> Plugins;
+  CodeInjector *Injector;
 
   /// \brief Stores the declarations from the local translation unit.
   /// Note, we pre-compute the local declarations at parse time as an
@@ -184,9 +188,10 @@ public:
   AnalysisConsumer(const Preprocessor& pp,
                    const std::string& outdir,
                    AnalyzerOptionsRef opts,
-                   ArrayRef<std::string> plugins)
-    : RecVisitorMode(0), RecVisitorBR(nullptr),
-      Ctx(nullptr), PP(pp), OutDir(outdir), Opts(opts), Plugins(plugins) {
+                   ArrayRef<std::string> plugins,
+                   CodeInjector *injector)
+    : RecVisitorMode(0), RecVisitorBR(nullptr), Ctx(nullptr), PP(pp),
+      OutDir(outdir), Opts(opts), Plugins(plugins), Injector(injector) {
     DigestAnalyzerOptions();
     if (Opts->PrintStats) {
       llvm::EnableStatistics();
@@ -284,16 +289,12 @@ public:
 
   void Initialize(ASTContext &Context) override {
     Ctx = &Context;
-    checkerMgr.reset(createCheckerManager(*Opts, PP.getLangOpts(), Plugins,
-                                          PP.getDiagnostics()));
-    Mgr.reset(new AnalysisManager(*Ctx,
-                                  PP.getDiagnostics(),
-                                  PP.getLangOpts(),
-                                  PathConsumers,
-                                  CreateStoreMgr,
-                                  CreateConstraintMgr,
-                                  checkerMgr.get(),
-                                  *Opts));
+    checkerMgr = createCheckerManager(*Opts, PP.getLangOpts(), Plugins,
+                                      PP.getDiagnostics());
+
+    Mgr = llvm::make_unique<AnalysisManager>(
+        *Ctx, PP.getDiagnostics(), PP.getLangOpts(), PathConsumers,
+        CreateStoreMgr, CreateConstraintMgr, checkerMgr.get(), *Opts, Injector);
   }
 
   /// \brief Store the top level decls in the set to be processed later on.
@@ -307,7 +308,7 @@ public:
   /// analyzed. This allows to redefine the default inlining policies when
   /// analyzing a given function.
   ExprEngine::InliningModes
-  getInliningModeForFunction(const Decl *D, const SetOfConstDecls &Visited);
+    getInliningModeForFunction(const Decl *D, const SetOfConstDecls &Visited);
 
   /// \brief Build the call graph for all the top level decls of this TU and
   /// use it to define the order in which the functions should be visited.
@@ -506,6 +507,11 @@ void AnalysisConsumer::HandleTranslationUnit(ASTContext &C) {
   if (Diags.hasErrorOccurred() || Diags.hasFatalErrorOccurred())
     return;
 
+  // Don't analyze if the user explicitly asked for no checks to be performed
+  // on this file.
+  if (Opts->DisableAllChecks)
+    return;
+
   {
     if (TUTotalTimer) TUTotalTimer->startTimer();
 
@@ -643,7 +649,7 @@ void AnalysisConsumer::ActionExprEngine(Decl *D, bool ObjCGCEnabled,
   // Set the graph auditor.
   std::unique_ptr<ExplodedNode::Auditor> Auditor;
   if (Mgr->options.visualizeExplodedGraphWithUbiGraph) {
-    Auditor.reset(CreateUbiViz());
+    Auditor = CreateUbiViz();
     ExplodedNode::SetAuditor(Auditor.get());
   }
 
@@ -687,14 +693,18 @@ void AnalysisConsumer::RunPathSensitiveChecks(Decl *D,
 // AnalysisConsumer creation.
 //===----------------------------------------------------------------------===//
 
-AnalysisASTConsumer *
-ento::CreateAnalysisConsumer(const Preprocessor &pp, const std::string &outDir,
-                             AnalyzerOptionsRef opts,
-                             ArrayRef<std::string> plugins) {
+std::unique_ptr<AnalysisASTConsumer>
+ento::CreateAnalysisConsumer(CompilerInstance &CI) {
   // Disable the effects of '-Werror' when using the AnalysisConsumer.
-  pp.getDiagnostics().setWarningsAsErrors(false);
+  CI.getPreprocessor().getDiagnostics().setWarningsAsErrors(false);
 
-  return new AnalysisConsumer(pp, outDir, opts, plugins);
+  AnalyzerOptionsRef analyzerOpts = CI.getAnalyzerOpts();
+  bool hasModelPath = analyzerOpts->Config.count("model-path") > 0;
+
+  return llvm::make_unique<AnalysisConsumer>(
+      CI.getPreprocessor(), CI.getFrontendOpts().OutputFile, analyzerOpts,
+      CI.getFrontendOpts().Plugins,
+      hasModelPath ? new ModelInjector(CI) : nullptr);
 }
 
 //===----------------------------------------------------------------------===//
@@ -721,7 +731,7 @@ public:
 
 } // end anonymous namespace
 
-static ExplodedNode::Auditor* CreateUbiViz() {
+static std::unique_ptr<ExplodedNode::Auditor> CreateUbiViz() {
   SmallString<128> P;
   int FD;
   llvm::sys::fs::createTemporaryFile("llvm_ubi", "", FD, P);
@@ -729,7 +739,7 @@ static ExplodedNode::Auditor* CreateUbiViz() {
 
   auto Stream = llvm::make_unique<llvm::raw_fd_ostream>(FD, true);
 
-  return new UbigraphViz(std::move(Stream), P);
+  return llvm::make_unique<UbigraphViz>(std::move(Stream), P);
 }
 
 void UbigraphViz::AddEdge(ExplodedNode *Src, ExplodedNode *Dst) {
@@ -778,7 +788,9 @@ UbigraphViz::~UbigraphViz() {
   Out.reset();
   llvm::errs() << "Running 'ubiviz' program... ";
   std::string ErrMsg;
-  std::string Ubiviz = llvm::sys::FindProgramByName("ubiviz");
+  std::string Ubiviz;
+  if (auto Path = llvm::sys::findProgramByName("ubiviz"))
+    Ubiviz = *Path;
   std::vector<const char*> args;
   args.push_back(Ubiviz.c_str());
   args.push_back(Filename.c_str());

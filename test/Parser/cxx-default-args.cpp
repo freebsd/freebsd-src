@@ -31,3 +31,13 @@ struct T {
   void f7(bool a = T1<int, bool>::V < 3);
   void f8(int = func<0,1<2>(0), int = 1<0, T1<int,int>(int) = 0);
 };
+
+// rdar://18508589
+struct S { 
+  void f(int &r = error);  // expected-error {{use of undeclared identifier 'error'}}
+};
+
+struct U {
+  void i(int x = ) {} // expected-error{{expected expression}}
+  typedef int *fp(int x = ); // expected-error{{default arguments can only be specified for parameters in a function declaration}}
+};

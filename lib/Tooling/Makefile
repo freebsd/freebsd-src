@@ -9,5 +9,6 @@
 
 CLANG_LEVEL := ../..
 LIBRARYNAME := clangTooling
+PARALLEL_DIRS := Core
 
 include $(CLANG_LEVEL)/Makefile

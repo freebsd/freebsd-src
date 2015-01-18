@@ -22,6 +22,7 @@ E: echristo@gmail.com
 D: Debug Information, autotools/configure/make build, inline assembly
 
 N: Doug Gregor
+E: dgregor@apple.com
 D: All parts of Clang not covered by someone else
 
 N: Anton Korobeynikov
@@ -29,6 +30,7 @@ E: anton@korobeynikov.info
 D: Exception handling, Windows codegen, ARM EABI
 
 N: Ted Kremenek
+E: kremenek@apple.com
 D: Clang Static Analyzer
 
 N: John McCall
@@ -37,7 +39,7 @@ D: Clang LLVM IR generation
 
 N: Chad Rosier
 E: mcrosier@codeaurora.org
-D: MS-inline asm, and the compiler driver
+D: Compiler driver
 
 N: Richard Smith
 E: richard@metafoo.co.uk

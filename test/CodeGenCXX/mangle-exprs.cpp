@@ -56,6 +56,18 @@ namespace Casts {
   void static_(typename enable_if< O <= static_cast<unsigned>(4) >::type* = 0) {
   }
 
+  template <unsigned O, typename T>
+  void reinterpret_(typename enable_if<O <= sizeof(reinterpret_cast<T *>(0))>::type * = 0) {
+  }
+
+  template <typename T, T *p>
+  void const_(typename enable_if<0 <= sizeof(const_cast<T *>(p))>::type * = 0) {
+  }
+
+  template <typename T, T *p>
+  void dynamic_(typename enable_if<0 <= sizeof(dynamic_cast<T *>(p))>::type * = 0) {
+  }
+
   template< typename T >
   void auto_(decltype(new auto(T()))) {
   }
@@ -64,11 +76,12 @@ namespace Casts {
   void scalar_(decltype(T(), int())) {
   }
 
-  // FIXME: Test const_cast, reinterpret_cast, dynamic_cast, which are
-  // a bit harder to use in template arguments.
   template <unsigned N> struct T {};
 
   template <int N> T<N> f() { return T<N>(); }
+
+  extern int i;
+  extern struct S {} s;
   
   // CHECK-LABEL: define weak_odr void @_ZN5Casts8implicitILj4EEEvPN9enable_ifIXleT_Li4EEvE4typeE
   template void implicit<4>(void*);
@@ -76,8 +89,14 @@ namespace Casts {
   template void cstyle<4>(void*);
   // CHECK-LABEL: define weak_odr void @_ZN5Casts10functionalILj4EEEvPN9enable_ifIXleT_cvjLi4EEvE4typeE
   template void functional<4>(void*);
-  // CHECK-LABEL: define weak_odr void @_ZN5Casts7static_ILj4EEEvPN9enable_ifIXleT_cvjLi4EEvE4typeE
+  // CHECK-LABEL: define weak_odr void @_ZN5Casts7static_ILj4EEEvPN9enable_ifIXleT_scjLi4EEvE4typeE
   template void static_<4>(void*);
+  // CHECK-LABEL: define weak_odr void @_ZN5Casts12reinterpret_ILj4EiEEvPN9enable_ifIXleT_szrcPT0_Li0EEvE4typeE
+  template void reinterpret_<4, int>(void*);
+  // CHECK-LABEL: define weak_odr void @_ZN5Casts6const_IiXadL_ZNS_1iEEEEEvPN9enable_ifIXleLi0EszccPT_T0_EvE4typeE
+  template void const_<int, &i>(void*);
+  // CHECK-LABEL: define weak_odr void @_ZN5Casts8dynamic_INS_1SEXadL_ZNS_1sEEEEEvPN9enable_ifIXleLi0EszdcPT_T0_EvE4typeE
+  template void dynamic_<struct S, &s>(void*);
 
   // CHECK-LABEL: define weak_odr void @_ZN5Casts1fILi6EEENS_1TIXT_EEEv
   template T<6> f<6>();
@@ -198,3 +217,79 @@ namespace test5 {
   template void a<int>(decltype(noexcept(int())));
   // CHECK: void @_ZN5test51aIiEEvDTnxcvT__EE(
 }
+
+namespace test6 {
+  struct X {
+    int i;
+  };
+
+  struct Y {
+    union {
+      int i;
+    };
+  };
+
+  struct Z {
+    union {
+      X ua;
+      Y ub;
+    };
+
+    struct {
+      X s;
+    };
+
+    union {
+      union {
+        struct {
+          struct {
+            X uuss;
+          };
+        };
+      };
+    };
+  };
+
+  Z z, *zp;
+
+  template<typename T>
+  void f1(decltype(T(z.ua.i))) {}
+  template void f1<int>(int);
+  // CHECK-LABEL: define weak_odr void @_ZN5test62f1IiEEvDTcvT_dtdtL_ZNS_1zEE2ua1iE
+
+  template<typename T>
+  void f2(decltype(T(z.ub.i))) {}
+  template void f2<int>(int);
+  // CHECK-LABEL: define weak_odr void @_ZN5test62f2IiEEvDTcvT_dtdtL_ZNS_1zEE2ub1iE
+
+  template<typename T>
+  void f3(decltype(T(z.s.i))) {}
+  template void f3<int>(int);
+  // CHECK-LABEL: define weak_odr void @_ZN5test62f3IiEEvDTcvT_dtdtL_ZNS_1zEE1s1iE
+
+  template<typename T>
+  void f4(decltype(T(z.uuss.i))) {}
+  template void f4<int>(int);
+  // CHECK-LABEL: define weak_odr void @_ZN5test62f4IiEEvDTcvT_dtdtL_ZNS_1zEE4uuss1iE
+
+  template<typename T>
+  void f5(decltype(T(zp->ua.i))) {}
+  template void f5<int>(int);
+  // CHECK-LABEL: define weak_odr void @_ZN5test62f5IiEEvDTcvT_dtptL_ZNS_2zpEE2ua1iE
+
+  template<typename T>
+  void f6(decltype(T(zp->ub.i))) {}
+  template void f6<int>(int);
+  // CHECK-LABEL: define weak_odr void @_ZN5test62f6IiEEvDTcvT_dtptL_ZNS_2zpEE2ub1iE
+
+  template<typename T>
+  void f7(decltype(T(zp->s.i))) {}
+  template void f7<int>(int);
+  // CHECK-LABEL: define weak_odr void @_ZN5test62f7IiEEvDTcvT_dtptL_ZNS_2zpEE1s1iE
+
+  template<typename T>
+  void f8(decltype(T(zp->uuss.i))) {}
+  template void f8<int>(int);
+  // CHECK-LABEL: define weak_odr void @_ZN5test62f8IiEEvDTcvT_dtptL_ZNS_2zpEE4uuss1iE
+}
+

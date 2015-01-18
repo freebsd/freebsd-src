@@ -1,9 +1,29 @@
-// RUN: %clang_cc1 -std=c++11 -fno-rtti -emit-llvm %s -o - -triple=i386-pc-win32 -fms-extensions | FileCheck %s
-// RUN: %clang_cc1 -std=c++11 -fno-rtti -emit-llvm %s -o - -triple=x86_64-pc-win32 -fms-extensions | FileCheck %s -check-prefix=X64
-// RUN: %clang_cc1 -std=c++11 -fno-rtti -emit-llvm %s -o - -triple=i386-pc-win32 -DINCOMPLETE_VIRTUAL -fms-extensions -verify
-// RUN: %clang_cc1 -std=c++11 -fno-rtti -emit-llvm %s -o - -triple=i386-pc-win32 -DINCOMPLETE_VIRTUAL -DMEMFUN -fms-extensions -verify
-// FIXME: Test x86_64 member pointers when codegen no longer asserts on records
-// with virtual bases.
+// RUN: %clang_cc1 -std=c++11 -Wno-uninitialized -fno-rtti -emit-llvm %s -o - -triple=i386-pc-win32 -fms-extensions | FileCheck %s
+// RUN: %clang_cc1 -std=c++11 -Wno-uninitialized -fno-rtti -emit-llvm %s -o - -triple=x86_64-pc-win32 -fms-extensions | FileCheck %s -check-prefix=X64
+// RUN: %clang_cc1 -std=c++11 -Wno-uninitialized -fno-rtti -emit-llvm %s -o - -triple=i386-pc-win32 -DINCOMPLETE_VIRTUAL -fms-extensions -verify
+// RUN: %clang_cc1 -std=c++11 -Wno-uninitialized -fno-rtti -emit-llvm %s -o - -triple=i386-pc-win32 -DINCOMPLETE_VIRTUAL -DMEMFUN -fms-extensions -verify
+
+namespace PR20947 {
+struct A;
+int A::**a = nullptr;
+// CHECK: %[[opaque0:.*]] = type opaque
+// CHECK: %[[opaque1:.*]] = type opaque
+// CHECK: @"\01?a@PR20947@@3PAPQA@1@HA" = global %[[opaque0]]* null, align 4
+
+struct B;
+int B::*&b = b;
+// CHECK: @"\01?b@PR20947@@3AAPQB@1@HA" = global %[[opaque1]]* null, align 4
+}
+
+namespace PR20017 {
+template <typename T>
+struct A {
+  int T::*m_fn1() { return nullptr; }
+};
+struct B;
+auto a = &A<B>::m_fn1;
+// CHECK-DAG: @"\01?a@PR20017@@3P8?$A@UB@PR20017@@@1@AEPQB@1@HXZQ21@" = global i8* bitcast ({ i32, i32, i32 } ({{.*}}*)* @"\01?m_fn1@?$A@UB@PR20017@@@PR20017@@QAEPQB@2@HXZ" to i8*), align 4
+}
 
 #ifndef INCOMPLETE_VIRTUAL
 struct B1 {
@@ -265,11 +285,11 @@ int loadDataMemberPointerVirtual(Virtual *o, int Virtual::*memptr) {
 // CHECK:   %[[memptr1:.*]] = extractvalue { i32, i32 } %[[memptr:.*]], 1
 // CHECK:   %[[v6:.*]] = bitcast %{{.*}}* %[[o]] to i8*
 // CHECK:   %[[vbptr:.*]] = getelementptr inbounds i8* %[[v6]], i32 0
-// CHECK:   %[[vbptr_a:.*]] = bitcast i8* %[[vbptr]] to i8**
-// CHECK:   %[[vbtable:.*]] = load i8** %[[vbptr_a:.*]]
-// CHECK:   %[[v7:.*]] = getelementptr inbounds i8* %[[vbtable]], i32 %[[memptr1]]
-// CHECK:   %[[v8:.*]] = bitcast i8* %[[v7]] to i32*
-// CHECK:   %[[vbase_offs:.*]] = load i32* %[[v8]]
+// CHECK:   %[[vbptr_a:.*]] = bitcast i8* %[[vbptr]] to i32**
+// CHECK:   %[[vbtable:.*]] = load i32** %[[vbptr_a:.*]]
+// CHECK:   %[[memptr1_shr:.*]] = ashr exact i32 %[[memptr1]], 2
+// CHECK:   %[[v7:.*]] = getelementptr inbounds i32* %[[vbtable]], i32 %[[memptr1_shr]]
+// CHECK:   %[[vbase_offs:.*]] = load i32* %[[v7]]
 // CHECK:   %[[v10:.*]] = getelementptr inbounds i8* %[[vbptr]], i32 %[[vbase_offs]]
 // CHECK:   %[[offset:.*]] = getelementptr inbounds i8* %[[v10]], i32 %[[memptr0]]
 // CHECK:   %[[v11:.*]] = bitcast i8* %[[offset]] to i32*
@@ -299,11 +319,11 @@ int loadDataMemberPointerUnspecified(Unspecified *o, int Unspecified::*memptr) {
 //
 // CHECK: [[vadjust]]
 // CHECK:   %[[vbptr:.*]] = getelementptr inbounds i8* %[[base]], i32 %[[memptr1]]
-// CHECK:   %[[vbptr_a:.*]] = bitcast i8* %[[vbptr]] to i8**
-// CHECK:   %[[vbtable:.*]] = load i8** %[[vbptr_a:.*]]
-// CHECK:   %[[v7:.*]] = getelementptr inbounds i8* %[[vbtable]], i32 %[[memptr2]]
-// CHECK:   %[[v8:.*]] = bitcast i8* %[[v7]] to i32*
-// CHECK:   %[[vbase_offs:.*]] = load i32* %[[v8]]
+// CHECK:   %[[vbptr_a:.*]] = bitcast i8* %[[vbptr]] to i32**
+// CHECK:   %[[vbtable:.*]] = load i32** %[[vbptr_a:.*]]
+// CHECK:   %[[memptr2_shr:.*]] = ashr exact i32 %[[memptr2]], 2
+// CHECK:   %[[v7:.*]] = getelementptr inbounds i32* %[[vbtable]], i32 %[[memptr2_shr]]
+// CHECK:   %[[vbase_offs:.*]] = load i32* %[[v7]]
 // CHECK:   %[[base_adj:.*]] = getelementptr inbounds i8* %[[vbptr]], i32 %[[vbase_offs]]
 //
 // CHECK: [[skip]]
@@ -350,11 +370,11 @@ void callMemberPointerVirtualBase(Virtual *o, void (Virtual::*memptr)()) {
 // CHECK:   %[[memptr1:.*]] = extractvalue { i8*, i32, i32 } %{{.*}}, 1
 // CHECK:   %[[memptr2:.*]] = extractvalue { i8*, i32, i32 } %{{.*}}, 2
 // CHECK:   %[[vbptr:.*]] = getelementptr inbounds i8* %{{.*}}, i32 0
-// CHECK:   %[[vbptr_a:.*]] = bitcast i8* %[[vbptr]] to i8**
-// CHECK:   %[[vbtable:.*]] = load i8** %[[vbptr_a:.*]]
-// CHECK:   %[[v7:.*]] = getelementptr inbounds i8* %[[vbtable]], i32 %[[memptr2]]
-// CHECK:   %[[v8:.*]] = bitcast i8* %[[v7]] to i32*
-// CHECK:   %[[vbase_offs:.*]] = load i32* %[[v8]]
+// CHECK:   %[[vbptr_a:.*]] = bitcast i8* %[[vbptr]] to i32**
+// CHECK:   %[[vbtable:.*]] = load i32** %[[vbptr_a:.*]]
+// CHECK:   %[[memptr2_shr:.*]] = ashr exact i32 %[[memptr2]], 2
+// CHECK:   %[[v7:.*]] = getelementptr inbounds i32* %[[vbtable]], i32 %[[memptr2_shr]]
+// CHECK:   %[[vbase_offs:.*]] = load i32* %[[v7]]
 // CHECK:   %[[v10:.*]] = getelementptr inbounds i8* %[[vbptr]], i32 %[[vbase_offs]]
 // CHECK:   %[[this_adjusted:.*]] = getelementptr inbounds i8* %[[v10]], i32 %[[memptr1]]
 // CHECK:   %[[fptr:.*]] = bitcast i8* %[[memptr0]] to void ({{.*}})
@@ -595,15 +615,15 @@ void (C::*getmp())() {
   return &C::g;
 }
 // CHECK-LABEL: define i64 @"\01?getmp@Test4@@YAP8C@1@AEXXZXZ"()
-// CHECK: store { i8*, i32 } { i8* bitcast (void (i8*)* @"\01??_9C@Test4@@$BA@AE" to i8*), i32 4 }, { i8*, i32 }* %{{.*}}
+// CHECK: store { i8*, i32 } { i8* bitcast (void (%"struct.Test4::C"*, ...)* @"\01??_9C@Test4@@$BA@AE" to i8*), i32 4 }, { i8*, i32 }* %{{.*}}
 //
 
-// CHECK-LABEL: define linkonce_odr x86_thiscallcc void @"\01??_9C@Test4@@$BA@AE"(i8*)
+// CHECK-LABEL: define linkonce_odr x86_thiscallcc void @"\01??_9C@Test4@@$BA@AE"(%"struct.Test4::C"* %this, ...)
 // CHECK-NOT:  getelementptr
-// CHECK:  load void (i8*)*** %{{.*}}
-// CHECK:  getelementptr inbounds void (i8*)** %{{.*}}, i64 0
+// CHECK:  load void (%"struct.Test4::C"*, ...)*** %{{.*}}
+// CHECK:  getelementptr inbounds void (%"struct.Test4::C"*, ...)** %{{.*}}, i64 0
 // CHECK-NOT:  getelementptr
-// CHECK:  call x86_thiscallcc void %
+// CHECK:  musttail call x86_thiscallcc void (%"struct.Test4::C"*, ...)* %
 
 }
 
@@ -628,6 +648,34 @@ struct B : public A {};
 void test() { void (B::*a)() = &B::f; }
 // CHECK-LABEL: define void @"\01?test@pr20007_kw@@YAXXZ"
 // CHECK: store i8* bitcast (void (%"struct.pr20007_kw::A"*)* @"\01?f@A@pr20007_kw@@QAEXXZ" to i8*)
+}
+
+namespace pr20007_pragma {
+struct A {
+  void f();
+  void f(int);
+};
+struct B : public A {};
+void test() { (void)(void (B::*)()) &B::f; }
+#pragma pointers_to_members(full_generality, virtual_inheritance)
+static_assert(sizeof(int B::*) == 4, "");
+static_assert(sizeof(int A::*) == 4, "");
+#pragma pointers_to_members(best_case)
+// CHECK-LABEL: define void @"\01?test@pr20007_pragma@@YAXXZ"
+}
+
+namespace pr20007_pragma2 {
+struct A {
+};
+struct B : public A {
+  void f();
+};
+void test() { (void)&B::f; }
+#pragma pointers_to_members(full_generality, virtual_inheritance)
+static_assert(sizeof(int B::*) == 4, "");
+static_assert(sizeof(int A::*) == 12, "");
+#pragma pointers_to_members(best_case)
+// CHECK-LABEL: define void @"\01?test@pr20007_pragma2@@YAXXZ"
 }
 
 namespace pr19987 {

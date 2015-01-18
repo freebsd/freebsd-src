@@ -30,6 +30,7 @@ void test2() {
   __builtin_va_list ptr = "x";
   *ptr = '0'; // expected-error {{incomplete type 'void' is not assignable}}
 }
+#endif
 
 void test3() {
   __builtin_arm_dsb(16); // expected-error {{argument should be a value from 0 to 15}}
@@ -37,4 +38,11 @@ void test3() {
   __builtin_arm_isb(18); // expected-error {{argument should be a value from 0 to 15}}
 }
 
-#endif
+void test4() {
+  __builtin_arm_prefetch(0, 2, 0); // expected-error {{argument should be a value from 0 to 1}}
+  __builtin_arm_prefetch(0, 0, 2); // expected-error {{argument should be a value from 0 to 1}}
+}
+
+void test5() {
+  __builtin_arm_dbg(16); // expected-error {{argument should be a value from 0 to 15}}
+}

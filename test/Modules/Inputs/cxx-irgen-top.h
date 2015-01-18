@@ -14,3 +14,38 @@ template<typename T> struct CtorInit {
   int a;
   CtorInit() : a(f()) {}
 };
+
+namespace ImplicitSpecialMembers {
+  struct A {
+    A(const A&);
+  };
+  struct B {
+    A a;
+    B(int);
+  };
+  struct C {
+    A a;
+    C(int);
+  };
+  struct D {
+    A a;
+    D(int);
+  };
+}
+
+namespace OperatorDeleteLookup {
+  struct A { void operator delete(void*); virtual ~A() = default; };
+  template<typename T> struct B { void operator delete(void*); virtual ~B() {} typedef int t; };
+  typedef B<int>::t b_int_instantated;
+}
+
+namespace EmitInlineMethods {
+  struct A {
+    void f() {}
+    void g();
+  };
+  struct B {
+    void f();
+    void g() {}
+  };
+}

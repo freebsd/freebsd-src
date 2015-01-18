@@ -30,7 +30,27 @@ void use_implicit_new_again() { operator new[](3); }
 
 int importMergeUsedFlag = getMergeUsedFlag();
 
+int use_name_for_linkage(NameForLinkage &nfl) {
+  return nfl.n + nfl.m;
+}
+int use_overrides_virtual_functions(OverridesVirtualFunctions ovf) { return 0; }
+
 @import cxx_decls_merged;
+
+NameForLinkage2Inner use_name_for_linkage2_inner;
+NameForLinkage2 use_name_for_linkage2;
+
+int name_for_linkage_test = use_name_for_linkage(name_for_linkage);
+int overrides_virtual_functions_test =
+    use_overrides_virtual_functions(overrides_virtual_functions);
+
+void use_extern_c_function() { ExternCFunction(); }
+
+int use_namespace_alias() { return Alias::a + Alias::b; }
+
+@import cxx_decls_premerged;
+
+void use_extern_c_function_2() { ExternCFunction(); }
 
 // CHECK: VarDecl [[mergeUsedFlag:0x[0-9a-f]*]] {{.*}} in cxx_decls.imported used mergeUsedFlag
 // CHECK: VarDecl {{0x[0-9a-f]*}} prev [[mergeUsedFlag]] {{.*}} in cxx_decls_merged used mergeUsedFlag

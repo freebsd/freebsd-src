@@ -1474,79 +1474,109 @@ poly8x16_t test_vcntq_p8(poly8x16_t a) {
 
 
 // CHECK-LABEL: test_vcombine_s8
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
 int8x16_t test_vcombine_s8(int8x8_t a, int8x8_t b) {
   return vcombine_s8(a, b);
 }
 
 // CHECK-LABEL: test_vcombine_s16
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
 int16x8_t test_vcombine_s16(int16x4_t a, int16x4_t b) {
   return vcombine_s16(a, b);
 }
 
 // CHECK-LABEL: test_vcombine_s32
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
 int32x4_t test_vcombine_s32(int32x2_t a, int32x2_t b) {
   return vcombine_s32(a, b);
 }
 
 // CHECK-LABEL: test_vcombine_s64
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
 int64x2_t test_vcombine_s64(int64x1_t a, int64x1_t b) {
   return vcombine_s64(a, b);
 }
 
 // CHECK-LABEL: test_vcombine_f16
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
 float16x8_t test_vcombine_f16(float16x4_t a, float16x4_t b) {
   return vcombine_f16(a, b);
 }
 
 // CHECK-LABEL: test_vcombine_f32
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
 float32x4_t test_vcombine_f32(float32x2_t a, float32x2_t b) {
   return vcombine_f32(a, b);
 }
 
 // CHECK-LABEL: test_vcombine_u8
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
 uint8x16_t test_vcombine_u8(uint8x8_t a, uint8x8_t b) {
   return vcombine_u8(a, b);
 }
 
 // CHECK-LABEL: test_vcombine_u16
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
 uint16x8_t test_vcombine_u16(uint16x4_t a, uint16x4_t b) {
   return vcombine_u16(a, b);
 }
 
 // CHECK-LABEL: test_vcombine_u32
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
 uint32x4_t test_vcombine_u32(uint32x2_t a, uint32x2_t b) {
   return vcombine_u32(a, b);
 }
 
 // CHECK-LABEL: test_vcombine_u64
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
 uint64x2_t test_vcombine_u64(uint64x1_t a, uint64x1_t b) {
   return vcombine_u64(a, b);
 }
 
 // CHECK-LABEL: test_vcombine_p8
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
 poly8x16_t test_vcombine_p8(poly8x8_t a, poly8x8_t b) {
   return vcombine_p8(a, b);
 }
 
 // CHECK-LABEL: test_vcombine_p16
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
+// CHECK: vmov d{{[0-9]+}}, r{{[0-9]+}}, r{{[0-9]+}}
 poly16x8_t test_vcombine_p16(poly16x4_t a, poly16x4_t b) {
   return vcombine_p16(a, b);
 }
 
 
 // CHECK-LABEL: test_vcreate_s8
+// CHECK: vmov [[REG:d[0-9]+]], r0, r1
+// CHECK: vclz.i8 d{{[0-9]+}}, [[REG]]
 int8x8_t test_vcreate_s8(uint64_t a) {
-  return vcreate_s8(a);
+  return vclz_s8(vcreate_s8(a));
 }
 
 // CHECK-LABEL: test_vcreate_s16
+// CHECK: vmov [[REG:d[0-9]+]], r0, r1
+// CHECK: vclz.i16 d{{[0-9]+}}, [[REG]]
 int16x4_t test_vcreate_s16(uint64_t a) {
-  return vcreate_s16(a);
+  return vclz_s16(vcreate_s16(a));
 }
 
 // CHECK-LABEL: test_vcreate_s32
+// CHECK: vmov [[REG:d[0-9]+]], r0, r1
+// CHECK: vclz.i32 d{{[0-9]+}}, [[REG]]
 int32x2_t test_vcreate_s32(uint64_t a) {
-  return vcreate_s32(a);
+  return vclz_s32(vcreate_s32(a));
 }
 
 // CHECK-LABEL: test_vcreate_f16
@@ -1560,38 +1590,59 @@ float32x2_t test_vcreate_f32(uint64_t a) {
 }
 
 // CHECK-LABEL: test_vcreate_u8
+// CHECK: vmov [[REG:d[0-9]+]], r0, r1
+// CHECK: vclz.i8 d{{[0-9]+}}, [[REG]]
 uint8x8_t test_vcreate_u8(uint64_t a) {
-  return vcreate_u8(a);
+  return vclz_s8(vcreate_u8(a));
 }
 
 // CHECK-LABEL: test_vcreate_u16
+// CHECK: vmov [[REG:d[0-9]+]], r0, r1
+// CHECK: vclz.i16 d{{[0-9]+}}, [[REG]]
 uint16x4_t test_vcreate_u16(uint64_t a) {
-  return vcreate_u16(a);
+  return vclz_s16(vcreate_u16(a));
 }
 
 // CHECK-LABEL: test_vcreate_u32
+// CHECK: vmov [[REG:d[0-9]+]], r0, r1
+// CHECK: vclz.i32 d{{[0-9]+}}, [[REG]]
 uint32x2_t test_vcreate_u32(uint64_t a) {
-  return vcreate_u32(a);
+  return vclz_s32(vcreate_u32(a));
 }
 
+
+// We have two ways of lowering that.  Either with one 'vmov d, r, r' or
+// with two 'vmov d[],r'.  LLVM does the latter. We may want to be less
+// strict about the matching pattern if it starts causing problem.
 // CHECK-LABEL: test_vcreate_u64
+// CHECK: vmov.32 [[REG:d[0-9]+]][0], r0
+// CHECK: vmov.32 [[REG]][1], r1
 uint64x1_t test_vcreate_u64(uint64_t a) {
-  return vcreate_u64(a);
+  uint64x1_t tmp = vcreate_u64(a);
+  return vadd_u64(tmp, tmp);
+
 }
 
 // CHECK-LABEL: test_vcreate_p8
+// CHECK: vmov [[REG:d[0-9]+]], r0, r1
+// CHECK: vcnt.8 d{{[0-9]+}}, [[REG]]
 poly8x8_t test_vcreate_p8(uint64_t a) {
-  return vcreate_p8(a);
+  return vcnt_p8(vcreate_p8(a));
 }
 
 // CHECK-LABEL: test_vcreate_p16
+// CHECK: vmov [[REG:d[0-9]+]], r0, r1
 poly16x4_t test_vcreate_p16(uint64_t a) {
-  return vcreate_p16(a);
+  poly16x4_t tmp = vcreate_p16(a);
+  return vbsl_p16(tmp, tmp, tmp);
 }
 
 // CHECK-LABEL: test_vcreate_s64
+// CHECK: vmov.32 [[REG:d[0-9]+]][0], r0
+// CHECK: vmov.32 [[REG]][1], r1
 int64x1_t test_vcreate_s64(uint64_t a) {
-  return vcreate_s64(a);
+  int64x1_t tmp = vcreate_s64(a);
+  return vadd_s64(tmp, tmp);
 }
 
 
@@ -1855,7 +1906,7 @@ uint16x4_t test_vdup_n_u16(uint16_t a) {
 }
 
 // CHECK-LABEL: test_vdup_n_u32
-// CHECK: vmov 
+// CHECK: mov 
 uint32x2_t test_vdup_n_u32(uint32_t a) {
   return vdup_n_u32(a);
 }
@@ -1873,7 +1924,7 @@ int16x4_t test_vdup_n_s16(int16_t a) {
 }
 
 // CHECK-LABEL: test_vdup_n_s32
-// CHECK: vmov 
+// CHECK: mov 
 int32x2_t test_vdup_n_s32(int32_t a) {
   return vdup_n_s32(a);
 }
@@ -1897,7 +1948,7 @@ float16x4_t test_vdup_n_f16(float16_t *a) {
 }
 
 // CHECK-LABEL: test_vdup_n_f32
-// CHECK: vmov 
+// CHECK: mov 
 float32x2_t test_vdup_n_f32(float32_t a) {
   return vdup_n_f32(a);
 }
@@ -1963,27 +2014,32 @@ float32x4_t test_vdupq_n_f32(float32_t a) {
 }
 
 // CHECK-LABEL: test_vdup_n_s64
-// CHECK: vmov 
+// CHECK: vmov
 int64x1_t test_vdup_n_s64(int64_t a) {
-  return vdup_n_s64(a);
+  int64x1_t tmp = vdup_n_s64(a);
+  return vadd_s64(tmp, tmp);
 }
 
 // CHECK-LABEL: test_vdup_n_u64
-// CHECK: vmov 
+// CHECK: vmov
 uint64x1_t test_vdup_n_u64(uint64_t a) {
-  return vdup_n_u64(a);
+  int64x1_t tmp = vdup_n_u64(a);
+  return vadd_s64(tmp, tmp);
+
 }
 
 // CHECK-LABEL: test_vdupq_n_s64
-// CHECK: vmov 
+// CHECK: vmov
 int64x2_t test_vdupq_n_s64(int64_t a) {
-  return vdupq_n_s64(a);
+  int64x2_t tmp = vdupq_n_s64(a);
+  return vaddq_s64(tmp, tmp);
 }
 
 // CHECK-LABEL: test_vdupq_n_u64
-// CHECK: vmov 
+// CHECK: vmov
 uint64x2_t test_vdupq_n_u64(uint64_t a) {
-  return vdupq_n_u64(a);
+  int64x2_t tmp = vdupq_n_u64(a);
+  return vaddq_u64(tmp, tmp);
 }
 
 
@@ -2302,7 +2358,7 @@ uint16_t test_vget_lane_u16(uint16x4_t a) {
 }
 
 // CHECK-LABEL: test_vget_lane_u32
-// CHECK: vmov 
+// CHECK: mov 
 uint32_t test_vget_lane_u32(uint32x2_t a) {
   return vget_lane_u32(a, 1);
 }
@@ -2320,7 +2376,7 @@ int16_t test_vget_lane_s16(int16x4_t a) {
 }
 
 // CHECK-LABEL: test_vget_lane_s32
-// CHECK: vmov 
+// CHECK: mov 
 int32_t test_vget_lane_s32(int32x2_t a) {
   return vget_lane_s32(a, 1);
 }
@@ -2398,13 +2454,13 @@ float32_t test_vgetq_lane_f32(float32x4_t a) {
 }
 
 // CHECK-LABEL: test_vget_lane_s64
-// CHECK: vmov 
+// The optimizer is able to remove all moves now.
 int64_t test_vget_lane_s64(int64x1_t a) {
   return vget_lane_s64(a, 0);
 }
 
 // CHECK-LABEL: test_vget_lane_u64
-// CHECK: vmov 
+// The optimizer is able to remove all moves now.
 uint64_t test_vget_lane_u64(uint64x1_t a) {
   return vget_lane_u64(a, 0);
 }
@@ -4849,49 +4905,49 @@ uint32x2_t test_vmovn_u64(uint64x2_t a) {
 
 
 // CHECK-LABEL: test_vmov_n_u8
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 uint8x8_t test_vmov_n_u8(uint8_t a) {
   return vmov_n_u8(a);
 }
 
 // CHECK-LABEL: test_vmov_n_u16
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 uint16x4_t test_vmov_n_u16(uint16_t a) {
   return vmov_n_u16(a);
 }
 
 // CHECK-LABEL: test_vmov_n_u32
-// CHECK: vmov 
+// CHECK: mov {{r[0-9]+}}
 uint32x2_t test_vmov_n_u32(uint32_t a) {
   return vmov_n_u32(a);
 }
 
 // CHECK-LABEL: test_vmov_n_s8
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 int8x8_t test_vmov_n_s8(int8_t a) {
   return vmov_n_s8(a);
 }
 
 // CHECK-LABEL: test_vmov_n_s16
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 int16x4_t test_vmov_n_s16(int16_t a) {
   return vmov_n_s16(a);
 }
 
 // CHECK-LABEL: test_vmov_n_s32
-// CHECK: vmov 
+// CHECK: mov {{r[0-9]+}}
 int32x2_t test_vmov_n_s32(int32_t a) {
   return vmov_n_s32(a);
 }
 
 // CHECK-LABEL: test_vmov_n_p8
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 poly8x8_t test_vmov_n_p8(poly8_t a) {
   return vmov_n_p8(a);
 }
 
 // CHECK-LABEL: test_vmov_n_p16
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 poly16x4_t test_vmov_n_p16(poly16_t a) {
   return vmov_n_p16(a);
 }
@@ -4903,55 +4959,55 @@ float16x4_t test_vmov_n_f16(float16_t *a) {
 }
 
 // CHECK-LABEL: test_vmov_n_f32
-// CHECK: vmov 
+// CHECK: mov {{r[0-9]+}}
 float32x2_t test_vmov_n_f32(float32_t a) {
   return vmov_n_f32(a);
 }
 
 // CHECK-LABEL: test_vmovq_n_u8
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 uint8x16_t test_vmovq_n_u8(uint8_t a) {
   return vmovq_n_u8(a);
 }
 
 // CHECK-LABEL: test_vmovq_n_u16
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 uint16x8_t test_vmovq_n_u16(uint16_t a) {
   return vmovq_n_u16(a);
 }
 
 // CHECK-LABEL: test_vmovq_n_u32
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 uint32x4_t test_vmovq_n_u32(uint32_t a) {
   return vmovq_n_u32(a);
 }
 
 // CHECK-LABEL: test_vmovq_n_s8
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 int8x16_t test_vmovq_n_s8(int8_t a) {
   return vmovq_n_s8(a);
 }
 
 // CHECK-LABEL: test_vmovq_n_s16
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 int16x8_t test_vmovq_n_s16(int16_t a) {
   return vmovq_n_s16(a);
 }
 
 // CHECK-LABEL: test_vmovq_n_s32
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 int32x4_t test_vmovq_n_s32(int32_t a) {
   return vmovq_n_s32(a);
 }
 
 // CHECK-LABEL: test_vmovq_n_p8
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 poly8x16_t test_vmovq_n_p8(poly8_t a) {
   return vmovq_n_p8(a);
 }
 
 // CHECK-LABEL: test_vmovq_n_p16
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 poly16x8_t test_vmovq_n_p16(poly16_t a) {
   return vmovq_n_p16(a);
 }
@@ -4963,31 +5019,35 @@ float16x8_t test_vmovq_n_f16(float16_t *a) {
 }
 
 // CHECK-LABEL: test_vmovq_n_f32
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 float32x4_t test_vmovq_n_f32(float32_t a) {
   return vmovq_n_f32(a);
 }
 
 // CHECK-LABEL: test_vmov_n_s64
-// CHECK: vmov 
+// CHECK: vmov.32 [[REG:d[0-9]+]][0], r0
+// CHECK: vmov.32 [[REG]][1], r1
 int64x1_t test_vmov_n_s64(int64_t a) {
-  return vmov_n_s64(a);
+  int64x1_t tmp = vmov_n_s64(a);
+  return vadd_s64(tmp, tmp);
 }
 
 // CHECK-LABEL: test_vmov_n_u64
-// CHECK: vmov 
+// CHECK: vmov.32 [[REG:d[0-9]+]][0], r0
+// CHECK: vmov.32 [[REG]][1], r1
 uint64x1_t test_vmov_n_u64(uint64_t a) {
-  return vmov_n_u64(a);
+  uint64x1_t tmp = vmov_n_u64(a);
+  return vadd_u64(tmp, tmp);
 }
 
 // CHECK-LABEL: test_vmovq_n_s64
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 int64x2_t test_vmovq_n_s64(int64_t a) {
   return vmovq_n_s64(a);
 }
 
 // CHECK-LABEL: test_vmovq_n_u64
-// CHECK: vmov 
+// CHECK: vmov {{r[0-9]+}}
 uint64x2_t test_vmovq_n_u64(uint64_t a) {
   return vmovq_n_u64(a);
 }
@@ -9056,7 +9116,7 @@ uint16x4_t test_vset_lane_u16(uint16_t a, uint16x4_t b) {
 }
 
 // CHECK-LABEL: test_vset_lane_u32
-// CHECK: vmov 
+// CHECK: mov 
 uint32x2_t test_vset_lane_u32(uint32_t a, uint32x2_t b) {
   return vset_lane_u32(a, b, 1);
 }
@@ -9074,7 +9134,7 @@ int16x4_t test_vset_lane_s16(int16_t a, int16x4_t b) {
 }
 
 // CHECK-LABEL: test_vset_lane_s32
-// CHECK: vmov 
+// CHECK: mov 
 int32x2_t test_vset_lane_s32(int32_t a, int32x2_t b) {
   return vset_lane_s32(a, b, 1);
 }
@@ -9092,7 +9152,7 @@ poly16x4_t test_vset_lane_p16(poly16_t a, poly16x4_t b) {
 }
 
 // CHECK-LABEL: test_vset_lane_f32
-// CHECK: vmov 
+// CHECK: mov 
 float32x2_t test_vset_lane_f32(float32_t a, float32x2_t b) {
   return vset_lane_f32(a, b, 1);
 }
@@ -9152,13 +9212,13 @@ float32x4_t test_vsetq_lane_f32(float32_t a, float32x4_t b) {
 }
 
 // CHECK-LABEL: test_vset_lane_s64
-// CHECK: vmov 
+// The optimizer is able to get rid of all moves now.
 int64x1_t test_vset_lane_s64(int64_t a, int64x1_t b) {
   return vset_lane_s64(a, b, 0);
 }
 
 // CHECK-LABEL: test_vset_lane_u64
-// CHECK: vmov 
+// The optimizer is able to get rid of all moves now.
 uint64x1_t test_vset_lane_u64(uint64_t a, uint64x1_t b) {
   return vset_lane_u64(a, b, 0);
 }

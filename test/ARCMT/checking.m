@@ -182,7 +182,7 @@ void test6(unsigned cond) {
     ;
     id x; // expected-note {{jump bypasses initialization of retaining variable}}
 
-  case 1: // expected-error {{switch case is in protected scope}}
+  case 1: // expected-error {{cannot jump}}
     x = 0;
     break;
   }
@@ -304,7 +304,7 @@ void rdar9491791(int p) {
 
 // rdar://9504750
 void rdar9504750(id p) {
-  RELEASE_MACRO(p); // expected-error {{ARC forbids explicit message send of 'release'}}
+  RELEASE_MACRO(p); // expected-error {{ARC forbids explicit message send of 'release'}} 
 }
 
 // rdar://8939557

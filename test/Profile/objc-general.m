@@ -31,8 +31,8 @@ struct NSFastEnumerationState;
 @end;
 #endif
 
-// PGOGEN: @[[FRC:"__llvm_profile_counters_\+\[A foreach:\]"]] = internal global [2 x i64] zeroinitializer
-// PGOGEN: @[[BLC:"__llvm_profile_counters___13\+\[A foreach:\]_block_invoke"]] = internal global [2 x i64] zeroinitializer
+// PGOGEN: @[[FRC:"__llvm_profile_counters_objc-general.m:\+\[A foreach:\]"]] = internal global [2 x i64] zeroinitializer
+// PGOGEN: @[[BLC:"__llvm_profile_counters_objc-general.m:__13\+\[A foreach:\]_block_invoke"]] = internal global [2 x i64] zeroinitializer
 // PGOGEN: @[[MAC:__llvm_profile_counters_main]] = hidden global [1 x i64] zeroinitializer
 
 @interface A : NSObject
@@ -63,9 +63,9 @@ struct NSFastEnumerationState;
 }
 @end
 
-// PGOUSE-DAG: ![[FR1]] = metadata !{metadata !"branch_weights", i32 2, i32 3}
-// PGOUSE-DAG: ![[FR2]] = metadata !{metadata !"branch_weights", i32 3, i32 2}
-// PGOUSE-DAG: ![[BL1]] = metadata !{metadata !"branch_weights", i32 2, i32 2}
+// PGOUSE-DAG: ![[FR1]] = !{!"branch_weights", i32 2, i32 3}
+// PGOUSE-DAG: ![[FR2]] = !{!"branch_weights", i32 3, i32 2}
+// PGOUSE-DAG: ![[BL1]] = !{!"branch_weights", i32 2, i32 2}
 
 int main(int argc, const char *argv[]) {
   A *a = [[A alloc] init];

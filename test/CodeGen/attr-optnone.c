@@ -1,12 +1,19 @@
 // RUN: %clang_cc1 -emit-llvm < %s > %t
 // RUN: FileCheck %s --check-prefix=PRESENT < %t
 // RUN: FileCheck %s --check-prefix=ABSENT  < %t
+// RUN: %clang_cc1 -emit-llvm -Os < %s > %t
+// RUN: FileCheck %s --check-prefix=PRESENT < %t
+// RUN: FileCheck %s --check-prefix=OPTSIZE < %t
+// RUN: %clang_cc1 -emit-llvm -Oz < %s > %t
+// RUN: FileCheck %s --check-prefix=PRESENT < %t
+// RUN: FileCheck %s --check-prefix=MINSIZE < %t
 
 __attribute__((always_inline))
 int test2() { return 0; }
-// PRESENT-DAG: @test2{{.*}}[[ATTR2:#[0-9]+]]
+// OPTSIZE: @test2{{.*}}[[ATTR2:#[0-9]+]]
+// MINSIZE: @test2{{.*}}[[ATTR2:#[0-9]+]]
 
-__attribute__((optnone)) __attribute__((minsize))
+__attribute__((optnone))
 int test3() { return 0; }
 // PRESENT-DAG: @test3{{.*}}[[ATTR3:#[0-9]+]]
 
@@ -23,3 +30,13 @@ int test4() { return test2(); }
 // Check that no 'optsize' or 'minsize' attributes appear.
 // ABSENT-NOT: optsize
 // ABSENT-NOT: minsize
+
+// With -Os, check that 'optsize' appears only on test2.
+// OPTSIZE-NOT: optsize
+// OPTSIZE: attributes [[ATTR2]] = { {{.*}}optsize{{.*}} }
+// OPTSIZE-NOT: optsize
+
+// With -Oz, check that 'minsize' appears only on test2.
+// MINSIZE-NOT: minsize
+// MINSIZE: attributes [[ATTR2]] = { {{.*}}minsize{{.*}} }
+// MINSIZE-NOT: minsize

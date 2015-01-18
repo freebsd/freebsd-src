@@ -258,9 +258,7 @@ namespace TypeDeduction {
   void f() {
     const S s {};
     S &&t = [&] { return s; } ();
-#if __cplusplus <= 201103L
-    // expected-error@-2 {{drops qualifiers}}
-#else
+#if __cplusplus > 201103L
     S &&u = [&] () -> auto { return s; } ();
 #endif
   }
@@ -362,4 +360,80 @@ namespace PR18473 {
 
 void PR19249() {
   auto x = [&x]{}; // expected-error {{cannot appear in its own init}}
+}
+
+namespace PR20731 {
+template <class L, int X = sizeof(L)>
+void Job(L l);
+
+template <typename... Args>
+void Logger(Args &&... args) {
+  auto len = Invalid_Function((args)...);
+  // expected-error@-1 {{use of undeclared identifier 'Invalid_Function'}}
+  Job([len]() {});
+}
+
+void GetMethod() {
+  Logger();
+  // expected-note@-1 {{in instantiation of function template specialization 'PR20731::Logger<>' requested here}}
+}
+
+template <typename T>
+struct A {
+  T t;
+  // expected-error@-1 {{field has incomplete type 'void'}}
+};
+
+template <typename F>
+void g(F f) {
+  auto a = A<decltype(f())>{};
+  // expected-note@-1 {{in instantiation of template class 'PR20731::A<void>' requested here}}
+  auto xf = [a, f]() {};
+  int x = sizeof(xf);
+};
+void f() {
+  g([] {});
+  // expected-note-re@-1 {{in instantiation of function template specialization 'PR20731::g<(lambda at {{.*}}>' requested here}}
+}
+
+template <class _Rp> struct function {
+  template <class _Fp>
+  function(_Fp) {
+    static_assert(sizeof(_Fp) > 0, "Type must be complete.");
+  }
+};
+
+template <typename T> void p(T t) {
+  auto l = some_undefined_function(t);
+  // expected-error@-1 {{use of undeclared identifier 'some_undefined_function'}}
+  function<void()>(([l]() {}));
+}
+void q() { p(0); }
+// expected-note@-1 {{in instantiation of function template specialization 'PR20731::p<int>' requested here}}
+}
+
+namespace lambda_in_default_mem_init {
+  template<typename T> void f() {
+    struct S { int n = []{ return 0; }(); };
+  }
+  template void f<int>();
+
+  template<typename T> void g() {
+    struct S { int n = [](int n){ return n; }(0); };
+  }
+  template void g<int>();
+}
+
+namespace error_in_transform_prototype {
+  template<class T>
+  void f(T t) {
+    // expected-error@+2 {{type 'int' cannot be used prior to '::' because it has no members}}
+    // expected-error@+1 {{no member named 'ns' in 'error_in_transform_prototype::S'}}
+    auto x = [](typename T::ns::type &k) {};
+  }
+  class S {};
+  void foo() {
+    f(5); // expected-note {{requested here}}
+    f(S()); // expected-note {{requested here}}
+  }
 }

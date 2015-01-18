@@ -16,6 +16,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef LLVM_CLANG_UNITTESTS_AST_MATCHVERIFIER_H
+#define LLVM_CLANG_UNITTESTS_AST_MATCHVERIFIER_H
+
 #include "clang/AST/ASTContext.h"
 #include "clang/ASTMatchers/ASTMatchFinder.h"
 #include "clang/ASTMatchers/ASTMatchers.h"
@@ -25,7 +28,14 @@
 namespace clang {
 namespace ast_matchers {
 
-enum Language { Lang_C, Lang_C89, Lang_CXX, Lang_CXX11, Lang_OpenCL };
+enum Language { 
+    Lang_C,
+    Lang_C89,
+    Lang_CXX,
+    Lang_CXX11,
+    Lang_OpenCL,
+    Lang_OBJCXX
+};
 
 /// \brief Base class for verifying some property of nodes found by a matcher.
 template <typename NodeType>
@@ -102,6 +112,10 @@ testing::AssertionResult MatchVerifier<NodeType>::match(
     break;
   case Lang_OpenCL:
     FileName = "input.cl";
+    break;
+  case Lang_OBJCXX:
+    FileName = "input.mm";
+    break;
   }
 
   // Default to failure in case callback is never called
@@ -277,3 +291,5 @@ private:
 
 } // end namespace ast_matchers
 } // end namespace clang
+
+#endif

@@ -7,6 +7,7 @@ void f1(int [*]);
 void f2(int [const *]);
 void f3(int [volatile const*]);
 int f4(*XX)(void); /* expected-error {{cannot return}} expected-warning {{type specifier missing, defaults to 'int'}} */
+int f5(int [static]); /* expected-error {{'static' may not be used without an array size}} */
 
 char ((((*X))));
 
@@ -112,6 +113,7 @@ enum E1 { e1 }: // expected-error {{expected ';'}}
 struct EnumBitfield { // expected-warning {{struct without named members is a GNU extension}}
   enum E2 { e2 } : 4; // ok
   struct S { int n; }: // expected-error {{expected ';'}}
+                       // expected-warning@-1 {{declaration does not declare anything}}
 
 };
 
@@ -148,3 +150,5 @@ enum E16 {
   A6;  // expected-error{{expected '= constant-expression' or end of enumerator definition}}
   A6a
 };
+
+int PR20634 = sizeof(struct { int n; } [5]);

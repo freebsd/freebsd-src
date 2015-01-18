@@ -12,8 +12,8 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_TEST_VISITOR_H
-#define LLVM_CLANG_TEST_VISITOR_H
+#ifndef LLVM_CLANG_UNITTESTS_TOOLING_TESTVISITOR_H
+#define LLVM_CLANG_UNITTESTS_TOOLING_TESTVISITOR_H
 
 #include "clang/AST/ASTConsumer.h"
 #include "clang/AST/ASTContext.h"
@@ -95,10 +95,10 @@ protected:
   public:
     TestAction(TestVisitor *Visitor) : Visitor(Visitor) {}
 
-    virtual clang::ASTConsumer* CreateASTConsumer(
-        CompilerInstance&, llvm::StringRef dummy) {
+    virtual std::unique_ptr<clang::ASTConsumer>
+    CreateASTConsumer(CompilerInstance &, llvm::StringRef dummy) {
       /// TestConsumer will be deleted by the framework calling us.
-      return new FindConsumer(Visitor);
+      return llvm::make_unique<FindConsumer>(Visitor);
     }
 
   protected:
@@ -231,4 +231,4 @@ protected:
 };
 }
 
-#endif /* LLVM_CLANG_TEST_VISITOR_H */
+#endif

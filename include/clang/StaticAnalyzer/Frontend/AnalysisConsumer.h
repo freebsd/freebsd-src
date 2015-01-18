@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_GR_ANALYSISCONSUMER_H
-#define LLVM_CLANG_GR_ANALYSISCONSUMER_H
+#ifndef LLVM_CLANG_STATICANALYZER_FRONTEND_ANALYSISCONSUMER_H
+#define LLVM_CLANG_STATICANALYZER_FRONTEND_ANALYSISCONSUMER_H
 
 #include "clang/AST/ASTConsumer.h"
 #include "clang/Basic/LLVM.h"
@@ -25,6 +25,8 @@ namespace clang {
 
 class Preprocessor;
 class DiagnosticsEngine;
+class CodeInjector;
+class CompilerInstance;
 
 namespace ento {
 class CheckerManager;
@@ -37,10 +39,8 @@ public:
 /// CreateAnalysisConsumer - Creates an ASTConsumer to run various code
 /// analysis passes.  (The set of analyses run is controlled by command-line
 /// options.)
-AnalysisASTConsumer *CreateAnalysisConsumer(const Preprocessor &pp,
-                                            const std::string &output,
-                                            AnalyzerOptionsRef opts,
-                                            ArrayRef<std::string> plugins);
+std::unique_ptr<AnalysisASTConsumer>
+CreateAnalysisConsumer(CompilerInstance &CI);
 
 } // end GR namespace
 

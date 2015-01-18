@@ -14,9 +14,11 @@
 #ifndef LLVM_CLANG_FRONTEND_CODEGENOPTIONS_H
 #define LLVM_CLANG_FRONTEND_CODEGENOPTIONS_H
 
+#include "clang/Basic/Sanitizers.h"
+#include "llvm/Support/Regex.h"
+#include <memory>
 #include <string>
 #include <vector>
-#include "llvm/Support/Regex.h"
 
 namespace clang {
 
@@ -134,8 +136,8 @@ public:
   /// The name of the relocation model to use.
   std::string RelocationModel;
 
-  /// Path to blacklist file for sanitizers.
-  std::string SanitizerBlacklistFile;
+  /// The thread model to use
+  std::string ThreadModel;
 
   /// If not an empty string, trap intrinsics are lowered to calls to this
   /// function instead of to trap instructions.
@@ -175,6 +177,13 @@ public:
   /// flag.
   std::shared_ptr<llvm::Regex> OptimizationRemarkAnalysisPattern;
 
+  /// Set of files definining the rules for the symbol rewriting.
+  std::vector<std::string> RewriteMapFiles;
+
+  /// Set of sanitizer checks that are non-fatal (i.e. execution should be
+  /// continued when possible).
+  SanitizerSet SanitizeRecover;
+
 public:
   // Define accessors/mutators for code generation options of enumeration type.
 #define CODEGENOPT(Name, Bits, Default)
@@ -183,15 +192,7 @@ public:
   void set##Name(Type Value) { Name = static_cast<unsigned>(Value); }
 #include "clang/Frontend/CodeGenOptions.def"
 
-  CodeGenOptions() {
-#define CODEGENOPT(Name, Bits, Default) Name = Default;
-#define ENUM_CODEGENOPT(Name, Type, Bits, Default) \
-  set##Name(Default);
-#include "clang/Frontend/CodeGenOptions.def"
-
-    RelocationModel = "pic";
-    memcpy(CoverageVersion, "402*", 4);
-  }
+  CodeGenOptions();
 };
 
 }  // end namespace clang

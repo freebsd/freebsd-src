@@ -140,10 +140,10 @@ class ExternalSemaSourceInstaller : public clang::ASTFrontendAction {
   std::unique_ptr<DiagnosticConsumer> OwnedClient;
 
 protected:
-  virtual clang::ASTConsumer *
+  virtual std::unique_ptr<clang::ASTConsumer>
   CreateASTConsumer(clang::CompilerInstance &Compiler,
                     llvm::StringRef /* dummy */) {
-    return new clang::ASTConsumer();
+    return llvm::make_unique<clang::ASTConsumer>();
   }
 
   virtual void ExecuteAction() {
@@ -154,7 +154,7 @@ protected:
     DiagnosticsEngine &Diagnostics = CI.getDiagnostics();
     DiagnosticConsumer *Client = Diagnostics.getClient();
     if (Diagnostics.ownsClient())
-      OwnedClient.reset(Diagnostics.takeClient());
+      OwnedClient = Diagnostics.takeClient();
     for (size_t I = 0, E = Watchers.size(); I < E; ++I)
       Client = Watchers[I]->Chain(Client);
     Diagnostics.setClient(Client, false);

@@ -8,14 +8,14 @@
 /* Bug report URL. */
 #undef BUG_REPORT_URL
 
+/* Multilib suffix for libdir. */
+#undef CLANG_LIBDIR_SUFFIX
+
 /* Relative directory for resource files */
 #undef CLANG_RESOURCE_DIR
 
 /* Directories clang will search for headers */
 #undef C_INCLUDE_DIRS
-
-/* Linker version detected at compile time. */
-#undef HOST_LINK_VERSION
 
 /* Default <path> to all compiler invocations for --sysroot=<path>. */
 #undef DEFAULT_SYSROOT
@@ -30,5 +30,8 @@
 
 /* The LLVM product name and version */
 #define BACKEND_PACKAGE_STRING PACKAGE_STRING
+
+/* Linker version detected at compile time. */
+#undef HOST_LINK_VERSION
 
 #endif

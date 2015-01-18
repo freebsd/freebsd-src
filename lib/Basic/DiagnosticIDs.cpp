@@ -428,15 +428,8 @@ DiagnosticIDs::getDiagnosticSeverity(unsigned DiagID, SourceLocation Loc,
 
   // Upgrade ignored diagnostics if -Weverything is enabled.
   if (Diag.EnableAllWarnings && Result == diag::Severity::Ignored &&
-      !Mapping.isUser())
+      !Mapping.isUser() && getBuiltinDiagClass(DiagID) != CLASS_REMARK)
     Result = diag::Severity::Warning;
-
-  // Diagnostics of class REMARK are either printed as remarks or in case they
-  // have been added to -Werror they are printed as errors.
-  // FIXME: Disregarding user-requested remark mappings like this is bogus.
-  if (Result == diag::Severity::Warning &&
-      getBuiltinDiagClass(DiagID) == CLASS_REMARK)
-    Result = diag::Severity::Remark;
 
   // Ignore -pedantic diagnostics inside __extension__ blocks.
   // (The diagnostics controlled by -pedantic are the extension diagnostics
@@ -613,15 +606,23 @@ StringRef DiagnosticIDs::getNearestOption(diag::Flavor Flavor,
 bool DiagnosticIDs::ProcessDiag(DiagnosticsEngine &Diag) const {
   Diagnostic Info(&Diag);
 
-  if (Diag.SuppressAllDiagnostics)
-    return false;
-
   assert(Diag.getClient() && "DiagnosticClient not set!");
 
   // Figure out the diagnostic level of this message.
   unsigned DiagID = Info.getID();
   DiagnosticIDs::Level DiagLevel
     = getDiagnosticLevel(DiagID, Info.getLocation(), Diag);
+
+  // Update counts for DiagnosticErrorTrap even if a fatal error occurred
+  // or diagnostics are suppressed.
+  if (DiagLevel >= DiagnosticIDs::Error) {
+    ++Diag.TrapNumErrorsOccurred;
+    if (isUnrecoverable(DiagID))
+      ++Diag.TrapNumUnrecoverableErrorsOccurred;
+  }
+
+  if (Diag.SuppressAllDiagnostics)
+    return false;
 
   if (DiagLevel != DiagnosticIDs::Note) {
     // Record that a fatal error occurred only when we see a second
@@ -634,20 +635,12 @@ bool DiagnosticIDs::ProcessDiag(DiagnosticsEngine &Diag) const {
     Diag.LastDiagLevel = DiagLevel;
   }
 
-  // Update counts for DiagnosticErrorTrap even if a fatal error occurred.
-  if (DiagLevel >= DiagnosticIDs::Error) {
-    ++Diag.TrapNumErrorsOccurred;
-    if (isUnrecoverable(DiagID))
-      ++Diag.TrapNumUnrecoverableErrorsOccurred;
-  }
-
   // If a fatal error has already been emitted, silence all subsequent
   // diagnostics.
   if (Diag.FatalErrorOccurred) {
     if (DiagLevel >= DiagnosticIDs::Error &&
         Diag.Client->IncludeInDiagnosticCounts()) {
       ++Diag.NumErrors;
-      ++Diag.NumErrorsSuppressed;
     }
 
     return false;

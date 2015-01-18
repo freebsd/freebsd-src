@@ -1,11 +1,11 @@
-// RUN: %clang_cc1 -fsyntax-only -verify -Wno-objc-root-class %s
-// RUN: %clang_cc1 -x objective-c++ -fsyntax-only -verify -Wno-objc-root-class %s
+// RUN: %clang_cc1 -fsyntax-only -triple x86_64-apple-darwin10.4 -verify -Wno-objc-root-class %s
+// RUN: %clang_cc1 -x objective-c++ -fsyntax-only -triple x86_64-apple-darwin10.4 -verify -Wno-objc-root-class %s
 
 @interface A {
   int X __attribute__((deprecated)); // expected-note 2 {{'X' has been explicitly marked deprecated here}}
 }
 + (void)F __attribute__((deprecated)); // expected-note 2 {{'F' has been explicitly marked deprecated here}}
-- (void)f __attribute__((deprecated)); // expected-note 4 {{'f' has been explicitly marked deprecated here}}
+- (void)f __attribute__((deprecated)); // expected-note 5 {{'f' has been explicitly marked deprecated here}}
 @end
 
 @implementation A
@@ -54,7 +54,7 @@ void t1(A *a)
 
 void t2(id a)
 {
-  [a f];
+  [a f]; // expected-warning {{'f' is deprecated}}
 }
 
 void t3(A<P>* a)
@@ -197,18 +197,19 @@ __attribute__((deprecated))
 @interface TestBase
 @property (nonatomic, strong) id object __attribute__((deprecated("deprecated"))); // expected-note {{'object' has been explicitly marked deprecated here}} \
 expected-note {{property 'object' is declared deprecated here}} \
-expected-note {{'setObject:' has been explicitly marked deprecated here}}
+expected-note {{'setObject:' has been explicitly marked deprecated here}} \
+expected-note {{property declared here}}
 @end
 
 @interface TestDerived : TestBase
-@property (nonatomic, strong) id object;
+@property (nonatomic, strong) id object; //expected-warning {{auto property synthesis will not synthesize property 'object'; it will be implemented by its superclass}}
 @end
 
 @interface TestUse @end
 
 @implementation TestBase @end
 
-@implementation TestDerived @end
+@implementation TestDerived @end // expected-note {{detected while default synthesizing properties in class implementation}}
 
 @implementation TestUse
 
@@ -227,3 +228,59 @@ expected-note {{'setObject:' has been explicitly marked deprecated here}}
 
 @end
 
+// rdar://18848183
+@interface NSString
+- (const char *)cString __attribute__((availability(macosx,introduced=10.0 ,deprecated=10.4,message="" ))); // expected-note {{'cString' has been explicitly marked deprecated here}}
+@end
+
+id PID = 0;
+const char * func() {
+  return [PID cString]; // expected-warning {{'cString' is deprecated: first deprecated in OS X 10.4}}
+}
+
+// rdar://18960378
+@interface NSObject
++ (instancetype)alloc;
+- (instancetype)init;
+@end
+
+@interface NSLocale
+- (instancetype)init __attribute__((unavailable));
+@end
+
+@interface PLBatteryProperties : NSObject
++ (id)properties;
+@end
+
+@implementation PLBatteryProperties
++ (id)properties {
+    return [[self alloc] init];
+}
+@end
+
+@implementation UndeclaredImpl // expected-warning{{cannot find interface declaration}}
+- (void)partiallyUnavailableMethod {}
+@end
+
+@interface InterfaceWithSameMethodAsUndeclaredImpl
+- (void)partiallyUnavailableMethod __attribute__((unavailable));
+@end
+
+void f(id a) {
+  [a partiallyUnavailableMethod]; // no warning, `a` could be an UndeclaredImpl.
+}
+
+@interface InterfaceWithImplementation
+- (void)anotherPartiallyUnavailableMethod;
+@end
+@implementation InterfaceWithImplementation
+- (void)anotherPartiallyUnavailableMethod {}
+@end
+
+@interface InterfaceWithSameMethodAsInterfaceWithImplementation
+- (void)anotherPartiallyUnavailableMethod __attribute__((unavailable));
+@end
+
+void g(id a) {
+  [a anotherPartiallyUnavailableMethod]; // no warning, `a` could be an InterfaceWithImplementation.
+}

@@ -82,8 +82,9 @@ public:
   typedef std::vector<MatcherCompletion> CompVector;
 
   CompVector getCompletions() {
-    return Registry::getCompletions(
-        ArrayRef<std::pair<MatcherCtor, unsigned> >());
+    std::vector<std::pair<MatcherCtor, unsigned> > Context;
+    return Registry::getMatcherCompletions(
+        Registry::getAcceptedCompletionTypes(Context));
   }
 
   CompVector getCompletions(StringRef MatcherName1, unsigned ArgNo1) {
@@ -92,7 +93,8 @@ public:
     if (!Ctor)
       return CompVector();
     Context.push_back(std::make_pair(*Ctor, ArgNo1));
-    return Registry::getCompletions(Context);
+    return Registry::getMatcherCompletions(
+        Registry::getAcceptedCompletionTypes(Context));
   }
 
   CompVector getCompletions(StringRef MatcherName1, unsigned ArgNo1,
@@ -106,18 +108,16 @@ public:
     if (!Ctor)
       return CompVector();
     Context.push_back(std::make_pair(*Ctor, ArgNo2));
-    return Registry::getCompletions(Context);
+    return Registry::getMatcherCompletions(
+        Registry::getAcceptedCompletionTypes(Context));
   }
 
   bool hasCompletion(const CompVector &Comps, StringRef TypedText,
-                     StringRef MatcherDecl = StringRef(),
-                     unsigned *Index = nullptr) {
+                     StringRef MatcherDecl = StringRef()) {
     for (CompVector::const_iterator I = Comps.begin(), E = Comps.end(); I != E;
          ++I) {
       if (I->TypedText == TypedText &&
           (MatcherDecl.empty() || I->MatcherDecl == MatcherDecl)) {
-        if (Index)
-          *Index = I - Comps.begin();
         return true;
       }
     }
@@ -347,7 +347,7 @@ TEST_F(RegistryTest, VariadicOp) {
       "anyOf",
       constructMatcher("recordDecl",
                        constructMatcher("hasName", std::string("Foo"))),
-      constructMatcher("namedDecl",
+      constructMatcher("functionDecl",
                        constructMatcher("hasName", std::string("foo"))))
       .getTypedMatcher<Decl>();
 
@@ -380,6 +380,13 @@ TEST_F(RegistryTest, VariadicOp) {
 
   EXPECT_FALSE(matches("class Bar{ int Foo; };", D));
   EXPECT_TRUE(matches("class OtherBar{ int Foo; };", D));
+
+  D = constructMatcher(
+          "namedDecl", constructMatcher("hasName", std::string("Foo")),
+          constructMatcher("unless", constructMatcher("recordDecl")))
+          .getTypedMatcher<Decl>();
+  EXPECT_TRUE(matches("void Foo(){}", D));
+  EXPECT_TRUE(notMatches("struct Foo {};", D));
 }
 
 TEST_F(RegistryTest, Errors) {
@@ -438,24 +445,27 @@ TEST_F(RegistryTest, Errors) {
 
 TEST_F(RegistryTest, Completion) {
   CompVector Comps = getCompletions();
+  // Overloaded
   EXPECT_TRUE(hasCompletion(
       Comps, "hasParent(", "Matcher<Decl|Stmt> hasParent(Matcher<Decl|Stmt>)"));
+  // Variadic.
   EXPECT_TRUE(hasCompletion(Comps, "whileStmt(",
                             "Matcher<Stmt> whileStmt(Matcher<WhileStmt>...)"));
+  // Polymorphic.
+  EXPECT_TRUE(hasCompletion(
+      Comps, "hasDescendant(",
+      "Matcher<NestedNameSpecifier|NestedNameSpecifierLoc|QualType|...> "
+      "hasDescendant(Matcher<CXXCtorInitializer|NestedNameSpecifier|"
+      "NestedNameSpecifierLoc|...>)"));
 
   CompVector WhileComps = getCompletions("whileStmt", 0);
 
-  unsigned HasBodyIndex, HasParentIndex, AllOfIndex;
   EXPECT_TRUE(hasCompletion(WhileComps, "hasBody(",
-                            "Matcher<WhileStmt> hasBody(Matcher<Stmt>)",
-                            &HasBodyIndex));
+                            "Matcher<WhileStmt> hasBody(Matcher<Stmt>)"));
   EXPECT_TRUE(hasCompletion(WhileComps, "hasParent(",
-                            "Matcher<Stmt> hasParent(Matcher<Decl|Stmt>)",
-                            &HasParentIndex));
-  EXPECT_TRUE(hasCompletion(WhileComps, "allOf(",
-                            "Matcher<T> allOf(Matcher<T>...)", &AllOfIndex));
-  EXPECT_GT(HasParentIndex, HasBodyIndex);
-  EXPECT_GT(AllOfIndex, HasParentIndex);
+                            "Matcher<Stmt> hasParent(Matcher<Decl|Stmt>)"));
+  EXPECT_TRUE(
+      hasCompletion(WhileComps, "allOf(", "Matcher<T> allOf(Matcher<T>...)"));
 
   EXPECT_FALSE(hasCompletion(WhileComps, "whileStmt("));
   EXPECT_FALSE(hasCompletion(WhileComps, "ifStmt("));
@@ -475,6 +485,20 @@ TEST_F(RegistryTest, Completion) {
       hasCompletion(NamedDeclComps, "isPublic()", "Matcher<Decl> isPublic()"));
   EXPECT_TRUE(hasCompletion(NamedDeclComps, "hasName(\"",
                             "Matcher<NamedDecl> hasName(string)"));
+
+  // Heterogeneous overloads.
+  Comps = getCompletions("classTemplateSpecializationDecl", 0);
+  EXPECT_TRUE(hasCompletion(
+      Comps, "isSameOrDerivedFrom(",
+      "Matcher<CXXRecordDecl> isSameOrDerivedFrom(string|Matcher<NamedDecl>)"));
+}
+
+TEST_F(RegistryTest, HasArgs) {
+  Matcher<Decl> Value = constructMatcher(
+      "decl", constructMatcher("hasAttr", std::string("attr::WarnUnused")))
+      .getTypedMatcher<Decl>();
+  EXPECT_TRUE(matches("struct __attribute__((warn_unused)) X {};", Value));
+  EXPECT_FALSE(matches("struct X {};", Value));
 }
 
 } // end anonymous namespace

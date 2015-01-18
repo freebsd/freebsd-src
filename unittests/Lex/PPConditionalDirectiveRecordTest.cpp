@@ -90,8 +90,8 @@ TEST_F(PPConditionalDirectiveRecordTest, PPRecAPI) {
       "#endif\n"
       "9\n";
 
-  MemoryBuffer *buf = MemoryBuffer::getMemBuffer(source);
-  SourceMgr.setMainFileID(SourceMgr.createFileID(buf));
+  std::unique_ptr<MemoryBuffer> Buf = MemoryBuffer::getMemBuffer(source);
+  SourceMgr.setMainFileID(SourceMgr.createFileID(std::move(Buf)));
 
   VoidModuleLoader ModLoader;
   HeaderSearch HeaderInfo(new HeaderSearchOptions, SourceMgr, Diags, LangOpts, 
@@ -103,7 +103,7 @@ TEST_F(PPConditionalDirectiveRecordTest, PPRecAPI) {
   PP.Initialize(*Target);
   PPConditionalDirectiveRecord *
     PPRec = new PPConditionalDirectiveRecord(SourceMgr);
-  PP.addPPCallbacks(PPRec);
+  PP.addPPCallbacks(std::unique_ptr<PPCallbacks>(PPRec));
   PP.EnterMainSourceFile();
 
   std::vector<Token> toks;

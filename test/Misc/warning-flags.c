@@ -18,8 +18,7 @@ This test serves two purposes:
 
 The list of warnings below should NEVER grow.  It should gradually shrink to 0.
 
-CHECK: Warnings without flags (103):
-CHECK-NEXT:   ext_delete_void_ptr_operand
+CHECK: Warnings without flags (96):
 CHECK-NEXT:   ext_excess_initializers
 CHECK-NEXT:   ext_excess_initializers_in_char_array_initializer
 CHECK-NEXT:   ext_expected_semi_decl_list
@@ -90,7 +89,6 @@ CHECK-NEXT:   warn_missing_dependent_template_keyword
 CHECK-NEXT:   warn_missing_exception_specification
 CHECK-NEXT:   warn_missing_whitespace_after_macro_name
 CHECK-NEXT:   warn_mt_message
-CHECK-NEXT:   warn_multiple_method_decl
 CHECK-NEXT:   warn_no_constructor_for_refconst
 CHECK-NEXT:   warn_not_compound_assign
 CHECK-NEXT:   warn_objc_property_copy_missing_on_block
@@ -103,12 +101,7 @@ CHECK-NEXT:   warn_pp_expr_overflow
 CHECK-NEXT:   warn_pp_line_decimal
 CHECK-NEXT:   warn_pragma_pack_pop_identifer_and_alignment
 CHECK-NEXT:   warn_pragma_pack_show
-CHECK-NEXT:   warn_property_attr_mismatch
-CHECK-NEXT:   warn_property_attribute
 CHECK-NEXT:   warn_property_getter_owning_mismatch
-CHECK-NEXT:   warn_property_types_are_incompatible
-CHECK-NEXT:   warn_readonly_property
-CHECK-NEXT:   warn_redeclaration_without_attribute_prev_attribute_ignored
 CHECK-NEXT:   warn_register_objc_catch_parm
 CHECK-NEXT:   warn_related_result_type_compatibility_class
 CHECK-NEXT:   warn_related_result_type_compatibility_protocol

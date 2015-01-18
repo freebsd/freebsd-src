@@ -161,8 +161,8 @@ def err_invalid_suffix_integer_constant : Error<
 def err_invalid_suffix_float_constant : Error<
   "invalid suffix '%0' on floating constant">;
 def warn_cxx11_compat_digit_separator : Warning<
-  "digit separators are incompatible with C++ standards before C++1y">,
-  InGroup<CXXPre1yCompat>, DefaultIgnore;
+  "digit separators are incompatible with C++ standards before C++14">,
+  InGroup<CXXPre14Compat>, DefaultIgnore;
 def err_digit_separator_not_between_digits : Error<
   "digit separator cannot appear at %select{start|end}0 of digit sequence">;
 def warn_extraneous_char_constant : Warning<
@@ -182,11 +182,11 @@ def ext_hexconstant_invalid : Extension<
   "hexadecimal floating constants are a C99 feature">, InGroup<C99>;
 def ext_binary_literal : Extension<
   "binary integer literals are a GNU extension">, InGroup<GNUBinaryLiteral>;
-def ext_binary_literal_cxx1y : Extension<
-  "binary integer literals are a C++1y extension">, InGroup<CXX1y>;
+def ext_binary_literal_cxx14 : Extension<
+  "binary integer literals are a C++14 extension">, InGroup<CXX14>;
 def warn_cxx11_compat_binary_literal : Warning<
-  "binary integer literals are incompatible with C++ standards before C++1y">,
-  InGroup<CXXPre1yCompatPedantic>, DefaultIgnore;
+  "binary integer literals are incompatible with C++ standards before C++14">,
+  InGroup<CXXPre14CompatPedantic>, DefaultIgnore;
 def err_pascal_string_too_long : Error<"Pascal string is too long">;
 def err_octal_escape_too_large : Error<"octal escape sequence out of range">;
 def err_hex_escape_too_large : Error<"hex escape sequence out of range">;
@@ -201,6 +201,9 @@ def warn_c99_compat_unicode_literal : Warning<
 def warn_cxx98_compat_unicode_literal : Warning<
   "unicode literals are incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
+def warn_cxx14_compat_u8_character_literal : Warning<
+  "unicode literals are incompatible with C++ standards before C++1z">,
+  InGroup<CXXPre1zCompat>, DefaultIgnore;
 def warn_cxx11_compat_user_defined_literal : Warning<
   "identifier after literal will be treated as a user-defined literal suffix "
   "in C++11">, InGroup<CXX11Compat>, DefaultIgnore;
@@ -287,6 +290,11 @@ def note_pp_ambiguous_macro_chosen : Note<
   "expanding this definition of %0">;
 def note_pp_ambiguous_macro_other : Note<
   "other definition of %0">;
+def warn_pp_macro_hides_keyword : Extension<
+  "keyword is hidden by macro definition">, InGroup<KeywordAsMacro>;
+def warn_pp_macro_is_reserved_id : Warning<
+  "macro name is a reserved identifier">, DefaultIgnore,
+  InGroup<ReservedIdAsMacro>;
 
 def pp_invalid_string_literal : Warning<
   "invalid string literal, ignoring final '\\'">;
@@ -324,7 +332,7 @@ def warn_cxx98_compat_variadic_macro : Warning<
   InGroup<CXX98CompatPedantic>, DefaultIgnore;
 def ext_named_variadic_macro : Extension<
   "named variadic macros are a GNU extension">, InGroup<VariadicMacros>;
-def err_embedded_include : Error<
+def err_embedded_directive : Error<
   "embedding a #%0 directive within macro arguments is not supported">;
 def ext_embedded_directive : Extension<
   "embedding a directive within macro arguments has undefined behavior">,
@@ -615,9 +623,6 @@ def warn_auto_module_import : Warning<
 def warn_uncovered_module_header : Warning<
   "umbrella header for module '%0' does not include header '%1'">, 
   InGroup<IncompleteUmbrella>;
-def warn_forgotten_module_header : Warning<
-  "header '%0' is included in module '%1' but not listed in module map">,
-  InGroup<IncompleteModule>, DefaultIgnore;
 def err_expected_id_building_module : Error<
   "expected a module name in '__building_module' expression">;
 def error_use_of_private_header_outside_module : Error<

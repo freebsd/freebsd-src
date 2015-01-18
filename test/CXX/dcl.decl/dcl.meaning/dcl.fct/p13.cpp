@@ -46,3 +46,34 @@ struct X2 {
 template<typename T>
 void f4(T ...args); // expected-error{{type 'T' of function parameter pack does not contain any unexpanded parameter packs}}
 
+void f4i(int ... x); // expected-error{{type 'int' of function parameter pack does not contain any unexpanded parameter packs}}
+void f4i0(int ...);
+
+namespace array_type {
+template<typename T>
+void a(T[] ... x); // expected-error{{expected ')'}} expected-note{{to match this '('}}
+
+template<typename T>
+void b(T[] ...);
+
+template<typename T>
+void c(T ... []); // expected-error{{type 'T []' of function parameter pack does not contain any unexpanded parameter packs}}
+
+template<typename T>
+void d(T ... x[]); // expected-error{{type 'T []' of function parameter pack does not contain any unexpanded parameter packs}}
+
+void ai(int[] ... x); // expected-error{{expected ')'}} expected-note{{to match this '('}}
+void bi(int[] ...);
+void ci(int ... []); // expected-error{{type 'int []' of function parameter pack does not contain any unexpanded parameter packs}}
+void di(int ... x[]); // expected-error{{type 'int []' of function parameter pack does not contain any unexpanded parameter packs}}
+}
+
+void f5a(auto fp(int)->unk ...) {} // expected-error{{unknown type name 'unk'}}
+void f5b(auto fp(int)->auto ...) {} // expected-error{{'auto' not allowed in function return type}}
+void f5c(auto fp()->...) {} // expected-error{{expected a type}}
+
+// FIXME: Expand for function and member pointer types.
+
+
+
+

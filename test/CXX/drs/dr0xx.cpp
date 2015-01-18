@@ -1,6 +1,7 @@
 // RUN: %clang_cc1 -std=c++98 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors -Wno-bind-to-temporary-copy
 // RUN: %clang_cc1 -std=c++11 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
-// RUN: %clang_cc1 -std=c++1y %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
+// RUN: %clang_cc1 -std=c++14 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
+// RUN: %clang_cc1 -std=c++1z %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 
 namespace dr1 { // dr1: no
   namespace X { extern "C" void dr1_f(int a = 1); }
@@ -520,17 +521,28 @@ namespace dr48 { // dr48: yes
 }
 
 namespace dr49 { // dr49: yes
-  template<int*> struct A {}; // expected-note {{here}}
+  template<int*> struct A {}; // expected-note 0-2{{here}}
   int k;
 #if __has_feature(cxx_constexpr)
   constexpr
 #endif
-  int *const p = &k;
+  int *const p = &k; // expected-note 0-2{{here}}
   A<&k> a;
-  A<p> b; // expected-error {{must have its address taken}}
+  A<p> b;
+#if __cplusplus <= 201402L
+  // expected-error@-2 {{must have its address taken}}
+#endif
 #if __cplusplus < 201103L
-  // expected-error@-2 {{internal linkage}}
-  // expected-note@-5 {{here}}
+  // expected-error@-5 {{internal linkage}}
+#endif
+  int *q = &k;
+  A<q> c;
+#if __cplusplus < 201103L
+  // expected-error@-2 {{must have its address taken}}
+#else
+  // expected-error@-4 {{constant expression}}
+  // expected-note@-5 {{read of non-constexpr}}
+  // expected-note@-7 {{declared here}}
 #endif
 }
 
@@ -822,7 +834,7 @@ namespace dr70 { // dr70: yes
 namespace dr73 { // dr73: no
   // The resolution to dr73 is unworkable. Consider:
   int a, b;
-  static_assert(&a + 1 != &b, "");
+  static_assert(&a + 1 != &b, ""); // expected-error {{not an integral constant expression}}
 }
 #endif
 
@@ -852,7 +864,7 @@ namespace dr77 { // dr77: yes
 namespace dr78 { // dr78: sup ????
   // Under DR78, this is valid, because 'k' has static storage duration, so is
   // zero-initialized.
-  const int k; // expected-error {{default initialization of an object of const}}
+  const int k; // expected-error {{default initialization of an object of const}} expected-note{{add an explicit initializer to initialize 'k'}}
 }
 
 // dr79: na
@@ -994,6 +1006,10 @@ namespace dr92 { // dr92: yes
     g(q); // expected-error {{is not superset}}
   }
 
+  // Prior to C++17, this is OK because the exception specification is not
+  // considered in this context. In C++17, we *do* perform an implicit
+  // conversion (which performs initialization), but we convert to the type of
+  // the template parameter, which does not include the exception specification.
   template<void() throw()> struct X {};
   X<&f> xp; // ok
 }
@@ -1051,18 +1067,18 @@ namespace dr98 { // dr98: yes
   void test(int n) {
     switch (n) {
       try { // expected-note 2{{bypasses}}
-        case 0: // expected-error {{protected}}
+        case 0: // expected-error {{cannot jump}}
         x:
           throw n;
       } catch (...) { // expected-note 2{{bypasses}}
-        case 1: // expected-error {{protected}}
+        case 1: // expected-error {{cannot jump}}
         y:
           throw n;
       }
       case 2:
-        goto x; // expected-error {{protected}}
+        goto x; // expected-error {{cannot jump}}
       case 3:
-        goto y; // expected-error {{protected}}
+        goto y; // expected-error {{cannot jump}}
     }
   }
 }

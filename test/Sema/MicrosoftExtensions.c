@@ -39,9 +39,26 @@ struct nested2 {
   NESTED1;  // expected-warning {{anonymous structs are a Microsoft extension}}
 };
 
+struct nested2 PR20573 = { .a = 3 };
+
+struct nested3 {
+  long d;
+  struct nested4 { // expected-warning {{anonymous structs are a Microsoft extension}}
+    long e;
+  };
+  union nested5 { // expected-warning {{anonymous unions are a Microsoft extension}}
+    long f;
+  };
+};
+
+typedef union nested6 {
+  long f;
+} NESTED6;
+
 struct test {
   int c;
   struct nested2;   // expected-warning {{anonymous structs are a Microsoft extension}}
+  NESTED6;   // expected-warning {{anonymous unions are a Microsoft extension}}
 };
 
 void foo()
@@ -86,6 +103,14 @@ typedef struct {
 typedef struct {
   AA; // expected-warning {{anonymous structs are a Microsoft extension}}
 } BB;
+
+struct anon_fault {
+  struct undefined; // expected-warning {{anonymous structs are a Microsoft extension}}
+                    // expected-error@-1 {{field has incomplete type 'struct undefined'}}
+                    // expected-note@-2 {{forward declaration of 'struct undefined'}}
+};
+
+const int anon_falt_size = sizeof(struct anon_fault);
 
 __declspec(deprecated("This is deprecated")) enum DE1 { one, two } e1; // expected-note {{'e1' has been explicitly marked deprecated here}}
 struct __declspec(deprecated) DS1 { int i; float f; }; // expected-note {{'DS1' has been explicitly marked deprecated here}}

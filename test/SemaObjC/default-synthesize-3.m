@@ -44,7 +44,7 @@ __attribute ((objc_requires_property_definitions)) // expected-error {{'objc_req
 @interface NSObject @end
 @protocol Foo
 @property (readonly) char isFoo; // expected-note {{property declared here}}
-@property (readonly) char isNotFree;
+@property (readonly) char isNotFree;  // expected-note {{property declared here}}
 @end
 
 @interface Bar : NSObject <Foo>
@@ -66,10 +66,10 @@ __attribute ((objc_requires_property_definitions)) // expected-error {{'objc_req
 @property (readwrite) char isFoo; // expected-warning {{auto property synthesis will not synthesize property 'isFoo' because it is 'readwrite' but it will be synthesized 'readonly' via another property}}
 @property char Property1; // expected-warning {{auto property synthesis will not synthesize property 'Property1' because it cannot share an ivar with another synthesized property}}
 @property char Property2;
-@property (readwrite) char isNotFree;
+@property (readwrite) char isNotFree; // expected-warning {{auto property synthesis will not synthesize property 'isNotFree'}}
 @end
 
-@implementation Baz {
+@implementation Baz { // expected-note {{detected while default synthesizing properties in class implementation}}
     char _isFoo;
     char _isNotFree;
 }
@@ -90,9 +90,9 @@ __attribute ((objc_requires_property_definitions)) // expected-error {{'objc_req
 @end
 
 @interface B
-@property (readonly) id prop;
-@property (readonly) id prop1;
-@property (readonly) id prop2;
+@property (readonly) id prop;  // expected-note {{property declared here}}
+@property (readonly) id prop1;  // expected-note {{property declared here}}
+@property (readonly) id prop2;  // expected-note {{property declared here}}
 @end
 
 @interface B()
@@ -104,12 +104,12 @@ __attribute ((objc_requires_property_definitions)) // expected-error {{'objc_req
 @end
 
 @interface S : B<P1>
-@property (assign,readwrite) id prop;
-@property (assign,readwrite) id prop1;
-@property (assign,readwrite) id prop2;
+@property (assign,readwrite) id prop; // expected-warning {{auto property synthesis will not synthesize property 'prop'}}
+@property (assign,readwrite) id prop1; // expected-warning {{auto property synthesis will not synthesize property 'prop1'}}
+@property (assign,readwrite) id prop2; // expected-warning {{auto property synthesis will not synthesize property 'prop2'}}
 @end
 
-@implementation S
+@implementation S // expected-note 3 {{detected while default synthesizing properties in class implementation}}
 @end
 
 // rdar://14085456

@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fsyntax-only -fopenmp=libiomp5 -verify %s
+// RUN: %clang_cc1 -fsyntax-only -fopenmp=libiomp5 -triple x86_64-unknown-unknown -verify %s
 
 // expected-error@+1 {{unexpected OpenMP directive '#pragma omp for'}}
 #pragma omp for
@@ -190,6 +190,16 @@ void test_collapse() {
 #pragma omp for collapse(5 - 5)
   for (i = 0; i < 16; ++i)
     ;
+#pragma omp parallel
+#pragma omp for collapse(2)
+  for (i = 0; i < 16; ++i)
+// expected-note@+1 {{variable with automatic storage duration is predetermined as private; perhaps you forget to enclose 'omp for' directive into a parallel or another task region?}}
+    for (int j = 0; j < 16; ++j)
+// expected-error@+2 {{private variable cannot be reduction}}
+// expected-error@+1 {{region cannot be closely nested inside 'for' region; perhaps you forget to enclose 'omp for' directive into a parallel region?}}
+#pragma omp for reduction(+ : i, j)
+      for (int k = 0; k < 16; ++k)
+        i += j;
 }
 
 void test_private() {
@@ -358,6 +368,12 @@ void test_loop_messages() {
 #pragma omp for
   for (double fi = 0; fi < 10.0; fi++) {
     c[(int)fi] = a[(int)fi] + b[(int)fi];
+  }
+
+  // expected-warning@+2 {{OpenMP loop iteration variable cannot have more than 64 bits size and will be narrowed}}
+  #pragma omp for
+  for (__int128 ii = 0; ii < 10; ii++) {
+    c[ii] = a[ii] + b[ii];
   }
 }
 

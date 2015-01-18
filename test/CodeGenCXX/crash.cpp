@@ -1,4 +1,5 @@
 // RUN: %clang_cc1 %s -std=c++11 -emit-llvm-only
+// RUN: %clang_cc1 -emit-obj -o %t -gline-tables-only -std=c++11 %s
 // CHECK that we don't crash.
 
 // PR11676's example is ill-formed:
@@ -32,4 +33,14 @@ template <class ELFT> void finalizeDefaultAtomValues() {
 }
 
 void f() { finalizeDefaultAtomValues<int>(); }
+}
+
+namespace PR22096 {
+template <class> struct c {
+  c();
+  template <class U> __attribute__((__always_inline__)) c(c<U>) {}
+};
+struct {
+  c<double> v = c<int>();
+} o;
 }

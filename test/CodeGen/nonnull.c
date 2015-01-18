@@ -21,3 +21,31 @@ int * bar3() __attribute__((returns_nonnull))  {
   return &a;
 }
 
+// CHECK: define i32 @bar4(i32 %n, i32* nonnull %p)
+int bar4(int n, int *p) __attribute__((nonnull)) {
+  return n + *p;
+}
+
+// CHECK: define i32 @bar5(i32 %n, i32* nonnull %p)
+int bar5(int n, int *p) __attribute__((nonnull(1, 2))) {
+  return n + *p;
+}
+
+typedef union {
+  unsigned long long n;
+  int *p;
+  double d;
+} TransparentUnion __attribute__((transparent_union));
+
+// CHECK: define i32 @bar6(i64 %
+int bar6(TransparentUnion tu) __attribute__((nonnull(1))) {
+  return *tu.p;
+}
+
+// CHECK: define void @bar7(i32* nonnull %a, i32* nonnull %b)
+void bar7(int *a, int *b) __attribute__((nonnull(1)))
+__attribute__((nonnull(2))) {}
+
+// CHECK: define void @bar8(i32* nonnull %a, i32* nonnull %b)
+void bar8(int *a, int *b) __attribute__((nonnull))
+__attribute__((nonnull(1))) {}

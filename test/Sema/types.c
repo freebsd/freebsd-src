@@ -1,5 +1,7 @@
-// RUN: %clang_cc1 %s -pedantic -verify -triple=x86_64-apple-darwin9
-// RUN: %clang_cc1 %s -pedantic -verify -triple=mips64-linux-gnu
+// RUN: %clang_cc1 %s -fblocks -pedantic -verify -triple=x86_64-apple-darwin9
+// RUN: %clang_cc1 %s -fblocks -pedantic -verify -triple=mips64-linux-gnu
+// RUN: %clang_cc1 %s -fblocks -pedantic -verify -triple=x86_64-unknown-linux
+// RUN: %clang_cc1 %s -fblocks -pedantic -verify -triple=x86_64-unknown-linux-gnux32
 
 // rdar://6097662
 typedef int (*T)[2];
@@ -28,12 +30,12 @@ int c() {
   int __int128; // expected-error {{cannot combine with previous}} expected-warning {{does not declare anything}}
 }
 // __int128_t is __int128; __uint128_t is unsigned __int128.
-typedef __int128 check_int_128; // expected-note {{here}}
-typedef __int128_t check_int_128; // expected-note {{here}} expected-warning {{redefinition}}
+typedef __int128 check_int_128;
+typedef __int128_t check_int_128; // expected-note {{here}}
 typedef int check_int_128; // expected-error {{different types ('int' vs '__int128_t' (aka '__int128'))}}
 
-typedef unsigned __int128 check_uint_128; // expected-note {{here}}
-typedef __uint128_t check_uint_128; // expected-note {{here}} expected-warning {{redefinition}}
+typedef unsigned __int128 check_uint_128;
+typedef __uint128_t check_uint_128; // expected-note {{here}}
 typedef int check_uint_128; // expected-error {{different types ('int' vs '__uint128_t' (aka 'unsigned __int128'))}}
 
 // Array type merging should convert array size to whatever matches the target
@@ -82,3 +84,7 @@ void convert() {
     uchar32 r = 0;
     r.s[ 1234 ] = 1; // expected-error {{illegal vector component name 's'}}
 }
+
+int &*_Atomic null_type_0; // expected-error {{expected identifier or '('}}
+int &*__restrict__ null_type_1; // expected-error {{expected identifier or '('}}
+int ^_Atomic null_type_2; // expected-error {{block pointer to non-function type is invalid}}

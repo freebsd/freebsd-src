@@ -68,7 +68,7 @@
 
 // RUN: %clang_cc1 -triple arm-nacl-gnueabi -o - -emit-llvm %s | \
 // RUN: FileCheck %s -check-prefix=ARM-NACL
-// ARM-NACL: target datalayout = "e-m:e-p:32:32-i64:64-v128:64:128-n32-S128"
+// ARM-NACL: target datalayout = "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S128"
 
 // RUN: %clang_cc1 -triple mipsel-nacl -o - -emit-llvm %s | \
 // RUN: FileCheck %s -check-prefix=MIPS-NACL
@@ -118,7 +118,7 @@
 // RUN: | FileCheck %s -check-prefix=R600D
 // R600D: target datalayout = "e-p:32:32-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64"
 
-// RUN: %clang_cc1 -triple r600-unknown -target-cpu hawaii -o - -emit-llvm %s \
+// RUN: %clang_cc1 -triple amdgcn-unknown -target-cpu hawaii -o - -emit-llvm %s \
 // RUN: | FileCheck %s -check-prefix=R600SI
 // R600SI: target datalayout = "e-p:32:32-p1:64:64-p2:64:64-p3:32:32-p4:64:64-p5:32:32-p24:64:64-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64"
 
@@ -128,15 +128,15 @@
 
 // RUN: %clang_cc1 -triple thumb-unknown-gnueabi -o - -emit-llvm %s | \
 // RUN: FileCheck %s -check-prefix=THUMB
-// THUMB: target datalayout = "e-m:e-p:32:32-i1:8:32-i8:8:32-i16:16:32-i64:64-v128:64:128-a:0:32-n32-S64"
+// THUMB: target datalayout = "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64"
 
 // RUN: %clang_cc1 -triple arm-unknown-gnueabi -o - -emit-llvm %s | \
 // RUN: FileCheck %s -check-prefix=ARM
-// ARM: target datalayout = "e-m:e-p:32:32-i64:64-v128:64:128-n32-S64"
+// ARM: target datalayout = "e-m:e-p:32:32-i64:64-v128:64:128-a:0:32-n32-S64"
 
 // RUN: %clang_cc1 -triple thumb-unknown -o - -emit-llvm -target-abi apcs-gnu \
 // RUN: %s | FileCheck %s -check-prefix=THUMB-GNU
-// THUMB-GNU: target datalayout = "e-m:e-p:32:32-i1:8:32-i8:8:32-i16:16:32-f64:32:64-v64:32:64-v128:32:128-a:0:32-n32-S32"
+// THUMB-GNU: target datalayout = "e-m:e-p:32:32-f64:32:64-v64:32:64-v128:32:128-a:0:32-n32-S32"
 
 // RUN: %clang_cc1 -triple arm-unknown -o - -emit-llvm -target-abi apcs-gnu \
 // RUN: %s | FileCheck %s -check-prefix=ARM-GNU
@@ -152,7 +152,7 @@
 
 // RUN: %clang_cc1 -triple msp430-unknown -o - -emit-llvm %s | \
 // RUN: FileCheck %s -check-prefix=MSP430
-// MSP430: target datalayout = "e-m:e-p:16:16-i32:16:32-n8:16"
+// MSP430: target datalayout = "e-m:e-p:16:16-i32:16:32-a:16-n8:16"
 
 // RUN: %clang_cc1 -triple tce-unknown -o - -emit-llvm %s | \
 // RUN: FileCheck %s -check-prefix=TCE

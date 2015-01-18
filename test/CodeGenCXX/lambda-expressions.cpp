@@ -81,7 +81,7 @@ int g() {
 };
 
 // PR14773
-// CHECK: [[ARRVAL:%[0-9a-zA-Z]*]] = load i32* getelementptr inbounds ([0 x i32]* bitcast (<{}>* @_ZZ14staticarrayrefvE5array to [0 x i32]*), i32 0, i64 0), align 4
+// CHECK: [[ARRVAL:%[0-9a-zA-Z]*]] = load i32* getelementptr inbounds ([0 x i32]* @_ZZ14staticarrayrefvE5array, i32 0, i64 0), align 4
 // CHECK-NEXT: store i32 [[ARRVAL]]
 void staticarrayref(){
   static int array[] = {};
@@ -91,9 +91,17 @@ void staticarrayref(){
   }();
 }
 
-// CHECK: define internal void @"_ZZ1hvEN3$_88__invokeEv"(%struct.A* noalias sret %agg.result) {{.*}} {
+// CHECK-LABEL: define internal i32* @"_ZZ11PR22071_funvENK3$_8clEv"
+// CHECK: ret i32* @PR22071_var
+int PR22071_var;
+int *PR22071_fun() {
+  constexpr int &y = PR22071_var;
+  return [&] { return &y; }();
+}
+
+// CHECK: define internal void @"_ZZ1hvEN3$_98__invokeEv"(%struct.A* noalias sret %agg.result) {{.*}} {
 // CHECK-NOT: =
-// CHECK: call void @"_ZZ1hvENK3$_8clEv"(%struct.A* sret %agg.result,
+// CHECK: call void @"_ZZ1hvENK3$_9clEv"(%struct.A* sret %agg.result,
 // CHECK-NEXT: ret void
 struct A { ~A(); };
 void h() {

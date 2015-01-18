@@ -1,5 +1,5 @@
 // RUN: %clang_cc1 -fsyntax-only -std=c++11 -Wc++98-compat -verify %s
-// RUN: %clang_cc1 -fsyntax-only -std=c++1y -Wc++98-compat -verify %s -DCXX1YCOMPAT
+// RUN: %clang_cc1 -fsyntax-only -std=c++14 -Wc++98-compat -verify %s -DCXX14COMPAT
 
 namespace std {
   struct type_info;
@@ -225,31 +225,6 @@ template<typename T> typename T::ImPrivate SFINAEAccessControl(T t) { // expecte
 int SFINAEAccessControl(...) { return 0; }
 int CheckSFINAEAccessControl = SFINAEAccessControl(PrivateMember()); // expected-note {{while substituting deduced template arguments into function template 'SFINAEAccessControl' [with T = PrivateMember]}}
 
-namespace CopyCtorIssues {
-  struct Private {
-    Private();
-  private:
-    Private(const Private&); // expected-note {{declared private here}}
-  };
-  struct NoViable {
-    NoViable();
-    NoViable(NoViable&); // expected-note {{not viable}}
-  };
-  struct Ambiguous {
-    Ambiguous();
-    Ambiguous(const Ambiguous &, int = 0); // expected-note {{candidate}}
-    Ambiguous(const Ambiguous &, double = 0); // expected-note {{candidate}}
-  };
-  struct Deleted {
-    Private p; // expected-note {{implicitly deleted}}
-  };
-
-  const Private &a = Private(); // expected-warning {{copying variable of type 'CopyCtorIssues::Private' when binding a reference to a temporary would invoke an inaccessible constructor in C++98}}
-  const NoViable &b = NoViable(); // expected-warning {{copying variable of type 'CopyCtorIssues::NoViable' when binding a reference to a temporary would find no viable constructor in C++98}}
-  const Ambiguous &c = Ambiguous(); // expected-warning {{copying variable of type 'CopyCtorIssues::Ambiguous' when binding a reference to a temporary would find ambiguous constructors in C++98}}
-  const Deleted &d = Deleted(); // expected-warning {{copying variable of type 'CopyCtorIssues::Deleted' when binding a reference to a temporary would invoke a deleted constructor in C++98}}
-}
-
 namespace UnionOrAnonStructMembers {
   struct NonTrivCtor {
     NonTrivCtor(); // expected-note 2{{user-provided default constructor}}
@@ -286,18 +261,18 @@ template<typename T> void EnumNNSFn() {
 template void EnumNNSFn<Enum>(); // expected-note {{in instantiation}}
 
 void JumpDiagnostics(int n) {
-  goto DirectJump; // expected-warning {{goto would jump into protected scope in C++98}}
+  goto DirectJump; // expected-warning {{jump from this goto statement to its label is incompatible with C++98}}
   TrivialButNonPOD tnp1; // expected-note {{jump bypasses initialization of non-POD variable}}
 
 DirectJump:
   void *Table[] = {&&DirectJump, &&Later};
-  goto *Table[n]; // expected-warning {{indirect goto might cross protected scopes in C++98}}
+  goto *Table[n]; // expected-warning {{jump from this indirect goto statement to one of its possible targets is incompatible with C++98}}
 
   TrivialButNonPOD tnp2; // expected-note {{jump bypasses initialization of non-POD variable}}
-Later: // expected-note {{possible target of indirect goto}}
+Later: // expected-note {{possible target of indirect goto statement}}
   switch (n) {
     TrivialButNonPOD tnp3; // expected-note {{jump bypasses initialization of non-POD variable}}
-  default: // expected-warning {{switch case would be in a protected scope in C++98}}
+  default: // expected-warning {{jump from switch statement to this case label is incompatible with C++98}}
     return;
   }
 }
@@ -373,10 +348,10 @@ namespace rdar11736429 {
 }
 
 template<typename T> T var = T(10);
-#ifdef CXX1YCOMPAT
-// expected-warning@-2 {{variable templates are incompatible with C++ standards before C++1y}}
+#ifdef CXX14COMPAT
+// expected-warning@-2 {{variable templates are incompatible with C++ standards before C++14}}
 #else
-// expected-warning@-4 {{variable templates are a C++1y extension}}
+// expected-warning@-4 {{variable templates are a C++14 extension}}
 #endif
 
 // No diagnostic for specializations of variable templates; we will have
@@ -388,27 +363,27 @@ float fvar = var<float>;
 
 class A {
   template<typename T> static T var = T(10);
-#ifdef CXX1YCOMPAT
-// expected-warning@-2 {{variable templates are incompatible with C++ standards before C++1y}}
+#ifdef CXX14COMPAT
+// expected-warning@-2 {{variable templates are incompatible with C++ standards before C++14}}
 #else
-// expected-warning@-4 {{variable templates are a C++1y extension}}
+// expected-warning@-4 {{variable templates are a C++14 extension}}
 #endif
 
-  template<typename T> static T* var<T*> = new T(); 
+  template<typename T> static T* var<T*> = new T();
 };
 
 struct B {  template<typename T> static T v; };
-#ifdef CXX1YCOMPAT
-// expected-warning@-2 {{variable templates are incompatible with C++ standards before C++1y}}
+#ifdef CXX14COMPAT
+// expected-warning@-2 {{variable templates are incompatible with C++ standards before C++14}}
 #else
-// expected-warning@-4 {{variable templates are a C++1y extension}}
+// expected-warning@-4 {{variable templates are a C++14 extension}}
 #endif
 
 template<typename T> T B::v = T();
-#ifdef CXX1YCOMPAT
-// expected-warning@-2 {{variable templates are incompatible with C++ standards before C++1y}}
+#ifdef CXX14COMPAT
+// expected-warning@-2 {{variable templates are incompatible with C++ standards before C++14}}
 #else
-// expected-warning@-4 {{variable templates are a C++1y extension}}
+// expected-warning@-4 {{variable templates are a C++14 extension}}
 #endif
 
 template<typename T> T* B::v<T*> = new T();
@@ -416,6 +391,6 @@ template<> int B::v<int> = 10;
 template int B::v<int>;
 float fsvar = B::v<float>;
 
-#ifdef CXX1YCOMPAT
-int digit_seps = 123'456; // expected-warning {{digit separators are incompatible with C++ standards before C++1y}}
+#ifdef CXX14COMPAT
+int digit_seps = 123'456; // expected-warning {{digit separators are incompatible with C++ standards before C++14}}
 #endif

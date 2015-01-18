@@ -6,11 +6,12 @@ add_clang_library(clangFormat
   Format.cpp
   FormatToken.cpp
   TokenAnnotator.cpp
+  UnwrappedLineFormatter.cpp
   UnwrappedLineParser.cpp
   WhitespaceManager.cpp
 
   LINK_LIBS
   clangBasic
   clangLex
-  clangTooling
+  clangToolingCore
   )

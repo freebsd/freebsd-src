@@ -4,22 +4,24 @@
 
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK001 %s
 // CHECK001: "-cc1" {{.*}} "-internal-externc-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/lib/gcc/hexagon/4.4.0/include"
 // CHECK001:   "-internal-externc-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/lib/gcc/hexagon/4.4.0/include-fixed"
 // CHECK001:   "-internal-externc-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/hexagon/include"
-// CHECK001-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\}}hexagon-as"
+// CHECK001-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\\\}}hexagon-as"
 
 // RUN: %clangxx -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK002 %s
 // CHECK002: "-cc1" {{.*}} "-internal-isystem" "[[INSTALL_DIR:.*]]/Inputs/hexagon_tree/qc/bin/../../gnu{{/|\\\\}}hexagon/include/c++/4.4.0"
 // CHECK002:   "-internal-externc-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/lib/gcc/hexagon/4.4.0/include"
 // CHECK002:   "-internal-externc-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/lib/gcc/hexagon/4.4.0/include-fixed"
 // CHECK002:   "-internal-externc-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/hexagon/include"
-// CHECK002-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\}}hexagon-as"
+// CHECK002-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\\\}}hexagon-as"
 
 // -----------------------------------------------------------------------------
 // Test -nostdinc, -nostdlibinc, -nostdinc++
@@ -27,6 +29,7 @@
 
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -nostdinc \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK003 %s
@@ -34,10 +37,11 @@
 // CHECK003-NOT: "-internal-externc-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/lib/gcc/hexagon/4.4.0/include"
 // CHECK003-NOT: "-internal-externc-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/lib/gcc/hexagon/4.4.0/include-fixed"
 // CHECK003-NOT: "-internal-externc-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/hexagon/include"
-// CHECK003-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\}}hexagon-as"
+// CHECK003-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\\\}}hexagon-as"
 
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -nostdlibinc \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK004 %s
@@ -45,10 +49,11 @@
 // CHECK004-NOT: "-internal-externc-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/lib/gcc/hexagon/4.4.0/include"
 // CHECK004-NOT: "-internal-externc-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/lib/gcc/hexagon/4.4.0/include-fixed"
 // CHECK004-NOT: "-internal-externc-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/hexagon/include"
-// CHECK004-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\}}hexagon-as"
+// CHECK004-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\\\}}hexagon-as"
 
 // RUN: %clangxx -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -nostdlibinc \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK005 %s
@@ -57,54 +62,59 @@
 // CHECK005-NOT: "-internal-externc-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/lib/gcc/hexagon/4.4.0/include"
 // CHECK005-NOT: "-internal-externc-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/lib/gcc/hexagon/4.4.0/include-fixed"
 // CHECK005-NOT: "-internal-externc-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/hexagon/include"
-// CHECK005-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\}}hexagon-as"
+// CHECK005-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\\\}}hexagon-as"
 
 // RUN: %clangxx -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -nostdinc++ \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK006 %s
 // CHECK006: "-cc1"
 // CHECK006-NOT: "-internal-isystem" "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/hexagon/include/c++/4.4.0"
-// CHECK006-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\}}hexagon-as"
+// CHECK006-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\\\}}hexagon-as"
 
 // -----------------------------------------------------------------------------
 // Test -march=<archname> -mcpu=<archname> -mv<number>
 // -----------------------------------------------------------------------------
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -march=hexagonv3 \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK007 %s
 // CHECK007: "-cc1" {{.*}} "-target-cpu" "hexagonv3"
-// CHECK007-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\}}hexagon-as"{{.*}} "-march=v3"
-// CHECK007-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\}}hexagon-ld"{{.*}} "-mv3"
+// CHECK007-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\\\}}hexagon-as"{{.*}} "-march=v3"
+// CHECK007-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\\\}}hexagon-ld"{{.*}} "-mv3"
 
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -mcpu=hexagonv5 \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK008 %s
 // CHECK008: "-cc1" {{.*}} "-target-cpu" "hexagonv5"
-// CHECK008-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\}}hexagon-as"{{.*}} "-march=v5"
-// CHECK008-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\}}hexagon-ld"{{.*}} "-mv5"
+// CHECK008-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\\\}}hexagon-as"{{.*}} "-march=v5"
+// CHECK008-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\\\}}hexagon-ld"{{.*}} "-mv5"
 
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -mv2 \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK009 %s
 // CHECK009: "-cc1" {{.*}} "-target-cpu" "hexagonv2"
-// CHECK009-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\}}hexagon-as"{{.*}} "-march=v2"
-// CHECK009-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\}}hexagon-ld"{{.*}} "-mv2"
+// CHECK009-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\\\}}hexagon-as"{{.*}} "-march=v2"
+// CHECK009-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\\\}}hexagon-ld"{{.*}} "-mv2"
 
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK010 %s
 // CHECK010: "-cc1" {{.*}} "-target-cpu" "hexagonv4"
-// CHECK010-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\}}hexagon-as"{{.*}} "-march=v4"
-// CHECK010-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\}}hexagon-ld"{{.*}} "-mv4"
+// CHECK010-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\\\}}hexagon-as"{{.*}} "-march=v4"
+// CHECK010-NEXT: "{{.*}}/Inputs/hexagon_tree/qc/bin/../../gnu/bin{{/|\\\\}}hexagon-ld"{{.*}} "-mv4"
 
 // RUN: not %clang -march=hexagonv2 -target hexagon-unknown-elf \
 // RUN:   %s 2>&1 | FileCheck -check-prefix=CHECK-UNKNOWN-V2 %s
@@ -131,11 +141,12 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK011 %s
 // CHECK011: "-cc1"
-// CHECK011-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"{{.*}}
-// CHECK011-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK011-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"{{.*}}
+// CHECK011-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK011-NOT: "-static"
 // CHECK011-NOT: "-shared"
 // CHECK011: "{{.*}}/hexagon/lib/v4/crt0_standalone.o"
@@ -155,11 +166,12 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // RUN: %clangxx -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK012 %s
 // CHECK012: "-cc1"
-// CHECK012-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"{{.*}}
-// CHECK012-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK012-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"{{.*}}
+// CHECK012-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK012-NOT: "-static"
 // CHECK012-NOT: "-shared"
 // CHECK012: "{{.*}}/hexagon/lib/v4/crt0_standalone.o"
@@ -180,12 +192,13 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -Lone -L two -L three \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK013 %s
 // CHECK013: "-cc1"
-// CHECK013-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"{{.*}}
-// CHECK013-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK013-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"{{.*}}
+// CHECK013-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK013: "{{.*}}/hexagon/lib/v4/crt0_standalone.o"
 // CHECK013: "{{.*}}/hexagon/lib/v4/crt0.o"
 // CHECK013: "{{.*}}/hexagon/lib/v4/init.o"
@@ -204,12 +217,13 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -static \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK014 %s
 // CHECK014: "-cc1"
-// CHECK014-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"{{.*}}
-// CHECK014-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK014-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"{{.*}}
+// CHECK014-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK014: "-static"
 // CHECK014: "{{.*}}/hexagon/lib/v4/crt0_standalone.o"
 // CHECK014: "{{.*}}/hexagon/lib/v4/crt0.o"
@@ -225,12 +239,13 @@
 
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -shared \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK015 %s
 // CHECK015: "-cc1"
-// CHECK015-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"{{.*}}
-// CHECK015-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK015-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"{{.*}}
+// CHECK015-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK015: "-shared" "-call_shared"
 // CHECK015-NOT: crt0_standalone.o
 // CHECK015-NOT: crt0.o
@@ -254,13 +269,14 @@
 
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -shared \
 // RUN:   -static \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK016 %s
 // CHECK016: "-cc1"
-// CHECK016-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"{{.*}}
-// CHECK016-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK016-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"{{.*}}
+// CHECK016-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK016: "-shared" "-call_shared" "-static"
 // CHECK016-NOT: crt0_standalone.o
 // CHECK016-NOT: crt0.o
@@ -287,12 +303,13 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // RUN: %clangxx -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -nostdlib \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK017 %s
 // CHECK017: "-cc1"
-// CHECK017-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"{{.*}}
-// CHECK017-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK017-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"{{.*}}
+// CHECK017-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK017-NOT: crt0_standalone.o
 // CHECK017-NOT: crt0.o
 // CHECK017-NOT: init.o
@@ -313,12 +330,13 @@
 
 // RUN: %clangxx -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -nostartfiles \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK018 %s
 // CHECK018: "-cc1"
-// CHECK018-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"{{.*}}
-// CHECK018-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK018-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"{{.*}}
+// CHECK018-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK018-NOT: crt0_standalone.o
 // CHECK018-NOT: crt0.o
 // CHECK018-NOT: init.o
@@ -339,12 +357,13 @@
 
 // RUN: %clangxx -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -nodefaultlibs \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK019 %s
 // CHECK019: "-cc1"
-// CHECK019-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"{{.*}}
-// CHECK019-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK019-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"{{.*}}
+// CHECK019-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK019: "{{.*}}/hexagon/lib/v4/crt0_standalone.o"
 // CHECK019: "{{.*}}/hexagon/lib/v4/crt0.o"
 // CHECK019: "{{.*}}/hexagon/lib/v4/init.o"
@@ -368,12 +387,13 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -moslib=first -moslib=second \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK020 %s
 // CHECK020: "-cc1"
-// CHECK020-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"{{.*}}
-// CHECK020-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK020-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"{{.*}}
+// CHECK020-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK020-NOT: "-static"
 // CHECK020-NOT: "-shared"
 // CHECK020-NOT: crt0_standalone.o
@@ -393,12 +413,13 @@
 
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -moslib=first -moslib=second -moslib=standalone\
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK021 %s
 // CHECK021: "-cc1"
-// CHECK021-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"{{.*}}
-// CHECK021-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK021-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"{{.*}}
+// CHECK021-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK021-NOT: "-static"
 // CHECK021-NOT: "-shared"
 // CHECK021: "{{.*}}/hexagon/lib/v4/crt0_standalone.o"
@@ -421,6 +442,7 @@
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // RUN: %clangxx -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -s \
 // RUN:   -Tbss 0xdead -Tdata 0xbeef -Ttext 0xcafe \
 // RUN:   -t \
@@ -429,8 +451,8 @@
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK022 %s
 // CHECK022: "-cc1"
-// CHECK022-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"{{.*}}
-// CHECK022-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK022-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"{{.*}}
+// CHECK022-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK022: "{{.*}}/hexagon/lib/v4/crt0_standalone.o"
 // CHECK022: "{{.*}}/hexagon/lib/v4/crt0.o"
 // CHECK022: "{{.*}}/hexagon/lib/v4/init.o"
@@ -453,27 +475,31 @@
 // -----------------------------------------------------------------------------
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK023 %s
 // CHECK023:      "-cc1"
 // CHECK023:        "-mrelocation-model" "static"
-// CHECK023-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"
+// CHECK023-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"
 // CHECK023-NOT:    "-G{{[0-9]+}}"
-// CHECK023-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK023-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK023-NOT:    "-G{{[0-9]+}}"
 
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -fpic \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK024 %s
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -fPIC \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK024 %s
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -fPIC \
 // RUN:   -msmall-data-threshold=8 \
 // RUN:   %s 2>&1 \
@@ -482,32 +508,35 @@
 // CHECK024-NOT:    "-mrelocation-model" "static"
 // CHECK024:        "-pic-level" "{{[12]}}"
 // CHECK024:        "-mllvm" "-hexagon-small-data-threshold=0"
-// CHECK024-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"
+// CHECK024-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"
 // CHECK024:        "-G0"
-// CHECK024-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK024-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK024:        "-G0"
 
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -G=8 \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK025 %s
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -G 8 \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK025 %s
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -msmall-data-threshold=8 \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK025 %s
 // CHECK025:      "-cc1"
 // CHECK025:        "-mrelocation-model" "static"
 // CHECK025:        "-mllvm" "-hexagon-small-data-threshold=8"
-// CHECK025-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"
+// CHECK025-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"
 // CHECK025:        "-G8"
-// CHECK025-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK025-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK025:        "-G8"
 
 // -----------------------------------------------------------------------------
@@ -515,22 +544,24 @@
 // -----------------------------------------------------------------------------
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -pie \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK026 %s
 // CHECK026:      "-cc1"
-// CHECK026-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"
-// CHECK026-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK026-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"
+// CHECK026-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK026:        "-pie"
 
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -pie -shared \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK027 %s
 // CHECK027:      "-cc1"
-// CHECK027-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"
-// CHECK027-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK027-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"
+// CHECK027-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 // CHECK027-NOT:    "-pie"
 
 // -----------------------------------------------------------------------------
@@ -538,25 +569,27 @@
 // -----------------------------------------------------------------------------
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK028 %s
 // CHECK028:      "-cc1"
 // CHECK028:        "-mqdsp6-compat"
 // CHECK028:        "-Wreturn-type"
-// CHECK028-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"
-// CHECK028-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK028-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"
+// CHECK028-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"
 
 // -----------------------------------------------------------------------------
 // Test Assembler related args
 // -----------------------------------------------------------------------------
 // RUN: %clang -### -target hexagon-unknown-elf     \
 // RUN:   -ccc-install-dir %S/Inputs/hexagon_tree/qc/bin \
+// RUN:   --gcc-toolchain="" \
 // RUN:   -gdwarf-2 \
 // RUN:   -Wa,--noexecstack,--trap \
 // RUN:   -Xassembler --keep-locals \
 // RUN:   %s 2>&1 \
 // RUN:   | FileCheck -check-prefix=CHECK029 %s
 // CHECK029:      "-cc1"
-// CHECK029-NEXT: "{{.*}}/bin{{/|\\}}hexagon-as"
+// CHECK029-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-as"
 // CHECK029:      "--noexecstack" "--trap" "--keep-locals"
-// CHECK029-NEXT: "{{.*}}/bin{{/|\\}}hexagon-ld"
+// CHECK029-NEXT: "{{.*}}/bin{{/|\\\\}}hexagon-ld"

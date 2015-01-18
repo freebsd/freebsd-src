@@ -42,7 +42,7 @@ namespace {
     void FlushDiagnosticsImpl(std::vector<const PathDiagnostic *> &Diags,
                               FilesMade *filesMade) override;
 
-    virtual StringRef getName() const override {
+    StringRef getName() const override {
       return "PlistDiagnostics";
     }
 
@@ -338,10 +338,10 @@ void PlistDiagnostics::FlushDiagnosticsImpl(
   }
 
   // Open the file.
-  std::string ErrMsg;
-  llvm::raw_fd_ostream o(OutputFile.c_str(), ErrMsg, llvm::sys::fs::F_Text);
-  if (!ErrMsg.empty()) {
-    llvm::errs() << "warning: could not create file: " << OutputFile << '\n';
+  std::error_code EC;
+  llvm::raw_fd_ostream o(OutputFile, EC, llvm::sys::fs::F_Text);
+  if (EC) {
+    llvm::errs() << "warning: could not create file: " << EC.message() << '\n';
     return;
   }
 

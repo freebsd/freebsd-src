@@ -48,6 +48,7 @@ class ObjCInterfaceDecl;
 class ObjCMethodDecl;
 class ObjCProtocolDecl;
 struct PrintingPolicy;
+class RecordDecl;
 class Stmt;
 class StoredDeclsMap;
 class TranslationUnitDecl;
@@ -515,8 +516,12 @@ public:
   /// indicating the declaration is used.
   void markUsed(ASTContext &C);
 
-  /// \brief Whether this declaration was referenced.
+  /// \brief Whether any declaration of this entity was referenced.
   bool isReferenced() const;
+
+  /// \brief Whether this declaration was referenced. This should not be relied
+  /// upon for anything other than debugging.
+  bool isThisDeclarationReferenced() const { return Referenced; }
 
   void setReferenced(bool R = true) { Referenced = R; }
 
@@ -675,9 +680,9 @@ public:
     return const_cast<Decl*>(this)->getLexicalDeclContext();
   }
 
-  virtual bool isOutOfLine() const {
-    return getLexicalDeclContext() != getDeclContext();
-  }
+  /// Determine whether this declaration is declared out of line (outside its
+  /// semantic context).
+  virtual bool isOutOfLine() const;
 
   /// setDeclContext - Set both the semantic and lexical DeclContext
   /// to DC.
@@ -1234,6 +1239,12 @@ public:
     return const_cast<DeclContext *>(this)->getEnclosingNamespaceContext();
   }
 
+  /// \brief Retrieve the outermost lexically enclosing record context.
+  RecordDecl *getOuterLexicalRecordContext();
+  const RecordDecl *getOuterLexicalRecordContext() const {
+    return const_cast<DeclContext *>(this)->getOuterLexicalRecordContext();
+  }
+
   /// \brief Test if this context is part of the enclosing namespace set of
   /// the context NS, as defined in C++0x [namespace.def]p9. If either context
   /// isn't a namespace, this is equivalent to Equals().
@@ -1642,7 +1653,7 @@ public:
 
   void dumpDeclContext() const;
   void dumpLookups() const;
-  void dumpLookups(llvm::raw_ostream &OS) const;
+  void dumpLookups(llvm::raw_ostream &OS, bool DumpDecls = false) const;
 
 private:
   void reconcileExternalVisibleStorage() const;

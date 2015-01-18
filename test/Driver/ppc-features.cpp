@@ -89,11 +89,23 @@
 // RUN: %clang -target powerpc64-unknown-linux-gnu %s -mno-fprnd -mfprnd -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK-FPRND %s
 // CHECK-FPRND: "-target-feature" "+fprnd"
 
+// RUN: %clang -target powerpc64-unknown-linux-gnu %s -mno-cmpb -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK-NOCMPB %s
+// CHECK-NOCMPB: "-target-feature" "-cmpb"
+
+// RUN: %clang -target powerpc64-unknown-linux-gnu %s -mno-cmpb -mcmpb -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK-CMPB %s
+// CHECK-CMPB: "-target-feature" "+cmpb"
+
 // RUN: %clang -target powerpc64-unknown-linux-gnu %s -mno-vsx -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK-NOVSX %s
 // CHECK-NOVSX: "-target-feature" "-vsx"
 
 // RUN: %clang -target powerpc64-unknown-linux-gnu %s -mno-vsx -mvsx -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK-VSX %s
 // CHECK-VSX: "-target-feature" "+vsx"
+
+// RUN: %clang -target powerpc64-unknown-linux-gnu %s -mno-power8-vector -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK-NOP8VECTOR %s
+// CHECK-NOP8VECTOR: "-target-feature" "-power8-vector"
+
+// RUN: %clang -target powerpc64-unknown-linux-gnu %s -mno-power8-vector -mpower8-vector -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK-P8VECTOR %s
+// CHECK-P8VECTOR: "-target-feature" "+power8-vector"
 
 // RUN: %clang -target powerpc64-unknown-linux-gnu %s -mno-crbits -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK-NOCRBITS %s
 // CHECK-NOCRBITS: "-target-feature" "-crbits"
@@ -102,11 +114,11 @@
 // CHECK-CRBITS: "-target-feature" "+crbits"
 
 // Assembler features
-// RUN: %clang -target powerpc64-unknown-linux-gnu %s -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK_BE_AS_ARGS %s
+// RUN: %clang -target powerpc64-unknown-linux-gnu %s -### -o %t.o -no-integrated-as 2>&1 | FileCheck -check-prefix=CHECK_BE_AS_ARGS %s
 // CHECK_BE_AS_ARGS: "-mppc64"
 // CHECK_BE_AS_ARGS: "-many"
 
-// RUN: %clang -target powerpc64le-unknown-linux-gnu %s -### -o %t.o 2>&1 | FileCheck -check-prefix=CHECK_LE_AS_ARGS %s
+// RUN: %clang -target powerpc64le-unknown-linux-gnu %s -### -o %t.o -no-integrated-as 2>&1 | FileCheck -check-prefix=CHECK_LE_AS_ARGS %s
 // CHECK_LE_AS_ARGS: "-mppc64"
 // CHECK_LE_AS_ARGS: "-many"
 // CHECK_LE_AS_ARGS: "-mlittle-endian"

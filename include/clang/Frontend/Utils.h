@@ -125,7 +125,7 @@ class ModuleDependencyCollector {
 
 public:
   StringRef getDest() { return DestDir; }
-  bool insertSeen(StringRef Filename) { return Seen.insert(Filename); }
+  bool insertSeen(StringRef Filename) { return Seen.insert(Filename).second; }
   void setHasErrors() { HasErrors = true; }
   void addFileMapping(StringRef VPath, StringRef RPath) {
     VFSWriter.addFileMapping(VPath, RPath);
@@ -206,6 +206,9 @@ inline uint64_t getLastArgUInt64Value(const llvm::opt::ArgList &Args,
 // global objects, but we don't want LeakDetectors to complain, so we bury them
 // in a globally visible array.
 void BuryPointer(const void *Ptr);
+template <typename T> void BuryPointer(std::unique_ptr<T> Ptr) {
+  BuryPointer(Ptr.release());
+}
 
 } // end namespace clang
 

@@ -466,11 +466,15 @@ void InitListChecker::FillInEmptyInitForField(unsigned Init, FieldDecl *Field,
     //   members in the aggregate, then each member not explicitly initialized
     //   shall be initialized from its brace-or-equal-initializer [...]
     if (Field->hasInClassInitializer()) {
-      Expr *DIE = CXXDefaultInitExpr::Create(SemaRef.Context, Loc, Field);
+      ExprResult DIE = SemaRef.BuildCXXDefaultInitExpr(Loc, Field);
+      if (DIE.isInvalid()) {
+        hadError = true;
+        return;
+      }
       if (Init < NumInits)
-        ILE->setInit(Init, DIE);
+        ILE->setInit(Init, DIE.get());
       else {
-        ILE->updateInit(SemaRef.Context, Init, DIE);
+        ILE->updateInit(SemaRef.Context, Init, DIE.get());
         RequiresSecondPass = true;
       }
       return;
@@ -1555,10 +1559,11 @@ void InitListChecker::CheckStructUnionTypes(const InitializedEntity &Entity,
       }
     }
 
-    // Value-initialize the first named member of the union.
+    // Value-initialize the first member of the union that isn't an unnamed
+    // bitfield.
     for (RecordDecl::field_iterator FieldEnd = RD->field_end();
          Field != FieldEnd; ++Field) {
-      if (Field->getDeclName()) {
+      if (!Field->isUnnamedBitfield()) {
         if (VerifyOnly)
           CheckEmptyInitializable(
               InitializedEntity::InitializeMember(*Field, &Entity),
@@ -1734,24 +1739,6 @@ static void ExpandAnonymousFieldDesignator(Sema &SemaRef,
                         &Replacements[0] + Replacements.size());
 }
 
-/// \brief Given an implicit anonymous field, search the IndirectField that
-///  corresponds to FieldName.
-static IndirectFieldDecl *FindIndirectFieldDesignator(FieldDecl *AnonField,
-                                                 IdentifierInfo *FieldName) {
-  if (!FieldName)
-    return nullptr;
-
-  assert(AnonField->isAnonymousStructOrUnion());
-  Decl *NextDecl = AnonField->getNextDeclInContext();
-  while (IndirectFieldDecl *IF = 
-          dyn_cast_or_null<IndirectFieldDecl>(NextDecl)) {
-    if (FieldName == IF->getAnonField()->getIdentifier())
-      return IF;
-    NextDecl = NextDecl->getNextDeclInContext();
-  }
-  return nullptr;
-}
-
 static DesignatedInitExpr *CloneDesignatedInitExpr(Sema &SemaRef,
                                                    DesignatedInitExpr *DIE) {
   unsigned NumIndexExprs = DIE->getNumSubExprs() - 1;
@@ -1892,102 +1879,75 @@ InitListChecker::CheckDesignatedInitializer(const InitializedEntity &Entity,
       return true;
     }
 
-    // Note: we perform a linear search of the fields here, despite
-    // the fact that we have a faster lookup method, because we always
-    // need to compute the field's index.
     FieldDecl *KnownField = D->getField();
-    IdentifierInfo *FieldName = D->getFieldName();
-    unsigned FieldIndex = 0;
-    RecordDecl::field_iterator
-      Field = RT->getDecl()->field_begin(),
-      FieldEnd = RT->getDecl()->field_end();
-    for (; Field != FieldEnd; ++Field) {
-      if (Field->isUnnamedBitfield())
-        continue;
-
-      // If we find a field representing an anonymous field, look in the
-      // IndirectFieldDecl that follow for the designated initializer.
-      if (!KnownField && Field->isAnonymousStructOrUnion()) {
-        if (IndirectFieldDecl *IF =
-            FindIndirectFieldDesignator(*Field, FieldName)) {
+    if (!KnownField) {
+      IdentifierInfo *FieldName = D->getFieldName();
+      DeclContext::lookup_result Lookup = RT->getDecl()->lookup(FieldName);
+      for (NamedDecl *ND : Lookup) {
+        if (auto *FD = dyn_cast<FieldDecl>(ND)) {
+          KnownField = FD;
+          break;
+        }
+        if (auto *IFD = dyn_cast<IndirectFieldDecl>(ND)) {
           // In verify mode, don't modify the original.
           if (VerifyOnly)
             DIE = CloneDesignatedInitExpr(SemaRef, DIE);
-          ExpandAnonymousFieldDesignator(SemaRef, DIE, DesigIdx, IF);
+          ExpandAnonymousFieldDesignator(SemaRef, DIE, DesigIdx, IFD);
           D = DIE->getDesignator(DesigIdx);
+          KnownField = cast<FieldDecl>(*IFD->chain_begin());
           break;
         }
       }
-      if (KnownField && KnownField == *Field)
-        break;
-      if (FieldName && FieldName == Field->getIdentifier())
-        break;
+      if (!KnownField) {
+        if (VerifyOnly) {
+          ++Index;
+          return true;  // No typo correction when just trying this out.
+        }
 
-      ++FieldIndex;
-    }
+        // Name lookup found something, but it wasn't a field.
+        if (!Lookup.empty()) {
+          SemaRef.Diag(D->getFieldLoc(), diag::err_field_designator_nonfield)
+            << FieldName;
+          SemaRef.Diag(Lookup.front()->getLocation(),
+                       diag::note_field_designator_found);
+          ++Index;
+          return true;
+        }
 
-    if (Field == FieldEnd) {
-      if (VerifyOnly) {
-        ++Index;
-        return true; // No typo correction when just trying this out.
-      }
-
-      // There was no normal field in the struct with the designated
-      // name. Perform another lookup for this name, which may find
-      // something that we can't designate (e.g., a member function),
-      // may find nothing, or may find a member of an anonymous
-      // struct/union.
-      DeclContext::lookup_result Lookup = RT->getDecl()->lookup(FieldName);
-      FieldDecl *ReplacementField = nullptr;
-      if (Lookup.empty()) {
-        // Name lookup didn't find anything. Determine whether this
-        // was a typo for another field name.
-        FieldInitializerValidatorCCC Validator(RT->getDecl());
+        // Name lookup didn't find anything.
+        // Determine whether this was a typo for another field name.
         if (TypoCorrection Corrected = SemaRef.CorrectTypo(
                 DeclarationNameInfo(FieldName, D->getFieldLoc()),
-                Sema::LookupMemberName, /*Scope=*/ nullptr, /*SS=*/ nullptr,
-                Validator, Sema::CTK_ErrorRecovery, RT->getDecl())) {
+                Sema::LookupMemberName, /*Scope=*/nullptr, /*SS=*/nullptr,
+                llvm::make_unique<FieldInitializerValidatorCCC>(RT->getDecl()),
+                Sema::CTK_ErrorRecovery, RT->getDecl())) {
           SemaRef.diagnoseTypo(
               Corrected,
               SemaRef.PDiag(diag::err_field_designator_unknown_suggest)
-                  << FieldName << CurrentObjectType);
-          ReplacementField = Corrected.getCorrectionDeclAs<FieldDecl>();
+                << FieldName << CurrentObjectType);
+          KnownField = Corrected.getCorrectionDeclAs<FieldDecl>();
           hadError = true;
         } else {
+          // Typo correction didn't find anything.
           SemaRef.Diag(D->getFieldLoc(), diag::err_field_designator_unknown)
             << FieldName << CurrentObjectType;
           ++Index;
           return true;
         }
       }
-
-      if (!ReplacementField) {
-        // Name lookup found something, but it wasn't a field.
-        SemaRef.Diag(D->getFieldLoc(), diag::err_field_designator_nonfield)
-          << FieldName;
-        SemaRef.Diag(Lookup.front()->getLocation(),
-                      diag::note_field_designator_found);
-        ++Index;
-        return true;
-      }
-
-      if (!KnownField) {
-        // The replacement field comes from typo correction; find it
-        // in the list of fields.
-        FieldIndex = 0;
-        Field = RT->getDecl()->field_begin();
-        for (; Field != FieldEnd; ++Field) {
-          if (Field->isUnnamedBitfield())
-            continue;
-
-          if (ReplacementField == *Field ||
-              Field->getIdentifier() == ReplacementField->getIdentifier())
-            break;
-
-          ++FieldIndex;
-        }
-      }
     }
+
+    unsigned FieldIndex = 0;
+    for (auto *FI : RT->getDecl()->fields()) {
+      if (FI->isUnnamedBitfield())
+        continue;
+      if (KnownField == FI)
+        break;
+      ++FieldIndex;
+    }
+
+    RecordDecl::field_iterator Field =
+        RecordDecl::field_iterator(DeclContext::decl_iterator(KnownField));
 
     // All of the fields of a union are located at the same place in
     // the initializer list.
@@ -5537,17 +5497,17 @@ static void performLifetimeExtension(Expr *Init,
 static bool
 performReferenceExtension(Expr *Init,
                           const InitializedEntity *ExtendingEntity) {
-  if (InitListExpr *ILE = dyn_cast<InitListExpr>(Init)) {
-    if (ILE->getNumInits() == 1 && ILE->isGLValue()) {
-      // This is just redundant braces around an initializer. Step over it.
-      Init = ILE->getInit(0);
-    }
-  }
-
   // Walk past any constructs which we can lifetime-extend across.
   Expr *Old;
   do {
     Old = Init;
+
+    if (InitListExpr *ILE = dyn_cast<InitListExpr>(Init)) {
+      if (ILE->getNumInits() == 1 && ILE->isGLValue()) {
+        // This is just redundant braces around an initializer. Step over it.
+        Init = ILE->getInit(0);
+      }
+    }
 
     // Step over any subobject adjustments; we may have a materialized
     // temporary inside them.
@@ -6476,10 +6436,43 @@ static void diagnoseListInit(Sema &S, const InitializedEntity &Entity,
     return diagnoseListInit(S, HiddenArray, InitList);
   }
 
+  if (DestType->isReferenceType()) {
+    // A list-initialization failure for a reference means that we tried to
+    // create a temporary of the inner type (per [dcl.init.list]p3.6) and the
+    // inner initialization failed.
+    QualType T = DestType->getAs<ReferenceType>()->getPointeeType();
+    diagnoseListInit(S, InitializedEntity::InitializeTemporary(T), InitList);
+    SourceLocation Loc = InitList->getLocStart();
+    if (auto *D = Entity.getDecl())
+      Loc = D->getLocation();
+    S.Diag(Loc, diag::note_in_reference_temporary_list_initializer) << T;
+    return;
+  }
+
   InitListChecker DiagnoseInitList(S, Entity, InitList, DestType,
                                    /*VerifyOnly=*/false);
   assert(DiagnoseInitList.HadError() &&
          "Inconsistent init list check result.");
+}
+
+/// Prints a fixit for adding a null initializer for |Entity|. Call this only
+/// right after emitting a diagnostic.
+static void maybeEmitZeroInitializationFixit(Sema &S,
+                                             InitializationSequence &Sequence,
+                                             const InitializedEntity &Entity) {
+  if (Entity.getKind() != InitializedEntity::EK_Variable)
+    return;
+
+  VarDecl *VD = cast<VarDecl>(Entity.getDecl());
+  if (VD->getInit() || VD->getLocEnd().isMacroID())
+    return;
+
+  QualType VariableTy = VD->getType().getCanonicalType();
+  SourceLocation Loc = S.getLocForEndOfToken(VD->getLocEnd());
+  std::string Init = S.getFixItZeroInitializerForType(VariableTy, Loc);
+
+  S.Diag(Loc, diag::note_add_initializer)
+      << VD << FixItHint::CreateInsertion(Loc, Init);
 }
 
 bool InitializationSequence::Diagnose(Sema &S,
@@ -6812,7 +6805,8 @@ bool InitializationSequence::Diagnose(Sema &S,
         << Entity.getName();
     } else {
       S.Diag(Kind.getLocation(), diag::err_default_init_const)
-        << DestType << (bool)DestType->getAs<RecordType>();
+          << DestType << (bool)DestType->getAs<RecordType>();
+      maybeEmitZeroInitializationFixit(S, *this, Entity);
     }
     break;
 

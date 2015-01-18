@@ -28,6 +28,7 @@ static unsigned getCharWidth(tok::TokenKind kind, const TargetInfo &Target) {
   default: llvm_unreachable("Unknown token type!");
   case tok::char_constant:
   case tok::string_literal:
+  case tok::utf8_char_constant:
   case tok::utf8_string_literal:
     return Target.getCharWidth();
   case tok::wide_char_constant:
@@ -656,7 +657,7 @@ NumericLiteralParser::NumericLiteralParser(StringRef TokSpelling,
         }
       }
       // "i", "if", and "il" are user-defined suffixes in C++1y.
-      if (PP.getLangOpts().CPlusPlus1y && *s == 'i')
+      if (PP.getLangOpts().CPlusPlus14 && *s == 'i')
         break;
       // fall through.
     case 'j':
@@ -716,7 +717,7 @@ bool NumericLiteralParser::isValidUDSuffix(const LangOptions &LangOpts,
     return true;
 
   // In C++11, there are no library suffixes.
-  if (!LangOpts.CPlusPlus1y)
+  if (!LangOpts.CPlusPlus14)
     return false;
 
   // In C++1y, "s", "h", "min", "ms", "us", and "ns" are used in the library.
@@ -813,10 +814,10 @@ void NumericLiteralParser::ParseNumberStartingWithZero(SourceLocation TokLoc) {
   if ((c1 == 'b' || c1 == 'B') && (c2 == '0' || c2 == '1')) {
     // 0b101010 is a C++1y / GCC extension.
     PP.Diag(TokLoc,
-            PP.getLangOpts().CPlusPlus1y
+            PP.getLangOpts().CPlusPlus14
               ? diag::warn_cxx11_compat_binary_literal
               : PP.getLangOpts().CPlusPlus
-                ? diag::ext_binary_literal_cxx1y
+                ? diag::ext_binary_literal_cxx14
                 : diag::ext_binary_literal);
     ++s;
     radix = 2;
@@ -1031,9 +1032,10 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
   const char *TokBegin = begin;
 
   // Skip over wide character determinant.
-  if (Kind != tok::char_constant) {
+  if (Kind != tok::char_constant)
     ++begin;
-  }
+  if (Kind == tok::utf8_char_constant)
+    ++begin;
 
   // Skip over the entry quote.
   assert(begin[0] == '\'' && "Invalid token lexed");
@@ -1077,6 +1079,8 @@ CharLiteralParser::CharLiteralParser(const char *begin, const char *end,
   if (tok::wide_char_constant == Kind) {
     largest_character_for_kind =
         0xFFFFFFFFu >> (32-PP.getTargetInfo().getWCharWidth());
+  } else if (tok::utf8_char_constant == Kind) {
+    largest_character_for_kind = 0x7F;
   } else if (tok::utf16_char_constant == Kind) {
     largest_character_for_kind = 0xFFFF;
   } else if (tok::utf32_char_constant == Kind) {

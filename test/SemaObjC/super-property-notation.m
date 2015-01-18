@@ -30,7 +30,7 @@ void f0() {
 
 // rdar://13349296
 __attribute__((objc_root_class)) @interface ClassBase 
-@property (nonatomic, retain) ClassBase * foo;
+@property (nonatomic, retain) ClassBase * foo; // expected-note {{property declared here}}
 @end
 
 @implementation ClassBase 
@@ -41,10 +41,10 @@ __attribute__((objc_root_class)) @interface ClassBase
 @end
 
 @interface ClassDerived : ClassBase 
-@property (nonatomic, retain) ClassDerived * foo;
+@property (nonatomic, retain) ClassDerived * foo; // expected-warning {{auto property synthesis will not synthesize property 'foo'; it will be implemented by its superclass}}
 @end
 
-@implementation ClassDerived
+@implementation ClassDerived // expected-note {{detected while default synthesizing properties in class implementation}}
 - (void) Meth:(ClassBase*)foo {
   super.foo = foo; // must work with no warning
   [super setFoo:foo]; // works with no warning

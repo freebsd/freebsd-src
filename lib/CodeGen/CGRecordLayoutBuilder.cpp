@@ -93,7 +93,7 @@ struct CGRecordLowering {
     bool operator <(const MemberInfo& a) const { return Offset < a.Offset; }
   };
   // The constructor.
-  CGRecordLowering(CodeGenTypes &Types, const RecordDecl *D);
+  CGRecordLowering(CodeGenTypes &Types, const RecordDecl *D, bool Packed);
   // Short helper routines.
   /// \brief Constructs a MemberInfo instance from an offset and llvm::Type *.
   MemberInfo StorageInfo(CharUnits Offset, llvm::Type *Data) {
@@ -174,7 +174,7 @@ struct CGRecordLowering {
   /// padding that is or can potentially be used.
   void clipTailPadding();
   /// \brief Determines if we need a packed llvm struct.
-  void determinePacked();
+  void determinePacked(bool NVBaseType);
   /// \brief Inserts padding everwhere it's needed.
   void insertPadding();
   /// \brief Fills out the structures that are ultimately consumed.
@@ -203,12 +203,12 @@ private:
 };
 } // namespace {
 
-CGRecordLowering::CGRecordLowering(CodeGenTypes &Types, const RecordDecl *D)
+CGRecordLowering::CGRecordLowering(CodeGenTypes &Types, const RecordDecl *D,                                 bool Packed)
   : Types(Types), Context(Types.getContext()), D(D),
     RD(dyn_cast<CXXRecordDecl>(D)),
     Layout(Types.getContext().getASTRecordLayout(D)),
     DataLayout(Types.getDataLayout()), IsZeroInitializable(true),
-    IsZeroInitializableAsBase(true), Packed(false) {}
+    IsZeroInitializableAsBase(true), Packed(Packed) {}
 
 void CGRecordLowering::setBitFieldInfo(
     const FieldDecl *FD, CharUnits StartOffset, llvm::Type *StorageType) {
@@ -269,7 +269,7 @@ void CGRecordLowering::lower(bool NVBaseType) {
   std::stable_sort(Members.begin(), Members.end());
   Members.push_back(StorageInfo(Size, getIntNType(8)));
   clipTailPadding();
-  determinePacked();
+  determinePacked(NVBaseType);
   insertPadding();
   Members.pop_back();
   calculateZeroInit();
@@ -279,13 +279,11 @@ void CGRecordLowering::lower(bool NVBaseType) {
 void CGRecordLowering::lowerUnion() {
   CharUnits LayoutSize = Layout.getSize();
   llvm::Type *StorageType = nullptr;
-  // Compute zero-initializable status.
-  if (!D->field_empty() && !isZeroInitializable(*D->field_begin()))
-    IsZeroInitializable = IsZeroInitializableAsBase = false;
+  bool SeenNamedMember = false;
   // Iterate through the fields setting bitFieldInfo and the Fields array. Also
   // locate the "most appropriate" storage type.  The heuristic for finding the
   // storage type isn't necessary, the first (non-0-length-bitfield) field's
-  // type would work fine and be simpler but would be differen than what we've
+  // type would work fine and be simpler but would be different than what we've
   // been doing and cause lit tests to change.
   for (const auto *Field : D->fields()) {
     if (Field->isBitField()) {
@@ -299,6 +297,23 @@ void CGRecordLowering::lowerUnion() {
     }
     Fields[Field->getCanonicalDecl()] = 0;
     llvm::Type *FieldType = getStorageType(Field);
+    // Compute zero-initializable status.
+    // This union might not be zero initialized: it may contain a pointer to
+    // data member which might have some exotic initialization sequence.
+    // If this is the case, then we aught not to try and come up with a "better"
+    // type, it might not be very easy to come up with a Constant which
+    // correctly initializes it.
+    if (!SeenNamedMember && Field->getDeclName()) {
+      SeenNamedMember = true;
+      if (!isZeroInitializable(Field)) {
+        IsZeroInitializable = IsZeroInitializableAsBase = false;
+        StorageType = FieldType;
+      }
+    }
+    // Because our union isn't zero initializable, we won't be getting a better
+    // storage type.
+    if (!IsZeroInitializable)
+      continue;
     // Conditionally update our storage type if we've got a new "better" one.
     if (!StorageType ||
         getAlignment(FieldType) >  getAlignment(StorageType) ||
@@ -533,8 +548,13 @@ void CGRecordLowering::clipTailPadding() {
   }
 }
 
-void CGRecordLowering::determinePacked() {
+void CGRecordLowering::determinePacked(bool NVBaseType) {
+  if (Packed)
+    return;
   CharUnits Alignment = CharUnits::One();
+  CharUnits NVAlignment = CharUnits::One();
+  CharUnits NVSize =
+      !NVBaseType && RD ? Layout.getNonVirtualSize() : CharUnits::Zero();
   for (std::vector<MemberInfo>::const_iterator Member = Members.begin(),
                                                MemberEnd = Members.end();
        Member != MemberEnd; ++Member) {
@@ -544,11 +564,18 @@ void CGRecordLowering::determinePacked() {
     // then the entire record must be packed.
     if (Member->Offset % getAlignment(Member->Data))
       Packed = true;
+    if (Member->Offset < NVSize)
+      NVAlignment = std::max(NVAlignment, getAlignment(Member->Data));
     Alignment = std::max(Alignment, getAlignment(Member->Data));
   }
   // If the size of the record (the capstone's offset) is not a multiple of the
   // record's alignment, it must be packed.
   if (Members.back().Offset % Alignment)
+    Packed = true;
+  // If the non-virtual sub-object is not a multiple of the non-virtual
+  // sub-object's alignment, it must be packed.  We cannot have a packed
+  // non-virtual sub-object and an unpacked complete object or vise versa.
+  if (NVSize % NVAlignment)
     Packed = true;
   // Update the alignment of the sentinal.
   if (!Packed)
@@ -641,20 +668,24 @@ CGBitFieldInfo CGBitFieldInfo::MakeInfo(CodeGenTypes &Types,
 
 CGRecordLayout *CodeGenTypes::ComputeRecordLayout(const RecordDecl *D,
                                                   llvm::StructType *Ty) {
-  CGRecordLowering Builder(*this, D);
+  CGRecordLowering Builder(*this, D, /*Packed=*/false);
 
-  Builder.lower(false);
+  Builder.lower(/*NonVirtualBaseType=*/false);
 
   // If we're in C++, compute the base subobject type.
   llvm::StructType *BaseTy = nullptr;
   if (isa<CXXRecordDecl>(D) && !D->isUnion() && !D->hasAttr<FinalAttr>()) {
     BaseTy = Ty;
     if (Builder.Layout.getNonVirtualSize() != Builder.Layout.getSize()) {
-      CGRecordLowering BaseBuilder(*this, D);
-      BaseBuilder.lower(true);
+      CGRecordLowering BaseBuilder(*this, D, /*Packed=*/Builder.Packed);
+      BaseBuilder.lower(/*NonVirtualBaseType=*/true);
       BaseTy = llvm::StructType::create(
           getLLVMContext(), BaseBuilder.FieldTypes, "", BaseBuilder.Packed);
       addRecordTypeName(D, BaseTy, ".base");
+      // BaseTy and Ty must agree on their packedness for getLLVMFieldNo to work
+      // on both of them with the same index.
+      assert(Builder.Packed == BaseBuilder.Packed &&
+             "Non-virtual and complete types must agree on packedness");
     }
   }
 

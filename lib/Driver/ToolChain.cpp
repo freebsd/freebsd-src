@@ -27,8 +27,13 @@ using namespace clang;
 using namespace llvm::opt;
 
 ToolChain::ToolChain(const Driver &D, const llvm::Triple &T,
-                     const ArgList &A)
-  : D(D), Triple(T), Args(A) {
+                     const ArgList &Args)
+  : D(D), Triple(T), Args(Args) {
+  if (Arg *A = Args.getLastArg(options::OPT_mthread_model))
+    if (!isThreadModelSupported(A->getValue()))
+      D.Diag(diag::err_drv_invalid_thread_model_for_target)
+          << A->getValue()
+          << A->getAsString(Args);
 }
 
 ToolChain::~ToolChain() {
@@ -50,7 +55,7 @@ const SanitizerArgs& ToolChain::getSanitizerArgs() const {
   return *SanitizerArguments.get();
 }
 
-std::string ToolChain::getDefaultUniversalArchName() const {
+StringRef ToolChain::getDefaultUniversalArchName() const {
   // In universal driver terms, the arch name accepted by -arch isn't exactly
   // the same as the ones that appear in the triple. Roughly speaking, this is
   // an inverse of the darwin::getArchTypeForDarwinArchName() function, but the
@@ -124,6 +129,7 @@ Tool *ToolChain::getTool(Action::ActionClass AC) const {
   case Action::AnalyzeJobClass:
   case Action::MigrateJobClass:
   case Action::VerifyPCHJobClass:
+  case Action::BackendJobClass:
     return getClang();
   }
 
@@ -201,6 +207,19 @@ ObjCRuntime ToolChain::getDefaultObjCRuntime(bool isNonFragile) const {
                      VersionTuple());
 }
 
+bool ToolChain::isThreadModelSupported(const StringRef Model) const {
+  if (Model == "single") {
+    // FIXME: 'single' is only supported on ARM so far.
+    return Triple.getArch() == llvm::Triple::arm ||
+           Triple.getArch() == llvm::Triple::armeb ||
+           Triple.getArch() == llvm::Triple::thumb ||
+           Triple.getArch() == llvm::Triple::thumbeb;
+  } else if (Model == "posix")
+    return true;
+
+  return false;
+}
+
 std::string ToolChain::ComputeLLVMTriple(const ArgList &Args,
                                          types::ID InputType) const {
   switch (getTriple().getArch()) {
@@ -219,6 +238,17 @@ std::string ToolChain::ComputeLLVMTriple(const ArgList &Args,
       if (MArch == "x86_64h")
         Triple.setArchName(MArch);
     }
+    return Triple.getTriple();
+  }
+  case llvm::Triple::aarch64: {
+    llvm::Triple Triple = getTriple();
+    if (!Triple.isOSBinFormatMachO())
+      return getTripleString();
+
+    // FIXME: older versions of ld64 expect the "arm64" component in the actual
+    // triple string and query it to determine whether an LTO file can be
+    // handled. Remove this when we don't care any more.
+    Triple.setArchName("arm64");
     return Triple.getTriple();
   }
   case llvm::Triple::arm:

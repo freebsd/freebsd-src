@@ -15,8 +15,9 @@
 #ifndef LLVM_CLANG_FORMAT_FORMAT_H
 #define LLVM_CLANG_FORMAT_FORMAT_H
 
-#include "clang/Frontend/FrontendAction.h"
-#include "clang/Tooling/Refactoring.h"
+#include "clang/Basic/LangOptions.h"
+#include "clang/Tooling/Core/Replacement.h"
+#include "llvm/ADT/ArrayRef.h"
 #include <system_error>
 
 namespace clang {
@@ -47,6 +48,8 @@ struct FormatStyle {
     LK_None,
     /// Should be used for C, C++, ObjectiveC, ObjectiveC++.
     LK_Cpp,
+    /// Should be used for Java.
+    LK_Java,
     /// Should be used for JavaScript.
     LK_JavaScript,
     /// Should be used for Protocol Buffers
@@ -150,9 +153,13 @@ struct FormatStyle {
   /// commonly have different usage patterns and a number of special cases.
   unsigned SpacesBeforeTrailingComments;
 
-  /// \brief If \c false, a function call's or function definition's parameters
-  /// will either all be on the same line or will have one line each.
+  /// \brief If \c false, a function declaration's or function definition's
+  /// parameters will either all be on the same line or will have one line each.
   bool BinPackParameters;
+
+  /// \brief If \c false, a function call's arguments will either be all on the
+  /// same line or will have one line each.
+  bool BinPackArguments;
 
   /// \brief If \c true, clang-format detects whether function calls and
   /// definitions are formatted with one parameter per line.
@@ -195,6 +202,9 @@ struct FormatStyle {
   /// single line.
   bool AllowShortLoopsOnASingleLine;
 
+  /// \brief If \c true, short case labels will be contracted to a single line.
+  bool AllowShortCaseLabelsOnASingleLine;
+
   /// \brief Different styles for merging short functions containing at most one
   /// statement.
   enum ShortFunctionStyle {
@@ -202,6 +212,8 @@ struct FormatStyle {
     SFS_None,
     /// \brief Only merge functions defined inside a class.
     SFS_Inline,
+    /// \brief Only merge empty functions.
+    SFS_Empty,
     /// \brief Merge all functions fitting on a single line.
     SFS_All,
   };
@@ -217,6 +229,20 @@ struct FormatStyle {
   /// \brief Add a space in front of an Objective-C protocol list, i.e. use
   /// <tt>Foo <Protocol></tt> instead of \c Foo<Protocol>.
   bool ObjCSpaceBeforeProtocolList;
+
+  /// \brief If \c true, horizontally aligns arguments after an open bracket.
+  ///
+  /// This applies to round brackets (parentheses), angle brackets and square
+  /// brackets. This will result in formattings like
+  /// \code
+  /// someLongFunction(argument1,
+  ///                  argument2);
+  /// \endcode
+  bool AlignAfterOpenBracket;
+
+  /// \brief If \c true, horizontally align operands of binary and ternary
+  /// expressions.
+  bool AlignOperands;
 
   /// \brief If \c true, aligns trailing comments.
   bool AlignTrailingComments;
@@ -234,6 +260,16 @@ struct FormatStyle {
   /// \brief The number of characters to use for indentation of constructor
   /// initializer lists.
   unsigned ConstructorInitializerIndentWidth;
+
+  /// \brief The number of characters to use for indentation of ObjC blocks.
+  unsigned ObjCBlockIndentWidth;
+
+  /// \brief If \c true, always break after function definition return types.
+  ///
+  /// More truthfully called 'break before the identifier following the type
+  /// in a function definition'. PenaltyReturnTypeOnItsOwnLine becomes
+  /// irrelevant.
+  bool AlwaysBreakAfterDefinitionReturnType;
 
   /// \brief If \c true, always break after the <tt>template<...></tt> of a
   /// template declaration.
@@ -256,8 +292,18 @@ struct FormatStyle {
   /// \brief The way to use tab characters in the resulting file.
   UseTabStyle UseTab;
 
-  /// \brief If \c true, binary operators will be placed after line breaks.
-  bool BreakBeforeBinaryOperators;
+  /// \brief The style of breaking before or after binary operators.
+  enum BinaryOperatorStyle {
+    /// Break after operators.
+    BOS_None,
+    /// Break before operators that aren't assignments.
+    BOS_NonAssignment,
+    /// Break before operators.
+    BOS_All,
+  };
+
+  /// \brief The way to wrap binary operators.
+  BinaryOperatorStyle BreakBeforeBinaryOperators;
 
   /// \brief If \c true, ternary operators will be placed after line breaks.
   bool BreakBeforeTernaryOperators;
@@ -269,7 +315,7 @@ struct FormatStyle {
     /// Like \c Attach, but break before braces on function, namespace and
     /// class definitions.
     BS_Linux,
-    /// Like \c Attach, but break before function definitions.
+    /// Like \c Attach, but break before function definitions, and 'else'.
     BS_Stroustrup,
     /// Always break before braces.
     BS_Allman,
@@ -304,6 +350,9 @@ struct FormatStyle {
   /// template argument lists
   bool SpacesInAngles;
 
+  /// \brief If \c true, spaces will be inserted after '[' and before ']'.
+  bool SpacesInSquareBrackets;
+
   /// \brief If \c true, spaces may be inserted into '()'.
   bool SpaceInEmptyParentheses;
 
@@ -313,6 +362,9 @@ struct FormatStyle {
 
   /// \brief If \c true, spaces may be inserted into C style casts.
   bool SpacesInCStyleCastParentheses;
+
+  /// \brief If \c true, a space may be inserted after C style casts.
+  bool SpaceAfterCStyleCast;
 
   /// \brief Different ways to put a space before opening parentheses.
   enum SpaceBeforeParensOptions {
@@ -358,8 +410,8 @@ struct FormatStyle {
 
   bool operator==(const FormatStyle &R) const {
     return AccessModifierOffset == R.AccessModifierOffset &&
-           ConstructorInitializerIndentWidth ==
-               R.ConstructorInitializerIndentWidth &&
+           AlignAfterOpenBracket == R.AlignAfterOpenBracket &&
+           AlignOperands == R.AlignOperands &&
            AlignEscapedNewlinesLeft == R.AlignEscapedNewlinesLeft &&
            AlignTrailingComments == R.AlignTrailingComments &&
            AllowAllParametersOfDeclarationOnNextLine ==
@@ -370,11 +422,14 @@ struct FormatStyle {
            AllowShortIfStatementsOnASingleLine ==
                R.AllowShortIfStatementsOnASingleLine &&
            AllowShortLoopsOnASingleLine == R.AllowShortLoopsOnASingleLine &&
+           AlwaysBreakAfterDefinitionReturnType ==
+               R.AlwaysBreakAfterDefinitionReturnType &&
            AlwaysBreakTemplateDeclarations ==
                R.AlwaysBreakTemplateDeclarations &&
            AlwaysBreakBeforeMultilineStrings ==
                R.AlwaysBreakBeforeMultilineStrings &&
            BinPackParameters == R.BinPackParameters &&
+           BinPackArguments == R.BinPackArguments &&
            BreakBeforeBinaryOperators == R.BreakBeforeBinaryOperators &&
            BreakBeforeTernaryOperators == R.BreakBeforeTernaryOperators &&
            BreakBeforeBraces == R.BreakBeforeBraces &&
@@ -383,6 +438,8 @@ struct FormatStyle {
            ColumnLimit == R.ColumnLimit &&
            ConstructorInitializerAllOnOneLineOrOnePerLine ==
                R.ConstructorInitializerAllOnOneLineOrOnePerLine &&
+           ConstructorInitializerIndentWidth ==
+               R.ConstructorInitializerIndentWidth &&
            DerivePointerAlignment == R.DerivePointerAlignment &&
            ExperimentalAutoDetectBinPacking ==
                R.ExperimentalAutoDetectBinPacking &&
@@ -393,6 +450,7 @@ struct FormatStyle {
            KeepEmptyLinesAtTheStartOfBlocks ==
                R.KeepEmptyLinesAtTheStartOfBlocks &&
            NamespaceIndentation == R.NamespaceIndentation &&
+           ObjCBlockIndentWidth == R.ObjCBlockIndentWidth &&
            ObjCSpaceAfterProperty == R.ObjCSpaceAfterProperty &&
            ObjCSpaceBeforeProtocolList == R.ObjCSpaceBeforeProtocolList &&
            PenaltyBreakComment == R.PenaltyBreakComment &&
@@ -405,10 +463,12 @@ struct FormatStyle {
            Cpp11BracedListStyle == R.Cpp11BracedListStyle &&
            Standard == R.Standard && TabWidth == R.TabWidth &&
            UseTab == R.UseTab && SpacesInParentheses == R.SpacesInParentheses &&
+           SpacesInSquareBrackets == R.SpacesInSquareBrackets &&
            SpacesInAngles == R.SpacesInAngles &&
            SpaceInEmptyParentheses == R.SpaceInEmptyParentheses &&
            SpacesInContainerLiterals == R.SpacesInContainerLiterals &&
            SpacesInCStyleCastParentheses == R.SpacesInCStyleCastParentheses &&
+           SpaceAfterCStyleCast == R.SpaceAfterCStyleCast &&
            SpaceBeforeParens == R.SpaceBeforeParens &&
            SpaceBeforeAssignmentOperators == R.SpaceBeforeAssignmentOperators &&
            ContinuationIndentWidth == R.ContinuationIndentWidth &&
@@ -470,29 +530,34 @@ std::string configurationAsText(const FormatStyle &Style);
 /// \brief Reformats the given \p Ranges in the token stream coming out of
 /// \c Lex.
 ///
+/// DEPRECATED: Do not use.
+tooling::Replacements reformat(const FormatStyle &Style, Lexer &Lex,
+                               SourceManager &SourceMgr,
+                               ArrayRef<CharSourceRange> Ranges);
+
+/// \brief Reformats the given \p Ranges in the file \p ID.
+///
 /// Each range is extended on either end to its next bigger logic unit, i.e.
 /// everything that might influence its formatting or might be influenced by its
 /// formatting.
 ///
 /// Returns the \c Replacements necessary to make all \p Ranges comply with
 /// \p Style.
-tooling::Replacements reformat(const FormatStyle &Style, Lexer &Lex,
-                               SourceManager &SourceMgr,
-                               std::vector<CharSourceRange> Ranges);
+tooling::Replacements reformat(const FormatStyle &Style,
+                               SourceManager &SourceMgr, FileID ID,
+                               ArrayRef<CharSourceRange> Ranges);
 
 /// \brief Reformats the given \p Ranges in \p Code.
 ///
 /// Otherwise identical to the reformat() function consuming a \c Lexer.
 tooling::Replacements reformat(const FormatStyle &Style, StringRef Code,
-                               std::vector<tooling::Range> Ranges,
+                               ArrayRef<tooling::Range> Ranges,
                                StringRef FileName = "<stdin>");
 
 /// \brief Returns the \c LangOpts that the formatter expects you to set.
 ///
-/// \param Standard determines lexing mode: LC_Cpp11 and LS_Auto turn on C++11
-/// lexing mode, LS_Cpp03 - C++03 mode.
-LangOptions getFormattingLangOpts(
-    FormatStyle::LanguageStandard Standard = FormatStyle::LS_Cpp11);
+/// \param Style determines specific settings for lexing mode.
+LangOptions getFormattingLangOpts(const FormatStyle &Style = getLLVMStyle());
 
 /// \brief Description to be used for help text for a llvm::cl option for
 /// specifying format style. The description is closely related to the operation

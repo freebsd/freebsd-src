@@ -13,8 +13,8 @@
 
 #include "clang/Frontend/Utils.h"
 #include "clang/Serialization/ASTReader.h"
-#include "llvm/ADT/iterator_range.h"
 #include "llvm/ADT/StringSet.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
@@ -38,7 +38,7 @@ public:
 }
 
 void ModuleDependencyCollector::attachToASTReader(ASTReader &R) {
-  R.addListener(new ModuleDependencyListener(*this));
+  R.addListener(llvm::make_unique<ModuleDependencyListener>(*this));
 }
 
 void ModuleDependencyCollector::writeFileMap() {
@@ -48,40 +48,13 @@ void ModuleDependencyCollector::writeFileMap() {
   SmallString<256> Dest = getDest();
   llvm::sys::path::append(Dest, "vfs.yaml");
 
-  std::string ErrorInfo;
-  llvm::raw_fd_ostream OS(Dest.c_str(), ErrorInfo, llvm::sys::fs::F_Text);
-  if (!ErrorInfo.empty()) {
+  std::error_code EC;
+  llvm::raw_fd_ostream OS(Dest, EC, llvm::sys::fs::F_Text);
+  if (EC) {
     setHasErrors();
     return;
   }
   VFSWriter.write(OS);
-}
-
-/// Remove traversal (ie, . or ..) from the given absolute path.
-static void removePathTraversal(SmallVectorImpl<char> &Path) {
-  using namespace llvm::sys;
-  SmallVector<StringRef, 16> ComponentStack;
-  StringRef P(Path.data(), Path.size());
-
-  // Skip the root path, then look for traversal in the components.
-  StringRef Rel = path::relative_path(P);
-  for (StringRef C : llvm::make_range(path::begin(Rel), path::end(Rel))) {
-    if (C == ".")
-      continue;
-    if (C == "..") {
-      assert(ComponentStack.size() && "Path traverses out of parent");
-      ComponentStack.pop_back();
-    } else
-      ComponentStack.push_back(C);
-  }
-
-  // The stack is now the path without any directory traversal.
-  SmallString<256> Buffer = path::root_path(P);
-  for (StringRef C : ComponentStack)
-    path::append(Buffer, C);
-
-  // Put the result in Path.
-  Path.swap(Buffer);
 }
 
 std::error_code ModuleDependencyListener::copyToRoot(StringRef Src) {
@@ -90,7 +63,11 @@ std::error_code ModuleDependencyListener::copyToRoot(StringRef Src) {
   // We need an absolute path to append to the root.
   SmallString<256> AbsoluteSrc = Src;
   fs::make_absolute(AbsoluteSrc);
-  removePathTraversal(AbsoluteSrc);
+  // Canonicalize to a native path to avoid mixed separator styles.
+  path::native(AbsoluteSrc);
+  // TODO: We probably need to handle .. as well as . in order to have valid
+  // input to the YAMLVFSWriter.
+  FileManager::removeDotPaths(AbsoluteSrc);
 
   // Build the destination path.
   SmallString<256> Dest = Collector.getDest();

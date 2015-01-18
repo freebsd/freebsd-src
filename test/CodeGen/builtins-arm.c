@@ -55,6 +55,12 @@ void sevl() {
 
 // CHECK: call {{.*}} @llvm.arm.hint(i32 5)
 
+void dbg() {
+  __builtin_arm_dbg(0);
+}
+
+// CHECK: call {{.*}} @llvm.arm.dbg(i32 0)
+
 void test_barrier() {
   __builtin_arm_dmb(1); //CHECK: call {{.*}} @llvm.arm.dmb(i32 1)
   __builtin_arm_dsb(2); //CHECK: call {{.*}} @llvm.arm.dsb(i32 2)
@@ -65,4 +71,16 @@ void test_barrier() {
 
 unsigned rbit(unsigned a) {
   return __builtin_arm_rbit(a);
+}
+
+void prefetch(int i) {
+  __builtin_arm_prefetch(&i, 0, 1);
+// CHECK: call {{.*}} @llvm.prefetch(i8* %{{.*}}, i32 0, i32 3, i32 1)
+
+  __builtin_arm_prefetch(&i, 1, 1);
+// CHECK: call {{.*}} @llvm.prefetch(i8* %{{.*}}, i32 1, i32 3, i32 1)
+
+
+  __builtin_arm_prefetch(&i, 1, 0);
+// CHECK: call {{.*}} @llvm.prefetch(i8* %{{.*}}, i32 1, i32 3, i32 0)
 }

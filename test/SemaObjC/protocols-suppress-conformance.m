@@ -5,7 +5,7 @@
 __attribute__((objc_protocol_requires_explicit_implementation))
 @protocol Protocol
 - (void) theBestOfTimes; // expected-note {{method 'theBestOfTimes' declared here}}
-@property (readonly) id theWorstOfTimes; // expected-note {{property declared here}}
+@property (readonly) id theWorstOfTimes; // expected-note {{property declared here}} 
 @end
 
 // In this example, ClassA adopts the protocol.  We won't
@@ -13,14 +13,14 @@ __attribute__((objc_protocol_requires_explicit_implementation))
 // be adopted later by a subclass.
 @interface ClassA <Protocol>
 - (void) theBestOfTimes;
-@property (readonly) id theWorstOfTimes;
+@property (readonly) id theWorstOfTimes; // expected-note {{property declared here}}
 @end
 
 // This class subclasses ClassA (which also adopts 'Protocol').
 @interface ClassB : ClassA <Protocol>
 @end
 
-@implementation ClassB // expected-warning {{property 'theWorstOfTimes' requires method 'theWorstOfTimes' to be defined - use @synthesize, @dynamic or provide a method implementation in this class implementation}}
+@implementation ClassB // expected-warning {{property 'theWorstOfTimes' requires method 'theWorstOfTimes' to be defined - use @synthesize, @dynamic or provide a method implementation in this class implementation}} 
 @end
 
 @interface ClassB_Good : ClassA <Protocol>
@@ -32,7 +32,7 @@ __attribute__((objc_protocol_requires_explicit_implementation))
 @end
 
 @interface ClassB_AlsoGood : ClassA <Protocol>
-@property (readonly) id theWorstOfTimes;
+@property (readonly) id theWorstOfTimes; // expected-warning {{auto property synthesis will not synthesize property 'theWorstOfTimes'; it will be implemented by its superclass}}
 @end
 
 // Default synthesis acts as if @dynamic
@@ -40,7 +40,7 @@ __attribute__((objc_protocol_requires_explicit_implementation))
 // it is declared in ClassA.  This is okay, since
 // the author of ClassB_AlsoGood needs explicitly
 // write @property in the @interface.
-@implementation ClassB_AlsoGood // no-warning
+@implementation ClassB_AlsoGood  // expected-note {{detected while default synthesizing properties in class implementation}}
 - (void) theBestOfTimes {}
 @end
 
