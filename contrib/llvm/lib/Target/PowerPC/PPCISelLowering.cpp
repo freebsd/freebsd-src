@@ -1631,8 +1631,16 @@ SDValue PPCTargetLowering::LowerJumpTable(SDValue Op, SelectionDAG &DAG) const {
 SDValue PPCTargetLowering::LowerBlockAddress(SDValue Op,
                                              SelectionDAG &DAG) const {
   EVT PtrVT = Op.getValueType();
+  BlockAddressSDNode *BASDN = cast<BlockAddressSDNode>(Op);
+  const BlockAddress *BA = BASDN->getBlockAddress();
 
-  const BlockAddress *BA = cast<BlockAddressSDNode>(Op)->getBlockAddress();
+  // 64-bit SVR4 ABI code is always position-independent.
+  // The actual BlockAddress is stored in the TOC.
+  if (Subtarget.isSVR4ABI() && Subtarget.isPPC64()) {
+    SDValue GA = DAG.getTargetBlockAddress(BA, PtrVT, BASDN->getOffset());
+    return DAG.getNode(PPCISD::TOC_ENTRY, SDLoc(BASDN), MVT::i64, GA,
+                       DAG.getRegister(PPC::X2, MVT::i64));
+  }
 
   unsigned MOHiFlag, MOLoFlag;
   bool isPIC = GetLabelAccessInfo(DAG.getTarget(), MOHiFlag, MOLoFlag);
@@ -2695,7 +2703,7 @@ PPCTargetLowering::LowerFormalArguments_64SVR4(
       int FI;
       if (HasParameterArea ||
           ArgSize + ArgOffset > LinkageSize + Num_GPR_Regs * PtrByteSize)
-        FI = MFI->CreateFixedObject(ArgSize, ArgOffset, true);
+        FI = MFI->CreateFixedObject(ArgSize, ArgOffset, false);
       else
         FI = MFI->CreateStackObject(ArgSize, Align, false);
       SDValue FIN = DAG.getFrameIndex(FI, PtrVT);
@@ -3061,7 +3069,7 @@ PPCTargetLowering::LowerFormalArguments_Darwin(
         CurArgOffset = CurArgOffset + (4 - ObjSize);
       }
       // The value of the object is its address.
-      int FI = MFI->CreateFixedObject(ObjSize, CurArgOffset, true);
+      int FI = MFI->CreateFixedObject(ObjSize, CurArgOffset, false);
       SDValue FIN = DAG.getFrameIndex(FI, PtrVT);
       InVals.push_back(FIN);
       if (ObjSize==1 || ObjSize==2) {
@@ -8974,6 +8982,12 @@ PPCTargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
                           &PPC::G8RCRegClass);
   }
 
+  // GCC accepts 'cc' as an alias for 'cr0', and we need to do the same.
+  if (!R.second && StringRef("{cc}").equals_lower(Constraint)) {
+    R.first = PPC::CR0;
+    R.second = &PPC::CRRCRegClass;
+  }
+
   return R;
 }
 
@@ -9002,37 +9016,42 @@ void PPCTargetLowering::LowerAsmOperandForConstraint(SDValue Op,
   case 'P': {
     ConstantSDNode *CST = dyn_cast<ConstantSDNode>(Op);
     if (!CST) return; // Must be an immediate to match.
-    unsigned Value = CST->getZExtValue();
+    int64_t Value = CST->getSExtValue();
+    EVT TCVT = MVT::i64; // All constants taken to be 64 bits so that negative
+                         // numbers are printed as such.
     switch (Letter) {
     default: llvm_unreachable("Unknown constraint letter!");
     case 'I':  // "I" is a signed 16-bit constant.
-      if ((short)Value == (int)Value)
-        Result = DAG.getTargetConstant(Value, Op.getValueType());
+      if (isInt<16>(Value))
+        Result = DAG.getTargetConstant(Value, TCVT);
       break;
     case 'J':  // "J" is a constant with only the high-order 16 bits nonzero.
+      if (isShiftedUInt<16, 16>(Value))
+        Result = DAG.getTargetConstant(Value, TCVT);
+      break;
     case 'L':  // "L" is a signed 16-bit constant shifted left 16 bits.
-      if ((short)Value == 0)
-        Result = DAG.getTargetConstant(Value, Op.getValueType());
+      if (isShiftedInt<16, 16>(Value))
+        Result = DAG.getTargetConstant(Value, TCVT);
       break;
     case 'K':  // "K" is a constant with only the low-order 16 bits nonzero.
-      if ((Value >> 16) == 0)
-        Result = DAG.getTargetConstant(Value, Op.getValueType());
+      if (isUInt<16>(Value))
+        Result = DAG.getTargetConstant(Value, TCVT);
       break;
     case 'M':  // "M" is a constant that is greater than 31.
       if (Value > 31)
-        Result = DAG.getTargetConstant(Value, Op.getValueType());
+        Result = DAG.getTargetConstant(Value, TCVT);
       break;
     case 'N':  // "N" is a positive constant that is an exact power of two.
-      if ((int)Value > 0 && isPowerOf2_32(Value))
-        Result = DAG.getTargetConstant(Value, Op.getValueType());
+      if (Value > 0 && isPowerOf2_64(Value))
+        Result = DAG.getTargetConstant(Value, TCVT);
       break;
     case 'O':  // "O" is the constant zero.
       if (Value == 0)
-        Result = DAG.getTargetConstant(Value, Op.getValueType());
+        Result = DAG.getTargetConstant(Value, TCVT);
       break;
     case 'P':  // "P" is a constant whose negation is a signed 16-bit constant.
-      if ((short)-Value == (int)-Value)
-        Result = DAG.getTargetConstant(Value, Op.getValueType());
+      if (isInt<16>(-Value))
+        Result = DAG.getTargetConstant(Value, TCVT);
       break;
     }
     break;

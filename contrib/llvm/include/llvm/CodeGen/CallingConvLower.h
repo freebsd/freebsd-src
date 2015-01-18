@@ -31,18 +31,25 @@ class TargetRegisterInfo;
 class CCValAssign {
 public:
   enum LocInfo {
-    Full,   // The value fills the full location.
-    SExt,   // The value is sign extended in the location.
-    ZExt,   // The value is zero extended in the location.
-    AExt,   // The value is extended with undefined upper bits.
-    BCvt,   // The value is bit-converted in the location.
-    VExt,   // The value is vector-widened in the location.
-            // FIXME: Not implemented yet. Code that uses AExt to mean
-            // vector-widen should be fixed to use VExt instead.
-    FPExt,  // The floating-point value is fp-extended in the location.
-    Indirect // The location contains pointer to the value.
+    Full,      // The value fills the full location.
+    SExt,      // The value is sign extended in the location.
+    ZExt,      // The value is zero extended in the location.
+    AExt,      // The value is extended with undefined upper bits.
+    BCvt,      // The value is bit-converted in the location.
+    VExt,      // The value is vector-widened in the location.
+               // FIXME: Not implemented yet. Code that uses AExt to mean
+               // vector-widen should be fixed to use VExt instead.
+    FPExt,     // The floating-point value is fp-extended in the location.
+    Indirect,  // The location contains pointer to the value.
+    SExtUpper, // The value is in the upper bits of the location and should be
+               // sign extended when retrieved.
+    ZExtUpper, // The value is in the upper bits of the location and should be
+               // zero extended when retrieved.
+    AExtUpper  // The value is in the upper bits of the location and should be
+               // extended with undefined upper bits when retrieved.
     // TODO: a subset of the value is in the location.
   };
+
 private:
   /// ValNo - This is the value number begin assigned (e.g. an argument number).
   unsigned ValNo;
@@ -146,6 +153,9 @@ public:
     return (HTP == AExt || HTP == SExt || HTP == ZExt);
   }
 
+  bool isUpperBitsInLoc() const {
+    return HTP == AExtUpper || HTP == SExtUpper || HTP == ZExtUpper;
+  }
 };
 
 /// CCAssignFn - This function assigns a location for Val, updating State to
@@ -208,10 +218,10 @@ private:
   // while "%t" goes to the stack: it wouldn't be described in ByValRegs.
   //
   // Supposed use-case for this collection:
-  // 1. Initially ByValRegs is empty, InRegsParamsProceed is 0.
+  // 1. Initially ByValRegs is empty, InRegsParamsProcessed is 0.
   // 2. HandleByVal fillups ByValRegs.
   // 3. Argument analysis (LowerFormatArguments, for example). After
-  // some byval argument was analyzed, InRegsParamsProceed is increased.
+  // some byval argument was analyzed, InRegsParamsProcessed is increased.
   struct ByValInfo {
     ByValInfo(unsigned B, unsigned E, bool IsWaste = false) :
       Begin(B), End(E), Waste(IsWaste) {}
@@ -229,9 +239,9 @@ private:
   };
   SmallVector<ByValInfo, 4 > ByValRegs;
 
-  // InRegsParamsProceed - shows how many instances of ByValRegs was proceed
+  // InRegsParamsProcessed - shows how many instances of ByValRegs was proceed
   // during argument analysis.
-  unsigned InRegsParamsProceed;
+  unsigned InRegsParamsProcessed;
 
 protected:
   ParmContext CallOrPrologue;
@@ -412,7 +422,7 @@ public:
   unsigned getInRegsParamsCount() const { return ByValRegs.size(); }
 
   // Returns count of byval in-regs arguments proceed.
-  unsigned getInRegsParamsProceed() const { return InRegsParamsProceed; }
+  unsigned getInRegsParamsProcessed() const { return InRegsParamsProcessed; }
 
   // Get information about N-th byval parameter that is stored in registers.
   // Here "ByValParamIndex" is N.
@@ -436,20 +446,20 @@ public:
   // Returns false, if end is reached.
   bool nextInRegsParam() {
     unsigned e = ByValRegs.size();
-    if (InRegsParamsProceed < e)
-      ++InRegsParamsProceed;
-    return InRegsParamsProceed < e;
+    if (InRegsParamsProcessed < e)
+      ++InRegsParamsProcessed;
+    return InRegsParamsProcessed < e;
   }
 
   // Clear byval registers tracking info.
   void clearByValRegsInfo() {
-    InRegsParamsProceed = 0;
+    InRegsParamsProcessed = 0;
     ByValRegs.clear();
   }
 
   // Rewind byval registers tracking info.
   void rewindByValRegsInfo() {
-    InRegsParamsProceed = 0;
+    InRegsParamsProcessed = 0;
   }
 
   ParmContext getCallOrPrologue() const { return CallOrPrologue; }
