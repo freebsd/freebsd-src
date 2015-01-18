@@ -606,8 +606,8 @@ ar9300_freebsd_beacon_init(struct ath_hal *ah, uint32_t next_beacon,
     uint32_t beacon_period)
 {
 
-	ar9300_beacon_init(ah, AH_PRIVATE(ah)->ah_opmode,
-	    next_beacon, beacon_period);
+	ar9300_beacon_init(ah, next_beacon, beacon_period,
+	    AH_PRIVATE(ah)->ah_opmode);
 }
 
 HAL_BOOL
