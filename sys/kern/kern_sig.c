@@ -2587,15 +2587,18 @@ sigdeferstop(void)
  * not immediately suspend if a stop was posted.  Instead, the thread
  * will suspend either via ast() or a subsequent interruptible sleep.
  */
-void
-sigallowstop()
+int
+sigallowstop(void)
 {
 	struct thread *td;
+	int prev;
 
 	td = curthread;
 	thread_lock(td);
+	prev = (td->td_flags & TDF_SBDRY) != 0;
 	td->td_flags &= ~TDF_SBDRY;
 	thread_unlock(td);
+	return (prev);
 }
 
 /*
