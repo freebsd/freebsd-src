@@ -885,7 +885,7 @@ acpi_cpu_startup(void *arg)
 	for (i = 0; i < cpu_ndevices; i++) {
 	    sc = device_get_softc(cpu_devices[i]);
 	    if (cpu_quirks & CPU_QUIRK_NO_C3) {
-		sc->cpu_cx_count = sc->cpu_non_c3 + 1;
+		sc->cpu_cx_count = min(sc->cpu_cx_count, sc->cpu_non_c3 + 1);
 	    }
 	    AcpiInstallNotifyHandler(sc->cpu_handle, ACPI_DEVICE_NOTIFY,
 		acpi_cpu_notify, sc);
