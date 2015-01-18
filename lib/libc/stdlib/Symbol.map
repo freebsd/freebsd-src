@@ -107,4 +107,5 @@ FBSD_1.3 {
 FBSDprivate_1.0 {
 	__system;
 	_system;
+	__libc_system;
 };

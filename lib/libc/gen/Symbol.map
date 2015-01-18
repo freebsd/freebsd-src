@@ -529,6 +529,8 @@ FBSDprivate_1.0 {
 	_libc_sem_post_compat;
 	_libc_sem_getvalue_compat;
 
+	__libc_tcdrain;
+
 	__elf_aux_vector;
 	__pthread_map_stacks_exec;
 	__fillcontextx;
