@@ -156,6 +156,10 @@ libkern.${LIBC_ARCH}:: ${KMSRCS}
 	cp -p ${.ALLSRC} ${DESTDIR}/sys/libkern/${LIBC_ARCH}
 .endif
 
+.if !defined(WITHOUT_SYSCALL_COMPAT)
+CFLAGS+=-DSYSCALL_COMPAT
+.endif
+
 .include <bsd.lib.mk>
 
 # Disable warnings in contributed sources.
