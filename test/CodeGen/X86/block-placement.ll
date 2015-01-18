@@ -124,7 +124,7 @@ exit:
   ret i32 %sum
 }
 
-!0 = metadata !{metadata !"branch_weights", i32 4, i32 64}
+!0 = !{!"branch_weights", i32 4, i32 64}
 
 define i32 @test_loop_early_exits(i32 %i, i32* %a) {
 ; Check that we sink early exit blocks out of loop bodies.
@@ -235,44 +235,6 @@ body1:
 
 exit:
   ret i32 %base
-}
-
-define void @test_loop_rotate_reversed_blocks() {
-; This test case (greatly reduced from an Olden bencmark) ensures that the loop
-; rotate implementation doesn't assume that loops are laid out in a particular
-; order. The first loop will get split into two basic blocks, with the loop
-; header coming after the loop latch.
-;
-; CHECK: test_loop_rotate_reversed_blocks
-; CHECK: %entry
-; Look for a jump into the middle of the loop, and no branches mid-way.
-; CHECK: jmp
-; CHECK: %loop1
-; CHECK-NOT: j{{\w*}} .LBB{{.*}}
-; CHECK: %loop1
-; CHECK: je
-
-entry:
-  %cond1 = load volatile i1* undef
-  br i1 %cond1, label %loop2.preheader, label %loop1
-
-loop1:
-  call i32 @f()
-  %cond2 = load volatile i1* undef
-  br i1 %cond2, label %loop2.preheader, label %loop1
-
-loop2.preheader:
-  call i32 @f()
-  %cond3 = load volatile i1* undef
-  br i1 %cond3, label %exit, label %loop2
-
-loop2:
-  call i32 @f()
-  %cond4 = load volatile i1* undef
-  br i1 %cond4, label %exit, label %loop2
-
-exit:
-  ret void
 }
 
 define i32 @test_loop_align(i32 %i, i32* %a) {
@@ -544,7 +506,7 @@ if.end:
   ret void
 }
 
-!1 = metadata !{metadata !"branch_weights", i32 1000, i32 1}
+!1 = !{!"branch_weights", i32 1000, i32 1}
 
 declare i32 @f()
 declare i32 @g()
@@ -580,7 +542,7 @@ exit:
   ret i32 %result
 }
 
-!2 = metadata !{metadata !"branch_weights", i32 3, i32 1}
+!2 = !{!"branch_weights", i32 3, i32 1}
 
 declare i32 @__gxx_personality_v0(...)
 

@@ -13,6 +13,23 @@
 #include "gtest/gtest.h"
 using namespace llvm;
 
+// Check that the ArrayRef-of-pointer converting constructor only allows adding
+// cv qualifiers (not removing them, or otherwise changing the type)
+static_assert(
+    std::is_convertible<ArrayRef<int *>, ArrayRef<const int *>>::value,
+    "Adding const");
+static_assert(
+    std::is_convertible<ArrayRef<int *>, ArrayRef<volatile int *>>::value,
+    "Adding volatile");
+static_assert(!std::is_convertible<ArrayRef<int *>, ArrayRef<float *>>::value,
+              "Changing pointer of one type to a pointer of another");
+static_assert(
+    !std::is_convertible<ArrayRef<const int *>, ArrayRef<int *>>::value,
+    "Removing const");
+static_assert(
+    !std::is_convertible<ArrayRef<volatile int *>, ArrayRef<int *>>::value,
+    "Removing volatile");
+
 namespace llvm {
 
 TEST(ArrayRefTest, AllocatorCopy) {
@@ -36,5 +53,41 @@ TEST(ArrayRefTest, DropBack) {
   EXPECT_TRUE(AR1.drop_back().equals(AR2));
 }
 
+TEST(ArrayRefTest, Equals) {
+  static const int A1[] = {1, 2, 3, 4, 5, 6, 7, 8};
+  ArrayRef<int> AR1(A1);
+  EXPECT_TRUE(AR1.equals(1, 2, 3, 4, 5, 6, 7, 8));
+  EXPECT_FALSE(AR1.equals(8, 1, 2, 4, 5, 6, 6, 7));
+  EXPECT_FALSE(AR1.equals(2, 4, 5, 6, 6, 7, 8, 1));
+  EXPECT_FALSE(AR1.equals(0, 1, 2, 4, 5, 6, 6, 7));
+  EXPECT_FALSE(AR1.equals(1, 2, 42, 4, 5, 6, 7, 8));
+  EXPECT_FALSE(AR1.equals(42, 2, 3, 4, 5, 6, 7, 8));
+  EXPECT_FALSE(AR1.equals(1, 2, 3, 4, 5, 6, 7, 42));
+  EXPECT_FALSE(AR1.equals(1, 2, 3, 4, 5, 6, 7));
+  EXPECT_FALSE(AR1.equals(1, 2, 3, 4, 5, 6, 7, 8, 9));
+
+  ArrayRef<int> AR1a = AR1.drop_back();
+  EXPECT_TRUE(AR1a.equals(1, 2, 3, 4, 5, 6, 7));
+  EXPECT_FALSE(AR1a.equals(1, 2, 3, 4, 5, 6, 7, 8));
+
+  ArrayRef<int> AR1b = AR1a.slice(2, 4);
+  EXPECT_TRUE(AR1b.equals(3, 4, 5, 6));
+  EXPECT_FALSE(AR1b.equals(2, 3, 4, 5, 6));
+  EXPECT_FALSE(AR1b.equals(3, 4, 5, 6, 7));
+}
+
+TEST(ArrayRefTest, EmptyEquals) {
+  EXPECT_TRUE(ArrayRef<unsigned>() == ArrayRef<unsigned>());
+}
+
+TEST(ArrayRefTest, ConstConvert) {
+  int buf[4];
+  for (int i = 0; i < 4; ++i)
+    buf[i] = i;
+
+  static int *A[] = {&buf[0], &buf[1], &buf[2], &buf[3]};
+  ArrayRef<const int *> a((ArrayRef<int *>(A)));
+  a = ArrayRef<int *>(A);
+}
 
 } // end anonymous namespace

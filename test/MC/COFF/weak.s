@@ -37,7 +37,7 @@ LBB0_2:                                 # %return
 // CHECK:      Symbol {
 // CHECK:        Name:           _test_weak
 // CHECK-NEXT:   Value:          0
-// CHECK-NEXT:   Section:        (0)
+// CHECK-NEXT:   Section:        IMAGE_SYM_UNDEFINED (0)
 // CHECK-NEXT:   BaseType:       Null
 // CHECK-NEXT:   ComplexType:    Null
 // CHECK-NEXT:   StorageClass:   WeakExternal
@@ -45,14 +45,13 @@ LBB0_2:                                 # %return
 // CHECK-NEXT:   AuxWeakExternal {
 // CHECK-NEXT:     Linked: .weak._test_weak.default
 // CHECK-NEXT:      Search: Library
-// CHECK-NEXT:      Unused: (00 00 00 00 00 00 00 00 00 00)
 // CHECK-NEXT:   }
 // CHECK-NEXT: }
 
 // CHECK:      Symbol {
 // CHECK:        Name:                .weak._test_weak.default
 // CHECK-NEXT:   Value:               0
-// CHECK-NEXT:   Section:             (65535)
+// CHECK-NEXT:   Section:             IMAGE_SYM_ABSOLUTE (-1)
 // CHECK-NEXT:   BaseType:            Null
 // CHECK-NEXT:   ComplexType:         Null
 // CHECK-NEXT:   StorageClass:        External
@@ -62,7 +61,7 @@ LBB0_2:                                 # %return
 // CHECK:      Symbol {
 // CHECK:        Name:           _test_weak_alias
 // CHECK-NEXT:   Value:          0
-// CHECK-NEXT:   Section:        (0)
+// CHECK-NEXT:   Section:        IMAGE_SYM_UNDEFINED (0)
 // CHECK-NEXT:   BaseType:       Null
 // CHECK-NEXT:   ComplexType:    Null
 // CHECK-NEXT:   StorageClass:   WeakExternal
@@ -70,6 +69,5 @@ LBB0_2:                                 # %return
 // CHECK-NEXT:   AuxWeakExternal {
 // CHECK-NEXT:     Linked: _main
 // CHECK-NEXT:      Search: Library
-// CHECK-NEXT:      Unused: (00 00 00 00 00 00 00 00 00 00)
 // CHECK-NEXT:   }
 // CHECK-NEXT: }

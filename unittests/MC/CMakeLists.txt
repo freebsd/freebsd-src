@@ -1,11 +1,12 @@
 set(LLVM_LINK_COMPONENTS
+  ${LLVM_TARGETS_TO_BUILD}
   MC
-  MCAnalysis
+  MCDisassembler
   Support
   )
 
 add_llvm_unittest(MCTests
-  MCAtomTest.cpp
+  Disassembler.cpp
   StringTableBuilderTest.cpp
   YAMLTest.cpp
   )

@@ -313,7 +313,8 @@ Instruction *InstCombiner::FoldSelectIntoOp(SelectInst &SI, Value *TrueVal,
 /// replaced with RepOp.
 static Value *SimplifyWithOpReplaced(Value *V, Value *Op, Value *RepOp,
                                      const DataLayout *TD,
-                                     const TargetLibraryInfo *TLI) {
+                                     const TargetLibraryInfo *TLI,
+                                     DominatorTree *DT, AssumptionCache *AC) {
   // Trivial replacement.
   if (V == Op)
     return RepOp;
@@ -334,10 +335,10 @@ static Value *SimplifyWithOpReplaced(Value *V, Value *Op, Value *RepOp,
   if (CmpInst *C = dyn_cast<CmpInst>(I)) {
     if (C->getOperand(0) == Op)
       return SimplifyCmpInst(C->getPredicate(), RepOp, C->getOperand(1), TD,
-                             TLI);
+                             TLI, DT, AC);
     if (C->getOperand(1) == Op)
       return SimplifyCmpInst(C->getPredicate(), C->getOperand(0), RepOp, TD,
-                             TLI);
+                             TLI, DT, AC);
   }
 
   // TODO: We could hand off more cases to instsimplify here.
@@ -387,15 +388,7 @@ static Value *SimplifyWithOpReplaced(Value *V, Value *Op, Value *RepOp,
 /// 1. The icmp predicate is inverted
 /// 2. The select operands are reversed
 /// 3. The magnitude of C2 and C1 are flipped
-///
-/// This also tries to turn
-/// --- Single bit tests:
-/// if ((x & C) == 0) x |= C	to  x |= C
-/// if ((x & C) != 0) x ^= C	to  x &= ~C
-/// if ((x & C) == 0) x ^= C	to  x |= C
-/// if ((x & C) != 0) x &= ~C	to  x &= ~C
-/// if ((x & C) == 0) x &= ~C	to  nothing
-static Value *foldSelectICmpAndOr(SelectInst &SI, Value *TrueVal,
+static Value *foldSelectICmpAndOr(const SelectInst &SI, Value *TrueVal,
                                   Value *FalseVal,
                                   InstCombiner::BuilderTy *Builder) {
   const ICmpInst *IC = dyn_cast<ICmpInst>(SI.getCondition());
@@ -414,25 +407,6 @@ static Value *foldSelectICmpAndOr(SelectInst &SI, Value *TrueVal,
     return nullptr;
 
   const APInt *C2;
-  if (match(TrueVal, m_Specific(X))) {
-    // if ((X & C) != 0) X ^= C becomes X &= ~C
-    if (match(FalseVal, m_Xor(m_Specific(X), m_APInt(C2))) && C1 == C2)
-      return Builder->CreateAnd(X, ~(*C1));
-    // if ((X & C) != 0) X &= ~C becomes X &= ~C
-    if (match(FalseVal, m_And(m_Specific(X), m_APInt(C2))) && *C1 == ~(*C2))
-      return FalseVal;
-  } else if (match(FalseVal, m_Specific(X))) {
-    // if ((X & C) == 0) X ^= C becomes X |= C
-    if (match(TrueVal, m_Xor(m_Specific(X), m_APInt(C2))) && C1 == C2)
-      return Builder->CreateOr(X, *C1);
-    // if ((X & C) == 0) X &= ~C becomes nothing
-    if (match(TrueVal, m_And(m_Specific(X), m_APInt(C2))) && *C1 == ~(*C2))
-      return X;
-    // if ((X & C) == 0) X |= C becomes X |= C
-    if (match(TrueVal, m_Or(m_Specific(X), m_APInt(C2))) && C1 == C2)
-      return TrueVal;
-  }
-
   bool OrOnTrueVal = false;
   bool OrOnFalseVal = match(FalseVal, m_Or(m_Specific(TrueVal), m_Power2(C2)));
   if (!OrOnFalseVal)
@@ -605,18 +579,26 @@ Instruction *InstCombiner::visitSelectInstWithICmp(SelectInst &SI,
   // arms of the select. See if substituting this value into the arm and
   // simplifying the result yields the same value as the other arm.
   if (Pred == ICmpInst::ICMP_EQ) {
-    if (SimplifyWithOpReplaced(FalseVal, CmpLHS, CmpRHS, DL, TLI) == TrueVal ||
-        SimplifyWithOpReplaced(FalseVal, CmpRHS, CmpLHS, DL, TLI) == TrueVal)
+    if (SimplifyWithOpReplaced(FalseVal, CmpLHS, CmpRHS, DL, TLI, DT, AC) ==
+            TrueVal ||
+        SimplifyWithOpReplaced(FalseVal, CmpRHS, CmpLHS, DL, TLI, DT, AC) ==
+            TrueVal)
       return ReplaceInstUsesWith(SI, FalseVal);
-    if (SimplifyWithOpReplaced(TrueVal, CmpLHS, CmpRHS, DL, TLI) == FalseVal ||
-        SimplifyWithOpReplaced(TrueVal, CmpRHS, CmpLHS, DL, TLI) == FalseVal)
+    if (SimplifyWithOpReplaced(TrueVal, CmpLHS, CmpRHS, DL, TLI, DT, AC) ==
+            FalseVal ||
+        SimplifyWithOpReplaced(TrueVal, CmpRHS, CmpLHS, DL, TLI, DT, AC) ==
+            FalseVal)
       return ReplaceInstUsesWith(SI, FalseVal);
   } else if (Pred == ICmpInst::ICMP_NE) {
-    if (SimplifyWithOpReplaced(TrueVal, CmpLHS, CmpRHS, DL, TLI) == FalseVal ||
-        SimplifyWithOpReplaced(TrueVal, CmpRHS, CmpLHS, DL, TLI) == FalseVal)
+    if (SimplifyWithOpReplaced(TrueVal, CmpLHS, CmpRHS, DL, TLI, DT, AC) ==
+            FalseVal ||
+        SimplifyWithOpReplaced(TrueVal, CmpRHS, CmpLHS, DL, TLI, DT, AC) ==
+            FalseVal)
       return ReplaceInstUsesWith(SI, TrueVal);
-    if (SimplifyWithOpReplaced(FalseVal, CmpLHS, CmpRHS, DL, TLI) == TrueVal ||
-        SimplifyWithOpReplaced(FalseVal, CmpRHS, CmpLHS, DL, TLI) == TrueVal)
+    if (SimplifyWithOpReplaced(FalseVal, CmpLHS, CmpRHS, DL, TLI, DT, AC) ==
+            TrueVal ||
+        SimplifyWithOpReplaced(FalseVal, CmpRHS, CmpLHS, DL, TLI, DT, AC) ==
+            TrueVal)
       return ReplaceInstUsesWith(SI, TrueVal);
   }
 
@@ -631,6 +613,52 @@ Instruction *InstCombiner::visitSelectInstWithICmp(SelectInst &SI,
       // Transform (X != C) ? Y : X -> (X != C) ? Y : C
       SI.setOperand(2, CmpRHS);
       Changed = true;
+    }
+  }
+
+  if (unsigned BitWidth = TrueVal->getType()->getScalarSizeInBits()) {
+    APInt MinSignedValue = APInt::getSignBit(BitWidth);
+    Value *X;
+    const APInt *Y, *C;
+    bool TrueWhenUnset;
+    bool IsBitTest = false;
+    if (ICmpInst::isEquality(Pred) &&
+        match(CmpLHS, m_And(m_Value(X), m_Power2(Y))) &&
+        match(CmpRHS, m_Zero())) {
+      IsBitTest = true;
+      TrueWhenUnset = Pred == ICmpInst::ICMP_EQ;
+    } else if (Pred == ICmpInst::ICMP_SLT && match(CmpRHS, m_Zero())) {
+      X = CmpLHS;
+      Y = &MinSignedValue;
+      IsBitTest = true;
+      TrueWhenUnset = false;
+    } else if (Pred == ICmpInst::ICMP_SGT && match(CmpRHS, m_AllOnes())) {
+      X = CmpLHS;
+      Y = &MinSignedValue;
+      IsBitTest = true;
+      TrueWhenUnset = true;
+    }
+    if (IsBitTest) {
+      Value *V = nullptr;
+      // (X & Y) == 0 ? X : X ^ Y  --> X & ~Y
+      if (TrueWhenUnset && TrueVal == X &&
+          match(FalseVal, m_Xor(m_Specific(X), m_APInt(C))) && *Y == *C)
+        V = Builder->CreateAnd(X, ~(*Y));
+      // (X & Y) != 0 ? X ^ Y : X  --> X & ~Y
+      else if (!TrueWhenUnset && FalseVal == X &&
+               match(TrueVal, m_Xor(m_Specific(X), m_APInt(C))) && *Y == *C)
+        V = Builder->CreateAnd(X, ~(*Y));
+      // (X & Y) == 0 ? X ^ Y : X  --> X | Y
+      else if (TrueWhenUnset && FalseVal == X &&
+               match(TrueVal, m_Xor(m_Specific(X), m_APInt(C))) && *Y == *C)
+        V = Builder->CreateOr(X, *Y);
+      // (X & Y) != 0 ? X : X ^ Y  --> X | Y
+      else if (!TrueWhenUnset && TrueVal == X &&
+               match(FalseVal, m_Xor(m_Specific(X), m_APInt(C))) && *Y == *C)
+        V = Builder->CreateOr(X, *Y);
+
+      if (V)
+        return ReplaceInstUsesWith(SI, V);
     }
   }
 
@@ -825,7 +853,8 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
   Value *TrueVal = SI.getTrueValue();
   Value *FalseVal = SI.getFalseValue();
 
-  if (Value *V = SimplifySelectInst(CondVal, TrueVal, FalseVal, DL))
+  if (Value *V =
+          SimplifySelectInst(CondVal, TrueVal, FalseVal, DL, TLI, DT, AC))
     return ReplaceInstUsesWith(SI, V);
 
   if (SI.getType()->isIntegerTy(1)) {
@@ -917,8 +946,22 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
              !CFPf->getValueAPF().isZero()))
         return ReplaceInstUsesWith(SI, TrueVal);
       }
-      // NOTE: if we wanted to, this is where to detect MIN/MAX
 
+      // Canonicalize to use ordered comparisons by swapping the select
+      // operands.
+      //
+      // e.g.
+      // (X ugt Y) ? X : Y -> (X ole Y) ? Y : X
+      if (FCI->hasOneUse() && FCmpInst::isUnordered(FCI->getPredicate())) {
+        FCmpInst::Predicate InvPred = FCI->getInversePredicate();
+        Value *NewCond = Builder->CreateFCmp(InvPred, TrueVal, FalseVal,
+                                             FCI->getName() + ".inv");
+
+        return SelectInst::Create(NewCond, FalseVal, TrueVal,
+                                  SI.getName() + ".p");
+      }
+
+      // NOTE: if we wanted to, this is where to detect MIN/MAX
     } else if (FCI->getOperand(0) == FalseVal && FCI->getOperand(1) == TrueVal){
       // Transform (X == Y) ? Y : X  -> X
       if (FCI->getPredicate() == FCmpInst::FCMP_OEQ) {
@@ -944,6 +987,21 @@ Instruction *InstCombiner::visitSelectInst(SelectInst &SI) {
              !CFPf->getValueAPF().isZero()))
           return ReplaceInstUsesWith(SI, TrueVal);
       }
+
+      // Canonicalize to use ordered comparisons by swapping the select
+      // operands.
+      //
+      // e.g.
+      // (X ugt Y) ? X : Y -> (X ole Y) ? X : Y
+      if (FCI->hasOneUse() && FCmpInst::isUnordered(FCI->getPredicate())) {
+        FCmpInst::Predicate InvPred = FCI->getInversePredicate();
+        Value *NewCond = Builder->CreateFCmp(InvPred, FalseVal, TrueVal,
+                                             FCI->getName() + ".inv");
+
+        return SelectInst::Create(NewCond, FalseVal, TrueVal,
+                                  SI.getName() + ".p");
+      }
+
       // NOTE: if we wanted to, this is where to detect MIN/MAX
     }
     // NOTE: if we wanted to, this is where to detect ABS

@@ -162,6 +162,8 @@ being aware of:
 * ``std::initializer_list`` (and the constructors and functions that take it as
   an argument) are not always available, so you cannot (for example) initialize
   a ``std::vector`` with a braced initializer list.
+* ``std::equal()`` (and other algorithms) incorrectly assert in MSVC when given
+  ``nullptr`` as an iterator.
 
 Other than these areas you should assume the standard library is available and
 working as expected until some build bot tells you otherwise. If you're in an
@@ -173,6 +175,25 @@ traits header to emulate it.
 
 .. _the libstdc++ manual:
   http://gcc.gnu.org/onlinedocs/gcc-4.7.3/libstdc++/manual/manual/status.html#status.iso.2011
+
+Other Languages
+---------------
+
+Any code written in the Go programming language is not subject to the
+formatting rules below. Instead, we adopt the formatting rules enforced by
+the `gofmt`_ tool.
+
+Go code should strive to be idiomatic. Two good sets of guidelines for what
+this means are `Effective Go`_ and `Go Code Review Comments`_.
+
+.. _gofmt:
+  https://golang.org/cmd/gofmt/
+
+.. _Effective Go:
+  https://golang.org/doc/effective_go.html
+
+.. _Go Code Review Comments:
+  https://code.google.com/p/go-wiki/wiki/CodeReviewComments
 
 Mechanical Source Issues
 ========================

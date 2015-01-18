@@ -45,3 +45,32 @@ entry:
   ret void
 }
 
+define i32 @retInstr(){
+entry:
+; CHECK: ret i32 1 
+  ret i32 1 
+}
+
+define void @retInstr2(){
+entry:
+; CHECK: ret void 
+  ret void
+}
+
+define i32 @switchInstr(i32 %x){
+entry:
+; CHECK: switch i32 %x, label %label3 [
+  switch i32 %x, label %label3 [
+; CHECK-NEXT: i32 1, label %label1   
+  i32 1, label %label1
+; CHECK-NEXT: i32 2, label %label2  
+  i32 2, label %label2
+  ]
+label1:
+  ret i32 1
+label2:
+  ret i32 2
+label3:
+  ret i32 0
+}
+

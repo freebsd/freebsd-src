@@ -142,6 +142,10 @@ public:
   /// the assembly prologue to explicitly handle the stack.
   virtual void adjustForHiPEPrologue(MachineFunction &MF) const { }
 
+  /// Adjust the prologue to add an allocation at a fixed offset from the frame
+  /// pointer.
+  virtual void adjustForFrameAllocatePrologue(MachineFunction &MF) const { }
+
   /// spillCalleeSavedRegisters - Issues instruction(s) to spill all callee
   /// saved registers and returns true if it isn't possible / profitable to do
   /// so by issuing a series of store instructions via
@@ -198,6 +202,16 @@ public:
   /// returned directly, and the base register is returned via FrameReg.
   virtual int getFrameIndexReference(const MachineFunction &MF, int FI,
                                      unsigned &FrameReg) const;
+
+  /// Same as above, except that the 'base register' will always be RSP, not
+  /// RBP on x86.  This is used exclusively for lowering STATEPOINT nodes.
+  /// TODO: This should really be a parameterizable choice.
+  virtual int getFrameIndexReferenceFromSP(const MachineFunction &MF, int FI,
+                                          unsigned &FrameReg) const {
+    // default to calling normal version, we override this on x86 only
+    llvm_unreachable("unimplemented for non-x86");
+    return 0;
+  }
 
   /// processFunctionBeforeCalleeSavedScan - This method is called immediately
   /// before PrologEpilogInserter scans the physical registers used to determine

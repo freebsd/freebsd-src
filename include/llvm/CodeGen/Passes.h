@@ -105,6 +105,7 @@ private:
   AnalysisID StopAfter;
   bool Started;
   bool Stopped;
+  bool AddingMachinePasses;
 
 protected:
   TargetMachine *TM;
@@ -177,6 +178,10 @@ public:
 
   /// Return true if the optimized regalloc pipeline is enabled.
   bool getOptimizeRegAlloc() const;
+
+  /// Return true if the default global register allocator is in use and
+  /// has not be overriden on the command line with '-regalloc=...'
+  bool usingDefaultRegAlloc() const;
 
   /// Add common target configurable passes that perform LLVM IR to IR
   /// transforms following machine independent optimization.
@@ -255,12 +260,9 @@ protected:
     return false;
   }
 
-  /// addPreRegAlloc - This method may be implemented by targets that want to
-  /// run passes immediately before register allocation. This should return
-  /// true if -print-machineinstrs should print after these passes.
-  virtual bool addPreRegAlloc() {
-    return false;
-  }
+  /// This method may be implemented by targets that want to run passes
+  /// immediately before register allocation.
+  virtual void addPreRegAlloc() { }
 
   /// createTargetRegisterAllocator - Create the register allocator pass for
   /// this target at the current optimization level.
@@ -286,24 +288,16 @@ protected:
     return false;
   }
 
-  /// addPostRegAlloc - This method may be implemented by targets that want to
-  /// run passes after register allocation pass pipeline but before
-  /// prolog-epilog insertion.  This should return true if -print-machineinstrs
-  /// should print after these passes.
-  virtual bool addPostRegAlloc() {
-    return false;
-  }
+  /// This method may be implemented by targets that want to run passes after
+  /// register allocation pass pipeline but before prolog-epilog insertion.
+  virtual void addPostRegAlloc() { }
 
   /// Add passes that optimize machine instructions after register allocation.
   virtual void addMachineLateOptimization();
 
-  /// addPreSched2 - This method may be implemented by targets that want to
-  /// run passes after prolog-epilog insertion and before the second instruction
-  /// scheduling pass.  This should return true if -print-machineinstrs should
-  /// print after these passes.
-  virtual bool addPreSched2() {
-    return false;
-  }
+  /// This method may be implemented by targets that want to run passes after
+  /// prolog-epilog insertion and before the second instruction scheduling pass.
+  virtual void addPreSched2() { }
 
   /// addGCPasses - Add late codegen passes that analyze code for garbage
   /// collection. This should return true if GC info should be printed after
@@ -313,24 +307,30 @@ protected:
   /// Add standard basic block placement passes.
   virtual void addBlockPlacement();
 
-  /// addPreEmitPass - This pass may be implemented by targets that want to run
-  /// passes immediately before machine code is emitted.  This should return
-  /// true if -print-machineinstrs should print out the code after the passes.
-  virtual bool addPreEmitPass() {
-    return false;
-  }
+  /// This pass may be implemented by targets that want to run passes
+  /// immediately before machine code is emitted.
+  virtual void addPreEmitPass() { }
 
   /// Utilities for targets to add passes to the pass manager.
   ///
 
   /// Add a CodeGen pass at this point in the pipeline after checking overrides.
   /// Return the pass that was added, or zero if no pass was added.
-  AnalysisID addPass(AnalysisID PassID);
+  /// @p printAfter    if true and adding a machine function pass add an extra
+  ///                  machine printer pass afterwards
+  /// @p verifyAfter   if true and adding a machine function pass add an extra
+  ///                  machine verification pass afterwards.
+  AnalysisID addPass(AnalysisID PassID, bool verifyAfter = true,
+                     bool printAfter = true);
 
   /// Add a pass to the PassManager if that pass is supposed to be run, as
   /// determined by the StartAfter and StopAfter options. Takes ownership of the
   /// pass.
-  void addPass(Pass *P);
+  /// @p printAfter    if true and adding a machine function pass add an extra
+  ///                  machine printer pass afterwards
+  /// @p verifyAfter   if true and adding a machine function pass add an extra
+  ///                  machine verification pass afterwards.
+  void addPass(Pass *P, bool verifyAfter = true, bool printAfter = true);
 
   /// addMachinePasses helper to create the target-selected or overriden
   /// regalloc pass.
@@ -339,13 +339,20 @@ protected:
   /// printAndVerify - Add a pass to dump then verify the machine function, if
   /// those steps are enabled.
   ///
-  void printAndVerify(const char *Banner);
+  void printAndVerify(const std::string &Banner);
+
+  /// Add a pass to print the machine function if printing is enabled.
+  void addPrintPass(const std::string &Banner);
+
+  /// Add a pass to perform basic verification of the machine function if
+  /// verification is enabled.
+  void addVerifyPass(const std::string &Banner);
 };
 } // namespace llvm
 
 /// List of target independent CodeGen pass IDs.
 namespace llvm {
-  FunctionPass *createAtomicExpandLoadLinkedPass(const TargetMachine *TM);
+  FunctionPass *createAtomicExpandPass(const TargetMachine *TM);
 
   /// \brief Create a basic TargetTransformInfo analysis pass.
   ///
@@ -372,8 +379,9 @@ namespace llvm {
   /// matching during instruction selection.
   FunctionPass *createCodeGenPreparePass(const TargetMachine *TM = nullptr);
 
-  /// AtomicExpandLoadLinkedID -- FIXME
-  extern char &AtomicExpandLoadLinkedID;
+  /// AtomicExpandID -- Lowers atomic operations in terms of either cmpxchg
+  /// load-linked/store-conditional loops.
+  extern char &AtomicExpandID;
 
   /// MachineLoopInfo - This pass is a loop analysis pass.
   extern char &MachineLoopInfoID;
@@ -489,6 +497,10 @@ namespace llvm {
   /// inserting cmov instructions.
   extern char &EarlyIfConverterID;
 
+  /// This pass performs instruction combining using trace metrics to estimate
+  /// critical-path and resource depth.
+  extern char &MachineCombinerID;
+
   /// StackSlotColoring - This pass performs stack coloring and merging.
   /// It merges disjoint allocas to reduce the stack size.
   extern char &StackColoringID;
@@ -551,7 +563,7 @@ namespace llvm {
   /// createMachineVerifierPass - This pass verifies cenerated machine code
   /// instructions for correctness.
   ///
-  FunctionPass *createMachineVerifierPass(const char *Banner = nullptr);
+  FunctionPass *createMachineVerifierPass(const std::string& Banner);
 
   /// createDwarfEHPass - This pass mulches exception handling code into a form
   /// adapted to code generation.  Required if using dwarf exception handling.
@@ -593,6 +605,10 @@ namespace llvm {
 
   /// createJumpInstrTables - This pass creates jump-instruction tables.
   ModulePass *createJumpInstrTablesPass();
+
+  /// createForwardControlFlowIntegrityPass - This pass adds control-flow
+  /// integrity.
+  ModulePass *createForwardControlFlowIntegrityPass();
 } // End llvm namespace
 
 /// This initializer registers TargetMachine constructor, so the pass being

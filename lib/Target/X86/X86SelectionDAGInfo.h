@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86SELECTIONDAGINFO_H
-#define X86SELECTIONDAGINFO_H
+#ifndef LLVM_LIB_TARGET_X86_X86SELECTIONDAGINFO_H
+#define LLVM_LIB_TARGET_X86_X86SELECTIONDAGINFO_H
 
 #include "llvm/Target/TargetSelectionDAGInfo.h"
 
@@ -23,6 +23,11 @@ class X86TargetMachine;
 class X86Subtarget;
 
 class X86SelectionDAGInfo : public TargetSelectionDAGInfo {
+  /// Returns true if it is possible for the base register to conflict with the
+  /// given set of clobbers for a memory intrinsic.
+  bool isBaseRegConflictPossible(SelectionDAG &DAG,
+                                 ArrayRef<unsigned> ClobberSet) const;
+
 public:
   explicit X86SelectionDAGInfo(const DataLayout &DL);
   ~X86SelectionDAGInfo();

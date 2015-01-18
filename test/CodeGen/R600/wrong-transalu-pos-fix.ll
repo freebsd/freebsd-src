@@ -1,7 +1,7 @@
 ; RUN: llc < %s -march=r600 -mcpu=redwood | FileCheck %s
 
 ; We want all MULLO_INT inst to be last in their instruction group
-;CHECK: @fill3d
+;CHECK: {{^}}fill3d:
 ;CHECK-NOT: MULLO_INT T[0-9]+
 
 ; ModuleID = 'radeon'
@@ -81,6 +81,6 @@ attributes #1 = { nounwind readnone }
 
 !opencl.kernels = !{!0, !1, !2}
 
-!0 = metadata !{null}
-!1 = metadata !{null}
-!2 = metadata !{void (i32 addrspace(1)*)* @fill3d}
+!0 = !{null}
+!1 = !{null}
+!2 = !{void (i32 addrspace(1)*)* @fill3d}

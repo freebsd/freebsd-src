@@ -6,21 +6,36 @@
         abs.d     $f7,$f25             # CHECK: encoding:
         abs.s     $f9,$f16
         add       $s7,$s2,$a1
+        add       $9,$14,15176         # CHECK: addi $9, $14, 15176   # encoding: [0x21,0xc9,0x3b,0x48]
+        add       $24,-7193            # CHECK: addi $24, $24, -7193  # encoding: [0x23,0x18,0xe3,0xe7]
         add.d     $f1,$f7,$f29
         add.s     $f8,$f21,$f24
         addi      $13,$9,26322
         addi      $8,$8,~1             # CHECK: addi $8, $8, -2 # encoding: [0x21,0x08,0xff,0xfe]
         addu      $9,$a0,$a2
+        addu      $9,10                # CHECK: addiu $9, $9, 10    # encoding: [0x25,0x29,0x00,0x0a]
         and       $s7,$v0,$12
         and       $2,4                 # CHECK: andi $2, $2, 4 # encoding: [0x30,0x42,0x00,0x04]
         bc1f      $fcc0, 4             # CHECK: bc1f 4        # encoding: [0x45,0x00,0x00,0x01]
         bc1f      4                    # CHECK: bc1f 4        # encoding: [0x45,0x00,0x00,0x01]
+        bc1fl     $fcc0,50             # CHECK: bc1fl 50      # encoding: [0x45,0x02,0x00,0x0c]
+        bc1fl     50                   # CHECK: bc1fl 50      # encoding: [0x45,0x02,0x00,0x0c]
         bc1t      $fcc0, 4             # CHECK: bc1t 4        # encoding: [0x45,0x01,0x00,0x01]
         bc1t      4                    # CHECK: bc1t 4        # encoding: [0x45,0x01,0x00,0x01]
+        bc1tl     $fcc0,-8239          # CHECK: bc1tl -8239   # encoding: [0x45,0x03,0xf7,0xf4]
+        bc1tl     -8239                # CHECK: bc1tl -8239   # encoding: [0x45,0x03,0xf7,0xf4]
         bal       21100                # CHECK: bal 21100     # encoding: [0x04,0x11,0x14,0x9b]
         bgezal    $0, 21100            # CHECK: bal 21100     # encoding: [0x04,0x11,0x14,0x9b]
         bgezal    $6, 21100            # CHECK: bgezal $6, 21100 # encoding: [0x04,0xd1,0x14,0x9b]
         bltzal    $6, 21100            # CHECK: bltzal $6, 21100 # encoding: [0x04,0xd0,0x14,0x9b]
+        beql      $14,$s3,12544        # CHECK: beql $14, $19, 12544 # encoding: [0x51,0xd3,0x0c,0x40]
+        bgezall   $12,7293             # CHECK: bgezall $12, 7293    # encoding: [0x05,0x93,0x07,0x1f]
+        bgezl     $4,-6858             # CHECK: bgezl $4, -6858      # encoding: [0x04,0x83,0xf9,0x4d]
+        bgtzl     $10,-3738            # CHECK: bgtzl $10, -3738     # encoding: [0x5d,0x40,0xfc,0x59]
+        blezl     $6,2974              # CHECK: blezl $6, 2974       # encoding: [0x58,0xc0,0x02,0xe7]
+        bltzall   $6,488               # CHECK: bltzall $6, 488      # encoding: [0x04,0xd2,0x00,0x7a]
+        bltzl     $s1,-9964            # CHECK: bltzl $17, -9964     # encoding: [0x06,0x22,0xf6,0x45]
+        bnel      $gp,$s4,5107         # CHECK: bnel $gp, $20, 5107  # encoding: [0x57,0x94,0x04,0xfc]
         cache     1, 8($5)             # CHECK: cache 1, 8($5)   # encoding: [0xbc,0xa1,0x00,0x08]
         c.ngl.d   $f29,$f29
         c.ngle.d  $f0,$f16
@@ -50,6 +65,8 @@
         daddi     $sp,-27705           # CHECK: daddi $sp, $sp, -27705 # encoding: [0x63,0xbd,0x93,0xc7]
         daddiu    $k0,$s6,-4586
         daddu     $s3,$at,$ra
+        daddu     $24,$2,18079         # CHECK: daddiu $24, $2, 18079   # encoding: [0x64,0x58,0x46,0x9f]
+        daddu     $19,26943            # CHECK: daddiu $19, $19, 26943  # encoding: [0x66,0x73,0x69,0x3f]
         ddiv      $zero,$k0,$s3
         ddivu     $zero,$s0,$s1
         div       $zero,$25,$11
@@ -84,6 +101,8 @@
         dsubi     $sp,$s4,-27705       # CHECK: daddi $sp, $20, 27705  # encoding: [0x62,0x9d,0x6c,0x39]
         dsubi     $sp,-27705           # CHECK: daddi $sp, $sp, 27705  # encoding: [0x63,0xbd,0x6c,0x39]
         dsubu     $a1,$a1,$k0
+        dsubu     $15,$11,5025         # CHECK: daddiu $15, $11, -5025  # encoding: [0x65,0x6f,0xec,0x5f]
+        dsubu     $14,-4586            # CHECK: daddiu $14, $14, 4586   # encoding: [0x65,0xce,0x11,0xea]
         ehb                            # CHECK: ehb # encoding:  [0x00,0x00,0x00,0xc0]
         eret
         floor.l.d $f26,$f7
@@ -171,6 +190,8 @@
         srlv      $25,$s4,$a0          # CHECK: srlv $25, $20, $4      # encoding: [0x00,0x94,0xc8,0x06]
         ssnop                          # CHECK: ssnop                  # encoding: [0x00,0x00,0x00,0x40]
         sub       $s6,$s3,$12
+        sub       $22,$17,-3126        # CHECK: addi $22, $17, 3126    # encoding: [0x22,0x36,0x0c,0x36]
+        sub       $13,6512             # CHECK: addi $13, $13, -6512   # encoding: [0x21,0xad,0xe6,0x90]
         sub.d     $f18,$f3,$f17
         sub.s     $f23,$f22,$f22
         subu      $sp,$s6,$s6
@@ -180,15 +201,27 @@
         swl       $15,13694($s3)
         swr       $s1,-26590($14)
         sync                           # CHECK: sync                   # encoding: [0x00,0x00,0x00,0x0f]
+        teq       $0,$3                # CHECK: teq $zero, $3          # encoding: [0x00,0x03,0x00,0x34]
+        teq       $5,$7,620            # CHECK: teq $5, $7, 620        # encoding: [0x00,0xa7,0x9b,0x34]
         teqi      $s5,-17504
+        tge       $7,$10               # CHECK: tge $7, $10            # encoding: [0x00,0xea,0x00,0x30]
+        tge       $5,$19,340           # CHECK: tge $5, $19, 340       # encoding: [0x00,0xb3,0x55,0x30]
         tgei      $s1,5025
         tgeiu     $sp,-28621
+        tgeu      $22,$28              # CHECK: tgeu $22, $gp          # encoding: [0x02,0xdc,0x00,0x31]
+        tgeu      $20,$14,379          # CHECK: tgeu $20, $14, 379     # encoding: [0x02,0x8e,0x5e,0xf1]
         tlbp                           # CHECK: tlbp                   # encoding: [0x42,0x00,0x00,0x08]
         tlbr                           # CHECK: tlbr                   # encoding: [0x42,0x00,0x00,0x01]
         tlbwi                          # CHECK: tlbwi                  # encoding: [0x42,0x00,0x00,0x02]
         tlbwr                          # CHECK: tlbwr                  # encoding: [0x42,0x00,0x00,0x06]
+        tlt       $15,$13              # CHECK: tlt $15, $13           # encoding: [0x01,0xed,0x00,0x32]
+        tlt       $2,$19,133           # CHECK: tlt $2, $19, 133       # encoding: [0x00,0x53,0x21,0x72]
         tlti      $14,-21059
         tltiu     $ra,-5076
+        tltu      $11,$16              # CHECK: tltu $11, $16          # encoding: [0x01,0x70,0x00,0x33]
+        tltu      $16,$29,1016         # CHECK: tltu $16, $sp, 1016    # encoding: [0x02,0x1d,0xfe,0x33]
+        tne       $6,$17               # CHECK: tne $6, $17            # encoding: [0x00,0xd1,0x00,0x36]
+        tne       $7,$8,885            # CHECK: tne $7, $8, 885        # encoding: [0x00,0xe8,0xdd,0x76]
         tnei      $12,-29647
         trunc.l.d $f23,$f23
         trunc.l.s $f28,$f31

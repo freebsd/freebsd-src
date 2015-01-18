@@ -7,8 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Support/FileOutputBuffer.h"
+#include "llvm/Support/Errc.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/FileOutputBuffer.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
@@ -65,9 +66,8 @@ TEST(FileOutputBuffer, Test) {
     // Do *not* commit buffer.
   }
   // Verify file does not exist (because buffer not committed).
-  bool Exists = false;
-  ASSERT_NO_ERROR(fs::exists(Twine(File2), Exists));
-  EXPECT_FALSE(Exists);
+  ASSERT_EQ(fs::access(Twine(File2), fs::AccessMode::Exist),
+            errc::no_such_file_or_directory);
   ASSERT_NO_ERROR(fs::remove(File2.str()));
 
   // TEST 3: Verify sizing down case.
@@ -80,14 +80,13 @@ TEST(FileOutputBuffer, Test) {
     memcpy(Buffer->getBufferStart(), "AABBCCDDEEFFGGHHIIJJ", 20);
     // Write to end of buffer to verify it is writable.
     memcpy(Buffer->getBufferEnd() - 20, "AABBCCDDEEFFGGHHIIJJ", 20);
-    // Commit buffer, but size down to smaller size
-    ASSERT_NO_ERROR(Buffer->commit(5000));
+    ASSERT_NO_ERROR(Buffer->commit());
   }
 
   // Verify file is correct size.
   uint64_t File3Size;
   ASSERT_NO_ERROR(fs::file_size(Twine(File3), File3Size));
-  ASSERT_EQ(File3Size, 5000ULL);
+  ASSERT_EQ(File3Size, 8192000ULL);
   ASSERT_NO_ERROR(fs::remove(File3.str()));
 
   // TEST 4: Verify file can be made executable.

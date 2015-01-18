@@ -1,14 +1,14 @@
 ;RUN: llc < %s -march=r600 -mcpu=redwood | FileCheck %s --check-prefix=EG-CHECK --check-prefix=FUNC
 ;RUN: llc < %s -march=r600 -mcpu=cayman | FileCheck %s --check-prefix=CM-CHECK --check-prefix=FUNC
-;RUN: llc < %s -march=r600 -mcpu=SI | FileCheck %s --check-prefix=SI-CHECK --check-prefix=FUNC
+;RUN: llc < %s -march=amdgcn -mcpu=SI | FileCheck %s --check-prefix=SI-CHECK --check-prefix=FUNC
 
-;FUNC-LABEL: @test
+;FUNC-LABEL: {{^}}test:
 ;EG-CHECK: EXP_IEEE
 ;CM-CHECK-DAG: EXP_IEEE T{{[0-9]+\.[XYZW]}} (MASKED)
 ;CM-CHECK-DAG: EXP_IEEE T{{[0-9]+\.[XYZW]}} (MASKED)
 ;CM-CHECK-DAG: EXP_IEEE T{{[0-9]+\.[XYZW]}} (MASKED)
 ;CM-CHECK-DAG: EXP_IEEE T{{[0-9]+\.[XYZW]}}
-;SI-CHECK: V_EXP_F32
+;SI-CHECK: v_exp_f32
 
 define void @test(float addrspace(1)* %out, float %in) {
 entry:
@@ -17,7 +17,7 @@ entry:
    ret void
 }
 
-;FUNC-LABEL: @testv2
+;FUNC-LABEL: {{^}}testv2:
 ;EG-CHECK: EXP_IEEE
 ;EG-CHECK: EXP_IEEE
 ; FIXME: We should be able to merge these packets together on Cayman so we
@@ -30,8 +30,8 @@ entry:
 ;CM-CHECK-DAG: EXP_IEEE T{{[0-9]+\.[XYZW]}} (MASKED)
 ;CM-CHECK-DAG: EXP_IEEE T{{[0-9]+\.[XYZW]}}
 ;CM-CHECK-DAG: EXP_IEEE T{{[0-9]+\.[XYZW]}}
-;SI-CHECK: V_EXP_F32
-;SI-CHECK: V_EXP_F32
+;SI-CHECK: v_exp_f32
+;SI-CHECK: v_exp_f32
 
 define void @testv2(<2 x float> addrspace(1)* %out, <2 x float> %in) {
 entry:
@@ -40,7 +40,7 @@ entry:
   ret void
 }
 
-;FUNC-LABEL: @testv4
+;FUNC-LABEL: {{^}}testv4:
 ;EG-CHECK: EXP_IEEE
 ;EG-CHECK: EXP_IEEE
 ;EG-CHECK: EXP_IEEE
@@ -63,10 +63,10 @@ entry:
 ;CM-CHECK-DAG: EXP_IEEE T{{[0-9]+\.[XYZW]}}
 ;CM-CHECK-DAG: EXP_IEEE T{{[0-9]+\.[XYZW]}}
 ;CM-CHECK-DAG: EXP_IEEE T{{[0-9]+\.[XYZW]}}
-;SI-CHECK: V_EXP_F32
-;SI-CHECK: V_EXP_F32
-;SI-CHECK: V_EXP_F32
-;SI-CHECK: V_EXP_F32
+;SI-CHECK: v_exp_f32
+;SI-CHECK: v_exp_f32
+;SI-CHECK: v_exp_f32
+;SI-CHECK: v_exp_f32
 define void @testv4(<4 x float> addrspace(1)* %out, <4 x float> %in) {
 entry:
   %0 = call <4 x float> @llvm.exp2.v4f32(<4 x float> %in)

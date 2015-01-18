@@ -1,7 +1,7 @@
 ; RUN: opt < %s -loop-vectorize -force-vector-width=4 -S -pass-remarks-missed='loop-vectorize' -pass-remarks-analysis='loop-vectorize' 2>&1 | FileCheck %s
 
 ; CHECK: remark: source.cpp:4:5: loop not vectorized: loop contains a switch statement
-; CHECK: remark: source.cpp:4:5: loop not vectorized: vectorization is explicitly enabled with width 4
+; CHECK: remark: source.cpp:4:5: loop not vectorized: use -Rpass-analysis=loop-vectorize for more info (Force=true, Vector Width=4)
 ; CHECK: warning: source.cpp:4:5: loop not vectorized: failed explicitly specified loop vectorization
 
 ; CHECK: _Z11test_switchPii
@@ -59,28 +59,28 @@ attributes #0 = { nounwind }
 !llvm.module.flags = !{!7, !8}
 !llvm.ident = !{!9}
 
-!0 = metadata !{i32 786449, metadata !1, i32 4, metadata !"clang version 3.5.0", i1 true, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !"", i32 2}
-!1 = metadata !{metadata !"source.cpp", metadata !"."}
-!2 = metadata !{}
-!3 = metadata !{metadata !4}
-!4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"test_switch", metadata !"test_switch", metadata !"", i32 1, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 true, void (i32*, i32)* @_Z11test_switchPii, null, null, metadata !2, i32 1}
-!5 = metadata !{i32 786473, metadata !1}
-!6 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !2, i32 0, null, null, null}
-!7 = metadata !{i32 2, metadata !"Dwarf Version", i32 2}
-!8 = metadata !{i32 2, metadata !"Debug Info Version", i32 1}
-!9 = metadata !{metadata !"clang version 3.5.0"}
-!10 = metadata !{i32 3, i32 8, metadata !11, null}
-!11 = metadata !{i32 786443, metadata !1, metadata !4, i32 3, i32 3, i32 0, i32 0}
-!12 = metadata !{metadata !12, metadata !13, metadata !13}
-!13 = metadata !{metadata !"llvm.loop.vectorize.enable", i1 true}
-!14 = metadata !{i32 4, i32 5, metadata !15, null}
-!15 = metadata !{i32 786443, metadata !1, metadata !11, i32 3, i32 36, i32 0, i32 1}
-!16 = metadata !{metadata !17, metadata !17, i64 0}
-!17 = metadata !{metadata !"int", metadata !18, i64 0}
-!18 = metadata !{metadata !"omnipotent char", metadata !19, i64 0}
-!19 = metadata !{metadata !"Simple C/C++ TBAA"}
-!20 = metadata !{i32 6, i32 7, metadata !21, null}
-!21 = metadata !{i32 786443, metadata !1, metadata !15, i32 4, i32 18, i32 0, i32 2}
-!22 = metadata !{i32 7, i32 5, metadata !21, null}
-!23 = metadata !{i32 9, i32 7, metadata !21, null}
-!24 = metadata !{i32 14, i32 1, metadata !4, null}
+!0 = !{!"0x11\004\00clang version 3.5.0\001\00\006\00\002", !1, !2, !2, !3, !2, !2} ; [ DW_TAG_compile_unit ] [./source.cpp] [DW_LANG_C_plus_plus]
+!1 = !{!"source.cpp", !"."}
+!2 = !{}
+!3 = !{!4}
+!4 = !{!"0x2e\00test_switch\00test_switch\00\001\000\001\000\006\00256\001\001", !1, !5, !6, null, void (i32*, i32)* @_Z11test_switchPii, null, null, !2} ; [ DW_TAG_subprogram ] [line 1] [def] [test_switch]
+!5 = !{!"0x29", !1}          ; [ DW_TAG_file_type ] [./source.cpp]
+!6 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !2, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!7 = !{i32 2, !"Dwarf Version", i32 2}
+!8 = !{i32 2, !"Debug Info Version", i32 2}
+!9 = !{!"clang version 3.5.0"}
+!10 = !MDLocation(line: 3, column: 8, scope: !11)
+!11 = !{!"0xb\003\003\000", !1, !4} ; [ DW_TAG_lexical_block ]
+!12 = !{!12, !13, !13}
+!13 = !{!"llvm.loop.vectorize.enable", i1 true}
+!14 = !MDLocation(line: 4, column: 5, scope: !15)
+!15 = !{!"0xb\003\0036\000", !1, !11} ; [ DW_TAG_lexical_block ]
+!16 = !{!17, !17, i64 0}
+!17 = !{!"int", !18, i64 0}
+!18 = !{!"omnipotent char", !19, i64 0}
+!19 = !{!"Simple C/C++ TBAA"}
+!20 = !MDLocation(line: 6, column: 7, scope: !21)
+!21 = !{!"0xb\004\0018\000", !1, !15} ; [ DW_TAG_lexical_block ]
+!22 = !MDLocation(line: 7, column: 5, scope: !21)
+!23 = !MDLocation(line: 9, column: 7, scope: !21)
+!24 = !MDLocation(line: 14, column: 1, scope: !4)

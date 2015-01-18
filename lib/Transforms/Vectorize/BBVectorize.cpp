@@ -391,8 +391,6 @@ namespace {
                      Instruction *&InsertionPt,
                      Instruction *I, Instruction *J);
 
-    void combineMetadata(Instruction *K, const Instruction *J);
-
     bool vectorizeBB(BasicBlock &BB) {
       if (skipOptnoneFunction(BB))
         return false;
@@ -687,6 +685,8 @@ namespace {
       case Intrinsic::trunc:
       case Intrinsic::floor:
       case Intrinsic::fabs:
+      case Intrinsic::minnum:
+      case Intrinsic::maxnum:
         return Config.VectorizeMath;
       case Intrinsic::bswap:
       case Intrinsic::ctpop:
@@ -2609,7 +2609,6 @@ namespace {
                                                      true, o, 1));
           NewI1->insertBefore(IBeforeJ ? J : I);
           I1 = NewI1;
-          I1T = I2T;
           I1Elem = I2Elem;
         } else if (I1Elem > I2Elem) {
           std::vector<Constant *> Mask(I1Elem);
@@ -2626,8 +2625,6 @@ namespace {
                                                      true, o, 1));
           NewI2->insertBefore(IBeforeJ ? J : I);
           I2 = NewI2;
-          I2T = I1T;
-          I2Elem = I1Elem;
         }
 
         // Now that both I1 and I2 are the same length we can shuffle them
@@ -2964,31 +2961,6 @@ namespace {
     }
   }
 
-  // When the first instruction in each pair is cloned, it will inherit its
-  // parent's metadata. This metadata must be combined with that of the other
-  // instruction in a safe way.
-  void BBVectorize::combineMetadata(Instruction *K, const Instruction *J) {
-    SmallVector<std::pair<unsigned, MDNode*>, 4> Metadata;
-    K->getAllMetadataOtherThanDebugLoc(Metadata);
-    for (unsigned i = 0, n = Metadata.size(); i < n; ++i) {
-      unsigned Kind = Metadata[i].first;
-      MDNode *JMD = J->getMetadata(Kind);
-      MDNode *KMD = Metadata[i].second;
-
-      switch (Kind) {
-      default:
-        K->setMetadata(Kind, nullptr); // Remove unknown metadata
-        break;
-      case LLVMContext::MD_tbaa:
-        K->setMetadata(Kind, MDNode::getMostGenericTBAA(JMD, KMD));
-        break;
-      case LLVMContext::MD_fpmath:
-        K->setMetadata(Kind, MDNode::getMostGenericFPMath(JMD, KMD));
-        break;
-      }
-    }
-  }
-
   // This function fuses the chosen instruction pairs into vector instructions,
   // taking care preserve any needed scalar outputs and, then, it reorders the
   // remaining instructions as needed (users of the first member of the pair
@@ -3138,7 +3110,13 @@ namespace {
       if (!isa<StoreInst>(K))
         K->mutateType(getVecTypeForPair(L->getType(), H->getType()));
 
-      combineMetadata(K, H);
+      unsigned KnownIDs[] = {
+        LLVMContext::MD_tbaa,
+        LLVMContext::MD_alias_scope,
+        LLVMContext::MD_noalias,
+        LLVMContext::MD_fpmath
+      };
+      combineMetadata(K, H, KnownIDs);
       K->intersectOptionalDataWith(H);
 
       for (unsigned o = 0; o < NumOperands; ++o)

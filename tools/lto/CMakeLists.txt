@@ -7,8 +7,6 @@ set(LLVM_LINK_COMPONENTS
   Support
   )
 
-add_definitions( -DLLVM_VERSION_INFO=\"${PACKAGE_VERSION}\" )
-
 set(SOURCES
   LTODisassembler.cpp
   lto.cpp

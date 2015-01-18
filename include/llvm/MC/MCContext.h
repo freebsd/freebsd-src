@@ -73,6 +73,10 @@ namespace llvm {
     /// Symbols - Bindings of names to symbols.
     SymbolTable Symbols;
 
+    /// ELF sections can have a corresponding symbol. This maps one to the
+    /// other.
+    DenseMap<const MCSectionELF*, MCSymbol*> SectionSymbols;
+
     /// A maping from a local label number and an instance count to a symbol.
     /// For example, in the assembly
     ///     1:
@@ -231,6 +235,10 @@ namespace llvm {
     MCSymbol *GetOrCreateSymbol(StringRef Name);
     MCSymbol *GetOrCreateSymbol(const Twine &Name);
 
+    MCSymbol *getOrCreateSectionSymbol(const MCSectionELF &Section);
+
+    MCSymbol *getOrCreateFrameAllocSymbol(StringRef FuncName);
+
     /// LookupSymbol - Get the symbol for \p Name, or null.
     MCSymbol *LookupSymbol(StringRef Name) const;
     MCSymbol *LookupSymbol(const Twine &Name) const;
@@ -283,6 +291,13 @@ namespace llvm {
                                         SectionKind Kind);
 
     const MCSectionCOFF *getCOFFSection(StringRef Section);
+
+    /// Gets or creates a section equivalent to Sec that is associated with the
+    /// section containing KeySym. For example, to create a debug info section
+    /// associated with an inline function, pass the normal debug info section
+    /// as Sec and the function symbol as KeySym.
+    const MCSectionCOFF *getAssociativeCOFFSection(const MCSectionCOFF *Sec,
+                                                   const MCSymbol *KeySym);
 
     /// @}
 

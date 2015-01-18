@@ -39,6 +39,7 @@
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/IR/CallSite.h"
+#include "llvm/IR/Metadata.h"
 
 namespace llvm {
 
@@ -112,13 +113,14 @@ public:
     /// there are restrictions on stepping out of one object and into another.
     /// See http://llvm.org/docs/LangRef.html#pointeraliasing
     uint64_t Size;
-    /// TBAATag - The metadata node which describes the TBAA type of
-    /// the location, or null if there is no known unique tag.
-    const MDNode *TBAATag;
+    /// AATags - The metadata nodes which describes the aliasing of the
+    /// location (each member is null if that kind of information is
+    /// unavailable)..
+    AAMDNodes AATags;
 
     explicit Location(const Value *P = nullptr, uint64_t S = UnknownSize,
-                      const MDNode *N = nullptr)
-      : Ptr(P), Size(S), TBAATag(N) {}
+                      const AAMDNodes &N = AAMDNodes())
+      : Ptr(P), Size(S), AATags(N) {}
 
     Location getWithNewPtr(const Value *NewPtr) const {
       Location Copy(*this);
@@ -132,9 +134,9 @@ public:
       return Copy;
     }
 
-    Location getWithoutTBAATag() const {
+    Location getWithoutAATags() const {
       Location Copy(*this);
-      Copy.TBAATag = nullptr;
+      Copy.AATags = AAMDNodes();
       return Copy;
     }
   };
@@ -500,7 +502,7 @@ public:
   ///
 
   /// canBasicBlockModify - Return true if it is possible for execution of the
-  /// specified basic block to modify the value pointed to by Ptr.
+  /// specified basic block to modify the location Loc.
   bool canBasicBlockModify(const BasicBlock &BB, const Location &Loc);
 
   /// canBasicBlockModify - A convenience wrapper.
@@ -508,17 +510,20 @@ public:
     return canBasicBlockModify(BB, Location(P, Size));
   }
 
-  /// canInstructionRangeModify - Return true if it is possible for the
-  /// execution of the specified instructions to modify the value pointed to by
-  /// Ptr.  The instructions to consider are all of the instructions in the
-  /// range of [I1,I2] INCLUSIVE.  I1 and I2 must be in the same basic block.
-  bool canInstructionRangeModify(const Instruction &I1, const Instruction &I2,
-                                 const Location &Loc);
+  /// canInstructionRangeModRef - Return true if it is possible for the
+  /// execution of the specified instructions to mod\ref (according to the
+  /// mode) the location Loc. The instructions to consider are all
+  /// of the instructions in the range of [I1,I2] INCLUSIVE.
+  /// I1 and I2 must be in the same basic block.
+  bool canInstructionRangeModRef(const Instruction &I1,
+                                const Instruction &I2, const Location &Loc,
+                                const ModRefResult Mode);
 
-  /// canInstructionRangeModify - A convenience wrapper.
-  bool canInstructionRangeModify(const Instruction &I1, const Instruction &I2,
-                                 const Value *Ptr, uint64_t Size) {
-    return canInstructionRangeModify(I1, I2, Location(Ptr, Size));
+  /// canInstructionRangeModRef - A convenience wrapper.
+  bool canInstructionRangeModRef(const Instruction &I1,
+                                 const Instruction &I2, const Value *Ptr,
+                                 uint64_t Size, const ModRefResult Mode) {
+    return canInstructionRangeModRef(I1, I2, Location(Ptr, Size), Mode);
   }
 
   //===--------------------------------------------------------------------===//
@@ -566,25 +571,23 @@ public:
 template<>
 struct DenseMapInfo<AliasAnalysis::Location> {
   static inline AliasAnalysis::Location getEmptyKey() {
-    return
-      AliasAnalysis::Location(DenseMapInfo<const Value *>::getEmptyKey(),
-                              0, nullptr);
+    return AliasAnalysis::Location(DenseMapInfo<const Value *>::getEmptyKey(),
+                                   0);
   }
   static inline AliasAnalysis::Location getTombstoneKey() {
-    return
-      AliasAnalysis::Location(DenseMapInfo<const Value *>::getTombstoneKey(),
-                              0, nullptr);
+    return AliasAnalysis::Location(
+        DenseMapInfo<const Value *>::getTombstoneKey(), 0);
   }
   static unsigned getHashValue(const AliasAnalysis::Location &Val) {
     return DenseMapInfo<const Value *>::getHashValue(Val.Ptr) ^
            DenseMapInfo<uint64_t>::getHashValue(Val.Size) ^
-           DenseMapInfo<const MDNode *>::getHashValue(Val.TBAATag);
+           DenseMapInfo<AAMDNodes>::getHashValue(Val.AATags);
   }
   static bool isEqual(const AliasAnalysis::Location &LHS,
                       const AliasAnalysis::Location &RHS) {
     return LHS.Ptr == RHS.Ptr &&
            LHS.Size == RHS.Size &&
-           LHS.TBAATag == RHS.TBAATag;
+           LHS.AATags == RHS.AATags;
   }
 };
 

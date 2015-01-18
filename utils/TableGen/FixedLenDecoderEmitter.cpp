@@ -230,7 +230,7 @@ protected:
   std::vector<unsigned> VariableInstructions;
 
   // Map of well-known segment value to its delegate.
-  std::map<unsigned, const FilterChooser*> FilterChooserMap;
+  std::map<unsigned, std::unique_ptr<const FilterChooser>> FilterChooserMap;
 
   // Number of instructions which fall under FilteredInstructions category.
   unsigned NumFiltered;
@@ -252,7 +252,7 @@ public:
     return *(FilterChooserMap.find((unsigned)-1)->second);
   }
 
-  Filter(const Filter &f);
+  Filter(Filter &&f);
   Filter(FilterChooser &owner, unsigned startBit, unsigned numBits, bool mixed);
 
   ~Filter();
@@ -333,13 +333,9 @@ protected:
   // Parent emitter
   const FixedLenDecoderEmitter *Emitter;
 
+  FilterChooser(const FilterChooser &) LLVM_DELETED_FUNCTION;
+  void operator=(const FilterChooser &) LLVM_DELETED_FUNCTION;
 public:
-  FilterChooser(const FilterChooser &FC)
-    : AllInstructions(FC.AllInstructions), Opcodes(FC.Opcodes),
-      Operands(FC.Operands), Filters(FC.Filters),
-      FilterBitValues(FC.FilterBitValues), Parent(FC.Parent),
-      BestIndex(FC.BestIndex), BitWidth(FC.BitWidth),
-      Emitter(FC.Emitter) { }
 
   FilterChooser(const std::vector<const CodeGenInstruction*> &Insts,
                 const std::vector<unsigned> &IDs,
@@ -347,10 +343,8 @@ public:
                 unsigned BW,
                 const FixedLenDecoderEmitter *E)
     : AllInstructions(Insts), Opcodes(IDs), Operands(Ops), Filters(),
-      Parent(nullptr), BestIndex(-1), BitWidth(BW), Emitter(E) {
-    for (unsigned i = 0; i < BitWidth; ++i)
-      FilterBitValues.push_back(BIT_UNFILTERED);
-
+      FilterBitValues(BW, BIT_UNFILTERED), Parent(nullptr), BestIndex(-1),
+      BitWidth(BW), Emitter(E) {
     doFilter();
   }
 
@@ -490,11 +484,11 @@ public:
 //                       //
 ///////////////////////////
 
-Filter::Filter(const Filter &f)
+Filter::Filter(Filter &&f)
   : Owner(f.Owner), StartBit(f.StartBit), NumBits(f.NumBits), Mixed(f.Mixed),
-    FilteredInstructions(f.FilteredInstructions),
-    VariableInstructions(f.VariableInstructions),
-    FilterChooserMap(f.FilterChooserMap), NumFiltered(f.NumFiltered),
+    FilteredInstructions(std::move(f.FilteredInstructions)),
+    VariableInstructions(std::move(f.VariableInstructions)),
+    FilterChooserMap(std::move(f.FilterChooserMap)), NumFiltered(f.NumFiltered),
     LastOpcFiltered(f.LastOpcFiltered) {
 }
 
@@ -534,12 +528,6 @@ Filter::Filter(FilterChooser &owner, unsigned startBit, unsigned numBits,
 }
 
 Filter::~Filter() {
-  std::map<unsigned, const FilterChooser*>::iterator filterIterator;
-  for (filterIterator = FilterChooserMap.begin();
-       filterIterator != FilterChooserMap.end();
-       filterIterator++) {
-    delete filterIterator->second;
-  }
 }
 
 // Divides the decoding task into sub tasks and delegates them to the
@@ -549,8 +537,6 @@ Filter::~Filter() {
 // instructions.  In order to unambiguously decode the singleton, we need to
 // match the remaining undecoded encoding bits against the singleton.
 void Filter::recurse() {
-  std::map<uint64_t, std::vector<unsigned> >::const_iterator mapIterator;
-
   // Starts by inheriting our parent filter chooser's filter bit values.
   std::vector<bit_value_t> BitValueArray(Owner->FilterBitValues);
 
@@ -561,14 +547,10 @@ void Filter::recurse() {
 
     // Delegates to an inferior filter chooser for further processing on this
     // group of instructions whose segment values are variable.
-    FilterChooserMap.insert(std::pair<unsigned, const FilterChooser*>(
-                              (unsigned)-1,
-                              new FilterChooser(Owner->AllInstructions,
-                                                VariableInstructions,
-                                                Owner->Operands,
-                                                BitValueArray,
-                                                *Owner)
-                              ));
+    FilterChooserMap.insert(
+        std::make_pair(-1U, llvm::make_unique<FilterChooser>(
+                                Owner->AllInstructions, VariableInstructions,
+                                Owner->Operands, BitValueArray, *Owner)));
   }
 
   // No need to recurse for a singleton filtered instruction.
@@ -580,13 +562,11 @@ void Filter::recurse() {
   }
 
   // Otherwise, create sub choosers.
-  for (mapIterator = FilteredInstructions.begin();
-       mapIterator != FilteredInstructions.end();
-       mapIterator++) {
+  for (const auto &Inst : FilteredInstructions) {
 
     // Marks all the segment positions with either BIT_TRUE or BIT_FALSE.
     for (unsigned bitIndex = 0; bitIndex < NumBits; ++bitIndex) {
-      if (mapIterator->first & (1ULL << bitIndex))
+      if (Inst.first & (1ULL << bitIndex))
         BitValueArray[StartBit + bitIndex] = BIT_TRUE;
       else
         BitValueArray[StartBit + bitIndex] = BIT_FALSE;
@@ -594,14 +574,10 @@ void Filter::recurse() {
 
     // Delegates to an inferior filter chooser for further processing on this
     // category of instructions.
-    FilterChooserMap.insert(std::pair<unsigned, const FilterChooser*>(
-                              mapIterator->first,
-                              new FilterChooser(Owner->AllInstructions,
-                                                mapIterator->second,
-                                                Owner->Operands,
-                                                BitValueArray,
-                                                *Owner)
-                              ));
+    FilterChooserMap.insert(std::make_pair(
+        Inst.first, llvm::make_unique<FilterChooser>(
+                                Owner->AllInstructions, Inst.second,
+                                Owner->Operands, BitValueArray, *Owner)));
   }
 }
 
@@ -636,18 +612,14 @@ void Filter::emitTableEntry(DecoderTableInfo &TableInfo) const {
   // A new filter entry begins a new scope for fixup resolution.
   TableInfo.FixupStack.push_back(FixupList());
 
-  std::map<unsigned, const FilterChooser*>::const_iterator filterIterator;
-
   DecoderTable &Table = TableInfo.Table;
 
   size_t PrevFilter = 0;
   bool HasFallthrough = false;
-  for (filterIterator = FilterChooserMap.begin();
-       filterIterator != FilterChooserMap.end();
-       filterIterator++) {
+  for (auto &Filter : FilterChooserMap) {
     // Field value -1 implies a non-empty set of variable instructions.
     // See also recurse().
-    if (filterIterator->first == (unsigned)-1) {
+    if (Filter.first == (unsigned)-1) {
       HasFallthrough = true;
 
       // Each scope should always have at least one filter value to check
@@ -662,7 +634,7 @@ void Filter::emitTableEntry(DecoderTableInfo &TableInfo) const {
       Table.push_back(MCD::OPC_FilterValue);
       // Encode and emit the value to filter against.
       uint8_t Buffer[8];
-      unsigned Len = encodeULEB128(filterIterator->first, Buffer);
+      unsigned Len = encodeULEB128(Filter.first, Buffer);
       Table.insert(Table.end(), Buffer, Buffer + Len);
       // Reserve space for the NumToSkip entry. We'll backpatch the value
       // later.
@@ -675,7 +647,7 @@ void Filter::emitTableEntry(DecoderTableInfo &TableInfo) const {
     // Now delegate to the sub filter chooser for further decodings.
     // The case may fallthrough, which happens if the remaining well-known
     // encoding bits do not match exactly.
-    filterIterator->second->emitTableEntries(TableInfo);
+    Filter.second->emitTableEntries(TableInfo);
 
     // Now that we've emitted the body of the handler, update the NumToSkip
     // of the filter itself to be able to skip forward when false. Subtract
@@ -882,10 +854,9 @@ emitPredicateFunction(formatted_raw_ostream &OS, PredicateSet &Predicates,
     OS.indent(Indentation) << "switch (Idx) {\n";
     OS.indent(Indentation) << "default: llvm_unreachable(\"Invalid index!\");\n";
     unsigned Index = 0;
-    for (PredicateSet::const_iterator I = Predicates.begin(), E = Predicates.end();
-         I != E; ++I, ++Index) {
-      OS.indent(Indentation) << "case " << Index << ":\n";
-      OS.indent(Indentation+2) << "return (" << *I << ");\n";
+    for (const auto &Predicate : Predicates) {
+      OS.indent(Indentation) << "case " << Index++ << ":\n";
+      OS.indent(Indentation+2) << "return (" << Predicate << ");\n";
     }
     OS.indent(Indentation) << "}\n";
   } else {
@@ -911,10 +882,9 @@ emitDecoderFunction(formatted_raw_ostream &OS, DecoderSet &Decoders,
   OS.indent(Indentation) << "switch (Idx) {\n";
   OS.indent(Indentation) << "default: llvm_unreachable(\"Invalid index!\");\n";
   unsigned Index = 0;
-  for (DecoderSet::const_iterator I = Decoders.begin(), E = Decoders.end();
-       I != E; ++I, ++Index) {
-    OS.indent(Indentation) << "case " << Index << ":\n";
-    OS << *I;
+  for (const auto &Decoder : Decoders) {
+    OS.indent(Indentation) << "case " << Index++ << ":\n";
+    OS << Decoder;
     OS.indent(Indentation+2) << "return S;\n";
   }
   OS.indent(Indentation) << "}\n";
@@ -1066,19 +1036,17 @@ void FilterChooser::emitBinaryParser(raw_ostream &o, unsigned &Indentation,
                                      const OperandInfo &OpInfo) const {
   const std::string &Decoder = OpInfo.Decoder;
 
-  if (OpInfo.numFields() == 1) {
-    OperandInfo::const_iterator OI = OpInfo.begin();
-    o.indent(Indentation) << "tmp = fieldFromInstruction"
-                          << "(insn, " << OI->Base << ", " << OI->Width
-                          << ");\n";
-  } else {
+  if (OpInfo.numFields() != 1)
     o.indent(Indentation) << "tmp = 0;\n";
-    for (OperandInfo::const_iterator OI = OpInfo.begin(), OE = OpInfo.end();
-         OI != OE; ++OI) {
-      o.indent(Indentation) << "tmp |= (fieldFromInstruction"
-                            << "(insn, " << OI->Base << ", " << OI->Width
-                            << ") << " << OI->Offset << ");\n";
-    }
+
+  for (const EncodingField &EF : OpInfo) {
+    o.indent(Indentation) << "tmp ";
+    if (OpInfo.numFields() != 1) o << '|';
+    o << "= fieldFromInstruction"
+      << "(insn, " << EF.Base << ", " << EF.Width << ')';
+    if (OpInfo.numFields() != 1 || EF.Offset != 0)
+      o << " << " << EF.Offset;
+    o << ";\n";
   }
 
   if (Decoder != "")
@@ -1092,20 +1060,16 @@ void FilterChooser::emitBinaryParser(raw_ostream &o, unsigned &Indentation,
 
 void FilterChooser::emitDecoder(raw_ostream &OS, unsigned Indentation,
                                 unsigned Opc) const {
-  std::map<unsigned, std::vector<OperandInfo> >::const_iterator OpIter =
-    Operands.find(Opc);
-  const std::vector<OperandInfo>& InsnOperands = OpIter->second;
-  for (std::vector<OperandInfo>::const_iterator
-       I = InsnOperands.begin(), E = InsnOperands.end(); I != E; ++I) {
+  for (const auto &Op : Operands.find(Opc)->second) {
     // If a custom instruction decoder was specified, use that.
-    if (I->numFields() == 0 && I->Decoder.size()) {
-      OS.indent(Indentation) << Emitter->GuardPrefix << I->Decoder
+    if (Op.numFields() == 0 && Op.Decoder.size()) {
+      OS.indent(Indentation) << Emitter->GuardPrefix << Op.Decoder
         << "(MI, insn, Address, Decoder)"
         << Emitter->GuardPostfix << "\n";
       break;
     }
 
-    emitBinaryParser(OS, Indentation, *I);
+    emitBinaryParser(OS, Indentation, Op);
   }
 }
 
@@ -1384,8 +1348,7 @@ void FilterChooser::emitSingletonTableEntry(DecoderTableInfo &TableInfo,
 void FilterChooser::runSingleFilter(unsigned startBit, unsigned numBit,
                                     bool mixed) {
   Filters.clear();
-  Filter F(*this, startBit, numBit, true);
-  Filters.push_back(F);
+  Filters.push_back(Filter(*this, startBit, numBit, true));
   BestIndex = 0; // Sole Filter instance to choose from.
   bestFilter().recurse();
 }
@@ -1886,20 +1849,20 @@ static bool populateInstruction(CodeGenTarget &Target,
   }
 
   // For each operand, see if we can figure out where it is encoded.
-  for (std::vector<std::pair<Init*, std::string> >::const_iterator
-       NI = InOutOperands.begin(), NE = InOutOperands.end(); NI != NE; ++NI) {
-    if (!NumberedInsnOperands[NI->second].empty()) {
+  for (const auto &Op : InOutOperands) {
+    if (!NumberedInsnOperands[Op.second].empty()) {
       InsnOperands.insert(InsnOperands.end(),
-                          NumberedInsnOperands[NI->second].begin(),
-                          NumberedInsnOperands[NI->second].end());
+                          NumberedInsnOperands[Op.second].begin(),
+                          NumberedInsnOperands[Op.second].end());
       continue;
-    } else if (!NumberedInsnOperands[TiedNames[NI->second]].empty()) {
-      if (!NumberedInsnOperandsNoTie.count(TiedNames[NI->second])) {
+    }
+    if (!NumberedInsnOperands[TiedNames[Op.second]].empty()) {
+      if (!NumberedInsnOperandsNoTie.count(TiedNames[Op.second])) {
         // Figure out to which (sub)operand we're tied.
-        unsigned i = CGI.Operands.getOperandNamed(TiedNames[NI->second]);
+        unsigned i = CGI.Operands.getOperandNamed(TiedNames[Op.second]);
         int tiedTo = CGI.Operands[i].getTiedRegister();
         if (tiedTo == -1) {
-          i = CGI.Operands.getOperandNamed(NI->second);
+          i = CGI.Operands.getOperandNamed(Op.second);
           tiedTo = CGI.Operands[i].getTiedRegister();
         }
 
@@ -1907,7 +1870,7 @@ static bool populateInstruction(CodeGenTarget &Target,
           std::pair<unsigned, unsigned> SO =
             CGI.Operands.getSubOperandNumber(tiedTo);
 
-          InsnOperands.push_back(NumberedInsnOperands[TiedNames[NI->second]]
+          InsnOperands.push_back(NumberedInsnOperands[TiedNames[Op.second]]
                                    [SO.second]);
         }
       }
@@ -1921,7 +1884,7 @@ static bool populateInstruction(CodeGenTarget &Target,
     // for decoding register classes.
     // FIXME: This need to be extended to handle instructions with custom
     // decoder methods, and operands with (simple) MIOperandInfo's.
-    TypedInit *TI = cast<TypedInit>(NI->first);
+    TypedInit *TI = cast<TypedInit>(Op.first);
     RecordRecTy *Type = cast<RecordRecTy>(TI->getType());
     Record *TypeRecord = Type->getRecord();
     bool isReg = false;
@@ -1965,8 +1928,8 @@ static bool populateInstruction(CodeGenTarget &Target,
         continue;
       }
 
-      if (Var->getName() != NI->second &&
-          Var->getName() != TiedNames[NI->second]) {
+      if (Var->getName() != Op.second &&
+          Var->getName() != TiedNames[Op.second]) {
         if (Base != ~0U) {
           OpInfo.addField(Base, Width, Offset);
           Base = ~0U;
@@ -2203,12 +2166,10 @@ void FixedLenDecoderEmitter::run(raw_ostream &o) {
   }
 
   DecoderTableInfo TableInfo;
-  for (std::map<std::pair<std::string, unsigned>,
-                std::vector<unsigned> >::const_iterator
-       I = OpcMap.begin(), E = OpcMap.end(); I != E; ++I) {
+  for (const auto &Opc : OpcMap) {
     // Emit the decoder for this namespace+width combination.
-    FilterChooser FC(*NumberedInstructions, I->second, Operands,
-                     8*I->first.second, this);
+    FilterChooser FC(*NumberedInstructions, Opc.second, Operands,
+                     8*Opc.first.second, this);
 
     // The decode table is cleared for each top level decoder function. The
     // predicates and decoders themselves, however, are shared across all
@@ -2229,7 +2190,7 @@ void FixedLenDecoderEmitter::run(raw_ostream &o) {
     TableInfo.Table.push_back(MCD::OPC_Fail);
 
     // Print the table to the output stream.
-    emitTable(OS, TableInfo.Table, 0, FC.getBitWidth(), I->first.first);
+    emitTable(OS, TableInfo.Table, 0, FC.getBitWidth(), Opc.first.first);
     OS.flush();
   }
 

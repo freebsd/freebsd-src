@@ -1,4 +1,4 @@
-; RUN: opt < %s -O2 -force-vector-unroll=2 -force-vector-width=4 -debug-only=loop-vectorize -stats -S 2>&1 | FileCheck %s
+; RUN: opt < %s -O2 -force-vector-interleave=2 -force-vector-width=4 -debug-only=loop-vectorize -stats -S 2>&1 | FileCheck %s
 ; REQUIRES: asserts
 
 ; Loop from "rotated"
@@ -61,8 +61,8 @@ for.end:
   ret void
 }
 
-!1 = metadata !{metadata !1, metadata !2}
-!2 = metadata !{metadata !"llvm.loop.vectorize.enable", i1 true}
+!1 = !{!1, !2}
+!2 = !{!"llvm.loop.vectorize.enable", i1 true}
 
 ;
 ; Test #2
@@ -84,5 +84,5 @@ return:
   ret i32 0
 }
 
-!3 = metadata !{metadata !3, metadata !4}
-!4 = metadata !{metadata !"llvm.loop.vectorize.enable", i1 true}
+!3 = !{!3, !4}
+!4 = !{!"llvm.loop.vectorize.enable", i1 true}

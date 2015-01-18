@@ -1,4 +1,5 @@
 ; RUN: llvm-as < %s | llvm-dis | FileCheck %s
+; RUN: verify-uselistorder %s
 ; PR18319
 
 define void @function() {

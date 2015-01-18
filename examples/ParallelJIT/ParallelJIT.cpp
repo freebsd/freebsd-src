@@ -19,7 +19,6 @@
 
 #include "llvm/ExecutionEngine/GenericValue.h"
 #include "llvm/ExecutionEngine/Interpreter.h"
-#include "llvm/ExecutionEngine/JIT.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instructions.h"
@@ -243,13 +242,14 @@ int main() {
   LLVMContext Context;
 
   // Create some module to put our function into it.
-  Module *M = new Module("test", Context);
+  std::unique_ptr<Module> Owner = make_unique<Module>("test", Context);
+  Module *M = Owner.get();
 
   Function* add1F = createAdd1( M );
   Function* fibF = CreateFibFunction( M );
 
   // Now we create the JIT.
-  ExecutionEngine* EE = EngineBuilder(M).create();
+  ExecutionEngine* EE = EngineBuilder(std::move(Owner)).create();
 
   //~ std::cout << "We just constructed this LLVM module:\n\n" << *M;
   //~ std::cout << "\n\nRunning foo: " << std::flush;

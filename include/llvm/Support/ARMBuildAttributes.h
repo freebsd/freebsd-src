@@ -16,8 +16,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_ARM_BUILD_ATTRIBUTES_H
-#define LLVM_SUPPORT_ARM_BUILD_ATTRIBUTES_H
+#ifndef LLVM_SUPPORT_ARMBUILDATTRIBUTES_H
+#define LLVM_SUPPORT_ARMBUILDATTRIBUTES_H
 
 namespace llvm {
 class StringRef;
@@ -146,6 +146,12 @@ enum {
   AllowNeon2 = 2,     // SIMDv2 was permitted (Half-precision FP, MAC operations)
   AllowNeonARMv8 = 3, // ARM v8-A SIMD was permitted
 
+  // Tag_ABI_PCS_R9_use, (=14), uleb128
+  R9IsGPR = 0,        // R9 used as v6 (just another callee-saved register)
+  R9IsSB = 1,         // R9 used as a global static base rgister
+  R9IsTLSPointer = 2, // R9 used as a thread local storage pointer
+  R9Reserved = 3,     // R9 not used by code associated with attributed entity
+
   // Tag_ABI_PCS_RW_data, (=15), uleb128
   AddressRWPCRel = 1, // Address RW static data PC-relative
   AddressRWSBRel = 2, // Address RW static data SB-relative
@@ -165,6 +171,8 @@ enum {
   WCharWidth4Bytes = 4, // sizeof(wchar_t) == 4
 
   // Tag_ABI_FP_denormal, (=20), uleb128
+  PositiveZero = 0,
+  IEEEDenormals = 1,
   PreserveFPSign = 2, // sign when flushed-to-zero is preserved
 
   // Tag_ABI_FP_number_model, (=23), uleb128
@@ -192,6 +200,9 @@ enum {
   // Tag_FP_HP_extension, (=36), uleb128
   AllowHPFP = 1, // Allow use of Half Precision FP
 
+  // Tag_FP_16bit_format, (=38), uleb128
+  FP16FormatIEEE = 1,
+
   // Tag_MPextension_use, (=42), uleb128
   AllowMP = 1, // Allow use of MP extensions
 
@@ -214,4 +225,4 @@ enum {
 } // namespace ARMBuildAttrs
 } // namespace llvm
 
-#endif // LLVM_SUPPORT_ARM_BUILD_ATTRIBUTES_H
+#endif

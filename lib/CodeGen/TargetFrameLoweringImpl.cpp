@@ -14,8 +14,8 @@
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include <cstdlib>
 using namespace llvm;
 
@@ -26,7 +26,7 @@ TargetFrameLowering::~TargetFrameLowering() {
 /// the stack frame of the specified index. This is the default implementation
 /// which is overridden for some targets.
 int TargetFrameLowering::getFrameIndexOffset(const MachineFunction &MF,
-                                         int FI) const {
+                                             int FI) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
   return MFI->getObjectOffset(FI) + MFI->getStackSize() -
     getOffsetOfLocalArea() + MFI->getOffsetAdjustment();
@@ -34,7 +34,7 @@ int TargetFrameLowering::getFrameIndexOffset(const MachineFunction &MF,
 
 int TargetFrameLowering::getFrameIndexReference(const MachineFunction &MF,
                                              int FI, unsigned &FrameReg) const {
-  const TargetRegisterInfo *RI = MF.getTarget().getRegisterInfo();
+  const TargetRegisterInfo *RI = MF.getSubtarget().getRegisterInfo();
 
   // By default, assume all frame indices are referenced via whatever
   // getFrameRegister() says. The target can override this if it's doing

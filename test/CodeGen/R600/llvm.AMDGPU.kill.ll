@@ -1,8 +1,8 @@
-; RUN: llc -march=r600 -mcpu=verde -verify-machineinstrs < %s | FileCheck -check-prefix=SI %s
+; RUN: llc -march=amdgcn -mcpu=verde -verify-machineinstrs < %s | FileCheck -check-prefix=SI %s
 
-; SI-LABEL: @kill_gs_const
-; SI-NOT: V_CMPX_LE_F32
-; SI: S_MOV_B64 exec, 0
+; SI-LABEL: {{^}}kill_gs_const:
+; SI-NOT: v_cmpx_le_f32
+; SI: s_mov_b64 exec, 0
 
 define void @kill_gs_const() #0 {
 main_body:
@@ -19,4 +19,4 @@ declare void @llvm.AMDGPU.kill(float)
 
 attributes #0 = { "ShaderType"="2" }
 
-!0 = metadata !{metadata !"const", null, i32 1}
+!0 = !{!"const", null, i32 1}

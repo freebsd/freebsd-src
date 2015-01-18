@@ -3,12 +3,12 @@
 ; This test checks that the lds input queue will is empty at the end of
 ; the ALU clause.
 
-; CHECK-LABEL: @lds_input_queue
+; CHECK-LABEL: {{^}}lds_input_queue:
 ; CHECK: LDS_READ_RET * OQAP
 ; CHECK-NOT: ALU clause
 ; CHECK: MOV * T{{[0-9]\.[XYZW]}}, OQAP
 
-@local_mem = internal unnamed_addr addrspace(3) global [2 x i32] [i32 1, i32 2], align 4
+@local_mem = internal unnamed_addr addrspace(3) global [2 x i32] undef, align 4
 
 define void @lds_input_queue(i32 addrspace(1)* %out, i32 addrspace(1)* %in, i32 %index) {
 entry:
@@ -84,7 +84,7 @@ declare void @llvm.AMDGPU.barrier.local()
 ; analysis, we should be able to keep these instructions sparate before
 ; scheduling.
 ;
-; CHECK-LABEL: @local_global_alias
+; CHECK-LABEL: {{^}}local_global_alias:
 ; CHECK: LDS_READ_RET
 ; CHECK-NOT: ALU clause
 ; CHECK: MOV * T{{[0-9]\.[XYZW]}}, OQAP

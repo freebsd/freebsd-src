@@ -5,6 +5,7 @@
 
 define i32 @f1(i32 %x) nounwind {
 entry:
+; CHECK-LABEL: f1:
 ; CHECK: addiu $[[T0:[0-9]+]], $sp
 ; CHECK: #APP
 ; CHECK: sw $4, 0($[[T0]])
@@ -22,42 +23,26 @@ entry:
   ret i32 %0
 }
 
-; "D": Second word of double word. This works for any memory element
+; CHECK-LABEL: main:
+; "D": Second word of a double word. This works for any memory element
 ; double or single.
 ; CHECK: #APP
-; CHECK-NEXT: lw ${{[0-9]+}},4(${{[0-9]+}});
-; CHECK-NEXT: #NO_APP
+; CHECK: lw ${{[0-9]+}},4(${{[0-9]+}});
+; CHECK: #NO_APP
 
-; No "D": First word of double word. This works for any memory element 
+; No "D": First word of a double word. This works for any memory element
 ; double or single.
 ; CHECK: #APP
-; CHECK-NEXT: lw ${{[0-9]+}},0(${{[0-9]+}});
-; CHECK-NEXT: #NO_APP
-
-;int b[8] = {0,1,2,3,4,5,6,7};
-;int main()
-;{
-;  int i;
-; 
-;  // The first word. Notice, no 'D'
-;  { asm (
-;    "lw    %0,%1;\n"
-;    : "=r" (i) : "m" (*(b+4)));}
-; 
-;  // The second word
-;  { asm (
-;    "lw    %0,%D1;\n"
-;    : "=r" (i) "m" (*(b+4)));}
-;}
+; CHECK: lw ${{[0-9]+}},0(${{[0-9]+}});
+; CHECK: #NO_APP
 
 @b = common global [20 x i32] zeroinitializer, align 4
 
 define void @main() {
 entry:
+; Second word:
   tail call void asm sideeffect "    lw    $0,${1:D};", "r,*m,~{$11}"(i32 undef, i32* getelementptr inbounds ([20 x i32]* @b, i32 0, i32 3))
+; First word. Notice, no 'D':
   tail call void asm sideeffect "    lw    $0,${1};", "r,*m,~{$11}"(i32 undef, i32* getelementptr inbounds ([20 x i32]* @b, i32 0, i32 3))
   ret void
 }
-
-attributes #0 = { nounwind }
-

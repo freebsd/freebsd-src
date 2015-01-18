@@ -304,6 +304,38 @@ public:
   /// IEEE-754R 5.3.1: nextUp/nextDown.
   opStatus next(bool nextDown);
 
+  /// \brief Operator+ overload which provides the default
+  /// \c nmNearestTiesToEven rounding mode and *no* error checking.
+  APFloat operator+(const APFloat &RHS) const {
+    APFloat Result = *this;
+    Result.add(RHS, rmNearestTiesToEven);
+    return Result;
+  }
+
+  /// \brief Operator- overload which provides the default
+  /// \c nmNearestTiesToEven rounding mode and *no* error checking.
+  APFloat operator-(const APFloat &RHS) const {
+    APFloat Result = *this;
+    Result.subtract(RHS, rmNearestTiesToEven);
+    return Result;
+  }
+
+  /// \brief Operator* overload which provides the default
+  /// \c nmNearestTiesToEven rounding mode and *no* error checking.
+  APFloat operator*(const APFloat &RHS) const {
+    APFloat Result = *this;
+    Result.multiply(RHS, rmNearestTiesToEven);
+    return Result;
+  }
+
+  /// \brief Operator/ overload which provides the default
+  /// \c nmNearestTiesToEven rounding mode and *no* error checking.
+  APFloat operator/(const APFloat &RHS) const {
+    APFloat Result = *this;
+    Result.divide(RHS, rmNearestTiesToEven);
+    return Result;
+  }
+
   /// @}
 
   /// \name Sign operations.
@@ -312,6 +344,13 @@ public:
   void changeSign();
   void clearSign();
   void copySign(const APFloat &);
+
+  /// \brief A static helper to produce a copy of an APFloat value with its sign
+  /// copied from some other APFloat.
+  static APFloat copySign(APFloat Value, const APFloat &Sign) {
+    Value.copySign(Sign);
+    return std::move(Value);
+  }
 
   /// @}
 
@@ -452,6 +491,36 @@ public:
   /// return true.
   bool getExactInverse(APFloat *inv) const;
 
+  /// \brief Enumeration of \c ilogb error results.
+  enum IlogbErrorKinds {
+    IEK_Zero = INT_MIN+1,
+    IEK_NaN = INT_MIN,
+    IEK_Inf = INT_MAX
+  };
+
+  /// \brief Returns the exponent of the internal representation of the APFloat.
+  ///
+  /// Because the radix of APFloat is 2, this is equivalent to floor(log2(x)).
+  /// For special APFloat values, this returns special error codes:
+  ///
+  ///   NaN -> \c IEK_NaN
+  ///   0   -> \c IEK_Zero
+  ///   Inf -> \c IEK_Inf
+  ///
+  friend int ilogb(const APFloat &Arg) {
+    if (Arg.isNaN())
+      return IEK_NaN;
+    if (Arg.isZero())
+      return IEK_Zero;
+    if (Arg.isInfinity())
+      return IEK_Inf;
+
+    return Arg.exponent;
+  }
+
+  /// \brief Returns: X * 2^Exp for integral exponents.
+  friend APFloat scalbn(APFloat X, int Exp);
+
 private:
 
   /// \name Simple Queries
@@ -573,11 +642,41 @@ private:
   unsigned int sign : 1;
 };
 
-/// See friend declaration above.
+/// See friend declarations above.
 ///
-/// This additional declaration is required in order to compile LLVM with IBM
+/// These additional declarations are required in order to compile LLVM with IBM
 /// xlC compiler.
 hash_code hash_value(const APFloat &Arg);
+APFloat scalbn(APFloat X, int Exp);
+
+/// \brief Returns the absolute value of the argument.
+inline APFloat abs(APFloat X) {
+  X.clearSign();
+  return X;
+}
+
+/// Implements IEEE minNum semantics. Returns the smaller of the 2 arguments if
+/// both are not NaN. If either argument is a NaN, returns the other argument.
+LLVM_READONLY
+inline APFloat minnum(const APFloat &A, const APFloat &B) {
+  if (A.isNaN())
+    return B;
+  if (B.isNaN())
+    return A;
+  return (B.compare(A) == APFloat::cmpLessThan) ? B : A;
+}
+
+/// Implements IEEE maxNum semantics. Returns the larger of the 2 arguments if
+/// both are not NaN. If either argument is a NaN, returns the other argument.
+LLVM_READONLY
+inline APFloat maxnum(const APFloat &A, const APFloat &B) {
+  if (A.isNaN())
+    return B;
+  if (B.isNaN())
+    return A;
+  return (A.compare(B) == APFloat::cmpLessThan) ? B : A;
+}
+
 } // namespace llvm
 
 #endif // LLVM_ADT_APFLOAT_H

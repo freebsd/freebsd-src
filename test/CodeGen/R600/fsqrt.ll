@@ -1,7 +1,10 @@
-; RUN: llc < %s -march=r600 -mcpu=tahiti -verify-machineinstrs | FileCheck %s
+; RUN: llc -march=amdgcn -mcpu=tahiti -verify-machineinstrs < %s | FileCheck %s
+; RUN: llc -march=amdgcn -mcpu=tahiti -verify-machineinstrs -enable-unsafe-fp-math < %s | FileCheck %s
 
-; CHECK: @fsqrt_f32
-; CHECK: V_SQRT_F32_e32 {{v[0-9]+, v[0-9]+}}
+; Run with unsafe-fp-math to make sure nothing tries to turn this into 1 / rsqrt(x)
+
+; CHECK: {{^}}fsqrt_f32:
+; CHECK: v_sqrt_f32_e32 {{v[0-9]+, v[0-9]+}}
 
 define void @fsqrt_f32(float addrspace(1)* %out, float addrspace(1)* %in) {
    %r0 = load float addrspace(1)* %in
@@ -10,8 +13,8 @@ define void @fsqrt_f32(float addrspace(1)* %out, float addrspace(1)* %in) {
    ret void
 }
 
-; CHECK: @fsqrt_f64
-; CHECK: V_SQRT_F64_e32 {{v\[[0-9]+:[0-9]+\], v\[[0-9]+:[0-9]+\]}}
+; CHECK: {{^}}fsqrt_f64:
+; CHECK: v_sqrt_f64_e32 {{v\[[0-9]+:[0-9]+\], v\[[0-9]+:[0-9]+\]}}
 
 define void @fsqrt_f64(double addrspace(1)* %out, double addrspace(1)* %in) {
    %r0 = load double addrspace(1)* %in

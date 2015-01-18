@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SUPPORT_WINARMEH_H
-#define LLVM_SUPPORT_WINARMEH_H
+#ifndef LLVM_SUPPORT_ARMWINEH_H
+#define LLVM_SUPPORT_ARMWINEH_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/Endian.h"
@@ -350,16 +350,15 @@ struct ExceptionDataRecord {
   ArrayRef<support::ulittle32_t> EpilogueScopes() const {
     assert(E() == 0 && "epilogue scopes are only present when the E bit is 0");
     size_t Offset = HeaderWords(*this);
-    return ArrayRef<support::ulittle32_t>(&Data[Offset], EpilogueCount());
+    return makeArrayRef(&Data[Offset], EpilogueCount());
   }
 
-  ArrayRef<support::ulittle8_t> UnwindByteCode() const {
+  ArrayRef<uint8_t> UnwindByteCode() const {
     const size_t Offset = HeaderWords(*this)
                         + (E() ? 0 :  EpilogueCount());
-    const support::ulittle8_t *ByteCode =
-      reinterpret_cast<const support::ulittle8_t *>(&Data[Offset]);
-    return ArrayRef<support::ulittle8_t>(ByteCode,
-                                         CodeWords() * sizeof(uint32_t));
+    const uint8_t *ByteCode =
+      reinterpret_cast<const uint8_t *>(&Data[Offset]);
+    return makeArrayRef(ByteCode, CodeWords() * sizeof(uint32_t));
   }
 
   uint32_t ExceptionHandlerRVA() const {
@@ -381,4 +380,3 @@ inline size_t HeaderWords(const ExceptionDataRecord &XR) {
 }
 
 #endif
-

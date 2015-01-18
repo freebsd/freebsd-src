@@ -1,4 +1,5 @@
 ; RUN: llvm-as < %s | llvm-dis | FileCheck %s
+; RUN: verify-uselistorder < %s
 
 define i32 @foo(<2 x i64> %bar) nounwind {
 entry:

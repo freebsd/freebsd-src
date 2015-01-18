@@ -238,6 +238,9 @@ struct PromoteMem2Reg {
   /// An AliasSetTracker object to update.  If null, don't update it.
   AliasSetTracker *AST;
 
+  /// A cache of @llvm.assume intrinsics used by SimplifyInstruction.
+  AssumptionCache *AC;
+
   /// Reverse mapping of Allocas.
   DenseMap<AllocaInst *, unsigned> AllocaLookup;
 
@@ -279,9 +282,10 @@ struct PromoteMem2Reg {
 
 public:
   PromoteMem2Reg(ArrayRef<AllocaInst *> Allocas, DominatorTree &DT,
-                 AliasSetTracker *AST)
+                 AliasSetTracker *AST, AssumptionCache *AC)
       : Allocas(Allocas.begin(), Allocas.end()), DT(DT),
-        DIB(*DT.getRoot()->getParent()->getParent()), AST(AST) {}
+        DIB(*DT.getRoot()->getParent()->getParent(), /*AllowUnresolved*/ false),
+        AST(AST), AC(AC) {}
 
   void run();
 
@@ -302,8 +306,8 @@ private:
   void DetermineInsertionPoint(AllocaInst *AI, unsigned AllocaNum,
                                AllocaInfo &Info);
   void ComputeLiveInBlocks(AllocaInst *AI, AllocaInfo &Info,
-                           const SmallPtrSet<BasicBlock *, 32> &DefBlocks,
-                           SmallPtrSet<BasicBlock *, 32> &LiveInBlocks);
+                           const SmallPtrSetImpl<BasicBlock *> &DefBlocks,
+                           SmallPtrSetImpl<BasicBlock *> &LiveInBlocks);
   void RenamePass(BasicBlock *BB, BasicBlock *Pred,
                   RenamePassData::ValVector &IncVals,
                   std::vector<RenamePassData> &Worklist);
@@ -412,7 +416,8 @@ static bool rewriteSingleStoreAlloca(AllocaInst *AI, AllocaInfo &Info,
   // Record debuginfo for the store and remove the declaration's
   // debuginfo.
   if (DbgDeclareInst *DDI = Info.DbgDeclare) {
-    DIBuilder DIB(*AI->getParent()->getParent()->getParent());
+    DIBuilder DIB(*AI->getParent()->getParent()->getParent(),
+                  /*AllowUnresolved*/ false);
     ConvertDebugDeclareToDebugValue(DDI, Info.OnlyStore, DIB);
     DDI->eraseFromParent();
     LBI.deleteValue(DDI);
@@ -495,7 +500,8 @@ static void promoteSingleBlockAlloca(AllocaInst *AI, const AllocaInfo &Info,
     StoreInst *SI = cast<StoreInst>(AI->user_back());
     // Record debuginfo for the store before removing it.
     if (DbgDeclareInst *DDI = Info.DbgDeclare) {
-      DIBuilder DIB(*AI->getParent()->getParent()->getParent());
+      DIBuilder DIB(*AI->getParent()->getParent()->getParent(),
+                    /*AllowUnresolved*/ false);
       ConvertDebugDeclareToDebugValue(DDI, SI, DIB);
     }
     SI->eraseFromParent();
@@ -685,7 +691,7 @@ void PromoteMem2Reg::run() {
       PHINode *PN = I->second;
 
       // If this PHI node merges one value and/or undefs, get the value.
-      if (Value *V = SimplifyInstruction(PN, nullptr, nullptr, &DT)) {
+      if (Value *V = SimplifyInstruction(PN, nullptr, nullptr, &DT, AC)) {
         if (AST && PN->getType()->isPointerTy())
           AST->deleteValue(PN);
         PN->replaceAllUsesWith(V);
@@ -766,8 +772,8 @@ void PromoteMem2Reg::run() {
 /// inserted phi nodes would be dead).
 void PromoteMem2Reg::ComputeLiveInBlocks(
     AllocaInst *AI, AllocaInfo &Info,
-    const SmallPtrSet<BasicBlock *, 32> &DefBlocks,
-    SmallPtrSet<BasicBlock *, 32> &LiveInBlocks) {
+    const SmallPtrSetImpl<BasicBlock *> &DefBlocks,
+    SmallPtrSetImpl<BasicBlock *> &LiveInBlocks) {
 
   // To determine liveness, we must iterate through the predecessors of blocks
   // where the def is live.  Blocks are added to the worklist if we need to
@@ -816,7 +822,7 @@ void PromoteMem2Reg::ComputeLiveInBlocks(
 
     // The block really is live in here, insert it into the set.  If already in
     // the set, then it has already been processed.
-    if (!LiveInBlocks.insert(BB))
+    if (!LiveInBlocks.insert(BB).second)
       continue;
 
     // Since the value is live into BB, it is either defined in a predecessor or
@@ -857,10 +863,8 @@ void PromoteMem2Reg::DetermineInsertionPoint(AllocaInst *AI, unsigned AllocaNum,
                               less_second> IDFPriorityQueue;
   IDFPriorityQueue PQ;
 
-  for (SmallPtrSet<BasicBlock *, 32>::const_iterator I = DefBlocks.begin(),
-                                                     E = DefBlocks.end();
-       I != E; ++I) {
-    if (DomTreeNode *Node = DT.getNode(*I))
+  for (BasicBlock *BB : DefBlocks) {
+    if (DomTreeNode *Node = DT.getNode(BB))
       PQ.push(std::make_pair(Node, DomLevels[Node]));
   }
 
@@ -898,7 +902,7 @@ void PromoteMem2Reg::DetermineInsertionPoint(AllocaInst *AI, unsigned AllocaNum,
         if (SuccLevel > RootLevel)
           continue;
 
-        if (!Visited.insert(SuccNode))
+        if (!Visited.insert(SuccNode).second)
           continue;
 
         BasicBlock *SuccBB = SuccNode->getBlock();
@@ -1003,7 +1007,7 @@ NextIteration:
   }
 
   // Don't revisit blocks.
-  if (!Visited.insert(BB))
+  if (!Visited.insert(BB).second)
     return;
 
   for (BasicBlock::iterator II = BB->begin(); !isa<TerminatorInst>(II);) {
@@ -1060,17 +1064,17 @@ NextIteration:
   ++I;
 
   for (; I != E; ++I)
-    if (VisitedSuccs.insert(*I))
+    if (VisitedSuccs.insert(*I).second)
       Worklist.push_back(RenamePassData(*I, Pred, IncomingVals));
 
   goto NextIteration;
 }
 
 void llvm::PromoteMemToReg(ArrayRef<AllocaInst *> Allocas, DominatorTree &DT,
-                           AliasSetTracker *AST) {
+                           AliasSetTracker *AST, AssumptionCache *AC) {
   // If there is nothing to do, bail out...
   if (Allocas.empty())
     return;
 
-  PromoteMem2Reg(Allocas, DT, AST).run();
+  PromoteMem2Reg(Allocas, DT, AST, AC).run();
 }

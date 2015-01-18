@@ -13,6 +13,9 @@
 ; X86-NEXT: calll   ___asan_init_v3
 ; X86-NEXT: retl
 
+; Make sure we don't put any DWARF debug info for ASan-instrumented modules.
+; X86-NOT: DWARF
+
 ; ModuleID = 'asan.c'
 target datalayout = "e-m:w-p:32:32-i64:64-f80:32-n8:16:32-S32"
 target triple = "i686-pc-win32"
@@ -78,14 +81,14 @@ attributes #0 = { nounwind sanitize_address "less-precise-fpmad"="false" "no-fra
 !llvm.module.flags = !{!7, !8}
 !llvm.ident = !{!9}
 
-!0 = metadata !{i32 786449, metadata !1, i32 12, metadata !"clang version 3.5.0 ", i1 false, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !"", i32 2} ; [ DW_TAG_compile_unit ] [D:\/asan.c] [DW_LANG_C99]
-!1 = metadata !{metadata !"asan.c", metadata !"D:\5C"}
-!2 = metadata !{}
-!3 = metadata !{metadata !4}
-!4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"foo", metadata !"foo", metadata !"", i32 1, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, i32 ()* @foo, null, null, metadata !2, i32 1} ; [ DW_TAG_subprogram ] [line 1] [def] [foo]
-!5 = metadata !{i32 786473, metadata !1}          ; [ DW_TAG_file_type ] [D:\/asan.c]
-!6 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !2, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!7 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!8 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
-!9 = metadata !{metadata !"clang version 3.5.0 "}
-!10 = metadata !{i32 2, i32 0, metadata !4, null}
+!0 = !{!"0x11\0012\00clang version 3.5.0 \000\00\000\00\002", !1, !2, !2, !3, !2, !2} ; [ DW_TAG_compile_unit ] [D:\/asan.c] [DW_LANG_C99]
+!1 = !{!"asan.c", !"D:\5C"}
+!2 = !{}
+!3 = !{!4}
+!4 = !{!"0x2e\00foo\00foo\00\001\000\001\000\006\00256\000\001", !1, !5, !6, null, i32 ()* @foo, null, null, !2} ; [ DW_TAG_subprogram ] [line 1] [def] [foo]
+!5 = !{!"0x29", !1}          ; [ DW_TAG_file_type ] [D:\/asan.c]
+!6 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !2, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!7 = !{i32 2, !"Dwarf Version", i32 4}
+!8 = !{i32 1, !"Debug Info Version", i32 2}
+!9 = !{!"clang version 3.5.0 "}
+!10 = !MDLocation(line: 2, scope: !4)

@@ -48,7 +48,7 @@ endif
 
 OBJMODS := LLVMConfig.cmake LLVMConfigVersion.cmake LLVMExports.cmake
 
-$(PROJ_OBJ_DIR)/LLVMConfig.cmake: LLVMConfig.cmake.in $(LLVMBuildCMakeFrag)
+$(PROJ_OBJ_DIR)/LLVMConfig.cmake: LLVMConfig.cmake.in Makefile $(LLVMBuildCMakeFrag)
 	$(Echo) 'Generating LLVM CMake package config file'
 	$(Verb) ( \
 	 cat $< | sed \
@@ -73,6 +73,7 @@ $(PROJ_OBJ_DIR)/LLVMConfig.cmake: LLVMConfig.cmake.in $(LLVMBuildCMakeFrag)
 	  -e 's/@LLVM_ENABLE_PIC@/'"$(ENABLE_PIC)"'/' \
 	  -e 's/@LLVM_ON_UNIX@/'"$(LLVM_ON_UNIX)"'/' \
 	  -e 's/@LLVM_ON_WIN32@/'"$(LLVM_ON_WIN32)"'/' \
+	  -e 's/@LLVM_LIBDIR_SUFFIX@//' \
 	  -e 's/@LLVM_CONFIG_INCLUDE_DIRS@/'"$(subst /,\/,$(PROJ_includedir))"'/' \
 	  -e 's/@LLVM_CONFIG_LIBRARY_DIRS@/'"$(subst /,\/,$(PROJ_libdir))"'/' \
 	  -e 's/@LLVM_CONFIG_CMAKE_DIR@/'"$(subst /,\/,$(PROJ_cmake))"'/' \

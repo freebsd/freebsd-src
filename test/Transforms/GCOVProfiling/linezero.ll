@@ -1,7 +1,6 @@
-; RUN: sed -e 's|PATTERN|%T|g' < %s > %t1
+; RUN: sed -e 's|PATTERN|%/T|g' < %s > %t1
 ; RUN: opt -insert-gcov-profiling -disable-output < %t1
 ; RUN: rm %T/linezero.gcno %t1
-; REQUIRES: shell
 
 ; This is a crash test.
 
@@ -20,17 +19,17 @@ entry:
   %__begin = alloca i8*, align 8
   %__end = alloca i8*, align 8
   %spec = alloca i8, align 1
-  call void @llvm.dbg.declare(metadata !{%struct.vector** %__range}, metadata !27), !dbg !30
+  call void @llvm.dbg.declare(metadata %struct.vector** %__range, metadata !27, metadata !{}), !dbg !30
   br label %0
 
 ; <label>:0                                       ; preds = %entry
   call void @_Z13TagFieldSpecsv(), !dbg !31
   store %struct.vector* %ref.tmp, %struct.vector** %__range, align 8, !dbg !31
-  call void @llvm.dbg.declare(metadata !{i8** %__begin}, metadata !32), !dbg !30
+  call void @llvm.dbg.declare(metadata i8** %__begin, metadata !32, metadata !{}), !dbg !30
   %1 = load %struct.vector** %__range, align 8, !dbg !31
   %call = call i8* @_ZN6vector5beginEv(%struct.vector* %1), !dbg !31
   store i8* %call, i8** %__begin, align 8, !dbg !31
-  call void @llvm.dbg.declare(metadata !{i8** %__end}, metadata !33), !dbg !30
+  call void @llvm.dbg.declare(metadata i8** %__end, metadata !33, metadata !{}), !dbg !30
   %2 = load %struct.vector** %__range, align 8, !dbg !31
   %call1 = call i8* @_ZN6vector3endEv(%struct.vector* %2), !dbg !31
   store i8* %call1, i8** %__end, align 8, !dbg !31
@@ -43,7 +42,7 @@ for.cond:                                         ; preds = %for.inc, %0
   br i1 %cmp, label %for.body, label %for.end, !dbg !34
 
 for.body:                                         ; preds = %for.cond
-  call void @llvm.dbg.declare(metadata !{i8* %spec}, metadata !37), !dbg !31
+  call void @llvm.dbg.declare(metadata i8* %spec, metadata !37, metadata !{}), !dbg !31
   %5 = load i8** %__begin, align 8, !dbg !38
   %6 = load i8* %5, align 1, !dbg !38
   store i8 %6, i8* %spec, align 1, !dbg !38
@@ -65,7 +64,7 @@ return:                                           ; No predecessors!
 }
 
 ; Function Attrs: nounwind readnone
-declare void @llvm.dbg.declare(metadata, metadata) #1
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 declare void @_Z13TagFieldSpecsv() #2
 
@@ -95,49 +94,49 @@ attributes #3 = { noreturn nounwind }
 !llvm.gcov = !{!25}
 !llvm.ident = !{!26}
 
-!0 = metadata !{i32 786449, metadata !1, i32 4, metadata !"clang version 3.5.0 (trunk 209871)", i1 false, metadata !"", i32 0, metadata !2, metadata !3, metadata !14, metadata !2, metadata !2, metadata !"", i32 1} ; [ DW_TAG_compile_unit ] [<stdin>] [DW_LANG_C_plus_plus]
-!1 = metadata !{metadata !"<stdin>", metadata !"PATTERN"}
-!2 = metadata !{}
-!3 = metadata !{metadata !4}
-!4 = metadata !{i32 786451, metadata !5, null, metadata !"vector", i32 21, i64 8, i64 8, i32 0, i32 0, null, metadata !6, i32 0, null, null, metadata !"_ZTS6vector"} ; [ DW_TAG_structure_type ] [vector] [line 21, size 8, align 8, offset 0] [def] [from ]
-!5 = metadata !{metadata !"linezero.cc", metadata !"PATTERN"}
-!6 = metadata !{metadata !7, metadata !13}
-!7 = metadata !{i32 786478, metadata !5, metadata !"_ZTS6vector", metadata !"begin", metadata !"begin", metadata !"_ZN6vector5beginEv", i32 25, metadata !8, i1 false, i1 false, i32 0, i32 0, null, i32 256, i1 false, null, null, i32 0, null, i32 25} ; [ DW_TAG_subprogram ] [line 25] [begin]
-!8 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !9, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!9 = metadata !{metadata !10, metadata !12}
-!10 = metadata !{i32 786447, null, null, metadata !"", i32 0, i64 64, i64 64, i64 0, i32 0, metadata !11} ; [ DW_TAG_pointer_type ] [line 0, size 64, align 64, offset 0] [from char]
-!11 = metadata !{i32 786468, null, null, metadata !"char", i32 0, i64 8, i64 8, i64 0, i32 0, i32 6} ; [ DW_TAG_base_type ] [char] [line 0, size 8, align 8, offset 0, enc DW_ATE_signed_char]
-!12 = metadata !{i32 786447, null, null, metadata !"", i32 0, i64 64, i64 64, i64 0, i32 1088, metadata !"_ZTS6vector"} ; [ DW_TAG_pointer_type ] [line 0, size 64, align 64, offset 0] [artificial] [from _ZTS6vector]
-!13 = metadata !{i32 786478, metadata !5, metadata !"_ZTS6vector", metadata !"end", metadata !"end", metadata !"_ZN6vector3endEv", i32 26, metadata !8, i1 false, i1 false, i32 0, i32 0, null, i32 256, i1 false, null, null, i32 0, null, i32 26} ; [ DW_TAG_subprogram ] [line 26] [end]
-!14 = metadata !{metadata !15, metadata !20}
-!15 = metadata !{i32 786478, metadata !5, metadata !16, metadata !"test", metadata !"test", metadata !"_Z4testv", i32 50, metadata !17, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, i32 ()* @_Z4testv, null, null, metadata !2, i32 50} ; [ DW_TAG_subprogram ] [line 50] [def] [test]
-!16 = metadata !{i32 786473, metadata !5}         ; [ DW_TAG_file_type ] [./linezero.cc]
-!17 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !18, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!18 = metadata !{metadata !19}
-!19 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!20 = metadata !{i32 786478, metadata !5, metadata !16, metadata !"f1", metadata !"f1", metadata !"_Z2f1v", i32 54, metadata !21, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, void ()* @_Z2f1v, null, null, metadata !2, i32 54} ; [ DW_TAG_subprogram ] [line 54] [def] [f1]
-!21 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !22, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!22 = metadata !{null}
-!23 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!24 = metadata !{i32 2, metadata !"Debug Info Version", i32 1}
-!25 = metadata !{metadata !"PATTERN/linezero.o", metadata !0}
-!26 = metadata !{metadata !"clang version 3.5.0 (trunk 209871)"}
-!27 = metadata !{i32 786688, metadata !28, metadata !"__range", null, i32 0, metadata !29, i32 64, i32 0} ; [ DW_TAG_auto_variable ] [__range] [line 0]
-!28 = metadata !{i32 786443, metadata !5, metadata !15, i32 51, i32 0, i32 0, i32 0} ; [ DW_TAG_lexical_block ] [./linezero.cc]
-!29 = metadata !{i32 786498, null, null, null, i32 0, i64 0, i64 0, i64 0, i32 0, metadata !"_ZTS6vector"} ; [ DW_TAG_rvalue_reference_type ] [line 0, size 0, align 0, offset 0] [from _ZTS6vector]
-!30 = metadata !{i32 0, i32 0, metadata !28, null}
-!31 = metadata !{i32 51, i32 0, metadata !28, null}
-!32 = metadata !{i32 786688, metadata !28, metadata !"__begin", null, i32 0, metadata !10, i32 64, i32 0} ; [ DW_TAG_auto_variable ] [__begin] [line 0]
-!33 = metadata !{i32 786688, metadata !28, metadata !"__end", null, i32 0, metadata !10, i32 64, i32 0} ; [ DW_TAG_auto_variable ] [__end] [line 0]
-!34 = metadata !{i32 51, i32 0, metadata !35, null}
-!35 = metadata !{i32 786443, metadata !5, metadata !36, i32 51, i32 0, i32 5, i32 5} ; [ DW_TAG_lexical_block ] [./linezero.cc]
-!36 = metadata !{i32 786443, metadata !5, metadata !28, i32 51, i32 0, i32 1, i32 1} ; [ DW_TAG_lexical_block ] [./linezero.cc]
-!37 = metadata !{i32 786688, metadata !28, metadata !"spec", metadata !16, i32 51, metadata !11, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [spec] [line 51]
-!38 = metadata !{i32 51, i32 0, metadata !39, null}
-!39 = metadata !{i32 786443, metadata !5, metadata !28, i32 51, i32 0, i32 2, i32 2} ; [ DW_TAG_lexical_block ] [./linezero.cc]
-!40 = metadata !{i32 51, i32 0, metadata !41, null}
-!41 = metadata !{i32 786443, metadata !5, metadata !28, i32 51, i32 0, i32 4, i32 4} ; [ DW_TAG_lexical_block ] [./linezero.cc]
-!42 = metadata !{i32 51, i32 0, metadata !43, null}
-!43 = metadata !{i32 786443, metadata !5, metadata !28, i32 51, i32 0, i32 3, i32 3} ; [ DW_TAG_lexical_block ] [./linezero.cc]
-!44 = metadata !{i32 52, i32 0, metadata !15, null}
-!45 = metadata !{i32 54, i32 0, metadata !20, null}
+!0 = !{!"0x11\004\00clang version 3.5.0 (trunk 209871)\000\00\000\00\001", !1, !2, !3, !14, !2, !2} ; [ DW_TAG_compile_unit ] [<stdin>] [DW_LANG_C_plus_plus]
+!1 = !{!"<stdin>", !"PATTERN"}
+!2 = !{}
+!3 = !{!4}
+!4 = !{!"0x13\00vector\0021\008\008\000\000\000", !5, null, null, !6, null, null, !"_ZTS6vector"} ; [ DW_TAG_structure_type ] [vector] [line 21, size 8, align 8, offset 0] [def] [from ]
+!5 = !{!"linezero.cc", !"PATTERN"}
+!6 = !{!7, !13}
+!7 = !{!"0x2e\00begin\00begin\00_ZN6vector5beginEv\0025\000\000\000\006\00256\000\0025", !5, !"_ZTS6vector", !8, null, null, null, i32 0, null} ; [ DW_TAG_subprogram ] [line 25] [begin]
+!8 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !9, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!9 = !{!10, !12}
+!10 = !{!"0xf\00\000\0064\0064\000\000", null, null, !11} ; [ DW_TAG_pointer_type ] [line 0, size 64, align 64, offset 0] [from char]
+!11 = !{!"0x24\00char\000\008\008\000\000\006", null, null} ; [ DW_TAG_base_type ] [char] [line 0, size 8, align 8, offset 0, enc DW_ATE_signed_char]
+!12 = !{!"0xf\00\000\0064\0064\000\001088", null, null, !"_ZTS6vector"} ; [ DW_TAG_pointer_type ] [line 0, size 64, align 64, offset 0] [artificial] [from _ZTS6vector]
+!13 = !{!"0x2e\00end\00end\00_ZN6vector3endEv\0026\000\000\000\006\00256\000\0026", !5, !"_ZTS6vector", !8, null, null, null, i32 0, null} ; [ DW_TAG_subprogram ] [line 26] [end]
+!14 = !{!15, !20}
+!15 = !{!"0x2e\00test\00test\00_Z4testv\0050\000\001\000\006\00256\000\0050", !5, !16, !17, null, i32 ()* @_Z4testv, null, null, !2} ; [ DW_TAG_subprogram ] [line 50] [def] [test]
+!16 = !{!"0x29", !5}         ; [ DW_TAG_file_type ] [./linezero.cc]
+!17 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !18, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!18 = !{!19}
+!19 = !{!"0x24\00int\000\0032\0032\000\000\005", null, null} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
+!20 = !{!"0x2e\00f1\00f1\00_Z2f1v\0054\000\001\000\006\00256\000\0054", !5, !16, !21, null, void ()* @_Z2f1v, null, null, !2} ; [ DW_TAG_subprogram ] [line 54] [def] [f1]
+!21 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !22, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!22 = !{null}
+!23 = !{i32 2, !"Dwarf Version", i32 4}
+!24 = !{i32 2, !"Debug Info Version", i32 2}
+!25 = !{!"PATTERN/linezero.o", !0}
+!26 = !{!"clang version 3.5.0 (trunk 209871)"}
+!27 = !{!"0x100\00__range\000\0064", !28, null, !29} ; [ DW_TAG_auto_variable ] [__range] [line 0]
+!28 = !{!"0xb\0051\000\000", !5, !15} ; [ DW_TAG_lexical_block ] [./linezero.cc]
+!29 = !{!"0x42\00\000\000\000\000\000", null, null, !"_ZTS6vector"} ; [ DW_TAG_rvalue_reference_type ] [line 0, size 0, align 0, offset 0] [from _ZTS6vector]
+!30 = !MDLocation(line: 0, scope: !28)
+!31 = !MDLocation(line: 51, scope: !28)
+!32 = !{!"0x100\00__begin\000\0064", !28, null, !10} ; [ DW_TAG_auto_variable ] [__begin] [line 0]
+!33 = !{!"0x100\00__end\000\0064", !28, null, !10} ; [ DW_TAG_auto_variable ] [__end] [line 0]
+!34 = !MDLocation(line: 51, scope: !35)
+!35 = !{!"0xb\0051\000\005", !5, !36} ; [ DW_TAG_lexical_block ] [./linezero.cc]
+!36 = !{!"0xb\0051\000\001", !5, !28} ; [ DW_TAG_lexical_block ] [./linezero.cc]
+!37 = !{!"0x100\00spec\0051\000", !28, !16, !11} ; [ DW_TAG_auto_variable ] [spec] [line 51]
+!38 = !MDLocation(line: 51, scope: !39)
+!39 = !{!"0xb\0051\000\002", !5, !28} ; [ DW_TAG_lexical_block ] [./linezero.cc]
+!40 = !MDLocation(line: 51, scope: !41)
+!41 = !{!"0xb\0051\000\004", !5, !28} ; [ DW_TAG_lexical_block ] [./linezero.cc]
+!42 = !MDLocation(line: 51, scope: !43)
+!43 = !{!"0xb\0051\000\003", !5, !28} ; [ DW_TAG_lexical_block ] [./linezero.cc]
+!44 = !MDLocation(line: 52, scope: !15)
+!45 = !MDLocation(line: 54, scope: !20)

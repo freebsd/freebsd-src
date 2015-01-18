@@ -603,7 +603,62 @@ mov rcx, qword ptr [_g0 + 8]
 "?half@?0??bar@@YAXXZ@4NA":
 	.quad   4602678819172646912
 
-fadd   "?half@?0??bar@@YAXXZ@4NA"
-fadd   "?half@?0??bar@@YAXXZ@4NA"@IMGREL
+fadd   dword ptr "?half@?0??bar@@YAXXZ@4NA"
+fadd   dword ptr "?half@?0??bar@@YAXXZ@4NA"@IMGREL
 // CHECK: fadds   "?half@?0??bar@@YAXXZ@4NA"
-// CHECK: fadds   "?half@?0??bar@@YAXXZ@4NA"@IMGREL32
+// CHECK: fadds   "?half@?0??bar@@YAXXZ@4NA"@IMGREL
+
+inc qword ptr [rax]
+inc dword ptr [rax]
+inc word ptr [rax]
+inc byte ptr [rax]
+// CHECK: incq (%rax)
+// CHECK: incl (%rax)
+// CHECK: incw (%rax)
+// CHECK: incb (%rax)
+
+dec qword ptr [rax]
+dec dword ptr [rax]
+dec word ptr [rax]
+dec byte ptr [rax]
+// CHECK: decq (%rax)
+// CHECK: decl (%rax)
+// CHECK: decw (%rax)
+// CHECK: decb (%rax)
+
+add qword ptr [rax], 1
+add dword ptr [rax], 1
+add word ptr [rax], 1
+add byte ptr [rax], 1
+// CHECK: addq $1, (%rax)
+// CHECK: addl $1, (%rax)
+// CHECK: addw $1, (%rax)
+// CHECK: addb $1, (%rax)
+
+fstp xword ptr [rax]
+fstp qword ptr [rax]
+fstp dword ptr [rax]
+// CHECK: fstpt (%rax)
+// CHECK: fstpl (%rax)
+// CHECK: fstps (%rax)
+
+fxsave [eax]
+fsave [eax]
+fxrstor [eax]
+frstor [eax]
+// CHECK: fxsave (%eax)
+// CHECK: wait
+// CHECK: fnsave (%eax)
+// CHECK: fxrstor (%eax)
+// CHECK: frstor (%eax)
+
+// FIXME: Should we accept this?  Masm accepts it, but gas does not.
+fxsave dword ptr [eax]
+fsave dword ptr [eax]
+fxrstor dword ptr [eax]
+frstor dword ptr [eax]
+// CHECK: fxsave (%eax)
+// CHECK: wait
+// CHECK: fnsave (%eax)
+// CHECK: fxrstor (%eax)
+// CHECK: frstor (%eax)

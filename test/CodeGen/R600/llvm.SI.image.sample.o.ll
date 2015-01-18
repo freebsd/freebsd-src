@@ -1,7 +1,7 @@
-;RUN: llc < %s -march=r600 -mcpu=verde -verify-machineinstrs | FileCheck %s
+;RUN: llc < %s -march=amdgcn -mcpu=verde -verify-machineinstrs | FileCheck %s
 
-;CHECK-LABEL: @sample
-;CHECK: IMAGE_SAMPLE_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample:
+;CHECK: image_sample_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -13,8 +13,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_cl
-;CHECK: IMAGE_SAMPLE_CL_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_cl:
+;CHECK: image_sample_cl_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_cl() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.cl.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -26,8 +26,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_d
-;CHECK: IMAGE_SAMPLE_D_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_d:
+;CHECK: image_sample_d_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_d() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.d.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -39,8 +39,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_d_cl
-;CHECK: IMAGE_SAMPLE_D_CL_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_d_cl:
+;CHECK: image_sample_d_cl_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_d_cl() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.d.cl.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -52,8 +52,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_l
-;CHECK: IMAGE_SAMPLE_L_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_l:
+;CHECK: image_sample_l_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_l() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.l.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -65,8 +65,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_b
-;CHECK: IMAGE_SAMPLE_B_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_b:
+;CHECK: image_sample_b_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_b() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.b.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -78,8 +78,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_b_cl
-;CHECK: IMAGE_SAMPLE_B_CL_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_b_cl:
+;CHECK: image_sample_b_cl_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_b_cl() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.b.cl.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -91,8 +91,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_lz
-;CHECK: IMAGE_SAMPLE_LZ_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_lz:
+;CHECK: image_sample_lz_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_lz() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.lz.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -104,8 +104,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_cd
-;CHECK: IMAGE_SAMPLE_CD_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_cd:
+;CHECK: image_sample_cd_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_cd() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.cd.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -117,8 +117,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_cd_cl
-;CHECK: IMAGE_SAMPLE_CD_CL_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_cd_cl:
+;CHECK: image_sample_cd_cl_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_cd_cl() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.cd.cl.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -130,8 +130,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_c
-;CHECK: IMAGE_SAMPLE_C_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_c:
+;CHECK: image_sample_c_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_c() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.c.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -143,8 +143,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_c_cl
-;CHECK: IMAGE_SAMPLE_C_CL_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_c_cl:
+;CHECK: image_sample_c_cl_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_c_cl() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.c.cl.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -156,8 +156,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_c_d
-;CHECK: IMAGE_SAMPLE_C_D_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_c_d:
+;CHECK: image_sample_c_d_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_c_d() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.c.d.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -169,8 +169,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_c_d_cl
-;CHECK: IMAGE_SAMPLE_C_D_CL_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_c_d_cl:
+;CHECK: image_sample_c_d_cl_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_c_d_cl() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.c.d.cl.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -182,8 +182,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_c_l
-;CHECK: IMAGE_SAMPLE_C_L_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_c_l:
+;CHECK: image_sample_c_l_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_c_l() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.c.l.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -195,8 +195,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_c_b
-;CHECK: IMAGE_SAMPLE_C_B_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_c_b:
+;CHECK: image_sample_c_b_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_c_b() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.c.b.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -208,8 +208,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_c_b_cl
-;CHECK: IMAGE_SAMPLE_C_B_CL_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_c_b_cl:
+;CHECK: image_sample_c_b_cl_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_c_b_cl() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.c.b.cl.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -221,8 +221,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_c_lz
-;CHECK: IMAGE_SAMPLE_C_LZ_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_c_lz:
+;CHECK: image_sample_c_lz_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_c_lz() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.c.lz.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -234,8 +234,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_c_cd
-;CHECK: IMAGE_SAMPLE_C_CD_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_c_cd:
+;CHECK: image_sample_c_cd_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_c_cd() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.c.cd.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)
@@ -247,8 +247,8 @@ main_body:
   ret void
 }
 
-;CHECK-LABEL: @sample_c_cd_cl
-;CHECK: IMAGE_SAMPLE_C_CD_CL_O {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
+;CHECK-LABEL: {{^}}sample_c_cd_cl:
+;CHECK: image_sample_c_cd_cl_o {{v\[[0-9]+:[0-9]+\]}}, 15, 0, 0, 0, 0, 0, 0, 0, {{v\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}, {{s\[[0-9]+:[0-9]+\]}}
 define void @sample_c_cd_cl() #0 {
 main_body:
   %r = call <4 x float> @llvm.SI.image.sample.c.cd.cl.o.v4i32(<4 x i32> undef, <8 x i32> undef, <4 x i32> undef, i32 15, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0, i32 0)

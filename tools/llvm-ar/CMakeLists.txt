@@ -9,9 +9,6 @@ add_llvm_tool(llvm-ar
   llvm-ar.cpp
   )
 
-# FIXME: this is duplicated from the clang CMakeLists.txt
-# FIXME: bin/llvm-ranlib is not a valid build target with this setup (pr17024)
-
 if(UNIX)
   set(LLVM_LINK_OR_COPY create_symlink)
   set(llvm_ar_binary "llvm-ar${CMAKE_EXECUTABLE_SUFFIX}")
@@ -21,10 +18,12 @@ else()
 endif()
 
 set(llvm_ranlib "${LLVM_RUNTIME_OUTPUT_INTDIR}/llvm-ranlib${CMAKE_EXECUTABLE_SUFFIX}")
-add_custom_command(TARGET llvm-ar POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E ${LLVM_LINK_OR_COPY} "${llvm_ar_binary}" "${llvm_ranlib}")
 
-set_property(DIRECTORY APPEND
-  PROPERTY ADDITIONAL_MAKE_CLEAN_FILES ${llvm_ranlib})
+add_custom_command(OUTPUT ${llvm_ranlib}
+                   COMMAND ${CMAKE_COMMAND} -E ${LLVM_LINK_OR_COPY} "${llvm_ar_binary}" "${llvm_ranlib}"
+                   DEPENDS llvm-ar)
 
-# TODO: Support check-local.
+add_custom_target(llvm-ranlib ALL DEPENDS ${llvm_ranlib})
+set_target_properties(llvm-ranlib PROPERTIES FOLDER Tools)
+
+install(SCRIPT install_symlink.cmake -DCMAKE_INSTALL_PREFIX=\"${CMAKE_INSTALL_PREFIX}\")

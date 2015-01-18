@@ -49,7 +49,7 @@ public:
 
   ARMTTI(const ARMBaseTargetMachine *TM)
       : ImmutablePass(ID), TM(TM), ST(TM->getSubtargetImpl()),
-        TLI(TM->getTargetLowering()) {
+        TLI(TM->getSubtargetImpl()->getTargetLowering()) {
     initializeARMTTIPass(*PassRegistry::getPassRegistry());
   }
 
@@ -104,7 +104,7 @@ public:
     return 32;
   }
 
-  unsigned getMaximumUnrollFactor() const override {
+  unsigned getMaxInterleaveFactor() const override {
     // These are out of order CPUs:
     if (ST->isCortexA15() || ST->isSwift())
       return 2;
@@ -126,10 +126,11 @@ public:
   unsigned getAddressComputationCost(Type *Val,
                                      bool IsComplex) const override;
 
-  unsigned
-  getArithmeticInstrCost(unsigned Opcode, Type *Ty,
-                         OperandValueKind Op1Info = OK_AnyValue,
-                         OperandValueKind Op2Info = OK_AnyValue) const override;
+  unsigned getArithmeticInstrCost(
+      unsigned Opcode, Type *Ty, OperandValueKind Op1Info = OK_AnyValue,
+      OperandValueKind Op2Info = OK_AnyValue,
+      OperandValueProperties Opd1PropInfo = OP_None,
+      OperandValueProperties Opd2PropInfo = OP_None) const override;
 
   unsigned getMemoryOpCost(unsigned Opcode, Type *Src, unsigned Alignment,
                            unsigned AddressSpace) const override;
@@ -389,6 +390,13 @@ unsigned ARMTTI::getVectorInstrCost(unsigned Opcode, Type *ValTy,
       ValTy->getScalarSizeInBits() <= 32)
     return 3;
 
+  // Cross-class copies are expensive on many microarchitectures,
+  // so assume they are expensive by default.
+  if ((Opcode == Instruction::InsertElement ||
+       Opcode == Instruction::ExtractElement) &&
+      ValTy->getVectorElementType()->isIntegerTy())
+    return 3;
+
   return TargetTransformInfo::getVectorInstrCost(Opcode, ValTy, Index);
 }
 
@@ -497,9 +505,10 @@ unsigned ARMTTI::getShuffleCost(ShuffleKind Kind, Type *Tp, int Index,
   return TargetTransformInfo::getShuffleCost(Kind, Tp, Index, SubTp);
 }
 
-unsigned ARMTTI::getArithmeticInstrCost(unsigned Opcode, Type *Ty,
-                                        OperandValueKind Op1Info,
-                                        OperandValueKind Op2Info) const {
+unsigned ARMTTI::getArithmeticInstrCost(
+    unsigned Opcode, Type *Ty, OperandValueKind Op1Info,
+    OperandValueKind Op2Info, OperandValueProperties Opd1PropInfo,
+    OperandValueProperties Opd2PropInfo) const {
 
   int ISDOpcode = TLI->InstructionOpcodeToISD(Opcode);
   std::pair<unsigned, MVT> LT = TLI->getTypeLegalizationCost(Ty);
@@ -555,8 +564,8 @@ unsigned ARMTTI::getArithmeticInstrCost(unsigned Opcode, Type *Ty,
   if (Idx != -1)
     return LT.first * CostTbl[Idx].Cost;
 
-  unsigned Cost =
-      TargetTransformInfo::getArithmeticInstrCost(Opcode, Ty, Op1Info, Op2Info);
+  unsigned Cost = TargetTransformInfo::getArithmeticInstrCost(
+      Opcode, Ty, Op1Info, Op2Info, Opd1PropInfo, Opd2PropInfo);
 
   // This is somewhat of a hack. The problem that we are facing is that SROA
   // creates a sequence of shift, and, or instructions to construct values.

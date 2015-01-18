@@ -1,4 +1,4 @@
-; RUN: llc < %s -O0 -fast-isel-abort -mtriple=arm64-apple-darwin | FileCheck %s
+; RUN: llc -O0 -fast-isel-abort -verify-machineinstrs -mtriple=arm64-apple-darwin < %s | FileCheck %s
 
 define void @t0(i32 %a) nounwind {
 entry:
@@ -66,8 +66,7 @@ entry:
 define void @t4(i32 *%ptr) nounwind {
 entry:
 ; CHECK-LABEL: t4:
-; CHECK: movz w8, #0
-; CHECK: stur w8, [x0, #-4]
+; CHECK: stur wzr, [x0, #-4]
 ; CHECK: ret
   %0 = getelementptr i32 *%ptr, i32 -1
   store i32 0, i32* %0, align 4
@@ -77,8 +76,7 @@ entry:
 define void @t5(i32 *%ptr) nounwind {
 entry:
 ; CHECK-LABEL: t5:
-; CHECK: movz w8, #0
-; CHECK: stur w8, [x0, #-256]
+; CHECK: stur wzr, [x0, #-256]
 ; CHECK: ret
   %0 = getelementptr i32 *%ptr, i32 -64
   store i32 0, i32* %0, align 4

@@ -21,7 +21,6 @@
 #include "llvm/Object/RelocVisitor.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/DataTypes.h"
-
 #include <string>
 
 namespace llvm {
@@ -66,11 +65,15 @@ class DIInliningInfo {
   }
 };
 
+/// A DINameKind is passed to name search methods to specify a
+/// preference regarding the type of name resolution the caller wants.
+enum class DINameKind { None, ShortName, LinkageName };
+
 /// DILineInfoSpecifier - controls which fields of DILineInfo container
 /// should be filled with data.
 struct DILineInfoSpecifier {
   enum class FileLineInfoKind { None, Default, AbsoluteFilePath };
-  enum class FunctionNameKind { None, ShortName, LinkageName };
+  typedef DINameKind FunctionNameKind;
 
   FileLineInfoKind FLIKind;
   FunctionNameKind FNKind;
@@ -103,7 +106,11 @@ enum DIDumpType {
   DIDT_GnuPubtypes,
   DIDT_Str,
   DIDT_StrDwo,
-  DIDT_StrOffsetsDwo
+  DIDT_StrOffsetsDwo,
+  DIDT_AppleNames,
+  DIDT_AppleTypes,
+  DIDT_AppleNamespaces,
+  DIDT_AppleObjC
 };
 
 // In place of applying the relocations to the data we've read from disk we use
@@ -124,7 +131,7 @@ public:
   virtual ~DIContext();
 
   /// getDWARFContext - get a context for binary DWARF data.
-  static DIContext *getDWARFContext(object::ObjectFile *);
+  static DIContext *getDWARFContext(const object::ObjectFile &Obj);
 
   virtual void dump(raw_ostream &OS, DIDumpType DumpType = DIDT_All) = 0;
 

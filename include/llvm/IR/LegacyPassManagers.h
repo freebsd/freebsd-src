@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_PASSMANAGERS_H
-#define LLVM_PASSMANAGERS_H
+#ifndef LLVM_IR_LEGACYPASSMANAGERS_H
+#define LLVM_IR_LEGACYPASSMANAGERS_H
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
@@ -61,7 +61,7 @@
 //
 // [o] class FunctionPassManager;
 //
-// This is a external interface used by JIT to manage FunctionPasses. This
+// This is a external interface used to manage FunctionPasses. This
 // interface relies on FunctionPassManagerImpl to do all the tasks.
 //
 // [o] class FunctionPassManagerImpl : public ModulePass, PMDataManager,
@@ -248,7 +248,7 @@ private:
   DenseMap<Pass *, SmallPtrSet<Pass *, 8> > InversedLastUser;
 
   /// Immutable passes are managed by top level manager.
-  SmallVector<ImmutablePass *, 8> ImmutablePasses;
+  SmallVector<ImmutablePass *, 16> ImmutablePasses;
 
   DenseMap<Pass *, AnalysisUsage *> AnUsageMap;
 };
@@ -393,7 +393,7 @@ private:
 
   // Collection of higher level analysis used by the pass managed by
   // this manager.
-  SmallVector<Pass *, 8> HigherLevelAnalysis;
+  SmallVector<Pass *, 16> HigherLevelAnalysis;
 
   unsigned Depth;
 };

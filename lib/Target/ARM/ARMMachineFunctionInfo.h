@@ -11,15 +11,15 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ARMMACHINEFUNCTIONINFO_H
-#define ARMMACHINEFUNCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_ARM_ARMMACHINEFUNCTIONINFO_H
+#define LLVM_LIB_TARGET_ARM_ARMMACHINEFUNCTIONINFO_H
 
 #include "ARMSubtarget.h"
 #include "llvm/ADT/BitVector.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/ADT/DenseMap.h"
 
 namespace llvm {
 
@@ -47,6 +47,9 @@ class ARMFunctionInfo : public MachineFunctionInfo {
   /// VarArgsRegSaveSize - Size of the register save area for vararg functions.
   ///
   unsigned ArgRegsSaveSize;
+
+  /// ReturnRegsCount - Number of registers used up in the return.
+  unsigned ReturnRegsCount;
 
   /// HasStackFrame - True if this function has a stack frame. Set by
   /// processFunctionBeforeCalleeSavedScan().
@@ -83,6 +86,7 @@ class ARMFunctionInfo : public MachineFunctionInfo {
   /// areas.
   unsigned GPRCS1Size;
   unsigned GPRCS2Size;
+  unsigned DPRCSAlignGapSize;
   unsigned DPRCSSize;
 
   /// NumAlignedDPRCS2Regs - The number of callee-saved DPRs that are saved in
@@ -127,10 +131,11 @@ public:
   ARMFunctionInfo() :
     isThumb(false),
     hasThumb2(false),
-    ArgRegsSaveSize(0), HasStackFrame(false), RestoreSPFromFP(false),
+    ArgRegsSaveSize(0), ReturnRegsCount(0), HasStackFrame(false),
+    RestoreSPFromFP(false),
     LRSpilledForFarJump(false),
     FramePtrSpillOffset(0), GPRCS1Offset(0), GPRCS2Offset(0), DPRCSOffset(0),
-    GPRCS1Size(0), GPRCS2Size(0), DPRCSSize(0),
+    GPRCS1Size(0), GPRCS2Size(0), DPRCSAlignGapSize(0), DPRCSSize(0),
     NumAlignedDPRCS2Regs(0),
     JumpTableUId(0), PICLabelUId(0),
     VarArgsFrameIndex(0), HasITBlocks(false), GlobalBaseReg(0) {}
@@ -150,6 +155,9 @@ public:
     return (ArgRegsSaveSize + Align - 1) & ~(Align - 1);
   }
   void setArgRegsSaveSize(unsigned s) { ArgRegsSaveSize = s; }
+
+  unsigned getReturnRegsCount() const { return ReturnRegsCount; }
+  void setReturnRegsCount(unsigned s) { ReturnRegsCount = s; }
 
   bool hasStackFrame() const { return HasStackFrame; }
   void setHasStackFrame(bool s) { HasStackFrame = s; }
@@ -176,10 +184,12 @@ public:
 
   unsigned getGPRCalleeSavedArea1Size() const { return GPRCS1Size; }
   unsigned getGPRCalleeSavedArea2Size() const { return GPRCS2Size; }
+  unsigned getDPRCalleeSavedGapSize() const   { return DPRCSAlignGapSize; }
   unsigned getDPRCalleeSavedAreaSize()  const { return DPRCSSize; }
 
   void setGPRCalleeSavedArea1Size(unsigned s) { GPRCS1Size = s; }
   void setGPRCalleeSavedArea2Size(unsigned s) { GPRCS2Size = s; }
+  void setDPRCalleeSavedGapSize(unsigned s)   { DPRCSAlignGapSize = s; }
   void setDPRCalleeSavedAreaSize(unsigned s)  { DPRCSSize = s; }
 
   unsigned getArgumentStackSize() const { return ArgumentStackSize; }
@@ -238,4 +248,4 @@ public:
 };
 } // End llvm namespace
 
-#endif // ARMMACHINEFUNCTIONINFO_H
+#endif

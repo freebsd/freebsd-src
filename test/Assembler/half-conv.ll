@@ -1,4 +1,5 @@
 ; RUN: opt < %s -O3 -S | FileCheck %s
+; RUN: verify-uselistorder %s
 ; Testing half to float conversion.
 
 define float @abc() nounwind {

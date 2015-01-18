@@ -2,6 +2,10 @@
 ; RUN: llc < %s -march=x86    -fast-isel -fast-isel-abort | FileCheck %s --check-prefix=CHECK-32
 ; RUN: llc < %s -march=x86-64                             | FileCheck %s --check-prefix=CHECK-64
 ; RUN: llc < %s -march=x86-64 -fast-isel -fast-isel-abort | FileCheck %s --check-prefix=CHECK-64
+; RUN: llc < %s -mtriple=x86_64-gnux32                    | FileCheck %s --check-prefix=CHECK-X32ABI
+; RUN: llc < %s -mtriple=x86_64-gnux32 -fast-isel -fast-isel-abort | FileCheck %s --check-prefix=CHECK-X32ABI
+; RUN: llc < %s -mtriple=x86_64-nacl                    | FileCheck %s --check-prefix=CHECK-NACL64
+; RUN: llc < %s -mtriple=x86_64-nacl -fast-isel -fast-isel-abort | FileCheck %s --check-prefix=CHECK-NACL64
 
 define i8* @test1() nounwind {
 entry:
@@ -17,6 +21,16 @@ entry:
 ; CHECK-64-NEXT:  movq %rbp, %rax
 ; CHECK-64-NEXT:  pop
 ; CHECK-64-NEXT:  ret
+; CHECK-X32ABI-LABEL: test1
+; CHECK-X32ABI:       pushq %rbp
+; CHECK-X32ABI-NEXT:  movl %esp, %ebp
+; CHECK-X32ABI-NEXT:  movl %ebp, %eax
+; CHECK-X32ABI-NEXT:  popq %rbp
+; CHECK-X32ABI-NEXT:  ret
+; CHECK-NACL64-LABEL: test1
+; CHECK-NACL64:       pushq %rbp
+; CHECK-NACL64-NEXT:  movq %rsp, %rbp
+; CHECK-NACL64-NEXT:  movl %ebp, %eax
   %0 = tail call i8* @llvm.frameaddress(i32 0)
   ret i8* %0
 }
@@ -37,6 +51,18 @@ entry:
 ; CHECK-64-NEXT:  movq (%rax), %rax
 ; CHECK-64-NEXT:  pop
 ; CHECK-64-NEXT:  ret
+; CHECK-X32ABI-LABEL: test2
+; CHECK-X32ABI:       pushq %rbp
+; CHECK-X32ABI-NEXT:  movl %esp, %ebp
+; CHECK-X32ABI-NEXT:  movl (%ebp), %eax
+; CHECK-X32ABI-NEXT:  movl (%eax), %eax
+; CHECK-X32ABI-NEXT:  popq %rbp
+; CHECK-X32ABI-NEXT:  ret
+; CHECK-NACL64-LABEL: test2
+; CHECK-NACL64:       pushq %rbp
+; CHECK-NACL64-NEXT:  movq %rsp, %rbp
+; CHECK-NACL64-NEXT:  movl (%ebp), %eax
+; CHECK-NACL64-NEXT:  movl (%eax), %eax
   %0 = tail call i8* @llvm.frameaddress(i32 2)
   ret i8* %0
 }

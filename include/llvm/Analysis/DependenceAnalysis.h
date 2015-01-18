@@ -287,9 +287,9 @@ namespace llvm {
     /// The flag PossiblyLoopIndependent should be set by the caller
     /// if it appears that control flow can reach from Src to Dst
     /// without traversing a loop back edge.
-    Dependence *depends(Instruction *Src,
-                        Instruction *Dst,
-                        bool PossiblyLoopIndependent);
+    std::unique_ptr<Dependence> depends(Instruction *Src,
+                                        Instruction *Dst,
+                                        bool PossiblyLoopIndependent);
 
     /// getSplitIteration - Give a dependence that's splittable at some
     /// particular level, return the iteration that should be used to split
@@ -331,7 +331,7 @@ namespace llvm {
     ///
     /// breaks the dependence and allows us to vectorize/parallelize
     /// both loops.
-    const SCEV *getSplitIteration(const Dependence *Dep, unsigned Level);
+    const SCEV *getSplitIteration(const Dependence &Dep, unsigned Level);
 
   private:
     AliasAnalysis *AA;
@@ -522,6 +522,12 @@ namespace llvm {
     /// isLoopInvariant - Returns true if Expression is loop invariant
     /// in LoopNest.
     bool isLoopInvariant(const SCEV *Expression, const Loop *LoopNest) const;
+
+    /// Makes sure both subscripts (i.e. Pair->Src and Pair->Dst) share the same
+    /// integer type by sign-extending one of them when necessary.
+    /// Sign-extending a subscript is safe because getelementptr assumes the
+    /// array subscripts are signed.
+    void unifySubscriptType(Subscript *Pair);
 
     /// removeMatchingExtensions - Examines a subscript pair.
     /// If the source and destination are identically sign (or zero)
@@ -911,7 +917,7 @@ namespace llvm {
 
     bool tryDelinearize(const SCEV *SrcSCEV, const SCEV *DstSCEV,
                         SmallVectorImpl<Subscript> &Pair,
-                        const SCEV *ElementSize) const;
+                        const SCEV *ElementSize);
 
   public:
     static char ID; // Class identification, replacement for typeinfo

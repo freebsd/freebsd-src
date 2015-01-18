@@ -20,6 +20,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "phi-opt"
@@ -66,7 +67,7 @@ bool OptimizePHIs::runOnMachineFunction(MachineFunction &Fn) {
     return false;
 
   MRI = &Fn.getRegInfo();
-  TII = Fn.getTarget().getInstrInfo();
+  TII = Fn.getSubtarget().getInstrInfo();
 
   // Find dead PHI cycles and PHI cycles that can be replaced by a single
   // value.  InstCombine does these optimizations, but DAG legalization may
@@ -91,7 +92,7 @@ bool OptimizePHIs::IsSingleValuePHICycle(MachineInstr *MI,
   unsigned DstReg = MI->getOperand(0).getReg();
 
   // See if we already saw this register.
-  if (!PHIsInCycle.insert(MI))
+  if (!PHIsInCycle.insert(MI).second)
     return true;
 
   // Don't scan crazily complex things.
@@ -136,7 +137,7 @@ bool OptimizePHIs::IsDeadPHICycle(MachineInstr *MI, InstrSet &PHIsInCycle) {
          "PHI destination is not a virtual register");
 
   // See if we already saw this register.
-  if (!PHIsInCycle.insert(MI))
+  if (!PHIsInCycle.insert(MI).second)
     return true;
 
   // Don't scan crazily complex things.

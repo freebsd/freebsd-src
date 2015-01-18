@@ -9,6 +9,9 @@
 /* Define if we have libxml2 */
 #undef CLANG_HAVE_LIBXML
 
+/* Multilib suffix for libdir. */
+#undef CLANG_LIBDIR_SUFFIX
+
 /* Relative directory for resource files */
 #undef CLANG_RESOURCE_DIR
 
@@ -542,6 +545,9 @@
 
 /* Patch version of the LLVM API */
 #undef LLVM_VERSION_PATCH
+
+/* LLVM version string */
+#undef LLVM_VERSION_STRING
 
 /* The shared library extension */
 #undef LTDL_SHLIB_EXT

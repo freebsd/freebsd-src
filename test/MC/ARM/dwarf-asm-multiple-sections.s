@@ -1,7 +1,7 @@
 // RUN: llvm-mc < %s -triple=armv7-linux-gnueabi -filetype=obj -o %t -g -fdebug-compilation-dir=/tmp
 // RUN: llvm-dwarfdump %t | FileCheck -check-prefix DWARF %s
 // RUN: llvm-objdump -r %t | FileCheck -check-prefix RELOC %s
-// RUN: not llvm-mc < %s -triple=armv7-linux-gnueabi -filetype=obj -o %t -g -dwarf-version 2 2>&1 | FileCheck -check-prefix VERSION %s
+// RUN: llvm-mc < %s -triple=armv7-linux-gnueabi -filetype=obj -o %t -g -dwarf-version 2 2>&1 | FileCheck -check-prefix VERSION %s
 // RUN: not llvm-mc < %s -triple=armv7-linux-gnueabi -filetype=obj -o %t -g -dwarf-version 1 2>&1 | FileCheck -check-prefix DWARF1 %s
 // RUN: not llvm-mc < %s -triple=armv7-linux-gnueabi -filetype=obj -o %t -g -dwarf-version 5 2>&1 | FileCheck -check-prefix DWARF5 %s
   .section .text, "ax"
@@ -25,7 +25,7 @@ b:
 // DWARF: .debug_info contents:
 // DWARF: 0x{{[0-9a-f]+}}: DW_TAG_compile_unit [1]
 // CHECK-NOT-DWARF: DW_TAG_
-// DWARF: DW_AT_ranges [DW_FORM_data4]      (0x00000000)
+// DWARF: DW_AT_ranges [DW_FORM_data4]      (0x00000000
 
 // DWARF: 0x{{[0-9a-f]+}}:   DW_TAG_label [2] *
 // DWARF-NEXT: DW_AT_name [DW_FORM_string]     ("a")
@@ -73,7 +73,7 @@ b:
 // RELOC-NEXT: 00000018 R_ARM_ABS32 foo
 
 
-// VERSION: {{.*}} error: DWARF2 only supports one section per compilation unit
+// VERSION: {{.*}} warning: DWARF2 only supports one section per compilation unit
 
 // DWARF1: Dwarf version 1 is not supported.
 // DWARF5: Dwarf version 5 is not supported.

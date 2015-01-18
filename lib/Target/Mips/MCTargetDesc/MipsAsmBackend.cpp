@@ -103,6 +103,14 @@ static unsigned adjustFixupValue(const MCFixup &Fixup, uint64_t Value,
   case Mips::fixup_MICROMIPS_26_S1:
     Value >>= 1;
     break;
+  case Mips::fixup_MICROMIPS_PC7_S1:
+    Value -= 4;
+    // Forcing a signed division because Value can be negative.
+    Value = (int64_t) Value / 2;
+    // We now check if Value can be encoded as a 7-bit signed immediate.
+    if (!isIntN(7, Value) && Ctx)
+      Ctx->FatalError(Fixup.getLoc(), "out of range PC7 fixup");
+    break;
   case Mips::fixup_MICROMIPS_PC16_S1:
     Value -= 4;
     // Forcing a signed division because Value can be negative.
@@ -271,6 +279,7 @@ getFixupKindInfo(MCFixupKind Kind) const {
     { "fixup_MICROMIPS_HI16",    0,     16,   0 },
     { "fixup_MICROMIPS_LO16",    0,     16,   0 },
     { "fixup_MICROMIPS_GOT16",   0,     16,   0 },
+    { "fixup_MICROMIPS_PC7_S1",  0,      7,   MCFixupKindInfo::FKF_IsPCRel },
     { "fixup_MICROMIPS_PC16_S1", 0,     16,   MCFixupKindInfo::FKF_IsPCRel },
     { "fixup_MICROMIPS_CALL16",  0,     16,   0 },
     { "fixup_MICROMIPS_GOT_DISP",        0,     16,   0 },
@@ -334,6 +343,7 @@ getFixupKindInfo(MCFixupKind Kind) const {
     { "fixup_MICROMIPS_HI16",   16,     16,   0 },
     { "fixup_MICROMIPS_LO16",   16,     16,   0 },
     { "fixup_MICROMIPS_GOT16",  16,     16,   0 },
+    { "fixup_MICROMIPS_PC7_S1",  9,      7,   MCFixupKindInfo::FKF_IsPCRel },
     { "fixup_MICROMIPS_PC16_S1",16,     16,   MCFixupKindInfo::FKF_IsPCRel },
     { "fixup_MICROMIPS_CALL16", 16,     16,   0 },
     { "fixup_MICROMIPS_GOT_DISP",        16,     16,   0 },
@@ -367,7 +377,12 @@ bool MipsAsmBackend::writeNopData(uint64_t Count, MCObjectWriter *OW) const {
   // Check for a less than instruction size number of bytes
   // FIXME: 16 bit instructions are not handled yet here.
   // We shouldn't be using a hard coded number for instruction size.
-  if (Count % 4) return false;
+
+  // If the count is not 4-byte aligned, we must be writing data into the text
+  // section (otherwise we have unaligned instructions, and thus have far
+  // bigger problems), so just write zeros instead.
+  for (uint64_t i = 0, e = Count % 4; i != e; ++i)
+    OW->Write8(0);
 
   uint64_t NumNops = Count / 4;
   for (uint64_t i = 0; i != NumNops; ++i)

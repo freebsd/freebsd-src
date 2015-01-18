@@ -53,3 +53,35 @@ define half @test5(float %a, float %b, float %c) {
 }
 
 declare float @llvm.fabs.f32(float) nounwind readonly
+
+define <1 x float> @test6(<1 x double> %V) {
+  %frem = frem <1 x double> %V, %V
+  %trunc = fptrunc <1 x double> %frem to <1 x float>
+  ret <1 x float> %trunc
+; CHECK-LABEL: @test6
+; CHECK-NEXT: %[[frem:.*]]  = frem <1 x double> %V, %V
+; CHECK-NEXT: %[[trunc:.*]] = fptrunc <1 x double> %[[frem]] to <1 x float>
+; CHECK-NEXT: ret <1 x float> %trunc
+}
+
+define float @test7(double %V) {
+  %frem = frem double %V, 1.000000e+00
+  %trunc = fptrunc double %frem to float
+  ret float %trunc
+; CHECK-LABEL: @test7
+; CHECK-NEXT: %[[frem:.*]]  = frem double %V, 1.000000e+00
+; CHECK-NEXT: %[[trunc:.*]] = fptrunc double %frem to float
+; CHECK-NEXT: ret float %trunc
+}
+
+define float @test8(float %V) {
+  %fext = fpext float %V to double
+  %frem = frem double %fext, 1.000000e-01
+  %trunc = fptrunc double %frem to float
+  ret float %trunc
+; CHECK-LABEL: @test8
+; CHECK-NEXT: %[[fext:.*]]  = fpext float %V to double
+; CHECK-NEXT: %[[frem:.*]]  = frem double %fext, 1.000000e-01
+; CHECK-NEXT: %[[trunc:.*]] = fptrunc double %frem to float
+; CHECK-NEXT: ret float %trunc
+}

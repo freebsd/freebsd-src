@@ -234,7 +234,7 @@ LLVM-specific variables
   Enable all compiler warnings. Defaults to ON.
 
 **LLVM_ENABLE_PEDANTIC**:BOOL
-  Enable pedantic mode. This disable compiler specific extensions, is
+  Enable pedantic mode. This disables compiler specific extensions, if
   possible. Defaults to ON.
 
 **LLVM_ENABLE_WERROR**:BOOL
@@ -288,8 +288,14 @@ LLVM-specific variables
 
 **LLVM_USE_SANITIZER**:STRING
   Define the sanitizer used to build LLVM binaries and tests. Possible values
-  are ``Address``, ``Memory`` and ``MemoryWithOrigins``. Defaults to empty
-  string.
+  are ``Address``, ``Memory``, ``MemoryWithOrigins`` and ``Undefined``.
+  Defaults to empty string.
+
+**LLVM_PARALLEL_COMPILE_JOBS**:STRING
+  Define the maximum number of concurrent compilation jobs.
+
+**LLVM_PARALLEL_LINK_JOBS**:STRING
+  Define the maximum number of concurrent link jobs.
 
 **LLVM_BUILD_DOCS**:BOOL
   Enables all enabled documentation targets (i.e. Doxgyen and Sphinx targets) to
@@ -363,6 +369,10 @@ LLVM-specific variables
   is enabled). Currently the only target added is ``docs-llvm-man``. Defaults
   to ON.
 
+**SPHINX_WARNINGS_AS_ERRORS**:BOOL
+  If enabled then sphinx documentation warnings will be treated as
+  errors. Defaults to ON.
+
 Executing the test suite
 ========================
 
@@ -388,8 +398,6 @@ for a quick solution.
 
 Also see the `LLVM-specific variables`_ section for variables used when
 cross-compiling.
-
-.. _Embedding LLVM in your project:
 
 Embedding LLVM in your project
 ==============================

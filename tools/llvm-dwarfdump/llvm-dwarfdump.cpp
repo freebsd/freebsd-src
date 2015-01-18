@@ -21,7 +21,6 @@
 #include "llvm/Support/Format.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "llvm/Support/MemoryObject.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/raw_ostream.h"
@@ -45,6 +44,10 @@ DumpType("debug-dump", cl::init(DIDT_All),
         clEnumValN(DIDT_All, "all", "Dump all debug sections"),
         clEnumValN(DIDT_Abbrev, "abbrev", ".debug_abbrev"),
         clEnumValN(DIDT_AbbrevDwo, "abbrev.dwo", ".debug_abbrev.dwo"),
+        clEnumValN(DIDT_AppleNames, "apple_names", ".apple_names"),
+        clEnumValN(DIDT_AppleTypes, "apple_types", ".apple_types"),
+        clEnumValN(DIDT_AppleNamespaces, "apple_namespaces", ".apple_namespaces"),
+        clEnumValN(DIDT_AppleObjC, "apple_objc", ".apple_objc"),
         clEnumValN(DIDT_Aranges, "aranges", ".debug_aranges"),
         clEnumValN(DIDT_Info, "info", ".debug_info"),
         clEnumValN(DIDT_InfoDwo, "info.dwo", ".debug_info.dwo"),
@@ -65,26 +68,28 @@ DumpType("debug-dump", cl::init(DIDT_All),
         clEnumValN(DIDT_StrOffsetsDwo, "str_offsets.dwo", ".debug_str_offsets.dwo"),
         clEnumValEnd));
 
-static void DumpInput(const StringRef &Filename) {
-  ErrorOr<std::unique_ptr<MemoryBuffer>> Buff =
+static void DumpInput(StringRef Filename) {
+  ErrorOr<std::unique_ptr<MemoryBuffer>> BuffOrErr =
       MemoryBuffer::getFileOrSTDIN(Filename);
 
-  if (std::error_code EC = Buff.getError()) {
+  if (std::error_code EC = BuffOrErr.getError()) {
     errs() << Filename << ": " << EC.message() << "\n";
     return;
   }
+  std::unique_ptr<MemoryBuffer> Buff = std::move(BuffOrErr.get());
 
-  ErrorOr<ObjectFile *> ObjOrErr(ObjectFile::createObjectFile(Buff.get()));
+  ErrorOr<std::unique_ptr<ObjectFile>> ObjOrErr =
+      ObjectFile::createObjectFile(Buff->getMemBufferRef());
   if (std::error_code EC = ObjOrErr.getError()) {
     errs() << Filename << ": " << EC.message() << '\n';
     return;
   }
-  std::unique_ptr<ObjectFile> Obj(ObjOrErr.get());
+  ObjectFile &Obj = *ObjOrErr.get();
 
-  std::unique_ptr<DIContext> DICtx(DIContext::getDWARFContext(Obj.get()));
+  std::unique_ptr<DIContext> DICtx(DIContext::getDWARFContext(Obj));
 
   outs() << Filename
-         << ":\tfile format " << Obj->getFileFormatName() << "\n\n";
+         << ":\tfile format " << Obj.getFileFormatName() << "\n\n";
   // Dump the complete DWARF structure.
   DICtx->dump(outs(), DumpType);
 }

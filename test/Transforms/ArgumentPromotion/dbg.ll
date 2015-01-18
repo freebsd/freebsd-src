@@ -1,22 +1,26 @@
 ; RUN: opt < %s -argpromotion -S | FileCheck %s
-; CHECK: call void @test(), !dbg [[DBG_LOC:![0-9]]]
-; CHECK: [[TEST_FN:.*]] = {{.*}} void ()* @test
-; CHECK: [[DBG_LOC]] = metadata !{i32 8, i32 0, metadata [[TEST_FN]], null}
+; CHECK: call void @test(i32 %
+; CHECK: void (i32)* @test, {{.*}} ; [ DW_TAG_subprogram ] {{.*}} [test]
 
-define internal void @test(i32* %X) {
+declare void @sink(i32)
+
+define internal void @test(i32** %X) {
+  %1 = load i32** %X, align 8
+  %2 = load i32* %1, align 8
+  call void @sink(i32 %2)
   ret void
 }
 
-define void @caller() {
-  call void @test(i32* null), !dbg !1
+define void @caller(i32** %Y) {
+  call void @test(i32** %Y)
   ret void
 }
 
 !llvm.module.flags = !{!0}
 !llvm.dbg.cu = !{!3}
 
-!0 = metadata !{i32 2, metadata !"Debug Info Version", i32 1}
-!1 = metadata !{i32 8, i32 0, metadata !2, null}
-!2 = metadata !{i32 786478, null, null, metadata !"test", metadata !"test", metadata !"", i32 3, null, i1 true, i1 true, i32 0, i32 0, null, i32 256, i1 false, void (i32*)* @test, null, null, null, i32 3}
-!3 = metadata !{i32 786449, null, i32 4, metadata !"clang version 3.5.0 ", i1 false, metadata !"", i32 0, null, null, metadata !4, null, null, metadata !"", i32 2} ; [ DW_TAG_compile_unit ] [/usr/local/google/home/blaikie/dev/scratch/pr20038/reduce/<stdin>] [DW_LANG_C_plus_plus]
-!4 = metadata !{metadata !2}
+!0 = !{i32 2, !"Debug Info Version", i32 2}
+!1 = !MDLocation(line: 8, scope: !2)
+!2 = !{!"0x2e\00test\00test\00\003\001\001\000\006\00256\000\003", null, null, null, null, void (i32**)* @test, null, null, null} ; [ DW_TAG_subprogram ]
+!3 = !{!"0x11\004\00clang version 3.5.0 \000\00\000\00\002", null, null, null, !4, null, null} ; [ DW_TAG_compile_unit ] [/usr/local/google/home/blaikie/dev/scratch/pr20038/reduce/<stdin>] [DW_LANG_C_plus_plus]
+!4 = !{!2}

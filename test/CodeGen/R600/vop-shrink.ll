@@ -1,14 +1,9 @@
-; RUN: llc -march=r600 -mcpu=SI -verify-machineinstrs< %s | FileCheck -check-prefix=SI -check-prefix=FUNC %s
-; XXX: This testis for a bug in the SIShrinkInstruction pass and it will be
-;       relevant once we are selecting 64-bit instructions.  We are
-;       currently selecting mostly 32-bit instruction, so the
-;       SIShrinkInstructions pass isn't doing much.
-; XFAIL: *
+; RUN: llc -march=amdgcn -mcpu=SI -verify-machineinstrs< %s | FileCheck -check-prefix=SI -check-prefix=FUNC %s
 
 ; Test that we correctly commute a sub instruction
-; FUNC-LABEL: @sub_rev
-; SI-NOT: V_SUB_I32_e32 v{{[0-9]+}}, s
-; SI: V_SUBREV_I32_e32 v{{[0-9]+}}, s
+; FUNC-LABEL: {{^}}sub_rev:
+; SI-NOT: v_sub_i32_e32 v{{[0-9]+}}, s
+; SI: v_subrev_i32_e32 v{{[0-9]+}}, s
 
 ; ModuleID = 'vop-shrink.ll'
 
@@ -31,6 +26,20 @@ else:                                             ; preds = %entry
   br label %endif
 
 endif:                                            ; preds = %else, %if
+  ret void
+}
+
+; Test that we fold an immediate that was illegal for a 64-bit op into the
+; 32-bit op when we shrink it.
+
+; FUNC-LABEL: {{^}}add_fold:
+; SI: v_add_f32_e32 v{{[0-9]+}}, 0x44800000
+define void @add_fold(float addrspace(1)* %out) {
+entry:
+  %tmp = call i32 @llvm.r600.read.tidig.x()
+  %tmp1 = uitofp i32 %tmp to float
+  %tmp2 = fadd float %tmp1, 1.024000e+03
+  store float %tmp2, float addrspace(1)* %out
   ret void
 }
 

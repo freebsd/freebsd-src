@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/SmallString.h"
+#include "llvm/AsmParser/Parser.h"
 #include "llvm/Bitcode/BitstreamWriter.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/IR/Constants.h"
@@ -15,53 +16,152 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Verifier.h"
-#include "llvm/PassManager.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/SourceMgr.h"
 #include "gtest/gtest.h"
 
-namespace llvm {
+using namespace llvm;
+
 namespace {
 
-static Module *makeLLVMModule() {
-  Module* Mod = new Module("test-mem", getGlobalContext());
+std::unique_ptr<Module> parseAssembly(const char *Assembly) {
+  SMDiagnostic Error;
+  std::unique_ptr<Module> M =
+      parseAssemblyString(Assembly, Error, getGlobalContext());
 
-  FunctionType* FuncTy =
-    FunctionType::get(Type::getVoidTy(Mod->getContext()), false);
-  Function* Func = Function::Create(FuncTy,GlobalValue::ExternalLinkage,
-                                    "func", Mod);
+  std::string ErrMsg;
+  raw_string_ostream OS(ErrMsg);
+  Error.print("", OS);
 
-  BasicBlock* Entry = BasicBlock::Create(Mod->getContext(), "entry", Func);
-  new UnreachableInst(Mod->getContext(), Entry);
+  // A failure here means that the test itself is buggy.
+  if (!M)
+    report_fatal_error(OS.str().c_str());
 
-  BasicBlock* BB = BasicBlock::Create(Mod->getContext(), "bb", Func);
-  new UnreachableInst(Mod->getContext(), BB);
-
-  PointerType* Int8Ptr = Type::getInt8PtrTy(Mod->getContext());
-  new GlobalVariable(*Mod, Int8Ptr, /*isConstant=*/true,
-                     GlobalValue::ExternalLinkage,
-                     BlockAddress::get(BB), "table");
-
-  return Mod;
+  return M;
 }
 
-static void writeModuleToBuffer(SmallVectorImpl<char> &Buffer) {
-  std::unique_ptr<Module> Mod(makeLLVMModule());
+static void writeModuleToBuffer(std::unique_ptr<Module> Mod,
+                                SmallVectorImpl<char> &Buffer) {
   raw_svector_ostream OS(Buffer);
   WriteBitcodeToFile(Mod.get(), OS);
 }
 
-TEST(BitReaderTest, MaterializeFunctionsForBlockAddr) { // PR11677
-  SmallString<1024> Mem;
-  writeModuleToBuffer(Mem);
-  MemoryBuffer *Buffer = MemoryBuffer::getMemBuffer(Mem.str(), "test", false);
+static std::unique_ptr<Module> getLazyModuleFromAssembly(LLVMContext &Context,
+                                                         SmallString<1024> &Mem,
+                                                         const char *Assembly) {
+  writeModuleToBuffer(parseAssembly(Assembly), Mem);
+  std::unique_ptr<MemoryBuffer> Buffer =
+      MemoryBuffer::getMemBuffer(Mem.str(), "test", false);
   ErrorOr<Module *> ModuleOrErr =
-      getLazyBitcodeModule(Buffer, getGlobalContext());
-  std::unique_ptr<Module> m(ModuleOrErr.get());
-  PassManager passes;
-  passes.add(createVerifierPass());
-  passes.add(createDebugInfoVerifierPass());
-  passes.run(*m);
+      getLazyBitcodeModule(std::move(Buffer), Context);
+  return std::unique_ptr<Module>(ModuleOrErr.get());
 }
 
+TEST(BitReaderTest, DematerializeFunctionPreservesLinkageType) {
+  SmallString<1024> Mem;
+
+  LLVMContext Context;
+  std::unique_ptr<Module> M = getLazyModuleFromAssembly(
+      Context, Mem, "define internal i32 @func() {\n"
+                      "ret i32 0\n"
+                    "}\n");
+
+  EXPECT_FALSE(verifyModule(*M, &dbgs()));
+
+  M->getFunction("func")->materialize();
+  EXPECT_FALSE(M->getFunction("func")->empty());
+  EXPECT_TRUE(M->getFunction("func")->getLinkage() ==
+              GlobalValue::InternalLinkage);
+
+  // Check that the linkage type is preserved after dematerialization.
+  M->getFunction("func")->Dematerialize();
+  EXPECT_TRUE(M->getFunction("func")->empty());
+  EXPECT_TRUE(M->getFunction("func")->getLinkage() ==
+              GlobalValue::InternalLinkage);
+  EXPECT_FALSE(verifyModule(*M, &dbgs()));
 }
+
+TEST(BitReaderTest, MaterializeFunctionsForBlockAddr) { // PR11677
+  SmallString<1024> Mem;
+
+  LLVMContext Context;
+  std::unique_ptr<Module> M = getLazyModuleFromAssembly(
+      Context, Mem, "@table = constant i8* blockaddress(@func, %bb)\n"
+                    "define void @func() {\n"
+                    "  unreachable\n"
+                    "bb:\n"
+                    "  unreachable\n"
+                    "}\n");
+  EXPECT_FALSE(verifyModule(*M, &dbgs()));
+
+  // Try (and fail) to dematerialize @func.
+  M->getFunction("func")->Dematerialize();
+  EXPECT_FALSE(M->getFunction("func")->empty());
 }
+
+TEST(BitReaderTest, MaterializeFunctionsForBlockAddrInFunctionBefore) {
+  SmallString<1024> Mem;
+
+  LLVMContext Context;
+  std::unique_ptr<Module> M = getLazyModuleFromAssembly(
+      Context, Mem, "define i8* @before() {\n"
+                    "  ret i8* blockaddress(@func, %bb)\n"
+                    "}\n"
+                    "define void @other() {\n"
+                    "  unreachable\n"
+                    "}\n"
+                    "define void @func() {\n"
+                    "  unreachable\n"
+                    "bb:\n"
+                    "  unreachable\n"
+                    "}\n");
+  EXPECT_TRUE(M->getFunction("before")->empty());
+  EXPECT_TRUE(M->getFunction("func")->empty());
+  EXPECT_FALSE(verifyModule(*M, &dbgs()));
+
+  // Materialize @before, pulling in @func.
+  EXPECT_FALSE(M->getFunction("before")->materialize());
+  EXPECT_FALSE(M->getFunction("func")->empty());
+  EXPECT_TRUE(M->getFunction("other")->empty());
+  EXPECT_FALSE(verifyModule(*M, &dbgs()));
+
+  // Try (and fail) to dematerialize @func.
+  M->getFunction("func")->Dematerialize();
+  EXPECT_FALSE(M->getFunction("func")->empty());
+  EXPECT_FALSE(verifyModule(*M, &dbgs()));
+}
+
+TEST(BitReaderTest, MaterializeFunctionsForBlockAddrInFunctionAfter) {
+  SmallString<1024> Mem;
+
+  LLVMContext Context;
+  std::unique_ptr<Module> M = getLazyModuleFromAssembly(
+      Context, Mem, "define void @func() {\n"
+                    "  unreachable\n"
+                    "bb:\n"
+                    "  unreachable\n"
+                    "}\n"
+                    "define void @other() {\n"
+                    "  unreachable\n"
+                    "}\n"
+                    "define i8* @after() {\n"
+                    "  ret i8* blockaddress(@func, %bb)\n"
+                    "}\n");
+  EXPECT_TRUE(M->getFunction("after")->empty());
+  EXPECT_TRUE(M->getFunction("func")->empty());
+  EXPECT_FALSE(verifyModule(*M, &dbgs()));
+
+  // Materialize @after, pulling in @func.
+  EXPECT_FALSE(M->getFunction("after")->materialize());
+  EXPECT_FALSE(M->getFunction("func")->empty());
+  EXPECT_TRUE(M->getFunction("other")->empty());
+  EXPECT_FALSE(verifyModule(*M, &dbgs()));
+
+  // Try (and fail) to dematerialize @func.
+  M->getFunction("func")->Dematerialize();
+  EXPECT_FALSE(M->getFunction("func")->empty());
+  EXPECT_FALSE(verifyModule(*M, &dbgs()));
+}
+
+} // end namespace

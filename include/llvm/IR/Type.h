@@ -265,7 +265,7 @@ public:
   /// get the actual size for a particular target, it is reasonable to use the
   /// DataLayout subsystem to do this.
   ///
-  bool isSized(SmallPtrSet<const Type*, 4> *Visited = nullptr) const {
+  bool isSized(SmallPtrSetImpl<const Type*> *Visited = nullptr) const {
     // If it's a primitive, it is always sized.
     if (getTypeID() == IntegerTyID || isFloatingPointTy() ||
         getTypeID() == PointerTyID ||
@@ -313,6 +313,9 @@ public:
   typedef Type * const *subtype_iterator;
   subtype_iterator subtype_begin() const { return ContainedTys; }
   subtype_iterator subtype_end() const { return &ContainedTys[NumContainedTys];}
+  ArrayRef<Type*> subtypes() const {
+    return makeArrayRef(subtype_begin(), subtype_end());
+  }
 
   typedef std::reverse_iterator<subtype_iterator> subtype_reverse_iterator;
   subtype_reverse_iterator subtype_rbegin() const {
@@ -323,7 +326,7 @@ public:
   }
 
   /// getContainedType - This method is used to implement the type iterator
-  /// (defined a the end of the file).  For derived types, this returns the
+  /// (defined at the end of the file).  For derived types, this returns the
   /// types 'contained' in the derived type.
   ///
   Type *getContainedType(unsigned i) const {
@@ -419,7 +422,7 @@ private:
   /// isSizedDerivedType - Derived types like structures and arrays are sized
   /// iff all of the members of the type are sized as well.  Since asking for
   /// their size is relatively uncommon, move this operation out of line.
-  bool isSizedDerivedType(SmallPtrSet<const Type*, 4> *Visited = nullptr) const;
+  bool isSizedDerivedType(SmallPtrSetImpl<const Type*> *Visited = nullptr) const;
 };
 
 // Printing of types.

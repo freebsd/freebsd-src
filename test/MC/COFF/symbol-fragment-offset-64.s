@@ -117,7 +117,6 @@ _main:                                  # @main
 // CHECK:       Checksum: 0x0
 // CHECK:       Number: 1
 // CHECK:       Selection: 0x0
-// CHECK:       Unused: (00 00 00)
 // CHECK:     }
 // CHECK:   }
 // CHECK:   Symbol {
@@ -135,7 +134,6 @@ _main:                                  # @main
 // CHECK:       Checksum: 0x0
 // CHECK:       Number: 2
 // CHECK:       Selection: 0x0
-// CHECK:       Unused: (00 00 00)
 // CHECK:     }
 // CHECK:   }
 // CHECK:   Symbol {
@@ -150,7 +148,7 @@ _main:                                  # @main
 // CHECK:   Symbol {
 // CHECK:     Name:                      _printf
 // CHECK:     Value:                     0
-// CHECK:     Section:                   (0)
+// CHECK:     Section:                   IMAGE_SYM_UNDEFINED (0)
 // CHECK:     BaseType:                  Null
 // CHECK:     ComplexType:               Null
 // CHECK:     StorageClass:              External
@@ -159,7 +157,7 @@ _main:                                  # @main
 // CHECK:   Symbol {
 // CHECK:     Name:                      _puts
 // CHECK:     Value:                     0
-// CHECK:     Section:                   (0)
+// CHECK:     Section:                   IMAGE_SYM_UNDEFINED (0)
 // CHECK:     BaseType:                  Null
 // CHECK:     ComplexType:               Null
 // CHECK:     StorageClass:              External

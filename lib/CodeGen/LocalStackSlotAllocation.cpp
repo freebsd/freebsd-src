@@ -36,6 +36,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
 
@@ -102,7 +103,7 @@ INITIALIZE_PASS_END(LocalStackSlotPass, "localstackalloc",
 
 bool LocalStackSlotPass::runOnMachineFunction(MachineFunction &MF) {
   MachineFrameInfo *MFI = MF.getFrameInfo();
-  const TargetRegisterInfo *TRI = MF.getTarget().getRegisterInfo();
+  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
   unsigned LocalObjectCount = MFI->getObjectIndexEnd();
 
   // If the target doesn't want/need this pass, or if there are no locals
@@ -183,7 +184,7 @@ void LocalStackSlotPass::AssignProtectedObjSet(const StackObjSet &UnassignedObjs
 void LocalStackSlotPass::calculateFrameObjectOffsets(MachineFunction &Fn) {
   // Loop over all of the stack objects, assigning sequential addresses...
   MachineFrameInfo *MFI = Fn.getFrameInfo();
-  const TargetFrameLowering &TFI = *Fn.getTarget().getFrameLowering();
+  const TargetFrameLowering &TFI = *Fn.getSubtarget().getFrameLowering();
   bool StackGrowsDown =
     TFI.getStackGrowthDirection() == TargetFrameLowering::StackGrowsDown;
   int64_t Offset = 0;
@@ -272,8 +273,8 @@ bool LocalStackSlotPass::insertFrameReferenceRegisters(MachineFunction &Fn) {
   bool UsedBaseReg = false;
 
   MachineFrameInfo *MFI = Fn.getFrameInfo();
-  const TargetRegisterInfo *TRI = Fn.getTarget().getRegisterInfo();
-  const TargetFrameLowering &TFI = *Fn.getTarget().getFrameLowering();
+  const TargetRegisterInfo *TRI = Fn.getSubtarget().getRegisterInfo();
+  const TargetFrameLowering &TFI = *Fn.getSubtarget().getFrameLowering();
   bool StackGrowsDown =
     TFI.getStackGrowthDirection() == TargetFrameLowering::StackGrowsDown;
 
@@ -290,6 +291,7 @@ bool LocalStackSlotPass::insertFrameReferenceRegisters(MachineFunction &Fn) {
       // Debug value, stackmap and patchpoint instructions can't be out of
       // range, so they don't need any updates.
       if (MI->isDebugValue() ||
+          MI->getOpcode() == TargetOpcode::STATEPOINT ||
           MI->getOpcode() == TargetOpcode::STACKMAP ||
           MI->getOpcode() == TargetOpcode::PATCHPOINT)
         continue;

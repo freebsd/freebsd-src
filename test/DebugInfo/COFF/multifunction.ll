@@ -23,41 +23,66 @@
 
 
 ; X86-LABEL: _x:
-; X86-NEXT: # BB
+; X86:      # BB
 ; X86-NEXT: [[X_CALL:.*]]:{{$}}
-; X86-NEXT: calll   _z
+; X86:      calll   _z
 ; X86-NEXT: [[X_RETURN:.*]]:
-; X86-NEXT: ret
+; X86:      ret
+; X86-NEXT: L{{.*}}:
 ; X86-NEXT: [[END_OF_X:.*]]:
 ;
 ; X86-LABEL: _y:
-; X86-NEXT: # BB
+; X86:      # BB
 ; X86-NEXT: [[Y_CALL:.*]]:{{$}}
-; X86-NEXT: calll   _z
+; X86:      calll   _z
 ; X86-NEXT: [[Y_RETURN:.*]]:
-; X86-NEXT: ret
+; X86:      ret
+; X86-NEXT: L{{.*}}:
 ; X86-NEXT: [[END_OF_Y:.*]]:
 ;
 ; X86-LABEL: _f:
-; X86-NEXT: # BB
+; X86:      # BB
 ; X86-NEXT: [[F_CALLS_X:.*]]:{{$}}
-; X86-NEXT: calll   _x
+; X86:      calll   _x
 ; X86-NEXT: [[F_CALLS_Y:.*]]:
-; X86-NEXT: calll   _y
+; X86:      calll   _y
 ; X86-NEXT: [[F_CALLS_Z:.*]]:
-; X86-NEXT: calll   _z
+; X86:      calll   _z
 ; X86-NEXT: [[F_RETURN:.*]]:
-; X86-NEXT: ret
+; X86:      ret
+; X86-NEXT: L{{.*}}:
 ; X86-NEXT: [[END_OF_F:.*]]:
 ;
-; X86-LABEL: .section        .debug$S,"rnd"
+; X86-LABEL: .section        .debug$S,"rd"
 ; X86-NEXT: .long   4
+; Symbol subsection for x
+; X86-NEXT: .long   241
+; X86-NEXT: .long [[F1_END:.*]]-[[F1_START:.*]]
+; X86-NEXT: [[F1_START]]:
+; X86-NEXT: .short [[PROC_SEGMENT_END:.*]]-[[PROC_SEGMENT_START:.*]]
+; X86-NEXT: [[PROC_SEGMENT_START]]:
+; X86-NEXT: .short  4423
+; X86-NEXT: .zero   12
+; X86-NEXT: .long [[END_OF_X]]-_x
+; X86-NEXT: .zero   12
+; X86-NEXT: .secrel32 _x
+; X86-NEXT: .secidx _x
+; X86-NEXT: .byte   0
+; X86-NEXT: .byte   120
+; X86-NEXT: .byte   0
+; X86-NEXT: [[PROC_SEGMENT_END]]:
+; X86-NEXT: .short  2
+; X86-NEXT: .short  4431
+; X86-NEXT: [[F1_END]]:
+; Padding
+; X86-NEXT: .zero   3
 ; Line table subsection for x
 ; X86-NEXT: .long   242
 ; X86-NEXT: .long [[F2_END:.*]]-[[F2_START:.*]]
 ; X86-NEXT: [[F2_START]]:
 ; X86-NEXT: .secrel32       _x
 ; X86-NEXT: .secidx _x
+; X86-NEXT: .short 0
 ; X86-NEXT: .long [[END_OF_X]]-_x
 ; X86-NEXT: [[FILE_SEGMENT_START:[^:]*]]:
 ; X86-NEXT: .long   0
@@ -69,12 +94,34 @@
 ; X86-NEXT: .long   5
 ; X86-NEXT: [[FILE_SEGMENT_END]]:
 ; X86-NEXT: [[F2_END]]:
+; Symbol subsection for y
+; X86-NEXT: .long   241
+; X86-NEXT: .long [[F1_END:.*]]-[[F1_START:.*]]
+; X86-NEXT: [[F1_START]]:
+; X86-NEXT: .short [[PROC_SEGMENT_END:.*]]-[[PROC_SEGMENT_START:.*]]
+; X86-NEXT: [[PROC_SEGMENT_START]]:
+; X86-NEXT: .short  4423
+; X86-NEXT: .zero   12
+; X86-NEXT: .long [[END_OF_Y]]-_y
+; X86-NEXT: .zero   12
+; X86-NEXT: .secrel32 _y
+; X86-NEXT: .secidx _y
+; X86-NEXT: .byte   0
+; X86-NEXT: .byte   121
+; X86-NEXT: .byte   0
+; X86-NEXT: [[PROC_SEGMENT_END]]:
+; X86-NEXT: .short  2
+; X86-NEXT: .short  4431
+; X86-NEXT: [[F1_END]]:
+; Padding
+; X86-NEXT: .zero   3
 ; Line table subsection for y
 ; X86-NEXT: .long   242
 ; X86-NEXT: .long [[F2_END:.*]]-[[F2_START:.*]]
 ; X86-NEXT: [[F2_START]]:
 ; X86-NEXT: .secrel32       _y
 ; X86-NEXT: .secidx _y
+; X86-NEXT: .short 0
 ; X86-NEXT: .long [[END_OF_Y]]-_y
 ; X86-NEXT: [[FILE_SEGMENT_START:[^:]*]]:
 ; X86-NEXT: .long   0
@@ -86,12 +133,34 @@
 ; X86-NEXT: .long   9
 ; X86-NEXT: [[FILE_SEGMENT_END]]:
 ; X86-NEXT: [[F2_END]]:
+; Symbol subsection for f
+; X86-NEXT: .long   241
+; X86-NEXT: .long [[F1_END:.*]]-[[F1_START:.*]]
+; X86-NEXT: [[F1_START]]:
+; X86-NEXT: .short [[PROC_SEGMENT_END:.*]]-[[PROC_SEGMENT_START:.*]]
+; X86-NEXT: [[PROC_SEGMENT_START]]:
+; X86-NEXT: .short  4423
+; X86-NEXT: .zero   12
+; X86-NEXT: .long [[END_OF_F]]-_f
+; X86-NEXT: .zero   12
+; X86-NEXT: .secrel32 _f
+; X86-NEXT: .secidx _f
+; X86-NEXT: .byte   0
+; X86-NEXT: .byte   102
+; X86-NEXT: .byte   0
+; X86-NEXT: [[PROC_SEGMENT_END]]:
+; X86-NEXT: .short  2
+; X86-NEXT: .short  4431
+; X86-NEXT: [[F1_END]]:
+; Padding
+; X86-NEXT: .zero   3
 ; Line table subsection for f
 ; X86-NEXT: .long   242
 ; X86-NEXT: .long [[F2_END:.*]]-[[F2_START:.*]]
 ; X86-NEXT: [[F2_START]]:
 ; X86-NEXT: .secrel32 _f
 ; X86-NEXT: .secidx _f
+; X86-NEXT: .short 0
 ; X86-NEXT: .long [[END_OF_F]]-_f
 ; X86-NEXT: [[FILE_SEGMENT_START:[^:]*]]:
 ; X86-NEXT: .long   0
@@ -125,13 +194,58 @@
 ; OBJ32:      Characteristics [ (0x42100040)
 ; OBJ32:      ]
 ; OBJ32:      Relocations [
-; OBJ32-NEXT:   0xC IMAGE_REL_I386_SECREL _x
-; OBJ32-NEXT:   0x10 IMAGE_REL_I386_SECTION _x
-; OBJ32-NEXT:   0x3C IMAGE_REL_I386_SECREL _y
-; OBJ32-NEXT:   0x40 IMAGE_REL_I386_SECTION _y
-; OBJ32-NEXT:   0x6C IMAGE_REL_I386_SECREL _f
-; OBJ32-NEXT:   0x70 IMAGE_REL_I386_SECTION _f
+; OBJ32-NEXT:   0x2C IMAGE_REL_I386_SECREL _x
+; OBJ32-NEXT:   0x30 IMAGE_REL_I386_SECTION _x
+; OBJ32-NEXT:   0x44 IMAGE_REL_I386_SECREL _x
+; OBJ32-NEXT:   0x48 IMAGE_REL_I386_SECTION _x
+; OBJ32-NEXT:   0x94 IMAGE_REL_I386_SECREL _y
+; OBJ32-NEXT:   0x98 IMAGE_REL_I386_SECTION _y
+; OBJ32-NEXT:   0xAC IMAGE_REL_I386_SECREL _y
+; OBJ32-NEXT:   0xB0 IMAGE_REL_I386_SECTION _y
+; OBJ32-NEXT:   0xFC IMAGE_REL_I386_SECREL _f
+; OBJ32-NEXT:   0x100 IMAGE_REL_I386_SECTION _f
+; OBJ32-NEXT:   0x114 IMAGE_REL_I386_SECREL _f
+; OBJ32-NEXT:   0x118 IMAGE_REL_I386_SECTION _f
 ; OBJ32-NEXT: ]
+; OBJ32:      Subsection [
+; OBJ32-NEXT:   Type: 0xF1
+; OBJ32-NOT:    ]
+; OBJ32:        ProcStart {
+; OBJ32-NEXT:     DisplayName: x
+; OBJ32-NEXT:     Section: _x
+; OBJ32-NEXT:     CodeSize: 0x6
+; OBJ32-NEXT:   }
+; OBJ32-NEXT:   ProcEnd
+; OBJ32-NEXT: ]
+; OBJ32:      Subsection [
+; OBJ32-NEXT:   Type: 0xF2
+; OBJ32:      ]
+; OBJ32:      Subsection [
+; OBJ32-NEXT:   Type: 0xF1
+; OBJ32-NOT:    ]
+; OBJ32:        ProcStart {
+; OBJ32-NEXT:     DisplayName: y
+; OBJ32-NEXT:     Section: _y
+; OBJ32-NEXT:     CodeSize: 0x6
+; OBJ32-NEXT:   }
+; OBJ32-NEXT:   ProcEnd
+; OBJ32-NEXT: ]
+; OBJ32:      Subsection [
+; OBJ32-NEXT:   Type: 0xF2
+; OBJ32:      ]
+; OBJ32:      Subsection [
+; OBJ32-NEXT:   Type: 0xF1
+; OBJ32-NOT:    ]
+; OBJ32:        ProcStart {
+; OBJ32-NEXT:     DisplayName: f
+; OBJ32-NEXT:     Section: _f
+; OBJ32-NEXT:     CodeSize: 0x10
+; OBJ32-NEXT:   }
+; OBJ32-NEXT:   ProcEnd
+; OBJ32-NEXT: ]
+; OBJ32:      Subsection [
+; OBJ32-NEXT:   Type: 0xF2
+; OBJ32:      ]
 ; OBJ32:      FunctionLineTable [
 ; OBJ32-NEXT:   Name: _x
 ; OBJ32-NEXT:   CodeSize: 0x6
@@ -165,49 +279,74 @@
 
 ; X64-LABEL: x:
 ; X64-NEXT: [[X_START:.*]]:{{$}}
-; X64-NEXT: # BB
-; X64-NEXT: subq    $40, %rsp
+; X64:      # BB
+; X64:      subq    $40, %rsp
 ; X64-NEXT: [[X_CALL_LINE:.*]]:{{$}}
 ; X64-NEXT: callq   z
 ; X64-NEXT: [[X_EPILOG_AND_RET:.*]]:
-; X64-NEXT: addq    $40, %rsp
+; X64:      addq    $40, %rsp
 ; X64-NEXT: ret
+; X64-NEXT: .L{{.*}}:
 ; X64-NEXT: [[END_OF_X:.*]]:
 ;
 ; X64-LABEL: y:
 ; X64-NEXT: [[Y_START:.*]]:{{$}}
-; X64-NEXT: # BB
-; X64-NEXT: subq    $40, %rsp
+; X64:      # BB
+; X64:      subq    $40, %rsp
 ; X64-NEXT: [[Y_CALL_LINE:.*]]:{{$}}
 ; X64-NEXT: callq   z
 ; X64-NEXT: [[Y_EPILOG_AND_RET:.*]]:
-; X64-NEXT: addq    $40, %rsp
+; X64:      addq    $40, %rsp
 ; X64-NEXT: ret
+; X64-NEXT: .L{{.*}}:
 ; X64-NEXT: [[END_OF_Y:.*]]:
 ;
 ; X64-LABEL: f:
 ; X64-NEXT: [[F_START:.*]]:{{$}}
-; X64-NEXT: # BB
-; X64-NEXT: subq    $40, %rsp
+; X64:      # BB
+; X64:      subq    $40, %rsp
 ; X64-NEXT: [[F_CALLS_X:.*]]:{{$}}
 ; X64-NEXT: callq   x
 ; X64-NEXT: [[F_CALLS_Y:.*]]:
-; X64-NEXT: callq   y
+; X64:      callq   y
 ; X64-NEXT: [[F_CALLS_Z:.*]]:
-; X64-NEXT: callq   z
+; X64:      callq   z
 ; X64-NEXT: [[F_EPILOG_AND_RET:.*]]:
-; X64-NEXT: addq    $40, %rsp
+; X64:      addq    $40, %rsp
 ; X64-NEXT: ret
+; X64-NEXT: .L{{.*}}:
 ; X64-NEXT: [[END_OF_F:.*]]:
 ;
-; X64-LABEL: .section        .debug$S,"rnd"
+; X64-LABEL: .section        .debug$S,"rd"
 ; X64-NEXT: .long   4
+; Symbol subsection for x
+; X64-NEXT: .long   241
+; X64-NEXT: .long [[F1_END:.*]]-[[F1_START:.*]]
+; X64-NEXT: [[F1_START]]:
+; X64-NEXT: .short [[PROC_SEGMENT_END:.*]]-[[PROC_SEGMENT_START:.*]]
+; X64-NEXT: [[PROC_SEGMENT_START]]:
+; X64-NEXT: .short  4423
+; X64-NEXT: .zero   12
+; X64-NEXT: .long [[END_OF_X]]-x
+; X64-NEXT: .zero   12
+; X64-NEXT: .secrel32 x
+; X64-NEXT: .secidx x
+; X64-NEXT: .byte   0
+; X64-NEXT: .byte   120
+; X64-NEXT: .byte   0
+; X64-NEXT: [[PROC_SEGMENT_END]]:
+; X64-NEXT: .short  2
+; X64-NEXT: .short  4431
+; X64-NEXT: [[F1_END]]:
+; Padding
+; X64-NEXT: .zero   3
 ; Line table subsection for x
 ; X64-NEXT: .long   242
 ; X64-NEXT: .long [[F2_END:.*]]-[[F2_START:.*]]
 ; X64-NEXT: [[F2_START]]:
 ; X64-NEXT: .secrel32 x
 ; X64-NEXT: .secidx x
+; X64-NEXT: .short 0
 ; X64-NEXT: .long [[END_OF_X]]-x
 ; X64-NEXT: [[FILE_SEGMENT_START:[^:]*]]:
 ; X64-NEXT: .long   0
@@ -221,12 +360,34 @@
 ; X64-NEXT: .long   5
 ; X64-NEXT: [[FILE_SEGMENT_END]]:
 ; X64-NEXT: [[F2_END]]:
+; Symbol subsection for y
+; X64-NEXT: .long   241
+; X64-NEXT: .long [[F1_END:.*]]-[[F1_START:.*]]
+; X64-NEXT: [[F1_START]]:
+; X64-NEXT: .short [[PROC_SEGMENT_END:.*]]-[[PROC_SEGMENT_START:.*]]
+; X64-NEXT: [[PROC_SEGMENT_START]]:
+; X64-NEXT: .short  4423
+; X64-NEXT: .zero   12
+; X64-NEXT: .long [[END_OF_Y]]-y
+; X64-NEXT: .zero   12
+; X64-NEXT: .secrel32 y
+; X64-NEXT: .secidx y
+; X64-NEXT: .byte   0
+; X64-NEXT: .byte   121
+; X64-NEXT: .byte   0
+; X64-NEXT: [[PROC_SEGMENT_END]]:
+; X64-NEXT: .short  2
+; X64-NEXT: .short  4431
+; X64-NEXT: [[F1_END]]:
+; Padding
+; X64-NEXT: .zero   3
 ; Line table subsection for y
 ; X64-NEXT: .long   242
 ; X64-NEXT: .long [[F2_END:.*]]-[[F2_START:.*]]
 ; X64-NEXT: [[F2_START]]:
 ; X64-NEXT: .secrel32 y
 ; X64-NEXT: .secidx y
+; X64-NEXT: .short 0
 ; X64-NEXT: .long [[END_OF_Y]]-y
 ; X64-NEXT: [[FILE_SEGMENT_START:[^:]*]]:
 ; X64-NEXT: .long   0
@@ -240,12 +401,34 @@
 ; X64-NEXT: .long   9
 ; X64-NEXT: [[FILE_SEGMENT_END]]:
 ; X64-NEXT: [[F2_END]]:
+; Symbol subsection for f
+; X64-NEXT: .long   241
+; X64-NEXT: .long [[F1_END:.*]]-[[F1_START:.*]]
+; X64-NEXT: [[F1_START]]:
+; X64-NEXT: .short [[PROC_SEGMENT_END:.*]]-[[PROC_SEGMENT_START:.*]]
+; X64-NEXT: [[PROC_SEGMENT_START]]:
+; X64-NEXT: .short  4423
+; X64-NEXT: .zero   12
+; X64-NEXT: .long [[END_OF_F]]-f
+; X64-NEXT: .zero   12
+; X64-NEXT: .secrel32 f
+; X64-NEXT: .secidx f
+; X64-NEXT: .byte   0
+; X64-NEXT: .byte   102
+; X64-NEXT: .byte   0
+; X64-NEXT: [[PROC_SEGMENT_END]]:
+; X64-NEXT: .short  2
+; X64-NEXT: .short  4431
+; X64-NEXT: [[F1_END]]:
+; Padding
+; X64-NEXT: .zero   3
 ; Line table subsection for f
 ; X64-NEXT: .long   242
 ; X64-NEXT: .long [[F2_END:.*]]-[[F2_START:.*]]
 ; X64-NEXT: [[F2_START]]:
 ; X64-NEXT: .secrel32 f
 ; X64-NEXT: .secidx f
+; X64-NEXT: .short 0
 ; X64-NEXT: .long [[END_OF_F]]-f
 ; X64-NEXT: [[FILE_SEGMENT_START:[^:]*]]:
 ; X64-NEXT: .long   0
@@ -281,13 +464,58 @@
 ; OBJ64:      Characteristics [ (0x42100040)
 ; OBJ64:      ]
 ; OBJ64:      Relocations [
-; OBJ64-NEXT:   0xC IMAGE_REL_AMD64_SECREL x
-; OBJ64-NEXT:   0x10 IMAGE_REL_AMD64_SECTION x
-; OBJ64-NEXT:   0x44 IMAGE_REL_AMD64_SECREL y
-; OBJ64-NEXT:   0x48 IMAGE_REL_AMD64_SECTION y
-; OBJ64-NEXT:   0x7C IMAGE_REL_AMD64_SECREL f
-; OBJ64-NEXT:   0x80 IMAGE_REL_AMD64_SECTION f
+; OBJ64-NEXT:   0x2C IMAGE_REL_AMD64_SECREL x
+; OBJ64-NEXT:   0x30 IMAGE_REL_AMD64_SECTION x
+; OBJ64-NEXT:   0x44 IMAGE_REL_AMD64_SECREL x
+; OBJ64-NEXT:   0x48 IMAGE_REL_AMD64_SECTION x
+; OBJ64-NEXT:   0x9C IMAGE_REL_AMD64_SECREL y
+; OBJ64-NEXT:   0xA0 IMAGE_REL_AMD64_SECTION y
+; OBJ64-NEXT:   0xB4 IMAGE_REL_AMD64_SECREL y
+; OBJ64-NEXT:   0xB8 IMAGE_REL_AMD64_SECTION y
+; OBJ64-NEXT:   0x10C IMAGE_REL_AMD64_SECREL f
+; OBJ64-NEXT:   0x110 IMAGE_REL_AMD64_SECTION f
+; OBJ64-NEXT:   0x124 IMAGE_REL_AMD64_SECREL f
+; OBJ64-NEXT:   0x128 IMAGE_REL_AMD64_SECTION f
 ; OBJ64-NEXT: ]
+; OBJ64:      Subsection [
+; OBJ64-NEXT:   Type: 0xF1
+; OBJ64-NOT:    ]
+; OBJ64:        ProcStart {
+; OBJ64-NEXT:     DisplayName: x
+; OBJ64-NEXT:     Section: x
+; OBJ64-NEXT:     CodeSize: 0xE
+; OBJ64-NEXT:   }
+; OBJ64-NEXT:   ProcEnd
+; OBJ64-NEXT: ]
+; OBJ64:      Subsection [
+; OBJ64-NEXT:   Type: 0xF2
+; OBJ64:      ]
+; OBJ64:      Subsection [
+; OBJ64-NEXT:   Type: 0xF1
+; OBJ64-NOT:    ]
+; OBJ64:        ProcStart {
+; OBJ64-NEXT:     DisplayName: y
+; OBJ64-NEXT:     Section: y
+; OBJ64-NEXT:     CodeSize: 0xE
+; OBJ64-NEXT:   }
+; OBJ64-NEXT:   ProcEnd
+; OBJ64-NEXT: ]
+; OBJ64:      Subsection [
+; OBJ64-NEXT:   Type: 0xF2
+; OBJ64:      ]
+; OBJ64:      Subsection [
+; OBJ64-NEXT:   Type: 0xF1
+; OBJ64-NOT:    ]
+; OBJ64:        ProcStart {
+; OBJ64-NEXT:     DisplayName: f
+; OBJ64-NEXT:     Section: f
+; OBJ64-NEXT:     CodeSize: 0x18
+; OBJ64-NEXT:   }
+; OBJ64-NEXT:   ProcEnd
+; OBJ64-NEXT: ]
+; OBJ64:      Subsection [
+; OBJ64-NEXT:   Type: 0xF2
+; OBJ64:      ]
 ; OBJ64:      FunctionLineTable [
 ; OBJ64-NEXT:   Name: x
 ; OBJ64-NEXT:   CodeSize: 0xE
@@ -354,25 +582,25 @@ attributes #1 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="false" "
 !llvm.module.flags = !{!11, !12}
 !llvm.ident = !{!13}
 
-!0 = metadata !{i32 786449, metadata !1, i32 12, metadata !"clang version 3.5 ", i1 false, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !""} ; [ DW_TAG_compile_unit ] [D:\/<unknown>] [DW_LANG_C99]
-!1 = metadata !{metadata !"<unknown>", metadata !"D:\5C"}
-!2 = metadata !{i32 0}
-!3 = metadata !{metadata !4, metadata !9, metadata !10}
-!4 = metadata !{i32 786478, metadata !5, metadata !6, metadata !"x", metadata !"x", metadata !"", i32 3, metadata !7, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, void ()* @x, null, null, metadata !2, i32 3} ; [ DW_TAG_subprogram ] [line 3] [def] [x]
-!5 = metadata !{metadata !"source.c", metadata !"D:\5C"}
-!6 = metadata !{i32 786473, metadata !5}          ; [ DW_TAG_file_type ] [D:\/source.c]
-!7 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !8, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!8 = metadata !{null}
-!9 = metadata !{i32 786478, metadata !5, metadata !6, metadata !"y", metadata !"y", metadata !"", i32 7, metadata !7, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, void ()* @y, null, null, metadata !2, i32 7} ; [ DW_TAG_subprogram ] [line 7] [def] [y]
-!10 = metadata !{i32 786478, metadata !5, metadata !6, metadata !"f", metadata !"f", metadata !"", i32 11, metadata !7, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, void ()* @f, null, null, metadata !2, i32 11} ; [ DW_TAG_subprogram ] [line 11] [def] [f]
-!11 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!12 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
-!13 = metadata !{metadata !"clang version 3.5 "}
-!14 = metadata !{i32 4, i32 0, metadata !4, null}
-!15 = metadata !{i32 5, i32 0, metadata !4, null}
-!16 = metadata !{i32 8, i32 0, metadata !9, null} ; [ DW_TAG_imported_declaration ]
-!17 = metadata !{i32 9, i32 0, metadata !9, null}
-!18 = metadata !{i32 12, i32 0, metadata !10, null}
-!19 = metadata !{i32 13, i32 0, metadata !10, null}
-!20 = metadata !{i32 14, i32 0, metadata !10, null}
-!21 = metadata !{i32 15, i32 0, metadata !10, null}
+!0 = !{!"0x11\0012\00clang version 3.5 \000\00\000\00\000", !1, !2, !2, !3, !2, !2} ; [ DW_TAG_compile_unit ] [D:\/<unknown>] [DW_LANG_C99]
+!1 = !{!"<unknown>", !"D:\5C"}
+!2 = !{}
+!3 = !{!4, !9, !10}
+!4 = !{!"0x2e\00x\00x\00\003\000\001\000\006\00256\000\003", !5, !6, !7, null, void ()* @x, null, null, !2} ; [ DW_TAG_subprogram ] [line 3] [def] [x]
+!5 = !{!"source.c", !"D:\5C"}
+!6 = !{!"0x29", !5}          ; [ DW_TAG_file_type ] [D:\/source.c]
+!7 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !8, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!8 = !{null}
+!9 = !{!"0x2e\00y\00y\00\007\000\001\000\006\00256\000\007", !5, !6, !7, null, void ()* @y, null, null, !2} ; [ DW_TAG_subprogram ] [line 7] [def] [y]
+!10 = !{!"0x2e\00f\00f\00\0011\000\001\000\006\00256\000\0011", !5, !6, !7, null, void ()* @f, null, null, !2} ; [ DW_TAG_subprogram ] [line 11] [def] [f]
+!11 = !{i32 2, !"Dwarf Version", i32 4}
+!12 = !{i32 1, !"Debug Info Version", i32 2}
+!13 = !{!"clang version 3.5 "}
+!14 = !MDLocation(line: 4, scope: !4)
+!15 = !MDLocation(line: 5, scope: !4)
+!16 = !MDLocation(line: 8, scope: !9)
+!17 = !MDLocation(line: 9, scope: !9)
+!18 = !MDLocation(line: 12, scope: !10)
+!19 = !MDLocation(line: 13, scope: !10)
+!20 = !MDLocation(line: 14, scope: !10)
+!21 = !MDLocation(line: 15, scope: !10)

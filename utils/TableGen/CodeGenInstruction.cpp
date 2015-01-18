@@ -68,10 +68,13 @@ CGIOperandList::CGIOperandList(Record *R) : TheDef(R) {
     std::string PrintMethod = "printOperand";
     std::string EncoderMethod;
     std::string OperandType = "OPERAND_UNKNOWN";
+    std::string OperandNamespace = "MCOI";
     unsigned NumOps = 1;
     DagInit *MIOpInfo = nullptr;
     if (Rec->isSubClassOf("RegisterOperand")) {
       PrintMethod = Rec->getValueAsString("PrintMethod");
+      OperandType = Rec->getValueAsString("OperandType");
+      OperandNamespace = Rec->getValueAsString("OperandNamespace");
     } else if (Rec->isSubClassOf("Operand")) {
       PrintMethod = Rec->getValueAsString("PrintMethod");
       OperandType = Rec->getValueAsString("OperandType");
@@ -113,8 +116,8 @@ CGIOperandList::CGIOperandList(Record *R) : TheDef(R) {
                       Twine(i) + " has the same name as a previous operand!");
 
     OperandList.push_back(OperandInfo(Rec, ArgName, PrintMethod, EncoderMethod,
-                                      OperandType, MIOperandNo, NumOps,
-                                      MIOpInfo));
+                                      OperandNamespace + "::" + OperandType,
+				      MIOperandNo, NumOps, MIOpInfo));
     MIOperandNo += NumOps;
   }
 
@@ -314,6 +317,9 @@ CodeGenInstruction::CodeGenInstruction(Record *R)
   hasPostISelHook = R->getValueAsBit("hasPostISelHook");
   hasCtrlDep   = R->getValueAsBit("hasCtrlDep");
   isNotDuplicable = R->getValueAsBit("isNotDuplicable");
+  isRegSequence = R->getValueAsBit("isRegSequence");
+  isExtractSubreg = R->getValueAsBit("isExtractSubreg");
+  isInsertSubreg = R->getValueAsBit("isInsertSubreg");
 
   bool Unset;
   mayLoad      = R->getValueAsBitOrUnset("mayLoad", Unset);
@@ -322,7 +328,6 @@ CodeGenInstruction::CodeGenInstruction(Record *R)
   mayStore_Unset = Unset;
   hasSideEffects = R->getValueAsBitOrUnset("hasSideEffects", Unset);
   hasSideEffects_Unset = Unset;
-  neverHasSideEffects = R->getValueAsBit("neverHasSideEffects");
 
   isAsCheapAsAMove = R->getValueAsBit("isAsCheapAsAMove");
   hasExtraSrcRegAllocReq = R->getValueAsBit("hasExtraSrcRegAllocReq");
@@ -331,9 +336,6 @@ CodeGenInstruction::CodeGenInstruction(Record *R)
   isPseudo = R->getValueAsBit("isPseudo");
   ImplicitDefs = R->getValueAsListOfDefs("Defs");
   ImplicitUses = R->getValueAsListOfDefs("Uses");
-
-  if (neverHasSideEffects + hasSideEffects > 1)
-    PrintFatalError(R->getName() + ": multiple conflicting side-effect flags set!");
 
   // Parse Constraints.
   ParseConstraints(R->getValueAsString("Constraints"), Operands);
@@ -520,10 +522,25 @@ bool CodeGenInstAlias::tryAliasOpMatch(DagInit *Result, unsigned AliasOpNo,
     return true;
   }
 
+  // Bits<n> (also used for 0bxx literals)
+  if (BitsInit *BI = dyn_cast<BitsInit>(Arg)) {
+    if (hasSubOps || !InstOpRec->isSubClassOf("Operand"))
+      return false;
+    if (!BI->isComplete())
+      return false;
+    // Convert the bits init to an integer and use that for the result.
+    IntInit *II =
+      dyn_cast_or_null<IntInit>(BI->convertInitializerTo(IntRecTy::get()));
+    if (!II)
+      return false;
+    ResOp = ResultOperand(II->getValue());
+    return true;
+  }
+
   // If both are Operands with the same MVT, allow the conversion. It's
   // up to the user to make sure the values are appropriate, just like
   // for isel Pat's.
-  if (InstOpRec->isSubClassOf("Operand") &&
+  if (InstOpRec->isSubClassOf("Operand") && ADI &&
       ADI->getDef()->isSubClassOf("Operand")) {
     // FIXME: What other attributes should we check here? Identical
     // MIOperandInfo perhaps?

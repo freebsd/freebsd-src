@@ -41,13 +41,13 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Allocator.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SMLoc.h"
 #include <limits>
 #include <map>
 #include <utility>
 
 namespace llvm {
-class MemoryBuffer;
 class SourceMgr;
 class raw_ostream;
 class Twine;
@@ -79,8 +79,7 @@ public:
   /// \brief This keeps a reference to the string referenced by \p Input.
   Stream(StringRef Input, SourceMgr &);
 
-  /// \brief This takes ownership of \p InputBuffer.
-  Stream(MemoryBuffer *InputBuffer, SourceMgr &);
+  Stream(MemoryBufferRef InputBuffer, SourceMgr &);
   ~Stream();
 
   document_iterator begin();

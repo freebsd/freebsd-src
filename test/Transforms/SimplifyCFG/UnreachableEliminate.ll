@@ -47,7 +47,7 @@ T:
 }
 
 ; PR9450
-define i32 @test4(i32 %v) {
+define i32 @test4(i32 %v, i32 %w) {
 ; CHECK: entry:
 ; CHECK-NEXT:  switch i32 %v, label %T [
 ; CHECK-NEXT:    i32 3, label %V
@@ -67,7 +67,54 @@ SWITCH:
 default:
         unreachable
 U:
-        ret i32 1
+        ret i32 %w
 T:
         ret i32 2
+}
+
+
+;; We can either convert the following control-flow to a select or remove the
+;; unreachable control flow because of the undef store of null. Make sure we do
+;; the latter.
+
+define void @test5(i1 %cond, i8* %ptr) {
+
+; CHECK-LABEL: test5
+; CHECK: entry:
+; CHECK-NOT: select
+; CHECK:  store i8 2, i8* %ptr
+; CHECK:  ret
+
+entry:
+  br i1 %cond, label %bb1, label %bb3
+
+bb3:
+ br label %bb2
+
+bb1:
+ br label %bb2
+
+bb2:
+  %ptr.2 = phi i8* [ %ptr, %bb3 ], [ null, %bb1 ]
+  store i8 2, i8* %ptr.2, align 8
+  ret void
+}
+
+; CHECK-LABEL: test6
+; CHECK: entry:
+; CHECK-NOT: select
+; CHECK:  store i8 2, i8* %ptr
+; CHECK:  ret
+
+define void @test6(i1 %cond, i8* %ptr) {
+entry:
+  br i1 %cond, label %bb1, label %bb2
+
+bb1:
+  br label %bb2
+
+bb2:
+  %ptr.2 = phi i8* [ %ptr, %entry ], [ null, %bb1 ]
+  store i8 2, i8* %ptr.2, align 8
+  ret void
 }

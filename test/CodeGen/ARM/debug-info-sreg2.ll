@@ -1,26 +1,21 @@
-; RUN: llc < %s - | FileCheck %s
+; RUN: llc < %s - -filetype=obj | llvm-dwarfdump -debug-dump=loc - | FileCheck %s
 ; Radar 9376013
 target datalayout = "e-p:32:32:32-i1:8:32-i8:8:32-i16:16:32-i32:32:32-i64:32:32-f32:32:32-f64:32:32-v64:32:64-v128:32:128-a0:0:32-n32"
 target triple = "thumbv7-apple-macosx10.6.7"
 
-;CHECK-LABEL: Lfunc_begin0:
-;CHECK: Ltmp[[K:[0-9]+]]:
-;CHECK: Ltmp[[L:[0-9]+]]:
-;CHECK-LABEL: Ldebug_loc0:
-;CHECK-NEXT:        .long   Ltmp[[K]]
-;CHECK-NEXT:        .long   Ltmp[[L]]
-;CHECK-NEXT: Lset[[N:[0-9]+]] = Ltmp{{[0-9]+}}-Ltmp[[M:[0-9]+]]        @ Loc expr size
-;CHECK-NEXT:        .short  Lset[[N]]
-;CHECK-NEXT: Ltmp[[M]]:
-;CHECK-NEXT:        .byte   144                     @ super-register
-;CHECK-NEXT:                                        @ DW_OP_regx
-;CHECK-NEXT:        .ascii
-;CHECK-NEXT:        .byte   {{[0-9]+}}              @ DW_OP_{{.*}}piece
+; Just making sure the first part of the location isn't a repetition
+; of the size of the location description.
+;
+; 0x90   DW_OP_regx of super-register
+
+; CHECK: 0x00000000: Beginning address offset:
+; CHECK-NEXT:           Ending address offset:
+; CHECK-NEXT:            Location description: 90 {{.. .. .. .. $}}
 
 define void @_Z3foov() optsize ssp {
 entry:
   %call = tail call float @_Z3barv() optsize, !dbg !11
-  tail call void @llvm.dbg.value(metadata !{float %call}, i64 0, metadata !5), !dbg !11
+  tail call void @llvm.dbg.value(metadata float %call, i64 0, metadata !5, metadata !{!"0x102"}), !dbg !11
   %call16 = tail call float @_Z2f2v() optsize, !dbg !12
   %cmp7 = fcmp olt float %call, %call16, !dbg !12
   br i1 %cmp7, label %for.body, label %for.end, !dbg !12
@@ -43,29 +38,29 @@ declare float @_Z2f2v() optsize
 
 declare float @_Z2f3f(float) optsize
 
-declare void @llvm.dbg.value(metadata, i64, metadata) nounwind readnone
+declare void @llvm.dbg.value(metadata, i64, metadata, metadata) nounwind readnone
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!20}
 
-!0 = metadata !{i32 786449, metadata !18, i32 4, metadata !"clang version 3.0 (trunk 130845)", i1 true, metadata !"", i32 0, metadata !19, metadata !19, metadata !16, null,  null, null} ; [ DW_TAG_compile_unit ]
-!1 = metadata !{i32 786478, metadata !18, metadata !2, metadata !"foo", metadata !"foo", metadata !"_Z3foov", i32 5, metadata !3, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 true, void ()* @_Z3foov, null, null, metadata !17, i32 5} ; [ DW_TAG_subprogram ] [line 5] [def] [foo]
-!2 = metadata !{i32 786473, metadata !18} ; [ DW_TAG_file_type ]
-!3 = metadata !{i32 786453, metadata !18, metadata !2, metadata !"", i32 0, i64 0, i64 0, i32 0, i32 0, null, metadata !4, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!4 = metadata !{null}
-!5 = metadata !{i32 786688, metadata !6, metadata !"k", metadata !2, i32 6, metadata !7, i32 0, null} ; [ DW_TAG_auto_variable ]
-!6 = metadata !{i32 786443, metadata !18, metadata !1, i32 5, i32 12, i32 0} ; [ DW_TAG_lexical_block ]
-!7 = metadata !{i32 786468, null, metadata !0, metadata !"float", i32 0, i64 32, i64 32, i64 0, i32 0, i32 4} ; [ DW_TAG_base_type ]
-!8 = metadata !{i32 786688, metadata !9, metadata !"y", metadata !2, i32 8, metadata !7, i32 0, null} ; [ DW_TAG_auto_variable ]
-!9 = metadata !{i32 786443, metadata !18, metadata !10, i32 7, i32 25, i32 2} ; [ DW_TAG_lexical_block ]
-!10 = metadata !{i32 786443, metadata !18, metadata !6, i32 7, i32 3, i32 1} ; [ DW_TAG_lexical_block ]
-!11 = metadata !{i32 6, i32 18, metadata !6, null}
-!12 = metadata !{i32 7, i32 3, metadata !6, null}
-!13 = metadata !{i32 8, i32 20, metadata !9, null}
-!14 = metadata !{i32 7, i32 20, metadata !10, null}
-!15 = metadata !{i32 10, i32 1, metadata !6, null}
-!16 = metadata !{metadata !1}
-!17 = metadata !{metadata !5, metadata !8}
-!18 = metadata !{metadata !"k.cc", metadata !"/private/tmp"}
-!19 = metadata !{i32 0}
-!20 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
+!0 = !{!"0x11\004\00clang version 3.0 (trunk 130845)\001\00\000\00\001", !18, !19, !19, !16, null,  null} ; [ DW_TAG_compile_unit ]
+!1 = !{!"0x2e\00foo\00foo\00_Z3foov\005\000\001\000\006\00256\001\005", !18, !2, !3, null, void ()* @_Z3foov, null, null, !17} ; [ DW_TAG_subprogram ] [line 5] [def] [foo]
+!2 = !{!"0x29", !18} ; [ DW_TAG_file_type ]
+!3 = !{!"0x15\00\000\000\000\000\000\000", !18, !2, null, !4, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!4 = !{null}
+!5 = !{!"0x100\00k\006\000", !6, !2, !7} ; [ DW_TAG_auto_variable ]
+!6 = !{!"0xb\005\0012\000", !18, !1} ; [ DW_TAG_lexical_block ]
+!7 = !{!"0x24\00float\000\0032\0032\000\000\004", null, !0} ; [ DW_TAG_base_type ]
+!8 = !{!"0x100\00y\008\000", !9, !2, !7} ; [ DW_TAG_auto_variable ]
+!9 = !{!"0xb\007\0025\002", !18, !10} ; [ DW_TAG_lexical_block ]
+!10 = !{!"0xb\007\003\001", !18, !6} ; [ DW_TAG_lexical_block ]
+!11 = !MDLocation(line: 6, column: 18, scope: !6)
+!12 = !MDLocation(line: 7, column: 3, scope: !6)
+!13 = !MDLocation(line: 8, column: 20, scope: !9)
+!14 = !MDLocation(line: 7, column: 20, scope: !10)
+!15 = !MDLocation(line: 10, column: 1, scope: !6)
+!16 = !{!1}
+!17 = !{!5, !8}
+!18 = !{!"k.cc", !"/private/tmp"}
+!19 = !{i32 0}
+!20 = !{i32 1, !"Debug Info Version", i32 2}

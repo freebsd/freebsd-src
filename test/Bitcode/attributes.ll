@@ -1,4 +1,5 @@
 ; RUN: llvm-as < %s | llvm-dis | FileCheck %s
+; RUN: verify-uselistorder < %s
 ; PR12696
 
 define void @f1(i8 zeroext)
@@ -237,6 +238,11 @@ define dereferenceable(2) i8* @f39(i8* dereferenceable(1) %a) {
 define dereferenceable(18446744073709551606) i8* @f40(i8* dereferenceable(18446744073709551615) %a) {
 ; CHECK: define dereferenceable(18446744073709551606) i8* @f40(i8* dereferenceable(18446744073709551615) %a) {
         ret i8* %a
+}
+
+define void @f41(i8* align 32, double* align 64) {
+; CHECK: define void @f41(i8* align 32, double* align 64) {
+        ret void
 }
 
 ; CHECK: attributes #0 = { noreturn }

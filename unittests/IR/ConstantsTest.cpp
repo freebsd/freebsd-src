@@ -274,5 +274,78 @@ TEST(ConstantsTest, ReplaceWithConstantTest) {
 
 #undef CHECK
 
+TEST(ConstantsTest, ConstantArrayReplaceWithConstant) {
+  LLVMContext Context;
+  std::unique_ptr<Module> M(new Module("MyModule", Context));
+
+  Type *IntTy = Type::getInt8Ty(Context);
+  ArrayType *ArrayTy = ArrayType::get(IntTy, 2);
+  Constant *A01Vals[2] = {ConstantInt::get(IntTy, 0),
+                          ConstantInt::get(IntTy, 1)};
+  Constant *A01 = ConstantArray::get(ArrayTy, A01Vals);
+
+  Constant *Global = new GlobalVariable(*M, IntTy, false,
+                                        GlobalValue::ExternalLinkage, nullptr);
+  Constant *GlobalInt = ConstantExpr::getPtrToInt(Global, IntTy);
+  Constant *A0GVals[2] = {ConstantInt::get(IntTy, 0), GlobalInt};
+  Constant *A0G = ConstantArray::get(ArrayTy, A0GVals);
+  ASSERT_NE(A01, A0G);
+
+  GlobalVariable *RefArray =
+      new GlobalVariable(*M, ArrayTy, false, GlobalValue::ExternalLinkage, A0G);
+  ASSERT_EQ(A0G, RefArray->getInitializer());
+
+  GlobalInt->replaceAllUsesWith(ConstantInt::get(IntTy, 1));
+  ASSERT_EQ(A01, RefArray->getInitializer());
+}
+
+TEST(ConstantsTest, ConstantExprReplaceWithConstant) {
+  LLVMContext Context;
+  std::unique_ptr<Module> M(new Module("MyModule", Context));
+
+  Type *IntTy = Type::getInt8Ty(Context);
+  Constant *G1 = new GlobalVariable(*M, IntTy, false,
+                                    GlobalValue::ExternalLinkage, nullptr);
+  Constant *G2 = new GlobalVariable(*M, IntTy, false,
+                                    GlobalValue::ExternalLinkage, nullptr);
+  ASSERT_NE(G1, G2);
+
+  Constant *Int1 = ConstantExpr::getPtrToInt(G1, IntTy);
+  Constant *Int2 = ConstantExpr::getPtrToInt(G2, IntTy);
+  ASSERT_NE(Int1, Int2);
+
+  GlobalVariable *Ref =
+      new GlobalVariable(*M, IntTy, false, GlobalValue::ExternalLinkage, Int1);
+  ASSERT_EQ(Int1, Ref->getInitializer());
+
+  G1->replaceAllUsesWith(G2);
+  ASSERT_EQ(Int2, Ref->getInitializer());
+}
+
+TEST(ConstantsTest, GEPReplaceWithConstant) {
+  LLVMContext Context;
+  std::unique_ptr<Module> M(new Module("MyModule", Context));
+
+  Type *IntTy = Type::getInt32Ty(Context);
+  Type *PtrTy = PointerType::get(IntTy, 0);
+  auto *C1 = ConstantInt::get(IntTy, 1);
+  auto *Placeholder = new GlobalVariable(
+      *M, IntTy, false, GlobalValue::ExternalWeakLinkage, nullptr);
+  auto *GEP = ConstantExpr::getGetElementPtr(Placeholder, C1);
+  ASSERT_EQ(GEP->getOperand(0), Placeholder);
+
+  auto *Ref =
+      new GlobalVariable(*M, PtrTy, false, GlobalValue::ExternalLinkage, GEP);
+  ASSERT_EQ(GEP, Ref->getInitializer());
+
+  auto *Global = new GlobalVariable(*M, PtrTy, false,
+                                    GlobalValue::ExternalLinkage, nullptr);
+  auto *Alias = GlobalAlias::create(IntTy, 0, GlobalValue::ExternalLinkage,
+                                    "alias", Global, M.get());
+  Placeholder->replaceAllUsesWith(Alias);
+  ASSERT_EQ(GEP, Ref->getInitializer());
+  ASSERT_EQ(GEP->getOperand(0), Alias);
+}
+
 }  // end anonymous namespace
 }  // end namespace llvm

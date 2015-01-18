@@ -23,6 +23,7 @@
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/Support/CBindingWrapping.h"
+#include "llvm/Support/CodeGen.h"
 #include "llvm/Support/DataTypes.h"
 #include <system_error>
 
@@ -32,8 +33,6 @@ class GVMaterializer;
 class LLVMContext;
 class RandomNumberGenerator;
 class StructType;
-template<typename T> struct DenseMapInfo;
-template<typename KeyT, typename ValueT, typename KeyInfoT> class DenseMap;
 
 template<> struct ilist_traits<Function>
   : public SymbolTableListTraits<Function, Module> {
@@ -137,6 +136,11 @@ public:
   /// The Function constant iterator
   typedef FunctionListType::const_iterator               const_iterator;
 
+  /// The Function reverse iterator.
+  typedef FunctionListType::reverse_iterator             reverse_iterator;
+  /// The Function constant reverse iterator.
+  typedef FunctionListType::const_reverse_iterator const_reverse_iterator;
+
   /// The Global Alias iterators.
   typedef AliasListType::iterator                        alias_iterator;
   /// The Global Alias constant iterator
@@ -144,7 +148,7 @@ public:
 
   /// The named metadata iterators.
   typedef NamedMDListType::iterator             named_metadata_iterator;
-  /// The named metadata constant interators.
+  /// The named metadata constant iterators.
   typedef NamedMDListType::const_iterator const_named_metadata_iterator;
 
   /// This enumeration defines the supported behaviors of module flags.
@@ -177,15 +181,23 @@ public:
     /// Appends the two values, which are required to be metadata
     /// nodes. However, duplicate entries in the second list are dropped
     /// during the append operation.
-    AppendUnique = 6
+    AppendUnique = 6,
+
+    // Markers:
+    ModFlagBehaviorFirstVal = Error,
+    ModFlagBehaviorLastVal = AppendUnique
   };
+
+  /// Checks if Metadata represents a valid ModFlagBehavior, and stores the
+  /// converted result in MFB.
+  static bool isValidModFlagBehavior(Metadata *MD, ModFlagBehavior &MFB);
 
   struct ModuleFlagEntry {
     ModFlagBehavior Behavior;
     MDString *Key;
-    Value *Val;
-    ModuleFlagEntry(ModFlagBehavior B, MDString *K, Value *V)
-      : Behavior(B), Key(K), Val(V) {}
+    Metadata *Val;
+    ModuleFlagEntry(ModFlagBehavior B, MDString *K, Metadata *V)
+        : Behavior(B), Key(K), Val(V) {}
   };
 
 /// @}
@@ -205,9 +217,8 @@ private:
   Materializer;                   ///< Used to materialize GlobalValues
   std::string ModuleID;           ///< Human readable identifier for the module
   std::string TargetTriple;       ///< Platform target triple Module compiled on
+                                  ///< Format: (arch)(sub)-(vendor)-(sys0-(abi)
   void *NamedMDSymTab;            ///< NamedMDNode names.
-  // Allow lazy initialization in const method.
-  mutable RandomNumberGenerator *RNG; ///< The random number generator for this module.
 
   // We need to keep the string because the C API expects us to own the string
   // representation.
@@ -237,6 +248,12 @@ public:
   /// @returns the module identifier as a string
   const std::string &getModuleIdentifier() const { return ModuleID; }
 
+  /// \brief Get a short "name" for the module.
+  ///
+  /// This is useful for debugging or logging. It is essentially a convenience
+  /// wrapper around getModuleIdentifier().
+  StringRef getName() const { return ModuleID; }
+
   /// Get the data layout string for the module's target platform. This is
   /// equivalent to getDataLayout()->getStringRepresentation().
   const std::string &getDataLayoutStr() const { return DataLayoutStr; }
@@ -256,10 +273,16 @@ public:
   /// @returns a string containing the module-scope inline assembly blocks.
   const std::string &getModuleInlineAsm() const { return GlobalScopeAsm; }
 
-  /// Get the RandomNumberGenerator for this module. The RNG can be
-  /// seeded via -rng-seed=<uint64> and is salted with the ModuleID.
-  /// The returned RNG should not be shared across threads.
-  RandomNumberGenerator &getRNG() const;
+  /// Get a RandomNumberGenerator salted for use with this module. The
+  /// RNG can be seeded via -rng-seed=<uint64> and is salted with the
+  /// ModuleID and the provided pass salt. The returned RNG should not
+  /// be shared across threads or passes.
+  ///
+  /// A unique RNG per pass ensures a reproducible random stream even
+  /// when other randomness consuming passes are added or removed. In
+  /// addition, the random stream will be reproducible across LLVM
+  /// versions when the pass does not change.
+  RandomNumberGenerator *createRNG(const Pass* P) const;
 
 /// @}
 /// @name Module Level Mutators
@@ -313,6 +336,8 @@ public:
   /// name.
   StructType *getTypeByName(StringRef Name) const;
 
+  std::vector<StructType *> getIdentifiedStructTypes() const;
+
 /// @}
 /// @name Function Accessors
 /// @{
@@ -339,11 +364,11 @@ public:
   /// function arguments, which makes it easier for clients to use.
   Constant *getOrInsertFunction(StringRef Name,
                                 AttributeSet AttributeList,
-                                Type *RetTy, ...)  END_WITH_NULL;
+                                Type *RetTy, ...) LLVM_END_WITH_NULL;
 
   /// Same as above, but without the attributes.
   Constant *getOrInsertFunction(StringRef Name, Type *RetTy, ...)
-    END_WITH_NULL;
+    LLVM_END_WITH_NULL;
 
   /// Look up the specified function in the module symbol table. If it does not
   /// exist, return null.
@@ -357,8 +382,11 @@ public:
   /// does not exist, return null. If AllowInternal is set to true, this
   /// function will return types that have InternalLinkage. By default, these
   /// types are not returned.
-  const GlobalVariable *getGlobalVariable(StringRef Name,
-                                          bool AllowInternal = false) const {
+  GlobalVariable *getGlobalVariable(StringRef Name) const {
+    return getGlobalVariable(Name, false);
+  }
+
+  GlobalVariable *getGlobalVariable(StringRef Name, bool AllowInternal) const {
     return const_cast<Module *>(this)->getGlobalVariable(Name, AllowInternal);
   }
 
@@ -424,7 +452,7 @@ public:
 
   /// Return the corresponding value if Key appears in module flags, otherwise
   /// return null.
-  Value *getModuleFlag(StringRef Key) const;
+  Metadata *getModuleFlag(StringRef Key) const;
 
   /// Returns the NamedMDNode in the module that represents module-level flags.
   /// This method returns null if there are no module-level flags.
@@ -437,7 +465,8 @@ public:
 
   /// Add a module-level flag to the module-level flags metadata. It will create
   /// the module-level flags named metadata if it doesn't already exist.
-  void addModuleFlag(ModFlagBehavior Behavior, StringRef Key, Value *Val);
+  void addModuleFlag(ModFlagBehavior Behavior, StringRef Key, Metadata *Val);
+  void addModuleFlag(ModFlagBehavior Behavior, StringRef Key, Constant *Val);
   void addModuleFlag(ModFlagBehavior Behavior, StringRef Key, uint32_t Val);
   void addModuleFlag(MDNode *Node);
 
@@ -456,9 +485,6 @@ public:
   /// Retrieves the GVMaterializer, if any, for this Module.
   GVMaterializer *getMaterializer() const { return Materializer.get(); }
 
-  /// True if the definition of GV has yet to be materializedfrom the
-  /// GVMaterializer.
-  bool isMaterializable(const GlobalValue *GV) const;
   /// Returns true if this GV was loaded from this Module's GVMaterializer and
   /// the GVMaterializer knows how to dematerialize the GV.
   bool isDematerializable(const GlobalValue *GV) const;
@@ -466,10 +492,10 @@ public:
   /// Make sure the GlobalValue is fully read. If the module is corrupt, this
   /// returns true and fills in the optional string with information about the
   /// problem. If successful, this returns false.
-  bool Materialize(GlobalValue *GV, std::string *ErrInfo = nullptr);
+  std::error_code materialize(GlobalValue *GV);
   /// If the GlobalValue is read in, and if the GVMaterializer supports it,
   /// release the memory for the function, and set it up to be materialized
-  /// lazily. If !isDematerializable(), this method is a noop.
+  /// lazily. If !isDematerializable(), this method is a no-op.
   void Dematerialize(GlobalValue *GV);
 
   /// Make sure all GlobalValues in this Module are fully read.
@@ -478,7 +504,7 @@ public:
   /// Make sure all GlobalValues in this Module are fully read and clear the
   /// Materializer. If the module is corrupt, this DOES NOT clear the old
   /// Materializer.
-  std::error_code materializeAllPermanently(bool ReleaseBuffer = false);
+  std::error_code materializeAllPermanently();
 
 /// @}
 /// @name Direct access to the globals list, functions list, and symbol table
@@ -546,8 +572,19 @@ public:
   const_iterator          begin() const { return FunctionList.begin(); }
   iterator                end  ()       { return FunctionList.end();   }
   const_iterator          end  () const { return FunctionList.end();   }
+  reverse_iterator        rbegin()      { return FunctionList.rbegin(); }
+  const_reverse_iterator  rbegin() const{ return FunctionList.rbegin(); }
+  reverse_iterator        rend()        { return FunctionList.rend(); }
+  const_reverse_iterator  rend() const  { return FunctionList.rend(); }
   size_t                  size() const  { return FunctionList.size(); }
   bool                    empty() const { return FunctionList.empty(); }
+
+  iterator_range<iterator> functions() {
+    return iterator_range<iterator>(begin(), end());
+  }
+  iterator_range<const_iterator> functions() const {
+    return iterator_range<const_iterator>(begin(), end());
+  }
 
 /// @}
 /// @name Alias Iteration
@@ -619,6 +656,15 @@ public:
   /// \brief Returns the Dwarf Version by checking module flags.
   unsigned getDwarfVersion() const;
 
+/// @}
+/// @name Utility functions for querying and setting PIC level
+/// @{
+
+  /// \brief Returns the PIC level (small or large model)
+  PICLevel::Level getPICLevel() const;
+
+  /// \brief Set the PIC level (small or large model)
+  void setPICLevel(PICLevel::Level PL);
 /// @}
 };
 

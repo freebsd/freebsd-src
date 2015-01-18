@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86MCTARGETDESC_H
-#define X86MCTARGETDESC_H
+#ifndef LLVM_LIB_TARGET_X86_MCTARGETDESC_X86MCTARGETDESC_H
+#define LLVM_LIB_TARGET_X86_MCTARGETDESC_X86MCTARGETDESC_H
 
 #include "llvm/Support/DataTypes.h"
 #include <string>
@@ -40,8 +40,8 @@ namespace DWARFFlavour {
   enum {
     X86_64 = 0, X86_32_DarwinEH = 1, X86_32_Generic = 2
   };
-} 
-  
+}
+
 /// N86 namespace - Native X86 register numbers
 ///
 namespace N86 {

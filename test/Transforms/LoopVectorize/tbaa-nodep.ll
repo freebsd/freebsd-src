@@ -1,5 +1,5 @@
-; RUN: opt < %s  -tbaa -basicaa -loop-vectorize -force-vector-unroll=1 -force-vector-width=4 -dce -instcombine -simplifycfg -S | FileCheck %s
-; RUN: opt < %s  -basicaa -loop-vectorize -force-vector-unroll=1 -force-vector-width=4 -dce -instcombine -simplifycfg -S | FileCheck %s --check-prefix=CHECK-NOTBAA
+; RUN: opt < %s  -tbaa -basicaa -loop-vectorize -force-vector-interleave=1 -force-vector-width=4 -dce -instcombine -simplifycfg -S | FileCheck %s
+; RUN: opt < %s  -basicaa -loop-vectorize -force-vector-interleave=1 -force-vector-width=4 -dce -instcombine -simplifycfg -S | FileCheck %s --check-prefix=CHECK-NOTBAA
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
 
@@ -93,10 +93,10 @@ for.end:                                          ; preds = %for.body
 
 attributes #0 = { nounwind uwtable }
 
-!0 = metadata !{metadata !1, metadata !1, i64 0}
-!1 = metadata !{metadata !"float", metadata !2, i64 0}
-!2 = metadata !{metadata !"omnipotent char", metadata !3, i64 0}
-!3 = metadata !{metadata !"Simple C/C++ TBAA"}
-!4 = metadata !{metadata !5, metadata !5, i64 0}
-!5 = metadata !{metadata !"int", metadata !2, i64 0}
+!0 = !{!1, !1, i64 0}
+!1 = !{!"float", !2, i64 0}
+!2 = !{!"omnipotent char", !3, i64 0}
+!3 = !{!"Simple C/C++ TBAA"}
+!4 = !{!5, !5, i64 0}
+!5 = !{!"int", !2, i64 0}
 

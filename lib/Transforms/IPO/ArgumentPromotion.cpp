@@ -78,11 +78,15 @@ namespace {
 
     const DataLayout *DL;
   private:
+    bool isDenselyPacked(Type *type);
+    bool canPaddingBeAccessed(Argument *Arg);
     CallGraphNode *PromoteArguments(CallGraphNode *CGN);
     bool isSafeToPromoteArgument(Argument *Arg, bool isByVal) const;
     CallGraphNode *DoPromotion(Function *F,
-                               SmallPtrSet<Argument*, 8> &ArgsToPromote,
-                               SmallPtrSet<Argument*, 8> &ByValArgsToTransform);
+                              SmallPtrSetImpl<Argument*> &ArgsToPromote,
+                              SmallPtrSetImpl<Argument*> &ByValArgsToTransform);
+    
+    using llvm::Pass::doInitialization;
     bool doInitialization(CallGraph &CG) override;
     /// The maximum number of elements to expand, or 0 for unlimited.
     unsigned maxElements;
@@ -123,6 +127,78 @@ bool ArgPromotion::runOnSCC(CallGraphSCC &SCC) {
   return Changed;
 }
 
+/// \brief Checks if a type could have padding bytes.
+bool ArgPromotion::isDenselyPacked(Type *type) {
+
+  // There is no size information, so be conservative.
+  if (!type->isSized())
+    return false;
+
+  // If the alloc size is not equal to the storage size, then there are padding
+  // bytes. For x86_fp80 on x86-64, size: 80 alloc size: 128.
+  if (!DL || DL->getTypeSizeInBits(type) != DL->getTypeAllocSizeInBits(type))
+    return false;
+
+  if (!isa<CompositeType>(type))
+    return true;
+
+  // For homogenous sequential types, check for padding within members.
+  if (SequentialType *seqTy = dyn_cast<SequentialType>(type))
+    return isa<PointerType>(seqTy) || isDenselyPacked(seqTy->getElementType());
+
+  // Check for padding within and between elements of a struct.
+  StructType *StructTy = cast<StructType>(type);
+  const StructLayout *Layout = DL->getStructLayout(StructTy);
+  uint64_t StartPos = 0;
+  for (unsigned i = 0, E = StructTy->getNumElements(); i < E; ++i) {
+    Type *ElTy = StructTy->getElementType(i);
+    if (!isDenselyPacked(ElTy))
+      return false;
+    if (StartPos != Layout->getElementOffsetInBits(i))
+      return false;
+    StartPos += DL->getTypeAllocSizeInBits(ElTy);
+  }
+
+  return true;
+}
+
+/// \brief Checks if the padding bytes of an argument could be accessed.
+bool ArgPromotion::canPaddingBeAccessed(Argument *arg) {
+
+  assert(arg->hasByValAttr());
+
+  // Track all the pointers to the argument to make sure they are not captured.
+  SmallPtrSet<Value *, 16> PtrValues;
+  PtrValues.insert(arg);
+
+  // Track all of the stores.
+  SmallVector<StoreInst *, 16> Stores;
+
+  // Scan through the uses recursively to make sure the pointer is always used
+  // sanely.
+  SmallVector<Value *, 16> WorkList;
+  WorkList.insert(WorkList.end(), arg->user_begin(), arg->user_end());
+  while (!WorkList.empty()) {
+    Value *V = WorkList.back();
+    WorkList.pop_back();
+    if (isa<GetElementPtrInst>(V) || isa<PHINode>(V)) {
+      if (PtrValues.insert(V).second)
+        WorkList.insert(WorkList.end(), V->user_begin(), V->user_end());
+    } else if (StoreInst *Store = dyn_cast<StoreInst>(V)) {
+      Stores.push_back(Store);
+    } else if (!isa<LoadInst>(V)) {
+      return true;
+    }
+  }
+
+// Check to make sure the pointers aren't captured
+  for (StoreInst *Store : Stores)
+    if (PtrValues.count(Store->getValueOperand()))
+      return true;
+
+  return false;
+}
+
 /// PromoteArguments - This method checks the specified function to see if there
 /// are any promotable arguments and if it is safe to promote the function (for
 /// example, all callers are direct).  If safe to promote some arguments, it
@@ -154,6 +230,13 @@ CallGraphNode *ArgPromotion::PromoteArguments(CallGraphNode *CGN) {
       isSelfRecursive = true;
   }
   
+  // Don't promote arguments for variadic functions. Adding, removing, or
+  // changing non-pack parameters can change the classification of pack
+  // parameters. Frontends encode that classification at the call site in the
+  // IR, while in the callee the classification is determined dynamically based
+  // on the number of registers consumed so far.
+  if (F->isVarArg()) return nullptr;
+
   // Check to see which arguments are promotable.  If an argument is promotable,
   // add it to ArgsToPromote.
   SmallPtrSet<Argument*, 8> ArgsToPromote;
@@ -163,9 +246,13 @@ CallGraphNode *ArgPromotion::PromoteArguments(CallGraphNode *CGN) {
     Type *AgTy = cast<PointerType>(PtrArg->getType())->getElementType();
 
     // If this is a byval argument, and if the aggregate type is small, just
-    // pass the elements, which is always safe.  This does not apply to
-    // inalloca.
-    if (PtrArg->hasByValAttr()) {
+    // pass the elements, which is always safe, if the passed value is densely
+    // packed or if we can prove the padding bytes are never accessed. This does
+    // not apply to inalloca.
+    bool isSafeToPromote =
+      PtrArg->hasByValAttr() &&
+      (isDenselyPacked(AgTy) || !canPaddingBeAccessed(PtrArg));
+    if (isSafeToPromote) {
       if (StructType *STy = dyn_cast<StructType>(AgTy)) {
         if (maxElements > 0 && STy->getNumElements() > maxElements) {
           DEBUG(dbgs() << "argpromotion disable promoting argument '"
@@ -443,7 +530,7 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg,
         // of elements of the aggregate.
         return false;
       }
-      ToPromote.insert(Operands);
+      ToPromote.insert(std::move(Operands));
     }
   }
 
@@ -467,7 +554,8 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg,
     BasicBlock *BB = Load->getParent();
 
     AliasAnalysis::Location Loc = AA.getLocation(Load);
-    if (AA.canInstructionRangeModify(BB->front(), *Load, Loc))
+    if (AA.canInstructionRangeModRef(BB->front(), *Load, Loc,
+        AliasAnalysis::Mod))
       return false;  // Pointer is invalidated!
 
     // Now check every path from the entry block to the load for transparency.
@@ -475,10 +563,8 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg,
     // loading block.
     for (pred_iterator PI = pred_begin(BB), E = pred_end(BB); PI != E; ++PI) {
       BasicBlock *P = *PI;
-      for (idf_ext_iterator<BasicBlock*, SmallPtrSet<BasicBlock*, 16> >
-             I = idf_ext_begin(P, TranspBlocks),
-             E = idf_ext_end(P, TranspBlocks); I != E; ++I)
-        if (AA.canBasicBlockModify(**I, Loc))
+      for (BasicBlock *TranspBB : inverse_depth_first_ext(P, TranspBlocks))
+        if (AA.canBasicBlockModify(*TranspBB, Loc))
           return false;
     }
   }
@@ -493,8 +579,8 @@ bool ArgPromotion::isSafeToPromoteArgument(Argument *Arg,
 /// arguments, and returns the new function.  At this point, we know that it's
 /// safe to do so.
 CallGraphNode *ArgPromotion::DoPromotion(Function *F,
-                               SmallPtrSet<Argument*, 8> &ArgsToPromote,
-                              SmallPtrSet<Argument*, 8> &ByValArgsToTransform) {
+                             SmallPtrSetImpl<Argument*> &ArgsToPromote,
+                             SmallPtrSetImpl<Argument*> &ByValArgsToTransform) {
 
   // Start by computing a new prototype for the function, which is the same as
   // the old function, but has modified arguments.
@@ -615,9 +701,15 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
 
   // Patch the pointer to LLVM function in debug info descriptor.
   auto DI = FunctionDIs.find(F);
-  if (DI != FunctionDIs.end())
-    DI->second.replaceFunction(NF);
-  
+  if (DI != FunctionDIs.end()) {
+    DISubprogram SP = DI->second;
+    SP.replaceFunction(NF);
+    // Ensure the map is updated so it can be reused on subsequent argument
+    // promotions of the same function.
+    FunctionDIs.erase(DI);
+    FunctionDIs[NF] = SP;
+  }
+
   DEBUG(dbgs() << "ARG PROMOTION:  Promoting to:" << *NF << "\n"
         << "From: " << *F);
   
@@ -716,9 +808,11 @@ CallGraphNode *ArgPromotion::DoPromotion(Function *F,
           // of the previous load.
           LoadInst *newLoad = new LoadInst(V, V->getName()+".val", Call);
           newLoad->setAlignment(OrigLoad->getAlignment());
-          // Transfer the TBAA info too.
-          newLoad->setMetadata(LLVMContext::MD_tbaa,
-                               OrigLoad->getMetadata(LLVMContext::MD_tbaa));
+          // Transfer the AA info too.
+          AAMDNodes AAInfo;
+          OrigLoad->getAAMetadata(AAInfo);
+          newLoad->setAAMetadata(AAInfo);
+
           Args.push_back(newLoad);
           AA.copyValue(OrigLoad, Args.back());
         }

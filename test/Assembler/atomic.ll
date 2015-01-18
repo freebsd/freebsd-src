@@ -1,4 +1,5 @@
 ; RUN: opt < %s | opt -S | FileCheck %s
+; RUN: verify-uselistorder %s
 ; Basic smoke test for atomic operations.
 
 define void @f(i32* %x) {

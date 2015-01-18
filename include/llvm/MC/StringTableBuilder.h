@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_MC_STRINGTABLE_BUILDER_H
-#define LLVM_MC_STRINGTABLE_BUILDER_H
+#ifndef LLVM_MC_STRINGTABLEBUILDER_H
+#define LLVM_MC_STRINGTABLEBUILDER_H
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringMap.h"
@@ -26,12 +26,18 @@ public:
   /// copy of s. Can only be used before the table is finalized.
   StringRef add(StringRef s) {
     assert(!isFinalized());
-    return StringIndexMap.GetOrCreateValue(s, 0).getKey();
+    return StringIndexMap.insert(std::make_pair(s, 0)).first->first();
   }
+
+  enum Kind {
+    ELF,
+    WinCOFF,
+    MachO
+  };
 
   /// \brief Analyze the strings and build the final table. No more strings can
   /// be added after this point.
-  void finalize();
+  void finalize(Kind kind);
 
   /// \brief Retrieve the string table data. Can only be used after the table
   /// is finalized.
@@ -47,6 +53,8 @@ public:
     assert(StringIndexMap.count(s) && "String is not in table!");
     return StringIndexMap[s];
   }
+
+  void clear();
 
 private:
   bool isFinalized() {

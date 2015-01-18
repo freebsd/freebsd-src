@@ -1,6 +1,5 @@
-# RUN: llvm-mc -triple=x86_64-apple-macosx10.9 -relocation-model=pic -filetype=obj -o %t.o %s
-# RUN: llvm-rtdyld -triple=x86_64-apple-macosx10.9 -verify -check=%s %t.o
-# RUN: rm %t.o
+# RUN: llvm-mc -triple=x86_64-apple-macosx10.9 -relocation-model=pic -filetype=obj -o %T/test_x86-64.o %s
+# RUN: llvm-rtdyld -triple=x86_64-apple-macosx10.9 -verify -check=%s %/T/test_x86-64.o
 
         .section	__TEXT,__text,regular,pure_instructions
 	.globl	foo
@@ -20,8 +19,19 @@ insn1:
 # rtdyld-check: decode_operand(insn2, 4) = x - next_pc(insn2)
 insn2:
 	movl	x(%rip), %eax
-	movl	$0, %eax
+
+# Test PC-rel GOT relocation.
+# Verify both the contents of the GOT entry for y, and that the movq instruction
+# references the correct GOT entry address:
+# rtdyld-check: *{8}(stub_addr(test_x86-64.o, __text, y)) = y
+# rtdyld-check: decode_operand(insn3, 4) = stub_addr(test_x86-64.o, __text, y) - next_pc(insn3)
+insn3:
+        movq	y@GOTPCREL(%rip), %rax
+
+        movl	$0, %eax
 	retq
+
+        .comm   y,4,2
 
         .section	__DATA,__data
 	.globl	x

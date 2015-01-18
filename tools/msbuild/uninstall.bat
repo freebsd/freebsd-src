@@ -6,8 +6,8 @@ REM CD to the directory of this batch file.
 cd /d %~dp0
 
 set PLATFORM=None
-:START
-IF %PLATFORM% == x64 GOTO END
+:LOOPHEAD
+IF %PLATFORM% == x64 GOTO LOOPEND
 IF %PLATFORM% == Win32 SET PLATFORM=x64
 IF %PLATFORM% == None SET PLATFORM=Win32
 
@@ -51,8 +51,23 @@ IF EXIST %D%\LLVM-vs2013_xp del %D%\LLVM-vs2013_xp\toolset.props
 IF EXIST %D%\LLVM-vs2013_xp del %D%\LLVM-vs2013_xp\toolset.targets
 IF EXIST %D%\LLVM-vs2013_xp rmdir %D%\LLVM-vs2013_xp
 
+SET D="%ProgramFiles%\MSBuild\Microsoft.Cpp\v4.0\V140\Platforms\%PLATFORM%\PlatformToolsets"
+IF EXIST %D%\LLVM-vs2014 del %D%\LLVM-vs2014\toolset.props
+IF EXIST %D%\LLVM-vs2014 del %D%\LLVM-vs2014\toolset.targets
+IF EXIST %D%\LLVM-vs2014 rmdir %D%\LLVM-vs2014
+IF EXIST %D%\LLVM-vs2014_xp del %D%\LLVM-vs2014_xp\toolset.props
+IF EXIST %D%\LLVM-vs2014_xp del %D%\LLVM-vs2014_xp\toolset.targets
+IF EXIST %D%\LLVM-vs2014_xp rmdir %D%\LLVM-vs2014_xp
+SET D="%ProgramFiles(x86)%\MSBuild\Microsoft.Cpp\v4.0\V140\Platforms\%PLATFORM%\PlatformToolsets"
+IF EXIST %D%\LLVM-vs2014 del %D%\LLVM-vs2014\toolset.props
+IF EXIST %D%\LLVM-vs2014 del %D%\LLVM-vs2014\toolset.targets
+IF EXIST %D%\LLVM-vs2014 rmdir %D%\LLVM-vs2014
+IF EXIST %D%\LLVM-vs2014_xp del %D%\LLVM-vs2014_xp\toolset.props
+IF EXIST %D%\LLVM-vs2014_xp del %D%\LLVM-vs2014_xp\toolset.targets
+IF EXIST %D%\LLVM-vs2014_xp rmdir %D%\LLVM-vs2014_xp
 
-GOTO START
 
-:END
+GOTO LOOPHEAD
+
+:LOOPEND
 echo Done!

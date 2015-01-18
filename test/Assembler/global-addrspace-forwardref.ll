@@ -1,4 +1,5 @@
 ; RUN: llvm-as < %s | llvm-dis | FileCheck %s
+; RUN: verify-uselistorder %s
 
 ; Make sure the address space of forward decls is preserved
 

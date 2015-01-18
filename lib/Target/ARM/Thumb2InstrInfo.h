@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef THUMB2INSTRUCTIONINFO_H
-#define THUMB2INSTRUCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_ARM_THUMB2INSTRINFO_H
+#define LLVM_LIB_TARGET_ARM_THUMB2INSTRINFO_H
 
 #include "ARMBaseInstrInfo.h"
 #include "Thumb2RegisterInfo.h"
@@ -61,6 +61,10 @@ public:
   /// always be able to get register info as well (through this method).
   ///
   const Thumb2RegisterInfo &getRegisterInfo() const override { return RI; }
+
+private:
+  void expandLoadStackGuard(MachineBasicBlock::iterator MI,
+                            Reloc::Model RM) const override;
 };
 
 /// getITInstrPredicate - Valid only in Thumb2 mode. This function is identical
@@ -71,4 +75,4 @@ ARMCC::CondCodes getITInstrPredicate(const MachineInstr *MI, unsigned &PredReg);
 
 }
 
-#endif // THUMB2INSTRUCTIONINFO_H
+#endif

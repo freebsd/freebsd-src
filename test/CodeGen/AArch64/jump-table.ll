@@ -56,10 +56,11 @@ lbl4:
 ; CHECK-NEXT: .xword
 
 ; CHECK-PIC-NOT: .data_region
+; CHECK-PIC-NOT: .LJTI0_0
 ; CHECK-PIC: .LJTI0_0:
-; CHECK-PIC-NEXT: .word
-; CHECK-PIC-NEXT: .word
-; CHECK-PIC-NEXT: .word
-; CHECK-PIC-NEXT: .word
-; CHECK-PIC-NEXT: .word
+; CHECK-PIC-NEXT: .word .LBB{{.*}}-.LJTI0_0
+; CHECK-PIC-NEXT: .word .LBB{{.*}}-.LJTI0_0
+; CHECK-PIC-NEXT: .word .LBB{{.*}}-.LJTI0_0
+; CHECK-PIC-NEXT: .word .LBB{{.*}}-.LJTI0_0
+; CHECK-PIC-NEXT: .word .LBB{{.*}}-.LJTI0_0
 ; CHECK-PIC-NOT: .end_data_region

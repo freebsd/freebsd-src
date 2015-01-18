@@ -24,10 +24,10 @@
 
 ; File, line, and column should match those specified in the metadata
 ; CHECK: remark: source.cpp:4:5: loop not vectorized: could not determine number of loop iterations
-; CHECK: remark: source.cpp:4:5: loop not vectorized: vectorization was not specified
+; CHECK: remark: source.cpp:4:5: loop not vectorized: use -Rpass-analysis=loop-vectorize for more info
 ; CHECK: remark: source.cpp:13:5: loop not vectorized: vector width and interleave count are explicitly set to 1
 ; CHECK: remark: source.cpp:19:5: loop not vectorized: cannot identify array bounds
-; CHECK: remark: source.cpp:19:5: loop not vectorized: vectorization is explicitly enabled
+; CHECK: remark: source.cpp:19:5: loop not vectorized: use -Rpass-analysis=loop-vectorize for more info
 ; CHECK: warning: source.cpp:19:5: loop not vectorized: failed explicitly specified loop vectorization
 
 ; CHECK: _Z4testPii
@@ -122,40 +122,40 @@ attributes #0 = { nounwind }
 !llvm.module.flags = !{!9, !10}
 !llvm.ident = !{!11}
 
-!0 = metadata !{i32 786449, metadata !1, i32 4, metadata !"clang version 3.5.0", i1 true, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !"", i32 2}
-!1 = metadata !{metadata !"source.cpp", metadata !"."}
-!2 = metadata !{}
-!3 = metadata !{metadata !4, metadata !7, metadata !8}
-!4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"test", metadata !"test", metadata !"", i32 1, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 true, void (i32*, i32)* @_Z4testPii, null, null, metadata !2, i32 1}
-!5 = metadata !{i32 786473, metadata !1}
-!6 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !2, i32 0, null, null, null}
-!7 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"test_disabled", metadata !"test_disabled", metadata !"", i32 10, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 true, void (i32*, i32)* @_Z13test_disabledPii, null, null, metadata !2, i32 10}
-!8 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"test_array_bounds", metadata !"test_array_bounds", metadata !"", i32 16, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 true, void (i32*, i32*, i32)* @_Z17test_array_boundsPiS_i, null, null, metadata !2, i32 16}
-!9 = metadata !{i32 2, metadata !"Dwarf Version", i32 2}
-!10 = metadata !{i32 2, metadata !"Debug Info Version", i32 1}
-!11 = metadata !{metadata !"clang version 3.5.0"}
-!12 = metadata !{i32 3, i32 8, metadata !13, null}
-!13 = metadata !{i32 786443, metadata !1, metadata !4, i32 3, i32 3, i32 0, i32 0}
-!14 = metadata !{metadata !14, metadata !15, metadata !15}
-!15 = metadata !{metadata !"llvm.loop.vectorize.enable", i1 true}
-!16 = metadata !{i32 4, i32 5, metadata !17, null}
-!17 = metadata !{i32 786443, metadata !1, metadata !13, i32 3, i32 36, i32 0, i32 1}
-!18 = metadata !{metadata !19, metadata !19, i64 0}
-!19 = metadata !{metadata !"int", metadata !20, i64 0}
-!20 = metadata !{metadata !"omnipotent char", metadata !21, i64 0}
-!21 = metadata !{metadata !"Simple C/C++ TBAA"}
-!22 = metadata !{i32 5, i32 9, metadata !23, null}
-!23 = metadata !{i32 786443, metadata !1, metadata !17, i32 5, i32 9, i32 0, i32 2}
-!24 = metadata !{i32 8, i32 1, metadata !4, null}
-!25 = metadata !{i32 12, i32 8, metadata !26, null}
-!26 = metadata !{i32 786443, metadata !1, metadata !7, i32 12, i32 3, i32 0, i32 3}
-!27 = metadata !{metadata !27, metadata !28, metadata !29}
-!28 = metadata !{metadata !"llvm.loop.interleave.count", i32 1}
-!29 = metadata !{metadata !"llvm.loop.vectorize.width", i32 1}
-!30 = metadata !{i32 13, i32 5, metadata !26, null}
-!31 = metadata !{i32 14, i32 1, metadata !7, null}
-!32 = metadata !{i32 18, i32 8, metadata !33, null}
-!33 = metadata !{i32 786443, metadata !1, metadata !8, i32 18, i32 3, i32 0, i32 4}
-!34 = metadata !{metadata !34, metadata !15}
-!35 = metadata !{i32 19, i32 5, metadata !33, null}
-!36 = metadata !{i32 20, i32 1, metadata !8, null}
+!0 = !{!"0x11\004\00clang version 3.5.0\001\00\006\00\002", !1, !2, !2, !3, !2, !2} ; [ DW_TAG_compile_unit ] [./source.cpp] [DW_LANG_C_plus_plus]
+!1 = !{!"source.cpp", !"."}
+!2 = !{}
+!3 = !{!4, !7, !8}
+!4 = !{!"0x2e\00test\00test\00\001\000\001\000\006\00256\001\001", !1, !5, !6, null, void (i32*, i32)* @_Z4testPii, null, null, !2} ; [ DW_TAG_subprogram ] [line 1] [def] [test]
+!5 = !{!"0x29", !1}          ; [ DW_TAG_file_type ] [./source.cpp]
+!6 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !2, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!7 = !{!"0x2e\00test_disabled\00test_disabled\00\0010\000\001\000\006\00256\001\0010", !1, !5, !6, null, void (i32*, i32)* @_Z13test_disabledPii, null, null, !2} ; [ DW_TAG_subprogram ] [line 10] [def] [test_disabled]
+!8 = !{!"0x2e\00test_array_bounds\00test_array_bounds\00\0016\000\001\000\006\00256\001\0016", !1, !5, !6, null, void (i32*, i32*, i32)* @_Z17test_array_boundsPiS_i, null, null, !2} ; [ DW_TAG_subprogram ] [line 16] [def] [test_array_bounds]
+!9 = !{i32 2, !"Dwarf Version", i32 2}
+!10 = !{i32 2, !"Debug Info Version", i32 2}
+!11 = !{!"clang version 3.5.0"}
+!12 = !MDLocation(line: 3, column: 8, scope: !13)
+!13 = !{!"0xb\003\003\000", !1, !4} ; [ DW_TAG_lexical_block ]
+!14 = !{!14, !15, !15}
+!15 = !{!"llvm.loop.vectorize.enable", i1 true}
+!16 = !MDLocation(line: 4, column: 5, scope: !17)
+!17 = !{!"0xb\003\0036\000", !1, !13} ; [ DW_TAG_lexical_block ]
+!18 = !{!19, !19, i64 0}
+!19 = !{!"int", !20, i64 0}
+!20 = !{!"omnipotent char", !21, i64 0}
+!21 = !{!"Simple C/C++ TBAA"}
+!22 = !MDLocation(line: 5, column: 9, scope: !23)
+!23 = !{!"0xb\005\009\000", !1, !17} ; [ DW_TAG_lexical_block ]
+!24 = !MDLocation(line: 8, column: 1, scope: !4)
+!25 = !MDLocation(line: 12, column: 8, scope: !26)
+!26 = !{!"0xb\0012\003\000", !1, !7} ; [ DW_TAG_lexical_block ]
+!27 = !{!27, !28, !29}
+!28 = !{!"llvm.loop.interleave.count", i32 1}
+!29 = !{!"llvm.loop.vectorize.width", i32 1}
+!30 = !MDLocation(line: 13, column: 5, scope: !26)
+!31 = !MDLocation(line: 14, column: 1, scope: !7)
+!32 = !MDLocation(line: 18, column: 8, scope: !33)
+!33 = !{!"0xb\0018\003\000", !1, !8} ; [ DW_TAG_lexical_block ]
+!34 = !{!34, !15}
+!35 = !MDLocation(line: 19, column: 5, scope: !33)
+!36 = !MDLocation(line: 20, column: 1, scope: !8)

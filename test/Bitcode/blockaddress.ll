@@ -1,4 +1,5 @@
 ; RUN: llvm-as < %s | llvm-dis | FileCheck %s
+; RUN: verify-uselistorder < %s
 ; PR9857
 
 define void @f(i8** nocapture %ptr1) {
@@ -42,4 +43,18 @@ here:
 
 end:
   ret void
+}
+
+; Check a blockaddress taken in two separate functions before the referenced
+; function.
+define i8* @take1() {
+  ret i8* blockaddress(@taken, %bb)
+}
+define i8* @take2() {
+  ret i8* blockaddress(@taken, %bb)
+}
+define void @taken() {
+  unreachable
+bb:
+  unreachable
 }

@@ -10,8 +10,8 @@
 #include "llvm/Support/ConvertUTF.h"
 #include "gtest/gtest.h"
 #include <string>
-#include <vector>
 #include <utility>
+#include <vector>
 
 using namespace llvm;
 
@@ -39,30 +39,30 @@ TEST(ConvertUTFTest, ConvertUTF16BigEndianToUTF8String) {
 
 TEST(ConvertUTFTest, OddLengthInput) {
   std::string Result;
-  bool Success = convertUTF16ToUTF8String(ArrayRef<char>("xxxxx", 5), Result);
+  bool Success = convertUTF16ToUTF8String(makeArrayRef("xxxxx", 5), Result);
   EXPECT_FALSE(Success);
 }
 
 TEST(ConvertUTFTest, Empty) {
   std::string Result;
-  bool Success = convertUTF16ToUTF8String(ArrayRef<char>(), Result);
+  bool Success = convertUTF16ToUTF8String(None, Result);
   EXPECT_TRUE(Success);
   EXPECT_TRUE(Result.empty());
 }
 
 TEST(ConvertUTFTest, HasUTF16BOM) {
-  bool HasBOM = hasUTF16ByteOrderMark(ArrayRef<char>("\xff\xfe", 2));
+  bool HasBOM = hasUTF16ByteOrderMark(makeArrayRef("\xff\xfe", 2));
   EXPECT_TRUE(HasBOM);
-  HasBOM = hasUTF16ByteOrderMark(ArrayRef<char>("\xfe\xff", 2));
+  HasBOM = hasUTF16ByteOrderMark(makeArrayRef("\xfe\xff", 2));
   EXPECT_TRUE(HasBOM);
-  HasBOM = hasUTF16ByteOrderMark(ArrayRef<char>("\xfe\xff ", 3));
+  HasBOM = hasUTF16ByteOrderMark(makeArrayRef("\xfe\xff ", 3));
   EXPECT_TRUE(HasBOM); // Don't care about odd lengths.
-  HasBOM = hasUTF16ByteOrderMark(ArrayRef<char>("\xfe\xff\x00asdf", 6));
+  HasBOM = hasUTF16ByteOrderMark(makeArrayRef("\xfe\xff\x00asdf", 6));
   EXPECT_TRUE(HasBOM);
 
-  HasBOM = hasUTF16ByteOrderMark(ArrayRef<char>());
+  HasBOM = hasUTF16ByteOrderMark(None);
   EXPECT_FALSE(HasBOM);
-  HasBOM = hasUTF16ByteOrderMark(ArrayRef<char>("\xfe", 1));
+  HasBOM = hasUTF16ByteOrderMark(makeArrayRef("\xfe", 1));
   EXPECT_FALSE(HasBOM);
 }
 
@@ -141,8 +141,8 @@ CheckConvertUTF8ToUnicodeScalars(ConvertUTFResultContainer Expected,
   if (!Partial)
     std::tie(ErrorCode, Decoded) = ConvertUTF8ToUnicodeScalarsLenient(S);
   else
-
     std::tie(ErrorCode, Decoded) = ConvertUTF8ToUnicodeScalarsPartialLenient(S);
+
   if (Expected.ErrorCode != ErrorCode)
     return ::testing::AssertionFailure() << "Expected error code "
                                          << Expected.ErrorCode << ", actual "

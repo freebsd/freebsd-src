@@ -28,7 +28,7 @@
 #include "llvm/Support/CBindingWrapping.h"
 
 namespace llvm {
-  class MDNode;
+class MDNode;
 
 /// \brief This provides the default implementation of the IRBuilder
 /// 'InsertHelper' method that is called whenever an instruction is created by
@@ -364,43 +364,60 @@ public:
   /// \brief Create and insert a memset to the specified pointer and the
   /// specified value.
   ///
-  /// If the pointer isn't an i8*, it will be converted.  If a TBAA tag is
-  /// specified, it will be added to the instruction.
+  /// If the pointer isn't an i8*, it will be converted. If a TBAA tag is
+  /// specified, it will be added to the instruction. Likewise with alias.scope
+  /// and noalias tags.
   CallInst *CreateMemSet(Value *Ptr, Value *Val, uint64_t Size, unsigned Align,
-                         bool isVolatile = false, MDNode *TBAATag = nullptr) {
-    return CreateMemSet(Ptr, Val, getInt64(Size), Align, isVolatile, TBAATag);
+                         bool isVolatile = false, MDNode *TBAATag = nullptr,
+                         MDNode *ScopeTag = nullptr,
+                         MDNode *NoAliasTag = nullptr) {
+    return CreateMemSet(Ptr, Val, getInt64(Size), Align, isVolatile,
+                        TBAATag, ScopeTag, NoAliasTag);
   }
 
   CallInst *CreateMemSet(Value *Ptr, Value *Val, Value *Size, unsigned Align,
-                         bool isVolatile = false, MDNode *TBAATag = nullptr);
+                         bool isVolatile = false, MDNode *TBAATag = nullptr,
+                         MDNode *ScopeTag = nullptr,
+                         MDNode *NoAliasTag = nullptr);
 
   /// \brief Create and insert a memcpy between the specified pointers.
   ///
   /// If the pointers aren't i8*, they will be converted.  If a TBAA tag is
-  /// specified, it will be added to the instruction.
+  /// specified, it will be added to the instruction. Likewise with alias.scope
+  /// and noalias tags.
   CallInst *CreateMemCpy(Value *Dst, Value *Src, uint64_t Size, unsigned Align,
                          bool isVolatile = false, MDNode *TBAATag = nullptr,
-                         MDNode *TBAAStructTag = nullptr) {
+                         MDNode *TBAAStructTag = nullptr,
+                         MDNode *ScopeTag = nullptr,
+                         MDNode *NoAliasTag = nullptr) {
     return CreateMemCpy(Dst, Src, getInt64(Size), Align, isVolatile, TBAATag,
-                        TBAAStructTag);
+                        TBAAStructTag, ScopeTag, NoAliasTag);
   }
 
   CallInst *CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
                          bool isVolatile = false, MDNode *TBAATag = nullptr,
-                         MDNode *TBAAStructTag = nullptr);
+                         MDNode *TBAAStructTag = nullptr,
+                         MDNode *ScopeTag = nullptr,
+                         MDNode *NoAliasTag = nullptr);
 
   /// \brief Create and insert a memmove between the specified
   /// pointers.
   ///
   /// If the pointers aren't i8*, they will be converted.  If a TBAA tag is
-  /// specified, it will be added to the instruction.
+  /// specified, it will be added to the instruction. Likewise with alias.scope
+  /// and noalias tags.
   CallInst *CreateMemMove(Value *Dst, Value *Src, uint64_t Size, unsigned Align,
-                          bool isVolatile = false, MDNode *TBAATag = nullptr) {
-    return CreateMemMove(Dst, Src, getInt64(Size), Align, isVolatile, TBAATag);
+                          bool isVolatile = false, MDNode *TBAATag = nullptr,
+                          MDNode *ScopeTag = nullptr,
+                          MDNode *NoAliasTag = nullptr) {
+    return CreateMemMove(Dst, Src, getInt64(Size), Align, isVolatile,
+                         TBAATag, ScopeTag, NoAliasTag);
   }
 
   CallInst *CreateMemMove(Value *Dst, Value *Src, Value *Size, unsigned Align,
-                          bool isVolatile = false, MDNode *TBAATag = nullptr);
+                          bool isVolatile = false, MDNode *TBAATag = nullptr,
+                          MDNode *ScopeTag = nullptr,
+                          MDNode *NoAliasTag = nullptr);
 
   /// \brief Create a lifetime.start intrinsic.
   ///
@@ -412,7 +429,46 @@ public:
   /// If the pointer isn't i8* it will be converted.
   CallInst *CreateLifetimeEnd(Value *Ptr, ConstantInt *Size = nullptr);
 
+  /// \brief Create a call to Masked Load intrinsic
+  CallInst *CreateMaskedLoad(Value *Ptr, unsigned Align, Value *Mask,
+                             Value *PassThru = 0, const Twine &Name = "");
+
+  /// \brief Create a call to Masked Store intrinsic
+  CallInst *CreateMaskedStore(Value *Val, Value *Ptr, unsigned Align,
+                              Value *Mask);
+
+  /// \brief Create an assume intrinsic call that allows the optimizer to
+  /// assume that the provided condition will be true.
+  CallInst *CreateAssumption(Value *Cond);
+
+  /// \brief Create a call to the experimental.gc.statepoint intrinsic to
+  /// start a new statepoint sequence.
+  CallInst *CreateGCStatepoint(Value *ActualCallee,
+                               ArrayRef<Value*> CallArgs,
+                               ArrayRef<Value*> DeoptArgs,
+                               ArrayRef<Value*> GCArgs,
+                               const Twine &Name = "");
+
+  /// \brief Create a call to the experimental.gc.result intrinsic to extract
+  /// the result from a call wrapped in a statepoint.
+  CallInst *CreateGCResult(Instruction *Statepoint,
+                           Type *ResultType,
+                           const Twine &Name = "");
+
+  /// \brief Create a call to the experimental.gc.relocate intrinsics to
+  /// project the relocated value of one pointer from the statepoint.
+  CallInst *CreateGCRelocate(Instruction *Statepoint,
+                             int BaseOffset,
+                             int DerivedOffset,
+                             Type *ResultType,
+                             const Twine &Name = "");
+
 private:
+  /// \brief Create a call to a masked intrinsic with given Id.
+  /// Masked intrinsic has only one overloaded type - data type.
+  CallInst *CreateMaskedIntrinsic(unsigned Id, ArrayRef<Value *> Ops,
+                                  Type *DataTy, const Twine &Name = "");
+
   Value *getCastedInt8PtrValue(Value *Ptr);
 };
 
@@ -429,7 +485,7 @@ private:
 /// The first template argument handles whether or not to preserve names in the
 /// final instruction output. This defaults to on.  The second template argument
 /// specifies a class to use for creating constants.  This defaults to creating
-/// minimally folded constants.  The fourth template argument allows clients to
+/// minimally folded constants.  The third template argument allows clients to
 /// specify custom insertion hooks that are called on every newly created
 /// insertion.
 template<bool preserveNames = true, typename T = ConstantFolder,
@@ -570,8 +626,7 @@ public:
 
   InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
                            BasicBlock *UnwindDest, const Twine &Name = "") {
-    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest,
-                                     ArrayRef<Value *>()),
+    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, None),
                   Name);
   }
   InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
@@ -1226,6 +1281,18 @@ public:
       return Insert(Folder.CreateIntCast(VC, DestTy, isSigned), Name);
     return Insert(CastInst::CreateIntegerCast(V, DestTy, isSigned), Name);
   }
+
+  Value *CreateBitOrPointerCast(Value *V, Type *DestTy,
+                                const Twine &Name = "") {
+    if (V->getType() == DestTy)
+      return V;
+    if (V->getType()->isPointerTy() && DestTy->isIntegerTy())
+      return CreatePtrToInt(V, DestTy, Name);
+    if (V->getType()->isIntegerTy() && DestTy->isPointerTy())
+      return CreateIntToPtr(V, DestTy, Name);
+
+    return CreateBitCast(V, DestTy, Name);
+  }
 private:
   // \brief Provided to resolve 'CreateIntCast(Ptr, Ptr, "...")', giving a
   // compile time error, instead of converting the string to bool for the
@@ -1507,6 +1574,44 @@ public:
       V = CreateTrunc(V, ExtractedTy, Name + ".trunc");
     }
     return V;
+  }
+
+  /// \brief Create an assume intrinsic call that represents an alignment
+  /// assumption on the provided pointer.
+  ///
+  /// An optional offset can be provided, and if it is provided, the offset
+  /// must be subtracted from the provided pointer to get the pointer with the
+  /// specified alignment.
+  CallInst *CreateAlignmentAssumption(const DataLayout &DL, Value *PtrValue,
+                                      unsigned Alignment,
+                                      Value *OffsetValue = nullptr) {
+    assert(isa<PointerType>(PtrValue->getType()) &&
+           "trying to create an alignment assumption on a non-pointer?");
+
+    PointerType *PtrTy = cast<PointerType>(PtrValue->getType());
+    Type *IntPtrTy = getIntPtrTy(&DL, PtrTy->getAddressSpace());
+    Value *PtrIntValue = CreatePtrToInt(PtrValue, IntPtrTy, "ptrint");
+
+    Value *Mask = ConstantInt::get(IntPtrTy,
+      Alignment > 0 ? Alignment - 1 : 0);
+    if (OffsetValue) {
+      bool IsOffsetZero = false;
+      if (ConstantInt *CI = dyn_cast<ConstantInt>(OffsetValue))
+        IsOffsetZero = CI->isZero();
+
+      if (!IsOffsetZero) {
+        if (OffsetValue->getType() != IntPtrTy)
+          OffsetValue = CreateIntCast(OffsetValue, IntPtrTy, /*isSigned*/ true,
+                                      "offsetcast");
+        PtrIntValue = CreateSub(PtrIntValue, OffsetValue, "offsetptr");
+      }
+    }
+
+    Value *Zero = ConstantInt::get(IntPtrTy, 0);
+    Value *MaskedPtr = CreateAnd(PtrIntValue, Mask, "maskedptr");
+    Value *InvCond = CreateICmpEQ(MaskedPtr, Zero, "maskcond");
+
+    return CreateAssumption(InvCond);
   }
 };
 

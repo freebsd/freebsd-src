@@ -53,7 +53,7 @@ using namespace llvm;
 
 #define DEBUG_TYPE "mips-asm-printer"
 
-MipsTargetStreamer &MipsAsmPrinter::getTargetStreamer() {
+MipsTargetStreamer &MipsAsmPrinter::getTargetStreamer() const {
   return static_cast<MipsTargetStreamer &>(*OutStreamer.getTargetStreamer());
 }
 
@@ -131,7 +131,7 @@ void MipsAsmPrinter::emitPseudoIndirectBranch(MCStreamer &OutStreamer,
 
 void MipsAsmPrinter::EmitInstruction(const MachineInstr *MI) {
   MipsTargetStreamer &TS = getTargetStreamer();
-  TS.setCanHaveModuleDir(false);
+  TS.forbidModuleDirective();
 
   if (MI->isDebugValue()) {
     SmallString<128> Str;
@@ -266,7 +266,8 @@ void MipsAsmPrinter::printSavedRegsBitmask() {
     if (Mips::GPR32RegClass.contains(Reg))
       break;
 
-    unsigned RegNum = TM.getRegisterInfo()->getEncodingValue(Reg);
+    unsigned RegNum =
+        TM.getSubtargetImpl()->getRegisterInfo()->getEncodingValue(Reg);
     if (Mips::AFGR64RegClass.contains(Reg)) {
       FPUBitmask |= (3 << RegNum);
       CSFPRegsSize += AFGR64RegSize;
@@ -281,7 +282,8 @@ void MipsAsmPrinter::printSavedRegsBitmask() {
   // Set CPU Bitmask.
   for (; i != e; ++i) {
     unsigned Reg = CSI[i].getReg();
-    unsigned RegNum = TM.getRegisterInfo()->getEncodingValue(Reg);
+    unsigned RegNum =
+        TM.getSubtargetImpl()->getRegisterInfo()->getEncodingValue(Reg);
     CPUBitmask |= (1 << RegNum);
   }
 
@@ -306,7 +308,7 @@ void MipsAsmPrinter::printSavedRegsBitmask() {
 
 /// Frame Directive
 void MipsAsmPrinter::emitFrameDirective() {
-  const TargetRegisterInfo &RI = *TM.getRegisterInfo();
+  const TargetRegisterInfo &RI = *TM.getSubtargetImpl()->getRegisterInfo();
 
   unsigned stackReg  = RI.getFrameRegister(*MF);
   unsigned returnReg = RI.getRARegister();
@@ -558,7 +560,7 @@ bool MipsAsmPrinter::PrintAsmMemoryOperand(const MachineInstr *MI,
 
 void MipsAsmPrinter::printOperand(const MachineInstr *MI, int opNum,
                                   raw_ostream &O) {
-  const DataLayout *DL = TM.getDataLayout();
+  const DataLayout *DL = TM.getSubtargetImpl()->getDataLayout();
   const MachineOperand &MO = MI->getOperand(opNum);
   bool closeP = false;
 
@@ -643,6 +645,18 @@ printMemOperand(const MachineInstr *MI, int opNum, raw_ostream &O) {
   // Load/Store memory operands -- imm($reg)
   // If PIC target the target is loaded as the
   // pattern lw $25,%call16($28)
+
+  // opNum can be invalid if instruction has reglist as operand.
+  // MemOperand is always last operand of instruction (base + offset).
+  switch (MI->getOpcode()) {
+  default:
+    break;
+  case Mips::SWM32_MM:
+  case Mips::LWM32_MM:
+    opNum = MI->getNumOperands() - 2;
+    break;
+  }
+
   printOperand(MI, opNum+1, O);
   O << "(";
   printOperand(MI, opNum, O);
@@ -664,6 +678,14 @@ printFCCOperand(const MachineInstr *MI, int opNum, raw_ostream &O,
                 const char *Modifier) {
   const MachineOperand &MO = MI->getOperand(opNum);
   O << Mips::MipsFCCToString((Mips::CondCode)MO.getImm());
+}
+
+void MipsAsmPrinter::
+printRegisterList(const MachineInstr *MI, int opNum, raw_ostream &O) {
+  for (int i = opNum, e = MI->getNumOperands(); i != e; ++i) {
+    if (i != opNum) O << ", ";
+    printOperand(MI, i, O);
+  }
 }
 
 void MipsAsmPrinter::EmitStartOfAsmFile(Module &M) {
@@ -719,6 +741,29 @@ void MipsAsmPrinter::EmitStartOfAsmFile(Module &M) {
                                  Subtarget->isABI_FPXX()))
     getTargetStreamer().emitDirectiveModuleOddSPReg(Subtarget->useOddSPReg(),
                                                     Subtarget->isABI_O32());
+}
+
+void MipsAsmPrinter::emitInlineAsmStart(
+    const MCSubtargetInfo &StartInfo) const {
+  MipsTargetStreamer &TS = getTargetStreamer();
+
+  // GCC's choice of assembler options for inline assembly code ('at', 'macro'
+  // and 'reorder') is different from LLVM's choice for generated code ('noat',
+  // 'nomacro' and 'noreorder').
+  // In order to maintain compatibility with inline assembly code which depends
+  // on GCC's assembler options being used, we have to switch to those options
+  // for the duration of the inline assembly block and then switch back.
+  TS.emitDirectiveSetPush();
+  TS.emitDirectiveSetAt();
+  TS.emitDirectiveSetMacro();
+  TS.emitDirectiveSetReorder();
+  OutStreamer.AddBlankLine();
+}
+
+void MipsAsmPrinter::emitInlineAsmEnd(const MCSubtargetInfo &StartInfo,
+                                      const MCSubtargetInfo *EndInfo) const {
+  OutStreamer.AddBlankLine();
+  getTargetStreamer().emitDirectiveSetPop();
 }
 
 void MipsAsmPrinter::EmitJal(MCSymbol *Symbol) {
@@ -929,7 +974,7 @@ void MipsAsmPrinter::EmitFPCallStub(
   // called otherwise. when the full stub generation is moved here
   // we need to deal with pic.
   //
-  if (Subtarget->getRelocationModel() == Reloc::PIC_)
+  if (TM.getRelocationModel() == Reloc::PIC_)
     llvm_unreachable("should not be here if we are compiling pic");
   TS.emitDirectiveSetReorder();
   //

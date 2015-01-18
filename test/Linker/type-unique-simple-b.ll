@@ -10,13 +10,13 @@ entry:
   %a.addr = alloca i32, align 4
   %t = alloca %struct.Base, align 4
   store i32 %a, i32* %a.addr, align 4
-  call void @llvm.dbg.declare(metadata !{i32* %a.addr}, metadata !18), !dbg !19
-  call void @llvm.dbg.declare(metadata !{%struct.Base* %t}, metadata !20), !dbg !21
+  call void @llvm.dbg.declare(metadata i32* %a.addr, metadata !18, metadata !{!"0x102"}), !dbg !19
+  call void @llvm.dbg.declare(metadata %struct.Base* %t, metadata !20, metadata !{!"0x102"}), !dbg !21
   ret void, !dbg !22
 }
 
 ; Function Attrs: nounwind readnone
-declare void @llvm.dbg.declare(metadata, metadata) #1
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 ; Function Attrs: ssp uwtable
 define i32 @main() #2 {
@@ -38,30 +38,30 @@ attributes #3 = { "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "n
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!17, !26}
 
-!0 = metadata !{i32 786449, metadata !1, i32 4, metadata !"clang version 3.4 (http://llvm.org/git/clang.git c23b1db6268c8e7ce64026d57d1510c1aac200a0) (http://llvm.org/git/llvm.git 09b98fe3978eddefc2145adc1056cf21580ce945)", i1 false, metadata !"", i32 0, metadata !2, metadata !3, metadata !9, metadata !2, metadata !2, metadata !""} ; [ DW_TAG_compile_unit ] [/Users/mren/c_testing/type_unique_air/simple/bar.cpp] [DW_LANG_C_plus_plus]
-!1 = metadata !{metadata !"bar.cpp", metadata !"/Users/mren/c_testing/type_unique_air/simple"}
-!2 = metadata !{}
-!3 = metadata !{metadata !4}
-!4 = metadata !{i32 786451, metadata !5, null, metadata !"Base", i32 1, i64 32, i64 32, i32 0, i32 0, null, metadata !6, i32 0, null, null, metadata !"_ZTS4Base"} ; [ DW_TAG_structure_type ] [Base] [line 1, size 32, align 32, offset 0] [def] [from ]
-!5 = metadata !{metadata !"./a.hpp", metadata !"/Users/mren/c_testing/type_unique_air/simple"}
-!6 = metadata !{metadata !7}
-!7 = metadata !{i32 786445, metadata !5, metadata !"_ZTS4Base", metadata !"a", i32 2, i64 32, i64 32, i64 0, i32 0, metadata !8} ; [ DW_TAG_member ] [a] [line 2, size 32, align 32, offset 0] [from int]
-!8 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!9 = metadata !{metadata !10, metadata !14}
-!10 = metadata !{i32 786478, metadata !1, metadata !11, metadata !"g", metadata !"g", metadata !"_Z1gi", i32 4, metadata !12, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, void (i32)* @_Z1gi, null, null, metadata !2, i32 4} ; [ DW_TAG_subprogram ] [line 4] [def] [g]
-!11 = metadata !{i32 786473, metadata !1}         ; [ DW_TAG_file_type ] [/Users/mren/c_testing/type_unique_air/simple/bar.cpp]
-!12 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !13, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!13 = metadata !{null, metadata !8}
-!14 = metadata !{i32 786478, metadata !1, metadata !11, metadata !"main", metadata !"main", metadata !"", i32 7, metadata !15, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, i32 ()* @main, null, null, metadata !2, i32 7} ; [ DW_TAG_subprogram ] [line 7] [def] [main]
-!15 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !16, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!16 = metadata !{metadata !8}
-!17 = metadata !{i32 2, metadata !"Dwarf Version", i32 2}
-!18 = metadata !{i32 786689, metadata !10, metadata !"a", metadata !11, i32 16777220, metadata !8, i32 0, i32 0} ; [ DW_TAG_arg_variable ] [a] [line 4]
-!19 = metadata !{i32 4, i32 0, metadata !10, null}
-!20 = metadata !{i32 786688, metadata !10, metadata !"t", metadata !11, i32 5, metadata !4, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [t] [line 5]
-!21 = metadata !{i32 5, i32 0, metadata !10, null}
-!22 = metadata !{i32 6, i32 0, metadata !10, null}
-!23 = metadata !{i32 8, i32 0, metadata !14, null} ; [ DW_TAG_imported_declaration ]
-!24 = metadata !{i32 9, i32 0, metadata !14, null}
-!25 = metadata !{i32 10, i32 0, metadata !14, null}
-!26 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
+!0 = !{!"0x11\004\00clang version 3.4 (http://llvm.org/git/clang.git c23b1db6268c8e7ce64026d57d1510c1aac200a0) (http://llvm.org/git/llvm.git 09b98fe3978eddefc2145adc1056cf21580ce945)\000\00\000\00\000", !1, !2, !3, !9, !2, !2} ; [ DW_TAG_compile_unit ] [/Users/mren/c_testing/type_unique_air/simple/bar.cpp] [DW_LANG_C_plus_plus]
+!1 = !{!"bar.cpp", !"/Users/mren/c_testing/type_unique_air/simple"}
+!2 = !{}
+!3 = !{!4}
+!4 = !{!"0x13\00Base\001\0032\0032\000\000\000", !5, null, null, !6, null, null, !"_ZTS4Base"} ; [ DW_TAG_structure_type ] [Base] [line 1, size 32, align 32, offset 0] [def] [from ]
+!5 = !{!"./a.hpp", !"/Users/mren/c_testing/type_unique_air/simple"}
+!6 = !{!7}
+!7 = !{!"0xd\00a\002\0032\0032\000\000", !5, !"_ZTS4Base", !8} ; [ DW_TAG_member ] [a] [line 2, size 32, align 32, offset 0] [from int]
+!8 = !{!"0x24\00int\000\0032\0032\000\000\005", null, null} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
+!9 = !{!10, !14}
+!10 = !{!"0x2e\00g\00g\00_Z1gi\004\000\001\000\006\00256\000\004", !1, !11, !12, null, void (i32)* @_Z1gi, null, null, !2} ; [ DW_TAG_subprogram ] [line 4] [def] [g]
+!11 = !{!"0x29", !1}         ; [ DW_TAG_file_type ] [/Users/mren/c_testing/type_unique_air/simple/bar.cpp]
+!12 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !13, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!13 = !{null, !8}
+!14 = !{!"0x2e\00main\00main\00\007\000\001\000\006\00256\000\007", !1, !11, !15, null, i32 ()* @main, null, null, !2} ; [ DW_TAG_subprogram ] [line 7] [def] [main]
+!15 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !16, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!16 = !{!8}
+!17 = !{i32 2, !"Dwarf Version", i32 2}
+!18 = !{!"0x101\00a\0016777220\000", !10, !11, !8} ; [ DW_TAG_arg_variable ] [a] [line 4]
+!19 = !MDLocation(line: 4, scope: !10)
+!20 = !{!"0x100\00t\005\000", !10, !11, !4} ; [ DW_TAG_auto_variable ] [t] [line 5]
+!21 = !MDLocation(line: 5, scope: !10)
+!22 = !MDLocation(line: 6, scope: !10)
+!23 = !MDLocation(line: 8, scope: !14)
+!24 = !MDLocation(line: 9, scope: !14)
+!25 = !MDLocation(line: 10, scope: !14)
+!26 = !{i32 1, !"Debug Info Version", i32 2}

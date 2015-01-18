@@ -8,13 +8,13 @@
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!9}
 
-!0 = metadata !{i32 786449, metadata !8, i32 12, metadata !"clang version 3.3 (trunk 169021) (llvm/trunk 169020)", i1 false, metadata !"", i32 0, metadata !1, metadata !1, metadata !1, metadata !3,  metadata !1, metadata !"baz.dwo"} ; [ DW_TAG_compile_unit ] [/usr/local/google/home/echristo/tmp/baz.c] [DW_LANG_C99]
-!1 = metadata !{}
-!3 = metadata !{metadata !5}
-!5 = metadata !{i32 786484, i32 0, null, metadata !"a", metadata !"a", metadata !"", metadata !6, i32 1, metadata !7, i32 0, i32 1, i32* @a, null} ; [ DW_TAG_variable ] [a] [line 1] [def]
-!6 = metadata !{i32 786473, metadata !8} ; [ DW_TAG_file_type ]
-!7 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!8 = metadata !{metadata !"baz.c", metadata !"/usr/local/google/home/echristo/tmp"}
+!0 = !{!"0x11\0012\00clang version 3.3 (trunk 169021) (llvm/trunk 169020)\000\00\000\00baz.dwo\000", !8, !1, !1, !1, !3,  !1} ; [ DW_TAG_compile_unit ] [/usr/local/google/home/echristo/tmp/baz.c] [DW_LANG_C99]
+!1 = !{}
+!3 = !{!5}
+!5 = !{!"0x34\00a\00a\00\001\000\001", null, !6, !7, i32* @a, null} ; [ DW_TAG_variable ] [a] [line 1] [def]
+!6 = !{!"0x29", !8} ; [ DW_TAG_file_type ]
+!7 = !{!"0x24\00int\000\0032\0032\000\000\005", null, null} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
+!8 = !{!"baz.c", !"/usr/local/google/home/echristo/tmp"}
 
 ; Check that the skeleton compile unit contains the proper attributes:
 ; This DIE has the following attributes: DW_AT_comp_dir, DW_AT_stmt_list,
@@ -65,7 +65,7 @@
 ; CHECK: .debug_info.dwo contents:
 ; CHECK: DW_TAG_compile_unit
 ; CHECK: DW_AT_producer [DW_FORM_GNU_str_index] ( indexed (00000000) string = "clang version 3.3 (trunk 169021) (llvm/trunk 169020)")
-; CHECK: DW_AT_language [DW_FORM_data2]        (0x000c)
+; CHECK: DW_AT_language [DW_FORM_data2]        (DW_LANG_C99)
 ; CHECK: DW_AT_name [DW_FORM_GNU_str_index]    ( indexed (00000001) string = "baz.c")
 ; CHECK-NOT: DW_AT_low_pc
 ; CHECK-NOT: DW_AT_stmt_list
@@ -76,7 +76,7 @@
 ; CHECK: DW_AT_type [DW_FORM_ref4]       (cu + 0x{{[0-9a-f]*}} => {[[TYPE:0x[0-9a-f]*]]})
 ; CHECK: DW_AT_external [DW_FORM_flag_present]   (true)
 ; CHECK: DW_AT_decl_file [DW_FORM_data1] (0x01)
-; CHECK: DW_AT_decl_line [DW_FORM_data1] (0x01)
+; CHECK: DW_AT_decl_line [DW_FORM_data1] (1)
 ; CHECK: DW_AT_location [DW_FORM_exprloc] (<0x2> fb 00 )
 ; CHECK: [[TYPE]]: DW_TAG_base_type
 ; CHECK: DW_AT_name [DW_FORM_GNU_str_index]     ( indexed (00000003) string = "int")
@@ -111,4 +111,4 @@
 ; HDR-NOT: .debug_aranges
 ; HDR-NOT: .rela.{{.*}}.dwo
 
-!9 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
+!9 = !{i32 1, !"Debug Info Version", i32 2}

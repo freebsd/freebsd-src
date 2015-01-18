@@ -15,16 +15,16 @@
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Operator.h"
+#include "llvm/Support/ManagedStatic.h"
+#include "llvm/Support/MutexGuard.h"
 #include <algorithm>
 #include <cstring>
 #include <map>
 #include <string>
 #include <vector>
-#include "llvm/Support/ManagedStatic.h"
-#include "llvm/IR/InstIterator.h"
-#include "llvm/Support/MutexGuard.h"
 
 using namespace llvm;
 
@@ -52,7 +52,7 @@ static void cacheAnnotationFromMD(const MDNode *md, key_val_pair_t &retval) {
     assert(prop && "Annotation property not a string");
 
     // value
-    ConstantInt *Val = dyn_cast<ConstantInt>(md->getOperand(i + 1));
+    ConstantInt *Val = mdconst::dyn_extract<ConstantInt>(md->getOperand(i + 1));
     assert(Val && "Value operand not a constant int");
 
     std::string keyname = prop->getString().str();
@@ -75,7 +75,8 @@ static void cacheAnnotationFromMD(const Module *m, const GlobalValue *gv) {
   for (unsigned i = 0, e = NMD->getNumOperands(); i != e; ++i) {
     const MDNode *elem = NMD->getOperand(i);
 
-    Value *entity = elem->getOperand(0);
+    GlobalValue *entity =
+        mdconst::dyn_extract_or_null<GlobalValue>(elem->getOperand(0));
     // entity may be null due to DCE
     if (!entity)
       continue;
@@ -90,11 +91,11 @@ static void cacheAnnotationFromMD(const Module *m, const GlobalValue *gv) {
     return;
 
   if ((*annotationCache).find(m) != (*annotationCache).end())
-    (*annotationCache)[m][gv] = tmp;
+    (*annotationCache)[m][gv] = std::move(tmp);
   else {
     global_val_annot_t tmp1;
-    tmp1[gv] = tmp;
-    (*annotationCache)[m] = tmp1;
+    tmp1[gv] = std::move(tmp);
+    (*annotationCache)[m] = std::move(tmp1);
   }
 }
 
@@ -322,7 +323,7 @@ bool llvm::getAlign(const CallInst &I, unsigned index, unsigned &align) {
   if (MDNode *alignNode = I.getMetadata("callalign")) {
     for (int i = 0, n = alignNode->getNumOperands(); i < n; i++) {
       if (const ConstantInt *CI =
-              dyn_cast<ConstantInt>(alignNode->getOperand(i))) {
+              mdconst::dyn_extract<ConstantInt>(alignNode->getOperand(i))) {
         unsigned v = CI->getZExtValue();
         if ((v >> 16) == index) {
           align = v & 0xFFFF;

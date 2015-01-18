@@ -1,10 +1,10 @@
-; RUN: llc -march=r600 -mcpu=SI -verify-machineinstrs< %s | FileCheck -check-prefix=SI %s
+; RUN: llc -march=amdgcn -mcpu=SI -verify-machineinstrs< %s | FileCheck -check-prefix=SI %s
 
 ; Copy VGPR -> SGPR used twice as an instruction operand, which is then
 ; used in an REG_SEQUENCE that also needs to be handled.
 
-; SI-LABEL: @test_dup_operands:
-; SI: V_ADD_I32_e32
+; SI-LABEL: {{^}}test_dup_operands:
+; SI: v_add_i32_e32
 define void @test_dup_operands(<2 x i32> addrspace(1)* noalias %out, <2 x i32> addrspace(1)* noalias %in) {
   %a = load <2 x i32> addrspace(1)* %in
   %lo = extractelement <2 x i32> %a, i32 0

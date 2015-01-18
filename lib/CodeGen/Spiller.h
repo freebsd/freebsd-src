@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CODEGEN_SPILLER_H
-#define LLVM_CODEGEN_SPILLER_H
+#ifndef LLVM_LIB_CODEGEN_SPILLER_H
+#define LLVM_LIB_CODEGEN_SPILLER_H
 
 namespace llvm {
 
@@ -30,11 +30,6 @@ namespace llvm {
     virtual void spill(LiveRangeEdit &LRE) = 0;
 
   };
-
-  /// Create and return a spiller object, as specified on the command line.
-  Spiller* createSpiller(MachineFunctionPass &pass,
-                         MachineFunction &mf,
-                         VirtRegMap &vrm);
 
   /// Create and return a spiller that will insert spill code directly instead
   /// of deferring though VirtRegMap.

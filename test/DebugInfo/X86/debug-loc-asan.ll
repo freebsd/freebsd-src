@@ -21,18 +21,14 @@
 ; CHECK: .Ldebug_loc{{[0-9]+}}:
 ; We expect two location ranges for the variable.
 
-; First, it is stored in %rdx:
-; CHECK:      .Lset{{[0-9]+}} = .Lfunc_begin0-.Lfunc_begin0
-; CHECK-NEXT: .quad .Lset{{[0-9]+}}
-; CHECK-NEXT: .Lset{{[0-9]+}} = [[START_LABEL]]-.Lfunc_begin0
-; CHECK-NEXT: .quad .Lset{{[0-9]+}}
-; CHECK: DW_OP_reg5
+; First, its address is stored in %rdi:
+; CHECK:      .quad .Lfunc_begin0-.Lfunc_begin0
+; CHECK-NEXT: .quad [[START_LABEL]]-.Lfunc_begin0
+; CHECK: DW_OP_breg5
 
 ; Then it's addressed via %rsp:
-; CHECK:      .Lset{{[0-9]+}} = [[START_LABEL]]-.Lfunc_begin0
-; CHECK-NEXT: .quad .Lset{{[0-9]+}}
-; CHECK-NEXT: .Lset{{[0-9]+}} = .Lfunc_end0-.Lfunc_begin0
-; CHECK-NEXT: .quad .Lset{{[0-9]+}}
+; CHECK:      .quad [[START_LABEL]]-.Lfunc_begin0
+; CHECK-NEXT: .Lfunc_end0-.Lfunc_begin0
 ; CHECK: DW_OP_breg7
 ; CHECK-NEXT: [[OFFSET]]
 ; CHECK: DW_OP_deref
@@ -81,7 +77,7 @@ entry:
   %21 = inttoptr i64 %20 to i8*
   %22 = load i8* %21
   %23 = icmp ne i8 %22, 0
-  call void @llvm.dbg.declare(metadata !{i32* %8}, metadata !12)
+  call void @llvm.dbg.declare(metadata i32* %8, metadata !12, metadata !14)
   br i1 %23, label %24, label %30
 
 ; <label>:24                                      ; preds = %5
@@ -147,7 +143,7 @@ entry:
 }
 
 ; Function Attrs: nounwind readnone
-declare void @llvm.dbg.declare(metadata, metadata) #1
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 define internal void @asan.module_ctor() {
   call void @__asan_init_v3()
@@ -169,18 +165,18 @@ attributes #1 = { nounwind readnone }
 !llvm.module.flags = !{!9, !10}
 !llvm.ident = !{!11}
 
-!0 = metadata !{i32 786449, metadata !1, i32 4, metadata !"clang version 3.5.0 (209308)", i1 false, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !"", i32 1} ; [ DW_TAG_compile_unit ] [/llvm_cmake_gcc/test.cc] [DW_LANG_C_plus_plus]
-!1 = metadata !{metadata !"test.cc", metadata !"/llvm_cmake_gcc"}
-!2 = metadata !{}
-!3 = metadata !{metadata !4}
-!4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"bar", metadata !"bar", metadata !"_Z3bari", i32 1, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, i32 (i32)* @_Z3bari, null, null, metadata !2, i32 1} ; [ DW_TAG_subprogram ] [line 1] [def] [bar]
-!5 = metadata !{i32 786473, metadata !1}          ; [ DW_TAG_file_type ] [/llvm_cmake_gcc/test.cc]
-!6 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !7, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!7 = metadata !{metadata !8, metadata !8}
-!8 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!9 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!10 = metadata !{i32 2, metadata !"Debug Info Version", i32 1}
-!11 = metadata !{metadata !"clang version 3.5.0 (209308)"}
-!12 = metadata !{i32 786689, metadata !4, metadata !"y", metadata !5, i32 16777217, metadata !8, i32 0, i32 0, metadata !14} ; [ DW_TAG_arg_variable ] [y] [line 1]
-!13 = metadata !{i32 2, i32 0, metadata !4, null}
-!14 = metadata !{i64 2}
+!0 = !{!"0x11\004\00clang version 3.5.0 (209308)\000\00\000\00\001", !1, !2, !2, !3, !2, !2} ; [ DW_TAG_compile_unit ] [/llvm_cmake_gcc/test.cc] [DW_LANG_C_plus_plus]
+!1 = !{!"test.cc", !"/llvm_cmake_gcc"}
+!2 = !{}
+!3 = !{!4}
+!4 = !{!"0x2e\00bar\00bar\00_Z3bari\001\000\001\000\006\00256\000\001", !1, !5, !6, null, i32 (i32)* @_Z3bari, null, null, !2} ; [ DW_TAG_subprogram ] [line 1] [def] [bar]
+!5 = !{!"0x29", !1}          ; [ DW_TAG_file_type ] [/llvm_cmake_gcc/test.cc]
+!6 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !7, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!7 = !{!8, !8}
+!8 = !{!"0x24\00int\000\0032\0032\000\000\005", null, null} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
+!9 = !{i32 2, !"Dwarf Version", i32 4}
+!10 = !{i32 2, !"Debug Info Version", i32 2}
+!11 = !{!"clang version 3.5.0 (209308)"}
+!12 = !{!"0x101\00y\0016777217\000", !4, !5, !8} ; [ DW_TAG_arg_variable ] [y] [line 1]
+!13 = !MDLocation(line: 2, scope: !4)
+!14 = !{!"0x102\006"} ; [ DW_TAG_expression ] [DW_OP_deref]

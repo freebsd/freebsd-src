@@ -4,6 +4,66 @@
 ; The test checks that LLVM does not misread miscellaneous instructions of
 ; older bitcode files.
 
+@X = global i8 1
+@_ZTIi = global i8* @X 
+@_ZTId = global i8* @X 
+
+define i32 @__gxx_personality_v0(...){
+entry:
+  ret i32 0
+}
+
+define void @landingpadInstr1(i1 %cond1, <2 x i1> %cond2, <2 x i8> %x1, <2 x i8> %x2){
+entry:
+; CHECK: %res = landingpad { i8*, i32 } personality i32 (...)* @__gxx_personality_v0
+  %res = landingpad { i8*, i32 } personality i32 (...)* @__gxx_personality_v0 
+; CHECK: catch i8** @_ZTIi
+  catch i8** @_ZTIi
+  ret void
+}
+
+define void @landingpadInstr2(i1 %cond1, <2 x i1> %cond2, <2 x i8> %x1, <2 x i8> %x2){
+entry:
+; CHECK: %res = landingpad { i8*, i32 } personality i32 (...)* @__gxx_personality_v0
+  %res = landingpad { i8*, i32 } personality i32 (...)* @__gxx_personality_v0
+; CHECK: cleanup
+  cleanup
+  ret void
+}
+
+define void @landingpadInstr3(i1 %cond1, <2 x i1> %cond2, <2 x i8> %x1, <2 x i8> %x2){
+entry:
+; CHECK: %res = landingpad { i8*, i32 } personality i32 (...)* @__gxx_personality_v0 
+  %res = landingpad { i8*, i32 } personality i32 (...)* @__gxx_personality_v0
+; CHECK: catch i8** @_ZTIi
+  catch i8** @_ZTIi
+; CHECK: filter [1 x i8**] [i8** @_ZTId]
+  filter [1 x i8**] [i8** @_ZTId]
+  ret void
+}
+
+define void @phiInstr(){
+LoopHeader: 
+  %x = add i32 0, 0
+  br label %Loop
+Loop:
+; CHECK:  %indvar = phi i32 [ 0, %LoopHeader ], [ %nextindvar, %Loop ]
+  %indvar = phi i32 [ 0, %LoopHeader ], [ %nextindvar, %Loop ]
+  %nextindvar = add i32 %indvar, 1
+  br label %Loop
+  ret void
+}
+
+define void @selectInstr(i1 %cond1, <2 x i1> %cond2, <2 x i8> %x1, <2 x i8> %x2){
+entry:
+; CHECK: %res1 = select i1 %cond1, i8 1, i8 0 
+  %res1 = select i1 %cond1, i8 1, i8 0
+; CHECK-NEXT: %res2 = select <2 x i1> %cond2, <2 x i8> %x1, <2 x i8> %x2
+  %res2 = select <2 x i1> %cond2, <2 x i8> %x1, <2 x i8> %x2
+
+  ret void
+}
+
 define void @icmp(i32 %x1, i32 %x2, i32* %ptr1, i32* %ptr2, <2 x i32> %vec1, <2 x i32> %vec2){
 entry:
 ; CHECK: %res1 = icmp eq i32 %x1, %x2

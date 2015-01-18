@@ -28,6 +28,7 @@
 
 namespace llvm {
 
+class Function;
 class GlobalValue;
 class Loop;
 class Type;
@@ -183,7 +184,7 @@ public:
   /// should probably move to simpler cost metrics using the above.
   /// Alternatively, we could split the cost interface into distinct code-size
   /// and execution-speed costs. This would allow modelling the core of this
-  /// query more accurately as the a call is a single small instruction, but
+  /// query more accurately as a call is a single small instruction, but
   /// incurs significant execution cost.
   virtual bool isLoweredToCall(const Function *F) const;
 
@@ -227,7 +228,8 @@ public:
   /// \brief Get target-customized preferences for the generic loop unrolling
   /// transformation. The caller will initialize UP with the current
   /// target-independent defaults.
-  virtual void getUnrollingPreferences(Loop *L, UnrollingPreferences &UP) const;
+  virtual void getUnrollingPreferences(const Function *F, Loop *L,
+                                       UnrollingPreferences &UP) const;
 
   /// @}
 
@@ -267,6 +269,13 @@ public:
   virtual bool isLegalAddressingMode(Type *Ty, GlobalValue *BaseGV,
                                      int64_t BaseOffset, bool HasBaseReg,
                                      int64_t Scale) const;
+
+  /// \brief Return true if the target works with masked instruction
+  /// AVX2 allows masks for consecutive load and store for i32 and i64 elements.
+  /// AVX-512 architecture will also allow masks for non-consecutive memory
+  /// accesses.
+  virtual bool isLegalMaskedStore(Type *DataType, int Consecutive) const;
+  virtual bool isLegalMaskedLoad (Type *DataType, int Consecutive) const;
 
   /// \brief Return the cost of the scaling factor used in the addressing
   /// mode represented by AM for this target, for a load/store
@@ -335,6 +344,9 @@ public:
     OK_NonUniformConstantValue   // Operand is a non uniform constant value.
   };
 
+  /// \brief Additional properties of an operand's values.
+  enum OperandValueProperties { OP_None = 0, OP_PowerOf2 = 1 };
+
   /// \return The number of scalar or vector registers that the target has.
   /// If 'Vectors' is true, it returns the number of vector registers. If it is
   /// set to false, it returns the number of scalar registers.
@@ -343,15 +355,18 @@ public:
   /// \return The width of the largest scalar or vector register type.
   virtual unsigned getRegisterBitWidth(bool Vector) const;
 
-  /// \return The maximum unroll factor that the vectorizer should try to
+  /// \return The maximum interleave factor that any transform should try to
   /// perform for this target. This number depends on the level of parallelism
   /// and the number of execution units in the CPU.
-  virtual unsigned getMaximumUnrollFactor() const;
+  virtual unsigned getMaxInterleaveFactor() const;
 
   /// \return The expected cost of arithmetic ops, such as mul, xor, fsub, etc.
-  virtual unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty,
-                                  OperandValueKind Opd1Info = OK_AnyValue,
-                                  OperandValueKind Opd2Info = OK_AnyValue) const;
+  virtual unsigned
+  getArithmeticInstrCost(unsigned Opcode, Type *Ty,
+                         OperandValueKind Opd1Info = OK_AnyValue,
+                         OperandValueKind Opd2Info = OK_AnyValue,
+                         OperandValueProperties Opd1PropInfo = OP_None,
+                         OperandValueProperties Opd2PropInfo = OP_None) const;
 
   /// \return The cost of a shuffle instruction of kind Kind and of type Tp.
   /// The index and subtype parameters are used by the subvector insertion and
@@ -415,6 +430,13 @@ public:
   /// the address indexing mode.
   virtual unsigned getAddressComputationCost(Type *Ty,
                                              bool IsComplex = false) const;
+
+  /// \returns The cost, if any, of keeping values of the given types alive
+  /// over a callsite.
+  ///
+  /// Some types may require the use of register classes that do not have
+  /// any callee-saved registers, so would require a spill and fill.
+  virtual unsigned getCostOfKeepingLiveOverCall(ArrayRef<Type*> Tys) const;
 
   /// @}
 

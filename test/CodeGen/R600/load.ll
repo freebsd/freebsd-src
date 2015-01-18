@@ -1,16 +1,16 @@
 ; RUN: llc < %s -march=r600 -mcpu=redwood | FileCheck --check-prefix=R600-CHECK --check-prefix=FUNC %s
 ; RUN: llc < %s -march=r600 -mcpu=cayman | FileCheck --check-prefix=R600-CHECK --check-prefix=FUNC %s
-; RUN: llc < %s -march=r600 -mcpu=SI -verify-machineinstrs | FileCheck --check-prefix=SI-CHECK --check-prefix=FUNC %s
+; RUN: llc < %s -march=amdgcn -mcpu=SI -verify-machineinstrs | FileCheck --check-prefix=SI-CHECK --check-prefix=FUNC %s
 
 ;===------------------------------------------------------------------------===;
 ; GLOBAL ADDRESS SPACE
 ;===------------------------------------------------------------------------===;
 
 ; Load an i8 value from the global address space.
-; FUNC-LABEL: @load_i8
+; FUNC-LABEL: {{^}}load_i8:
 ; R600-CHECK: VTX_READ_8 T{{[0-9]+\.X, T[0-9]+\.X}}
 
-; SI-CHECK: BUFFER_LOAD_UBYTE v{{[0-9]+}},
+; SI-CHECK: buffer_load_ubyte v{{[0-9]+}},
 define void @load_i8(i32 addrspace(1)* %out, i8 addrspace(1)* %in) {
   %1 = load i8 addrspace(1)* %in
   %2 = zext i8 %1 to i32
@@ -18,13 +18,13 @@ define void @load_i8(i32 addrspace(1)* %out, i8 addrspace(1)* %in) {
   ret void
 }
 
-; FUNC-LABEL: @load_i8_sext
+; FUNC-LABEL: {{^}}load_i8_sext:
 ; R600-CHECK: VTX_READ_8 [[DST:T[0-9]\.[XYZW]]], [[DST]]
 ; R600-CHECK: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_CHAN:[XYZW]]], [[DST]]
 ; R600-CHECK: 24
 ; R600-CHECK: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_CHAN]]
 ; R600-CHECK: 24
-; SI-CHECK: BUFFER_LOAD_SBYTE
+; SI-CHECK: buffer_load_sbyte
 define void @load_i8_sext(i32 addrspace(1)* %out, i8 addrspace(1)* %in) {
 entry:
   %0 = load i8 addrspace(1)* %in
@@ -33,11 +33,11 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v2i8
+; FUNC-LABEL: {{^}}load_v2i8:
 ; R600-CHECK: VTX_READ_8
 ; R600-CHECK: VTX_READ_8
-; SI-CHECK: BUFFER_LOAD_UBYTE
-; SI-CHECK: BUFFER_LOAD_UBYTE
+; SI-CHECK: buffer_load_ubyte
+; SI-CHECK: buffer_load_ubyte
 define void @load_v2i8(<2 x i32> addrspace(1)* %out, <2 x i8> addrspace(1)* %in) {
 entry:
   %0 = load <2 x i8> addrspace(1)* %in
@@ -46,7 +46,7 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v2i8_sext
+; FUNC-LABEL: {{^}}load_v2i8_sext:
 ; R600-CHECK-DAG: VTX_READ_8 [[DST_X:T[0-9]\.[XYZW]]], [[DST_X]]
 ; R600-CHECK-DAG: VTX_READ_8 [[DST_Y:T[0-9]\.[XYZW]]], [[DST_Y]]
 ; R600-CHECK-DAG: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_X_CHAN:[XYZW]]], [[DST_X]]
@@ -57,8 +57,8 @@ entry:
 ; R600-CHECK-DAG: 24
 ; R600-CHECK-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_Y_CHAN]]
 ; R600-CHECK-DAG: 24
-; SI-CHECK: BUFFER_LOAD_SBYTE
-; SI-CHECK: BUFFER_LOAD_SBYTE
+; SI-CHECK: buffer_load_sbyte
+; SI-CHECK: buffer_load_sbyte
 define void @load_v2i8_sext(<2 x i32> addrspace(1)* %out, <2 x i8> addrspace(1)* %in) {
 entry:
   %0 = load <2 x i8> addrspace(1)* %in
@@ -67,15 +67,15 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v4i8
+; FUNC-LABEL: {{^}}load_v4i8:
 ; R600-CHECK: VTX_READ_8
 ; R600-CHECK: VTX_READ_8
 ; R600-CHECK: VTX_READ_8
 ; R600-CHECK: VTX_READ_8
-; SI-CHECK: BUFFER_LOAD_UBYTE
-; SI-CHECK: BUFFER_LOAD_UBYTE
-; SI-CHECK: BUFFER_LOAD_UBYTE
-; SI-CHECK: BUFFER_LOAD_UBYTE
+; SI-CHECK: buffer_load_ubyte
+; SI-CHECK: buffer_load_ubyte
+; SI-CHECK: buffer_load_ubyte
+; SI-CHECK: buffer_load_ubyte
 define void @load_v4i8(<4 x i32> addrspace(1)* %out, <4 x i8> addrspace(1)* %in) {
 entry:
   %0 = load <4 x i8> addrspace(1)* %in
@@ -84,7 +84,7 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v4i8_sext
+; FUNC-LABEL: {{^}}load_v4i8_sext:
 ; R600-CHECK-DAG: VTX_READ_8 [[DST_X:T[0-9]\.[XYZW]]], [[DST_X]]
 ; R600-CHECK-DAG: VTX_READ_8 [[DST_Y:T[0-9]\.[XYZW]]], [[DST_Y]]
 ; R600-CHECK-DAG: VTX_READ_8 [[DST_Z:T[0-9]\.[XYZW]]], [[DST_Z]]
@@ -105,10 +105,10 @@ entry:
 ; R600-CHECK-DAG: 24
 ; R600-CHECK-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_W_CHAN]]
 ; R600-CHECK-DAG: 24
-; SI-CHECK: BUFFER_LOAD_SBYTE
-; SI-CHECK: BUFFER_LOAD_SBYTE
-; SI-CHECK: BUFFER_LOAD_SBYTE
-; SI-CHECK: BUFFER_LOAD_SBYTE
+; SI-CHECK: buffer_load_sbyte
+; SI-CHECK: buffer_load_sbyte
+; SI-CHECK: buffer_load_sbyte
+; SI-CHECK: buffer_load_sbyte
 define void @load_v4i8_sext(<4 x i32> addrspace(1)* %out, <4 x i8> addrspace(1)* %in) {
 entry:
   %0 = load <4 x i8> addrspace(1)* %in
@@ -118,9 +118,9 @@ entry:
 }
 
 ; Load an i16 value from the global address space.
-; FUNC-LABEL: @load_i16
+; FUNC-LABEL: {{^}}load_i16:
 ; R600-CHECK: VTX_READ_16 T{{[0-9]+\.X, T[0-9]+\.X}}
-; SI-CHECK: BUFFER_LOAD_USHORT
+; SI-CHECK: buffer_load_ushort
 define void @load_i16(i32 addrspace(1)* %out, i16 addrspace(1)* %in) {
 entry:
   %0 = load i16	 addrspace(1)* %in
@@ -129,13 +129,13 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_i16_sext
+; FUNC-LABEL: {{^}}load_i16_sext:
 ; R600-CHECK: VTX_READ_16 [[DST:T[0-9]\.[XYZW]]], [[DST]]
 ; R600-CHECK: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_CHAN:[XYZW]]], [[DST]]
 ; R600-CHECK: 16
 ; R600-CHECK: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_CHAN]]
 ; R600-CHECK: 16
-; SI-CHECK: BUFFER_LOAD_SSHORT
+; SI-CHECK: buffer_load_sshort
 define void @load_i16_sext(i32 addrspace(1)* %out, i16 addrspace(1)* %in) {
 entry:
   %0 = load i16 addrspace(1)* %in
@@ -144,11 +144,11 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v2i16
+; FUNC-LABEL: {{^}}load_v2i16:
 ; R600-CHECK: VTX_READ_16
 ; R600-CHECK: VTX_READ_16
-; SI-CHECK: BUFFER_LOAD_USHORT
-; SI-CHECK: BUFFER_LOAD_USHORT
+; SI-CHECK: buffer_load_ushort
+; SI-CHECK: buffer_load_ushort
 define void @load_v2i16(<2 x i32> addrspace(1)* %out, <2 x i16> addrspace(1)* %in) {
 entry:
   %0 = load <2 x i16> addrspace(1)* %in
@@ -157,7 +157,7 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v2i16_sext
+; FUNC-LABEL: {{^}}load_v2i16_sext:
 ; R600-CHECK-DAG: VTX_READ_16 [[DST_X:T[0-9]\.[XYZW]]], [[DST_X]]
 ; R600-CHECK-DAG: VTX_READ_16 [[DST_Y:T[0-9]\.[XYZW]]], [[DST_Y]]
 ; R600-CHECK-DAG: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_X_CHAN:[XYZW]]], [[DST_X]]
@@ -168,8 +168,8 @@ entry:
 ; R600-CHECK-DAG: 16
 ; R600-CHECK-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_Y_CHAN]]
 ; R600-CHECK-DAG: 16
-; SI-CHECK: BUFFER_LOAD_SSHORT
-; SI-CHECK: BUFFER_LOAD_SSHORT
+; SI-CHECK: buffer_load_sshort
+; SI-CHECK: buffer_load_sshort
 define void @load_v2i16_sext(<2 x i32> addrspace(1)* %out, <2 x i16> addrspace(1)* %in) {
 entry:
   %0 = load <2 x i16> addrspace(1)* %in
@@ -178,15 +178,15 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v4i16
+; FUNC-LABEL: {{^}}load_v4i16:
 ; R600-CHECK: VTX_READ_16
 ; R600-CHECK: VTX_READ_16
 ; R600-CHECK: VTX_READ_16
 ; R600-CHECK: VTX_READ_16
-; SI-CHECK: BUFFER_LOAD_USHORT
-; SI-CHECK: BUFFER_LOAD_USHORT
-; SI-CHECK: BUFFER_LOAD_USHORT
-; SI-CHECK: BUFFER_LOAD_USHORT
+; SI-CHECK: buffer_load_ushort
+; SI-CHECK: buffer_load_ushort
+; SI-CHECK: buffer_load_ushort
+; SI-CHECK: buffer_load_ushort
 define void @load_v4i16(<4 x i32> addrspace(1)* %out, <4 x i16> addrspace(1)* %in) {
 entry:
   %0 = load <4 x i16> addrspace(1)* %in
@@ -195,7 +195,7 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v4i16_sext
+; FUNC-LABEL: {{^}}load_v4i16_sext:
 ; R600-CHECK-DAG: VTX_READ_16 [[DST_X:T[0-9]\.[XYZW]]], [[DST_X]]
 ; R600-CHECK-DAG: VTX_READ_16 [[DST_Y:T[0-9]\.[XYZW]]], [[DST_Y]]
 ; R600-CHECK-DAG: VTX_READ_16 [[DST_Z:T[0-9]\.[XYZW]]], [[DST_Z]]
@@ -216,10 +216,10 @@ entry:
 ; R600-CHECK-DAG: 16
 ; R600-CHECK-DAG: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_W_CHAN]]
 ; R600-CHECK-DAG: 16
-; SI-CHECK: BUFFER_LOAD_SSHORT
-; SI-CHECK: BUFFER_LOAD_SSHORT
-; SI-CHECK: BUFFER_LOAD_SSHORT
-; SI-CHECK: BUFFER_LOAD_SSHORT
+; SI-CHECK: buffer_load_sshort
+; SI-CHECK: buffer_load_sshort
+; SI-CHECK: buffer_load_sshort
+; SI-CHECK: buffer_load_sshort
 define void @load_v4i16_sext(<4 x i32> addrspace(1)* %out, <4 x i16> addrspace(1)* %in) {
 entry:
   %0 = load <4 x i16> addrspace(1)* %in
@@ -229,10 +229,10 @@ entry:
 }
 
 ; load an i32 value from the global address space.
-; FUNC-LABEL: @load_i32
+; FUNC-LABEL: {{^}}load_i32:
 ; R600-CHECK: VTX_READ_32 T{{[0-9]+}}.X, T{{[0-9]+}}.X, 0
 
-; SI-CHECK: BUFFER_LOAD_DWORD v{{[0-9]+}}
+; SI-CHECK: buffer_load_dword v{{[0-9]+}}
 define void @load_i32(i32 addrspace(1)* %out, i32 addrspace(1)* %in) {
 entry:
   %0 = load i32 addrspace(1)* %in
@@ -241,10 +241,10 @@ entry:
 }
 
 ; load a f32 value from the global address space.
-; FUNC-LABEL: @load_f32
+; FUNC-LABEL: {{^}}load_f32:
 ; R600-CHECK: VTX_READ_32 T{{[0-9]+}}.X, T{{[0-9]+}}.X, 0
 
-; SI-CHECK: BUFFER_LOAD_DWORD v{{[0-9]+}}
+; SI-CHECK: buffer_load_dword v{{[0-9]+}}
 define void @load_f32(float addrspace(1)* %out, float addrspace(1)* %in) {
 entry:
   %0 = load float addrspace(1)* %in
@@ -253,10 +253,10 @@ entry:
 }
 
 ; load a v2f32 value from the global address space
-; FUNC-LABEL: @load_v2f32
+; FUNC-LABEL: {{^}}load_v2f32:
 ; R600-CHECK: MEM_RAT
 ; R600-CHECK: VTX_READ_64
-; SI-CHECK: BUFFER_LOAD_DWORDX2
+; SI-CHECK: buffer_load_dwordx2
 define void @load_v2f32(<2 x float> addrspace(1)* %out, <2 x float> addrspace(1)* %in) {
 entry:
   %0 = load <2 x float> addrspace(1)* %in
@@ -264,9 +264,9 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_i64
+; FUNC-LABEL: {{^}}load_i64:
 ; R600-CHECK: VTX_READ_64
-; SI-CHECK: BUFFER_LOAD_DWORDX2
+; SI-CHECK: buffer_load_dwordx2
 define void @load_i64(i64 addrspace(1)* %out, i64 addrspace(1)* %in) {
 entry:
   %0 = load i64 addrspace(1)* %in
@@ -274,12 +274,12 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_i64_sext
+; FUNC-LABEL: {{^}}load_i64_sext:
 ; R600-CHECK: MEM_RAT
 ; R600-CHECK: MEM_RAT
 ; R600-CHECK: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, T{{[0-9]\.[XYZW]}},  literal.x
 ; R600-CHECK: 31
-; SI-CHECK: BUFFER_LOAD_DWORD
+; SI-CHECK: buffer_load_dword
 
 define void @load_i64_sext(i64 addrspace(1)* %out, i32 addrspace(1)* %in) {
 entry:
@@ -289,7 +289,7 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_i64_zext
+; FUNC-LABEL: {{^}}load_i64_zext:
 ; R600-CHECK: MEM_RAT
 ; R600-CHECK: MEM_RAT
 define void @load_i64_zext(i64 addrspace(1)* %out, i32 addrspace(1)* %in) {
@@ -300,18 +300,18 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v8i32
+; FUNC-LABEL: {{^}}load_v8i32:
 ; R600-CHECK: VTX_READ_128
 ; R600-CHECK: VTX_READ_128
 ; XXX: We should be using DWORDX4 instructions on SI.
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
 define void @load_v8i32(<8 x i32> addrspace(1)* %out, <8 x i32> addrspace(1)* %in) {
 entry:
   %0 = load <8 x i32> addrspace(1)* %in
@@ -319,28 +319,28 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v16i32
+; FUNC-LABEL: {{^}}load_v16i32:
 ; R600-CHECK: VTX_READ_128
 ; R600-CHECK: VTX_READ_128
 ; R600-CHECK: VTX_READ_128
 ; R600-CHECK: VTX_READ_128
 ; XXX: We should be using DWORDX4 instructions on SI.
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
-; SI-CHECK: BUFFER_LOAD_DWORD
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
+; SI-CHECK: buffer_load_dword
 define void @load_v16i32(<16 x i32> addrspace(1)* %out, <16 x i32> addrspace(1)* %in) {
 entry:
   %0 = load <16 x i32> addrspace(1)* %in
@@ -353,13 +353,13 @@ entry:
 ;===------------------------------------------------------------------------===;
 
 ; Load a sign-extended i8 value
-; FUNC-LABEL: @load_const_i8_sext
+; FUNC-LABEL: {{^}}load_const_i8_sext:
 ; R600-CHECK: VTX_READ_8 [[DST:T[0-9]\.[XYZW]]], [[DST]]
 ; R600-CHECK: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_CHAN:[XYZW]]], [[DST]]
 ; R600-CHECK: 24
 ; R600-CHECK: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_CHAN]]
 ; R600-CHECK: 24
-; SI-CHECK: BUFFER_LOAD_SBYTE v{{[0-9]+}},
+; SI-CHECK: buffer_load_sbyte v{{[0-9]+}},
 define void @load_const_i8_sext(i32 addrspace(1)* %out, i8 addrspace(2)* %in) {
 entry:
   %0 = load i8 addrspace(2)* %in
@@ -369,9 +369,9 @@ entry:
 }
 
 ; Load an aligned i8 value
-; FUNC-LABEL: @load_const_i8_aligned
+; FUNC-LABEL: {{^}}load_const_i8_aligned:
 ; R600-CHECK: VTX_READ_8 T{{[0-9]+\.X, T[0-9]+\.X}}
-; SI-CHECK: BUFFER_LOAD_UBYTE v{{[0-9]+}},
+; SI-CHECK: buffer_load_ubyte v{{[0-9]+}},
 define void @load_const_i8_aligned(i32 addrspace(1)* %out, i8 addrspace(2)* %in) {
 entry:
   %0 = load i8 addrspace(2)* %in
@@ -381,9 +381,9 @@ entry:
 }
 
 ; Load an un-aligned i8 value
-; FUNC-LABEL: @load_const_i8_unaligned
+; FUNC-LABEL: {{^}}load_const_i8_unaligned:
 ; R600-CHECK: VTX_READ_8 T{{[0-9]+\.X, T[0-9]+\.X}}
-; SI-CHECK: BUFFER_LOAD_UBYTE v{{[0-9]+}},
+; SI-CHECK: buffer_load_ubyte v{{[0-9]+}},
 define void @load_const_i8_unaligned(i32 addrspace(1)* %out, i8 addrspace(2)* %in) {
 entry:
   %0 = getelementptr i8 addrspace(2)* %in, i32 1
@@ -394,13 +394,13 @@ entry:
 }
 
 ; Load a sign-extended i16 value
-; FUNC-LABEL: @load_const_i16_sext
+; FUNC-LABEL: {{^}}load_const_i16_sext:
 ; R600-CHECK: VTX_READ_16 [[DST:T[0-9]\.[XYZW]]], [[DST]]
 ; R600-CHECK: LSHL {{[* ]*}}T{{[0-9]}}.[[LSHL_CHAN:[XYZW]]], [[DST]]
 ; R600-CHECK: 16
 ; R600-CHECK: ASHR {{[* ]*}}T{{[0-9]\.[XYZW]}}, PV.[[LSHL_CHAN]]
 ; R600-CHECK: 16
-; SI-CHECK: BUFFER_LOAD_SSHORT
+; SI-CHECK: buffer_load_sshort
 define void @load_const_i16_sext(i32 addrspace(1)* %out, i16 addrspace(2)* %in) {
 entry:
   %0 = load i16 addrspace(2)* %in
@@ -410,9 +410,9 @@ entry:
 }
 
 ; Load an aligned i16 value
-; FUNC-LABEL: @load_const_i16_aligned
+; FUNC-LABEL: {{^}}load_const_i16_aligned:
 ; R600-CHECK: VTX_READ_16 T{{[0-9]+\.X, T[0-9]+\.X}}
-; SI-CHECK: BUFFER_LOAD_USHORT
+; SI-CHECK: buffer_load_ushort
 define void @load_const_i16_aligned(i32 addrspace(1)* %out, i16 addrspace(2)* %in) {
 entry:
   %0 = load i16 addrspace(2)* %in
@@ -422,9 +422,9 @@ entry:
 }
 
 ; Load an un-aligned i16 value
-; FUNC-LABEL: @load_const_i16_unaligned
+; FUNC-LABEL: {{^}}load_const_i16_unaligned:
 ; R600-CHECK: VTX_READ_16 T{{[0-9]+\.X, T[0-9]+\.X}}
-; SI-CHECK: BUFFER_LOAD_USHORT
+; SI-CHECK: buffer_load_ushort
 define void @load_const_i16_unaligned(i32 addrspace(1)* %out, i16 addrspace(2)* %in) {
 entry:
   %0 = getelementptr i16 addrspace(2)* %in, i32 1
@@ -435,10 +435,10 @@ entry:
 }
 
 ; Load an i32 value from the constant address space.
-; FUNC-LABEL: @load_const_addrspace_i32
+; FUNC-LABEL: {{^}}load_const_addrspace_i32:
 ; R600-CHECK: VTX_READ_32 T{{[0-9]+}}.X, T{{[0-9]+}}.X, 0
 
-; SI-CHECK: S_LOAD_DWORD s{{[0-9]+}}
+; SI-CHECK: s_load_dword s{{[0-9]+}}
 define void @load_const_addrspace_i32(i32 addrspace(1)* %out, i32 addrspace(2)* %in) {
 entry:
   %0 = load i32 addrspace(2)* %in
@@ -447,10 +447,10 @@ entry:
 }
 
 ; Load a f32 value from the constant address space.
-; FUNC-LABEL: @load_const_addrspace_f32
+; FUNC-LABEL: {{^}}load_const_addrspace_f32:
 ; R600-CHECK: VTX_READ_32 T{{[0-9]+}}.X, T{{[0-9]+}}.X, 0
 
-; SI-CHECK: S_LOAD_DWORD s{{[0-9]+}}
+; SI-CHECK: s_load_dword s{{[0-9]+}}
 define void @load_const_addrspace_f32(float addrspace(1)* %out, float addrspace(2)* %in) {
   %1 = load float addrspace(2)* %in
   store float %1, float addrspace(1)* %out
@@ -462,11 +462,11 @@ define void @load_const_addrspace_f32(float addrspace(1)* %out, float addrspace(
 ;===------------------------------------------------------------------------===;
 
 ; Load an i8 value from the local address space.
-; FUNC-LABEL: @load_i8_local
+; FUNC-LABEL: {{^}}load_i8_local:
 ; R600-CHECK: LDS_UBYTE_READ_RET
-; SI-CHECK-NOT: S_WQM_B64
-; SI-CHECK: S_MOV_B32 m0
-; SI-CHECK: DS_READ_U8
+; SI-CHECK-NOT: s_wqm_b64
+; SI-CHECK: s_mov_b32 m0
+; SI-CHECK: ds_read_u8
 define void @load_i8_local(i32 addrspace(1)* %out, i8 addrspace(3)* %in) {
   %1 = load i8 addrspace(3)* %in
   %2 = zext i8 %1 to i32
@@ -474,12 +474,12 @@ define void @load_i8_local(i32 addrspace(1)* %out, i8 addrspace(3)* %in) {
   ret void
 }
 
-; FUNC-LABEL: @load_i8_sext_local
+; FUNC-LABEL: {{^}}load_i8_sext_local:
 ; R600-CHECK: LDS_UBYTE_READ_RET
 ; R600-CHECK: ASHR
-; SI-CHECK-NOT: S_WQM_B64
-; SI-CHECK: S_MOV_B32 m0
-; SI-CHECK: DS_READ_I8
+; SI-CHECK-NOT: s_wqm_b64
+; SI-CHECK: s_mov_b32 m0
+; SI-CHECK: ds_read_i8
 define void @load_i8_sext_local(i32 addrspace(1)* %out, i8 addrspace(3)* %in) {
 entry:
   %0 = load i8 addrspace(3)* %in
@@ -488,13 +488,13 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v2i8_local
+; FUNC-LABEL: {{^}}load_v2i8_local:
 ; R600-CHECK: LDS_UBYTE_READ_RET
 ; R600-CHECK: LDS_UBYTE_READ_RET
-; SI-CHECK-NOT: S_WQM_B64
-; SI-CHECK: S_MOV_B32 m0
-; SI-CHECK: DS_READ_U8
-; SI-CHECK: DS_READ_U8
+; SI-CHECK-NOT: s_wqm_b64
+; SI-CHECK: s_mov_b32 m0
+; SI-CHECK: ds_read_u8
+; SI-CHECK: ds_read_u8
 define void @load_v2i8_local(<2 x i32> addrspace(1)* %out, <2 x i8> addrspace(3)* %in) {
 entry:
   %0 = load <2 x i8> addrspace(3)* %in
@@ -503,15 +503,15 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v2i8_sext_local
+; FUNC-LABEL: {{^}}load_v2i8_sext_local:
 ; R600-CHECK-DAG: LDS_UBYTE_READ_RET
 ; R600-CHECK-DAG: LDS_UBYTE_READ_RET
 ; R600-CHECK-DAG: ASHR
 ; R600-CHECK-DAG: ASHR
-; SI-CHECK-NOT: S_WQM_B64
-; SI-CHECK: S_MOV_B32 m0
-; SI-CHECK: DS_READ_I8
-; SI-CHECK: DS_READ_I8
+; SI-CHECK-NOT: s_wqm_b64
+; SI-CHECK: s_mov_b32 m0
+; SI-CHECK: ds_read_i8
+; SI-CHECK: ds_read_i8
 define void @load_v2i8_sext_local(<2 x i32> addrspace(1)* %out, <2 x i8> addrspace(3)* %in) {
 entry:
   %0 = load <2 x i8> addrspace(3)* %in
@@ -520,17 +520,17 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v4i8_local
+; FUNC-LABEL: {{^}}load_v4i8_local:
 ; R600-CHECK: LDS_UBYTE_READ_RET
 ; R600-CHECK: LDS_UBYTE_READ_RET
 ; R600-CHECK: LDS_UBYTE_READ_RET
 ; R600-CHECK: LDS_UBYTE_READ_RET
-; SI-CHECK-NOT: S_WQM_B64
-; SI-CHECK: S_MOV_B32 m0
-; SI-CHECK: DS_READ_U8
-; SI-CHECK: DS_READ_U8
-; SI-CHECK: DS_READ_U8
-; SI-CHECK: DS_READ_U8
+; SI-CHECK-NOT: s_wqm_b64
+; SI-CHECK: s_mov_b32 m0
+; SI-CHECK: ds_read_u8
+; SI-CHECK: ds_read_u8
+; SI-CHECK: ds_read_u8
+; SI-CHECK: ds_read_u8
 define void @load_v4i8_local(<4 x i32> addrspace(1)* %out, <4 x i8> addrspace(3)* %in) {
 entry:
   %0 = load <4 x i8> addrspace(3)* %in
@@ -539,7 +539,7 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v4i8_sext_local
+; FUNC-LABEL: {{^}}load_v4i8_sext_local:
 ; R600-CHECK-DAG: LDS_UBYTE_READ_RET
 ; R600-CHECK-DAG: LDS_UBYTE_READ_RET
 ; R600-CHECK-DAG: LDS_UBYTE_READ_RET
@@ -548,12 +548,12 @@ entry:
 ; R600-CHECK-DAG: ASHR
 ; R600-CHECK-DAG: ASHR
 ; R600-CHECK-DAG: ASHR
-; SI-CHECK-NOT: S_WQM_B64
-; SI-CHECK: S_MOV_B32 m0
-; SI-CHECK: DS_READ_I8
-; SI-CHECK: DS_READ_I8
-; SI-CHECK: DS_READ_I8
-; SI-CHECK: DS_READ_I8
+; SI-CHECK-NOT: s_wqm_b64
+; SI-CHECK: s_mov_b32 m0
+; SI-CHECK: ds_read_i8
+; SI-CHECK: ds_read_i8
+; SI-CHECK: ds_read_i8
+; SI-CHECK: ds_read_i8
 define void @load_v4i8_sext_local(<4 x i32> addrspace(1)* %out, <4 x i8> addrspace(3)* %in) {
 entry:
   %0 = load <4 x i8> addrspace(3)* %in
@@ -563,11 +563,11 @@ entry:
 }
 
 ; Load an i16 value from the local address space.
-; FUNC-LABEL: @load_i16_local
+; FUNC-LABEL: {{^}}load_i16_local:
 ; R600-CHECK: LDS_USHORT_READ_RET
-; SI-CHECK-NOT: S_WQM_B64
-; SI-CHECK: S_MOV_B32 m0
-; SI-CHECK: DS_READ_U16
+; SI-CHECK-NOT: s_wqm_b64
+; SI-CHECK: s_mov_b32 m0
+; SI-CHECK: ds_read_u16
 define void @load_i16_local(i32 addrspace(1)* %out, i16 addrspace(3)* %in) {
 entry:
   %0 = load i16	 addrspace(3)* %in
@@ -576,12 +576,12 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_i16_sext_local
+; FUNC-LABEL: {{^}}load_i16_sext_local:
 ; R600-CHECK: LDS_USHORT_READ_RET
 ; R600-CHECK: ASHR
-; SI-CHECK-NOT: S_WQM_B64
-; SI-CHECK: S_MOV_B32 m0
-; SI-CHECK: DS_READ_I16
+; SI-CHECK-NOT: s_wqm_b64
+; SI-CHECK: s_mov_b32 m0
+; SI-CHECK: ds_read_i16
 define void @load_i16_sext_local(i32 addrspace(1)* %out, i16 addrspace(3)* %in) {
 entry:
   %0 = load i16 addrspace(3)* %in
@@ -590,13 +590,13 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v2i16_local
+; FUNC-LABEL: {{^}}load_v2i16_local:
 ; R600-CHECK: LDS_USHORT_READ_RET
 ; R600-CHECK: LDS_USHORT_READ_RET
-; SI-CHECK-NOT: S_WQM_B64
-; SI-CHECK: S_MOV_B32 m0
-; SI-CHECK: DS_READ_U16
-; SI-CHECK: DS_READ_U16
+; SI-CHECK-NOT: s_wqm_b64
+; SI-CHECK: s_mov_b32 m0
+; SI-CHECK: ds_read_u16
+; SI-CHECK: ds_read_u16
 define void @load_v2i16_local(<2 x i32> addrspace(1)* %out, <2 x i16> addrspace(3)* %in) {
 entry:
   %0 = load <2 x i16> addrspace(3)* %in
@@ -605,15 +605,15 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v2i16_sext_local
+; FUNC-LABEL: {{^}}load_v2i16_sext_local:
 ; R600-CHECK-DAG: LDS_USHORT_READ_RET
 ; R600-CHECK-DAG: LDS_USHORT_READ_RET
 ; R600-CHECK-DAG: ASHR
 ; R600-CHECK-DAG: ASHR
-; SI-CHECK-NOT: S_WQM_B64
-; SI-CHECK: S_MOV_B32 m0
-; SI-CHECK: DS_READ_I16
-; SI-CHECK: DS_READ_I16
+; SI-CHECK-NOT: s_wqm_b64
+; SI-CHECK: s_mov_b32 m0
+; SI-CHECK: ds_read_i16
+; SI-CHECK: ds_read_i16
 define void @load_v2i16_sext_local(<2 x i32> addrspace(1)* %out, <2 x i16> addrspace(3)* %in) {
 entry:
   %0 = load <2 x i16> addrspace(3)* %in
@@ -622,17 +622,17 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v4i16_local
+; FUNC-LABEL: {{^}}load_v4i16_local:
 ; R600-CHECK: LDS_USHORT_READ_RET
 ; R600-CHECK: LDS_USHORT_READ_RET
 ; R600-CHECK: LDS_USHORT_READ_RET
 ; R600-CHECK: LDS_USHORT_READ_RET
-; SI-CHECK-NOT: S_WQM_B64
-; SI-CHECK: S_MOV_B32 m0
-; SI-CHECK: DS_READ_U16
-; SI-CHECK: DS_READ_U16
-; SI-CHECK: DS_READ_U16
-; SI-CHECK: DS_READ_U16
+; SI-CHECK-NOT: s_wqm_b64
+; SI-CHECK: s_mov_b32 m0
+; SI-CHECK: ds_read_u16
+; SI-CHECK: ds_read_u16
+; SI-CHECK: ds_read_u16
+; SI-CHECK: ds_read_u16
 define void @load_v4i16_local(<4 x i32> addrspace(1)* %out, <4 x i16> addrspace(3)* %in) {
 entry:
   %0 = load <4 x i16> addrspace(3)* %in
@@ -641,7 +641,7 @@ entry:
   ret void
 }
 
-; FUNC-LABEL: @load_v4i16_sext_local
+; FUNC-LABEL: {{^}}load_v4i16_sext_local:
 ; R600-CHECK-DAG: LDS_USHORT_READ_RET
 ; R600-CHECK-DAG: LDS_USHORT_READ_RET
 ; R600-CHECK-DAG: LDS_USHORT_READ_RET
@@ -650,12 +650,12 @@ entry:
 ; R600-CHECK-DAG: ASHR
 ; R600-CHECK-DAG: ASHR
 ; R600-CHECK-DAG: ASHR
-; SI-CHECK-NOT: S_WQM_B64
-; SI-CHECK: S_MOV_B32 m0
-; SI-CHECK: DS_READ_I16
-; SI-CHECK: DS_READ_I16
-; SI-CHECK: DS_READ_I16
-; SI-CHECK: DS_READ_I16
+; SI-CHECK-NOT: s_wqm_b64
+; SI-CHECK: s_mov_b32 m0
+; SI-CHECK: ds_read_i16
+; SI-CHECK: ds_read_i16
+; SI-CHECK: ds_read_i16
+; SI-CHECK: ds_read_i16
 define void @load_v4i16_sext_local(<4 x i32> addrspace(1)* %out, <4 x i16> addrspace(3)* %in) {
 entry:
   %0 = load <4 x i16> addrspace(3)* %in
@@ -665,11 +665,11 @@ entry:
 }
 
 ; load an i32 value from the local address space.
-; FUNC-LABEL: @load_i32_local
+; FUNC-LABEL: {{^}}load_i32_local:
 ; R600-CHECK: LDS_READ_RET
-; SI-CHECK-NOT: S_WQM_B64
-; SI-CHECK: S_MOV_B32 m0
-; SI-CHECK: DS_READ_B32
+; SI-CHECK-NOT: s_wqm_b64
+; SI-CHECK: s_mov_b32 m0
+; SI-CHECK: ds_read_b32
 define void @load_i32_local(i32 addrspace(1)* %out, i32 addrspace(3)* %in) {
 entry:
   %0 = load i32 addrspace(3)* %in
@@ -678,10 +678,10 @@ entry:
 }
 
 ; load a f32 value from the local address space.
-; FUNC-LABEL: @load_f32_local
+; FUNC-LABEL: {{^}}load_f32_local:
 ; R600-CHECK: LDS_READ_RET
-; SI-CHECK: S_MOV_B32 m0
-; SI-CHECK: DS_READ_B32
+; SI-CHECK: s_mov_b32 m0
+; SI-CHECK: ds_read_b32
 define void @load_f32_local(float addrspace(1)* %out, float addrspace(3)* %in) {
 entry:
   %0 = load float addrspace(3)* %in
@@ -690,14 +690,50 @@ entry:
 }
 
 ; load a v2f32 value from the local address space
-; FUNC-LABEL: @load_v2f32_local
+; FUNC-LABEL: {{^}}load_v2f32_local:
 ; R600-CHECK: LDS_READ_RET
 ; R600-CHECK: LDS_READ_RET
-; SI-CHECK: S_MOV_B32 m0
-; SI-CHECK: DS_READ_B64
+; SI-CHECK: s_mov_b32 m0
+; SI-CHECK: ds_read_b64
 define void @load_v2f32_local(<2 x float> addrspace(1)* %out, <2 x float> addrspace(3)* %in) {
 entry:
   %0 = load <2 x float> addrspace(3)* %in
   store <2 x float> %0, <2 x float> addrspace(1)* %out
+  ret void
+}
+
+; Test loading a i32 and v2i32 value from the same base pointer.
+; FUNC-LABEL: {{^}}load_i32_v2i32_local:
+; R600-CHECK: LDS_READ_RET
+; R600-CHECK: LDS_READ_RET
+; R600-CHECK: LDS_READ_RET
+; SI-CHECK-DAG: ds_read_b32
+; SI-CHECK-DAG: ds_read2_b32
+define void @load_i32_v2i32_local(<2 x i32> addrspace(1)* %out, i32 addrspace(3)* %in) {
+  %scalar = load i32 addrspace(3)* %in
+  %tmp0 = bitcast i32 addrspace(3)* %in to <2 x i32> addrspace(3)*
+  %vec_ptr = getelementptr <2 x i32> addrspace(3)* %tmp0, i32 2
+  %vec0 = load <2 x i32> addrspace(3)* %vec_ptr, align 4
+  %vec1 = insertelement <2 x i32> <i32 0, i32 0>, i32 %scalar, i32 0
+  %vec = add <2 x i32> %vec0, %vec1
+  store <2 x i32> %vec, <2 x i32> addrspace(1)* %out
+  ret void
+}
+
+
+@lds = addrspace(3) global [512 x i32] undef, align 4
+
+; On SI we need to make sure that the base offset is a register and not
+; an immediate.
+; FUNC-LABEL: {{^}}load_i32_local_const_ptr:
+; SI-CHECK: v_mov_b32_e32 v[[ZERO:[0-9]+]], 0
+; SI-CHECK: ds_read_b32 v0, v[[ZERO]] offset:4
+; R600-CHECK: LDS_READ_RET
+define void @load_i32_local_const_ptr(i32 addrspace(1)* %out, i32 addrspace(3)* %in) {
+entry:
+  %tmp0 = getelementptr [512 x i32] addrspace(3)* @lds, i32 0, i32 1
+  %tmp1 = load i32 addrspace(3)* %tmp0
+  %tmp2 = getelementptr i32 addrspace(1)* %out, i32 1
+  store i32 %tmp1, i32 addrspace(1)* %tmp2
   ret void
 }

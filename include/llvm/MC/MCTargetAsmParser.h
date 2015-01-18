@@ -7,13 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_MC_TARGETPARSER_H
-#define LLVM_MC_TARGETPARSER_H
+#ifndef LLVM_MC_MCTARGETASMPARSER_H
+#define LLVM_MC_MCTARGETASMPARSER_H
 
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCParser/MCAsmParserExtension.h"
 #include "llvm/MC/MCTargetOptions.h"
-
 #include <memory>
 
 namespace llvm {
@@ -38,20 +37,22 @@ enum AsmRewriteKind {
   AOK_Input,          // Rewrite in terms of $N.
   AOK_Output,         // Rewrite in terms of $N.
   AOK_SizeDirective,  // Add a sizing directive (e.g., dword ptr).
+  AOK_Label,          // Rewrite local labels.
   AOK_Skip            // Skip emission (e.g., offset/type operators).
 };
 
 const char AsmRewritePrecedence [] = {
   0, // AOK_Delete
-  1, // AOK_Align
-  1, // AOK_DotOperator
-  1, // AOK_Emit
-  3, // AOK_Imm
-  3, // AOK_ImmPrefix
-  2, // AOK_Input
-  2, // AOK_Output
-  4, // AOK_SizeDirective
-  1  // AOK_Skip
+  2, // AOK_Align
+  2, // AOK_DotOperator
+  2, // AOK_Emit
+  4, // AOK_Imm
+  4, // AOK_ImmPrefix
+  3, // AOK_Input
+  3, // AOK_Output
+  5, // AOK_SizeDirective
+  1, // AOK_Label
+  2  // AOK_Skip
 };
 
 struct AsmRewrite {
@@ -59,9 +60,12 @@ struct AsmRewrite {
   SMLoc Loc;
   unsigned Len;
   unsigned Val;
+  StringRef Label;
 public:
   AsmRewrite(AsmRewriteKind kind, SMLoc loc, unsigned len = 0, unsigned val = 0)
     : Kind(kind), Loc(loc), Len(len), Val(val) {}
+  AsmRewrite(AsmRewriteKind kind, SMLoc loc, unsigned len, StringRef label)
+    : Kind(kind), Loc(loc), Len(len), Val(0), Label(label) {}
 };
 
 struct ParseInstructionInfo {
@@ -93,7 +97,7 @@ protected: // Can only create subclasses.
   MCTargetAsmParser();
 
   /// AvailableFeatures - The current set of available features.
-  unsigned AvailableFeatures;
+  uint64_t AvailableFeatures;
 
   /// ParsingInlineAsm - Are we parsing ms-style inline assembly?
   bool ParsingInlineAsm;
@@ -108,11 +112,13 @@ protected: // Can only create subclasses.
 public:
   virtual ~MCTargetAsmParser();
 
-  unsigned getAvailableFeatures() const { return AvailableFeatures; }
-  void setAvailableFeatures(unsigned Value) { AvailableFeatures = Value; }
+  uint64_t getAvailableFeatures() const { return AvailableFeatures; }
+  void setAvailableFeatures(uint64_t Value) { AvailableFeatures = Value; }
 
   bool isParsingInlineAsm () { return ParsingInlineAsm; }
   void setParsingInlineAsm (bool Value) { ParsingInlineAsm = Value; }
+
+  MCTargetOptions getTargetOptions() const { return MCOptions; }
 
   void setSemaCallback(MCAsmParserSemaCallback *Callback) {
     SemaCallback = Callback;
@@ -120,6 +126,9 @@ public:
 
   virtual bool ParseRegister(unsigned &RegNo, SMLoc &StartLoc,
                              SMLoc &EndLoc) = 0;
+
+  /// Sets frame register corresponding to the current MachineFunction.
+  virtual void SetFrameRegister(unsigned RegNo) {}
 
   /// ParseInstruction - Parse one assembly instruction.
   ///
@@ -161,7 +170,7 @@ public:
   /// explaining the match failure.
   virtual bool MatchAndEmitInstruction(SMLoc IDLoc, unsigned &Opcode,
                                        OperandVector &Operands, MCStreamer &Out,
-                                       unsigned &ErrorInfo,
+                                       uint64_t &ErrorInfo,
                                        bool MatchingInlineAsm) = 0;
 
   /// Allows targets to let registers opt out of clobber lists.

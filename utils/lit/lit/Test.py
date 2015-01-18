@@ -1,5 +1,6 @@
 import os
 from xml.sax.saxutils import escape
+from json import JSONEncoder
 
 # Test result codes.
 
@@ -72,6 +73,41 @@ class RealMetricValue(MetricValue):
 
     def todata(self):
         return self.value
+
+class JSONMetricValue(MetricValue):
+    """
+        JSONMetricValue is used for types that are representable in the output
+        but that are otherwise uninterpreted.
+    """
+    def __init__(self, value):
+        # Ensure the value is a serializable by trying to encode it.
+        # WARNING: The value may change before it is encoded again, and may
+        #          not be encodable after the change.
+        try:
+            e = JSONEncoder()
+            e.encode(value)
+        except TypeError:
+            raise
+        self.value = value
+
+    def format(self):
+        return str(self.value)
+
+    def todata(self):
+        return self.value
+
+def toMetricValue(value):
+    if isinstance(value, MetricValue):
+        return value
+    elif isinstance(value, int) or isinstance(value, long):
+        return IntMetricValue(value)
+    elif isinstance(value, float):
+        return RealMetricValue(value)
+    else:
+        # Try to create a JSONMetricValue and let the constructor throw
+        # if value is not a valid type.
+        return JSONMetricValue(value)
+
 
 # Test results.
 
@@ -200,12 +236,20 @@ class Test:
     def getJUnitXML(self):
         test_name = self.path_in_suite[-1]
         test_path = self.path_in_suite[:-1]
- 
-        xml = "<testcase classname='" + self.suite.name + "." + "/".join(test_path) + "'" + " name='" + test_name + "'"
+        safe_test_path = [x.replace(".","_") for x in test_path]
+        safe_name = self.suite.name.replace(".","-")
+
+        if safe_test_path:
+            class_name = safe_name + "." + "/".join(safe_test_path) 
+        else:
+            class_name = safe_name + "." + safe_name
+
+        xml = "<testcase classname='" + class_name + "' name='" + \
+            test_name + "'"
         xml += " time='%.2f'" % (self.result.elapsed,)
         if self.result.code.isFailure:
-          xml += ">\n\t<failure >\n" + escape(self.result.output)
-          xml += "\n\t</failure>\n</testcase>"
+            xml += ">\n\t<failure >\n" + escape(self.result.output)
+            xml += "\n\t</failure>\n</testcase>"
         else:
-          xml += "/>"
+            xml += "/>"
         return xml

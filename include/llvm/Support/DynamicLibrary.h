@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_SYSTEM_DYNAMICLIBRARY_H
-#define LLVM_SYSTEM_DYNAMICLIBRARY_H
+#ifndef LLVM_SUPPORT_DYNAMICLIBRARY_H
+#define LLVM_SUPPORT_DYNAMICLIBRARY_H
 
 #include <string>
 
@@ -43,10 +43,11 @@ namespace sys {
     // Opaque data used to interface with OS-specific dynamic library handling.
     void *Data;
 
-    explicit DynamicLibrary(void *data = &Invalid) : Data(data) {}
   public:
+    explicit DynamicLibrary(void *data = &Invalid) : Data(data) {}
+
     /// Returns true if the object refers to a valid library.
-    bool isValid() { return Data != &Invalid; }
+    bool isValid() const { return Data != &Invalid; }
 
     /// Searches through the library for the symbol \p symbolName. If it is
     /// found, the address of that symbol is returned. If not, NULL is returned.
@@ -101,4 +102,4 @@ namespace sys {
 } // End sys namespace
 } // End llvm namespace
 
-#endif // LLVM_SYSTEM_DYNAMIC_LIBRARY_H
+#endif

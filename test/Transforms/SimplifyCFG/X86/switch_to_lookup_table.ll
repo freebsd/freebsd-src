@@ -782,7 +782,6 @@ return:
 }
 
 ; Don't create a table with illegal type
-; rdar://12779436
 define i96 @illegaltype(i32 %c) {
 entry:
   switch i32 %c, label %sw.default [
@@ -856,10 +855,10 @@ return:
 ; CHECK: entry:
 ; CHECK: br i1 %{{.*}}, label %switch.hole_check, label %sw.default
 ; CHECK: switch.hole_check:
-; CHECK-NEXT: %switch.maskindex = trunc i32 %switch.tableidx to i6
-; CHECK-NEXT: %switch.shifted = lshr i6 -17, %switch.maskindex
+; CHECK-NEXT: %switch.maskindex = trunc i32 %switch.tableidx to i8
+; CHECK-NEXT: %switch.shifted = lshr i8 47, %switch.maskindex
 ; The mask is binary 101111.
-; CHECK-NEXT: %switch.lobit = trunc i6 %switch.shifted to i1
+; CHECK-NEXT: %switch.lobit = trunc i8 %switch.shifted to i1
 ; CHECK-NEXT: br i1 %switch.lobit, label %switch.lookup, label %sw.default
 ; CHECK-NOT: switch i32
 }
@@ -895,7 +894,7 @@ sw.bb1: br label %return
 sw.bb2: br label %return
 sw.default: br label %return
 return:
-  %x = phi i32 [ 3, %sw.default ], [ 5, %sw.bb2 ], [ 7, %sw.bb1 ], [ 9, %entry ]
+  %x = phi i32 [ 3, %sw.default ], [ 5, %sw.bb2 ], [ 7, %sw.bb1 ], [ 10, %entry ]
   ret i32 %x
 ; CHECK-LABEL: @threecases(
 ; CHECK-NOT: switch i32
@@ -915,8 +914,12 @@ return:
   %x = phi i32 [ 3, %sw.default ], [ 7, %sw.bb1 ], [ 9, %entry ]
   ret i32 %x
 ; CHECK-LABEL: @twocases(
-; CHECK: switch i32
+; CHECK-NOT: switch i32
 ; CHECK-NOT: @switch.table
+; CHECK: %switch.selectcmp
+; CHECK-NEXT: %switch.select
+; CHECK-NEXT: %switch.selectcmp1
+; CHECK-NEXT: %switch.select2
 }
 
 ; Don't build tables for switches with TLS variables.
@@ -972,4 +975,272 @@ return:
 ; CHECK-LABEL: @dllimport(
 ; CHECK: switch i32
 ; CHECK-NOT: @switch.table
+}
+
+; We can use linear mapping.
+define i8 @linearmap1(i32 %c) {
+entry:
+  switch i32 %c, label %sw.default [
+    i32 10, label %return
+    i32 11, label %sw.bb1
+    i32 12, label %sw.bb2
+    i32 13, label %sw.bb3
+  ]
+sw.bb1: br label %return
+sw.bb2: br label %return
+sw.bb3: br label %return
+sw.default: br label %return
+return:
+  %x = phi i8 [ 3, %sw.default ], [ 3, %sw.bb3 ], [ 8, %sw.bb2 ], [ 13, %sw.bb1 ], [ 18, %entry ]
+  ret i8 %x
+; CHECK-LABEL: @linearmap1(
+; CHECK: entry:
+; CHECK-NEXT: %switch.tableidx = sub i32 %c, 10
+; CHECK: switch.lookup:
+; CHECK-NEXT: %switch.idx.cast = trunc i32 %switch.tableidx to i8
+; CHECK-NEXT: %switch.idx.mult = mul i8 %switch.idx.cast, -5
+; CHECK-NEXT: %switch.offset = add i8 %switch.idx.mult, 18
+; CHECK-NEXT: ret i8 %switch.offset
+}
+
+; Linear mapping in a different configuration.
+define i32 @linearmap2(i8 %c) {
+entry:
+  switch i8 %c, label %sw.default [
+    i8 -10, label %return
+    i8 -11, label %sw.bb1
+    i8 -12, label %sw.bb2
+    i8 -13, label %sw.bb3
+  ]
+sw.bb1: br label %return
+sw.bb2: br label %return
+sw.bb3: br label %return
+sw.default: br label %return
+return:
+  %x = phi i32 [ 3, %sw.default ], [ 18, %sw.bb3 ], [ 19, %sw.bb2 ], [ 20, %sw.bb1 ], [ 21, %entry ]
+  ret i32 %x
+; CHECK-LABEL: @linearmap2(
+; CHECK: entry:
+; CHECK-NEXT: %switch.tableidx = sub i8 %c, -13
+; CHECK: switch.lookup:
+; CHECK-NEXT: %switch.idx.cast = zext i8 %switch.tableidx to i32
+; CHECK-NEXT: %switch.offset = add i32 %switch.idx.cast, 18
+; CHECK-NEXT: ret i32 %switch.offset
+}
+
+; Linear mapping with overflows.
+define i8 @linearmap3(i32 %c) {
+entry:
+  switch i32 %c, label %sw.default [
+    i32 10, label %return
+    i32 11, label %sw.bb1
+    i32 12, label %sw.bb2
+    i32 13, label %sw.bb3
+  ]
+sw.bb1: br label %return
+sw.bb2: br label %return
+sw.bb3: br label %return
+sw.default: br label %return
+return:
+  %x = phi i8 [ 3, %sw.default ], [ 44, %sw.bb3 ], [ -56, %sw.bb2 ], [ 100, %sw.bb1 ], [ 0, %entry ]
+  ret i8 %x
+; CHECK-LABEL: @linearmap3(
+; CHECK: entry:
+; CHECK-NEXT: %switch.tableidx = sub i32 %c, 10
+; CHECK: switch.lookup:
+; CHECK-NEXT: %switch.idx.cast = trunc i32 %switch.tableidx to i8
+; CHECK-NEXT: %switch.idx.mult = mul i8 %switch.idx.cast, 100
+; CHECK-NEXT: ret i8 %switch.idx.mult
+}
+
+; Linear mapping with with multiplier 1 and offset 0.
+define i8 @linearmap4(i32 %c) {
+entry:
+  switch i32 %c, label %sw.default [
+    i32 -2, label %return
+    i32 -1, label %sw.bb1
+    i32 0, label %sw.bb2
+    i32 1, label %sw.bb3
+  ]
+sw.bb1: br label %return
+sw.bb2: br label %return
+sw.bb3: br label %return
+sw.default: br label %return
+return:
+  %x = phi i8 [ 3, %sw.default ], [ 3, %sw.bb3 ], [ 2, %sw.bb2 ], [ 1, %sw.bb1 ], [ 0, %entry ]
+  ret i8 %x
+; CHECK-LABEL: @linearmap4(
+; CHECK: entry:
+; CHECK-NEXT: %switch.tableidx = sub i32 %c, -2
+; CHECK: switch.lookup:
+; CHECK-NEXT: %switch.idx.cast = trunc i32 %switch.tableidx to i8
+; CHECK-NEXT: ret i8 %switch.idx.cast
+}
+
+; Reuse the inverted table range compare.
+define i32 @reuse_cmp1(i32 %x) {
+entry:
+  switch i32 %x, label %sw.default [
+    i32 0, label %sw.bb
+    i32 1, label %sw.bb1
+    i32 2, label %sw.bb2
+    i32 3, label %sw.bb3
+  ]
+sw.bb: br label %sw.epilog
+sw.bb1: br label %sw.epilog
+sw.bb2: br label %sw.epilog
+sw.bb3: br label %sw.epilog
+sw.default: br label %sw.epilog
+sw.epilog:
+  %r.0 = phi i32 [ 0, %sw.default ], [ 13, %sw.bb3 ], [ 12, %sw.bb2 ], [ 11, %sw.bb1 ], [ 10, %sw.bb ]
+  %cmp = icmp eq i32 %r.0, 0       ; This compare can be "replaced".
+  br i1 %cmp, label %if.then, label %if.end
+if.then: br label %return
+if.end: br label %return
+return:
+  %retval.0 = phi i32 [ 100, %if.then ], [ %r.0, %if.end ]
+  ret i32 %retval.0
+; CHECK-LABEL: @reuse_cmp1(
+; CHECK: entry:
+; CHECK-NEXT: %switch.tableidx = sub i32 %x, 0
+; CHECK-NEXT: [[C:%.+]] = icmp ult i32 %switch.tableidx, 4
+; CHECK-NEXT: %inverted.cmp = xor i1 [[C]], true
+; CHECK:      [[R:%.+]] = select i1 %inverted.cmp, i32 100, i32 {{.*}}
+; CHECK-NEXT: ret i32 [[R]]
+}
+
+; Reuse the table range compare.
+define i32 @reuse_cmp2(i32 %x) {
+entry:
+  switch i32 %x, label %sw.default [
+    i32 0, label %sw.bb
+    i32 1, label %sw.bb1
+    i32 2, label %sw.bb2
+    i32 3, label %sw.bb3
+  ]
+sw.bb: br label %sw.epilog
+sw.bb1: br label %sw.epilog
+sw.bb2: br label %sw.epilog
+sw.bb3: br label %sw.epilog
+sw.default: br label %sw.epilog
+sw.epilog:
+  %r.0 = phi i32 [ 4, %sw.default ], [ 3, %sw.bb3 ], [ 2, %sw.bb2 ], [ 1, %sw.bb1 ], [ 0, %sw.bb ]
+  %cmp = icmp ne i32 %r.0, 4       ; This compare can be "replaced".
+  br i1 %cmp, label %if.then, label %if.end
+if.then: br label %return
+if.end: br label %return
+return:
+  %retval.0 = phi i32 [ %r.0, %if.then ], [ 100, %if.end ]
+  ret i32 %retval.0
+; CHECK-LABEL: @reuse_cmp2(
+; CHECK: entry:
+; CHECK-NEXT: %switch.tableidx = sub i32 %x, 0
+; CHECK-NEXT: [[C:%.+]] = icmp ult i32 %switch.tableidx, 4
+; CHECK:      [[R:%.+]] = select i1 [[C]], i32 {{.*}}, i32 100
+; CHECK-NEXT: ret i32 [[R]]
+}
+
+; Cannot reuse the table range compare, because the default value is the same
+; as one of the case values.
+define i32 @no_reuse_cmp(i32 %x) {
+entry:
+  switch i32 %x, label %sw.default [
+    i32 0, label %sw.bb
+    i32 1, label %sw.bb1
+    i32 2, label %sw.bb2
+    i32 3, label %sw.bb3
+  ]
+sw.bb: br label %sw.epilog
+sw.bb1: br label %sw.epilog
+sw.bb2: br label %sw.epilog
+sw.bb3: br label %sw.epilog
+sw.default: br label %sw.epilog
+sw.epilog:
+  %r.0 = phi i32 [ 12, %sw.default ], [ 13, %sw.bb3 ], [ 12, %sw.bb2 ], [ 11, %sw.bb1 ], [ 10, %sw.bb ]
+  %cmp = icmp ne i32 %r.0, 0
+  br i1 %cmp, label %if.then, label %if.end
+if.then: br label %return
+if.end: br label %return
+return:
+  %retval.0 = phi i32 [ %r.0, %if.then ], [ 100, %if.end ]
+  ret i32 %retval.0
+; CHECK-LABEL: @no_reuse_cmp(
+; CHECK:  [[S:%.+]] = select 
+; CHECK-NEXT:  %cmp = icmp ne i32 [[S]], 0
+; CHECK-NEXT:  [[R:%.+]] = select i1 %cmp, i32 [[S]], i32 100
+; CHECK-NEXT:  ret i32 [[R]]
+}
+
+; Cannot reuse the table range compare, because the phi at the switch merge
+; point is not dominated by the switch.
+define i32 @no_reuse_cmp2(i32 %x, i32 %y) {
+entry:
+  %ec = icmp ne i32 %y, 0
+  br i1 %ec, label %switch.entry, label %sw.epilog
+switch.entry:
+  switch i32 %x, label %sw.default [
+    i32 0, label %sw.bb
+    i32 1, label %sw.bb1
+    i32 2, label %sw.bb2
+    i32 3, label %sw.bb3
+  ]
+sw.bb: br label %sw.epilog
+sw.bb1: br label %sw.epilog
+sw.bb2: br label %sw.epilog
+sw.bb3: br label %sw.epilog
+sw.default: br label %sw.epilog
+sw.epilog:
+  %r.0 = phi i32 [100, %entry], [ 0, %sw.default ], [ 13, %sw.bb3 ], [ 12, %sw.bb2 ], [ 11, %sw.bb1 ], [ 10, %sw.bb ]
+  %cmp = icmp eq i32 %r.0, 0       ; This compare can be "replaced".
+  br i1 %cmp, label %if.then, label %if.end
+if.then: br label %return
+if.end: br label %return
+return:
+  %retval.0 = phi i32 [ 100, %if.then ], [ %r.0, %if.end ]
+  ret i32 %retval.0
+; CHECK-LABEL: @no_reuse_cmp2(
+; CHECK:  %r.0 = phi
+; CHECK-NEXT:  %cmp = icmp eq i32 %r.0, 0
+; CHECK-NEXT:  [[R:%.+]] = select i1 %cmp
+; CHECK-NEXT:  ret i32 [[R]]
+}
+
+define void @pr20210(i8 %x, i1 %y) {
+; %z has uses outside of its BB or the phi it feeds into,
+; so doing a table lookup and jumping directly to while.cond would
+; cause %z to cease dominating all its uses.
+
+entry:
+  br i1 %y, label %sw, label %intermediate
+
+sw:
+  switch i8 %x, label %end [
+    i8 7, label %intermediate
+    i8 3, label %intermediate
+    i8 2, label %intermediate
+    i8 1, label %intermediate
+    i8 0, label %intermediate
+  ]
+
+intermediate:
+  %z = zext i8 %x to i32
+  br label %while.cond
+
+while.cond:
+  %i = phi i32 [ %z, %intermediate ], [ %j, %while.body ]
+  %b = icmp ne i32 %i, 7
+  br i1 %b, label %while.body, label %while.end
+
+while.body:
+  %j = add i32 %i, 1
+  br label %while.cond
+
+while.end:
+  call void @exit(i32 %z)
+  unreachable
+
+end:
+  ret void
+; CHECK-LABEL: @pr20210
+; CHECK: switch i8 %x
 }

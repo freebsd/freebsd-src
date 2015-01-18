@@ -1,10 +1,9 @@
-; RUN: opt < %s -S -loop-unroll -unroll-threshold=50 -unroll-runtime -unroll-count=8 | FileCheck %s
+; RUN: opt < %s -S -loop-unroll -unroll-threshold=25 -unroll-runtime -unroll-count=8 | FileCheck %s
 
 ; Choose a smaller, power-of-two, unroll count if the loop is too large.
 ; This test makes sure we're not unrolling 'odd' counts
 
-; CHECK: unr.cmp:
-; CHECK: for.body.unr:
+; CHECK: for.body.prol:
 ; CHECK: for.body:
 ; CHECK: br i1 %exitcond.3, label %for.end.loopexit{{.*}}, label %for.body
 ; CHECK-NOT: br i1 %exitcond.4, label %for.end.loopexit{{.*}}, label %for.body

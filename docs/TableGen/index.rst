@@ -123,7 +123,6 @@ this (at the time of this writing):
     bit hasCtrlDep = 0;
     bit isNotDuplicable = 0;
     bit hasSideEffects = 0;
-    bit neverHasSideEffects = 0;
     InstrItinClass Itinerary = NoItinerary;
     string Constraints = "";
     string DisableEncoding = "";
@@ -273,7 +272,7 @@ that's only useful for debugging of the TableGen files themselves. The power
 in TableGen is, however, to interpret the source files into an internal 
 representation that can be generated into anything you want.
 
-Current usage of TableGen is to create include huge files with tables that you
+Current usage of TableGen is to create huge include files with tables that you
 can either include directly (if the output is in the language you're coding),
 or be used in pre-processing via macros surrounding the include of the file.
 
@@ -292,7 +291,7 @@ Despite being very generic, TableGen has some deficiencies that have been
 pointed out numerous times. The common theme is that, while TableGen allows
 you to build Domain-Specific-Languages, the final languages that you create
 lack the power of other DSLs, which in turn increase considerably the size
-and complecity of TableGen files.
+and complexity of TableGen files.
 
 At the same time, TableGen allows you to create virtually any meaning of
 the basic concepts via custom-made back-ends, which can pervert the original

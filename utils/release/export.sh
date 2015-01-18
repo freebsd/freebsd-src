@@ -14,7 +14,7 @@
 
 set -e
 
-projects="llvm cfe dragonegg test-suite compiler-rt libcxx clang-tools-extra polly lldb"
+projects="llvm cfe dragonegg test-suite compiler-rt libcxx libcxxabi clang-tools-extra polly lldb lld openmp"
 base_url="https://llvm.org/svn/llvm-project"
 
 release=""
@@ -44,7 +44,7 @@ function export_sources() {
             $proj-$release$rc.src
 
         echo "Creating tarball ..."
-        tar cfz $proj-$release$rc.src.tar.gz $proj-$release$rc.src
+        tar cfJ $proj-$release$rc.src.tar.xz $proj-$release$rc.src
     done
 }
 

@@ -32,16 +32,17 @@ dnl===-----------------------------------------------------------------------===
 dnl Initialize autoconf and define the package name, version number and
 dnl address for reporting bugs.
 
-AC_INIT([LLVM],[3.5.1],[http://llvm.org/bugs/])
+AC_INIT([LLVM],[3.6.0],[http://llvm.org/bugs/])
 
 LLVM_VERSION_MAJOR=3
-LLVM_VERSION_MINOR=5
-LLVM_VERSION_PATCH=1
+LLVM_VERSION_MINOR=6
+LLVM_VERSION_PATCH=0
 LLVM_VERSION_SUFFIX=
 
 AC_DEFINE_UNQUOTED([LLVM_VERSION_MAJOR], $LLVM_VERSION_MAJOR, [Major version of the LLVM API])
 AC_DEFINE_UNQUOTED([LLVM_VERSION_MINOR], $LLVM_VERSION_MINOR, [Minor version of the LLVM API])
 AC_DEFINE_UNQUOTED([LLVM_VERSION_PATCH], $LLVM_VERSION_PATCH, [Patch version of the LLVM API])
+AC_DEFINE_UNQUOTED([LLVM_VERSION_STRING], "$PACKAGE_VERSION", [LLVM version string])
 
 AC_SUBST([LLVM_VERSION_MAJOR])
 AC_SUBST([LLVM_VERSION_MINOR])
@@ -291,11 +292,6 @@ AC_CACHE_CHECK([type of operating system we're going to host on],
     llvm_cv_no_link_all_option="-Wl,-z,defaultextract"
     llvm_cv_os_type="SunOS"
     llvm_cv_platform_type="Unix" ;;
-  *-*-auroraux*)
-    llvm_cv_link_all_option="-Wl,-z,allextract"
-    llvm_cv_link_all_option="-Wl,-z,defaultextract"
-    llvm_cv_os_type="AuroraUX"
-    llvm_cv_platform_type="Unix" ;;
   *-*-win32*)
     llvm_cv_link_all_option="-Wl,--whole-archive"
     llvm_cv_no_link_all_option="-Wl,--no-whole-archive"
@@ -361,8 +357,6 @@ AC_CACHE_CHECK([type of operating system we're going to target],
     llvm_cv_target_os_type="GNU" ;;
   *-*-solaris*)
     llvm_cv_target_os_type="SunOS" ;;
-  *-*-auroraux*)
-    llvm_cv_target_os_type="AuroraUX" ;;
   *-*-win32*)
     llvm_cv_target_os_type="Win32" ;;
   *-*-mingw*)
@@ -665,11 +659,11 @@ AC_ARG_ENABLE(clang-static-analyzer,
                              enableval="yes")
 case "$enableval" in
   yes) AC_SUBST(ENABLE_CLANG_STATIC_ANALYZER,[1]) ;;
-  no)  
+  no)
     if test ${clang_arcmt} != "no" ; then
       AC_MSG_ERROR([Cannot enable clang ARC Migration Tool while disabling static analyzer.])
     fi
-    AC_SUBST(ENABLE_CLANG_STATIC_ANALYZER,[0]) 
+    AC_SUBST(ENABLE_CLANG_STATIC_ANALYZER,[0])
     ;;
   default) AC_SUBST(ENABLE_CLANG_STATIC_ANALYZER,[1]);;
   *) AC_MSG_ERROR([Invalid setting for --enable-clang-static-analyzer. Use "yes" or "no"]) ;;
@@ -1294,10 +1288,8 @@ AC_PATH_PROG(GROFF, [groff])
 AC_PATH_PROG(GZIPBIN, [gzip])
 AC_PATH_PROG(PDFROFF, [pdfroff])
 AC_PATH_PROG(ZIP, [zip])
-AC_PATH_PROGS(OCAMLC, [ocamlc])
-AC_PATH_PROGS(OCAMLOPT, [ocamlopt])
-AC_PATH_PROGS(OCAMLDEP, [ocamldep])
-AC_PATH_PROGS(OCAMLDOC, [ocamldoc])
+AC_PATH_PROG(GO, [go])
+AC_PATH_PROGS(OCAMLFIND, [ocamlfind])
 AC_PATH_PROGS(GAS, [gas as])
 
 dnl Get the version of the linker in use.
@@ -1395,7 +1387,27 @@ then
     CXX_FLAG_CHECK(NO_UNINITIALIZED, [-Wno-uninitialized])
   fi
 fi
-AC_MSG_RESULT([$NO_VARIADIC_MACROS $NO_MISSING_FIELD_INITIALIZERS $COVERED_SWITCH_DEFAULT $NO_UNINITIALIZED $NO_MAYBE_UNINITIALIZED])
+
+dnl Check for misbehaving -Wcomment (gcc-4.7 has this) and maybe add
+dnl -Wno-comment to the flags.
+no_comment=
+llvm_cv_old_cxxflags="$CXXFLAGS"
+CXXFLAGS="$CXXFLAGS -Wcomment -Werror"
+AC_COMPILE_IFELSE(
+[
+  AC_LANG_SOURCE([[// Comment \o\
+// Another comment
+int main() { return 0; }
+  ]])
+],
+[
+  no_comment=-Wno-comment
+],
+[])
+AC_SUBST(NO_COMMENT, [$no_comment])
+CXXFLAGS="$llvm_cv_old_cxxflags"
+
+AC_MSG_RESULT([$NO_VARIADIC_MACROS $NO_MISSING_FIELD_INITIALIZERS $COVERED_SWITCH_DEFAULT $NO_UNINITIALIZED $NO_MAYBE_UNINITIALIZED $NO_COMMENT])
 
 AC_ARG_WITH([python],
             [AS_HELP_STRING([--with-python], [path to python])],
@@ -1409,23 +1421,23 @@ else
     AC_MSG_WARN([specified python ($PYTHON) is not usable, searching path])
   fi
 
-  AC_PATH_PROG([PYTHON], [python python2 python26],
+  AC_PATH_PROG([PYTHON], [python python2 python27],
                [AC_MSG_RESULT([not found])
-                AC_MSG_ERROR([could not find python 2.5 or higher])])
+                AC_MSG_ERROR([could not find python 2.7 or higher])])
 fi
 
-AC_MSG_CHECKING([for python >= 2.5])
+AC_MSG_CHECKING([for python >= 2.7])
 ac_python_version=`$PYTHON -V 2>&1 | cut -d' ' -f2`
 ac_python_version_major=`echo $ac_python_version | cut -d'.' -f1`
 ac_python_version_minor=`echo $ac_python_version | cut -d'.' -f2`
 ac_python_version_patch=`echo $ac_python_version | cut -d'.' -f3`
 if test "$ac_python_version_major" -gt "2" || \
    (test "$ac_python_version_major" -eq "2" && \
-    test "$ac_python_version_minor" -ge "5") ; then
+    test "$ac_python_version_minor" -ge "7") ; then
   AC_MSG_RESULT([$PYTHON ($ac_python_version)])
 else
   AC_MSG_RESULT([not found])
-  AC_MSG_FAILURE([found python $ac_python_version ($PYTHON); required >= 2.5])
+  AC_MSG_FAILURE([found python $ac_python_version ($PYTHON); required >= 2.7])
 fi
 
 dnl===-----------------------------------------------------------------------===
@@ -1530,7 +1542,7 @@ AC_ARG_WITH(oprofile,
           fi ;;
         *)
           AC_MSG_ERROR([OProfile support is available on Linux only.]) ;;
-      esac 
+      esac
     ],
     [
       AC_SUBST(USE_OPROFILE, [0])
@@ -1598,8 +1610,12 @@ AC_HEADER_SYS_WAIT
 AC_HEADER_TIME
 
 AC_LANG_PUSH([C++])
-AC_CHECK_HEADERS([cxxabi.h])
+dnl size_t must be defined before including cxxabi.h on FreeBSD 10.0.
+AC_CHECK_HEADERS([cxxabi.h], [], [],
+[#include <stddef.h>
+])
 AC_LANG_POP([C++])
+
 AC_CHECK_HEADERS([dlfcn.h execinfo.h fcntl.h inttypes.h link.h])
 AC_CHECK_HEADERS([malloc.h setjmp.h signal.h stdint.h termios.h unistd.h])
 AC_CHECK_HEADERS([utime.h])
@@ -1871,37 +1887,52 @@ AC_DEFINE_UNQUOTED(LLVM_DEFAULT_TARGET_TRIPLE, "$target",
 dnl Determine which bindings to build.
 if test "$BINDINGS_TO_BUILD" = auto ; then
   BINDINGS_TO_BUILD=""
-  if test "x$OCAMLC" != x -a "x$OCAMLDEP" != x ; then
+  if test "x$OCAMLFIND" != x ; then
     BINDINGS_TO_BUILD="ocaml $BINDINGS_TO_BUILD"
+  fi
+  if test "x$GO" != x ; then
+    if $GO run ${srcdir}/bindings/go/conftest.go ; then
+      BINDINGS_TO_BUILD="go $BINDINGS_TO_BUILD"
+    fi
   fi
 fi
 AC_SUBST(BINDINGS_TO_BUILD,$BINDINGS_TO_BUILD)
-
-dnl This isn't really configurey, but it avoids having to repeat the list in
-dnl other files.
-AC_SUBST(ALL_BINDINGS,ocaml)
 
 dnl Do any work necessary to ensure that bindings have what they need.
 binding_prereqs_failed=0
 for a_binding in $BINDINGS_TO_BUILD ; do
   case "$a_binding" in
   ocaml)
-    if test "x$OCAMLC" = x ; then
-      AC_MSG_WARN([--enable-bindings=ocaml specified, but ocamlc not found. Try configure OCAMLC=/path/to/ocamlc])
+    if test "x$OCAMLFIND" = x ; then
+      AC_MSG_WARN([--enable-bindings=ocaml specified, but ocamlfind not found. Try configure OCAMLFIND=/path/to/ocamlfind])
       binding_prereqs_failed=1
     fi
-    if test "x$OCAMLDEP" = x ; then
-      AC_MSG_WARN([--enable-bindings=ocaml specified, but ocamldep not found. Try configure OCAMLDEP=/path/to/ocamldep])
+
+    if $OCAMLFIND opt -version >/dev/null 2>/dev/null ; then
+      HAVE_OCAMLOPT=1
+    else
+      HAVE_OCAMLOPT=0
+    fi
+    AC_SUBST(HAVE_OCAMLOPT)
+
+    if ! $OCAMLFIND query ctypes >/dev/null 2>/dev/null; then
+      AC_MSG_WARN([--enable-bindings=ocaml specified, but ctypes is not installed])
       binding_prereqs_failed=1
     fi
-    if test "x$OCAMLOPT" = x ; then
-      AC_MSG_WARN([--enable-bindings=ocaml specified, but ocamlopt not found. Try configure OCAMLOPT=/path/to/ocamlopt])
-      dnl ocamlopt is optional!
+
+    if $OCAMLFIND query oUnit >/dev/null 2>/dev/null; then
+      HAVE_OCAML_OUNIT=1
+    else
+      HAVE_OCAML_OUNIT=0
+      AC_MSG_WARN([--enable-bindings=ocaml specified, but OUnit 2 is not installed. Tests will not run])
+      dnl oUnit is optional!
     fi
+    AC_SUBST(HAVE_OCAML_OUNIT)
+
     if test "x$with_ocaml_libdir" != xauto ; then
       AC_SUBST(OCAML_LIBDIR,$with_ocaml_libdir)
     else
-      ocaml_stdlib="`"$OCAMLC" -where`"
+      ocaml_stdlib="`"$OCAMLFIND" ocamlc -where`"
       if test "$LLVM_PREFIX" '<' "$ocaml_stdlib" -a "$ocaml_stdlib" '<' "$LLVM_PREFIX~"
       then
         # ocaml stdlib is beneath our prefix; use stdlib
@@ -1909,6 +1940,19 @@ for a_binding in $BINDINGS_TO_BUILD ; do
       else
         # ocaml stdlib is outside our prefix; use libdir/ocaml
         AC_SUBST(OCAML_LIBDIR,${prefix}/lib/ocaml)
+      fi
+    fi
+    ;;
+  go)
+    if test "x$GO" = x ; then
+      AC_MSG_WARN([--enable-bindings=go specified, but go not found. Try configure GO=/path/to/go])
+      binding_prereqs_failed=1
+    else
+      if $GO run ${srcdir}/bindings/go/conftest.go ; then
+        :
+      else
+        AC_MSG_WARN([--enable-bindings=go specified, but need at least Go 1.2. Try configure GO=/path/to/go])
+        binding_prereqs_failed=1
       fi
     fi
     ;;
@@ -1973,6 +2017,11 @@ if test "${clang_src_root}" = ""; then
   clang_src_root="$srcdir/tools/clang"
 fi
 if test -f ${clang_src_root}/README.txt; then
+  dnl Clang supports build systems which use the multilib libdir suffix.
+  dnl The autoconf system doesn't support this so stub out that variable.
+  AC_DEFINE_UNQUOTED(CLANG_LIBDIR_SUFFIX,"",
+                     [Multilib suffix for libdir.])
+
   dnl Use variables to stay under 80 columns.
   configh="include/clang/Config/config.h"
   doxy="docs/doxygen.cfg"
