@@ -66,8 +66,8 @@ extern register_t ofmsr[5];
 extern void	*openfirmware_entry;
 static void	*fdt;
 int		ofw_real_mode;
-extern char     save_trap_init[0x2f00];          /* EXC_LAST */
-char            save_trap_of[0x2f00];            /* EXC_LAST */
+char		save_trap_init[0x2f00];          /* EXC_LAST */
+char		save_trap_of[0x2f00];            /* EXC_LAST */
 
 int		ofwcall(void *);
 static int	openfirmware(void *args);
@@ -257,18 +257,30 @@ ofw_mem_regions(struct mem_region *memp, int *memsz,
 void
 OF_initial_setup(void *fdt_ptr, void *junk, int (*openfirm)(void *))
 {
+	ofmsr[0] = mfmsr();
+	#ifdef __powerpc64__
+	ofmsr[0] &= ~PSL_SF;
+	#endif
+	__asm __volatile("mfsprg0 %0" : "=&r"(ofmsr[1]));
+	__asm __volatile("mfsprg1 %0" : "=&r"(ofmsr[2]));
+	__asm __volatile("mfsprg2 %0" : "=&r"(ofmsr[3]));
+	__asm __volatile("mfsprg3 %0" : "=&r"(ofmsr[4]));
+
 	if (ofmsr[0] & PSL_DR)
 		ofw_real_mode = 0;
 	else
 		ofw_real_mode = 1;
 
 	fdt = fdt_ptr;
+	openfirmware_entry = openfirm;
 
 	#ifdef FDT_DTB_STATIC
 	/* Check for a statically included blob */
 	if (fdt == NULL)
 		fdt = &fdt_static_dtb;
 	#endif
+
+	ofw_save_trap_vec(save_trap_init);
 }
 
 boolean_t
