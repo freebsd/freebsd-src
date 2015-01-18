@@ -11,6 +11,7 @@ SECTIONS
   /* Read-only sections, merged into text segment: */
 
   . = kernbase + SIZEOF_HEADERS;
+  PROVIDE (begin = . - SIZEOF_HEADERS);
 
   .text      :
   {
@@ -68,7 +69,7 @@ SECTIONS
   .toc1      : ALIGN(8) { *(.toc1) }
   .opd       : ALIGN(8) { KEEP (*(.opd)) }
   .branch_lt : ALIGN(8) { *(.branch_lt) }
-  .got       : ALIGN(8) { *(.got .toc) }
+  .got       : ALIGN(8) { __tocbase = .; *(.got .toc) }
 
   .dynamic        : { *(.dynamic) }
   /* Put .ctors and .dtors next to the .got2 section, so that the pointers

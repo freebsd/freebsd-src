@@ -310,8 +310,7 @@ cpu_reset:
 	lis	%r1,(tmpstk+TMPSTKSZ-48)@ha	/* get new SP */
 	addi	%r1,%r1,(tmpstk+TMPSTKSZ-48)@l
 
-	lis	%r3,tocbase@ha
-	ld	%r2,tocbase@l(%r3)
+	GET_TOCBASE(%r2)
 	bl	CNAME(cpudep_ap_early_bootstrap) /* Set PCPU */
 	nop
 	lis	%r3,1@l
@@ -445,8 +444,7 @@ kern_slbtrap:
 	addi	%r1,%r1,PC_SLBSTACK-48+1024
 	li	%r2,~15
 	and	%r1,%r1,%r2
-	lis	%r3,tocbase@ha
-	ld	%r2,tocbase@l(%r3)
+	GET_TOCBASE(%r2)
 	mflr	%r3
 	andi.	%r3,%r3,0xff80
 	mfdar	%r4
@@ -683,8 +681,7 @@ k_trap:
 	FRAME_SETUP(PC_TEMPSAVE)
 /* Call C interrupt dispatcher: */
 trapagain:
-	lis	%r3,tocbase@ha
-	ld	%r2,tocbase@l(%r3)
+	GET_TOCBASE(%r2)
 	addi	%r3,%r1,48
 	bl	CNAME(powerpc_interrupt)
 	nop
@@ -711,8 +708,7 @@ CNAME(trapexit):
 	ori	%r3,%r3,PSL_EE@l
 	mtmsr	%r3
 	isync
-	lis	%r3,tocbase@ha
-	ld	%r2,tocbase@l(%r3)
+	GET_TOCBASE(%r2)
 	addi	%r3,%r1,48
 	bl	CNAME(ast)
 	nop
@@ -760,8 +756,7 @@ dbtrap:
 
 	FRAME_SETUP(PC_DBSAVE)
 /* Call C trap code: */
-	lis	%r3,tocbase@ha
-	ld	%r2,tocbase@l(%r3)
+	GET_TOCBASE(%r2)
 	addi	%r3,%r1,48
 	bl	CNAME(db_trap_glue)
 	nop

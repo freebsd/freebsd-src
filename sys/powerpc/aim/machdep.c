@@ -223,7 +223,7 @@ cpu_startup(void *dummy)
 	vm_pager_bufferinit();
 }
 
-extern char	kernel_text[], _end[];
+extern vm_offset_t	__startkernel, __endkernel;
 
 #ifndef __powerpc64__
 /* Bits for running on 64-bit systems in 32-bit mode. */
@@ -244,13 +244,12 @@ extern void	*dblow, *dbsize;
 extern void	*imisstrap, *imisssize;
 extern void	*dlmisstrap, *dlmisssize;
 extern void	*dsmisstrap, *dsmisssize;
-char 		save_trap_init[0x2f00];		/* EXC_LAST */
 
 uintptr_t
-powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
-    vm_offset_t basekernel, void *mdp)
+powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 {
 	struct		pcpu *pc;
+	vm_offset_t	startkernel, endkernel;
 	void		*generictrap;
 	size_t		trap_offset;
 	void		*kmdp;
@@ -273,8 +272,12 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	trap_offset = 0;
 	cacheline_warn = 0;
 
-	/* Save trap vectors. */
-	ofw_save_trap_vec(save_trap_init);
+	/* Store boot environment state */
+	OF_initial_setup((void *)fdt, NULL, (int (*)(void *))ofentry);
+
+	/* First guess at start/end kernel positions */
+	startkernel = __startkernel;
+	endkernel = __endkernel;
 
 #ifdef WII
 	/*
@@ -490,6 +493,9 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	#else /* powerpc64 */
 	cpu_features |= PPC_FEATURE_64;
 	generictrap = &trapcode;
+
+	/* Set TOC base so that the interrupt code can get at it */
+	*((register_t *)TRAP_TOCBASE) = toc;
 	#endif
 
 	bcopy(&rstcode, (void *)(EXC_RST + trap_offset),  (size_t)&rstsize);
