@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #ifdef RADIX_MPATH
 #include <net/radix_mpath.h>
 #endif
+#include <net/rss_config.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>

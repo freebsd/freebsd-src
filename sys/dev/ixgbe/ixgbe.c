@@ -39,7 +39,7 @@
 #include "ixgbe.h"
 
 #ifdef	RSS
-#include <netinet/in_rss.h>
+#include <net/rss_config.h>
 #endif
 
 /*********************************************************************

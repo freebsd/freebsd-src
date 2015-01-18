@@ -37,11 +37,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/mbuf.h>
 
+#include <net/rss_config.h>
+
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
-#include <netinet/in_rss.h>
 #ifdef INET6
 #include <netinet6/in6_pcb.h>
+#include <netinet6/in6_rss.h>
 #endif /* INET6 */
 
 /*

@@ -1378,7 +1378,7 @@ static inline int
 ixl_ptype_to_hash(u8 ptype)
 {
         struct i40e_rx_ptype_decoded	decoded;
-	u8				ex = 0
+	u8				ex = 0;
 
 	decoded = decode_rx_desc_ptype(ptype);
 	ex = decoded.outer_frag;
