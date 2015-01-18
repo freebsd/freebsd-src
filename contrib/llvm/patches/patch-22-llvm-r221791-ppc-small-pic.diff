@@ -318,9 +318,9 @@ Index: lib/Target/PowerPC/PPCAsmPrinter.cpp
  
      // Change the opcode to LWZ, and the global address operand to be a
      // reference to the GOT entry we will synthesize later.
-@@ -382,16 +409,23 @@ void PPCAsmPrinter::EmitInstruction(const MachineI
-     else if (MO.isJTI())
-       MOSymbol = GetJTISymbol(MO.getIndex());
+@@ -384,16 +411,23 @@ void PPCAsmPrinter::EmitInstruction(const MachineI
+     else if (MO.isBlockAddress())
+       MOSymbol = GetBlockAddressSymbol(MO.getBlockAddress());
  
 -    MCSymbol *TOCEntry = lookUpOrCreateTOCEntry(MOSymbol);
 +    if (PL == PICLevel::Small) {
@@ -351,8 +351,8 @@ Index: lib/Target/PowerPC/PPCAsmPrinter.cpp
      EmitToStreamer(OutStreamer, TmpInst);
      return;
    }
-@@ -399,7 +433,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineI
-   case PPC::LDtocCPT:
+@@ -402,7 +436,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineI
+   case PPC::LDtocBA:
    case PPC::LDtoc: {
      // Transform %X3 = LDtoc <ga:@min1>, %X2
 -    LowerPPCMachineInstrToMCInst(MI, TmpInst, *this, Subtarget.isDarwin());
@@ -360,7 +360,7 @@ Index: lib/Target/PowerPC/PPCAsmPrinter.cpp
  
      // Change the opcode to LD, and the global address operand to be a
      // reference to the TOC entry we will synthesize later.
-@@ -428,7 +462,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineI
+@@ -433,7 +467,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineI
        
    case PPC::ADDIStocHA: {
      // Transform %Xd = ADDIStocHA %X2, <ga:@sym>
@@ -369,7 +369,7 @@ Index: lib/Target/PowerPC/PPCAsmPrinter.cpp
  
      // Change the opcode to ADDIS8.  If the global address is external, has
      // common linkage, is a non-local function address, or is a jump table
-@@ -470,7 +504,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineI
+@@ -479,7 +513,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineI
    }
    case PPC::LDtocL: {
      // Transform %Xd = LDtocL <ga:@sym>, %Xs
@@ -378,7 +378,7 @@ Index: lib/Target/PowerPC/PPCAsmPrinter.cpp
  
      // Change the opcode to LD.  If the global address is external, has
      // common linkage, or is a jump table address, then reference the
-@@ -507,7 +541,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineI
+@@ -521,7 +555,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineI
    }
    case PPC::ADDItocL: {
      // Transform %Xd = ADDItocL %Xs, <ga:@sym>
@@ -387,7 +387,7 @@ Index: lib/Target/PowerPC/PPCAsmPrinter.cpp
  
      // Change the opcode to ADDI8.  If the global address is external, then
      // generate a TOC entry and reference that.  Otherwise reference the
-@@ -558,7 +592,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineI
+@@ -572,7 +606,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineI
    case PPC::LDgotTprelL:
    case PPC::LDgotTprelL32: {
      // Transform %Xd = LDgotTprelL <ga:@sym>, %Xs
@@ -396,7 +396,7 @@ Index: lib/Target/PowerPC/PPCAsmPrinter.cpp
  
      // Change the opcode to LD.
      TmpInst.setOpcode(isPPC64 ? PPC::LD : PPC::LWZ);
-@@ -841,7 +875,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineI
+@@ -796,7 +830,7 @@ void PPCAsmPrinter::EmitInstruction(const MachineI
    }
    }
  
@@ -405,7 +405,7 @@ Index: lib/Target/PowerPC/PPCAsmPrinter.cpp
    EmitToStreamer(OutStreamer, TmpInst);
  }
  
-@@ -857,16 +891,14 @@ void PPCLinuxAsmPrinter::EmitStartOfAsmFile(Module
+@@ -812,16 +846,14 @@ void PPCLinuxAsmPrinter::EmitStartOfAsmFile(Module
    if (Subtarget.isPPC64() || TM.getRelocationModel() != Reloc::PIC_)
      return AsmPrinter::EmitStartOfAsmFile(M);
  
@@ -426,7 +426,7 @@ Index: lib/Target/PowerPC/PPCAsmPrinter.cpp
    MCSymbol *CurrentPos = OutContext.CreateTempSymbol();
  
    OutStreamer.EmitLabel(CurrentPos);
-@@ -885,7 +917,9 @@ void PPCLinuxAsmPrinter::EmitStartOfAsmFile(Module
+@@ -840,7 +872,9 @@ void PPCLinuxAsmPrinter::EmitStartOfAsmFile(Module
  
  void PPCLinuxAsmPrinter::EmitFunctionEntryLabel() {
    // linux/ppc32 - Normal entry label.
@@ -437,7 +437,7 @@ Index: lib/Target/PowerPC/PPCAsmPrinter.cpp
      return AsmPrinter::EmitFunctionEntryLabel();
  
    if (!Subtarget.isPPC64()) {
-@@ -897,7 +931,7 @@ void PPCLinuxAsmPrinter::EmitFunctionEntryLabel()
+@@ -852,7 +886,7 @@ void PPCLinuxAsmPrinter::EmitFunctionEntryLabel()
  
        const MCExpr *OffsExpr =
          MCBinaryExpr::CreateSub(
@@ -458,7 +458,7 @@ Index: lib/Target/PowerPC/PPCISelDAGToDAG.cpp
  #include "llvm/Support/CommandLine.h"
  #include "llvm/Support/Debug.h"
  #include "llvm/Support/ErrorHandling.h"
-@@ -273,23 +274,29 @@ SDNode *PPCDAGToDAGISel::getGlobalBaseReg() {
+@@ -283,23 +284,29 @@ SDNode *PPCDAGToDAGISel::getGlobalBaseReg() {
      // Insert the set of GlobalBaseReg into the first MBB of the function
      MachineBasicBlock &FirstMBB = MF->front();
      MachineBasicBlock::iterator MBBI = FirstMBB.begin();
@@ -499,7 +499,7 @@ Index: lib/Target/PowerPC/PPCISelDAGToDAG.cpp
        }
      } else {
        GlobalBaseReg = RegInfo->createVirtualRegister(&PPC::G8RC_NOX0RegClass);
-@@ -1429,13 +1436,13 @@ SDNode *PPCDAGToDAGISel::Select(SDNode *N) {
+@@ -1439,13 +1446,13 @@ SDNode *PPCDAGToDAGISel::Select(SDNode *N) {
      return CurDAG->SelectNodeTo(N, Reg, MVT::Other, Chain);
    }
    case PPCISD::TOC_ENTRY: {
@@ -519,7 +519,7 @@ Index: lib/Target/PowerPC/PPCISelLowering.cpp
 ===================================================================
 --- lib/Target/PowerPC/PPCISelLowering.cpp
 +++ lib/Target/PowerPC/PPCISelLowering.cpp
-@@ -1653,6 +1653,8 @@ SDValue PPCTargetLowering::LowerGlobalTLSAddress(S
+@@ -1682,6 +1682,8 @@ SDValue PPCTargetLowering::LowerGlobalTLSAddress(S
    const GlobalValue *GV = GA->getGlobal();
    EVT PtrVT = getPointerTy();
    bool is64bit = Subtarget.isPPC64();
@@ -528,7 +528,7 @@ Index: lib/Target/PowerPC/PPCISelLowering.cpp
  
    TLSModel::Model Model = getTargetMachine().getTLSModel(GV);
  
-@@ -1691,7 +1693,10 @@ SDValue PPCTargetLowering::LowerGlobalTLSAddress(S
+@@ -1721,7 +1723,10 @@ SDValue PPCTargetLowering::LowerGlobalTLSAddress(S
        GOTPtr = DAG.getNode(PPCISD::ADDIS_TLSGD_HA, dl, PtrVT,
                                     GOTReg, TGA);
      } else {
@@ -540,7 +540,7 @@ Index: lib/Target/PowerPC/PPCISelLowering.cpp
      }
      SDValue GOTEntry = DAG.getNode(PPCISD::ADDI_TLSGD_L, dl, PtrVT,
                                     GOTPtr, TGA);
-@@ -1721,7 +1726,10 @@ SDValue PPCTargetLowering::LowerGlobalTLSAddress(S
+@@ -1738,7 +1743,10 @@ SDValue PPCTargetLowering::LowerGlobalTLSAddress(S
        GOTPtr = DAG.getNode(PPCISD::ADDIS_TLSLD_HA, dl, PtrVT,
                             GOTReg, TGA);
      } else {
@@ -556,7 +556,7 @@ Index: lib/Target/PowerPC/PPCInstrInfo.td
 ===================================================================
 --- lib/Target/PowerPC/PPCInstrInfo.td
 +++ lib/Target/PowerPC/PPCInstrInfo.td
-@@ -976,6 +976,9 @@ let isTerminator = 1, isBarrier = 1, PPC970_Unit =
+@@ -980,6 +980,9 @@ let isTerminator = 1, isBarrier = 1, PPC970_Unit =
  let Defs = [LR] in
    def MovePCtoLR : Pseudo<(outs), (ins), "#MovePCtoLR", []>,
                     PPC970_Unit_BRU;
@@ -566,7 +566,7 @@ Index: lib/Target/PowerPC/PPCInstrInfo.td
  
  let isBranch = 1, isTerminator = 1, hasCtrlDep = 1, PPC970_Unit = 7 in {
    let isBarrier = 1 in {
-@@ -2444,15 +2447,13 @@ def ADDISdtprelHA32 : Pseudo<(outs gprc:$rD), (ins
+@@ -2442,15 +2445,13 @@ def ADDISdtprelHA32 : Pseudo<(outs gprc:$rD), (ins
                                                  tglobaltlsaddr:$disp))]>;
  
  // Support for Position-independent code

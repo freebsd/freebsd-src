@@ -67,6 +67,9 @@ class CCIfSplit<CCAction A> : CCIf<"ArgFlags.isSplit()", A> {}
 /// the specified action.
 class CCIfSRet<CCAction A> : CCIf<"ArgFlags.isSRet()", A> {}
 
+/// CCIfVarArg - If the current function is vararg - apply the action
+class CCIfVarArg<CCAction A> : CCIf<"State.isVarArg()", A> {}
+
 /// CCIfNotVarArg - If the current function is not vararg - apply the action
 class CCIfNotVarArg<CCAction A> : CCIf<"!State.isVarArg()", A> {}
 
@@ -119,6 +122,12 @@ class CCPromoteToType<ValueType destTy> : CCAction {
   ValueType DestTy = destTy;
 }
 
+/// CCPromoteToUpperBitsInType - If applied, this promotes the specified current
+/// value to the specified type and shifts the value into the upper bits.
+class CCPromoteToUpperBitsInType<ValueType destTy> : CCAction {
+  ValueType DestTy = destTy;
+}
+
 /// CCBitConvertToType - If applied, this bitconverts the specified current
 /// value to the specified type.
 class CCBitConvertToType<ValueType destTy> : CCAction {
@@ -141,6 +150,13 @@ class CCDelegateTo<CallingConv cc> : CCAction {
 /// that the target supports.
 class CallingConv<list<CCAction> actions> {
   list<CCAction> Actions = actions;
+  bit Custom = 0;
+}
+
+/// CustomCallingConv - An instance of this is used to declare calling
+/// conventions that are implemented using a custom function of the same name.
+class CustomCallingConv : CallingConv<[]> {
+  let Custom = 1;
 }
 
 /// CalleeSavedRegs - A list of callee saved registers for a given calling

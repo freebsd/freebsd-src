@@ -57,6 +57,8 @@ def MipsInstrInfo : InstrInfo;
 // Mips Subtarget features                                                    //
 //===----------------------------------------------------------------------===//
 
+def FeatureNoABICalls  : SubtargetFeature<"noabicalls", "NoABICalls", "true",
+                                "Disable SVR4-style position-independent code.">;
 def FeatureGP64Bit     : SubtargetFeature<"gp64", "IsGP64bit", "true",
                                 "General Purpose Registers are 64-bit wide.">;
 def FeatureFP64Bit     : SubtargetFeature<"fp64", "IsFP64bit", "true",
@@ -67,13 +69,13 @@ def FeatureNaN2008     : SubtargetFeature<"nan2008", "IsNaN2008bit", "true",
                                 "IEEE 754-2008 NaN encoding.">;
 def FeatureSingleFloat : SubtargetFeature<"single-float", "IsSingleFloat",
                                 "true", "Only supports single precision float">;
-def FeatureO32         : SubtargetFeature<"o32", "MipsABI", "O32",
+def FeatureO32         : SubtargetFeature<"o32", "ABI", "MipsABIInfo::O32()",
                                 "Enable o32 ABI">;
-def FeatureN32         : SubtargetFeature<"n32", "MipsABI", "N32",
+def FeatureN32         : SubtargetFeature<"n32", "ABI", "MipsABIInfo::N32()",
                                 "Enable n32 ABI">;
-def FeatureN64         : SubtargetFeature<"n64", "MipsABI", "N64",
+def FeatureN64         : SubtargetFeature<"n64", "ABI", "MipsABIInfo::N64()",
                                 "Enable n64 ABI">;
-def FeatureEABI        : SubtargetFeature<"eabi", "MipsABI", "EABI",
+def FeatureEABI        : SubtargetFeature<"eabi", "ABI", "MipsABIInfo::EABI()",
                                 "Enable eabi ABI">;
 def FeatureNoOddSPReg  : SubtargetFeature<"nooddspreg", "UseOddSPReg", "false",
                               "Disable odd numbered single-precision "
