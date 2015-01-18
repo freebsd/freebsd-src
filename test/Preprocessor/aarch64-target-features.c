@@ -12,8 +12,11 @@
 // CHECK: __ARM_FEATURE_CLZ 1
 // CHECK-NOT: __ARM_FEATURE_CRC32 1
 // CHECK-NOT: __ARM_FEATURE_CRYPTO 1
+// CHECK: __ARM_FEATURE_DIRECTED_ROUNDING 1
 // CHECK: __ARM_FEATURE_DIV 1
 // CHECK: __ARM_FEATURE_FMA 1
+// CHECK: __ARM_FEATURE_IDIV 1
+// CHECK: __ARM_FEATURE_NUMERIC_MAXMIN 1
 // CHECK: __ARM_FEATURE_UNALIGNED 1
 // CHECK: __ARM_FP 0xe
 // CHECK: __ARM_FP16_FORMAT_IEEE 1
@@ -69,6 +72,9 @@
 // CHECK-MCPU-CYCLONE: "-cc1"{{.*}} "-triple" "aarch64{{.*}}" "-target-feature" "+neon" "-target-feature" "+crc" "-target-feature" "+crypto" "-target-feature" "+zcm" "-target-feature" "+zcz"
 // CHECK-MCPU-A53: "-cc1"{{.*}} "-triple" "aarch64{{.*}}" "-target-feature" "+neon" "-target-feature" "+crc" "-target-feature" "+crypto"
 // CHECK-MCPU-A57: "-cc1"{{.*}} "-triple" "aarch64{{.*}}" "-target-feature" "+neon" "-target-feature" "+crc" "-target-feature" "+crypto"
+
+// RUN: %clang -target x86_64-apple-macosx -arch arm64 -### -c %s 2>&1 | FileCheck --check-prefix=CHECK-ARCH-ARM64 %s
+// CHECK-ARCH-ARM64: "-target-cpu" "cyclone" "-target-feature" "+neon" "-target-feature" "+crc" "-target-feature" "+crypto" "-target-feature" "+zcm" "-target-feature" "+zcz"
 
 // RUN: %clang -target aarch64 -march=armv8-a+fp+simd+crc+crypto -### -c %s 2>&1 | FileCheck -check-prefix=CHECK-MARCH-1 %s
 // RUN: %clang -target aarch64 -march=armv8-a+nofp+nosimd+nocrc+nocrypto+fp+simd+crc+crypto -### -c %s 2>&1 | FileCheck -check-prefix=CHECK-MARCH-1 %s

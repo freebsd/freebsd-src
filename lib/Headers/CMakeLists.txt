@@ -1,11 +1,18 @@
 set(files
+  adxintrin.h
   altivec.h
   ammintrin.h
   arm_acle.h
-  avxintrin.h
   avx2intrin.h
-  bmiintrin.h
+  avx512bwintrin.h
+  avx512erintrin.h
+  avx512fintrin.h
+  avx512vlbwintrin.h
+  avx512vlintrin.h
+  avxintrin.h
   bmi2intrin.h
+  bmiintrin.h
+  cpuid.h
   emmintrin.h
   f16cintrin.h
   float.h
@@ -13,13 +20,14 @@ set(files
   fmaintrin.h
   ia32intrin.h
   immintrin.h
-  iso646.h
   Intrin.h
+  iso646.h
   limits.h
   lzcntintrin.h
   mm3dnow.h
   mmintrin.h
   mm_malloc.h
+  module.modulemap
   nmmintrin.h
   pmmintrin.h
   popcntintrin.h
@@ -30,23 +38,24 @@ set(files
   smmintrin.h
   stdalign.h
   stdarg.h
+  stdatomic.h
   stdbool.h
   stddef.h
+  __stddef_max_align_t.h
   stdint.h
   stdnoreturn.h
   tbmintrin.h
   tgmath.h
   tmmintrin.h
+  unwind.h
+  vadefs.h
   varargs.h
-  wmmintrin.h
   __wmmintrin_aes.h
+  wmmintrin.h
   __wmmintrin_pclmul.h
   x86intrin.h
   xmmintrin.h
   xopintrin.h
-  cpuid.h
-  unwind.h
-  module.modulemap
   )
 
 set(output_dir ${LLVM_LIBRARY_OUTPUT_INTDIR}/clang/${CLANG_VERSION}/include)

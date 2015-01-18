@@ -7,6 +7,9 @@
 //
 //===----------------------------------------------------------------------===//
 
+#ifndef LLVM_CLANG_TOOLS_DIAGTOOL_DIAGNOSTICNAMES_H
+#define LLVM_CLANG_TOOLS_DIAGTOOL_DIAGNOSTICNAMES_H
+
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataTypes.h"
@@ -112,3 +115,4 @@ namespace diagtool {
   }
 } // end namespace diagtool
 
+#endif

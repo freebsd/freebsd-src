@@ -26,9 +26,12 @@ public:
   virtual ~MockSema() {}
 
   uint64_t expectMatcher(StringRef MatcherName) {
-    ast_matchers::internal::Matcher<Stmt> M = stmt();
+    // Optimizations on the matcher framework make simple matchers like
+    // 'stmt()' to be all the same matcher.
+    // Use a more complex expression to prevent that.
+    ast_matchers::internal::Matcher<Stmt> M = stmt(stmt(), stmt());
     ExpectedMatchers.insert(std::make_pair(MatcherName, M));
-    return M.getID();
+    return M.getID().second;
   }
 
   void parse(StringRef Code) {
@@ -125,8 +128,12 @@ TEST(ParserTest, ParseMatcher) {
     EXPECT_EQ("", Sema.Errors[i]);
   }
 
+  EXPECT_NE(ExpectedFoo, ExpectedBar);
+  EXPECT_NE(ExpectedFoo, ExpectedBaz);
+  EXPECT_NE(ExpectedBar, ExpectedBaz);
+
   EXPECT_EQ(1ULL, Sema.Values.size());
-  EXPECT_EQ(ExpectedFoo, getSingleMatcher(Sema.Values[0])->getID());
+  EXPECT_EQ(ExpectedFoo, getSingleMatcher(Sema.Values[0])->getID().second);
 
   EXPECT_EQ(3ULL, Sema.Matchers.size());
   const MockSema::MatcherInfo Bar = Sema.Matchers[0];
@@ -145,12 +152,20 @@ TEST(ParserTest, ParseMatcher) {
   EXPECT_EQ("Foo", Foo.MatcherName);
   EXPECT_TRUE(matchesRange(Foo.NameRange, 1, 2, 2, 12));
   EXPECT_EQ(2ULL, Foo.Args.size());
-  EXPECT_EQ(ExpectedBar, getSingleMatcher(Foo.Args[0].Value)->getID());
-  EXPECT_EQ(ExpectedBaz, getSingleMatcher(Foo.Args[1].Value)->getID());
+  EXPECT_EQ(ExpectedBar, getSingleMatcher(Foo.Args[0].Value)->getID().second);
+  EXPECT_EQ(ExpectedBaz, getSingleMatcher(Foo.Args[1].Value)->getID().second);
   EXPECT_EQ("Yo!", Foo.BoundID);
 }
 
 using ast_matchers::internal::Matcher;
+
+Parser::NamedValueMap getTestNamedValues() {
+  Parser::NamedValueMap Values;
+  Values["nameX"] = std::string("x");
+  Values["hasParamA"] =
+      VariantMatcher::SingleMatcher(hasParameter(0, hasName("a")));
+  return Values;
+}
 
 TEST(ParserTest, FullParserTest) {
   Diagnostics Error;
@@ -174,21 +189,11 @@ TEST(ParserTest, FullParserTest) {
   EXPECT_FALSE(matches("void f(int x, int a);", M));
 
   // Test named values.
-  struct NamedSema : public Parser::RegistrySema {
-   public:
-    virtual VariantValue getNamedValue(StringRef Name) {
-      if (Name == "nameX")
-        return std::string("x");
-      if (Name == "param0")
-        return VariantMatcher::SingleMatcher(hasParameter(0, hasName("a")));
-      return VariantValue();
-    }
-  };
-  NamedSema Sema;
+  auto NamedValues = getTestNamedValues();
   llvm::Optional<DynTypedMatcher> HasParameterWithNamedValues(
       Parser::parseMatcherExpression(
-          "functionDecl(param0, hasParameter(1, hasName(nameX)))", &Sema,
-          &Error));
+          "functionDecl(hasParamA, hasParameter(1, hasName(nameX)))",
+          nullptr, &NamedValues, &Error));
   EXPECT_EQ("", Error.toStringFull());
   M = HasParameterWithNamedValues->unconditionalConvertTo<Decl>();
 
@@ -270,7 +275,7 @@ TEST(ParserTest, OverloadErrors) {
             ParseWithError("callee(\"A\")"));
 }
 
-TEST(ParserTest, Completion) {
+TEST(ParserTest, CompletionRegistry) {
   std::vector<MatcherCompletion> Comps =
       Parser::completeExpression("while", 5);
   ASSERT_EQ(1u, Comps.size());
@@ -282,6 +287,38 @@ TEST(ParserTest, Completion) {
   ASSERT_EQ(1u, Comps.size());
   EXPECT_EQ("bind(\"", Comps[0].TypedText);
   EXPECT_EQ("bind", Comps[0].MatcherDecl);
+}
+
+TEST(ParserTest, CompletionNamedValues) {
+  // Can complete non-matcher types.
+  auto NamedValues = getTestNamedValues();
+  StringRef Code = "functionDecl(hasName(";
+  std::vector<MatcherCompletion> Comps =
+      Parser::completeExpression(Code, Code.size(), nullptr, &NamedValues);
+  ASSERT_EQ(1u, Comps.size());
+  EXPECT_EQ("nameX", Comps[0].TypedText);
+  EXPECT_EQ("String nameX", Comps[0].MatcherDecl);
+
+  // Can complete if there are names in the expression.
+  Code = "methodDecl(hasName(nameX), ";
+  Comps = Parser::completeExpression(Code, Code.size(), nullptr, &NamedValues);
+  EXPECT_LT(0u, Comps.size());
+
+  // Can complete names and registry together.
+  Code = "methodDecl(hasP";
+  Comps = Parser::completeExpression(Code, Code.size(), nullptr, &NamedValues);
+  ASSERT_EQ(3u, Comps.size());
+  EXPECT_EQ("aramA", Comps[0].TypedText);
+  EXPECT_EQ("Matcher<FunctionDecl> hasParamA", Comps[0].MatcherDecl);
+
+  EXPECT_EQ("arameter(", Comps[1].TypedText);
+  EXPECT_EQ(
+      "Matcher<FunctionDecl> hasParameter(unsigned, Matcher<ParmVarDecl>)",
+      Comps[1].MatcherDecl);
+
+  EXPECT_EQ("arent(", Comps[2].TypedText);
+  EXPECT_EQ("Matcher<Decl> hasParent(Matcher<Decl|Stmt>)",
+            Comps[2].MatcherDecl);
 }
 
 }  // end anonymous namespace

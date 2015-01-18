@@ -1,0 +1,2 @@
+module va_list_a { header "va_list_a.h" }
+module va_list_b { header "va_list_b.h" }

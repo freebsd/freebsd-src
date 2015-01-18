@@ -27,10 +27,6 @@ ResourceIncludeDir := $(ResourceDir)/include
 PROJ_resources_lib := $(PROJ_resources)/lib
 PROJ_resources_include := $(PROJ_resources)/include
 
-# Initialize a variable to use for extra flags to pass to the
-# compiler-rt make process.
-COMPILERRT_MAKE_FLAGS :=
-
 # Expect compiler-rt to be in llvm/projects/compiler-rt
 COMPILERRT_SRC_ROOT := $(LLVM_SRC_ROOT)/projects/compiler-rt
 
@@ -80,10 +76,25 @@ RuntimeDirs :=
 ifeq ($(OS),Darwin)
 RuntimeDirs += darwin macho_embedded
 RuntimeLibrary.darwin.Configs := \
-	eprintf.a 10.4.a osx.a ios.a cc_kext.a cc_kext_ios5.a \
+	eprintf.a 10.4.a osx.a cc_kext.a \
 	asan_osx_dynamic.dylib \
-	profile_osx.a profile_ios.a \
+	profile_osx.a \
 	ubsan_osx.a
+
+IOS_SDK := $(shell xcrun --show-sdk-path -sdk iphoneos 2> /dev/null)
+IOSSIM_SDK := $(shell xcrun --show-sdk-path -sdk iphonesimulator 2> /dev/null)
+
+ifneq ($(IOS_SDK)$(IOSSIM_SDK),)
+RuntimeLibrary.darwin.Configs += ios.a profile_ios.a
+endif
+
+ifneq ($(IOS_SDK),)
+RuntimeLibrary.darwin.Configs += cc_kext_ios5.a
+endif
+
+ifneq ($(IOSSIM_SDK),)
+RuntimeLibrary.darwin.Configs += asan_iossim_dynamic.dylib
+endif
 
 RuntimeLibrary.macho_embedded.Configs := \
 	hard_static.a hard_pic.a
@@ -91,21 +102,6 @@ ifneq (,$(findstring ARM,$(TARGETS_TO_BUILD)))
 RuntimeLibrary.macho_embedded.Configs += \
 	soft_static.a soft_pic.a
 endif
-
-# Support building compiler-rt with relocatable SDKs.
-#
-# This will cause make to put SDKROOT in the environment, and since we
-# are using the built Clang to build compiler-rt, it to pick up that
-# location as the default value for the include system root.
-ACTIVE_SDK_PATH := $(shell xcrun --show-sdk-path 2> /dev/null)
-ifneq ($(ACTIVE_SDK_PATH),)
-COMPILERRT_MAKE_FLAGS := SDKROOT=$(ACTIVE_SDK_PATH)
-endif
-IOSSIM_SDK_PATH := $(shell xcrun --show-sdk-path -sdk iphonesimulator 2> /dev/null)
-ifneq ($(IOSSIM_SDK_PATH),)
-RuntimeLibrary.darwin.Configs += asan_iossim_dynamic.dylib
-endif
-
 endif
 
 # On Linux, include a library which has all the runtime functions.
@@ -171,7 +167,6 @@ BuildRuntimeLibraries:
 	  CC="$(ToolDir)/clang" \
 	  VERBOSE=$(VERBOSE) \
 	  LLVM_ANDROID_TOOLCHAIN_DIR="$(LLVM_ANDROID_TOOLCHAIN_DIR)" \
-	  $(COMPILERRT_MAKE_FLAGS) \
 	  $(RuntimeDirs:%=clang_%)
 .PHONY: BuildRuntimeLibraries
 CleanRuntimeLibraries:
@@ -179,7 +174,6 @@ CleanRuntimeLibraries:
 	  ProjSrcRoot=$(COMPILERRT_SRC_ROOT) \
 	  ProjObjRoot=$(PROJ_OBJ_DIR) \
 	  VERBOSE=$(VERBOSE) \
-	  $(COMPILERRT_MAKE_FLAGS) \
 	  clean
 .PHONY: CleanRuntimeLibraries
 RuntimeHeader: $(ResourceIncludeDir)/sanitizer
@@ -221,8 +215,6 @@ $(ResourceLibDir)/$1/libclang_rt.%.dylib: \
 		$(ResourceLibDir)/$1/.dir
 	$(Echo) Copying runtime library $1/$$* to build dir
 	$(Verb) cp $(PROJ_OBJ_DIR)/clang_$1/$$*/libcompiler_rt.dylib $$@
-	$(Echo) Fixing LC_ID_DYLIB of $$@
-	$(Verb) install_name_tool $$@ -id $$@
 RuntimeLibrary.$1: \
 		$(RuntimeLibrary.$1.Configs:%=$(ResourceLibDir)/$1/libclang_rt.%)
 .PHONY: RuntimeLibrary.$1

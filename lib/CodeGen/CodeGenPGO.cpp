@@ -13,8 +13,10 @@
 
 #include "CodeGenPGO.h"
 #include "CodeGenFunction.h"
+#include "CoverageMappingGen.h"
 #include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/StmtVisitor.h"
+#include "llvm/IR/Intrinsics.h"
 #include "llvm/IR/MDBuilder.h"
 #include "llvm/ProfileData/InstrProfReader.h"
 #include "llvm/Support/Endian.h"
@@ -24,8 +26,9 @@
 using namespace clang;
 using namespace CodeGen;
 
-void CodeGenPGO::setFuncName(llvm::Function *Fn) {
-  RawFuncName = Fn->getName();
+void CodeGenPGO::setFuncName(StringRef Name,
+                             llvm::GlobalValue::LinkageTypes Linkage) {
+  StringRef RawFuncName = Name;
 
   // Function names may be prefixed with a binary '1' to indicate
   // that the backend should not modify the symbols due to any platform
@@ -33,172 +36,44 @@ void CodeGenPGO::setFuncName(llvm::Function *Fn) {
   if (RawFuncName[0] == '\1')
     RawFuncName = RawFuncName.substr(1);
 
-  if (!Fn->hasLocalLinkage()) {
-    PrefixedFuncName.reset(new std::string(RawFuncName));
-    return;
+  FuncName = RawFuncName;
+  if (llvm::GlobalValue::isLocalLinkage(Linkage)) {
+    // For local symbols, prepend the main file name to distinguish them.
+    // Do not include the full path in the file name since there's no guarantee
+    // that it will stay the same, e.g., if the files are checked out from
+    // version control in different locations.
+    if (CGM.getCodeGenOpts().MainFileName.empty())
+      FuncName = FuncName.insert(0, "<unknown>:");
+    else
+      FuncName = FuncName.insert(0, CGM.getCodeGenOpts().MainFileName + ":");
   }
 
-  // For local symbols, prepend the main file name to distinguish them.
-  // Do not include the full path in the file name since there's no guarantee
-  // that it will stay the same, e.g., if the files are checked out from
-  // version control in different locations.
-  PrefixedFuncName.reset(new std::string(CGM.getCodeGenOpts().MainFileName));
-  if (PrefixedFuncName->empty())
-    PrefixedFuncName->assign("<unknown>");
-  PrefixedFuncName->append(":");
-  PrefixedFuncName->append(RawFuncName);
+  // If we're generating a profile, create a variable for the name.
+  if (CGM.getCodeGenOpts().ProfileInstrGenerate)
+    createFuncNameVar(Linkage);
 }
 
-static llvm::Function *getRegisterFunc(CodeGenModule &CGM) {
-  return CGM.getModule().getFunction("__llvm_profile_register_functions");
+void CodeGenPGO::setFuncName(llvm::Function *Fn) {
+  setFuncName(Fn->getName(), Fn->getLinkage());
 }
 
-static llvm::BasicBlock *getOrInsertRegisterBB(CodeGenModule &CGM) {
-  // Don't do this for Darwin.  compiler-rt uses linker magic.
-  if (CGM.getTarget().getTriple().isOSDarwin())
-    return nullptr;
+void CodeGenPGO::createFuncNameVar(llvm::GlobalValue::LinkageTypes Linkage) {
+  // Usually, we want to match the function's linkage, but
+  // available_externally and extern_weak both have the wrong semantics.
+  if (Linkage == llvm::GlobalValue::ExternalWeakLinkage)
+    Linkage = llvm::GlobalValue::LinkOnceAnyLinkage;
+  else if (Linkage == llvm::GlobalValue::AvailableExternallyLinkage)
+    Linkage = llvm::GlobalValue::LinkOnceODRLinkage;
 
-  // Only need to insert this once per module.
-  if (llvm::Function *RegisterF = getRegisterFunc(CGM))
-    return &RegisterF->getEntryBlock();
+  auto *Value =
+      llvm::ConstantDataArray::getString(CGM.getLLVMContext(), FuncName, false);
+  FuncNameVar =
+      new llvm::GlobalVariable(CGM.getModule(), Value->getType(), true, Linkage,
+                               Value, "__llvm_profile_name_" + FuncName);
 
-  // Construct the function.
-  auto *VoidTy = llvm::Type::getVoidTy(CGM.getLLVMContext());
-  auto *RegisterFTy = llvm::FunctionType::get(VoidTy, false);
-  auto *RegisterF = llvm::Function::Create(RegisterFTy,
-                                           llvm::GlobalValue::InternalLinkage,
-                                           "__llvm_profile_register_functions",
-                                           &CGM.getModule());
-  RegisterF->setUnnamedAddr(true);
-  if (CGM.getCodeGenOpts().DisableRedZone)
-    RegisterF->addFnAttr(llvm::Attribute::NoRedZone);
-
-  // Construct and return the entry block.
-  auto *BB = llvm::BasicBlock::Create(CGM.getLLVMContext(), "", RegisterF);
-  CGBuilderTy Builder(BB);
-  Builder.CreateRetVoid();
-  return BB;
-}
-
-static llvm::Constant *getOrInsertRuntimeRegister(CodeGenModule &CGM) {
-  auto *VoidTy = llvm::Type::getVoidTy(CGM.getLLVMContext());
-  auto *VoidPtrTy = llvm::Type::getInt8PtrTy(CGM.getLLVMContext());
-  auto *RuntimeRegisterTy = llvm::FunctionType::get(VoidTy, VoidPtrTy, false);
-  return CGM.getModule().getOrInsertFunction("__llvm_profile_register_function",
-                                             RuntimeRegisterTy);
-}
-
-static bool isMachO(const CodeGenModule &CGM) {
-  return CGM.getTarget().getTriple().isOSBinFormatMachO();
-}
-
-static StringRef getCountersSection(const CodeGenModule &CGM) {
-  return isMachO(CGM) ? "__DATA,__llvm_prf_cnts" : "__llvm_prf_cnts";
-}
-
-static StringRef getNameSection(const CodeGenModule &CGM) {
-  return isMachO(CGM) ? "__DATA,__llvm_prf_names" : "__llvm_prf_names";
-}
-
-static StringRef getDataSection(const CodeGenModule &CGM) {
-  return isMachO(CGM) ? "__DATA,__llvm_prf_data" : "__llvm_prf_data";
-}
-
-llvm::GlobalVariable *CodeGenPGO::buildDataVar() {
-  // Create name variable.
-  llvm::LLVMContext &Ctx = CGM.getLLVMContext();
-  auto *VarName = llvm::ConstantDataArray::getString(Ctx, getFuncName(),
-                                                     false);
-  auto *Name = new llvm::GlobalVariable(CGM.getModule(), VarName->getType(),
-                                        true, VarLinkage, VarName,
-                                        getFuncVarName("name"));
-  Name->setSection(getNameSection(CGM));
-  Name->setAlignment(1);
-
-  // Create data variable.
-  auto *Int32Ty = llvm::Type::getInt32Ty(Ctx);
-  auto *Int64Ty = llvm::Type::getInt64Ty(Ctx);
-  auto *Int8PtrTy = llvm::Type::getInt8PtrTy(Ctx);
-  auto *Int64PtrTy = llvm::Type::getInt64PtrTy(Ctx);
-  llvm::Type *DataTypes[] = {
-    Int32Ty, Int32Ty, Int64Ty, Int8PtrTy, Int64PtrTy
-  };
-  auto *DataTy = llvm::StructType::get(Ctx, makeArrayRef(DataTypes));
-  llvm::Constant *DataVals[] = {
-    llvm::ConstantInt::get(Int32Ty, getFuncName().size()),
-    llvm::ConstantInt::get(Int32Ty, NumRegionCounters),
-    llvm::ConstantInt::get(Int64Ty, FunctionHash),
-    llvm::ConstantExpr::getBitCast(Name, Int8PtrTy),
-    llvm::ConstantExpr::getBitCast(RegionCounters, Int64PtrTy)
-  };
-  auto *Data =
-    new llvm::GlobalVariable(CGM.getModule(), DataTy, true, VarLinkage,
-                             llvm::ConstantStruct::get(DataTy, DataVals),
-                             getFuncVarName("data"));
-
-  // All the data should be packed into an array in its own section.
-  Data->setSection(getDataSection(CGM));
-  Data->setAlignment(8);
-
-  // Hide all these symbols so that we correctly get a copy for each
-  // executable.  The profile format expects names and counters to be
-  // contiguous, so references into shared objects would be invalid.
-  if (!llvm::GlobalValue::isLocalLinkage(VarLinkage)) {
-    Name->setVisibility(llvm::GlobalValue::HiddenVisibility);
-    Data->setVisibility(llvm::GlobalValue::HiddenVisibility);
-    RegionCounters->setVisibility(llvm::GlobalValue::HiddenVisibility);
-  }
-
-  // Make sure the data doesn't get deleted.
-  CGM.addUsedGlobal(Data);
-  return Data;
-}
-
-void CodeGenPGO::emitInstrumentationData() {
-  if (!RegionCounters)
-    return;
-
-  // Build the data.
-  auto *Data = buildDataVar();
-
-  // Register the data.
-  auto *RegisterBB = getOrInsertRegisterBB(CGM);
-  if (!RegisterBB)
-    return;
-  CGBuilderTy Builder(RegisterBB->getTerminator());
-  auto *VoidPtrTy = llvm::Type::getInt8PtrTy(CGM.getLLVMContext());
-  Builder.CreateCall(getOrInsertRuntimeRegister(CGM),
-                     Builder.CreateBitCast(Data, VoidPtrTy));
-}
-
-llvm::Function *CodeGenPGO::emitInitialization(CodeGenModule &CGM) {
-  if (!CGM.getCodeGenOpts().ProfileInstrGenerate)
-    return nullptr;
-
-  assert(CGM.getModule().getFunction("__llvm_profile_init") == nullptr &&
-         "profile initialization already emitted");
-
-  // Get the function to call at initialization.
-  llvm::Constant *RegisterF = getRegisterFunc(CGM);
-  if (!RegisterF)
-    return nullptr;
-
-  // Create the initialization function.
-  auto *VoidTy = llvm::Type::getVoidTy(CGM.getLLVMContext());
-  auto *F = llvm::Function::Create(llvm::FunctionType::get(VoidTy, false),
-                                   llvm::GlobalValue::InternalLinkage,
-                                   "__llvm_profile_init", &CGM.getModule());
-  F->setUnnamedAddr(true);
-  F->addFnAttr(llvm::Attribute::NoInline);
-  if (CGM.getCodeGenOpts().DisableRedZone)
-    F->addFnAttr(llvm::Attribute::NoRedZone);
-
-  // Add the basic block and the necessary calls.
-  CGBuilderTy Builder(llvm::BasicBlock::Create(CGM.getLLVMContext(), "", F));
-  Builder.CreateCall(RegisterF);
-  Builder.CreateRetVoid();
-
-  return F;
+  // Hide the symbol so that we correctly get a copy for each executable.
+  if (!llvm::GlobalValue::isLocalLinkage(FuncNameVar->getLinkage()))
+    FuncNameVar->setVisibility(llvm::GlobalValue::HiddenVisibility);
 }
 
 namespace {
@@ -778,33 +653,18 @@ uint64_t PGOHash::finalize() {
   return endian::read<uint64_t, little, unaligned>(Result);
 }
 
-static void emitRuntimeHook(CodeGenModule &CGM) {
-  const char *const RuntimeVarName = "__llvm_profile_runtime";
-  const char *const RuntimeUserName = "__llvm_profile_runtime_user";
-  if (CGM.getModule().getGlobalVariable(RuntimeVarName))
-    return;
-
-  // Declare the runtime hook.
-  llvm::LLVMContext &Ctx = CGM.getLLVMContext();
-  auto *Int32Ty = llvm::Type::getInt32Ty(Ctx);
-  auto *Var = new llvm::GlobalVariable(CGM.getModule(), Int32Ty, false,
-                                       llvm::GlobalValue::ExternalLinkage,
-                                       nullptr, RuntimeVarName);
-
-  // Make a function that uses it.
-  auto *User = llvm::Function::Create(llvm::FunctionType::get(Int32Ty, false),
-                                      llvm::GlobalValue::LinkOnceODRLinkage,
-                                      RuntimeUserName, &CGM.getModule());
-  User->addFnAttr(llvm::Attribute::NoInline);
-  if (CGM.getCodeGenOpts().DisableRedZone)
-    User->addFnAttr(llvm::Attribute::NoRedZone);
-  CGBuilderTy Builder(llvm::BasicBlock::Create(CGM.getLLVMContext(), "", User));
-  auto *Load = Builder.CreateLoad(Var);
-  Builder.CreateRet(Load);
-
-  // Create a use of the function.  Now the definition of the runtime variable
-  // should get pulled in, along with any static initializears.
-  CGM.addUsedGlobal(User);
+void CodeGenPGO::checkGlobalDecl(GlobalDecl GD) {
+  // Make sure we only emit coverage mapping for one constructor/destructor.
+  // Clang emits several functions for the constructor and the destructor of
+  // a class. Every function is instrumented, but we only want to provide
+  // coverage for one of them. Because of that we only emit the coverage mapping
+  // for the base constructor/destructor.
+  if ((isa<CXXConstructorDecl>(GD.getDecl()) &&
+       GD.getCtorType() != Ctor_Base) ||
+      (isa<CXXDestructorDecl>(GD.getDecl()) &&
+       GD.getDtorType() != Dtor_Base)) {
+    SkipCoverageMapping = true;
+  }
 }
 
 void CodeGenPGO::assignRegionCounters(const Decl *D, llvm::Function *Fn) {
@@ -814,28 +674,12 @@ void CodeGenPGO::assignRegionCounters(const Decl *D, llvm::Function *Fn) {
     return;
   if (D->isImplicit())
     return;
+  CGM.ClearUnusedCoverageMapping(D);
   setFuncName(Fn);
 
-  // Set the linkage for variables based on the function linkage.  Usually, we
-  // want to match it, but available_externally and extern_weak both have the
-  // wrong semantics.
-  VarLinkage = Fn->getLinkage();
-  switch (VarLinkage) {
-  case llvm::GlobalValue::ExternalWeakLinkage:
-    VarLinkage = llvm::GlobalValue::LinkOnceAnyLinkage;
-    break;
-  case llvm::GlobalValue::AvailableExternallyLinkage:
-    VarLinkage = llvm::GlobalValue::LinkOnceODRLinkage;
-    break;
-  default:
-    break;
-  }
-
   mapRegionCounters(D);
-  if (InstrumentRegions) {
-    emitRuntimeHook(CGM);
-    emitCounterVariables();
-  }
+  if (CGM.getCodeGenOpts().CoverageMapping)
+    emitCounterRegionMapping(D);
   if (PGOReader) {
     SourceManager &SM = CGM.getContext().getSourceManager();
     loadRegionCounts(PGOReader, SM.isInMainFile(D->getLocation()));
@@ -858,6 +702,56 @@ void CodeGenPGO::mapRegionCounters(const Decl *D) {
   assert(Walker.NextCounter > 0 && "no entry counter mapped for decl");
   NumRegionCounters = Walker.NextCounter;
   FunctionHash = Walker.Hash.finalize();
+}
+
+void CodeGenPGO::emitCounterRegionMapping(const Decl *D) {
+  if (SkipCoverageMapping)
+    return;
+  // Don't map the functions inside the system headers
+  auto Loc = D->getBody()->getLocStart();
+  if (CGM.getContext().getSourceManager().isInSystemHeader(Loc))
+    return;
+
+  std::string CoverageMapping;
+  llvm::raw_string_ostream OS(CoverageMapping);
+  CoverageMappingGen MappingGen(*CGM.getCoverageMapping(),
+                                CGM.getContext().getSourceManager(),
+                                CGM.getLangOpts(), RegionCounterMap.get());
+  MappingGen.emitCounterMapping(D, OS);
+  OS.flush();
+
+  if (CoverageMapping.empty())
+    return;
+
+  CGM.getCoverageMapping()->addFunctionMappingRecord(
+      FuncNameVar, FuncName, FunctionHash, CoverageMapping);
+}
+
+void
+CodeGenPGO::emitEmptyCounterMapping(const Decl *D, StringRef FuncName,
+                                    llvm::GlobalValue::LinkageTypes Linkage) {
+  if (SkipCoverageMapping)
+    return;
+  setFuncName(FuncName, Linkage);
+
+  // Don't map the functions inside the system headers
+  auto Loc = D->getBody()->getLocStart();
+  if (CGM.getContext().getSourceManager().isInSystemHeader(Loc))
+    return;
+
+  std::string CoverageMapping;
+  llvm::raw_string_ostream OS(CoverageMapping);
+  CoverageMappingGen MappingGen(*CGM.getCoverageMapping(),
+                                CGM.getContext().getSourceManager(),
+                                CGM.getLangOpts());
+  MappingGen.emitEmptyMapping(D, OS);
+  OS.flush();
+
+  if (CoverageMapping.empty())
+    return;
+
+  CGM.getCoverageMapping()->addFunctionMappingRecord(
+      FuncNameVar, FuncName, FunctionHash, CoverageMapping);
 }
 
 void CodeGenPGO::computeRegionCounts(const Decl *D) {
@@ -891,48 +785,34 @@ CodeGenPGO::applyFunctionAttributes(llvm::IndexedInstrProfReader *PGOReader,
     Fn->addFnAttr(llvm::Attribute::Cold);
 }
 
-void CodeGenPGO::emitCounterVariables() {
-  llvm::LLVMContext &Ctx = CGM.getLLVMContext();
-  llvm::ArrayType *CounterTy = llvm::ArrayType::get(llvm::Type::getInt64Ty(Ctx),
-                                                    NumRegionCounters);
-  RegionCounters =
-    new llvm::GlobalVariable(CGM.getModule(), CounterTy, false, VarLinkage,
-                             llvm::Constant::getNullValue(CounterTy),
-                             getFuncVarName("counters"));
-  RegionCounters->setAlignment(8);
-  RegionCounters->setSection(getCountersSection(CGM));
-}
-
 void CodeGenPGO::emitCounterIncrement(CGBuilderTy &Builder, unsigned Counter) {
-  if (!RegionCounters)
+  if (!CGM.getCodeGenOpts().ProfileInstrGenerate || !RegionCounterMap)
     return;
-  llvm::Value *Addr =
-    Builder.CreateConstInBoundsGEP2_64(RegionCounters, 0, Counter);
-  llvm::Value *Count = Builder.CreateLoad(Addr, "pgocount");
-  Count = Builder.CreateAdd(Count, Builder.getInt64(1));
-  Builder.CreateStore(Count, Addr);
+  if (!Builder.GetInsertPoint())
+    return;
+  auto *I8PtrTy = llvm::Type::getInt8PtrTy(CGM.getLLVMContext());
+  Builder.CreateCall4(CGM.getIntrinsic(llvm::Intrinsic::instrprof_increment),
+                      llvm::ConstantExpr::getBitCast(FuncNameVar, I8PtrTy),
+                      Builder.getInt64(FunctionHash),
+                      Builder.getInt32(NumRegionCounters),
+                      Builder.getInt32(Counter));
 }
 
 void CodeGenPGO::loadRegionCounts(llvm::IndexedInstrProfReader *PGOReader,
                                   bool IsInMainFile) {
   CGM.getPGOStats().addVisited(IsInMainFile);
-  RegionCounts.reset(new std::vector<uint64_t>);
-  uint64_t Hash;
-  if (PGOReader->getFunctionCounts(getFuncName(), Hash, *RegionCounts)) {
-    CGM.getPGOStats().addMissing(IsInMainFile);
-    RegionCounts.reset();
-  } else if (Hash != FunctionHash ||
-             RegionCounts->size() != NumRegionCounters) {
-    CGM.getPGOStats().addMismatched(IsInMainFile);
-    RegionCounts.reset();
+  RegionCounts.clear();
+  if (std::error_code EC =
+          PGOReader->getFunctionCounts(FuncName, FunctionHash, RegionCounts)) {
+    if (EC == llvm::instrprof_error::unknown_function)
+      CGM.getPGOStats().addMissing(IsInMainFile);
+    else if (EC == llvm::instrprof_error::hash_mismatch)
+      CGM.getPGOStats().addMismatched(IsInMainFile);
+    else if (EC == llvm::instrprof_error::malformed)
+      // TODO: Consider a more specific warning for this case.
+      CGM.getPGOStats().addMismatched(IsInMainFile);
+    RegionCounts.clear();
   }
-}
-
-void CodeGenPGO::destroyRegionCounters() {
-  RegionCounterMap.reset();
-  StmtCountMap.reset();
-  RegionCounts.reset();
-  RegionCounters = nullptr;
 }
 
 /// \brief Calculate what to divide by to scale weights.

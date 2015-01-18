@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_CXXABI_H
-#define CLANG_CODEGEN_CXXABI_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_CGCXXABI_H
+#define LLVM_CLANG_LIB_CODEGEN_CGCXXABI_H
 
 #include "CodeGenFunction.h"
 #include "clang/Basic/LLVM.h"
@@ -93,6 +93,8 @@ public:
   /// when called virtually, and code generation does not support the case.
   virtual bool HasThisReturn(GlobalDecl GD) const { return false; }
 
+  virtual bool hasMostDerivedReturn(GlobalDecl GD) const { return false; }
+
   /// If the C++ ABI requires the given type be returned in a particular way,
   /// this method sets RetAI and returns true.
   virtual bool classifyReturnType(CGFunctionInfo &FI) const = 0;
@@ -156,6 +158,15 @@ public:
   /// (in the C++ sense) with an LLVM zeroinitializer.
   virtual bool isZeroInitializable(const MemberPointerType *MPT);
 
+  /// Return whether or not a member pointers type is convertible to an IR type.
+  virtual bool isMemberPointerConvertible(const MemberPointerType *MPT) const {
+    return true;
+  }
+
+  virtual bool isTypeInfoCalculable(QualType Ty) const {
+    return !Ty->isIncompleteType();
+  }
+
   /// Create a null member pointer of the given type.
   virtual llvm::Constant *EmitNullMemberPointer(const MemberPointerType *MPT);
 
@@ -198,14 +209,11 @@ protected:
   CharUnits getMemberPointerPathAdjustment(const APValue &MP);
 
 public:
-  /// Adjust the given non-null pointer to an object of polymorphic
-  /// type to point to the complete object.
-  ///
-  /// The IR type of the result should be a pointer but is otherwise
-  /// irrelevant.
-  virtual llvm::Value *adjustToCompleteObject(CodeGenFunction &CGF,
-                                              llvm::Value *ptr,
-                                              QualType type) = 0;
+  virtual void emitVirtualObjectDelete(CodeGenFunction &CGF,
+                                       const CXXDeleteExpr *DE,
+                                       llvm::Value *Ptr, QualType ElementType,
+                                       const CXXDestructorDecl *Dtor) = 0;
+  virtual void emitRethrow(CodeGenFunction &CGF, bool isNoReturn) = 0;
 
   virtual llvm::Constant *getAddrOfRTTIDescriptor(QualType Ty) = 0;
 
@@ -236,20 +244,6 @@ public:
                                                  const CXXRecordDecl *ClassDecl,
                                         const CXXRecordDecl *BaseClassDecl) = 0;
 
-  /// Build the signature of the given constructor variant by adding
-  /// any required parameters.  For convenience, ArgTys has been initialized
-  /// with the type of 'this' and ResTy has been initialized with the type of
-  /// 'this' if HasThisReturn(GlobalDecl(Ctor, T)) is true or 'void' otherwise
-  /// (although both may be changed by the ABI).
-  ///
-  /// If there are ever any ABIs where the implicit parameters are
-  /// intermixed with the formal parameters, we can address those
-  /// then.
-  virtual void BuildConstructorSignature(const CXXConstructorDecl *Ctor,
-                                         CXXCtorType T,
-                                         CanQualType &ResTy,
-                               SmallVectorImpl<CanQualType> &ArgTys) = 0;
-
   virtual llvm::BasicBlock *EmitCtorCompleteObjectHandler(CodeGenFunction &CGF,
                                                           const CXXRecordDecl *RD);
 
@@ -262,15 +256,11 @@ public:
   /// Emit constructor variants required by this ABI.
   virtual void EmitCXXConstructors(const CXXConstructorDecl *D) = 0;
 
-  /// Build the signature of the given destructor variant by adding
-  /// any required parameters.  For convenience, ArgTys has been initialized
-  /// with the type of 'this' and ResTy has been initialized with the type of
-  /// 'this' if HasThisReturn(GlobalDecl(Dtor, T)) is true or 'void' otherwise
-  /// (although both may be changed by the ABI).
-  virtual void BuildDestructorSignature(const CXXDestructorDecl *Dtor,
-                                        CXXDtorType T,
-                                        CanQualType &ResTy,
-                               SmallVectorImpl<CanQualType> &ArgTys) = 0;
+  /// Build the signature of the given constructor or destructor variant by
+  /// adding any required parameters.  For convenience, ArgTys has been
+  /// initialized with the type of 'this'.
+  virtual void buildStructorSignature(const CXXMethodDecl *MD, StructorType T,
+                                      SmallVectorImpl<CanQualType> &ArgTys) = 0;
 
   /// Returns true if the given destructor type should be emitted as a linkonce
   /// delegating thunk, regardless of whether the dtor is defined in this TU or
@@ -368,11 +358,10 @@ public:
                                                  llvm::Type *Ty) = 0;
 
   /// Emit the ABI-specific virtual destructor call.
-  virtual void EmitVirtualDestructorCall(CodeGenFunction &CGF,
-                                         const CXXDestructorDecl *Dtor,
-                                         CXXDtorType DtorType,
-                                         SourceLocation CallLoc,
-                                         llvm::Value *This) = 0;
+  virtual llvm::Value *
+  EmitVirtualDestructorCall(CodeGenFunction &CGF, const CXXDestructorDecl *Dtor,
+                            CXXDtorType DtorType, llvm::Value *This,
+                            const CXXMemberCallExpr *CE) = 0;
 
   virtual void adjustCallArgsForDestructorThunk(CodeGenFunction &CGF,
                                                 GlobalDecl GD,
@@ -396,6 +385,9 @@ public:
 
   virtual void EmitReturnFromThunk(CodeGenFunction &CGF,
                                    RValue RV, QualType ResultType);
+
+  virtual size_t getSrcArgforCopyCtor(const CXXConstructorDecl *,
+                                      FunctionArgList &Args) const = 0;
 
   /// Gets the pure virtual member call function.
   virtual StringRef GetPureVirtualCallName() = 0;
@@ -490,30 +482,44 @@ public:
   /// Emit code to force the execution of a destructor during global
   /// teardown.  The default implementation of this uses atexit.
   ///
-  /// \param dtor - a function taking a single pointer argument
-  /// \param addr - a pointer to pass to the destructor function.
+  /// \param Dtor - a function taking a single pointer argument
+  /// \param Addr - a pointer to pass to the destructor function.
   virtual void registerGlobalDtor(CodeGenFunction &CGF, const VarDecl &D,
-                                  llvm::Constant *dtor, llvm::Constant *addr);
+                                  llvm::Constant *Dtor,
+                                  llvm::Constant *Addr) = 0;
 
   /*************************** thread_local initialization ********************/
 
   /// Emits ABI-required functions necessary to initialize thread_local
   /// variables in this translation unit.
   ///
-  /// \param Decls The thread_local declarations in this translation unit.
-  /// \param InitFunc If this translation unit contains any non-constant
-  ///        initialization or non-trivial destruction for thread_local
-  ///        variables, a function to perform the initialization. Otherwise, 0.
+  /// \param CXXThreadLocals - The thread_local declarations in this translation
+  ///        unit.
+  /// \param CXXThreadLocalInits - If this translation unit contains any
+  ///        non-constant initialization or non-trivial destruction for
+  ///        thread_local variables, a list of functions to perform the
+  ///        initialization.
   virtual void EmitThreadLocalInitFuncs(
-      ArrayRef<std::pair<const VarDecl *, llvm::GlobalVariable *> > Decls,
-      llvm::Function *InitFunc);
+      CodeGenModule &CGM,
+      ArrayRef<std::pair<const VarDecl *, llvm::GlobalVariable *>>
+          CXXThreadLocals,
+      ArrayRef<llvm::Function *> CXXThreadLocalInits,
+      ArrayRef<llvm::GlobalVariable *> CXXThreadLocalInitVars) = 0;
+
+  // Determine if references to thread_local global variables can be made
+  // directly or require access through a thread wrapper function.
+  virtual bool usesThreadWrapperFunction() const = 0;
 
   /// Emit a reference to a non-local thread_local variable (including
   /// triggering the initialization of all thread_local variables in its
   /// translation unit).
   virtual LValue EmitThreadLocalVarDeclLValue(CodeGenFunction &CGF,
                                               const VarDecl *VD,
-                                              QualType LValType);
+                                              QualType LValType) = 0;
+
+  /// Emit a single constructor/destructor with the given type from a C++
+  /// constructor Decl.
+  virtual void emitCXXStructor(const CXXMethodDecl *MD, StructorType Type) = 0;
 };
 
 // Create an instance of a C++ ABI class:

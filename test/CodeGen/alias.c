@@ -3,6 +3,8 @@
 
 int g0;
 // CHECKBASIC: @g0 = common global i32 0
+__thread int TL_WITH_ALIAS;
+// CHECKBASIC-DAG: @TL_WITH_ALIAS = thread_local global i32 0, align 4
 static int bar1 = 42;
 // CHECKBASIC: @bar1 = internal global i32 42
 
@@ -10,11 +12,14 @@ extern int g1;
 extern int g1 __attribute((alias("g0")));
 // CHECKBASIC-DAG: @g1 = alias i32* @g0
 
+extern __thread int __libc_errno __attribute__ ((alias ("TL_WITH_ALIAS")));
+// CHECKBASIC-DAG: @__libc_errno = thread_local alias i32* @TL_WITH_ALIAS
+
 void f0(void) { }
 extern void f1(void);
 extern void f1(void) __attribute((alias("f0")));
 // CHECKBASIC-DAG: @f1 = alias void ()* @f0
-// CHECKBASIC-DAG: @test8_foo = alias weak bitcast (void ()* @test8_bar to void (...)*)
+// CHECKBASIC-DAG: @test8_foo = weak alias bitcast (void ()* @test8_bar to void (...)*)
 // CHECKBASIC-DAG: @test8_zed = alias bitcast (void ()* @test8_bar to void (...)*)
 // CHECKBASIC-DAG: @test9_zed = alias void ()* @test9_bar
 // CHECKBASIC: define void @f0() [[NUW:#[0-9]+]] {

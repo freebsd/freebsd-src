@@ -1,7 +1,7 @@
-// RUN: %clang_cc1 -triple i686-win32     -fsyntax-only -verify -std=c++11 -DMS %s
-// RUN: %clang_cc1 -triple x86_64-win32   -fsyntax-only -verify -std=c++1y -DMS %s
-// RUN: %clang_cc1 -triple i686-mingw32   -fsyntax-only -verify -std=c++1y %s
-// RUN: %clang_cc1 -triple x86_64-mingw32 -fsyntax-only -verify -std=c++11 %s
+// RUN: %clang_cc1 -triple i686-win32     -fsyntax-only -verify -std=c++11 -Wunsupported-dll-base-class-template -DMS %s
+// RUN: %clang_cc1 -triple x86_64-win32   -fsyntax-only -verify -std=c++1y -Wunsupported-dll-base-class-template -DMS %s
+// RUN: %clang_cc1 -triple i686-mingw32   -fsyntax-only -verify -std=c++1y -Wunsupported-dll-base-class-template %s
+// RUN: %clang_cc1 -triple x86_64-mingw32 -fsyntax-only -verify -std=c++11 -Wunsupported-dll-base-class-template %s
 
 // Helper structs to make templates more expressive.
 struct ImplicitInst_Exported {};
@@ -68,6 +68,9 @@ namespace ns { __declspec(dllexport) int ExternalGlobal; }
 
 __declspec(dllexport) auto InternalAutoTypeGlobal = Internal(); // expected-error{{'InternalAutoTypeGlobal' must have external linkage when declared 'dllexport'}}
 __declspec(dllexport) auto ExternalAutoTypeGlobal = External();
+
+// Thread local variables are invalid.
+__declspec(dllexport) __thread int ThreadLocalGlobal; // expected-error{{'ThreadLocalGlobal' cannot be thread local when declared 'dllexport'}}
 
 // Export in local scope.
 void functionScope() {
@@ -324,6 +327,10 @@ template<> __declspec(dllexport) inline void funcTmpl<ExplicitSpec_InlineDef_Exp
 // Classes
 //===----------------------------------------------------------------------===//
 
+namespace {
+  struct __declspec(dllexport) AnonymousClass {}; // expected-error{{(anonymous namespace)::AnonymousClass' must have external linkage when declared 'dllexport'}}
+}
+
 class __declspec(dllexport) ClassDecl;
 
 class __declspec(dllexport) ClassDef {};
@@ -336,6 +343,49 @@ template <typename T> struct __declspec(dllexport) PartiallySpecializedClassTemp
 
 template <typename T> struct ExpliciallySpecializedClassTemplate {};
 template <> struct __declspec(dllexport) ExpliciallySpecializedClassTemplate<int> { void f() {} };
+
+// Don't instantiate class members of implicitly instantiated templates, even if they are exported.
+struct IncompleteType;
+template <typename T> struct __declspec(dllexport) ImplicitlyInstantiatedExportedTemplate {
+  int f() { return sizeof(T); } // no-error
+};
+ImplicitlyInstantiatedExportedTemplate<IncompleteType> implicitlyInstantiatedExportedTemplate;
+
+// Don't instantiate class members of templates with explicit instantiation declarations, even if they are exported.
+struct IncompleteType2;
+template <typename T> struct __declspec(dllexport) ExportedTemplateWithExplicitInstantiationDecl {
+  int f() { return sizeof(T); } // no-error
+};
+extern template struct ExportedTemplateWithExplicitInstantiationDecl<IncompleteType2>;
+
+// Instantiate class members for explicitly instantiated exported templates.
+struct IncompleteType3; // expected-note{{forward declaration of 'IncompleteType3'}}
+template <typename T> struct __declspec(dllexport) ExplicitlyInstantiatedExportedTemplate {
+  int f() { return sizeof(T); } // expected-error{{invalid application of 'sizeof' to an incomplete type 'IncompleteType3'}}
+};
+template struct ExplicitlyInstantiatedExportedTemplate<IncompleteType3>; // expected-note{{in instantiation of member function 'ExplicitlyInstantiatedExportedTemplate<IncompleteType3>::f' requested here}}
+
+// In MS mode, instantiate members of class templates that are base classes of exported classes.
+#ifdef MS
+  // expected-note@+3{{forward declaration of 'IncompleteType4'}}
+  // expected-note@+3{{in instantiation of member function 'BaseClassTemplateOfExportedClass<IncompleteType4>::f' requested here}}
+#endif
+struct IncompleteType4;
+template <typename T> struct BaseClassTemplateOfExportedClass {
+#ifdef MS
+  // expected-error@+2{{invalid application of 'sizeof' to an incomplete type 'IncompleteType4'}}
+#endif
+  int f() { return sizeof(T); };
+};
+struct __declspec(dllexport) ExportedBaseClass : public BaseClassTemplateOfExportedClass<IncompleteType4> {};
+
+// Don't instantiate members of explicitly exported class templates that are base classes of exported classes.
+struct IncompleteType5;
+template <typename T> struct __declspec(dllexport) ExportedBaseClassTemplateOfExportedClass {
+  int f() { return sizeof(T); }; // no-error
+};
+struct __declspec(dllexport) ExportedBaseClass2 : public ExportedBaseClassTemplateOfExportedClass<IncompleteType5> {};
+
 
 
 //===----------------------------------------------------------------------===//

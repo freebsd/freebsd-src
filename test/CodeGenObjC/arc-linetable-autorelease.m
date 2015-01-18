@@ -32,8 +32,8 @@ NSRect NSMakeRect(CGFloat x, CGFloat y, CGFloat w, CGFloat h);
   // CHECK: call void @objc_storeStrong{{.*}} !dbg ![[ARC:[0-9]+]]
   // CHECK: call {{.*}} @objc_autoreleaseReturnValue{{.*}} !dbg ![[ARC]]
   // CHECK: ret {{.*}} !dbg ![[ARC]]
-  // CHECK: ![[RET]] = metadata !{i32 [[@LINE+1]], i32 0, metadata !{{.*}}, null}
+  // CHECK: ![[RET]] = !MDLocation(line: [[@LINE+1]], scope: !{{.*}})
   return path;
-  // CHECK: ![[ARC]] = metadata !{i32 [[@LINE+1]], i32 0, metadata !{{.*}}, null}
+  // CHECK: ![[ARC]] = !MDLocation(line: [[@LINE+1]], scope: !{{.*}})
 }
 @end

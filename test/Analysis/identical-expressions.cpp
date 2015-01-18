@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,alpha.core.IdenticalExpr -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,alpha.core.IdenticalExpr -w -verify %s
 
 /* Only one expected warning per function allowed at the very end. */
 
@@ -1510,4 +1510,23 @@ void test_nowarn_chained_if_stmts_3(int x) {
     ;
   else if (x++) // no-warning
     ;
+}
+
+void test_warn_wchar() {
+  const wchar_t * a = 0 ? L"Warning" : L"Warning"; // expected-warning {{identical expressions on both sides of ':' in conditional expression}}
+}
+void test_nowarn_wchar() {
+  const wchar_t * a = 0 ? L"No" : L"Warning";
+}
+
+void test_nowarn_long() {
+  int a = 0, b = 0;
+  long c;
+  if (0) {
+    b -= a;
+    c = 0;
+  } else { // no-warning
+    b -= a;
+    c = 0LL;
+  }
 }

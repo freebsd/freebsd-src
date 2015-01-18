@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -E %s -o - | FileCheck --check-prefix=CHECK-PED-NONE %s
-// RUN: %clang_cc1 -pedantic-errors -E %s -o - | FileCheck --check-prefix=CHECK-PED-ERR %s
+// RUN: %clang_cc1 -std=c99 -E %s -o - | FileCheck --check-prefix=CHECK-PED-NONE %s
+// RUN: %clang_cc1 -std=c99 -pedantic-errors -E %s -o - | FileCheck --check-prefix=CHECK-PED-ERR %s
 
 // CHECK-PED-NONE: no_dummy_extension
 #if !__has_extension(dummy_extension)
@@ -34,6 +34,14 @@ int no_c_generic_selections();
 int has_c_alignas();
 #else
 int no_c_alignas();
+#endif
+
+// CHECK-PED-NONE: has_c_alignof
+// CHECK-PED-ERR: no_c_alignof
+#if __has_extension(c_alignof)
+int has_c_alignof();
+#else
+int no_c_alignof();
 #endif
 
 // Arbitrary feature to test that the extension name can be surrounded with

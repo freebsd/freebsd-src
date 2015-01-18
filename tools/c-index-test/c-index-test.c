@@ -796,15 +796,42 @@ static void PrintCursor(CXCursor Cursor, const char *CommentSchemaFile) {
       printf(" [access=%s isVirtual=%s]", accessStr,
              isVirtual ? "true" : "false");
     }
-    
+
     SpecializationOf = clang_getSpecializedCursorTemplate(Cursor);
     if (!clang_equalCursors(SpecializationOf, clang_getNullCursor())) {
       CXSourceLocation Loc = clang_getCursorLocation(SpecializationOf);
       CXString Name = clang_getCursorSpelling(SpecializationOf);
       clang_getSpellingLocation(Loc, 0, &line, &column, 0);
-      printf(" [Specialization of %s:%d:%d]", 
+      printf(" [Specialization of %s:%d:%d]",
              clang_getCString(Name), line, column);
       clang_disposeString(Name);
+
+      if (Cursor.kind == CXCursor_FunctionDecl) {
+        /* Collect the template parameter kinds from the base template. */
+        unsigned NumTemplateArgs = clang_Cursor_getNumTemplateArguments(Cursor);
+        unsigned I;
+        for (I = 0; I < NumTemplateArgs; I++) {
+          enum CXTemplateArgumentKind TAK =
+              clang_Cursor_getTemplateArgumentKind(Cursor, I);
+          switch(TAK) {
+            case CXTemplateArgumentKind_Type:
+              {
+                CXType T = clang_Cursor_getTemplateArgumentType(Cursor, I);
+                CXString S = clang_getTypeSpelling(T);
+                printf(" [Template arg %d: kind: %d, type: %s]",
+                       I, TAK, clang_getCString(S));
+                clang_disposeString(S);
+              }
+              break;
+            case CXTemplateArgumentKind_Integral:
+              printf(" [Template arg %d: kind: %d, intval: %lld]",
+                     I, TAK, clang_Cursor_getTemplateArgumentValue(Cursor, I));
+              break;
+            default:
+              printf(" [Template arg %d: kind: %d]\n", I, TAK);
+          }
+        }
+      }
     }
 
     clang_getOverriddenCursors(Cursor, &overridden, &num_overridden);
@@ -1363,6 +1390,20 @@ static enum CXChildVisitResult PrintTypeSize(CXCursor cursor, CXCursor p,
 }
 
 /******************************************************************************/
+/* Mangling testing.                                                          */
+/******************************************************************************/
+
+static enum CXChildVisitResult PrintMangledName(CXCursor cursor, CXCursor p,
+                                                CXClientData d) {
+  CXString MangledName;
+  PrintCursor(cursor, NULL);
+  MangledName = clang_Cursor_getMangling(cursor);
+  printf(" [mangled=%s]\n", clang_getCString(MangledName));
+  clang_disposeString(MangledName);
+  return CXChildVisit_Continue;
+}
+
+/******************************************************************************/
 /* Bitwidth testing.                                                          */
 /******************************************************************************/
 
@@ -1629,6 +1670,7 @@ static int perform_file_scan(const char *ast_file, const char *source_file,
 
   if ((fp = fopen(source_file, "r")) == NULL) {
     fprintf(stderr, "Could not open '%s'\n", source_file);
+    clang_disposeTranslationUnit(TU);
     return 1;
   }
 
@@ -4081,6 +4123,8 @@ int cindextest_main(int argc, const char **argv) {
   else if (argc > 2 && strcmp(argv[1], "-test-print-bitwidth") == 0)
     return perform_test_load_source(argc - 2, argv + 2, "all",
                                     PrintBitWidth, 0);
+  else if (argc > 2 && strcmp(argv[1], "-test-print-mangle") == 0)
+    return perform_test_load_tu(argv[2], "all", NULL, PrintMangledName, NULL);
   else if (argc > 1 && strcmp(argv[1], "-print-usr") == 0) {
     if (argc > 2)
       return print_usrs(argv + 2, argv + argc);

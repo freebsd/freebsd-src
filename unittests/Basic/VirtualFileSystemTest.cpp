@@ -32,21 +32,15 @@ class DummyFileSystem : public vfs::FileSystem {
 public:
   DummyFileSystem() : FSID(getNextFSID()), FileID(0) {}
 
-  ErrorOr<vfs::Status> status(const Twine &Path) {
+  ErrorOr<vfs::Status> status(const Twine &Path) override {
     std::map<std::string, vfs::Status>::iterator I =
         FilesAndDirs.find(Path.str());
     if (I == FilesAndDirs.end())
       return make_error_code(llvm::errc::no_such_file_or_directory);
     return I->second;
   }
-  std::error_code openFileForRead(const Twine &Path,
-                                  std::unique_ptr<vfs::File> &Result) {
-    llvm_unreachable("unimplemented");
-  }
-  std::error_code getBufferForFile(const Twine &Name,
-                                   std::unique_ptr<MemoryBuffer> &Result,
-                                   int64_t FileSize = -1,
-                                   bool RequiresNullTerminator = true) {
+  ErrorOr<std::unique_ptr<vfs::File>>
+  openFileForRead(const Twine &Path) override {
     llvm_unreachable("unimplemented");
   }
 
@@ -539,8 +533,9 @@ public:
   IntrusiveRefCntPtr<vfs::FileSystem>
   getFromYAMLRawString(StringRef Content,
                        IntrusiveRefCntPtr<vfs::FileSystem> ExternalFS) {
-    MemoryBuffer *Buffer = MemoryBuffer::getMemBuffer(Content);
-    return getVFSFromYAML(Buffer, CountingDiagHandler, this, ExternalFS);
+    std::unique_ptr<MemoryBuffer> Buffer = MemoryBuffer::getMemBuffer(Content);
+    return getVFSFromYAML(std::move(Buffer), CountingDiagHandler, this,
+                          ExternalFS);
   }
 
   IntrusiveRefCntPtr<vfs::FileSystem> getFromYAMLString(

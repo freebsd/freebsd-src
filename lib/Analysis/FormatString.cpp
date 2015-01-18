@@ -244,6 +244,8 @@ clang::analyze_format_string::ParseLengthModifier(FormatSpecifier &FS,
       ++I;
       lmKind = LengthModifier::AsInt3264;
       break;
+    case 'w':
+      lmKind = LengthModifier::AsWide; ++I; break;
   }
   LengthModifier lm(lmPosition, lmKind);
   FS.setLengthModifier(lm);
@@ -504,6 +506,8 @@ analyze_format_string::LengthModifier::toString() const {
     return "a";
   case AsMAllocate:
     return "m";
+  case AsWide:
+    return "w";
   case None:
     return "";
   }
@@ -550,6 +554,9 @@ const char *ConversionSpecifier::toString() const {
 
   // GlibC specific specifiers.
   case PrintErrno: return "m";
+
+  // MS specific specifiers.
+  case ZArg: return "Z";
   }
   return nullptr;
 }
@@ -608,8 +615,21 @@ bool FormatSpecifier::hasValidLengthModifier(const TargetInfo &Target) const {
       return true;
       
     // Handle most integer flags
-    case LengthModifier::AsChar:
     case LengthModifier::AsShort:
+      if (Target.getTriple().isOSMSVCRT()) {
+        switch (CS.getKind()) {
+          case ConversionSpecifier::cArg:
+          case ConversionSpecifier::CArg:
+          case ConversionSpecifier::sArg:
+          case ConversionSpecifier::SArg:
+          case ConversionSpecifier::ZArg:
+            return true;
+          default:
+            break;
+        }
+      }
+      // Fall through.
+    case LengthModifier::AsChar:
     case LengthModifier::AsLongLong:
     case LengthModifier::AsQuad:
     case LengthModifier::AsIntMax:
@@ -632,7 +652,7 @@ bool FormatSpecifier::hasValidLengthModifier(const TargetInfo &Target) const {
       }
       
     // Handle 'l' flag
-    case LengthModifier::AsLong:
+    case LengthModifier::AsLong: // or AsWideChar
       switch (CS.getKind()) {
         case ConversionSpecifier::dArg:
         case ConversionSpecifier::DArg:
@@ -655,6 +675,7 @@ bool FormatSpecifier::hasValidLengthModifier(const TargetInfo &Target) const {
         case ConversionSpecifier::cArg:
         case ConversionSpecifier::sArg:
         case ConversionSpecifier::ScanListArg:
+        case ConversionSpecifier::ZArg:
           return true;
         default:
           return false;
@@ -719,6 +740,17 @@ bool FormatSpecifier::hasValidLengthModifier(const TargetInfo &Target) const {
         default:
           return false;
       }
+    case LengthModifier::AsWide:
+      switch (CS.getKind()) {
+        case ConversionSpecifier::cArg:
+        case ConversionSpecifier::CArg:
+        case ConversionSpecifier::sArg:
+        case ConversionSpecifier::SArg:
+        case ConversionSpecifier::ZArg:
+          return Target.getTriple().isOSMSVCRT();
+        default:
+          return false;
+      }
   }
   llvm_unreachable("Invalid LengthModifier Kind!");
 }
@@ -741,6 +773,7 @@ bool FormatSpecifier::hasStandardLengthModifier() const {
     case LengthModifier::AsInt32:
     case LengthModifier::AsInt3264:
     case LengthModifier::AsInt64:
+    case LengthModifier::AsWide:
       return false;
   }
   llvm_unreachable("Invalid LengthModifier Kind!");
@@ -778,6 +811,7 @@ bool FormatSpecifier::hasStandardConversionSpecifier(const LangOptions &LangOpt)
     case ConversionSpecifier::DArg:
     case ConversionSpecifier::OArg:
     case ConversionSpecifier::UArg:
+    case ConversionSpecifier::ZArg:
       return false;
   }
   llvm_unreachable("Invalid ConversionSpecifier Kind!");

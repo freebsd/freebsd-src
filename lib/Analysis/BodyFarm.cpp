@@ -17,6 +17,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprObjC.h"
+#include "clang/Analysis/CodeInjector.h"
 #include "llvm/ADT/StringSwitch.h"
 
 using namespace clang;
@@ -114,7 +115,7 @@ DeclRefExpr *ASTMaker::makeDeclRefExpr(const VarDecl *D) {
                         /* QualifierLoc = */ NestedNameSpecifierLoc(),
                         /* TemplateKWLoc = */ SourceLocation(),
                         /* D = */ const_cast<VarDecl*>(D),
-                        /* isEnclosingLocal = */ false,
+                        /* RefersToEnclosingVariableOrCapture = */ false,
                         /* NameLoc = */ SourceLocation(),
                         /* T = */ D->getType(),
                         /* VK = */ VK_LValue);
@@ -223,10 +224,8 @@ static Stmt *create_dispatch_once(ASTContext &C, const FunctionDecl *D) {
        PredicateTy);
   
   // (3) Create the compound statement.
-  Stmt *Stmts[2];
-  Stmts[0] = B;
-  Stmts[1] = CE;
-  CompoundStmt *CS = M.makeCompound(ArrayRef<Stmt*>(Stmts, 2));
+  Stmt *Stmts[] = { B, CE };
+  CompoundStmt *CS = M.makeCompound(Stmts);
   
   // (4) Create the 'if' condition.
   ImplicitCastExpr *LValToRval =
@@ -337,7 +336,7 @@ static Stmt *create_OSAtomicCompareAndSwap(ASTContext &C, const FunctionDecl *D)
   Expr *RetVal = isBoolean ? M.makeIntegralCastToBoolean(BoolVal)
                            : M.makeIntegralCast(BoolVal, ResultTy);
   Stmts[1] = M.makeReturn(RetVal);
-  CompoundStmt *Body = M.makeCompound(ArrayRef<Stmt*>(Stmts, 2));
+  CompoundStmt *Body = M.makeCompound(Stmts);
   
   // Construct the else clause.
   BoolVal = M.makeObjCBool(false);
@@ -383,6 +382,7 @@ Stmt *BodyFarm::getBody(const FunctionDecl *D) {
   }
   
   if (FF) { Val = FF(C, D); }
+  else if (Injector) { Val = Injector->getBody(D); }
   return Val.getValue();
 }
 

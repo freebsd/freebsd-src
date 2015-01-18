@@ -1,7 +1,66 @@
 // RUN: %clang_cc1 -std=c++11 -fms-extensions -emit-llvm %s -o - -triple=i386-pc-win32 | FileCheck %s
 
+namespace FTypeWithQuals {
+template <typename T>
+struct S {};
+
+using A = int () const;
+S<A> a;
+// CHECK-DAG: @"\01?a@FTypeWithQuals@@3U?$S@$$A8@@BAHXZ@1@A"
+
+using B = int () volatile;
+S<B> b;
+// CHECK-DAG: @"\01?b@FTypeWithQuals@@3U?$S@$$A8@@CAHXZ@1@A"
+
+using C = int () __restrict;
+S<C> c;
+// CHECK-DAG: @"\01?c@FTypeWithQuals@@3U?$S@$$A8@@IAAHXZ@1@A"
+
+using D = int () const &;
+S<D> d;
+// CHECK-DAG: @"\01?d@FTypeWithQuals@@3U?$S@$$A8@@GBAHXZ@1@A"
+
+using E = int () volatile &;
+S<E> e;
+// CHECK-DAG: @"\01?e@FTypeWithQuals@@3U?$S@$$A8@@GCAHXZ@1@A"
+
+using F = int () __restrict &;
+S<F> f;
+// CHECK-DAG: @"\01?f@FTypeWithQuals@@3U?$S@$$A8@@IGAAHXZ@1@A"
+
+using G = int () const &&;
+S<G> g;
+// CHECK-DAG: @"\01?g@FTypeWithQuals@@3U?$S@$$A8@@HBAHXZ@1@A"
+
+using H = int () volatile &&;
+S<H> h;
+// CHECK-DAG: @"\01?h@FTypeWithQuals@@3U?$S@$$A8@@HCAHXZ@1@A"
+
+using I = int () __restrict &&;
+S<I> i;
+// CHECK-DAG: @"\01?i@FTypeWithQuals@@3U?$S@$$A8@@IHAAHXZ@1@A"
+
+using J = int ();
+S<J> j;
+// CHECK-DAG: @"\01?j@FTypeWithQuals@@3U?$S@$$A6AHXZ@1@A"
+
+using K = int () &;
+S<K> k;
+// CHECK-DAG: @"\01?k@FTypeWithQuals@@3U?$S@$$A8@@GAAHXZ@1@A"
+
+using L = int () &&;
+S<L> l;
+// CHECK-DAG: @"\01?l@FTypeWithQuals@@3U?$S@$$A8@@HAAHXZ@1@A"
+}
+
 // CHECK: "\01?DeducedType@@3HA"
 auto DeducedType = 30;
+
+// CHECK-DAG: @"\01?Char16Var@@3_SA"
+char16_t Char16Var;
+
+// CHECK-DAG: @"\01?Char32Var@@3_UA"
+char32_t Char32Var;
 
 // CHECK: "\01?LRef@@YAXAAH@Z"
 void LRef(int& a) { }
@@ -98,7 +157,7 @@ namespace PR18022 {
 
 struct { } a;
 decltype(a) fun(decltype(a) x, decltype(a)) { return x; }
-// CHECK-DAG: ?fun@PR18022@@YA?AU<unnamed-type-a>@1@U21@0@Z
+// CHECK-DAG: @"\01?fun@PR18022@@YA?AU<unnamed-type-a>@1@U21@0@Z"
 
 }
 
@@ -106,17 +165,32 @@ inline int define_lambda() {
   static auto lambda = [] { static int local; ++local; return local; };
 // First, we have the static local variable of type "<lambda_1>" inside of
 // "define_lambda".
-// CHECK-DAG: ?lambda@?1??define_lambda@@YAHXZ@4V<lambda_1>@@A
+// CHECK-DAG: @"\01?lambda@?1??define_lambda@@YAHXZ@4V<lambda_1>@?1@YAHXZ@A"
 // Next, we have the "operator()" for "<lambda_1>" which is inside of
 // "define_lambda".
-// CHECK-DAG: ??R<lambda_1>@?define_lambda@@YAHXZ@QBEHXZ
+// CHECK-DAG: @"\01??R<lambda_1>@?define_lambda@@YAHXZ@QBEHXZ"
 // Finally, we have the local which is inside of "<lambda_1>" which is inside of
 // "define_lambda". Hooray.
-// CHECK-DAG: ?local@?2???R<lambda_1>@?define_lambda@@YAHXZ@QBEHXZ@4HA
+// CHECK-DAG: @"\01?local@?2???R<lambda_1>@?define_lambda@@YAHXZ@QBEHXZ@4HA"
   return lambda();
 }
 
+template <typename T>
+void use_lambda_arg(T) {}
+
+inline void call_with_lambda_arg1() {
+  use_lambda_arg([]{});
+  // CHECK-DAG: @"\01??$use_lambda_arg@V<lambda_1>@?call_with_lambda_arg1@@YAXXZ@@@YAXV<lambda_1>@?call_with_lambda_arg1@@YAXXZ@@Z"
+}
+
+inline void call_with_lambda_arg2() {
+  use_lambda_arg([]{});
+  // CHECK-DAG: @"\01??$use_lambda_arg@V<lambda_1>@?call_with_lambda_arg2@@YAXXZ@@@YAXV<lambda_1>@?call_with_lambda_arg2@@YAXXZ@@Z"
+}
+
 int call_lambda() {
+  call_with_lambda_arg1();
+  call_with_lambda_arg2();
   return define_lambda();
 }
 
@@ -139,3 +213,29 @@ void templ_fun_with_pack() {}
 
 template void templ_fun_with_pack<>();
 // CHECK-DAG: @"\01??$templ_fun_with_pack@$S@@YAXXZ"
+
+template <typename...>
+void templ_fun_with_ty_pack() {}
+
+template void templ_fun_with_ty_pack<>();
+// CHECK-DAG: @"\01??$templ_fun_with_ty_pack@$$V@@YAXXZ"
+
+template <template <class> class...>
+void templ_fun_with_templ_templ_pack() {}
+
+template void templ_fun_with_templ_templ_pack<>();
+// CHECK-DAG: @"\01??$templ_fun_with_templ_templ_pack@$$V@@YAXXZ"
+
+namespace PR20047 {
+template <typename T>
+struct A {};
+
+template <typename T>
+using AliasA = A<T>;
+
+template <template <typename> class>
+void f() {}
+
+template void f<AliasA>();
+// CHECK-DAG: @"\01??$f@$$YAliasA@PR20047@@@PR20047@@YAXXZ"
+}

@@ -107,7 +107,7 @@ namespace PR7463 {
 }
 
 namespace test0 {
-  template <class T> void make(const T *(*fn)()); // expected-note {{candidate template ignored: can't deduce a type for 'T' which would make 'const T' equal 'char'}}
+  template <class T> void make(const T *(*fn)()); // expected-note {{candidate template ignored: can't deduce a type for 'T' that would make 'const T' equal 'char'}}
   char *char_maker();
   void test() {
     make(char_maker); // expected-error {{no matching function for call to 'make'}}
@@ -191,4 +191,14 @@ namespace PR19372 {
 
   using U = BindBack<Z, int, int>::apply<char>;
   using U = Z<char, int, int>;
+
+  namespace BetterReduction {
+    template<typename ...> struct S;
+    template<typename ...A> using X = S<A...>; // expected-note {{parameter}}
+    template<typename ...A> using Y = X<A..., A...>;
+    template<typename ...A> using Z = X<A..., 1, 2, 3>; // expected-error {{must be a type}}
+
+    using T = Y<int>;
+    using T = S<int, int>;
+  }
 }

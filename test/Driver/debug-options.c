@@ -33,6 +33,8 @@
 // RUN: %clang -### -c -g -g0 %s 2>&1 | FileCheck -check-prefix=G_NO %s
 // RUN: %clang -### -c -ggdb0 %s 2>&1 | FileCheck -check-prefix=G_NO %s
 //
+// RUN: %clang -### -c -g1 %s 2>&1 \
+// RUN:             | FileCheck -check-prefix=GLTO_ONLY %s
 // RUN: %clang -### -c -gmlt %s 2>&1 \
 // RUN:             | FileCheck -check-prefix=GLTO_ONLY %s
 // RUN: %clang -### -c -gline-tables-only %s 2>&1 \
@@ -50,6 +52,8 @@
 // RUN: %clang -### -c -gline-tables-only -g %s -target i686-pc-openbsd 2>&1 \
 // RUN:             | FileCheck -check-prefix=G_ONLY_DWARF2 %s
 // RUN: %clang -### -c -gline-tables-only -g %s -target x86_64-pc-freebsd10.0 2>&1 \
+// RUN:             | FileCheck -check-prefix=G_ONLY_DWARF2 %s
+// RUN: %clang -### -c -gline-tables-only -g %s -target i386-pc-solaris 2>&1 \
 // RUN:             | FileCheck -check-prefix=G_ONLY_DWARF2 %s
 // RUN: %clang -### -c -gline-tables-only -g0 %s 2>&1 \
 // RUN:             | FileCheck -check-prefix=GLTO_NO %s

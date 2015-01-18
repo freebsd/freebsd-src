@@ -115,6 +115,7 @@ namespace PR13064 {
   struct A { explicit A(int); }; // expected-note{{here}}
   template<typename T> struct B { T a { 0 }; };
   B<A> b;
+  // expected-note@+1 {{in instantiation of default member initializer}}
   template<typename T> struct C { T a = { 0 }; }; // expected-error{{explicit}}
   C<A> c; // expected-note{{here}}
 }
@@ -132,4 +133,13 @@ namespace PR16903 {
   	char in[4] = {0,0,0,0};
   	fun(in);
   }
+}
+
+namespace ReturnStmtIsInitialization {
+  struct X {
+    X() {}
+    X(const X &) = delete;
+  };
+  template<typename T> X f() { return {}; }
+  auto &&x = f<void>();
 }

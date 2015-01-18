@@ -73,7 +73,7 @@ Basic Usage
 Intro to how to use a C compiler for newbies.
 
 compile + link compile then link debug info enabling optimizations
-picking a language to use, defaults to C99 by default. Autosenses based
+picking a language to use, defaults to C11 by default. Autosenses based
 on extension. using a makefile
 
 Command Line Options
@@ -481,7 +481,7 @@ TODO: Generate this from tblgen. Define one anchor per warning group.
    Warn about an unusable copy constructor when binding a reference to a
    temporary.
 
-   This option, which defaults to on, enables warnings about binding a
+   This option enables warnings about binding a
    reference to a temporary when the temporary doesn't have a usable
    copy constructor. For example:
 
@@ -530,8 +530,6 @@ control the crash diagnostics.
 
 The -fno-crash-diagnostics flag can be helpful for speeding the process
 of generating a delta reduced test case.
-
-.. _opt_rpass:
 
 Options to Emit Optimization Reports
 ------------------------------------
@@ -979,6 +977,8 @@ are listed below.
    -  ``-fsanitize=function``: Indirect call of a function through a
       function pointer of the wrong type (Linux, C++ and x86/x86_64 only).
    -  ``-fsanitize=integer-divide-by-zero``: Integer division by zero.
+   -  ``-fsanitize=nonnull-attribute``: Passing null pointer as a function
+      parameter which is declared to never be null.
    -  ``-fsanitize=null``: Use of a null pointer or creation of a null
       reference.
    -  ``-fsanitize=object-size``: An attempt to use bytes which the
@@ -988,6 +988,8 @@ are listed below.
       more problems at higher optimization levels.
    -  ``-fsanitize=return``: In C++, reaching the end of a
       value-returning function without returning a value.
+   -  ``-fsanitize=returns-nonnull-attribute``: Returning null pointer
+      from a function which is declared to never return null.
    -  ``-fsanitize=shift``: Shift operators where the amount shifted is
       greater or equal to the promoted bit-width of the left hand side
       or less than zero, or where the left hand side is negative. For a
@@ -1031,10 +1033,6 @@ are listed below.
 
    Extra features of UndefinedBehaviorSanitizer:
 
-   -  ``-fno-sanitize-recover``: By default, after a sanitizer diagnoses
-      an issue, it will attempt to continue executing the program if there
-      is a reasonable behavior it can give to the faulting operation. This
-      option causes the program to abort instead.
    -  ``-fsanitize-undefined-trap-on-error``: Causes traps to be emitted
       rather than calls to runtime libraries when a problem is detected.
       This option is intended for use in cases where the sanitizer runtime
@@ -1053,6 +1051,17 @@ are listed below.
    ``-fsanitize=thread``, and ``-fsanitize=memory`` checkers in the same
    program. The ``-fsanitize=undefined`` checks can be combined with other
    sanitizers.
+
+**-f[no-]sanitize-recover=check1,check2,...**
+
+   Controls which checks enabled by ``-fsanitize=`` flag are non-fatal.
+   If the check is fatal, program will halt after the first error
+   of this kind is detected and error report is printed.
+
+   By default, non-fatal checks are those enabled by UndefinedBehaviorSanitizer,
+   except for ``-fsanitize=return`` and ``-fsanitize=unreachable``. Some
+   sanitizers (e.g. :doc:`AddressSanitizer`) may not support recovery,
+   and always crash the program after the issue is detected.
 
 .. option:: -fno-assume-sane-operator-new
 
@@ -1112,6 +1121,37 @@ are listed below.
 
    This option restricts the generated code to use general registers
    only. This only applies to the AArch64 architecture.
+
+**-f[no-]max-unknown-pointer-align=[number]**
+   Instruct the code generator to not enforce a higher alignment than the given
+   number (of bytes) when accessing memory via an opaque pointer or reference.
+   This cap is ignored when directly accessing a variable or when the pointee
+   type has an explicit “aligned” attribute.
+
+   The value should usually be determined by the properties of the system allocator.
+   Some builtin types, especially vector types, have very high natural alignments;
+   when working with values of those types, Clang usually wants to use instructions
+   that take advantage of that alignment.  However, many system allocators do
+   not promise to return memory that is more than 8-byte or 16-byte-aligned.  Use
+   this option to limit the alignment that the compiler can assume for an arbitrary
+   pointer, which may point onto the heap.
+
+   This option does not affect the ABI alignment of types; the layout of structs and
+   unions and the value returned by the alignof operator remain the same.
+
+   This option can be overridden on a case-by-case basis by putting an explicit
+   “aligned” alignment on a struct, union, or typedef.  For example:
+
+   .. code-block:: console
+
+      #include <immintrin.h>
+      // Make an aligned typedef of the AVX-512 16-int vector type.
+      typedef __v16si __aligned_v16si __attribute__((aligned(64)));
+
+      void initialize_vector(__aligned_v16si *v) {
+        // The compiler may assume that ‘v’ is 64-byte aligned, regardless of the
+        // value of -fmax-unknown-pointer-align.
+      }
 
 
 Profile Guided Optimization
@@ -1441,9 +1481,12 @@ Differences between various standard modes
 ------------------------------------------
 
 clang supports the -std option, which changes what language mode clang
-uses. The supported modes for C are c89, gnu89, c94, c99, gnu99 and
-various aliases for those modes. If no -std option is specified, clang
-defaults to gnu99 mode.
+uses. The supported modes for C are c89, gnu89, c94, c99, gnu99, c11,
+gnu11, and various aliases for those modes. If no -std option is
+specified, clang defaults to gnu11 mode. Many C99 and C11 features are
+supported in earlier modes as a conforming extension, with a warning. Use
+``-pedantic-errors`` to request an error if a feature from a later standard
+revision is used in an earlier mode.
 
 Differences between all ``c*`` and ``gnu*`` modes:
 
@@ -1480,6 +1523,11 @@ Differences between ``*89`` and ``*99`` modes:
 -  Arrays which are not lvalues are not implicitly promoted to pointers
    in ``*89`` modes.
 -  Some warnings are different.
+
+Differences between ``*99`` and ``*11`` modes:
+
+-  Warnings for use of C11 features are disabled.
+-  ``__STDC_VERSION__`` is defined to ``201112L`` rather than ``199901L``.
 
 c94 mode is identical to c89 mode except that digraphs are enabled in
 c94 mode (FIXME: And ``__STDC_VERSION__`` should be defined!).
@@ -1874,6 +1922,8 @@ Execute ``clang-cl /?`` to see a list of supported options:
       /WX                    Treat warnings as errors
       /w                     Disable all warnings
       /Zi                    Enable debug information
+      /Zp                    Set the default maximum struct packing alignment to 1
+      /Zp<value>             Specify the default maximum struct packing alignment
       /Zs                    Syntax-check only
 
     OPTIONS:

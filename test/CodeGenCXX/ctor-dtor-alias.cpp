@@ -1,20 +1,33 @@
-// RUN: %clang_cc1 %s -triple i686-linux -emit-llvm -o - -mconstructor-aliases -O1 -disable-llvm-optzns | FileCheck %s
 // RUN: %clang_cc1 %s -triple i686-linux -emit-llvm -o - -mconstructor-aliases | FileCheck --check-prefix=NOOPT %s
 
-// RUN: %clang_cc1 -triple x86_64--netbsd -emit-llvm \
-// RUN: -mconstructor-aliases -O2 %s -o - | FileCheck --check-prefix=CHECK-RAUW %s
+// RUN: %clang_cc1 %s -triple i686-linux -emit-llvm -o - -mconstructor-aliases -O1 -disable-llvm-optzns > %t
+// RUN: FileCheck --check-prefix=CHECK1 --input-file=%t %s
+// RUN: FileCheck --check-prefix=CHECK2 --input-file=%t %s
+// RUN: FileCheck --check-prefix=CHECK3 --input-file=%t %s
+// RUN: FileCheck --check-prefix=CHECK4 --input-file=%t %s
+// RUN: FileCheck --check-prefix=CHECK5 --input-file=%t %s
+// RUN: FileCheck --check-prefix=CHECK6 --input-file=%t %s
+
+// RUN: %clang_cc1 %s -triple i686-pc-windows-gnu -emit-llvm -o - -mconstructor-aliases -O1 -disable-llvm-optzns | FileCheck --check-prefix=COFF %s
 
 namespace test1 {
-// test that we don't produce an alias when the destructor is weak_odr. The
-// reason to avoid it that another TU might have no explicit template
-// instantiation definition or declaration, causing it to to output only
-// one of the destructors as linkonce_odr, producing a different comdat.
+// Test that we produce the apropriate comdats when creating aliases to
+// weak_odr constructors and destructors.
 
-// CHECK-DAG: define weak_odr void @_ZN5test16foobarIvEC2Ev
-// CHECK-DAG: define weak_odr void @_ZN5test16foobarIvEC1Ev
+// CHECK1: @_ZN5test16foobarIvEC1Ev = weak_odr alias void {{.*}} @_ZN5test16foobarIvEC2Ev
+// CHECK1: @_ZN5test16foobarIvED1Ev = weak_odr alias void (%"struct.test1::foobar"*)* @_ZN5test16foobarIvED2Ev
+// CHECK1: define weak_odr void @_ZN5test16foobarIvEC2Ev({{.*}} comdat($_ZN5test16foobarIvEC5Ev)
+// CHECK1: define weak_odr void @_ZN5test16foobarIvED2Ev({{.*}} comdat($_ZN5test16foobarIvED5Ev)
+// CHECK1: define weak_odr void @_ZN5test16foobarIvED0Ev({{.*}} comdat($_ZN5test16foobarIvED5Ev)
+// CHECK1-NOT: comdat
 
-template <typename T> struct foobar {
+// COFF doesn't support comdats with arbitrary names (C5/D5).
+// COFF-NOT: comdat
+
+template <typename T>
+struct foobar {
   foobar() {}
+  virtual ~foobar() {}
 };
 
 template struct foobar<void>;
@@ -24,8 +37,9 @@ namespace test2 {
 // test that when the destrucor is linkonce_odr we just replace every use of
 // C1 with C2.
 
-// CHECK-DAG: define linkonce_odr void @_ZN5test26foobarIvEC2Ev(
-// CHECK-DAG: call void @_ZN5test26foobarIvEC2Ev
+// CHECK1: define internal void @__cxx_global_var_init()
+// CHECK1: call void @_ZN5test26foobarIvEC2Ev
+// CHECK1: define linkonce_odr void @_ZN5test26foobarIvEC2Ev(
 void g();
 template <typename T> struct foobar {
   foobar() { g(); }
@@ -37,8 +51,9 @@ namespace test3 {
 // test that instead of an internal alias we just use the other destructor
 // directly.
 
-// CHECK-DAG: define internal void @_ZN5test312_GLOBAL__N_11AD2Ev(
-// CHECK-DAG: call i32 @__cxa_atexit{{.*}}_ZN5test312_GLOBAL__N_11AD2Ev
+// CHECK1: define internal void @__cxx_global_var_init1()
+// CHECK1: call i32 @__cxa_atexit{{.*}}_ZN5test312_GLOBAL__N_11AD2Ev
+// CHECK1: define internal void @_ZN5test312_GLOBAL__N_11AD2Ev(
 namespace {
 struct A {
   ~A() {}
@@ -55,13 +70,15 @@ namespace test4 {
   // guarantee that they will be present in every TU. Instead, we just call
   // A's destructor directly.
 
-  // CHECK-DAG: define linkonce_odr void @_ZN5test41AD2Ev(
-  // CHECK-DAG: call i32 @__cxa_atexit{{.*}}_ZN5test41AD2Ev
+  // CHECK1: define internal void @__cxx_global_var_init2()
+  // CHECK1: call i32 @__cxa_atexit{{.*}}_ZN5test41AD2Ev
+  // CHECK1: define linkonce_odr void @_ZN5test41AD2Ev(
 
   // test that we don't do this optimization at -O0 so that the debugger can
   // see both destructors.
-  // NOOPT-DAG: call i32 @__cxa_atexit{{.*}}@_ZN5test41BD2Ev
-  // NOOPT-DAG: define linkonce_odr void @_ZN5test41BD2Ev
+  // NOOPT: define internal void @__cxx_global_var_init2()
+  // NOOPT: call i32 @__cxa_atexit{{.*}}@_ZN5test41BD2Ev
+  // NOOPT: define linkonce_odr void @_ZN5test41BD2Ev
   struct A {
     virtual ~A() {}
   };
@@ -74,8 +91,9 @@ namespace test4 {
 namespace test5 {
   // similar to test4, but with an internal B.
 
-  // CHECK-DAG: define linkonce_odr void @_ZN5test51AD2Ev(
-  // CHECK-DAG: call i32 @__cxa_atexit{{.*}}_ZN5test51AD2Ev
+  // CHECK2: define internal void @__cxx_global_var_init3()
+  // CHECK2: call i32 @__cxa_atexit{{.*}}_ZN5test51AD2Ev
+  // CHECK2: define linkonce_odr void @_ZN5test51AD2Ev(
   struct A {
     virtual ~A() {}
   };
@@ -99,14 +117,15 @@ namespace test6 {
   };
   }
   B X;
-  // CHECK-DAG: call i32 @__cxa_atexit({{.*}}@_ZN5test61AD2Ev
+  // CHECK3: define internal void @__cxx_global_var_init4()
+  // CHECK3: call i32 @__cxa_atexit({{.*}}@_ZN5test61AD2Ev
 }
 
 namespace test7 {
   // Test that we don't produce an alias from ~B to ~A<int> (or crash figuring
   // out if we should).
   // pr17875.
-  // CHECK-DAG: define void @_ZN5test71BD2Ev
+  // CHECK3: define void @_ZN5test71BD2Ev
   template <typename> struct A {
     ~A() {}
   };
@@ -119,8 +138,9 @@ namespace test7 {
 
 namespace test8 {
   // Test that we replace ~zed with ~bar which is an alias to ~foo.
-  // CHECK-DAG: call i32 @__cxa_atexit({{.*}}@_ZN5test83barD2Ev
-  // CHECK-DAG: @_ZN5test83barD2Ev = alias {{.*}} @_ZN5test83fooD2Ev
+  // CHECK4: @_ZN5test83barD2Ev = alias {{.*}} @_ZN5test83fooD2Ev
+  // CHECK4: define internal void @__cxx_global_var_init5()
+  // CHECK4: call i32 @__cxa_atexit({{.*}}@_ZN5test83barD2Ev
   struct foo {
     ~foo();
   };
@@ -144,12 +164,12 @@ struct bar : public foo {};
 void zed() {
   // Test that we produce a call to bar's destructor. We used to call foo's, but
   // it has a different calling conversion.
-  // CHECK-DAG: call void @_ZN5test93barD2Ev
+  // CHECK4: call void @_ZN5test93barD2Ev
   bar ptr;
 }
 }
 
-// CHECK-RAUW: @_ZTV1C = linkonce_odr unnamed_addr constant [4 x i8*] [{{[^@]*}}@_ZTI1C {{[^@]*}}@_ZN1CD2Ev {{[^@]*}}@_ZN1CD0Ev {{[^@]*}}]
+// CHECK5: @_ZTV1C = linkonce_odr unnamed_addr constant [4 x i8*] [{{[^@]*}}@_ZTI1C {{[^@]*}}@_ZN1CD2Ev {{[^@]*}}@_ZN1CD0Ev {{[^@]*}}]
 // r194296 replaced C::~C with B::~B without emitting the later.
 
 class A {
@@ -176,4 +196,39 @@ class C : B<char> {
 void
 fn1() {
   new C;
+}
+
+namespace test10 {
+// Test that if a destructor is in a comdat, we don't try to emit is as an
+// alias to a base class destructor.
+struct bar {
+  ~bar();
+};
+bar::~bar() {
+}
+} // closing the namespace causes ~bar to be sent to CodeGen
+namespace test10 {
+template <typename T>
+struct foo : public bar {
+  ~foo();
+};
+template <typename T>
+foo<T>::~foo() {}
+template class foo<int>;
+// CHECK5: define weak_odr void @_ZN6test103fooIiED2Ev({{.*}} comdat($_ZN6test103fooIiED5Ev)
+}
+
+namespace test11 {
+// Test that when we don't have to worry about COMDATs we produce an alias
+// from complate to base and from base to base class base.
+struct bar {
+  ~bar();
+};
+bar::~bar() {}
+struct foo : public bar {
+  ~foo();
+};
+foo::~foo() {}
+// CHECK6: @_ZN6test113fooD2Ev = alias {{.*}} @_ZN6test113barD2Ev
+// CHECK6: @_ZN6test113fooD1Ev = alias {{.*}} @_ZN6test113fooD2Ev
 }

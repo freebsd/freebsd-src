@@ -37,7 +37,7 @@ void test_unqual_references(struct X x, const struct X xc) {
 
 struct Redecl {
   int x; // expected-note{{previous declaration is here}}
-  struct y { };
+  struct y { }; // expected-warning{{declaration does not declare anything}}
 
   union {
     int x; // expected-error{{member of anonymous union redeclares 'x'}}
@@ -108,3 +108,13 @@ struct s {
   struct { int i; };
   int a[];
 };
+
+// PR20930
+struct s3 {
+  struct { int A __attribute__((deprecated)); }; // expected-note {{'A' has been explicitly marked deprecated here}}
+};
+
+void deprecated_anonymous_struct_member(void) {
+  struct s3 s;
+  s.A = 1; // expected-warning {{'A' is deprecated}}
+}

@@ -27,6 +27,7 @@ namespace NS {
   struct X;
   template<typename T> struct Y;
   template<typename T> void wibble(T);
+  struct Z;
 }
 namespace NS {
   // Under DR482, these are all valid, except for forward-declaring a struct
@@ -43,3 +44,6 @@ namespace NS {
   template<typename T> struct NS::Y { }; // expected-warning{{extra qualification on member 'Y'}}
   template<typename T> void NS::wibble(T) { } // expected-warning{{extra qualification on member 'wibble'}}
 }
+
+struct ::{} a; // expected-error{{expected identifier}}
+struct NS::Z:: {} b; // expected-error{{expected identifier}}

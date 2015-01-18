@@ -5,7 +5,7 @@
 // RUN:  -ffreestanding -emit-llvm -w -o - %s | FileCheck -check-prefix=CHECK64 %s
 
 // RUN: %clang_cc1 -triple arm64-linux-gnu -ffreestanding -emit-llvm -w -o - %s \
-// RUN:   | FileCheck --check-prefix=CHECK64-AAPCS %s
+// RUN:   | FileCheck --check-prefix=CHECK64 %s
 typedef long long int64_t;
 typedef unsigned int uint32_t;
 
@@ -22,7 +22,7 @@ extern union_with_first_floats returns_union_with_first_floats(void);
 void test_union_with_first_floats(void) {
   takes_union_with_first_floats(g_u_f);
 }
-// CHECK: declare arm_aapcs_vfpcc void @takes_union_with_first_floats({ [4 x i32] })
+// CHECK: declare arm_aapcs_vfpcc void @takes_union_with_first_floats([4 x i32])
 
 void test_return_union_with_first_floats(void) {
   g_u_f = returns_union_with_first_floats();
@@ -42,7 +42,7 @@ extern union_with_non_first_floats returns_union_with_non_first_floats(void);
 void test_union_with_non_first_floats(void) {
   takes_union_with_non_first_floats(g_u_nf_f);
 }
-// CHECK: declare arm_aapcs_vfpcc void @takes_union_with_non_first_floats({ [4 x i32] })
+// CHECK: declare arm_aapcs_vfpcc void @takes_union_with_non_first_floats([4 x i32])
 
 void test_return_union_with_non_first_floats(void) {
   g_u_nf_f = returns_union_with_non_first_floats();
@@ -62,7 +62,7 @@ extern struct_with_union_with_first_floats returns_struct_with_union_with_first_
 void test_struct_with_union_with_first_floats(void) {
   takes_struct_with_union_with_first_floats(g_s_f);
 }
-// CHECK: declare arm_aapcs_vfpcc void @takes_struct_with_union_with_first_floats({ [5 x i32] })
+// CHECK: declare arm_aapcs_vfpcc void @takes_struct_with_union_with_first_floats([5 x i32])
 
 void test_return_struct_with_union_with_first_floats(void) {
   g_s_f = returns_struct_with_union_with_first_floats();
@@ -82,7 +82,7 @@ extern struct_with_union_with_non_first_floats returns_struct_with_union_with_no
 void test_struct_with_union_with_non_first_floats(void) {
   takes_struct_with_union_with_non_first_floats(g_s_nf_f);
 }
-// CHECK: declare arm_aapcs_vfpcc void @takes_struct_with_union_with_non_first_floats({ [5 x i32] })
+// CHECK: declare arm_aapcs_vfpcc void @takes_struct_with_union_with_non_first_floats([5 x i32])
 
 void test_return_struct_with_union_with_non_first_floats(void) {
   g_s_nf_f = returns_struct_with_union_with_non_first_floats();
@@ -176,9 +176,7 @@ void test_struct_of_four_doubles(void) {
 // CHECK: test_struct_of_four_doubles
 // CHECK: call arm_aapcs_vfpcc void @takes_struct_of_four_doubles(double {{.*}}, %struct.struct_of_four_doubles {{.*}}, %struct.struct_of_four_doubles {{.*}}, double {{.*}})
 // CHECK64: test_struct_of_four_doubles
-// CHECK64: call void @takes_struct_of_four_doubles(double {{.*}}, double {{.*}}, double {{.*}}, double {{.*}}, double {{.*}}, [3 x float] undef, double {{.*}}, double {{.*}}, double {{.*}}, double {{.*}}, double {{.*}})
-// CHECK64-AAPCS: test_struct_of_four_doubles
-// CHECK64-AAPCS: call void @takes_struct_of_four_doubles(double {{.*}}, double {{.*}}, double {{.*}}, double {{.*}}, double {{.*}}, [3 x float] undef, double {{.*}}, double {{.*}}, double {{.*}}, double {{.*}})
+// CHECK64: call void @takes_struct_of_four_doubles(double {{.*}}, [4 x double] {{.*}}, [4 x double] {{.*}}, double {{.*}})
   takes_struct_of_four_doubles(3.0, g_s4d, g_s4d, 4.0);
 }
 
@@ -186,7 +184,7 @@ extern void takes_struct_of_four_doubles_variadic(double a, struct_of_four_doubl
 
 void test_struct_of_four_doubles_variadic(void) {
 // CHECK: test_struct_of_four_doubles_variadic
-// CHECK: call arm_aapcs_vfpcc void (double, { [4 x i64] }, { [4 x i64] }, double, ...)* @takes_struct_of_four_doubles_variadic(double {{.*}}, { [4 x i64] } {{.*}}, { [4 x i64] } {{.*}}, double {{.*}})
+// CHECK: call arm_aapcs_vfpcc void (double, [4 x i64], [4 x i64], double, ...)* @takes_struct_of_four_doubles_variadic(double {{.*}}, [4 x i64] {{.*}}, [4 x i64] {{.*}}, double {{.*}})
   takes_struct_of_four_doubles_variadic(3.0, g_s4d, g_s4d, 4.0);
 }
 
@@ -212,9 +210,7 @@ void test_struct_of_vecs(void) {
 // CHECK: test_struct_of_vecs
 // CHECK: call arm_aapcs_vfpcc void @takes_struct_of_vecs(double {{.*}}, %struct.struct_of_vecs {{.*}}, %struct.struct_of_vecs {{.*}}, double {{.*}})
 // CHECK64: test_struct_of_vecs
-// CHECK64: call void @takes_struct_of_vecs(double {{.*}}, <8 x i8> {{.*}}, <4 x i16> {{.*}}, <8 x i8> {{.*}}, <4 x i16> {{.*}}, [3 x float] undef, <8 x i8> {{.*}}, <4 x i16> {{.*}}, <8 x i8> {{.*}}, <4 x i16> {{.*}}, double {{.*}})
-// CHECK64-AAPCS: test_struct_of_vecs
-// CHECK64-AAPCS: call void @takes_struct_of_vecs(double {{.*}}, <8 x i8> {{.*}}, <4 x i16> {{.*}}, <8 x i8> {{.*}}, <4 x i16> {{.*}}, [3 x float] undef, <8 x i8> {{.*}}, <4 x i16> {{.*}}, <8 x i8> {{.*}}, <4 x i16> {{.*}}, double {{.*}})
+// CHECK64: call void @takes_struct_of_vecs(double {{.*}}, [4 x <8 x i8>] {{.*}}, [4 x <8 x i8>] {{.*}}, double {{.*}})
   takes_struct_of_vecs(3.0, g_vec, g_vec, 4.0);
 }
 

@@ -1,6 +1,6 @@
-// RUN: %clang_cc1 -std=c++11 -fsanitize=signed-integer-overflow,integer-divide-by-zero,float-divide-by-zero,shift,unreachable,return,vla-bound,alignment,null,vptr,object-size,float-cast-overflow,bool,enum,array-bounds,function -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s
-// RUN: %clang_cc1 -std=c++11 -fsanitize=vptr,address -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s --check-prefix=CHECK-ASAN
-// RUN: %clang_cc1 -std=c++11 -fsanitize=vptr -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s --check-prefix=DOWNCAST-NULL
+// RUN: %clang_cc1 -std=c++11 -fsanitize=signed-integer-overflow,integer-divide-by-zero,float-divide-by-zero,shift,unreachable,return,vla-bound,alignment,null,vptr,object-size,float-cast-overflow,bool,enum,array-bounds,function -fsanitize-recover=signed-integer-overflow,integer-divide-by-zero,float-divide-by-zero,shift,vla-bound,alignment,null,vptr,object-size,float-cast-overflow,bool,enum,array-bounds,function -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s
+// RUN: %clang_cc1 -std=c++11 -fsanitize=vptr,address -fsanitize-recover=vptr,address -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s --check-prefix=CHECK-ASAN
+// RUN: %clang_cc1 -std=c++11 -fsanitize=vptr -fsanitize-recover=vptr -emit-llvm %s -o - -triple x86_64-linux-gnu | FileCheck %s --check-prefix=DOWNCAST-NULL
 
 struct S {
   double d;
@@ -221,11 +221,14 @@ void bad_downcast_pointer(S *p) {
 void bad_downcast_reference(S &p) {
   // CHECK: %[[E1:.*]] = icmp ne {{.*}}, null
   // CHECK-NOT: br i1
+
   // CHECK: %[[SIZE:.*]] = call i64 @llvm.objectsize.i64.p0i8(
   // CHECK: %[[E2:.*]] = icmp uge i64 %[[SIZE]], 24
-  // CHECK: %[[E12:.*]] = and i1 %[[E1]], %[[E2]]
+
   // CHECK: %[[MISALIGN:.*]] = and i64 %{{.*}}, 7
   // CHECK: %[[E3:.*]] = icmp eq i64 %[[MISALIGN]], 0
+
+  // CHECK: %[[E12:.*]] = and i1 %[[E1]], %[[E2]]
   // CHECK: %[[E123:.*]] = and i1 %[[E12]], %[[E3]]
   // CHECK: br i1 %[[E123]],
 
@@ -382,11 +385,11 @@ void downcast_reference(B &b) {
   // CHECK-NEXT: [[MASKED:%[0-9]*]] = and i64 [[C_INT]], 15
   // CHECK-NEXT: [[TEST:%[0-9]*]] = icmp eq i64 [[MASKED]], 0
   // AND the alignment test with the objectsize test.
-  // CHECK-NEXT: [[AND:%[0-9]*]] = and i1 {{.*}}, [[TEST]]
+  // CHECK:      [[AND:%[0-9]*]] = and i1 {{.*}}, [[TEST]]
   // CHECK-NEXT: br i1 [[AND]]
 }
 
-// CHECK-LABEL: @_Z22indirect_function_callPFviE({{.*}} prefix <{ i32, i8* }> <{ i32 1413876459, i8* bitcast ({ i8*, i8* }* @_ZTIFvPFviEE to i8*) }>
+// CHECK-LABEL: @_Z22indirect_function_callPFviE({{.*}} prologue <{ i32, i8* }> <{ i32 1413876459, i8* bitcast ({ i8*, i8* }* @_ZTIFvPFviEE to i8*) }>
 void indirect_function_call(void (*p)(int)) {
   // CHECK: [[PTR:%[0-9]*]] = bitcast void (i32)* {{.*}} to <{ i32, i8* }>*
 
@@ -402,6 +405,40 @@ void indirect_function_call(void (*p)(int)) {
   // CHECK-NEXT: [[RTTICMP:%[0-9]*]] = icmp eq i8* [[RTTI]], bitcast ({ i8*, i8* }* @_ZTIFviE to i8*)
   // CHECK-NEXT: br i1 [[RTTICMP]]
   p(42);
+}
+
+namespace UpcastPointerTest {
+struct S {};
+struct T : S { double d; };
+struct V : virtual S {};
+
+// CHECK-LABEL: upcast_pointer
+S* upcast_pointer(T* t) {
+  // Check for null pointer
+  // CHECK: %[[NONNULL:.*]] = icmp ne {{.*}}, null
+  // CHECK: br i1 %[[NONNULL]]
+
+  // Check alignment
+  // CHECK: %[[MISALIGN:.*]] = and i64 %{{.*}}, 7
+  // CHECK: icmp eq i64 %[[MISALIGN]], 0
+
+  // CHECK: call void @__ubsan_handle_type_mismatch
+  return t;
+}
+
+V getV();
+
+// CHECK-LABEL: upcast_to_vbase
+void upcast_to_vbase() {
+  // No need to check for null here, as we have a temporary here.
+
+  // CHECK-NOT: br i1
+
+  // CHECK: call i64 @llvm.objectsize
+  // CHECK: call void @__ubsan_handle_type_mismatch
+  // CHECK: call void @__ubsan_handle_dynamic_type_cache_miss
+  const S& s = getV();
+}
 }
 
 namespace CopyValueRepresentation {

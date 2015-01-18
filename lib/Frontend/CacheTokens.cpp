@@ -270,17 +270,17 @@ void PTHWriter::EmitToken(const Token& T) {
     StringRef s(T.getLiteralData(), T.getLength());
 
     // Get the string entry.
-    llvm::StringMapEntry<OffsetOpt> *E = &CachedStrs.GetOrCreateValue(s);
+    auto &E = *CachedStrs.insert(std::make_pair(s, OffsetOpt())).first;
 
     // If this is a new string entry, bump the PTH offset.
-    if (!E->getValue().hasOffset()) {
-      E->getValue().setOffset(CurStrOffset);
-      StrEntries.push_back(E);
+    if (!E.second.hasOffset()) {
+      E.second.setOffset(CurStrOffset);
+      StrEntries.push_back(&E);
       CurStrOffset += s.size() + 1;
     }
 
     // Emit the relative offset into the PTH file for the spelling string.
-    Emit32(E->getValue().getOffset());
+    Emit32(E.second.getOffset());
   }
 
   // Emit the offset into the original source file of this token so that we
@@ -572,8 +572,10 @@ void clang::CacheTokens(Preprocessor &PP, llvm::raw_fd_ostream* OS) {
   PTHWriter PW(*OS, PP);
 
   // Install the 'stat' system call listener in the FileManager.
-  StatListener *StatCache = new StatListener(PW.getPM());
-  PP.getFileManager().addStatCache(StatCache, /*AtBeginning=*/true);
+  auto StatCacheOwner = llvm::make_unique<StatListener>(PW.getPM());
+  StatListener *StatCache = StatCacheOwner.get();
+  PP.getFileManager().addStatCache(std::move(StatCacheOwner),
+                                   /*AtBeginning=*/true);
 
   // Lex through the entire file.  This will populate SourceManager with
   // all of the header information.

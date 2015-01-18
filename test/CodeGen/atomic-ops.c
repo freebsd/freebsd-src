@@ -1,18 +1,15 @@
-// RUN: %clang_cc1 %s -emit-llvm -o - -triple=i686-apple-darwin9 | FileCheck %s
+// RUN: %clang_cc1 %s -emit-llvm -o - -ffreestanding -triple=i686-apple-darwin9 | FileCheck %s
 
 // Also test serialization of atomic operations here, to avoid duplicating the
 // test.
-// RUN: %clang_cc1 %s -emit-pch -o %t -triple=i686-apple-darwin9
-// RUN: %clang_cc1 %s -include-pch %t -triple=i686-apple-darwin9 -emit-llvm -o - | FileCheck %s
+// RUN: %clang_cc1 %s -emit-pch -o %t -ffreestanding -triple=i686-apple-darwin9
+// RUN: %clang_cc1 %s -include-pch %t -ffreestanding -triple=i686-apple-darwin9 -emit-llvm -o - | FileCheck %s
 #ifndef ALREADY_INCLUDED
 #define ALREADY_INCLUDED
 
-// Basic IRGen tests for __c11_atomic_* and GNU __atomic_*
+#include <stdatomic.h>
 
-typedef enum memory_order {
-  memory_order_relaxed, memory_order_consume, memory_order_acquire,
-  memory_order_release, memory_order_acq_rel, memory_order_seq_cst
-} memory_order;
+// Basic IRGen tests for __c11_atomic_* and GNU __atomic_*
 
 int fi1(_Atomic(int) *i) {
   // CHECK-LABEL: @fi1
@@ -34,6 +31,12 @@ int fi1b(int *i) {
   return __atomic_load_n(i, memory_order_seq_cst);
 }
 
+int fi1c(atomic_int *i) {
+  // CHECK-LABEL: @fi1c
+  // CHECK: load atomic i32* {{.*}} seq_cst
+  return atomic_load(i);
+}
+
 void fi2(_Atomic(int) *i) {
   // CHECK-LABEL: @fi2
   // CHECK: store atomic i32 {{.*}} seq_cst
@@ -51,6 +54,12 @@ void fi2b(int *i) {
   // CHECK-LABEL: @fi2b
   // CHECK: store atomic i32 {{.*}} seq_cst
   __atomic_store_n(i, 1, memory_order_seq_cst);
+}
+
+void fi2c(atomic_int *i) {
+  // CHECK-LABEL: @fi2c
+  // CHECK: store atomic i32 {{.*}} seq_cst
+  atomic_store(i, 1);
 }
 
 int fi3(_Atomic(int) *i) {
@@ -89,8 +98,15 @@ int fi3d(int *i) {
   return __atomic_nand_fetch(i, 1, memory_order_seq_cst);
 }
 
+int fi3e(atomic_int *i) {
+  // CHECK-LABEL: @fi3e
+  // CHECK: atomicrmw or
+  // CHECK-NOT: {{ or }}
+  return atomic_fetch_or(i, 1);
+}
+
 _Bool fi4(_Atomic(int) *i) {
-  // CHECK-LABEL: @fi4
+  // CHECK-LABEL: @fi4(
   // CHECK: [[PAIR:%[.0-9A-Z_a-z]+]] = cmpxchg i32* [[PTR:%[.0-9A-Z_a-z]+]], i32 [[EXPECTED:%[.0-9A-Z_a-z]+]], i32 [[DESIRED:%[.0-9A-Z_a-z]+]]
   // CHECK: [[OLD:%[.0-9A-Z_a-z]+]] = extractvalue { i32, i1 } [[PAIR]], 0
   // CHECK: [[CMP:%[.0-9A-Z_a-z]+]] = extractvalue { i32, i1 } [[PAIR]], 1
@@ -101,7 +117,7 @@ _Bool fi4(_Atomic(int) *i) {
 }
 
 _Bool fi4a(int *i) {
-  // CHECK-LABEL: @fi4
+  // CHECK-LABEL: @fi4a
   // CHECK: [[PAIR:%[.0-9A-Z_a-z]+]] = cmpxchg i32* [[PTR:%[.0-9A-Z_a-z]+]], i32 [[EXPECTED:%[.0-9A-Z_a-z]+]], i32 [[DESIRED:%[.0-9A-Z_a-z]+]]
   // CHECK: [[OLD:%[.0-9A-Z_a-z]+]] = extractvalue { i32, i1 } [[PAIR]], 0
   // CHECK: [[CMP:%[.0-9A-Z_a-z]+]] = extractvalue { i32, i1 } [[PAIR]], 1
@@ -113,7 +129,7 @@ _Bool fi4a(int *i) {
 }
 
 _Bool fi4b(int *i) {
-  // CHECK-LABEL: @fi4
+  // CHECK-LABEL: @fi4b(
   // CHECK: [[PAIR:%[.0-9A-Z_a-z]+]] = cmpxchg weak i32* [[PTR:%[.0-9A-Z_a-z]+]], i32 [[EXPECTED:%[.0-9A-Z_a-z]+]], i32 [[DESIRED:%[.0-9A-Z_a-z]+]]
   // CHECK: [[OLD:%[.0-9A-Z_a-z]+]] = extractvalue { i32, i1 } [[PAIR]], 0
   // CHECK: [[CMP:%[.0-9A-Z_a-z]+]] = extractvalue { i32, i1 } [[PAIR]], 1
@@ -121,6 +137,13 @@ _Bool fi4b(int *i) {
   // CHECK: store i32 [[OLD]]
   int cmp = 0;
   return __atomic_compare_exchange_n(i, &cmp, 1, 1, memory_order_acquire, memory_order_acquire);
+}
+
+_Bool fi4c(atomic_int *i) {
+  // CHECK-LABEL: @fi4c
+  // CHECK: cmpxchg i32*
+  int cmp = 0;
+  return atomic_compare_exchange_strong(i, &cmp, 1);
 }
 
 float ff1(_Atomic(float) *d) {
@@ -137,6 +160,79 @@ void ff2(_Atomic(float) *d) {
 
 float ff3(_Atomic(float) *d) {
   return __c11_atomic_exchange(d, 2, memory_order_seq_cst);
+}
+
+struct S {
+  double x;
+};
+
+struct S fd1(struct S *a) {
+  // CHECK-LABEL: @fd1
+  // CHECK: [[RETVAL:%.*]] = alloca %struct.S, align 4
+  // CHECK: [[RET:%.*]]    = alloca %struct.S, align 4
+  // CHECK: [[CALL:%.*]]   = call i64 @__atomic_load_8(
+  // CHECK: [[CAST:%.*]]   = bitcast %struct.S* [[RET]] to i64*
+  // CHECK: store i64 [[CALL]], i64* [[CAST]], align 4
+  struct S ret;
+  __atomic_load(a, &ret, memory_order_seq_cst);
+  return ret;
+}
+
+void fd2(struct S *a, struct S *b) {
+  // CHECK-LABEL: @fd2
+  // CHECK:      [[A_ADDR:%.*]] = alloca %struct.S*, align 4
+  // CHECK-NEXT: [[B_ADDR:%.*]] = alloca %struct.S*, align 4
+  // CHECK-NEXT: store %struct.S* %a, %struct.S** [[A_ADDR]], align 4
+  // CHECK-NEXT: store %struct.S* %b, %struct.S** [[B_ADDR]], align 4
+  // CHECK-NEXT: [[LOAD_A_PTR:%.*]] = load %struct.S** [[A_ADDR]], align 4
+  // CHECK-NEXT: [[LOAD_B_PTR:%.*]] = load %struct.S** [[B_ADDR]], align 4
+  // CHECK-NEXT: [[COERCED_A:%.*]] = bitcast %struct.S* [[LOAD_A_PTR]] to i8*
+  // CHECK-NEXT: [[COERCED_B:%.*]] = bitcast %struct.S* [[LOAD_B_PTR]] to i64*
+  // CHECK-NEXT: [[LOAD_B:%.*]] = load i64* [[COERCED_B]], align 4
+  // CHECK-NEXT: call void @__atomic_store_8(i8* [[COERCED_A]], i64 [[LOAD_B]],
+  // CHECK-NEXT: ret void
+  __atomic_store(a, b, memory_order_seq_cst);
+}
+
+void fd3(struct S *a, struct S *b, struct S *c) {
+  // CHECK-LABEL: @fd3
+  // CHECK:      [[A_ADDR:%.*]] = alloca %struct.S*, align 4
+  // CHECK-NEXT: [[B_ADDR:%.*]] = alloca %struct.S*, align 4
+  // CHECK-NEXT: [[C_ADDR:%.*]] = alloca %struct.S*, align 4
+  // CHECK-NEXT: store %struct.S* %a, %struct.S** [[A_ADDR]], align 4
+  // CHECK-NEXT: store %struct.S* %b, %struct.S** [[B_ADDR]], align 4
+  // CHECK-NEXT: store %struct.S* %c, %struct.S** [[C_ADDR]], align 4
+  // CHECK-NEXT: [[LOAD_A_PTR:%.*]] = load %struct.S** [[A_ADDR]], align 4
+  // CHECK-NEXT: [[LOAD_B_PTR:%.*]] = load %struct.S** [[B_ADDR]], align 4
+  // CHECK-NEXT: [[LOAD_C_PTR:%.*]] = load %struct.S** [[C_ADDR]], align 4
+  // CHECK-NEXT: [[COERCED_A:%.*]] = bitcast %struct.S* [[LOAD_A_PTR]] to i8*
+  // CHECK-NEXT: [[COERCED_B:%.*]] = bitcast %struct.S* [[LOAD_B_PTR]] to i64*
+  // CHECK-NEXT: [[LOAD_B:%.*]] = load i64* [[COERCED_B]], align 4
+  // CHECK-NEXT: [[CALL:%.*]] = call i64 @__atomic_exchange_8(i8* [[COERCED_A]], i64 [[LOAD_B]],
+  // CHECK-NEXT: [[COERCED_C:%.*]] = bitcast %struct.S* [[LOAD_C_PTR]] to i64*
+  // CHECK-NEXT: store i64 [[CALL]], i64* [[COERCED_C]], align 4
+
+  __atomic_exchange(a, b, c, memory_order_seq_cst);
+}
+
+_Bool fd4(struct S *a, struct S *b, struct S *c) {
+  // CHECK-LABEL: @fd4
+  // CHECK:      [[A_ADDR:%.*]] = alloca %struct.S*, align 4
+  // CHECK-NEXT: [[B_ADDR:%.*]] = alloca %struct.S*, align 4
+  // CHECK-NEXT: [[C_ADDR:%.*]] = alloca %struct.S*, align 4
+  // CHECK:      store %struct.S* %a, %struct.S** [[A_ADDR]], align 4
+  // CHECK-NEXT: store %struct.S* %b, %struct.S** [[B_ADDR]], align 4
+  // CHECK-NEXT: store %struct.S* %c, %struct.S** [[C_ADDR]], align 4
+  // CHECK-NEXT: [[LOAD_A_PTR:%.*]] = load %struct.S** [[A_ADDR]], align 4
+  // CHECK-NEXT: [[LOAD_B_PTR:%.*]] = load %struct.S** [[B_ADDR]], align 4
+  // CHECK-NEXT: [[LOAD_C_PTR:%.*]] = load %struct.S** [[C_ADDR]], align 4
+  // CHECK-NEXT: [[COERCED_A:%.*]] = bitcast %struct.S* [[LOAD_A_PTR]] to i8*
+  // CHECK-NEXT: [[COERCED_B:%.*]] = bitcast %struct.S* [[LOAD_B_PTR]] to i8*
+  // CHECK-NEXT: [[COERCED_C:%.*]] = bitcast %struct.S* [[LOAD_C_PTR]] to i64*
+  // CHECK-NEXT: [[LOAD_C:%.*]] = load i64* [[COERCED_C]], align 4
+  // CHECK-NEXT: [[CALL:%.*]] = call zeroext i1 @__atomic_compare_exchange_8(i8* [[COERCED_A]], i8* [[COERCED_B]], i64 [[LOAD_C]]
+  // CHECK-NEXT: ret i1 [[CALL]]
+  return __atomic_compare_exchange(a, b, c, 1, 5, 5);
 }
 
 int* fp1(_Atomic(int*) *p) {
@@ -287,14 +383,23 @@ struct foo structAtomicExchange() {
 }
 int structAtomicCmpExchange() {
   // CHECK-LABEL: @structAtomicCmpExchange
+  // CHECK: %[[x_mem:.*]] = alloca i8
   _Bool x = __atomic_compare_exchange(&smallThing, &thing1, &thing2, 1, 5, 5);
-  // CHECK: call zeroext i1 @__atomic_compare_exchange(i32 3, {{.*}} @smallThing{{.*}} @thing1{{.*}} @thing2
+  // CHECK: %[[call1:.*]] = call zeroext i1 @__atomic_compare_exchange(i32 3, {{.*}} @smallThing{{.*}} @thing1{{.*}} @thing2
+  // CHECK: %[[zext1:.*]] = zext i1 %[[call1]] to i8
+  // CHECK: store i8 %[[zext1]], i8* %[[x_mem]], align 1
+  // CHECK: %[[x:.*]] = load i8* %[[x_mem]]
+  // CHECK: %[[x_bool:.*]] = trunc i8 %[[x]] to i1
+  // CHECK: %[[conv1:.*]] = zext i1 %[[x_bool]] to i32
 
   struct foo f = {0};
   struct foo g = {0};
   g.big[12] = 12;
   return x & __c11_atomic_compare_exchange_strong(&bigAtomic, &f, g, 5, 5);
-  // CHECK: call zeroext i1 @__atomic_compare_exchange(i32 512, i8* bitcast ({{.*}} @bigAtomic to i8*),
+  // CHECK: %[[call2:.*]] = call zeroext i1 @__atomic_compare_exchange(i32 512, i8* bitcast ({{.*}} @bigAtomic to i8*),
+  // CHECK: %[[conv2:.*]] = zext i1 %[[call2]] to i32
+  // CHECK: %[[and:.*]] = and i32 %[[conv1]], %[[conv2]]
+  // CHECK: ret i32 %[[and]]
 }
 
 // Check that no atomic operations are used in any initialisation of _Atomic
@@ -445,6 +550,53 @@ void EMIT_ALL_THE_THINGS(int *ptr, int *ptr2, int new, _Bool weak, int success, 
   // CHECK: = cmpxchg weak {{.*}} seq_cst monotonic
   // CHECK: = cmpxchg weak {{.*}} seq_cst acquire
   // CHECK: = cmpxchg weak {{.*}} seq_cst seq_cst
+}
+
+int PR21643() {
+  return __atomic_or_fetch((int __attribute__((address_space(257))) *)0x308, 1,
+                           __ATOMIC_RELAXED);
+  // CHECK: %[[atomictmp:.*]] = alloca i32, align 4
+  // CHECK: %[[atomicdst:.*]] = alloca i32, align 4
+  // CHECK: store i32 1, i32* %[[atomictmp]]
+  // CHECK: %[[one:.*]] = load i32* %[[atomictmp]], align 4
+  // CHECK: %[[old:.*]] = atomicrmw or i32 addrspace(257)* inttoptr (i32 776 to i32 addrspace(257)*), i32 %[[one]] monotonic
+  // CHECK: %[[new:.*]] = or i32 %[[old]], %[[one]]
+  // CHECK: store i32 %[[new]], i32* %[[atomicdst]], align 4
+  // CHECK: %[[ret:.*]] = load i32* %[[atomicdst]], align 4
+  // CHECK: ret i32 %[[ret]]
+}
+
+int PR17306_1(volatile _Atomic(int) *i) {
+  // CHECK-LABEL: @PR17306_1
+  // CHECK:      %[[i_addr:.*]] = alloca i32
+  // CHECK-NEXT: %[[atomicdst:.*]] = alloca i32
+  // CHECK-NEXT: store i32* %i, i32** %[[i_addr]]
+  // CHECK-NEXT: %[[addr:.*]] = load i32** %[[i_addr]]
+  // CHECK-NEXT: %[[res:.*]] = load atomic volatile i32* %[[addr]] seq_cst
+  // CHECK-NEXT: store i32 %[[res]], i32* %[[atomicdst]]
+  // CHECK-NEXT: %[[retval:.*]] = load i32* %[[atomicdst]]
+  // CHECK-NEXT: ret i32 %[[retval]]
+  return __c11_atomic_load(i, memory_order_seq_cst);
+}
+
+int PR17306_2(volatile int *i, int value) {
+  // CHECK-LABEL: @PR17306_2
+  // CHECK:      %[[i_addr:.*]] = alloca i32*
+  // CHECK-NEXT: %[[value_addr:.*]] = alloca i32
+  // CHECK-NEXT: %[[atomictmp:.*]] = alloca i32
+  // CHECK-NEXT: %[[atomicdst:.*]] = alloca i32
+  // CHECK-NEXT: store i32* %i, i32** %[[i_addr]]
+  // CHECK-NEXT: store i32 %value, i32* %[[value_addr]]
+  // CHECK-NEXT: %[[i_lval:.*]] = load i32** %[[i_addr]]
+  // CHECK-NEXT: %[[value:.*]] = load i32* %[[value_addr]]
+  // CHECK-NEXT: store i32 %[[value]], i32* %[[atomictmp]]
+  // CHECK-NEXT: %[[value_lval:.*]] = load i32* %[[atomictmp]]
+  // CHECK-NEXT: %[[old_val:.*]] = atomicrmw volatile add i32* %[[i_lval]], i32 %[[value_lval]] seq_cst
+  // CHECK-NEXT: %[[new_val:.*]] = add i32 %[[old_val]], %[[value_lval]]
+  // CHECK-NEXT: store i32 %[[new_val]], i32* %[[atomicdst]]
+  // CHECK-NEXT: %[[retval:.*]] = load i32* %[[atomicdst]]
+  // CHECK-NEXT: ret i32 %[[retval]]
+  return __atomic_add_fetch(i, value, memory_order_seq_cst);
 }
 
 #endif

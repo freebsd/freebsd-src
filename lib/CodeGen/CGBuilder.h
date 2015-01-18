@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_CGBUILDER_H
-#define CLANG_CODEGEN_CGBUILDER_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_CGBUILDER_H
+#define LLVM_CLANG_LIB_CODEGEN_CGBUILDER_H
 
 #include "llvm/IR/IRBuilder.h"
 
@@ -18,7 +18,7 @@ namespace CodeGen {
 class CodeGenFunction;
 
 /// \brief This is an IRBuilder insertion helper that forwards to
-/// CodeGenFunction::InsertHelper, which adds nesessary metadata to
+/// CodeGenFunction::InsertHelper, which adds necessary metadata to
 /// instructions.
 template <bool PreserveNames>
 class CGBuilderInserter

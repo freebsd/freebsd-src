@@ -18,8 +18,8 @@
 #include "clang/AST/TemplateName.h"
 #include "clang/AST/Type.h"
 #include "llvm/ADT/APSInt.h"
-#include "llvm/ADT/iterator_range.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
 
@@ -76,7 +76,7 @@ private:
 
   struct DA {
     unsigned Kind;
-    bool ForRefParam;
+    void *QT;
     ValueDecl *D;
   };
   struct I {
@@ -132,11 +132,11 @@ public:
   /// \brief Construct a template argument that refers to a
   /// declaration, which is either an external declaration or a
   /// template declaration.
-  TemplateArgument(ValueDecl *D, bool ForRefParam) {
+  TemplateArgument(ValueDecl *D, QualType QT) {
     assert(D && "Expected decl");
     DeclArg.Kind = Declaration;
+    DeclArg.QT = QT.getAsOpaquePtr();
     DeclArg.D = D;
-    DeclArg.ForRefParam = ForRefParam;
   }
 
   /// \brief Construct an integral constant template argument. The memory to
@@ -249,11 +249,9 @@ public:
     return DeclArg.D;
   }
 
-  /// \brief Retrieve whether a declaration is binding to a
-  /// reference parameter in a declaration non-type template argument.
-  bool isDeclForReferenceParam() const {
+  QualType getParamTypeForDecl() const {
     assert(getKind() == Declaration && "Unexpected kind");
-    return DeclArg.ForRefParam;
+    return QualType::getFromOpaquePtr(DeclArg.QT);
   }
 
   /// \brief Retrieve the type for null non-type template argument.
@@ -344,7 +342,7 @@ public:
   /// \brief Return the array of arguments in this template argument pack.
   ArrayRef<TemplateArgument> getPackAsArray() const {
     assert(getKind() == Pack);
-    return ArrayRef<TemplateArgument>(Args.Args, Args.NumArgs);
+    return llvm::makeArrayRef(Args.Args, Args.NumArgs);
   }
 
   /// \brief Determines whether two template arguments are superficially the

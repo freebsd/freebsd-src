@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef CLANG_CODEGEN_CODEGENTYPES_H
-#define CLANG_CODEGEN_CODEGENTYPES_H
+#ifndef LLVM_CLANG_LIB_CODEGEN_CODEGENTYPES_H
+#define LLVM_CLANG_LIB_CODEGEN_CODEGENTYPES_H
 
 #include "CGCall.h"
 #include "clang/AST/GlobalDecl.h"
@@ -22,39 +22,95 @@
 #include <vector>
 
 namespace llvm {
-  class FunctionType;
-  class Module;
-  class DataLayout;
-  class Type;
-  class LLVMContext;
-  class StructType;
+class FunctionType;
+class Module;
+class DataLayout;
+class Type;
+class LLVMContext;
+class StructType;
 }
 
 namespace clang {
-  class ABIInfo;
-  class ASTContext;
-  template <typename> class CanQual;
-  class CXXConstructorDecl;
-  class CXXDestructorDecl;
-  class CXXMethodDecl;
-  class CodeGenOptions;
-  class FieldDecl;
-  class FunctionProtoType;
-  class ObjCInterfaceDecl;
-  class ObjCIvarDecl;
-  class PointerType;
-  class QualType;
-  class RecordDecl;
-  class TagDecl;
-  class TargetInfo;
-  class Type;
-  typedef CanQual<Type> CanQualType;
+class ABIInfo;
+class ASTContext;
+template <typename> class CanQual;
+class CXXConstructorDecl;
+class CXXDestructorDecl;
+class CXXMethodDecl;
+class CodeGenOptions;
+class FieldDecl;
+class FunctionProtoType;
+class ObjCInterfaceDecl;
+class ObjCIvarDecl;
+class PointerType;
+class QualType;
+class RecordDecl;
+class TagDecl;
+class TargetInfo;
+class Type;
+typedef CanQual<Type> CanQualType;
 
 namespace CodeGen {
-  class CGCXXABI;
-  class CGRecordLayout;
-  class CodeGenModule;
-  class RequiredArgs;
+class CGCXXABI;
+class CGRecordLayout;
+class CodeGenModule;
+class RequiredArgs;
+
+enum class StructorType {
+  Complete, // constructor or destructor
+  Base,     // constructor or destructor
+  Deleting  // destructor only
+};
+
+inline CXXCtorType toCXXCtorType(StructorType T) {
+  switch (T) {
+  case StructorType::Complete:
+    return Ctor_Complete;
+  case StructorType::Base:
+    return Ctor_Base;
+  case StructorType::Deleting:
+    llvm_unreachable("cannot have a deleting ctor");
+  }
+  llvm_unreachable("not a StructorType");
+}
+
+inline StructorType getFromCtorType(CXXCtorType T) {
+  switch (T) {
+  case Ctor_Complete:
+    return StructorType::Complete;
+  case Ctor_Base:
+    return StructorType::Base;
+  case Ctor_Comdat:
+    llvm_unreachable("not expecting a COMDAT");
+  }
+  llvm_unreachable("not a CXXCtorType");
+}
+
+inline CXXDtorType toCXXDtorType(StructorType T) {
+  switch (T) {
+  case StructorType::Complete:
+    return Dtor_Complete;
+  case StructorType::Base:
+    return Dtor_Base;
+  case StructorType::Deleting:
+    return Dtor_Deleting;
+  }
+  llvm_unreachable("not a StructorType");
+}
+
+inline StructorType getFromDtorType(CXXDtorType T) {
+  switch (T) {
+  case Dtor_Deleting:
+    return StructorType::Deleting;
+  case Dtor_Complete:
+    return StructorType::Complete;
+  case Dtor_Base:
+    return StructorType::Base;
+  case Dtor_Comdat:
+    llvm_unreachable("not expecting a COMDAT");
+  }
+  llvm_unreachable("not a CXXDtorType");
+}
 
 /// CodeGenTypes - This class organizes the cross-module state that is used
 /// while lowering AST types to LLVM types.
@@ -185,18 +241,15 @@ public:
                                                         QualType receiverType);
 
   const CGFunctionInfo &arrangeCXXMethodDeclaration(const CXXMethodDecl *MD);
-  const CGFunctionInfo &arrangeCXXConstructorDeclaration(
-                                                    const CXXConstructorDecl *D,
-                                                    CXXCtorType Type);
+  const CGFunctionInfo &arrangeCXXStructorDeclaration(const CXXMethodDecl *MD,
+                                                      StructorType Type);
   const CGFunctionInfo &arrangeCXXConstructorCall(const CallArgList &Args,
                                                   const CXXConstructorDecl *D,
                                                   CXXCtorType CtorKind,
                                                   unsigned ExtraArgs);
-  const CGFunctionInfo &arrangeCXXDestructor(const CXXDestructorDecl *D,
-                                             CXXDtorType Type);
-
   const CGFunctionInfo &arrangeFreeFunctionCall(const CallArgList &Args,
-                                                const FunctionType *Ty);
+                                                const FunctionType *Ty,
+                                                bool ChainCall);
   const CGFunctionInfo &arrangeFreeFunctionCall(QualType ResTy,
                                                 const CallArgList &args,
                                                 FunctionType::ExtInfo info,
@@ -207,6 +260,7 @@ public:
   const CGFunctionInfo &arrangeCXXMethodCall(const CallArgList &args,
                                              const FunctionProtoType *type,
                                              RequiredArgs required);
+  const CGFunctionInfo &arrangeMSMemberPointerThunk(const CXXMethodDecl *MD);
 
   const CGFunctionInfo &arrangeFreeFunctionType(CanQual<FunctionProtoType> Ty);
   const CGFunctionInfo &arrangeFreeFunctionType(CanQual<FunctionNoProtoType> Ty);
@@ -220,7 +274,8 @@ public:
   ///
   /// \param argTypes - must all actually be canonical as params
   const CGFunctionInfo &arrangeLLVMFunctionInfo(CanQualType returnType,
-                                                bool IsInstanceMethod,
+                                                bool instanceMethod,
+                                                bool chainCall,
                                                 ArrayRef<CanQualType> argTypes,
                                                 FunctionType::ExtInfo info,
                                                 RequiredArgs args);
@@ -239,11 +294,10 @@ public:  // These are internal details of CGT that shouldn't be used externally.
   /// ConvertRecordDeclType - Lay out a tagged decl type like struct or union.
   llvm::StructType *ConvertRecordDeclType(const RecordDecl *TD);
 
-  /// GetExpandedTypes - Expand the type \arg Ty into the LLVM
-  /// argument types it would be passed as on the provided vector \arg
-  /// ArgTys. See ABIArgInfo::Expand.
-  void GetExpandedTypes(QualType type,
-                        SmallVectorImpl<llvm::Type*> &expanded);
+  /// getExpandedTypes - Expand the type \arg Ty into the LLVM
+  /// argument types it would be passed as. See ABIArgInfo::Expand.
+  void getExpandedTypes(QualType Ty,
+                        SmallVectorImpl<llvm::Type *>::iterator &TI);
 
   /// IsZeroInitializable - Return whether a type can be
   /// zero-initialized (in the C++ sense) with an LLVM zeroinitializer.

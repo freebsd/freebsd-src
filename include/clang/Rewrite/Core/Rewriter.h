@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_REWRITER_H
-#define LLVM_CLANG_REWRITER_H
+#ifndef LLVM_CLANG_REWRITE_CORE_REWRITER_H
+#define LLVM_CLANG_REWRITE_CORE_REWRITER_H
 
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Rewrite/Core/DeltaTree.h"
@@ -27,7 +27,6 @@ namespace clang {
   class LangOptions;
   class Rewriter;
   class SourceManager;
-  class Stmt;
 
 /// RewriteBuffer - As code is rewritten, SourceBuffer's from the original
 /// input with modifications get a new RewriteBuffer associated with them.  The
@@ -245,11 +244,6 @@ public:
   /// operation.
   bool ReplaceText(SourceRange range, SourceRange replacementRange);
 
-  /// ReplaceStmt - This replaces a Stmt/Expr with another, using the pretty
-  /// printer to generate the replacement code.  This returns true if the input
-  /// could not be rewritten, or false if successful.
-  bool ReplaceStmt(Stmt *From, Stmt *To);
-
   /// \brief Increase indentation for the lines between the given source range.
   /// To determine what the indentation should be, 'parentIndent' is used
   /// that should be at a source location with an indentation one degree
@@ -259,10 +253,6 @@ public:
     return IncreaseIndentation(CharSourceRange::getTokenRange(range),
                                parentIndent);
   }
-
-  /// ConvertToString converts statement 'From' to a string using the
-  /// pretty printer.
-  std::string ConvertToString(Stmt *From);
 
   /// getEditBuffer - This is like getRewriteBufferFor, but always returns a
   /// buffer, and allows you to write on it directly.  This is useful if you

@@ -127,9 +127,11 @@ struct nS {
   nt start_lba;
 };
 
+#if defined(_WIN32) && !defined(__declspec) // _MSC_VER is unavailable in cc1.
+// Alignment doesn't affect packing in MS mode.
+extern int n1[sizeof(struct nS) == 16 ? 1 : -1];
+extern int n2[__alignof(struct nS) == 8 ? 1 : -1];
+#else
 extern int n1[sizeof(struct nS) == 9 ? 1 : -1];
 extern int n2[__alignof(struct nS) == 1 ? 1 : -1];
-
-
-
-
+#endif

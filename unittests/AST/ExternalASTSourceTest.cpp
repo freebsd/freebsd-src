@@ -35,9 +35,9 @@ private:
     return ASTFrontendAction::ExecuteAction();
   }
 
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         StringRef InFile) {
-    return new ASTConsumer;
+  virtual std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                         StringRef InFile) {
+    return llvm::make_unique<ASTConsumer>();
   }
 
   IntrusiveRefCntPtr<ExternalASTSource> Source;
@@ -50,7 +50,7 @@ bool testExternalASTSource(ExternalASTSource *Source,
 
   CompilerInvocation *Invocation = new CompilerInvocation;
   Invocation->getPreprocessorOpts().addRemappedFile(
-    "test.cc", MemoryBuffer::getMemBuffer(FileContents));
+      "test.cc", MemoryBuffer::getMemBuffer(FileContents).release());
   const char *Args[] = { "test.cc" };
   CompilerInvocation::CreateFromArgs(*Invocation, Args,
                                      Args + array_lengthof(Args),

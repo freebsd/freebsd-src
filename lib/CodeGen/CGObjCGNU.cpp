@@ -58,7 +58,7 @@ class LazyRuntimeFunction {
 
     /// Initialises the lazy function with the name, return type, and the types
     /// of the arguments.
-    END_WITH_NULL
+    LLVM_END_WITH_NULL
     void init(CodeGenModule *Mod, const char *name,
         llvm::Type *RetTy, ...) {
        CGM =Mod;
@@ -391,8 +391,8 @@ private:
   ///
   /// This structure is used by both classes and categories, and contains a next
   /// pointer allowing them to be chained together in a linked list.
-  llvm::Constant *GenerateMethodList(const StringRef &ClassName,
-      const StringRef &CategoryName,
+  llvm::Constant *GenerateMethodList(StringRef ClassName,
+      StringRef CategoryName,
       ArrayRef<Selector> MethodSels,
       ArrayRef<llvm::Constant *> MethodTypes,
       bool isClassMethodList);
@@ -875,8 +875,8 @@ void CGObjCGNU::EmitClassRef(const std::string &className) {
     llvm::GlobalValue::WeakAnyLinkage, ClassSymbol, symbolRef);
 }
 
-static std::string SymbolNameForMethod(const StringRef &ClassName,
-    const StringRef &CategoryName, const Selector MethodName,
+static std::string SymbolNameForMethod( StringRef ClassName,
+     StringRef CategoryName, const Selector MethodName,
     bool isClassMethod) {
   std::string MethodNameColonStripped = MethodName.getAsString();
   std::replace(MethodNameColonStripped.begin(), MethodNameColonStripped.end(),
@@ -1296,11 +1296,11 @@ CGObjCGNU::GenerateMessageSendSuper(CodeGenFunction &CGF,
   llvm::Value *imp = LookupIMPSuper(CGF, ObjCSuper, cmd, MSI);
   imp = EnforceType(Builder, imp, MSI.MessengerType);
 
-  llvm::Value *impMD[] = {
+  llvm::Metadata *impMD[] = {
       llvm::MDString::get(VMContext, Sel.getAsString()),
       llvm::MDString::get(VMContext, Class->getSuperClass()->getNameAsString()),
-      llvm::ConstantInt::get(llvm::Type::getInt1Ty(VMContext), IsClassMessage)
-   };
+      llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+          llvm::Type::getInt1Ty(VMContext), IsClassMessage))};
   llvm::MDNode *node = llvm::MDNode::get(VMContext, impMD);
 
   llvm::Instruction *call;
@@ -1371,12 +1371,11 @@ CGObjCGNU::GenerateMessageSend(CodeGenFunction &CGF,
   cmd = EnforceType(Builder, cmd, SelectorTy);
   Receiver = EnforceType(Builder, Receiver, IdTy);
 
-  llvm::Value *impMD[] = {
-        llvm::MDString::get(VMContext, Sel.getAsString()),
-        llvm::MDString::get(VMContext, Class ? Class->getNameAsString() :""),
-        llvm::ConstantInt::get(llvm::Type::getInt1Ty(VMContext),
-                               Class!=nullptr)
-   };
+  llvm::Metadata *impMD[] = {
+      llvm::MDString::get(VMContext, Sel.getAsString()),
+      llvm::MDString::get(VMContext, Class ? Class->getNameAsString() : ""),
+      llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+          llvm::Type::getInt1Ty(VMContext), Class != nullptr))};
   llvm::MDNode *node = llvm::MDNode::get(VMContext, impMD);
 
   CallArgList ActualArgs;
@@ -1463,8 +1462,8 @@ CGObjCGNU::GenerateMessageSend(CodeGenFunction &CGF,
 /// Generates a MethodList.  Used in construction of a objc_class and
 /// objc_category structures.
 llvm::Constant *CGObjCGNU::
-GenerateMethodList(const StringRef &ClassName,
-                   const StringRef &CategoryName,
+GenerateMethodList(StringRef ClassName,
+                   StringRef CategoryName,
                    ArrayRef<Selector> MethodSels,
                    ArrayRef<llvm::Constant *> MethodTypes,
                    bool isClassMethodList) {

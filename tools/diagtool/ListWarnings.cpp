@@ -73,7 +73,7 @@ int ListWarnings::run(unsigned int argc, char **argv, llvm::raw_ostream &out) {
       Unflagged.push_back(entry);
     else {
       Flagged.push_back(entry);
-      flagHistogram.GetOrCreateValue(entry.Flag).getValue().push_back(diagID);
+      flagHistogram[entry.Flag].push_back(diagID);
     }
   }
   
@@ -97,11 +97,10 @@ int ListWarnings::run(unsigned int argc, char **argv, llvm::raw_ostream &out) {
   double avgDiagsPerFlag = (double) Flagged.size() / flagHistogram.size();
   out << "  Average number of diagnostics per flag: "
       << llvm::format("%.4g", avgDiagsPerFlag) << '\n';
-    
+
   out << "  Number in -Wpedantic (not covered by other -W flags): "
-      << flagHistogram.GetOrCreateValue("pedantic").getValue().size()
-      << '\n';
-  
+      << flagHistogram["pedantic"].size() << '\n';
+
   out << '\n';
   
   return 0;

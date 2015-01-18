@@ -79,6 +79,7 @@ struct M {
 
 // __unaligned handling
 typedef char __unaligned *aligned_type;
+typedef struct UnalignedTag { int f; } __unaligned *aligned_type2;
 
 
 template<typename T> void h1(T (__stdcall M::* const )()) { }
@@ -372,14 +373,15 @@ struct SomeBase {
 
   // expected-note@+2 {{overridden virtual function is here}}
   // expected-warning@+1 {{'sealed' keyword is a Microsoft extension}}
-  virtual void SealedFunction() sealed;
+  virtual void SealedFunction() sealed; // expected-note {{overridden virtual function is here}}
 };
 
 // expected-note@+2 {{'SealedType' declared here}}
 // expected-warning@+1 {{'sealed' keyword is a Microsoft extension}}
 struct SealedType sealed : SomeBase {
-  // expected-error@+1 {{declaration of 'SealedFunction' overrides a 'sealed' function}}
-  virtual void SealedFunction();
+  // expected-error@+2 {{declaration of 'SealedFunction' overrides a 'sealed' function}}
+  // FIXME. warning can be suppressed if we're also issuing error for overriding a 'final' function.
+  virtual void SealedFunction(); // expected-warning {{'SealedFunction' overrides a member function but is not marked 'override'}}
 
   // expected-warning@+1 {{'override' keyword is a C++11 extension}}
   virtual void OverrideMe() override;

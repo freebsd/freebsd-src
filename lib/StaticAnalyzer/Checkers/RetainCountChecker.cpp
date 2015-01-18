@@ -1359,6 +1359,7 @@ RetainSummaryManager::getStandardMethodSummary(const ObjCMethodDecl *MD,
   // Check the method family, and apply any default annotations.
   switch (MD ? MD->getMethodFamily() : S.getMethodFamily()) {
     case OMF_None:
+    case OMF_initialize:
     case OMF_performSelector:
       // Assume all Objective-C methods follow Cocoa Memory Management rules.
       // FIXME: Does the non-threaded performSelector family really belong here?
@@ -1579,19 +1580,19 @@ void RetainSummaryManager::InitializeMethodSummaries() {
 
   // Create summaries QCRenderer/QCView -createSnapShotImageOfType:
   addInstMethSummary("QCRenderer", AllocSumm,
-                     "createSnapshotImageOfType", NULL);
+                     "createSnapshotImageOfType", nullptr);
   addInstMethSummary("QCView", AllocSumm,
-                     "createSnapshotImageOfType", NULL);
+                     "createSnapshotImageOfType", nullptr);
 
   // Create summaries for CIContext, 'createCGImage' and
   // 'createCGLayerWithSize'.  These objects are CF objects, and are not
   // automatically garbage collected.
   addInstMethSummary("CIContext", CFAllocSumm,
-                     "createCGImage", "fromRect", NULL);
-  addInstMethSummary("CIContext", CFAllocSumm,
-                     "createCGImage", "fromRect", "format", "colorSpace", NULL);
-  addInstMethSummary("CIContext", CFAllocSumm, "createCGLayerWithSize",
-           "info", NULL);
+                     "createCGImage", "fromRect", nullptr);
+  addInstMethSummary("CIContext", CFAllocSumm, "createCGImage", "fromRect",
+                     "format", "colorSpace", nullptr);
+  addInstMethSummary("CIContext", CFAllocSumm, "createCGLayerWithSize", "info",
+                     nullptr);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1716,9 +1717,9 @@ namespace {
                                    BugReporterContext &BRC,
                                    BugReport &BR) override;
 
-    PathDiagnosticPiece *getEndPath(BugReporterContext &BRC,
-                                    const ExplodedNode *N,
-                                    BugReport &BR) override;
+    std::unique_ptr<PathDiagnosticPiece> getEndPath(BugReporterContext &BRC,
+                                                    const ExplodedNode *N,
+                                                    BugReport &BR) override;
   };
 
   class CFRefLeakReportVisitor : public CFRefReportVisitor {
@@ -1727,17 +1728,17 @@ namespace {
                            const SummaryLogTy &log)
        : CFRefReportVisitor(sym, GCEnabled, log) {}
 
-    PathDiagnosticPiece *getEndPath(BugReporterContext &BRC,
-                                    const ExplodedNode *N,
-                                    BugReport &BR) override;
+    std::unique_ptr<PathDiagnosticPiece> getEndPath(BugReporterContext &BRC,
+                                                    const ExplodedNode *N,
+                                                    BugReport &BR) override;
 
-    BugReporterVisitor *clone() const override {
+    std::unique_ptr<BugReporterVisitor> clone() const override {
       // The curiously-recurring template pattern only works for one level of
       // subclassing. Rather than make a new template base for
       // CFRefReportVisitor, we simply override clone() to do the right thing.
       // This could be trouble someday if BugReporterVisitorImpl is ever
       // used for something else besides a convenient implementation of clone().
-      return new CFRefLeakReportVisitor(*this);
+      return llvm::make_unique<CFRefLeakReportVisitor>(*this);
     }
   };
 
@@ -1750,7 +1751,7 @@ namespace {
                 bool registerVisitor = true)
       : BugReport(D, D.getDescription(), n) {
       if (registerVisitor)
-        addVisitor(new CFRefReportVisitor(sym, GCEnabled, Log));
+        addVisitor(llvm::make_unique<CFRefReportVisitor>(sym, GCEnabled, Log));
       addGCModeDescription(LOpts, GCEnabled);
     }
 
@@ -1758,7 +1759,7 @@ namespace {
                 const SummaryLogTy &Log, ExplodedNode *n, SymbolRef sym,
                 StringRef endText)
       : BugReport(D, D.getDescription(), endText, n) {
-      addVisitor(new CFRefReportVisitor(sym, GCEnabled, Log));
+      addVisitor(llvm::make_unique<CFRefReportVisitor>(sym, GCEnabled, Log));
       addGCModeDescription(LOpts, GCEnabled);
     }
 
@@ -2218,18 +2219,16 @@ GetAllocationSite(ProgramStateManager& StateMgr, const ExplodedNode *N,
                         InterestingMethodContext);
 }
 
-PathDiagnosticPiece*
+std::unique_ptr<PathDiagnosticPiece>
 CFRefReportVisitor::getEndPath(BugReporterContext &BRC,
-                               const ExplodedNode *EndN,
-                               BugReport &BR) {
+                               const ExplodedNode *EndN, BugReport &BR) {
   BR.markInteresting(Sym);
   return BugReporterVisitor::getDefaultEndPath(BRC, EndN, BR);
 }
 
-PathDiagnosticPiece*
+std::unique_ptr<PathDiagnosticPiece>
 CFRefLeakReportVisitor::getEndPath(BugReporterContext &BRC,
-                                   const ExplodedNode *EndN,
-                                   BugReport &BR) {
+                                   const ExplodedNode *EndN, BugReport &BR) {
 
   // Tell the BugReporterContext to report cases when the tracked symbol is
   // assigned to different variables, etc.
@@ -2309,7 +2308,7 @@ CFRefLeakReportVisitor::getEndPath(BugReporterContext &BRC,
     os << " is not referenced later in this execution path and has a retain "
           "count of +" << RV->getCount();
 
-  return new PathDiagnosticEventPiece(L, os.str());
+  return llvm::make_unique<PathDiagnosticEventPiece>(L, os.str());
 }
 
 CFRefLeakReport::CFRefLeakReport(CFRefBug &D, const LangOptions &LOpts,
@@ -2388,7 +2387,7 @@ CFRefLeakReport::CFRefLeakReport(CFRefBug &D, const LangOptions &LOpts,
     }
   }
 
-  addVisitor(new CFRefLeakReportVisitor(sym, GCEnabled, Log));
+  addVisitor(llvm::make_unique<CFRefLeakReportVisitor>(sym, GCEnabled, Log));
 }
 
 //===----------------------------------------------------------------------===//

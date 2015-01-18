@@ -609,16 +609,17 @@ public: // Part of public interface to class.
 // RegionStore creation.
 //===----------------------------------------------------------------------===//
 
-StoreManager *ento::CreateRegionStoreManager(ProgramStateManager& StMgr) {
+std::unique_ptr<StoreManager>
+ento::CreateRegionStoreManager(ProgramStateManager &StMgr) {
   RegionStoreFeatures F = maximal_features_tag();
-  return new RegionStoreManager(StMgr, F);
+  return llvm::make_unique<RegionStoreManager>(StMgr, F);
 }
 
-StoreManager *
+std::unique_ptr<StoreManager>
 ento::CreateFieldsOnlyRegionStoreManager(ProgramStateManager &StMgr) {
   RegionStoreFeatures F = minimal_features_tag();
   F.enableFields(true);
-  return new RegionStoreManager(StMgr, F);
+  return llvm::make_unique<RegionStoreManager>(StMgr, F);
 }
 
 
@@ -708,7 +709,7 @@ public:
   }
 
   bool AddToWorkList(WorkListElement E, const ClusterBindings *C) {
-    if (C && !Visited.insert(C))
+    if (C && !Visited.insert(C).second)
       return false;
     WL.push_back(E);
     return true;

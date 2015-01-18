@@ -139,6 +139,54 @@ namespace CtorErrors {
   };
 }
 
+namespace DtorErrors {
+  struct A { ~A(); } a;
+  ~A::A() {} // expected-error {{'~' in destructor name should be after nested name specifier}} expected-note {{previous}}
+  A::~A() {} // expected-error {{redefinition}}
+
+  struct B { ~B(); } *b;
+  DtorErrors::~B::B() {} // expected-error {{'~' in destructor name should be after nested name specifier}}
+
+  void f() {
+    a.~A::A(); // expected-error {{'~' in destructor name should be after nested name specifier}}
+    b->~DtorErrors::~B::B(); // expected-error {{'~' in destructor name should be after nested name specifier}}
+  }
+}
+
+namespace BadFriend {
+  struct A {
+    friend int : 3; // expected-error {{friends can only be classes or functions}}
+    friend void f() = 123; // expected-error {{illegal initializer}}
+    friend virtual void f(); // expected-error {{'virtual' is invalid in friend declarations}}
+    friend void f() final; // expected-error {{'final' is invalid in friend declarations}}
+    friend void f() override; // expected-error {{'override' is invalid in friend declarations}}
+  };
+}
+
+class PR20760_a {
+  int a = ); // expected-warning {{extension}} expected-error {{expected expression}}
+  int b = }; // expected-warning {{extension}} expected-error {{expected expression}}
+  int c = ]; // expected-warning {{extension}} expected-error {{expected expression}}
+};
+class PR20760_b {
+  int d = d); // expected-warning {{extension}} expected-error {{expected ';'}}
+  int e = d]; // expected-warning {{extension}} expected-error {{expected ';'}}
+  int f = d // expected-warning {{extension}} expected-error {{expected ';'}}
+};
+
+namespace PR20887 {
+class X1 { a::operator=; }; // expected-error {{undeclared identifier 'a'}}
+class X2 { a::a; }; // expected-error {{undeclared identifier 'a'}}
+}
+
+class BadExceptionSpec {
+  void f() throw(int; // expected-error {{expected ')'}} expected-note {{to match}}
+  void g() throw( // expected-note {{to match}}
+      int( // expected-note {{to match}}
+          ; // expected-error 2{{expected ')'}} expected-error {{unexpected end of exception specification}}
+          ));
+};
+
 // PR11109 must appear at the end of the source file
 class pr11109r3 { // expected-note{{to match this '{'}}
   public // expected-error{{expected ':'}} expected-error{{expected '}'}} expected-error{{expected ';' after class}}

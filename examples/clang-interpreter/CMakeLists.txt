@@ -1,7 +1,8 @@
 set(LLVM_LINK_COMPONENTS
   Core
   ExecutionEngine
-  JIT
+  MC
+  MCJIT
   Support
   native
   )

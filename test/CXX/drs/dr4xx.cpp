@@ -1,6 +1,7 @@
 // RUN: env ASAN_OPTIONS=detect_stack_use_after_return=0 %clang_cc1 -std=c++98 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 // RUN: env ASAN_OPTIONS=detect_stack_use_after_return=0 %clang_cc1 -std=c++11 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
-// RUN: env ASAN_OPTIONS=detect_stack_use_after_return=0 %clang_cc1 -std=c++1y %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
+// RUN: env ASAN_OPTIONS=detect_stack_use_after_return=0 %clang_cc1 -std=c++14 %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
+// RUN: env ASAN_OPTIONS=detect_stack_use_after_return=0 %clang_cc1 -std=c++1z %s -verify -fexceptions -fcxx-exceptions -pedantic-errors
 
 // FIXME: __SIZE_TYPE__ expands to 'long long' on some targets.
 __extension__ typedef __SIZE_TYPE__ size_t;
@@ -501,15 +502,15 @@ namespace dr436 { // dr436: yes
   void f(); // expected-error {{redefinition}}
 }
 
-namespace dr437 { // dr437: no
+namespace dr437 { // dr437: sup 1308
   // This is superseded by 1308, which is in turn superseded by 1330,
   // which restores this rule.
-  template<typename U> struct T : U {}; // expected-error {{incomplete}}
-  struct S { // expected-note {{not complete}}
+  template<typename U> struct T : U {};
+  struct S {
     void f() throw(S);
-    void g() throw(T<S>); // expected-note {{in instantiation of}}
-    struct U; // expected-note {{forward}}
-    void h() throw(U); // expected-error {{incomplete}}
+    void g() throw(T<S>);
+    struct U;
+    void h() throw(U);
     struct U {};
   };
 }
@@ -755,7 +756,7 @@ namespace dr467 { // dr467: yes
     return k;
   }
   int g() {
-    goto later; // expected-error {{protected scope}}
+    goto later; // expected-error {{cannot jump}}
     int k = stuff(); // expected-note {{bypasses variable initialization}}
   later:
     return k;
@@ -1201,7 +1202,7 @@ namespace dr497 { // dr497: yes
     struct S {
       mutable int i;
     };
-    const S cs; // expected-error {{default initialization}}
+    const S cs; // expected-error {{default initialization}} expected-note {{add an explicit initializer}}
     int S::*pm = &S::i;
     cs.*pm = 88;
   }

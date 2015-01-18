@@ -4,8 +4,8 @@
 // RUN: %clang_cc1 -triple x86_64-apple-macosx10.9 -main-file-name c-captured.c %s -o - -emit-llvm -fprofile-instr-use=%t.profdata | FileCheck -check-prefix=PGOUSE -check-prefix=PGOALL %s
 
 // PGOGEN: @[[DCC:__llvm_profile_counters_debug_captured]] = hidden global [3 x i64] zeroinitializer
-// PGOGEN: @[[CSC:__llvm_profile_counters___captured_stmt]] = internal global [2 x i64] zeroinitializer
-// PGOGEN: @[[C1C:__llvm_profile_counters___captured_stmt1]] = internal global [3 x i64] zeroinitializer
+// PGOGEN: @[[CSC:"__llvm_profile_counters_c-captured.c:__captured_stmt"]] = internal global [2 x i64] zeroinitializer
+// PGOGEN: @[[C1C:"__llvm_profile_counters_c-captured.c:__captured_stmt1"]] = internal global [3 x i64] zeroinitializer
 
 // PGOALL-LABEL: define void @debug_captured()
 // PGOGEN: store {{.*}} @[[DCC]], i64 0, i64 0
@@ -47,11 +47,11 @@ void debug_captured() {
   if (x) {} // This is DC2. Checked above.
 }
 
-// PGOUSE-DAG: ![[DC1]] = metadata !{metadata !"branch_weights", i32 2, i32 1}
-// PGOUSE-DAG: ![[DC2]] = metadata !{metadata !"branch_weights", i32 2, i32 1}
-// PGOUSE-DAG: ![[CS1]] = metadata !{metadata !"branch_weights", i32 2, i32 1}
-// PGOUSE-DAG: ![[C11]] = metadata !{metadata !"branch_weights", i32 11, i32 2}
-// PGOUSE-DAG: ![[C12]] = metadata !{metadata !"branch_weights", i32 2, i32 1}
+// PGOUSE-DAG: ![[DC1]] = !{!"branch_weights", i32 2, i32 1}
+// PGOUSE-DAG: ![[DC2]] = !{!"branch_weights", i32 2, i32 1}
+// PGOUSE-DAG: ![[CS1]] = !{!"branch_weights", i32 2, i32 1}
+// PGOUSE-DAG: ![[C11]] = !{!"branch_weights", i32 11, i32 2}
+// PGOUSE-DAG: ![[C12]] = !{!"branch_weights", i32 2, i32 1}
 
 int main(int argc, const char *argv[]) {
   debug_captured();

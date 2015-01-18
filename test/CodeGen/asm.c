@@ -248,3 +248,17 @@ void t29(void) {
   // CHECK: @t29
   // CHECK: call void asm sideeffect "movl %eax, $0", "*m,~{dirflag},~{fpsr},~{flags}"([1 x i32]* @t29_var)
 }
+
+void t30(int len) {
+  __asm__ volatile(""
+                   : "+&&rm"(len));
+  // CHECK: @t30
+  // CHECK: call void asm sideeffect "", "=*&rm,0,~{dirflag},~{fpsr},~{flags}"
+}
+
+void t31(int len) {
+  __asm__ volatile(""
+                   : "+%%rm"(len), "+rm"(len));
+  // CHECK: @t31
+  // CHECK: call void asm sideeffect "", "=*%rm,=*rm,0,1,~{dirflag},~{fpsr},~{flags}"
+}

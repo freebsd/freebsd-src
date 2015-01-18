@@ -12,6 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "CodeGenFunction.h"
+#include "CGCXXABI.h"
 #include "CGCleanup.h"
 #include "CGObjCRuntime.h"
 #include "TargetInfo.h"
@@ -50,15 +51,6 @@ static llvm::Constant *getThrowFn(CodeGenModule &CGM) {
     llvm::FunctionType::get(CGM.VoidTy, Args, /*IsVarArgs=*/false);
 
   return CGM.CreateRuntimeFunction(FTy, "__cxa_throw");
-}
-
-static llvm::Constant *getReThrowFn(CodeGenModule &CGM) {
-  // void __cxa_rethrow();
-
-  llvm::FunctionType *FTy =
-    llvm::FunctionType::get(CGM.VoidTy, /*IsVarArgs=*/false);
-
-  return CGM.CreateRuntimeFunction(FTy, "__cxa_rethrow");
 }
 
 static llvm::Constant *getGetExceptionPtrFn(CodeGenModule &CGM) {
@@ -134,15 +126,17 @@ namespace {
     // This function must have prototype void(void*).
     const char *CatchallRethrowFn;
 
-    static const EHPersonality &get(const LangOptions &Lang);
+    static const EHPersonality &get(CodeGenModule &CGM);
     static const EHPersonality GNU_C;
     static const EHPersonality GNU_C_SJLJ;
+    static const EHPersonality GNU_C_SEH;
     static const EHPersonality GNU_ObjC;
     static const EHPersonality GNUstep_ObjC;
     static const EHPersonality GNU_ObjCXX;
     static const EHPersonality NeXT_ObjC;
     static const EHPersonality GNU_CPlusPlus;
     static const EHPersonality GNU_CPlusPlus_SJLJ;
+    static const EHPersonality GNU_CPlusPlus_SEH;
   };
 }
 
@@ -150,11 +144,15 @@ const EHPersonality EHPersonality::GNU_C = { "__gcc_personality_v0", nullptr };
 const EHPersonality
 EHPersonality::GNU_C_SJLJ = { "__gcc_personality_sj0", nullptr };
 const EHPersonality
+EHPersonality::GNU_C_SEH = { "__gcc_personality_seh0", nullptr };
+const EHPersonality
 EHPersonality::NeXT_ObjC = { "__objc_personality_v0", nullptr };
 const EHPersonality
 EHPersonality::GNU_CPlusPlus = { "__gxx_personality_v0", nullptr };
 const EHPersonality
 EHPersonality::GNU_CPlusPlus_SJLJ = { "__gxx_personality_sj0", nullptr };
+const EHPersonality
+EHPersonality::GNU_CPlusPlus_SEH = { "__gxx_personality_seh0", nullptr };
 const EHPersonality
 EHPersonality::GNU_ObjC = {"__gnu_objc_personality_v0", "objc_exception_throw"};
 const EHPersonality
@@ -162,16 +160,26 @@ EHPersonality::GNU_ObjCXX = { "__gnustep_objcxx_personality_v0", nullptr };
 const EHPersonality
 EHPersonality::GNUstep_ObjC = { "__gnustep_objc_personality_v0", nullptr };
 
-static const EHPersonality &getCPersonality(const LangOptions &L) {
+/// On Win64, use libgcc's SEH personality function. We fall back to dwarf on
+/// other platforms, unless the user asked for SjLj exceptions.
+static bool useLibGCCSEHPersonality(const llvm::Triple &T) {
+  return T.isOSWindows() && T.getArch() == llvm::Triple::x86_64;
+}
+
+static const EHPersonality &getCPersonality(const llvm::Triple &T,
+                                            const LangOptions &L) {
   if (L.SjLjExceptions)
     return EHPersonality::GNU_C_SJLJ;
+  else if (useLibGCCSEHPersonality(T))
+    return EHPersonality::GNU_C_SEH;
   return EHPersonality::GNU_C;
 }
 
-static const EHPersonality &getObjCPersonality(const LangOptions &L) {
+static const EHPersonality &getObjCPersonality(const llvm::Triple &T,
+                                               const LangOptions &L) {
   switch (L.ObjCRuntime.getKind()) {
   case ObjCRuntime::FragileMacOSX:
-    return getCPersonality(L);
+    return getCPersonality(T, L);
   case ObjCRuntime::MacOSX:
   case ObjCRuntime::iOS:
     return EHPersonality::NeXT_ObjC;
@@ -186,16 +194,19 @@ static const EHPersonality &getObjCPersonality(const LangOptions &L) {
   llvm_unreachable("bad runtime kind");
 }
 
-static const EHPersonality &getCXXPersonality(const LangOptions &L) {
+static const EHPersonality &getCXXPersonality(const llvm::Triple &T,
+                                              const LangOptions &L) {
   if (L.SjLjExceptions)
     return EHPersonality::GNU_CPlusPlus_SJLJ;
-  else
-    return EHPersonality::GNU_CPlusPlus;
+  else if (useLibGCCSEHPersonality(T))
+    return EHPersonality::GNU_CPlusPlus_SEH;
+  return EHPersonality::GNU_CPlusPlus;
 }
 
 /// Determines the personality function to use when both C++
 /// and Objective-C exceptions are being caught.
-static const EHPersonality &getObjCXXPersonality(const LangOptions &L) {
+static const EHPersonality &getObjCXXPersonality(const llvm::Triple &T,
+                                                 const LangOptions &L) {
   switch (L.ObjCRuntime.getKind()) {
   // The ObjC personality defers to the C++ personality for non-ObjC
   // handlers.  Unlike the C++ case, we use the same personality
@@ -207,7 +218,7 @@ static const EHPersonality &getObjCXXPersonality(const LangOptions &L) {
   // In the fragile ABI, just use C++ exception handling and hope
   // they're not doing crazy exception mixing.
   case ObjCRuntime::FragileMacOSX:
-    return getCXXPersonality(L);
+    return getCXXPersonality(T, L);
 
   // The GCC runtime's personality function inherently doesn't support
   // mixed EH.  Use the C++ personality just to avoid returning null.
@@ -220,15 +231,17 @@ static const EHPersonality &getObjCXXPersonality(const LangOptions &L) {
   llvm_unreachable("bad runtime kind");
 }
 
-const EHPersonality &EHPersonality::get(const LangOptions &L) {
+const EHPersonality &EHPersonality::get(CodeGenModule &CGM) {
+  const llvm::Triple &T = CGM.getTarget().getTriple();
+  const LangOptions &L = CGM.getLangOpts();
   if (L.CPlusPlus && L.ObjC1)
-    return getObjCXXPersonality(L);
+    return getObjCXXPersonality(T, L);
   else if (L.CPlusPlus)
-    return getCXXPersonality(L);
+    return getCXXPersonality(T, L);
   else if (L.ObjC1)
-    return getObjCPersonality(L);
+    return getObjCPersonality(T, L);
   else
-    return getCPersonality(L);
+    return getCPersonality(T, L);
 }
 
 static llvm::Constant *getPersonalityFn(CodeGenModule &CGM,
@@ -305,8 +318,9 @@ void CodeGenModule::SimplifyPersonality() {
   if (!LangOpts.ObjCRuntime.isNeXTFamily())
     return;
 
-  const EHPersonality &ObjCXX = EHPersonality::get(LangOpts);
-  const EHPersonality &CXX = getCXXPersonality(LangOpts);
+  const EHPersonality &ObjCXX = EHPersonality::get(*this);
+  const EHPersonality &CXX =
+      getCXXPersonality(getTarget().getTriple(), LangOpts);
   if (&ObjCXX == &CXX)
     return;
 
@@ -403,20 +417,19 @@ llvm::Value *CodeGenFunction::getSelectorFromSlot() {
 
 void CodeGenFunction::EmitCXXThrowExpr(const CXXThrowExpr *E,
                                        bool KeepInsertionPoint) {
-  if (CGM.getTarget().getTriple().isWindowsMSVCEnvironment()) {
-    ErrorUnsupported(E, "throw expression");
-    return;
-  }
-
   if (!E->getSubExpr()) {
-    EmitNoreturnRuntimeCallOrInvoke(getReThrowFn(CGM),
-                                    ArrayRef<llvm::Value*>());
+    CGM.getCXXABI().emitRethrow(*this, /*isNoReturn*/true);
 
     // throw is an expression, and the expression emitters expect us
     // to leave ourselves at a valid insertion point.
     if (KeepInsertionPoint)
       EmitBlock(createBasicBlock("throw.cont"));
 
+    return;
+  }
+
+  if (CGM.getTarget().getTriple().isKnownWindowsMSVCEnvironment()) {
+    ErrorUnsupported(E, "throw expression");
     return;
   }
 
@@ -457,7 +470,7 @@ void CodeGenFunction::EmitCXXThrowExpr(const CXXThrowExpr *E,
     CXXRecordDecl *Record = cast<CXXRecordDecl>(RecordTy->getDecl());
     if (!Record->hasTrivialDestructor()) {
       CXXDestructorDecl *DtorD = Record->getDestructor();
-      Dtor = CGM.GetAddrOfCXXDestructor(DtorD, Dtor_Complete);
+      Dtor = CGM.getAddrOfCXXStructor(DtorD, StructorType::Complete);
       Dtor = llvm::ConstantExpr::getBitCast(Dtor, Int8PtrTy);
     }
   }
@@ -576,7 +589,7 @@ void CodeGenFunction::EmitEndEHSpec(const Decl *D) {
 }
 
 void CodeGenFunction::EmitCXXTryStmt(const CXXTryStmt &S) {
-  if (CGM.getTarget().getTriple().isWindowsMSVCEnvironment()) {
+  if (CGM.getTarget().getTriple().isKnownWindowsMSVCEnvironment()) {
     ErrorUnsupported(&S, "try statement");
     return;
   }
@@ -601,8 +614,9 @@ void CodeGenFunction::EnterCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock) {
       // existing compilers do, and it's not clear that the standard
       // personality routine is capable of doing this right.  See C++ DR 388:
       //   http://www.open-std.org/jtc1/sc22/wg21/docs/cwg_active.html#388
-      QualType CaughtType = C->getCaughtType();
-      CaughtType = CaughtType.getNonReferenceType().getUnqualifiedType();
+      Qualifiers CaughtTypeQuals;
+      QualType CaughtType = CGM.getContext().getUnqualifiedArrayType(
+          C->getCaughtType().getNonReferenceType(), CaughtTypeQuals);
 
       llvm::Constant *TypeInfo = nullptr;
       if (CaughtType->isObjCObjectPointerType())
@@ -720,18 +734,16 @@ llvm::BasicBlock *CodeGenFunction::EmitLandingPad() {
 
   // Save the current IR generation state.
   CGBuilderTy::InsertPoint savedIP = Builder.saveAndClearIP();
-  SaveAndRestoreLocation AutoRestoreLocation(*this, Builder);
-  if (CGDebugInfo *DI = getDebugInfo())
-    DI->EmitLocation(Builder, CurEHLocation);
+  ApplyDebugLocation AutoRestoreLocation(*this, CurEHLocation);
 
-  const EHPersonality &personality = EHPersonality::get(getLangOpts());
+  const EHPersonality &personality = EHPersonality::get(CGM);
 
   // Create and configure the landing pad.
   llvm::BasicBlock *lpad = createBasicBlock("lpad");
   EmitBlock(lpad);
 
   llvm::LandingPadInst *LPadInst =
-    Builder.CreateLandingPad(llvm::StructType::get(Int8PtrTy, Int32Ty, NULL),
+    Builder.CreateLandingPad(llvm::StructType::get(Int8PtrTy, Int32Ty, nullptr),
                              getOpaquePersonalityFn(CGM, personality), 0);
 
   llvm::Value *LPadExn = Builder.CreateExtractValue(LPadInst, 0);
@@ -795,7 +807,7 @@ llvm::BasicBlock *CodeGenFunction::EmitLandingPad() {
       }
 
       // Check whether we already have a handler for this type.
-      if (catchTypes.insert(handler.Type))
+      if (catchTypes.insert(handler.Type).second)
         // If not, add it directly to the landingpad.
         LPadInst->addClause(handler.Type);
     }
@@ -1259,7 +1271,7 @@ void CodeGenFunction::ExitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock) {
     // constructor function-try-block's catch handler (p14), so this
     // really only applies to destructors.
     if (doImplicitRethrow && HaveInsertPoint()) {
-      EmitRuntimeCallOrInvoke(getReThrowFn(CGM));
+      CGM.getCXXABI().emitRethrow(*this, /*isNoReturn*/false);
       Builder.CreateUnreachable();
       Builder.ClearInsertionPoint();
     }
@@ -1541,9 +1553,9 @@ llvm::BasicBlock *CodeGenFunction::getTerminateLandingPad() {
   Builder.SetInsertPoint(TerminateLandingPad);
 
   // Tell the backend that this is a landing pad.
-  const EHPersonality &Personality = EHPersonality::get(CGM.getLangOpts());
+  const EHPersonality &Personality = EHPersonality::get(CGM);
   llvm::LandingPadInst *LPadInst =
-    Builder.CreateLandingPad(llvm::StructType::get(Int8PtrTy, Int32Ty, NULL),
+    Builder.CreateLandingPad(llvm::StructType::get(Int8PtrTy, Int32Ty, nullptr),
                              getOpaquePersonalityFn(CGM, Personality), 0);
   LPadInst->addClause(getCatchAllValue(*this));
 
@@ -1600,7 +1612,7 @@ llvm::BasicBlock *CodeGenFunction::getEHResumeBlock(bool isCleanup) {
   EHResumeBlock = createBasicBlock("eh.resume");
   Builder.SetInsertPoint(EHResumeBlock);
 
-  const EHPersonality &Personality = EHPersonality::get(CGM.getLangOpts());
+  const EHPersonality &Personality = EHPersonality::get(CGM);
 
   // This can always be a call because we necessarily didn't find
   // anything on the EH stack which needs our help.
@@ -1619,7 +1631,7 @@ llvm::BasicBlock *CodeGenFunction::getEHResumeBlock(bool isCleanup) {
   llvm::Value *Sel = getSelectorFromSlot();
 
   llvm::Type *LPadType = llvm::StructType::get(Exn->getType(),
-                                               Sel->getType(), NULL);
+                                               Sel->getType(), nullptr);
   llvm::Value *LPadVal = llvm::UndefValue::get(LPadType);
   LPadVal = Builder.CreateInsertValue(LPadVal, Exn, 0, "lpad.val");
   LPadVal = Builder.CreateInsertValue(LPadVal, Sel, 1, "lpad.val");

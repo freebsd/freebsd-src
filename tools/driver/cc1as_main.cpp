@@ -123,6 +123,7 @@ struct AssemblerInvocation {
 
   unsigned RelaxAll : 1;
   unsigned NoExecStack : 1;
+  unsigned FatalWarnings : 1;
 
   /// @}
 
@@ -138,18 +139,19 @@ public:
     ShowEncoding = 0;
     RelaxAll = 0;
     NoExecStack = 0;
+    FatalWarnings = 0;
     DwarfVersion = 3;
   }
 
-  static bool CreateFromArgs(AssemblerInvocation &Res, const char **ArgBegin,
-                             const char **ArgEnd, DiagnosticsEngine &Diags);
+  static bool CreateFromArgs(AssemblerInvocation &Res,
+                             ArrayRef<const char *> Argv,
+                             DiagnosticsEngine &Diags);
 };
 
 }
 
 bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
-                                         const char **ArgBegin,
-                                         const char **ArgEnd,
+                                         ArrayRef<const char *> Argv,
                                          DiagnosticsEngine &Diags) {
   bool Success = true;
 
@@ -159,7 +161,7 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
   const unsigned IncludedFlagsBitmask = options::CC1AsOption;
   unsigned MissingArgIndex, MissingArgCount;
   std::unique_ptr<InputArgList> Args(
-      OptTbl->ParseArgs(ArgBegin, ArgEnd, MissingArgIndex, MissingArgCount,
+      OptTbl->ParseArgs(Argv.begin(), Argv.end(), MissingArgIndex, MissingArgCount,
                         IncludedFlagsBitmask));
 
   // Check for missing argument error.
@@ -246,7 +248,8 @@ bool AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
 
   // Assemble Options
   Opts.RelaxAll = Args->hasArg(OPT_mrelax_all);
-  Opts.NoExecStack =  Args->hasArg(OPT_mno_exec_stack);
+  Opts.NoExecStack = Args->hasArg(OPT_mno_exec_stack);
+  Opts.FatalWarnings =  Args->hasArg(OPT_massembler_fatal_warnings);
 
   return Success;
 }
@@ -262,13 +265,12 @@ static formatted_raw_ostream *GetOutputStream(AssemblerInvocation &Opts,
   if (Opts.OutputPath != "-")
     sys::RemoveFileOnSignal(Opts.OutputPath);
 
-  std::string Error;
-  raw_fd_ostream *Out =
-      new raw_fd_ostream(Opts.OutputPath.c_str(), Error,
-                         (Binary ? sys::fs::F_None : sys::fs::F_Text));
-  if (!Error.empty()) {
-    Diags.Report(diag::err_fe_unable_to_open_output)
-      << Opts.OutputPath << Error;
+  std::error_code EC;
+  raw_fd_ostream *Out = new raw_fd_ostream(
+      Opts.OutputPath, EC, (Binary ? sys::fs::F_None : sys::fs::F_Text));
+  if (EC) {
+    Diags.Report(diag::err_fe_unable_to_open_output) << Opts.OutputPath
+                                                     << EC.message();
     delete Out;
     return nullptr;
   }
@@ -295,7 +297,7 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
   SourceMgr SrcMgr;
 
   // Tell SrcMgr about this buffer, which is what the parser will pick up.
-  SrcMgr.AddNewSourceBuffer(Buffer->release(), SMLoc());
+  SrcMgr.AddNewSourceBuffer(std::move(*Buffer), SMLoc());
 
   // Record the location of the include directories so that the lexer can find
   // it later.
@@ -378,9 +380,8 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts,
     MCAsmBackend *MAB = TheTarget->createMCAsmBackend(*MRI, Opts.Triple,
                                                       Opts.CPU);
     Str.reset(TheTarget->createMCObjectStreamer(Opts.Triple, Ctx, *MAB, *Out,
-                                                CE, *STI, Opts.RelaxAll,
-                                                Opts.NoExecStack));
-    Str.get()->InitSections();
+                                                CE, *STI, Opts.RelaxAll));
+    Str.get()->InitSections(Opts.NoExecStack);
   }
 
   bool Failed = false;
@@ -420,11 +421,10 @@ static void LLVMErrorHandler(void *UserData, const std::string &Message,
   exit(1);
 }
 
-int cc1as_main(const char **ArgBegin, const char **ArgEnd,
-               const char *Argv0, void *MainAddr) {
+int cc1as_main(ArrayRef<const char *> Argv, const char *Argv0, void *MainAddr) {
   // Print a stack trace if we signal out.
   sys::PrintStackTraceOnErrorSignal();
-  PrettyStackTraceProgram X(ArgEnd - ArgBegin, ArgBegin);
+  PrettyStackTraceProgram X(Argv.size(), Argv.data());
   llvm_shutdown_obj Y;  // Call llvm_shutdown() on exit.
 
   // Initialize targets and assembly printers/parsers.
@@ -447,7 +447,7 @@ int cc1as_main(const char **ArgBegin, const char **ArgEnd,
 
   // Parse the arguments.
   AssemblerInvocation Asm;
-  if (!AssemblerInvocation::CreateFromArgs(Asm, ArgBegin, ArgEnd, Diags))
+  if (!AssemblerInvocation::CreateFromArgs(Asm, Argv, Diags))
     return 1;
 
   if (Asm.ShowHelp) {

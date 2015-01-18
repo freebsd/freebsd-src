@@ -62,6 +62,53 @@ void test_sevl(void) {
   __sevl();
 }
 
+#if __ARM_32BIT_STATE
+// AArch32-LABEL: test_dbg
+// AArch32: call void @llvm.arm.dbg(i32 0)
+void test_dbg(void) {
+  __dbg(0);
+}
+#endif
+
+/* 8.5 Swap */
+// ARM-LABEL: test_swp
+// AArch32: call i32 @llvm.arm.ldrex
+// AArch32: call i32 @llvm.arm.strex
+// AArch64: call i64 @llvm.aarch64.ldxr
+// AArch64: call i32 @llvm.aarch64.stxr
+uint32_t test_swp(uint32_t x, volatile void *p) {
+  __swp(x, p);
+}
+
+/* 8.6 Memory prefetch intrinsics */
+/* 8.6.1 Data prefetch */
+// ARM-LABEL: test_pld
+// ARM: call void @llvm.prefetch(i8* null, i32 0, i32 3, i32 1)
+void test_pld() {
+  __pld(0);
+}
+
+// ARM-LABEL: test_pldx
+// AArch32: call void @llvm.prefetch(i8* null, i32 1, i32 3, i32 1)
+// AArch64: call void @llvm.prefetch(i8* null, i32 1, i32 1, i32 1)
+void test_pldx() {
+  __pldx(1, 2, 0, 0);
+}
+
+/* 8.6.2 Instruction prefetch */
+// ARM-LABEL: test_pli
+// ARM: call void @llvm.prefetch(i8* null, i32 0, i32 3, i32 0)
+void test_pli() {
+  __pli(0);
+}
+
+// ARM-LABEL: test_plix
+// AArch32: call void @llvm.prefetch(i8* null, i32 0, i32 3, i32 0)
+// AArch64: call void @llvm.prefetch(i8* null, i32 0, i32 1, i32 0)
+void test_plix() {
+  __plix(2, 0, 0);
+}
+
 /* 8.7 NOP */
 // ARM-LABEL: test_nop
 // AArch32: call void @llvm.arm.hint(i32 0)
@@ -72,23 +119,31 @@ void test_nop(void) {
 
 /* 9 DATA-PROCESSING INTRINSICS */
 /* 9.2 Miscellaneous data-processing intrinsics */
-// ARM-LABEL: test_rev
-// ARM: call i32 @llvm.bswap.i32(i32 %t)
-uint32_t test_rev(uint32_t t) {
-  return __rev(t);
+// ARM-LABEL: test_ror
+// ARM: lshr
+// ARM: sub
+// ARM: shl
+// ARM: or
+uint32_t test_ror(uint32_t x, uint32_t y) {
+  return __ror(x, y);
 }
 
-// ARM-LABEL: test_revl
-// AArch32: call i32 @llvm.bswap.i32(i32 %t)
-// AArch64: call i64 @llvm.bswap.i64(i64 %t)
-long test_revl(long t) {
-  return __revl(t);
+// ARM-LABEL: test_rorl
+// ARM: lshr
+// ARM: sub
+// ARM: shl
+// ARM: or
+unsigned long test_rorl(unsigned long x, uint32_t y) {
+  return __rorl(x, y);
 }
 
-// ARM-LABEL: test_revll
-// ARM: call i64 @llvm.bswap.i64(i64 %t)
-uint64_t test_revll(uint64_t t) {
-  return __revll(t);
+// ARM-LABEL: test_rorll
+// ARM: lshr
+// ARM: sub
+// ARM: shl
+// ARM: or
+uint64_t test_rorll(uint64_t x, uint32_t y) {
+  return __rorll(x, y);
 }
 
 // ARM-LABEL: test_clz
@@ -108,6 +163,80 @@ long test_clzl(long t) {
 // ARM: call i64 @llvm.ctlz.i64(i64 %t, i1 false)
 uint64_t test_clzll(uint64_t t) {
   return __clzll(t);
+}
+
+// ARM-LABEL: test_rev
+// ARM: call i32 @llvm.bswap.i32(i32 %t)
+uint32_t test_rev(uint32_t t) {
+  return __rev(t);
+}
+
+// ARM-LABEL: test_revl
+// AArch32: call i32 @llvm.bswap.i32(i32 %t)
+// AArch64: call i64 @llvm.bswap.i64(i64 %t)
+long test_revl(long t) {
+  return __revl(t);
+}
+
+// ARM-LABEL: test_revll
+// ARM: call i64 @llvm.bswap.i64(i64 %t)
+uint64_t test_revll(uint64_t t) {
+  return __revll(t);
+}
+
+// ARM-LABEL: test_rev16
+// ARM: llvm.bswap
+// ARM: lshr
+// ARM: shl
+// ARM: or
+uint32_t test_rev16(uint32_t t) {
+  return __rev16(t);
+}
+
+// ARM-LABEL: test_rev16l
+// ARM: llvm.bswap
+// ARM: lshr
+// ARM: shl
+// ARM: or
+long test_rev16l(long t) {
+  return __rev16l(t);
+}
+
+// ARM-LABEL: test_rev16ll
+// ARM: llvm.bswap
+// ARM: lshr
+// ARM: shl
+// ARM: or
+uint64_t test_rev16ll(uint64_t t) {
+  return __rev16ll(t);
+}
+
+// ARM-LABEL: test_revsh
+// ARM: call i16 @llvm.bswap.i16(i16 %t)
+int16_t test_revsh(int16_t t) {
+  return __revsh(t);
+}
+
+// ARM-LABEL: test_rbit
+// AArch32: call i32 @llvm.arm.rbit
+// AArch64: call i32 @llvm.aarch64.rbit.i32
+uint32_t test_rbit(uint32_t t) {
+  return __rbit(t);
+}
+
+// ARM-LABEL: test_rbitl
+// AArch32: call i32 @llvm.arm.rbit
+// AArch64: call i64 @llvm.aarch64.rbit.i64
+long test_rbitl(long t) {
+  return __rbitl(t);
+}
+
+// ARM-LABEL: test_rbitll
+// AArch32: call i32 @llvm.arm.rbit
+// AArch32: call i32 @llvm.arm.rbit
+// AArch64: call i64 @llvm.aarch64.rbit.i64
+uint64_t test_rbitll(uint64_t t) {
+  return __rbitll(t);
 }
 
 /* 9.4 Saturating intrinsics */

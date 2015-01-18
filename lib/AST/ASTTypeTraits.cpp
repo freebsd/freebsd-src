@@ -62,6 +62,53 @@ bool ASTNodeKind::isBaseOf(NodeKindId Base, NodeKindId Derived,
 
 StringRef ASTNodeKind::asStringRef() const { return AllKindInfo[KindId].Name; }
 
+ASTNodeKind ASTNodeKind::getMostDerivedType(ASTNodeKind Kind1,
+                                            ASTNodeKind Kind2) {
+  if (Kind1.isBaseOf(Kind2)) return Kind2;
+  if (Kind2.isBaseOf(Kind1)) return Kind1;
+  return ASTNodeKind();
+}
+
+ASTNodeKind ASTNodeKind::getMostDerivedCommonAncestor(ASTNodeKind Kind1,
+                                                      ASTNodeKind Kind2) {
+  NodeKindId Parent = Kind1.KindId;
+  while (!isBaseOf(Parent, Kind2.KindId, nullptr) && Parent != NKI_None) {
+    Parent = AllKindInfo[Parent].ParentId;
+  }
+  return ASTNodeKind(Parent);
+}
+
+ASTNodeKind ASTNodeKind::getFromNode(const Decl &D) {
+  switch (D.getKind()) {
+#define DECL(DERIVED, BASE)                                                    \
+    case Decl::DERIVED: return ASTNodeKind(NKI_##DERIVED##Decl);
+#define ABSTRACT_DECL(D)
+#include "clang/AST/DeclNodes.inc"
+  };
+  llvm_unreachable("invalid decl kind");
+}
+
+ASTNodeKind ASTNodeKind::getFromNode(const Stmt &S) {
+  switch (S.getStmtClass()) {
+    case Stmt::NoStmtClass: return NKI_None;
+#define STMT(CLASS, PARENT)                                                    \
+    case Stmt::CLASS##Class: return ASTNodeKind(NKI_##CLASS);
+#define ABSTRACT_STMT(S)
+#include "clang/AST/StmtNodes.inc"
+  }
+  llvm_unreachable("invalid stmt kind");
+}
+
+ASTNodeKind ASTNodeKind::getFromNode(const Type &T) {
+  switch (T.getTypeClass()) {
+#define TYPE(Class, Base)                                                      \
+    case Type::Class: return ASTNodeKind(NKI_##Class##Type);
+#define ABSTRACT_TYPE(Class, Base)
+#include "clang/AST/TypeNodes.def"
+  }
+  llvm_unreachable("invalid type kind");
+}
+
 void DynTypedNode::print(llvm::raw_ostream &OS,
                          const PrintingPolicy &PP) const {
   if (const TemplateArgument *TA = get<TemplateArgument>())

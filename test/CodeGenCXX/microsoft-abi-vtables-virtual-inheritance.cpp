@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -fno-rtti -emit-llvm -o %t.ll -fdump-vtable-layouts %s -triple=i386-pc-win32 >%t
+// RUN: %clang_cc1 -std=c++11 -fms-extensions -fno-rtti -emit-llvm -o %t.ll -fdump-vtable-layouts %s -triple=i386-pc-win32 >%t
 // RUN: FileCheck %s < %t
 // RUN: FileCheck --check-prefix=MANGLING %s < %t.ll
 
@@ -763,4 +763,47 @@ struct W : B, Y {
 };
 
 W::W() {}
+}
+
+namespace Test13 {
+struct A {
+  virtual void f();
+};
+struct __declspec(dllexport) B : virtual A {
+  virtual void f() = 0;
+  // MANGLING-DAG: @"\01??_7B@Test13@@6B@" = weak_odr dllexport unnamed_addr constant [1 x i8*] [i8* bitcast (void ()* @_purecall to i8*)]
+};
+}
+
+namespace pr21031_1 {
+// This ordering of base specifiers regressed in r202425.
+struct A { virtual void f(void); };
+struct B : virtual A { virtual void g(void); };
+struct C : virtual A, B { C(); };
+C::C() {}
+
+// CHECK-LABEL: VFTable for 'pr21031_1::A' in 'pr21031_1::B' in 'pr21031_1::C' (1 entry)
+// CHECK-NEXT:   0 | void pr21031_1::A::f()
+
+// CHECK-LABEL: VFTable for 'pr21031_1::B' in 'pr21031_1::C' (1 entry)
+// CHECK-NEXT:   0 | void pr21031_1::B::g()
+
+// MANGLING-DAG: @"\01??_7C@pr21031_1@@6BB@1@@" = {{.*}} constant [1 x i8*]
+// MANGLING-DAG: @"\01??_7C@pr21031_1@@6B@" = {{.*}} constant [1 x i8*]
+}
+
+namespace pr21031_2 {
+struct A { virtual void f(void); };
+struct B : virtual A { virtual void g(void); };
+struct C : B, virtual A { C(); };
+C::C() {}
+
+// CHECK-LABEL: VFTable for 'pr21031_2::B' in 'pr21031_2::C' (1 entry)
+// CHECK-NEXT:   0 | void pr21031_2::B::g()
+
+// CHECK-LABEL: VFTable for 'pr21031_2::A' in 'pr21031_2::B' in 'pr21031_2::C' (1 entry)
+// CHECK-NEXT:   0 | void pr21031_2::A::f()
+
+// MANGLING-DAG: @"\01??_7C@pr21031_2@@6BA@1@@" = {{.*}} constant [1 x i8*]
+// MANGLING-DAG: @"\01??_7C@pr21031_2@@6BB@1@@" = {{.*}} constant [1 x i8*]
 }

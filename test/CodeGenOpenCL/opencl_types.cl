@@ -1,7 +1,7 @@
 // RUN: %clang_cc1 %s -emit-llvm -o - -O0 | FileCheck %s
 
 constant sampler_t glb_smp = 7;
-// CHECK: global i32 7
+// CHECK: constant i32 7
 
 void fnc1(image1d_t img) {}
 // CHECK: @fnc1(%opencl.image1d_t*
@@ -35,3 +35,6 @@ kernel void foo(image1d_t img) {
   fnc4smp(glb_smp);
 // CHECK: call void @fnc4smp(i32
 }
+
+void __attribute__((overloadable)) bad1(image1d_t *b, image2d_t *c, image2d_t *d) {}
+// CHECK-LABEL: @{{_Z4bad1P11ocl_image1dP11ocl_image2dS2_|"\\01\?bad1@@YAXPE?APAUocl_image1d@@PE?APAUocl_image2d@@1@Z"}}

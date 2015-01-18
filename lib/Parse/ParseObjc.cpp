@@ -79,7 +79,7 @@ Parser::DeclGroupPtrTy Parser::ParseObjCAtDirectives() {
     SingleDecl = ParseObjCPropertyDynamic(AtLoc);
     break;
   case tok::objc_import:
-    if (getLangOpts().Modules)
+    if (getLangOpts().Modules || getLangOpts().DebuggerSupport)
       return ParseModuleImport(AtLoc);
     Diag(AtLoc, diag::err_atimport);
     SkipUntil(tok::semi);
@@ -307,72 +307,6 @@ Decl *Parser::ParseObjCAtInterfaceDeclaration(SourceLocation AtLoc,
   return ClsType;
 }
 
-/// The Objective-C property callback.  This should be defined where
-/// it's used, but instead it's been lifted to here to support VS2005.
-struct Parser::ObjCPropertyCallback : FieldCallback {
-private:
-  virtual void anchor();
-public:
-  Parser &P;
-  SmallVectorImpl<Decl *> &Props;
-  ObjCDeclSpec &OCDS;
-  SourceLocation AtLoc;
-  SourceLocation LParenLoc;
-  tok::ObjCKeywordKind MethodImplKind;
-        
-  ObjCPropertyCallback(Parser &P, 
-                       SmallVectorImpl<Decl *> &Props,
-                       ObjCDeclSpec &OCDS, SourceLocation AtLoc,
-                       SourceLocation LParenLoc,
-                       tok::ObjCKeywordKind MethodImplKind) :
-    P(P), Props(Props), OCDS(OCDS), AtLoc(AtLoc), LParenLoc(LParenLoc),
-    MethodImplKind(MethodImplKind) {
-  }
-
-  void invoke(ParsingFieldDeclarator &FD) override {
-    if (FD.D.getIdentifier() == nullptr) {
-      P.Diag(AtLoc, diag::err_objc_property_requires_field_name)
-        << FD.D.getSourceRange();
-      return;
-    }
-    if (FD.BitfieldSize) {
-      P.Diag(AtLoc, diag::err_objc_property_bitfield)
-        << FD.D.getSourceRange();
-      return;
-    }
-
-    // Install the property declarator into interfaceDecl.
-    IdentifierInfo *SelName =
-      OCDS.getGetterName() ? OCDS.getGetterName() : FD.D.getIdentifier();
-
-    Selector GetterSel =
-      P.PP.getSelectorTable().getNullarySelector(SelName);
-    IdentifierInfo *SetterName = OCDS.getSetterName();
-    Selector SetterSel;
-    if (SetterName)
-      SetterSel = P.PP.getSelectorTable().getSelector(1, &SetterName);
-    else
-      SetterSel =
-        SelectorTable::constructSetterSelector(P.PP.getIdentifierTable(),
-                                               P.PP.getSelectorTable(),
-                                               FD.D.getIdentifier());
-    bool isOverridingProperty = false;
-    Decl *Property =
-      P.Actions.ActOnProperty(P.getCurScope(), AtLoc, LParenLoc,
-                              FD, OCDS,
-                              GetterSel, SetterSel, 
-                              &isOverridingProperty,
-                              MethodImplKind);
-    if (!isOverridingProperty)
-      Props.push_back(Property);
-
-    FD.complete(Property);
-  }
-};
-
-void Parser::ObjCPropertyCallback::anchor() {
-}
-
 ///   objc-interface-decl-list:
 ///     empty
 ///     objc-interface-decl-list objc-property-decl [OBJC2]
@@ -511,12 +445,44 @@ void Parser::ParseObjCInterfaceDeclList(tok::ObjCKeywordKind contextKey,
         ParseObjCPropertyAttribute(OCDS);
       }
 
-      ObjCPropertyCallback Callback(*this, allProperties,
-                                    OCDS, AtLoc, LParenLoc, MethodImplKind);
+      auto ObjCPropertyCallback = [&](ParsingFieldDeclarator &FD) {
+        if (FD.D.getIdentifier() == nullptr) {
+          Diag(AtLoc, diag::err_objc_property_requires_field_name)
+              << FD.D.getSourceRange();
+          return;
+        }
+        if (FD.BitfieldSize) {
+          Diag(AtLoc, diag::err_objc_property_bitfield)
+              << FD.D.getSourceRange();
+          return;
+        }
+
+        // Install the property declarator into interfaceDecl.
+        IdentifierInfo *SelName =
+            OCDS.getGetterName() ? OCDS.getGetterName() : FD.D.getIdentifier();
+
+        Selector GetterSel = PP.getSelectorTable().getNullarySelector(SelName);
+        IdentifierInfo *SetterName = OCDS.getSetterName();
+        Selector SetterSel;
+        if (SetterName)
+          SetterSel = PP.getSelectorTable().getSelector(1, &SetterName);
+        else
+          SetterSel = SelectorTable::constructSetterSelector(
+              PP.getIdentifierTable(), PP.getSelectorTable(),
+              FD.D.getIdentifier());
+        bool isOverridingProperty = false;
+        Decl *Property = Actions.ActOnProperty(
+            getCurScope(), AtLoc, LParenLoc, FD, OCDS, GetterSel, SetterSel,
+            &isOverridingProperty, MethodImplKind);
+        if (!isOverridingProperty)
+          allProperties.push_back(Property);
+
+        FD.complete(Property);
+      };
 
       // Parse all the comma separated declarators.
       ParsingDeclSpec DS(*this);
-      ParseStructDeclaration(DS, Callback);
+      ParseStructDeclaration(DS, ObjCPropertyCallback);
 
       ExpectAndConsume(tok::semi, diag::err_expected_semi_decl_list);
       break;
@@ -1338,35 +1304,22 @@ void Parser::ParseObjCClassInstanceVariables(Decl *interfaceDecl,
                                        Sema::PCC_ObjCInstanceVariableList);
       return cutOffParsing();
     }
-    
-    struct ObjCIvarCallback : FieldCallback {
-      Parser &P;
-      Decl *IDecl;
-      tok::ObjCKeywordKind visibility;
-      SmallVectorImpl<Decl *> &AllIvarDecls;
 
-      ObjCIvarCallback(Parser &P, Decl *IDecl, tok::ObjCKeywordKind V,
-                       SmallVectorImpl<Decl *> &AllIvarDecls) :
-        P(P), IDecl(IDecl), visibility(V), AllIvarDecls(AllIvarDecls) {
-      }
+    auto ObjCIvarCallback = [&](ParsingFieldDeclarator &FD) {
+      Actions.ActOnObjCContainerStartDefinition(interfaceDecl);
+      // Install the declarator into the interface decl.
+      Decl *Field = Actions.ActOnIvar(
+          getCurScope(), FD.D.getDeclSpec().getSourceRange().getBegin(), FD.D,
+          FD.BitfieldSize, visibility);
+      Actions.ActOnObjCContainerFinishDefinition();
+      if (Field)
+        AllIvarDecls.push_back(Field);
+      FD.complete(Field);
+    };
 
-      void invoke(ParsingFieldDeclarator &FD) override {
-        P.Actions.ActOnObjCContainerStartDefinition(IDecl);
-        // Install the declarator into the interface decl.
-        Decl *Field
-          = P.Actions.ActOnIvar(P.getCurScope(),
-                                FD.D.getDeclSpec().getSourceRange().getBegin(),
-                                FD.D, FD.BitfieldSize, visibility);
-        P.Actions.ActOnObjCContainerFinishDefinition();
-        if (Field)
-          AllIvarDecls.push_back(Field);
-        FD.complete(Field);
-      }
-    } Callback(*this, interfaceDecl, visibility, AllIvarDecls);
-    
     // Parse all the comma separated declarators.
     ParsingDeclSpec DS(*this);
-    ParseStructDeclaration(DS, Callback);
+    ParseStructDeclaration(DS, ObjCIvarCallback);
 
     if (Tok.is(tok::semi)) {
       ConsumeToken();
@@ -2071,7 +2024,13 @@ StmtResult Parser::ParseObjCAtStatement(SourceLocation AtLoc) {
 
   if (Tok.isObjCAtKeyword(tok::objc_autoreleasepool))
     return ParseObjCAutoreleasePoolStmt(AtLoc);
-  
+
+  if (Tok.isObjCAtKeyword(tok::objc_import) &&
+      getLangOpts().DebuggerSupport) {
+    SkipUntil(tok::semi);
+    return Actions.ActOnNullStmt(Tok.getLocation());
+  }
+
   ExprResult Res(ParseExpressionWithLeadingAt(AtLoc));
   if (Res.isInvalid()) {
     // If the expression is invalid, skip ahead to the next semicolon. Not
@@ -2217,7 +2176,10 @@ bool Parser::ParseObjCXXMessageReceiver(bool &IsExpr, void *&TypeOrExpr) {
   if (!Actions.isSimpleTypeSpecifier(Tok.getKind())) {
     //   objc-receiver:
     //     expression
-    ExprResult Receiver = ParseExpression();
+    // Make sure any typos in the receiver are corrected or diagnosed, so that
+    // proper recovery can happen. FIXME: Perhaps filter the corrected expr to
+    // only the things that are valid ObjC receivers?
+    ExprResult Receiver = Actions.CorrectDelayedTyposInExpr(ParseExpression());
     if (Receiver.isInvalid())
       return true;
 
@@ -2394,7 +2356,7 @@ ExprResult Parser::ParseObjCMessageExpression() {
   }
   
   // Otherwise, an arbitrary expression can be the receiver of a send.
-  ExprResult Res(ParseExpression());
+  ExprResult Res = Actions.CorrectDelayedTyposInExpr(ParseExpression());
   if (Res.isInvalid()) {
     SkipUntil(tok::r_square, StopAtSemi);
     return Res;
@@ -2446,7 +2408,7 @@ ExprResult
 Parser::ParseObjCMessageExpressionBody(SourceLocation LBracLoc,
                                        SourceLocation SuperLoc,
                                        ParsedType ReceiverType,
-                                       ExprArg ReceiverExpr) {
+                                       Expr *ReceiverExpr) {
   InMessageExpressionRAIIObject InMessage(*this, true);
 
   if (Tok.is(tok::code_completion)) {
@@ -2553,6 +2515,8 @@ Parser::ParseObjCMessageExpressionBody(SourceLocation LBracLoc,
       SourceLocation commaLoc = ConsumeToken(); // Eat the ','.
       ///  Parse the expression after ','
       ExprResult Res(ParseAssignmentExpression());
+      if (Tok.is(tok::colon))
+        Res = Actions.CorrectDelayedTyposInExpr(Res);
       if (Res.isInvalid()) {
         if (Tok.is(tok::colon)) {
           Diag(commaLoc, diag::note_extra_comma_message_arg) <<

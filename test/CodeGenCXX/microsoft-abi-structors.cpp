@@ -46,8 +46,9 @@ B::B() {
 
 struct C {
   virtual ~C() {
-// DTORS:      define linkonce_odr x86_thiscallcc void @"\01??_GC@basic@@UAEPAXI@Z"(%"struct.basic::C"* %this, i32 %should_call_delete)
+// DTORS:      define linkonce_odr x86_thiscallcc i8* @"\01??_GC@basic@@UAEPAXI@Z"(%"struct.basic::C"* %this, i32 %should_call_delete)
 // DTORS:        store i32 %should_call_delete, i32* %[[SHOULD_DELETE_VAR:[0-9a-z._]+]], align 4
+// DTORS:        store i8* %{{.*}}, i8** %[[RETVAL:[0-9a-z._]+]]
 // DTORS:        %[[SHOULD_DELETE_VALUE:[0-9a-z._]+]] = load i32* %[[SHOULD_DELETE_VAR]]
 // DTORS:        call x86_thiscallcc void @"\01??1C@basic@@UAE@XZ"(%"struct.basic::C"* %[[THIS:[0-9a-z]+]])
 // DTORS-NEXT:   %[[CONDITION:[0-9]+]] = icmp eq i32 %[[SHOULD_DELETE_VALUE]], 0
@@ -59,7 +60,8 @@ struct C {
 // DTORS-NEXT:   br label %[[CONTINUE_LABEL]]
 //
 // DTORS:      [[CONTINUE_LABEL]]
-// DTORS-NEXT:   ret void
+// DTORS-NEXT:   %[[RET:.*]] = load i8** %[[RETVAL]]
+// DTORS-NEXT:   ret i8* %[[RET]]
 
 // Check that we do the mangling correctly on x64.
 // DTORS-X64:  @"\01??_GC@basic@@UEAAPEAXI@Z"
@@ -73,19 +75,19 @@ void C::foo() {}
 void check_vftable_offset() {
   C c;
 // The vftable pointer should point at the beginning of the vftable.
-// CHECK: [[THIS_PTR:%[0-9]+]] = bitcast %"struct.basic::C"* {{.*}} to [2 x i8*]**
-// CHECK: store [2 x i8*]* @"\01??_7C@basic@@6B@", [2 x i8*]** [[THIS_PTR]]
+// CHECK: [[THIS_PTR:%[0-9]+]] = bitcast %"struct.basic::C"* {{.*}} to i32 (...)***
+// CHECK: store i32 (...)** bitcast ([2 x i8*]* @"\01??_7C@basic@@6B@" to i32 (...)**), i32 (...)*** [[THIS_PTR]]
 }
 
 void call_complete_dtor(C *obj_ptr) {
 // CHECK: define void @"\01?call_complete_dtor@basic@@YAXPAUC@1@@Z"(%"struct.basic::C"* %obj_ptr)
   obj_ptr->~C();
 // CHECK: %[[OBJ_PTR_VALUE:.*]] = load %"struct.basic::C"** %{{.*}}, align 4
-// CHECK-NEXT: %[[PVTABLE:.*]] = bitcast %"struct.basic::C"* %[[OBJ_PTR_VALUE]] to void (%"struct.basic::C"*, i32)***
-// CHECK-NEXT: %[[VTABLE:.*]] = load void (%"struct.basic::C"*, i32)*** %[[PVTABLE]]
-// CHECK-NEXT: %[[PVDTOR:.*]] = getelementptr inbounds void (%"struct.basic::C"*, i32)** %[[VTABLE]], i64 0
-// CHECK-NEXT: %[[VDTOR:.*]] = load void (%"struct.basic::C"*, i32)** %[[PVDTOR]]
-// CHECK-NEXT: call x86_thiscallcc void %[[VDTOR]](%"struct.basic::C"* %[[OBJ_PTR_VALUE]], i32 0)
+// CHECK-NEXT: %[[PVTABLE:.*]] = bitcast %"struct.basic::C"* %[[OBJ_PTR_VALUE]] to i8* (%"struct.basic::C"*, i32)***
+// CHECK-NEXT: %[[VTABLE:.*]] = load i8* (%"struct.basic::C"*, i32)*** %[[PVTABLE]]
+// CHECK-NEXT: %[[PVDTOR:.*]] = getelementptr inbounds i8* (%"struct.basic::C"*, i32)** %[[VTABLE]], i64 0
+// CHECK-NEXT: %[[VDTOR:.*]] = load i8* (%"struct.basic::C"*, i32)** %[[PVDTOR]]
+// CHECK-NEXT: call x86_thiscallcc i8* %[[VDTOR]](%"struct.basic::C"* %[[OBJ_PTR_VALUE]], i32 0)
 // CHECK-NEXT: ret void
 }
 
@@ -96,11 +98,27 @@ void call_deleting_dtor(C *obj_ptr) {
 // CHECK:      br i1 {{.*}}, label %[[DELETE_NULL:.*]], label %[[DELETE_NOTNULL:.*]]
 
 // CHECK:      [[DELETE_NOTNULL]]
-// CHECK-NEXT:   %[[PVTABLE:.*]] = bitcast %"struct.basic::C"* %[[OBJ_PTR_VALUE]] to void (%"struct.basic::C"*, i32)***
-// CHECK-NEXT:   %[[VTABLE:.*]] = load void (%"struct.basic::C"*, i32)*** %[[PVTABLE]]
-// CHECK-NEXT:   %[[PVDTOR:.*]] = getelementptr inbounds void (%"struct.basic::C"*, i32)** %[[VTABLE]], i64 0
-// CHECK-NEXT:   %[[VDTOR:.*]] = load void (%"struct.basic::C"*, i32)** %[[PVDTOR]]
-// CHECK-NEXT:   call x86_thiscallcc void %[[VDTOR]](%"struct.basic::C"* %[[OBJ_PTR_VALUE]], i32 1)
+// CHECK-NEXT:   %[[PVTABLE:.*]] = bitcast %"struct.basic::C"* %[[OBJ_PTR_VALUE]] to i8* (%"struct.basic::C"*, i32)***
+// CHECK-NEXT:   %[[VTABLE:.*]] = load i8* (%"struct.basic::C"*, i32)*** %[[PVTABLE]]
+// CHECK-NEXT:   %[[PVDTOR:.*]] = getelementptr inbounds i8* (%"struct.basic::C"*, i32)** %[[VTABLE]], i64 0
+// CHECK-NEXT:   %[[VDTOR:.*]] = load i8* (%"struct.basic::C"*, i32)** %[[PVDTOR]]
+// CHECK-NEXT:   call x86_thiscallcc i8* %[[VDTOR]](%"struct.basic::C"* %[[OBJ_PTR_VALUE]], i32 1)
+// CHECK:      ret void
+}
+
+void call_deleting_dtor_and_global_delete(C *obj_ptr) {
+// CHECK: define void @"\01?call_deleting_dtor_and_global_delete@basic@@YAXPAUC@1@@Z"(%"struct.basic::C"* %obj_ptr)
+  ::delete obj_ptr;
+// CHECK:      %[[OBJ_PTR_VALUE:.*]] = load %"struct.basic::C"** %{{.*}}, align 4
+// CHECK:      br i1 {{.*}}, label %[[DELETE_NULL:.*]], label %[[DELETE_NOTNULL:.*]]
+
+// CHECK:      [[DELETE_NOTNULL]]
+// CHECK-NEXT:   %[[PVTABLE:.*]] = bitcast %"struct.basic::C"* %[[OBJ_PTR_VALUE]] to i8* (%"struct.basic::C"*, i32)***
+// CHECK-NEXT:   %[[VTABLE:.*]] = load i8* (%"struct.basic::C"*, i32)*** %[[PVTABLE]]
+// CHECK-NEXT:   %[[PVDTOR:.*]] = getelementptr inbounds i8* (%"struct.basic::C"*, i32)** %[[VTABLE]], i64 0
+// CHECK-NEXT:   %[[VDTOR:.*]] = load i8* (%"struct.basic::C"*, i32)** %[[PVDTOR]]
+// CHECK-NEXT:   %[[CALL:.*]] = call x86_thiscallcc i8* %[[VDTOR]](%"struct.basic::C"* %[[OBJ_PTR_VALUE]], i32 0)
+// CHECK-NEXT:   call void @"\01??3@YAXPAX@Z"(i8* %[[CALL]])
 // CHECK:      ret void
 }
 
@@ -153,13 +171,13 @@ C::~C() {
 void foo() {
   C c;
 }
-// DTORS2-LABEL: define linkonce_odr x86_thiscallcc void @"\01??_EC@dtor_in_second_nvbase@@W3AEPAXI@Z"
+// DTORS2-LABEL: define linkonce_odr x86_thiscallcc i8* @"\01??_EC@dtor_in_second_nvbase@@W3AEPAXI@Z"
 // DTORS2:       (%"struct.dtor_in_second_nvbase::C"* %this, i32 %should_call_delete)
 //      Do an adjustment from B* to C*.
 // DTORS2:   getelementptr i8* %{{.*}}, i32 -4
 // DTORS2:   bitcast i8* %{{.*}} to %"struct.dtor_in_second_nvbase::C"*
-// DTORS2:   call x86_thiscallcc void @"\01??_GC@dtor_in_second_nvbase@@UAEPAXI@Z"
-// DTORS2:   ret void
+// DTORS2:   %[[CALL:.*]] = call x86_thiscallcc i8* @"\01??_GC@dtor_in_second_nvbase@@UAEPAXI@Z"
+// DTORS2:   ret i8* %[[CALL]]
 
 }
 
@@ -229,8 +247,8 @@ C::C() {
   // CHECK: [[INIT_VBASES]]
   // CHECK-NEXT: %[[this_i8:.*]] = bitcast %"struct.constructors::C"* %{{.*}} to i8*
   // CHECK-NEXT: %[[vbptr_off:.*]] = getelementptr inbounds i8* %[[this_i8]], i64 0
-  // CHECK-NEXT: %[[vbptr:.*]] = bitcast i8* %[[vbptr_off]] to [2 x i32]**
-  // CHECK-NEXT: store [2 x i32]* @"\01??_8C@constructors@@7B@", [2 x i32]** %[[vbptr]]
+  // CHECK-NEXT: %[[vbptr:.*]] = bitcast i8* %[[vbptr_off]] to i32**
+  // CHECK-NEXT: store i32* getelementptr inbounds ([2 x i32]* @"\01??_8C@constructors@@7B@", i32 0, i32 0), i32** %[[vbptr]]
   // CHECK-NEXT: bitcast %"struct.constructors::C"* %{{.*}} to i8*
   // CHECK-NEXT: getelementptr inbounds i8* %{{.*}}, i64 4
   // CHECK-NEXT: bitcast i8* %{{.*}} to %"struct.constructors::A"*
@@ -264,8 +282,8 @@ D::D() {
   // CHECK: [[INIT_VBASES]]
   // CHECK-NEXT: %[[this_i8:.*]] = bitcast %"struct.constructors::D"* %{{.*}} to i8*
   // CHECK-NEXT: %[[vbptr_off:.*]] = getelementptr inbounds i8* %[[this_i8]], i64 0
-  // CHECK-NEXT: %[[vbptr:.*]] = bitcast i8* %[[vbptr_off]] to [2 x i32]**
-  // CHECK-NEXT: store [2 x i32]* @"\01??_8D@constructors@@7B@", [2 x i32]** %[[vbptr]]
+  // CHECK-NEXT: %[[vbptr:.*]] = bitcast i8* %[[vbptr_off]] to i32**
+  // CHECK-NEXT: store i32* getelementptr inbounds ([2 x i32]* @"\01??_8D@constructors@@7B@", i32 0, i32 0), i32** %[[vbptr]]
   // CHECK-NEXT: bitcast %"struct.constructors::D"* %{{.*}} to i8*
   // CHECK-NEXT: getelementptr inbounds i8* %{{.*}}, i64 4
   // CHECK-NEXT: bitcast i8* %{{.*}} to %"struct.constructors::A"*
@@ -291,11 +309,11 @@ E::E() {
   // CHECK: [[INIT_VBASES]]
   // CHECK-NEXT: %[[this_i8:.*]] = bitcast %"struct.constructors::E"* %{{.*}} to i8*
   // CHECK-NEXT: %[[offs:.*]] = getelementptr inbounds i8* %[[this_i8]], i64 0
-  // CHECK-NEXT: %[[vbptr_E:.*]] = bitcast i8* %[[offs]] to [3 x i32]**
-  // CHECK-NEXT: store [3 x i32]* @"\01??_8E@constructors@@7B01@@", [3 x i32]** %[[vbptr_E]]
+  // CHECK-NEXT: %[[vbptr_E:.*]] = bitcast i8* %[[offs]] to i32**
+  // CHECK-NEXT: store i32* getelementptr inbounds ([3 x i32]* @"\01??_8E@constructors@@7B01@@", i32 0, i32 0), i32** %[[vbptr_E]]
   // CHECK-NEXT: %[[offs:.*]] = getelementptr inbounds i8* %[[this_i8]], i64 4
-  // CHECK-NEXT: %[[vbptr_C:.*]] = bitcast i8* %[[offs]] to [2 x i32]**
-  // CHECK-NEXT: store [2 x i32]* @"\01??_8E@constructors@@7BC@1@@", [2 x i32]** %[[vbptr_C]]
+  // CHECK-NEXT: %[[vbptr_C:.*]] = bitcast i8* %[[offs]] to i32**
+  // CHECK-NEXT: store i32* getelementptr inbounds ([2 x i32]* @"\01??_8E@constructors@@7BC@1@@", i32 0, i32 0), i32** %[[vbptr_C]]
   // CHECK-NEXT: bitcast %"struct.constructors::E"* %{{.*}} to i8*
   // CHECK-NEXT: getelementptr inbounds i8* %{{.*}}, i64 4
   // CHECK-NEXT: bitcast i8* %{{.*}} to %"struct.constructors::A"*
@@ -436,7 +454,7 @@ struct A {
 void *getA() {
   return (void*)new A();
 }
-// CHECK: define internal x86_thiscallcc void @"\01??_GA@?A@@UAEPAXI@Z"
+// CHECK: define internal x86_thiscallcc i8* @"\01??_GA@?A@@UAEPAXI@Z"
 // CHECK:               (%"struct.(anonymous namespace)::A"* %this, i32 %should_call_delete)
 // CHECK: define internal x86_thiscallcc void @"\01??1A@?A@@UAE@XZ"
 // CHECK:               (%"struct.(anonymous namespace)::A"* %this)
