@@ -399,8 +399,11 @@ bcm_sdhci_write_2(device_t dev, struct sdhci_slot *slot, bus_size_t off, uint16_
 	val32 |= (val << (off & 3)*8);
 	if (off == SDHCI_TRANSFER_MODE)
 		sc->cmd_and_mode = val32;
-	else
+	else {
 		WR4(sc, off & ~3, val32);
+		if (off == SDHCI_COMMAND_FLAGS)
+			sc->cmd_and_mode = val32;
+	}
 }
 
 static void
