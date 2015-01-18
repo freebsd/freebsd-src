@@ -368,14 +368,13 @@ vm_get_register(struct vmctx *ctx, int vcpu, int reg, uint64_t *ret_val)
 }
 
 int
-vm_run(struct vmctx *ctx, int vcpu, uint64_t rip, struct vm_exit *vmexit)
+vm_run(struct vmctx *ctx, int vcpu, struct vm_exit *vmexit)
 {
 	int error;
 	struct vm_run vmrun;
 
 	bzero(&vmrun, sizeof(vmrun));
 	vmrun.cpuid = vcpu;
-	vmrun.rip = rip;
 
 	error = ioctl(ctx->fd, VM_RUN, &vmrun);
 	bcopy(&vmrun.vm_exit, vmexit, sizeof(struct vm_exit));
@@ -399,33 +398,19 @@ vm_reinit(struct vmctx *ctx)
 	return (ioctl(ctx->fd, VM_REINIT, 0));
 }
 
-static int
-vm_inject_exception_real(struct vmctx *ctx, int vcpu, int vector,
-    int error_code, int error_code_valid)
+int
+vm_inject_exception(struct vmctx *ctx, int vcpu, int vector, int errcode_valid,
+    uint32_t errcode, int restart_instruction)
 {
 	struct vm_exception exc;
 
-	bzero(&exc, sizeof(exc));
 	exc.cpuid = vcpu;
 	exc.vector = vector;
-	exc.error_code = error_code;
-	exc.error_code_valid = error_code_valid;
+	exc.error_code = errcode;
+	exc.error_code_valid = errcode_valid;
+	exc.restart_instruction = restart_instruction;
 
 	return (ioctl(ctx->fd, VM_INJECT_EXCEPTION, &exc));
-}
-
-int
-vm_inject_exception(struct vmctx *ctx, int vcpu, int vector)
-{
-
-	return (vm_inject_exception_real(ctx, vcpu, vector, 0, 0));
-}
-
-int
-vm_inject_exception2(struct vmctx *ctx, int vcpu, int vector, int errcode)
-{
-
-	return (vm_inject_exception_real(ctx, vcpu, vector, errcode, 1));
 }
 
 int
@@ -1197,4 +1182,12 @@ vm_rtc_gettime(struct vmctx *ctx, time_t *secs)
 	if (error == 0)
 		*secs = rtctime.secs;
 	return (error);
+}
+
+int
+vm_restart_instruction(void *arg, int vcpu)
+{
+	struct vmctx *ctx = arg;
+
+	return (ioctl(ctx->fd, VM_RESTART_INSTRUCTION, &vcpu));
 }

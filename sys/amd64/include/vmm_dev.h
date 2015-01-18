@@ -54,7 +54,6 @@ struct vm_seg_desc {			/* data or code segment */
 
 struct vm_run {
 	int		cpuid;
-	uint64_t	rip;		/* start running here */
 	struct vm_exit	vm_exit;
 };
 
@@ -238,6 +237,7 @@ enum {
 	IOCNUM_LAPIC_MSI = 36,
 	IOCNUM_LAPIC_LOCAL_IRQ = 37,
 	IOCNUM_IOAPIC_PINCOUNT = 38,
+	IOCNUM_RESTART_INSTRUCTION = 39,
 
 	/* PCI pass-thru */
 	IOCNUM_BIND_PPTDEV = 40,
@@ -360,4 +360,6 @@ enum {
 	_IOW('v', IOCNUM_RTC_SETTIME, struct vm_rtc_time)
 #define VM_RTC_GETTIME	\
 	_IOR('v', IOCNUM_RTC_GETTIME, struct vm_rtc_time)
+#define	VM_RESTART_INSTRUCTION \
+	_IOW('v', IOCNUM_RESTART_INSTRUCTION, int)
 #endif
