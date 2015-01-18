@@ -96,7 +96,8 @@ dmar_ensure_ctx_page(struct dmar_unit *dmar, int bus)
 	re += bus;
 	dmar_pte_store(&re->r1, DMAR_ROOT_R1_P | (DMAR_ROOT_R1_CTP_MASK &
 	    VM_PAGE_TO_PHYS(ctxm)));
-	dmar_unmap_pgtbl(sf, DMAR_IS_COHERENT(dmar));
+	dmar_flush_root_to_ram(dmar, re);
+	dmar_unmap_pgtbl(sf);
 	TD_PINNED_ASSERT;
 }
 
@@ -153,6 +154,7 @@ ctx_id_entry_init(struct dmar_ctx *ctx, dmar_ctx_entry_t *ctxp)
 		    (DMAR_CTX1_ASR_MASK & VM_PAGE_TO_PHYS(ctx_root)) |
 		    DMAR_CTX1_P);
 	}
+	dmar_flush_ctx_to_ram(unit, ctxp);
 }
 
 static int
@@ -358,7 +360,7 @@ dmar_get_ctx(struct dmar_unit *dmar, device_t dev, int bus, int slot, int func,
 			ctx->domain = alloc_unrl(dmar->domids);
 			if (ctx->domain == -1) {
 				DMAR_UNLOCK(dmar);
-				dmar_unmap_pgtbl(sf, true);
+				dmar_unmap_pgtbl(sf);
 				dmar_ctx_dtr(ctx, true, true);
 				TD_PINNED_ASSERT;
 				return (NULL);
@@ -383,7 +385,7 @@ dmar_get_ctx(struct dmar_unit *dmar, device_t dev, int bus, int slot, int func,
 		} else {
 			dmar_ctx_dtr(ctx1, true, true);
 		}
-		dmar_unmap_pgtbl(sf, DMAR_IS_COHERENT(dmar));
+		dmar_unmap_pgtbl(sf);
 	}
 	ctx->refs++;
 	if ((ctx->flags & DMAR_CTX_RMRR) != 0)
@@ -474,7 +476,7 @@ dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx)
 	if (ctx->refs > 1) {
 		ctx->refs--;
 		DMAR_UNLOCK(dmar);
-		dmar_unmap_pgtbl(sf, DMAR_IS_COHERENT(dmar));
+		dmar_unmap_pgtbl(sf);
 		TD_PINNED_ASSERT;
 		return;
 	}
@@ -490,6 +492,7 @@ dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx)
 	 */
 	dmar_pte_clear(&ctxp->ctx1);
 	ctxp->ctx2 = 0;
+	dmar_flush_ctx_to_ram(dmar, ctxp);
 	dmar_inv_ctx_glob(dmar);
 	if ((dmar->hw_ecap & DMAR_ECAP_DI) != 0) {
 		if (dmar->qi_enabled)
@@ -507,7 +510,7 @@ dmar_free_ctx_locked(struct dmar_unit *dmar, struct dmar_ctx *ctx)
 	taskqueue_drain(dmar->delayed_taskqueue, &ctx->unload_task);
 	KASSERT(TAILQ_EMPTY(&ctx->unload_entries),
 	    ("unfinished unloads %p", ctx));
-	dmar_unmap_pgtbl(sf, DMAR_IS_COHERENT(dmar));
+	dmar_unmap_pgtbl(sf);
 	free_unr(dmar->domids, ctx->domain);
 	dmar_ctx_dtr(ctx, true, true);
 	TD_PINNED_ASSERT;
