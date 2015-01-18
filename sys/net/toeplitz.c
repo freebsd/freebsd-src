@@ -29,8 +29,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
-#include <netinet/in_rss.h>
-#include <netinet/toeplitz.h>
+#include <net/rss_config.h>
+#include <net/toeplitz.h>
 
 #include <sys/systm.h>
 
