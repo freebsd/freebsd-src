@@ -3,8 +3,8 @@
 ; RUN: llc -mtriple=mipsel-linux-gnu -march=mipsel \
 ; RUN:     -mcpu=mips16 -relocation-model=pic < %s | FileCheck %s
 
-define void @bar_sf() #0 {
-; CHECK: bar_sf:
+define void @bar_hf() #0 {
+; CHECK: bar_hf:
 entry:
   %call1 = call float @foo(float 1.000000e+00)
 ; CHECK: lw $2, %call16(foo)($3)
@@ -12,12 +12,12 @@ entry:
   ret void
 }
 
-define void @bar_hf() #1 {
-; CHECK: bar_hf:
+define void @bar_sf() #1 {
+; CHECK: bar_sf:
 entry:
   %call1 = call float @foo(float 1.000000e+00)
-; CHECK: lw $2, %call16(foo)($3)
-; CHECK: lw $5, %got(__mips16_call_stub_sf_1)($3)
+; CHECK: lw $3, %call16(foo)($2)
+; CHECK-NOT: lw $5, %got(__mips16_call_stub_sf_1)($3)
   ret void
 }
 

@@ -146,7 +146,7 @@ to avoid using expensive C++ runtime information.
 
 .. code-block:: c++
 
-      virtual bool runOnFunction(Function &F) {
+      bool runOnFunction(Function &F) override {
         errs() << "Hello: ";
         errs().write_escaped(F.getName()) << "\n";
         return false;
@@ -194,7 +194,7 @@ As a whole, the ``.cpp`` file looks like:
         static char ID;
         Hello() : FunctionPass(ID) {}
 
-        virtual bool runOnFunction(Function &F) {
+        bool runOnFunction(Function &F) override {
           errs() << "Hello: ";
           errs().write_escaped(F.getName()) << '\n';
           return false;
@@ -434,9 +434,8 @@ The ``doFinalization(CallGraph &)`` method
   virtual bool doFinalization(CallGraph &CG);
 
 The ``doFinalization`` method is an infrequently used method that is called
-when the pass framework has finished calling :ref:`runOnFunction
-<writing-an-llvm-pass-runOnFunction>` for every function in the program being
-compiled.
+when the pass framework has finished calling :ref:`runOnSCC
+<writing-an-llvm-pass-runOnSCC>` for every SCC in the program being compiled.
 
 .. _writing-an-llvm-pass-FunctionPass:
 
@@ -456,7 +455,7 @@ To be explicit, ``FunctionPass`` subclasses are not allowed to:
 #. Inspect or modify a ``Function`` other than the one currently being processed.
 #. Add or remove ``Function``\ s from the current ``Module``.
 #. Add or remove global variables from the current ``Module``.
-#. Maintain state across invocations of:ref:`runOnFunction
+#. Maintain state across invocations of :ref:`runOnFunction
    <writing-an-llvm-pass-runOnFunction>` (including global data).
 
 Implementing a ``FunctionPass`` is usually straightforward (See the :ref:`Hello
@@ -1163,7 +1162,7 @@ all!  To fix this, we need to add the following :ref:`getAnalysisUsage
 .. code-block:: c++
 
   // We don't modify the program, so we preserve all analyses
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     AU.setPreservesAll();
   }
 

@@ -1,4 +1,4 @@
-; RUN: llc -march=r600 -mcpu=SI -verify-machineinstrs < %s | FileCheck -check-prefix=SI -check-prefix=FUNC %s
+; RUN: llc -march=amdgcn -mcpu=SI -verify-machineinstrs < %s | FileCheck -check-prefix=SI -check-prefix=FUNC %s
 ; RUN: llc -march=r600 -mcpu=cayman -verify-machineinstrs < %s | FileCheck -check-prefix=CM -check-prefix=FUNC %s
 ; RUN: llc -march=r600 -mcpu=redwood -verify-machineinstrs < %s | FileCheck -check-prefix=R600 -check-prefix=FUNC %s
 ; XUN: llc -march=r600 -mcpu=r600 -verify-machineinstrs < %s | FileCheck -check-prefix=R600 -check-prefix=FUNC %s
@@ -8,8 +8,8 @@
 
 declare i32 @llvm.AMDGPU.imad24(i32, i32, i32) nounwind readnone
 
-; FUNC-LABEL: @test_imad24
-; SI: V_MAD_I32_I24
+; FUNC-LABEL: {{^}}test_imad24:
+; SI: v_mad_i32_i24
 ; CM: MULADD_INT24
 ; R600: MULLO_INT
 ; R600: ADD_INT

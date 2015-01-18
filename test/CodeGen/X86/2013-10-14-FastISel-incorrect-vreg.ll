@@ -6,7 +6,7 @@
 ; we may reference variables that were not live across basic blocks
 ; resulting in undefined virtual registers.
 ;
-; In this example, this is illustrated by a the spill/reload of the
+; In this example, this is illustrated by a spill/reload of the
 ; LOADED_PTR_SLOT.
 ;
 ; Before this patch, the compiler was accessing two different spill
@@ -41,7 +41,7 @@ entry:
     i1 false, label %label_end
   ]
 default:
-  unreachable
+  br label %label_end
 
 label_true:
   br label %label_end
@@ -80,7 +80,7 @@ entry:
     i1 false, label %label_end
   ]
 default:
-  unreachable
+  br label %label_end
 
 label_true:
   br label %label_end
@@ -119,7 +119,7 @@ entry:
     i1 false, label %label_end
   ]
 default:
-  unreachable
+  br label %label_end
 
 label_true:
   br label %label_end

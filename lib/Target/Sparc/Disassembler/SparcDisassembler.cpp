@@ -16,7 +16,6 @@
 #include "SparcSubtarget.h"
 #include "llvm/MC/MCDisassembler.h"
 #include "llvm/MC/MCFixedLenDisassembler.h"
-#include "llvm/Support/MemoryObject.h"
 #include "llvm/Support/TargetRegistry.h"
 
 using namespace llvm;
@@ -27,23 +26,17 @@ typedef MCDisassembler::DecodeStatus DecodeStatus;
 
 namespace {
 
-/// SparcDisassembler - a disassembler class for Sparc.
+/// A disassembler class for Sparc.
 class SparcDisassembler : public MCDisassembler {
 public:
-  /// Constructor     - Initializes the disassembler.
-  ///
-  SparcDisassembler(const MCSubtargetInfo &STI, MCContext &Ctx) :
-    MCDisassembler(STI, Ctx)
-  {}
+  SparcDisassembler(const MCSubtargetInfo &STI, MCContext &Ctx)
+      : MCDisassembler(STI, Ctx) {}
   virtual ~SparcDisassembler() {}
 
-  /// getInstruction - See MCDisassembler.
-  DecodeStatus getInstruction(MCInst &instr,
-                              uint64_t &size,
-                              const MemoryObject &region,
-                              uint64_t address,
-                              raw_ostream &vStream,
-                              raw_ostream &cStream) const override;
+  DecodeStatus getInstruction(MCInst &Instr, uint64_t &Size,
+                              ArrayRef<uint8_t> Bytes, uint64_t Address,
+                              raw_ostream &VStream,
+                              raw_ostream &CStream) const override;
 };
 
 }
@@ -213,47 +206,37 @@ static DecodeStatus DecodeSWAP(MCInst &Inst, unsigned insn, uint64_t Address,
 
 #include "SparcGenDisassemblerTables.inc"
 
-/// readInstruction - read four bytes from the MemoryObject
-/// and return 32 bit word.
-static DecodeStatus readInstruction32(const MemoryObject &region,
-                                      uint64_t address,
-                                      uint64_t &size,
-                                      uint32_t &insn) {
-  uint8_t Bytes[4];
-
+/// Read four bytes from the ArrayRef and return 32 bit word.
+static DecodeStatus readInstruction32(ArrayRef<uint8_t> Bytes, uint64_t Address,
+                                      uint64_t &Size, uint32_t &Insn) {
   // We want to read exactly 4 Bytes of data.
-  if (region.readBytes(address, 4, Bytes) == -1) {
-    size = 0;
+  if (Bytes.size() < 4) {
+    Size = 0;
     return MCDisassembler::Fail;
   }
 
   // Encoded as a big-endian 32-bit word in the stream.
-  insn = (Bytes[3] <<  0) |
-    (Bytes[2] <<  8) |
-    (Bytes[1] << 16) |
-    (Bytes[0] << 24);
+  Insn =
+      (Bytes[3] << 0) | (Bytes[2] << 8) | (Bytes[1] << 16) | (Bytes[0] << 24);
 
   return MCDisassembler::Success;
 }
 
-
-DecodeStatus
-SparcDisassembler::getInstruction(MCInst &instr,
-                                 uint64_t &Size,
-                                 const MemoryObject &Region,
-                                 uint64_t Address,
-                                 raw_ostream &vStream,
-                                 raw_ostream &cStream) const {
+DecodeStatus SparcDisassembler::getInstruction(MCInst &Instr, uint64_t &Size,
+                                               ArrayRef<uint8_t> Bytes,
+                                               uint64_t Address,
+                                               raw_ostream &VStream,
+                                               raw_ostream &CStream) const {
   uint32_t Insn;
 
-  DecodeStatus Result = readInstruction32(Region, Address, Size, Insn);
+  DecodeStatus Result = readInstruction32(Bytes, Address, Size, Insn);
   if (Result == MCDisassembler::Fail)
     return MCDisassembler::Fail;
 
 
   // Calling the auto-generated decoder function.
-  Result = decodeInstruction(DecoderTableSparc32, instr, Insn, Address,
-                             this, STI);
+  Result =
+      decodeInstruction(DecoderTableSparc32, Instr, Insn, Address, this, STI);
 
   if (Result != MCDisassembler::Fail) {
     Size = 4;

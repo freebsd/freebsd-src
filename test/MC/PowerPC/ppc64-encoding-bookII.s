@@ -8,6 +8,10 @@
 # CHECK-LE: icbi 2, 3                       # encoding: [0xac,0x1f,0x02,0x7c]
             icbi 2, 3
 
+# CHECK-BE: icbt 0, 5, 31                   # encoding: [0x7c,0x05,0xf8,0x2c]
+# CHECK-LE: icbt 0, 5, 31                   # encoding: [0x2c,0xf8,0x05,0x7c]
+            icbt 0, 5, 31
+
 # FIXME:    dcbt 2, 3, 10
 # CHECK-BE: dcbt 2, 3                       # encoding: [0x7c,0x02,0x1a,0x2c]
 # CHECK-LE: dcbt 2, 3                       # encoding: [0x2c,0x1a,0x02,0x7c]
@@ -53,6 +57,11 @@
 # CHECK-BE: wait 2                          # encoding: [0x7c,0x40,0x00,0x7c]
 # CHECK-LE: wait 2                          # encoding: [0x7c,0x00,0x40,0x7c]
             wait 2
+# CHECK-BE: mbar 1                          # encoding: [0x7c,0x20,0x06,0xac]
+# CHECK-LE: mbar 1                          # encoding: [0xac,0x06,0x20,0x7c]
+            mbar 1
+# CHECK-BE: mbar 0
+            mbar
 
 # Extended mnemonics
 
@@ -101,7 +110,16 @@
 # CHECK-BE: mftb 2, 268                     # encoding: [0x7c,0x4c,0x42,0xe6]
 # CHECK-LE: mftb 2, 268                     # encoding: [0xe6,0x42,0x4c,0x7c]
             mftb 2
+# CHECK-BE: mftb 2, 268                     # encoding: [0x7c,0x4c,0x42,0xe6]
+# CHECK-LE: mftb 2, 268                     # encoding: [0xe6,0x42,0x4c,0x7c]
+            mftbl 2
 # CHECK-BE: mftb 2, 269                     # encoding: [0x7c,0x4d,0x42,0xe6]
 # CHECK-LE: mftb 2, 269                     # encoding: [0xe6,0x42,0x4d,0x7c]
             mftbu 2
 
+# CHECK-BE: mtspr 284, 3                    # encoding: [0x7c,0x7c,0x43,0xa6]
+# CHECK-LE: mtspr 284, 3                    # encoding: [0xa6,0x43,0x7c,0x7c]
+            mttbl 3
+# CHECK-BE: mtspr 285, 3                    # encoding: [0x7c,0x7d,0x43,0xa6]
+# CHECK-LE: mtspr 285, 3                    # encoding: [0xa6,0x43,0x7d,0x7c]
+            mttbu 3

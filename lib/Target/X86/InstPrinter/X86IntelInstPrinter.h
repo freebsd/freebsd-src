@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86_INTEL_INST_PRINTER_H
-#define X86_INTEL_INST_PRINTER_H
+#ifndef LLVM_LIB_TARGET_X86_INSTPRINTER_X86INTELINSTPRINTER_H
+#define LLVM_LIB_TARGET_X86_INSTPRINTER_X86INTELINSTPRINTER_H
 
 #include "llvm/MC/MCInstPrinter.h"
 #include "llvm/Support/raw_ostream.h"
@@ -44,11 +44,15 @@ public:
   void printDstIdx(const MCInst *MI, unsigned OpNo, raw_ostream &O);
   void printRoundingControl(const MCInst *MI, unsigned Op, raw_ostream &OS);
 
+  void printanymem(const MCInst *MI, unsigned OpNo, raw_ostream &O) {
+    printMemReference(MI, OpNo, O);
+  }
+
   void printopaquemem(const MCInst *MI, unsigned OpNo, raw_ostream &O) {
     O << "opaque ptr ";
     printMemReference(MI, OpNo, O);
   }
-  
+
   void printi8mem(const MCInst *MI, unsigned OpNo, raw_ostream &O) {
     O << "byte ptr ";
     printMemReference(MI, OpNo, O);
@@ -152,7 +156,7 @@ public:
     printMemOffset(MI, OpNo, O);
   }
 };
-  
+
 }
 
 #endif

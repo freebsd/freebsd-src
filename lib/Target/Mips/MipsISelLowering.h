@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MipsISELLOWERING_H
-#define MipsISELLOWERING_H
+#ifndef LLVM_LIB_TARGET_MIPS_MIPSISELLOWERING_H
+#define LLVM_LIB_TARGET_MIPS_MIPSISELLOWERING_H
 
 #include "MCTargetDesc/MipsBaseInfo.h"
 #include "Mips.h"
@@ -215,10 +215,10 @@ namespace llvm {
   class MipsTargetLowering : public TargetLowering  {
     bool isMicroMips;
   public:
-    explicit MipsTargetLowering(MipsTargetMachine &TM,
+    explicit MipsTargetLowering(const MipsTargetMachine &TM,
                                 const MipsSubtarget &STI);
 
-    static const MipsTargetLowering *create(MipsTargetMachine &TM,
+    static const MipsTargetLowering *create(const MipsTargetMachine &TM,
                                             const MipsSubtarget &STI);
 
     /// createFastISel - This method returns a target specific FastISel object,
@@ -261,6 +261,8 @@ namespace llvm {
     };
 
     void HandleByVal(CCState *, unsigned &, unsigned) const override;
+
+    unsigned getRegisterByName(const char* RegName, EVT VT) const override;
 
   protected:
     SDValue getGlobalReg(SelectionDAG &DAG, EVT Ty) const;
@@ -332,6 +334,21 @@ namespace llvm {
                          DAG.getNode(MipsISD::Lo, DL, Ty, Lo));
     }
 
+    // This method creates the following nodes, which are necessary for
+    // computing a symbol's address using gp-relative addressing:
+    //
+    // (add $gp, %gp_rel(sym))
+    template<class NodeTy>
+    SDValue getAddrGPRel(NodeTy *N, EVT Ty, SelectionDAG &DAG) const {
+      SDLoc DL(N);
+      assert(Ty == MVT::i32);
+      SDValue GPRel = getTargetNode(N, Ty, DAG, MipsII::MO_GPREL);
+      return DAG.getNode(ISD::ADD, DL, Ty,
+                         DAG.getRegister(Mips::GP, Ty),
+                         DAG.getNode(MipsISD::GPRel, DL, DAG.getVTList(Ty),
+                                     GPRel));
+    }
+
     /// This function fills Ops, which is the list of operands that will later
     /// be used when a function call node is created. It also generates
     /// copyToReg nodes to set up argument registers.
@@ -339,7 +356,8 @@ namespace llvm {
     getOpndList(SmallVectorImpl<SDValue> &Ops,
                 std::deque< std::pair<unsigned, SDValue> > &RegsToPass,
                 bool IsPICCall, bool GlobalOrExternal, bool InternalLinkage,
-                CallLoweringInfo &CLI, SDValue Callee, SDValue Chain) const;
+                bool IsCallReloc, CallLoweringInfo &CLI, SDValue Callee,
+                SDValue Chain) const;
 
   protected:
     SDValue lowerLOAD(SDValue Op, SelectionDAG &DAG) const;
@@ -470,7 +488,7 @@ namespace llvm {
     /// This function parses registers that appear in inline-asm constraints.
     /// It returns pair (0, 0) on failure.
     std::pair<unsigned, const TargetRegisterClass *>
-    parseRegForInlineAsmConstraint(const StringRef &C, MVT VT) const;
+    parseRegForInlineAsmConstraint(StringRef C, MVT VT) const;
 
     std::pair<unsigned, const TargetRegisterClass*>
               getRegForInlineAsmConstraint(const std::string &Constraint,
@@ -518,13 +536,18 @@ namespace llvm {
     MachineBasicBlock *emitAtomicCmpSwapPartword(MachineInstr *MI,
                                   MachineBasicBlock *BB, unsigned Size) const;
     MachineBasicBlock *emitSEL_D(MachineInstr *MI, MachineBasicBlock *BB) const;
+    MachineBasicBlock *emitPseudoSELECT(MachineInstr *MI,
+                                        MachineBasicBlock *BB, bool isFPCmp,
+                                        unsigned Opc) const;
   };
 
   /// Create MipsTargetLowering objects.
   const MipsTargetLowering *
-  createMips16TargetLowering(MipsTargetMachine &TM, const MipsSubtarget &STI);
+  createMips16TargetLowering(const MipsTargetMachine &TM,
+                             const MipsSubtarget &STI);
   const MipsTargetLowering *
-  createMipsSETargetLowering(MipsTargetMachine &TM, const MipsSubtarget &STI);
+  createMipsSETargetLowering(const MipsTargetMachine &TM,
+                             const MipsSubtarget &STI);
 
   namespace Mips {
     FastISel *createFastISel(FunctionLoweringInfo &funcInfo,
@@ -532,4 +555,4 @@ namespace llvm {
   }
 }
 
-#endif // MipsISELLOWERING_H
+#endif

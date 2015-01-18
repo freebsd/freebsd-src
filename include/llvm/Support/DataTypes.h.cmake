@@ -101,6 +101,13 @@ typedef signed int ssize_t;
 #define PRIu64 "I64u"
 #define PRIx64 "I64x"
 #define PRIX64 "I64X"
+
+#define PRId32 "d"
+#define PRIi32 "i"
+#define PRIo32 "o"
+#define PRIu32 "u"
+#define PRIx32 "x"
+#define PRIX32 "X"
 #endif /* HAVE_INTTYPES_H */
 
 #endif /* _MSC_VER */
@@ -114,12 +121,6 @@ typedef signed int ssize_t;
 #endif
 #if !defined(UINT64_MAX)
 # define UINT64_MAX 0xffffffffffffffffULL
-#endif
-
-#if __GNUC__ > 3
-#define END_WITH_NULL __attribute__((sentinel))
-#else
-#define END_WITH_NULL
 #endif
 
 #ifndef HUGE_VALF

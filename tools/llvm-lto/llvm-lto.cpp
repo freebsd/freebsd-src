@@ -38,6 +38,14 @@ static cl::opt<bool>
 DisableGVNLoadPRE("disable-gvn-loadpre", cl::init(false),
   cl::desc("Do not run the GVN load PRE pass"));
 
+static cl::opt<bool>
+DisableLTOVectorization("disable-lto-vectorization", cl::init(false),
+  cl::desc("Do not run loop or slp vectorization during LTO"));
+
+static cl::opt<bool>
+UseDiagnosticHandler("use-diagnostic-handler", cl::init(false),
+  cl::desc("Use a diagnostic handler to test the handler interface"));
+
 static cl::list<std::string>
 InputFilenames(cl::Positional, cl::OneOrMore,
   cl::desc("<input bitcode files>"));
@@ -57,10 +65,73 @@ DSOSymbols("dso-symbol",
   cl::desc("Symbol to put in the symtab in the resulting dso"),
   cl::ZeroOrMore);
 
+static cl::opt<bool> ListSymbolsOnly(
+    "list-symbols-only", cl::init(false),
+    cl::desc("Instead of running LTO, list the symbols in each IR file"));
+
 namespace {
 struct ModuleInfo {
   std::vector<bool> CanBeHidden;
 };
+}
+
+void handleDiagnostics(lto_codegen_diagnostic_severity_t Severity,
+                       const char *Msg, void *) {
+  switch (Severity) {
+  case LTO_DS_NOTE:
+    errs() << "note: ";
+    break;
+  case LTO_DS_REMARK:
+    errs() << "remark: ";
+    break;
+  case LTO_DS_ERROR:
+    errs() << "error: ";
+    break;
+  case LTO_DS_WARNING:
+    errs() << "warning: ";
+    break;
+  }
+  errs() << Msg << "\n";
+}
+
+std::unique_ptr<LTOModule>
+getLocalLTOModule(StringRef Path, std::unique_ptr<MemoryBuffer> &Buffer,
+                  const TargetOptions &Options, std::string &Error) {
+  ErrorOr<std::unique_ptr<MemoryBuffer>> BufferOrErr =
+      MemoryBuffer::getFile(Path);
+  if (std::error_code EC = BufferOrErr.getError()) {
+    Error = EC.message();
+    return nullptr;
+  }
+  Buffer = std::move(BufferOrErr.get());
+  return std::unique_ptr<LTOModule>(LTOModule::createInLocalContext(
+      Buffer->getBufferStart(), Buffer->getBufferSize(), Options, Error, Path));
+}
+
+/// \brief List symbols in each IR file.
+///
+/// The main point here is to provide lit-testable coverage for the LTOModule
+/// functionality that's exposed by the C API to list symbols.  Moreover, this
+/// provides testing coverage for modules that have been created in their own
+/// contexts.
+int listSymbols(StringRef Command, const TargetOptions &Options) {
+  for (auto &Filename : InputFilenames) {
+    std::string Error;
+    std::unique_ptr<MemoryBuffer> Buffer;
+    std::unique_ptr<LTOModule> Module =
+        getLocalLTOModule(Filename, Buffer, Options, Error);
+    if (!Module) {
+      errs() << Command << ": error loading file '" << Filename
+             << "': " << Error << "\n";
+      return 1;
+    }
+
+    // List the symbols.
+    outs() << Filename << ":\n";
+    for (int I = 0, E = Module->getSymbolCount(); I != E; ++I)
+      outs() << Module->getSymbolName(I) << "\n";
+  }
+  return 0;
 }
 
 int main(int argc, char **argv) {
@@ -80,9 +151,15 @@ int main(int argc, char **argv) {
   // set up the TargetOptions for the machine
   TargetOptions Options = InitTargetOptionsFromCodeGenFlags();
 
+  if (ListSymbolsOnly)
+    return listSymbols(argv[0], Options);
+
   unsigned BaseArg = 0;
 
   LTOCodeGenerator CodeGen;
+
+  if (UseDiagnosticHandler)
+    CodeGen.setDiagnosticHandler(handleDiagnostics, nullptr);
 
   switch (RelocModel) {
   case Reloc::Static:
@@ -117,12 +194,8 @@ int main(int argc, char **argv) {
       return 1;
     }
 
-
-    if (!CodeGen.addModule(Module.get(), error)) {
-      errs() << argv[0] << ": error adding file '" << InputFilenames[i]
-             << "': " << error << "\n";
+    if (!CodeGen.addModule(Module.get()))
       return 1;
-    }
 
     unsigned NumSyms = Module->getSymbolCount();
     for (unsigned I = 0; I < NumSyms; ++I) {
@@ -157,19 +230,20 @@ int main(int argc, char **argv) {
   if (!OutputFilename.empty()) {
     size_t len = 0;
     std::string ErrorInfo;
-    const void *Code = CodeGen.compile(&len, DisableOpt, DisableInline,
-                                       DisableGVNLoadPRE, ErrorInfo);
+    const void *Code =
+        CodeGen.compile(&len, DisableOpt, DisableInline, DisableGVNLoadPRE,
+                        DisableLTOVectorization, ErrorInfo);
     if (!Code) {
       errs() << argv[0]
              << ": error compiling the code: " << ErrorInfo << "\n";
       return 1;
     }
 
-    raw_fd_ostream FileStream(OutputFilename.c_str(), ErrorInfo,
-                              sys::fs::F_None);
-    if (!ErrorInfo.empty()) {
+    std::error_code EC;
+    raw_fd_ostream FileStream(OutputFilename, EC, sys::fs::F_None);
+    if (EC) {
       errs() << argv[0] << ": error opening the file '" << OutputFilename
-             << "': " << ErrorInfo << "\n";
+             << "': " << EC.message() << "\n";
       return 1;
     }
 
@@ -178,7 +252,8 @@ int main(int argc, char **argv) {
     std::string ErrorInfo;
     const char *OutputName = nullptr;
     if (!CodeGen.compile_to_file(&OutputName, DisableOpt, DisableInline,
-                                 DisableGVNLoadPRE, ErrorInfo)) {
+                                 DisableGVNLoadPRE, DisableLTOVectorization,
+                                 ErrorInfo)) {
       errs() << argv[0]
              << ": error compiling the code: " << ErrorInfo
              << "\n";

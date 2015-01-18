@@ -17,6 +17,7 @@
         # FIXME: Add the instructions carried forward from older ISA's
         and     $2,4             # CHECK: andi $2, $2, 4      # encoding: [0x30,0x42,0x00,0x04]
         addiupc $4, 100          # CHECK: addiupc $4, 100     # encoding: [0xec,0x80,0x00,0x19]
+        addu    $9,10            # CHECK: addiu $9, $9, 10    # encoding: [0x25,0x29,0x00,0x0a]
         align   $4, $2, $3, 2    # CHECK: align $4, $2, $3, 2 # encoding: [0x7c,0x43,0x22,0xa0]
         aluipc  $3, 56           # CHECK: aluipc $3, 56       # encoding: [0xec,0x7f,0x00,0x38]
         aui     $3,$2,-23        # CHECK: aui $3, $2, -23     # encoding: [0x3c,0x62,0xff,0xe9]
@@ -96,8 +97,12 @@
         cmp.sle.d  $f2,$f3,$f4      # CHECK: cmp.sle.d $f2, $f3, $f4  # encoding: [0x46,0xa4,0x18,0x8e]
         cmp.sule.s $f2,$f3,$f4      # CHECK: cmp.sule.s $f2, $f3, $f4 # encoding: [0x46,0x84,0x18,0x8f]
         cmp.sule.d $f2,$f3,$f4      # CHECK: cmp.sule.d $f2, $f3, $f4 # encoding: [0x46,0xa4,0x18,0x8f]
+        di      $s8              # CHECK: di  $fp          # encoding: [0x41,0x7e,0x60,0x00]
+        di                       # CHECK: di               # encoding: [0x41,0x60,0x60,0x00]
         div     $2,$3,$4         # CHECK: div $2, $3, $4   # encoding: [0x00,0x64,0x10,0x9a]
         divu    $2,$3,$4         # CHECK: divu $2, $3, $4  # encoding: [0x00,0x64,0x10,0x9b]
+        ei      $14              # CHECK: ei  $14          # encoding: [0x41,0x6e,0x60,0x20]
+        ei                       # CHECK: ei               # encoding: [0x41,0x60,0x60,0x20]
         jialc   $5, 256          # CHECK: jialc $5, 256    # encoding: [0xf8,0x05,0x01,0x00]
         jic     $5, 256          # CHECK: jic $5, 256      # encoding: [0xd8,0x05,0x01,0x00]
         lsa     $2, $3, $4, 3    # CHECK: lsa  $2, $3, $4, 3 # encoding: [0x00,0x64,0x10,0xc5]
@@ -114,6 +119,12 @@
         msubf.s $f2,$f3,$f4      # CHECK: msubf.s $f2, $f3, $f4  # encoding: [0x46,0x04,0x18,0x99]
         msubf.d $f2,$f3,$f4      # CHECK: msubf.d $f2, $f3, $f4  # encoding: [0x46,0x24,0x18,0x99]
         pref    1, 8($5)         # CHECK: pref 1, 8($5)          # encoding: [0x7c,0xa1,0x04,0x35]
+        # FIXME: Use the code generator in order to print the .set directives
+        #        instead of the instruction printer.
+        rdhwr   $sp,$11          # CHECK:      .set  push
+                                 # CHECK-NEXT: .set  mips32r2
+                                 # CHECK-NEXT: rdhwr $sp, $11
+                                 # CHECK-NEXT: .set  pop      # encoding: [0x7c,0x1d,0x58,0x3b]
         sel.d   $f0,$f1,$f2      # CHECK: sel.d $f0, $f1, $f2 # encoding: [0x46,0x22,0x08,0x10]
         sel.s   $f0,$f1,$f2      # CHECK: sel.s $f0, $f1, $f2 # encoding: [0x46,0x02,0x08,0x10]
         seleqz  $2,$3,$4         # CHECK: seleqz $2, $3, $4 # encoding: [0x00,0x64,0x10,0x35]
@@ -152,3 +163,15 @@
         sdbbp     34             # CHECK: sdbbp 34               # encoding: [0x00,0x00,0x08,0x8e]
         sync                     # CHECK: sync                   # encoding: [0x00,0x00,0x00,0x0f]
         sync    1                # CHECK: sync 1                 # encoding: [0x00,0x00,0x00,0x4f]
+        teq     $0,$3            # CHECK: teq $zero, $3          # encoding: [0x00,0x03,0x00,0x34]
+        teq     $5,$7,620        # CHECK: teq $5, $7, 620        # encoding: [0x00,0xa7,0x9b,0x34]
+        tge     $7,$10           # CHECK: tge $7, $10            # encoding: [0x00,0xea,0x00,0x30]
+        tge     $5,$19,340       # CHECK: tge $5, $19, 340       # encoding: [0x00,0xb3,0x55,0x30]
+        tgeu    $22,$28          # CHECK: tgeu $22, $gp          # encoding: [0x02,0xdc,0x00,0x31]
+        tgeu    $20,$14,379      # CHECK: tgeu $20, $14, 379     # encoding: [0x02,0x8e,0x5e,0xf1]
+        tlt     $15,$13          # CHECK: tlt $15, $13           # encoding: [0x01,0xed,0x00,0x32]
+        tlt     $2,$19,133       # CHECK: tlt $2, $19, 133       # encoding: [0x00,0x53,0x21,0x72]
+        tltu    $11,$16          # CHECK: tltu $11, $16          # encoding: [0x01,0x70,0x00,0x33]
+        tltu    $16,$29,1016     # CHECK: tltu $16, $sp, 1016    # encoding: [0x02,0x1d,0xfe,0x33]
+        tne     $6,$17           # CHECK: tne $6, $17            # encoding: [0x00,0xd1,0x00,0x36]
+        tne     $7,$8,885        # CHECK: tne $7, $8, 885        # encoding: [0x00,0xe8,0xdd,0x76]

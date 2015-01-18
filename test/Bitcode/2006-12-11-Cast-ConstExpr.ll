@@ -1,6 +1,7 @@
 ; This test ensures that we get a bitcast constant expression in and out,
 ; not a sitofp constant expression. 
 ; RUN: llvm-as < %s | llvm-dis | FileCheck %s
+; RUN: verify-uselistorder < %s
 ; CHECK: bitcast (
 
 @G = external global i32

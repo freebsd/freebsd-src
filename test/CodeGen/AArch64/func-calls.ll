@@ -1,7 +1,7 @@
 ; RUN: llc -verify-machineinstrs < %s -mtriple=aarch64-none-linux-gnu | FileCheck %s --check-prefix=CHECK
 ; RUN: llc -verify-machineinstrs < %s -mtriple=aarch64-none-linux-gnu -mattr=-neon | FileCheck --check-prefix=CHECK-NONEON %s
 ; RUN: llc -verify-machineinstrs < %s -mtriple=aarch64-none-linux-gnu -mattr=-fp-armv8 | FileCheck --check-prefix=CHECK-NOFP %s
-; RUN: llc -verify-machineinstrs < %s -mtriple=arm64_be-none-linux-gnu | FileCheck --check-prefix=CHECK-BE %s
+; RUN: llc -verify-machineinstrs < %s -mtriple=aarch64_be-none-linux-gnu | FileCheck --check-prefix=CHECK-BE %s
 
 %myStruct = type { i64 , i8, i32 }
 
@@ -62,8 +62,8 @@ define void @simple_rets() {
   %arr = call [2 x i64] @return_smallstruct()
   store [2 x i64] %arr, [2 x i64]* @varsmallstruct
 ; CHECK: bl return_smallstruct
-; CHECK: str x1, [{{x[0-9]+}}, #8]
-; CHECK: str x0, [{{x[0-9]+}}, {{#?}}:lo12:varsmallstruct]
+; CHECK: add x[[VARSMALLSTRUCT:[0-9]+]], {{x[0-9]+}}, :lo12:varsmallstruct
+; CHECK: stp x0, x1, [x[[VARSMALLSTRUCT]]]
 
   call void @return_large_struct(%myStruct* sret @varstruct)
 ; CHECK: add x8, {{x[0-9]+}}, {{#?}}:lo12:varstruct
@@ -128,12 +128,12 @@ define void @check_i128_align() {
   call void @check_i128_stackalign(i32 0, i32 1, i32 2, i32 3,
                                    i32 4, i32 5, i32 6, i32 7,
                                    i32 42, i128 %val)
-; CHECK: ldr [[I128LO:x[0-9]+]], [{{x[0-9]+}}, {{#?}}:lo12:var128]
-; CHECK: ldr [[I128HI:x[0-9]+]], [{{x[0-9]+}}, #8]
+; CHECK: add x[[VAR128:[0-9]+]], {{x[0-9]+}}, :lo12:var128
+; CHECK: ldp [[I128LO:x[0-9]+]], [[I128HI:x[0-9]+]], [x[[VAR128]]]
 ; CHECK: stp [[I128LO]], [[I128HI]], [sp, #16]
 
-; CHECK-NONEON: ldr [[I128LO:x[0-9]+]], [{{x[0-9]+}}, :lo12:var128]
-; CHECK-NONEON: ldr [[I128HI:x[0-9]+]], [{{x[0-9]+}}, #8]
+; CHECK-NONEON: add x[[VAR128:[0-9]+]], {{x[0-9]+}}, :lo12:var128
+; CHECK-NONEON: ldp [[I128LO:x[0-9]+]], [[I128HI:x[0-9]+]], [x[[VAR128]]]
 ; CHECK-NONEON: stp [[I128LO]], [[I128HI]], [sp, #16]
 ; CHECK: bl check_i128_stackalign
 

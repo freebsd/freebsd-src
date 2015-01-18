@@ -17,7 +17,7 @@ entry:
   %retval = alloca i32, align 4
   %i.addr = alloca i64, align 8
   store i64 %i, i64* %i.addr, align 8
-  call void @llvm.dbg.declare(metadata !{i64* %i.addr}, metadata !13), !dbg !14
+  call void @llvm.dbg.declare(metadata i64* %i.addr, metadata !13, metadata !{}), !dbg !14
   %0 = load i64* %i.addr, align 8, !dbg !15
 ; CHECK:  %0 = load i64* %i.addr, align 8, !dbg !15
   %cmp = icmp slt i64 %0, 5, !dbg !15
@@ -39,7 +39,7 @@ return:                                           ; preds = %if.else, %if.then
 }
 
 ; Function Attrs: nounwind readnone
-declare void @llvm.dbg.declare(metadata, metadata) #1
+declare void @llvm.dbg.declare(metadata, metadata, metadata) #1
 
 attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointer-elim"="true" "no-frame-pointer-elim-non-leaf" "no-infs-fp-math"="false" "no-nans-fp-math"="false" "stack-protector-buffer-size"="8" "unsafe-fp-math"="false" "use-soft-float"="false" }
 attributes #1 = { nounwind readnone }
@@ -48,24 +48,24 @@ attributes #1 = { nounwind readnone }
 !llvm.module.flags = !{!10, !11}
 !llvm.ident = !{!12}
 
-!0 = metadata !{i32 786449, metadata !1, i32 12, metadata !"clang version 3.5.0 ", i1 false, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !"", i32 1} ; [ DW_TAG_compile_unit ] [./no-discriminators] [DW_LANG_C99]
-!1 = metadata !{metadata !"no-discriminators", metadata !"."}
-!2 = metadata !{}
-!3 = metadata !{metadata !4}
-!4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"foo", metadata !"foo", metadata !"", i32 1, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, i32 (i64)* @foo, null, null, metadata !2, i32 1} ; [ DW_TAG_subprogram ] [line 1] [def] [foo]
-!5 = metadata !{i32 786473, metadata !1}          ; [ DW_TAG_file_type ] [./no-discriminators]
-!6 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !7, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!7 = metadata !{metadata !8, metadata !9}
-!8 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
-!9 = metadata !{i32 786468, null, null, metadata !"long int", i32 0, i64 64, i64 64, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ] [long int] [line 0, size 64, align 64, offset 0, enc DW_ATE_signed]
-!10 = metadata !{i32 2, metadata !"Dwarf Version", i32 2}
-; CHECK: !10 = metadata !{i32 2, metadata !"Dwarf Version", i32 2}
-!11 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
-!12 = metadata !{metadata !"clang version 3.5.0 "}
-!13 = metadata !{i32 786689, metadata !4, metadata !"i", metadata !5, i32 16777217, metadata !9, i32 0, i32 0} ; [ DW_TAG_arg_variable ] [i] [line 1]
-!14 = metadata !{i32 1, i32 0, metadata !4, null}
-!15 = metadata !{i32 2, i32 0, metadata !16, null}
-; CHECK: !15 = metadata !{i32 2, i32 0, metadata !16, null}
-!16 = metadata !{i32 786443, metadata !1, metadata !4, i32 2, i32 0, i32 0, i32 0} ; [ DW_TAG_lexical_block ] [./no-discriminators]
-; CHECK: !16 = metadata !{i32 786443, metadata !1, metadata !4, i32 2, i32 0, i32 0, i32 0} ; [ DW_TAG_lexical_block ] [./no-discriminators]
-!17 = metadata !{i32 3, i32 0, metadata !4, null}
+!0 = !{!"0x11\0012\00clang version 3.5.0 \000\00\000\00\001", !1, !2, !2, !3, !2, !2} ; [ DW_TAG_compile_unit ] [./no-discriminators] [DW_LANG_C99]
+!1 = !{!"no-discriminators", !"."}
+!2 = !{}
+!3 = !{!4}
+!4 = !{!"0x2e\00foo\00foo\00\001\000\001\000\006\00256\000\001", !1, !5, !6, null, i32 (i64)* @foo, null, null, !2} ; [ DW_TAG_subprogram ] [line 1] [def] [foo]
+!5 = !{!"0x29", !1}          ; [ DW_TAG_file_type ] [./no-discriminators]
+!6 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !7, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!7 = !{!8, !9}
+!8 = !{!"0x24\00int\000\0032\0032\000\000\005", null, null} ; [ DW_TAG_base_type ] [int] [line 0, size 32, align 32, offset 0, enc DW_ATE_signed]
+!9 = !{!"0x24\00long int\000\0064\0064\000\000\005", null, null} ; [ DW_TAG_base_type ] [long int] [line 0, size 64, align 64, offset 0, enc DW_ATE_signed]
+!10 = !{i32 2, !"Dwarf Version", i32 2}
+; CHECK: !10 = !{i32 2, !"Dwarf Version", i32 2}
+!11 = !{i32 1, !"Debug Info Version", i32 2}
+!12 = !{!"clang version 3.5.0 "}
+!13 = !{!"0x101\00i\0016777217\000", !4, !5, !9} ; [ DW_TAG_arg_variable ] [i] [line 1]
+!14 = !MDLocation(line: 1, scope: !4)
+!15 = !MDLocation(line: 2, scope: !16)
+; CHECK: !15 = !MDLocation(line: 2, scope: !16)
+!16 = !{!"0xb\002\000\000", !1, !4} ; [ DW_TAG_lexical_block ] [./no-discriminators]
+; CHECK: !16 = !{!"0xb\002\000\000", !1, !4} ; [ DW_TAG_lexical_block ] [./no-discriminators]
+!17 = !MDLocation(line: 3, scope: !4)

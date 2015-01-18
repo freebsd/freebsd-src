@@ -234,3 +234,46 @@ entry:
 ; CHECK-LABEL: @and(
 ; CHECK: getelementptr [32 x [32 x float]]* @float_2d_array
 ; CHECK-NOT: getelementptr
+
+; The code that rebuilds an OR expression used to be buggy, and failed on this
+; test.
+define float* @shl_add_or(i64 %a, float* %ptr) {
+; CHECK-LABEL: @shl_add_or(
+entry:
+  %shl = shl i64 %a, 2
+  %add = add i64 %shl, 12
+  %or = or i64 %add, 1
+; CHECK: [[OR:%or[0-9]*]] = add i64 %shl, 1
+  ; ((a << 2) + 12) and 1 have no common bits. Therefore,
+  ; SeparateConstOffsetFromGEP is able to extract the 12.
+  ; TODO(jingyue): We could reassociate the expression to combine 12 and 1.
+  %p = getelementptr float* %ptr, i64 %or
+; CHECK: [[PTR:%[a-zA-Z0-9]+]] = getelementptr float* %ptr, i64 [[OR]]
+; CHECK: getelementptr float* [[PTR]], i64 12
+  ret float* %p
+; CHECK-NEXT: ret
+}
+
+; The source code used to be buggy in checking
+; (AccumulativeByteOffset % ElementTypeSizeOfGEP == 0)
+; where AccumulativeByteOffset is signed but ElementTypeSizeOfGEP is unsigned.
+; The compiler would promote AccumulativeByteOffset to unsigned, causing
+; unexpected results. For example, while -64 % (int64_t)24 != 0,
+; -64 % (uint64_t)24 == 0.
+%struct3 = type { i64, i32 }
+%struct2 = type { %struct3, i32 }
+%struct1 = type { i64, %struct2 }
+%struct0 = type { i32, i32, i64*, [100 x %struct1] }
+define %struct2* @sign_mod_unsign(%struct0* %ptr, i64 %idx) {
+; CHECK-LABEL: @sign_mod_unsign(
+entry:
+  %arrayidx = add nsw i64 %idx, -2
+; CHECK-NOT: add
+  %ptr2 = getelementptr inbounds %struct0* %ptr, i64 0, i32 3, i64 %arrayidx, i32 1
+; CHECK: [[PTR:%[a-zA-Z0-9]+]] = getelementptr %struct0* %ptr, i64 0, i32 3, i64 %idx, i32 1
+; CHECK: [[PTR1:%[a-zA-Z0-9]+]] = bitcast %struct2* [[PTR]] to i8*
+; CHECK: getelementptr i8* [[PTR1]], i64 -64
+; CHECK: bitcast
+  ret %struct2* %ptr2
+; CHECK-NEXT: ret
+}

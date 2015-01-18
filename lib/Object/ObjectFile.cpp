@@ -11,6 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/Object/COFF.h"
+#include "llvm/Object/MachO.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
@@ -23,8 +25,8 @@ using namespace object;
 
 void ObjectFile::anchor() { }
 
-ObjectFile::ObjectFile(unsigned int Type, std::unique_ptr<MemoryBuffer> Source)
-    : SymbolicFile(Type, std::move(Source)) {}
+ObjectFile::ObjectFile(unsigned int Type, MemoryBufferRef Source)
+    : SymbolicFile(Type, Source) {}
 
 std::error_code ObjectFile::printSymbolName(raw_ostream &OS,
                                             DataRefImpl Symb) const {
@@ -45,11 +47,11 @@ section_iterator ObjectFile::getRelocatedSection(DataRefImpl Sec) const {
   return section_iterator(SectionRef(Sec, this));
 }
 
-ErrorOr<ObjectFile *>
-ObjectFile::createObjectFile(std::unique_ptr<MemoryBuffer> &Object,
-                             sys::fs::file_magic Type) {
+ErrorOr<std::unique_ptr<ObjectFile>>
+ObjectFile::createObjectFile(MemoryBufferRef Object, sys::fs::file_magic Type) {
+  StringRef Data = Object.getBuffer();
   if (Type == sys::fs::file_magic::unknown)
-    Type = sys::fs::identify_magic(Object->getBuffer());
+    Type = sys::fs::identify_magic(Data);
 
   switch (Type) {
   case sys::fs::file_magic::unknown:
@@ -58,6 +60,7 @@ ObjectFile::createObjectFile(std::unique_ptr<MemoryBuffer> &Object,
   case sys::fs::file_magic::macho_universal_binary:
   case sys::fs::file_magic::windows_resource:
     return object_error::invalid_file_type;
+  case sys::fs::file_magic::elf:
   case sys::fs::file_magic::elf_relocatable:
   case sys::fs::file_magic::elf_executable:
   case sys::fs::file_magic::elf_shared_object:
@@ -77,15 +80,24 @@ ObjectFile::createObjectFile(std::unique_ptr<MemoryBuffer> &Object,
   case sys::fs::file_magic::coff_object:
   case sys::fs::file_magic::coff_import_library:
   case sys::fs::file_magic::pecoff_executable:
-    return createCOFFObjectFile(std::move(Object));
+    return createCOFFObjectFile(Object);
   }
   llvm_unreachable("Unexpected Object File Type");
 }
 
-ErrorOr<ObjectFile *> ObjectFile::createObjectFile(StringRef ObjectPath) {
+ErrorOr<OwningBinary<ObjectFile>>
+ObjectFile::createObjectFile(StringRef ObjectPath) {
   ErrorOr<std::unique_ptr<MemoryBuffer>> FileOrErr =
       MemoryBuffer::getFile(ObjectPath);
   if (std::error_code EC = FileOrErr.getError())
     return EC;
-  return createObjectFile(FileOrErr.get());
+  std::unique_ptr<MemoryBuffer> Buffer = std::move(FileOrErr.get());
+
+  ErrorOr<std::unique_ptr<ObjectFile>> ObjOrErr =
+      createObjectFile(Buffer->getMemBufferRef());
+  if (std::error_code EC = ObjOrErr.getError())
+    return EC;
+  std::unique_ptr<ObjectFile> Obj = std::move(ObjOrErr.get());
+
+  return OwningBinary<ObjectFile>(std::move(Obj), std::move(Buffer));
 }

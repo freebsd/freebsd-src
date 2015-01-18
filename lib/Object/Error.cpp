@@ -13,6 +13,7 @@
 
 #include "llvm/Object/Error.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/ManagedStatic.h"
 
 using namespace llvm;
 using namespace object;
@@ -25,7 +26,7 @@ public:
 };
 }
 
-const char *_object_error_category::name() const {
+const char *_object_error_category::name() const LLVM_NOEXCEPT {
   return "llvm.object";
 }
 
@@ -41,12 +42,15 @@ std::string _object_error_category::message(int EV) const {
     return "Invalid data was encountered while parsing the file";
   case object_error::unexpected_eof:
     return "The end of the file was unexpectedly encountered";
+  case object_error::bitcode_section_not_found:
+    return "Bitcode section not found in object file";
   }
   llvm_unreachable("An enumerator of object_error does not have a message "
                    "defined.");
 }
 
+static ManagedStatic<_object_error_category> error_category;
+
 const std::error_category &object::object_category() {
-  static _object_error_category o;
-  return o;
+  return *error_category;
 }

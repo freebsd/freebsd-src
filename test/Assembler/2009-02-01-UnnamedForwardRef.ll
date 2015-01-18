@@ -1,4 +1,5 @@
 ; RUN: llvm-as < %s | llvm-dis
+; RUN: verify-uselistorder %s
 ; PR3372
 
 @X = global i32* @0

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef XCORETARGETMACHINE_H
-#define XCORETARGETMACHINE_H
+#ifndef LLVM_LIB_TARGET_XCORE_XCORETARGETMACHINE_H
+#define LLVM_LIB_TARGET_XCORE_XCORETARGETMACHINE_H
 
 #include "XCoreSubtarget.h"
 #include "llvm/Target/TargetMachine.h"
@@ -20,37 +20,24 @@
 namespace llvm {
 
 class XCoreTargetMachine : public LLVMTargetMachine {
+  std::unique_ptr<TargetLoweringObjectFile> TLOF;
   XCoreSubtarget Subtarget;
 public:
   XCoreTargetMachine(const Target &T, StringRef TT,
                      StringRef CPU, StringRef FS, const TargetOptions &Options,
                      Reloc::Model RM, CodeModel::Model CM,
                      CodeGenOpt::Level OL);
+  ~XCoreTargetMachine() override;
 
-  const XCoreInstrInfo *getInstrInfo() const override {
-    return getSubtargetImpl()->getInstrInfo();
-  }
-  const XCoreFrameLowering *getFrameLowering() const override {
-    return getSubtargetImpl()->getFrameLowering();
-  }
   const XCoreSubtarget *getSubtargetImpl() const override { return &Subtarget; }
-  const XCoreTargetLowering *getTargetLowering() const override {
-    return getSubtargetImpl()->getTargetLowering();
-  }
-  const XCoreSelectionDAGInfo* getSelectionDAGInfo() const override {
-    return getSubtargetImpl()->getSelectionDAGInfo();
-  }
-  const TargetRegisterInfo *getRegisterInfo() const override {
-    return getSubtargetImpl()->getRegisterInfo();
-  }
-  const DataLayout *getDataLayout() const override {
-    return getSubtargetImpl()->getDataLayout();
-  }
 
   // Pass Pipeline Configuration
   TargetPassConfig *createPassConfig(PassManagerBase &PM) override;
 
   void addAnalysisPasses(PassManagerBase &PM) override;
+  TargetLoweringObjectFile *getObjFileLowering() const override {
+    return TLOF.get();
+  }
 };
 
 } // end namespace llvm

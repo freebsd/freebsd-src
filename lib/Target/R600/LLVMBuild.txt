@@ -16,17 +16,18 @@
 ;===------------------------------------------------------------------------===;
 
 [common]
-subdirectories = InstPrinter MCTargetDesc TargetInfo
+subdirectories = AsmParser InstPrinter MCTargetDesc TargetInfo
 
 [component_0]
 type = TargetGroup
 name = R600
 parent = Target
+has_asmparser = 1
 has_asmprinter = 1
 
 [component_1]
 type = Library
 name = R600CodeGen
 parent = R600
-required_libraries = Analysis AsmPrinter CodeGen Core MC R600AsmPrinter R600Desc R600Info Scalar SelectionDAG Support Target
+required_libraries = Analysis AsmPrinter CodeGen Core IPO MC R600AsmParser R600AsmPrinter R600Desc R600Info Scalar SelectionDAG Support Target TransformUtils
 add_to_library_groups = R600

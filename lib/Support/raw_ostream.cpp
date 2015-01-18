@@ -20,6 +20,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Format.h"
+#include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
 #include <cctype>
@@ -311,6 +312,7 @@ raw_ostream &raw_ostream::write(const char *Ptr, size_t Size) {
     // than the buffer. Directly write the chunk that is a multiple of the
     // preferred buffer size and put the remainder in the buffer.
     if (LLVM_UNLIKELY(OutBufCur == OutBufStart)) {
+      assert(NumBytes != 0 && "undefined behavior");
       size_t BytesToWrite = Size - (Size % NumBytes);
       write_impl(Ptr, BytesToWrite);
       size_t BytesRemaining = Size - BytesToWrite;
@@ -394,6 +396,62 @@ raw_ostream &raw_ostream::operator<<(const format_object_base &Fmt) {
   }
 }
 
+raw_ostream &raw_ostream::operator<<(const FormattedString &FS) {
+  unsigned Len = FS.Str.size(); 
+  int PadAmount = FS.Width - Len;
+  if (FS.RightJustify && (PadAmount > 0))
+    this->indent(PadAmount);
+  this->operator<<(FS.Str);
+  if (!FS.RightJustify && (PadAmount > 0))
+    this->indent(PadAmount);
+  return *this;
+}
+
+raw_ostream &raw_ostream::operator<<(const FormattedNumber &FN) {
+  if (FN.Hex) {
+    unsigned Nibbles = (64 - countLeadingZeros(FN.HexValue)+3)/4;
+    unsigned Width = (FN.Width > Nibbles+2) ? FN.Width : Nibbles+2;
+        
+    char NumberBuffer[20] = "0x0000000000000000";
+    char *EndPtr = NumberBuffer+Width;
+    char *CurPtr = EndPtr;
+    const char A = FN.Upper ? 'A' : 'a';
+    unsigned long long N = FN.HexValue;
+    while (N) {
+      uintptr_t x = N % 16;
+      *--CurPtr = (x < 10 ? '0' + x : A + x - 10);
+      N /= 16;
+    }
+
+    return write(NumberBuffer, Width);
+  } else {
+    // Zero is a special case.
+    if (FN.DecValue == 0) {
+      this->indent(FN.Width-1);
+      return *this << '0';
+    }
+    char NumberBuffer[32];
+    char *EndPtr = NumberBuffer+sizeof(NumberBuffer);
+    char *CurPtr = EndPtr;
+    bool Neg = (FN.DecValue < 0);
+    uint64_t N = Neg ? -static_cast<uint64_t>(FN.DecValue) : FN.DecValue;
+    while (N) {
+      *--CurPtr = '0' + char(N % 10);
+      N /= 10;
+    }
+    int Len = EndPtr - CurPtr;
+    int Pad = FN.Width - Len;
+    if (Neg) 
+      --Pad;
+    if (Pad > 0)
+      this->indent(Pad);
+    if (Neg)
+      *this << '-';
+    return write(CurPtr, Len);
+  }
+}
+
+
 /// indent - Insert 'NumSpaces' spaces.
 raw_ostream &raw_ostream::indent(unsigned NumSpaces) {
   static const char Spaces[] = "                                "
@@ -426,20 +484,14 @@ void format_object_base::home() {
 //  raw_fd_ostream
 //===----------------------------------------------------------------------===//
 
-/// raw_fd_ostream - Open the specified file for writing. If an error
-/// occurs, information about the error is put into ErrorInfo, and the
-/// stream should be immediately destroyed; the string will be empty
-/// if no error occurred.
-raw_fd_ostream::raw_fd_ostream(const char *Filename, std::string &ErrorInfo,
+raw_fd_ostream::raw_fd_ostream(StringRef Filename, std::error_code &EC,
                                sys::fs::OpenFlags Flags)
     : Error(false), UseAtomicWrites(false), pos(0) {
-  assert(Filename && "Filename is null");
-  ErrorInfo.clear();
-
+  EC = std::error_code();
   // Handle "-" as stdout. Note that when we do this, we consider ourself
   // the owner of stdout. This means that we can do things like close the
   // file descriptor when we're done and set the "binary" flag globally.
-  if (Filename[0] == '-' && Filename[1] == 0) {
+  if (Filename == "-") {
     FD = STDOUT_FILENO;
     // If user requested binary then put stdout into binary mode if
     // possible.
@@ -450,11 +502,9 @@ raw_fd_ostream::raw_fd_ostream(const char *Filename, std::string &ErrorInfo,
     return;
   }
 
-  std::error_code EC = sys::fs::openFileForWrite(Filename, FD, Flags);
+  EC = sys::fs::openFileForWrite(Filename, FD, Flags);
 
   if (EC) {
-    ErrorInfo = "Error opening output file '" + std::string(Filename) + "': " +
-                EC.message();
     ShouldClose = false;
     return;
   }
@@ -487,12 +537,8 @@ raw_fd_ostream::raw_fd_ostream(int fd, bool shouldClose, bool unbuffered)
 raw_fd_ostream::~raw_fd_ostream() {
   if (FD >= 0) {
     flush();
-    if (ShouldClose)
-      while (::close(FD) != 0)
-        if (errno != EINTR) {
-          error_detected();
-          break;
-        }
+    if (ShouldClose && sys::Process::SafelyCloseFileDescriptor(FD))
+      error_detected();
   }
 
 #ifdef __MINGW32__
@@ -566,11 +612,8 @@ void raw_fd_ostream::close() {
   assert(ShouldClose);
   ShouldClose = false;
   flush();
-  while (::close(FD) != 0)
-    if (errno != EINTR) {
-      error_detected();
-      break;
-    }
+  if (sys::Process::SafelyCloseFileDescriptor(FD))
+    error_detected();
   FD = -1;
 }
 

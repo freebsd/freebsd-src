@@ -6,6 +6,7 @@ target datalayout = "e-p:64:64-p1:16:16-p2:32:32:32-p3:64:64:64"
 %pair = type { i32, i32 }
 %struct.B = type { double }
 %struct.A = type { %struct.B, i32, i32 }
+%struct.C = type { [7 x i8] }
 
 
 @Global = constant [10 x i8] c"helloworld"
@@ -580,6 +581,16 @@ define i32 addrspace(1)* @test33_array_struct_as1([10 x %struct.Key] addrspace(1
   ret i32 addrspace(1)* %C
 }
 
+define i32 addrspace(1)* @test33_addrspacecast(%struct.Key* %A) {
+; CHECK-LABEL: @test33_addrspacecast(
+; CHECK: %C = getelementptr %struct.Key* %A, i64 0, i32 0, i32 1
+; CHECK-NEXT: addrspacecast i32* %C to i32 addrspace(1)*
+; CHECK-NEXT: ret
+  %B = addrspacecast %struct.Key* %A to %struct.anon addrspace(1)*
+  %C = getelementptr %struct.anon addrspace(1)* %B, i32 0, i32 2
+  ret i32 addrspace(1)* %C
+}
+
 	%T2 = type { i8*, i8 }
 define i8* @test34(i8* %Val, i64 %V) nounwind {
 entry:
@@ -591,8 +602,8 @@ entry:
 	%C = load i8** %B, align 8
 	ret i8* %C
 ; CHECK-LABEL: @test34(
-; CHECK: %V.c = inttoptr i64 %V to i8*
-; CHECK: ret i8* %V.c
+; CHECK: %[[C:.*]] = inttoptr i64 %V to i8*
+; CHECK: ret i8* %[[C]]
 }
 
 %t0 = type { i8*, [19 x i8] }
@@ -692,7 +703,7 @@ define void @test39(%struct.ham* %arg, i8 %arg1) nounwind {
 
 ; CHECK-LABEL: @test39(
 ; CHECK: getelementptr inbounds %struct.ham* %arg, i64 0, i32 2
-; CHECK: getelementptr inbounds i8* %tmp3, i64 -8
+; CHECK: getelementptr inbounds i8* %{{.+}}, i64 -8
 }
 
 define i1 @pr16483([1 x i8]* %a, [1 x i8]* %b) {
@@ -801,6 +812,78 @@ define i16 @test41([3 x i32] addrspace(1)* %array) {
 
 ; CHECK-LABEL: @test41(
 ; CHECK-NEXT: ret i16 8
+}
+
+define i8* @test42(i8* %c1, i8* %c2) {
+  %ptrtoint = ptrtoint i8* %c1 to i64
+  %sub = sub i64 0, %ptrtoint
+  %gep = getelementptr inbounds i8* %c2, i64 %sub
+  ret i8* %gep
+
+; CHECK-LABEL: @test42(
+; CHECK-NEXT:  [[PTRTOINT1:%.*]] = ptrtoint i8* %c1 to i64
+; CHECK-NEXT:  [[PTRTOINT2:%.*]] = ptrtoint i8* %c2 to i64
+; CHECK-NEXT:  [[SUB:%.*]] = sub i64 [[PTRTOINT2]], [[PTRTOINT1]]
+; CHECK-NEXT:  [[INTTOPTR:%.*]] = inttoptr i64 [[SUB]] to i8*
+; CHECK-NEXT:  ret i8* [[INTTOPTR]]
+}
+
+define i16* @test43(i16* %c1, i16* %c2) {
+  %ptrtoint = ptrtoint i16* %c1 to i64
+  %sub = sub i64 0, %ptrtoint
+  %shr = ashr i64 %sub, 1
+  %gep = getelementptr inbounds i16* %c2, i64 %shr
+  ret i16* %gep
+
+; CHECK-LABEL: @test43(
+; CHECK-NEXT:  [[PTRTOINT1:%.*]] = ptrtoint i16* %c1 to i64
+; CHECK-NEXT:  [[PTRTOINT2:%.*]] = ptrtoint i16* %c2 to i64
+; CHECK-NEXT:  [[SUB:%.*]] = sub i64 [[PTRTOINT2]], [[PTRTOINT1]]
+; CHECK-NEXT:  [[INTTOPTR:%.*]] = inttoptr i64 [[SUB]] to i16*
+; CHECK-NEXT:  ret i16* [[INTTOPTR]]
+}
+
+define %struct.C* @test44(%struct.C* %c1, %struct.C* %c2) {
+  %ptrtoint = ptrtoint %struct.C* %c1 to i64
+  %sub = sub i64 0, %ptrtoint
+  %shr = sdiv i64 %sub, 7
+  %gep = getelementptr inbounds %struct.C* %c2, i64 %shr
+  ret %struct.C* %gep
+
+; CHECK-LABEL: @test44(
+; CHECK-NEXT:  [[PTRTOINT1:%.*]] = ptrtoint %struct.C* %c1 to i64
+; CHECK-NEXT:  [[PTRTOINT2:%.*]] = ptrtoint %struct.C* %c2 to i64
+; CHECK-NEXT:  [[SUB:%.*]] = sub i64 [[PTRTOINT2]], [[PTRTOINT1]]
+; CHECK-NEXT:  [[INTTOPTR:%.*]] = inttoptr i64 [[SUB]] to %struct.C*
+; CHECK-NEXT:  ret %struct.C* [[INTTOPTR]]
+}
+
+define %struct.C* @test45(%struct.C* %c1, %struct.C** %c2) {
+  %ptrtoint1 = ptrtoint %struct.C* %c1 to i64
+  %ptrtoint2 = ptrtoint %struct.C** %c2 to i64
+  %sub = sub i64 %ptrtoint2, %ptrtoint1 ; C2 - C1
+  %shr = sdiv i64 %sub, 7
+  %gep = getelementptr inbounds %struct.C* %c1, i64 %shr ; C1 + (C2 - C1)
+  ret %struct.C* %gep
+
+; CHECK-LABEL: @test45(
+; CHECK-NEXT:  [[BITCAST:%.*]] = bitcast %struct.C** %c2 to %struct.C*
+; CHECK-NEXT:  ret %struct.C* [[BITCAST]]
+}
+
+define %struct.C* @test46(%struct.C* %c1, %struct.C* %c2, i64 %N) {
+  %ptrtoint = ptrtoint %struct.C* %c1 to i64
+  %sub = sub i64 0, %ptrtoint
+  %sdiv = sdiv i64 %sub, %N
+  %gep = getelementptr inbounds %struct.C* %c2, i64 %sdiv
+  ret %struct.C* %gep
+
+; CHECK-LABEL: @test46(
+; CHECK-NEXT:  [[PTRTOINT:%.*]] = ptrtoint %struct.C* %c1 to i64
+; CHECK-NEXT:  [[SUB:%.*]] = sub i64 0, [[PTRTOINT]]
+; CHECK-NEXT:  [[SDIV:%.*]] = sdiv i64 [[SUB]], %N
+; CHECK-NEXT:  [[GEP:%.*]] = getelementptr inbounds %struct.C* %c2, i64 %sdiv
+; CHECK-NEXT:  ret %struct.C* [[GEP]]
 }
 
 define i32 addrspace(1)* @ascast_0_gep(i32* %p) nounwind {

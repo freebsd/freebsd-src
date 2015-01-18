@@ -29,7 +29,6 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
@@ -38,17 +37,17 @@ using namespace llvm;
 
 STATISTIC(LoadsClustered, "Number of loads clustered together");
 
-// This allows latency based scheduler to notice high latency instructions
-// without a target itinerary. The choise if number here has more to do with
-// balancing scheduler heursitics than with the actual machine latency.
+// This allows the latency-based scheduler to notice high latency instructions
+// without a target itinerary. The choice of number here has more to do with
+// balancing scheduler heuristics than with the actual machine latency.
 static cl::opt<int> HighLatencyCycles(
   "sched-high-latency-cycles", cl::Hidden, cl::init(10),
   cl::desc("Roughly estimate the number of cycles that 'long latency'"
            "instructions take for targets with no itinerary"));
 
 ScheduleDAGSDNodes::ScheduleDAGSDNodes(MachineFunction &mf)
-  : ScheduleDAG(mf), BB(nullptr), DAG(nullptr),
-    InstrItins(mf.getTarget().getInstrItineraryData()) {}
+    : ScheduleDAG(mf), BB(nullptr), DAG(nullptr),
+      InstrItins(mf.getSubtarget().getInstrItineraryData()) {}
 
 /// Run - perform scheduling.
 ///
@@ -120,15 +119,20 @@ static void CheckForPhysRegDependency(SDNode *Def, SDNode *User, unsigned Op,
     return;
 
   unsigned ResNo = User->getOperand(2).getResNo();
-  if (Def->isMachineOpcode()) {
+  if (Def->getOpcode() == ISD::CopyFromReg &&
+      cast<RegisterSDNode>(Def->getOperand(1))->getReg() == Reg) {
+    PhysReg = Reg;
+  } else if (Def->isMachineOpcode()) {
     const MCInstrDesc &II = TII->get(Def->getMachineOpcode());
     if (ResNo >= II.getNumDefs() &&
-        II.ImplicitDefs[ResNo - II.getNumDefs()] == Reg) {
+        II.ImplicitDefs[ResNo - II.getNumDefs()] == Reg)
       PhysReg = Reg;
-      const TargetRegisterClass *RC =
-        TRI->getMinimalPhysRegClass(Reg, Def->getValueType(ResNo));
-      Cost = RC->getCopyCost();
-    }
+  }
+
+  if (PhysReg != 0) {
+    const TargetRegisterClass *RC =
+        TRI->getMinimalPhysRegClass(Reg, Def->getSimpleValueType(ResNo));
+    Cost = RC->getCopyCost();
   }
 }
 
@@ -136,7 +140,7 @@ static void CheckForPhysRegDependency(SDNode *Def, SDNode *User, unsigned Op,
 static void CloneNodeWithValues(SDNode *N, SelectionDAG *DAG,
                                 SmallVectorImpl<EVT> &VTs,
                                 SDValue ExtraOper = SDValue()) {
-  SmallVector<SDValue, 4> Ops;
+  SmallVector<SDValue, 8> Ops;
   for (unsigned I = 0, E = N->getNumOperands(); I != E; ++I)
     Ops.push_back(N->getOperand(I));
 
@@ -226,7 +230,7 @@ void ScheduleDAGSDNodes::ClusterNeighboringLoads(SDNode *Node) {
   for (SDNode::use_iterator I = Chain->use_begin(), E = Chain->use_end();
        I != E && UseCount < 100; ++I, ++UseCount) {
     SDNode *User = *I;
-    if (User == Node || !Visited.insert(User))
+    if (User == Node || !Visited.insert(User).second)
       continue;
     int64_t Offset1, Offset2;
     if (!TII->areLoadsFromSameBasePtr(Base, User, Offset1, Offset2) ||
@@ -339,7 +343,7 @@ void ScheduleDAGSDNodes::BuildSchedUnits() {
 
     // Add all operands to the worklist unless they've already been added.
     for (unsigned i = 0, e = NI->getNumOperands(); i != e; ++i)
-      if (Visited.insert(NI->getOperand(i).getNode()))
+      if (Visited.insert(NI->getOperand(i).getNode()).second)
         Worklist.push_back(NI->getOperand(i).getNode());
 
     if (isPassiveNode(NI))  // Leaf node, e.g. a TargetImmediate.
@@ -425,7 +429,7 @@ void ScheduleDAGSDNodes::BuildSchedUnits() {
 }
 
 void ScheduleDAGSDNodes::AddSchedEdges() {
-  const TargetSubtargetInfo &ST = TM.getSubtarget<TargetSubtargetInfo>();
+  const TargetSubtargetInfo &ST = MF.getSubtarget();
 
   // Check to see if the scheduler cares about latencies.
   bool UnitLatencies = forceUnitLatencies();
@@ -544,6 +548,14 @@ void ScheduleDAGSDNodes::RegDefIter::InitNodeNumDefs() {
   unsigned POpc = Node->getMachineOpcode();
   if (POpc == TargetOpcode::IMPLICIT_DEF) {
     // No register need be allocated for this.
+    NodeNumDefs = 0;
+    return;
+  }
+  if (POpc == TargetOpcode::PATCHPOINT &&
+      Node->getValueType(0) == MVT::Other) {
+    // PATCHPOINT is defined to have one result, but it might really have none
+    // if we're not using CallingConv::AnyReg. Don't mistake the chain for a
+    // real definition.
     NodeNumDefs = 0;
     return;
   }
@@ -733,7 +745,7 @@ ProcessSourceNode(SDNode *N, SelectionDAG *DAG, InstrEmitter &Emitter,
                   SmallVectorImpl<std::pair<unsigned, MachineInstr*> > &Orders,
                   SmallSet<unsigned, 8> &Seen) {
   unsigned Order = N->getIROrder();
-  if (!Order || !Seen.insert(Order)) {
+  if (!Order || !Seen.insert(Order).second) {
     // Process any valid SDDbgValues even if node does not have any order
     // assigned.
     ProcessSDDbgValues(N, DAG, Emitter, Orders, VRBaseMap, 0);

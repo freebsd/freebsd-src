@@ -67,7 +67,7 @@ module DataLayout : sig
       See the method [llvm::DataLayout::getStringRepresentation]. *)
   val as_string : t -> string
 
-  (** [add_to_pass_manager dl pm] adds the target data [dl] to
+  (** [add_to_pass_manager pm dl] adds the data layout [dl] to
       the pass manager [pm].
       See the method [llvm::PassManagerBase::add]. *)
   val add_to_pass_manager : [<Llvm.PassManager.any] Llvm.PassManager.t ->
@@ -206,6 +206,10 @@ module TargetMachine : sig
 
   (** Returns the data layout of this target machine. *)
   val data_layout : t -> DataLayout.t
+
+  (** Adds the target-specific analysis passes to the pass manager.
+      See [llvm::TargetMachine::addAnalysisPasses]. *)
+  val add_analysis_passes : [< Llvm.PassManager.any ] Llvm.PassManager.t -> t -> unit
 
   (** Sets the assembly verbosity of this target machine.
       See [llvm::TargetMachine::setAsmVerbosity]. *)

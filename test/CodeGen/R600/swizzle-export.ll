@@ -1,6 +1,6 @@
 ; RUN: llc < %s -march=r600 -mcpu=redwood | FileCheck --check-prefix=EG-CHECK %s
 
-;EG-CHECK: @main
+;EG-CHECK: {{^}}main:
 ;EG-CHECK: EXPORT T{{[0-9]+}}.XYXX
 ;EG-CHECK: EXPORT T{{[0-9]+}}.ZXXX
 ;EG-CHECK: EXPORT T{{[0-9]+}}.XXWX
@@ -92,9 +92,9 @@ main_body:
   ret void
 }
 
-; EG-CHECK: @main2
+; EG-CHECK: {{^}}main2:
 ; EG-CHECK: T{{[0-9]+}}.XY__
-; EG-CHECK: T{{[0-9]+}}.YXZ0
+; EG-CHECK: T{{[0-9]+}}.ZXY0
 
 define void @main2(<4 x float> inreg %reg0, <4 x float> inreg %reg1) #0 {
 main_body:

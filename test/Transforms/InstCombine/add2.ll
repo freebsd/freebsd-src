@@ -294,7 +294,7 @@ define i16 @add_cttz(i16 %a) {
   ret i16 %b
 }
 declare i16 @llvm.cttz.i16(i16, i1)
-!0 = metadata !{i16 0, i16 8}
+!0 = !{i16 0, i16 8}
 
 ; Similar to @add_cttz, but in this test, the range implied by the
 ; intrinsic is more strict. Therefore, ValueTracking uses that range.
@@ -312,4 +312,44 @@ define i16 @add_cttz_2(i16 %a) {
 ; CHECK: or i16 %cttz, -16
   ret i16 %b
 }
-!1 = metadata !{i16 0, i16 32}
+!1 = !{i16 0, i16 32}
+
+define i32 @add_or_and(i32 %x, i32 %y) {
+  %or = or i32 %x, %y
+  %and = and i32 %x, %y
+  %add = add i32 %or, %and
+  ret i32 %add
+; CHECK-LABEL: @add_or_and(
+; CHECK-NEXT: add i32 %x, %y
+; CHECK-NEXT: ret i32
+}
+
+define i32 @add_nsw_or_and(i32 %x, i32 %y) {
+  %or = or i32 %x, %y
+  %and = and i32 %x, %y
+  %add = add nsw i32 %or, %and
+  ret i32 %add
+; CHECK-LABEL: @add_nsw_or_and(
+; CHECK-NEXT: add nsw i32 %x, %y
+; CHECK-NEXT: ret i32
+}
+
+define i32 @add_nuw_or_and(i32 %x, i32 %y) {
+  %or = or i32 %x, %y
+  %and = and i32 %x, %y
+  %add = add nuw i32 %or, %and
+  ret i32 %add
+; CHECK-LABEL: @add_nuw_or_and(
+; CHECK-NEXT: add nuw i32 %x, %y
+; CHECK-NEXT: ret i32
+}
+
+define i32 @add_nuw_nsw_or_and(i32 %x, i32 %y) {
+  %or = or i32 %x, %y
+  %and = and i32 %x, %y
+  %add = add nsw nuw i32 %or, %and
+  ret i32 %add
+; CHECK-LABEL: @add_nuw_nsw_or_and(
+; CHECK-NEXT: add nuw nsw i32 %x, %y
+; CHECK-NEXT: ret i32
+}

@@ -13,11 +13,11 @@
 
 #include "ByteStreamer.h"
 #include "DIEHash.h"
-#include "DIE.h"
 #include "DwarfDebug.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/CodeGen/AsmPrinter.h"
+#include "llvm/CodeGen/DIE.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/Endian.h"
@@ -261,7 +261,7 @@ void DIEHash::hashDIEEntry(dwarf::Attribute Attribute, dwarf::Tag Tag,
     return;
   }
 
-  // otherwise, b) use the letter 'T' as a the marker, ...
+  // otherwise, b) use the letter 'T' as the marker, ...
   addULEB128('T');
 
   addULEB128(Attribute);

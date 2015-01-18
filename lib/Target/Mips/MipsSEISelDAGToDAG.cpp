@@ -130,15 +130,12 @@ void MipsSEDAGToDAGISel::initGlobalBaseReg(MachineFunction &MF) {
   MachineBasicBlock &MBB = MF.front();
   MachineBasicBlock::iterator I = MBB.begin();
   MachineRegisterInfo &RegInfo = MF.getRegInfo();
-  const TargetInstrInfo &TII = *MF.getTarget().getInstrInfo();
+  const TargetInstrInfo &TII = *MF.getSubtarget().getInstrInfo();
   DebugLoc DL = I != MBB.end() ? I->getDebugLoc() : DebugLoc();
   unsigned V0, V1, GlobalBaseReg = MipsFI->getGlobalBaseReg();
   const TargetRegisterClass *RC;
 
-  if (Subtarget->isABI_N64())
-    RC = (const TargetRegisterClass*)&Mips::GPR64RegClass;
-  else
-    RC = (const TargetRegisterClass*)&Mips::GPR32RegClass;
+  RC = (Subtarget->isABI_N64()) ? &Mips::GPR64RegClass : &Mips::GPR32RegClass;
 
   V0 = RegInfo.createVirtualRegister(RC);
   V1 = RegInfo.createVirtualRegister(RC);

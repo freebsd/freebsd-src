@@ -71,7 +71,7 @@ define void @check_vfp_fold() minsize {
 ; CHECK-IOS-LABEL: check_vfp_fold:
 ; CHECK-IOS: push {r0, r1, r2, r3, r4, r7, lr}
 ; CHECK-IOS: sub.w r4, sp, #16
-; CHECK-IOS: bic r4, r4, #15
+; CHECK-IOS: bfc r4, #0, #4
 ; CHECK-IOS: mov sp, r4
 ; CHECK-IOS: vst1.64 {d8, d9}, [r4:128]
 ; ...
@@ -167,9 +167,9 @@ end:
 define void @test_varsize(...) minsize {
 ; CHECK-T1-LABEL: test_varsize:
 ; CHECK-T1: sub	sp, #16
-; CHECK-T1: push	{r2, r3, r4, r5, r7, lr}
+; CHECK-T1: push	{r5, r6, r7, lr}
 ; ...
-; CHECK-T1: pop	{r2, r3, r4, r5, r7}
+; CHECK-T1: pop	{r2, r3, r7}
 ; CHECK-T1: pop	{r3}
 ; CHECK-T1: add	sp, #16
 ; CHECK-T1: bx	r3
@@ -183,6 +183,7 @@ define void @test_varsize(...) minsize {
 ; CHECK: bx	lr
 
   %var = alloca i8, i32 8
+  call void @llvm.va_start(i8* %var)
   call void @bar(i8* %var)
   ret void
 }
@@ -216,3 +217,5 @@ if.then:                                          ; preds = %entry
 exit:                                             ; preds = %if.then, %entry
   ret float %call1
 }
+
+declare void @llvm.va_start(i8*) nounwind

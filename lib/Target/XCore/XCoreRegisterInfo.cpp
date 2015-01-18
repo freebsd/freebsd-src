@@ -15,6 +15,7 @@
 #include "XCore.h"
 #include "XCoreInstrInfo.h"
 #include "XCoreMachineFunctionInfo.h"
+#include "XCoreSubtarget.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -98,7 +99,7 @@ static void InsertFPConstInst(MachineBasicBlock::iterator II,
   MachineBasicBlock &MBB = *MI.getParent();
   DebugLoc dl = MI.getDebugLoc();
   unsigned ScratchOffset = RS->scavengeRegister(&XCore::GRRegsRegClass, II, 0);
-  RS->setUsed(ScratchOffset);
+  RS->setRegUsed(ScratchOffset);
   TII.loadImmediate(MBB, II, ScratchOffset, Offset);
 
   switch (MI.getOpcode()) {
@@ -170,12 +171,12 @@ static void InsertSPConstInst(MachineBasicBlock::iterator II,
   unsigned ScratchBase;
   if (OpCode==XCore::STWFI) {
     ScratchBase = RS->scavengeRegister(&XCore::GRRegsRegClass, II, 0);
-    RS->setUsed(ScratchBase);
+    RS->setRegUsed(ScratchBase);
   } else
     ScratchBase = Reg;
   BuildMI(MBB, II, dl, TII.get(XCore::LDAWSP_ru6), ScratchBase).addImm(0);
   unsigned ScratchOffset = RS->scavengeRegister(&XCore::GRRegsRegClass, II, 0);
-  RS->setUsed(ScratchOffset);
+  RS->setRegUsed(ScratchOffset);
   TII.loadImmediate(MBB, II, ScratchOffset, Offset);
 
   switch (OpCode) {
@@ -221,7 +222,7 @@ const MCPhysReg* XCoreRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF
     XCore::R8, XCore::R9,
     0
   };
-  const TargetFrameLowering *TFI = MF->getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF->getSubtarget().getFrameLowering();
   if (TFI->hasFP(*MF))
     return CalleeSavedRegsFP;
   return CalleeSavedRegs;
@@ -229,7 +230,7 @@ const MCPhysReg* XCoreRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF
 
 BitVector XCoreRegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
 
   Reserved.set(XCore::CP);
   Reserved.set(XCore::DP);
@@ -267,9 +268,9 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   MachineFunction &MF = *MI.getParent()->getParent();
   const XCoreInstrInfo &TII =
-          *static_cast<const XCoreInstrInfo*>(MF.getTarget().getInstrInfo());
+      *static_cast<const XCoreInstrInfo *>(MF.getSubtarget().getInstrInfo());
 
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
   int Offset = MF.getFrameInfo()->getObjectOffset(FrameIndex);
   int StackSize = MF.getFrameInfo()->getStackSize();
 
@@ -323,7 +324,7 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
 
 unsigned XCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
-  const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
+  const TargetFrameLowering *TFI = MF.getSubtarget().getFrameLowering();
 
   return TFI->hasFP(MF) ? XCore::R10 : XCore::SP;
 }

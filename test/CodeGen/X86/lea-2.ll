@@ -1,4 +1,7 @@
-; RUN: llc < %s -march=x86 -x86-asm-syntax=intel | FileCheck %s
+; RUN: llc < %s -mtriple=i686-linux -x86-asm-syntax=intel | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-linux -x86-asm-syntax=intel | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-linux-gnux32 -x86-asm-syntax=intel | FileCheck %s
+; RUN: llc < %s -mtriple=x86_64-nacl -x86-asm-syntax=intel | FileCheck %s
 
 define i32 @test1(i32 %A, i32 %B) {
   %tmp1 = shl i32 %A, 2
@@ -7,7 +10,7 @@ define i32 @test1(i32 %A, i32 %B) {
 ; The above computation of %tmp4 should match a single lea, without using
 ; actual add instructions.
 ; CHECK-NOT: add
-; CHECK: lea {{[a-z]+}}, dword ptr [{{[a-z]+}} + 4*{{[a-z]+}} - 5]
+; CHECK: lea {{[a-z]+}}, [{{[a-z]+}} + 4*{{[a-z]+}} - 5]
 
   ret i32 %tmp4
 }

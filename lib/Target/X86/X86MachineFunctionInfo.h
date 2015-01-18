@@ -11,10 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86MACHINEFUNCTIONINFO_H
-#define X86MACHINEFUNCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_X86_X86MACHINEFUNCTIONINFO_H
+#define LLVM_LIB_TARGET_X86_X86MACHINEFUNCTIONINFO_H
 
+#include "llvm/CodeGen/CallingConvLower.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/MachineValueType.h"
+#include <vector>
 
 namespace llvm {
 
@@ -28,6 +31,12 @@ class X86MachineFunctionInfo : public MachineFunctionInfo {
   /// that FP eliminatation is turned off. For example, Cygwin main function
   /// contains stack pointer re-alignment code which requires FP.
   bool ForceFramePointer;
+
+  /// RestoreBasePointerOffset - Non-zero if the function has base pointer
+  /// and makes call to llvm.eh.sjlj.setjmp. When non-zero, the value is a
+  /// displacement from the frame pointer to a slot where the base pointer
+  /// is stashed.
+  signed char RestoreBasePointerOffset;
 
   /// CalleeSavedFrameSize - Size of the callee-saved register portion of the
   /// stack frame in bytes.
@@ -69,8 +78,14 @@ class X86MachineFunctionInfo : public MachineFunctionInfo {
   /// NumLocalDynamics - Number of local-dynamic TLS accesses.
   unsigned NumLocalDynamics;
 
+private:
+  /// ForwardedMustTailRegParms - A list of virtual and physical registers
+  /// that must be forwarded to every musttail call.
+  SmallVector<ForwardedRegister, 1> ForwardedMustTailRegParms;
+
 public:
   X86MachineFunctionInfo() : ForceFramePointer(false),
+                             RestoreBasePointerOffset(0),
                              CalleeSavedFrameSize(0),
                              BytesToPopOnReturn(0),
                              ReturnAddrIndex(0),
@@ -86,6 +101,7 @@ public:
 
   explicit X86MachineFunctionInfo(MachineFunction &MF)
     : ForceFramePointer(false),
+      RestoreBasePointerOffset(0),
       CalleeSavedFrameSize(0),
       BytesToPopOnReturn(0),
       ReturnAddrIndex(0),
@@ -101,6 +117,10 @@ public:
 
   bool getForceFramePointer() const { return ForceFramePointer;}
   void setForceFramePointer(bool forceFP) { ForceFramePointer = forceFP; }
+
+  bool getRestoreBasePointer() const { return RestoreBasePointerOffset!=0; }
+  void setRestoreBasePointer(const MachineFunction *MF);
+  int getRestoreBasePointerOffset() const {return RestoreBasePointerOffset; }
 
   unsigned getCalleeSavedFrameSize() const { return CalleeSavedFrameSize; }
   void setCalleeSavedFrameSize(unsigned bytes) { CalleeSavedFrameSize = bytes; }
@@ -138,6 +158,9 @@ public:
   unsigned getNumLocalDynamicTLSAccesses() const { return NumLocalDynamics; }
   void incNumLocalDynamicTLSAccesses() { ++NumLocalDynamics; }
 
+  SmallVectorImpl<ForwardedRegister> &getForwardedMustTailRegParms() {
+    return ForwardedMustTailRegParms;
+  }
 };
 
 } // End llvm namespace

@@ -20,6 +20,7 @@
 
 #include "llvm/IR/Constant.h"
 #include "llvm/IR/DerivedTypes.h"
+#include <system_error>
 
 namespace llvm {
 
@@ -84,6 +85,7 @@ private:
   // (19 + 3 + 2 + 1 + 2 + 5) == 32.
   unsigned SubClassData : 19;
 protected:
+  static const unsigned GlobalValueSubClassDataBits = 19;
   unsigned getGlobalValueSubClassData() const {
     return SubClassData;
   }
@@ -246,6 +248,7 @@ public:
   bool hasLinkOnceLinkage() const {
     return isLinkOnceLinkage(Linkage);
   }
+  bool hasLinkOnceODRLinkage() const { return isLinkOnceODRLinkage(Linkage); }
   bool hasWeakLinkage() const {
     return isWeakLinkage(Linkage);
   }
@@ -309,7 +312,7 @@ public:
   /// Make sure this GlobalValue is fully read. If the module is corrupt, this
   /// returns true and fills in the optional string with information about the
   /// problem.  If successful, this returns false.
-  bool Materialize(std::string *ErrInfo = nullptr);
+  std::error_code materialize();
 
   /// If this GlobalValue is read in, and if the GVMaterializer supports it,
   /// release the memory for the function, and set it up to be materialized
@@ -324,6 +327,13 @@ public:
   /// Return true if the primary definition of this global value is outside of
   /// the current translation unit.
   bool isDeclaration() const;
+
+  bool isDeclarationForLinker() const {
+    if (hasAvailableExternallyLinkage())
+      return true;
+
+    return isDeclaration();
+  }
 
   /// This method unlinks 'this' from the containing module, but does not delete
   /// it.

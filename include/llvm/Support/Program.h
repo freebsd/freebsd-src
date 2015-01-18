@@ -15,6 +15,7 @@
 #define LLVM_SUPPORT_PROGRAM_H
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/Path.h"
 #include <system_error>
 
@@ -51,17 +52,22 @@ struct ProcessInfo {
   ProcessInfo();
 };
 
-  /// This function attempts to locate a program in the operating
-  /// system's file system using some pre-determined set of locations to search
-  /// (e.g. the PATH on Unix). Paths with slashes are returned unmodified.
+  /// \brief Find the first executable file \p Name in \p Paths.
   ///
-  /// It does not perform hashing as a shell would but instead stats each PATH
+  /// This does not perform hashing as a shell would but instead stats each PATH
   /// entry individually so should generally be avoided. Core LLVM library
   /// functions and options should instead require fully specified paths.
   ///
-  /// @returns A string containing the path of the program or an empty string if
-  /// the program could not be found.
-  std::string FindProgramByName(const std::string& name);
+  /// \param Name name of the executable to find. If it contains any system
+  ///   slashes, it will be returned as is.
+  /// \param Paths optional list of paths to search for \p Name. If empty it
+  ///   will use the system PATH environment instead.
+  ///
+  /// \returns The fully qualified path to the first \p Name in \p Paths if it
+  ///   exists. \p Name if \p Name has slashes in it. Otherwise an error.
+  ErrorOr<std::string>
+  findProgramByName(StringRef Name,
+                    ArrayRef<StringRef> Paths = ArrayRef<StringRef>());
 
   // These functions change the specified standard stream (stdin or stdout) to
   // binary mode. They return errc::success if the specified stream
@@ -82,7 +88,7 @@ struct ProcessInfo {
   /// -2 indicates a crash during execution or timeout
   int ExecuteAndWait(
       StringRef Program, ///< Path of the program to be executed. It is
-      /// presumed this is the result of the FindProgramByName method.
+      /// presumed this is the result of the findProgramByName method.
       const char **args, ///< A vector of strings that are passed to the
       ///< program.  The first element should be the name of the program.
       ///< The list *must* be terminated by a null char* entry.
@@ -125,6 +131,40 @@ struct ProcessInfo {
   /// Return true if the given arguments fit within system-specific
   /// argument length limits.
   bool argumentsFitWithinSystemLimits(ArrayRef<const char*> Args);
+
+  /// File encoding options when writing contents that a non-UTF8 tool will
+  /// read (on Windows systems). For UNIX, we always use UTF-8.
+  enum WindowsEncodingMethod {
+    /// UTF-8 is the LLVM native encoding, being the same as "do not perform
+    /// encoding conversion".
+    WEM_UTF8,
+    WEM_CurrentCodePage,
+    WEM_UTF16
+  };
+
+  /// Saves the UTF8-encoded \p contents string into the file \p FileName
+  /// using a specific encoding.
+  ///
+  /// This write file function adds the possibility to choose which encoding
+  /// to use when writing a text file. On Windows, this is important when
+  /// writing files with internationalization support with an encoding that is
+  /// different from the one used in LLVM (UTF-8). We use this when writing
+  /// response files, since GCC tools on MinGW only understand legacy code
+  /// pages, and VisualStudio tools only understand UTF-16.
+  /// For UNIX, using different encodings is silently ignored, since all tools
+  /// work well with UTF-8.
+  /// This function assumes that you only use UTF-8 *text* data and will convert
+  /// it to your desired encoding before writing to the file.
+  ///
+  /// FIXME: We use EM_CurrentCodePage to write response files for GNU tools in
+  /// a MinGW/MinGW-w64 environment, which has serious flaws but currently is
+  /// our best shot to make gcc/ld understand international characters. This
+  /// should be changed as soon as binutils fix this to support UTF16 on mingw.
+  ///
+  /// \returns non-zero error_code if failed
+  std::error_code
+  writeFileWithEncoding(StringRef FileName, StringRef Contents,
+                        WindowsEncodingMethod Encoding = WEM_UTF8);
 
   /// This function waits for the process specified by \p PI to finish.
   /// \returns A \see ProcessInfo struct with Pid set to:

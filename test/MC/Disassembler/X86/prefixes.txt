@@ -8,11 +8,11 @@
 0x64 0x48 0x8b 0x3c 0x25 0x00 0x03 0x00 0x00
 
 # CHECK: rep
-# CHECK-NEXT:		stosq
+# CHECK-NEXT:		stosq %rax, %es:(%rdi)
 0xf3 0x48 0xab
 
 # CHECK: rep
-# CHECK-NEXT:		stosl
+# CHECK-NEXT:		stosq %rax, %es:(%edi)
 0xf3 0x67 0x48 0xab
 
 # CHECK: movl 32(%rbp), %eax
@@ -53,6 +53,17 @@
 # CHECK-NEXT: rep
 # CHECK-NEXT: stosq
 0xf3 0xf3 0x48 0xab
+
+
+# Test that we can disassembler control registers above CR8
+# CHECK: movq %cr15, %rax
+0x44 0x0f 0x20 0xf8
+# CHECK: movq %dr15, %rax
+0x44 0x0f 0x21 0xf8
+
+# Test that MMX ignore REX.R and REX.B.
+# CHECK: movq %mm0, %mm1
+0x46 0x0f 0x7f 0xc1
 
 # Test that a prefix on it's own works. It's debatable as to if this is 
 # something that is considered valid, but however as LLVM's own disassembler

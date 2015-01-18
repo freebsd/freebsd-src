@@ -2,10 +2,10 @@
 
 define <4 x float> @foo(<4 x float> %val, <4 x float> %test) nounwind {
 ; CHECK-LABEL: LCPI0_0:
-; CHECK-NEXT: .long 1065353216              ## float 1.000000e+00
-; CHECK-NEXT: .long 1065353216              ## float 1.000000e+00
-; CHECK-NEXT: .long 1065353216              ## float 1.000000e+00
-; CHECK-NEXT: .long 1065353216              ## float 1.000000e+00
+; CHECK-NEXT: .long 1065353216              ## 0x3f800000
+; CHECK-NEXT: .long 1065353216              ## 0x3f800000
+; CHECK-NEXT: .long 1065353216              ## 0x3f800000
+; CHECK-NEXT: .long 1065353216              ## 0x3f800000
 ; CHECK-LABEL: foo:
 ; CHECK: cmpeqps %xmm1, %xmm0
 ; CHECK-NEXT: andps LCPI0_0(%rip), %xmm0
@@ -53,4 +53,22 @@ define void @foo2(<4 x float>* noalias %result) nounwind {
   %val = uitofp <4 x i32> <i32 4, i32 5, i32 6, i32 7> to <4 x float>
   store <4 x float> %val, <4 x float>* %result
   ret void
+}
+
+; Fold explicit AND operations when the constant isn't a splat of a single
+; scalar value like what the zext creates.
+define <4 x float> @foo3(<4 x float> %val, <4 x float> %test) nounwind {
+; CHECK-LABEL: LCPI3_0:
+; CHECK-NEXT: .long 1065353216              ## 0x3f800000
+; CHECK-NEXT: .long 0                       ## 0x0
+; CHECK-NEXT: .long 1065353216              ## 0x3f800000
+; CHECK-NEXT: .long 0                       ## 0x0
+; CHECK-LABEL: foo3:
+; CHECK: cmpeqps %xmm1, %xmm0
+; CHECK-NEXT: andps LCPI3_0(%rip), %xmm0
+  %cmp = fcmp oeq <4 x float> %val, %test
+  %ext = zext <4 x i1> %cmp to <4 x i32>
+  %and = and <4 x i32> %ext, <i32 255, i32 256, i32 257, i32 258>
+  %result = sitofp <4 x i32> %and to <4 x float>
+  ret <4 x float> %result
 }

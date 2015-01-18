@@ -386,7 +386,7 @@ EmitStageAndOperandCycleData(raw_ostream &OS,
   for (CodeGenSchedModels::ProcIter PI = SchedModels.procModelBegin(),
          PE = SchedModels.procModelEnd(); PI != PE; ++PI) {
 
-    if (!ItinsDefSet.insert(PI->ItinsDef))
+    if (!ItinsDefSet.insert(PI->ItinsDef).second)
       continue;
 
     std::vector<Record*> FUs = PI->ItinsDef->getValueAsListOfDefs("FU");
@@ -565,7 +565,7 @@ EmitItineraries(raw_ostream &OS,
          PE = SchedModels.procModelEnd(); PI != PE; ++PI, ++ProcItinListsIter) {
 
     Record *ItinsDef = PI->ItinsDef;
-    if (!ItinsDefSet.insert(ItinsDef))
+    if (!ItinsDefSet.insert(ItinsDef).second)
       continue;
 
     // Get processor itinerary name
@@ -575,12 +575,13 @@ EmitItineraries(raw_ostream &OS,
     assert(ProcItinListsIter != ProcItinLists.end() && "bad iterator");
     std::vector<InstrItinerary> &ItinList = *ProcItinListsIter;
 
+    // Empty itineraries aren't referenced anywhere in the tablegen output
+    // so don't emit them.
+    if (ItinList.empty())
+      continue;
+
     OS << "\n";
     OS << "static const llvm::InstrItinerary ";
-    if (ItinList.empty()) {
-      OS << '*' << Name << " = nullptr;\n";
-      continue;
-    }
 
     // Begin processor itinerary table
     OS << Name << "[] = {\n";
@@ -1192,7 +1193,7 @@ void SubtargetEmitter::EmitProcessorModels(raw_ostream &OS) {
 
     // Begin processor itinerary properties
     OS << "\n";
-    OS << "static const llvm::MCSchedModel " << PI->ModelName << "(\n";
+    OS << "static const llvm::MCSchedModel " << PI->ModelName << " = {\n";
     EmitProcessorProp(OS, PI->ModelDef, "IssueWidth", ',');
     EmitProcessorProp(OS, PI->ModelDef, "MicroOpBufferSize", ',');
     EmitProcessorProp(OS, PI->ModelDef, "LoopMicroOpBufferSize", ',');
@@ -1217,10 +1218,10 @@ void SubtargetEmitter::EmitProcessorModels(raw_ostream &OS) {
                      - SchedModels.schedClassBegin()) << ",\n";
     else
       OS << "  0, 0, 0, 0, // No instruction-level machine model.\n";
-    if (SchedModels.hasItineraries())
-      OS << "  " << PI->ItinsDef->getName() << ");\n";
+    if (PI->hasItineraries())
+      OS << "  " << PI->ItinsDef->getName() << "};\n";
     else
-      OS << "  0); // No Itinerary\n";
+      OS << "  nullptr}; // No Itinerary\n";
   }
 }
 

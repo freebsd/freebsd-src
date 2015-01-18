@@ -1,4 +1,5 @@
-; RUN: llc < %s -march=x86-64 -mtriple=x86_64-apple-darwin -mcpu=knl | FileCheck %s
+; RUN: llc < %s -march=x86-64 -mtriple=x86_64-apple-darwin -mcpu=knl | FileCheck --check-prefix=KNL --check-prefix=CHECK %s
+; RUN: llc < %s -march=x86-64 -mtriple=x86_64-apple-darwin -mcpu=skx | FileCheck --check-prefix=SKX --check-prefix=CHECK %s
 
 ;CHECK-LABEL: test1:
 ;CHECK: vinsertps
@@ -12,9 +13,11 @@ define <16 x float> @test1(<16 x float> %x, float* %br, float %y) nounwind {
 }
 
 ;CHECK-LABEL: test2:
-;CHECK: vinsertf32x4
-;CHECK: vextractf32x4
-;CHECK: vinsertf32x4
+;KNL: vinsertf32x4 $0
+;SKX: vinsertf64x2 $0
+;CHECK: vextractf32x4 $3
+;KNL: vinsertf32x4 $3
+;SKX: vinsertf64x2 $3
 ;CHECK: ret
 define <8 x double> @test2(<8 x double> %x, double* %br, double %y) nounwind {
   %rrr = load double* %br
@@ -24,8 +27,8 @@ define <8 x double> @test2(<8 x double> %x, double* %br, double %y) nounwind {
 }
 
 ;CHECK-LABEL: test3:
-;CHECK: vextractf32x4
-;CHECK: vinsertf32x4
+;CHECK: vextractf32x4 $1
+;CHECK: vinsertf32x4 $0
 ;CHECK: ret
 define <16 x float> @test3(<16 x float> %x) nounwind {
   %eee = extractelement <16 x float> %x, i32 4
@@ -34,8 +37,9 @@ define <16 x float> @test3(<16 x float> %x) nounwind {
 }
 
 ;CHECK-LABEL: test4:
-;CHECK: vextracti32x4
-;CHECK: vinserti32x4
+;CHECK: vextracti32x4 $2
+;KNL: vinserti32x4 $0
+;SKX: vinserti64x2 $0
 ;CHECK: ret
 define <8 x i64> @test4(<8 x i64> %x) nounwind {
   %eee = extractelement <8 x i64> %x, i32 4
@@ -186,12 +190,13 @@ define i16 @test16(i1 *%addr, i16 %a) {
 ;CHECK-LABEL: test17
 ;CHECK: kshiftlw
 ;CHECK: kshiftrw
-;CHECK: korw
+;KNL: korw
+;SKX: korb
 ;CHECK: ret
 define i8 @test17(i1 *%addr, i8 %a) {
   %x = load i1 * %addr, align 128
   %a1 = bitcast i8 %a to <8 x i1>
-  %x1 = insertelement <8 x i1> %a1, i1 %x, i32 10
+  %x1 = insertelement <8 x i1> %a1, i1 %x, i32 4
   %x2 = bitcast <8 x i1>%x1 to i8
   ret i8 %x2
 }

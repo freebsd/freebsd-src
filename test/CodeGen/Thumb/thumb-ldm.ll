@@ -1,5 +1,4 @@
-; RUN: llc < %s -mtriple=thumbv6m-eabi -o - | FileCheck %s
-; XFAIL: *
+; RUN: llc < %s -mtriple=thumbv6m-eabi -verify-machineinstrs -o - | FileCheck %s
 
 @X = external global [0 x i32]          ; <[0 x i32]*> [#uses=5]
 

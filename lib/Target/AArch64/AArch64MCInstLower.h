@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef AArch64_MCINSTLOWER_H
-#define AArch64_MCINSTLOWER_H
+#ifndef LLVM_LIB_TARGET_AARCH64_AARCH64MCINSTLOWER_H
+#define LLVM_LIB_TARGET_AARCH64_AARCH64MCINSTLOWER_H
 
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/Compiler.h"
@@ -33,7 +33,7 @@ class LLVM_LIBRARY_VISIBILITY AArch64MCInstLower {
   Triple TargetTriple;
 
 public:
-  AArch64MCInstLower(MCContext &ctx, Mangler &mang, AsmPrinter &printer);
+  AArch64MCInstLower(MCContext &ctx, AsmPrinter &printer);
 
   bool lowerOperand(const MachineOperand &MO, MCOperand &MCOp) const;
   void Lower(const MachineInstr *MI, MCInst &OutMI) const;

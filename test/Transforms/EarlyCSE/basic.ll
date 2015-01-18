@@ -1,5 +1,6 @@
 ; RUN: opt < %s -S -early-cse | FileCheck %s
 
+declare void @llvm.assume(i1) nounwind
 
 ; CHECK-LABEL: @test1(
 define void @test1(i8 %V, i32 *%P) {
@@ -42,6 +43,16 @@ define i32 @test2(i32 *%P) {
   ; CHECK: ret i32 0
 }
 
+; CHECK-LABEL: @test2a(
+define i32 @test2a(i32 *%P, i1 %b) {
+  %V1 = load i32* %P
+  tail call void @llvm.assume(i1 %b)
+  %V2 = load i32* %P
+  %Diff = sub i32 %V1, %V2
+  ret i32 %Diff
+  ; CHECK: ret i32 0
+}
+
 ;; Cross block load value numbering.
 ; CHECK-LABEL: @test3(
 define i32 @test3(i32 *%P, i1 %Cond) {
@@ -51,6 +62,22 @@ T:
   store i32 4, i32* %P
   ret i32 42
 F:
+  %V2 = load i32* %P
+  %Diff = sub i32 %V1, %V2
+  ret i32 %Diff
+  ; CHECK: F:
+  ; CHECK: ret i32 0
+}
+
+; CHECK-LABEL: @test3a(
+define i32 @test3a(i32 *%P, i1 %Cond, i1 %b) {
+  %V1 = load i32* %P
+  br i1 %Cond, label %T, label %F
+T:
+  store i32 4, i32* %P
+  ret i32 42
+F:
+  tail call void @llvm.assume(i1 %b)
   %V2 = load i32* %P
   %Diff = sub i32 %V1, %V2
   ret i32 %Diff
@@ -97,6 +124,15 @@ define i32 @test6(i32 *%P) {
   ; CHECK: ret i32 42
 }
 
+; CHECK-LABEL: @test6a(
+define i32 @test6a(i32 *%P, i1 %b) {
+  store i32 42, i32* %P
+  tail call void @llvm.assume(i1 %b)
+  %V1 = load i32* %P
+  ret i32 %V1
+  ; CHECK: ret i32 42
+}
+
 ;; Trivial dead store elimination.
 ; CHECK-LABEL: @test7(
 define void @test7(i32 *%P) {
@@ -116,6 +152,44 @@ define i32 @test8(i32 *%P) {
   %Diff = sub i32 %V1, %V2
   ret i32 %Diff
   ; CHECK: ret i32 0
+}
+
+;; Trivial DSE can't be performed across a readonly call.  The call
+;; can observe the earlier write.
+; CHECK-LABEL: @test9(
+define i32 @test9(i32 *%P) {
+  store i32 4, i32* %P
+  %V1 = call i32 @func(i32* %P) readonly
+  store i32 5, i32* %P        
+  ret i32 %V1
+  ; CHECK: store i32 4, i32* %P        
+  ; CHECK-NEXT: %V1 = call i32 @func(i32* %P)
+  ; CHECK-NEXT: store i32 5, i32* %P        
+  ; CHECK-NEXT: ret i32 %V1
+}
+
+;; Trivial DSE can be performed across a readnone call.
+; CHECK-LABEL: @test10
+define i32 @test10(i32 *%P) {
+  store i32 4, i32* %P
+  %V1 = call i32 @func(i32* %P) readnone
+  store i32 5, i32* %P        
+  ret i32 %V1
+  ; CHECK-NEXT: %V1 = call i32 @func(i32* %P)
+  ; CHECK-NEXT: store i32 5, i32* %P        
+  ; CHECK-NEXT: ret i32 %V1
+}
+
+;; Trivial dead store elimination - should work for an entire series of dead stores too.
+; CHECK-LABEL: @test11(
+define void @test11(i32 *%P) {
+  store i32 42, i32* %P
+  store i32 43, i32* %P
+  store i32 44, i32* %P
+  store i32 45, i32* %P
+  ret void
+  ; CHECK-NEXT: store i32 45
+  ; CHECK-NEXT: ret void
 }
 
 

@@ -12,7 +12,6 @@
 #include "llvm/MC/MCFixedLenDisassembler.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/Support/MemoryObject.h"
 #include "llvm/Support/TargetRegistry.h"
 
 using namespace llvm;
@@ -28,13 +27,10 @@ public:
     : MCDisassembler(STI, Ctx) {}
   virtual ~PPCDisassembler() {}
 
-  // Override MCDisassembler.
-  virtual DecodeStatus getInstruction(MCInst &instr,
-                                      uint64_t &size,
-                                      const MemoryObject &region,
-                                      uint64_t address,
-                                      raw_ostream &vStream,
-                                      raw_ostream &cStream) const override;
+  DecodeStatus getInstruction(MCInst &Instr, uint64_t &Size,
+                              ArrayRef<uint8_t> Bytes, uint64_t Address,
+                              raw_ostream &VStream,
+                              raw_ostream &CStream) const override;
 };
 } // end anonymous namespace
 
@@ -325,23 +321,19 @@ static DecodeStatus decodeCRBitMOperand(MCInst &Inst, uint64_t Imm,
 #include "PPCGenDisassemblerTables.inc"
 
 DecodeStatus PPCDisassembler::getInstruction(MCInst &MI, uint64_t &Size,
-                                                 const MemoryObject &Region,
-                                                 uint64_t Address,
-                                                 raw_ostream &os,
-                                                 raw_ostream &cs) const {
+                                             ArrayRef<uint8_t> Bytes,
+                                             uint64_t Address, raw_ostream &OS,
+                                             raw_ostream &CS) const {
   // Get the four bytes of the instruction.
-  uint8_t Bytes[4];
   Size = 4;
-  if (Region.readBytes(Address, Size, Bytes) == -1) {
+  if (Bytes.size() < 4) {
     Size = 0;
     return MCDisassembler::Fail;
   }
 
   // The instruction is big-endian encoded.
-  uint32_t Inst = (Bytes[0] << 24) |
-                  (Bytes[1] << 16) |
-                  (Bytes[2] <<  8) |
-                  (Bytes[3] <<  0);
+  uint32_t Inst =
+      (Bytes[0] << 24) | (Bytes[1] << 16) | (Bytes[2] << 8) | (Bytes[3] << 0);
 
   return decodeInstruction(DecoderTable32, MI, Inst, Address, this, STI);
 }

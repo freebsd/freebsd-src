@@ -1,4 +1,5 @@
 ; RUN: llvm-as < %s | llvm-dis | llvm-as | llvm-dis | FileCheck %s
+; RUN: verify-uselistorder %s
 
 ; CHECK:      @foo
 ; CHECK-NEXT: load

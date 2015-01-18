@@ -30,20 +30,23 @@ set(LLVM_TEST_DEPENDS
           llvm-cov
           llvm-diff
           llvm-dis
-          llvm-extract
+          llvm-dsymutil
           llvm-dwarfdump
+          llvm-extract
           llvm-link
           llvm-lto
           llvm-mc
           llvm-mcmarkup
           llvm-nm
-          llvm-size
           llvm-objdump
           llvm-profdata
+          llvm-ranlib
           llvm-readobj
           llvm-rtdyld
+          llvm-size
           llvm-symbolizer
           llvm-tblgen
+          llvm-vtabledump
           macho-dump
           opt
           FileCheck
@@ -51,12 +54,40 @@ set(LLVM_TEST_DEPENDS
           not
           yaml2obj
           obj2yaml
+          verify-uselistorder
         )
 
 # If Intel JIT events are supported, depend on a tool that tests the listener.
 if( LLVM_USE_INTEL_JITEVENTS )
   set(LLVM_TEST_DEPENDS ${LLVM_TEST_DEPENDS} llvm-jitlistener)
 endif( LLVM_USE_INTEL_JITEVENTS )
+
+if(TARGET LLVMgold)
+  set(LLVM_TEST_DEPENDS ${LLVM_TEST_DEPENDS} LLVMgold)
+endif()
+
+if(TARGET llvm-go)
+  set(LLVM_TEST_DEPENDS ${LLVM_TEST_DEPENDS} llvm-go)
+endif()
+
+if(TARGET ocaml_llvm)
+  set(LLVM_TEST_DEPENDS ${LLVM_TEST_DEPENDS}
+          ocaml_llvm
+          ocaml_llvm_all_backends
+          ocaml_llvm_analysis
+          ocaml_llvm_bitreader
+          ocaml_llvm_bitwriter
+          ocaml_llvm_executionengine
+          ocaml_llvm_irreader
+          ocaml_llvm_linker
+          ocaml_llvm_target
+          ocaml_llvm_ipo
+          ocaml_llvm_passmgr_builder
+          ocaml_llvm_scalar_opts
+          ocaml_llvm_transform_utils
+          ocaml_llvm_vectorize
+        )
+endif()
 
 add_lit_testsuite(check-llvm "Running the LLVM regression tests"
   ${CMAKE_CURRENT_BINARY_DIR}

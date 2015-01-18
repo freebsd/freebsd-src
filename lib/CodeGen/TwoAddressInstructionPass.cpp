@@ -48,6 +48,7 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "twoaddrinstr"
@@ -544,10 +545,21 @@ isProfitableToCommute(unsigned regA, unsigned regB, unsigned regC,
   if (ToRegA) {
     unsigned FromRegB = getMappedReg(regB, SrcRegMap);
     unsigned FromRegC = getMappedReg(regC, SrcRegMap);
-    bool BComp = !FromRegB || regsAreCompatible(FromRegB, ToRegA, TRI);
-    bool CComp = !FromRegC || regsAreCompatible(FromRegC, ToRegA, TRI);
-    if (BComp != CComp)
-      return !BComp && CComp;
+    bool CompB = FromRegB && regsAreCompatible(FromRegB, ToRegA, TRI);
+    bool CompC = FromRegC && regsAreCompatible(FromRegC, ToRegA, TRI);
+
+    // Compute if any of the following are true:
+    // -RegB is not tied to a register and RegC is compatible with RegA.
+    // -RegB is tied to the wrong physical register, but RegC is.
+    // -RegB is tied to the wrong physical register, and RegC isn't tied.
+    if ((!FromRegB && CompC) || (FromRegB && !CompB && (!FromRegC || CompC)))
+      return true;
+    // Don't compute if any of the following are true:
+    // -RegC is not tied to a register and RegB is compatible with RegA.
+    // -RegC is tied to the wrong physical register, but RegB is.
+    // -RegC is tied to the wrong physical register, and RegB isn't tied.
+    if ((!FromRegC && CompB) || (FromRegC && !CompC && (!FromRegB || CompB)))
+      return false;
   }
 
   // If there is a use of regC between its last def (could be livein) and this
@@ -666,7 +678,7 @@ TwoAddressInstructionPass::scanUses(unsigned DstReg) {
   unsigned Reg = DstReg;
   while (MachineInstr *UseMI = findOnlyInterestingUse(Reg, MBB, MRI, TII,IsCopy,
                                                       NewReg, IsDstPhys)) {
-    if (IsCopy && !Processed.insert(UseMI))
+    if (IsCopy && !Processed.insert(UseMI).second)
       break;
 
     DenseMap<MachineInstr*, unsigned>::iterator DI = DistanceMap.find(UseMI);
@@ -1503,9 +1515,9 @@ bool TwoAddressInstructionPass::runOnMachineFunction(MachineFunction &Func) {
   MF = &Func;
   const TargetMachine &TM = MF->getTarget();
   MRI = &MF->getRegInfo();
-  TII = TM.getInstrInfo();
-  TRI = TM.getRegisterInfo();
-  InstrItins = TM.getInstrItineraryData();
+  TII = TM.getSubtargetImpl()->getInstrInfo();
+  TRI = TM.getSubtargetImpl()->getRegisterInfo();
+  InstrItins = TM.getSubtargetImpl()->getInstrItineraryData();
   LV = getAnalysisIfAvailable<LiveVariables>();
   LIS = getAnalysisIfAvailable<LiveIntervals>();
   AA = &getAnalysis<AliasAnalysis>();

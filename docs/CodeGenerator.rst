@@ -290,10 +290,10 @@ the opcode, the number of operands, the list of implicit register uses and defs,
 whether the instruction has certain target-independent properties (accesses
 memory, is commutable, etc), and holds any target-specific flags.
 
-The ``TargetFrameInfo`` class
------------------------------
+The ``TargetFrameLowering`` class
+---------------------------------
 
-The ``TargetFrameInfo`` class is used to provide information about the stack
+The ``TargetFrameLowering`` class is used to provide information about the stack
 frame layout of the target. It holds the direction of stack growth, the known
 stack alignment on entry to each function, and the offset to the local area.
 The offset to the local area is the offset from the stack pointer on function
@@ -464,7 +464,7 @@ code:
   mov %EAX, %EDX
   sar %EDX, 31
   idiv %ECX
-  ret 
+  ret
 
 This approach is extremely general (if it can handle the X86 architecture, it
 can handle anything!) and allows all of the target specific knowledge about the
@@ -769,7 +769,9 @@ provide an ordering between nodes that have side effects (such as loads, stores,
 calls, returns, etc).  All nodes that have side effects should take a token
 chain as input and produce a new one as output.  By convention, token chain
 inputs are always operand #0, and chain results are always the last value
-produced by an operation.
+produced by an operation. However, after instruction selection, the
+machine nodes have their chain after the instruction's operands, and
+may be followed by glue nodes.
 
 A SelectionDAG has designated "Entry" and "Root" nodes.  The Entry node is
 always a marker node with an Opcode of ``ISD::EntryToken``.  The Root node is
@@ -845,6 +847,10 @@ The ``-view-sunit-dags`` displays the Scheduler's dependency graph.  This graph
 is based on the final SelectionDAG, with nodes that must be scheduled together
 bundled into a single scheduling-unit node, and with immediate operands and
 other nodes that aren't relevant for scheduling omitted.
+
+The option ``-filter-view-dags`` allows to select the name of the basic block
+that you are interested to visualize and filters all the previous
+``view-*-dags`` options.
 
 .. _Build initial DAG:
 

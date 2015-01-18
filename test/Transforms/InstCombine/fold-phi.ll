@@ -17,23 +17,23 @@ end:
   ret float %add5
 }
 
-; CHECK: fold_phi
-define float @fold_phi(float %a) nounwind {
+; CHECK-LABEL: @pr21377(
+define void @pr21377(i32) {
 entry:
-  br label %for.body
+  br label %while.body
 
-for.body:
-; CHECK: phi float
-; CHECK-NEXT: br i1 undef
-  %sum.057 = phi float [ 0.000000e+00, %entry ], [ %add5, %bb0 ]
-  %add5 = fadd float %sum.057, 1.0 ;; Should be moved to the latch!
-  br i1 undef, label %bb0, label %end
+while.body:                                       ; preds = %if.end, %entry
+  %phi1 = phi i64 [ undef, %entry ], [ %or2, %if.end ]
+  %zext = zext i32 %0 to i64
+  br i1 undef, label %if.end, label %if.else
 
-; CHECK: bb0:
-bb0:
-; CHECK: fadd float
-  br label %for.body
+if.else:                                          ; preds = %while.body
+  %or1 = or i64 %phi1, %zext
+  %and = and i64 %or1, 4294967295
+  br label %if.end
 
-end:
-  ret float %add5
+if.end:                                           ; preds = %if.else, %while.body
+  %phi2 = phi i64 [ %and, %if.else ], [ undef, %while.body ]
+  %or2 = or i64 %phi2, %zext
+  br label %while.body
 }

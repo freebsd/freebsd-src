@@ -153,8 +153,8 @@ private:
 public:
   /// runOnMachineFunction - Initialize per-function data structures.
   void runOnMachineFunction(MachineFunction &MF) {
-    TII = MF.getTarget().getInstrInfo();
-    TRI = MF.getTarget().getRegisterInfo();
+    TII = MF.getSubtarget().getInstrInfo();
+    TRI = MF.getSubtarget().getRegisterInfo();
     MRI = &MF.getRegInfo();
     LiveRegUnits.clear();
     LiveRegUnits.setUniverse(TRI->getNumRegUnits());
@@ -245,7 +245,7 @@ bool SSAIfConv::canSpeculateInstrs(MachineBasicBlock *MBB) {
       MachineInstr *DefMI = MRI->getVRegDef(Reg);
       if (!DefMI || DefMI->getParent() != Head)
         continue;
-      if (InsertAfter.insert(DefMI))
+      if (InsertAfter.insert(DefMI).second)
         DEBUG(dbgs() << "BB#" << MBB->getNumber() << " depends on " << *DefMI);
       if (DefMI->isTerminator()) {
         DEBUG(dbgs() << "Can't insert instructions below terminator.\n");
@@ -580,7 +580,7 @@ namespace {
 class EarlyIfConverter : public MachineFunctionPass {
   const TargetInstrInfo *TII;
   const TargetRegisterInfo *TRI;
-  const MCSchedModel *SchedModel;
+  MCSchedModel SchedModel;
   MachineRegisterInfo *MRI;
   MachineDominatorTree *DomTree;
   MachineLoopInfo *Loops;
@@ -688,7 +688,7 @@ bool EarlyIfConverter::shouldConvertIf() {
                               FBBTrace.getCriticalPath());
 
   // Set a somewhat arbitrary limit on the critical path extension we accept.
-  unsigned CritLimit = SchedModel->MispredictPenalty/2;
+  unsigned CritLimit = SchedModel.MispredictPenalty/2;
 
   // If-conversion only makes sense when there is unexploited ILP. Compute the
   // maximum-ILP resource length of the trace after if-conversion. Compare it
@@ -782,8 +782,8 @@ bool EarlyIfConverter::runOnMachineFunction(MachineFunction &MF) {
            .enableEarlyIfConversion())
     return false;
 
-  TII = MF.getTarget().getInstrInfo();
-  TRI = MF.getTarget().getRegisterInfo();
+  TII = MF.getSubtarget().getInstrInfo();
+  TRI = MF.getSubtarget().getRegisterInfo();
   SchedModel =
     MF.getTarget().getSubtarget<TargetSubtargetInfo>().getSchedModel();
   MRI = &MF.getRegInfo();

@@ -10,7 +10,10 @@
         add.s     $f8,$f21,$f24
         addi      $13,$9,26322
         addi      $8,$8,~1             # CHECK: addi $8, $8, -2 # encoding: [0x21,0x08,0xff,0xfe]
+        add       $9,$14,15176         # CHECK: addi $9, $14, 15176   # encoding: [0x21,0xc9,0x3b,0x48]
+        add       $24,-7193            # CHECK: addi $24, $24, -7193  # encoding: [0x23,0x18,0xe3,0xe7]
         addu      $9,$a0,$a2
+        addu      $9,10                # CHECK: addiu $9, $9, 10    # encoding: [0x25,0x29,0x00,0x0a]
         and       $s7,$v0,$12
         and       $2,4                 # CHECK: andi $2, $2, 4 # encoding: [0x30,0x42,0x00,0x04]
         bc1f      $fcc0, 4             # CHECK: bc1f 4        # encoding: [0x45,0x00,0x00,0x01]
@@ -97,6 +100,8 @@
         srlv      $25,$s4,$a0          # CHECK: srlv $25, $20, $4      # encoding: [0x00,0x94,0xc8,0x06]
         ssnop                          # CHECK: ssnop                  # encoding: [0x00,0x00,0x00,0x40]
         sub       $s6,$s3,$12
+        sub       $22,$17,-3126        # CHECK: addi $22, $17, 3126    # encoding: [0x22,0x36,0x0c,0x36]
+        sub       $13,6512             # CHECK: addi $13, $13, -6512   # encoding: [0x21,0xad,0xe6,0x90]
         sub.d     $f18,$f3,$f17
         sub.s     $f23,$f22,$f22
         subu      $sp,$s6,$s6

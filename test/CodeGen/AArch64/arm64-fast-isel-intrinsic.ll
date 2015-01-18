@@ -1,4 +1,4 @@
-; RUN: llc < %s -O0 -fast-isel-abort -relocation-model=dynamic-no-pic -mtriple=arm64-apple-ios | FileCheck %s --check-prefix=ARM64
+; RUN: llc -O0 -fast-isel-abort -verify-machineinstrs -relocation-model=dynamic-no-pic -mtriple=arm64-apple-ios < %s | FileCheck %s --check-prefix=ARM64
 
 @message = global [80 x i8] c"The LLVM Compiler Infrastructure\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00", align 16
 @temp = common global [80 x i8] zeroinitializer, align 16
@@ -7,7 +7,7 @@ define void @t1() {
 ; ARM64-LABEL: t1
 ; ARM64: adrp x8, _message@PAGE
 ; ARM64: add x0, x8, _message@PAGEOFF
-; ARM64: movz w9, #0
+; ARM64: mov w9, wzr
 ; ARM64: movz x2, #0x50
 ; ARM64: uxtb w1, w9
 ; ARM64: bl _memset

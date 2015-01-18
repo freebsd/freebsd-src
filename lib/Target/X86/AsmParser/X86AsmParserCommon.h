@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86_ASM_PARSER_COMMON_H
-#define X86_ASM_PARSER_COMMON_H
+#ifndef LLVM_LIB_TARGET_X86_ASMPARSER_X86ASMPARSERCOMMON_H
+#define LLVM_LIB_TARGET_X86_ASMPARSER_X86ASMPARSERCOMMON_H
 
 namespace llvm {
 
@@ -24,10 +24,6 @@ inline bool isImmSExti32i8Value(uint64_t Value) {
           (0xFFFFFFFFFFFFFF80ULL <= Value && Value <= 0xFFFFFFFFFFFFFFFFULL));
 }
 
-inline bool isImmZExtu32u8Value(uint64_t Value) {
-    return (Value <= 0x00000000000000FFULL);
-}
-
 inline bool isImmSExti64i8Value(uint64_t Value) {
   return ((                                  Value <= 0x000000000000007FULL)||
           (0xFFFFFFFFFFFFFF80ULL <= Value && Value <= 0xFFFFFFFFFFFFFFFFULL));
@@ -40,4 +36,4 @@ inline bool isImmSExti64i32Value(uint64_t Value) {
 
 } // End of namespace llvm
 
-#endif // X86_ASM_PARSER_COMMON_H
+#endif

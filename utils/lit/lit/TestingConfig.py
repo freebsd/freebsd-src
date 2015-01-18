@@ -17,14 +17,20 @@ class TestingConfig:
         """
         # Set the environment based on the command line arguments.
         environment = {
-            'LIBRARY_PATH' : os.environ.get('LIBRARY_PATH',''),
-            'LD_LIBRARY_PATH' : os.environ.get('LD_LIBRARY_PATH',''),
             'PATH' : os.pathsep.join(litConfig.path +
                                      [os.environ.get('PATH','')]),
-            'SYSTEMROOT' : os.environ.get('SYSTEMROOT',''),
-            'TERM' : os.environ.get('TERM',''),
             'LLVM_DISABLE_CRASH_REPORT' : '1',
             }
+
+        pass_vars = ['LIBRARY_PATH', 'LD_LIBRARY_PATH', 'SYSTEMROOT', 'TERM',
+                     'LD_PRELOAD', 'ASAN_OPTIONS', 'UBSAN_OPTIONS',
+                     'LSAN_OPTIONS']
+        for var in pass_vars:
+            val = os.environ.get(var, '')
+            # Check for empty string as some variables such as LD_PRELOAD cannot be empty
+            # ('') for OS's such as OpenBSD.
+            if val:
+                environment[var] = val
 
         if sys.platform == 'win32':
             environment.update({

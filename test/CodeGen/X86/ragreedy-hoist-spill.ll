@@ -202,7 +202,6 @@ lor.rhs500:
   ; CHECK: lor.rhs500
   ; Make sure that we don't hoist the spill to outer loops.
   ; CHECK: movq %r{{.*}}, {{[0-9]+}}(%rsp)
-  ; CHECK: movq %r{{.*}}, {{[0-9]+}}(%rsp)
   ; CHECK: callq {{.*}}maskrune
   %call3.i.i2792 = call i32 @__maskrune(i32 undef, i64 256)
   br i1 undef, label %land.lhs.true504, label %do.body479.backedge
@@ -378,12 +377,12 @@ declare void @llvm.memset.p0i8.i64(i8* nocapture, i8, i64, i32, i1)
 
 !llvm.ident = !{!0}
 
-!0 = metadata !{metadata !"clang version 3.5.0 (trunk 204257)"}
-!1 = metadata !{metadata !2, metadata !2, i64 0}
-!2 = metadata !{metadata !"int", metadata !3, i64 0}
-!3 = metadata !{metadata !"omnipotent char", metadata !4, i64 0}
-!4 = metadata !{metadata !"Simple C/C++ TBAA"}
-!5 = metadata !{metadata !3, metadata !3, i64 0}
-!6 = metadata !{metadata !7, metadata !8, i64 8}
-!7 = metadata !{metadata !"", metadata !8, i64 0, metadata !8, i64 8, metadata !3, i64 16}
-!8 = metadata !{metadata !"any pointer", metadata !3, i64 0}
+!0 = !{!"clang version 3.5.0 (trunk 204257)"}
+!1 = !{!2, !2, i64 0}
+!2 = !{!"int", !3, i64 0}
+!3 = !{!"omnipotent char", !4, i64 0}
+!4 = !{!"Simple C/C++ TBAA"}
+!5 = !{!3, !3, i64 0}
+!6 = !{!7, !8, i64 8}
+!7 = !{!"", !8, i64 0, !8, i64 8, !3, i64 16}
+!8 = !{!"any pointer", !3, i64 0}

@@ -1957,17 +1957,17 @@ int main(int argc, char *argv[]) {
   llvm::IRBuilder<> theBuilder(context);
 
   // Make the module, which holds all the code.
-  llvm::Module *module = new llvm::Module("my cool jit", context);
+  std::unique_ptr<llvm::Module> Owner =
+      llvm::make_unique<llvm::Module>("my cool jit", context);
+  llvm::Module *module = Owner.get();
 
-  llvm::RTDyldMemoryManager *MemMgr = new llvm::SectionMemoryManager();
+  std::unique_ptr<llvm::RTDyldMemoryManager> MemMgr(new llvm::SectionMemoryManager());
 
   // Build engine with JIT
-  llvm::EngineBuilder factory(module);
+  llvm::EngineBuilder factory(std::move(Owner));
   factory.setEngineKind(llvm::EngineKind::JIT);
-  factory.setAllocateGVsWithCode(false);
   factory.setTargetOptions(Opts);
-  factory.setMCJITMemoryManager(MemMgr);
-  factory.setUseMCJIT(true);
+  factory.setMCJITMemoryManager(std::move(MemMgr));
   llvm::ExecutionEngine *executionEngine = factory.create();
 
   {
@@ -1977,7 +1977,7 @@ int main(int argc, char *argv[]) {
     // Start with registering info about how the
     // target lays out data structures.
     module->setDataLayout(executionEngine->getDataLayout());
-    fpm.add(new llvm::DataLayoutPass(module));
+    fpm.add(new llvm::DataLayoutPass());
 
     // Optimizations turned on
 #ifdef ADD_OPT_PASSES

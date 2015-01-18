@@ -12,8 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/IR/LLVMContext.h"
 #include "llvm/ProfileData/InstrProfReader.h"
 #include "llvm/ProfileData/InstrProfWriter.h"
+#include "llvm/ProfileData/SampleProfReader.h"
+#include "llvm/ProfileData/SampleProfWriter.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Format.h"
@@ -33,6 +36,65 @@ static void exitWithError(const Twine &Message, StringRef Whence = "") {
   ::exit(1);
 }
 
+enum ProfileKinds { instr, sample };
+
+void mergeInstrProfile(cl::list<std::string> Inputs, StringRef OutputFilename) {
+  if (OutputFilename.compare("-") == 0)
+    exitWithError("Cannot write indexed profdata format to stdout.");
+
+  std::error_code EC;
+  raw_fd_ostream Output(OutputFilename.data(), EC, sys::fs::F_None);
+  if (EC)
+    exitWithError(EC.message(), OutputFilename);
+
+  InstrProfWriter Writer;
+  for (const auto &Filename : Inputs) {
+    auto ReaderOrErr = InstrProfReader::create(Filename);
+    if (std::error_code ec = ReaderOrErr.getError())
+      exitWithError(ec.message(), Filename);
+
+    auto Reader = std::move(ReaderOrErr.get());
+    for (const auto &I : *Reader)
+      if (std::error_code EC =
+              Writer.addFunctionCounts(I.Name, I.Hash, I.Counts))
+        errs() << Filename << ": " << I.Name << ": " << EC.message() << "\n";
+    if (Reader->hasError())
+      exitWithError(Reader->getError().message(), Filename);
+  }
+  Writer.write(Output);
+}
+
+void mergeSampleProfile(cl::list<std::string> Inputs, StringRef OutputFilename,
+                        sampleprof::SampleProfileFormat OutputFormat) {
+  using namespace sampleprof;
+  auto WriterOrErr = SampleProfileWriter::create(OutputFilename, OutputFormat);
+  if (std::error_code EC = WriterOrErr.getError())
+    exitWithError(EC.message(), OutputFilename);
+
+  auto Writer = std::move(WriterOrErr.get());
+  StringMap<FunctionSamples> ProfileMap;
+  for (const auto &Filename : Inputs) {
+    auto ReaderOrErr =
+        SampleProfileReader::create(Filename, getGlobalContext());
+    if (std::error_code EC = ReaderOrErr.getError())
+      exitWithError(EC.message(), Filename);
+
+    auto Reader = std::move(ReaderOrErr.get());
+    if (std::error_code EC = Reader->read())
+      exitWithError(EC.message(), Filename);
+
+    StringMap<FunctionSamples> &Profiles = Reader->getProfiles();
+    for (StringMap<FunctionSamples>::iterator I = Profiles.begin(),
+                                              E = Profiles.end();
+         I != E; ++I) {
+      StringRef FName = I->first();
+      FunctionSamples &Samples = I->second;
+      ProfileMap[FName].merge(Samples);
+    }
+  }
+  Writer->write(ProfileMap);
+}
+
 int merge_main(int argc, const char *argv[]) {
   cl::list<std::string> Inputs(cl::Positional, cl::Required, cl::OneOrMore,
                                cl::desc("<filenames...>"));
@@ -42,75 +104,44 @@ int merge_main(int argc, const char *argv[]) {
                                       cl::desc("Output file"));
   cl::alias OutputFilenameA("o", cl::desc("Alias for --output"),
                             cl::aliasopt(OutputFilename));
+  cl::opt<ProfileKinds> ProfileKind(
+      cl::desc("Profile kind:"), cl::init(instr),
+      cl::values(clEnumVal(instr, "Instrumentation profile (default)"),
+                 clEnumVal(sample, "Sample profile"), clEnumValEnd));
+
+  cl::opt<sampleprof::SampleProfileFormat> OutputFormat(
+      cl::desc("Format of output profile (only meaningful with --sample)"),
+      cl::init(sampleprof::SPF_Binary),
+      cl::values(clEnumValN(sampleprof::SPF_Binary, "binary",
+                            "Binary encoding (default)"),
+                 clEnumValN(sampleprof::SPF_Text, "text", "Text encoding"),
+                 clEnumValN(sampleprof::SPF_GCC, "gcc", "GCC encoding"),
+                 clEnumValEnd));
 
   cl::ParseCommandLineOptions(argc, argv, "LLVM profile data merger\n");
 
-  if (OutputFilename.compare("-") == 0)
-    exitWithError("Cannot write indexed profdata format to stdout.");
-
-  std::string ErrorInfo;
-  raw_fd_ostream Output(OutputFilename.data(), ErrorInfo, sys::fs::F_None);
-  if (!ErrorInfo.empty())
-    exitWithError(ErrorInfo, OutputFilename);
-
-  InstrProfWriter Writer;
-  for (const auto &Filename : Inputs) {
-    std::unique_ptr<InstrProfReader> Reader;
-    if (std::error_code ec = InstrProfReader::create(Filename, Reader))
-      exitWithError(ec.message(), Filename);
-
-    for (const auto &I : *Reader)
-      if (std::error_code EC =
-              Writer.addFunctionCounts(I.Name, I.Hash, I.Counts))
-        errs() << Filename << ": " << I.Name << ": " << EC.message() << "\n";
-    if (Reader->hasError())
-      exitWithError(Reader->getError().message(), Filename);
-  }
-  Writer.write(Output);
+  if (ProfileKind == instr)
+    mergeInstrProfile(Inputs, OutputFilename);
+  else
+    mergeSampleProfile(Inputs, OutputFilename, OutputFormat);
 
   return 0;
 }
 
-int show_main(int argc, const char *argv[]) {
-  cl::opt<std::string> Filename(cl::Positional, cl::Required,
-                                cl::desc("<profdata-file>"));
-
-  cl::opt<bool> ShowCounts("counts", cl::init(false),
-                           cl::desc("Show counter values for shown functions"));
-  cl::opt<bool> ShowAllFunctions("all-functions", cl::init(false),
-                                 cl::desc("Details for every function"));
-  cl::opt<std::string> ShowFunction("function",
-                                    cl::desc("Details for matching functions"));
-
-  cl::opt<std::string> OutputFilename("output", cl::value_desc("output"),
-                                      cl::init("-"),
-                                      cl::desc("Output file"));
-  cl::alias OutputFilenameA("o", cl::desc("Alias for --output"),
-                            cl::aliasopt(OutputFilename));
-
-  cl::ParseCommandLineOptions(argc, argv, "LLVM profile data summary\n");
-
-  std::unique_ptr<InstrProfReader> Reader;
-  if (std::error_code EC = InstrProfReader::create(Filename, Reader))
+int showInstrProfile(std::string Filename, bool ShowCounts,
+                     bool ShowAllFunctions, std::string ShowFunction,
+                     raw_fd_ostream &OS) {
+  auto ReaderOrErr = InstrProfReader::create(Filename);
+  if (std::error_code EC = ReaderOrErr.getError())
     exitWithError(EC.message(), Filename);
 
-  if (OutputFilename.empty())
-    OutputFilename = "-";
-
-  std::string ErrorInfo;
-  raw_fd_ostream OS(OutputFilename.data(), ErrorInfo, sys::fs::F_Text);
-  if (!ErrorInfo.empty())
-    exitWithError(ErrorInfo, OutputFilename);
-
-  if (ShowAllFunctions && !ShowFunction.empty())
-    errs() << "warning: -function argument ignored: showing all functions\n";
-
+  auto Reader = std::move(ReaderOrErr.get());
   uint64_t MaxFunctionCount = 0, MaxBlockCount = 0;
   size_t ShownFunctions = 0, TotalFunctions = 0;
   for (const auto &Func : *Reader) {
-    bool Show = ShowAllFunctions ||
-                (!ShowFunction.empty() &&
-                 Func.Name.find(ShowFunction) != Func.Name.npos);
+    bool Show =
+        ShowAllFunctions || (!ShowFunction.empty() &&
+                             Func.Name.find(ShowFunction) != Func.Name.npos);
 
     ++TotalFunctions;
     assert(Func.Counts.size() > 0 && "function missing entry counter");
@@ -148,6 +179,65 @@ int show_main(int argc, const char *argv[]) {
   OS << "Maximum function count: " << MaxFunctionCount << "\n";
   OS << "Maximum internal block count: " << MaxBlockCount << "\n";
   return 0;
+}
+
+int showSampleProfile(std::string Filename, bool ShowCounts,
+                      bool ShowAllFunctions, std::string ShowFunction,
+                      raw_fd_ostream &OS) {
+  using namespace sampleprof;
+  auto ReaderOrErr = SampleProfileReader::create(Filename, getGlobalContext());
+  if (std::error_code EC = ReaderOrErr.getError())
+    exitWithError(EC.message(), Filename);
+
+  auto Reader = std::move(ReaderOrErr.get());
+  Reader->read();
+  if (ShowAllFunctions || ShowFunction.empty())
+    Reader->dump(OS);
+  else
+    Reader->dumpFunctionProfile(ShowFunction, OS);
+
+  return 0;
+}
+
+int show_main(int argc, const char *argv[]) {
+  cl::opt<std::string> Filename(cl::Positional, cl::Required,
+                                cl::desc("<profdata-file>"));
+
+  cl::opt<bool> ShowCounts("counts", cl::init(false),
+                           cl::desc("Show counter values for shown functions"));
+  cl::opt<bool> ShowAllFunctions("all-functions", cl::init(false),
+                                 cl::desc("Details for every function"));
+  cl::opt<std::string> ShowFunction("function",
+                                    cl::desc("Details for matching functions"));
+
+  cl::opt<std::string> OutputFilename("output", cl::value_desc("output"),
+                                      cl::init("-"), cl::desc("Output file"));
+  cl::alias OutputFilenameA("o", cl::desc("Alias for --output"),
+                            cl::aliasopt(OutputFilename));
+  cl::opt<ProfileKinds> ProfileKind(
+      cl::desc("Profile kind:"), cl::init(instr),
+      cl::values(clEnumVal(instr, "Instrumentation profile (default)"),
+                 clEnumVal(sample, "Sample profile"), clEnumValEnd));
+
+  cl::ParseCommandLineOptions(argc, argv, "LLVM profile data summary\n");
+
+  if (OutputFilename.empty())
+    OutputFilename = "-";
+
+  std::error_code EC;
+  raw_fd_ostream OS(OutputFilename.data(), EC, sys::fs::F_Text);
+  if (EC)
+    exitWithError(EC.message(), OutputFilename);
+
+  if (ShowAllFunctions && !ShowFunction.empty())
+    errs() << "warning: -function argument ignored: showing all functions\n";
+
+  if (ProfileKind == instr)
+    return showInstrProfile(Filename, ShowCounts, ShowAllFunctions,
+                            ShowFunction, OS);
+  else
+    return showSampleProfile(Filename, ShowCounts, ShowAllFunctions,
+                             ShowFunction, OS);
 }
 
 int main(int argc, const char *argv[]) {

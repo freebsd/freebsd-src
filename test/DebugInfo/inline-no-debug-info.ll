@@ -21,10 +21,10 @@
 
 ; Debug location of the code in caller() and of the inlined code that did not
 ; have any debug location before.
-; CHECK-DAG: [[A]] = metadata !{i32 4, i32 0, metadata !{{[01-9]+}}, null}
+; CHECK-DAG: [[A]] = !MDLocation(line: 4, scope: !{{[01-9]+}})
 
 ; Debug location of the inlined code.
-; CHECK-DAG: [[B]] = metadata !{i32 2, i32 0, metadata !{{[01-9]+}}, metadata [[A]]}
+; CHECK-DAG: [[B]] = !MDLocation(line: 2, scope: !{{[01-9]+}}, inlinedAt: [[A]])
 
 
 target datalayout = "e-m:e-i64:64-f80:128-n8:16:32:64-S128"
@@ -54,16 +54,16 @@ attributes #0 = { nounwind uwtable "less-precise-fpmad"="false" "no-frame-pointe
 !llvm.module.flags = !{!8, !9}
 !llvm.ident = !{!10}
 
-!0 = metadata !{i32 786449, metadata !1, i32 12, metadata !"clang version 3.5.0 (210174)", i1 true, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, metadata !2, metadata !"", i32 2} ; [ DW_TAG_compile_unit ] [/code/llvm/build0/test.c] [DW_LANG_C99]
-!1 = metadata !{metadata !"test.c", metadata !"/code/llvm/build0"}
-!2 = metadata !{}
-!3 = metadata !{metadata !4, metadata !7}
-!4 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"caller", metadata !"caller", metadata !"", i32 4, metadata !6, i1 false, i1 true, i32 0, i32 0, null, i32 0, i1 true, void ()* @caller, null, null, metadata !2, i32 4} ; [ DW_TAG_subprogram ] [line 4] [def] [caller]
-!5 = metadata !{i32 786473, metadata !1}          ; [ DW_TAG_file_type ] [/code/llvm/build0/test.c]
-!6 = metadata !{i32 786453, i32 0, null, metadata !"", i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !2, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!7 = metadata !{i32 786478, metadata !1, metadata !5, metadata !"callee2", metadata !"callee2", metadata !"", i32 2, metadata !6, i1 true, i1 true, i32 0, i32 0, null, i32 0, i1 true, null, null, null, metadata !2, i32 2} ; [ DW_TAG_subprogram ] [line 2] [local] [def] [callee2]
-!8 = metadata !{i32 2, metadata !"Dwarf Version", i32 4}
-!9 = metadata !{i32 2, metadata !"Debug Info Version", i32 1}
-!10 = metadata !{metadata !"clang version 3.5.0 (210174)"}
-!11 = metadata !{i32 2, i32 0, metadata !7, null}
-!12 = metadata !{i32 4, i32 0, metadata !4, null}
+!0 = !{!"0x11\0012\00clang version 3.5.0 (210174)\001\00\000\00\002", !1, !2, !2, !3, !2, !2} ; [ DW_TAG_compile_unit ] [/code/llvm/build0/test.c] [DW_LANG_C99]
+!1 = !{!"test.c", !"/code/llvm/build0"}
+!2 = !{}
+!3 = !{!4, !7}
+!4 = !{!"0x2e\00caller\00caller\00\004\000\001\000\006\000\001\004", !1, !5, !6, null, void ()* @caller, null, null, !2} ; [ DW_TAG_subprogram ] [line 4] [def] [caller]
+!5 = !{!"0x29", !1}          ; [ DW_TAG_file_type ] [/code/llvm/build0/test.c]
+!6 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !2, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!7 = !{!"0x2e\00callee2\00callee2\00\002\001\001\000\006\000\001\002", !1, !5, !6, null, null, null, null, !2} ; [ DW_TAG_subprogram ] [line 2] [local] [def] [callee2]
+!8 = !{i32 2, !"Dwarf Version", i32 4}
+!9 = !{i32 2, !"Debug Info Version", i32 2}
+!10 = !{!"clang version 3.5.0 (210174)"}
+!11 = !MDLocation(line: 2, scope: !7)
+!12 = !MDLocation(line: 4, scope: !4)

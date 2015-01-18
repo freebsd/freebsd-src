@@ -3,10 +3,10 @@
 ; This test makes sure we do not double count global values when they are
 ; used in different basic blocks.
 
-; CHECK-LABEL: @test
+; CHECK-LABEL: {{^}}test:
 ; CHECK: .long   166120
 ; CHECK-NEXT: .long   1
-@lds = internal unnamed_addr addrspace(3) global i32 zeroinitializer, align 4
+@lds = internal unnamed_addr addrspace(3) global i32 undef, align 4
 
 define void @test(i32 addrspace(1)* %out, i32 %cond) {
 entry:

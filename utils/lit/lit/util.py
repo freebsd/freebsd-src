@@ -7,6 +7,21 @@ import signal
 import subprocess
 import sys
 
+def to_bytes(str):
+    # Encode to UTF-8 to get binary data.
+    return str.encode('utf-8')
+
+def to_string(bytes):
+    if isinstance(bytes, str):
+        return bytes
+    return to_bytes(bytes)
+
+def convert_string(bytes):
+    try:
+        return to_string(bytes.decode('utf-8'))
+    except UnicodeError:
+        return str(bytes)
+
 def detectCPUs():
     """
     Detects the number of CPUs on a system. Cribbed from pp.
@@ -51,7 +66,7 @@ def capture(args, env=None):
     p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          env=env)
     out,_ = p.communicate()
-    return out
+    return convert_string(out)
 
 def which(command, paths = None):
     """which(command, [paths]) - Look up the given command in the paths string
@@ -157,14 +172,8 @@ def executeCommand(command, cwd=None, env=None):
         raise KeyboardInterrupt
 
     # Ensure the resulting output is always of string type.
-    try:
-        out = str(out.decode('ascii'))
-    except:
-        out = str(out)
-    try:
-        err = str(err.decode('ascii'))
-    except:
-        err = str(err)
+    out = convert_string(out)
+    err = convert_string(err)
 
     return out, err, exitCode
 

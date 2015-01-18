@@ -18,7 +18,7 @@
 namespace llvm {
 
 static void SuppressDiagnosticsOutput(const SMDiagnostic &, void *) {
-  // Prevent SourceMgr from writing errors to stderr 
+  // Prevent SourceMgr from writing errors to stderr
   // to reduce noise in unit test runs.
 }
 
@@ -210,8 +210,9 @@ TEST(YAMLParser, DiagnosticFilenameFromBufferID) {
 
   // When we construct a YAML stream over a named buffer,
   // we get its ID as filename in diagnostics.
-  MemoryBuffer* Buffer = MemoryBuffer::getMemBuffer("[]", "buffername.yaml");
-  yaml::Stream Stream(Buffer, SM);
+  std::unique_ptr<MemoryBuffer> Buffer =
+      MemoryBuffer::getMemBuffer("[]", "buffername.yaml");
+  yaml::Stream Stream(Buffer->getMemBufferRef(), SM);
   Stream.printError(Stream.begin()->getRoot(), "Hello, World!");
   EXPECT_EQ("buffername.yaml", GeneratedDiag.getFilename());
 }

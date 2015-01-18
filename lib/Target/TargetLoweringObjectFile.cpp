@@ -30,6 +30,7 @@
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -42,7 +43,7 @@ using namespace llvm;
 void TargetLoweringObjectFile::Initialize(MCContext &ctx,
                                           const TargetMachine &TM) {
   Ctx = &ctx;
-  DL = TM.getDataLayout();
+  DL = TM.getSubtargetImpl()->getDataLayout();
   InitMCObjectFileInfo(TM.getTargetTriple(),
                        TM.getRelocationModel(), TM.getCodeModel(), *Ctx);
 }
@@ -199,7 +200,8 @@ SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalValue *GV,
       // Otherwise, just drop it into a mergable constant section.  If we have
       // a section for this size, use it, otherwise use the arbitrary sized
       // mergable section.
-      switch (TM.getDataLayout()->getTypeAllocSize(C->getType())) {
+      switch (TM.getSubtargetImpl()->getDataLayout()->getTypeAllocSize(
+          C->getType())) {
       case 4:  return SectionKind::getMergeableConst4();
       case 8:  return SectionKind::getMergeableConst8();
       case 16: return SectionKind::getMergeableConst16();
@@ -266,31 +268,6 @@ SectionForGlobal(const GlobalValue *GV, SectionKind Kind, Mangler &Mang,
 
   // Use default section depending on the 'type' of global
   return SelectSectionForGlobal(GV, Kind, Mang, TM);
-}
-
-bool TargetLoweringObjectFile::isSectionAtomizableBySymbols(
-    const MCSection &Section) const {
-  return false;
-}
-
-// Lame default implementation. Calculate the section name for global.
-const MCSection *
-TargetLoweringObjectFile::SelectSectionForGlobal(const GlobalValue *GV,
-                                                 SectionKind Kind,
-                                                 Mangler &Mang,
-                                                 const TargetMachine &TM) const{
-  assert(!Kind.isThreadLocal() && "Doesn't support TLS");
-
-  if (Kind.isText())
-    return getTextSection();
-
-  if (Kind.isBSS() && BSSSection != nullptr)
-    return BSSSection;
-
-  if (Kind.isReadOnly() && ReadOnlySection != nullptr)
-    return ReadOnlySection;
-
-  return getDataSection();
 }
 
 /// getSectionForConstant - Given a mergable constant with the

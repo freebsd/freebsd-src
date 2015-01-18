@@ -101,25 +101,26 @@
 #include "AArch64.h"
 #include "AArch64InstrInfo.h"
 #include "AArch64MachineFunctionInfo.h"
+#include "AArch64Subtarget.h"
 #include "MCTargetDesc/AArch64AddressingModes.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineDominators.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/Statistic.h"
+#include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "aarch64-collect-loh"
@@ -194,12 +195,14 @@ typedef SetVector<const MachineInstr *> SetOfMachineInstr;
 /// Map a basic block to a set of instructions per register.
 /// This is used to represent the exposed uses of a basic block
 /// per register.
-typedef MapVector<const MachineBasicBlock *, SetOfMachineInstr *>
+typedef MapVector<const MachineBasicBlock *,
+                  std::unique_ptr<SetOfMachineInstr[]>>
 BlockToSetOfInstrsPerColor;
 /// Map a basic block to an instruction per register.
 /// This is used to represent the live-out definitions of a basic block
 /// per register.
-typedef MapVector<const MachineBasicBlock *, const MachineInstr **>
+typedef MapVector<const MachineBasicBlock *,
+                  std::unique_ptr<const MachineInstr *[]>>
 BlockToInstrPerColor;
 /// Map an instruction to a set of instructions. Used to represent the
 /// mapping def to reachable uses or use to definitions.
@@ -236,9 +239,9 @@ static SetOfMachineInstr &getSet(BlockToSetOfInstrsPerColor &sets,
   SetOfMachineInstr *result;
   BlockToSetOfInstrsPerColor::iterator it = sets.find(&MBB);
   if (it != sets.end())
-    result = it->second;
+    result = it->second.get();
   else
-    result = sets[&MBB] = new SetOfMachineInstr[nbRegs];
+    result = (sets[&MBB] = make_unique<SetOfMachineInstr[]>(nbRegs)).get();
 
   return result[reg];
 }
@@ -283,14 +286,14 @@ static void initReachingDef(MachineFunction &MF,
                             const MapRegToId &RegToId,
                             const MachineInstr *DummyOp, bool ADRPMode) {
   const TargetMachine &TM = MF.getTarget();
-  const TargetRegisterInfo *TRI = TM.getRegisterInfo();
+  const TargetRegisterInfo *TRI = TM.getSubtargetImpl()->getRegisterInfo();
 
   unsigned NbReg = RegToId.size();
 
   for (MachineBasicBlock &MBB : MF) {
-    const MachineInstr **&BBGen = Gen[&MBB];
-    BBGen = new const MachineInstr *[NbReg];
-    memset(BBGen, 0, sizeof(const MachineInstr *) * NbReg);
+    auto &BBGen = Gen[&MBB];
+    BBGen = make_unique<const MachineInstr *[]>(NbReg);
+    std::fill(BBGen.get(), BBGen.get() + NbReg, nullptr);
 
     BitVector &BBKillSet = Kill[&MBB];
     BBKillSet.resize(NbReg);
@@ -421,22 +424,6 @@ static void reachingDefAlgorithm(MachineFunction &MF,
   } while (HasChanged);
 }
 
-/// Release all memory dynamically allocated during the reaching
-/// definition algorithm.
-static void finitReachingDef(BlockToSetOfInstrsPerColor &In,
-                             BlockToSetOfInstrsPerColor &Out,
-                             BlockToInstrPerColor &Gen,
-                             BlockToSetOfInstrsPerColor &ReachableUses) {
-  for (auto &IT : Out)
-    delete[] IT.second;
-  for (auto &IT : In)
-    delete[] IT.second;
-  for (auto &IT : ReachableUses)
-    delete[] IT.second;
-  for (auto &IT : Gen)
-    delete[] IT.second;
-}
-
 /// Reaching definition algorithm.
 /// \param MF function on which the algorithm will operate.
 /// \param[out] ColorOpToReachedUses will contain the result of the reaching
@@ -473,9 +460,6 @@ static void reachingDef(MachineFunction &MF,
   if (!DummyOp)
     reachingDefAlgorithm(MF, ColorOpToReachedUses, In, Out, Gen, Kill,
                          ReachableUses, RegToId.size());
-
-  // finit.
-  finitReachingDef(In, Out, Gen, ReachableUses);
 }
 
 #ifndef NDEBUG
@@ -1043,7 +1027,7 @@ static void collectInvolvedReg(MachineFunction &MF, MapRegToId &RegToId,
 
 bool AArch64CollectLOH::runOnMachineFunction(MachineFunction &MF) {
   const TargetMachine &TM = MF.getTarget();
-  const TargetRegisterInfo *TRI = TM.getRegisterInfo();
+  const TargetRegisterInfo *TRI = TM.getSubtargetImpl()->getRegisterInfo();
   const MachineDominatorTree *MDT = &getAnalysis<MachineDominatorTree>();
 
   MapRegToId RegToId;
@@ -1059,8 +1043,8 @@ bool AArch64CollectLOH::runOnMachineFunction(MachineFunction &MF) {
 
   MachineInstr *DummyOp = nullptr;
   if (BasicBlockScopeOnly) {
-    const AArch64InstrInfo *TII =
-        static_cast<const AArch64InstrInfo *>(TM.getInstrInfo());
+    const AArch64InstrInfo *TII = static_cast<const AArch64InstrInfo *>(
+        TM.getSubtargetImpl()->getInstrInfo());
     // For local analysis, create a dummy operation to record uses that are not
     // local.
     DummyOp = MF.CreateMachineInstr(TII->get(AArch64::COPY), DebugLoc());

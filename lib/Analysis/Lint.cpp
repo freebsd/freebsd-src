@@ -37,6 +37,7 @@
 #include "llvm/Analysis/Lint.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/Loads.h"
@@ -96,11 +97,12 @@ namespace {
 
     Value *findValue(Value *V, bool OffsetOk) const;
     Value *findValueImpl(Value *V, bool OffsetOk,
-                         SmallPtrSet<Value *, 4> &Visited) const;
+                         SmallPtrSetImpl<Value *> &Visited) const;
 
   public:
     Module *Mod;
     AliasAnalysis *AA;
+    AssumptionCache *AC;
     DominatorTree *DT;
     const DataLayout *DL;
     TargetLibraryInfo *TLI;
@@ -118,6 +120,7 @@ namespace {
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesAll();
       AU.addRequired<AliasAnalysis>();
+      AU.addRequired<AssumptionCacheTracker>();
       AU.addRequired<TargetLibraryInfo>();
       AU.addRequired<DominatorTreeWrapperPass>();
     }
@@ -151,6 +154,7 @@ namespace {
 char Lint::ID = 0;
 INITIALIZE_PASS_BEGIN(Lint, "lint", "Statically lint-checks LLVM IR",
                       false, true)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
@@ -175,6 +179,7 @@ INITIALIZE_PASS_END(Lint, "lint", "Statically lint-checks LLVM IR",
 bool Lint::runOnFunction(Function &F) {
   Mod = F.getParent();
   AA = &getAnalysis<AliasAnalysis>();
+  AC = &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
   DT = &getAnalysis<DominatorTreeWrapperPass>().getDomTree();
   DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
   DL = DLP ? &DLP->getDataLayout() : nullptr;
@@ -504,7 +509,8 @@ void Lint::visitShl(BinaryOperator &I) {
             "Undefined result: Shift count out of range", &I);
 }
 
-static bool isZero(Value *V, const DataLayout *DL) {
+static bool isZero(Value *V, const DataLayout *DL, DominatorTree *DT,
+                   AssumptionCache *AC) {
   // Assume undef could be zero.
   if (isa<UndefValue>(V))
     return true;
@@ -513,7 +519,8 @@ static bool isZero(Value *V, const DataLayout *DL) {
   if (!VecTy) {
     unsigned BitWidth = V->getType()->getIntegerBitWidth();
     APInt KnownZero(BitWidth, 0), KnownOne(BitWidth, 0);
-    computeKnownBits(V, KnownZero, KnownOne, DL);
+    computeKnownBits(V, KnownZero, KnownOne, DL, 0, AC,
+                     dyn_cast<Instruction>(V), DT);
     return KnownZero.isAllOnesValue();
   }
 
@@ -543,22 +550,22 @@ static bool isZero(Value *V, const DataLayout *DL) {
 }
 
 void Lint::visitSDiv(BinaryOperator &I) {
-  Assert1(!isZero(I.getOperand(1), DL),
+  Assert1(!isZero(I.getOperand(1), DL, DT, AC),
           "Undefined behavior: Division by zero", &I);
 }
 
 void Lint::visitUDiv(BinaryOperator &I) {
-  Assert1(!isZero(I.getOperand(1), DL),
+  Assert1(!isZero(I.getOperand(1), DL, DT, AC),
           "Undefined behavior: Division by zero", &I);
 }
 
 void Lint::visitSRem(BinaryOperator &I) {
-  Assert1(!isZero(I.getOperand(1), DL),
+  Assert1(!isZero(I.getOperand(1), DL, DT, AC),
           "Undefined behavior: Division by zero", &I);
 }
 
 void Lint::visitURem(BinaryOperator &I) {
-  Assert1(!isZero(I.getOperand(1), DL),
+  Assert1(!isZero(I.getOperand(1), DL, DT, AC),
           "Undefined behavior: Division by zero", &I);
 }
 
@@ -622,9 +629,9 @@ Value *Lint::findValue(Value *V, bool OffsetOk) const {
 
 /// findValueImpl - Implementation helper for findValue.
 Value *Lint::findValueImpl(Value *V, bool OffsetOk,
-                           SmallPtrSet<Value *, 4> &Visited) const {
+                           SmallPtrSetImpl<Value *> &Visited) const {
   // Detect self-referential values.
-  if (!Visited.insert(V))
+  if (!Visited.insert(V).second)
     return UndefValue::get(V->getType());
 
   // TODO: Look through sext or zext cast, when the result is known to
@@ -638,7 +645,8 @@ Value *Lint::findValueImpl(Value *V, bool OffsetOk,
     BasicBlock *BB = L->getParent();
     SmallPtrSet<BasicBlock *, 4> VisitedBlocks;
     for (;;) {
-      if (!VisitedBlocks.insert(BB)) break;
+      if (!VisitedBlocks.insert(BB).second)
+        break;
       if (Value *U = FindAvailableLoadedValue(L->getPointerOperand(),
                                               BB, BBI, 6, AA))
         return findValueImpl(U, OffsetOk, Visited);
@@ -678,7 +686,7 @@ Value *Lint::findValueImpl(Value *V, bool OffsetOk,
 
   // As a last resort, try SimplifyInstruction or constant folding.
   if (Instruction *Inst = dyn_cast<Instruction>(V)) {
-    if (Value *W = SimplifyInstruction(Inst, DL, TLI, DT))
+    if (Value *W = SimplifyInstruction(Inst, DL, TLI, DT, AC))
       return findValueImpl(W, OffsetOk, Visited);
   } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(V)) {
     if (Value *W = ConstantFoldConstantExpression(CE, DL, TLI))

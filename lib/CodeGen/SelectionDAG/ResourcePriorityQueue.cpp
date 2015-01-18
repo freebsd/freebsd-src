@@ -27,6 +27,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 
 using namespace llvm;
 
@@ -40,32 +41,29 @@ static cl::opt<signed> RegPressureThreshold(
   "dfa-sched-reg-pressure-threshold", cl::Hidden, cl::ZeroOrMore, cl::init(5),
   cl::desc("Track reg pressure and switch priority to in-depth"));
 
+ResourcePriorityQueue::ResourcePriorityQueue(SelectionDAGISel *IS)
+    : Picker(this), InstrItins(IS->MF->getSubtarget().getInstrItineraryData()) {
+  const TargetSubtargetInfo &STI = IS->MF->getSubtarget();
+  TRI = STI.getRegisterInfo();
+  TLI = IS->TLI;
+  TII = STI.getInstrInfo();
+  ResourcesModel = TII->CreateTargetScheduleState(STI);
+  // This hard requirement could be relaxed, but for now
+  // do not let it procede.
+  assert(ResourcesModel && "Unimplemented CreateTargetScheduleState.");
 
-ResourcePriorityQueue::ResourcePriorityQueue(SelectionDAGISel *IS) :
-  Picker(this),
- InstrItins(IS->getTargetLowering()->getTargetMachine().getInstrItineraryData())
-{
-   TII = IS->getTargetLowering()->getTargetMachine().getInstrInfo();
-   TRI = IS->getTargetLowering()->getTargetMachine().getRegisterInfo();
-   TLI = IS->getTargetLowering();
+  unsigned NumRC = TRI->getNumRegClasses();
+  RegLimit.resize(NumRC);
+  RegPressure.resize(NumRC);
+  std::fill(RegLimit.begin(), RegLimit.end(), 0);
+  std::fill(RegPressure.begin(), RegPressure.end(), 0);
+  for (TargetRegisterInfo::regclass_iterator I = TRI->regclass_begin(),
+                                             E = TRI->regclass_end();
+       I != E; ++I)
+    RegLimit[(*I)->getID()] = TRI->getRegPressureLimit(*I, *IS->MF);
 
-   const TargetMachine &tm = (*IS->MF).getTarget();
-   ResourcesModel = tm.getInstrInfo()->CreateTargetScheduleState(&tm,nullptr);
-   // This hard requirement could be relaxed, but for now
-   // do not let it procede.
-   assert (ResourcesModel && "Unimplemented CreateTargetScheduleState.");
-
-   unsigned NumRC = TRI->getNumRegClasses();
-   RegLimit.resize(NumRC);
-   RegPressure.resize(NumRC);
-   std::fill(RegLimit.begin(), RegLimit.end(), 0);
-   std::fill(RegPressure.begin(), RegPressure.end(), 0);
-   for (TargetRegisterInfo::regclass_iterator I = TRI->regclass_begin(),
-        E = TRI->regclass_end(); I != E; ++I)
-     RegLimit[(*I)->getID()] = TRI->getRegPressureLimit(*I, *IS->MF);
-
-   ParallelLiveRanges = 0;
-   HorizontalVerticalBalance = 0;
+  ParallelLiveRanges = 0;
+  HorizontalVerticalBalance = 0;
 }
 
 unsigned
@@ -319,7 +317,7 @@ void ResourcePriorityQueue::reserveResources(SUnit *SU) {
 
   // If packet is now full, reset the state so in the next cycle
   // we start fresh.
-  if (Packet.size() >= InstrItins->SchedModel->IssueWidth) {
+  if (Packet.size() >= InstrItins->SchedModel.IssueWidth) {
     ResourcesModel->clearResources();
     Packet.clear();
   }

@@ -169,6 +169,52 @@ TEST_F(OptionalTest, NullCopyConstructionTest) {
   EXPECT_EQ(0u, NonDefaultConstructible::Destructions);
 }
 
+TEST_F(OptionalTest, GetValueOr) {
+  Optional<int> A;
+  EXPECT_EQ(42, A.getValueOr(42));
+
+  A = 5;
+  EXPECT_EQ(5, A.getValueOr(42));
+}
+
+struct MultiArgConstructor {
+  int x, y;
+  MultiArgConstructor(int x, int y) : x(x), y(y) {}
+  explicit MultiArgConstructor(int x, bool positive)
+    : x(x), y(positive ? x : -x) {}
+
+  MultiArgConstructor(const MultiArgConstructor &) LLVM_DELETED_FUNCTION;
+  MultiArgConstructor(MultiArgConstructor &&) LLVM_DELETED_FUNCTION;
+  MultiArgConstructor &operator=(const MultiArgConstructor &) LLVM_DELETED_FUNCTION;
+  MultiArgConstructor &operator=(MultiArgConstructor &&) LLVM_DELETED_FUNCTION;
+
+  static unsigned Destructions;
+  ~MultiArgConstructor() {
+    ++Destructions;
+  }
+  static void ResetCounts() {
+    Destructions = 0;
+  }
+};
+unsigned MultiArgConstructor::Destructions = 0;
+
+TEST_F(OptionalTest, Emplace) {
+  MultiArgConstructor::ResetCounts();
+  Optional<MultiArgConstructor> A;
+  
+  A.emplace(1, 2);
+  EXPECT_TRUE(A.hasValue());
+  EXPECT_EQ(1, A->x);
+  EXPECT_EQ(2, A->y);
+  EXPECT_EQ(0u, MultiArgConstructor::Destructions);
+
+  A.emplace(5, false);
+  EXPECT_TRUE(A.hasValue());
+  EXPECT_EQ(5, A->x);
+  EXPECT_EQ(-5, A->y);
+  EXPECT_EQ(1u, MultiArgConstructor::Destructions);
+}
+
 struct MoveOnly {
   static unsigned MoveConstructions;
   static unsigned Destructions;
@@ -277,6 +323,59 @@ TEST_F(OptionalTest, MoveOnlyAssigningAssignment) {
   EXPECT_EQ(1u, MoveOnly::MoveAssignments);
   EXPECT_EQ(1u, MoveOnly::Destructions);
 }
+
+struct Immovable {
+  static unsigned Constructions;
+  static unsigned Destructions;
+  int val;
+  explicit Immovable(int val) : val(val) {
+    ++Constructions;
+  }
+  ~Immovable() {
+    ++Destructions;
+  }
+  static void ResetCounts() {
+    Constructions = 0;
+    Destructions = 0;
+  }
+private:
+  // This should disable all move/copy operations.
+  Immovable(Immovable&& other) LLVM_DELETED_FUNCTION;
+};
+
+unsigned Immovable::Constructions = 0;
+unsigned Immovable::Destructions = 0;
+
+TEST_F(OptionalTest, ImmovableEmplace) {
+  Optional<Immovable> A;
+  Immovable::ResetCounts();
+  A.emplace(4);
+  EXPECT_TRUE((bool)A);
+  EXPECT_EQ(4, A->val);
+  EXPECT_EQ(1u, Immovable::Constructions);
+  EXPECT_EQ(0u, Immovable::Destructions);
+}
+
+#if LLVM_HAS_RVALUE_REFERENCE_THIS
+
+TEST_F(OptionalTest, MoveGetValueOr) {
+  Optional<MoveOnly> A;
+
+  MoveOnly::ResetCounts();
+  EXPECT_EQ(42, std::move(A).getValueOr(MoveOnly(42)).val);
+  EXPECT_EQ(1u, MoveOnly::MoveConstructions);
+  EXPECT_EQ(0u, MoveOnly::MoveAssignments);
+  EXPECT_EQ(2u, MoveOnly::Destructions);
+
+  A = MoveOnly(5);
+  MoveOnly::ResetCounts();
+  EXPECT_EQ(5, std::move(A).getValueOr(MoveOnly(42)).val);
+  EXPECT_EQ(1u, MoveOnly::MoveConstructions);
+  EXPECT_EQ(0u, MoveOnly::MoveAssignments);
+  EXPECT_EQ(2u, MoveOnly::Destructions);
+}
+
+#endif // LLVM_HAS_RVALUE_REFERENCE_THIS
 
 } // end anonymous namespace
 

@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef MIPSMCNACL_H
-#define MIPSMCNACL_H
+#ifndef LLVM_LIB_TARGET_MIPS_MCTARGETDESC_MIPSMCNACL_H
+#define LLVM_LIB_TARGET_MIPS_MCTARGETDESC_MIPSMCNACL_H
 
 #include "llvm/MC/MCELFStreamer.h"
 
@@ -26,8 +26,7 @@ MCELFStreamer *createMipsNaClELFStreamer(MCContext &Context, MCAsmBackend &TAB,
                                          raw_ostream &OS,
                                          MCCodeEmitter *Emitter,
                                          const MCSubtargetInfo &STI,
-                                         bool RelaxAll, bool NoExecStack);
-
+                                         bool RelaxAll);
 }
 
 #endif

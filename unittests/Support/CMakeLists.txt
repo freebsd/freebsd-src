@@ -32,6 +32,7 @@ add_llvm_unittest(SupportTests
   ScaledNumberTest.cpp
   SourceMgrTest.cpp
   SpecialCaseListTest.cpp
+  StreamingMemoryObject.cpp
   StringPool.cpp
   SwapByteOrderTest.cpp
   ThreadLocalTest.cpp
@@ -42,3 +43,8 @@ add_llvm_unittest(SupportTests
   formatted_raw_ostream_test.cpp
   raw_ostream_test.cpp
   )
+
+# ManagedStatic.cpp uses <pthread>.
+if(LLVM_ENABLE_THREADS AND HAVE_LIBPTHREAD)
+  target_link_libraries(SupportTests pthread)
+endif()

@@ -104,7 +104,24 @@ enum {
   /// support optimizations for dynamic languages (such as javascript) that
   /// rewrite calls to runtimes with more efficient code sequences.
   /// This also implies a stack map.
-  PATCHPOINT = 18
+  PATCHPOINT = 18,
+
+  /// This pseudo-instruction loads the stack guard value. Targets which need
+  /// to prevent the stack guard value or address from being spilled to the
+  /// stack should override TargetLowering::emitLoadStackGuardNode and
+  /// additionally expand this pseudo after register allocation.
+  LOAD_STACK_GUARD = 19,
+
+  /// Call instruction with associated vm state for deoptimization and list
+  /// of live pointers for relocation by the garbage collector.  It is
+  /// intended to support garbage collection with fully precise relocating
+  /// collectors and deoptimizations in either the callee or caller.
+  STATEPOINT = 20,
+
+  /// Instruction that records the offset of a function's frame allocation in a
+  /// label. Created by the llvm.frameallocate intrinsic. It has two arguments:
+  /// the symbol for the label and the frame index of the stack allocation.
+  FRAME_ALLOC = 21,
 };
 } // end namespace TargetOpcode
 } // end namespace llvm

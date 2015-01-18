@@ -1,4 +1,4 @@
-; RUN: opt < %s  -loop-vectorize -force-vector-unroll=1 -force-vector-width=4 -dce -instcombine -S | FileCheck %s
+; RUN: opt < %s  -loop-vectorize -force-vector-interleave=1 -force-vector-width=4 -dce -instcombine -S | FileCheck %s
 
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128"
 target triple = "x86_64-unknown-linux-gnu"
@@ -1184,6 +1184,62 @@ for.body:                                         ; preds = %entry, %for.body
   %call = tail call i64 @llvm.ctlz.i64(i64 %0, i1 true) nounwind readnone
   %arrayidx4 = getelementptr inbounds i64* %x, i64 %indvars.iv
   store i64 %call, i64* %arrayidx4, align 8
+  %indvars.iv.next = add i64 %indvars.iv, 1
+  %lftr.wideiv = trunc i64 %indvars.iv.next to i32
+  %exitcond = icmp eq i32 %lftr.wideiv, %n
+  br i1 %exitcond, label %for.end, label %for.body
+
+for.end:                                          ; preds = %for.body, %entry
+  ret void
+}
+
+declare float @llvm.minnum.f32(float, float) nounwind readnone
+
+;CHECK-LABEL: @minnum_f32(
+;CHECK: llvm.minnum.v4f32
+;CHECK: ret void
+define void @minnum_f32(i32 %n, float* noalias %y, float* noalias %x, float* noalias %z) nounwind uwtable {
+entry:
+  %cmp9 = icmp sgt i32 %n, 0
+  br i1 %cmp9, label %for.body, label %for.end
+
+for.body:                                         ; preds = %entry, %for.body
+  %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
+  %arrayidx = getelementptr inbounds float* %y, i64 %indvars.iv
+  %0 = load float* %arrayidx, align 4
+  %arrayidx2 = getelementptr inbounds float* %z, i64 %indvars.iv
+  %1 = load float* %arrayidx2, align 4
+  %call = tail call float @llvm.minnum.f32(float %0, float %1) nounwind readnone
+  %arrayidx4 = getelementptr inbounds float* %x, i64 %indvars.iv
+  store float %call, float* %arrayidx4, align 4
+  %indvars.iv.next = add i64 %indvars.iv, 1
+  %lftr.wideiv = trunc i64 %indvars.iv.next to i32
+  %exitcond = icmp eq i32 %lftr.wideiv, %n
+  br i1 %exitcond, label %for.end, label %for.body
+
+for.end:                                          ; preds = %for.body, %entry
+  ret void
+}
+
+declare float @llvm.maxnum.f32(float, float) nounwind readnone
+
+;CHECK-LABEL: @maxnum_f32(
+;CHECK: llvm.maxnum.v4f32
+;CHECK: ret void
+define void @maxnum_f32(i32 %n, float* noalias %y, float* noalias %x, float* noalias %z) nounwind uwtable {
+entry:
+  %cmp9 = icmp sgt i32 %n, 0
+  br i1 %cmp9, label %for.body, label %for.end
+
+for.body:                                         ; preds = %entry, %for.body
+  %indvars.iv = phi i64 [ %indvars.iv.next, %for.body ], [ 0, %entry ]
+  %arrayidx = getelementptr inbounds float* %y, i64 %indvars.iv
+  %0 = load float* %arrayidx, align 4
+  %arrayidx2 = getelementptr inbounds float* %z, i64 %indvars.iv
+  %1 = load float* %arrayidx2, align 4
+  %call = tail call float @llvm.maxnum.f32(float %0, float %1) nounwind readnone
+  %arrayidx4 = getelementptr inbounds float* %x, i64 %indvars.iv
+  store float %call, float* %arrayidx4, align 4
   %indvars.iv.next = add i64 %indvars.iv, 1
   %lftr.wideiv = trunc i64 %indvars.iv.next to i32
   %exitcond = icmp eq i32 %lftr.wideiv, %n

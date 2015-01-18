@@ -148,11 +148,11 @@ private:
   }
 public:
   // Ctor.
-  R600PacketizerList(MachineFunction &MF, MachineLoopInfo &MLI,
-                        MachineDominatorTree &MDT)
-  : VLIWPacketizerList(MF, MLI, MDT, true),
-    TII (static_cast<const R600InstrInfo *>(MF.getTarget().getInstrInfo())),
-    TRI(TII->getRegisterInfo()) {
+  R600PacketizerList(MachineFunction &MF, MachineLoopInfo &MLI)
+      : VLIWPacketizerList(MF, MLI, true),
+        TII(static_cast<const R600InstrInfo *>(
+            MF.getSubtarget().getInstrInfo())),
+        TRI(TII->getRegisterInfo()) {
     VLIW5 = !MF.getTarget().getSubtarget<AMDGPUSubtarget>().hasCaymanISA();
   }
 
@@ -328,12 +328,11 @@ public:
 };
 
 bool R600Packetizer::runOnMachineFunction(MachineFunction &Fn) {
-  const TargetInstrInfo *TII = Fn.getTarget().getInstrInfo();
+  const TargetInstrInfo *TII = Fn.getSubtarget().getInstrInfo();
   MachineLoopInfo &MLI = getAnalysis<MachineLoopInfo>();
-  MachineDominatorTree &MDT = getAnalysis<MachineDominatorTree>();
 
   // Instantiate the packetizer.
-  R600PacketizerList Packetizer(Fn, MLI, MDT);
+  R600PacketizerList Packetizer(Fn, MLI);
 
   // DFA state table should not be empty.
   assert(Packetizer.getResourceTracker() && "Empty DFA table!");

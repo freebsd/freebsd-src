@@ -105,9 +105,10 @@ struct GraphSession {
     SmallVector<StringRef, 8> parts;
     Names.split(parts, "|");
     for (auto Name : parts) {
-      ProgramPath = sys::FindProgramByName(Name);
-      if (!ProgramPath.empty())
+      if (ErrorOr<std::string> P = sys::findProgramByName(Name)) {
+        ProgramPath = *P;
         return true;
+      }
       Log << "  Tried '" << Name << "'\n";
     }
     return false;

@@ -314,6 +314,84 @@ exit:
   ret i32 %lcssa
 }
 
+; Can't sink stores out of exit blocks containing indirectbr instructions
+; because loop simplify does not create dedicated exits for such blocks. Test
+; that by sinking the store from lab21 to lab22, but not further.
+define void @test12() {
+; CHECK-LABEL: @test12
+  br label %lab4
+
+lab4:
+  br label %lab20
+
+lab5:
+  br label %lab20
+
+lab6:
+  br label %lab4
+
+lab7:
+  br i1 undef, label %lab8, label %lab13
+
+lab8:
+  br i1 undef, label %lab13, label %lab10
+
+lab10:
+  br label %lab7
+
+lab13:
+  ret void
+
+lab20:
+  br label %lab21
+
+lab21:
+; CHECK: lab21:
+; CHECK-NOT: store
+; CHECK: br i1 false, label %lab21, label %lab22
+  store i32 36127957, i32* undef, align 4
+  br i1 undef, label %lab21, label %lab22
+
+lab22:
+; CHECK: lab22:
+; CHECK: store
+; CHECK-NEXT: indirectbr i8* undef
+  indirectbr i8* undef, [label %lab5, label %lab6, label %lab7]
+}
+
+; Test that we don't crash when trying to sink stores and there's no preheader
+; available (which is used for creating loads that may be used by the SSA
+; updater)
+define void @test13() {
+; CHECK-LABEL: @test13
+  br label %lab59
+
+lab19:
+  br i1 undef, label %lab20, label %lab38
+
+lab20:
+  br label %lab60
+
+lab21:
+  br i1 undef, label %lab22, label %lab38
+
+lab22:
+  br label %lab38
+
+lab38:
+  ret void
+
+lab59:
+  indirectbr i8* undef, [label %lab60, label %lab38]
+
+lab60:
+; CHECK: lab60:
+; CHECK: store
+; CHECK-NEXT: indirectbr
+  store i32 2145244101, i32* undef, align 4
+  indirectbr i8* undef, [label %lab21, label %lab19]
+}
+
 declare void @f(i32*)
 
 declare void @g()

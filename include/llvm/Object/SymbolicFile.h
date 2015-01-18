@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_OBJECT_SYMBOLIC_FILE_H
-#define LLVM_OBJECT_SYMBOLIC_FILE_H
+#ifndef LLVM_OBJECT_SYMBOLICFILE_H
+#define LLVM_OBJECT_SYMBOLICFILE_H
 
 #include "llvm/Object/Binary.h"
 
@@ -87,8 +87,9 @@ public:
     SF_Absolute = 1U << 3,       // Absolute symbol
     SF_Common = 1U << 4,         // Symbol has common linkage
     SF_Indirect = 1U << 5,       // Symbol is an alias to another symbol
-    SF_FormatSpecific = 1U << 6  // Specific to the object file format
+    SF_FormatSpecific = 1U << 6, // Specific to the object file format
                                  // (e.g. section symbols)
+    SF_Thumb = 1U << 7           // Thumb symbol in a 32-bit ARM binary
   };
 
   BasicSymbolRef() : OwningObject(nullptr) { }
@@ -115,7 +116,7 @@ const uint64_t UnknownAddressOrSize = ~0ULL;
 class SymbolicFile : public Binary {
 public:
   virtual ~SymbolicFile();
-  SymbolicFile(unsigned int Type, std::unique_ptr<MemoryBuffer> Source);
+  SymbolicFile(unsigned int Type, MemoryBufferRef Source);
 
   // virtual interface.
   virtual void moveSymbolNext(DataRefImpl &Symb) const = 0;
@@ -142,15 +143,16 @@ public:
   }
 
   // construction aux.
-  static ErrorOr<SymbolicFile *>
-  createSymbolicFile(std::unique_ptr<MemoryBuffer> &Object,
-                     sys::fs::file_magic Type, LLVMContext *Context);
+  static ErrorOr<std::unique_ptr<SymbolicFile>>
+  createSymbolicFile(MemoryBufferRef Object, sys::fs::file_magic Type,
+                     LLVMContext *Context);
 
-  static ErrorOr<SymbolicFile *>
-  createSymbolicFile(std::unique_ptr<MemoryBuffer> &Object) {
+  static ErrorOr<std::unique_ptr<SymbolicFile>>
+  createSymbolicFile(MemoryBufferRef Object) {
     return createSymbolicFile(Object, sys::fs::file_magic::unknown, nullptr);
   }
-  static ErrorOr<SymbolicFile *> createSymbolicFile(StringRef ObjectPath);
+  static ErrorOr<OwningBinary<SymbolicFile>>
+  createSymbolicFile(StringRef ObjectPath);
 
   static inline bool classof(const Binary *v) {
     return v->isSymbolic();

@@ -15,6 +15,7 @@
 
 #define DEBUG_TYPE "si-i1-copies"
 #include "AMDGPU.h"
+#include "AMDGPUSubtarget.h"
 #include "SIInstrInfo.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/CodeGen/MachineDominators.h"
@@ -39,14 +40,14 @@ public:
     initializeSILowerI1CopiesPass(*PassRegistry::getPassRegistry());
   }
 
-  virtual bool runOnMachineFunction(MachineFunction &MF) override;
+  bool runOnMachineFunction(MachineFunction &MF) override;
 
-  virtual const char *getPassName() const override {
-    return "SI Lower il Copies";
+  const char *getPassName() const override {
+    return "SI Lower i1 Copies";
   }
 
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const override {
-  AU.addRequired<MachineDominatorTree>();
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<MachineDominatorTree>();
     AU.setPreservesCFG();
     MachineFunctionPass::getAnalysisUsage(AU);
   }
@@ -55,10 +56,10 @@ public:
 } // End anonymous namespace.
 
 INITIALIZE_PASS_BEGIN(SILowerI1Copies, DEBUG_TYPE,
-                      "SI Lower il Copies", false, false)
+                      "SI Lower i1 Copies", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
 INITIALIZE_PASS_END(SILowerI1Copies, DEBUG_TYPE,
-                    "SI Lower il Copies", false, false)
+                    "SI Lower i1 Copies", false, false)
 
 char SILowerI1Copies::ID = 0;
 
@@ -70,9 +71,9 @@ FunctionPass *llvm::createSILowerI1CopiesPass() {
 
 bool SILowerI1Copies::runOnMachineFunction(MachineFunction &MF) {
   MachineRegisterInfo &MRI = MF.getRegInfo();
-  const SIInstrInfo *TII = static_cast<const SIInstrInfo *>(
-      MF.getTarget().getInstrInfo());
-  const TargetRegisterInfo *TRI = MF.getTarget().getRegisterInfo();
+  const SIInstrInfo *TII =
+      static_cast<const SIInstrInfo *>(MF.getSubtarget().getInstrInfo());
+  const TargetRegisterInfo *TRI = MF.getSubtarget().getRegisterInfo();
   std::vector<unsigned> I1Defs;
 
   for (MachineFunction::iterator BI = MF.begin(), BE = MF.end();
@@ -84,71 +85,67 @@ bool SILowerI1Copies::runOnMachineFunction(MachineFunction &MF) {
       Next = std::next(I);
       MachineInstr &MI = *I;
 
-      if (MI.getOpcode() == AMDGPU::V_MOV_I1) {
-        I1Defs.push_back(MI.getOperand(0).getReg());
-        MI.setDesc(TII->get(AMDGPU::V_MOV_B32_e32));
+      if (MI.getOpcode() == AMDGPU::IMPLICIT_DEF) {
+        unsigned Reg = MI.getOperand(0).getReg();
+        const TargetRegisterClass *RC = MRI.getRegClass(Reg);
+        if (RC == &AMDGPU::VReg_1RegClass)
+          MRI.setRegClass(Reg, &AMDGPU::SReg_64RegClass);
         continue;
       }
 
-      if (MI.getOpcode() == AMDGPU::V_AND_I1) {
-        I1Defs.push_back(MI.getOperand(0).getReg());
-        MI.setDesc(TII->get(AMDGPU::V_AND_B32_e32));
-        continue;
-      }
-
-      if (MI.getOpcode() == AMDGPU::V_OR_I1) {
-        I1Defs.push_back(MI.getOperand(0).getReg());
-        MI.setDesc(TII->get(AMDGPU::V_OR_B32_e32));
-        continue;
-      }
-
-      if (MI.getOpcode() == AMDGPU::V_XOR_I1) {
-        I1Defs.push_back(MI.getOperand(0).getReg());
-        MI.setDesc(TII->get(AMDGPU::V_XOR_B32_e32));
-        continue;
-      }
-
-      if (MI.getOpcode() != AMDGPU::COPY ||
-          !TargetRegisterInfo::isVirtualRegister(MI.getOperand(0).getReg()) ||
-          !TargetRegisterInfo::isVirtualRegister(MI.getOperand(1).getReg()))
+      if (MI.getOpcode() != AMDGPU::COPY)
         continue;
 
+      const MachineOperand &Dst = MI.getOperand(0);
+      const MachineOperand &Src = MI.getOperand(1);
 
-      const TargetRegisterClass *DstRC =
-          MRI.getRegClass(MI.getOperand(0).getReg());
-      const TargetRegisterClass *SrcRC =
-          MRI.getRegClass(MI.getOperand(1).getReg());
+      if (!TargetRegisterInfo::isVirtualRegister(Src.getReg()) ||
+          !TargetRegisterInfo::isVirtualRegister(Dst.getReg()))
+        continue;
+
+      const TargetRegisterClass *DstRC = MRI.getRegClass(Dst.getReg());
+      const TargetRegisterClass *SrcRC = MRI.getRegClass(Src.getReg());
 
       if (DstRC == &AMDGPU::VReg_1RegClass &&
           TRI->getCommonSubClass(SrcRC, &AMDGPU::SGPR_64RegClass)) {
-        I1Defs.push_back(MI.getOperand(0).getReg());
-        BuildMI(MBB, &MI, MI.getDebugLoc(), TII->get(AMDGPU::V_CNDMASK_B32_e64))
-                .addOperand(MI.getOperand(0))
-                .addImm(0)
-                .addImm(-1)
-                .addOperand(MI.getOperand(1))
-                .addImm(0)
-                .addImm(0)
-                .addImm(0)
-                .addImm(0);
+        I1Defs.push_back(Dst.getReg());
+        DebugLoc DL = MI.getDebugLoc();
+
+        MachineInstr *DefInst = MRI.getUniqueVRegDef(Src.getReg());
+        if (DefInst->getOpcode() == AMDGPU::S_MOV_B64) {
+          if (DefInst->getOperand(1).isImm()) {
+            I1Defs.push_back(Dst.getReg());
+
+            int64_t Val = DefInst->getOperand(1).getImm();
+            assert(Val == 0 || Val == -1);
+
+            BuildMI(MBB, &MI, DL, TII->get(AMDGPU::V_MOV_B32_e32))
+              .addOperand(Dst)
+              .addImm(Val);
+            MI.eraseFromParent();
+            continue;
+          }
+        }
+
+        BuildMI(MBB, &MI, DL, TII->get(AMDGPU::V_CNDMASK_B32_e64))
+          .addOperand(Dst)
+          .addImm(0)
+          .addImm(-1)
+          .addOperand(Src);
         MI.eraseFromParent();
       } else if (TRI->getCommonSubClass(DstRC, &AMDGPU::SGPR_64RegClass) &&
                  SrcRC == &AMDGPU::VReg_1RegClass) {
         BuildMI(MBB, &MI, MI.getDebugLoc(), TII->get(AMDGPU::V_CMP_NE_I32_e64))
-                .addOperand(MI.getOperand(0))
-                .addImm(0)
-                .addOperand(MI.getOperand(1))
-                .addImm(0)
-                .addImm(0)
-                .addImm(0)
-                .addImm(0);
+          .addOperand(Dst)
+          .addOperand(Src)
+          .addImm(0);
         MI.eraseFromParent();
       }
     }
   }
 
   for (unsigned Reg : I1Defs)
-    MRI.setRegClass(Reg, &AMDGPU::VReg_32RegClass);
+    MRI.setRegClass(Reg, &AMDGPU::VGPR_32RegClass);
 
   return false;
 }

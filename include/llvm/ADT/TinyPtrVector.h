@@ -96,10 +96,17 @@ public:
     return *this;
   }
 
+  /// Constructor from a single element.
+  explicit TinyPtrVector(EltTy Elt) : Val(Elt) {}
+
+  /// Constructor from an ArrayRef.
+  explicit TinyPtrVector(ArrayRef<EltTy> Elts)
+      : Val(new VecTy(Elts.begin(), Elts.end())) {}
+
   // implicit conversion operator to ArrayRef.
   operator ArrayRef<EltTy>() const {
     if (Val.isNull())
-      return ArrayRef<EltTy>();
+      return None;
     if (Val.template is<EltTy>())
       return *Val.getAddrOfPtr1();
     return *Val.template get<VecTy*>();

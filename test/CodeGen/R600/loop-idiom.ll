@@ -1,5 +1,5 @@
 ; RUN: opt -basicaa -loop-idiom -S < %s -march=r600 -mcpu=redwood | FileCheck --check-prefix=R600 --check-prefix=FUNC %s
-; RUN: opt -basicaa -loop-idiom -S < %s -march=r600 -mcpu=SI -verify-machineinstrs| FileCheck --check-prefix=SI --check-prefix=FUNC %s
+; RUN: opt -basicaa -loop-idiom -S < %s -march=amdgcn -mcpu=SI -verify-machineinstrs| FileCheck --check-prefix=SI --check-prefix=FUNC %s
 
 target datalayout = "e-p:32:32-p1:64:64-p2:64:64-p3:32:32-p4:32:32-p5:64:64-i64:64-v16:16-v24:32-v32:32-v48:64-v96:128-v192:256-v256:256-v512:512-v1024:1024-v2048:2048-n32:64"
 target triple = "r600--"
@@ -10,8 +10,8 @@ target triple = "r600--"
 ; implementations of these for R600.
 
 ; FUNC: @no_memcpy
-; R600-NOT: @llvm.memcpy
-; SI-NOT: @llvm.memcpy
+; R600-NOT: {{^}}llvm.memcpy
+; SI-NOT: {{^}}llvm.memcpy
 define void @no_memcpy(i8 addrspace(3)* %in, i32 %size) {
 entry:
   %dest = alloca i8, i32 32
@@ -32,10 +32,10 @@ for.end:
 }
 
 ; FUNC: @no_memset
-; R600-NOT: @llvm.memset
-; R600-NOT: @memset_pattern16
-; SI-NOT: @llvm.memset
-; SI-NOT: @memset_pattern16
+; R600-NOT: {{^}}llvm.memset
+; R600-NOT: {{^}}memset_pattern16:
+; SI-NOT: {{^}}llvm.memset
+; SI-NOT: {{^}}memset_pattern16:
 define void @no_memset(i32 %size) {
 entry:
   %dest = alloca i8, i32 32

@@ -18,13 +18,29 @@
 
 namespace llvm {
 
+namespace detail {
+struct DenseSetEmpty {};
+
+// Use the empty base class trick so we can create a DenseMap where the buckets
+// contain only a single item.
+template <typename KeyT> class DenseSetPair : public DenseSetEmpty {
+  KeyT key;
+
+public:
+  KeyT &getFirst() { return key; }
+  const KeyT &getFirst() const { return key; }
+  DenseSetEmpty &getSecond() { return *this; }
+  const DenseSetEmpty &getSecond() const { return *this; }
+};
+}
+
 /// DenseSet - This implements a dense probed hash-table based set.
-///
-/// FIXME: This is currently implemented directly in terms of DenseMap, this
-/// should be optimized later if there is a need.
 template<typename ValueT, typename ValueInfoT = DenseMapInfo<ValueT> >
 class DenseSet {
-  typedef DenseMap<ValueT, char, ValueInfoT> MapTy;
+  typedef DenseMap<ValueT, detail::DenseSetEmpty, ValueInfoT,
+                   detail::DenseSetPair<ValueT>> MapTy;
+  static_assert(sizeof(typename MapTy::value_type) == sizeof(ValueT),
+                "DenseMap buckets unexpectedly large!");
   MapTy TheMap;
 public:
   typedef ValueT key_type;
@@ -72,8 +88,8 @@ public:
 
     Iterator(const typename MapTy::iterator &i) : I(i) {}
 
-    ValueT& operator*() { return I->first; }
-    ValueT* operator->() { return &I->first; }
+    ValueT &operator*() { return I->getFirst(); }
+    ValueT *operator->() { return &I->getFirst(); }
 
     Iterator& operator++() { ++I; return *this; }
     bool operator==(const Iterator& X) const { return I == X.I; }
@@ -92,8 +108,8 @@ public:
 
     ConstIterator(const typename MapTy::const_iterator &i) : I(i) {}
 
-    const ValueT& operator*() { return I->first; }
-    const ValueT* operator->() { return &I->first; }
+    const ValueT &operator*() { return I->getFirst(); }
+    const ValueT *operator->() { return &I->getFirst(); }
 
     ConstIterator& operator++() { ++I; return *this; }
     bool operator==(const ConstIterator& X) const { return I == X.I; }
@@ -110,11 +126,27 @@ public:
   const_iterator end() const { return ConstIterator(TheMap.end()); }
 
   iterator find(const ValueT &V) { return Iterator(TheMap.find(V)); }
+
+  /// Alternative version of find() which allows a different, and possibly less
+  /// expensive, key type.
+  /// The DenseMapInfo is responsible for supplying methods
+  /// getHashValue(LookupKeyT) and isEqual(LookupKeyT, KeyT) for each key type
+  /// used.
+  template <class LookupKeyT>
+  iterator find_as(const LookupKeyT &Val) {
+    return Iterator(TheMap.find_as(Val));
+  }
+  template <class LookupKeyT>
+  const_iterator find_as(const LookupKeyT &Val) const {
+    return ConstIterator(TheMap.find_as(Val));
+  }
+
   void erase(Iterator I) { return TheMap.erase(I.I); }
   void erase(ConstIterator CI) { return TheMap.erase(CI.I); }
 
   std::pair<iterator, bool> insert(const ValueT &V) {
-    return TheMap.insert(std::make_pair(V, 0));
+    detail::DenseSetEmpty Empty;
+    return TheMap.insert(std::make_pair(V, Empty));
   }
   
   // Range insertion of values.

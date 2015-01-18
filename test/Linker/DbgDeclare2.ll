@@ -11,10 +11,10 @@ entry:
   %argv.addr = alloca i8**, align 8
   %i = alloca i32, align 4
   store i32 %argc, i32* %argc.addr, align 4
-  call void @llvm.dbg.declare(metadata !{i32* %argc.addr}, metadata !14), !dbg !15
+  call void @llvm.dbg.declare(metadata i32* %argc.addr, metadata !14, metadata !{!"0x102"}), !dbg !15
   store i8** %argv, i8*** %argv.addr, align 8
-  call void @llvm.dbg.declare(metadata !{i8*** %argv.addr}, metadata !16), !dbg !15
-  call void @llvm.dbg.declare(metadata !{i32* %i}, metadata !17), !dbg !20
+  call void @llvm.dbg.declare(metadata i8*** %argv.addr, metadata !16, metadata !{!"0x102"}), !dbg !15
+  call void @llvm.dbg.declare(metadata i32* %i, metadata !17, metadata !{!"0x102"}), !dbg !20
   store i32 0, i32* %i, align 4, !dbg !20
   br label %for.cond, !dbg !20
 
@@ -43,37 +43,37 @@ for.end:                                          ; preds = %for.cond
   ret void, !dbg !24
 }
 
-declare void @llvm.dbg.declare(metadata, metadata) nounwind readnone
+declare void @llvm.dbg.declare(metadata, metadata, metadata) nounwind readnone
 
 declare i32 @puts(i8*)
 
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!27}
 
-!0 = metadata !{i32 786449, metadata !25, i32 4, metadata !"clang version 3.3 (trunk 173515)", i1 true, metadata !"", i32 0, metadata !2, metadata !2, metadata !3, metadata !2, null, metadata !""} ; [ DW_TAG_compile_unit ]
-!1 = metadata !{metadata !2}
-!2 = metadata !{i32 0}
-!3 = metadata !{metadata !5}
-!5 = metadata !{i32 786478, metadata !26, null, metadata !"print_args", metadata !"print_args", metadata !"test", i32 4, metadata !7, i1 false, i1 true, i32 0, i32 0, null, i32 256, i1 false, void (i32, i8**)* @test, null, null, metadata !1, i32 5} ; [ DW_TAG_subprogram ]
-!6 = metadata !{i32 786473, metadata !26} ; [ DW_TAG_file_type ]
-!7 = metadata !{i32 786453, i32 0, null, i32 0, i32 0, i64 0, i64 0, i64 0, i32 0, null, metadata !8, i32 0, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
-!8 = metadata !{null, metadata !9, metadata !10}
-!9 = metadata !{i32 786468, null, null, metadata !"int", i32 0, i64 32, i64 32, i64 0, i32 0, i32 5} ; [ DW_TAG_base_type ]
-!10 = metadata !{i32 786447, null, null, null, i32 0, i64 64, i64 64, i64 0, i32 0, metadata !11} ; [ DW_TAG_pointer_type ]
-!11 = metadata !{i32 786447, null, null, null, i32 0, i64 64, i64 64, i64 0, i32 0, metadata !12} ; [ DW_TAG_pointer_type ]
-!12 = metadata !{i32 786470, null, null, null, i32 0, i64 0, i64 0, i64 0, i32 0, metadata !13} ; [ DW_TAG_const_type ]
-!13 = metadata !{i32 786468, null, null, metadata !"char", i32 0, i64 8, i64 8, i64 0, i32 0, i32 6} ; [ DW_TAG_base_type ]
-!14 = metadata !{i32 786689, metadata !5, metadata !"argc", metadata !6, i32 16777220, metadata !9, i32 0, i32 0} ; [ DW_TAG_arg_variable ]
-!15 = metadata !{i32 4, i32 0, metadata !5, null}
-!16 = metadata !{i32 786689, metadata !5, metadata !"argv", metadata !6, i32 33554436, metadata !10, i32 0, i32 0} ; [ DW_TAG_arg_variable ]
-!17 = metadata !{i32 786688, metadata !18, metadata !"i", metadata !6, i32 6, metadata !9, i32 0, i32 0} ; [ DW_TAG_auto_variable ]
-!18 = metadata !{i32 786443, metadata !26, metadata !19, i32 6, i32 0, i32 1} ; [ DW_TAG_lexical_block ]
-!19 = metadata !{i32 786443, metadata !26, metadata !5, i32 5, i32 0, i32 0} ; [ DW_TAG_lexical_block ]
-!20 = metadata !{i32 6, i32 0, metadata !18, null}
-!21 = metadata !{i32 8, i32 0, metadata !22, null}
-!22 = metadata !{i32 786443, metadata !26, metadata !18, i32 7, i32 0, i32 2} ; [ DW_TAG_lexical_block ]
-!23 = metadata !{i32 9, i32 0, metadata !22, null}
-!24 = metadata !{i32 10, i32 0, metadata !19, null}
-!25 = metadata !{metadata !"main.cpp", metadata !"/private/tmp"}
-!26 = metadata !{metadata !"test.cpp", metadata !"/private/tmp"}
-!27 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
+!0 = !{!"0x11\004\00clang version 3.3 (trunk 173515)\001\00\000\00\000", !25, !2, !2, !3, !2, null} ; [ DW_TAG_compile_unit ]
+!1 = !{!2}
+!2 = !{i32 0}
+!3 = !{!5}
+!5 = !{!"0x2e\00print_args\00print_args\00test\004\000\001\000\006\00256\000\005", !26, null, !7, null, void (i32, i8**)* @test, null, null, !1} ; [ DW_TAG_subprogram ]
+!6 = !{!"0x29", !26} ; [ DW_TAG_file_type ]
+!7 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !8, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!8 = !{null, !9, !10}
+!9 = !{!"0x24\00int\000\0032\0032\000\000\005", null, null} ; [ DW_TAG_base_type ]
+!10 = !{!"0xf\00\000\0064\0064\000\000", null, null, !11} ; [ DW_TAG_pointer_type ]
+!11 = !{!"0xf\00\000\0064\0064\000\000", null, null, !12} ; [ DW_TAG_pointer_type ]
+!12 = !{!"0x26\00\000\000\000\000\000", null, null, !13} ; [ DW_TAG_const_type ]
+!13 = !{!"0x24\00char\000\008\008\000\000\006", null, null} ; [ DW_TAG_base_type ]
+!14 = !{!"0x101\00argc\0016777220\000", !5, !6, !9} ; [ DW_TAG_arg_variable ]
+!15 = !MDLocation(line: 4, scope: !5)
+!16 = !{!"0x101\00argv\0033554436\000", !5, !6, !10} ; [ DW_TAG_arg_variable ]
+!17 = !{!"0x100\00i\006\000", !18, !6, !9} ; [ DW_TAG_auto_variable ]
+!18 = !{!"0xb\006\000\001", !26, !19} ; [ DW_TAG_lexical_block ]
+!19 = !{!"0xb\005\000\000", !26, !5} ; [ DW_TAG_lexical_block ]
+!20 = !MDLocation(line: 6, scope: !18)
+!21 = !MDLocation(line: 8, scope: !22)
+!22 = !{!"0xb\007\000\002", !26, !18} ; [ DW_TAG_lexical_block ]
+!23 = !MDLocation(line: 9, scope: !22)
+!24 = !MDLocation(line: 10, scope: !19)
+!25 = !{!"main.cpp", !"/private/tmp"}
+!26 = !{!"test.cpp", !"/private/tmp"}
+!27 = !{i32 1, !"Debug Info Version", i32 2}

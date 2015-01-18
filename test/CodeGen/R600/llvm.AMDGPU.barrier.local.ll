@@ -1,9 +1,12 @@
-; RUN: llc -march=r600 -mcpu=SI < %s | FileCheck -check-prefix=SI -check-prefix=FUNC %s
+; RUN: llc -march=amdgcn -mcpu=SI < %s | FileCheck -check-prefix=SI -check-prefix=FUNC %s
 ; RUN: llc -march=r600 -mcpu=redwood < %s | FileCheck -check-prefix=EG -check-prefix=FUNC %s
 
-; FUNC-LABEL: @test_barrier_local
+; FUNC-LABEL: {{^}}test_barrier_local:
 ; EG: GROUP_BARRIER
-; SI: S_BARRIER
+
+; SI: buffer_store_dword
+; SI: s_waitcnt
+; SI: s_barrier
 
 define void @test_barrier_local(i32 addrspace(1)* %out) {
 entry:

@@ -1,7 +1,5 @@
-; RUN: llc < %s -debug -march=arm64 -mcpu=cyclone -enable-misched=false | FileCheck %s
-; RUN: llc < %s -O0 | FileCheck -check-prefix=FAST %s
-; REQUIRES: asserts
-target triple = "arm64-apple-darwin"
+; RUN: llc     -mtriple=arm64-apple-darwin -mcpu=cyclone -enable-misched=false < %s | FileCheck %s
+; RUN: llc -O0 -mtriple=arm64-apple-darwin                                     < %s | FileCheck --check-prefix=FAST %s
 
 ; rdar://9932559
 define i64 @i8i16callee(i64 %a1, i64 %a2, i64 %a3, i8 signext %a4, i16 signext %a5, i64 %a6, i64 %a7, i64 %a8, i8 signext %b1, i16 signext %b2, i8 signext %b3, i8 signext %b4) nounwind readnone noinline {
@@ -42,7 +40,7 @@ entry:
 
 define i32 @i8i16caller() nounwind readnone {
 entry:
-; CHECK: i8i16caller
+; CHECK-LABEL: i8i16caller
 ; The 8th, 9th, 10th and 11th arguments are passed at sp, sp+2, sp+4, sp+5.
 ; They are i8, i16, i8 and i8.
 ; CHECK-DAG: strb {{w[0-9]+}}, [sp, #5]
@@ -50,7 +48,7 @@ entry:
 ; CHECK-DAG: strh {{w[0-9]+}}, [sp, #2]
 ; CHECK-DAG: strb {{w[0-9]+}}, [sp]
 ; CHECK: bl
-; FAST: i8i16caller
+; FAST-LABEL: i8i16caller
 ; FAST: strb {{w[0-9]+}}, [sp]
 ; FAST: strh {{w[0-9]+}}, [sp, #2]
 ; FAST: strb {{w[0-9]+}}, [sp, #4]
@@ -64,7 +62,7 @@ entry:
 ; rdar://12651543
 define double @circle_center([2 x float] %a) nounwind ssp {
   %call = tail call double @ext([2 x float] %a) nounwind
-; CHECK: circle_center
+; CHECK-LABEL: circle_center
 ; CHECK: bl
   ret double %call
 }
@@ -75,10 +73,10 @@ declare double @ext([2 x float])
 ; A double argument will be passed on stack, so vecotr should be at sp+16.
 define double @fixed_4i(<4 x i32>* nocapture %in) nounwind {
 entry:
-; CHECK: fixed_4i
+; CHECK-LABEL: fixed_4i
 ; CHECK: str [[REG_1:q[0-9]+]], [sp, #16]
-; FAST: fixed_4i
-; FAST: sub sp, sp, #64
+; FAST-LABEL: fixed_4i
+; FAST: sub sp, sp
 ; FAST: mov x[[ADDR:[0-9]+]], sp
 ; FAST: str [[REG_1:q[0-9]+]], [x[[ADDR]], #16]
   %0 = load <4 x i32>* %in, align 16
@@ -93,7 +91,7 @@ declare double @args_vec_4i(double, <4 x i32>, <4 x i32>, <4 x i32>, <4 x i32>, 
 define void @test1(float %f1, double %d1, double %d2, double %d3, double %d4,
        double %d5, double %d6, double %d7, double %d8, i32 %i) nounwind ssp {
 entry:
-; CHECK: test1
+; CHECK-LABEL: test1
 ; CHECK: ldr [[REG_1:d[0-9]+]], [sp]
 ; CHECK: scvtf [[REG_2:s[0-9]+]], w0
 ; CHECK: fadd s0, [[REG_2]], s0
@@ -110,7 +108,7 @@ entry:
 define void @test2(i32 %i1, i32 %i2, i32 %i3, i32 %i4, i32 %i5, i32 %i6,
             i32 %i7, i32 %i8, i32 %i9, float %d1) nounwind ssp {
 entry:
-; CHECK: test2
+; CHECK-LABEL: test2
 ; CHECK: scvtf [[REG_2:s[0-9]+]], w0
 ; CHECK: fadd s0, [[REG_2]], s0
 ; CHECK: ldr [[REG_1:s[0-9]+]], [sp]
@@ -129,9 +127,9 @@ entry:
 ; Check alignment on stack for v64, f64, i64, f32, i32.
 define double @test3(<2 x i32>* nocapture %in) nounwind {
 entry:
-; CHECK: test3
+; CHECK-LABEL: test3
 ; CHECK: str [[REG_1:d[0-9]+]], [sp, #8]
-; FAST: test3
+; FAST-LABEL: test3
 ; FAST: sub sp, sp, #32
 ; FAST: mov x[[ADDR:[0-9]+]], sp
 ; FAST: str [[REG_1:d[0-9]+]], [x[[ADDR]], #8]
@@ -146,7 +144,7 @@ declare double @args_vec_2i(double, <2 x i32>, <2 x i32>, <2 x i32>, <2 x i32>,
 
 define double @test4(double* nocapture %in) nounwind {
 entry:
-; CHECK: test4
+; CHECK-LABEL: test4
 ; CHECK: str [[REG_1:d[0-9]+]], [sp, #8]
 ; CHECK: str [[REG_2:w[0-9]+]], [sp]
 ; CHECK: orr w0, wzr, #0x3
@@ -161,7 +159,7 @@ declare double @args_f64(double, double, double, double, double, double, double,
 
 define i64 @test5(i64* nocapture %in) nounwind {
 entry:
-; CHECK: test5
+; CHECK-LABEL: test5
 ; CHECK: strb [[REG_3:w[0-9]+]], [sp, #16]
 ; CHECK: str [[REG_1:x[0-9]+]], [sp, #8]
 ; CHECK: str [[REG_2:w[0-9]+]], [sp]
@@ -175,7 +173,7 @@ declare i64 @args_i64(i64, i64, i64, i64, i64, i64, i64, i64, i32, i64,
 
 define i32 @test6(float* nocapture %in) nounwind {
 entry:
-; CHECK: test6
+; CHECK-LABEL: test6
 ; CHECK: strb [[REG_2:w[0-9]+]], [sp, #8]
 ; CHECK: str [[REG_1:s[0-9]+]], [sp, #4]
 ; CHECK: strh [[REG_3:w[0-9]+]], [sp]
@@ -192,7 +190,7 @@ declare i32 @args_f32(i32, i32, i32, i32, i32, i32, i32, i32,
 
 define i32 @test7(i32* nocapture %in) nounwind {
 entry:
-; CHECK: test7
+; CHECK-LABEL: test7
 ; CHECK: strb [[REG_2:w[0-9]+]], [sp, #8]
 ; CHECK: str [[REG_1:w[0-9]+]], [sp, #4]
 ; CHECK: strh [[REG_3:w[0-9]+]], [sp]
@@ -206,13 +204,13 @@ declare i32 @args_i32(i32, i32, i32, i32, i32, i32, i32, i32, i16 signext, i32,
 
 define i32 @test8(i32 %argc, i8** nocapture %argv) nounwind {
 entry:
-; CHECK: test8
+; CHECK-LABEL: test8
 ; CHECK: strb {{w[0-9]+}}, [sp, #3]
 ; CHECK: strb wzr, [sp, #2]
 ; CHECK: strb {{w[0-9]+}}, [sp, #1]
 ; CHECK: strb wzr, [sp]
 ; CHECK: bl
-; FAST: test8
+; FAST-LABEL: test8
 ; FAST: strb {{w[0-9]+}}, [sp]
 ; FAST: strb {{w[0-9]+}}, [sp, #1]
 ; FAST: strb {{w[0-9]+}}, [sp, #2]

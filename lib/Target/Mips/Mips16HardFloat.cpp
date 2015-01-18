@@ -247,12 +247,12 @@ static void swapFPIntParams
 // Having called needsFPHelperFromSig
 //
 static void assureFPCallStub(Function &F, Module *M,
-                             const MipsSubtarget &Subtarget) {
+                             const MipsTargetMachine &TM) {
   // for now we only need them for static relocation
-  if (Subtarget.getRelocationModel() == Reloc::PIC_)
+  if (TM.getRelocationModel() == Reloc::PIC_)
     return;
   LLVMContext &Context = M->getContext();
-  bool LE = Subtarget.isLittle();
+  bool LE = TM.isLittleEndian();
   std::string Name = F.getName();
   std::string SectionName = ".mips16.call.fp." + Name;
   std::string StubName = "__call_stub_fp_" + Name;
@@ -362,8 +362,8 @@ static bool isIntrinsicInline(Function *F) {
 // Returns of float, double and complex need to be handled with a helper
 // function.
 //
-static bool fixupFPReturnAndCall
-  (Function &F, Module *M,  const MipsSubtarget &Subtarget) {
+static bool fixupFPReturnAndCall(Function &F, Module *M,
+                                 const MipsTargetMachine &TM) {
   bool Modified = false;
   LLVMContext &C = M->getContext();
   Type *MyVoid = Type::getVoidTy(C);
@@ -403,7 +403,7 @@ static bool fixupFPReturnAndCall
                            Attribute::ReadNone);
         A = A.addAttribute(C, AttributeSet::FunctionIndex,
                            Attribute::NoInline);
-        Value *F = (M->getOrInsertFunction(Name, A, MyVoid, T, NULL));
+        Value *F = (M->getOrInsertFunction(Name, A, MyVoid, T, nullptr));
         CallInst::Create(F, Params, "", &Inst );
       } else if (const CallInst *CI = dyn_cast<CallInst>(I)) {
           const Value* V = CI->getCalledValue();
@@ -426,9 +426,9 @@ static bool fixupFPReturnAndCall
               Modified=true;
               F.addFnAttr("saveS2");
             }
-            if (Subtarget.getRelocationModel() != Reloc::PIC_ ) {
+            if (TM.getRelocationModel() != Reloc::PIC_ ) {
               if (needsFPHelperFromSig(*F_)) {
-                assureFPCallStub(*F_, M, Subtarget);
+                assureFPCallStub(*F_, M, TM);
                 Modified=true;
               }
             }
@@ -439,9 +439,9 @@ static bool fixupFPReturnAndCall
 }
 
 static void createFPFnStub(Function *F, Module *M, FPParamVariant PV,
-                  const MipsSubtarget &Subtarget ) {
-  bool PicMode = Subtarget.getRelocationModel() == Reloc::PIC_;
-  bool LE = Subtarget.isLittle();
+                           const MipsTargetMachine &TM) {
+  bool PicMode = TM.getRelocationModel() == Reloc::PIC_;
+  bool LE = TM.isLittleEndian();
   LLVMContext &Context = M->getContext();
   std::string Name = F->getName();
   std::string SectionName = ".mips16.fn." + Name;
@@ -458,7 +458,6 @@ static void createFPFnStub(Function *F, Module *M, FPParamVariant PV,
   FStub->setSection(SectionName);
   BasicBlock *BB = BasicBlock::Create(Context, "entry", FStub);
   InlineAsmHelper IAH(Context, BB);
-  IAH.Out(" .set  macro");
   if (PicMode) {
     IAH.Out(".set noreorder");
     IAH.Out(".cpload  $$25");
@@ -467,7 +466,6 @@ static void createFPFnStub(Function *F, Module *M, FPParamVariant PV,
     IAH.Out("la $$25," + LocalName);
   }
   else {
-    IAH.Out(".set reorder");
     IAH.Out("la $$25," + Name);
   }
   swapFPIntParams(PV, M, IAH, LE, false);
@@ -522,11 +520,11 @@ bool Mips16HardFloat::runOnModule(Module &M) {
     }
     if (F->isDeclaration() || F->hasFnAttribute("mips16_fp_stub") ||
         F->hasFnAttribute("nomips16")) continue;
-    Modified |= fixupFPReturnAndCall(*F, &M, Subtarget);
+    Modified |= fixupFPReturnAndCall(*F, &M, TM);
     FPParamVariant V = whichFPParamVariantNeeded(*F);
     if (V != NoSig) {
       Modified = true;
-      createFPFnStub(F, &M, V, Subtarget);
+      createFPFnStub(F, &M, V, TM);
     }
   }
   return Modified;

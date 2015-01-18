@@ -87,9 +87,10 @@ bool TargetTransformInfo::isLoweredToCall(const Function *F) const {
   return PrevTTI->isLoweredToCall(F);
 }
 
-void TargetTransformInfo::getUnrollingPreferences(Loop *L,
-                            UnrollingPreferences &UP) const {
-  PrevTTI->getUnrollingPreferences(L, UP);
+void
+TargetTransformInfo::getUnrollingPreferences(const Function *F, Loop *L,
+                                             UnrollingPreferences &UP) const {
+  PrevTTI->getUnrollingPreferences(F, L, UP);
 }
 
 bool TargetTransformInfo::isLegalAddImmediate(int64_t Imm) const {
@@ -99,6 +100,17 @@ bool TargetTransformInfo::isLegalAddImmediate(int64_t Imm) const {
 bool TargetTransformInfo::isLegalICmpImmediate(int64_t Imm) const {
   return PrevTTI->isLegalICmpImmediate(Imm);
 }
+
+bool TargetTransformInfo::isLegalMaskedLoad(Type *DataType,
+                                            int Consecutive) const {
+  return false;
+}
+
+bool TargetTransformInfo::isLegalMaskedStore(Type *DataType,
+                                             int Consecutive) const {
+  return false;
+}
+
 
 bool TargetTransformInfo::isLegalAddressingMode(Type *Ty, GlobalValue *BaseGV,
                                                 int64_t BaseOffset,
@@ -167,15 +179,16 @@ unsigned TargetTransformInfo::getRegisterBitWidth(bool Vector) const {
   return PrevTTI->getRegisterBitWidth(Vector);
 }
 
-unsigned TargetTransformInfo::getMaximumUnrollFactor() const {
-  return PrevTTI->getMaximumUnrollFactor();
+unsigned TargetTransformInfo::getMaxInterleaveFactor() const {
+  return PrevTTI->getMaxInterleaveFactor();
 }
 
-unsigned TargetTransformInfo::getArithmeticInstrCost(unsigned Opcode,
-                                                Type *Ty,
-                                                OperandValueKind Op1Info,
-                                                OperandValueKind Op2Info) const {
-  return PrevTTI->getArithmeticInstrCost(Opcode, Ty, Op1Info, Op2Info);
+unsigned TargetTransformInfo::getArithmeticInstrCost(
+    unsigned Opcode, Type *Ty, OperandValueKind Op1Info,
+    OperandValueKind Op2Info, OperandValueProperties Opd1PropInfo,
+    OperandValueProperties Opd2PropInfo) const {
+  return PrevTTI->getArithmeticInstrCost(Opcode, Ty, Op1Info, Op2Info,
+                                         Opd1PropInfo, Opd2PropInfo);
 }
 
 unsigned TargetTransformInfo::getShuffleCost(ShuffleKind Kind, Type *Tp,
@@ -206,7 +219,6 @@ unsigned TargetTransformInfo::getMemoryOpCost(unsigned Opcode, Type *Src,
                                               unsigned Alignment,
                                               unsigned AddressSpace) const {
   return PrevTTI->getMemoryOpCost(Opcode, Src, Alignment, AddressSpace);
-  ;
 }
 
 unsigned
@@ -230,6 +242,11 @@ unsigned TargetTransformInfo::getReductionCost(unsigned Opcode, Type *Ty,
   return PrevTTI->getReductionCost(Opcode, Ty, IsPairwise);
 }
 
+unsigned TargetTransformInfo::getCostOfKeepingLiveOverCall(ArrayRef<Type*> Tys)
+  const {
+  return PrevTTI->getCostOfKeepingLiveOverCall(Tys);
+}
+
 namespace {
 
 struct NoTTI final : ImmutablePass, TargetTransformInfo {
@@ -239,7 +256,7 @@ struct NoTTI final : ImmutablePass, TargetTransformInfo {
     initializeNoTTIPass(*PassRegistry::getPassRegistry());
   }
 
-  virtual void initializePass() override {
+  void initializePass() override {
     // Note that this subclass is special, and must *not* call initializeTTI as
     // it does not chain.
     TopTTI = this;
@@ -248,7 +265,7 @@ struct NoTTI final : ImmutablePass, TargetTransformInfo {
     DL = DLP ? &DLP->getDataLayout() : nullptr;
   }
 
-  virtual void getAnalysisUsage(AnalysisUsage &AU) const override {
+  void getAnalysisUsage(AnalysisUsage &AU) const override {
     // Note that this subclass is special, and must *not* call
     // TTI::getAnalysisUsage as it breaks the recursion.
   }
@@ -257,7 +274,7 @@ struct NoTTI final : ImmutablePass, TargetTransformInfo {
   static char ID;
 
   /// Provide necessary pointer adjustments for the two base classes.
-  virtual void *getAdjustedAnalysisPointer(const void *ID) override {
+  void *getAdjustedAnalysisPointer(const void *ID) override {
     if (ID == &TargetTransformInfo::ID)
       return (TargetTransformInfo*)this;
     return this;
@@ -385,6 +402,8 @@ struct NoTTI final : ImmutablePass, TargetTransformInfo {
       // FIXME: This is wrong for libc intrinsics.
       return TCC_Basic;
 
+    case Intrinsic::annotation:
+    case Intrinsic::assume:
     case Intrinsic::dbg_declare:
     case Intrinsic::dbg_value:
     case Intrinsic::invariant_start:
@@ -394,6 +413,10 @@ struct NoTTI final : ImmutablePass, TargetTransformInfo {
     case Intrinsic::objectsize:
     case Intrinsic::ptr_annotation:
     case Intrinsic::var_annotation:
+    case Intrinsic::experimental_gc_result_int:
+    case Intrinsic::experimental_gc_result_float:
+    case Intrinsic::experimental_gc_result_ptr:
+    case Intrinsic::experimental_gc_relocate:
       // These intrinsics don't actually represent code after lowering.
       return TCC_Free;
     }
@@ -466,6 +489,8 @@ struct NoTTI final : ImmutablePass, TargetTransformInfo {
     // These will all likely lower to a single selection DAG node.
     if (Name == "copysign" || Name == "copysignf" || Name == "copysignl" ||
         Name == "fabs" || Name == "fabsf" || Name == "fabsl" || Name == "sin" ||
+        Name == "fmin" || Name == "fminf" || Name == "fminl" ||
+        Name == "fmax" || Name == "fmaxf" || Name == "fmaxl" ||
         Name == "sinf" || Name == "sinl" || Name == "cos" || Name == "cosf" ||
         Name == "cosl" || Name == "sqrt" || Name == "sqrtf" || Name == "sqrtl")
       return false;
@@ -480,8 +505,8 @@ struct NoTTI final : ImmutablePass, TargetTransformInfo {
     return true;
   }
 
-  void getUnrollingPreferences(Loop *, UnrollingPreferences &) const override {
-  }
+  void getUnrollingPreferences(const Function *, Loop *,
+                               UnrollingPreferences &) const override {}
 
   bool isLegalAddImmediate(int64_t Imm) const override {
     return false;
@@ -558,12 +583,13 @@ struct NoTTI final : ImmutablePass, TargetTransformInfo {
     return 32;
   }
 
-  unsigned getMaximumUnrollFactor() const override {
+  unsigned getMaxInterleaveFactor() const override {
     return 1;
   }
 
   unsigned getArithmeticInstrCost(unsigned Opcode, Type *Ty, OperandValueKind,
-                                  OperandValueKind) const override {
+                                  OperandValueKind, OperandValueProperties,
+                                  OperandValueProperties) const override {
     return 1;
   }
 
@@ -612,6 +638,11 @@ struct NoTTI final : ImmutablePass, TargetTransformInfo {
   unsigned getReductionCost(unsigned, Type *, bool) const override {
     return 1;
   }
+
+  unsigned getCostOfKeepingLiveOverCall(ArrayRef<Type*> Tys) const override {
+    return 0;
+  }
+
 };
 
 } // end anonymous namespace

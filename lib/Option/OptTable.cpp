@@ -264,6 +264,11 @@ InputArgList *OptTable::ParseArgs(const char *const *ArgBegin,
   MissingArgIndex = MissingArgCount = 0;
   unsigned Index = 0, End = ArgEnd - ArgBegin;
   while (Index < End) {
+    // Ingore nullptrs, they are response file's EOL markers
+    if (Args->getArgString(Index) == nullptr) {
+      ++Index;
+      continue;
+    }
     // Ignore empty arguments (other things may still take them as arguments).
     StringRef Str = Args->getArgString(Index);
     if (Str == "") {
@@ -300,7 +305,18 @@ static std::string getOptionHelpName(const OptTable &Opts, OptSpecifier Id) {
     llvm_unreachable("Invalid option with help text.");
 
   case Option::MultiArgClass:
-    llvm_unreachable("Cannot print metavar for this kind of option.");
+    if (const char *MetaVarName = Opts.getOptionMetaVar(Id)) {
+      // For MultiArgs, metavar is full list of all argument names.
+      Name += ' ';
+      Name += MetaVarName;
+    }
+    else {
+      // For MultiArgs<N>, if metavar not supplied, print <value> N times.
+      for (unsigned i=0, e=O.getNumArgs(); i< e; ++i) {
+        Name += " <value>";
+      }
+    }
+    break;
 
   case Option::FlagClass:
     break;

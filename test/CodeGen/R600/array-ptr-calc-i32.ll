@@ -1,5 +1,5 @@
-; RUN: llc -verify-machineinstrs -march=r600 -mcpu=SI -mattr=-promote-alloca < %s | FileCheck -check-prefix=SI-ALLOCA -check-prefix=SI %s
-; RUN: llc -verify-machineinstrs -march=r600 -mcpu=SI -mattr=+promote-alloca < %s | FileCheck -check-prefix=SI-PROMOTE -check-prefix=SI %s
+; RUN: llc -verify-machineinstrs -march=amdgcn -mcpu=SI -mattr=-promote-alloca < %s | FileCheck -check-prefix=SI-ALLOCA -check-prefix=SI %s
+; RUN: llc -verify-machineinstrs -march=amdgcn -mcpu=SI -mattr=+promote-alloca < %s | FileCheck -check-prefix=SI-PROMOTE -check-prefix=SI %s
 
 declare i32 @llvm.SI.tid() nounwind readnone
 declare void @llvm.AMDGPU.barrier.local() nounwind noduplicate
@@ -9,21 +9,21 @@ declare void @llvm.AMDGPU.barrier.local() nounwind noduplicate
 ; 64-bit pointer add. This should work since private pointers should
 ; be 32-bits.
 
-; SI-LABEL: @test_private_array_ptr_calc:
+; SI-LABEL: {{^}}test_private_array_ptr_calc:
 
 ; FIXME: We end up with zero argument for ADD, because
 ; SIRegisterInfo::eliminateFrameIndex() blindly replaces the frame index
 ; with the appropriate offset.  We should fold this into the store.
-; SI-ALLOCA: V_ADD_I32_e32 [[PTRREG:v[0-9]+]], 0, v{{[0-9]+}}
-; SI-ALLOCA: BUFFER_STORE_DWORD {{v[0-9]+}}, s[{{[0-9]+:[0-9]+}}], [[PTRREG]]
+; SI-ALLOCA: v_add_i32_e32 [[PTRREG:v[0-9]+]], 0, v{{[0-9]+}}
+; SI-ALLOCA: buffer_store_dword {{v[0-9]+}}, [[PTRREG]], s[{{[0-9]+:[0-9]+}}]
 ;
 ; FIXME: The AMDGPUPromoteAlloca pass should be able to convert this
 ; alloca to a vector.  It currently fails because it does not know how
 ; to interpret:
 ; getelementptr [4 x i32]* %alloca, i32 1, i32 %b
 
-; SI-PROMOTE: V_ADD_I32_e32 [[PTRREG:v[0-9]+]]
-; SI-PROMOTE: DS_WRITE_B32 {{v[0-9]+}}, [[PTRREG]]
+; SI-PROMOTE: v_add_i32_e32 [[PTRREG:v[0-9]+]], 16
+; SI-PROMOTE: ds_write_b32 [[PTRREG]]
 define void @test_private_array_ptr_calc(i32 addrspace(1)* noalias %out, i32 addrspace(1)* noalias %inA, i32 addrspace(1)* noalias %inB) {
   %alloca = alloca [4 x i32], i32 4, align 16
   %tid = call i32 @llvm.SI.tid() readnone

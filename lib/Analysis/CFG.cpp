@@ -27,7 +27,7 @@ using namespace llvm;
 void llvm::FindFunctionBackedges(const Function &F,
      SmallVectorImpl<std::pair<const BasicBlock*,const BasicBlock*> > &Result) {
   const BasicBlock *BB = &F.getEntryBlock();
-  if (succ_begin(BB) == succ_end(BB))
+  if (succ_empty(BB))
     return;
 
   SmallPtrSet<const BasicBlock*, 8> Visited;
@@ -45,7 +45,7 @@ void llvm::FindFunctionBackedges(const Function &F,
     bool FoundNew = false;
     while (I != succ_end(ParentBB)) {
       BB = *I++;
-      if (Visited.insert(BB)) {
+      if (Visited.insert(BB).second) {
         FoundNew = true;
         break;
       }
@@ -141,7 +141,7 @@ static bool isPotentiallyReachableInner(SmallVectorImpl<BasicBlock *> &Worklist,
   SmallSet<const BasicBlock*, 64> Visited;
   do {
     BasicBlock *BB = Worklist.pop_back_val();
-    if (!Visited.insert(BB))
+    if (!Visited.insert(BB).second)
       continue;
     if (BB == StopBB)
       return true;

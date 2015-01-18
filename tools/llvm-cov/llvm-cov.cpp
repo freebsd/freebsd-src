@@ -11,140 +11,68 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/ADT/SmallString.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/Errc.h"
-#include "llvm/Support/FileSystem.h"
-#include "llvm/Support/GCOV.h"
-#include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/MemoryObject.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/PrettyStackTrace.h"
-#include "llvm/Support/Signals.h"
-#include <system_error>
+#include "llvm/Support/raw_ostream.h"
+#include <string>
+
 using namespace llvm;
 
-static cl::list<std::string> SourceFiles(cl::Positional, cl::OneOrMore,
-                                         cl::desc("SOURCEFILE"));
+/// \brief The main entry point for the 'show' subcommand.
+int showMain(int argc, const char *argv[]);
 
-static cl::opt<bool> AllBlocks("a", cl::Grouping, cl::init(false),
-                               cl::desc("Display all basic blocks"));
-static cl::alias AllBlocksA("all-blocks", cl::aliasopt(AllBlocks));
+/// \brief The main entry point for the 'report' subcommand.
+int reportMain(int argc, const char *argv[]);
 
-static cl::opt<bool> BranchProb("b", cl::Grouping, cl::init(false),
-                                cl::desc("Display branch probabilities"));
-static cl::alias BranchProbA("branch-probabilities", cl::aliasopt(BranchProb));
+/// \brief The main entry point for the 'convert-for-testing' subcommand.
+int convertForTestingMain(int argc, const char *argv[]);
 
-static cl::opt<bool> BranchCount("c", cl::Grouping, cl::init(false),
-                                 cl::desc("Display branch counts instead "
-                                           "of percentages (requires -b)"));
-static cl::alias BranchCountA("branch-counts", cl::aliasopt(BranchCount));
+/// \brief The main entry point for the gcov compatible coverage tool.
+int gcovMain(int argc, const char *argv[]);
 
-static cl::opt<bool> LongNames("l", cl::Grouping, cl::init(false),
-                               cl::desc("Prefix filenames with the main file"));
-static cl::alias LongNamesA("long-file-names", cl::aliasopt(LongNames));
-
-static cl::opt<bool> FuncSummary("f", cl::Grouping, cl::init(false),
-                                 cl::desc("Show coverage for each function"));
-static cl::alias FuncSummaryA("function-summaries", cl::aliasopt(FuncSummary));
-
-static cl::opt<bool> NoOutput("n", cl::Grouping, cl::init(false),
-                              cl::desc("Do not output any .gcov files"));
-static cl::alias NoOutputA("no-output", cl::aliasopt(NoOutput));
-
-static cl::opt<std::string>
-ObjectDir("o", cl::value_desc("DIR|FILE"), cl::init(""),
-          cl::desc("Find objects in DIR or based on FILE's path"));
-static cl::alias ObjectDirA("object-directory", cl::aliasopt(ObjectDir));
-static cl::alias ObjectDirB("object-file", cl::aliasopt(ObjectDir));
-
-static cl::opt<bool> PreservePaths("p", cl::Grouping, cl::init(false),
-                                   cl::desc("Preserve path components"));
-static cl::alias PreservePathsA("preserve-paths", cl::aliasopt(PreservePaths));
-
-static cl::opt<bool> UncondBranch("u", cl::Grouping, cl::init(false),
-                                  cl::desc("Display unconditional branch info "
-                                           "(requires -b)"));
-static cl::alias UncondBranchA("unconditional-branches",
-                               cl::aliasopt(UncondBranch));
-
-static cl::OptionCategory DebugCat("Internal and debugging options");
-static cl::opt<bool> DumpGCOV("dump", cl::init(false), cl::cat(DebugCat),
-                              cl::desc("Dump the gcov file to stderr"));
-static cl::opt<std::string> InputGCNO("gcno", cl::cat(DebugCat), cl::init(""),
-                                      cl::desc("Override inferred gcno file"));
-static cl::opt<std::string> InputGCDA("gcda", cl::cat(DebugCat), cl::init(""),
-                                      cl::desc("Override inferred gcda file"));
-
-void reportCoverage(StringRef SourceFile) {
-  SmallString<128> CoverageFileStem(ObjectDir);
-  if (CoverageFileStem.empty()) {
-    // If no directory was specified with -o, look next to the source file.
-    CoverageFileStem = sys::path::parent_path(SourceFile);
-    sys::path::append(CoverageFileStem, sys::path::stem(SourceFile));
-  } else if (sys::fs::is_directory(ObjectDir))
-    // A directory name was given. Use it and the source file name.
-    sys::path::append(CoverageFileStem, sys::path::stem(SourceFile));
-  else
-    // A file was given. Ignore the source file and look next to this file.
-    sys::path::replace_extension(CoverageFileStem, "");
-
-  std::string GCNO = InputGCNO.empty()
-                         ? std::string(CoverageFileStem.str()) + ".gcno"
-                         : InputGCNO;
-  std::string GCDA = InputGCDA.empty()
-                         ? std::string(CoverageFileStem.str()) + ".gcda"
-                         : InputGCDA;
-  GCOVFile GF;
-
-  ErrorOr<std::unique_ptr<MemoryBuffer>> GCNO_Buff =
-      MemoryBuffer::getFileOrSTDIN(GCNO);
-  if (std::error_code EC = GCNO_Buff.getError()) {
-    errs() << GCNO << ": " << EC.message() << "\n";
-    return;
-  }
-  GCOVBuffer GCNO_GB(GCNO_Buff.get().get());
-  if (!GF.readGCNO(GCNO_GB)) {
-    errs() << "Invalid .gcno File!\n";
-    return;
-  }
-
-  ErrorOr<std::unique_ptr<MemoryBuffer>> GCDA_Buff =
-      MemoryBuffer::getFileOrSTDIN(GCDA);
-  if (std::error_code EC = GCDA_Buff.getError()) {
-    if (EC != errc::no_such_file_or_directory) {
-      errs() << GCDA << ": " << EC.message() << "\n";
-      return;
-    }
-    // Clear the filename to make it clear we didn't read anything.
-    GCDA = "-";
-  } else {
-    GCOVBuffer GCDA_GB(GCDA_Buff.get().get());
-    if (!GF.readGCDA(GCDA_GB)) {
-      errs() << "Invalid .gcda File!\n";
-      return;
-    }
-  }
-
-  if (DumpGCOV)
-    GF.dump();
-
-  GCOVOptions Options(AllBlocks, BranchProb, BranchCount, FuncSummary,
-                      PreservePaths, UncondBranch, LongNames, NoOutput);
-  FileInfo FI(Options);
-  GF.collectLineCounts(FI);
-  FI.print(SourceFile, GCNO, GCDA);
+/// \brief Top level help.
+int helpMain(int argc, const char *argv[]) {
+  errs() << "OVERVIEW: LLVM code coverage tool\n\n"
+         << "USAGE: llvm-cov {gcov|report|show}\n";
+  return 0;
 }
 
-int main(int argc, char **argv) {
-  // Print a stack trace if we signal out.
-  sys::PrintStackTraceOnErrorSignal();
-  PrettyStackTraceProgram X(argc, argv);
-  llvm_shutdown_obj Y; // Call llvm_shutdown() on exit.
+int main(int argc, const char **argv) {
+  // If argv[0] is or ends with 'gcov', always be gcov compatible
+  if (sys::path::stem(argv[0]).endswith_lower("gcov"))
+    return gcovMain(argc, argv);
 
-  cl::ParseCommandLineOptions(argc, argv, "LLVM code coverage tool\n");
+  // Check if we are invoking a specific tool command.
+  if (argc > 1) {
+    typedef int (*MainFunction)(int, const char *[]);
+    MainFunction Func = StringSwitch<MainFunction>(argv[1])
+                            .Case("convert-for-testing", convertForTestingMain)
+                            .Case("gcov", gcovMain)
+                            .Case("report", reportMain)
+                            .Case("show", showMain)
+                            .Cases("-h", "-help", "--help", helpMain)
+                            .Default(nullptr);
 
-  for (const auto &SourceFile : SourceFiles)
-    reportCoverage(SourceFile);
-  return 0;
+    if (Func) {
+      std::string Invocation = std::string(argv[0]) + " " + argv[1];
+      argv[1] = Invocation.c_str();
+      return Func(argc - 1, argv + 1);
+    }
+  }
+
+  // Give a warning and fall back to gcov
+  errs().changeColor(raw_ostream::RED);
+  errs() << "warning:";
+  // Assume that argv[1] wasn't a command when it stats with a '-' or is a
+  // filename (i.e. contains a '.')
+  if (argc > 1 && !StringRef(argv[1]).startswith("-") &&
+      StringRef(argv[1]).find(".") == StringRef::npos)
+    errs() << " Unrecognized command '" << argv[1] << "'.";
+  errs() << " Using the gcov compatible mode "
+            "(this behaviour may be dropped in the future).";
+  errs().resetColor();
+  errs() << "\n";
+
+  return gcovMain(argc, argv);
 }

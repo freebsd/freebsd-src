@@ -1,4 +1,4 @@
- //===- llvm/Support/Unix/Host.inc -------------------------------*- C++ -*-===//
+//===- llvm/Support/Unix/Host.inc -------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -16,13 +16,12 @@
 //===          is guaranteed to work on *all* UNIX variants.
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Config/config.h"
-#include "llvm/ADT/StringRef.h"
 #include "Unix.h"
-#include <sys/utsname.h>
+#include "llvm/ADT/StringRef.h"
+#include "llvm/Config/config.h"
 #include <cctype>
 #include <string>
-#include <cstdlib> // ::getenv
+#include <sys/utsname.h>
 
 using namespace llvm;
 
@@ -39,7 +38,8 @@ std::string sys::getDefaultTargetTriple() {
   StringRef TargetTripleString(LLVM_DEFAULT_TARGET_TRIPLE);
   std::pair<StringRef, StringRef> ArchSplit = TargetTripleString.split('-');
 
-  // Normalize the arch, since the target triple may not actually match the target.
+  // Normalize the arch, since the target triple may not actually match the
+  // target.
   std::string Arch = ArchSplit.first;
 
   std::string Triple(Arch);

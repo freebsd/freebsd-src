@@ -27,10 +27,8 @@ static MVT::SimpleValueType getRegisterValueType(Record *R,
   bool FoundRC = false;
   MVT::SimpleValueType VT = MVT::Other;
   const CodeGenRegister *Reg = T.getRegBank().getReg(R);
-  ArrayRef<CodeGenRegisterClass*> RCs = T.getRegBank().getRegClasses();
 
-  for (unsigned rc = 0, e = RCs.size(); rc != e; ++rc) {
-    const CodeGenRegisterClass &RC = *RCs[rc];
+  for (const auto &RC : T.getRegBank().getRegClasses()) {
     if (!RC.contains(Reg))
       continue;
 
@@ -718,7 +716,7 @@ EmitResultInstructionAsOperand(const TreePatternNode *N,
   CodeGenInstruction &II = CGT.getInstruction(Op);
   const DAGInstruction &Inst = CGP.getInstruction(Op);
 
-  // If we can, get the pattern for the instruction we're generating.  We derive
+  // If we can, get the pattern for the instruction we're generating. We derive
   // a variety of information from this pattern, such as whether it has a chain.
   //
   // FIXME2: This is extremely dubious for several reasons, not the least of
@@ -755,16 +753,21 @@ EmitResultInstructionAsOperand(const TreePatternNode *N,
   // the "outs" list.
   unsigned NumResults = Inst.getNumResults();
 
-  // Loop over all of the operands of the instruction pattern, emitting code
-  // to fill them all in.  The node 'N' usually has number children equal to
-  // the number of input operands of the instruction.  However, in cases
-  // where there are predicate operands for an instruction, we need to fill
-  // in the 'execute always' values.  Match up the node operands to the
-  // instruction operands to do this.
-  SmallVector<unsigned, 8> InstOps;
-  for (unsigned ChildNo = 0, InstOpNo = NumResults, e = II.Operands.size();
-       InstOpNo != e; ++InstOpNo) {
+  // Number of operands we know the output instruction must have. If it is
+  // variadic, we could have more operands.
+  unsigned NumFixedOperands = II.Operands.size();
 
+  SmallVector<unsigned, 8> InstOps;
+
+  // Loop over all of the fixed operands of the instruction pattern, emitting
+  // code to fill them all in. The node 'N' usually has number children equal to
+  // the number of input operands of the instruction.  However, in cases where
+  // there are predicate operands for an instruction, we need to fill in the
+  // 'execute always' values. Match up the node operands to the instruction
+  // operands to do this.
+  unsigned ChildNo = 0;
+  for (unsigned InstOpNo = NumResults, e = NumFixedOperands;
+       InstOpNo != e; ++InstOpNo) {
     // Determine what to emit for this operand.
     Record *OperandNode = II.Operands[InstOpNo].Rec;
     if (OperandNode->isSubClassOf("OperandWithDefaultOps") &&
@@ -805,6 +808,16 @@ EmitResultInstructionAsOperand(const TreePatternNode *N,
 
       ++ChildNo;
     }
+  }
+
+  // If this is a variadic output instruction (i.e. REG_SEQUENCE), we can't
+  // expand suboperands, use default operands, or other features determined from
+  // the CodeGenInstruction after the fixed operands, which were handled
+  // above. Emit the remaining instructions implicitly added by the use for
+  // variable_ops.
+  if (II.Operands.isVariadic) {
+    for (unsigned I = ChildNo, E = N->getNumChildren(); I < E; ++I)
+      EmitResultOperand(N->getChild(I), InstOps);
   }
 
   // If this node has input glue or explicitly specified input physregs, we
@@ -852,7 +865,7 @@ EmitResultInstructionAsOperand(const TreePatternNode *N,
   // gets the excess operands from the input DAG.
   int NumFixedArityOperands = -1;
   if (isRoot &&
-      (Pattern.getSrcPattern()->NodeHasProperty(SDNPVariadic, CGP)))
+      Pattern.getSrcPattern()->NodeHasProperty(SDNPVariadic, CGP))
     NumFixedArityOperands = Pattern.getSrcPattern()->getNumChildren();
 
   // If this is the root node and multiple matched nodes in the input pattern

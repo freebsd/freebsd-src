@@ -1,4 +1,4 @@
-; RUN: opt < %s -basicaa -loop-vectorize -force-vector-unroll=1 -force-vector-width=4 -loop-vectorize-with-block-frequency -dce -instcombine -S | FileCheck %s
+; RUN: opt < %s -basicaa -loop-vectorize -force-vector-interleave=1 -force-vector-width=4 -loop-vectorize-with-block-frequency -dce -instcombine -S | FileCheck %s
 
 target datalayout = "e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f32:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80:128:128-n8:16:32:64-S128"
 target triple = "x86_64-apple-macosx10.8.0"
@@ -139,7 +139,7 @@ define void @example4(i32 %n, i32* noalias nocapture %p, i32* noalias nocapture 
   ret void
 }
 
-!0 = metadata !{metadata !"branch_weights", i32 64, i32 4}
+!0 = !{!"branch_weights", i32 64, i32 4}
 
 ; We can't vectorize this one because we need a runtime ptr check.
 ;CHECK-LABEL: @example23(

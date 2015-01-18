@@ -1,4 +1,5 @@
 ; RUN: llvm-as < %s | llvm-dis -disable-output
+; RUN: verify-uselistorder < %s
 	%0 = type { %object.ModuleInfo.__vtbl*, i8*, %"byte[]", %1, %"ClassInfo[]", i32, void ()*, void ()*, void ()*, i8*, void ()* }		; type %0
 	%1 = type { i64, %object.ModuleInfo* }		; type %1
 	%2 = type { i32, void ()* }		; type %2
@@ -83,5 +84,5 @@ moduleinfoCtorEntry:
 }
 !llvm.ldc.classinfo._D6Object7__ClassZ = !{!0}
 !llvm.ldc.classinfo._D10ModuleInfo7__ClassZ = !{!1}
-!0 = metadata !{%object.Object undef, i1 false, i1 false}
-!1 = metadata !{%object.ModuleInfo undef, i1 false, i1 false}
+!0 = !{%object.Object undef, i1 false, i1 false}
+!1 = !{%object.ModuleInfo undef, i1 false, i1 false}

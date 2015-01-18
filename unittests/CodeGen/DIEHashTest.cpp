@@ -7,12 +7,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "../lib/CodeGen/AsmPrinter/DIE.h"
+#include "llvm/CodeGen/DIE.h"
 #include "../lib/CodeGen/AsmPrinter/DIEHash.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/Format.h"
-#include "llvm/ADT/STLExtras.h"
 #include "gtest/gtest.h"
 
 using namespace llvm;

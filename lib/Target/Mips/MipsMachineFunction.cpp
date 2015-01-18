@@ -24,7 +24,7 @@ FixGlobalBaseReg("mips-fix-global-base-reg", cl::Hidden, cl::init(true),
                  cl::desc("Always use $gp as the global base register."));
 
 // class MipsCallEntry.
-MipsCallEntry::MipsCallEntry(const StringRef &N) {
+MipsCallEntry::MipsCallEntry(StringRef N) {
 #ifndef NDEBUG
   Name = N;
   Val = nullptr;
@@ -80,13 +80,10 @@ unsigned MipsFunctionInfo::getGlobalBaseReg() {
 
   const MipsSubtarget &ST = MF.getTarget().getSubtarget<MipsSubtarget>();
 
-  const TargetRegisterClass *RC;
-  if (ST.inMips16Mode())
-    RC=(const TargetRegisterClass*)&Mips::CPU16RegsRegClass;
-  else
-    RC = ST.isABI_N64() ?
-      (const TargetRegisterClass*)&Mips::GPR64RegClass :
-      (const TargetRegisterClass*)&Mips::GPR32RegClass;
+  const TargetRegisterClass *RC =
+    ST.inMips16Mode() ? &Mips::CPU16RegsRegClass
+                      : ST.isABI_N64() ? &Mips::GPR64RegClass
+                                       : &Mips::GPR32RegClass;
   return GlobalBaseReg = MF.getRegInfo().createVirtualRegister(RC);
 }
 
@@ -98,8 +95,7 @@ unsigned MipsFunctionInfo::getMips16SPAliasReg() {
   if (Mips16SPAliasReg)
     return Mips16SPAliasReg;
 
-  const TargetRegisterClass *RC;
-  RC=(const TargetRegisterClass*)&Mips::CPU16RegsRegClass;
+  const TargetRegisterClass *RC = &Mips::CPU16RegsRegClass;
   return Mips16SPAliasReg = MF.getRegInfo().createVirtualRegister(RC);
 }
 
@@ -119,7 +115,7 @@ bool MipsFunctionInfo::isEhDataRegFI(int FI) const {
                         || FI == EhDataRegFI[2] || FI == EhDataRegFI[3]);
 }
 
-MachinePointerInfo MipsFunctionInfo::callPtrInfo(const StringRef &Name) {
+MachinePointerInfo MipsFunctionInfo::callPtrInfo(StringRef Name) {
   const MipsCallEntry *&E = ExternalCallEntries[Name];
 
   if (!E)

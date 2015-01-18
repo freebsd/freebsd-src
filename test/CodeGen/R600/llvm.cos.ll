@@ -1,5 +1,5 @@
 ;RUN: llc < %s -march=r600 -mcpu=redwood | FileCheck %s -check-prefix=EG -check-prefix=FUNC
-;RUN: llc < %s -march=r600 -mcpu=SI | FileCheck %s -check-prefix=SI -check-prefix=FUNC
+;RUN: llc < %s -march=amdgcn -mcpu=SI | FileCheck %s -check-prefix=SI -check-prefix=FUNC
 
 ;FUNC-LABEL: test
 ;EG: MULADD_IEEE *
@@ -7,8 +7,8 @@
 ;EG: ADD *
 ;EG: COS * T{{[0-9]+\.[XYZW], PV\.[XYZW]}}
 ;EG-NOT: COS
-;SI: V_COS_F32
-;SI-NOT: V_COS_F32
+;SI: v_cos_f32
+;SI-NOT: v_cos_f32
 
 define void @test(float addrspace(1)* %out, float %x) #1 {
    %cos = call float @llvm.cos.f32(float %x)
@@ -22,11 +22,11 @@ define void @test(float addrspace(1)* %out, float %x) #1 {
 ;EG: COS * T{{[0-9]+\.[XYZW], PV\.[XYZW]}}
 ;EG: COS * T{{[0-9]+\.[XYZW], PV\.[XYZW]}}
 ;EG-NOT: COS
-;SI: V_COS_F32
-;SI: V_COS_F32
-;SI: V_COS_F32
-;SI: V_COS_F32
-;SI-NOT: V_COS_F32
+;SI: v_cos_f32
+;SI: v_cos_f32
+;SI: v_cos_f32
+;SI: v_cos_f32
+;SI-NOT: v_cos_f32
 
 define void @testv(<4 x float> addrspace(1)* %out, <4 x float> inreg %vx) #1 {
    %cos = call <4 x float> @llvm.cos.v4f32(<4 x float> %vx)

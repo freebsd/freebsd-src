@@ -36,8 +36,7 @@ PassRegistry *PassRegistry::getPassRegistry() {
 // Accessors
 //
 
-PassRegistry::~PassRegistry() {
-}
+PassRegistry::~PassRegistry() {}
 
 const PassInfo *PassRegistry::getPassInfo(const void *TI) const {
   sys::SmartScopedReader<true> Guard(Lock);
@@ -58,77 +57,62 @@ const PassInfo *PassRegistry::getPassInfo(StringRef Arg) const {
 void PassRegistry::registerPass(const PassInfo &PI, bool ShouldFree) {
   sys::SmartScopedWriter<true> Guard(Lock);
   bool Inserted =
-    PassInfoMap.insert(std::make_pair(PI.getTypeInfo(),&PI)).second;
+      PassInfoMap.insert(std::make_pair(PI.getTypeInfo(), &PI)).second;
   assert(Inserted && "Pass registered multiple times!");
   (void)Inserted;
   PassInfoStringMap[PI.getPassArgument()] = &PI;
-  
-  // Notify any listeners.
-  for (std::vector<PassRegistrationListener*>::iterator
-       I = Listeners.begin(), E = Listeners.end(); I != E; ++I)
-    (*I)->passRegistered(&PI);
-  
-  if (ShouldFree) ToFree.push_back(std::unique_ptr<const PassInfo>(&PI));
-}
 
-void PassRegistry::unregisterPass(const PassInfo &PI) {
-  sys::SmartScopedWriter<true> Guard(Lock);
-  MapType::iterator I = PassInfoMap.find(PI.getTypeInfo());
-  assert(I != PassInfoMap.end() && "Pass registered but not in map!");
-  
-  // Remove pass from the map.
-  PassInfoMap.erase(I);
-  PassInfoStringMap.erase(PI.getPassArgument());
+  // Notify any listeners.
+  for (auto *Listener : Listeners)
+    Listener->passRegistered(&PI);
+
+  if (ShouldFree)
+    ToFree.push_back(std::unique_ptr<const PassInfo>(&PI));
 }
 
 void PassRegistry::enumerateWith(PassRegistrationListener *L) {
   sys::SmartScopedReader<true> Guard(Lock);
-  for (auto I = PassInfoMap.begin(), E = PassInfoMap.end(); I != E; ++I)
-    L->passEnumerate(I->second);
+  for (auto PassInfoPair : PassInfoMap)
+    L->passEnumerate(PassInfoPair.second);
 }
 
-
 /// Analysis Group Mechanisms.
-void PassRegistry::registerAnalysisGroup(const void *InterfaceID, 
+void PassRegistry::registerAnalysisGroup(const void *InterfaceID,
                                          const void *PassID,
-                                         PassInfo& Registeree,
-                                         bool isDefault,
+                                         PassInfo &Registeree, bool isDefault,
                                          bool ShouldFree) {
-  PassInfo *InterfaceInfo =  const_cast<PassInfo*>(getPassInfo(InterfaceID));
+  PassInfo *InterfaceInfo = const_cast<PassInfo *>(getPassInfo(InterfaceID));
   if (!InterfaceInfo) {
     // First reference to Interface, register it now.
     registerPass(Registeree);
     InterfaceInfo = &Registeree;
   }
-  assert(Registeree.isAnalysisGroup() && 
+  assert(Registeree.isAnalysisGroup() &&
          "Trying to join an analysis group that is a normal pass!");
 
   if (PassID) {
-    PassInfo *ImplementationInfo = const_cast<PassInfo*>(getPassInfo(PassID));
+    PassInfo *ImplementationInfo = const_cast<PassInfo *>(getPassInfo(PassID));
     assert(ImplementationInfo &&
            "Must register pass before adding to AnalysisGroup!");
 
     sys::SmartScopedWriter<true> Guard(Lock);
-    
+
     // Make sure we keep track of the fact that the implementation implements
     // the interface.
     ImplementationInfo->addInterfaceImplemented(InterfaceInfo);
 
-    AnalysisGroupInfo &AGI = AnalysisGroupInfoMap[InterfaceInfo];
-    assert(AGI.Implementations.count(ImplementationInfo) == 0 &&
-           "Cannot add a pass to the same analysis group more than once!");
-    AGI.Implementations.insert(ImplementationInfo);
     if (isDefault) {
       assert(InterfaceInfo->getNormalCtor() == nullptr &&
              "Default implementation for analysis group already specified!");
-      assert(ImplementationInfo->getNormalCtor() &&
-           "Cannot specify pass as default if it does not have a default ctor");
+      assert(
+          ImplementationInfo->getNormalCtor() &&
+          "Cannot specify pass as default if it does not have a default ctor");
       InterfaceInfo->setNormalCtor(ImplementationInfo->getNormalCtor());
       InterfaceInfo->setTargetMachineCtor(
           ImplementationInfo->getTargetMachineCtor());
     }
   }
-  
+
   if (ShouldFree)
     ToFree.push_back(std::unique_ptr<const PassInfo>(&Registeree));
 }
@@ -140,7 +124,7 @@ void PassRegistry::addRegistrationListener(PassRegistrationListener *L) {
 
 void PassRegistry::removeRegistrationListener(PassRegistrationListener *L) {
   sys::SmartScopedWriter<true> Guard(Lock);
-  
+
   auto I = std::find(Listeners.begin(), Listeners.end(), L);
   Listeners.erase(I);
 }

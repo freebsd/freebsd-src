@@ -81,8 +81,8 @@ FunctionPass *llvm::createHexagonFixupHwLoops() {
 
 /// \brief Returns true if the instruction is a hardware loop instruction.
 static bool isHardwareLoop(const MachineInstr *MI) {
-  return MI->getOpcode() == Hexagon::LOOP0_r ||
-         MI->getOpcode() == Hexagon::LOOP0_i;
+  return MI->getOpcode() == Hexagon::J2_loop0r ||
+         MI->getOpcode() == Hexagon::J2_loop0i;
 }
 
 
@@ -160,7 +160,7 @@ bool HexagonFixupHwLoops::fixupLoopInstrs(MachineFunction &MF) {
 void HexagonFixupHwLoops::convertLoopInstr(MachineFunction &MF,
                                            MachineBasicBlock::iterator &MII,
                                            RegScavenger &RS) {
-  const TargetInstrInfo *TII = MF.getTarget().getInstrInfo();
+  const TargetInstrInfo *TII = MF.getSubtarget().getInstrInfo();
   MachineBasicBlock *MBB = MII->getParent();
   DebugLoc DL = MII->getDebugLoc();
   unsigned Scratch = RS.scavengeRegister(&Hexagon::IntRegsRegClass, MII, 0);
@@ -168,18 +168,18 @@ void HexagonFixupHwLoops::convertLoopInstr(MachineFunction &MF,
   // First, set the LC0 with the trip count.
   if (MII->getOperand(1).isReg()) {
     // Trip count is a register
-    BuildMI(*MBB, MII, DL, TII->get(Hexagon::TFCR), Hexagon::LC0)
+    BuildMI(*MBB, MII, DL, TII->get(Hexagon::A2_tfrrcr), Hexagon::LC0)
       .addReg(MII->getOperand(1).getReg());
   } else {
     // Trip count is an immediate.
-    BuildMI(*MBB, MII, DL, TII->get(Hexagon::TFRI), Scratch)
+    BuildMI(*MBB, MII, DL, TII->get(Hexagon::A2_tfrsi), Scratch)
       .addImm(MII->getOperand(1).getImm());
-    BuildMI(*MBB, MII, DL, TII->get(Hexagon::TFCR), Hexagon::LC0)
+    BuildMI(*MBB, MII, DL, TII->get(Hexagon::A2_tfrrcr), Hexagon::LC0)
       .addReg(Scratch);
   }
   // Then, set the SA0 with the loop start address.
   BuildMI(*MBB, MII, DL, TII->get(Hexagon::CONST32_Label), Scratch)
     .addMBB(MII->getOperand(0).getMBB());
-  BuildMI(*MBB, MII, DL, TII->get(Hexagon::TFCR), Hexagon::SA0)
+  BuildMI(*MBB, MII, DL, TII->get(Hexagon::A2_tfrrcr), Hexagon::SA0)
     .addReg(Scratch);
 }

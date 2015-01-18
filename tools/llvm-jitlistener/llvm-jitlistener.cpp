@@ -17,12 +17,12 @@
 #include "../../lib/ExecutionEngine/IntelJITEvents/IntelJITEventsWrapper.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/ExecutionEngine/JITEventListener.h"
-#include "llvm/ExecutionEngine/JITMemoryManager.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
-#include "llvm/ExecutionEngine/ObjectImage.h"
+#include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IRReader/IRReader.h"
 #include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
@@ -113,25 +113,17 @@ protected:
 
     // Parse the bitcode...
     SMDiagnostic Err;
-    TheModule = ParseIRFile(IRFile, Err, Context);
+    std::unique_ptr<Module> TheModule(parseIRFile(IRFile, Err, Context));
     if (!TheModule) {
       errs() << Err.getMessage();
       return;
     }
 
-    // FIXME: This is using the default legacy JITMemoryManager because it
-    // supports poison memory.  At some point, we'll need to update this to
-    // use an MCJIT-specific memory manager.  It might be nice to have the
-    // poison memory option there too.
-    JITMemoryManager *MemMgr = JITMemoryManager::CreateDefaultMemManager();
+    RTDyldMemoryManager *MemMgr = new SectionMemoryManager();
     if (!MemMgr) {
       errs() << "Unable to create memory manager.";
       return;
     }
-
-    // Tell the memory manager to poison freed memory so that accessing freed
-    // memory is more easily tested.
-    MemMgr->setPoisonMemory(true);
 
     // Override the triple to generate ELF on Windows since that's supported
     Triple Tuple(TheModule->getTargetTriple());
@@ -145,11 +137,10 @@ protected:
 
     // Compile the IR
     std::string Error;
-    TheJIT.reset(EngineBuilder(TheModule)
+    TheJIT.reset(EngineBuilder(std::move(TheModule))
       .setEngineKind(EngineKind::JIT)
       .setErrorStr(&Error)
-      .setJITMemoryManager(MemMgr)
-      .setUseMCJIT(true)
+      .setMCJITMemoryManager(std::unique_ptr<RTDyldMemoryManager>(MemMgr))
       .create());
     if (Error.empty() == false)
       errs() << Error;
@@ -160,8 +151,6 @@ protected:
   }
 
   LLVMContext Context; // Global ownership
-  Module *TheModule; // Owned by ExecutionEngine.
-  JITMemoryManager *JMM; // Owned by ExecutionEngine.
   std::unique_ptr<ExecutionEngine> TheJIT;
 
 public:

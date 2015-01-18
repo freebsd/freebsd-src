@@ -9,7 +9,7 @@
 
 %struct.btCompoundLeafCallback = type { i32, i32 }
 
-declare void @llvm.dbg.declare(metadata, metadata) nounwind readnone
+declare void @llvm.dbg.declare(metadata, metadata, metadata) nounwind readnone
 
 define void @test() unnamed_addr uwtable ssp align 2 {
 entry:
@@ -20,7 +20,7 @@ if.then:                                          ; preds = %entry
   unreachable
 
 if.end:                                           ; preds = %entry
-  call void @llvm.dbg.declare(metadata !{%struct.btCompoundLeafCallback* %callback}, metadata !3)
+  call void @llvm.dbg.declare(metadata %struct.btCompoundLeafCallback* %callback, metadata !3, metadata !{!"0x102"})
   %m = getelementptr inbounds %struct.btCompoundLeafCallback* %callback, i64 0, i32 1
   store i32 0, i32* undef, align 8
   %cmp12447 = icmp sgt i32 undef, 0
@@ -36,11 +36,13 @@ invoke.cont44:                                    ; preds = %if.end
 !llvm.dbg.cu = !{!0}
 !llvm.module.flags = !{!8}
 
-!0 = metadata !{i32 786449, metadata !6, i32 4, metadata !"clang version 3.3 (trunk 168984) (llvm/trunk 168983)", i1 true, metadata !"", i32 0, metadata !2, metadata !7, null, null, null, metadata !""} ; [ DW_TAG_compile_unit ] [MultiSource/Benchmarks/Bullet/MultiSource/Benchmarks/Bullet/btCompoundCollisionAlgorithm.cpp] [DW_LANG_C_plus_plus]
-!2 = metadata !{null}
-!3 = metadata !{i32 786688, null, metadata !"callback", null, i32 214, metadata !4, i32 0, i32 0} ; [ DW_TAG_auto_variable ] [callback] [line 214]
-!4 = metadata !{i32 786451, metadata !6, null, metadata !"btCompoundLeafCallback", i32 90, i64 512, i64 64, i32 0, i32 0, null, null, i32 0, null, null, null} ; [ DW_TAG_structure_type ] [btCompoundLeafCallback] [line 90, size 512, align 64, offset 0] [def] [from ]
-!5 = metadata !{i32 786473, metadata !6} ; [ DW_TAG_file_type ]
-!6 = metadata !{metadata !"MultiSource/Benchmarks/Bullet/btCompoundCollisionAlgorithm.cpp", metadata !"MultiSource/Benchmarks/Bullet"}
-!7 = metadata !{i32 0}
-!8 = metadata !{i32 1, metadata !"Debug Info Version", i32 1}
+!0 = !{!"0x11\004\00clang version 3.3 (trunk 168984) (llvm/trunk 168983)\001\00\000\00\000", !6, null, null, !1, null, null} ; [ DW_TAG_compile_unit ] [MultiSource/Benchmarks/Bullet/MultiSource/Benchmarks/Bullet/btCompoundCollisionAlgorithm.cpp] [DW_LANG_C_plus_plus]
+!1 = !{!2}
+!2 = !{!"0x2e\00test\00test\00\000\000\001\000\006\00256\001\001", !6, !5, !7, null, void ()* @test, null, null, null} ; [ DW_TAG_subprogram ] [def] [test]
+!3 = !{!"0x100\00callback\00214\000", null, null, !4} ; [ DW_TAG_auto_variable ] [callback] [line 214]
+!4 = !{!"0x13\00btCompoundLeafCallback\0090\00512\0064\000\000\000", !6, null, null, null, null, null, null} ; [ DW_TAG_structure_type ] [btCompoundLeafCallback] [line 90, size 512, align 64, offset 0] [def] [from ]
+!5 = !{!"0x29", !6} ; [ DW_TAG_file_type ]
+!6 = !{!"MultiSource/Benchmarks/Bullet/btCompoundCollisionAlgorithm.cpp", !"MultiSource/Benchmarks/Bullet"}
+!7 = !{!"0x15\00\000\000\000\000\000\000", i32 0, null, null, !9, null, null, null} ; [ DW_TAG_subroutine_type ] [line 0, size 0, align 0, offset 0] [from ]
+!8 = !{i32 1, !"Debug Info Version", i32 2}
+!9 = !{null}

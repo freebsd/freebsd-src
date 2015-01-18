@@ -39,6 +39,7 @@ let PrintMethod = "printImmOperand" in {
   def u16_0Imm : Operand<i32>;
   def u16_1Imm : Operand<i32>;
   def u16_2Imm : Operand<i32>;
+  def u16_3Imm : Operand<i32>;
   def u11_3Imm : Operand<i32>;
   def u10Imm : Operand<i32>;
   def u9Imm : Operand<i32>;
@@ -256,6 +257,13 @@ def u16_s8ImmPred  : PatLeaf<(i32 imm), [{
   // extended s8 field.
   int64_t v = (int64_t)N->getSExtValue();
   return isShiftedUInt<16,8>(v);
+}]>;
+
+def u11_3ImmPred : PatLeaf<(i32 imm), [{
+  // True if the immediate fits in a 14-bit unsigned field, and the lowest
+  // three bits are 0.
+  int64_t v = (int64_t)N->getSExtValue();
+  return isShiftedUInt<11,3>(v);
 }]>;
 
 def u9ImmPred  : PatLeaf<(i32 imm), [{
@@ -800,6 +808,12 @@ def u6_3ExtPred  : PatLeaf<(i32 imm), [{
   }
 }]>;
 
+
+// This complex pattern exists only to create a machine instruction operand
+// of type "frame index". There doesn't seem to be a way to do that directly
+// in the patterns.
+def AddrFI : ComplexPattern<i32, 1, "SelectAddrFI", [frameindex], []>;
+
 // Addressing modes.
 
 def ADDRrr : ComplexPattern<i32, 2, "SelectADDRrr", [], []>;
@@ -856,3 +870,12 @@ def symbolHi32 : Operand<i32> {
 def symbolLo32 : Operand<i32> {
   let PrintMethod = "printSymbolLo";
 }
+
+// Return true if for a 32 to 64-bit sign-extended load.
+def is_sext_i32 : PatLeaf<(i64 DoubleRegs:$src1), [{
+  LoadSDNode *LD = dyn_cast<LoadSDNode>(N);
+  if (!LD)
+    return false;
+  return LD->getExtensionType() == ISD::SEXTLOAD &&
+         LD->getMemoryVT().getScalarType() == MVT::i32;
+}]>;

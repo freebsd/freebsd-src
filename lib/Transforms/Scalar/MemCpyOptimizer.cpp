@@ -16,6 +16,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/IR/DataLayout.h"
@@ -329,6 +330,7 @@ namespace {
     // This transformation requires dominator postdominator info
     void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.setPreservesCFG();
+      AU.addRequired<AssumptionCacheTracker>();
       AU.addRequired<DominatorTreeWrapperPass>();
       AU.addRequired<MemoryDependenceAnalysis>();
       AU.addRequired<AliasAnalysis>();
@@ -361,6 +363,7 @@ FunctionPass *llvm::createMemCpyOptPass() { return new MemCpyOpt(); }
 
 INITIALIZE_PASS_BEGIN(MemCpyOpt, "memcpyopt", "MemCpy Optimization",
                       false, false)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_DEPENDENCY(DominatorTreeWrapperPass)
 INITIALIZE_PASS_DEPENDENCY(MemoryDependenceAnalysis)
 INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
@@ -631,22 +634,24 @@ bool MemCpyOpt::performCallSlotOptzn(Instruction *cpy,
     if (destSize < srcSize)
       return false;
   } else if (Argument *A = dyn_cast<Argument>(cpyDest)) {
-    // If the destination is an sret parameter then only accesses that are
-    // outside of the returned struct type can trap.
-    if (!A->hasStructRetAttr())
-      return false;
+    if (A->getDereferenceableBytes() < srcSize) {
+      // If the destination is an sret parameter then only accesses that are
+      // outside of the returned struct type can trap.
+      if (!A->hasStructRetAttr())
+        return false;
 
-    Type *StructTy = cast<PointerType>(A->getType())->getElementType();
-    if (!StructTy->isSized()) {
-      // The call may never return and hence the copy-instruction may never
-      // be executed, and therefore it's not safe to say "the destination
-      // has at least <cpyLen> bytes, as implied by the copy-instruction",
-      return false;
+      Type *StructTy = cast<PointerType>(A->getType())->getElementType();
+      if (!StructTy->isSized()) {
+        // The call may never return and hence the copy-instruction may never
+        // be executed, and therefore it's not safe to say "the destination
+        // has at least <cpyLen> bytes, as implied by the copy-instruction",
+        return false;
+      }
+
+      uint64_t destSize = DL->getTypeAllocSize(StructTy);
+      if (destSize < srcSize)
+        return false;
     }
-
-    uint64_t destSize = DL->getTypeAllocSize(StructTy);
-    if (destSize < srcSize)
-      return false;
   } else {
     return false;
   }
@@ -673,15 +678,23 @@ bool MemCpyOpt::performCallSlotOptzn(Instruction *cpy,
     if (isa<BitCastInst>(U) || isa<AddrSpaceCastInst>(U)) {
       for (User *UU : U->users())
         srcUseList.push_back(UU);
-    } else if (GetElementPtrInst *G = dyn_cast<GetElementPtrInst>(U)) {
-      if (G->hasAllZeroIndices())
-        for (User *UU : U->users())
-          srcUseList.push_back(UU);
-      else
-        return false;
-    } else if (U != C && U != cpy) {
-      return false;
+      continue;
     }
+    if (GetElementPtrInst *G = dyn_cast<GetElementPtrInst>(U)) {
+      if (!G->hasAllZeroIndices())
+        return false;
+
+      for (User *UU : U->users())
+        srcUseList.push_back(UU);
+      continue;
+    }
+    if (const IntrinsicInst *IT = dyn_cast<IntrinsicInst>(U))
+      if (IT->getIntrinsicID() == Intrinsic::lifetime_start ||
+          IT->getIntrinsicID() == Intrinsic::lifetime_end)
+        continue;
+
+    if (U != C && U != cpy)
+      return false;
   }
 
   // Check that src isn't captured by the called function since the
@@ -969,8 +982,13 @@ bool MemCpyOpt::processByValArgument(CallSite CS, unsigned ArgNo) {
 
   // If it is greater than the memcpy, then we check to see if we can force the
   // source of the memcpy to the alignment we need.  If we fail, we bail out.
+  AssumptionCache &AC =
+      getAnalysis<AssumptionCacheTracker>().getAssumptionCache(
+          *CS->getParent()->getParent());
+  DominatorTree &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
   if (MDep->getAlignment() < ByValAlign &&
-      getOrEnforceKnownAlignment(MDep->getSource(),ByValAlign, DL) < ByValAlign)
+      getOrEnforceKnownAlignment(MDep->getSource(), ByValAlign, DL, &AC,
+                                 CS.getInstruction(), &DT) < ByValAlign)
     return false;
 
   // Verify that the copied-from memory doesn't change in between the memcpy and
