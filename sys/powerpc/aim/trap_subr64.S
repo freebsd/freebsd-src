@@ -307,10 +307,11 @@ CNAME(rstcode):
 CNAME(rstsize) = . - CNAME(rstcode)
 
 cpu_reset:
-	lis	%r1,(tmpstk+TMPSTKSZ-48)@ha	/* get new SP */
-	addi	%r1,%r1,(tmpstk+TMPSTKSZ-48)@l
-
 	GET_TOCBASE(%r2)
+
+	ld	%r1,TOC_REF(tmpstk)(%r2)	/* get new SP */
+	addi	%r1,%r1,(TMPSTKSZ-48)
+
 	bl	CNAME(cpudep_ap_early_bootstrap) /* Set PCPU */
 	nop
 	lis	%r3,1@l
@@ -751,8 +752,10 @@ dbtrap:
 	andi.	%r1,%r1,0xff00
 	mtsprg3	%r1
 
-	lis	%r1,(tmpstk+TMPSTKSZ-48)@ha	/* get new SP */
-	addi	%r1,%r1,(tmpstk+TMPSTKSZ-48)@l
+	li	%r1,TRAP_TOCBASE		/* get new SP */
+	ld	%r1,0(%r1)
+	ld	%r1,TOC_REF(tmpstk)(%r1)
+	addi	%r1,%r1,(TMPSTKSZ-48)
 
 	FRAME_SETUP(PC_DBSAVE)
 /* Call C trap code: */
