@@ -91,6 +91,8 @@ GLOBAL(__endkernel)
 GLOBAL(tmpstk)
 	.space	TMPSTKSZ
 
+TOC_ENTRY(tmpstk)
+
 	.text
 	.globl	btext
 btext:
@@ -124,8 +126,8 @@ ASENTRY_NOPROF(__start)
 	ld	%r2,0(%r2)
 
 	/* Set up the stack pointer */
-	lis	%r1,(tmpstk+TMPSTKSZ-48)@ha
-	addi	%r1,%r1,(tmpstk+TMPSTKSZ-48)@l
+	ld	%r1,TOC_REF(tmpstk)(%r2)
+	addi	%r1,%r1,TMPSTKSZ-48
 
 	/* Switch to 64-bit mode */
 	mfmsr	%r9
