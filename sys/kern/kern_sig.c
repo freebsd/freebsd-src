@@ -3247,7 +3247,8 @@ coredump(struct thread *td)
 	MPASS((p->p_flag & P_HADTHREADS) == 0 || p->p_singlethread == td);
 	_STOPEVENT(p, S_CORE, 0);
 
-	if (!do_coredump || (!sugid_coredump && (p->p_flag & P_SUGID) != 0)) {
+	if (!do_coredump || (!sugid_coredump && (p->p_flag & P_SUGID) != 0) ||
+	    (p->p_flag2 & P2_NOTRACE) != 0) {
 		PROC_UNLOCK(p);
 		return (EFAULT);
 	}
