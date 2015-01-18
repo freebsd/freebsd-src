@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 16, 2014
+.Dd December 29, 2014
 .Dt PROCCTL 2
 .Os
 .Sh NAME
@@ -275,7 +275,61 @@ delivery failed, e.g. due to the permission problems.
 If no such process exist, the
 .Fa rk_fpid
 field is set to -1.
+.It Dv PROC_TRACE_CTL
+Enable or disable tracing of the specified process(es), according to the
+value of the integer argument.
+Tracing includes attachment to the process using
+.Xr ptrace 2
+and
+.Xr ktrace 2 ,
+debugging sysctls,
+.Xr hwpmc 4 ,
+.Xr dtrace 1
+and core dumping.
+Possible values for the
+.Fa data
+argument are:
+.Bl -tag -width "Dv PROC_TRACE_CTL_DISABLE_EXEC"
+.It Dv PROC_TRACE_CTL_ENABLE
+Enable tracing, after it was disabled by
+.Dv PROC_TRACE_CTL_DISABLE .
+Only allowed for self.
+.It Dv PROC_TRACE_CTL_DISABLE
+Disable tracing for the specified process.
+Tracing is re-enabled when the process changes the executing
+program with
+.Xr execve 2
+syscall.
+A child inherits the trace settings from the parent on
+.Xr fork 2 .
+.It Dv PROC_TRACE_CTL_DISABLE_EXEC
+Same as
+.Dv PROC_TRACE_CTL_DISABLE ,
+but the setting persist for the process even after
+.Xr execve 2 .
 .El
+.It Dv PROC_TRACE_STATUS
+Returns the current tracing status for the specified process in
+the integer variable pointed to by
+.Fa data .
+If tracing is disabled,
+.Fa data
+is set to -1.
+If tracing is enabled, but no debugger is attached by
+.Xr ptrace 2
+syscall,
+.Fa data
+is set to 0.
+If a debugger is attached,
+.Fa data
+is set to the pid of the debugger process.
+.El
+.Sh NOTES
+Disabling tracing on a process should not be considered a security
+feature, as it is bypassable both by the kernel and privileged processes,
+and via other system mechanisms.
+As such, it should not be relied on to reliably protect cryptographic
+keying material or other confidential data.
 .Sh RETURN VALUES
 If an error occurs, a value of -1 is returned and
 .Va errno
@@ -343,11 +397,34 @@ The
 .Dv PROC_REAP_ACQUIRE
 request was issued by a process that had already acquired reaper status
 and has not yet released it.
+.It Bq Er EBUSY
+The
+.Dv PROC_TRACE_CTL
+request was issued for a process already being traced.
+.It Bq Er EPERM
+The
+.Dv PROC_TRACE_CTL
+request to re-enable tracing of the process (
+.Dv PROC_TRACE_CTL_ENABLE ) ,
+or to disable persistence of the
+.Dv PROC_TRACE_CTL_DISABLE
+on
+.Xr execve 2
+was issued for a non-current process.
+.It Bq Er EINVAL
+The value of the integer
+.Fa data
+parameter for the
+.Dv PROC_TRACE_CTL
+request is invalid.
 .El
 .Sh SEE ALSO
+.Xr dtrace 1 ,
 .Xr kill 2 ,
+.Xr ktrace 2 ,
 .Xr ptrace 2 ,
 .Xr wait 2 ,
+.Xr hwpmc 4 ,
 .Xr init 8
 .Sh HISTORY
 The
