@@ -325,6 +325,10 @@ release_aps(void *dummy __unused)
 
 	if (mp_ncpus == 1)
 		return;
+#ifdef ARM_INTRNG
+	start = 0;
+	end = ARM_IPI_COUNT - 1;
+#else
 #ifdef IPI_IRQ_START
 	start = IPI_IRQ_START;
 #ifdef IPI_IRQ_END
@@ -333,8 +337,9 @@ release_aps(void *dummy __unused)
 	end = IPI_IRQ_START;
 #endif
 #endif
+#endif
 
-	for (int i = 0; i < ARM_IPI_COUNT; i++) {
+	for (int i = start; i <= end; i++) {
 		/*
 		 * IPI handler
 		 */
@@ -350,6 +355,7 @@ release_aps(void *dummy __unused)
 #else
 		arm_setup_irqhandler("ipi", ipi_handler, NULL, (void *)i, i,
 		    INTR_TYPE_MISC | INTR_EXCL, NULL);
+
 		/* Enable ipi */
 		arm_unmask_irq(i);
 #endif
