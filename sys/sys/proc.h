@@ -675,6 +675,8 @@ struct proc {
 
 /* These flags are kept in p_flag2. */
 #define	P2_INHERIT_PROTECTED 0x00000001 /* New children get P_PROTECTED. */
+#define	P2_NOTRACE	0x00000002	/* No ptrace(2) attach or coredumps. */
+#define	P2_NOTRACE_EXEC 0x00000004	/* Keep P2_NOPTRACE on exec(2). */
 
 /* Flags protected by proctree_lock, kept in p_treeflags. */
 #define	P_TREE_ORPHANED		0x00000001	/* Reparented, on orphan list */
