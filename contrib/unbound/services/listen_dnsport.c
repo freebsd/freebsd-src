@@ -576,15 +576,19 @@ create_tcp_accept_sock(struct addrinfo *addr, int v6only, int* noproto,
 }
 
 int
-create_local_accept_sock(char *path, int* noproto)
+create_local_accept_sock(const char *path, int* noproto)
 {
 #ifdef HAVE_SYS_UN_H
 	int s;
 	struct sockaddr_un sun;
 
-	sun.sun_len = sizeof(sun);
+#ifdef HAVE_STRUCT_SOCKADDR_UN_SUN_LEN
+	/* this member exists on BSDs, not Linux */
+	sun.sun_len = (sa_family_t)sizeof(sun);
+#endif
 	sun.sun_family = AF_LOCAL;
-	strlcpy(sun.sun_path, path, 104);
+	/* length is 92-108, 104 on FreeBSD */
+	(void)strlcpy(sun.sun_path, path, sizeof(sun.sun_path));
 
 	if ((s = socket(PF_LOCAL, SOCK_STREAM, 0)) == -1) {
 		log_err("Cannot create local socket %s (%s)",
@@ -600,7 +604,7 @@ create_local_accept_sock(char *path, int* noproto)
 	}
 
 	if (bind(s, (struct sockaddr *)&sun,
-		sizeof(struct sockaddr_un)) == -1) {
+		(socklen_t)sizeof(struct sockaddr_un)) == -1) {
 		log_err("Cannot bind local socket %s (%s)",
 			path, strerror(errno));
 		return -1;
@@ -616,6 +620,7 @@ create_local_accept_sock(char *path, int* noproto)
 		return -1;
 	}
 
+	(void)noproto; /*unused*/
 	return s;
 #else
 	log_err("Local sockets are not supported");

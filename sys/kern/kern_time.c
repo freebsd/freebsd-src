@@ -982,7 +982,7 @@ ppsratecheck(struct timeval *lasttime, int *curpps, int maxpps)
 		return (maxpps != 0);
 	} else {
 		(*curpps)++;		/* NB: ignore potential overflow */
-		return (maxpps < 0 || *curpps < maxpps);
+		return (maxpps < 0 || *curpps <= maxpps);
 	}
 }
 

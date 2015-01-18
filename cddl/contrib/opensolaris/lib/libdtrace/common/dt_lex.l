@@ -44,7 +44,7 @@
  * We need to undefine lex's input and unput macros so that references to these
  * call the functions provided at the end of this source file.
  */
-#if defined(sun)
+#ifdef illumos
 #undef input
 #undef unput
 #else
@@ -79,7 +79,7 @@
 #endif
 
 static int id_or_type(const char *);
-#if defined(sun)
+#ifdef illumos
 static int input(void);
 static void unput(int);
 #endif
@@ -740,7 +740,7 @@ yyinit(dt_pcb_t *pcb)
 	yypcb = pcb;
 	yylineno = 1;
 	yypragma = NULL;
-#if defined(sun)
+#ifdef illumos
 	yysptr = yysbuf;
 #endif
 }
@@ -838,7 +838,7 @@ id_or_type(const char *s)
 	return (ttok);
 }
 
-#if defined(sun)
+#ifdef illumos
 static int
 input(void)
 {
@@ -880,4 +880,4 @@ unput(int c)
 	*yysptr++ = c;
 	yytchar = c;
 }
-#endif
+#endif /* illumos */

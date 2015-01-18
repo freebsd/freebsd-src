@@ -433,6 +433,9 @@ am335x_lcd_attach(device_t dev)
 	uint32_t burst_log;
 	int err;
 	size_t dma_size;
+	uint32_t hbp, hfp, hsw;
+	uint32_t vbp, vfp, vsw;
+	uint32_t width, height;
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -527,31 +530,42 @@ am335x_lcd_attach(device_t dev)
 	/* Set timing */
 	timing0 = timing1 = timing2 = 0;
 
+	hbp = panel.panel_hbp - 1;
+	hfp = panel.panel_hfp - 1;
+	hsw = panel.panel_hsw - 1;
+
+	vbp = panel.panel_vbp;
+	vfp = panel.panel_vfp;
+	vsw = panel.panel_vsw - 1;
+
+	height = panel.panel_height - 1;
+	width = panel.panel_width - 1;
+
 	/* Horizontal back porch */
-	timing0 |= (panel.panel_hbp & 0xff) << RASTER_TIMING_0_HBP_SHIFT;
-	timing2 |= ((panel.panel_hbp >> 8) & 3) << RASTER_TIMING_2_HBPHI_SHIFT;
+	timing0 |= (hbp & 0xff) << RASTER_TIMING_0_HBP_SHIFT;
+	timing2 |= ((hbp >> 8) & 3) << RASTER_TIMING_2_HBPHI_SHIFT;
 	/* Horizontal front porch */
-	timing0 |= (panel.panel_hfp & 0xff) << RASTER_TIMING_0_HFP_SHIFT;
-	timing2 |= ((panel.panel_hfp >> 8) & 3) << RASTER_TIMING_2_HFPHI_SHIFT;
+	timing0 |= (hfp & 0xff) << RASTER_TIMING_0_HFP_SHIFT;
+	timing2 |= ((hfp >> 8) & 3) << RASTER_TIMING_2_HFPHI_SHIFT;
 	/* Horizontal sync width */
-	timing0 |= (panel.panel_hsw & 0x3f) << RASTER_TIMING_0_HSW_SHIFT;
-	timing2 |= ((panel.panel_hsw >> 6) & 0xf) << RASTER_TIMING_2_HSWHI_SHIFT;
+	timing0 |= (hsw & 0x3f) << RASTER_TIMING_0_HSW_SHIFT;
+	timing2 |= ((hsw >> 6) & 0xf) << RASTER_TIMING_2_HSWHI_SHIFT;
 
 	/* Vertical back porch, front porch, sync width */
-	timing1 |= (panel.panel_vbp & 0xff) << RASTER_TIMING_1_VBP_SHIFT;
-	timing1 |= (panel.panel_vfp & 0xff) << RASTER_TIMING_1_VFP_SHIFT;
-	timing1 |= (panel.panel_vsw & 0x3f) << RASTER_TIMING_1_VSW_SHIFT;
+	timing1 |= (vbp & 0xff) << RASTER_TIMING_1_VBP_SHIFT;
+	timing1 |= (vfp & 0xff) << RASTER_TIMING_1_VFP_SHIFT;
+	timing1 |= (vsw & 0x3f) << RASTER_TIMING_1_VSW_SHIFT;
 
 	/* Pixels per line */
-	timing0 |= (((panel.panel_width - 1) >> 10) & 1)
+	timing0 |= ((width >> 10) & 1)
 	    << RASTER_TIMING_0_PPLMSB_SHIFT;
-	timing0 |= (((panel.panel_width - 1) >> 4) & 0x3f)
+	timing0 |= ((width >> 4) & 0x3f)
 	    << RASTER_TIMING_0_PPLLSB_SHIFT;
 
 	/* Lines per panel */
-	timing1 |= ((panel.panel_height - 1) & 0x3ff) 
+	timing1 |= (height & 0x3ff) 
 	    << RASTER_TIMING_1_LPP_SHIFT;
-	timing2 |= (((panel.panel_height - 1) >> 10 ) & 1) 
+	timing2 |= ((height >> 10 ) & 1) 
 	    << RASTER_TIMING_2_LPP_B10_SHIFT;
 
 	/* clock signal settings */

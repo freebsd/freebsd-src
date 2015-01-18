@@ -51,7 +51,7 @@ bootstrap: ${GENFILES:S/^/init/g}
 	@diff -I '^#line ' -I '\$$FreeBS[D]: .*\$$' -q \
 	    ${.CURDIR}/init${_f} ${_f} 2> /dev/null || { \
 		echo "Bootstrapping ${_f}" ; \
-		cp -f ${.CURDIR}/init${_f} ${_f} ; \
+		${CP} ${.CURDIR}/init${_f} ${_f} ; \
 	}
 .endfor
 

@@ -572,6 +572,7 @@ enum ahci_err_type {
 #define AHCI_Q_ATI_PMP_BUG	0x2000
 #define AHCI_Q_MAXIO_64K	0x4000
 #define AHCI_Q_SATA1_UNIT0	0x8000		/* need better method for this */
+#define AHCI_Q_ABAR0		0x10000
 
 #define AHCI_Q_BIT_STRING	\
 	"\020"			\
@@ -590,7 +591,8 @@ enum ahci_err_type {
 	"\015NOMSI"		\
 	"\016ATI_PMP_BUG"	\
 	"\017MAXIO_64K"		\
-	"\020SATA1_UNIT0"
+	"\020SATA1_UNIT0"	\
+	"\021ABAR0"
 
 int ahci_attach(device_t dev);
 int ahci_detach(device_t dev);

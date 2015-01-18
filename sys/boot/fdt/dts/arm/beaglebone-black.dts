@@ -144,10 +144,9 @@
 			status = "okay";
 			non-removable;
 		};
-
  
 		i2c@44e0b000 {
-			pmic@24 {
+			pmic@48 {
 				compatible = "ti,am335x-pmic";
 				reg = <0x48>;
 			};

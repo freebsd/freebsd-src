@@ -252,6 +252,7 @@ bcm_bsc_attach(device_t dev)
 	}
 	if (i == nitems(bcm_bsc_pins)) {
 		device_printf(dev, "only bsc0 and bsc1 are supported\n");
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		return (ENXIO);
 	}
 
@@ -262,6 +263,7 @@ bcm_bsc_attach(device_t dev)
 	gpio = devclass_get_device(devclass_find("gpio"), 0);
 	if (!gpio) {
 		device_printf(dev, "cannot find gpio0\n");
+		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		return (ENXIO);
 	}
 	bcm_gpio_set_alternate(gpio, bcm_bsc_pins[i].sda, BCM_GPIO_ALT0);

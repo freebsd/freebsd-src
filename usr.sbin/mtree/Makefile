@@ -16,6 +16,6 @@ LIBADD=	md
 CLEANFILES+=	fmtree.8
 
 fmtree.8: mtree.8
-	cp -f ${.ALLSRC} ${.TARGET}
+	${CP} ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>

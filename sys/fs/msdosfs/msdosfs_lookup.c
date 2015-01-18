@@ -929,6 +929,9 @@ readde(struct denode *dep, struct buf **bpp, struct direntry **epp)
  * and will truncate the file to 0 length.  When the vnode containing the
  * denode is needed for some other purpose by VFS it will call
  * msdosfs_reclaim() which will remove the denode from the denode cache.
+ *
+ * pdep	directory where the entry is removed
+ * dep	file to be removed
  */
 int
 removede(struct denode *pdep, struct denode *dep)
@@ -998,7 +1001,7 @@ removede(struct denode *pdep, struct denode *dep)
  * Create a unique DOS name in dvp
  */
 int
-uniqdosname(struct denode *dep,struct componentname *cnp, u_char *cp)
+uniqdosname(struct denode *dep, struct componentname *cnp, u_char *cp)
 {
 	struct msdosfsmount *pmp = dep->de_pmp;
 	struct direntry *dentp;

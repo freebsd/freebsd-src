@@ -88,9 +88,36 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
  * Ensure the correct size of various mbuf parameters.  It could be off due
  * to compiler-induced padding and alignment artifacts.
  */
-CTASSERT(sizeof(struct mbuf) == MSIZE);
 CTASSERT(MSIZE - offsetof(struct mbuf, m_dat) == MLEN);
 CTASSERT(MSIZE - offsetof(struct mbuf, m_pktdat) == MHLEN);
+
+/*
+ * mbuf data storage should be 64-bit aligned regardless of architectural
+ * pointer size; check this is the case with and without a packet header.
+ */
+CTASSERT(offsetof(struct mbuf, m_dat) % 8 == 0);
+CTASSERT(offsetof(struct mbuf, m_pktdat) % 8 == 0);
+
+/*
+ * While the specific values here don't matter too much (i.e., +/- a few
+ * words), we do want to ensure that changes to these values are carefully
+ * reasoned about and properly documented.  This is especially the case as
+ * network-protocol and device-driver modules encode these layouts, and must
+ * be recompiled if the structures change.  Check these values at compile time
+ * against the ones documented in comments in mbuf.h.
+ *
+ * NB: Possibly they should be documented there via #define's and not just
+ * comments.
+ */
+#if defined(__LP64__)
+CTASSERT(offsetof(struct mbuf, m_dat) == 32);
+CTASSERT(sizeof(struct pkthdr) == 56);
+CTASSERT(sizeof(struct struct_m_ext) == 48);
+#else
+CTASSERT(offsetof(struct mbuf, m_dat) == 24);
+CTASSERT(sizeof(struct pkthdr) == 48);
+CTASSERT(sizeof(struct struct_m_ext) == 28);
+#endif
 
 /*
  * m_get2() allocates minimum mbuf that would fit "size" argument.

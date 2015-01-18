@@ -31,6 +31,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150118:
+	Clang and llvm have been upgraded to 3.5.1 release.  This is a bugfix
+	only release, no new features have been added.  Please see the 20141231
+	entry below for information about prerequisites and upgrading, if you
+	are not already using 3.5.0.
+
 20150107:
 	ELF tools addr2line, elfcopy (strip), nm, size, and strings are now
 	taken from the ELF Tool Chain project rather than GNU binutils. They

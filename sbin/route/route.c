@@ -1137,19 +1137,11 @@ inet_makenetandmask(u_long net, struct sockaddr_in *sin,
 static int
 inet6_makenetandmask(struct sockaddr_in6 *sin6, const char *plen)
 {
-	struct in6_addr in6;
 
 	if (plen == NULL) {
 		if (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) &&
-		    sin6->sin6_scope_id == 0) {
+		    sin6->sin6_scope_id == 0)
 			plen = "0";
-		} else if ((sin6->sin6_addr.s6_addr[0] & 0xe0) == 0x20) {
-			/* aggregatable global unicast - RFC2374 */
-			memset(&in6, 0, sizeof(in6));
-			if (!memcmp(&sin6->sin6_addr.s6_addr[8],
-				    &in6.s6_addr[8], 8))
-				plen = "64";
-		}
 	}
 
 	if (plen == NULL || strcmp(plen, "128") == 0)

@@ -279,12 +279,6 @@ mii_phy_reset(struct mii_softc *sc)
 }
 
 void
-mii_phy_down(struct mii_softc *sc)
-{
-
-}
-
-void
 mii_phy_update(struct mii_softc *sc, int cmd)
 {
 	struct mii_data *mii = sc->mii_pdata;
@@ -479,7 +473,6 @@ mii_phy_detach(device_t dev)
 	struct mii_softc *sc;
 
 	sc = device_get_softc(dev);
-	mii_phy_down(sc);
 	sc->mii_dev = NULL;
 	LIST_REMOVE(sc, mii_list);
 	return (0);

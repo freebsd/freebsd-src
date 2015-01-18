@@ -1,13 +1,14 @@
-/*
- * Copyright (c) 2011 Konstantin Belousov <kib@FreeBSD.org>
+/* $FreeBSD$ */
+/*-
+ * Copyright (c) 2015 Mellanox Technologies, Ltd.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- *
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
+ *    notice unmodified, this list of conditions, and the following
+ *    disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -24,53 +25,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#include <sys/param.h>
+#include <sys/module.h>
 
-#include <sys/types.h>
-#include <sys/ucontext.h>
-#include <errno.h>
-#include <stdlib.h>
+MODULE_VERSION(linuxapi, 1);
+MODULE_DEPEND(linuxapi, pci, 1, 1, 1);
 
-int
-__getcontextx_size(void)
-{
-
-	return (sizeof(ucontext_t));
-}
-
-int
-__fillcontextx2(char *ctx)
-{
-
-	return (0);
-}
-
-int
-__fillcontextx(char *ctx)
-{
-	ucontext_t *ucp;
-
-	ucp = (ucontext_t *)ctx;
-	return (getcontext(ucp));
-}
-
-__weak_reference(__getcontextx, getcontextx);
-
-ucontext_t *
-__getcontextx(void)
-{
-	char *ctx;
-	int error;
-
-	ctx = malloc(__getcontextx_size());
-	if (ctx == NULL)
-		return (NULL);
-	if (__fillcontextx(ctx) == -1) {
-		error = errno;
-		free(ctx);
-		errno = error;
-		return (NULL);
-	}
-	return ((ucontext_t *)ctx);
-}

@@ -1048,8 +1048,6 @@ destroy_devl(struct cdev *dev)
 	/* Remove name marking */
 	dev->si_flags &= ~SI_NAMED;
 
-	dev->si_refcount++;	/* Avoid race with dev_rel() */
-
 	/* If we are a child, remove us from the parents list */
 	if (dev->si_flags & SI_CHILD) {
 		LIST_REMOVE(dev, si_siblings);
@@ -1112,6 +1110,23 @@ destroy_devl(struct cdev *dev)
 	} else {
 		dev_free_devlocked(dev);
 	}
+}
+
+static void
+delist_dev_locked(struct cdev *dev)
+{
+	struct cdev *child;
+	devfs_destroy(dev);
+	LIST_FOREACH(child, &dev->si_children, si_siblings)
+		delist_dev_locked(child);
+}
+
+void
+delist_dev(struct cdev *dev)
+{
+	dev_lock();
+	delist_dev_locked(dev);
+	dev_unlock();
 }
 
 void

@@ -1207,7 +1207,7 @@ arc_cksum_compute(arc_buf_t *buf, boolean_t force)
 	mutex_exit(&buf->b_hdr->b_freeze_lock);
 #ifdef illumos
 	arc_buf_watch(buf);
-#endif /* illumos */
+#endif
 }
 
 #ifdef illumos
@@ -1282,7 +1282,7 @@ arc_buf_thaw(arc_buf_t *buf)
 
 #ifdef illumos
 	arc_buf_unwatch(buf);
-#endif /* illumos */
+#endif
 }
 
 void
@@ -1742,7 +1742,7 @@ arc_buf_destroy(arc_buf_t *buf, boolean_t recycle, boolean_t remove)
 		arc_cksum_verify(buf);
 #ifdef illumos
 		arc_buf_unwatch(buf);
-#endif /* illumos */
+#endif
 
 		if (!recycle) {
 			if (type == ARC_BUFC_METADATA) {
@@ -2595,7 +2595,7 @@ arc_reclaim_needed(void)
 		return (1);
 	}
 
-#ifdef sun
+#ifdef illumos
 	/*
 	 * take 'desfree' extra pages, so we reclaim sooner, rather than later
 	 */
@@ -2631,7 +2631,7 @@ arc_reclaim_needed(void)
 	if (availrmem <= pages_pp_maximum)
 		return (1);
 
-#endif	/* sun */
+#endif	/* illumos */
 #if defined(__i386) || !defined(UMA_MD_SMALL_ALLOC)
 	/*
 	 * If we're on an i386 platform, it's possible that we'll exhaust the
@@ -2652,7 +2652,7 @@ arc_reclaim_needed(void)
 		return (1);
 	}
 #endif
-#ifdef sun
+#ifdef illumos
 	/*
 	 * If zio data pages are being allocated out of a separate heap segment,
 	 * then enforce that the size of available vmem for this arena remains
@@ -2666,7 +2666,7 @@ arc_reclaim_needed(void)
 	    vmem_size(zio_arena, VMEM_FREE) <
 	    (vmem_size(zio_arena, VMEM_ALLOC) >> 4))
 		return (1);
-#endif	/* sun */
+#endif	/* illumos */
 #else	/* _KERNEL */
 	if (spa_get_random(100) == 0)
 		return (1);
@@ -2725,7 +2725,7 @@ arc_kmem_reap_now(arc_reclaim_strategy_t strat)
 	kmem_cache_reap_now(hdr_cache);
 	kmem_cache_reap_now(range_seg_cache);
 
-#ifdef sun
+#ifdef illumos
 	/*
 	 * Ask the vmem arena to reclaim unused memory from its
 	 * quantum caches.
@@ -3213,7 +3213,7 @@ arc_read_done(zio_t *zio)
 	arc_cksum_compute(buf, B_FALSE);
 #ifdef illumos
 	arc_buf_watch(buf);
-#endif /* illumos */
+#endif
 
 	if (hash_lock && zio->io_error == 0 && hdr->b_state == arc_anon) {
 		/*
@@ -3816,7 +3816,7 @@ arc_release(arc_buf_t *buf, void *tag)
 		arc_cksum_verify(buf);
 #ifdef illumos
 		arc_buf_unwatch(buf);
-#endif /* illumos */
+#endif
 
 		mutex_exit(hash_lock);
 
@@ -4186,7 +4186,7 @@ arc_init(void)
 	/* Start out with 1/8 of all memory */
 	arc_c = kmem_size() / 8;
 
-#ifdef sun
+#ifdef illumos
 #ifdef _KERNEL
 	/*
 	 * On architectures where the physical memory can be larger
@@ -4195,7 +4195,7 @@ arc_init(void)
 	 */
 	arc_c = MIN(arc_c, vmem_size(heap_arena, VMEM_ALLOC | VMEM_FREE) / 8);
 #endif
-#endif	/* sun */
+#endif	/* illumos */
 	/* set min cache to 1/32 of all memory, or 16MB, whichever is more */
 	arc_c_min = MAX(arc_c / 4, 64<<18);
 	/* set max to 1/2 of all memory, or all but 1GB, whichever is more */

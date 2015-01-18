@@ -343,7 +343,7 @@ ${_f:T:S/c$/exe/} : ${_f}
 
 .for _f in ${ALL_TESTEXEFILES}
 ${_f:T} : ${_f}
-	cp -f ${_f} ${.TARGET}
+	${CP} ${_f} ${.TARGET}
 	chmod a+x ${.TARGET}
 .endfor
 

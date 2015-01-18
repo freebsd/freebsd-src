@@ -68,9 +68,11 @@ ar9300_fill_tx_desc(
     const void *ds0)
 {
     struct ar9300_txc *ads = AR9300TXC(ds);
+    short desclen;
 
     /* Fill TXC info field */
-    ads->ds_info = TXC_INFO(qcu);
+    desclen = (AR_SREV_JUPITER(ah) || AR_SREV_APHRODITE(ah)) ? 0x18 : 0x17;
+    ads->ds_info = TXC_INFO(qcu, desclen);
 
     /* Set the buffer addresses */
     ads->ds_data0 = buf_addr[0];
@@ -123,6 +125,9 @@ ar9300_fill_tx_desc(
         ads->ds_ctl14 = 0;
         ads->ds_ctl17 = SM(key_type, AR_encr_type);
     }
+
+    /* Only relevant for Jupiter/Aphrodite */
+    ads->ds_ctl23 = 0;
 
     return AH_TRUE;
 }
