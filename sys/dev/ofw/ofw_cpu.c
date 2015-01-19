@@ -1,6 +1,10 @@
 /*-
  * Copyright (C) 2009 Nathan Whitehorn
+ * Copyright (C) 2015 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Andrew Turner
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -193,10 +197,11 @@ ofw_cpu_attach(device_t dev)
 	}
 	sc->sc_cpu_pcpu = pcpu_find(cell);
 	if (OF_getencprop(node, "clock-frequency", &cell, sizeof(cell)) < 0) {
-		device_printf(dev, "missing 'clock-frequency' property\n");
-		return (ENXIO);
-	}
-	sc->sc_nominal_mhz = cell / 1000000; /* convert to MHz */
+		if (bootverbose)
+			device_printf(dev,
+			    "missing 'clock-frequency' property\n");
+	} else
+		sc->sc_nominal_mhz = cell / 1000000; /* convert to MHz */
 
 	bus_generic_probe(dev);
 	return (bus_generic_attach(dev));
@@ -214,8 +219,11 @@ ofw_cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 		*result = (uintptr_t)sc->sc_cpu_pcpu;
 		return (0);
 	case CPU_IVAR_NOMINAL_MHZ:
-		*result = (uintptr_t)sc->sc_nominal_mhz;
-		return (0);
+		if (sc->sc_nominal_mhz > 0) {
+			*result = (uintptr_t)sc->sc_nominal_mhz;
+			return (0);
+		}
+		break;
 	}
 
 	return (ENOENT);
