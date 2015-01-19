@@ -34,7 +34,10 @@
       "t3": "ten-longx",
       "t4": "xtest",
       "count": 10,
-      "test": 4
+      "test": 4,
+      "error": {
+        "message": "Shut 'er down, Clancey!  She's a-pumpin' mud!  <>!,\"!<>\n"
+      }
     }
   }
 }

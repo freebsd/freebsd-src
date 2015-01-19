@@ -5544,15 +5544,19 @@ MipsABIInfo::classifyArgumentType(QualType Ty, uint64_t &Offset) const {
     // If we have reached here, aggregates are passed directly by coercing to
     // another structure type. Padding is inserted if the offset of the
     // aggregate is unaligned.
-    return ABIArgInfo::getDirect(HandleAggregates(Ty, TySize), 0,
-                                 getPaddingType(OrigOffset, CurrOffset));
+    ABIArgInfo ArgInfo =
+        ABIArgInfo::getDirect(HandleAggregates(Ty, TySize), 0,
+                              getPaddingType(OrigOffset, CurrOffset));
+    ArgInfo.setInReg(true);
+    return ArgInfo;
   }
 
   // Treat an enum type as its underlying type.
   if (const EnumType *EnumTy = Ty->getAs<EnumType>())
     Ty = EnumTy->getDecl()->getIntegerType();
 
-  if (Ty->isPromotableIntegerType())
+  // All integral types are promoted to the GPR width.
+  if (Ty->isIntegralOrEnumerationType())
     return ABIArgInfo::getExtend();
 
   return ABIArgInfo::getDirect(
@@ -5604,7 +5608,12 @@ MipsABIInfo::returnAggregateInRegs(QualType RetTy, uint64_t Size) const {
 ABIArgInfo MipsABIInfo::classifyReturnType(QualType RetTy) const {
   uint64_t Size = getContext().getTypeSize(RetTy);
 
-  if (RetTy->isVoidType() || Size == 0)
+  if (RetTy->isVoidType())
+    return ABIArgInfo::getIgnore();
+
+  // O32 doesn't treat zero-sized structs differently from other structs.
+  // However, N32/N64 ignores zero sized return values.
+  if (!IsO32 && Size == 0)
     return ABIArgInfo::getIgnore();
 
   if (isAggregateTypeForABI(RetTy) || RetTy->isVectorType()) {
@@ -5612,12 +5621,15 @@ ABIArgInfo MipsABIInfo::classifyReturnType(QualType RetTy) const {
       if (RetTy->isAnyComplexType())
         return ABIArgInfo::getDirect();
 
-      // O32 returns integer vectors in registers.
-      if (IsO32 && RetTy->isVectorType() && !RetTy->hasFloatingRepresentation())
-        return ABIArgInfo::getDirect(returnAggregateInRegs(RetTy, Size));
-
-      if (!IsO32)
-        return ABIArgInfo::getDirect(returnAggregateInRegs(RetTy, Size));
+      // O32 returns integer vectors in registers and N32/N64 returns all small
+      // aggregates in registers..
+      if (!IsO32 ||
+          (RetTy->isVectorType() && !RetTy->hasFloatingRepresentation())) {
+        ABIArgInfo ArgInfo =
+            ABIArgInfo::getDirect(returnAggregateInRegs(RetTy, Size));
+        ArgInfo.setInReg(true);
+        return ArgInfo;
+      }
     }
 
     return ABIArgInfo::getIndirect(0);
@@ -5647,11 +5659,20 @@ llvm::Value* MipsABIInfo::EmitVAArg(llvm::Value *VAListAddr, QualType Ty,
                                     CodeGenFunction &CGF) const {
   llvm::Type *BP = CGF.Int8PtrTy;
   llvm::Type *BPP = CGF.Int8PtrPtrTy;
+
+  // Integer arguments are promoted 32-bit on O32 and 64-bit on N32/N64.
+  unsigned SlotSizeInBits = IsO32 ? 32 : 64;
+  if (Ty->isIntegerType() &&
+      CGF.getContext().getIntWidth(Ty) < SlotSizeInBits) {
+    Ty = CGF.getContext().getIntTypeForBitwidth(SlotSizeInBits,
+                                                Ty->isSignedIntegerType());
+  }
  
   CGBuilderTy &Builder = CGF.Builder;
   llvm::Value *VAListAddrAsBPP = Builder.CreateBitCast(VAListAddr, BPP, "ap");
   llvm::Value *Addr = Builder.CreateLoad(VAListAddrAsBPP, "ap.cur");
-  int64_t TypeAlign = getContext().getTypeAlign(Ty) / 8;
+  int64_t TypeAlign =
+      std::min(getContext().getTypeAlign(Ty) / 8, StackAlignInBytes);
   llvm::Type *PTy = llvm::PointerType::getUnqual(CGF.ConvertType(Ty));
   llvm::Value *AddrTyped;
   unsigned PtrWidth = getTarget().getPointerWidth(0);
@@ -5670,8 +5691,8 @@ llvm::Value* MipsABIInfo::EmitVAArg(llvm::Value *VAListAddr, QualType Ty,
 
   llvm::Value *AlignedAddr = Builder.CreateBitCast(AddrTyped, BP);
   TypeAlign = std::max((unsigned)TypeAlign, MinABIStackAlignInBytes);
-  uint64_t Offset =
-    llvm::RoundUpToAlignment(CGF.getContext().getTypeSize(Ty) / 8, TypeAlign);
+  unsigned ArgSizeInBits = CGF.getContext().getTypeSize(Ty);
+  uint64_t Offset = llvm::RoundUpToAlignment(ArgSizeInBits / 8, TypeAlign);
   llvm::Value *NextAddr =
     Builder.CreateGEP(AlignedAddr, llvm::ConstantInt::get(IntTy, Offset),
                       "ap.next");

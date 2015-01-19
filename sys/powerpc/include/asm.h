@@ -80,6 +80,12 @@
 	name:
 
 #ifdef __powerpc64__
+#define TOC_REF(name)	__CONCAT(.L,name)
+#define TOC_ENTRY(name) \
+	.section ".toc","aw"; \
+	TOC_REF(name): \
+        .tc name[TC],name
+
 #define	_ENTRY(name) \
 	.section ".text"; \
 	.p2align 2; \

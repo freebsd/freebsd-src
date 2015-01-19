@@ -173,10 +173,20 @@ namespace {
     /// a register.  The case of adding a (possibly relocatable) constant to a
     /// register can be improved, but it is wrong to substitute Reg+Reg for
     /// Reg in an asm, because the load or store opcode would have to change.
-   bool SelectInlineAsmMemoryOperand(const SDValue &Op,
+    bool SelectInlineAsmMemoryOperand(const SDValue &Op,
                                       char ConstraintCode,
                                       std::vector<SDValue> &OutOps) override {
-      OutOps.push_back(Op);
+      // We need to make sure that this one operand does not end up in r0
+      // (because we might end up lowering this as 0(%op)).
+      const TargetRegisterInfo *TRI = TM.getRegisterInfo();
+      const TargetRegisterClass *TRC = TRI->getPointerRegClass(*MF, /*Kind=*/1);
+      SDValue RC = CurDAG->getTargetConstant(TRC->getID(), MVT::i32);
+      SDValue NewOp =
+        SDValue(CurDAG->getMachineNode(TargetOpcode::COPY_TO_REGCLASS,
+                                       SDLoc(Op), Op.getValueType(),
+                                       Op, RC), 0);
+
+      OutOps.push_back(NewOp);
       return false;
     }
 
@@ -1446,7 +1456,7 @@ SDNode *PPCDAGToDAGISel::Select(SDNode *N) {
 
     // For medium and large code model, we generate two instructions as
     // described below.  Otherwise we allow SelectCodeCommon to handle this,
-    // selecting one of LDtoc, LDtocJTI, and LDtocCPT.
+    // selecting one of LDtoc, LDtocJTI, LDtocCPT, and LDtocBA.
     CodeModel::Model CModel = TM.getCodeModel();
     if (CModel != CodeModel::Medium && CModel != CodeModel::Large)
       break;
@@ -1463,7 +1473,8 @@ SDNode *PPCDAGToDAGISel::Select(SDNode *N) {
     SDNode *Tmp = CurDAG->getMachineNode(PPC::ADDIStocHA, dl, MVT::i64,
                                         TOCbase, GA);
 
-    if (isa<JumpTableSDNode>(GA) || CModel == CodeModel::Large)
+    if (isa<JumpTableSDNode>(GA) || isa<BlockAddressSDNode>(GA) ||
+        CModel == CodeModel::Large)
       return CurDAG->getMachineNode(PPC::LDtocL, dl, MVT::i64, GA,
                                     SDValue(Tmp, 0));
 

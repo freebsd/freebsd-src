@@ -38,6 +38,10 @@
 #include "ixl.h"
 #include "ixl_pf.h"
 
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
+
 /*********************************************************************
  *  Driver version
  *********************************************************************/
@@ -3249,7 +3253,7 @@ static void ixl_config_rss(struct ixl_vsi *vsi)
 		 * num_queues.)
 		 */
 		que_id = rss_get_indirection_to_bucket(i);
-		que_id = que_id % adapter->num_queues;
+		que_id = que_id % vsi->num_queues;
 #else
 		que_id = j;
 #endif

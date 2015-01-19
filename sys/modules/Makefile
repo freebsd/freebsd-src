@@ -198,6 +198,7 @@ SUBDIR=	\
 	${_linprocfs} \
 	${_linsysfs} \
 	${_linux} \
+	${_linuxapi} \
 	lmc \
 	lpt \
 	mac_biba \
@@ -317,7 +318,7 @@ SUBDIR=	\
 	sis \
 	sk \
 	${_smbfs} \
-	${_sn} \
+	sn \
 	${_snc} \
 	snp \
 	${_sound} \
@@ -438,7 +439,6 @@ _ispfw=		ispfw
 _mwlfw=		mwlfw
 _ralfw=		ralfw
 _sf=		sf
-_sn=		sn
 _ti=		ti
 _txp=		txp
 .endif
@@ -502,6 +502,9 @@ _ipoib=         ipoib
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
+.if ${MK_OFED} != "no"
+_linuxapi=	linuxapi
+.endif
 _ndis=		ndis
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris

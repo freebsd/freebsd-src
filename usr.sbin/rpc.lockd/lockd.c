@@ -518,7 +518,6 @@ create_service(struct netconfig *nconf)
 
 	/* Get rpc.statd's address on this transport */
 	memset(&hints, 0, sizeof hints);
-	hints.ai_flags = AI_PASSIVE;
 	hints.ai_family = si.si_af;
 	hints.ai_socktype = si.si_socktype;
 	hints.ai_protocol = si.si_proto;
@@ -534,6 +533,7 @@ create_service(struct netconfig *nconf)
 			out_of_mem();
 		sock_fd[sock_fdcnt++] = -1;	/* Set invalid for now. */
 		mallocd_res = 0;
+		hints.ai_flags = AI_PASSIVE;
 
 		/*	
 		 * XXX - using RPC library internal functions.

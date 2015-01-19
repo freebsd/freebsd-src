@@ -3269,9 +3269,11 @@ net/radix_mpath.c		standard
 net/raw_cb.c			standard
 net/raw_usrreq.c		standard
 net/route.c			standard
+net/rss_config.c		optional inet rss | inet6 rss
 net/rtsock.c			standard
 net/slcompress.c		optional netgraph_vjc | sppp | \
 					 netgraph_sppp
+net/toeplitz.c			optional inet rss | inet6 rss
 net/vnet.c			optional vimage
 net/zlib.c			optional crypto | geom_uzip | ipsec | \
 					 mxge | netgraph_deflate | \
@@ -3421,7 +3423,7 @@ netinet/in_pcb.c		optional inet | inet6
 netinet/in_pcbgroup.c		optional inet pcbgroup | inet6 pcbgroup
 netinet/in_proto.c		optional inet | inet6
 netinet/in_rmx.c		optional inet
-netinet/in_rss.c		optional inet rss | inet6 rss
+netinet/in_rss.c		optional inet rss
 netinet/ip_divert.c		optional inet ipdivert ipfirewall
 netinet/ip_ecn.c		optional inet | inet6
 netinet/ip_encap.c		optional inet | inet6
@@ -3464,7 +3466,6 @@ netinet/tcp_syncache.c		optional inet | inet6
 netinet/tcp_timer.c		optional inet | inet6
 netinet/tcp_timewait.c		optional inet | inet6
 netinet/tcp_usrreq.c		optional inet | inet6
-netinet/toeplitz.c		optional inet rss | inet6 rss
 netinet/udp_usrreq.c		optional inet | inet6
 netinet/libalias/alias.c	optional libalias inet | netgraph_nat inet
 netinet/libalias/alias_db.c	optional libalias inet | netgraph_nat inet
@@ -3484,6 +3485,7 @@ netinet6/in6_pcb.c		optional inet6
 netinet6/in6_pcbgroup.c		optional inet6 pcbgroup
 netinet6/in6_proto.c		optional inet6
 netinet6/in6_rmx.c		optional inet6
+netinet6/in6_rss.c		optional inet6 rss
 netinet6/in6_src.c		optional inet6
 netinet6/ip6_forward.c		optional inet6
 netinet6/ip6_gre.c		optional gre inet6
@@ -3570,13 +3572,18 @@ nlm/nlm_prot_svc.c		optional nfslockd | nfsd
 nlm/nlm_prot_xdr.c		optional nfslockd | nfsd
 nlm/sm_inter_xdr.c		optional nfslockd | nfsd
 
+# Linux Kernel Compatibility API
+ofed/include/linux/linux_kmod.c			optional ofed | compat_linuxapi \
+	no-depend compile-with "${OFED_C}"
+ofed/include/linux/linux_compat.c		optional ofed | compat_linuxapi \
+	no-depend compile-with "${OFED_C}"
+ofed/include/linux/linux_pci.c			optional ofed | compat_linuxapi \
+	no-depend compile-with "${OFED_C}"
+ofed/include/linux/linux_idr.c			optional ofed | compat_linuxapi \
+	no-depend compile-with "${OFED_C}"
+ofed/include/linux/linux_radix.c		optional ofed | compat_linuxapi \
+	no-depend compile-with "${OFED_C}"
 # OpenFabrics Enterprise Distribution (Infiniband)
-ofed/include/linux/linux_compat.c		optional ofed		\
-	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_idr.c			optional ofed		\
-	no-depend compile-with "${OFED_C}"
-ofed/include/linux/linux_radix.c		optional ofed		\
-	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/addr.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"

@@ -2118,10 +2118,7 @@ main(int argc, char *argv[])
 	}
 
 	if (!error && run) {
-		error = vm_get_register(ctx, vcpu, VM_REG_GUEST_RIP, &rip);
-		assert(error == 0);
-
-		error = vm_run(ctx, vcpu, rip, &vmexit);
+		error = vm_run(ctx, vcpu, &vmexit);
 		if (error == 0)
 			dump_vm_run_exitcode(&vmexit, vcpu);
 		else

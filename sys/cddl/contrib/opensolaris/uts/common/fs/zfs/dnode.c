@@ -57,7 +57,7 @@ static dnode_phys_t dnode_phys_zero;
 int zfs_default_bs = SPA_MINBLOCKSHIFT;
 int zfs_default_ibs = DN_MAX_INDBLKSHIFT;
 
-#ifdef sun
+#ifdef illumos
 static kmem_cbrc_t dnode_move(void *, void *, size_t, void *);
 #endif
 
@@ -813,7 +813,7 @@ dnode_move_impl(dnode_t *odn, dnode_t *ndn)
 	odn->dn_moved = (uint8_t)-1;
 }
 
-#ifdef sun
+#ifdef illumos
 #ifdef	_KERNEL
 /*ARGSUSED*/
 static kmem_cbrc_t
@@ -956,7 +956,7 @@ dnode_move(void *buf, void *newbuf, size_t size, void *arg)
 	return (KMEM_CBRC_YES);
 }
 #endif	/* _KERNEL */
-#endif	/* sun */
+#endif	/* illumos */
 
 void
 dnode_special_close(dnode_handle_t *dnh)

@@ -63,6 +63,7 @@
 #include <net/if_vlan_var.h>
 #include <net/if_llatbl.h>
 #include <net/pfil.h>
+#include <net/rss_config.h>
 #include <net/vnet.h>
 
 #include <netpfil/pf/pf_mtag.h>
@@ -71,7 +72,6 @@
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/if_ether.h>
-#include <netinet/in_rss.h>
 #include <netinet/ip_carp.h>
 #include <netinet/ip_var.h>
 #endif
