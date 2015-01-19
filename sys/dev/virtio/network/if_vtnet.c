@@ -2401,7 +2401,7 @@ vtnet_qflush(if_t ifp)
 static int
 vtnet_watchdog(struct vtnet_txq *txq)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	ifp = txq->vtntx_sc->vtnet_ifp;
 
@@ -2490,7 +2490,7 @@ static void
 vtnet_tick(void *xsc)
 {
 	struct vtnet_softc *sc;
-	struct ifnet *ifp;
+	if_t ifp;
 	int i, timedout;
 
 	sc = xsc;
@@ -2633,7 +2633,7 @@ static void
 vtnet_stop(struct vtnet_softc *sc)
 {
 	device_t dev;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
@@ -2663,7 +2663,7 @@ static int
 vtnet_virtio_reinit(struct vtnet_softc *sc)
 {
 	device_t dev;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint64_t features;
 	uint32_t mask;
 	int error;
@@ -2708,7 +2708,7 @@ vtnet_virtio_reinit(struct vtnet_softc *sc)
 static void
 vtnet_init_rx_filters(struct vtnet_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	ifp = sc->vtnet_ifp;
 
@@ -2835,7 +2835,7 @@ vtnet_set_active_vq_pairs(struct vtnet_softc *sc)
 static int
 vtnet_reinit(struct vtnet_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	int error;
 
 	ifp = sc->vtnet_ifp;
@@ -2863,7 +2863,7 @@ static void
 vtnet_init_locked(struct vtnet_softc *sc)
 {
 	device_t dev;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
@@ -3066,7 +3066,7 @@ vtnet_set_allmulti(struct vtnet_softc *sc, int on)
 static void
 vtnet_attach_disable_promisc(struct vtnet_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 
 	ifp = sc->vtnet_ifp;
 
@@ -3085,7 +3085,7 @@ static void
 vtnet_rx_filter(struct vtnet_softc *sc)
 {
 	device_t dev;
-	struct ifnet *ifp;
+	if_t ifp;
 
 	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
@@ -3156,7 +3156,7 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 	struct vtnet_mac_filter *filter;
 	struct sglist_seg segs[4];
 	struct sglist sg;
-	struct ifnet *ifp;
+	if_t ifp;
 	int promisc, allmulti, error;
 	uint8_t ack;
 
@@ -3281,7 +3281,7 @@ vtnet_rx_filter_vlan(struct vtnet_softc *sc)
 static void
 vtnet_update_vlan_filter(struct vtnet_softc *sc, int add, uint16_t tag)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	int idx, bit;
 
 	ifp = sc->vtnet_ifp;
@@ -3309,7 +3309,7 @@ vtnet_update_vlan_filter(struct vtnet_softc *sc, int add, uint16_t tag)
 }
 
 static void
-vtnet_register_vlan(void *arg, struct ifnet *ifp, uint16_t tag)
+vtnet_register_vlan(void *arg, if_t ifp, uint16_t tag)
 {
 
 	if (if_getsoftc(ifp, IF_DRIVER_SOFTC) != arg)
@@ -3319,7 +3319,7 @@ vtnet_register_vlan(void *arg, struct ifnet *ifp, uint16_t tag)
 }
 
 static void
-vtnet_unregister_vlan(void *arg, struct ifnet *ifp, uint16_t tag)
+vtnet_unregister_vlan(void *arg, if_t ifp, uint16_t tag)
 {
 
 	if (if_getsoftc(ifp, IF_DRIVER_SOFTC) != arg)
@@ -3332,7 +3332,7 @@ static int
 vtnet_is_link_up(struct vtnet_softc *sc)
 {
 	device_t dev;
-	struct ifnet *ifp;
+	if_t ifp;
 	uint16_t status;
 
 	dev = sc->vtnet_dev;
@@ -3350,7 +3350,7 @@ vtnet_is_link_up(struct vtnet_softc *sc)
 static void
 vtnet_update_link_status(struct vtnet_softc *sc)
 {
-	struct ifnet *ifp;
+	if_t ifp;
 	int link;
 
 	ifp = sc->vtnet_ifp;
@@ -3369,7 +3369,7 @@ vtnet_update_link_status(struct vtnet_softc *sc)
 }
 
 static int
-vtnet_ifmedia_upd(struct ifnet *ifp)
+vtnet_ifmedia_upd(if_t ifp)
 {
 	struct vtnet_softc *sc;
 	struct ifmedia *ifm;
@@ -3384,7 +3384,7 @@ vtnet_ifmedia_upd(struct ifnet *ifp)
 }
 
 static void
-vtnet_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+vtnet_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 {
 	struct vtnet_softc *sc;
 
