@@ -75,6 +75,7 @@ enum {
 	UQ_MSC_NO_GETMAXLUN,		/* does not support get max LUN */
 	UQ_MSC_NO_INQUIRY,		/* fake generic inq response */
 	UQ_MSC_NO_INQUIRY_EVPD,		/* does not support inq EVPD */
+	UQ_MSC_NO_PREVENT_ALLOW,	/* does not support medium removal */ 
 	UQ_MSC_NO_SYNC_CACHE,		/* does not support sync cache */ 
 	UQ_MSC_SHUTTLE_INIT,		/* requires Shuttle init sequence */
 	UQ_MSC_ALT_IFACE_1,		/* switch to alternate interface 1 */

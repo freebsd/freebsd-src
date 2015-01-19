@@ -104,6 +104,8 @@ static uint8_t scsi_sync_cache[] =	{ 0x35, 0x00, 0x00, 0x00, 0x00, 0x00,
 					  0x00, 0x00, 0x00, 0x00 };
 static uint8_t scsi_request_sense[] =	{ 0x03, 0x00, 0x00, 0x00, 0x12, 0x00,
 					  0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+static uint8_t scsi_read_capacity[] =	{ 0x25, 0x00, 0x00, 0x00, 0x00, 0x00,
+					  0x00, 0x00, 0x00, 0x00 };
 
 #define	BULK_SIZE		64	/* dummy */
 #define	ERR_CSW_FAILED		-1
@@ -648,7 +650,7 @@ usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
 	}
 
 	is_no_direct = 1;
-	for (timeout = 4; timeout; timeout--) {
+	for (timeout = 4; timeout != 0; timeout--) {
 		err = bbb_command_start(sc, DIR_IN, 0, sc->buffer,
 		    SCSI_INQ_LEN, &scsi_inquiry, sizeof(scsi_inquiry),
 		    USB_MS_HZ);
@@ -677,7 +679,9 @@ usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
 		if (err != ERR_CSW_FAILED)
 			goto error;
 	}
+	timeout = 1;
 
+retry_sync_cache:
 	err = bbb_command_start(sc, DIR_IN, 0, NULL, 0,
 	    &scsi_sync_cache, sizeof(scsi_sync_cache),
 	    USB_MS_HZ);
@@ -687,9 +691,49 @@ usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
 		if (err != ERR_CSW_FAILED)
 			goto error;
 
-		DPRINTF("Device doesn't handle synchronize cache\n");
+		DPRINTF("Device doesn't handle synchronize cache "
+		    "and prevent allow medium removal\n");
 
 		usbd_add_dynamic_quirk(udev, UQ_MSC_NO_SYNC_CACHE);
+		usbd_add_dynamic_quirk(udev, UQ_MSC_NO_PREVENT_ALLOW);
+	} else {
+
+		/*
+		 * Certain Kingston memory sticks fail the first
+		 * read capacity after a synchronize cache command
+		 * has been issued. Disable the synchronize cache
+		 * command for such devices.
+		 */
+
+		err = bbb_command_start(sc, DIR_IN, 0, sc->buffer, 8,
+		    &scsi_read_capacity, sizeof(scsi_read_capacity),
+		    USB_MS_HZ);
+
+		if (err != 0) {
+			if (err != ERR_CSW_FAILED)
+				goto error;
+
+			err = bbb_command_start(sc, DIR_IN, 0, sc->buffer, 8,
+			    &scsi_read_capacity, sizeof(scsi_read_capacity),
+			    USB_MS_HZ);
+
+			if (err == 0) {
+				if (timeout--)
+					goto retry_sync_cache;
+
+				DPRINTF("Device most likely doesn't "
+				    "handle synchronize cache nor"
+				    "prevent allow medium removal\n");
+
+				usbd_add_dynamic_quirk(udev,
+				    UQ_MSC_NO_SYNC_CACHE);
+				usbd_add_dynamic_quirk(udev,
+				    UQ_MSC_NO_PREVENT_ALLOW);
+			} else {
+				if (err != ERR_CSW_FAILED)
+					goto error;
+			}
+		}
 	}
 
 	/* clear sense status of any failed commands on the device */
@@ -728,6 +772,7 @@ error:
 	DPRINTF("Device did not respond, enabling all quirks\n");
 
 	usbd_add_dynamic_quirk(udev, UQ_MSC_NO_SYNC_CACHE);
+	usbd_add_dynamic_quirk(udev, UQ_MSC_NO_PREVENT_ALLOW);
 	usbd_add_dynamic_quirk(udev, UQ_MSC_NO_TEST_UNIT_READY);
 
 	/* Need to re-enumerate the device */
