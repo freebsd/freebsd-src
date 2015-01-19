@@ -11,4 +11,4 @@ man_MANS = xolint.1
 EXTRA_DIST = xolint.1 xolint.pl
 
 install-exec-hook:
-	install ${srcdir}/xolint.pl ${bindir}/xolint
+	install ${srcdir}/xolint.pl ${DESTDIR}${bindir}/xolint
