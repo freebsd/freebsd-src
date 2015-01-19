@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/pfil.h>
+#include <net/rss_config.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -103,7 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/tcp_var.h>
 #include <netinet6/nd6.h>
-#include <netinet/in_rss.h>
+#include <netinet6/in6_rss.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -905,8 +906,6 @@ passout:
 		u_int32_t id = htonl(ip6_randomid());
 		u_char nextproto;
 
-		int qslots = ifp->if_snd.ifq_maxlen - ifp->if_snd.ifq_len;
-
 		/*
 		 * Too large for the destination or interface;
 		 * fragment if possible.
@@ -922,18 +921,6 @@ passout:
 			in6_ifstat_inc(ifp, ifs6_out_fragfail);
 			goto bad;
 		}
-
-		/*
-		 * Verify that we have any chance at all of being able to queue
-		 *      the packet or packet fragments
-		 */
-		if (qslots <= 0 || ((u_int)qslots * (mtu - hlen)
-		    < tlen  /* - hlen */)) {
-			error = ENOBUFS;
-			IP6STAT_INC(ip6s_odropped);
-			goto bad;
-		}
-
 
 		/*
 		 * If the interface will not calculate checksums on
@@ -2940,7 +2927,7 @@ ip6_splithdr(struct mbuf *m, struct ip6_exthdrs *exthdrs)
 			return ENOBUFS;
 		}
 		m_move_pkthdr(mh, m);
-		MH_ALIGN(mh, sizeof(*ip6));
+		M_ALIGN(mh, sizeof(*ip6));
 		m->m_len -= sizeof(*ip6);
 		m->m_data += sizeof(*ip6);
 		mh->m_next = m;

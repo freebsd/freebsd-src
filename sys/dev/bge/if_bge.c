@@ -1383,8 +1383,7 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i)
 	if (m == NULL)
 		return (ENOBUFS);
 
-	m_cljget(m, M_NOWAIT, MJUM9BYTES);
-	if (!(m->m_flags & M_EXT)) {
+	if (m_cljget(m, M_NOWAIT, MJUM9BYTES) == NULL) {
 		m_freem(m);
 		return (ENOBUFS);
 	}

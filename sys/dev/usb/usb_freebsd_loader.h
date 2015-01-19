@@ -83,7 +83,7 @@
 #define	USB_EP0_BUFSIZE		1024	/* bytes */
 #define	USB_CS_RESET_LIMIT	20	/* failures = 20 * 50 ms = 1sec */
 
-#define	USB_MAX_AUTO_QUIRK	4	/* maximum number of dynamic quirks */
+#define	USB_MAX_AUTO_QUIRK	8	/* maximum number of dynamic quirks */
 
 typedef uint32_t usb_timeout_t;		/* milliseconds */
 typedef uint32_t usb_frlength_t;	/* bytes */

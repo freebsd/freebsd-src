@@ -88,7 +88,7 @@ static uint32_t urndis_ctrl_init(struct urndis_softc *);
 #ifdef USB_DEBUG
 static int urndis_debug = 0;
 static	SYSCTL_NODE(_hw_usb, OID_AUTO, urndis, CTLFLAG_RW, 0, "USB RNDIS-Ethernet");
-SYSCTL_INT(_hw_usb_urndis, OID_AUTO, debug, CTLFLAG_RW, &urndis_debug, 0,
+SYSCTL_INT(_hw_usb_urndis, OID_AUTO, debug, CTLFLAG_RWTUN, &urndis_debug, 0,
     "Debug level");
 #endif
 

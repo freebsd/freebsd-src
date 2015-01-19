@@ -321,8 +321,15 @@ static const char *get_symbol_name(struct readelf *re, int symtab, int i);
 static uint64_t get_symbol_value(struct readelf *re, int symtab, int i);
 static void load_sections(struct readelf *re);
 static const char *mips_abi_fp(uint64_t fp);
-static const char *note_type(unsigned int osabi, unsigned int et,
+static const char *note_type(const char *note_name, unsigned int et,
     unsigned int nt);
+static const char *note_type_freebsd(unsigned int nt);
+static const char *note_type_freebsd_core(unsigned int nt);
+static const char *note_type_linux_core(unsigned int nt);
+static const char *note_type_gnu(unsigned int nt);
+static const char *note_type_netbsd(unsigned int nt);
+static const char *note_type_openbsd(unsigned int nt);
+static const char *note_type_unknown(unsigned int nt);
 static const char *option_kind(uint8_t kind);
 static const char *phdr_type(unsigned int ptype);
 static const char *ppc_abi_fp(uint64_t fp);
@@ -1480,65 +1487,112 @@ r_type(unsigned int mach, unsigned int type)
 }
 
 static const char *
-note_type(unsigned int osabi, unsigned int et, unsigned int nt)
+note_type(const char *name, unsigned int et, unsigned int nt)
+{
+	if (strcmp(name, "CORE") == 0 && et == ET_CORE)
+		return note_type_linux_core(nt);
+	else if (strcmp(name, "FreeBSD") == 0)
+		if (et == ET_CORE)
+			return note_type_freebsd_core(nt);
+		else
+			return note_type_freebsd(nt);
+	else if (strcmp(name, "GNU") == 0 && et != ET_CORE)
+		return note_type_gnu(nt);
+	else if (strcmp(name, "NetBSD") == 0 && et != ET_CORE)
+		return note_type_netbsd(nt);
+	else if (strcmp(name, "OpenBSD") == 0 && et != ET_CORE)
+		return note_type_openbsd(nt);
+	return note_type_unknown(nt);
+}
+
+static const char *
+note_type_freebsd(unsigned int nt)
+{
+	switch (nt) {
+	case 1: return "NT_FREEBSD_ABI_TAG";
+	case 2: return "NT_FREEBSD_NOINIT_TAG";
+	case 3: return "NT_FREEBSD_ARCH_TAG";
+	default: return (note_type_unknown(nt));
+	}
+}
+
+static const char *
+note_type_freebsd_core(unsigned int nt)
+{
+	switch (nt) {
+	case 1: return "NT_PRSTATUS";
+	case 2: return "NT_FPREGSET";
+	case 3: return "NT_PRPSINFO";
+	case 7: return "NT_THRMISC";
+	case 8: return "NT_PROCSTAT_PROC";
+	case 9: return "NT_PROCSTAT_FILES";
+	case 10: return "NT_PROCSTAT_VMMAP";
+	case 11: return "NT_PROCSTAT_GROUPS";
+	case 12: return "NT_PROCSTAT_UMASK";
+	case 13: return "NT_PROCSTAT_RLIMIT";
+	case 14: return "NT_PROCSTAT_OSREL";
+	case 15: return "NT_PROCSTAT_PSSTRINGS";
+	case 16: return "NT_PROCSTAT_AUXV";
+	case 0x202: return "NT_X86_XSTATE (x86 XSAVE extended state)";
+	default: return (note_type_unknown(nt));
+	}
+}
+
+static const char *
+note_type_linux_core(unsigned int nt)
+{
+	switch (nt) {
+	case 1: return "NT_PRSTATUS (Process status)";
+	case 2: return "NT_FPREGSET (Floating point information)";
+	case 3: return "NT_PRPSINFO (Process information)";
+	case 6: return "NT_AUXV (Auxiliary vector)";
+	case 0x46E62B7FUL: return "NT_PRXFPREG (Linux user_xfpregs structure)";
+	case 10: return "NT_PSTATUS (Linux process status)";
+	case 12: return "NT_FPREGS (Linux floating point regset)";
+	case 13: return "NT_PSINFO (Linux process information)";
+	case 16: return "NT_LWPSTATUS (Linux lwpstatus_t type)";
+	case 17: return "NT_LWPSINFO (Linux lwpinfo_t type)";
+	default: return (note_type_unknown(nt));
+	}
+}
+
+static const char *
+note_type_gnu(unsigned int nt)
+{
+	switch (nt) {
+	case 1: return "NT_GNU_ABI_TAG";
+	case 2: return "NT_GNU_HWCAP (Hardware capabilities)";
+	case 3: return "NT_GNU_BUILD_ID (Build id set by ld(1))";
+	case 4: return "NT_GNU_GOLD_VERSION (GNU gold version)";
+	default: return (note_type_unknown(nt));
+	}
+}
+
+static const char *
+note_type_netbsd(unsigned int nt)
+{
+	switch (nt) {
+	case 1: return "NT_NETBSD_IDENT";
+	default: return (note_type_unknown(nt));
+	}
+}
+
+static const char *
+note_type_openbsd(unsigned int nt)
+{
+	switch (nt) {
+	case 1: return "NT_OPENBSD_IDENT";
+	default: return (note_type_unknown(nt));
+	}
+}
+
+static const char *
+note_type_unknown(unsigned int nt)
 {
 	static char s_nt[32];
 
-	if (et == ET_CORE) {
-		switch (nt) {
-		case NT_PRSTATUS:
-			return "NT_PRSTATUS (Process status)";
-		case NT_FPREGSET:
-			return "NT_FPREGSET (Floating point information)";
-		case NT_PRPSINFO:
-			return "NT_PRPSINFO (Process information)";
-#if 0
-		case NT_AUXV:
-			return "NT_AUXV (Auxiliary vector)";
-		case NT_PRXFPREG:
-			return "NT_PRXFPREG (Linux user_xfpregs structure)";
-		case NT_PSTATUS:
-			return "NT_PSTATUS (Linux process status)";
-		case NT_FPREGS:
-			return "NT_FPREGS (Linux floating point regset)";
-		case NT_PSINFO:
-			return "NT_PSINFO (Linux process information)";
-		case NT_LWPSTATUS:
-			return "NT_LWPSTATUS (Linux lwpstatus_t type)";
-		case NT_LWPSINFO:
-			return "NT_LWPSINFO (Linux lwpinfo_t type)";
-#endif
-		default:
-			snprintf(s_nt, sizeof(s_nt), "<unknown: %u>", nt);
-			return (s_nt);
-		}
-	} else {
-		switch (nt) {
-#if 0
-		case NT_ABI_TAG:
-			switch (osabi) {
-			case ELFOSABI_FREEBSD:
-				return "NT_FREEBSD_ABI_TAG";
-			case ELFOSABI_NETBSD:
-				return "NT_NETBSD_IDENT";
-			case ELFOSABI_OPENBSD:
-				return "NT_OPENBSD_IDENT";
-			default:
-				return "NT_GNU_ABI_TAG";
-			}
-		case NT_GNU_HWCAP:
-			return "NT_GNU_HWCAP (Hardware capabilities)";
-		case NT_GNU_BUILD_ID:
-			return "NT_GNU_BUILD_ID (Build id set by ld(1))";
-		case NT_GNU_GOLD_VERSION:
-			return "NT_GNU_GOLD_VERSION (GNU gold version)";
-#endif
-		default:
-			snprintf(s_nt, sizeof(s_nt), "<unknown: %u>", nt);
-			return (s_nt);
-		}
-	}
-	(void)osabi;
+	snprintf(s_nt, sizeof(s_nt), "<unknown: %u>", nt);
+	return (s_nt);
 }
 
 static struct {
@@ -3585,18 +3639,36 @@ static void
 dump_notes_content(struct readelf *re, const char *buf, size_t sz, off_t off)
 {
 	Elf_Note *note;
-	const char *end;
+	const char *end, *name;
 
 	printf("\nNotes at offset %#010jx with length %#010jx:\n",
 	    (uintmax_t) off, (uintmax_t) sz);
 	printf("  %-13s %-15s %s\n", "Owner", "Data size", "Description");
 	end = buf + sz;
 	while (buf < end) {
+		if (buf + sizeof(*note) > end) {
+			warnx("invalid note header");
+			return;
+		}
 		note = (Elf_Note *)(uintptr_t) buf;
-		printf("  %-13s %#010jx", (char *)(uintptr_t) (note + 1),
-		    (uintmax_t) note->n_descsz);
-		printf("      %s\n", note_type(re->ehdr.e_ident[EI_OSABI],
-		    re->ehdr.e_type, note->n_type));
+		name = (char *)(uintptr_t)(note + 1);
+		/*
+		 * The name field is required to be nul-terminated, and
+		 * n_namesz includes the terminating nul in observed
+		 * implementations (contrary to the ELF-64 spec). A special
+		 * case is needed for cores generated by some older Linux
+		 * versions, which write a note named "CORE" without a nul
+		 * terminator and n_namesz = 4.
+		 */
+		if (note->n_namesz == 0)
+			name = "";
+		else if (note->n_namesz == 4 && strncmp(name, "CORE", 4) == 0)
+			name = "CORE";
+		else if (strnlen(name, note->n_namesz) >= note->n_namesz)
+			name = "<invalid>";
+		printf("  %-13s %#010jx", name, (uintmax_t) note->n_descsz);
+		printf("      %s\n", note_type(name, re->ehdr.e_type,
+		    note->n_type));
 		buf += sizeof(Elf_Note) + roundup2(note->n_namesz, 4) +
 		    roundup2(note->n_descsz, 4);
 	}

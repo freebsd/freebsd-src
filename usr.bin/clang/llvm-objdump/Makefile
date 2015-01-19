@@ -4,8 +4,6 @@ MAN=
 .include <bsd.own.mk>
 
 PROG_CXX=llvm-objdump
-DPADD=	${LIBZ}
-LDADD=	-lz
 
 SRCDIR=	tools/llvm-objdump
 SRCS=	llvm-objdump.cpp \
@@ -16,6 +14,13 @@ SRCS=	llvm-objdump.cpp \
 LIBDEPS=llvmmcdisassembler \
 	llvmmcanalysis \
 	llvmdebuginfo \
+	llvmaarch64disassembler \
+	llvmaarch64codegen \
+	llvmaarch64asmparser \
+	llvmaarch64desc \
+	llvmaarch64info \
+	llvmaarch64instprinter \
+	llvmaarch64utils \
 	llvmarmdisassembler \
 	llvmarmcodegen \
 	llvmarmasmparser \

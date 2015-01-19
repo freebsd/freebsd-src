@@ -610,9 +610,9 @@ A
 command first appeared in
 .At v3 .
 .Sh AUTHORS
-Gabor Kovesdan <gabor@FreeBSD.org>,
+.An Gabor Kovesdan Aq Mt gabor@FreeBSD.org ,
 .Pp
-Oleg Moskalenko <mom040267@gmail.com>
+.An Oleg Moskalenko Aq Mt mom040267@gmail.com
 .Sh NOTES
 This implementation of
 .Nm

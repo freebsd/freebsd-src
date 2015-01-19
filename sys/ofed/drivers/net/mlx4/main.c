@@ -34,10 +34,6 @@
  */
 
 #include <linux/kmod.h> 
-/* 
- * kmod.h must be included before module.h since it includes (indirectly) sys/module.h
- * To use the FBSD macro sys/module.h should define MODULE_VERSION before linux/module does.
-*/
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
@@ -503,10 +499,6 @@ int mlx4_get_val(struct mlx4_dbdf2val *tbl, struct pci_dev *pdev, int idx,
 	*val = tbl[0].val[idx];
 	if (!pdev)
 		return -EINVAL;
-
-	if (!pdev->bus) {
-		return -EINVAL;
-	}
 
         dbdf = dbdf_to_u64(pci_get_domain(pdev->dev.bsddev), pci_get_bus(pdev->dev.bsddev),
 			   PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
@@ -3787,7 +3779,6 @@ static void __exit mlx4_cleanup(void)
 module_init_order(mlx4_init, SI_ORDER_MIDDLE);
 module_exit(mlx4_cleanup);
 
-#include <sys/module.h>
 static int
 mlx4_evhand(module_t mod, int event, void *arg)
 {
@@ -3800,3 +3791,5 @@ static moduledata_t mlx4_mod = {
 };
 MODULE_VERSION(mlx4, 1);
 DECLARE_MODULE(mlx4, mlx4_mod, SI_SUB_OFED_PREINIT, SI_ORDER_ANY);
+MODULE_DEPEND(mlx4, linuxapi, 1, 1, 1);
+

@@ -45,7 +45,7 @@ extern int zvol_remove_minor(const char *);
 extern void zvol_remove_minors(const char *);
 extern int zvol_set_volsize(const char *, uint64_t);
 
-#ifdef sun
+#ifdef illumos
 extern int zvol_open(dev_t *devp, int flag, int otyp, cred_t *cr);
 extern int zvol_dump(dev_t dev, caddr_t addr, daddr_t offset, int nblocks);
 extern int zvol_close(dev_t dev, int flag, int otyp, cred_t *cr);
@@ -54,14 +54,14 @@ extern int zvol_read(dev_t dev, uio_t *uiop, cred_t *cr);
 extern int zvol_write(dev_t dev, uio_t *uiop, cred_t *cr);
 extern int zvol_aread(dev_t dev, struct aio_req *aio, cred_t *cr);
 extern int zvol_awrite(dev_t dev, struct aio_req *aio, cred_t *cr);
-#endif	/* sun */
+#endif	/* illumos */
 extern int zvol_ioctl(dev_t dev, int cmd, intptr_t arg, int flag, cred_t *cr,
     int *rvalp);
 extern int zvol_busy(void);
 extern void zvol_init(void);
 extern void zvol_fini(void);
 
-#ifdef sun
+#ifdef illumos
 extern int zvol_get_volume_params(minor_t minor, uint64_t *blksize,
     uint64_t *max_xfer_len, void **minor_hdl, void **objset_hdl, void **zil_hdl,
     void **rl_hdl, void **bonus_hdl);
@@ -69,7 +69,7 @@ extern uint64_t zvol_get_volume_size(void *minor_hdl);
 extern int zvol_get_volume_wce(void *minor_hdl);
 extern void zvol_log_write_minor(void *minor_hdl, dmu_tx_t *tx, offset_t off,
     ssize_t resid, boolean_t sync);
-#endif	/* sun */
+#endif	/* illumos */
 
 #if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
 extern int zvol_create_minors(const char *name);

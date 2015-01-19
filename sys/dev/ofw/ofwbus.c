@@ -442,10 +442,6 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 	struct ofwbus_softc *sc;
 	struct ofwbus_devinfo *ndi;
 	const char *nodename;
-	uint32_t *reg;
-	uint64_t phys, size;
-	int i, j, rid;
-	int nreg;
 
 	sc = device_get_softc(dev);
 
@@ -462,33 +458,7 @@ ofwbus_setup_dinfo(device_t dev, phandle_t node)
 	}
 
 	resource_list_init(&ndi->ndi_rl);
-	nreg = OF_getencprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
-	if (nreg == -1)
-		nreg = 0;
-	if (nreg % (sc->acells + sc->scells) != 0) {
-		if (bootverbose)
-			device_printf(dev, "Malformed reg property on <%s>\n",
-			    nodename);
-		nreg = 0;
-	}
-
-	for (i = 0, rid = 0; i < nreg; i += sc->acells + sc->scells, rid++) {
-		phys = size = 0;
-		for (j = 0; j < sc->acells; j++) {
-			phys <<= 32;
-			phys |= reg[i + j];
-		}
-		for (j = 0; j < sc->scells; j++) {
-			size <<= 32;
-			size |= reg[i + sc->acells + j];
-		}
-		/* Skip the dummy reg property of glue devices like ssm(4). */
-		if (size != 0)
-			resource_list_add(&ndi->ndi_rl, SYS_RES_MEMORY, rid,
-			    phys, phys + size - 1, size);
-	}
-	free(reg, M_OFWPROP);
-
+	ofw_bus_reg_to_rl(dev, node, sc->acells, sc->scells, &ndi->ndi_rl);
 	ofw_bus_intr_to_rl(dev, node, &ndi->ndi_rl);
 
 	return (ndi);

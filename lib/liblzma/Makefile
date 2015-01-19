@@ -117,7 +117,16 @@ SRCS+=	simple_coder.c \
 	arm.c \
 	armthumb.c \
 	sparc.c
-		
+
+.PATH: ${LZMADIR}
+
+VERSION_MAJOR!=	awk '$$1 == "\#define" && $$2 == "LZMA_VERSION_MAJOR" {print $$3 } ' \
+			${LZMADIR}/api/lzma/version.h
+VERSION_MINOR!=	awk '$$1 == "\#define" && $$2 == "LZMA_VERSION_MINOR" {print $$3 } ' \
+			${LZMADIR}/api/lzma/version.h
+VERSION_PATCH!=	awk '$$1 == "\#define" && $$2 == "LZMA_VERSION_PATCH" {print $$3 } ' \
+			${LZMADIR}/api/lzma/version.h
+
 WARNS?=	3
 
 CFLAGS+=	-DHAVE_CONFIG_H \
@@ -136,5 +145,24 @@ CFLAGS+=	-DHAVE_CONFIG_H \
 VERSION_DEF=	${.CURDIR}/Versions.def
 SYMBOL_MAPS=	${.CURDIR}/Symbol.map
 CFLAGS+=	-DSYMBOL_VERSIONING
+
+CLEANFILES+=	liblzma.pc
+
+.if !defined(LIBRARIES_ONLY)
+all: liblzma.pc
+liblzma.pc: liblzma.pc.in
+	@sed -e 's,@prefix@,/usr,g ; \
+		s,@exec_prefix@,/usr,g  ; \
+		s,@libdir@,/usr/lib,g ; \
+		s,@includedir@,/usr/include,g ; \
+		s,@PACKAGE_URL@,http://tukaani.org/xz/,g ; \
+		s,@PACKAGE_VERSION@,${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH},g ; \
+		s,@PTHREAD_CFLAGS@,,g ; \
+		s,@PTHREAD_LIBS@,,g' ${.ALLSRC} > ${.TARGET}
+
+beforeinstall:
+	@${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+		liblzma.pc ${DESTDIR}${LIBDATADIR}/pkgconfig
+.endif
 
 .include <bsd.lib.mk>

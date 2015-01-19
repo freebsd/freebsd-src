@@ -118,4 +118,5 @@ FBSD_1.4 {
 FBSDprivate_1.0 {
 	__system;
 	_system;
+	__libc_system;
 };

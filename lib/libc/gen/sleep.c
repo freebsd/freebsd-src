@@ -40,6 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "un-namespace.h"
 
+#include "libc_private.h"
+
 unsigned int
 __sleep(unsigned int seconds)
 {
@@ -55,12 +57,14 @@ __sleep(unsigned int seconds)
 
 	time_to_sleep.tv_sec = seconds;
 	time_to_sleep.tv_nsec = 0;
-	if (_nanosleep(&time_to_sleep, &time_remaining) != -1)
+	if (((int (*)(const struct timespec *, struct timespec *))
+	    __libc_interposing[INTERPOS_nanosleep])(
+	    &time_to_sleep, &time_remaining) != -1)
 		return (0);
 	if (errno != EINTR)
 		return (seconds);		/* best guess */
 	return (time_remaining.tv_sec +
-		(time_remaining.tv_nsec != 0)); /* round up */
+	    (time_remaining.tv_nsec != 0)); /* round up */
 }
 
 __weak_reference(__sleep, sleep);

@@ -321,7 +321,7 @@ struct xhci_dev_endpoint_trbs {
 };
 
 #if (USB_PAGE_SIZE < 4096)
-#error "The XHCI driver needs a pagesize above 4K"
+#error "The XHCI driver needs a pagesize above or equal to 4K"
 #endif
 
 /* Define the maximum payload which we will handle in a single TRB */

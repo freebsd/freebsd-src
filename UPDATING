@@ -31,6 +31,25 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150118:
+	Clang and llvm have been upgraded to 3.5.1 release.  This is a bugfix
+	only release, no new features have been added.  Please see the 20141231
+	entry below for information about prerequisites and upgrading, if you
+	are not already using 3.5.0.
+
+20150107:
+	ELF tools addr2line, elfcopy (strip), nm, size, and strings are now
+	taken from the ELF Tool Chain project rather than GNU binutils. They
+	should be drop-in replacements, with the addition of arm64 support.
+	The WITHOUT_ELFTOOLCHAIN_TOOLS= knob may be used to obtain the
+	binutils tools, if necessary.
+
+20150105:
+	The default Unbound configuration now enables remote control
+	using a local socket.  Users who have already enabled the
+	local_unbound service should regenerate their configuration
+	by running "service local_unbound setup" as root.
+	
 20150102:
 	The GNU texinfo and GNU info pages have been removed.
 	To be able to view GNU info pages please install texinfo from ports.
@@ -114,7 +133,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	LOCAL_DIRS.
 
 20141109:
-	faith(4) and faithd(8) has been removed from base system. It
+	faith(4) and faithd(8) have been removed from the base system. Faith
 	has been obsolete for a very long time.
 
 20141104:
@@ -137,7 +156,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 
 20141102:
 	pjdfstest has been integrated into kyua as an opt-in test suite.
-	Please see share/doc/pjdfstest/README for a more details on how to
+	Please see share/doc/pjdfstest/README for more details on how to
 	execute it.
 
 20141009:
@@ -159,7 +178,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 
 20140729:
 	The ofwfb driver, used to provide a graphics console on PowerPC when
-	using vt(4), no longer allows mmap() of all of physical memory. This
+	using vt(4), no longer allows mmap() of all physical memory. This
 	will prevent Xorg on PowerPC with some ATI graphics cards from
 	initializing properly unless x11-servers/xorg-server is updated to
 	1.12.4_8 or newer.

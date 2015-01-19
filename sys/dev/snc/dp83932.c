@@ -1129,8 +1129,7 @@ sonic_get(struct snc_softc *sc, u_int32_t pkt, int datalen)
 			len = MLEN;
 		}
 		if (datalen >= MINCLSIZE) {
-			MCLGET(m, M_NOWAIT);
-			if ((m->m_flags & M_EXT) == 0) {
+			if (!(MCLGET(m, M_NOWAIT))) {
 				if (top) m_freem(top);
 				return (0);
 			}

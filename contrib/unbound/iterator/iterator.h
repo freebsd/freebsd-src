@@ -59,7 +59,7 @@ struct iter_priv;
 /** max number of referrals. Makes sure resolver does not run away */
 #define MAX_REFERRAL_COUNT	130
 /** max number of queries-sent-out.  Make sure large NS set does not loop */
-#define MAX_SENT_COUNT		16
+#define MAX_SENT_COUNT		32
 /** at what query-sent-count to stop target fetch policy */
 #define TARGET_FETCH_STOP	3
 /** how nice is a server without further information, in msec 
@@ -71,10 +71,6 @@ struct iter_priv;
  * Equals RTT_MAX_TIMEOUT
  */
 #define USEFUL_SERVER_TOP_TIMEOUT	120000
-/** Number of lost messages in a row that get a host blacklisted.
- * With 16, a couple different queries have to time out and no working
- * queries are happening */
-#define USEFUL_SERVER_MAX_LOST	16
 /** number of retries on outgoing queries */
 #define OUTBOUND_MSG_RETRY 5
 /** RTT band, within this amount from the best, servers are chosen randomly.
@@ -236,7 +232,8 @@ struct iter_qstate {
 	int caps_fallback;
 	/** state for capsfail: current server number to try */
 	size_t caps_server;
-	/** state for capsfail: stored query for comparisons */
+	/** state for capsfail: stored query for comparisons. Can be NULL if
+	 * no response had been seen prior to starting the fallback. */
 	struct reply_info* caps_reply;
 
 	/** Current delegation message - returned for non-RD queries */

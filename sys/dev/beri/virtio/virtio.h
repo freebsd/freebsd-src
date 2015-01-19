@@ -65,6 +65,7 @@ void paddr_unmap(void *phys, uint32_t size);
 int vq_getchain(uint32_t beri_mem_offset, struct vqueue_info *vq,
 		struct iovec *iov, int n_iov, uint16_t *flags);
 void vq_relchain(struct vqueue_info *vq, struct iovec *iov, int n, uint32_t iolen);
+struct iovec * getcopy(struct iovec *iov, int n);
 
 int setup_pio(device_t dev, char *name, device_t *pio_dev);
 int setup_offset(device_t dev, uint32_t *offset);

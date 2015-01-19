@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #define	INIT_ARM_STACK_SIZE	2048
 
 	.text
-	.align	0
+	.align	2
 
 /*
  * On entry for	FreeBSD	boot ABI:
@@ -367,13 +367,13 @@ VA_TO_PA_POINTER(Lpagetable, boot_pt1)
 
 
 .Lstart:
-	.word	_edata
-	.word	_ebss
-	.word	svcstk
+	.word	_edata			/* Note that these three items are */
+	.word	_ebss			/* loaded with a single ldmia and */
+	.word	svcstk			/* must remain in order together. */
 
 .Lmainreturned:
 	.asciz	"main()	returned"
-	.align	0
+	.align	2
 
 	.bss
 svcstk:
@@ -390,7 +390,7 @@ boot_pt1:
 	.space	L1_TABLE_SIZE
 
 	.text
-	.align	0
+	.align	2
 
 .Lcpufuncs:
 	.word	_C_LABEL(cpufuncs)
@@ -425,29 +425,28 @@ ASENTRY_NP(mpentry)
 	
 	bl	init_mmu
 
-	adr	r1, .Lstart
-	ldmia	r1, {r1, r2, sp}	/* Set initial stack and */
-	mrc	p15, 0,	r0, c0,	c0, 5
-	and	r0, r0,	#15
+	adr	r1, .Lstart+8		/* Get initstack pointer from */
+	ldr	sp, [r1]		/* startup data. */
+	mrc	CP15_MPIDR(r0)		/* Get processor id number. */
+	and	r0, r0,	#0x0f
 	mov	r1, #INIT_ARM_STACK_SIZE
-	mul	r2, r1,	r0
-	add	sp, sp,	r2
-	str	r1, [sp]
+	mul	r2, r1,	r0		/* Point sp to initstack */
+	add	sp, sp,	r2		/* area for this processor. */
 
 	/* Switch to virtual addresses.	*/
 	ldr	pc, =1f
 1:
 	mov	fp, #0			/* trace back starts here */
-	bl	_C_LABEL(init_secondary)	/* Off we go */
+	bl	_C_LABEL(init_secondary)/* Off we go, cpu id in r0. */
 
 	adr	r0, .Lmpreturned
 	b	_C_LABEL(panic)
 	/* NOTREACHED */
+END(mpentry)
 
 .Lmpreturned:
 	.asciz	"init_secondary() returned"
-	.align	0
-END(mpentry)
+	.align	2
 #endif
 
 ENTRY_NP(cpu_halt)
@@ -525,7 +524,7 @@ END(sigcode)
 	.word	SYS_sigreturn
 	.word	SYS_exit
 
-	.align	0
+	.align	2
 	.global	_C_LABEL(esigcode)
 		_C_LABEL(esigcode):
 

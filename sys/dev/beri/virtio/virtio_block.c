@@ -151,6 +151,7 @@ vtblk_proc(struct beri_vtblk_softc *sc, struct vqueue_info *vq)
 	struct iovec iov[VTBLK_MAXSEGS + 2];
 	uint16_t flags[VTBLK_MAXSEGS + 2];
 	struct virtio_blk_outhdr *vbh;
+	struct iovec *tiov;
 	uint8_t *status;
 	off_t offset;
 	int iolen;
@@ -160,10 +161,10 @@ vtblk_proc(struct beri_vtblk_softc *sc, struct vqueue_info *vq)
 
 	n = vq_getchain(sc->beri_mem_offset, vq, iov,
 		VTBLK_MAXSEGS + 2, flags);
-
 	KASSERT(n >= 2 && n <= VTBLK_MAXSEGS + 2,
 		("wrong n value %d", n));
 
+	tiov = getcopy(iov, n);
 	vbh = iov[0].iov_base;
 
 	status = iov[n-1].iov_base;
@@ -181,7 +182,7 @@ vtblk_proc(struct beri_vtblk_softc *sc, struct vqueue_info *vq)
 	switch (type) {
 	case VIRTIO_BLK_T_OUT:
 	case VIRTIO_BLK_T_IN:
-		err = vtblk_rdwr(sc, iov + 1, i - 1,
+		err = vtblk_rdwr(sc, tiov + 1, i - 1,
 			offset, type, iolen);
 		break;
 	case VIRTIO_BLK_T_GET_ID:
@@ -205,6 +206,7 @@ vtblk_proc(struct beri_vtblk_softc *sc, struct vqueue_info *vq)
 	} else
 		*status = VIRTIO_BLK_S_OK;
 
+	free(tiov, M_DEVBUF);
 	vq_relchain(vq, iov, n, 1);
 }
 

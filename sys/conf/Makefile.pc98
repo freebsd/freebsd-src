@@ -30,6 +30,8 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
+ASM_CFLAGS.mpboot.s=		${CLANG_NO_IAS34}
+
 %BEFORE_DEPEND
 
 %OBJS

@@ -105,7 +105,9 @@ _wait_for_timeout_common(struct completion *c, long timeout, int flags)
 		if (c->done)
 			break;
 		sleepq_add(c, NULL, "completion", flags, 0);
+		sleepq_release(c);
 		sleepq_set_timeout(c, end - ticks);
+		sleepq_lock(c);
 		if (flags & SLEEPQ_INTERRUPTIBLE) {
 			if (sleepq_timedwait_sig(c, 0) != 0)
 				return (-ERESTARTSYS);

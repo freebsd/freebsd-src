@@ -138,17 +138,16 @@ static int pio_enable_irq(struct vtbe_softc *sc, int enable);
 static void
 vtbe_txstart_locked(struct vtbe_softc *sc)
 {
-	struct virtio_net_hdr_mrg_rxbuf *vnh;
 	struct iovec iov[DESC_COUNT];
+	struct virtio_net_hdr *vnh;
 	struct vqueue_info *vq;
-	struct iovec *riov;
+	struct iovec *tiov;
 	struct ifnet *ifp;
 	struct mbuf *m;
 	struct uio uio;
 	int enqueued;
 	int iolen;
 	int error;
-	int *addr;
 	int reg;
 	int len;
 	int n;
@@ -186,24 +185,16 @@ vtbe_txstart_locked(struct vtbe_softc *sc)
 
 		n = vq_getchain(sc->beri_mem_offset, vq, iov,
 			DESC_COUNT, NULL);
+		KASSERT(n == 2,
+			("Unexpected amount of descriptors (%d)", n));
 
-		KASSERT(n >= 1 && n <= DESC_COUNT,
-			("wrong descriptors num %d", n));
-
-		addr = iov[0].iov_base;
-		len = iov[0].iov_len;
-
+		tiov = getcopy(iov, n);
 		vnh = iov[0].iov_base;
 		memset(vnh, 0, sc->hdrsize);
-		vnh->num_buffers = htobe16(1);
 
-		iov[0].iov_len -= sc->hdrsize;
-		iov[0].iov_base = (void *)((uintptr_t)iov[0].iov_base +
-					sc->hdrsize);
-		riov = &iov[0];
-
-		uio.uio_resid = iov[0].iov_len;
-		uio.uio_iov = riov;
+		len = iov[1].iov_len;
+		uio.uio_resid = len;
+		uio.uio_iov = &tiov[1];
 		uio.uio_segflg = UIO_SYSSPACE;
 		uio.uio_iovcnt = 1;
 		uio.uio_offset = 0;
@@ -213,9 +204,10 @@ vtbe_txstart_locked(struct vtbe_softc *sc)
 		if (error)
 			panic("m_mbuftouio failed\n");
 
-		iolen = (len - iov[0].iov_len - sc->hdrsize);
-		vq_relchain(vq, iov, 0, iolen + sc->hdrsize);
-		paddr_unmap((void *)addr, len);
+		iolen = (len - uio.uio_resid + sc->hdrsize);
+
+		free(tiov, M_DEVBUF);
+		vq_relchain(vq, iov, n, iolen);
 
 		if_inc_counter(ifp, IFCOUNTER_OPACKETS, 1);
 
@@ -391,6 +383,7 @@ static void
 vtbe_proc_rx(struct vtbe_softc *sc, struct vqueue_info *vq)
 {
 	struct iovec iov[DESC_COUNT];
+	struct iovec *tiov;
 	struct ifnet *ifp;
 	struct uio uio;
 	struct mbuf *m;
@@ -406,13 +399,15 @@ vtbe_proc_rx(struct vtbe_softc *sc, struct vqueue_info *vq)
 	KASSERT(n >= 1 && n <= DESC_COUNT,
 		("wrong n %d", n));
 
+	tiov = getcopy(iov, n);
+
 	iolen = 0;
 	for (i = 1; i < n; i++) {
 		iolen += iov[i].iov_len;
 	}
 
 	uio.uio_resid = iolen;
-	uio.uio_iov = &iov[1];
+	uio.uio_iov = &tiov[1];
 	uio.uio_segflg = UIO_SYSSPACE;
 	uio.uio_iovcnt = (n - 1);
 	uio.uio_rw = UIO_WRITE;
@@ -434,6 +429,7 @@ vtbe_proc_rx(struct vtbe_softc *sc, struct vqueue_info *vq)
 	CURVNET_RESTORE();
 
 done:
+	free(tiov, M_DEVBUF);
 	vq_relchain(vq, iov, n, iolen + sc->hdrsize);
 }
 
@@ -569,7 +565,7 @@ vtbe_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	sc->hdrsize = sizeof(struct virtio_net_hdr_mrg_rxbuf);
+	sc->hdrsize = sizeof(struct virtio_net_hdr);
 
 	if (bus_alloc_resources(dev, vtbe_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
@@ -602,7 +598,6 @@ vtbe_attach(device_t dev)
 
 	/* Our features */
 	reg = htobe32(VIRTIO_NET_F_MAC |
-			VIRTIO_NET_F_MRG_RXBUF |
     			VIRTIO_F_NOTIFY_ON_EMPTY);
 	WRITE4(sc, VIRTIO_MMIO_HOST_FEATURES, reg);
 

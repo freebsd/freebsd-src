@@ -19,7 +19,7 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH PCAP-TSTAMP @MAN_MISC_INFO@ "22 August 2010"
+.TH PCAP-TSTAMP @MAN_MISC_INFO@ "21 December 2013"
 .SH NAME
 pcap-tstamp \- packet time stamps in libpcap
 .SH DESCRIPTION
@@ -95,7 +95,7 @@ The time stamp types are listed here; the first value is the #define to
 use in code, the second value is the value returned by
 .B pcap_tstamp_type_val_to_name()
 and accepted by
-.BR pcap_tstamp_name_to_val() .
+.BR pcap_tstamp_type_name_to_val() .
 .RS 5
 .TP 5
 .BR PCAP_TSTAMP_HOST " - " host
@@ -129,4 +129,4 @@ the host operating system's clock.
 pcap_set_tstamp_type(3PCAP),
 pcap_list_tstamp_types(3PCAP),
 pcap_tstamp_type_val_to_name(3PCAP),
-pcap_tstamp_name_to_val(3PCAP)
+pcap_tstamp_type_name_to_val(3PCAP)

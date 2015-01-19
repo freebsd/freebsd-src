@@ -162,6 +162,7 @@ enum {
 struct mlx4_device {
 	struct ibv_device		ibv_dev;
 	int				page_size;
+	int				driver_abi_ver;
 };
 
 struct mlx4_db_page;

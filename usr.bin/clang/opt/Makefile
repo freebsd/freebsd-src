@@ -15,7 +15,14 @@ SRCS=	AnalysisWrappers.cpp \
 	opt.cpp
 
 TGHDRS=	Intrinsics
-LIBDEPS=llvmarmdisassembler \
+LIBDEPS=llvmaarch64disassembler \
+	llvmaarch64codegen \
+	llvmaarch64asmparser \
+	llvmaarch64desc \
+	llvmaarch64info \
+	llvmaarch64instprinter \
+	llvmaarch64utils \
+	llvmarmdisassembler \
 	llvmarmcodegen \
 	llvmarmasmparser \
 	llvmarmdesc \

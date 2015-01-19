@@ -4,8 +4,6 @@ MAN=
 .include <bsd.own.mk>
 
 PROG_CXX=llvm-rtdyld
-DPADD=	${LIBZ}
-LDADD=	-lz
 
 SRCDIR=	tools/llvm-rtdyld
 SRCS=	llvm-rtdyld.cpp
@@ -14,6 +12,13 @@ LIBDEPS=llvmdebuginfo \
 	llvmjit \
 	llvmexecutionengine \
 	llvmruntimedyld \
+	llvmaarch64disassembler \
+	llvmaarch64codegen \
+	llvmaarch64asmparser \
+	llvmaarch64desc \
+	llvmaarch64info \
+	llvmaarch64instprinter \
+	llvmaarch64utils \
 	llvmarmdisassembler \
 	llvmarmcodegen \
 	llvmarmasmparser \

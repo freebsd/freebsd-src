@@ -228,11 +228,14 @@ struct vm_page *dmar_pgalloc(vm_object_t obj, vm_pindex_t idx, int flags);
 void dmar_pgfree(vm_object_t obj, vm_pindex_t idx, int flags);
 void *dmar_map_pgtbl(vm_object_t obj, vm_pindex_t idx, int flags,
     struct sf_buf **sf);
-void dmar_unmap_pgtbl(struct sf_buf *sf, bool coherent);
+void dmar_unmap_pgtbl(struct sf_buf *sf);
 int dmar_load_root_entry_ptr(struct dmar_unit *unit);
 int dmar_inv_ctx_glob(struct dmar_unit *unit);
 int dmar_inv_iotlb_glob(struct dmar_unit *unit);
 int dmar_flush_write_bufs(struct dmar_unit *unit);
+void dmar_flush_pte_to_ram(struct dmar_unit *unit, dmar_pte_t *dst);
+void dmar_flush_ctx_to_ram(struct dmar_unit *unit, dmar_ctx_entry_t *dst);
+void dmar_flush_root_to_ram(struct dmar_unit *unit, dmar_root_entry_t *dst);
 int dmar_enable_translation(struct dmar_unit *unit);
 int dmar_disable_translation(struct dmar_unit *unit);
 bool dmar_barrier_enter(struct dmar_unit *dmar, u_int barrier_id);

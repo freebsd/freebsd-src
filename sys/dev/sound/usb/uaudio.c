@@ -101,7 +101,7 @@ static int uaudio_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uaudio, CTLFLAG_RW, 0, "USB uaudio");
 
-SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uaudio_debug, 0, "uaudio debug level");
 SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_rate, CTLFLAG_RWTUN,
     &uaudio_default_rate, 0, "uaudio default sample rate");
@@ -2593,7 +2593,7 @@ uaudio_mixer_register_sysctl(struct uaudio_softc *sc, device_t dev)
 
 			SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 			    SYSCTL_CHILDREN(control_tree),
-			    OID_AUTO, "val", CTLTYPE_INT | CTLFLAG_RW, sc,
+			    OID_AUTO, "val", CTLTYPE_INT | CTLFLAG_RWTUN, sc,
 			    pmc->wValue[chan],
 			    uaudio_mixer_sysctl_handler, "I", "Current value");
 

@@ -78,6 +78,7 @@ u_int	cpu_max_ext_state_size;
 u_int	cpu_mon_mwait_flags;	/* MONITOR/MWAIT flags (CPUID.05H.ECX) */
 u_int	cpu_mon_min_size;	/* MONITOR minimum range size, bytes */
 u_int	cpu_mon_max_size;	/* MONITOR minimum range size, bytes */
+u_int	cpu_maxphyaddr;		/* Max phys addr width in bits */
 
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD,
 	&via_feature_rng, 0, "VIA RNG feature available in CPU");

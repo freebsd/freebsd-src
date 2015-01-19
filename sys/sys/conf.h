@@ -245,6 +245,7 @@ void clone_cleanup(struct clonedevs **);
 int clone_create(struct clonedevs **, struct cdevsw *, int *unit, struct cdev **dev, int extra);
 
 int	count_dev(struct cdev *_dev);
+void	delist_dev(struct cdev *_dev);
 void	destroy_dev(struct cdev *_dev);
 int	destroy_dev_sched(struct cdev *dev);
 int	destroy_dev_sched_cb(struct cdev *dev, void (*cb)(void *), void *arg);
@@ -338,7 +339,6 @@ struct dumperinfo {
 
 int set_dumper(struct dumperinfo *, const char *_devname, struct thread *td);
 int dump_write(struct dumperinfo *, void *, vm_offset_t, off_t, size_t);
-int dumpsys(struct dumperinfo *);
 int doadump(boolean_t);
 extern int dumping;		/* system is dumping */
 

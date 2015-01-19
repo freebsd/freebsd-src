@@ -86,7 +86,7 @@ static SYSCTL_NODE(_hw_usb, OID_AUTO, uftdi, CTLFLAG_RW, 0, "USB uftdi");
 
 #ifdef USB_DEBUG
 static int uftdi_debug = 0;
-SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RWTUN,
     &uftdi_debug, 0, "Debug level");
 #endif
 

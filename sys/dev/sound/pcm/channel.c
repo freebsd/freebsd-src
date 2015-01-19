@@ -92,7 +92,7 @@ sysctl_hw_snd_latency_profile(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, latency_profile, CTLTYPE_INT | CTLFLAG_RW,
 	0, sizeof(int), sysctl_hw_snd_latency_profile, "I",
-	"buffering latency profile (0=aggresive 1=safe)");
+	"buffering latency profile (0=aggressive 1=safe)");
 
 static int chn_timeout = CHN_TIMEOUT;
 TUNABLE_INT("hw.snd.timeout", &chn_timeout);

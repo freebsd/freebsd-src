@@ -25,35 +25,39 @@ typedef unsigned xo_style_t;
 #define XO_STYLE_HTML	3	/** Generate HTML output */
 
 /** Flags for libxo */
-typedef unsigned long xo_xof_flags_t;
-#define XOF_CLOSE_FP	(1<<0)	/** Close file pointer on xo_close() */
-#define XOF_PRETTY	(1<<1)	/** Make 'pretty printed' output */
-#define XOF_DIV_OPEN	(1<<2)	/** Internal use only: a <div> is open */
-#define XOF_LINE_OPEN	(1<<3)	/** Internal use only: a <div class="line"> */
+typedef unsigned long long xo_xof_flags_t;
+#define XOF_BIT(_n) ((xo_xof_flags_t) 1 << (_n))
+#define XOF_CLOSE_FP	XOF_BIT(0) /** Close file pointer on xo_close() */
+#define XOF_PRETTY	XOF_BIT(1) /** Make 'pretty printed' output */
+#define XOF_DIV_OPEN	XOF_BIT(2) /** Internal use only: a <div> is open */
+#define XOF_LINE_OPEN	XOF_BIT(3) /** Internal use only: <div class="line"> */
 
-#define XOF_WARN	(1<<4)	/** Generate warnings for broken calls */
-#define XOF_XPATH	(1<<5)	/** Emit XPath attributes in HTML  */
-#define XOF_INFO	(1<<6)	/** Emit additional info fields (HTML) */
-#define XOF_WARN_XML	(1<<7)	/** Emit warnings in XML (on stdout) */
+#define XOF_WARN	XOF_BIT(4) /** Generate warnings for broken calls */
+#define XOF_XPATH	XOF_BIT(5) /** Emit XPath attributes in HTML  */
+#define XOF_INFO	XOF_BIT(6) /** Emit additional info fields (HTML) */
+#define XOF_WARN_XML	XOF_BIT(7) /** Emit warnings in XML (on stdout) */
 
-#define XOF_NO_ENV	(1<<8)	/** Don't look at the LIBXO_OPTIONS env var */
-#define XOF_NO_VA_ARG	(1<<9)	/** Don't advance va_list w/ va_arg() */
-#define XOF_DTRT	(1<<10)	/** Enable "do the right thing" mode */
-#define XOF_KEYS	(1<<11)	/** Flag 'key' fields for xml and json */
+#define XOF_NO_ENV	XOF_BIT(8) /** Don't look at LIBXO_OPTIONS env var */
+#define XOF_NO_VA_ARG	XOF_BIT(9) /** Don't advance va_list w/ va_arg() */
+#define XOF_DTRT	XOF_BIT(10) /** Enable "do the right thing" mode */
+#define XOF_KEYS	XOF_BIT(11) /** Flag 'key' fields for xml and json */
 
-#define XOF_IGNORE_CLOSE (1<<12) /** Ignore errors on close tags */
-#define XOF_NOT_FIRST	(1<<13)	 /* Not the first item (JSON)  */
-#define XOF_NO_LOCALE	(1<<14)	 /** Don't bother with locale */
-#define XOF_TOP_EMITTED	(1<<15)	 /* The top JSON braces have been emitted  */
+#define XOF_IGNORE_CLOSE XOF_BIT(12) /** Ignore errors on close tags */
+#define XOF_NOT_FIRST	XOF_BIT(13) /* Not the first item (JSON)  */
+#define XOF_NO_LOCALE	XOF_BIT(14) /** Don't bother with locale */
+#define XOF_TOP_EMITTED	XOF_BIT(15) /* The top JSON braces have been emitted  */
 
-#define XOF_NO_TOP	(1<<16)	/** Don't emit the top braces in JSON */
-#define XOF_ANCHOR	(1<<17)	/** An anchor is in place  */
-#define XOF_UNITS	(1<<18)	/** Encode units in XML */
-#define XOF_UNITS_PENDING (1<<19) /** We have a units-insertion pending */
+#define XOF_NO_TOP	XOF_BIT(16) /** Don't emit the top braces in JSON */
+#define XOF_ANCHOR	XOF_BIT(17) /** An anchor is in place  */
+#define XOF_UNITS	XOF_BIT(18) /** Encode units in XML */
+#define XOF_UNITS_PENDING XOF_BIT(19) /** We have a units-insertion pending */
 
-#define XOF_UNDERSCORES	(1<<20)	/** Replace dashes with underscores (JSON)  */
-#define XOF_COLUMNS	(1<<21)	/** xo_emit should return a column count */
-#define XOF_FLUSH	(1<<22)	/** Flush after each xo_emit call */
+#define XOF_UNDERSCORES	XOF_BIT(20) /** Replace dashes with underscores (JSON)*/
+#define XOF_COLUMNS	XOF_BIT(21) /** xo_emit should return a column count */
+#define XOF_FLUSH	XOF_BIT(22) /** Flush after each xo_emit call */
+#define XOF_FLUSH_LINE	XOF_BIT(23) /** Flush after each newline */
+
+#define XOF_NO_CLOSE	XOF_BIT(24) /** xo_finish won't close open elements */
 
 /*
  * The xo_info_t structure provides a mapping between names and
@@ -70,6 +74,7 @@ typedef struct xo_handle_s xo_handle_t; /* Handle for XO output */
 
 typedef int (*xo_write_func_t)(void *, const char *);
 typedef void (*xo_close_func_t)(void *);
+typedef int (*xo_flush_func_t)(void *);
 typedef void *(*xo_realloc_func_t)(void *, size_t);
 typedef void (*xo_free_func_t)(void *);
 
@@ -93,7 +98,7 @@ xo_destroy (xo_handle_t *xop);
 
 void
 xo_set_writer (xo_handle_t *xop, void *opaque, xo_write_func_t write_func,
-	       xo_close_func_t close_func);
+	       xo_close_func_t close_func, xo_flush_func_t flush_func);
 
 void
 xo_set_allocator (xo_realloc_func_t realloc_func, xo_free_func_t free_func);
@@ -210,6 +215,18 @@ int
 xo_close_instance_d (void);
 
 int
+xo_open_marker_h (xo_handle_t *xop, const char *name);
+
+int
+xo_open_marker (const char *name);
+
+int
+xo_close_marker_h (xo_handle_t *xop, const char *name);
+
+int
+xo_close_marker (const char *name);
+
+int
 xo_attr_h (xo_handle_t *xop, const char *name, const char *fmt, ...);
 
 int
@@ -227,16 +244,16 @@ xo_error_h (xo_handle_t *xop, const char *fmt, ...);
 void
 xo_error (const char *fmt, ...);
 
-void
+int
 xo_flush_h (xo_handle_t *xop);
 
-void
+int
 xo_flush (void);
 
-void
+int
 xo_finish_h (xo_handle_t *xop);
 
-void
+int
 xo_finish (void);
 
 void
@@ -296,5 +313,11 @@ xo_parse_args (int argc, char **argv);
  */
 extern const char xo_version[];
 extern const char xo_version_extra[];
+
+void
+xo_dump_stack (xo_handle_t *xop);
+
+void
+xo_set_program (const char *name);
 
 #endif /* INCLUDE_XO_H */

@@ -96,7 +96,7 @@
         ..
     ..
     clang
-        3.5.0
+        3.5.1
         ..
     ..
     crypto
@@ -119,8 +119,6 @@
         hwpmc
         ..
         ic
-        ..
-        ieee488
         ..
         iicbus
         ..
@@ -229,8 +227,6 @@
         posix
         ..
     ..
-    gpib
-    ..
     gssapi
     ..
     infiniband
@@ -310,8 +306,6 @@
     protocols
     ..
     rdma
-    ..
-    readline
     ..
     rpc
     ..

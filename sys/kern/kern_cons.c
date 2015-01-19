@@ -512,6 +512,13 @@ cnputs(char *p)
 	int unlock_reqd = 0;
 
 	if (use_cnputs_mtx) {
+	  	/*
+		 * NOTE: Debug prints and/or witness printouts in
+		 * console driver clients can cause the "cnputs_mtx"
+		 * mutex to recurse. Simply return if that happens.
+		 */
+		if (mtx_owned(&cnputs_mtx))
+			return;
 		mtx_lock_spin(&cnputs_mtx);
 		unlock_reqd = 1;
 	}
@@ -601,13 +608,7 @@ static void
 cn_drvinit(void *unused)
 {
 
-	/*
-	 * NOTE: Debug prints and/or witness printouts in console
-	 * driver clients can cause the "cnputs_mtx" mutex to
-	 * recurse. Make sure the "MTX_RECURSE" flags is set!
-	 */
-	mtx_init(&cnputs_mtx, "cnputs_mtx", NULL, MTX_SPIN |
-	    MTX_NOWITNESS | MTX_RECURSE);
+	mtx_init(&cnputs_mtx, "cnputs_mtx", NULL, MTX_SPIN | MTX_NOWITNESS);
 	use_cnputs_mtx = 1;
 }
 
