@@ -67,7 +67,9 @@
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("Mellanox ConnectX HCA InfiniBand driver");
 MODULE_LICENSE("Dual BSD/GPL");
+#ifdef __linux__
 MODULE_VERSION(DRV_VERSION);
+#endif
 
 int mlx4_ib_sm_guid_assign = 1;
 
@@ -2404,8 +2406,6 @@ static void __exit mlx4_ib_cleanup(void)
 module_init_order(mlx4_ib_init, SI_ORDER_MIDDLE);
 module_exit(mlx4_ib_cleanup);
 
-#undef MODULE_VERSION
-#include <sys/module.h>
 static int
 mlx4ib_evhand(module_t mod, int event, void *arg)
 {
