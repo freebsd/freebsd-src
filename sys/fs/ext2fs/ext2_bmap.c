@@ -145,7 +145,6 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 	struct buf *bp;
 	struct ext2mount *ump;
 	struct mount *mp;
-	struct vnode *devvp;
 	struct indir a[NIADDR+1], *ap;
 	daddr_t daddr;
 	e2fs_lbn_t metalbn;
@@ -156,7 +155,6 @@ ext2_bmaparray(struct vnode *vp, daddr_t bn, daddr_t *bnp, int *runp, int *runb)
 	ip = VTOI(vp);
 	mp = vp->v_mount;
 	ump = VFSTOEXT2(mp);
-	devvp = ump->um_devvp;
 
 	bsize = EXT2_BLOCK_SIZE(ump->um_e2fs);
 
