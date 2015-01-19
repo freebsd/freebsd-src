@@ -115,7 +115,6 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 	struct inode *oip;
 	int32_t bn, lbn, lastiblock[NIADDR], indir_lbn[NIADDR];
 	uint32_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
-	struct bufobj *bo;
 	struct m_ext2fs *fs;
 	struct buf *bp;
 	int offset, size, level;
@@ -124,7 +123,6 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 	off_t osize;
 
 	oip = VTOI(ovp);
-	bo = &ovp->v_bufobj;
 
 	ASSERT_VOP_LOCKED(vp, "ext2_truncate");	
 

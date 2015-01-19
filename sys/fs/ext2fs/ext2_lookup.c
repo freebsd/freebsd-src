@@ -343,7 +343,6 @@ restart:
 	 * we watch for a place to put the new file in
 	 * case it doesn't already exist.
 	 */
-	ino = 0;
 	i_diroff = dp->i_diroff;
 	ss.slotstatus = FOUND;
 	ss.slotfreespace = ss.slotsize = ss.slotneeded = 0;
