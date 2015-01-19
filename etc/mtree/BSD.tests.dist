@@ -12,6 +12,8 @@
         ..
         date
         ..
+        expr
+        ..
         mv
         ..
         pax
