@@ -146,6 +146,7 @@ vm_extra_pre_umount() {
 	# Prototype.  When overridden, installs additional ports within the
 	# virtual machine environment.
 
+	rm -f ${DESTDIR}/etc/resolv.conf
 	return 0
 }
 
@@ -154,7 +155,6 @@ vm_extra_pkg_rmcache() {
 		chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
 			/usr/local/sbin/pkg clean -y -a
 	fi
-	rm -f ${DESTDIR}/etc/resolv.conf
 
 	return 0
 }
