@@ -137,12 +137,6 @@ devfs_alloc(int flags)
 	vfs_timestamp(&ts);
 	cdev->si_atime = cdev->si_mtime = cdev->si_ctime = ts;
 	cdev->si_cred = NULL;
-	/*
-	 * Avoid race with dev_rel() by setting the initial
-	 * reference count to 1. This last reference is taken
-	 * by the destroy_dev() function.
-	 */
-	cdev->si_refcount = 1;
 
 	return (cdev);
 }
