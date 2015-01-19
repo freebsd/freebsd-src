@@ -146,6 +146,10 @@ vm_extra_pre_umount() {
 	# Prototype.  When overridden, installs additional ports within the
 	# virtual machine environment.
 
+	return 0
+}
+
+vm_extra_pkg_rmcache() {
 	if [ -e ${DESTDIR}/usr/local/sbin/pkg ]; then
 		chroot ${DESTDIR} env ASSUME_ALWAYS_YES=yes \
 			/usr/local/sbin/pkg clean -y -a
