@@ -690,9 +690,9 @@ linux_times(struct thread *td, struct linux_times_args *args)
 	if (args->buf != NULL) {
 		p = td->td_proc;
 		PROC_LOCK(p);
-		PROC_SLOCK(p);
+		PROC_STATLOCK(p);
 		calcru(p, &utime, &stime);
-		PROC_SUNLOCK(p);
+		PROC_STATUNLOCK(p);
 		calccru(p, &cutime, &cstime);
 		PROC_UNLOCK(p);
 
@@ -777,7 +777,8 @@ linux_utime(struct thread *td, struct linux_utime_args *args)
 	} else
 		tvp = NULL;
 
-	error = kern_utimes(td, fname, UIO_SYSSPACE, tvp, UIO_SYSSPACE);
+	error = kern_utimesat(td, AT_FDCWD, fname, UIO_SYSSPACE, tvp,
+	    UIO_SYSSPACE);
 	LFREEPATH(fname);
 	return (error);
 }
@@ -809,7 +810,8 @@ linux_utimes(struct thread *td, struct linux_utimes_args *args)
 		tvp = tv;
 	}
 
-	error = kern_utimes(td, fname, UIO_SYSSPACE, tvp, UIO_SYSSPACE);
+	error = kern_utimesat(td, AT_FDCWD, fname, UIO_SYSSPACE,
+	    tvp, UIO_SYSSPACE);
 	LFREEPATH(fname);
 	return (error);
 }
@@ -914,13 +916,14 @@ linux_mknod(struct thread *td, struct linux_mknod_args *args)
 	switch (args->mode & S_IFMT) {
 	case S_IFIFO:
 	case S_IFSOCK:
-		error = kern_mkfifo(td, path, UIO_SYSSPACE, args->mode);
+		error = kern_mkfifoat(td, AT_FDCWD, path, UIO_SYSSPACE,
+		    args->mode);
 		break;
 
 	case S_IFCHR:
 	case S_IFBLK:
-		error = kern_mknod(td, path, UIO_SYSSPACE, args->mode,
-		    args->dev);
+		error = kern_mknodat(td, AT_FDCWD, path, UIO_SYSSPACE,
+		    args->mode, args->dev);
 		break;
 
 	case S_IFDIR:
@@ -931,7 +934,7 @@ linux_mknod(struct thread *td, struct linux_mknod_args *args)
 		args->mode |= S_IFREG;
 		/* FALLTHROUGH */
 	case S_IFREG:
-		error = kern_open(td, path, UIO_SYSSPACE,
+		error = kern_openat(td, AT_FDCWD, path, UIO_SYSSPACE,
 		    O_WRONLY | O_CREAT | O_TRUNC, args->mode);
 		if (error == 0)
 			kern_close(td, td->td_retval[0]);

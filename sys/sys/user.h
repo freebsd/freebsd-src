@@ -530,6 +530,7 @@ struct sbuf;
  */
 
 int	kern_proc_filedesc_out(struct proc *p, struct sbuf *sb, ssize_t maxlen);
+int	kern_proc_cwd_out(struct proc *p, struct sbuf *sb, ssize_t maxlen);
 int	kern_proc_out(struct proc *p, struct sbuf *sb, int flags);
 int	kern_proc_vmmap_out(struct proc *p, struct sbuf *sb);
 

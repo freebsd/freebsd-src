@@ -65,13 +65,13 @@ void Stmt::PrintStats() {
   unsigned sum = 0;
   llvm::errs() << "\n*** Stmt/Expr Stats:\n";
   for (int i = 0; i != Stmt::lastStmtConstant+1; i++) {
-    if (StmtClassInfo[i].Name == 0) continue;
+    if (StmtClassInfo[i].Name == nullptr) continue;
     sum += StmtClassInfo[i].Counter;
   }
   llvm::errs() << "  " << sum << " stmts/exprs total.\n";
   sum = 0;
   for (int i = 0; i != Stmt::lastStmtConstant+1; i++) {
-    if (StmtClassInfo[i].Name == 0) continue;
+    if (StmtClassInfo[i].Name == nullptr) continue;
     if (StmtClassInfo[i].Counter == 0) continue;
     llvm::errs() << "    " << StmtClassInfo[i].Counter << " "
                  << StmtClassInfo[i].Name << ", " << StmtClassInfo[i].Size
@@ -260,7 +260,7 @@ CompoundStmt::CompoundStmt(const ASTContext &C, ArrayRef<Stmt*> Stmts,
          "NumStmts doesn't fit in bits of CompoundStmtBits.NumStmts!");
 
   if (Stmts.size() == 0) {
-    Body = 0;
+    Body = nullptr;
     return;
   }
 
@@ -285,8 +285,8 @@ const char *LabelStmt::getName() const {
 AttributedStmt *AttributedStmt::Create(const ASTContext &C, SourceLocation Loc,
                                        ArrayRef<const Attr*> Attrs,
                                        Stmt *SubStmt) {
-  void *Mem = C.Allocate(sizeof(AttributedStmt) +
-                         sizeof(Attr*) * (Attrs.size() - 1),
+  assert(!Attrs.empty() && "Attrs should not be empty");
+  void *Mem = C.Allocate(sizeof(AttributedStmt) + sizeof(Attr *) * Attrs.size(),
                          llvm::alignOf<AttributedStmt>());
   return new (Mem) AttributedStmt(Loc, Attrs, SubStmt);
 }
@@ -294,8 +294,7 @@ AttributedStmt *AttributedStmt::Create(const ASTContext &C, SourceLocation Loc,
 AttributedStmt *AttributedStmt::CreateEmpty(const ASTContext &C,
                                             unsigned NumAttrs) {
   assert(NumAttrs > 0 && "NumAttrs should be greater than zero");
-  void *Mem = C.Allocate(sizeof(AttributedStmt) +
-                         sizeof(Attr*) * (NumAttrs - 1),
+  void *Mem = C.Allocate(sizeof(AttributedStmt) + sizeof(Attr *) * NumAttrs,
                          llvm::alignOf<AttributedStmt>());
   return new (Mem) AttributedStmt(EmptyShell(), NumAttrs);
 }
@@ -554,7 +553,7 @@ unsigned GCCAsmStmt::AnalyzeAsmString(SmallVectorImpl<AsmStringPiece>&Pieces,
 
       // Find the ']'.
       const char *NameEnd = (const char*)memchr(CurPtr, ']', StrEnd-CurPtr);
-      if (NameEnd == 0)
+      if (NameEnd == nullptr)
         return diag::err_asm_unterminated_symbolic_operand_name;
       if (NameEnd == CurPtr)
         return diag::err_asm_empty_symbolic_operand_name;
@@ -720,8 +719,7 @@ ObjCAtTryStmt::ObjCAtTryStmt(SourceLocation atTryLoc, Stmt *atTryStmt,
                              Stmt **CatchStmts, unsigned NumCatchStmts,
                              Stmt *atFinallyStmt)
   : Stmt(ObjCAtTryStmtClass), AtTryLoc(atTryLoc),
-    NumCatchStmts(NumCatchStmts), HasFinally(atFinallyStmt != 0)
-{
+    NumCatchStmts(NumCatchStmts), HasFinally(atFinallyStmt != nullptr) {
   Stmt **Stmts = getStmts();
   Stmts[0] = atTryStmt;
   for (unsigned I = 0; I != NumCatchStmts; ++I)
@@ -738,7 +736,7 @@ ObjCAtTryStmt *ObjCAtTryStmt::Create(const ASTContext &Context,
                                      unsigned NumCatchStmts,
                                      Stmt *atFinallyStmt) {
   unsigned Size = sizeof(ObjCAtTryStmt) +
-    (1 + NumCatchStmts + (atFinallyStmt != 0)) * sizeof(Stmt *);
+    (1 + NumCatchStmts + (atFinallyStmt != nullptr)) * sizeof(Stmt *);
   void *Mem = Context.Allocate(Size, llvm::alignOf<ObjCAtTryStmt>());
   return new (Mem) ObjCAtTryStmt(atTryLoc, atTryStmt, CatchStmts, NumCatchStmts,
                                  atFinallyStmt);
@@ -803,7 +801,7 @@ CXXForRangeStmt::CXXForRangeStmt(DeclStmt *Range, DeclStmt *BeginEndStmt,
 Expr *CXXForRangeStmt::getRangeInit() {
   DeclStmt *RangeStmt = getRangeStmt();
   VarDecl *RangeDecl = dyn_cast_or_null<VarDecl>(RangeStmt->getSingleDecl());
-  assert(RangeDecl &&& "for-range should have a single var decl");
+  assert(RangeDecl && "for-range should have a single var decl");
   return RangeDecl->getInit();
 }
 
@@ -833,7 +831,7 @@ IfStmt::IfStmt(const ASTContext &C, SourceLocation IL, VarDecl *var, Expr *cond,
 
 VarDecl *IfStmt::getConditionVariable() const {
   if (!SubExprs[VAR])
-    return 0;
+    return nullptr;
 
   DeclStmt *DS = cast<DeclStmt>(SubExprs[VAR]);
   return cast<VarDecl>(DS->getSingleDecl());
@@ -841,7 +839,7 @@ VarDecl *IfStmt::getConditionVariable() const {
 
 void IfStmt::setConditionVariable(const ASTContext &C, VarDecl *V) {
   if (!V) {
-    SubExprs[VAR] = 0;
+    SubExprs[VAR] = nullptr;
     return;
   }
 
@@ -864,7 +862,7 @@ ForStmt::ForStmt(const ASTContext &C, Stmt *Init, Expr *Cond, VarDecl *condVar,
 
 VarDecl *ForStmt::getConditionVariable() const {
   if (!SubExprs[CONDVAR])
-    return 0;
+    return nullptr;
 
   DeclStmt *DS = cast<DeclStmt>(SubExprs[CONDVAR]);
   return cast<VarDecl>(DS->getSingleDecl());
@@ -872,7 +870,7 @@ VarDecl *ForStmt::getConditionVariable() const {
 
 void ForStmt::setConditionVariable(const ASTContext &C, VarDecl *V) {
   if (!V) {
-    SubExprs[CONDVAR] = 0;
+    SubExprs[CONDVAR] = nullptr;
     return;
   }
 
@@ -882,16 +880,16 @@ void ForStmt::setConditionVariable(const ASTContext &C, VarDecl *V) {
 }
 
 SwitchStmt::SwitchStmt(const ASTContext &C, VarDecl *Var, Expr *cond)
-  : Stmt(SwitchStmtClass), FirstCase(0), AllEnumCasesCovered(0)
+  : Stmt(SwitchStmtClass), FirstCase(nullptr), AllEnumCasesCovered(0)
 {
   setConditionVariable(C, Var);
   SubExprs[COND] = cond;
-  SubExprs[BODY] = NULL;
+  SubExprs[BODY] = nullptr;
 }
 
 VarDecl *SwitchStmt::getConditionVariable() const {
   if (!SubExprs[VAR])
-    return 0;
+    return nullptr;
 
   DeclStmt *DS = cast<DeclStmt>(SubExprs[VAR]);
   return cast<VarDecl>(DS->getSingleDecl());
@@ -899,7 +897,7 @@ VarDecl *SwitchStmt::getConditionVariable() const {
 
 void SwitchStmt::setConditionVariable(const ASTContext &C, VarDecl *V) {
   if (!V) {
-    SubExprs[VAR] = 0;
+    SubExprs[VAR] = nullptr;
     return;
   }
 
@@ -925,7 +923,7 @@ WhileStmt::WhileStmt(const ASTContext &C, VarDecl *Var, Expr *cond, Stmt *body,
 
 VarDecl *WhileStmt::getConditionVariable() const {
   if (!SubExprs[VAR])
-    return 0;
+    return nullptr;
 
   DeclStmt *DS = cast<DeclStmt>(SubExprs[VAR]);
   return cast<VarDecl>(DS->getSingleDecl());
@@ -933,7 +931,7 @@ VarDecl *WhileStmt::getConditionVariable() const {
 
 void WhileStmt::setConditionVariable(const ASTContext &C, VarDecl *V) {
   if (!V) {
-    SubExprs[VAR] = 0;
+    SubExprs[VAR] = nullptr;
     return;
   }
 
@@ -947,7 +945,7 @@ LabelDecl *IndirectGotoStmt::getConstantTarget() {
   if (AddrLabelExpr *E =
         dyn_cast<AddrLabelExpr>(getTarget()->IgnoreParenImpCasts()))
     return E->getLabel();
-  return 0;
+  return nullptr;
 }
 
 // ReturnStmt
@@ -958,22 +956,20 @@ Expr* ReturnStmt::getRetValue() {
   return cast_or_null<Expr>(RetExpr);
 }
 
-SEHTryStmt::SEHTryStmt(bool IsCXXTry,
-                       SourceLocation TryLoc,
-                       Stmt *TryBlock,
-                       Stmt *Handler)
-  : Stmt(SEHTryStmtClass),
-    IsCXXTry(IsCXXTry),
-    TryLoc(TryLoc)
-{
-  Children[TRY]     = TryBlock;
+SEHTryStmt::SEHTryStmt(bool IsCXXTry, SourceLocation TryLoc, Stmt *TryBlock,
+                       Stmt *Handler, int HandlerIndex, int HandlerParentIndex)
+    : Stmt(SEHTryStmtClass), IsCXXTry(IsCXXTry), TryLoc(TryLoc),
+      HandlerIndex(HandlerIndex), HandlerParentIndex(HandlerParentIndex) {
+  Children[TRY] = TryBlock;
   Children[HANDLER] = Handler;
 }
 
-SEHTryStmt* SEHTryStmt::Create(const ASTContext &C, bool IsCXXTry,
+SEHTryStmt *SEHTryStmt::Create(const ASTContext &C, bool IsCXXTry,
                                SourceLocation TryLoc, Stmt *TryBlock,
-                               Stmt *Handler) {
-  return new(C) SEHTryStmt(IsCXXTry,TryLoc,TryBlock,Handler);
+                               Stmt *Handler, int HandlerIndex,
+                               int HandlerParentIndex) {
+  return new (C) SEHTryStmt(IsCXXTry, TryLoc, TryBlock, Handler, HandlerIndex,
+                            HandlerParentIndex);
 }
 
 SEHExceptStmt* SEHTryStmt::getExceptHandler() const {
@@ -1049,8 +1045,8 @@ CapturedStmt::CapturedStmt(Stmt *S, CapturedRegionKind Kind,
 
 CapturedStmt::CapturedStmt(EmptyShell Empty, unsigned NumCaptures)
   : Stmt(CapturedStmtClass, Empty), NumCaptures(NumCaptures),
-    CapDeclAndKind(0, CR_Default), TheRecordDecl(0) {
-  getStoredStmts()[NumCaptures] = 0;
+    CapDeclAndKind(nullptr, CR_Default), TheRecordDecl(nullptr) {
+  getStoredStmts()[NumCaptures] = nullptr;
 }
 
 CapturedStmt *CapturedStmt::Create(const ASTContext &Context, Stmt *S,
@@ -1100,15 +1096,14 @@ Stmt::child_range CapturedStmt::children() {
 }
 
 bool CapturedStmt::capturesVariable(const VarDecl *Var) const {
-  for (const_capture_iterator I = capture_begin(),
-                              E = capture_end(); I != E; ++I) {
-    if (!I->capturesVariable())
+  for (const auto &I : captures()) {
+    if (!I.capturesVariable())
       continue;
 
     // This does not handle variable redeclarations. This should be
     // extended to capture variables with redeclarations, for example
     // a thread-private variable in OpenMP.
-    if (I->getCapturedVar() == Var)
+    if (I.getCapturedVar() == Var)
       return true;
   }
 
@@ -1130,8 +1125,9 @@ OMPPrivateClause *OMPPrivateClause::Create(const ASTContext &C,
                                            SourceLocation LParenLoc,
                                            SourceLocation EndLoc,
                                            ArrayRef<Expr *> VL) {
-  void *Mem = C.Allocate(sizeof(OMPPrivateClause) + sizeof(Expr *) * VL.size(),
-                         llvm::alignOf<OMPPrivateClause>());
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPPrivateClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * VL.size());
   OMPPrivateClause *Clause = new (Mem) OMPPrivateClause(StartLoc, LParenLoc,
                                                         EndLoc, VL.size());
   Clause->setVarRefs(VL);
@@ -1140,8 +1136,9 @@ OMPPrivateClause *OMPPrivateClause::Create(const ASTContext &C,
 
 OMPPrivateClause *OMPPrivateClause::CreateEmpty(const ASTContext &C,
                                                 unsigned N) {
-  void *Mem = C.Allocate(sizeof(OMPPrivateClause) + sizeof(Expr *) * N,
-                         llvm::alignOf<OMPPrivateClause>());
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPPrivateClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * N);
   return new (Mem) OMPPrivateClause(N);
 }
 
@@ -1150,9 +1147,9 @@ OMPFirstprivateClause *OMPFirstprivateClause::Create(const ASTContext &C,
                                                      SourceLocation LParenLoc,
                                                      SourceLocation EndLoc,
                                                      ArrayRef<Expr *> VL) {
-  void *Mem = C.Allocate(sizeof(OMPFirstprivateClause) +
-                         sizeof(Expr *) * VL.size(),
-                         llvm::alignOf<OMPFirstprivateClause>());
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPFirstprivateClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * VL.size());
   OMPFirstprivateClause *Clause = new (Mem) OMPFirstprivateClause(StartLoc,
                                                                   LParenLoc,
                                                                   EndLoc,
@@ -1163,9 +1160,32 @@ OMPFirstprivateClause *OMPFirstprivateClause::Create(const ASTContext &C,
 
 OMPFirstprivateClause *OMPFirstprivateClause::CreateEmpty(const ASTContext &C,
                                                           unsigned N) {
-  void *Mem = C.Allocate(sizeof(OMPFirstprivateClause) + sizeof(Expr *) * N,
-                         llvm::alignOf<OMPFirstprivateClause>());
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPFirstprivateClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * N);
   return new (Mem) OMPFirstprivateClause(N);
+}
+
+OMPLastprivateClause *OMPLastprivateClause::Create(const ASTContext &C,
+                                                   SourceLocation StartLoc,
+                                                   SourceLocation LParenLoc,
+                                                   SourceLocation EndLoc,
+                                                   ArrayRef<Expr *> VL) {
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPLastprivateClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * VL.size());
+  OMPLastprivateClause *Clause =
+      new (Mem) OMPLastprivateClause(StartLoc, LParenLoc, EndLoc, VL.size());
+  Clause->setVarRefs(VL);
+  return Clause;
+}
+
+OMPLastprivateClause *OMPLastprivateClause::CreateEmpty(const ASTContext &C,
+                                                        unsigned N) {
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPLastprivateClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * N);
+  return new (Mem) OMPLastprivateClause(N);
 }
 
 OMPSharedClause *OMPSharedClause::Create(const ASTContext &C,
@@ -1173,8 +1193,9 @@ OMPSharedClause *OMPSharedClause::Create(const ASTContext &C,
                                          SourceLocation LParenLoc,
                                          SourceLocation EndLoc,
                                          ArrayRef<Expr *> VL) {
-  void *Mem = C.Allocate(sizeof(OMPSharedClause) + sizeof(Expr *) * VL.size(),
-                         llvm::alignOf<OMPSharedClause>());
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPSharedClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * VL.size());
   OMPSharedClause *Clause = new (Mem) OMPSharedClause(StartLoc, LParenLoc,
                                                       EndLoc, VL.size());
   Clause->setVarRefs(VL);
@@ -1183,15 +1204,148 @@ OMPSharedClause *OMPSharedClause::Create(const ASTContext &C,
 
 OMPSharedClause *OMPSharedClause::CreateEmpty(const ASTContext &C,
                                               unsigned N) {
-  void *Mem = C.Allocate(sizeof(OMPSharedClause) + sizeof(Expr *) * N,
-                         llvm::alignOf<OMPSharedClause>());
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPSharedClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * N);
   return new (Mem) OMPSharedClause(N);
 }
 
+OMPLinearClause *OMPLinearClause::Create(const ASTContext &C,
+                                         SourceLocation StartLoc,
+                                         SourceLocation LParenLoc,
+                                         SourceLocation ColonLoc,
+                                         SourceLocation EndLoc,
+                                         ArrayRef<Expr *> VL, Expr *Step) {
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPLinearClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * (VL.size() + 1));
+  OMPLinearClause *Clause = new (Mem)
+      OMPLinearClause(StartLoc, LParenLoc, ColonLoc, EndLoc, VL.size());
+  Clause->setVarRefs(VL);
+  Clause->setStep(Step);
+  return Clause;
+}
+
+OMPLinearClause *OMPLinearClause::CreateEmpty(const ASTContext &C,
+                                              unsigned NumVars) {
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPLinearClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * (NumVars + 1));
+  return new (Mem) OMPLinearClause(NumVars);
+}
+
+OMPAlignedClause *
+OMPAlignedClause::Create(const ASTContext &C, SourceLocation StartLoc,
+                         SourceLocation LParenLoc, SourceLocation ColonLoc,
+                         SourceLocation EndLoc, ArrayRef<Expr *> VL, Expr *A) {
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPAlignedClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * (VL.size() + 1));
+  OMPAlignedClause *Clause = new (Mem)
+      OMPAlignedClause(StartLoc, LParenLoc, ColonLoc, EndLoc, VL.size());
+  Clause->setVarRefs(VL);
+  Clause->setAlignment(A);
+  return Clause;
+}
+
+OMPAlignedClause *OMPAlignedClause::CreateEmpty(const ASTContext &C,
+                                                unsigned NumVars) {
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPAlignedClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * (NumVars + 1));
+  return new (Mem) OMPAlignedClause(NumVars);
+}
+
+OMPCopyinClause *OMPCopyinClause::Create(const ASTContext &C,
+                                         SourceLocation StartLoc,
+                                         SourceLocation LParenLoc,
+                                         SourceLocation EndLoc,
+                                         ArrayRef<Expr *> VL) {
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPCopyinClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * VL.size());
+  OMPCopyinClause *Clause = new (Mem) OMPCopyinClause(StartLoc, LParenLoc,
+                                                      EndLoc, VL.size());
+  Clause->setVarRefs(VL);
+  return Clause;
+}
+
+OMPCopyinClause *OMPCopyinClause::CreateEmpty(const ASTContext &C,
+                                              unsigned N) {
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPCopyinClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * N);
+  return new (Mem) OMPCopyinClause(N);
+}
+
+OMPCopyprivateClause *OMPCopyprivateClause::Create(const ASTContext &C,
+                                                   SourceLocation StartLoc,
+                                                   SourceLocation LParenLoc,
+                                                   SourceLocation EndLoc,
+                                                   ArrayRef<Expr *> VL) {
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPCopyprivateClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * VL.size());
+  OMPCopyprivateClause *Clause =
+      new (Mem) OMPCopyprivateClause(StartLoc, LParenLoc, EndLoc, VL.size());
+  Clause->setVarRefs(VL);
+  return Clause;
+}
+
+OMPCopyprivateClause *OMPCopyprivateClause::CreateEmpty(const ASTContext &C,
+                                                        unsigned N) {
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPCopyprivateClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * N);
+  return new (Mem) OMPCopyprivateClause(N);
+}
+
 void OMPExecutableDirective::setClauses(ArrayRef<OMPClause *> Clauses) {
-  assert(Clauses.size() == this->Clauses.size() &&
+  assert(Clauses.size() == getNumClauses() &&
          "Number of clauses is not the same as the preallocated buffer");
-  std::copy(Clauses.begin(), Clauses.end(), this->Clauses.begin());
+  std::copy(Clauses.begin(), Clauses.end(), getClauses().begin());
+}
+
+OMPReductionClause *OMPReductionClause::Create(
+    const ASTContext &C, SourceLocation StartLoc, SourceLocation LParenLoc,
+    SourceLocation EndLoc, SourceLocation ColonLoc, ArrayRef<Expr *> VL,
+    NestedNameSpecifierLoc QualifierLoc, const DeclarationNameInfo &NameInfo) {
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPReductionClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * VL.size());
+  OMPReductionClause *Clause = new (Mem) OMPReductionClause(
+      StartLoc, LParenLoc, EndLoc, ColonLoc, VL.size(), QualifierLoc, NameInfo);
+  Clause->setVarRefs(VL);
+  return Clause;
+}
+
+OMPReductionClause *OMPReductionClause::CreateEmpty(const ASTContext &C,
+                                                    unsigned N) {
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPReductionClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * N);
+  return new (Mem) OMPReductionClause(N);
+}
+
+OMPFlushClause *OMPFlushClause::Create(const ASTContext &C,
+                                       SourceLocation StartLoc,
+                                       SourceLocation LParenLoc,
+                                       SourceLocation EndLoc,
+                                       ArrayRef<Expr *> VL) {
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPFlushClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * VL.size());
+  OMPFlushClause *Clause =
+      new (Mem) OMPFlushClause(StartLoc, LParenLoc, EndLoc, VL.size());
+  Clause->setVarRefs(VL);
+  return Clause;
+}
+
+OMPFlushClause *OMPFlushClause::CreateEmpty(const ASTContext &C, unsigned N) {
+  void *Mem = C.Allocate(llvm::RoundUpToAlignment(sizeof(OMPFlushClause),
+                                                  llvm::alignOf<Expr *>()) +
+                         sizeof(Expr *) * N);
+  return new (Mem) OMPFlushClause(N);
 }
 
 OMPParallelDirective *OMPParallelDirective::Create(
@@ -1200,9 +1354,10 @@ OMPParallelDirective *OMPParallelDirective::Create(
                                               SourceLocation EndLoc,
                                               ArrayRef<OMPClause *> Clauses,
                                               Stmt *AssociatedStmt) {
-  void *Mem = C.Allocate(sizeof(OMPParallelDirective) +
-                         sizeof(OMPClause *) * Clauses.size() + sizeof(Stmt *),
-                         llvm::alignOf<OMPParallelDirective>());
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPParallelDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem = C.Allocate(Size + sizeof(OMPClause *) * Clauses.size() +
+                         sizeof(Stmt *));
   OMPParallelDirective *Dir = new (Mem) OMPParallelDirective(StartLoc, EndLoc,
                                                              Clauses.size());
   Dir->setClauses(Clauses);
@@ -1211,10 +1366,315 @@ OMPParallelDirective *OMPParallelDirective::Create(
 }
 
 OMPParallelDirective *OMPParallelDirective::CreateEmpty(const ASTContext &C,
-                                                        unsigned N,
+                                                        unsigned NumClauses,
                                                         EmptyShell) {
-  void *Mem = C.Allocate(sizeof(OMPParallelDirective) +
-                         sizeof(OMPClause *) * N + sizeof(Stmt *),
-                         llvm::alignOf<OMPParallelDirective>());
-  return new (Mem) OMPParallelDirective(N);
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPParallelDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem = C.Allocate(Size + sizeof(OMPClause *) * NumClauses +
+                         sizeof(Stmt *));
+  return new (Mem) OMPParallelDirective(NumClauses);
 }
+
+OMPSimdDirective *
+OMPSimdDirective::Create(const ASTContext &C, SourceLocation StartLoc,
+                         SourceLocation EndLoc, unsigned CollapsedNum,
+                         ArrayRef<OMPClause *> Clauses, Stmt *AssociatedStmt) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPSimdDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem =
+      C.Allocate(Size + sizeof(OMPClause *) * Clauses.size() + sizeof(Stmt *));
+  OMPSimdDirective *Dir = new (Mem)
+      OMPSimdDirective(StartLoc, EndLoc, CollapsedNum, Clauses.size());
+  Dir->setClauses(Clauses);
+  Dir->setAssociatedStmt(AssociatedStmt);
+  return Dir;
+}
+
+OMPSimdDirective *OMPSimdDirective::CreateEmpty(const ASTContext &C,
+                                                unsigned NumClauses,
+                                                unsigned CollapsedNum,
+                                                EmptyShell) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPSimdDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem =
+      C.Allocate(Size + sizeof(OMPClause *) * NumClauses + sizeof(Stmt *));
+  return new (Mem) OMPSimdDirective(CollapsedNum, NumClauses);
+}
+
+OMPForDirective *
+OMPForDirective::Create(const ASTContext &C, SourceLocation StartLoc,
+                        SourceLocation EndLoc, unsigned CollapsedNum,
+                        ArrayRef<OMPClause *> Clauses, Stmt *AssociatedStmt) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPForDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem =
+      C.Allocate(Size + sizeof(OMPClause *) * Clauses.size() + sizeof(Stmt *));
+  OMPForDirective *Dir =
+      new (Mem) OMPForDirective(StartLoc, EndLoc, CollapsedNum, Clauses.size());
+  Dir->setClauses(Clauses);
+  Dir->setAssociatedStmt(AssociatedStmt);
+  return Dir;
+}
+
+OMPForDirective *OMPForDirective::CreateEmpty(const ASTContext &C,
+                                              unsigned NumClauses,
+                                              unsigned CollapsedNum,
+                                              EmptyShell) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPForDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem =
+      C.Allocate(Size + sizeof(OMPClause *) * NumClauses + sizeof(Stmt *));
+  return new (Mem) OMPForDirective(CollapsedNum, NumClauses);
+}
+
+OMPSectionsDirective *OMPSectionsDirective::Create(
+    const ASTContext &C, SourceLocation StartLoc, SourceLocation EndLoc,
+    ArrayRef<OMPClause *> Clauses, Stmt *AssociatedStmt) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPSectionsDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem =
+      C.Allocate(Size + sizeof(OMPClause *) * Clauses.size() + sizeof(Stmt *));
+  OMPSectionsDirective *Dir =
+      new (Mem) OMPSectionsDirective(StartLoc, EndLoc, Clauses.size());
+  Dir->setClauses(Clauses);
+  Dir->setAssociatedStmt(AssociatedStmt);
+  return Dir;
+}
+
+OMPSectionsDirective *OMPSectionsDirective::CreateEmpty(const ASTContext &C,
+                                                        unsigned NumClauses,
+                                                        EmptyShell) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPSectionsDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem =
+      C.Allocate(Size + sizeof(OMPClause *) * NumClauses + sizeof(Stmt *));
+  return new (Mem) OMPSectionsDirective(NumClauses);
+}
+
+OMPSectionDirective *OMPSectionDirective::Create(const ASTContext &C,
+                                                 SourceLocation StartLoc,
+                                                 SourceLocation EndLoc,
+                                                 Stmt *AssociatedStmt) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPSectionsDirective),
+                                           llvm::alignOf<Stmt *>());
+  void *Mem = C.Allocate(Size + sizeof(Stmt *));
+  OMPSectionDirective *Dir = new (Mem) OMPSectionDirective(StartLoc, EndLoc);
+  Dir->setAssociatedStmt(AssociatedStmt);
+  return Dir;
+}
+
+OMPSectionDirective *OMPSectionDirective::CreateEmpty(const ASTContext &C,
+                                                      EmptyShell) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPSectionDirective),
+                                           llvm::alignOf<Stmt *>());
+  void *Mem = C.Allocate(Size + sizeof(Stmt *));
+  return new (Mem) OMPSectionDirective();
+}
+
+OMPSingleDirective *OMPSingleDirective::Create(const ASTContext &C,
+                                               SourceLocation StartLoc,
+                                               SourceLocation EndLoc,
+                                               ArrayRef<OMPClause *> Clauses,
+                                               Stmt *AssociatedStmt) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPSingleDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem =
+      C.Allocate(Size + sizeof(OMPClause *) * Clauses.size() + sizeof(Stmt *));
+  OMPSingleDirective *Dir =
+      new (Mem) OMPSingleDirective(StartLoc, EndLoc, Clauses.size());
+  Dir->setClauses(Clauses);
+  Dir->setAssociatedStmt(AssociatedStmt);
+  return Dir;
+}
+
+OMPSingleDirective *OMPSingleDirective::CreateEmpty(const ASTContext &C,
+                                                    unsigned NumClauses,
+                                                    EmptyShell) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPSingleDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem =
+      C.Allocate(Size + sizeof(OMPClause *) * NumClauses + sizeof(Stmt *));
+  return new (Mem) OMPSingleDirective(NumClauses);
+}
+
+OMPMasterDirective *OMPMasterDirective::Create(const ASTContext &C,
+                                               SourceLocation StartLoc,
+                                               SourceLocation EndLoc,
+                                               Stmt *AssociatedStmt) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPMasterDirective),
+                                           llvm::alignOf<Stmt *>());
+  void *Mem = C.Allocate(Size + sizeof(Stmt *));
+  OMPMasterDirective *Dir = new (Mem) OMPMasterDirective(StartLoc, EndLoc);
+  Dir->setAssociatedStmt(AssociatedStmt);
+  return Dir;
+}
+
+OMPMasterDirective *OMPMasterDirective::CreateEmpty(const ASTContext &C,
+                                                    EmptyShell) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPMasterDirective),
+                                           llvm::alignOf<Stmt *>());
+  void *Mem = C.Allocate(Size + sizeof(Stmt *));
+  return new (Mem) OMPMasterDirective();
+}
+
+OMPCriticalDirective *OMPCriticalDirective::Create(
+    const ASTContext &C, const DeclarationNameInfo &Name,
+    SourceLocation StartLoc, SourceLocation EndLoc, Stmt *AssociatedStmt) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPCriticalDirective),
+                                           llvm::alignOf<Stmt *>());
+  void *Mem = C.Allocate(Size + sizeof(Stmt *));
+  OMPCriticalDirective *Dir =
+      new (Mem) OMPCriticalDirective(Name, StartLoc, EndLoc);
+  Dir->setAssociatedStmt(AssociatedStmt);
+  return Dir;
+}
+
+OMPCriticalDirective *OMPCriticalDirective::CreateEmpty(const ASTContext &C,
+                                                        EmptyShell) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPCriticalDirective),
+                                           llvm::alignOf<Stmt *>());
+  void *Mem = C.Allocate(Size + sizeof(Stmt *));
+  return new (Mem) OMPCriticalDirective();
+}
+
+OMPParallelForDirective *
+OMPParallelForDirective::Create(const ASTContext &C, SourceLocation StartLoc,
+                                SourceLocation EndLoc, unsigned CollapsedNum,
+                                ArrayRef<OMPClause *> Clauses,
+                                Stmt *AssociatedStmt) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPParallelForDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem =
+      C.Allocate(Size + sizeof(OMPClause *) * Clauses.size() + sizeof(Stmt *));
+  OMPParallelForDirective *Dir = new (Mem)
+      OMPParallelForDirective(StartLoc, EndLoc, CollapsedNum, Clauses.size());
+  Dir->setClauses(Clauses);
+  Dir->setAssociatedStmt(AssociatedStmt);
+  return Dir;
+}
+
+OMPParallelForDirective *
+OMPParallelForDirective::CreateEmpty(const ASTContext &C, unsigned NumClauses,
+                                     unsigned CollapsedNum, EmptyShell) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPParallelForDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem =
+      C.Allocate(Size + sizeof(OMPClause *) * NumClauses + sizeof(Stmt *));
+  return new (Mem) OMPParallelForDirective(CollapsedNum, NumClauses);
+}
+
+OMPParallelSectionsDirective *OMPParallelSectionsDirective::Create(
+    const ASTContext &C, SourceLocation StartLoc, SourceLocation EndLoc,
+    ArrayRef<OMPClause *> Clauses, Stmt *AssociatedStmt) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPParallelSectionsDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem =
+      C.Allocate(Size + sizeof(OMPClause *) * Clauses.size() + sizeof(Stmt *));
+  OMPParallelSectionsDirective *Dir =
+      new (Mem) OMPParallelSectionsDirective(StartLoc, EndLoc, Clauses.size());
+  Dir->setClauses(Clauses);
+  Dir->setAssociatedStmt(AssociatedStmt);
+  return Dir;
+}
+
+OMPParallelSectionsDirective *
+OMPParallelSectionsDirective::CreateEmpty(const ASTContext &C,
+                                          unsigned NumClauses, EmptyShell) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPParallelSectionsDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem =
+      C.Allocate(Size + sizeof(OMPClause *) * NumClauses + sizeof(Stmt *));
+  return new (Mem) OMPParallelSectionsDirective(NumClauses);
+}
+
+OMPTaskDirective *OMPTaskDirective::Create(const ASTContext &C,
+                                           SourceLocation StartLoc,
+                                           SourceLocation EndLoc,
+                                           ArrayRef<OMPClause *> Clauses,
+                                           Stmt *AssociatedStmt) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPTaskDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem =
+      C.Allocate(Size + sizeof(OMPClause *) * Clauses.size() + sizeof(Stmt *));
+  OMPTaskDirective *Dir =
+      new (Mem) OMPTaskDirective(StartLoc, EndLoc, Clauses.size());
+  Dir->setClauses(Clauses);
+  Dir->setAssociatedStmt(AssociatedStmt);
+  return Dir;
+}
+
+OMPTaskDirective *OMPTaskDirective::CreateEmpty(const ASTContext &C,
+                                                unsigned NumClauses,
+                                                EmptyShell) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPTaskDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem =
+      C.Allocate(Size + sizeof(OMPClause *) * NumClauses + sizeof(Stmt *));
+  return new (Mem) OMPTaskDirective(NumClauses);
+}
+
+OMPTaskyieldDirective *OMPTaskyieldDirective::Create(const ASTContext &C,
+                                                     SourceLocation StartLoc,
+                                                     SourceLocation EndLoc) {
+  void *Mem = C.Allocate(sizeof(OMPTaskyieldDirective));
+  OMPTaskyieldDirective *Dir =
+      new (Mem) OMPTaskyieldDirective(StartLoc, EndLoc);
+  return Dir;
+}
+
+OMPTaskyieldDirective *OMPTaskyieldDirective::CreateEmpty(const ASTContext &C,
+                                                          EmptyShell) {
+  void *Mem = C.Allocate(sizeof(OMPTaskyieldDirective));
+  return new (Mem) OMPTaskyieldDirective();
+}
+
+OMPBarrierDirective *OMPBarrierDirective::Create(const ASTContext &C,
+                                                 SourceLocation StartLoc,
+                                                 SourceLocation EndLoc) {
+  void *Mem = C.Allocate(sizeof(OMPBarrierDirective));
+  OMPBarrierDirective *Dir = new (Mem) OMPBarrierDirective(StartLoc, EndLoc);
+  return Dir;
+}
+
+OMPBarrierDirective *OMPBarrierDirective::CreateEmpty(const ASTContext &C,
+                                                      EmptyShell) {
+  void *Mem = C.Allocate(sizeof(OMPBarrierDirective));
+  return new (Mem) OMPBarrierDirective();
+}
+
+OMPTaskwaitDirective *OMPTaskwaitDirective::Create(const ASTContext &C,
+                                                   SourceLocation StartLoc,
+                                                   SourceLocation EndLoc) {
+  void *Mem = C.Allocate(sizeof(OMPTaskwaitDirective));
+  OMPTaskwaitDirective *Dir = new (Mem) OMPTaskwaitDirective(StartLoc, EndLoc);
+  return Dir;
+}
+
+OMPTaskwaitDirective *OMPTaskwaitDirective::CreateEmpty(const ASTContext &C,
+                                                        EmptyShell) {
+  void *Mem = C.Allocate(sizeof(OMPTaskwaitDirective));
+  return new (Mem) OMPTaskwaitDirective();
+}
+
+OMPFlushDirective *OMPFlushDirective::Create(const ASTContext &C,
+                                             SourceLocation StartLoc,
+                                             SourceLocation EndLoc,
+                                             ArrayRef<OMPClause *> Clauses) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPFlushDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem = C.Allocate(Size + sizeof(OMPClause *) * Clauses.size());
+  OMPFlushDirective *Dir =
+      new (Mem) OMPFlushDirective(StartLoc, EndLoc, Clauses.size());
+  Dir->setClauses(Clauses);
+  return Dir;
+}
+
+OMPFlushDirective *OMPFlushDirective::CreateEmpty(const ASTContext &C,
+                                                  unsigned NumClauses,
+                                                  EmptyShell) {
+  unsigned Size = llvm::RoundUpToAlignment(sizeof(OMPFlushDirective),
+                                           llvm::alignOf<OMPClause *>());
+  void *Mem = C.Allocate(Size + sizeof(OMPClause *) * NumClauses);
+  return new (Mem) OMPFlushDirective(NumClauses);
+}
+

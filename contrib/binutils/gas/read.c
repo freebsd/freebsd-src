@@ -4117,14 +4117,31 @@ emit_expr (expressionS *exp, unsigned int nbytes)
       unsigned int size;
       LITTLENUM_TYPE *nums;
 
-      know (nbytes % CHARS_PER_LITTLENUM == 0);
-
       size = exp->X_add_number * CHARS_PER_LITTLENUM;
       if (nbytes < size)
 	{
-	  as_warn (_("bignum truncated to %d bytes"), nbytes);
+	  int i = nbytes / CHARS_PER_LITTLENUM;
+	  if (i != 0)
+	    {
+	      LITTLENUM_TYPE sign = 0;
+	      if ((generic_bignum[--i]
+		   & (1 << (LITTLENUM_NUMBER_OF_BITS - 1))) != 0)
+		sign = ~(LITTLENUM_TYPE) 0;
+	      while (++i < exp->X_add_number)
+		if (generic_bignum[i] != sign)
+		  break;
+	    }
+	  if (i < exp->X_add_number)
+	    as_warn (_("bignum truncated to %d bytes"), nbytes);
 	  size = nbytes;
 	}
+
+      if (nbytes == 1)
+	{
+	  md_number_to_chars (p, (valueT) generic_bignum[0], 1);
+	  return;
+	}
+      know (nbytes % CHARS_PER_LITTLENUM == 0);
 
       if (target_big_endian)
 	{

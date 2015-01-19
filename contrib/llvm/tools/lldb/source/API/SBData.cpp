@@ -7,6 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include <inttypes.h> // PRIu64
+
 #include "lldb/API/SBData.h"
 #include "lldb/API/SBError.h"
 #include "lldb/API/SBStream.h"
@@ -122,7 +124,7 @@ SBData::GetByteSize ()
         value = m_opaque_sp->GetByteSize();
     if (log)
         log->Printf ("SBData::GetByteSize () => "
-                     "(%zu)", value);
+                     "( %" PRIu64 " )", (uint64_t)value);
     return value;
 }
 
@@ -167,8 +169,8 @@ SBData::GetFloat (lldb::SBError& error, lldb::offset_t offset)
             error.SetErrorString("unable to read data");
     }
     if (log)
-        log->Printf ("SBData::GetFloat (error=%p,offset=%" PRIu64 ") => "
-                     "(%f)", error.get(), offset, value);
+        log->Printf ("SBData::GetFloat (error=%p,offset=%" PRIu64 ") => (%f)",
+                     static_cast<void*>(error.get()), offset, value);
     return value;
 }
 
@@ -190,7 +192,7 @@ SBData::GetDouble (lldb::SBError& error, lldb::offset_t offset)
     }
     if (log)
         log->Printf ("SBData::GetDouble (error=%p,offset=%" PRIu64 ") => "
-                     "(%f)", error.get(), offset, value);
+                     "(%f)", static_cast<void*>(error.get()), offset, value);
     return value;
 }
 
@@ -212,7 +214,7 @@ SBData::GetLongDouble (lldb::SBError& error, lldb::offset_t offset)
     }
     if (log)
         log->Printf ("SBData::GetLongDouble (error=%p,offset=%" PRIu64 ") => "
-                     "(%Lf)", error.get(), offset, value);
+                     "(%Lf)", static_cast<void*>(error.get()), offset, value);
     return value;
 }
 
@@ -234,7 +236,8 @@ SBData::GetAddress (lldb::SBError& error, lldb::offset_t offset)
     }
     if (log)
         log->Printf ("SBData::GetAddress (error=%p,offset=%" PRIu64 ") => "
-                     "(%p)", error.get(), offset, (void*)value);
+                     "(%p)", static_cast<void*>(error.get()), offset,
+                     reinterpret_cast<void*>(value));
     return value;
 }
 
@@ -256,7 +259,7 @@ SBData::GetUnsignedInt8 (lldb::SBError& error, lldb::offset_t offset)
     }
     if (log)
         log->Printf ("SBData::GetUnsignedInt8 (error=%p,offset=%" PRIu64 ") => "
-                     "(%c)", error.get(), offset, value);
+                     "(%c)", static_cast<void*>(error.get()), offset, value);
     return value;
 }
 
@@ -278,7 +281,7 @@ SBData::GetUnsignedInt16 (lldb::SBError& error, lldb::offset_t offset)
     }
     if (log)
         log->Printf ("SBData::GetUnsignedInt16 (error=%p,offset=%" PRIu64 ") => "
-                     "(%hd)", error.get(), offset, value);
+                     "(%hd)", static_cast<void*>(error.get()), offset, value);
     return value;
 }
 
@@ -300,7 +303,7 @@ SBData::GetUnsignedInt32 (lldb::SBError& error, lldb::offset_t offset)
     }
     if (log)
         log->Printf ("SBData::GetUnsignedInt32 (error=%p,offset=%" PRIu64 ") => "
-                     "(%d)", error.get(), offset, value);
+                     "(%d)", static_cast<void*>(error.get()), offset, value);
     return value;
 }
 
@@ -322,7 +325,8 @@ SBData::GetUnsignedInt64 (lldb::SBError& error, lldb::offset_t offset)
     }
     if (log)
         log->Printf ("SBData::GetUnsignedInt64 (error=%p,offset=%" PRIu64 ") => "
-                     "(%" PRId64 ")", error.get(), offset, value);
+                     "(%" PRId64 ")", static_cast<void*>(error.get()), offset,
+                     value);
     return value;
 }
 
@@ -344,7 +348,7 @@ SBData::GetSignedInt8 (lldb::SBError& error, lldb::offset_t offset)
     }
     if (log)
         log->Printf ("SBData::GetSignedInt8 (error=%p,offset=%" PRIu64 ") => "
-                     "(%c)", error.get(), offset, value);
+                     "(%c)", static_cast<void*>(error.get()), offset, value);
     return value;
 }
 
@@ -366,7 +370,7 @@ SBData::GetSignedInt16 (lldb::SBError& error, lldb::offset_t offset)
     }
     if (log)
         log->Printf ("SBData::GetSignedInt16 (error=%p,offset=%" PRIu64 ") => "
-                     "(%hd)", error.get(), offset, value);
+                     "(%hd)", static_cast<void*>(error.get()), offset, value);
     return value;
 }
 
@@ -388,7 +392,7 @@ SBData::GetSignedInt32 (lldb::SBError& error, lldb::offset_t offset)
     }
     if (log)
         log->Printf ("SBData::GetSignedInt32 (error=%p,offset=%" PRIu64 ") => "
-                     "(%d)", error.get(), offset, value);
+                     "(%d)", static_cast<void*>(error.get()), offset, value);
     return value;
 }
 
@@ -410,7 +414,8 @@ SBData::GetSignedInt64 (lldb::SBError& error, lldb::offset_t offset)
     }
     if (log)
         log->Printf ("SBData::GetSignedInt64 (error=%p,offset=%" PRIu64 ") => "
-                     "(%" PRId64 ")", error.get(), offset, value);
+                     "(%" PRId64 ")", static_cast<void*>(error.get()), offset,
+                     value);
     return value;
 }
 
@@ -431,8 +436,9 @@ SBData::GetString (lldb::SBError& error, lldb::offset_t offset)
             error.SetErrorString("unable to read data");
     }
     if (log)
-        log->Printf ("SBData::GetString (error=%p,offset=%" PRIu64 ") => "
-                     "(%p)", error.get(), offset, value);
+        log->Printf ("SBData::GetString (error=%p,offset=%" PRIu64 ") => (%p)",
+                     static_cast<void*>(error.get()), offset,
+                     static_cast<const void*>(value));
     return value;
 }
 
@@ -479,8 +485,10 @@ SBData::ReadRawData (lldb::SBError& error,
             error.SetErrorString("unable to read data");
     }
     if (log)
-        log->Printf ("SBData::ReadRawData (error=%p,offset=%" PRIu64 ",buf=%p,size=%zu) => "
-                     "(%p)", error.get(), offset, buf, size, ok);
+        log->Printf("SBData::ReadRawData (error=%p,offset=%" PRIu64 ",buf=%p,size=%" PRIu64 ") => "
+                    "(%p)", static_cast<void*>(error.get()), offset,
+                    static_cast<void*>(buf), static_cast<uint64_t>(size),
+                    static_cast<void*>(ok));
     return ok ? size : 0;
 }
 
@@ -497,8 +505,10 @@ SBData::SetData (lldb::SBError& error,
     else
         m_opaque_sp->SetData(buf, size, endian);
     if (log)
-        log->Printf ("SBData::SetData (error=%p,buf=%p,size=%zu,endian=%d,addr_size=%c) => "
-                     "(%p)", error.get(), buf, size, endian, addr_size, m_opaque_sp.get());
+        log->Printf("SBData::SetData (error=%p,buf=%p,size=%" PRIu64 ",endian=%d,addr_size=%c) => "
+                    "(%p)", static_cast<void*>(error.get()),
+                    static_cast<const void*>(buf), static_cast<uint64_t>(size),
+                    endian, addr_size, static_cast<void*>(m_opaque_sp.get()));
 }
 
 bool
@@ -509,8 +519,8 @@ SBData::Append (const SBData& rhs)
     if (m_opaque_sp.get() && rhs.m_opaque_sp.get())
         value = m_opaque_sp.get()->Append(*rhs.m_opaque_sp);
     if (log)
-        log->Printf ("SBData::Append (rhs=%p) => "
-                     "(%s)", rhs.get(), value ? "true" : "false");
+        log->Printf ("SBData::Append (rhs=%p) => (%s)",
+                     static_cast<void*>(rhs.get()), value ? "true" : "false");
     return value;
 }
 
@@ -614,28 +624,28 @@ bool
 SBData::SetDataFromCString (const char* data)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
-    
+
     if (!data)
     {
         if (log)
-            log->Printf ("SBData::SetDataFromCString (data=%p) => "
-                         "false", data);
+            log->Printf ("SBData::SetDataFromCString (data=%p) => false",
+                         static_cast<const void*>(data));
         return false;
     }
-    
+
     size_t data_len = strlen(data);
-        
+
     lldb::DataBufferSP buffer_sp(new DataBufferHeap(data, data_len));
-    
+
     if (!m_opaque_sp.get())
         m_opaque_sp.reset(new DataExtractor(buffer_sp, GetByteOrder(), GetAddressByteSize()));
     else
         m_opaque_sp->SetData(buffer_sp);
-    
+
     if (log)
-        log->Printf ("SBData::SetDataFromCString (data=%p) => "
-                     "true", data);
-    
+        log->Printf ("SBData::SetDataFromCString (data=%p) => true",
+                     static_cast<const void*>(data));
+
     return true;
 }
 
@@ -643,28 +653,30 @@ bool
 SBData::SetDataFromUInt64Array (uint64_t* array, size_t array_len)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
-    
+
     if (!array || array_len == 0)
     {
         if (log)
-            log->Printf ("SBData::SetDataFromUInt64Array (array=%p, array_len = %zu) => "
-                         "false", array, array_len);
+            log->Printf("SBData::SetDataFromUInt64Array (array=%p, array_len = %" PRIu64 ") => "
+                        "false", static_cast<void*>(array),
+                        static_cast<uint64_t>(array_len));
         return false;
     }
 
     size_t data_len = array_len * sizeof(uint64_t);
-    
+
     lldb::DataBufferSP buffer_sp(new DataBufferHeap(array, data_len));
-    
+
     if (!m_opaque_sp.get())
         m_opaque_sp.reset(new DataExtractor(buffer_sp, GetByteOrder(), GetAddressByteSize()));
     else
         m_opaque_sp->SetData(buffer_sp);
-    
+
     if (log)
-        log->Printf ("SBData::SetDataFromUInt64Array (array=%p, array_len = %zu) => "
-                     "true", array, array_len);
-    
+        log->Printf("SBData::SetDataFromUInt64Array (array=%p, array_len = %" PRIu64 ") => "
+                    "true", static_cast<void*>(array),
+                    static_cast<uint64_t>(array_len));
+
     return true;
 }
 
@@ -672,28 +684,30 @@ bool
 SBData::SetDataFromUInt32Array (uint32_t* array, size_t array_len)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
-    
+
     if (!array || array_len == 0)
     {
         if (log)
-            log->Printf ("SBData::SetDataFromUInt32Array (array=%p, array_len = %zu) => "
-                         "false", array, array_len);
+            log->Printf("SBData::SetDataFromUInt32Array (array=%p, array_len = %" PRIu64 ") => "
+                        "false", static_cast<void*>(array),
+                        static_cast<uint64_t>(array_len));
         return false;
     }
-    
+
     size_t data_len = array_len * sizeof(uint32_t);
-    
+
     lldb::DataBufferSP buffer_sp(new DataBufferHeap(array, data_len));
-    
+
     if (!m_opaque_sp.get())
         m_opaque_sp.reset(new DataExtractor(buffer_sp, GetByteOrder(), GetAddressByteSize()));
     else
         m_opaque_sp->SetData(buffer_sp);
-    
+
     if (log)
-        log->Printf ("SBData::SetDataFromUInt32Array (array=%p, array_len = %zu) => "
-                     "true", array, array_len);
-    
+        log->Printf("SBData::SetDataFromUInt32Array (array=%p, array_len = %" PRIu64 ") => "
+                    "true", static_cast<void*>(array),
+                    static_cast<uint64_t>(array_len));
+
     return true;
 }
 
@@ -701,28 +715,30 @@ bool
 SBData::SetDataFromSInt64Array (int64_t* array, size_t array_len)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
-    
+
     if (!array || array_len == 0)
     {
         if (log)
-            log->Printf ("SBData::SetDataFromSInt64Array (array=%p, array_len = %zu) => "
-                         "false", array, array_len);
+            log->Printf("SBData::SetDataFromSInt64Array (array=%p, array_len = %" PRIu64 ") => "
+                        "false", static_cast<void*>(array),
+                        static_cast<uint64_t>(array_len));
         return false;
     }
-    
+
     size_t data_len = array_len * sizeof(int64_t);
-    
+
     lldb::DataBufferSP buffer_sp(new DataBufferHeap(array, data_len));
-    
+
     if (!m_opaque_sp.get())
         m_opaque_sp.reset(new DataExtractor(buffer_sp, GetByteOrder(), GetAddressByteSize()));
     else
         m_opaque_sp->SetData(buffer_sp);
-    
+
     if (log)
-        log->Printf ("SBData::SetDataFromSInt64Array (array=%p, array_len = %zu) => "
-                     "true", array, array_len);
-    
+        log->Printf("SBData::SetDataFromSInt64Array (array=%p, array_len = %" PRIu64 ") => "
+                     "true", static_cast<void*>(array),
+                     static_cast<uint64_t>(array_len));
+
     return true;
 }
 
@@ -730,28 +746,30 @@ bool
 SBData::SetDataFromSInt32Array (int32_t* array, size_t array_len)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
-    
+
     if (!array || array_len == 0)
     {
         if (log)
-            log->Printf ("SBData::SetDataFromSInt32Array (array=%p, array_len = %zu) => "
-                         "false", array, array_len);
+            log->Printf("SBData::SetDataFromSInt32Array (array=%p, array_len = %" PRIu64 ") => "
+                        "false", static_cast<void*>(array),
+                        static_cast<uint64_t>(array_len));
         return false;
     }
-    
+
     size_t data_len = array_len * sizeof(int32_t);
-    
+
     lldb::DataBufferSP buffer_sp(new DataBufferHeap(array, data_len));
-    
+
     if (!m_opaque_sp.get())
         m_opaque_sp.reset(new DataExtractor(buffer_sp, GetByteOrder(), GetAddressByteSize()));
     else
         m_opaque_sp->SetData(buffer_sp);
-    
+
     if (log)
-        log->Printf ("SBData::SetDataFromSInt32Array (array=%p, array_len = %zu) => "
-                     "true", array, array_len);
-    
+        log->Printf("SBData::SetDataFromSInt32Array (array=%p, array_len = %" PRIu64 ") => "
+                    "true", static_cast<void*>(array),
+                    static_cast<uint64_t>(array_len));
+
     return true;
 }
 
@@ -759,27 +777,29 @@ bool
 SBData::SetDataFromDoubleArray (double* array, size_t array_len)
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
-    
+
     if (!array || array_len == 0)
     {
         if (log)
-            log->Printf ("SBData::SetDataFromDoubleArray (array=%p, array_len = %zu) => "
-                         "false", array, array_len);
+            log->Printf("SBData::SetDataFromDoubleArray (array=%p, array_len = %" PRIu64 ") => "
+                        "false", static_cast<void*>(array),
+                        static_cast<uint64_t>(array_len));
         return false;
     }
-    
+
     size_t data_len = array_len * sizeof(double);
-    
+
     lldb::DataBufferSP buffer_sp(new DataBufferHeap(array, data_len));
-    
+
     if (!m_opaque_sp.get())
         m_opaque_sp.reset(new DataExtractor(buffer_sp, GetByteOrder(), GetAddressByteSize()));
     else
         m_opaque_sp->SetData(buffer_sp);
-    
+
     if (log)
-        log->Printf ("SBData::SetDataFromDoubleArray (array=%p, array_len = %zu) => "
-                     "true", array, array_len);
-    
+        log->Printf("SBData::SetDataFromDoubleArray (array=%p, array_len = %" PRIu64 ") => "
+                    "true", static_cast<void*>(array),
+                    static_cast<uint64_t>(array_len));
+
     return true;
 }

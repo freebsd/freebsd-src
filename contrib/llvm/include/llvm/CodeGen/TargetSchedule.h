@@ -41,7 +41,7 @@ class TargetSchedModel {
   unsigned MicroOpFactor; // Multiply to normalize microops to resource units.
   unsigned ResourceLCM;   // Resource units per cycle. Latency normalization factor.
 public:
-  TargetSchedModel(): STI(0), TII(0) {}
+  TargetSchedModel(): STI(nullptr), TII(nullptr) {}
 
   /// \brief Initialize the machine model for instruction scheduling.
   ///
@@ -75,7 +75,7 @@ public:
   const InstrItineraryData *getInstrItineraries() const {
     if (hasInstrItineraries())
       return &InstrItins;
-    return 0;
+    return nullptr;
   }
 
   /// \brief Identify the processor corresponding to the current subtarget.
@@ -86,7 +86,7 @@ public:
 
   /// \brief Return the number of issue slots required for this MI.
   unsigned getNumMicroOps(const MachineInstr *MI,
-                          const MCSchedClassDesc *SC = 0) const;
+                          const MCSchedClassDesc *SC = nullptr) const;
 
   /// \brief Get the number of kinds of resources for this target.
   unsigned getNumProcResourceKinds() const {
@@ -97,6 +97,14 @@ public:
   const MCProcResourceDesc *getProcResource(unsigned PIdx) const {
     return SchedModel.getProcResource(PIdx);
   }
+
+#ifndef NDEBUG
+  const char *getResourceName(unsigned PIdx) const {
+    if (!PIdx)
+      return "MOps";
+    return SchedModel.getProcResource(PIdx)->Name;
+  }
+#endif
 
   typedef const MCWriteProcResEntry *ProcResIter;
 
@@ -150,7 +158,7 @@ public:
   /// model.
   ///
   /// Compute and return the expected latency of this instruction independent of
-  /// a particular use. computeOperandLatency is the prefered API, but this is
+  /// a particular use. computeOperandLatency is the preferred API, but this is
   /// occasionally useful to help estimate instruction cost.
   ///
   /// If UseDefaultDefLatency is false and no new machine sched model is

@@ -15,13 +15,13 @@
 #include "BugDriver.h"
 #include "ListReducer.h"
 #include "ToolRunner.h"
-#include "llvm/Analysis/Verifier.h"
 #include "llvm/Config/config.h"   // for HAVE_LINK_R
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
-#include "llvm/Linker.h"
+#include "llvm/IR/Verifier.h"
+#include "llvm/Linker/Linker.h"
 #include "llvm/Pass.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileUtilities.h"
@@ -48,9 +48,9 @@ namespace {
   public:
     ReduceMiscompilingPasses(BugDriver &bd) : BD(bd) {}
 
-    virtual TestResult doTest(std::vector<std::string> &Prefix,
-                              std::vector<std::string> &Suffix,
-                              std::string &Error);
+    TestResult doTest(std::vector<std::string> &Prefix,
+                      std::vector<std::string> &Suffix,
+                      std::string &Error) override;
   };
 }
 
@@ -128,8 +128,8 @@ ReduceMiscompilingPasses::doTest(std::vector<std::string> &Prefix,
   // Ok, so now we know that the prefix passes work, try running the suffix
   // passes on the result of the prefix passes.
   //
-  OwningPtr<Module> PrefixOutput(ParseInputFile(BitcodeResult,
-                                                BD.getContext()));
+  std::unique_ptr<Module> PrefixOutput(
+      ParseInputFile(BitcodeResult, BD.getContext()));
   if (!PrefixOutput) {
     errs() << BD.getToolName() << ": Error reading bitcode file '"
            << BitcodeResult << "'!\n";
@@ -145,7 +145,8 @@ ReduceMiscompilingPasses::doTest(std::vector<std::string> &Prefix,
             << "' passes compile correctly after the '"
             << getPassesString(Prefix) << "' passes: ";
 
-  OwningPtr<Module> OriginalInput(BD.swapProgramIn(PrefixOutput.take()));
+  std::unique_ptr<Module> OriginalInput(
+      BD.swapProgramIn(PrefixOutput.release()));
   if (BD.runPasses(BD.getProgram(), Suffix, BitcodeResult, false/*delete*/,
                    true/*quiet*/)) {
     errs() << " Error running this sequence of passes"
@@ -168,7 +169,7 @@ ReduceMiscompilingPasses::doTest(std::vector<std::string> &Prefix,
   // Otherwise, we must not be running the bad pass anymore.
   outs() << " yup.\n";      // No miscompilation!
   // Restore orig program & free test.
-  delete BD.swapProgramIn(OriginalInput.take());
+  delete BD.swapProgramIn(OriginalInput.release());
   return NoFailure;
 }
 
@@ -182,9 +183,9 @@ namespace {
                                           std::string &))
       : BD(bd), TestFn(F) {}
 
-    virtual TestResult doTest(std::vector<Function*> &Prefix,
-                              std::vector<Function*> &Suffix,
-                              std::string &Error) {
+    TestResult doTest(std::vector<Function*> &Prefix,
+                      std::vector<Function*> &Suffix,
+                      std::string &Error) override {
       if (!Suffix.empty()) {
         bool Ret = TestFuncs(Suffix, Error);
         if (!Error.empty())
@@ -234,7 +235,7 @@ static Module *TestMergedProgram(const BugDriver &BD, Module *M1, Module *M2,
   if (!Error.empty()) {
     // Delete the linked module
     delete M1;
-    return NULL;
+    return nullptr;
   }
   return M1;
 }
@@ -467,9 +468,9 @@ namespace {
                             const std::vector<Function*> &Fns)
       : BD(bd), TestFn(F), FunctionsBeingTested(Fns) {}
 
-    virtual TestResult doTest(std::vector<BasicBlock*> &Prefix,
-                              std::vector<BasicBlock*> &Suffix,
-                              std::string &Error) {
+    TestResult doTest(std::vector<BasicBlock*> &Prefix,
+                      std::vector<BasicBlock*> &Suffix,
+                      std::string &Error) override {
       if (!Suffix.empty()) {
         bool Ret = TestFuncs(Suffix, Error);
         if (!Error.empty())
@@ -591,7 +592,7 @@ static bool ExtractBlocks(BugDriver &BD,
                                                 MiscompiledFunctions,
                                                 VMap);
   Module *Extracted = BD.ExtractMappedBlocksFromModule(Blocks, ToExtract);
-  if (Extracted == 0) {
+  if (!Extracted) {
     // Weird, extraction should have worked.
     errs() << "Nondeterministic problem extracting blocks??\n";
     delete ProgClone;
@@ -844,7 +845,7 @@ static void CleanupAndPrepareModules(BugDriver &BD, Module *&Test,
     Safe->getOrInsertFunction("getPointerToNamedFunction",
                     Type::getInt8PtrTy(Safe->getContext()),
                     Type::getInt8PtrTy(Safe->getContext()),
-                       (Type *)0);
+                       (Type *)nullptr);
 
   // Use the function we just added to get addresses of functions we need.
   for (Module::iterator F = Safe->begin(), E = Safe->end(); F != E; ++F) {
@@ -963,8 +964,8 @@ static bool TestCodeGenerator(BugDriver &BD, Module *Test, Module *Safe,
 
   SmallString<128> TestModuleBC;
   int TestModuleFD;
-  error_code EC = sys::fs::createTemporaryFile("bugpoint.test", "bc",
-                                               TestModuleFD, TestModuleBC);
+  std::error_code EC = sys::fs::createTemporaryFile("bugpoint.test", "bc",
+                                                    TestModuleFD, TestModuleBC);
   if (EC) {
     errs() << BD.getToolName() << "Error making unique filename: "
            << EC.message() << "\n";
@@ -1057,8 +1058,8 @@ bool BugDriver::debugCodeGenerator(std::string *Error) {
 
   SmallString<128> TestModuleBC;
   int TestModuleFD;
-  error_code EC = sys::fs::createTemporaryFile("bugpoint.test", "bc",
-                                               TestModuleFD, TestModuleBC);
+  std::error_code EC = sys::fs::createTemporaryFile("bugpoint.test", "bc",
+                                                    TestModuleFD, TestModuleBC);
   if (EC) {
     errs() << getToolName() << "Error making unique filename: "
            << EC.message() << "\n";

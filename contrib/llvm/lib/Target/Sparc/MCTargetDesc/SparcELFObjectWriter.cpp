@@ -28,24 +28,14 @@ namespace {
 
     virtual ~SparcELFObjectWriter() {}
   protected:
-    virtual unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
-                                  bool IsPCRel, bool IsRelocWithSymbol,
-                                  int64_t Addend) const;
-
-    virtual const MCSymbol *ExplicitRelSym(const MCAssembler &Asm,
-                                           const MCValue &Target,
-                                           const MCFragment &F,
-                                           const MCFixup &Fixup,
-                                           bool IsPCRel) const;
+    unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
+                          bool IsPCRel) const override;
   };
 }
 
-
 unsigned SparcELFObjectWriter::GetRelocType(const MCValue &Target,
                                             const MCFixup &Fixup,
-                                            bool IsPCRel,
-                                            bool IsRelocWithSymbol,
-                                            int64_t Addend) const {
+                                            bool IsPCRel) const {
 
   if (const SparcMCExpr *SExpr = dyn_cast<SparcMCExpr>(Fixup.getValue())) {
     if (SExpr->getKind() == SparcMCExpr::VK_Sparc_R_DISP32)
@@ -112,23 +102,6 @@ unsigned SparcELFObjectWriter::GetRelocType(const MCValue &Target,
   }
 
   return ELF::R_SPARC_NONE;
-}
-
-const MCSymbol *SparcELFObjectWriter::ExplicitRelSym(const MCAssembler &Asm,
-                                                     const MCValue &Target,
-                                                     const MCFragment &F,
-                                                     const MCFixup &Fixup,
-                                                     bool IsPCRel) const {
-
-  if (!Target.getSymA())
-    return NULL;
-  switch((unsigned)Fixup.getKind()) {
-  default: break;
-  case Sparc::fixup_sparc_got22:
-  case Sparc::fixup_sparc_got10:
-    return &Target.getSymA()->getSymbol().AliasedSymbol();
-  }
-  return NULL;
 }
 
 MCObjectWriter *llvm::createSparcELFObjectWriter(raw_ostream &OS,

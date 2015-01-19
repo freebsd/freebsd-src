@@ -142,6 +142,7 @@ scan_bus(struct iiccmd cmd, char *dev, int skip, char *skip_addr)
 			if (tokens == NULL) {
 				fprintf(stderr, "Error allocating tokens "
 				    "buffer\n");
+				error = -1;
 				goto out;
 			}
 			index = skip_get_tokens(skip_addr, tokens,
@@ -150,6 +151,7 @@ scan_bus(struct iiccmd cmd, char *dev, int skip, char *skip_addr)
 
 		if (!no_range && (addr_range.start > addr_range.end)) {
 			fprintf(stderr, "Skip address out of range\n");
+			error = -1;
 			goto out;
 		}
 	}
@@ -409,8 +411,10 @@ i2c_read(char *dev, struct options i2c_opt, char *i2c_buf)
 		if (i2c_opt.mode == I2C_MODE_STOP_START) {
 			cmd.slave = i2c_opt.addr;
 			error = ioctl(fd, I2CSTOP, &cmd);
-			if (error == -1)
+			if (error == -1) {
+				err_msg = "error sending stop condtion\n";
 				goto err2;
+			}
 		}
 	}
 	cmd.slave = i2c_opt.addr;
@@ -432,8 +436,10 @@ i2c_read(char *dev, struct options i2c_opt, char *i2c_buf)
 		}
 	}
 	error = ioctl(fd, I2CSTOP, &cmd);
-	if (error == -1)
+	if (error == -1) {
+		err_msg = "error sending stop condtion\n";
 		goto err2;
+	}
 
 	for (i = 0; i < i2c_opt.count; i++) {
 		error = read(fd, &i2c_buf[i], 1);

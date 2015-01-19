@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 static int urio_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, urio, CTLFLAG_RW, 0, "USB urio");
-SYSCTL_INT(_hw_usb_urio, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_urio, OID_AUTO, debug, CTLFLAG_RWTUN,
     &urio_debug, 0, "urio debug level");
 #endif
 

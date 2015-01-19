@@ -170,7 +170,7 @@ int zfs_vdev_async_write_active_max_dirty_percent = 60;
  * we include spans of optional I/Os to aid aggregation at the disk even when
  * they aren't able to help us aggregate at this level.
  */
-int zfs_vdev_aggregation_limit = SPA_MAXBLOCKSIZE;
+int zfs_vdev_aggregation_limit = SPA_OLD_MAXBLOCKSIZE;
 int zfs_vdev_read_gap_limit = 32 << 10;
 int zfs_vdev_write_gap_limit = 4 << 10;
 
@@ -299,6 +299,11 @@ vdev_queue_timestamp_compare(const void *x1, const void *x2)
 	if (z1->io_timestamp < z2->io_timestamp)
 		return (-1);
 	if (z1->io_timestamp > z2->io_timestamp)
+		return (1);
+
+	if (z1->io_offset < z2->io_offset)
+		return (-1);
+	if (z1->io_offset > z2->io_offset)
 		return (1);
 
 	if (z1 < z2)

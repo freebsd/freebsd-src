@@ -4,21 +4,23 @@ TESTSDIR=	${TESTSBASE}/lib/libc/c063
 
 #TODO: t_o_search, t_utimensat
 
-NETBSD_ATF_TESTS_C=	t_faccessat
-NETBSD_ATF_TESTS_C+=	t_fchmodat
-NETBSD_ATF_TESTS_C+=	t_fchownat
-NETBSD_ATF_TESTS_C+=	t_fexecve
-NETBSD_ATF_TESTS_C+=	t_fstatat
-NETBSD_ATF_TESTS_C+=	t_linkat
-NETBSD_ATF_TESTS_C+=	t_mkdirat
-NETBSD_ATF_TESTS_C+=	t_mkfifoat
-NETBSD_ATF_TESTS_C+=	t_mknodat
-NETBSD_ATF_TESTS_C+=	t_openat
-NETBSD_ATF_TESTS_C+=	t_readlinkat
-NETBSD_ATF_TESTS_C+=	t_renameat
-NETBSD_ATF_TESTS_C+=	t_symlinkat
-NETBSD_ATF_TESTS_C+=	t_unlinkat
+NETBSD_ATF_TESTS_C=	faccessat
+NETBSD_ATF_TESTS_C+=	fchmodat
+NETBSD_ATF_TESTS_C+=	fchownat
+NETBSD_ATF_TESTS_C+=	fexecve
+NETBSD_ATF_TESTS_C+=	fstatat
+NETBSD_ATF_TESTS_C+=	linkat
+NETBSD_ATF_TESTS_C+=	mkdirat
+NETBSD_ATF_TESTS_C+=	mkfifoat
+NETBSD_ATF_TESTS_C+=	mknodat
+NETBSD_ATF_TESTS_C+=	openat
+NETBSD_ATF_TESTS_C+=	readlinkat
+NETBSD_ATF_TESTS_C+=	renameat
+NETBSD_ATF_TESTS_C+=	symlinkat
+NETBSD_ATF_TESTS_C+=	unlinkat
 
 CFLAGS+= -D_INCOMPLETE_XOPEN_C063
+
+.include "../Makefile.netbsd-tests"
 
 .include <bsd.test.mk>

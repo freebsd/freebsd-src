@@ -35,7 +35,8 @@ SRCS+=	iommu.c		\
 	vhpet.c		\
 	vioapic.c	\
 	vlapic.c	\
-	vpmtmr.c
+	vpmtmr.c	\
+	vrtc.c
 
 # intel-specific files
 .PATH: ${.CURDIR}/../../amd64/vmm/intel
@@ -58,16 +59,10 @@ SRCS+=	vmcb.c		\
 CLEANFILES=	vmx_assym.h vmx_genassym.o svm_assym.h svm_genassym.o
 
 vmx_assym.h:    vmx_genassym.o
-.if exists(@)
-vmx_assym.h:    @/kern/genassym.sh
-.endif
-	sh @/kern/genassym.sh vmx_genassym.o > ${.TARGET}
+	sh ${SYSDIR}/kern/genassym.sh vmx_genassym.o > ${.TARGET}
 
 svm_assym.h:    svm_genassym.o
-.if exists(@)
-svm_assym.h:    @/kern/genassym.sh
-.endif
-	sh @/kern/genassym.sh svm_genassym.o > ${.TARGET}
+	sh ${SYSDIR}/kern/genassym.sh svm_genassym.o > ${.TARGET}
 
 vmx_support.o:
 	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} \

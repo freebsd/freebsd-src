@@ -1567,6 +1567,7 @@ buf_vlist_add(struct buf *bp, struct bufobj *bo, b_xflags_t xflags)
 	int error;
 
 	ASSERT_BO_WLOCKED(bo);
+	KASSERT((bo->bo_flag & BO_DEAD) == 0, ("dead bo %p", bo));
 	KASSERT((bp->b_xflags & (BX_VNDIRTY|BX_VNCLEAN)) == 0,
 	    ("buf_vlist_add: Buf %p has existing xflags %d", bp, bp->b_xflags));
 	bp->b_xflags |= xflags;
@@ -1773,6 +1774,8 @@ sync_vnode(struct synclist *slp, struct bufobj **bo, struct thread *td)
 	return (0);
 }
 
+static int first_printf = 1;
+
 /*
  * System filesystem synchronizer daemon.
  */
@@ -1786,12 +1789,10 @@ sched_sync(void)
 	int last_work_seen;
 	int net_worklist_len;
 	int syncer_final_iter;
-	int first_printf;
 	int error;
 
 	last_work_seen = 0;
 	syncer_final_iter = 0;
-	first_printf = 1;
 	syncer_state = SYNCER_RUNNING;
 	starttime = time_uptime;
 	td->td_pflags |= TDP_NORUNNINGBUF;
@@ -1953,6 +1954,25 @@ syncer_shutdown(void *arg, int howto)
 	mtx_unlock(&sync_mtx);
 	cv_broadcast(&sync_wakeup);
 	kproc_shutdown(arg, howto);
+}
+
+void
+syncer_suspend(void)
+{
+
+	syncer_shutdown(updateproc, 0);
+}
+
+void
+syncer_resume(void)
+{
+
+	mtx_lock(&sync_mtx);
+	first_printf = 1;
+	syncer_state = SYNCER_RUNNING;
+	mtx_unlock(&sync_mtx);
+	cv_broadcast(&sync_wakeup);
+	kproc_resume(updateproc);
 }
 
 /*
@@ -2784,16 +2804,6 @@ vgonel(struct vnode *vp)
 	vfs_notify_upper(vp, VFS_NOTIFY_UPPER_RECLAIM);
 
 	/*
-	 * Clean out any buffers associated with the vnode.
-	 * If the flush fails, just toss the buffers.
-	 */
-	mp = NULL;
-	if (!TAILQ_EMPTY(&vp->v_bufobj.bo_dirty.bv_hd))
-		(void) vn_start_secondary_write(vp, &mp, V_WAIT);
-	if (vinvalbuf(vp, V_SAVE, 0, 0) != 0)
-		vinvalbuf(vp, 0, 0, 0);
-
-	/*
 	 * If purging an active vnode, it must be closed and
 	 * deactivated before being reclaimed.
 	 */
@@ -2807,6 +2817,29 @@ vgonel(struct vnode *vp)
 	}
 	if (vp->v_type == VSOCK)
 		vfs_unp_reclaim(vp);
+
+	/*
+	 * Clean out any buffers associated with the vnode.
+	 * If the flush fails, just toss the buffers.
+	 */
+	mp = NULL;
+	if (!TAILQ_EMPTY(&vp->v_bufobj.bo_dirty.bv_hd))
+		(void) vn_start_secondary_write(vp, &mp, V_WAIT);
+	if (vinvalbuf(vp, V_SAVE, 0, 0) != 0) {
+		while (vinvalbuf(vp, 0, 0, 0) != 0)
+			;
+	}
+#ifdef INVARIANTS
+	BO_LOCK(&vp->v_bufobj);
+	KASSERT(TAILQ_EMPTY(&vp->v_bufobj.bo_dirty.bv_hd) &&
+	    vp->v_bufobj.bo_dirty.bv_cnt == 0 &&
+	    TAILQ_EMPTY(&vp->v_bufobj.bo_clean.bv_hd) &&
+	    vp->v_bufobj.bo_clean.bv_cnt == 0,
+	    ("vp %p bufobj not invalidated", vp));
+	vp->v_bufobj.bo_flag |= BO_DEAD;
+	BO_UNLOCK(&vp->v_bufobj);
+#endif
+
 	/*
 	 * Reclaim the vnode.
 	 */

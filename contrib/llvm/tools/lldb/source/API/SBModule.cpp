@@ -110,10 +110,9 @@ SBModule::GetFileSpec () const
         file_spec.SetFileSpec(module_sp->GetFileSpec());
 
     if (log)
-    {
-        log->Printf ("SBModule(%p)::GetFileSpec () => SBFileSpec(%p)", 
-        module_sp.get(), file_spec.get());
-    }
+        log->Printf ("SBModule(%p)::GetFileSpec () => SBFileSpec(%p)",
+                     static_cast<void*>(module_sp.get()),
+                     static_cast<const void*>(file_spec.get()));
 
     return file_spec;
 }
@@ -122,20 +121,18 @@ lldb::SBFileSpec
 SBModule::GetPlatformFileSpec () const
 {
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
-    
+
     SBFileSpec file_spec;
     ModuleSP module_sp (GetSP ());
     if (module_sp)
         file_spec.SetFileSpec(module_sp->GetPlatformFileSpec());
-    
+
     if (log)
-    {
-        log->Printf ("SBModule(%p)::GetPlatformFileSpec () => SBFileSpec(%p)", 
-                     module_sp.get(), file_spec.get());
-    }
-    
+        log->Printf ("SBModule(%p)::GetPlatformFileSpec () => SBFileSpec(%p)",
+                     static_cast<void*>(module_sp.get()),
+                     static_cast<const void*>(file_spec.get()));
+
     return file_spec;
-    
 }
 
 bool
@@ -143,22 +140,19 @@ SBModule::SetPlatformFileSpec (const lldb::SBFileSpec &platform_file)
 {
     bool result = false;
     Log *log(lldb_private::GetLogIfAllCategoriesSet (LIBLLDB_LOG_API));
-    
+
     ModuleSP module_sp (GetSP ());
     if (module_sp)
     {
         module_sp->SetPlatformFileSpec(*platform_file);
         result = true;
     }
-    
+
     if (log)
-    {
-        log->Printf ("SBModule(%p)::SetPlatformFileSpec (SBFileSpec(%p (%s)) => %i", 
-                     module_sp.get(), 
-                     platform_file.get(),
-                     platform_file->GetPath().c_str(),
-                     result);
-    }
+        log->Printf ("SBModule(%p)::SetPlatformFileSpec (SBFileSpec(%p (%s)) => %i",
+                     static_cast<void*>(module_sp.get()),
+                     static_cast<const void*>(platform_file.get()),
+                     platform_file->GetPath().c_str(), result);
     return result;
 }
 
@@ -201,10 +195,12 @@ SBModule::GetUUIDBytes () const
         {
             StreamString s;
             module_sp->GetUUID().Dump (&s);
-            log->Printf ("SBModule(%p)::GetUUIDBytes () => %s", module_sp.get(), s.GetData());
+            log->Printf ("SBModule(%p)::GetUUIDBytes () => %s",
+                         static_cast<void*>(module_sp.get()), s.GetData());
         }
         else
-            log->Printf ("SBModule(%p)::GetUUIDBytes () => NULL", module_sp.get());
+            log->Printf ("SBModule(%p)::GetUUIDBytes () => NULL",
+                         static_cast<void*>(module_sp.get()));
     }
     return uuid_bytes;
 }
@@ -225,6 +221,7 @@ SBModule::GetUUIDString () const
     if (!uuid_string.empty())
     {
         strncpy (uuid_string_buffer, uuid_string.c_str(), sizeof (uuid_string_buffer));
+        uuid_string_buffer[sizeof (uuid_string_buffer) - 1] = '\0';
         uuid_c_string = uuid_string_buffer;
     }
 
@@ -234,10 +231,12 @@ SBModule::GetUUIDString () const
         {
             StreamString s;
             module_sp->GetUUID().Dump (&s);
-            log->Printf ("SBModule(%p)::GetUUIDString () => %s", module_sp.get(), s.GetData());
+            log->Printf ("SBModule(%p)::GetUUIDString () => %s",
+                         static_cast<void*>(module_sp.get()), s.GetData());
         }
         else
-            log->Printf ("SBModule(%p)::GetUUIDString () => NULL", module_sp.get());
+            log->Printf ("SBModule(%p)::GetUUIDString () => NULL",
+                         static_cast<void*>(module_sp.get()));
     }
     return uuid_c_string;
 }

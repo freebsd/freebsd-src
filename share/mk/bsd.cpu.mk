@@ -99,7 +99,7 @@ _CPUCFLAGS = -march=armv5te -D__XSCALE__
 . elif ${CPUTYPE} == "armv6"
 _CPUCFLAGS = -march=${CPUTYPE} -DARM_ARCH_6=1
 . elif ${CPUTYPE} == "cortexa"
-_CPUCFLAGS = -DARM_ARCH_6=1 -mfpu=vfp
+_CPUCFLAGS = -march=armv7 -DARM_ARCH_6=1 -mfpu=vfp
 .  else
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 .  endif
@@ -249,6 +249,10 @@ MACHINE_CPU = v9 ultrasparc ultrasparc3
 
 .if ${MACHINE_CPUARCH} == "mips"
 CFLAGS += -G0
+.endif
+
+.if ${MACHINE_ARCH} == "armv6"
+_CPUCFLAGS += -mfloat-abi=softfp
 .endif
 
 # NB: COPTFLAGS is handled in /usr/src/sys/conf/kern.pre.mk

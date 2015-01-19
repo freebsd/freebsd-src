@@ -17,7 +17,6 @@
 #include "llvm/Support/AlignOf.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/SwapByteOrder.h"
-#include "llvm/Support/type_traits.h"
 
 namespace llvm {
 namespace support {
@@ -35,13 +34,15 @@ namespace detail {
 } // end namespace detail
 
 namespace endian {
+/// Swap the bytes of value to match the given endianness.
 template<typename value_type, endianness endian>
 inline value_type byte_swap(value_type value) {
   if (endian != native && sys::IsBigEndianHost != (endian == big))
-    return sys::SwapByteOrder(value);
+    sys::swapByteOrder(value);
   return value;
 }
 
+/// Read a value of a particular endianness from memory.
 template<typename value_type,
          endianness endian,
          std::size_t alignment>
@@ -55,6 +56,16 @@ inline value_type read(const void *memory) {
   return byte_swap<value_type, endian>(ret);
 }
 
+/// Read a value of a particular endianness from a buffer, and increment the
+/// buffer past that value.
+template<typename value_type, endianness endian, std::size_t alignment>
+inline value_type readNext(const unsigned char *&memory) {
+  value_type ret = read<value_type, endian, alignment>(memory);
+  memory += sizeof(value_type);
+  return ret;
+}
+
+/// Write a value to memory with a particular endianness.
 template<typename value_type,
          endianness endian,
          std::size_t alignment>

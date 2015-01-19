@@ -27,13 +27,11 @@
 
 /* This implementation of Fortuna is based on the descriptions found in
  * ISBN 0-471-22357-3 "Practical Cryptography" by Ferguson and Schneier
- * ("K&S").
+ * ("F&S").
  *
- * The above book is superceded by ISBN 978-0-470-47424-2 "Cryptography
- * Engineering" by Ferguson, Schneier and Kohno ("FS&K").
- *
- * This code has not yet caught up with FS&K, but differences are not
- * expected to be complex.
+ * The above book is superseded by ISBN 978-0-470-47424-2 "Cryptography
+ * Engineering" by Ferguson, Schneier and Kohno ("FS&K").  The code has
+ * not yet fully caught up with FS&K.
  */
 
 #include <sys/cdefs.h>
@@ -252,12 +250,9 @@ reseed(uint8_t *junk, u_int length)
 	mtx_assert(&random_reseed_mtx, MA_OWNED);
 #endif
 
-	/* F&S - K = Hd(K|s) where Hd(m) is H(H(m)) */
+	/* FS&K - K = Hd(K|s) where Hd(m) is H(H(0^512|m)) */
 	randomdev_hash_init(&context);
-#if 0
-	/* FS&K defines Hd(m) as H(H(0^512|m)) */
-	randomdev_hash_iterate(&context, zero_region, KEYSIZE);
-#endif
+	randomdev_hash_iterate(&context, zero_region, 512/8);
 	randomdev_hash_iterate(&context, &fortuna_state.key, sizeof(fortuna_state.key));
 	randomdev_hash_iterate(&context, junk, length);
 	randomdev_hash_finish(&context, hash);
@@ -270,7 +265,7 @@ reseed(uint8_t *junk, u_int length)
 	/* Unblock the device if it was blocked due to being unseeded */
 	if (uint128_is_zero(fortuna_state.counter.whole))
 		random_adaptor_unblock();
-	/* F&S - C = C + 1 */
+	/* FS&K - C = C + 1 */
 	uint128_increment(&fortuna_state.counter.whole);
 }
 

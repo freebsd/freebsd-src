@@ -17,8 +17,8 @@
 #ifndef LLVM_CODEGEN_MACHINECODEEMITTER_H
 #define LLVM_CODEGEN_MACHINECODEEMITTER_H
 
+#include "llvm/IR/DebugLoc.h"
 #include "llvm/Support/DataTypes.h"
-#include "llvm/Support/DebugLoc.h"
 #include <string>
 
 namespace llvm {
@@ -262,7 +262,7 @@ public:
     // Check for buffer overflow.
     if (Size >= (uintptr_t)(BufferEnd-CurBufferPtr)) {
       CurBufferPtr = BufferEnd;
-      Result = 0;
+      Result = nullptr;
     } else {
       // Allocate the space.
       Result = CurBufferPtr;

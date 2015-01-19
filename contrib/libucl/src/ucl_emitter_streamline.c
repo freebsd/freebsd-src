@@ -108,9 +108,8 @@ ucl_object_emit_streamline_start_container (struct ucl_emitter_context *ctx,
 			st->is_array = false;
 			sctx->ops->ucl_emitter_start_object (ctx, obj, print_key);
 		}
+		LL_PREPEND (sctx->containers, st);
 	}
-
-	LL_PREPEND (sctx->containers, st);
 }
 
 void

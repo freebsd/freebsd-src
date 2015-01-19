@@ -1542,7 +1542,7 @@ init(int signo)
 	struct filed *f, *next, **nextp;
 	char *p;
 	char cline[LINE_MAX];
- 	char prog[NAME_MAX+1];
+ 	char prog[LINE_MAX];
 	char host[MAXHOSTNAMELEN];
 	char oldLocalHostName[MAXHOSTNAMELEN];
 	char hostMsg[2*MAXHOSTNAMELEN+40];
@@ -1664,7 +1664,7 @@ init(int signo)
 				(void)strlcpy(prog, "*", sizeof(prog));
 				continue;
 			}
-			for (i = 0; i < NAME_MAX; i++) {
+			for (i = 0; i < LINE_MAX - 1; i++) {
 				if (!isprint(p[i]) || isspace(p[i]))
 					break;
 				prog[i] = p[i];

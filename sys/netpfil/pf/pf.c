@@ -139,18 +139,11 @@ struct pf_send_entry {
 		PFSE_ICMP,
 		PFSE_ICMP6,
 	}				pfse_type;
-	union {
-		struct route		ro;
-		struct {
-			int		type;
-			int		code;
-			int		mtu;
-		} icmpopts;
-	} u;
-#define	pfse_ro		u.ro
-#define	pfse_icmp_type	u.icmpopts.type
-#define	pfse_icmp_code	u.icmpopts.code
-#define	pfse_icmp_mtu	u.icmpopts.mtu
+	struct {
+		int		type;
+		int		code;
+		int		mtu;
+	} icmpopts;
 };
 
 STAILQ_HEAD(pf_send_head, pf_send_entry);
@@ -158,6 +151,7 @@ static VNET_DEFINE(struct pf_send_head, pf_sendqueue);
 #define	V_pf_sendqueue	VNET(pf_sendqueue)
 
 static struct mtx pf_sendqueue_mtx;
+MTX_SYSINIT(pf_sendqueue_mtx, &pf_sendqueue_mtx, "pf send queue", MTX_DEF);
 #define	PF_SENDQ_LOCK()		mtx_lock(&pf_sendqueue_mtx)
 #define	PF_SENDQ_UNLOCK()	mtx_unlock(&pf_sendqueue_mtx)
 
@@ -179,11 +173,15 @@ static VNET_DEFINE(struct task, pf_overloadtask);
 #define	V_pf_overloadtask	VNET(pf_overloadtask)
 
 static struct mtx pf_overloadqueue_mtx;
+MTX_SYSINIT(pf_overloadqueue_mtx, &pf_overloadqueue_mtx,
+    "pf overload/flush queue", MTX_DEF);
 #define	PF_OVERLOADQ_LOCK()	mtx_lock(&pf_overloadqueue_mtx)
 #define	PF_OVERLOADQ_UNLOCK()	mtx_unlock(&pf_overloadqueue_mtx)
 
 VNET_DEFINE(struct pf_rulequeue, pf_unlinked_rules);
 struct mtx pf_unlnkdrules_mtx;
+MTX_SYSINIT(pf_unlnkdrules_mtx, &pf_unlnkdrules_mtx, "pf unlinked rules",
+    MTX_DEF);
 
 static VNET_DEFINE(uma_zone_t,	pf_sources_z);
 #define	V_pf_sources_z	VNET(pf_sources_z)
@@ -296,8 +294,6 @@ static void		 pf_route6(struct mbuf **, struct pf_rule *, int,
 #endif /* INET6 */
 
 int in4_cksum(struct mbuf *m, u_int8_t nxt, int off, int len);
-
-VNET_DECLARE(int, pf_end_threads);
 
 VNET_DEFINE(struct pf_limit, pf_limits[PF_LIMIT_MAX]);
 
@@ -735,7 +731,7 @@ pf_mtag_initialize()
 
 /* Per-vnet data storage structures initialization. */
 void
-pf_initialize()
+pf_vnet_initialize()
 {
 	struct pf_keyhash	*kh;
 	struct pf_idhash	*ih;
@@ -795,13 +791,9 @@ pf_initialize()
 	STAILQ_INIT(&V_pf_sendqueue);
 	SLIST_INIT(&V_pf_overloadqueue);
 	TASK_INIT(&V_pf_overloadtask, 0, pf_overload_task, curvnet);
-	mtx_init(&pf_sendqueue_mtx, "pf send queue", NULL, MTX_DEF);
-	mtx_init(&pf_overloadqueue_mtx, "pf overload/flush queue", NULL,
-	    MTX_DEF);
 
 	/* Unlinked, but may be referenced rules. */
 	TAILQ_INIT(&V_pf_unlinked_rules);
-	mtx_init(&pf_unlnkdrules_mtx, "pf unlinked rules", NULL, MTX_DEF);
 }
 
 void
@@ -843,10 +835,6 @@ pf_cleanup()
 		m_freem(pfse->pfse_m);
 		free(pfse, M_PFTEMP);
 	}
-
-	mtx_destroy(&pf_sendqueue_mtx);
-	mtx_destroy(&pf_overloadqueue_mtx);
-	mtx_destroy(&pf_unlnkdrules_mtx);
 
 	uma_zdestroy(V_pf_sources_z);
 	uma_zdestroy(V_pf_state_z);
@@ -1370,8 +1358,8 @@ pf_intr(void *v)
 			ip_output(pfse->pfse_m, NULL, NULL, 0, NULL, NULL);
 			break;
 		case PFSE_ICMP:
-			icmp_error(pfse->pfse_m, pfse->pfse_icmp_type,
-			    pfse->pfse_icmp_code, 0, pfse->pfse_icmp_mtu);
+			icmp_error(pfse->pfse_m, pfse->icmpopts.type,
+			    pfse->icmpopts.code, 0, pfse->icmpopts.mtu);
 			break;
 #endif /* INET */
 #ifdef INET6
@@ -1380,8 +1368,8 @@ pf_intr(void *v)
 			    NULL);
 			break;
 		case PFSE_ICMP6:
-			icmp6_error(pfse->pfse_m, pfse->pfse_icmp_type,
-			    pfse->pfse_icmp_code, pfse->pfse_icmp_mtu);
+			icmp6_error(pfse->pfse_m, pfse->icmpopts.type,
+			    pfse->icmpopts.code, pfse->icmpopts.mtu);
 			break;
 #endif /* INET6 */
 		default:
@@ -1393,71 +1381,37 @@ pf_intr(void *v)
 }
 
 void
-pf_purge_thread(void *v)
+pf_purge_thread(void *v __unused)
 {
 	u_int idx = 0;
-
-	CURVNET_SET((struct vnet *)v);
+	VNET_ITERATOR_DECL(vnet_iter);
 
 	for (;;) {
-		PF_RULES_RLOCK();
-		rw_sleep(pf_purge_thread, &pf_rules_lock, 0, "pftm", hz / 10);
+		tsleep(pf_purge_thread, PWAIT, "pftm", hz / 10);
+		VNET_LIST_RLOCK();
+		VNET_FOREACH(vnet_iter) {
+			CURVNET_SET(vnet_iter);
+			/* Process 1/interval fraction of the state table every run. */
+			idx = pf_purge_expired_states(idx, pf_hashmask /
+				    (V_pf_default_rule.timeout[PFTM_INTERVAL] * 10));
 
-		if (V_pf_end_threads) {
-			/*
-			 * To cleanse up all kifs and rules we need
-			 * two runs: first one clears reference flags,
-			 * then pf_purge_expired_states() doesn't
-			 * raise them, and then second run frees.
-			 */
-			PF_RULES_RUNLOCK();
-			pf_purge_unlinked_rules();
-			pfi_kif_purge();
-
-			/*
-			 * Now purge everything.
-			 */
-			pf_purge_expired_states(0, pf_hashmask);
-			pf_purge_expired_fragments();
-			pf_purge_expired_src_nodes();
-
-			/*
-			 * Now all kifs & rules should be unreferenced,
-			 * thus should be successfully freed.
-			 */
-			pf_purge_unlinked_rules();
-			pfi_kif_purge();
-
-			/*
-			 * Announce success and exit.
-			 */
-			PF_RULES_RLOCK();
-			V_pf_end_threads++;
-			PF_RULES_RUNLOCK();
-			wakeup(pf_purge_thread);
-			kproc_exit(0);
+			/* Purge other expired types every PFTM_INTERVAL seconds. */
+			if (idx == 0) {
+				/*
+				 * Order is important:
+				 * - states and src nodes reference rules
+				 * - states and rules reference kifs
+				 */
+				pf_purge_expired_fragments();
+				pf_purge_expired_src_nodes();
+				pf_purge_unlinked_rules();
+				pfi_kif_purge();
+			}
+			CURVNET_RESTORE();
 		}
-		PF_RULES_RUNLOCK();
-
-		/* Process 1/interval fraction of the state table every run. */
-		idx = pf_purge_expired_states(idx, pf_hashmask /
-			    (V_pf_default_rule.timeout[PFTM_INTERVAL] * 10));
-
-		/* Purge other expired types every PFTM_INTERVAL seconds. */
-		if (idx == 0) {
-			/*
-			 * Order is important:
-			 * - states and src nodes reference rules
-			 * - states and rules reference kifs
-			 */
-			pf_purge_expired_fragments();
-			pf_purge_expired_src_nodes();
-			pf_purge_unlinked_rules();
-			pfi_kif_purge();
-		}
+		VNET_LIST_RUNLOCK();
 	}
 	/* not reached */
-	CURVNET_RESTORE();
 }
 
 u_int32_t
@@ -2413,8 +2367,8 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 #endif /* INET6 */
 	}
 	pfse->pfse_m = m0;
-	pfse->pfse_icmp_type = type;
-	pfse->pfse_icmp_code = code;
+	pfse->icmpopts.type = type;
+	pfse->icmpopts.code = code;
 	pf_send(pfse);
 }
 

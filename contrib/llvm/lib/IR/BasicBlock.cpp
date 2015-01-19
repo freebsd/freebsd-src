@@ -14,20 +14,24 @@
 #include "llvm/IR/BasicBlock.h"
 #include "SymbolTableListTraitsImpl.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/IR/CFG.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/LeakDetector.h"
 #include "llvm/IR/Type.h"
-#include "llvm/Support/CFG.h"
-#include "llvm/Support/LeakDetector.h"
 #include <algorithm>
 using namespace llvm;
 
 ValueSymbolTable *BasicBlock::getValueSymbolTable() {
   if (Function *F = getParent())
     return &F->getValueSymbolTable();
-  return 0;
+  return nullptr;
+}
+
+const DataLayout *BasicBlock::getDataLayout() const {
+  return getParent()->getDataLayout();
 }
 
 LLVMContext &BasicBlock::getContext() const {
@@ -41,7 +45,7 @@ template class llvm::SymbolTableListTraits<Instruction, BasicBlock>;
 
 BasicBlock::BasicBlock(LLVMContext &C, const Twine &Name, Function *NewParent,
                        BasicBlock *InsertBefore)
-  : Value(Type::getLabelTy(C), Value::BasicBlockVal), Parent(0) {
+  : Value(Type::getLabelTy(C), Value::BasicBlockVal), Parent(nullptr) {
 
   // Make sure that we get added to a function
   LeakDetector::addGarbageObject(this);
@@ -70,14 +74,14 @@ BasicBlock::~BasicBlock() {
     Constant *Replacement =
       ConstantInt::get(llvm::Type::getInt32Ty(getContext()), 1);
     while (!use_empty()) {
-      BlockAddress *BA = cast<BlockAddress>(use_back());
+      BlockAddress *BA = cast<BlockAddress>(user_back());
       BA->replaceAllUsesWith(ConstantExpr::getIntToPtr(Replacement,
                                                        BA->getType()));
       BA->destroyConstant();
     }
   }
 
-  assert(getParent() == 0 && "BasicBlock still linked into the program!");
+  assert(getParent() == nullptr && "BasicBlock still linked into the program!");
   dropAllReferences();
   InstList.clear();
 }
@@ -118,12 +122,12 @@ void BasicBlock::moveAfter(BasicBlock *MovePos) {
 
 
 TerminatorInst *BasicBlock::getTerminator() {
-  if (InstList.empty()) return 0;
+  if (InstList.empty()) return nullptr;
   return dyn_cast<TerminatorInst>(&InstList.back());
 }
 
 const TerminatorInst *BasicBlock::getTerminator() const {
-  if (InstList.empty()) return 0;
+  if (InstList.empty()) return nullptr;
   return dyn_cast<TerminatorInst>(&InstList.back());
 }
 
@@ -182,10 +186,10 @@ void BasicBlock::dropAllReferences() {
 /// return the block, otherwise return a null pointer.
 BasicBlock *BasicBlock::getSinglePredecessor() {
   pred_iterator PI = pred_begin(this), E = pred_end(this);
-  if (PI == E) return 0;         // No preds.
+  if (PI == E) return nullptr;         // No preds.
   BasicBlock *ThePred = *PI;
   ++PI;
-  return (PI == E) ? ThePred : 0 /*multiple preds*/;
+  return (PI == E) ? ThePred : nullptr /*multiple preds*/;
 }
 
 /// getUniquePredecessor - If this basic block has a unique predecessor block,
@@ -195,12 +199,12 @@ BasicBlock *BasicBlock::getSinglePredecessor() {
 /// a switch statement with multiple cases having the same destination).
 BasicBlock *BasicBlock::getUniquePredecessor() {
   pred_iterator PI = pred_begin(this), E = pred_end(this);
-  if (PI == E) return 0; // No preds.
+  if (PI == E) return nullptr; // No preds.
   BasicBlock *PredBB = *PI;
   ++PI;
   for (;PI != E; ++PI) {
     if (*PI != PredBB)
-      return 0;
+      return nullptr;
     // The same predecessor appears multiple times in the predecessor list.
     // This is OK.
   }
@@ -273,7 +277,7 @@ void BasicBlock::removePredecessor(BasicBlock *Pred,
       PN->removeIncomingValue(Pred, false);
       // If all incoming values to the Phi are the same, we can replace the Phi
       // with that value.
-      Value* PNV = 0;
+      Value* PNV = nullptr;
       if (!DontDeleteUselessPHIs && (PNV = PN->hasConstantValue()))
         if (PNV != PN) {
           PN->replaceAllUsesWith(PNV);
@@ -300,7 +304,7 @@ BasicBlock *BasicBlock::splitBasicBlock(iterator I, const Twine &BBName) {
   assert(I != InstList.end() &&
          "Trying to get me to create degenerate basic block!");
 
-  BasicBlock *InsertBefore = llvm::next(Function::iterator(this))
+  BasicBlock *InsertBefore = std::next(Function::iterator(this))
                                .getNodePtrUnchecked();
   BasicBlock *New = BasicBlock::Create(getContext(), BBName,
                                        getParent(), InsertBefore);

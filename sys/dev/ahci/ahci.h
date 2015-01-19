@@ -143,6 +143,7 @@
 
 #define AHCI_MAX_PORTS			32
 #define AHCI_MAX_SLOTS			32
+#define AHCI_MAX_IRQS			16
 
 /* SATA AHCI v1.0 register defines */
 #define AHCI_CAP                    0x00
@@ -494,7 +495,7 @@ struct ahci_controller {
 #define	AHCI_IRQ_MODE_ALL	0
 #define	AHCI_IRQ_MODE_AFTER	1
 #define	AHCI_IRQ_MODE_ONE	2
-	} irqs[16];
+	} irqs[AHCI_MAX_IRQS];
 	uint32_t		caps;		/* Controller capabilities */
 	uint32_t		caps2;		/* Controller capabilities */
 	uint32_t		capsem;		/* Controller capabilities */
@@ -571,6 +572,7 @@ enum ahci_err_type {
 #define AHCI_Q_ATI_PMP_BUG	0x2000
 #define AHCI_Q_MAXIO_64K	0x4000
 #define AHCI_Q_SATA1_UNIT0	0x8000		/* need better method for this */
+#define AHCI_Q_ABAR0		0x10000
 
 #define AHCI_Q_BIT_STRING	\
 	"\020"			\
@@ -589,7 +591,8 @@ enum ahci_err_type {
 	"\015NOMSI"		\
 	"\016ATI_PMP_BUG"	\
 	"\017MAXIO_64K"		\
-	"\020SATA1_UNIT0"
+	"\020SATA1_UNIT0"	\
+	"\021ABAR0"
 
 int ahci_attach(device_t dev);
 int ahci_detach(device_t dev);

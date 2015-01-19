@@ -40,27 +40,26 @@ struct scd_softc {
 	struct resource *	port;
 	int			port_rid;
 	int			port_type;
-	bus_space_tag_t		port_bst;
-	bus_space_handle_t	port_bsh;
 
 	struct mtx		mtx;
 
-	struct callout_handle	ch;
+	struct callout		timer;
 	int			ch_state;
 	struct scd_mbx *	ch_mbxsave;
 
 	struct scd_data		data;
 };
 
-#define	SCD_LOCK(_sc)		splx(&(_sc)->mtx
-#define	SCD_UNLOCK(_sc)		splx(&(_sc)->mtx
+#define	SCD_LOCK(_sc)		mtx_lock(&_sc->mtx)
+#define	SCD_UNLOCK(_sc)		mtx_unlock(&_sc->mtx)
+#define	SCD_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->mtx, MA_OWNED)
 
 #define	SCD_READ(_sc, _reg) \
-	bus_space_read_1(_sc->port_bst, _sc->port_bsh, _reg)
+	bus_read_1(_sc->port, _reg)
 #define	SCD_READ_MULTI(_sc, _reg, _addr, _count) \
-	bus_space_read_multi_1(_sc->port_bst, _sc->port_bsh, _reg, _addr, _count)
+	bus_read_multi_1(_sc->port, _reg, _addr, _count)
 #define	SCD_WRITE(_sc, _reg, _val) \
-	bus_space_write_1(_sc->port_bst, _sc->port_bsh, _reg, _val)
+	bus_write_1(_sc->port, _reg, _val)
 
 int	scd_probe	(struct scd_softc *);
 int	scd_attach	(struct scd_softc *);

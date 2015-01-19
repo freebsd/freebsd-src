@@ -61,8 +61,10 @@ autofs_mount(struct mount *mp)
 	if (vfs_filteropt(mp->mnt_optnew, autofs_opts))
 		return (EINVAL);
 
-	if (mp->mnt_flag & MNT_UPDATE)
+	if (mp->mnt_flag & MNT_UPDATE) {
+		autofs_flush(VFSTOAUTOFS(mp));
 		return (0);
+	}
 
 	if (vfs_getopt(mp->mnt_optnew, "from", (void **)&from, NULL))
 		return (EINVAL);

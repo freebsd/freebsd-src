@@ -2655,7 +2655,7 @@ static ib_api_status_t osmtest_stress_large_rmpp_pr(IN osmtest_t * const p_osmt)
 
 	OSM_LOG_ENTER(&p_osmt->log);
 	gettimeofday(&start_tv, NULL);
-	printf("-I- Start time is : %09ld:%06ld [sec:usec]\n", start_tv.tv_sec,
+	printf("-I- Start time is : %09ld:%06ld [sec:usec]\n", (long)start_tv.tv_sec,
 	       (long)start_tv.tv_usec);
 
 	while (num_queries < STRESS_LARGE_PR_RMPP_THR) {
@@ -2683,7 +2683,7 @@ static ib_api_status_t osmtest_stress_large_rmpp_pr(IN osmtest_t * const p_osmt)
 					       end_tv.tv_usec);
 			}
 			printf("-I- End time is : %09ld:%06ld [sec:usec]\n",
-			       end_tv.tv_sec, (long)end_tv.tv_usec);
+			       (long)end_tv.tv_sec, (long)end_tv.tv_usec);
 			printf("-I- Querying %" PRId64
 			       " Path Record queries CA to CA (rmpp)\n\ttook %04ld:%06ld [sec:usec]\n",
 			       num_queries, sec_diff, usec_diff);
@@ -2701,7 +2701,7 @@ static ib_api_status_t osmtest_stress_large_rmpp_pr(IN osmtest_t * const p_osmt)
 Exit:
 	gettimeofday(&end_tv, NULL);
 	printf("-I- End time is : %09ld:%06ld [sec:usec]\n",
-	       end_tv.tv_sec, (long)end_tv.tv_usec);
+	       (long)end_tv.tv_sec, (long)end_tv.tv_usec);
 	if (end_tv.tv_usec > start_tv.tv_usec) {
 		sec_diff = end_tv.tv_sec - start_tv.tv_sec;
 		usec_diff = end_tv.tv_usec - start_tv.tv_usec;
@@ -2733,7 +2733,7 @@ static ib_api_status_t osmtest_stress_large_rmpp(IN osmtest_t * const p_osmt)
 
 	OSM_LOG_ENTER(&p_osmt->log);
 	gettimeofday(&start_tv, NULL);
-	printf("-I- Start time is : %09ld:%06ld [sec:usec]\n", start_tv.tv_sec,
+	printf("-I- Start time is : %09ld:%06ld [sec:usec]\n", (long)start_tv.tv_sec,
 	       (long)start_tv.tv_usec);
 
 	while (num_queries < STRESS_LARGE_RMPP_THR) {
@@ -2772,7 +2772,7 @@ static ib_api_status_t osmtest_stress_large_rmpp(IN osmtest_t * const p_osmt)
 					       end_tv.tv_usec);
 			}
 			printf("-I- End time is : %09ld:%06ld [sec:usec]\n",
-			       end_tv.tv_sec, (long)end_tv.tv_usec);
+			       (long)end_tv.tv_sec, (long)end_tv.tv_usec);
 			printf("-I- Querying %" PRId64
 			       " large mixed queries (rmpp) took %04ld:%06ld [sec:usec]\n",
 			       num_queries, sec_diff, usec_diff);
@@ -2785,7 +2785,7 @@ static ib_api_status_t osmtest_stress_large_rmpp(IN osmtest_t * const p_osmt)
 Exit:
 	gettimeofday(&end_tv, NULL);
 	printf("-I- End time is : %09ld:%06ld [sec:usec]\n",
-	       end_tv.tv_sec, (long)end_tv.tv_usec);
+	       (long)end_tv.tv_sec, (long)end_tv.tv_usec);
 	if (end_tv.tv_usec > start_tv.tv_usec) {
 		sec_diff = end_tv.tv_sec - start_tv.tv_sec;
 		usec_diff = end_tv.tv_usec - start_tv.tv_usec;
@@ -2819,7 +2819,7 @@ static ib_api_status_t osmtest_stress_small_rmpp(IN osmtest_t * const p_osmt)
 	OSM_LOG_ENTER(&p_osmt->log);
 	gettimeofday(&start_tv, NULL);
 	printf("-I- Start time is : %09ld:%06ld [sec:usec]\n",
-	       start_tv.tv_sec, (long)start_tv.tv_usec);
+	       (long)start_tv.tv_sec, (long)start_tv.tv_usec);
 
 	while ((num_queries < STRESS_SMALL_RMPP_THR) && (num_timeouts < 100)) {
 		delta_recs = 0;
@@ -2848,7 +2848,7 @@ static ib_api_status_t osmtest_stress_small_rmpp(IN osmtest_t * const p_osmt)
 					       end_tv.tv_usec);
 			}
 			printf("-I- End time is : %09ld:%06ld [sec:usec]\n",
-			       end_tv.tv_sec, (long)end_tv.tv_usec);
+			       (long)end_tv.tv_sec, (long)end_tv.tv_usec);
 			printf("-I- Querying %" PRId64
 			       " port_info queries (single mad) took %04ld:%06ld [sec:usec]\n",
 			       num_queries, sec_diff, usec_diff);
@@ -2859,7 +2859,7 @@ static ib_api_status_t osmtest_stress_small_rmpp(IN osmtest_t * const p_osmt)
 Exit:
 	gettimeofday(&end_tv, NULL);
 	printf("-I- End time is : %09ld:%06ld [sec:usec]\n",
-	       end_tv.tv_sec, (long)end_tv.tv_usec);
+	       (long)end_tv.tv_sec, (long)end_tv.tv_usec);
 	if (end_tv.tv_usec > start_tv.tv_usec) {
 		sec_diff = end_tv.tv_sec - start_tv.tv_sec;
 		usec_diff = end_tv.tv_usec - start_tv.tv_usec;
@@ -3013,7 +3013,7 @@ Exit:
 
 /**********************************************************************
  **********************************************************************/
-inline uint32_t osmtest_path_rec_key_get(IN const ib_path_rec_t * const p_rec)
+static inline uint32_t osmtest_path_rec_key_get(IN const ib_path_rec_t * const p_rec)
 {
 	return (p_rec->dlid << 16 | p_rec->slid);
 }

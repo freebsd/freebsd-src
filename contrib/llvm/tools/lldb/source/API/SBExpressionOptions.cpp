@@ -101,6 +101,18 @@ SBExpressionOptions::SetTimeoutInMicroSeconds (uint32_t timeout)
     m_opaque_ap->SetTimeoutUsec (timeout);
 }
 
+uint32_t
+SBExpressionOptions::GetOneThreadTimeoutInMicroSeconds () const
+{
+    return m_opaque_ap->GetOneThreadTimeoutUsec ();
+}
+
+void
+SBExpressionOptions::SetOneThreadTimeoutInMicroSeconds (uint32_t timeout)
+{
+    m_opaque_ap->SetOneThreadTimeoutUsec (timeout);
+}
+
 bool
 SBExpressionOptions::GetTryAllThreads () const
 {
@@ -114,6 +126,18 @@ SBExpressionOptions::SetTryAllThreads (bool run_others)
 }
 
 bool
+SBExpressionOptions::GetStopOthers () const
+{
+    return m_opaque_ap->GetStopOthers ();
+}
+
+void
+SBExpressionOptions::SetStopOthers (bool run_others)
+{
+    m_opaque_ap->SetStopOthers (run_others);
+}
+
+bool
 SBExpressionOptions::GetTrapExceptions () const
 {
     return m_opaque_ap->GetTrapExceptions ();
@@ -124,6 +148,43 @@ SBExpressionOptions::SetTrapExceptions (bool trap_exceptions)
 {
     m_opaque_ap->SetTrapExceptions (trap_exceptions);
 }
+
+void
+SBExpressionOptions::SetLanguage (lldb::LanguageType language)
+{
+    m_opaque_ap->SetLanguage(language);
+}
+
+void
+SBExpressionOptions::SetCancelCallback (lldb::ExpressionCancelCallback callback, void *baton)
+{
+    m_opaque_ap->SetCancelCallback (callback, baton);
+}
+
+bool
+SBExpressionOptions::GetGenerateDebugInfo ()
+{
+    return m_opaque_ap->GetGenerateDebugInfo();
+}
+
+void
+SBExpressionOptions::SetGenerateDebugInfo (bool b)
+{
+    return m_opaque_ap->SetGenerateDebugInfo(b);
+}
+
+bool
+SBExpressionOptions::GetSuppressPersistentResult ()
+{
+    return m_opaque_ap->GetResultIsInternal ();
+}
+
+void
+SBExpressionOptions::SetSuppressPersistentResult (bool b)
+{
+    return m_opaque_ap->SetResultIsInternal (b);
+}
+
 
 EvaluateExpressionOptions *
 SBExpressionOptions::get() const

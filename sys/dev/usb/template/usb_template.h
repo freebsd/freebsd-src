@@ -106,6 +106,7 @@ extern const struct usb_temp_device_desc usb_template_mouse;
 extern const struct usb_temp_device_desc usb_template_msc;
 extern const struct usb_temp_device_desc usb_template_mtp;
 extern const struct usb_temp_device_desc usb_template_phone;
+extern const struct usb_temp_device_desc usb_template_serialnet;
 
 usb_error_t	usb_temp_setup(struct usb_device *,
 		    const struct usb_temp_device_desc *);

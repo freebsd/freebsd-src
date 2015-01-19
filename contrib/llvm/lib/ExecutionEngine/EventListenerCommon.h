@@ -15,10 +15,10 @@
 #define EVENT_LISTENER_COMMON_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/DebugInfo.h"
+#include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/Metadata.h"
+#include "llvm/IR/ValueHandle.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/ValueHandle.h"
 
 namespace llvm {
 

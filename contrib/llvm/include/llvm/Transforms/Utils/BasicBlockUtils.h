@@ -18,11 +18,12 @@
 // FIXME: Move to this file: BasicBlock::removePredecessor, BB::splitBasicBlock
 
 #include "llvm/IR/BasicBlock.h"
-#include "llvm/Support/CFG.h"
+#include "llvm/IR/CFG.h"
 
 namespace llvm {
 
 class AliasAnalysis;
+class DominatorTree;
 class Instruction;
 class MDNode;
 class Pass;
@@ -34,23 +35,22 @@ class TerminatorInst;
 /// predecessors.
 void DeleteDeadBlock(BasicBlock *BB);
 
-
 /// FoldSingleEntryPHINodes - We know that BB has one predecessor.  If there are
 /// any single-entry PHI nodes in it, fold them away.  This handles the case
 /// when all entries to the PHI nodes in a block are guaranteed equal, such as
 /// when the block has exactly one predecessor.
-void FoldSingleEntryPHINodes(BasicBlock *BB, Pass *P = 0);
+void FoldSingleEntryPHINodes(BasicBlock *BB, Pass *P = nullptr);
 
 /// DeleteDeadPHIs - Examine each PHI in the given block and delete it if it
 /// is dead. Also recursively delete any operands that become dead as
 /// a result. This includes tracing the def-use list from the PHI to see if
 /// it is ultimately unused or if it reaches an unused cycle. Return true
 /// if any PHIs were deleted.
-bool DeleteDeadPHIs(BasicBlock *BB, const TargetLibraryInfo *TLI = 0);
+bool DeleteDeadPHIs(BasicBlock *BB, const TargetLibraryInfo *TLI = nullptr);
 
 /// MergeBlockIntoPredecessor - Attempts to merge a block into its predecessor,
 /// if possible.  The return value indicates success or failure.
-bool MergeBlockIntoPredecessor(BasicBlock *BB, Pass *P = 0);
+bool MergeBlockIntoPredecessor(BasicBlock *BB, Pass *P = nullptr);
 
 // ReplaceInstWithValue - Replace all uses of an instruction (specified by BI)
 // with a value, then remove and delete the original instruction.
@@ -89,12 +89,13 @@ void ReplaceInstWithInst(Instruction *From, Instruction *To);
 /// to.
 ///
 BasicBlock *SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
-                              Pass *P = 0, bool MergeIdenticalEdges = false,
+                              Pass *P = nullptr,
+                              bool MergeIdenticalEdges = false,
                               bool DontDeleteUselessPHIs = false,
                               bool SplitLandingPads = false);
 
 inline BasicBlock *SplitCriticalEdge(BasicBlock *BB, succ_iterator SI,
-                                     Pass *P = 0) {
+                                     Pass *P = nullptr) {
   return SplitCriticalEdge(BB->getTerminator(), SI.getSuccessorIndex(), P);
 }
 
@@ -103,7 +104,8 @@ inline BasicBlock *SplitCriticalEdge(BasicBlock *BB, succ_iterator SI,
 /// This updates all of the same analyses as the other SplitCriticalEdge
 /// function.  If P is specified, it updates the analyses
 /// described above.
-inline bool SplitCriticalEdge(BasicBlock *Succ, pred_iterator PI, Pass *P = 0) {
+inline bool SplitCriticalEdge(BasicBlock *Succ, pred_iterator PI,
+                              Pass *P = nullptr) {
   bool MadeChange = false;
   TerminatorInst *TI = (*PI)->getTerminator();
   for (unsigned i = 0, e = TI->getNumSuccessors(); i != e; ++i)
@@ -117,7 +119,7 @@ inline bool SplitCriticalEdge(BasicBlock *Succ, pred_iterator PI, Pass *P = 0) {
 /// an edge between the two blocks.  If P is specified, it updates the analyses
 /// described above.
 inline BasicBlock *SplitCriticalEdge(BasicBlock *Src, BasicBlock *Dst,
-                                     Pass *P = 0,
+                                     Pass *P = nullptr,
                                      bool MergeIdenticalEdges = false,
                                      bool DontDeleteUselessPHIs = false) {
   TerminatorInst *TI = Src->getTerminator();
@@ -155,7 +157,7 @@ BasicBlock *SplitBlock(BasicBlock *Old, Instruction *SplitPt, Pass *P);
 /// is an exit of a loop with other exits).
 ///
 BasicBlock *SplitBlockPredecessors(BasicBlock *BB, ArrayRef<BasicBlock*> Preds,
-                                   const char *Suffix, Pass *P = 0);
+                                   const char *Suffix, Pass *P = nullptr);
 
 /// SplitLandingPadPredecessors - This method transforms the landing pad,
 /// OrigBB, by introducing two new basic blocks into the function. One of those
@@ -183,27 +185,49 @@ ReturnInst *FoldReturnIntoUncondBranch(ReturnInst *RI, BasicBlock *BB,
                                        BasicBlock *Pred);
 
 /// SplitBlockAndInsertIfThen - Split the containing block at the
-/// specified instruction - everything before and including Cmp stays
-/// in the old basic block, and everything after Cmp is moved to a
+/// specified instruction - everything before and including SplitBefore stays
+/// in the old basic block, and everything after SplitBefore is moved to a
 /// new block. The two blocks are connected by a conditional branch
 /// (with value of Cmp being the condition).
 /// Before:
 ///   Head
-///   Cmp
+///   SplitBefore
 ///   Tail
 /// After:
 ///   Head
-///   Cmp
-///   if (Cmp)
+///   if (Cond)
 ///     ThenBlock
+///   SplitBefore
 ///   Tail
 ///
 /// If Unreachable is true, then ThenBlock ends with
 /// UnreachableInst, otherwise it branches to Tail.
 /// Returns the NewBasicBlock's terminator.
+///
+/// Updates DT if given.
+TerminatorInst *SplitBlockAndInsertIfThen(Value *Cond, Instruction *SplitBefore,
+                                          bool Unreachable,
+                                          MDNode *BranchWeights = nullptr,
+                                          DominatorTree *DT = nullptr);
 
-TerminatorInst *SplitBlockAndInsertIfThen(Instruction *Cmp,
-    bool Unreachable, MDNode *BranchWeights = 0);
+/// SplitBlockAndInsertIfThenElse is similar to SplitBlockAndInsertIfThen,
+/// but also creates the ElseBlock.
+/// Before:
+///   Head
+///   SplitBefore
+///   Tail
+/// After:
+///   Head
+///   if (Cond)
+///     ThenBlock
+///   else
+///     ElseBlock
+///   SplitBefore
+///   Tail
+void SplitBlockAndInsertIfThenElse(Value *Cond, Instruction *SplitBefore,
+                                   TerminatorInst **ThenTerm,
+                                   TerminatorInst **ElseTerm,
+                                   MDNode *BranchWeights = nullptr);
 
 ///
 /// GetIfCondition - Check whether BB is the merge point of a if-region.
@@ -211,9 +235,8 @@ TerminatorInst *SplitBlockAndInsertIfThen(Instruction *Cmp,
 /// BB will be taken.  Also, return by references the block that will be
 /// entered from if the condition is true, and the block that will be
 /// entered if the condition is false.
-
 Value *GetIfCondition(BasicBlock *BB, BasicBlock *&IfTrue,
-		      BasicBlock *&IfFalse);
+                      BasicBlock *&IfFalse);
 } // End llvm namespace
 
 #endif

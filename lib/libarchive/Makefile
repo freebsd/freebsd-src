@@ -4,19 +4,9 @@
 LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
 
 LIB=	archive
-DPADD=	${LIBZ}
-LDADD=	-lz
 
-DPADD+= ${LIBBZ2}
-LDADD+= -lbz2
-CFLAGS+= -DHAVE_BZLIB_H=1
-
-DPADD+= ${LIBLZMA}
-LDADD+= -llzma
-CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
-
-DPADD+= ${LIBBSDXML}
-LDADD+= -lbsdxml
+LIBADD=	z bz2 lzma bsdxml
+CFLAGS+= -DHAVE_BZLIB_H=1 -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the libarchive version number.
@@ -27,11 +17,9 @@ CFLAGS+=	-I${.OBJDIR}
 
 .if ${MK_OPENSSL} != "no"
 CFLAGS+=	-DWITH_OPENSSL
-DPADD+=	${LIBCRYPTO}
-LDADD+=	-lcrypto
+LIBADD+=	crypto
 .else
-DPADD+=	${LIBMD}
-LDADD+=	-lmd
+LIBADD+=	md
 .endif
 
 .if ${MK_ICONV} != "no"

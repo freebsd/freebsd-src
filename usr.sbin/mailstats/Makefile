@@ -13,14 +13,7 @@ CFLAGS+= -DNOT_SENDMAIL
 
 WARNS?=	2
 
-LIBSMDIR=	${.OBJDIR}/../../lib/libsm
-LIBSM=		${LIBSMDIR}/libsm.a
-
-LIBSMUTILDIR=	${.OBJDIR}/../../lib/libsmutil
-LIBSMUTIL=	${LIBSMUTILDIR}/libsmutil.a
-
-DPADD=	${LIBSMUTIL} ${LIBSM}
-LDADD=	${LIBSMUTIL} ${LIBSM}
+LIBADD=	sm smutil
 
 SRCS+=	sm_os.h
 CLEANFILES+=sm_os.h

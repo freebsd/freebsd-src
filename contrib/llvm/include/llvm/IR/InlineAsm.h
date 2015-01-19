@@ -164,9 +164,6 @@ public:
     ///Default constructor.
     ConstraintInfo();
     
-    /// Copy constructor.
-    ConstraintInfo(const ConstraintInfo &other);
-    
     /// Parse - Analyze the specified string (e.g. "=*&{eax}") and fill in the
     /// fields in this structure.  If the constraint string is not understood,
     /// return true, otherwise return false.
@@ -197,7 +194,7 @@ public:
   // These are helper methods for dealing with flags in the INLINEASM SDNode
   // in the backend.
   
-  enum LLVM_ENUM_INT_TYPE(uint32_t) {
+  enum : uint32_t {
     // Fixed operands on an INLINEASM SDNode.
     Op_InputChain = 0,
     Op_AsmString = 1,

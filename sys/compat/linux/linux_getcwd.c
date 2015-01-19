@@ -186,7 +186,7 @@ linux_getcwd_scandir(lvpp, uvpp, bpp, bufp, td)
 	dirbuflen = DIRBLKSIZ;
 	if (dirbuflen < va.va_blocksize)
 		dirbuflen = va.va_blocksize;
-	dirbuf = (char *)malloc(dirbuflen, M_TEMP, M_WAITOK);
+	dirbuf = malloc(dirbuflen, M_TEMP, M_WAITOK);
 
 #if 0
 unionread:
@@ -413,7 +413,7 @@ out:
 int
 linux_getcwd(struct thread *td, struct linux_getcwd_args *args)
 {
-	caddr_t bp, bend, path;
+	char *bp, *bend, *path;
 	int error, len, lenused;
 
 #ifdef DEBUG
@@ -428,7 +428,7 @@ linux_getcwd(struct thread *td, struct linux_getcwd_args *args)
 	else if (len < 2)
 		return ERANGE;
 
-	path = (char *)malloc(len, M_TEMP, M_WAITOK);
+	path = malloc(len, M_TEMP, M_WAITOK);
 
 	error = kern___getcwd(td, path, UIO_SYSSPACE, len);
 	if (!error) {
@@ -450,11 +450,8 @@ linux_getcwd(struct thread *td, struct linux_getcwd_args *args)
 		 * limit it to N/2 vnodes for an N byte buffer.
 		 */
 
-		mtx_lock(&Giant);
 		error = linux_getcwd_common (td->td_proc->p_fd->fd_cdir, NULL,
 		    &bp, path, len/2, GETCWD_CHECK_ACCESS, td);
-		mtx_unlock(&Giant);
-
 		if (error)
 			goto out;
 		lenused = bend - bp;

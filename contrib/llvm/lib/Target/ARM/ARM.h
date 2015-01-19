@@ -15,19 +15,19 @@
 #ifndef TARGET_ARM_H
 #define TARGET_ARM_H
 
-#include "MCTargetDesc/ARMBaseInfo.h"
-#include "MCTargetDesc/ARMMCTargetDesc.h"
-#include "llvm/Support/DataTypes.h"
-#include "llvm/Target/TargetMachine.h"
+#include "llvm/Support/CodeGen.h"
 
 namespace llvm {
 
 class ARMAsmPrinter;
 class ARMBaseTargetMachine;
 class FunctionPass;
+class ImmutablePass;
 class JITCodeEmitter;
 class MachineInstr;
 class MCInst;
+class TargetLowering;
+class TargetMachine;
 
 FunctionPass *createARMISelDag(ARMBaseTargetMachine &TM,
                                CodeGenOpt::Level OptLevel);
@@ -43,6 +43,7 @@ FunctionPass *createARMGlobalMergePass(const TargetLowering* tli);
 FunctionPass *createARMConstantIslandPass();
 FunctionPass *createMLxExpansionPass();
 FunctionPass *createThumb2ITBlockPass();
+FunctionPass *createARMOptimizeBarriersPass();
 FunctionPass *createThumb2SizeReductionPass();
 
 /// \brief Creates an ARM-specific Target Transformation Info pass.

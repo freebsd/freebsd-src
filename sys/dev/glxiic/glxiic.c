@@ -559,8 +559,8 @@ glxiic_start_timeout_locked(struct glxiic_softc *sc)
 
 	GLXIIC_ASSERT_LOCKED(sc);
 
-	callout_reset(&sc->callout, sc->timeout * 1000 / hz, glxiic_timeout,
-	    sc);
+	callout_reset_sbt(&sc->callout, SBT_1MS * sc->timeout, 0,
+	    glxiic_timeout, sc, 0);
 }
 
 static void

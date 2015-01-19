@@ -1,6 +1,6 @@
 //===-- ObjectImageCommon.h - Format independent executuable object image -===//
 //
-//		       The LLVM Compiler Infrastructure
+//                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
@@ -18,21 +18,27 @@
 #include "llvm/ExecutionEngine/ObjectImage.h"
 #include "llvm/Object/ObjectFile.h"
 
+#include <memory>
+
 namespace llvm {
+
+namespace object {
+  class ObjectFile;
+}
 
 class ObjectImageCommon : public ObjectImage {
   ObjectImageCommon(); // = delete
   ObjectImageCommon(const ObjectImageCommon &other); // = delete
-  virtual void anchor();
+  void anchor() override;
 
 protected:
-  object::ObjectFile *ObjFile;
+  std::unique_ptr<object::ObjectFile> ObjFile;
 
   // This form of the constructor allows subclasses to use
   // format-specific subclasses of ObjectFile directly
-  ObjectImageCommon(ObjectBuffer *Input, object::ObjectFile *Obj)
+  ObjectImageCommon(ObjectBuffer *Input, std::unique_ptr<object::ObjectFile> Obj)
   : ObjectImage(Input), // saves Input as Buffer and takes ownership
-    ObjFile(Obj)
+    ObjFile(std::move(Obj))
   {
   }
 
@@ -40,40 +46,44 @@ public:
   ObjectImageCommon(ObjectBuffer* Input)
   : ObjectImage(Input) // saves Input as Buffer and takes ownership
   {
-    ObjFile = object::ObjectFile::createObjectFile(Buffer->getMemBuffer());
+    // FIXME: error checking? createObjectFile returns an ErrorOr<ObjectFile*>
+    // and should probably be checked for failure.
+    std::unique_ptr<MemoryBuffer> Buf(Buffer->getMemBuffer());
+    ObjFile.reset(object::ObjectFile::createObjectFile(Buf).get());
   }
-  virtual ~ObjectImageCommon() { delete ObjFile; }
+  ObjectImageCommon(std::unique_ptr<object::ObjectFile> Input)
+  : ObjectImage(nullptr), ObjFile(std::move(Input))  {}
+  virtual ~ObjectImageCommon() { }
 
-  virtual object::symbol_iterator begin_symbols() const
-	      { return ObjFile->begin_symbols(); }
-  virtual object::symbol_iterator end_symbols() const
-	      { return ObjFile->end_symbols(); }
+  object::symbol_iterator begin_symbols() const override
+      { return ObjFile->symbol_begin(); }
+  object::symbol_iterator end_symbols() const override
+      { return ObjFile->symbol_end(); }
 
-  virtual object::section_iterator begin_sections() const
-	      { return ObjFile->begin_sections(); }
-  virtual object::section_iterator end_sections() const
-	      { return ObjFile->end_sections(); }
+  object::section_iterator begin_sections() const override
+      { return ObjFile->section_begin(); }
+  object::section_iterator end_sections() const override
+      { return ObjFile->section_end(); }
 
-  virtual /* Triple::ArchType */ unsigned getArch() const
-	      { return ObjFile->getArch(); }
+  /* Triple::ArchType */ unsigned getArch() const override
+      { return ObjFile->getArch(); }
 
-  virtual StringRef getData() const { return ObjFile->getData(); }
+  StringRef getData() const override { return ObjFile->getData(); }
 
-  virtual object::ObjectFile* getObjectFile() const { return ObjFile; }
+  object::ObjectFile* getObjectFile() const override { return ObjFile.get(); }
 
   // Subclasses can override these methods to update the image with loaded
   // addresses for sections and common symbols
-  virtual void updateSectionAddress(const object::SectionRef &Sec,
-				    uint64_t Addr) {}
-  virtual void updateSymbolAddress(const object::SymbolRef &Sym, uint64_t Addr)
-	      {}
+  void updateSectionAddress(const object::SectionRef &Sec,
+                            uint64_t Addr) override {}
+  void updateSymbolAddress(const object::SymbolRef &Sym,
+                           uint64_t Addr) override {}
 
   // Subclasses can override these methods to provide JIT debugging support
-  virtual void registerWithDebugger() {}
-  virtual void deregisterWithDebugger() {}
+  void registerWithDebugger() override {}
+  void deregisterWithDebugger() override {}
 };
 
 } // end namespace llvm
 
 #endif // LLVM_RUNTIMEDYLD_OBJECT_IMAGE_H
-

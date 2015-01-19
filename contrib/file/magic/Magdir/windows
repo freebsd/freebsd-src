@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: windows,v 1.8 2014/04/30 21:41:02 christos Exp $
+# $File: windows,v 1.10 2014/09/24 19:52:46 christos Exp $
 # windows:  file(1) magic for Microsoft Windows
 #
 # This file is mainly reserved for files where programs
@@ -159,8 +159,9 @@
 >&0	string		Version\ 5.00\r\n\r\n	Windows Registry text (Win2K or above)
 
 # Windows *.INF *.INI files updated by Joerg Jenderek at Apr 2013
-# emtpy ,comment , section , unicode line
-0	regex/s		\\`(\r\n|;|[[]|\xFF\xFE)			
+# empty ,comment , section
+# PR/383: remove unicode BOM because it is not portable across regex impls
+0	regex/s		\\`(\\r\\n|;|[[])
 # left bracket in section line
 >&0	search/8192	[						
 # http://en.wikipedia.org/wiki/Autorun.inf

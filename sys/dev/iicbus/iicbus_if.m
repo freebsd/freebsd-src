@@ -31,6 +31,15 @@
 
 INTERFACE iicbus;
 
+CODE {
+	static u_int
+	iicbus_default_frequency(device_t bus, u_char speed)
+	{
+
+		return (100000);
+	}
+};
+
 #
 # Interpret interrupt
 #
@@ -115,3 +124,14 @@ METHOD int transfer {
 	struct iic_msg *msgs;
 	uint32_t nmsgs;
 };
+
+#
+# Return the frequency in Hz for the bus running at the given 
+# symbolic speed.  Only the IIC_SLOW speed has meaning, it is always
+# 100KHz.  The UNKNOWN, FAST, and FASTEST rates all map to the
+# configured bus frequency, or 100KHz when not otherwise configured.
+#
+METHOD u_int get_frequency {
+	device_t dev;
+	u_char speed;
+} DEFAULT iicbus_default_frequency;

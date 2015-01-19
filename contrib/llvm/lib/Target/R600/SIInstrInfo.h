@@ -25,50 +25,100 @@ class SIInstrInfo : public AMDGPUInstrInfo {
 private:
   const SIRegisterInfo RI;
 
-  MachineInstrBuilder buildIndirectIndexLoop(MachineBasicBlock &MBB,
-                                             MachineBasicBlock::iterator I,
-                                             unsigned OffsetVGPR,
-                                             unsigned MovRelOp,
-                                             unsigned Dst,
-                                             unsigned Src0) const;
-  // If you add or remove instructions from this function, you will
+  unsigned buildExtractSubReg(MachineBasicBlock::iterator MI,
+                              MachineRegisterInfo &MRI,
+                              MachineOperand &SuperReg,
+                              const TargetRegisterClass *SuperRC,
+                              unsigned SubIdx,
+                              const TargetRegisterClass *SubRC) const;
+  MachineOperand buildExtractSubRegOrImm(MachineBasicBlock::iterator MI,
+                                         MachineRegisterInfo &MRI,
+                                         MachineOperand &SuperReg,
+                                         const TargetRegisterClass *SuperRC,
+                                         unsigned SubIdx,
+                                         const TargetRegisterClass *SubRC) const;
+
+  unsigned split64BitImm(SmallVectorImpl<MachineInstr *> &Worklist,
+                         MachineBasicBlock::iterator MI,
+                         MachineRegisterInfo &MRI,
+                         const TargetRegisterClass *RC,
+                         const MachineOperand &Op) const;
+
+  void splitScalar64BitUnaryOp(SmallVectorImpl<MachineInstr *> &Worklist,
+                               MachineInstr *Inst, unsigned Opcode) const;
+
+  void splitScalar64BitBinaryOp(SmallVectorImpl<MachineInstr *> &Worklist,
+                                MachineInstr *Inst, unsigned Opcode) const;
+
+  void splitScalar64BitBCNT(SmallVectorImpl<MachineInstr *> &Worklist,
+                            MachineInstr *Inst) const;
+
+  void addDescImplicitUseDef(const MCInstrDesc &Desc, MachineInstr *MI) const;
 
 public:
-  explicit SIInstrInfo(AMDGPUTargetMachine &tm);
+  explicit SIInstrInfo(const AMDGPUSubtarget &st);
 
-  const SIRegisterInfo &getRegisterInfo() const;
+  const SIRegisterInfo &getRegisterInfo() const override {
+    return RI;
+  }
 
-  virtual void copyPhysReg(MachineBasicBlock &MBB,
-                           MachineBasicBlock::iterator MI, DebugLoc DL,
-                           unsigned DestReg, unsigned SrcReg,
-                           bool KillSrc) const;
+  void copyPhysReg(MachineBasicBlock &MBB,
+                   MachineBasicBlock::iterator MI, DebugLoc DL,
+                   unsigned DestReg, unsigned SrcReg,
+                   bool KillSrc) const override;
+
+  void storeRegToStackSlot(MachineBasicBlock &MBB,
+                           MachineBasicBlock::iterator MI,
+                           unsigned SrcReg, bool isKill, int FrameIndex,
+                           const TargetRegisterClass *RC,
+                           const TargetRegisterInfo *TRI) const override;
+
+  void loadRegFromStackSlot(MachineBasicBlock &MBB,
+                            MachineBasicBlock::iterator MI,
+                            unsigned DestReg, int FrameIndex,
+                            const TargetRegisterClass *RC,
+                            const TargetRegisterInfo *TRI) const override;
+
+  virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const;
 
   unsigned commuteOpcode(unsigned Opcode) const;
 
-  virtual MachineInstr *commuteInstruction(MachineInstr *MI,
-                                           bool NewMI=false) const;
+  MachineInstr *commuteInstruction(MachineInstr *MI,
+                                   bool NewMI=false) const override;
 
-  virtual unsigned getIEQOpcode() const { assert(!"Implement"); return 0;}
+  bool isTriviallyReMaterializable(const MachineInstr *MI,
+                                   AliasAnalysis *AA = nullptr) const;
+
   MachineInstr *buildMovInstr(MachineBasicBlock *MBB,
                               MachineBasicBlock::iterator I,
-                              unsigned DstReg, unsigned SrcReg) const;
-  virtual bool isMov(unsigned Opcode) const;
+                              unsigned DstReg, unsigned SrcReg) const override;
+  bool isMov(unsigned Opcode) const override;
 
-  virtual bool isSafeToMoveRegClassDefs(const TargetRegisterClass *RC) const;
+  bool isSafeToMoveRegClassDefs(const TargetRegisterClass *RC) const override;
+  bool isDS(uint16_t Opcode) const;
   int isMIMG(uint16_t Opcode) const;
   int isSMRD(uint16_t Opcode) const;
   bool isVOP1(uint16_t Opcode) const;
   bool isVOP2(uint16_t Opcode) const;
   bool isVOP3(uint16_t Opcode) const;
   bool isVOPC(uint16_t Opcode) const;
+  bool isInlineConstant(const APInt &Imm) const;
   bool isInlineConstant(const MachineOperand &MO) const;
   bool isLiteralConstant(const MachineOperand &MO) const;
 
-  virtual bool verifyInstruction(const MachineInstr *MI,
-                                 StringRef &ErrInfo) const;
+  bool isImmOperandLegal(const MachineInstr *MI, unsigned OpNo,
+                         const MachineOperand &MO) const;
+
+  /// \brief Return true if this 64-bit VALU instruction has a 32-bit encoding.
+  /// This function will return false if you pass it a 32-bit instruction.
+  bool hasVALU32BitEncoding(unsigned Opcode) const;
+
+  bool verifyInstruction(const MachineInstr *MI,
+                         StringRef &ErrInfo) const override;
 
   bool isSALUInstr(const MachineInstr &MI) const;
   static unsigned getVALUOp(const MachineInstr &MI);
+
   bool isSALUOpSupportedOnVALU(const MachineInstr &MI) const;
 
   /// \brief Return the correct register class for \p OpNo.  For target-specific
@@ -98,39 +148,53 @@ public:
   /// create new instruction and insert them before \p MI.
   void legalizeOperands(MachineInstr *MI) const;
 
+  void moveSMRDToVALU(MachineInstr *MI, MachineRegisterInfo &MRI) const;
+
   /// \brief Replace this instruction's opcode with the equivalent VALU
   /// opcode.  This function will also move the users of \p MI to the
   /// VALU if necessary.
   void moveToVALU(MachineInstr &MI) const;
 
-  virtual unsigned calculateIndirectAddress(unsigned RegIndex,
-                                            unsigned Channel) const;
+  unsigned calculateIndirectAddress(unsigned RegIndex,
+                                    unsigned Channel) const override;
 
-  virtual const TargetRegisterClass *getIndirectAddrRegClass() const;
+  const TargetRegisterClass *getIndirectAddrRegClass() const override;
 
-  virtual MachineInstrBuilder buildIndirectWrite(MachineBasicBlock *MBB,
-                                                 MachineBasicBlock::iterator I,
-                                                 unsigned ValueReg,
-                                                 unsigned Address,
-                                                 unsigned OffsetReg) const;
+  MachineInstrBuilder buildIndirectWrite(MachineBasicBlock *MBB,
+                                         MachineBasicBlock::iterator I,
+                                         unsigned ValueReg,
+                                         unsigned Address,
+                                         unsigned OffsetReg) const override;
 
-  virtual MachineInstrBuilder buildIndirectRead(MachineBasicBlock *MBB,
-                                                MachineBasicBlock::iterator I,
-                                                unsigned ValueReg,
-                                                unsigned Address,
-                                                unsigned OffsetReg) const;
+  MachineInstrBuilder buildIndirectRead(MachineBasicBlock *MBB,
+                                        MachineBasicBlock::iterator I,
+                                        unsigned ValueReg,
+                                        unsigned Address,
+                                        unsigned OffsetReg) const override;
   void reserveIndirectRegisters(BitVector &Reserved,
                                 const MachineFunction &MF) const;
 
   void LoadM0(MachineInstr *MoveRel, MachineBasicBlock::iterator I,
               unsigned SavReg, unsigned IndexReg) const;
+
+  void insertNOPs(MachineBasicBlock::iterator MI, int Count) const;
+
+  /// \brief Returns the operand named \p Op.  If \p MI does not have an
+  /// operand named \c Op, this function returns nullptr.
+  const MachineOperand *getNamedOperand(const MachineInstr& MI,
+                                        unsigned OperandName) const;
 };
 
 namespace AMDGPU {
 
   int getVOPe64(uint16_t Opcode);
+  int getVOPe32(uint16_t Opcode);
   int getCommuteRev(uint16_t Opcode);
   int getCommuteOrig(uint16_t Opcode);
+  int getMCOpcode(uint16_t Opcode, unsigned Gen);
+
+  const uint64_t RSRC_DATA_FORMAT = 0xf00000000000LL;
+  const uint64_t RSRC_TID_ENABLE = 1LL << 55;
 
 } // End namespace AMDGPU
 

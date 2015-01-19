@@ -30,7 +30,7 @@
 #include <elf.h>
 
 #include <sys/types.h>
-#if defined(sun)
+#ifdef illumos
 #include <sys/sysmacros.h>
 #else
 #define	P2ROUNDUP(x, align)		(-(-(x) & -(align)))
@@ -38,7 +38,7 @@
 
 #include <unistd.h>
 #include <strings.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <limits.h>
@@ -47,7 +47,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
-#if defined(sun)
+#ifdef illumos
 #include <wait.h>
 #else
 #include <sys/wait.h>
@@ -322,7 +322,7 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 	char *strtab;
 	int i, j, nrel;
 	size_t strtabsz = 1;
-#if defined(sun)
+#ifdef illumos
 	uint32_t count = 0;
 #else
 	uint64_t count = 0;
@@ -434,7 +434,7 @@ prepare_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, dof_elf64_t *dep)
 #elif defined(__i386) || defined(__amd64)
 			rel->r_offset = s->dofs_offset +
 			    dofr[j].dofr_offset;
-#if defined(sun)
+#ifdef illumos
 			rel->r_info = ELF64_R_INFO(count + dep->de_global,
 			    R_AMD64_64);
 #else
@@ -685,8 +685,8 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 	elf_file.ehdr.e_machine = EM_ARM;
 #elif defined(__mips__)
 	elf_file.ehdr.e_machine = EM_MIPS;
-#elif defined(__powerpc__)
-	elf_file.ehdr.e_machine = EM_PPC;
+#elif defined(__powerpc64__)
+	elf_file.ehdr.e_machine = EM_PPC64;
 #elif defined(__sparc)
 	elf_file.ehdr.e_machine = EM_SPARCV9;
 #elif defined(__i386) || defined(__amd64)
@@ -711,7 +711,7 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 
 	shp = &elf_file.shdr[ESHDR_DOF];
 	shp->sh_name = 11; /* DTRACE_SHSTRTAB64[11] = ".SUNW_dof" */
-#if defined(sun)
+#ifdef illumos
 	shp->sh_flags = SHF_ALLOC;
 #else
 	shp->sh_flags = SHF_WRITE | SHF_ALLOC;
@@ -784,21 +784,32 @@ dump_elf64(dtrace_hdl_t *dtp, const dof_hdr_t *dof, int fd)
 
 static int
 dt_symtab_lookup(Elf_Data *data_sym, int nsym, uintptr_t addr, uint_t shn,
-    GElf_Sym *sym)
+    GElf_Sym *sym, int uses_funcdesc, Elf *elf)
 {
 	int i, ret = -1;
+	Elf64_Addr symval;
+	Elf_Scn *opd_scn;
+	Elf_Data *opd_desc;
 	GElf_Sym s;
 
 	for (i = 0; i < nsym && gelf_getsym(data_sym, i, sym) != NULL; i++) {
-		if (GELF_ST_TYPE(sym->st_info) == STT_FUNC &&
-		    shn == sym->st_shndx &&
-		    sym->st_value <= addr &&
-		    addr < sym->st_value + sym->st_size) {
-			if (GELF_ST_BIND(sym->st_info) == STB_GLOBAL)
-				return (0);
+		if (GELF_ST_TYPE(sym->st_info) == STT_FUNC) {
+			symval = sym->st_value;
+			if (uses_funcdesc) {
+				opd_scn = elf_getscn(elf, sym->st_shndx);
+				opd_desc = elf_rawdata(opd_scn, NULL);
+				symval =
+				    *(uint64_t*)((char *)opd_desc->d_buf + symval);
+			}
+			if ((uses_funcdesc || shn == sym->st_shndx) &&
+			    symval <= addr &&
+			    addr < symval + sym->st_size) {
+				if (GELF_ST_BIND(sym->st_info) == STB_GLOBAL)
+					return (0);
 
-			ret = 0;
-			s = *sym;
+				ret = 0;
+				s = *sym;
+			}
 		}
 	}
 
@@ -1375,7 +1386,8 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 				continue;
 
 			if (dt_symtab_lookup(data_sym, isym, rela.r_offset,
-			    shdr_rel.sh_info, &fsym) != 0) {
+			    shdr_rel.sh_info, &fsym,
+			    (emachine1 == EM_PPC64), elf) != 0) {
 				dt_strtab_destroy(strtab);
 				goto err;
 			}
@@ -1536,7 +1548,8 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			p = strhyphenate(p + 3); /* strlen("___") */
 
 			if (dt_symtab_lookup(data_sym, isym, rela.r_offset,
-			    shdr_rel.sh_info, &fsym) != 0)
+			    shdr_rel.sh_info, &fsym,
+			    (emachine1 == EM_PPC64), elf) != 0)
 				goto err;
 
 			if (fsym.st_name > data_str->d_size)
@@ -1600,7 +1613,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 				return (dt_link_error(dtp, elf, fd, bufs,
 				    "failed to allocate space for probe"));
 			}
-#if !defined(sun)
+#ifndef illumos
 			/*
 			 * Our linker doesn't understand the SUNW_IGNORE ndx and
 			 * will try to use this relocation when we build the
@@ -1634,7 +1647,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 			 * already been processed by an earlier link
 			 * invocation.
 			 */
-#if !defined(sun)
+#ifndef illumos
 #define SHN_SUNW_IGNORE	SHN_ABS
 #endif
 			if (rsym.st_shndx != SHN_SUNW_IGNORE) {
@@ -1650,7 +1663,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 	(void) elf_end(elf);
 	(void) close(fd);
 
-#if !defined(sun)
+#ifndef illumos
 	if (nsym > 0)
 #endif
 	while ((pair = bufs) != NULL) {
@@ -1671,7 +1684,7 @@ int
 dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
     const char *file, int objc, char *const objv[])
 {
-#if !defined(sun)
+#ifndef illumos
 	char tfile[PATH_MAX];
 #endif
 	char drti[PATH_MAX];
@@ -1681,7 +1694,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 	size_t len;
 	int eprobes = 0, ret = 0;
 
-#if !defined(sun)
+#ifndef illumos
 	if (access(file, R_OK) == 0) {
 		fprintf(stderr, "dtrace: target object (%s) already exists. "
 		    "Please remove the target\ndtrace: object and rebuild all "
@@ -1757,7 +1770,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 	if ((dof = dtrace_dof_create(dtp, pgp, dflags)) == NULL)
 		return (-1); /* errno is set for us */
 
-#if defined(sun)
+#ifdef illumos
 	/*
 	 * Create a temporary file and then unlink it if we're going to
 	 * combine it with drti.o later.  We can still refer to it in child
@@ -1803,7 +1816,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 	}
 
 
-#if defined(sun)
+#ifdef illumos
 	if (!dtp->dt_lazyload)
 		(void) unlink(file);
 #endif
@@ -1813,7 +1826,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 	else
 		status = dump_elf32(dtp, dof, fd);
 
-#if defined(sun)
+#ifdef illumos
 	if (status != 0 || lseek(fd, 0, SEEK_SET) != 0) {
 		return (dt_link_error(dtp, NULL, -1, NULL,
 		    "failed to write %s: %s", file, strerror(errno)));
@@ -1826,7 +1839,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 #endif
 
 	if (!dtp->dt_lazyload) {
-#if defined(sun)
+#ifdef illumos
 		const char *fmt = "%s -o %s -r -Blocal -Breduce /dev/fd/%d %s";
 
 		if (dtp->dt_oflags & DTRACE_O_LP64) {
@@ -1899,7 +1912,7 @@ dtrace_program_link(dtrace_hdl_t *dtp, dtrace_prog_t *pgp, uint_t dflags,
 done:
 	dtrace_dof_destroy(dtp, dof);
 
-#if !defined(sun)
+#ifndef illumos
 	unlink(tfile);
 #endif
 	return (ret);

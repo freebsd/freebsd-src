@@ -504,10 +504,6 @@ int mlx4_get_val(struct mlx4_dbdf2val *tbl, struct pci_dev *pdev, int idx,
 	if (!pdev)
 		return -EINVAL;
 
-	if (!pdev->bus) {
-		return -EINVAL;
-	}
-
         dbdf = dbdf_to_u64(pci_get_domain(pdev->dev.bsddev), pci_get_bus(pdev->dev.bsddev),
 			   PCI_SLOT(pdev->devfn), PCI_FUNC(pdev->devfn));
 
@@ -3800,3 +3796,5 @@ static moduledata_t mlx4_mod = {
 };
 MODULE_VERSION(mlx4, 1);
 DECLARE_MODULE(mlx4, mlx4_mod, SI_SUB_OFED_PREINIT, SI_ORDER_ANY);
+MODULE_DEPEND(mlx4, linuxapi, 1, 1, 1);
+

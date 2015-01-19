@@ -14,8 +14,7 @@ SUBDIR= ${_binutils} \
 	${_groff} \
 	${_rcs} \
 	sdiff \
-	${_tests} \
-	${_texinfo}
+	${_tests}
 
 .if ${MK_CXX} != "no"
 .if ${MK_GCC} != "no"
@@ -28,10 +27,6 @@ _groff=		groff
 
 .if ${MK_GPL_DTC} != "no"
 _dtc=		dtc
-.endif
-
-.if ${MK_INFO} != "no"
-_texinfo=	texinfo
 .endif
 
 .if ${MK_RCS} != "no"

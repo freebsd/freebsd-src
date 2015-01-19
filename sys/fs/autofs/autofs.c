@@ -318,6 +318,18 @@ autofs_cache_callout(void *context)
 	anp->an_cached = false;
 }
 
+void
+autofs_flush(struct autofs_mount *amp)
+{
+
+	/*
+	 * XXX: This will do for now, but ideally we should iterate
+	 * 	over all the nodes.
+	 */
+	amp->am_root->an_cached = false;
+	AUTOFS_DEBUG("%s flushed", amp->am_mountpoint);
+}
+
 /*
  * The set/restore sigmask functions are used to (temporarily) overwrite
  * the thread td_sigmask during triggering.

@@ -38,7 +38,7 @@
 #define LLVM_ANALYSIS_ALIASANALYSIS_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/Support/CallSite.h"
+#include "llvm/IR/CallSite.h"
 
 namespace llvm {
 
@@ -55,7 +55,7 @@ class DominatorTree;
 
 class AliasAnalysis {
 protected:
-  const DataLayout *TD;
+  const DataLayout *DL;
   const TargetLibraryInfo *TLI;
 
 private:
@@ -75,7 +75,7 @@ protected:
 
 public:
   static char ID; // Class identification, replacement for typeinfo
-  AliasAnalysis() : TD(0), TLI(0), AA(0) {}
+  AliasAnalysis() : DL(nullptr), TLI(nullptr), AA(nullptr) {}
   virtual ~AliasAnalysis();  // We want to be subclassed
 
   /// UnknownSize - This is a special value which can be used with the
@@ -86,7 +86,7 @@ public:
   /// getDataLayout - Return a pointer to the current DataLayout object, or
   /// null if no DataLayout object is available.
   ///
-  const DataLayout *getDataLayout() const { return TD; }
+  const DataLayout *getDataLayout() const { return DL; }
 
   /// getTargetLibraryInfo - Return a pointer to the current TargetLibraryInfo
   /// object, or null if no TargetLibraryInfo object is available.
@@ -116,8 +116,8 @@ public:
     /// the location, or null if there is no known unique tag.
     const MDNode *TBAATag;
 
-    explicit Location(const Value *P = 0, uint64_t S = UnknownSize,
-                      const MDNode *N = 0)
+    explicit Location(const Value *P = nullptr, uint64_t S = UnknownSize,
+                      const MDNode *N = nullptr)
       : Ptr(P), Size(S), TBAATag(N) {}
 
     Location getWithNewPtr(const Value *NewPtr) const {
@@ -134,7 +134,7 @@ public:
 
     Location getWithoutTBAATag() const {
       Location Copy(*this);
-      Copy.TBAATag = 0;
+      Copy.TBAATag = nullptr;
       return Copy;
     }
   };
@@ -273,6 +273,14 @@ public:
     /// classified into one of the behaviors above.
     UnknownModRefBehavior = Anywhere | ModRef
   };
+
+  /// Get the location associated with a pointer argument of a callsite.
+  /// The mask bits are set to indicate the allowed aliasing ModRef kinds.
+  /// Note that these mask bits do not necessarily account for the overall
+  /// behavior of the function, but rather only provide additional
+  /// per-argument information.
+  virtual Location getArgLocation(ImmutableCallSite CS, unsigned ArgIdx,
+                                  ModRefResult &Mask);
 
   /// getModRefBehavior - Return the behavior when calling the given call site.
   virtual ModRefBehavior getModRefBehavior(ImmutableCallSite CS);
@@ -560,12 +568,12 @@ struct DenseMapInfo<AliasAnalysis::Location> {
   static inline AliasAnalysis::Location getEmptyKey() {
     return
       AliasAnalysis::Location(DenseMapInfo<const Value *>::getEmptyKey(),
-                              0, 0);
+                              0, nullptr);
   }
   static inline AliasAnalysis::Location getTombstoneKey() {
     return
       AliasAnalysis::Location(DenseMapInfo<const Value *>::getTombstoneKey(),
-                              0, 0);
+                              0, nullptr);
   }
   static unsigned getHashValue(const AliasAnalysis::Location &Val) {
     return DenseMapInfo<const Value *>::getHashValue(Val.Ptr) ^
@@ -596,6 +604,13 @@ bool isNoAliasArgument(const Value *V);
 ///    NoAlias returns (e.g. calls to malloc)
 ///
 bool isIdentifiedObject(const Value *V);
+
+/// isIdentifiedFunctionLocal - Return true if V is umabigously identified
+/// at the function-level. Different IdentifiedFunctionLocals can't alias.
+/// Further, an IdentifiedFunctionLocal can not alias with any function
+/// arguments other than itself, which is not necessarily true for
+/// IdentifiedObjects.
+bool isIdentifiedFunctionLocal(const Value *V);
 
 } // End llvm namespace
 

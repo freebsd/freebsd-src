@@ -39,6 +39,7 @@ static int	cons_set(struct env_var *ev, int flags, const void *value);
 static int	cons_find(const char *name);
 static int	cons_check(const char *string);
 static void	cons_change(const char *string);
+static int	twiddle_set(struct env_var *ev, int flags, const void *value);
 
 /*
  * Detect possible console(s) to use.  If preferred console(s) have been
@@ -52,6 +53,9 @@ cons_probe(void)
     int			active;
     char		*prefconsole;
     
+    /* We want a callback to install the new value when this var changes. */
+    env_setenv("twiddle_divisor", EV_VOLATILE, "1", twiddle_set, env_nounset);
+
     /* Do all console probes */
     for (cons = 0; consoles[cons] != NULL; cons++) {
 	consoles[cons]->c_flags = 0;
@@ -231,4 +235,29 @@ cons_change(const char *string)
     }
 
     free(dup);
+}
+
+/*
+ * Change the twiddle divisor.
+ *
+ * The user can set the twiddle_divisor variable to directly control how fast
+ * the progress twiddle spins, useful for folks with slow serial consoles.  The
+ * code to monitor changes to the variable and propagate them to the twiddle
+ * routines has to live somewhere.  Twiddling is console-related so it's here.
+ */
+static int
+twiddle_set(struct env_var *ev, int flags, const void *value)
+{
+    u_long tdiv;
+    char * eptr;
+
+    tdiv = strtoul(value, &eptr, 0);
+    if (*(const char *)value == 0 || *eptr != 0) {
+	printf("invalid twiddle_divisor '%s'\n", (const char *)value);
+	return (CMD_ERROR);
+    }
+    twiddle_divisor((u_int)tdiv);
+    env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
+
+    return(CMD_OK);
 }

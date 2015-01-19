@@ -604,7 +604,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 		}
 
 		mb->m_pkthdr.flowid = cq->ring;
-		mb->m_flags |= M_FLOWID;
+		M_HASHTYPE_SET(mb, M_HASHTYPE_OPAQUE);
 		mb->m_pkthdr.rcvif = dev;
 		if (be32_to_cpu(cqe->vlan_my_qpn) &
 		    MLX4_CQE_VLAN_PRESENT_MASK) {

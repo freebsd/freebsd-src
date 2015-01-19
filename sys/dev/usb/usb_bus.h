@@ -27,6 +27,8 @@
 #ifndef _USB_BUS_H_
 #define	_USB_BUS_H_
 
+struct usb_fs_privdata;
+
 /*
  * The following structure defines the USB explore message sent to the USB
  * explore process.
@@ -83,6 +85,10 @@ struct usb_bus {
 	struct usb_bus_msg resume_msg[2];
 	struct usb_bus_msg reset_msg[2];
 	struct usb_bus_msg shutdown_msg[2];
+#if USB_HAVE_UGEN
+	struct usb_bus_msg cleanup_msg[2];
+	LIST_HEAD(,usb_fs_privdata) pd_cleanup_list;
+#endif
 	/*
 	 * This mutex protects the USB hardware:
 	 */
@@ -115,6 +121,7 @@ struct usb_bus {
 	uint8_t	devices_max;		/* maximum number of USB devices */
 	uint8_t	do_probe;		/* set if USB should be re-probed */
 	uint8_t no_explore;		/* don't explore USB ports */
+	uint8_t dma_bits;		/* number of DMA address lines */
 };
 
 #endif					/* _USB_BUS_H_ */

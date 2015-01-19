@@ -307,12 +307,11 @@ CNAME(rstcode):
 CNAME(rstsize) = . - CNAME(rstcode)
 
 cpu_reset:
-	lis	%r1,(tmpstk+TMPSTKSZ-48)@ha	/* get new SP */
-	addi	%r1,%r1,(tmpstk+TMPSTKSZ-48)@l
+	GET_TOCBASE(%r2)
 
-	lis	%r3,tocbase@ha
-	ld	%r2,tocbase@l(%r3)
-	lis	%r3,1@l
+	ld	%r1,TOC_REF(tmpstk)(%r2)	/* get new SP */
+	addi	%r1,%r1,(TMPSTKSZ-48)
+
 	bl	CNAME(cpudep_ap_early_bootstrap) /* Set PCPU */
 	nop
 	lis	%r3,1@l
@@ -446,8 +445,7 @@ kern_slbtrap:
 	addi	%r1,%r1,PC_SLBSTACK-48+1024
 	li	%r2,~15
 	and	%r1,%r1,%r2
-	lis	%r3,tocbase@ha
-	ld	%r2,tocbase@l(%r3)
+	GET_TOCBASE(%r2)
 	mflr	%r3
 	andi.	%r3,%r3,0xff80
 	mfdar	%r4
@@ -684,8 +682,7 @@ k_trap:
 	FRAME_SETUP(PC_TEMPSAVE)
 /* Call C interrupt dispatcher: */
 trapagain:
-	lis	%r3,tocbase@ha
-	ld	%r2,tocbase@l(%r3)
+	GET_TOCBASE(%r2)
 	addi	%r3,%r1,48
 	bl	CNAME(powerpc_interrupt)
 	nop
@@ -712,8 +709,7 @@ CNAME(trapexit):
 	ori	%r3,%r3,PSL_EE@l
 	mtmsr	%r3
 	isync
-	lis	%r3,tocbase@ha
-	ld	%r2,tocbase@l(%r3)
+	GET_TOCBASE(%r2)
 	addi	%r3,%r1,48
 	bl	CNAME(ast)
 	nop
@@ -756,13 +752,14 @@ dbtrap:
 	andi.	%r1,%r1,0xff00
 	mtsprg3	%r1
 
-	lis	%r1,(tmpstk+TMPSTKSZ-48)@ha	/* get new SP */
-	addi	%r1,%r1,(tmpstk+TMPSTKSZ-48)@l
+	li	%r1,TRAP_TOCBASE		/* get new SP */
+	ld	%r1,0(%r1)
+	ld	%r1,TOC_REF(tmpstk)(%r1)
+	addi	%r1,%r1,(TMPSTKSZ-48)
 
 	FRAME_SETUP(PC_DBSAVE)
 /* Call C trap code: */
-	lis	%r3,tocbase@ha
-	ld	%r2,tocbase@l(%r3)
+	GET_TOCBASE(%r2)
 	addi	%r3,%r1,48
 	bl	CNAME(db_trap_glue)
 	nop
@@ -800,9 +797,8 @@ CNAME(dblow):
 	mfcr	%r29			/* save CR in r29 */
 	mfsrr1	%r1
 	mtcr	%r1
-	bf	17,2f			/* branch if privileged */
+	bf	17,1f			/* branch if privileged */
 
-1:
 	/* Unprivileged case */
 	mtcr	%r29			/* put the condition register back */
         mfsprg2	%r29			/* ... and r29 */
@@ -811,19 +807,7 @@ CNAME(dblow):
 	li	%r1, 0	 		/* How to get the vector from LR */
 
         bla     generictrap		/* and we look like a generic trap */
-2:
-#ifdef KDTRACE_HOOKS
-	/* Privileged, so drop to KDB */
-	mfsrr0	%r1
-	mtsprg3	%r3
-	lwz	%r1,0(%r1)
-	/* Check if it's a DTrace trap. */
-	li	%r3,0x0808
-	addis	%r3,%r3,0x7c81
-	cmplw	%cr0,%r3,%r1
-	mfsprg3	%r3
-	beq	%cr0,1b
-#endif
+1:
 	GET_CPUINFO(%r1)
 	std	%r27,(PC_DBSAVE+CPUSAVE_R27)(%r1)	/* free r27 */
 	std	%r28,(PC_DBSAVE+CPUSAVE_R28)(%r1)	/* free r28 */

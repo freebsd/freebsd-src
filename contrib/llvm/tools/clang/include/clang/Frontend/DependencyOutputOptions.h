@@ -26,6 +26,7 @@ public:
                                      /// problems.
   unsigned AddMissingHeaderDeps : 1; ///< Add missing headers to dependency list
   unsigned PrintShowIncludes : 1; ///< Print cl.exe style /showIncludes info.
+  unsigned IncludeModuleFiles : 1; ///< Include module file dependencies.
   
   /// The file to write dependency output to.
   std::string OutputFile;
@@ -42,7 +43,10 @@ public:
 
   /// \brief The file to write GraphViz-formatted header dependencies to.
   std::string DOTOutputFile;
-  
+
+  /// \brief The directory to copy module dependencies to when collecting them.
+  std::string ModuleDependencyOutputDir;
+
 public:
   DependencyOutputOptions() {
     IncludeSystemHeaders = 0;
@@ -50,6 +54,7 @@ public:
     UsePhonyTargets = 0;
     AddMissingHeaderDeps = 0;
     PrintShowIncludes = 0;
+    IncludeModuleFiles = 0;
   }
 };
 

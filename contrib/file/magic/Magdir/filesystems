@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: filesystems,v 1.106 2014/10/23 17:17:09 christos Exp $
+# $File: filesystems,v 1.108 2015/01/01 17:43:47 christos Exp $
 # filesystems:  file(1) magic for different filesystems
 #
 0	name	partid  
@@ -260,6 +260,13 @@
 >>(11.s-2)	uleshort	0xAA55		DOS/MBR boot sector
 # for sector sizes with 512 or more Bytes
 >0x1FE		leshort		0xAA55		DOS/MBR boot sector
+
+# keep old DOS/MBR boot sector as dummy for mbr and bootloader displaying
+# only for sector sizes with 512 or more Bytes
+0x1FE          leshort         0xAA55         	DOS/MBR boot sector
+#
+# to display information (50) before DOS BPB (strength=70) and after DOS floppy (120) like in old file version
+!:strength +65
 >2		string		OSBS		OS/BS MBR
 # added by Joerg Jenderek at Feb 2013 according to http://thestarman.pcministry.com/asm/mbr/
 # and http://en.wikipedia.org/wiki/Master_Boot_Record
@@ -2122,6 +2129,7 @@
 #----------------------------------------------------------
 #delta ISO    Daniel Novotny (dnovotny@redhat.com)
 0	string  DISO	Delta ISO data
+!:strength +50
 >4	belong  x	version %d
 
 # VMS backup savesets - gerardo.cacciari@gmail.com

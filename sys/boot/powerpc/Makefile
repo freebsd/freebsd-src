@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=		boot1.chrp ofw ps3 uboot
+SUBDIR=		boot1.chrp kboot ofw ps3 uboot
 
 .include <bsd.subdir.mk>

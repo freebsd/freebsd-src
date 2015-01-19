@@ -1140,7 +1140,8 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 	else
 		fmt = cpio->day_first ? "%d %b %H:%M" : "%b %d %H:%M";
 #else
-	if (abs(mtime - now) > (365/2)*86400)
+	if (mtime - now > 365*86400/2
+		|| mtime - now < -365*86400/2)
 		fmt = cpio->day_first ? "%e %b  %Y" : "%b %e  %Y";
 	else
 		fmt = cpio->day_first ? "%e %b %H:%M" : "%b %e %H:%M";

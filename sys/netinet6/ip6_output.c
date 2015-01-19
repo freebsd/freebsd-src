@@ -91,6 +91,7 @@ __FBSDID("$FreeBSD$");
 #include <net/netisr.h>
 #include <net/route.h>
 #include <net/pfil.h>
+#include <net/rss_config.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -103,7 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_pcb.h>
 #include <netinet/tcp_var.h>
 #include <netinet6/nd6.h>
-#include <netinet/in_rss.h>
+#include <netinet6/in6_rss.h>
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
@@ -267,10 +268,10 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 
 	if (inp != NULL) {
 		M_SETFIB(m, inp->inp_inc.inc_fibnum);
-		if (((flags & IP_NODEFAULTFLOWID) == 0) &&
-		(inp->inp_flags & (INP_HW_FLOWID|INP_SW_FLOWID))) {
+		if ((flags & IP_NODEFAULTFLOWID) == 0) {
+			/* unconditionally set flowid */
 			m->m_pkthdr.flowid = inp->inp_flowid;
-			m->m_flags |= M_FLOWID;
+			M_HASHTYPE_SET(m, inp->inp_flowtype);
 		}
 	}
 
@@ -303,8 +304,9 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	/*
 	 * IPSec checking which handles several cases.
 	 * FAST IPSEC: We re-injected the packet.
+	 * XXX: need scope argument.
 	 */
-	switch(ip6_ipsec_output(&m, inp, &flags, &error, &ifp))
+	switch(ip6_ipsec_output(&m, inp, &error))
 	{
 	case 1:                 /* Bad packet */
 		goto freehdrs;
@@ -904,8 +906,6 @@ passout:
 		u_int32_t id = htonl(ip6_randomid());
 		u_char nextproto;
 
-		int qslots = ifp->if_snd.ifq_maxlen - ifp->if_snd.ifq_len;
-
 		/*
 		 * Too large for the destination or interface;
 		 * fragment if possible.
@@ -921,18 +921,6 @@ passout:
 			in6_ifstat_inc(ifp, ifs6_out_fragfail);
 			goto bad;
 		}
-
-		/*
-		 * Verify that we have any chance at all of being able to queue
-		 *      the packet or packet fragments
-		 */
-		if (qslots <= 0 || ((u_int)qslots * (mtu - hlen)
-		    < tlen  /* - hlen */)) {
-			error = ENOBUFS;
-			IP6STAT_INC(ip6s_odropped);
-			goto bad;
-		}
-
 
 		/*
 		 * If the interface will not calculate checksums on
@@ -1275,17 +1263,6 @@ ip6_getpmtu(struct route_in6 *ro_pmtu, struct route_in6 *ro,
 			 */
 			alwaysfrag = 1;
 			mtu = IPV6_MMTU;
-		} else if (mtu > ifmtu) {
-			/*
-			 * The MTU on the route is larger than the MTU on
-			 * the interface!  This shouldn't happen, unless the
-			 * MTU of the interface has been changed after the
-			 * interface was brought up.  Change the MTU in the
-			 * route to match the interface MTU (as long as the
-			 * field isn't locked).
-			 */
-			mtu = ifmtu;
-			ro_pmtu->ro_rt->rt_mtu = mtu;
 		}
 	} else if (ifp) {
 		mtu = IN6_LINKMTU(ifp);
@@ -1408,7 +1385,6 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 				/* FALLTHROUGH */
 			case IPV6_UNICAST_HOPS:
 			case IPV6_HOPLIMIT:
-			case IPV6_FAITH:
 
 			case IPV6_RECVPKTINFO:
 			case IPV6_RECVHOPLIMIT:
@@ -1550,10 +1526,6 @@ do { \
 						break;
 					}
 					OPTSET(IN6P_RTHDR);
-					break;
-
-				case IPV6_FAITH:
-					OPTSET(INP_FAITH);
 					break;
 
 				case IPV6_RECVPATHMTU:
@@ -1823,7 +1795,6 @@ do { \
 			case IPV6_RECVRTHDR:
 			case IPV6_RECVPATHMTU:
 
-			case IPV6_FAITH:
 			case IPV6_V6ONLY:
 			case IPV6_PORTRANGE:
 			case IPV6_RECVTCLASS:
@@ -1866,10 +1837,6 @@ do { \
 
 				case IPV6_RECVPATHMTU:
 					optval = OPTBIT(IN6P_MTU);
-					break;
-
-				case IPV6_FAITH:
-					optval = OPTBIT(INP_FAITH);
 					break;
 
 				case IPV6_V6ONLY:
@@ -2960,7 +2927,7 @@ ip6_splithdr(struct mbuf *m, struct ip6_exthdrs *exthdrs)
 			return ENOBUFS;
 		}
 		m_move_pkthdr(mh, m);
-		MH_ALIGN(mh, sizeof(*ip6));
+		M_ALIGN(mh, sizeof(*ip6));
 		m->m_len -= sizeof(*ip6);
 		m->m_data += sizeof(*ip6);
 		mh->m_next = m;

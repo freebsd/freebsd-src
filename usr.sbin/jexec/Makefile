@@ -2,7 +2,6 @@
 
 PROG=	jexec
 MAN=	jexec.8
-DPADD=	${LIBJAIL} ${LIBUTIL}
-LDADD=	-ljail -lutil
+LIBADD=	jail util
 
 .include <bsd.prog.mk>

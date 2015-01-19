@@ -18,11 +18,10 @@ using namespace llvm;
 using namespace object;
 
 namespace {
-class _object_error_category : public _do_message {
+class _object_error_category : public std::error_category {
 public:
-  virtual const char* name() const;
-  virtual std::string message(int ev) const;
-  virtual error_condition default_error_condition(int ev) const;
+  const char* name() const LLVM_NOEXCEPT override;
+  std::string message(int ev) const override;
 };
 }
 
@@ -30,8 +29,8 @@ const char *_object_error_category::name() const {
   return "llvm.object";
 }
 
-std::string _object_error_category::message(int ev) const {
-  object_error::Impl E = static_cast<object_error::Impl>(ev);
+std::string _object_error_category::message(int EV) const {
+  object_error E = static_cast<object_error>(EV);
   switch (E) {
   case object_error::success: return "Success";
   case object_error::arch_not_found:
@@ -47,13 +46,7 @@ std::string _object_error_category::message(int ev) const {
                    "defined.");
 }
 
-error_condition _object_error_category::default_error_condition(int ev) const {
-  if (ev == object_error::success)
-    return errc::success;
-  return errc::invalid_argument;
-}
-
-const error_category &object::object_category() {
+const std::error_category &object::object_category() {
   static _object_error_category o;
   return o;
 }

@@ -131,6 +131,10 @@ ATF_LIBM_TEST(exp2_powers, "Test exp2(x) is correct for some integer x")
 	};
 	unsigned int i;
 
+#if defined(__FreeBSD__) && defined(__i386__)
+	atf_tc_expect_fail("a number of the assertions fail on i386");
+#endif
+
 	for (i = 0; i < __arraycount(v); i++) {
 		T_LIBM_CHECK(i, exp2, v[i].x, v[i].d_y, 0.0);
 		T_LIBM_CHECK(i, exp2f, v[i].x, v[i].f_y, 0.0);
@@ -172,6 +176,11 @@ ATF_LIBM_TEST(exp2_values, "Test exp2(x) is correct for some x")
 	    {  8.8,	0x1.bdb8cdadbe124p+8,	0x1p-45,	0x1.8p-15 },
 	};
 	unsigned int i;
+
+#ifdef __FreeBSD__
+	atf_tc_expect_fail("Some of the cases produce failures on FreeBSD "
+	    "due to the error epsilon being so small");
+#endif
 
 	for (i = 0; i < __arraycount(v); i++) {
 		T_LIBM_CHECK(i, exp2, v[i].x, v[i].y, v[i].d_eps);

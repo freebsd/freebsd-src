@@ -28,7 +28,7 @@
 
 #include <assert.h>
 #include <strings.h>
-#if defined(sun)
+#ifdef illumos
 #include <alloca.h>
 #endif
 #include <fcntl.h>

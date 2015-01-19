@@ -55,20 +55,19 @@ SymbolFileDWARFDebugMap::CompileUnitInfo::GetFileRangeMap(SymbolFileDWARFDebugMa
     Module *oso_module = exe_symfile->GetModuleByCompUnitInfo (this);
     if (!oso_module)
         return file_range_map;
-    
+
     ObjectFile *oso_objfile = oso_module->GetObjectFile();
     if (!oso_objfile)
         return file_range_map;
-    
+
     Log *log (LogChannelDWARF::GetLogIfAll(DWARF_LOG_DEBUG_MAP));
     if (log)
     {
         ConstString object_name (oso_module->GetObjectName());
         log->Printf("%p: SymbolFileDWARFDebugMap::CompileUnitInfo::GetFileRangeMap ('%s')",
-                    this,
+                    static_cast<void*>(this),
                     oso_module->GetSpecificationDescription().c_str());
     }
-    
 
     std::vector<SymbolFileDWARFDebugMap::CompileUnitInfo *> cu_infos;
     if (exe_symfile->GetCompUnitInfosForModule(oso_module, cu_infos))
@@ -78,12 +77,12 @@ SymbolFileDWARFDebugMap::CompileUnitInfo::GetFileRangeMap(SymbolFileDWARFDebugMa
             Symtab *exe_symtab = exe_symfile->GetObjectFile()->GetSymtab();
             ModuleSP oso_module_sp (oso_objfile->GetModule());
             Symtab *oso_symtab = oso_objfile->GetSymtab();
-            
+
             ///const uint32_t fun_resolve_flags = SymbolContext::Module | eSymbolContextCompUnit | eSymbolContextFunction;
             //SectionList *oso_sections = oso_objfile->Sections();
             // Now we need to make sections that map from zero based object
-            // file addresses to where things eneded up in the main executable.
-            
+            // file addresses to where things ended up in the main executable.
+
             assert (comp_unit_info->first_symbol_index != UINT32_MAX);
             // End index is one past the last valid symbol index
             const uint32_t oso_end_idx = comp_unit_info->last_symbol_index + 1;
@@ -96,12 +95,12 @@ SymbolFileDWARFDebugMap::CompileUnitInfo::GetFileRangeMap(SymbolFileDWARFDebugMa
                 {
                     if (exe_symbol->IsDebug() == false)
                         continue;
-                    
+
                     switch (exe_symbol->GetType())
                     {
                     default:
                         break;
-                        
+
                     case eSymbolTypeCode:
                         {
                             // For each N_FUN, or function that we run into in the debug map
@@ -112,7 +111,7 @@ SymbolFileDWARFDebugMap::CompileUnitInfo::GetFileRangeMap(SymbolFileDWARFDebugMa
                             // before we parse any dwarf info so that when it goes get parsed
                             // all section/offset addresses that get registered will resolve
                             // correctly to the new addresses in the main executable.
-                            
+
                             // First we find the original symbol in the .o file's symbol table
                             Symbol *oso_fun_symbol = oso_symtab->FindFirstSymbolWithNameAndType (exe_symbol->GetMangled().GetName(Mangled::ePreferMangled),
                                                                                                  eSymbolTypeCode,
@@ -125,11 +124,11 @@ SymbolFileDWARFDebugMap::CompileUnitInfo::GetFileRangeMap(SymbolFileDWARFDebugMa
                                                               exe_symbol->GetAddress().GetFileAddress(),
                                                               oso_fun_symbol->GetAddress().GetFileAddress(),
                                                               std::min<addr_t>(exe_symbol->GetByteSize(), oso_fun_symbol->GetByteSize()));
-                                
+
                             }
                         }
                         break;
-                        
+
                     case eSymbolTypeData:
                         {
                             // For each N_GSYM we remap the address for the global by making
@@ -144,13 +143,12 @@ SymbolFileDWARFDebugMap::CompileUnitInfo::GetFileRangeMap(SymbolFileDWARFDebugMa
                             // fix up these addresses further after all globals have been
                             // parsed to span the gaps, or we can find the global variable
                             // sizes from the DWARF info as we are parsing.
-                            
+
                             // Next we find the non-stab entry that corresponds to the N_GSYM in the .o file
                             Symbol *oso_gsym_symbol = oso_symtab->FindFirstSymbolWithNameAndType (exe_symbol->GetMangled().GetName(Mangled::ePreferMangled),
                                                                                                   eSymbolTypeData,
                                                                                                   Symtab::eDebugNo,
                                                                                                   Symtab::eVisibilityAny);
-                            
                             if (exe_symbol && oso_gsym_symbol &&
                                 exe_symbol->ValueIsAddress() &&
                                 oso_gsym_symbol->ValueIsAddress())
@@ -166,7 +164,7 @@ SymbolFileDWARFDebugMap::CompileUnitInfo::GetFileRangeMap(SymbolFileDWARFDebugMa
                     }
                 }
             }
-            
+
             exe_symfile->FinalizeOSOFileRanges (this);
             // We don't need the symbols anymore for the .o files
             oso_objfile->ClearSymtab();
@@ -216,7 +214,7 @@ public:
                 SymbolVendor* symbol_vendor = Module::GetSymbolVendor(can_create, feedback_strm);
                 if (symbol_vendor)
                 {
-                    // Set a a pointer to this class to set our OSO DWARF file know
+                    // Set a pointer to this class to set our OSO DWARF file know
                     // that the DWARF is being used along with a debug map and that
                     // it will have the remapped sections that we do below.
                     SymbolFileDWARF *oso_symfile = SymbolFileDWARFDebugMap::GetSymbolFileAsSymbolFileDWARF(symbol_vendor->GetSymbolFile());
@@ -308,7 +306,7 @@ void
 SymbolFileDWARFDebugMap::InitializeObject()
 {
     // Install our external AST source callbacks so we can complete Clang types.
-    llvm::OwningPtr<clang::ExternalASTSource> ast_source_ap (
+    llvm::IntrusiveRefCntPtr<clang::ExternalASTSource> ast_source_ap (
         new ClangExternalASTSourceCallbacks (SymbolFileDWARFDebugMap::CompleteTagDecl,
                                              SymbolFileDWARFDebugMap::CompleteObjCInterfaceDecl,
                                              NULL,
@@ -341,6 +339,7 @@ SymbolFileDWARFDebugMap::InitOSO()
         case ObjectFile::eTypeObjectFile:
         case ObjectFile::eTypeStubLibrary:
         case ObjectFile::eTypeUnknown:
+        case ObjectFile::eTypeJIT:
             return;
             
         case ObjectFile::eTypeExecutable:
@@ -505,10 +504,16 @@ SymbolFileDWARFDebugMap::GetModuleByCompUnitInfo (CompileUnitInfo *comp_unit_inf
             // use the debug map, to add new sections to each .o file and
             // even though a .o file might not have changed, the sections
             // that get added to the .o file can change.
+            ArchSpec oso_arch;
+            // Only adopt the architecture from the module (not the vendor or OS)
+            // since .o files for "i386-apple-ios" will historically show up as "i386-apple-macosx"
+            // due to the lack of a LC_VERSION_MIN_MACOSX or LC_VERSION_MIN_IPHONEOS
+            // load command...
+            oso_arch.SetTriple(m_obj_file->GetModule()->GetArchitecture().GetTriple().getArchName().str().c_str());
             comp_unit_info->oso_sp->module_sp.reset (new DebugMapModule (obj_file->GetModule(),
                                                                          GetCompUnitInfoIndex(comp_unit_info),
                                                                          oso_file,
-                                                                         m_obj_file->GetModule()->GetArchitecture(),
+                                                                         oso_arch,
                                                                          oso_object ? &oso_object : NULL,
                                                                          0,
                                                                          oso_object ? &comp_unit_info->oso_mod_time : NULL));

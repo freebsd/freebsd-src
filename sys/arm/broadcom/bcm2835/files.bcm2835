@@ -2,6 +2,7 @@
 
 arm/broadcom/bcm2835/bcm2835_bsc.c		optional bcm2835_bsc
 arm/broadcom/bcm2835/bcm2835_common.c		optional fdt
+arm/broadcom/bcm2835/bcm2835_cpufreq.c		standard
 arm/broadcom/bcm2835/bcm2835_dma.c		standard
 arm/broadcom/bcm2835/bcm2835_fb.c		optional sc
 arm/broadcom/bcm2835/bcm2835_fbd.c		optional vt
@@ -25,3 +26,4 @@ arm/arm/cpufunc_asm_armv6.S                     standard
 kern/kern_clocksource.c                         standard
 
 dev/mbox/mbox_if.m				standard
+dev/ofw/ofw_cpu.c				standard

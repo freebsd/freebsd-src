@@ -782,9 +782,9 @@ siftr_siftdata(struct pkt_node *pn, struct inpcb *inp, struct tcpcb *tp,
 	pn->flags = tp->t_flags;
 	pn->rxt_length = tp->t_rxtcur;
 	pn->snd_buf_hiwater = inp->inp_socket->so_snd.sb_hiwat;
-	pn->snd_buf_cc = inp->inp_socket->so_snd.sb_cc;
+	pn->snd_buf_cc = sbused(&inp->inp_socket->so_snd);
 	pn->rcv_buf_hiwater = inp->inp_socket->so_rcv.sb_hiwat;
-	pn->rcv_buf_cc = inp->inp_socket->so_rcv.sb_cc;
+	pn->rcv_buf_cc = sbused(&inp->inp_socket->so_rcv);
 	pn->sent_inflight_bytes = tp->snd_max - tp->snd_una;
 	pn->t_segqlen = tp->t_segqlen;
 

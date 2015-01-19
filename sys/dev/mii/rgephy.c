@@ -113,13 +113,11 @@ static int
 rgephy_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct mii_attach_args *ma;
 	u_int flags;
 
 	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
 	flags = 0;
-	if (strcmp(if_getdname(ma->mii_data->mii_ifp), "re") == 0)
+	if (mii_dev_mac_match(dev, "re"))
 		flags |= MIIF_PHYPRIV0;
 	mii_phy_dev_attach(dev, flags, &rgephy_funcs, 0);
 

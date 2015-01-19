@@ -41,6 +41,9 @@ __RCSID("$NetBSD: t_fchownat.c,v 1.3 2013/03/17 04:46:06 jmmv Exp $");
 #include <unistd.h>
 #include <pwd.h>
 #include <sys/param.h>
+#ifdef __FreeBSD__
+#include <sys/stat.h>
+#endif
 
 #define DIR "dir"
 #define FILE "dir/fchownat"

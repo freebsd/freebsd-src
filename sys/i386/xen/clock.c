@@ -118,7 +118,7 @@ struct mtx clock_lock;
 #define	RTC_UNLOCK	mtx_unlock_spin(&clock_lock)
 #define	NS_PER_TICK	(1000000000ULL/hz)
 
-int adjkerntz;		/* local offset from GMT in seconds */
+int adjkerntz;		/* local offset from UTC in seconds */
 int clkintr_pending;
 int pscnt = 1;
 int psdiv = 1;

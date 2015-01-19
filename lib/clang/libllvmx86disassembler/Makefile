@@ -9,11 +9,12 @@ INCDIR=	lib/Target/X86
 SRCS=	X86Disassembler.cpp
 
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
-SRCS+=	X86DisassemblerDecoder.c
+SRCS+=	X86DisassemblerDecoder.cpp
 .endif
 
 TGHDRS=	X86GenDisassemblerTables \
 	X86GenInstrInfo \
-	X86GenRegisterInfo
+	X86GenRegisterInfo \
+	X86GenSubtargetInfo
 
 .include "../clang.lib.mk"

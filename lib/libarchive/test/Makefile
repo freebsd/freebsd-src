@@ -6,9 +6,8 @@ MAN=
 
 PROG=libarchive_test
 INTERNALPROG=yes  # Don't install this; it's just for testing
-DPADD=${LIBBZ2} ${LIBZ} ${LIBMD} ${LIBCRYPTO} ${LIBBSDXML}
 LDADD= -L ${.OBJDIR}/.. -larchive
-LDADD+= -lz -lbz2 -llzma -lmd -lcrypto -lbsdxml
+LIBADD=	z bz2 lzma md crypto bsdxml
 CFLAGS+= -g
 CFLAGS+= -I${.CURDIR}/.. -I${.OBJDIR}
 CFLAGS+= -I${LIBARCHIVEDIR}/libarchive -I${LIBARCHIVEDIR}/test_utils

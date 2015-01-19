@@ -225,8 +225,8 @@ SYSCTL_NODE(_net_inet6, OID_AUTO, mld, CTLFLAG_RW, 0,
 /*
  * Virtualized sysctls.
  */
-SYSCTL_VNET_PROC(_net_inet6_mld, OID_AUTO, gsrdelay,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+SYSCTL_PROC(_net_inet6_mld, OID_AUTO, gsrdelay,
+    CTLFLAG_VNET | CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     &VNET_NAME(mld_gsrdelay.tv_sec), 0, sysctl_mld_gsr, "I",
     "Rate limit for MLDv2 Group-and-Source queries in seconds");
 
@@ -1818,7 +1818,7 @@ mld_v1_transmit_report(struct in6_multi *in6m, const int type)
 	 * that ether_output() does not need to allocate another mbuf
 	 * for the header in the most common case.
 	 */
-	MH_ALIGN(mh, sizeof(struct ip6_hdr));
+	M_ALIGN(mh, sizeof(struct ip6_hdr));
 	mh->m_pkthdr.len = sizeof(struct ip6_hdr) + sizeof(struct mld_hdr);
 	mh->m_len = sizeof(struct ip6_hdr);
 
@@ -3179,7 +3179,7 @@ mld_v2_encap_report(struct ifnet *ifp, struct mbuf *m)
 		m_freem(m);
 		return (NULL);
 	}
-	MH_ALIGN(mh, sizeof(struct ip6_hdr) + sizeof(struct mldv2_report));
+	M_ALIGN(mh, sizeof(struct ip6_hdr) + sizeof(struct mldv2_report));
 
 	mldreclen = m_length(m, NULL);
 	CTR2(KTR_MLD, "%s: mldreclen is %d", __func__, mldreclen);

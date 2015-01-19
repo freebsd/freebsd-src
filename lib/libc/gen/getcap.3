@@ -137,9 +137,10 @@ It must be called before the
 call.
 If a sequential access is being performed (see below), it must be called
 before the first sequential access call
-.Fn ( cgetfirst
+.Po Fn cgetfirst
 or
-.Fn cgetnext ) ,
+.Fn cgetnext
+.Pc ,
 or be directly preceded by a
 .Fn cgetclose
 call.

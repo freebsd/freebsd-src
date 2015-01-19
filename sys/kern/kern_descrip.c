@@ -1797,7 +1797,7 @@ finstall(struct thread *td, struct file *fp, int *fd, int flags,
  * If fdp is not NULL, return with it shared locked.
  */
 struct filedesc *
-fdinit(struct filedesc *fdp)
+fdinit(struct filedesc *fdp, bool prepfiles)
 {
 	struct filedesc0 *newfdp0;
 	struct filedesc *newfdp;
@@ -1818,7 +1818,7 @@ fdinit(struct filedesc *fdp)
 	if (fdp == NULL)
 		return (newfdp);
 
-	if (fdp->fd_lastfile >= newfdp->fd_nfiles)
+	if (prepfiles && fdp->fd_lastfile >= newfdp->fd_nfiles)
 		fdgrowtable(newfdp, fdp->fd_lastfile + 1);
 
 	FILEDESC_SLOCK(fdp);
@@ -1832,10 +1832,14 @@ fdinit(struct filedesc *fdp)
 	if (newfdp->fd_jdir)
 		VREF(newfdp->fd_jdir);
 
-	while (fdp->fd_lastfile >= newfdp->fd_nfiles) {
+	if (!prepfiles) {
 		FILEDESC_SUNLOCK(fdp);
-		fdgrowtable(newfdp, fdp->fd_lastfile + 1);
-		FILEDESC_SLOCK(fdp);
+	} else {
+		while (fdp->fd_lastfile >= newfdp->fd_nfiles) {
+			FILEDESC_SUNLOCK(fdp);
+			fdgrowtable(newfdp, fdp->fd_lastfile + 1);
+			FILEDESC_SLOCK(fdp);
+		}
 	}
 
 	return (newfdp);
@@ -1859,11 +1863,13 @@ fddrop(struct filedesc *fdp)
 {
 	int i;
 
-	mtx_lock(&fdesc_mtx);
-	i = --fdp->fd_holdcnt;
-	mtx_unlock(&fdesc_mtx);
-	if (i > 0)
-		return;
+	if (fdp->fd_holdcnt > 1) {
+		mtx_lock(&fdesc_mtx);
+		i = --fdp->fd_holdcnt;
+		mtx_unlock(&fdesc_mtx);
+		if (i > 0)
+			return;
+	}
 
 	FILEDESC_LOCK_DESTROY(fdp);
 	uma_zfree(filedesc0_zone, fdp);
@@ -1912,7 +1918,7 @@ fdcopy(struct filedesc *fdp)
 
 	MPASS(fdp != NULL);
 
-	newfdp = fdinit(fdp);
+	newfdp = fdinit(fdp, true);
 	/* copy all passable descriptors (i.e. not kqueue) */
 	newfdp->fd_freefile = -1;
 	for (i = 0; i <= fdp->fd_lastfile; ++i) {
@@ -2026,7 +2032,7 @@ fdescfree(struct thread *td)
 {
 	struct filedesc0 *fdp0;
 	struct filedesc *fdp;
-	struct freetable *ft;
+	struct freetable *ft, *tft;
 	struct filedescent *fde;
 	struct file *fp;
 	struct vnode *cdir, *jdir, *rdir;
@@ -2078,10 +2084,8 @@ fdescfree(struct thread *td)
 		free(fdp->fd_files, M_FILEDESC);
 
 	fdp0 = (struct filedesc0 *)fdp;
-	while ((ft = SLIST_FIRST(&fdp0->fd_free)) != NULL) {
-		SLIST_REMOVE_HEAD(&fdp0->fd_free, ft_next);
+	SLIST_FOREACH_SAFE(ft, &fdp0->fd_free, ft_next, tft)
 		free(ft->ft_table, M_FILEDESC);
-	}
 
 	if (cdir != NULL)
 		vrele(cdir);
@@ -2215,8 +2219,8 @@ fdcheckstd(struct thread *td)
 		if (devnull != -1) {
 			error = do_dup(td, DUP_FIXED, devnull, i);
 		} else {
-			error = kern_open(td, "/dev/null", UIO_SYSSPACE,
-			    O_RDWR, 0);
+			error = kern_openat(td, AT_FDCWD, "/dev/null",
+			    UIO_SYSSPACE, O_RDWR, 0);
 			if (error == 0) {
 				devnull = td->td_retval[0];
 				KASSERT(devnull == i, ("we didn't get our fd"));
@@ -2567,9 +2571,7 @@ fgetvp_rights(struct thread *td, int fd, cap_rights_t *needrightsp,
 	int error;
 #endif
 
-	if (td == NULL || (fdp = td->td_proc->p_fd) == NULL)
-		return (EBADF);
-
+	fdp = td->td_proc->p_fd;
 	fp = fget_locked(fdp, fd);
 	if (fp == NULL || fp->f_ops == &badfileops)
 		return (EBADF);
@@ -3094,6 +3096,7 @@ export_vnode_to_kinfo(struct vnode *vp, int fd, int fflags,
 	if (error == 0)
 		kif->kf_status |= KF_ATTR_VALID;
 	kif->kf_flags = xlate_fflags(fflags);
+	cap_rights_init(&kif->kf_cap_rights);
 	kif->kf_fd = fd;
 	kif->kf_ref_count = -1;
 	kif->kf_offset = -1;
@@ -3406,6 +3409,73 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_FILEDESC, filedesc,
     CTLFLAG_RD|CTLFLAG_MPSAFE, sysctl_kern_proc_filedesc,
     "Process filedesc entries");
 
+/*
+ * Store a process current working directory information to sbuf.
+ *
+ * Takes a locked proc as argument, and returns with the proc unlocked.
+ */
+int
+kern_proc_cwd_out(struct proc *p,  struct sbuf *sb, ssize_t maxlen)
+{
+	struct filedesc *fdp;
+	struct export_fd_buf *efbuf;
+	int error;
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	fdp = fdhold(p);
+	PROC_UNLOCK(p);
+	if (fdp == NULL)
+		return (EINVAL);
+
+	efbuf = malloc(sizeof(*efbuf), M_TEMP, M_WAITOK);
+	efbuf->fdp = fdp;
+	efbuf->sb = sb;
+	efbuf->remainder = maxlen;
+
+	FILEDESC_SLOCK(fdp);
+	if (fdp->fd_cdir == NULL)
+		error = EINVAL;
+	else {
+		vref(fdp->fd_cdir);
+		error = export_vnode_to_sb(fdp->fd_cdir, KF_FD_TYPE_CWD,
+		    FREAD, efbuf);
+	}
+	FILEDESC_SUNLOCK(fdp);
+	fddrop(fdp);
+	free(efbuf, M_TEMP);
+	return (error);
+}
+
+/*
+ * Get per-process current working directory.
+ */
+static int
+sysctl_kern_proc_cwd(SYSCTL_HANDLER_ARGS)
+{
+	struct sbuf sb;
+	struct proc *p;
+	ssize_t maxlen;
+	int error, error2, *name;
+
+	name = (int *)arg1;
+
+	sbuf_new_for_sysctl(&sb, NULL, sizeof(struct kinfo_file), req);
+	error = pget((pid_t)name[0], PGET_CANDEBUG | PGET_NOTWEXIT, &p);
+	if (error != 0) {
+		sbuf_delete(&sb);
+		return (error);
+	}
+	maxlen = req->oldptr != NULL ? req->oldlen : -1;
+	error = kern_proc_cwd_out(p, &sb, maxlen);
+	error2 = sbuf_finish(&sb);
+	sbuf_delete(&sb);
+	return (error != 0 ? error : error2);
+}
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_CWD, cwd, CTLFLAG_RD|CTLFLAG_MPSAFE,
+    sysctl_kern_proc_cwd, "Process current working directory");
+
 #ifdef DDB
 /*
  * For the purposes of debugging, generate a human-readable string for the
@@ -3617,7 +3687,7 @@ badfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 static int
 badfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct sendfile_sync *sfs, struct thread *td)
+    int kflags, struct thread *td)
 {
 
 	return (EBADF);
@@ -3703,7 +3773,7 @@ invfo_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 int
 invfo_sendfile(struct file *fp, int sockfd, struct uio *hdr_uio,
     struct uio *trl_uio, off_t offset, size_t nbytes, off_t *sent, int flags,
-    int kflags, struct sendfile_sync *sfs, struct thread *td)
+    int kflags, struct thread *td)
 {
 
 	return (EINVAL);

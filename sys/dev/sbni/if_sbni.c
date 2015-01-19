@@ -878,8 +878,7 @@ get_rx_buf(struct sbni_softc *sc)
 	 */
 	if (ETHER_MAX_LEN + 2 > MHLEN) {
 		/* Attach an mbuf cluster */
-		MCLGET(m, M_NOWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			m_freem(m);
 			return (0);
 		}

@@ -1344,6 +1344,8 @@ nfsrv_freeallnfslocks(struct nfsstate *stp, vnode_t vp, int cansleep,
 	vnode_t tvp = NULL;
 	uint64_t first, end;
 
+	if (vp != NULL)
+		ASSERT_VOP_UNLOCKED(vp, "nfsrv_freeallnfslocks: vnode locked");
 	lop = LIST_FIRST(&stp->ls_lock);
 	while (lop != LIST_END(&stp->ls_lock)) {
 		nlop = LIST_NEXT(lop, lo_lckowner);
@@ -1363,9 +1365,10 @@ nfsrv_freeallnfslocks(struct nfsstate *stp, vnode_t vp, int cansleep,
 		if (gottvp == 0) {
 			if (nfsrv_dolocallocks == 0)
 				tvp = NULL;
-			else if (vp == NULL && cansleep != 0)
+			else if (vp == NULL && cansleep != 0) {
 				tvp = nfsvno_getvp(&lfp->lf_fh);
-			else
+				NFSVOPUNLOCK(tvp, 0);
+			} else
 				tvp = vp;
 			gottvp = 1;
 		}
@@ -1386,7 +1389,7 @@ nfsrv_freeallnfslocks(struct nfsstate *stp, vnode_t vp, int cansleep,
 		lop = nlop;
 	}
 	if (vp == NULL && tvp != NULL)
-		vput(tvp);
+		vrele(tvp);
 }
 
 /*
@@ -1497,7 +1500,7 @@ nfsrv_lockctrl(vnode_t vp, struct nfsstate **new_stpp,
 	struct nfsclient *clp = NULL;
 	u_int32_t bits;
 	int error = 0, haslock = 0, ret, reterr;
-	int getlckret, delegation = 0, filestruct_locked;
+	int getlckret, delegation = 0, filestruct_locked, vnode_unlocked = 0;
 	fhandle_t nfh;
 	uint64_t first, end;
 	uint32_t lock_flags;
@@ -1587,6 +1590,11 @@ tryagain:
 			 * locking rolled back.
 			 */
 			NFSUNLOCKSTATE();
+			if (vnode_unlocked == 0) {
+				ASSERT_VOP_ELOCKED(vp, "nfsrv_lockctrl1");
+				vnode_unlocked = 1;
+				NFSVOPUNLOCK(vp, 0);
+			}
 			reterr = nfsrv_locallock(vp, lfp,
 			    (new_lop->lo_flags & (NFSLCK_READ | NFSLCK_WRITE)),
 			    new_lop->lo_first, new_lop->lo_end, cfp, p);
@@ -1756,6 +1764,11 @@ tryagain:
 		if (filestruct_locked != 0) {
 			/* Roll back local locks. */
 			NFSUNLOCKSTATE();
+			if (vnode_unlocked == 0) {
+				ASSERT_VOP_ELOCKED(vp, "nfsrv_lockctrl2");
+				vnode_unlocked = 1;
+				NFSVOPUNLOCK(vp, 0);
+			}
 			nfsrv_locallock_rollback(vp, lfp, p);
 			NFSLOCKSTATE();
 			nfsrv_unlocklf(lfp);
@@ -1833,6 +1846,12 @@ tryagain:
 			if (filestruct_locked != 0) {
 				/* Roll back local locks. */
 				NFSUNLOCKSTATE();
+				if (vnode_unlocked == 0) {
+					ASSERT_VOP_ELOCKED(vp,
+					    "nfsrv_lockctrl3");
+					vnode_unlocked = 1;
+					NFSVOPUNLOCK(vp, 0);
+				}
 				nfsrv_locallock_rollback(vp, lfp, p);
 				NFSLOCKSTATE();
 				nfsrv_unlocklf(lfp);
@@ -1852,6 +1871,8 @@ tryagain:
 			bits = tstp->ls_flags;
 			bits >>= NFSLCK_SHIFT;
 			if (new_stp->ls_flags & bits & NFSLCK_ACCESSBITS) {
+			    KASSERT(vnode_unlocked == 0,
+				("nfsrv_lockctrl: vnode unlocked1"));
 			    ret = nfsrv_clientconflict(tstp->ls_clp, &haslock,
 				vp, p);
 			    if (ret == 1) {
@@ -1883,6 +1904,8 @@ tryagain:
 	 * For setattr, just get rid of all the Delegations for other clients.
 	 */
 	if (new_stp->ls_flags & NFSLCK_SETATTR) {
+		KASSERT(vnode_unlocked == 0,
+		    ("nfsrv_lockctrl: vnode unlocked2"));
 		ret = nfsrv_cleandeleg(vp, lfp, clp, &haslock, p);
 		if (ret) {
 			/*
@@ -1933,14 +1956,26 @@ tryagain:
 		   (new_lop->lo_flags & NFSLCK_WRITE) &&
 		  (clp != tstp->ls_clp ||
 		   (tstp->ls_flags & NFSLCK_DELEGREAD)))) {
+		ret = 0;
 		if (filestruct_locked != 0) {
 			/* Roll back local locks. */
 			NFSUNLOCKSTATE();
+			if (vnode_unlocked == 0) {
+				ASSERT_VOP_ELOCKED(vp, "nfsrv_lockctrl4");
+				NFSVOPUNLOCK(vp, 0);
+			}
 			nfsrv_locallock_rollback(vp, lfp, p);
 			NFSLOCKSTATE();
 			nfsrv_unlocklf(lfp);
+			NFSUNLOCKSTATE();
+			NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
+			vnode_unlocked = 0;
+			if ((vp->v_iflag & VI_DOOMED) != 0)
+				ret = NFSERR_SERVERFAULT;
+			NFSLOCKSTATE();
 		}
-		ret = nfsrv_delegconflict(tstp, &haslock, p, vp);
+		if (ret == 0)
+			ret = nfsrv_delegconflict(tstp, &haslock, p, vp);
 		if (ret) {
 		    /*
 		     * nfsrv_delegconflict unlocks state when it
@@ -1979,6 +2014,11 @@ tryagain:
 		stateidp->other[2] = stp->ls_stateid.other[2];
 		if (filestruct_locked != 0) {
 			NFSUNLOCKSTATE();
+			if (vnode_unlocked == 0) {
+				ASSERT_VOP_ELOCKED(vp, "nfsrv_lockctrl5");
+				vnode_unlocked = 1;
+				NFSVOPUNLOCK(vp, 0);
+			}
 			/* Update the local locks. */
 			nfsrv_localunlock(vp, lfp, first, end, p);
 			NFSLOCKSTATE();
@@ -2009,14 +2049,29 @@ tryagain:
 		    FREE((caddr_t)other_lop, M_NFSDLOCK);
 		    other_lop = NULL;
 		}
-		ret = nfsrv_clientconflict(lop->lo_stp->ls_clp,&haslock,vp,p);
+		if (vnode_unlocked != 0)
+		    ret = nfsrv_clientconflict(lop->lo_stp->ls_clp, &haslock,
+			NULL, p);
+		else
+		    ret = nfsrv_clientconflict(lop->lo_stp->ls_clp, &haslock,
+			vp, p);
 		if (ret == 1) {
 		    if (filestruct_locked != 0) {
+			if (vnode_unlocked == 0) {
+				ASSERT_VOP_ELOCKED(vp, "nfsrv_lockctrl6");
+				NFSVOPUNLOCK(vp, 0);
+			}
 			/* Roll back local locks. */
 			nfsrv_locallock_rollback(vp, lfp, p);
 			NFSLOCKSTATE();
 			nfsrv_unlocklf(lfp);
 			NFSUNLOCKSTATE();
+			NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
+			vnode_unlocked = 0;
+			if ((vp->v_iflag & VI_DOOMED) != 0) {
+				error = NFSERR_SERVERFAULT;
+				goto out;
+			}
 		    }
 		    /*
 		     * nfsrv_clientconflict() unlocks state when it
@@ -2050,6 +2105,11 @@ tryagain:
 		if (filestruct_locked != 0 && ret == 0) {
 			/* Roll back local locks. */
 			NFSUNLOCKSTATE();
+			if (vnode_unlocked == 0) {
+				ASSERT_VOP_ELOCKED(vp, "nfsrv_lockctrl7");
+				vnode_unlocked = 1;
+				NFSVOPUNLOCK(vp, 0);
+			}
 			nfsrv_locallock_rollback(vp, lfp, p);
 			NFSLOCKSTATE();
 			nfsrv_unlocklf(lfp);
@@ -2127,6 +2187,11 @@ out:
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_unlock(&nfsv4rootfs_lock, 1);
 		NFSUNLOCKV4ROOTMUTEX();
+	}
+	if (vnode_unlocked != 0) {
+		NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
+		if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0)
+			error = NFSERR_SERVERFAULT;
 	}
 	if (other_lop)
 		FREE((caddr_t)other_lop, M_NFSDLOCK);
@@ -3235,11 +3300,14 @@ nfsrv_openupdate(vnode_t vp, struct nfsstate *new_stp, nfsquad_t clientid,
 			/* Get the lf lock */
 			nfsrv_locklf(lfp);
 			NFSUNLOCKSTATE();
+			ASSERT_VOP_ELOCKED(vp, "nfsrv_openupdate");
+			NFSVOPUNLOCK(vp, 0);
 			if (nfsrv_freeopen(stp, vp, 1, p) == 0) {
 				NFSLOCKSTATE();
 				nfsrv_unlocklf(lfp);
 				NFSUNLOCKSTATE();
 			}
+			NFSVOPLOCK(vp, LK_EXCLUSIVE | LK_RETRY);
 		} else {
 			(void) nfsrv_freeopen(stp, NULL, 0, p);
 			NFSUNLOCKSTATE();
@@ -4627,7 +4695,7 @@ static int
 nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, vnode_t vp,
     NFSPROC_T *p)
 {
-	int gotlock, lktype;
+	int gotlock, lktype = 0;
 
 	/*
 	 * If lease hasn't expired, we can't fix it.
@@ -4637,8 +4705,10 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, vnode_t vp,
 		return (0);
 	if (*haslockp == 0) {
 		NFSUNLOCKSTATE();
-		lktype = NFSVOPISLOCKED(vp);
-		NFSVOPUNLOCK(vp, 0);
+		if (vp != NULL) {
+			lktype = NFSVOPISLOCKED(vp);
+			NFSVOPUNLOCK(vp, 0);
+		}
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_relref(&nfsv4rootfs_lock);
 		do {
@@ -4647,11 +4717,12 @@ nfsrv_clientconflict(struct nfsclient *clp, int *haslockp, vnode_t vp,
 		} while (!gotlock);
 		NFSUNLOCKV4ROOTMUTEX();
 		*haslockp = 1;
-		NFSVOPLOCK(vp, lktype | LK_RETRY);
-		if ((vp->v_iflag & VI_DOOMED) != 0)
-			return (2);
-		else
-			return (1);
+		if (vp != NULL) {
+			NFSVOPLOCK(vp, lktype | LK_RETRY);
+			if ((vp->v_iflag & VI_DOOMED) != 0)
+				return (2);
+		}
+		return (1);
 	}
 	NFSUNLOCKSTATE();
 
@@ -4692,7 +4763,7 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
     vnode_t vp)
 {
 	struct nfsclient *clp = stp->ls_clp;
-	int gotlock, error, lktype, retrycnt, zapped_clp;
+	int gotlock, error, lktype = 0, retrycnt, zapped_clp;
 	nfsv4stateid_t tstateid;
 	fhandle_t tfh;
 
@@ -4809,8 +4880,10 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 	 */
 	if (*haslockp == 0) {
 		NFSUNLOCKSTATE();
-		lktype = NFSVOPISLOCKED(vp);
-		NFSVOPUNLOCK(vp, 0);
+		if (vp != NULL) {
+			lktype = NFSVOPISLOCKED(vp);
+			NFSVOPUNLOCK(vp, 0);
+		}
 		NFSLOCKV4ROOTMUTEX();
 		nfsv4_relref(&nfsv4rootfs_lock);
 		do {
@@ -4819,14 +4892,16 @@ nfsrv_delegconflict(struct nfsstate *stp, int *haslockp, NFSPROC_T *p,
 		} while (!gotlock);
 		NFSUNLOCKV4ROOTMUTEX();
 		*haslockp = 1;
-		NFSVOPLOCK(vp, lktype | LK_RETRY);
-		if ((vp->v_iflag & VI_DOOMED) != 0) {
-			*haslockp = 0;
-			NFSLOCKV4ROOTMUTEX();
-			nfsv4_unlock(&nfsv4rootfs_lock, 1);
-			NFSUNLOCKV4ROOTMUTEX();
-			error = NFSERR_PERM;
-			goto out;
+		if (vp != NULL) {
+			NFSVOPLOCK(vp, lktype | LK_RETRY);
+			if ((vp->v_iflag & VI_DOOMED) != 0) {
+				*haslockp = 0;
+				NFSLOCKV4ROOTMUTEX();
+				nfsv4_unlock(&nfsv4rootfs_lock, 1);
+				NFSUNLOCKV4ROOTMUTEX();
+				error = NFSERR_PERM;
+				goto out;
+			}
 		}
 		error = -1;
 		goto out;

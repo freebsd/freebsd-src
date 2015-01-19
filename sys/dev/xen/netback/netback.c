@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
  */
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_global.h"
 
 #include "opt_sctp.h"
 
@@ -2252,7 +2251,6 @@ xnb_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			mtx_unlock(&xnb->sc_lock);
 			break;
 		case SIOCSIFADDR:
-		case SIOCGIFADDR:
 #ifdef INET
 			mtx_lock(&xnb->sc_lock);
 			if (ifa->ifa_addr->sa_family == AF_INET) {

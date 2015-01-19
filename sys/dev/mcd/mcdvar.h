@@ -41,8 +41,6 @@ struct mcd_softc {
 	struct resource *	port;
 	int			port_rid;
 	int			port_type;
-	bus_space_tag_t		port_bst;
-	bus_space_handle_t	port_bsh;
 
 	struct resource *	irq;
 	int			irq_rid;
@@ -55,20 +53,19 @@ struct mcd_softc {
 
 	struct mtx		mtx;
 
-	struct callout_handle	ch;
+	struct callout		timer;
 	int			ch_state;
 	struct mcd_mbx *	ch_mbxsave;
 
 	struct mcd_data		data;
 };
 
-#define	MCD_LOCK(_sc)		splx(&(_sc)->mtx
-#define	MCD_UNLOCK(_sc)		splx(&(_sc)->mtx
+#define	MCD_LOCK(_sc)		mtx_lock(&_sc->mtx)
+#define	MCD_UNLOCK(_sc)		mtx_unlock(&_sc->mtx)
+#define	MCD_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->mtx, MA_OWNED)
 
-#define	MCD_READ(_sc, _reg) \
-	bus_space_read_1(_sc->port_bst, _sc->port_bsh, _reg)
-#define	MCD_WRITE(_sc, _reg, _val) \
-	bus_space_write_1(_sc->port_bst, _sc->port_bsh, _reg, _val)
+#define	MCD_READ(_sc, _reg)		bus_read_1(_sc->port, _reg)
+#define	MCD_WRITE(_sc, _reg, _val)	bus_write_1(_sc->port, _reg, _val)
 
 int	mcd_probe	(struct mcd_softc *);
 int	mcd_attach	(struct mcd_softc *);

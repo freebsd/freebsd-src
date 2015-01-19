@@ -210,9 +210,11 @@ sleeplk(struct lock *lk, u_int flags, struct lock_object *ilk,
 	GIANT_SAVE();
 	sleepq_add(&lk->lock_object, NULL, wmesg, SLEEPQ_LK | (catch ?
 	    SLEEPQ_INTERRUPTIBLE : 0), queue);
-	if ((flags & LK_TIMELOCK) && timo)
+	if ((flags & LK_TIMELOCK) && timo) {
+		sleepq_release(&lk->lock_object);
 		sleepq_set_timeout(&lk->lock_object, timo);
-
+		sleepq_lock(&lk->lock_object);
+	}
 	/*
 	 * Decisional switch for real sleeping.
 	 */
@@ -1360,9 +1362,14 @@ lockmgr_printinfo(const struct lock *lk)
 		    (uintmax_t)LK_SHARERS(lk->lk_lock));
 	else {
 		td = lockmgr_xholder(lk);
-		printf("lock type %s: EXCL by thread %p "
-		    "(pid %d, %s, tid %d)\n", lk->lock_object.lo_name, td,
-		    td->td_proc->p_pid, td->td_proc->p_comm, td->td_tid);
+		if (td == (struct thread *)LK_KERNPROC)
+			printf("lock type %s: EXCL by KERNPROC\n",
+			    lk->lock_object.lo_name);
+		else
+			printf("lock type %s: EXCL by thread %p "
+			    "(pid %d, %s, tid %d)\n", lk->lock_object.lo_name,
+			    td, td->td_proc->p_pid, td->td_proc->p_comm,
+			    td->td_tid);
 	}
 
 	x = lk->lk_lock;

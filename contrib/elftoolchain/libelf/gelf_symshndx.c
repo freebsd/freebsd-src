@@ -31,7 +31,7 @@
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: gelf_symshndx.c 2283 2011-12-04 04:07:24Z jkoshy $");
+ELFTC_VCSID("$Id: gelf_symshndx.c 2998 2014-03-18 17:19:00Z jkoshy $");
 
 GElf_Sym *
 gelf_getsymshndx(Elf_Data *d, Elf_Data *id, int ndx, GElf_Sym *dst,
@@ -74,8 +74,9 @@ gelf_getsymshndx(Elf_Data *d, Elf_Data *id, int ndx, GElf_Sym *dst,
 	msz = _libelf_msize(ELF_T_WORD, ec, e->e_version);
 
 	assert(msz > 0);
+	assert(ndx >= 0);
 
-	if (msz * ndx >= id->d_size) {
+	if (msz * (size_t) ndx >= id->d_size) {
 		LIBELF_SET_ERROR(ARGUMENT, 0);
 		return (NULL);
 	}
@@ -123,9 +124,11 @@ gelf_update_symshndx(Elf_Data *d, Elf_Data *id, int ndx, GElf_Sym *gs,
 	}
 
 	msz = _libelf_msize(ELF_T_WORD, ec, e->e_version);
-	assert(msz > 0);
 
-	if (msz * ndx >= id->d_size) {
+	assert(msz > 0);
+	assert(ndx >= 0);
+
+	if (msz * (size_t) ndx >= id->d_size) {
 		LIBELF_SET_ERROR(ARGUMENT, 0);
 		return (0);
 	}

@@ -14,8 +14,8 @@
 #ifndef LLVM_CLANG_AST_STMT_ITR_H
 #define LLVM_CLANG_AST_STMT_ITR_H
 
-#include "llvm/Support/DataTypes.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/DataTypes.h"
 #include <cassert>
 #include <cstddef>
 #include <iterator>
@@ -64,10 +64,10 @@ protected:
 
   Stmt*& GetDeclExpr() const;
 
-  StmtIteratorBase(Stmt **s) : stmt(s), DGI(0), RawVAPtr(0) {}
+  StmtIteratorBase(Stmt **s) : stmt(s), DGI(nullptr), RawVAPtr(0) {}
   StmtIteratorBase(const VariableArrayType *t);
   StmtIteratorBase(Decl **dgi, Decl **dge);
-  StmtIteratorBase() : stmt(0), DGI(0), RawVAPtr(0) {}
+  StmtIteratorBase() : stmt(nullptr), DGI(nullptr), RawVAPtr(0) {}
 };
 
 

@@ -222,13 +222,13 @@ selectFirst(StringRef BoundTo, const SmallVectorImpl<BoundNodes> &Results) {
     if (NodeT *Node = I->getNodeAs<NodeT>(BoundTo))
       return Node;
   }
-  return NULL;
+  return nullptr;
 }
 
 namespace internal {
 class CollectMatchesCallback : public MatchFinder::MatchCallback {
 public:
-  virtual void run(const MatchFinder::MatchResult &Result) {
+  void run(const MatchFinder::MatchResult &Result) override {
     Nodes.push_back(Result.Nodes);
   }
   SmallVector<BoundNodes, 1> Nodes;

@@ -1415,8 +1415,8 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 		}
 	}
 	/* Start command execution timeout */
-	callout_reset(&slot->timeout, (int)ccb->ccb_h.timeout * hz / 1000,
-	    (timeout_t*)mvs_timeout, slot);
+	callout_reset_sbt(&slot->timeout, SBT_1MS * ccb->ccb_h.timeout, 0,
+	    (timeout_t*)mvs_timeout, slot, 0);
 }
 
 /* Must be called with channel locked. */
@@ -1529,8 +1529,8 @@ mvs_execute_transaction(struct mvs_slot *slot)
 	ATA_OUTL(ch->r_mem, EDMA_REQQIP,
 	    ch->dma.workrq_bus + MVS_CRQB_OFFSET + (MVS_CRQB_SIZE * ch->out_idx));
 	/* Start command execution timeout */
-	callout_reset(&slot->timeout, (int)ccb->ccb_h.timeout * hz / 1000,
-	    (timeout_t*)mvs_timeout, slot);
+	callout_reset_sbt(&slot->timeout, SBT_1MS * ccb->ccb_h.timeout, 0,
+	    (timeout_t*)mvs_timeout, slot, 0);
 	return;
 }
 
@@ -1567,9 +1567,9 @@ mvs_rearm_timeout(device_t dev)
 			continue;
 		if ((ch->toslots & (1 << i)) == 0)
 			continue;
-		callout_reset(&slot->timeout,
-		    (int)slot->ccb->ccb_h.timeout * hz / 2000,
-		    (timeout_t*)mvs_timeout, slot);
+		callout_reset_sbt(&slot->timeout,
+		    SBT_1MS * slot->ccb->ccb_h.timeout / 2, 0,
+		    (timeout_t*)mvs_timeout, slot, 0);
 	}
 }
 

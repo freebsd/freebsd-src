@@ -79,7 +79,7 @@ extern "C" {
  * until it exits.
  */
 
-#if !defined(sun)
+#ifndef illumos
 typedef struct fasttrap_scrblock {
 	vm_offset_t ftsb_addr;			/* address of a scratch block */
 	LIST_ENTRY(fasttrap_scrblock) ftsb_next;/* next block in list */
@@ -99,7 +99,7 @@ typedef struct fasttrap_proc {
 	uint64_t ftpc_rcount;			/* count of extant providers */
 	kmutex_t ftpc_mtx;			/* lock on all but acount */
 	struct fasttrap_proc *ftpc_next;	/* next proc in hash chain */
-#if !defined(sun)
+#ifndef illumos
 	LIST_HEAD(, fasttrap_scrblock) ftpc_scrblks; /* mapped scratch blocks */
 	LIST_HEAD(, fasttrap_scrspace) ftpc_fscr; /* free scratch space */
 	LIST_HEAD(, fasttrap_scrspace) ftpc_ascr; /* used scratch space */
@@ -198,7 +198,7 @@ typedef struct fasttrap_hash {
 #endif
 
 extern void fasttrap_sigtrap(proc_t *, kthread_t *, uintptr_t);
-#if !defined(sun)
+#ifndef illumos
 extern fasttrap_scrspace_t *fasttrap_scraddr(struct thread *,
     fasttrap_proc_t *);
 #endif

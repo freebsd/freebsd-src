@@ -57,8 +57,8 @@ ports_recurse() (
 		else
 			(
 			cd $d
-			rd=`make -V RUN_DEPENDS`	
-			ld=`make -V LIB_DEPENDS`	
+			rd=`make -V RUN_DEPENDS ${PORTS_OPTS}`
+			ld=`make -V LIB_DEPENDS ${PORTS_OPTS}`
 			
 			for x in $rd $ld
 			do
@@ -84,8 +84,8 @@ done
 for i in `cat $PL`
 do
 	p=`(cd $i && make -V PKGNAME)`
-	if [ -f $NANO_PKG_DUMP/$p.tbz ] ; then
-		ln -s $NANO_PKG_DUMP/$p.tbz $NANO_PACKAGE_DIR
+	if [ -f $NANO_PKG_DUMP/$p.t[bx]z ] ; then
+		ln -s $NANO_PKG_DUMP/$p.t[bx]z $NANO_PACKAGE_DIR
 	else
 		echo "Package $p misssing in $NANO_PKG_DUMP" 1>&2
 		exit 1

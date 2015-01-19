@@ -747,7 +747,8 @@ tws_execute_scsi(struct tws_softc *sc, union ccb *ccb)
      * and submit the I/O.
      */
     sc->stats.scsi_ios++;
-    callout_reset(&req->timeout, (ccb_h->timeout * hz) / 1000, tws_timeout, req);
+    callout_reset_sbt(&req->timeout, SBT_1MS * ccb->ccb_h.timeout, 0,
+      tws_timeout, req, 0);
     error = tws_map_request(sc, req);
     return(error);
 }

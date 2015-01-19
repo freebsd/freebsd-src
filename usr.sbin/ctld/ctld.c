@@ -622,6 +622,7 @@ portal_group_delete(struct portal_group *pg)
 	TAILQ_FOREACH_SAFE(portal, &pg->pg_portals, p_next, tmp)
 		portal_delete(portal);
 	free(pg->pg_name);
+	free(pg->pg_redirection);
 	free(pg);
 }
 
@@ -642,10 +643,11 @@ static int
 parse_addr_port(char *arg, const char *def_port, struct addrinfo **ai)
 {
 	struct addrinfo hints;
-	char *addr, *ch;
+	char *str, *addr, *ch;
 	const char *port;
 	int error, colons = 0;
 
+	str = arg = strdup(arg);
 	if (arg[0] == '[') {
 		/*
 		 * IPv6 address in square brackets, perhaps with port.
@@ -658,8 +660,10 @@ parse_addr_port(char *arg, const char *def_port, struct addrinfo **ai)
 			port = def_port;
 		} else if (arg[0] == ':') {
 			port = arg + 1;
-		} else
+		} else {
+			free(str);
 			return (1);
+		}
 	} else {
 		/*
 		 * Either IPv6 address without brackets - and without
@@ -686,9 +690,8 @@ parse_addr_port(char *arg, const char *def_port, struct addrinfo **ai)
 	hints.ai_socktype = SOCK_STREAM;
 	hints.ai_flags = AI_PASSIVE;
 	error = getaddrinfo(addr, port, &hints, ai);
-	if (error != 0)
-		return (1);
-	return (0);
+	free(str);
+	return ((error != 0) ? 1 : 0);
 }
 
 int
@@ -896,7 +899,7 @@ void
 isns_register(struct isns *isns, struct isns *oldisns)
 {
 	struct conf *conf = isns->i_conf;
-	int s, res;
+	int s;
 	char hostname[256];
 
 	if (TAILQ_EMPTY(&conf->conf_targets) ||
@@ -912,8 +915,8 @@ isns_register(struct isns *isns, struct isns *oldisns)
 
 	if (oldisns == NULL || TAILQ_EMPTY(&oldisns->i_conf->conf_targets))
 		oldisns = isns;
-	res = isns_do_deregister(oldisns, s, hostname);
-	res = isns_do_register(isns, s, hostname);
+	isns_do_deregister(oldisns, s, hostname);
+	isns_do_register(isns, s, hostname);
 	close(s);
 	set_timeout(0, false);
 }
@@ -938,8 +941,8 @@ isns_check(struct isns *isns)
 
 	res = isns_do_check(isns, s, hostname);
 	if (res < 0) {
-		res = isns_do_deregister(isns, s, hostname);
-		res = isns_do_register(isns, s, hostname);
+		isns_do_deregister(isns, s, hostname);
+		isns_do_register(isns, s, hostname);
 	}
 	close(s);
 	set_timeout(0, false);
@@ -949,7 +952,7 @@ void
 isns_deregister(struct isns *isns)
 {
 	struct conf *conf = isns->i_conf;
-	int s, res;
+	int s;
 	char hostname[256];
 
 	if (TAILQ_EMPTY(&conf->conf_targets) ||
@@ -961,7 +964,7 @@ isns_deregister(struct isns *isns)
 		return;
 	gethostname(hostname, sizeof(hostname));
 
-	res = isns_do_deregister(isns, s, hostname);
+	isns_do_deregister(isns, s, hostname);
 	close(s);
 	set_timeout(0, false);
 }
@@ -996,6 +999,22 @@ portal_group_set_filter(struct portal_group *pg, const char *str)
 	}
 
 	pg->pg_discovery_filter = filter;
+
+	return (0);
+}
+
+int
+portal_group_set_redirection(struct portal_group *pg, const char *addr)
+{
+
+	if (pg->pg_redirection != NULL) {
+		log_warnx("cannot set redirection to \"%s\" for "
+		    "portal-group \"%s\"; already defined",
+		    addr, pg->pg_name);
+		return (1);
+	}
+
+	pg->pg_redirection = checked_strdup(addr);
 
 	return (0);
 }
@@ -1144,6 +1163,7 @@ target_delete(struct target *targ)
 	TAILQ_FOREACH_SAFE(lun, &targ->t_luns, l_next, tmp)
 		lun_delete(lun);
 	free(targ->t_name);
+	free(targ->t_redirection);
 	free(targ);
 }
 
@@ -1158,6 +1178,22 @@ target_find(struct conf *conf, const char *name)
 	}
 
 	return (NULL);
+}
+
+int
+target_set_redirection(struct target *target, const char *addr)
+{
+
+	if (target->t_redirection != NULL) {
+		log_warnx("cannot set redirection to \"%s\" for "
+		    "target \"%s\"; already defined",
+		    addr, target->t_name);
+		return (1);
+	}
+
+	target->t_redirection = checked_strdup(addr);
+
+	return (0);
 }
 
 struct lun *
@@ -1486,8 +1522,13 @@ conf_verify(struct conf *conf)
 				return (error);
 			found = true;
 		}
-		if (!found) {
+		if (!found && targ->t_redirection == NULL) {
 			log_warnx("no LUNs defined for target \"%s\"",
+			    targ->t_name);
+		}
+		if (found && targ->t_redirection != NULL) {
+			log_debugx("target \"%s\" contains luns, "
+			    " but configured for redirection",
 			    targ->t_name);
 		}
 	}
@@ -1506,13 +1547,22 @@ conf_verify(struct conf *conf)
 			if (targ->t_portal_group == pg)
 				break;
 		}
-		if (targ == NULL) {
+		if (pg->pg_redirection != NULL) {
+			if (targ != NULL) {
+				log_debugx("portal-group \"%s\" assigned "
+				    "to target \"%s\", but configured "
+				    "for redirection",
+				    pg->pg_name, targ->t_name);
+			}
+			pg->pg_unassigned = false;
+		} else if (targ != NULL) {
+			pg->pg_unassigned = false;
+		} else {
 			if (strcmp(pg->pg_name, "default") != 0)
 				log_warnx("portal-group \"%s\" not assigned "
 				    "to any target", pg->pg_name);
 			pg->pg_unassigned = true;
-		} else
-			pg->pg_unassigned = false;
+		}
 	}
 	TAILQ_FOREACH(ag, &conf->conf_auth_groups, ag_next) {
 		if (ag->ag_name == NULL)
@@ -1554,7 +1604,7 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 	struct portal *oldp, *newp;
 	struct isns *oldns, *newns;
 	pid_t otherpid;
-	int changed, cumulated_error = 0, error;
+	int changed, cumulated_error = 0, error, sockbuf;
 	int one = 1;
 
 	if (oldconf->conf_debug != newconf->conf_debug) {
@@ -1614,6 +1664,16 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 		 */
 		newtarg = target_find(newconf, oldtarg->t_name);
 		if (newtarg == NULL) {
+			error = kernel_port_remove(oldtarg);
+			if (error != 0) {
+				log_warnx("failed to remove target %s",
+				    oldtarg->t_name);
+				/*
+				 * XXX: Uncomment after fixing the root cause.
+				 *
+				 * cumulated_error++;
+				 */
+			}
 			TAILQ_FOREACH_SAFE(oldlun, &oldtarg->t_luns, l_next,
 			    tmplun) {
 				log_debugx("target %s not found in new "
@@ -1630,7 +1690,6 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 					cumulated_error++;
 				}
 			}
-			kernel_port_remove(oldtarg);
 			continue;
 		}
 
@@ -1764,8 +1823,18 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 				cumulated_error++;
 			}
 		}
-		if (oldtarg == NULL)
-			kernel_port_add(newtarg);
+		if (oldtarg == NULL) {
+			error = kernel_port_add(newtarg);
+			if (error != 0) {
+				log_warnx("failed to add target %s",
+				    newtarg->t_name);
+				/*
+				 * XXX: Uncomment after fixing the root cause.
+				 *
+				 * cumulated_error++;
+				 */
+			}
+		}
 	}
 
 	/*
@@ -1832,6 +1901,16 @@ conf_apply(struct conf *oldconf, struct conf *newconf)
 				cumulated_error++;
 				continue;
 			}
+			sockbuf = SOCKBUF_SIZE;
+			if (setsockopt(newp->p_socket, SOL_SOCKET, SO_RCVBUF,
+			    &sockbuf, sizeof(sockbuf)) == -1)
+				log_warn("setsockopt(SO_RCVBUF) failed "
+				    "for %s", newp->p_listen);
+			sockbuf = SOCKBUF_SIZE;
+			if (setsockopt(newp->p_socket, SOL_SOCKET, SO_SNDBUF,
+			    &sockbuf, sizeof(sockbuf)) == -1)
+				log_warn("setsockopt(SO_SNDBUF) failed "
+				    "for %s", newp->p_listen);
 			error = setsockopt(newp->p_socket, SOL_SOCKET,
 			    SO_REUSEADDR, &one, sizeof(one));
 			if (error != 0) {

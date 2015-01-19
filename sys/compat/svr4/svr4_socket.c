@@ -93,7 +93,8 @@ svr4_find_socket(td, fp, dev, ino, saun)
 	struct svr4_sockcache_entry *e;
 	void *cookie = ((struct socket *)fp->f_data)->so_emuldata;
 
-	DPRINTF(("svr4_find_socket: [%p,%d,%d]: ", td, dev, ino));
+	DPRINTF(("svr4_find_socket: [%p,%ju,%ju]: ", td, (uintmax_t)dev,
+	    (uintmax_t)ino));
 	mtx_lock(&svr4_sockcache_lock);
 	TAILQ_FOREACH(e, &svr4_head, entries)
 		if (e->p == td->td_proc && e->dev == dev && e->ino == ino) {
@@ -142,8 +143,8 @@ svr4_add_socket(td, path, st)
 	mtx_lock(&svr4_sockcache_lock);
 	TAILQ_INSERT_HEAD(&svr4_head, e, entries);
 	mtx_unlock(&svr4_sockcache_lock);
-	DPRINTF(("svr4_add_socket: %s [%p,%d,%d]\n", e->sock.sun_path,
-		 td->td_proc, e->dev, e->ino));
+	DPRINTF(("svr4_add_socket: %s [%p,%ju,%ju]\n", e->sock.sun_path,
+		 td->td_proc, (uintmax_t)e->dev, (uintmax_t)e->ino));
 	return 0;
 }
 
@@ -160,8 +161,9 @@ svr4_delete_socket(p, fp)
 		if (e->p == p && e->cookie == cookie) {
 			TAILQ_REMOVE(&svr4_head, e, entries);
 			mtx_unlock(&svr4_sockcache_lock);
-			DPRINTF(("svr4_delete_socket: %s [%p,%d,%d]\n",
-				 e->sock.sun_path, p, (int)e->dev, e->ino));
+			DPRINTF(("svr4_delete_socket: %s [%p,%ju,%ju]\n",
+				 e->sock.sun_path, p, (uintmax_t)e->dev,
+				 (uintmax_t)e->ino));
 			free(e, M_TEMP);
 			return;
 		}
@@ -179,8 +181,9 @@ svr4_purge_sockcache(arg, p)
 	TAILQ_FOREACH_SAFE(e, &svr4_head, entries, ne) {
 		if (e->p == p) {
 			TAILQ_REMOVE(&svr4_head, e, entries);
-			DPRINTF(("svr4_purge_sockcache: %s [%p,%d,%d]\n",
-				 e->sock.sun_path, p, (int)e->dev, e->ino));
+			DPRINTF(("svr4_purge_sockcache: %s [%p,%ju,%ju]\n",
+				 e->sock.sun_path, p, (uintmax_t)e->dev,
+				 (uintmax_t)e->ino));
 			free(e, M_TEMP);
 		}
 	}

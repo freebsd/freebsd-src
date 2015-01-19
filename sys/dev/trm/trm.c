@@ -473,10 +473,6 @@ trm_ExecuteSRB(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		return;
 	}
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
-#if 0
-	/* XXX Need a timeout handler */
-	ccb->ccb_h.timeout_ch = timeout(trmtimeout, (caddr_t)srb, (ccb->ccb_h.timeout * hz) / 1000);
-#endif
 	trm_SendSRB(pACB, pSRB);
 	splx(flags);
 	return;

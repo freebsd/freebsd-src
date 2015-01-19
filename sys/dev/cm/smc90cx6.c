@@ -540,10 +540,7 @@ cm_srint_locked(vsc)
 	 */
 	if ((len + 2 + 2) > MHLEN) {
 		/* attach an mbuf cluster */
-		MCLGET(m, M_NOWAIT);
-
-		/* Insist on getting a cluster */
-		if ((m->m_flags & M_EXT) == 0) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 			goto cleanup;
 		}

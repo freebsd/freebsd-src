@@ -453,7 +453,7 @@ extern int YYPARSE_DECL();
 #define T_ASMARG 290
 #define T_VA_DCL 291
 #define YYERRCODE 256
-typedef short YYINT;
+typedef int YYINT;
 static const YYINT grammar_lhs[] = {                     -1,
     0,    0,   26,   26,   27,   27,   27,   27,   27,   27,
    27,   31,   30,   30,   28,   28,   34,   28,   32,   32,

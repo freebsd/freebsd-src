@@ -58,6 +58,7 @@ ATF_TC_BODY(t_precision, tc)
 	x += DBL_EPSILON;
 	ATF_CHECK(x == 2.0);
 
+#if !defined(__FreeBSD__) || !defined(__i386__)
 	y += LDBL_EPSILON;
 	ATF_CHECK(y != 1.0L);
 	y -= 1;
@@ -65,6 +66,7 @@ ATF_TC_BODY(t_precision, tc)
 	y = 2;
 	y += LDBL_EPSILON;
 	ATF_CHECK(y == 2.0L);
+#endif
 }
 
 ATF_TP_ADD_TCS(tp)

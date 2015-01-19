@@ -74,7 +74,6 @@ MAN=	acpidb.8
 WARNS?=	3
 
 CFLAGS+= -DACPI_EXEC_APP -fno-strict-aliasing
-DPADD=	${LIBPTHREAD}
-LDADD=	-lpthread
+LIBADD=	pthread
 
 .include <bsd.prog.mk>

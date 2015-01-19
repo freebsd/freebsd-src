@@ -85,10 +85,11 @@ SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_docheck, CTLFLAG_RW, &ufs_dirhashcheck,
 static int ufs_dirhashlowmemcount = 0;
 SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_lowmemcount, CTLFLAG_RD, 
     &ufs_dirhashlowmemcount, 0, "number of times low memory hook called");
-static int ufs_dirhash_reclaimperc = 10;
-SYSCTL_INT(_vfs_ufs, OID_AUTO, dirhash_reclaimperc, CTLFLAG_RW, 
-    &ufs_dirhash_reclaimperc, 0, 
-    "percentage of dirhash cache to be removed in low VM events");
+static int ufs_dirhashreclaimpercent = 10;
+static int ufsdirhash_set_reclaimpercent(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_vfs_ufs, OID_AUTO, dirhash_reclaimpercent,
+    CTLTYPE_INT | CTLFLAG_RW, 0, 0, ufsdirhash_set_reclaimpercent, "I",
+    "set percentage of dirhash cache to be removed in low VM events");
 
 
 static int ufsdirhash_hash(struct dirhash *dh, char *name, int namelen);
@@ -1251,7 +1252,7 @@ ufsdirhash_lowmem()
 
 	ufs_dirhashlowmemcount++;
 	memfreed = 0;
-	memwanted = ufs_dirhashmem / ufs_dirhash_reclaimperc;
+	memwanted = ufs_dirhashmem * ufs_dirhashreclaimpercent / 100;
 
 	DIRHASHLIST_LOCK();
 
@@ -1273,6 +1274,26 @@ ufsdirhash_lowmem()
 	DIRHASHLIST_UNLOCK();
 }
 
+static int
+ufsdirhash_set_reclaimpercent(SYSCTL_HANDLER_ARGS)
+{
+	int error, v;
+
+	v = ufs_dirhashreclaimpercent;
+	error = sysctl_handle_int(oidp, &v, v, req);
+	if (error)
+		return (error);
+	if (req->newptr == NULL)
+		return (error);
+	if (v == ufs_dirhashreclaimpercent)
+		return (0);
+
+	/* Refuse invalid percentages */
+	if (v < 0 || v > 100)
+		return (EINVAL);
+	ufs_dirhashreclaimpercent = v;
+	return (0);
+}
 
 void
 ufsdirhash_init()

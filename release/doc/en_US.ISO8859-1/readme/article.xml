@@ -36,6 +36,7 @@
       <year>2012</year>
       <year>2013</year>
       <year>2014</year>
+      <year>2015</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -249,26 +250,24 @@
 	course even more welcome.</para>
 
       <para>The preferred method to submit bug reports from a machine
-	with Internet mail connectivity is to use the &man.send-pr.1;
-	command.
+	with Internet connectivity is to use the
+	<application>Bugzilla</application> bug tracker.
 	<quote>Problem Reports</quote> (PRs) submitted in this way
 	will be filed and their progress tracked; the &os; developers
 	will do their best to respond to all reported bugs as soon as
-	possible.  <link xlink:href="http://www.FreeBSD.org/cgi/query-pr-summary.cgi">A list
-	of all active PRs</link> is available on the &os; Web site;
-	this list is useful to see what potential problems other users
-	have encountered.</para>
+	possible.  <link
+	  xlink:href="https://bugs.FreeBSD.org/search/">A list of all
+	  active PRs</link> is available on the &os; Web site; this
+	list is useful to see what potential problems other users have
+	encountered.</para>
 
-      <para>Note that &man.send-pr.1; itself is a shell script that
-	should be easy to move even onto a non-&os; system.  Using
-	this interface is highly preferred.  If, for some reason, you
-	are unable to use &man.send-pr.1; to submit a bug report, you
-	can try to send it to the &a.bugs;.</para>
+      <para>Note that &man.send-pr.1; is deprecated.</para>
 
-      <para>For more information, <link xlink:href="&url.articles.problem-reports;/"><quote>Writing
-	&os; Problem Reports</quote></link>, available on the &os; Web
-	site, has a number of helpful hints on writing and submitting
-	effective problem reports.</para>
+      <para>For more information, <link
+	  xlink:href="&url.articles.problem-reports;/"><quote>Writing
+	    &os; Problem Reports</quote></link>, available on the &os;
+	Web site, has a number of helpful hints on writing and
+	submitting effective problem reports.</para>
     </sect2>
   </sect1>
 

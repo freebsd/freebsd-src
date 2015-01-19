@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
+#include <sys/rman.h>
 
 #include <vm/vm.h>
 
@@ -328,7 +329,7 @@ bshw_smit_xfer_start(struct ct_softc *ct)
 				break;
 
 			count = (datalen > LC_FSZ ? LC_FSZ : datalen);
-			bus_space_read_region_4(chp->ch_memt, chp->ch_memh,
+			bus_read_region_4(chp->ch_mem,
 				LC_SMIT_OFFSET, (u_int32_t *) data, count >> 2);
 			data += count;
 			datalen -= count;
@@ -354,7 +355,7 @@ bshw_smit_xfer_start(struct ct_softc *ct)
 			}
 
 			count = (datalen > LC_SFSZ ? LC_SFSZ : datalen);
-			bus_space_write_region_4(chp->ch_memt, chp->ch_memh,
+			bus_write_region_4(chp->ch_mem,
 				LC_SMIT_OFFSET, (u_int32_t *) data, count >> 2);
 			data += count;
 			datalen -= count;
@@ -363,7 +364,7 @@ bshw_smit_xfer_start(struct ct_softc *ct)
 				break;
 
 			count = (datalen > LC_REST ? LC_REST : datalen);
-			bus_space_write_region_4(chp->ch_memt, chp->ch_memh,
+			bus_write_region_4(chp->ch_mem,
 						 LC_SMIT_OFFSET + LC_SFSZ, 
 						 (u_int32_t *) data, count >> 2);
 			data += count;

@@ -13,7 +13,6 @@
 #include <execinfo.h>
 #include <sys/types.h>
 #include <sys/user.h>
-#include <sys/utsname.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
 
@@ -27,6 +26,7 @@
 #include "lldb/Core/Error.h"
 #include "lldb/Host/Endian.h"
 #include "lldb/Host/Host.h"
+#include "lldb/Host/HostInfo.h"
 #include "lldb/Core/Module.h"
 #include "lldb/Core/DataExtractor.h"
 #include "lldb/Core/StreamFile.h"
@@ -39,8 +39,9 @@
 #include "lldb/Core/DataExtractor.h"
 #include "lldb/Utility/CleanUp.h"
 
-#include "llvm/Support/Host.h"
+#include "Plugins/Process/Utility/FreeBSDSignals.h"
 
+#include "llvm/Support/Host.h"
 
 extern "C" {
     extern char **environ;
@@ -86,7 +87,40 @@ Host::ThreadCreated (const char *thread_name)
 std::string
 Host::GetThreadName (lldb::pid_t pid, lldb::tid_t tid)
 {
+    struct kinfo_proc *kp = nullptr, *nkp;
+    size_t len = 0;
+    int error;
+    int name[4] = {
+        CTL_KERN, KERN_PROC, KERN_PROC_PID | KERN_PROC_INC_THREAD, (int)pid
+    };
+
+    while (1) {
+        error = sysctl(name, 4, kp, &len, nullptr, 0);
+        if (kp == nullptr || (error != 0 && errno == ENOMEM)) {
+            // Add extra space in case threads are added before next call.
+            len += sizeof(*kp) + len / 10;
+            nkp = (struct kinfo_proc *)realloc(kp, len);
+            if (nkp == nullptr)
+            {
+                free(kp);
+                return std::string();
+            }
+            kp = nkp;
+            continue;
+        }
+        if (error != 0)
+            len = 0;
+        break;
+    }
+
     std::string thread_name;
+    for (size_t i = 0; i < len / sizeof(*kp); i++) {
+        if (kp[i].ki_tid == (int)tid) {
+            thread_name = kp[i].ki_tdname;
+            break;
+        }
+    }
+    free(kp);
     return thread_name;
 }
 
@@ -132,56 +166,6 @@ Host::GetEnvironment (StringList &env)
         env.AppendString(v);
     }
     return env.GetSize();
-}
-
-bool
-Host::GetOSVersion(uint32_t &major,
-                   uint32_t &minor,
-                   uint32_t &update)
-{
-    struct utsname un;
-
-    ::memset(&un, 0, sizeof(utsname));
-    if (uname(&un) < 0)
-        return false;
-
-    int status = sscanf(un.release, "%u.%u", &major, &minor);
-    return status == 2;
-}
-
-bool
-Host::GetOSBuildString (std::string &s)
-{
-    int mib[2] = { CTL_KERN, KERN_OSREV };
-    char osrev_str[12];
-    uint32_t osrev = 0;
-    size_t osrev_len = sizeof(osrev);
-
-    if (::sysctl (mib, 2, &osrev, &osrev_len, NULL, 0) == 0)
-    {
-        ::snprintf(osrev_str, sizeof(osrev_str), "%-8.8u", osrev);
-        s.assign (osrev_str);
-        return true;
-    }
-
-    s.clear();
-    return false;
-}
-
-bool
-Host::GetOSKernelDescription (std::string &s)
-{
-    struct utsname un;
-
-    ::memset(&un, 0, sizeof(utsname));
-    s.clear();
-
-    if (uname(&un) < 0)
-    return false;
-
-    s.assign (un.version);
-
-    return true;
 }
 
 static bool
@@ -240,7 +224,7 @@ GetFreeBSDProcessCPUType (ProcessInstanceInfo &process_info)
 {
     if (process_info.ProcessIDIsValid())
     {
-        process_info.GetArchitecture() = Host::GetArchitecture (Host::eSystemDefaultArchitecture);
+        process_info.GetArchitecture() = HostInfo::GetArchitecture(HostInfo::eArchKindDefault);
         return true;
     }
     process_info.GetArchitecture().Clear();
@@ -306,9 +290,9 @@ Host::FindProcesses (const ProcessInstanceInfoMatch &match_info, ProcessInstance
     const size_t actual_pid_count = (pid_data_size / sizeof(struct kinfo_proc));
 
     bool all_users = match_info.GetMatchAllUsers();
-    const lldb::pid_t our_pid = getpid();
+    const ::pid_t our_pid = getpid();
     const uid_t our_uid = getuid();
-    for (int i = 0; i < actual_pid_count; i++)
+    for (size_t i = 0; i < actual_pid_count; i++)
     {
         const struct kinfo_proc &kinfo = kinfos[i];
         const bool kinfo_user_matches = (all_users ||
@@ -418,3 +402,11 @@ Host::GetAuxvData(lldb_private::Process *process)
    done:
    return buf_sp;
 }
+
+const UnixSignalsSP&
+Host::GetUnixSignals ()
+{
+    static const lldb_private::UnixSignalsSP s_unix_signals_sp (new FreeBSDSignals ());
+    return s_unix_signals_sp;
+}
+

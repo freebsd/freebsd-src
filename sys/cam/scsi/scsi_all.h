@@ -559,6 +559,7 @@ struct scsi_log_sense
 #define	SLS_ERROR_VERIFY_PAGE		0x05
 #define	SLS_ERROR_NONMEDIUM_PAGE	0x06
 #define	SLS_ERROR_LASTN_PAGE		0x07
+#define	SLS_LOGICAL_BLOCK_PROVISIONING	0x0c
 #define	SLS_SELF_TEST_PAGE		0x10
 #define	SLS_IE_PAGE			0x2f
 #define	SLS_PAGE_CTRL_MASK		0xC0
@@ -740,6 +741,11 @@ struct scsi_info_exceptions_page {
 
 struct scsi_logical_block_provisioning_page_descr {
 	uint8_t flags;
+#define	SLBPPD_ENABLED		0x80
+#define	SLBPPD_TYPE_MASK	0x38
+#define	SLBPPD_ARMING_MASK	0x07
+#define	SLBPPD_ARMING_DEC	0x02
+#define	SLBPPD_ARMING_INC	0x01
 	uint8_t resource;
 	uint8_t reserved[2];
 	uint8_t count[4];
@@ -1811,7 +1817,7 @@ struct scsi_inquiry_data
 					 * reserved for this peripheral
 					 * qualifier.
 					 */
-#define	SID_QUAL_IS_VENDOR_UNIQUE(inq_data) ((SID_QUAL(inq_data) & 0x08) != 0)
+#define	SID_QUAL_IS_VENDOR_UNIQUE(inq_data) ((SID_QUAL(inq_data) & 0x04) != 0)
 	u_int8_t dev_qual2;
 #define	SID_QUAL2	0x7F
 #define	SID_LU_CONG	0x40
@@ -2510,6 +2516,32 @@ struct scsi_read_capacity_data_long
 #define	SRC16_LBPME_A		0x8000
 	uint8_t lalba_lbp[2];
 	uint8_t	reserved[16];
+};
+
+struct scsi_get_lba_status
+{
+	uint8_t opcode;
+#define	SGLS_SERVICE_ACTION	0x12
+	uint8_t service_action;
+	uint8_t addr[8];
+	uint8_t alloc_len[4];
+	uint8_t reserved;
+	uint8_t control;
+};
+
+struct scsi_get_lba_status_data_descr
+{
+	uint8_t addr[8];
+	uint8_t length[4];
+	uint8_t status;
+	uint8_t reserved[3];
+};
+
+struct scsi_get_lba_status_data
+{
+	uint8_t length[4];
+	uint8_t reserved[4];
+	struct scsi_get_lba_status_data_descr descr[];
 };
 
 struct scsi_report_luns

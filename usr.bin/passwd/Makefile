@@ -6,8 +6,7 @@
 PROG	 = passwd
 BINOWN	 = root
 BINMODE	 = 4555
-DPADD	 = ${LIBPAM}
-LDADD	 = ${MINUSLPAM}
+LIBADD   = pam
 .if ${MK_NIS} != "no"
 LINKS	 = ${BINDIR}/passwd ${BINDIR}/yppasswd
 MLINKS	 = passwd.1 yppasswd.1

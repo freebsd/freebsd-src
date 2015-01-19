@@ -473,7 +473,7 @@ dtrace_gethrestime(void)
 
 /* Function to handle DTrace traps during probes. See i386/i386/trap.c */
 int
-dtrace_trap(struct trapframe *frame)
+dtrace_trap(struct trapframe *frame, u_int type)
 {
 	/*
 	 * A trap can occur while DTrace executes a probe. Before
@@ -489,7 +489,7 @@ dtrace_trap(struct trapframe *frame)
 		 * There are only a couple of trap types that are expected.
 		 * All the rest will be handled in the usual way.
 		 */
-		switch (frame->tf_trapno) {
+		switch (type) {
 		/* General protection fault. */
 		case T_PROTFLT:
 			/* Flag an illegal operation. */

@@ -12,30 +12,31 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "partialinlining"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/ADT/Statistic.h"
-#include "llvm/Analysis/Dominators.h"
+#include "llvm/IR/CFG.h"
+#include "llvm/IR/Dominators.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/CFG.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/CodeExtractor.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "partialinlining"
 
 STATISTIC(NumPartialInlined, "Number of functions partially inlined");
 
 namespace {
   struct PartialInliner : public ModulePass {
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const { }
+    void getAnalysisUsage(AnalysisUsage &AU) const override { }
     static char ID; // Pass identification, replacement for typeid
     PartialInliner() : ModulePass(ID) {
       initializePartialInlinerPass(*PassRegistry::getPassRegistry());
     }
-    
-    bool runOnModule(Module& M);
-    
+
+    bool runOnModule(Module& M) override;
+
   private:
     Function* unswitchFunction(Function* F);
   };
@@ -52,10 +53,10 @@ Function* PartialInliner::unswitchFunction(Function* F) {
   BasicBlock* entryBlock = F->begin();
   BranchInst *BR = dyn_cast<BranchInst>(entryBlock->getTerminator());
   if (!BR || BR->isUnconditional())
-    return 0;
+    return nullptr;
   
-  BasicBlock* returnBlock = 0;
-  BasicBlock* nonReturnBlock = 0;
+  BasicBlock* returnBlock = nullptr;
+  BasicBlock* nonReturnBlock = nullptr;
   unsigned returnCount = 0;
   for (succ_iterator SI = succ_begin(entryBlock), SE = succ_end(entryBlock);
        SI != SE; ++SI)
@@ -66,7 +67,7 @@ Function* PartialInliner::unswitchFunction(Function* F) {
       nonReturnBlock = *SI;
   
   if (returnCount != 1)
-    return 0;
+    return nullptr;
   
   // Clone the function, so that we can hack away on it.
   ValueToValueMapTy VMap;
@@ -119,8 +120,8 @@ Function* PartialInliner::unswitchFunction(Function* F) {
       
   // The CodeExtractor needs a dominator tree.
   DominatorTree DT;
-  DT.runOnFunction(*duplicateFunction);
-  
+  DT.recalculate(*duplicateFunction);
+
   // Extract the body of the if.
   Function* extractedFunction
     = CodeExtractor(toExtract, &DT).extractCodeRegion();
@@ -128,8 +129,8 @@ Function* PartialInliner::unswitchFunction(Function* F) {
   InlineFunctionInfo IFI;
   
   // Inline the top-level if test into all callers.
-  std::vector<User*> Users(duplicateFunction->use_begin(), 
-                           duplicateFunction->use_end());
+  std::vector<User *> Users(duplicateFunction->user_begin(),
+                            duplicateFunction->user_end());
   for (std::vector<User*>::iterator UI = Users.begin(), UE = Users.end();
        UI != UE; ++UI)
     if (CallInst *CI = dyn_cast<CallInst>(*UI))
@@ -162,9 +163,8 @@ bool PartialInliner::runOnModule(Module& M) {
     if (currFunc->use_empty()) continue;
     
     bool recursive = false;
-    for (Function::use_iterator UI = currFunc->use_begin(),
-         UE = currFunc->use_end(); UI != UE; ++UI)
-      if (Instruction* I = dyn_cast<Instruction>(*UI))
+    for (User *U : currFunc->users())
+      if (Instruction* I = dyn_cast<Instruction>(U))
         if (I->getParent()->getParent() == currFunc) {
           recursive = true;
           break;

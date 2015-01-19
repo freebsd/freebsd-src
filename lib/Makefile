@@ -13,6 +13,7 @@ SUBDIR_ORDERED=	${_csu} \
 	libc \
 	libc_nonshared \
 	libcompiler_rt \
+	${_libclang_rt} \
 	${_libcplusplus} \
 	${_libcxxrt} \
 	libelf \
@@ -42,15 +43,17 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libcrypt \
 	libdevinfo \
 	libdevstat \
+	libdpv \
 	libdwarf \
 	libedit \
+	${_libelftc} \
 	${_libevent} \
 	libexecinfo \
 	libexpat \
 	libfetch \
 	libfigpar \
 	libgeom \
-	${_libgpib} \
+	libgpio \
 	${_libgssapi} \
 	${_librpcsec_gss} \
 	${_libiconv_modules} \
@@ -89,6 +92,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libsmb} \
 	${_libsmdb} \
 	${_libsmutil} \
+	libsqlite3 \
 	libstand \
 	libstdbuf \
 	libstdthreads \
@@ -130,7 +134,7 @@ SUBDIR_DEPEND_libcam= libsbuf
 SUBDIR_DEPEND_libcapsicum= libnv
 SUBDIR_DEPEND_libcasper= libcapsicum libnv libpjdlog
 SUBDIR_DEPEND_libdevstat= libkvm
-SUBDIR_DEPEND_libdiaglog= ncurses
+SUBDIR_DEPEND_libdpv= libfigpar ncurses libutil
 SUBDIR_DEPEND_libedit= ncurses
 SUBDIR_DEPEND_libg++= msun
 SUBDIR_DEPEND_libgeom= libexpat libsbuf
@@ -187,8 +191,8 @@ _clang=		clang
 _cuse=		libcuse
 .endif
 
-.if ${MK_GPIB} != "no"
-_libgpib=	libgpib
+.if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
+_libelftc=	libelftc
 .endif
 
 .if ${MK_GSSAPI} != "no"
@@ -206,6 +210,15 @@ _libcom_err= libcom_err
 
 .if ${MK_LDNS} != "no"
 _libldns=	libldns
+.endif
+
+# The libraries under libclang_rt can only be built by clang, and only make
+# sense to build when clang is enabled at all.  Furthermore, they can only be
+# built for certain architectures.
+.if ${MK_CLANG} != "no" && ${COMPILER_TYPE} == "clang" && \
+    (${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64" || \
+    (${MACHINE_CPUARCH} == "arm" && ${MACHINE_ARCH} != "armeb"))
+_libclang_rt=	libclang_rt
 .endif
 
 .if ${MK_LIBCPLUSPLUS} != "no"

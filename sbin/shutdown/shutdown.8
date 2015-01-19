@@ -28,7 +28,7 @@
 .\"     @(#)shutdown.8	8.2 (Berkeley) 4/27/95
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2013
+.Dd December 15, 2014
 .Dt SHUTDOWN 8
 .Os
 .Sh NAME
@@ -118,6 +118,15 @@ to the current system values.
 The first form brings the system down in
 .Ar number
 minutes and the second at the absolute time specified.
+.Ar +number
+may be specified in units other than minutes by appending the corresponding
+suffix:
+.Dq Li s ,
+.Dq Li sec ,
+.Dq Li m ,
+.Dq Li min .
+.Dq Li h ,
+.Dq Li hour .
 .It Ar warning-message
 Any other arguments comprise the warning message that is broadcast
 to users currently logged into the system.

@@ -252,7 +252,7 @@ Stream::EOL()
 
 //------------------------------------------------------------------
 // Indent the current line using the current indentation level and
-// print an optional string following the idenatation spaces.
+// print an optional string following the indentation spaces.
 //------------------------------------------------------------------
 size_t
 Stream::Indent(const char *s)
@@ -479,7 +479,7 @@ Stream::PrintfAsRawHex8 (const char *format, ...)
     va_list args;
     va_list args_copy;
     va_start (args, format);
-    va_copy (args, args_copy); // Copy this so we
+    va_copy (args_copy,args); // Copy this so we
 
     char str[1024];
     size_t bytes_written = 0;

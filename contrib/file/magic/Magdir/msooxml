@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: msooxml,v 1.4 2014/01/06 18:16:24 rrt Exp $
+# $File: msooxml,v 1.5 2014/08/05 07:38:45 christos Exp $
 # msooxml:  file(1) magic for Microsoft Office XML
 # From: Ralf Brown <ralf.brown@gmail.com>
 
@@ -16,7 +16,7 @@
 0		string		PK\003\004
 !:strength +10
 # make sure the first file is correct
->0x1E		regex		\[Content_Types\]\.xml|_rels/\.rels
+>0x1E		regex		\\[Content_Types\\]\\.xml|_rels/\\.rels
 # skip to the second local file header
 # since some documents include a 520-byte extra field following the file
 # header, we need to scan for the next header

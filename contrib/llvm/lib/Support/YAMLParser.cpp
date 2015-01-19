@@ -378,9 +378,6 @@ private:
   ///          sequence of ns-uri-char.
   StringRef scan_ns_uri_char();
 
-  /// @brief Scan ns-plain-one-line[133] starting at \a Cur.
-  StringRef scan_ns_plain_one_line();
-
   /// @brief Consume a minimal well-formed code unit subsequence starting at
   ///        \a Cur. Return false if it is not the same Unicode scalar value as
   ///        \a Expected. This updates \a Column.
@@ -871,42 +868,6 @@ StringRef Scanner::scan_ns_uri_char() {
       break;
   }
   return StringRef(Start, Current - Start);
-}
-
-StringRef Scanner::scan_ns_plain_one_line() {
-  StringRef::iterator start = Current;
-  // The first character must already be verified.
-  ++Current;
-  while (true) {
-    if (Current == End) {
-      break;
-    } else if (*Current == ':') {
-      // Check if the next character is a ns-char.
-      if (Current + 1 == End)
-        break;
-      StringRef::iterator i = skip_ns_char(Current + 1);
-      if (Current + 1 != i) {
-        Current = i;
-        Column += 2; // Consume both the ':' and ns-char.
-      } else
-        break;
-    } else if (*Current == '#') {
-      // Check if the previous character was a ns-char.
-      // The & 0x80 check is to check for the trailing byte of a utf-8
-      if (*(Current - 1) & 0x80 || skip_ns_char(Current - 1) == Current) {
-        ++Current;
-        ++Column;
-      } else
-        break;
-    } else {
-      StringRef::iterator i = skip_nb_char(Current);
-      if (i == Current)
-        break;
-      Current = i;
-      ++Column;
-    }
-  }
-  return StringRef(start, Current - start);
 }
 
 bool Scanner::consume(uint32_t Expected) {
@@ -1561,12 +1522,10 @@ bool Scanner::fetchMoreTokens() {
 }
 
 Stream::Stream(StringRef Input, SourceMgr &SM)
-  : scanner(new Scanner(Input, SM))
-  , CurrentDoc(0) {}
+    : scanner(new Scanner(Input, SM)), CurrentDoc() {}
 
 Stream::Stream(MemoryBuffer *InputBuffer, SourceMgr &SM)
-  : scanner(new Scanner(InputBuffer, SM))
-  , CurrentDoc(0) {}
+    : scanner(new Scanner(InputBuffer, SM)), CurrentDoc() {}
 
 Stream::~Stream() {}
 
@@ -1601,11 +1560,9 @@ void Stream::skip() {
     i->skip();
 }
 
-Node::Node(unsigned int Type, OwningPtr<Document> &D, StringRef A, StringRef T)
-  : Doc(D)
-  , TypeID(Type)
-  , Anchor(A)
-  , Tag(T) {
+Node::Node(unsigned int Type, std::unique_ptr<Document> &D, StringRef A,
+           StringRef T)
+    : Doc(D), TypeID(Type), Anchor(A), Tag(T) {
   SMLoc Start = SMLoc::getFromPointer(peekNext().Range.begin());
   SourceRange = SMRange(Start, Start);
 }
@@ -1617,11 +1574,11 @@ std::string Node::getVerbatimTag() const {
     if (Raw.find_last_of('!') == 0) {
       Ret = Doc->getTagMap().find("!")->second;
       Ret += Raw.substr(1);
-      return llvm_move(Ret);
+      return std::move(Ret);
     } else if (Raw.startswith("!!")) {
       Ret = Doc->getTagMap().find("!!")->second;
       Ret += Raw.substr(2);
-      return llvm_move(Ret);
+      return std::move(Ret);
     } else {
       StringRef TagHandle = Raw.substr(0, Raw.find_last_of('!') + 1);
       std::map<StringRef, StringRef>::const_iterator It =
@@ -1635,7 +1592,7 @@ std::string Node::getVerbatimTag() const {
         setError(Twine("Unknown tag handle ") + TagHandle, T);
       }
       Ret += Raw.substr(Raw.find_last_of('!') + 1);
-      return llvm_move(Ret);
+      return std::move(Ret);
     }
   }
 
@@ -1919,14 +1876,14 @@ Node *KeyValueNode::getValue() {
 void MappingNode::increment() {
   if (failed()) {
     IsAtEnd = true;
-    CurrentEntry = 0;
+    CurrentEntry = nullptr;
     return;
   }
   if (CurrentEntry) {
     CurrentEntry->skip();
     if (Type == MT_Inline) {
       IsAtEnd = true;
-      CurrentEntry = 0;
+      CurrentEntry = nullptr;
       return;
     }
   }
@@ -1939,13 +1896,13 @@ void MappingNode::increment() {
     case Token::TK_BlockEnd:
       getNext();
       IsAtEnd = true;
-      CurrentEntry = 0;
+      CurrentEntry = nullptr;
       break;
     default:
       setError("Unexpected token. Expected Key or Block End", T);
     case Token::TK_Error:
       IsAtEnd = true;
-      CurrentEntry = 0;
+      CurrentEntry = nullptr;
     }
   } else {
     switch (T.Kind) {
@@ -1958,14 +1915,14 @@ void MappingNode::increment() {
     case Token::TK_Error:
       // Set this to end iterator.
       IsAtEnd = true;
-      CurrentEntry = 0;
+      CurrentEntry = nullptr;
       break;
     default:
       setError( "Unexpected token. Expected Key, Flow Entry, or Flow "
                 "Mapping End."
               , T);
       IsAtEnd = true;
-      CurrentEntry = 0;
+      CurrentEntry = nullptr;
     }
   }
 }
@@ -1973,7 +1930,7 @@ void MappingNode::increment() {
 void SequenceNode::increment() {
   if (failed()) {
     IsAtEnd = true;
-    CurrentEntry = 0;
+    CurrentEntry = nullptr;
     return;
   }
   if (CurrentEntry)
@@ -1984,37 +1941,37 @@ void SequenceNode::increment() {
     case Token::TK_BlockEntry:
       getNext();
       CurrentEntry = parseBlockNode();
-      if (CurrentEntry == 0) { // An error occurred.
+      if (!CurrentEntry) { // An error occurred.
         IsAtEnd = true;
-        CurrentEntry = 0;
+        CurrentEntry = nullptr;
       }
       break;
     case Token::TK_BlockEnd:
       getNext();
       IsAtEnd = true;
-      CurrentEntry = 0;
+      CurrentEntry = nullptr;
       break;
     default:
       setError( "Unexpected token. Expected Block Entry or Block End."
               , T);
     case Token::TK_Error:
       IsAtEnd = true;
-      CurrentEntry = 0;
+      CurrentEntry = nullptr;
     }
   } else if (SeqType == ST_Indentless) {
     switch (T.Kind) {
     case Token::TK_BlockEntry:
       getNext();
       CurrentEntry = parseBlockNode();
-      if (CurrentEntry == 0) { // An error occurred.
+      if (!CurrentEntry) { // An error occurred.
         IsAtEnd = true;
-        CurrentEntry = 0;
+        CurrentEntry = nullptr;
       }
       break;
     default:
     case Token::TK_Error:
       IsAtEnd = true;
-      CurrentEntry = 0;
+      CurrentEntry = nullptr;
     }
   } else if (SeqType == ST_Flow) {
     switch (T.Kind) {
@@ -2028,7 +1985,7 @@ void SequenceNode::increment() {
     case Token::TK_Error:
       // Set this to end iterator.
       IsAtEnd = true;
-      CurrentEntry = 0;
+      CurrentEntry = nullptr;
       break;
     case Token::TK_StreamEnd:
     case Token::TK_DocumentEnd:
@@ -2036,13 +1993,13 @@ void SequenceNode::increment() {
       setError("Could not find closing ]!", T);
       // Set this to end iterator.
       IsAtEnd = true;
-      CurrentEntry = 0;
+      CurrentEntry = nullptr;
       break;
     default:
       if (!WasPreviousTokenFlowEntry) {
         setError("Expected , between entries!", T);
         IsAtEnd = true;
-        CurrentEntry = 0;
+        CurrentEntry = nullptr;
         break;
       }
       // Otherwise it must be a flow entry.
@@ -2056,7 +2013,7 @@ void SequenceNode::increment() {
   }
 }
 
-Document::Document(Stream &S) : stream(S), Root(0) {
+Document::Document(Stream &S) : stream(S), Root(nullptr) {
   // Tag maps starts with two default mappings.
   TagMap["!"] = "!";
   TagMap["!!"] = "tag:yaml.org,2002:";
@@ -2113,7 +2070,7 @@ parse_property:
   case Token::TK_Anchor:
     if (AnchorInfo.Kind == Token::TK_Anchor) {
       setError("Already encountered an anchor for this node!", T);
-      return 0;
+      return nullptr;
     }
     AnchorInfo = getNext(); // Consume TK_Anchor.
     T = peekNext();
@@ -2121,7 +2078,7 @@ parse_property:
   case Token::TK_Tag:
     if (TagInfo.Kind == Token::TK_Tag) {
       setError("Already encountered a tag for this node!", T);
-      return 0;
+      return nullptr;
     }
     TagInfo = getNext(); // Consume TK_Tag.
     T = peekNext();
@@ -2189,10 +2146,10 @@ parse_property:
     //       !!null null.
     return new (NodeAllocator) NullNode(stream.CurrentDoc);
   case Token::TK_Error:
-    return 0;
+    return nullptr;
   }
   llvm_unreachable("Control flow shouldn't reach here.");
-  return 0;
+  return nullptr;
 }
 
 bool Document::parseDirectives() {

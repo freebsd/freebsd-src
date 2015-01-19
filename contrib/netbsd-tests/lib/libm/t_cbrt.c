@@ -237,6 +237,7 @@ ATF_TC_BODY(cbrtf_zero_pos, tc)
 		atf_tc_fail_nonfatal("cbrtf(+0.0) != +0.0");
 }
 
+#if !defined(__FreeBSD__) || LDBL_PREC != 53
 /*
  * cbrtl(3)
  */
@@ -270,7 +271,11 @@ ATF_TC_BODY(cbrtl_powl, tc)
 	for (i = 0; i < __arraycount(x); i++) {
 
 		y = cbrtl(x[i]);
+#ifdef __FreeBSD__
+		z = powl(x[i], (long double)1.0 / 3.0);
+#else
 		z = powl(x[i], 1.0 / 3.0);
+#endif
 
 		if (fabsl(y - z) > eps * fabsl(1 + x[i]))
 			atf_tc_fail_nonfatal("cbrtl(%0.03Lf) != "
@@ -337,6 +342,7 @@ ATF_TC_BODY(cbrtl_zero_pos, tc)
 	if (fabsl(y) > 0.0 || signbit(y) != 0)
 		atf_tc_fail_nonfatal("cbrtl(+0.0) != +0.0");
 }
+#endif
 
 ATF_TP_ADD_TCS(tp)
 {
@@ -355,12 +361,14 @@ ATF_TP_ADD_TCS(tp)
 	ATF_TP_ADD_TC(tp, cbrtf_zero_neg);
 	ATF_TP_ADD_TC(tp, cbrtf_zero_pos);
 
+#if !defined(__FreeBSD__) || LDBL_PREC != 53
 	ATF_TP_ADD_TC(tp, cbrtl_nan);
 	ATF_TP_ADD_TC(tp, cbrtl_powl);
 	ATF_TP_ADD_TC(tp, cbrtl_inf_neg);
 	ATF_TP_ADD_TC(tp, cbrtl_inf_pos);
 	ATF_TP_ADD_TC(tp, cbrtl_zero_neg);
 	ATF_TP_ADD_TC(tp, cbrtl_zero_pos);
+#endif
 
 	return atf_no_error();
 }

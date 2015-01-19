@@ -489,42 +489,61 @@ OLD_FILES+=usr/bin/clang++
 OLD_FILES+=usr/bin/clang-cpp
 OLD_FILES+=usr/bin/clang-tblgen
 OLD_FILES+=usr/bin/tblgen
-OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_aes.h
-OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_pclmul.h
-OLD_FILES+=usr/include/clang/3.4.1/altivec.h
-OLD_FILES+=usr/include/clang/3.4.1/ammintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/arm_neon.h
-OLD_FILES+=usr/include/clang/3.4.1/avx2intrin.h
-OLD_FILES+=usr/include/clang/3.4.1/avxintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/bmi2intrin.h
-OLD_FILES+=usr/include/clang/3.4.1/bmiintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/cpuid.h
-OLD_FILES+=usr/include/clang/3.4.1/emmintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/f16cintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/fma4intrin.h
-OLD_FILES+=usr/include/clang/3.4.1/fmaintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/immintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/lzcntintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/mm3dnow.h
-OLD_FILES+=usr/include/clang/3.4.1/mm_malloc.h
-OLD_FILES+=usr/include/clang/3.4.1/mmintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/module.map
-OLD_FILES+=usr/include/clang/3.4.1/nmmintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/pmmintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/popcntintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/prfchwintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/rdseedintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/rtmintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/shaintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/smmintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/tbmintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/tmmintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/wmmintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/x86intrin.h
-OLD_FILES+=usr/include/clang/3.4.1/xmmintrin.h
-OLD_FILES+=usr/include/clang/3.4.1/xopintrin.h
-OLD_DIRS+=usr/include/clang/3.4.1
+OLD_FILES+=usr/include/clang/3.5.1/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.5.1/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.5.1/altivec.h
+OLD_FILES+=usr/include/clang/3.5.1/ammintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/arm_acle.h
+OLD_FILES+=usr/include/clang/3.5.1/arm_neon.h
+OLD_FILES+=usr/include/clang/3.5.1/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.5.1/avxintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.5.1/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/cpuid.h
+OLD_FILES+=usr/include/clang/3.5.1/emmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.5.1/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/ia32intrin.h
+OLD_FILES+=usr/include/clang/3.5.1/immintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.5.1/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.5.1/mmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/module.modulemap
+OLD_FILES+=usr/include/clang/3.5.1/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/prfchwintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/rdseedintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/shaintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/smmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/tbmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/x86intrin.h
+OLD_FILES+=usr/include/clang/3.5.1/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.1/xopintrin.h
+OLD_DIRS+=usr/include/clang/3.5.1
 OLD_DIRS+=usr/include/clang
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.asan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.asan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.profile-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.profile-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.san-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.san-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.5.1/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
+OLD_DIRS+=usr/lib/clang/3.5.1/lib/freebsd
+OLD_DIRS+=usr/lib/clang/3.5.1/lib
+OLD_DIRS+=usr/lib/clang/3.5.1
+OLD_DIRS+=usr/lib/clang
 OLD_FILES+=usr/share/doc/llvm/clang/LICENSE.TXT
 OLD_DIRS+=usr/share/doc/llvm/clang
 OLD_FILES+=usr/share/doc/llvm/COPYRIGHT.regex
@@ -546,13 +565,12 @@ OLD_FILES+=usr/bin/llvm-bcanalyzer
 OLD_FILES+=usr/bin/llvm-diff
 OLD_FILES+=usr/bin/llvm-dis
 OLD_FILES+=usr/bin/llvm-extract
-OLD_FILES+=usr/bin/llvm-ld
 OLD_FILES+=usr/bin/llvm-link
 OLD_FILES+=usr/bin/llvm-mc
 OLD_FILES+=usr/bin/llvm-nm
 OLD_FILES+=usr/bin/llvm-objdump
 OLD_FILES+=usr/bin/llvm-rtdyld
-OLD_FILES+=usr/bin/llvm-stub
+OLD_FILES+=usr/bin/llvm-symbolizer
 OLD_FILES+=usr/bin/macho-dump
 OLD_FILES+=usr/bin/opt
 OLD_FILES+=usr/share/man/man1/bugpoint.1.gz
@@ -564,9 +582,9 @@ OLD_FILES+=usr/share/man/man1/llvm-bcanalyzer.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-diff.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-dis.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-extract.1.gz
-OLD_FILES+=usr/share/man/man1/llvm-ld.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-link.1.gz
 OLD_FILES+=usr/share/man/man1/llvm-nm.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-symbolizer.1.gz
 OLD_FILES+=usr/share/man/man1/opt.1.gz
 .endif
 
@@ -1198,6 +1216,11 @@ OLD_FILES+=usr/share/dict/words
 OLD_DIRS+=usr/share/dict
 .endif
 
+.if ${MK_ELFTOOLCHAIN_TOOLS} == no
+OLD_FILES+=usr/bin/elfcopy
+OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
+.endif
+
 #.if ${MK_EXAMPLES} == no
 # to be filled in
 #.endif
@@ -1324,26 +1347,6 @@ OLD_FILES+=usr/share/info/stabs.info.gz
 OLD_FILES+=usr/share/man/man1/gdb.1.gz
 OLD_FILES+=usr/share/man/man1/gdbserver.1.gz
 OLD_FILES+=usr/share/man/man1/kgdb.1.gz
-.endif
-
-.if ${MK_GPIB} == no
-OLD_FILES+=usr/include/dev/ieee488/ibfoo_int.h
-OLD_FILES+=usr/include/dev/ieee488/tnt4882.h
-OLD_FILES+=usr/include/dev/ieee488/ugpib.h
-OLD_FILES+=usr/include/dev/ieee488/upd7210.h
-OLD_DIRS+=usr/include/dev/ieee488
-OLD_FILES+=usr/include/gpib/gpib.h
-OLD_DIRS+=usr/include/gpib
-OLD_FILES+=usr/lib/libgpib.a
-OLD_FILES+=usr/lib/libgpib.so
-OLD_LIBS+=usr/lib/libgpib.so.3
-OLD_FILES+=usr/lib/libgpib_p.a
-.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
-OLD_FILES+=usr/lib32/libgpib.a
-OLD_FILES+=usr/lib32/libgpib.so
-OLD_LIBS+=usr/lib32/libgpib.so.3
-OLD_FILES+=usr/lib32/libgpib_p.a
-.endif
 .endif
 
 .if ${MK_GPIO} == no
@@ -1737,8 +1740,6 @@ OLD_FILES+=usr/share/man/man7/groff_mmse.7.gz
 OLD_FILES+=usr/share/man/man7/groff_ms.7.gz
 OLD_FILES+=usr/share/man/man7/groff_trace.7.gz
 OLD_FILES+=usr/share/man/man7/groff_www.7.gz
-OLD_FILES+=usr/share/man/man7/man.7.gz
-OLD_FILES+=usr/share/man/man7/mdoc.7.gz
 OLD_FILES+=usr/share/man/man7/mdoc.samples.7.gz
 OLD_FILES+=usr/share/man/man7/me.7.gz
 OLD_FILES+=usr/share/man/man7/mm.7.gz
@@ -1954,7 +1955,6 @@ OLD_FILES+=usr/share/man/man3/iconvlist.3.gz
 .if ${MK_INET6} == no
 OLD_FILES+=sbin/ping6
 OLD_FILES+=sbin/rtsol
-OLD_FILES+=usr/sbin/faithd
 OLD_FILES+=usr/sbin/ip6addrctl
 OLD_FILES+=usr/sbin/mld6query
 OLD_FILES+=usr/sbin/ndp
@@ -1981,40 +1981,6 @@ OLD_FILES+=usr/share/man/man8/traceroute6.8.gz
 
 .if ${MK_INET6_SUPPORT} == no
 OLD_FILES+=rescue/ping6
-.endif
-
-.if ${MK_INFO} == no
-OLD_FILES+=usr/bin/info
-OLD_FILES+=usr/bin/infokey
-OLD_FILES+=usr/bin/install-info
-OLD_FILES+=usr/bin/makeinfo
-OLD_FILES+=usr/bin/texindex
-OLD_FILES+=usr/share/info/am-utils.info.gz
-OLD_FILES+=usr/share/info/as-utils.info.gz
-OLD_FILES+=usr/share/info/binutils.info.gz
-OLD_FILES+=usr/share/info/com_err.info.gz
-OLD_FILES+=usr/share/info/diff.info.gz
-OLD_FILES+=usr/share/info/gdb.info.gz
-OLD_FILES+=usr/share/info/gdbint.info.gz
-OLD_FILES+=usr/share/info/gperf.info.gz
-OLD_FILES+=usr/share/info/grep.info.gz
-OLD_FILES+=usr/share/info/groff.info.gz
-OLD_FILES+=usr/share/info/heimdal.info.gz
-OLD_FILES+=usr/share/info/history.info.gz
-OLD_FILES+=usr/share/info/info-stnd.info.gz
-OLD_FILES+=usr/share/info/info.info.gz
-OLD_FILES+=usr/share/info/ld.info.gz
-OLD_FILES+=usr/share/info/regex.info.gz
-OLD_FILES+=usr/share/info/rluserman.info.gz
-OLD_FILES+=usr/share/info/stabs.info.gz
-OLD_FILES+=usr/share/info/texinfo.info.gz
-OLD_FILES+=usr/share/man/man1/info.1.gz
-OLD_FILES+=usr/share/man/man1/infokey.1.gz
-OLD_FILES+=usr/share/man/man1/install-info.1.gz
-OLD_FILES+=usr/share/man/man1/makeinfo.1.gz
-OLD_FILES+=usr/share/man/man1/texindex.1.gz
-OLD_FILES+=usr/share/man/man5/info.5.gz
-OLD_FILES+=usr/share/man/man5/texinfo.5.gz
 .endif
 
 .if ${MK_IPFILTER} == no
@@ -3701,7 +3667,6 @@ OLD_FILES+=usr/lib/libformw_p.a
 OLD_FILES+=usr/lib/libgcc_p.a
 OLD_FILES+=usr/lib/libgeom_p.a
 OLD_FILES+=usr/lib/libgnuregex_p.a
-OLD_FILES+=usr/lib/libgpib_p.a
 OLD_FILES+=usr/lib/libgssapi_krb5_p.a
 OLD_FILES+=usr/lib/libgssapi_p.a
 OLD_FILES+=usr/lib/libhdb_p.a
@@ -4661,10 +4626,10 @@ OLD_FILES+=usr/share/man/man4/atf-test-case.4.gz
 OLD_FILES+=usr/share/mk/atf.test.mk
 
 # Test suite.
-. if(exists(${DESTDIR}/usr/tests/))
-TESTS_DIRS!=find ${DESTDIR}/usr/tests -type d | sed -e 's,^${DESTDIR}/,,'; echo
+. if exists(${DESTDIR}${TESTSBASE})
+TESTS_DIRS!=find ${DESTDIR}${TESTSBASE} -type d | sed -e 's,^${DESTDIR}/,,'; echo
 OLD_DIRS+=${TESTS_DIRS}
-TESTS_FILES!=find ${DESTDIR}/usr/tests \! -type d | sed -e 's,^${DESTDIR}/,,'; echo
+TESTS_FILES!=find ${DESTDIR}${TESTSBASE} \! -type d | sed -e 's,^${DESTDIR}/,,'; echo
 OLD_FILES+=${TESTS_FILES}
 . endif
 .endif	# Test suite.

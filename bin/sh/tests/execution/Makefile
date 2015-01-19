@@ -44,6 +44,7 @@ FILES+=		set-n4.0
 FILES+=		set-x1.0
 FILES+=		set-x2.0
 FILES+=		set-x3.0
+FILES+=		set-x4.0
 FILES+=		shellproc1.0
 FILES+=		subshell1.0 subshell1.0.stdout
 FILES+=		subshell2.0

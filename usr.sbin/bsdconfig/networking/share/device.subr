@@ -82,7 +82,7 @@ f_dialog_menu_netdev()
 		f_struct "$dev" get name if || continue
 		# Skip unsavory interfaces
 		case "$if" in
-		lo[0-9]*|ppp[0-9]*|sl[0-9]*|faith[0-9]*) continue ;;
+		lo[0-9]*|ppp[0-9]*|sl[0-9]*) continue ;;
 		esac
 		iflist="$iflist $if"
 	done

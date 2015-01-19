@@ -157,4 +157,4 @@ nehemiah_modevent(module_t mod, int type, void *unused)
 
 DEV_MODULE(nehemiah, nehemiah_modevent, NULL);
 MODULE_VERSION(nehemiah, 1);
-MODULE_DEPEND(nehemiah, random_adaptors, 1, 1, 1);
+MODULE_DEPEND(nehemiah, randomdev, 1, 1, 1);

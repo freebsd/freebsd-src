@@ -88,7 +88,6 @@
 				    CSUM_SCTP_VALID)
 
 int		loioctl(struct ifnet *, u_long, caddr_t);
-static void	lortrequest(int, struct rtentry *, struct rt_addrinfo *);
 int		looutput(struct ifnet *ifp, struct mbuf *m,
 		    const struct sockaddr *dst, struct route *ro);
 static int	lo_clone_create(struct if_clone *, int, caddr_t);
@@ -364,15 +363,6 @@ if_simloop(struct ifnet *ifp, struct mbuf *m, int af, int hlen)
 	return (0);
 }
 
-/* ARGSUSED */
-static void
-lortrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
-{
-
-	RT_LOCK_ASSERT(rt);
-	rt->rt_mtu = rt->rt_ifp->if_mtu;
-}
-
 /*
  * Process an ioctl request.
  */
@@ -380,7 +370,6 @@ lortrequest(int cmd, struct rtentry *rt, struct rt_addrinfo *info)
 int
 loioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct ifaddr *ifa;
 	struct ifreq *ifr = (struct ifreq *)data;
 	int error = 0, mask;
 
@@ -388,8 +377,6 @@ loioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
 		ifp->if_drv_flags |= IFF_DRV_RUNNING;
-		ifa = (struct ifaddr *)data;
-		ifa->ifa_rtrequest = lortrequest;
 		/*
 		 * Everything else is done at a higher level.
 		 */

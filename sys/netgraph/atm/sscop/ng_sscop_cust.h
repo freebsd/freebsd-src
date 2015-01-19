@@ -327,8 +327,7 @@ ng_sscop_mbuf_alloc(size_t n)						\
 		m->m_len = 0;						\
 		m->m_pkthdr.len = 0;					\
 		if (n > MHLEN) {					\
-			MCLGET(m, M_NOWAIT);				\
-			if (!(m->m_flags & M_EXT)){			\
+			if (!(MCLGET(m, M_NOWAIT))){			\
 				m_free(m);				\
 				m = NULL;				\
 			}						\

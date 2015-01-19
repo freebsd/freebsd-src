@@ -748,8 +748,7 @@ pdq_os_databuf_alloc(
 	printf("%s: can't alloc small buf\n", sc->sc_dev.dv_xname);
 	return NULL;
     }
-    MCLGET(m, M_NOWAIT);
-    if ((m->m_flags & M_EXT) == 0) {
+    if (!(MCLGET(m, M_NOWAIT))) {
 	printf("%s: can't alloc cluster\n", sc->sc_dev.dv_xname);
         m_free(m);
 	return NULL;

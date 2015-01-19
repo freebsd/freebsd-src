@@ -195,7 +195,7 @@ tmpfs_lookup(struct vop_cachedlookup_args *v)
 	/* Store the result of this lookup in the cache.  Avoid this if the
 	 * request was for creation, as it does not improve timings on
 	 * emprical tests. */
-	if ((cnp->cn_flags & MAKEENTRY) && cnp->cn_nameiop != CREATE)
+	if ((cnp->cn_flags & MAKEENTRY) != 0)
 		cache_enter(dvp, *vpp, cnp);
 
 out:
@@ -213,10 +213,14 @@ tmpfs_create(struct vop_create_args *v)
 	struct vnode **vpp = v->a_vpp;
 	struct componentname *cnp = v->a_cnp;
 	struct vattr *vap = v->a_vap;
+	int error;
 
 	MPASS(vap->va_type == VREG || vap->va_type == VSOCK);
 
-	return tmpfs_alloc_file(dvp, vpp, vap, cnp, NULL);
+	error = tmpfs_alloc_file(dvp, vpp, vap, cnp, NULL);
+	if (error == 0 && (cnp->cn_flags & MAKEENTRY) != 0)
+		cache_enter(dvp, *vpp, cnp);
+	return (error);
 }
 
 static int

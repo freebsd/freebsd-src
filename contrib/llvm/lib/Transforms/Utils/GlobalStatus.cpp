@@ -9,9 +9,9 @@
 
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/CallSite.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/IntrinsicInst.h"
-#include "llvm/Support/CallSite.h"
 #include "llvm/Transforms/Utils/GlobalStatus.h"
 
 using namespace llvm;
@@ -35,9 +35,8 @@ bool llvm::isSafeToDestroyConstant(const Constant *C) {
   if (isa<GlobalValue>(C))
     return false;
 
-  for (Value::const_use_iterator UI = C->use_begin(), E = C->use_end(); UI != E;
-       ++UI)
-    if (const Constant *CU = dyn_cast<Constant>(*UI)) {
+  for (const User *U : C->users())
+    if (const Constant *CU = dyn_cast<Constant>(U)) {
       if (!isSafeToDestroyConstant(CU))
         return false;
     } else
@@ -47,10 +46,9 @@ bool llvm::isSafeToDestroyConstant(const Constant *C) {
 
 static bool analyzeGlobalAux(const Value *V, GlobalStatus &GS,
                              SmallPtrSet<const PHINode *, 16> &PhiUsers) {
-  for (Value::const_use_iterator UI = V->use_begin(), E = V->use_end(); UI != E;
-       ++UI) {
-    const User *U = *UI;
-    if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(U)) {
+  for (const Use &U : V->uses()) {
+    const User *UR = U.getUser();
+    if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(UR)) {
       GS.HasNonInstructionUser = true;
 
       // If the result of the constantexpr isn't pointer type, then we won't
@@ -60,10 +58,10 @@ static bool analyzeGlobalAux(const Value *V, GlobalStatus &GS,
 
       if (analyzeGlobalAux(CE, GS, PhiUsers))
         return true;
-    } else if (const Instruction *I = dyn_cast<Instruction>(U)) {
+    } else if (const Instruction *I = dyn_cast<Instruction>(UR)) {
       if (!GS.HasMultipleAccessingFunctions) {
         const Function *F = I->getParent()->getParent();
-        if (GS.AccessingFunction == 0)
+        if (!GS.AccessingFunction)
           GS.AccessingFunction = F;
         else if (GS.AccessingFunction != F)
           GS.HasMultipleAccessingFunctions = true;
@@ -150,13 +148,13 @@ static bool analyzeGlobalAux(const Value *V, GlobalStatus &GS,
           return true;
         GS.StoredType = GlobalStatus::Stored;
       } else if (ImmutableCallSite C = I) {
-        if (!C.isCallee(UI))
+        if (!C.isCallee(&U))
           return true;
         GS.IsLoaded = true;
       } else {
         return true; // Any other non-load instruction might take address!
       }
-    } else if (const Constant *C = dyn_cast<Constant>(U)) {
+    } else if (const Constant *C = dyn_cast<Constant>(UR)) {
       GS.HasNonInstructionUser = true;
       // We might have a dead and dangling constant hanging off of here.
       if (!isSafeToDestroyConstant(C))
@@ -178,6 +176,6 @@ bool GlobalStatus::analyzeGlobal(const Value *V, GlobalStatus &GS) {
 
 GlobalStatus::GlobalStatus()
     : IsCompared(false), IsLoaded(false), StoredType(NotStored),
-      StoredOnceValue(0), AccessingFunction(0),
+      StoredOnceValue(nullptr), AccessingFunction(nullptr),
       HasMultipleAccessingFunctions(false), HasNonInstructionUser(false),
       Ordering(NotAtomic) {}

@@ -13,12 +13,10 @@ SRCS=	ntp-keygen.c ntp-keygen-opts.c
 CFLAGS+= -I${.CURDIR}/../../../contrib/ntp/include -I${.CURDIR}/../ \
 	-I${.CURDIR}/../../../contrib/ntp/libopts
 
-DPADD=	${LIBNTP} ${LIBOPTS}
-LDADD=	${LIBNTP} ${LIBOPTS}
+LIBADD+=	ntp opts
 
 .if ${MK_OPENSSL} != "no"
-DPADD+=	${LIBMD} ${LIBCRYPTO}
-LDADD+=	-lmd -lcrypto
+LIBADD+=	md crypto
 .endif
 
 .include <bsd.prog.mk>

@@ -15,9 +15,9 @@
 #ifndef LLVM_IR_LLVMCONTEXT_H
 #define LLVM_IR_LLVMCONTEXT_H
 
+#include "llvm-c/Core.h"
 #include "llvm/Support/CBindingWrapping.h"
 #include "llvm/Support/Compiler.h"
-#include "llvm-c/Core.h"
 
 namespace llvm {
 
@@ -27,7 +27,10 @@ class Twine;
 class Instruction;
 class Module;
 class SMDiagnostic;
+class DiagnosticInfo;
 template <typename T> class SmallVectorImpl;
+class Function;
+class DebugLoc;
 
 /// This is an important class for using LLVM in a threaded context.  It
 /// (opaquely) owns and manages the core "global" data of LLVM's core
@@ -64,6 +67,15 @@ public:
   typedef void (*InlineAsmDiagHandlerTy)(const SMDiagnostic&, void *Context,
                                          unsigned LocCookie);
 
+  /// Defines the type of a diagnostic handler.
+  /// \see LLVMContext::setDiagnosticHandler.
+  /// \see LLVMContext::diagnose.
+  typedef void (*DiagnosticHandlerTy)(const DiagnosticInfo &DI, void *Context);
+
+  /// Defines the type of a yield callback.
+  /// \see LLVMContext::setYieldCallback.
+  typedef void (*YieldCallbackTy)(LLVMContext *Context, void *OpaqueHandle);
+
   /// setInlineAsmDiagnosticHandler - This method sets a handler that is invoked
   /// when problems with inline asm are detected by the backend.  The first
   /// argument is a function pointer and the second is a context pointer that
@@ -72,7 +84,7 @@ public:
   /// LLVMContext doesn't take ownership or interpret either of these
   /// pointers.
   void setInlineAsmDiagnosticHandler(InlineAsmDiagHandlerTy DiagHandler,
-                                     void *DiagContext = 0);
+                                     void *DiagContext = nullptr);
 
   /// getInlineAsmDiagnosticHandler - Return the diagnostic handler set by
   /// setInlineAsmDiagnosticHandler.
@@ -82,6 +94,59 @@ public:
   /// setInlineAsmDiagnosticHandler.
   void *getInlineAsmDiagnosticContext() const;
 
+  /// setDiagnosticHandler - This method sets a handler that is invoked
+  /// when the backend needs to report anything to the user.  The first
+  /// argument is a function pointer and the second is a context pointer that
+  /// gets passed into the DiagHandler.
+  ///
+  /// LLVMContext doesn't take ownership or interpret either of these
+  /// pointers.
+  void setDiagnosticHandler(DiagnosticHandlerTy DiagHandler,
+                            void *DiagContext = nullptr);
+
+  /// getDiagnosticHandler - Return the diagnostic handler set by
+  /// setDiagnosticHandler.
+  DiagnosticHandlerTy getDiagnosticHandler() const;
+
+  /// getDiagnosticContext - Return the diagnostic context set by
+  /// setDiagnosticContext.
+  void *getDiagnosticContext() const;
+
+  /// diagnose - Report a message to the currently installed diagnostic handler.
+  /// This function returns, in particular in the case of error reporting
+  /// (DI.Severity == RS_Error), so the caller should leave the compilation
+  /// process in a self-consistent state, even though the generated code
+  /// need not be correct.
+  /// The diagnostic message will be implicitly prefixed with a severity
+  /// keyword according to \p DI.getSeverity(), i.e., "error: "
+  /// for RS_Error, "warning: " for RS_Warning, and "note: " for RS_Note.
+  void diagnose(const DiagnosticInfo &DI);
+
+  /// \brief Registers a yield callback with the given context.
+  ///
+  /// The yield callback function may be called by LLVM to transfer control back
+  /// to the client that invoked the LLVM compilation. This can be used to yield
+  /// control of the thread, or perform periodic work needed by the client.
+  /// There is no guaranteed frequency at which callbacks must occur; in fact,
+  /// the client is not guaranteed to ever receive this callback. It is at the
+  /// sole discretion of LLVM to do so and only if it can guarantee that
+  /// suspending the thread won't block any forward progress in other LLVM
+  /// contexts in the same process.
+  ///
+  /// At a suspend point, the state of the current LLVM context is intentionally
+  /// undefined. No assumptions about it can or should be made. Only LLVM
+  /// context API calls that explicitly state that they can be used during a
+  /// yield callback are allowed to be used. Any other API calls into the
+  /// context are not supported until the yield callback function returns
+  /// control to LLVM. Other LLVM contexts are unaffected by this restriction.
+  void setYieldCallback(YieldCallbackTy Callback, void *OpaqueHandle);
+
+  /// \brief Calls the yield callback (if applicable).
+  ///
+  /// This transfers control of the current thread back to the client, which may
+  /// suspend the current thread. Only call this method when LLVM doesn't hold
+  /// any global mutex or cannot block the execution in another LLVM context.
+  void yield();
 
   /// emitError - Emit an error message to the currently installed error handler
   /// with optional location information.  This function returns, so code should

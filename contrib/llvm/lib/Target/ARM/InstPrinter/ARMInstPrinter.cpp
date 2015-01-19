@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "asm-printer"
 #include "ARMInstPrinter.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
 #include "MCTargetDesc/ARMBaseInfo.h"
@@ -22,6 +21,8 @@
 #include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "asm-printer"
 
 #include "ARMGenAsmWriter.inc"
 
@@ -307,17 +308,30 @@ void ARMInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
       << markup(">");
   } else {
     assert(Op.isExpr() && "unknown operand kind in printOperand");
-    // If a symbolic branch target was added as a constant expression then print
-    // that address in hex. And only print 32 unsigned bits for the address.
-    const MCConstantExpr *BranchTarget = dyn_cast<MCConstantExpr>(Op.getExpr());
-    int64_t Address;
-    if (BranchTarget && BranchTarget->EvaluateAsAbsolute(Address)) {
-      O << "0x";
-      O.write_hex((uint32_t)Address);
+    const MCExpr *Expr = Op.getExpr();
+    switch (Expr->getKind()) {
+    case MCExpr::Binary:
+      O << '#' << *Expr;
+      break;
+    case MCExpr::Constant: {
+      // If a symbolic branch target was added as a constant expression then
+      // print that address in hex. And only print 32 unsigned bits for the
+      // address.
+      const MCConstantExpr *Constant = cast<MCConstantExpr>(Expr);
+      int64_t TargetAddress;
+      if (!Constant->EvaluateAsAbsolute(TargetAddress)) {
+        O << '#' << *Expr;
+      } else {
+        O << "0x";
+        O.write_hex(static_cast<uint32_t>(TargetAddress));
+      }
+      break;
     }
-    else {
-      // Otherwise, just print the expression.
-      O << *Op.getExpr();
+    default:
+      // FIXME: Should we always treat this as if it is a constant literal and
+      // prefix it with '#'?
+      O << *Expr;
+      break;
     }
   }
 }
@@ -1078,13 +1092,13 @@ void ARMInstPrinter::printAddrModeImm12Operand(const MCInst *MI, unsigned OpNum,
   if (isSub) {
     O << ", "
       << markup("<imm:")
-      << "#-" << -OffImm
+      << "#-" << formatImm(-OffImm)
       << markup(">");
   }
   else if (AlwaysPrintImm0 || OffImm > 0) {
     O << ", "
       << markup("<imm:")
-      << "#" << OffImm
+      << "#" << formatImm(OffImm)
       << markup(">");
   }
   O << "]" << markup(">");

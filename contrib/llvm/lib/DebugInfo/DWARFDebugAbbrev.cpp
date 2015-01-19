@@ -12,95 +12,104 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
-bool DWARFAbbreviationDeclarationSet::extract(DataExtractor data,
-                                              uint32_t* offset_ptr) {
-  const uint32_t beginOffset = *offset_ptr;
-  Offset = beginOffset;
+DWARFAbbreviationDeclarationSet::DWARFAbbreviationDeclarationSet() {
   clear();
-  DWARFAbbreviationDeclaration abbrevDeclaration;
-  uint32_t prevAbbrAode = 0;
-  while (abbrevDeclaration.extract(data, offset_ptr)) {
-    Decls.push_back(abbrevDeclaration);
-    if (IdxOffset == 0) {
-      IdxOffset = abbrevDeclaration.getCode();
+}
+
+void DWARFAbbreviationDeclarationSet::clear() {
+  Offset = 0;
+  FirstAbbrCode = 0;
+  Decls.clear();
+}
+
+bool DWARFAbbreviationDeclarationSet::extract(DataExtractor Data,
+                                              uint32_t *OffsetPtr) {
+  clear();
+  const uint32_t BeginOffset = *OffsetPtr;
+  Offset = BeginOffset;
+  DWARFAbbreviationDeclaration AbbrDecl;
+  uint32_t PrevAbbrCode = 0;
+  while (AbbrDecl.extract(Data, OffsetPtr)) {
+    Decls.push_back(AbbrDecl);
+    if (FirstAbbrCode == 0) {
+      FirstAbbrCode = AbbrDecl.getCode();
     } else {
-      if (prevAbbrAode + 1 != abbrevDeclaration.getCode())
-        IdxOffset = UINT32_MAX;// Out of order indexes, we can't do O(1) lookups
+      if (PrevAbbrCode + 1 != AbbrDecl.getCode()) {
+        // Codes are not consecutive, can't do O(1) lookups.
+        FirstAbbrCode = UINT32_MAX;
+      }
     }
-    prevAbbrAode = abbrevDeclaration.getCode();
+    PrevAbbrCode = AbbrDecl.getCode();
   }
-  return beginOffset != *offset_ptr;
+  return BeginOffset != *OffsetPtr;
 }
 
 void DWARFAbbreviationDeclarationSet::dump(raw_ostream &OS) const {
-  for (unsigned i = 0, e = Decls.size(); i != e; ++i)
-    Decls[i].dump(OS);
+  for (const auto &Decl : Decls)
+    Decl.dump(OS);
 }
 
-const DWARFAbbreviationDeclaration*
-DWARFAbbreviationDeclarationSet::getAbbreviationDeclaration(uint32_t abbrCode)
-  const {
-  if (IdxOffset == UINT32_MAX) {
-    DWARFAbbreviationDeclarationCollConstIter pos;
-    DWARFAbbreviationDeclarationCollConstIter end = Decls.end();
-    for (pos = Decls.begin(); pos != end; ++pos) {
-      if (pos->getCode() == abbrCode)
-        return &(*pos);
+const DWARFAbbreviationDeclaration *
+DWARFAbbreviationDeclarationSet::getAbbreviationDeclaration(
+    uint32_t AbbrCode) const {
+  if (FirstAbbrCode == UINT32_MAX) {
+    for (const auto &Decl : Decls) {
+      if (Decl.getCode() == AbbrCode)
+        return &Decl;
     }
-  } else {
-    uint32_t idx = abbrCode - IdxOffset;
-    if (idx < Decls.size())
-      return &Decls[idx];
+    return nullptr;
   }
-  return NULL;
+  if (AbbrCode < FirstAbbrCode || AbbrCode >= FirstAbbrCode + Decls.size())
+    return nullptr;
+  return &Decls[AbbrCode - FirstAbbrCode];
 }
 
-DWARFDebugAbbrev::DWARFDebugAbbrev() :
-  AbbrevCollMap(),
-  PrevAbbrOffsetPos(AbbrevCollMap.end()) {}
+DWARFDebugAbbrev::DWARFDebugAbbrev() {
+  clear();
+}
 
+void DWARFDebugAbbrev::clear() {
+  AbbrDeclSets.clear();
+  PrevAbbrOffsetPos = AbbrDeclSets.end();
+}
 
-void DWARFDebugAbbrev::parse(DataExtractor data) {
-  uint32_t offset = 0;
+void DWARFDebugAbbrev::extract(DataExtractor Data) {
+  clear();
 
-  while (data.isValidOffset(offset)) {
-    uint32_t initial_cu_offset = offset;
-    DWARFAbbreviationDeclarationSet abbrevDeclSet;
-
-    if (abbrevDeclSet.extract(data, &offset))
-      AbbrevCollMap[initial_cu_offset] = abbrevDeclSet;
-    else
+  uint32_t Offset = 0;
+  DWARFAbbreviationDeclarationSet AbbrDecls;
+  while (Data.isValidOffset(Offset)) {
+    uint32_t CUAbbrOffset = Offset;
+    if (!AbbrDecls.extract(Data, &Offset))
       break;
+    AbbrDeclSets[CUAbbrOffset] = AbbrDecls;
   }
-  PrevAbbrOffsetPos = AbbrevCollMap.end();
 }
 
 void DWARFDebugAbbrev::dump(raw_ostream &OS) const {
-  if (AbbrevCollMap.empty()) {
+  if (AbbrDeclSets.empty()) {
     OS << "< EMPTY >\n";
     return;
   }
 
-  DWARFAbbreviationDeclarationCollMapConstIter pos;
-  for (pos = AbbrevCollMap.begin(); pos != AbbrevCollMap.end(); ++pos) {
-    OS << format("Abbrev table for offset: 0x%8.8" PRIx64 "\n", pos->first);
-    pos->second.dump(OS);
+  for (const auto &I : AbbrDeclSets) {
+    OS << format("Abbrev table for offset: 0x%8.8" PRIx64 "\n", I.first);
+    I.second.dump(OS);
   }
 }
 
 const DWARFAbbreviationDeclarationSet*
-DWARFDebugAbbrev::getAbbreviationDeclarationSet(uint64_t cu_abbr_offset) const {
-  DWARFAbbreviationDeclarationCollMapConstIter end = AbbrevCollMap.end();
-  DWARFAbbreviationDeclarationCollMapConstIter pos;
-  if (PrevAbbrOffsetPos != end &&
-      PrevAbbrOffsetPos->first == cu_abbr_offset) {
+DWARFDebugAbbrev::getAbbreviationDeclarationSet(uint64_t CUAbbrOffset) const {
+  const auto End = AbbrDeclSets.end();
+  if (PrevAbbrOffsetPos != End && PrevAbbrOffsetPos->first == CUAbbrOffset) {
     return &(PrevAbbrOffsetPos->second);
-  } else {
-    pos = AbbrevCollMap.find(cu_abbr_offset);
-    PrevAbbrOffsetPos = pos;
   }
 
-  if (pos != AbbrevCollMap.end())
-    return &(pos->second);
-  return NULL;
+  const auto Pos = AbbrDeclSets.find(CUAbbrOffset);
+  if (Pos != End) {
+    PrevAbbrOffsetPos = Pos;
+    return &(Pos->second);
+  }
+
+  return nullptr;
 }

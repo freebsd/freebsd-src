@@ -30,13 +30,16 @@
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
-#include "llvm/Support/ValueHandle.h"
+#include "llvm/IR/ValueHandle.h"
 #include <vector>
 
 namespace llvm {
 
 class ConstantInt;
 class ConstantFP;
+class DiagnosticInfoOptimizationRemark;
+class DiagnosticInfoOptimizationRemarkMissed;
+class DiagnosticInfoOptimizationRemarkAnalysis;
 class LLVMContext;
 class Type;
 class Value;
@@ -56,8 +59,8 @@ struct DenseMapAPIntKeyInfo {
       return hash_combine(Key.type, Key.val);
     }
   };
-  static inline KeyTy getEmptyKey() { return KeyTy(APInt(1,0), 0); }
-  static inline KeyTy getTombstoneKey() { return KeyTy(APInt(1,1), 0); }
+  static inline KeyTy getEmptyKey() { return KeyTy(APInt(1,0), nullptr); }
+  static inline KeyTy getTombstoneKey() { return KeyTy(APInt(1,1), nullptr); }
   static unsigned getHashValue(const KeyTy &Key) {
     return static_cast<unsigned>(hash_value(Key));
   }
@@ -225,9 +228,9 @@ public:
   MDNode *get() const {
     return cast_or_null<MDNode>(getValPtr());
   }
-  
-  virtual void deleted();
-  virtual void allUsesReplacedWith(Value *VNew);
+
+  void deleted() override;
+  void allUsesReplacedWith(Value *VNew) override;
 };
   
 class LLVMContextImpl {
@@ -238,9 +241,15 @@ public:
   
   LLVMContext::InlineAsmDiagHandlerTy InlineAsmDiagHandler;
   void *InlineAsmDiagContext;
-  
-  typedef DenseMap<DenseMapAPIntKeyInfo::KeyTy, ConstantInt*, 
-                         DenseMapAPIntKeyInfo> IntMapTy;
+
+  LLVMContext::DiagnosticHandlerTy DiagnosticHandler;
+  void *DiagnosticContext;
+
+  LLVMContext::YieldCallbackTy YieldCallback;
+  void *YieldOpaqueHandle;
+
+  typedef DenseMap<DenseMapAPIntKeyInfo::KeyTy, ConstantInt *,
+                   DenseMapAPIntKeyInfo> IntMapTy;
   IntMapTy IntConstants;
   
   typedef DenseMap<DenseMapAPFloatKeyInfo::KeyTy, ConstantFP*, 
@@ -278,8 +287,8 @@ public:
   
   StringMap<ConstantDataSequential*> CDSConstants;
 
-  
-  DenseMap<std::pair<Function*, BasicBlock*> , BlockAddress*> BlockAddresses;
+  DenseMap<std::pair<const Function *, const BasicBlock *>, BlockAddress *>
+    BlockAddresses;
   ConstantUniqueMap<ExprMapKeyType, const ExprMapKeyType&, Type, ConstantExpr>
     ExprConstants;
 
@@ -349,7 +358,12 @@ public:
   /// for an index.  The ValueHandle ensures that ScopeINlinedAtIdx stays up
   /// to date.
   std::vector<std::pair<DebugRecVH, DebugRecVH> > ScopeInlinedAtRecords;
-  
+
+  /// DiscriminatorTable - This table maps file:line locations to an
+  /// integer representing the next DWARF path discriminator to assign to
+  /// instructions in different blocks at the same location.
+  DenseMap<std::pair<const char *, unsigned>, unsigned> DiscriminatorTable;
+
   /// IntrinsicIDCache - Cache of intrinsic name (string) to numeric ID mappings
   /// requested in this context
   typedef DenseMap<const Function*, unsigned> IntrinsicIDCacheTy;
