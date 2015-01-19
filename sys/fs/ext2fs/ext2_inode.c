@@ -121,8 +121,14 @@ ext2_truncate(struct vnode *vp, off_t length, int flags, struct ucred *cred,
 	e4fs_daddr_t count, nblocks, blocksreleased = 0;
 	int error, i, allerror;
 	off_t osize;
+#ifdef INVARIANTS
+	struct bufobj *bo;
+#endif
 
 	oip = VTOI(ovp);
+#ifdef INVARIANTS
+	bo = &ovp->v_bufobj;
+#endif
 
 	ASSERT_VOP_LOCKED(vp, "ext2_truncate");	
 
