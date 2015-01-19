@@ -396,7 +396,7 @@ musbotg_dev_ctrl_setup_rx(struct musbotg_td *td)
 		/* do not stall at this point */
 		td->did_stall = 1;
 		/* wait for interrupt */
-		DPRINTFN(0, "CSR0 DATAEND\n");
+		DPRINTFN(1, "CSR0 DATAEND\n");
 		goto not_complete;
 	}
 
@@ -418,32 +418,37 @@ musbotg_dev_ctrl_setup_rx(struct musbotg_td *td)
 		sc->sc_ep0_busy = 0;
 	}
 	if (sc->sc_ep0_busy) {
-		DPRINTFN(0, "EP0 BUSY\n");
+		DPRINTFN(1, "EP0 BUSY\n");
 		goto not_complete;
 	}
 	if (!(csr & MUSB2_MASK_CSR0L_RXPKTRDY)) {
 		goto not_complete;
 	}
-	/* clear did stall flag */
-	td->did_stall = 0;
 	/* get the packet byte count */
 	count = MUSB2_READ_2(sc, MUSB2_REG_RXCOUNT);
 
 	/* verify data length */
 	if (count != td->remainder) {
-		DPRINTFN(0, "Invalid SETUP packet "
+		DPRINTFN(1, "Invalid SETUP packet "
 		    "length, %d bytes\n", count);
 		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
 		      MUSB2_MASK_CSR0L_RXPKTRDY_CLR);
+		/* don't clear stall */
+		td->did_stall = 1;
 		goto not_complete;
 	}
 	if (count != sizeof(req)) {
-		DPRINTFN(0, "Unsupported SETUP packet "
+		DPRINTFN(1, "Unsupported SETUP packet "
 		    "length, %d bytes\n", count);
 		MUSB2_WRITE_1(sc, MUSB2_REG_TXCSRL,
 		      MUSB2_MASK_CSR0L_RXPKTRDY_CLR);
+		/* don't clear stall */
+		td->did_stall = 1;
 		goto not_complete;
 	}
+	/* clear did stall flag */
+	td->did_stall = 0;
+
 	/* receive data */
 	bus_space_read_multi_1(sc->sc_io_tag, sc->sc_io_hdl,
 	    MUSB2_REG_EPFIFO(0), (void *)&req, sizeof(req));
