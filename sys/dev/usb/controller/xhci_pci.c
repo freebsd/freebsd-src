@@ -181,25 +181,25 @@ xhci_pci_attach(device_t self)
 	struct xhci_softc *sc = device_get_softc(self);
 	int count, err, rid;
 
-	/* XXX check for 64-bit capability */
-
-	if (xhci_init(sc, self)) {
-		device_printf(self, "Could not initialize softc\n");
-		goto error;
-	}
-
-	pci_enable_busmaster(self);
-
 	rid = PCI_XHCI_CBMEM;
 	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (!sc->sc_io_res) {
 		device_printf(self, "Could not map memory\n");
-		goto error;
+		return (ENOMEM);
 	}
 	sc->sc_io_tag = rman_get_bustag(sc->sc_io_res);
 	sc->sc_io_hdl = rman_get_bushandle(sc->sc_io_res);
 	sc->sc_io_size = rman_get_size(sc->sc_io_res);
+
+	if (xhci_init(sc, self)) {
+		device_printf(self, "Could not initialize softc\n");
+		bus_release_resource(self, SYS_RES_MEMORY, PCI_XHCI_CBMEM,
+		    sc->sc_io_res);
+		return (ENXIO);
+	}
+
+	pci_enable_busmaster(self);
 
 	usb_callout_init_mtx(&sc->sc_callout, &sc->sc_bus.bus_mtx, 0);
 
@@ -299,10 +299,8 @@ xhci_pci_detach(device_t self)
 	/* during module unload there are lots of children leftover */
 	device_delete_children(self);
 
-	if (sc->sc_io_res) {
-		usb_callout_drain(&sc->sc_callout);
-		xhci_halt_controller(sc);
-	}
+	usb_callout_drain(&sc->sc_callout);
+	xhci_halt_controller(sc);
 
 	pci_disable_busmaster(self);
 

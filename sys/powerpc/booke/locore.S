@@ -207,7 +207,7 @@ done_mapping:
  */
 	lis	%r1, tmpstack@ha
 	addi	%r1, %r1, tmpstack@l
-	addi	%r1, %r1, (TMPSTACKSZ - 8)
+	addi	%r1, %r1, (TMPSTACKSZ - 16)
 
 /*
  * Initialise exception vector offsets
@@ -367,7 +367,7 @@ bp_tlb1_end:
  */
 	lis	%r1, tmpstack@ha
 	addi	%r1, %r1, tmpstack@l
-	addi	%r1, %r1, (TMPSTACKSZ - 8)
+	addi	%r1, %r1, (TMPSTACKSZ - 16)
 
 /*
  * Initialise exception vector offsets
@@ -757,27 +757,13 @@ setfault:
 	.align	4
 tmpstack:
 	.space	TMPSTACKSZ
+tmpstackbound:
+	.space 10240	/* XXX: this really should not be necessary */
 
 /*
  * Compiled KERNBASE locations
  */
 	.globl	kernbase
 	.set	kernbase, KERNBASE
-
-/*
- * Globals
- */
-#define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
-
-GLOBAL(intrnames)
-	.space	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
-GLOBAL(sintrnames)
-	.long	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
-
-	.align 4
-GLOBAL(intrcnt)
-	.space	INTRCNT_COUNT * 4 * 2
-GLOBAL(sintrcnt)
-	.long	INTRCNT_COUNT * 4 * 2
 
 #include <powerpc/booke/trap_subr.S>

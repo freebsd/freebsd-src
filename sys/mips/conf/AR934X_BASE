@@ -117,6 +117,9 @@ device		ar71xx_wdog
 device		uart
 device		uart_ar71xx
 
+# XXX for now; later a separate APB mux is needed to demux PCI/WLAN interrupts.
+device		ar71xx_apb
+
 device		loop
 device		ether
 device		md

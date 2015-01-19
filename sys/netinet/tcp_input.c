@@ -498,6 +498,41 @@ do { \
 	    (tlen <= tp->t_maxopd) &&					\
 	    (V_tcp_delack_enabled || (tp->t_flags & TF_NEEDSYN)))
 
+static void inline
+cc_ecnpkt_handler(struct tcpcb *tp, struct tcphdr *th, uint8_t iptos)
+{
+	INP_WLOCK_ASSERT(tp->t_inpcb);
+
+	if (CC_ALGO(tp)->ecnpkt_handler != NULL) {
+		switch (iptos & IPTOS_ECN_MASK) {
+		case IPTOS_ECN_CE:
+		    tp->ccv->flags |= CCF_IPHDR_CE;
+		    break;
+		case IPTOS_ECN_ECT0:
+		    tp->ccv->flags &= ~CCF_IPHDR_CE;
+		    break;
+		case IPTOS_ECN_ECT1:
+		    tp->ccv->flags &= ~CCF_IPHDR_CE;
+		    break;
+		}
+
+		if (th->th_flags & TH_CWR)
+			tp->ccv->flags |= CCF_TCPHDR_CWR;
+		else
+			tp->ccv->flags &= ~CCF_TCPHDR_CWR;
+
+		if (tp->t_flags & TF_DELACK)
+			tp->ccv->flags |= CCF_DELACK;
+		else
+			tp->ccv->flags &= ~CCF_DELACK;
+
+		CC_ALGO(tp)->ecnpkt_handler(tp->ccv);
+
+		if (tp->ccv->flags & CCF_ACKNOW)
+			tcp_timer_activate(tp, TT_DELACK, tcp_delacktime);
+	}
+}
+
 /*
  * TCP input handling is split into multiple parts:
  *   tcp6_input is a thin wrapper around tcp_input for the extended
@@ -1530,6 +1565,10 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			TCPSTAT_INC(tcps_ecn_ect1);
 			break;
 		}
+
+		/* Process a packet differently from RFC3168. */
+		cc_ecnpkt_handler(tp, th, iptos);
+
 		/* Congestion experienced. */
 		if (thflags & TH_ECE) {
 			cc_cong_signal(tp, th, CC_ECN);

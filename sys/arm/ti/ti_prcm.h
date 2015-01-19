@@ -164,6 +164,9 @@ typedef enum {
 
 	TSC_ADC_CLK = 1800,
 
+	/* RTC module */
+	RTC_CLK = 1900,
+
 	INVALID_CLK_IDENT
 
 } clk_ident_t;

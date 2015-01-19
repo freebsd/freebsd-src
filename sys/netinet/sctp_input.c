@@ -2443,13 +2443,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	}
 #ifdef SCTP_MBUF_LOGGING
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-		struct mbuf *mat;
-
-		for (mat = m_sig; mat; mat = SCTP_BUF_NEXT(mat)) {
-			if (SCTP_BUF_IS_EXTENDED(mat)) {
-				sctp_log_mb(mat, SCTP_MBUF_SPLIT);
-			}
-		}
+		sctp_log_mbc(m_sig, SCTP_MBUF_SPLIT);
 	}
 #endif
 
@@ -2601,7 +2595,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		/* This should not happen */
 		return (NULL);
 	}
-	if ((*stcb == NULL) && to) {
+	if (*stcb == NULL) {
 		/* Yep, lets check */
 		*stcb = sctp_findassociation_ep_addr(inp_p, to, netp, dst, NULL);
 		if (*stcb == NULL) {
@@ -2639,9 +2633,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 				}
 			}
 		}
-	}
-	if (to == NULL) {
-		return (NULL);
 	}
 	cookie_len -= SCTP_SIGNATURE_SIZE;
 	if (*stcb == NULL) {
@@ -3117,7 +3108,6 @@ sctp_handle_ecn_cwr(struct sctp_cwr_chunk *cp, struct sctp_tcb *stcb, struct sct
 	uint32_t cwr_tsn;
 
 	cwr_tsn = ntohl(cp->tsn);
-
 	override = cp->ch.chunk_flags & SCTP_CWR_REDUCE_OVERRIDE;
 	TAILQ_FOREACH(chk, &stcb->asoc.control_send_queue, sctp_next) {
 		if (chk->rec.chunk_id.id != SCTP_ECN_ECHO) {
@@ -3133,10 +3123,8 @@ sctp_handle_ecn_cwr(struct sctp_cwr_chunk *cp, struct sctp_tcb *stcb, struct sct
 			stcb->asoc.ecn_echo_cnt_onq--;
 			TAILQ_REMOVE(&stcb->asoc.control_send_queue, chk,
 			    sctp_next);
-			if (chk->data) {
-				sctp_m_freem(chk->data);
-				chk->data = NULL;
-			}
+			sctp_m_freem(chk->data);
+			chk->data = NULL;
 			stcb->asoc.ctrl_queue_cnt--;
 			sctp_free_a_chunk(stcb, chk, SCTP_SO_NOT_LOCKED);
 			if (override == 0) {
@@ -5501,13 +5489,7 @@ process_control_chunks:
 						} else {
 #ifdef SCTP_MBUF_LOGGING
 							if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-								struct mbuf *mat;
-
-								for (mat = SCTP_BUF_NEXT(mm); mat; mat = SCTP_BUF_NEXT(mat)) {
-									if (SCTP_BUF_IS_EXTENDED(mat)) {
-										sctp_log_mb(mat, SCTP_MBUF_ICOPY);
-									}
-								}
+								sctp_log_mbc(SCTP_BUF_NEXT(mm), SCTP_MBUF_ICOPY);
 							}
 #endif
 							sctp_queue_op_err(stcb, mm);
@@ -5967,19 +5949,6 @@ out:
 	return;
 }
 
-#if 0
-static void
-sctp_print_mbuf_chain(struct mbuf *m)
-{
-	for (; m; m = SCTP_BUF_NEXT(m)) {
-		SCTP_PRINTF("%p: m_len = %ld\n", (void *)m, SCTP_BUF_LEN(m));
-		if (SCTP_BUF_IS_EXTENDED(m))
-			SCTP_PRINTF("%p: extend_size = %d\n", (void *)m, SCTP_BUF_EXTEND_SIZE(m));
-	}
-}
-
-#endif
-
 #ifdef INET
 void
 sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
@@ -6010,13 +5979,7 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 #ifdef SCTP_MBUF_LOGGING
 	/* Log in any input mbufs */
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-		struct mbuf *mat;
-
-		for (mat = m; mat; mat = SCTP_BUF_NEXT(mat)) {
-			if (SCTP_BUF_IS_EXTENDED(mat)) {
-				sctp_log_mb(mat, SCTP_MBUF_INPUT);
-			}
-		}
+		sctp_log_mbc(m, SCTP_MBUF_INPUT);
 	}
 #endif
 #ifdef SCTP_PACKET_LOGGING

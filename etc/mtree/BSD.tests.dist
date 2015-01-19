@@ -6,9 +6,13 @@
 /set type=dir uname=root gname=wheel mode=0755
 .
     bin
+        cat
+        ..
         chown
         ..
         date
+        ..
+        expr
         ..
         mv
         ..
@@ -159,6 +163,8 @@
         devd
         ..
         growfs
+        ..
+        ifconfig
         ..
         mdconfig
         ..
@@ -353,6 +359,8 @@
         mkimg
         ..
         ncal
+        ..
+        opensm
         ..
         printf
         ..

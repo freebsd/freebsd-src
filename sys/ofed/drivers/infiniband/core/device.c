@@ -754,8 +754,6 @@ static void __exit ib_core_cleanup(void)
 module_init(ib_core_init);
 module_exit(ib_core_cleanup);
 
-#undef MODULE_VERSION
-#include <sys/module.h>
 static int
 ibcore_evhand(module_t mod, int event, void *arg)
 {
@@ -768,4 +766,5 @@ static moduledata_t ibcore_mod = {
 };
 
 MODULE_VERSION(ibcore, 1);
+MODULE_DEPEND(ibcore, linuxapi, 1, 1, 1);
 DECLARE_MODULE(ibcore, ibcore_mod, SI_SUB_SMP, SI_ORDER_ANY);

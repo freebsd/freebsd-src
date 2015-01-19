@@ -803,8 +803,7 @@ pcn_newbuf(sc, idx, m)
 		if (m_new == NULL)
 			return(ENOBUFS);
 
-		MCLGET(m_new, M_NOWAIT);
-		if (!(m_new->m_flags & M_EXT)) {
+		if (!(MCLGET(m_new, M_NOWAIT))) {
 			m_freem(m_new);
 			return(ENOBUFS);
 		}

@@ -752,7 +752,7 @@ gre_check_nesting(struct ifnet *ifp, struct mbuf *m)
 
 	count = 1;
 	mtag = NULL;
-	while ((mtag = m_tag_locate(m, MTAG_GRE, 0, NULL)) != NULL) {
+	while ((mtag = m_tag_locate(m, MTAG_GRE, 0, mtag)) != NULL) {
 		if (*(struct ifnet **)(mtag + 1) == ifp) {
 			log(LOG_NOTICE, "%s: loop detected\n", ifp->if_xname);
 			return (EIO);

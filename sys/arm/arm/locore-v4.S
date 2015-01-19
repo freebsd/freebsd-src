@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
  * the running kernel.
  */
 	.text
-	.align	0
+	.align	2
 #ifdef PHYSADDR
 .globl kernbase
 .set kernbase,KERNBASE
@@ -373,7 +373,7 @@ Lend:
 
 .Lmainreturned:
 	.asciz	"main() returned"
-	.align	0
+	.align	2
 
 	.bss
 svcstk:
@@ -389,7 +389,7 @@ pagetable:
 	.space	L1_TABLE_SIZE
 
 	.text
-	.align	0
+	.align	2
 
 .Lcpufuncs:
 	.word	_C_LABEL(cpufuncs)
@@ -476,7 +476,7 @@ mpvirt_done:
 
 .Lmpreturned:
 	.asciz	"init_secondary() returned"
-	.align	0
+	.align	2
 END(mpentry)
 #endif
 
@@ -584,7 +584,7 @@ END(sigcode)
 	.word	SYS_sigreturn
 	.word	SYS_exit
 
-	.align	0
+	.align	2
 	.global _C_LABEL(esigcode)
 		_C_LABEL(esigcode):
 

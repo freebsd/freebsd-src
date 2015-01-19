@@ -420,7 +420,7 @@ ieee80211_getmgtframe(uint8_t **frm, int headroom, int pktlen)
 		 * frames which all fit in MHLEN.
 		 */
 		if (m != NULL)
-			MH_ALIGN(m, len);
+			M_ALIGN(m, len);
 	} else {
 		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m != NULL)

@@ -30,6 +30,8 @@
 #ifndef	_LINUX_GFP_H_
 #define	_LINUX_GFP_H_
 
+#include <sys/cdefs.h>
+#include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
 

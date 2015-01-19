@@ -53,7 +53,8 @@ arm/arm/support.S		standard
 arm/arm/swtch.S			standard
 arm/arm/sys_machdep.c		standard
 arm/arm/syscall.c		standard
-arm/arm/trap.c			standard
+arm/arm/trap.c			optional	!armv6
+arm/arm/trap-v6.c		optional	armv6
 arm/arm/uio_machdep.c		standard
 arm/arm/undefined.c		standard
 arm/arm/vm_machdep.c		standard

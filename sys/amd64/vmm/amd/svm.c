@@ -554,6 +554,7 @@ svm_vminit(struct vm *vm, pmap_t pmap)
 	pml4_pa = svm_sc->nptp;
 	for (i = 0; i < VM_MAXCPU; i++) {
 		vcpu = svm_get_vcpu(svm_sc, i);
+		vcpu->nextrip = ~0;
 		vcpu->lastcpu = NOCPU;
 		vcpu->vmcb_pa = vtophys(&vcpu->vmcb);
 		vmcb_init(svm_sc, i, iopm_pa, msrpm_pa, pml4_pa);
@@ -1200,7 +1201,6 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 	struct vmcb_state *state;
 	struct vmcb_ctrl *ctrl;
 	struct svm_regctx *ctx;
-	struct vm_exception exception;
 	uint64_t code, info1, info2, val;
 	uint32_t eax, ecx, edx;
 	int error, errcode_valid, handled, idtvec, reflect;
@@ -1314,6 +1314,7 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 			/* fallthru */
 		default:
 			errcode_valid = 0;
+			info1 = 0;
 			break;
 		}
 		KASSERT(vmexit->inst_length == 0, ("invalid inst_length (%d) "
@@ -1322,17 +1323,10 @@ svm_vmexit(struct svm_softc *svm_sc, int vcpu, struct vm_exit *vmexit)
 
 		if (reflect) {
 			/* Reflect the exception back into the guest */
-			bzero(&exception, sizeof(struct vm_exception));
-			exception.vector = idtvec;
-			if (errcode_valid) {
-				exception.error_code = info1;
-				exception.error_code_valid = 1;
-			}
 			VCPU_CTR2(svm_sc->vm, vcpu, "Reflecting exception "
-			    "%d/%#x into the guest", exception.vector,
-			    exception.error_code);
-			error = vm_inject_exception(svm_sc->vm, vcpu,
-			    &exception);
+			    "%d/%#x into the guest", idtvec, (int)info1);
+			error = vm_inject_exception(svm_sc->vm, vcpu, idtvec,
+			    errcode_valid, info1, 0);
 			KASSERT(error == 0, ("%s: vm_inject_exception error %d",
 			    __func__, error));
 		}
@@ -1479,14 +1473,23 @@ svm_inj_interrupts(struct svm_softc *sc, int vcpu, struct vlapic *vlapic)
 {
 	struct vmcb_ctrl *ctrl;
 	struct vmcb_state *state;
+	struct svm_vcpu *vcpustate;
 	uint8_t v_tpr;
 	int vector, need_intr_window, pending_apic_vector;
 
 	state = svm_get_vmcb_state(sc, vcpu);
 	ctrl  = svm_get_vmcb_ctrl(sc, vcpu);
+	vcpustate = svm_get_vcpu(sc, vcpu);
 
 	need_intr_window = 0;
 	pending_apic_vector = 0;
+
+	if (vcpustate->nextrip != state->rip) {
+		ctrl->intr_shadow = 0;
+		VCPU_CTR2(sc->vm, vcpu, "Guest interrupt blocking "
+		    "cleared due to rip change: %#lx/%#lx",
+		    vcpustate->nextrip, state->rip);
+	}
 
 	/*
 	 * Inject pending events or exceptions for this vcpu.
@@ -1957,6 +1960,9 @@ svm_vmrun(void *arg, int vcpu, register_t rip, pmap_t pmap,
 
 		/* #VMEXIT disables interrupts so re-enable them here. */ 
 		enable_gintr();
+
+		/* Update 'nextrip' */
+		vcpustate->nextrip = state->rip;
 
 		/* Handle #VMEXIT and if required return to user space. */
 		handled = svm_vmexit(svm_sc, vcpu, vmexit);

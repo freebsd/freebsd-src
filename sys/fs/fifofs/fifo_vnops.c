@@ -137,7 +137,7 @@ fifo_open(ap)
 	struct thread *td;
 	struct fifoinfo *fip;
 	struct pipe *fpipe;
-	int error;
+	int error, stops_deferred;
 
 	vp = ap->a_vp;
 	fp = ap->a_fp;
@@ -188,8 +188,11 @@ fifo_open(ap)
 	if ((ap->a_mode & O_NONBLOCK) == 0) {
 		if ((ap->a_mode & FREAD) && fip->fi_writers == 0) {
 			VOP_UNLOCK(vp, 0);
+			stops_deferred = sigallowstop();
 			error = msleep(&fip->fi_readers, PIPE_MTX(fpipe),
 			    PDROP | PCATCH | PSOCK, "fifoor", 0);
+			if (stops_deferred)
+				sigdeferstop();
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			if (error) {
 				fip->fi_readers--;
@@ -212,8 +215,11 @@ fifo_open(ap)
 		}
 		if ((ap->a_mode & FWRITE) && fip->fi_readers == 0) {
 			VOP_UNLOCK(vp, 0);
+			stops_deferred = sigallowstop();
 			error = msleep(&fip->fi_writers, PIPE_MTX(fpipe),
 			    PDROP | PCATCH | PSOCK, "fifoow", 0);
+			if (stops_deferred)
+				sigdeferstop();
 			vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 			if (error) {
 				fip->fi_writers--;

@@ -94,13 +94,7 @@ sctp6_input_with_port(struct mbuf **i_pak, int *offp, uint16_t port)
 #ifdef SCTP_MBUF_LOGGING
 	/* Log in any input mbufs */
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
-		struct mbuf *mat;
-
-		for (mat = m; mat; mat = SCTP_BUF_NEXT(mat)) {
-			if (SCTP_BUF_IS_EXTENDED(mat)) {
-				sctp_log_mb(mat, SCTP_MBUF_INPUT);
-			}
-		}
+		sctp_log_mbc(m, SCTP_MBUF_INPUT);
 	}
 #endif
 #ifdef SCTP_PACKET_LOGGING

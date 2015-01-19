@@ -56,6 +56,13 @@ SUBDIR=	libclanganalysis \
 	libllvmtransformutils \
 	libllvmvectorize \
 	\
+	libllvmaarch64asmparser \
+	libllvmaarch64codegen \
+	libllvmaarch64desc \
+	libllvmaarch64disassembler \
+	libllvmaarch64info \
+	libllvmaarch64instprinter \
+	libllvmaarch64utils \
 	libllvmarmasmparser \
 	libllvmarmcodegen \
 	libllvmarmdesc \

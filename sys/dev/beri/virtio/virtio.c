@@ -186,7 +186,7 @@ vq_relchain(struct vqueue_info *vq, struct iovec *iov, int n, uint32_t iolen)
 	vu->idx = htobe16(uidx);
 
 	/* Clean up */
-	for (i = 1; i < (n-1); i++) {
+	for (i = 0; i < n; i++) {
 		paddr_unmap((void *)iov[i].iov_base, iov[i].iov_len);
 	}
 }
@@ -211,8 +211,6 @@ setup_pio(device_t dev, char *name, device_t *pio_dev)
 	SLIST_FOREACH(ic, &fdt_ic_list_head, fdt_ics) {
 		if (ic->iph == pio_node) {
 			*pio_dev = ic->dev;
-			PIO_CONFIGURE(*pio_dev, PIO_OUT_ALL,
-					PIO_UNMASK_ALL);
 			return (0);
 		}
 	}
@@ -246,3 +244,17 @@ setup_offset(device_t dev, uint32_t *offset)
 	return (0);
 }
 
+struct iovec *
+getcopy(struct iovec *iov, int n)
+{
+	struct iovec *tiov;
+	int i;
+
+	tiov = malloc(n * sizeof(struct iovec), M_DEVBUF, M_NOWAIT);
+	for (i = 0; i < n; i++) {
+		tiov[i].iov_base = iov[i].iov_base;
+		tiov[i].iov_len = iov[i].iov_len;
+	}
+
+	return (tiov);
+}

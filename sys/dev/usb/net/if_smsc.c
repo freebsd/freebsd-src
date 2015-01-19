@@ -114,7 +114,7 @@ __FBSDID("$FreeBSD$");
 static int smsc_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, smsc, CTLFLAG_RW, 0, "USB smsc");
-SYSCTL_INT(_hw_usb_smsc, OID_AUTO, debug, CTLFLAG_RW, &smsc_debug, 0,
+SYSCTL_INT(_hw_usb_smsc, OID_AUTO, debug, CTLFLAG_RWTUN, &smsc_debug, 0,
     "Debug level");
 #endif
 

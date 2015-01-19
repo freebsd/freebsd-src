@@ -81,6 +81,7 @@ __DEFAULT_YES_OPTIONS = \
     DYNAMICROOT \
     ED_CRYPTO \
     EE \
+    ELFTOOLCHAIN_TOOLS \
     EXAMPLES \
     FDT \
     FILE \
@@ -183,7 +184,6 @@ __DEFAULT_NO_OPTIONS = \
     BSD_GREP \
     CLANG_EXTRAS \
     EISA \
-    ELFTOOLCHAIN_TOOLS \
     FMAKE \
     HESIOD \
     LLDB \

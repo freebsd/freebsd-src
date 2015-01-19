@@ -91,10 +91,10 @@ ${GEN}: hdb.asn1
 .SUFFIXES: .h .c .x .hx
 
 .x.c:   
-	cp ${.IMPSRC} ${.TARGET}
+	${CP} ${.IMPSRC} ${.TARGET}
 
 .hx.h:
-	cp ${.IMPSRC} ${.TARGET}
+	${CP} ${.IMPSRC} ${.TARGET}
 
 .include <bsd.lib.mk>
 

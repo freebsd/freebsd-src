@@ -494,7 +494,7 @@ find_shares_object(differ_info_t *di)
 	(void) strlcat(fullpath, ZDIFF_SHARESDIR, MAXPATHLEN);
 
 	if (stat64(fullpath, &sb) != 0) {
-#ifdef sun
+#ifdef illumos
 		(void) snprintf(di->errbuf, sizeof (di->errbuf),
 		    dgettext(TEXT_DOMAIN, "Cannot stat %s"), fullpath);
 		return (zfs_error(di->zhp->zfs_hdl, EZFS_DIFF, di->errbuf));

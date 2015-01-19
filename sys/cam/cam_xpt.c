@@ -893,7 +893,6 @@ xpt_init(void *dummy)
 	if ((status = xpt_create_path(&path, NULL, CAM_XPT_PATH_ID,
 				      CAM_TARGET_WILDCARD,
 				      CAM_LUN_WILDCARD)) != CAM_REQ_CMP) {
-		mtx_unlock(&xsoftc.xpt_lock);
 		printf("xpt_init: xpt_create_path failed with status %#x,"
 		       " failing attach\n", status);
 		return (EINVAL);

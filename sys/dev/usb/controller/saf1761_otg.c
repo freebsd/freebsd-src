@@ -100,9 +100,9 @@ static
 SYSCTL_NODE(_hw_usb, OID_AUTO, saf1761_otg, CTLFLAG_RW, 0,
     "USB SAF1761 DCI");
 
-SYSCTL_INT(_hw_usb_saf1761_otg, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_saf1761_otg, OID_AUTO, debug, CTLFLAG_RWTUN,
     &saf1761_otg_debug, 0, "SAF1761 DCI debug level");
-SYSCTL_INT(_hw_usb_saf1761_otg, OID_AUTO, forcefs, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_saf1761_otg, OID_AUTO, forcefs, CTLFLAG_RWTUN,
     &saf1761_otg_forcefs, 0, "SAF1761 DCI force FULL speed");
 #endif
 

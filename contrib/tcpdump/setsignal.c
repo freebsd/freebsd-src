@@ -19,11 +19,6 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 
-#ifndef lint
-static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/setsignal.c,v 1.11 2003-11-16 09:36:42 guy Exp $ (LBL)";
-#endif
-
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -78,6 +73,8 @@ RETSIGTYPE
 
 	memset(&new, 0, sizeof(new));
 	new.sa_handler = func;
+	if (sig == SIGCHLD)
+		new.sa_flags = SA_RESTART;
 	if (sigaction(sig, &new, &old) < 0)
 		return (SIG_ERR);
 	return (old.sa_handler);

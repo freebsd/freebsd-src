@@ -99,18 +99,18 @@ static SYSCTL_NODE(_hw_usb, OID_AUTO, g_audio, CTLFLAG_RW, 0, "USB audio gadget"
 #ifdef USB_DEBUG
 static int g_audio_debug = 0;
 
-SYSCTL_INT(_hw_usb_g_audio, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_g_audio, OID_AUTO, debug, CTLFLAG_RWTUN,
     &g_audio_debug, 0, "Debug level");
 #endif
 
 static int g_audio_mode = 0;
 
-SYSCTL_INT(_hw_usb_g_audio, OID_AUTO, mode, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_g_audio, OID_AUTO, mode, CTLFLAG_RWTUN,
     &g_audio_mode, 0, "Mode selection");
 
 static int g_audio_pattern_interval = 1000;
 
-SYSCTL_INT(_hw_usb_g_audio, OID_AUTO, pattern_interval, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_g_audio, OID_AUTO, pattern_interval, CTLFLAG_RWTUN,
     &g_audio_pattern_interval, 0, "Pattern interval in milliseconds");
 
 static char g_audio_pattern_data[G_AUDIO_MAX_STRLEN];

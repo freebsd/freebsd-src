@@ -179,8 +179,14 @@ pmc_intel_initialize(void)
 			cputype = PMC_CPU_INTEL_IVYBRIDGE_XEON;
 			nclasses = 3;
 			break;
+		case 0x3F:	/* Per Intel document 325462-045US 09/2014. */
+		case 0x46:	/* Per Intel document 325462-045US 09/2014. */
+			        /* Should 46 be XEON. probably its own? */
+			cputype = PMC_CPU_INTEL_HASWELL_XEON;
+			nclasses = 3;
+			break;
 		case 0x3C:	/* Per Intel document 325462-045US 01/2013. */
-		case 0x45:
+		case 0x45:	/* Per Intel document 325462-045US 09/2014. */
 			cputype = PMC_CPU_INTEL_HASWELL;
 			nclasses = 5;
 			break;
@@ -233,6 +239,7 @@ pmc_intel_initialize(void)
 	case PMC_CPU_INTEL_SANDYBRIDGE_XEON:
 	case PMC_CPU_INTEL_IVYBRIDGE_XEON:
 	case PMC_CPU_INTEL_HASWELL:
+	case PMC_CPU_INTEL_HASWELL_XEON:
 		error = pmc_core_initialize(pmc_mdep, ncpus, verov);
 		break;
 
@@ -318,6 +325,7 @@ pmc_intel_finalize(struct pmc_mdep *md)
 	case PMC_CPU_INTEL_COREI7:
 	case PMC_CPU_INTEL_NEHALEM_EX:
 	case PMC_CPU_INTEL_HASWELL:
+	case PMC_CPU_INTEL_HASWELL_XEON:
 	case PMC_CPU_INTEL_IVYBRIDGE:
 	case PMC_CPU_INTEL_SANDYBRIDGE:
 	case PMC_CPU_INTEL_WESTMERE:

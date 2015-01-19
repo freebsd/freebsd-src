@@ -76,6 +76,7 @@
 #define	CPU_WHICH_CPUSET	3	/* Specifies a set id. */
 #define	CPU_WHICH_IRQ		4	/* Specifies an irq #. */
 #define	CPU_WHICH_JAIL		5	/* Specifies a jail id. */
+#define	CPU_WHICH_DOMAIN	6	/* Specifies a NUMA domain id. */
 
 /*
  * Reserved cpuset identifiers.

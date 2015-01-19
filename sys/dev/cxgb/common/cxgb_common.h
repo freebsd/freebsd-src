@@ -543,6 +543,12 @@ enum {
 	phy_modtype_unknown
 };
 
+enum {
+	PHY_LINK_DOWN = 0,
+	PHY_LINK_UP,
+	PHY_LINK_PARTIAL
+};
+
 /* PHY operations */
 struct cphy_ops {
 	int (*reset)(struct cphy *phy, int wait);
@@ -558,7 +564,7 @@ struct cphy_ops {
 	int (*advertise)(struct cphy *phy, unsigned int advertise_map);
 	int (*set_loopback)(struct cphy *phy, int mmd, int dir, int enable);
 	int (*set_speed_duplex)(struct cphy *phy, int speed, int duplex);
-	int (*get_link_status)(struct cphy *phy, int *link_ok, int *speed,
+	int (*get_link_status)(struct cphy *phy, int *link_state, int *speed,
 			       int *duplex, int *fc);
 	int (*power_down)(struct cphy *phy, int enable);
 };
@@ -567,6 +573,7 @@ struct cphy_ops {
 struct cphy {
 	u8 addr;                             /* PHY address */
 	u8 modtype;                          /* PHY module type */
+	u8 rst;
 	unsigned int priv;                   /* scratch pad */
 	unsigned int caps;                   /* PHY capabilities */
 	adapter_t *adapter;                  /* associated adapter */

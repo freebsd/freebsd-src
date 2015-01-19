@@ -1105,7 +1105,7 @@ fatm_supply_small_buffers(struct fatm_softc *sc)
 				LIST_INSERT_HEAD(&sc->rbuf_free, rb, link);
 				break;
 			}
-			MH_ALIGN(m, SMALL_BUFFER_LEN);
+			M_ALIGN(m, SMALL_BUFFER_LEN);
 			error = bus_dmamap_load(sc->rbuf_tag, rb->map,
 			    m->m_data, SMALL_BUFFER_LEN, dmaload_helper,
 			    &phys, BUS_DMA_NOWAIT);

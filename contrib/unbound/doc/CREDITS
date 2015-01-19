@@ -19,3 +19,5 @@ Brett Carr - windows beta testing.
 Luca Bruno - patch for windows support in libunbound hosts and resolvconf().
 Tom Hendrikx - contributed split-itar.sh a useful script to 5011-track ITAR.
 Daisuke HIGASHI - patch for rrset-roundrobin and minimal-responses.
+Simon Perrault - DNS64 module.
+Robert Edmonds - dnstap code.

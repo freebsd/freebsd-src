@@ -399,8 +399,10 @@ main(int argc, char **argv)
 		for (i = 0; i < argc; i++)
 			translate(dbg, argv[i]);
 	else
-		while (fgets(line, sizeof(line), stdin) != NULL)
+		while (fgets(line, sizeof(line), stdin) != NULL) {
 			translate(dbg, line);
+			fflush(stdout);
+		}
 
 	dwarf_finish(dbg, &de);
 

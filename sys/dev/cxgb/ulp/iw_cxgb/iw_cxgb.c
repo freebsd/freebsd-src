@@ -251,9 +251,6 @@ iwch_mod_unload(void)
 }
 #endif	/* TCP_OFFLOAD */
 
-#undef MODULE_VERSION
-#include <sys/module.h>
-
 static int
 iwch_modevent(module_t mod, int cmd, void *arg)
 {
@@ -299,3 +296,5 @@ MODULE_DEPEND(t3_tom, cxgbc, 1, 1, 1);
 MODULE_DEPEND(iw_cxgb, toecore, 1, 1, 1);
 MODULE_DEPEND(iw_cxgb, t3_tom, 1, 1, 1);
 MODULE_DEPEND(iw_cxgb, ibcore, 1, 1, 1);
+MODULE_DEPEND(iw_cxgb, linuxapi, 1, 1, 1);
+

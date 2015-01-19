@@ -230,8 +230,9 @@ dmar_fault_task(void *arg, int pending __unused)
 		}
 		DMAR_UNLOCK(unit);
 		printf(
-		    "pci%d:%d:%d fault acc %x adt 0x%x reason 0x%x addr %jx\n",
-		    bus, slot, func, DMAR_FRCD2_T(fault_rec[1]),
+		    "pci%d:%d:%d sid %x fault acc %x adt 0x%x reason 0x%x "
+		    "addr %jx\n",
+		    bus, slot, func, sid, DMAR_FRCD2_T(fault_rec[1]),
 		    DMAR_FRCD2_AT(fault_rec[1]), DMAR_FRCD2_FR(fault_rec[1]),
 		    (uintmax_t)fault_rec[0]);
 		DMAR_FAULT_LOCK(unit);

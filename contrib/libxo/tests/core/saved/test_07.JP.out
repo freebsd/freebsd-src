@@ -12,8 +12,8 @@
     "v1": "ახლავე გაიაროთ რეგისტრაცია",
     "v2": "Unicode-ის მეათე საერთაშორისო",
     "columns": 55,
+    "columns": 0,
     "employee": [
-      "columns": 0,
       {
         "first-name": "Jim",
         "nic-name": "\"რეგტ\"",

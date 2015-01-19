@@ -68,7 +68,7 @@
 static int u3g_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, u3g, CTLFLAG_RW, 0, "USB 3g");
-SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RWTUN,
     &u3g_debug, 0, "Debug level");
 #endif
 
@@ -239,6 +239,8 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(DELL, U740, 0),
 	U3G_DEV(DLINK, DWR510_CD, U3GINIT_SCSIEJECT),
 	U3G_DEV(DLINK, DWR510, 0),
+	U3G_DEV(DLINK, DWM157_CD, U3GINIT_SCSIEJECT),
+	U3G_DEV(DLINK, DWM157, 0),
 	U3G_DEV(DLINK3, DWM652, 0),
 	U3G_DEV(HP, EV2200, 0),
 	U3G_DEV(HP, HS2300, 0),

@@ -2,7 +2,8 @@
 
 .include <src.opts.mk>
 
-SUBDIR=	libiberty \
+SUBDIR=	doc\
+	libiberty \
 	libbfd \
 	libopcodes \
 	libbinutils \

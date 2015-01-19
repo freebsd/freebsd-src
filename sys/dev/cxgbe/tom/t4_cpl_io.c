@@ -491,7 +491,7 @@ max_dsgl_nsegs(int tx_credits)
 
 static inline void
 write_tx_wr(void *dst, struct toepcb *toep, unsigned int immdlen,
-    unsigned int plen, uint8_t credits, int shove, int ulp_mode)
+    unsigned int plen, uint8_t credits, int shove, int ulp_mode, int txalign)
 {
 	struct fw_ofld_tx_data_wr *txwr = dst;
 	unsigned int wr_ulp_mode;
@@ -513,6 +513,19 @@ write_tx_wr(void *dst, struct toepcb *toep, unsigned int immdlen,
 		V_FW_OFLD_TX_DATA_WR_URGENT(0) |	/* XXX */
 		V_FW_OFLD_TX_DATA_WR_SHOVE(shove));
 	txwr->plen = htobe32(plen);
+
+	if (txalign > 0) {
+		struct tcpcb *tp = intotcpcb(toep->inp);
+
+		if (plen < 2 * tp->t_maxseg || is_10G_port(toep->port))
+			txwr->lsodisable_to_proxy |=
+			    htobe32(F_FW_OFLD_TX_DATA_WR_LSODISABLE);
+		else
+			txwr->lsodisable_to_proxy |=
+			    htobe32(F_FW_OFLD_TX_DATA_WR_ALIGNPLD |
+				(tp->t_flags & TF_NODELAY ? 0 :
+				F_FW_OFLD_TX_DATA_WR_ALIGNPLDSHOVE));
+	}
 }
 
 /*
@@ -716,7 +729,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			}
 			txwr = wrtod(wr);
 			credits = howmany(wr->wr_len, 16);
-			write_tx_wr(txwr, toep, plen, plen, credits, shove, 0);
+			write_tx_wr(txwr, toep, plen, plen, credits, shove, 0,
+			    sc->tt.tx_align);
 			m_copydata(sndptr, 0, plen, (void *)(txwr + 1));
 			nsegs = 0;
 		} else {
@@ -734,7 +748,8 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			}
 			txwr = wrtod(wr);
 			credits = howmany(wr_len, 16);
-			write_tx_wr(txwr, toep, 0, plen, credits, shove, 0);
+			write_tx_wr(txwr, toep, 0, plen, credits, shove, 0,
+			    sc->tt.tx_align);
 			write_tx_sgl(txwr + 1, sndptr, m, nsegs,
 			    max_nsegs_1mbuf);
 			if (wr_len & 0xf) {
@@ -890,7 +905,7 @@ t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			txwr = wrtod(wr);
 			credits = howmany(wr->wr_len, 16);
 			write_tx_wr(txwr, toep, plen, ulp_len, credits, shove,
-								ulp_mode);
+								ulp_mode, 0);
 			m_copydata(sndptr, 0, plen, (void *)(txwr + 1));
 		} else {
 			int wr_len;
@@ -907,7 +922,7 @@ t4_ulp_push_frames(struct adapter *sc, struct toepcb *toep, int drop)
 			txwr = wrtod(wr);
 			credits = howmany(wr_len, 16);
 			write_tx_wr(txwr, toep, 0, ulp_len, credits, shove,
-								ulp_mode);
+								ulp_mode, 0);
 			write_tx_sgl(txwr + 1, sndptr, m, nsegs,
 			    max_nsegs_1mbuf);
 			if (wr_len & 0xf) {

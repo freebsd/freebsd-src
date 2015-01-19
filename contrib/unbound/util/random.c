@@ -61,11 +61,8 @@
 #include "util/random.h"
 #include "util/log.h"
 #include <time.h>
-#ifdef HAVE_SSL
-#include <openssl/rand.h>
-#include <openssl/rc4.h>
-#include <openssl/err.h>
-#elif defined(HAVE_NSS)
+
+#ifdef HAVE_NSS
 /* nspr4 */
 #include "prerror.h"
 /* nss3 */
@@ -79,147 +76,41 @@
  */
 #define MAX_VALUE 0x7fffffff
 
-#ifdef HAVE_SSL
-/**
- * Struct with per-thread random state.
- * Keeps SSL types away from the header file.
- */
-struct ub_randstate {
-	/** key used for arc4random generation */
-	RC4_KEY rc4;
-	/** keeps track of key usage */
-	int rc4_ready;
-};
-
-/** Size of key to use (must be multiple of 8) */
-#define SEED_SIZE 24
-
-/** Number of bytes to reseed after */
-#define REKEY_BYTES	(1 << 24)
-
-/* (re)setup system seed */
+#ifndef HAVE_NSS
 void
-ub_systemseed(unsigned int seed)
+ub_systemseed(unsigned int ATTR_UNUSED(seed))
 {
-	/* RAND_ is threadsafe, by the way */
-	if(!RAND_status()) {
-		/* try to seed it */
-		unsigned char buf[256];
-		unsigned int v = seed;
-		size_t i;
-		for(i=0; i<256/sizeof(seed); i++) {
-			memmove(buf+i*sizeof(seed), &v, sizeof(seed));
-			v = v*seed + (unsigned int)i;
-		}
-		RAND_seed(buf, 256);
-		if(!RAND_status()) {
-			log_err("Random generator has no entropy "
-				"(error %ld)", ERR_get_error());
-		} else {
-			verbose(VERB_OPS, "openssl has no entropy, "
-				"seeding with time and pid");
-		}
-	}
-}
-
-/** reseed random generator */
-static void
-ub_arc4random_stir(struct ub_randstate* s, struct ub_randstate* from)
-{
-	/* not as unsigned char, but longerint so that it is
-	   aligned properly on alignment sensitive platforms */
-	uint64_t rand_buf[SEED_SIZE/sizeof(uint64_t)];
-	int i;
-
-	memset(&s->rc4, 0, sizeof(s->rc4));
-	memset(rand_buf, 0xc, sizeof(rand_buf));
-	if (from) {
-		uint8_t* rbuf = (uint8_t*)rand_buf;
-		for(i=0; i<SEED_SIZE; i++)
-			rbuf[i] = (uint8_t)ub_random(from);
-	} else {
-		if(!RAND_status())
-			ub_systemseed((unsigned)getpid()^(unsigned)time(NULL));
-		if (RAND_bytes((unsigned char*)rand_buf,
-			(int)sizeof(rand_buf)) <= 0) {
-			/* very unlikely that this happens, since we seeded
-			 * above, if it does; complain and keep going */
-			log_err("Couldn't obtain random bytes (error %ld)",
-				    ERR_get_error());
-			s->rc4_ready = 256;
-			return;
-		}
-	}
-#ifdef HAVE_FIPS_MODE
-	if(FIPS_mode()) {
-		/* RC4 is not allowed, get some trustworthy randomness */
-		/* double certainty here, this routine should not be
-		 * called in FIPS_mode */
-		memset(rand_buf, 0, sizeof(rand_buf));
-		s->rc4_ready = REKEY_BYTES;
-		return;
-	}
-#endif /* FIPS_MODE */
-	RC4_set_key(&s->rc4, SEED_SIZE, (unsigned char*)rand_buf);
-
-	/*
-	 * Discard early keystream, as per recommendations in:
-	 * http://www.wisdom.weizmann.ac.il/~itsik/RC4/Papers/Rc4_ksa.ps
-	 */
-	for(i = 0; i <= 256; i += sizeof(rand_buf))
-		RC4(&s->rc4, sizeof(rand_buf), (unsigned char*)rand_buf,
-			(unsigned char*)rand_buf);
-
-	memset(rand_buf, 0, sizeof(rand_buf));
-
-	s->rc4_ready = REKEY_BYTES;
+	/* arc4random_uniform does not need seeds, it gets kernel entropy */
 }
 
 struct ub_randstate* 
-ub_initstate(unsigned int seed, struct ub_randstate* from)
+ub_initstate(unsigned int ATTR_UNUSED(seed),
+	struct ub_randstate* ATTR_UNUSED(from))
 {
-	struct ub_randstate* s = (struct ub_randstate*)calloc(1, sizeof(*s));
+	struct ub_randstate* s = (struct ub_randstate*)malloc(1);
 	if(!s) {
 		log_err("malloc failure in random init");
 		return NULL;
 	}
-	ub_systemseed(seed);
-#ifdef HAVE_FIPS_MODE
-	if(!FIPS_mode())
-#endif
-	ub_arc4random_stir(s, from);
 	return s;
 }
 
 long int 
-ub_random(struct ub_randstate* s)
+ub_random(struct ub_randstate* ATTR_UNUSED(s))
 {
-	unsigned int r = 0;
-#ifdef HAVE_FIPS_MODE
-	if(FIPS_mode()) {
-		/* RC4 is not allowed, get some trustworthy randomness */
-		/* we use pseudo bytes: it tries to return secure randomness
-		 * but returns 'something' if that fails.  We need something
-		 * else if it fails, because we cannot block here */
-		if(RAND_pseudo_bytes((unsigned char*)&r, (int)sizeof(r))
-			== -1) {
-			log_err("FIPSmode, no arc4random but RAND failed "
-				"(error %ld)", ERR_get_error());
-		}
-		return (long int)((r) % (((unsigned)MAX_VALUE + 1)));
-	}
-#endif /* FIPS_MODE */
-	if (s->rc4_ready <= 0) {
-		ub_arc4random_stir(s, NULL);
-	}
-
-	RC4(&s->rc4, sizeof(r), 
-		(unsigned char *)&r, (unsigned char *)&r);
-	s->rc4_ready -= sizeof(r);
-	return (long int)((r) % (((unsigned)MAX_VALUE + 1)));
+	/* This relies on MAX_VALUE being 0x7fffffff. */
+	return (long)arc4random() & MAX_VALUE;
 }
 
-#elif defined(HAVE_NSS)
+long int
+ub_random_max(struct ub_randstate* state, long int x)
+{
+	(void)state;
+	/* on OpenBSD, this does not need _seed(), or _stir() calls */
+	return (long)arc4random_uniform((uint32_t)x);
+}
+
+#else
 
 /* not much to remember for NSS since we use its pk11_random, placeholder */
 struct ub_randstate {
@@ -253,8 +144,6 @@ long int ub_random(struct ub_randstate* ATTR_UNUSED(state))
 	return x & MAX_VALUE;
 }
 
-#endif /* HAVE_SSL or HAVE_NSS */
-
 long int
 ub_random_max(struct ub_randstate* state, long int x)
 {
@@ -266,6 +155,7 @@ ub_random_max(struct ub_randstate* state, long int x)
 		v = ub_random(state);
 	return (v % x);
 }
+#endif /* HAVE_NSS */
 
 void 
 ub_randfree(struct ub_randstate* s)

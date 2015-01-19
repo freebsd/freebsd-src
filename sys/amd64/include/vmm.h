@@ -289,7 +289,7 @@ struct vpmtmr *vm_pmtmr(struct vm *vm);
 struct vrtc *vm_rtc(struct vm *vm);
 
 /*
- * Inject exception 'vme' into the guest vcpu. This function returns 0 on
+ * Inject exception 'vector' into the guest vcpu. This function returns 0 on
  * success and non-zero on failure.
  *
  * Wrapper functions like 'vm_inject_gp()' should be preferred to calling
@@ -299,7 +299,8 @@ struct vrtc *vm_rtc(struct vm *vm);
  * This function should only be called in the context of the thread that is
  * executing this vcpu.
  */
-int vm_inject_exception(struct vm *vm, int vcpuid, struct vm_exception *vme);
+int vm_inject_exception(struct vm *vm, int vcpuid, int vector, int err_valid,
+    uint32_t errcode, int restart_instruction);
 
 /*
  * This function is called after a VM-exit that occurred during exception or
@@ -445,8 +446,11 @@ struct vie {
 			rex_x:1,
 			rex_b:1,
 			rex_present:1,
+			repz_present:1,		/* REP/REPE/REPZ prefix */
+			repnz_present:1,	/* REPNE/REPNZ prefix */
 			opsize_override:1,	/* Operand size override */
-			addrsize_override:1;	/* Address size override */
+			addrsize_override:1,	/* Address size override */
+			segment_override:1;	/* Segment override */
 
 	uint8_t		mod:2,			/* ModRM byte */
 			reg:4,
@@ -462,6 +466,7 @@ struct vie {
 	uint8_t		scale;
 	int		base_register;		/* VM_REG_GUEST_xyz */
 	int		index_register;		/* VM_REG_GUEST_xyz */
+	int		segment_register;	/* VM_REG_GUEST_xyz */
 
 	int64_t		displacement;		/* optional addr displacement */
 	int64_t		immediate;		/* optional immediate operand */
@@ -627,5 +632,7 @@ vm_inject_ss(void *vm, int vcpuid, int errcode)
 }
 
 void vm_inject_pf(void *vm, int vcpuid, int error_code, uint64_t cr2);
+
+int vm_restart_instruction(void *vm, int vcpuid);
 
 #endif	/* _VMM_H_ */
