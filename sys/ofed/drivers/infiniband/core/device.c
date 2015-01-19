@@ -754,8 +754,6 @@ static void __exit ib_core_cleanup(void)
 module_init(ib_core_init);
 module_exit(ib_core_cleanup);
 
-#undef MODULE_VERSION
-#include <sys/module.h>
 static int
 ibcore_evhand(module_t mod, int event, void *arg)
 {
