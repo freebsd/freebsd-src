@@ -918,7 +918,10 @@ if_detach(if_t ifp)
 	ifp->if_flags |= IFF_DYING;			/* XXX: Locking */
 
 	bpfdetach(ifp);
-
+#ifdef DEVICE_POLLING
+	if (ifp->if_capenable & IFCAP_POLLING)
+		if_poll_deregister(ifp);
+#endif
 	CURVNET_SET_QUIET(ifp->if_vnet);
 	if_detach_internal(ifp, 0);
 
@@ -2521,13 +2524,21 @@ if_drvioctl(u_long cmd, struct ifnet *ifp, void *data, struct thread *td)
 			return (0);
 		ifr->ifr_curcap = ifp->if_capenable;
 		error = if_ioctl(ifp, cmd, data, td);
-		if (error == 0) {
-			ifp->if_capenable = ifr->ifr_reqcap;
-			ifp->if_hwassist = ifr->ifr_hwassist;
-			getmicrotime(&ifp->if_lastchange);
-                	if (ifp->if_vlantrunk != NULL)
-                        	(*vlan_trunk_cap_p)(ifp);
+		if (error != 0)
+			break;
+#ifdef DEVICE_POLLING
+		if ((ifr->ifr_reqcap ^ ifr->ifr_curcap) & IFCAP_POLLING) {
+			if (ifr->ifr_reqcap & IFCAP_POLLING)
+				if_poll_register(ifp);
+			else
+				if_poll_deregister(ifp);
 		}
+#endif
+		ifp->if_capenable = ifr->ifr_reqcap;
+		ifp->if_hwassist = ifr->ifr_hwassist;
+		getmicrotime(&ifp->if_lastchange);
+		if (ifp->if_vlantrunk != NULL)
+			(*vlan_trunk_cap_p)(ifp);
 		break;
 #ifdef MAC
 	case SIOCSIFMAC:

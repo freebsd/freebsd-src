@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 void hardclock_device_poll(void);	/* hook from hardclock		*/
 
 static struct mtx	poll_mtx;
+static MALLOC_DEFINE(M_IFPOLLING, "ifpoll", "interface polling table");
 
 /*
  * Polling support for [network] device drivers.
@@ -244,14 +245,33 @@ static uint32_t idlepoll_sleeping; /* idlepoll is sleeping */
 SYSCTL_UINT(_kern_polling, OID_AUTO, idlepoll_sleeping, CTLFLAG_RD,
 	&idlepoll_sleeping, 0, "idlepoll is sleeping");
 
+static struct ifnet **poll_table;
+static u_int poll_indexlim;
 
-#define POLL_LIST_LEN  128
-struct pollrec {
-	poll_handler_t	*handler;
-	struct ifnet	*ifp;
-};
+static void
+poll_grow(void)
+{
+	int oldlim;
+	u_int n;
+	struct ifnet **e;
 
-static struct pollrec pr[POLL_LIST_LEN];
+	mtx_assert(&poll_mtx, MA_OWNED);
+	oldlim = poll_indexlim;
+	mtx_unlock(&poll_mtx);
+	n = (oldlim << 1) * sizeof(*e);
+	e = malloc(n, M_IFPOLLING, M_WAITOK | M_ZERO);
+	mtx_lock(&poll_mtx);
+	if (poll_indexlim != oldlim) {
+		free(e, M_IFPOLLING);
+		return;
+	}
+	if (poll_table != NULL) {
+		memcpy(e, poll_table, n/2);
+		free(poll_table, M_IFPOLLING);
+	}
+	poll_indexlim <<= 1;
+	poll_table = e;
+}
 
 static void
 poll_shutdown(void *arg, int howto)
@@ -338,7 +358,7 @@ ether_poll(int count)
 		count = poll_each_burst;
 
 	for (i = 0 ; i < poll_handlers ; i++)
-		pr[i].handler(pr[i].ifp, POLL_ONLY, count);
+		if_poll(poll_table[i], POLL_ONLY, count);
 
 	mtx_unlock(&poll_mtx);
 }
@@ -445,91 +465,45 @@ netisr_poll(void)
 	residual_burst -= cycles;
 
 	for (i = 0 ; i < poll_handlers ; i++)
-		pr[i].handler(pr[i].ifp, arg, cycles);
+		if_poll(poll_table[i], POLL_ONLY, cycles);
 
 	phase = 4;
 	mtx_unlock(&poll_mtx);
 }
 
 /*
- * Try to register routine for polling. Returns 0 if successful
- * (and polling should be enabled), error code otherwise.
- * A device is not supposed to register itself multiple times.
- *
- * This is called from within the *_ioctl() functions.
+ * Register routine for polling. Called in context of ioctl(2).
  */
-int
-ether_poll_register(poll_handler_t *h, if_t ifp)
+void
+if_poll_register(struct ifnet *ifp)
 {
-	int i;
-
-	KASSERT(h != NULL, ("%s: handler is NULL", __func__));
-	KASSERT(ifp != NULL, ("%s: ifp is NULL", __func__));
 
 	mtx_lock(&poll_mtx);
-	if (poll_handlers >= POLL_LIST_LEN) {
-		/*
-		 * List full, cannot register more entries.
-		 * This should never happen; if it does, it is probably a
-		 * broken driver trying to register multiple times. Checking
-		 * this at runtime is expensive, and won't solve the problem
-		 * anyways, so just report a few times and then give up.
-		 */
-		static int verbose = 10 ;
-		if (verbose >0) {
-			log(LOG_ERR, "poll handlers list full, "
-			    "maybe a broken driver ?\n");
-			verbose--;
-		}
-		mtx_unlock(&poll_mtx);
-		return (ENOMEM); /* no polling for you */
-	}
-
-	for (i = 0 ; i < poll_handlers ; i++)
-		if (pr[i].ifp == ifp && pr[i].handler != NULL) {
-			mtx_unlock(&poll_mtx);
-			log(LOG_DEBUG, "ether_poll_register: %s: handler"
-			    " already registered\n", ifp->if_xname);
-			return (EEXIST);
-		}
-
-	pr[poll_handlers].handler = h;
-	pr[poll_handlers].ifp = ifp;
-	poll_handlers++;
+	if (poll_handlers >= poll_indexlim)
+		poll_grow();
+	poll_table[poll_handlers++] = ifp;
 	mtx_unlock(&poll_mtx);
 	if (idlepoll_sleeping)
 		wakeup(&idlepoll_sleeping);
-	return (0);
 }
 
 /*
- * Remove interface from the polling list. Called from *_ioctl(), too.
+ * Remove interface from the polling list. Called from ioctl(2), too.
  */
-int
-ether_poll_deregister(if_t ifp)
+void
+if_poll_deregister(struct ifnet *ifp)
 {
 	int i;
 
-	KASSERT(ifp != NULL, ("%s: ifp is NULL", __func__));
-
 	mtx_lock(&poll_mtx);
-
 	for (i = 0 ; i < poll_handlers ; i++)
-		if (pr[i].ifp == ifp) /* found it */
+		if (poll_table[i] == ifp) /* found it */
 			break;
-	if (i == poll_handlers) {
-		log(LOG_DEBUG, "ether_poll_deregister: %s: not found!\n",
-		    ifp->if_xname);
-		mtx_unlock(&poll_mtx);
-		return (ENOENT);
-	}
+	KASSERT(i < poll_handlers, ("%s: can't find %p", __func__, ifp));
 	poll_handlers--;
-	if (i < poll_handlers) { /* Last entry replaces this one. */
-		pr[i].handler = pr[poll_handlers].handler;
-		pr[i].ifp = pr[poll_handlers].ifp;
-	}
+	if (i < poll_handlers) /* Last entry replaces this one. */
+		poll_table[i] = poll_table[poll_handlers];
 	mtx_unlock(&poll_mtx);
-	return (0);
 }
 
 static void

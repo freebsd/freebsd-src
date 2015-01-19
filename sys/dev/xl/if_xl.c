@@ -249,7 +249,6 @@ static void xl_setwol(struct xl_softc *);
 
 #ifdef DEVICE_POLLING
 static int xl_poll(if_t, enum poll_cmd cmd, int count);
-static int xl_poll_locked(if_t, enum poll_cmd cmd, int count);
 #endif
 
 static int xl_ifmedia_upd(if_t);
@@ -335,6 +334,9 @@ static struct ifdriver xl_ifdrv = {
 		.ifop_ioctl = xl_ioctl,
 		.ifop_transmit = xl_transmit,
 		.ifop_init = xl_init,
+#ifdef DEVICE_POLLING
+		.ifop_poll = xl_poll,
+#endif
 	},
 	.ifdrv_name = "xl",
 	.ifdrv_type = IFT_ETHER,
@@ -1571,11 +1573,6 @@ xl_detach(device_t dev)
 
 	KASSERT(mtx_initialized(&sc->xl_mtx), ("xl mutex not initialized"));
 
-#ifdef DEVICE_POLLING
-	if (ifp && ifp->if_capenable & IFCAP_POLLING)
-		ether_poll_deregister(ifp);
-#endif
-
 	if (sc->xl_flags & XL_FLAG_USE_MMIO) {
 		rid = XL_PCI_LOMEM;
 		res = SYS_RES_MEMORY;
@@ -1846,7 +1843,7 @@ again:
 	    BUS_DMASYNC_POSTREAD);
 	while ((rxstat = le32toh(sc->xl_cdata.xl_rx_head->xl_ptr->xl_status))) {
 #ifdef DEVICE_POLLING
-		if (ifp->if_capenable & IFCAP_POLLING) {
+		if (sc->xl_capenable & IFCAP_POLLING) {
 			if (sc->rxcycles <= 0)
 				break;
 			sc->rxcycles--;
@@ -2154,7 +2151,7 @@ xl_intr(void *arg)
 	XL_LOCK(sc);
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING) {
+	if (sc->xl_capenable & IFCAP_POLLING) {
 		XL_UNLOCK(sc);
 		return;
 	}
@@ -2212,23 +2209,15 @@ xl_intr(void *arg)
 static int
 xl_poll(if_t ifp, enum poll_cmd cmd, int count)
 {
-	struct xl_softc *sc = ifp->if_softc;
+	struct xl_softc *sc;
 	int rx_npkts = 0;
 
+	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	XL_LOCK(sc);
-	if (sc->xl_flags & XL_FLAG_RUNNING)
-		rx_npkts = xl_poll_locked(ifp, cmd, count);
-	XL_UNLOCK(sc);
-	return (rx_npkts);
-}
-
-static int
-xl_poll_locked(if_t ifp, enum poll_cmd cmd, int count)
-{
-	struct xl_softc *sc = ifp->if_softc;
-	int rx_npkts;
-
-	XL_LOCK_ASSERT(sc);
+	if (sc->xl_flags & XL_FLAG_RUNNING) {
+		XL_UNLOCK(sc);
+		return (0);
+	}
 
 	sc->rxcycles = count;
 	rx_npkts = xl_rxeof(sc);
@@ -2239,9 +2228,9 @@ xl_poll_locked(if_t ifp, enum poll_cmd cmd, int count)
 
 	if (if_snd_len(ifp)) {
 		if (sc->xl_type == XL_TYPE_905B)
-			xl_start_90xB_locked(ifp);
+			xl_start_90xB_locked(sc);
 		else
-			xl_start_locked(ifp);
+			xl_start_locked(sc);
 	}
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
@@ -2266,6 +2255,8 @@ xl_poll_locked(if_t ifp, enum poll_cmd cmd, int count)
 				xl_stats_update(sc);
 		}
 	}
+	XL_UNLOCK(sc);
+
 	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
@@ -2826,7 +2817,7 @@ xl_init_locked(struct xl_softc *sc)
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STAT_ENB|XL_INTRS);
 #ifdef DEVICE_POLLING
 	/* Disable interrupts if we are polling. */
-	if (ifp->if_capenable & IFCAP_POLLING)
+	if (sc->xl_capenable & IFCAP_POLLING)
 		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|0);
 	else
 #endif
@@ -3028,16 +3019,11 @@ xl_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 	case SIOCSIFCAP:
 #ifdef DEVICE_POLLING
 		if (((ifr->ifr_reqcap ^ ifr->ifr_curcap) & IFCAP_POLLING)) {
+			XL_LOCK(sc);
 			if ((ifr->ifr_reqcap & IFCAP_POLLING) != 0) {
-				error = ether_poll_register(xl_poll, ifp);
-				if (error)
-					break;
-				XL_LOCK(sc);
 				/* Disable interrupts */
 				CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_INTR_ENB|0);
-				XL_UNLOCK(sc);
 			} else {
-				error = ether_poll_deregister(ifp);
 				/* Enable interrupts. */
 				XL_LOCK(sc);
 				CSR_WRITE_2(sc, XL_COMMAND,
@@ -3047,10 +3033,8 @@ xl_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 				if (sc->xl_flags & XL_FLAG_FUNCREG)
 					bus_space_write_4(sc->xl_ftag,
 					    sc->xl_fhandle, 4, 0x8000);
-				XL_UNLOCK(sc);
-				if (error)
-					break;
 			}
+			XL_UNLOCK(sc);
 		}
 #endif /* DEVICE_POLLING */
 		sc->xl_capenable = ifr->ifr_reqcap;

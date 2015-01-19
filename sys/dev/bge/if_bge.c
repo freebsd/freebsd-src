@@ -539,6 +539,9 @@ static struct ifdriver bge_ifdrv = {
 		.ifop_init = bge_init,
 		.ifop_transmit = bge_transmit,
 		.ifop_get_counter = bge_get_counter,
+#ifdef DEVICE_POLLING
+		.ifop_poll = bge_poll,
+#endif
 	},
 	.ifdrv_name = "bge",
 	.ifdrv_type = IFT_ETHER,
@@ -3334,6 +3337,9 @@ bge_attach(device_t dev)
 		.ifat_drv = &bge_ifdrv,
 		.ifat_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST,
 		.ifat_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING |
+#ifdef DEVICE_POLLING
+		    IFCAP_POLLING |
+#endif
 		    IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM,
 	};
 	struct bge_softc *sc;
@@ -3927,9 +3933,6 @@ again:
 		ifat.ifat_capabilities |= IFCAP_TSO4 | IFCAP_VLAN_HWTSO;
 	}
 	ifat.ifat_capenable = ifat.ifat_capabilities;
-#ifdef DEVICE_POLLING
-	ifat.ifat_capabilities |= IFCAP_POLLING;
-#endif
 	/*
 	 * 5700 B0 chips do not support checksumming correctly due
 	 * to hardware bugs.
@@ -3958,11 +3961,6 @@ bge_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 	ifp = sc->bge_ifp;
-
-#ifdef DEVICE_POLLING
-	if (sc->bge_capenable & IFCAP_POLLING)
-		ether_poll_deregister(ifp);
-#endif
 
 	if (device_is_attached(dev)) {
 		if_detach(ifp);
@@ -4804,7 +4802,7 @@ bge_tick(void *xsc)
 		 */
 #ifdef DEVICE_POLLING
 		/* In polling mode we poll link state in bge_poll(). */
-		if (!(if_getcapenable(sc->bge_ifp) & IFCAP_POLLING))
+		if (!(sc->bge_capenable & IFCAP_POLLING))
 #endif
 		{
 		sc->bge_link_evt++;
@@ -5819,26 +5817,17 @@ bge_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 		mask = ifr->ifr_reqcap ^ ifr->ifr_curcap;
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
+			BGE_LOCK(sc);
 			if (ifr->ifr_reqcap & IFCAP_POLLING) {
-				error = ether_poll_register(bge_poll, ifp);
-				if (error)
-					return (error);
-				BGE_LOCK(sc);
 				BGE_SETBIT(sc, BGE_PCI_MISC_CTL,
 				    BGE_PCIMISCCTL_MASK_PCI_INTR);
 				bge_writembx(sc, BGE_MBX_IRQ0_LO, 1);
-				BGE_UNLOCK(sc);
 			} else {
-				error = ether_poll_deregister(ifp);
-				/* Enable interrupt even in error case */
-				BGE_LOCK(sc);
 				BGE_CLRBIT(sc, BGE_PCI_MISC_CTL,
 				    BGE_PCIMISCCTL_MASK_PCI_INTR);
 				bge_writembx(sc, BGE_MBX_IRQ0_LO, 0);
-				BGE_UNLOCK(sc);
-				if (error)
-					return (error);
 			}
+			BGE_UNLOCK(sc);
 		}
 #endif
 		sc->bge_capenable = ifr->ifr_reqcap;

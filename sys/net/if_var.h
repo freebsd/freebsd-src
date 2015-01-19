@@ -424,12 +424,9 @@ void if_tsomax_common(const struct iftsomax *, struct iftsomax *);
 int if_tsomax_update(if_t ifp, const struct iftsomax *);
 
 #ifdef DEVICE_POLLING
-enum poll_cmd { POLL_ONLY, POLL_AND_CHECK_STATUS };
-
-typedef	int poll_handler_t(if_t ifp, enum poll_cmd cmd, int count);
-int    ether_poll_register(poll_handler_t *h, if_t ifp);
-int    ether_poll_deregister(if_t ifp);
-#endif /* DEVICE_POLLING */
+void if_poll_register(struct ifnet *ifp);
+void if_poll_deregister(struct ifnet *ifp);
+#endif
 
 /*
  * Wrappers around ifops. Some ops are optional and can be NULL,
@@ -514,6 +511,15 @@ if_reassign(if_t ifp, struct vnet *new)
 
 	return (ifp->if_ops->ifop_reassign(ifp, new));
 }
+
+#ifdef DEVICE_POLLING
+static inline int
+if_poll(if_t ifp, enum poll_cmd cmd, int count)
+{
+
+	return (ifp->if_ops->ifop_poll(ifp, cmd, count));
+}
+#endif
 
 /*
  * Inliners to shorten code, and make protocols more ifnet-agnostic.
