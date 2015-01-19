@@ -8,4 +8,6 @@ SUBDIR= ibaddr ibnetdiscover ibping ibportstate ibroute ibsendtrap ibstat \
 SUBDIR+= osmtest
 .endif
 
+SUBDIR_PARALLEL=
+
 .include <bsd.subdir.mk>
