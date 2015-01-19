@@ -60,6 +60,8 @@ extern int krping_debug;
 MODULE_AUTHOR("Steve Wise");
 MODULE_DESCRIPTION("RDMA ping client/server");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_VERSION(krping, 1);
+MODULE_DEPEND(krping, linuxapi, 1, 1, 1);
 
 static __inline uint64_t
 get_cycles(void)
