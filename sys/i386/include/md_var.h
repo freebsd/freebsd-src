@@ -61,6 +61,7 @@ extern	u_int	cpu_vendor_id;
 extern	u_int	cpu_mon_mwait_flags;
 extern	u_int	cpu_mon_min_size;
 extern	u_int	cpu_mon_max_size;
+extern	u_int	cpu_maxphyaddr;
 extern	u_int	cyrix_did;
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 extern	int	has_f00f_bug;

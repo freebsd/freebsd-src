@@ -1289,7 +1289,10 @@ identify_cpu(void)
 	}
 	if (cpu_exthigh >= 0x80000008) {
 		do_cpuid(0x80000008, regs);
+		cpu_maxphyaddr = regs[0] & 0xff;
 		cpu_procinfo2 = regs[2];
+	} else {
+		cpu_maxphyaddr = (cpu_feature & CPUID_PAE) != 0 ? 36 : 32;
 	}
 
 #ifdef __i386__
