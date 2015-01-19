@@ -987,6 +987,7 @@ int
 vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
     uint64_t gla, size_t len, int prot, struct iovec *iov, int iovcnt)
 {
+	void *va;
 	uint64_t gpa;
 	int error, fault, i, n, off;
 
@@ -1006,7 +1007,11 @@ vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 		off = gpa & PAGE_MASK;
 		n = min(len, PAGE_SIZE - off);
 
-		iov->iov_base = (void *)gpa;
+		va = vm_map_gpa(ctx, gpa, n);
+		if (va == NULL)
+			return (-1);
+
+		iov->iov_base = va;
 		iov->iov_len = n;
 		iov++;
 		iovcnt--;
@@ -1018,19 +1023,24 @@ vm_copy_setup(struct vmctx *ctx, int vcpu, struct vm_guest_paging *paging,
 }
 
 void
+vm_copy_teardown(struct vmctx *ctx, int vcpu, struct iovec *iov, int iovcnt)
+{
+
+	return;
+}
+
+void
 vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *iov, void *vp, size_t len)
 {
 	const char *src;
 	char *dst;
-	uint64_t gpa;
 	size_t n;
 
 	dst = vp;
 	while (len) {
 		assert(iov->iov_len);
-		gpa = (uint64_t)iov->iov_base;
 		n = min(len, iov->iov_len);
-		src = vm_map_gpa(ctx, gpa, n);
+		src = iov->iov_base;
 		bcopy(src, dst, n);
 
 		iov++;
@@ -1045,15 +1055,13 @@ vm_copyout(struct vmctx *ctx, int vcpu, const void *vp, struct iovec *iov,
 {
 	const char *src;
 	char *dst;
-	uint64_t gpa;
 	size_t n;
 
 	src = vp;
 	while (len) {
 		assert(iov->iov_len);
-		gpa = (uint64_t)iov->iov_base;
 		n = min(len, iov->iov_len);
-		dst = vm_map_gpa(ctx, gpa, n);
+		dst = iov->iov_base;
 		bcopy(src, dst, n);
 
 		iov++;

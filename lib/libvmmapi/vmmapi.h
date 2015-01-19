@@ -137,6 +137,8 @@ void	vm_copyin(struct vmctx *ctx, int vcpu, struct iovec *guest_iov,
 	    void *host_dst, size_t len);
 void	vm_copyout(struct vmctx *ctx, int vcpu, const void *host_src,
 	    struct iovec *guest_iov, size_t len);
+void	vm_copy_teardown(struct vmctx *ctx, int vcpu, struct iovec *iov,
+	    int iovcnt);
 
 /* RTC */
 int	vm_rtc_write(struct vmctx *ctx, int offset, uint8_t value);
