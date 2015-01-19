@@ -149,11 +149,11 @@ ATF_TC_BODY(kqueue_desc_passing, tc)
 
 	printf("parent (pid %d): sending kq fd %d\n", getpid(), kq);
 	if (sendmsg(s[0], &m, 0) == -1) {
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 		ATF_REQUIRE_EQ_MSG(errno, EBADF, "errno is %d", errno);
 		atf_tc_skip("PR kern/46523");
 #endif
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		ATF_REQUIRE_EQ_MSG(errno, EOPNOTSUPP, "errno is %d", errno);
 		close(s[0]);
 #endif

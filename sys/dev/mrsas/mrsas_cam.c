@@ -378,8 +378,8 @@ mrsas_scsiio_timeout(void *data)
 	 * on OCR enable/disable property of Controller from ocr_thread
 	 * context.
 	 */
-	callout_reset(&cmd->cm_callout, (600000 * hz) / 1000,
-	    mrsas_scsiio_timeout, cmd);
+	callout_reset_sbt(&cmd->cm_callout, SBT_1S * 600, 0,
+	     mrsas_scsiio_timeout, cmd, 0);
 	sc->do_timedout_reset = 1;
 	if (sc->ocr_thread_active)
 		wakeup(&sc->ocr_chan);
@@ -530,8 +530,8 @@ mrsas_startio(struct mrsas_softc *sc, struct cam_sim *sim,
 	/*
 	 * Start timer for IO timeout. Default timeout value is 90 second.
 	 */
-	callout_reset(&cmd->cm_callout, (sc->mrsas_io_timeout * hz) / 1000,
-	    mrsas_scsiio_timeout, cmd);
+	callout_reset_sbt(&cmd->cm_callout, SBT_1MS * sc->mrsas_io_timeout, 0,
+	    mrsas_scsiio_timeout, cmd, 0);
 	mrsas_atomic_inc(&sc->fw_outstanding);
 
 	if (mrsas_atomic_read(&sc->fw_outstanding) > sc->io_cmds_highwater)

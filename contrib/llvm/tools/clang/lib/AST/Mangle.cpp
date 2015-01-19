@@ -11,13 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 #include "clang/AST/Attr.h"
-#include "clang/AST/Mangle.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/AST/Mangle.h"
 #include "clang/Basic/ABI.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetInfo.h"
@@ -64,7 +64,7 @@ static bool isExternC(const NamedDecl *ND) {
 static StdOrFastCC getStdOrFastCallMangling(const ASTContext &Context,
                                             const NamedDecl *ND) {
   const TargetInfo &TI = Context.getTargetInfo();
-  llvm::Triple Triple = TI.getTriple();
+  const llvm::Triple &Triple = TI.getTriple();
   if (!Triple.isOSWindows() || Triple.getArch() != llvm::Triple::x86)
     return SOF_OTHER;
 
@@ -163,13 +163,9 @@ void MangleContext::mangleName(const NamedDecl *D, raw_ostream &Out) {
   if (const CXXMethodDecl *MD = dyn_cast<CXXMethodDecl>(FD))
     if (!MD->isStatic())
       ++ArgWords;
-  for (FunctionProtoType::arg_type_iterator Arg = Proto->arg_type_begin(),
-         ArgEnd = Proto->arg_type_end();
-       Arg != ArgEnd; ++Arg) {
-    QualType AT = *Arg;
+  for (const auto &AT : Proto->param_types())
     // Size should be aligned to DWORD boundary
     ArgWords += llvm::RoundUpToAlignment(ASTContext.getTypeSize(AT), 32) / 32;
-  }
   Out << 4 * ArgWords;
 }
 
@@ -246,7 +242,9 @@ void MangleContext::mangleObjCMethodName(const ObjCMethodDecl *MD,
   OS << (MD->isInstanceMethod() ? '-' : '+') << '[' << CD->getName();
   if (const ObjCCategoryImplDecl *CID = dyn_cast<ObjCCategoryImplDecl>(CD))
     OS << '(' << *CID << ')';
-  OS << ' ' << MD->getSelector().getAsString() << ']';
+  OS << ' ';
+  MD->getSelector().print(OS);
+  OS << ']';
   
   Out << OS.str().size() << OS.str();
 }

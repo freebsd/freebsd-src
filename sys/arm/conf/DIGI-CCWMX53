@@ -22,7 +22,7 @@
 include		"IMX53"
 ident		DIGI-CCWMX53
 
-makeoptions 	WITHOUT_MODULES="ahc"
+makeoptions	WITHOUT_MODULES="ahc"
 
 # required for netbooting
 #options 	BOOTP
@@ -34,5 +34,5 @@ makeoptions 	WITHOUT_MODULES="ahc"
 #options 	ROOTDEVNAME=\"ufs:ada0s2a\"
 
 # Flattened Device Tree
-options         FDT_DTB_STATIC
-makeoptions     FDT_DTS_FILE=digi-ccwmx53.dts
+options 	FDT_DTB_STATIC
+makeoptions	FDT_DTS_FILE=digi-ccwmx53.dts

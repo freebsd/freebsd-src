@@ -18,7 +18,9 @@ test_03.c \
 test_04.c \
 test_05.c \
 test_06.c \
-test_07.c
+test_07.c \
+test_08.c \
+test_09.c
 
 test_01_test_SOURCES = test_01.c
 test_02_test_SOURCES = test_02.c
@@ -27,10 +29,12 @@ test_04_test_SOURCES = test_04.c
 test_05_test_SOURCES = test_05.c
 test_06_test_SOURCES = test_06.c
 test_07_test_SOURCES = test_07.c
+test_08_test_SOURCES = test_08.c
+test_09_test_SOURCES = test_09.c
 
 # TEST_CASES := $(shell cd ${srcdir} ; echo *.c )
 
-bin_PROGRAMS = ${TEST_CASES:.c=.test}
+noinst_PROGRAMS = ${TEST_CASES:.c=.test}
 
 LDADD = \
     ${top_builddir}/libxo/libxo.la
@@ -66,7 +70,7 @@ valgrind:
 
 TEST_ONE = \
   LIBXO_OPTIONS=:W$$fmt \
-      ${CHECKER} $$base.test ${TEST_OPTS} \
+      ${CHECKER} ./$$base.test ${TEST_OPTS} \
       > out/$$base.$$fmt.out 2> out/$$base.$$fmt.err ; \
  ${DIFF} -Nu ${srcdir}/saved/$$base.$$fmt.out out/$$base.$$fmt.out ${S2O} ; \
  ${DIFF} -Nu ${srcdir}/saved/$$base.$$fmt.err out/$$base.$$fmt.err ${S2O}

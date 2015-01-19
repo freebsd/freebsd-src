@@ -22,18 +22,10 @@ extern "C" void LLVMInitializeSystemZTarget() {
 SystemZTargetMachine::SystemZTargetMachine(const Target &T, StringRef TT,
                                            StringRef CPU, StringRef FS,
                                            const TargetOptions &Options,
-                                           Reloc::Model RM,
-                                           CodeModel::Model CM,
+                                           Reloc::Model RM, CodeModel::Model CM,
                                            CodeGenOpt::Level OL)
-  : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
-    Subtarget(TT, CPU, FS),
-    // Make sure that global data has at least 16 bits of alignment by default,
-    // so that we can refer to it using LARL.  We don't have any special
-    // requirements for stack variables though.
-    DL("E-p:64:64:64-i1:8:16-i8:8:16-i16:16-i32:32-i64:64"
-       "-f32:32-f64:64-f128:64-a0:8:16-n32:64"),
-    InstrInfo(*this), TLInfo(*this), TSInfo(*this),
-    FrameLowering(*this, Subtarget) {
+    : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
+      Subtarget(TT, CPU, FS, *this) {
   initAsmInfo();
 }
 
@@ -48,10 +40,10 @@ public:
     return getTM<SystemZTargetMachine>();
   }
 
-  virtual void addIRPasses() LLVM_OVERRIDE;
-  virtual bool addInstSelector() LLVM_OVERRIDE;
-  virtual bool addPreSched2() LLVM_OVERRIDE;
-  virtual bool addPreEmitPass() LLVM_OVERRIDE;
+  void addIRPasses() override;
+  bool addInstSelector() override;
+  bool addPreSched2() override;
+  bool addPreEmitPass() override;
 };
 } // end anonymous namespace
 
@@ -66,7 +58,8 @@ bool SystemZPassConfig::addInstSelector() {
 }
 
 bool SystemZPassConfig::addPreSched2() {
-  if (getSystemZTargetMachine().getSubtargetImpl()->hasLoadStoreOnCond())
+  if (getOptLevel() != CodeGenOpt::None &&
+      getSystemZTargetMachine().getSubtargetImpl()->hasLoadStoreOnCond())
     addPass(&IfConverterID);
   return true;
 }

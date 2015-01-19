@@ -13,15 +13,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/FileUtilities.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/system_error.h"
 #include <cctype>
 #include <cstdlib>
 #include <cstring>
+#include <system_error>
 using namespace llvm;
 
 static bool isSignedChar(char C) {
@@ -177,18 +176,21 @@ int llvm::DiffFilesWithTolerance(StringRef NameA,
                                  std::string *Error) {
   // Now its safe to mmap the files into memory because both files
   // have a non-zero size.
-  OwningPtr<MemoryBuffer> F1;
-  if (error_code ec = MemoryBuffer::getFile(NameA, F1)) {
+  ErrorOr<std::unique_ptr<MemoryBuffer>> F1OrErr = MemoryBuffer::getFile(NameA);
+  if (std::error_code EC = F1OrErr.getError()) {
     if (Error)
-      *Error = ec.message();
+      *Error = EC.message();
     return 2;
   }
-  OwningPtr<MemoryBuffer> F2;
-  if (error_code ec = MemoryBuffer::getFile(NameB, F2)) {
+  std::unique_ptr<MemoryBuffer> F1 = std::move(F1OrErr.get());
+
+  ErrorOr<std::unique_ptr<MemoryBuffer>> F2OrErr = MemoryBuffer::getFile(NameB);
+  if (std::error_code EC = F2OrErr.getError()) {
     if (Error)
-      *Error = ec.message();
+      *Error = EC.message();
     return 2;
   }
+  std::unique_ptr<MemoryBuffer> F2 = std::move(F2OrErr.get());
 
   // Okay, now that we opened the files, scan them for the first difference.
   const char *File1Start = F1->getBufferStart();

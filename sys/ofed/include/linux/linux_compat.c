@@ -174,6 +174,13 @@ kobject_kfree_name(struct kobject *kobj)
 
 struct kobj_type kfree_type = { .release = kobject_kfree };
 
+static void
+dev_release(struct device *dev)
+{
+	pr_debug("dev_release: %s\n", dev_name(dev));
+	kfree(dev);
+}
+
 struct device *
 device_create(struct class *class, struct device *parent, dev_t devt,
     void *drvdata, const char *fmt, ...)
@@ -186,6 +193,7 @@ device_create(struct class *class, struct device *parent, dev_t devt,
 	dev->class = class;
 	dev->devt = devt;
 	dev->driver_data = drvdata;
+	dev->release = dev_release;
 	va_start(args, fmt);
 	kobject_set_name_vargs(&dev->kobj, fmt, args);
 	va_end(args);
@@ -335,7 +343,8 @@ linux_dev_read(struct cdev *dev, struct uio *uio, int ioflag)
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
 		if (bytes >= 0) {
-			uio->uio_iov->iov_base += bytes;
+			uio->uio_iov->iov_base =
+			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
 			uio->uio_iov->iov_len -= bytes;
 			uio->uio_resid -= bytes;
 		} else
@@ -369,7 +378,8 @@ linux_dev_write(struct cdev *dev, struct uio *uio, int ioflag)
 		bytes = filp->f_op->write(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
 		if (bytes >= 0) {
-			uio->uio_iov->iov_base += bytes;
+			uio->uio_iov->iov_base =
+			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
 			uio->uio_iov->iov_len -= bytes;
 			uio->uio_resid -= bytes;
 		} else
@@ -490,7 +500,8 @@ linux_file_read(struct file *file, struct uio *uio, struct ucred *active_cred,
 		bytes = filp->f_op->read(filp, uio->uio_iov->iov_base,
 		    uio->uio_iov->iov_len, &uio->uio_offset);
 		if (bytes >= 0) {
-			uio->uio_iov->iov_base += bytes;
+			uio->uio_iov->iov_base =
+			    ((uint8_t *)uio->uio_iov->iov_base) + bytes;
 			uio->uio_iov->iov_len -= bytes;
 			uio->uio_resid -= bytes;
 		} else
@@ -728,7 +739,6 @@ linux_compat_init(void)
 	for (i = 0; i < VMMAP_HASH_SIZE; i++)
 		LIST_INIT(&vmmaphead[i]);
 }
-
 SYSINIT(linux_compat, SI_SUB_DRIVERS, SI_ORDER_SECOND, linux_compat_init, NULL);
 
 static void

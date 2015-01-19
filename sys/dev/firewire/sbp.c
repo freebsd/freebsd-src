@@ -1028,8 +1028,8 @@ static __inline void
 sbp_scan_dev(struct sbp_dev *sdev)
 {
 	sdev->status = SBP_DEV_PROBE;
-	callout_reset(&sdev->target->scan_callout, scan_delay * hz / 1000,
-			sbp_cam_scan_target, (void *)sdev->target);
+	callout_reset_sbt(&sdev->target->scan_callout, SBT_1MS * scan_delay, 0,
+	    sbp_cam_scan_target, (void *)sdev->target, 0);
 }
 
 static void
@@ -1397,7 +1397,7 @@ END_DEBUG
 start:
 	target->mgm_ocb_cur = ocb;
 
-	callout_reset(&target->mgm_ocb_timeout, 5*hz,
+	callout_reset(&target->mgm_ocb_timeout, 5 * hz,
 				sbp_mgm_timeout, (caddr_t)ocb);
 	xfer = sbp_write_cmd(sdev, FWTCODE_WREQB, 0);
 	if (xfer == NULL) {
@@ -2699,9 +2699,11 @@ END_DEBUG
 	prev2 = prev = STAILQ_LAST(&sdev->ocbs, sbp_ocb, ocb);
 	STAILQ_INSERT_TAIL(&sdev->ocbs, ocb, ocb);
 
-	if (ocb->ccb != NULL)
-		callout_reset(&ocb->timer, (ocb->ccb->ccb_h.timeout * hz) / 1000,
-		    sbp_timeout, ocb);
+	if (ocb->ccb != NULL) {
+		callout_reset_sbt(&ocb->timer,
+		    SBT_1MS * ocb->ccb->ccb_h.timeout, 0, sbp_timeout,
+		    ocb, 0);
+	}
 
 	if (use_doorbell && prev == NULL)
 		prev2 = sdev->last_ocb;

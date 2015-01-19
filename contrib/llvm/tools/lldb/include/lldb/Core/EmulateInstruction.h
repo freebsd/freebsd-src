@@ -94,7 +94,7 @@ public:
     enum ContextType
     {
         eContextInvalid = 0,
-        // Read an instruciton opcode from memory
+        // Read an instruction opcode from memory
         eContextReadOpcode,
         
         // Usually used for writing a register value whose source value is an 
@@ -223,13 +223,13 @@ public:
             struct ISAAndImmediate 
             {
                 uint32_t isa;           
-                uint32_t unsigned_data32;   // immdiate data
+                uint32_t unsigned_data32;   // immediate data
             } ISAAndImmediate;
             
             struct ISAAndImmediateSigned 
             {
                 uint32_t isa;
-                int32_t signed_data32;      // signed immdiate data
+                int32_t signed_data32;      // signed immediate data
             } ISAAndImmediateSigned;
             
             uint32_t isa;
@@ -409,7 +409,7 @@ public:
     TestEmulation (Stream *out_stream, ArchSpec &arch, OptionValueDictionary *test_data) = 0;
 
     virtual bool
-    GetRegisterInfo (uint32_t reg_kind, uint32_t reg_num, RegisterInfo &reg_info) = 0;
+    GetRegisterInfo (lldb::RegisterKind reg_kind, uint32_t reg_num, RegisterInfo &reg_info) = 0;
 
     //----------------------------------------------------------------------
     // Optional overrides
@@ -421,7 +421,7 @@ public:
     CreateFunctionEntryUnwind (UnwindPlan &unwind_plan);    
 
     static const char *
-    TranslateRegister (uint32_t reg_kind, uint32_t reg_num, std::string &reg_name);
+    TranslateRegister (lldb::RegisterKind reg_kind, uint32_t reg_num, std::string &reg_name);
     
     //----------------------------------------------------------------------
     // RegisterInfo variants
@@ -449,25 +449,25 @@ public:
     // Register kind and number variants
     //----------------------------------------------------------------------
     bool
-    ReadRegister (uint32_t reg_kind, 
+    ReadRegister (lldb::RegisterKind reg_kind,
                   uint32_t reg_num, 
                   RegisterValue& reg_value);
 
     bool
     WriteRegister (const Context &context, 
-                   uint32_t reg_kind, 
+                   lldb::RegisterKind reg_kind,
                    uint32_t reg_num, 
                    const RegisterValue& reg_value);
 
     uint64_t
-    ReadRegisterUnsigned (uint32_t reg_kind, 
+    ReadRegisterUnsigned (lldb::RegisterKind reg_kind,
                           uint32_t reg_num,
                           uint64_t fail_value, 
                           bool *success_ptr);
 
     bool
     WriteRegisterUnsigned (const Context &context,
-                           uint32_t reg_kind, 
+                           lldb::RegisterKind reg_kind,
                            uint32_t reg_num,
                            uint64_t reg_value);
 
@@ -611,7 +611,7 @@ public:
 
     static bool
     GetBestRegisterKindAndNumber (const RegisterInfo *reg_info, 
-                                  uint32_t &reg_kind,
+                                  lldb::RegisterKind &reg_kind,
                                   uint32_t &reg_num);
     
     static uint32_t

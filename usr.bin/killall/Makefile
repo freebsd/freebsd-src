@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 PROG=	killall
-DPADD=	${LIBJAIL}
-LDADD=	-ljail
+LIBADD=	jail
 
 .include <bsd.prog.mk>

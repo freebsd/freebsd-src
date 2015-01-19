@@ -26,7 +26,9 @@ class MCObjectWriter;
 class MCRegisterInfo;
 class MCSubtargetInfo;
 class MCRelocationInfo;
+class MCStreamer;
 class Target;
+class Triple;
 class StringRef;
 class raw_ostream;
 
@@ -63,7 +65,7 @@ namespace X86_MC {
 
   void DetectFamilyModel(unsigned EAX, unsigned &Family, unsigned &Model);
 
-  unsigned getDwarfRegFlavour(StringRef TT, bool isEH);
+  unsigned getDwarfRegFlavour(Triple TT, bool isEH);
 
   void InitLLVM2SEHRegisterMapping(MCRegisterInfo *MRI);
 
@@ -83,6 +85,14 @@ MCAsmBackend *createX86_32AsmBackend(const Target &T, const MCRegisterInfo &MRI,
                                      StringRef TT, StringRef CPU);
 MCAsmBackend *createX86_64AsmBackend(const Target &T, const MCRegisterInfo &MRI,
                                      StringRef TT, StringRef CPU);
+
+/// createX86WinCOFFStreamer - Construct an X86 Windows COFF machine code
+/// streamer which will generate PE/COFF format object files.
+///
+/// Takes ownership of \p AB and \p CE.
+MCStreamer *createX86WinCOFFStreamer(MCContext &C, MCAsmBackend &AB,
+                                     MCCodeEmitter *CE, raw_ostream &OS,
+                                     bool RelaxAll);
 
 /// createX86MachObjectWriter - Construct an X86 Mach-O object writer.
 MCObjectWriter *createX86MachObjectWriter(raw_ostream &OS,

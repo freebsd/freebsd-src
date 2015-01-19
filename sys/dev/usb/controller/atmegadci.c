@@ -88,7 +88,7 @@ static int atmegadci_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, atmegadci, CTLFLAG_RW, 0,
     "USB ATMEGA DCI");
-SYSCTL_INT(_hw_usb_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_atmegadci, OID_AUTO, debug, CTLFLAG_RWTUN,
     &atmegadci_debug, 0, "ATMEGA DCI debug level");
 #endif
 

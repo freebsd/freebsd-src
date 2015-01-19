@@ -11,7 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "Windows.h"
+#include "WindowsSupport.h"
 
 #ifdef __MINGW32__
  #include <imagehlp.h>
@@ -58,7 +58,7 @@ extern "C" {
         stricmp(ModuleName, "msvcr70") != 0 &&
 #ifndef __MINGW32__
         // Mingw32 uses msvcrt.dll by default. Don't ignore it.
-        // Otherwise, user should be aware, what he's doing :)
+        // Otherwise the user should be aware what they are doing.
         stricmp(ModuleName, "msvcrt") != 0 &&
 #endif
         stricmp(ModuleName, "msvcrt20") != 0 &&
@@ -85,7 +85,7 @@ DynamicLibrary DynamicLibrary::getPermanentLibrary(const char *filename,
   }
 
   SmallVector<wchar_t, MAX_PATH> filenameUnicode;
-  if (error_code ec = windows::UTF8ToUTF16(filename, filenameUnicode)) {
+  if (std::error_code ec = windows::UTF8ToUTF16(filename, filenameUnicode)) {
     SetLastError(ec.value());
     MakeErrMsg(errMsg, std::string(filename) + ": Can't convert to UTF-16: ");
     return DynamicLibrary();

@@ -42,12 +42,12 @@ using namespace lldb_private;
 static OptionDefinition
 g_option_table[] =
 {
-    { LLDB_OPT_SET_1, false, "num-per-line" ,'l', OptionParser::eRequiredArgument, NULL, 0, eArgTypeNumberPerLine ,"The number of items per line to display."},
-    { LLDB_OPT_SET_2, false, "binary"       ,'b', OptionParser::eNoArgument      , NULL, 0, eArgTypeNone          ,"If true, memory will be saved as binary. If false, the memory is saved save as an ASCII dump that uses the format, size, count and number per line settings."},
-    { LLDB_OPT_SET_3, true , "type"         ,'t', OptionParser::eRequiredArgument, NULL, 0, eArgTypeNone          ,"The name of a type to view memory as."},
+    { LLDB_OPT_SET_1, false, "num-per-line" ,'l', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeNumberPerLine ,"The number of items per line to display."},
+    { LLDB_OPT_SET_2, false, "binary"       ,'b', OptionParser::eNoArgument      , NULL, NULL, 0, eArgTypeNone          ,"If true, memory will be saved as binary. If false, the memory is saved save as an ASCII dump that uses the format, size, count and number per line settings."},
+    { LLDB_OPT_SET_3, true , "type"         ,'t', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeNone          ,"The name of a type to view memory as."},
     { LLDB_OPT_SET_1|
       LLDB_OPT_SET_2|
-      LLDB_OPT_SET_3, false, "force"        ,'r', OptionParser::eNoArgument,       NULL, 0, eArgTypeNone          ,"Necessary if reading over target.max-memory-read-size bytes."},
+      LLDB_OPT_SET_3, false, "force"        ,'r', OptionParser::eNoArgument,       NULL, NULL, 0, eArgTypeNone          ,"Necessary if reading over target.max-memory-read-size bytes."},
 };
 
 
@@ -651,7 +651,7 @@ protected:
             }
             else if (m_format_options.GetCountValue().OptionWasSet())
             {
-                result.AppendErrorWithFormat("specify either the end address (0x%" PRIx64 ") or the count (--count %zu), not both.\n", end_addr, item_count);
+                result.AppendErrorWithFormat("specify either the end address (0x%" PRIx64 ") or the count (--count %" PRIu64 "), not both.\n", end_addr, (uint64_t)item_count);
                 result.SetStatus(eReturnStatusFailed);
                 return false;
             }
@@ -685,7 +685,7 @@ protected:
             data_sp.reset (new DataBufferHeap (total_byte_size, '\0'));
             if (data_sp->GetBytes() == NULL)
             {
-                result.AppendErrorWithFormat ("can't allocate 0x%zx bytes for the memory read buffer, specify a smaller size to read", total_byte_size);
+                result.AppendErrorWithFormat ("can't allocate 0x%" PRIx32 " bytes for the memory read buffer, specify a smaller size to read", (uint32_t)total_byte_size);
                 result.SetStatus(eReturnStatusFailed);
                 return false;
             }
@@ -708,7 +708,7 @@ protected:
             }
             
             if (bytes_read < total_byte_size)
-                result.AppendWarningWithFormat("Not all bytes (%zu/%zu) were able to be read from 0x%" PRIx64 ".\n", bytes_read, total_byte_size, addr);
+                result.AppendWarningWithFormat("Not all bytes (%" PRIu64 "/%" PRIu64 ") were able to be read from 0x%" PRIx64 ".\n", (uint64_t)bytes_read, (uint64_t)total_byte_size, addr);
         }
         else
         {
@@ -878,7 +878,7 @@ protected:
                 // here we passed a count, and it was not 1
                 // so we have a byte_size and a count
                 // we could well multiply those, but instead let's just fail
-                result.AppendErrorWithFormat("reading memory as characters of size %zu is not supported", item_byte_size);
+                result.AppendErrorWithFormat("reading memory as characters of size %" PRIu64 " is not supported", (uint64_t)item_byte_size);
                 result.SetStatus(eReturnStatusFailed);
                 return false;
             }
@@ -917,10 +917,10 @@ protected:
 OptionDefinition
 g_memory_find_option_table[] =
 {
-    { LLDB_OPT_SET_1, false, "expression", 'e', OptionParser::eRequiredArgument, NULL, 0, eArgTypeExpression, "Evaluate an expression to obtain a byte pattern."},
-    { LLDB_OPT_SET_2, false, "string", 's', OptionParser::eRequiredArgument, NULL, 0, eArgTypeName,   "Use text to find a byte pattern."},
-    { LLDB_OPT_SET_1|LLDB_OPT_SET_2, false, "count", 'c', OptionParser::eRequiredArgument, NULL, 0, eArgTypeCount,   "How many times to perform the search."},
-    { LLDB_OPT_SET_1|LLDB_OPT_SET_2, false, "dump-offset", 'o', OptionParser::eRequiredArgument, NULL, 0, eArgTypeOffset,   "When dumping memory for a match, an offset from the match location to start dumping from."},
+    { LLDB_OPT_SET_1, false, "expression", 'e', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeExpression, "Evaluate an expression to obtain a byte pattern."},
+    { LLDB_OPT_SET_2, false, "string", 's', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeName,   "Use text to find a byte pattern."},
+    { LLDB_OPT_SET_1|LLDB_OPT_SET_2, false, "count", 'c', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeCount,   "How many times to perform the search."},
+    { LLDB_OPT_SET_1|LLDB_OPT_SET_2, false, "dump-offset", 'o', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeOffset,   "When dumping memory for a match, an offset from the match location to start dumping from."},
 };
 
 //----------------------------------------------------------------------
@@ -1223,8 +1223,8 @@ protected:
 OptionDefinition
 g_memory_write_option_table[] =
 {
-{ LLDB_OPT_SET_1, true,  "infile", 'i', OptionParser::eRequiredArgument, NULL, 0, eArgTypeFilename, "Write memory using the contents of a file."},
-{ LLDB_OPT_SET_1, false, "offset", 'o', OptionParser::eRequiredArgument, NULL, 0, eArgTypeOffset,   "Start writng bytes from an offset within the input file."},
+{ LLDB_OPT_SET_1, true,  "infile", 'i', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeFilename, "Write memory using the contents of a file."},
+{ LLDB_OPT_SET_1, false, "offset", 'o', OptionParser::eRequiredArgument, NULL, NULL, 0, eArgTypeOffset,   "Start writing bytes from an offset within the input file."},
 };
 
 //----------------------------------------------------------------------
@@ -1536,7 +1536,7 @@ protected:
                 }
                 else if (!UIntValueIsValidForSize (uval64, item_byte_size))
                 {
-                    result.AppendErrorWithFormat ("Value 0x%" PRIx64 " is too large to fit in a %zu byte unsigned integer value.\n", uval64, item_byte_size);
+                    result.AppendErrorWithFormat("Value 0x%" PRIx64 " is too large to fit in a %" PRIu64 " byte unsigned integer value.\n", uval64, (uint64_t)item_byte_size);
                     result.SetStatus(eReturnStatusFailed);
                     return false;
                 }
@@ -1564,7 +1564,7 @@ protected:
                 }
                 else if (!UIntValueIsValidForSize (uval64, item_byte_size))
                 {
-                    result.AppendErrorWithFormat ("Value 0x%" PRIx64 " is too large to fit in a %zu byte unsigned integer value.\n", uval64, item_byte_size);
+                    result.AppendErrorWithFormat("Value 0x%" PRIx64 " is too large to fit in a %" PRIu64 " byte unsigned integer value.\n", uval64, (uint64_t)item_byte_size);
                     result.SetStatus(eReturnStatusFailed);
                     return false;
                 }
@@ -1604,7 +1604,7 @@ protected:
                 }
                 else if (!SIntValueIsValidForSize (sval64, item_byte_size))
                 {
-                    result.AppendErrorWithFormat ("Value %" PRIi64 " is too large or small to fit in a %zu byte signed integer value.\n", sval64, item_byte_size);
+                    result.AppendErrorWithFormat ("Value %" PRIi64 " is too large or small to fit in a %" PRIu64 " byte signed integer value.\n", sval64, (uint64_t)item_byte_size);
                     result.SetStatus(eReturnStatusFailed);
                     return false;
                 }
@@ -1621,7 +1621,7 @@ protected:
                 }
                 else if (!UIntValueIsValidForSize (uval64, item_byte_size))
                 {
-                    result.AppendErrorWithFormat ("Value %" PRIu64 " is too large to fit in a %zu byte unsigned integer value.\n", uval64, item_byte_size);
+                    result.AppendErrorWithFormat ("Value %" PRIu64 " is too large to fit in a %" PRIu64 " byte unsigned integer value.\n", uval64, (uint64_t)item_byte_size);
                     result.SetStatus(eReturnStatusFailed);
                     return false;
                 }
@@ -1638,7 +1638,7 @@ protected:
                 }
                 else if (!UIntValueIsValidForSize (uval64, item_byte_size))
                 {
-                    result.AppendErrorWithFormat ("Value %" PRIo64 " is too large to fit in a %zu byte unsigned integer value.\n", uval64, item_byte_size);
+                    result.AppendErrorWithFormat ("Value %" PRIo64 " is too large to fit in a %" PRIu64 " byte unsigned integer value.\n", uval64, (uint64_t)item_byte_size);
                     result.SetStatus(eReturnStatusFailed);
                     return false;
                 }

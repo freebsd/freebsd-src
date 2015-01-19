@@ -63,7 +63,6 @@ struct tpcl_softc {
 	int cur_tag_num;
 };
 
-extern struct ctl_softc *control_softc;
 static struct tpcl_softc tpcl_softc;
 
 static int tpcl_init(void);
@@ -87,7 +86,6 @@ CTL_FRONTEND_DECLARE(ctltpc, tpcl_frontend);
 static int
 tpcl_init(void)
 {
-	struct ctl_softc *softc = control_softc;
 	struct tpcl_softc *tsoftc = &tpcl_softc;
 	struct ctl_port *port;
 	struct scsi_transportid_spi *tid;
@@ -112,7 +110,7 @@ tpcl_init(void)
 	port->max_target_id = 0;
 	port->max_initiators = 1;
 
-	if (ctl_port_register(port, (softc->flags & CTL_FLAG_MASTER_SHELF)) != 0) 
+	if (ctl_port_register(port) != 0)
 	{
 		printf("%s: tpc frontend registration failed\n", __func__);
 		return (0);
@@ -310,9 +308,9 @@ tpcl_done(union ctl_io *io)
 }
 
 uint64_t
-tpcl_resolve(int init_port, struct scsi_ec_cscd *cscd, uint32_t *ss)
+tpcl_resolve(struct ctl_softc *softc, int init_port,
+    struct scsi_ec_cscd *cscd, uint32_t *ss)
 {
-	struct ctl_softc *softc = control_softc;
 	struct scsi_ec_cscd_id *cscdid;
 	struct ctl_port *port;
 	struct ctl_lun *lun;

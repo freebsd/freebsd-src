@@ -42,7 +42,6 @@ FILES=	DAEMON \
 	dhclient \
 	dmesg \
 	dumpon \
-	faith \
 	fsck \
 	ftpd \
 	gbde \
@@ -91,7 +90,6 @@ FILES=	DAEMON \
 	mountd \
 	moused \
 	mroute6d \
-	mrouted \
 	msgs \
 	natd \
 	netif \

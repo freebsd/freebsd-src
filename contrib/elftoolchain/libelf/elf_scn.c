@@ -32,11 +32,12 @@
 #include <gelf.h>
 #include <libelf.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #include "_libelf.h"
 
-ELFTC_VCSID("$Id: elf_scn.c 2225 2011-11-26 18:55:54Z jkoshy $");
+ELFTC_VCSID("$Id: elf_scn.c 3013 2014-03-23 06:16:59Z jkoshy $");
 
 /*
  * Load an ELF section table and create a list of Elf_Scn structures.
@@ -44,22 +45,25 @@ ELFTC_VCSID("$Id: elf_scn.c 2225 2011-11-26 18:55:54Z jkoshy $");
 int
 _libelf_load_section_headers(Elf *e, void *ehdr)
 {
-	int ec, swapbytes;
-	size_t fsz, i, shnum;
+	Elf_Scn *scn;
 	uint64_t shoff;
-	char *src;
 	Elf32_Ehdr *eh32;
 	Elf64_Ehdr *eh64;
-	Elf_Scn *scn;
-	int (*xlator)(char *_d, size_t _dsz, char *_s, size_t _c, int _swap);
+	int ec, swapbytes;
+	unsigned char *src;
+	size_t fsz, i, shnum;
+	int (*xlator)(unsigned char *_d, size_t _dsz, unsigned char *_s,
+	    size_t _c, int _swap);
 
 	assert(e != NULL);
 	assert(ehdr != NULL);
 	assert((e->e_flags & LIBELF_F_SHDRS_LOADED) == 0);
 
 #define	CHECK_EHDR(E,EH)	do {				\
-		if (fsz != (EH)->e_shentsize ||			\
-		    shoff + fsz * shnum > e->e_rawsize) {	\
+		if (shoff > e->e_rawsize ||			\
+		    fsz != (EH)->e_shentsize ||			\
+		    shnum > SIZE_MAX / fsz ||			\
+		    fsz * shnum > e->e_rawsize - shoff) {	\
 			LIBELF_SET_ERROR(HEADER, 0);		\
 			return (0);				\
 		}						\
@@ -104,8 +108,8 @@ _libelf_load_section_headers(Elf *e, void *ehdr)
 		if ((scn = _libelf_allocate_scn(e, i)) == NULL)
 			return (0);
 
-		(*xlator)((char *) &scn->s_shdr, sizeof(scn->s_shdr), src,
-		    (size_t) 1, swapbytes);
+		(*xlator)((unsigned char *) &scn->s_shdr, sizeof(scn->s_shdr),
+		    src, (size_t) 1, swapbytes);
 
 		if (ec == ELFCLASS32) {
 			scn->s_offset = scn->s_rawoff =

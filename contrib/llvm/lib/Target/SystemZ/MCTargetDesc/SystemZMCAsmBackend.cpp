@@ -43,36 +43,26 @@ public:
     : OSABI(osABI) {}
 
   // Override MCAsmBackend
-  virtual unsigned getNumFixupKinds() const LLVM_OVERRIDE {
+  unsigned getNumFixupKinds() const override {
     return SystemZ::NumTargetFixupKinds;
   }
-  virtual const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const
-    LLVM_OVERRIDE;
-  virtual void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
-                          uint64_t Value) const LLVM_OVERRIDE;
-  virtual bool mayNeedRelaxation(const MCInst &Inst) const LLVM_OVERRIDE {
+  const MCFixupKindInfo &getFixupKindInfo(MCFixupKind Kind) const override;
+  void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
+                  uint64_t Value, bool IsPCRel) const override;
+  bool mayNeedRelaxation(const MCInst &Inst) const override {
     return false;
   }
-  virtual bool fixupNeedsRelaxation(const MCFixup &Fixup,
-                                    uint64_t Value,
-                                    const MCRelaxableFragment *Fragment,
-                                    const MCAsmLayout &Layout) const
-    LLVM_OVERRIDE {
+  bool fixupNeedsRelaxation(const MCFixup &Fixup, uint64_t Value,
+                            const MCRelaxableFragment *Fragment,
+                            const MCAsmLayout &Layout) const override {
     return false;
   }
-  virtual void relaxInstruction(const MCInst &Inst,
-                                MCInst &Res) const LLVM_OVERRIDE {
+  void relaxInstruction(const MCInst &Inst, MCInst &Res) const override {
     llvm_unreachable("SystemZ does do not have assembler relaxation");
   }
-  virtual bool writeNopData(uint64_t Count,
-                            MCObjectWriter *OW) const LLVM_OVERRIDE;
-  virtual MCObjectWriter *createObjectWriter(raw_ostream &OS) const
-    LLVM_OVERRIDE {
+  bool writeNopData(uint64_t Count, MCObjectWriter *OW) const override;
+  MCObjectWriter *createObjectWriter(raw_ostream &OS) const override {
     return createSystemZObjectWriter(OS, OSABI);
-  }
-  virtual bool doesSectionRequireSymbols(const MCSection &Section) const
-    LLVM_OVERRIDE {
-    return false;
   }
 };
 } // end anonymous namespace
@@ -95,7 +85,8 @@ SystemZMCAsmBackend::getFixupKindInfo(MCFixupKind Kind) const {
 }
 
 void SystemZMCAsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
-                                     unsigned DataSize, uint64_t Value) const {
+                                     unsigned DataSize, uint64_t Value,
+                                     bool IsPCRel) const {
   MCFixupKind Kind = Fixup.getKind();
   unsigned Offset = Fixup.getOffset();
   unsigned Size = (getFixupKindInfo(Kind).TargetSize + 7) / 8;

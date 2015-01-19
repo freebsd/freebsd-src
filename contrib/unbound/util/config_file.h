@@ -192,6 +192,8 @@ struct config_file {
 	char* chrootdir;
 	/** username to change to, if not "". */
 	char* username;
+	uid_t uid;
+	gid_t gid;
 	/** working directory */
 	char* directory;
 	/** filename to log to. */
@@ -282,6 +284,8 @@ struct config_file {
 	struct config_strlist* control_ifs;
 	/** port number for the control port */
 	int control_port;
+	/** use certificates for remote control */
+	int remote_control_use_cert;
 	/** private key file for server */
 	char* server_key_file;
 	/** certificate file for server */
@@ -305,6 +309,38 @@ struct config_file {
 
 	/* maximum UDP response size */
 	size_t max_udp_size;
+
+	/* DNS64 prefix */
+	char* dns64_prefix;
+
+	/* Synthetize all AAAA record despite the presence of an authoritative one */
+	int dns64_synthall;
+
+	/** true to enable dnstap support */
+	int dnstap;
+	/** dnstap socket path */
+	char* dnstap_socket_path;
+	/** true to send "identity" via dnstap */
+	int dnstap_send_identity;
+	/** true to send "version" via dnstap */
+	int dnstap_send_version;
+	/** dnstap "identity", hostname is used if "". */
+	char* dnstap_identity;
+	/** dnstap "version", package version is used if "". */
+	char* dnstap_version;
+
+	/** true to log dnstap RESOLVER_QUERY message events */
+	int dnstap_log_resolver_query_messages;
+	/** true to log dnstap RESOLVER_RESPONSE message events */
+	int dnstap_log_resolver_response_messages;
+	/** true to log dnstap CLIENT_QUERY message events */
+	int dnstap_log_client_query_messages;
+	/** true to log dnstap CLIENT_RESPONSE message events */
+	int dnstap_log_client_response_messages;
+	/** true to log dnstap FORWARDER_QUERY message events */
+	int dnstap_log_forwarder_query_messages;
+	/** true to log dnstap FORWARDER_RESPONSE message events */
+	int dnstap_log_forwarder_response_messages;
 };
 
 /**
@@ -389,6 +425,12 @@ void config_delete(struct config_file* config);
  * @param config: to apply. Side effect: global constants change.
  */
 void config_apply(struct config_file* config);
+
+/**
+ * Find username, sets uid and gid.
+ * @param config: the config structure.
+ */
+void config_lookup_uid(struct config_file* config);
 
 /**
  * Set the given keyword to the given value.

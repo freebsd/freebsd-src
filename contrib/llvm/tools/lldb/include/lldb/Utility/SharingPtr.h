@@ -15,7 +15,7 @@
 
 // Microsoft Visual C++ currently does not enable std::atomic to work
 // in CLR mode - as such we need to "hack around it" for MSVC++ builds only
-// using Windows specific instrinsics instead of the C++11 atomic support
+// using Windows specific intrinsics instead of the C++11 atomic support
 #ifdef _MSC_VER
 #include <intrin.h>
 #else
@@ -69,8 +69,8 @@ public:
 private:
     virtual void on_zero_shared();
 
-    // Outlaw copy constructor and assignment operator to keep effictive C++
-    // warnings down to a minumum
+    // Outlaw copy constructor and assignment operator to keep effective C++
+    // warnings down to a minimum
     shared_ptr_pointer (const shared_ptr_pointer &);
     shared_ptr_pointer & operator=(const shared_ptr_pointer &);
 };
@@ -138,6 +138,7 @@ private:
     struct nat {int for_bool_;};
 public:
     SharingPtr();
+    SharingPtr(std::nullptr_t);
     template<class Y> explicit SharingPtr(Y* p);
     template<class Y> explicit SharingPtr(Y* p, imp::shared_count *ctrl_block);
     template<class Y> SharingPtr(const SharingPtr<Y>& r, element_type *p); 
@@ -189,6 +190,14 @@ inline
 SharingPtr<T>::SharingPtr()
     : ptr_(0),
       cntrl_(0)
+{
+}
+    
+template<class T>
+inline
+SharingPtr<T>::SharingPtr(std::nullptr_t)
+: ptr_(0),
+cntrl_(0)
 {
 }
 

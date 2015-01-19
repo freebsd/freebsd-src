@@ -5,6 +5,7 @@
 .PATH: ${LIBC_SRCTOP}/${LIBC_ARCH}/gen ${LIBC_SRCTOP}/gen
 
 SRCS+=	__getosreldate.c \
+	__pthread_mutex_init_calloc_cb_stub.c \
 	__xuname.c \
 	_once_stub.c \
 	_pthread_stubs.c \

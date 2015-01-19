@@ -95,7 +95,7 @@ bad_array_new_length& bad_array_new_length::operator=(const bad_array_new_length
 }
 
 __attribute__((weak))
-const char *bad_array_new_length::what() const throw()
+const char* bad_array_new_length::what() const throw()
 {
 	return "std::bad_array_new_length";
 }

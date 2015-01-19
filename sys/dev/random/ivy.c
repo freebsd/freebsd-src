@@ -61,42 +61,41 @@ static struct live_entropy_source random_ivy = {
 };
 
 static inline int
-ivy_rng_store(long *buf)
+ivy_rng_store(u_long *buf)
 {
 #ifdef __GNUCLIKE_ASM
-	long tmp;
+	u_long rndval;
 	int retry;
 
 	retry = RETRY_COUNT;
 	__asm __volatile(
 	    "1:\n\t"
-	    "rdrand	%2\n\t"	/* read randomness into tmp */
-	    "jb		2f\n\t" /* CF is set on success, exit retry loop */
+	    "rdrand	%1\n\t"	/* read randomness into rndval */
+	    "jc		2f\n\t" /* CF is set on success, exit retry loop */
 	    "dec	%0\n\t" /* otherwise, retry-- */
 	    "jne	1b\n\t" /* and loop if retries are not exhausted */
-	    "jmp	3f\n"	/* failure, retry is 0, used as return value */
-	    "2:\n\t"
-	    "mov	%2,%1\n\t" /* *buf = tmp */
-	    "3:"
-	    : "+q" (retry), "=m" (*buf), "+q" (tmp) : : "cc");
+	    "2:"
+	    : "+r" (retry), "=r" (rndval) : : "cc");
+	*buf = rndval;
 	return (retry);
 #else /* __GNUCLIKE_ASM */
 	return (0);
 #endif
 }
 
-/* It is specifically allowed that buf is a multiple of sizeof(long) */
+/* It is required that buf length is a multiple of sizeof(u_long). */
 static u_int
 random_ivy_read(void *buf, u_int c)
 {
-	long *b;
+	u_long *b, rndval;
 	u_int count;
 
 	KASSERT(c % sizeof(*b) == 0, ("partial read %d", c));
 	b = buf;
 	for (count = c; count > 0; count -= sizeof(*b)) {
-		if (ivy_rng_store(b++) == 0)
+		if (ivy_rng_store(&rndval) == 0)
 			break;
+		*b++ = rndval;
 	}
 	return (c - count);
 }
@@ -133,4 +132,4 @@ rdrand_modevent(module_t mod, int type, void *unused)
 
 DEV_MODULE(rdrand, rdrand_modevent, NULL);
 MODULE_VERSION(rdrand, 1);
-MODULE_DEPEND(rdrand, random_adaptors, 1, 1, 1);
+MODULE_DEPEND(rdrand, randomdev, 1, 1, 1);

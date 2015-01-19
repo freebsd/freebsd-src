@@ -78,6 +78,13 @@ Symtab::GetNumSymbols() const
 }
 
 void
+Symtab::SectionFileAddressesChanged ()
+{
+    m_name_to_index.Clear();
+    m_file_addr_to_index_computed = false;
+}
+
+void
 Symtab::Dump (Stream *s, Target *target, SortOrder sort_order)
 {
     Mutex::Locker locker (m_mutex);
@@ -85,19 +92,19 @@ Symtab::Dump (Stream *s, Target *target, SortOrder sort_order)
 //    s->Printf("%.*p: ", (int)sizeof(void*) * 2, this);
     s->Indent();
     const FileSpec &file_spec = m_objfile->GetFileSpec();
-    const char * object_name = NULL;
+    const char * object_name = nullptr;
     if (m_objfile->GetModule())
         object_name = m_objfile->GetModule()->GetObjectName().GetCString();
 
     if (file_spec)
-        s->Printf("Symtab, file = %s%s%s%s, num_symbols = %zu",
+        s->Printf("Symtab, file = %s%s%s%s, num_symbols = %" PRIu64,
         file_spec.GetPath().c_str(),
         object_name ? "(" : "",
         object_name ? object_name : "",
         object_name ? ")" : "",
-        m_symbols.size());
+        (uint64_t)m_symbols.size());
     else
-        s->Printf("Symtab, num_symbols = %zu", m_symbols.size());
+        s->Printf("Symtab, num_symbols = %" PRIu64 "", (uint64_t)m_symbols.size());
 
     if (!m_symbols.empty())
     {
@@ -166,7 +173,7 @@ Symtab::Dump(Stream *s, Target *target, std::vector<uint32_t>& indexes) const
     const size_t num_symbols = GetNumSymbols();
     //s->Printf("%.*p: ", (int)sizeof(void*) * 2, this);
     s->Indent();
-    s->Printf("Symtab %zu symbol indexes (%zu symbols total):\n", indexes.size(), m_symbols.size());
+    s->Printf("Symtab %" PRIu64 " symbol indexes (%" PRIu64 " symbols total):\n", (uint64_t)indexes.size(), (uint64_t)m_symbols.size());
     s->IndentMore();
 
     if (!indexes.empty())
@@ -232,7 +239,7 @@ Symtab::SymbolAtIndex(size_t idx)
     // when calling this function to avoid performance issues.
     if (idx < m_symbols.size())
         return &m_symbols[idx];
-    return NULL;
+    return nullptr;
 }
 
 
@@ -243,7 +250,7 @@ Symtab::SymbolAtIndex(size_t idx) const
     // when calling this function to avoid performance issues.
     if (idx < m_symbols.size())
         return &m_symbols[idx];
-    return NULL;
+    return nullptr;
 }
 
 //----------------------------------------------------------------------
@@ -286,7 +293,7 @@ Symtab::InitNameIndexes()
         // The "const char *" in "class_contexts" must come from a ConstString::GetCString()
         std::set<const char *> class_contexts;
         UniqueCStringMap<uint32_t> mangled_name_to_index;
-        std::vector<const char *> symbol_contexts(num_symbols, NULL);
+        std::vector<const char *> symbol_contexts(num_symbols, nullptr);
 
         for (entry.value = 0; entry.value<num_symbols; ++entry.value)
         {
@@ -776,7 +783,7 @@ Symtab::FindSymbolWithType (SymbolType symbol_type, Debug symbol_debug_type, Vis
             }
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 size_t
@@ -854,7 +861,7 @@ Symtab::FindFirstSymbolWithNameAndType (const ConstString &name, SymbolType symb
             }
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 typedef struct
@@ -867,36 +874,10 @@ typedef struct
 } SymbolSearchInfo;
 
 static int
-SymbolWithFileAddress (SymbolSearchInfo *info, const uint32_t *index_ptr)
-{
-    const Symbol *curr_symbol = info->symtab->SymbolAtIndex (index_ptr[0]);
-    if (curr_symbol == NULL)
-        return -1;
-
-    const addr_t info_file_addr = info->file_addr;
-
-    // lldb::Symbol::GetAddressRangePtr() will only return a non NULL address
-    // range if the symbol has a section!
-    if (curr_symbol->ValueIsAddress())
-    {
-        const addr_t curr_file_addr = curr_symbol->GetAddress().GetFileAddress();
-        if (info_file_addr < curr_file_addr)
-            return -1;
-        if (info_file_addr > curr_file_addr)
-            return +1;
-        info->match_symbol = const_cast<Symbol *>(curr_symbol);
-        info->match_index_ptr = index_ptr;
-        return 0;
-    }
-
-    return -1;
-}
-
-static int
 SymbolWithClosestFileAddress (SymbolSearchInfo *info, const uint32_t *index_ptr)
 {
     const Symbol *symbol = info->symtab->SymbolAtIndex (index_ptr[0]);
-    if (symbol == NULL)
+    if (symbol == nullptr)
         return -1;
 
     const addr_t info_file_addr = info->file_addr;
@@ -920,19 +901,6 @@ SymbolWithClosestFileAddress (SymbolSearchInfo *info, const uint32_t *index_ptr)
     }
     return -1;
 }
-
-static SymbolSearchInfo
-FindIndexPtrForSymbolContainingAddress(Symtab* symtab, addr_t file_addr, const uint32_t* indexes, uint32_t num_indexes)
-{
-    SymbolSearchInfo info = { symtab, file_addr, NULL, NULL, 0 };
-    ::bsearch (&info, 
-               indexes, 
-               num_indexes, 
-               sizeof(uint32_t), 
-               (ComparisonFunction)SymbolWithClosestFileAddress);
-    return info;
-}
-
 
 void
 Symtab::InitAddressIndexes()
@@ -1034,7 +1002,7 @@ Symtab::FindSymbolContainingFileAddress (addr_t file_addr, const uint32_t* index
     Mutex::Locker locker (m_mutex);
 
     
-    SymbolSearchInfo info = { this, file_addr, NULL, NULL, 0 };
+    SymbolSearchInfo info = { this, file_addr, nullptr, nullptr, 0 };
 
     ::bsearch (&info, 
                indexes, 
@@ -1064,7 +1032,7 @@ Symtab::FindSymbolContainingFileAddress (addr_t file_addr, const uint32_t* index
         if (info.match_offset < symbol_byte_size)
             return info.match_symbol;
     }
-    return NULL;
+    return nullptr;
 }
 
 Symbol *
@@ -1078,7 +1046,7 @@ Symtab::FindSymbolContainingFileAddress (addr_t file_addr)
     const FileRangeToIndexMap::Entry *entry = m_file_addr_to_index.FindEntryThatContains(file_addr);
     if (entry)
         return SymbolAtIndex(entry->data);
-    return NULL;
+    return nullptr;
 }
 
 void
@@ -1157,7 +1125,7 @@ Symtab::FindFunctionSymbols (const ConstString &name,
         {
             const UniqueCStringMap<uint32_t>::Entry *match;
             for (match = m_basename_to_index.FindFirstValueForName(name_cstr);
-                 match != NULL;
+                 match != nullptr;
                  match = m_basename_to_index.FindNextValueForName(match))
             {
                 symbol_indexes.push_back(match->value);
@@ -1174,7 +1142,7 @@ Symtab::FindFunctionSymbols (const ConstString &name,
         {
             const UniqueCStringMap<uint32_t>::Entry *match;
             for (match = m_method_to_index.FindFirstValueForName(name_cstr);
-                 match != NULL;
+                 match != nullptr;
                  match = m_method_to_index.FindNextValueForName(match))
             {
                 symbol_indexes.push_back(match->value);
@@ -1191,7 +1159,7 @@ Symtab::FindFunctionSymbols (const ConstString &name,
         {
             const UniqueCStringMap<uint32_t>::Entry *match;
             for (match = m_selector_to_index.FindFirstValueForName(name_cstr);
-                 match != NULL;
+                 match != nullptr;
                  match = m_selector_to_index.FindNextValueForName(match))
             {
                 symbol_indexes.push_back(match->value);

@@ -1,5 +1,6 @@
+
 #------------------------------------------------------------------------------
-# $File: sereal,v 1.1 2014/05/14 23:04:59 christos Exp $
+# $File: sereal,v 1.2 2014/11/11 20:10:49 christos Exp $
 # sereal: file(1) magic the Sereal binary serialization format
 #
 # From: Ævar Arnfjörð Bjarmason <avarab@gmail.com>
@@ -15,10 +16,10 @@
 #
 # See https://github.com/Sereal/Sereal/commit/35372ae01d in the
 # Sereal.git repository for test Sereal data.
-0      string             \=srl   Sereal data
+0	string		\=srl   Sereal data
 !:mime application/sereal
->4     byte&0x0F          x       (version %d,
->4     byte&0xF0          0x00    uncompressed)
->4     byte&0xF0          0x10    compressed with non-incremental Snappy)
->4     byte&0xF0          0x20    compressed with incremental Snappy)
->4     byte&0xF0          >0x20   unknown subformat, flag: %d>>4)
+>4	byte&0x0F	x	(version %d,
+>4	byte&0xF0	0x00	uncompressed)
+>4	byte&0xF0	0x10	compressed with non-incremental Snappy)
+>4	byte&0xF0	0x20	compressed with incremental Snappy)
+>4	byte&0xF0	>0x20	unknown subformat, flag: %d>>4)

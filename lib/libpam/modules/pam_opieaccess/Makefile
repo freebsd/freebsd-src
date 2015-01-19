@@ -4,7 +4,6 @@ LIB=	pam_opieaccess
 SRCS=	${LIB}.c
 MAN=	pam_opieaccess.8
 
-DPADD=	${LIBOPIE}
-LDADD=	-lopie
+LIBADD+=	opie
 
 .include <bsd.lib.mk>

@@ -57,7 +57,7 @@ ATF_TC_BODY(getgroups_err, tc)
 
 	errno = 0;
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	atf_tc_expect_fail("Reported as kern/189941");
 #endif
 	ATF_REQUIRE(getgroups(-1, gidset) == -1);

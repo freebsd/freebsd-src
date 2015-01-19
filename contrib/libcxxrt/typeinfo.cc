@@ -35,7 +35,7 @@ type_info::~type_info() {}
 
 bool type_info::operator==(const type_info &other) const
 {
-#ifdef LIBCXXRT_MERGED_TYPEINFO	
+#ifdef LIBCXXRT_MERGED_TYPEINFO
 	return __type_name == other.__type_name;
 #else
 	return __type_name == other.__type_name || strcmp(__type_name, other.__type_name) == 0;
@@ -104,7 +104,7 @@ extern "C" char* __cxa_demangle(const char* mangled_name,
 		}
 		if (*n < len+1)
 		{
-			buf = (char*)realloc(buf, len+1);
+			buf = static_cast<char*>(realloc(buf, len+1));
 		}
 		if (0 != buf)
 		{

@@ -4,7 +4,6 @@ PROG=	npestats
 SRCS=	main.c npestats.c
 BINDIR=	/usr/local/bin
 MAN=
-USEPRIVATELIB=
-LDADD=	-lbsdstat
+LIBADD=	bsdstat
 
 .include <bsd.prog.mk>

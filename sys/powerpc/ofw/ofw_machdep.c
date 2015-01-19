@@ -66,8 +66,8 @@ extern register_t ofmsr[5];
 extern void	*openfirmware_entry;
 static void	*fdt;
 int		ofw_real_mode;
-extern char     save_trap_init[0x2f00];          /* EXC_LAST */
-char            save_trap_of[0x2f00];            /* EXC_LAST */
+char		save_trap_init[0x2f00];          /* EXC_LAST */
+char		save_trap_of[0x2f00];            /* EXC_LAST */
 
 int		ofwcall(void *);
 static int	openfirmware(void *args);
@@ -141,11 +141,9 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 	cell_t address_cells, size_cells;
 	cell_t OFmem[4 * PHYS_AVAIL_SZ];
 	int sz, i, j;
-	int apple_hack_mode;
 	phandle_t phandle;
 
 	sz = 0;
-	apple_hack_mode = 0;
 
 	/*
 	 * Get #address-cells from root node, defaulting to 1 if it cannot
@@ -259,18 +257,30 @@ ofw_mem_regions(struct mem_region *memp, int *memsz,
 void
 OF_initial_setup(void *fdt_ptr, void *junk, int (*openfirm)(void *))
 {
+	ofmsr[0] = mfmsr();
+	#ifdef __powerpc64__
+	ofmsr[0] &= ~PSL_SF;
+	#endif
+	__asm __volatile("mfsprg0 %0" : "=&r"(ofmsr[1]));
+	__asm __volatile("mfsprg1 %0" : "=&r"(ofmsr[2]));
+	__asm __volatile("mfsprg2 %0" : "=&r"(ofmsr[3]));
+	__asm __volatile("mfsprg3 %0" : "=&r"(ofmsr[4]));
+
 	if (ofmsr[0] & PSL_DR)
 		ofw_real_mode = 0;
 	else
 		ofw_real_mode = 1;
 
 	fdt = fdt_ptr;
+	openfirmware_entry = openfirm;
 
 	#ifdef FDT_DTB_STATIC
 	/* Check for a statically included blob */
 	if (fdt == NULL)
 		fdt = &fdt_static_dtb;
 	#endif
+
+	ofw_save_trap_vec(save_trap_init);
 }
 
 boolean_t
@@ -327,6 +337,9 @@ openfirmware_core(void *args)
 {
 	int		result;
 	register_t	oldmsr;
+
+	if (openfirmware_entry == NULL)
+		return (-1);
 
 	/*
 	 * Turn off exceptions - we really don't want to end up
@@ -402,7 +415,12 @@ openfirmware(void *args)
 	int result;
 	#ifdef SMP
 	struct ofw_rv_args rv_args;
+	#endif
 
+	if (openfirmware_entry == NULL)
+		return (-1);
+
+	#ifdef SMP
 	rv_args.args = args;
 	rv_args.in_progress = 1;
 	smp_rendezvous(smp_no_rendevous_barrier, ofw_rendezvous_dispatch,

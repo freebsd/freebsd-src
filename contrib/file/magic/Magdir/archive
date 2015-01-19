@@ -1,5 +1,5 @@
 #------------------------------------------------------------------------------
-# $File: archive,v 1.87 2014/06/03 19:15:58 christos Exp $
+# $File: archive,v 1.88 2014/08/16 10:42:17 christos Exp $
 # archive:  file(1) magic for archive formats (see also "msdos" for self-
 #           extracting compressed archives)
 #
@@ -954,34 +954,3 @@
 >0xE08	search/7776		\x55\xAA	
 >>&-512	indirect		x		\b; contains 
 
-# Symantec GHOST image by Joerg Jenderek at May 2014
-# http://us.norton.com/ghost/
-# http://www.garykessler.net/library/file_sigs.html
-0		ubelong&0xFFFFf7f0	0xFEEF0100	Norton GHost image
-# *.GHO
->2		ubyte&0x08		0x00		\b, first file
-# *.GHS or *.[0-9] with cns program option
->2		ubyte&0x08		0x08		\b, split file
-# part of split index interesting for *.ghs
->>4		ubyte			x		id=0x%x
-# compression tag minus one equals numeric compression command line switch z[1-9]
->3		ubyte			0		\b, no compression
->3		ubyte			2		\b, fast compression (Z1)
->3		ubyte			3		\b, medium compression (Z2)
->3		ubyte			>3		
->>3		ubyte			<11		\b, compression (Z%d-1)
->2		ubyte&0x08		0x00		
-# ~ 30 byte password field only for *.gho
->>12		ubequad			!0		\b, password protected
->>44		ubyte			!1		
-# 1~Image All, sector-by-sector only for *.gho
->>>10		ubyte			1		\b, sector copy
-# 1~Image Boot track only for *.gho
->>>43		ubyte			1		\b, boot track
-# 1~Image Disc only for *.gho implies Image Boot track and sector copy
->>44		ubyte			1		\b, disc sector copy
-# optional image description only *.gho
->>0xff		string			>\0		"%-.254s"
-# look for DOS sector end sequence
->0xE08	search/7776		\x55\xAA	
->>&-512	indirect		x		\b; contains 

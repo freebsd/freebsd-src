@@ -1060,6 +1060,11 @@ sys_sigreturn(td, uap)
 	if (error != 0)
 		return (error);
 	ucp = &uc;
+	if ((ucp->uc_mcontext.mc_flags & ~_MC_FLAG_MASK) != 0) {
+		uprintf("pid %d (%s): sigreturn mc_flags %x\n", p->p_pid,
+		    td->td_name, ucp->uc_mcontext.mc_flags);
+		return (EINVAL);
+	}
 	regs = td->td_frame;
 	eflags = ucp->uc_mcontext.mc_eflags;
 	if (eflags & PSL_VM) {
@@ -1475,7 +1480,7 @@ cpu_idle(int busy)
 
 #ifndef XEN
 	/* Apply AMD APIC timer C1E workaround. */
-	if (cpu_ident_amdc1e && cpu_disable_deep_sleep) {
+	if (cpu_ident_amdc1e && cpu_disable_c3_sleep) {
 		msr = rdmsr(MSR_AMDK8_IPM);
 		if (msr & AMDK8_CMPHALT)
 			wrmsr(MSR_AMDK8_IPM, msr & ~AMDK8_CMPHALT);
@@ -3858,7 +3863,8 @@ set_mcontext(struct thread *td, const mcontext_t *mcp)
 	int eflags, ret;
 
 	tp = td->td_frame;
-	if (mcp->mc_len != sizeof(*mcp))
+	if (mcp->mc_len != sizeof(*mcp) ||
+	    (mcp->mc_flags & ~_MC_FLAG_MASK) != 0)
 		return (EINVAL);
 	eflags = (mcp->mc_eflags & PSL_USERCHANGE) |
 	    (tp->tf_eflags & ~PSL_USERCHANGE);

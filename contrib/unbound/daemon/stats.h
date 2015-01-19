@@ -91,6 +91,8 @@ struct server_stats {
 	size_t qopcode[STATS_OPCODE_NUM];
 	/** number of queries over TCP */
 	size_t qtcp;
+	/** number of outgoing queries over TCP */
+	size_t qtcp_outgoing;
 	/** number of queries over IPv6 */
 	size_t qipv6;
 	/** number of queries with QR bit */
@@ -133,6 +135,15 @@ struct server_stats {
 	 * if all histograms are same size (is so by default) then
 	 * adding up works well. */
 	size_t hist[NUM_BUCKETS_HIST];
+	
+	/** number of message cache entries */
+	size_t msg_cache_count;
+	/** number of rrset cache entries */
+	size_t rrset_cache_count;
+	/** number of infra cache entries */
+	size_t infra_cache_count;
+	/** number of key cache entries */
+	size_t key_cache_count;
 };
 
 /** 

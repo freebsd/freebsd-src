@@ -13,15 +13,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/InitializePasses.h"
-#include "llvm/PassRegistry.h"
 #include "llvm-c/Initialization.h"
+#include "llvm/PassRegistry.h"
 
 using namespace llvm;
 
 /// initializeCodeGen - Initialize all passes linked into the CodeGen library.
 void llvm::initializeCodeGen(PassRegistry &Registry) {
+  initializeAtomicExpandLoadLinkedPass(Registry);
   initializeBasicTTIPass(Registry);
   initializeBranchFolderPassPass(Registry);
+  initializeCodeGenPreparePass(Registry);
   initializeDeadMachineInstructionElimPass(Registry);
   initializeEarlyIfConverterPass(Registry);
   initializeExpandPostRAPass(Registry);
@@ -51,6 +53,7 @@ void llvm::initializeCodeGen(PassRegistry &Registry) {
   initializeOptimizePHIsPass(Registry);
   initializePHIEliminationPass(Registry);
   initializePeepholeOptimizerPass(Registry);
+  initializePostMachineSchedulerPass(Registry);
   initializePostRASchedulerPass(Registry);
   initializeProcessImplicitDefsPass(Registry);
   initializePEIPass(Registry);
@@ -69,6 +72,7 @@ void llvm::initializeCodeGen(PassRegistry &Registry) {
   initializeVirtRegRewriterPass(Registry);
   initializeLowerIntrinsicsPass(Registry);
   initializeMachineFunctionPrinterPassPass(Registry);
+  initializeStackMapLivenessPass(Registry);
 }
 
 void LLVMInitializeCodeGen(LLVMPassRegistryRef R) {

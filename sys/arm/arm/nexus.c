@@ -39,6 +39,8 @@
  * and I/O memory address space.
  */
 
+#include "opt_platform.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -60,10 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include "opt_platform.h"
-
 #ifdef FDT
-#include <dev/fdt/fdt_common.h>
 #include <machine/fdt.h>
 #include "ofw_bus_if.h"
 #endif
@@ -351,28 +350,7 @@ static int
 nexus_ofw_map_intr(device_t dev, device_t child, phandle_t iparent, int icells,
     pcell_t *intr)
 {
-	fdt_pic_decode_t intr_decode;
-	phandle_t intr_parent;
-	int i, rv, interrupt, trig, pol;
 
-	intr_parent = OF_node_from_xref(iparent);
-	for (i = 0; i < icells; i++)
-		intr[i] = cpu_to_fdt32(intr[i]);
-
-	for (i = 0; fdt_pic_table[i] != NULL; i++) {
-		intr_decode = fdt_pic_table[i];
-		rv = intr_decode(intr_parent, intr, &interrupt, &trig, &pol);
-
-		if (rv == 0) {
-			/* This was recognized as our PIC and decoded. */
-			interrupt = FDT_MAP_IRQ(intr_parent, interrupt);
-			return (interrupt);
-		}
-	}
-
-	/* Not in table, so guess */
-	interrupt = FDT_MAP_IRQ(intr_parent, fdt32_to_cpu(intr[0]));
-
-	return (interrupt);
+	return (arm_fdt_map_irq(iparent, intr, icells));
 }
 #endif

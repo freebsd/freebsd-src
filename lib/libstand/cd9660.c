@@ -151,9 +151,14 @@ susp_lookup_record(struct open_file *f, const char *identifier,
 				return (NULL);
 			p = susp_buffer + isonum_733(shc->offset);
 			end = p + isonum_733(shc->length);
-		} else
+		} else {
 			/* Ignore this record and skip to the next. */
 			p += isonum_711(sh->length);
+
+			/* Avoid infinite loops with corrupted file systems */
+			if (isonum_711(sh->length) == 0)
+				return (NULL);
+		}
 	}
 	return (NULL);
 }
@@ -281,7 +286,7 @@ cd9660_open(const char *path, struct open_file *f)
 	buf = malloc(buf_size = ISO_DEFAULT_BLOCK_SIZE);
 	vd = buf;
 	for (bno = 16;; bno++) {
-		twiddle();
+		twiddle(1);
 		rc = f->f_dev->dv_strategy(f->f_devdata, F_READ, cdb2devb(bno),
 					   ISO_DEFAULT_BLOCK_SIZE, buf, &read);
 		if (rc)
@@ -314,7 +319,7 @@ cd9660_open(const char *path, struct open_file *f)
 
 		while (off < dsize) {
 			if ((off % ISO_DEFAULT_BLOCK_SIZE) == 0) {
-				twiddle();
+				twiddle(1);
 				rc = f->f_dev->dv_strategy
 					(f->f_devdata, F_READ,
 					 cdb2devb(bno + boff),
@@ -374,7 +379,7 @@ cd9660_open(const char *path, struct open_file *f)
 
 		/* Check for Rock Ridge since we didn't in the loop above. */
 		bno = isonum_733(rec.extent) + isonum_711(rec.ext_attr_length);
-		twiddle();
+		twiddle(1);
 		rc = f->f_dev->dv_strategy(f->f_devdata, F_READ, cdb2devb(bno),
 		    ISO_DEFAULT_BLOCK_SIZE, buf, &read);
 		if (rc)
@@ -431,7 +436,7 @@ buf_read_file(struct open_file *f, char **buf_p, size_t *size_p)
 		if (fp->f_buf == (char *)0)
 			fp->f_buf = malloc(ISO_DEFAULT_BLOCK_SIZE);
 
-		twiddle();
+		twiddle(16);
 		rc = f->f_dev->dv_strategy(f->f_devdata, F_READ,
 		    cdb2devb(blkno), ISO_DEFAULT_BLOCK_SIZE, fp->f_buf, &read);
 		if (rc)

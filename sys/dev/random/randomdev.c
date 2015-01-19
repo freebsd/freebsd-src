@@ -159,15 +159,7 @@ randomdev_modevent(module_t mod __unused, int type, void *data __unused)
 	return (error);
 }
 
-#define	EARLY_2_DEV_MODULE(name, evh, arg)	\
-static moduledata_t name##_mod = {		\
-    #name,					\
-    evh,					\
-    arg						\
-};						\
-DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND)
-
-EARLY_2_DEV_MODULE(randomdev, randomdev_modevent, NULL);
+DEV_MODULE_ORDERED(randomdev, randomdev_modevent, NULL, SI_ORDER_SECOND);
 MODULE_VERSION(randomdev, 1);
 
 /* ================

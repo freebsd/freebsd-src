@@ -85,20 +85,43 @@
 #endif
 
 #if !defined(ARM_ARCH_6)
-#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || defined(CPU_MV_PJ4B)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176)
 #define ARM_ARCH_6	1
 #else
 #define ARM_ARCH_6	0
 #endif
 #endif
 
-#if defined(CPU_CORTEXA) || defined(CPU_KRAIT)
+#if defined(CPU_CORTEXA) || defined(CPU_KRAIT) || defined(CPU_MV_PJ4B)
 #define ARM_ARCH_7A	1
 #else
 #define ARM_ARCH_7A	0
 #endif
 
 #define	ARM_NARCH	(ARM_ARCH_4 + ARM_ARCH_5 + ARM_ARCH_6 | ARM_ARCH_7A)
+
+/*
+ * Compatibility for userland builds that have no CPUTYPE defined.  Use the ARCH
+ * constants predefined by the compiler to define our old-school arch constants.
+ * This is a stopgap measure to tide us over until the conversion of all code
+ * to the newer ACLE constants defined by ARM (see acle-compat.h).
+ */
+#if ARM_NARCH == 0
+#if defined(__ARM_ARCH_4T__)
+#undef  ARM_ARCH_4
+#undef  ARM_NARCH
+#define ARM_ARCH_4 1
+#define ARM_NARCH  1
+#define CPU_ARM9 1
+#elif defined(__ARM_ARCH_6ZK__)
+#undef  ARM_ARCH_6
+#undef  ARM_NARCH
+#define ARM_ARCH_6 1
+#define ARM_NARCH  1
+#define CPU_ARM1176 1
+#endif
+#endif
+
 #if ARM_NARCH == 0 && !defined(KLD_MODULE) && defined(_KERNEL)
 #error ARM_NARCH is 0
 #endif

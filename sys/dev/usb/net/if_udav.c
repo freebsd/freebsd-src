@@ -198,7 +198,7 @@ static const struct usb_ether_methods udav_ue_methods_nophy = {
 static int udav_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");
-SYSCTL_INT(_hw_usb_udav, OID_AUTO, debug, CTLFLAG_RW, &udav_debug, 0,
+SYSCTL_INT(_hw_usb_udav, OID_AUTO, debug, CTLFLAG_RWTUN, &udav_debug, 0,
     "Debug level");
 #endif
 

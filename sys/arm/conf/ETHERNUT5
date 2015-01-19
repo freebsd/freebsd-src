@@ -39,8 +39,8 @@ options 	SOFTUPDATES		# Enable FFS soft updates support
 options 	UFS_DIRHASH		# Improve performance on big directories
 #options 	UFS_GJOURNAL		# Enable gjournal-based UFS journaling
 #options 	MD_ROOT			# MD is a potential root device
-options 	NFSCL			# New Network Filesystem Client
-#options 	NFSD			# New Network Filesystem Server
+options 	NFSCL			# Network Filesystem Client
+#options 	NFSD			# Network Filesystem Server
 options 	NFSLOCKD		# Network Lock Manager
 options 	NFS_ROOT		# NFS usable as /, requires NFSCL
 options 	GEOM_PART_BSD		# BSD partition scheme
@@ -136,7 +136,6 @@ device		ether			# Ethernet support
 #device		tun			# Packet tunnel.
 #device		md			# Memory "disks"
 #device		gif			# IPv6 and IPv4 tunneling
-#device		faith			# IPv6-to-IPv4 relaying (translation)
 #device		firmware		# firmware assist module
 
 # SCSI peripherals

@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "codegen-dce"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
@@ -23,11 +22,13 @@
 #include "llvm/Target/TargetMachine.h"
 using namespace llvm;
 
+#define DEBUG_TYPE "codegen-dce"
+
 STATISTIC(NumDeletes,          "Number of dead instructions deleted");
 
 namespace {
   class DeadMachineInstructionElim : public MachineFunctionPass {
-    virtual bool runOnMachineFunction(MachineFunction &MF);
+    bool runOnMachineFunction(MachineFunction &MF) override;
 
     const TargetRegisterInfo *TRI;
     const MachineRegisterInfo *MRI;
@@ -59,7 +60,7 @@ bool DeadMachineInstructionElim::isDead(const MachineInstr *MI) const {
 
   // Don't delete instructions with side effects.
   bool SawStore = false;
-  if (!MI->isSafeToMove(TII, 0, SawStore) && !MI->isPHI())
+  if (!MI->isSafeToMove(TII, nullptr, SawStore) && !MI->isPHI())
     return false;
 
   // Examine each operand.
@@ -84,6 +85,9 @@ bool DeadMachineInstructionElim::isDead(const MachineInstr *MI) const {
 }
 
 bool DeadMachineInstructionElim::runOnMachineFunction(MachineFunction &MF) {
+  if (skipOptnoneFunction(*MF.getFunction()))
+    return false;
+
   bool AnyChanges = false;
   MRI = &MF.getRegInfo();
   TRI = MF.getTarget().getRegisterInfo();
@@ -127,17 +131,7 @@ bool DeadMachineInstructionElim::runOnMachineFunction(MachineFunction &MF) {
           unsigned Reg = MO.getReg();
           if (!TargetRegisterInfo::isVirtualRegister(Reg))
             continue;
-          MachineRegisterInfo::use_iterator nextI;
-          for (MachineRegisterInfo::use_iterator I = MRI->use_begin(Reg),
-               E = MRI->use_end(); I!=E; I=nextI) {
-            nextI = llvm::next(I);  // I is invalidated by the setReg
-            MachineOperand& Use = I.getOperand();
-            MachineInstr *UseMI = Use.getParent();
-            if (UseMI==MI)
-              continue;
-            assert(Use.isDebug());
-            UseMI->getOperand(0).setReg(0U);
-          }
+          MRI->markUsesInDebugValueAsUndef(Reg);
         }
         AnyChanges = true;
         MI->eraseFromParent();

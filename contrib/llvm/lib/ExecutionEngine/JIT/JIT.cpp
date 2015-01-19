@@ -26,6 +26,7 @@
 #include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/IR/Instructions.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -78,7 +79,7 @@ ExecutionEngine *JIT::createJIT(Module *M,
   // Try to register the program as a source of symbols to resolve against.
   //
   // FIXME: Don't do this here.
-  sys::DynamicLibrary::LoadLibraryPermanently(0, NULL);
+  sys::DynamicLibrary::LoadLibraryPermanently(nullptr, nullptr);
 
   // If the target supports JIT code generation, create the JIT.
   if (TargetJITInfo *TJ = TM->getJITInfo()) {
@@ -86,7 +87,7 @@ ExecutionEngine *JIT::createJIT(Module *M,
   } else {
     if (ErrorStr)
       *ErrorStr = "target does not support JIT code generation";
-    return 0;
+    return nullptr;
   }
 }
 
@@ -150,12 +151,13 @@ JIT::JIT(Module *M, TargetMachine &tm, TargetJITInfo &tji,
 
   // Add target data
   MutexGuard locked(lock);
-  FunctionPassManager &PM = jitstate->getPM(locked);
-  PM.add(new DataLayout(*TM.getDataLayout()));
+  FunctionPassManager &PM = jitstate->getPM();
+  M->setDataLayout(TM.getDataLayout());
+  PM.add(new DataLayoutPass(M));
 
   // Turn the machine code intermediate representation into bytes in memory that
   // may be executed.
-  if (TM.addPassesToEmitMachineCode(PM, *JCE)) {
+  if (TM.addPassesToEmitMachineCode(PM, *JCE, !getVerifyModules())) {
     report_fatal_error("Target does not support machine code emission!");
   }
 
@@ -182,12 +184,13 @@ void JIT::addModule(Module *M) {
 
     jitstate = new JITState(M);
 
-    FunctionPassManager &PM = jitstate->getPM(locked);
-    PM.add(new DataLayout(*TM.getDataLayout()));
+    FunctionPassManager &PM = jitstate->getPM();
+    M->setDataLayout(TM.getDataLayout());
+    PM.add(new DataLayoutPass(M));
 
     // Turn the machine code intermediate representation into bytes in memory
     // that may be executed.
-    if (TM.addPassesToEmitMachineCode(PM, *JCE)) {
+    if (TM.addPassesToEmitMachineCode(PM, *JCE, !getVerifyModules())) {
       report_fatal_error("Target does not support machine code emission!");
     }
 
@@ -207,18 +210,19 @@ bool JIT::removeModule(Module *M) {
 
   if (jitstate && jitstate->getModule() == M) {
     delete jitstate;
-    jitstate = 0;
+    jitstate = nullptr;
   }
 
   if (!jitstate && !Modules.empty()) {
     jitstate = new JITState(Modules[0]);
 
-    FunctionPassManager &PM = jitstate->getPM(locked);
-    PM.add(new DataLayout(*TM.getDataLayout()));
+    FunctionPassManager &PM = jitstate->getPM();
+    M->setDataLayout(TM.getDataLayout());
+    PM.add(new DataLayoutPass(M));
 
     // Turn the machine code intermediate representation into bytes in memory
     // that may be executed.
-    if (TM.addPassesToEmitMachineCode(PM, *JCE)) {
+    if (TM.addPassesToEmitMachineCode(PM, *JCE, !getVerifyModules())) {
       report_fatal_error("Target does not support machine code emission!");
     }
 
@@ -349,7 +353,7 @@ GenericValue JIT::runFunction(Function *F,
   // currently don't support varargs.
   SmallVector<Value*, 8> Args;
   for (unsigned i = 0, e = ArgValues.size(); i != e; ++i) {
-    Constant *C = 0;
+    Constant *C = nullptr;
     Type *ArgTy = FTy->getParamType(i);
     const GenericValue &AV = ArgValues[i];
     switch (ArgTy->getTypeID()) {
@@ -402,13 +406,13 @@ GenericValue JIT::runFunction(Function *F,
 }
 
 void JIT::RegisterJITEventListener(JITEventListener *L) {
-  if (L == NULL)
+  if (!L)
     return;
   MutexGuard locked(lock);
   EventListeners.push_back(L);
 }
 void JIT::UnregisterJITEventListener(JITEventListener *L) {
-  if (L == NULL)
+  if (!L)
     return;
   MutexGuard locked(lock);
   std::vector<JITEventListener*>::reverse_iterator I=
@@ -446,9 +450,8 @@ void JIT::runJITOnFunction(Function *F, MachineCodeInfo *MCI) {
     MachineCodeInfo *const MCI;
    public:
     MCIListener(MachineCodeInfo *mci) : MCI(mci) {}
-    virtual void NotifyFunctionEmitted(const Function &,
-                                       void *Code, size_t Size,
-                                       const EmittedFunctionDetails &) {
+    void NotifyFunctionEmitted(const Function &, void *Code, size_t Size,
+                               const EmittedFunctionDetails &) override {
       MCI->setAddress(Code);
       MCI->setSize(Size);
     }
@@ -457,41 +460,41 @@ void JIT::runJITOnFunction(Function *F, MachineCodeInfo *MCI) {
   if (MCI)
     RegisterJITEventListener(&MCIL);
 
-  runJITOnFunctionUnlocked(F, locked);
+  runJITOnFunctionUnlocked(F);
 
   if (MCI)
     UnregisterJITEventListener(&MCIL);
 }
 
-void JIT::runJITOnFunctionUnlocked(Function *F, const MutexGuard &locked) {
+void JIT::runJITOnFunctionUnlocked(Function *F) {
   assert(!isAlreadyCodeGenerating && "Error: Recursive compilation detected!");
 
-  jitTheFunction(F, locked);
+  jitTheFunctionUnlocked(F);
 
   // If the function referred to another function that had not yet been
   // read from bitcode, and we are jitting non-lazily, emit it now.
-  while (!jitstate->getPendingFunctions(locked).empty()) {
-    Function *PF = jitstate->getPendingFunctions(locked).back();
-    jitstate->getPendingFunctions(locked).pop_back();
+  while (!jitstate->getPendingFunctions().empty()) {
+    Function *PF = jitstate->getPendingFunctions().back();
+    jitstate->getPendingFunctions().pop_back();
 
     assert(!PF->hasAvailableExternallyLinkage() &&
            "Externally-defined function should not be in pending list.");
 
-    jitTheFunction(PF, locked);
+    jitTheFunctionUnlocked(PF);
 
     // Now that the function has been jitted, ask the JITEmitter to rewrite
     // the stub with real address of the function.
-    updateFunctionStub(PF);
+    updateFunctionStubUnlocked(PF);
   }
 }
 
-void JIT::jitTheFunction(Function *F, const MutexGuard &locked) {
+void JIT::jitTheFunctionUnlocked(Function *F) {
   isAlreadyCodeGenerating = true;
-  jitstate->getPM(locked).run(*F);
+  jitstate->getPM().run(*F);
   isAlreadyCodeGenerating = false;
 
   // clear basic block addresses after this function is done
-  getBasicBlockAddressMap(locked).clear();
+  getBasicBlockAddressMap().clear();
 }
 
 /// getPointerToFunction - This method is used to get the address of the
@@ -523,7 +526,7 @@ void *JIT::getPointerToFunction(Function *F) {
     return Addr;
   }
 
-  runJITOnFunctionUnlocked(F, locked);
+  runJITOnFunctionUnlocked(F);
 
   void *Addr = getPointerToGlobalIfAvailable(F);
   assert(Addr && "Code generation didn't add function to GlobalAddress table!");
@@ -534,9 +537,9 @@ void JIT::addPointerToBasicBlock(const BasicBlock *BB, void *Addr) {
   MutexGuard locked(lock);
 
   BasicBlockAddressMapTy::iterator I =
-    getBasicBlockAddressMap(locked).find(BB);
-  if (I == getBasicBlockAddressMap(locked).end()) {
-    getBasicBlockAddressMap(locked)[BB] = Addr;
+    getBasicBlockAddressMap().find(BB);
+  if (I == getBasicBlockAddressMap().end()) {
+    getBasicBlockAddressMap()[BB] = Addr;
   } else {
     // ignore repeats: some BBs can be split into few MBBs?
   }
@@ -544,7 +547,7 @@ void JIT::addPointerToBasicBlock(const BasicBlock *BB, void *Addr) {
 
 void JIT::clearPointerToBasicBlock(const BasicBlock *BB) {
   MutexGuard locked(lock);
-  getBasicBlockAddressMap(locked).erase(BB);
+  getBasicBlockAddressMap().erase(BB);
 }
 
 void *JIT::getPointerToBasicBlock(BasicBlock *BB) {
@@ -555,8 +558,8 @@ void *JIT::getPointerToBasicBlock(BasicBlock *BB) {
   MutexGuard locked(lock);
 
   BasicBlockAddressMapTy::iterator I =
-    getBasicBlockAddressMap(locked).find(BB);
-  if (I != getBasicBlockAddressMap(locked).end()) {
+    getBasicBlockAddressMap().find(BB);
+  if (I != getBasicBlockAddressMap().end()) {
     return I->second;
   } else {
     llvm_unreachable("JIT does not have BB address for address-of-label, was"
@@ -581,7 +584,7 @@ void *JIT::getPointerToNamedFunction(const std::string &Name,
     report_fatal_error("Program used external function '"+Name+
                       "' which could not be resolved!");
   }
-  return 0;
+  return nullptr;
 }
 
 
@@ -601,7 +604,7 @@ void *JIT::getOrEmitGlobalVariable(const GlobalVariable *GV) {
       return (void*)&__dso_handle;
 #endif
     Ptr = sys::DynamicLibrary::SearchForAddressOfSymbol(GV->getName());
-    if (Ptr == 0) {
+    if (!Ptr) {
       report_fatal_error("Could not resolve external global address: "
                         +GV->getName());
     }
@@ -626,10 +629,10 @@ void *JIT::recompileAndRelinkFunction(Function *F) {
   void *OldAddr = getPointerToGlobalIfAvailable(F);
 
   // If it's not already compiled there is no reason to patch it up.
-  if (OldAddr == 0) { return getPointerToFunction(F); }
+  if (!OldAddr) return getPointerToFunction(F);
 
   // Delete the old function mapping.
-  addGlobalMapping(F, 0);
+  addGlobalMapping(F, nullptr);
 
   // Recodegen the function
   runJITOnFunction(F);
@@ -685,7 +688,7 @@ char* JIT::getMemoryForGV(const GlobalVariable* GV) {
 
 void JIT::addPendingFunction(Function *F) {
   MutexGuard locked(lock);
-  jitstate->getPendingFunctions(locked).push_back(F);
+  jitstate->getPendingFunctions().push_back(F);
 }
 
 

@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #define BLOCKIF_SIG	0xb109b109
 
-#define BLOCKIF_MAXREQ	32
+#define BLOCKIF_MAXREQ	33
 
 enum blockop {
 	BOP_READ,
@@ -600,7 +600,7 @@ blockif_queuesz(struct blockif_ctxt *bc)
 {
 
 	assert(bc->bc_magic == BLOCKIF_SIG);
-	return (BLOCKIF_MAXREQ);
+	return (BLOCKIF_MAXREQ - 1);
 }
 
 int

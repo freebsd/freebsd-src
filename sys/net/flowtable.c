@@ -171,7 +171,7 @@ static VNET_DEFINE(int, flowtable_enable) = 1;
 
 static SYSCTL_NODE(_net, OID_AUTO, flowtable, CTLFLAG_RD, NULL,
     "flowtable");
-SYSCTL_VNET_INT(_net_flowtable, OID_AUTO, enable, CTLFLAG_RW,
+SYSCTL_INT(_net_flowtable, OID_AUTO, enable, CTLFLAG_VNET | CTLFLAG_RW,
     &VNET_NAME(flowtable_enable), 0, "enable flowtable caching.");
 SYSCTL_UMA_MAX(_net_flowtable, OID_AUTO, maxflows, CTLFLAG_RW,
     &flow_zone, "Maximum number of flows allowed");
@@ -688,8 +688,8 @@ flowtable_lookup(sa_family_t sa, struct mbuf *m, struct route *ro)
 	if (fle == NULL)
 		return (EHOSTUNREACH);
 
-	if (!(m->m_flags & M_FLOWID)) {
-		m->m_flags |= M_FLOWID;
+	if (M_HASHTYPE_GET(m) == M_HASHTYPE_NONE) {
+		M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 		m->m_pkthdr.flowid = fle->f_hash;
 	}
 

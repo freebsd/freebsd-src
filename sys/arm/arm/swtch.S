@@ -116,6 +116,14 @@ __FBSDID("$FreeBSD$");
 .Lblocked_lock:
 	.word	_C_LABEL(blocked_lock)
 
+/*
+ * cpu_throw(oldtd, newtd)
+ *
+ * Remove current thread state, then select the next thread to run
+ * and load its state.
+ * r0 = oldtd
+ * r1 = newtd
+ */
 ENTRY(cpu_throw)
 	mov	r5, r1
 
@@ -144,7 +152,6 @@ ENTRY(cpu_throw)
 	 * r0 = Pointer to L1 slot for vector_page (or NULL)
 	 * r1 = lwp0's DACR
 	 * r5 = lwp0
-	 * r6 = exit func
 	 * r7 = lwp0's PCB
 	 * r9 = cpufuncs
 	 */
@@ -181,25 +188,11 @@ ENTRY(cpu_throw)
 	mov	lr, pc
 	ldr	pc, [r9, #CF_CONTEXT_SWITCH]
 
-	/* Restore all the save registers */
-#ifndef _ARM_ARCH_5E
-	add	r1, r7, #PCB_R8
-	ldmia	r1, {r8-r13}
-#else
-	ldr	r8, [r7, #(PCB_R8)]
-	ldr	r9, [r7, #(PCB_R9)]
-	ldr	r10, [r7, #(PCB_R10)]
-	ldr	r11, [r7, #(PCB_R11)]
-	ldr	r12, [r7, #(PCB_R12)]
-	ldr	r13, [r7, #(PCB_SP)]
-#endif
-
 	GET_PCPU(r6, r4)
 	/* Hook in a new pcb */
 	str	r7, [r6, #PC_CURPCB]
 	/* We have a new curthread now so make a note it */
-	add	r6, r6, #PC_CURTHREAD
-	str	r5, [r6]
+	str	r5, [r6, #PC_CURTHREAD]
 #ifndef ARM_TP_ADDRESS
 	mcr	p15, 0, r5, c13, c0, 4
 #endif
@@ -215,22 +208,31 @@ ENTRY(cpu_throw)
 #else
 	mcr p15, 0, r6, c13, c0, 3
 #endif
-
-	add	sp, sp, #4;
-	ldmfd	sp!, {r4-r7, pc}
+	/* Restore all the saved registers and exit */
+	add	r3, r7, #PCB_R4
+	ldmia	r3, {r4-r12, sp, pc}
 END(cpu_throw)
 
+/*
+ * cpu_switch(oldtd, newtd, lock)
+ *
+ * Save the current thread state, then select the next thread to run
+ * and load its state.
+ * r0 = oldtd
+ * r1 = newtd
+ * r2 = lock (new lock for old thread)
+ */
 ENTRY(cpu_switch)
-	stmfd	sp!, {r4-r7, lr}
-	sub	sp, sp, #4;
-#ifdef __ARM_EABI__
-	.save	{r4-r7, lr}
-	.pad	#4
-#endif
+	/* Interrupts are disabled. */
+	/* Save all the registers in the old thread's pcb. */
+	ldr	r3, [r0, #(TD_PCB)]
+
+	/* Restore all the saved registers and exit */
+	add	r3, #(PCB_R4)
+	stmia	r3, {r4-r12, sp, lr, pc}
 
 	mov	r6, r2 /* Save the mutex */
 
-.Lswitch_resume:
 	/* rem: r0 = old lwp */
 	/* rem: interrupts are disabled */
 
@@ -246,30 +248,12 @@ ENTRY(cpu_switch)
 	ldr	r2, [r1, #TD_PCB]
 	str	r2, [r7, #PC_CURPCB]
 
-	/* rem: r1 = new process */
-	/* rem: interrupts are enabled */
-
 	/* Stage two : Save old context */
 
 	/* Get the user structure for the old thread. */
 	ldr	r2, [r0, #(TD_PCB)]
 	mov	r4, r0 /* Save the old thread. */
 
-	/* Save all the registers in the old thread's pcb */
-#ifndef _ARM_ARCH_5E
-	add	r7, r2, #(PCB_R8)
-	stmia	r7, {r8-r13}
-#else
-	strd	r8, [r2, #(PCB_R8)]
-	strd	r10, [r2, #(PCB_R10)]
-	strd	r12, [r2, #(PCB_R12)]
-#endif
-	str	pc, [r2, #(PCB_PC)]
-
-	/*
-	 * NOTE: We can now use r8-r13 until it is time to restore
-	 * them for the new process.
-	 */
 #ifdef ARM_TP_ADDRESS
 	/* Store the old tp */
 	ldr	r3, =ARM_TP_ADDRESS
@@ -318,7 +302,6 @@ ENTRY(cpu_switch)
 
 	/* rem: r2 = old PCB */
 	/* rem: r9 = new PCB */
-	/* rem: interrupts are enabled */
 
 	ldr	r5, [r9, #(PCB_DACR)]		/* r5 = new DACR */
 	mov	r2, #DOMAIN_CLIENT
@@ -335,7 +318,6 @@ ENTRY(cpu_switch)
 	 */
 	mrc	p15, 0, r10, c2, c0, 0		/* r10 = old L1 */
 	ldr	r11, [r9, #(PCB_PAGEDIR)]	/* r11 = new L1 */
-
 
 	teq	r10, r11			/* Same L1? */
 	cmpeq	r0, r5				/* Same DACR? */
@@ -426,54 +408,18 @@ ENTRY(cpu_switch)
 
 	/* rem: r9 = new PCB */
 
-	/* Restore all the save registers */
-#ifndef _ARM_ARCH_5E
-	add	r7, r9, #PCB_R8
-	ldmia	r7, {r8-r13}
-	sub	r7, r7, #PCB_R8		/* restore PCB pointer */
-#else
-	mov	r7, r9
-	ldr	r8, [r7, #(PCB_R8)]
-	ldr	r9, [r7, #(PCB_R9)]
-	ldr	r10, [r7, #(PCB_R10)]
-	ldr	r11, [r7, #(PCB_R11)]
-	ldr	r12, [r7, #(PCB_R12)]
-	ldr	r13, [r7, #(PCB_SP)]
-#endif
-
-	/* rem: r5 = new lwp's proc */
-	/* rem: r6 = lock */
-	/* rem: r7 = new PCB */
-
-.Lswitch_return:
-
-	/*
-	 * Pull the registers that got pushed when either savectx() or
-	 * cpu_switch() was called and return.
-	 */
-	add	sp, sp, #4;
-	ldmfd	sp!, {r4-r7, pc}
-#ifdef DIAGNOSTIC
-.Lswitch_bogons:
-	adr	r0, .Lswitch_panic_str
-	bl	_C_LABEL(panic)
-1:	nop
-	b	1b
-
-.Lswitch_panic_str:
-	.asciz	"cpu_switch: sched_qs empty with non-zero sched_whichqs!\n"
-#endif
+	/* Restore all the saved registers and exit */
+	add	r3, r9, #PCB_R4
+	ldmia	r3, {r4-r12, sp, pc}
 END(cpu_switch)
 
 ENTRY(savectx)
-	stmfd   sp!, {r4-r7, lr}
+	stmfd	sp!, {lr}
 	sub	sp, sp, #4
-	/*
-	 * r0 = pcb
-	 */
-	/* Store all the registers in the process's pcb */
-	add	r2, r0, #(PCB_R8)
-	stmia	r2, {r8-r13}
+	
+	/* Store all the registers in the thread's pcb */
+	add	r3, r0, #(PCB_R4)
+	stmia	r3, {r4-r12, sp, lr, pc}
 #ifdef VFP
 	fmrx	r2, fpexc		/* If the VFP is enabled */
 	tst	r2, #(VFPEXC_EN)	/* the current thread has */
@@ -482,7 +428,7 @@ ENTRY(savectx)
 	blne	_C_LABEL(vfp_store)	/* and disable the VFP. */
 #endif
 	add	sp, sp, #4;
-	ldmfd	sp!, {r4-r7, pc}
+	ldmfd	sp!, {pc}
 END(savectx)
 
 ENTRY(fork_trampoline)

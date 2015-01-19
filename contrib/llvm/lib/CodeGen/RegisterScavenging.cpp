@@ -14,7 +14,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "reg-scavenging"
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
@@ -28,6 +27,8 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
+
+#define DEBUG_TYPE "reg-scavenging"
 
 /// setUsed - Set the register and its sub-registers as being used.
 void RegScavenger::setUsed(unsigned Reg) {
@@ -47,7 +48,7 @@ void RegScavenger::initRegState() {
   for (SmallVectorImpl<ScavengedInfo>::iterator I = Scavenged.begin(),
          IE = Scavenged.end(); I != IE; ++I) {
     I->Reg = 0;
-    I->Restore = NULL;
+    I->Restore = nullptr;
   }
 
   // All registers started out unused.
@@ -91,8 +92,8 @@ void RegScavenger::enterBasicBlock(MachineBasicBlock *mbb) {
 
     // Create callee-saved registers bitvector.
     CalleeSavedRegs.resize(NumPhysRegs);
-    const uint16_t *CSRegs = TRI->getCalleeSavedRegs(&MF);
-    if (CSRegs != NULL)
+    const MCPhysReg *CSRegs = TRI->getCalleeSavedRegs(&MF);
+    if (CSRegs != nullptr)
       for (unsigned i = 0; CSRegs[i]; ++i)
         CalleeSavedRegs.set(CSRegs[i]);
   }
@@ -162,7 +163,7 @@ void RegScavenger::unprocess() {
   }
 
   if (MBBI == MBB->begin()) {
-    MBBI = MachineBasicBlock::iterator(NULL);
+    MBBI = MachineBasicBlock::iterator(nullptr);
     Tracking = false;
   } else
     --MBBI;
@@ -175,7 +176,7 @@ void RegScavenger::forward() {
     Tracking = true;
   } else {
     assert(MBBI != MBB->end() && "Already past the end of the basic block!");
-    MBBI = llvm::next(MBBI);
+    MBBI = std::next(MBBI);
   }
   assert(MBBI != MBB->end() && "Already at the end of the basic block!");
 
@@ -187,7 +188,7 @@ void RegScavenger::forward() {
       continue;
 
     I->Reg = 0;
-    I->Restore = NULL;
+    I->Restore = nullptr;
   }
 
   if (MI->isDebugValue())
@@ -223,7 +224,7 @@ void RegScavenger::forward() {
             break;
           }
         if (!SubUsed) {
-          MBB->getParent()->verify(NULL, "In Register Scavenger");
+          MBB->getParent()->verify(nullptr, "In Register Scavenger");
           llvm_unreachable("Using an undefined register!");
         }
         (void)SubUsed;
@@ -415,7 +416,7 @@ unsigned RegScavenger::scavengeRegister(const TargetRegisterClass *RC,
            "Cannot scavenge register without an emergency spill slot!");
     TII->storeRegToStackSlot(*MBB, I, SReg, true, Scavenged[SI].FrameIndex,
                              RC, TRI);
-    MachineBasicBlock::iterator II = prior(I);
+    MachineBasicBlock::iterator II = std::prev(I);
 
     unsigned FIOperandNum = getFrameIndexOperandNum(II);
     TRI->eliminateFrameIndex(II, SPAdj, FIOperandNum, this);
@@ -423,13 +424,13 @@ unsigned RegScavenger::scavengeRegister(const TargetRegisterClass *RC,
     // Restore the scavenged register before its use (or first terminator).
     TII->loadRegFromStackSlot(*MBB, UseMI, SReg, Scavenged[SI].FrameIndex,
                               RC, TRI);
-    II = prior(UseMI);
+    II = std::prev(UseMI);
 
     FIOperandNum = getFrameIndexOperandNum(II);
     TRI->eliminateFrameIndex(II, SPAdj, FIOperandNum, this);
   }
 
-  Scavenged[SI].Restore = prior(UseMI);
+  Scavenged[SI].Restore = std::prev(UseMI);
 
   // Doing this here leads to infinite regress.
   // Scavenged[SI].Reg = SReg;

@@ -48,7 +48,6 @@
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 
-#include <net/route.h>
 #include <net/vnet.h>
 
 #include <netipsec/ipsec.h>
@@ -78,8 +77,8 @@ VNET_PCPUSTAT_SYSUNINIT(ipcompstat);
 #endif /* VIMAGE */
 
 SYSCTL_DECL(_net_inet_ipcomp);
-SYSCTL_VNET_INT(_net_inet_ipcomp, OID_AUTO,
-	ipcomp_enable,	CTLFLAG_RW,	&VNET_NAME(ipcomp_enable),	0, "");
+SYSCTL_INT(_net_inet_ipcomp, OID_AUTO, ipcomp_enable,
+	CTLFLAG_VNET | CTLFLAG_RW, &VNET_NAME(ipcomp_enable), 0, "");
 SYSCTL_VNET_PCPUSTAT(_net_inet_ipcomp, IPSECCTL_STATS, stats,
     struct ipcompstat, ipcompstat,
     "IPCOMP statistics (struct ipcompstat, netipsec/ipcomp_var.h");
@@ -228,7 +227,6 @@ ipcomp_input_cb(struct cryptop *crp)
 	struct cryptodesc *crd;
 	struct tdb_crypto *tc;
 	int skip, protoff;
-	struct mtag *mtag;
 	struct mbuf *m;
 	struct secasvar *sav;
 	struct secasindex *saidx;
@@ -242,7 +240,6 @@ ipcomp_input_cb(struct cryptop *crp)
 	IPSEC_ASSERT(tc != NULL, ("null opaque crypto data area!"));
 	skip = tc->tc_skip;
 	protoff = tc->tc_protoff;
-	mtag = (struct mtag *) tc->tc_ptr;
 	m = (struct mbuf *) crp->crp_buf;
 
 	sav = tc->tc_sav;
@@ -312,12 +309,12 @@ ipcomp_input_cb(struct cryptop *crp)
 	switch (saidx->dst.sa.sa_family) {
 #ifdef INET6
 	case AF_INET6:
-		error = ipsec6_common_input_cb(m, sav, skip, protoff, NULL);
+		error = ipsec6_common_input_cb(m, sav, skip, protoff);
 		break;
 #endif
 #ifdef INET
 	case AF_INET:
-		error = ipsec4_common_input_cb(m, sav, skip, protoff, NULL);
+		error = ipsec4_common_input_cb(m, sav, skip, protoff);
 		break;
 #endif
 	default:

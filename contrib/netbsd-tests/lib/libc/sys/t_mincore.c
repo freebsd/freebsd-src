@@ -206,9 +206,6 @@ ATF_TC_BODY(mincore_resid, tc)
 		    "might be low on memory");
 
 #ifdef __FreeBSD__
-	atf_tc_expect_fail("the following calls fail; this seems to be a new "
-	    "issue (didn't occur in 07/2014)");
-
 	ATF_REQUIRE(mlock(addr, npgs * page) == 0);
 #endif
 	ATF_REQUIRE(check_residency(addr, npgs) == npgs);

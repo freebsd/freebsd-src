@@ -177,8 +177,8 @@ public:
                         bool RecordPaths = true,
                         bool DetectVirtual = true)
     : FindAmbiguities(FindAmbiguities), RecordPaths(RecordPaths),
-      DetectVirtual(DetectVirtual), DetectedVirtual(0), DeclsFound(0),
-      NumDeclsFound(0) { }
+      DetectVirtual(DetectVirtual), DetectedVirtual(nullptr),
+      DeclsFound(nullptr), NumDeclsFound(0) { }
   
   ~CXXBasePaths() { delete [] DeclsFound; }
   
@@ -190,8 +190,8 @@ public:
   CXXBasePath&       front()       { return Paths.front(); }
   const CXXBasePath& front() const { return Paths.front(); }
   
-  decl_iterator found_decls_begin();
-  decl_iterator found_decls_end();
+  typedef llvm::iterator_range<decl_iterator> decl_range;
+  decl_range found_decls();
   
   /// \brief Determine whether the path from the most-derived type to the
   /// given base type is ambiguous (i.e., it refers to multiple subobjects of
@@ -232,7 +232,8 @@ public:
 /// \brief Uniquely identifies a virtual method within a class
 /// hierarchy by the method itself and a class subobject number.
 struct UniqueVirtualMethod {
-  UniqueVirtualMethod() : Method(0), Subobject(0), InVirtualSubobject(0) { }
+  UniqueVirtualMethod()
+    : Method(nullptr), Subobject(0), InVirtualSubobject(nullptr) { }
 
   UniqueVirtualMethod(CXXMethodDecl *Method, unsigned Subobject,
                       const CXXRecordDecl *InVirtualSubobject)

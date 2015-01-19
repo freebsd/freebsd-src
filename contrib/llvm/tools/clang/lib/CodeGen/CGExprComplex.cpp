@@ -93,7 +93,7 @@ public:
   ComplexPairTy Visit(Expr *E) {
     return StmtVisitor<ComplexExprEmitter, ComplexPairTy>::Visit(E);
   }
-    
+
   ComplexPairTy VisitStmt(Stmt *S) {
     S->dump(CGF.getContext().getSourceManager());
     llvm_unreachable("Stmt can't have complex result type!");
@@ -306,7 +306,7 @@ ComplexPairTy ComplexExprEmitter::EmitLoadOfLValue(LValue lvalue,
   unsigned ComplexAlign = C.getTypeAlignInChars(ComplexTy).getQuantity();
   unsigned AlignI = std::min(AlignR, ComplexAlign);
 
-  llvm::Value *Real=0, *Imag=0;
+  llvm::Value *Real=nullptr, *Imag=nullptr;
 
   if (!IgnoreReal || isVolatile) {
     llvm::Value *RealP = Builder.CreateStructGEP(SrcPtr, 0,
@@ -410,7 +410,7 @@ ComplexPairTy ComplexExprEmitter::EmitScalarToComplexCast(llvm::Value *Val,
   return ComplexPairTy(Val, llvm::Constant::getNullValue(Val->getType()));
 }
 
-ComplexPairTy ComplexExprEmitter::EmitCast(CastExpr::CastKind CK, Expr *Op, 
+ComplexPairTy ComplexExprEmitter::EmitCast(CastExpr::CastKind CK, Expr *Op,
                                            QualType DestTy) {
   switch (CK) {
   case CK_Dependent: llvm_unreachable("dependent cast kind in IR gen!");
@@ -427,7 +427,7 @@ ComplexPairTy ComplexExprEmitter::EmitCast(CastExpr::CastKind CK, Expr *Op,
   case CK_LValueBitCast: {
     LValue origLV = CGF.EmitLValue(Op);
     llvm::Value *V = origLV.getAddress();
-    V = Builder.CreateBitCast(V, 
+    V = Builder.CreateBitCast(V,
                     CGF.ConvertType(CGF.getContext().getPointerType(DestTy)));
     return EmitLoadOfLValue(CGF.MakeAddrLValue(V, DestTy,
                                                origLV.getAlignment()),
@@ -475,6 +475,7 @@ ComplexPairTy ComplexExprEmitter::EmitCast(CastExpr::CastKind CK, Expr *Op,
   case CK_CopyAndAutoreleaseBlockObject:
   case CK_BuiltinFnToFnPtr:
   case CK_ZeroToOCLEvent:
+  case CK_AddressSpaceConversion:
     llvm_unreachable("invalid cast kind for complex value");
 
   case CK_FloatingRealToComplex:
@@ -652,7 +653,7 @@ EmitCompoundAssignLValue(const CompoundAssignOperator *E,
   assert(CGF.getContext().hasSameUnqualifiedType(OpInfo.Ty,
                                                  E->getRHS()->getType()));
   OpInfo.RHS = Visit(E->getRHS());
-  
+
   LValue LHS = CGF.EmitLValue(E->getLHS());
 
   // Load from the l-value and convert it.
@@ -702,7 +703,7 @@ EmitCompoundAssign(const CompoundAssignOperator *E,
 
 LValue ComplexExprEmitter::EmitBinAssignLValue(const BinaryOperator *E,
                                                ComplexPairTy &Val) {
-  assert(CGF.getContext().hasSameUnqualifiedType(E->getLHS()->getType(), 
+  assert(CGF.getContext().hasSameUnqualifiedType(E->getLHS()->getType(),
                                                  E->getRHS()->getType()) &&
          "Invalid assignment");
   TestAndClearIgnoreReal();
@@ -751,11 +752,13 @@ VisitAbstractConditionalOperator(const AbstractConditionalOperator *E) {
   // Bind the common expression if necessary.
   CodeGenFunction::OpaqueValueMapping binding(CGF, E);
 
+  RegionCounter Cnt = CGF.getPGORegionCounter(E);
   CodeGenFunction::ConditionalEvaluation eval(CGF);
-  CGF.EmitBranchOnBoolExpr(E->getCond(), LHSBlock, RHSBlock);
+  CGF.EmitBranchOnBoolExpr(E->getCond(), LHSBlock, RHSBlock, Cnt.getCount());
 
   eval.begin(CGF);
   CGF.EmitBlock(LHSBlock);
+  Cnt.beginRegion(Builder);
   ComplexPairTy LHS = Visit(E->getTrueExpr());
   LHSBlock = Builder.GetInsertBlock();
   CGF.EmitBranch(ContBlock);

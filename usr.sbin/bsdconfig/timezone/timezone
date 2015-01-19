@@ -62,7 +62,7 @@ _PATH_WALL_CMOS_CLOCK="/etc/wall_cmos_clock"
 REALLYDOIT=1
 REINSTALL=
 USEDIALOG=1
-SKIPUTC=
+SKIPUTC= # See MAIN
 VERBOSE=
 TZ_OR_FAIL=
 CHROOTENV=
@@ -118,6 +118,9 @@ dialog_menu_main()
 }
 
 ############################################################ MAIN
+
+# Skip initial question regarding UTC v. Wall-Clock time if run in VM
+[ "$( sysctl -n kern.vm_guest 2> /dev/null )" = "none" ] || SKIPUTC=1
 
 # Incorporate rc-file if it exists
 [ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"

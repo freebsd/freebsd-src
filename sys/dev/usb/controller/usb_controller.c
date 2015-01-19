@@ -59,6 +59,7 @@
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_dynamic.h>
 #include <dev/usb/usb_device.h>
+#include <dev/usb/usb_dev.h>
 #include <dev/usb/usb_hub.h>
 
 #include <dev/usb/usb_controller.h>
@@ -84,7 +85,7 @@ static void	usb_attach_sub(device_t, struct usb_bus *);
 static int usb_ctrl_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ctrl, CTLFLAG_RW, 0, "USB controller");
-SYSCTL_INT(_hw_usb_ctrl, OID_AUTO, debug, CTLFLAG_RW, &usb_ctrl_debug, 0,
+SYSCTL_INT(_hw_usb_ctrl, OID_AUTO, debug, CTLFLAG_RWTUN, &usb_ctrl_debug, 0,
     "Debug level");
 #endif
 
@@ -219,6 +220,11 @@ usb_detach(device_t dev)
 	usb_proc_mwait(USB_BUS_EXPLORE_PROC(bus),
 	    &bus->detach_msg[0], &bus->detach_msg[1]);
 
+#if USB_HAVE_UGEN
+	/* Wait for cleanup to complete */
+	usb_proc_mwait(USB_BUS_EXPLORE_PROC(bus),
+	    &bus->cleanup_msg[0], &bus->cleanup_msg[1]);
+#endif
 	USB_BUS_UNLOCK(bus);
 
 #if USB_HAVE_PER_BUS_PROCESS
@@ -631,6 +637,32 @@ usb_bus_shutdown(struct usb_proc_msg *pm)
 	USB_BUS_LOCK(bus);
 }
 
+/*------------------------------------------------------------------------*
+ *	usb_bus_cleanup
+ *
+ * This function is used to cleanup leftover USB character devices.
+ *------------------------------------------------------------------------*/
+#if USB_HAVE_UGEN
+static void
+usb_bus_cleanup(struct usb_proc_msg *pm)
+{
+	struct usb_bus *bus;
+	struct usb_fs_privdata *pd;
+
+	bus = ((struct usb_bus_msg *)pm)->bus;
+
+	while ((pd = LIST_FIRST(&bus->pd_cleanup_list)) != NULL) {
+
+		LIST_REMOVE(pd, pd_next);
+		USB_BUS_UNLOCK(bus);
+
+		usb_destroy_dev_sync(pd);
+
+		USB_BUS_LOCK(bus);
+	}
+}
+#endif
+
 static void
 usb_power_wdog(void *arg)
 {
@@ -813,6 +845,14 @@ usb_attach_sub(device_t dev, struct usb_bus *bus)
 	bus->shutdown_msg[1].hdr.pm_callback = &usb_bus_shutdown;
 	bus->shutdown_msg[1].bus = bus;
 
+#if USB_HAVE_UGEN
+	LIST_INIT(&bus->pd_cleanup_list);
+	bus->cleanup_msg[0].hdr.pm_callback = &usb_bus_cleanup;
+	bus->cleanup_msg[0].bus = bus;
+	bus->cleanup_msg[1].hdr.pm_callback = &usb_bus_cleanup;
+	bus->cleanup_msg[1].bus = bus;
+#endif
+
 #if USB_HAVE_PER_BUS_PROCESS
 	/* Create USB explore and callback processes */
 
@@ -915,7 +955,7 @@ usb_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat,
 
 #if USB_HAVE_BUSDMA
 	usb_dma_tag_setup(bus->dma_parent_tag, bus->dma_tags,
-	    dmat, &bus->bus_mtx, NULL, 32, USB_BUS_DMA_TAG_MAX);
+	    dmat, &bus->bus_mtx, NULL, bus->dma_bits, USB_BUS_DMA_TAG_MAX);
 #endif
 	if ((bus->devices_max > USB_MAX_DEVICES) ||
 	    (bus->devices_max < USB_MIN_DEVICES) ||

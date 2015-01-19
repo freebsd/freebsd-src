@@ -18,6 +18,7 @@ arm/altera/socfpga/socfpga_machdep.c		standard
 arm/altera/socfpga/socfpga_manager.c		standard
 arm/altera/socfpga/socfpga_rstmgr.c		standard
 arm/altera/socfpga/socfpga_mp.c			optional smp
+arm/altera/socfpga/socfpga_gpio.c		optional gpio
 
 dev/dwc/if_dwc.c				optional dwc
 dev/mii/micphy.c				optional micphy
@@ -26,3 +27,6 @@ dev/mmc/host/dwmmc.c				optional dwmmc
 # BERI specific
 dev/beri/beri_ring.c				optional beri_ring
 dev/beri/beri_mem.c				optional beri_mem
+dev/beri/virtio/virtio.c			optional beri_vtblk | vtbe
+dev/beri/virtio/virtio_block.c			optional beri_vtblk
+dev/beri/virtio/network/if_vtbe.c		optional vtbe

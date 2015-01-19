@@ -313,7 +313,6 @@ cpu_reset:
 	mflr	%r1
 	addi	%r1,%r1,(124-16)@l
 
-	lis	%r3,1@l
 	bla	CNAME(cpudep_ap_early_bootstrap)
 	lis	%r3,1@l
 	bla	CNAME(pmap_cpu_bootstrap)
@@ -891,8 +890,7 @@ CNAME(dblow):
 	mfcr	%r29			/* save CR in r29 */
 	mfsrr1	%r1
 	mtcr	%r1
-	bf	17,2f			/* branch if privileged */
-1:
+	bf	17,1f			/* branch if privileged */
 	/* Unprivileged case */
 	mtcr	%r29			/* put the condition register back */
         mfsprg2	%r29			/* ... and r29 */
@@ -901,19 +899,7 @@ CNAME(dblow):
 	li	%r1, 0	 		/* How to get the vector from LR */
 
         bla     generictrap		/* and we look like a generic trap */
-2:
-#ifdef KDTRACE_HOOKS
-	/* Privileged, so drop to KDB */
-	mfsrr0	%r1
-	mtsprg3	%r3
-	lwz	%r1,0(%r1)
-	/* Check if it's a DTrace trap. */
-	li	%r3,0x0808
-	addis	%r3,%r3,0x7c81
-	cmplw	%cr0,%r3,%r1
-	mfsprg3	%r3
-	beq	%cr0,1b
-#endif
+1:
 	/* Privileged, so drop to KDB */
 	GET_CPUINFO(%r1)
 	stw	%r28,(PC_DBSAVE+CPUSAVE_R28)(%r1)	/* free r28 */

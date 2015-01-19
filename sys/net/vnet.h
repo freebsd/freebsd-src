@@ -119,6 +119,7 @@ vnet_##name##_uninit(const void *unused)				\
 VNET_SYSUNINIT(vnet_ ## name ## _uninit, SI_SUB_PROTO_IFATTACHDOMAIN,	\
     SI_ORDER_ANY, vnet_ ## name ## _uninit, NULL)
 
+#ifdef SYSCTL_OID
 #define	SYSCTL_VNET_PCPUSTAT(parent, nbr, name, type, array, desc)	\
 static int								\
 array##_sysctl(SYSCTL_HANDLER_ARGS)					\
@@ -132,8 +133,9 @@ array##_sysctl(SYSCTL_HANDLER_ARGS)					\
 		    sizeof(type) / sizeof(uint64_t));			\
 	return (SYSCTL_OUT(req, &s, sizeof(type)));			\
 }									\
-SYSCTL_VNET_PROC(parent, nbr, name, CTLTYPE_OPAQUE | CTLFLAG_RW, NULL,	\
-    0, array ## _sysctl, "I", desc)
+SYSCTL_PROC(parent, nbr, name, CTLFLAG_VNET | CTLTYPE_OPAQUE | CTLFLAG_RW, \
+    NULL, 0, array ## _sysctl, "I", desc)
+#endif /* SYSCTL_OID */
 
 #ifdef VIMAGE
 #include <sys/lock.h>
@@ -283,48 +285,6 @@ void	 vnet_data_copy(void *start, int size);
 void	 vnet_data_free(void *start_arg, int size);
 
 /*
- * Sysctl variants for vnet-virtualized global variables.  Include
- * <sys/sysctl.h> to expose these definitions.
- *
- * Note: SYSCTL_PROC() handler functions will need to resolve pointer
- * arguments themselves, if required.
- */
-#ifdef SYSCTL_OID
-#define	SYSCTL_VNET_INT(parent, nbr, name, access, ptr, val, descr)	\
-	SYSCTL_OID(parent, nbr, name,					\
-	    CTLTYPE_INT|CTLFLAG_MPSAFE|CTLFLAG_VNET|(access),		\
-	    ptr, val, sysctl_handle_int, "I", descr)
-#define	SYSCTL_VNET_PROC(parent, nbr, name, access, ptr, arg, handler,	\
-	    fmt, descr)							\
-	CTASSERT(((access) & CTLTYPE) != 0);				\
-	SYSCTL_OID(parent, nbr, name, CTLFLAG_VNET|(access), ptr, arg, 	\
-	    handler, fmt, descr)
-#define	SYSCTL_VNET_OPAQUE(parent, nbr, name, access, ptr, len, fmt,    \
-	    descr)							\
-	SYSCTL_OID(parent, nbr, name,					\
-	    CTLTYPE_OPAQUE|CTLFLAG_VNET|(access), ptr, len, 		\
-	    sysctl_handle_opaque, fmt, descr)
-#define	SYSCTL_VNET_STRING(parent, nbr, name, access, arg, len, descr)	\
-	SYSCTL_OID(parent, nbr, name,					\
-	    CTLTYPE_STRING|CTLFLAG_VNET|(access),			\
-	    arg, len, sysctl_handle_string, "A", descr)
-#define	SYSCTL_VNET_STRUCT(parent, nbr, name, access, ptr, type, descr)	\
-	SYSCTL_OID(parent, nbr, name,					\
-	    CTLTYPE_OPAQUE|CTLFLAG_VNET|(access), ptr,			\
-	    sizeof(struct type), sysctl_handle_opaque, "S," #type,	\
-	    descr)
-#define	SYSCTL_VNET_UINT(parent, nbr, name, access, ptr, val, descr)	\
-	SYSCTL_OID(parent, nbr, name,					\
-	    CTLTYPE_UINT|CTLFLAG_MPSAFE|CTLFLAG_VNET|(access),		\
-	    ptr, val, sysctl_handle_int, "IU", descr)
-#define	VNET_SYSCTL_ARG(req, arg1) do {					\
-	if (arg1 != NULL)						\
-		arg1 = (void *)(TD_TO_VNET((req)->td)->vnet_data_base +	\
-		    (uintptr_t)(arg1));					\
-} while (0)
-#endif /* SYSCTL_OID */
-
-/*
  * Virtual sysinit mechanism, allowing network stack components to declare
  * startup and shutdown methods to be run when virtual network stack
  * instances are created and destroyed.
@@ -445,29 +405,6 @@ do {									\
 
 #define	VNET_PTR(n)		(&(n))
 #define	VNET(n)			(n)
-
-/*
- * When VIMAGE isn't compiled into the kernel, virtaulized SYSCTLs simply
- * become normal SYSCTLs.
- */
-#ifdef SYSCTL_OID
-#define	SYSCTL_VNET_INT(parent, nbr, name, access, ptr, val, descr)	\
-	SYSCTL_INT(parent, nbr, name, access, ptr, val, descr)
-#define	SYSCTL_VNET_PROC(parent, nbr, name, access, ptr, arg, handler,	\
-	    fmt, descr)							\
-	SYSCTL_PROC(parent, nbr, name, access, ptr, arg, handler, fmt,	\
-	    descr)
-#define	SYSCTL_VNET_OPAQUE(parent, nbr, name, access, ptr, len, fmt,    \
-	    descr)							\
-	SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr)
-#define	SYSCTL_VNET_STRING(parent, nbr, name, access, arg, len, descr)	\
-	SYSCTL_STRING(parent, nbr, name, access, arg, len, descr)
-#define	SYSCTL_VNET_STRUCT(parent, nbr, name, access, ptr, type, descr)	\
-	SYSCTL_STRUCT(parent, nbr, name, access, ptr, type, descr)
-#define	SYSCTL_VNET_UINT(parent, nbr, name, access, ptr, val, descr)	\
-	SYSCTL_UINT(parent, nbr, name, access, ptr, val, descr)
-#define	VNET_SYSCTL_ARG(req, arg1)
-#endif /* SYSCTL_OID */
 
 /*
  * When VIMAGE isn't compiled into the kernel, VNET_SYSINIT/VNET_SYSUNINIT

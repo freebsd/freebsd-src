@@ -145,7 +145,7 @@ SymbolFileSymtab::GetNumCompileUnits()
     if (m_source_indexes.empty())
         return 0;
 
-    // If we have any source file symbols we will logically orgnize the object symbols
+    // If we have any source file symbols we will logically organize the object symbols
     // using these.
     return m_source_indexes.size();
 }
@@ -364,20 +364,6 @@ SymbolFileSymtab::FindFunctions(const RegularExpression& regex, bool include_inl
     // debug information. Any symbol queries should go through the symbol
     // table itself in the module's object file.
     return 0;
-}
-
-static int CountMethodArgs(const char *method_signature)
-{
-    int num_args = 0;
-    
-    for (const char *colon_pos = strchr(method_signature, ':');
-         colon_pos != NULL;
-         colon_pos = strchr(colon_pos + 1, ':'))
-    {
-        num_args++;
-    }
-    
-    return num_args;
 }
 
 uint32_t

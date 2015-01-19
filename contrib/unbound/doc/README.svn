@@ -1,6 +1,6 @@
 README.svn
 
-For a svn checkout
+For a svn checkout:
 * configure script, aclocal.m4, as well as yacc/lex output files are
   committed to the repository.
 * use --enable-debug flag for configure to enable dependency tracking and

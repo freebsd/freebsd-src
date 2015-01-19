@@ -5,12 +5,14 @@ arm/arm/bcopyinout.S		standard
 arm/arm/blockio.S		standard
 arm/arm/bootconfig.c		standard
 arm/arm/bus_space_asm_generic.S	standard
-arm/arm/busdma_machdep.c 	optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_xscale_80219 | cpu_xscale_80321 | cpu_xscale_81342 | cpu_xscale_ixp425 | cpu_xscale_ixp435 | cpu_xscale_pxa2x0
-arm/arm/busdma_machdep-v6.c 	optional	cpu_arm1136 | cpu_arm1176 | cpu_cortexa | cpu_mv_pj4b | cpu_krait
+arm/arm/busdma_machdep.c 	optional	!armv6
+arm/arm/busdma_machdep-v6.c 	optional	armv6
 arm/arm/copystr.S		standard
 arm/arm/cpufunc.c		standard
 arm/arm/cpufunc_asm.S		standard
 arm/arm/cpufunc_asm_armv4.S 	standard
+arm/arm/cpuinfo.c		standard
+arm/arm/cpu_asm-v6.S		optional	armv6
 arm/arm/db_disasm.c		optional	ddb
 arm/arm/db_interface.c		optional	ddb
 arm/arm/db_trace.c		optional	ddb
@@ -39,8 +41,8 @@ arm/arm/pl190.c			optional	pl190
 arm/arm/pl310.c			optional	pl310
 arm/arm/platform.c		optional	platform
 arm/arm/platform_if.m		optional	platform
-arm/arm/pmap.c			optional	cpu_arm9 | cpu_arm9e | cpu_fa526 | cpu_xscale_80219 | cpu_xscale_80321 | cpu_xscale_81342 | cpu_xscale_ixp425 | cpu_xscale_ixp435 | cpu_xscale_pxa2x0
-arm/arm/pmap-v6.c		optional	cpu_arm1136 | cpu_arm1176 | cpu_cortexa | cpu_mv_pj4b | cpu_krait
+arm/arm/pmap.c			optional	!armv6
+arm/arm/pmap-v6.c		optional	armv6
 arm/arm/sc_machdep.c		optional	sc
 arm/arm/setcpsr.S		standard
 arm/arm/setstack.s		standard
@@ -51,7 +53,8 @@ arm/arm/support.S		standard
 arm/arm/swtch.S			standard
 arm/arm/sys_machdep.c		standard
 arm/arm/syscall.c		standard
-arm/arm/trap.c			standard
+arm/arm/trap.c			optional	!armv6
+arm/arm/trap-v6.c		optional	armv6
 arm/arm/uio_machdep.c		standard
 arm/arm/undefined.c		standard
 arm/arm/vm_machdep.c		standard

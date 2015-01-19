@@ -657,6 +657,7 @@ TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 #define	KERN_PROC_UMASK		39	/* process umask */
 #define	KERN_PROC_OSREL		40	/* osreldate for process binary */
 #define	KERN_PROC_SIGTRAMP	41	/* signal trampoline location */
+#define	KERN_PROC_CWD		42	/* process current working directory */
 
 /*
  * KERN_IPC identifiers

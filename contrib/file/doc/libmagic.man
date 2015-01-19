@@ -1,4 +1,4 @@
-.\" $File: libmagic.man,v 1.28 2014/03/02 14:47:16 christos Exp $
+.\" $File: libmagic.man,v 1.34 2014/12/16 23:18:40 christos Exp $
 .\"
 .\" Copyright (c) Christos Zoulas 2003.
 .\" All Rights Reserved.
@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.Dd January 6, 2012
+.Dd December 16, 2014
 .Dt LIBMAGIC 3
 .Os
 .Sh NAME
@@ -40,6 +40,9 @@
 .Nm magic_compile ,
 .Nm magic_list ,
 .Nm magic_load ,
+.Nm magic_load_buffers ,
+.Nm magic_setparam ,
+.Nm magic_getparam ,
 .Nm magic_version
 .Nd Magic number recognition library
 .Sh LIBRARY
@@ -70,6 +73,12 @@
 .Fn magic_list "magic_t cookie" "const char *filename"
 .Ft int
 .Fn magic_load "magic_t cookie" "const char *filename"
+.Ft int
+.Fn magic_load_buffers "magic_t cookie" "void **buffers" "size_t *sizes" "size_t nbuffers"
+.Ft int
+.Fn magic_getparam "magic_t cookie" "int param" "void *value"
+.Ft int
+.Fn magic_setparam "magic_t cookie" "int param" "const void *value"
 .Ft int
 .Fn magic_version "void"
 .Sh DESCRIPTION
@@ -251,6 +260,60 @@ If that variable is not set, the default database file name is __MAGIC__.
 adds
 .Dq .mgc
 to the database filename as appropriate.
+.Pp
+The
+.Fn magic_load_buffers
+function takes an array of size
+.Fa nbuffers
+of
+.Fa buffers
+with a respective size for each in the array of
+.Fa sizes
+loaded with the contents of the magic databases from the filesystem.
+This function can be used in environment where the magic library does
+not have direct access to the filesystem, but can access the magic
+database via shared memory or other IPC means.
+.Pp
+The
+.Fn magic_getparam
+and
+.Fn magic_setparam
+allow getting and setting various limits related to the the magic
+library.
+.Bl -column "MAGIC_PARAM_ELF_PHNUM_MAX" "size_t" "Default" -offset indent
+.It Sy "Parameter" Ta Sy "Type" Ta Sy "Default"
+.It Li MAGIC_PARAM_INDIR_MAX Ta size_t Ta 15
+.It Li MAGIC_PARAM_NAME_MAX Ta size_t Ta 30
+.It Li MAGIC_PARAM_ELF_NOTES_MAX Ta size_t Ta 256
+.It Li MAGIC_PARAM_ELF_PHNUM_MAX Ta size_t Ta 128
+.It Li MAGIC_PARAM_ELF_SHNUM_MAX Ta size_t Ta 32768
+.El
+.Pp
+The
+.Dv MAGIC_PARAM_INDIR_RECURSION
+parameter controls how many levels of recursion will be followed for
+indirect magic entries.
+.Pp
+The
+.Dv MAGIC_PARAM_NAME_RECURSION
+parameter controls how many levels of recursion will be followed for
+for name/use calls.
+.Pp
+The
+.Dv MAGIC_PARAM_NAME_MAX
+parameter controls the maximum number of calls for name/use.
+.Pp
+The
+.Dv MAGIC_PARAM_NOTES_MAX
+parameter controls how many ELF notes will be processed.
+.Pp
+The
+.Dv MAGIC_PARAM_PHNUM_MAX
+parameter controls how many ELF program sections will be processed.
+.Pp
+The
+.Dv MAGIC_PARAM_SHNUM_MAX
+parameter controls how many ELF sections will be processed.
 .Pp
 The
 .Fn magic_version

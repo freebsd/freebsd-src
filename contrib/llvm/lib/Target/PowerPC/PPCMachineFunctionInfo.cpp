@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "PPCMachineFunctionInfo.h"
-#include "llvm/MC/MCAsmInfo.h"
+#include "llvm/IR/DataLayout.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/Target/TargetMachine.h"
 
@@ -17,7 +17,7 @@ using namespace llvm;
 void PPCFunctionInfo::anchor() { }
 
 MCSymbol *PPCFunctionInfo::getPICOffsetSymbol() const {
-  const MCAsmInfo *MAI = MF.getTarget().getMCAsmInfo();
-  return MF.getContext().GetOrCreateSymbol(Twine(MAI->getPrivateGlobalPrefix())+
+  const DataLayout *DL = MF.getTarget().getDataLayout();
+  return MF.getContext().GetOrCreateSymbol(Twine(DL->getPrivateGlobalPrefix())+
     Twine(MF.getFunctionNumber())+"$poff");
 }

@@ -902,7 +902,6 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	struct ext2mount *ump;
 	struct buf *bp;
 	struct vnode *vp;
-	struct cdev *dev;
 	struct thread *td;
 	int i, error;
 	int used_blocks;
@@ -913,7 +912,6 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		return (error);
 
 	ump = VFSTOEXT2(mp);
-	dev = ump->um_dev;
 	ip = malloc(sizeof(struct inode), M_EXT2NODE, M_WAITOK | M_ZERO);
 
 	/* Allocate a new vnode/inode. */
@@ -974,9 +972,9 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		for (i = used_blocks; i < EXT2_NDIR_BLOCKS; i++)
 			ip->i_db[i] = 0;
 	}
-/*
+#ifdef EXT2FS_DEBUG
 	ext2_print_inode(ip);
-*/
+#endif
 	bqrelse(bp);
 
 	/*

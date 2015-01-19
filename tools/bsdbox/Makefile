@@ -55,7 +55,7 @@ CRUNCH_SRCDIRS+= bin
 # setuid binaries - they use these libraries. PAM needs to be
 # built dynamically or it tries to build _all_ of the modules
 # statically - and that ends very badly.
-CRUNCH_SHLIBS+=	-lc -lutil -lcrypt
+CRUNCH_SHLIBS+=	-lc -lutil -lcrypt -lxo -lgpio
 CRUNCH_LIBS+= -lkvm -lmemstat -lnetgraph
 CRUNCH_LIBS+= -lcrypt -ledit -ll -ltermcapw
 

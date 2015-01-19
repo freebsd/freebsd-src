@@ -29,13 +29,6 @@ CFLAGS+= -DYES_HESIOD
 
 CFLAGS+= -DHOST_CPU=\"${MACHINE_CPUARCH}\" -DHOST_ARCH=\"${MACHINE_ARCH}\"
 
-.if exists(${.OBJDIR}/../libamu)
-LIBAMUDIR=	${.OBJDIR}/../libamu
-.else
-LIBAMUDIR=	${.CURDIR}/../libamu
-.endif
-LIBAMU=		${LIBAMUDIR}/libamu.a
-
 RPCCOM=		RPCGEN_CPP=${CPP:Q} rpcgen
 MOUNT_X=	${DESTDIR}/usr/include/rpcsvc/mount.x
 NFS_PROT_X=	${DESTDIR}/usr/include/rpcsvc/nfs_prot.x

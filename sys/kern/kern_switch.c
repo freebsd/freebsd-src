@@ -93,8 +93,6 @@ SCHED_STAT_DEFINE_VAR(turnstile,
     &DPCPU_NAME(sched_switch_stats[SWT_TURNSTILE]), "");
 SCHED_STAT_DEFINE_VAR(sleepq,
     &DPCPU_NAME(sched_switch_stats[SWT_SLEEPQ]), "");
-SCHED_STAT_DEFINE_VAR(sleepqtimo,
-    &DPCPU_NAME(sched_switch_stats[SWT_SLEEPQTIMO]), "");
 SCHED_STAT_DEFINE_VAR(relinquish, 
     &DPCPU_NAME(sched_switch_stats[SWT_RELINQUISH]), "");
 SCHED_STAT_DEFINE_VAR(needresched,

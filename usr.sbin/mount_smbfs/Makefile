@@ -8,8 +8,7 @@ MOUNTDIR=	${.CURDIR}/../../sbin/mount
 CONTRIBDIR=	${.CURDIR}/../../contrib/smbfs
 CFLAGS+=	-DSMBFS -I${MOUNTDIR} -I${CONTRIBDIR}/include
 
-LDADD=	-lsmb -lkiconv
-DPADD=	${LIBSMB} ${LIBKICONV}
+LIBADD=	smb
 
 .PATH:	${CONTRIBDIR}/mount_smbfs
 .PATH:  ${MOUNTDIR}

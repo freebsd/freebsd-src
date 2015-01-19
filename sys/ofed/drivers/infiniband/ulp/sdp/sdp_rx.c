@@ -116,8 +116,7 @@ sdp_post_recv(struct sdp_sock *ssk)
 		return -1;
 	}
 	for (m = mb; m != NULL; m = m->m_next) {
-		m->m_len = (m->m_flags & M_EXT) ? m->m_ext.ext_size :
-                        ((m->m_flags & M_PKTHDR) ? MHLEN : MLEN);
+		m->m_len = M_SIZE(m);
 		mb->m_pkthdr.len += m->m_len;
 	}
 	h = mtod(mb, struct sdp_bsdh *);
@@ -183,7 +182,7 @@ sdp_post_recvs_needed(struct sdp_sock *ssk)
 	 * Compute bytes in the receive queue and socket buffer.
 	 */
 	bytes_in_process = (posted - SDP_MIN_TX_CREDITS) * buffer_size;
-	bytes_in_process += ssk->socket->so_rcv.sb_cc;
+	bytes_in_process += sbused(&ssk->socket->so_rcv);
 
 	return bytes_in_process < max_bytes;
 }

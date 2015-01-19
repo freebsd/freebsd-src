@@ -13,8 +13,7 @@ SHLIB_MAJOR=	0
 
 CFLAGS+=-I${.CURDIR}
 
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 
 WARNS?=	6
 

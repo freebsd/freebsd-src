@@ -1,7 +1,7 @@
-/*	$Id: tbl_layout.c,v 1.23 2012/05/27 17:54:54 schwarze Exp $ */
+/*	$Id: tbl_layout.c,v 1.30 2014/11/25 21:41:47 schwarze Exp $ */
 /*
  * Copyright (c) 2009, 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
- * Copyright (c) 2012 Ingo Schwarze <schwarze@openbsd.org>
+ * Copyright (c) 2012, 2014 Ingo Schwarze <schwarze@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,17 +15,17 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
 
-#include <assert.h>
+#include <sys/types.h>
+
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 
 #include "mandoc.h"
+#include "mandoc_aux.h"
 #include "libmandoc.h"
 #include "libroff.h"
 
@@ -55,16 +55,16 @@ static	const struct tbl_phrase keys[KEYS_MAX] = {
 	{ '=',		 TBL_CELL_DHORIZ }
 };
 
-static	int		 mods(struct tbl_node *, struct tbl_cell *, 
+static	int		 mods(struct tbl_node *, struct tbl_cell *,
 				int, const char *, int *);
-static	int		 cell(struct tbl_node *, struct tbl_row *, 
+static	int		 cell(struct tbl_node *, struct tbl_row *,
 				int, const char *, int *);
-static	void		 row(struct tbl_node *, int, const char *, int *);
 static	struct tbl_cell *cell_alloc(struct tbl_node *, struct tbl_row *,
 				enum tbl_cellt, int vert);
 
+
 static int
-mods(struct tbl_node *tbl, struct tbl_cell *cp, 
+mods(struct tbl_node *tbl, struct tbl_cell *cp,
 		int ln, const char *p, int *pos)
 {
 	char		 buf[5];
@@ -73,33 +73,35 @@ mods(struct tbl_node *tbl, struct tbl_cell *cp,
 	/* Not all types accept modifiers. */
 
 	switch (cp->pos) {
-	case (TBL_CELL_DOWN):
+	case TBL_CELL_DOWN:
 		/* FALLTHROUGH */
-	case (TBL_CELL_HORIZ):
+	case TBL_CELL_HORIZ:
 		/* FALLTHROUGH */
-	case (TBL_CELL_DHORIZ):
+	case TBL_CELL_DHORIZ:
 		return(1);
 	default:
 		break;
 	}
 
 mod:
-	/* 
+	/*
 	 * XXX: since, at least for now, modifiers are non-conflicting
 	 * (are separable by value, regardless of position), we let
 	 * modifiers come in any order.  The existing tbl doesn't let
 	 * this happen.
 	 */
 	switch (p[*pos]) {
-	case ('\0'):
+	case '\0':
 		/* FALLTHROUGH */
-	case (' '):
+	case ' ':
 		/* FALLTHROUGH */
-	case ('\t'):
+	case '\t':
 		/* FALLTHROUGH */
-	case (','):
+	case ',':
 		/* FALLTHROUGH */
-	case ('.'):
+	case '.':
+		/* FALLTHROUGH */
+	case '|':
 		return(1);
 	default:
 		break;
@@ -115,8 +117,8 @@ mod:
 			(*pos)++;
 			goto mod;
 		}
-		mandoc_msg(MANDOCERR_TBLLAYOUT, 
-				tbl->parse, ln, *pos, NULL);
+		mandoc_msg(MANDOCERR_TBLLAYOUT, tbl->parse,
+		    ln, *pos, NULL);
 		return(0);
 	}
 
@@ -133,8 +135,8 @@ mod:
 		/* No greater than 4 digits. */
 
 		if (4 == i) {
-			mandoc_msg(MANDOCERR_TBLLAYOUT, tbl->parse,
-					ln, *pos, NULL);
+			mandoc_msg(MANDOCERR_TBLLAYOUT,
+			    tbl->parse, ln, *pos, NULL);
 			return(0);
 		}
 
@@ -143,69 +145,77 @@ mod:
 
 		goto mod;
 		/* NOTREACHED */
-	} 
+	}
 
 	/* TODO: GNU has many more extensions. */
 
 	switch (tolower((unsigned char)p[(*pos)++])) {
-	case ('z'):
+	case 'z':
 		cp->flags |= TBL_CELL_WIGN;
 		goto mod;
-	case ('u'):
+	case 'u':
 		cp->flags |= TBL_CELL_UP;
 		goto mod;
-	case ('e'):
+	case 'e':
 		cp->flags |= TBL_CELL_EQUAL;
 		goto mod;
-	case ('t'):
+	case 't':
 		cp->flags |= TBL_CELL_TALIGN;
 		goto mod;
-	case ('d'):
+	case 'd':
 		cp->flags |= TBL_CELL_BALIGN;
 		goto mod;
-	case ('w'):  /* XXX for now, ignore minimal column width */
+	case 'w':  /* XXX for now, ignore minimal column width */
 		goto mod;
-	case ('f'):
+	case 'x':
+		cp->flags |= TBL_CELL_WMAX;
+		goto mod;
+	case 'f':
 		break;
-	case ('r'):
+	case 'r':
 		/* FALLTHROUGH */
-	case ('b'):
+	case 'b':
 		/* FALLTHROUGH */
-	case ('i'):
+	case 'i':
 		(*pos)--;
 		break;
 	default:
 		mandoc_msg(MANDOCERR_TBLLAYOUT, tbl->parse,
-				ln, *pos - 1, NULL);
+		    ln, *pos - 1, NULL);
 		return(0);
 	}
 
 	switch (tolower((unsigned char)p[(*pos)++])) {
-	case ('3'):
+	case '3':
 		/* FALLTHROUGH */
-	case ('b'):
+	case 'b':
 		cp->flags |= TBL_CELL_BOLD;
 		goto mod;
-	case ('2'):
+	case '2':
 		/* FALLTHROUGH */
-	case ('i'):
+	case 'i':
 		cp->flags |= TBL_CELL_ITALIC;
 		goto mod;
-	case ('1'):
+	case '1':
 		/* FALLTHROUGH */
-	case ('r'):
+	case 'r':
 		goto mod;
 	default:
 		break;
 	}
+	if (isalnum((unsigned char)p[*pos - 1])) {
+		mandoc_vmsg(MANDOCERR_FT_BAD, tbl->parse,
+		    ln, *pos - 1, "TS f%c", p[*pos - 1]);
+		goto mod;
+	}
 
 	mandoc_msg(MANDOCERR_TBLLAYOUT, tbl->parse,
-			ln, *pos - 1, NULL);
+	    ln, *pos - 1, NULL);
 	return(0);
 }
 
 static int
-cell(struct tbl_node *tbl, struct tbl_row *rp, 
+cell(struct tbl_node *tbl, struct tbl_row *rp,
 		int ln, const char *p, int *pos)
 {
 	int		 vert, i;
@@ -218,6 +228,13 @@ cell(struct tbl_node *tbl, struct tbl_row *rp,
 	while (' ' == p[*pos])
 		(*pos)++;
 
+	/* Handle trailing vertical lines */
+
+	if ('.' == p[*pos] || '\0' == p[*pos]) {
+		rp->vert = vert;
+		return(1);
+	}
+
 	/* Parse the column position (`c', `l', `r', ...). */
 
 	for (i = 0; i < KEYS_MAX; i++)
@@ -225,8 +242,8 @@ cell(struct tbl_node *tbl, struct tbl_row *rp,
 			break;
 
 	if (KEYS_MAX == i) {
-		mandoc_msg(MANDOCERR_TBLLAYOUT, tbl->parse, 
-				ln, *pos, NULL);
+		mandoc_msg(MANDOCERR_TBLLAYOUT, tbl->parse,
+		    ln, *pos, NULL);
 		return(0);
 	}
 
@@ -243,14 +260,15 @@ cell(struct tbl_node *tbl, struct tbl_row *rp,
 	if (TBL_CELL_SPAN == c) {
 		if (NULL == rp->first) {
 			mandoc_msg(MANDOCERR_TBLLAYOUT, tbl->parse,
-					ln, *pos, NULL);
+			    ln, *pos, NULL);
 			return(0);
 		} else if (rp->last)
 			switch (rp->last->pos) {
-			case (TBL_CELL_HORIZ):
-			case (TBL_CELL_DHORIZ):
-				mandoc_msg(MANDOCERR_TBLLAYOUT, tbl->parse,
-						ln, *pos, NULL);
+			case TBL_CELL_HORIZ:
+				/* FALLTHROUGH */
+			case TBL_CELL_DHORIZ:
+				mandoc_msg(MANDOCERR_TBLLAYOUT,
+				    tbl->parse, ln, *pos, NULL);
 				return(0);
 			default:
 				break;
@@ -281,69 +299,54 @@ cell(struct tbl_node *tbl, struct tbl_row *rp,
 	return(mods(tbl, cell_alloc(tbl, rp, c, vert), ln, p, pos));
 }
 
-
-static void
-row(struct tbl_node *tbl, int ln, const char *p, int *pos)
-{
-	struct tbl_row	*rp;
-
-row:	/*
-	 * EBNF describing this section:
-	 *
-	 * row		::= row_list [:space:]* [.]?[\n]
-	 * row_list	::= [:space:]* row_elem row_tail
-	 * row_tail	::= [:space:]*[,] row_list |
-	 *                  epsilon
-	 * row_elem	::= [\t\ ]*[:alpha:]+
-	 */
-
-	rp = mandoc_calloc(1, sizeof(struct tbl_row));
-	if (tbl->last_row)
-		tbl->last_row->next = rp;
-	else
-		tbl->first_row = rp;
-	tbl->last_row = rp;
-
-cell:
-	while (isspace((unsigned char)p[*pos]))
-		(*pos)++;
-
-	/* Safely exit layout context. */
-
-	if ('.' == p[*pos]) {
-		tbl->part = TBL_PART_DATA;
-		if (NULL == tbl->first_row) 
-			mandoc_msg(MANDOCERR_TBLNOLAYOUT, tbl->parse, 
-					ln, *pos, NULL);
-		(*pos)++;
-		return;
-	}
-
-	/* End (and possibly restart) a row. */
-
-	if (',' == p[*pos]) {
-		(*pos)++;
-		goto row;
-	} else if ('\0' == p[*pos])
-		return;
-
-	if ( ! cell(tbl, rp, ln, p, pos))
-		return;
-
-	goto cell;
-	/* NOTREACHED */
-}
-
 int
 tbl_layout(struct tbl_node *tbl, int ln, const char *p)
 {
+	struct tbl_row	*rp;
 	int		 pos;
 
 	pos = 0;
-	row(tbl, ln, p, &pos);
+	rp = NULL;
 
-	/* Always succeed. */
-	return(1);
+	for (;;) {
+		/* Skip whitespace before and after each cell. */
+
+		while (isspace((unsigned char)p[pos]))
+			pos++;
+
+		switch (p[pos]) {
+		case ',':  /* Next row on this input line. */
+			pos++;
+			rp = NULL;
+			continue;
+		case '\0':  /* Next row on next input line. */
+			return(1);
+		case '.':  /* End of layout. */
+			pos++;
+			tbl->part = TBL_PART_DATA;
+			if (tbl->first_row != NULL)
+				return(1);
+			mandoc_msg(MANDOCERR_TBLNOLAYOUT,
+			    tbl->parse, ln, pos, NULL);
+			rp = mandoc_calloc(1, sizeof(*rp));
+			cell_alloc(tbl, rp, TBL_CELL_LEFT, 0);
+			tbl->first_row = tbl->last_row = rp;
+			return(1);
+		default:  /* Cell. */
+			break;
+		}
+
+		if (rp == NULL) {  /* First cell on this line. */
+			rp = mandoc_calloc(1, sizeof(*rp));
+			if (tbl->last_row)
+				tbl->last_row->next = rp;
+			else
+				tbl->first_row = rp;
+			tbl->last_row = rp;
+		}
+		if ( ! cell(tbl, rp, ln, p, &pos))
+			return(1);
+	}
 }
 
 static struct tbl_cell *

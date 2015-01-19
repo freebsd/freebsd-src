@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #define	MII_KSZPHY_RX_DATA_PAD_SKEW		0x105
 #define	MII_KSZPHY_TX_DATA_PAD_SKEW		0x106
 
-#define	PS_TO_REG(p)	(p / 200)
+#define	PS_TO_REG(p)	((p) / 200)
 
 static int micphy_probe(device_t);
 static int micphy_attach(device_t);
@@ -104,7 +104,8 @@ static const struct mii_phy_funcs micphy_funcs = {
 	mii_phy_reset
 };
 
-static void micphy_write(struct mii_softc *sc, uint32_t reg, uint32_t val)
+static void
+micphy_write(struct mii_softc *sc, uint32_t reg, uint32_t val)
 {
 
 	PHY_WRITE(sc, MII_KSZPHY_EXTREG, KSZPHY_EXTREG_WRITE | reg);

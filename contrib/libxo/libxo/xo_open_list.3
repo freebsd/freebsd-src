@@ -7,7 +7,7 @@
 .\" # LICENSE.
 .\" # Phil Shafer, July 2014
 .\" 
-.Dd July, 2014
+.Dd December 4, 2014
 .Dt LIBXO 3
 .Os
 .Sh NAME
@@ -71,19 +71,23 @@
 .Ft int
 .Fn xo_close_list_d "void"
 .Sh DESCRIPTION
-Lists are sequences of instances of homogeneous data objects.  Two
+Lists are sequences of instances of homogeneous data objects.
+Two
 distinct levels of calls are needed to represent them in our output
-styles.  Calls must be made to open and close a list, and for each
+styles.
+Calls must be made to open and close a list, and for each
 instance of data in that list, calls must be make to open and close
 that instance.
 .Pp
-The name given to all calls must be identical, and it is strong
+The name given to all calls must be identical, and it is strongly
 suggested that the name be singular, not plural, as a matter of
 style and usage expectations.
 .Pp
-A list is set of one or more instances that appear under the same
-parent.  The instances contains details about a specific object.  One
-can think of instances as objects or records.  A call is needed to
+A list is a set of one or more instances that appear under the same
+parent.
+The instances contain details about a specific object.
+One can think of instances as objects or records.
+A call is needed to
 open and close the list, while a distinct call is needed to open and
 close each instance of the list:
 .Bd -literal -offset indent -compact
@@ -143,19 +147,45 @@ generation of XML and JSON data.
             }
         ]
 .Ed
-.Sh ADDITIONAL DOCUMENTATION
 .Pp
+.Sh LEAF LISTS
+In contrast to a list of instances, a "leaf list" is list of simple
+values.
+To emit a leaf list, call the
+.Fn xo_emit
+function using the ""l"" modifier:
+.Bd -literal -offset indent -compact
+    for (ip = list; ip->i_title; ip++) {
+	xo_emit("{Lwc:Item}{l:item}\n", ip->i_title);
+    }
+.Ed
+.Pp
+The name of the field must match the name of the leaf list.
+.Pp
+In JSON, leaf lists are rendered as arrays of values.  In XML, they
+are rendered as multiple leaf elements.
+.Bd -literal -offset indent -compact
+    JSON:
+        "item": "hammer", "nail"
+    XML:
+        <item>hammer</item>
+        <item>nail</item>
+.Ed
+.Sh ADDITIONAL DOCUMENTATION
 Complete documentation can be found on github:
 .Bd -literal -offset indent
 http://juniper.github.io/libxo/libxo-manual.html
 .Ed
 .Pp
-libxo lives on github as:
+.Nm libxo
+lives on github as:
 .Bd -literal -offset indent
 https://github.com/Juniper/libxo
 .Ed
 .Pp
-The latest release of libxo is available at:
+The latest release of
+.Nm libxo
+is available at:
 .Bd -literal -offset indent
 https://github.com/Juniper/libxo/releases
 .Ed
@@ -163,7 +193,8 @@ https://github.com/Juniper/libxo/releases
 .Xr xo_emit 3
 .Sh HISTORY
 The
-.Fa libxo
-library was added in FreeBSD 11.0.
+.Nm libxo
+library was added in
+.Fx 11.0 .
 .Sh AUTHOR
 Phil Shafer

@@ -693,8 +693,7 @@ smc_task_rx(void *context, int pending)
 		if (m == NULL) {
 			break;
 		}
-		MCLGET(m, M_NOWAIT);
-		if ((m->m_flags & M_EXT) == 0) {
+		if (!(MCLGET(m, M_NOWAIT))) {
 			m_freem(m);
 			break;
 		}

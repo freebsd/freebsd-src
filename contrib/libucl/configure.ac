@@ -1,12 +1,13 @@
 m4_define([maj_ver], [0])
-m4_define([med_ver], [5])
-m4_define([min_ver], [0])
-m4_define([so_version], [2:0:0])
+m4_define([med_ver], [6])
+m4_define([min_ver], [1])
+m4_define([so_version], [3:0:1])
 m4_define([ucl_version], [maj_ver.med_ver.min_ver])
 
 AC_INIT([libucl],[ucl_version],[https://github.com/vstakhov/libucl],[libucl])
 AC_CONFIG_SRCDIR([configure.ac])
-AM_INIT_AUTOMAKE([1.11 foreign silent-rules -Wall -Wportability no-dist-gzip dist-xz])
+AM_INIT_AUTOMAKE([1.11 foreign -Wall -Wportability no-dist-gzip dist-xz])
+m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([yes])])
 
 UCL_VERSION=ucl_version
 SO_VERSION=so_version
@@ -57,6 +58,9 @@ AC_ARG_ENABLE([regex], AS_HELP_STRING([--enable-regex],
 AC_ARG_ENABLE([signatures], AS_HELP_STRING([--enable-signatures],
 	[Enable signatures check (requires openssl) @<:@default=no@:>@]), [],
 	[enable_signatures=no])
+AC_ARG_ENABLE([lua], AS_HELP_STRING([--enable-lua],
+	[Enable lua API build (requires lua libraries and headers) @<:@default=no@:>@]), [],
+	[enable_lua=no])
 AC_ARG_ENABLE([utils],
 	AS_HELP_STRING([--enable-utils], [Build and install utils @<:@default=no@:>@]),
 	[case "${enableval}" in
@@ -98,6 +102,21 @@ AS_IF([test "x$enable_regex" = "xyes"], [
 		[#include <sys/types.h>])
 ])
 AC_SUBST(LIBREGEX_LIB)
+
+AS_IF([test "x$enable_lua" = "xyes"], [
+	AX_PROG_LUA([5.1], [], [
+		AX_LUA_HEADERS([
+			AX_LUA_LIBS([
+				AC_DEFINE(HAVE_LUA, 1, [Define to 1 for lua support.])
+				with_lua="yes"
+			], [AC_MSG_ERROR([unable to find the lua libraries])
+			])
+		], [AC_MSG_ERROR([unable to find the lua header files])
+		])
+	], [AC_MSG_ERROR([unable to find the lua interpreter])])
+], [with_lua="no"])
+
+AM_CONDITIONAL([LUA_SUB], [test "$with_lua" = "yes"])
 
 AS_IF([test "x$enable_urls" = "xyes"], [
 	AC_CHECK_HEADER([fetch.h], [
@@ -155,9 +174,11 @@ AC_LINK_IFELSE([
 
 AC_CONFIG_FILES(Makefile \
 	src/Makefile \
+	lua/Makefile
 	tests/Makefile \
 	utils/Makefile \
 	doc/Makefile \
+	lua/libucl.rockspec \
 	libucl.pc)
 AC_CONFIG_FILES([stamp-h], [echo timestamp > stamp-h])
 AC_OUTPUT

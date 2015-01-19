@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/sysctl.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -136,8 +135,18 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 		}
 	}
 
-	if (!rt->rt_mtu && rt->rt_ifp)
-		rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
+	if (rt->rt_ifp != NULL) {
+
+		/*
+		 * Check route MTU:
+		 * inherit interface MTU if not set or
+		 * check if MTU is too large.
+		 */
+		if (rt->rt_mtu == 0) {
+			rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
+		} else if (rt->rt_mtu > IN6_LINKMTU(rt->rt_ifp))
+			rt->rt_mtu = IN6_LINKMTU(rt->rt_ifp);
+	}
 
 	ret = rn_addroute(v_arg, n_arg, head, treenodes);
 	if (ret == NULL) {
@@ -168,24 +177,6 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	}
 	return (ret);
 }
-
-SYSCTL_DECL(_net_inet6_ip6);
-
-static VNET_DEFINE(int, rtq_toomany6) = 128;
-	/* 128 cached routes is ``too many'' */
-#define	V_rtq_toomany6			VNET(rtq_toomany6)
-SYSCTL_VNET_INT(_net_inet6_ip6, IPV6CTL_RTMAXCACHE, rtmaxcache, CTLFLAG_RW,
-    &VNET_NAME(rtq_toomany6) , 0, "");
-
-struct rtqk_arg {
-	struct radix_node_head *rnh;
-	int mode;
-	int updating;
-	int draining;
-	int killed;
-	int found;
-	time_t nextstop;
-};
 
 /*
  * Age old PMTUs.

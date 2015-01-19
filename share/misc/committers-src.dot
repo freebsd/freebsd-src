@@ -113,6 +113,7 @@ andrew [label="Andrew Turner\nandrew@FreeBSD.org\n2010/07/19"]
 antoine [label="Antoine Brodin\nantoine@FreeBSD.org\n2008/02/03"]
 ariff [label="Ariff Abdullah\nariff@FreeBSD.org\n2005/11/14"]
 art [label="Artem Belevich\nart@FreeBSD.org\n2011/03/29"]
+arybchik [label="Andrew Rybchenko\narybchik@FreeBSD.org\n2014/10/12"]
 asomers [label="Alan Somers\nasomers@FreeBSD.org\n2013/04/24"]
 avg [label="Andriy Gapon\navg@FreeBSD.org\n2009/02/18"]
 bapt [label="Baptiste Daroussin\nbapt@FreeBSD.org\n2011/12/23"]
@@ -438,6 +439,7 @@ gnn -> vanhu
 gnn -> lstewart
 gnn -> np
 gnn -> davide
+gnn -> arybchik
 
 grehan -> bryanv
 

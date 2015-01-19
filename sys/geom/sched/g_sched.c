@@ -346,17 +346,8 @@ static inline u_long
 g_sched_classify(struct bio *bp)
 {
 
-#if __FreeBSD_version > 800098
 	/* we have classifier fields in the struct bio */
-#define HAVE_BIO_CLASSIFIER
 	return ((u_long)bp->bio_classifier1);
-#else
-#warning old version!!!
-	while (bp->bio_parent != NULL)
-		bp = bp->bio_parent;
-
-	return ((u_long)bp->bio_caller1);
-#endif
 }
 
 /* Return the hash chain for the given key. */
@@ -705,7 +696,7 @@ g_gsched_global_init(void)
 		G_SCHED_DEBUG(0, "Initializing global data.");
 		mtx_init(&me.gs_mtx, "gsched", NULL, MTX_DEF);
 		LIST_INIT(&me.gs_scheds);
-		gs_bioq_init(&me.gs_pending);
+		bioq_init(&me.gs_pending);
 		me.gs_initialized = 1;
 	}
 }
@@ -914,7 +905,7 @@ g_sched_temporary_start(struct bio *bio)
 
 	mtx_lock(&me.gs_mtx);
 	me.gs_npending++;
-	gs_bioq_disksort(&me.gs_pending, bio);
+	bioq_disksort(&me.gs_pending, bio);
 	mtx_unlock(&me.gs_mtx);
 }
 
@@ -923,7 +914,7 @@ g_sched_flush_pending(g_start_t *start)
 {
 	struct bio *bp;
 
-	while ((bp = gs_bioq_takefirst(&me.gs_pending)))
+	while ((bp = bioq_takefirst(&me.gs_pending)))
 		start(bp);
 }
 
@@ -1365,161 +1356,7 @@ g_sched_destroy_geom(struct gctl_req *req, struct g_class *mp,
  * to the issuer of a request in bp->bio_classifier1 as soon
  * as the bio is posted to the geom queue (and not later, because
  * requests are managed by the g_down thread afterwards).
- *
- * On older versions of the system (but this code is not used
- * in any existing release), we [ab]use the caller1 field in the
- * root element of the bio tree to store the classification info.
- * The marking is done at the beginning of g_io_request()
- * and only if we find that the field is NULL.
- *
- * To avoid rebuilding the kernel, this module will patch the
- * initial part of g_io_request() so it jumps to some hand-coded
- * assembly that does the marking and then executes the original
- * body of g_io_request().
- *
- * fake_ioreq[] is architecture-specific machine code
- * that implements the above. CODE_SIZE, STORE_SIZE etc.
- * are constants used in the patching routine. Look at the
- * code in g_ioreq_patch() for the details.
  */
-
-#ifndef HAVE_BIO_CLASSIFIER
-/*
- * Support for old FreeBSD versions
- */
-#if defined(__i386__)
-#define	CODE_SIZE	29
-#define	STORE_SIZE	5
-#define	EPILOGUE	5
-#define	SIZE		(CODE_SIZE + STORE_SIZE + EPILOGUE)
-
-static u_char fake_ioreq[SIZE] = {
-	0x8b, 0x44, 0x24, 0x04,		/* mov bp, %eax */
-	/* 1: */
-	0x89, 0xc2,			/* mov %eax, %edx # edx = bp */
-	0x8b, 0x40, 0x64,		/* mov bp->bio_parent, %eax */
-	0x85, 0xc0,			/* test %eax, %eax */
-	0x75, 0xf7,			/* jne 1b */
-	0x8b, 0x42, 0x30,		/* mov bp->bp_caller1, %eax */
-	0x85, 0xc0,			/* test %eax, %eax */
-	0x75, 0x09,			/* jne 2f */
-	0x64, 0xa1, 0x00, 0x00,		/* mov %fs:0, %eax */
-	0x00, 0x00,
-	0x89, 0x42, 0x30,		/* mov %eax, bp->bio_caller1 */
-	/* 2: */
-        0x55, 0x89, 0xe5, 0x57, 0x56,
-	0xe9, 0x00, 0x00, 0x00, 0x00,	/* jmp back... */
-};
-#elif defined(__amd64)
-#define	CODE_SIZE	38
-#define	STORE_SIZE	6
-#define	EPILOGUE	5
-#define	SIZE		(CODE_SIZE + STORE_SIZE + EPILOGUE)
-
-static u_char fake_ioreq[SIZE] = {
-	0x48, 0x89, 0xf8,		/* mov bp, %rax */
-	/* 1: */
-	0x48, 0x89, 0xc2,		/* mov %rax, %rdx # rdx = bp */
-	0x48, 0x8b, 0x82, 0xa8,		/* mov bp->bio_parent, %rax */
-	0x00, 0x00, 0x00,
-	0x48, 0x85, 0xc0,		/* test %rax, %rax */
-	0x75, 0xf1,			/* jne 1b */
-	0x48, 0x83, 0x7a, 0x58,		/* cmp $0, bp->bp_caller1 */
-	0x00,
-	0x75, 0x0d,			/* jne 2f */
-	0x65, 0x48, 0x8b, 0x04,		/* mov %gs:0, %rax */
-	0x25, 0x00, 0x00, 0x00,
-	0x00,
-	0x48, 0x89, 0x42, 0x58,		/* mov %rax, bp->bio_caller1 */
-	/* 2: */
-	0x55, 0x48, 0x89, 0xe5, 0x41, 0x56,
-	0xe9, 0x00, 0x00, 0x00, 0x00,	/* jmp back... */
-};
-#else /* neither x86 nor amd64 */
-static void
-g_new_io_request(struct bio *bp, struct g_consumer *cp)
-{
-	struct bio *top = bp;
-
-        /*
-         * bio classification: if bio_caller1 is available in the
-         * root of the 'struct bio' tree, store there the thread id
-         * of the thread that originated the request.
-         * More sophisticated classification schemes can be used.
-         */
-	while (top->bio_parent)
-		top = top->bio_parent;
-
-	if (top->bio_caller1 == NULL)
-		top->bio_caller1 = curthread;
-}
-
-#error please add the code above in g_new_io_request() to the beginning of \
-	/sys/geom/geom_io.c::g_io_request(), and remove this line.
-#endif /* end of arch-specific code */
-
-static int
-g_ioreq_patch(void)
-{
-	u_char *original;
-	u_long ofs;
-	int found;
-
-	if (me.gs_patched)
-		return (-1);
-
-	original = (u_char *)g_io_request;
-
-	found = !bcmp(original, fake_ioreq + CODE_SIZE, STORE_SIZE);
-	if (!found)
-		return (-1);
-
-	/* Jump back to the original + STORE_SIZE. */
-	ofs = (original + STORE_SIZE) - (fake_ioreq + SIZE);
-	bcopy(&ofs, fake_ioreq + CODE_SIZE + STORE_SIZE + 1, 4);
-
-	/* Patch the original address with a jump to the trampoline. */
-	*original = 0xe9;     /* jump opcode */
-	ofs = fake_ioreq - (original + 5);
-	bcopy(&ofs, original + 1, 4);
-
-	me.gs_patched = 1;
-
-	return (0);
-}
-
-/*
- * Restore the original code, this is easy.
- */
-static void
-g_ioreq_restore(void)
-{
-	u_char *original;
-
-	if (me.gs_patched) {
-		original = (u_char *)g_io_request;
-		bcopy(fake_ioreq + CODE_SIZE, original, STORE_SIZE);
-		me.gs_patched = 0;
-	}
-}
-
-static inline void
-g_classifier_ini(void)
-{
-
-	g_ioreq_patch();
-}
-
-static inline void
-g_classifier_fini(void)
-{
-
-	g_ioreq_restore();
-}
-
-/*--- end of support code for older FreeBSD versions */
-
-#else /* HAVE_BIO_CLASSIFIER */
 
 /*
  * Classifier support for recent FreeBSD versions: we use
@@ -1552,7 +1389,6 @@ g_classifier_fini(void)
 
 	g_unregister_classifier(&g_sched_classifier);
 }
-#endif /* HAVE_BIO_CLASSIFIER */
 
 static void
 g_sched_init(struct g_class *mp)

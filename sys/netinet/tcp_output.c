@@ -90,36 +90,36 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 VNET_DEFINE(int, path_mtu_discovery) = 1;
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, path_mtu_discovery, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, path_mtu_discovery, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(path_mtu_discovery), 1,
 	"Enable Path MTU Discovery");
 
 VNET_DEFINE(int, tcp_do_tso) = 1;
 #define	V_tcp_do_tso		VNET(tcp_do_tso)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, tso, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, tso, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_do_tso), 0,
 	"Enable TCP Segmentation Offload");
 
 VNET_DEFINE(int, tcp_sendspace) = 1024*32;
 #define	V_tcp_sendspace	VNET(tcp_sendspace)
-SYSCTL_VNET_INT(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_sendspace), 0, "Initial send socket buffer size");
 
 VNET_DEFINE(int, tcp_do_autosndbuf) = 1;
 #define	V_tcp_do_autosndbuf	VNET(tcp_do_autosndbuf)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, sendbuf_auto, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_auto, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_do_autosndbuf), 0,
 	"Enable automatic send buffer sizing");
 
 VNET_DEFINE(int, tcp_autosndbuf_inc) = 8*1024;
 #define	V_tcp_autosndbuf_inc	VNET(tcp_autosndbuf_inc)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, sendbuf_inc, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_inc, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_autosndbuf_inc), 0,
 	"Incrementor step size of automatic send buffer");
 
 VNET_DEFINE(int, tcp_autosndbuf_max) = 2*1024*1024;
 #define	V_tcp_autosndbuf_max	VNET(tcp_autosndbuf_max)
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_RW,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_VNET | CTLFLAG_RW,
 	&VNET_NAME(tcp_autosndbuf_max), 0,
 	"Max size of automatic send buffer");
 
@@ -322,7 +322,7 @@ after_sack_rexmit:
 			 * to send then the probe will be the FIN
 			 * itself.
 			 */
-			if (off < so->so_snd.sb_cc)
+			if (off < sbused(&so->so_snd))
 				flags &= ~TH_FIN;
 			sendwin = 1;
 		} else {
@@ -348,7 +348,8 @@ after_sack_rexmit:
 	 */
 	if (sack_rxmit == 0) {
 		if (sack_bytes_rxmt == 0)
-			len = ((long)ulmin(so->so_snd.sb_cc, sendwin) - off);
+			len = ((long)ulmin(sbavail(&so->so_snd), sendwin) -
+			    off);
 		else {
 			long cwin;
 
@@ -357,8 +358,8 @@ after_sack_rexmit:
 			 * sending new data, having retransmitted all the
 			 * data possible in the scoreboard.
 			 */
-			len = ((long)ulmin(so->so_snd.sb_cc, tp->snd_wnd) 
-			       - off);
+			len = ((long)ulmin(sbavail(&so->so_snd), tp->snd_wnd) -
+			    off);
 			/*
 			 * Don't remove this (len > 0) check !
 			 * We explicitly check for len > 0 here (although it 
@@ -457,12 +458,15 @@ after_sack_rexmit:
 	 * TODO: Shrink send buffer during idle periods together
 	 * with congestion window.  Requires another timer.  Has to
 	 * wait for upcoming tcp timer rewrite.
+	 *
+	 * XXXGL: should there be used sbused() or sbavail()?
 	 */
 	if (V_tcp_do_autosndbuf && so->so_snd.sb_flags & SB_AUTOSIZE) {
 		if ((tp->snd_wnd / 4 * 5) >= so->so_snd.sb_hiwat &&
-		    so->so_snd.sb_cc >= (so->so_snd.sb_hiwat / 8 * 7) &&
-		    so->so_snd.sb_cc < V_tcp_autosndbuf_max &&
-		    sendwin >= (so->so_snd.sb_cc - (tp->snd_nxt - tp->snd_una))) {
+		    sbused(&so->so_snd) >= (so->so_snd.sb_hiwat / 8 * 7) &&
+		    sbused(&so->so_snd) < V_tcp_autosndbuf_max &&
+		    sendwin >= (sbused(&so->so_snd) -
+		    (tp->snd_nxt - tp->snd_una))) {
 			if (!sbreserve_locked(&so->so_snd,
 			    min(so->so_snd.sb_hiwat + V_tcp_autosndbuf_inc,
 			     V_tcp_autosndbuf_max), so, curthread))
@@ -499,10 +503,11 @@ after_sack_rexmit:
 		tso = 1;
 
 	if (sack_rxmit) {
-		if (SEQ_LT(p->rxmit + len, tp->snd_una + so->so_snd.sb_cc))
+		if (SEQ_LT(p->rxmit + len, tp->snd_una + sbused(&so->so_snd)))
 			flags &= ~TH_FIN;
 	} else {
-		if (SEQ_LT(tp->snd_nxt + len, tp->snd_una + so->so_snd.sb_cc))
+		if (SEQ_LT(tp->snd_nxt + len, tp->snd_una +
+		    sbused(&so->so_snd)))
 			flags &= ~TH_FIN;
 	}
 
@@ -532,7 +537,7 @@ after_sack_rexmit:
 		 */
 		if (!(tp->t_flags & TF_MORETOCOME) &&	/* normal case */
 		    (idle || (tp->t_flags & TF_NODELAY)) &&
-		    len + off >= so->so_snd.sb_cc &&
+		    len + off >= sbavail(&so->so_snd) &&
 		    (tp->t_flags & TF_NOPUSH) == 0) {
 			goto send;
 		}
@@ -660,7 +665,7 @@ dontupdate:
 	 * if window is nonzero, transmit what we can,
 	 * otherwise force out a byte.
 	 */
-	if (so->so_snd.sb_cc && !tcp_timer_active(tp, TT_REXMT) &&
+	if (sbavail(&so->so_snd) && !tcp_timer_active(tp, TT_REXMT) &&
 	    !tcp_timer_active(tp, TT_PERSIST)) {
 		tp->t_rxtshift = 0;
 		tcp_setpersist(tp);
@@ -802,9 +807,9 @@ send:
 				max_len = (if_hw_tsomax - hdrlen);
 				if (max_len <= 0) {
 					len = 0;
-				} else if (len > (u_int)max_len) {
+				} else if (len > max_len) {
 					sendalot = 1;
-					len = (u_int)max_len;
+					len = max_len;
 				}
 			}
 
@@ -817,7 +822,7 @@ send:
 				max_len = 0;
 				mb = sbsndmbuf(&so->so_snd, off, &moff);
 
-				while (mb != NULL && (u_int)max_len < len) {
+				while (mb != NULL && max_len < len) {
 					u_int mlen;
 					u_int frags;
 
@@ -851,9 +856,9 @@ send:
 				}
 				if (max_len <= 0) {
 					len = 0;
-				} else if (len > (u_int)max_len) {
+				} else if (len > max_len) {
 					sendalot = 1;
-					len = (u_int)max_len;
+					len = max_len;
 				}
 			}
 
@@ -863,8 +868,8 @@ send:
 			 * emptied:
 			 */
 			max_len = (tp->t_maxopd - optlen);
-			if ((off + len) < so->so_snd.sb_cc) {
-				moff = len % (u_int)max_len;
+			if ((off + len) < sbavail(&so->so_snd)) {
+				moff = len % max_len;
 				if (moff != 0) {
 					len -= moff;
 					sendalot = 1;
@@ -875,8 +880,8 @@ send:
 			 * In case there are too many small fragments
 			 * don't use TSO:
 			 */
-			if (len <= (u_int)max_len) {
-				len = (u_int)max_len;
+			if (len <= max_len) {
+				len = max_len;
 				sendalot = 1;
 				tso = 0;
 			}
@@ -979,7 +984,7 @@ send:
 		 * give data to the user when a buffer fills or
 		 * a PUSH comes in.)
 		 */
-		if (off + len == so->so_snd.sb_cc)
+		if (off + len == sbused(&so->so_snd))
 			flags |= TH_PUSH;
 		SOCKBUF_UNLOCK(&so->so_snd);
 	} else {
@@ -1002,7 +1007,7 @@ send:
 #ifdef INET6
 		if (isipv6 && (MHLEN < hdrlen + max_linkhdr) &&
 		    MHLEN >= hdrlen) {
-			MH_ALIGN(m, hdrlen);
+			M_ALIGN(m, hdrlen);
 		} else
 #endif
 		m->m_data += max_linkhdr;

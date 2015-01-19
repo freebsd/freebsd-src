@@ -288,20 +288,29 @@ musbotg_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	/* Enable device clocks. */
+	ti_prcm_clk_enable(MUSB0_CLK);
+
 	/*
-	 * Reset USBSS, USB0 and USB1
+	 * Reset USBSS, USB0 and USB1.
+	 * The registers of USB subsystem must not be accessed while the
+	 * reset pulse is active (200ns).
 	 */
+	USBSS_WRITE4(sc, USBSS_SYSCONFIG, USBSS_SYSCONFIG_SRESET);
+	DELAY(100);
+	i = 10;
+	while (USBSS_READ4(sc, USBSS_SYSCONFIG) & USBSS_SYSCONFIG_SRESET) {
+		DELAY(100);
+		if (i-- == 0) {
+			device_printf(dev, "reset timeout.\n");
+			return (ENXIO);
+		}
+	}
+
+	/* Read the module revision. */
 	rev = USBSS_READ4(sc, USBSS_REVREG);
 	device_printf(dev, "TI AM335X USBSS v%d.%d.%d\n",
 	    (rev >> 8) & 7, (rev >> 6) & 3, rev & 63);
-
-	ti_prcm_clk_enable(MUSB0_CLK);
-
-	USBSS_WRITE4(sc, USBSS_SYSCONFIG,
-	    USBSS_SYSCONFIG_SRESET);
-	while (USBSS_READ4(sc, USBSS_SYSCONFIG) &
-	    USBSS_SYSCONFIG_SRESET)
-		;
 
 	err = bus_setup_intr(dev, sc->sc_irq_res[0],
 	    INTR_TYPE_BIO | INTR_MPSAFE,
@@ -326,6 +335,7 @@ musbotg_attach(device_t dev)
 		sc->sc_otg[i].sc_bus.parent = dev;
 		sc->sc_otg[i].sc_bus.devices = sc->sc_otg[i].sc_devices;
 		sc->sc_otg[i].sc_bus.devices_max = MUSB2_MAX_DEVICES;
+		sc->sc_otg[i].sc_bus.dma_bits = 32;
 
 		/* get all DMA memory */
 		if (usb_bus_mem_alloc_all(&sc->sc_otg[i].sc_bus,

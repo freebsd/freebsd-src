@@ -212,10 +212,11 @@ get_load_device(int *type, int *unit, int *slice, int *partition)
 
 	p = get_device_type(devstr, type);
 
-	/*
-	 * Empty device string, or unknown device name, or a bare, known 
-	 * device name. 
-	 */
+	/* Ignore optional spaces after the device name. */
+	while (*p == ' ')
+		p++;
+
+	/* Unknown device name, or a known name without unit number.  */
 	if ((*type == -1) || (*p == '\0')) {
 		return;
 	}

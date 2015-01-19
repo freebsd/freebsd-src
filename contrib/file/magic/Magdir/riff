@@ -1,6 +1,6 @@
 
 #------------------------------------------------------------------------------
-# $File: riff,v 1.27 2014/04/30 21:41:02 christos Exp $
+# $File: riff,v 1.30 2014/09/23 17:02:12 christos Exp $
 # riff:  file(1) magic for RIFF format
 # See
 #
@@ -45,6 +45,26 @@
 >>&(4.l+4)  use riff-walk
 >0  string  fact
 >>&(4.l+4)  use riff-walk
+>0  string  VP8
+>>11		byte		0x9d
+>>>12		byte		0x01
+>>>>13		byte		0x2a	\b, VP8 encoding
+>>>>>14		leshort&0x3fff	x	\b, %d
+>>>>>16		leshort&0x3fff	x	\bx%d, Scaling:
+>>>>>14		leshort&0xc000	0x0000	\b [none]
+>>>>>14		leshort&0xc000	0x1000	\b [5/4]
+>>>>>14		leshort&0xc000	0x2000	\b [5/3]
+>>>>>14		leshort&0xc000	0x3000	\b [2]
+>>>>>14		leshort&0xc000	0x0000	\bx[none]
+>>>>>14		leshort&0xc000	0x1000	\bx[5/4]
+>>>>>14		leshort&0xc000	0x2000	\bx[5/3]
+>>>>>14		leshort&0xc000	0x3000	\bx[2]
+>>>>>15		byte&0x80	=0x00	\b, YUV color
+>>>>>15		byte&0x80	=0x80	\b, bad color specification
+>>>>>15		byte&0x40	=0x40	\b, no clamping required
+>>>>>15		byte&0x40	=0x00	\b, decoders should clamp
+#>0  string  x		we got %s
+#>>&(4.l+4)  use riff-walk
 
 # AVI section extended by Patrik Radman <patrik+file-magic@iki.fi>
 #
@@ -209,6 +229,8 @@
 >8	string		4XMV		\b, 4X Movie file 
 # AMV-type AVI file: http://wiki.multimedia.cx/index.php?title=AMV
 >8	string		AMV\040		\b, AMV 
+>8      string          WEBP            \b, Web/P image
+>>12	use		riff-walk
 
 #
 # XXX - some of the below may only appear in little-endian form.
@@ -284,4 +306,3 @@
 >>&6	leshort		=2		\b, stereo
 >>&6	leshort		>2		\b, %d channels
 >>&8	lelong		>0		%d Hz
-

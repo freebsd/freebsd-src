@@ -99,6 +99,10 @@ struct pincfg {
 	uint32_t padconf_val;
 };
 
+#define	PADCONF_NONE	(1U << 31)	/* Do not configure pad. */
+#define	PADCONF_SION	(1U << 30)	/* Force SION bit in mux register. */
+#define	PADMUX_SION	(1U <<  4)	/* The SION bit in the mux register. */
+
 static inline uint32_t
 RD4(struct iomux_softc *sc, bus_size_t off)
 {
@@ -120,6 +124,7 @@ iomux_configure_pins(device_t dev, phandle_t cfgxref)
 	struct pincfg *cfgtuples, *cfg;
 	phandle_t cfgnode;
 	int i, ntuples;
+	uint32_t sion;
 
 	sc = device_get_softc(dev);
 	cfgnode = OF_node_from_xref(cfgxref);
@@ -130,9 +135,22 @@ iomux_configure_pins(device_t dev, phandle_t cfgxref)
 	if (ntuples == 0)
 		return (0); /* Empty property is not an error. */
 	for (i = 0, cfg = cfgtuples; i < ntuples; i++, cfg++) {
-		WR4(sc, cfg->mux_reg, cfg->mux_val);
-		WR4(sc, cfg->input_reg, cfg->input_val);
-		WR4(sc, cfg->padconf_reg, cfg->padconf_val);
+		sion = (cfg->padconf_val & PADCONF_SION) ? PADMUX_SION : 0;
+		WR4(sc, cfg->mux_reg, cfg->mux_val | sion);
+		if (cfg->input_reg != 0)
+			WR4(sc, cfg->input_reg, cfg->input_val);
+		if ((cfg->padconf_val & PADCONF_NONE) == 0)
+			WR4(sc, cfg->padconf_reg, cfg->padconf_val);
+		if (bootverbose) {
+			char name[32]; 
+			OF_getprop(cfgnode, "name", &name, sizeof(name));
+			printf("%16s: muxreg 0x%04x muxval 0x%02x "
+			    "inpreg 0x%04x inpval 0x%02x "
+			    "padreg 0x%04x padval 0x%08x\n",
+			    name, cfg->mux_reg, cfg->mux_val | sion,
+			    cfg->input_reg, cfg->input_val,
+			    cfg->padconf_reg, cfg->padconf_val);
+		}
 	}
 	free(cfgtuples, M_OFWPROP);
 	return (0);

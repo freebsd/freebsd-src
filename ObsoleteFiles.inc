@@ -38,6 +38,176 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20150118: new clang import which bumps version from 3.5.0 to 3.5.1.
+OLD_FILES+=usr/include/clang/3.5.0/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.5.0/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.5.0/altivec.h
+OLD_FILES+=usr/include/clang/3.5.0/ammintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/arm_acle.h
+OLD_FILES+=usr/include/clang/3.5.0/arm_neon.h
+OLD_FILES+=usr/include/clang/3.5.0/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.5.0/avxintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.5.0/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/cpuid.h
+OLD_FILES+=usr/include/clang/3.5.0/emmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.5.0/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/ia32intrin.h
+OLD_FILES+=usr/include/clang/3.5.0/immintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.5.0/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.5.0/mmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/module.modulemap
+OLD_FILES+=usr/include/clang/3.5.0/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/prfchwintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/rdseedintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/shaintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/smmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/tbmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/x86intrin.h
+OLD_FILES+=usr/include/clang/3.5.0/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.5.0/xopintrin.h
+OLD_DIRS+=usr/include/clang/3.5.0
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.asan-i386.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.asan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.asan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.asan_cxx-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.profile-arm.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.profile-i386.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.profile-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.san-i386.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.san-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.ubsan-i386.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.ubsan-x86_64.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.ubsan_cxx-i386.a
+OLD_FILES+=usr/lib/clang/3.5.0/lib/freebsd/libclang_rt.ubsan_cxx-x86_64.a
+OLD_DIRS+=usr/lib/clang/3.5.0/lib/freebsd
+OLD_DIRS+=usr/lib/clang/3.5.0/lib
+OLD_DIRS+=usr/lib/clang/3.5.0
+# 20150102: removal of texinfo
+OLD_FILES+=usr/bin/info
+OLD_FILES+=usr/bin/infokey
+OLD_FILES+=usr/bin/install-info
+OLD_FILES+=usr/bin/makeinfo
+OLD_FILES+=usr/bin/texindex
+OLD_FILES+=usr/share/info/am-utils.info.gz
+OLD_FILES+=usr/share/info/as-utils.info.gz
+OLD_FILES+=usr/share/info/binutils.info.gz
+OLD_FILES+=usr/share/info/com_err.info.gz
+OLD_FILES+=usr/share/info/diff.info.gz
+OLD_FILES+=usr/share/info/gdb.info.gz
+OLD_FILES+=usr/share/info/gdbint.info.gz
+OLD_FILES+=usr/share/info/gperf.info.gz
+OLD_FILES+=usr/share/info/grep.info.gz
+OLD_FILES+=usr/share/info/groff.info.gz
+OLD_FILES+=usr/share/info/heimdal.info.gz
+OLD_FILES+=usr/share/info/history.info.gz
+OLD_FILES+=usr/share/info/info-stnd.info.gz
+OLD_FILES+=usr/share/info/info.info.gz
+OLD_FILES+=usr/share/info/ld.info.gz
+OLD_FILES+=usr/share/info/regex.info.gz
+OLD_FILES+=usr/share/info/rluserman.info.gz
+OLD_FILES+=usr/share/info/stabs.info.gz
+OLD_FILES+=usr/share/info/texinfo.info.gz
+OLD_FILES+=usr/share/man/man1/info.1.gz
+OLD_FILES+=usr/share/man/man1/infokey.1.gz
+OLD_FILES+=usr/share/man/man1/install-info.1.gz
+OLD_FILES+=usr/share/man/man1/makeinfo.1.gz
+OLD_FILES+=usr/share/man/man1/texindex.1.gz
+OLD_FILES+=usr/share/man/man5/info.5.gz
+OLD_FILES+=usr/share/man/man5/texinfo.5.gz
+# 20141231: new clang import which bumps version from 3.4.1 to 3.5.0.
+OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_aes.h
+OLD_FILES+=usr/include/clang/3.4.1/__wmmintrin_pclmul.h
+OLD_FILES+=usr/include/clang/3.4.1/altivec.h
+OLD_FILES+=usr/include/clang/3.4.1/ammintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/arm_neon.h
+OLD_FILES+=usr/include/clang/3.4.1/avx2intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/avxintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/bmi2intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/bmiintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/cpuid.h
+OLD_FILES+=usr/include/clang/3.4.1/emmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/f16cintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/fma4intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/fmaintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/immintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/lzcntintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/mm3dnow.h
+OLD_FILES+=usr/include/clang/3.4.1/mm_malloc.h
+OLD_FILES+=usr/include/clang/3.4.1/mmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/module.map
+OLD_FILES+=usr/include/clang/3.4.1/nmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/pmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/popcntintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/prfchwintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/rdseedintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/rtmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/shaintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/smmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/tbmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/tmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/wmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/x86intrin.h
+OLD_FILES+=usr/include/clang/3.4.1/xmmintrin.h
+OLD_FILES+=usr/include/clang/3.4.1/xopintrin.h
+OLD_DIRS+=usr/include/clang/3.4.1
+# 20141226: Remove gpib/ieee488
+OLD_FILES+=usr/include/dev/ieee488/ibfoo_int.h
+OLD_FILES+=usr/include/dev/ieee488/tnt4882.h
+OLD_FILES+=usr/include/dev/ieee488/ugpib.h
+OLD_FILES+=usr/include/dev/ieee488/upd7210.h
+OLD_DIRS+=usr/include/dev/ieee488
+OLD_FILES+=usr/include/gpib/gpib.h
+OLD_DIRS+=usr/include/gpib
+OLD_FILES+=usr/lib/libgpib.a
+OLD_FILES+=usr/lib/libgpib_p.a
+OLD_FILES+=usr/lib/libgpib.so
+OLD_LIBS+=usr/lib/libgpib.so.3
+OLD_FILES+=usr/lib/libgpib_p.a
+OLD_FILES+=share/man/man4/pcii.4.gz
+OLD_FILES+=share/man/man4/gpib.4.gz
+OLD_FILES+=share/man/man4/tnt4882.4.gz
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libgpib.a
+OLD_FILES+=usr/lib32/libgpib_p.a
+OLD_FILES+=usr/lib32/libgpib.so
+OLD_LIBS+=usr/lib32/libgpib.so.3
+.endif
+
+# 20141224: libxo moved to /lib
+OLD_LIBS+=usr/lib/libxo.so.0
+# 20141223: remove in6_gif.h, in_gif.h and if_stf.h
+OLD_FILES+=usr/include/net/if_stf.h
+OLD_FILES+=usr/include/netinet/in_gif.h
+OLD_FILES+=usr/include/netinet6/in6_gif.h
+# 20141202: update to mandoc CVS 20141201
+OLD_FILES+=usr.bin/preconv
+OLD_FILES+=share/man/man1/preconv.1.gz
+# 20141129: mrouted rc.d scripts removed from base
+OLD_FILES+=etc/rc.d/mrouted
+# 20141126: convert sbin/mdconfig/tests to ATF format tests
+OLD_FILES+=usr/tests/sbin/mdconfig/legacy_test
+OLD_FILES+=usr/tests/sbin/mdconfig/mdconfig.test
+OLD_FILES+=usr/tests/sbin/mdconfig/run.pl
+# 20141126: remove xform_ipip decapsulation fallback
+OLD_FILES+=usr/include/netipsec/ipip_var.h
+# 20141109: faith/faithd removal
+OLD_FILES+=etc/rc.d/faith
+OLD_FILES+=usr/share/man/man4/faith.4.gz
+OLD_FILES+=usr/share/man/man4/if_faith.4.gz
+OLD_FILES+=usr/sbin/faithd
+OLD_FILES+=usr/share/man/man8/faithd.8.gz
+# 20141107: overhaul if_gre(4)
+OLD_FILES+=usr/include/netinet/ip_gre.h
 # 20141102: postrandom obsoleted by new /dev/random code
 OLD_FILES+=etc/rc.d/postrandom
 # 20141031: initrandom obsoleted by new /dev/random code
@@ -126,10 +296,12 @@ OLD_FILES+=usr/include/readline/chardefs.h
 OLD_FILES+=usr/include/readline/history.h
 OLD_FILES+=usr/include/readline/keymaps.h
 OLD_FILES+=usr/include/readline/readline.h
+OLD_FILES+=usr/include/readline/tilde.h
 OLD_FILES+=usr/include/readline/rlconf.h
 OLD_FILES+=usr/include/readline/rlstdc.h
 OLD_FILES+=usr/include/readline/rltypedefs.h
 OLD_FILES+=usr/include/readline/rltypedefs.h
+OLD_DIRS+=usr/include/readline
 OLD_FILES+=usr/share/info/readline.info.gz
 OLD_FILES+=usr/share/man/man3/readline.3.gz
 # 20140625: csup removal
@@ -189,8 +361,6 @@ OLD_DIRS+=usr/include/clang/3.4
 # 20140505: Bogusly installing src.opts.mk
 OLD_FILES+=usr/share/mk/src.opts.mk
 # 20140505: Reject PR kern/187551
-OLD_DIRS+=usr/tests/sbin/ifconfig
-OLD_FILES+=usr/tests/sbin/ifconfig/Kyuafile
 OLD_FILES+=usr/tests/sbin/ifconfig/fibs_test
 # 20140502: Removal of lindev(4)
 OLD_FILES+=usr/share/man/man4/lindev.4.gz
@@ -609,6 +779,7 @@ OLD_FILES+=var/named/etc/namedb/master/localhost-forward.db
 OLD_FILES+=var/named/etc/namedb/master/localhost-reverse.db
 #OLD_FILES+=var/named/etc/namedb/named.conf	# intentionally left out
 OLD_FILES+=var/named/etc/namedb/named.root
+OLD_DIRS+=var/named/etc/namedb/working
 OLD_DIRS+=var/named/etc/namedb/slave
 OLD_DIRS+=var/named/var
 OLD_DIRS+=var/named/var/dump

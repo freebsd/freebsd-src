@@ -432,16 +432,16 @@ hardclock_cpu(int usermode)
 	flags = 0;
 	if (usermode &&
 	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value)) {
-		PROC_SLOCK(p);
+		PROC_ITIMLOCK(p);
 		if (itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0)
 			flags |= TDF_ALRMPEND | TDF_ASTPENDING;
-		PROC_SUNLOCK(p);
+		PROC_ITIMUNLOCK(p);
 	}
 	if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value)) {
-		PROC_SLOCK(p);
+		PROC_ITIMLOCK(p);
 		if (itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0)
 			flags |= TDF_PROFPEND | TDF_ASTPENDING;
-		PROC_SUNLOCK(p);
+		PROC_ITIMUNLOCK(p);
 	}
 	thread_lock(td);
 	sched_tick(1);
@@ -520,18 +520,18 @@ hardclock_cnt(int cnt, int usermode)
 	flags = 0;
 	if (usermode &&
 	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value)) {
-		PROC_SLOCK(p);
+		PROC_ITIMLOCK(p);
 		if (itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL],
 		    tick * cnt) == 0)
 			flags |= TDF_ALRMPEND | TDF_ASTPENDING;
-		PROC_SUNLOCK(p);
+		PROC_ITIMUNLOCK(p);
 	}
 	if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value)) {
-		PROC_SLOCK(p);
+		PROC_ITIMLOCK(p);
 		if (itimerdecr(&pstats->p_timer[ITIMER_PROF],
 		    tick * cnt) == 0)
 			flags |= TDF_PROFPEND | TDF_ASTPENDING;
-		PROC_SUNLOCK(p);
+		PROC_ITIMUNLOCK(p);
 	}
 	thread_lock(td);
 	sched_tick(cnt);
@@ -668,11 +668,11 @@ stopprofclock(p)
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (p->p_flag & P_PROFIL) {
 		if (p->p_profthreads != 0) {
-			p->p_flag |= P_STOPPROF;
-			while (p->p_profthreads != 0)
+			while (p->p_profthreads != 0) {
+				p->p_flag |= P_STOPPROF;
 				msleep(&p->p_profthreads, &p->p_mtx, PPAUSE,
 				    "stopprof", 0);
-			p->p_flag &= ~P_STOPPROF;
+			}
 		}
 		if ((p->p_flag & P_PROFIL) == 0)
 			return;

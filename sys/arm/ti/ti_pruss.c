@@ -67,7 +67,6 @@ static device_attach_t		ti_pruss_attach;
 static device_detach_t		ti_pruss_detach;
 static void			ti_pruss_intr(void *);
 static d_open_t			ti_pruss_open;
-static d_close_t		ti_pruss_close;
 static d_mmap_t			ti_pruss_mmap;
 static void 			ti_pruss_kq_read_detach(struct knote *);
 static int 			ti_pruss_kq_read_event(struct knote *, long);
@@ -83,14 +82,12 @@ struct ti_pruss_softc {
 	bus_space_handle_t	sc_bh;
 	struct cdev		*sc_pdev;
 	struct selinfo		sc_selinfo;
-	uint32_t		sc_inuse;
 };
 
 static struct cdevsw ti_pruss_cdevsw = {
 	.d_version =	D_VERSION,
 	.d_name =	"ti_pruss",
 	.d_open =	ti_pruss_open,
-	.d_close =	ti_pruss_close,
 	.d_mmap =	ti_pruss_mmap,
 	.d_kqfilter =	ti_pruss_kqfilter,
 };
@@ -187,11 +184,11 @@ ti_pruss_attach(device_t dev)
 	for (i = 0; i < TI_PRUSS_IRQS; i++) {
 		ti_pruss_irq_args[i].irq = i;
 		ti_pruss_irq_args[i].sc = sc;
-		if (bus_setup_intr(dev, sc->sc_irq_res[i], 
+		if (bus_setup_intr(dev, sc->sc_irq_res[i],
 		    INTR_MPSAFE | INTR_TYPE_MISC,
-		    NULL, ti_pruss_intr, &ti_pruss_irq_args[i], 
+		    NULL, ti_pruss_intr, &ti_pruss_irq_args[i],
 		    &sc->sc_intr[i]) != 0) {
-			device_printf(dev, 
+			device_printf(dev,
 			    "unable to setup the interrupt handler\n");
 			ti_pruss_detach(dev);
 			return (ENXIO);
@@ -220,7 +217,7 @@ ti_pruss_detach(device_t dev)
 		if (sc->sc_intr[i])
 			bus_teardown_intr(dev, sc->sc_irq_res[i], sc->sc_intr[i]);
 		if (sc->sc_irq_res[i])
-			bus_release_resource(dev, SYS_RES_IRQ, 
+			bus_release_resource(dev, SYS_RES_IRQ,
 			    rman_get_rid(sc->sc_irq_res[i]),
 			    sc->sc_irq_res[i]);
 	}
@@ -246,25 +243,9 @@ ti_pruss_intr(void *arg)
 }
 
 static int
-ti_pruss_open(struct cdev *cdev, int oflags, int devtype, struct thread *td)
+ti_pruss_open(struct cdev *cdev __unused, int oflags __unused,
+    int devtype __unused, struct thread *td __unused)
 {
-	device_t dev = cdev->si_drv1;
-	struct ti_pruss_softc *sc = device_get_softc(dev);
-
-	if (atomic_cmpset_32(&sc->sc_inuse, 0, 1) == 0)
-		return (EBUSY);
-	else
-		return (0);
-}
-
-static int
-ti_pruss_close(struct cdev *cdev, int fflag, int devtype, struct thread *td)
-{
-	device_t dev = cdev->si_drv1;
-	struct ti_pruss_softc *sc = device_get_softc(dev);
-
-	sc->sc_inuse = 0;
-
 	return (0);
 }
 

@@ -655,8 +655,7 @@ admsw_start(struct ifnet *ifp)
 				break;
 			}
 			if (m0->m_pkthdr.len > MHLEN) {
-				MCLGET(m, M_NOWAIT);
-				if ((m->m_flags & M_EXT) == 0) {
+				if (!(MCLGET(m, M_NOWAIT))) {
 					device_printf(sc->sc_dev, 
 					    "unable to allocate Tx cluster\n");
 					m_freem(m);
@@ -1227,8 +1226,7 @@ admsw_add_rxbuf(struct admsw_softc *sc, int idx, int high)
 	if (m == NULL)
 		return (ENOBUFS);
 
-	MCLGET(m, M_NOWAIT);
-	if ((m->m_flags & M_EXT) == 0) {
+	if (!(MCLGET(m, M_NOWAIT))) {
 		m_freem(m);
 		return (ENOBUFS);
 	}

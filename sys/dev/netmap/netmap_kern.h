@@ -37,6 +37,7 @@
 #define WITH_VALE	// comment out to disable VALE support
 #define WITH_PIPES
 #define WITH_MONITOR
+#define WITH_GENERIC
 
 #if defined(__FreeBSD__)
 
@@ -44,6 +45,8 @@
 #define unlikely(x)	__builtin_expect((long)!!(x), 0L)
 
 #define	NM_LOCK_T	struct mtx
+
+/* netmap global lock */
 #define	NMG_LOCK_T	struct sx
 #define NMG_LOCK_INIT()	sx_init(&netmap_global_lock, \
 				"netmap global lock")
@@ -52,7 +55,7 @@
 #define NMG_UNLOCK()	sx_xunlock(&netmap_global_lock)
 #define NMG_LOCK_ASSERT()	sx_assert(&netmap_global_lock, SA_XLOCKED)
 
-#define	NM_SELINFO_T	struct selinfo
+#define	NM_SELINFO_T	struct nm_selinfo
 #define	MBUF_LEN(m)	((m)->m_pkthdr.len)
 #define	MBUF_IFP(m)	((m)->m_pkthdr.rcvif)
 #define	NM_SEND_UP(ifp, m)	((NA(ifp))->if_input)(ifp, m)
@@ -85,6 +88,13 @@ struct netmap_adapter *netmap_getna(if_t ifp);
 
 MALLOC_DECLARE(M_NETMAP);
 
+struct nm_selinfo {
+	struct selinfo si;
+	struct mtx m;
+};
+
+void freebsd_selwakeup(struct nm_selinfo *si, int pri);
+
 // XXX linux struct, not used in FreeBSD
 struct net_device_ops {
 };
@@ -107,13 +117,20 @@ struct hrtimer {
 
 #define NM_ATOMIC_T	volatile long unsigned int
 
-// XXX a mtx would suffice here too 20130404 gl
-#define NMG_LOCK_T		struct semaphore
-#define NMG_LOCK_INIT()		sema_init(&netmap_global_lock, 1)
-#define NMG_LOCK_DESTROY()
-#define NMG_LOCK()		down(&netmap_global_lock)
-#define NMG_UNLOCK()		up(&netmap_global_lock)
-#define NMG_LOCK_ASSERT()	//	XXX to be completed
+#define NM_MTX_T		struct mutex
+#define NM_MTX_INIT(m, s)	do { (void)s; mutex_init(&(m)); } while (0)
+#define NM_MTX_DESTROY(m)	do { (void)m; } while (0)
+#define NM_MTX_LOCK(m)		mutex_lock(&(m))
+#define NM_MTX_UNLOCK(m)	mutex_unlock(&(m))
+#define NM_MTX_LOCK_ASSERT(m)	mutex_is_locked(&(m))
+
+#define	NMG_LOCK_T		NM_MTX_T
+#define	NMG_LOCK_INIT()		NM_MTX_INIT(netmap_global_lock, \
+					"netmap_global_lock")
+#define	NMG_LOCK_DESTROY()	NM_MTX_DESTROY(netmap_global_lock)
+#define	NMG_LOCK()		NM_MTX_LOCK(netmap_global_lock)
+#define	NMG_UNLOCK()		NM_MTX_UNLOCK(netmap_global_lock)
+#define	NMG_LOCK_ASSERT()	NM_MTX_LOCK_ASSERT(netmap_global_lock)
 
 #ifndef DEV_NETMAP
 #define DEV_NETMAP
@@ -266,7 +283,7 @@ struct netmap_kring {
 
 	struct netmap_adapter *na;
 
-	/* The folloiwing fields are for VALE switch support */
+	/* The following fields are for VALE switch support */
 	struct nm_bdg_fwd *nkr_ft;
 	uint32_t	*nkr_leases;
 #define NR_NOSLOT	((uint32_t)~0)	/* used in nkr_*lease* */
@@ -641,6 +658,7 @@ struct netmap_hw_adapter {	/* physical device */
 	int (*nm_hw_register)(struct netmap_adapter *, int onoff);
 };
 
+#ifdef WITH_GENERIC
 /* Mitigation support. */
 struct nm_generic_mit {
 	struct hrtimer mit_timer;
@@ -668,6 +686,7 @@ struct netmap_generic_adapter {	/* emulated device */
         netdev_tx_t (*save_start_xmit)(struct mbuf *, struct ifnet *);
 #endif
 };
+#endif  /* WITH_GENERIC */
 
 static __inline int
 netmap_real_tx_rings(struct netmap_adapter *na)
@@ -1481,6 +1500,7 @@ struct netmap_monitor_adapter {
 #endif /* WITH_MONITOR */
 
 
+#ifdef WITH_GENERIC
 /*
  * generic netmap emulation for devices that do not have
  * native netmap support.
@@ -1512,6 +1532,7 @@ void netmap_mitigation_start(struct nm_generic_mit *mit);
 void netmap_mitigation_restart(struct nm_generic_mit *mit);
 int netmap_mitigation_active(struct nm_generic_mit *mit);
 void netmap_mitigation_cleanup(struct nm_generic_mit *mit);
+#endif /* WITH_GENERIC */
 
 
 

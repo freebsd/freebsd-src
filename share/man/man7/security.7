@@ -894,41 +894,6 @@ A competent sysadmin will turn off all
 of these
 .Xr inetd 8 Ns -internal
 test services.
-.Pp
-Spoofed packet attacks may also be used to overload the kernel route cache.
-Refer to the
-.Va net.inet.ip.rtexpire , net.inet.ip.rtminexpire ,
-and
-.Va net.inet.ip.rtmaxcache
-.Xr sysctl 8
-variables.
-A spoofed packet attack that uses a random source IP will cause
-the kernel to generate a temporary cached route in the route table, viewable
-with
-.Dq Li "netstat -rna | fgrep W3" .
-These routes typically timeout in 1600
-seconds or so.
-If the kernel detects that the cached route table has gotten
-too big it will dynamically reduce the
-.Va rtexpire
-but will never decrease it to
-less than
-.Va rtminexpire .
-There are two problems: (1) The kernel does not react
-quickly enough when a lightly loaded server is suddenly attacked, and (2) The
-.Va rtminexpire
-is not low enough for the kernel to survive a sustained attack.
-If your servers are connected to the internet via a T3 or better it may be
-prudent to manually override both
-.Va rtexpire
-and
-.Va rtminexpire
-via
-.Xr sysctl 8 .
-Never set either parameter to zero
-(unless you want to crash the machine :-)).
-Setting both parameters to 2 seconds should be sufficient to protect the route
-table from attack.
 .Sh ACCESS ISSUES WITH KERBEROS AND SSH
 There are a few issues with both Kerberos and SSH that need to be addressed
 if you intend to use them.

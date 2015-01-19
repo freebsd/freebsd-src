@@ -14,6 +14,7 @@
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/DriverDiagnostic.h"
 #include "clang/Driver/Options.h"
+#include "llvm/Config/llvm-config.h"
 #include "llvm/Option/Arg.h"
 #include "llvm/Option/ArgList.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -21,11 +22,15 @@
 
 // Include the necessary headers to interface with the Windows registry and
 // environment.
-#ifdef _MSC_VER
+#if defined(LLVM_ON_WIN32)
+#define USE_WIN32
+#endif
+
+#ifdef USE_WIN32
   #define WIN32_LEAN_AND_MEAN
   #define NOGDI
   #define NOMINMAX
-  #include <Windows.h>
+  #include <windows.h>
 #endif
 
 using namespace clang::driver;
@@ -43,10 +48,10 @@ Tool *Windows::buildLinker() const {
 }
 
 Tool *Windows::buildAssembler() const {
-  if (getTriple().getEnvironment() == llvm::Triple::MachO)
+  if (getTriple().isOSBinFormatMachO())
     return new tools::darwin::Assemble(*this);
   getDriver().Diag(clang::diag::err_no_external_assembler);
-  return NULL;
+  return nullptr;
 }
 
 bool Windows::IsIntegratedAssemblerDefault() const {
@@ -54,7 +59,11 @@ bool Windows::IsIntegratedAssemblerDefault() const {
 }
 
 bool Windows::IsUnwindTablesDefault() const {
-  return getArch() == llvm::Triple::x86_64;
+  // FIXME: LLVM's lowering of Win64 data is broken right now.  MSVC's linker
+  // says that our object files provide invalid .pdata contributions.  Until
+  // that is fixed, don't ask for unwind tables.
+  return false;
+  //return getArch() == llvm::Triple::x86_64;
 }
 
 bool Windows::isPICDefault() const {
@@ -69,9 +78,6 @@ bool Windows::isPICDefaultForced() const {
   return getArch() == llvm::Triple::x86_64;
 }
 
-// FIXME: This probably should goto to some platform utils place.
-#ifdef _MSC_VER
-
 /// \brief Read registry string.
 /// This also supports a means to look for high-versioned keys by use
 /// of a $VERSION placeholder in the key path.
@@ -82,6 +88,9 @@ bool Windows::isPICDefaultForced() const {
 /// characters are compared.
 static bool getSystemRegistryString(const char *keyPath, const char *valueName,
                                     char *value, size_t maxLength) {
+#ifndef USE_WIN32
+  return false;
+#else
   HKEY hRootKey = NULL;
   HKEY hKey = NULL;
   const char* subKey = NULL;
@@ -183,6 +192,7 @@ static bool getSystemRegistryString(const char *keyPath, const char *valueName,
     }
   }
   return returnValue;
+#endif // USE_WIN32
 }
 
 /// \brief Get Windows SDK installation directory.
@@ -202,7 +212,7 @@ static bool getWindowsSDKDir(std::string &path) {
   return false;
 }
 
-  // Get Visual Studio installation directory.
+// Get Visual Studio installation directory.
 static bool getVisualStudioDir(std::string &path) {
   // First check the environment variables that vsvars32.bat sets.
   const char* vcinstalldir = getenv("VCINSTALLDIR");
@@ -244,25 +254,11 @@ static bool getVisualStudioDir(std::string &path) {
   const char *vs100comntools = getenv("VS100COMNTOOLS");
   const char *vs90comntools = getenv("VS90COMNTOOLS");
   const char *vs80comntools = getenv("VS80COMNTOOLS");
-  const char *vscomntools = NULL;
 
-  // Try to find the version that we were compiled with
-  if(false) {}
-  #if (_MSC_VER >= 1600)  // VC100
-  else if(vs100comntools) {
-    vscomntools = vs100comntools;
-  }
-  #elif (_MSC_VER == 1500) // VC80
-  else if(vs90comntools) {
-    vscomntools = vs90comntools;
-  }
-  #elif (_MSC_VER == 1400) // VC80
-  else if(vs80comntools) {
-    vscomntools = vs80comntools;
-  }
-  #endif
-  // Otherwise find any version we can
-  else if (vs100comntools)
+  const char *vscomntools = nullptr;
+
+  // Find any version we can
+  if (vs100comntools)
     vscomntools = vs100comntools;
   else if (vs90comntools)
     vscomntools = vs90comntools;
@@ -276,8 +272,6 @@ static bool getVisualStudioDir(std::string &path) {
   }
   return false;
 }
-
-#endif // _MSC_VER
 
 void Windows::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
                                         ArgStringList &CC1Args) const {
@@ -293,21 +287,15 @@ void Windows::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
   if (DriverArgs.hasArg(options::OPT_nostdlibinc))
     return;
 
-#ifdef _MSC_VER
   // Honor %INCLUDE%. It should know essential search paths with vcvarsall.bat.
   if (const char *cl_include_dir = getenv("INCLUDE")) {
     SmallVector<StringRef, 8> Dirs;
-    StringRef(cl_include_dir).split(Dirs, ";");
-    int n = 0;
-    for (SmallVectorImpl<StringRef>::iterator I = Dirs.begin(), E = Dirs.end();
-         I != E; ++I) {
-      StringRef d = *I;
-      if (d.size() == 0)
-        continue;
-      ++n;
-      addSystemInclude(DriverArgs, CC1Args, d);
-    }
-    if (n) return;
+    StringRef(cl_include_dir)
+        .split(Dirs, ";", /*MaxSplit=*/-1, /*KeepEmpty=*/false);
+    for (StringRef Dir : Dirs)
+      addSystemInclude(DriverArgs, CC1Args, Dir);
+    if (!Dirs.empty())
+      return;
   }
 
   std::string VSDir;
@@ -316,17 +304,24 @@ void Windows::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
   // When built with access to the proper Windows APIs, try to actually find
   // the correct include paths first.
   if (getVisualStudioDir(VSDir)) {
-    addSystemInclude(DriverArgs, CC1Args, VSDir + "\\VC\\include");
-    if (getWindowsSDKDir(WindowsSDKDir))
-      addSystemInclude(DriverArgs, CC1Args, WindowsSDKDir + "\\include");
-    else
-      addSystemInclude(DriverArgs, CC1Args,
-                       VSDir + "\\VC\\PlatformSDK\\Include");
+    SmallString<128> P;
+    P = VSDir;
+    llvm::sys::path::append(P, "VC\\include");
+    addSystemInclude(DriverArgs, CC1Args, P.str());
+    if (getWindowsSDKDir(WindowsSDKDir)) {
+      P = WindowsSDKDir;
+      llvm::sys::path::append(P, "include");
+      addSystemInclude(DriverArgs, CC1Args, P.str());
+    } else {
+      P = VSDir;
+      llvm::sys::path::append(P, "VC\\PlatformSDK\\Include");
+      addSystemInclude(DriverArgs, CC1Args, P.str());
+    }
     return;
   }
-#endif // _MSC_VER
 
   // As a fallback, select default install paths.
+  // FIXME: Don't guess drives and paths like this on Windows.
   const StringRef Paths[] = {
     "C:/Program Files/Microsoft Visual Studio 10.0/VC/include",
     "C:/Program Files/Microsoft Visual Studio 9.0/VC/include",

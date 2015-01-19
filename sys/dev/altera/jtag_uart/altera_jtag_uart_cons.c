@@ -221,6 +221,9 @@ aju_cons_write(char ch)
 	 * disconnection.
 	 *
 	 * XXXRW: The polling delay may require tuning.
+	 *
+	 * XXXRW: Notice the inherent race with hardware: in clearing the
+	 * bit, we may race with hardware setting the same bit.
 	 */
 	v = aju_cons_control_read();
 	if (v & ALTERA_JTAG_UART_CONTROL_AC) {

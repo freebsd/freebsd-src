@@ -204,7 +204,7 @@ netmap_catch_tx(struct netmap_generic_adapter *gna, int enable)
  * of the transmission does not consume resources.
  *
  * On FreeBSD, and on multiqueue cards, we can force the queue using
- *      if ((m->m_flags & M_FLOWID) != 0)
+ *      if (M_HASHTYPE_GET(m) != M_HASHTYPE_NONE)
  *              i = m->m_pkthdr.flowid % adapter->num_queues;
  *      else
  *              i = curcpu % adapter->num_queues;
@@ -240,7 +240,7 @@ generic_xmit_frame(struct ifnet *ifp, struct mbuf *m,
 	m->m_len = m->m_pkthdr.len = len;
 	// inc refcount. All ours, we could skip the atomic
 	atomic_fetchadd_int(PNT_MBUF_REFCNT(m), 1);
-	m->m_flags |= M_FLOWID;
+	M_HASHTYPE_SET(m, M_HASHTYPE_OPAQUE);
 	m->m_pkthdr.flowid = ring_nr;
 	m->m_pkthdr.rcvif = ifp; /* used for tx notification */
 	ret = NA(ifp)->if_transmit(ifp, m);
@@ -466,6 +466,8 @@ netmap_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	if (netmap_verbose)
 		D("handle %p size %jd prot %d foff %jd",
 			handle, (intmax_t)size, prot, (intmax_t)foff);
+	if (color)
+		*color = 0;
 	dev_ref(vmh->dev);
 	return 0;
 }
@@ -654,25 +656,24 @@ netmap_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
  * and do not need the selrecord().
  */
 
-void freebsd_selwakeup(struct selinfo *si, int pri);
 
 void
-freebsd_selwakeup(struct selinfo *si, int pri)
+freebsd_selwakeup(struct nm_selinfo *si, int pri)
 {
 	if (netmap_verbose)
-		D("on knote %p", &si->si_note);
-	selwakeuppri(si, pri);
+		D("on knote %p", &si->si.si_note);
+	selwakeuppri(&si->si, pri);
 	/* use a non-zero hint to tell the notification from the
 	 * call done in kqueue_scan() which uses 0
 	 */
-	KNOTE_UNLOCKED(&si->si_note, 0x100 /* notification */);
+	KNOTE_UNLOCKED(&si->si.si_note, 0x100 /* notification */);
 }
 
 static void
 netmap_knrdetach(struct knote *kn)
 {
 	struct netmap_priv_d *priv = (struct netmap_priv_d *)kn->kn_hook;
-	struct selinfo *si = priv->np_rxsi;
+	struct selinfo *si = &priv->np_rxsi->si;
 
 	D("remove selinfo %p", si);
 	knlist_remove(&si->si_note, kn, 0);
@@ -682,7 +683,7 @@ static void
 netmap_knwdetach(struct knote *kn)
 {
 	struct netmap_priv_d *priv = (struct netmap_priv_d *)kn->kn_hook;
-	struct selinfo *si = priv->np_txsi;
+	struct selinfo *si = &priv->np_txsi->si;
 
 	D("remove selinfo %p", si);
 	knlist_remove(&si->si_note, kn, 0);
@@ -754,7 +755,7 @@ netmap_kqfilter(struct cdev *dev, struct knote *kn)
 	struct netmap_priv_d *priv;
 	int error;
 	struct netmap_adapter *na;
-	struct selinfo *si;
+	struct nm_selinfo *si;
 	int ev = kn->kn_filter;
 
 	if (ev != EVFILT_READ && ev != EVFILT_WRITE) {
@@ -777,7 +778,7 @@ netmap_kqfilter(struct cdev *dev, struct knote *kn)
 	kn->kn_fop = (ev == EVFILT_WRITE) ?
 		&netmap_wfiltops : &netmap_rfiltops;
 	kn->kn_hook = priv;
-	knlist_add(&si->si_note, kn, 1);
+	knlist_add(&si->si.si_note, kn, 1);
 	// XXX unlock(priv)
 	ND("register %p %s td %p priv %p kn %p np_nifp %p kn_fp/fpop %s",
 		na, na->ifp->if_xname, curthread, priv, kn,

@@ -118,6 +118,10 @@ __FBSDID("$FreeBSD$");
 #define CLKSEL_TIMER6_CLK		(CM_DPLL + 0x01C)
 #define	CLKSEL_PRUSS_OCP_CLK		(CM_DPLL + 0x030)
 
+#define	CM_RTC				0x800
+#define	CM_RTC_RTC_CLKCTRL		(CM_RTC + 0x000)
+#define	CM_RTC_CLKSTCTRL		(CM_RTC + 0x004)
+
 #define	PRM_PER				0xC00
 #define	PRM_PER_RSTCTRL			(PRM_PER + 0x00)
 
@@ -295,7 +299,8 @@ struct ti_clock_dev ti_am335x_clk_devmap[] = {
 		.clk_get_source_freq = NULL,
 	},
 
-
+	/* RTC */
+	AM335X_GENERIC_CLOCK_DEV(RTC_CLK),
 
 	{  INVALID_CLK_IDENT, NULL, NULL, NULL, NULL }
 };
@@ -362,6 +367,9 @@ static struct am335x_clk_details g_am335x_clk_details[] = {
 
 	_CLK_DETAIL(MAILBOX0_CLK, CM_PER_MAILBOX0_CLKCTRL, 0),
 	_CLK_DETAIL(SPINLOCK0_CLK, CM_PER_SPINLOCK0_CLKCTRL, 0),
+
+	/* RTC module */
+	_CLK_DETAIL(RTC_CLK, CM_RTC_RTC_CLKCTRL, 0),
 
 	{ INVALID_CLK_IDENT, 0},
 };

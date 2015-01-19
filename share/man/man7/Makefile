@@ -9,6 +9,7 @@ MAN=	adding_user.7 \
 	bsd.snmpmod.mk.7 \
 	build.7 \
 	clocks.7 \
+	crypto.7 \
 	c99.7 \
 	development.7 \
 	environ.7 \

@@ -49,7 +49,7 @@ h_pass(const char *buf, const char *fmt, int len,
 	exp = buf + len;
 	ret = strptime(buf, fmt, &tm);
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	ATF_CHECK_MSG(ret == exp,
 	    "strptime(\"%s\", \"%s\", tm): incorrect return code: "
 	    "expected: %p, got: %p", buf, fmt, exp, ret);
@@ -88,7 +88,7 @@ h_fail(const char *buf, const char *fmt)
 {
 	struct tm tm = { -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, NULL };
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	ATF_CHECK_MSG(strptime(buf, fmt, &tm) == NULL, "strptime(\"%s\", "
 	    "\"%s\", &tm) should fail, but it didn't", buf, fmt);
 #else
@@ -108,7 +108,7 @@ ATF_TC_HEAD(common, tc)
 ATF_TC_BODY(common, tc)
 {
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	atf_tc_expect_fail("There are various issues with strptime on FreeBSD");
 #endif
 
@@ -189,13 +189,13 @@ ATF_TC_BODY(day, tc)
 	h_pass("mon", "%a", 3, -1, -1, -1, -1, -1, -1, 1, -1);
 	h_pass("tueSDay", "%A", 7, -1, -1, -1, -1, -1, -1, 2, -1);
 	h_pass("sunday", "%A", 6, -1, -1, -1, -1, -1, -1, 0, -1);
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 	h_fail("sunday", "%EA");
 #else
 	h_pass("Sunday", "%EA", 6, -1, -1, -1, -1, -1, -1, 0, -1);
 #endif
 	h_pass("SaturDay", "%A", 8, -1, -1, -1, -1, -1, -1, 6, -1);
-#if defined(__NetBSD__)
+#ifdef __NetBSD__
 	h_fail("SaturDay", "%OA");
 #else
 	h_pass("SaturDay", "%OA", 8, -1, -1, -1, -1, -1, -1, 6, -1);

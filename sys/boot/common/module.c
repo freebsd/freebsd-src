@@ -139,7 +139,7 @@ command_load(int argc, char *argv[])
 	    command_errmsg = "invalid load type";
 	    return(CMD_ERROR);
 	}
-	return(file_loadraw(argv[1], typestr) ? CMD_OK : CMD_ERROR);
+	return (file_loadraw(argv[1], typestr, 1) ? CMD_OK : CMD_ERROR);
     }
     /*
      * Do we have explicit KLD load ?
@@ -194,7 +194,7 @@ command_load_geli(int argc, char *argv[])
     argv += (optind - 1);
     argc -= (optind - 1);
     sprintf(typestr, "%s:geli_keyfile%d", argv[1], num);
-    return(file_loadraw(argv[2], typestr) ? CMD_OK : CMD_ERROR);
+    return (file_loadraw(argv[2], typestr, 1) ? CMD_OK : CMD_ERROR);
 }
 
 void
@@ -371,7 +371,7 @@ file_load_dependencies(struct preloaded_file *base_file)
  * no arguments or anything.
  */
 struct preloaded_file *
-file_loadraw(char *name, char *type)
+file_loadraw(char *name, char *type, int insert)
 {
     struct preloaded_file	*fp;
     char			*cp;
@@ -434,7 +434,8 @@ file_loadraw(char *name, char *type)
     loadaddr = laddr;
 
     /* Add to the list of loaded files */
-    file_insert_tail(fp);
+    if (insert != 0)
+    	file_insert_tail(fp);
     close(fd);
     return(fp);
 }
@@ -537,7 +538,7 @@ mod_loadkld(const char *kldname, int argc, char *argv[])
  * NULL may be passed as a wildcard to either.
  */
 struct preloaded_file *
-file_findfile(char *name, char *type)
+file_findfile(const char *name, const char *type)
 {
     struct preloaded_file *fp;
 
@@ -938,7 +939,7 @@ moduledir_readhints(struct moduledir *mdp)
     path = moduledir_fullpath(mdp, "linker.hints");
     if (stat(path, &st) != 0 ||
 	st.st_size < (ssize_t)(sizeof(version) + sizeof(int)) ||
-	st.st_size > 100 * 1024 || (fd = open(path, O_RDONLY)) < 0) {
+	st.st_size > LINKER_HINTS_MAX || (fd = open(path, O_RDONLY)) < 0) {
 	free(path);
 	mdp->d_flags |= MDIR_NOHINTS;
 	return;

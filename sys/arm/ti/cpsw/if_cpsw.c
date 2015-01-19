@@ -396,9 +396,9 @@ cpsw_dump_slot(struct cpsw_softc *sc, struct cpsw_slot *slot)
 	printf("\n");
 	if (slot->mbuf) {
 		printf("  Ether:  %14D\n",
-		    (char *)(slot->mbuf->m_hdr.mh_data), " ");
+		    (char *)(slot->mbuf->m_data), " ");
 		printf("  Packet: %16D\n",
-		    (char *)(slot->mbuf->m_hdr.mh_data) + 14, " ");
+		    (char *)(slot->mbuf->m_data) + 14, " ");
 	}
 }
 
@@ -611,7 +611,7 @@ cpsw_attach(device_t dev)
 
 	/* Allocate the null mbuf and pre-sync it. */
 	sc->null_mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
-	memset(sc->null_mbuf->m_hdr.mh_data, 0, sc->null_mbuf->m_ext.ext_size);
+	memset(sc->null_mbuf->m_data, 0, sc->null_mbuf->m_ext.ext_size);
 	bus_dmamap_create(sc->mbuf_dtag, 0, &sc->null_mbuf_dmamap);
 	bus_dmamap_load_mbuf_sg(sc->mbuf_dtag, sc->null_mbuf_dmamap,
 	    sc->null_mbuf, segs, &nsegs, BUS_DMA_NOWAIT);
@@ -1292,8 +1292,8 @@ cpsw_rx_dequeue(struct cpsw_softc *sc)
 		/* Set up mbuf */
 		/* TODO: track SOP/EOP bits to assemble a full mbuf
 		   out of received fragments. */
-		slot->mbuf->m_hdr.mh_data += bd.bufoff;
-		slot->mbuf->m_hdr.mh_len = bd.pktlen - 4;
+		slot->mbuf->m_data += bd.bufoff;
+		slot->mbuf->m_len = bd.pktlen - 4;
 		slot->mbuf->m_pkthdr.len = bd.pktlen - 4;
 		slot->mbuf->m_flags |= M_PKTHDR;
 		slot->mbuf->m_pkthdr.rcvif = ifp;
@@ -1461,7 +1461,7 @@ cpsw_tx_enqueue(struct cpsw_softc *sc)
 			bus_dmamap_unload(sc->mbuf_dtag, slot->dmamap);
 			if (padlen > 0) /* May as well add padding. */
 				m_append(slot->mbuf, padlen,
-				    sc->null_mbuf->m_hdr.mh_data);
+				    sc->null_mbuf->m_data);
 			m0 = m_defrag(slot->mbuf, M_NOWAIT);
 			if (m0 == NULL) {
 				if_printf(sc->ifp,

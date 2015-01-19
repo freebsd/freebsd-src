@@ -29,7 +29,8 @@ def Is64Bit : Predicate<"Subtarget.is64Bit()">;
 
 // HasV9 - This predicate is true when the target processor supports V9
 // instructions.  Note that the machine may be running in 32-bit mode.
-def HasV9   : Predicate<"Subtarget.isV9()">;
+def HasV9   : Predicate<"Subtarget.isV9()">,
+              AssemblerPredicate<"FeatureV9">;
 
 // HasNoV9 - This predicate is true when the target doesn't have V9
 // instructions.  Use of this is just a hack for the isel not having proper
@@ -37,7 +38,12 @@ def HasV9   : Predicate<"Subtarget.isV9()">;
 def HasNoV9 : Predicate<"!Subtarget.isV9()">;
 
 // HasVIS - This is true when the target processor has VIS extensions.
-def HasVIS : Predicate<"Subtarget.isVIS()">;
+def HasVIS : Predicate<"Subtarget.isVIS()">,
+             AssemblerPredicate<"FeatureVIS">;
+def HasVIS2 : Predicate<"Subtarget.isVIS2()">,
+             AssemblerPredicate<"FeatureVIS2">;
+def HasVIS3 : Predicate<"Subtarget.isVIS3()">,
+             AssemblerPredicate<"FeatureVIS3">;
 
 // HasHardQuad - This is true when the target processor supports quad floating
 // point instructions.
@@ -104,8 +110,21 @@ def brtarget : Operand<OtherVT> {
   let EncoderMethod = "getBranchTargetOpValue";
 }
 
+def bprtarget : Operand<OtherVT> {
+  let EncoderMethod = "getBranchPredTargetOpValue";
+}
+
+def bprtarget16 : Operand<OtherVT> {
+  let EncoderMethod = "getBranchOnRegTargetOpValue";
+}
+
 def calltarget : Operand<i32> {
   let EncoderMethod = "getCallTargetOpValue";
+  let DecoderMethod = "DecodeCall";
+}
+
+def simm13Op : Operand<i32> {
+  let DecoderMethod = "DecodeSIMM13";
 }
 
 // Operand for printing out a condition code.
@@ -246,7 +265,7 @@ multiclass F3_12np<string OpcStr, bits<6> Op3Val> {
                  (outs IntRegs:$rd), (ins IntRegs:$rs1, IntRegs:$rs2),
                  !strconcat(OpcStr, " $rs1, $rs2, $rd"), []>;
   def ri  : F3_2<2, Op3Val,
-                 (outs IntRegs:$rd), (ins IntRegs:$rs1, i32imm:$simm13),
+                 (outs IntRegs:$rd), (ins IntRegs:$rs1, simm13Op:$simm13),
                  !strconcat(OpcStr, " $rs1, $simm13, $rd"), []>;
 }
 
@@ -316,8 +335,8 @@ let isBarrier = 1, isTerminator = 1, rd = 0b1000, rs1 = 0, simm13 = 5 in
   def TA5 : F3_2<0b10, 0b111010, (outs), (ins), "ta 5", [(trap)]>;
 
 let rd = 0 in
-  def UNIMP : F2_1<0b000, (outs), (ins i32imm:$val),
-                  "unimp $val", []>;
+  def UNIMP : F2_1<0b000, (outs), (ins i32imm:$imm22),
+                  "unimp $imm22", []>;
 
 // SELECT_CC_* - Used to implement the SELECT_CC DAG operation.  Expanded after
 // instruction selection into a branch sequence.  This has to handle all
@@ -344,7 +363,7 @@ let Uses = [ICC], usesCustomInserter = 1 in {
             [(set f128:$dst, (SPselecticc f128:$T, f128:$F, imm:$Cond))]>;
 }
 
-let usesCustomInserter = 1, Uses = [FCC] in {
+let usesCustomInserter = 1, Uses = [FCC0] in {
 
   def SELECT_CC_Int_FCC
    : Pseudo<(outs IntRegs:$dst), (ins IntRegs:$T, IntRegs:$F, i32imm:$Cond),
@@ -366,7 +385,8 @@ let usesCustomInserter = 1, Uses = [FCC] in {
 }
 
 // JMPL Instruction.
-let isTerminator = 1, hasDelaySlot = 1, isBarrier = 1 in {
+let isTerminator = 1, hasDelaySlot = 1, isBarrier = 1,
+    DecoderMethod = "DecodeJMPL" in {
   def JMPLrr: F3_1<2, 0b111000, (outs IntRegs:$dst), (ins MEMrr:$addr),
                   "jmpl $addr, $dst", []>;
   def JMPLri: F3_2<2, 0b111000, (outs IntRegs:$dst), (ins MEMri:$addr),
@@ -386,29 +406,47 @@ let isReturn = 1, isTerminator = 1, hasDelaySlot = 1, isBarrier = 1,
                   "jmp %i7+$val", []>;
 }
 
+let isReturn = 1, isTerminator = 1, hasDelaySlot = 1,
+     isBarrier = 1, rd = 0, DecoderMethod = "DecodeReturn" in {
+  def RETTrr : F3_1<2, 0b111001, (outs), (ins MEMrr:$addr),
+                       "rett $addr", []>;
+  def RETTri : F3_2<2, 0b111001, (outs), (ins MEMri:$addr),
+                       "rett $addr", []>;
+}
+
 // Section B.1 - Load Integer Instructions, p. 90
-defm LDSB : Load<"ldsb", 0b001001, sextloadi8,  IntRegs, i32>;
-defm LDSH : Load<"ldsh", 0b001010, sextloadi16, IntRegs, i32>;
-defm LDUB : Load<"ldub", 0b000001, zextloadi8,  IntRegs, i32>;
-defm LDUH : Load<"lduh", 0b000010, zextloadi16, IntRegs, i32>;
-defm LD   : Load<"ld",   0b000000, load,        IntRegs, i32>;
+let DecoderMethod = "DecodeLoadInt" in {
+  defm LDSB : Load<"ldsb", 0b001001, sextloadi8,  IntRegs, i32>;
+  defm LDSH : Load<"ldsh", 0b001010, sextloadi16, IntRegs, i32>;
+  defm LDUB : Load<"ldub", 0b000001, zextloadi8,  IntRegs, i32>;
+  defm LDUH : Load<"lduh", 0b000010, zextloadi16, IntRegs, i32>;
+  defm LD   : Load<"ld",   0b000000, load,        IntRegs, i32>;
+}
 
 // Section B.2 - Load Floating-point Instructions, p. 92
-defm LDF   : Load<"ld",  0b100000, load, FPRegs,  f32>;
-defm LDDF  : Load<"ldd", 0b100011, load, DFPRegs, f64>;
-defm LDQF  : Load<"ldq", 0b100010, load, QFPRegs, f128>,
-             Requires<[HasV9, HasHardQuad]>;
+let DecoderMethod = "DecodeLoadFP" in
+  defm LDF   : Load<"ld",  0b100000, load, FPRegs,  f32>;
+let DecoderMethod = "DecodeLoadDFP" in
+  defm LDDF  : Load<"ldd", 0b100011, load, DFPRegs, f64>;
+let DecoderMethod = "DecodeLoadQFP" in
+  defm LDQF  : Load<"ldq", 0b100010, load, QFPRegs, f128>,
+               Requires<[HasV9, HasHardQuad]>;
 
 // Section B.4 - Store Integer Instructions, p. 95
-defm STB   : Store<"stb", 0b000101, truncstorei8,  IntRegs, i32>;
-defm STH   : Store<"sth", 0b000110, truncstorei16, IntRegs, i32>;
-defm ST    : Store<"st",  0b000100, store,         IntRegs, i32>;
+let DecoderMethod = "DecodeStoreInt" in {
+  defm STB   : Store<"stb", 0b000101, truncstorei8,  IntRegs, i32>;
+  defm STH   : Store<"sth", 0b000110, truncstorei16, IntRegs, i32>;
+  defm ST    : Store<"st",  0b000100, store,         IntRegs, i32>;
+}
 
 // Section B.5 - Store Floating-point Instructions, p. 97
-defm STF   : Store<"st",  0b100100, store,         FPRegs,  f32>;
-defm STDF  : Store<"std", 0b100111, store,         DFPRegs, f64>;
-defm STQF  : Store<"stq", 0b100110, store,         QFPRegs, f128>,
-             Requires<[HasV9, HasHardQuad]>;
+let DecoderMethod = "DecodeStoreFP" in
+  defm STF   : Store<"st",  0b100100, store,         FPRegs,  f32>;
+let DecoderMethod = "DecodeStoreDFP" in
+  defm STDF  : Store<"std", 0b100111, store,         DFPRegs, f64>;
+let DecoderMethod = "DecodeStoreQFP" in
+  defm STQF  : Store<"stq", 0b100110, store,         QFPRegs, f128>,
+               Requires<[HasV9, HasHardQuad]>;
 
 // Section B.9 - SETHI Instruction, p. 104
 def SETHIi: F2_1<0b100,
@@ -422,42 +460,51 @@ let rd = 0, imm22 = 0 in
   def NOP : F2_1<0b100, (outs), (ins), "nop", []>;
 
 // Section B.11 - Logical Instructions, p. 106
-defm AND    : F3_12<"and", 0b000001, and, IntRegs, i32, i32imm>;
+defm AND    : F3_12<"and", 0b000001, and, IntRegs, i32, simm13Op>;
 
 def ANDNrr  : F3_1<2, 0b000101,
                    (outs IntRegs:$rd), (ins IntRegs:$rs1, IntRegs:$rs2),
                    "andn $rs1, $rs2, $rd",
                    [(set i32:$rd, (and i32:$rs1, (not i32:$rs2)))]>;
 def ANDNri  : F3_2<2, 0b000101,
-                   (outs IntRegs:$rd), (ins IntRegs:$rs1, i32imm:$simm13),
+                   (outs IntRegs:$rd), (ins IntRegs:$rs1, simm13Op:$simm13),
                    "andn $rs1, $simm13, $rd", []>;
 
-defm OR     : F3_12<"or", 0b000010, or, IntRegs, i32, i32imm>;
+defm OR     : F3_12<"or", 0b000010, or, IntRegs, i32, simm13Op>;
 
 def ORNrr   : F3_1<2, 0b000110,
                    (outs IntRegs:$rd), (ins IntRegs:$rs1, IntRegs:$rs2),
                    "orn $rs1, $rs2, $rd",
                    [(set i32:$rd, (or i32:$rs1, (not i32:$rs2)))]>;
 def ORNri   : F3_2<2, 0b000110,
-                   (outs IntRegs:$rd), (ins IntRegs:$rs1, i32imm:$simm13),
+                   (outs IntRegs:$rd), (ins IntRegs:$rs1, simm13Op:$simm13),
                    "orn $rs1, $simm13, $rd", []>;
-defm XOR    : F3_12<"xor", 0b000011, xor, IntRegs, i32, i32imm>;
+defm XOR    : F3_12<"xor", 0b000011, xor, IntRegs, i32, simm13Op>;
 
 def XNORrr  : F3_1<2, 0b000111,
                    (outs IntRegs:$rd), (ins IntRegs:$rs1, IntRegs:$rs2),
                    "xnor $rs1, $rs2, $rd",
                    [(set i32:$rd, (not (xor i32:$rs1, i32:$rs2)))]>;
 def XNORri  : F3_2<2, 0b000111,
-                   (outs IntRegs:$rd), (ins IntRegs:$rs1, i32imm:$simm13),
+                   (outs IntRegs:$rd), (ins IntRegs:$rs1, simm13Op:$simm13),
                    "xnor $rs1, $simm13, $rd", []>;
 
+let Defs = [ICC] in {
+  defm ANDCC  : F3_12np<"andcc",  0b010001>;
+  defm ANDNCC : F3_12np<"andncc", 0b010101>;
+  defm ORCC   : F3_12np<"orcc",   0b010010>;
+  defm ORNCC  : F3_12np<"orncc",  0b010110>;
+  defm XORCC  : F3_12np<"xorcc",  0b010011>;
+  defm XNORCC : F3_12np<"xnorcc", 0b010111>;
+}
+
 // Section B.12 - Shift Instructions, p. 107
-defm SLL : F3_12<"sll", 0b100101, shl, IntRegs, i32, i32imm>;
-defm SRL : F3_12<"srl", 0b100110, srl, IntRegs, i32, i32imm>;
-defm SRA : F3_12<"sra", 0b100111, sra, IntRegs, i32, i32imm>;
+defm SLL : F3_12<"sll", 0b100101, shl, IntRegs, i32, simm13Op>;
+defm SRL : F3_12<"srl", 0b100110, srl, IntRegs, i32, simm13Op>;
+defm SRA : F3_12<"sra", 0b100111, sra, IntRegs, i32, simm13Op>;
 
 // Section B.13 - Add Instructions, p. 108
-defm ADD   : F3_12<"add", 0b000000, add, IntRegs, i32, i32imm>;
+defm ADD   : F3_12<"add", 0b000000, add, IntRegs, i32, simm13Op>;
 
 // "LEA" forms of add (patterns to make tblgen happy)
 let Predicates = [Is32Bit], isCodeGenOnly = 1 in
@@ -467,18 +514,24 @@ let Predicates = [Is32Bit], isCodeGenOnly = 1 in
                      [(set iPTR:$dst, ADDRri:$addr)]>;
 
 let Defs = [ICC] in
-  defm ADDCC  : F3_12<"addcc", 0b010000, addc, IntRegs, i32, i32imm>;
+  defm ADDCC  : F3_12<"addcc", 0b010000, addc, IntRegs, i32, simm13Op>;
+
+let Uses = [ICC] in
+  defm ADDC   : F3_12np<"addx", 0b001000>;
 
 let Uses = [ICC], Defs = [ICC] in
-  defm ADDE  : F3_12<"addxcc", 0b011000, adde, IntRegs, i32, i32imm>;
+  defm ADDE  : F3_12<"addxcc", 0b011000, adde, IntRegs, i32, simm13Op>;
 
 // Section B.15 - Subtract Instructions, p. 110
-defm SUB    : F3_12  <"sub"  , 0b000100, sub, IntRegs, i32, i32imm>;
+defm SUB    : F3_12  <"sub"  , 0b000100, sub, IntRegs, i32, simm13Op>;
 let Uses = [ICC], Defs = [ICC] in
-  defm SUBE   : F3_12  <"subxcc" , 0b011100, sube, IntRegs, i32, i32imm>;
+  defm SUBE   : F3_12  <"subxcc" , 0b011100, sube, IntRegs, i32, simm13Op>;
 
 let Defs = [ICC] in
-  defm SUBCC  : F3_12  <"subcc", 0b010100, subc, IntRegs, i32, i32imm>;
+  defm SUBCC  : F3_12  <"subcc", 0b010100, subc, IntRegs, i32, simm13Op>;
+
+let Uses = [ICC] in
+  defm SUBC   : F3_12np <"subx", 0b001100>;
 
 let Defs = [ICC], rd = 0 in {
   def CMPrr   : F3_1<2, 0b010100,
@@ -486,7 +539,7 @@ let Defs = [ICC], rd = 0 in {
                      "cmp $rs1, $rs2",
                      [(SPcmpicc i32:$rs1, i32:$rs2)]>;
   def CMPri   : F3_2<2, 0b010100,
-                     (outs), (ins IntRegs:$rs1, i32imm:$simm13),
+                     (outs), (ins IntRegs:$rs1, simm13Op:$simm13),
                      "cmp $rs1, $simm13",
                      [(SPcmpicc i32:$rs1, (i32 simm13:$simm13))]>;
 }
@@ -494,13 +547,23 @@ let Defs = [ICC], rd = 0 in {
 // Section B.18 - Multiply Instructions, p. 113
 let Defs = [Y] in {
   defm UMUL : F3_12np<"umul", 0b001010>;
-  defm SMUL : F3_12  <"smul", 0b001011, mul, IntRegs, i32, i32imm>;
+  defm SMUL : F3_12  <"smul", 0b001011, mul, IntRegs, i32, simm13Op>;
+}
+
+let Defs = [Y, ICC] in {
+  defm UMULCC : F3_12np<"umulcc", 0b011010>;
+  defm SMULCC : F3_12np<"smulcc", 0b011011>;
 }
 
 // Section B.19 - Divide Instructions, p. 115
 let Defs = [Y] in {
   defm UDIV : F3_12np<"udiv", 0b001110>;
   defm SDIV : F3_12np<"sdiv", 0b001111>;
+}
+
+let Defs = [Y, ICC] in {
+  defm UDIVCC : F3_12np<"udivcc", 0b011110>;
+  defm SDIVCC : F3_12np<"sdivcc", 0b011111>;
 }
 
 // Section B.20 - SAVE and RESTORE, p. 117
@@ -511,7 +574,7 @@ defm RESTORE : F3_12np<"restore", 0b111101>;
 
 // unconditional branch class.
 class BranchAlways<dag ins, string asmstr, list<dag> pattern>
-  : F2_2<0b010, (outs), ins, asmstr, pattern> {
+  : F2_2<0b010, 0, (outs), ins, asmstr, pattern> {
   let isBranch     = 1;
   let isTerminator = 1;
   let hasDelaySlot = 1;
@@ -521,13 +584,35 @@ class BranchAlways<dag ins, string asmstr, list<dag> pattern>
 let cond = 8 in
   def BA : BranchAlways<(ins brtarget:$imm22), "ba $imm22", [(br bb:$imm22)]>;
 
+
+let isBranch = 1, isTerminator = 1, hasDelaySlot = 1 in {
+
 // conditional branch class:
 class BranchSP<dag ins, string asmstr, list<dag> pattern>
- : F2_2<0b010, (outs), ins, asmstr, pattern> {
-  let isBranch = 1;
-  let isTerminator = 1;
-  let hasDelaySlot = 1;
+ : F2_2<0b010, 0, (outs), ins, asmstr, pattern>;
+
+// conditional branch with annul class:
+class BranchSPA<dag ins, string asmstr, list<dag> pattern>
+ : F2_2<0b010, 1, (outs), ins, asmstr, pattern>;
+
+// Conditional branch class on %icc|%xcc with predication:
+multiclass IPredBranch<string regstr, list<dag> CCPattern> {
+  def CC    : F2_3<0b001, 0, 1, (outs), (ins bprtarget:$imm19, CCOp:$cond),
+                  !strconcat("b$cond ", !strconcat(regstr, ", $imm19")),
+                   CCPattern>;
+  def CCA   : F2_3<0b001, 1, 1, (outs), (ins bprtarget:$imm19, CCOp:$cond),
+                  !strconcat("b$cond,a ", !strconcat(regstr, ", $imm19")),
+                   []>;
+  def CCNT  : F2_3<0b001, 0, 0, (outs), (ins bprtarget:$imm19, CCOp:$cond),
+                   !strconcat("b$cond,pn ", !strconcat(regstr, ", $imm19")),
+                   []>;
+  def CCANT : F2_3<0b001, 1, 0, (outs), (ins bprtarget:$imm19, CCOp:$cond),
+                   !strconcat("b$cond,a,pn ", !strconcat(regstr, ", $imm19")),
+                   []>;
 }
+
+} // let isBranch = 1, isTerminator = 1, hasDelaySlot = 1
+
 
 // Indirect branch instructions.
 let isTerminator = 1, isBarrier = 1,  hasDelaySlot = 1, isBranch =1,
@@ -542,33 +627,64 @@ let isTerminator = 1, isBarrier = 1,  hasDelaySlot = 1, isBranch =1,
                    [(brind ADDRri:$ptr)]>;
 }
 
-let Uses = [ICC] in
+let Uses = [ICC] in {
   def BCOND : BranchSP<(ins brtarget:$imm22, CCOp:$cond),
                          "b$cond $imm22",
                         [(SPbricc bb:$imm22, imm:$cond)]>;
+  def BCONDA : BranchSPA<(ins brtarget:$imm22, CCOp:$cond),
+                         "b$cond,a $imm22", []>;
+
+  let Predicates = [HasV9], cc = 0b00 in
+    defm BPI : IPredBranch<"%icc", []>;
+}
 
 // Section B.22 - Branch on Floating-point Condition Codes Instructions, p. 121
 
+let isBranch = 1, isTerminator = 1, hasDelaySlot = 1 in {
+
 // floating-point conditional branch class:
 class FPBranchSP<dag ins, string asmstr, list<dag> pattern>
- : F2_2<0b110, (outs), ins, asmstr, pattern> {
-  let isBranch = 1;
-  let isTerminator = 1;
-  let hasDelaySlot = 1;
-}
+ : F2_2<0b110, 0, (outs), ins, asmstr, pattern>;
 
-let Uses = [FCC] in
+// floating-point conditional branch with annul class:
+class FPBranchSPA<dag ins, string asmstr, list<dag> pattern>
+ : F2_2<0b110, 1, (outs), ins, asmstr, pattern>;
+
+// Conditional branch class on %fcc0-%fcc3 with predication:
+multiclass FPredBranch {
+  def CC    : F2_3<0b101, 0, 1, (outs), (ins bprtarget:$imm19, CCOp:$cond,
+                                         FCCRegs:$cc),
+                  "fb$cond $cc, $imm19", []>;
+  def CCA   : F2_3<0b101, 1, 1, (outs), (ins bprtarget:$imm19, CCOp:$cond,
+                                         FCCRegs:$cc),
+                  "fb$cond,a $cc, $imm19", []>;
+  def CCNT  : F2_3<0b101, 0, 0, (outs), (ins bprtarget:$imm19, CCOp:$cond,
+                                         FCCRegs:$cc),
+                  "fb$cond,pn $cc, $imm19", []>;
+  def CCANT : F2_3<0b101, 1, 0, (outs), (ins bprtarget:$imm19, CCOp:$cond,
+                                         FCCRegs:$cc),
+                  "fb$cond,a,pn $cc, $imm19", []>;
+}
+} // let isBranch = 1, isTerminator = 1, hasDelaySlot = 1
+
+let Uses = [FCC0] in {
   def FBCOND  : FPBranchSP<(ins brtarget:$imm22, CCOp:$cond),
                               "fb$cond $imm22",
                               [(SPbrfcc bb:$imm22, imm:$cond)]>;
+  def FBCONDA : FPBranchSPA<(ins brtarget:$imm22, CCOp:$cond),
+                             "fb$cond,a $imm22", []>;
+}
+
+let Predicates = [HasV9] in
+  defm BPF : FPredBranch;
 
 
 // Section B.24 - Call and Link Instruction, p. 125
 // This is the only Format 1 instruction
 let Uses = [O6],
     hasDelaySlot = 1, isCall = 1 in {
-  def CALL : InstSP<(outs), (ins calltarget:$dst, variable_ops),
-                    "call $dst", []> {
+  def CALL : InstSP<(outs), (ins calltarget:$disp, variable_ops),
+                    "call $disp", []> {
     bits<30> disp;
     let op = 1;
     let Inst{29-0} = disp;
@@ -596,11 +712,11 @@ let Uses = [Y], rs1 = 0, rs2 = 0 in
 // Section B.29 - Write State Register Instructions
 let Defs = [Y], rd = 0 in {
   def WRYrr : F3_1<2, 0b110000,
-                   (outs), (ins IntRegs:$b, IntRegs:$c),
-                   "wr $b, $c, %y", []>;
+                   (outs), (ins IntRegs:$rs1, IntRegs:$rs2),
+                   "wr $rs1, $rs2, %y", []>;
   def WRYri : F3_2<2, 0b110000,
-                   (outs), (ins IntRegs:$b, i32imm:$c),
-                   "wr $b, $c, %y", []>;
+                   (outs), (ins IntRegs:$rs1, simm13Op:$simm13),
+                   "wr $rs1, $simm13, %y", []>;
 }
 // Convert Integer to Floating-point Instructions, p. 141
 def FITOS : F3_3u<2, 0b110100, 0b011000100,
@@ -771,7 +887,7 @@ def FDIVQ  : F3_3<2, 0b110100, 0b001001111,
 // This behavior is modeled with a forced noop after the instruction in
 // DelaySlotFiller.
 
-let Defs = [FCC] in {
+let Defs = [FCC0], rd = 0, isCodeGenOnly = 1 in {
   def FCMPS  : F3_3c<2, 0b110101, 0b001010001,
                    (outs), (ins FPRegs:$rs1, FPRegs:$rs2),
                    "fcmps $rs1, $rs2",
@@ -823,7 +939,7 @@ let Uses = [O6], isCall = 1, hasDelaySlot = 1 in
 // V9 Conditional Moves.
 let Predicates = [HasV9], Constraints = "$f = $rd" in {
   // Move Integer Register on Condition (MOVcc) p. 194 of the V9 manual.
-  let Uses = [ICC], cc = 0b100 in {
+  let Uses = [ICC], intcc = 1, cc = 0b00 in {
     def MOVICCrr
       : F4_1<0b101100, (outs IntRegs:$rd),
              (ins IntRegs:$rs2, IntRegs:$f, CCOp:$cond),
@@ -838,7 +954,7 @@ let Predicates = [HasV9], Constraints = "$f = $rd" in {
                     (SPselecticc simm11:$simm11, i32:$f, imm:$cond))]>;
   }
 
-  let Uses = [FCC], cc = 0b000 in {
+  let Uses = [FCC0], intcc = 0, cc = 0b00 in {
     def MOVFCCrr
       : F4_1<0b101100, (outs IntRegs:$rd),
              (ins IntRegs:$rs2, IntRegs:$f, CCOp:$cond),
@@ -852,7 +968,7 @@ let Predicates = [HasV9], Constraints = "$f = $rd" in {
                     (SPselectfcc simm11:$simm11, i32:$f, imm:$cond))]>;
   }
 
-  let Uses = [ICC], opf_cc = 0b100 in {
+  let Uses = [ICC], intcc = 1, opf_cc = 0b00 in {
     def FMOVS_ICC
       : F4_3<0b110101, 0b000001, (outs FPRegs:$rd),
              (ins FPRegs:$rs2, FPRegs:$f, CCOp:$cond),
@@ -871,7 +987,7 @@ let Predicates = [HasV9], Constraints = "$f = $rd" in {
                Requires<[HasHardQuad]>;
   }
 
-  let Uses = [FCC], opf_cc = 0b000 in {
+  let Uses = [FCC0], intcc = 0, opf_cc = 0b00 in {
     def FMOVS_FCC
       : F4_3<0b110101, 0b000001, (outs FPRegs:$rd),
              (ins FPRegs:$rs2, FPRegs:$f, CCOp:$cond),
@@ -921,6 +1037,59 @@ let Predicates = [HasV9] in {
                    Requires<[HasHardQuad]>;
 }
 
+// Floating-point compare instruction with %fcc0-%fcc3.
+def V9FCMPS  : F3_3c<2, 0b110101, 0b001010001,
+               (outs FCCRegs:$rd), (ins FPRegs:$rs1, FPRegs:$rs2),
+               "fcmps $rd, $rs1, $rs2", []>;
+def V9FCMPD  : F3_3c<2, 0b110101, 0b001010010,
+                (outs FCCRegs:$rd), (ins DFPRegs:$rs1, DFPRegs:$rs2),
+                "fcmpd $rd, $rs1, $rs2", []>;
+def V9FCMPQ  : F3_3c<2, 0b110101, 0b001010011,
+                (outs FCCRegs:$rd), (ins QFPRegs:$rs1, QFPRegs:$rs2),
+                "fcmpq $rd, $rs1, $rs2", []>,
+                 Requires<[HasHardQuad]>;
+
+let hasSideEffects = 1 in {
+  def V9FCMPES  : F3_3c<2, 0b110101, 0b001010101,
+                   (outs FCCRegs:$rd), (ins FPRegs:$rs1, FPRegs:$rs2),
+                   "fcmpes $rd, $rs1, $rs2", []>;
+  def V9FCMPED  : F3_3c<2, 0b110101, 0b001010110,
+                   (outs FCCRegs:$rd), (ins DFPRegs:$rs1, DFPRegs:$rs2),
+                   "fcmped $rd, $rs1, $rs2", []>;
+  def V9FCMPEQ  : F3_3c<2, 0b110101, 0b001010111,
+                   (outs FCCRegs:$rd), (ins QFPRegs:$rs1, QFPRegs:$rs2),
+                   "fcmpeq $rd, $rs1, $rs2", []>,
+                   Requires<[HasHardQuad]>;
+}
+
+// Floating point conditional move instrucitons with %fcc0-%fcc3.
+let Predicates = [HasV9] in {
+  let Constraints = "$f = $rd", intcc = 0 in {
+    def V9MOVFCCrr
+      : F4_1<0b101100, (outs IntRegs:$rd),
+             (ins FCCRegs:$cc, IntRegs:$rs2, IntRegs:$f, CCOp:$cond),
+             "mov$cond $cc, $rs2, $rd", []>;
+    def V9MOVFCCri
+      : F4_2<0b101100, (outs IntRegs:$rd),
+             (ins FCCRegs:$cc, i32imm:$simm11, IntRegs:$f, CCOp:$cond),
+             "mov$cond $cc, $simm11, $rd", []>;
+    def V9FMOVS_FCC
+      : F4_3<0b110101, 0b000001, (outs FPRegs:$rd),
+             (ins FCCRegs:$opf_cc, FPRegs:$rs2, FPRegs:$f, CCOp:$cond),
+             "fmovs$cond $opf_cc, $rs2, $rd", []>;
+    def V9FMOVD_FCC
+      : F4_3<0b110101, 0b000010, (outs DFPRegs:$rd),
+             (ins FCCRegs:$opf_cc, DFPRegs:$rs2, DFPRegs:$f, CCOp:$cond),
+             "fmovd$cond $opf_cc, $rs2, $rd", []>;
+    def V9FMOVQ_FCC
+      : F4_3<0b110101, 0b000011, (outs QFPRegs:$rd),
+             (ins FCCRegs:$opf_cc, QFPRegs:$rs2, QFPRegs:$f, CCOp:$cond),
+             "fmovq$cond $opf_cc, $rs2, $rd", []>,
+             Requires<[HasHardQuad]>;
+  } // Constraints = "$f = $rd", ...
+} // let Predicates = [hasV9]
+
+
 // POPCrr - This does a ctpop of a 64-bit register.  As such, we have to clear
 // the top 32-bits before using it.  To do this clearing, we use a SRLri X,0.
 let rs1 = 0 in
@@ -935,10 +1104,10 @@ let hasSideEffects =1, rd = 0, rs1 = 0b01111, rs2 = 0 in
   def STBAR : F3_1<2, 0b101000, (outs), (ins), "stbar", []>;
 
 let Predicates = [HasV9], hasSideEffects = 1, rd = 0, rs1 = 0b01111 in
- def MEMBARi : F3_2<2, 0b101000, (outs), (ins i32imm:$simm13),
+ def MEMBARi : F3_2<2, 0b101000, (outs), (ins simm13Op:$simm13),
                     "membar $simm13", []>;
 
-let Constraints = "$val = $dst" in {
+let Constraints = "$val = $dst", DecoderMethod = "DecodeSWAP" in {
   def SWAPrr : F3_1<3, 0b001111,
                  (outs IntRegs:$dst), (ins MEMrr:$addr, IntRegs:$val),
                  "swap [$addr], $dst",
@@ -956,6 +1125,28 @@ let Predicates = [HasV9], Constraints = "$swap = $rd" in
                  "cas [$rs1], $rs2, $rd",
                  [(set i32:$rd,
                      (atomic_cmp_swap iPTR:$rs1, i32:$rs2, i32:$swap))]>;
+
+let Defs = [ICC] in {
+defm TADDCC   : F3_12np<"taddcc",   0b100000>;
+defm TSUBCC   : F3_12np<"tsubcc",   0b100001>;
+
+let hasSideEffects = 1 in {
+  defm TADDCCTV : F3_12np<"taddcctv", 0b100010>;
+  defm TSUBCCTV : F3_12np<"tsubcctv", 0b100011>;
+}
+}
+
+multiclass TRAP<string regStr> {
+  def rr : TRAPSPrr<0b111010, (outs), (ins IntRegs:$rs1, IntRegs:$rs2,
+                                       CCOp:$cond),
+              !strconcat(!strconcat("t$cond ", regStr), ", $rs1 + $rs2"), []>;
+  def ri : TRAPSPri<0b111010, (outs), (ins IntRegs:$rs1, i32imm:$imm,
+                                      CCOp:$cond),
+              !strconcat(!strconcat("t$cond ", regStr), ", $rs1 + $imm"), []>;
+}
+
+let hasSideEffects = 1, Uses = [ICC], cc = 0b00 in
+  defm TICC : TRAP<"%icc">;
 
 //===----------------------------------------------------------------------===//
 // Non-Instruction Patterns
@@ -1032,4 +1223,5 @@ def : Pat<(atomic_store ADDRri:$dst, i32:$val), (STri ADDRri:$dst, $val)>;
 
 
 include "SparcInstr64Bit.td"
+include "SparcInstrVIS.td"
 include "SparcInstrAliases.td"

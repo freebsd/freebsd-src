@@ -68,6 +68,7 @@ stg_alloc_resource(device_t dev)
 	u_long			maddr, msize;
 	int			error;
 
+	mtx_init(&sc->sc_sclow.sl_lock, "stg", NULL, MTX_DEF);
 	sc->port_res = bus_alloc_resource_any(dev, SYS_RES_IOPORT, 
 					      &sc->port_rid, RF_ACTIVE);
 	if (sc->port_res == NULL) {
@@ -117,7 +118,7 @@ stg_release_resource(device_t dev)
 	if (sc->mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY,
 				     sc->mem_rid, sc->mem_res);
-	return;
+	mtx_destroy(&sc->sc_sclow.sl_lock);
 }
 
 int
@@ -126,8 +127,7 @@ stg_probe(device_t dev)
 	int rv;
 	struct stg_softc *sc = device_get_softc(dev);
 
-	rv = stgprobesubr(rman_get_bustag(sc->port_res),
-			  rman_get_bushandle(sc->port_res),
+	rv = stgprobesubr(sc->port_res,
 			  device_get_flags(dev));
 
 	return rv;
@@ -139,45 +139,38 @@ stg_attach(device_t dev)
 	struct stg_softc *sc;
 	struct scsi_low_softc *slp;
 	u_int32_t flags = device_get_flags(dev);
-	intrmask_t s;
-	char	dvname[16];
 
 	sc = device_get_softc(dev);
 
-	strcpy(dvname,"stg");
-
 	slp = &sc->sc_sclow;
 	slp->sl_dev = dev;
-	sc->sc_iot = rman_get_bustag(sc->port_res);
-	sc->sc_ioh = rman_get_bushandle(sc->port_res);
 
 	slp->sl_hostid = STG_HOSTID;
 	slp->sl_cfgflags = flags;
 
-	s = splcam();
 	stgattachsubr(sc);
-	splx(s);
 
 	return(STGIOSZ);
 }
 
 int
-stg_detach (device_t dev)
+stg_detach(device_t dev)
 {
 	struct stg_softc *sc = device_get_softc(dev);
-	intrmask_t s;
 
-	s = splcam();
-	scsi_low_deactivate((struct scsi_low_softc *)sc);
-	scsi_low_dettach(&sc->sc_sclow);
-	splx(s);
+	scsi_low_deactivate(&sc->sc_sclow);
+	scsi_low_detach(&sc->sc_sclow);
 	stg_release_resource(dev);
 	return (0);
 }
 
 void
-stg_intr (void *arg)
+stg_intr(void *arg)
 {
-	stgintr(arg);
-	return;
+	struct stg_softc *sc;
+
+	sc = arg;
+	SCSI_LOW_LOCK(&sc->sc_sclow);
+	stgintr(sc);
+	SCSI_LOW_UNLOCK(&sc->sc_sclow);
 }

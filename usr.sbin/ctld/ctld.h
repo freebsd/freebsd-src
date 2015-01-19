@@ -48,6 +48,7 @@
 #define	MAX_NAME_LEN			223
 #define	MAX_DATA_SEGMENT_LENGTH		(128 * 1024)
 #define	MAX_BURST_LENGTH		16776192
+#define	SOCKBUF_SIZE			1048576
 
 struct auth {
 	TAILQ_ENTRY(auth)		a_next;
@@ -117,6 +118,7 @@ struct portal_group {
 	int				pg_discovery_filter;
 	bool				pg_unassigned;
 	TAILQ_HEAD(, portal)		pg_portals;
+	char				*pg_redirection;
 
 	uint16_t			pg_tag;
 };
@@ -151,6 +153,7 @@ struct target {
 	struct portal_group		*t_portal_group;
 	char				*t_name;
 	char				*t_alias;
+	char				*t_redirection;
 };
 
 struct isns {
@@ -301,6 +304,8 @@ int			portal_group_add_listen(struct portal_group *pg,
 			    const char *listen, bool iser);
 int			portal_group_set_filter(struct portal_group *pg,
 			    const char *filter);
+int			portal_group_set_redirection(struct portal_group *pg,
+			    const char *addr);
 
 int			isns_new(struct conf *conf, const char *addr);
 void			isns_delete(struct isns *is);
@@ -312,6 +317,8 @@ struct target		*target_new(struct conf *conf, const char *name);
 void			target_delete(struct target *target);
 struct target		*target_find(struct conf *conf,
 			    const char *name);
+int			target_set_redirection(struct target *target,
+			    const char *addr);
 
 struct lun		*lun_new(struct target *target, int lun_id);
 void			lun_delete(struct lun *lun);

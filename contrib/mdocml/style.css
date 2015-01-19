@@ -1,4 +1,4 @@
-/* $Id: style.css,v 1.25 2011/08/26 09:03:17 kristaps Exp $ */
+/* $Id: style.css,v 1.30 2014/09/27 11:16:24 kristaps Exp $ */
 
 /*
  * This is an example style-sheet provided for mandoc(1) and the -Thtml
@@ -20,16 +20,17 @@ blockquote	{ margin-left: 5ex; margin-top: 0ex; margin-bottom: 0ex; } /* D1. */
 div.section	{ margin-bottom: 2ex; margin-left: 5ex; } /* Sections (Sh, SH). */
 div.subsection	{ } /* Sub-sections (Ss, SS). */
 table.synopsis	{ } /* SYNOPSIS section table. */
+div.spacer	{ margin: 1em 0; }
 
 /* Preamble structure. */
 
 table.foot	{ font-size: smaller; margin-top: 1em; border-top: 1px dotted #dddddd; } /* Document footer. */
 td.foot-date	{ width: 50%; } /* Document footer: date. */
-td.foot-os	{ width: 50%; text-align: right; } /* Document footer: OS/source. */
+td.foot-os	{ width: 50%; } /* Document footer: OS/source. */
 table.head	{ font-size: smaller; margin-bottom: 1em; border-bottom: 1px dotted #dddddd; } /* Document header. */
 td.head-ltitle	{ width: 10%; } /* Document header: left-title. */
-td.head-vol	{ width: 80%; text-align: center; } /* Document header: volume. */
-td.head-rtitle	{ width: 10%; text-align: right; } /* Document header: right-title. */
+td.head-vol	{ width: 80%; } /* Document header: volume. */
+td.head-rtitle	{ width: 10%; } /* Document header: right-title. */
 
 /* General font modes. */
 

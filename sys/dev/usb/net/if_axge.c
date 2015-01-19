@@ -134,7 +134,7 @@ static void	axge_csum_cfg(struct usb_ether *);
 static int axge_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, axge, CTLFLAG_RW, 0, "USB axge");
-SYSCTL_INT(_hw_usb_axge, OID_AUTO, debug, CTLFLAG_RW, &axge_debug, 0,
+SYSCTL_INT(_hw_usb_axge, OID_AUTO, debug, CTLFLAG_RWTUN, &axge_debug, 0,
     "Debug level");
 #endif
 

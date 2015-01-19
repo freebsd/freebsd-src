@@ -3,8 +3,7 @@
 
 PROG=	vmstat
 MAN=	vmstat.8
-DPADD=	${LIBDEVSTAT} ${LIBKVM} ${LIBMEMSTAT} ${LIBUTIL}
-LDADD=	-ldevstat -lkvm -lmemstat -lutil
+LIBADD=	devstat kvm memstat util
 
 WARNS?=	1
 

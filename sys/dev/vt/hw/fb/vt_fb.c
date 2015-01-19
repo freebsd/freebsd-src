@@ -154,6 +154,9 @@ vt_fb_setpixel(struct vt_device *vd, int x, int y, term_color_t color)
 	c = info->fb_cmap[color];
 	o = info->fb_stride * y + x * FBTYPE_GET_BYTESPP(info);
 
+	if (info->fb_flags & FB_FLAG_NOWRITE)
+		return;
+
 	KASSERT((info->fb_vbase != 0), ("Unmapped framebuffer"));
 
 	switch (FBTYPE_GET_BYTESPP(info)) {
@@ -204,6 +207,9 @@ vt_fb_blank(struct vt_device *vd, term_color_t color)
 
 	info = vd->vd_softc;
 	c = info->fb_cmap[color];
+
+	if (info->fb_flags & FB_FLAG_NOWRITE)
+		return;
 
 	KASSERT((info->fb_vbase != 0), ("Unmapped framebuffer"));
 
@@ -259,6 +265,9 @@ vt_fb_bitblt_bitmap(struct vt_device *vd, const struct vt_window *vw,
 	bgc = info->fb_cmap[bg];
 	b = m = 0;
 	bpl = (width + 7) >> 3; /* Bytes per source line. */
+
+	if (info->fb_flags & FB_FLAG_NOWRITE)
+		return;
 
 	KASSERT((info->fb_vbase != 0), ("Unmapped framebuffer"));
 

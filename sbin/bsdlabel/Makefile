@@ -12,7 +12,6 @@ LINKS=	${BINDIR}/bsdlabel ${BINDIR}/disklabel
 MLINKS=	bsdlabel.8 disklabel.8
 .endif
 
-DPADD=	${LIBGEOM} ${LIBBSDXML} ${LIBSBUF}
-LDADD=	-lgeom -lbsdxml -lsbuf
+LIBADD=	geom
 
 .include <bsd.prog.mk>

@@ -45,6 +45,7 @@ namespace llvm {
   class TargetInstrInfo;
   class TargetRegisterClass;
   class VirtRegMap;
+  class MachineBlockFrequencyInfo;
 
   class LiveIntervals : public MachineFunctionPass {
     MachineFunction* MF;
@@ -100,7 +101,9 @@ namespace llvm {
     virtual ~LiveIntervals();
 
     // Calculate the spill weight to assign to a single instruction.
-    static float getSpillWeight(bool isDef, bool isUse, BlockFrequency freq);
+    static float getSpillWeight(bool isDef, bool isUse,
+                                const MachineBlockFrequencyInfo *MBFI,
+                                const MachineInstr *Instr);
 
     LiveInterval &getInterval(unsigned Reg) {
       if (hasInterval(Reg))
@@ -134,7 +137,7 @@ namespace llvm {
     // Interval removal.
     void removeInterval(unsigned Reg) {
       delete VirtRegIntervals[Reg];
-      VirtRegIntervals[Reg] = 0;
+      VirtRegIntervals[Reg] = nullptr;
     }
 
     /// Given a register and an instruction, adds a live segment from that
@@ -150,7 +153,18 @@ namespace llvm {
     /// Return true if the interval may have been separated into multiple
     /// connected components.
     bool shrinkToUses(LiveInterval *li,
-                      SmallVectorImpl<MachineInstr*> *dead = 0);
+                      SmallVectorImpl<MachineInstr*> *dead = nullptr);
+
+    /// \brief Walk the values in the given interval and compute which ones
+    /// are dead.  Dead values are not deleted, however:
+    /// - Dead PHIDef values are marked as unused.
+    /// - New dead machine instructions are added to the dead vector.
+    /// - CanSeparate is set to true if the interval may have been separated
+    ///   into multiple connected components.
+    void computeDeadValues(LiveInterval *li,
+                           LiveRange &LR,
+                           bool *CanSeparate,
+                           SmallVectorImpl<MachineInstr*> *dead);
 
     /// extendToIndices - Extend the live range of LI to reach all points in
     /// Indices. The points in the Indices array must be jointly dominated by
@@ -252,14 +266,14 @@ namespace llvm {
 
     VNInfo::Allocator& getVNInfoAllocator() { return VNInfoAllocator; }
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const;
-    virtual void releaseMemory();
+    void getAnalysisUsage(AnalysisUsage &AU) const override;
+    void releaseMemory() override;
 
     /// runOnMachineFunction - pass entry point
-    virtual bool runOnMachineFunction(MachineFunction&);
+    bool runOnMachineFunction(MachineFunction&) override;
 
     /// print - Implement the dump method.
-    virtual void print(raw_ostream &O, const Module* = 0) const;
+    void print(raw_ostream &O, const Module* = nullptr) const override;
 
     /// intervalIsInOneMBB - If LI is confined to a single basic block, return
     /// a pointer to that block.  If LI is live in to or out of any block,
