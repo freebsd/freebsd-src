@@ -236,3 +236,61 @@
   <div class="text">: </div>
   <div class="data" data-tag="sku" data-key="key">GRO-000-533</div>
 </div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item">gum</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item">rope</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item">ladder</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item">bolt</div>
+</div>
+<div class="line">
+  <div class="label">Item</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="item">water</div>
+</div>
+<div class="line">
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+  <div class="text">X</div>
+</div>
+<div class="line">
+  <div class="text">X</div>
+  <div class="padding">        </div>
+  <div class="text">X</div>
+  <div class="label">Cost</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="cost">425</div>
+</div>
+<div class="line">
+  <div class="text">X</div>
+  <div class="padding">                              </div>
+  <div class="text">X</div>
+  <div class="label">Cost</div>
+  <div class="decoration">:</div>
+  <div class="padding"> </div>
+  <div class="data" data-tag="cost">455</div>
+</div>
