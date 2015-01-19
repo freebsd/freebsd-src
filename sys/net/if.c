@@ -1528,9 +1528,6 @@ if_getfeature(if_t ifp, ift_feature f, uint32_t **f32, uint64_t **f64,
 	case IF_FLAGS:
 		*f32 = &ifp->if_flags;
 		break;
-	case IF_FIB:
-		*f32 = &ifp->if_fib;
-		break;
 	case IF_BAUDRATE:
 		*f64 = &ifp->if_baudrate;
 		break;
@@ -2475,8 +2472,8 @@ if_drvioctl(u_long cmd, struct ifnet *ifp, void *data, struct thread *td)
 			return (error);
 		if (ifr->ifr_fib >= rt_numfibs)
 			return (EINVAL);
-
 		ifp->if_fib = ifr->ifr_fib;
+		(void )if_ioctl(ifp, cmd, data, td);
 		break;
 
 	case SIOCSIFFLAGS:

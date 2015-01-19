@@ -107,7 +107,8 @@ const static struct iffam gFamilies[] = {
 
 /* Node private data */
 struct ng_iface_private {
-	struct	ifnet *ifp;		/* Our interface */
+	if_t	ifp;			/* Our interface */
+	u_int	fib;			/* Interface fib */
 	int	unit;			/* Interface unit number */
 	node_p	node;			/* Our netgraph node */
 	hook_p	hooks[NUM_FAMILIES];	/* Hook for each address family */
@@ -275,6 +276,7 @@ get_iffam_from_name(const char *name)
 static int
 ng_iface_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 {
+	const priv_p priv = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct ifreq *const ifr = (struct ifreq *) data;
 	int error = 0;
 
@@ -293,6 +295,11 @@ ng_iface_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 		if (ifr->ifr_mtu > NG_IFACE_MTU_MAX
 		    || ifr->ifr_mtu < NG_IFACE_MTU_MIN)
 			error = EINVAL;
+		break;
+
+	/* Update interface FIB */
+	case SIOCSIFFIB:
+		priv->fib = ifr->ifr_fib;
 		break;
 
 	/* Stuff that's not supported */
@@ -643,7 +650,7 @@ ng_iface_rcvdata(hook_p hook, item_p item)
 		return (EAFNOSUPPORT);
 	}
 	random_harvest(&(m->m_data), 12, 2, RANDOM_NET_NG);
-	M_SETFIB(m, if_get(ifp, IF_FIB));
+	M_SETFIB(m, priv->fib);
 	netisr_dispatch(isr, m);
 	return (0);
 }

@@ -575,7 +575,6 @@ typedef enum {
 typedef enum {
 	/* uint32_t */
 	IF_FLAGS,
-	IF_FIB,
 	/* uint64_t */
 	IF_BAUDRATE,
 	/* pointers */
