@@ -857,9 +857,12 @@ tr_setup:
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 		if (error != USB_ERR_CANCELLED) {
-			/* try to clear stall first */
-			usbd_xfer_set_stall(xfer);
-			goto tr_setup;
+			if (usbd_get_mode(sc->sc_ue.ue_udev) == USB_MODE_HOST) {
+				/* try to clear stall first */
+				usbd_xfer_set_stall(xfer);
+			} else {
+				goto tr_setup;
+			}
 		}
 		break;
 	}
@@ -1024,10 +1027,12 @@ cdce_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		if (error != USB_ERR_CANCELLED) {
 tr_stall:
-			/* try to clear stall first */
-			usbd_xfer_set_stall(xfer);
-			usbd_xfer_set_frames(xfer, 0);
-			usbd_transfer_submit(xfer);
+			if (usbd_get_mode(sc->sc_ue.ue_udev) == USB_MODE_HOST) {
+				/* try to clear stall first */
+				usbd_xfer_set_stall(xfer);
+				usbd_xfer_set_frames(xfer, 0);
+				usbd_transfer_submit(xfer);
+			}
 			break;
 		}
 
@@ -1040,6 +1045,7 @@ tr_stall:
 static void
 cdce_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 {
+	struct cdce_softc *sc = usbd_xfer_softc(xfer);
 	int actlen;
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
@@ -1061,8 +1067,10 @@ tr_setup:
 	default:			/* Error */
 		if (error != USB_ERR_CANCELLED) {
 			/* start clear stall */
-			usbd_xfer_set_stall(xfer);
-			goto tr_setup;
+			if (usbd_get_mode(sc->sc_ue.ue_udev) == USB_MODE_HOST)
+				usbd_xfer_set_stall(xfer);
+			else
+				goto tr_setup;
 		}
 		break;
 	}
@@ -1083,6 +1091,17 @@ cdce_intr_write_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 
 		DPRINTF("Transferred %d bytes\n", actlen);
+
+		switch (sc->sc_notify_state) {
+		case (CDCE_NOTIFY_NETWORK_CONNECTION):
+			sc->sc_notify_state = CDCE_NOTIFY_SPEED_CHANGE;
+			break;
+		case (CDCE_NOTIFY_SPEED_CHANGE):
+			sc->sc_notify_state = CDCE_NOTIFY_DONE;
+			break;
+		default:
+			break;
+		}
 
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
@@ -1105,7 +1124,6 @@ tr_setup:
 			usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
 			usbd_xfer_set_frames(xfer, 1);
 			usbd_transfer_submit(xfer); 
-			sc->sc_notify_state = CDCE_NOTIFY_SPEED_CHANGE;
 
 		} else if (sc->sc_notify_state == CDCE_NOTIFY_SPEED_CHANGE) {
 			req.bmRequestType = UCDC_NOTIFICATION;
@@ -1116,7 +1134,7 @@ tr_setup:
 			USETW(req.wLength, 8);
 
 			/* Peak theoretical bulk trasfer rate in bits/s */
-			if (usbd_get_speed(sc->sc_ue.ue_udev) == USB_SPEED_HIGH)
+			if (usbd_get_speed(sc->sc_ue.ue_udev) != USB_SPEED_FULL)
 				speed = (13 * 512 * 8 * 1000 * 8);
 			else
 				speed = (19 * 64 * 1 * 1000 * 8);
@@ -1129,15 +1147,17 @@ tr_setup:
 			usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
 			usbd_xfer_set_frames(xfer, 1);
 			usbd_transfer_submit(xfer); 
-			sc->sc_notify_state = CDCE_NOTIFY_DONE;
 		}
 		break;
 
 	default:			/* Error */
 		if (error != USB_ERR_CANCELLED) {
-			/* start clear stall */
-			usbd_xfer_set_stall(xfer);
-			goto tr_setup;
+			if (usbd_get_mode(sc->sc_ue.ue_udev) == USB_MODE_HOST) {
+				/* start clear stall */
+				usbd_xfer_set_stall(xfer);
+			} else {
+				goto tr_setup;
+			}
 		}
 		break;
 	}
@@ -1145,9 +1165,30 @@ tr_setup:
 
 static int
 cdce_handle_request(device_t dev,
-    const void *req, void **pptr, uint16_t *plen,
+    const void *preq, void **pptr, uint16_t *plen,
     uint16_t offset, uint8_t *pstate)
 {
+	struct cdce_softc *sc = device_get_softc(dev);
+	const struct usb_device_request *req = preq;
+	uint8_t is_complete = *pstate;
+
+	/*
+	 * When Mac OS X resumes after suspending it expects
+	 * to be notified again after this request.
+	 */
+	if (req->bmRequestType == UT_WRITE_CLASS_INTERFACE && \
+	    req->bRequest == UCDC_NCM_SET_ETHERNET_PACKET_FILTER) {
+
+		if (is_complete == 1) {
+			mtx_lock(&sc->sc_mtx);
+			sc->sc_notify_state = CDCE_NOTIFY_SPEED_CHANGE;
+			usbd_transfer_start(sc->sc_xfer[CDCE_INTR_TX]);
+			mtx_unlock(&sc->sc_mtx);
+		}
+
+		return (0);
+	}
+
 	return (ENXIO);			/* use builtin handler */
 }
 
@@ -1363,10 +1404,12 @@ cdce_ncm_bulk_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		if_inc_counter(ifp, IFCOUNTER_OERRORS, 1);
 
 		if (error != USB_ERR_CANCELLED) {
-			/* try to clear stall first */
-			usbd_xfer_set_stall(xfer);
-			usbd_xfer_set_frames(xfer, 0);
-			usbd_transfer_submit(xfer);
+			if (usbd_get_mode(sc->sc_ue.ue_udev) == USB_MODE_HOST) {
+				/* try to clear stall first */
+				usbd_xfer_set_stall(xfer);
+				usbd_xfer_set_frames(xfer, 0);
+				usbd_transfer_submit(xfer);
+			}
 		}
 		break;
 	}
@@ -1524,10 +1567,12 @@ tr_setup:
 
 		if (error != USB_ERR_CANCELLED) {
 tr_stall:
-			/* try to clear stall first */
-			usbd_xfer_set_stall(xfer);
-			usbd_xfer_set_frames(xfer, 0);
-			usbd_transfer_submit(xfer);
+			if (usbd_get_mode(sc->sc_ue.ue_udev) == USB_MODE_HOST) {
+				/* try to clear stall first */
+				usbd_xfer_set_stall(xfer);
+				usbd_xfer_set_frames(xfer, 0);
+				usbd_transfer_submit(xfer);
+			}
 		}
 		break;
 	}
