@@ -6,27 +6,18 @@
 # $FreeBSD$
 #
 
-include		BERI_DE4_MDROOT
+# Ensure the kernel picks up this FDT
+options         FDT_DTB_STATIC_ONLY
+
+include		BERI_DE4_BENCHMARK
 ident		CHERI_DE4_BENCHMARK
 
 nocpu		CPU_BERI
 cpu		CPU_CHERI
 
-nooptions	HZ
-options 	HZ=100
-
-nooptions	INVARIANTS
-nooptions	INVARIANT_SUPPORT
-
-# Disable devices that poll
-nodevice	altera_atse
-nodevice	miibus
-nooptions	DEVICE_POLLING
-nodevice	altera_sdcard
-nodevice	cfi
-nodevice	cfid
-
-nooptions MD_ROOT_SIZE
-options  MD_ROOT_SIZE="32768"
-makeoptions MFS_IMAGE=/pool/users/bed22/mdroot.img
-options  ROOTDEVNAME=\"ufs:md0\"
+#options       CPU_CHERI_CHERI0
+#options       CPU_CHERI_CHERI8
+#options       CPU_CHERI_CHERI16
+#options       CPU_CHERI_HW_CCALL_CHECKS
+#options       CPU_CHERI_HW_RCLEAR
+#options       CPU_CHERI_HW_CCLEAR
