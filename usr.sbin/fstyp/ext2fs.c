@@ -85,6 +85,7 @@ fstyp_ext2fs(FILE *fp, char *label, size_t size)
 	}
 
 	strlcpy(label, s_volume_name, size);
+	free(fs);
 
 	return (0);
 }
