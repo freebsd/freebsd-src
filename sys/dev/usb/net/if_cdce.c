@@ -860,9 +860,8 @@ tr_setup:
 			if (usbd_get_mode(sc->sc_ue.ue_udev) == USB_MODE_HOST) {
 				/* try to clear stall first */
 				usbd_xfer_set_stall(xfer);
-			} else {
-				goto tr_setup;
 			}
+			goto tr_setup;
 		}
 		break;
 	}
@@ -1069,8 +1068,7 @@ tr_setup:
 			/* start clear stall */
 			if (usbd_get_mode(sc->sc_ue.ue_udev) == USB_MODE_HOST)
 				usbd_xfer_set_stall(xfer);
-			else
-				goto tr_setup;
+			goto tr_setup;
 		}
 		break;
 	}
@@ -1093,10 +1091,10 @@ cdce_intr_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		DPRINTF("Transferred %d bytes\n", actlen);
 
 		switch (sc->sc_notify_state) {
-		case (CDCE_NOTIFY_NETWORK_CONNECTION):
+		case CDCE_NOTIFY_NETWORK_CONNECTION:
 			sc->sc_notify_state = CDCE_NOTIFY_SPEED_CHANGE;
 			break;
-		case (CDCE_NOTIFY_SPEED_CHANGE):
+		case CDCE_NOTIFY_SPEED_CHANGE:
 			sc->sc_notify_state = CDCE_NOTIFY_DONE;
 			break;
 		default:
@@ -1155,9 +1153,8 @@ tr_setup:
 			if (usbd_get_mode(sc->sc_ue.ue_udev) == USB_MODE_HOST) {
 				/* start clear stall */
 				usbd_xfer_set_stall(xfer);
-			} else {
-				goto tr_setup;
 			}
+			goto tr_setup;
 		}
 		break;
 	}
