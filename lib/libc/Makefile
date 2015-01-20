@@ -160,6 +160,8 @@ libkern.${LIBC_ARCH}:: ${KMSRCS}
 CFLAGS+=-DSYSCALL_COMPAT
 .endif
 
+.include <bsd.arch.inc.mk>
+
 .include <bsd.lib.mk>
 
 # Disable warnings in contributed sources.
