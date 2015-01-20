@@ -76,8 +76,9 @@ options 	DIAGNOSTIC
 options 	ROOTDEVNAME=\"ufs:/dev/da0s2\"
 
 # MMC/SD/SDIO Card slot support
-#device		mmc			# mmc/sd bus
-#device		mmcsd			# mmc/sd flash cards
+device		mmc			# mmc/sd bus
+device		mmcsd			# mmc/sd flash cards
+device		dwmmc
 
 # Console and misc
 device		uart

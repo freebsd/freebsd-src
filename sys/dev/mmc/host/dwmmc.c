@@ -129,6 +129,8 @@ struct dwmmc_softc {
 	uint32_t		flags;
 	uint32_t		hwtype;
 	uint32_t		use_auto_stop;
+	uint32_t		use_pio;
+	uint32_t		pwren_inverted;
 
 	bus_dma_tag_t		desc_tag;
 	bus_dmamap_t		desc_map;
@@ -152,6 +154,8 @@ static void dwmmc_next_operation(struct dwmmc_softc *);
 static int dwmmc_setup_bus(struct dwmmc_softc *, int);
 static int dma_done(struct dwmmc_softc *, struct mmc_command *);
 static int dma_stop(struct dwmmc_softc *);
+static void pio_read(struct dwmmc_softc *, struct mmc_command *);
+static void pio_write(struct dwmmc_softc *, struct mmc_command *);
 
 static struct resource_spec dwmmc_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
@@ -163,6 +167,7 @@ enum {
 	HWTYPE_NONE,
 	HWTYPE_ALTERA,
 	HWTYPE_EXYNOS,
+	HWTYPE_ROCKCHIP,
 };
 
 #define	HWTYPE_MASK		(0x0000ffff)
@@ -171,6 +176,7 @@ enum {
 static struct ofw_compat_data compat_data[] = {
 	{"altr,socfpga-dw-mshc",	HWTYPE_ALTERA},
 	{"samsung,exynos5420-dw-mshc",	HWTYPE_EXYNOS},
+	{"rockchip,rk2928-dw-mshc",	HWTYPE_ROCKCHIP},
 	{NULL,				HWTYPE_NONE},
 };
 
@@ -395,8 +401,10 @@ dwmmc_intr(void *arg)
 			dprintf("data err 0x%08x cmd 0x%08x\n",
 				reg, cmd->opcode);
 			cmd->error = MMC_ERR_FAILED;
-			dma_done(sc, cmd);
-			dma_stop(sc);
+			if (!sc->use_pio) {
+				dma_done(sc, cmd);
+				dma_stop(sc);
+			}
 		}
 
 		if (reg & SDMMC_INTMASK_CMD_DONE) {
@@ -421,15 +429,24 @@ dwmmc_intr(void *arg)
 		}
 	}
 
-	/* Now handle DMA interrupts */
-	reg = READ4(sc, SDMMC_IDSTS);
-	if (reg) {
-		dprintf("dma intr 0x%08x\n", reg);
-		if (reg & (SDMMC_IDINTEN_TI | SDMMC_IDINTEN_RI)) {
-			WRITE4(sc, SDMMC_IDSTS, (SDMMC_IDINTEN_TI |
-						 SDMMC_IDINTEN_RI));
-			WRITE4(sc, SDMMC_IDSTS, SDMMC_IDINTEN_NI);
-			dma_done(sc, cmd);
+	if (sc->use_pio) {
+		if (reg & (SDMMC_INTMASK_RXDR|SDMMC_INTMASK_DTO)) {
+			pio_read(sc, cmd);
+		}
+		if (reg & (SDMMC_INTMASK_TXDR|SDMMC_INTMASK_DTO)) {
+			pio_write(sc, cmd);
+		}
+	} else {
+		/* Now handle DMA interrupts */
+		reg = READ4(sc, SDMMC_IDSTS);
+		if (reg) {
+			dprintf("dma intr 0x%08x\n", reg);
+			if (reg & (SDMMC_IDINTEN_TI | SDMMC_IDINTEN_RI)) {
+				WRITE4(sc, SDMMC_IDSTS, (SDMMC_IDINTEN_TI |
+							 SDMMC_IDINTEN_RI));
+				WRITE4(sc, SDMMC_IDSTS, SDMMC_IDINTEN_NI);
+				dma_done(sc, cmd);
+			}
 		}
 	}
 
@@ -560,17 +577,29 @@ dwmmc_attach(device_t dev)
 	device_printf(dev, "Hardware version ID is %04x\n",
 		READ4(sc, SDMMC_VERID) & 0xffff);
 
-	WRITE4(sc, EMMCP_MPSBEGIN0, 0);
-	WRITE4(sc, EMMCP_SEND0, 0);
-	WRITE4(sc, EMMCP_CTRL0, (MPSCTRL_SECURE_READ_BIT |
-				 MPSCTRL_SECURE_WRITE_BIT |
-				 MPSCTRL_NON_SECURE_READ_BIT |
-				 MPSCTRL_NON_SECURE_WRITE_BIT |
-				 MPSCTRL_VALID));
+	sc->use_pio = 0;
+	sc->pwren_inverted = 0;
+
+	if ((sc->hwtype & HWTYPE_MASK) == HWTYPE_ROCKCHIP) {
+		sc->use_pio = 1;
+		sc->pwren_inverted = 1;
+	} else {
+		WRITE4(sc, EMMCP_MPSBEGIN0, 0);
+		WRITE4(sc, EMMCP_SEND0, 0);
+		WRITE4(sc, EMMCP_CTRL0, (MPSCTRL_SECURE_READ_BIT |
+					 MPSCTRL_SECURE_WRITE_BIT |
+					 MPSCTRL_NON_SECURE_READ_BIT |
+					 MPSCTRL_NON_SECURE_WRITE_BIT |
+					 MPSCTRL_VALID));
+	}
 
 	/* XXX: we support operation for slot index 0 only */
 	slot = 0;
-	WRITE4(sc, SDMMC_PWREN, (1 << slot));
+	if (sc->pwren_inverted) {
+		WRITE4(sc, SDMMC_PWREN, (0 << slot));
+	} else {
+		WRITE4(sc, SDMMC_PWREN, (1 << slot));
+	}
 
 	/* Reset all */
 	if (dwmmc_ctrl_reset(sc, (SDMMC_CTRL_RESET |
@@ -580,17 +609,19 @@ dwmmc_attach(device_t dev)
 
 	dwmmc_setup_bus(sc, sc->host.f_min);
 
-	if (dma_setup(sc))
-		return (ENXIO);
+	if (!sc->use_pio) {
+		if (dma_setup(sc))
+			return (ENXIO);
 
-	/* Install desc base */
-	WRITE4(sc, SDMMC_DBADDR, sc->desc_ring_paddr);
+		/* Install desc base */
+		WRITE4(sc, SDMMC_DBADDR, sc->desc_ring_paddr);
 
-	/* Enable DMA interrupts */
-	WRITE4(sc, SDMMC_IDSTS, SDMMC_IDINTEN_MASK);
-	WRITE4(sc, SDMMC_IDINTEN, (SDMMC_IDINTEN_NI |
-				   SDMMC_IDINTEN_RI |
-				   SDMMC_IDINTEN_TI));
+		/* Enable DMA interrupts */
+		WRITE4(sc, SDMMC_IDSTS, SDMMC_IDINTEN_MASK);
+		WRITE4(sc, SDMMC_IDINTEN, (SDMMC_IDINTEN_NI |
+					   SDMMC_IDINTEN_RI |
+					   SDMMC_IDINTEN_TI));
+	}
 
 	/* Clear and disable interrups for a while */
 	WRITE4(sc, SDMMC_RINTSTS, 0xffffffff);
@@ -797,6 +828,79 @@ dma_prepare(struct dwmmc_softc *sc, struct mmc_command *cmd)
 	return (0);
 }
 
+static int
+pio_prepare(struct dwmmc_softc *sc, struct mmc_command *cmd)
+{
+	struct mmc_data *data;
+	int reg;
+
+	data = cmd->data;
+	data->xfer_len = 0;
+
+	reg = (DEF_MSIZE << SDMMC_FIFOTH_MSIZE_S);
+	reg |= ((sc->fifo_depth / 2) - 1) << SDMMC_FIFOTH_RXWMARK_S;
+	reg |= (sc->fifo_depth / 2) << SDMMC_FIFOTH_TXWMARK_S;
+
+	WRITE4(sc, SDMMC_FIFOTH, reg);
+	wmb();
+
+	return (0);
+}
+
+static void
+pio_read(struct dwmmc_softc *sc, struct mmc_command *cmd)
+{
+	struct mmc_data *data;
+	uint32_t *p, status;
+
+	if (cmd == NULL || cmd->data == NULL)
+		return;
+
+	data = cmd->data;
+	if ((data->flags & MMC_DATA_READ) == 0)
+		return;
+
+	KASSERT((data->xfer_len & 3) == 0, ("xfer_len not aligned"));
+	p = (uint32_t *)data->data + (data->xfer_len >> 2);
+
+	while (data->xfer_len < data->len) {
+		status = READ4(sc, SDMMC_STATUS);
+		if (status & SDMMC_STATUS_FIFO_EMPTY)
+			break;
+		*p++ = READ4(sc, SDMMC_DATA);
+		data->xfer_len += 4;
+	}
+
+	WRITE4(sc, SDMMC_RINTSTS, SDMMC_INTMASK_RXDR);
+}
+
+static void
+pio_write(struct dwmmc_softc *sc, struct mmc_command *cmd)
+{
+	struct mmc_data *data;
+	uint32_t *p, status;
+
+	if (cmd == NULL || cmd->data == NULL)
+		return;
+
+	data = cmd->data;
+	if ((data->flags & MMC_DATA_WRITE) == 0)
+		return;
+
+	KASSERT((data->xfer_len & 3) == 0, ("xfer_len not aligned"));
+	p = (uint32_t *)data->data + (data->xfer_len >> 2);
+
+	while (data->xfer_len < data->len) {
+		status = READ4(sc, SDMMC_STATUS);
+		if (status & SDMMC_STATUS_FIFO_FULL)
+			break;
+		WRITE4(sc, SDMMC_DATA, *p++);
+		data->xfer_len += 4;
+	}
+
+	WRITE4(sc, SDMMC_RINTSTS, SDMMC_INTMASK_TXDR);
+}
+
 static void
 dwmmc_start_cmd(struct dwmmc_softc *sc, struct mmc_command *cmd)
 {
@@ -806,6 +910,9 @@ dwmmc_start_cmd(struct dwmmc_softc *sc, struct mmc_command *cmd)
 
 	sc->curcmd = cmd;
 	data = cmd->data;
+
+	if ((sc->hwtype & HWTYPE_MASK) == HWTYPE_ROCKCHIP)
+		dwmmc_setup_bus(sc, sc->host.ios.clock);
 
 	/* XXX Upper layers don't always set this */
 	cmd->mrq = sc->req;
@@ -861,7 +968,11 @@ dwmmc_start_cmd(struct dwmmc_softc *sc, struct mmc_command *cmd)
 			 data->len : MMC_SECTOR_SIZE;
 		WRITE4(sc, SDMMC_BLKSIZ, blksz);
 
-		dma_prepare(sc, cmd);
+		if (sc->use_pio) {
+			pio_prepare(sc, cmd);
+		} else {
+			dma_prepare(sc, cmd);
+		}
 		wmb();
 	}
 
