@@ -37,8 +37,6 @@ __FBSDID("$FreeBSD$");
 
 #include "fstyp.h"
 
-#define G_LABEL_ISO9660_DIR	"iso9660"
-
 #define	ISO9660_MAGIC	"\x01" "CD001" "\x01\x00"
 #define	ISO9660_OFFSET	0x8000
 #define	VOLUME_LEN	32
