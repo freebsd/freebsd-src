@@ -42,8 +42,6 @@ __FBSDID("$FreeBSD$");
 #define	NTFS_FILEMAGIC		((uint32_t)(0x454C4946))
 #define	NTFS_VOLUMEINO		3
 
-#define G_LABEL_NTFS_DIR	"ntfs"
-
 struct ntfs_attr {
 	uint32_t	a_type;
 	uint32_t	reclen;
