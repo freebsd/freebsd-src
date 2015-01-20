@@ -31,14 +31,14 @@ SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
+#include <atf-c.h>
 
-void
-test_preexisting()
+ATF_TC_WITHOUT_HEAD(test_preexisting);
+ATF_TC_BODY(test_preexisting, tc)
 {
 	/* 
 	 * Use a pre-existing buffer.
@@ -55,55 +55,55 @@ test_preexisting()
 
 	/* Open a FILE * using fmemopen. */
 	fp = fmemopen(buf, sizeof(buf), "w");
-	assert(fp != NULL);
+	ATF_REQUIRE(fp != NULL);
 
 	/* Write to the buffer. */
 	nofw = fwrite(str, 1, sizeof(str), fp);
-	assert(nofw == sizeof(str));
+	ATF_REQUIRE(nofw == sizeof(str));
 
 	/* Close the FILE *. */
 	rc = fclose(fp);
-	assert(rc == 0);
+	ATF_REQUIRE(rc == 0);
 
 	/* Re-open the FILE * to read back the data. */
 	fp = fmemopen(buf, sizeof(buf), "r");
-	assert(fp != NULL);
+	ATF_REQUIRE(fp != NULL);
 
 	/* Read from the buffer. */
 	bzero(buf2, sizeof(buf2));
 	nofr = fread(buf2, 1, sizeof(buf2), fp);
-	assert(nofr == sizeof(buf2));
+	ATF_REQUIRE(nofr == sizeof(buf2));
 
 	/* 
 	 * Since a write on a FILE * retrieved by fmemopen
 	 * will add a '\0' (if there's space), we can check
 	 * the strings for equality.
 	 */
-	assert(strcmp(str, buf2) == 0);
+	ATF_REQUIRE(strcmp(str, buf2) == 0);
 
 	/* Close the FILE *. */
 	rc = fclose(fp);
-	assert(rc == 0);
+	ATF_REQUIRE(rc == 0);
 
 	/* Now open a FILE * on the first 4 bytes of the string. */
 	fp = fmemopen(str, 4, "w");
-	assert(fp != NULL);
+	ATF_REQUIRE(fp != NULL);
 
 	/*
 	 * Try to write more bytes than we shoud, we'll get a short count (4).
 	 */
 	nofw = fwrite(str2, 1, sizeof(str2), fp);
-	assert(nofw == 4);
+	ATF_REQUIRE(nofw == 4);
 
 	/* Close the FILE *. */
 	rc = fclose(fp);
 
 	/* Check that the string was not modified after the first 4 bytes. */
-	assert(strcmp(str, str3) == 0);
+	ATF_REQUIRE(strcmp(str, str3) == 0);
 }
 
-void
-test_autoalloc()
+ATF_TC_WITHOUT_HEAD(test_autoalloc);
+ATF_TC_BODY(test_autoalloc, tc)
 {
 	/* 
 	 * Let fmemopen allocate the buffer.
@@ -117,38 +117,38 @@ test_autoalloc()
 
 	/* Open a FILE * using fmemopen. */
 	fp = fmemopen(NULL, 512, "w+");
-	assert(fp != NULL);
+	ATF_REQUIRE(fp != NULL);
 
 	/* fill the buffer */
 	for (i = 0; i < 512; i++) {
 		nofw = fwrite("a", 1, 1, fp);
-		assert(nofw == 1);
+		ATF_REQUIRE(nofw == 1);
 	}
 
 	/* Get the current position into the stream. */
 	pos = ftell(fp);
-	assert(pos == 512);
+	ATF_REQUIRE(pos == 512);
 
 	/* 
 	 * Try to write past the end, we should get a short object count (0)
 	 */
 	nofw = fwrite("a", 1, 1, fp);
-	assert(nofw == 0);
+	ATF_REQUIRE(nofw == 0);
 
 	/* Close the FILE *. */
 	rc = fclose(fp);
-	assert(rc == 0);
+	ATF_REQUIRE(rc == 0);
 
 	/* Open a FILE * using a wrong mode */
 	fp = fmemopen(NULL, 512, "r");
-	assert(fp == NULL);
+	ATF_REQUIRE(fp == NULL);
 
 	fp = fmemopen(NULL, 512, "w");
-	assert(fp == NULL);
+	ATF_REQUIRE(fp == NULL);
 }
 
-void
-test_data_length()
+ATF_TC_WITHOUT_HEAD(test_data_length);
+ATF_TC_BODY(test_data_length, tc)
 {
 	/*
 	 * Here we test that a read operation doesn't go past the end of the
@@ -166,56 +166,56 @@ test_data_length()
 
 	/* Open a FILE * for updating our buffer. */
 	fp = fmemopen(buf, sizeof(buf), "w+");
-	assert(fp != NULL);
+	ATF_REQUIRE(fp != NULL);
 
 	/* Write our string into the buffer. */
 	nofw = fwrite(str, 1, sizeof(str), fp);
-	assert(nofw == sizeof(str));
+	ATF_REQUIRE(nofw == sizeof(str));
 
 	/* 
 	 * Now seek to the end and check that ftell
 	 * gives us sizeof(str).
 	 */
 	rc = fseek(fp, 0, SEEK_END);
-	assert(rc == 0);
+	ATF_REQUIRE(rc == 0);
 	pos = ftell(fp);
-	assert(pos == sizeof(str));
+	ATF_REQUIRE(pos == sizeof(str));
 
 	/* Close the FILE *. */
 	rc = fclose(fp);
-	assert(rc == 0);
+	ATF_REQUIRE(rc == 0);
 
 	/* Reopen the buffer for appending. */
 	fp = fmemopen(buf, sizeof(buf), "a+");
-	assert(fp != NULL);
+	ATF_REQUIRE(fp != NULL);
 
 	/* We should now be writing after the first string. */
 	nofw = fwrite(str2, 1, sizeof(str2), fp);
-	assert(nofw == sizeof(str2));
+	ATF_REQUIRE(nofw == sizeof(str2));
 
 	/* Rewind the FILE *. */
 	rc = fseek(fp, 0, SEEK_SET);
-	assert(rc == 0);
+	ATF_REQUIRE(rc == 0);
 
 	/* Make sure we're at the beginning. */
 	pos = ftell(fp);
-	assert(pos == 0);
+	ATF_REQUIRE(pos == 0);
 
 	/* Read the whole buffer. */
 	nofr = fread(str3, 1, sizeof(buf), fp);
-	assert(nofr == sizeof(str3));
+	ATF_REQUIRE(nofr == sizeof(str3));
 
 	/* Make sure the two strings are there. */
-	assert(strncmp(str3, str, sizeof(str) - 1) == 0);
-	assert(strncmp(str3 + sizeof(str) - 1, str2, sizeof(str2)) == 0);
+	ATF_REQUIRE(strncmp(str3, str, sizeof(str) - 1) == 0);
+	ATF_REQUIRE(strncmp(str3 + sizeof(str) - 1, str2, sizeof(str2)) == 0);
 
 	/* Close the FILE *. */
 	rc = fclose(fp);
-	assert(rc == 0);
+	ATF_REQUIRE(rc == 0);
 }
 
-void
-test_binary()
+ATF_TC_WITHOUT_HEAD(test_binary);
+ATF_TC_BODY(test_binary, tc)
 {
 	/*
 	 * Make sure that NULL bytes are never appended when opening a buffer
@@ -233,23 +233,23 @@ test_binary()
 
 	/* Open a FILE * in binary mode. */
 	fp = fmemopen(buf, sizeof(buf), "w+b");
-	assert(fp != NULL);
+	ATF_REQUIRE(fp != NULL);
 
 	/* Write some data into it. */
 	nofw = fwrite(str, 1, strlen(str), fp);
-	assert(nofw == strlen(str));
+	ATF_REQUIRE(nofw == strlen(str));
 
 	/* Make sure that the buffer doesn't contain any NULL bytes. */
 	for (i = 0; i < sizeof(buf); i++)
-		assert(buf[i] != '\0');
+		ATF_REQUIRE(buf[i] != '\0');
 
 	/* Close the FILE *. */
 	rc = fclose(fp);
-	assert(rc == 0);
+	ATF_REQUIRE(rc == 0);
 }
 
-void
-test_append_binary_pos()
+ATF_TC_WITHOUT_HEAD(test_append_binary_pos);
+ATF_TC_BODY(test_append_binary_pos, tc)
 {
 	/*
 	 * For compatibility with other implementations (glibc), we set the
@@ -260,7 +260,7 @@ test_append_binary_pos()
 	FILE *fp;
 
 	fp = fmemopen(NULL, 16, "ab+");
-	assert(ftell(fp) == 0L);
+	ATF_REQUIRE(ftell(fp) == 0L);
 	fclose(fp);
 
 	/*
@@ -268,32 +268,33 @@ test_append_binary_pos()
 	 */
 	char buf[] = "Hello";
 	fp = fmemopen(buf, sizeof(buf), "ab+");
-	assert(ftell(fp) == 5);
+	ATF_REQUIRE(ftell(fp) == strlen(buf));
 	fclose(fp);
 }
 
-void
-test_size_0()
+ATF_TC_WITHOUT_HEAD(test_size_0);
+ATF_TC_BODY(test_size_0, tc)
 {
 	/*
-	 * POSIX mandates that we return EINVAL if size is 0
+	 * POSIX mandates that we return EINVAL if size is 0.
 	 */
 
 	FILE *fp;
 
 	fp = fmemopen(NULL, 0, "r+");
-	assert(fp == NULL);
-	assert(errno == EINVAL);
+	ATF_REQUIRE(fp == NULL);
+	ATF_REQUIRE(errno == EINVAL);
 }
 
-int
-main(void)
+ATF_TP_ADD_TCS(tp)
 {
-	test_autoalloc();
-	test_preexisting();
-	test_data_length();
-	test_binary();
-	test_append_binary_pos();
-	test_size_0();
-	return (0);
+
+	ATF_TP_ADD_TC(tp, test_autoalloc);
+	ATF_TP_ADD_TC(tp, test_preexisting);
+	ATF_TP_ADD_TC(tp, test_data_length);
+	ATF_TP_ADD_TC(tp, test_binary);
+	ATF_TP_ADD_TC(tp, test_append_binary_pos);
+	ATF_TP_ADD_TC(tp, test_size_0);
+
+	return (atf_no_error());
 }
