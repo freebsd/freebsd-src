@@ -25,6 +25,7 @@ hints		"BERI_DE4.hints"	# Flash partitions still use hints.
 device		altera_atse
 device		altera_avgen
 device		altera_jtag_uart
+device		altera_pll
 device		altera_sdcard
 device		pixelstream
 device		terasic_de4led

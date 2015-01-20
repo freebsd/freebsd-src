@@ -652,6 +652,8 @@ dev/aic7xxx/aic7xxx_reg_print.c	optional ahc ahc_reg_pretty_print
 dev/alc/if_alc.c		optional alc pci
 dev/ale/if_ale.c		optional ale pci
 dev/alpm/alpm.c			optional alpm pci
+dev/altera/altpll/altpll.c		optional altera_pll
+dev/altera/altpll/altpll_fdt.c		optional altera_pll fdt fdt_clock
 dev/altera/avgen/altera_avgen.c		optional altera_avgen
 dev/altera/avgen/altera_avgen_fdt.c	optional altera_avgen fdt
 dev/altera/avgen/altera_avgen_nexus.c	optional altera_avgen
