@@ -69,6 +69,8 @@ int __vdso_gettimekeep(struct vdso_timekeep **tk);
 
 #ifdef _KERNEL
 
+struct timecounter;
+
 void timekeep_push_vdso(void);
 
 uint32_t tc_fill_vdso_timehands(struct vdso_timehands *vdso_th);
@@ -81,7 +83,8 @@ uint32_t tc_fill_vdso_timehands(struct vdso_timehands *vdso_th);
  * global sysctl enable override is handled by machine-independed code
  * after cpu_fill_vdso_timehands() call is made.
  */
-uint32_t cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th);
+uint32_t cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th,
+    struct timecounter *tc);
 
 #define	VDSO_TH_NUM	4
 
@@ -110,7 +113,8 @@ struct vdso_timekeep32 {
 };
 
 uint32_t tc_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32);
-uint32_t cpu_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32);
+uint32_t cpu_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
+    struct timecounter *tc);
 
 #endif
 #endif
