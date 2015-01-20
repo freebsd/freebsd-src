@@ -65,10 +65,10 @@ static struct bus_space _base_tag = {
 	generic_bs_barrier,
 
 	/* read (single) */
-	generic_bs_r_1,
-	generic_armv4_bs_r_2,
-	generic_bs_r_4,
-	NULL,
+	NULL,	/* bs_r_1, Use inline code in bus.h */
+	NULL,	/* bs_r_2, Use inline code in bus.h */
+	NULL,	/* bs_r_4, Use inline code in bus.h */
+	NULL,	/* bs_r_8, Use inline code in bus.h */
 
 	/* read multiple */
 	generic_bs_rm_1,
@@ -83,10 +83,10 @@ static struct bus_space _base_tag = {
 	NULL,
 
 	/* write (single) */
-	generic_bs_w_1,
-	generic_armv4_bs_w_2,
-	generic_bs_w_4,
-	NULL,
+	NULL,	/* bs_w_1, Use inline code in bus.h */
+	NULL,	/* bs_w_2, Use inline code in bus.h */
+	NULL,	/* bs_w_4, Use inline code in bus.h */
+	NULL,	/* bs_w_8, Use inline code in bus.h */
 
 	/* write multiple */
 	generic_bs_wm_1,
@@ -119,10 +119,10 @@ static struct bus_space _base_tag = {
 	NULL,
 
 	/* read stream (single) */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
+	NULL,   /* bs_r_1_s, Use inline code in bus.h */ 
+	NULL,   /* bs_r_2_s, Use inline code in bus.h */ 
+	NULL,   /* bs_r_4_s, Use inline code in bus.h */ 
+	NULL,   /* bs_r_8_s, Use inline code in bus.h */ 
 
 	/* read multiple stream */
 	NULL,
@@ -137,10 +137,10 @@ static struct bus_space _base_tag = {
 	NULL,
 
 	/* write stream (single) */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
+	NULL,   /* bs_w_1_s, Use inline code in bus.h */ 
+	NULL,   /* bs_w_2_s, Use inline code in bus.h */ 
+	NULL,   /* bs_w_4_s, Use inline code in bus.h */ 
+	NULL,   /* bs_w_8_s, Use inline code in bus.h */ 
 
 	/* write multiple stream */
 	NULL,
