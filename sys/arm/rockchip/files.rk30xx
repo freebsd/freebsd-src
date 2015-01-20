@@ -19,3 +19,5 @@ arm/rockchip/rk30xx_grf.c		standard
 arm/rockchip/rk30xx_wdog.c		standard
 arm/rockchip/rk30xx_gpio.c		optional	gpio
 arm/rockchip/rk30xx_mp.c		optional	smp
+
+dev/mmc/host/dwmmc.c			optional	dwmmc
