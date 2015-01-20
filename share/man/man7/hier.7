@@ -28,7 +28,7 @@
 .\"	@(#)hier.7	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd November 10, 2014
+.Dd January 14, 2015
 .Dt HIER 7
 .Os
 .Sh NAME
@@ -159,6 +159,10 @@ floppy disks
 .It Pa /mnt/
 empty directory commonly used by
 system administrators as a temporary mount point
+.It Pa /net/
+automounted NFS shares;
+see
+.Xr auto_master 5
 .It Pa /proc/
 process file system;
 see

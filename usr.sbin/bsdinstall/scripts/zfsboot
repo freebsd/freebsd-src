@@ -1077,6 +1077,9 @@ zfs_create_boot()
 			boot_vdevs="$boot_vdevs $disk$bootpart"
 		fi
 		zroot_vdevs="$zroot_vdevs $disk$targetpart"
+		if [ "$ZFSBOOT_GELI_ENCRYPTION" ]; then
+			zroot_vdevs="$zroot_vdevs.eli"
+		fi
 
 		n=$(( $n + 1 ))
 	done # disks

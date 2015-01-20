@@ -21,6 +21,7 @@ MAN+=	xo_attr.3 \
 	xo_create.3 \
 	xo_emit.3 \
 	xo_err.3 \
+	xo_error.3 \
 	xo_finish.3 \
 	xo_flush.3 \
 	xo_no_setlocale.3 \

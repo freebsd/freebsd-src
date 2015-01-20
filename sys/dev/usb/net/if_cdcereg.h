@@ -93,6 +93,10 @@ struct cdce_softc {
 
 	uint8_t sc_eaddr_str_index;
 	uint8_t	sc_ifaces_index[2];
+	uint8_t sc_notify_state;
+#define	CDCE_NOTIFY_NETWORK_CONNECTION	0
+#define	CDCE_NOTIFY_SPEED_CHANGE	1
+#define	CDCE_NOTIFY_DONE		2
 };
 
 #define	CDCE_LOCK(_sc)			mtx_lock(&(_sc)->sc_mtx)

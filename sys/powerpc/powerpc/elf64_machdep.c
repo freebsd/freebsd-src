@@ -119,6 +119,8 @@ SYSINIT(oelf64, SI_SUB_EXEC, SI_ORDER_ANY,
 	(sysinit_cfunc_t) elf64_insert_brand_entry,
 	&freebsd_brand_oinfo);
 
+void elf_reloc_self(Elf_Dyn *dynp, Elf_Addr relocbase);
+
 void
 elf64_dump_thread(struct thread *td, void *dst, size_t *off)
 {
@@ -196,6 +198,37 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		return -1;
 	}
 	return(0);
+}
+
+void
+elf_reloc_self(Elf_Dyn *dynp, Elf_Addr relocbase)
+{
+	Elf_Rela *rela = 0, *relalim;
+	Elf_Addr relasz = 0;
+	Elf_Addr *where;
+
+	/*
+	 * Extract the rela/relasz values from the dynamic section
+	 */
+	for (; dynp->d_tag != DT_NULL; dynp++) {
+		switch (dynp->d_tag) {
+		case DT_RELA:
+			rela = (Elf_Rela *)(relocbase+dynp->d_un.d_ptr);
+			break;
+		case DT_RELASZ:
+			relasz = dynp->d_un.d_val;
+			break;
+		}
+	}
+
+	/*
+	 * Relocate these values
+	 */
+	relalim = (Elf_Rela *)((caddr_t)rela + relasz);
+	for (; rela < relalim; rela++) {
+		where = (Elf_Addr *)(relocbase + rela->r_offset);
+		*where = (Elf_Addr)(relocbase + rela->r_addend);
+	}
 }
 
 int

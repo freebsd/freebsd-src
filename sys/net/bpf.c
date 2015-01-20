@@ -1192,7 +1192,6 @@ reset_d(struct bpf_d *d)
 
 /*
  *  FIONREAD		Check for read packet available.
- *  SIOCGIFADDR		Get interface address - convenient hook to driver.
  *  BIOCGBLEN		Get buffer len [for read()].
  *  BIOCSETF		Set read filter.
  *  BIOCSETFNR		Set read filter without resetting descriptor.
@@ -1319,19 +1318,6 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 			BPFD_UNLOCK(d);
 
 			*(int *)addr = n;
-			break;
-		}
-
-	case SIOCGIFADDR:
-		{
-			struct ifnet *ifp;
-
-			if (d->bd_bif == NULL)
-				error = EINVAL;
-			else {
-				ifp = d->bd_bif->bif_ifp;
-				error = (*ifp->if_ioctl)(ifp, cmd, addr);
-			}
 			break;
 		}
 

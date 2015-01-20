@@ -38,10 +38,14 @@
 #include "ixl.h"
 #include "ixlv.h"
 
+#ifdef RSS
+#include <net/rss_config.h>
+#endif
+
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixlv_driver_version[] = "1.2.0";
+char ixlv_driver_version[] = "1.2.1";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -2596,12 +2600,12 @@ ixlv_config_rss(struct ixlv_sc *sc)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP);
 	if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_OTHER);
+        if (rss_hash_config & RSS_HASHTYPE_RSS_IPV6_EX)
+		set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_FRAG_IPV6);
 	if (rss_hash_config & RSS_HASHTYPE_RSS_TCP_IPV6)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_TCP);
         if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6)
                 set_hena |= ((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV6_UDP);
-        if (rss_hash_config & RSS_HASHTYPE_RSS_UDP_IPV6_EX)
-                set_hena |= IXGBE_MRQC_RSS_FIELD_IPV6_EX_UDP;
 #else
 	set_hena =
 		((u64)1 << I40E_FILTER_PCTYPE_NONF_IPV4_UDP) |
@@ -2633,7 +2637,7 @@ ixlv_config_rss(struct ixlv_sc *sc)
 		 * num_queues.)
 		 */
 		que_id = rss_get_indirection_to_bucket(i);
-		que_id = que_id % adapter->num_queues;
+		que_id = que_id % vsi->num_queues;
 #else
 		que_id = j;
 #endif

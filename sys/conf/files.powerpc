@@ -202,6 +202,7 @@ powerpc/powerpc/pic_if.m	standard
 powerpc/powerpc/pmap_dispatch.c	standard
 powerpc/powerpc/platform.c	standard
 powerpc/powerpc/platform_if.m	standard
+powerpc/powerpc/ptrace_machdep.c	standard
 powerpc/powerpc/sc_machdep.c	optional	sc
 powerpc/powerpc/setjmp.S	standard
 powerpc/powerpc/sigcode32.S	optional	powerpc | compat_freebsd32

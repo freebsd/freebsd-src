@@ -235,7 +235,6 @@ extern driver_t		miibus_driver;
 
 int	mii_attach(device_t, device_t *, if_t, ifm_change_cb_t,
 	    ifm_stat_cb_t, int, int, int, int);
-void	mii_down(struct mii_data *);
 int	mii_mediachg(struct mii_data *);
 void	mii_tick(struct mii_data *);
 void	mii_pollstat(struct mii_data *);
@@ -243,7 +242,6 @@ void	mii_phy_add_media(struct mii_softc *);
 
 int	mii_phy_auto(struct mii_softc *);
 int	mii_phy_detach(device_t dev);
-void	mii_phy_down(struct mii_softc *);
 u_int	mii_phy_flowstatus(struct mii_softc *);
 void	mii_phy_reset(struct mii_softc *);
 void	mii_phy_setmedia(struct mii_softc *sc);

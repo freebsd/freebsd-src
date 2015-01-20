@@ -11,7 +11,7 @@ PROG=	bsdgrep
 CLEANFILES+= bsdgrep.1
 
 bsdgrep.1: grep.1
-	cp -f ${.ALLSRC} ${.TARGET}
+	${CP} ${.ALLSRC} ${.TARGET}
 .endif
 SRCS=	file.c grep.c queue.c util.c
 

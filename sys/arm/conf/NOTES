@@ -82,6 +82,7 @@ nodevice	snake_saver
 nodevice	star_saver
 nodevice	warp_saver
 
+nodevice	cxgbe
 nodevice	pcii
 nodevice	snd_cmi
 nodevice	tnt4882

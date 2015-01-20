@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2010 David Malone <dwmalone@FreeBSD.org>
+ * Copyright (c) 2014  Roger Pau Monné <royger@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,37 +22,30 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#define ASM_FILE
+#include "multiboot.h"
 
-#include <sys/types.h>
+/*
+ * The multiboot specification requires the executable to be launched
+ * with %cs set to a flat read/execute segment with offset 0 and limit
+ * 0xFFFFFFFF, and the rest of the segment registers (%ds, %es, %fs,
+ * %gs, %ss) to flat read/write segments with the same offset and limit.
+ * This is already done by the BTX code before calling multiboot_tramp,
+ * so there is no need to do anything here.
+ */
 
-#include <netinet/in_rss.h>
-#include <netinet/toeplitz.h>
+	.globl	multiboot_tramp
+multiboot_tramp:
+	/* Be sure that interrupts are disabled. */
+	cli
 
-#include <sys/systm.h>
+	movl    $MULTIBOOT_BOOTLOADER_MAGIC, %eax
+	/* Get the entry point and address of the multiboot_info parameter. */
+	movl	8(%esp), %ebx
+	movl	4(%esp), %ecx
 
-uint32_t
-toeplitz_hash(u_int keylen, const uint8_t *key, u_int datalen,
-    const uint8_t *data)
-{
-	uint32_t hash = 0, v;
-	u_int i, b;
-
-	/* XXXRW: Perhaps an assertion about key length vs. data length? */
-
-	v = (key[0]<<24) + (key[1]<<16) + (key[2] <<8) + key[3];
-	for (i = 0; i < datalen; i++) {
-		for (b = 0; b < 8; b++) {
-			if (data[i] & (1<<(7-b)))
-				hash ^= v;
-			v <<= 1;
-			if ((i + 4) < RSS_KEYSIZE &&
-			    (key[i+4] & (1<<(7-b))))
-				v |= 1;
-		}
-	}
-	return (hash);
-}
+	call    *%ecx
