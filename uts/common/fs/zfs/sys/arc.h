@@ -37,6 +37,12 @@ extern "C" {
 #include <sys/dmu.h>
 #include <sys/spa.h>
 
+/*
+ * Used by arc_flush() to inform arc_evict_state() that it should evict
+ * all available buffers from the arc state being passed in.
+ */
+#define	ARC_EVICT_ALL	-1ULL
+
 typedef struct arc_buf_hdr arc_buf_hdr_t;
 typedef struct arc_buf arc_buf_t;
 typedef void arc_done_func_t(zio_t *zio, arc_buf_t *buf, void *private);
@@ -154,7 +160,7 @@ void arc_freed(spa_t *spa, const blkptr_t *bp);
 void arc_set_callback(arc_buf_t *buf, arc_evict_func_t *func, void *private);
 boolean_t arc_clear_callback(arc_buf_t *buf);
 
-void arc_flush(spa_t *spa);
+void arc_flush(spa_t *spa, boolean_t retry);
 void arc_tempreserve_clear(uint64_t reserve);
 int arc_tempreserve_space(uint64_t reserve, uint64_t txg);
 
