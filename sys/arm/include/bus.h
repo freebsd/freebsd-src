@@ -252,10 +252,6 @@ struct bus_space {
 #define	__bs_c(a,b)		__CONCAT(a,b)
 #define	__bs_opname(op,size)	__bs_c(__bs_c(__bs_c(bs_,op),_),size)
 
-#define	__bs_rs(sz, t, h, o)						\
-	(*(t)->__bs_opname(r,sz))((t)->bs_cookie, h, o)
-#define	__bs_ws(sz, t, h, o, v)						\
-	(*(t)->__bs_opname(w,sz))((t)->bs_cookie, h, o, v)
 #define	__bs_nonsingle(type, sz, t, h, o, a, c)				\
 	(*(t)->__bs_opname(type,sz))((t)->bs_cookie, h, o, a, c)
 #define	__bs_set(type, sz, t, h, o, v, c)				\
@@ -271,6 +267,28 @@ struct bus_space {
 #define	__bs_nonsingle_s(type, sz, t, h, o, a, c)			\
 	(*(t)->__bs_opname_s(type,sz))((t)->bs_cookie, h, o, a, c)
 
+
+#define __generate_inline_bs_rs(IFN, MBR, TYP)					\
+	static inline TYP						\
+	IFN(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o)	\
+	{								\
+									\
+		if (__predict_true(t->MBR == NULL))			\
+			return (*(volatile TYP *)(h + o));		\
+		else							\
+			return (t->MBR(t->bs_cookie, h, o));		\
+	}
+
+#define __generate_inline_bs_ws(IFN, MBR, TYP)					\
+	static inline void						\
+	IFN(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o, TYP v)\
+	{								\
+									\
+		if (__predict_true(t->MBR == NULL))			\
+			*(volatile TYP *)(h + o) = v;			\
+		else							\
+			t->MBR(t->bs_cookie, h, o, v);			\
+	}
 
 /*
  * Mapping and unmapping operations.
@@ -304,15 +322,15 @@ struct bus_space {
 /*
  * Bus read (single) operations.
  */
-#define	bus_space_read_1(t, h, o)	__bs_rs(1,(t),(h),(o))
-#define	bus_space_read_2(t, h, o)	__bs_rs(2,(t),(h),(o))
-#define	bus_space_read_4(t, h, o)	__bs_rs(4,(t),(h),(o))
-#define	bus_space_read_8(t, h, o)	__bs_rs(8,(t),(h),(o))
+__generate_inline_bs_rs(bus_space_read_1, bs_r_1, uint8_t);
+__generate_inline_bs_rs(bus_space_read_2, bs_r_2, uint16_t);
+__generate_inline_bs_rs(bus_space_read_4, bs_r_4, uint32_t);
+__generate_inline_bs_rs(bus_space_read_8, bs_r_8, uint64_t);
 
-#define bus_space_read_stream_1(t, h, o)        __bs_rs_s(1,(t), (h), (o))
-#define bus_space_read_stream_2(t, h, o)        __bs_rs_s(2,(t), (h), (o))
-#define bus_space_read_stream_4(t, h, o)        __bs_rs_s(4,(t), (h), (o))
-#define	bus_space_read_stream_8(t, h, o)	__bs_rs_s(8,8,(t),(h),(o))
+__generate_inline_bs_rs(bus_space_read_stream_1, bs_r_1_s, uint8_t);           
+__generate_inline_bs_rs(bus_space_read_stream_2, bs_r_2_s, uint16_t);          
+__generate_inline_bs_rs(bus_space_read_stream_4, bs_r_4_s, uint32_t);          
+__generate_inline_bs_rs(bus_space_read_stream_8, bs_r_8_s, uint64_t);          
 
 /*
  * Bus read multiple operations.
@@ -361,15 +379,15 @@ struct bus_space {
 /*
  * Bus write (single) operations.
  */
-#define	bus_space_write_1(t, h, o, v)	__bs_ws(1,(t),(h),(o),(v))
-#define	bus_space_write_2(t, h, o, v)	__bs_ws(2,(t),(h),(o),(v))
-#define	bus_space_write_4(t, h, o, v)	__bs_ws(4,(t),(h),(o),(v))
-#define	bus_space_write_8(t, h, o, v)	__bs_ws(8,(t),(h),(o),(v))
+__generate_inline_bs_ws(bus_space_write_1, bs_w_1, uint8_t);
+__generate_inline_bs_ws(bus_space_write_2, bs_w_2, uint16_t);
+__generate_inline_bs_ws(bus_space_write_4, bs_w_4, uint32_t);
+__generate_inline_bs_ws(bus_space_write_8, bs_w_8, uint64_t);
 
-#define	bus_space_write_stream_1(t, h, o, v)	__bs_ws_s(1,(t),(h),(o),(v))
-#define	bus_space_write_stream_2(t, h, o, v)	__bs_ws_s(2,(t),(h),(o),(v))
-#define	bus_space_write_stream_4(t, h, o, v)	__bs_ws_s(4,(t),(h),(o),(v))
-#define	bus_space_write_stream_8(t, h, o, v)	__bs_ws_s(8,(t),(h),(o),(v))
+__generate_inline_bs_ws(bus_space_write_stream_1, bs_w_1_s, uint8_t);           
+__generate_inline_bs_ws(bus_space_write_stream_2, bs_w_2_s, uint16_t);          
+__generate_inline_bs_ws(bus_space_write_stream_4, bs_w_4_s, uint32_t);          
+__generate_inline_bs_ws(bus_space_write_stream_8, bs_w_8_s, uint64_t);          
 
 
 /*
