@@ -607,7 +607,7 @@ msk_rxfilter(struct msk_if_softc *sc_if)
 {
 	struct msk_softc *sc;
 	if_t ifp;
-	uint32_t mchash[2], flags;
+	uint32_t mchash[2];
 	uint16_t mode;
 
 	sc = sc_if->msk_softc;
@@ -618,10 +618,9 @@ msk_rxfilter(struct msk_if_softc *sc_if)
 
 	bzero(mchash, sizeof(mchash));
 	mode = GMAC_READ_2(sc, sc_if->msk_port, GM_RX_CTRL);
-	flags = if_get(ifp, IF_FLAGS);
-	if ((flags & IFF_PROMISC) != 0)
+	if ((sc_if->msk_if_flags & IFF_PROMISC) != 0)
 		mode &= ~(GM_RXCR_UCF_ENA | GM_RXCR_MCF_ENA);
-	else if ((flags & IFF_ALLMULTI) != 0) {
+	else if ((sc_if->msk_if_flags & IFF_ALLMULTI) != 0) {
 		mode |= GM_RXCR_UCF_ENA | GM_RXCR_MCF_ENA;
 		mchash[0] = 0xffff;
 		mchash[1] = 0xffff;
@@ -1055,11 +1054,12 @@ msk_mediastatus(if_t ifp, struct ifmediareq *ifmr)
 	struct msk_if_softc *sc_if;
 	struct mii_data	*mii;
 
-	if ((if_get(ifp, IF_FLAGS) & IFF_UP) == 0)
-		return;
 	sc_if = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	MSK_IF_LOCK(sc_if);
-	sc_if = if_getsoftc(ifp, IF_DRIVER_SOFTC);
+	if ((sc_if->msk_if_flags & IFF_UP) == 0) {
+		MSK_IF_UNLOCK(sc_if);
+		return;
+	}
 	mii = device_get_softc(sc_if->msk_miibus);
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
@@ -1074,7 +1074,7 @@ msk_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 	struct ifreq *ifr;
 	struct mii_data	*mii;
 	int error, reinit, setvlan;
-	uint32_t flags, mask;
+	uint32_t oflags, mask;
 
 	sc_if = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	ifr = (struct ifreq *)data;
@@ -1114,17 +1114,17 @@ msk_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 		break;
 	case SIOCSIFFLAGS:
 		MSK_IF_LOCK(sc_if);
-		flags = if_get(ifp, IF_FLAGS);
-		if ((flags & IFF_UP) != 0) {
+		oflags = sc_if->msk_if_flags;
+		sc_if->msk_if_flags = ifr->ifr_flags;
+		if ((sc_if->msk_if_flags & IFF_UP) != 0) {
 			if ((sc_if->msk_flags & MSK_FLAG_RUNNING) != 0 &&
-			    ((flags ^ sc_if->msk_if_flags) &
+			    ((oflags ^ sc_if->msk_if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI)) != 0)
 				msk_rxfilter(sc_if);
 			else if ((sc_if->msk_flags & MSK_FLAG_DETACH) == 0)
 				msk_init_locked(sc_if);
 		} else if ((sc_if->msk_flags & MSK_FLAG_RUNNING) != 0)
 			msk_stop(sc_if);
-		sc_if->msk_if_flags = flags;
 		MSK_IF_UNLOCK(sc_if);
 		break;
 	case SIOCADDMULTI:
@@ -3035,7 +3035,7 @@ mskc_resume(device_t dev)
 	mskc_reset(sc);
 	for (i = 0; i < sc->msk_num_port; i++) {
 		if (sc->msk_if[i] != NULL && sc->msk_if[i]->msk_ifp != NULL &&
-		    (if_get(sc->msk_if[i]->msk_ifp, IF_FLAGS) & IFF_UP)) {
+		    (sc->msk_if[i]->msk_if_flags & IFF_UP)) {
 			sc->msk_if[i]->msk_flags &= ~MSK_FLAG_RUNNING;
 			msk_init_locked(sc->msk_if[i]);
 		}

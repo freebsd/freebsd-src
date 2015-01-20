@@ -630,14 +630,9 @@ xl_check_maddr_90x(void *arg, struct sockaddr *maddr)
 static void
 xl_rxfilter_90x(struct xl_softc *sc)
 {
-	if_t ifp;
-	uint32_t flags;
 	uint8_t rxfilt;
 
 	XL_LOCK_ASSERT(sc);
-
-	ifp = sc->xl_ifp;
-	flags = if_get(ifp, IF_FLAGS);
 
 	XL_SEL_WIN(5);
 	rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
@@ -647,17 +642,16 @@ xl_rxfilter_90x(struct xl_softc *sc)
 	/* Set the individual bit to receive frames for this host only. */
 	rxfilt |= XL_RXFILTER_INDIVIDUAL;
 	/* Set capture broadcast bit to capture broadcast frames. */
-	if (flags & IFF_BROADCAST)
-		rxfilt |= XL_RXFILTER_BROADCAST;
+	rxfilt |= XL_RXFILTER_BROADCAST;
 
 	/* If we want promiscuous mode, set the allframes bit. */
-	if (flags & (IFF_PROMISC | IFF_ALLMULTI)) {
-		if (flags & IFF_PROMISC)
+	if (sc->xl_if_flags & (IFF_PROMISC | IFF_ALLMULTI)) {
+		if (sc->xl_if_flags & IFF_PROMISC)
 			rxfilt |= XL_RXFILTER_ALLFRAMES;
-		if (flags & IFF_ALLMULTI)
+		if (sc->xl_if_flags & IFF_ALLMULTI)
 			rxfilt |= XL_RXFILTER_ALLMULTI;
 	} else
-		if_foreach_maddr(ifp, xl_check_maddr_90x, &rxfilt);
+		if_foreach_maddr(sc->xl_ifp, xl_check_maddr_90x, &rxfilt);
 
 	CSR_WRITE_2(sc, XL_COMMAND, rxfilt | XL_CMD_RX_SET_FILT);
 	XL_SEL_WIN(7);
@@ -689,14 +683,9 @@ xl_check_maddr_90xB(void *arg, struct sockaddr *maddr)
 static void
 xl_rxfilter_90xB(struct xl_softc *sc)
 {
-	if_t ifp;
-	uint32_t flags;
 	uint8_t rxfilt;
 
 	XL_LOCK_ASSERT(sc);
-
-	ifp = sc->xl_ifp;
-	flags = if_get(ifp, IF_FLAGS);
 
 	XL_SEL_WIN(5);
 	rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
@@ -707,14 +696,13 @@ xl_rxfilter_90xB(struct xl_softc *sc)
 	/* Set the individual bit to receive frames for this host only. */
 	rxfilt |= XL_RXFILTER_INDIVIDUAL;
 	/* Set capture broadcast bit to capture broadcast frames. */
-	if (flags & IFF_BROADCAST)
-		rxfilt |= XL_RXFILTER_BROADCAST;
+	rxfilt |= XL_RXFILTER_BROADCAST;
 
 	/* If we want promiscuous mode, set the allframes bit. */
-	if (flags & (IFF_PROMISC | IFF_ALLMULTI)) {
-		if (flags & IFF_PROMISC)
+	if (sc->xl_if_flags & (IFF_PROMISC | IFF_ALLMULTI)) {
+		if (sc->xl_if_flags & IFF_PROMISC)
 			rxfilt |= XL_RXFILTER_ALLFRAMES;
-		if (flags & IFF_ALLMULTI)
+		if (sc->xl_if_flags & IFF_ALLMULTI)
 			rxfilt |= XL_RXFILTER_ALLMULTI;
 	} else {
 		/* First, zot all the existing hash bits. */
@@ -722,12 +710,12 @@ xl_rxfilter_90xB(struct xl_softc *sc)
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_HASH | i);
 
 		/* Now program new ones. */
-		if_foreach_maddr(ifp, xl_check_maddr_90xB, sc);
+		if_foreach_maddr(sc->xl_ifp, xl_check_maddr_90xB, sc);
 		/*
 		 * XXXGL: a bit dirty, but easier then make a context
 		 * containing softc and rxfilt.
 		 */
-		if_foreach_maddr(ifp, xl_check_maddr_90x, &rxfilt);
+		if_foreach_maddr(sc->xl_ifp, xl_check_maddr_90x, &rxfilt);
 	}
 
 	CSR_WRITE_2(sc, XL_COMMAND, rxfilt | XL_CMD_RX_SET_FILT);
@@ -2973,7 +2961,7 @@ xl_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 {
 	struct xl_softc		*sc;
 	struct ifreq		*ifr = (struct ifreq *) data;
-	uint32_t		flags;
+	uint32_t		oflags;
 	int			error = 0;
 	struct mii_data		*mii = NULL;
 
@@ -2982,19 +2970,17 @@ xl_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 	switch (command) {
 	case SIOCSIFFLAGS:
 		XL_LOCK(sc);
-		flags = if_get(ifp, IF_FLAGS);
-		if (flags & IFF_UP) {
+		oflags = sc->xl_if_flags;
+		sc->xl_if_flags = ifr->ifr_flags;
+		if (sc->xl_if_flags & IFF_UP) {
 			if (sc->xl_flags & XL_FLAG_RUNNING &&
-			    (flags ^ sc->xl_if_flags) &
+			    (oflags ^ sc->xl_if_flags) &
 			    (IFF_PROMISC | IFF_ALLMULTI))
 				xl_rxfilter(sc);
 			else
 				xl_init_locked(sc);
-		} else {
-			if (sc->xl_flags & XL_FLAG_RUNNING)
-				xl_stop(sc);
-		}
-		sc->xl_if_flags = flags;
+		} else if (sc->xl_flags & XL_FLAG_RUNNING)
+			xl_stop(sc);
 		XL_UNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
@@ -3205,18 +3191,13 @@ static int
 xl_resume(device_t dev)
 {
 	struct xl_softc		*sc;
-	if_t			ifp;
 
 	sc = device_get_softc(dev);
-	ifp = sc->xl_ifp;
-
 	XL_LOCK(sc);
-
-	if (if_get(ifp, IF_FLAGS) & IFF_UP) {
+	if (sc->xl_if_flags & IFF_UP) {
 		sc->xl_flags &= ~XL_FLAG_RUNNING;
 		xl_init_locked(sc);
 	}
-
 	XL_UNLOCK(sc);
 
 	return (0);

@@ -3035,7 +3035,7 @@ struct bge_softc {
 	uint32_t		bge_rx_max_coal_bds;
 	uint32_t		bge_tx_max_coal_bds;
 	uint32_t		bge_mi_mode;
-	int			bge_if_flags;
+	uint32_t		bge_if_flags;
 	int			bge_txcnt;
 	int			bge_link;	/* link state */
 	int			bge_link_evt;	/* pending link event */

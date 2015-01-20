@@ -1634,14 +1634,11 @@ bge_init_tx_ring(struct bge_softc *sc)
 static void
 bge_setpromisc(struct bge_softc *sc)
 {
-	if_t ifp;
 
 	BGE_LOCK_ASSERT(sc);
 
-	ifp = sc->bge_ifp;
-
 	/* Enable or disable promiscuous mode as needed. */
-	if (if_get(ifp, IF_FLAGS) & IFF_PROMISC)
+	if (sc->bge_if_flags & IFF_PROMISC)
 		BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_PROMISC);
 	else
 		BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_PROMISC);
@@ -1664,15 +1661,12 @@ bge_hash_maddr(void *arg, struct sockaddr *maddr)
 static void
 bge_setmulti(struct bge_softc *sc)
 {
-	if_t ifp;
 	uint32_t hashes[4] = { 0, 0, 0, 0 };
 	int i;
 
 	BGE_LOCK_ASSERT(sc);
 
-	ifp = sc->bge_ifp;
-
-	if (if_get(ifp, IF_FLAGS) & (IFF_ALLMULTI | IFF_PROMISC)) {
+	if (sc->bge_if_flags & (IFF_ALLMULTI | IFF_PROMISC)) {
 		for (i = 0; i < 4; i++)
 			CSR_WRITE_4(sc, BGE_MAR0 + (i * 4), 0xFFFFFFFF);
 		return;
@@ -1682,7 +1676,7 @@ bge_setmulti(struct bge_softc *sc)
 	for (i = 0; i < 4; i++)
 		CSR_WRITE_4(sc, BGE_MAR0 + (i * 4), 0);
 
-	if_foreach_maddr(ifp, bge_hash_maddr, hashes);
+	if_foreach_maddr(sc->bge_ifp, bge_hash_maddr, hashes);
 
 	for (i = 0; i < 4; i++)
 		CSR_WRITE_4(sc, BGE_MAR0 + (i * 4), hashes[i]);
@@ -5703,7 +5697,7 @@ bge_ifmedia_sts(if_t ifp, struct ifmediareq *ifmr)
 
 	BGE_LOCK(sc);
 
-	if ((if_get(ifp, IF_FLAGS) & IFF_UP) == 0) {
+	if ((sc->bge_if_flags & IFF_UP) == 0) {
 		BGE_UNLOCK(sc);
 		return;
 	}
@@ -5741,7 +5735,7 @@ bge_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 	struct bge_softc *sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	struct ifreq *ifr = (struct ifreq *) data;
 	struct mii_data *mii;
-	int flags, mask, error = 0;
+	int oflags, mask, error = 0;
 
 	switch (command) {
 	case SIOCSIFMTU:
@@ -5766,7 +5760,9 @@ bge_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 		break;
 	case SIOCSIFFLAGS:
 		BGE_LOCK(sc);
-		if (if_get(ifp, IF_FLAGS) & IFF_UP) {
+		oflags = sc->bge_if_flags;
+		sc->bge_if_flags = ifr->ifr_flags;
+		if (sc->bge_if_flags & IFF_UP) {
 			/*
 			 * If only the state of the PROMISC flag changed,
 			 * then just use the 'set promisc mode' command
@@ -5776,22 +5772,15 @@ bge_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 			 * second or two.  Similarly for ALLMULTI.
 			 */
 			if (sc->bge_flags & BGE_FLAG_RUNNING) {
-				flags = if_get(ifp, IF_FLAGS) ^
-				    sc->bge_if_flags;
-				if (flags & IFF_PROMISC)
+				if ((oflags ^ sc->bge_if_flags) & IFF_PROMISC)
 					bge_setpromisc(sc);
-				if (flags & IFF_ALLMULTI)
+				if ((oflags ^ sc->bge_if_flags) & IFF_ALLMULTI)
 					bge_setmulti(sc);
 			} else
 				bge_init_locked(sc);
-		} else {
-			if (sc->bge_flags & BGE_FLAG_RUNNING) {
-				bge_stop(sc);
-			}
-		}
-		sc->bge_if_flags = if_get(ifp, IF_FLAGS);
+		} else if (sc->bge_flags & BGE_FLAG_RUNNING)
+			bge_stop(sc);
 		BGE_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -6050,12 +6039,10 @@ static int
 bge_resume(device_t dev)
 {
 	struct bge_softc *sc;
-	if_t ifp;
 
 	sc = device_get_softc(dev);
 	BGE_LOCK(sc);
-	ifp = sc->bge_ifp;
-	if (if_get(ifp, IF_FLAGS) & IFF_UP) {
+	if (sc->bge_if_flags & IFF_UP) {
 		bge_init_locked(sc);
 		if (sc->bge_flags & BGE_FLAG_RUNNING)
 			bge_start_locked(sc);

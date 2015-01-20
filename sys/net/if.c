@@ -1528,9 +1528,6 @@ if_getfeature(if_t ifp, ift_feature f, uint32_t **f32, uint64_t **f64,
 		*ptr = NULL;
 
 	switch (f) {
-	case IF_FLAGS:
-		*f32 = &ifp->if_flags;
-		break;
 	case IF_BAUDRATE:
 		*f64 = &ifp->if_baudrate;
 		break;
@@ -2367,14 +2364,14 @@ int
 if_drvioctl(u_long cmd, struct ifnet *ifp, void *data, struct thread *td)
 {
 	struct ifreq *ifr;
-	int error = 0;
-	int new_flags, temp_flags;
 	size_t namelen, onamelen;
 	size_t descrlen;
 	char *descrbuf, *odescrbuf;
 	char new_name[IFNAMSIZ];
 	struct ifaddr *ifa;
 	struct sockaddr_dl *sdl;
+	uint32_t flags;
+	int error = 0;
 
 	ifr = (struct ifreq *)data;
 	switch (cmd) {
@@ -2383,9 +2380,8 @@ if_drvioctl(u_long cmd, struct ifnet *ifp, void *data, struct thread *td)
 		break;
 
 	case SIOCGIFFLAGS:
-		temp_flags = ifp->if_flags;
-		ifr->ifr_flags = temp_flags & 0xffff;
-		ifr->ifr_flagshigh = temp_flags >> 16;
+		ifr->ifr_flagslow = ifp->if_flags & 0xffff;
+		ifr->ifr_flagshigh = ifp->if_flags >> 16;
 		break;
 
 	case SIOCGIFCAP:
@@ -2484,31 +2480,41 @@ if_drvioctl(u_long cmd, struct ifnet *ifp, void *data, struct thread *td)
 		if (error)
 			return (error);
 		/*
-		 * Currently, no driver owned flags pass the IFF_CANTCHANGE
-		 * check, so we don't need special handling here yet.
+		 * Historically if_flags were 16-bit, and thus
+		 * they come from userland in two parts, that
+		 * we need to swap.
 		 */
-		new_flags = (ifr->ifr_flags & 0xffff) |
+		flags = (ifr->ifr_flagslow & 0xffff) |
 		    (ifr->ifr_flagshigh << 16);
-		if (ifp->if_flags & IFF_UP &&
-		    (new_flags & IFF_UP) == 0) {
+		if ((flags & IFF_CANTCHANGE) !=
+		    (ifp->if_flags & IFF_CANTCHANGE))
+			return (EINVAL);
+		/*
+		 * Pass new flags down to driver and see if it accepts them.
+		 */
+		ifr->ifr_flags = flags;
+		error = if_ioctl(ifp, cmd, data, td);
+		if (error)
+			return (error);
+		flags = ifr->ifr_flags;
+		/*
+		 * Manage IFF_UP flip.
+		 */
+		if (ifp->if_flags & IFF_UP && (flags & IFF_UP) == 0)
 			if_down(ifp);
-		} else if (new_flags & IFF_UP &&
-		    (ifp->if_flags & IFF_UP) == 0) {
+		else if (flags & IFF_UP && (ifp->if_flags & IFF_UP) == 0)
 			if_up(ifp);
-		}
 		/* See if permanently promiscuous mode bit is about to flip */
-		if ((ifp->if_flags ^ new_flags) & IFF_PPROMISC) {
-			if (new_flags & IFF_PPROMISC)
+		if ((ifp->if_flags ^ flags) & IFF_PPROMISC) {
+			if (flags & IFF_PPROMISC)
 				ifp->if_flags |= IFF_PROMISC;
 			else if (ifp->if_pcount == 0)
 				ifp->if_flags &= ~IFF_PROMISC;
 			log(LOG_INFO, "%s: permanently promiscuous mode %s\n",
 			    ifp->if_xname,
-			    (new_flags & IFF_PPROMISC) ? "enabled" : "disabled");
+			    (flags & IFF_PPROMISC) ? "enabled" : "disabled");
 		}
-		ifp->if_flags = (ifp->if_flags & IFF_CANTCHANGE) |
-			(new_flags &~ IFF_CANTCHANGE);
-		if_ioctl(ifp, cmd, data, td);
+		ifp->if_flags = flags;
 		getmicrotime(&ifp->if_lastchange);
 		break;
 

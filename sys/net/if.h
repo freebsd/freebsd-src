@@ -382,7 +382,8 @@ struct	ifreq {
 			uint32_t ifrucap_curcap;	/* current values */
 			uint64_t ifrucap_hwassist;	/* returned hwassist */
 		}	ifru_cap;
-		short	ifru_flags[2];
+		u_int	ifru_flags;
+		short	ifru_sflags[2];
 		short	ifru_index;
 		int	ifru_jid;
 		int	ifru_metric;
@@ -396,8 +397,9 @@ struct	ifreq {
 #define	ifr_dstaddr	ifr_ifru.ifru_dstaddr	/* other end of p-to-p link */
 #define	ifr_broadaddr	ifr_ifru.ifru_broadaddr	/* broadcast address */
 #define	ifr_buffer	ifr_ifru.ifru_buffer	/* user supplied buffer with its length */
-#define	ifr_flags	ifr_ifru.ifru_flags[0]	/* flags (low 16 bits) */
-#define	ifr_flagshigh	ifr_ifru.ifru_flags[1]	/* flags (high 16 bits) */
+#define	ifr_flags	ifr_ifru.ifru_flags	/* flags (after fixup) */
+#define	ifr_flagslow	ifr_ifru.ifru_sflags[0]	/* flags (low 16 bits) */
+#define	ifr_flagshigh	ifr_ifru.ifru_sflags[1]	/* flags (high 16 bits) */
 #define	ifr_jid		ifr_ifru.ifru_jid	/* jail/vnet */
 #define	ifr_metric	ifr_ifru.ifru_metric	/* metric */
 #define	ifr_mtu		ifr_ifru.ifru_mtu	/* mtu */
@@ -573,8 +575,6 @@ typedef enum {
 } ift_counter;
 
 typedef enum {
-	/* uint32_t */
-	IF_FLAGS,
 	/* uint64_t */
 	IF_BAUDRATE,
 	/* pointers */

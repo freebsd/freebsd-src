@@ -346,22 +346,12 @@ int
 loioctl(if_t ifp, u_long cmd, void  *data, struct thread *td)
 {
 	struct ifreq *ifr = (struct ifreq *)data;
-	int error = 0;
 
 	switch (cmd) {
-	case SIOCSIFADDR:
-		if_addflags(ifp, IF_FLAGS, IFF_UP);
-		/*
-		 * Everything else is done at a higher level.
-		 */
-		break;
-
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if (ifr == 0) {
-			error = EAFNOSUPPORT;		/* XXX */
-			break;
-		}
+		if (ifr == NULL)
+			return (EAFNOSUPPORT);		/* XXX */
 		switch (ifr->ifr_addr.sa_family) {
 
 #ifdef INET
@@ -374,8 +364,7 @@ loioctl(if_t ifp, u_long cmd, void  *data, struct thread *td)
 #endif
 
 		default:
-			error = EAFNOSUPPORT;
-			break;
+			return (EAFNOSUPPORT);
 		}
 		break;
 
@@ -384,7 +373,7 @@ loioctl(if_t ifp, u_long cmd, void  *data, struct thread *td)
 		break;
 
 	default:
-		error = EINVAL;
+		return (EOPNOTSUPP);
 	}
-	return (error);
+	return (0);
 }

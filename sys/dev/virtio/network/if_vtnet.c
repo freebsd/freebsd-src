@@ -475,13 +475,11 @@ static int
 vtnet_resume(device_t dev)
 {
 	struct vtnet_softc *sc;
-	if_t ifp;
 
 	sc = device_get_softc(dev);
-	ifp = sc->vtnet_ifp;
 
 	VTNET_CORE_LOCK(sc);
-	if (if_get(ifp, IF_FLAGS) & IFF_UP)
+	if (sc->vtnet_if_flags & IFF_UP)
 		vtnet_init_locked(sc);
 	sc->vtnet_flags &= ~VTNET_FLAG_SUSPENDED;
 	VTNET_CORE_UNLOCK(sc);
@@ -1016,7 +1014,7 @@ vtnet_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 {
 	struct vtnet_softc *sc;
 	struct ifreq *ifr;
-	int error;
+	int oflags, error;
 
 	sc = if_getsoftc(ifp, IF_DRIVER_SOFTC);
 	ifr = (struct ifreq *) data;
@@ -1030,23 +1028,23 @@ vtnet_ioctl(if_t ifp, u_long cmd, void *data, struct thread *td)
 		break;
 
 	case SIOCSIFFLAGS:
+		if ((ifr->ifr_flags & (IFF_PROMISC | IFF_ALLMULTI)) &&
+		    (sc->vtnet_flags & VTNET_FLAG_CTRL_RX) == 0) {
+			error = EINVAL;
+			break;
+		}
 		VTNET_CORE_LOCK(sc);
-		if ((if_get(ifp, IF_FLAGS) & IFF_UP) == 0) {
+		oflags = sc->vtnet_if_flags;
+		sc->vtnet_if_flags = ifr->ifr_flags;
+		if ((sc->vtnet_if_flags & IFF_UP) == 0) {
 			if (sc->vtnet_flags & VTNET_FLAG_RUNNING)
 				vtnet_stop(sc);
 		} else if (sc->vtnet_flags & VTNET_FLAG_RUNNING) {
-			if ((if_get(ifp, IF_FLAGS) ^ sc->vtnet_if_flags) &
-			    (IFF_PROMISC | IFF_ALLMULTI)) {
-				if (sc->vtnet_flags & VTNET_FLAG_CTRL_RX)
-					vtnet_rx_filter(sc);
-				else
-					error = ENOTSUP;
-			}
+			if ((oflags ^ sc->vtnet_if_flags) &
+			    (IFF_PROMISC | IFF_ALLMULTI))
+				vtnet_rx_filter(sc);
 		} else
 			vtnet_init_locked(sc);
-
-		if (error == 0)
-			sc->vtnet_if_flags = if_get(ifp, IF_FLAGS);
 		VTNET_CORE_UNLOCK(sc);
 		break;
 
@@ -3066,15 +3064,20 @@ vtnet_set_allmulti(struct vtnet_softc *sc, int on)
 static void
 vtnet_attach_disable_promisc(struct vtnet_softc *sc)
 {
+	struct ifreq ifr;
 	if_t ifp;
 
 	ifp = sc->vtnet_ifp;
 
 	VTNET_CORE_LOCK(sc);
 	if ((sc->vtnet_flags & VTNET_FLAG_CTRL_RX) == 0) {
-		if_addflags(ifp, IF_FLAGS, IFF_PROMISC);
+		(void )if_drvioctl(SIOCGIFFLAGS, ifp, &ifr, curthread);
+		ifr.ifr_flagslow |= IFF_PROMISC;
+		(void )if_drvioctl(SIOCSIFFLAGS, ifp, &ifr, curthread);
 	} else if (vtnet_set_promisc(sc, 0) != 0) {
-		if_addflags(ifp, IF_FLAGS, IFF_PROMISC);
+		(void )if_drvioctl(SIOCGIFFLAGS, ifp, &ifr, curthread);
+		ifr.ifr_flagslow |= IFF_PROMISC;
+		(void )if_drvioctl(SIOCSIFFLAGS, ifp, &ifr, curthread);
 		device_printf(sc->vtnet_dev,
 		    "cannot disable default promiscuous mode\n");
 	}
@@ -3092,16 +3095,14 @@ vtnet_rx_filter(struct vtnet_softc *sc)
 
 	VTNET_CORE_LOCK_ASSERT(sc);
 
-	if (vtnet_set_promisc(sc,
-	    if_get(ifp, IF_FLAGS) & IFF_PROMISC) != 0)
+	if (vtnet_set_promisc(sc, sc->vtnet_if_flags & IFF_PROMISC) != 0)
 		device_printf(dev, "cannot %s promiscuous mode\n",
-		    if_get(ifp, IF_FLAGS) & IFF_PROMISC ?
+		    sc->vtnet_if_flags & IFF_PROMISC ?
 		    "enable" : "disable");
 
-	if (vtnet_set_allmulti(sc,
-	    if_get(ifp, IF_FLAGS) & IFF_ALLMULTI) != 0)
+	if (vtnet_set_allmulti(sc, sc->vtnet_if_flags & IFF_ALLMULTI) != 0)
 		device_printf(dev, "cannot %s all-multicast mode\n",
-		    if_get(ifp, IF_FLAGS) & IFF_ALLMULTI ?
+		    sc->vtnet_if_flags & IFF_ALLMULTI ?
 		    "enable" : "disable");
 }
 
