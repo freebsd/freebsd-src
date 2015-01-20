@@ -116,6 +116,7 @@ itetcu [label="Ion-Mihai Tetcu\nitetcu@FreeBSD.org\n2006/06/07"]
 jacula [label="Giuseppe Pilichi\njacula@FreeBSD.org\n2010/04/05"]
 jadawin [label="Philippe Audeoud\njadawin@FreeBSD.org\n2008/03/02"]
 jase [label="Jase Thew\njase@FreeBSD.org\n2012/05/30"]
+jbeich [label="Jan Beich\njbeich@FreeBSD.org\n2015/01/19"]
 jgh [label="Jason Helfman\njgh@FreeBSD.org\n2011/12/16"]
 jhale [label="Jason E. Hale\njhale@FreeBSD.org\n2012/09/10"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2007/09/12"]
@@ -267,6 +268,7 @@ bapt -> bdrewery
 bapt -> bofh
 bapt -> eadler
 bapt -> grembo
+bapt -> jbeich
 bapt -> jlaffaye
 bapt -> marius
 bapt -> marino
@@ -350,6 +352,7 @@ fjoe -> osa
 
 flo -> bar
 flo -> jase
+flo -> jbeich
 flo -> grembo
 
 flz -> garga
