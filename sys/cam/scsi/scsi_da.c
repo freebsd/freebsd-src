@@ -3098,11 +3098,12 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * give them an 'illegal' value we'll avoid that
 			 * here.
 			 */
-			if (block_size == 0 && maxsector == 0) {
+			if (block_size == 0) {
 				block_size = 512;
-				maxsector = -1;
+				if (maxsector == 0)
+					maxsector = -1;
 			}
-			if (block_size >= MAXPHYS || block_size == 0) {
+			if (block_size >= MAXPHYS) {
 				xpt_print(periph->path,
 				    "unsupportable block size %ju\n",
 				    (uintmax_t) block_size);
