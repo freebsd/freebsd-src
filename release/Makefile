@@ -9,7 +9,9 @@
 #  mini-memstick: Builds minimal memory stick image (mini-memstick.img)
 #  ftp: Sets up FTP distribution area (ftp)
 #  release: Build all media and FTP distribution area
-#  install: Copies all release media into ${DESTDIR}
+#  install: Invokes the release-install and vm-install targets
+#  release-install: Copies all release installation media into ${DESTDIR}
+#  vm-install: Copies all virtual machine images into ${DESTDIR}
 #
 # Variables affecting the build process:
 #  WORLDDIR: location of src tree -- must have built world and default kernel
@@ -282,7 +284,9 @@ release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${CLOUDTARGETS}
 .endif
 
-install:
+install:	release-install vm-install
+
+release-install:
 .if defined(DESTDIR) && !empty(DESTDIR)
 	mkdir -p ${DESTDIR}
 .endif
@@ -295,24 +299,5 @@ install:
 .endfor
 	cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256
 	cd ${DESTDIR} && md5 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.MD5
-.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-	mkdir -p ${DESTDIR}/vmimages
-. for FORMAT in ${VMFORMATS}
-	cp -p ${VMBASE}.${FORMAT} \
-		${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
-. endfor
-. if defined(WITH_COMPRESSED_VMIMAGES) && !empty(WITH_COMPRESSED_VMIMAGES)
-# This is very time consuming, so defer it after the images are moved to
-# the DESTDIR.
-.  for FORMAT in ${VMFORMATS}
-	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
-	${XZCMD} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
-.  endfor
-. endif
-	cd ${DESTDIR}/vmimages && sha256 ${OSRELEASE}* > \
-		${DESTDIR}/vmimages/CHECKSUM.SHA256
-	cd ${DESTDIR}/vmimages && md5 ${OSRELEASE}* > \
-		${DESTDIR}/vmimages/CHECKSUM.MD5
-.endif
 
 .include "${.CURDIR}/Makefile.vm"

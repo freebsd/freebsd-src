@@ -88,3 +88,24 @@ list-cloudware:
 	@${ECHO} "  ${_CW:tu}: ${${_CW:tu}_DESC}"
 . endfor
 .endif
+
+vm-install:
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+	mkdir -p ${DESTDIR}/vmimages
+. for FORMAT in ${VMFORMATS}
+	cp -p ${VMBASE}.${FORMAT} \
+		${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+. endfor
+. if defined(WITH_COMPRESSED_VMIMAGES) && !empty(WITH_COMPRESSED_VMIMAGES)
+# This is very time consuming, so defer it after the images are moved to
+# the DESTDIR.
+.  for FORMAT in ${VMFORMATS}
+	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
+	${XZCMD} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+.  endfor
+. endif
+	cd ${DESTDIR}/vmimages && sha256 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.SHA256
+	cd ${DESTDIR}/vmimages && md5 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.MD5
+.endif
