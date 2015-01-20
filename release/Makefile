@@ -28,6 +28,7 @@
 #  WITH_VMIMAGES: if set, build virtual machine images with the release
 #  WITH_COMPRESSED_VMIMAGES: if set, compress virtual machine disk images
 #  		with xz(1) (extremely time consuming)
+#  WITH_CLOUDWARE: if set, build cloud hosting disk images with the release
 #  TARGET/TARGET_ARCH: architecture of built release
 #
 
