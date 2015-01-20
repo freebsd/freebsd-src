@@ -720,21 +720,22 @@ tsc_get_timecount_low_mfence(struct timecounter *tc)
 }
 
 uint32_t
-cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th)
+cpu_fill_vdso_timehands(struct vdso_timehands *vdso_th, struct timecounter *tc)
 {
 
-	vdso_th->th_x86_shift = (int)(intptr_t)timecounter->tc_priv;
+	vdso_th->th_x86_shift = (int)(intptr_t)tc->tc_priv;
 	bzero(vdso_th->th_res, sizeof(vdso_th->th_res));
-	return (timecounter == &tsc_timecounter);
+	return (tc == &tsc_timecounter);
 }
 
 #ifdef COMPAT_FREEBSD32
 uint32_t
-cpu_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32)
+cpu_fill_vdso_timehands32(struct vdso_timehands32 *vdso_th32,
+    struct timecounter *tc)
 {
 
-	vdso_th32->th_x86_shift = (int)(intptr_t)timecounter->tc_priv;
+	vdso_th32->th_x86_shift = (int)(intptr_t)tc->tc_priv;
 	bzero(vdso_th32->th_res, sizeof(vdso_th32->th_res));
-	return (timecounter == &tsc_timecounter);
+	return (tc == &tsc_timecounter);
 }
 #endif
