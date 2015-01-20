@@ -224,6 +224,10 @@ cpu_startup(void *dummy)
 }
 
 extern vm_offset_t	__startkernel, __endkernel;
+extern unsigned char	__bss_start[];
+extern unsigned char	__sbss_start[];
+extern unsigned char	__sbss_end[];
+extern unsigned char	_end[];
 
 #ifndef __powerpc64__
 /* Bits for running on 64-bit systems in 32-bit mode. */
@@ -272,9 +276,6 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	trap_offset = 0;
 	cacheline_warn = 0;
 
-	/* Store boot environment state */
-	OF_initial_setup((void *)fdt, NULL, (int (*)(void *))ofentry);
-
 	/* First guess at start/end kernel positions */
 	startkernel = __startkernel;
 	endkernel = __endkernel;
@@ -288,6 +289,10 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	if ((vers & 0xfffff0e0) == (MPC750 << 16 | MPC750CL)) 
 		mdp = NULL;
 #endif
+
+	/* Check for ePAPR loader, which puts a magic value into r6 */
+	if (mdp == (void *)0x65504150)
+		mdp = NULL;
 
 	/*
 	 * Parse metadata if present and fetch parameters.  Must be done
@@ -308,7 +313,13 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 			db_fetch_ksymtab(ksym_start, ksym_end);
 #endif
 		}
+	} else {
+		bzero(__sbss_start, __sbss_end - __sbss_start);
+		bzero(__bss_start, _end - __bss_start);
 	}
+
+	/* Store boot environment state */
+	OF_initial_setup((void *)fdt, NULL, (int (*)(void *))ofentry);
 
 	/*
 	 * Init params/tunables that can be overridden by the loader
