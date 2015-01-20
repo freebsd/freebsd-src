@@ -30,6 +30,7 @@ SUBDIR=	adduser \
 	extattr \
 	extattrctl \
 	fifolog \
+	fstyp \
 	fwcontrol \
 	getfmac \
 	getpmac \
