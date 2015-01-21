@@ -5224,7 +5224,10 @@ again:
 			}
 			scsi_status = sp2->req_scsi_status;
 			completion_status = sp2->req_completion_status;
-			req_state_flags = 0;
+			if ((scsi_status & 0xff) != 0)
+				req_state_flags = RQSF_GOT_STATUS;
+			else
+				req_state_flags = 0;
 			resid = sp2->req_resid;
 		} else if (etype == RQSTYPE_RESPONSE) {
 			isp_get_response(isp, (ispstatusreq_t *) hp, sp);
