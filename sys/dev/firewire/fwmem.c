@@ -348,12 +348,11 @@ fwmem_strategy(struct bio *bp)
 	struct fw_device *fwdev;
 	struct fw_xfer *xfer;
 	struct cdev *dev;
-	int err = 0, s, iolen;
+	int err = 0, iolen;
 
 	dev = bp->bio_dev;
 	/* XXX check request length */
 
-	s = splfw();
 	fms = dev->si_drv1;
 	fwdev = fw_noderesolve_eui64(fms->sc->fc, &fms->eui);
 	if (fwdev == NULL) {
@@ -395,7 +394,6 @@ fwmem_strategy(struct bio *bp)
 	/* XXX */
 	bp->bio_resid = bp->bio_bcount - iolen;
 error:
-	splx(s);
 	if (err != 0) {
 		if (fwmem_debug)
 			printf("%s: err=%d\n", __func__, err);
