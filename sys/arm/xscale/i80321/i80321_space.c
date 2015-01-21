@@ -182,7 +182,7 @@ i80321_bs_init(bus_space_tag_t bs, void *cookie)
 {
 
 	*bs = i80321_bs_tag_template;
-	bs->bs_cookie = cookie;
+	bs->bs_privdata = cookie;
 }
 
 void
@@ -190,7 +190,7 @@ i80321_io_bs_init(bus_space_tag_t bs, void *cookie)
 {
 
 	*bs = i80321_bs_tag_template;
-	bs->bs_cookie = cookie;
+	bs->bs_privdata = cookie;
 
 	bs->bs_map = i80321_io_bs_map;
 	bs->bs_unmap = i80321_io_bs_unmap;
@@ -204,7 +204,7 @@ i80321_mem_bs_init(bus_space_tag_t bs, void *cookie)
 {
 
 	*bs = i80321_bs_tag_template;
-	bs->bs_cookie = cookie;
+	bs->bs_privdata = cookie;
 
 	bs->bs_map = i80321_mem_bs_map;
 	bs->bs_unmap = i80321_mem_bs_unmap;
@@ -216,7 +216,7 @@ i80321_mem_bs_init(bus_space_tag_t bs, void *cookie)
 /* *** Routines shared by i80321, PCI IO, and PCI MEM. *** */
 
 int
-i80321_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
+i80321_bs_subregion(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t offset,
     bus_size_t size, bus_space_handle_t *nbshp)
 {
 
@@ -225,7 +225,7 @@ i80321_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
 }
 
 void
-i80321_bs_barrier(void *t, bus_space_handle_t bsh, bus_size_t offset,
+i80321_bs_barrier(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t offset,
     bus_size_t len, int flags)
 {
 
@@ -236,7 +236,7 @@ i80321_bs_barrier(void *t, bus_space_handle_t bsh, bus_size_t offset,
 
 extern struct i80321_softc *i80321_softc;
 int
-i80321_io_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
+i80321_io_bs_map(bus_space_tag_t tag, bus_addr_t bpa, bus_size_t size, int flags,
     bus_space_handle_t *bshp)
 {
 	struct i80321_softc *sc = i80321_softc;
@@ -264,14 +264,14 @@ i80321_io_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 }
 
 void
-i80321_io_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
+i80321_io_bs_unmap(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t size)
 {
 
 	/* Nothing to do. */
 }
 
 int
-i80321_io_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
+i80321_io_bs_alloc(bus_space_tag_t tag, bus_addr_t rstart, bus_addr_t rend,
     bus_size_t size, bus_size_t alignment, bus_size_t boundary, int flags,
     bus_addr_t *bpap, bus_space_handle_t *bshp)
 {
@@ -280,7 +280,7 @@ i80321_io_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
 }
 
 void
-i80321_io_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
+i80321_io_bs_free(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t size)
 {
 
 	panic("i80321_io_bs_free(): not implemented");
@@ -290,33 +290,23 @@ i80321_io_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
 /* *** Routines for PCI MEM. *** */
 extern int badaddr_read(void *, int, void *);
 int
-i80321_mem_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
+i80321_mem_bs_map(bus_space_tag_t tag, bus_addr_t bpa, bus_size_t size, int flags,
     bus_space_handle_t *bshp)
 {
-	vm_paddr_t pa, endpa;
 
-	pa = trunc_page(bpa);
-	endpa = round_page(bpa + size);
-
-	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa);
-		
+	*bshp = (vm_offset_t)pmap_mapdev(bpa, size);
 	return (0);
 }
 
 void
-i80321_mem_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
+i80321_mem_bs_unmap(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t size)
 {
-	vm_offset_t va, endva;
 
-	va = trunc_page((vm_offset_t)t);
-	endva = va + round_page(size);
-
-	/* Free the kernel virtual mapping. */
-	kva_free(va, endva - va);
+	pmap_unmapdev((vm_offset_t)h, size);
 }
 
 int
-i80321_mem_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
+i80321_mem_bs_alloc(bus_space_tag_t tag, bus_addr_t rstart, bus_addr_t rend,
     bus_size_t size, bus_size_t alignment, bus_size_t boundary, int flags,
     bus_addr_t *bpap, bus_space_handle_t *bshp)
 {
@@ -325,7 +315,7 @@ i80321_mem_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
 }
 
 void
-i80321_mem_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
+i80321_mem_bs_free(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t size)
 {
 
 	panic("i80321_mem_bs_free(): not implemented");
