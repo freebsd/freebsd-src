@@ -137,7 +137,7 @@ static struct bus_space _base_tag = {
 
 	/* read region stream */
 	.bs_rr_1_s	= generic_bs_rr_1,
-	.bs_rr_2_s	= generic_bs_rr_2,
+	.bs_rr_2_s	= generic_armv4_bs_rr_2,
 	.bs_rr_4_s	= generic_bs_rr_4,
 	.bs_rr_8_s	= BS_UNIMPLEMENTED,
 
@@ -155,8 +155,8 @@ static struct bus_space _base_tag = {
 
 	/* write region stream */
 	.bs_wr_1_s	= generic_bs_wr_1,
-	.bs_wr_2_s	= generic_bs_wr_4,
-	.bs_wr_4_s	= generic_bs_wr_8,
+	.bs_wr_2_s	= generic_armv4_bs_wr_2,
+	.bs_wr_4_s	= generic_bs_wr_4,
 	.bs_wr_8_s	= BS_UNIMPLEMENTED,
 };
 
