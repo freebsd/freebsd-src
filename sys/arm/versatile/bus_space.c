@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 
 /* Prototypes for all the bus_space structure functions */
 bs_protos(generic);
-bs_protos(generic_armv4);
 
 struct bus_space _base_tag = {
 	/* cookie */
@@ -62,37 +61,37 @@ struct bus_space _base_tag = {
 	
 	/* read (single) */
 	.bs_r_1		= generic_bs_r_1,
-	.bs_r_2		= generic_armv4_bs_r_2,
+	.bs_r_2		= generic_bs_r_2,
 	.bs_r_4		= generic_bs_r_4,
 	.bs_r_8		= NULL,
 	
 	/* read multiple */
 	.bs_rm_1	= generic_bs_rm_1,
-	.bs_rm_2	= generic_armv4_bs_rm_2,
+	.bs_rm_2	= generic_bs_rm_2,
 	.bs_rm_4	= generic_bs_rm_4,
 	.bs_rm_8	= NULL,
 	
 	/* read region */
 	.bs_rr_1	= generic_bs_rr_1,
-	.bs_rr_2	= generic_armv4_bs_rr_2,
+	.bs_rr_2	= generic_bs_rr_2,
 	.bs_rr_4	= generic_bs_rr_4,
 	.bs_rr_8	= NULL,
 	
 	/* write (single) */
 	.bs_w_1		= generic_bs_w_1,
-	.bs_w_2		= generic_armv4_bs_w_2,
+	.bs_w_2		= generic_bs_w_2,
 	.bs_w_4		= generic_bs_w_4,
 	.bs_w_8		= NULL,
 	
 	/* write multiple */
 	.bs_wm_1	= generic_bs_wm_1,
-	.bs_wm_2	= generic_armv4_bs_wm_2,
+	.bs_wm_2	= generic_bs_wm_2,
 	.bs_wm_4	= generic_bs_wm_4,
 	.bs_wm_8	= NULL,
 	
 	/* write region */
 	.bs_wr_1	= generic_bs_wr_1,
-	.bs_wr_2	= generic_armv4_bs_wr_2,
+	.bs_wr_2	= generic_bs_wr_2,
 	.bs_wr_4	= generic_bs_wr_4,
 	.bs_wr_8	= NULL,
 	
@@ -101,13 +100,13 @@ struct bus_space _base_tag = {
 	
 	/* set region */
 	.bs_sr_1	= NULL,
-	.bs_sr_2	= generic_armv4_bs_sr_2,
+	.bs_sr_2	= generic_bs_sr_2,
 	.bs_sr_4	= generic_bs_sr_4,
 	.bs_sr_8	= NULL,
 	
 	/* copy */
 	.bs_c_1		= NULL,
-	.bs_c_2		= generic_armv4_bs_c_2,
+	.bs_c_2		= generic_bs_c_2,
 	.bs_c_4		= NULL,
 	.bs_c_8		= NULL,
 };

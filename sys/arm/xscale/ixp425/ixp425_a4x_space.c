@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 /* Prototypes for all the bus_space structure functions */
 bs_protos(a4x);
 bs_protos(generic);
-bs_protos(generic_armv4);
 
 struct bus_space ixp425_a4x_bs_tag = {
 	/* cookie */
