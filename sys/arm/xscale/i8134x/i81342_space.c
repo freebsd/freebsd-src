@@ -64,124 +64,12 @@ __FBSDID("$FreeBSD$");
 bs_protos(i81342);
 bs_protos(i81342_io);
 bs_protos(i81342_mem);
-bs_protos(generic);
-
-/*
- * Template bus_space -- copied, and the bits that are NULL are
- * filled in.
- */
-const struct bus_space i81342_bs_tag_template = {
-	/* cookie */
-	(void *) 0,
-
-	/* mapping/unmapping */
-	NULL,
-	NULL,
-	i81342_bs_subregion,
-
-	/* allocation/deallocation */
-	NULL,
-	NULL,
-
-	/* barrier */
-	i81342_bs_barrier,
-
-	/* read (single) */
-	generic_bs_r_1,
-	generic_bs_r_2,
-	generic_bs_r_4,
-	NULL,
-
-	/* read multiple */
-	generic_bs_rm_1,
-	generic_bs_rm_2,
-	generic_bs_rm_4,
-	NULL,
-
-	/* read region */
-	generic_bs_rr_1,
-	generic_bs_rr_2,
-	generic_bs_rr_4,
-	NULL,
-
-	/* write (single) */
-	generic_bs_w_1,
-	generic_bs_w_2,
-	generic_bs_w_4,
-	NULL,
-
-	/* write multiple */
-	generic_bs_wm_1,
-	generic_bs_wm_2,
-	generic_bs_wm_4,
-	NULL,
-
-	/* write region */
-	NULL,
-	generic_bs_wr_2,
-	generic_bs_wr_4,
-	NULL,
-
-	/* set multiple */
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-
-	/* set region */
-	NULL,
-	generic_bs_sr_2,
-	generic_bs_sr_4,
-	NULL,
-
-	/* copy */
-	NULL,
-	generic_bs_c_2,
-	NULL,
-	NULL,
-
-	/* read (single) stream */
-	generic_bs_r_1,
-	generic_bs_r_2,
-	generic_bs_r_4,
-	NULL,
-
-	/* read multiple stream */
-	generic_bs_rm_1,
-	generic_bs_rm_2,
-	generic_bs_rm_4,
-	NULL,
-
-	/* read region stream */
-	generic_bs_rr_1,
-	generic_bs_rr_2,
-	generic_bs_rr_4,
-	NULL,
-
-	/* write (single) stream */
-	generic_bs_w_1,
-	generic_bs_w_2,
-	generic_bs_w_4,
-	NULL,
-
-	/* write multiple stream */
-	generic_bs_wm_1,
-	generic_bs_wm_2,
-	generic_bs_wm_4,
-	NULL,
-
-	/* write region stream */
-	NULL,
-	generic_bs_wr_2,
-	generic_bs_wr_4,
-	NULL,
-};
 
 void
 i81342_bs_init(bus_space_tag_t bs, void *cookie)
 {
 
-	*bs = i81342_bs_tag_template;
+	*bs = *arm_base_bs_tag;
 	bs->bs_privdata = cookie;
 }
 
@@ -189,7 +77,7 @@ void
 i81342_io_bs_init(bus_space_tag_t bs, void *cookie)
 {
 
-	*bs = i81342_bs_tag_template;
+	*bs = *arm_base_bs_tag;
 	bs->bs_privdata = cookie;
 
 	bs->bs_map = i81342_io_bs_map;
@@ -203,7 +91,7 @@ void
 i81342_mem_bs_init(bus_space_tag_t bs, void *cookie)
 {
 
-	*bs = i81342_bs_tag_template;
+	*bs = *arm_base_bs_tag;
 	bs->bs_privdata = cookie;
 
 	bs->bs_map = i81342_mem_bs_map;
