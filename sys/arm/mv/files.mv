@@ -12,7 +12,7 @@
 # - JTAG/ICE
 # - Vector Floating Point (VFP) unit
 #
-arm/arm/bus_space-v6.c		standard
+arm/arm/bus_space_base.c	standard
 arm/arm/bus_space_generic.c	standard
 arm/arm/cpufunc_asm_arm10.S	standard
 arm/arm/cpufunc_asm_arm11.S	standard
