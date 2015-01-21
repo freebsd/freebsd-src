@@ -604,7 +604,8 @@ __weak_reference(_pthread_sigmask, pthread_sigmask);
 int
 _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 {
-	if (_sigprocmask(how, set, oset))
+
+	if (__thr_sigprocmask(how, set, oset))
 		return (errno);
 	return (0);
 }
