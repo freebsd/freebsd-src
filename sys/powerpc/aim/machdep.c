@@ -238,7 +238,7 @@ extern void	*trapcode64;
 #endif
 
 extern void	*rstcode, *rstsize;
-extern void	*trapcode, *trapsize;
+extern void	*trapcode, *trapsize, *trapcode2;
 extern void	*slbtrap, *slbtrapsize;
 extern void	*alitrap, *alisize;
 extern void	*dsitrap, *dsisize;
@@ -506,6 +506,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	generictrap = &trapcode;
 
 	/* Set TOC base so that the interrupt code can get at it */
+	*((void **)TRAP_GENTRAP) = &trapcode2;
 	*((register_t *)TRAP_TOCBASE) = toc;
 	#endif
 
