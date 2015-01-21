@@ -150,7 +150,7 @@ static struct bus_space arm_base_bus_space = {
 	.bs_wr_2_s	= generic_bs_wr_2,
 	.bs_wr_4_s	= generic_bs_wr_4,
 	.bs_wr_8_s	= BS_UNIMPLEMENTED,
-};
+} __aligned(CACHE_LINE_SIZE);
 
 #ifdef FDT
 bus_space_tag_t fdtbus_bs_tag = &arm_base_bus_space;
