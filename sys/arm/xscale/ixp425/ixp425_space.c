@@ -63,7 +63,7 @@ bs_protos(generic_armv4);
 
 struct bus_space ixp425_bs_tag = {
 	/* cookie */
-	.bs_cookie	= (void *) 0,
+	.bs_privdata	= (void *) 0,
 
 	/* mapping/unmapping */
 	.bs_map		= generic_bs_map,
