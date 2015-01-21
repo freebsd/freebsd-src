@@ -394,6 +394,9 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 			break;
 	#ifdef __powerpc64__
 		case IBMPOWER7:
+		case IBMPOWER7PLUS:
+		case IBMPOWER8:
+		case IBMPOWER8E:
 			/* XXX: get from ibm,slb-size in device tree */
 			n_slbs = 32;
 			break;
