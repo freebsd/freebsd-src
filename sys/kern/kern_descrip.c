@@ -2337,7 +2337,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	u_int count;
 #ifdef CAPABILITIES
 	seq_t seq;
-	cap_rights_t haverights;
+	cap_rights_t *haverights;
 	int error;
 #endif
 
@@ -2367,9 +2367,9 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 		if (fp == NULL)
 			return (EBADF);
 #ifdef CAPABILITIES
-		haverights = *cap_rights_fde(&fde);
+		haverights = cap_rights_fde(&fde);
 		if (needrightsp != NULL) {
-			error = cap_check(&haverights, needrightsp);
+			error = cap_check(haverights, needrightsp);
 			if (error != 0)
 				return (error);
 			if (cap_rights_is_set(needrightsp, CAP_FCNTL)) {
@@ -2408,7 +2408,7 @@ fget_unlocked(struct filedesc *fdp, int fd, cap_rights_t *needrightsp,
 	*fpp = fp;
 	if (haverightsp != NULL) {
 #ifdef CAPABILITIES
-		*haverightsp = haverights;
+		*haverightsp = *haverights;
 #else
 		CAP_ALL(haverightsp);
 #endif
