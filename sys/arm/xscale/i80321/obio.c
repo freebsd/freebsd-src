@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/i80321/iq80321reg.h>
 #include <arm/xscale/i80321/obiovar.h>
 
+bus_space_tag_t obio_bs_tag;
+
 int	obio_probe(device_t);
 int	obio_attach(device_t);
 
@@ -72,7 +74,8 @@ obio_attach(device_t dev)
 {
 	struct obio_softc *sc = device_get_softc(dev);
 
-	sc->oba_st = &obio_bs_tag;
+	obio_bs_tag = arm_base_bs_tag;
+        sc->oba_st = obio_bs_tag;
 	sc->oba_addr = IQ80321_OBIO_BASE;
 	sc->oba_size = IQ80321_OBIO_SIZE;
 	sc->oba_rman.rm_type = RMAN_ARRAY;
