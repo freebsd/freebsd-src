@@ -79,9 +79,27 @@
 #define	BUS_SPACE_MAP_LINEAR		0x02
 #define	BUS_SPACE_MAP_PREFETCHABLE     	0x04
 
+/*
+ * Bus space for ARM.
+ *
+ * The functions used most often are grouped together at the beginning to ensure
+ * that all the data fits into a single cache line.  The inline implementations
+ * of single read/write access these values a lot.
+ */
 struct bus_space {
-	/* cookie */
-	void		*bs_privdata;
+	/* Read/write single and barrier: the most commonly used functions. */
+	uint8_t	 (*bs_r_1)(bus_space_tag_t, bus_space_handle_t, bus_size_t);
+	uint32_t (*bs_r_4)(bus_space_tag_t, bus_space_handle_t, bus_size_t);
+	void	 (*bs_w_1)(bus_space_tag_t, bus_space_handle_t,
+			   bus_size_t, uint8_t);
+	void	 (*bs_w_4)(bus_space_tag_t, bus_space_handle_t,
+			   bus_size_t, uint32_t);
+	void	 (*bs_barrier)(bus_space_tag_t, bus_space_handle_t,
+			       bus_size_t, bus_size_t, int);
+
+	/* Backlink to parent (if copied), and implementation private data. */
+	struct bus_space *bs_parent;
+	void		 *bs_privdata;
 
 	/* mapping/unmapping */
 	int		(*bs_map) (bus_space_tag_t, bus_addr_t, bus_size_t,
@@ -97,15 +115,8 @@ struct bus_space {
 	void		(*bs_free) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t);
 
-	/* get kernel virtual address */
-	/* barrier */
-	void		(*bs_barrier) (bus_space_tag_t, bus_space_handle_t,
-			    bus_size_t, bus_size_t, int);
-
-	/* read (single) */
-	uint8_t		(*bs_r_1) (bus_space_tag_t, bus_space_handle_t, bus_size_t);
+	/* Read single, the less commonly used functions. */
 	uint16_t	(*bs_r_2) (bus_space_tag_t, bus_space_handle_t, bus_size_t);
-	uint32_t	(*bs_r_4) (bus_space_tag_t, bus_space_handle_t, bus_size_t);
 	uint64_t	(*bs_r_8) (bus_space_tag_t, bus_space_handle_t, bus_size_t);
 
 	/* read multiple */
@@ -128,13 +139,9 @@ struct bus_space {
 	void		(*bs_rr_8) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t, uint64_t *, bus_size_t);
 					
-	/* write (single) */
-	void		(*bs_w_1) (bus_space_tag_t, bus_space_handle_t,
-			    bus_size_t, uint8_t);
+	/* Write single, the less commonly used functions. */
 	void		(*bs_w_2) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t, uint16_t);
-	void		(*bs_w_4) (bus_space_tag_t, bus_space_handle_t,
-			    bus_size_t, uint32_t);
 	void		(*bs_w_8) (bus_space_tag_t, bus_space_handle_t,
 			    bus_size_t, uint64_t);
 
