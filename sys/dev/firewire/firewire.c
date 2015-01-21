@@ -1022,9 +1022,7 @@ static void
 fw_tl_free(struct firewire_comm *fc, struct fw_xfer *xfer)
 {
 	struct fw_xfer *txfer;
-	int s;
 
-	s = splfw();
 	mtx_lock(&fc->tlabel_lock);
 	if (xfer->tl < 0) {
 		mtx_unlock(&fc->tlabel_lock);
@@ -1042,14 +1040,12 @@ fw_tl_free(struct firewire_comm *fc, struct fw_xfer *xfer)
 		fw_dump_hdr(&xfer->recv.hdr, "recv");
 		kdb_backtrace();
 		mtx_unlock(&fc->tlabel_lock);
-		splx(s);
 		return;
 	}
 
 	STAILQ_REMOVE(&fc->tlabels[xfer->tl], xfer, fw_xfer, tlabel);
 	xfer->tl = -1;
 	mtx_unlock(&fc->tlabel_lock);
-	splx(s);
 	return;
 }
 
@@ -1157,22 +1153,18 @@ fw_xfer_done(struct fw_xfer *xfer)
 void
 fw_xfer_unload(struct fw_xfer *xfer)
 {
-	int s;
 
 	if (xfer == NULL)
 		return;
+	FW_GLOCK(xfer->fc);
 	if (xfer->flag & FWXF_INQ) {
-		printf("fw_xfer_free FWXF_INQ\n");
-		s = splfw();
-		FW_GLOCK(xfer->fc);
 		STAILQ_REMOVE(&xfer->q->q, xfer, fw_xfer, link);
 		xfer->flag &= ~FWXF_INQ;
 #if 0
 		xfer->q->queued--;
 #endif
-		FW_GUNLOCK(xfer->fc);
-		splx(s);
 	}
+	FW_GUNLOCK(xfer->fc);
 	if (xfer->fc != NULL) {
 		/*
 		 * Ensure that any tlabel owner can't access this
