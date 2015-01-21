@@ -2483,8 +2483,7 @@ zfs_prop_set_special(const char *dsname, zprop_source_t source,
 		err = dsl_dataset_set_refreservation(dsname, source, intval);
 		break;
 	case ZFS_PROP_VOLSIZE:
-		err = zvol_set_volsize(dsname, ddi_driver_major(zfs_dip),
-		    intval);
+		err = zvol_set_volsize(dsname, intval);
 		break;
 	case ZFS_PROP_VERSION:
 	{
