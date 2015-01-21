@@ -1,5 +1,7 @@
 /*-
- * Copyright (C) 2005 David Xu <davidxu@freebsd.org>
+ * Copyright (C) 2003 Jake Burkholder <jake@freebsd.org>
+ * Copyright (C) 2003 David Xu <davidxu@freebsd.org>
+ * Copyright (c) 2001,2003 Daniel Eischen <deischen@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,26 +24,27 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-#include <stdlib.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <rtld_tls.h>
 
-#include "pthread_md.h"
+#include "thr_private.h"
 
 struct tcb *
 _tcb_ctor(struct pthread *thread, int initial)
 {
 	struct tcb *tcb;
 
-	tcb = _rtld_allocate_tls((initial) ? _tcb_get() :  NULL,
-	    sizeof(struct tcb), 16);
+	if (initial)
+		tcb = _tcb_get();
+	else
+		tcb = _rtld_allocate_tls(NULL, sizeof(struct tcb), 16);
 	if (tcb)
 		tcb->tcb_thread = thread;
-
 	return (tcb);
 }
 
