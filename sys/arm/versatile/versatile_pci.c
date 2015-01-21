@@ -53,8 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/fdt.h>
 
-#include <arm/versatile/versatile_pci_bus_space.h>
-
 #define	MEM_SYS		0
 #define	MEM_CORE	1
 #define	MEM_BASE	2
