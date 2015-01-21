@@ -1428,7 +1428,6 @@ _binutils=	gnu/usr.bin/binutils
 .endif
 .if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
 _elftctools=	lib/libelftc \
-		usr.bin/addr2line \
 		usr.bin/elfcopy \
 		usr.bin/nm \
 		usr.bin/size \
