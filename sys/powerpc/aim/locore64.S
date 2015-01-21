@@ -126,9 +126,14 @@ ASENTRY_NOPROF(__start)
 	ld	%r1,0(%r2)
 	add	%r2,%r1,%r2
 
+	/* Get load offset */
+	ld	%r31,-0x8000(%r2) /* First TOC entry is TOC base */
+	subf    %r31,%r31,%r2	/* Subtract from real TOC base to get base */
+
 	/* Set up the stack pointer */
 	ld	%r1,TOC_REF(tmpstk)(%r2)
 	addi	%r1,%r1,TMPSTKSZ-96
+	add	%r1,%r1,%r31
 
 	/* Relocate kernel */
 	std	%r3,48(%r1)
@@ -140,8 +145,7 @@ ASENTRY_NOPROF(__start)
 1:	mflr	%r3
 	ld	%r4,0(%r3)
 	add	%r3,%r4,%r3
-	ld	%r4,-0x8000(%r2) /* First TOC entry is TOC base */
-	subf    %r4,%r4,%r2	/* Subtract from real TOC base to get base */
+	mr	%r4,%r31
 	bl	elf_reloc_self
 	nop
 	ld	%r3,48(%r1)
