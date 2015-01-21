@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 
 #include "mbox_if.h"
 
-#define DEBUG
 #ifdef DEBUG
 #define	DPRINTF(fmt, ...)	do {	\
 	printf("%s: ", __func__);	\
