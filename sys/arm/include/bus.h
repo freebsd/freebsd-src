@@ -730,6 +730,9 @@ bs_c_2_proto(f);		\
 bs_c_4_proto(f);		\
 bs_c_8_proto(f);
 
+void generic_bs_unimplemented(void);
+#define	BS_UNIMPLEMENTED	(void *)generic_bs_unimplemented
+
 #define BUS_SPACE_ALIGNED_POINTER(p, t) ALIGNED_POINTER(p, t)
 
 #define BUS_SPACE_MAXADDR_24BIT	0xFFFFFF

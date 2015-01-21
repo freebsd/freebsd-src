@@ -53,6 +53,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/devmap.h>
 
+void
+generic_bs_unimplemented(void)
+{
+
+	panic("unimplemented bus_space function called");
+}
+
 /* Prototypes for all the bus_space structure functions */
 bs_protos(generic);
 
