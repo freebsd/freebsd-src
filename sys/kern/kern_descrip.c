@@ -2680,11 +2680,9 @@ _fdrop(struct file *fp, struct thread *td)
 {
 	int error;
 
-	error = 0;
 	if (fp->f_count != 0)
 		panic("fdrop: count %d", fp->f_count);
-	if (fp->f_ops != &badfileops)
-		error = fo_close(fp, td);
+	error = fo_close(fp, td);
 	atomic_subtract_int(&openfiles, 1);
 	crfree(fp->f_cred);
 	free(fp->f_advice, M_FADVISE);
@@ -3664,7 +3662,7 @@ static int
 badfo_close(struct file *fp, struct thread *td)
 {
 
-	return (EBADF);
+	return (0);
 }
 
 static int
