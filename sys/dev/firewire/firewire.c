@@ -2030,6 +2030,7 @@ fw_rcv(struct fw_rcv_buf *rb)
 			rb->xfer->hand = fw_xfer_free;
 			if (fw_asyreq(rb->fc, -1, rb->xfer))
 				fw_xfer_free(rb->xfer);
+			return;
 		}
 		len = 0;
 		for (i = 0; i < rb->nvec; i++)
