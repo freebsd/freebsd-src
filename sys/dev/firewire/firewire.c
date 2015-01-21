@@ -1166,6 +1166,7 @@ fw_xfer_unload(struct fw_xfer *xfer)
 		s = splfw();
 		FW_GLOCK(xfer->fc);
 		STAILQ_REMOVE(&xfer->q->q, xfer, fw_xfer, link);
+		xfer->flag &= ~FWXF_INQ;
 #if 0
 		xfer->q->queued--;
 #endif
