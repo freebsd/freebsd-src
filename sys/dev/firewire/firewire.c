@@ -761,8 +761,15 @@ fw_busreset(struct firewire_comm *fc, uint32_t new_status)
 	src = &fc->crom_src_buf->src;
 	crom_load(src, newrom, CROMSIZE);
 	if (bcmp(newrom, fc->config_rom, CROMSIZE) != 0) {
-		if (src->businfo.generation++ > FW_MAX_GENERATION)
+		/* Bump generation and reload. */
+		src->businfo.generation++;
+
+		/* Handle generation count wraps. */
+		if (src->businfo.generation < FW_GENERATION_CHANGEABLE)
 			src->businfo.generation = FW_GENERATION_CHANGEABLE;
+
+		/* Recalculate CRC to account for generation change. */
+		crom_load(src, newrom, CROMSIZE);
 		bcopy(newrom, fc->config_rom, CROMSIZE);
 	}
 	free(newrom, M_FW);
@@ -1156,16 +1163,18 @@ fw_xfer_unload(struct fw_xfer *xfer)
 
 	if (xfer == NULL)
 		return;
-	FW_GLOCK(xfer->fc);
-	if (xfer->flag & FWXF_INQ) {
-		STAILQ_REMOVE(&xfer->q->q, xfer, fw_xfer, link);
-		xfer->flag &= ~FWXF_INQ;
-#if 0
-		xfer->q->queued--;
-#endif
-	}
-	FW_GUNLOCK(xfer->fc);
+
 	if (xfer->fc != NULL) {
+		FW_GLOCK(xfer->fc);
+		if (xfer->flag & FWXF_INQ) {
+			STAILQ_REMOVE(&xfer->q->q, xfer, fw_xfer, link);
+			xfer->flag &= ~FWXF_INQ;
+	#if 0
+			xfer->q->queued--;
+	#endif
+		}
+		FW_GUNLOCK(xfer->fc);
+
 		/*
 		 * Ensure that any tlabel owner can't access this
 		 * xfer after it's freed.
