@@ -245,6 +245,7 @@ struct bus_space {
 			    bus_size_t, const uint64_t *, bus_size_t);
 };
 
+extern bus_space_tag_t arm_base_bs_tag;
 
 /*
  * Utility macros; INTERNAL USE ONLY.
