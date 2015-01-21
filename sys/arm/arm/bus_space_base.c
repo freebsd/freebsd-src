@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <machine/bus.h>
 
+#include "opt_platform.h"
+
 /* Prototypes for all the bus_space structure functions */
 bs_protos(generic);
 
@@ -43,7 +45,7 @@ bs_protos(generic);
  * The bus space tag.  This is constant for all instances, so
  * we never have to explicitly "create" it.
  */
-static struct bus_space _base_tag = {
+static struct bus_space arm_base_tag = {
 	/* privdata is whatever the implementer wants; unused in base tag */
 	.bs_privdata	= NULL,
 
@@ -150,4 +152,6 @@ static struct bus_space _base_tag = {
 	.bs_wr_8_s	= BS_UNIMPLEMENTED,
 };
 
-bus_space_tag_t fdtbus_bs_tag = &_base_tag;
+#ifdef FDT
+bus_space_tag_t fdtbus_bs_tag = &arm_base_tag;
+#endif
