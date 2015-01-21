@@ -183,7 +183,7 @@ i81342_bs_init(bus_space_tag_t bs, void *cookie)
 {
 
 	*bs = i81342_bs_tag_template;
-	bs->bs_cookie = cookie;
+	bs->bs_privdata = cookie;
 }
 
 void
@@ -191,7 +191,7 @@ i81342_io_bs_init(bus_space_tag_t bs, void *cookie)
 {
 
 	*bs = i81342_bs_tag_template;
-	bs->bs_cookie = cookie;
+	bs->bs_privdata = cookie;
 
 	bs->bs_map = i81342_io_bs_map;
 	bs->bs_unmap = i81342_io_bs_unmap;
@@ -205,7 +205,7 @@ i81342_mem_bs_init(bus_space_tag_t bs, void *cookie)
 {
 
 	*bs = i81342_bs_tag_template;
-	bs->bs_cookie = cookie;
+	bs->bs_privdata = cookie;
 
 	bs->bs_map = i81342_mem_bs_map;
 	bs->bs_unmap = i81342_mem_bs_unmap;
@@ -217,7 +217,7 @@ i81342_mem_bs_init(bus_space_tag_t bs, void *cookie)
 /* *** Routines shared by i81342, PCI IO, and PCI MEM. *** */
 
 int
-i81342_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
+i81342_bs_subregion(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t offset,
     bus_size_t size, bus_space_handle_t *nbshp)
 {
 
@@ -226,7 +226,7 @@ i81342_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
 }
 
 void
-i81342_bs_barrier(void *t, bus_space_handle_t bsh, bus_size_t offset,
+i81342_bs_barrier(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t offset,
     bus_size_t len, int flags)
 {
 
@@ -236,7 +236,7 @@ i81342_bs_barrier(void *t, bus_space_handle_t bsh, bus_size_t offset,
 /* *** Routines for PCI IO. *** */
 
 int
-i81342_io_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
+i81342_io_bs_map(bus_space_tag_t tag, bus_addr_t bpa, bus_size_t size, int flags,
     bus_space_handle_t *bshp)
 {
 
@@ -245,14 +245,14 @@ i81342_io_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 }
 
 void
-i81342_io_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
+i81342_io_bs_unmap(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t size)
 {
 
 	/* Nothing to do. */
 }
 
 int
-i81342_io_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
+i81342_io_bs_alloc(bus_space_tag_t tag, bus_addr_t rstart, bus_addr_t rend,
     bus_size_t size, bus_size_t alignment, bus_size_t boundary, int flags,
     bus_addr_t *bpap, bus_space_handle_t *bshp)
 {
@@ -261,7 +261,7 @@ i81342_io_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
 }
 
 void
-i81342_io_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
+i81342_io_bs_free(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t size)
 {
 
 	panic("i81342_io_bs_free(): not implemented");
@@ -272,10 +272,10 @@ i81342_io_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
 extern int badaddr_read(void *, int, void *);
 static vm_offset_t allocable = 0xe1000000;
 int
-i81342_mem_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
+i81342_mem_bs_map(bus_space_tag_t tag, bus_addr_t bpa, bus_size_t size, int flags,
     bus_space_handle_t *bshp)
 {
-	struct i81342_pci_softc *sc = (struct i81342_pci_softc *)t;
+	struct i81342_pci_softc *sc = (struct i81342_pci_softc *)tag->bs_privdata;
 	struct i81342_pci_map *tmp;
 	vm_offset_t addr, endaddr;
 	vm_paddr_t paddr;
@@ -315,12 +315,12 @@ i81342_mem_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 }
 
 void
-i81342_mem_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
+i81342_mem_bs_unmap(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t size)
 {
 #if 0
 	vm_offset_t va, endva;
 
-	va = trunc_page((vm_offset_t)t);
+	va = trunc_page((vm_offset_t)h);
 	endva = va + round_page(size);
 
 	/* Free the kernel virtual mapping. */
@@ -329,7 +329,7 @@ i81342_mem_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 }
 
 int
-i81342_mem_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
+i81342_mem_bs_alloc(bus_space_tag_t tag, bus_addr_t rstart, bus_addr_t rend,
     bus_size_t size, bus_size_t alignment, bus_size_t boundary, int flags,
     bus_addr_t *bpap, bus_space_handle_t *bshp)
 {
@@ -338,7 +338,7 @@ i81342_mem_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
 }
 
 void
-i81342_mem_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
+i81342_mem_bs_free(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t size)
 {
 
 	panic("i81342_mem_bs_free(): not implemented");

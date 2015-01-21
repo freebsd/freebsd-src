@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 uint32_t at91_master_clock;
 
 static int
-at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
+at91_bs_map(bus_space_tag_t tag, bus_addr_t bpa, bus_size_t size, int flags,
     bus_space_handle_t *bshp)
 {
 	vm_paddr_t pa, endpa;
@@ -77,23 +77,18 @@ at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 }
 
 static void
-at91_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
+at91_bs_unmap(bus_space_tag_t tag, bus_space_handle_t h, bus_size_t size)
 {
-	vm_offset_t va, endva;
+	vm_offset_t va;
 
-	if (t == 0)
-		return;
-	va = trunc_page((vm_offset_t)t);
+	va = (vm_offset_t)h;
 	if (va >= AT91_BASE && va <= AT91_BASE + 0xff00000)
 		return;
-	endva = round_page((vm_offset_t)t + size);
-
-	/* Free the kernel virtual mapping. */
-	kva_free(va, endva - va);
+	pmap_unmapdev(va, size);
 }
 
 static int
-at91_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
+at91_bs_subregion(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t offset,
     bus_size_t size, bus_space_handle_t *nbshp)
 {
 
@@ -102,7 +97,7 @@ at91_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
 }
 
 static void
-at91_barrier(void *t, bus_space_handle_t bsh, bus_size_t size, bus_size_t b,
+at91_barrier(bus_space_tag_t tag, bus_space_handle_t bsh, bus_size_t size, bus_size_t b,
     int a)
 {
 }
