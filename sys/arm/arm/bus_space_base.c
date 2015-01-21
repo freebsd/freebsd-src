@@ -45,7 +45,7 @@ bs_protos(generic);
  * The bus space tag.  This is constant for all instances, so
  * we never have to explicitly "create" it.
  */
-static struct bus_space arm_base_bus_space = {
+static struct bus_space arm_base_bus_space __aligned(CACHE_LINE_SIZE) = {
 	/* privdata is whatever the implementer wants; unused in base tag */
 	.bs_privdata	= NULL,
 
@@ -150,7 +150,7 @@ static struct bus_space arm_base_bus_space = {
 	.bs_wr_2_s	= generic_bs_wr_2,
 	.bs_wr_4_s	= generic_bs_wr_4,
 	.bs_wr_8_s	= BS_UNIMPLEMENTED,
-} __aligned(CACHE_LINE_SIZE);
+};
 
 #ifdef FDT
 bus_space_tag_t fdtbus_bs_tag = &arm_base_bus_space;
