@@ -58,8 +58,8 @@ bool intel_ddc_probe(struct intel_encoder *intel_encoder, int ddc_bus)
 		}
 	};
 
-	return (iicbus_transfer(dev_priv->gmbus[ddc_bus], msgs, 2)
-	    == 0/* XXXKIB  2*/);
+	return (iicbus_transfer(intel_gmbus_get_adapter(dev_priv, ddc_bus),
+	    msgs, 2) == 0/* XXXKIB  2*/);
 }
 
 /**
