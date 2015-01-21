@@ -57,7 +57,6 @@ static MALLOC_DEFINE(M_PXATAG, "PXA bus_space tags", "Bus_space tags for PXA");
 
 /* Prototypes for all the bus_space structure functions */
 bs_protos(generic);
-bs_protos(generic_armv4);
 bs_protos(pxa);
 
 /*
@@ -179,7 +178,7 @@ pxa_bus_tag_alloc(bus_addr_t offset)
 	}
 
 READ_SINGLE(u_int8_t,  pxa_bs_r_1, generic_bs_r_1)
-READ_SINGLE(u_int16_t, pxa_bs_r_2, generic_armv4_bs_r_2)
+READ_SINGLE(u_int16_t, pxa_bs_r_2, generic_bs_r_2)
 READ_SINGLE(u_int32_t, pxa_bs_r_4, generic_bs_r_4)
 
 #undef READ_SINGLE
@@ -195,7 +194,7 @@ READ_SINGLE(u_int32_t, pxa_bs_r_4, generic_bs_r_4)
 	}
 
 WRITE_SINGLE(u_int8_t,  pxa_bs_w_1, generic_bs_w_1)
-WRITE_SINGLE(u_int16_t, pxa_bs_w_2, generic_armv4_bs_w_2)
+WRITE_SINGLE(u_int16_t, pxa_bs_w_2, generic_bs_w_2)
 WRITE_SINGLE(u_int32_t, pxa_bs_w_4, generic_bs_w_4)
 
 #undef WRITE_SINGLE
@@ -211,7 +210,7 @@ WRITE_SINGLE(u_int32_t, pxa_bs_w_4, generic_bs_w_4)
 	}
 
 READ_MULTI(u_int8_t,  pxa_bs_rm_1, generic_bs_rm_1)
-READ_MULTI(u_int16_t, pxa_bs_rm_2, generic_armv4_bs_rm_2)
+READ_MULTI(u_int16_t, pxa_bs_rm_2, generic_bs_rm_2)
 
 READ_MULTI(u_int8_t,  pxa_bs_rr_1, generic_bs_rr_1)
 
@@ -228,6 +227,6 @@ READ_MULTI(u_int8_t,  pxa_bs_rr_1, generic_bs_rr_1)
 	}
 
 WRITE_MULTI(u_int8_t,  pxa_bs_wm_1, generic_bs_wm_1)
-WRITE_MULTI(u_int16_t, pxa_bs_wm_2, generic_armv4_bs_wm_2)
+WRITE_MULTI(u_int16_t, pxa_bs_wm_2, generic_bs_wm_2)
 
 #undef WRITE_MULTI
