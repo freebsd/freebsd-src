@@ -5123,19 +5123,34 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 #endif
 	case XPT_RESET_DEV:		/* BDR the specified SCSI device */
+	{
+		struct isp_fc *fc;
 
 		bus = cam_sim_bus(xpt_path_sim(ccb->ccb_h.path));
 		tgt = ccb->ccb_h.target_id;
 		tgt |= (bus << 16);
+		if (IS_FC(isp))
+			fc = ISP_FC_PC(isp, bus);
+		else
+			fc = NULL;
 
 		error = isp_control(isp, ISPCTL_RESET_DEV, bus, tgt);
 		if (error) {
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 		} else {
+			/*
+			 * If we have a FC device, reset the Command
+			 * Reference Number, because the target will expect
+			 * that we re-start the CRN at 1 after a reset.
+			 */
+			if (fc != NULL)
+				isp_fcp_reset_crn(fc, tgt, /*tgt_set*/ 1);
+
 			ccb->ccb_h.status = CAM_REQ_CMP;
 		}
 		xpt_done(ccb);
 		break;
+	}
 	case XPT_ABORT:			/* Abort the specified CCB */
 	{
 		union ccb *accb = ccb->cab.abort_ccb;
