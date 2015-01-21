@@ -51,6 +51,10 @@ static const struct ofw_bus_devinfo *ofw_cpulist_get_devinfo(device_t dev,
 
 static MALLOC_DEFINE(M_OFWCPU, "ofwcpu", "OFW CPU device information");
 
+struct ofw_cpulist_softc {
+	pcell_t	 sc_addr_cells;
+};
+
 static device_method_t ofw_cpulist_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ofw_cpulist_probe),
@@ -74,7 +78,7 @@ static device_method_t ofw_cpulist_methods[] = {
 static driver_t ofw_cpulist_driver = {
 	"cpulist",
 	ofw_cpulist_methods,
-	0
+	sizeof(struct ofw_cpulist_softc)
 };
 
 static devclass_t ofw_cpulist_devclass;
@@ -100,11 +104,17 @@ ofw_cpulist_probe(device_t dev)
 static int 
 ofw_cpulist_attach(device_t dev) 
 {
+	struct ofw_cpulist_softc *sc;
 	phandle_t root, child;
 	device_t cdev;
 	struct ofw_bus_devinfo *dinfo;
 
+	sc = device_get_softc(dev);
 	root = ofw_bus_get_node(dev);
+
+	sc->sc_addr_cells = 1;
+	OF_getencprop(root, "#address-cells", &sc->sc_addr_cells,
+	    sizeof(sc->sc_addr_cells));
 
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
 		dinfo = malloc(sizeof(*dinfo), M_OFWCPU, M_WAITOK | M_ZERO);
@@ -141,6 +151,8 @@ static int	ofw_cpu_read_ivar(device_t dev, device_t child, int index,
 struct ofw_cpu_softc {
 	struct pcpu	*sc_cpu_pcpu;
 	uint32_t	 sc_nominal_mhz;
+	boolean_t	 sc_reg_valid;
+	pcell_t		 sc_reg[2];
 };
 
 static device_method_t ofw_cpu_methods[] = {
@@ -185,17 +197,39 @@ ofw_cpu_probe(device_t dev)
 static int
 ofw_cpu_attach(device_t dev)
 {
+	struct ofw_cpulist_softc *psc;
 	struct ofw_cpu_softc *sc;
 	phandle_t node;
-	uint32_t cell;
+	pcell_t cell;
+	int rv;
 
 	sc = device_get_softc(dev);
-	node = ofw_bus_get_node(dev);
-	if (OF_getencprop(node, "reg", &cell, sizeof(cell)) < 0) {
-		cell = device_get_unit(dev);
-		device_printf(dev, "missing 'reg' property, using %u\n", cell);
+	psc = device_get_softc(device_get_parent(dev));
+
+	if (nitems(sc->sc_reg) < psc->sc_addr_cells) {
+		if (bootverbose)
+			device_printf(dev, "Too many address cells\n");
+		return (EINVAL);
 	}
-	sc->sc_cpu_pcpu = pcpu_find(cell);
+
+	node = ofw_bus_get_node(dev);
+
+	/* Read and validate the reg property for use later */
+	sc->sc_reg_valid = false;
+	rv = OF_getencprop(node, "reg", sc->sc_reg, sizeof(sc->sc_reg));
+	if (rv < 0)
+		device_printf(dev, "missing 'reg' property\n");
+	else if ((rv % 4) != 0) {
+		if (bootverbose)
+			device_printf(dev, "Malformed reg property\n");
+	} else if ((rv / 4) != psc->sc_addr_cells) {
+		if (bootverbose)
+			device_printf(dev, "Invalid reg size %u\n", rv);
+	} else
+		sc->sc_reg_valid = true;
+
+	sc->sc_cpu_pcpu = pcpu_find(device_get_unit(dev));
+
 	if (OF_getencprop(node, "clock-frequency", &cell, sizeof(cell)) < 0) {
 		if (bootverbose)
 			device_printf(dev,
