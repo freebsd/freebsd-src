@@ -39,15 +39,6 @@ __FBSDID("$FreeBSD$");
 /* Prototypes for all the bus_space structure functions */
 bs_protos(generic);
 
-static void
-bs_unimplemented(void)
-{
-
-	panic("unimplemented bus_space function called");
-}
-
-#define	BS_UNIMPLEMENTED	(void *)bs_unimplemented
-
 /*
  * The bus space tag.  This is constant for all instances, so
  * we never have to explicitly "create" it.
