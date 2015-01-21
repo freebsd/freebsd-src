@@ -57,7 +57,6 @@ unsigned int AHB_clock;
 unsigned int APB_clock;
 
 bs_protos(generic);
-bs_protos(generic_armv4);
 
 struct bus_space econa_bs_tag = {
 	/* cookie */
@@ -77,31 +76,31 @@ struct bus_space econa_bs_tag = {
 
 	/* read (single) */
 	generic_bs_r_1,
-	generic_armv4_bs_r_2,
+	generic_bs_r_2,
 	generic_bs_r_4,
 	NULL,
 
 	/* read multiple */
 	generic_bs_rm_1,
-	generic_armv4_bs_rm_2,
+	generic_bs_rm_2,
 	generic_bs_rm_4,
 	NULL,
 
 	/* read region */
 	generic_bs_rr_1,
-	generic_armv4_bs_rr_2,
+	generic_bs_rr_2,
 	generic_bs_rr_4,
 	NULL,
 
 	/* write (single) */
 	generic_bs_w_1,
-	generic_armv4_bs_w_2,
+	generic_bs_w_2,
 	generic_bs_w_4,
 	NULL,
 
 	/* write multiple */
 	generic_bs_wm_1,
-	generic_armv4_bs_wm_2,
+	generic_bs_wm_2,
 	generic_bs_wm_4,
 	NULL,
 
@@ -137,7 +136,7 @@ struct bus_space econa_bs_tag = {
 
 	/* read multiple stream */
 	NULL,
-	generic_armv4_bs_rm_2,
+	generic_bs_rm_2,
 	NULL,
 	NULL,
 
@@ -155,7 +154,7 @@ struct bus_space econa_bs_tag = {
 
 	/* write multiple stream */
 	NULL,
-	generic_armv4_bs_wm_2,
+	generic_bs_wm_2,
 	NULL,
 	NULL,
 

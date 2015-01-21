@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 
 /* Prototypes for all the bus_space structure functions */
 bs_protos(generic);
-bs_protos(generic_armv4);
 
 static void
 bs_unimplemented(void)
@@ -77,13 +76,13 @@ static struct bus_space _base_tag = {
 
 	/* read multiple */
 	.bs_rm_1	= generic_bs_rm_1,
-	.bs_rm_2	= generic_armv4_bs_rm_2,
+	.bs_rm_2	= generic_bs_rm_2,
 	.bs_rm_4	= generic_bs_rm_4,
 	.bs_rm_8	= BS_UNIMPLEMENTED,
 
 	/* read region */
 	.bs_rr_1	= generic_bs_rr_1,
-	.bs_rr_2	= generic_armv4_bs_rr_2,
+	.bs_rr_2	= generic_bs_rr_2,
 	.bs_rr_4	= generic_bs_rr_4,
 	.bs_rr_8	= BS_UNIMPLEMENTED,
 
@@ -95,13 +94,13 @@ static struct bus_space _base_tag = {
 
 	/* write multiple */
 	.bs_wm_1	= generic_bs_wm_1,
-	.bs_wm_2	= generic_armv4_bs_wm_2,
+	.bs_wm_2	= generic_bs_wm_2,
 	.bs_wm_4	= generic_bs_wm_4,
 	.bs_wm_8	= BS_UNIMPLEMENTED,
 
 	/* write region */
 	.bs_wr_1	= generic_bs_wr_1,
-	.bs_wr_2	= generic_armv4_bs_wr_2,
+	.bs_wr_2	= generic_bs_wr_2,
 	.bs_wr_4	= generic_bs_wr_4,
 	.bs_wr_8	= BS_UNIMPLEMENTED,
 
@@ -113,13 +112,13 @@ static struct bus_space _base_tag = {
 
 	/* set region */
 	.bs_sr_1	= generic_bs_sr_1,
-	.bs_sr_2	= generic_armv4_bs_sr_2,
+	.bs_sr_2	= generic_bs_sr_2,
 	.bs_sr_4	= generic_bs_sr_4,
 	.bs_sr_8	= BS_UNIMPLEMENTED,
 
 	/* copy */
 	.bs_c_1		= BS_UNIMPLEMENTED,
-	.bs_c_2		= generic_armv4_bs_c_2,
+	.bs_c_2		= generic_bs_c_2,
 	.bs_c_4		= BS_UNIMPLEMENTED,
 	.bs_c_8		= BS_UNIMPLEMENTED,
 
@@ -131,13 +130,13 @@ static struct bus_space _base_tag = {
 
 	/* read multiple stream */
 	.bs_rm_1_s	= generic_bs_rm_1,
-	.bs_rm_2_s	= generic_armv4_bs_rm_2,
+	.bs_rm_2_s	= generic_bs_rm_2,
 	.bs_rm_4_s	= generic_bs_rm_4,
 	.bs_rm_8_s	= BS_UNIMPLEMENTED,
 
 	/* read region stream */
 	.bs_rr_1_s	= generic_bs_rr_1,
-	.bs_rr_2_s	= generic_armv4_bs_rr_2,
+	.bs_rr_2_s	= generic_bs_rr_2,
 	.bs_rr_4_s	= generic_bs_rr_4,
 	.bs_rr_8_s	= BS_UNIMPLEMENTED,
 
@@ -149,13 +148,13 @@ static struct bus_space _base_tag = {
 
 	/* write multiple stream */
 	.bs_wm_1_s	= generic_bs_wm_1,
-	.bs_wm_2_s	= generic_armv4_bs_wm_2,
+	.bs_wm_2_s	= generic_bs_wm_2,
 	.bs_wm_4_s	= generic_bs_wm_4,
 	.bs_wm_8_s	= BS_UNIMPLEMENTED,
 
 	/* write region stream */
 	.bs_wr_1_s	= generic_bs_wr_1,
-	.bs_wr_2_s	= generic_armv4_bs_wr_2,
+	.bs_wr_2_s	= generic_bs_wr_2,
 	.bs_wr_4_s	= generic_bs_wr_4,
 	.bs_wr_8_s	= BS_UNIMPLEMENTED,
 };
