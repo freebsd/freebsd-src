@@ -365,7 +365,7 @@ am335x_lcd_intr(void *arg)
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
 		reg |= RASTER_CTRL_LCDEN;
 		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
-		return;
+		goto done;
 	}
 
 	if (reg & IRQ_PL) {
@@ -376,7 +376,7 @@ am335x_lcd_intr(void *arg)
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
 		reg |= RASTER_CTRL_LCDEN;
 		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
-		return;
+		goto done;
 	}
 
 	if (reg & IRQ_EOF0) {
@@ -399,6 +399,7 @@ am335x_lcd_intr(void *arg)
 		/* TODO: Handle ACB */
 	}
 
+done:
 	LCD_WRITE4(sc, LCD_END_OF_INT_IND, 0);
 }
 
