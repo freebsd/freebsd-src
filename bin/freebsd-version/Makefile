@@ -11,7 +11,7 @@ freebsd-version.sh: ${.CURDIR}/freebsd-version.sh.in ${NEWVERS}
 			s/@@TYPE@@/$${TYPE}/g; \
 			s/@@REVISION@@/$${REVISION}/g; \
 			s/@@BRANCH@@/$${BRANCH}/g; \
-		" ${.ALLSRC} >${.TARGET} ; then \
+		" ${.CURDIR}/freebsd-version.sh.in >${.TARGET} ; then \
 		rm -f ${.TARGET} ; \
 		exit 1 ; \
 	fi
