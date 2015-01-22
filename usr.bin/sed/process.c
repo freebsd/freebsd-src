@@ -66,11 +66,11 @@ static SPACE HS, PS, SS, YS;
 #define	hs		HS.space
 #define	hsl		HS.len
 
-static __inline int	 applies(struct s_command *);
+static inline int	 applies(struct s_command *);
 static void		 do_tr(struct s_tr *);
 static void		 flush_appends(void);
 static void		 lputs(char *, size_t);
-static __inline int	 regexec_e(regex_t *, const char *, int, int, size_t);
+static int		 regexec_e(regex_t *, const char *, int, int, size_t);
 static void		 regsub(SPACE *, char *, char *);
 static int		 substitute(struct s_command *);
 
@@ -278,7 +278,7 @@ new:		if (!nflag && !pd)
  * Return TRUE if the command applies to the current line.  Sets the start
  * line for process ranges.  Interprets the non-select (``!'') flag.
  */
-static __inline int
+static inline int
 applies(struct s_command *cp)
 {
 	int r;
@@ -644,7 +644,7 @@ lputs(char *s, size_t len)
 		errx(1, "%s: %s", outfname, strerror(errno ? errno : EIO));
 }
 
-static __inline int
+static int
 regexec_e(regex_t *preg, const char *string, int eflags, int nomatch,
 	size_t slen)
 {
