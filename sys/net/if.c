@@ -1513,109 +1513,24 @@ if_rtdel(struct radix_node *rn, void *arg)
 }
 
 /*
- * Managing different integer values and bitmasks of an ifnet.
+ * Returning different software contexts associated with ifnet.
  */
-static void
-if_getfeature(if_t ifp, ift_feature f, uint32_t **f32, uint64_t **f64,
-    void **ptr)
+void *
+if_getsoftc(struct ifnet *ifp, ift_feature f)
 {
-
-	if (f32)
-		*f32 = NULL;
-	if (f64)
-		*f64 = NULL;
-	if (ptr)
-		*ptr = NULL;
 
 	switch (f) {
 	case IF_DRIVER_SOFTC:
-		*ptr = ifp->if_softc;
-		break;
+		return (ifp->if_softc);
 	case IF_LLADDR:
-		*ptr = LLADDR((struct sockaddr_dl *)(ifp->if_addr->ifa_addr));
-		break;
+		return (LLADDR((struct sockaddr_dl *)(ifp->if_addr->ifa_addr)));
 	case IF_BPF:
-		*ptr = ifp->if_bpf;
-		break;
+		return (ifp->if_bpf);
 	case IF_NAME:
-		*ptr = ifp->if_xname;
-		break;
+		return (ifp->if_xname);
 	default:
 		panic("%s: unknown feature %d", __func__, f);
 	};
-}
-
-void
-if_set(if_t ifp, ift_feature f, uint64_t set)
-{
-	uint64_t *f64;
-	uint32_t *f32;
-
-	if_getfeature(ifp, f, &f32, &f64, NULL);
-	KASSERT(f32 != NULL || f64 != NULL, ("%s: no feature %d", __func__, f));
-	if (f32 != NULL) {
-		KASSERT(set <= UINT32_MAX,
-		    ("%s: value of 0x%jx for feature %d",
-		    __func__, (uintmax_t )set, f));
-		*f32 = set;
-	} else {
-		*f64 = set;
-	}
-}
-
-uint64_t
-if_flagbits(if_t ifp, ift_feature f, uint64_t set, uint64_t clr, uint64_t xor)
-{
-	uint64_t *f64;
-	uint32_t *f32;
-
-	if_getfeature(ifp, f, &f32, &f64, NULL);
-	if (f32 != NULL) {
-		KASSERT(set <= UINT32_MAX,
-		    ("%s: value of 0x%jx for feature %d",
-		    __func__, (uintmax_t )set, f));
-		KASSERT(clr <= UINT32_MAX,
-		    ("%s: value of 0x%jx for feature %d",
-		    __func__, (uintmax_t )clr, f));
-		KASSERT(xor <= UINT32_MAX,
-		    ("%s: value of 0x%jx for feature %d",
-		    __func__, (uintmax_t )xor, f));
-		*f32 |= set;
-		*f32 &= ~clr;
-		*f32 ^= xor;
-		return (*f32);
-	} else {
-		*f64 |= set;
-		*f64 &= ~clr;
-		*f64 ^= xor;
-		return (*f64);
-	}
-}
-
-uint64_t
-if_get(if_t ifp, ift_feature f)
-{
-	uint64_t *f64;
-	uint32_t *f32;
-
-	if_getfeature(ifp, f, &f32, &f64, NULL);
-	KASSERT(f32 != NULL || f64 != NULL,
-	    ("%s: no feature %d", __func__, f));
-	if (f64 != NULL)
-		return (*f64);
-	if (f32 != NULL)
-		return (*f32);
-
-	return (EDOOFUS);
-}
-
-void *
-if_getsoftc(if_t ifp, ift_feature f)
-{
-	void *ptr;
-
-	if_getfeature(ifp, f, NULL, NULL, &ptr);
-	return (ptr);
 }
 
 /*

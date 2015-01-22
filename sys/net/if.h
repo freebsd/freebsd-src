@@ -716,12 +716,9 @@ void	if_inc_counter(if_t, ift_counter, int64_t);
 void	if_inc_txcounters(if_t, struct mbuf *);
 void	if_setbaudrate(if_t, uint64_t);
 void	if_link_state_change(if_t, int);
-void	if_set(if_t, ift_feature, uint64_t);
 void *	if_getsoftc(if_t, ift_feature);
 int	if_printf(if_t, const char *, ...) __printflike(2, 3);
 int	if_drvioctl(u_long, struct ifnet *, void *, struct thread *);
-uint64_t if_get(if_t, ift_feature);
-uint64_t if_flagbits(if_t, ift_feature, uint64_t, uint64_t, uint64_t);
 uint64_t if_get_counter_default(if_t, ift_counter);
 
 /*
@@ -750,29 +747,8 @@ struct mbuf * if_snd_dequeue(if_t);
 void	if_snd_prepend(if_t, struct mbuf *);
 
 /*
- * Type-enforcing inliners over declared above functions.
+ * Type-enforcing inliners over if_getsoftc().
  */
-static inline uint64_t
-if_addflags(if_t ifp, ift_feature f, uint64_t add)
-{
-
-	return (if_flagbits(ifp, f, add, 0, 0));
-}
-
-static inline uint64_t
-if_clrflags(if_t ifp, ift_feature f, uint64_t clr)
-{
-
-	return (if_flagbits(ifp, f, 0, clr, 0));
-}
-
-static inline uint64_t
-if_xorflags(if_t ifp, ift_feature f, uint64_t xor)
-{
-
-	return (if_flagbits(ifp, f, 0, 0, xor));
-}
-
 static inline char *
 if_lladdr(if_t ifp)
 {
