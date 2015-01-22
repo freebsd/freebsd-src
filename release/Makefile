@@ -8,7 +8,10 @@
 #  memstick: Builds memory stick image (memstick.img)
 #  mini-memstick: Builds minimal memory stick image (mini-memstick.img)
 #  ftp: Sets up FTP distribution area (ftp)
-#  release: Build all media and FTP distribution area
+#  release: Invokes real-release, vm-release, and cloudware-release targets
+#  real-release: Build all media and FTP distribution area
+#  vm-release: Build all virtual machine image targets
+#  cloudware-release: Build all cloud hosting provider targets
 #  install: Invokes the release-install and vm-install targets
 #  release-install: Copies all release installation media into ${DESTDIR}
 #  vm-install: Copies all virtual machine images into ${DESTDIR}
@@ -275,15 +278,11 @@ ftp: packagesystem
 	mkdir -p ftp
 	cp *.txz MANIFEST ftp
 
-release:
+release:	real-release vm-release cloudware-release
+
+real-release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${RELEASE_TARGETS}
-.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${VMTARGETS}
-.endif
-.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
-	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${CLOUDTARGETS}
-.endif
 
 install:	release-install vm-install
 
