@@ -79,3 +79,10 @@ METHOD int get_info {
 	struct fdt_clock_info *info;
 };
 
+#
+# Sets the clock's frequency.
+#
+METHOD int set_frequency {
+	device_t	provider;
+	uint64_t	frequency;
+};
