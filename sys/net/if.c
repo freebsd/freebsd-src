@@ -1528,9 +1528,6 @@ if_getfeature(if_t ifp, ift_feature f, uint32_t **f32, uint64_t **f64,
 		*ptr = NULL;
 
 	switch (f) {
-	case IF_BAUDRATE:
-		*f64 = &ifp->if_baudrate;
-		break;
 	case IF_DRIVER_SOFTC:
 		*ptr = ifp->if_softc;
 		break;
@@ -1657,6 +1654,16 @@ if_inc_txcounters(struct ifnet *ifp, struct mbuf *m)
 	counter_u64_add(ifp->if_counters[IFCOUNTER_OPACKETS], 1);
 	if (m->m_flags & M_MCAST)
 		counter_u64_add(ifp->if_counters[IFCOUNTER_OMCASTS], 1);
+}
+
+/*
+ * Set the baudrate.
+ */
+void
+if_setbaudrate(struct ifnet *ifp, uint64_t baudrate)
+{
+
+	ifp->if_baudrate = baudrate;
 }
 
 /*

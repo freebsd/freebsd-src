@@ -575,9 +575,6 @@ typedef enum {
 } ift_counter;
 
 typedef enum {
-	/* uint64_t */
-	IF_BAUDRATE,
-	/* pointers */
 	IF_DRIVER_SOFTC,
 	IF_LLADDR,
 	IF_BPF,
@@ -717,6 +714,7 @@ void	if_detach(if_t);
 void	if_mtap(if_t, struct mbuf *, void *, u_int);
 void	if_inc_counter(if_t, ift_counter, int64_t);
 void	if_inc_txcounters(if_t, struct mbuf *);
+void	if_setbaudrate(if_t, uint64_t);
 void	if_link_state_change(if_t, int);
 void	if_set(if_t, ift_feature, uint64_t);
 void *	if_getsoftc(if_t, ift_feature);

@@ -1285,7 +1285,7 @@ bge_miibus_statchg(device_t dev)
 		sc->bge_link = 0;
 
         if (sc->bge_ifp != NULL) { 
-		if_set(sc->bge_ifp, IF_BAUDRATE,
+		if_setbaudrate(sc->bge_ifp,
 		    ifmedia_baudrate(mii->mii_media_active));
 		if_link_state_change(sc->bge_ifp,
 		    ifmedia_link_state(mii->mii_media_status));

@@ -581,7 +581,7 @@ msk_miibus_statchg(device_t dev)
 			GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
 		}
 	}
-	if_set(ifp, IF_BAUDRATE, ifmedia_baudrate(mii->mii_media_active));
+	if_setbaudrate(ifp, ifmedia_baudrate(mii->mii_media_active));
 	if_link_state_change(ifp, ifmedia_link_state(mii->mii_media_status));
 }
 
