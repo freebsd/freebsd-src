@@ -829,6 +829,7 @@ typedef int pflog_packet_t(struct pfi_kif *, struct mbuf *, sa_family_t,
     struct pf_ruleset *, struct pf_pdesc *, int);
 extern pflog_packet_t		*pflog_packet_ptr;
 
+#define	V_pf_end_threads	VNET(pf_end_threads)
 #endif /* _KERNEL */
 
 #define	PFSYNC_FLAG_SRCNODE	0x04
@@ -1494,7 +1495,7 @@ VNET_DECLARE(struct pf_altqqueue *,	 pf_altqs_inactive);
 VNET_DECLARE(struct pf_rulequeue, pf_unlinked_rules);
 #define	V_pf_unlinked_rules	VNET(pf_unlinked_rules)
 
-void				 pf_vnet_initialize(void);
+void				 pf_initialize(void);
 void				 pf_mtag_initialize(void);
 void				 pf_mtag_cleanup(void);
 void				 pf_cleanup(void);
@@ -1586,7 +1587,7 @@ int	pf_match_addr_range(struct pf_addr *, struct pf_addr *,
 	    struct pf_addr *, sa_family_t);
 int	pf_match_port(u_int8_t, u_int16_t, u_int16_t, u_int16_t);
 
-void	pf_vnet_normalize_init(void);
+void	pf_normalize_init(void);
 void	pf_normalize_cleanup(void);
 int	pf_normalize_ip(struct mbuf **, int, struct pfi_kif *, u_short *,
 	    struct pf_pdesc *);
@@ -1648,7 +1649,7 @@ MALLOC_DECLARE(PFI_MTYPE);
 VNET_DECLARE(struct pfi_kif *,		 pfi_all);
 #define	V_pfi_all	 		 VNET(pfi_all)
 
-void		 pfi_vnet_initialize(void);
+void		 pfi_initialize(void);
 void		 pfi_cleanup(void);
 void		 pfi_kif_ref(struct pfi_kif *);
 void		 pfi_kif_unref(struct pfi_kif *);
