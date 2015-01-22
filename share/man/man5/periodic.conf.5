@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 30, 2012
+.Dd January 15, 2015
 .Dt PERIODIC.CONF 5
 .Os
 .Sh NAME
@@ -633,6 +633,11 @@ if you want to enable reverse DNS lookups.
 Set to
 .Dq Li YES
 if you want to enable NTP status check.
+.It Va daily_status_world_kernel
+.Pq Vt bool
+Set to
+.Dq Li YES
+to check the running userland and kernel are in sync.
 .It Va daily_queuerun_enable
 .Pq Vt bool
 Set to
