@@ -223,7 +223,8 @@
     <sect2 xml:id="contrib">
       <title>Contributed Software</title>
 
-      <para>&nbsp;</para>
+      <para revision="277597"><application>OpenSSL</application> has
+	been updated to version 1.0.1l.</para>
     </sect2>
 
     <sect2 xml:id="ports">
