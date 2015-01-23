@@ -102,13 +102,10 @@ MALLOC_DEFINE(PFI_MTYPE, "pf_ifnet", "pf(4) interface database");
 LIST_HEAD(pfi_list, pfi_kif);
 static VNET_DEFINE(struct pfi_list, pfi_unlinked_kifs);
 #define	V_pfi_unlinked_kifs	VNET(pfi_unlinked_kifs)
-
 static struct mtx pfi_unlnkdkifs_mtx;
-MTX_SYSINIT(pfi_unlnkdkifs_mtx, &pfi_unlnkdkifs_mtx, "pf unlinked interfaces",
-    MTX_DEF);
 
 void
-pfi_vnet_initialize(void)
+pfi_initialize(void)
 {
 	struct ifg_group *ifg;
 	struct ifnet *ifp;
@@ -117,6 +114,9 @@ pfi_vnet_initialize(void)
 	V_pfi_buffer_max = 64;
 	V_pfi_buffer = malloc(V_pfi_buffer_max * sizeof(*V_pfi_buffer),
 	    PFI_MTYPE, M_WAITOK);
+
+	mtx_init(&pfi_unlnkdkifs_mtx, "pf unlinked interfaces", NULL, MTX_DEF);
+
 	kif = malloc(sizeof(*kif), PFI_MTYPE, M_WAITOK);
 	PF_RULES_WLOCK();
 	V_pfi_all = pfi_kif_attach(kif, IFG_ALL);
@@ -129,20 +129,18 @@ pfi_vnet_initialize(void)
 		pfi_attach_ifnet(ifp);
 	IFNET_RUNLOCK();
 
-	if (IS_DEFAULT_VNET(curvnet)) {
-	    pfi_attach_cookie = EVENTHANDLER_REGISTER(ifnet_arrival_event,
-		pfi_attach_ifnet_event, NULL, EVENTHANDLER_PRI_ANY);
-	    pfi_detach_cookie = EVENTHANDLER_REGISTER(ifnet_departure_event,
-		pfi_detach_ifnet_event, NULL, EVENTHANDLER_PRI_ANY);
-	    pfi_attach_group_cookie = EVENTHANDLER_REGISTER(group_attach_event,
-		pfi_attach_group_event, curvnet, EVENTHANDLER_PRI_ANY);
-	    pfi_change_group_cookie = EVENTHANDLER_REGISTER(group_change_event,
-		pfi_change_group_event, curvnet, EVENTHANDLER_PRI_ANY);
-	    pfi_detach_group_cookie = EVENTHANDLER_REGISTER(group_detach_event,
-		pfi_detach_group_event, curvnet, EVENTHANDLER_PRI_ANY);
-	    pfi_ifaddr_event_cookie = EVENTHANDLER_REGISTER(ifaddr_event,
-		pfi_ifaddr_event, NULL, EVENTHANDLER_PRI_ANY);
-	}
+	pfi_attach_cookie = EVENTHANDLER_REGISTER(ifnet_arrival_event,
+	    pfi_attach_ifnet_event, NULL, EVENTHANDLER_PRI_ANY);
+	pfi_detach_cookie = EVENTHANDLER_REGISTER(ifnet_departure_event,
+	    pfi_detach_ifnet_event, NULL, EVENTHANDLER_PRI_ANY);
+	pfi_attach_group_cookie = EVENTHANDLER_REGISTER(group_attach_event,
+	    pfi_attach_group_event, curvnet, EVENTHANDLER_PRI_ANY);
+	pfi_change_group_cookie = EVENTHANDLER_REGISTER(group_change_event,
+	    pfi_change_group_event, curvnet, EVENTHANDLER_PRI_ANY);
+	pfi_detach_group_cookie = EVENTHANDLER_REGISTER(group_detach_event,
+	    pfi_detach_group_event, curvnet, EVENTHANDLER_PRI_ANY);
+	pfi_ifaddr_event_cookie = EVENTHANDLER_REGISTER(ifaddr_event,
+	    pfi_ifaddr_event, NULL, EVENTHANDLER_PRI_ANY);
 }
 
 void
@@ -167,6 +165,8 @@ pfi_cleanup(void)
 		LIST_REMOVE(p, pfik_list);
 		free(p, PFI_MTYPE);
 	}
+
+	mtx_destroy(&pfi_unlnkdkifs_mtx);
 
 	free(V_pfi_buffer, PFI_MTYPE);
 }

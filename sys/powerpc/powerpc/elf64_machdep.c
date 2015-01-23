@@ -226,6 +226,8 @@ elf_reloc_self(Elf_Dyn *dynp, Elf_Addr relocbase)
 	 */
 	relalim = (Elf_Rela *)((caddr_t)rela + relasz);
 	for (; rela < relalim; rela++) {
+		if (ELF_R_TYPE(rela->r_info) != R_PPC_RELATIVE)
+			continue;
 		where = (Elf_Addr *)(relocbase + rela->r_offset);
 		*where = (Elf_Addr)(relocbase + rela->r_addend);
 	}

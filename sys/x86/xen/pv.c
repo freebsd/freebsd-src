@@ -402,7 +402,7 @@ xen_pv_parse_preload_data(u_int64_t modulep)
 		 * then calculating the offset with mod_start,
 		 * which contains the relocated modulep address.
 		 */
-		metadata = MD_FETCH(kmdp, MODINFOMD_MODULEP, int);
+		metadata = MD_FETCH(kmdp, MODINFOMD_MODULEP, vm_paddr_t);
 		off = HYPERVISOR_start_info->mod_start - metadata;
 
 		preload_bootstrap_relocate(off);
