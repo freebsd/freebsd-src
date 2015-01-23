@@ -23,15 +23,15 @@
 .\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
 .\" Copyright (c) 2012, Bryan Drewery <bdrewery@FreeBSD.org>
 .\" Copyright (c) 2013 by Saso Kiselkov. All rights reserved.
-.\" Copyright (c) 2013 Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2014, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2013, Steven Hartland <smh@FreeBSD.org>
+.\" Copyright (c) 2014 Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2014, Xin LI <delphij@FreeBSD.org>
 .\" Copyright (c) 2014, The FreeBSD Foundation, All Rights Reserved.
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2014
+.Dd December 12, 2014
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -3505,10 +3505,9 @@ are also displayed.
 .Bd -literal -offset 2n
 .Li # Ic zfs allow cindys create,destroy,mount,snapshot tank/cindys
 .Li # Ic zfs allow tank/cindys
--------------------------------------------------------------
-Local+Descendent permissions on (tank/cindys)
-          user cindys create,destroy,mount,snapshot
--------------------------------------------------------------
+---- Permissions on tank/cindys --------------------------------------
+Local+Descendent permissions:
+        user cindys create,destroy,mount,snapshot
 .Ed
 .It Sy Example 18 No Delegating Create Time Permissions on a Tn ZFS No Dataset
 .Pp
@@ -3524,12 +3523,11 @@ are also displayed.
 .Li # Ic zfs allow staff create,mount tank/users
 .Li # Ic zfs allow -c destroy tank/users
 .Li # Ic zfs allow tank/users
--------------------------------------------------------------
-Create time permissions on (tank/users)
-          create,destroy
-Local+Descendent permissions on (tank/users)
-          group staff create,mount
--------------------------------------------------------------
+---- Permissions on tank/users ---------------------------------------
+Permission sets:
+        destroy
+Local+Descendent permissions:
+        group staff create,mount
 .Ed
 .It Xo
 .Sy Example 19
@@ -3547,14 +3545,11 @@ are also displayed.
 .Li # Ic zfs allow -s @pset create,destroy,snapshot,mount tank/users
 .Li # Ic zfs allow staff @pset tank/users
 .Li # Ic zfs allow tank/users
--------------------------------------------------------------
-Permission sets on (tank/users)
+---- Permissions on tank/users ---------------------------------------
+Permission sets:
         @pset create,destroy,mount,snapshot
-Create time permissions on (tank/users)
-        create,destroy
-Local+Descendent permissions on (tank/users)
-        group staff @pset,create,mount
--------------------------------------------------------------
+Local+Descendent permissions:
+        group staff @pset
 .Ed
 .It Sy Example 20 No Delegating Property Permissions on a Tn ZFS No Dataset
 .Pp
@@ -3566,16 +3561,15 @@ file system. The permissions on
 are also displayed.
 .Bd -literal -offset 2n
 .Li # Ic zfs allow cindys quota,reservation users/home
-.Li # Ic zfs allow cindys
--------------------------------------------------------------
-Local+Descendent permissions on (users/home)
+.Li # Ic zfs allow users/home
+---- Permissions on users/home ---------------------------------------
+Local+Descendent permissions:
         user cindys quota,reservation
--------------------------------------------------------------
 .Li # Ic su - cindys
 .Li cindys% Ic zfs set quota=10G users/home/marks
 .Li cindys% Ic zfs get quota users/home/marks
-NAME              PROPERTY  VALUE             SOURCE
-users/home/marks  quota     10G               local
+NAME              PROPERTY  VALUE  SOURCE
+users/home/marks  quota     10G    local
 .Ed
 .It Sy Example 21 No Removing ZFS Delegated Permissions on a Tn ZFS No Dataset
 .Pp
@@ -3589,14 +3583,11 @@ are also displayed.
 .Bd -literal -offset 2n
 .Li # Ic zfs unallow staff snapshot tank/users
 .Li # Ic zfs allow tank/users
--------------------------------------------------------------
-Permission sets on (tank/users)
+---- Permissions on tank/users ---------------------------------------
+Permission sets:
         @pset create,destroy,mount,snapshot
-Create time permissions on (tank/users)
-        create,destroy
-Local+Descendent permissions on (tank/users)
-        group staff @pset,create,mount
--------------------------------------------------------------
+Local+Descendent permissions:
+        group staff @pset
 .Ed
 .It Sy Example 22 Showing the differences between a snapshot and a ZFS Dataset
 .Pp
