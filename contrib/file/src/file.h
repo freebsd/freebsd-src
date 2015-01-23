@@ -27,7 +27,7 @@
  */
 /*
  * file.h - definitions for file(1) program
- * @(#)$File: file.h,v 1.161 2014/12/04 15:56:46 christos Exp $
+ * @(#)$File: file.h,v 1.164 2015/01/01 17:07:34 christos Exp $
  */
 
 #ifndef __file_h__
@@ -234,6 +234,7 @@ struct magic {
 	 (t) == FILE_LESTRING16 || \
 	 (t) == FILE_REGEX || \
 	 (t) == FILE_SEARCH || \
+	 (t) == FILE_INDIRECT || \
 	 (t) == FILE_NAME || \
 	 (t) == FILE_USE)
 
@@ -346,6 +347,8 @@ struct magic {
 #define STRING_IGNORE_CASE		(STRING_IGNORE_LOWERCASE|STRING_IGNORE_UPPERCASE)
 #define STRING_DEFAULT_RANGE		100
 
+#define	INDIRECT_RELATIVE			BIT(0)
+#define	CHAR_INDIRECT_RELATIVE			'r'
 
 /* list of magic entries */
 struct mlist {
@@ -407,10 +410,12 @@ struct magic_set {
 	uint16_t name_max;
 	uint16_t elf_shnum_max;
 	uint16_t elf_phnum_max;
+	uint16_t elf_notes_max;
 #define	FILE_INDIR_MAX			15
 #define	FILE_NAME_MAX			30
 #define	FILE_ELF_SHNUM_MAX		32768
 #define	FILE_ELF_PHNUM_MAX		128
+#define	FILE_ELF_NOTES_MAX		256
 };
 
 /* Type for Unicode characters */
@@ -476,6 +481,7 @@ protected int file_looks_utf8(const unsigned char *, size_t, unichar *,
     size_t *);
 protected size_t file_pstring_length_size(const struct magic *);
 protected size_t file_pstring_get_length(const struct magic *, const char *);
+protected char * file_printable(char *, size_t, const char *);
 #ifdef __EMX__
 protected int file_os2_apptype(struct magic_set *, const char *, const void *,
     size_t);
