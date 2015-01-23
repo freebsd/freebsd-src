@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <gelf.h>
 #include <libelf.h>
+#include <stdint.h>
 #include <stdlib.h>
 
 #include "_libelf.h"
@@ -55,8 +56,10 @@ _libelf_load_scn(Elf *e, void *ehdr)
 	assert((e->e_flags & LIBELF_F_SHDRS_LOADED) == 0);
 
 #define	CHECK_EHDR(E,EH)	do {				\
-		if (fsz != (EH)->e_shentsize ||			\
-		    shoff + fsz * shnum > e->e_rawsize) {	\
+		if (shoff > e->e_rawsize ||			\
+		    fsz != (EH)->e_shentsize ||			\
+		    shnum > SIZE_MAX / fsz ||			\
+		    fsz * shnum > e->e_rawsize - shoff) {	\
 			LIBELF_SET_ERROR(HEADER, 0);		\
 			return (0);				\
 		}						\
