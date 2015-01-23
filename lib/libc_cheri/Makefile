@@ -237,9 +237,13 @@ SRCS+=		subr_scanf.c
 SRCS+=		cheri_fd_stub.c		\
 		cheri_system_stub.c
 
+# Pull in ../Makefile.inc to define SHLIB_MAJOR so we can undef it.
+.include <bsd.init.mk>
+
 INCS=
-SHLIB_MAJOR=	1
 NO_MAN=		yes
+.undef SHLIB_MAJOR
+MK_PROFILE=	no
 USE_CHERI=	yes
 USE_CHERI_STACK=	yes
 WARNS?= 2
