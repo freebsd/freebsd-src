@@ -32,7 +32,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: softmagic.c,v 1.203 2014/12/04 15:22:05 christos Exp $")
+FILE_RCSID("@(#)$File: softmagic.c,v 1.206 2015/01/01 17:07:34 christos Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -404,28 +404,6 @@ strndup(const char *str, size_t n)
 }
 #endif /* HAVE_STRNDUP */
 
-static char *
-printable(char *buf, size_t bufsiz, const char *str)
-{
-	char *ptr, *eptr;
-	const unsigned char *s = (const unsigned char *)str;
-
-	for (ptr = buf, eptr = ptr + bufsiz - 1; ptr < eptr && *s; s++) {
-		if (isprint(*s)) {
-			*ptr++ = *s;
-			continue;
-		}
-		if (ptr >= eptr + 4)
-			break;
-		*ptr++ = '\\';
-		*ptr++ = ((*s >> 6) & 7) + '0';
-		*ptr++ = ((*s >> 3) & 7) + '0';
-		*ptr++ = ((*s >> 0) & 7) + '0';
-	}
-	*ptr = '\0';
-	return buf;
-}
-
 private int32_t
 mprint(struct magic_set *ms, struct magic *m)
 {
@@ -433,7 +411,7 @@ mprint(struct magic_set *ms, struct magic *m)
 	float vf;
 	double vd;
 	int64_t t = 0;
- 	char buf[128], tbuf[26];
+ 	char buf[128], tbuf[26], sbuf[512];
 	union VALUETYPE *p = &ms->ms_value;
 
   	switch (m->type) {
@@ -527,12 +505,13 @@ mprint(struct magic_set *ms, struct magic *m)
   	case FILE_BESTRING16:
   	case FILE_LESTRING16:
 		if (m->reln == '=' || m->reln == '!') {
-			if (file_printf(ms, F(ms, m, "%s"), m->value.s) == -1)
+			if (file_printf(ms, F(ms, m, "%s"), 
+			    file_printable(sbuf, sizeof(sbuf), m->value.s))
+			    == -1)
 				return -1;
 			t = ms->offset + m->vallen;
 		}
 		else {
-			char sbuf[512];
 			char *str = p->s;
 
 			/* compute t before we mangle the string? */
@@ -555,7 +534,7 @@ mprint(struct magic_set *ms, struct magic *m)
 			}
 
 			if (file_printf(ms, F(ms, m, "%s"),
-			    printable(sbuf, sizeof(sbuf), str)) == -1)
+			    file_printable(sbuf, sizeof(sbuf), str)) == -1)
 				return -1;
 
 			if (m->type == FILE_PSTRING)
@@ -659,7 +638,8 @@ mprint(struct magic_set *ms, struct magic *m)
 			file_oomem(ms, ms->search.rm_len);
 			return -1;
 		}
-		rval = file_printf(ms, F(ms, m, "%s"), cp);
+		rval = file_printf(ms, F(ms, m, "%s"),
+		    file_printable(sbuf, sizeof(sbuf), cp));
 		free(cp);
 
 		if (rval == -1)
@@ -673,7 +653,8 @@ mprint(struct magic_set *ms, struct magic *m)
 	}
 
 	case FILE_SEARCH:
-	  	if (file_printf(ms, F(ms, m, "%s"), m->value.s) == -1)
+	  	if (file_printf(ms, F(ms, m, "%s"),
+		    file_printable(sbuf, sizeof(sbuf), m->value.s)) == -1)
 			return -1;
 		if ((m->str_flags & REGEX_OFFSET_START))
 			t = ms->search.offset;
@@ -1684,6 +1665,8 @@ mget(struct magic_set *ms, const unsigned char *s, struct magic *m,
 		break;
 
 	case FILE_INDIRECT:
+		if (m->str_flags & INDIRECT_RELATIVE)
+			offset += o;
 		if (offset == 0)
 			return 0;
 
