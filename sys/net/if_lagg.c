@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/hash.h>
+#include <sys/fnv_hash.h>
 #include <sys/lock.h>
 #include <sys/rmlock.h>
 #include <sys/taskqueue.h>
@@ -1853,13 +1853,13 @@ lagg_hashmbuf(struct lagg_softc *sc, struct mbuf *m, uint32_t key)
 	eh = mtod(m, struct ether_header *);
 	etype = ntohs(eh->ether_type);
 	if (sc->sc_flags & LAGG_F_HASHL2) {
-		p = hash32_buf(&eh->ether_shost, ETHER_ADDR_LEN, p);
-		p = hash32_buf(&eh->ether_dhost, ETHER_ADDR_LEN, p);
+		p = fnv_32_buf(&eh->ether_shost, ETHER_ADDR_LEN, p);
+		p = fnv_32_buf(&eh->ether_dhost, ETHER_ADDR_LEN, p);
 	}
 
 	/* Special handling for encapsulating VLAN frames */
 	if ((m->m_flags & M_VLANTAG) && (sc->sc_flags & LAGG_F_HASHL2)) {
-		p = hash32_buf(&m->m_pkthdr.ether_vtag,
+		p = fnv_32_buf(&m->m_pkthdr.ether_vtag,
 		    sizeof(m->m_pkthdr.ether_vtag), p);
 	} else if (etype == ETHERTYPE_VLAN) {
 		vlan = lagg_gethdr(m, off,  sizeof(*vlan), &buf);
@@ -1867,7 +1867,7 @@ lagg_hashmbuf(struct lagg_softc *sc, struct mbuf *m, uint32_t key)
 			goto out;
 
 		if (sc->sc_flags & LAGG_F_HASHL2)
-			p = hash32_buf(&vlan->evl_tag, sizeof(vlan->evl_tag), p);
+			p = fnv_32_buf(&vlan->evl_tag, sizeof(vlan->evl_tag), p);
 		etype = ntohs(vlan->evl_proto);
 		off += sizeof(*vlan) - sizeof(*eh);
 	}
@@ -1880,8 +1880,8 @@ lagg_hashmbuf(struct lagg_softc *sc, struct mbuf *m, uint32_t key)
 			goto out;
 
 		if (sc->sc_flags & LAGG_F_HASHL3) {
-			p = hash32_buf(&ip->ip_src, sizeof(struct in_addr), p);
-			p = hash32_buf(&ip->ip_dst, sizeof(struct in_addr), p);
+			p = fnv_32_buf(&ip->ip_src, sizeof(struct in_addr), p);
+			p = fnv_32_buf(&ip->ip_dst, sizeof(struct in_addr), p);
 		}
 		if (!(sc->sc_flags & LAGG_F_HASHL4))
 			break;
@@ -1896,7 +1896,7 @@ lagg_hashmbuf(struct lagg_softc *sc, struct mbuf *m, uint32_t key)
 				ports = lagg_gethdr(m, off, sizeof(*ports), &buf);
 				if (ports == NULL)
 					break;
-				p = hash32_buf(ports, sizeof(*ports), p);
+				p = fnv_32_buf(ports, sizeof(*ports), p);
 				break;
 		}
 		break;
@@ -1909,10 +1909,10 @@ lagg_hashmbuf(struct lagg_softc *sc, struct mbuf *m, uint32_t key)
 		if (ip6 == NULL)
 			goto out;
 
-		p = hash32_buf(&ip6->ip6_src, sizeof(struct in6_addr), p);
-		p = hash32_buf(&ip6->ip6_dst, sizeof(struct in6_addr), p);
+		p = fnv_32_buf(&ip6->ip6_src, sizeof(struct in6_addr), p);
+		p = fnv_32_buf(&ip6->ip6_dst, sizeof(struct in6_addr), p);
 		flow = ip6->ip6_flow & IPV6_FLOWLABEL_MASK;
-		p = hash32_buf(&flow, sizeof(flow), p);	/* IPv6 flow label */
+		p = fnv_32_buf(&flow, sizeof(flow), p);	/* IPv6 flow label */
 		break;
 #endif
 	}
@@ -2087,12 +2087,15 @@ lagg_lb_attach(struct lagg_softc *sc)
 {
 	struct lagg_port *lp;
 	struct lagg_lb *lb;
+	uint32_t seed;
 
 	lb = malloc(sizeof(struct lagg_lb), M_DEVBUF, M_WAITOK | M_ZERO);
 
 	sc->sc_capabilities = IFCAP_LAGG_FULLDUPLEX;
 
-	lb->lb_key = arc4random();
+	seed = arc4random();
+	lb->lb_key = FNV1_32_INIT;
+	lb->lb_key = fnv_32_buf(&seed, sizeof(seed), lb->lb_key);
 	sc->sc_psc = lb;
 
 	SLIST_FOREACH(lp, &sc->sc_ports, lp_entries)
