@@ -1,8 +1,0 @@
-pancakes_t {
-    int i = 0x14
-    string s = [ "I like pancakes" ]
-    timespec_t t = {
-        time_t tv_sec = 0
-        long tv_nsec = 0
-    }
-}

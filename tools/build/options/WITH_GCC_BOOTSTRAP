@@ -1,2 +1,0 @@
-.\" $FreeBSD$
-Set to build gcc and g++ as part of the bootstrap process.

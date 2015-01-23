@@ -1,5 +1,0 @@
-include start
-call OK addnstr "abcdefg" 5
-call OK refresh
-# should be the same as addstr
-compare addstr.chk

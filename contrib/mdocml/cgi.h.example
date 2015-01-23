@@ -1,9 +1,0 @@
-/* Example compile-time configuration file for man.cgi(8). */
-
-#define	HTTP_HOST "mdocml.bsd.lv"
-#define	MAN_DIR "/var/www/man"
-#define	CSS_DIR ""
-#define	CUSTOMIZE_TITLE "Manual pages with mandoc"
-#define	CUSTOMIZE_BEGIN "<H2>\nManual pages with " \
-	"<A HREF=\"http://mdocml.bsd.lv/\">mandoc</A>\n</H2>"
-#define	COMPAT_OLDURI Yes

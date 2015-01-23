@@ -1,6 +1,0 @@
-before dotcmd
-subshell start
-before continue
-after continue, return value: 0
-subshell end
-after dotcmd, return value: 0

@@ -1,1 +1,0 @@
-#define YYERRCODE 256

@@ -1,6 +1,0 @@
-before dotcmd
-before case
-before break
-after break, return value: 0
-after case
-after dotcmd, return value: 0

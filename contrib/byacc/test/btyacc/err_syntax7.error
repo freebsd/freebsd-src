@@ -1,3 +1,0 @@
-YACC: e - line 6 of "./err_syntax7.y", illegal character
-%token <text> '\777'
-               ^

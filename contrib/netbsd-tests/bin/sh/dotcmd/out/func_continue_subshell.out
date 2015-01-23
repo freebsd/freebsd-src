@@ -1,8 +1,0 @@
-before function
-before dotcmd
-subshell start
-before continue
-after continue, return value: 0
-subshell end
-after dotcmd
-after function

@@ -1,3 +1,0 @@
-.\" $FreeBSD$
-Set to not to install compressed man pages.
-Only the uncompressed versions will be installed.
