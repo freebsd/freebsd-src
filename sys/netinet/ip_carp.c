@@ -2001,13 +2001,13 @@ carp_sc_state(struct carp_softc *sc)
 #ifdef INET6
 		callout_stop(&sc->sc_md6_tmo);
 #endif
-		carp_set_state(sc, INIT, "hw interface down");
+		carp_set_state(sc, INIT, "hardware interface down");
 		carp_setrun(sc, 0);
 		if (!sc->sc_suppress)
 			carp_demote_adj(V_carp_ifdown_adj, "interface down");
 		sc->sc_suppress = 1;
 	} else {
-		carp_set_state(sc, INIT, "hw interface up");
+		carp_set_state(sc, INIT, "hardware interface up");
 		carp_setrun(sc, 0);
 		if (sc->sc_suppress)
 			carp_demote_adj(-V_carp_ifdown_adj, "interface up");
