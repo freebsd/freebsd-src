@@ -411,7 +411,7 @@ getuptime(void)
 {
 	struct timespec sp;
 
-	(void)clock_gettime(CLOCK_MONOTONIC, &sp);
+	(void)clock_gettime(CLOCK_UPTIME, &sp);
 
 	return(sp.tv_sec);
 }
