@@ -237,14 +237,14 @@ extern void	*rfid_patch, *rfi_patch1, *rfi_patch2;
 extern void	*trapcode64;
 #endif
 
-extern void	*rstcode, *rstsize;
-extern void	*trapcode, *trapsize, *trapcode2;
-extern void	*slbtrap, *slbtrapsize;
-extern void	*alitrap, *alisize;
-extern void	*dsitrap, *dsisize;
+extern void	*rstcode, *rstcodeend;
+extern void	*trapcode, *trapcodeend, *trapcode2;
+extern void	*slbtrap, *slbtrapend;
+extern void	*alitrap, *aliend;
+extern void	*dsitrap, *dsiend;
 extern void	*decrint, *decrsize;
 extern void     *extint, *extsize;
-extern void	*dblow, *dbsize;
+extern void	*dblow, *dbend;
 extern void	*imisstrap, *imisssize;
 extern void	*dlmisstrap, *dlmisssize;
 extern void	*dsmisstrap, *dsmisssize;
@@ -255,7 +255,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	struct		pcpu *pc;
 	vm_offset_t	startkernel, endkernel;
 	void		*generictrap;
-	size_t		trap_offset;
+	size_t		trap_offset, trapsize;
 	void		*kmdp;
         char		*env;
 	register_t	msr, scratch;
@@ -513,35 +513,44 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 	*((register_t *)TRAP_TOCBASE) = toc;
 	#endif
 
-	bcopy(&rstcode, (void *)(EXC_RST + trap_offset),  (size_t)&rstsize);
+	trapsize = (size_t)&trapcodeend - (size_t)&trapcode;
+
+	bcopy(&rstcode, (void *)(EXC_RST + trap_offset), (size_t)&rstcodeend -
+	    (size_t)&rstcode);
 
 #ifdef KDB
-	bcopy(&dblow,	(void *)(EXC_MCHK + trap_offset), (size_t)&dbsize);
-	bcopy(&dblow,   (void *)(EXC_PGM + trap_offset),  (size_t)&dbsize);
-	bcopy(&dblow,   (void *)(EXC_TRC + trap_offset),  (size_t)&dbsize);
-	bcopy(&dblow,   (void *)(EXC_BPT + trap_offset),  (size_t)&dbsize);
+	bcopy(&dblow, (void *)(EXC_MCHK + trap_offset), (size_t)&dbend -
+	    (size_t)&dblow);
+	bcopy(&dblow, (void *)(EXC_PGM + trap_offset), (size_t)&dbend -
+	    (size_t)&dblow);
+	bcopy(&dblow, (void *)(EXC_TRC + trap_offset), (size_t)&dbend -
+	    (size_t)&dblow);
+	bcopy(&dblow, (void *)(EXC_BPT + trap_offset), (size_t)&dbend -
+	    (size_t)&dblow);
 #else
-	bcopy(generictrap, (void *)EXC_MCHK, (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_PGM,  (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_TRC,  (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_BPT,  (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_MCHK, trapsize);
+	bcopy(generictrap, (void *)EXC_PGM,  trapsize);
+	bcopy(generictrap, (void *)EXC_TRC,  trapsize);
+	bcopy(generictrap, (void *)EXC_BPT,  trapsize);
 #endif
-	bcopy(&alitrap,  (void *)(EXC_ALI + trap_offset),  (size_t)&alisize);
-	bcopy(&dsitrap,  (void *)(EXC_DSI + trap_offset),  (size_t)&dsisize);
-	bcopy(generictrap, (void *)EXC_ISI,  (size_t)&trapsize);
+	bcopy(&alitrap,  (void *)(EXC_ALI + trap_offset),  (size_t)&aliend -
+	    (size_t)&alitrap);
+	bcopy(&dsitrap,  (void *)(EXC_DSI + trap_offset),  (size_t)&dsitrap -
+	    (size_t)&dsitrap);
+	bcopy(generictrap, (void *)EXC_ISI,  trapsize);
 	#ifdef __powerpc64__
-	bcopy(&slbtrap, (void *)EXC_DSE,  (size_t)&slbtrapsize);
-	bcopy(&slbtrap, (void *)EXC_ISE,  (size_t)&slbtrapsize);
+	bcopy(&slbtrap, (void *)EXC_DSE,(size_t)&slbtrapend - (size_t)&slbtrap);
+	bcopy(&slbtrap, (void *)EXC_ISE,(size_t)&slbtrapend - (size_t)&slbtrap);
 	#endif
-	bcopy(generictrap, (void *)EXC_EXI,  (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_FPU,  (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_DECR, (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_SC,   (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_FPA,  (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_VEC,  (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_PERF,  (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_VECAST_G4, (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_VECAST_G5, (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_EXI,  trapsize);
+	bcopy(generictrap, (void *)EXC_FPU,  trapsize);
+	bcopy(generictrap, (void *)EXC_DECR, trapsize);
+	bcopy(generictrap, (void *)EXC_SC,   trapsize);
+	bcopy(generictrap, (void *)EXC_FPA,  trapsize);
+	bcopy(generictrap, (void *)EXC_VEC,  trapsize);
+	bcopy(generictrap, (void *)EXC_PERF,  trapsize);
+	bcopy(generictrap, (void *)EXC_VECAST_G4, trapsize);
+	bcopy(generictrap, (void *)EXC_VECAST_G5, trapsize);
 	#ifndef __powerpc64__
 	/* G2-specific TLB miss helper handlers */
 	bcopy(&imisstrap, (void *)EXC_IMISS,  (size_t)&imisssize);
