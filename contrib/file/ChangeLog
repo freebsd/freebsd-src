@@ -1,3 +1,29 @@
+2015-01-02  15:15  Christos Zoulas <christos@zoulas.com>
+
+	* release 5.22
+
+2015-01-01  12:01  Christos Zoulas <christos@zoulas.com>
+
+	* add indirect relative for TIFF/Exif
+
+2014-12-16  18:10  Christos Zoulas <christos@zoulas.com>
+	
+	* restructure elf note printing to avoid repeated messages
+	* add note limit, suggested by Alexander Cherepanov
+
+2014-12-16  16:53  Christos Zoulas <christos@zoulas.com>
+	
+	* Bail out on partial pread()'s (Alexander Cherepanov)
+	* Fix incorrect bounds check in file_printable (Alexander Cherepanov)
+
+2014-12-11  20:01  Christos Zoulas <christos@zoulas.com>
+
+	* PR/405: ignore SIGPIPE from uncompress programs
+	* change printable -> file_printable and use it in
+	  more places for safety
+	* in ELF, instead of "(uses dynamic libraries)" when PT_INTERP
+	  is present print the interpreter name.
+	
 2014-12-10  20:01  Christos Zoulas <christos@zoulas.com>
 
 	* release 5.21
@@ -22,6 +48,8 @@
 	    - abort elf note processing quickly
 	    - reduce the number of recursion levels from 20 to 10
 	    - preserve error messages in indirect magic handling
+
+	This is tracked as CVE-2014-8116 and CVE-2014-8117
 
 2014-11-12  10:30  Christos Zoulas <christos@zoulas.com>
 
