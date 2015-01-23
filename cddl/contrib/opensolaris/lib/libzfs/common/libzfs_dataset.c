@@ -2609,7 +2609,7 @@ userquota_propname_decode(const char *propname, boolean_t zoned,
 	boolean_t isuser;
 
 	domain[0] = '\0';
-
+	*ridp = 0;
 	/* Figure out the property type ({user|group}{quota|space}) */
 	for (type = 0; type < ZFS_NUM_USERQUOTA_PROPS; type++) {
 		if (strncmp(propname, zfs_userquota_prop_prefixes[type],
@@ -2631,23 +2631,46 @@ userquota_propname_decode(const char *propname, boolean_t zoned,
 		 * It's a SID name (eg "user@domain") that needs to be
 		 * turned into S-1-domainID-RID.
 		 */
-		directory_error_t e;
+		int flag = 0;
+		idmap_stat stat, map_stat;
+		uid_t pid;
+		idmap_rid_t rid;
+		idmap_get_handle_t *gh = NULL;
+
+		stat = idmap_get_create(&gh);
+		if (stat != IDMAP_SUCCESS) {
+			idmap_get_destroy(gh);
+			return (ENOMEM);
+		}
 		if (zoned && getzoneid() == GLOBAL_ZONEID)
 			return (ENOENT);
 		if (isuser) {
-			e = directory_sid_from_user_name(NULL,
-			    cp, &numericsid);
+			stat = idmap_getuidbywinname(cp, NULL, flag, &pid);
+			if (stat < 0)
+				return (ENOENT);
+			stat = idmap_get_sidbyuid(gh, pid, flag, &numericsid,
+			    &rid, &map_stat);
 		} else {
-			e = directory_sid_from_group_name(NULL,
-			    cp, &numericsid);
+			stat = idmap_getgidbywinname(cp, NULL, flag, &pid);
+			if (stat < 0)
+				return (ENOENT);
+			stat = idmap_get_sidbygid(gh, pid, flag, &numericsid,
+			    &rid, &map_stat);
 		}
-		if (e != NULL) {
-			directory_error_free(e);
+		if (stat < 0) {
+			idmap_get_destroy(gh);
+			return (ENOENT);
+		}
+		stat = idmap_get_mappings(gh);
+		idmap_get_destroy(gh);
+
+		if (stat < 0) {
 			return (ENOENT);
 		}
 		if (numericsid == NULL)
 			return (ENOENT);
 		cp = numericsid;
+		*ridp = rid;
 		/* will be further decoded below */
 #else	/* !sun */
 		return (ENOENT);
@@ -2657,12 +2680,15 @@ userquota_propname_decode(const char *propname, boolean_t zoned,
 	if (strncmp(cp, "S-1-", 4) == 0) {
 		/* It's a numeric SID (eg "S-1-234-567-89") */
 		(void) strlcpy(domain, cp, domainlen);
-		cp = strrchr(domain, '-');
-		*cp = '\0';
-		cp++;
-
 		errno = 0;
-		*ridp = strtoull(cp, &end, 10);
+		if (*ridp == 0) {
+			cp = strrchr(domain, '-');
+			*cp = '\0';
+			cp++;
+			*ridp = strtoull(cp, &end, 10);
+		} else {
+			end = "";
+		}
 		if (numericsid) {
 			free(numericsid);
 			numericsid = NULL;
