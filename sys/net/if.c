@@ -2302,8 +2302,14 @@ if_drvioctl(u_long cmd, struct ifnet *ifp, void *data, struct thread *td)
 		break;
 
 	case SIOCGIFFLAGS:
-		ifr->ifr_flagslow = ifp->if_flags & 0xffff;
+		ifr->ifr_flags = ifp->if_flags & 0xffff;
 		ifr->ifr_flagshigh = ifp->if_flags >> 16;
+		/*
+		 * Some software may care about IFF_RUNNING, so make
+		 * it happy.
+		 */
+		if (ifp->if_flags & IFF_UP)
+			ifr->ifr_flags |= IFF_RUNNING;
 		break;
 
 	case SIOCGIFCAP:
@@ -2406,7 +2412,7 @@ if_drvioctl(u_long cmd, struct ifnet *ifp, void *data, struct thread *td)
 		 * they come from userland in two parts, that
 		 * we need to swap.
 		 */
-		flags = (ifr->ifr_flagslow & 0xffff) |
+		flags = (ifr->ifr_flags & 0xffff) |
 		    (ifr->ifr_flagshigh << 16);
 		if ((flags & IFF_CANTCHANGE) !=
 		    (ifp->if_flags & IFF_CANTCHANGE))
@@ -2414,11 +2420,11 @@ if_drvioctl(u_long cmd, struct ifnet *ifp, void *data, struct thread *td)
 		/*
 		 * Pass new flags down to driver and see if it accepts them.
 		 */
-		ifr->ifr_flags = flags;
 		error = if_ioctl(ifp, cmd, data, td);
 		if (error)
 			return (error);
-		flags = ifr->ifr_flags;
+		flags = (ifr->ifr_flags & 0xffff) |
+		    (ifr->ifr_flagshigh << 16);
 		/*
 		 * Manage IFF_UP flip.
 		 */
