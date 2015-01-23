@@ -88,7 +88,6 @@ SUBDIR+=	sa
 
 .if ${MK_ACPI} != "no" || ${MK_APM} != "no"
 SUBDIR+=	powerd
-SUBDIR+=	zzz
 .endif
 
 .if ${MK_AMD} != "no"
