@@ -39,6 +39,7 @@
 #include <cheri/cheri_memcpy.h>
 #include <cheri/cheri_system.h>
 
+#include <errno.h>
 #include <png.h>
 #include <stdlib.h>
 #include <string.h>
@@ -89,7 +90,7 @@ invoke(uint32_t width, uint32_t height, size_t pnglen __unused,
 	pngwidth = width;
 
 	if ((isp = calloc(1, sizeof(*isp))) == NULL)
-		return (1);
+		return (ENOMEM);
 
 	isp->width = width;
 	isp->height = height;
@@ -97,7 +98,7 @@ invoke(uint32_t width, uint32_t height, size_t pnglen __unused,
 	isp->sb = SB_CHERI;
 
 	if ((idsp = calloc(1, sizeof(*idsp))) == NULL)
-		return (1);
+		return (ENOMEM);
 
 	idsp->fd = -1;
 	idsp->offset = 0;
@@ -107,7 +108,7 @@ invoke(uint32_t width, uint32_t height, size_t pnglen __unused,
 	 */
 	idsp->is = isp;
 	if ((idsp->buffer = malloc(sizeof(uint32_t) * width * height)) == NULL)
-		return (1);
+		return (ENOMEM);
 	idsp->incap = png_in;
 
 	decode_png(idsp, cheri_read_data, cheri_read_row_callback);
