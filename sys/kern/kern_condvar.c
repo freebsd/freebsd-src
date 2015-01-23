@@ -313,13 +313,15 @@ _cv_timedwait_sbt(struct cv *cvp, struct lock_object *lock, sbintime_t sbt,
 	DROP_GIANT();
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR, 0);
-	sleepq_release(cvp);
 	sleepq_set_timeout_sbt(cvp, sbt, pr, flags);
 	if (lock != &Giant.lock_object) {
+		if (class->lc_flags & LC_SLEEPABLE)
+			sleepq_release(cvp);
 		WITNESS_SAVE(lock, lock_witness);
 		lock_state = class->lc_unlock(lock);
+		if (class->lc_flags & LC_SLEEPABLE)
+			sleepq_lock(cvp);
 	}
-	sleepq_lock(cvp);
 	rval = sleepq_timedwait(cvp, 0);
 
 #ifdef KTRACE
@@ -381,13 +383,15 @@ _cv_timedwait_sig_sbt(struct cv *cvp, struct lock_object *lock,
 
 	sleepq_add(cvp, lock, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE, 0);
-	sleepq_release(cvp);
 	sleepq_set_timeout_sbt(cvp, sbt, pr, flags);
 	if (lock != &Giant.lock_object) {
+		if (class->lc_flags & LC_SLEEPABLE)
+			sleepq_release(cvp);
 		WITNESS_SAVE(lock, lock_witness);
 		lock_state = class->lc_unlock(lock);
+		if (class->lc_flags & LC_SLEEPABLE)
+			sleepq_lock(cvp);
 	}
-	sleepq_lock(cvp);
 	rval = sleepq_timedwait_sig(cvp, 0);
 
 #ifdef KTRACE

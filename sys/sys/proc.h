@@ -308,7 +308,6 @@ struct thread {
 	} td_uretoff;			/* (k) Syscall aux returns. */
 #define td_retval	td_uretoff.tdu_retval
 	struct callout	td_slpcallout;	/* (h) Callout for sleep. */
-	struct mtx	td_slpmutex;	/* (h) Mutex for sleep callout */
 	struct trapframe *td_frame;	/* (k) */
 	struct vm_object *td_kstack_obj;/* (a) Kstack object. */
 	vm_offset_t	td_kstack;	/* (a) Kernel VA of kstack. */
@@ -365,7 +364,7 @@ do {									\
 #define	TDF_ALLPROCSUSP	0x00000200 /* suspended by SINGLE_ALLPROC */
 #define	TDF_BOUNDARY	0x00000400 /* Thread suspended at user boundary */
 #define	TDF_ASTPENDING	0x00000800 /* Thread has some asynchronous events. */
-#define	TDF_UNUSED12	0x00001000 /* --available-- */
+#define	TDF_TIMOFAIL	0x00001000 /* Timeout from sleep after we were awake. */
 #define	TDF_SBDRY	0x00002000 /* Stop only on usermode boundary. */
 #define	TDF_UPIBLOCKED	0x00004000 /* Thread blocked on user PI mutex. */
 #define	TDF_NEEDSUSPCHK	0x00008000 /* Thread may need to suspend. */
@@ -707,7 +706,7 @@ struct proc {
 #define	SWT_OWEPREEMPT		2	/* Switching due to opepreempt. */
 #define	SWT_TURNSTILE		3	/* Turnstile contention. */
 #define	SWT_SLEEPQ		4	/* Sleepq wait. */
-#define	SWT_UNUSED5		5	/* --available-- */
+#define	SWT_SLEEPQTIMO		5	/* Sleepq timeout wait. */
 #define	SWT_RELINQUISH		6	/* yield call. */
 #define	SWT_NEEDRESCHED		7	/* NEEDRESCHED was set. */
 #define	SWT_IDLE		8	/* Switching from the idle thread. */

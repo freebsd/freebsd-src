@@ -55,9 +55,6 @@ struct tcb {
 	struct pthread		*tcb_thread;
 };
 
-struct tcb	*_tcb_ctor(struct pthread *, int);
-void		_tcb_dtor(struct tcb *);
-
 static __inline void
 _tcb_set(struct tcb *tcb)
 {

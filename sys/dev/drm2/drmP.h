@@ -1246,6 +1246,7 @@ int	drm_ati_pcigart_cleanup(struct drm_device *dev,
 
 /* Cache management (drm_memory.c) */
 void	drm_clflush_pages(vm_page_t *pages, unsigned long num_pages);
+void	drm_clflush_virt_range(char *addr, unsigned long length);
 
 /* Locking IOCTL support (drm_drv.c) */
 int	drm_lock(struct drm_device *dev, void *data,
