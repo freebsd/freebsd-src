@@ -813,7 +813,10 @@
     <sect2 xml:id="releng">
       <title>Release Engineering and Integration</title>
 
-      <para>&nbsp;</para>
+      <para revision="277458" contrib="sponsor" sponsor="&ff;">The
+	Release Engineering build tools have been updated to include
+	support for producing virtual machine disk images for various
+	cloud hosting providers.</para>
     </sect2>
 
     <sect2 xml:id="doc">
