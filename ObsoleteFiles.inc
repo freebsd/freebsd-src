@@ -440,6 +440,7 @@ OLD_FILES+=var/named/etc/namedb/master/localhost-forward.db
 OLD_FILES+=var/named/etc/namedb/master/localhost-reverse.db
 #OLD_FILES+=var/named/etc/namedb/named.conf	# intentionally left out
 OLD_FILES+=var/named/etc/namedb/named.root
+OLD_DIRS+=var/named/etc/namedb/working
 OLD_DIRS+=var/named/etc/namedb/slave
 OLD_DIRS+=var/named/var
 OLD_DIRS+=var/named/var/dump
