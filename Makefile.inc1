@@ -1437,6 +1437,9 @@ _elftctools=	lib/libelftc \
 		usr.bin/nm \
 		usr.bin/size \
 		usr.bin/strings
+# These are not required by the build, but can be useful for developers who
+# cross-build on a FreeBSD 10 host:
+_elftctools+=	usr.bin/addr2line
 .endif
 .endif
 
