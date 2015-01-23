@@ -645,10 +645,8 @@ EcGpeQueryHandler(void *Context)
 	Status = EcCommand(sc, EC_COMMAND_QUERY);
 	if (ACPI_SUCCESS(Status))
 	    break;
-	if (ACPI_SUCCESS(EcCheckStatus(sc, "retr_check",
+	if (ACPI_FAILURE(EcCheckStatus(sc, "retr_check",
 	    EC_EVENT_INPUT_BUFFER_EMPTY)))
-	    continue;
-	else
 	    break;
     }
     sc->ec_sci_pend = FALSE;
@@ -963,15 +961,13 @@ EcRead(struct acpi_ec_softc *sc, UINT8 Address, UINT8 *Data)
 	gen_count = sc->ec_gencount;
 	EC_SET_DATA(sc, Address);
 	status = EcWaitEvent(sc, EC_EVENT_OUTPUT_BUFFER_FULL, gen_count);
-	if (ACPI_FAILURE(status)) {
-	    if (ACPI_SUCCESS(EcCheckStatus(sc, "retr_check",
-		EC_EVENT_INPUT_BUFFER_EMPTY)))
-		continue;
-	    else
-		break;
+	if (ACPI_SUCCESS(status)) {
+	    *Data = EC_GET_DATA(sc);
+	    return (AE_OK);
 	}
-	*Data = EC_GET_DATA(sc);
-	return (AE_OK);
+	if (ACPI_FAILURE(EcCheckStatus(sc, "retr_check",
+	    EC_EVENT_INPUT_BUFFER_EMPTY)))
+	    break;
     }
     device_printf(sc->ec_dev, "EcRead: failed waiting to get data\n");
     return (status);
