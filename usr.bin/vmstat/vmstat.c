@@ -163,7 +163,7 @@ static void	printhdr(int, u_long);
 static void	usage(void);
 
 static long	pct(long, long);
-static long	getuptime(void);
+static long long	getuptime(void);
 
 static char   **getdrivedata(char **);
 
@@ -406,14 +406,15 @@ getdrivedata(char **argv)
 	return(argv);
 }
 
-static long
+/* Return system uptime in nanoseconds */
+static long long
 getuptime(void)
 {
 	struct timespec sp;
 
 	(void)clock_gettime(CLOCK_UPTIME, &sp);
 
-	return(sp.tv_sec);
+	return((long long)sp.tv_sec * 1000000000LL + sp.tv_nsec);
 }
 
 static void
@@ -654,7 +655,7 @@ dovmstat(unsigned int interval, int reps)
 	u_long cpumask;
 	int rate_adj;
 
-	uptime = getuptime();
+	uptime = getuptime() / 1000000000LL;
 	halfuptime = uptime / 2;
 	rate_adj = 1;
 	ncpus = 1;
@@ -1192,7 +1193,7 @@ read_intrcnts(unsigned long **intrcnts)
 static void
 print_intrcnts(unsigned long *intrcnts, unsigned long *old_intrcnts,
 		char *intrnames, unsigned int nintr,
-		size_t istrnamlen, unsigned long long period)
+		size_t istrnamlen, long long period_ms)
 {
 	unsigned long *intrcnt, *old_intrcnt;
 	uint64_t inttotal, old_inttotal, total_count, total_rate;
@@ -1207,7 +1208,7 @@ print_intrcnts(unsigned long *intrcnts, unsigned long *old_intrcnts,
 			unsigned long count, rate;
 
 			count = *intrcnt - *old_intrcnt;
-			rate = (count * 1000 + period/2) / period;
+			rate = (count * 1000 + period_ms / 2) / period_ms;
 			(void)printf("%-*s %20lu %10lu\n", (int)istrnamlen,
 			    intrname, count, rate);
 		}
@@ -1216,7 +1217,7 @@ print_intrcnts(unsigned long *intrcnts, unsigned long *old_intrcnts,
 		old_inttotal += *old_intrcnt++;
 	}
 	total_count = inttotal - old_inttotal;
-	total_rate = (total_count * 1000 + period/2) / period;
+	total_rate = (total_count * 1000 + period_ms / 2) / period_ms;
 	(void)printf("%-*s %20" PRIu64 " %10" PRIu64 "\n", (int)istrnamlen,
 	    "Total", total_count, total_rate);
 }
@@ -1225,10 +1226,9 @@ static void
 dointr(unsigned int interval, int reps)
 {
 	unsigned long *intrcnts;
-	unsigned long long uptime, period;
+	long long uptime, period_ms;
 	unsigned long *old_intrcnts = NULL;
 	size_t clen, inamlen, istrnamlen;
-	unsigned int rep;
 	char *intrnames, *intrname;
 
 	uptime = getuptime();
@@ -1265,10 +1265,10 @@ dointr(unsigned int interval, int reps)
 	 * Loop reps times printing differential interrupt counts.  If reps is
 	 * zero, then run just once, printing total counts
 	 */
-	period = uptime * 1000;
+	period_ms = uptime / 1000000;
 	while(1) {
-		char *intrname;
 		unsigned int nintr;
+		long long old_uptime;
 
 		nintr = read_intrcnts(&intrcnts);
 		/* 
@@ -1282,14 +1282,16 @@ dointr(unsigned int interval, int reps)
 		}
 
 		print_intrcnts(intrcnts, old_intrcnts, intrnames, nintr,
-		    istrnamlen, period);
+		    istrnamlen, period_ms);
 
 		free(old_intrcnts);
 		old_intrcnts = intrcnts;
 		if (reps >= 0 && --reps <= 0)
 			break;
 		usleep(interval * 1000);
-		period = interval;
+		old_uptime = uptime;
+		uptime = getuptime();
+		period_ms = (uptime - old_uptime) / 1000000;
 	}
 }
 
