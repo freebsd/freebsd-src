@@ -1702,12 +1702,14 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 			switch (carpr.carpr_state) {
 			case BACKUP:
 				callout_stop(&sc->sc_ad_tmo);
-				carp_set_state(sc, BACKUP, "SIOCSVH");
+				carp_set_state(sc, BACKUP,
+				    "user requested via ifconfig");
 				carp_setrun(sc, 0);
 				carp_delroute(sc);
 				break;
 			case MASTER:
-				carp_master_down_locked(sc, "SIOCSVH");
+				carp_master_down_locked(sc,
+				    "user requested via ifconfig");
 				break;
 			default:
 				break;
