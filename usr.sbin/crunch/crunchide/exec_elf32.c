@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 
 #include <errno.h>
 #include <limits.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -464,7 +465,7 @@ ELFNAMEEND(hide)(int fd, const char *fn)
 			if (layoutp[i].shdr == &shdrshdr &&
 			    ehdr.e_shoff != shdrshdr.sh_offset) {
 				ehdr.e_shoff = shdrshdr.sh_offset;
-				off = (ELFSIZE == 32) ? 32 : 44;
+				off = offsetof(Elf_Ehdr, e_shoff);
 				size = sizeof(Elf_Off);
 				if ((size_t)xwriteatoff(fd, &ehdr.e_shoff, off, size,
 				    fn) != size)
