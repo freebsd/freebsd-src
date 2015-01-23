@@ -29,7 +29,7 @@
 .\"	@(#)symlink.7	8.3 (Berkeley) 3/31/94
 .\" $FreeBSD$
 .\"
-.Dd December 29, 2014
+.Dd January 23, 2015
 .Dt SYMLINK 7
 .Os
 .Sh NAME
@@ -147,9 +147,10 @@ unless given the
 .Dv AT_SYMLINK_NOFOLLOW
 flag:
 .Xr fchmodat 2 ,
-.Xr fchownat 2
+.Xr fchownat 2 ,
+.Xr fstatat 2
 and
-.Xr fstatat 2 .
+.Xr utimensat 2 .
 .Pp
 The owner and group of an existing symbolic link can be changed by
 means of the
