@@ -985,7 +985,7 @@ ether_ioctl(struct ifnet *ifp, u_long command, void *data, struct thread *td)
 		}
 		break;
 	default:
-		error = EINVAL;			/* XXX netbsd has ENOTTY??? */
+		error = EOPNOTSUPP;
 		break;
 	}
 	return (error);
