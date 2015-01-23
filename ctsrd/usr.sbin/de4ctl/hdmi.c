@@ -393,7 +393,11 @@ pll_reconfig_status(int fd)
 static void
 pll_timing_params(int m, int n, int c0)
 {
-	int altpll_fd = open("/dev/altpll_reconfig", O_RDWR);
+	int altpll_fd;
+
+	altpll_fd = open("/dev/altpll_reconfig", O_RDWR);
+	if (altpll_fd == -1)
+		altpll_fd = open("/dev/altpll0", O_RDWR);
 	if (altpll_fd == -1)
 		perror("open");
 
