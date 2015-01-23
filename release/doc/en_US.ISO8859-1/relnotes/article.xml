@@ -791,6 +791,11 @@
 	<application>strings</application> were switched to the
 	versions from the ELF Tool Chain project.</para>
 
+      <para revision="276881">The <literal>libedit</literal> library
+	has been updated to include <acronym>UTF-8</acronym> support,
+	adding <acronym>UTF-8</acronym> support to the &man.sh.1;
+	shell.</para>
+
       <para revision="277270"><application>OpenSSL</application> has
 	been updated to version 1.0.1l.</para>
     </sect2>
