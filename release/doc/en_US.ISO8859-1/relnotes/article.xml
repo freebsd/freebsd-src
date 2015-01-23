@@ -691,6 +691,10 @@
 	has been updated to support <acronym>UTF</acronym>-8, which
 	additionally provides unicode support to &man.sh.1;.</para>
 
+      <para revision="277166" arch="powerpc">The &man.ptrace.2; system
+	call has been updated include support for Altivec registers on
+	&os;/&arch.powerpc;.</para>
+
       <sect3 xml:id="abi-compat">
 	<title><acronym>ABI</acronym> Compatibility</title>
 
