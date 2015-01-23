@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/smp.h>
 #include <sys/stat.h>
+#include <sys/endian.h>
 
 #include <net/ethernet.h>
 
@@ -211,12 +212,89 @@ parse_ofw_memory(phandle_t node, const char *prop, struct mem_region *output)
 	return (sz);
 }
 
+static int
+excise_fdt_reserved(struct mem_region *avail, int asz)
+{
+	struct {
+		uint64_t address;
+		uint64_t size;
+	} fdtmap[16];
+	ssize_t fdtmapsize;
+	phandle_t chosen;
+	int i, j, k;
+
+	chosen = OF_finddevice("/chosen");
+	fdtmapsize = OF_getprop(chosen, "fdtmemreserv", fdtmap, sizeof(fdtmap));
+
+	for (j = 0; j < fdtmapsize/sizeof(fdtmap[0]); j++) {
+		fdtmap[j].address = be64toh(fdtmap[j].address);
+		fdtmap[j].size = be64toh(fdtmap[j].size);
+	}
+
+	for (i = 0; i < asz; i++) {
+		for (j = 0; j < fdtmapsize/sizeof(fdtmap[0]); j++) {
+			/*
+			 * Case 1: Exclusion region encloses complete
+			 * available entry. Drop it and move on.
+			 */
+			if (fdtmap[j].address <= avail[i].mr_start &&
+			    fdtmap[j].address + fdtmap[j].size >=
+			    avail[i].mr_start + avail[i].mr_size) {
+				for (k = i+1; k < asz; k++)
+					avail[k-1] = avail[k];
+				asz--;
+				i--; /* Repeat some entries */
+				continue;
+			}
+
+			/*
+			 * Case 2: Exclusion region starts in available entry.
+			 * Trim it to where the entry begins and append
+			 * a new available entry with the region after
+			 * the excluded region, if any.
+			 */
+			if (fdtmap[j].address >= avail[i].mr_start &&
+			    fdtmap[j].address < avail[i].mr_start +
+			    avail[i].mr_size) {
+				if (fdtmap[j].address + fdtmap[j].size < 
+				    avail[i].mr_start + avail[i].mr_size) {
+					avail[asz].mr_start =
+					    roundup2(fdtmap[j].address +
+					    fdtmap[j].size, PAGE_SIZE);
+					avail[asz].mr_size = avail[i].mr_start +
+					     avail[i].mr_size -
+					     avail[asz].mr_start;
+					asz++;
+				}
+
+				avail[i].mr_size =
+				    rounddown2(fdtmap[j].address, PAGE_MASK) -
+				    avail[i].mr_start;
+			}
+
+			/*
+			 * Case 3: Exclusion region ends in available entry.
+			 * Move start point to where the exclusion zone ends.
+			 * The case of a contained exclusion zone has already
+			 * been caught in case 2.
+			 */
+			if (fdtmap[j].address + fdtmap[j].size >=
+			    avail[i].mr_start && fdtmap[j].address +
+			    fdtmap[j].size < avail[i].mr_start +
+			    avail[i].mr_size) {
+				avail[i].mr_start =
+				    roundup2(fdtmap[j].address + fdtmap[j].size,				    PAGE_MASK);
+			}
+		}
+	}
+
+	return (asz);
+}
+
 /*
  * This is called during powerpc_init, before the system is really initialized.
  * It shall provide the total and the available regions of RAM.
- * Both lists must have a zero-size entry as terminator.
- * The available regions need not take the kernel into account, but needs
- * to provide space for two additional entry beyond the terminating one.
+ * The available regions need not take the kernel into account.
  */
 void
 ofw_mem_regions(struct mem_region *memp, int *memsz,
@@ -236,7 +314,8 @@ ofw_mem_regions(struct mem_region *memp, int *memsz,
 	    phandle = OF_peer(phandle)) {
 		if (OF_getprop(phandle, "name", name, sizeof(name)) <= 0)
 			continue;
-		if (strncmp(name, "memory", sizeof(name)) != 0)
+		if (strncmp(name, "memory", sizeof(name)) != 0 &&
+		    strncmp(name, "memory@", strlen("memory@")) != 0)
 			continue;
 
 		res = parse_ofw_memory(phandle, "reg", &memp[msz]);
@@ -248,6 +327,10 @@ ofw_mem_regions(struct mem_region *memp, int *memsz,
 			res = parse_ofw_memory(phandle, "reg", &availp[asz]);
 		asz += res/sizeof(struct mem_region);
 	}
+
+	phandle = OF_finddevice("/chosen");
+	if (OF_hasprop(phandle, "fdtmemreserv"))
+		asz = excise_fdt_reserved(availp, asz);
 
 	*memsz = msz;
 	*availsz = asz;

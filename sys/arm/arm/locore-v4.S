@@ -218,9 +218,6 @@ Lunmapped:
 	bl	build_pagetables
 #endif
 
-#if defined(SMP)
-	orr 	r0, r0, #2		/* Set TTB shared memory flag */
-#endif
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
@@ -338,9 +335,6 @@ translate_va_to_pa:
 build_pagetables:
 	/* Set the required page attributed */
 	ldr	r4, =(L1_TYPE_S|L1_S_C|L1_S_AP(AP_KRW))
-#if defined(SMP)
-	orr	r4, #(L1_SHARED)
-#endif
 	orr	r1, r4
 
 	/* Move the virtual address to the correct bit location */
@@ -393,92 +387,6 @@ pagetable:
 
 .Lcpufuncs:
 	.word	_C_LABEL(cpufuncs)
-
-#if defined(SMP)
-
-.Lmpvirt_done:
-	.word	mpvirt_done
-VA_TO_PA_POINTER(Lstartup_pagetable_secondary, temp_pagetable)
-
-ASENTRY_NP(mpentry)
-
-	/* Make sure interrupts are disabled. */
-	mrs	r7, cpsr
-	orr	r7, r7, #(PSR_I | PSR_F)
-	msr	cpsr_c, r7
-
-	/* Disable MMU.  It should be disabled already, but make sure. */
-	mrc	p15, 0, r2, c1, c0, 0
-	bic	r2, r2, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
-	    CPU_CONTROL_WBUF_ENABLE)
-	bic	r2, r2, #(CPU_CONTROL_IC_ENABLE)
-	bic	r2, r2, #(CPU_CONTROL_BPRD_ENABLE)
-	mcr	p15, 0, r2, c1, c0, 0
-	nop
-	nop
-	nop
-	CPWAIT(r0)
-
-#if ARM_MMU_V6
-	bl	armv6_idcache_inv_all	/* Modifies r0 only */
-#elif ARM_MMU_V7
-	bl	armv7_idcache_inv_all	/* Modifies r0-r3, ip */
-#endif
-
-	/* Load the page table physical address */
-	adr	r0, Lstartup_pagetable_secondary
-	bl	translate_va_to_pa
-	/* Load the address the secondary page table */
-	ldr	r0, [r0]
-
-	orr 	r0, r0, #2		/* Set TTB shared memory flag */
-	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
-	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
-
-	mov	r0, #0
-	mcr	p15, 0, r0, c13, c0, 1	/* Set ASID to 0 */
-
-	/* Set the Domain Access register.  Very important! */
-	mov	r0, #((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL*2)) | DOMAIN_CLIENT)
-	mcr	p15, 0, r0, c3, c0, 0
-	/* Enable MMU */
-	mrc	p15, 0, r0, c1, c0, 0
-	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
-	orr	r0, r0, #CPU_CONTROL_AF_ENABLE
-	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
-	    CPU_CONTROL_WBUF_ENABLE)
-	orr	r0, r0, #(CPU_CONTROL_IC_ENABLE)
-	orr	r0, r0, #(CPU_CONTROL_BPRD_ENABLE)
-	mcr	p15, 0, r0, c1, c0, 0
-	nop
-	nop
-	nop
-	CPWAIT(r0)
-
-	adr	r1, .Lstart
-	ldmia	r1, {r1, r2, sp}	/* Set initial stack and */
-	mrc	p15, 0, r0, c0, c0, 5
-	and	r0, r0, #15
-	mov	r1, #2048
-	mul	r2, r1, r0
-	sub	sp, sp, r2
-	str	r1, [sp]
-	ldr	pc, .Lmpvirt_done
-
-mpvirt_done:
-
-	mov	fp, #0			/* trace back starts here */
-	bl	_C_LABEL(init_secondary)	/* Off we go */
-
-	adr	r0, .Lmpreturned
-	b	_C_LABEL(panic)
-	/* NOTREACHED */
-
-.Lmpreturned:
-	.asciz	"init_secondary() returned"
-	.align	2
-END(mpentry)
-#endif
 
 ENTRY_NP(cpu_halt)
 	mrs     r2, cpsr

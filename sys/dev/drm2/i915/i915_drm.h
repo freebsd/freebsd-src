@@ -301,15 +301,15 @@ typedef struct drm_i915_irq_wait {
 
 /* Ioctl to query kernel params:
  */
-#define I915_PARAM_IRQ_ACTIVE            1
-#define I915_PARAM_ALLOW_BATCHBUFFER     2
-#define I915_PARAM_LAST_DISPATCH         3
-#define I915_PARAM_CHIPSET_ID            4
-#define I915_PARAM_HAS_GEM               5
-#define I915_PARAM_NUM_FENCES_AVAIL      6
-#define I915_PARAM_HAS_OVERLAY           7
+#define I915_PARAM_IRQ_ACTIVE		 1
+#define I915_PARAM_ALLOW_BATCHBUFFER	 2
+#define I915_PARAM_LAST_DISPATCH	 3
+#define I915_PARAM_CHIPSET_ID		 4
+#define I915_PARAM_HAS_GEM		 5
+#define I915_PARAM_NUM_FENCES_AVAIL	 6
+#define I915_PARAM_HAS_OVERLAY		 7
 #define I915_PARAM_HAS_PAGEFLIPPING	 8
-#define I915_PARAM_HAS_EXECBUF2          9
+#define I915_PARAM_HAS_EXECBUF2	 9
 #define I915_PARAM_HAS_BSD		 10
 #define I915_PARAM_HAS_BLT		 11
 #define I915_PARAM_HAS_RELAXED_FENCING	 12
@@ -317,7 +317,8 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_EXEC_CONSTANTS	 14
 #define I915_PARAM_HAS_RELAXED_DELTA	 15
 #define I915_PARAM_HAS_GEN7_SOL_RESET	 16
-#define I915_PARAM_HAS_LLC     	 17
+#define I915_PARAM_HAS_LLC		 17
+#define I915_PARAM_HAS_ALIASING_PPGTT	 18
 
 typedef struct drm_i915_getparam {
 	int param;

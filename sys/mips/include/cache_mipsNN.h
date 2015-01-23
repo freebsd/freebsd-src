@@ -57,7 +57,6 @@ void	mipsNN_pdcache_inv_range_16(vm_offset_t, vm_size_t);
 void	mipsNN_pdcache_inv_range_32(vm_offset_t, vm_size_t);
 void	mipsNN_pdcache_wb_range_16(vm_offset_t, vm_size_t);
 void	mipsNN_pdcache_wb_range_32(vm_offset_t, vm_size_t);
-#ifdef CPU_CNMIPS
 void	mipsNN_icache_sync_all_128(void);
 void	mipsNN_icache_sync_range_128(vm_offset_t, vm_size_t);
 void	mipsNN_icache_sync_range_index_128(vm_offset_t, vm_size_t);
@@ -66,7 +65,6 @@ void	mipsNN_pdcache_wbinv_range_128(vm_offset_t, vm_size_t);
 void	mipsNN_pdcache_wbinv_range_index_128(vm_offset_t, vm_size_t);
 void	mipsNN_pdcache_inv_range_128(vm_offset_t, vm_size_t);
 void	mipsNN_pdcache_wb_range_128(vm_offset_t, vm_size_t);
-#endif
 void	mipsNN_sdcache_wbinv_all_32(void);
 void	mipsNN_sdcache_wbinv_range_32(vm_offset_t, vm_size_t);
 void	mipsNN_sdcache_wbinv_range_index_32(vm_offset_t, vm_size_t);

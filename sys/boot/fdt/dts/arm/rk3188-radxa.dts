@@ -48,6 +48,10 @@
 			status = "okay";
 		};
 
+		mmc@10214000 {
+			status = "okay";
+		};
+
 	};
 
 	chosen {
