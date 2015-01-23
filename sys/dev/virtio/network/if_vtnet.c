@@ -3071,13 +3071,13 @@ vtnet_attach_disable_promisc(struct vtnet_softc *sc)
 
 	VTNET_CORE_LOCK(sc);
 	if ((sc->vtnet_flags & VTNET_FLAG_CTRL_RX) == 0) {
-		(void )if_drvioctl(SIOCGIFFLAGS, ifp, &ifr, curthread);
+		(void )if_drvioctl(ifp, SIOCGIFFLAGS, &ifr, curthread);
 		ifr.ifr_flags |= IFF_PROMISC;
-		(void )if_drvioctl(SIOCSIFFLAGS, ifp, &ifr, curthread);
+		(void )if_drvioctl(ifp, SIOCSIFFLAGS, &ifr, curthread);
 	} else if (vtnet_set_promisc(sc, 0) != 0) {
-		(void )if_drvioctl(SIOCGIFFLAGS, ifp, &ifr, curthread);
+		(void )if_drvioctl(ifp, SIOCGIFFLAGS, &ifr, curthread);
 		ifr.ifr_flags |= IFF_PROMISC;
-		(void )if_drvioctl(SIOCSIFFLAGS, ifp, &ifr, curthread);
+		(void )if_drvioctl(ifp, SIOCSIFFLAGS, &ifr, curthread);
 		device_printf(sc->vtnet_dev,
 		    "cannot disable default promiscuous mode\n");
 	}

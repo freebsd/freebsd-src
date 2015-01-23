@@ -569,7 +569,7 @@ ng_iface_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = ENOMEM;
 				break;
 			}
-			if_drvioctl(SIOCGIFINDEX, ifp, &ifr, curthread);
+			if_drvioctl(ifp, SIOCGIFINDEX, &ifr, curthread);
 			*((uint32_t *)resp->data) = ifr.ifr_index;
 			break;
 		    }

@@ -2283,7 +2283,7 @@ ifunit(const char *name)
  * Hardware specific interface ioctls.
  */
 int
-if_drvioctl(u_long cmd, struct ifnet *ifp, void *data, struct thread *td)
+if_drvioctl(struct ifnet *ifp, u_long cmd, void *data, struct thread *td)
 {
 	struct ifreq *ifr;
 	size_t namelen, onamelen;
@@ -2793,7 +2793,7 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		return (ENXIO);
 	}
 
-	error = if_drvioctl(cmd, ifp, data, td);
+	error = if_drvioctl(ifp, cmd, data, td);
 	if (error != ENOIOCTL) {
 		if_rele(ifp);
 		CURVNET_RESTORE();

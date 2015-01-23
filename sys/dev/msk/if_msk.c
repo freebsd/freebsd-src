@@ -1097,10 +1097,10 @@ msk_ioctl(if_t ifp, u_long command, void *data, struct thread *td)
 				struct ifreq tmp;
 
 				MSK_IF_UNLOCK(sc_if);
-				if_drvioctl(SIOCGIFCAP, ifp, &tmp, td);
+				if_drvioctl(ifp, SIOCGIFCAP, &tmp, td);
 				tmp.ifr_reqcap = tmp.ifr_curcap &
 				    ~(MSK_CSUM_FEATURES | CSUM_TSO);
-				if_drvioctl(SIOCSIFCAP, ifp, &tmp, td);
+				if_drvioctl(ifp, SIOCSIFCAP, &tmp, td);
 				MSK_IF_LOCK(sc_if);
 			}
 		}

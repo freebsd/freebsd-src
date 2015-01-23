@@ -716,7 +716,7 @@ void	if_setbaudrate(if_t, uint64_t);
 void	if_link_state_change(if_t, int);
 void *	if_getsoftc(if_t, ift_feature);
 int	if_printf(if_t, const char *, ...) __printflike(2, 3);
-int	if_drvioctl(u_long, struct ifnet *, void *, struct thread *);
+int	if_drvioctl(if_t, u_long, void *, struct thread *);
 uint64_t if_get_counter_default(if_t, ift_counter);
 
 /*
