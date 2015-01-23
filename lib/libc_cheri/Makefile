@@ -21,6 +21,8 @@ SRCS=		cheri_clock_gettime.c	\
 		cheri_stub.c		\
 		fastmalloc.c
 
+CFLAGS.malloc.c=	-Wno-cast-align
+
 CFLAGS+=	-I${.CURDIR}/../libc/include \
 		-I${.CURDIR}/../libc/locale \
 		-I${.CURDIR}/../libc/mips \

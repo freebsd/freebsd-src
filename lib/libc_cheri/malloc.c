@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1983 Regents of the University of California.
+ * Copyright (c) 2015 SRI International
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,18 +48,22 @@ static char *rcsid = "$FreeBSD$";
  * This is designed for use in a virtual memory environment.
  */
 
+#include <sys/param.h>
 #include <sys/types.h>
+
+#include <machine/cheri.h>
+#include <machine/cheric.h>
 #if 0
 #include <paths.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdio.h>
 #endif
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #if 0
 #include <unistd.h>
-#include <sys/param.h>
 #include <sys/mman.h>
 #include "rtld_printf.h"
 #endif
@@ -69,8 +74,8 @@ static int findbucket();
 /*
  * Location and size of the static sandbox heap.
  */
-void	*_sb_heapbase;
-size_t	 _sb_heaplen;
+register_t	_sb_heapbase;
+size_t		_sb_heaplen;
 
 /*
  * Pre-allocate mmap'ed pages
@@ -165,15 +170,16 @@ malloc(nbytes)
 	 */
 	if (pagesz == 0) {
 		pagesz = n = 0x1000;
-		pagepool_start = _sb_heapbase;
-		pagepool_end = (char *)_sb_heapbase + _sb_heaplen;
+		pagepool_start = cheri_setlen(
+		    cheri_incbase(__builtin_cheri_get_global_data_cap(),
+		    _sb_heapbase), _sb_heaplen);
+		pagepool_end = pagepool_start + _sb_heaplen;
 		op = (union overhead *)(pagepool_start);
-		n = n - sizeof (*op) - ((long)op & (n - 1));
-		if (n < 0)
-			n += pagesz;
-		if (n) {
-			pagepool_start += n;
-		}
+
+		pagepool_start = cheri_incbase(pagepool_start,
+		    roundup2(cheri_getbase(pagepool_start), pagesz) -
+		    cheri_getbase(pagepool_start));
+
 		bucket = 0;
 		amt = 8;
 		while ((unsigned)pagesz > amt) {
@@ -187,20 +193,21 @@ malloc(nbytes)
 	 * stored in hash buckets which satisfies request.
 	 * Account for space used per block for accounting.
 	 */
-	if (nbytes <= (unsigned long)(n = pagesz - sizeof (*op) - RSLOP)) {
+	n = pagesz - sizeof (*op) - RSLOP;
+	if (nbytes <= (unsigned long)n) {
 #ifndef RCHECK
-		amt = 8;	/* size of first bucket */
-		bucket = 0;
+		amt = 32;	/* size of smallest bucket */
+		bucket = 2;
 #else
 		amt = 16;	/* size of first bucket */
 		bucket = 1;
 #endif
-		n = -(sizeof (*op) + RSLOP);
 	} else {
 		amt = pagesz;
 		bucket = pagebucket;
 	}
-	while (nbytes > amt + n) {
+	n = -(sizeof (*op) + RSLOP);
+	while (nbytes > (size_t)amt + n) {
 		amt <<= 1;
 		if (amt == 0)
 			return (NULL);
@@ -231,7 +238,7 @@ malloc(nbytes)
 	op->ov_rmagic = RMAGIC;
 	*(u_short *)((caddr_t)(op + 1) + op->ov_size) = RMAGIC;
 #endif
-	return ((char *)(op + 1));
+	return ((void *)(op + 1));
 }
 
 void *
@@ -282,17 +289,21 @@ morecore(bucket)
 	}
 	if (amt > pagepool_end - pagepool_start)
 		abort();	/* XXX: sandbox_panic */
+
+	/* non-zero offsets cause trouble */
+	ASSERT(cheri_getoffset(pagepool_start) == 0);
 	op = (union overhead *)pagepool_start;
-	pagepool_start += amt;
+	pagepool_start = cheri_incbase(pagepool_start, amt);
 
 	/*
 	 * Add new memory allocated to that on
 	 * free list for this hash bucket.
 	 */
-	nextf[bucket] = op;
+	nextf[bucket] = cheri_setlen(op, sz);
 	while (--nblks > 0) {
-		op->ov_next = (union overhead *)((caddr_t)op + sz);
-		op = (union overhead *)((caddr_t)op + sz);
+		op->ov_next = (union overhead *)cheri_setlen(
+		    cheri_incbase(op, sz), sz);
+		op = (union overhead *)(cheri_incbase(op, sz));
 	}
 }
 
@@ -305,7 +316,9 @@ free(cp)
 
 	if (cp == NULL)
 		return;
-	op = (union overhead *)((caddr_t)cp - sizeof (union overhead));
+	op = (union overhead *)((char *)cp - sizeof (union overhead));
+	ASSERT(cheri_gettag(op) == 1);		/* is a capabiltiy */
+	ASSERT(cheri_getoffset(op) == 0);	/* at the beginning */
 #ifdef MALLOC_DEBUG
 	ASSERT(op->ov_magic == MAGIC);		/* make sure it was in use */
 #else
