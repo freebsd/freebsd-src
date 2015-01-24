@@ -33,7 +33,7 @@ function zil_setup
 	# sync it first.  If a sync is not done first, no ZIL will exist,
 	# and consequently no post-freeze log records will be created.
 	log_must $TOUCH $TESTDIR/initial_data
-	log_must $SYNC $TESTPOOL
+	log_must $FSYNC $TESTDIR/initial_data
 	log_must $ZPOOL freeze $TESTPOOL
 	log_must filesys_has_zil $TESTPOOL
 	return 0

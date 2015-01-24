@@ -33,6 +33,7 @@
 
 . $STF_SUITE/include/libtest.kshlib
 . $STF_SUITE/include/libsas.kshlib
+. $STF_SUITE/tests/hotspare/hotspare.kshlib
 
 # Reproduction script for Rally DE189:
 # https://rally1.rallydev.com/#/9096795496d/detail/defect/13345916506

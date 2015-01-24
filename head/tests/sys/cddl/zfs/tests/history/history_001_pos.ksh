@@ -75,10 +75,9 @@ function cleanup
 log_assert "Verify zpool sub-commands which modify state are logged."
 log_onexit cleanup
 
-mntpnt=$(get_prop mountpoint $TESTPOOL)
 (( $? != 0)) && log_fail "get_prop($TESTPOOL mountpoint)"
-VDEV1=$mntpnt/vdev1; VDEV2=$mntpnt/vdev2;
-VDEV3=$mntpnt/vdev3; VDEV4=$mntpnt/vdev4;
+VDEV1=$TMPDIR/vdev1; VDEV2=$TMPDIR/vdev2;
+VDEV3=$TMPDIR/vdev3; VDEV4=$TMPDIR/vdev4;
 
 log_must $MKFILE 64m $VDEV1 $VDEV2 $VDEV3
 log_must $MKFILE 100m $VDEV4
@@ -93,9 +92,9 @@ exec_record $ZPOOL attach $MPOOL $VDEV1 $VDEV4
 exec_record $ZPOOL detach $MPOOL $VDEV4
 exec_record $ZPOOL replace -f $MPOOL $VDEV1 $VDEV4
 exec_record $ZPOOL export $MPOOL
-exec_record $ZPOOL import -d $mntpnt $MPOOL
+exec_record $ZPOOL import -d $TMPDIR $MPOOL
 exec_record $ZPOOL destroy $MPOOL
-exec_record $ZPOOL import -D -f -d $mntpnt $MPOOL
+exec_record $ZPOOL import -D -f -d $TMPDIR $MPOOL
 exec_record $ZPOOL clear $MPOOL 
 
 format_history $MPOOL $REAL_HISTORY

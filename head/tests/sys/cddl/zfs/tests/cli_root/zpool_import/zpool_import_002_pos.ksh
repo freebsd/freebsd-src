@@ -107,40 +107,47 @@ typeset -i j=0
 typeset basedir
 
 while (( i < ${#pools[*]} )); do
-	guid=$(get_config ${pools[i]} pool_guid)
-
 	log_must $CP $MYTESTFILE ${mtpts[i]}/$TESTFILE0
 
 	log_must $ZFS umount ${mtpts[i]}
 
 	j=0
 	while (( j <  ${#options[*]} )); do
-		log_must $ZPOOL export ${pools[i]}
+		typeset pool=${pools[i]}
+		k=0
+		while (( k < 2 )); do
+			typeset target=$pool
+			log_must $ZPOOL export $pool
 
-		typeset target=${pools[i]}
-		if (( RANDOM % 2 == 0 )) ; then
-			target=$guid
-			log_note "Import by guid."
-		fi
+			if (( k == 1 )); then
+				typeset vdevdir=""
+				if [[ "$pool" = "$TESTPOOL1" ]]; then
+					vdevdir="$DEVICE_DIR"
+				fi
+				target=$(get_config $pool pool_guid $vdevdir)
+				log_must test -n "$target"
+				log_note "Importing '$pool' by guid '$target'."
+			fi
 
-		log_must $ZPOOL import ${devs[i]} ${options[j]} $target
+			log_must $ZPOOL import ${devs[i]} ${options[j]} $target
+			log_must poolexists $pool
+			log_must ismounted $pool/$TESTFS
 
-		log_must poolexists ${pools[i]}
+			basedir=${mtpts[i]}
+			[[ -n ${options[j]} ]] && \
+				basedir=$ALTER_ROOT/${mtpts[i]}
 
-		log_must ismounted ${pools[i]}/$TESTFS
+			[[ ! -e $basedir/$TESTFILE0 ]] && log_fail \
+				"$basedir/$TESTFILE0 missing after import."
 
-		basedir=${mtpts[i]}
-		[[ -n ${options[j]} ]] && \
-			basedir=$ALTER_ROOT/${mtpts[i]}
+			checksum2=$($SUM $basedir/$TESTFILE0 | $AWK '{print $1}')
+			[[ "$checksum1" != "$checksum2" ]] && log_fail \
+				"Checksums differ ($checksum1 != $checksum2)"
 
-		[[ ! -e $basedir/$TESTFILE0 ]] && \
-			log_fail "$basedir/$TESTFILE0 missing after import."
+			log_mustnot $ZPOOL import ${devs[i]} $target
 
-		checksum2=$($SUM $basedir/$TESTFILE0 | $AWK '{print $1}')
-		[[ "$checksum1" != "$checksum2" ]] && \
-			log_fail "Checksums differ ($checksum1 != $checksum2)"
-
-		log_mustnot $ZPOOL import ${devs[i]} $target
+			(( k = k + 1 ))
+		done
 
 		((j = j + 1))
 	done
@@ -149,4 +156,4 @@ while (( i < ${#pools[*]} )); do
 
 done
 
-log_pass "Unable to import the same pool twice as expected."
+log_pass "Able to import exported pools and import only once."

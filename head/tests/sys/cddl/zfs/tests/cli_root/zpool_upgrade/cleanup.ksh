@@ -51,5 +51,3 @@ for config in $CONFIGS
 do
    destroy_upgraded_pool $config
 done
-
-default_cleanup

@@ -139,7 +139,6 @@ zfs_destroy_004_pos_cleanup()
 atf_test_case zfs_destroy_005_neg cleanup
 zfs_destroy_005_neg_head()
 {
-	atf_expect_fail "DE186: zfs destroy ignores absence of -f for snapshots"
 	atf_set "descr" "Seperately verify 'zfs destroy -f|-r|-rf|-R|-rR <dataset>' willfail in different conditions."
 	atf_set "require.progs"  zfs
 	atf_set "timeout" 3600

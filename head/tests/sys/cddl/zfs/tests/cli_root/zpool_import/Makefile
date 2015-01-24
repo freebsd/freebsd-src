@@ -26,7 +26,6 @@ FILES+=	cleanup.ksh
 FILES+=	zpool_import_011_neg.ksh
 FILES+=	zpool_import_missing_004_pos.ksh
 FILES+=	zpool_import_005_pos.ksh
-FILES+=	zpool_import_001_pos.ksh
 FILES+=	zpool_import_009_neg.ksh
 FILES+=	zpool_import_missing_001_pos.ksh
 FILES+=	zpool_import_008_pos.ksh

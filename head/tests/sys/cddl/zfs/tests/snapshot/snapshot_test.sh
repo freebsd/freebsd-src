@@ -605,6 +605,7 @@ snapshot_019_pos_head()
 	atf_set "descr" "Accessing snapshots and unmounting them in parallel does not panic"
 	atf_set "require.config" rt_short
 	atf_set "require.progs" zfs
+	atf_set "timeout" 1200
 }
 snapshot_019_pos_body()
 {

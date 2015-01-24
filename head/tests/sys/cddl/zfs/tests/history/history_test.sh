@@ -24,7 +24,7 @@
 #
 
 
-atf_test_case history_001_pos cleanup
+atf_test_case history_001_pos
 history_001_pos_head()
 {
 	atf_set "descr" "Verify zpool sub-commands which modify state are logged."
@@ -39,19 +39,8 @@ history_001_pos_body()
 	. $(atf_get_srcdir)/history_common.kshlib
 	. $(atf_get_srcdir)/history.cfg
 
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
 	ksh93 $(atf_get_srcdir)/history_001_pos.ksh || atf_fail "Testcase failed"
 }
-history_001_pos_cleanup()
-{
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
-	. $(atf_get_srcdir)/../../include/default.cfg
-	. $(atf_get_srcdir)/history_common.kshlib
-	. $(atf_get_srcdir)/history.cfg
-
-	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
-}
-
 
 atf_test_case history_002_pos cleanup
 history_002_pos_head()
@@ -87,7 +76,7 @@ history_003_pos_head()
 {
 	atf_set "descr" "zpool history limitation test."
 	atf_set "require.config" rt_long
-	atf_set "require.progs"  mkfile zpool zfs
+	atf_set "require.progs"  zpool zfs
 	atf_set "timeout" 1800
 }
 history_003_pos_body()

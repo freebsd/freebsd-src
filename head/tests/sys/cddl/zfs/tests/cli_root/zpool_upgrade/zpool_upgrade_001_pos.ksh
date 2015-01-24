@@ -76,6 +76,9 @@ $TAIL -${COUNT} $TMPDIR/zpool-versions.${TESTCASE_ID} > $TMPDIR/zpool-versions-d
 log_note "Checking to see we have a description for the current ZFS version."
 if (( ZPOOL_VERSION < 10 )); then
 	log_must $GREP "$ZPOOL_VERSION   " $TMPDIR/zpool-versions-desc.${TESTCASE_ID}
+elif (( ZPOOL_VERSION >= 5000 )); then
+	log_must $GREP "The following features are supported" \
+		$TMPDIR/zpool-versions-desc.${TESTCASE_ID}
 else
 	log_must $GREP "$ZPOOL_VERSION  " $TMPDIR/zpool-versions-desc.${TESTCASE_ID}
 fi

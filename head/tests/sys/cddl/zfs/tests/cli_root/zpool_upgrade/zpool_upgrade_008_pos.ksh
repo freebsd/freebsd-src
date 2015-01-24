@@ -79,14 +79,8 @@ log_onexit cleanup
 # enough to determine if upgrade works correctly. Also set a MAX_VER
 # variable, which specifies the highest version that we should expect
 # a zpool upgrade operation to succeed from. (latest version - 1)
-if check_version "5.10"
-then
-	CONFIGS="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15"
-	MAX_VER=15
-else
-	CONFIGS="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15"
-	MAX_VER=15
-fi
+CONFIGS="1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 28"
+MAX_VER=28
 
 for config in $CONFIGS
 do
@@ -101,4 +95,3 @@ done
 
 log_pass \
  "Zpool upgrade should be able to upgrade pools to a given version using -V"
-

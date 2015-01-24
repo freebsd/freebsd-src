@@ -24,38 +24,10 @@
 #
 
 
-atf_test_case zpool_import_001_pos cleanup
-zpool_import_001_pos_head()
-{
-	atf_set "descr" "Verify that an exported pool can be imported."
-	atf_set "require.config" rt_medium
-	atf_set "require.config" at_least_2_disks
-	atf_set "require.progs"  zfs zpool sum mkfile zdb
-	atf_set "timeout" 2400
-}
-zpool_import_001_pos_body()
-{
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
-	. $(atf_get_srcdir)/../../../include/default.cfg
-	. $(atf_get_srcdir)/zpool_import.cfg
-
-	ksh93 $(atf_get_srcdir)/setup.ksh || atf_fail "Setup failed"
-	ksh93 $(atf_get_srcdir)/zpool_import_001_pos.ksh || atf_fail "Testcase failed"
-}
-zpool_import_001_pos_cleanup()
-{
-	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
-	. $(atf_get_srcdir)/../../../include/default.cfg
-	. $(atf_get_srcdir)/zpool_import.cfg
-
-	ksh93 $(atf_get_srcdir)/cleanup.ksh || atf_fail "Cleanup failed"
-}
-
-
 atf_test_case zpool_import_002_pos cleanup
 zpool_import_002_pos_head()
 {
-	atf_set "descr" "Verify that an exported pool cannot be imported more than once."
+	atf_set "descr" "Verify that an exported pool can be imported and cannot be imported more than once."
 	atf_set "require.config" rt_medium
 	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zfs zpool sum mkfile zdb
@@ -537,7 +509,6 @@ zpool_import_missing_004_pos_head()
 }
 zpool_import_missing_004_pos_body()
 {
-	atf_expect_fail  'BUG27046: nvlist_lookup_nvlist(nvl, name, &rv) == 0 (0x2 == 0x0) during "zpool import"'
 	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_import.cfg
@@ -603,7 +574,6 @@ zpool_import_corrupt_001_pos_cleanup()
 atf_init_test_cases()
 {
 
-	atf_add_test_case zpool_import_001_pos
 	atf_add_test_case zpool_import_002_pos
 	atf_add_test_case zpool_import_003_pos
 	atf_add_test_case zpool_import_004_pos

@@ -53,7 +53,14 @@ fi
 log_must $ZFS create $TESTPOOL/$TESTFS
 log_must $ZFS set mountpoint=$TESTDIR $TESTPOOL/$TESTFS
 
-$ECHO "y" | $NEWFS $ZFSSIDE_DISK2 >/dev/null 2>&1
+# Limit the filesystem size to 32GiB; this should be sufficient.
+(( MAXSECTS = 32 * 1024 * 1024 ))
+NUMSECTS=`diskinfo ${ZFSSIDE_DISK2} | awk '{print $4}'`
+if [[ $NUMSECTS -gt $MAXSECTS ]]; then
+	NUMSECTS=$MAXSECTS
+fi
+
+$ECHO "y" | $NEWFS -s $NUMSECTS $ZFSSIDE_DISK2 >/dev/null 2>&1
 (( $? != 0 )) &&
 	log_untested "Unable to setup a UFS file system"
 

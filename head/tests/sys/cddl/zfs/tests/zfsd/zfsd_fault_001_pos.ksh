@@ -117,7 +117,7 @@ for type in "raidz" "mirror"; do
 				/dev/null
 			dd if=/dev/zero bs=128k count=1 >> \
 				/$TESTPOOL/$TESTFS/$TESTFILE 2> /dev/null
-			sync
+			$FSYNC /$TESTPOOL/$TESTFS/$TESTFILE
 		done
 		# Check to see if the pool is faulted yet
 		$ZPOOL status $TESTPOOL | grep -q 'state: DEGRADED'

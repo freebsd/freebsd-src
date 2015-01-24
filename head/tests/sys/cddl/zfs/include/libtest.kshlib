@@ -2251,6 +2251,7 @@ function get_config
 {
 	typeset pool=$1
 	typeset config=$2
+	typeset vdevdir=$3
 	typeset alt_root
 	typeset zdb_opts
 
@@ -2280,6 +2281,7 @@ function get_config
 	else
 		# use -e for exported pools
 		zdb_opts="-eC"
+		[[ -n "$vdevdir" ]] && zdb_opts="$zdb_opts -p $vdevdir"
 	fi
 
 	value=$($ZDB $zdb_opts $pool | $GREP "$config:" | $AWK -F: '{print $2}')

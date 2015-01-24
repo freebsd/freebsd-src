@@ -54,7 +54,7 @@ function create_old_pool
 
 	# Now put some random contents into the pool.
 	COUNT=0
-	while [ $COUNT -lt 1024 ]; do
+	while [ "$COUNT" -lt 1024 ]; do
 		$DD if=/dev/urandom of=/$POOL_NAME/random.$COUNT \
 		count=1 bs=1024 > /dev/null 2>&1
 		COUNT=$(( $COUNT + 1 ))
@@ -92,11 +92,11 @@ function destroy_upgraded_pool {
 		| $AWK -F= '{print $2}')
 	POOL_FILES=$($ENV | grep "ZPOOL_VERSION_${VERSION}_FILES"\
 		| $AWK -F= '{print $2}')
-	if poolexists $POOL_NAME; then  
+	if poolexists "$POOL_NAME"; then  
 		log_must $ZPOOL destroy $POOL_NAME
 	fi
 	for file in $POOL_FILES; do
-		if [ -e $TMPDIR/$file ]; then
+		if [ -e "$TMPDIR/$file" ]; then
 			$RM $TMPDIR/$file
 		fi
 	done
@@ -126,10 +126,10 @@ function check_poolversion { # pool version
 	VERSION=$2
 
 	# check version using zdb
-	ACTUAL=$($ZDB -C $POOL | $GREP version= | \
-	 $SED -e 's/ //g' -e 's/version=//g')
+	ACTUAL=$($ZDB -eC -p $TMPDIR $POOL | $GREP version: | \
+	 $SED -e 's/ //g' -e 's/version://g')
 
-	if [ $ACTUAL != $VERSION ]
+	if [ "$ACTUAL" != "$VERSION" ]
 	then
 		log_fail "$POOL not upgraded, ver. $ACTUAL, expected $VERSION"
 	fi
@@ -137,7 +137,7 @@ function check_poolversion { # pool version
 	# check version using zpool upgrade
 	ACTUAL=$($ZPOOL upgrade | $GREP $POOL$ | \
 	 $AWK '{print $1}' | $SED -e 's/ //g')
-	if [ $ACTUAL != $VERSION ]
+	if [ "$ACTUAL" != "$VERSION" ]
 	then
 		log_fail "$POOL reported version $ACTUAL, expected $VERSION"
 	fi
@@ -155,7 +155,7 @@ function random { # min max
 	typeset MAX=$2
 	typeset RAND=0
 
-	while [ $RAND -lt $MIN ]
+	while [ "$RAND" -lt "$MIN" ]
 	do
 		RAND=$(( $RANDOM % $MAX + 1))
 	done

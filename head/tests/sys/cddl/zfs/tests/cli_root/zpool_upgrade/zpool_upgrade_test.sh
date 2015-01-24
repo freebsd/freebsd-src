@@ -35,7 +35,6 @@ zpool_upgrade_001_pos_head()
 }
 zpool_upgrade_001_pos_body()
 {
-	atf_skip "Testcase must be updated for zpool version 5000"
 	export TESTCASE_ID=$(echo $(atf_get ident) | cksum -o 2 | cut -f 1 -d " ")
 	. $(atf_get_srcdir)/../../../include/default.cfg
 	. $(atf_get_srcdir)/zpool_upgrade.kshlib
@@ -215,7 +214,8 @@ zpool_upgrade_007_pos_head()
 	atf_set "require.config" rt_medium
 	atf_set "require.config" at_least_2_disks
 	atf_set "require.progs"  zpool
-	atf_set "timeout" 1800
+	# This test can take quite a while, especially on debug bits.
+	atf_set "timeout" 7200
 }
 zpool_upgrade_007_pos_body()
 {

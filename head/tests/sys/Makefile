@@ -2,13 +2,16 @@
 
 .include <bsd.own.mk>
 
-.PATH: ${.CURDIR}/..
-
-TESTS_SUBDIRS+=		cddl
-TESTS_SUBDIRS+=		kern
-TESTS_SUBDIRS+=		netinet
 TESTSDIR= ${TESTSBASE}/sys
 
-KYUAFILE= yes
+TESTS_SUBDIRS+=		cddl
+TESTS_SUBDIRS+=		devad
+TESTS_SUBDIRS+=		devad2
+TESTS_SUBDIRS+=		dtrace
+TESTS_SUBDIRS+=		geom
+TESTS_SUBDIRS+=		kern
+TESTS_SUBDIRS+=		net
+TESTS_SUBDIRS+=		netinet
+TESTS_SUBDIRS+=		sys
 
 .include <bsd.test.mk>
