@@ -94,7 +94,7 @@ ccm_init_gates(struct ccm_softc *sc)
 	WR4(sc, CCM_CCGR2, 0x0fffffc0); /* ipmux & ipsync (bridges), iomux, i2c */
 	WR4(sc, CCM_CCGR3, 0x3ff00000); /* DDR memory controller */
 	WR4(sc, CCM_CCGR4, 0x0000f300); /* pl301 bus crossbar */
-	WR4(sc, CCM_CCGR5, 0x0f000000); /* uarts */
+	WR4(sc, CCM_CCGR5, 0x0ffc00c0); /* uarts, ssi, sdma */
 	WR4(sc, CCM_CCGR6, 0x000000ff); /* usdhc 1-4 */
 }
 
@@ -177,6 +177,58 @@ ccm_probe(device_t dev)
 	device_set_desc(dev, "Freescale i.MX6 Clock Control Module");
 
 	return (BUS_PROBE_DEFAULT);
+}
+
+void
+imx_ccm_ssi_configure(device_t _ssidev)
+{
+	struct ccm_softc *sc;
+	uint32_t reg;
+
+	sc = ccm_sc;
+
+	/*
+	 * Select PLL4 (Audio PLL) clock multiplexer as source.
+	 * PLL output frequency = Fref * (DIV_SELECT + NUM/DENOM).
+	 */
+
+	reg = RD4(sc, CCM_CSCMR1);
+	reg &= ~(SSI_CLK_SEL_M << SSI1_CLK_SEL_S);
+	reg |= (SSI_CLK_SEL_PLL4 << SSI1_CLK_SEL_S);
+	reg &= ~(SSI_CLK_SEL_M << SSI2_CLK_SEL_S);
+	reg |= (SSI_CLK_SEL_PLL4 << SSI2_CLK_SEL_S);
+	reg &= ~(SSI_CLK_SEL_M << SSI3_CLK_SEL_S);
+	reg |= (SSI_CLK_SEL_PLL4 << SSI3_CLK_SEL_S);
+	WR4(sc, CCM_CSCMR1, reg);
+
+	/*
+	 * Ensure we have set hardware-default values
+	 * for pre and post dividers.
+	 */
+
+	/* SSI1 and SSI3 */
+	reg = RD4(sc, CCM_CS1CDR);
+	/* Divide by 2 */
+	reg &= ~(SSI_CLK_PODF_MASK << SSI1_CLK_PODF_SHIFT);
+	reg &= ~(SSI_CLK_PODF_MASK << SSI3_CLK_PODF_SHIFT);
+	reg |= (0x1 << SSI1_CLK_PODF_SHIFT);
+	reg |= (0x1 << SSI3_CLK_PODF_SHIFT);
+	/* Divide by 4 */
+	reg &= ~(SSI_CLK_PRED_MASK << SSI1_CLK_PRED_SHIFT);
+	reg &= ~(SSI_CLK_PRED_MASK << SSI3_CLK_PRED_SHIFT);
+	reg |= (0x3 << SSI1_CLK_PRED_SHIFT);
+	reg |= (0x3 << SSI3_CLK_PRED_SHIFT);
+	WR4(sc, CCM_CS1CDR, reg);
+
+	/* SSI2 */
+	reg = RD4(sc, CCM_CS2CDR);
+	/* Divide by 2 */
+	reg &= ~(SSI_CLK_PODF_MASK << SSI2_CLK_PODF_SHIFT);
+	reg |= (0x1 << SSI2_CLK_PODF_SHIFT);
+	/* Divide by 4 */
+	reg &= ~(SSI_CLK_PRED_MASK << SSI2_CLK_PRED_SHIFT);
+	reg |= (0x3 << SSI2_CLK_PRED_SHIFT);
+	WR4(sc, CCM_CS2CDR, reg);
 }
 
 void
