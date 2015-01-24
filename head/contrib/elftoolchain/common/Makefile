@@ -1,4 +1,4 @@
-# $Id: Makefile 2606 2012-10-02 17:52:57Z jkoshy $
+# $Id: Makefile 3022 2014-04-17 18:05:58Z jkoshy $
 
 TOP=	..
 
@@ -11,5 +11,8 @@ all depend obj:
 
 clean clobber:
 	rm -f ${CLEANFILES}
+
+cleandepend:
+	rm -f .depend
 
 .include "${TOP}/mk/elftoolchain.inc.mk"

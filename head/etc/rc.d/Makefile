@@ -42,13 +42,13 @@ FILES=	DAEMON \
 	dhclient \
 	dmesg \
 	dumpon \
-	faith \
 	fsck \
 	ftpd \
 	gbde \
 	geli \
 	geli2 \
 	gptboot \
+	growfs \
 	gssd \
 	hastd \
 	${_hcsecd} \
@@ -90,7 +90,6 @@ FILES=	DAEMON \
 	mountd \
 	moused \
 	mroute6d \
-	mrouted \
 	msgs \
 	natd \
 	netif \
@@ -111,7 +110,6 @@ FILES=	DAEMON \
 	pf \
 	pflog \
 	pfsync \
-	postrandom \
 	powerd \
 	power_profile \
 	ppp \

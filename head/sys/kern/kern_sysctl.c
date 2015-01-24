@@ -174,7 +174,8 @@ sysctl_root_handler_locked(struct sysctl_oid *oid, void *arg1, intptr_t arg2,
 	int error;
 	bool xlocked;
 
-	atomic_add_int(&oid->oid_running, 1);
+	if (oid->oid_kind & CTLFLAG_DYN)
+		atomic_add_int(&oid->oid_running, 1);
 	xlocked = sysctl_unlock();
 
 	if (!(oid->oid_kind & CTLFLAG_MPSAFE))
@@ -184,9 +185,11 @@ sysctl_root_handler_locked(struct sysctl_oid *oid, void *arg1, intptr_t arg2,
 		mtx_unlock(&Giant);
 
 	sysctl_lock(xlocked);
-	if (atomic_fetchadd_int(&oid->oid_running, -1) == 1 &&
-	    (oid->oid_kind & CTLFLAG_DYING) != 0)
-		wakeup(&oid->oid_running);
+	if (oid->oid_kind & CTLFLAG_DYN) {
+		if (atomic_fetchadd_int(&oid->oid_running, -1) == 1 &&
+		    (oid->oid_kind & CTLFLAG_DYING) != 0)
+			wakeup(&oid->oid_running);
+	}
 
 	return (error);
 }

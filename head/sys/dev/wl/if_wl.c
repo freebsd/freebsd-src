@@ -232,12 +232,11 @@ __FBSDID("$FreeBSD$");
 
 static char	t_packet[ETHERMTU + sizeof(struct ether_header) + sizeof(long)];
 
-struct wl_softc{ 
+struct wl_softc {
+    device_t	dev;
     struct	ifnet	*ifp;
     u_char	psa[0x40];
     u_char	nwid[2];	/* current radio modem nwid */
-    short	base;
-    short	unit;
     int		flags;
     int		tbusy;		/* flag to determine if xmit is busy */
     u_short	begin_fd;
@@ -252,10 +251,8 @@ struct wl_softc{
     struct resource	*res_ioport;
     struct resource	*res_irq;
     void		*intr_cookie;
-    bus_space_tag_t	bt;
-    bus_space_handle_t	bh;
     struct mtx		wl_mtx;
-    struct callout_handle	watchdog_ch;
+    struct callout	watchdog_timer;
 #ifdef WLCACHE
     int 	w_sigitems;     /* number of cached entries */
     /*  array of cache entries */
@@ -328,9 +325,11 @@ SYSCTL_INT(_machdep, OID_AUTO, wl_gather_snr, CTLFLAG_RW, &gathersnr, 0, "");
 static int	wl_allocate_resources(device_t device);
 static int	wl_deallocate_resources(device_t device);
 static void	wlstart(struct ifnet *ifp);
+static void	wlstart_locked(struct ifnet *ifp);
 static void	wlinit(void *xsc);
+static void	wlinit_locked(struct wl_softc *sc);
 static int	wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
-static timeout_t wlwatchdog;
+static void	wlwatchdog(void *arg);
 static void	wlintr(void *arg);
 static void	wlxmt(struct wl_softc *sc, struct mbuf *m);
 static int	wldiag(struct wl_softc *sc); 
@@ -338,7 +337,7 @@ static int	wlconfig(struct wl_softc *sc);
 static int	wlcmd(struct wl_softc *sc, char *str);
 static void	wlmmcstat(struct wl_softc *sc);
 static u_short	wlbldru(struct wl_softc *sc);
-static u_short	wlmmcread(u_int base, u_short reg);
+static u_short	wlmmcread(struct wl_softc *sc, u_short reg);
 static void	wlinitmmc(struct wl_softc *sc);
 static int	wlhwrst(struct wl_softc *sc);
 static void	wlrustrt(struct wl_softc *sc);
@@ -353,12 +352,12 @@ static void	wlhdwsleaze(u_short *countp, u_char **mb_pp, struct mbuf **tm_pp, st
 #ifdef WLDEBUG
 static void	wltbd(struct wl_softc *sc);
 #endif
-static void	wlgetpsa(int base, u_char *buf);
+static void	wlgetpsa(struct wl_softc *sc, u_char *buf);
 static void	wlsetpsa(struct wl_softc *sc);
 static u_short	wlpsacrc(u_char *buf);
 static void	wldump(struct wl_softc *sc);
 #ifdef WLCACHE
-static void	wl_cache_store(struct wl_softc *, int, struct ether_header *, struct mbuf *);
+static void	wl_cache_store(struct wl_softc *, struct ether_header *, struct mbuf *);
 static void     wl_cache_zero(struct wl_softc *sc);
 #endif
 
@@ -387,10 +386,9 @@ static int
 wlprobe(device_t device)
 {
     struct wl_softc	*sc;
-    short		base;
     char		*str = "wl%d: board out of range [0..%d]\n";
     u_char		inbuf[100];
-    unsigned long	junk, oldpri, sirq;
+    unsigned long	junk, sirq;
     int			error, irq;
 
     error = ISA_PNP_PROBE(device_get_parent(device), device, wl_ids);
@@ -402,28 +400,24 @@ wlprobe(device_t device)
     if (error)
 	goto errexit;
 
-    base = rman_get_start(sc->res_ioport);
-
     /* TBD. not true.
      * regular CMD() will not work, since no softc yet 
      */
-#define PCMD(base, hacr) outw((base), (hacr))
+#define PCMD(sc, hacr) WL_WRITE_2((sc), HACR, (hacr))
 
-    oldpri = splimp();
-    PCMD(base, HACR_RESET);			/* reset the board */
+    PCMD(sc, HACR_RESET);			/* reset the board */
     DELAY(DELAYCONST);				/* >> 4 clocks at 6MHz */
-    PCMD(base, HACR_RESET);			/* reset the board */
+    PCMD(sc, HACR_RESET);			/* reset the board */
     DELAY(DELAYCONST);	                	/* >> 4 clocks at 6MHz */
-    splx(oldpri);
 
     /* clear reset command and set PIO#1 in autoincrement mode */
-    PCMD(base, HACR_DEFAULT);
-    PCMD(base, HACR_DEFAULT);
-    outw(PIOR1(base), 0);			/* go to beginning of RAM */
-    outsw(PIOP1(base), str, strlen(str)/2+1);	/* write string */
+    PCMD(sc, HACR_DEFAULT);
+    PCMD(sc, HACR_DEFAULT);
+    WL_WRITE_2(sc, PIOR1, 0);			/* go to beginning of RAM */
+    WL_WRITE_MULTI_2(sc, PIOP1, str, strlen(str)/2+1);	/* write string */
     
-    outw(PIOR1(base), 0);			/* rewind */
-    insw(PIOP1(base), inbuf, strlen(str)/2+1);	/* read result */
+    WL_WRITE_2(sc, PIOR1, 0);			/* rewind */
+    WL_READ_MULTI_2(sc, PIOP1, inbuf, strlen(str)/2+1);	/* read result */
     
     if (bcmp(str, inbuf, strlen(str))) {
 	error = ENXIO;
@@ -434,15 +428,14 @@ wlprobe(device_t device)
     sc->freq24 = 0;                             /* 2.4 Gz: frequency    */
 
     /* read the PSA from the board into temporary storage */
-    wlgetpsa(base, inbuf);
+    wlgetpsa(sc, inbuf);
     
     /* We read the IRQ value from the PSA on the board. */
     for (irq = 15; irq >= 0; irq--)
 	if (irqvals[irq] == inbuf[WLPSA_IRQNO])
 	    break;
     if ((irq == 0) || (irqvals[irq] == 0)){
-	printf("wl%d: PSA corrupt (invalid IRQ value)\n",
-	    device_get_unit(device));
+	device_printf(device, "PSA corrupt (invalid IRQ value)\n");
     } else {
 	/*
 	 * If the IRQ requested by the PSA is already claimed by another
@@ -452,8 +445,8 @@ wlprobe(device_t device)
 	if (bus_get_resource(device, SYS_RES_IRQ, 0, &sirq, &junk))
 	    goto errexit;
 	if (irq != (int)sirq)
-	    printf("wl%d: board is configured for interrupt %d\n",
-		device_get_unit(device), irq);
+	    device_printf(device, "board is configured for interrupt %d\n",
+		irq);
     }
     wl_deallocate_resources(device);
     return (0);
@@ -479,13 +472,12 @@ static int
 wlattach(device_t device)
 {
     struct wl_softc	*sc;
-    short		base;
     int			error, i, j;
-    int			unit;
     struct ifnet	*ifp;
     u_char		eaddr[6];
 
     sc = device_get_softc(device);
+    sc->dev = device;
     ifp = sc->ifp = if_alloc(IFT_ETHER);
     if (ifp == NULL) {
 	device_printf(device, "can not if_alloc()\n");
@@ -493,7 +485,8 @@ wlattach(device_t device)
     }
 
     mtx_init(&sc->wl_mtx, device_get_nameunit(device), MTX_NETWORK_LOCK,
-	MTX_DEF | MTX_RECURSE);
+	MTX_DEF);
+    callout_init_mtx(&sc->watchdog_timer, &sc->wl_mtx, 0);
 
     error = wl_allocate_resources(device);
     if (error) {
@@ -501,19 +494,14 @@ wlattach(device_t device)
 	return (ENXIO);
     }
 
-    base = rman_get_start(sc->res_ioport);
-    unit = device_get_unit(device);
-
 #ifdef WLDEBUG
-    printf("wlattach: base %x, unit %d\n", base, unit);
+    printf("wlattach: base %lx, unit %d\n", rman_get_start(sc->res_ioport),
+	device_get_unit(device));
 #endif
 
-    sc->base = base;
-    sc->unit = unit;
     sc->flags = 0;
     sc->mode = 0;
     sc->hacr = HACR_RESET;
-    callout_handle_init(&sc->watchdog_ch);
     CMD(sc);				/* reset the board */
     DELAY(DELAYCONST);	                /* >> 4 clocks at 6MHz */
 	
@@ -522,7 +510,7 @@ wlattach(device_t device)
     CMD(sc);
 
     /* Read the PSA from the board for our later reference */
-    wlgetpsa(base, sc->psa);
+    wlgetpsa(sc, sc->psa);
 
     /* fetch NWID */
     sc->nwid[0] = sc->psa[WLPSA_NWID];
@@ -541,11 +529,11 @@ wlattach(device_t device)
     CMD(sc);
 
     wlinitmmc(sc);
-    outw(PIOR1(base), OFFSET_SCB + 8);	/* address of scb_crcerrs */
-    outw(PIOP1(base), 0);			/* clear scb_crcerrs */
-    outw(PIOP1(base), 0);			/* clear scb_alnerrs */
-    outw(PIOP1(base), 0);			/* clear scb_rscerrs */
-    outw(PIOP1(base), 0);			/* clear scb_ovrnerrs */
+    WL_WRITE_2(sc, PIOR1, OFFSET_SCB + 8);	/* address of scb_crcerrs */
+    WL_WRITE_2(sc, PIOP1, 0);			/* clear scb_crcerrs */
+    WL_WRITE_2(sc, PIOP1, 0);			/* clear scb_alnerrs */
+    WL_WRITE_2(sc, PIOP1, 0);			/* clear scb_rscerrs */
+    WL_WRITE_2(sc, PIOP1, 0);			/* clear scb_ovrnerrs */
 
     ifp->if_softc = sc;
     ifp->if_mtu = WAVELAN_MTU;
@@ -583,7 +571,6 @@ static int
 wldetach(device_t device)
 {
     struct wl_softc *sc = device_get_softc(device);
-    device_t parent = device_get_parent(device);
     struct ifnet *ifp;
 
     ifp = sc->ifp;
@@ -596,15 +583,16 @@ wldetach(device_t device)
     CMD(sc);
     sc->hacr = HACR_DEFAULT;
     CMD(sc);
+    callout_stop(&sc->watchdog_timer);
+    WL_UNLOCK(sc);
+    callout_drain(&sc->watchdog_timer);
 
     if (sc->intr_cookie != NULL) {
-	BUS_TEARDOWN_INTR(parent, device, sc->res_irq, sc->intr_cookie);
+	bus_teardown_intr(device, sc->res_irq, sc->intr_cookie);
 	sc->intr_cookie = NULL;
     }
 
-    bus_generic_detach(device);
     wl_deallocate_resources(device);
-    WL_UNLOCK(sc);
     if_free(ifp);
     mtx_destroy(&sc->wl_mtx);
     return (0);
@@ -656,27 +644,26 @@ wl_deallocate_resources(device_t device)
 static void
 wldump(struct wl_softc *sc)
 {
-    int		base = sc->base;
     int		i;
 	
-    printf("hasr %04x\n", inw(HASR(base)));
+    printf("hasr %04x\n", WL_READ_2(sc, HASR));
 	
     printf("scb at %04x:\n ", OFFSET_SCB);
-    outw(PIOR1(base), OFFSET_SCB);
+    WL_WRITE_2(sc, PIOR1, OFFSET_SCB);
     for (i = 0; i < 8; i++)
-	printf("%04x ", inw(PIOP1(base)));
+	printf("%04x ", WL_READ_2(sc, PIOP1));
     printf("\n");
 	
     printf("cu at %04x:\n ", OFFSET_CU);
-    outw(PIOR1(base), OFFSET_CU);
+    WL_WRITE_2(sc, PIOR1, OFFSET_CU);
     for (i = 0; i < 8; i++)
-	printf("%04x ", inw(PIOP1(base)));
+	printf("%04x ", WL_READ_2(sc, PIOP1));
     printf("\n");
 	
     printf("tbd at %04x:\n ", OFFSET_TBD);
-    outw(PIOR1(base), OFFSET_TBD);
+    WL_WRITE_2(sc, PIOR1, OFFSET_TBD);
     for (i = 0; i < 4; i++)
-	printf("%04x ", inw(PIOP1(base)));
+	printf("%04x ", WL_READ_2(sc, PIOP1));
     printf("\n");
 }
 
@@ -684,7 +671,6 @@ wldump(struct wl_softc *sc)
 static void
 wlinitmmc(struct wl_softc *sc)
 {
-    int		base = sc->base;
     int		configured;
     int		mode = sc->mode;
     int         i;                              /* 2.4 Gz               */
@@ -747,7 +733,7 @@ wlinitmmc(struct wl_softc *sc)
 			MMC_EECTRL_EEOP_READ);	/* 2.4 Gz: Read EEPROM	     */
 	for (i=0; i<1000; ++i) {		/* 2.4 Gz: wait for download */
 	    DELAY(40);				/* 2.4 Gz	      */
-	    if ((wlmmcread(base,MMC_EECTRLstat)	/* 2.4 Gz: check DWLD and    */
+	    if ((wlmmcread(sc, MMC_EECTRLstat)	/* 2.4 Gz: check DWLD and    */
 		&(MMC_EECTRLstat_DWLD		/* 2.4 Gz:	 EEBUSY	     */
 		 +MMC_EECTRLstat_EEBUSY))==0)	/* 2.4 Gz:		     */
 		break;				/* 2.4 Gz: download finished */
@@ -758,7 +744,7 @@ wlinitmmc(struct wl_softc *sc)
 			MMC_EECTRL_EEOP_READ);	/* 2.4 Gz: Read EEPROM	     */
 	for (i=0; i<1000; ++i) {		/* 2.4 Gz: wait for download */
 	    DELAY(40);				/* 2.4 Gz	      */
-	    if ((wlmmcread(base,MMC_EECTRLstat)	/* 2.4 Gz: check DWLD and    */
+	    if ((wlmmcread(sc, MMC_EECTRLstat)	/* 2.4 Gz: check DWLD and    */
 		&(MMC_EECTRLstat_DWLD		/* 2.4 Gz:	 EEBUSY	     */
 		 +MMC_EECTRLstat_EEBUSY))==0)	/* 2.4 Gz:		     */
 		break;				/* 2.4 Gz: download finished */
@@ -772,8 +758,8 @@ wlinitmmc(struct wl_softc *sc)
 	MMC_WRITE(MMC_EECTRL,			/* 2.4 Gz: EEPROM read	    */
 			MMC_EECTRL_EEOP_READ);	/* 2.4 Gz:		    */
 	DELAY(40);				/* 2.4 Gz		     */
-	i = wlmmcread(base,MMC_EEDATALrv)	/* 2.4 Gz: freq val	     */
-	  + (wlmmcread(base,MMC_EEDATAHrv)<<8);	/* 2.4 Gz		     */
+	i = wlmmcread(sc, MMC_EEDATALrv)	/* 2.4 Gz: freq val	     */
+	  + (wlmmcread(sc, MMC_EEDATAHrv)<<8);	/* 2.4 Gz		     */
 	sc->freq24 = (i>>6)+2400;		/* 2.4 Gz: save real freq    */
     }
 }
@@ -793,16 +779,23 @@ static void
 wlinit(void *xsc)
 {
     struct wl_softc	*sc = xsc;
+
+    WL_LOCK(sc);
+    wlinit_locked(sc);
+    WL_UNLOCK(sc);
+}
+
+static void
+wlinit_locked(struct wl_softc *sc)
+{
     struct ifnet	*ifp = sc->ifp;
     int			stat;
-    u_long		oldpri;
 
 #ifdef WLDEBUG
     if (sc->ifp->if_flags & IFF_DEBUG)
-	printf("wl%d: entered wlinit()\n",sc->unit);
+	if_printf(ifp, "entered wlinit()\n");
 #endif
-    WL_LOCK(sc);
-    oldpri = splimp();
+    WL_LOCK_ASSERT(sc);
     if ((stat = wlhwrst(sc)) == TRUE) {
 	sc->ifp->if_drv_flags |= IFF_DRV_RUNNING;   /* same as DSF_RUNNING */
 	/* 
@@ -813,14 +806,12 @@ wlinit(void *xsc)
 		
 	sc->flags |= DSF_RUNNING;
 	sc->tbusy = 0;
-	untimeout(wlwatchdog, sc, sc->watchdog_ch);
+	callout_stop(&sc->watchdog_timer);
 		
-	wlstart(ifp);
+	wlstart_locked(ifp);
     } else {
-	printf("wl%d init(): trouble resetting board.\n", sc->unit);
+	if_printf(ifp, "init(): trouble resetting board.\n");
     }
-    splx(oldpri);
-    WL_UNLOCK(sc);
 }
 
 /*
@@ -839,7 +830,7 @@ wlhwrst(struct wl_softc *sc)
 
 #ifdef WLDEBUG
     if (sc->ifp->if_flags & IFF_DEBUG)
-	printf("wl%d: entered wlhwrst()\n", sc->unit);
+	if_printf(sc->ifp, "entered wlhwrst()\n");
 #endif
     sc->hacr = HACR_RESET;
     CMD(sc);			/* reset the board */
@@ -881,7 +872,6 @@ wlhwrst(struct wl_softc *sc)
 static void
 wlbldcu(struct wl_softc *sc)
 {
-    short		base = sc->base;
     scp_t		scp;
     iscp_t		iscp;
     scb_t		scb;
@@ -893,16 +883,16 @@ wlbldcu(struct wl_softc *sc)
     scp.scp_sysbus = 0;
     scp.scp_iscp = OFFSET_ISCP;
     scp.scp_iscp_base = 0;
-    outw(PIOR1(base), OFFSET_SCP);
-    outsw(PIOP1(base), &scp, sizeof(scp_t)/2);
+    WL_WRITE_2(sc, PIOR1, OFFSET_SCP);
+    WL_WRITE_MULTI_2(sc, PIOP1, &scp, sizeof(scp_t)/2);
 
     bzero(&iscp, sizeof(iscp));
     iscp.iscp_busy = 1;
     iscp.iscp_scb_offset = OFFSET_SCB;
     iscp.iscp_scb = 0;
     iscp.iscp_scb_base = 0;
-    outw(PIOR1(base), OFFSET_ISCP);
-    outsw(PIOP1(base), &iscp, sizeof(iscp_t)/2);
+    WL_WRITE_2(sc, PIOR1, OFFSET_ISCP);
+    WL_WRITE_MULTI_2(sc, PIOP1, &iscp, sizeof(iscp_t)/2);
 
     scb.scb_status = 0;
     scb.scb_command = SCB_RESET;
@@ -912,37 +902,37 @@ wlbldcu(struct wl_softc *sc)
     scb.scb_alnerrs = 0;
     scb.scb_rscerrs = 0;
     scb.scb_ovrnerrs = 0;
-    outw(PIOR1(base), OFFSET_SCB);
-    outsw(PIOP1(base), &scb, sizeof(scb_t)/2);
+    WL_WRITE_2(sc, PIOR1, OFFSET_SCB);
+    WL_WRITE_MULTI_2(sc, PIOP1, &scb, sizeof(scb_t)/2);
 
     SET_CHAN_ATTN(sc);
 
-    outw(PIOR0(base), OFFSET_ISCP + 0);	/* address of iscp_busy */
-    for (i = 1000000; inw(PIOP0(base)) && (i-- > 0); )
+    WL_WRITE_2(sc, PIOR0, OFFSET_ISCP + 0);	/* address of iscp_busy */
+    for (i = 1000000; WL_READ_2(sc, PIOP0) && (i-- > 0); )
 	continue;
     if (i <= 0)
-	printf("wl%d bldcu(): iscp_busy timeout.\n", sc->unit);
-    outw(PIOR0(base), OFFSET_SCB + 0);	/* address of scb_status */
+	device_printf(sc->dev, "bldcu(): iscp_busy timeout.\n");
+    WL_WRITE_2(sc, PIOR0, OFFSET_SCB + 0);	/* address of scb_status */
     for (i = STATUS_TRIES; i-- > 0; ) {
-	if (inw(PIOP0(base)) == (SCB_SW_CX|SCB_SW_CNA)) 
+	if (WL_READ_2(sc, PIOP0) == (SCB_SW_CX|SCB_SW_CNA)) 
 	    break;
     }
     if (i <= 0)
-	printf("wl%d bldcu(): not ready after reset.\n", sc->unit);
+	device_printf(sc->dev, "bldcu(): not ready after reset.\n");
     wlack(sc);
 
     cb.ac_status = 0;
     cb.ac_command = AC_CW_EL;		/* NOP */
     cb.ac_link_offset = OFFSET_CU;
-    outw(PIOR1(base), OFFSET_CU);
-    outsw(PIOP1(base), &cb, 6/2);
+    WL_WRITE_2(sc, PIOR1, OFFSET_CU);
+    WL_WRITE_MULTI_2(sc, PIOP1, &cb, 6/2);
 
     tbd.act_count = 0;
     tbd.next_tbd_offset = I82586NULL;
     tbd.buffer_addr = 0;
     tbd.buffer_base = 0;
-    outw(PIOR1(base), OFFSET_TBD);
-    outsw(PIOP1(base), &tbd, sizeof(tbd_t)/2);
+    WL_WRITE_2(sc, PIOR1, OFFSET_TBD);
+    WL_WRITE_MULTI_2(sc, PIOP1, &tbd, sizeof(tbd_t)/2);
 }
 
 /*
@@ -957,23 +947,32 @@ wlbldcu(struct wl_softc *sc)
 static void
 wlstart(struct ifnet *ifp)
 {
-    struct mbuf		*m;
     struct wl_softc	*sc = ifp->if_softc;
-    short		base = sc->base;
-    int			scb_status, cu_status, scb_command;
 
     WL_LOCK(sc);
+    wlstart_locked(ifp);
+    WL_UNLOCK(sc);
+}
+
+static void
+wlstart_locked(struct ifnet *ifp)
+{
+    struct mbuf		*m;
+    struct wl_softc	*sc = ifp->if_softc;
+    int			scb_status, cu_status, scb_command;
+
+    WL_LOCK_ASSERT(sc);
 #ifdef WLDEBUG
     if (sc->ifp->if_flags & IFF_DEBUG)
-	printf("%s: entered wlstart()\n", ifp->if_xname);
+	if_printf(ifp, "entered wlstart()\n");
 #endif
 
-    outw(PIOR1(base), OFFSET_CU);
-    cu_status = inw(PIOP1(base));
-    outw(PIOR0(base),OFFSET_SCB + 0);	/* scb_status */
-    scb_status = inw(PIOP0(base));
-    outw(PIOR0(base), OFFSET_SCB + 2);
-    scb_command = inw(PIOP0(base));
+    WL_WRITE_2(sc, PIOR1, OFFSET_CU);
+    cu_status = WL_READ_2(sc, PIOP1);
+    WL_WRITE_2(sc, PIOR0,OFFSET_SCB + 0);	/* scb_status */
+    scb_status = WL_READ_2(sc, PIOP0);
+    WL_WRITE_2(sc, PIOR0, OFFSET_SCB + 2);
+    scb_command = WL_READ_2(sc, PIOP0);
 
     /*
      * don't need OACTIVE check as tbusy here checks to see
@@ -983,51 +982,48 @@ wlstart(struct ifnet *ifp)
 	if ((scb_status & 0x0700) == SCB_CUS_IDLE &&
 	   (cu_status & AC_SW_B) == 0){
 	    sc->tbusy = 0;
-	    untimeout(wlwatchdog, sc, sc->watchdog_ch);
+	    callout_stop(&sc->watchdog_timer);
 	    sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	    /*
 	     * This is probably just a race.  The xmt'r is just
 	     * became idle but WE have masked interrupts so ...
 	     */
 #ifdef WLDEBUG
-	    printf("%s: CU idle, scb %04x %04x cu %04x\n",
-		   ifp->if_xname, scb_status, scb_command, cu_status);
+	    if_printf(ifp, "CU idle, scb %04x %04x cu %04x\n",
+		   scb_status, scb_command, cu_status);
 #endif 
 	    if (xmt_watch) printf("!!");
 	} else {
-	    WL_UNLOCK(sc);
 	    return;	/* genuinely still busy */
 	}
     } else if ((scb_status & 0x0700) == SCB_CUS_ACTV ||
       (cu_status & AC_SW_B)){
 #ifdef WLDEBUG
-	printf("%s: CU unexpectedly busy; scb %04x cu %04x\n",
-	       ifp->if_xname, scb_status, cu_status);
+	if_printf(ifp, "CU unexpectedly busy; scb %04x cu %04x\n",
+	       scb_status, cu_status);
 #endif
-	if (xmt_watch) printf("%s: busy?!",ifp->if_xname);
-	WL_UNLOCK(sc);
+	if (xmt_watch)
+	    if_printf(ifp, "busy?!\n");
 	return;		/* hey, why are we busy? */
     }
 
     /* get ourselves some data */
-    ifp = sc->ifp;
     IF_DEQUEUE(&ifp->if_snd, m);
-    if (m != (struct mbuf *)0) {
+    if (m != NULL) {
 	/* let BPF see it before we commit it */
 	BPF_MTAP(ifp, m);
 	sc->tbusy++;
 	/* set the watchdog timer so that if the board
 	 * fails to interrupt we will restart
 	 */
-	/* try 10 ticks, not very long */
-	sc->watchdog_ch = timeout(wlwatchdog, sc, 10);
+	/* try 10 ms, not very long */
+	callout_reset(&sc->watchdog_timer, hz / 100, wlwatchdog, sc);
 	sc->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	if_inc_counter(sc->ifp, IFCOUNTER_OPACKETS, 1);
 	wlxmt(sc, m);
     } else {
 	sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
     }
-    WL_UNLOCK(sc);
     return;
 }
 
@@ -1053,7 +1049,6 @@ static int
 wlread(struct wl_softc *sc, u_short fd_p)
 {
     struct ifnet	*ifp = sc->ifp;
-    short		base = sc->base;
     fd_t		fd;
     struct ether_header	*eh;
     struct mbuf		*m;
@@ -1066,10 +1061,10 @@ wlread(struct wl_softc *sc, u_short fd_p)
 
 #ifdef WLDEBUG
     if (sc->ifp->if_flags & IFF_DEBUG)
-	printf("wl%d: entered wlread()\n", sc->unit);
+	if_printf(ifp, "entered wlread()\n");
 #endif
     if (!((ifp->if_flags & IFF_UP) && (ifp->if_drv_flags & IFF_DRV_RUNNING))) {
-	printf("%s read(): board is not running.\n", ifp->if_xname);
+	if_printf(ifp, "read(): board is not running.\n");
 	sc->hacr &= ~HACR_INTRON;
 	CMD(sc);		/* turn off interrupts */
     }
@@ -1077,19 +1072,19 @@ wlread(struct wl_softc *sc, u_short fd_p)
     /*
      * Collect message size.
      */
-    outw(PIOR1(base), fd_p);
-    insw(PIOP1(base), &fd, sizeof(fd_t)/2);
+    WL_WRITE_2(sc, PIOR1, fd_p);
+    WL_READ_MULTI_2(sc, PIOP1, &fd, sizeof(fd_t)/2);
     if (fd.rbd_offset == I82586NULL) {
 	if (wlhwrst(sc) != TRUE) {
 	    sc->hacr &= ~HACR_INTRON;
 	    CMD(sc);		/* turn off interrupts */
-	    printf("wl%d read(): hwrst trouble.\n", sc->unit);
+	    if_printf(ifp, "read(): hwrst trouble.\n");
 	}
 	return 0;
     }
 
-    outw(PIOR1(base), fd.rbd_offset);
-    insw(PIOP1(base), &rbd, sizeof(rbd_t)/2);
+    WL_WRITE_2(sc, PIOR1, fd.rbd_offset);
+    WL_READ_MULTI_2(sc, PIOP1, &rbd, sizeof(rbd_t)/2);
     bytes_in_msg = rbd.status & RBD_SW_COUNT;
 
     /*
@@ -1100,7 +1095,7 @@ wlread(struct wl_softc *sc, u_short fd_p)
 	if (wlhwrst(sc) != TRUE) {
 	    sc->hacr &= ~HACR_INTRON;
 	    CMD(sc);		/* turn off interrupts */
-	    printf("wl%d read(): hwrst trouble.\n", sc->unit);
+	    if_printf(ifp, "read(): hwrst trouble.\n");
 	}
 	return 0;
     }
@@ -1127,19 +1122,19 @@ wlread(struct wl_softc *sc, u_short fd_p)
 	} else {
 	    len = bytes;
 	}
-	outw(PIOR1(base), rbd.buffer_addr);
-	insw(PIOP1(base), mb_p, len/2);
+	WL_WRITE_2(sc, PIOR1, rbd.buffer_addr);
+	WL_READ_MULTI_2(sc, PIOP1, mb_p, len/2);
 	mlen += bytes;
 
 	if (bytes > bytes_in_mbuf) {
 	    /* XXX something wrong, a packet should fit in 1 cluster */
 	    m_freem(m);
-	    printf("wl%d read(): packet too large (%u > %u)\n",
-		   sc->unit, bytes, bytes_in_mbuf);
+	    if_printf(ifp, "read(): packet too large (%u > %u)\n",
+		   bytes, bytes_in_mbuf);
 	    if (wlhwrst(sc) != TRUE) {
 		sc->hacr &= ~HACR_INTRON;
 		CMD(sc);  /* turn off interrupts */
-		printf("wl%d read(): hwrst trouble.\n", sc->unit);
+		if_printf(ifp, "read(): hwrst trouble.\n");
 	    }
 	    return 0;
 	}
@@ -1150,8 +1145,8 @@ wlread(struct wl_softc *sc, u_short fd_p)
 	    if (rbd.status & RBD_SW_EOF || rbd.next_rbd_offset == I82586NULL) {
 		break;
 	    }
-	    outw(PIOR1(base), rbd.next_rbd_offset);
-	    insw(PIOP1(base), &rbd, sizeof(rbd_t)/2);
+	    WL_WRITE_2(sc, PIOR1, rbd.next_rbd_offset);
+	    WL_READ_MULTI_2(sc, PIOP1, &rbd, sizeof(rbd_t)/2);
 	    bytes_in_msg = rbd.status & RBD_SW_COUNT;
 	} else {
 	    rbd.buffer_addr += bytes;
@@ -1195,11 +1190,11 @@ wlread(struct wl_softc *sc, u_short fd_p)
 
 #ifdef WLDEBUG
     if (sc->ifp->if_flags & IFF_DEBUG)
-	printf("wl%d: wlrecv %u bytes\n", sc->unit, mlen);
+	if_printf(ifp, "wlrecv %u bytes\n", mlen);
 #endif
 
 #ifdef WLCACHE
-    wl_cache_store(sc, base, eh, m);
+    wl_cache_store(sc, eh, m);
 #endif
 
     /*
@@ -1229,25 +1224,24 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
     struct ifreq	*ifr = (struct ifreq *)data;
     struct wl_softc	*sc = ifp->if_softc;
-    short		base = sc->base;
     short		mode = 0;
-    int			opri, error = 0;
+    int			error = 0;
     struct thread	*td = curthread;	/* XXX */
     int			irq, irqval, i, isroot;
-    caddr_t		up;
+    char		psa_buf[0x40];
+    char		eeprom_buf[0x80];
 #ifdef WLCACHE
-    int			size;
+    size_t		size;
     char * 	        cpt;
 #endif
 
-    WL_LOCK(sc);
 #ifdef WLDEBUG
     if (sc->ifp->if_flags & IFF_DEBUG)
-	printf("%s: entered wlioctl()\n", ifp->if_xname);
+	if_printf(ifp, "entered wlioctl()\n");
 #endif
-    opri = splimp();
     switch (cmd) {
     case SIOCSIFFLAGS:
+	WL_LOCK(sc);
 	if (ifp->if_flags & IFF_ALLMULTI) {
 	    mode |= MOD_ENAL;
 	}
@@ -1267,14 +1261,14 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	    sc->mode = mode;
 	    if (sc->flags & DSF_RUNNING) {
 		sc->flags &= ~DSF_RUNNING;
-		wlinit(sc);
+		wlinit_locked(sc);
 	    }
 	}
 	/* if interface is marked DOWN and still running then
 	 * stop it.
 	 */
 	if ((ifp->if_flags & IFF_UP) == 0 && sc->flags & DSF_RUNNING) {
-	    printf("%s ioctl(): board is not running\n", ifp->if_xname);
+	    if_printf(ifp, "ioctl(): board is not running\n");
 	    sc->flags &= ~DSF_RUNNING;
 	    sc->hacr &= ~HACR_INTRON;
 	    CMD(sc);		  /* turn off interrupts */
@@ -1282,13 +1276,14 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* else if interface is UP and RUNNING, start it
 		*/
 	else if (ifp->if_flags & IFF_UP && (sc->flags & DSF_RUNNING) == 0) {
-	    wlinit(sc);
+	    wlinit_locked(sc);
 	}
   
 	/* if WLDEBUG set on interface, then printf rf-modem regs
 	*/
 	if (ifp->if_flags & IFF_DEBUG)
 	    wlmmcstat(sc);
+	WL_UNLOCK(sc);
 	break;
 #if	MULTICAST
     case SIOCADDMULTI:
@@ -1303,20 +1298,20 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	/* copy the PSA out to the caller */
     case SIOCGWLPSA:
-	/* pointer to buffer in user space */
-	up = (void *)ifr->ifr_data;
 	/* work out if they're root */
 	isroot = (priv_check(td, PRIV_NET80211_GETKEY) == 0);
-	
+
+	bzero(psa_buf, sizeof(psa_buf));
+	WL_LOCK(sc);
 	for (i = 0; i < 0x40; i++) {
 	    /* don't hand the DES key out to non-root users */
 	    if ((i > WLPSA_DESKEY) && (i < (WLPSA_DESKEY + 8)) && !isroot)
 		continue;
-	    if (subyte((up + i), sc->psa[i])) {
-		WL_UNLOCK(sc);
-		return(EFAULT);
-	    }
+	    psa_buf[i] = sc->psa[i];
 	}
+	WL_UNLOCK(sc);
+
+	error = copyout(psa_buf, ifr->ifr_data, sizeof(psa_buf));
 	break;
 
 
@@ -1325,46 +1320,43 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* root only */
 	if ((error = priv_check(td, PRIV_DRIVER)))
 	    break;
-	error = EINVAL;	/* assume the worst */
-	/* pointer to buffer in user space containing data */
-	up = (void *)ifr->ifr_data;
-	
-	/* check validity of input range */
-	for (i = 0; i < 0x40; i++)
-	    if (fubyte(up + i) < 0) {
-		WL_UNLOCK(sc);
-		return(EFAULT);
-	    }
 
+	error = copyin(ifr->ifr_data, psa_buf, sizeof(psa_buf));
+	if (error)
+	    break;
+	
 	/* check IRQ value */
-	irqval = fubyte(up+WLPSA_IRQNO);
+	irqval = psa_buf[WLPSA_IRQNO];
 	for (irq = 15; irq >= 0; irq--)
 	    if (irqvals[irq] == irqval)
 		break;
 	if (irq == 0)			/* oops */
 	    break;
+	WL_LOCK(sc);
 	/* new IRQ */
 	sc->psa[WLPSA_IRQNO] = irqval;
 
 	/* local MAC */
 	for (i = 0; i < 6; i++)
-	    sc->psa[WLPSA_LOCALMAC+i] = fubyte(up+WLPSA_LOCALMAC+i);
+	    sc->psa[WLPSA_LOCALMAC + i] = psa_buf[WLPSA_LOCALMAC + i];
 		
 	/* MAC select */	
-	sc->psa[WLPSA_MACSEL] = fubyte(up+WLPSA_MACSEL);
+	sc->psa[WLPSA_MACSEL] = psa_buf[WLPSA_MACSEL];
 	
 	/* default nwid */
-	sc->psa[WLPSA_NWID] = fubyte(up+WLPSA_NWID);
-	sc->psa[WLPSA_NWID+1] = fubyte(up+WLPSA_NWID+1);
+	sc->psa[WLPSA_NWID] = psa_buf[WLPSA_NWID];
+	sc->psa[WLPSA_NWID + 1] = psa_buf[WLPSA_NWID + 1];
 
-	error = 0;
 	wlsetpsa(sc);		/* update the PSA */
+	WL_UNLOCK(sc);
 	break;
 
 
 	/* get the current NWID out of the sc since we stored it there */
     case SIOCGWLCNWID:
+	WL_LOCK(sc);
 	ifr->ifr_data = (caddr_t) (sc->nwid[0] << 8 | sc->nwid[1]);
+	WL_UNLOCK(sc);
 	break;
 
 
@@ -1381,6 +1373,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* root only */
 	if ((error = priv_check(td, PRIV_DRIVER)))
 	    break;
+	WL_LOCK(sc);
 	if (!(ifp->if_flags & IFF_UP)) {
 	    error = EIO;	/* only allowed while up */
 	} else {
@@ -1392,6 +1385,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	    MMC_WRITE(MMC_NETW_ID_L,sc->nwid[1]);
 	    MMC_WRITE(MMC_NETW_ID_H,sc->nwid[0]);
 	}
+	WL_UNLOCK(sc);
 	break;
 
 	/* copy the EEPROM in 2.4 Gz WaveMODEM  out to the caller */
@@ -1399,25 +1393,21 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* root only */
 	if ((error = priv_check(td, PRIV_DRIVER)))
 	    break;
-	/* pointer to buffer in user space */
-	up = (void *)ifr->ifr_data;
-	
+
+	bzero(eeprom_buf, sizeof(eeprom_buf));
+	WL_LOCK(sc);
 	for (i=0x00; i<0x80; ++i) {		/* 2.4 Gz: size of EEPROM   */
 	    MMC_WRITE(MMC_EEADDR,i);		/* 2.4 Gz: get frequency    */
 	    MMC_WRITE(MMC_EECTRL,		/* 2.4 Gz: EEPROM read	    */
 			MMC_EECTRL_EEOP_READ);	/* 2.4 Gz:		    */
 	    DELAY(40);				/* 2.4 Gz		    */
-	    if (subyte(up + 2*i,		/* 2.4 Gz: pass low byte of */
-		wlmmcread(base,MMC_EEDATALrv))) {/* 2.4 Gz: EEPROM word      */
-		WL_UNLOCK(sc);
-	        return(EFAULT);			/* 2.4 Gz:		    */
-	    }
-	    if (subyte(up + 2*i+1,		/* 2.4 Gz: pass hi byte of  */
-		wlmmcread(base,MMC_EEDATALrv)))	{/* 2.4 Gz: EEPROM word      */
-		WL_UNLOCK(sc);
-	        return(EFAULT);			/* 2.4 Gz:		    */
-	    }
+	    eeprom_buf[2 * i] =			/* 2.4 Gz: pass low byte of */
+		wlmmcread(sc, MMC_EEDATALrv);   /* 2.4 Gz: EEPROM word      */
+	    eeprom_buf[2 * i + 1] =		/* 2.4 Gz: pass hi byte of  */
+		wlmmcread(sc, MMC_EEDATALrv);	/* 2.4 Gz: EEPROM word      */
 	}
+	WL_UNLOCK(sc);
+	error = copyout(ifr->ifr_data, eeprom_buf, sizeof(eeprom_buf));
 	break;
 
 #ifdef WLCACHE
@@ -1426,27 +1416,33 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* root only */
 	if ((error = priv_check(td, PRIV_DRIVER)))
 	    break;
+	WL_LOCK(sc);
 	wl_cache_zero(sc);
+	WL_UNLOCK(sc);
 	break;
 
 	/* read out the number of used cache elements */
     case SIOCGWLCITEM:
+	WL_LOCK(sc);
 	ifr->ifr_data = (caddr_t) sc->w_sigitems;
+	WL_UNLOCK(sc);
 	break;
 
 	/* read out the wl cache */
     case SIOCGWLCACHE:
-	/* pointer to buffer in user space */
-	up = (void *)ifr->ifr_data;
-	cpt = (char *) &sc->w_sigcache[0];
+	WL_LOCK(sc);
 	size = sc->w_sigitems * sizeof(struct w_sigcache);
-	
-	for (i = 0; i < size; i++) {
-	    if (subyte((up + i), *cpt++)) {
-		WL_UNLOCK(sc);
-		return(EFAULT);
-	    }
+	cpt = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (cpt == NULL) {
+	    WL_UNLOCK(sc);
+	    return (ENOMEM);
 	}
+
+	bcopy(sc->w_sigcache, cpt, size);
+	WL_UNLOCK(sc);
+
+	error = copyout(cpt, ifr->ifr_data, size);
+	free(cpt, M_DEVBUF);
 	break;
 #endif
 
@@ -1454,8 +1450,6 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
         error = ether_ioctl(ifp, cmd, data);
 	break;
     }
-    splx(opri);
-    WL_UNLOCK(sc);
     return (error);
 }
 
@@ -1474,13 +1468,10 @@ static void
 wlwatchdog(void *vsc)
 {
     struct wl_softc *sc = vsc;
-    int unit = sc->unit;
 
-    log(LOG_ERR, "wl%d: wavelan device timeout on xmit\n", unit);
-    WL_LOCK(sc);
+    log(LOG_ERR, "%s: wavelan device timeout on xmit\n", sc->ifp->if_xname);
     if_inc_counter(sc->ifp, IFCOUNTER_OERRORS, 1);
-    wlinit(sc);
-    WL_UNLOCK(sc);
+    wlinit_locked(sc);
 }
 
 /*
@@ -1499,26 +1490,25 @@ static void
 wlintr(void *arg)
 {
     struct wl_softc	*sc = (struct wl_softc *)arg;
-    short		base = sc->base;
     int			ac_status;
     u_short		int_type, int_type1;
 
     WL_LOCK(sc);
 #ifdef WLDEBUG
     if (sc->ifp->if_flags & IFF_DEBUG)
-	printf("wl%d: wlintr() called\n", sc->unit);
+	if_printf(sc->ifp, "wlintr() called\n");
 #endif
 
-    if ((int_type = inw(HASR(base))) & HASR_MMC_INTR) {
+    if ((int_type = WL_READ_2(sc, HASR)) & HASR_MMC_INTR) {
 	/* handle interrupt from the modem management controler */
 	/* This will clear the interrupt condition */ 
-	(void) wlmmcread(base,MMC_DCE_STATUS); /* ignored for now */
+	(void) wlmmcread(sc, MMC_DCE_STATUS); /* ignored for now */
     }
 
     if (!(int_type & HASR_INTR)){	/* return if no interrupt from 82586 */
 	/* commented out. jrb.  it happens when reinit occurs
 	   printf("wlintr: int_type %x, dump follows\n", int_type);
-	   wldump(unit);
+	   wldump(sc);
 	   */
 	WL_UNLOCK(sc);
 	return;
@@ -1527,8 +1517,8 @@ wlintr(void *arg)
     if (gathersnr)
 	getsnr(sc);
     for (;;) {
-	outw(PIOR0(base), OFFSET_SCB + 0);	/* get scb status */
-	int_type = (inw(PIOP0(base)) & SCB_SW_INT);
+	WL_WRITE_2(sc, PIOR0, OFFSET_SCB + 0);	/* get scb status */
+	int_type = (WL_READ_2(sc, PIOP0) & SCB_SW_INT);
 	if (int_type == 0)			/* no interrupts left */
 	    break;
 
@@ -1552,8 +1542,8 @@ wlintr(void *arg)
 	    if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 #ifdef	WLDEBUG
 	    if (sc->ifp->if_flags & IFF_DEBUG)
-		printf("wl%d intr(): receiver overrun! begin_fd = %x\n",
-		       sc->unit, sc->begin_fd);
+		if_printf(sc->ifp, "intr(): receiver overrun! begin_fd = %x\n",
+		       sc->begin_fd);
 #endif
 	    wlrustrt(sc);
 	}
@@ -1571,40 +1561,40 @@ wlintr(void *arg)
 	     * At present, we only request Interrupt for
 	     * XMT.
 	     */
-	    outw(PIOR1(base), OFFSET_CU);	/* get command status */
-	    ac_status = inw(PIOP1(base));
+	    WL_WRITE_2(sc, PIOR1, OFFSET_CU);	/* get command status */
+	    ac_status = WL_READ_2(sc, PIOP1);
 
 	    if (xmt_watch) {			/* report some anomalies */
 
 		if (sc->tbusy == 0) {
-		    printf("wl%d: xmt intr but not busy, CU %04x\n",
-			   sc->unit, ac_status);
+		    if_printf(sc->ifp, "xmt intr but not busy, CU %04x\n",
+			   ac_status);
 		}
 		if (ac_status == 0) {
-		    printf("wl%d: xmt intr but ac_status == 0\n", sc->unit);
+		    if_printf(sc->ifp, "xmt intr but ac_status == 0\n");
 		}
 		if (ac_status & AC_SW_A) {
-		    printf("wl%d: xmt aborted\n", sc->unit);
+		    if_printf(sc->ifp, "xmt aborted\n");
 		}
 #ifdef	notdef
 		if (ac_status & TC_CARRIER) {
-		    printf("wl%d: no carrier\n", sc->unit);
+		    if_printf(sc->ifp, "no carrier\n");
 		}
 #endif	/* notdef */
 		if (ac_status & TC_CLS) {
-		    printf("wl%d: no CTS\n", sc->unit);
+		    if_printf(sc->ifp, "no CTS\n");
 		}
 		if (ac_status & TC_DMA) {
-		    printf("wl%d: DMA underrun\n", sc->unit);
+		    if_printf(sc->ifp, "DMA underrun\n");
 		}
 		if (ac_status & TC_DEFER) {
-		    printf("wl%d: xmt deferred\n", sc->unit);
+		    if_printf(sc->ifp, "xmt deferred\n");
 		}
 		if (ac_status & TC_SQE) {
-		    printf("wl%d: heart beat\n", sc->unit);
+		    if_printf(sc->ifp, "heart beat\n");
 		}
 		if (ac_status & TC_COLLISION) {
-		    printf("wl%d: too many collisions\n", sc->unit);
+		    if_printf(sc->ifp, "too many collisions\n");
 		}
 	    }
 	    /* if the transmit actually failed, or returned some status */
@@ -1620,9 +1610,9 @@ wlintr(void *arg)
 		}
 	    }
 	    sc->tbusy = 0;
-	    untimeout(wlwatchdog, sc, sc->watchdog_ch);
+	    callout_stop(&sc->watchdog_timer);
 	    sc->ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	    wlstart(sc->ifp);
+	    wlstart_locked(sc->ifp);
 	}
     }
     WL_UNLOCK(sc);
@@ -1646,37 +1636,36 @@ wlintr(void *arg)
 static void
 wlrcv(struct wl_softc *sc)
 {
-    short	base = sc->base;
     u_short	fd_p, status, offset, link_offset;
 
 #ifdef WLDEBUG
     if (sc->ifp->if_flags & IFF_DEBUG)
-	printf("wl%d: entered wlrcv()\n", sc->unit);
+	if_printf(sc->ifp, "entered wlrcv()\n");
 #endif
     for (fd_p = sc->begin_fd; fd_p != I82586NULL; fd_p = sc->begin_fd) {
 
-	outw(PIOR0(base), fd_p + 0);	/* address of status */
-	status = inw(PIOP0(base));
-	outw(PIOR1(base), fd_p + 4);	/* address of link_offset */
-	link_offset = inw(PIOP1(base));
-	offset = inw(PIOP1(base));	/* rbd_offset */
+	WL_WRITE_2(sc, PIOR0, fd_p + 0);	/* address of status */
+	status = WL_READ_2(sc, PIOP0);
+	WL_WRITE_2(sc, PIOR1, fd_p + 4);	/* address of link_offset */
+	link_offset = WL_READ_2(sc, PIOP1);
+	offset = WL_READ_2(sc, PIOP1);	/* rbd_offset */
 	if (status == 0xffff || offset == 0xffff /*I82586NULL*/) {
 	    if (wlhwrst(sc) != TRUE)
-		printf("wl%d rcv(): hwrst ffff trouble.\n", sc->unit);
+		if_printf(sc->ifp, "rcv(): hwrst ffff trouble.\n");
 	    return;
 	} else if (status & AC_SW_C) {
 	    if (status == (RFD_DONE|RFD_RSC)) {
 		/* lost one */
 #ifdef	WLDEBUG
 		if (sc->ifp->if_flags & IFF_DEBUG)
-		    printf("wl%d RCV: RSC %x\n", sc->unit, status);
+		    if_printf(sc->ifp, "RCV: RSC %x\n", status);
 #endif
 		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 	    } else if (!(status & RFD_OK)) {
-		printf("wl%d RCV: !OK %x\n", sc->unit, status);
+		if_printf(sc->ifp, "RCV: !OK %x\n", status);
 		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 	    } else if (status & 0xfff) {	/* can't happen */
-		printf("wl%d RCV: ERRs %x\n", sc->unit, status);
+		if_printf(sc->ifp, "RCV: ERRs %x\n", status);
 		if_inc_counter(sc->ifp, IFCOUNTER_IERRORS, 1);
 	    } else if (!wlread(sc, fd_p))
 		return;
@@ -1684,7 +1673,7 @@ wlrcv(struct wl_softc *sc)
 	    if (!wlrequeue(sc, fd_p)) {
 		/* abort on chain error */
 		if (wlhwrst(sc) != TRUE)
-		    printf("wl%d rcv(): hwrst trouble.\n", sc->unit);
+		    if_printf(sc->ifp, "rcv(): hwrst trouble.\n");
 		return;
 	    }
 	    sc->begin_fd = link_offset;
@@ -1705,32 +1694,31 @@ wlrcv(struct wl_softc *sc)
 static int
 wlrequeue(struct wl_softc *sc, u_short fd_p)
 {
-    short		base = sc->base;
     fd_t		fd;
     u_short		l_rbdp, f_rbdp, rbd_offset;
 
-    outw(PIOR0(base), fd_p + 6);
-    rbd_offset = inw(PIOP0(base));
+    WL_WRITE_2(sc, PIOR0, fd_p + 6);
+    rbd_offset = WL_READ_2(sc, PIOP0);
     if ((f_rbdp = rbd_offset) != I82586NULL) {
 	l_rbdp = f_rbdp;
 	for (;;) {
-	    outw(PIOR0(base), l_rbdp + 0);	/* address of status */
-	    if (inw(PIOP0(base)) & RBD_SW_EOF)
+	    WL_WRITE_2(sc, PIOR0, l_rbdp + 0);	/* address of status */
+	    if (WL_READ_2(sc, PIOP0) & RBD_SW_EOF)
 		break;
-	    outw(PIOP0(base), 0);
-	    outw(PIOR0(base), l_rbdp + 2);	/* next_rbd_offset */
-	    if ((l_rbdp = inw(PIOP0(base))) == I82586NULL)
+	    WL_WRITE_2(sc, PIOP0, 0);
+	    WL_WRITE_2(sc, PIOR0, l_rbdp + 2);	/* next_rbd_offset */
+	    if ((l_rbdp = WL_READ_2(sc, PIOP0)) == I82586NULL)
 		break;
 	}
-	outw(PIOP0(base), 0);
-	outw(PIOR0(base), l_rbdp + 2);		/* next_rbd_offset */
-	outw(PIOP0(base), I82586NULL);
-	outw(PIOR0(base), l_rbdp + 8);		/* address of size */
-	outw(PIOP0(base), inw(PIOP0(base)) | AC_CW_EL);
-	outw(PIOR0(base), sc->end_rbd + 2);
-	outw(PIOP0(base), f_rbdp);		/* end_rbd->next_rbd_offset */
-	outw(PIOR0(base), sc->end_rbd + 8);	/* size */
-	outw(PIOP0(base), inw(PIOP0(base)) & ~AC_CW_EL);
+	WL_WRITE_2(sc, PIOP0, 0);
+	WL_WRITE_2(sc, PIOR0, l_rbdp + 2);		/* next_rbd_offset */
+	WL_WRITE_2(sc, PIOP0, I82586NULL);
+	WL_WRITE_2(sc, PIOR0, l_rbdp + 8);		/* address of size */
+	WL_WRITE_2(sc, PIOP0, WL_READ_2(sc, PIOP0) | AC_CW_EL);
+	WL_WRITE_2(sc, PIOR0, sc->end_rbd + 2);
+	WL_WRITE_2(sc, PIOP0, f_rbdp);		/* end_rbd->next_rbd_offset */
+	WL_WRITE_2(sc, PIOR0, sc->end_rbd + 8);	/* size */
+	WL_WRITE_2(sc, PIOP0, WL_READ_2(sc, PIOP0) & ~AC_CW_EL);
 	sc->end_rbd = l_rbdp;
     }
 
@@ -1738,12 +1726,12 @@ wlrequeue(struct wl_softc *sc, u_short fd_p)
     fd.command = AC_CW_EL;
     fd.link_offset = I82586NULL;
     fd.rbd_offset = I82586NULL;
-    outw(PIOR1(base), fd_p);
-    outsw(PIOP1(base), &fd, 8/2);
+    WL_WRITE_2(sc, PIOR1, fd_p);
+    WL_WRITE_MULTI_2(sc, PIOP1, &fd, 8/2);
     
-    outw(PIOR1(base), sc->end_fd + 2);	/* addr of command */
-    outw(PIOP1(base), 0);		/* command = 0 */
-    outw(PIOP1(base), fd_p);		/* end_fd->link_offset = fd_p */
+    WL_WRITE_2(sc, PIOR1, sc->end_fd + 2);	/* addr of command */
+    WL_WRITE_2(sc, PIOP1, 0);		/* command = 0 */
+    WL_WRITE_2(sc, PIOP1, fd_p);		/* end_fd->link_offset = fd_p */
     sc->end_fd = fd_p;
 
     return 1;
@@ -1776,22 +1764,21 @@ wlxmt(struct wl_softc *sc, struct mbuf *m)
     ac_t		cb;
     u_short		tbd_p = OFFSET_TBD;
     u_short		len, clen = 0;
-    short		base = sc->base;
     int			spin;
 	
 #ifdef WLDEBUG
     if (sc->ifp->if_flags & IFF_DEBUG)
-	printf("%s: entered wlxmt()\n", sc->ifp->if_xname);
+	if_printf(sc->ifp, "entered wlxmt()\n");
 #endif
 
     cb.ac_status = 0;
     cb.ac_command = (AC_CW_EL|AC_TRANSMIT|AC_CW_I);
     cb.ac_link_offset = I82586NULL;
-    outw(PIOR1(base), OFFSET_CU);
-    outsw(PIOP1(base), &cb, 6/2);
-    outw(PIOP1(base), OFFSET_TBD);	/* cb.cmd.transmit.tbd_offset */
-    outsw(PIOP1(base), eh_p->ether_dhost, WAVELAN_ADDR_SIZE/2);
-    outw(PIOP1(base), eh_p->ether_type);
+    WL_WRITE_2(sc, PIOR1, OFFSET_CU);
+    WL_WRITE_MULTI_2(sc, PIOP1, &cb, 6/2);
+    WL_WRITE_2(sc, PIOP1, OFFSET_TBD);	/* cb.cmd.transmit.tbd_offset */
+    WL_WRITE_MULTI_2(sc, PIOP1, eh_p->ether_dhost, WAVELAN_ADDR_SIZE/2);
+    WL_WRITE_2(sc, PIOP1, eh_p->ether_type);
 
 #ifdef	WLDEBUG
     if (sc->ifp->if_flags & IFF_DEBUG) {
@@ -1801,11 +1788,11 @@ wlxmt(struct wl_softc *sc, struct mbuf *m)
 	}
     }
 #endif	/* WLDEBUG */
-    outw(PIOR0(base), OFFSET_TBD);
-    outw(PIOP0(base), 0);		/* act_count */
-    outw(PIOR1(base), OFFSET_TBD + 4);
-    outw(PIOP1(base), xmtdata_p);	/* buffer_addr */
-    outw(PIOP1(base), 0);		/* buffer_base */
+    WL_WRITE_2(sc, PIOR0, OFFSET_TBD);
+    WL_WRITE_2(sc, PIOP0, 0);		/* act_count */
+    WL_WRITE_2(sc, PIOR1, OFFSET_TBD + 4);
+    WL_WRITE_2(sc, PIOP1, xmtdata_p);	/* buffer_addr */
+    WL_WRITE_2(sc, PIOP1, 0);		/* buffer_base */
     for (;;) {
 	if (count) {
 	    if (clen + count > WAVELAN_MTU)
@@ -1814,24 +1801,24 @@ wlxmt(struct wl_softc *sc, struct mbuf *m)
 		len = count + 1;
 	    else
 		len = count;
-	    outw(PIOR1(base), xmtdata_p);
-	    outsw(PIOP1(base), mb_p, len/2);
+	    WL_WRITE_2(sc, PIOR1, xmtdata_p);
+	    WL_WRITE_MULTI_2(sc, PIOP1, mb_p, len/2);
 	    clen += count;
-	    outw(PIOR0(base), tbd_p);  /* address of act_count */
-	    outw(PIOP0(base), inw(PIOP0(base)) + count);
+	    WL_WRITE_2(sc, PIOR0, tbd_p);  /* address of act_count */
+	    WL_WRITE_2(sc, PIOP0, WL_READ_2(sc, PIOP0) + count);
 	    xmtdata_p += len;
 	    if ((tm_p = tm_p->m_next) == (struct mbuf *)0)
 		break;
 	    if (count & 1) {
 		/* go to the next descriptor */
-		outw(PIOR0(base), tbd_p + 2);
+		WL_WRITE_2(sc, PIOR0, tbd_p + 2);
 		tbd_p += sizeof (tbd_t);
-		outw(PIOP0(base), tbd_p); /* next_tbd_offset */
-		outw(PIOR0(base), tbd_p);
-		outw(PIOP0(base), 0);	/* act_count */
-		outw(PIOR1(base), tbd_p + 4);
-		outw(PIOP1(base), xmtdata_p); /* buffer_addr */
-		outw(PIOP1(base), 0);	      /* buffer_base */
+		WL_WRITE_2(sc, PIOP0, tbd_p); /* next_tbd_offset */
+		WL_WRITE_2(sc, PIOR0, tbd_p);
+		WL_WRITE_2(sc, PIOP0, 0);	/* act_count */
+		WL_WRITE_2(sc, PIOR1, tbd_p + 4);
+		WL_WRITE_2(sc, PIOP1, xmtdata_p); /* buffer_addr */
+		WL_WRITE_2(sc, PIOP1, 0);	      /* buffer_base */
 		/* at the end -> coallesce remaining mbufs */
 		if (tbd_p == OFFSET_TBD + (N_TBD-1) * sizeof (tbd_t)) {
 		    wlsftwsleaze(&count, &mb_p, &tm_p, sc);
@@ -1862,16 +1849,16 @@ wlxmt(struct wl_softc *sc, struct mbuf *m)
 	if (xmt_debug)
 	    printf("CLEN = %d\n", clen);
 #endif	/* WLDEBUG */
-    outw(PIOR0(base), tbd_p);
+    WL_WRITE_2(sc, PIOR0, tbd_p);
     if (clen < ETHERMIN) {
-	outw(PIOP0(base), inw(PIOP0(base)) + ETHERMIN - clen);
-	outw(PIOR1(base), xmtdata_p);
+	WL_WRITE_2(sc, PIOP0, WL_READ_2(sc, PIOP0) + ETHERMIN - clen);
+	WL_WRITE_2(sc, PIOR1, xmtdata_p);
 	for (xmtshort_p = xmtdata_p; clen < ETHERMIN; clen += 2)
-	    outw(PIOP1(base), 0);
+	    WL_WRITE_2(sc, PIOP1, 0);
     }	
-    outw(PIOP0(base), inw(PIOP0(base)) | TBD_SW_EOF);
-    outw(PIOR0(base), tbd_p + 2);
-    outw(PIOP0(base), I82586NULL);
+    WL_WRITE_2(sc, PIOP0, WL_READ_2(sc, PIOP0) | TBD_SW_EOF);
+    WL_WRITE_2(sc, PIOR0, tbd_p + 2);
+    WL_WRITE_2(sc, PIOP0, I82586NULL);
 #ifdef	WLDEBUG
     if (sc->ifp->if_flags & IFF_DEBUG) {
 	if (xmt_debug) {
@@ -1881,20 +1868,20 @@ wlxmt(struct wl_softc *sc, struct mbuf *m)
     }
 #endif	/* WLDEBUG */
 
-    outw(PIOR0(base), OFFSET_SCB + 2);	/* address of scb_command */
+    WL_WRITE_2(sc, PIOR0, OFFSET_SCB + 2);	/* address of scb_command */
     /* 
      * wait for 586 to clear previous command, complain if it takes
      * too long
      */
     for (spin = 1;;spin = (spin + 1) % 10000) {
-	if (inw(PIOP0(base)) == 0) {		/* it's done, we can go */
+	if (WL_READ_2(sc, PIOP0) == 0) {		/* it's done, we can go */
 	    break;
 	}
 	if ((spin == 0) && xmt_watch) {		/* not waking up, and we care */
-		printf("%s: slow accepting xmit\n", sc->ifp->if_xname);
+	    if_printf(sc->ifp, "slow accepting xmit\n");
 	}
     }
-    outw(PIOP0(base), SCB_CU_STRT);		/* new command */
+    WL_WRITE_2(sc, PIOP0, SCB_CU_STRT);		/* new command */
     SET_CHAN_ATTN(sc);
     
     m_freem(m);
@@ -1920,7 +1907,6 @@ wlxmt(struct wl_softc *sc, struct mbuf *m)
 static u_short
 wlbldru(struct wl_softc *sc)
 {
-    short	base = sc->base;
     fd_t	fd;
     rbd_t	rbd;
     u_short	fd_p = OFFSET_RU;
@@ -1933,20 +1919,20 @@ wlbldru(struct wl_softc *sc)
 	fd.command = 0;
 	fd.link_offset = fd_p + sizeof(fd_t);
 	fd.rbd_offset = I82586NULL;
-	outw(PIOR1(base), fd_p);
-	outsw(PIOP1(base), &fd, 8/2);
+	WL_WRITE_2(sc, PIOR1, fd_p);
+	WL_WRITE_MULTI_2(sc, PIOP1, &fd, 8/2);
 	fd_p = fd.link_offset;
     }
     fd_p -= sizeof(fd_t);
     sc->end_fd = fd_p;
-    outw(PIOR1(base), fd_p + 2);
-    outw(PIOP1(base), AC_CW_EL);	/* command */
-    outw(PIOP1(base), I82586NULL);	/* link_offset */
+    WL_WRITE_2(sc, PIOR1, fd_p + 2);
+    WL_WRITE_2(sc, PIOP1, AC_CW_EL);	/* command */
+    WL_WRITE_2(sc, PIOP1, I82586NULL);	/* link_offset */
     fd_p = OFFSET_RU;
     
-    outw(PIOR0(base), fd_p + 6);	/* address of rbd_offset */
-    outw(PIOP0(base), rbd_p);
-    outw(PIOR1(base), rbd_p);
+    WL_WRITE_2(sc, PIOR0, fd_p + 6);	/* address of rbd_offset */
+    WL_WRITE_2(sc, PIOP0, rbd_p);
+    WL_WRITE_2(sc, PIOR1, rbd_p);
     for (i = 0; i < N_RBD; i++) {
 	rbd.status = 0;
 	rbd.buffer_addr = rbd_p + sizeof(rbd_t) + 2;
@@ -1960,8 +1946,8 @@ wlbldru(struct wl_softc *sc)
 	    rbd.size |= AC_CW_EL;
 	    sc->end_rbd = rbd_p;
 	}
-	outsw(PIOP1(base), &rbd, sizeof(rbd_t)/2);
-	outw(PIOR1(base), rbd_p);
+	WL_WRITE_MULTI_2(sc, PIOP1, &rbd, sizeof(rbd_t)/2);
+	WL_WRITE_2(sc, PIOR1, rbd_p);
     }
     return sc->begin_fd;
 }
@@ -1977,24 +1963,23 @@ wlbldru(struct wl_softc *sc)
 static void
 wlrustrt(struct wl_softc *sc)
 {
-    short		base = sc->base;
     u_short		rfa;
 
 #ifdef WLDEBUG
     if (sc->ifp->if_flags & IFF_DEBUG)
-	printf("wl%d: entered wlrustrt()\n", sc->unit);
+	if_printf(sc->ifp, "entered wlrustrt()\n");
 #endif
-    outw(PIOR0(base), OFFSET_SCB);
-    if (inw(PIOP0(base)) & SCB_RUS_READY){
+    WL_WRITE_2(sc, PIOR0, OFFSET_SCB);
+    if (WL_READ_2(sc, PIOP0) & SCB_RUS_READY){
 	printf("wlrustrt: RUS_READY\n");
 	return;
     }
 
-    outw(PIOR0(base), OFFSET_SCB + 2);
-    outw(PIOP0(base), SCB_RU_STRT);		/* command */
+    WL_WRITE_2(sc, PIOR0, OFFSET_SCB + 2);
+    WL_WRITE_2(sc, PIOP0, SCB_RU_STRT);		/* command */
     rfa = wlbldru(sc);
-    outw(PIOR0(base), OFFSET_SCB + 6);	/* address of scb_rfa_offset */
-    outw(PIOP0(base), rfa);
+    WL_WRITE_2(sc, PIOR0, OFFSET_SCB + 6);	/* address of scb_rfa_offset */
+    WL_WRITE_2(sc, PIOP0, rfa);
 
     SET_CHAN_ATTN(sc);
     return;
@@ -2010,30 +1995,29 @@ wlrustrt(struct wl_softc *sc)
 static int
 wldiag(struct wl_softc *sc)
 {
-    short	base = sc->base;
     short	status;
 
 #ifdef WLDEBUG
     if (sc->ifp->if_flags & IFF_DEBUG)
-	printf("wl%d: entered wldiag()\n", sc->unit);
+	if_printf(sc->ifp, "entered wldiag()\n");
 #endif
-    outw(PIOR0(base), OFFSET_SCB);
-    status = inw(PIOP0(base));
+    WL_WRITE_2(sc, PIOR0, OFFSET_SCB);
+    status = WL_READ_2(sc, PIOP0);
     if (status & SCB_SW_INT) {
 		/* state is 2000 which seems ok
-		   printf("wl%d diag(): unexpected initial state %\n",
-		   sc->unit, inw(PIOP0(base)));
+		   if_printf(sc->ifp, "diag(): unexpected initial state %\n",
+		       WL_READ_2(sc, PIOP0));
 		*/
 	wlack(sc);
     }
-    outw(PIOR1(base), OFFSET_CU);
-    outw(PIOP1(base), 0);			/* ac_status */
-    outw(PIOP1(base), AC_DIAGNOSE|AC_CW_EL);/* ac_command */
+    WL_WRITE_2(sc, PIOR1, OFFSET_CU);
+    WL_WRITE_2(sc, PIOP1, 0);			/* ac_status */
+    WL_WRITE_2(sc, PIOP1, AC_DIAGNOSE|AC_CW_EL);/* ac_command */
     if (wlcmd(sc, "diag()") == 0)
 	return 0;
-    outw(PIOR0(base), OFFSET_CU);
-    if (inw(PIOP0(base)) & 0x0800) {
-	printf("wl%d: i82586 Self Test failed!\n", sc->unit);
+    WL_WRITE_2(sc, PIOR0, OFFSET_CU);
+    if (WL_READ_2(sc, PIOP0) & 0x0800) {
+	if_printf(sc->ifp, "i82586 Self Test failed!\n");
 	return 0;
     }
     return TRUE;
@@ -2049,7 +2033,6 @@ static int
 wlconfig(struct wl_softc *sc)
 {
     configure_t	configure;
-    short		base = sc->base;
 
 #if	MULTICAST
     struct ifmultiaddr *ifma;
@@ -2059,20 +2042,20 @@ wlconfig(struct wl_softc *sc)
 
 #ifdef WLDEBUG
     if (sc->ifp->if_flags & IFF_DEBUG)
-	printf("wl%d: entered wlconfig()\n", sc->unit);
+	if_printf(sc->ifp, "entered wlconfig()\n");
 #endif
-    outw(PIOR0(base), OFFSET_SCB);
-    if (inw(PIOP0(base)) & SCB_SW_INT) {
+    WL_WRITE_2(sc, PIOR0, OFFSET_SCB);
+    if (WL_READ_2(sc, PIOP0) & SCB_SW_INT) {
 	/*
-	  printf("wl%d config(): unexpected initial state %x\n",
-	  sc->unit, inw(PIOP0(base)));
+	  if_printf(sc->ifp, "config(): unexpected initial state %x\n",
+	      WL_READ_2(sc, PIOP0));
 	  */
     }
     wlack(sc);
 
-    outw(PIOR1(base), OFFSET_CU);
-    outw(PIOP1(base), 0);				/* ac_status */
-    outw(PIOP1(base), AC_CONFIGURE|AC_CW_EL);	/* ac_command */
+    WL_WRITE_2(sc, PIOR1, OFFSET_CU);
+    WL_WRITE_2(sc, PIOP1, 0);				/* ac_status */
+    WL_WRITE_2(sc, PIOP1, AC_CONFIGURE|AC_CW_EL);	/* ac_command */
 
 /* jrb hack */
     configure.fifolim_bytecnt 	= 0x080c;
@@ -2105,39 +2088,39 @@ wlconfig(struct wl_softc *sc)
 #endif
     if (sc->mode & (MOD_PROM | MOD_ENAL))
 	configure.hardware |= 1;
-    outw(PIOR1(base), OFFSET_CU + 6);
-    outsw(PIOP1(base), &configure, sizeof(configure_t)/2);
+    WL_WRITE_2(sc, PIOR1, OFFSET_CU + 6);
+    WL_WRITE_MULTI_2(sc, PIOP1, &configure, sizeof(configure_t)/2);
 
     if (wlcmd(sc, "config()-configure") == 0)
 	return 0;
 #if	MULTICAST
-    outw(PIOR1(base), OFFSET_CU);
-    outw(PIOP1(base), 0);				/* ac_status */
-    outw(PIOP1(base), AC_MCSETUP|AC_CW_EL);		/* ac_command */
-    outw(PIOR1(base), OFFSET_CU + 8);
+    WL_WRITE_2(sc, PIOR1, OFFSET_CU);
+    WL_WRITE_2(sc, PIOP1, 0);				/* ac_status */
+    WL_WRITE_2(sc, PIOP1, AC_MCSETUP|AC_CW_EL);		/* ac_command */
+    WL_WRITE_2(sc, PIOR1, OFFSET_CU + 8);
     if_maddr_rlock(sc->ifp);
     TAILQ_FOREACH(ifma, &sc->ifp->if_multiaddrs, ifma_link) {
 	if (ifma->ifma_addr->sa_family != AF_LINK)
 	    continue;
 	
 	addrp = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
-        outw(PIOP1(base), addrp[0] + (addrp[1] << 8));
-        outw(PIOP1(base), addrp[2] + (addrp[3] << 8));
-        outw(PIOP1(base), addrp[4] + (addrp[5] << 8));
+        WL_WRITE_2(sc, PIOP1, addrp[0] + (addrp[1] << 8));
+        WL_WRITE_2(sc, PIOP1, addrp[2] + (addrp[3] << 8));
+        WL_WRITE_2(sc, PIOP1, addrp[4] + (addrp[5] << 8));
         ++cnt;
     }
     if_maddr_runlock(sc->ifp);
-    outw(PIOR1(base), OFFSET_CU + 6);		/* mc-cnt */
-    outw(PIOP1(base), cnt * WAVELAN_ADDR_SIZE);
+    WL_WRITE_2(sc, PIOR1, OFFSET_CU + 6);		/* mc-cnt */
+    WL_WRITE_2(sc, PIOP1, cnt * WAVELAN_ADDR_SIZE);
     if (wlcmd(sc, "config()-mcaddress") == 0)
 	return 0;
 #endif	/* MULTICAST */
 
-    outw(PIOR1(base), OFFSET_CU);
-    outw(PIOP1(base), 0);				/* ac_status */
-    outw(PIOP1(base), AC_IASETUP|AC_CW_EL);		/* ac_command */
-    outw(PIOR1(base), OFFSET_CU + 6);
-    outsw(PIOP1(base), IF_LLADDR(sc->ifp), WAVELAN_ADDR_SIZE/2);
+    WL_WRITE_2(sc, PIOR1, OFFSET_CU);
+    WL_WRITE_2(sc, PIOP1, 0);				/* ac_status */
+    WL_WRITE_2(sc, PIOP1, AC_IASETUP|AC_CW_EL);		/* ac_command */
+    WL_WRITE_2(sc, PIOR1, OFFSET_CU + 6);
+    WL_WRITE_MULTI_2(sc, PIOP1, IF_LLADDR(sc->ifp), WAVELAN_ADDR_SIZE/2);
 
     if (wlcmd(sc, "config()-address") == 0)
 	return(0);
@@ -2156,37 +2139,38 @@ wlconfig(struct wl_softc *sc)
 static int
 wlcmd(struct wl_softc *sc, char *str)
 {
-    short	base = sc->base;
     int i;
 	
-    outw(PIOR0(base), OFFSET_SCB + 2);	/* address of scb_command */
-    outw(PIOP0(base), SCB_CU_STRT);
+    WL_WRITE_2(sc, PIOR0, OFFSET_SCB + 2);	/* address of scb_command */
+    WL_WRITE_2(sc, PIOP0, SCB_CU_STRT);
     
     SET_CHAN_ATTN(sc);
     
-    outw(PIOR0(base), OFFSET_CU);
+    WL_WRITE_2(sc, PIOR0, OFFSET_CU);
     for (i = 0; i < 0xffff; i++)
-	if (inw(PIOP0(base)) & AC_SW_C)
+	if (WL_READ_2(sc, PIOP0) & AC_SW_C)
 	    break;
-    if (i == 0xffff || !(inw(PIOP0(base)) & AC_SW_OK)) {
-	printf("wl%d: %s failed; status = %d, inw = %x, outw = %x\n",
-	       sc->unit, str, inw(PIOP0(base)) & AC_SW_OK, inw(PIOP0(base)), inw(PIOR0(base)));
-	outw(PIOR0(base), OFFSET_SCB);
-	printf("scb_status %x\n", inw(PIOP0(base)));
-	outw(PIOR0(base), OFFSET_SCB+2);
-	printf("scb_command %x\n", inw(PIOP0(base)));
-	outw(PIOR0(base), OFFSET_SCB+4);
-	printf("scb_cbl %x\n", inw(PIOP0(base)));
-	outw(PIOR0(base), OFFSET_CU+2);
-	printf("cu_cmd %x\n", inw(PIOP0(base)));
+    if (i == 0xffff || !(WL_READ_2(sc, PIOP0) & AC_SW_OK)) {
+	if_printf(sc->ifp, "%s failed; status = %d, inw = %x, outw = %x\n",
+	    str, WL_READ_2(sc, PIOP0) & AC_SW_OK, WL_READ_2(sc, PIOP0),
+	    WL_READ_2(sc, PIOR0));
+	WL_WRITE_2(sc, PIOR0, OFFSET_SCB);
+	printf("scb_status %x\n", WL_READ_2(sc, PIOP0));
+	WL_WRITE_2(sc, PIOR0, OFFSET_SCB+2);
+	printf("scb_command %x\n", WL_READ_2(sc, PIOP0));
+	WL_WRITE_2(sc, PIOR0, OFFSET_SCB+4);
+	printf("scb_cbl %x\n", WL_READ_2(sc, PIOP0));
+	WL_WRITE_2(sc, PIOR0, OFFSET_CU+2);
+	printf("cu_cmd %x\n", WL_READ_2(sc, PIOP0));
 	return(0);
     }
 
-    outw(PIOR0(base), OFFSET_SCB);
-    if ((inw(PIOP0(base)) & SCB_SW_INT) && (inw(PIOP0(base)) != SCB_SW_CNA)) {
+    WL_WRITE_2(sc, PIOR0, OFFSET_SCB);
+    if ((WL_READ_2(sc, PIOP0) & SCB_SW_INT) &&
+	(WL_READ_2(sc, PIOP0) != SCB_SW_CNA)) {
 	/*
-	  printf("wl%d %s: unexpected final state %x\n",
-	  sc->unit, str, inw(PIOP0(base)));
+	  if_printf(sc->ifp, "%s: unexpected final state %x\n",
+	      str, WL_READ_2(sc, PIOP0));
 	  */
     }
     wlack(sc);
@@ -2205,22 +2189,21 @@ wlack(struct wl_softc *sc)
 {
     int i;
     u_short cmd;
-    short base = sc->base;
 
-    outw(PIOR1(base), OFFSET_SCB);
-    if (!(cmd = (inw(PIOP1(base)) & SCB_SW_INT)))
+    WL_WRITE_2(sc, PIOR1, OFFSET_SCB);
+    if (!(cmd = (WL_READ_2(sc, PIOP1) & SCB_SW_INT)))
 	return(0);
 #ifdef WLDEBUG
     if (sc->ifp->if_flags & IFF_DEBUG)
-	printf("wl%d: doing a wlack()\n", sc->unit);
+	if_printf(sc->ifp, "doing a wlack()\n");
 #endif
-    outw(PIOP1(base), cmd);
+    WL_WRITE_2(sc, PIOP1, cmd);
     SET_CHAN_ATTN(sc);
-    outw(PIOR0(base), OFFSET_SCB + 2);	/* address of scb_command */
-    for (i = 1000000; inw(PIOP0(base)) && (i-- > 0); )
+    WL_WRITE_2(sc, PIOR0, OFFSET_SCB + 2);	/* address of scb_command */
+    for (i = 1000000; WL_READ_2(sc, PIOP0) && (i-- > 0); )
 	continue;
     if (i < 1)
-	printf("wl%d wlack(): board not accepting command.\n", sc->unit);
+	if_printf(sc->ifp, "wlack(): board not accepting command.\n");
     return(cmd);
 }
 
@@ -2228,15 +2211,14 @@ wlack(struct wl_softc *sc)
 static void
 wltbd(struct wl_softc *sc)
 {
-    short		base = sc->base;
     u_short		tbd_p = OFFSET_TBD;
     tbd_t		tbd;
     int 		i = 0;
     int			sum = 0;
 
     for (;;) {
-	outw(PIOR1(base), tbd_p);
-	insw(PIOP1(base), &tbd, sizeof(tbd_t)/2);
+	WL_WRITE_2(sc, PIOR1, tbd_p);
+	WL_READ_MULTI_2(sc, PIOP1, &tbd, sizeof(tbd_t)/2);
 	sum += (tbd.act_count & ~TBD_SW_EOF);
 	printf("%d: addr %x, count %d (%d), next %x, base %x\n",
 	       i++, tbd.buffer_addr,
@@ -2323,37 +2305,36 @@ wlsftwsleaze(u_short *countp, u_char **mb_pp, struct mbuf **tm_pp, struct wl_sof
 static void
 wlmmcstat(struct wl_softc *sc)
 {
-    short	base = sc->base;
     u_short tmp;
 
-    printf("wl%d: DCE_STATUS: 0x%x, ", sc->unit,
-	   wlmmcread(base,MMC_DCE_STATUS) & 0x0f);
-    tmp = wlmmcread(base,MMC_CORRECT_NWID_H) << 8;
-    tmp |= wlmmcread(base,MMC_CORRECT_NWID_L);
+    device_printf(sc->dev, "DCE_STATUS: 0x%x, ",
+	   wlmmcread(sc, MMC_DCE_STATUS) & 0x0f);
+    tmp = wlmmcread(sc, MMC_CORRECT_NWID_H) << 8;
+    tmp |= wlmmcread(sc, MMC_CORRECT_NWID_L);
     printf("Correct NWID's: %d, ", tmp);
-    tmp = wlmmcread(base,MMC_WRONG_NWID_H) << 8;
-    tmp |= wlmmcread(base,MMC_WRONG_NWID_L);
+    tmp = wlmmcread(sc, MMC_WRONG_NWID_H) << 8;
+    tmp |= wlmmcread(sc, MMC_WRONG_NWID_L);
     printf("Wrong NWID's: %d\n", tmp);
-    printf("THR_PRE_SET: 0x%x, ", wlmmcread(base,MMC_THR_PRE_SET));
+    printf("THR_PRE_SET: 0x%x, ", wlmmcread(sc, MMC_THR_PRE_SET));
     printf("SIGNAL_LVL: %d, SILENCE_LVL: %d\n", 
-	   wlmmcread(base,MMC_SIGNAL_LVL),
-	   wlmmcread(base,MMC_SILENCE_LVL));
+	   wlmmcread(sc, MMC_SIGNAL_LVL),
+	   wlmmcread(sc, MMC_SILENCE_LVL));
     printf("SIGN_QUAL: 0x%x, NETW_ID: %x:%x, DES: %d\n",
-	   wlmmcread(base,MMC_SIGN_QUAL),
-	   wlmmcread(base,MMC_NETW_ID_H),
-	   wlmmcread(base,MMC_NETW_ID_L),
-	   wlmmcread(base,MMC_DES_AVAIL));
+	   wlmmcread(sc, MMC_SIGN_QUAL),
+	   wlmmcread(sc, MMC_NETW_ID_H),
+	   wlmmcread(sc, MMC_NETW_ID_L),
+	   wlmmcread(sc, MMC_DES_AVAIL));
 }
 
 static u_short
-wlmmcread(u_int base, u_short reg)
+wlmmcread(struct wl_softc *sc, u_short reg)
 {
-    while (inw(HASR(base)) & HASR_MMC_BUSY)
+    while (WL_READ_2(sc, HASR) & HASR_MMC_BUSY)
 	continue;
-    outw(MMCR(base),reg << 1);
-    while (inw(HASR(base)) & HASR_MMC_BUSY)
+    WL_WRITE_2(sc, MMCR,reg << 1);
+    while (WL_READ_2(sc, HASR) & HASR_MMC_BUSY)
 	continue;
-    return (u_short)inw(MMCR(base)) >> 8;
+    return (u_short)WL_READ_2(sc, MMCR) >> 8;
 }
 
 static void
@@ -2363,8 +2344,8 @@ getsnr(struct wl_softc *sc)
     /* 
      * SNR retrieval procedure :
      *
-     * read signal level : wlmmcread(base, MMC_SIGNAL_LVL);
-     * read silence level : wlmmcread(base, MMC_SILENCE_LVL);
+     * read signal level : wlmmcread(sc, MMC_SIGNAL_LVL);
+     * read silence level : wlmmcread(sc, MMC_SILENCE_LVL);
      */
     MMC_WRITE(MMC_FREEZE,0);
     /*
@@ -2375,22 +2356,22 @@ getsnr(struct wl_softc *sc)
 /*
 ** wlgetpsa
 **
-** Reads the psa for the wavelan at (base) into (buf)
+** Reads the psa for the wavelan at (sc) into (buf)
 */
 static void
-wlgetpsa(int base, u_char *buf)
+wlgetpsa(struct wl_softc *sc, u_char *buf)
 {
     int	i;
 
-    PCMD(base, HACR_DEFAULT & ~HACR_16BITS);
-    PCMD(base, HACR_DEFAULT & ~HACR_16BITS);
+    PCMD(sc, HACR_DEFAULT & ~HACR_16BITS);
+    PCMD(sc, HACR_DEFAULT & ~HACR_16BITS);
 
     for (i = 0; i < 0x40; i++) {
-	outw(PIOR2(base), i);
-	buf[i] = inb(PIOP2(base));
+	WL_WRITE_2(sc, PIOR2, i);
+	buf[i] = WL_READ_1(sc, PIOP2);
     }
-    PCMD(base, HACR_DEFAULT);
-    PCMD(base, HACR_DEFAULT);
+    PCMD(sc, HACR_DEFAULT);
+    PCMD(sc, HACR_DEFAULT);
 }
 
 /*
@@ -2405,8 +2386,7 @@ wlgetpsa(int base, u_char *buf)
 static void
 wlsetpsa(struct wl_softc *sc)
 {
-    short	base = sc->base;
-    int		i, oldpri;
+    int		i;
     u_short	crc;
 
     crc = wlpsacrc(sc->psa);	/* calculate CRC of PSA */
@@ -2414,28 +2394,24 @@ wlsetpsa(struct wl_softc *sc)
     sc->psa[WLPSA_CRCHIGH] = (crc >> 8) & 0xff;
     sc->psa[WLPSA_CRCOK] = 0x55;	/* default to 'bad' until programming complete */
 
-    oldpri = splimp();		/* ick, long pause */
-    
-    PCMD(base, HACR_DEFAULT & ~HACR_16BITS);
-    PCMD(base, HACR_DEFAULT & ~HACR_16BITS);
+    PCMD(sc, HACR_DEFAULT & ~HACR_16BITS);
+    PCMD(sc, HACR_DEFAULT & ~HACR_16BITS);
     
     for (i = 0; i < 0x40; i++) {
 	DELAY(DELAYCONST);
-	outw(PIOR2(base),i);  /* write param memory */
+	WL_WRITE_2(sc, PIOR2, i);  /* write param memory */
 	DELAY(DELAYCONST);
-	outb(PIOP2(base), sc->psa[i]);
+	WL_WRITE_1(sc, PIOP2, sc->psa[i]);
     }
     DELAY(DELAYCONST);
-    outw(PIOR2(base),WLPSA_CRCOK);  /* update CRC flag*/
+    WL_WRITE_2(sc, PIOR2, WLPSA_CRCOK);  /* update CRC flag*/
     DELAY(DELAYCONST);
     sc->psa[WLPSA_CRCOK] = 0xaa;	/* OK now */
-    outb(PIOP2(base), 0xaa);	/* all OK */
+    WL_WRITE_1(sc, PIOP2, 0xaa);	/* all OK */
     DELAY(DELAYCONST);
     
-    PCMD(base, HACR_DEFAULT);
-    PCMD(base, HACR_DEFAULT);
-    
-    splx(oldpri);
+    PCMD(sc, HACR_DEFAULT);
+    PCMD(sc, HACR_DEFAULT);
 }
 
 /* 
@@ -2525,8 +2501,8 @@ wl_cache_zero(struct wl_softc *sc)
  *	throw out non-ip (on by default, but can be turned off)
  */
 static
-void wl_cache_store (struct wl_softc *sc, int base, struct ether_header *eh,
-      		     struct mbuf *m)
+void wl_cache_store (struct wl_softc *sc, struct ether_header *eh,
+		     struct mbuf *m)
 {
 #ifdef INET
 	struct ip *ip = NULL;	/* Avoid GCC warning */
@@ -2630,9 +2606,9 @@ void wl_cache_store (struct wl_softc *sc, int base, struct ether_header *eh,
 		sc->w_sigcache[w_insertcache].ipsrc = ip->ip_src.s_addr;
 	}
 	bcopy( eh->ether_shost, sc->w_sigcache[w_insertcache].macsrc,  6);
-	signal = sc->w_sigcache[w_insertcache].signal  = wlmmcread(base, MMC_SIGNAL_LVL) & 0x3f;
-	silence = sc->w_sigcache[w_insertcache].silence = wlmmcread(base, MMC_SILENCE_LVL) & 0x3f;
-	sc->w_sigcache[w_insertcache].quality = wlmmcread(base, MMC_SIGN_QUAL) & 0x0f;
+	signal = sc->w_sigcache[w_insertcache].signal  = wlmmcread(sc, MMC_SIGNAL_LVL) & 0x3f;
+	silence = sc->w_sigcache[w_insertcache].silence = wlmmcread(sc, MMC_SILENCE_LVL) & 0x3f;
+	sc->w_sigcache[w_insertcache].quality = wlmmcread(sc, MMC_SIGN_QUAL) & 0x0f;
 	if (signal > 0)
 		sc->w_sigcache[w_insertcache].snr = 
 			signal - silence;

@@ -32,8 +32,6 @@ TARGET_SUBDIR= ${BMAKE_GDB}/arch/${TARGET_CPUARCH}
 GDB_CROSS_DEBUGGER=
 .endif
 
-.if !defined(INFO)
-
 .PATH:	${CNTRB_GDB}/gdb ${CNTRB_GDB}/gdb/cli ${CNTRB_GDB}/gdb/mi	\
 	${CNTRB_GDB}/gdb/signals ${CNTRB_GDB}/gdb/tui ${TARGET_SUBDIR}
 
@@ -61,11 +59,5 @@ MAN=
 
 SRCS+= ${GENSRCS}
 CLEANFILES+= ${GENSRCS}
-
-.else
-
-.PATH:	${CNTRB_GDB}/gdb ${CNTRB_GDB}/gdb/doc ${CNTRB_RL}/doc
-
-.endif
 
 .include "../Makefile.inc"

@@ -12,13 +12,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "TableGenBackends.h" // Declares all backends.
-#include "SetTheory.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/TableGen/Error.h"
 #include "llvm/TableGen/Main.h"
 #include "llvm/TableGen/Record.h"
+#include "llvm/TableGen/SetTheory.h"
 
 using namespace llvm;
 
@@ -180,3 +180,12 @@ int main(int argc, char **argv) {
 
   return TableGenMain(argv[0], &LLVMTableGenMain);
 }
+
+#ifdef __has_feature
+#if __has_feature(address_sanitizer)
+#include <sanitizer/lsan_interface.h>
+// Disable LeakSanitizer for this binary as it has too many leaks that are not
+// very interesting to fix. See compiler-rt/include/sanitizer/lsan_interface.h .
+int __lsan_is_turned_off() { return 1; }
+#endif  // __has_feature(address_sanitizer)
+#endif  // defined(__has_feature)

@@ -21,8 +21,8 @@
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Frontend/FrontendOptions.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/StringRef.h"
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -35,7 +35,7 @@ class CompilerInstance;
 /// Abstract base class for actions which can be performed by the frontend.
 class FrontendAction {
   FrontendInputFile CurrentInput;
-  OwningPtr<ASTUnit> CurrentASTUnit;
+  std::unique_ptr<ASTUnit> CurrentASTUnit;
   CompilerInstance *Instance;
   friend class ASTMergeAction;
   friend class WrapperFrontendAction;
@@ -124,7 +124,7 @@ public:
 
   bool isCurrentFileAST() const {
     assert(!CurrentInput.isEmpty() && "No current file!");
-    return CurrentASTUnit.isValid();
+    return (bool)CurrentASTUnit;
   }
 
   const FrontendInputFile &getCurrentInput() const {
@@ -146,11 +146,10 @@ public:
     return *CurrentASTUnit;
   }
 
-  ASTUnit *takeCurrentASTUnit() {
-    return CurrentASTUnit.take();
-  }
+  ASTUnit *takeCurrentASTUnit() { return CurrentASTUnit.release(); }
 
-  void setCurrentInput(const FrontendInputFile &CurrentInput, ASTUnit *AST = 0);
+  void setCurrentInput(const FrontendInputFile &CurrentInput,
+                       ASTUnit *AST = nullptr);
 
   /// @}
   /// @name Supported Modes
@@ -220,17 +219,17 @@ protected:
   ///
   /// This will also take care of instantiating a code completion consumer if
   /// the user requested it and the action supports it.
-  virtual void ExecuteAction();
+  void ExecuteAction() override;
 
 public:
-  virtual bool usesPreprocessorOnly() const { return false; }
+  bool usesPreprocessorOnly() const override { return false; }
 };
 
 class PluginASTAction : public ASTFrontendAction {
   virtual void anchor();
 protected:
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         StringRef InFile) = 0;
+  ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
+                                 StringRef InFile) override = 0;
 
 public:
   /// \brief Parse the given plugin command line arguments.
@@ -248,11 +247,11 @@ class PreprocessorFrontendAction : public FrontendAction {
 protected:
   /// \brief Provide a default implementation which returns aborts;
   /// this method should never be called by FrontendAction clients.
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         StringRef InFile);
+  ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
+                                 StringRef InFile) override;
 
 public:
-  virtual bool usesPreprocessorOnly() const { return true; }
+  bool usesPreprocessorOnly() const override { return true; }
 };
 
 /// \brief A frontend action which simply wraps some other runtime-specified
@@ -262,28 +261,27 @@ public:
 /// some existing action's behavior. It implements every virtual method in
 /// the FrontendAction interface by forwarding to the wrapped action.
 class WrapperFrontendAction : public FrontendAction {
-  OwningPtr<FrontendAction> WrappedAction;
+  std::unique_ptr<FrontendAction> WrappedAction;
 
 protected:
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         StringRef InFile);
-  virtual bool BeginInvocation(CompilerInstance &CI);
-  virtual bool BeginSourceFileAction(CompilerInstance &CI,
-                                     StringRef Filename);
-  virtual void ExecuteAction();
-  virtual void EndSourceFileAction();
+  ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
+                                 StringRef InFile) override;
+  bool BeginInvocation(CompilerInstance &CI) override;
+  bool BeginSourceFileAction(CompilerInstance &CI, StringRef Filename) override;
+  void ExecuteAction() override;
+  void EndSourceFileAction() override;
 
 public:
   /// Construct a WrapperFrontendAction from an existing action, taking
   /// ownership of it.
   WrapperFrontendAction(FrontendAction *WrappedAction);
 
-  virtual bool usesPreprocessorOnly() const;
-  virtual TranslationUnitKind getTranslationUnitKind();
-  virtual bool hasPCHSupport() const;
-  virtual bool hasASTFileSupport() const;
-  virtual bool hasIRSupport() const;
-  virtual bool hasCodeCompletionSupport() const;
+  bool usesPreprocessorOnly() const override;
+  TranslationUnitKind getTranslationUnitKind() override;
+  bool hasPCHSupport() const override;
+  bool hasASTFileSupport() const override;
+  bool hasIRSupport() const override;
+  bool hasCodeCompletionSupport() const override;
 };
 
 }  // end namespace clang

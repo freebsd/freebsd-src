@@ -166,6 +166,8 @@ static bool matched_symbol(SymLook *, const Obj_Entry *, Sym_Match_Result *,
 void r_debug_state(struct r_debug *, struct link_map *) __noinline;
 void _r_debug_postinit(struct link_map *) __noinline;
 
+int __sys_openat(int, const char *, int, ...);
+
 /*
  * Data declarations.
  */
@@ -503,6 +505,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
       aux_info[AT_STACKPROT]->a_un.a_val != 0)
 	    stack_prot = aux_info[AT_STACKPROT]->a_un.a_val;
 
+#ifndef COMPAT_32BIT
     /*
      * Get the actual dynamic linker pathname from the executable if
      * possible.  (It should always be possible.)  That ensures that
@@ -515,6 +518,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 	obj_rtld.path = xstrdup(obj_main->interp);
         __progname = obj_rtld.path;
     }
+#endif
 
     digest_dynamic(obj_main, 0);
     dbg("%s valid_hash_sysv %d valid_hash_gnu %d dynsymcount %d",
@@ -2220,6 +2224,7 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp,
 	return (NULL);
     }
 
+    obj->dlopened = (flags & RTLD_LO_DLOPEN) != 0;
     *obj_tail = obj;
     obj_tail = &obj->next;
     obj_count++;
@@ -2821,7 +2826,7 @@ search_library_pathfds(const char *name, const char *path, int *fdp)
 		dirfd = parse_libdir(fdstr);
 		if (dirfd < 0)
 			break;
-		fd = openat(dirfd, name, O_RDONLY | O_CLOEXEC);
+		fd = __sys_openat(dirfd, name, O_RDONLY | O_CLOEXEC);
 		if (fd >= 0) {
 			*fdp = fd;
 			len = strlen(fdstr) + strlen(name) + 3;
@@ -4880,6 +4885,27 @@ _rtld_get_stack_prot(void)
 {
 
 	return (stack_prot);
+}
+
+int
+_rtld_is_dlopened(void *arg)
+{
+	Obj_Entry *obj;
+	RtldLockState lockstate;
+	int res;
+
+	rlock_acquire(rtld_bind_lock, &lockstate);
+	obj = dlcheck(arg);
+	if (obj == NULL)
+		obj = obj_from_addr(arg);
+	if (obj == NULL) {
+		_rtld_error("No shared object contains address");
+		lock_release(rtld_bind_lock, &lockstate);
+		return (-1);
+	}
+	res = obj->dlopened ? 1 : 0;
+	lock_release(rtld_bind_lock, &lockstate);
+	return (res);
 }
 
 static void

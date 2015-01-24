@@ -14,26 +14,26 @@
 
 #include "HexagonRegisterInfo.h"
 #include "Hexagon.h"
+#include "HexagonMachineFunctionInfo.h"
 #include "HexagonSubtarget.h"
 #include "HexagonTargetMachine.h"
-#include "HexagonMachineFunctionInfo.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/CodeGen/MachineFrameInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
-#include "llvm/CodeGen/MachineFrameInfo.h"
+#include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/PseudoSourceValue.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/Type.h"
 #include "llvm/MC/MachineLocation.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/ErrorHandling.h"
 
 using namespace llvm;
 
@@ -43,13 +43,12 @@ HexagonRegisterInfo::HexagonRegisterInfo(HexagonSubtarget &st)
     Subtarget(st) {
 }
 
-const uint16_t* HexagonRegisterInfo::getCalleeSavedRegs(const MachineFunction
-                                                        *MF)
-  const {
-  static const uint16_t CalleeSavedRegsV2[] = {
+const MCPhysReg *
+HexagonRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
+  static const MCPhysReg CalleeSavedRegsV2[] = {
     Hexagon::R24,   Hexagon::R25,   Hexagon::R26,   Hexagon::R27, 0
   };
-  static const uint16_t CalleeSavedRegsV3[] = {
+  static const MCPhysReg CalleeSavedRegsV3[] = {
     Hexagon::R16,   Hexagon::R17,   Hexagon::R18,   Hexagon::R19,
     Hexagon::R20,   Hexagon::R21,   Hexagon::R22,   Hexagon::R23,
     Hexagon::R24,   Hexagon::R25,   Hexagon::R26,   Hexagon::R27, 0

@@ -870,12 +870,6 @@ in6_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 	struct inpcbhead *head;
 	struct inpcb *inp, *tmpinp;
 	u_short fport = fport_arg, lport = lport_arg;
-	int faith;
-
-	if (faithprefix_p != NULL)
-		faith = (*faithprefix_p)(laddr);
-	else
-		faith = 0;
 
 	/*
 	 * First look for an exact match.
@@ -934,10 +928,6 @@ in6_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 			    inp->inp_lport != lport) {
 				continue;
 			}
-
-			/* XXX inp locking */
-			if (faith && (inp->inp_flags & INP_FAITH) == 0)
-				continue;
 
 			injail = prison_flag(inp->inp_cred, PR_IP6);
 			if (injail) {
@@ -1000,10 +990,6 @@ in6_pcblookup_group(struct inpcbinfo *pcbinfo, struct inpcbgroup *pcbgroup,
 			    inp->inp_lport != lport) {
 				continue;
 			}
-
-			/* XXX inp locking */
-			if (faith && (inp->inp_flags & INP_FAITH) == 0)
-				continue;
 
 			injail = prison_flag(inp->inp_cred, PR_IP6);
 			if (injail) {
@@ -1069,17 +1055,11 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 	struct inpcbhead *head;
 	struct inpcb *inp, *tmpinp;
 	u_short fport = fport_arg, lport = lport_arg;
-	int faith;
 
 	KASSERT((lookupflags & ~(INPLOOKUP_WILDCARD)) == 0,
 	    ("%s: invalid lookup flags %d", __func__, lookupflags));
 
 	INP_HASH_LOCK_ASSERT(pcbinfo);
-
-	if (faithprefix_p != NULL)
-		faith = (*faithprefix_p)(laddr);
-	else
-		faith = 0;
 
 	/*
 	 * First look for an exact match.
@@ -1136,10 +1116,6 @@ in6_pcblookup_hash_locked(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 			    inp->inp_lport != lport) {
 				continue;
 			}
-
-			/* XXX inp locking */
-			if (faith && (inp->inp_flags & INP_FAITH) == 0)
-				continue;
 
 			injail = prison_flag(inp->inp_cred, PR_IP6);
 			if (injail) {
@@ -1276,7 +1252,7 @@ in6_pcblookup_mbuf(struct inpcbinfo *pcbinfo, struct in6_addr *faddr,
 	 * XXXRW: As above, that policy belongs in the pcbgroup code.
 	 */
 	if (in_pcbgroup_enabled(pcbinfo) &&
-	    !(M_HASHTYPE_TEST(m, M_HASHTYPE_NONE))) {
+	    M_HASHTYPE_TEST(m, M_HASHTYPE_NONE) == 0) {
 		pcbgroup = in6_pcbgroup_byhash(pcbinfo, M_HASHTYPE_GET(m),
 		    m->m_pkthdr.flowid);
 		if (pcbgroup != NULL)

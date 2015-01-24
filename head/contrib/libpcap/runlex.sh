@@ -7,8 +7,6 @@
 # means that neither Flex nor Lex was found, so we report an error and
 # quit.
 #
-# @(#) $Header: /tcpdump/master/libpcap/runlex.sh,v 1.4 2007-12-31 03:38:39 guy Exp $
-#
 
 #
 # Get the name of the command to run, and then shift to get the arguments.

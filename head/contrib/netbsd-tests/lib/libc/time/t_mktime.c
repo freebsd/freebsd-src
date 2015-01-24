@@ -72,12 +72,7 @@ ATF_TC_BODY(mktime_negyear, tc)
 
 	errno = 0;
 	t = mktime(&tms);
-#if defined(__FreeBSD__)
-	/* Open Group says "and may set errno to indicate the error" */
-	ATF_REQUIRE(t == (time_t)-1);
-#else
 	ATF_REQUIRE_ERRNO(0, t != (time_t)-1);
-#endif
 }
 
 ATF_TC(timegm_epoch);

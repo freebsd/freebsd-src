@@ -7,10 +7,12 @@ SUBDIR=	${_IPv6} \
 	${_atf} \
 	legal \
 	${_llvm} \
+	${_pjdfstest} \
 	${_roffdocs}
 
 .if ${MK_TESTS} != "no"
 _atf= atf
+_pjdfstest= pjdfstest
 .endif
 
 .if ${MK_CLANG} != "no"

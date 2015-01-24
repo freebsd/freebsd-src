@@ -17,7 +17,6 @@
 
 #include "clang/AST/Type.h"
 #include "llvm/Support/Casting.h"
-#include "llvm/Support/type_traits.h"
 #include <iterator>
 
 namespace clang {
@@ -60,9 +59,9 @@ public:
 
   /// \brief Converting constructor that permits implicit upcasting of
   /// canonical type pointers.
-  template<typename U>
-  CanQual(const CanQual<U>& Other,
-          typename llvm::enable_if<llvm::is_base_of<T, U>, int>::type = 0);
+  template <typename U>
+  CanQual(const CanQual<U> &Other,
+          typename std::enable_if<std::is_base_of<T, U>::value, int>::type = 0);
 
   /// \brief Retrieve the underlying type pointer, which refers to a
   /// canonical type.
@@ -541,39 +540,39 @@ struct CanProxyAdaptor<ExtVectorType> : public CanProxyBase<ExtVectorType> {
 
 template<>
 struct CanProxyAdaptor<FunctionType> : public CanProxyBase<FunctionType> {
-  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getResultType)
+  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getReturnType)
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(FunctionType::ExtInfo, getExtInfo)
 };
 
 template<>
 struct CanProxyAdaptor<FunctionNoProtoType>
   : public CanProxyBase<FunctionNoProtoType> {
-  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getResultType)
+  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getReturnType)
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(FunctionType::ExtInfo, getExtInfo)
 };
 
 template<>
 struct CanProxyAdaptor<FunctionProtoType>
   : public CanProxyBase<FunctionProtoType> {
-  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getResultType)
+  LLVM_CLANG_CANPROXY_TYPE_ACCESSOR(getReturnType)
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(FunctionType::ExtInfo, getExtInfo)
-  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(unsigned, getNumArgs)
-  CanQualType getArgType(unsigned i) const {
-    return CanQualType::CreateUnsafe(this->getTypePtr()->getArgType(i));
+  LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(unsigned, getNumParams)
+  CanQualType getParamType(unsigned i) const {
+    return CanQualType::CreateUnsafe(this->getTypePtr()->getParamType(i));
   }
 
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(bool, isVariadic)
   LLVM_CLANG_CANPROXY_SIMPLE_ACCESSOR(unsigned, getTypeQuals)
 
-  typedef CanTypeIterator<FunctionProtoType::arg_type_iterator>
-    arg_type_iterator;
+  typedef CanTypeIterator<FunctionProtoType::param_type_iterator>
+  param_type_iterator;
 
-  arg_type_iterator arg_type_begin() const {
-    return arg_type_iterator(this->getTypePtr()->arg_type_begin());
+  param_type_iterator param_type_begin() const {
+    return param_type_iterator(this->getTypePtr()->param_type_begin());
   }
 
-  arg_type_iterator arg_type_end() const {
-    return arg_type_iterator(this->getTypePtr()->arg_type_end());
+  param_type_iterator param_type_end() const {
+    return param_type_iterator(this->getTypePtr()->param_type_end());
   }
 
   // Note: canonical function types never have exception specifications

@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 static int force_ahci = 1;
 TUNABLE_INT("hw.ahci.force", &force_ahci);
 
-static struct {
+static const struct {
 	uint32_t	id;
 	uint8_t		rev;
 	const char	*name;
@@ -148,6 +148,14 @@ static struct {
 	{0x8c078086, 0x00, "Intel Lynx Point (RAID)",	0},
 	{0x8c0e8086, 0x00, "Intel Lynx Point (RAID)",	0},
 	{0x8c0f8086, 0x00, "Intel Lynx Point (RAID)",	0},
+	{0x8c828086, 0x00, "Intel Wildcat Point",	0},
+	{0x8c838086, 0x00, "Intel Wildcat Point",	0},
+	{0x8c848086, 0x00, "Intel Wildcat Point (RAID)",	0},
+	{0x8c858086, 0x00, "Intel Wildcat Point (RAID)",	0},
+	{0x8c868086, 0x00, "Intel Wildcat Point (RAID)",	0},
+	{0x8c878086, 0x00, "Intel Wildcat Point (RAID)",	0},
+	{0x8c8e8086, 0x00, "Intel Wildcat Point (RAID)",	0},
+	{0x8c8f8086, 0x00, "Intel Wildcat Point (RAID)",	0},
 	{0x8d028086, 0x00, "Intel Wellsburg",	0},
 	{0x8d048086, 0x00, "Intel Wellsburg (RAID)",	0},
 	{0x8d068086, 0x00, "Intel Wellsburg (RAID)",	0},
@@ -279,6 +287,7 @@ static struct {
 	{0x11841039, 0x00, "SiS 966",		0},
 	{0x11851039, 0x00, "SiS 968",		0},
 	{0x01861039, 0x00, "SiS 968",		0},
+	{0xa01c177d, 0x00, "ThunderX SATA",	AHCI_Q_ABAR0},
 	{0x00000000, 0x00, NULL,		0}
 };
 
@@ -378,12 +387,16 @@ ahci_pci_attach(device_t dev)
 	    pci_get_subvendor(dev) == 0x1043 &&
 	    pci_get_subdevice(dev) == 0x81e4)
 		ctlr->quirks |= AHCI_Q_SATA1_UNIT0;
-	/* if we have a memory BAR(5) we are likely on an AHCI part */
 	ctlr->vendorid = pci_get_vendor(dev);
 	ctlr->deviceid = pci_get_device(dev);
 	ctlr->subvendorid = pci_get_subvendor(dev);
 	ctlr->subdeviceid = pci_get_subdevice(dev);
-	ctlr->r_rid = PCIR_BAR(5);
+
+	/* Default AHCI Base Address is BAR(5), Cavium uses BAR(0) */
+	if (ctlr->quirks & AHCI_Q_ABAR0)
+		ctlr->r_rid = PCIR_BAR(0);
+	else
+		ctlr->r_rid = PCIR_BAR(5);
 	if (!(ctlr->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return ENXIO;
@@ -471,14 +484,14 @@ static device_method_t ahci_methods[] = {
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
 	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
 	DEVMETHOD(bus_get_dma_tag,  ahci_get_dma_tag),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t ahci_driver = {
         "ahci",
         ahci_methods,
         sizeof(struct ahci_controller)
 };
-DRIVER_MODULE(ahci, pci, ahci_driver, ahci_devclass, 0, 0);
+DRIVER_MODULE(ahci, pci, ahci_driver, ahci_devclass, NULL, NULL);
 static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(device_probe,     ahci_ata_probe),
 	DEVMETHOD(device_attach,    ahci_pci_attach),
@@ -491,11 +504,11 @@ static device_method_t ahci_ata_methods[] = {
 	DEVMETHOD(bus_setup_intr,   ahci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,ahci_teardown_intr),
 	DEVMETHOD(bus_child_location_str, ahci_child_location_str),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t ahci_ata_driver = {
         "ahci",
         ahci_ata_methods,
         sizeof(struct ahci_controller)
 };
-DRIVER_MODULE(ahci, atapci, ahci_ata_driver, ahci_devclass, 0, 0);
+DRIVER_MODULE(ahci, atapci, ahci_ata_driver, ahci_devclass, NULL, NULL);

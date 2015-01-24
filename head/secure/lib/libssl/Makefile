@@ -21,8 +21,7 @@ SRCS=	bio_ssl.c d1_both.c d1_clnt.c d1_enc.c d1_lib.c d1_meth.c d1_pkt.c \
 INCS=	dtls1.h kssl.h srtp.h ssl.h ssl2.h ssl23.h ssl3.h tls1.h
 INCSDIR=${INCLUDEDIR}/openssl
 
-DPADD=	${LIBCRYPTO}
-LDADD=	-lcrypto
+LIBADD=	crypto
 
 .include <bsd.lib.mk>
 

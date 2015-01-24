@@ -546,7 +546,7 @@ svc_vc_ack(SVCXPRT *xprt, uint32_t *ack)
 {
 
 	*ack = atomic_load_acq_32(&xprt->xp_snt_cnt);
-	*ack -= xprt->xp_socket->so_snd.sb_cc;
+	*ack -= sbused(&xprt->xp_socket->so_snd);
 	return (TRUE);
 }
 

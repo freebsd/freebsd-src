@@ -58,6 +58,7 @@
 #include "util/random.h"
 #include "util/fptr_wlist.h"
 #include "ldns/sbuffer.h"
+#include "dnstap/dnstap.h"
 #ifdef HAVE_OPENSSL_SSL_H
 #include <openssl/ssl.h>
 #endif
@@ -75,11 +76,14 @@
 #define OUTBOUND_UDP_RETRY 1
 
 /** initiate TCP transaction for serviced query */
-static void serviced_tcp_initiate(struct outside_network* outnet, 
-	struct serviced_query* sq, sldns_buffer* buff);
+static void serviced_tcp_initiate(struct serviced_query* sq, sldns_buffer* buff);
 /** with a fd available, randomize and send UDP */
-static int randomize_and_send_udp(struct outside_network* outnet, 
-	struct pending* pend, sldns_buffer* packet, int timeout);
+static int randomize_and_send_udp(struct pending* pend, sldns_buffer* packet,
+	int timeout);
+
+/** remove waiting tcp from the outnet waiting list */
+static void waiting_list_remove(struct outside_network* outnet,
+	struct waiting_tcp* w);
 
 int 
 pending_cmp(const void* key1, const void* key2)
@@ -210,12 +214,12 @@ outnet_tcp_take_into_use(struct waiting_tcp* w, uint8_t* pkt, size_t pkt_len)
 		s = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
 	if(s == -1) {
 #ifndef USE_WINSOCK
-		log_err("outgoing tcp: socket: %s", strerror(errno));
+		log_err_addr("outgoing tcp: socket", strerror(errno),
+			&w->addr, w->addrlen);
 #else
-		log_err("outgoing tcp: socket: %s", 
-			wsa_strerror(WSAGetLastError()));
+		log_err_addr("outgoing tcp: socket", 
+			wsa_strerror(WSAGetLastError()), &w->addr, w->addrlen);
 #endif
-		log_addr(0, "failed address", &w->addr, w->addrlen);
 		return 0;
 	}
 	if(!pick_outgoing_tcp(w, s))
@@ -231,15 +235,14 @@ outnet_tcp_take_into_use(struct waiting_tcp* w, uint8_t* pkt, size_t pkt_len)
 #endif
 			if(tcp_connect_errno_needs_log(
 				(struct sockaddr*)&w->addr, w->addrlen))
-				log_err("outgoing tcp: connect: %s",
-					strerror(errno));
+				log_err_addr("outgoing tcp: connect",
+					strerror(errno), &w->addr, w->addrlen);
 			close(s);
 #else /* USE_WINSOCK */
 		if(WSAGetLastError() != WSAEINPROGRESS &&
 			WSAGetLastError() != WSAEWOULDBLOCK) {
 			closesocket(s);
 #endif
-			log_addr(0, "failed address", &w->addr, w->addrlen);
 			return 0;
 		}
 	}
@@ -258,6 +261,7 @@ outnet_tcp_take_into_use(struct waiting_tcp* w, uint8_t* pkt, size_t pkt_len)
 	w->pkt = NULL;
 	w->next_waiting = (void*)pend;
 	pend->id = LDNS_ID_WIRE(pkt);
+	w->outnet->num_tcp_outgoing++;
 	w->outnet->tcp_free = pend->next_free;
 	pend->next_free = NULL;
 	pend->query = w;
@@ -378,7 +382,7 @@ outnet_send_wait_udp(struct outside_network* outnet)
 		free(pend->pkt); /* freeing now makes get_mem correct */
 		pend->pkt = NULL; 
 		pend->pkt_len = 0;
-		if(!randomize_and_send_udp(outnet, pend, outnet->udp_buff, 
+		if(!randomize_and_send_udp(pend, outnet->udp_buff,
 			pend->timeout)) {
 			/* callback error on pending */
 			if(pend->cb) {
@@ -588,7 +592,7 @@ outside_network_create(struct comm_base *base, size_t bufsize,
 	struct ub_randstate* rnd, int use_caps_for_id, int* availports, 
 	int numavailports, size_t unwanted_threshold,
 	void (*unwanted_action)(void*), void* unwanted_param, int do_udp,
-	void* sslctx, int delayclose)
+	void* sslctx, int delayclose, struct dt_env* dtenv)
 {
 	struct outside_network* outnet = (struct outside_network*)
 		calloc(1, sizeof(struct outside_network));
@@ -600,9 +604,15 @@ outside_network_create(struct comm_base *base, size_t bufsize,
 	comm_base_timept(base, &outnet->now_secs, &outnet->now_tv);
 	outnet->base = base;
 	outnet->num_tcp = num_tcp;
+	outnet->num_tcp_outgoing = 0;
 	outnet->infra = infra;
 	outnet->rnd = rnd;
 	outnet->sslctx = sslctx;
+#ifdef USE_DNSTAP
+	outnet->dtenv = dtenv;
+#else
+	(void)dtenv;
+#endif
 	outnet->svcd_overhead = 0;
 	outnet->want_to_quit = 0;
 	outnet->unwanted_threshold = unwanted_threshold;
@@ -991,10 +1001,10 @@ select_ifport(struct outside_network* outnet, struct pending* pend,
 }
 
 static int
-randomize_and_send_udp(struct outside_network* outnet, struct pending* pend,
-	sldns_buffer* packet, int timeout)
+randomize_and_send_udp(struct pending* pend, sldns_buffer* packet, int timeout)
 {
 	struct timeval tv;
+	struct outside_network* outnet = pend->sq->outnet;
 
 	/* select id */
 	if(!select_id(outnet, pend, packet)) {
@@ -1027,30 +1037,38 @@ randomize_and_send_udp(struct outside_network* outnet, struct pending* pend,
 	tv.tv_usec = (timeout%1000)*1000;
 #endif
 	comm_timer_set(pend->timer, &tv);
+
+#ifdef USE_DNSTAP
+	if(outnet->dtenv &&
+	   (outnet->dtenv->log_resolver_query_messages ||
+	    outnet->dtenv->log_forwarder_query_messages))
+		dt_msg_send_outside_query(outnet->dtenv, &pend->addr, comm_udp,
+		pend->sq->zone, pend->sq->zonelen, packet);
+#endif
 	return 1;
 }
 
 struct pending* 
-pending_udp_query(struct outside_network* outnet, sldns_buffer* packet, 
-	struct sockaddr_storage* addr, socklen_t addrlen, int timeout,
-	comm_point_callback_t* cb, void* cb_arg)
+pending_udp_query(struct serviced_query* sq, struct sldns_buffer* packet,
+	int timeout, comm_point_callback_t* cb, void* cb_arg)
 {
 	struct pending* pend = (struct pending*)calloc(1, sizeof(*pend));
 	if(!pend) return NULL;
-	pend->outnet = outnet;
-	pend->addrlen = addrlen;
-	memmove(&pend->addr, addr, addrlen);
+	pend->outnet = sq->outnet;
+	pend->sq = sq;
+	pend->addrlen = sq->addrlen;
+	memmove(&pend->addr, &sq->addr, sq->addrlen);
 	pend->cb = cb;
 	pend->cb_arg = cb_arg;
 	pend->node.key = pend;
-	pend->timer = comm_timer_create(outnet->base, pending_udp_timer_cb, 
+	pend->timer = comm_timer_create(sq->outnet->base, pending_udp_timer_cb,
 		pend);
 	if(!pend->timer) {
 		free(pend);
 		return NULL;
 	}
 
-	if(outnet->unused_fds == NULL) {
+	if(sq->outnet->unused_fds == NULL) {
 		/* no unused fd, cannot create a new port (randomly) */
 		verbose(VERB_ALGO, "no fds available, udp query waiting");
 		pend->timeout = timeout;
@@ -1063,15 +1081,15 @@ pending_udp_query(struct outside_network* outnet, sldns_buffer* packet,
 			return NULL;
 		}
 		/* put at end of waiting list */
-		if(outnet->udp_wait_last)
-			outnet->udp_wait_last->next_waiting = pend;
+		if(sq->outnet->udp_wait_last)
+			sq->outnet->udp_wait_last->next_waiting = pend;
 		else 
-			outnet->udp_wait_first = pend;
-		outnet->udp_wait_last = pend;
+			sq->outnet->udp_wait_first = pend;
+		sq->outnet->udp_wait_last = pend;
 		return pend;
 	}
-	if(!randomize_and_send_udp(outnet, pend, packet, timeout)) {
-		pending_delete(outnet, pend);
+	if(!randomize_and_send_udp(pend, packet, timeout)) {
+		pending_delete(sq->outnet, pend);
 		return NULL;
 	}
 	return pend;
@@ -1086,17 +1104,7 @@ outnet_tcptimer(void* arg)
 	void* cb_arg;
 	if(w->pkt) {
 		/* it is on the waiting list */
-		struct waiting_tcp* p=outnet->tcp_wait_first, *prev=NULL;
-		while(p) {
-			if(p == w) {
-				if(prev) prev->next_waiting = w->next_waiting;
-				else	outnet->tcp_wait_first=w->next_waiting;
-				outnet->tcp_wait_last = prev;
-				break;
-			}
-			prev = p;
-			p=p->next_waiting;
-		}
+		waiting_list_remove(outnet, w);
 	} else {
 		/* it was in use */
 		struct pending_tcp* pend=(struct pending_tcp*)w->next_waiting;
@@ -1113,12 +1121,11 @@ outnet_tcptimer(void* arg)
 	use_free_buffer(outnet);
 }
 
-struct waiting_tcp* 
-pending_tcp_query(struct outside_network* outnet, sldns_buffer* packet, 
-	struct sockaddr_storage* addr, socklen_t addrlen, int timeout,
-	comm_point_callback_t* callback, void* callback_arg, int ssl_upstream)
+struct waiting_tcp*
+pending_tcp_query(struct serviced_query* sq, sldns_buffer* packet,
+	int timeout, comm_point_callback_t* callback, void* callback_arg)
 {
-	struct pending_tcp* pend = outnet->tcp_free;
+	struct pending_tcp* pend = sq->outnet->tcp_free;
 	struct waiting_tcp* w;
 	struct timeval tv;
 	uint16_t id;
@@ -1128,20 +1135,20 @@ pending_tcp_query(struct outside_network* outnet, sldns_buffer* packet,
 	if(!w) {
 		return NULL;
 	}
-	if(!(w->timer = comm_timer_create(outnet->base, outnet_tcptimer, w))) {
+	if(!(w->timer = comm_timer_create(sq->outnet->base, outnet_tcptimer, w))) {
 		free(w);
 		return NULL;
 	}
 	w->pkt = NULL;
 	w->pkt_len = 0;
-	id = ((unsigned)ub_random(outnet->rnd)>>8) & 0xffff;
+	id = ((unsigned)ub_random(sq->outnet->rnd)>>8) & 0xffff;
 	LDNS_ID_SET(sldns_buffer_begin(packet), id);
-	memcpy(&w->addr, addr, addrlen);
-	w->addrlen = addrlen;
-	w->outnet = outnet;
+	memcpy(&w->addr, &sq->addr, sq->addrlen);
+	w->addrlen = sq->addrlen;
+	w->outnet = sq->outnet;
 	w->cb = callback;
 	w->cb_arg = callback_arg;
-	w->ssl_upstream = ssl_upstream;
+	w->ssl_upstream = sq->ssl_upstream;
 #ifndef S_SPLINT_S
 	tv.tv_sec = timeout;
 	tv.tv_usec = 0;
@@ -1154,16 +1161,23 @@ pending_tcp_query(struct outside_network* outnet, sldns_buffer* packet,
 			waiting_tcp_delete(w);
 			return NULL;
 		}
+#ifdef USE_DNSTAP
+		if(sq->outnet->dtenv &&
+		   (sq->outnet->dtenv->log_resolver_query_messages ||
+		    sq->outnet->dtenv->log_forwarder_query_messages))
+		dt_msg_send_outside_query(sq->outnet->dtenv, &sq->addr,
+		comm_tcp, sq->zone, sq->zonelen, packet);
+#endif
 	} else {
 		/* queue up */
 		w->pkt = (uint8_t*)w + sizeof(struct waiting_tcp);
 		w->pkt_len = sldns_buffer_limit(packet);
 		memmove(w->pkt, sldns_buffer_begin(packet), w->pkt_len);
 		w->next_waiting = NULL;
-		if(outnet->tcp_wait_last)
-			outnet->tcp_wait_last->next_waiting = w;
-		else	outnet->tcp_wait_first = w;
-		outnet->tcp_wait_last = w;
+		if(sq->outnet->tcp_wait_last)
+			sq->outnet->tcp_wait_last->next_waiting = w;
+		else	sq->outnet->tcp_wait_first = w;
+		sq->outnet->tcp_wait_last = w;
 	}
 	return w;
 }
@@ -1205,7 +1219,7 @@ lookup_serviced(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
 /** Create new serviced entry */
 static struct serviced_query*
 serviced_create(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
-	int want_dnssec, int tcp_upstream, int ssl_upstream,
+	int want_dnssec, int nocaps, int tcp_upstream, int ssl_upstream,
 	struct sockaddr_storage* addr, socklen_t addrlen, uint8_t* zone,
 	size_t zonelen, int qtype)
 {
@@ -1232,6 +1246,7 @@ serviced_create(struct outside_network* outnet, sldns_buffer* buff, int dnssec,
 	sq->qtype = qtype;
 	sq->dnssec = dnssec;
 	sq->want_dnssec = want_dnssec;
+	sq->nocaps = nocaps;
 	sq->tcp_upstream = tcp_upstream;
 	sq->ssl_upstream = ssl_upstream;
 	memcpy(&sq->addr, addr, addrlen);
@@ -1319,16 +1334,16 @@ serviced_perturb_qname(struct ub_randstate* rnd, uint8_t* qbuf, size_t len)
 	while(lablen) {
 		while(lablen--) {
 			/* only perturb A-Z, a-z */
-			if(isalpha((int)*d)) {
+			if(isalpha((unsigned char)*d)) {
 				/* get a random bit */	
 				if(bits == 0) {
 					random = ub_random(rnd);
 					bits = 30;
 				}
 				if(random & 0x1) {
-					*d = (uint8_t)toupper((int)*d);
+					*d = (uint8_t)toupper((unsigned char)*d);
 				} else {
-					*d = (uint8_t)tolower((int)*d);
+					*d = (uint8_t)tolower((unsigned char)*d);
 				}
 				random >>= 1;
 				bits--;
@@ -1349,7 +1364,7 @@ static void
 serviced_encode(struct serviced_query* sq, sldns_buffer* buff, int with_edns)
 {
 	/* if we are using 0x20 bits for ID randomness, perturb them */
-	if(sq->outnet->use_caps_for_id) {
+	if(sq->outnet->use_caps_for_id && !sq->nocaps) {
 		serviced_perturb_qname(sq->outnet->rnd, sq->qbuf, sq->qbuflen);
 	}
 	/* generate query */
@@ -1424,8 +1439,8 @@ serviced_udp_send(struct serviced_query* sq, sldns_buffer* buff)
 	sq->last_sent_time = *sq->outnet->now_tv;
 	sq->edns_lame_known = (int)edns_lame_known;
 	verbose(VERB_ALGO, "serviced query UDP timeout=%d msec", rtt);
-	sq->pending = pending_udp_query(sq->outnet, buff, &sq->addr, 
-		sq->addrlen, rtt, serviced_udp_callback, sq);
+	sq->pending = pending_udp_query(sq, buff, rtt,
+		serviced_udp_callback, sq);
 	if(!sq->pending)
 		return 0;
 	return 1;
@@ -1574,13 +1589,21 @@ serviced_tcp_callback(struct comm_point* c, void* arg, int error,
 	if(error==NETEVENT_NOERROR)
 		infra_update_tcp_works(sq->outnet->infra, &sq->addr,
 			sq->addrlen, sq->zone, sq->zonelen);
+#ifdef USE_DNSTAP
+	if(sq->outnet->dtenv &&
+	   (sq->outnet->dtenv->log_resolver_response_messages ||
+	    sq->outnet->dtenv->log_forwarder_response_messages))
+		dt_msg_send_outside_response(sq->outnet->dtenv, &sq->addr,
+		c->type, sq->zone, sq->zonelen, sq->qbuf, sq->qbuflen,
+		&sq->last_sent_time, sq->outnet->now_tv, c->buffer);
+#endif
 	if(error==NETEVENT_NOERROR && sq->status == serviced_query_TCP_EDNS &&
 		(LDNS_RCODE_WIRE(sldns_buffer_begin(c->buffer)) == 
 		LDNS_RCODE_FORMERR || LDNS_RCODE_WIRE(sldns_buffer_begin(
 		c->buffer)) == LDNS_RCODE_NOTIMPL) ) {
 		/* attempt to fallback to nonEDNS */
 		sq->status = serviced_query_TCP_EDNS_fallback;
-		serviced_tcp_initiate(sq->outnet, sq, c->buffer);
+		serviced_tcp_initiate(sq, c->buffer);
 		return 0;
 	} else if(error==NETEVENT_NOERROR && 
 		sq->status == serviced_query_TCP_EDNS_fallback &&
@@ -1632,16 +1655,14 @@ serviced_tcp_callback(struct comm_point* c, void* arg, int error,
 }
 
 static void
-serviced_tcp_initiate(struct outside_network* outnet, 
-	struct serviced_query* sq, sldns_buffer* buff)
+serviced_tcp_initiate(struct serviced_query* sq, sldns_buffer* buff)
 {
 	verbose(VERB_ALGO, "initiate TCP query %s", 
 		sq->status==serviced_query_TCP_EDNS?"EDNS":"");
 	serviced_encode(sq, buff, sq->status == serviced_query_TCP_EDNS);
 	sq->last_sent_time = *sq->outnet->now_tv;
-	sq->pending = pending_tcp_query(outnet, buff, &sq->addr,
-		sq->addrlen, TCP_AUTH_QUERY_TIMEOUT, serviced_tcp_callback, 
-		sq, sq->ssl_upstream);
+	sq->pending = pending_tcp_query(sq, buff, TCP_AUTH_QUERY_TIMEOUT,
+		serviced_tcp_callback, sq);
 	if(!sq->pending) {
 		/* delete from tree so that a retry by above layer does not
 		 * clash with this entry */
@@ -1665,9 +1686,8 @@ serviced_tcp_send(struct serviced_query* sq, sldns_buffer* buff)
 	else 	sq->status = serviced_query_TCP;
 	serviced_encode(sq, buff, sq->status == serviced_query_TCP_EDNS);
 	sq->last_sent_time = *sq->outnet->now_tv;
-	sq->pending = pending_tcp_query(sq->outnet, buff, &sq->addr,
-		sq->addrlen, TCP_AUTH_QUERY_TIMEOUT, serviced_tcp_callback, 
-		sq, sq->ssl_upstream);
+	sq->pending = pending_tcp_query(sq, buff, TCP_AUTH_QUERY_TIMEOUT,
+		serviced_tcp_callback, sq);
 	return sq->pending != NULL;
 }
 
@@ -1728,6 +1748,14 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 		serviced_callbacks(sq, error, c, rep);
 		return 0;
 	}
+#ifdef USE_DNSTAP
+	if(outnet->dtenv &&
+	   (outnet->dtenv->log_resolver_response_messages ||
+	    outnet->dtenv->log_forwarder_response_messages))
+		dt_msg_send_outside_response(outnet->dtenv, &sq->addr, c->type,
+		sq->zone, sq->zonelen, sq->qbuf, sq->qbuflen,
+		&sq->last_sent_time, sq->outnet->now_tv, c->buffer);
+#endif
 	if(!fallback_tcp) {
 	    if( (sq->status == serviced_query_UDP_EDNS 
 	        ||sq->status == serviced_query_UDP_EDNS_FRAG)
@@ -1816,7 +1844,7 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 			/* if we have unfinished EDNS_fallback, start again */
 			sq->status = serviced_query_TCP_EDNS;
 		else	sq->status = serviced_query_TCP;
-		serviced_tcp_initiate(outnet, sq, c->buffer);
+		serviced_tcp_initiate(sq, c->buffer);
 		return 0;
 	}
 	/* yay! an answer */
@@ -1827,10 +1855,11 @@ serviced_udp_callback(struct comm_point* c, void* arg, int error,
 struct serviced_query* 
 outnet_serviced_query(struct outside_network* outnet,
 	uint8_t* qname, size_t qnamelen, uint16_t qtype, uint16_t qclass,
-	uint16_t flags, int dnssec, int want_dnssec, int tcp_upstream,
-	int ssl_upstream, struct sockaddr_storage* addr, socklen_t addrlen,
-	uint8_t* zone, size_t zonelen, comm_point_callback_t* callback,
-	void* callback_arg, sldns_buffer* buff)
+	uint16_t flags, int dnssec, int want_dnssec, int nocaps,
+	int tcp_upstream, int ssl_upstream, struct sockaddr_storage* addr,
+	socklen_t addrlen, uint8_t* zone, size_t zonelen,
+	comm_point_callback_t* callback, void* callback_arg,
+	sldns_buffer* buff)
 {
 	struct serviced_query* sq;
 	struct service_callback* cb;
@@ -1843,7 +1872,7 @@ outnet_serviced_query(struct outside_network* outnet,
 		return NULL;
 	if(!sq) {
 		/* make new serviced query entry */
-		sq = serviced_create(outnet, buff, dnssec, want_dnssec,
+		sq = serviced_create(outnet, buff, dnssec, want_dnssec, nocaps,
 			tcp_upstream, ssl_upstream, addr, addrlen, zone,
 			zonelen, (int)qtype);
 		if(!sq) {

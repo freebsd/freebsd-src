@@ -135,9 +135,6 @@ static int
 db_backtrace(struct thread *td, db_addr_t fp, int count)
 {
 	db_addr_t stackframe, lr, *args;
-	db_expr_t diff;
-	c_db_sym_t sym;
-	const char *symname;
 	boolean_t kernel_only = TRUE;
 	boolean_t full = FALSE;
 
@@ -265,16 +262,8 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 
 		   print_trap:
 			lr = (db_addr_t) tf->srr0;
-			diff = 0;
-			symname = NULL;
-			sym = db_search_symbol(lr, DB_STGY_ANY, &diff);
-			db_symbol_values(sym, &symname, 0);
-			if (symname == NULL || !strcmp(symname, "end")) {
-				db_printf("%#zx: srr1=%#zx\n", lr, tf->srr1);
-			} else {
-				db_printf("%s+%#zx: srr1=%#zx\n", symname, diff,
-				    tf->srr1);
-			}
+			db_printsym(lr, DB_STGY_ANY);
+			db_printf(": srr1=%#zx\n", tf->srr1);
 			db_printf("%-10s  r1=%#zx cr=%#x xer=%#x ctr=%#zx",
 			    "", tf->fixreg[1], (uint32_t)tf->cr,
 			    (uint32_t)tf->xer, tf->ctr);
@@ -288,14 +277,8 @@ db_backtrace(struct thread *td, db_addr_t fp, int count)
 			goto next_frame;
 		}
 
-		diff = 0;
-		symname = NULL;
-		sym = db_search_symbol(lr, DB_STGY_ANY, &diff);
-		db_symbol_values(sym, &symname, 0);
-		if (symname == NULL || !strcmp(symname, "end"))
-			db_printf("at %zx", lr);
-		else
-			db_printf("at %s+%#zx", symname, diff);
+		db_printf("at ");
+		db_printsym(lr, DB_STGY_PROC);
 		if (full)
 			/* Print all the args stored in that stackframe. */
 			db_printf("(%zx, %zx, %zx, %zx, %zx, %zx, %zx, %zx)",

@@ -943,8 +943,7 @@ an_rxeof(struct an_softc *sc)
 				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return;
 			}
-			MCLGET(m, M_NOWAIT);
-			if (!(m->m_flags & M_EXT)) {
+			if (!(MCLGET(m, M_NOWAIT))) {
 				m_freem(m);
 				if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 				return;
@@ -1034,8 +1033,7 @@ an_rxeof(struct an_softc *sc)
 					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 					return;
 				}
-				MCLGET(m, M_NOWAIT);
-				if (!(m->m_flags & M_EXT)) {
+				if (!(MCLGET(m, M_NOWAIT))) {
 					m_freem(m);
 					if_inc_counter(ifp, IFCOUNTER_IERRORS, 1);
 					return;

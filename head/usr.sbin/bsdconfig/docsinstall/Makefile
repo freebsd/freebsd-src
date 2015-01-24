@@ -10,7 +10,4 @@ FILES=		INDEX USAGE
 SCRIPTSDIR=	${FILESDIR}
 SCRIPTS=	docsinstall
 
-beforeinstall:
-	mkdir -p ${DESTDIR}${FILESDIR}
-
 .include <bsd.prog.mk>

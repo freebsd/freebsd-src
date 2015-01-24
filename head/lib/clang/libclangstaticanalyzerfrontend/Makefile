@@ -10,6 +10,7 @@ SRCS=	AnalysisConsumer.cpp \
 	FrontendActions.cpp
 
 TGHDRS=	AttrList \
+	AttrVisitor \
 	Attrs \
 	Checkers \
 	CommentCommandList \

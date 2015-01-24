@@ -7,6 +7,7 @@ LIB=	llvmruntimedyld
 SRCDIR=	lib/ExecutionEngine/RuntimeDyld
 SRCS=	GDBRegistrar.cpp \
 	RuntimeDyld.cpp \
+	RuntimeDyldChecker.cpp \
 	RuntimeDyldELF.cpp \
 	RuntimeDyldMachO.cpp
 

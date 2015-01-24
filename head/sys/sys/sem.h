@@ -37,7 +37,7 @@ struct semid_ds_old {
 	long		sem_pad1;	/* SVABI/386 says I need this here */
 	time_t		sem_ctime;	/* last change time */
     					/* Times measured in secs since */
-    					/* 00:00:00 GMT, Jan. 1, 1970 */
+    					/* 00:00:00 UTC, Jan. 1, 1970, without leap seconds */
 	long		sem_pad2;	/* SVABI/386 says I need this here */
 	long		sem_pad3[4];	/* SVABI/386 says I need this here */
 };
@@ -50,7 +50,7 @@ struct semid_ds {
 	time_t		sem_otime;	/* last operation time */
 	time_t		sem_ctime;	/* last change time */
     					/* Times measured in secs since */
-    					/* 00:00:00 GMT, Jan. 1, 1970 */
+    					/* 00:00:00 UTC, Jan. 1, 1970, without leap seconds */
 };
 
 /*

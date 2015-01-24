@@ -23,8 +23,8 @@ CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections \
 		-Wno-deprecated
 PO_CXXFLAGS=	${CXXFLAGS:N-ffunction-sections}
 
-DPADD=		${LIBM}
-LDADD=		-lm  -Wl,-f,libsupc++.so.1
+LIBADD+=	m
+LDADD=		-Wl,-f,libsupc++.so.1
 
 # libstdc++ sources
 SRCS+=	bitmap_allocator.cc pool_allocator.cc \

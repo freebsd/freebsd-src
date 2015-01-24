@@ -58,7 +58,6 @@
 #include <net/if.h>
 #include <net/if_var.h>
 #include <net/pfil.h>
-#include <net/route.h>
 #include <net/netisr.h>
 #include <net/vnet.h>
 
@@ -318,8 +317,8 @@ ipcomp4_input(struct mbuf **mp, int *offp, int proto)
  * the processed packet.
  */
 int
-ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
-			int skip, int protoff, struct m_tag *mt)
+ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
+    int protoff)
 {
 	int prot, af, sproto, isr_prot;
 	struct ip *ip;
@@ -379,15 +378,10 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	if_inc_counter(encif, IFCOUNTER_IPACKETS, 1);
 	if_inc_counter(encif, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
-	/*
-	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
-	 * packet later after it has been decapsulated.
-	 */
+	/* Pass the mbuf to enc0 for bpf and pfil. */
 	ipsec_bpf(m, sav, AF_INET, ENC_IN|ENC_BEFORE);
-
-	if (prot != IPPROTO_IPIP)
-		if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
-			return (error);
+	if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
+		return (error);
 #endif /* DEV_ENC */
 
 	/* IP-in-IP encapsulation */
@@ -432,7 +426,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	}
 #ifdef INET6
 	/* IPv6-in-IP encapsulation. */
-	if (prot == IPPROTO_IPV6 &&
+	else if (prot == IPPROTO_IPV6 &&
 	    saidx->mode != IPSEC_MODE_TRANSPORT) {
 
 		if (m->m_pkthdr.len - skip < sizeof(struct ip6_hdr)) {
@@ -469,16 +463,21 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 #endif /* notyet */
 	}
 #endif /* INET6 */
+	else if (prot != IPPROTO_IPV6 && saidx->mode == IPSEC_MODE_ANY) {
+		/*
+		 * When mode is wildcard, inner protocol is IPv6 and
+		 * we have no INET6 support - drop this packet a bit later.
+		 * In other cases we assume transport mode and outer
+		 * header was already stripped in xform_xxx_cb.
+		 */
+		prot = IPPROTO_IPIP;
+	}
 
 	/*
 	 * Record what we've done to the packet (under what SA it was
-	 * processed). If we've been passed an mtag, it means the packet
-	 * was already processed by an ethernet/crypto combo card and
-	 * thus has a tag attached with all the right information, but
-	 * with a PACKET_TAG_IPSEC_IN_CRYPTO_DONE as opposed to
-	 * PACKET_TAG_IPSEC_IN_DONE type; in that case, just change the type.
+	 * processed).
 	 */
-	if (mt == NULL && sproto != IPPROTO_IPCOMP) {
+	if (sproto != IPPROTO_IPCOMP) {
 		mtag = m_tag_get(PACKET_TAG_IPSEC_IN_DONE,
 		    sizeof(struct tdb_ident), M_NOWAIT);
 		if (mtag == NULL) {
@@ -497,9 +496,6 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 		tdbi->alg_enc = sav->alg_enc;
 
 		m_tag_prepend(m, mtag);
-	} else if (mt != NULL) {
-		mt->m_tag_id = PACKET_TAG_IPSEC_IN_DONE;
-		/* XXX do we need to mark m_flags??? */
 	}
 
 	key_sa_recordxfer(sav, m);		/* record data transfer */
@@ -616,8 +612,8 @@ ipsec6_common_input(struct mbuf **mp, int *offp, int proto)
  * filtering and other sanity checks on the processed packet.
  */
 int
-ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int protoff,
-    struct m_tag *mt)
+ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip,
+    int protoff)
 {
 	int prot, af, sproto;
 	struct ip6_hdr *ip6;
@@ -667,64 +663,22 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	ip6->ip6_plen = htons(m->m_pkthdr.len - sizeof(struct ip6_hdr));
 
 	/* Save protocol */
-	prot = 0;
-	m_copydata(m, protoff, 1, (unsigned char *) &prot);
+	m_copydata(m, protoff, 1, &nxt8);
+	prot = nxt8;
 
 #ifdef DEV_ENC
 	if_inc_counter(encif, IFCOUNTER_IPACKETS, 1);
 	if_inc_counter(encif, IFCOUNTER_IBYTES, m->m_pkthdr.len);
 
-	/*
-	 * Pass the mbuf to enc0 for bpf and pfil. We will filter the IPIP
-	 * packet later after it has been decapsulated.
-	 */
+	/* Pass the mbuf to enc0 for bpf and pfil. */
 	ipsec_bpf(m, sav, AF_INET6, ENC_IN|ENC_BEFORE);
-
-	/* XXX-BZ does not make sense. */
-	if (prot != IPPROTO_IPIP)
-		if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
-			return (error);
+	if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_BEFORE)) != 0)
+		return (error);
 #endif /* DEV_ENC */
 
-#ifdef INET
-	/* IP-in-IP encapsulation */
-	if (prot == IPPROTO_IPIP) {
-		if (m->m_pkthdr.len - skip < sizeof(struct ip)) {
-			IPSEC_ISTAT(sproto, hdrops);
-			error = EINVAL;
-			goto bad;
-		}
-		/* ipn will now contain the inner IPv4 header */
-	 	m_striphdr(m, 0, skip);
-		skip = 0;
-#ifdef notyet
-		/*
-		 * Check that the inner source address is the same as
-		 * the proxy address, if available.
-		 */
-		if ((saidx->proxy.sa.sa_family == AF_INET &&
-		    saidx->proxy.sin.sin_addr.s_addr != INADDR_ANY &&
-		    ipn.ip_src.s_addr != saidx->proxy.sin.sin_addr.s_addr) ||
-		    (saidx->proxy.sa.sa_family != AF_INET &&
-			saidx->proxy.sa.sa_family != 0)) {
-
-			DPRINTF(("%s: inner source address %s doesn't "
-			    "correspond to expected proxy source %s, "
-			    "SA %s/%08lx\n", __func__,
-			    inet_ntoa4(ipn.ip_src),
-			    ipsec_address(&saidx->proxy),
-			    ipsec_address(&saidx->dst),
-			    (u_long) ntohl(sav->spi)));
-
-			IPSEC_ISTAT(sproto, pdrops);
-			error = EACCES;
-			goto bad;
-		}
-#endif /* notyet */
-	}
-#endif /* INET */
 	/* IPv6-in-IP encapsulation */
-	if (prot == IPPROTO_IPV6) {
+	if (prot == IPPROTO_IPV6 &&
+	    saidx->mode != IPSEC_MODE_TRANSPORT) {
 		if (m->m_pkthdr.len - skip < sizeof(struct ip6_hdr)) {
 			IPSEC_ISTAT(sproto, hdrops);
 			error = EINVAL;
@@ -759,16 +713,53 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 		}
 #endif /* notyet */
 	}
+#ifdef INET
+	/* IP-in-IP encapsulation */
+	else if (prot == IPPROTO_IPIP &&
+	    saidx->mode != IPSEC_MODE_TRANSPORT) {
+		if (m->m_pkthdr.len - skip < sizeof(struct ip)) {
+			IPSEC_ISTAT(sproto, hdrops);
+			error = EINVAL;
+			goto bad;
+		}
+		/* ipn will now contain the inner IPv4 header */
+	 	m_striphdr(m, 0, skip);
+		skip = 0;
+#ifdef notyet
+		/*
+		 * Check that the inner source address is the same as
+		 * the proxy address, if available.
+		 */
+		if ((saidx->proxy.sa.sa_family == AF_INET &&
+		    saidx->proxy.sin.sin_addr.s_addr != INADDR_ANY &&
+		    ipn.ip_src.s_addr != saidx->proxy.sin.sin_addr.s_addr) ||
+		    (saidx->proxy.sa.sa_family != AF_INET &&
+			saidx->proxy.sa.sa_family != 0)) {
+
+			DPRINTF(("%s: inner source address %s doesn't "
+			    "correspond to expected proxy source %s, "
+			    "SA %s/%08lx\n", __func__,
+			    inet_ntoa4(ipn.ip_src),
+			    ipsec_address(&saidx->proxy),
+			    ipsec_address(&saidx->dst),
+			    (u_long) ntohl(sav->spi)));
+
+			IPSEC_ISTAT(sproto, pdrops);
+			error = EACCES;
+			goto bad;
+		}
+#endif /* notyet */
+	}
+#endif /* INET */
+	else {
+		prot = IPPROTO_IPV6; /* for correct BPF processing */
+	}
 
 	/*
 	 * Record what we've done to the packet (under what SA it was
-	 * processed). If we've been passed an mtag, it means the packet
-	 * was already processed by an ethernet/crypto combo card and
-	 * thus has a tag attached with all the right information, but
-	 * with a PACKET_TAG_IPSEC_IN_CRYPTO_DONE as opposed to
-	 * PACKET_TAG_IPSEC_IN_DONE type; in that case, just change the type.
+	 * processed).
 	 */
-	if (mt == NULL && sproto != IPPROTO_IPCOMP) {
+	if (sproto != IPPROTO_IPCOMP) {
 		mtag = m_tag_get(PACKET_TAG_IPSEC_IN_DONE,
 		    sizeof(struct tdb_ident), M_NOWAIT);
 		if (mtag == NULL) {
@@ -787,10 +778,6 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 		tdbi->alg_enc = sav->alg_enc;
 
 		m_tag_prepend(m, mtag);
-	} else {
-		if (mt != NULL)
-			mt->m_tag_id = PACKET_TAG_IPSEC_IN_DONE;
-		/* XXX do we need to mark m_flags??? */
 	}
 
 	key_sa_recordxfer(sav, m);
@@ -809,10 +796,6 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	if ((error = ipsec_filter(&m, PFIL_IN, ENC_IN|ENC_AFTER)) != 0)
 		return (error);
 #endif /* DEV_ENC */
-	/* Retrieve new protocol */
-	/* We have stripped the IP6 header from the mbuf, we have to use the backuped proto value instead */
-	nxt8 = prot;
-
 	/*
 	 * See the end of ip6_input for this logic.
 	 * IPPROTO_IPV[46] case will be processed just like other ones

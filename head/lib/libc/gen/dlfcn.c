@@ -233,3 +233,10 @@ _rtld_get_stack_prot(void)
 	return (PROT_EXEC | PROT_READ | PROT_WRITE);
 }
 
+#pragma weak _rtld_is_dlopened
+int
+_rtld_is_dlopened(void *arg)
+{
+
+	return (0);
+}

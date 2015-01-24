@@ -258,6 +258,7 @@ struct rw_args_flags {
 #define	RW_NOWITNESS	0x04
 #define	RW_QUIET	0x08
 #define	RW_RECURSE	0x10
+#define	RW_NEW		0x20
 
 /*
  * The INVARIANTS-enabled rw_assert() functionality.

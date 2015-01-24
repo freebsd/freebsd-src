@@ -468,7 +468,12 @@ vm_object_vndeallocate(vm_object_t object)
 	}
 #endif
 
-	if (object->ref_count > 1) {
+	/*
+	 * The test for text of vp vnode does not need a bypass to
+	 * reach right VV_TEXT there, since it is obtained from
+	 * object->handle.
+	 */
+	if (object->ref_count > 1 || (vp->v_vflag & VV_TEXT) == 0) {
 		object->ref_count--;
 		VM_OBJECT_WUNLOCK(object);
 		/* vrele may need the vnode lock. */

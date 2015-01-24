@@ -795,7 +795,7 @@ calldaemon:
 	         * caching...)
 	         */
 #if 0
-		if ((cnp->cn_flags & MAKEENTRY) && nameiop != CREATE) {
+		if ((cnp->cn_flags & MAKEENTRY) != 0) {
 			FS_DEBUG("inserting NULL into cache\n");
 			cache_enter(dvp, NULL, cnp);
 		}

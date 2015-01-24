@@ -40,13 +40,6 @@
 
 // AddressSanitizer
 SANITIZER("address", Address)
-// More features of AddressSanitizer that should be turned on explicitly.
-SANITIZER("init-order", InitOrder)
-SANITIZER("use-after-return", UseAfterReturn)
-SANITIZER("use-after-scope", UseAfterScope)
-
-SANITIZER_GROUP("address-full", AddressFull,
-                Address | InitOrder | UseAfterReturn | UseAfterScope)
 
 // MemorySanitizer
 SANITIZER("memory", Memory)
@@ -89,7 +82,7 @@ SANITIZER_GROUP("undefined", Undefined,
                 ObjectSize | Return | Shift | SignedIntegerOverflow |
                 Unreachable | VLABound | Vptr)
 
-// -fsanitize=undefined-trap (and its alias -fcatch-undefined-behavior) includes
+// -fsanitize=undefined-trap includes
 // all sanitizers included by -fsanitize=undefined, except those that require
 // runtime support.  This group is generally used in conjunction with the
 // -fsanitize-undefined-trap-on-error flag.
@@ -103,7 +96,6 @@ SANITIZER_GROUP("integer", Integer,
                 SignedIntegerOverflow | UnsignedIntegerOverflow | Shift |
                 IntegerDivideByZero)
 
-// -fbounds-checking
 SANITIZER("local-bounds", LocalBounds)
 SANITIZER_GROUP("bounds", Bounds, ArrayBounds | LocalBounds)
 

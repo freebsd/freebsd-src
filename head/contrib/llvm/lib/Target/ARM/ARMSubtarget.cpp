@@ -12,20 +12,32 @@
 //===----------------------------------------------------------------------===//
 
 #include "ARMSubtarget.h"
-#include "ARMBaseInstrInfo.h"
-#include "ARMBaseRegisterInfo.h"
+#include "ARMFrameLowering.h"
+#include "ARMISelLowering.h"
+#include "ARMInstrInfo.h"
+#include "ARMJITInfo.h"
+#include "ARMSelectionDAGInfo.h"
+#include "ARMSubtarget.h"
+#include "ARMMachineFunctionInfo.h"
+#include "Thumb1FrameLowering.h"
+#include "Thumb1InstrInfo.h"
+#include "Thumb2InstrInfo.h"
 #include "llvm/IR/Attributes.h"
-#include "llvm/IR/GlobalValue.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
+
+using namespace llvm;
+
+#define DEBUG_TYPE "arm-subtarget"
 
 #define GET_SUBTARGETINFO_TARGET_DESC
 #define GET_SUBTARGETINFO_CTOR
 #include "ARMGenSubtargetInfo.inc"
-
-using namespace llvm;
 
 static cl::opt<bool>
 ReserveR9("arm-reserve-r9", cl::Hidden,
@@ -74,19 +86,88 @@ IT(cl::desc("IT block support"), cl::Hidden, cl::init(DefaultIT),
                          "Allow IT blocks based on ARMv7"),
               clEnumValEnd));
 
-ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &CPU,
-                           const std::string &FS, const TargetOptions &Options)
-  : ARMGenSubtargetInfo(TT, CPU, FS)
-  , ARMProcFamily(Others)
-  , ARMProcClass(None)
-  , stackAlignment(4)
-  , CPUString(CPU)
-  , TargetTriple(TT)
-  , Options(Options)
-  , TargetABI(ARM_ABI_APCS) {
+static std::string computeDataLayout(ARMSubtarget &ST) {
+  std::string Ret = "";
+
+  if (ST.isLittle())
+    // Little endian.
+    Ret += "e";
+  else
+    // Big endian.
+    Ret += "E";
+
+  Ret += DataLayout::getManglingComponent(ST.getTargetTriple());
+
+  // Pointers are 32 bits and aligned to 32 bits.
+  Ret += "-p:32:32";
+
+  // On thumb, i16,i18 and i1 have natural aligment requirements, but we try to
+  // align to 32.
+  if (ST.isThumb())
+    Ret += "-i1:8:32-i8:8:32-i16:16:32";
+
+  // ABIs other than APCS have 64 bit integers with natural alignment.
+  if (!ST.isAPCS_ABI())
+    Ret += "-i64:64";
+
+  // We have 64 bits floats. The APCS ABI requires them to be aligned to 32
+  // bits, others to 64 bits. We always try to align to 64 bits.
+  if (ST.isAPCS_ABI())
+    Ret += "-f64:32:64";
+
+  // We have 128 and 64 bit vectors. The APCS ABI aligns them to 32 bits, others
+  // to 64. We always ty to give them natural alignment.
+  if (ST.isAPCS_ABI())
+    Ret += "-v64:32:64-v128:32:128";
+  else
+    Ret += "-v128:64:128";
+
+  // On thumb and APCS, only try to align aggregates to 32 bits (the default is
+  // 64 bits).
+  if (ST.isThumb() || ST.isAPCS_ABI())
+    Ret += "-a:0:32";
+
+  // Integer registers are 32 bits.
+  Ret += "-n32";
+
+  // The stack is 128 bit aligned on NaCl, 64 bit aligned on AAPCS and 32 bit
+  // aligned everywhere else.
+  if (ST.isTargetNaCl())
+    Ret += "-S128";
+  else if (ST.isAAPCS_ABI())
+    Ret += "-S64";
+  else
+    Ret += "-S32";
+
+  return Ret;
+}
+
+/// initializeSubtargetDependencies - Initializes using a CPU and feature string
+/// so that we can use initializer lists for subtarget initialization.
+ARMSubtarget &ARMSubtarget::initializeSubtargetDependencies(StringRef CPU,
+                                                            StringRef FS) {
   initializeEnvironment();
   resetSubtargetFeatures(CPU, FS);
+  return *this;
 }
+
+ARMSubtarget::ARMSubtarget(const std::string &TT, const std::string &CPU,
+                           const std::string &FS, TargetMachine &TM,
+                           bool IsLittle, const TargetOptions &Options)
+    : ARMGenSubtargetInfo(TT, CPU, FS), ARMProcFamily(Others),
+      ARMProcClass(None), stackAlignment(4), CPUString(CPU), IsLittle(IsLittle),
+      TargetTriple(TT), Options(Options), TargetABI(ARM_ABI_UNKNOWN),
+      DL(computeDataLayout(initializeSubtargetDependencies(CPU, FS))),
+      TSInfo(DL), JITInfo(),
+      InstrInfo(isThumb1Only()
+                    ? (ARMBaseInstrInfo *)new Thumb1InstrInfo(*this)
+                    : !isThumb()
+                          ? (ARMBaseInstrInfo *)new ARMInstrInfo(*this)
+                          : (ARMBaseInstrInfo *)new Thumb2InstrInfo(*this)),
+      TLInfo(TM),
+      FrameLowering(!isThumb1Only()
+                        ? new ARMFrameLowering(*this)
+                        : (ARMFrameLowering *)new Thumb1FrameLowering(*this)) {}
 
 void ARMSubtarget::initializeEnvironment() {
   HasV4TOps = false;
@@ -110,7 +191,6 @@ void ARMSubtarget::initializeEnvironment() {
   InThumbMode = false;
   HasThumb2 = false;
   NoARM = false;
-  PostRAScheduler = false;
   IsR9Reserved = ReserveR9;
   UseMovt = false;
   SupportsTailCall = false;
@@ -131,6 +211,7 @@ void ARMSubtarget::initializeEnvironment() {
   HasTrustZone = false;
   HasCrypto = false;
   HasCRC = false;
+  HasZeroCycleZeroing = false;
   AllowsUnalignedMem = false;
   Thumb2DSP = false;
   UseNaClTrap = false;
@@ -175,10 +256,9 @@ void ARMSubtarget::resetSubtargetFeatures(StringRef CPU, StringRef FS) {
   }
   ParseSubtargetFeatures(CPUString, ArchFS);
 
-  // Thumb2 implies at least V6T2. FIXME: Fix tests to explicitly specify a
-  // ARM version or CPU and then remove this.
-  if (!HasV6T2Ops && hasThumb2())
-    HasV4TOps = HasV5TOps = HasV5TEOps = HasV6Ops = HasV6MOps = HasV6T2Ops = true;
+  // FIXME: This used enable V6T2 support implicitly for Thumb2 mode.
+  // Assert this for now to make the change obvious.
+  assert(hasV6T2Ops() || !hasThumb2());
 
   // Keep a pointer to static instruction cost data for the specified CPU.
   SchedModel = getSchedModelForCPU(CPUString);
@@ -186,26 +266,46 @@ void ARMSubtarget::resetSubtargetFeatures(StringRef CPU, StringRef FS) {
   // Initialize scheduling itinerary for the specified CPU.
   InstrItins = getInstrItineraryForCPU(CPUString);
 
-  if ((TargetTriple.getTriple().find("eabi") != std::string::npos) ||
-      (isTargetIOS() && isMClass()))
-    // FIXME: We might want to separate AAPCS and EABI. Some systems, e.g.
-    // Darwin-EABI conforms to AACPS but not the rest of EABI.
+  if (TargetABI == ARM_ABI_UNKNOWN) {
+    switch (TargetTriple.getEnvironment()) {
+    case Triple::Android:
+    case Triple::EABI:
+    case Triple::EABIHF:
+    case Triple::GNUEABI:
+    case Triple::GNUEABIHF:
+      TargetABI = ARM_ABI_AAPCS;
+      break;
+    default:
+      if ((isTargetIOS() && isMClass()) ||
+          (TargetTriple.isOSBinFormatMachO() &&
+           TargetTriple.getOS() == Triple::UnknownOS))
+        TargetABI = ARM_ABI_AAPCS;
+      else
+        TargetABI = ARM_ABI_APCS;
+      break;
+    }
+  }
+
+  // FIXME: this is invalid for WindowsCE
+  if (isTargetWindows()) {
     TargetABI = ARM_ABI_AAPCS;
+    NoARM = true;
+  }
 
   if (isAAPCS_ABI())
     stackAlignment = 8;
+  if (isTargetNaCl())
+    stackAlignment = 16;
 
   UseMovt = hasV6T2Ops() && ArmUseMOVT;
 
-  if (!isTargetIOS()) {
-    IsR9Reserved = ReserveR9;
-  } else {
+  if (isTargetMachO()) {
     IsR9Reserved = ReserveR9 | !HasV6Ops;
-    SupportsTailCall = !getTargetTriple().isOSVersionLT(5, 0);
+    SupportsTailCall = !isTargetIOS() || !getTargetTriple().isOSVersionLT(5, 0);
+  } else {
+    IsR9Reserved = ReserveR9;
+    SupportsTailCall = !isThumb1Only();
   }
-
-  if (!isThumb() || hasThumb2())
-    PostRAScheduler = true;
 
   switch (Align) {
     case DefaultAlign:
@@ -213,7 +313,7 @@ void ARMSubtarget::resetSubtargetFeatures(StringRef CPU, StringRef FS) {
       //
       // ARMv6 may or may not support unaligned accesses depending on the
       // SCTLR.U bit, which is architecture-specific. We assume ARMv6
-      // Darwin targets support unaligned accesses, and others don't.
+      // Darwin and NetBSD targets support unaligned accesses, and others don't.
       //
       // ARMv7 always has SCTLR.U set to 1, but it has a new SCTLR.A bit
       // which raises an alignment fault on unaligned accesses. Linux
@@ -222,9 +322,15 @@ void ARMSubtarget::resetSubtargetFeatures(StringRef CPU, StringRef FS) {
       // Linux targets support unaligned accesses. The same goes for NaCl.
       //
       // The above behavior is consistent with GCC.
-      AllowsUnalignedMem = (
-          (hasV7Ops() && (isTargetLinux() || isTargetNaCl())) ||
-          (hasV6Ops() && isTargetDarwin()));
+      AllowsUnalignedMem =
+          (hasV7Ops() && (isTargetLinux() || isTargetNaCl() ||
+                          isTargetNetBSD())) ||
+          (hasV6Ops() && (isTargetMachO() || isTargetNetBSD()));
+      // The one exception is cortex-m0, which despite being v6, does not
+      // support unaligned accesses. Rather than make the above boolean
+      // expression even more obtuse, just override the value here.
+      if (isThumb1Only() && isMClass())
+        AllowsUnalignedMem = false;
       break;
     case StrictAlign:
       AllowsUnalignedMem = false;
@@ -266,7 +372,7 @@ ARMSubtarget::GVIsIndirectSymbol(const GlobalValue *GV,
   if (GV->isDeclaration() && !GV->isMaterializable())
     isDecl = true;
 
-  if (!isTargetDarwin()) {
+  if (!isTargetMachO()) {
     // Extra load is needed for all externally visible.
     if (GV->hasLocalLinkage() || GV->hasHiddenVisibility())
       return false;
@@ -315,10 +421,20 @@ bool ARMSubtarget::hasSinCos() const {
     !getTargetTriple().isOSVersionLT(7, 0);
 }
 
-bool ARMSubtarget::enablePostRAScheduler(
-           CodeGenOpt::Level OptLevel,
-           TargetSubtargetInfo::AntiDepBreakMode& Mode,
-           RegClassVector& CriticalPathRCs) const {
-  Mode = TargetSubtargetInfo::ANTIDEP_NONE;
-  return PostRAScheduler && OptLevel >= CodeGenOpt::Default;
+// This overrides the PostRAScheduler bit in the SchedModel for any CPU.
+bool ARMSubtarget::enablePostMachineScheduler() const {
+  return (!isThumb() || hasThumb2());
+}
+
+bool ARMSubtarget::enableAtomicExpandLoadLinked() const {
+  return hasAnyDataBarrier() && !isThumb1Only();
+}
+
+bool ARMSubtarget::useMovt(const MachineFunction &MF) const {
+  // NOTE Windows on ARM needs to use mov.w/mov.t pairs to materialise 32-bit
+  // immediates as it is inherently position independent, and may be out of
+  // range otherwise.
+  return UseMovt && (isTargetWindows() ||
+                     !MF.getFunction()->getAttributes().hasAttribute(
+                         AttributeSet::FunctionIndex, Attribute::MinSize));
 }

@@ -287,18 +287,10 @@ equiv_su(tdesc_t *stdp, tdesc_t *ttdp, equiv_data_t *ed)
 
 	while (ml1 && ml2) {
 		if (ml1->ml_offset != ml2->ml_offset ||
-		    strcmp(ml1->ml_name, ml2->ml_name) != 0)
+		    strcmp(ml1->ml_name, ml2->ml_name) != 0 ||
+		    ml1->ml_size != ml2->ml_size ||
+		    !equiv_node(ml1->ml_type, ml2->ml_type, ed))
 			return (0);
-
-		/*
-		 * Don't do the recursive equivalency checking more than
-		 * we have to.
-		 */
-		if (olm1 == NULL || olm1->ml_type->t_id != ml1->ml_type->t_id) {
-			if (ml1->ml_size != ml2->ml_size ||
-			    !equiv_node(ml1->ml_type, ml2->ml_type, ed))
-				return (0);
-		}
 
 		olm1 = ml1;
 		ml1 = ml1->ml_next;

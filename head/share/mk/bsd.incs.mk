@@ -4,7 +4,7 @@
 .error bsd.incs.mk cannot be included directly.
 .endif
 
-.if ${MK_TOOLCHAIN} != "no"
+.if ${MK_INCLUDES} != "no"
 
 INCSGROUPS?=	INCS
 

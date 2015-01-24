@@ -31,43 +31,53 @@ public:
   LinkingMemoryManager(MCJIT *Parent, RTDyldMemoryManager *MM)
     : ParentEngine(Parent), ClientMM(MM) {}
 
-  virtual uint64_t getSymbolAddress(const std::string &Name);
+  uint64_t getSymbolAddress(const std::string &Name) override;
 
   // Functions deferred to client memory manager
-  virtual uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
-                                       unsigned SectionID, StringRef SectionName) {
+  uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
+                               unsigned SectionID,
+                               StringRef SectionName) override {
     return ClientMM->allocateCodeSection(Size, Alignment, SectionID, SectionName);
   }
 
-  virtual uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
-                                       unsigned SectionID, StringRef SectionName,
-                                       bool IsReadOnly) {
+  uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
+                               unsigned SectionID, StringRef SectionName,
+                               bool IsReadOnly) override {
     return ClientMM->allocateDataSection(Size, Alignment,
                                          SectionID, SectionName, IsReadOnly);
   }
 
-  virtual void notifyObjectLoaded(ExecutionEngine *EE,
-                                  const ObjectImage *Obj) {
+  void reserveAllocationSpace(uintptr_t CodeSize, uintptr_t DataSizeRO,
+                              uintptr_t DataSizeRW) override {
+    return ClientMM->reserveAllocationSpace(CodeSize, DataSizeRO, DataSizeRW);
+  }
+
+  bool needsToReserveAllocationSpace() override {
+    return ClientMM->needsToReserveAllocationSpace();
+  }
+
+  void notifyObjectLoaded(ExecutionEngine *EE,
+                          const ObjectImage *Obj) override {
     ClientMM->notifyObjectLoaded(EE, Obj);
   }
 
-  virtual void registerEHFrames(uint8_t *Addr, uint64_t LoadAddr, size_t Size) {
+  void registerEHFrames(uint8_t *Addr, uint64_t LoadAddr,
+                        size_t Size) override {
     ClientMM->registerEHFrames(Addr, LoadAddr, Size);
   }
 
-  virtual void deregisterEHFrames(uint8_t *Addr,
-                                  uint64_t LoadAddr,
-                                  size_t Size) {
+  void deregisterEHFrames(uint8_t *Addr, uint64_t LoadAddr,
+                          size_t Size) override {
     ClientMM->deregisterEHFrames(Addr, LoadAddr, Size);
   }
 
-  virtual bool finalizeMemory(std::string *ErrMsg = 0) {
+  bool finalizeMemory(std::string *ErrMsg = nullptr) override {
     return ClientMM->finalizeMemory(ErrMsg);
   }
 
 private:
   MCJIT *ParentEngine;
-  OwningPtr<RTDyldMemoryManager> ClientMM;
+  std::unique_ptr<RTDyldMemoryManager> ClientMM;
 };
 
 // About Module states: added->loaded->finalized.
@@ -206,8 +216,10 @@ class MCJIT : public ExecutionEngine {
 
   OwningModuleContainer OwnedModules;
 
-  typedef DenseMap<Module *, ObjectImage *> LoadedObjectMap;
-  LoadedObjectMap  LoadedObjects;
+  SmallVector<object::Archive*, 2> Archives;
+
+  typedef SmallVector<ObjectImage *, 2> LoadedObjectList;
+  LoadedObjectList  LoadedObjects;
 
   // An optional ObjectCache to be notified of compiled objects and used to
   // perform lookup of pre-compiled code to avoid re-compilation.
@@ -226,18 +238,24 @@ public:
 
   /// @name ExecutionEngine interface implementation
   /// @{
-  virtual void addModule(Module *M);
-  virtual bool removeModule(Module *M);
+  void addModule(Module *M) override;
+  void addObjectFile(std::unique_ptr<object::ObjectFile> O) override;
+  void addArchive(object::Archive *O) override;
+  bool removeModule(Module *M) override;
 
   /// FindFunctionNamed - Search all of the active modules to find the one that
   /// defines FnName.  This is very slow operation and shouldn't be used for
   /// general code.
-  virtual Function *FindFunctionNamed(const char *FnName);
+  Function *FindFunctionNamed(const char *FnName) override;
 
   /// Sets the object manager that MCJIT should use to avoid compilation.
-  virtual void setObjectCache(ObjectCache *manager);
+  void setObjectCache(ObjectCache *manager) override;
 
-  virtual void generateCodeForModule(Module *M);
+  void setProcessAllSections(bool ProcessAllSections) override {
+    Dyld.setProcessAllSections(ProcessAllSections);
+  }
+
+  void generateCodeForModule(Module *M) override;
 
   /// finalizeObject - ensure the module is fully processed and is usable.
   ///
@@ -248,7 +266,7 @@ public:
   /// object.
   /// Is it OK to finalize a set of modules, add modules and finalize again.
   // FIXME: Do we really need both of these?
-  virtual void finalizeObject();
+  void finalizeObject() override;
   virtual void finalizeModule(Module *);
   void finalizeLoadedModules();
 
@@ -256,18 +274,18 @@ public:
   /// the static constructors or destructors for a program.
   ///
   /// \param isDtors - Run the destructors instead of constructors.
-  void runStaticConstructorsDestructors(bool isDtors);
+  void runStaticConstructorsDestructors(bool isDtors) override;
 
-  virtual void *getPointerToBasicBlock(BasicBlock *BB);
+  void *getPointerToBasicBlock(BasicBlock *BB) override;
 
-  virtual void *getPointerToFunction(Function *F);
+  void *getPointerToFunction(Function *F) override;
 
-  virtual void *recompileAndRelinkFunction(Function *F);
+  void *recompileAndRelinkFunction(Function *F) override;
 
-  virtual void freeMachineCodeForFunction(Function *F);
+  void freeMachineCodeForFunction(Function *F) override;
 
-  virtual GenericValue runFunction(Function *F,
-                                   const std::vector<GenericValue> &ArgValues);
+  GenericValue runFunction(Function *F,
+                           const std::vector<GenericValue> &ArgValues) override;
 
   /// getPointerToNamedFunction - This method returns the address of the
   /// specified function by using the dlsym function call.  As such it is only
@@ -277,25 +295,27 @@ public:
   /// found, this function silently returns a null pointer. Otherwise,
   /// it prints a message to stderr and aborts.
   ///
-  virtual void *getPointerToNamedFunction(const std::string &Name,
-                                          bool AbortOnFailure = true);
+  void *getPointerToNamedFunction(const std::string &Name,
+                                  bool AbortOnFailure = true) override;
 
   /// mapSectionAddress - map a section to its target address space value.
   /// Map the address of a JIT section as returned from the memory manager
   /// to the address in the target process as the running code will see it.
   /// This is the address which will be used for relocation resolution.
-  virtual void mapSectionAddress(const void *LocalAddress,
-                                 uint64_t TargetAddress) {
+  void mapSectionAddress(const void *LocalAddress,
+                         uint64_t TargetAddress) override {
     Dyld.mapSectionAddress(LocalAddress, TargetAddress);
   }
-  virtual void RegisterJITEventListener(JITEventListener *L);
-  virtual void UnregisterJITEventListener(JITEventListener *L);
+  void RegisterJITEventListener(JITEventListener *L) override;
+  void UnregisterJITEventListener(JITEventListener *L) override;
 
   // If successful, these function will implicitly finalize all loaded objects.
   // To get a function address within MCJIT without causing a finalize, use
   // getSymbolAddress.
-  virtual uint64_t getGlobalValueAddress(const std::string &Name);
-  virtual uint64_t getFunctionAddress(const std::string &Name);
+  uint64_t getGlobalValueAddress(const std::string &Name) override;
+  uint64_t getFunctionAddress(const std::string &Name) override;
+
+  TargetMachine *getTargetMachine() override { return TM; }
 
   /// @}
   /// @name (Private) Registration Interfaces
@@ -322,7 +342,7 @@ protected:
   /// emitObject -- Generate a JITed object in memory from the specified module
   /// Currently, MCJIT only supports a single module and the module passed to
   /// this function call is expected to be the contained module.  The module
-  /// is passed as a parameter here to prepare for multiple module support in 
+  /// is passed as a parameter here to prepare for multiple module support in
   /// the future.
   ObjectBufferStream* emitObject(Module *M);
 

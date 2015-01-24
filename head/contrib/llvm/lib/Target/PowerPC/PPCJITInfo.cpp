@@ -11,10 +11,9 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "jit"
 #include "PPCJITInfo.h"
 #include "PPCRelocations.h"
-#include "PPCTargetMachine.h"
+#include "PPCSubtarget.h"
 #include "llvm/IR/Function.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -22,7 +21,14 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
+#define DEBUG_TYPE "jit"
+
 static TargetJITInfo::JITCompilerFn JITCompilerFunction;
+
+PPCJITInfo::PPCJITInfo(PPCSubtarget &STI)
+    : Subtarget(STI), is64Bit(STI.isPPC64()) {
+  useGOT = 0;
+}
 
 #define BUILD_ADDIS(RD,RS,IMM16) \
   ((15 << 26) | ((RD) << 21) | ((RS) << 16) | ((IMM16) & 65535))
@@ -214,6 +220,10 @@ asm(
     ".text\n"
     ".align 2\n"
     ".globl PPC64CompilationCallback\n"
+#if _CALL_ELF == 2
+    ".type PPC64CompilationCallback,@function\n"
+"PPC64CompilationCallback:\n"
+#else
     ".section \".opd\",\"aw\",@progbits\n"
     ".align 3\n"
 "PPC64CompilationCallback:\n"
@@ -223,6 +233,7 @@ asm(
     ".align 4\n"
     ".type PPC64CompilationCallback,@function\n"
 ".L.PPC64CompilationCallback:\n"
+#endif
 #  else
 asm(
     ".text\n"
@@ -387,7 +398,7 @@ void *PPCJITInfo::emitFunctionStub(const Function* F, void *Fn,
     JCE.emitWordBE(0xf821ffb1);     // stdu r1,-80(r1)
     JCE.emitWordBE(0x7d6802a6);     // mflr r11
     JCE.emitWordBE(0xf9610060);     // std r11, 96(r1)
-  } else if (TM.getSubtargetImpl()->isDarwinABI()){
+  } else if (Subtarget.isDarwinABI()){
     JCE.emitWordBE(0x9421ffe0);     // stwu r1,-32(r1)
     JCE.emitWordBE(0x7d6802a6);     // mflr r11
     JCE.emitWordBE(0x91610028);     // stw r11, 40(r1)

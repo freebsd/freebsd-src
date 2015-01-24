@@ -215,7 +215,7 @@ struct ObjCDictionaryElement {
 } // end namespace clang
 
 namespace llvm {
-template <> struct isPodLike<clang::ObjCDictionaryElement> : llvm::true_type {};
+template <> struct isPodLike<clang::ObjCDictionaryElement> : std::true_type {};
 }
 
 namespace clang {
@@ -277,14 +277,14 @@ class ObjCDictionaryLiteral : public Expr {
 
   ExpansionData *getExpansionData() {
     if (!HasPackExpansions)
-      return 0;
+      return nullptr;
     
     return reinterpret_cast<ExpansionData *>(getKeyValues() + NumElements);
   }
 
   const ExpansionData *getExpansionData() const {
     if (!HasPackExpansions)
-      return 0;
+      return nullptr;
     
     return reinterpret_cast<const ExpansionData *>(getKeyValues()+NumElements);
   }
@@ -683,13 +683,13 @@ public:
     if (isExplicitProperty()) {
       const ObjCPropertyDecl *PDecl = getExplicitProperty();
       if (const ObjCMethodDecl *Getter = PDecl->getGetterMethodDecl())
-        ResultType = Getter->getResultType();
+        ResultType = Getter->getReturnType();
       else
         ResultType = PDecl->getType();
     } else {
       const ObjCMethodDecl *Getter = getImplicitPropertyGetter();
       if (Getter)
-        ResultType = Getter->getResultType(); // with reference!
+        ResultType = Getter->getReturnType(); // with reference!
     }
     return ResultType;
   }
@@ -743,7 +743,7 @@ private:
   void setExplicitProperty(ObjCPropertyDecl *D, unsigned methRefFlags) {
     PropertyOrGetter.setPointer(D);
     PropertyOrGetter.setInt(false);
-    SetterAndMethodRefFlags.setPointer(0);
+    SetterAndMethodRefFlags.setPointer(nullptr);
     SetterAndMethodRefFlags.setInt(methRefFlags);
   }
   void setImplicitProperty(ObjCMethodDecl *Getter, ObjCMethodDecl *Setter,
@@ -1174,7 +1174,7 @@ public:
     if (getReceiverKind() == Instance)
       return static_cast<Expr *>(getReceiverPointer());
 
-    return 0;
+    return nullptr;
   }
   const Expr *getInstanceReceiver() const {
     return const_cast<ObjCMessageExpr*>(this)->getInstanceReceiver();
@@ -1201,7 +1201,7 @@ public:
   TypeSourceInfo *getClassReceiverTypeInfo() const {
     if (getReceiverKind() == Class)
       return reinterpret_cast<TypeSourceInfo *>(getReceiverPointer());
-    return 0;
+    return nullptr;
   }
 
   void setClassReceiver(TypeSourceInfo *TSInfo) {
@@ -1270,14 +1270,14 @@ public:
     if (HasMethod)
       return reinterpret_cast<const ObjCMethodDecl *>(SelectorOrMethod);
 
-    return 0;
+    return nullptr;
   }
 
   ObjCMethodDecl *getMethodDecl() { 
     if (HasMethod)
       return reinterpret_cast<ObjCMethodDecl *>(SelectorOrMethod);
 
-    return 0;
+    return nullptr;
   }
 
   void setMethodDecl(ObjCMethodDecl *MD) { 

@@ -101,12 +101,24 @@ ofw_iicbus_attach(device_t dev)
 {
 	struct iicbus_softc *sc = IICBUS_SOFTC(dev);
 	struct ofw_iicbus_devinfo *dinfo;
-	phandle_t child;
-	pcell_t paddr;
+	phandle_t child, node;
+	pcell_t freq, paddr;
 	device_t childdev;
 
 	sc->dev = dev;
 	mtx_init(&sc->lock, "iicbus", NULL, MTX_DEF);
+
+	/*
+	 * If there is a clock-frequency property for the device node, use it as
+	 * the starting value for the bus frequency.  Then call the common
+	 * routine that handles the tunable/sysctl which allows the FDT value to
+	 * be overridden by the user.
+	 */
+	node = ofw_bus_get_node(dev);
+	freq = 0;
+	OF_getencprop(node, "clock-frequency", &freq, sizeof(freq));
+	iicbus_init_frequency(dev, freq);
+	
 	iicbus_reset(dev, IIC_FASTEST, 0, NULL);
 
 	bus_generic_probe(dev);
@@ -115,8 +127,7 @@ ofw_iicbus_attach(device_t dev)
 	/*
 	 * Attach those children represented in the device tree.
 	 */
-	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
-	    child = OF_peer(child)) {
+	for (child = OF_child(node); child != 0; child = OF_peer(child)) {
 		/*
 		 * Try to get the I2C address first from the i2c-address
 		 * property, then try the reg property.  It moves around

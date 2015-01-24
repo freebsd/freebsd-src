@@ -6,8 +6,7 @@ PROG=	units
 FILES=	units.lib
 FILESDIR=	${SHAREDIR}/misc
 
-LDADD+=-ledit -ltermcapw
-DPADD+=${LIBEDIT} ${LIBTERMCAPW}
+LIBADD=	edit
 
 .if ${MK_TESTS} != "no"
 SUBDIR+= tests

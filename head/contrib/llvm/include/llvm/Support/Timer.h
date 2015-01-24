@@ -85,24 +85,24 @@ class Timer {
   
   Timer **Prev, *Next;   // Doubly linked list of timers in the group.
 public:
-  explicit Timer(StringRef N) : TG(0) { init(N); }
-  Timer(StringRef N, TimerGroup &tg) : TG(0) { init(N, tg); }
-  Timer(const Timer &RHS) : TG(0) {
-    assert(RHS.TG == 0 && "Can only copy uninitialized timers");
+  explicit Timer(StringRef N) : TG(nullptr) { init(N); }
+  Timer(StringRef N, TimerGroup &tg) : TG(nullptr) { init(N, tg); }
+  Timer(const Timer &RHS) : TG(nullptr) {
+    assert(!RHS.TG && "Can only copy uninitialized timers");
   }
   const Timer &operator=(const Timer &T) {
-    assert(TG == 0 && T.TG == 0 && "Can only assign uninit timers");
+    assert(!TG && !T.TG && "Can only assign uninit timers");
     return *this;
   }
   ~Timer();
 
   // Create an uninitialized timer, client must use 'init'.
-  explicit Timer() : TG(0) {}
+  explicit Timer() : TG(nullptr) {}
   void init(StringRef N);
   void init(StringRef N, TimerGroup &tg);
   
   const std::string &getName() const { return Name; }
-  bool isInitialized() const { return TG != 0; }
+  bool isInitialized() const { return TG != nullptr; }
   
   /// startTimer - Start the timer running.  Time between calls to
   /// startTimer/stopTimer is counted by the Timer class.  Note that these calls

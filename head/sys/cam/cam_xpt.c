@@ -93,6 +93,8 @@ struct xpt_task {
 };
 
 struct xpt_softc {
+	uint32_t		xpt_generation;
+
 	/* number of high powered commands that can go through right now */
 	struct mtx		xpt_highpower_lock;
 	STAILQ_HEAD(highpowerlist, cam_ed)	highpowerq;
@@ -151,6 +153,8 @@ static struct xpt_softc xsoftc;
 
 SYSCTL_INT(_kern_cam, OID_AUTO, boot_delay, CTLFLAG_RDTUN,
            &xsoftc.boot_delay, 0, "Bus registration wait time");
+SYSCTL_UINT(_kern_cam, OID_AUTO, xpt_generation, CTLFLAG_RD,
+	    &xsoftc.xpt_generation, 0, "CAM peripheral generation count");
 
 struct cam_doneq {
 	struct mtx_padalign	cam_doneq_mtx;
@@ -893,7 +897,6 @@ xpt_init(void *dummy)
 	if ((status = xpt_create_path(&path, NULL, CAM_XPT_PATH_ID,
 				      CAM_TARGET_WILDCARD,
 				      CAM_LUN_WILDCARD)) != CAM_REQ_CMP) {
-		mtx_unlock(&xsoftc.xpt_lock);
 		printf("xpt_init: xpt_create_path failed with status %#x,"
 		       " failing attach\n", status);
 		return (EINVAL);
@@ -977,6 +980,7 @@ xpt_add_periph(struct cam_periph *periph)
 		device->generation++;
 		SLIST_INSERT_HEAD(&device->periphs, periph, periph_links);
 		mtx_unlock(&device->target->bus->eb_mtx);
+		atomic_add_32(&xsoftc.xpt_generation, 1);
 	}
 
 	return (status);
@@ -993,6 +997,7 @@ xpt_remove_periph(struct cam_periph *periph)
 		device->generation++;
 		SLIST_REMOVE(&device->periphs, periph, cam_periph, periph_links);
 		mtx_unlock(&device->target->bus->eb_mtx);
+		atomic_add_32(&xsoftc.xpt_generation, 1);
 	}
 }
 
@@ -1136,8 +1141,15 @@ xpt_getattr(char *buf, size_t len, const char *attr, struct cam_path *path)
 		if (idd == NULL)
 			goto out;
 		ret = 0;
-		if ((idd->proto_codeset & SVPD_ID_CODESET_MASK) == SVPD_ID_CODESET_ASCII ||
-		    (idd->proto_codeset & SVPD_ID_CODESET_MASK) == SVPD_ID_CODESET_UTF8) {
+		if ((idd->proto_codeset & SVPD_ID_CODESET_MASK) == SVPD_ID_CODESET_ASCII) {
+			if (idd->length < len) {
+				for (l = 0; l < idd->length; l++)
+					buf[l] = idd->identifier[l] ?
+					    idd->identifier[l] : ' ';
+				buf[l] = 0;
+			} else
+				ret = EFAULT;
+		} else if ((idd->proto_codeset & SVPD_ID_CODESET_MASK) == SVPD_ID_CODESET_UTF8) {
 			l = strnlen(idd->identifier, idd->length);
 			if (l < len) {
 				bcopy(idd->identifier, buf, l);
@@ -2893,9 +2905,9 @@ call_sim:
 				start_ccb->ccb_h.flags |= CAM_DEV_QFREEZE;
 			}
 
-			callout_reset(&dev->callout,
-			    (crs->release_timeout * hz) / 1000,
-			    xpt_release_devq_timeout, dev);
+			callout_reset_sbt(&dev->callout,
+			    SBT_1MS * crs->release_timeout, 0,
+			    xpt_release_devq_timeout, dev, 0);
 
 			dev->flags |= CAM_DEV_REL_TIMEOUT_PENDING;
 
@@ -4944,8 +4956,8 @@ xpt_config(void *arg)
 	periphdriver_init(1);
 	xpt_hold_boot();
 	callout_init(&xsoftc.boot_callout, 1);
-	callout_reset(&xsoftc.boot_callout, hz * xsoftc.boot_delay / 1000,
-	    xpt_boot_delay, NULL);
+	callout_reset_sbt(&xsoftc.boot_callout, SBT_1MS * xsoftc.boot_delay, 0,
+	    xpt_boot_delay, NULL, 0);
 	/* Fire up rescan thread. */
 	if (kproc_kthread_add(xpt_scanner_thread, NULL, &cam_proc, NULL, 0, 0,
 	    "cam", "scanner")) {

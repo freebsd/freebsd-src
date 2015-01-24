@@ -30,8 +30,6 @@
  */
 
 /*
- * "#ifdef FAITH" part is local hack for supporting IPv4-v6 translator.
- *
  * Issues to be discussed:
  * - Return values.  There are nonstandard return values defined and used
  *   in the source code.  This is because RFC2553 is silent about which error
@@ -99,10 +97,6 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #ifdef NS_CACHING
 #include "nscache.h"
-#endif
-
-#if defined(__KAME__) && defined(INET6)
-# define FAITH
 #endif
 
 #define ANY 0
@@ -1316,47 +1310,6 @@ get_ai(const struct addrinfo *pai, const struct afd *afd, const char *addr)
 {
 	char *p;
 	struct addrinfo *ai;
-#ifdef FAITH
-	struct in6_addr faith_prefix;
-	char *fp_str;
-	int translate = 0;
-#endif
-
-#ifdef FAITH
-	/*
-	 * Transfrom an IPv4 addr into a special IPv6 addr format for
-	 * IPv6->IPv4 translation gateway. (only TCP is supported now)
-	 *
-	 * +-----------------------------------+------------+
-	 * | faith prefix part (12 bytes)      | embedded   |
-	 * |                                   | IPv4 addr part (4 bytes)
-	 * +-----------------------------------+------------+
-	 *
-	 * faith prefix part is specified as ascii IPv6 addr format
-	 * in environmental variable GAI.
-	 * For FAITH to work correctly, routing to faith prefix must be
-	 * setup toward a machine where a FAITH daemon operates.
-	 * Also, the machine must enable some mechanizm
-	 * (e.g. faith interface hack) to divert those packet with
-	 * faith prefixed destination addr to user-land FAITH daemon.
-	 */
-	fp_str = getenv("GAI");
-	if (fp_str && inet_pton(AF_INET6, fp_str, &faith_prefix) == 1 &&
-	    afd->a_af == AF_INET && pai->ai_socktype == SOCK_STREAM) {
-		u_int32_t v4a;
-		u_int8_t v4a_top;
-
-		memcpy(&v4a, addr, sizeof v4a);
-		v4a_top = v4a >> IN_CLASSA_NSHIFT;
-		if (!IN_MULTICAST(v4a) && !IN_EXPERIMENTAL(v4a) &&
-		    v4a_top != 0 && v4a != IN_LOOPBACKNET) {
-			afd = &afdl[N_INET6];
-			memcpy(&faith_prefix.s6_addr[12], addr,
-			       sizeof(struct in_addr));
-			translate = 1;
-		}
-	}
-#endif
 
 	ai = (struct addrinfo *)malloc(sizeof(struct addrinfo)
 		+ (afd->a_socklen));
@@ -1370,11 +1323,6 @@ get_ai(const struct addrinfo *pai, const struct afd *afd, const char *addr)
 	ai->ai_addrlen = afd->a_socklen;
 	ai->ai_addr->sa_family = ai->ai_family = afd->a_af;
 	p = (char *)(void *)(ai->ai_addr);
-#ifdef FAITH
-	if (translate == 1)
-		memcpy(p + afd->a_off, &faith_prefix, (size_t)afd->a_addrlen);
-	else
-#endif
 	memcpy(p + afd->a_off, addr, (size_t)afd->a_addrlen);
 	return ai;
 }

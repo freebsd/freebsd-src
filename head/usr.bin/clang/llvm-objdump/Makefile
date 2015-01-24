@@ -4,8 +4,6 @@ MAN=
 .include <bsd.own.mk>
 
 PROG_CXX=llvm-objdump
-DPADD=	${LIBZ}
-LDADD=	-lz
 
 SRCDIR=	tools/llvm-objdump
 SRCS=	llvm-objdump.cpp \
@@ -14,7 +12,15 @@ SRCS=	llvm-objdump.cpp \
 	MachODump.cpp
 
 LIBDEPS=llvmmcdisassembler \
+	llvmmcanalysis \
 	llvmdebuginfo \
+	llvmaarch64disassembler \
+	llvmaarch64codegen \
+	llvmaarch64asmparser \
+	llvmaarch64desc \
+	llvmaarch64info \
+	llvmaarch64instprinter \
+	llvmaarch64utils \
 	llvmarmdisassembler \
 	llvmarmcodegen \
 	llvmarmasmparser \
@@ -27,6 +33,7 @@ LIBDEPS=llvmmcdisassembler \
 	llvmmipsdesc \
 	llvmmipsinfo \
 	llvmmipsinstprinter \
+	llvmpowerpcdisassembler \
 	llvmpowerpccodegen \
 	llvmpowerpcasmparser \
 	llvmpowerpcdesc \
@@ -43,22 +50,25 @@ LIBDEPS=llvmmcdisassembler \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
-	llvmmcparser \
 	llvmcodegen \
-	llvmobjcarcopts \
 	llvmscalaropts \
 	llvminstcombine \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
-	llvmx86desc \
-	llvmx86info \
 	llvmtarget \
+	llvmx86desc \
+	llvmobject \
+	llvmmcparser \
+	llvmbitreader \
+	llvmcore \
+	llvmx86info \
 	llvmx86instprinter \
 	llvmmc \
-	llvmobject \
 	llvmx86utils \
-	llvmcore \
 	llvmsupport
 
 .include "../clang.prog.mk"
+
+DPADD+=	${LIBZ}
+LDADD+=	-lz

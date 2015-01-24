@@ -121,7 +121,6 @@ DVIPS2ASCII?=	dvips2ascii
 IFILENS+=	${INFO:S/$/.${_f}/}
 .endfor
 
-.if ${MK_INFO} != "no"
 CLEANFILES+=	${IFILENS}
 .if !defined(NO_INFOCOMPRESS)
 CLEANFILES+=	${IFILENS:S/$/${ICOMPRESS_EXT}/}
@@ -130,9 +129,6 @@ all: ${IFILES}
 .else
 IFILES=	${IFILENS}
 all: ${IFILES}
-.endif
-.else
-all:
 .endif
 
 .for x in ${IFILENS}
@@ -177,7 +173,7 @@ CLEANFILES+=	${INFO:S/$/-la.texi/}
 CLEANFILES+=	${INFO:S/$/.info.*.html/} ${INFO:S/$/.info/}
 .endif
 
-.if ${MK_INFO} != "no" && defined(INFO)
+.if defined(INFO)
 install: ${INSTALLINFODIRS}
 .if !empty(IFILES:N*.html)
 	${INSTALL} -o ${INFOOWN} -g ${INFOGRP} -m ${INFOMODE} \

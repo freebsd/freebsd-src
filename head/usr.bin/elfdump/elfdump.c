@@ -29,12 +29,15 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
+
+#include <sys/capsicum.h>
 #include <sys/elf32.h>
 #include <sys/elf64.h>
 #include <sys/endian.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stddef.h>
@@ -467,6 +470,7 @@ elf_get_shstrndx(Elf32_Ehdr *e, void *sh)
 int
 main(int ac, char **av)
 {
+	cap_rights_t rights;
 	u_int64_t phoff;
 	u_int64_t shoff;
 	u_int64_t phentsize;
@@ -527,6 +531,9 @@ main(int ac, char **av)
 		case 'w':
 			if ((out = fopen(optarg, "w")) == NULL)
 				err(1, "%s", optarg);
+			cap_rights_init(&rights, CAP_FSTAT, CAP_WRITE);
+			if (cap_rights_limit(fileno(out), &rights) < 0 && errno != ENOSYS)
+				err(1, "unable to limit rights for %s", optarg);
 			break;
 		case '?':
 		default:
@@ -539,6 +546,17 @@ main(int ac, char **av)
 	if ((fd = open(*av, O_RDONLY)) < 0 ||
 	    fstat(fd, &sb) < 0)
 		err(1, "%s", *av);
+	cap_rights_init(&rights, CAP_MMAP_R);
+	if (cap_rights_limit(fd, &rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for %s", *av);
+	close(STDIN_FILENO);
+	cap_rights_init(&rights, CAP_WRITE);
+	if (cap_rights_limit(STDOUT_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for stdout");
+	if (cap_rights_limit(STDERR_FILENO, &rights) < 0 && errno != ENOSYS)
+		err(1, "unable to limit rights for stderr");
+	if (cap_enter() < 0 && errno != ENOSYS)
+		err(1, "unable to enter capability mode");
 	e = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
 	if (e == MAP_FAILED)
 		err(1, NULL);

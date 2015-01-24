@@ -74,13 +74,6 @@
 #include <machine/slb.h>
 #include <machine/tlb.h>
 
-struct pmap_md {
-	u_int		md_index;
-	vm_paddr_t      md_paddr;
-	vm_offset_t     md_vaddr;
-	vm_size_t       md_size;
-};
-
 #if defined(AIM)
 
 #if !defined(NPMAPS)
@@ -251,11 +244,6 @@ extern	vm_offset_t virtual_end;
 extern	vm_offset_t msgbuf_phys;
 
 extern	int pmap_bootstrapped;
-
-extern vm_offset_t pmap_dumpsys_map(struct pmap_md *, vm_size_t, vm_size_t *);
-extern void pmap_dumpsys_unmap(struct pmap_md *, vm_size_t, vm_offset_t);
-
-extern struct pmap_md *pmap_scan_md(struct pmap_md *);
 
 vm_offset_t pmap_early_io_map(vm_paddr_t pa, vm_size_t size);
 

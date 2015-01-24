@@ -2212,7 +2212,7 @@ envy24ht_putcfg(struct sc_info *sc)
 		printf("reserved\n");
 		break;
 	default:
-		printf("illeagal system setting\n");
+		printf("illegal system setting\n");
 	}
 	printf("  MPU-401 UART(s) #: ");
 	if (sc->cfg->scfg & ENVY24HT_CCSM_SCFG_MPU)
@@ -2588,11 +2588,7 @@ static device_method_t envy24ht_methods[] = {
 static driver_t envy24ht_driver = {
 	"pcm",
 	envy24ht_methods,
-#if __FreeBSD_version > 500000
 	PCM_SOFTC_SIZE,
-#else
-	sizeof(struct snddev_info),
-#endif
 };
 
 DRIVER_MODULE(snd_envy24ht, pci, envy24ht_driver, pcm_devclass, 0, 0);

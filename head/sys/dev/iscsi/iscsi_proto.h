@@ -38,6 +38,9 @@
 #define __CTASSERT(x, y)	typedef char __assert_ ## y [(x) ? 1 : -1]
 #endif
 
+#define	ISCSI_SNGT(x, y)	((int32_t)(x) - (int32_t)(y) > 0)
+#define	ISCSI_SNLT(x, y)	((int32_t)(x) - (int32_t)(y) < 0)
+
 #define	ISCSI_BHS_SIZE			48
 #define	ISCSI_HEADER_DIGEST_SIZE	4
 #define	ISCSI_DATA_DIGEST_SIZE		4

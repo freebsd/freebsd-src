@@ -5,8 +5,7 @@
 
 PROG=	rlogind
 MAN=	rlogind.8
-DPADD=	${LIBUTIL}
-LDADD=	-lutil
+LIBADD=	util
 WARNS?=	2
 
 .if ${MK_INET6_SUPPORT} != "no"

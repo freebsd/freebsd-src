@@ -52,6 +52,12 @@ main (int argc, char **argv)
 
     xo_open_container("employees");
 
+    xo_open_list("test");
+    xo_open_instance("test");
+    xo_emit("{ek:filename/%s}", NULL);
+    xo_close_instance("test");
+    xo_close_list("test");
+
     rc = xo_emit("Οὐχὶ ταὐτὰ παρίσταταί μοι {:v1/%s}, {:v2/%s}\n",
 	    "γιγνώσκειν", "ὦ ἄνδρες ᾿Αθηναῖοι");
     rc = xo_emit("{:columns/%d}\n", rc);
@@ -62,11 +68,12 @@ main (int argc, char **argv)
 	    "Unicode-ის მეათე საერთაშორისო");
     xo_emit("{:columns/%d}\n", rc);
 
-    xo_open_list("employee");
 
     rc = xo_emit("{T:First Name/%-25s}{T:Last Name/%-14s}"
 	    "{T:/%-12s}{T:Time (%)}\n", "Department");
     xo_emit("{:columns/%d}\n", rc);
+
+    xo_open_list("employee");
     for ( ; ep->e_first; ep++) {
 	xo_open_instance("employee");
 	rc = xo_emit("{[:-25}{:first-name/%s} ({:nic-name/\"%s\"}){]:}"

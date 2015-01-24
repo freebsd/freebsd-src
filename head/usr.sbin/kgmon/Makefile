@@ -11,7 +11,6 @@ WARNS?=	2
 #BINOWN=root
 #BINMODE=4555
 
-DPADD=	${LIBKVM}
-LDADD=	-lkvm
+LIBADD=	kvm
 
 .include <bsd.prog.mk>

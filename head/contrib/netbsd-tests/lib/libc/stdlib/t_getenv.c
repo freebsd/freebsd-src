@@ -40,7 +40,7 @@ __RCSID("$NetBSD: t_getenv.c,v 1.2 2011/07/15 13:54:31 jruoho Exp $");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include <signal.h>
 #endif
 
@@ -155,7 +155,7 @@ ATF_TC_BODY(setenv_basic, tc)
 	ATF_CHECK_ERRNO(EINVAL, setenv(NULL, "val", 1) == -1);
 	ATF_CHECK_ERRNO(EINVAL, setenv("", "val", 1) == -1);
 	ATF_CHECK_ERRNO(EINVAL, setenv("v=r", "val", 1) == -1);
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 	/*
 	   Both FreeBSD and OS/X does not validate the second
 	   argument to setenv(3)

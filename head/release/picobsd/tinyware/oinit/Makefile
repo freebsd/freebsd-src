@@ -14,7 +14,7 @@ CFLAGS=		-DSH_PATH=\"${SH_PATH}\" -DSH_NAME=\"${SH_NAME}\" \
 #CFLAGS+=	-DOINIT_RC=\"/etc/oinit.rc\"
 
 #LDADD=		-lutil -ledit -ltermcap
-LDADD=-lutil
+LIBADD=	util
 MAN=
 
 .include <bsd.prog.mk>

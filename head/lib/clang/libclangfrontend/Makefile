@@ -26,17 +26,18 @@ SRCS=	ASTConsumers.cpp \
 	LangStandards.cpp \
 	LayoutOverrideSource.cpp \
 	LogDiagnosticPrinter.cpp \
+	ModuleDependencyCollector.cpp \
 	MultiplexConsumer.cpp \
 	PrintPreprocessedOutput.cpp \
 	SerializedDiagnosticPrinter.cpp \
 	TextDiagnostic.cpp \
 	TextDiagnosticBuffer.cpp \
 	TextDiagnosticPrinter.cpp \
-	VerifyDiagnosticConsumer.cpp \
-	Warnings.cpp
+	VerifyDiagnosticConsumer.cpp
 
 TGHDRS=	AttrList \
 	AttrParsedAttrList \
+	AttrVisitor \
 	Attrs \
 	CommentCommandList \
 	CommentNodes \

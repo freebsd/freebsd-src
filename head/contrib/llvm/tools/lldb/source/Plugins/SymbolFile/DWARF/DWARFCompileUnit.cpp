@@ -265,12 +265,16 @@ DWARFCompileUnit::ExtractDIEsIfNeeded (bool cu_die_only)
         DWARFDebugInfoEntry::collection exact_size_die_array (m_die_array.begin(), m_die_array.end());
         exact_size_die_array.swap (m_die_array);
     }
-    Log *log (LogChannelDWARF::GetLogIfAll (DWARF_LOG_DEBUG_INFO | DWARF_LOG_VERBOSE));
-    if (log)
+    Log *verbose_log (LogChannelDWARF::GetLogIfAll (DWARF_LOG_DEBUG_INFO | DWARF_LOG_VERBOSE));
+    if (verbose_log)
     {
         StreamString strm;
-        DWARFDebugInfoEntry::DumpDIECollection (strm, m_die_array);
-        log->PutCString (strm.GetString().c_str());
+        Dump(&strm);
+        if (m_die_array.empty())
+            strm.Printf("error: no DIE for compile unit");
+        else
+            m_die_array[0].Dump(m_dwarf2Data, this, strm, UINT32_MAX);        
+        verbose_log->PutCString (strm.GetString().c_str());
     }
 
     return m_die_array.size();
@@ -357,18 +361,43 @@ DWARFCompileUnit::SetDefaultAddressSize(uint8_t addr_size)
 
 void
 DWARFCompileUnit::BuildAddressRangeTable (SymbolFileDWARF* dwarf2Data,
-                                          DWARFDebugAranges* debug_aranges,
-                                          bool clear_dies_if_already_not_parsed)
+                                          DWARFDebugAranges* debug_aranges)
 {
     // This function is usually called if there in no .debug_aranges section
     // in order to produce a compile unit level set of address ranges that
-    // is accurate. If the DIEs weren't parsed, then we don't want all dies for
-    // all compile units to stay loaded when they weren't needed. So we can end
-    // up parsing the DWARF and then throwing them all away to keep memory usage
-    // down.
+    // is accurate.
+    
+    // First get the compile unit DIE only and check if it has a DW_AT_ranges
+    const DWARFDebugInfoEntry* die = GetCompileUnitDIEOnly();
+    
+    const dw_offset_t cu_offset = GetOffset();
+    if (die)
+    {
+        DWARFDebugRanges::RangeList ranges;
+        const size_t num_ranges = die->GetAttributeAddressRanges(dwarf2Data, this, ranges, false);
+        if (num_ranges > 0)
+        {
+            // This compile unit has DW_AT_ranges, assume this is correct if it
+            // is present since clang no longer makes .debug_aranges by default
+            // and it emits DW_AT_ranges for DW_TAG_compile_units. GCC also does
+            // this with recent GCC builds.
+            for (size_t i=0; i<num_ranges; ++i)
+            {
+                const DWARFDebugRanges::RangeList::Entry &range = ranges.GetEntryRef(i);
+                debug_aranges->AppendRange(cu_offset, range.GetRangeBase(), range.GetRangeEnd());
+            }
+            
+            return; // We got all of our ranges from the DW_AT_ranges attribute
+        }
+    }
+    // We don't have a DW_AT_ranges attribute, so we need to parse the DWARF
+    
+    // If the DIEs weren't parsed, then we don't want all dies for all compile units
+    // to stay loaded when they weren't needed. So we can end up parsing the DWARF
+    // and then throwing them all away to keep memory usage down.
     const bool clear_dies = ExtractDIEsIfNeeded (false) > 1;
     
-    const DWARFDebugInfoEntry* die = DIE();
+    die = DIE();
     if (die)
         die->BuildAddressRangeTable(dwarf2Data, this, debug_aranges);
     
@@ -393,7 +422,7 @@ DWARFCompileUnit::BuildAddressRangeTable (SymbolFileDWARF* dwarf2Data,
                     for (uint32_t idx=0; idx<num_ranges; ++idx)
                     {
                         const LineTable::FileAddressRanges::Entry &range = file_ranges.GetEntryRef(idx);
-                        debug_aranges->AppendRange(GetOffset(), range.GetRangeBase(), range.GetRangeEnd());
+                        debug_aranges->AppendRange(cu_offset, range.GetRangeBase(), range.GetRangeEnd());
                         printf ("0x%8.8x: [0x%16.16" PRIx64 " - 0x%16.16" PRIx64 ")\n", GetOffset(), range.GetRangeBase(), range.GetRangeEnd());
                     }
                 }

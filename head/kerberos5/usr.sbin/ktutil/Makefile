@@ -17,10 +17,7 @@ SRCS=	add.c \
 	rename.c
 
 CFLAGS+=-I${KRB5DIR}/lib/roken -I${KRB5DIR}/lib/sl -I.
-DPADD=	${LIBKADM5CLNT} ${LIBKRB5} ${LIBSL} ${LIBROKEN} ${LIBVERS} \
-	${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBEDIT}
-LDADD=	-lkadm5clnt -lkrb5 ${LIBSL} -lroken ${LIBVERS} \
-	-lasn1 -lcrypto -lcrypt -ledit
+LIBADD=	kadm5clnt krb5 roken crypto edit sl vers
 
 .include <bsd.prog.mk>
 

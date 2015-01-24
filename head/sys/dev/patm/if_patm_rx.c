@@ -471,7 +471,7 @@ patm_rx_raw(struct patm_softc *sc, u_char *cell)
 	  default:
 	  case PATM_RAW_CELL:
 		m->m_len = m->m_pkthdr.len = 53;
-		MH_ALIGN(m, 53);
+		M_ALIGN(m, 53);
 		dst = mtod(m, u_char *);
 		*dst++ = *cell++;
 		*dst++ = *cell++;
@@ -483,7 +483,7 @@ patm_rx_raw(struct patm_softc *sc, u_char *cell)
 
 	  case PATM_RAW_NOHEC:
 		m->m_len = m->m_pkthdr.len = 52;
-		MH_ALIGN(m, 52);
+		M_ALIGN(m, 52);
 		dst = mtod(m, u_char *);
 		*dst++ = *cell++;
 		*dst++ = *cell++;
@@ -494,7 +494,7 @@ patm_rx_raw(struct patm_softc *sc, u_char *cell)
 
 	  case PATM_RAW_CS:
 		m->m_len = m->m_pkthdr.len = 64;
-		MH_ALIGN(m, 64);
+		M_ALIGN(m, 64);
 		dst = mtod(m, u_char *);
 		*dst++ = *cell++;
 		*dst++ = *cell++;

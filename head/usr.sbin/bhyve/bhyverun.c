@@ -185,20 +185,14 @@ vm_inject_fault(void *arg, int vcpu, int vector, int errcode_valid,
     int errcode)
 {
 	struct vmctx *ctx;
-	int error;
+	int error, restart_instruction;
 
 	ctx = arg;
-	if (errcode_valid)
-		error = vm_inject_exception2(ctx, vcpu, vector, errcode);
-	else
-		error = vm_inject_exception(ctx, vcpu, vector);
-	assert(error == 0);
+	restart_instruction = 1;
 
-	/*
-	 * Set the instruction length to 0 to ensure that the instruction is
-	 * restarted when the fault handler returns.
-	 */
-	vmexit[vcpu].inst_length = 0;
+	error = vm_inject_exception(ctx, vcpu, vector, errcode_valid, errcode,
+	    restart_instruction);
+	assert(error == 0);
 }
 
 void *
@@ -329,12 +323,6 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 	}
 
 	error = emulate_inout(ctx, vcpu, vme, strictio);
-	if (!error && in && !string) {
-		error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RAX,
-		    vme->u.inout.eax);
-		assert(error == 0);
-	}
-
 	if (error) {
 		fprintf(stderr, "Unhandled %s%c 0x%04x\n", in ? "in" : "out",
 		    bytes == 1 ? 'b' : (bytes == 2 ? 'w' : 'l'), port);
@@ -358,7 +346,7 @@ vmexit_rdmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 		    vme->u.msr.code, *pvcpu);
 		if (strictmsr) {
 			vm_inject_gp(ctx, *pvcpu);
-			return (VMEXIT_RESTART);
+			return (VMEXIT_CONTINUE);
 		}
 	}
 
@@ -384,7 +372,7 @@ vmexit_wrmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 		    vme->u.msr.code, vme->u.msr.wval, *pvcpu);
 		if (strictmsr) {
 			vm_inject_gp(ctx, *pvcpu);
-			return (VMEXIT_RESTART);
+			return (VMEXIT_CONTINUE);
 		}
 	}
 	return (VMEXIT_CONTINUE);
@@ -462,9 +450,11 @@ static int
 vmexit_bogus(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
 
+	assert(vmexit->inst_length == 0);
+
 	stats.vmexit_bogus++;
 
-	return (VMEXIT_RESTART);
+	return (VMEXIT_CONTINUE);
 }
 
 static int
@@ -494,9 +484,11 @@ static int
 vmexit_mtrap(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
 
+	assert(vmexit->inst_length == 0);
+
 	stats.vmexit_mtrap++;
 
-	return (VMEXIT_RESTART);
+	return (VMEXIT_CONTINUE);
 }
 
 static int
@@ -581,7 +573,7 @@ static vmexit_handler_t handler[VM_EXITCODE_MAX] = {
 };
 
 static void
-vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
+vm_loop(struct vmctx *ctx, int vcpu, uint64_t startrip)
 {
 	int error, rc, prevcpu;
 	enum vm_exitcode exitcode;
@@ -596,8 +588,11 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 	error = vm_active_cpus(ctx, &active_cpus);
 	assert(CPU_ISSET(vcpu, &active_cpus));
 
+	error = vm_set_register(ctx, vcpu, VM_REG_GUEST_RIP, startrip);
+	assert(error == 0);
+
 	while (1) {
-		error = vm_run(ctx, vcpu, rip, &vmexit[vcpu]);
+		error = vm_run(ctx, vcpu, &vmexit[vcpu]);
 		if (error != 0)
 			break;
 
@@ -614,10 +609,6 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 
 		switch (rc) {
 		case VMEXIT_CONTINUE:
-                        rip = vmexit[vcpu].rip + vmexit[vcpu].inst_length;
-			break;
-		case VMEXIT_RESTART:
-                        rip = vmexit[vcpu].rip;
 			break;
 		case VMEXIT_ABORT:
 			abort();

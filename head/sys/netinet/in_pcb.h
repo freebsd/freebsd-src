@@ -511,7 +511,7 @@ short	inp_so_options(const struct inpcb *inp);
 #define	INP_ANONPORT		0x00000040 /* port chosen for user */
 #define	INP_RECVIF		0x00000080 /* receive incoming interface */
 #define	INP_MTUDISC		0x00000100 /* user can do MTU discovery */
-#define	INP_FAITH		0x00000200 /* accept FAITH'ed connections */
+				   	   /* 0x000200 unused: was INP_FAITH */
 #define	INP_RECVTTL		0x00000400 /* receive incoming IP TTL */
 #define	INP_DONTFRAG		0x00000800 /* don't fragment packet */
 #define	INP_BINDANY		0x00001000 /* allow bind to any address */
@@ -530,8 +530,8 @@ short	inp_so_options(const struct inpcb *inp);
 #define	INP_ONESBCAST		0x02000000 /* send all-ones broadcast */
 #define	INP_DROPPED		0x04000000 /* protocol drop flag */
 #define	INP_SOCKREF		0x08000000 /* strong socket reference */
-#define	INP_SW_FLOWID           0x10000000 /* software generated flow id */
-#define	INP_HW_FLOWID           0x20000000 /* hardware generated flow id */
+#define	INP_RESERVED_0          0x10000000 /* reserved field */
+#define	INP_RESERVED_1          0x20000000 /* reserved field */
 #define	IN6P_RFC2292		0x40000000 /* used RFC2292 API on the socket */
 #define	IN6P_MTU		0x80000000 /* receive path MTU */
 

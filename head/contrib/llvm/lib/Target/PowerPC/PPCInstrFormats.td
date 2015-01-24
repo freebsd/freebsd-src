@@ -14,6 +14,8 @@
 class I<bits<6> opcode, dag OOL, dag IOL, string asmstr, InstrItinClass itin>
         : Instruction {
   field bits<32> Inst;
+  field bits<32> SoftFail = 0;
+  let Size = 4;
 
   bit PPC64 = 0;  // Default value, override with isPPC64
 
@@ -67,6 +69,8 @@ class I2<bits<6> opcode1, bits<6> opcode2, dag OOL, dag IOL, string asmstr,
          InstrItinClass itin>
         : Instruction {
   field bits<64> Inst;
+  field bits<64> SoftFail = 0;
+  let Size = 8;
 
   bit PPC64 = 0;  // Default value, override with isPPC64
 
@@ -109,7 +113,7 @@ class IForm<bits<6> opcode, bit aa, bit lk, dag OOL, dag IOL, string asmstr,
 
 // 1.7.2 B-Form
 class BForm<bits<6> opcode, bit aa, bit lk, dag OOL, dag IOL, string asmstr>
-  : I<opcode, OOL, IOL, asmstr, BrB> {
+  : I<opcode, OOL, IOL, asmstr, IIC_BrB> {
   bits<7> BIBO;  // 2 bits of BI and 5 bits of BO.
   bits<3>  CR;
   bits<14> BD;
@@ -135,7 +139,7 @@ class BForm_1<bits<6> opcode, bits<5> bo, bit aa, bit lk, dag OOL, dag IOL,
 
 class BForm_2<bits<6> opcode, bits<5> bo, bits<5> bi, bit aa, bit lk,
               dag OOL, dag IOL, string asmstr>
-  : I<opcode, OOL, IOL, asmstr, BrB> {
+  : I<opcode, OOL, IOL, asmstr, IIC_BrB> {
   bits<14> BD;
 
   let Inst{6-10}  = bo;
@@ -147,12 +151,25 @@ class BForm_2<bits<6> opcode, bits<5> bo, bits<5> bi, bit aa, bit lk,
 
 class BForm_3<bits<6> opcode, bit aa, bit lk,
               dag OOL, dag IOL, string asmstr>
-  : I<opcode, OOL, IOL, asmstr, BrB> {
+  : I<opcode, OOL, IOL, asmstr, IIC_BrB> {
   bits<5> BO;
   bits<5> BI;
   bits<14> BD;
 
   let Inst{6-10}  = BO;
+  let Inst{11-15} = BI;
+  let Inst{16-29} = BD;
+  let Inst{30}    = aa;
+  let Inst{31}    = lk;
+}
+
+class BForm_4<bits<6> opcode, bits<5> bo, bit aa, bit lk,
+              dag OOL, dag IOL, string asmstr>
+  : I<opcode, OOL, IOL, asmstr, IIC_BrB> {
+  bits<5> BI;
+  bits<14> BD;
+
+  let Inst{6-10}  = bo;
   let Inst{11-15} = BI;
   let Inst{16-29} = BD;
   let Inst{30}    = aa;
@@ -258,6 +275,15 @@ class DForm_4_zero<bits<6> opcode, dag OOL, dag IOL, string asmstr,
   let Addr = 0;
 }
 
+class DForm_4_fixedreg_zero<bits<6> opcode, bits<5> R, dag OOL, dag IOL,
+                            string asmstr, InstrItinClass itin,
+                            list<dag> pattern>
+  : DForm_4<opcode, OOL, IOL, asmstr, itin, pattern> {
+  let A = R;
+  let B = R;
+  let C = 0; 
+}
+
 class IForm_and_DForm_1<bits<6> opcode1, bit aa, bit lk, bits<6> opcode2,
             dag OOL, dag IOL, string asmstr,
             InstrItinClass itin, list<dag> pattern>
@@ -334,20 +360,6 @@ class DSForm_1<bits<6> opcode, bits<2> xo, dag OOL, dag IOL, string asmstr,
   let Inst{30-31} = xo;
 }
 
-class DSForm_1a<bits<6> opcode, bits<2> xo, dag OOL, dag IOL, string asmstr,
-                InstrItinClass itin, list<dag> pattern>
-         : I<opcode, OOL, IOL, asmstr, itin> {
-   bits<5>  RST;
-   bits<14> DS;
-   bits<5>  RA;
- 
-   let Pattern = pattern;
-   
-   let Inst{6-10}  = RST;
-   let Inst{11-15} = RA;
-   let Inst{16-29} = DS;
-   let Inst{30-31} = xo;
-}
 
 // 1.7.6 X-Form
 class XForm_base_r3xo<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr, 
@@ -567,6 +579,173 @@ class XForm_16b<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr,
   let A = 0;
 }
 
+// XX*-Form (VSX)
+class XX1Form<bits<6> opcode, bits<10> xo, dag OOL, dag IOL, string asmstr, 
+              InstrItinClass itin, list<dag> pattern>
+  : I<opcode, OOL, IOL, asmstr, itin> {
+  bits<6> XT;
+  bits<5> A;
+  bits<5> B;
+
+  let Pattern = pattern;
+
+  let Inst{6-10}  = XT{4-0};
+  let Inst{11-15} = A;
+  let Inst{16-20} = B;
+  let Inst{21-30} = xo;
+  let Inst{31}    = XT{5};
+}
+
+class XX2Form<bits<6> opcode, bits<9> xo, dag OOL, dag IOL, string asmstr, 
+              InstrItinClass itin, list<dag> pattern>
+  : I<opcode, OOL, IOL, asmstr, itin> {
+  bits<6> XT;
+  bits<6> XB;
+
+  let Pattern = pattern;
+
+  let Inst{6-10}  = XT{4-0};
+  let Inst{11-15} = 0;
+  let Inst{16-20} = XB{4-0};
+  let Inst{21-29} = xo;
+  let Inst{30}    = XB{5};
+  let Inst{31}    = XT{5};
+}
+
+class XX2Form_1<bits<6> opcode, bits<9> xo, dag OOL, dag IOL, string asmstr, 
+                InstrItinClass itin, list<dag> pattern>
+  : I<opcode, OOL, IOL, asmstr, itin> {
+  bits<3> CR;
+  bits<6> XB;
+
+  let Pattern = pattern;
+
+  let Inst{6-8}   = CR;
+  let Inst{9-15}  = 0;
+  let Inst{16-20} = XB{4-0};
+  let Inst{21-29} = xo;
+  let Inst{30}    = XB{5};
+  let Inst{31}    = 0;
+}
+
+class XX2Form_2<bits<6> opcode, bits<9> xo, dag OOL, dag IOL, string asmstr, 
+                InstrItinClass itin, list<dag> pattern>
+  : I<opcode, OOL, IOL, asmstr, itin> {
+  bits<6> XT;
+  bits<6> XB;
+  bits<2> D;
+
+  let Pattern = pattern;
+
+  let Inst{6-10}  = XT{4-0};
+  let Inst{11-13} = 0;
+  let Inst{14-15} = D;
+  let Inst{16-20} = XB{4-0};
+  let Inst{21-29} = xo;
+  let Inst{30}    = XB{5};
+  let Inst{31}    = XT{5};
+}
+
+class XX3Form<bits<6> opcode, bits<8> xo, dag OOL, dag IOL, string asmstr, 
+              InstrItinClass itin, list<dag> pattern>
+  : I<opcode, OOL, IOL, asmstr, itin> {
+  bits<6> XT;
+  bits<6> XA;
+  bits<6> XB;
+
+  let Pattern = pattern;
+
+  let Inst{6-10}  = XT{4-0};
+  let Inst{11-15} = XA{4-0};
+  let Inst{16-20} = XB{4-0};
+  let Inst{21-28} = xo;
+  let Inst{29}    = XA{5};
+  let Inst{30}    = XB{5};
+  let Inst{31}    = XT{5};
+}
+
+class XX3Form_1<bits<6> opcode, bits<8> xo, dag OOL, dag IOL, string asmstr, 
+                InstrItinClass itin, list<dag> pattern>
+  : I<opcode, OOL, IOL, asmstr, itin> {
+  bits<3> CR;
+  bits<6> XA;
+  bits<6> XB;
+
+  let Pattern = pattern;
+
+  let Inst{6-8}   = CR;
+  let Inst{9-10}  = 0;
+  let Inst{11-15} = XA{4-0};
+  let Inst{16-20} = XB{4-0};
+  let Inst{21-28} = xo;
+  let Inst{29}    = XA{5};
+  let Inst{30}    = XB{5};
+  let Inst{31}    = 0;
+}
+
+class XX3Form_2<bits<6> opcode, bits<5> xo, dag OOL, dag IOL, string asmstr, 
+                InstrItinClass itin, list<dag> pattern>
+  : I<opcode, OOL, IOL, asmstr, itin> {
+  bits<6> XT;
+  bits<6> XA;
+  bits<6> XB;
+  bits<2> D;
+
+  let Pattern = pattern;
+
+  let Inst{6-10}  = XT{4-0};
+  let Inst{11-15} = XA{4-0};
+  let Inst{16-20} = XB{4-0};
+  let Inst{21}    = 0;
+  let Inst{22-23} = D;
+  let Inst{24-28} = xo;
+  let Inst{29}    = XA{5};
+  let Inst{30}    = XB{5};
+  let Inst{31}    = XT{5};
+}
+
+class XX3Form_Rc<bits<6> opcode, bits<7> xo, dag OOL, dag IOL, string asmstr, 
+              InstrItinClass itin, list<dag> pattern>
+  : I<opcode, OOL, IOL, asmstr, itin> {
+  bits<6> XT;
+  bits<6> XA;
+  bits<6> XB;
+
+  let Pattern = pattern;
+
+  bit RC = 0;    // set by isDOT
+
+  let Inst{6-10}  = XT{4-0};
+  let Inst{11-15} = XA{4-0};
+  let Inst{16-20} = XB{4-0};
+  let Inst{21}    = RC;
+  let Inst{22-28} = xo;
+  let Inst{29}    = XA{5};
+  let Inst{30}    = XB{5};
+  let Inst{31}    = XT{5};
+}
+
+class XX4Form<bits<6> opcode, bits<2> xo, dag OOL, dag IOL, string asmstr, 
+              InstrItinClass itin, list<dag> pattern>
+  : I<opcode, OOL, IOL, asmstr, itin> {
+  bits<6> XT;
+  bits<6> XA;
+  bits<6> XB;
+  bits<6> XC;
+
+  let Pattern = pattern;
+
+  let Inst{6-10}  = XT{4-0};
+  let Inst{11-15} = XA{4-0};
+  let Inst{16-20} = XB{4-0};
+  let Inst{21-25} = XC{4-0};
+  let Inst{26-27} = xo;
+  let Inst{28}    = XC{5};
+  let Inst{29}    = XA{5};
+  let Inst{30}    = XB{5};
+  let Inst{31}    = XT{5};
+}
+
 // DCB_Form - Form X instruction, used for dcb* instructions.
 class DCB_Form<bits<10> xo, bits<5> immfield, dag OOL, dag IOL, string asmstr, 
                       InstrItinClass itin, list<dag> pattern>
@@ -664,6 +843,12 @@ class XLForm_2_br<bits<6> opcode, bits<10> xo, bit lk,
   let BH = 0;
 }
 
+class XLForm_2_br2<bits<6> opcode, bits<10> xo, bits<5> bo, bit lk,
+                   dag OOL, dag IOL, string asmstr, InstrItinClass itin, list<dag> pattern>
+  : XLForm_2<opcode, xo, lk, OOL, IOL, asmstr, itin, pattern> {
+  let BO = bo;
+  let BH = 0;
+}
 
 class XLForm_2_ext<bits<6> opcode, bits<10> xo, bits<5> bo,  bits<5> bi, bit lk,
                   dag OOL, dag IOL, string asmstr, InstrItinClass itin, list<dag> pattern>

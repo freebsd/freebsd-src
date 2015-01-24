@@ -27,7 +27,7 @@ FixGlobalBaseReg("mips-fix-global-base-reg", cl::Hidden, cl::init(true),
 MipsCallEntry::MipsCallEntry(const StringRef &N) {
 #ifndef NDEBUG
   Name = N;
-  Val = 0;
+  Val = nullptr;
 #endif
 }
 
@@ -65,9 +65,8 @@ MipsFunctionInfo::~MipsFunctionInfo() {
        ++I)
     delete I->getValue();
 
-  for (ValueMap<const GlobalValue *, const MipsCallEntry *>::iterator
-       I = GlobalCallEntries.begin(), E = GlobalCallEntries.end(); I != E; ++I)
-    delete I->second;
+  for (const auto &Entry : GlobalCallEntries)
+    delete Entry.second;
 }
 
 bool MipsFunctionInfo::globalBaseRegSet() const {
@@ -136,6 +135,14 @@ MachinePointerInfo MipsFunctionInfo::callPtrInfo(const GlobalValue *Val) {
     E = new MipsCallEntry(Val);
 
   return MachinePointerInfo(E);
+}
+
+int MipsFunctionInfo::getMoveF64ViaSpillFI(const TargetRegisterClass *RC) {
+  if (MoveF64ViaSpillFI == -1) {
+    MoveF64ViaSpillFI = MF.getFrameInfo()->CreateStackObject(
+        RC->getSize(), RC->getAlignment(), false);
+  }
+  return MoveF64ViaSpillFI;
 }
 
 void MipsFunctionInfo::anchor() { }

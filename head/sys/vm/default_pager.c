@@ -137,14 +137,11 @@ default_pager_getpages(object, m, count, reqpage)
  * cache to the free list.
  */
 static void
-default_pager_putpages(object, m, c, sync, rtvals)
-	vm_object_t object;
-	vm_page_t *m;
-	int c;
-	boolean_t sync;
-	int *rtvals;
+default_pager_putpages(vm_object_t object, vm_page_t *m, int count,
+    int flags, int *rtvals)
 {
-	swappagerops.pgo_putpages(object, m, c, sync, rtvals);
+
+	swappagerops.pgo_putpages(object, m, count, flags, rtvals);
 }
 
 /*

@@ -34,6 +34,7 @@
 #define	MODINFOMD_DTBP		0x1003
 #define	MODINFOMD_EFI_MAP	0x1004
 #define	MODINFOMD_EFI_FB	0x1005
+#define	MODINFOMD_MODULEP	0x1006
 
 struct efi_map_header {
 	size_t		memory_size;

@@ -20,6 +20,7 @@
 #include "clang/Lex/LexDiagnostic.h"
 #include "clang/Lex/PPCallbacks.h"
 #include "clang/Lex/Preprocessor.h"
+#include "clang/Serialization/ASTReader.h"
 #include "llvm/ADT/StringSet.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
@@ -28,7 +29,107 @@
 using namespace clang;
 
 namespace {
-class DependencyFileCallback : public PPCallbacks {
+struct DepCollectorPPCallbacks : public PPCallbacks {
+  DependencyCollector &DepCollector;
+  SourceManager &SM;
+  DepCollectorPPCallbacks(DependencyCollector &L, SourceManager &SM)
+      : DepCollector(L), SM(SM) { }
+
+  void FileChanged(SourceLocation Loc, FileChangeReason Reason,
+                   SrcMgr::CharacteristicKind FileType,
+                   FileID PrevFID) override {
+    if (Reason != PPCallbacks::EnterFile)
+      return;
+
+    // Dependency generation really does want to go all the way to the
+    // file entry for a source location to find out what is depended on.
+    // We do not want #line markers to affect dependency generation!
+    const FileEntry *FE =
+        SM.getFileEntryForID(SM.getFileID(SM.getExpansionLoc(Loc)));
+    if (!FE)
+      return;
+
+    StringRef Filename = FE->getName();
+
+    // Remove leading "./" (or ".//" or "././" etc.)
+    while (Filename.size() > 2 && Filename[0] == '.' &&
+           llvm::sys::path::is_separator(Filename[1])) {
+      Filename = Filename.substr(1);
+      while (llvm::sys::path::is_separator(Filename[0]))
+        Filename = Filename.substr(1);
+    }
+
+    DepCollector.maybeAddDependency(Filename, /*FromModule*/false,
+                                   FileType != SrcMgr::C_User,
+                                   /*IsModuleFile*/false, /*IsMissing*/false);
+  }
+
+  void InclusionDirective(SourceLocation HashLoc, const Token &IncludeTok,
+                          StringRef FileName, bool IsAngled,
+                          CharSourceRange FilenameRange, const FileEntry *File,
+                          StringRef SearchPath, StringRef RelativePath,
+                          const Module *Imported) override {
+    if (!File)
+      DepCollector.maybeAddDependency(FileName, /*FromModule*/false,
+                                     /*IsSystem*/false, /*IsModuleFile*/false,
+                                     /*IsMissing*/true);
+    // Files that actually exist are handled by FileChanged.
+  }
+
+  void EndOfMainFile() override {
+    DepCollector.finishedMainFile();
+  }
+};
+
+struct DepCollectorASTListener : public ASTReaderListener {
+  DependencyCollector &DepCollector;
+  DepCollectorASTListener(DependencyCollector &L) : DepCollector(L) { }
+  bool needsInputFileVisitation() override { return true; }
+  bool needsSystemInputFileVisitation() override {
+    return DepCollector.needSystemDependencies();
+  }
+  void visitModuleFile(StringRef Filename) override {
+    DepCollector.maybeAddDependency(Filename, /*FromModule*/true,
+                                   /*IsSystem*/false, /*IsModuleFile*/true,
+                                   /*IsMissing*/false);
+  }
+  bool visitInputFile(StringRef Filename, bool IsSystem,
+                      bool IsOverridden) override {
+    if (IsOverridden)
+      return true;
+
+    DepCollector.maybeAddDependency(Filename, /*FromModule*/true, IsSystem,
+                                   /*IsModuleFile*/false, /*IsMissing*/false);
+    return true;
+  }
+};
+} // end anonymous namespace
+
+void DependencyCollector::maybeAddDependency(StringRef Filename, bool FromModule,
+                                            bool IsSystem, bool IsModuleFile,
+                                            bool IsMissing) {
+  if (Seen.insert(Filename) &&
+      sawDependency(Filename, FromModule, IsSystem, IsModuleFile, IsMissing))
+    Dependencies.push_back(Filename);
+}
+
+bool DependencyCollector::sawDependency(StringRef Filename, bool FromModule,
+                                       bool IsSystem, bool IsModuleFile,
+                                       bool IsMissing) {
+  return Filename != "<built-in>" && (needSystemDependencies() || !IsSystem);
+}
+
+DependencyCollector::~DependencyCollector() { }
+void DependencyCollector::attachToPreprocessor(Preprocessor &PP) {
+  PP.addPPCallbacks(new DepCollectorPPCallbacks(*this, PP.getSourceManager()));
+}
+void DependencyCollector::attachToASTReader(ASTReader &R) {
+  R.addListener(new DepCollectorASTListener(*this));
+}
+
+namespace {
+/// Private implementation for DependencyFileGenerator
+class DFGImpl : public PPCallbacks {
   std::vector<std::string> Files;
   llvm::StringSet<> FilesSet;
   const Preprocessor *PP;
@@ -38,58 +139,84 @@ class DependencyFileCallback : public PPCallbacks {
   bool PhonyTarget;
   bool AddMissingHeaderDeps;
   bool SeenMissingHeader;
+  bool IncludeModuleFiles;
 private:
   bool FileMatchesDepCriteria(const char *Filename,
                               SrcMgr::CharacteristicKind FileType);
-  void AddFilename(StringRef Filename);
   void OutputDependencyFile();
 
 public:
-  DependencyFileCallback(const Preprocessor *_PP,
-                         const DependencyOutputOptions &Opts)
+  DFGImpl(const Preprocessor *_PP, const DependencyOutputOptions &Opts)
     : PP(_PP), OutputFile(Opts.OutputFile), Targets(Opts.Targets),
       IncludeSystemHeaders(Opts.IncludeSystemHeaders),
       PhonyTarget(Opts.UsePhonyTargets),
       AddMissingHeaderDeps(Opts.AddMissingHeaderDeps),
-      SeenMissingHeader(false) {}
+      SeenMissingHeader(false),
+      IncludeModuleFiles(Opts.IncludeModuleFiles) {}
 
-  virtual void FileChanged(SourceLocation Loc, FileChangeReason Reason,
-                           SrcMgr::CharacteristicKind FileType,
-                           FileID PrevFID);
-  virtual void InclusionDirective(SourceLocation HashLoc,
-                                  const Token &IncludeTok,
-                                  StringRef FileName,
-                                  bool IsAngled,
-                                  CharSourceRange FilenameRange,
-                                  const FileEntry *File,
-                                  StringRef SearchPath,
-                                  StringRef RelativePath,
-                                  const Module *Imported);
+  void FileChanged(SourceLocation Loc, FileChangeReason Reason,
+                   SrcMgr::CharacteristicKind FileType,
+                   FileID PrevFID) override;
+  void InclusionDirective(SourceLocation HashLoc, const Token &IncludeTok,
+                          StringRef FileName, bool IsAngled,
+                          CharSourceRange FilenameRange, const FileEntry *File,
+                          StringRef SearchPath, StringRef RelativePath,
+                          const Module *Imported) override;
 
-  virtual void EndOfMainFile() {
+  void EndOfMainFile() override {
     OutputDependencyFile();
   }
+
+  void AddFilename(StringRef Filename);
+  bool includeSystemHeaders() const { return IncludeSystemHeaders; }
+  bool includeModuleFiles() const { return IncludeModuleFiles; }
+};
+
+class DFGASTReaderListener : public ASTReaderListener {
+  DFGImpl &Parent;
+public:
+  DFGASTReaderListener(DFGImpl &Parent)
+  : Parent(Parent) { }
+  bool needsInputFileVisitation() override { return true; }
+  bool needsSystemInputFileVisitation() override {
+    return Parent.includeSystemHeaders();
+  }
+  void visitModuleFile(StringRef Filename) override;
+  bool visitInputFile(StringRef Filename, bool isSystem,
+                      bool isOverridden) override;
 };
 }
 
-void clang::AttachDependencyFileGen(Preprocessor &PP,
-                                    const DependencyOutputOptions &Opts) {
+DependencyFileGenerator::DependencyFileGenerator(void *Impl)
+: Impl(Impl) { }
+
+DependencyFileGenerator *DependencyFileGenerator::CreateAndAttachToPreprocessor(
+    clang::Preprocessor &PP, const clang::DependencyOutputOptions &Opts) {
+
   if (Opts.Targets.empty()) {
     PP.getDiagnostics().Report(diag::err_fe_dependency_file_requires_MT);
-    return;
+    return nullptr;
   }
 
   // Disable the "file not found" diagnostic if the -MG option was given.
   if (Opts.AddMissingHeaderDeps)
     PP.SetSuppressIncludeNotFoundError(true);
 
-  PP.addPPCallbacks(new DependencyFileCallback(&PP, Opts));
+  DFGImpl *Callback = new DFGImpl(&PP, Opts);
+  PP.addPPCallbacks(Callback); // PP owns the Callback
+  return new DependencyFileGenerator(Callback);
+}
+
+void DependencyFileGenerator::AttachToASTReader(ASTReader &R) {
+  DFGImpl *I = reinterpret_cast<DFGImpl *>(Impl);
+  assert(I && "missing implementation");
+  R.addListener(new DFGASTReaderListener(*I));
 }
 
 /// FileMatchesDepCriteria - Determine whether the given Filename should be
 /// considered as a dependency.
-bool DependencyFileCallback::FileMatchesDepCriteria(const char *Filename,
-                                          SrcMgr::CharacteristicKind FileType) {
+bool DFGImpl::FileMatchesDepCriteria(const char *Filename,
+                                     SrcMgr::CharacteristicKind FileType) {
   if (strcmp("<built-in>", Filename) == 0)
     return false;
 
@@ -99,10 +226,10 @@ bool DependencyFileCallback::FileMatchesDepCriteria(const char *Filename,
   return FileType == SrcMgr::C_User;
 }
 
-void DependencyFileCallback::FileChanged(SourceLocation Loc,
-                                         FileChangeReason Reason,
-                                         SrcMgr::CharacteristicKind FileType,
-                                         FileID PrevFID) {
+void DFGImpl::FileChanged(SourceLocation Loc,
+                          FileChangeReason Reason,
+                          SrcMgr::CharacteristicKind FileType,
+                          FileID PrevFID) {
   if (Reason != PPCallbacks::EnterFile)
     return;
 
@@ -113,7 +240,7 @@ void DependencyFileCallback::FileChanged(SourceLocation Loc,
 
   const FileEntry *FE =
     SM.getFileEntryForID(SM.getFileID(SM.getExpansionLoc(Loc)));
-  if (FE == 0) return;
+  if (!FE) return;
 
   StringRef Filename = FE->getName();
   if (!FileMatchesDepCriteria(Filename.data(), FileType))
@@ -130,15 +257,15 @@ void DependencyFileCallback::FileChanged(SourceLocation Loc,
   AddFilename(Filename);
 }
 
-void DependencyFileCallback::InclusionDirective(SourceLocation HashLoc,
-                                                const Token &IncludeTok,
-                                                StringRef FileName,
-                                                bool IsAngled,
-                                                CharSourceRange FilenameRange,
-                                                const FileEntry *File,
-                                                StringRef SearchPath,
-                                                StringRef RelativePath,
-                                                const Module *Imported) {
+void DFGImpl::InclusionDirective(SourceLocation HashLoc,
+                                 const Token &IncludeTok,
+                                 StringRef FileName,
+                                 bool IsAngled,
+                                 CharSourceRange FilenameRange,
+                                 const FileEntry *File,
+                                 StringRef SearchPath,
+                                 StringRef RelativePath,
+                                 const Module *Imported) {
   if (!File) {
     if (AddMissingHeaderDeps)
       AddFilename(FileName);
@@ -147,7 +274,7 @@ void DependencyFileCallback::InclusionDirective(SourceLocation HashLoc,
   }
 }
 
-void DependencyFileCallback::AddFilename(StringRef Filename) {
+void DFGImpl::AddFilename(StringRef Filename) {
   if (FilesSet.insert(Filename))
     Files.push_back(Filename);
 }
@@ -164,15 +291,14 @@ static void PrintFilename(raw_ostream &OS, StringRef Filename) {
   }
 }
 
-void DependencyFileCallback::OutputDependencyFile() {
+void DFGImpl::OutputDependencyFile() {
   if (SeenMissingHeader) {
-    bool existed;
-    llvm::sys::fs::remove(OutputFile, existed);
+    llvm::sys::fs::remove(OutputFile);
     return;
   }
 
   std::string Err;
-  llvm::raw_fd_ostream OS(OutputFile.c_str(), Err);
+  llvm::raw_fd_ostream OS(OutputFile.c_str(), Err, llvm::sys::fs::F_Text);
   if (!Err.empty()) {
     PP->getDiagnostics().Report(diag::err_fe_error_opening)
       << OutputFile << Err;
@@ -235,3 +361,17 @@ void DependencyFileCallback::OutputDependencyFile() {
   }
 }
 
+bool DFGASTReaderListener::visitInputFile(llvm::StringRef Filename,
+                                          bool IsSystem, bool IsOverridden) {
+  assert(!IsSystem || needsSystemInputFileVisitation());
+  if (IsOverridden)
+    return true;
+
+  Parent.AddFilename(Filename);
+  return true;
+}
+
+void DFGASTReaderListener::visitModuleFile(llvm::StringRef Filename) {
+  if (Parent.includeModuleFiles())
+    Parent.AddFilename(Filename);
+}

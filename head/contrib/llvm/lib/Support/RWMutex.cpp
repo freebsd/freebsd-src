@@ -44,7 +44,7 @@ using namespace sys;
 
 // Construct a RWMutex using pthread calls
 RWMutexImpl::RWMutexImpl()
-  : data_(0)
+  : data_(nullptr)
 {
   // Declare the pthread_rwlock data structures
   pthread_rwlock_t* rwlock =
@@ -56,7 +56,7 @@ RWMutexImpl::RWMutexImpl()
 #endif
 
   // Initialize the rwlock
-  int errorcode = pthread_rwlock_init(rwlock, NULL);
+  int errorcode = pthread_rwlock_init(rwlock, nullptr);
   (void)errorcode;
   assert(errorcode == 0);
 
@@ -68,7 +68,7 @@ RWMutexImpl::RWMutexImpl()
 RWMutexImpl::~RWMutexImpl()
 {
   pthread_rwlock_t* rwlock = static_cast<pthread_rwlock_t*>(data_);
-  assert(rwlock != 0);
+  assert(rwlock != nullptr);
   pthread_rwlock_destroy(rwlock);
   free(rwlock);
 }
@@ -77,7 +77,7 @@ bool
 RWMutexImpl::reader_acquire()
 {
   pthread_rwlock_t* rwlock = static_cast<pthread_rwlock_t*>(data_);
-  assert(rwlock != 0);
+  assert(rwlock != nullptr);
 
   int errorcode = pthread_rwlock_rdlock(rwlock);
   return errorcode == 0;
@@ -87,7 +87,7 @@ bool
 RWMutexImpl::reader_release()
 {
   pthread_rwlock_t* rwlock = static_cast<pthread_rwlock_t*>(data_);
-  assert(rwlock != 0);
+  assert(rwlock != nullptr);
 
   int errorcode = pthread_rwlock_unlock(rwlock);
   return errorcode == 0;
@@ -97,7 +97,7 @@ bool
 RWMutexImpl::writer_acquire()
 {
   pthread_rwlock_t* rwlock = static_cast<pthread_rwlock_t*>(data_);
-  assert(rwlock != 0);
+  assert(rwlock != nullptr);
 
   int errorcode = pthread_rwlock_wrlock(rwlock);
   return errorcode == 0;
@@ -107,7 +107,7 @@ bool
 RWMutexImpl::writer_release()
 {
   pthread_rwlock_t* rwlock = static_cast<pthread_rwlock_t*>(data_);
-  assert(rwlock != 0);
+  assert(rwlock != nullptr);
 
   int errorcode = pthread_rwlock_unlock(rwlock);
   return errorcode == 0;

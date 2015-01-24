@@ -262,7 +262,7 @@ namespace clang {
     StandardConversionSequence Before;
 
     /// EllipsisConversion - When this is true, it means user-defined
-    /// conversion sequence starts with a ... (elipsis) conversion, instead of 
+    /// conversion sequence starts with a ... (ellipsis) conversion, instead of
     /// a standard conversion. In this case, 'Before' field must be ignored.
     // FIXME. I much rather put this as the first field. But there seems to be
     // a gcc code gen. bug which causes a crash in a test. Putting it here seems
@@ -339,7 +339,6 @@ namespace clang {
     enum FailureKind {
       no_conversion,
       unrelated_class,
-      suppressed_user,
       bad_qualifiers,
       lvalue_ref_to_rvalue,
       rvalue_ref_to_lvalue
@@ -364,7 +363,7 @@ namespace clang {
     }
     void init(FailureKind K, QualType From, QualType To) {
       Kind = K;
-      FromExpr = 0;
+      FromExpr = nullptr;
       setFromType(From);
       setToType(To);
     }
@@ -579,7 +578,11 @@ namespace clang {
     /// (CUDA) This candidate was not viable because the callee
     /// was not accessible from the caller's target (i.e. host->device,
     /// global->host, device->host).
-    ovl_fail_bad_target
+    ovl_fail_bad_target,
+
+    /// This candidate function was not viable because an enable_if
+    /// attribute disabled it.
+    ovl_fail_enable_if
   };
 
   /// OverloadCandidate - A single candidate in an overload set (C++ 13.3).
@@ -675,11 +678,35 @@ namespace clang {
 
       return CanFix;
     }
+
+    unsigned getNumParams() const {
+      if (IsSurrogate) {
+        auto STy = Surrogate->getConversionType();
+        while (STy->isPointerType() || STy->isReferenceType())
+          STy = STy->getPointeeType();
+        return STy->getAs<FunctionProtoType>()->getNumParams();
+      }
+      if (Function)
+        return Function->getNumParams();
+      return ExplicitCallArguments;
+    }
   };
 
   /// OverloadCandidateSet - A set of overload candidates, used in C++
   /// overload resolution (C++ 13.3).
   class OverloadCandidateSet {
+  public:
+    enum CandidateSetKind {
+      /// Normal lookup.
+      CSK_Normal,
+      /// Lookup for candidates for a call using operator syntax. Candidates
+      /// that have no parameters of class type will be skipped unless there
+      /// is a parameter of (reference to) enum type and the corresponding
+      /// argument is of the same enum type.
+      CSK_Operator
+    };
+
+  private:
     SmallVector<OverloadCandidate, 16> Candidates;
     llvm::SmallPtrSet<Decl *, 16> Functions;
 
@@ -688,6 +715,7 @@ namespace clang {
     llvm::BumpPtrAllocator ConversionSequenceAllocator;
 
     SourceLocation Loc;
+    CandidateSetKind Kind;
 
     unsigned NumInlineSequences;
     char InlineSpace[16 * sizeof(ImplicitConversionSequence)];
@@ -698,10 +726,12 @@ namespace clang {
     void destroyCandidates();
 
   public:
-    OverloadCandidateSet(SourceLocation Loc) : Loc(Loc), NumInlineSequences(0){}
+    OverloadCandidateSet(SourceLocation Loc, CandidateSetKind CSK)
+        : Loc(Loc), Kind(CSK), NumInlineSequences(0) {}
     ~OverloadCandidateSet() { destroyCandidates(); }
 
     SourceLocation getLocation() const { return Loc; }
+    CandidateSetKind getKind() const { return Kind; }
 
     /// \brief Determine when this overload candidate will be new to the
     /// overload set.

@@ -37,9 +37,11 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+
 #include <sys/param.h>
 #include <sys/dirent.h>
-#include <sys/domain.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -54,12 +56,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/vnode.h>
 
+#include <netinet/in.h>
 #include <net/radix.h>
 
 static MALLOC_DEFINE(M_NETADDR, "export_host", "Export host address structure");
 
+static struct radix_node_head *vfs_create_addrlist_af(
+		    struct radix_node_head **prnh, int off);
 static void	vfs_free_addrlist(struct netexport *nep);
 static int	vfs_free_netcred(struct radix_node *rn, void *w);
+static void	vfs_free_addrlist_af(struct radix_node_head **prnh);
 static int	vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 		    struct export_args *argp);
 static struct netcred *vfs_export_lookup(struct mount *, struct sockaddr *);
@@ -80,7 +86,8 @@ struct netcred {
  */
 struct netexport {
 	struct	netcred ne_defexported;		      /* Default export */
-	struct	radix_node_head *ne_rtable[AF_MAX+1]; /* Individual exports */
+	struct 	radix_node_head	*ne4;
+	struct 	radix_node_head	*ne6;
 };
 
 /*
@@ -96,7 +103,9 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 	register int i;
 	struct radix_node *rn;
 	struct sockaddr *saddr, *smask = 0;
-	struct domain *dom;
+#if defined(INET6) || defined(INET)
+	int off;
+#endif
 	int error;
 
 	/*
@@ -163,46 +172,39 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 		if (smask->sa_len > argp->ex_masklen)
 			smask->sa_len = argp->ex_masklen;
 	}
-	i = saddr->sa_family;
-	if ((rnh = nep->ne_rtable[i]) == NULL) {
-		/*
-		 * Seems silly to initialize every AF when most are not used,
-		 * do so on demand here
-		 */
-		for (dom = domains; dom; dom = dom->dom_next) {
-			KASSERT(((i == AF_INET) || (i == AF_INET6)), 
-			    ("unexpected protocol in vfs_hang_addrlist"));
-			if (dom->dom_family == i && dom->dom_rtattach) {
-				/*
-				 * XXX MRT 
-				 * The INET and INET6 domains know the
-				 * offset already. We don't need to send it
-				 * So we just use it as a flag to say that
-				 * we are or are not setting up a real routing
-				 * table. Only IP and IPV6 need have this
-				 * be 0 so all other protocols can stay the 
-				 * same (ABI compatible).
-				 */ 
-				dom->dom_rtattach(
-				    (void **) &nep->ne_rtable[i], 0);
-				break;
-			}
+	rnh = NULL;
+	switch (saddr->sa_family) {
+#ifdef INET
+	case AF_INET:
+		if ((rnh = nep->ne4) == NULL) {
+			off = offsetof(struct sockaddr_in, sin_addr) << 3;
+			rnh = vfs_create_addrlist_af(&nep->ne4, off);
 		}
-		if ((rnh = nep->ne_rtable[i]) == NULL) {
-			error = ENOBUFS;
-			vfs_mount_error(mp, "%s %s %d",
-			    "Unable to initialize radix node head ",
-			    "for address family", i);
-			goto out;
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		if ((rnh = nep->ne6) == NULL) {
+			off = offsetof(struct sockaddr_in6, sin6_addr) << 3;
+			rnh = vfs_create_addrlist_af(&nep->ne6, off);
 		}
+		break;
+#endif
+	}
+	if (rnh == NULL) {
+		error = ENOBUFS;
+		vfs_mount_error(mp, "%s %s %d",
+		    "Unable to initialize radix node head ",
+		    "for address family", saddr->sa_family);
+		goto out;
 	}
 	RADIX_NODE_HEAD_LOCK(rnh);
 	rn = (*rnh->rnh_addaddr)(saddr, smask, rnh, np->netc_rnodes);
 	RADIX_NODE_HEAD_UNLOCK(rnh);
 	if (rn == NULL || np != (struct netcred *)rn) {	/* already exists */
 		error = EPERM;
-		vfs_mount_error(mp, "Invalid radix node head, rn: %p %p",
-		    rn, np);
+		vfs_mount_error(mp,
+		    "netcred already exists for given addr/mask");
 		goto out;
 	}
 	np->netc_exflags = argp->ex_flags;
@@ -237,26 +239,43 @@ vfs_free_netcred(struct radix_node *rn, void *w)
 	return (0);
 }
 
+static struct radix_node_head *
+vfs_create_addrlist_af(struct radix_node_head **prnh, int off)
+{
+
+	if (rn_inithead((void **)prnh, off) == 0)
+		return (NULL);
+	RADIX_NODE_HEAD_LOCK_INIT(*prnh);
+	return (*prnh);
+}
+
+static void
+vfs_free_addrlist_af(struct radix_node_head **prnh)
+{
+	struct radix_node_head *rnh;
+
+	rnh = *prnh;
+	RADIX_NODE_HEAD_LOCK(rnh);
+	(*rnh->rnh_walktree) (rnh, vfs_free_netcred, rnh);
+	RADIX_NODE_HEAD_UNLOCK(rnh);
+	RADIX_NODE_HEAD_DESTROY(rnh);
+	free(rnh, M_RTABLE);
+	prnh = NULL;
+}
+
 /*
  * Free the net address hash lists that are hanging off the mount points.
  */
 static void
 vfs_free_addrlist(struct netexport *nep)
 {
-	int i;
-	struct radix_node_head *rnh;
 	struct ucred *cred;
 
-	for (i = 0; i <= AF_MAX; i++) {
-		if ((rnh = nep->ne_rtable[i])) {
-			RADIX_NODE_HEAD_LOCK(rnh);
-			(*rnh->rnh_walktree) (rnh, vfs_free_netcred, rnh);
-			RADIX_NODE_HEAD_UNLOCK(rnh);
-			RADIX_NODE_HEAD_DESTROY(rnh);
-			free(rnh, M_RTABLE);
-			nep->ne_rtable[i] = NULL;	/* not SMP safe XXX */
-		}
-	}
+	if (nep->ne4 != NULL)
+		vfs_free_addrlist_af(&nep->ne4);
+	if (nep->ne6 != NULL)
+		vfs_free_addrlist_af(&nep->ne6);
+
 	cred = nep->ne_defexported.netc_anon;
 	if (cred != NULL)
 		crfree(cred);
@@ -439,7 +458,15 @@ vfs_export_lookup(struct mount *mp, struct sockaddr *nam)
 		 */
 		if (nam != NULL) {
 			saddr = nam;
-			rnh = nep->ne_rtable[saddr->sa_family];
+			rnh = NULL;
+			switch (saddr->sa_family) {
+			case AF_INET:
+				rnh = nep->ne4;
+				break;
+			case AF_INET6:
+				rnh = nep->ne6;
+				break;
+			}
 			if (rnh != NULL) {
 				RADIX_NODE_HEAD_RLOCK(rnh);
 				np = (struct netcred *)

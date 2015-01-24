@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/module.h>
 #include <sys/resource.h>
 
@@ -44,6 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/lock.h>
 #include <sys/mutex.h>
+
+#include <arm/freescale/imx/imx_ccmvar.h>
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
@@ -78,6 +81,32 @@ __FBSDID("$FreeBSD$");
 #define I2C_BAUD_RATE_FAST	0x31
 #define I2C_BAUD_RATE_DEF	0x3F
 #define I2C_DFSSR_DIV		0x10
+
+/*
+ * A table of available divisors and the associated coded values to put in the
+ * FDR register to achieve that divisor.. There is no algorithmic relationship I
+ * can see between divisors and the codes that go into the register.  The table
+ * begins and ends with entries that handle insane configuration values.
+ */
+struct clkdiv {
+	u_int divisor;
+	u_int regcode;
+};
+static struct clkdiv clkdiv_table[] = {
+        {    0, 0x20 }, {   22, 0x20 }, {   24, 0x21 }, {   26, 0x22 }, 
+        {   28, 0x23 }, {   30, 0x00 }, {   32, 0x24 }, {   36, 0x25 }, 
+        {   40, 0x26 }, {   42, 0x03 }, {   44, 0x27 }, {   48, 0x28 }, 
+        {   52, 0x05 }, {   56, 0x29 }, {   60, 0x06 }, {   64, 0x2a }, 
+        {   72, 0x2b }, {   80, 0x2c }, {   88, 0x09 }, {   96, 0x2d }, 
+        {  104, 0x0a }, {  112, 0x2e }, {  128, 0x2f }, {  144, 0x0c }, 
+        {  160, 0x30 }, {  192, 0x31 }, {  224, 0x32 }, {  240, 0x0f }, 
+        {  256, 0x33 }, {  288, 0x10 }, {  320, 0x34 }, {  384, 0x35 }, 
+        {  448, 0x36 }, {  480, 0x13 }, {  512, 0x37 }, {  576, 0x14 }, 
+        {  640, 0x38 }, {  768, 0x39 }, {  896, 0x3a }, {  960, 0x17 }, 
+        { 1024, 0x3b }, { 1152, 0x18 }, { 1280, 0x3c }, { 1536, 0x3d }, 
+        { 1792, 0x3e }, { 1920, 0x1b }, { 2048, 0x3f }, { 2304, 0x1c }, 
+        { 2560, 0x1d }, { 3072, 0x1e }, { 3840, 0x1f }, {UINT_MAX, 0x1f} 
+};
 
 #ifdef  DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);		\
@@ -390,28 +419,29 @@ static int
 i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldadr)
 {
 	struct i2c_softc *sc;
-	uint8_t baud_rate;
+	u_int busfreq, div, i, ipgfreq;
 
 	sc = device_get_softc(dev);
 
-	switch (speed) {
-	case IIC_FAST:
-		baud_rate = I2C_BAUD_RATE_FAST;
-		break;
-	case IIC_SLOW:
-	case IIC_UNKNOWN:
-	case IIC_FASTEST:
-	default:
-		baud_rate = I2C_BAUD_RATE_DEF;
-		break;
+	/*
+	 * Look up the divisor that gives the nearest speed that doesn't exceed
+	 * the configured value for the bus.
+	 */
+	ipgfreq = imx_ccm_ipg_hz();
+	busfreq = IICBUS_GET_FREQUENCY(sc->iicbus, speed);
+	div = (ipgfreq + busfreq - 1) / busfreq;
+	for (i = 0; i < nitems(clkdiv_table); i++) {
+		if (clkdiv_table[i].divisor >= div)
+			break;
 	}
+	div = clkdiv_table[i].regcode;
 
 	mtx_lock(&sc->mutex);
 	i2c_write_reg(sc, I2C_CONTROL_REG, 0x0);
 	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
 	DELAY(1000);
 
-	i2c_write_reg(sc, I2C_FDR_REG, 20);
+	i2c_write_reg(sc, I2C_FDR_REG, (uint8_t)div);
 	i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN);
 	DELAY(1000);
 	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);

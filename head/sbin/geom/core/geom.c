@@ -640,6 +640,11 @@ get_class(int *argc, char ***argv)
 #endif /* !STATIC_GEOM_CLASSES */
 
 	set_class_name();
+
+	/* If we can't load or list, it's not a class. */
+	if (!std_available("load") && !std_available("list"))
+		errx(EXIT_FAILURE, "Invalid class name.");
+
 	if (*argc < 1)
 		usage();
 }

@@ -48,6 +48,7 @@
 #endif
 
 namespace llvm {
+
 using namespace sys;
 
 ProcessInfo::ProcessInfo() : Pid(0), ReturnCode(0) {}
@@ -70,7 +71,7 @@ sys::FindProgramByName(const std::string& progName) {
 
   // Get the path. If its empty, we can't do anything to find it.
   const char *PathStr = getenv("PATH");
-  if (PathStr == 0)
+  if (!PathStr)
     return "";
 
   // Now we have a colon separated list of directories to search; try them.
@@ -99,7 +100,7 @@ sys::FindProgramByName(const std::string& progName) {
 }
 
 static bool RedirectIO(const StringRef *Path, int FD, std::string* ErrMsg) {
-  if (Path == 0) // Noop
+  if (!Path) // Noop
     return false;
   std::string File;
   if (Path->empty())
@@ -129,7 +130,7 @@ static bool RedirectIO(const StringRef *Path, int FD, std::string* ErrMsg) {
 #ifdef HAVE_POSIX_SPAWN
 static bool RedirectIO_PS(const std::string *Path, int FD, std::string *ErrMsg,
                           posix_spawn_file_actions_t *FileActions) {
-  if (Path == 0) // Noop
+  if (!Path) // Noop
     return false;
   const char *File;
   if (Path->empty())
@@ -195,7 +196,7 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
 #ifdef HAVE_POSIX_SPAWN
   if (memoryLimit == 0) {
     posix_spawn_file_actions_t FileActionsStore;
-    posix_spawn_file_actions_t *FileActions = 0;
+    posix_spawn_file_actions_t *FileActions = nullptr;
 
     // If we call posix_spawn_file_actions_addopen we have to make sure the
     // c strings we pass to it stay alive until the call to posix_spawn,
@@ -203,7 +204,7 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
     std::string RedirectsStorage[3];
 
     if (redirects) {
-      std::string *RedirectsStr[3] = {0, 0, 0};
+      std::string *RedirectsStr[3] = {nullptr, nullptr, nullptr};
       for (int I = 0; I < 3; ++I) {
         if (redirects[I]) {
           RedirectsStorage[I] = *redirects[I];
@@ -218,7 +219,7 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
       if (RedirectIO_PS(RedirectsStr[0], 0, ErrMsg, FileActions) ||
           RedirectIO_PS(RedirectsStr[1], 1, ErrMsg, FileActions))
         return false;
-      if (redirects[1] == 0 || redirects[2] == 0 ||
+      if (redirects[1] == nullptr || redirects[2] == nullptr ||
           *redirects[1] != *redirects[2]) {
         // Just redirect stderr
         if (RedirectIO_PS(RedirectsStr[2], 2, ErrMsg, FileActions))
@@ -242,8 +243,9 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
     // Explicitly initialized to prevent what appears to be a valgrind false
     // positive.
     pid_t PID = 0;
-    int Err = posix_spawn(&PID, Program.str().c_str(), FileActions, /*attrp*/0,
-                          const_cast<char **>(args), const_cast<char **>(envp));
+    int Err = posix_spawn(&PID, Program.str().c_str(), FileActions,
+                          /*attrp*/nullptr, const_cast<char **>(args),
+                          const_cast<char **>(envp));
 
     if (FileActions)
       posix_spawn_file_actions_destroy(FileActions);
@@ -294,7 +296,7 @@ static bool Execute(ProcessInfo &PI, StringRef Program, const char **args,
 
       // Execute!
       std::string PathStr = Program;
-      if (envp != 0)
+      if (envp != nullptr)
         execve(PathStr.c_str(),
                const_cast<char **>(args),
                const_cast<char **>(envp));
@@ -348,7 +350,11 @@ ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
   // Parent process: Wait for the child process to terminate.
   int status;
   ProcessInfo WaitResult;
-  WaitResult.Pid = waitpid(ChildPid, &status, WaitPidOptions);
+
+  do {
+    WaitResult.Pid = waitpid(ChildPid, &status, WaitPidOptions);
+  } while (WaitUntilTerminates && WaitResult.Pid == -1 && errno == EINTR);
+
   if (WaitResult.Pid != PI.Pid) {
     if (WaitResult.Pid == 0) {
       // Non-blocking wait.
@@ -360,7 +366,7 @@ ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
 
         // Turn off the alarm and restore the signal handler
         alarm(0);
-        sigaction(SIGALRM, &Old, 0);
+        sigaction(SIGALRM, &Old, nullptr);
 
         // Wait for child to die
         if (wait(&status) != ChildPid)
@@ -381,7 +387,7 @@ ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
   // We exited normally without timeout, so turn off the timer.
   if (SecondsToWait && !WaitUntilTerminates) {
     alarm(0);
-    sigaction(SIGALRM, &Old, 0);
+    sigaction(SIGALRM, &Old, nullptr);
   }
 
   // Return the proper exit status. Detect error conditions
@@ -418,24 +424,20 @@ ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
 #else
   if (ErrMsg)
     *ErrMsg = "Program::Wait is not implemented on this platform yet!";
+  ProcessInfo WaitResult;
   WaitResult.ReturnCode = -2;
 #endif
   return WaitResult;
 }
 
-error_code sys::ChangeStdinToBinary(){
+  std::error_code sys::ChangeStdinToBinary(){
   // Do nothing, as Unix doesn't differentiate between text and binary.
-  return make_error_code(errc::success);
+    return std::error_code();
 }
 
-error_code sys::ChangeStdoutToBinary(){
+  std::error_code sys::ChangeStdoutToBinary(){
   // Do nothing, as Unix doesn't differentiate between text and binary.
-  return make_error_code(errc::success);
-}
-
-error_code sys::ChangeStderrToBinary(){
-  // Do nothing, as Unix doesn't differentiate between text and binary.
-  return make_error_code(errc::success);
+    return std::error_code();
 }
 
 bool llvm::sys::argumentsFitWithinSystemLimits(ArrayRef<const char*> Args) {

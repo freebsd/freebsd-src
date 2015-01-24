@@ -117,11 +117,11 @@ lldb_private::InferiorCallMmap (Process *process,
                     {
                         ExecutionContext exe_ctx;
                         frame->CalculateExecutionContext (exe_ctx);
-                        ExecutionResults result = process->RunThreadPlan (exe_ctx,
+                        ExpressionResults result = process->RunThreadPlan (exe_ctx,
                                                                           call_plan_sp,
                                                                           options,
                                                                           error_strm);
-                        if (result == eExecutionCompleted)
+                        if (result == eExpressionCompleted)
                         {
                             
                             allocated_addr = call_plan_sp->GetReturnValueObject()->GetValueAsUnsigned(LLDB_INVALID_ADDRESS);
@@ -202,11 +202,11 @@ lldb_private::InferiorCallMunmap (Process *process,
                     {
                         ExecutionContext exe_ctx;
                         frame->CalculateExecutionContext (exe_ctx);
-                        ExecutionResults result = process->RunThreadPlan (exe_ctx,
+                        ExpressionResults result = process->RunThreadPlan (exe_ctx,
                                                                           call_plan_sp,
                                                                           options,
                                                                           error_strm);
-                        if (result == eExecutionCompleted)
+                        if (result == eExpressionCompleted)
                         {
                             return true;
                         }
@@ -260,11 +260,11 @@ lldb_private::InferiorCall (Process *process,
         {
             ExecutionContext exe_ctx;
             frame->CalculateExecutionContext (exe_ctx);
-            ExecutionResults result = process->RunThreadPlan (exe_ctx,
+            ExpressionResults result = process->RunThreadPlan (exe_ctx,
                                                               call_plan_sp,
                                                               options,
                                                               error_strm);
-            if (result == eExecutionCompleted)
+            if (result == eExpressionCompleted)
             {
                 returned_func = call_plan_sp->GetReturnValueObject()->GetValueAsUnsigned(LLDB_INVALID_ADDRESS);
 

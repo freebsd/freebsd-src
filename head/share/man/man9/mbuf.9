@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 21, 2014
+.Dd January 5, 2015
 .Dt MBUF 9
 .Os
 .\"
@@ -40,6 +40,7 @@
 .Ss Mbuf allocation macros
 .Fn MGET "struct mbuf *mbuf" "int how" "short type"
 .Fn MGETHDR "struct mbuf *mbuf" "int how" "short type"
+.Ft int
 .Fn MCLGET "struct mbuf *mbuf" "int how"
 .Fo MEXTADD
 .Fa "struct mbuf *mbuf"
@@ -436,10 +437,12 @@ Allocate and attach an
 .Vt mbuf cluster
 to
 .Fa mbuf .
-If the macro fails, the
+On success, a non-zero value returned; otherwise, 0.
+Historically, consumers would check for success by testing the
 .Dv M_EXT
-flag will not be set in
-.Fa mbuf .
+flag on the mbuf, but this is now discouraged to avoid unnecessary awareness
+of the implementation of external storage in protocol stacks and device
+drivers.
 .It Fn M_ALIGN mbuf len
 Set the pointer
 .Fa mbuf->m_data
@@ -1183,8 +1186,10 @@ slab allocation.
 .Sh AUTHORS
 The original
 .Nm
-manual page was written by Yar Tikhiy.
+manual page was written by
+.An Yar Tikhiy .
 The
 .Xr uma 9
 .Vt mbuf
-allocator was written by Bosko Milekic.
+allocator was written by
+.An Bosko Milekic .

@@ -36,12 +36,31 @@ __RCSID("$NetBSD: h_readlink.c,v 1.1 2010/12/27 02:04:19 pgoyette Exp $");
 #include <unistd.h>
 #include <stdlib.h>
 
+#ifdef __FreeBSD__
+#include <err.h>
+#include <string.h>
+#endif
+
 int
 main(int argc, char *argv[])
 {
+#ifdef __FreeBSD__
+	char b[512], *sl;
+	int n;
+	size_t len = atoi(argv[1]);
+	sl = malloc(len);
+	memset(sl, 'a', len);
+	sl[len - 1] = 0;
+	unlink("symlink");
+	if (symlink(sl, "symlink") == -1)
+		err(1, "symlink()");
+	n = readlink("symlink", b, len);
+	unlink("symlink");
+#else
 	char b[MAXPATHLEN];
 	size_t len = atoi(argv[1]);
 	(void)readlink("/", b, len);
+#endif
 	(void)printf("%s\n", b);
 	return 0;
 }

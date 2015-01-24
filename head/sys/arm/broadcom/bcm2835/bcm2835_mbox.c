@@ -31,23 +31,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
-#include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/rman.h>
-#include <sys/timeet.h>
-#include <sys/timetc.h>
-#include <sys/watchdog.h>
+#include <sys/sema.h>
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
-#include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
-
-#include <machine/bus.h>
-#include <machine/fdt.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_mbox.h>
 
@@ -88,8 +80,8 @@ struct bcm_mbox_softc {
 	void*			intr_hl;
 	bus_space_tag_t		bst;
 	bus_space_handle_t	bsh;
-	int			valid[BCM2835_MBOX_CHANS];
 	int			msg[BCM2835_MBOX_CHANS];
+	struct sema		sema[BCM2835_MBOX_CHANS];
 };
 
 #define	mbox_read_4(sc, reg)		\
@@ -105,23 +97,19 @@ bcm_mbox_intr(void *arg)
 	uint32_t data;
 	uint32_t msg;
 
-	MBOX_LOCK(sc);
 	while (!(mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY)) {
 		msg = mbox_read_4(sc, REG_READ);
 		dprintf("bcm_mbox_intr: raw data %08x\n", msg);
 		chan = MBOX_CHAN(msg);
 		data = MBOX_DATA(msg);
-		if (sc->valid[chan]) {
+		if (sc->msg[chan]) {
 			printf("bcm_mbox_intr: channel %d oveflow\n", chan);
 			continue;
 		}
 		dprintf("bcm_mbox_intr: chan %d, data %08x\n", chan, data);
-		sc->msg[chan] = data;
-		sc->valid[chan] = 1;
-		wakeup(&sc->msg[chan]);
-		
+		sc->msg[chan] = msg;
+		sema_post(&sc->sema[chan]);
 	}
-	MBOX_UNLOCK(sc);
 }
 
 static int
@@ -172,12 +160,13 @@ bcm_mbox_attach(device_t dev)
 
 	mtx_init(&sc->lock, "vcio mbox", NULL, MTX_DEF);
 	for (i = 0; i < BCM2835_MBOX_CHANS; i++) {
-		sc->valid[0] = 0;
-		sc->msg[0] = 0;
+		sc->msg[i] = 0;
+		sema_init(&sc->sema[i], 0, "mbox");
 	}
 
 	/* Read all pending messages */
-	bcm_mbox_intr(sc);
+	while ((mbox_read_4(sc, REG_STATUS) & STATUS_EMPTY) == 0)
+		(void)mbox_read_4(sc, REG_READ);
 
 	mbox_write_4(sc, REG_CONFIG, CONFIG_DATA_IRQ);
 
@@ -190,25 +179,21 @@ bcm_mbox_attach(device_t dev)
 static int
 bcm_mbox_write(device_t dev, int chan, uint32_t data)
 {
-	int limit = 20000;
+	int limit = 1000;
 	struct bcm_mbox_softc *sc = device_get_softc(dev);
 
 	dprintf("bcm_mbox_write: chan %d, data %08x\n", chan, data);
 	MBOX_LOCK(sc);
-
-	while ((mbox_read_4(sc, REG_STATUS) & STATUS_FULL) && limit--) {
-		DELAY(2);
-	}
-
+	while ((mbox_read_4(sc, REG_STATUS) & STATUS_FULL) && --limit)
+		DELAY(5);
 	if (limit == 0) {
 		printf("bcm_mbox_write: STATUS_FULL stuck");
 		MBOX_UNLOCK(sc);
 		return (EAGAIN);
 	}
-	
 	mbox_write_4(sc, REG_WRITE, MBOX_MSG(chan, data));
-
 	MBOX_UNLOCK(sc);
+
 	return (0);
 }
 
@@ -219,10 +204,18 @@ bcm_mbox_read(device_t dev, int chan, uint32_t *data)
 
 	dprintf("bcm_mbox_read: chan %d\n", chan);
 	MBOX_LOCK(sc);
-	while (!sc->valid[chan])
-		msleep(&sc->msg[chan], &sc->lock, PZERO, "vcio mbox read", 0);
-	*data = sc->msg[chan];
-	sc->valid[chan] = 0;
+	while (sema_trywait(&sc->sema[chan]) == 0) {
+		/* do not unlock sc while waiting for the mbox */
+		if (sema_timedwait(&sc->sema[chan], 10*hz) == 0)
+			break;
+		printf("timeout sema for chan %d\n", chan);
+	}
+	/*
+	 *  get data from intr handler, the same channel is never coming
+	 *  because of holding sc lock.
+	 */
+	*data = MBOX_DATA(sc->msg[chan]);
+	sc->msg[chan] = 0;
 	MBOX_UNLOCK(sc);
 	dprintf("bcm_mbox_read: chan %d, data %08x\n", chan, *data);
 
@@ -248,4 +241,3 @@ static driver_t bcm_mbox_driver = {
 static devclass_t bcm_mbox_devclass;
 
 DRIVER_MODULE(mbox, simplebus, bcm_mbox_driver, bcm_mbox_devclass, 0, 0);
-

@@ -1,0 +1,121 @@
+#
+# $FreeBSD$
+#
+#
+# Makefile for building virtual machine and cloud provider disk images.
+#
+
+VMTARGETS=	vm-image
+VMFORMATS?=	vhd vmdk qcow2 raw
+VMSIZE?=	20G
+VMBASE?=	vm
+
+VHD_DESC=	Azure, VirtualPC, Hyper-V, Xen disk image
+VMDK_DESC=	VMWare, VirtualBox disk image
+QCOW2_DESC=	Qemu, KVM disk image
+RAW_DESC=	Unformatted raw disk image
+
+CLOUDWARE?=	AZURE \
+		GCE \
+		OPENSTACK
+AZURE_FORMAT=	vhdf
+AZURE_DESC=	Microsoft Azure platform image
+GCE_FORMAT=	raw
+GCE_DESC=	Google Compute Engine image
+OPENSTACK_FORMAT=qcow2
+OPENSTACK_DESC=	OpenStack platform image
+
+.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
+. for _CW in ${CLOUDWARE}
+CLOUDTARGETS+=	vm-${_CW:tl}
+CLEANDIRS+=	vm-${_CW:tl}
+CLEANFILES+=	${_CW:tl}.img \
+		${_CW:tl}.${${_CW:tu}_FORMAT} \
+		${_CW:tl}.${${_CW:tu}_FORMAT}.raw
+${_CW:tu}IMAGE=	${_CW:tl}.${${_CW:tu}_FORMAT}
+.  if exists(${.CURDIR}/tools/${_CW:tl}.conf) && !defined(${_CW:tu}CONF)
+${_CW:tu}CONF?=	${.CURDIR}/tools/${_CW:tl}.conf
+.  endif
+
+vm-${_CW:tl}:
+	mkdir -p ${.OBJDIR}/${.TARGET}
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		${.CURDIR}/scripts/mk-vmimage.sh \
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
+		-i ${.OBJDIR}/${_CW:tl}.img -s ${VMSIZE} -f ${${_CW}_FORMAT} \
+		-S ${WORLDDIR} -o ${.OBJDIR}/${${_CW}IMAGE} -c ${${_CW}CONF}
+	touch ${.TARGET}
+. endfor
+.endif
+
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+CLEANDIRS+=	${VMTARGETS}
+. for FORMAT in ${VMFORMATS}
+CLEANFILES+=	${FORMAT}.img
+CLEANFILES+=	${VMBASE}.${FORMAT}
+. endfor
+.endif
+
+vm-base:	vm-image
+
+vm-image:
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+. for FORMAT in ${VMFORMATS}
+	mkdir -p ${.OBJDIR}/${.TARGET}
+	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		${.CURDIR}/scripts/mk-vmimage.sh \
+		-C ${.CURDIR}/tools/vmimage.subr -d ${.OBJDIR}/${.TARGET} \
+		-i ${.OBJDIR}/${FORMAT}.img -s ${VMSIZE} -f ${FORMAT} \
+		-S ${WORLDDIR} -o ${.OBJDIR}/${VMBASE}.${FORMAT}
+. endfor
+.endif
+	touch ${.TARGET}
+
+vm-cloudware:	${CLOUDTARGETS}
+
+list-vmtargets:	list-cloudware
+	@${ECHO}
+	@${ECHO} "Supported virtual machine disk image formats:"
+.for FORMAT in ${VMFORMATS:tu}
+	@${ECHO} "  ${FORMAT:tl}: ${${FORMAT}_DESC}"
+.endfor
+
+list-cloudware:
+.if !empty(CLOUDWARE)
+	@${ECHO}
+	@${ECHO} "Supported cloud hosting provider images:"
+. for _CW in ${CLOUDWARE}
+	@${ECHO} "  ${_CW:tu}: ${${_CW:tu}_DESC}"
+. endfor
+.endif
+
+vm-install:
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+	mkdir -p ${DESTDIR}/vmimages
+. for FORMAT in ${VMFORMATS}
+	cp -p ${VMBASE}.${FORMAT} \
+		${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+. endfor
+. if defined(WITH_COMPRESSED_VMIMAGES) && !empty(WITH_COMPRESSED_VMIMAGES)
+# This is very time consuming, so defer it after the images are moved to
+# the DESTDIR.
+.  for FORMAT in ${VMFORMATS}
+	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
+	${XZCMD} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
+.  endfor
+. endif
+	cd ${DESTDIR}/vmimages && sha256 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.SHA256
+	cd ${DESTDIR}/vmimages && md5 ${OSRELEASE}* > \
+		${DESTDIR}/vmimages/CHECKSUM.MD5
+.endif
+
+vm-release:
+.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${VMTARGETS}
+.endif
+
+cloudware-release:
+.if defined(WITH_CLOUDWARE) && !empty(WITH_CLOUDWARE) && !empty(CLOUDWARE)
+	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${CLOUDTARGETS}
+.endif

@@ -103,7 +103,7 @@ struct outbound_entry* worker_send_query(uint8_t* ATTR_UNUSED(qname),
 	size_t ATTR_UNUSED(qnamelen), uint16_t ATTR_UNUSED(qtype), 
 	uint16_t ATTR_UNUSED(qclass), uint16_t ATTR_UNUSED(flags), 
 	int ATTR_UNUSED(dnssec), int ATTR_UNUSED(want_dnssec),
-	struct sockaddr_storage* ATTR_UNUSED(addr), 
+	int ATTR_UNUSED(nocaps), struct sockaddr_storage* ATTR_UNUSED(addr), 
 	socklen_t ATTR_UNUSED(addrlen), uint8_t* ATTR_UNUSED(zone),
 	size_t ATTR_UNUSED(zonelen), struct module_qstate* ATTR_UNUSED(q))
 {
@@ -135,7 +135,7 @@ struct outbound_entry* libworker_send_query(uint8_t* ATTR_UNUSED(qname),
 	size_t ATTR_UNUSED(qnamelen), uint16_t ATTR_UNUSED(qtype), 
 	uint16_t ATTR_UNUSED(qclass), uint16_t ATTR_UNUSED(flags), 
 	int ATTR_UNUSED(dnssec), int ATTR_UNUSED(want_dnssec),
-	struct sockaddr_storage* ATTR_UNUSED(addr), 
+	int ATTR_UNUSED(nocaps), struct sockaddr_storage* ATTR_UNUSED(addr), 
 	socklen_t ATTR_UNUSED(addrlen), uint8_t* ATTR_UNUSED(zone),
 	size_t ATTR_UNUSED(zonelen), struct module_qstate* ATTR_UNUSED(q))
 {

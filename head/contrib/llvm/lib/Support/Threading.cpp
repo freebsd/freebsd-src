@@ -7,7 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements llvm_start_multithreaded() and friends.
+// This file defines helper functions for running LLVM in a multi-threaded
+// environment.
 //
 //===----------------------------------------------------------------------===//
 
@@ -19,48 +20,12 @@
 
 using namespace llvm;
 
-static bool multithreaded_mode = false;
-
-static sys::Mutex* global_lock = 0;
-
-bool llvm::llvm_start_multithreaded() {
+bool llvm::llvm_is_multithreaded() {
 #if LLVM_ENABLE_THREADS != 0
-  assert(!multithreaded_mode && "Already multithreaded!");
-  multithreaded_mode = true;
-  global_lock = new sys::Mutex(true);
-
-  // We fence here to ensure that all initialization is complete BEFORE we
-  // return from llvm_start_multithreaded().
-  sys::MemoryFence();
   return true;
 #else
   return false;
 #endif
-}
-
-void llvm::llvm_stop_multithreaded() {
-#if LLVM_ENABLE_THREADS != 0
-  assert(multithreaded_mode && "Not currently multithreaded!");
-
-  // We fence here to insure that all threaded operations are complete BEFORE we
-  // return from llvm_stop_multithreaded().
-  sys::MemoryFence();
-
-  multithreaded_mode = false;
-  delete global_lock;
-#endif
-}
-
-bool llvm::llvm_is_multithreaded() {
-  return multithreaded_mode;
-}
-
-void llvm::llvm_acquire_global_lock() {
-  if (multithreaded_mode) global_lock->acquire();
-}
-
-void llvm::llvm_release_global_lock() {
-  if (multithreaded_mode) global_lock->release();
 }
 
 #if LLVM_ENABLE_THREADS != 0 && defined(HAVE_PTHREAD_H)
@@ -73,7 +38,7 @@ struct ThreadInfo {
 static void *ExecuteOnThread_Dispatch(void *Arg) {
   ThreadInfo *TI = reinterpret_cast<ThreadInfo*>(Arg);
   TI->UserFn(TI->UserData);
-  return 0;
+  return nullptr;
 }
 
 void llvm::llvm_execute_on_thread(void (*Fn)(void*), void *UserData,
@@ -97,13 +62,13 @@ void llvm::llvm_execute_on_thread(void (*Fn)(void*), void *UserData,
     goto error;
 
   // Wait for the thread and clean up.
-  ::pthread_join(Thread, 0);
+  ::pthread_join(Thread, nullptr);
 
  error:
   ::pthread_attr_destroy(&Attr);
 }
 #elif LLVM_ENABLE_THREADS!=0 && defined(LLVM_ON_WIN32)
-#include "Windows/Windows.h"
+#include "Windows/WindowsSupport.h"
 #include <process.h>
 
 struct ThreadInfo {

@@ -67,7 +67,9 @@
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("Mellanox ConnectX HCA InfiniBand driver");
 MODULE_LICENSE("Dual BSD/GPL");
+#ifdef __linux__
 MODULE_VERSION(DRV_VERSION);
+#endif
 
 int mlx4_ib_sm_guid_assign = 1;
 
@@ -1613,8 +1615,12 @@ static void mlx4_ib_alloc_eqs(struct mlx4_dev *dev, struct mlx4_ib_dev *ibdev)
 	eq = 0;
 	mlx4_foreach_port(i, dev, MLX4_PORT_TYPE_IB) {
 		for (j = 0; j < eq_per_port; j++) {
-			//sprintf(name, "mlx4-ib-%d-%d@%s",
-			//	i, j, dev->pdev->bus->conf.pd_name);
+			snprintf(name, sizeof(name), "mlx4-ib-%d-%d@%d:%d:%d:%d", i, j,
+			    pci_get_domain(dev->pdev->dev.bsddev),
+			    pci_get_bus(dev->pdev->dev.bsddev),
+			    PCI_SLOT(dev->pdev->devfn),
+			    PCI_FUNC(dev->pdev->devfn));
+
 			/* Set IRQ for specific name (per ring) */
 			if (mlx4_assign_eq(dev, name,
 					   &ibdev->eq_table[eq])) {
@@ -2400,8 +2406,6 @@ static void __exit mlx4_ib_cleanup(void)
 module_init_order(mlx4_ib_init, SI_ORDER_MIDDLE);
 module_exit(mlx4_ib_cleanup);
 
-#undef MODULE_VERSION
-#include <sys/module.h>
 static int
 mlx4ib_evhand(module_t mod, int event, void *arg)
 {
@@ -2416,3 +2420,4 @@ static moduledata_t mlx4ib_mod = {
 DECLARE_MODULE(mlx4ib, mlx4ib_mod, SI_SUB_OFED_PREINIT, SI_ORDER_ANY);
 MODULE_DEPEND(mlx4ib, mlx4, 1, 1, 1);
 MODULE_DEPEND(mlx4ib, ibcore, 1, 1, 1);
+MODULE_DEPEND(mlx4ib, linuxapi, 1, 1, 1);

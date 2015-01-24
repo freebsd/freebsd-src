@@ -57,8 +57,12 @@ CLEANFILES+= ${_T} ${_T}.tmp
 PLAIN_TESTS_SH_SED_${_T}?= # empty
 PLAIN_TESTS_SH_SRC_${_T}?= ${_T}.sh
 ${_T}: ${PLAIN_TESTS_SH_SRC_${_T}}
+.if empty(PLAIN_TESTS_SH_SED_${_T})
+	cat ${.ALLSRC:N*Makefile*} >${.TARGET}.tmp
+.else
 	cat ${.ALLSRC:N*Makefile*} \
 	    | sed ${PLAIN_TESTS_SH_SED_${_T}} >${.TARGET}.tmp
+.endif
 	chmod +x ${.TARGET}.tmp
 	mv ${.TARGET}.tmp ${.TARGET}
 .endfor

@@ -16,7 +16,6 @@
 #define LLVM_MC_MCOBJECTDISASSEMBLER_H
 
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Support/MemoryObject.h"
@@ -67,8 +66,8 @@ public:
   /// \brief Set the region on which to fallback if disassembly was requested
   /// somewhere not accessible in the object file.
   /// This is used for dynamic disassembly (see RawMemoryObject).
-  void setFallbackRegion(OwningPtr<MemoryObject> &Region) {
-    FallbackRegion.reset(Region.take());
+  void setFallbackRegion(std::unique_ptr<MemoryObject> &Region) {
+    FallbackRegion.reset(Region.release());
   }
 
   /// \brief Set the symbolizer to use to get information on external functions.
@@ -113,7 +112,7 @@ protected:
   MCObjectSymbolizer *MOS;
 
   /// \brief The fallback memory region, outside the object file.
-  OwningPtr<MemoryObject> FallbackRegion;
+  std::unique_ptr<MemoryObject> FallbackRegion;
 
   /// \brief Return a memory region suitable for reading starting at \p Addr.
   /// In most cases, this returns a StringRefMemoryObject backed by the
@@ -162,12 +161,12 @@ public:
                             uint64_t HeaderLoadAddress);
 
 protected:
-  uint64_t getEffectiveLoadAddr(uint64_t Addr) LLVM_OVERRIDE;
-  uint64_t getOriginalLoadAddr(uint64_t EffectiveAddr) LLVM_OVERRIDE;
-  uint64_t getEntrypoint() LLVM_OVERRIDE;
+  uint64_t getEffectiveLoadAddr(uint64_t Addr) override;
+  uint64_t getOriginalLoadAddr(uint64_t EffectiveAddr) override;
+  uint64_t getEntrypoint() override;
 
-  ArrayRef<uint64_t> getStaticInitFunctions() LLVM_OVERRIDE;
-  ArrayRef<uint64_t> getStaticExitFunctions() LLVM_OVERRIDE;
+  ArrayRef<uint64_t> getStaticInitFunctions() override;
+  ArrayRef<uint64_t> getStaticExitFunctions() override;
 };
 
 }

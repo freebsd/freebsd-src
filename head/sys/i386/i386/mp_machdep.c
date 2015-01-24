@@ -749,7 +749,7 @@ init_secondary(void)
 	initializecpu();
 
 	/* set up FPU state on the AP */
-	npxinit();
+	npxinit(false);
 
 	if (cpu_ops.cpu_init)
 		cpu_ops.cpu_init();
@@ -1512,11 +1512,11 @@ cpususpend_handler(void)
 
 	cpu = PCPU_GET(cpuid);
 	if (savectx(&susppcbs[cpu]->sp_pcb)) {
-		npxsuspend(&susppcbs[cpu]->sp_fpususpend);
+		npxsuspend(susppcbs[cpu]->sp_fpususpend);
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &suspended_cpus);
 	} else {
-		npxresume(&susppcbs[cpu]->sp_fpususpend);
+		npxresume(susppcbs[cpu]->sp_fpususpend);
 		pmap_init_pat();
 		initializecpu();
 		PCPU_SET(switchtime, 0);

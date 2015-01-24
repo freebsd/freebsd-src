@@ -19,7 +19,7 @@ namespace clang {
 
 /// \brief Specifies which overload candidates to display when overload
 /// resolution fails.
-enum OverloadsShown {
+enum OverloadsShown : unsigned {
   Ovl_All,  ///< Show all overloads.
   Ovl_Best  ///< Show just the "best" overload candidates.
 };
@@ -57,6 +57,10 @@ public:
   /// The list of -W... options used to alter the diagnostic mappings, with the
   /// prefixes removed.
   std::vector<std::string> Warnings;
+
+  /// The list of -R... options used to alter the diagnostic mappings, with the
+  /// prefixes removed.
+  std::vector<std::string> Remarks;
 
 public:
   // Define accessors/mutators for diagnostic options of enumeration type.

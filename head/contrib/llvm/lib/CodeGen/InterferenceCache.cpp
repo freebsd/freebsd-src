@@ -11,7 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "regalloc"
 #include "InterferenceCache.h"
 #include "llvm/CodeGen/LiveIntervalAnalysis.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -19,8 +18,26 @@
 
 using namespace llvm;
 
+#define DEBUG_TYPE "regalloc"
+
 // Static member used for null interference cursors.
 InterferenceCache::BlockInterference InterferenceCache::Cursor::NoInterference;
+
+// Initializes PhysRegEntries (instead of a SmallVector, PhysRegEntries is a
+// buffer of size NumPhysRegs to speed up alloc/clear for targets with large
+// reg files). Calloced memory is used for good form, and quites tools like
+// Valgrind too, but zero initialized memory is not required by the algorithm:
+// this is because PhysRegEntries works like a SparseSet and its entries are
+// only valid when there is a corresponding CacheEntries assignment. There is
+// also support for when pass managers are reused for targets with different
+// numbers of PhysRegs: in this case PhysRegEntries is freed and reinitialized.
+void InterferenceCache::reinitPhysRegEntries() {
+  if (PhysRegEntriesCount == TRI->getNumRegs()) return;
+  free(PhysRegEntries);
+  PhysRegEntriesCount = TRI->getNumRegs();
+  PhysRegEntries = (unsigned char*)
+    calloc(PhysRegEntriesCount, sizeof(unsigned char));
+}
 
 void InterferenceCache::init(MachineFunction *mf,
                              LiveIntervalUnion *liuarray,
@@ -30,7 +47,7 @@ void InterferenceCache::init(MachineFunction *mf,
   MF = mf;
   LIUArray = liuarray;
   TRI = tri;
-  PhysRegEntries.assign(TRI->getNumRegs(), 0);
+  reinitPhysRegEntries();
   for (unsigned i = 0; i != CacheEntries; ++i)
     Entries[i].clear(mf, indexes, lis);
 }
@@ -105,7 +122,7 @@ bool InterferenceCache::Entry::valid(LiveIntervalUnion *LIUArray,
 
 void InterferenceCache::Entry::update(unsigned MBBNum) {
   SlotIndex Start, Stop;
-  tie(Start, Stop) = Indexes->getMBBRange(MBBNum);
+  std::tie(Start, Stop) = Indexes->getMBBRange(MBBNum);
 
   // Use advanceTo only when possible.
   if (PrevPos != Start) {
@@ -182,7 +199,7 @@ void InterferenceCache::Entry::update(unsigned MBBNum) {
     BI = &Blocks[MBBNum];
     if (BI->Tag == Tag)
       return;
-    tie(Start, Stop) = Indexes->getMBBRange(MBBNum);
+    std::tie(Start, Stop) = Indexes->getMBBRange(MBBNum);
   }
 
   // Check for last interference in block.

@@ -1879,6 +1879,8 @@ synerror(const char *msg)
 {
 	if (commandname)
 		outfmt(out2, "%s: %d: ", commandname, startlinno);
+	else if (arg0)
+		outfmt(out2, "%s: ", arg0);
 	outfmt(out2, "Syntax error: %s\n", msg);
 	error((char *)NULL);
 }

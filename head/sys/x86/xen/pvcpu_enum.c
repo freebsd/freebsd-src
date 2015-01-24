@@ -91,6 +91,15 @@ madt_parse_interrupt_override(ACPI_MADT_INTERRUPT_OVERRIDE *intr)
 
 	madt_parse_interrupt_values(intr, &trig, &pol);
 
+	/* Remap the IRQ if it is mapped to a different interrupt vector. */
+	if (intr->SourceIrq != intr->GlobalIrq && intr->GlobalIrq > 15 &&
+	    intr->SourceIrq == AcpiGbl_FADT.SciInterrupt)
+		/*
+		 * If the SCI is remapped to a non-ISA global interrupt,
+		 * then override the vector we use to setup.
+		 */
+		acpi_OverrideInterruptLevel(intr->GlobalIrq);
+
 	/* Register the IRQ with the polarity and trigger mode found. */
 	xen_register_pirq(intr->GlobalIrq, trig, pol);
 }

@@ -103,6 +103,9 @@ private:
   /// \brief The type of the object or reference being initialized.
   QualType Type;
 
+  /// \brief The mangling number for the next reference temporary to be created.
+  mutable unsigned ManglingNumber;
+
   struct LN {
     /// \brief When Kind == EK_Result, EK_Exception, EK_New, the
     /// location of the 'return', 'throw', or 'new' keyword,
@@ -155,19 +158,19 @@ private:
     struct C Capture;
   };
 
-  InitializedEntity() { }
+  InitializedEntity() : ManglingNumber(0) {}
 
   /// \brief Create the initialization entity for a variable.
   InitializedEntity(VarDecl *Var)
-    : Kind(EK_Variable), Parent(0), Type(Var->getType()),
-      VariableOrMember(Var) { }
+    : Kind(EK_Variable), Parent(nullptr), Type(Var->getType()),
+      ManglingNumber(0), VariableOrMember(Var) { }
   
   /// \brief Create the initialization entity for the result of a
   /// function, throwing an object, performing an explicit cast, or
   /// initializing a parameter for which there is no declaration.
   InitializedEntity(EntityKind Kind, SourceLocation Loc, QualType Type,
                     bool NRVO = false)
-    : Kind(Kind), Parent(0), Type(Type)
+    : Kind(Kind), Parent(nullptr), Type(Type), ManglingNumber(0)
   {
     LocAndNRVO.Location = Loc.getRawEncoding();
     LocAndNRVO.NRVO = NRVO;
@@ -176,7 +179,7 @@ private:
   /// \brief Create the initialization entity for a member subobject.
   InitializedEntity(FieldDecl *Member, const InitializedEntity *Parent) 
     : Kind(EK_Member), Parent(Parent), Type(Member->getType()),
-      VariableOrMember(Member) { }
+      ManglingNumber(0), VariableOrMember(Member) { }
   
   /// \brief Create the initialization entity for an array element.
   InitializedEntity(ASTContext &Context, unsigned Index, 
@@ -184,7 +187,8 @@ private:
 
   /// \brief Create the initialization entity for a lambda capture.
   InitializedEntity(IdentifierInfo *VarID, QualType FieldType, SourceLocation Loc)
-    : Kind(EK_LambdaCapture), Parent(0), Type(FieldType) 
+    : Kind(EK_LambdaCapture), Parent(nullptr), Type(FieldType),
+      ManglingNumber(0)
   {
     Capture.VarID = VarID;
     Capture.Location = Loc.getRawEncoding();
@@ -214,7 +218,7 @@ public:
     Entity.Kind = EK_Parameter;
     Entity.Type =
       Context.getVariableArrayDecayedType(Type.getUnqualifiedType());
-    Entity.Parent = 0;
+    Entity.Parent = nullptr;
     Entity.Parameter
       = (static_cast<uintptr_t>(Consumed) | reinterpret_cast<uintptr_t>(Parm));
     return Entity;
@@ -228,7 +232,7 @@ public:
     InitializedEntity Entity;
     Entity.Kind = EK_Parameter;
     Entity.Type = Context.getVariableArrayDecayedType(Type);
-    Entity.Parent = 0;
+    Entity.Parent = nullptr;
     Entity.Parameter = (Consumed);
     return Entity;
   }
@@ -258,7 +262,7 @@ public:
   /// \brief Create the initialization entity for a temporary.
   static InitializedEntity InitializeTemporary(QualType Type) {
     InitializedEntity Result(EK_Temporary, SourceLocation(), Type);
-    Result.TypeInfo = 0;
+    Result.TypeInfo = nullptr;
     return Result;
   }
 
@@ -290,14 +294,16 @@ public:
   }
   
   /// \brief Create the initialization entity for a member subobject.
-  static InitializedEntity InitializeMember(FieldDecl *Member,
-                                          const InitializedEntity *Parent = 0) {
+  static InitializedEntity
+  InitializeMember(FieldDecl *Member,
+                   const InitializedEntity *Parent = nullptr) {
     return InitializedEntity(Member, Parent);
   }
   
   /// \brief Create the initialization entity for a member subobject.
-  static InitializedEntity InitializeMember(IndirectFieldDecl *Member,
-                                      const InitializedEntity *Parent = 0) {
+  static InitializedEntity
+  InitializeMember(IndirectFieldDecl *Member,
+                   const InitializedEntity *Parent = nullptr) {
     return InitializedEntity(Member->getAnonField(), Parent);
   }
 
@@ -341,7 +347,7 @@ public:
     if (Kind == EK_Temporary || Kind == EK_CompoundLiteralInit)
       return TypeInfo;
     
-    return 0;
+    return nullptr;
   }
   
   /// \brief Retrieve the name of the entity being initialized.
@@ -395,6 +401,13 @@ public:
     return SourceLocation::getFromRawEncoding(LocAndNRVO.Location);
   }
 
+  /// \brief If this is an array, vector, or complex number element, get the
+  /// element's index.
+  unsigned getElementIndex() const {
+    assert(getKind() == EK_ArrayElement || getKind() == EK_VectorElement ||
+           getKind() == EK_ComplexElement);
+    return Index;
+  }
   /// \brief If this is already the initializer for an array or vector
   /// element, sets the element index.
   void setElementIndex(unsigned Index) {
@@ -417,6 +430,8 @@ public:
   void setParameterCFAudited() {
     Kind = EK_Parameter_CF_Audited;
   }
+
+  unsigned allocateManglingNumber() const { return ++ManglingNumber; }
 
   /// Dump a representation of the initialized entity to standard error,
   /// for debugging purposes.
@@ -648,22 +663,25 @@ public:
     SK_QualificationConversionXValue,
     /// \brief Perform a qualification conversion, producing an lvalue.
     SK_QualificationConversionLValue,
+    /// \brief Perform a conversion adding _Atomic to a type.
+    SK_AtomicConversion,
     /// \brief Perform a load from a glvalue, producing an rvalue.
     SK_LValueToRValue,
     /// \brief Perform an implicit conversion sequence.
     SK_ConversionSequence,
     /// \brief Perform an implicit conversion sequence without narrowing.
     SK_ConversionSequenceNoNarrowing,
-    /// \brief Perform list-initialization without a constructor
+    /// \brief Perform list-initialization without a constructor.
     SK_ListInitialization,
-    /// \brief Perform list-initialization with a constructor.
-    SK_ListConstructorCall,
     /// \brief Unwrap the single-element initializer list for a reference.
     SK_UnwrapInitList,
     /// \brief Rewrap the single-element initializer list for a reference.
     SK_RewrapInitList,
     /// \brief Perform initialization via a constructor.
     SK_ConstructorInitialization,
+    /// \brief Perform initialization via a constructor, taking arguments from
+    /// a single InitListExpr.
+    SK_ConstructorInitializationFromList,
     /// \brief Zero-initialize the object
     SK_ZeroInitialization,
     /// \brief C assignment
@@ -687,6 +705,9 @@ public:
     SK_ProduceObjCObject,
     /// \brief Construct a std::initializer_list from an initializer list.
     SK_StdInitializerList,
+    /// \brief Perform initialization via a constructor taking a single
+    /// std::initializer_list argument.
+    SK_StdInitializerListConstructorCall,
     /// \brief Initialize an OpenCL sampler from an integer.
     SK_OCLSamplerInit,
     /// \brief Passing zero to a function where OpenCL event_t is expected.
@@ -843,17 +864,17 @@ public:
   ///
   /// \param Args the argument(s) provided for initialization.
   ///
-  /// \param InInitList true if we are initializing from an expression within
-  ///        an initializer list. This disallows narrowing conversions in C++11
-  ///        onwards.
+  /// \param TopLevelOfInitList true if we are initializing from an expression
+  ///        at the top level inside an initializer list. This disallows
+  ///        narrowing conversions in C++11 onwards.
   InitializationSequence(Sema &S, 
                          const InitializedEntity &Entity,
                          const InitializationKind &Kind,
                          MultiExprArg Args,
-                         bool InInitList = false);
+                         bool TopLevelOfInitList = false);
   void InitializeFrom(Sema &S, const InitializedEntity &Entity,
                       const InitializationKind &Kind, MultiExprArg Args,
-                      bool InInitList);
+                      bool TopLevelOfInitList);
 
   ~InitializationSequence();
   
@@ -882,7 +903,7 @@ public:
                      const InitializedEntity &Entity,
                      const InitializationKind &Kind,
                      MultiExprArg Args,
-                     QualType *ResultType = 0);
+                     QualType *ResultType = nullptr);
   
   /// \brief Diagnose an potentially-invalid initialization sequence.
   ///
@@ -980,7 +1001,11 @@ public:
   /// given type.
   void AddQualificationConversionStep(QualType Ty,
                                      ExprValueKind Category);
-  
+
+  /// \brief Add a new step that performs conversion from non-atomic to atomic
+  /// type.
+  void AddAtomicConversionStep(QualType Ty);
+
   /// \brief Add a new step that performs a load of the given type.
   ///
   /// Although the term "LValueToRValue" is conventional, this applies to both

@@ -57,7 +57,7 @@ struct icl_pdu {
 	uint32_t		ip_prv2;
 };
 
-struct icl_pdu		*icl_pdu_new_bhs(struct icl_conn *ic, int flags);
+struct icl_pdu		*icl_pdu_new(struct icl_conn *ic, int flags);
 size_t			icl_pdu_data_segment_length(const struct icl_pdu *ip);
 int			icl_pdu_append_data(struct icl_pdu *ip, const void *addr, size_t len, int flags);
 void			icl_pdu_get_data(struct icl_pdu *ip, size_t off, void *addr, size_t len);

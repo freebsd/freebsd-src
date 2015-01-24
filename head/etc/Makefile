@@ -3,8 +3,11 @@
 
 .include <src.opts.mk>
 
+SUBDIR=	\
+	newsyslog.conf.d
+
 .if ${MK_SENDMAIL} != "no"
-SUBDIR=	sendmail
+SUBDIR+=sendmail
 .endif
 
 .if ${MK_TESTS} != "no"
@@ -333,7 +336,7 @@ MTREES+=	mtree/BSD.debug.dist		/usr/lib
 MTREES+=	mtree/BSD.groff.dist		/usr
 .endif
 .if ${MK_TESTS} != "no"
-MTREES+=	mtree/BSD.tests.dist		/usr
+MTREES+=	mtree/BSD.tests.dist		${TESTSBASE}
 .endif
 .if ${MK_SENDMAIL} != "no"
 MTREES+=	mtree/BSD.sendmail.dist		/
@@ -349,6 +352,7 @@ distrib-dirs: ${MTREES:N/*}
 		shift; \
 		d=${DESTDIR}$$1; \
 		shift; \
+		test -d $$d || mkdir -p $$d; \
 		${ECHO} ${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} \
 		    -f $$m -p $$d; \
 		${MTREE_CMD} -deU ${MTREE_FOLLOWS_SYMLINKS} -f $$m -p $$d; \
@@ -362,6 +366,7 @@ distrib-dirs: ${MTREES:N/*}
 		test "$$d" == "/" && d=""; \
 		d=${DISTBASE}$$d; \
 		shift; \
+		test -d $$d || mkdir -p $$d; \
 		${ECHO} "${MTREE_CMD:N-W} -C -f $$m -K uname,gname | " \
 		    "sed s#^\.#.$$d# | ${METALOG.add}" ; \
 		${MTREE_CMD:N-W} -C -f $$m -K uname,gname | sed s#^\.#.$$d# | \

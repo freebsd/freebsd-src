@@ -58,12 +58,12 @@ csqrtl(long double complex z)
 
 	/* Handle special cases. */
 	if (z == 0)
-		return (cpackl(0, b));
+		return (CMPLXL(0, b));
 	if (isinf(b))
-		return (cpackl(INFINITY, b));
+		return (CMPLXL(INFINITY, b));
 	if (isnan(a)) {
 		t = (b - b) / (b - b);	/* raise invalid if b is not a NaN */
-		return (cpackl(a, t));	/* return NaN + NaN i */
+		return (CMPLXL(a, t));	/* return NaN + NaN i */
 	}
 	if (isinf(a)) {
 		/*
@@ -73,9 +73,9 @@ csqrtl(long double complex z)
 		 * csqrt(-inf + y i)   = 0   +  inf i
 		 */
 		if (signbit(a))
-			return (cpackl(fabsl(b - b), copysignl(a, b)));
+			return (CMPLXL(fabsl(b - b), copysignl(a, b)));
 		else
-			return (cpackl(a, copysignl(b - b, b)));
+			return (CMPLXL(a, copysignl(b - b, b)));
 	}
 	/*
 	 * The remaining special case (b is NaN) is handled just fine by
@@ -94,10 +94,10 @@ csqrtl(long double complex z)
 	/* Algorithm 312, CACM vol 10, Oct 1967. */
 	if (a >= 0) {
 		t = sqrtl((a + hypotl(a, b)) * 0.5);
-		result = cpackl(t, b / (2 * t));
+		result = CMPLXL(t, b / (2 * t));
 	} else {
 		t = sqrtl((-a + hypotl(a, b)) * 0.5);
-		result = cpackl(fabsl(b) / (2 * t), copysignl(t, b));
+		result = CMPLXL(fabsl(b) / (2 * t), copysignl(t, b));
 	}
 
 	/* Rescale. */

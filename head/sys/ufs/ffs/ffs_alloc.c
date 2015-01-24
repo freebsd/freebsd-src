@@ -845,7 +845,7 @@ ffs_reallocblks_ufs2(ap)
 	 */
 #ifdef DEBUG
 	if (prtrealloc)
-		printf("realloc: ino %d, lbns %jd-%jd\n\told:", ip->i_number,
+		printf("realloc: ino %ju, lbns %jd-%jd\n\told:", (uintmax_t)ip->i_number,
 		    (intmax_t)start_lbn, (intmax_t)end_lbn);
 #endif
 	blkno = newblk;
@@ -1029,8 +1029,8 @@ retry:
 	ip = VTOI(*vpp);
 	if (ip->i_mode) {
 dup_alloc:
-		printf("mode = 0%o, inum = %lu, fs = %s\n",
-		    ip->i_mode, (u_long)ip->i_number, fs->fs_fsmnt);
+		printf("mode = 0%o, inum = %ju, fs = %s\n",
+		    ip->i_mode, (uintmax_t)ip->i_number, fs->fs_fsmnt);
 		panic("ffs_valloc: dup alloc");
 	}
 	if (DIP(ip, i_blocks) && (fs->fs_flags & FS_UNCLEAN) == 0) {  /* XXX */

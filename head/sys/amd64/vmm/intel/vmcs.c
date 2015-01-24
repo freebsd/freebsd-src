@@ -332,7 +332,6 @@ vmcs_init(struct vmcs *vmcs)
 	int error, codesel, datasel, tsssel;
 	u_long cr0, cr4, efer;
 	uint64_t pat, fsbase, idtrbase;
-	uint32_t exc_bitmap;
 
 	codesel = vmm_get_host_codesel();
 	datasel = vmm_get_host_datasel();
@@ -415,11 +414,6 @@ vmcs_init(struct vmcs *vmcs)
 
 	/* instruction pointer */
 	if ((error = vmwrite(VMCS_HOST_RIP, (u_long)vmx_exit_guest)) != 0)
-		goto done;
-
-	/* exception bitmap */
-	exc_bitmap = 1 << IDT_MC;
-	if ((error = vmwrite(VMCS_EXCEPTION_BITMAP, exc_bitmap)) != 0)
 		goto done;
 
 	/* link pointer */

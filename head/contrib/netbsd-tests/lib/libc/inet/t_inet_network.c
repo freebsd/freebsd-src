@@ -144,7 +144,11 @@ ATF_TC_BODY(inet_network_err, tc)
 	H_REQUIRE(".", 0xffffffff);
 	H_REQUIRE("1.", 0xffffffff);
 	H_REQUIRE(".1", 0xffffffff);
+#if defined(__FreeBSD__) || defined(__APPLE__)
+	H_REQUIRE("0x", 0x0);
+#else
 	H_REQUIRE("0x", 0xffffffff);
+#endif
 	H_REQUIRE("", 0xffffffff);
 	H_REQUIRE(" ", 0xffffffff);
 	H_REQUIRE("bar", 0xffffffff);

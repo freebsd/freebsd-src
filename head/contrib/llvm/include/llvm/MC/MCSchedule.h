@@ -32,11 +32,16 @@ struct MCProcResourceDesc {
 
   // Number of resources that may be buffered.
   //
-  // Buffered resources (BufferSize > 0 || BufferSize == -1) may be consumed at
-  // some indeterminate cycle after dispatch (e.g. for instructions that may
-  // issue out-of-order). Unbuffered resources (BufferSize == 0) always consume
-  // their resource some fixed number of cycles after dispatch (e.g. for
-  // instruction interlocking that may stall the pipeline).
+  // Buffered resources (BufferSize != 0) may be consumed at some indeterminate
+  // cycle after dispatch. This should be used for out-of-order cpus when
+  // instructions that use this resource can be buffered in a reservaton
+  // station.
+  //
+  // Unbuffered resources (BufferSize == 0) always consume their resource some
+  // fixed number of cycles after dispatch. If a resource is unbuffered, then
+  // the scheduler will avoid scheduling instructions with conflicting resources
+  // in the same cycle. This is for in-order cpus, or the in-order portion of
+  // an out-of-order cpus.
   int BufferSize;
 
   bool operator==(const MCProcResourceDesc &Other) const {
@@ -149,10 +154,18 @@ public:
   // but we balance those stalls against other heuristics.
   //
   // "> 1" means the processor is out-of-order. This is a machine independent
-  // estimate of highly machine specific characteristics such are the register
+  // estimate of highly machine specific characteristics such as the register
   // renaming pool and reorder buffer.
   unsigned MicroOpBufferSize;
   static const unsigned DefaultMicroOpBufferSize = 0;
+
+  // LoopMicroOpBufferSize is the number of micro-ops that the processor may
+  // buffer for optimized loop execution. More generally, this represents the
+  // optimal number of micro-ops in a loop body. A loop may be partially
+  // unrolled to bring the count of micro-ops in the loop body closer to this
+  // number.
+  unsigned LoopMicroOpBufferSize;
+  static const unsigned DefaultLoopMicroOpBufferSize = 0;
 
   // LoadLatency is the expected latency of load instructions.
   //
@@ -173,6 +186,8 @@ public:
   // takes to recover from a branch misprediction.
   unsigned MispredictPenalty;
   static const unsigned DefaultMispredictPenalty = 10;
+  
+  bool PostRAScheduler; // default value is false
 
   bool CompleteModel;
 
@@ -193,24 +208,27 @@ public:
   // MCSchedModel instead of using a generated itinerary.
   MCSchedModel(): IssueWidth(DefaultIssueWidth),
                   MicroOpBufferSize(DefaultMicroOpBufferSize),
+                  LoopMicroOpBufferSize(DefaultLoopMicroOpBufferSize),
                   LoadLatency(DefaultLoadLatency),
                   HighLatency(DefaultHighLatency),
                   MispredictPenalty(DefaultMispredictPenalty),
-                  CompleteModel(true),
-                  ProcID(0), ProcResourceTable(0), SchedClassTable(0),
-                  NumProcResourceKinds(0), NumSchedClasses(0),
-                  InstrItineraries(0) {
+                  PostRAScheduler(false), CompleteModel(true),
+                  ProcID(0), ProcResourceTable(nullptr),
+                  SchedClassTable(nullptr), NumProcResourceKinds(0),
+                  NumSchedClasses(0), InstrItineraries(nullptr) {
     (void)NumProcResourceKinds;
     (void)NumSchedClasses;
   }
 
   // Table-gen driven ctor.
-  MCSchedModel(unsigned iw, int mbs, unsigned ll, unsigned hl,
-               unsigned mp, bool cm, unsigned pi, const MCProcResourceDesc *pr,
-               const MCSchedClassDesc *sc, unsigned npr, unsigned nsc,
-               const InstrItinerary *ii):
-    IssueWidth(iw), MicroOpBufferSize(mbs), LoadLatency(ll), HighLatency(hl),
-    MispredictPenalty(mp), CompleteModel(cm), ProcID(pi),
+  MCSchedModel(unsigned iw, int mbs, int lmbs, unsigned ll, unsigned hl,
+               unsigned mp, bool postRASched, bool cm, unsigned pi,
+               const MCProcResourceDesc *pr, const MCSchedClassDesc *sc,
+               unsigned npr, unsigned nsc, const InstrItinerary *ii):
+    IssueWidth(iw), MicroOpBufferSize(mbs), LoopMicroOpBufferSize(lmbs),
+    LoadLatency(ll), HighLatency(hl),
+    MispredictPenalty(mp), PostRAScheduler(postRASched),
+    CompleteModel(cm), ProcID(pi),
     ProcResourceTable(pr), SchedClassTable(sc), NumProcResourceKinds(npr),
     NumSchedClasses(nsc), InstrItineraries(ii) {}
 

@@ -66,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pci_private.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -113,6 +115,8 @@ static int agp_sb_get_gtt_total_entries(device_t dev);
 
 static int agp_i810_install_gatt(device_t dev);
 static int agp_i830_install_gatt(device_t dev);
+static int agp_i965_install_gatt(device_t dev);
+static int agp_g4x_install_gatt(device_t dev);
 
 static void agp_i810_deinstall_gatt(device_t dev);
 static void agp_i830_deinstall_gatt(device_t dev);
@@ -395,7 +399,7 @@ static const struct agp_i810_driver agp_i810_g965_driver = {
 	.get_stolen_size = agp_i915_get_stolen_size,
 	.get_gtt_mappable_entries = agp_i915_get_gtt_mappable_entries,
 	.get_gtt_total_entries = agp_i965_get_gtt_total_entries,
-	.install_gatt = agp_i830_install_gatt,
+	.install_gatt = agp_i965_install_gatt,
 	.deinstall_gatt = agp_i830_deinstall_gatt,
 	.write_gtt = agp_i965_write_gtt,
 	.install_gtt_pte = agp_i965_install_gtt_pte,
@@ -464,7 +468,7 @@ static const struct agp_i810_driver agp_i810_g4x_driver = {
 	.get_stolen_size = agp_i915_get_stolen_size,
 	.get_gtt_mappable_entries = agp_i915_get_gtt_mappable_entries,
 	.get_gtt_total_entries = agp_gen5_get_gtt_total_entries,
-	.install_gatt = agp_i830_install_gatt,
+	.install_gatt = agp_g4x_install_gatt,
 	.deinstall_gatt = agp_i830_deinstall_gatt,
 	.write_gtt = agp_g4x_write_gtt,
 	.install_gtt_pte = agp_g4x_install_gtt_pte,
@@ -487,7 +491,30 @@ static const struct agp_i810_driver agp_i810_sb_driver = {
 	.get_stolen_size = agp_sb_get_stolen_size,
 	.get_gtt_mappable_entries = agp_i915_get_gtt_mappable_entries,
 	.get_gtt_total_entries = agp_sb_get_gtt_total_entries,
-	.install_gatt = agp_i830_install_gatt,
+	.install_gatt = agp_g4x_install_gatt,
+	.deinstall_gatt = agp_i830_deinstall_gatt,
+	.write_gtt = agp_sb_write_gtt,
+	.install_gtt_pte = agp_sb_install_gtt_pte,
+	.read_gtt_pte = agp_g4x_read_gtt_pte,
+	.read_gtt_pte_paddr = agp_sb_read_gtt_pte_paddr,
+	.set_aperture = agp_i915_set_aperture,
+	.chipset_flush_setup = agp_i810_chipset_flush_setup,
+	.chipset_flush_teardown = agp_i810_chipset_flush_teardown,
+	.chipset_flush = agp_i810_chipset_flush,
+};
+
+static const struct agp_i810_driver agp_i810_hsw_driver = {
+	.chiptype = CHIP_SB,
+	.gen = 7,
+	.busdma_addr_mask_sz = 40,
+	.res_spec = agp_g4x_res_spec,
+	.check_active = agp_sb_check_active,
+	.set_desc = agp_i810_set_desc,
+	.dump_regs = agp_sb_dump_regs,
+	.get_stolen_size = agp_sb_get_stolen_size,
+	.get_gtt_mappable_entries = agp_i915_get_gtt_mappable_entries,
+	.get_gtt_total_entries = agp_sb_get_gtt_total_entries,
+	.install_gatt = agp_g4x_install_gatt,
 	.deinstall_gatt = agp_i830_deinstall_gatt,
 	.write_gtt = agp_sb_write_gtt,
 	.install_gtt_pte = agp_sb_install_gtt_pte,
@@ -735,6 +762,41 @@ static const struct agp_i810_match {
 		.driver = &agp_i810_sb_driver
 	},
 	{
+		.devid = 0x04028086,
+		.name = "Haswell desktop GT1",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x04128086,
+		.name = "Haswell desktop GT2",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x040a8086,
+		.name = "Haswell server GT1",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x041a8086,
+		.name = "Haswell server GT2",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x04068086,
+		.name = "Haswell mobile GT1",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x04168086,
+		.name = "Haswell mobile GT2",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
+		.devid = 0x0c168086,
+		.name = "Haswell SDV",
+		.driver = &agp_i810_hsw_driver
+	},
+	{
 		.devid = 0,
 	}
 };
@@ -745,7 +807,8 @@ agp_i810_match(device_t dev)
 	int i, devid;
 
 	if (pci_get_class(dev) != PCIC_DISPLAY
-	    || pci_get_subclass(dev) != PCIS_DISPLAY_VGA)
+	    || (pci_get_subclass(dev) != PCIS_DISPLAY_VGA &&
+	    pci_get_subclass(dev) != PCIS_DISPLAY_OTHER))
 		return (NULL);
 
 	devid = pci_get_devid(dev);
@@ -1388,30 +1451,26 @@ agp_i810_install_gatt(device_t dev)
 		sc->dcache_size = 0;
 
 	/* According to the specs the gatt on the i810 must be 64k. */
-	sc->gatt->ag_virtual = contigmalloc(64 * 1024, M_AGP, 0, 0, ~0,
-	    PAGE_SIZE, 0);
+	sc->gatt->ag_virtual = (void *)kmem_alloc_contig(kernel_arena,
+	    64 * 1024, M_NOWAIT | M_ZERO, 0, ~0, PAGE_SIZE,
+	    0, VM_MEMATTR_WRITE_COMBINING);
 	if (sc->gatt->ag_virtual == NULL) {
 		if (bootverbose)
 			device_printf(dev, "contiguous allocation failed\n");
 		return (ENOMEM);
 	}
 
-	bzero(sc->gatt->ag_virtual, sc->gatt->ag_entries * sizeof(u_int32_t));
 	sc->gatt->ag_physical = vtophys((vm_offset_t)sc->gatt->ag_virtual);
-	agp_flush_cache();
 	/* Install the GATT. */
 	bus_write_4(sc->sc_res[0], AGP_I810_PGTBL_CTL,
 	    sc->gatt->ag_physical | 1);
 	return (0);
 }
 
-static int
-agp_i830_install_gatt(device_t dev)
+static void
+agp_i830_install_gatt_init(struct agp_i810_softc *sc)
 {
-	struct agp_i810_softc *sc;
 	uint32_t pgtblctl;
-
-	sc = device_get_softc(dev);
 
 	/*
 	 * The i830 automatically initializes the 128k gatt on boot.
@@ -1422,7 +1481,43 @@ agp_i830_install_gatt(device_t dev)
 	bus_write_4(sc->sc_res[0], AGP_I810_PGTBL_CTL, pgtblctl);
 	
 	sc->gatt->ag_physical = pgtblctl & ~1;
+}
+
+static int
+agp_i830_install_gatt(device_t dev)
+{
+	struct agp_i810_softc *sc;
+
+	sc = device_get_softc(dev);
+	agp_i830_install_gatt_init(sc);
 	return (0);
+}
+
+static int
+agp_gen4_install_gatt(device_t dev, const vm_size_t gtt_offset)
+{
+	struct agp_i810_softc *sc;
+
+	sc = device_get_softc(dev);
+	pmap_change_attr((vm_offset_t)rman_get_virtual(sc->sc_res[0]) +
+	    gtt_offset, rman_get_size(sc->sc_res[0]) - gtt_offset,
+	    VM_MEMATTR_WRITE_COMBINING);
+	agp_i830_install_gatt_init(sc);
+	return (0);
+}
+
+static int
+agp_i965_install_gatt(device_t dev)
+{
+
+	return (agp_gen4_install_gatt(dev, 512 * 1024));
+}
+
+static int
+agp_g4x_install_gatt(device_t dev)
+{
+
+	return (agp_gen4_install_gatt(dev, 2 * 1024 * 1024));
 }
 
 static int
@@ -1497,7 +1592,7 @@ agp_i810_deinstall_gatt(device_t dev)
 
 	sc = device_get_softc(dev);
 	bus_write_4(sc->sc_res[0], AGP_I810_PGTBL_CTL, 0);
-	contigfree(sc->gatt->ag_virtual, 64 * 1024, M_AGP);
+	kmem_free(kernel_arena, (vm_offset_t)sc->gatt->ag_virtual, 64 * 1024);
 }
 
 static void
@@ -2052,7 +2147,6 @@ agp_i810_bind_memory(device_t dev, struct agp_memory *mem, vm_offset_t offset)
 			sc->match->driver->install_gtt_pte(dev, (offset + i) >>
 			    AGP_PAGE_SHIFT, mem->am_physical + i, 0);
 		}
-		agp_flush_cache();
 		mem->am_offset = offset;
 		mem->am_is_bound = 1;
 		mtx_unlock(&sc->agp.as_lock);
@@ -2093,7 +2187,6 @@ agp_i810_unbind_memory(device_t dev, struct agp_memory *mem)
 			sc->match->driver->install_gtt_pte(dev,
 			    (mem->am_offset + i) >> AGP_PAGE_SHIFT, 0, 0);
 		}
-		agp_flush_cache();
 		mem->am_is_bound = 0;
 		mtx_unlock(&sc->agp.as_lock);
 		return (0);

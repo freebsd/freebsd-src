@@ -15,13 +15,12 @@
 #define LLVM_ANALYSIS_MEMORYDEPENDENCEANALYSIS_H
 
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/IR/BasicBlock.h"
+#include "llvm/IR/ValueHandle.h"
 #include "llvm/Pass.h"
-#include "llvm/Support/ValueHandle.h"
 
 namespace llvm {
   class Function;
@@ -98,7 +97,7 @@ namespace llvm {
     PairTy Value;
     explicit MemDepResult(PairTy V) : Value(V) {}
   public:
-    MemDepResult() : Value(0, Invalid) {}
+    MemDepResult() : Value(nullptr, Invalid) {}
 
     /// get methods: These are static ctor methods for creating various
     /// MemDepResult kinds.
@@ -156,7 +155,7 @@ namespace llvm {
     /// getInst() - If this is a normal dependency, return the instruction that
     /// is depended on.  Otherwise, return null.
     Instruction *getInst() const {
-      if (Value.getInt() == Other) return NULL;
+      if (Value.getInt() == Other) return nullptr;
       return Value.getPointer();
     }
 
@@ -286,7 +285,8 @@ namespace llvm {
       /// pointer. May be null if there are no tags or conflicting tags.
       const MDNode *TBAATag;
 
-      NonLocalPointerInfo() : Size(AliasAnalysis::UnknownSize), TBAATag(0) {}
+      NonLocalPointerInfo()
+        : Size(AliasAnalysis::UnknownSize), TBAATag(nullptr) {}
     };
 
     /// CachedNonLocalPointerInfo - This map stores the cached results of doing
@@ -323,24 +323,25 @@ namespace llvm {
 
     /// Current AA implementation, just a cache.
     AliasAnalysis *AA;
-    DataLayout *TD;
+    const DataLayout *DL;
     DominatorTree *DT;
-    OwningPtr<PredIteratorCache> PredCache;
+    std::unique_ptr<PredIteratorCache> PredCache;
+
   public:
     MemoryDependenceAnalysis();
     ~MemoryDependenceAnalysis();
     static char ID;
 
     /// Pass Implementation stuff.  This doesn't do any analysis eagerly.
-    bool runOnFunction(Function &);
+    bool runOnFunction(Function &) override;
 
     /// Clean up memory in between runs
-    void releaseMemory();
+    void releaseMemory() override;
 
     /// getAnalysisUsage - Does not modify anything.  It uses Value Numbering
     /// and Alias Analysis.
     ///
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const;
+    void getAnalysisUsage(AnalysisUsage &AU) const override;
 
     /// getDependency - Return the instruction on which a memory operation
     /// depends.  See the class comment for more details.  It is illegal to call
@@ -401,7 +402,7 @@ namespace llvm {
                                           bool isLoad,
                                           BasicBlock::iterator ScanIt,
                                           BasicBlock *BB,
-                                          Instruction *QueryInst = 0);
+                                          Instruction *QueryInst = nullptr);
 
 
     /// getLoadLoadClobberFullWidthSize - This is a little bit of analysis that
@@ -415,7 +416,7 @@ namespace llvm {
                                                     int64_t MemLocOffs,
                                                     unsigned MemLocSize,
                                                     const LoadInst *LI,
-                                                    const DataLayout &TD);
+                                                    const DataLayout &DL);
 
   private:
     MemDepResult getCallSiteDependencyFrom(CallSite C, bool isReadOnlyCall,

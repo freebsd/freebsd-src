@@ -29,6 +29,10 @@
 #ifndef	_LINUX_MODULE_H_
 #define	_LINUX_MODULE_H_
 
+#include <sys/cdefs.h>
+#include <sys/types.h>
+#include <sys/module.h>
+
 #include <linux/list.h>
 #include <linux/compiler.h>
 #include <linux/kobject.h>
@@ -39,19 +43,15 @@
 #define MODULE_DESCRIPTION(name)
 #define MODULE_LICENSE(name)
 
-#ifndef MODULE_VERSION
-#define MODULE_VERSION(name)
-#endif
-
 #define	THIS_MODULE	((struct module *)0)
 
 #define	EXPORT_SYMBOL(name)
 #define	EXPORT_SYMBOL_GPL(name)
 
 /* OFED pre-module initialization */
-#define	SI_SUB_OFED_PREINIT	(SI_SUB_KTHREAD_INIT - 2)
+#define	SI_SUB_OFED_PREINIT	(SI_SUB_ROOT_CONF - 2)
 /* OFED default module initialization */
-#define	SI_SUB_OFED_MODINIT	(SI_SUB_KTHREAD_INIT - 1)
+#define	SI_SUB_OFED_MODINIT	(SI_SUB_ROOT_CONF - 1)
 
 #include <sys/linker.h>
 

@@ -18,16 +18,13 @@ CFLAGS+=	-I${.CURDIR}
 .if ${MK_CXX} == "no"
 CFLAGS+=	-DNO_CXA_DEMANGLE
 .elif ${MK_LIBCPLUSPLUS} != "no"
-LDADD+=		-lcxxrt
-DPADD+=		${LIBCXXRT}
+LIBADD+=		cxxrt
 .else
-LDADD+=		-lsupc++
-DPADD+=		${LIBSTDCPLUSPLUS}
+LIBADD+=	supcplusplus
 .endif
 
 .if ${MK_CDDL} != "no"
-LDADD+=		-lctf
-DPADD+=		${LIBCTF}
+LIBADD+=	ctf
 IGNORE_PRAGMA=	YES
 CFLAGS+=	-I${.CURDIR}/../../cddl/contrib/opensolaris/lib/libctf/common \
 		-I${.CURDIR}/../../sys/cddl/contrib/opensolaris/uts/common \

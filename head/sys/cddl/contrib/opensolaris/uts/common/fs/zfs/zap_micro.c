@@ -33,10 +33,13 @@
 #include <sys/zap_leaf.h>
 #include <sys/avl.h>
 #include <sys/arc.h>
+#include <sys/dmu_objset.h>
 
 #ifdef _KERNEL
 #include <sys/sunddi.h>
 #endif
+
+extern inline mzap_phys_t *zap_m_phys(zap_t *zap);
 
 static int mzap_upgrade(zap_t **zapp, dmu_tx_t *tx, zap_flags_t flags);
 
@@ -45,7 +48,7 @@ zap_getflags(zap_t *zap)
 {
 	if (zap->zap_ismicro)
 		return (0);
-	return (zap->zap_u.zap_fat.zap_phys->zap_flags);
+	return (zap_f_phys(zap)->zap_flags);
 }
 
 int
@@ -390,7 +393,7 @@ mzap_open(objset_t *os, uint64_t obj, dmu_buf_t *db)
 	 * it, because zap_lockdir() checks zap_ismicro without the lock
 	 * held.
 	 */
-	winner = dmu_buf_set_user(db, zap, &zap->zap_m.zap_phys, zap_evict);
+	winner = dmu_buf_set_user(db, zap, zap_evict);
 
 	if (winner != NULL) {
 		rw_exit(&zap->zap_rwlock);
@@ -402,15 +405,15 @@ mzap_open(objset_t *os, uint64_t obj, dmu_buf_t *db)
 	}
 
 	if (zap->zap_ismicro) {
-		zap->zap_salt = zap->zap_m.zap_phys->mz_salt;
-		zap->zap_normflags = zap->zap_m.zap_phys->mz_normflags;
+		zap->zap_salt = zap_m_phys(zap)->mz_salt;
+		zap->zap_normflags = zap_m_phys(zap)->mz_normflags;
 		zap->zap_m.zap_num_chunks = db->db_size / MZAP_ENT_LEN - 1;
 		avl_create(&zap->zap_m.zap_avl, mze_compare,
 		    sizeof (mzap_ent_t), offsetof(mzap_ent_t, mze_node));
 
 		for (i = 0; i < zap->zap_m.zap_num_chunks; i++) {
 			mzap_ent_phys_t *mze =
-			    &zap->zap_m.zap_phys->mz_chunk[i];
+			    &zap_m_phys(zap)->mz_chunk[i];
 			if (mze->mze_name[0]) {
 				zap_name_t *zn;
 
@@ -427,8 +430,8 @@ mzap_open(objset_t *os, uint64_t obj, dmu_buf_t *db)
 			}
 		}
 	} else {
-		zap->zap_salt = zap->zap_f.zap_phys->zap_salt;
-		zap->zap_normflags = zap->zap_f.zap_phys->zap_normflags;
+		zap->zap_salt = zap_f_phys(zap)->zap_salt;
+		zap->zap_normflags = zap_f_phys(zap)->zap_normflags;
 
 		ASSERT3U(sizeof (struct zap_leaf_header), ==,
 		    2*ZAP_LEAF_CHUNKSIZE);
@@ -438,7 +441,7 @@ mzap_open(objset_t *os, uint64_t obj, dmu_buf_t *db)
 		 * other members.
 		 */
 		ASSERT3P(&ZAP_EMBEDDED_PTRTBL_ENT(zap, 0), >,
-		    &zap->zap_f.zap_phys->zap_salt);
+		    &zap_f_phys(zap)->zap_salt);
 
 		/*
 		 * The embedded pointer table should end at the end of
@@ -446,7 +449,7 @@ mzap_open(objset_t *os, uint64_t obj, dmu_buf_t *db)
 		 */
 		ASSERT3U((uintptr_t)&ZAP_EMBEDDED_PTRTBL_ENT(zap,
 		    1<<ZAP_EMBEDDED_PTRTBL_SHIFT(zap)) -
-		    (uintptr_t)zap->zap_f.zap_phys, ==,
+		    (uintptr_t)zap_f_phys(zap), ==,
 		    zap->zap_dbuf->db_size);
 	}
 	rw_exit(&zap->zap_rwlock);
@@ -664,9 +667,9 @@ zap_create_flags(objset_t *os, int normflags, zap_flags_t flags,
 	uint64_t obj = dmu_object_alloc(os, ot, 0, bonustype, bonuslen, tx);
 
 	ASSERT(leaf_blockshift >= SPA_MINBLOCKSHIFT &&
-	    leaf_blockshift <= SPA_MAXBLOCKSHIFT &&
+	    leaf_blockshift <= SPA_OLD_MAXBLOCKSHIFT &&
 	    indirect_blockshift >= SPA_MINBLOCKSHIFT &&
-	    indirect_blockshift <= SPA_MAXBLOCKSHIFT);
+	    indirect_blockshift <= SPA_OLD_MAXBLOCKSHIFT);
 
 	VERIFY(dmu_object_set_blocksize(os, obj,
 	    1ULL << leaf_blockshift, indirect_blockshift, tx) == 0);
@@ -949,7 +952,7 @@ mzap_addent(zap_name_t *zn, uint64_t value)
 
 #ifdef ZFS_DEBUG
 	for (i = 0; i < zap->zap_m.zap_num_chunks; i++) {
-		mzap_ent_phys_t *mze = &zap->zap_m.zap_phys->mz_chunk[i];
+		mzap_ent_phys_t *mze = &zap_m_phys(zap)->mz_chunk[i];
 		ASSERT(strcmp(zn->zn_key_orig, mze->mze_name) != 0);
 	}
 #endif
@@ -960,7 +963,7 @@ mzap_addent(zap_name_t *zn, uint64_t value)
 
 again:
 	for (i = start; i < zap->zap_m.zap_num_chunks; i++) {
-		mzap_ent_phys_t *mze = &zap->zap_m.zap_phys->mz_chunk[i];
+		mzap_ent_phys_t *mze = &zap_m_phys(zap)->mz_chunk[i];
 		if (mze->mze_name[0] == 0) {
 			mze->mze_value = value;
 			mze->mze_cd = cd;
@@ -1161,7 +1164,7 @@ zap_remove_norm(objset_t *os, uint64_t zapobj, const char *name,
 			err = SET_ERROR(ENOENT);
 		} else {
 			zap->zap_m.zap_num_entries--;
-			bzero(&zap->zap_m.zap_phys->mz_chunk[mze->mze_chunkid],
+			bzero(&zap_m_phys(zap)->mz_chunk[mze->mze_chunkid],
 			    sizeof (mzap_ent_phys_t));
 			mze_remove(zap, mze);
 		}
@@ -1396,7 +1399,6 @@ zap_count_write(objset_t *os, uint64_t zapobj, const char *name, int add,
 	zap_t *zap;
 	int err = 0;
 
-
 	/*
 	 * Since, we don't have a name, we cannot figure out which blocks will
 	 * be affected in this operation. So, account for the worst case :
@@ -1409,7 +1411,7 @@ zap_count_write(objset_t *os, uint64_t zapobj, const char *name, int add,
 	 * large microzap results in a promotion to fatzap.
 	 */
 	if (name == NULL) {
-		*towrite += (3 + (add ? 4 : 0)) * SPA_MAXBLOCKSIZE;
+		*towrite += (3 + (add ? 4 : 0)) * SPA_OLD_MAXBLOCKSIZE;
 		return (err);
 	}
 
@@ -1433,7 +1435,7 @@ zap_count_write(objset_t *os, uint64_t zapobj, const char *name, int add,
 			/*
 			 * We treat this case as similar to (name == NULL)
 			 */
-			*towrite += (3 + (add ? 4 : 0)) * SPA_MAXBLOCKSIZE;
+			*towrite += (3 + (add ? 4 : 0)) * SPA_OLD_MAXBLOCKSIZE;
 		}
 	} else {
 		/*
@@ -1452,12 +1454,12 @@ zap_count_write(objset_t *os, uint64_t zapobj, const char *name, int add,
 		 *			ptrtbl blocks
 		 */
 		if (dmu_buf_freeable(zap->zap_dbuf))
-			*tooverwrite += SPA_MAXBLOCKSIZE;
+			*tooverwrite += MZAP_MAX_BLKSZ;
 		else
-			*towrite += SPA_MAXBLOCKSIZE;
+			*towrite += MZAP_MAX_BLKSZ;
 
 		if (add) {
-			*towrite += 4 * SPA_MAXBLOCKSIZE;
+			*towrite += 4 * MZAP_MAX_BLKSZ;
 		}
 	}
 

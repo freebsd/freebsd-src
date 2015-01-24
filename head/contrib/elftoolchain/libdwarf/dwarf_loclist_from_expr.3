@@ -1,4 +1,4 @@
-.\" Copyright (c) 2011 Kai Wang
+.\" Copyright (c) 2011,2014 Kai Wang
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -22,14 +22,15 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: dwarf_loclist_from_expr.3 2074 2011-10-27 03:34:33Z jkoshy $
+.\" $Id: dwarf_loclist_from_expr.3 3129 2014-12-21 20:06:26Z jkoshy $
 .\"
-.Dd July 6, 2011
+.Dd December 21, 2014
 .Os
 .Dt DWARF_LOCLIST_FROM_EXPR 3
 .Sh NAME
 .Nm dwarf_loclist_from_expr ,
-.Nm dwarf_loclist_from_expr_a
+.Nm dwarf_loclist_from_expr_a ,
+.Nm dwarf_loclist_from_expr_b
 .Nd translate DWARF location expression bytes
 .Sh LIBRARY
 .Lb libdwarf
@@ -53,6 +54,18 @@
 .Fa "Dwarf_Locdesc **llbuf"
 .Fa "Dwarf_Signed *listlen"
 .Fa "Dwarf_Error *err"
+.Fc
+.Ft int
+.Fo dwarf_loclist_from_expr_b
+.Fa "Dwarf_Debug dbg"
+.Fa "Dwarf_Ptr bytes_in"
+.Fa "Dwarf_Unsigned bytes_len"
+.Fa "Dwarf_Half addr_size"
+.Fa "Dwarf_Half offset_size"
+.Fa "Dwarf_Small version"
+.Fa "Dwarf_Locdesc **llbuf"
+.Fa "Dwarf_Signed *listlen"
+.Fa "Dwarf_Error *error"
 .Fc
 .Sh DESCRIPTION
 Function
@@ -104,6 +117,21 @@ except that it requires one additional argument
 .Ar addr_size ,
 which specifies the address size to use when translating the location
 expression bytes.
+.Pp
+Function
+.Fn dwarf_loclist_from_expr_b
+is identical to function
+.Fn dwarf_loclist_from_expr_a
+except that it requires two additional arguments for translating the
+location expression bytes.
+Argument
+.Ar offset_size
+specifies the offset size, and argument
+.Ar version
+specifies the DWARF version.
+These values are required to correctly translate the
+.Dv DW_OP_GNU_implicit_pointer
+opcode.
 .Ss Memory Management
 The memory area used for the descriptor returned in argument
 .Ar llbuf

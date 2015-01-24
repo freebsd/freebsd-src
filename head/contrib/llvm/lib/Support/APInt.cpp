@@ -12,7 +12,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "apint"
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/Hashing.h"
@@ -27,6 +26,8 @@
 #include <cstring>
 #include <limits>
 using namespace llvm;
+
+#define DEBUG_TYPE "apint"
 
 /// A utility function for allocating memory, checking for allocation failures,
 /// and ensuring the contents are zeroed.
@@ -1096,7 +1097,7 @@ APInt APInt::ashr(unsigned shiftAmt) const {
     // to include in this word.
     val[breakWord] = pVal[breakWord+offset] >> wordShift;
 
-    // Deal with sign extenstion in the break word, and possibly the word before
+    // Deal with sign extension in the break word, and possibly the word before
     // it.
     if (isNegative()) {
       if (wordShift > bitsInWord) {
@@ -1683,10 +1684,10 @@ void APInt::divide(const APInt LHS, unsigned lhsWords,
   // Allocate space for the temporary values we need either on the stack, if
   // it will fit, or on the heap if it won't.
   unsigned SPACE[128];
-  unsigned *U = 0;
-  unsigned *V = 0;
-  unsigned *Q = 0;
-  unsigned *R = 0;
+  unsigned *U = nullptr;
+  unsigned *V = nullptr;
+  unsigned *Q = nullptr;
+  unsigned *R = nullptr;
   if ((Remainder?4:3)*n+2*m+1 <= 128) {
     U = &SPACE[0];
     V = &SPACE[m+n+1];
@@ -1872,7 +1873,7 @@ APInt APInt::udiv(const APInt& RHS) const {
 
   // We have to compute it the hard way. Invoke the Knuth divide algorithm.
   APInt Quotient(1,0); // to hold result.
-  divide(*this, lhsWords, RHS, rhsWords, &Quotient, 0);
+  divide(*this, lhsWords, RHS, rhsWords, &Quotient, nullptr);
   return Quotient;
 }
 
@@ -1920,7 +1921,7 @@ APInt APInt::urem(const APInt& RHS) const {
 
   // We have to compute it the hard way. Invoke the Knuth divide algorithm.
   APInt Remainder(1,0);
-  divide(*this, lhsWords, RHS, rhsWords, 0, &Remainder);
+  divide(*this, lhsWords, RHS, rhsWords, nullptr, &Remainder);
   return Remainder;
 }
 

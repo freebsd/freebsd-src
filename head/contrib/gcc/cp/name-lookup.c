@@ -319,35 +319,11 @@ new_class_binding (tree name, tree value, tree type, cxx_scope *scope)
   cp_class_binding *cb;
   cxx_binding *binding;
 
-  if (VEC_length (cp_class_binding, scope->class_shadowed))
-    {
-      cp_class_binding *old_base;
-      old_base = VEC_index (cp_class_binding, scope->class_shadowed, 0);
-      if (VEC_reserve (cp_class_binding, gc, scope->class_shadowed, 1))
-	{
-	  /* Fixup the current bindings, as they might have moved.  */
-	  size_t i;
-
-	  for (i = 0;
-	       VEC_iterate (cp_class_binding, scope->class_shadowed, i, cb);
-	       i++)
-	    {
-	      cxx_binding **b;
-	      b = &IDENTIFIER_BINDING (cb->identifier);
-	      while (*b != &old_base[i].base)
-		b = &((*b)->previous);
-	      *b = &cb->base;
-	    }
-	}
-      cb = VEC_quick_push (cp_class_binding, scope->class_shadowed, NULL);
-    }
-  else
     cb = VEC_safe_push (cp_class_binding, gc, scope->class_shadowed, NULL);
 
   cb->identifier = name;
-  binding = &cb->base;
+  cb->base = binding = cxx_binding_make (value, type);
   binding->scope = scope;
-  cxx_binding_init (binding, value, type);
   return binding;
 }
 
@@ -2501,7 +2477,10 @@ poplevel_class (void)
       for (i = 0;
 	   VEC_iterate (cp_class_binding, level->class_shadowed, i, cb);
 	   ++i)
-	IDENTIFIER_BINDING (cb->identifier) = cb->base.previous;
+	{
+	  IDENTIFIER_BINDING (cb->identifier) = cb->base->previous;
+	  cxx_binding_free (cb->base);
+	}
       ggc_free (level->class_shadowed);
       level->class_shadowed = NULL;
     }

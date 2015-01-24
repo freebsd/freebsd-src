@@ -1,6 +1,7 @@
-/*	$Id: lib.in,v 1.17 2013/10/13 15:24:03 schwarze Exp $ */
+/*	$Id: lib.in,v 1.18 2014/01/06 00:53:33 schwarze Exp $ */
 /*
  * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
+ * Copyright (c) 2009, 2012 Joerg Sonnenberger <joerg@netbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -38,6 +39,7 @@ LINE("libcipher",	"FreeSec Crypt Library (libcipher, \\-lcipher)")
 LINE("libcompat",	"Compatibility Library (libcompat, \\-lcompat)")
 LINE("libcrypt",	"Crypt Library (libcrypt, \\-lcrypt)")
 LINE("libcurses",	"Curses Library (libcurses, \\-lcurses)")
+LINE("libcuse", 	"Userland Character Device Library (libcuse, \\-lcuse)")
 LINE("libdevattr",	"Device attribute and event library (libdevattr, \\-ldevattr)")
 LINE("libdevinfo",	"Device and Resource Information Utility Library (libdevinfo, \\-ldevinfo)")
 LINE("libdevstat",	"Device Statistics Library (libdevstat, \\-ldevstat)")
@@ -55,6 +57,7 @@ LINE("libftpio",	"FTP Connection Management Library (libftpio, \\-lftpio)")
 LINE("libform",		"Curses Form Library (libform, \\-lform)")
 LINE("libgeom",		"Userland API Library for Kernel GEOM subsystem (libgeom, \\-lgeom)")
 LINE("libgpib",		"General-Purpose Instrument Bus (GPIB) library (libgpib, \\-lgpib)")
+LINE("libgpio",		"General-Purpose Input Output (GPIO) library (libgpio, \\-lgpio)")
 LINE("libhammer",	"HAMMER Filesystem Userland Library (libhammer, \\-lhammer)")
 LINE("libi386",		"i386 Architecture Library (libi386, \\-li386)")
 LINE("libintl",		"Internationalized Message Handling Library (libintl, \\-lintl)")
@@ -119,4 +122,5 @@ LINE("libusbhid",	"USB Human Interface Devices Library (libusbhid, \\-lusbhid)")
 LINE("libutil",		"System Utilities Library (libutil, \\-lutil)")
 LINE("libvgl",		"Video Graphics Library (libvgl, \\-lvgl)")
 LINE("libx86_64",	"x86_64 Architecture Library (libx86_64, \\-lx86_64)")
+LINE("libxo",		"Text, XML, JSON, and HTML Output Emission Library (libxo, \\-lxo)")
 LINE("libz",		"Compression Library (libz, \\-lz)")

@@ -148,8 +148,11 @@ static struct ktr_header ktr_header;
 
 void linux_ktrsyscall(struct ktr_syscall *);
 void linux_ktrsysret(struct ktr_sysret *);
-extern char *linux_syscallnames[];
-extern int nlinux_syscalls;
+extern const char *linux_syscallnames[];
+
+#include <linux_syscalls.c>
+static int nlinux_syscalls = sizeof(linux_syscallnames) / \
+				sizeof(linux_syscallnames[0]);
 
 /*
  * from linux.h
@@ -711,6 +714,7 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 			case SYS_readlinkat:
 			case SYS_renameat:
 			case SYS_unlinkat:
+			case SYS_utimensat:
 				putchar('(');
 				atfdname(*ip, decimal);
 				c = ',';
@@ -1934,7 +1938,7 @@ void
 ktrfault(struct ktr_fault *ktr)
 {
 
-	printf("0x%jx ", ktr->vaddr);
+	printf("0x%jx ", (uintmax_t)ktr->vaddr);
 	vmprotname(ktr->type);
 	printf("\n");
 }

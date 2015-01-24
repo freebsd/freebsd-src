@@ -814,8 +814,7 @@ bt3c_receive(bt3c_softc_p sc)
 				break; /* XXX lost of sync */
 			}
 
-			MCLGET(sc->m, M_NOWAIT);
-			if (!(sc->m->m_flags & M_EXT)) {
+			if (!(MCLGET(sc->m, M_NOWAIT))) {
 				NG_FREE_M(sc->m);
 
 				NG_BT3C_ERR(sc->dev, "Could not get cluster\n");

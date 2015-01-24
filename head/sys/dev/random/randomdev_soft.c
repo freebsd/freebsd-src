@@ -153,21 +153,13 @@ randomdev_soft_modevent(module_t mod __unused, int type, void *unused __unused)
 	return (error);
 }
 
-#define	MID_DEV_MODULE(name, evh, arg)	\
-static moduledata_t name##_mod = {		\
-    #name,					\
-    evh,					\
-    arg						\
-};						\
-DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
-
 #if defined(RANDOM_YARROW)
-MID_DEV_MODULE(yarrow, randomdev_soft_modevent, NULL);
+DEV_MODULE(yarrow, randomdev_soft_modevent, NULL);
 MODULE_VERSION(yarrow, 1);
-MODULE_DEPEND(yarrow, random_adaptors, 1, 1, 1);
+MODULE_DEPEND(yarrow, randomdev, 1, 1, 1);
 #endif
 #if defined(RANDOM_FORTUNA)
-MID_DEV_MODULE(fortuna, randomdev_soft_modevent, NULL);
+DEV_MODULE(fortuna, randomdev_soft_modevent, NULL);
 MODULE_VERSION(fortuna, 1);
-MODULE_DEPEND(fortuna, random_adaptors, 1, 1, 1);
+MODULE_DEPEND(fortuna, randomdev, 1, 1, 1);
 #endif

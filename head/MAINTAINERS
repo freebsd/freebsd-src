@@ -48,8 +48,6 @@ cd(4)		ken	Pre-commit review requested.
 pass(4)		ken	Pre-commit review requested.
 ch(4)		ken	Pre-commit review requested.
 em(4)		jfv	Pre-commit review requested.
-bxe(4)		davidch	Pre-commit review requested.
-tdfx(4)		cokane  Just keep me informed of changes, try not to break it.
 sendmail	gshapiro	Pre-commit review requested.
 etc/mail	gshapiro	Pre-commit review requested.
 				Keep in sync with -STABLE.
@@ -78,10 +76,11 @@ inetd		dwmalone	Recommends pre-commit review.
 contrib/smbfs	bp	Open for in-tree committs. In case of functional
 			changes pre-commit review requested.
 contrib/pf	glebius	Pre-commit review recommended.
-binutils	obrien	Insists on BU blocked from unapproved commits
 file		obrien	Insists to keep file blocked from other's unapproved
 			commits
 contrib/bzip2	obrien	Pre-commit review required.
+contrib/netbsd-tests	freebsd-testing,ngie	Pre-commit review requested.
+contrib/pjdfstest	freebsd-testing,ngie	Pre-commit review requested.
 geom_concat	pjd	Pre-commit review preferred.
 geom_eli	pjd	Pre-commit review preferred.
 geom_gate	pjd	Pre-commit review preferred.
@@ -118,7 +117,6 @@ lib/libc/stdtime	edwin   Heads-up appreciated, since parts of this code
 				is maintained by a third party source.
 sbin/routed	bms	Pre-commit review; notify vendor at rhyolite.com
 isci(4)		jimharris	Pre-commit review requested.
-3dfx		cokane		Pre-commit review preferred.
 cmx		daniel@roe.ch	Pre-commit review preferred.
 filemon		obrien		Pre-commit review preferred.
 sysdoc		trhodes		Pre-commit review preferred.

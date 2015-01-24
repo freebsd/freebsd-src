@@ -34,6 +34,7 @@ class BitVector {
   unsigned Capacity;     // Size of allocated memory in BitWord.
 
 public:
+  typedef unsigned size_type;
   // Encapsulation of a single bit.
   class reference {
     friend class BitVector;
@@ -58,21 +59,21 @@ public:
 
     reference& operator=(bool t) {
       if (t)
-        *WordRef |= 1L << BitPos;
+        *WordRef |= BitWord(1) << BitPos;
       else
-        *WordRef &= ~(1L << BitPos);
+        *WordRef &= ~(BitWord(1) << BitPos);
       return *this;
     }
 
     operator bool() const {
-      return ((*WordRef) & (1L << BitPos)) ? true : false;
+      return ((*WordRef) & (BitWord(1) << BitPos)) ? true : false;
     }
   };
 
 
   /// BitVector default ctor - Creates an empty bitvector.
   BitVector() : Size(0), Capacity(0) {
-    Bits = 0;
+    Bits = nullptr;
   }
 
   /// BitVector ctor - Creates a bitvector of specified number of bits. All
@@ -88,7 +89,7 @@ public:
   /// BitVector copy ctor.
   BitVector(const BitVector &RHS) : Size(RHS.size()) {
     if (Size == 0) {
-      Bits = 0;
+      Bits = nullptr;
       Capacity = 0;
       return;
     }
@@ -98,12 +99,10 @@ public:
     std::memcpy(Bits, RHS.Bits, Capacity * sizeof(BitWord));
   }
 
-#if LLVM_HAS_RVALUE_REFERENCES
   BitVector(BitVector &&RHS)
     : Bits(RHS.Bits), Size(RHS.Size), Capacity(RHS.Capacity) {
-    RHS.Bits = 0;
+    RHS.Bits = nullptr;
   }
-#endif
 
   ~BitVector() {
     std::free(Bits);
@@ -113,10 +112,10 @@ public:
   bool empty() const { return Size == 0; }
 
   /// size - Returns the number of bits in this bitvector.
-  unsigned size() const { return Size; }
+  size_type size() const { return Size; }
 
   /// count - Returns the number of bits which are set.
-  unsigned count() const {
+  size_type count() const {
     unsigned NumBits = 0;
     for (unsigned i = 0; i < NumBitWords(size()); ++i)
       if (sizeof(BitWord) == 4)
@@ -240,7 +239,7 @@ public:
   }
 
   BitVector &set(unsigned Idx) {
-    Bits[Idx / BITWORD_SIZE] |= 1L << (Idx % BITWORD_SIZE);
+    Bits[Idx / BITWORD_SIZE] |= BitWord(1) << (Idx % BITWORD_SIZE);
     return *this;
   }
 
@@ -267,7 +266,8 @@ public:
       Bits[I / BITWORD_SIZE] = ~0UL;
 
     BitWord PostfixMask = (1UL << (E % BITWORD_SIZE)) - 1;
-    Bits[I / BITWORD_SIZE] |= PostfixMask;
+    if (I < E)
+      Bits[I / BITWORD_SIZE] |= PostfixMask;
 
     return *this;
   }
@@ -278,7 +278,7 @@ public:
   }
 
   BitVector &reset(unsigned Idx) {
-    Bits[Idx / BITWORD_SIZE] &= ~(1L << (Idx % BITWORD_SIZE));
+    Bits[Idx / BITWORD_SIZE] &= ~(BitWord(1) << (Idx % BITWORD_SIZE));
     return *this;
   }
 
@@ -305,7 +305,8 @@ public:
       Bits[I / BITWORD_SIZE] = 0UL;
 
     BitWord PostfixMask = (1UL << (E % BITWORD_SIZE)) - 1;
-    Bits[I / BITWORD_SIZE] &= ~PostfixMask;
+    if (I < E)
+      Bits[I / BITWORD_SIZE] &= ~PostfixMask;
 
     return *this;
   }
@@ -318,7 +319,7 @@ public:
   }
 
   BitVector &flip(unsigned Idx) {
-    Bits[Idx / BITWORD_SIZE] ^= 1L << (Idx % BITWORD_SIZE);
+    Bits[Idx / BITWORD_SIZE] ^= BitWord(1) << (Idx % BITWORD_SIZE);
     return *this;
   }
 
@@ -330,7 +331,7 @@ public:
 
   bool operator[](unsigned Idx) const {
     assert (Idx < Size && "Out-of-bounds Bit access.");
-    BitWord Mask = 1L << (Idx % BITWORD_SIZE);
+    BitWord Mask = BitWord(1) << (Idx % BITWORD_SIZE);
     return (Bits[Idx / BITWORD_SIZE] & Mask) != 0;
   }
 
@@ -459,7 +460,6 @@ public:
     return *this;
   }
 
-#if LLVM_HAS_RVALUE_REFERENCES
   const BitVector &operator=(BitVector &&RHS) {
     if (this == &RHS) return *this;
 
@@ -468,11 +468,10 @@ public:
     Size = RHS.Size;
     Capacity = RHS.Capacity;
 
-    RHS.Bits = 0;
+    RHS.Bits = nullptr;
 
     return *this;
   }
-#endif
 
   void swap(BitVector &RHS) {
     std::swap(Bits, RHS.Bits);

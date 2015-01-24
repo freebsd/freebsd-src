@@ -135,7 +135,7 @@ __FBSDID("$FreeBSD$");
 static int axe_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, axe, CTLFLAG_RW, 0, "USB axe");
-SYSCTL_INT(_hw_usb_axe, OID_AUTO, debug, CTLFLAG_RW, &axe_debug, 0,
+SYSCTL_INT(_hw_usb_axe, OID_AUTO, debug, CTLFLAG_RWTUN, &axe_debug, 0,
     "Debug level");
 #endif
 

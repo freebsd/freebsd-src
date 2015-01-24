@@ -865,8 +865,7 @@ vx_get(struct vx_softc *sc, u_int totlen)
 			len = MLEN;
 		}
 		if (totlen >= MINCLSIZE) {
-			MCLGET(m, M_NOWAIT);
-			if (m->m_flags & M_EXT)
+			if (MCLGET(m, M_NOWAIT))
 				len = MCLBYTES;
 		}
 		len = min(totlen, len);

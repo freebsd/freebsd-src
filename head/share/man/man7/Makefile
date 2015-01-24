@@ -9,11 +9,13 @@ MAN=	adding_user.7 \
 	bsd.snmpmod.mk.7 \
 	build.7 \
 	clocks.7 \
+	crypto.7 \
 	c99.7 \
 	development.7 \
 	environ.7 \
 	ffs.7 \
 	firewall.7 \
+	growfs.7 \
 	hier.7 \
 	hostname.7 \
 	intro.7 \

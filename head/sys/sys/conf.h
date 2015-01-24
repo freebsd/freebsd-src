@@ -227,14 +227,16 @@ struct devsw_module_data {
 	/* Do not initialize fields hereafter */
 };
 
-#define	DEV_MODULE(name, evh, arg)					\
+#define	DEV_MODULE_ORDERED(name, evh, arg, ord)				\
 static moduledata_t name##_mod = {					\
     #name,								\
     evh,								\
     arg									\
 };									\
-DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
+DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, ord)
 
+#define	DEV_MODULE(name, evh, arg)					\
+    DEV_MODULE_ORDERED(name, evh, arg, SI_ORDER_MIDDLE)
 
 void clone_setup(struct clonedevs **cdp);
 void clone_cleanup(struct clonedevs **);
@@ -243,6 +245,7 @@ void clone_cleanup(struct clonedevs **);
 int clone_create(struct clonedevs **, struct cdevsw *, int *unit, struct cdev **dev, int extra);
 
 int	count_dev(struct cdev *_dev);
+void	delist_dev(struct cdev *_dev);
 void	destroy_dev(struct cdev *_dev);
 int	destroy_dev_sched(struct cdev *dev);
 int	destroy_dev_sched_cb(struct cdev *dev, void (*cb)(void *), void *arg);
@@ -334,9 +337,8 @@ struct dumperinfo {
 	off_t   mediasize;	/* Space available in bytes. */
 };
 
-int set_dumper(struct dumperinfo *, const char *_devname);
+int set_dumper(struct dumperinfo *, const char *_devname, struct thread *td);
 int dump_write(struct dumperinfo *, void *, vm_offset_t, off_t, size_t);
-int dumpsys(struct dumperinfo *);
 int doadump(boolean_t);
 extern int dumping;		/* system is dumping */
 

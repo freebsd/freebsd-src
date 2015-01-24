@@ -45,6 +45,8 @@ In
 .Xr loader.conf 5 :
 .Cd hw.vga.textmode=1
 .Cd kern.vty=vt
+.Cd kern.vt.fb.default_mode="<X>x<Y>"
+.Cd kern.vt.fb.modes.<connector>="<X>x<Y>"
 .Pp
 In
 .Xr loader.conf 5 or
@@ -176,7 +178,7 @@ Otherwise,
 switches to 640x480x16 VGA mode using
 .Cm vt_vga .
 If a KMS
-.Pq Kernel Mode Switching
+.Pq Kernel Mode Setting
 video driver is available, the display is switched to high resolution
 and the KMS driver takes over.
 When a KMS driver is not available,
@@ -203,6 +205,30 @@ By default,
 is used on computers that boot from BIOS, and
 .Nm
 is used on computers that boot from UEFI.
+.It Va kern.vt.fb.default_mode
+Set this value to a graphic mode to override the default mode picked by the
+.Nm
+backend.
+The mode is applied to all output connectors.
+This is currently only supported by the
+.Cm vt_fb
+backend when it's paired with a KMS video driver.
+.It Va kern.vt.fb.modes. Ns Pa connector_name
+Set this value to a graphic mode to override the default mode picked by the
+.Nm
+backend.
+This mode is applied to the output connector
+.Pa connector_name
+only. It has precedence over
+.Va kern.vt.fb.default_mode .
+The names of available connector names can be found in
+.Xr dmesg 8
+after loading the KMS driver.
+It will contain a list of connectors and their associated tunables.
+This is currently only supported by the
+.Cm vt_fb
+backend when it's paired with a KMS video driver.
+.El
 .Sh KEYBOARD SYSCTL TUNABLES
 These settings control whether certain special key combinations are enabled or
 ignored.
@@ -255,6 +281,22 @@ This line changes the default color of kernel messages to be bright red
 on a black background, or black on a bright red background when reversed.
 .Pp
 .Dl "options TERMINAL_KERN_ATTR=(FG_LIGHTRED|BG_BLACK)"
+.Pp
+To set a 1024x768 mode on all output connectors, put the following line in
+.Pa /boot/loader.conf :
+.Pp
+.Dl kern.vt.fb.default_mode="1024x768"
+.Pp
+To set a 800x600 only on a laptop builtin screen, use the following line instead:
+.Pp
+.Dl kern.vt.fb.modes.LVDS-1="800x600"
+.Pp
+The connector name was found in
+.Xr dmesg 8 :
+.Pp
+.Dl info: [drm] Connector LVDS-1: get mode from tunables:
+.Dl info: [drm]   - kern.vt.fb.modes.LVDS-1
+.Dl info: [drm]   - kern.vt.fb.default_mode
 .Sh SEE ALSO
 .Xr kbdcontrol 1 ,
 .Xr login 1 ,

@@ -768,7 +768,6 @@ cs4281_pci_attach(device_t dev)
 
     pci_enable_busmaster(dev);
 
-#if __FreeBSD_version > 500000
     if (pci_get_powerstate(dev) != PCI_POWERSTATE_D0) {
 	/* Reset the power state. */
 	device_printf(dev, "chip is in D%d power mode "
@@ -776,17 +775,6 @@ cs4281_pci_attach(device_t dev)
 
 	pci_set_powerstate(dev, PCI_POWERSTATE_D0);
     }
-#else
-    data = pci_read_config(dev, CS4281PCI_PMCS_OFFSET, 4);
-    if (data & CS4281PCI_PMCS_PS_MASK) {
-	    /* Reset the power state. */
-	    device_printf(dev, "chip is in D%d power mode "
-			  "-- setting to D0\n",
-			  data & CS4281PCI_PMCS_PS_MASK);
-	    pci_write_config(dev, CS4281PCI_PMCS_OFFSET,
-			     data & ~CS4281PCI_PMCS_PS_MASK, 4);
-    }
-#endif
 
     sc->regid   = PCIR_BAR(0);
     sc->regtype = SYS_RES_MEMORY;

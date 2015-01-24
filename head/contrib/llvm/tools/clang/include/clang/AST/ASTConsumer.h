@@ -18,10 +18,10 @@
 
 namespace clang {
   class ASTContext;
+  class CXXMethodDecl;
   class CXXRecordDecl;
   class Decl;
   class DeclGroupRef;
-  class HandleTagDeclDefinition;
   class ASTMutationListener;
   class ASTDeserializationListener; // layering violation because void* is ugly
   class SemaConsumer; // layering violation required for safe SemaConsumer
@@ -50,12 +50,14 @@ public:
   virtual void Initialize(ASTContext &Context) {}
 
   /// HandleTopLevelDecl - Handle the specified top-level declaration.  This is
-  /// called by the parser to process every top-level Decl*. Note that D can be
-  /// the head of a chain of Decls (e.g. for `int a, b` the chain will have two
-  /// elements). Use Decl::getNextDeclarator() to walk the chain.
+  /// called by the parser to process every top-level Decl*.
   ///
   /// \returns true to continue parsing, or false to abort parsing.
   virtual bool HandleTopLevelDecl(DeclGroupRef D);
+
+  /// \brief This callback is invoked each time an inline method definition is
+  /// completed.
+  virtual void HandleInlineMethodDefinition(CXXMethodDecl *D) {}
 
   /// HandleInterestingDecl - Handle the specified interesting declaration. This
   /// is called by the AST reader when deserializing things that might interest
@@ -136,12 +138,12 @@ public:
   /// \brief If the consumer is interested in entities getting modified after
   /// their initial creation, it should return a pointer to
   /// an ASTMutationListener here.
-  virtual ASTMutationListener *GetASTMutationListener() { return 0; }
+  virtual ASTMutationListener *GetASTMutationListener() { return nullptr; }
 
   /// \brief If the consumer is interested in entities being deserialized from
   /// AST files, it should return a pointer to a ASTDeserializationListener here
   virtual ASTDeserializationListener *GetASTDeserializationListener() {
-    return 0;
+    return nullptr;
   }
 
   /// PrintStats - If desired, print any statistics.

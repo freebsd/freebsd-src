@@ -17,21 +17,22 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/IR/LLVMContext.h"
-#include "llvm/Assembly/AssemblyAnnotationWriter.h"
 #include "llvm/Bitcode/ReaderWriter.h"
-#include "llvm/DebugInfo.h"
+#include "llvm/IR/AssemblyAnnotationWriter.h"
+#include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Type.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/DataStream.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/Signals.h"
 #include "llvm/Support/ToolOutputFile.h"
-#include "llvm/Support/system_error.h"
+#include <system_error>
 using namespace llvm;
 
 static cl::opt<std::string>
@@ -66,11 +67,11 @@ static void printDebugLoc(const DebugLoc &DL, formatted_raw_ostream &OS) {
 class CommentWriter : public AssemblyAnnotationWriter {
 public:
   void emitFunctionAnnot(const Function *F,
-                         formatted_raw_ostream &OS) {
+                         formatted_raw_ostream &OS) override {
     OS << "; [#uses=" << F->getNumUses() << ']';  // Output # uses
     OS << '\n';
   }
-  void printInfoComment(const Value &V, formatted_raw_ostream &OS) {
+  void printInfoComment(const Value &V, formatted_raw_ostream &OS) override {
     bool Padded = false;
     if (!V.getType()->isVoidTy()) {
       OS.PadToColumn(50);
@@ -123,7 +124,7 @@ int main(int argc, char **argv) {
   cl::ParseCommandLineOptions(argc, argv, "llvm .bc -> .ll disassembler\n");
 
   std::string ErrorMessage;
-  OwningPtr<Module> M;
+  std::unique_ptr<Module> M;
 
   // Use the bitcode streaming interface
   DataStreamer *streamer = getDataFileStreamer(InputFilename, &ErrorMessage);
@@ -135,12 +136,15 @@ int main(int argc, char **argv) {
       DisplayFilename = InputFilename;
     M.reset(getStreamedBitcodeModule(DisplayFilename, streamer, Context,
                                      &ErrorMessage));
-    if(M.get() != 0 && M->MaterializeAllPermanently(&ErrorMessage)) {
-      M.reset();
+    if(M.get()) {
+      if (std::error_code EC = M->materializeAllPermanently()) {
+        ErrorMessage = EC.message();
+        M.reset();
+      }
     }
   }
 
-  if (M.get() == 0) {
+  if (!M.get()) {
     errs() << argv[0] << ": ";
     if (ErrorMessage.size())
       errs() << ErrorMessage << "\n";
@@ -168,14 +172,14 @@ int main(int argc, char **argv) {
   }
 
   std::string ErrorInfo;
-  OwningPtr<tool_output_file> Out(new tool_output_file(
-      OutputFilename.c_str(), ErrorInfo, sys::fs::F_Binary));
+  std::unique_ptr<tool_output_file> Out(
+      new tool_output_file(OutputFilename.c_str(), ErrorInfo, sys::fs::F_None));
   if (!ErrorInfo.empty()) {
     errs() << ErrorInfo << '\n';
     return 1;
   }
 
-  OwningPtr<AssemblyAnnotationWriter> Annotator;
+  std::unique_ptr<AssemblyAnnotationWriter> Annotator;
   if (ShowAnnotations)
     Annotator.reset(new CommentWriter());
 

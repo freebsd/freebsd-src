@@ -12,7 +12,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#define DEBUG_TYPE "mlx-expansion"
 #include "ARM.h"
 #include "ARMBaseInstrInfo.h"
 #include "ARMSubtarget.h"
@@ -28,6 +27,8 @@
 #include "llvm/Target/TargetRegisterInfo.h"
 using namespace llvm;
 
+#define DEBUG_TYPE "mlx-expansion"
+
 static cl::opt<bool>
 ForceExapnd("expand-all-fp-mlx", cl::init(false), cl::Hidden);
 static cl::opt<unsigned>
@@ -40,9 +41,9 @@ namespace {
     static char ID;
     MLxExpansion() : MachineFunctionPass(ID) {}
 
-    virtual bool runOnMachineFunction(MachineFunction &Fn);
+    bool runOnMachineFunction(MachineFunction &Fn) override;
 
-    virtual const char *getPassName() const {
+    const char *getPassName() const override {
       return "ARM MLA / MLS expansion pass";
     }
 
@@ -73,7 +74,7 @@ namespace {
 }
 
 void MLxExpansion::clearStack() {
-  std::fill(LastMIs, LastMIs + 4, (MachineInstr*)0);
+  std::fill(LastMIs, LastMIs + 4, nullptr);
   MIIdx = 0;
 }
 
@@ -88,7 +89,7 @@ MachineInstr *MLxExpansion::getAccDefMI(MachineInstr *MI) const {
   // real definition MI. This is important for _sfp instructions.
   unsigned Reg = MI->getOperand(1).getReg();
   if (TargetRegisterInfo::isPhysicalRegister(Reg))
-    return 0;
+    return nullptr;
 
   MachineBasicBlock *MBB = MI->getParent();
   MachineInstr *DefMI = MRI->getVRegDef(Reg);
@@ -120,7 +121,7 @@ unsigned MLxExpansion::getDefReg(MachineInstr *MI) const {
     return Reg;
 
   MachineBasicBlock *MBB = MI->getParent();
-  MachineInstr *UseMI = &*MRI->use_nodbg_begin(Reg);
+  MachineInstr *UseMI = &*MRI->use_instr_nodbg_begin(Reg);
   if (UseMI->getParent() != MBB)
     return Reg;
 
@@ -129,7 +130,7 @@ unsigned MLxExpansion::getDefReg(MachineInstr *MI) const {
     if (TargetRegisterInfo::isPhysicalRegister(Reg) ||
         !MRI->hasOneNonDBGUse(Reg))
       return Reg;
-    UseMI = &*MRI->use_nodbg_begin(Reg);
+    UseMI = &*MRI->use_instr_nodbg_begin(Reg);
     if (UseMI->getParent() != MBB)
       return Reg;
   }
@@ -312,9 +313,9 @@ MLxExpansion::ExpandFPMLxInstruction(MachineBasicBlock &MBB, MachineInstr *MI,
       dbgs() << "Expanding: " << *MI;
       dbgs() << "  to:\n";
       MachineBasicBlock::iterator MII = MI;
-      MII = llvm::prior(MII);
+      MII = std::prev(MII);
       MachineInstr &MI2 = *MII;
-      MII = llvm::prior(MII);
+      MII = std::prev(MII);
       MachineInstr &MI1 = *MII;
       dbgs() << "    " << MI1;
       dbgs() << "    " << MI2;
@@ -335,7 +336,7 @@ bool MLxExpansion::ExpandFPMLxInstructions(MachineBasicBlock &MBB) {
   while (MII != E) {
     MachineInstr *MI = &*MII;
 
-    if (MI->isLabel() || MI->isImplicitDef() || MI->isCopy()) {
+    if (MI->isPosition() || MI->isImplicitDef() || MI->isCopy()) {
       ++MII;
       continue;
     }
@@ -352,7 +353,7 @@ bool MLxExpansion::ExpandFPMLxInstructions(MachineBasicBlock &MBB) {
     if (Domain == ARMII::DomainGeneral) {
       if (++Skip == 2)
         // Assume dual issues of non-VFP / NEON instructions.
-        pushStack(0);
+        pushStack(nullptr);
     } else {
       Skip = 0;
 
@@ -385,11 +386,8 @@ bool MLxExpansion::runOnMachineFunction(MachineFunction &Fn) {
   isSwift = STI->isSwift();
 
   bool Modified = false;
-  for (MachineFunction::iterator MFI = Fn.begin(), E = Fn.end(); MFI != E;
-       ++MFI) {
-    MachineBasicBlock &MBB = *MFI;
+  for (MachineBasicBlock &MBB : Fn)
     Modified |= ExpandFPMLxInstructions(MBB);
-  }
 
   return Modified;
 }

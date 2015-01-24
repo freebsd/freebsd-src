@@ -105,6 +105,7 @@ sysarch(td, uap)
 	union {
 		struct i386_ldt_args largs;
 		struct i386_ioperm_args iargs;
+		struct i386_get_xfpustate xfpu;
 	} kargs;
 	uint32_t base;
 	struct segment_descriptor sd, *sdp;
@@ -126,6 +127,7 @@ sysarch(td, uap)
 		case I386_SET_FSBASE:
 		case I386_GET_GSBASE:
 		case I386_SET_GSBASE:
+		case I386_GET_XFPUSTATE:
 			break;
 
 		case I386_SET_IOPERM:
@@ -153,6 +155,11 @@ sysarch(td, uap)
 			return (error);
 		if (kargs.largs.num > MAX_LD || kargs.largs.num <= 0)
 			return (EINVAL);
+		break;
+	case I386_GET_XFPUSTATE:
+		if ((error = copyin(uap->parms, &kargs.xfpu,
+		    sizeof(struct i386_get_xfpustate))) != 0)
+			return (error);
 		break;
 	default:
 		break;
@@ -269,6 +276,14 @@ sysarch(td, uap)
 			critical_exit();
 			load_gs(GSEL(GUGS_SEL, SEL_UPL));
 		}
+		break;
+	case I386_GET_XFPUSTATE:
+		if (kargs.xfpu.len > cpu_max_ext_state_size -
+		    sizeof(union savefpu))
+			return (EINVAL);
+		npxgetregs(td);
+		error = copyout((char *)(get_pcb_user_save_td(td) + 1),
+		    kargs.xfpu.addr, kargs.xfpu.len);
 		break;
 	default:
 		error = EINVAL;
