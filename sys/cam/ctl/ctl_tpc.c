@@ -916,7 +916,7 @@ tpc_process_b2b(struct tpc_list *list)
 				    /*control*/ 0);
 		tiow->io->io_hdr.retries = 3;
 		tiow->lun = dl;
-		tiow->io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = tior;
+		tiow->io->io_hdr.ctl_private[CTL_PRIV_FRONTEND].ptr = tiow;
 
 		TAILQ_INSERT_TAIL(&tior->run, tiow, rlinks);
 		TAILQ_INSERT_TAIL(prun, tior, rlinks);
