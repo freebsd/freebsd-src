@@ -322,7 +322,10 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			a_name = NULL;
 		}
 	} else {
-		if (strspn(a_uid->val, "0123456789") != strlen(a_uid->val))
+		const char *teststr = a_uid->val;
+		if (*teststr == '-')
+			teststr++;
+		if (strspn(teststr, "0123456789") != strlen(teststr))
 			errx(EX_USAGE, "-u expects a number");
 	}
 

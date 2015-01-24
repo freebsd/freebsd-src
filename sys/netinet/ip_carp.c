@@ -1702,12 +1702,14 @@ carp_ioctl(struct ifreq *ifr, u_long cmd, struct thread *td)
 			switch (carpr.carpr_state) {
 			case BACKUP:
 				callout_stop(&sc->sc_ad_tmo);
-				carp_set_state(sc, BACKUP, "SIOCSVH");
+				carp_set_state(sc, BACKUP,
+				    "user requested via ifconfig");
 				carp_setrun(sc, 0);
 				carp_delroute(sc);
 				break;
 			case MASTER:
-				carp_master_down_locked(sc, "SIOCSVH");
+				carp_master_down_locked(sc,
+				    "user requested via ifconfig");
 				break;
 			default:
 				break;
@@ -1999,13 +2001,13 @@ carp_sc_state(struct carp_softc *sc)
 #ifdef INET6
 		callout_stop(&sc->sc_md6_tmo);
 #endif
-		carp_set_state(sc, INIT, "hw interface down");
+		carp_set_state(sc, INIT, "hardware interface down");
 		carp_setrun(sc, 0);
 		if (!sc->sc_suppress)
 			carp_demote_adj(V_carp_ifdown_adj, "interface down");
 		sc->sc_suppress = 1;
 	} else {
-		carp_set_state(sc, INIT, "hw interface up");
+		carp_set_state(sc, INIT, "hardware interface up");
 		carp_setrun(sc, 0);
 		if (sc->sc_suppress)
 			carp_demote_adj(-V_carp_ifdown_adj, "interface up");

@@ -36,6 +36,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -48,9 +49,7 @@
 #include <unistd.h>
 
 #ifdef __FreeBSD__
-#if __FreeBSD_version >= 800028
 #define HAVE_SYSID
-#endif
 #include <sys/cdefs.h>
 #else
 #ifndef nitems
@@ -72,8 +71,6 @@ static int
 make_file(const char *pathname, off_t sz)
 {
 	struct stat st;
-	const char *template = "/flocktempXXXXXX";
-	size_t len;
 	char *filename;
 	int fd;
 
@@ -88,10 +85,8 @@ make_file(const char *pathname, off_t sz)
 		}
 	}
 
-	len = strlen(pathname) + strlen(template) + 1;
-	filename = malloc(len);
-	strcpy(filename, pathname);
-	strcat(filename, template);
+	if (asprintf(&filename, "%s/flocktempXXXXXX", pathname) == -1)
+		err(1, "asprintf");
 	fd = mkstemp(filename);
 	if (fd < 0)
 		err(1, "mkstemp");
@@ -127,12 +122,12 @@ safe_waitpid(pid_t pid)
 	return (status);
 }
 
-#define FAIL(test)					\
-	do {						\
-		if (test) {				\
-			printf("FAIL (%s)\n", #test);	\
-			return -1;			\
-		}					\
+#define FAIL(test)							\
+	do {								\
+		if (test) {						\
+			printf("FAIL @ %d (%s)\n", __LINE__, #test);	\
+			assert(0);					\
+		}							\
 	} while (0)
 
 #define SUCCEED \
@@ -1575,18 +1570,6 @@ main(int argc, const char *argv[])
 	sigaction(SIGALRM, &sa, 0);
 
 	nointr = 0;
-#if defined(__FreeBSD__) && __FreeBSD_version < 800040
-	{
-		/*
-		 * FreeBSD with userland NLM can't interrupt a blocked
-		 * lock request on an NFS mounted filesystem.
-		 */
-		struct statfs st;
-		fstatfs(fd, &st);
-		nointr = !strcmp(st.f_fstypename, "nfs");
-	}
-#endif
-
 	for (i = 0; i < nitems(tests); i++) {
 		if (tests[i].intr && nointr)
 			continue;

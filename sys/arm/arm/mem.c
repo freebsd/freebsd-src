@@ -82,8 +82,6 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	int error = 0;
 	vm_offset_t addr, eaddr;
 
-	GIANT_REQUIRED;
-
 	while (uio->uio_resid > 0 && error == 0) {
 		iov = uio->uio_iov;
 		if (iov->iov_len == 0) {
