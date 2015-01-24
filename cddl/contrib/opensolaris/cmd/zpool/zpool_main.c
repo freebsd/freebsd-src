@@ -4629,6 +4629,13 @@ upgrade_cb(zpool_handle_t *zhp, void *arg)
 	boolean_t printnl = B_FALSE;
 	int ret;
 
+	if (zpool_get_state(zhp) == POOL_STATE_UNAVAIL) {
+		(void) fprintf(stderr, gettext("cannot upgrade '%s': pool is "
+		    "currently unavailable\n\n"), zpool_get_name(zhp));
+		/* Allow iteration to continue. */
+		return (0);
+	}
+
 	config = zpool_get_config(zhp, NULL);
 	verify(nvlist_lookup_uint64(config, ZPOOL_CONFIG_VERSION,
 	    &version) == 0);
@@ -4728,6 +4735,14 @@ upgrade_list_disabled_cb(zpool_handle_t *zhp, void *arg)
 	upgrade_cbdata_t *cbp = arg;
 	nvlist_t *config;
 	uint64_t version;
+
+	if (zpool_get_state(zhp) == POOL_STATE_UNAVAIL) {
+		(void) fprintf(stderr, gettext("cannot check supported "
+		    "features on '%s': pool is currently unavailable\n\n"),
+		    zpool_get_name(zhp));
+		/* Allow iteration to continue. */
+		return (0);
+	}
 
 	config = zpool_get_config(zhp, NULL);
 	verify(nvlist_lookup_uint64(config, ZPOOL_CONFIG_VERSION,
