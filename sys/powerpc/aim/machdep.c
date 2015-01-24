@@ -535,7 +535,7 @@ powerpc_init(vm_offset_t fdt, vm_offset_t toc, vm_offset_t ofentry, void *mdp)
 #endif
 	bcopy(&alitrap,  (void *)(EXC_ALI + trap_offset),  (size_t)&aliend -
 	    (size_t)&alitrap);
-	bcopy(&dsitrap,  (void *)(EXC_DSI + trap_offset),  (size_t)&dsitrap -
+	bcopy(&dsitrap,  (void *)(EXC_DSI + trap_offset),  (size_t)&dsiend -
 	    (size_t)&dsitrap);
 	bcopy(generictrap, (void *)EXC_ISI,  trapsize);
 	#ifdef __powerpc64__
