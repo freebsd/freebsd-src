@@ -40,6 +40,9 @@ __RCSID("$NetBSD: t_utimensat.c,v 1.5 2013/03/17 04:46:06 jmmv Exp $");
 #include <string.h>
 #include <unistd.h>
 #include <sys/param.h>
+#ifdef __FreeBSD__
+#include <sys/stat.h>
+#endif
 #include <sys/time.h>
 
 #define DIR "dir"
