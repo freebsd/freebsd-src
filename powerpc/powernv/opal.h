@@ -40,6 +40,8 @@ int opal_call(uint64_t token, ...);
 
 #define OPAL_CONSOLE_WRITE	1
 #define OPAL_CONSOLE_READ	2
+#define	OPAL_CEC_POWER_DOWN	5
+#define	OPAL_CEC_REBOOT		6
 #define	OPAL_SET_XIVE		19
 #define	OPAL_GET_XIVE		20
 #define OPAL_START_CPU		41

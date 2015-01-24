@@ -324,6 +324,8 @@ powernv_smp_topo(platform_t plat)
 static void
 powernv_reset(platform_t platform)
 {
+
+	opal_call(OPAL_CEC_REBOOT);
 }
 
 static void
