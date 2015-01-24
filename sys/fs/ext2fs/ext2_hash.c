@@ -196,10 +196,10 @@ ext2_prep_hashbuf(const char *src, int slen, uint32_t *dst, int dlen,
 {
 	uint32_t padding = slen | (slen << 8) | (slen << 16) | (slen << 24);
 	uint32_t buf_val;
-	int len, i;
-	int buf_byte;
 	const unsigned char *ubuf = (const unsigned char *)src;
 	const signed char *sbuf = (const signed char *)src;
+	int len, i;
+	int buf_byte;
 
 	if (slen > dlen)
 		len = dlen;
@@ -265,6 +265,7 @@ ext2_htree_hash(const char *name, int len,
 	switch (hash_version) {
 	case EXT2_HTREE_TEA_UNSIGNED:
 		unsigned_char = 1;
+		/* FALLTHROUGH */
 	case EXT2_HTREE_TEA:
 		while (len > 0) {
 			ext2_prep_hashbuf(name, len, data, 16, unsigned_char);
@@ -277,11 +278,13 @@ ext2_htree_hash(const char *name, int len,
 		break;
 	case EXT2_HTREE_LEGACY_UNSIGNED:
 		unsigned_char = 1;
+		/* FALLTHROUGH */
 	case EXT2_HTREE_LEGACY:
 		major = ext2_legacy_hash(name, len, unsigned_char);
 		break;
 	case EXT2_HTREE_HALF_MD4_UNSIGNED:
 		unsigned_char = 1;
+		/* FALLTHROUGH */
 	case EXT2_HTREE_HALF_MD4:
 		while (len > 0) {
 			ext2_prep_hashbuf(name, len, data, 32, unsigned_char);
