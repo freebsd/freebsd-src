@@ -99,8 +99,6 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	error = 0;
 	ova = 0;
 
-	GIANT_REQUIRED;
-
 	while (uio->uio_resid > 0 && error == 0) {
 		iov = uio->uio_iov;
 		if (iov->iov_len == 0) {

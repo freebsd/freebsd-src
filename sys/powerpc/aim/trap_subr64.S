@@ -294,7 +294,7 @@ dtrace_invop_calltrap_addr:
  * not still hanging around in the trap handling region
  * once the MMU is turned on.
  */
-	.globl	CNAME(rstcode), CNAME(rstsize)
+	.globl	CNAME(rstcode), CNAME(rstcodeend)
 CNAME(rstcode):
 	/* Explicitly set MSR[SF] */
 	mfmsr	%r9
@@ -309,7 +309,7 @@ CNAME(rstcode):
 	mtlr	%r9
 
 	blr
-CNAME(rstsize) = . - CNAME(rstcode)
+CNAME(rstcodeend):
 
 cpu_reset:
 	GET_TOCBASE(%r2)
@@ -350,7 +350,7 @@ cpu_reset:
  * (except ISI/DSI, ALI, and the interrupts). Has to fit in 8 instructions!
  */
 
-	.globl	CNAME(trapcode),CNAME(trapsize)
+	.globl	CNAME(trapcode),CNAME(trapcodeend)
 	.p2align 3
 CNAME(trapcode):
 	mtsprg1	%r1			/* save SP */
@@ -361,7 +361,7 @@ CNAME(trapcode):
 	mtlr	%r1
 	li	%r1, 0xA0		/* How to get the vector from LR */
 	blrl				/* Branch to generictrap */
-CNAME(trapsize) = .-CNAME(trapcode)
+CNAME(trapcodeend):
 
 /*
  * For SLB misses: do special things for the kernel
@@ -369,7 +369,7 @@ CNAME(trapsize) = .-CNAME(trapcode)
  * Note: SPRG1 is always safe to overwrite any time the MMU is on, which is
  * the only time this can be called.
  */
-	.globl	CNAME(slbtrap),CNAME(slbtrapsize)
+	.globl	CNAME(slbtrap),CNAME(slbtrapend)
 	.p2align 3
 CNAME(slbtrap):
 	mtsprg1	%r1			/* save SP */
@@ -404,7 +404,7 @@ CNAME(slbtrap):
 	mtlr	%r1
 	GET_CPUINFO(%r1)
 	blrl				/* 124 bytes -- 4 to spare */
-CNAME(slbtrapsize) = .-CNAME(slbtrap)
+CNAME(slbtrapend):
 
 kern_slbtrap:
 	std	%r2,(PC_SLBSAVE+136)(%r1) /* old LR */
@@ -525,7 +525,7 @@ kern_slbtrap:
 /*
  * For ALI: has to save DSISR and DAR
  */
-	.globl	CNAME(alitrap),CNAME(alisize)
+	.globl	CNAME(alitrap),CNAME(aliend)
 CNAME(alitrap):
 	mtsprg1	%r1			/* save SP */
 	GET_CPUINFO(%r1)
@@ -560,13 +560,13 @@ CNAME(alitrap):
 	mfsrr1	%r31
 	mtcr	%r31
 	blrl
-CNAME(alisize) = .-CNAME(alitrap)
+CNAME(aliend):
 
 /*
  * Similar to the above for DSI
  * Has to handle standard pagetable spills
  */
-	.globl	CNAME(dsitrap),CNAME(dsisize)
+	.globl	CNAME(dsitrap),CNAME(dsiend)
 CNAME(dsitrap):
 	mtsprg1	%r1			/* save SP */
 	GET_CPUINFO(%r1)
@@ -587,7 +587,7 @@ CNAME(dsitrap):
 	ld	%r1,0(%r1)
 	mtlr	%r1
 	blrl				/* Branch to generictrap */
-CNAME(dsisize) = .-CNAME(dsitrap)
+CNAME(dsiend):
 
 /*
  * Preamble code for DSI/ISI traps
@@ -830,7 +830,7 @@ dbleave:
 /*
  * In case of KDB we want a separate trap catcher for it
  */
-	.globl	CNAME(dblow),CNAME(dbsize)
+	.globl	CNAME(dblow),CNAME(dbend)
 CNAME(dblow):
 	mtsprg1	%r1			/* save SP */
 	mtsprg2	%r29			/* save r29 */
@@ -869,5 +869,5 @@ CNAME(dblow):
 	ld	%r1,0(%r1)
 	mtlr	%r1
 	blrl				/* Branch to generictrap */
-CNAME(dbsize) = .-CNAME(dblow)
+CNAME(dbend):
 #endif /* KDB */

@@ -42,4 +42,6 @@ void imx6_anatop_write_4(bus_size_t _offset, uint32_t _value);
 
 uint32_t imx6_get_cpu_clock(void);
 
+uint32_t pll4_configure_output(uint32_t mfi, uint32_t mfn, uint32_t mfd);
+
 #endif
