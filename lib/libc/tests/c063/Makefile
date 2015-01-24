@@ -2,7 +2,7 @@
 
 TESTSDIR=	${TESTSBASE}/lib/libc/c063
 
-#TODO: t_o_search, t_utimensat
+#TODO: t_o_search
 
 NETBSD_ATF_TESTS_C=	faccessat
 NETBSD_ATF_TESTS_C+=	fchmodat
@@ -18,6 +18,7 @@ NETBSD_ATF_TESTS_C+=	readlinkat
 NETBSD_ATF_TESTS_C+=	renameat
 NETBSD_ATF_TESTS_C+=	symlinkat
 NETBSD_ATF_TESTS_C+=	unlinkat
+NETBSD_ATF_TESTS_C+=	utimensat
 
 CFLAGS+= -D_INCOMPLETE_XOPEN_C063
 
