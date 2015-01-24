@@ -180,6 +180,12 @@ static int vm_swap_enabled = 1;
 static int vm_swap_idle_enabled = 0;
 #endif
 
+static int vm_panic_on_oom = 0;
+
+SYSCTL_INT(_vm, OID_AUTO, panic_on_oom,
+	CTLFLAG_RWTUN, &vm_panic_on_oom, 0,
+	"panic on out of memory instead of killing the largest process");
+
 SYSCTL_INT(_vm, OID_AUTO, pageout_wakeup_thresh,
 	CTLFLAG_RW, &vm_pageout_wakeup_thresh, 0,
 	"free page threshold for waking up the pageout daemon");
@@ -1585,6 +1591,8 @@ vm_pageout_oom(int shortage)
 	}
 	sx_sunlock(&allproc_lock);
 	if (bigproc != NULL) {
+		if (vm_panic_on_oom != 0)
+			panic("out of swap space");
 		PROC_LOCK(bigproc);
 		killproc(bigproc, "out of swap space");
 		sched_nice(bigproc, PRIO_MIN);
