@@ -40,7 +40,6 @@ SUBDIR=	${_addr2line} \
 	dirname \
 	dpv \
 	du \
-	ee \
 	elf2aout \
 	${_elfcopy} \
 	elfdump \
@@ -238,6 +237,10 @@ SUBDIR+=	calendar
 
 .if ${MK_CLANG} != "no"
 _clang=		clang
+.endif
+
+.if ${MK_EE} != "no"
+SUBDIR+=	ee
 .endif
 
 .if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
