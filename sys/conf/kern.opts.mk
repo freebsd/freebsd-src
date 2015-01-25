@@ -30,6 +30,7 @@ __DEFAULT_YES_OPTIONS = \
     INET \
     INET6 \
     IPFILTER \
+    ISCSI \
     KERNEL_SYMBOLS \
     NETGRAPH \
     PF \
