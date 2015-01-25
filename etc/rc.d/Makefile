@@ -30,7 +30,6 @@ FILES=	DAEMON \
 	bsnmpd \
 	${_bthidd} \
 	${_casperd} \
-	ccd \
 	cleanvar \
 	cleartmp \
 	cron \
@@ -171,6 +170,10 @@ _ubthidhci=	ubthidhci
 
 .if ${MK_CASPER} != "no"
 _casperd=	casperd
+.endif
+
+.if ${MK_CCD} != "no"
+FILES+=		ccd
 .endif
 
 .if ${MK_ISCSI} != "no"
