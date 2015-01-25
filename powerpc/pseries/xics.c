@@ -95,8 +95,7 @@ static device_method_t  xics_methods[] = {
 
 struct xicp_softc {
 	struct mtx sc_mtx;
-	struct resource *mem;
-	int memrid;
+	struct resource *mem[MAXCPU];
 
 	int ibm_int_on;
 	int ibm_int_off;
@@ -165,6 +164,7 @@ xicp_attach(device_t dev)
 {
 	struct xicp_softc *sc = device_get_softc(dev);
 	phandle_t phandle = ofw_bus_get_node(dev);
+	int i = 0;
 
 	if (rtas_exists()) {
 		sc->ibm_int_on = rtas_token_lookup("ibm,int-on");
@@ -179,12 +179,18 @@ xicp_attach(device_t dev)
 	}
 
 	if (mfmsr() & PSL_HV) {
-		sc->memrid = 0;
-		sc->mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-		    &sc->memrid, RF_ACTIVE);
-		if (sc->mem == NULL) {
-			device_printf(dev, "Could not alloc mem resource\n");
-			return (ENXIO);
+		for (i = 0; i < mp_ncpus; i++) {
+			sc->mem[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+			    &i, RF_ACTIVE);
+			if (sc->mem[i] == NULL) {
+				device_printf(dev, "Could not alloc mem "
+				    "resource %d\n", i);
+				return (ENXIO);
+			}
+
+			/* Unmask interrupts on all cores */
+			bus_write_1(sc->mem[i], 4, 0xff);
+			bus_write_1(sc->mem[i], 12, 0xff);
 		}
 	}
 
@@ -253,8 +259,8 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 
 	sc = device_get_softc(dev);
 	for (;;) {
-		if (sc->mem) {
-			xirr = bus_read_4(sc->mem, 4);
+		if (sc->mem[0]) {
+			xirr = bus_read_4(sc->mem[PCPU_GET(cpuid)], 4);
 		} else {
 			/* Return value in R4, use the PFT call */
 			phyp_pft_hcall(H_XIRR, 0, 0, 0, 0, &xirr, &junk, &junk);
@@ -262,8 +268,8 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 		xirr &= 0x00ffffff;
 
 		if (xirr == 0) { /* No more pending interrupts? */
-			if (sc->mem)
-				bus_write_1(sc->mem, 4, 0xff);
+			if (sc->mem[0])
+				bus_write_1(sc->mem[PCPU_GET(cpuid)], 4, 0xff);
 			else
 				phyp_hcall(H_CPPR, (uint64_t)0xff);
 			break;
@@ -272,8 +278,8 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 			xirr = MAX_XICP_IRQS;	/* Map to FreeBSD magic */
 
 			/* Clear IPI */
-			if (sc->mem)
-				bus_write_1(sc->mem, 12, 0xff);
+			if (sc->mem[0])
+				bus_write_1(sc->mem[PCPU_GET(cpuid)], 12, 0xff);
 			else
 				phyp_hcall(H_IPI, (uint64_t)(PCPU_GET(cpuid)),
 				    0xff);
@@ -336,8 +342,8 @@ xicp_eoi(device_t dev, u_int irq)
 		irq = XICP_IPI;
 	xirr = irq | (XICP_PRIORITY << 24);
 
-	if (sc->mem)
-		bus_write_4(sc->mem, 4, xirr);
+	if (sc->mem[0])
+		bus_write_4(sc->mem[PCPU_GET(cpuid)], 4, xirr);
 	else
 		phyp_hcall(H_EOI, xirr);
 }
@@ -347,8 +353,8 @@ xicp_ipi(device_t dev, u_int cpu)
 {
 	struct xicp_softc *sc = device_get_softc(dev);
 
-	if (sc->mem)
-		bus_write_1(sc->mem, 12, XICP_PRIORITY); /* Pick node! */
+	if (sc->mem[0])
+		bus_write_1(sc->mem[cpu], 12, XICP_PRIORITY);
 	else
 		phyp_hcall(H_IPI, (uint64_t)cpu, XICP_PRIORITY);
 }
