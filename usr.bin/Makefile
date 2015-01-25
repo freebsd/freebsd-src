@@ -69,7 +69,6 @@ SUBDIR=	${_addr2line} \
 	id \
 	ipcrm \
 	ipcs \
-	iscsictl \
 	join \
 	jot \
 	${_kdump} \
@@ -271,6 +270,10 @@ SUBDIR+=	hesinfo
 _iconv=		iconv
 _mkcsmapper=	mkcsmapper
 _mkesdb=	mkesdb
+.endif
+
+.if ${MK_ISCSI} != "no"
+SUBDIR+=	iscsictl
 .endif
 
 .if ${MK_KDUMP} != "no"
