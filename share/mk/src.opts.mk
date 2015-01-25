@@ -97,6 +97,7 @@ __DEFAULT_YES_OPTIONS = \
     INET6 \
     IPFILTER \
     IPFW \
+    ISCSI \
     JAIL \
     KDUMP \
     KVM \
