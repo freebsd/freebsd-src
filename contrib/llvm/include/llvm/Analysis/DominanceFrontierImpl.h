@@ -15,8 +15,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_ANALYSIS_DOMINANCEFRONTIER_IMPL_H
-#define LLVM_ANALYSIS_DOMINANCEFRONTIER_IMPL_H
+#ifndef LLVM_ANALYSIS_DOMINANCEFRONTIERIMPL_H
+#define LLVM_ANALYSIS_DOMINANCEFRONTIERIMPL_H
 
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/Support/Debug.h"
@@ -172,9 +172,7 @@ ForwardDominanceFrontierBase<BlockT>::calculate(const DomTreeT &DT,
     DomSetType &S = this->Frontiers[currentBB];
 
     // Visit each block only once.
-    if (visited.count(currentBB) == 0) {
-      visited.insert(currentBB);
-
+    if (visited.insert(currentBB).second) {
       // Loop over CFG successors to calculate DFlocal[currentNode]
       for (auto SI = BlockTraits::child_begin(currentBB),
                 SE = BlockTraits::child_end(currentBB);

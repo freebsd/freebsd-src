@@ -82,13 +82,33 @@ inline uint64_t decodeULEB128(const uint8_t *p, unsigned *n = nullptr) {
   uint64_t Value = 0;
   unsigned Shift = 0;
   do {
-    Value += (*p & 0x7f) << Shift;
+    Value += uint64_t(*p & 0x7f) << Shift;
     Shift += 7;
   } while (*p++ >= 128);
   if (n)
     *n = (unsigned)(p - orig_p);
   return Value;
 }
+
+/// Utility function to decode a SLEB128 value.
+inline int64_t decodeSLEB128(const uint8_t *p, unsigned *n = nullptr) {
+  const uint8_t *orig_p = p;
+  int64_t Value = 0;
+  unsigned Shift = 0;
+  uint8_t Byte;
+  do {
+    Byte = *p++;
+    Value |= ((Byte & 0x7f) << Shift);
+    Shift += 7;
+  } while (Byte >= 128);
+  // Sign extend negative numbers.
+  if (Byte & 0x40)
+    Value |= (-1ULL) << Shift;
+  if (n)
+    *n = (unsigned)(p - orig_p);
+  return Value;
+}
+
 
 /// Utility function to get the size of the ULEB128-encoded value.
 extern unsigned getULEB128Size(uint64_t Value);

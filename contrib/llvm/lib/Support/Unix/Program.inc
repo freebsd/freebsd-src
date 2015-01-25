@@ -17,8 +17,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "Unix.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/raw_ostream.h"
 #include <llvm/Config/config.h>
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
@@ -53,50 +55,32 @@ using namespace sys;
 
 ProcessInfo::ProcessInfo() : Pid(0), ReturnCode(0) {}
 
-// This function just uses the PATH environment variable to find the program.
-std::string
-sys::FindProgramByName(const std::string& progName) {
-
-  // Check some degenerate cases
-  if (progName.length() == 0) // no program
-    return "";
-  std::string temp = progName;
+ErrorOr<std::string> sys::findProgramByName(StringRef Name,
+                                            ArrayRef<StringRef> Paths) {
+  assert(!Name.empty() && "Must have a name!");
   // Use the given path verbatim if it contains any slashes; this matches
   // the behavior of sh(1) and friends.
-  if (progName.find('/') != std::string::npos)
-    return temp;
+  if (Name.find('/') != StringRef::npos)
+    return std::string(Name);
 
-  // At this point, the file name is valid and does not contain slashes. Search
-  // for it through the directories specified in the PATH environment variable.
+  SmallVector<StringRef, 16> EnvironmentPaths;
+  if (Paths.empty())
+    if (const char *PathEnv = std::getenv("PATH")) {
+      SplitString(PathEnv, EnvironmentPaths, ":");
+      Paths = EnvironmentPaths;
+    }
 
-  // Get the path. If its empty, we can't do anything to find it.
-  const char *PathStr = getenv("PATH");
-  if (!PathStr)
-    return "";
-
-  // Now we have a colon separated list of directories to search; try them.
-  size_t PathLen = strlen(PathStr);
-  while (PathLen) {
-    // Find the first colon...
-    const char *Colon = std::find(PathStr, PathStr+PathLen, ':');
+  for (auto Path : Paths) {
+    if (Path.empty())
+      continue;
 
     // Check to see if this first directory contains the executable...
-    SmallString<128> FilePath(PathStr,Colon);
-    sys::path::append(FilePath, progName);
-    if (sys::fs::can_execute(Twine(FilePath)))
-      return FilePath.str();                    // Found the executable!
-
-    // Nope it wasn't in this directory, check the next path in the list!
-    PathLen -= Colon-PathStr;
-    PathStr = Colon;
-
-    // Advance past duplicate colons
-    while (*PathStr == ':') {
-      PathStr++;
-      PathLen--;
-    }
+    SmallString<128> FilePath(Path);
+    sys::path::append(FilePath, Name);
+    if (sys::fs::can_execute(FilePath.c_str()))
+      return std::string(FilePath.str()); // Found the executable!
   }
-  return "";
+  return std::errc::no_such_file_or_directory;
 }
 
 static bool RedirectIO(const StringRef *Path, int FD, std::string* ErrMsg) {
@@ -334,7 +318,6 @@ ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
   pid_t ChildPid = PI.Pid;
   if (WaitUntilTerminates) {
     SecondsToWait = 0;
-    ChildPid = -1; // mimic a wait() using waitpid()
   } else if (SecondsToWait) {
     // Install a timeout handler.  The handler itself does nothing, but the
     // simple fact of having a handler at all causes the wait below to return
@@ -440,6 +423,23 @@ ProcessInfo sys::Wait(const ProcessInfo &PI, unsigned SecondsToWait,
     return std::error_code();
 }
 
+std::error_code
+llvm::sys::writeFileWithEncoding(StringRef FileName, StringRef Contents,
+                                 WindowsEncodingMethod Encoding /*unused*/) {
+  std::error_code EC;
+  llvm::raw_fd_ostream OS(FileName, EC, llvm::sys::fs::OpenFlags::F_Text);
+
+  if (EC)
+    return EC;
+
+  OS << Contents;
+
+  if (OS.has_error())
+    return std::make_error_code(std::errc::io_error);
+
+  return EC;
+}
+
 bool llvm::sys::argumentsFitWithinSystemLimits(ArrayRef<const char*> Args) {
   static long ArgMax = sysconf(_SC_ARG_MAX);
 
@@ -448,13 +448,13 @@ bool llvm::sys::argumentsFitWithinSystemLimits(ArrayRef<const char*> Args) {
     return true;
 
   // Conservatively account for space required by environment variables.
-  ArgMax /= 2;
+  long HalfArgMax = ArgMax / 2;
 
   size_t ArgLength = 0;
   for (ArrayRef<const char*>::iterator I = Args.begin(), E = Args.end();
        I != E; ++I) {
     ArgLength += strlen(*I) + 1;
-    if (ArgLength > size_t(ArgMax)) {
+    if (ArgLength > size_t(HalfArgMax)) {
       return false;
     }
   }

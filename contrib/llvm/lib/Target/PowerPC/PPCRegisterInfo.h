@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef POWERPC32_REGISTERINFO_H
-#define POWERPC32_REGISTERINFO_H
+#ifndef LLVM_LIB_TARGET_POWERPC_PPCREGISTERINFO_H
+#define LLVM_LIB_TARGET_POWERPC_PPCREGISTERINFO_H
 
 #include "PPC.h"
 #include "llvm/ADT/DenseMap.h"
@@ -48,6 +48,8 @@ public:
   getCalleeSavedRegs(const MachineFunction* MF =nullptr) const override;
   const uint32_t *getCallPreservedMask(CallingConv::ID CC) const override;
   const uint32_t *getNoPreservedMask() const;
+
+  void adjustStackMapLiveOutMask(uint32_t *Mask) const override;
 
   BitVector getReservedRegs(const MachineFunction &MF) const override;
 

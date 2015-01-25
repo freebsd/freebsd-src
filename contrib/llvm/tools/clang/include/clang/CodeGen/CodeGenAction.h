@@ -7,8 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_CODEGEN_CODE_GEN_ACTION_H
-#define LLVM_CLANG_CODEGEN_CODE_GEN_ACTION_H
+#ifndef LLVM_CLANG_CODEGEN_CODEGENACTION_H
+#define LLVM_CLANG_CODEGEN_CODEGENACTION_H
 
 #include "clang/Frontend/FrontendAction.h"
 #include <memory>
@@ -37,8 +37,8 @@ protected:
 
   bool hasIRSupport() const override;
 
-  ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                 StringRef InFile) override;
+  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance &CI,
+                                                 StringRef InFile) override;
 
   void ExecuteAction() override;
 
@@ -52,9 +52,9 @@ public:
   /// the action will load it from the specified file.
   void setLinkModule(llvm::Module *Mod) { LinkModule = Mod; }
 
-  /// takeModule - Take the generated LLVM module, for use after the action has
-  /// been run. The result may be null on failure.
-  llvm::Module *takeModule();
+  /// Take the generated LLVM module, for use after the action has been run.
+  /// The result may be null on failure.
+  std::unique_ptr<llvm::Module> takeModule();
 
   /// Take the LLVM context used by this action.
   llvm::LLVMContext *takeLLVMContext();

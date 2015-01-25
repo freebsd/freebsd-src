@@ -199,10 +199,15 @@ bool DAE::DeleteDeadVarargs(Function &Fn) {
     return false;
 
   // Okay, we know we can transform this function if safe.  Scan its body
-  // looking for calls to llvm.vastart.
+  // looking for calls marked musttail or calls to llvm.vastart.
   for (Function::iterator BB = Fn.begin(), E = Fn.end(); BB != E; ++BB) {
     for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E; ++I) {
-      if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(I)) {
+      CallInst *CI = dyn_cast<CallInst>(I);
+      if (!CI)
+        continue;
+      if (CI->isMustTailCall())
+        return false;
+      if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(CI)) {
         if (II->getIntrinsicID() == Intrinsic::vastart)
           return false;
       }
@@ -297,8 +302,14 @@ bool DAE::DeleteDeadVarargs(Function &Fn) {
 
   // Patch the pointer to LLVM function in debug info descriptor.
   auto DI = FunctionDIs.find(&Fn);
-  if (DI != FunctionDIs.end())
-    DI->second.replaceFunction(NF);
+  if (DI != FunctionDIs.end()) {
+    DISubprogram SP = DI->second;
+    SP.replaceFunction(NF);
+    // Ensure the map is updated so it can be reused on non-varargs argument
+    // eliminations of the same function.
+    FunctionDIs.erase(DI);
+    FunctionDIs[NF] = SP;
+  }
 
   // Fix up any BlockAddresses that refer to the function.
   Fn.replaceAllUsesWith(ConstantExpr::getBitCast(NF, Fn.getType()));
@@ -1088,8 +1099,8 @@ bool DAE::runOnModule(Module &M) {
   // determine that dead arguments passed into recursive functions are dead).
   //
   DEBUG(dbgs() << "DAE - Determining liveness\n");
-  for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
-    SurveyFunction(*I);
+  for (auto &F : M)
+    SurveyFunction(F);
 
   // Now, remove all dead arguments and return values from each function in
   // turn.
@@ -1102,11 +1113,8 @@ bool DAE::runOnModule(Module &M) {
 
   // Finally, look for any unused parameters in functions with non-local
   // linkage and replace the passed in parameters with undef.
-  for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I) {
-    Function& F = *I;
-
+  for (auto &F : M)
     Changed |= RemoveDeadArgumentsFromCallers(F);
-  }
 
   return Changed;
 }

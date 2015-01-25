@@ -31,7 +31,7 @@ LLVMBool LLVMParseBitcodeInContext(LLVMContextRef ContextRef,
                                    LLVMModuleRef *OutModule,
                                    char **OutMessage) {
   ErrorOr<Module *> ModuleOrErr =
-      parseBitcodeFile(unwrap(MemBuf), *unwrap(ContextRef));
+      parseBitcodeFile(unwrap(MemBuf)->getMemBufferRef(), *unwrap(ContextRef));
   if (std::error_code EC = ModuleOrErr.getError()) {
     if (OutMessage)
       *OutMessage = strdup(EC.message().c_str());
@@ -51,8 +51,11 @@ LLVMBool LLVMGetBitcodeModuleInContext(LLVMContextRef ContextRef,
                                        LLVMModuleRef *OutM,
                                        char **OutMessage) {
   std::string Message;
+  std::unique_ptr<MemoryBuffer> Owner(unwrap(MemBuf));
+
   ErrorOr<Module *> ModuleOrErr =
-      getLazyBitcodeModule(unwrap(MemBuf), *unwrap(ContextRef));
+      getLazyBitcodeModule(std::move(Owner), *unwrap(ContextRef));
+  Owner.release();
 
   if (std::error_code EC = ModuleOrErr.getError()) {
     *OutM = wrap((Module *)nullptr);

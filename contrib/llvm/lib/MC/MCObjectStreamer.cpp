@@ -42,6 +42,21 @@ MCObjectStreamer::~MCObjectStreamer() {
   delete Assembler;
 }
 
+void MCObjectStreamer::flushPendingLabels(MCFragment *F) {
+  if (PendingLabels.size()) {
+    if (!F) {
+      F = new MCDataFragment();
+      CurSectionData->getFragmentList().insert(CurInsertionPoint, F);
+      F->setParent(CurSectionData);
+    }
+    for (MCSymbolData *SD : PendingLabels) {
+      SD->setFragment(F);
+      SD->setOffset(0);
+    }
+    PendingLabels.clear();
+  }
+}
+
 void MCObjectStreamer::reset() {
   if (Assembler)
     Assembler->reset();
@@ -49,6 +64,7 @@ void MCObjectStreamer::reset() {
   CurInsertionPoint = MCSectionData::iterator();
   EmitEHFrame = true;
   EmitDebugFrame = false;
+  PendingLabels.clear();
   MCStreamer::reset();
 }
 
@@ -72,7 +88,7 @@ MCFragment *MCObjectStreamer::getCurrentFragment() const {
   return nullptr;
 }
 
-MCDataFragment *MCObjectStreamer::getOrCreateDataFragment() const {
+MCDataFragment *MCObjectStreamer::getOrCreateDataFragment() {
   MCDataFragment *F = dyn_cast_or_null<MCDataFragment>(getCurrentFragment());
   // When bundling is enabled, we don't want to add data to a fragment that
   // already has instructions (see MCELFStreamer::EmitInstToData for details)
@@ -127,15 +143,17 @@ void MCObjectStreamer::EmitLabel(MCSymbol *Symbol) {
   MCStreamer::EmitLabel(Symbol);
 
   MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
-
-  // FIXME: This is wasteful, we don't necessarily need to create a data
-  // fragment. Instead, we should mark the symbol as pointing into the data
-  // fragment if it exists, otherwise we should just queue the label and set its
-  // fragment pointer when we emit the next fragment.
-  MCDataFragment *F = getOrCreateDataFragment();
   assert(!SD.getFragment() && "Unexpected fragment on symbol data!");
-  SD.setFragment(F);
-  SD.setOffset(F->getContents().size());
+
+  // If there is a current fragment, mark the symbol as pointing into it.
+  // Otherwise queue the label and set its fragment pointer when we emit the
+  // next fragment.
+  if (auto *F = dyn_cast_or_null<MCDataFragment>(getCurrentFragment())) {
+    SD.setFragment(F);
+    SD.setOffset(F->getContents().size());
+  } else {
+    PendingLabels.push_back(&SD);
+  }
 }
 
 void MCObjectStreamer::EmitULEB128Value(const MCExpr *Value) {
@@ -144,7 +162,6 @@ void MCObjectStreamer::EmitULEB128Value(const MCExpr *Value) {
     EmitULEB128IntValue(IntValue);
     return;
   }
-  Value = ForceExpAbs(Value);
   insert(new MCLEBFragment(*Value, false));
 }
 
@@ -154,7 +171,6 @@ void MCObjectStreamer::EmitSLEB128Value(const MCExpr *Value) {
     EmitSLEB128IntValue(IntValue);
     return;
   }
-  Value = ForceExpAbs(Value);
   insert(new MCLEBFragment(*Value, true));
 }
 
@@ -166,6 +182,7 @@ void MCObjectStreamer::EmitWeakReference(MCSymbol *Alias,
 void MCObjectStreamer::ChangeSection(const MCSection *Section,
                                      const MCExpr *Subsection) {
   assert(Section && "Cannot switch to a null section!");
+  flushPendingLabels(nullptr);
 
   CurSectionData = &getAssembler().getOrCreateSectionData(*Section);
 
@@ -266,33 +283,54 @@ void MCObjectStreamer::EmitDwarfLocDirective(unsigned FileNo, unsigned Line,
                                           Isa, Discriminator, FileName);
 }
 
+static const MCExpr *buildSymbolDiff(MCObjectStreamer &OS, const MCSymbol *A,
+                                     const MCSymbol *B) {
+  MCContext &Context = OS.getContext();
+  MCSymbolRefExpr::VariantKind Variant = MCSymbolRefExpr::VK_None;
+  const MCExpr *ARef = MCSymbolRefExpr::Create(A, Variant, Context);
+  const MCExpr *BRef = MCSymbolRefExpr::Create(B, Variant, Context);
+  const MCExpr *AddrDelta =
+      MCBinaryExpr::Create(MCBinaryExpr::Sub, ARef, BRef, Context);
+  return AddrDelta;
+}
+
+static void emitDwarfSetLineAddr(MCObjectStreamer &OS, int64_t LineDelta,
+                                 const MCSymbol *Label, int PointerSize) {
+  // emit the sequence to set the address
+  OS.EmitIntValue(dwarf::DW_LNS_extended_op, 1);
+  OS.EmitULEB128IntValue(PointerSize + 1);
+  OS.EmitIntValue(dwarf::DW_LNE_set_address, 1);
+  OS.EmitSymbolValue(Label, PointerSize);
+
+  // emit the sequence for the LineDelta (from 1) and a zero address delta.
+  MCDwarfLineAddr::Emit(&OS, LineDelta, 0);
+}
+
 void MCObjectStreamer::EmitDwarfAdvanceLineAddr(int64_t LineDelta,
                                                 const MCSymbol *LastLabel,
                                                 const MCSymbol *Label,
                                                 unsigned PointerSize) {
   if (!LastLabel) {
-    EmitDwarfSetLineAddr(LineDelta, Label, PointerSize);
+    emitDwarfSetLineAddr(*this, LineDelta, Label, PointerSize);
     return;
   }
-  const MCExpr *AddrDelta = BuildSymbolDiff(getContext(), Label, LastLabel);
+  const MCExpr *AddrDelta = buildSymbolDiff(*this, Label, LastLabel);
   int64_t Res;
   if (AddrDelta->EvaluateAsAbsolute(Res, getAssembler())) {
     MCDwarfLineAddr::Emit(this, LineDelta, Res);
     return;
   }
-  AddrDelta = ForceExpAbs(AddrDelta);
   insert(new MCDwarfLineAddrFragment(LineDelta, *AddrDelta));
 }
 
 void MCObjectStreamer::EmitDwarfAdvanceFrameAddr(const MCSymbol *LastLabel,
                                                  const MCSymbol *Label) {
-  const MCExpr *AddrDelta = BuildSymbolDiff(getContext(), Label, LastLabel);
+  const MCExpr *AddrDelta = buildSymbolDiff(*this, Label, LastLabel);
   int64_t Res;
   if (AddrDelta->EvaluateAsAbsolute(Res, getAssembler())) {
     MCDwarfFrameEmitter::EmitAdvanceLoc(*this, Res);
     return;
   }
-  AddrDelta = ForceExpAbs(AddrDelta);
   insert(new MCDwarfCallFrameFragment(*AddrDelta));
 }
 
@@ -367,7 +405,9 @@ void MCObjectStreamer::EmitFill(uint64_t NumBytes, uint8_t FillValue) {
 }
 
 void MCObjectStreamer::EmitZeros(uint64_t NumBytes) {
-  unsigned ItemSize = getCurrentSection().first->isVirtualSection() ? 0 : 1;
+  const MCSection *Sec = getCurrentSection().first;
+  assert(Sec && "need a section");
+  unsigned ItemSize = Sec->isVirtualSection() ? 0 : 1;
   insert(new MCFillFragment(0, ItemSize, NumBytes));
 }
 
@@ -379,5 +419,6 @@ void MCObjectStreamer::FinishImpl() {
   // Dump out the dwarf file & directory tables and line tables.
   MCDwarfLineTable::Emit(this);
 
+  flushPendingLabels(nullptr);
   getAssembler().Finish();
 }

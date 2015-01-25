@@ -167,7 +167,7 @@ bool AddDiscriminators::runOnFunction(Function &F) {
   bool Changed = false;
   Module *M = F.getParent();
   LLVMContext &Ctx = M->getContext();
-  DIBuilder Builder(*M);
+  DIBuilder Builder(*M, /*AllowUnresolved*/ false);
 
   // Traverse all the blocks looking for instructions in different
   // blocks that are at the same file:line location.
@@ -193,13 +193,11 @@ bool AddDiscriminators::runOnFunction(Function &F) {
         // Create a new lexical scope and compute a new discriminator
         // number for it.
         StringRef Filename = FirstDIL.getFilename();
-        unsigned LineNumber = FirstDIL.getLineNumber();
-        unsigned ColumnNumber = FirstDIL.getColumnNumber();
         DIScope Scope = FirstDIL.getScope();
         DIFile File = Builder.createFile(Filename, Scope.getDirectory());
         unsigned Discriminator = FirstDIL.computeNewDiscriminator(Ctx);
-        DILexicalBlock NewScope = Builder.createLexicalBlock(
-            Scope, File, LineNumber, ColumnNumber, Discriminator);
+        DILexicalBlockFile NewScope =
+            Builder.createLexicalBlockFile(Scope, File, Discriminator);
         DILocation NewDIL = FirstDIL.copyWithNewScope(Ctx, NewScope);
         DebugLoc newDebugLoc = DebugLoc::getFromDILocation(NewDIL);
 

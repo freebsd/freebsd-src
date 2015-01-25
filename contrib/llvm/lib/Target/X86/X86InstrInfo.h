@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef X86INSTRUCTIONINFO_H
-#define X86INSTRUCTIONINFO_H
+#ifndef LLVM_LIB_TARGET_X86_X86INSTRINFO_H
+#define LLVM_LIB_TARGET_X86_X86INSTRINFO_H
 
 #include "MCTargetDesc/X86BaseInfo.h"
 #include "X86RegisterInfo.h"
@@ -152,6 +152,7 @@ class X86InstrInfo final : public X86GenInstrInfo {
   RegOp2MemOpTableType RegOp2MemOpTable1;
   RegOp2MemOpTableType RegOp2MemOpTable2;
   RegOp2MemOpTableType RegOp2MemOpTable3;
+  RegOp2MemOpTableType RegOp2MemOpTable4;
 
   /// MemOp2RegOpTable - Load / store unfolding opcode map.
   ///
@@ -404,13 +405,16 @@ public:
                                       MachineInstr* MI,
                                       unsigned OpNum,
                                       const SmallVectorImpl<MachineOperand> &MOs,
-                                      unsigned Size, unsigned Alignment) const;
+                                      unsigned Size, unsigned Alignment,
+                                      bool AllowCommute) const;
 
   void
   getUnconditionalBranch(MCInst &Branch,
                          const MCSymbolRefExpr *BranchTarget) const override;
 
   void getTrap(MCInst &MI) const override;
+
+  unsigned getJumpInstrTableEntryBound() const override;
 
   bool isHighLatencyDef(int opc) const override;
 
