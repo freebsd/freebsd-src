@@ -6,7 +6,7 @@
 #define _INTEL_RINGBUFFER_H_
 
 struct  intel_hw_status_page {
-	uint32_t	*page_addr;
+	u32		*page_addr;
 	unsigned int	gfx_addr;
 	struct		drm_i915_gem_object *obj;
 };
@@ -38,13 +38,13 @@ struct  intel_ring_buffer {
 		BCS,
 	} id;
 #define I915_NUM_RINGS 3
-	uint32_t	mmio_base;
+	u32		mmio_base;
 	void		*virtual_start;
 	struct		drm_device *dev;
 	struct		drm_i915_gem_object *obj;
 
-	uint32_t	head;
-	uint32_t	tail;
+	u32		head;
+	u32		tail;
 	int		space;
 	int		size;
 	int		effective_size;
@@ -60,13 +60,10 @@ struct  intel_ring_buffer {
 	 */
 	u32		last_retired_head;
 
-	struct mtx	irq_lock;
-	uint32_t	irq_refcount;
-	uint32_t	irq_mask;
-	uint32_t	irq_seqno;		/* last seq seem at irq time */
-	uint32_t	trace_irq_seqno;
-	uint32_t	waiting_seqno;
-	uint32_t	sync_seqno[I915_NUM_RINGS-1];
+	u32		irq_refcount;
+	u32		irq_enable_mask;	/* bitmask to enable ring interrupt */
+	u32		trace_irq_seqno;
+	u32		sync_seqno[I915_NUM_RINGS-1];
 	bool		(*irq_get)(struct intel_ring_buffer *ring);
 	void		(*irq_put)(struct intel_ring_buffer *ring);
 
@@ -120,7 +117,7 @@ struct  intel_ring_buffer {
 	/**
 	 * Do we have some not yet emitted requests outstanding?
 	 */
-	uint32_t outstanding_lazy_request;
+	u32 outstanding_lazy_request;
 
 	/**
 	 * Do an explicit TLB flush before MI_SET_CONTEXT
@@ -169,6 +166,8 @@ static inline uint32_t
 intel_read_status_page(struct intel_ring_buffer *ring, int reg)
 {
 
+	/* Ensure that the compiler doesn't optimize away the load. */
+	__compiler_membar();
 	return (atomic_load_acq_32(ring->status_page.page_addr + reg));
 }
 

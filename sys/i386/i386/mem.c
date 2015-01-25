@@ -86,10 +86,6 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	int error = 0;
 	vm_offset_t addr;
 
-	/* XXX UPS Why ? */
-	GIANT_REQUIRED;
-
-
 	if (dev2unit(dev) != CDEV_MINOR_MEM && dev2unit(dev) != CDEV_MINOR_KMEM)
 		return EIO;
 

@@ -73,6 +73,9 @@
 #include <net/if_arp.h>
 #include <net/if_dl.h>
 #include <net/if_media.h>
+#ifdef	RSS
+#include <net/rss_config.h>
+#endif
 
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
@@ -85,9 +88,6 @@
 #include <netinet/tcp.h>
 #include <netinet/tcp_lro.h>
 #include <netinet/udp.h>
-#ifdef	RSS
-#include <netinet/in_rss.h>
-#endif
 
 #include <machine/in_cksum.h>
 #include <dev/led/led.h>

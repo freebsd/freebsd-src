@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014 Ruslan Bukin <br@bsdpad.com>
+ * Copyright (c) 2014-2015 Ruslan Bukin <br@bsdpad.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +26,8 @@
  * $FreeBSD$
  */
 
+#include "imx6q-pinfunc.h"
+
 /dts-v1/;
 /include/ "imx6.dtsi"
 
@@ -42,7 +44,20 @@
 
 	SOC: soc@00000000 {
 		aips@02000000 { /* AIPS1 */
-			iomux@020e0000		{ status = "okay"; };
+			iomux@020e0000 {
+				status = "okay";
+				pinctrl-names = "default";
+				pinctrl-0 = <&pins_ssi>;
+				pins_ssi: ssi {
+					fsl,pins = <
+					MX6QDL_PAD_DISP0_DAT16__AUD5_TXC 0x130b0
+					MX6QDL_PAD_DISP0_DAT17__AUD5_TXD 0x110b0
+					MX6QDL_PAD_DISP0_DAT18__AUD5_TXFS 0x130b0
+					MX6QDL_PAD_DISP0_DAT19__AUD5_RXD 0x130b0
+					MX6QDL_PAD_GPIO_19__CCM_CLKO1 0x130b0
+					>;
+				};
+			};
 			gpio@0209c000		{ status = "okay"; };
 			gpio@020a0000		{ status = "okay"; };
 			gpio@020a4000		{ status = "okay"; };
@@ -76,6 +91,7 @@
 			usdhc@02198000		{ status = "disabled"; };
 			usdhc@0219c000		{ status = "disabled"; };
 			audmux@021d8000		{ status = "okay"; };
+			i2c@021a0000		{ status = "okay"; };
 		};
 	};
 

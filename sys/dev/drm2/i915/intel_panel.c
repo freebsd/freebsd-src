@@ -197,6 +197,20 @@ u32 intel_panel_get_max_backlight(struct drm_device *dev)
 	return max;
 }
 
+static u32 intel_panel_compute_brightness(struct drm_device *dev, u32 val)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (i915_panel_invert_brightness < 0)
+		return val;
+
+	if (i915_panel_invert_brightness > 0 ||
+	    dev_priv->quirks & QUIRK_INVERT_BRIGHTNESS)
+		return intel_panel_get_max_backlight(dev) - val;
+
+	return val;
+}
+
 u32 intel_panel_get_backlight(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -217,7 +231,8 @@ u32 intel_panel_get_backlight(struct drm_device *dev)
 		}
 	}
 
-	DRM_DEBUG("get backlight PWM = %d\n", val);
+	val = intel_panel_compute_brightness(dev, val);
+	DRM_DEBUG_DRIVER("get backlight PWM = %d\n", val);
 	return val;
 }
 
@@ -233,7 +248,8 @@ static void intel_panel_actually_set_backlight(struct drm_device *dev, u32 level
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 tmp;
 
-	DRM_DEBUG("set backlight PWM = %d\n", level);
+	DRM_DEBUG_DRIVER("set backlight PWM = %d\n", level);
+	level = intel_panel_compute_brightness(dev, level);
 
 	if (HAS_PCH_SPLIT(dev))
 		return intel_pch_panel_set_backlight(dev, level);

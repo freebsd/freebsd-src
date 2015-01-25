@@ -123,6 +123,10 @@
 /* DTrace trap opcode. */
 #define EXC_DTRACE	0x7c810808
 
+/* Magic pointer to store TOC base and other info for trap handlers on ppc64 */
+#define TRAP_GENTRAP	0x1f0
+#define TRAP_TOCBASE	0x1f8
+
 #ifndef LOCORE
 struct	trapframe;
 struct	pcb;

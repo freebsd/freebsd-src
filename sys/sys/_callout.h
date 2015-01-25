@@ -46,30 +46,19 @@ LIST_HEAD(callout_list, callout);
 SLIST_HEAD(callout_slist, callout);
 TAILQ_HEAD(callout_tailq, callout);
 
-typedef void callout_func_t(void *);
-
-struct callout_args {
-	sbintime_t time;		/* absolute time for the event */
-	sbintime_t precision;		/* delta allowed wrt opt */
-	void	*arg;			/* function argument */
-	callout_func_t *func;		/* function to call */
-	int	flags;			/* flags passed to callout_reset() */
-	int	cpu;			/* CPU we're scheduled on */
-};
-
 struct callout {
 	union {
 		LIST_ENTRY(callout) le;
 		SLIST_ENTRY(callout) sle;
 		TAILQ_ENTRY(callout) tqe;
 	} c_links;
-	sbintime_t c_time;			/* absolute time for the event */
+	sbintime_t c_time;			/* ticks to the event */
 	sbintime_t c_precision;			/* delta allowed wrt opt */
 	void	*c_arg;				/* function argument */
-	callout_func_t *c_func;			/* function to call */
-	struct lock_object *c_lock;		/* callback lock */
+	void	(*c_func)(void *);		/* function to call */
+	struct lock_object *c_lock;		/* lock to handle */
 	int	c_flags;			/* state of this entry */
-	int	c_cpu;				/* CPU we're scheduled on */
+	volatile int c_cpu;			/* CPU we're scheduled on */
 };
 
 #endif

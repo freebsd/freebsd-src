@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2005
+.Dd January 24, 2015
 .Dt SYSCALL_MODULE 9
 .Os
 .Sh NAME
@@ -46,8 +46,8 @@ The
 .Fn SYSCALL_MODULE
 macro declares a new syscall.
 .Fn SYSCALL_MODULE
-expands into a kernel module declaration named as
-.Fa name .
+expands into a kernel module declaration with name
+.Ql sys/ Ns Fa name .
 .Pp
 The rest of the arguments expected by this macro are:
 .Bl -tag -width ".Fa new_sysent"

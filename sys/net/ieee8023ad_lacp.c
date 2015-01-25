@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/mbuf.h>
 #include <sys/systm.h>
+#include <sys/fnv_hash.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h> /* hz */
 #include <sys/socket.h> /* for net/if.h */
@@ -757,13 +758,16 @@ void
 lacp_attach(struct lagg_softc *sc)
 {
 	struct lacp_softc *lsc;
+	uint32_t seed;
 
 	lsc = malloc(sizeof(struct lacp_softc), M_DEVBUF, M_WAITOK | M_ZERO);
 
 	sc->sc_psc = lsc;
 	lsc->lsc_softc = sc;
 
-	lsc->lsc_hashkey = arc4random();
+	seed = arc4random();
+	lsc->lsc_hashkey = FNV1_32_INIT;
+	lsc->lsc_hashkey = fnv_32_buf(&seed, sizeof(seed), lsc->lsc_hashkey);
 	lsc->lsc_active_aggregator = NULL;
 	lsc->lsc_strict_mode = 1;
 	LACP_LOCK_INIT(lsc);

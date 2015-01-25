@@ -8,7 +8,6 @@
 SUBDIR=adjkerntz \
 	badsect \
 	camcontrol \
-	ccdconfig \
 	clri \
 	comcontrol \
 	conscontrol \
@@ -35,7 +34,6 @@ SUBDIR=adjkerntz \
 	hastd \
 	ifconfig \
 	init \
-	iscontrol \
 	kldconfig \
 	kldload \
 	kldstat \
@@ -82,6 +80,10 @@ SUBDIR+=	atm
 SUBDIR+=	casperd
 .endif
 
+.if ${MK_CCD} != "no"
+SUBDIR+=	ccdconfig
+.endif
+
 .if ${MK_CXX} != "no"
 SUBDIR+=	devd
 .endif
@@ -108,6 +110,10 @@ SUBDIR+=	pflogd
 .if ${MK_INET6} != "no"
 SUBDIR+=	ping6
 SUBDIR+=	rtsol
+.endif
+	
+.if ${MK_ISCSI} != "no"
+SUBDIR+=	iscontrol
 .endif
 
 .if ${MK_QUOTAS} != "no"

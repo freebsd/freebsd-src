@@ -274,6 +274,132 @@ OLD_FILES+=usr/share/man/man8/sdpd.8.gz
 # to be filled in
 #.endif
 
+.if ${MK_BSDINSTALL} == no
+OLD_FILES+=usr/libexec/bsdinstall/adduser
+OLD_FILES+=usr/libexec/bsdinstall/auto
+OLD_FILES+=usr/libexec/bsdinstall/autopart
+OLD_FILES+=usr/libexec/bsdinstall/checksum
+OLD_FILES+=usr/libexec/bsdinstall/config
+OLD_FILES+=usr/libexec/bsdinstall/distextract
+OLD_FILES+=usr/libexec/bsdinstall/distfetch
+OLD_FILES+=usr/libexec/bsdinstall/docsinstall
+OLD_FILES+=usr/libexec/bsdinstall/entropy
+OLD_FILES+=usr/libexec/bsdinstall/hostname
+OLD_FILES+=usr/libexec/bsdinstall/jail
+OLD_FILES+=usr/libexec/bsdinstall/keymap
+OLD_FILES+=usr/libexec/bsdinstall/mirrorselect
+OLD_FILES+=usr/libexec/bsdinstall/mount
+OLD_FILES+=usr/libexec/bsdinstall/netconfig
+OLD_FILES+=usr/libexec/bsdinstall/netconfig_ipv4
+OLD_FILES+=usr/libexec/bsdinstall/netconfig_ipv6
+OLD_FILES+=usr/libexec/bsdinstall/partedit
+OLD_FILES+=usr/libexec/bsdinstall/rootpass
+OLD_FILES+=usr/libexec/bsdinstall/script
+OLD_FILES+=usr/libexec/bsdinstall/scriptedpart
+OLD_FILES+=usr/libexec/bsdinstall/services
+OLD_FILES+=usr/libexec/bsdinstall/time
+OLD_FILES+=usr/libexec/bsdinstall/umount
+OLD_FILES+=usr/libexec/bsdinstall/wlanconfig
+OLD_FILES+=usr/libexec/bsdinstall/zfsboot
+OLD_FILES+=usr/sbin/bsdinstall
+OLD_FILES+=usr/share/man/man8/bsdinstall.8.gz
+OLD_FILES+=usr/share/man/man8/sade.8.gz
+OLD_DIRS+=usr/libexec/bsdinstall
+.endif
+
+.if ${MK_BSNMP} == no
+OLD_FILES+=etc/snmpd.config
+OLD_FILES+=etc/rc.d/bsnmpd
+OLD_FILES+=usr/bin/bsnmpget
+OLD_FILES+=usr/bin/bsnmpset
+OLD_FILES+=usr/bin/bsnmpwalk
+OLD_FILES+=usr/include/bsnmp/asn1.h
+OLD_FILES+=usr/include/bsnmp/bridge_snmp.h
+OLD_FILES+=usr/include/bsnmp/snmp.h
+OLD_FILES+=usr/include/bsnmp/snmp_atm.h
+OLD_FILES+=usr/include/bsnmp/snmp_mibII.h
+OLD_FILES+=usr/include/bsnmp/snmp_netgraph.h
+OLD_FILES+=usr/include/bsnmp/snmpagent.h
+OLD_FILES+=usr/include/bsnmp/snmpclient.h
+OLD_FILES+=usr/include/bsnmp/snmpmod.h
+OLD_FILES+=usr/lib/libbsnmp.a
+OLD_LIBS+=usr/lib/libbsnmp.so.6
+OLD_FILES+=usr/lib/libbsnmp_p.a
+OLD_FILES+=usr/lib/libbsnmptools.a
+OLD_LIBS+=usr/lib/libbsnmptools.so.0
+OLD_FILES+=usr/lib/libbsnmptools_p.a
+OLD_LIBS+=usr/lib/snmp_atm.so.6
+OLD_LIBS+=usr/lib/snmp_bridge.so.6
+OLD_LIBS+=usr/lib/snmp_hast.so.6
+OLD_LIBS+=usr/lib/snmp_hostres.so.6
+OLD_LIBS+=usr/lib/snmp_lm75.so.6
+OLD_LIBS+=usr/lib/snmp_mibII.so.6
+OLD_LIBS+=usr/lib/snmp_netgraph.so.6
+OLD_LIBS+=usr/lib/snmp_pf.so.6
+OLD_LIBS+=usr/lib/snmp_target.so.6
+OLD_LIBS+=usr/lib/snmp_usm.so.6
+OLD_LIBS+=usr/lib/snmp_vacm.so.6
+OLD_LIBS+=usr/lib/snmp_wlan.so.6
+OLD_FILES+=usr/sbin/bsnmpd
+OLD_FILES+=usr/sbin/gensnmptree
+OLD_FILES+=usr/share/man/man1/bsnmpd.1.gz
+OLD_FILES+=usr/share/man/man1/bsnmpget.1.gz
+OLD_FILES+=usr/share/man/man1/bsnmpset.1.gz
+OLD_FILES+=usr/share/man/man1/bsnmpwalk.1.gz
+OLD_FILES+=usr/share/man/man1/gensnmptree.1.gz
+OLD_FILES+=usr/share/man/man3/asn1.3.gz
+OLD_FILES+=usr/share/man/man3/bsnmpagent.3.gz
+OLD_FILES+=usr/share/man/man3/bsnmpclient.3.gz
+OLD_FILES+=usr/share/man/man3/bsnmplib.3.gz
+OLD_FILES+=usr/share/man/man3/snmp_atm.3.gz
+OLD_FILES+=usr/share/man/man3/snmp_bridge.3.gz
+OLD_FILES+=usr/share/man/man3/snmp_hast.3.gz
+OLD_FILES+=usr/share/man/man3/snmp_hostres.3.gz
+OLD_FILES+=usr/share/man/man3/snmp_lm75.3.gz
+OLD_FILES+=usr/share/man/man3/snmp_mibII.3.gz
+OLD_FILES+=usr/share/man/man3/snmp_netgraph.3.gz
+OLD_FILES+=usr/share/man/man3/snmp_target.3.gz
+OLD_FILES+=usr/share/man/man3/snmp_usm.3.gz
+OLD_FILES+=usr/share/man/man3/snmp_vacm.3.gz
+OLD_FILES+=usr/share/man/man3/snmp_wlan.3.gz
+OLD_FILES+=usr/share/man/man3/snmpmod.3.gz
+OLD_FILES+=usr/share/snmp/defs/atm_freebsd.def
+OLD_FILES+=usr/share/snmp/defs/atm_tree.def
+OLD_FILES+=usr/share/snmp/defs/bridge_tree.def
+OLD_FILES+=usr/share/snmp/defs/hast_tree.def
+OLD_FILES+=usr/share/snmp/defs/hostres_tree.def
+OLD_FILES+=usr/share/snmp/defs/lm75_tree.def
+OLD_FILES+=usr/share/snmp/defs/mibII_tree.def
+OLD_FILES+=usr/share/snmp/defs/netgraph_tree.def
+OLD_FILES+=usr/share/snmp/defs/pf_tree.def
+OLD_FILES+=usr/share/snmp/defs/target_tree.def
+OLD_FILES+=usr/share/snmp/defs/tree.def
+OLD_FILES+=usr/share/snmp/defs/usm_tree.def
+OLD_FILES+=usr/share/snmp/defs/vacm_tree.def
+OLD_FILES+=usr/share/snmp/defs/wlan_tree.def
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-ATM-FREEBSD-MIB.txt
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-ATM.txt
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-BRIDGE-MIB.txt
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-HAST-MIB.txt
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-HOSTRES-MIB.txt
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-IP-MIB.txt
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-LM75-MIB.txt
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-MIB.txt
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-MIB2-MIB.txt
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-NETGRAPH.txt
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-PF-MIB.txt
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-SNMPD.txt
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-WIRELESS-MIB.txt
+OLD_FILES+=usr/share/snmp/mibs/BRIDGE-MIB.txt
+OLD_FILES+=usr/share/snmp/mibs/FOKUS-MIB.txt
+OLD_FILES+=usr/share/snmp/mibs/FREEBSD-MIB.txt
+OLD_FILES+=usr/share/snmp/mibs/RSTP-MIB.txt
+OLD_DIRS+=usr/include/bsnmp
+OLD_DIRS+=usr/share/snmp
+OLD_DIRS+=usr/share/snmp/defs
+OLD_DIRS+=usr/share/snmp/mibs
+.endif
+
 .if ${MK_CALENDAR} == no
 OLD_FILES+=etc/periodic/daily/300.calendar
 OLD_FILES+=usr/bin/calendar
@@ -365,6 +491,13 @@ OLD_FILES+=sbin/casper
 OLD_FILES+=usr/lib/libcasper.a
 .endif
 
+.if ${MK_CCD} == no
+OLD_FILES+=etc/rc.d/ccd
+OLD_FILES+=sbin/ccdconfig
+OLD_FILES+=usr/share/man/man4/ccd.4.gz
+OLD_FILES+=usr/share/man/man8/ccdconfig.8.gz
+.endif
+
 .if ${MK_CDDL} == no
 OLD_LIBS+=lib/libavl.so.2
 OLD_LIBS+=lib/libctf.so.2
@@ -388,7 +521,6 @@ OLD_FILES+=usr/lib/dtrace/signal.d
 OLD_FILES+=usr/lib/dtrace/tcp.d
 OLD_FILES+=usr/lib/dtrace/udp.d
 OLD_FILES+=usr/lib/dtrace/unistd.d
-OLD_DIRS+=usr/lib/dtrace
 OLD_FILES+=usr/lib/libavl.a
 OLD_FILES+=usr/lib/libavl.so
 OLD_FILES+=usr/lib/libavl_p.a
@@ -409,7 +541,6 @@ OLD_FILES+=usr/lib/libuutil.so
 OLD_FILES+=usr/lib/libuutil_p.a
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/dtrace/drti.o
-OLD_DIRS+=usr/lib32/dtrace
 OLD_FILES+=usr/lib32/libavl.a
 OLD_FILES+=usr/lib32/libavl.so
 OLD_LIBS+=usr/lib32/libavl.so.2
@@ -435,9 +566,24 @@ OLD_FILES+=usr/lib32/libuutil.so
 OLD_LIBS+=usr/lib32/libuutil.so.2
 OLD_FILES+=usr/lib32/libuutil_p.a
 .endif
+OLD_LIBS+=lib/libdtrace.so.2
 OLD_FILES+=usr/sbin/dtrace
 OLD_FILES+=usr/sbin/lockstat
 OLD_FILES+=usr/share/man/man1/dtrace.1.gz
+OLD_FILES+=usr/share/dtrace/disklatency
+OLD_FILES+=usr/share/dtrace/disklatencycmd
+OLD_FILES+=usr/share/dtrace/hotopen
+OLD_FILES+=usr/share/dtrace/nfsclienttime
+OLD_FILES+=usr/share/dtrace/toolkit/execsnoop
+OLD_FILES+=usr/share/dtrace/toolkit/hotkernel
+OLD_FILES+=usr/share/dtrace/toolkit/hotuser
+OLD_FILES+=usr/share/dtrace/toolkit/opensnoop
+OLD_FILES+=usr/share/dtrace/toolkit/procsystime
+OLD_FILES+=usr/share/man/man1/dtrace.1.gz
+OLD_DIRS+=usr/lib/dtrace
+OLD_DIRS+=usr/lib32/dtrace
+OLD_DIRS+=usr/share/dtrace/toolkit
+OLD_DIRS+=usr/share/dtrace
 .endif
 
 .if ${MK_ZFS} == no
@@ -607,6 +753,43 @@ OLD_FILES+=usr/share/man/man1/ctm_dequeue.1.gz
 OLD_FILES+=usr/share/man/man1/ctm_rmail.1.gz
 OLD_FILES+=usr/share/man/man1/ctm_smail.1.gz
 OLD_FILES+=usr/share/man/man5/ctm.5.gz
+.endif
+
+.if ${MK_CUSE} == no
+OLD_FILES+=usr/include/fs/cuse/cuse_defs.h
+OLD_FILES+=usr/include/fs/cuse/cuse_ioctl.h
+OLD_FILES+=usr/include/cuse.h
+OLD_FILES+=usr/lib/libcuse.a
+OLD_LIBS+=usr/lib/libcuse.so.1
+OLD_FILES+=usr/lib/libcuse_p.a
+OLD_FILES+=usr/share/man/man3/cuse.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_alloc_unit_number.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_alloc_unit_number_by_id.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_copy_in.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_copy_out.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_create.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_destroy.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_get_current.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_get_per_file_handle.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_get_priv0.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_get_priv1.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_set_per_file_handle.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_set_priv0.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_set_priv1.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_free_unit_number.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_free_unit_number_by_id.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_get_local.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_got_peer_signal.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_init.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_is_vmalloc_addr.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_poll_wakeup.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_set_local.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_uninit.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_vmalloc.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_vmfree.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_vmoffset.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_wait_and_process.3.gz
+OLD_DIRS+=usr/include/fs/cuse
 .endif
 
 # devd(8) not listed here on purpose
@@ -1216,6 +1399,23 @@ OLD_FILES+=usr/share/dict/words
 OLD_DIRS+=usr/share/dict
 .endif
 
+.if ${MK_EE} == no
+OLD_FILES+=usr/bin/edit
+OLD_FILES+=usr/bin/ee
+OLD_FILES+=usr/bin/ree
+OLD_FILES+=usr/share/man/man1/edit.1.gz
+OLD_FILES+=usr/share/man/man1/ee.1.gz
+OLD_FILES+=usr/share/man/man1/ree.1.gz
+OLD_FILES+=usr/share/nls/C/ee.cat
+OLD_FILES+=usr/share/nls/de_DE.ISO8859-1/ee.cat
+OLD_FILES+=usr/share/nls/fr_FR.ISO8859-1/ee.cat
+OLD_FILES+=usr/share/nls/hu_HU.ISO8859-2/ee.cat
+OLD_FILES+=usr/share/nls/pl_PL.ISO8859-2/ee.cat
+OLD_FILES+=usr/share/nls/pt_BR.ISO8859-1/ee.cat
+OLD_FILES+=usr/share/nls/ru_RU.KOI8-R/ee.cat
+OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/ee.cat
+.endif
+
 .if ${MK_ELFTOOLCHAIN_TOOLS} == no
 OLD_FILES+=usr/bin/elfcopy
 OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
@@ -1350,7 +1550,32 @@ OLD_FILES+=usr/share/man/man1/kgdb.1.gz
 .endif
 
 .if ${MK_GPIO} == no
+OLD_FILES+=usr/include/libgpio.h
+OLD_FILES+=usr/lib/libgpio.a
+OLD_LIBS+=usr/lib/libgpio.so.0
+OLD_FILES+=usr/lib/libgpio_p.a
 OLD_FILES+=usr/sbin/gpioctl
+OLD_FILES+=usr/share/man/man3/gpio.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_close.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_open.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_open_device.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_config.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_get.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_high.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_input.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_invin.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_invout.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_list.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_low.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_opendrain.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_output.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_pulldown.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_pullup.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_pulsate.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_pushpull.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_set.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_set_flags.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_tristate.3.gz
 OLD_FILES+=usr/share/man/man8/gpioctl.8.gz
 .endif
 
@@ -2075,6 +2300,20 @@ OLD_FILES+=usr/sbin/ipfwpcap
 OLD_FILES+=usr/share/man/man8/ipfw.8.gz
 OLD_FILES+=usr/share/man/man8/ipfwpcap.8.gz
 OLD_FILES+=usr/share/man/man8/natd.8.gz
+.endif
+
+.if ${MK_ISCSI} == no
+OLD_FILES+=etc/rc.d/iscsictl
+OLD_FILES+=etc/rc.d/iscsid
+OLD_FILES+=sbin/iscontrol
+OLD_FILES+=usr/bin/iscsictl
+OLD_FILES+=usr/sbin/iscsid
+OLD_FILES+=usr/share/man/man4/iscsi.4.gz
+OLD_FILES+=usr/share/man/man4/iscsi_initiator.4.gz
+OLD_FILES+=usr/share/man/man5/iscsi.conf.5.gz
+OLD_FILES+=usr/share/man/man8/iscontrol.8.gz
+OLD_FILES+=usr/share/man/man8/iscsictl.8.gz
+OLD_FILES+=usr/share/man/man8/iscsid.8.gz
 .endif
 
 .if ${MK_JAIL} == no
@@ -4041,6 +4280,13 @@ OLD_DIRS+=usr/share/doc/pjdfstest
 #.if ${MK_SYSCONS} == no
 # to be filled in
 #.endif
+
+.if ${MK_TALK} == no
+OLD_FILES+=usr/bin/talk
+OLD_FILES+=usr/libexec/ntalkd
+OLD_FILES+=usr/share/man/man1/talk.1.gz
+OLD_FILES+=usr/share/man/man8/talkd.8.gz
+.endif
 
 .if ${MK_TCSH} == no
 OLD_FILES+=bin/csh

@@ -61,7 +61,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 
 	di->ops = uart_getops(&uart_s3c2410_class);
 	di->bas.chan = 0;
-	di->bas.bst = &s3c2xx0_bs_tag;
+	di->bas.bst = s3c2xx0_bs_tag;
 	di->bas.bsh = s3c2410_uart_vaddr;
 	di->bas.regshft = 0;
 	di->bas.rclk = s3c2410_pclk;
@@ -69,7 +69,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->databits = 8;
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
-	uart_bus_space_io = &s3c2xx0_bs_tag;
+	uart_bus_space_io = s3c2xx0_bs_tag;
 	uart_bus_space_mem = NULL;
 	
 	return (0);

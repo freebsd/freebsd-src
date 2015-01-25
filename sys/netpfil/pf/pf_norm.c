@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_pf.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
@@ -93,7 +92,6 @@ struct pf_fragment {
 };
 
 static struct mtx pf_frag_mtx;
-MTX_SYSINIT(pf_frag_mtx, &pf_frag_mtx, "pf fragments", MTX_DEF);
 #define PF_FRAG_LOCK()		mtx_lock(&pf_frag_mtx)
 #define PF_FRAG_UNLOCK()	mtx_unlock(&pf_frag_mtx)
 #define PF_FRAG_ASSERT()	mtx_assert(&pf_frag_mtx, MA_OWNED)
@@ -148,7 +146,7 @@ static void		 pf_scrub_ip6(struct mbuf **, u_int8_t);
 } while(0)
 
 void
-pf_vnet_normalize_init(void)
+pf_normalize_init(void)
 {
 
 	V_pf_frag_z = uma_zcreate("pf frags", sizeof(struct pf_fragment),
@@ -163,6 +161,9 @@ pf_vnet_normalize_init(void)
 	V_pf_limits[PF_LIMIT_FRAGS].limit = PFFRAG_FRENT_HIWAT;
 	uma_zone_set_max(V_pf_frent_z, PFFRAG_FRENT_HIWAT);
 	uma_zone_set_warning(V_pf_frent_z, "PF frag entries limit reached");
+
+	mtx_init(&pf_frag_mtx, "pf fragments", NULL, MTX_DEF);
+
 	TAILQ_INIT(&V_pf_fragqueue);
 	TAILQ_INIT(&V_pf_cachequeue);
 }
@@ -174,6 +175,8 @@ pf_normalize_cleanup(void)
 	uma_zdestroy(V_pf_state_scrub_z);
 	uma_zdestroy(V_pf_frent_z);
 	uma_zdestroy(V_pf_frag_z);
+
+	mtx_destroy(&pf_frag_mtx);
 }
 
 static int
