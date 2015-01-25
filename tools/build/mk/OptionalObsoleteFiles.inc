@@ -4073,6 +4073,13 @@ OLD_DIRS+=usr/share/doc/pjdfstest
 # to be filled in
 #.endif
 
+.if ${MK_TALK} == no
+OLD_FILES+=usr/bin/talk
+OLD_FILES+=usr/libexec/ntalkd
+OLD_FILES+=usr/share/man/man1/talk.1.gz
+OLD_FILES+=usr/share/man/man8/talkd.8.gz
+.endif
+
 .if ${MK_TCSH} == no
 OLD_FILES+=bin/csh
 OLD_FILES+=bin/tcsh
