@@ -199,8 +199,10 @@ CRUNCH_LIBS+= -lcrypto
 .endif
 CRUNCH_LIBS+= -lmd
 
+.if ${MK_VI} != "no"
 CRUNCH_PROGS_usr.bin+= vi
 CRUNCH_ALIAS_vi= ex
+.endif
 
 CRUNCH_PROGS_usr.bin+= id
 CRUNCH_ALIAS_id= groups whoami
