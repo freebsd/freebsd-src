@@ -335,8 +335,8 @@ proc_addr2sym(struct proc_handle *p, uintptr_t addr, char *name,
 		goto out;
 
 	error = lookup_addr(e, symtabscn, symtabstridx, off, addr, &s, symcopy);
-	if (error == 0)
-		goto out;
+	if (error != 0)
+		goto err2;
 
 out:
 	demangle(s, name, namesz);
