@@ -666,11 +666,16 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 		lagg_port_lladdr(lp, IF_LLADDR(sc->sc_ifp));
 	}
 
-	/* Insert into the list of ports. Keep ports sorted by if_index. */
+	/*
+	 * Insert into the list of ports.
+	 * Keep ports sorted by if_index. It is handy, when configuration
+	 * is predictable and `ifconfig laggN create ...` command
+	 * will lead to the same result each time.
+	 */
 	SLIST_FOREACH(tlp, &sc->sc_ports, lp_entries) {
 		if (tlp->lp_ifp->if_index < ifp->if_index && (
 		    SLIST_NEXT(tlp, lp_entries) == NULL ||
-		    SLIST_NEXT(tlp, lp_entries)->lp_ifp->if_index <
+		    SLIST_NEXT(tlp, lp_entries)->lp_ifp->if_index >
 		    ifp->if_index))
 			break;
 	}
