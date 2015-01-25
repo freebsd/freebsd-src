@@ -41,8 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 
 #include <err.h>
-#include <libutil.h>
 #include <stdio.h>
+#include <libutil.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
