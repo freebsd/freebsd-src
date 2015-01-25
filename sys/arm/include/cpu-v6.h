@@ -179,6 +179,13 @@ _WF1(cp15_pminten_set, CP15_PMINTENSET(%0))
 _WF1(cp15_pminten_clr, CP15_PMINTENCLR(%0))
 #endif
 
+_RF0(cp15_tpidrurw_get, CP15_TPIDRURW(%0))
+_WF1(cp15_tpidrurw_set, CP15_TPIDRURW(%0))
+_RF0(cp15_tpidruro_get, CP15_TPIDRURO(%0))
+_WF1(cp15_tpidruro_set, CP15_TPIDRURO(%0))
+_RF0(cp15_tpidrpwr_get, CP15_TPIDRPRW(%0))
+_WF1(cp15_tpidrpwr_set, CP15_TPIDRPRW(%0))
+
 #undef	_FX
 #undef	_RF0
 #undef	_WF0

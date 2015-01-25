@@ -185,6 +185,7 @@ bi_load64(char *args, vm_offset_t addr, vm_offset_t *modulep,
     struct file_metadata	*md;
     u_int64_t			kernend;
     u_int64_t			envp;
+    u_int64_t			module;
     vm_offset_t			size;
     char			*rootdevname;
     int				howto;
@@ -222,7 +223,7 @@ bi_load64(char *args, vm_offset_t addr, vm_offset_t *modulep,
     addr = roundup(addr, PAGE_SIZE);
 
     /* place the metadata before anything */
-    *modulep = addr;
+    module = *modulep = addr;
 
     kfp = file_findfile(NULL, "elf kernel");
     if (kfp == NULL)
@@ -233,7 +234,7 @@ bi_load64(char *args, vm_offset_t addr, vm_offset_t *modulep,
     file_addmetadata(kfp, MODINFOMD_HOWTO, sizeof howto, &howto);
     file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
     file_addmetadata(kfp, MODINFOMD_KERNEND, sizeof kernend, &kernend);
-    file_addmetadata(kfp, MODINFOMD_MODULEP, sizeof modulep, modulep);
+    file_addmetadata(kfp, MODINFOMD_MODULEP, sizeof module, &module);
     if (add_smap != 0)
         bios_addsmapdata(kfp);
 

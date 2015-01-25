@@ -236,16 +236,12 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	 * return from cursig().
 	 */
 	sleepq_add(ident, lock, wmesg, sleepq_flags, 0);
+	if (sbt != 0)
+		sleepq_set_timeout_sbt(ident, sbt, pr, flags);
 	if (lock != NULL && class->lc_flags & LC_SLEEPABLE) {
 		sleepq_release(ident);
 		WITNESS_SAVE(lock, lock_witness);
 		lock_state = class->lc_unlock(lock);
-		if (sbt != 0)
-			sleepq_set_timeout_sbt(ident, sbt, pr, flags);
-		sleepq_lock(ident);
-	} else if (sbt != 0) {
-		sleepq_release(ident);
-		sleepq_set_timeout_sbt(ident, sbt, pr, flags);
 		sleepq_lock(ident);
 	}
 	if (sbt != 0 && catch)
@@ -310,11 +306,8 @@ msleep_spin_sbt(void *ident, struct mtx *mtx, const char *wmesg,
 	 * We put ourselves on the sleep queue and start our timeout.
 	 */
 	sleepq_add(ident, &mtx->lock_object, wmesg, SLEEPQ_SLEEP, 0);
-	if (sbt != 0) {
-		sleepq_release(ident);
+	if (sbt != 0)
 		sleepq_set_timeout_sbt(ident, sbt, pr, flags);
-		sleepq_lock(ident);
-	}
 
 	/*
 	 * Can't call ktrace with any spin locks held so it can lock the

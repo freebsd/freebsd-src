@@ -29,6 +29,8 @@
 #ifndef	_LINUX_KERNEL_H_
 #define	_LINUX_KERNEL_H_
 
+#include <sys/cdefs.h>
+#include <sys/types.h>
 #include <sys/systm.h>
 #include <sys/param.h>
 #include <sys/libkern.h>
@@ -57,6 +59,8 @@
 #define	KERN_INFO	"<6>"
 #define	KERN_DEBUG	"<7>"
 
+#define	BUILD_BUG_ON(x)		CTASSERT(x)
+
 #define BUG()			panic("BUG")
 #define BUG_ON(condition)	do { if (condition) BUG(); } while(0)
 #define	WARN_ON			BUG_ON
@@ -84,6 +88,7 @@
 #endif
 
 #define udelay(t)       	DELAY(t)
+#define usleep_range(min,max)	DELAY(min)
 
 #ifndef pr_fmt
 #define pr_fmt(fmt) fmt

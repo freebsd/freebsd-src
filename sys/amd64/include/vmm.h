@@ -446,8 +446,11 @@ struct vie {
 			rex_x:1,
 			rex_b:1,
 			rex_present:1,
+			repz_present:1,		/* REP/REPE/REPZ prefix */
+			repnz_present:1,	/* REPNE/REPNZ prefix */
 			opsize_override:1,	/* Operand size override */
-			addrsize_override:1;	/* Address size override */
+			addrsize_override:1,	/* Address size override */
+			segment_override:1;	/* Segment override */
 
 	uint8_t		mod:2,			/* ModRM byte */
 			reg:4,
@@ -463,6 +466,7 @@ struct vie {
 	uint8_t		scale;
 	int		base_register;		/* VM_REG_GUEST_xyz */
 	int		index_register;		/* VM_REG_GUEST_xyz */
+	int		segment_register;	/* VM_REG_GUEST_xyz */
 
 	int64_t		displacement;		/* optional addr displacement */
 	int64_t		immediate;		/* optional immediate operand */

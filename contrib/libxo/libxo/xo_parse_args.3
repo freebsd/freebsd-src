@@ -7,27 +7,31 @@
 .\" # LICENSE.
 .\" # Phil Shafer, July 2014
 .\" 
-.Dd July, 2014
+.Dd December 4, 2014
 .Dt LIBXO 3
 .Os
 .Sh NAME
 .Nm xo_parse_args
 .Nd detect, parse, and remove arguments for libxo
 .Sh LIBRARY
-.Nm libxo
+.Lb libxo
 .Sh SYNOPSIS
 .In libxo/xo.h
 .Ft int
 .Fn xo_parse_args "int argc" "char **argv"
+.Ft int
+.Fn xo_set_program "const char *name"
 .Sh DESCRIPTION
 The
 .Fn xo_parse_args
 function is used to process command-line arguments.
-.Em libxo -specific
+.Nm libxo
+specific
 options are processed and removed
 from the argument list so the calling application does not
-need to process them.  If successful, a new value for argc
-is returned.  On failure, a message it emitted and -1 is returned.
+need to process them.
+If successful, a new value for argc is returned.
+On failure, a message it emitted and -1 is returned.
 .Bd -literal -offset indent
     argc = xo_parse_args(argc, argv);
     if (argc < 0)
@@ -38,9 +42,9 @@ Following the call to
 .Fn xo_parse_args ,
 the application can process the remaining arguments in a normal manner.
 .Pp
-.Em libxo
-uses command line options to trigger rendering behavior.  The
-following options are recognised:
+.Nm libxo
+uses command line options to trigger rendering behavior.
+The following options are recognised:
 .Pp
 .Bl -tag -width "--libxo"
 .It
@@ -56,44 +60,45 @@ styles, flags, or features:
 .Pp
 .Bl -tag -width "12345678"
 .It Sy "Token   Action"
-.It dtrt
+.It Dv dtrt
 Enable "Do The Right Thing" mode
-.It html
+.It Dv html
 Emit HTML output
-.It indent=xx
+.It Dv indent=xx
 Set the indentation level
-.It info
+.It Dv info
 Add info attributes (HTML)
-.It json
+.It Dv json
 Emit JSON output
-.It keys
+.It Dv keys
 Emit the key attribute for keys (XML)
-.It no-locale
+.It Dv no-locale
 Do not initialize the locale setting
-.It no-top
+.It Dv no-top
 Do not emit a top set of braces (JSON)
-.It not-first
+.It Dv not-first
 Pretend the 1st output item was not 1st (JSON)
-.It pretty
+.It Dv pretty
 Emit pretty-printed output
-.It text
+.It Dv text
 Emit TEXT output
-.It units
+.It Dv units
 Add the 'units' (XML) or 'data-units (HTML) attribute
-.It warn
+.It Dv warn
 Emit warnings when libxo detects bad calls
-.It warn-xml
+.It Dv warn-xml
 Emit warnings in XML
-.It xml
+.It Dv xml
 Emit XML output
-.It xpath
+.It Dv xpath
 Add XPath expressions (HTML)
 .El
 .Pp
 The
 .Dq brief-options
 are single letter commands, designed for those with
-too little patience to use real tokens.  No comma separator is used.
+too little patience to use real tokens.
+No comma separator is used.
 .Bl -column "i<num>"
 .It Sy "Token   Action"
 .It "H      " "Enable HTML output (XO_STYLE_HTML)"
@@ -107,19 +112,41 @@ too little patience to use real tokens.  No comma separator is used.
 .It "x      " "Enable XPath data (XOF_XPATH)"
 .El
 .Pp
-.Sh ADDITIONAL DOCUMENTATION
+The
+.Fn xo_set_program
+function sets name of the program as reported by
+functions like
+.Fn xo_failure ,
+.Fn xo_warn ,
+.Fn xo_err ,
+etc.
+The program name is initialized by
+.Fn xo_parse_args ,
+but subsequent calls to
+.Fn xo_set_program
+can override this value.
 .Pp
+Note that the value is not copied, so the memory passed to
+.Fn xo_set_program
+(and
+.Fn xo_parse_args )
+must be maintained by the caller.
+.Pp
+.Sh ADDITIONAL DOCUMENTATION
 Complete documentation can be found on github:
 .Bd -literal -offset indent
 http://juniper.github.io/libxo/libxo-manual.html
 .Ed
 .Pp
-libxo lives on github as:
+.Nm libxo
+lives on github as:
 .Bd -literal -offset indent
 https://github.com/Juniper/libxo
 .Ed
 .Pp
-The latest release of libxo is available at:
+The latest release of
+.Nm libxo
+is available at:
 .Bd -literal -offset indent
 https://github.com/Juniper/libxo/releases
 .Ed
@@ -127,7 +154,8 @@ https://github.com/Juniper/libxo/releases
 .Xr xo_emit 3
 .Sh HISTORY
 The
-.Fa libxo
-library was added in FreeBSD 11.0.
+.Nm libxo
+library was added in
+.Fx 11.0 .
 .Sh AUTHOR
 Phil Shafer

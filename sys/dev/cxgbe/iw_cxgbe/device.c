@@ -321,8 +321,6 @@ c4iw_mod_unload(void)
 }
 
 #endif
-#undef MODULE_VERSION
-#include <sys/module.h>
 
 /*
  * t4_tom won't load on kernels without TCP_OFFLOAD and this module's dependency
@@ -366,4 +364,5 @@ MODULE_VERSION(iw_cxgbe, 1);
 MODULE_DEPEND(iw_cxgbe, t4nex, 1, 1, 1);
 MODULE_DEPEND(iw_cxgbe, t4_tom, 1, 1, 1);
 MODULE_DEPEND(iw_cxgbe, ibcore, 1, 1, 1);
+MODULE_DEPEND(iw_cxgbe, linuxapi, 1, 1, 1);
 DECLARE_MODULE(iw_cxgbe, c4iw_mod_data, SI_SUB_EXEC, SI_ORDER_ANY);

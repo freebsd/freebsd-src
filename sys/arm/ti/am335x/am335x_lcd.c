@@ -150,6 +150,7 @@ __FBSDID("$FreeBSD$");
 #define		IRQ_SYNC_LOST		(1 << 2)
 #define		IRQ_RASTER_DONE		(1 << 1)
 #define		IRQ_FRAME_DONE		(1 << 0)
+#define	LCD_END_OF_INT_IND	0x68
 #define	LCD_CLKC_ENABLE		0x6C
 #define		CLKC_ENABLE_DMA		(1 << 2)
 #define		CLKC_ENABLE_LDID	(1 << 1)
@@ -355,6 +356,8 @@ am335x_lcd_intr(void *arg)
 
 	reg = LCD_READ4(sc, LCD_IRQSTATUS);
 	LCD_WRITE4(sc, LCD_IRQSTATUS, reg);
+	/* Read value back to make sure it reached the hardware */
+	reg = LCD_READ4(sc, LCD_IRQSTATUS);
 
 	if (reg & IRQ_SYNC_LOST) {
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
@@ -364,7 +367,7 @@ am335x_lcd_intr(void *arg)
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
 		reg |= RASTER_CTRL_LCDEN;
 		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
-		return;
+		goto done;
 	}
 
 	if (reg & IRQ_PL) {
@@ -375,7 +378,7 @@ am335x_lcd_intr(void *arg)
 		reg = LCD_READ4(sc, LCD_RASTER_CTRL);
 		reg |= RASTER_CTRL_LCDEN;
 		LCD_WRITE4(sc, LCD_RASTER_CTRL, reg); 
-		return;
+		goto done;
 	}
 
 	if (reg & IRQ_EOF0) {
@@ -397,6 +400,11 @@ am335x_lcd_intr(void *arg)
 	if (reg & IRQ_ACB) {
 		/* TODO: Handle ACB */
 	}
+
+done:
+	LCD_WRITE4(sc, LCD_END_OF_INT_IND, 0);
+	/* Read value back to make sure it reached the hardware */
+	reg = LCD_READ4(sc, LCD_END_OF_INT_IND);
 }
 
 static int

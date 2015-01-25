@@ -116,6 +116,8 @@ dev_free_devlocked(struct cdev *cdev)
 
 	mtx_assert(&devmtx, MA_OWNED);
 	cdp = cdev2priv(cdev);
+	KASSERT((cdp->cdp_flags & CDP_UNREF_DTR) == 0,
+	    ("destroy_dev() was not called after delist_dev(%p)", cdev));
 	TAILQ_INSERT_HEAD(&cdevp_free_list, cdp, cdp_list);
 }
 
@@ -1035,6 +1037,7 @@ destroy_devl(struct cdev *dev)
 {
 	struct cdevsw *csw;
 	struct cdev_privdata *p;
+	struct cdev_priv *cdp;
 
 	mtx_assert(&devmtx, MA_OWNED);
 	KASSERT(dev->si_flags & SI_NAMED,
@@ -1043,7 +1046,18 @@ destroy_devl(struct cdev *dev)
 	    ("WARNING: Driver mistake: destroy_dev on eternal %d\n",
 	     dev2unit(dev)));
 
-	devfs_destroy(dev);
+	cdp = cdev2priv(dev);
+	if ((cdp->cdp_flags & CDP_UNREF_DTR) == 0) {
+		/*
+		 * Avoid race with dev_rel(), e.g. from the populate
+		 * loop.  If CDP_UNREF_DTR flag is set, the reference
+		 * to be dropped at the end of destroy_devl() was
+		 * already taken by delist_dev_locked().
+		 */
+		dev_refl(dev);
+
+		devfs_destroy(dev);
+	}
 
 	/* Remove name marking */
 	dev->si_flags &= ~SI_NAMED;
@@ -1103,19 +1117,27 @@ destroy_devl(struct cdev *dev)
 		}
 	}
 	dev->si_flags &= ~SI_ALIAS;
-	dev->si_refcount--;	/* Avoid race with dev_rel() */
+	cdp->cdp_flags &= ~CDP_UNREF_DTR;
+	dev->si_refcount--;
 
-	if (dev->si_refcount > 0) {
+	if (dev->si_refcount > 0)
 		LIST_INSERT_HEAD(&dead_cdevsw.d_devs, dev, si_list);
-	} else {
+	else
 		dev_free_devlocked(dev);
-	}
 }
 
 static void
 delist_dev_locked(struct cdev *dev)
 {
+	struct cdev_priv *cdp;
 	struct cdev *child;
+
+	mtx_assert(&devmtx, MA_OWNED);
+	cdp = cdev2priv(dev);
+	if ((cdp->cdp_flags & CDP_UNREF_DTR) != 0)
+		return;
+	cdp->cdp_flags |= CDP_UNREF_DTR;
+	dev_refl(dev);
 	devfs_destroy(dev);
 	LIST_FOREACH(child, &dev->si_children, si_siblings)
 		delist_dev_locked(child);
@@ -1124,6 +1146,7 @@ delist_dev_locked(struct cdev *dev)
 void
 delist_dev(struct cdev *dev)
 {
+
 	dev_lock();
 	delist_dev_locked(dev);
 	dev_unlock();

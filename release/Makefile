@@ -8,8 +8,13 @@
 #  memstick: Builds memory stick image (memstick.img)
 #  mini-memstick: Builds minimal memory stick image (mini-memstick.img)
 #  ftp: Sets up FTP distribution area (ftp)
-#  release: Build all media and FTP distribution area
-#  install: Copies all release media into ${DESTDIR}
+#  release: Invokes real-release, vm-release, and cloudware-release targets
+#  real-release: Build all media and FTP distribution area
+#  vm-release: Build all virtual machine image targets
+#  cloudware-release: Build all cloud hosting provider targets
+#  install: Invokes the release-install and vm-install targets
+#  release-install: Copies all release installation media into ${DESTDIR}
+#  vm-install: Copies all virtual machine images into ${DESTDIR}
 #
 # Variables affecting the build process:
 #  WORLDDIR: location of src tree -- must have built world and default kernel
@@ -26,6 +31,7 @@
 #  WITH_VMIMAGES: if set, build virtual machine images with the release
 #  WITH_COMPRESSED_VMIMAGES: if set, compress virtual machine disk images
 #  		with xz(1) (extremely time consuming)
+#  WITH_CLOUDWARE: if set, build cloud hosting disk images with the release
 #  TARGET/TARGET_ARCH: architecture of built release
 #
 
@@ -103,12 +109,6 @@ IMAGES+=	memstick.img
 IMAGES+=	mini-memstick.img
 .endif
 
-VMTARGETS=	vm-base vm-image
-VMFORMATS?=	vhd vmdk qcow2 raw
-VMSIZE?=	20G
-VMBASE?=	vm
-AZURECONF?=	${.CURDIR}/tools/azure.conf
-
 CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
 . for I in ${IMAGES}
@@ -118,22 +118,7 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
-.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-CLEANFILES+=	${VMBASE}.img
-. for FORMAT in ${VMFORMATS}
-CLEANFILES+=	${VMBASE}.${FORMAT}
-. endfor
-.endif
 CLEANDIRS=	dist ftp release bootonly dvd
-.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-CLEANDIRS+=	${VMTARGETS}
-.endif
-.if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
-CLEANFILES+=	${OSRELEASE}.vhd \
-		${OSRELEASE}.vhd.raw \
-		azure.img
-CLEANDIRS+=	vm-azure
-.endif
 beforeclean:
 	chflags -R noschg .
 .include <bsd.obj.mk>
@@ -293,14 +278,16 @@ ftp: packagesystem
 	mkdir -p ftp
 	cp *.txz MANIFEST ftp
 
-release:
+release:	real-release vm-release cloudware-release
+	@true
+
+real-release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${RELEASE_TARGETS}
-.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} ${VMTARGETS}
-.endif
 
-install:
+install:	release-install vm-install
+
+release-install:
 .if defined(DESTDIR) && !empty(DESTDIR)
 	mkdir -p ${DESTDIR}
 .endif
@@ -313,52 +300,5 @@ install:
 .endfor
 	cd ${DESTDIR} && sha256 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.SHA256
 	cd ${DESTDIR} && md5 ${OSRELEASE}* > ${DESTDIR}/CHECKSUM.MD5
-.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-	mkdir -p ${DESTDIR}/vmimages
-. for FORMAT in ${VMFORMATS}
-	cp -p ${VMBASE}.${FORMAT} \
-		${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
-. endfor
-. if defined(WITH_COMPRESSED_VMIMAGES) && !empty(WITH_COMPRESSED_VMIMAGES)
-# This is very time consuming, so defer it after the images are moved to
-# the DESTDIR.
-.  for FORMAT in ${VMFORMATS}
-	# Don't keep the originals.  There is a copy in ${.OBJDIR} if needed.
-	${XZCMD} ${DESTDIR}/vmimages/${OSRELEASE}.${FORMAT}
-.  endfor
-. endif
-	cd ${DESTDIR}/vmimages && sha256 ${OSRELEASE}* > \
-		${DESTDIR}/vmimages/CHECKSUM.SHA256
-	cd ${DESTDIR}/vmimages && md5 ${OSRELEASE}* > \
-		${DESTDIR}/vmimages/CHECKSUM.MD5
-.endif
 
-vm-base:
-.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-. if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
-	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		${.CURDIR}/${TARGET}/mk-vmimage.sh ${.TARGET} \
-		${VMBASE}.img ${WORLDDIR} ${.OBJDIR}/${.TARGET} ${VMSIZE}
-. endif
-.endif
-	touch ${.TARGET}
-
-vm-image: vm-base
-.if defined(WITH_VMIMAGES) && !empty(WITH_VMIMAGES)
-. if exists(${.CURDIR}/${TARGET}/mk-vmimage.sh)
-.  for FORMAT in ${VMFORMATS}
-	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
-		${.CURDIR}/${TARGET}/mk-vmimage.sh ${.TARGET} \
-		${VMBASE}.img ${FORMAT} ${VMBASE}.${FORMAT}
-.  endfor
-. endif
-.endif
-	touch ${.TARGET}
-
-vm-azure:
-.if exists(${.CURDIR}/${TARGET}/mk-azure.sh)
-	env TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} AZURECONF=${AZURECONF} \
-		${.CURDIR}/${TARGET}/mk-azure.sh ${.TARGET} azure.img \
-		${WORLDDIR} ${.TARGET} ${VMSIZE} ${OSRELEASE}.vhd
-.endif
-	touch ${.TARGET}
+.include "${.CURDIR}/Makefile.vm"
