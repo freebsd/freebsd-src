@@ -1550,7 +1550,32 @@ OLD_FILES+=usr/share/man/man1/kgdb.1.gz
 .endif
 
 .if ${MK_GPIO} == no
+OLD_FILES+=usr/include/libgpio.h
+OLD_FILES+=usr/lib/libgpio.a
+OLD_LIBS+=usr/lib/libgpio.so.0
+OLD_FILES+=usr/lib/libgpio_p.a
 OLD_FILES+=usr/sbin/gpioctl
+OLD_FILES+=usr/share/man/man3/gpio.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_close.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_open.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_open_device.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_config.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_get.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_high.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_input.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_invin.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_invout.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_list.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_low.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_opendrain.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_output.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_pulldown.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_pullup.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_pulsate.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_pushpull.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_set.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_set_flags.3.gz
+OLD_FILES+=usr/share/man/man3/gpio_pin_tristate.3.gz
 OLD_FILES+=usr/share/man/man8/gpioctl.8.gz
 .endif
 

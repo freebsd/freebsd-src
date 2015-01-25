@@ -57,7 +57,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libfetch \
 	libfigpar \
 	libgeom \
-	libgpio \
+	${_libgpio} \
 	${_libgssapi} \
 	${_librpcsec_gss} \
 	${_libiconv_modules} \
@@ -224,6 +224,10 @@ _cuse=		libcuse
 
 .if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
 _libelftc=	libelftc
+.endif
+
+.if ${MK_GPIO} != "no"
+_libgpio=	libgpio
 .endif
 
 .if ${MK_GSSAPI} != "no"
