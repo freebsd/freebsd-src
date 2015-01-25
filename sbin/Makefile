@@ -8,7 +8,6 @@
 SUBDIR=adjkerntz \
 	badsect \
 	camcontrol \
-	ccdconfig \
 	clri \
 	comcontrol \
 	conscontrol \
@@ -79,6 +78,10 @@ SUBDIR+=	atm
 
 .if ${MK_CASPER} != "no"
 SUBDIR+=	casperd
+.endif
+
+.if ${MK_CCD} != "no"
+SUBDIR+=	ccdconfig
 .endif
 
 .if ${MK_CXX} != "no"

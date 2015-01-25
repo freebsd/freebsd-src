@@ -24,6 +24,7 @@
 
 __DEFAULT_YES_OPTIONS = \
     BLUETOOTH \
+    CCD \
     CDDL \
     CRYPT \
     FORMAT_EXTENSIONS \

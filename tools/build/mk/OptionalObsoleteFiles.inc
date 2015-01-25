@@ -398,6 +398,13 @@ OLD_FILES+=sbin/casper
 OLD_FILES+=usr/lib/libcasper.a
 .endif
 
+.if ${MK_CCD} == no
+OLD_FILES+=etc/rc.d/ccd
+OLD_FILES+=sbin/ccdconfig
+OLD_FILES+=usr/share/man/man4/ccd.4.gz
+OLD_FILES+=usr/share/man/man8/ccdconfig.8.gz
+.endif
+
 .if ${MK_CDDL} == no
 OLD_LIBS+=lib/libavl.so.2
 OLD_LIBS+=lib/libctf.so.2
