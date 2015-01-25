@@ -649,6 +649,43 @@ OLD_FILES+=usr/share/man/man1/ctm_smail.1.gz
 OLD_FILES+=usr/share/man/man5/ctm.5.gz
 .endif
 
+.if ${MK_CUSE} == no
+OLD_FILES+=usr/include/fs/cuse/cuse_defs.h
+OLD_FILES+=usr/include/fs/cuse/cuse_ioctl.h
+OLD_FILES+=usr/include/cuse.h
+OLD_FILES+=usr/lib/libcuse.a
+OLD_LIBS+=usr/lib/libcuse.so.1
+OLD_FILES+=usr/lib/libcuse_p.a
+OLD_FILES+=usr/share/man/man3/cuse.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_alloc_unit_number.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_alloc_unit_number_by_id.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_copy_in.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_copy_out.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_create.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_destroy.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_get_current.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_get_per_file_handle.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_get_priv0.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_get_priv1.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_set_per_file_handle.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_set_priv0.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_dev_set_priv1.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_free_unit_number.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_free_unit_number_by_id.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_get_local.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_got_peer_signal.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_init.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_is_vmalloc_addr.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_poll_wakeup.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_set_local.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_uninit.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_vmalloc.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_vmfree.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_vmoffset.3.gz
+OLD_FILES+=usr/share/man/man3/cuse_wait_and_process.3.gz
+OLD_DIRS+=usr/include/fs/cuse
+.endif
+
 # devd(8) not listed here on purpose
 .if ${MK_CXX} == no
 OLD_FILES+=usr/bin/CC
