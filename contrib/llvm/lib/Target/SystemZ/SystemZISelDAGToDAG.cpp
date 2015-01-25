@@ -140,7 +140,7 @@ class SystemZDAGToDAGISel : public SelectionDAGISel {
   }
 
   const SystemZInstrInfo *getInstrInfo() const {
-    return getTargetMachine().getInstrInfo();
+    return getTargetMachine().getSubtargetImpl()->getInstrInfo();
   }
 
   // Try to fold more of the base or index of AM into AM, where IsBase
@@ -315,9 +315,9 @@ class SystemZDAGToDAGISel : public SelectionDAGISel {
 
 public:
   SystemZDAGToDAGISel(SystemZTargetMachine &TM, CodeGenOpt::Level OptLevel)
-    : SelectionDAGISel(TM, OptLevel),
-      Lowering(*TM.getTargetLowering()),
-      Subtarget(*TM.getSubtargetImpl()) { }
+      : SelectionDAGISel(TM, OptLevel),
+        Lowering(*TM.getSubtargetImpl()->getTargetLowering()),
+        Subtarget(*TM.getSubtargetImpl()) {}
 
   // Override MachineFunctionPass.
   const char *getPassName() const override {
@@ -1000,8 +1000,8 @@ bool SystemZDAGToDAGISel::canUseBlockOperation(StoreSDNode *Store,
   if (V1 == V2 && End1 == End2)
     return false;
 
-  return !AA->alias(AliasAnalysis::Location(V1, End1, Load->getTBAAInfo()),
-                    AliasAnalysis::Location(V2, End2, Store->getTBAAInfo()));
+  return !AA->alias(AliasAnalysis::Location(V1, End1, Load->getAAInfo()),
+                    AliasAnalysis::Location(V2, End2, Store->getAAInfo()));
 }
 
 bool SystemZDAGToDAGISel::storeLoadCanUseMVC(SDNode *N) const {

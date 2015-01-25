@@ -93,13 +93,13 @@ ObjCContainerDecl::getMethod(Selector Sel, bool isInstance,
   return nullptr;
 }
 
-/// HasUserDeclaredSetterMethod - This routine returns 'true' if a user declared setter
-/// method was found in the class, its protocols, its super classes or categories.
-/// It also returns 'true' if one of its categories has declared a 'readwrite' property.
-/// This is because, user must provide a setter method for the category's 'readwrite'
-/// property.
-bool
-ObjCContainerDecl::HasUserDeclaredSetterMethod(const ObjCPropertyDecl *Property) const {
+/// \brief This routine returns 'true' if a user declared setter method was
+/// found in the class, its protocols, its super classes or categories.
+/// It also returns 'true' if one of its categories has declared a 'readwrite'
+/// property.  This is because, user must provide a setter method for the
+/// category's 'readwrite' property.
+bool ObjCContainerDecl::HasUserDeclaredSetterMethod(
+    const ObjCPropertyDecl *Property) const {
   Selector Sel = Property->getSetterName();
   lookup_const_result R = lookup(Sel);
   for (lookup_const_iterator Meth = R.begin(), MethEnd = R.end();
@@ -118,9 +118,10 @@ ObjCContainerDecl::HasUserDeclaredSetterMethod(const ObjCPropertyDecl *Property)
           return true;
       if (Cat->IsClassExtension())
         continue;
-      // Also search through the categories looking for a 'readwrite' declaration
-      // of this property. If one found, presumably a setter will be provided
-      // (properties declared in categories will not get auto-synthesized).
+      // Also search through the categories looking for a 'readwrite'
+      // declaration of this property. If one found, presumably a setter will
+      // be provided (properties declared in categories will not get
+      // auto-synthesized).
       for (const auto *P : Cat->properties())
         if (P->getIdentifier() == Property->getIdentifier()) {
           if (P->getPropertyAttributes() & ObjCPropertyDecl::OBJC_PR_readwrite)
@@ -151,7 +152,7 @@ ObjCContainerDecl::HasUserDeclaredSetterMethod(const ObjCPropertyDecl *Property)
 
 ObjCPropertyDecl *
 ObjCPropertyDecl::findPropertyDecl(const DeclContext *DC,
-                                   IdentifierInfo *propertyID) {
+                                   const IdentifierInfo *propertyID) {
   // If this context is a hidden protocol definition, don't find any
   // property.
   if (const ObjCProtocolDecl *Proto = dyn_cast<ObjCProtocolDecl>(DC)) {
@@ -181,8 +182,8 @@ ObjCPropertyDecl::getDefaultSynthIvarName(ASTContext &Ctx) const {
 
 /// FindPropertyDeclaration - Finds declaration of the property given its name
 /// in 'PropertyId' and returns it. It returns 0, if not found.
-ObjCPropertyDecl *
-ObjCContainerDecl::FindPropertyDeclaration(IdentifierInfo *PropertyId) const {
+ObjCPropertyDecl *ObjCContainerDecl::FindPropertyDeclaration(
+    const IdentifierInfo *PropertyId) const {
   // Don't find properties within hidden protocol definitions.
   if (const ObjCProtocolDecl *Proto = dyn_cast<ObjCProtocolDecl>(this)) {
     if (const ObjCProtocolDecl *Def = Proto->getDefinition())
@@ -558,36 +559,39 @@ ObjCMethodDecl *ObjCInterfaceDecl::lookupMethod(Selector Sel,
     LoadExternalDefinition();
 
   while (ClassDecl) {
+    // 1. Look through primary class.
     if ((MethodDecl = ClassDecl->getMethod(Sel, isInstance)))
       return MethodDecl;
-
-    // Didn't find one yet - look through protocols.
-    for (const auto *I : ClassDecl->protocols())
-      if ((MethodDecl = I->lookupMethod(Sel, isInstance)))
-        return MethodDecl;
     
-    // Didn't find one yet - now look through categories.
-    for (const auto *Cat : ClassDecl->visible_categories()) {
+    // 2. Didn't find one yet - now look through categories.
+    for (const auto *Cat : ClassDecl->visible_categories())
       if ((MethodDecl = Cat->getMethod(Sel, isInstance)))
         if (C != Cat || !MethodDecl->isImplicit())
           return MethodDecl;
 
-      if (!shallowCategoryLookup) {
+    // 3. Didn't find one yet - look through primary class's protocols.
+    for (const auto *I : ClassDecl->protocols())
+      if ((MethodDecl = I->lookupMethod(Sel, isInstance)))
+        return MethodDecl;
+    
+    // 4. Didn't find one yet - now look through categories' protocols
+    if (!shallowCategoryLookup)
+      for (const auto *Cat : ClassDecl->visible_categories()) {
         // Didn't find one yet - look through protocols.
         const ObjCList<ObjCProtocolDecl> &Protocols =
-        Cat->getReferencedProtocols();
+          Cat->getReferencedProtocols();
         for (ObjCList<ObjCProtocolDecl>::iterator I = Protocols.begin(),
              E = Protocols.end(); I != E; ++I)
           if ((MethodDecl = (*I)->lookupMethod(Sel, isInstance)))
             if (C != Cat || !MethodDecl->isImplicit())
               return MethodDecl;
       }
-    }
-
+    
+    
     if (!followSuper)
       return nullptr;
 
-    // Get the super class (if any).
+    // 5. Get to the super class (if any).
     ClassDecl = ClassDecl->getSuperClass();
   }
   return nullptr;
@@ -849,6 +853,11 @@ ObjCMethodFamily ObjCMethodDecl::getMethodFamily() const {
       family = OMF_None;
     break;
       
+  case OMF_initialize:
+    if (isInstanceMethod() || !getReturnType()->isVoidType())
+      family = OMF_None;
+    break;
+      
   case OMF_performSelector:
     if (!isInstanceMethod() || !getReturnType()->isObjCIdType())
       family = OMF_None;
@@ -950,6 +959,13 @@ ObjCInterfaceDecl *ObjCMethodDecl::getClassInterface() {
   if (isa<ObjCProtocolDecl>(getDeclContext()))
     return nullptr;
   llvm_unreachable("unknown method context");
+}
+
+SourceRange ObjCMethodDecl::getReturnTypeSourceRange() const {
+  const auto *TSI = getReturnTypeSourceInfo();
+  if (TSI)
+    return TSI->getTypeLoc().getSourceRange();
+  return SourceRange();
 }
 
 static void CollectOverriddenMethodsRecurse(const ObjCContainerDecl *Container,

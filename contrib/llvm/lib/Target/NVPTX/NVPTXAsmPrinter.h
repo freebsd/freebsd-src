@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef NVPTXASMPRINTER_H
-#define NVPTXASMPRINTER_H
+#ifndef LLVM_LIB_TARGET_NVPTX_NVPTXASMPRINTER_H
+#define LLVM_LIB_TARGET_NVPTX_NVPTXASMPRINTER_H
 
 #include "NVPTX.h"
 #include "NVPTXSubtarget.h"
@@ -38,13 +38,6 @@
 //
 // A better approach is to clone the MCAsmStreamer to a MCPTXAsmStreamer
 // (subclass of MCStreamer).
-
-// This is defined in AsmPrinter.cpp.
-// Used to process the constant expressions in initializers.
-namespace nvptx {
-const llvm::MCExpr *
-LowerConstant(const llvm::Constant *CV, llvm::AsmPrinter &AP);
-}
 
 namespace llvm {
 
@@ -86,13 +79,13 @@ class LLVM_LIBRARY_VISIBILITY NVPTXAsmPrinter : public AsmPrinter {
     // Once we have this AggBuffer setup, we can choose how to print
     // it out.
   public:
-    unsigned size;         // size of the buffer in bytes
-    unsigned char *buffer; // the buffer
     unsigned numSymbols;   // number of symbol addresses
-    SmallVector<unsigned, 4> symbolPosInBuffer;
-    SmallVector<const Value *, 4> Symbols;
 
   private:
+    const unsigned size;   // size of the buffer in bytes
+    std::vector<unsigned char> buffer; // the buffer
+    SmallVector<unsigned, 4> symbolPosInBuffer;
+    SmallVector<const Value *, 4> Symbols;
     unsigned curpos;
     raw_ostream &O;
     NVPTXAsmPrinter &AP;
@@ -100,14 +93,11 @@ class LLVM_LIBRARY_VISIBILITY NVPTXAsmPrinter : public AsmPrinter {
 
   public:
     AggBuffer(unsigned _size, raw_ostream &_O, NVPTXAsmPrinter &_AP)
-        : O(_O), AP(_AP) {
-      buffer = new unsigned char[_size];
-      size = _size;
+        : size(_size), buffer(_size), O(_O), AP(_AP) {
       curpos = 0;
       numSymbols = 0;
       EmitGeneric = AP.EmitGeneric;
     }
-    ~AggBuffer() { delete[] buffer; }
     unsigned addBytes(unsigned char *Ptr, int Num, int Bytes) {
       assert((curpos + Num) <= size);
       assert((curpos + Bytes) <= size);
@@ -170,7 +160,7 @@ class LLVM_LIBRARY_VISIBILITY NVPTXAsmPrinter : public AsmPrinter {
                 O << *Name;
               }
             } else if (const ConstantExpr *Cexpr = dyn_cast<ConstantExpr>(v)) {
-              O << *nvptx::LowerConstant(Cexpr, AP);
+              O << *AP.lowerConstant(Cexpr);
             } else
               llvm_unreachable("symbol type unknown");
             nSym++;
@@ -179,9 +169,9 @@ class LLVM_LIBRARY_VISIBILITY NVPTXAsmPrinter : public AsmPrinter {
             else
               nextSymbolPos = symbolPosInBuffer[nSym];
           } else if (nBytes == 4)
-            O << *(unsigned int *)(buffer + pos);
+            O << *(unsigned int *)(&buffer[pos]);
           else
-            O << *(unsigned long long *)(buffer + pos);
+            O << *(unsigned long long *)(&buffer[pos]);
         }
       }
     }

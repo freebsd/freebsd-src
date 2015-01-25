@@ -25,6 +25,7 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Analysis/AssumptionCache.h"
 #include "llvm/Analysis/TargetTransformInfo.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/CFG.h"
@@ -34,22 +35,30 @@
 #include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 
 #define DEBUG_TYPE "simplifycfg"
+
+static cl::opt<unsigned>
+UserBonusInstThreshold("bonus-inst-threshold", cl::Hidden, cl::init(1),
+   cl::desc("Control the number of bonus instructions (default = 1)"));
 
 STATISTIC(NumSimpl, "Number of blocks simplified");
 
 namespace {
 struct CFGSimplifyPass : public FunctionPass {
   static char ID; // Pass identification, replacement for typeid
-  CFGSimplifyPass() : FunctionPass(ID) {
+  unsigned BonusInstThreshold;
+  CFGSimplifyPass(int T = -1) : FunctionPass(ID) {
+    BonusInstThreshold = (T == -1) ? UserBonusInstThreshold : unsigned(T);
     initializeCFGSimplifyPassPass(*PassRegistry::getPassRegistry());
   }
   bool runOnFunction(Function &F) override;
 
   void getAnalysisUsage(AnalysisUsage &AU) const override {
+    AU.addRequired<AssumptionCacheTracker>();
     AU.addRequired<TargetTransformInfo>();
   }
 };
@@ -59,12 +68,13 @@ char CFGSimplifyPass::ID = 0;
 INITIALIZE_PASS_BEGIN(CFGSimplifyPass, "simplifycfg", "Simplify the CFG", false,
                       false)
 INITIALIZE_AG_DEPENDENCY(TargetTransformInfo)
+INITIALIZE_PASS_DEPENDENCY(AssumptionCacheTracker)
 INITIALIZE_PASS_END(CFGSimplifyPass, "simplifycfg", "Simplify the CFG", false,
                     false)
 
 // Public interface to the CFGSimplification pass
-FunctionPass *llvm::createCFGSimplificationPass() {
-  return new CFGSimplifyPass();
+FunctionPass *llvm::createCFGSimplificationPass(int Threshold) {
+  return new CFGSimplifyPass(Threshold);
 }
 
 /// mergeEmptyReturnBlocks - If we have more than one empty (other than phi
@@ -146,7 +156,8 @@ static bool mergeEmptyReturnBlocks(Function &F) {
 /// iterativelySimplifyCFG - Call SimplifyCFG on all the blocks in the function,
 /// iterating until no more changes are made.
 static bool iterativelySimplifyCFG(Function &F, const TargetTransformInfo &TTI,
-                                   const DataLayout *DL) {
+                                   const DataLayout *DL, AssumptionCache *AC,
+                                   unsigned BonusInstThreshold) {
   bool Changed = false;
   bool LocalChange = true;
   while (LocalChange) {
@@ -155,7 +166,7 @@ static bool iterativelySimplifyCFG(Function &F, const TargetTransformInfo &TTI,
     // Loop over all of the basic blocks and remove them if they are unneeded...
     //
     for (Function::iterator BBIt = F.begin(); BBIt != F.end(); ) {
-      if (SimplifyCFG(BBIt++, TTI, DL)) {
+      if (SimplifyCFG(BBIt++, TTI, BonusInstThreshold, DL, AC)) {
         LocalChange = true;
         ++NumSimpl;
       }
@@ -172,12 +183,14 @@ bool CFGSimplifyPass::runOnFunction(Function &F) {
   if (skipOptnoneFunction(F))
     return false;
 
+  AssumptionCache *AC =
+      &getAnalysis<AssumptionCacheTracker>().getAssumptionCache(F);
   const TargetTransformInfo &TTI = getAnalysis<TargetTransformInfo>();
   DataLayoutPass *DLP = getAnalysisIfAvailable<DataLayoutPass>();
   const DataLayout *DL = DLP ? &DLP->getDataLayout() : nullptr;
   bool EverChanged = removeUnreachableBlocks(F);
   EverChanged |= mergeEmptyReturnBlocks(F);
-  EverChanged |= iterativelySimplifyCFG(F, TTI, DL);
+  EverChanged |= iterativelySimplifyCFG(F, TTI, DL, AC, BonusInstThreshold);
 
   // If neither pass changed anything, we're done.
   if (!EverChanged) return false;
@@ -191,7 +204,7 @@ bool CFGSimplifyPass::runOnFunction(Function &F) {
     return true;
 
   do {
-    EverChanged = iterativelySimplifyCFG(F, TTI, DL);
+    EverChanged = iterativelySimplifyCFG(F, TTI, DL, AC, BonusInstThreshold);
     EverChanged |= removeUnreachableBlocks(F);
   } while (EverChanged);
 

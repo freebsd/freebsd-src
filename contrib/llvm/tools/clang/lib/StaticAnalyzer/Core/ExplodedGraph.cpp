@@ -336,10 +336,10 @@ ExplodedNode *ExplodedGraph::getNode(const ProgramPoint &L,
   return V;
 }
 
-ExplodedGraph *
+std::unique_ptr<ExplodedGraph>
 ExplodedGraph::trim(ArrayRef<const NodeTy *> Sinks,
                     InterExplodedGraphMap *ForwardMap,
-                    InterExplodedGraphMap *InverseMap) const{
+                    InterExplodedGraphMap *InverseMap) const {
 
   if (Nodes.empty())
     return nullptr;
@@ -365,11 +365,8 @@ ExplodedGraph::trim(ArrayRef<const NodeTy *> Sinks,
     const ExplodedNode *N = WL1.pop_back_val();
 
     // Have we already visited this node?  If so, continue to the next one.
-    if (Pass1.count(N))
+    if (!Pass1.insert(N).second)
       continue;
-
-    // Otherwise, mark this node as visited.
-    Pass1.insert(N);
 
     // If this is a root enqueue it to the second worklist.
     if (N->Preds.empty()) {
@@ -378,9 +375,7 @@ ExplodedGraph::trim(ArrayRef<const NodeTy *> Sinks,
     }
 
     // Visit our predecessors and enqueue them.
-    for (ExplodedNode::pred_iterator I = N->Preds.begin(), E = N->Preds.end();
-         I != E; ++I)
-      WL1.push_back(*I);
+    WL1.append(N->Preds.begin(), N->Preds.end());
   }
 
   // We didn't hit a root? Return with a null pointer for the new graph.
@@ -388,7 +383,7 @@ ExplodedGraph::trim(ArrayRef<const NodeTy *> Sinks,
     return nullptr;
 
   // Create an empty graph.
-  ExplodedGraph* G = MakeEmptyGraph();
+  std::unique_ptr<ExplodedGraph> G = MakeEmptyGraph();
 
   // ===- Pass 2 (forward DFS to construct the new graph) -===
   while (!WL2.empty()) {

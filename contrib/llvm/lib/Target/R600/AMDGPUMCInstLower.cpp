@@ -40,8 +40,13 @@ AMDGPUMCInstLower::AMDGPUMCInstLower(MCContext &ctx, const AMDGPUSubtarget &st):
 { }
 
 enum AMDGPUMCInstLower::SISubtarget
-AMDGPUMCInstLower::AMDGPUSubtargetToSISubtarget(unsigned) const {
-  return AMDGPUMCInstLower::SI;
+AMDGPUMCInstLower::AMDGPUSubtargetToSISubtarget(unsigned Gen) const {
+  switch (Gen) {
+  default:
+    return AMDGPUMCInstLower::SI;
+  case AMDGPUSubtarget::VOLCANIC_ISLANDS:
+    return AMDGPUMCInstLower::VI;
+  }
 }
 
 unsigned AMDGPUMCInstLower::getMCOpcode(unsigned MIOpcode) const {
@@ -63,13 +68,6 @@ void AMDGPUMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) const {
     switch (MO.getType()) {
     default:
       llvm_unreachable("unknown operand type");
-    case MachineOperand::MO_FPImmediate: {
-      const APFloat &FloatValue = MO.getFPImm()->getValueAPF();
-      assert(&FloatValue.getSemantics() == &APFloat::IEEEsingle &&
-             "Only floating point immediates are supported at the moment.");
-      MCOp = MCOperand::CreateFPImm(FloatValue.convertToFloat());
-      break;
-    }
     case MachineOperand::MO_Immediate:
       MCOp = MCOperand::CreateImm(MO.getImm());
       break;
@@ -104,7 +102,7 @@ void AMDGPUAsmPrinter::EmitInstruction(const MachineInstr *MI) {
 
 #ifdef _DEBUG
   StringRef Err;
-  if (!TM.getInstrInfo()->verifyInstruction(MI, Err)) {
+  if (!TM.getSubtargetImpl()->getInstrInfo()->verifyInstruction(MI, Err)) {
     errs() << "Warning: Illegal instruction detected: " << Err << "\n";
     MI->dump();
   }
@@ -128,8 +126,9 @@ void AMDGPUAsmPrinter::EmitInstruction(const MachineInstr *MI) {
       std::string &DisasmLine = DisasmLines.back();
       raw_string_ostream DisasmStream(DisasmLine);
 
-      AMDGPUInstPrinter InstPrinter(*TM.getMCAsmInfo(), *TM.getInstrInfo(),
-                                    *TM.getRegisterInfo());
+      AMDGPUInstPrinter InstPrinter(*TM.getMCAsmInfo(),
+                                    *TM.getSubtargetImpl()->getInstrInfo(),
+                                    *TM.getSubtargetImpl()->getRegisterInfo());
       InstPrinter.printInst(&TmpInst, DisasmStream, StringRef());
 
       // Disassemble instruction/operands to hex representation.

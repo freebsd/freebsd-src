@@ -11,12 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef AArch64SUBTARGET_H
-#define AArch64SUBTARGET_H
+#ifndef LLVM_LIB_TARGET_AARCH64_AARCH64SUBTARGET_H
+#define LLVM_LIB_TARGET_AARCH64_AARCH64SUBTARGET_H
 
-#include "AArch64InstrInfo.h"
 #include "AArch64FrameLowering.h"
 #include "AArch64ISelLowering.h"
+#include "AArch64InstrInfo.h"
 #include "AArch64RegisterInfo.h"
 #include "AArch64SelectionDAGInfo.h"
 #include "llvm/IR/DataLayout.h"
@@ -69,18 +69,27 @@ public:
   /// This constructor initializes the data members to match that
   /// of the specified triple.
   AArch64Subtarget(const std::string &TT, const std::string &CPU,
-		   const std::string &FS, TargetMachine &TM, bool LittleEndian);
+                   const std::string &FS, const TargetMachine &TM,
+                   bool LittleEndian);
 
-  const AArch64SelectionDAGInfo *getSelectionDAGInfo() const { return &TSInfo; }
-  const AArch64FrameLowering *getFrameLowering() const {
+  const AArch64SelectionDAGInfo *getSelectionDAGInfo() const override {
+    return &TSInfo;
+  }
+  const AArch64FrameLowering *getFrameLowering() const override {
     return &FrameLowering;
   }
-  const AArch64TargetLowering *getTargetLowering() const {
+  const AArch64TargetLowering *getTargetLowering() const override {
     return &TLInfo;
   }
-  const AArch64InstrInfo *getInstrInfo() const { return &InstrInfo; }
-  const DataLayout *getDataLayout() const { return &DL; }
+  const AArch64InstrInfo *getInstrInfo() const override { return &InstrInfo; }
+  const DataLayout *getDataLayout() const override { return &DL; }
+  const AArch64RegisterInfo *getRegisterInfo() const override {
+    return &getInstrInfo()->getRegisterInfo();
+  }
   bool enableMachineScheduler() const override { return true; }
+  bool enablePostMachineScheduler() const override {
+    return isCortexA53() || isCortexA57();
+  }
 
   bool hasZeroCycleRegMove() const { return HasZeroCycleRegMove; }
 
@@ -94,12 +103,19 @@ public:
   bool isLittleEndian() const { return DL.isLittleEndian(); }
 
   bool isTargetDarwin() const { return TargetTriple.isOSDarwin(); }
+  bool isTargetIOS() const { return TargetTriple.isiOS(); }
+  bool isTargetLinux() const { return TargetTriple.isOSLinux(); }
+  bool isTargetWindows() const { return TargetTriple.isOSWindows(); }
 
+  bool isTargetCOFF() const { return TargetTriple.isOSBinFormatCOFF(); }
   bool isTargetELF() const { return TargetTriple.isOSBinFormatELF(); }
-
   bool isTargetMachO() const { return TargetTriple.isOSBinFormatMachO(); }
 
   bool isCyclone() const { return CPUString == "cyclone"; }
+  bool isCortexA57() const { return CPUString == "cortex-a57"; }
+  bool isCortexA53() const { return CPUString == "cortex-a53"; }
+
+  bool useAA() const override { return isCortexA53(); }
 
   /// getMaxInlineSizeThreshold - Returns the maximum memset / memcpy size
   /// that still makes it profitable to inline the call.
@@ -126,7 +142,9 @@ public:
                            unsigned NumRegionInstrs) const override;
 
   bool enableEarlyIfConversion() const override;
+
+  std::unique_ptr<PBQPRAConstraint> getCustomPBQPConstraints() const override;
 };
 } // End llvm namespace
 
-#endif // AArch64SUBTARGET_H
+#endif

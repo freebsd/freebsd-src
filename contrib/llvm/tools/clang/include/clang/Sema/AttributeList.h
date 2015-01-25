@@ -12,8 +12,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef LLVM_CLANG_SEMA_ATTRLIST_H
-#define LLVM_CLANG_SEMA_ATTRLIST_H
+#ifndef LLVM_CLANG_SEMA_ATTRIBUTELIST_H
+#define LLVM_CLANG_SEMA_ATTRIBUTELIST_H
 
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/VersionTuple.h"
@@ -94,10 +94,10 @@ private:
 
   /// The number of expression arguments this attribute has.
   /// The expressions themselves are stored after the object.
-  unsigned NumArgs : 16;
+  unsigned NumArgs : 15;
 
   /// Corresponds to the Syntax enum.
-  unsigned SyntaxUsed : 2;
+  unsigned SyntaxUsed : 3;
 
   /// True if already diagnosed as invalid.
   mutable unsigned Invalid : 1;
@@ -455,6 +455,7 @@ public:
   bool hasCustomParsing() const;
   unsigned getMinArgs() const;
   unsigned getMaxArgs() const;
+  bool hasVariadicArg() const;
   bool diagnoseAppertainsTo(class Sema &S, const Decl *D) const;
   bool diagnoseLangOpts(class Sema &S) const;
   bool existsInTarget(const llvm::Triple &T) const;
@@ -821,12 +822,13 @@ enum AttributeDeclKind {
   ExpectedFunctionMethodOrClass,
   ExpectedFunctionMethodOrParameter,
   ExpectedClass,
+  ExpectedEnum,
   ExpectedVariable,
   ExpectedMethod,
   ExpectedVariableFunctionOrLabel,
   ExpectedFieldOrGlobalVar,
   ExpectedStruct,
-  ExpectedVariableFunctionOrTag,
+  ExpectedVariableOrTypedef,
   ExpectedTLSVar,
   ExpectedVariableOrField,
   ExpectedVariableFieldOrTag,
@@ -842,7 +844,8 @@ enum AttributeDeclKind {
   ExpectedObjectiveCProtocol,
   ExpectedFunctionGlobalVarMethodOrProperty,
   ExpectedStructOrTypedef,
-  ExpectedObjectiveCInterfaceOrProtocol
+  ExpectedObjectiveCInterfaceOrProtocol,
+  ExpectedKernelFunction
 };
 
 }  // end namespace clang

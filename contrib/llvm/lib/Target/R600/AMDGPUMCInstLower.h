@@ -8,8 +8,8 @@
 /// \file
 //===----------------------------------------------------------------------===//
 
-#ifndef AMDGPU_MCINSTLOWER_H
-#define AMDGPU_MCINSTLOWER_H
+#ifndef LLVM_LIB_TARGET_R600_AMDGPUMCINSTLOWER_H
+#define LLVM_LIB_TARGET_R600_AMDGPUMCINSTLOWER_H
 
 namespace llvm {
 
@@ -22,7 +22,8 @@ class AMDGPUMCInstLower {
 
   // This must be kept in sync with the SISubtarget class in SIInstrInfo.td
   enum SISubtarget {
-    SI = 0
+    SI = 0,
+    VI = 1
   };
 
   MCContext &Ctx;
@@ -45,4 +46,4 @@ public:
 
 } // End namespace llvm
 
-#endif //AMDGPU_MCINSTLOWER_H
+#endif

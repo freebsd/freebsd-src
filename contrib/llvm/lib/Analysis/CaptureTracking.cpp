@@ -19,8 +19,8 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Analysis/AliasAnalysis.h"
-#include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/Analysis/CFG.h"
+#include "llvm/Analysis/CaptureTracking.h"
 #include "llvm/IR/CallSite.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Dominators.h"
@@ -239,7 +239,7 @@ void llvm::PointerMayBeCaptured(const Value *V, CaptureTracker *Tracker) {
         if (Count++ >= Threshold)
           return Tracker->tooManyUses();
 
-        if (Visited.insert(&UU))
+        if (Visited.insert(&UU).second)
           if (Tracker->shouldExplore(&UU))
             Worklist.push_back(&UU);
       }

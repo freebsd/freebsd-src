@@ -13,10 +13,11 @@
 #include "llvm/ADT/Triple.h"
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCDirectives.h"
+#include "llvm/MC/MCELFObjectWriter.h"
 #include "llvm/MC/MCFixupKindInfo.h"
 #include "llvm/MC/MCObjectWriter.h"
-#include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSectionELF.h"
+#include "llvm/MC/MCSectionMachO.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MachO.h"
 using namespace llvm;
@@ -131,7 +132,7 @@ static uint64_t adjustFixupValue(unsigned Kind, uint64_t Value) {
   int64_t SignedValue = static_cast<int64_t>(Value);
   switch (Kind) {
   default:
-    assert(false && "Unknown fixup kind!");
+    llvm_unreachable("Unknown fixup kind!");
   case AArch64::fixup_aarch64_pcrel_adr_imm21:
     if (SignedValue > 2097151 || SignedValue < -2097152)
       report_fatal_error("fixup value out of range");
@@ -238,7 +239,7 @@ bool AArch64AsmBackend::fixupNeedsRelaxation(const MCFixup &Fixup,
 
 void AArch64AsmBackend::relaxInstruction(const MCInst &Inst,
                                          MCInst &Res) const {
-  assert(false && "AArch64AsmBackend::relaxInstruction() unimplemented");
+  llvm_unreachable("AArch64AsmBackend::relaxInstruction() unimplemented");
 }
 
 bool AArch64AsmBackend::writeNopData(uint64_t Count, MCObjectWriter *OW) const {
@@ -314,42 +315,6 @@ public:
   MCObjectWriter *createObjectWriter(raw_ostream &OS) const override {
     return createAArch64MachObjectWriter(OS, MachO::CPU_TYPE_ARM64,
                                          MachO::CPU_SUBTYPE_ARM64_ALL);
-  }
-
-  bool doesSectionRequireSymbols(const MCSection &Section) const override {
-    // Any section for which the linker breaks things into atoms needs to
-    // preserve symbols, including assembler local symbols, to identify
-    // those atoms. These sections are:
-    // Sections of type:
-    //
-    //    S_CSTRING_LITERALS  (e.g. __cstring)
-    //    S_LITERAL_POINTERS  (e.g.  objc selector pointers)
-    //    S_16BYTE_LITERALS, S_8BYTE_LITERALS, S_4BYTE_LITERALS
-    //
-    // Sections named:
-    //
-    //    __TEXT,__eh_frame
-    //    __TEXT,__ustring
-    //    __DATA,__cfstring
-    //    __DATA,__objc_classrefs
-    //    __DATA,__objc_catlist
-    //
-    // FIXME: It would be better if the compiler used actual linker local
-    // symbols for each of these sections rather than preserving what
-    // are ostensibly assembler local symbols.
-    const MCSectionMachO &SMO = static_cast<const MCSectionMachO &>(Section);
-    return (SMO.getType() == MachO::S_CSTRING_LITERALS ||
-            SMO.getType() == MachO::S_4BYTE_LITERALS ||
-            SMO.getType() == MachO::S_8BYTE_LITERALS ||
-            SMO.getType() == MachO::S_16BYTE_LITERALS ||
-            SMO.getType() == MachO::S_LITERAL_POINTERS ||
-            (SMO.getSegmentName() == "__TEXT" &&
-             (SMO.getSectionName() == "__eh_frame" ||
-              SMO.getSectionName() == "__ustring")) ||
-            (SMO.getSegmentName() == "__DATA" &&
-             (SMO.getSectionName() == "__cfstring" ||
-              SMO.getSectionName() == "__objc_classrefs" ||
-              SMO.getSectionName() == "__objc_catlist")));
   }
 
   /// \brief Generate the compact unwind encoding from the CFI directives.
@@ -534,8 +499,8 @@ void ELFAArch64AsmBackend::applyFixup(const MCFixup &Fixup, char *Data,
   // store fixups in .eh_frame section in big endian order
   if (!IsLittleEndian && Fixup.getKind() == FK_Data_4) {
     const MCSection *Sec = Fixup.getValue()->FindAssociatedSection();
-    const MCSectionELF *SecELF = static_cast<const MCSectionELF *>(Sec);
-    if (SecELF->getSectionName() == ".eh_frame")
+    const MCSectionELF *SecELF = dyn_cast_or_null<const MCSectionELF>(Sec);
+    if (SecELF && SecELF->getSectionName() == ".eh_frame")
       Value = ByteSwap_32(unsigned(Value));
   }
   AArch64AsmBackend::applyFixup (Fixup, Data, DataSize, Value, IsPCRel);
@@ -551,7 +516,8 @@ MCAsmBackend *llvm::createAArch64leAsmBackend(const Target &T,
     return new DarwinAArch64AsmBackend(T, MRI);
 
   assert(TheTriple.isOSBinFormatELF() && "Expect either MachO or ELF target");
-  return new ELFAArch64AsmBackend(T, TheTriple.getOS(), /*IsLittleEndian=*/true);
+  uint8_t OSABI = MCELFObjectTargetWriter::getOSABI(TheTriple.getOS());
+  return new ELFAArch64AsmBackend(T, OSABI, /*IsLittleEndian=*/true);
 }
 
 MCAsmBackend *llvm::createAArch64beAsmBackend(const Target &T,
@@ -561,6 +527,7 @@ MCAsmBackend *llvm::createAArch64beAsmBackend(const Target &T,
 
   assert(TheTriple.isOSBinFormatELF() &&
          "Big endian is only supported for ELF targets!");
-  return new ELFAArch64AsmBackend(T, TheTriple.getOS(),
+  uint8_t OSABI = MCELFObjectTargetWriter::getOSABI(TheTriple.getOS());
+  return new ELFAArch64AsmBackend(T, OSABI,
                                   /*IsLittleEndian=*/false);
 }
