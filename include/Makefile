@@ -45,7 +45,6 @@ LSUBDIRS=	cam/ata cam/scsi \
 	dev/ic dev/iicbus dev/io dev/lmc dev/mfi dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
-	fs/cuse \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
 	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
@@ -58,6 +57,10 @@ LSUBDIRS=	cam/ata cam/scsi \
 	ufs/ffs ufs/ufs
 
 LSUBSUBDIRS=	dev/mpt/mpilib
+
+.if ${MK_CUSE} != "no"
+LSUBDIRS+=	fs/cuse
+.endif
 
 .if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
 _dev_powermac_nvram=	dev/powermac_nvram
