@@ -111,6 +111,7 @@
 #define	PRIV_DEBUG_DIFFCRED	80	/* Exempt debugging other users. */
 #define	PRIV_DEBUG_SUGID	81	/* Exempt debugging setuid proc. */
 #define	PRIV_DEBUG_UNPRIV	82	/* Exempt unprivileged debug limit. */
+#define	PRIV_DEBUG_DENIED	83	/* Exempt P2_NOTRACE. */
 
 /*
  * Dtrace privileges.

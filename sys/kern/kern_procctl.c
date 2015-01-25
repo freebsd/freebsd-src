@@ -280,6 +280,62 @@ reap_kill(struct thread *td, struct proc *p, struct procctl_reaper_kill *rk)
 	return (error);
 }
 
+static int
+trace_ctl(struct thread *td, struct proc *p, int state)
+{
+
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+
+	/*
+	 * Ktrace changes p_traceflag from or to zero under the
+	 * process lock, so the test does not need to acquire ktrace
+	 * mutex.
+	 */
+	if ((p->p_flag & P_TRACED) != 0 || p->p_traceflag != 0)
+		return (EBUSY);
+
+	switch (state) {
+	case PROC_TRACE_CTL_ENABLE:
+		if (td->td_proc != p)
+			return (EPERM);
+		p->p_flag2 &= ~(P2_NOTRACE | P2_NOTRACE_EXEC);
+		break;
+	case PROC_TRACE_CTL_DISABLE_EXEC:
+		p->p_flag2 |= P2_NOTRACE_EXEC | P2_NOTRACE;
+		break;
+	case PROC_TRACE_CTL_DISABLE:
+		if ((p->p_flag2 & P2_NOTRACE_EXEC) != 0) {
+			KASSERT((p->p_flag2 & P2_NOTRACE) != 0,
+			    ("dandling P2_NOTRACE_EXEC"));
+			if (td->td_proc != p)
+				return (EPERM);
+			p->p_flag2 &= ~P2_NOTRACE_EXEC;
+		} else {
+			p->p_flag2 |= P2_NOTRACE;
+		}
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (0);
+}
+
+static int
+trace_status(struct thread *td, struct proc *p, int *data)
+{
+
+	if ((p->p_flag2 & P2_NOTRACE) != 0) {
+		KASSERT((p->p_flag & P_TRACED) == 0,
+		    ("%d traced but tracing disabled", p->p_pid));
+		*data = -1;
+	} else if ((p->p_flag & P_TRACED) != 0) {
+		*data = p->p_pptr->p_pid;
+	} else {
+		*data = 0;
+	}
+	return (0);
+}
+
 #ifndef _SYS_SYSPROTO_H_
 struct procctl_args {
 	idtype_t idtype;
@@ -302,6 +358,7 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 
 	switch (uap->com) {
 	case PROC_SPROTECT:
+	case PROC_TRACE_CTL:
 		error = copyin(uap->data, &flags, sizeof(flags));
 		if (error != 0)
 			return (error);
@@ -328,6 +385,9 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 			return (error);
 		data = &x.rk;
 		break;
+	case PROC_TRACE_STATUS:
+		data = &flags;
+		break;
 	default:
 		return (EINVAL);
 	}
@@ -341,6 +401,10 @@ sys_procctl(struct thread *td, struct procctl_args *uap)
 		error1 = copyout(&x.rk, uap->data, sizeof(x.rk));
 		if (error == 0)
 			error = error1;
+		break;
+	case PROC_TRACE_STATUS:
+		if (error == 0)
+			error = copyout(&flags, uap->data, sizeof(flags));
 		break;
 	}
 	return (error);
@@ -364,6 +428,10 @@ kern_procctl_single(struct thread *td, struct proc *p, int com, void *data)
 		return (reap_getpids(td, p, data));
 	case PROC_REAP_KILL:
 		return (reap_kill(td, p, data));
+	case PROC_TRACE_CTL:
+		return (trace_ctl(td, p, *(int *)data));
+	case PROC_TRACE_STATUS:
+		return (trace_status(td, p, data));
 	default:
 		return (EINVAL);
 	}
@@ -375,6 +443,7 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 	struct pgrp *pg;
 	struct proc *p;
 	int error, first_error, ok;
+	bool tree_locked;
 
 	switch (com) {
 	case PROC_REAP_ACQUIRE:
@@ -382,6 +451,7 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 	case PROC_REAP_STATUS:
 	case PROC_REAP_GETPIDS:
 	case PROC_REAP_KILL:
+	case PROC_TRACE_STATUS:
 		if (idtype != P_PID)
 			return (EINVAL);
 	}
@@ -391,11 +461,17 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 	case PROC_REAP_STATUS:
 	case PROC_REAP_GETPIDS:
 	case PROC_REAP_KILL:
+	case PROC_TRACE_CTL:
 		sx_slock(&proctree_lock);
+		tree_locked = true;
 		break;
 	case PROC_REAP_ACQUIRE:
 	case PROC_REAP_RELEASE:
 		sx_xlock(&proctree_lock);
+		tree_locked = true;
+		break;
+	case PROC_TRACE_STATUS:
+		tree_locked = false;
 		break;
 	default:
 		return (EINVAL);
@@ -456,6 +532,7 @@ kern_procctl(struct thread *td, idtype_t idtype, id_t id, int com, void *data)
 		error = EINVAL;
 		break;
 	}
-	sx_unlock(&proctree_lock);
+	if (tree_locked)
+		sx_unlock(&proctree_lock);
 	return (error);
 }
