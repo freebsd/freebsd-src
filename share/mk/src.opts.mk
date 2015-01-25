@@ -145,6 +145,7 @@ __DEFAULT_YES_OPTIONS = \
     SYSCALL_COMPAT \
     SYSCONS \
     SYSINSTALL \
+    TALK \
     TCSH \
     TELNET \
     TESTS \
