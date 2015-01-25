@@ -27,10 +27,8 @@ FILES=	DAEMON \
 	${_bluetooth} \
 	bootparams \
 	bridge \
-	bsnmpd \
 	${_bthidd} \
 	${_casperd} \
-	ccd \
 	cleanvar \
 	cleartmp \
 	cron \
@@ -66,8 +64,6 @@ FILES=	DAEMON \
 	ipropd_master \
 	ipropd_slave \
 	ipsec \
-	iscsictl \
-	iscsid \
 	jail \
 	${_kadmind} \
 	${_kdc} \
@@ -170,8 +166,21 @@ _hcsecd=	hcsecd
 _ubthidhci=	ubthidhci
 .endif
 
+.if ${MK_BSNMP} != "no"
+FILES+=		bsnmpd
+.endif
+
 .if ${MK_CASPER} != "no"
 _casperd=	casperd
+.endif
+
+.if ${MK_CCD} != "no"
+FILES+=		ccd
+.endif
+
+.if ${MK_ISCSI} != "no"
+FILES+=		iscsictl
+FILES+=		iscsid
 .endif
 
 .if ${MK_NS_CACHING} != "no"

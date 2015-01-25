@@ -12,7 +12,7 @@
 #
 
 AC_PREREQ(2.2)
-AC_INIT([libxo], [0.1.6], [phil@juniper.net])
+AC_INIT([libxo], [0.2.0], [phil@juniper.net])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign -Wno-portability])
 
 # Support silent build rules.  Requires at least automake-1.11.
@@ -57,8 +57,10 @@ AC_CHECK_FUNCS([getpass])
 AC_CHECK_FUNCS([sysctlbyname])
 AC_CHECK_FUNCS([flock])
 AC_CHECK_FUNCS([asprintf])
+AC_CHECK_FUNCS([__flbf])
 
 AC_CHECK_HEADERS([dlfcn.h])
+AC_CHECK_HEADERS([stdio_ext.h])
 AC_CHECK_HEADERS([tzfile.h])
 AC_CHECK_HEADERS([stdtime/tzfile.h])
 AC_CHECK_FUNCS([dlfunc])
@@ -164,7 +166,6 @@ AC_ARG_ENABLE([libxo-options],
 AC_MSG_RESULT([$LIBXO_OPTS])
 AM_CONDITIONAL([NO_LIBXO_OPTIONS], [test "$LIBXO_OPTS" != "yes"])
 
-
 case $host_os in
      darwin*)
         LIBTOOL=glibtool
@@ -238,6 +239,7 @@ AC_CONFIG_FILES([
   tests/core/Makefile
   tests/xo/Makefile
   packaging/libxo.spec
+  packaging/libxo.rb.base
 ])
 AC_OUTPUT
 

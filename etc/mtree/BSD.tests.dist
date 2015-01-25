@@ -12,6 +12,8 @@
         ..
         date
         ..
+        expr
+        ..
         mv
         ..
         pax
@@ -50,6 +52,8 @@
         ..
     ..
     etc
+        rc.d
+        ..
     ..
     games
     ..

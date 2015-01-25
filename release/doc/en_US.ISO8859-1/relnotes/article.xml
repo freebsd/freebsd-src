@@ -20,7 +20,7 @@
 
     <pubdate>$FreeBSD$</pubdate>
 
-    <!-- Last rev: 276551 -->
+    <!-- Last rev: 277458 -->
 
     <copyright>
       <year>2015</year>
@@ -691,6 +691,10 @@
 	has been updated to support <acronym>UTF</acronym>-8, which
 	additionally provides unicode support to &man.sh.1;.</para>
 
+      <para revision="277166" arch="powerpc">The &man.ptrace.2; system
+	call has been updated include support for Altivec registers on
+	&os;/&arch.powerpc;.</para>
+
       <sect3 xml:id="abi-compat">
 	<title><acronym>ABI</acronym> Compatibility</title>
 
@@ -791,6 +795,11 @@
 	<application>strings</application> were switched to the
 	versions from the ELF Tool Chain project.</para>
 
+      <para revision="276881">The <literal>libedit</literal> library
+	has been updated to include <acronym>UTF-8</acronym> support,
+	adding <acronym>UTF-8</acronym> support to the &man.sh.1;
+	shell.</para>
+
       <para revision="277270"><application>OpenSSL</application> has
 	been updated to version 1.0.1l.</para>
     </sect2>
@@ -804,7 +813,10 @@
     <sect2 xml:id="releng">
       <title>Release Engineering and Integration</title>
 
-      <para>&nbsp;</para>
+      <para revision="277458" contrib="sponsor" sponsor="&ff;">The
+	Release Engineering build tools have been updated to include
+	support for producing virtual machine disk images for various
+	cloud hosting providers.</para>
     </sect2>
 
     <sect2 xml:id="doc">

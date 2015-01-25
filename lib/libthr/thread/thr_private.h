@@ -928,6 +928,9 @@ int __thr_sigwait(const sigset_t *set, int *sig);
 int __thr_sigwaitinfo(const sigset_t *set, siginfo_t *info);
 int __thr_swapcontext(ucontext_t *oucp, const ucontext_t *ucp);
 
+struct tcb *_tcb_ctor(struct pthread *, int);
+void	_tcb_dtor(struct tcb *);
+
 __END_DECLS
 
 #endif  /* !_THR_PRIVATE_H */

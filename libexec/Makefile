@@ -28,7 +28,6 @@ SUBDIR=	${_atf} \
 	${_rtld-elf} \
 	save-entropy \
 	${_smrsh} \
-	talkd \
 	tcpd \
 	${_telnetd} \
 	${_tests} \
@@ -79,6 +78,10 @@ _rshd=		rshd
 .if ${MK_SENDMAIL} != "no"
 _mail.local=	mail.local
 _smrsh=		smrsh
+.endif
+
+.if ${MK_TALK} != "no"
+SUBDIR+=	talkd
 .endif
 
 .if ${MK_TELNET} != "no"

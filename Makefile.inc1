@@ -1292,12 +1292,16 @@ _clang_tblgen= \
 	usr.bin/clang/clang-tblgen
 .endif
 
+# ELF Tool Chain libraries are needed for ELF tools and dtrace tools.
 # dtrace tools are required for older bootstrap env and cross-build
 # pre libdwarf
-.if ${MK_CDDL} != "no" && (${BOOTSTRAPPING} < 1100006 \
-      || (${MACHINE} != ${TARGET} || ${MACHINE_ARCH} != ${TARGET_ARCH}))
-_dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
-    lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
+.if ${BOOTSTRAPPING} < 1100006 || (${MACHINE} != ${TARGET} || \
+    ${MACHINE_ARCH} != ${TARGET_ARCH})
+_elftoolchain_libs= lib/libelf lib/libdwarf 
+.if ${MK_CDDL} != "no"
+_dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf cddl/usr.bin/ctfconvert \
+    cddl/usr.bin/ctfmerge
+.endif
 .endif
 
 # Default to building the GPL DTC, but build the BSDL one if users explicitly
@@ -1324,6 +1328,7 @@ bootstrap-tools: .MAKE
 .for _tool in \
     ${_clang_tblgen} \
     ${_kerberos5_bootstrap_tools} \
+    ${_elftoolchain_libs} \
     ${_dtrace_tools} \
     ${_strfile} \
     ${_gperf} \
@@ -1428,11 +1433,13 @@ _binutils=	gnu/usr.bin/binutils
 .endif
 .if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
 _elftctools=	lib/libelftc \
-		usr.bin/addr2line \
 		usr.bin/elfcopy \
 		usr.bin/nm \
 		usr.bin/size \
 		usr.bin/strings
+# These are not required by the build, but can be useful for developers who
+# cross-build on a FreeBSD 10 host:
+_elftctools+=	usr.bin/addr2line
 .endif
 .endif
 

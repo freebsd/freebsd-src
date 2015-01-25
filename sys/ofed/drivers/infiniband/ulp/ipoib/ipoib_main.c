@@ -1527,8 +1527,6 @@ ipoib_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 module_init(ipoib_init_module);
 module_exit(ipoib_cleanup_module);
 
-#undef MODULE_VERSION
-#include <sys/module.h>
 static int
 ipoib_evhand(module_t mod, int event, void *arg)
 {

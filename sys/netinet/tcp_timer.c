@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/rss_config.h>
 #include <net/vnet.h>
 #include <net/netisr.h>
 

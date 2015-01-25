@@ -1480,6 +1480,20 @@ r_type(unsigned int mach, unsigned int type)
 		case 21: return "R_X86_64_DTPOFF32";
 		case 22: return "R_X86_64_GOTTPOFF";
 		case 23: return "R_X86_64_TPOFF32";
+		case 24: return "R_X86_64_PC64";
+		case 25: return "R_X86_64_GOTOFF64";
+		case 26: return "R_X86_64_GOTPC32";
+		case 27: return "R_X86_64_GOT64";
+		case 28: return "R_X86_64_GOTPCREL64";
+		case 29: return "R_X86_64_GOTPC64";
+		case 30: return "R_X86_64_GOTPLT64";
+		case 31: return "R_X86_64_PLTOFF64";
+		case 32: return "R_X86_64_SIZE32";
+		case 33: return "R_X86_64_SIZE64";
+		case 34: return "R_X86_64_GOTPC32_TLSDESC";
+		case 35: return "R_X86_64_TLSDESC_CALL";
+		case 36: return "R_X86_64_TLSDESC";
+		case 37: return "R_X86_64_IRELATIVE";
 		default: return "";
 		}
 	default: return "";

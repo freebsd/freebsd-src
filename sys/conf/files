@@ -1141,7 +1141,7 @@ dev/cxgb/sys/uipc_mvec.c	optional cxgb pci \
 dev/cxgb/cxgb_t3fw.c		optional cxgb cxgb_t3fw \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgbe/t4_mp_ring.c		optional cxgbe pci \
-	compile-with "${NORMAL_C} -I$S/dev/cxgbe -fms-extensions"
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe ${GCC_MS_EXTENSIONS}"
 dev/cxgbe/t4_main.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_netmap.c		optional cxgbe pci \
@@ -3270,9 +3270,11 @@ net/radix_mpath.c		standard
 net/raw_cb.c			standard
 net/raw_usrreq.c		standard
 net/route.c			standard
+net/rss_config.c		optional inet rss | inet6 rss
 net/rtsock.c			standard
 net/slcompress.c		optional netgraph_vjc | sppp | \
 					 netgraph_sppp
+net/toeplitz.c			optional inet rss | inet6 rss
 net/vnet.c			optional vimage
 net/zlib.c			optional crypto | geom_uzip | ipsec | \
 					 mxge | netgraph_deflate | \
@@ -3422,7 +3424,7 @@ netinet/in_pcb.c		optional inet | inet6
 netinet/in_pcbgroup.c		optional inet pcbgroup | inet6 pcbgroup
 netinet/in_proto.c		optional inet | inet6
 netinet/in_rmx.c		optional inet
-netinet/in_rss.c		optional inet rss | inet6 rss
+netinet/in_rss.c		optional inet rss
 netinet/ip_divert.c		optional inet ipdivert ipfirewall
 netinet/ip_ecn.c		optional inet | inet6
 netinet/ip_encap.c		optional inet | inet6
@@ -3465,7 +3467,6 @@ netinet/tcp_syncache.c		optional inet | inet6
 netinet/tcp_timer.c		optional inet | inet6
 netinet/tcp_timewait.c		optional inet | inet6
 netinet/tcp_usrreq.c		optional inet | inet6
-netinet/toeplitz.c		optional inet rss | inet6 rss
 netinet/udp_usrreq.c		optional inet | inet6
 netinet/libalias/alias.c	optional libalias inet | netgraph_nat inet
 netinet/libalias/alias_db.c	optional libalias inet | netgraph_nat inet
@@ -3485,6 +3486,7 @@ netinet6/in6_pcb.c		optional inet6
 netinet6/in6_pcbgroup.c		optional inet6 pcbgroup
 netinet6/in6_proto.c		optional inet6
 netinet6/in6_rmx.c		optional inet6
+netinet6/in6_rss.c		optional inet6 rss
 netinet6/in6_src.c		optional inet6
 netinet6/ip6_forward.c		optional inet6
 netinet6/ip6_gre.c		optional gre inet6

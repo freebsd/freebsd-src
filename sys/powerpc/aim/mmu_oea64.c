@@ -221,9 +221,10 @@ struct	pvo_head *moea64_pvo_table;		/* pvo entries by pteg index */
 uma_zone_t	moea64_upvo_zone; /* zone for pvo entries for unmanaged pages */
 uma_zone_t	moea64_mpvo_zone; /* zone for pvo entries for managed pages */
 
-#define	BPVO_POOL_SIZE	327680
 static struct	pvo_entry *moea64_bpvo_pool;
 static int	moea64_bpvo_pool_index = 0;
+static int	moea64_bpvo_pool_size = 327680;
+TUNABLE_INT("machdep.moea64_bpvo_pool_size", &moea64_bpvo_pool_size);
 SYSCTL_INT(_machdep, OID_AUTO, moea64_allocated_bpvo_entries, CTLFLAG_RD, 
     &moea64_bpvo_pool_index, 0, "");
 
@@ -647,7 +648,7 @@ moea64_setup_direct_map(mmu_t mmup, vm_offset_t kernelstart,
 		off = (vm_offset_t)(moea64_pvo_table);
 		for (pa = off; pa < off + size; pa += PAGE_SIZE) 
 			moea64_kenter(mmup, pa, pa);
-		size = BPVO_POOL_SIZE*sizeof(struct pvo_entry);
+		size = moea64_bpvo_pool_size*sizeof(struct pvo_entry);
 		off = (vm_offset_t)(moea64_bpvo_pool);
 		for (pa = off; pa < off + size; pa += PAGE_SIZE) 
 		moea64_kenter(mmup, pa, pa);
@@ -815,7 +816,7 @@ moea64_mid_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	 * Initialise the unmanaged pvo pool.
 	 */
 	moea64_bpvo_pool = (struct pvo_entry *)moea64_bootstrap_alloc(
-		BPVO_POOL_SIZE*sizeof(struct pvo_entry), 0);
+		moea64_bpvo_pool_size*sizeof(struct pvo_entry), 0);
 	moea64_bpvo_pool_index = 0;
 
 	/*
@@ -2282,10 +2283,10 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
 	 * If we aren't overwriting a mapping, try to allocate.
 	 */
 	if (bootstrap) {
-		if (moea64_bpvo_pool_index >= BPVO_POOL_SIZE) {
+		if (moea64_bpvo_pool_index >= moea64_bpvo_pool_size) {
 			panic("moea64_enter: bpvo pool exhausted, %d, %d, %zd",
-			      moea64_bpvo_pool_index, BPVO_POOL_SIZE, 
-			      BPVO_POOL_SIZE * sizeof(struct pvo_entry));
+			      moea64_bpvo_pool_index, moea64_bpvo_pool_size, 
+			      moea64_bpvo_pool_size * sizeof(struct pvo_entry));
 		}
 		pvo = &moea64_bpvo_pool[moea64_bpvo_pool_index];
 		moea64_bpvo_pool_index++;

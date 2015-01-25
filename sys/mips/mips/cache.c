@@ -104,7 +104,6 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 		mips_cache_ops.mco_icache_sync_range_index =
 		    mipsNN_icache_sync_range_index_32;
 		break;
-#ifdef CPU_CNMIPS
 	case 128:
 		mips_cache_ops.mco_icache_sync_all = mipsNN_icache_sync_all_128;
 		mips_cache_ops.mco_icache_sync_range =
@@ -112,7 +111,6 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 		mips_cache_ops.mco_icache_sync_range_index =
 		    mipsNN_icache_sync_range_index_128;
 		break;
-#endif
 
 #ifdef MIPS_DISABLE_L1_CACHE
 	case 0:
@@ -172,7 +170,6 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 		    mipsNN_pdcache_wb_range_32;
 #endif
 		break;
-#ifdef CPU_CNMIPS
 	case 128:
 		mips_cache_ops.mco_pdcache_wbinv_all =
 		    mips_cache_ops.mco_intern_pdcache_wbinv_all =
@@ -188,7 +185,6 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 		    mips_cache_ops.mco_intern_pdcache_wb_range =
 		    mipsNN_pdcache_wb_range_128;
 		break;
-#endif		
 #ifdef MIPS_DISABLE_L1_CACHE
 	case 0:
 		mips_cache_ops.mco_pdcache_wbinv_all =

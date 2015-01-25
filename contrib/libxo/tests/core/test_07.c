@@ -68,11 +68,12 @@ main (int argc, char **argv)
 	    "Unicode-ის მეათე საერთაშორისო");
     xo_emit("{:columns/%d}\n", rc);
 
-    xo_open_list("employee");
 
     rc = xo_emit("{T:First Name/%-25s}{T:Last Name/%-14s}"
 	    "{T:/%-12s}{T:Time (%)}\n", "Department");
     xo_emit("{:columns/%d}\n", rc);
+
+    xo_open_list("employee");
     for ( ; ep->e_first; ep++) {
 	xo_open_instance("employee");
 	rc = xo_emit("{[:-25}{:first-name/%s} ({:nic-name/\"%s\"}){]:}"

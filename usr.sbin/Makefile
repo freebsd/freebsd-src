@@ -9,7 +9,6 @@ SUBDIR=	adduser \
 	binmiscctl \
 	bootparamd \
 	bsdconfig \
-	bsdinstall \
 	cdcontrol \
 	chkgrp \
 	chown \
@@ -38,7 +37,6 @@ SUBDIR=	adduser \
 	ifmcstat \
 	inetd \
 	iostat \
-	iscsid \
 	kldxref \
 	mailwrapper \
 	makefs \
@@ -130,6 +128,10 @@ SUBDIR+=	authpf
 SUBDIR+=	bluetooth
 .endif
 
+.if ${MK_BSDINSTALL} != "no"
+SUBDIR+=	bsdinstall
+.endif
+
 .if ${MK_BSNMP} != "no"
 SUBDIR+=	bsnmpd
 .endif
@@ -176,6 +178,10 @@ SUBDIR+=	traceroute6
 
 .if ${MK_IPFW} != "no"
 SUBDIR+=	ipfwpcap
+.endif
+
+.if ${MK_ISCSI} != "no"
+SUBDIR+=	iscsid
 .endif
 
 .if ${MK_JAIL} != "no"

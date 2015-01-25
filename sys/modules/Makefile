@@ -86,7 +86,6 @@ SUBDIR=	\
 	${_ct} \
 	${_ctau} \
 	ctl \
-	cuse \
 	${_cxgb} \
 	${_cxgbe} \
 	dc \
@@ -169,8 +168,6 @@ SUBDIR=	\
 	${_ipw} \
 	${_ipwfw} \
 	${_isci} \
-	iscsi \
-	iscsi_initiator \
 	isp \
 	${_ispfw} \
 	${_iwi} \
@@ -395,6 +392,10 @@ _random=	random
 .endif
 .endif
 
+.if ${MK_CUSE} != "no" || defined(ALL_MODULES)
+SUBDIR+=	cuse
+.endif
+
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
 _carp=		carp
@@ -411,6 +412,11 @@ _ipfw=		ipfw
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
 _ipfilter=	ipfilter
+.endif
+
+.if ${MK_ISCSI} != "no" || defined(ALL_MODULES)
+SUBDIR+=	iscsi
+SUBDIR+=	iscsi_initiator
 .endif
 
 .if ${MK_NAND} != "no" || defined(ALL_MODULES)
