@@ -10,8 +10,5 @@ LIBADD=	util
 CFLAGS+= -DORDER
 
 #CFLAGS+= -DDEBUG
-.if ${CFLAGS:M-DDEBUG}
-CFLAGS+= -I${.CURDIR}/../../usr.bin/make
-.endif
 
 .include <bsd.prog.mk>
