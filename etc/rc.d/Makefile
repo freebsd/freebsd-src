@@ -17,7 +17,6 @@ FILES=	DAEMON \
 	bgfsck \
 	${_bluetooth} \
 	bridge \
-	${_bsnmpd} \
 	${_bthidd} \
 	${_casperd} \
 	cleanvar \
@@ -162,6 +161,10 @@ FILES+=		bootparams
 _bsnmpd=	bsnmpd
 .endif
 
+.if ${MK_BSNMP} != "no"
+FILES+=		bsnmpd
+.endif
+
 .if ${MK_CASPER} != "no"
 _casperd=	casperd
 .endif
@@ -208,8 +211,8 @@ FILES+=		ipfw
 .endif
 
 .if ${MK_ISCSI} != "no"
-FILES+=	iscsictl
-FILES+=	iscsid
+FILES+=		iscsictl
+FILES+=		iscsid
 .endif
 
 .if ${MK_JAIL} != "no"

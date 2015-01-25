@@ -29,12 +29,14 @@ __DEFAULT_YES_OPTIONS = \
     CCD \
     CDDL \
     CRYPT \
+    CUSE \
     FORMAT_EXTENSIONS \
     HYPERV \
     ISCSI \
     INET \
     INET6 \
     IPFILTER \
+    ISCSI \
     KERNEL_SYMBOLS \
     NETGRAPH \
     NFS_SERVER \

@@ -121,6 +121,10 @@ SUBDIR+=	spppcontrol
 SUBDIR+=	ping6
 SUBDIR+=	rtsol
 .endif
+	
+.if ${MK_ISCSI} != "no"
+SUBDIR+=	iscontrol
+.endif
 
 .if ${MK_QUOTAS} != "no"
 SUBDIR+=	quotacheck
