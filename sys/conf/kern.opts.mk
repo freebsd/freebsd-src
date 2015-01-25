@@ -27,6 +27,7 @@ __DEFAULT_YES_OPTIONS = \
     CCD \
     CDDL \
     CRYPT \
+    CUSE \
     FORMAT_EXTENSIONS \
     INET \
     INET6 \

@@ -86,7 +86,6 @@ SUBDIR=	\
 	${_ct} \
 	${_ctau} \
 	ctl \
-	cuse \
 	${_cxgb} \
 	${_cxgbe} \
 	dc \
@@ -391,6 +390,10 @@ _cryptodev=	cryptodev
 .if exists(${.CURDIR}/../crypto)
 _random=	random
 .endif
+.endif
+
+.if ${MK_CUSE} != "no" || defined(ALL_MODULES)
+SUBDIR+=	cuse
 .endif
 
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
