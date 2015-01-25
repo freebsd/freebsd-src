@@ -252,7 +252,6 @@ MAN=	accept_filter.9 \
 	sleep.9 \
 	sleepqueue.9 \
 	socket.9 \
-	spl.9 \
 	stack.9 \
 	store.9 \
 	style.9 \
@@ -1447,18 +1446,6 @@ MLINKS+=socket.9 soabort.9 \
 	socket.9 soupcall_clear.9 \
 	socket.9 soupcall_set.9 \
 	socket.9 sowakeup.9
-MLINKS+=spl.9 spl0.9 \
-	spl.9 splbio.9 \
-	spl.9 splclock.9 \
-	spl.9 splhigh.9 \
-	spl.9 splimp.9 \
-	spl.9 splnet.9 \
-	spl.9 splsoftclock.9 \
-	spl.9 splsofttty.9 \
-	spl.9 splstatclock.9 \
-	spl.9 spltty.9 \
-	spl.9 splvm.9 \
-	spl.9 splx.9
 MLINKS+=stack.9 stack_copy.9 \
 	stack.9 stack_create.9 \
 	stack.9 stack_destroy.9 \
