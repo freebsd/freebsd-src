@@ -1114,11 +1114,13 @@ int
 pcib_resume(device_t dev)
 {
 	device_t	pcib;
+	int dstate;
 
 	if (pci_do_power_resume) {
 		pcib = device_get_parent(device_get_parent(dev));
-		if (PCIB_POWER_FOR_SLEEP(pcib, dev, NULL) == 0)
-			pci_set_powerstate(dev, PCI_POWERSTATE_D0);
+		dstate = PCI_POWERSTATE_D0;
+		if (PCIB_POWER_FOR_SLEEP(pcib, dev, &dstate) == 0)
+			pci_set_powerstate(dev, dstate);
 	}
 	pcib_cfg_restore(device_get_softc(dev));
 	return (bus_generic_resume(dev));
