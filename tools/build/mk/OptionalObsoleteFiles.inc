@@ -1216,6 +1216,23 @@ OLD_FILES+=usr/share/dict/words
 OLD_DIRS+=usr/share/dict
 .endif
 
+.if ${MK_EE} == no
+OLD_FILES+=usr/bin/edit
+OLD_FILES+=usr/bin/ee
+OLD_FILES+=usr/bin/ree
+OLD_FILES+=usr/share/man/man1/edit.1.gz
+OLD_FILES+=usr/share/man/man1/ee.1.gz
+OLD_FILES+=usr/share/man/man1/ree.1.gz
+OLD_FILES+=usr/share/nls/C/ee.cat
+OLD_FILES+=usr/share/nls/de_DE.ISO8859-1/ee.cat
+OLD_FILES+=usr/share/nls/fr_FR.ISO8859-1/ee.cat
+OLD_FILES+=usr/share/nls/hu_HU.ISO8859-2/ee.cat
+OLD_FILES+=usr/share/nls/pl_PL.ISO8859-2/ee.cat
+OLD_FILES+=usr/share/nls/pt_BR.ISO8859-1/ee.cat
+OLD_FILES+=usr/share/nls/ru_RU.KOI8-R/ee.cat
+OLD_FILES+=usr/share/nls/uk_UA.KOI8-U/ee.cat
+.endif
+
 .if ${MK_ELFTOOLCHAIN_TOOLS} == no
 OLD_FILES+=usr/bin/elfcopy
 OLD_FILES+=usr/share/man/man1/elfcopy.1.gz
