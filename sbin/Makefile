@@ -35,7 +35,6 @@ SUBDIR=adjkerntz \
 	hastd \
 	ifconfig \
 	init \
-	iscontrol \
 	kldconfig \
 	kldload \
 	kldstat \
@@ -108,6 +107,10 @@ SUBDIR+=	pflogd
 .if ${MK_INET6} != "no"
 SUBDIR+=	ping6
 SUBDIR+=	rtsol
+.endif
+	
+.if ${MK_ISCSI} != "no"
+SUBDIR+=	iscontrol
 .endif
 
 .if ${MK_QUOTAS} != "no"
