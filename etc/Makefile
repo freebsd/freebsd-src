@@ -14,8 +14,7 @@ SUBDIR+=sendmail
 SUBDIR+=tests
 .endif
 
-BIN1=	auto_master \
-	crontab \
+BIN1=	crontab \
 	devd.conf \
 	devfs.conf \
 	ddb.conf \
@@ -88,6 +87,10 @@ BIN1+= amd.map
 
 .if ${MK_APM} != "no"
 BIN1+= apmd.conf
+.endif
+
+.if ${MK_AUTOFS} != "no"
+BIN1+= auto_master
 .endif
 
 .if ${MK_BSNMP} != "no"
@@ -229,7 +232,9 @@ distribution:
 		echo "./etc/spwd.db type=file mode=0600 uname=root gname=wheel"; \
 	) | ${METALOG.add}
 .endif
+.if ${MK_AUTOFS} != "no"
 	${_+_}cd ${.CURDIR}/autofs; ${MAKE} install
+.endif
 .if ${MK_BLUETOOTH} != "no"
 	${_+_}cd ${.CURDIR}/bluetooth; ${MAKE} install
 .endif
