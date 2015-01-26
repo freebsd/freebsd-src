@@ -57,7 +57,6 @@ FILES=	DAEMON \
 	ipropd_master \
 	ipropd_slave \
 	ipsec \
-	jail \
 	${_kadmind} \
 	${_kdc} \
 	${_kfd} \
@@ -199,6 +198,10 @@ FILES+=		hastd
 .if ${MK_ISCSI} != "no"
 FILES+=		iscsictl
 FILES+=		iscsid
+.endif
+
+.if ${MK_JAIL} != "no"
+FILES+=	jail
 .endif
 
 .if ${MK_LPR} != "no"
