@@ -155,7 +155,7 @@ smp_intr_init(void *dummy __unused)
 
 	for (vector = 0; vector < nvectors; vector++) {
 		i = powerpc_intrs[vector];
-		if (i != NULL && i->pic == root_pic)
+		if (i != NULL && i->event != NULL && i->pic == root_pic)
 			PIC_BIND(i->pic, i->intline, i->cpu);
 	}
 }

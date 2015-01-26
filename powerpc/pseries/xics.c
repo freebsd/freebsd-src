@@ -286,11 +286,11 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 	uint64_t xirr, junk;
 	int i;
 
-	if (sc->mem[0])
+	if (mfmsr() & PSL_HV) {
 		regs = xicp_mem_for_cpu(PCPU_GET(cpuid));
-
-	KASSERT(sc->mem[0] == NULL || regs != NULL,
-	    ("Can't find regs for CPU %d", PCPU_GET(cpuid)));
+		KASSERT(regs != NULL,
+		    ("Can't find regs for CPU %d", PCPU_GET(cpuid)));
+	}
 
 	sc = device_get_softc(dev);
 	for (;;) {
@@ -371,13 +371,12 @@ static void
 xicp_eoi(device_t dev, u_int irq)
 {
 	uint64_t xirr;
-	struct xicp_softc *sc = device_get_softc(dev);
 
 	if (irq == MAX_XICP_IRQS) /* Remap IPI interrupt to internal value */
 		irq = XICP_IPI;
 	xirr = irq | (XICP_PRIORITY << 24);
 
-	if (sc->mem[0])
+	if (mfmsr() & PSL_HV)
 		bus_write_4(xicp_mem_for_cpu(PCPU_GET(cpuid)), 4, xirr);
 	else
 		phyp_hcall(H_EOI, xirr);
@@ -386,9 +385,8 @@ xicp_eoi(device_t dev, u_int irq)
 static void
 xicp_ipi(device_t dev, u_int cpu)
 {
-	struct xicp_softc *sc = device_get_softc(dev);
 
-	if (sc->mem[0])
+	if (mfmsr() & PSL_HV)
 		bus_write_1(xicp_mem_for_cpu(cpu), 12, XICP_PRIORITY);
 	else
 		phyp_hcall(H_IPI, (uint64_t)cpu, XICP_PRIORITY);
