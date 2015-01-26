@@ -82,7 +82,7 @@ static device_method_t  xicp_methods[] = {
 	DEVMETHOD(pic_mask,		xicp_mask),
 	DEVMETHOD(pic_unmask,		xicp_unmask),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
 static device_method_t  xics_methods[] = {
@@ -90,12 +90,14 @@ static device_method_t  xics_methods[] = {
 	DEVMETHOD(device_probe,		xics_probe),
 	DEVMETHOD(device_attach,	xics_attach),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
 struct xicp_softc {
 	struct mtx sc_mtx;
 	struct resource *mem[MAXCPU];
+
+	int cpu_range[2];
 
 	int ibm_int_on;
 	int ibm_int_off;
@@ -130,6 +132,22 @@ EARLY_DRIVER_MODULE(xicp, ofwbus, xicp_driver, xicp_devclass, 0, 0,
     BUS_PASS_INTERRUPT-1);
 EARLY_DRIVER_MODULE(xics, ofwbus, xics_driver, xics_devclass, 0, 0,
     BUS_PASS_INTERRUPT);
+
+static struct resource *
+xicp_mem_for_cpu(int cpu)
+{
+	device_t dev;
+	struct xicp_softc *sc;
+	int i;
+
+	for (i = 0; (dev = devclass_get_device(xicp_devclass, i)) != NULL; i++){
+		sc = device_get_softc(dev);
+		if (cpu >= sc->cpu_range[0] && cpu < sc->cpu_range[1])
+			return (sc->mem[cpu - sc->cpu_range[0]]);
+	}
+
+	return (NULL);
+}
 
 static int
 xicp_probe(device_t dev)
@@ -178,8 +196,18 @@ xicp_attach(device_t dev)
 		return (ENXIO);
 	}
 
+	if (OF_hasprop(phandle, "ibm,interrupt-server-ranges")) {
+		OF_getencprop(phandle, "ibm,interrupt-server-ranges",
+		    sc->cpu_range, sizeof(sc->cpu_range));
+		device_printf(dev, "Handling CPUs %d-%d\n", sc->cpu_range[0],
+		    sc->cpu_range[1]-1);
+	} else {
+		sc->cpu_range[0] = 0;
+		sc->cpu_range[1] = mp_ncpus;
+	}
+
 	if (mfmsr() & PSL_HV) {
-		for (i = 0; i < mp_ncpus; i++) {
+		for (i = 0; i < sc->cpu_range[1] - sc->cpu_range[0]; i++) {
 			sc->mem[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 			    &i, RF_ACTIVE);
 			if (sc->mem[i] == NULL) {
@@ -254,13 +282,20 @@ static void
 xicp_dispatch(device_t dev, struct trapframe *tf)
 {
 	struct xicp_softc *sc;
+	struct resource *regs = NULL;
 	uint64_t xirr, junk;
 	int i;
 
+	if (sc->mem[0])
+		regs = xicp_mem_for_cpu(PCPU_GET(cpuid));
+
+	KASSERT(sc->mem[0] == NULL || regs != NULL,
+	    ("Can't find regs for CPU %d", PCPU_GET(cpuid)));
+
 	sc = device_get_softc(dev);
 	for (;;) {
-		if (sc->mem[0]) {
-			xirr = bus_read_4(sc->mem[PCPU_GET(cpuid)], 4);
+		if (regs) {
+			xirr = bus_read_4(regs, 4);
 		} else {
 			/* Return value in R4, use the PFT call */
 			phyp_pft_hcall(H_XIRR, 0, 0, 0, 0, &xirr, &junk, &junk);
@@ -268,8 +303,8 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 		xirr &= 0x00ffffff;
 
 		if (xirr == 0) { /* No more pending interrupts? */
-			if (sc->mem[0])
-				bus_write_1(sc->mem[PCPU_GET(cpuid)], 4, 0xff);
+			if (regs)
+				bus_write_1(regs, 4, 0xff);
 			else
 				phyp_hcall(H_CPPR, (uint64_t)0xff);
 			break;
@@ -278,8 +313,8 @@ xicp_dispatch(device_t dev, struct trapframe *tf)
 			xirr = MAX_XICP_IRQS;	/* Map to FreeBSD magic */
 
 			/* Clear IPI */
-			if (sc->mem[0])
-				bus_write_1(sc->mem[PCPU_GET(cpuid)], 12, 0xff);
+			if (regs)
+				bus_write_1(regs, 12, 0xff);
 			else
 				phyp_hcall(H_IPI, (uint64_t)(PCPU_GET(cpuid)),
 				    0xff);
@@ -343,7 +378,7 @@ xicp_eoi(device_t dev, u_int irq)
 	xirr = irq | (XICP_PRIORITY << 24);
 
 	if (sc->mem[0])
-		bus_write_4(sc->mem[PCPU_GET(cpuid)], 4, xirr);
+		bus_write_4(xicp_mem_for_cpu(PCPU_GET(cpuid)), 4, xirr);
 	else
 		phyp_hcall(H_EOI, xirr);
 }
@@ -354,7 +389,7 @@ xicp_ipi(device_t dev, u_int cpu)
 	struct xicp_softc *sc = device_get_softc(dev);
 
 	if (sc->mem[0])
-		bus_write_1(sc->mem[cpu], 12, XICP_PRIORITY);
+		bus_write_1(xicp_mem_for_cpu(cpu), 12, XICP_PRIORITY);
 	else
 		phyp_hcall(H_IPI, (uint64_t)cpu, XICP_PRIORITY);
 }
