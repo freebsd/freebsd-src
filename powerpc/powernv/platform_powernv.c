@@ -118,6 +118,9 @@ powernv_attach(platform_t plat)
 
 	cpu_idle_hook = powernv_cpu_idle;
 
+	/* Direct interrupts to SRR instead of HSRR */
+	mtspr(SPR_LPCR, mfspr(SPR_LPCR) | LPCR_LPES);
+
 	return (0);
 }
 
