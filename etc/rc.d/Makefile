@@ -68,7 +68,6 @@ FILES=	DAEMON \
 	local \
 	localpkg \
 	lockd \
-	lpd \
 	mixer \
 	motd \
 	mountcritlocal \
