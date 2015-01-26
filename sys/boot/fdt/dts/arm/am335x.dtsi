@@ -47,6 +47,11 @@
 			reg =	< 0x48200000 0x1000 >;
 		};
 
+		pmu {
+			compatible = "arm,cortex-a8-pmu";
+			interrupts = <3>;
+		};
+
 		scm@44e10000 {
 			compatible = "ti,scm";
 			reg =	< 0x44e10000 0x2000 >;
