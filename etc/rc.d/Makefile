@@ -192,6 +192,10 @@ FILES+=		iscsictl
 FILES+=		iscsid
 .endif
 
+.if ${MK_LPR} != "no"
+FILES+=		lpd
+.endif
+
 .if ${MK_NS_CACHING} != "no"
 _nscd=		nscd
 .endif
