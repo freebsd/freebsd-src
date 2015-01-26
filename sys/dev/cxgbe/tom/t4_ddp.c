@@ -1057,9 +1057,9 @@ t4_soreceive_ddp(struct socket *so, struct sockaddr **psa, struct uio *uio,
 
 	/* Prevent other readers from entering the socket. */
 	error = sblock(sb, SBLOCKWAIT(flags));
+	SOCKBUF_LOCK(sb);
 	if (error)
 		goto out;
-	SOCKBUF_LOCK(sb);
 
 	/* Easy one, no space to copyout anything. */
 	if (uio->uio_resid == 0) {
