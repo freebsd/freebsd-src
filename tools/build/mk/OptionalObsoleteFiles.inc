@@ -62,6 +62,7 @@ OLD_FILES+=usr/share/man/man8/amd64/apmconf.8.gz
 .endif
 
 .if ${MK_AT} == no
+OLD_FILES+=etc/pam.d/atrun
 OLD_FILES+=usr/bin/at
 OLD_FILES+=usr/bin/atq
 OLD_FILES+=usr/bin/atrm
