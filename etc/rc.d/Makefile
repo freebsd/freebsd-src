@@ -103,7 +103,6 @@ FILES=	DAEMON \
 	pflog \
 	pfsync \
 	powerd \
-	power_profile \
 	ppp \
 	pppoed \
 	pwcheck \
@@ -154,6 +153,10 @@ FILES=	DAEMON \
 	ypxfrd \
 	zfs \
 	zvol
+
+.if ${MK_ACPI} != "no"
+FILES+=		power_profile
+.endif
 
 .if ${MK_AUTOFS} != "no"
 FILES+=		automount
