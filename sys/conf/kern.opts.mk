@@ -23,6 +23,7 @@
 # src tree.
 
 __DEFAULT_YES_OPTIONS = \
+    BHYVE \
     BLUETOOTH \
     CCD \
     CDDL \
