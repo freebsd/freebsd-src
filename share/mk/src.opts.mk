@@ -92,6 +92,7 @@ __DEFAULT_YES_OPTIONS = \
     GPIO \
     GPL_DTC \
     GROFF \
+    HAST \
     HTML \
     HYPERV \
     ICONV \
