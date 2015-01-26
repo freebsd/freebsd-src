@@ -1,4 +1,0 @@
-.\" $FreeBSD$
-Set to build and install
-.Xr bhyve 8 ,
-associated utilities, and examples.
