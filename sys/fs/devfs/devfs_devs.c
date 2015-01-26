@@ -186,6 +186,16 @@ devfs_find(struct devfs_dirent *dd, const char *name, int namelen, int type)
 			continue;
 		if (type != 0 && type != de->de_dirent->d_type)
 			continue;
+
+		/*
+		 * The race with finding non-active name is not
+		 * completely closed by the check, but it is similar
+		 * to the devfs_allocv() in making it unlikely enough.
+		 */
+		if (de->de_dirent->d_type == DT_CHR &&
+		    (de->de_cdp->cdp_flags & CDP_ACTIVE) == 0)
+			continue;
+
 		if (bcmp(name, de->de_dirent->d_name, namelen) != 0)
 			continue;
 		break;

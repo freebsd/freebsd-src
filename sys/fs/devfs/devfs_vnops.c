@@ -1023,6 +1023,9 @@ devfs_mknod(struct vop_mknod_args *ap)
 	TAILQ_FOREACH(de, &dd->de_dlist, de_list) {
 		if (cnp->cn_namelen != de->de_dirent->d_namlen)
 			continue;
+		if (de->de_dirent->d_type == DT_CHR &&
+		    (de->de_cdp->cdp_flags & CDP_ACTIVE) == 0)
+			continue;
 		if (bcmp(cnp->cn_nameptr, de->de_dirent->d_name,
 		    de->de_dirent->d_namlen) != 0)
 			continue;
