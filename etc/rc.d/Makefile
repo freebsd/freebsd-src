@@ -12,8 +12,6 @@ FILES=	DAEMON \
 	addswap \
 	adjkerntz \
 	amd \
-	apm \
-	apmd \
 	archdep \
 	atm1 \
 	atm2 \
@@ -156,6 +154,11 @@ FILES=	DAEMON \
 
 .if ${MK_ACPI} != "no"
 FILES+=		power_profile
+.endif
+
+.if ${MK_APM} != "no"
+FILES+=	apm
+FILES+=	apmd
 .endif
 
 .if ${MK_AUTOFS} != "no"
