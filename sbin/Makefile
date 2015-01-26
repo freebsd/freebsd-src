@@ -30,8 +30,6 @@ SUBDIR=adjkerntz \
 	ggate \
 	growfs \
 	gvinum \
-	hastctl \
-	hastd \
 	ifconfig \
 	init \
 	kldconfig \
@@ -86,6 +84,11 @@ SUBDIR+=	ccdconfig
 
 .if ${MK_CXX} != "no"
 SUBDIR+=	devd
+.endif
+
+.if ${MK_HAST} != "no"
+SUBDIR+=	hastctl
+SUBDIR+=	hastd
 .endif
 
 .if ${MK_IPFILTER} != "no"

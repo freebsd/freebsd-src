@@ -48,7 +48,6 @@ FILES=	DAEMON \
 	gptboot \
 	growfs \
 	gssd \
-	hastd \
 	${_hcsecd} \
 	hostapd \
 	hostid \
@@ -176,6 +175,10 @@ _casperd=	casperd
 
 .if ${MK_CCD} != "no"
 FILES+=		ccd
+.endif
+
+.if ${MK_HAST} != "no"
+FILES+=		hastd
 .endif
 
 .if ${MK_ISCSI} != "no"
