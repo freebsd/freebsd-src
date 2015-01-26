@@ -545,10 +545,13 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 5
+#define LLVM_VERSION_MINOR 6
 
 /* Patch version of the LLVM API */
 #define LLVM_VERSION_PATCH 0
+
+/* LLVM version string */
+#define LLVM_VERSION_STRING "3.6.0"
 
 /* The shared library extension */
 #define LTDL_SHLIB_EXT ".so"
@@ -564,13 +567,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 3.5.1"
+#define PACKAGE_STRING "LLVM 3.6.0"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "llvm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.5.1"
+#define PACKAGE_VERSION "3.6.0"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

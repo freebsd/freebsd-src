@@ -43,6 +43,7 @@ SUBDIR=	libclanganalysis \
 	libllvmirreader \
 	libllvmlinker \
 	libllvmmc \
+	libllvmmcdisassembler \
 	libllvmmcparser \
 	libllvmobjcarcopts \
 	libllvmobject \
@@ -96,14 +97,11 @@ SUBDIR=	libclanganalysis \
 	libllvmx86utils
 
 .if ${MK_CLANG_EXTRAS} != "no"
-SUBDIR+=libllvmdebuginfo \
-	libllvmmcanalysis
+SUBDIR+=libllvmdebuginfo
 .endif # MK_CLANG_EXTRAS
 .if ${MK_CLANG_EXTRAS} != "no" || ${MK_LLDB} != "no"
 SUBDIR+=libllvmexecutionengine \
 	libllvminterpreter \
-	libllvmjit \
-	libllvmmcdisassembler \
 	libllvmmcjit \
 	libllvmruntimedyld
 .endif # MK_CLANG_EXTRAS | LLDB
