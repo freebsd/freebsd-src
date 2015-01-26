@@ -620,7 +620,10 @@ _qlxge=		qlxge
 _qlxgb=		qlxgb
 _qlxgbe=	qlxgbe
 _sfxge=		sfxge
+
+.if ${MK_BHYVE} != "no" || defined(ALL_MODULES)
 _vmm=		vmm
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"
