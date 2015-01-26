@@ -30,8 +30,6 @@ SUBDIR=adjkerntz \
 	ggate \
 	growfs \
 	gvinum \
-	hastctl \
-	hastd \
 	ifconfig \
 	init \
 	kldconfig \
@@ -88,6 +86,11 @@ SUBDIR+=	ccdconfig
 SUBDIR+=	devd
 .endif
 
+.if ${MK_HAST} != "no"
+SUBDIR+=	hastctl
+SUBDIR+=	hastd
+.endif
+
 .if ${MK_IPFILTER} != "no"
 SUBDIR+=	ipf
 .endif
@@ -95,6 +98,10 @@ SUBDIR+=	ipf
 .if ${MK_IPFW} != "no"
 SUBDIR+=	ipfw
 SUBDIR+=	natd
+.endif
+
+.if ${MK_ISCSI} != "no"
+SUBDIR+=	iscontrol
 .endif
 
 .if ${MK_NAND} != "no"

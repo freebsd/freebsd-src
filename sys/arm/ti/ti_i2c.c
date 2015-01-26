@@ -95,6 +95,7 @@ struct ti_i2c_softc
 	int			sc_buffer_pos;
 	int			sc_error;
 	int			sc_fifo_trsh;
+	int			sc_timeout;
 
 	uint16_t		sc_con_reg;
 	uint16_t		sc_rev;
@@ -442,7 +443,7 @@ ti_i2c_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		ti_i2c_write_2(sc, I2C_REG_CON, reg);
 
 		/* Wait for an event. */
-		err = mtx_sleep(sc, &sc->sc_mtx, 0, "i2ciowait", hz);
+		err = mtx_sleep(sc, &sc->sc_mtx, 0, "i2ciowait", sc->sc_timeout);
 		if (err == 0)
 			err = sc->sc_error;
 
@@ -761,12 +762,10 @@ ti_i2c_deactivate(device_t dev)
 static int
 ti_i2c_sysctl_clk(SYSCTL_HANDLER_ARGS)
 {
-	device_t dev;
 	int clk, psc, sclh, scll;
 	struct ti_i2c_softc *sc;
 
-	dev = (device_t)arg1;
-	sc = device_get_softc(dev);
+	sc = arg1;
 
 	TI_I2C_LOCK(sc);
 	/* Get the system prescaler value. */
@@ -780,6 +779,34 @@ ti_i2c_sysctl_clk(SYSCTL_HANDLER_ARGS)
 	TI_I2C_UNLOCK(sc);
 
 	return (sysctl_handle_int(oidp, &clk, 0, req));
+}
+
+static int
+ti_i2c_sysctl_timeout(SYSCTL_HANDLER_ARGS)
+{
+	struct ti_i2c_softc *sc;
+	unsigned int val;
+	int err;
+
+	sc = arg1;
+
+	/* 
+	 * MTX_DEF lock can't be held while doing uimove in
+	 * sysctl_handle_int
+	 */
+	TI_I2C_LOCK(sc);
+	val = sc->sc_timeout;
+	TI_I2C_UNLOCK(sc);
+
+	err = sysctl_handle_int(oidp, &val, 0, req);
+	/* Write request? */
+	if ((err == 0) && (req->newptr != NULL)) {
+		TI_I2C_LOCK(sc);
+		sc->sc_timeout = val;
+		TI_I2C_UNLOCK(sc);
+	}
+
+	return (err);
 }
 
 static int
@@ -858,11 +885,18 @@ ti_i2c_attach(device_t dev)
 	/* Set the FIFO threshold to 5 for now. */
 	sc->sc_fifo_trsh = 5;
 
+	/* Set I2C bus timeout */
+	sc->sc_timeout = 5*hz;
+
 	ctx = device_get_sysctl_ctx(dev);
 	tree = SYSCTL_CHILDREN(device_get_sysctl_tree(dev));
 	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "i2c_clock",
-	    CTLFLAG_RD | CTLTYPE_UINT | CTLFLAG_MPSAFE, dev, 0,
+	    CTLFLAG_RD | CTLTYPE_UINT | CTLFLAG_MPSAFE, sc, 0,
 	    ti_i2c_sysctl_clk, "IU", "I2C bus clock");
+
+	SYSCTL_ADD_PROC(ctx, tree, OID_AUTO, "i2c_timeout",
+	    CTLFLAG_RW | CTLTYPE_UINT | CTLFLAG_MPSAFE, sc, 0,
+	    ti_i2c_sysctl_timeout, "IU", "I2C bus timeout (in ticks)");
 
 	/* Activate the interrupt. */
 	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
