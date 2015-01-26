@@ -50,6 +50,8 @@ OLD_FILES+=usr/share/man/man8/wire-test.8.gz
 .endif
 
 .if ${MK_APM} == no
+OLD_FILES+=etc/rc.d/apm
+OLD_FILES+=etc/rc.d/apmd
 OLD_FILES+=etc/apmd.conf
 OLD_FILES+=usr/sbin/apm
 OLD_FILES+=usr/share/examples/etc/apmd.conf
