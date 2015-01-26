@@ -3512,6 +3512,7 @@ OLD_FILES+=usr/share/man/man8/updatedb.8.gz
 .if ${MK_LPR} == no
 OLD_FILES+=etc/hosts.lpd
 OLD_FILES+=etc/printcap
+OLD_FILES+=etc/rc.d/lpd
 OLD_FILES+=usr/bin/lp
 OLD_FILES+=usr/bin/lpq
 OLD_FILES+=usr/bin/lpr
