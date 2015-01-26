@@ -10,6 +10,8 @@
         ..
         date
         ..
+        expr
+        ..
         mv
         ..
         pax
