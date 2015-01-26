@@ -20,9 +20,6 @@ FILES=	DAEMON \
 	atm3 \
 	auditd \
 	auditdistd \
-	automount \
-	automountd \
-	autounmountd \
 	bgfsck \
 	${_bluetooth} \
 	bootparams \
@@ -158,6 +155,12 @@ FILES=	DAEMON \
 	ypxfrd \
 	zfs \
 	zvol
+
+.if ${MK_AUTOFS} != "no"
+FILES+=		automount
+FILES+=		automountd
+FILES+=		autounmountd
+.endif
 
 .if ${MK_BLUETOOTH} != "no"
 _bluetooth=	bluetooth

@@ -5,7 +5,6 @@
 
 SUBDIR=	adduser \
 	arp \
-	autofs \
 	binmiscctl \
 	bootparamd \
 	bsdconfig \
@@ -122,6 +121,10 @@ SUBDIR+=	praudit
 
 .if ${MK_AUTHPF} != "no"
 SUBDIR+=	authpf
+.endif
+
+.if ${MK_AUTOFS} != "no"
+SUBDIR+=	autofs
 .endif
 
 .if ${MK_BLUETOOTH} != "no"

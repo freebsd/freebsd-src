@@ -144,6 +144,26 @@ OLD_FILES+=usr/share/man/man8/authpf.8.gz
 OLD_FILES+=usr/share/man/man8/authpf-noip.8.gz
 .endif
 
+.if ${MK_AUTOFS} == no
+OLD_FILES+=etc/autofs/include_ldap
+OLD_FILES+=etc/autofs/special_hosts
+OLD_FILES+=etc/autofs/special_media
+OLD_FILES+=etc/autofs/special_null
+OLD_FILES+=etc/auto_master
+OLD_FILES+=etc/rc.d/automount
+OLD_FILES+=etc/rc.d/automountd
+OLD_FILES+=etc/rc.d/autounmountd
+OLD_FILES+=usr/sbin/automount
+OLD_FILES+=usr/sbin/automountd
+OLD_FILES+=usr/sbin/autounmountd
+OLD_FILES+=usr/share/man/man5/autofs.5.gz
+OLD_FILES+=usr/share/man/man5/auto_master.5.gz
+OLD_FILES+=usr/share/man/man8/automount.8.gz
+OLD_FILES+=usr/share/man/man8/automountd.8.gz
+OLD_FILES+=usr/share/man/man8/autounmountd.8.gz
+OLD_DIRS+=etc/autofs
+.endif
+
 .if ${MK_BHYVE} == no
 OLD_FILES+=usr/sbin/bhyve
 OLD_FILES+=usr/sbin/bhyvectl
