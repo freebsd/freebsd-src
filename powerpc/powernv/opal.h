@@ -38,15 +38,21 @@ int opal_check(void);
 /* Call an OPAL method. Any pointers passed must be real-mode accessible! */
 int opal_call(uint64_t token, ...);
 
-#define OPAL_CONSOLE_WRITE	1
-#define OPAL_CONSOLE_READ	2
-#define	OPAL_CEC_POWER_DOWN	5
-#define	OPAL_CEC_REBOOT		6
-#define	OPAL_SET_XIVE		19
-#define	OPAL_GET_XIVE		20
-#define OPAL_START_CPU		41
+#define OPAL_CONSOLE_WRITE		1
+#define OPAL_CONSOLE_READ		2
+#define	OPAL_CEC_POWER_DOWN		5
+#define	OPAL_CEC_REBOOT			6
+#define	OPAL_PCI_CONFIG_READ_BYTE	13
+#define	OPAL_PCI_CONFIG_READ_HALF_WORD	14
+#define	OPAL_PCI_CONFIG_READ_WORD	15
+#define	OPAL_PCI_CONFIG_WRITE_BYTE	16
+#define	OPAL_PCI_CONFIG_WRITE_HALF_WORD	17
+#define	OPAL_PCI_CONFIG_WRITE_WORD	18
+#define	OPAL_SET_XIVE			19
+#define	OPAL_GET_XIVE			20
+#define OPAL_START_CPU			41
 
-#define OPAL_SUCCESS		0
-#define	OPAL_BUSY_EVENT		-12
+#define OPAL_SUCCESS			0
+#define	OPAL_BUSY_EVENT			-12
 
 #endif
