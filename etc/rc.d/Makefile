@@ -247,6 +247,11 @@ _unbound=	local_unbound
 _utx=		utx
 .endif
 
+.if ${MK_WIRELESS} != "no"
+FILES+=		hostapd
+FILES+=		wpa_supplicant
+.endif
+
 FILESDIR=	/etc/rc.d
 FILESMODE=	${BINMODE}
 
