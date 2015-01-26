@@ -52,6 +52,7 @@ __DEFAULT_YES_OPTIONS = \
     ATM \
     AUDIT \
     AUTHPF \
+    AUTOFS \
     BHYVE \
     BINUTILS \
     BINUTILS_BOOTSTRAP \
