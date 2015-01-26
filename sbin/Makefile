@@ -100,6 +100,10 @@ SUBDIR+=	ipfw
 SUBDIR+=	natd
 .endif
 
+.if ${MK_ISCSI} != "no"
+SUBDIR+=	iscontrol
+.endif
+
 .if ${MK_NAND} != "no"
 SUBDIR+=	nandfs
 SUBDIR+=	newfs_nandfs
