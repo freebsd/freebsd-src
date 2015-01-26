@@ -159,7 +159,6 @@ opalpci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 
 	config_addr = (bus << 8) | ((slot & 0x1f) << 3) | (func & 0x7);
 
-	/* Sign-extend output */
 	switch (width) {
 	case 1:
 		error = opal_call(OPAL_PCI_CONFIG_READ_BYTE, sc->phb_id,
@@ -196,7 +195,6 @@ opalpci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 
 	config_addr = (bus << 8) | ((slot & 0x1f) << 3) | (func & 0x7);
 
-	/* Sign-extend output */
 	switch (width) {
 	case 1:
 		opal_call(OPAL_PCI_CONFIG_WRITE_BYTE, sc->phb_id, config_addr,
