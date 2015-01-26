@@ -289,6 +289,7 @@ OLD_FILES+=usr/share/man/man8/authpf-noip.8.gz
 .if ${MK_AUTOFS} == no
 OLD_FILES+=etc/autofs/include_ldap
 OLD_FILES+=etc/autofs/special_hosts
+OLD_FILES+=etc/autofs/special_media
 OLD_FILES+=etc/autofs/special_null
 OLD_FILES+=etc/auto_master
 OLD_FILES+=usr/sbin/automount
@@ -6535,6 +6536,8 @@ OLD_DIRS+=usr/share/vi
 
 .if ${MK_WIRELESS} == no
 OLD_FILES+=etc/regdomain.xml
+OLD_FILES+=etc/rc.d/hostapd
+OLD_FILES+=etc/rc.d/wpa_supplicant
 OLD_FILES+=usr/sbin/ancontrol
 OLD_FILES+=usr/sbin/hostapd
 OLD_FILES+=usr/sbin/hostapd_cli

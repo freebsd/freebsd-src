@@ -1,8 +1,8 @@
 # $FreeBSD$
 
-NO_OBJ=
-
 .include <src.opts.mk>
+
+NO_OBJ=
 
 FILES=	README \
 	cron \

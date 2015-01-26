@@ -179,6 +179,22 @@ BINDIR= ${SHAREDIR}/examples
 
 NO_OBJ=
 
+.if ${MK_HAST} != "no"
+LDIRS+=		hast
+XFILES+=	hast/ucarp.sh \
+		hast/ucarp_down.sh \
+		hast/ucarp_up.sh \
+		hast/vip-down.sh \
+		hast/vip-up.sh
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64"
+.if ${MK_BHYVE} != "no"
+LDIRS+=		bhyve
+XFILES+=	bhyve/vmrun.sh
+.endif
+.endif
+
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies''); (latter useful
 # in environments where it's not possible to keep /sys publicly readable)

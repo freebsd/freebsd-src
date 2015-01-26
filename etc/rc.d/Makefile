@@ -12,7 +12,6 @@ FILES=	DAEMON \
 	abi \
 	addswap \
 	adjkerntz \
-	amd \
 	archdep \
 	bgfsck \
 	${_bluetooth} \
@@ -115,7 +114,7 @@ FILES+=		powerd
 .endif
 
 .if ${MK_AMD} != "no"
-FILES+=	amd
+FILES+=		amd
 .endif
 
 .if ${MK_APM} != "no"
@@ -135,9 +134,9 @@ FILES+=		auditdistd
 .endif
 
 .if ${MK_AUTOFS} != "no"
-FILES+=	automount
-FILES+=	automountd
-FILES+=	autounmountd
+FILES+=		automount
+FILES+=		automountd
+FILES+=		autounmountd
 .endif
 
 .if ${MK_BLUETOOTH} != "no"
