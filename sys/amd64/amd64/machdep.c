@@ -1557,6 +1557,8 @@ native_parse_memmap(caddr_t kmdp, vm_paddr_t *physmap, int *physmap_idx)
 	}
 }
 
+#define	PAGES_PER_GB	(1024 * 1024 * 1024 / PAGE_SIZE)
+
 /*
  * Populate the (physmap) array with base/bound pairs describing the
  * available physical memory in the system, then test this memory and
@@ -1575,6 +1577,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	u_long physmem_start, physmem_tunable, memtest;
 	pt_entry_t *pte;
 	quad_t dcons_addr, dcons_size;
+	int page_counter;
 
 	bzero(physmap, sizeof(physmap));
 	basemem = 0;
@@ -1678,6 +1681,9 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	 * physmap is in bytes, so when converting to page boundaries,
 	 * round up the start address and round down the end address.
 	 */
+	page_counter = 0;
+	if (memtest != 0)
+		printf("Testing system memory");
 	for (i = 0; i <= physmap_idx; i += 2) {
 		vm_paddr_t end;
 
@@ -1706,6 +1712,14 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 			page_bad = FALSE;
 			if (memtest == 0)
 				goto skip_memtest;
+
+			/*
+			 * Print a "." every GB to show we're making
+			 * progress.
+			 */
+			page_counter++;
+			if ((page_counter % PAGES_PER_GB) == 0)
+				printf(".");
 
 			/*
 			 * map page into kernel: valid, read/write,non-cacheable
@@ -1794,6 +1808,8 @@ do_next:
 	}
 	*pte = 0;
 	invltlb();
+	if (memtest != 0)
+		printf("\n");
 
 	/*
 	 * XXX
