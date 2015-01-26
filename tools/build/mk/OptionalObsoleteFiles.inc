@@ -6,6 +6,7 @@
 #
 
 .if ${MK_ACCT} == no
+OLD_FILES+=etc/rc.d/accounting
 OLD_FILES+=etc/periodic/daily/310.accounting
 OLD_FILES+=usr/sbin/accton
 OLD_FILES+=usr/sbin/sa
