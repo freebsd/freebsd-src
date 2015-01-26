@@ -1096,6 +1096,10 @@ _callout_stop_safe(struct callout *c, int safe)
 	struct lock_class *class;
 	int direct, sq_locked, use_lock;
 
+	if (safe)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, c->c_lock,
+		    "calling %s", __func__);
+
 	/*
 	 * Some old subsystems don't hold Giant while running a callout_stop(),
 	 * so just discard this check for the moment.

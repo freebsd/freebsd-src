@@ -6,6 +6,7 @@
 #
 
 .if ${MK_ACCT} == no
+OLD_FILES+=etc/rc.d/accounting
 OLD_FILES+=etc/periodic/daily/310.accounting
 OLD_FILES+=usr/sbin/accton
 OLD_FILES+=usr/sbin/sa
@@ -14,6 +15,8 @@ OLD_FILES+=usr/share/man/man8/sa.8.gz
 .endif
 
 .if ${MK_ACPI} == no
+OLD_FILES+=etc/devd/asus.conf
+OLD_FILES+=etc/rc.d/power_profile
 OLD_FILES+=usr/sbin/acpiconf
 OLD_FILES+=usr/sbin/acpidb
 OLD_FILES+=usr/sbin/acpidump
@@ -26,6 +29,7 @@ OLD_FILES+=usr/share/man/man8/iasl.8.gz
 
 .if ${MK_AMD} == no
 OLD_FILES+=etc/amd.map
+OLD_FILES+=etc/rc.d/amd
 OLD_FILES+=usr/bin/pawd
 OLD_FILES+=usr/sbin/amd
 OLD_FILES+=usr/sbin/amq
@@ -48,6 +52,8 @@ OLD_FILES+=usr/share/man/man8/wire-test.8.gz
 .endif
 
 .if ${MK_APM} == no
+OLD_FILES+=etc/rc.d/apm
+OLD_FILES+=etc/rc.d/apmd
 OLD_FILES+=etc/apmd.conf
 OLD_FILES+=usr/sbin/apm
 OLD_FILES+=usr/share/examples/etc/apmd.conf
@@ -56,6 +62,7 @@ OLD_FILES+=usr/share/man/man8/amd64/apmconf.8.gz
 .endif
 
 .if ${MK_AT} == no
+OLD_FILES+=etc/pam.d/atrun
 OLD_FILES+=usr/bin/at
 OLD_FILES+=usr/bin/atq
 OLD_FILES+=usr/bin/atrm
@@ -144,10 +151,41 @@ OLD_FILES+=usr/share/man/man8/authpf.8.gz
 OLD_FILES+=usr/share/man/man8/authpf-noip.8.gz
 .endif
 
+.if ${MK_AUTOFS} == no
+OLD_FILES+=etc/autofs/include_ldap
+OLD_FILES+=etc/autofs/special_hosts
+OLD_FILES+=etc/autofs/special_media
+OLD_FILES+=etc/autofs/special_null
+OLD_FILES+=etc/auto_master
+OLD_FILES+=etc/rc.d/automount
+OLD_FILES+=etc/rc.d/automountd
+OLD_FILES+=etc/rc.d/autounmountd
+OLD_FILES+=usr/sbin/automount
+OLD_FILES+=usr/sbin/automountd
+OLD_FILES+=usr/sbin/autounmountd
+OLD_FILES+=usr/share/man/man5/autofs.5.gz
+OLD_FILES+=usr/share/man/man5/auto_master.5.gz
+OLD_FILES+=usr/share/man/man8/automount.8.gz
+OLD_FILES+=usr/share/man/man8/automountd.8.gz
+OLD_FILES+=usr/share/man/man8/autounmountd.8.gz
+OLD_DIRS+=etc/autofs
+.endif
+
+.if ${MK_BHYVE} == no
+OLD_FILES+=usr/sbin/bhyve
+OLD_FILES+=usr/sbin/bhyvectl
+OLD_FILES+=usr/sbin/bhyveload
+OLD_FILES+=usr/share/examples/bhyve/vmrun.sh
+OLD_FILES+=usr/share/man/man8/bhyve.8.gz
+OLD_FILES+=usr/share/man/man8/bhyveload.8.gz
+OLD_DIRS+=usr/share/examples/bhyve
+.endif
+
 .if ${MK_BLUETOOTH} == no
 OLD_FILES+=etc/bluetooth/hcsecd.conf
 OLD_FILES+=etc/bluetooth/hosts
 OLD_FILES+=etc/bluetooth/protocols
+OLD_FILES+=etc/defaults/bluetooth.device.conf
 OLD_DIRS+=etc/bluetooth
 OLD_FILES+=usr/bin/bthost
 OLD_FILES+=usr/bin/btsockstat
@@ -2150,6 +2188,20 @@ OLD_FILES+=usr/share/man/man5/qop.5.gz
 OLD_FILES+=usr/share/man/man8/gssd.8.gz
 .endif
 
+.if ${MK_HAST} == no
+OLD_FILES+=sbin/hastctl
+OLD_FILES+=sbin/hastd
+OLD_FILES+=usr/share/examples/hast/ucarp.sh
+OLD_FILES+=usr/share/examples/hast/ucarp_down.sh
+OLD_FILES+=usr/share/examples/hast/ucarp_up.sh
+OLD_FILES+=usr/share/examples/hast/vip-down.sh
+OLD_FILES+=usr/share/examples/hast/vip-up.sh
+OLD_FILES+=usr/share/man/man5/hast.conf.5.gz
+OLD_FILES+=usr/share/man/man8/hastctl.8.gz
+OLD_FILES+=usr/share/man/man8/hastd.8.gz
+OLD_DIRS+=usr/share/examples/hast
+.endif
+
 .if ${MK_HESIOD} == no
 OLD_FILES+=usr/bin/hesinfo
 OLD_FILES+=usr/include/hesiod.h
@@ -2323,6 +2375,7 @@ OLD_FILES+=usr/share/man/man8/iscsid.8.gz
 .endif
 
 .if ${MK_JAIL} == no
+OLD_FILES+=etc/rc.d/jail
 OLD_FILES+=usr/sbin/jail
 OLD_FILES+=usr/sbin/jexec
 OLD_FILES+=usr/sbin/jls
@@ -2332,6 +2385,8 @@ OLD_FILES+=usr/share/man/man8/jls.8.gz
 .endif
 
 .if ${MK_KERBEROS} == no
+OLD_FILES+=etc/rc.d/ipropd_master
+OLD_FILES+=etc/rc.d/ipropd_slave
 OLD_FILES+=usr/bin/compile_et
 OLD_FILES+=usr/bin/hxtool
 OLD_FILES+=usr/bin/kadmin
@@ -3472,6 +3527,7 @@ OLD_FILES+=usr/share/man/man8/updatedb.8.gz
 .if ${MK_LPR} == no
 OLD_FILES+=etc/hosts.lpd
 OLD_FILES+=etc/printcap
+OLD_FILES+=etc/rc.d/lpd
 OLD_FILES+=usr/bin/lp
 OLD_FILES+=usr/bin/lpq
 OLD_FILES+=usr/bin/lpr
@@ -4933,6 +4989,8 @@ OLD_FILES+=usr/share/man/man8/utx.8.gz
 
 .if ${MK_WIRELESS} == no
 OLD_FILES+=etc/regdomain.xml
+OLD_FILES+=etc/rc.d/hostapd
+OLD_FILES+=etc/rc.d/wpa_supplicant
 OLD_FILES+=usr/sbin/ancontrol
 OLD_FILES+=usr/sbin/hostapd
 OLD_FILES+=usr/sbin/hostapd_cli

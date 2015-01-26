@@ -52,6 +52,8 @@ __DEFAULT_YES_OPTIONS = \
     ATM \
     AUDIT \
     AUTHPF \
+    AUTOFS \
+    BHYVE \
     BINUTILS \
     BINUTILS_BOOTSTRAP \
     BLUETOOTH \
@@ -92,6 +94,7 @@ __DEFAULT_YES_OPTIONS = \
     GPIO \
     GPL_DTC \
     GROFF \
+    HAST \
     HTML \
     HYPERV \
     ICONV \

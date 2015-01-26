@@ -68,11 +68,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 	};
 
 	if (a_gid != NULL) {
-		const char *teststr;
-		teststr = a_gid->val;
-		if (*teststr == '-')
-			teststr++;
-		if (strspn(teststr, "0123456789") != strlen(teststr))
+		if (strspn(a_gid->val, "0123456789") != strlen(a_gid->val))
 			errx(EX_USAGE, "-g expects a number");
 	}
 
