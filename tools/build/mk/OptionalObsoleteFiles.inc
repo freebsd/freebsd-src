@@ -185,6 +185,7 @@ OLD_DIRS+=usr/share/examples/bhyve
 OLD_FILES+=etc/bluetooth/hcsecd.conf
 OLD_FILES+=etc/bluetooth/hosts
 OLD_FILES+=etc/bluetooth/protocols
+OLD_FILES+=etc/defaults/bluetooth.device.conf
 OLD_DIRS+=etc/bluetooth
 OLD_FILES+=usr/bin/bthost
 OLD_FILES+=usr/bin/btsockstat
