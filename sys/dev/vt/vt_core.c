@@ -2556,8 +2556,8 @@ vt_upgrade(struct vt_device *vd)
 		vd->vd_timer_armed = 1;
 
 		/* Register suspend/resume handlers. */
-		EVENTHANDLER_REGISTER(power_suspend, vt_suspend_handler, vd,
-		    EVENTHANDLER_PRI_ANY);
+		EVENTHANDLER_REGISTER(power_suspend_early, vt_suspend_handler,
+		    vd, EVENTHANDLER_PRI_ANY);
 		EVENTHANDLER_REGISTER(power_resume, vt_resume_handler, vd,
 		    EVENTHANDLER_PRI_ANY);
 	}
