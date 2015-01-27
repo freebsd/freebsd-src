@@ -11,6 +11,14 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20150127:	p9	FreeBSD-SA-15:02.kmem
+			FreeBSD-SA-15:03.sctp
+
+	Fix SCTP SCTP_SS_VALUE kernel memory corruption and disclosure
+	vulnerability.  [SA-15:02]
+
+	Fix SCTP stream reset vulnerability.  [SA-15:03]
+
 20150114:	p8	FreeBSD-SA-15:01.openssl
 	Fix multiple vulnerabilities in OpenSSL.  [SA-15:01]
 
