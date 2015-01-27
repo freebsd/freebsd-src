@@ -537,6 +537,7 @@ ip_print(netdissect_options *ndo,
 	struct protoent *proto;
 
 	ipds->ip = (const struct ip *)bp;
+	ND_TCHECK(ipds->ip->ip_vhl);
 	if (IP_V(ipds->ip) != 4) { /* print version if != 4 */
 	    ND_PRINT((ndo, "IP%u ", IP_V(ipds->ip)));
 	    if (IP_V(ipds->ip) == 6)
@@ -545,10 +546,7 @@ ip_print(netdissect_options *ndo,
 	else if (!ndo->ndo_eflag)
 		ND_PRINT((ndo, "IP "));
 
-	if ((u_char *)(ipds->ip + 1) > ndo->ndo_snapend) {
-		ND_PRINT((ndo, "%s", tstr));
-		return;
-	}
+	ND_TCHECK(*ipds->ip);
 	if (length < sizeof (struct ip)) {
 		ND_PRINT((ndo, "truncated-ip %u", length));
 		return;
@@ -677,6 +675,11 @@ ip_print(netdissect_options *ndo,
 				ND_PRINT((ndo, " ip-proto-%d", ipds->ip->ip_p));
 		}
 	}
+	return;
+
+trunc:
+	ND_PRINT((ndo, "%s", tstr));
+	return;
 }
 
 void
