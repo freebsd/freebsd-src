@@ -92,6 +92,9 @@ ufs_quotactl(mp, cmds, id, arg)
 	void *arg;
 {
 #ifndef QUOTA
+	if ((cmds >> SUBCMDSHIFT) == Q_QUOTAON)
+		vfs_unbusy(mp);
+
 	return (EOPNOTSUPP);
 #else
 	struct thread *td;
@@ -112,11 +115,16 @@ ufs_quotactl(mp, cmds, id, arg)
 			break;
 
 		default:
+			if (cmd == Q_QUOTAON)
+				vfs_unbusy(mp);
 			return (EINVAL);
 		}
 	}
-	if ((u_int)type >= MAXQUOTAS)
+	if ((u_int)type >= MAXQUOTAS) {
+		if (cmd == Q_QUOTAON)
+			vfs_unbusy(mp);
 		return (EINVAL);
+	}
 
 	switch (cmd) {
 	case Q_QUOTAON:
