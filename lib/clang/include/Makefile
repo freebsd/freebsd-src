@@ -8,7 +8,7 @@ LLVM_SRCS= ${.CURDIR}/../../../contrib/llvm
 
 .PATH: ${LLVM_SRCS}/tools/clang/lib/Headers
 
-INCSDIR=${INCLUDEDIR}/clang/3.6.0
+INCSDIR=/usr/lib/clang/3.6.0/include
 
 INCS=	__stddef_max_align_t.h \
 	__wmmintrin_aes.h \
