@@ -6832,7 +6832,8 @@ sctp_log_trace(uint32_t subsys, const char *str SCTP_UNUSED, uint32_t a, uint32_
 
 #endif
 static void
-sctp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *ignored)
+sctp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *ignored,
+    const struct sockaddr *sa SCTP_UNUSED, void *ctx SCTP_UNUSED)
 {
 	struct ip *iph;
 
@@ -6968,7 +6969,7 @@ sctp_over_udp_start(void)
 	}
 	/* Call the special UDP hook. */
 	if ((ret = udp_set_kernel_tunneling(SCTP_BASE_INFO(udp4_tun_socket),
-	    sctp_recv_udp_tunneled_packet))) {
+	    sctp_recv_udp_tunneled_packet, NULL))) {
 		sctp_over_udp_stop();
 		return (ret);
 	}
@@ -6992,7 +6993,7 @@ sctp_over_udp_start(void)
 	}
 	/* Call the special UDP hook. */
 	if ((ret = udp_set_kernel_tunneling(SCTP_BASE_INFO(udp6_tun_socket),
-	    sctp_recv_udp_tunneled_packet))) {
+	    sctp_recv_udp_tunneled_packet, NULL))) {
 		sctp_over_udp_stop();
 		return (ret);
 	}
