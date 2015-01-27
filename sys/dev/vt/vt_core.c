@@ -2367,20 +2367,23 @@ skip_thunk:
 		}
 		VT_UNLOCK(vd);
 		return (EINVAL);
-	case VT_WAITACTIVE:
+	case VT_WAITACTIVE: {
+		unsigned int idx;
+
 		error = 0;
 
-		i = *(unsigned int *)data;
-		if (i > VT_MAXWINDOWS)
+		idx = *(unsigned int *)data;
+		if (idx > VT_MAXWINDOWS)
 			return (EINVAL);
-		if (i != 0)
-			vw = vd->vd_windows[i - 1];
+		if (idx > 0)
+			vw = vd->vd_windows[idx - 1];
 
 		VT_LOCK(vd);
 		while (vd->vd_curwindow != vw && error == 0)
 			error = cv_wait_sig(&vd->vd_winswitch, &vd->vd_lock);
 		VT_UNLOCK(vd);
 		return (error);
+	}
 	case VT_SETMODE: {    	/* set screen switcher mode */
 		struct vt_mode *mode;
 		struct proc *p1;
