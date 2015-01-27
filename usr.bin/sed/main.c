@@ -411,6 +411,8 @@ mf_fgets(SPACE *sp, enum e_spflag spflag)
 			unlink(tmpfname);
 			if ((outfile = fopen(tmpfname, "w")) == NULL)
 				err(1, "%s", fname);
+			if (outfile != NULL && outfile != stdout)
+				fclose(outfile);
 			fchown(fileno(outfile), sb.st_uid, sb.st_gid);
 			fchmod(fileno(outfile), sb.st_mode & ALLPERMS);
 			outfname = tmpfname;
