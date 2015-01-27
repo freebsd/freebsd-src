@@ -103,7 +103,7 @@ altpll_fdt_attach(device_t dev)
 		sc->ap_base_frequency = freq;
 	else
 		sc->ap_base_frequency = ALTPLL_DEFAULT_FREQUENCY;
-	
+
 	if ((error = altpll_attach(sc)) != 0)
 		goto error;
 	fdt_clock_register_provider(dev);
