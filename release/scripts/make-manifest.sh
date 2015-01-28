@@ -17,7 +17,9 @@ desc_games="Games (fortune, etc.)"
 desc_lib32="32-bit compatibility libraries"
 desc_ports="Ports tree"
 desc_src="System source code"
+desc_tests="Test suite"
 src_default=off
+tests_default=off
 
 for i in $*; do
 	echo "`basename $i`	`sha256 -q $i`	`tar tvf $i | wc -l | tr -d ' '`	`basename $i .txz`	\"`eval echo \\\$desc_$(basename $i .txz)`\"	`eval echo \\\${$(basename $i .txz)_default:-on}`"
