@@ -73,6 +73,7 @@
 #define	__PMC_CPUS()						\
 	__PMC_CPU(AMD_K7,	0x00,	"AMD K7")		\
 	__PMC_CPU(AMD_K8,	0x01,	"AMD K8")		\
+	__PMC_CPU(ARMV7,	0x500,	"ARMv7")		\
 	__PMC_CPU(INTEL_P5,	0x80,	"Intel Pentium")	\
 	__PMC_CPU(INTEL_P6,	0x81,	"Intel Pentium Pro")	\
 	__PMC_CPU(INTEL_CL,	0x82,	"Intel Celeron")	\
@@ -127,6 +128,7 @@ enum pmc_cputype {
 	__PMC_CLASS(UCF)	/* Intel Uncore fixed function */	\
 	__PMC_CLASS(UCP)	/* Intel Uncore programmable */		\
 	__PMC_CLASS(XSCALE)	/* Intel XScale counters */		\
+	__PMC_CLASS(ARMV7)	/* ARMv7 */				\
 	__PMC_CLASS(MIPS24K)	/* MIPS 24K */				\
 	__PMC_CLASS(OCTEON)	/* Cavium Octeon */			\
 	__PMC_CLASS(PPC7450)	/* Motorola MPC7450 class */		\

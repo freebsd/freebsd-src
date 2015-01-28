@@ -1863,8 +1863,9 @@ flags_out:
 			SCTP_CHECK_AND_CAST(av, optval, struct sctp_stream_value, *optsize);
 			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
 			if (stcb) {
-				if (stcb->asoc.ss_functions.sctp_ss_get_value(stcb, &stcb->asoc, &stcb->asoc.strmout[av->stream_id],
-				    &av->stream_value) < 0) {
+				if ((av->stream_id >= stcb->asoc.streamoutcnt) ||
+				    (stcb->asoc.ss_functions.sctp_ss_get_value(stcb, &stcb->asoc, &stcb->asoc.strmout[av->stream_id],
+				    &av->stream_value) < 0)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
 				} else {
@@ -4032,8 +4033,9 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			SCTP_CHECK_AND_CAST(av, optval, struct sctp_stream_value, optsize);
 			SCTP_FIND_STCB(inp, stcb, av->assoc_id);
 			if (stcb) {
-				if (stcb->asoc.ss_functions.sctp_ss_set_value(stcb, &stcb->asoc, &stcb->asoc.strmout[av->stream_id],
-				    av->stream_value) < 0) {
+				if ((av->stream_id >= stcb->asoc.streamoutcnt) ||
+				    (stcb->asoc.ss_functions.sctp_ss_set_value(stcb, &stcb->asoc, &stcb->asoc.strmout[av->stream_id],
+				    av->stream_value) < 0)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
 				}
@@ -4043,14 +4045,15 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					SCTP_INP_RLOCK(inp);
 					LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
 						SCTP_TCB_LOCK(stcb);
-						stcb->asoc.ss_functions.sctp_ss_set_value(stcb,
-						    &stcb->asoc,
-						    &stcb->asoc.strmout[av->stream_id],
-						    av->stream_value);
+						if (av->stream_id < stcb->asoc.streamoutcnt) {
+							stcb->asoc.ss_functions.sctp_ss_set_value(stcb,
+							    &stcb->asoc,
+							    &stcb->asoc.strmout[av->stream_id],
+							    av->stream_value);
+						}
 						SCTP_TCB_UNLOCK(stcb);
 					}
 					SCTP_INP_RUNLOCK(inp);
-
 				} else {
 					/*
 					 * Can't set stream value without

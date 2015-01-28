@@ -33,10 +33,10 @@
 /*
  * Efficient memory file system.
  *
- * tmpfs is a file system that uses NetBSD's virtual memory sub-system
- * (the well-known UVM) to store file data and metadata in an efficient
- * way.  This means that it does not follow the structure of an on-disk
- * file system because it simply does not need to.  Instead, it uses
+ * tmpfs is a file system that uses FreeBSD's virtual memory
+ * sub-system to store file data and metadata in an efficient way.
+ * This means that it does not follow the structure of an on-disk file
+ * system because it simply does not need to.  Instead, it uses
  * memory-specific data structures and algorithms to automatically
  * allocate and release resources.
  */
@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
+#include <sys/rwlock.h>
 #include <sys/stat.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
@@ -418,11 +419,45 @@ tmpfs_statfs(struct mount *mp, struct statfs *sbp)
 static int
 tmpfs_sync(struct mount *mp, int waitfor)
 {
+	struct vnode *vp, *mvp;
+	struct vm_object *obj;
 
 	if (waitfor == MNT_SUSPEND) {
 		MNT_ILOCK(mp);
 		mp->mnt_kern_flag |= MNTK_SUSPEND2 | MNTK_SUSPENDED;
 		MNT_IUNLOCK(mp);
+	} else if (waitfor == MNT_LAZY) {
+		/*
+		 * Handle lazy updates of mtime from writes to mmaped
+		 * regions.  Use MNT_VNODE_FOREACH_ALL instead of
+		 * MNT_VNODE_FOREACH_ACTIVE, since unmap of the
+		 * tmpfs-backed vnode does not call vinactive(), due
+		 * to vm object type is OBJT_SWAP.
+		 */
+		MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
+			if (vp->v_type != VREG) {
+				VI_UNLOCK(vp);
+				continue;
+			}
+			obj = vp->v_object;
+			KASSERT((obj->flags & (OBJ_TMPFS_NODE | OBJ_TMPFS)) ==
+			    (OBJ_TMPFS_NODE | OBJ_TMPFS), ("non-tmpfs obj"));
+
+			/*
+			 * Unlocked read, avoid taking vnode lock if
+			 * not needed.  Lost update will be handled on
+			 * the next call.
+			 */
+			if ((obj->flags & OBJ_TMPFS_DIRTY) == 0) {
+				VI_UNLOCK(vp);
+				continue;
+			}
+			if (vget(vp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK,
+			    curthread) != 0)
+				continue;
+			tmpfs_check_mtime(vp);
+			vput(vp);
+		}
 	}
 	return (0);
 }
