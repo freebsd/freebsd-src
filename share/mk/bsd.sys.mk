@@ -68,13 +68,16 @@ CWARNFLAGS+=	-Wno-pointer-sign
 # is set to low values, these have to be disabled explicitly.
 .if ${WARNS} <= 6
 CWARNFLAGS.clang+=	-Wno-empty-body -Wno-string-plus-int
-.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} > 30300
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30400
 CWARNFLAGS.clang+= -Wno-unused-const-variable
 .endif
 .endif # WARNS <= 6
 .if ${WARNS} <= 3
 CWARNFLAGS.clang+=	-Wno-tautological-compare -Wno-unused-value\
 		-Wno-parentheses-equality -Wno-unused-function -Wno-enum-conversion
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30600
+CWARNFLAGS.clang+=	-Wno-unused-local-typedef
+.endif
 .endif # WARNS <= 3
 .if ${WARNS} <= 2
 CWARNFLAGS.clang+=	-Wno-switch -Wno-switch-enum -Wno-knr-promoted-parameter
