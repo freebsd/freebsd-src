@@ -109,6 +109,13 @@ CWARNFLAGS+=	-Werror
 CWARNFLAGS+=	-Wno-format
 .endif # NO_WFORMAT || NO_WFORMAT.${COMPILER_TYPE}
 
+# How to handle FreeBSD custom printf format specifiers.
+.if ${COMPILER_TYPE} == "clang" && ${COMPILER_VERSION} >= 30600
+FORMAT_EXTENSIONS=	-D__printf__=__freebsd_kprintf__
+.else
+FORMAT_EXTENSIONS=	-fformat-extensions
+.endif
+
 .if defined(IGNORE_PRAGMA)
 CWARNFLAGS+=	-Wno-unknown-pragmas
 .endif # IGNORE_PRAGMA
