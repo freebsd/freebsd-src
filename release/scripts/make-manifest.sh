@@ -5,7 +5,7 @@
 #  Usage: make-manifest.sh foo1.txz foo2.txz ...
 #
 # The output file looks like this (tab-delimited):
-#  foo1.txz SHA256-checksu Number-of-files foo1 Description Install-by-default
+#  foo1.txz SHA256-checksum Number-of-files foo1 Description Install-by-default
 #
 # $FreeBSD$
 
