@@ -109,7 +109,7 @@ IMAGES+=	memstick.img
 IMAGES+=	mini-memstick.img
 .endif
 
-CLEANFILES=	packagesystem *.txz MANIFEST system ${IMAGES}
+CLEANFILES=	packagesystem *.txz MANIFEST release ${IMAGES}
 .if defined(WITH_COMPRESSED_IMAGES) && !empty(WITH_COMPRESSED_IMAGES)
 . for I in ${IMAGES}
 CLEANFILES+=	${I}.xz
@@ -118,7 +118,7 @@ CLEANFILES+=	${I}.xz
 .if defined(WITH_DVD) && !empty(WITH_DVD)
 CLEANFILES+=	pkg-stage
 .endif
-CLEANDIRS=	dist ftp release bootonly dvd
+CLEANDIRS=	dist ftp disc1 bootonly dvd
 beforeclean:
 	chflags -R noschg .
 .include <bsd.obj.mk>
@@ -165,57 +165,57 @@ reldoc:
 .endfor
 	cp rdoc/${RELNOTES_LANG}/readme/docbook.css reldoc
 
-system: packagesystem
+disc1: packagesystem
 # Install system
-	mkdir -p release
+	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
-		DESTDIR=${.OBJDIR}/release MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
+		DESTDIR=${.OBJDIR}/${.TARGET} MK_RESCUE=no MK_KERNEL_SYMBOLS=no \
 		MK_PROFILE=no MK_SENDMAIL=no MK_TESTS=no MK_LIB32=no \
 		MK_DEBUG_FILES=no
 # Copy distfiles
-	mkdir -p release/usr/freebsd-dist
+	mkdir -p ${.TARGET}/usr/freebsd-dist
 	for dist in MANIFEST $$(ls *.txz | grep -v -- '-dbg'); \
-	    do cp $${dist} release/usr/freebsd-dist; \
+	    do cp $${dist} ${.TARGET}/usr/freebsd-dist; \
 	done
 # Copy documentation, if generated
 .if !defined(NODOC)
-	cp reldoc/* release
+	cp reldoc/* ${.TARGET}
 .endif
 # Set up installation environment
-	ln -fs /tmp/bsdinstall_etc/resolv.conf release/etc/resolv.conf
-	echo sendmail_enable=\"NONE\" > release/etc/rc.conf
-	echo hostid_enable=\"NO\" >> release/etc/rc.conf
-	echo debug.witness.trace=0 >> release/etc/sysctl.conf
-	echo vfs.mountroot.timeout=\"10\" >> release/boot/loader.conf
-	cp ${.CURDIR}/rc.local release/etc
+	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
+	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
+	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
+	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
+	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
+	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 	touch ${.TARGET}
 
 bootonly: packagesystem
 # Install system
-	mkdir -p bootonly
+	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
-	    DESTDIR=${.OBJDIR}/bootonly MK_AMD=no MK_AT=no \
+	    DESTDIR=${.OBJDIR}/${.TARGET} MK_AMD=no MK_AT=no \
 	    MK_GAMES=no MK_GROFF=no \
 	    MK_INSTALLLIB=no MK_LIB32=no MK_MAIL=no \
 	    MK_NCP=no MK_TOOLCHAIN=no MK_PROFILE=no \
 	    MK_INSTALLIB=no MK_RESCUE=no MK_DICT=no \
 	    MK_KERNEL_SYMBOLS=no MK_TESTS=no MK_DEBUG_FILES=no
 # Copy manifest only (no distfiles) to get checksums
-	mkdir -p bootonly/usr/freebsd-dist
-	cp MANIFEST bootonly/usr/freebsd-dist
+	mkdir -p ${.TARGET}/usr/freebsd-dist
+	cp MANIFEST ${.TARGET}/usr/freebsd-dist
 # Copy documentation, if generated
 .if !defined(NODOC)
-	cp reldoc/* bootonly
+	cp reldoc/* ${.TARGET}
 .endif
 # Set up installation environment
-	ln -fs /tmp/bsdinstall_etc/resolv.conf bootonly/etc/resolv.conf
-	echo sendmail_enable=\"NONE\" > bootonly/etc/rc.conf
-	echo hostid_enable=\"NO\" >> bootonly/etc/rc.conf
-	echo debug.witness.trace=0 >> bootonly/etc/sysctl.conf
-	echo vfs.mountroot.timeout=\"10\" >> bootonly/boot/loader.conf
-	cp ${.CURDIR}/rc.local bootonly/etc
+	ln -fs /tmp/bsdinstall_etc/resolv.conf ${.TARGET}/etc/resolv.conf
+	echo sendmail_enable=\"NONE\" > ${.TARGET}/etc/rc.conf
+	echo hostid_enable=\"NO\" >> ${.TARGET}/etc/rc.conf
+	echo debug.witness.trace=0 >> ${.TARGET}/etc/sysctl.conf
+	echo vfs.mountroot.timeout=\"10\" >> ${.TARGET}/boot/loader.conf
+	cp ${.CURDIR}/rc.local ${.TARGET}/etc
 
-dvd:
+dvd: packagesystem
 # Install system
 	mkdir -p ${.TARGET}
 	cd ${WORLDDIR} && ${IMAKE} installkernel installworld distribution \
@@ -240,8 +240,8 @@ dvd:
 	touch ${.TARGET}
 
 release.iso: disc1.iso
-disc1.iso: system
-	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} release
+disc1.iso: disc1
+	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_CD ${.TARGET} disc1
 
 dvd1.iso: dvd pkg-stage
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_DVD ${.TARGET} dvd
@@ -250,11 +250,11 @@ bootonly.iso: bootonly
 	sh ${.CURDIR}/${TARGET}/mkisoimages.sh -b ${VOLUME_LABEL}_BO ${.TARGET} bootonly
 
 memstick: memstick.img
-memstick.img: system
-	sh ${.CURDIR}/${TARGET}/make-memstick.sh release ${.TARGET}
+memstick.img: disc1
+	sh ${.CURDIR}/${TARGET}/make-memstick.sh disc1 ${.TARGET}
 
 mini-memstick: mini-memstick.img
-mini-memstick.img: system
+mini-memstick.img: bootonly
 	sh ${.CURDIR}/${TARGET}/make-memstick.sh bootonly ${.TARGET}
 
 packagesystem: base.txz kernel.txz ${EXTRA_PACKAGES}
@@ -279,7 +279,7 @@ ftp: packagesystem
 	cp *.txz MANIFEST ftp
 
 release:	real-release vm-release cloudware-release
-	@true
+	touch ${.TARGET}
 
 real-release:
 	${MAKE} -C ${.CURDIR} ${.MAKEFLAGS} obj
