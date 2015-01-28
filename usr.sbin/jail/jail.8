@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2014
+.Dd January 28, 2015
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -362,7 +362,7 @@ A set of IPv6 options for the jail, the counterparts to
 and
 .Va ip4
 above.
-.It vnet
+.It Va vnet
 Create the jail with its own virtual network stack,
 with its own network interfaces, addresses, routing table, etc.
 The kernel must have been compiled with the
@@ -531,6 +531,14 @@ is set to a value lower than 2.
 The devfs ruleset should be restricted from the default by using the
 .Va devfs_ruleset
 option.
+.It Va allow.mount.fdescfs
+privileged users inside the jail will be able to mount and unmount the
+fdescfs file system.
+This permission is effective only together with
+.Va allow.mount
+and only when
+.Va enforce_statfs
+is set to a value lower than 2.
 .It Va allow.mount.nullfs
 privileged users inside the jail will be able to mount and unmount the
 nullfs file system.
