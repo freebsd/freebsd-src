@@ -505,6 +505,7 @@ tmpfs_fsync(struct vop_fsync_args *v)
 
 	MPASS(VOP_ISLOCKED(vp));
 
+	tmpfs_check_mtime(vp);
 	tmpfs_update(vp);
 
 	return 0;
@@ -1222,16 +1223,16 @@ tmpfs_readlink(struct vop_readlink_args *v)
 static int
 tmpfs_inactive(struct vop_inactive_args *v)
 {
-	struct vnode *vp = v->a_vp;
-
+	struct vnode *vp;
 	struct tmpfs_node *node;
 
+	vp = v->a_vp;
 	node = VP_TO_TMPFS_NODE(vp);
-
 	if (node->tn_links == 0)
 		vrecycle(vp);
-
-	return 0;
+	else
+		tmpfs_check_mtime(vp);
+	return (0);
 }
 
 int
