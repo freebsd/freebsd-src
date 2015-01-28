@@ -1415,6 +1415,31 @@ retry:
 	return (0);
 }
 
+void
+tmpfs_check_mtime(struct vnode *vp)
+{
+	struct tmpfs_node *node;
+	struct vm_object *obj;
+
+	ASSERT_VOP_ELOCKED(vp, "check_mtime");
+	if (vp->v_type != VREG)
+		return;
+	node = VP_TO_TMPFS_NODE(vp);
+	obj = vp->v_object;
+	KASSERT((obj->flags & (OBJ_TMPFS_NODE | OBJ_TMPFS)) ==
+	    (OBJ_TMPFS_NODE | OBJ_TMPFS), ("non-tmpfs obj"));
+	/* unlocked read */
+	if ((obj->flags & OBJ_TMPFS_DIRTY) != 0) {
+		VM_OBJECT_WLOCK(obj);
+		if ((obj->flags & OBJ_TMPFS_DIRTY) != 0) {
+			obj->flags &= ~OBJ_TMPFS_DIRTY;
+			node = VP_TO_TMPFS_NODE(vp);
+			node->tn_status |= TMPFS_NODE_MODIFIED;
+		}
+		VM_OBJECT_WUNLOCK(obj);
+	}
+}
+
 /*
  * Change flags of the given vnode.
  * Caller should execute tmpfs_update on vp after a successful execution.
