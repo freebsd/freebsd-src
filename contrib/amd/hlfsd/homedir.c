@@ -494,7 +494,7 @@ readent:
   buf[0] = '\0';
   fgets(buf, 256, passwd_fp);
   passwd_line++;
-  if (!buf || buf[0] == '\0')
+  if (buf[0] == '\0')
     goto readent;
 
   /* read user name */
