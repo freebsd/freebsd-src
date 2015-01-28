@@ -210,7 +210,7 @@ static struct {
 };
 
 static int	copy_from_tempfile(const char *src, const char *dst,
-    int infd, int *outfd);
+    int infd, int *outfd, int in_place);
 static void	create_file(struct elfcopy *ecp, const char *src,
     const char *dst);
 static void	elfcopy_main(struct elfcopy *ecp, int argc, char **argv);
@@ -523,33 +523,39 @@ create_tempfile(char **fn, int *fd)
 #undef _TEMPFILEPATH
 }
 
+/*
+ * Copy temporary file with path src and file descriptor infd to path dst.
+ * If in_place is set act as if editing the file in place, avoiding rename()
+ * to preserve hard and symbolic links. Output file remains open, with file
+ * descriptor returned in outfd.
+ */
 static int
-copy_from_tempfile(const char *src, const char *dst, int infd, int *outfd)
+copy_from_tempfile(const char *src, const char *dst, int infd, int *outfd,
+    int in_place)
 {
 	int tmpfd;
 
 	/*
 	 * First, check if we can use rename().
 	 */
-	if (rename(src, dst) >= 0) {
-		*outfd = infd;
-		return (0);
-	} else if (errno != EXDEV)
-		return (-1);
+	if (in_place == 0) {
+		if (rename(src, dst) >= 0) {
+			*outfd = infd;
+			return (0);
+		} else if (errno != EXDEV)
+			return (-1);
+	
+		/*
+		 * If the rename() failed due to 'src' and 'dst' residing in
+		 * two different file systems, invoke a helper function in
+		 * libelftc to do the copy.
+		 */
 
-	/*
-	 * If the rename() failed due to 'src' and 'dst' residing in
-	 * two different file systems, invoke a helper function in
-	 * libelftc to do the copy.
-	 */
+		if (unlink(dst) < 0)
+			return (-1);
+	}
 
-	if (unlink(dst) < 0)
-		return (-1);
-
-	if ((tmpfd = open(dst, O_CREAT | O_WRONLY, 0755)) < 0)
-		return (-1);
-
-	if (lseek(infd, 0, SEEK_SET) < 0)
+	if ((tmpfd = open(dst, O_CREAT | O_TRUNC | O_WRONLY, 0755)) < 0)
 		return (-1);
 
 	if (elftc_copyfile(infd, tmpfd) < 0)
@@ -578,6 +584,7 @@ create_file(struct elfcopy *ecp, const char *src, const char *dst)
 	struct stat	 sb;
 	char		*tempfile, *elftemp;
 	int		 efd, ifd, ofd, ofd0, tfd;
+	int		 in_place;
 
 	tempfile = NULL;
 
@@ -718,10 +725,15 @@ copy_done:
 #endif
 
 	if (tempfile != NULL) {
-		if (dst == NULL)
+		in_place = 0;
+		if (dst == NULL) {
 			dst = src;
+			if (lstat(dst, &sb) != -1 &&
+			    (sb.st_nlink > 1 || S_ISLNK(sb.st_mode)))
+				in_place = 1;
+		}
 
-		if (copy_from_tempfile(tempfile, dst, ofd, &tfd) < 0)
+		if (copy_from_tempfile(tempfile, dst, ofd, &tfd, in_place) < 0)
 			err(EXIT_FAILURE, "creation of %s failed", dst);
 
 		free(tempfile);
