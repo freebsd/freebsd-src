@@ -282,7 +282,8 @@ typedef struct {
 			halRadioRetentionSupport	: 1,
 			halSpectralScanSupport		: 1,
 			halRxUsingLnaMixing		: 1,
-			halRxDoMyBeacon			: 1;
+			halRxDoMyBeacon			: 1,
+			halHwUapsdTrig			: 1;
 
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
