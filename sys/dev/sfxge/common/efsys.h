@@ -370,7 +370,6 @@ typedef struct efsys_mem_s {
 	bus_dmamap_t		esm_map;
 	caddr_t			esm_base;
 	efsys_dma_addr_t	esm_addr;
-	size_t			esm_size;
 } efsys_mem_t;
 
 
