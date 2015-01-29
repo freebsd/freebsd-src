@@ -93,10 +93,18 @@ Supported values are: 512, 1024, 2048 and 4096.
 .It Va hw.sfxge.tx_dpl_get_max
 The maximum length of the deferred packet
 .Dq get-list
-for queued transmit
-packets, used only if the transmit queue lock can be acquired.
+for queued transmit packets (TCP and non-TCP), used only if the transmit
+queue lock can be acquired.
 If a packet is dropped, the
-.Va tx_early_drops
+.Va tx_get_overflow
+counter is incremented and the local sender receives ENOBUFS.
+The value must be greater than 0.
+.It Va hw.sfxge.tx_dpl_get_non_tcp_max
+The maximum number of non-TCP packets in the deferred packet
+.Dq get-list
+, used only if the transmit queue lock can be acquired.
+If packet is dropped, the
+.Va tx_get_non_tcp_overflow
 counter is incremented and the local sender receives ENOBUFS.
 The value must be greater than 0.
 .It Va hw.sfxge.tx_dpl_put_max
@@ -105,7 +113,7 @@ The maximum length of the deferred packet
 for queued transmit
 packets, used if the transmit queue lock cannot be acquired.
 If a packet is dropped, the
-.Va tx_early_drops
+.Va tx_put_overflow
 counter is incremented and the local sender receives ENOBUFS.
 The value must be greater than or equal to 0.
 .It Va hw.sfxge.N.max_rss_channels
