@@ -995,6 +995,7 @@ fail1:
 	return (rc);
 }
 
+#if EFSYS_OPT_QSTATS
 #if EFSYS_OPT_NAMES
 /* START MKCONFIG GENERATED EfxEventQueueStatNamesBlock 67e9bdcd920059bd */
 static const char 	__cs * __cs __efx_ev_qstat_name[] = {
@@ -1052,6 +1053,7 @@ efx_ev_qstat_name(
 	return (__efx_ev_qstat_name[id]);
 }
 #endif	/* EFSYS_OPT_NAMES */
+#endif	/* EFSYS_OPT_QSTATS */
 
 #if EFSYS_OPT_QSTATS
 					void
