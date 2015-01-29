@@ -48,7 +48,7 @@ done
 
 # Enumerate all of the installed files/directories
 (cd $DESTDIR;
- find -s . -type f -mindepth 1 | \
+ find -s . \! -type d -and -mindepth 1 | \
     sed -e 's,^,OLD_FILES+=,' \
         -e '/lib\/.*\.so\.[0-9]\.*/s/OLD_FILES+=/OLD_LIBS+=/g';
  find -d -s . -type d -mindepth 1 -and \! -empty | \
