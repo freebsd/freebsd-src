@@ -2,18 +2,20 @@
 # $FreeBSD$
 
 SRCS+=	bcmp.S bcopy.S bzero.S ffs.S memchr.c memcmp.c memset.c \
-	memcpy.S memmove.S \
+	memmove.S \
 	strcat.c strchr.S strcmp.S strcpy.c strcspn.c strlen.S \
 	strncat.c strncmp.c strncpy.c strrchr.S strpbrk.c strsep.c \
 	strspn.c strstr.c swab.c
 
-.if ${MK_CHERI} != "no"
+.if ${MK_CHERI} == "no"
+SRCS+=	memcpy.S
+.else
 _CHERI_CC=	${CHERI_CC} -integrated-as --target=cheri-unknown-freebsd \
 		-msoft-float
 .if defined(SYSROOT)
 _CHERI_CC+=	--sysroot=${SYSROOT}
 .endif
-CHERI_SRCS=	memchr_c.c memcmp_c.c memcpy_c.s memcpy_c_tofrom.c memmove_c.c memset_c.c	\
+CHERI_SRCS=	memchr_c.c memcmp_c.c memcpy.c memcpy_c.s memcpy_c_tofrom.c memmove_c.c memset_c.c	\
 	strchr_c.c strcmp_c.c strnlen_c.c strncmp_c.c strncpy_c.c strtol_c.c
 SRCS+=	${CHERI_SRCS}
 
