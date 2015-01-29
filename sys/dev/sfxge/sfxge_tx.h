@@ -175,13 +175,15 @@ struct sfxge_txq {
 	struct sfxge_txq		*next;
 };
 
+struct sfxge_evq;
+
 extern int sfxge_tx_packet_add(struct sfxge_txq *, struct mbuf *);
 
 extern int sfxge_tx_init(struct sfxge_softc *sc);
 extern void sfxge_tx_fini(struct sfxge_softc *sc);
 extern int sfxge_tx_start(struct sfxge_softc *sc);
 extern void sfxge_tx_stop(struct sfxge_softc *sc);
-extern void sfxge_tx_qcomplete(struct sfxge_txq *txq);
+extern void sfxge_tx_qcomplete(struct sfxge_txq *txq, struct sfxge_evq *evq);
 extern void sfxge_tx_qflush_done(struct sfxge_txq *txq);
 #ifdef SFXGE_HAVE_MQ
 extern void sfxge_if_qflush(struct ifnet *ifp);
