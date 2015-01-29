@@ -115,7 +115,7 @@ uint32_t header_height;
 uint32_t *busyarea, *hourglass;
 #endif
 struct image header, sri_logo, cam_logo;
-enum sbtype sb = SB_NONE;
+enum sbtype sb = SB_CHERI;
 enum mtl_display_mode res = MTL_DM_800x480;
 static int zombies_waiting = 0;
 
