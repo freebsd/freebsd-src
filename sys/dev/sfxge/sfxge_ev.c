@@ -406,6 +406,8 @@ sfxge_ev_wake_up(void *arg, uint32_t index)
 	return (B_FALSE);
 }
 
+#if EFSYS_OPT_QSTATS
+
 static void
 sfxge_ev_stat_update(struct sfxge_softc *sc)
 {
@@ -466,6 +468,8 @@ sfxge_ev_stat_init(struct sfxge_softc *sc)
 			"");
 	}
 }
+
+#endif /* EFSYS_OPT_QSTATS */
 
 static void
 sfxge_ev_qmoderate(struct sfxge_softc *sc, unsigned int idx, unsigned int us)
@@ -627,8 +631,10 @@ sfxge_ev_qstop(struct sfxge_softc *sc, unsigned int index)
 	evq->read_ptr = 0;
 	evq->exception = B_FALSE;
 
+#if EFSYS_OPT_QSTATS
 	/* Add event counts before discarding the common evq state */
 	efx_ev_qstats_update(evq->common, sc->ev_stats);
+#endif
 
 	efx_ev_qdestroy(evq->common);
 	efx_sram_buf_tbl_clear(sc->enp, evq->buf_base_id,
@@ -883,7 +889,9 @@ sfxge_ev_init(struct sfxge_softc *sc)
 			goto fail;
 	}
 
+#if EFSYS_OPT_QSTATS
 	sfxge_ev_stat_init(sc);
+#endif
 
 	return (0);
 
