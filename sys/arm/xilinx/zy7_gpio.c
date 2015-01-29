@@ -373,16 +373,11 @@ static device_method_t zy7_gpio_methods[] = {
 };
 
 static driver_t zy7_gpio_driver = {
-	"zy7_gpio",
+	"gpio",
 	zy7_gpio_methods,
 	sizeof(struct zy7_gpio_softc),
 };
 static devclass_t zy7_gpio_devclass;
 
-extern devclass_t gpiobus_devclass, gpioc_devclass;
-extern driver_t gpiobus_driver, gpioc_driver;
-
 DRIVER_MODULE(zy7_gpio, simplebus, zy7_gpio_driver, zy7_gpio_devclass, \
 	      NULL, NULL);
-DRIVER_MODULE(gpiobus, zy7_gpio, gpiobus_driver, gpiobus_devclass, 0, 0);
-DRIVER_MODULE(gpioc, zy7_gpio, gpioc_driver, gpioc_devclass, 0, 0);

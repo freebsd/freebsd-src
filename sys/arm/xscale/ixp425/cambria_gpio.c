@@ -476,16 +476,12 @@ static device_method_t cambria_gpio_methods[] = {
 };
 
 static driver_t cambria_gpio_driver = {
-	"gpio_cambria",
+	"gpio",
 	cambria_gpio_methods,
 	sizeof(struct cambria_gpio_softc),
 };
 static devclass_t cambria_gpio_devclass;
-extern devclass_t gpiobus_devclass, gpioc_devclass;
-extern driver_t gpiobus_driver, gpioc_driver;
 
 DRIVER_MODULE(gpio_cambria, iicbus, cambria_gpio_driver, cambria_gpio_devclass, 0, 0);
-DRIVER_MODULE(gpiobus, gpio_cambria, gpiobus_driver, gpiobus_devclass, 0, 0);
-DRIVER_MODULE(gpioc, gpio_cambria, gpioc_driver, gpioc_devclass, 0, 0);
 MODULE_VERSION(gpio_cambria, 1);
 MODULE_DEPEND(gpio_cambria, iicbus, 1, 1, 1);

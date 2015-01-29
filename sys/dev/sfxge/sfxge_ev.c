@@ -68,7 +68,7 @@ sfxge_ev_qcomplete(struct sfxge_evq *evq, boolean_t eop)
 			    ("txq->evq_index != index"));
 
 			if (txq->pending != txq->completed)
-				sfxge_tx_qcomplete(txq);
+				sfxge_tx_qcomplete(txq, evq);
 
 			txq = next;
 		} while (txq != NULL);
@@ -262,7 +262,7 @@ sfxge_ev_tx(void *arg, uint32_t label, uint32_t id)
 	}
 
 	if (txq->pending - txq->completed >= SFXGE_TX_BATCH)
-		sfxge_tx_qcomplete(txq);
+		sfxge_tx_qcomplete(txq, evq);
 
 done:
 	return (evq->tx_done >= SFXGE_EV_BATCH);
@@ -406,6 +406,8 @@ sfxge_ev_wake_up(void *arg, uint32_t index)
 	return (B_FALSE);
 }
 
+#if EFSYS_OPT_QSTATS
+
 static void
 sfxge_ev_stat_update(struct sfxge_softc *sc)
 {
@@ -466,6 +468,8 @@ sfxge_ev_stat_init(struct sfxge_softc *sc)
 			"");
 	}
 }
+
+#endif /* EFSYS_OPT_QSTATS */
 
 static void
 sfxge_ev_qmoderate(struct sfxge_softc *sc, unsigned int idx, unsigned int us)
@@ -569,12 +573,9 @@ static const efx_ev_callbacks_t sfxge_ev_callbacks = {
 
 
 int
-sfxge_ev_qpoll(struct sfxge_softc *sc, unsigned int index)
+sfxge_ev_qpoll(struct sfxge_evq *evq)
 {
-	struct sfxge_evq *evq;
 	int rc;
-
-	evq = sc->evq[index];
 
 	mtx_lock(&evq->lock);
 
@@ -630,8 +631,10 @@ sfxge_ev_qstop(struct sfxge_softc *sc, unsigned int index)
 	evq->read_ptr = 0;
 	evq->exception = B_FALSE;
 
+#if EFSYS_OPT_QSTATS
 	/* Add event counts before discarding the common evq state */
 	efx_ev_qstats_update(evq->common, sc->ev_stats);
+#endif
 
 	efx_ev_qdestroy(evq->common);
 	efx_sram_buf_tbl_clear(sc->enp, evq->buf_base_id,
@@ -872,7 +875,7 @@ sfxge_ev_init(struct sfxge_softc *sc)
 	/* Set default interrupt moderation; add a sysctl to
 	 * read and change it.
 	 */
-	sc->ev_moderation = 30;
+	sc->ev_moderation = SFXGE_MODERATION;
 	SYSCTL_ADD_PROC(sysctl_ctx, SYSCTL_CHILDREN(sysctl_tree),
 			OID_AUTO, "int_mod", CTLTYPE_UINT|CTLFLAG_RW,
 			sc, 0, sfxge_int_mod_handler, "IU",
@@ -886,7 +889,9 @@ sfxge_ev_init(struct sfxge_softc *sc)
 			goto fail;
 	}
 
+#if EFSYS_OPT_QSTATS
 	sfxge_ev_stat_init(sc);
+#endif
 
 	return (0);
 
