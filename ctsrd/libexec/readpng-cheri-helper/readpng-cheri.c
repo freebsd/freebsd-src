@@ -84,6 +84,7 @@ int
 invoke(uint32_t width, uint32_t height, size_t pnglen __unused,
     uint8_t *png_out, uint8_t *png_in, uint32_t *times)
 {
+	int error;
 	struct ibox_decode_state	*idsp;
 	struct iboxstate		*isp;
 
@@ -116,8 +117,13 @@ invoke(uint32_t width, uint32_t height, size_t pnglen __unused,
 	/* Copy the whole image out */
 	if (isp->error == 0)
 		memcpy_c(png_out, idsp->buffer, sizeof(uint32_t) * width * height);
+	free(idsp->buffer);
 
 	memcpy_c(times, (void *)(isp->times + 1), sizeof(uint32_t) * 2);
+	free((void *)isp->times);
 
-	return (isp->error);
+	error = isp->error;
+	free(isp);
+
+	return (error);
 }
