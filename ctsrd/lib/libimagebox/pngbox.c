@@ -284,6 +284,8 @@ error:
 		free(__DEVOLATILE(void *, is->buffer));
 		free(is);
 	}
+	sandbox_object_destroy(sandbox_object);
+	sandbox_object = NULL;
 	return (NULL);
 }
 
