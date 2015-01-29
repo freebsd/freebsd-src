@@ -52,6 +52,8 @@
         ..
     ..
     etc
+        rc.d
+        ..
     ..
     games
     ..
@@ -462,7 +464,15 @@
                 ..
             ..
         ..
+        dtrace
+        ..
+        geom
+            geom_part
+            ..
+        ..
         kern
+        ..
+        net
         ..
         netinet
         ..
