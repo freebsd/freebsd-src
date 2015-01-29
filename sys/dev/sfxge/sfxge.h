@@ -103,26 +103,26 @@ enum sfxge_evq_state {
 #define	SFXGE_EV_BATCH	16384
 
 struct sfxge_evq {
-	struct sfxge_softc	*sc  __aligned(CACHE_LINE_SIZE);
-	struct mtx		lock __aligned(CACHE_LINE_SIZE);
-
-	enum sfxge_evq_state	init_state;
+	/* Structure members below are sorted by usage order */
+	struct sfxge_softc	*sc;
+	struct mtx		lock;
 	unsigned int		index;
-	unsigned int		entries;
+	enum sfxge_evq_state	init_state;
 	efsys_mem_t		mem;
-	unsigned int		buf_base_id;
-
-	boolean_t		exception;
-
 	efx_evq_t		*common;
 	unsigned int		read_ptr;
+	boolean_t		exception;
 	unsigned int		rx_done;
 	unsigned int		tx_done;
 
 	/* Linked list of TX queues with completions to process */
 	struct sfxge_txq	*txq;
 	struct sfxge_txq	**txqs;
-};
+
+	/* Structure members not used on event processing path */
+	unsigned int		buf_base_id;
+	unsigned int		entries;
+} __aligned(CACHE_LINE_SIZE);
 
 #define	SFXGE_NDESCS	1024
 #define	SFXGE_MODERATION	30
@@ -225,9 +225,12 @@ struct sfxge_softc {
 
 	struct sfxge_evq		*evq[SFXGE_RX_SCALE_MAX];
 	unsigned int			ev_moderation;
+#if EFSYS_OPT_QSTATS
 	clock_t				ev_stats_update_time;
 	uint64_t			ev_stats[EV_NQSTATS];
+#endif
 
+	unsigned int			max_rss_channels;
 	uma_zone_t			rxq_cache;
 	struct sfxge_rxq		*rxq[SFXGE_RX_SCALE_MAX];
 	unsigned int			rx_indir_table[SFXGE_RX_SCALE_MAX];
@@ -281,7 +284,7 @@ extern int sfxge_ev_init(struct sfxge_softc *sc);
 extern void sfxge_ev_fini(struct sfxge_softc *sc);
 extern int sfxge_ev_start(struct sfxge_softc *sc);
 extern void sfxge_ev_stop(struct sfxge_softc *sc);
-extern int sfxge_ev_qpoll(struct sfxge_softc *sc, unsigned int index);
+extern int sfxge_ev_qpoll(struct sfxge_evq *evq);
 
 /*
  * From sfxge_intr.c.

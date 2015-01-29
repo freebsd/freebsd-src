@@ -729,10 +729,10 @@ am335x_clk_lcdc_activate(struct ti_clock_dev *clkdev)
 		DELAY(10);
 
 	/* 
-	 * For now set frequency to  5xSYSFREQ 
-	 * More flexible control might be required
+	 * For now set frequency to  99*SYSFREQ/8 which is twice as
+	 * HDMI 1080p pixel clock (minimum LCDC freq divisor is 2)
 	 */
-	prcm_write_4(CM_WKUP_CM_CLKSEL_DPLL_DISP, (5 << 8) | 0);
+	prcm_write_4(CM_WKUP_CM_CLKSEL_DPLL_DISP, (99 << 8) | 8);
 
 	/* Locked mode */
 	prcm_write_4(CM_WKUP_CM_CLKMODE_DPLL_DISP, 0x7);

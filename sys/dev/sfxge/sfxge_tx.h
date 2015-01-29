@@ -75,21 +75,29 @@ struct sfxge_tx_mapping {
 	enum sfxge_tx_buf_flags	flags;
 };
 
-#define	SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT	1024
-#define	SFXGE_TX_DPL_PUT_PKT_LIMIT_DEFAULT	64
+#define	SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT		(64 * 1024)
+#define	SFXGE_TX_DPL_GET_NON_TCP_PKT_LIMIT_DEFAULT	1024
+#define	SFXGE_TX_DPL_PUT_PKT_LIMIT_DEFAULT		64
 
 /*
  * Deferred packet list.
  */
 struct sfxge_tx_dpl {
-	unsigned int		std_get_max;	/* Maximum number of packets
+	unsigned int	std_get_max;		/* Maximum number  of packets
 						 * in get list */
-	unsigned int		std_put_max;	/* Maximum number of packets
+	unsigned int	std_get_non_tcp_max;	/* Maximum number
+						 * of non-TCP packets
+						 * in get list */
+	unsigned int	std_put_max;		/* Maximum number of packets
 						 * in put list */
-	uintptr_t		std_put;	/* Head of put list. */
-	struct mbuf		*std_get;	/* Head of get list. */
-	struct mbuf		**std_getp;	/* Tail of get list. */
-	unsigned int		std_get_count;	/* Packets in get list. */
+	uintptr_t	std_put;		/* Head of put list. */
+	struct mbuf	*std_get;		/* Head of get list. */
+	struct mbuf	**std_getp;		/* Tail of get list. */
+	unsigned int	std_get_count;		/* Packets in get list. */
+	unsigned int	std_get_non_tcp_count;	/* Non-TCP packets
+						 * in get list */
+	unsigned int	std_get_hiwat;		/* Packets in get list
+						 * high watermark */
 };
 
 
@@ -139,7 +147,6 @@ struct sfxge_txq {
 	bus_dma_tag_t			packet_dma_tag;
 	efx_buffer_t			*pend_desc;
 	efx_txq_t			*common;
-	struct sfxge_txq		*next;
 
 	efsys_mem_t			*tsoh_buffer;
 
@@ -166,14 +173,20 @@ struct sfxge_txq {
 	unsigned long			tso_long_headers;
 	unsigned long			collapses;
 	unsigned long			drops;
-	unsigned long			early_drops;
+	unsigned long			get_overflow;
+	unsigned long			get_non_tcp_overflow;
+	unsigned long			put_overflow;
+	unsigned long			netdown_drops;
 
 	/* The following fields change more often, and are used mostly
 	 * on the completion path
 	 */
 	unsigned int			pending __aligned(CACHE_LINE_SIZE);
 	unsigned int			completed;
+	struct sfxge_txq		*next;
 };
+
+struct sfxge_evq;
 
 extern int sfxge_tx_packet_add(struct sfxge_txq *, struct mbuf *);
 
@@ -181,7 +194,7 @@ extern int sfxge_tx_init(struct sfxge_softc *sc);
 extern void sfxge_tx_fini(struct sfxge_softc *sc);
 extern int sfxge_tx_start(struct sfxge_softc *sc);
 extern void sfxge_tx_stop(struct sfxge_softc *sc);
-extern void sfxge_tx_qcomplete(struct sfxge_txq *txq);
+extern void sfxge_tx_qcomplete(struct sfxge_txq *txq, struct sfxge_evq *evq);
 extern void sfxge_tx_qflush_done(struct sfxge_txq *txq);
 #ifdef SFXGE_HAVE_MQ
 extern void sfxge_if_qflush(struct ifnet *ifp);
