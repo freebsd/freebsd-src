@@ -19,7 +19,7 @@ SRCS=		cheri_clock_gettime.c	\
 		cheri_raise.c		\
 		cheri_stdio.c		\
 		cheri_stub.c		\
-		fastmalloc.c
+		malloc.c
 
 CFLAGS.malloc.c=	-Wno-cast-align
 
