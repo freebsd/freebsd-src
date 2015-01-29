@@ -139,7 +139,6 @@ struct sfxge_txq {
 	bus_dma_tag_t			packet_dma_tag;
 	efx_buffer_t			*pend_desc;
 	efx_txq_t			*common;
-	struct sfxge_txq		*next;
 
 	efsys_mem_t			*tsoh_buffer;
 
@@ -173,6 +172,7 @@ struct sfxge_txq {
 	 */
 	unsigned int			pending __aligned(CACHE_LINE_SIZE);
 	unsigned int			completed;
+	struct sfxge_txq		*next;
 };
 
 extern int sfxge_tx_packet_add(struct sfxge_txq *, struct mbuf *);
