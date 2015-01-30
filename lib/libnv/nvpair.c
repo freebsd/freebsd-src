@@ -1100,6 +1100,7 @@ nvpair_t *
 nvpair_movev_string(char *value, const char *namefmt, va_list nameap)
 {
 	nvpair_t *nvp;
+	int serrno;
 
 	if (value == NULL) {
 		errno = EINVAL;
@@ -1108,8 +1109,11 @@ nvpair_movev_string(char *value, const char *namefmt, va_list nameap)
 
 	nvp = nvpair_allocv(NV_TYPE_STRING, (uint64_t)(uintptr_t)value,
 	    strlen(value) + 1, namefmt, nameap);
-	if (nvp == NULL)
+	if (nvp == NULL) {
+		serrno = errno;
 		free(value);
+		errno = serrno;
+	}
 
 	return (nvp);
 }
@@ -1137,28 +1141,46 @@ nvpair_movev_nvlist(nvlist_t *value, const char *namefmt, va_list nameap)
 nvpair_t *
 nvpair_movev_descriptor(int value, const char *namefmt, va_list nameap)
 {
+	nvpair_t *nvp;
+	int serrno;
 
 	if (value < 0 || !fd_is_valid(value)) {
 		errno = EBADF;
 		return (NULL);
 	}
 
-	return (nvpair_allocv(NV_TYPE_DESCRIPTOR, (uint64_t)value,
-	    sizeof(int64_t), namefmt, nameap));
+	nvp = nvpair_allocv(NV_TYPE_DESCRIPTOR, (uint64_t)value,
+	    sizeof(int64_t), namefmt, nameap);
+	if (nvp == NULL) {
+		serrno = errno;
+		close(value);
+		errno = serrno;
+	}
+
+	return (nvp);
 }
 
 nvpair_t *
 nvpair_movev_binary(void *value, size_t size, const char *namefmt,
     va_list nameap)
 {
+	nvpair_t *nvp;
+	int serrno;
 
 	if (value == NULL || size == 0) {
 		errno = EINVAL;
 		return (NULL);
 	}
 
-	return (nvpair_allocv(NV_TYPE_BINARY, (uint64_t)(uintptr_t)value, size,
-	    namefmt, nameap));
+	nvp = nvpair_allocv(NV_TYPE_BINARY, (uint64_t)(uintptr_t)value, size,
+	    namefmt, nameap);
+	if (nvp == NULL) {
+		serrno = errno;
+		free(value);
+		errno = serrno;
+	}
+
+	return (nvp);
 }
 
 bool
