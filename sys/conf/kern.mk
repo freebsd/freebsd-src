@@ -23,6 +23,7 @@ NO_WSHIFT_COUNT_OVERFLOW=	-Wno-shift-count-overflow
 NO_WSELF_ASSIGN=		-Wno-self-assign
 NO_WUNNEEDED_INTERNAL_DECL=	-Wno-unneeded-internal-declaration
 NO_WSOMETIMES_UNINITIALIZED=	-Wno-error-sometimes-uninitialized
+NO_WCAST_QUAL=			-Wno-cast-qual
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
