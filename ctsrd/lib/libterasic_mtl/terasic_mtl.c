@@ -63,9 +63,6 @@ static struct tsstate *sp = NULL;
 // fade timing (for crude timing loop)
 static const int fb_cross_fade_time = 500;
 
-// number of lines in the line pattern
-static const int num_lines_pattern = 600;
-
 const int fb_height = 480;
 const int fb_width = 800;
 
