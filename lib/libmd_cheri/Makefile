@@ -224,5 +224,4 @@ test:	md4.ref md5.ref sha0.ref rmd160.ref sha1.ref sha256.ref sha512.ref
 	@${ECHO} SHA-512 passed test
 	-rm -f shadriver
 
-.include <src.opts.mk>
 .include <bsd.lib.mk>

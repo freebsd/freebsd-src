@@ -50,7 +50,6 @@ CLEANFILES=	libpng_sb-helper.bin
 libpng_sb-helper.bin: libpng_sb-helper
 	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
 
-.include <src.opts.mk>
 .include <bsd.prog.mk>
 
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}

@@ -248,7 +248,7 @@ CFLAGS+=	-D_LONGLONG -Dsmall -DLIBICONV_PLUG \
 USE_CHERI=yes
 
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
-.include <src.opts.mk>
+
 .include <bsd.prog.mk>
 
 CFLAGS:=	${CFLAGS:S/-O/-O2/}

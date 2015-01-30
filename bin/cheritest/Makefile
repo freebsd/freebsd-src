@@ -39,5 +39,4 @@ CFLAGS+=	-DLIST_ONLY \
 LDFLAGS+=	-L${.OBJDIR}/../../lib/libxo
 .endif
 
-.include <src.opts.mk>
 .include <bsd.prog.mk>

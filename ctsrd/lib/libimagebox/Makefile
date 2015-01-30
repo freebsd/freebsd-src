@@ -11,5 +11,4 @@ INCS=	imagebox.h
 
 USE_CHERI=	yes
 
-.include <src.opts.mk>
 .include <bsd.lib.mk>

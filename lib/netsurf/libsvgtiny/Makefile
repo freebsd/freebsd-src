@@ -31,6 +31,5 @@ CFLAGS+=	-I${NETSURF_DISTDIR}/libsvgtiny/include \
 
 USE_CHERI=yes
 
-.include <src.opts.mk>
 .include <bsd.lib.mk>
 .include <bsd.subdir.mk>

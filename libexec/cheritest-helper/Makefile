@@ -37,7 +37,6 @@ CLEANFILES=	cheritest-helper.bin
 cheritest-helper.bin: cheritest-helper
 	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
 
-.include <src.opts.mk>
 .include <bsd.prog.mk>
 
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}

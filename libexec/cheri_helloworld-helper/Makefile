@@ -27,5 +27,4 @@ CLEANFILES=	cheri_helloworld-helper.bin
 cheri_helloworld-helper.bin: cheri_helloworld-helper
 	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
 
-.include <src.opts.mk>
 .include <bsd.prog.mk>

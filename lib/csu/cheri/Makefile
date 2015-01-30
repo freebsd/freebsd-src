@@ -17,5 +17,4 @@ CLEANFILES=	${FILES}
 
 USE_CHERI=yes
 
-.include <src.opts.mk>
 .include <bsd.prog.mk>

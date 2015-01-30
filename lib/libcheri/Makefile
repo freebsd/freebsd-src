@@ -43,5 +43,4 @@ NO_WERROR=
 .PATH: ${.CURDIR}/../libc/string
 .PATH: ${.CURDIR}/../libc/${MACHINE}/string
 
-.include <src.opts.mk>
 .include <bsd.lib.mk>

@@ -38,7 +38,6 @@ WARNS?=	6
 USE_CHERI=yes
 
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
-.include <src.opts.mk>
 .include <bsd.lib.mk>
 
 CFLAGS:=	${CFLAGS:S/-O/-O2/}

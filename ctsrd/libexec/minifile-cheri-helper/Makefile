@@ -46,5 +46,4 @@ chsbrt.o:
 ${PROG}.bin: ${PROG}
 	${OBJCOPY} -S -O binary ${.ALLSRC} ${.TARGET}
 
-.include <src.opts.mk>
 .include <bsd.prog.mk>

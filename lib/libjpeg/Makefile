@@ -85,7 +85,6 @@ CFLAGS+=	-DNO_GETENV
 
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
 
-.include <src.opts.mk>
 .include <bsd.lib.mk>
 
 CFLAGS+=	-Wno-unused-parameter

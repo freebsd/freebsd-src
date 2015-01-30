@@ -145,7 +145,6 @@ WARNS?=	6
 
 USE_CHERI=yes
 
-.include <src.opts.mk>
 .include <bsd.lib.mk>
 
 CFLAGS+=	-Wno-cast-align

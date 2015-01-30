@@ -70,7 +70,6 @@ test: example minigzip
 	(export LD_LIBRARY_PATH=. ; \
 		echo hello world | ./minigzip | ./minigzip -d )
 
-.include <src.opts.mk>
 .include <bsd.lib.mk>
 
 ## XXX: clang integrated-as doesn't grok .intel_syntax directives yet

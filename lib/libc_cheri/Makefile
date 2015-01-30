@@ -300,7 +300,6 @@ CFLAGS+=	-I${LIBC_DIR}/include			\
 
 CFLAGS+=	-Wno-cast-align -DFORCE_C_LOCALE -DFORCE_UTC_TZ
 
-.include <src.opts.mk>
 .include <bsd.lib.mk>
 
 CFLAGS+= ${CFLAGS.${.IMPSRC:T}}

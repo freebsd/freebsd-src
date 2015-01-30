@@ -28,5 +28,4 @@ CLEANFILES=	cheri_bench-helper.bin
 cheri_bench-helper.bin: cheri_bench-helper
 	objcopy -S -O binary ${.ALLSRC} ${.TARGET}
 
-.include <src.opts.mk>
 .include <bsd.prog.mk>

@@ -49,7 +49,6 @@ ${PROG}.bin: ${PROG}
 
 .PATH: ${.CURDIR}/${MACHINE_ARCH}
 
-.include <src.opts.mk>
 .include <bsd.prog.mk>
 
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
