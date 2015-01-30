@@ -62,9 +62,19 @@ __FBSDID("$FreeBSD$");
 #define dprintf(fmt, args...)
 #endif
 
+#define	BCM_GPIO_IRQS		4
 #define	BCM_GPIO_PINS		54
 #define	BCM_GPIO_DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT |	\
     GPIO_PIN_PULLUP | GPIO_PIN_PULLDOWN)
+
+static struct resource_spec bcm_gpio_res_spec[] = {
+	{ SYS_RES_MEMORY, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 0, RF_ACTIVE },
+	{ SYS_RES_IRQ, 1, RF_ACTIVE },
+	{ SYS_RES_IRQ, 2, RF_ACTIVE },
+	{ SYS_RES_IRQ, 3, RF_ACTIVE },
+	{ -1, 0, 0 }
+};
 
 struct bcm_gpio_sysctl {
 	struct bcm_gpio_softc	*sc;
@@ -74,8 +84,7 @@ struct bcm_gpio_sysctl {
 struct bcm_gpio_softc {
 	device_t		sc_dev;
 	struct mtx		sc_mtx;
-	struct resource *	sc_mem_res;
-	struct resource *	sc_irq_res;
+	struct resource *	sc_res[BCM_GPIO_IRQS + 1];
 	bus_space_tag_t		sc_bst;
 	bus_space_handle_t	sc_bsh;
 	void *			sc_intrhand;
@@ -660,34 +669,20 @@ bcm_gpio_probe(device_t dev)
 static int
 bcm_gpio_attach(device_t dev)
 {
-	struct bcm_gpio_softc *sc = device_get_softc(dev);
-	uint32_t func;
-	int i, j, rid;
+	int i, j;
 	phandle_t gpio;
+	struct bcm_gpio_softc *sc;
+	uint32_t func;
 
+ 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
-
 	mtx_init(&sc->sc_mtx, "bcm gpio", "gpio", MTX_DEF);
-
-	rid = 0;
-	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
-	if (!sc->sc_mem_res) {
-		device_printf(dev, "cannot allocate memory window\n");
-		return (ENXIO);
+	if (bus_alloc_resources(dev, bcm_gpio_res_spec, sc->sc_res) != 0) {
+		device_printf(dev, "cannot allocate resources\n");
+		goto fail;
 	}
-
-	sc->sc_bst = rman_get_bustag(sc->sc_mem_res);
-	sc->sc_bsh = rman_get_bushandle(sc->sc_mem_res);
-
-	rid = 0;
-	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
-	if (!sc->sc_irq_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
-		device_printf(dev, "cannot allocate interrupt\n");
-		return (ENXIO);
-	}
+	sc->sc_bst = rman_get_bustag(sc->sc_res[0]);
+	sc->sc_bsh = rman_get_bushandle(sc->sc_res[0]);
 
 	/* Find our node. */
 	gpio = ofw_bus_get_node(sc->sc_dev);
@@ -723,10 +718,9 @@ bcm_gpio_attach(device_t dev)
 	return (bus_generic_attach(dev));
 
 fail:
-	if (sc->sc_irq_res)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
-	if (sc->sc_mem_res)
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
+	bus_release_resources(dev, bcm_gpio_res_spec, sc->sc_res);
+	mtx_destroy(&sc->sc_mtx);
+
 	return (ENXIO);
 }
 
