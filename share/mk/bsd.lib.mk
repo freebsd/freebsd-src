@@ -15,6 +15,8 @@
 .if defined(NO_PIC)
 .undef SHLIB_NAME
 .undef INSTALL_PIC_ARCHIVE
+.elif defined(NO_SHARED)
+.undef SHLIB_NAME
 .else
 .if !defined(SHLIB) && defined(LIB)
 SHLIB=		${LIB}${LIB_SUFFIX}
