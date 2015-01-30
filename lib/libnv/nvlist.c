@@ -159,15 +159,19 @@ nvlist_get_nvpair_parent(const nvlist_t *nvl)
 }
 
 const nvlist_t *
-nvlist_get_parent(const nvlist_t *nvl)
+nvlist_get_parent(const nvlist_t *nvl, void **cookiep)
 {
+	nvpair_t *nvp;
 
 	NVLIST_ASSERT(nvl);
 
-	if (nvl->nvl_parent == NULL)
+	nvp = nvl->nvl_parent;
+	if (cookiep != NULL)
+		*cookiep = nvp;
+	if (nvp == NULL)
 		return (NULL);
 
-	return (nvpair_nvlist(nvl->nvl_parent));
+	return (nvpair_nvlist(nvp));
 }
 
 void
@@ -384,11 +388,10 @@ nvlist_dump(const nvlist_t *nvl, int fd)
 			dprintf(fd, "\n");
 			nvl = nvpair_get_nvlist(nvp);
 			if (nvlist_dump_error_check(nvl, fd, level + 1)) {
-				nvl = nvlist_get_parent(nvl);
+				nvl = nvlist_get_parent(nvl, (void **)&nvp);
 				break;
 			}
-			level += 1;
-			nvp = nvlist_first_nvpair(nvl);
+			level++;
 			continue;
 		case NV_TYPE_DESCRIPTOR:
 			dprintf(fd, " %d\n", nvpair_get_descriptor(nvp));
@@ -411,11 +414,10 @@ nvlist_dump(const nvlist_t *nvl, int fd)
 		}
 
 		while ((nvp = nvlist_next_nvpair(nvl, nvp)) == NULL) {
-			nvp = nvlist_get_nvpair_parent(nvl);
-			if (nvp == NULL)
+			nvl = nvlist_get_parent(nvl, (void **)&nvp);
+			if (nvl == NULL)
 				return;
-			nvl = nvlist_get_parent(nvl);
-			level --;
+			level--;
 		}
 	}
 }
@@ -457,10 +459,9 @@ nvlist_size(const nvlist_t *nvl)
 		}
 
 		while ((nvp = nvlist_next_nvpair(nvl, nvp)) == NULL) {
-			nvp = nvlist_get_nvpair_parent(nvl);
-			if (nvp == NULL)
+			nvl = nvlist_get_parent(nvl, (void **)&nvp);
+			if (nvl == NULL)
 				goto out;
-			nvl = nvlist_get_parent(nvl);
 		}
 	}
 
@@ -635,13 +636,12 @@ nvlist_xpack(const nvlist_t *nvl, int64_t *fdidxp, size_t *sizep)
 			return (NULL);
 		}
 		while ((nvp = nvlist_next_nvpair(nvl, nvp)) == NULL) {
-			nvp = nvlist_get_nvpair_parent(nvl);
-			if (nvp == NULL)
+			nvl = nvlist_get_parent(nvl, (void **)&nvp);
+			if (nvl == NULL)
 				goto out;
 			ptr = nvpair_pack_nvlist_up(ptr, &left);
 			if (ptr == NULL)
 				goto out;
-			nvl = nvlist_get_parent(nvl);
 		}
 	}
 
