@@ -62,6 +62,8 @@ CFLAGS		+=	-fno-strict-aliasing
 .endif
 PO_CFLAGS	?=	${CFLAGS}
 
+CHERI_CC	?=	/usr/local/bin/cheri-unknown-freebsd-clang
+
 # C Type Format data is required for DTrace
 CTFFLAGS	?=	-L VERSION
 

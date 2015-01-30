@@ -223,11 +223,6 @@ __DEFAULT_NO_OPTIONS+=CLANG_BOOTSTRAP CLANG_IS_CC
 __DEFAULT_YES_OPTIONS+=GCC GCC_BOOTSTRAP GNUCXX
 __DEFAULT_NO_OPTIONS+=CLANG CLANG_BOOTSTRAP CLANG_FULL CLANG_IS_CC
 .endif
-.if ${__T} == "mips64"
-__DEFAULT_YES_OPTIONS+=CHERI
-.else
-__DEFAULT_NO_OPTIONS+=CHERI
-.endif
 
 .include <bsd.mkopt.mk>
 
@@ -382,24 +377,6 @@ MK_LLDB:=	no
 .if ${COMPILER_TYPE} == "gcc" && ${COMPILER_VERSION} >= 40800
 MK_GNUCXX:=no
 MK_GCC:=no
-.endif
-
-.if ${MK_CHERI} != "no"
-CHERI_CC?=	/usr/local/bin/cheri-unknown-freebsd-clang
-.if defined(USE_CHERI)
-.if ! exists(${CHERI_CC})
-.error USE_CHERI is defined and CHERI_CC is ${CHERI_CC}, but it doesn't exist.
-.endif
-CC:=    ${CHERI_CC} -integrated-as --target=cheri-unknown-freebsd -msoft-float
-.if defined(SYSROOT)
-CC+=    --sysroot=${SYSROOT}
-.endif
-.if defined(USE_CHERI_STACK)
-CC+=    -mabi=sandbox
-.endif
-# XXXRW: Needed as Clang rejects -G0 when using $CC to link.
-CFLAGS+=        -Qunused-arguments
-.endif
 .endif
 
 .endif #  !target(__<src.opts.mk>__)

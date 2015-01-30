@@ -70,6 +70,27 @@ __DEFAULT_NO_OPTIONS = \
     DEBUG_FILES \
     INSTALL_AS_USER
 
+#
+# Default behaviour of some options depends on the architecture.  Unfortunately
+# this means that we have to test TARGET_ARCH (the buildworld case) as well
+# as MACHINE_ARCH (the non-buildworld case).  Normally TARGET_ARCH is not
+# used at all in bsd.*.mk, but we have to make an exception here if we want
+# to allow defaults for some things like clang to vary by target architecture.
+# Additional, per-target behavior should be rarely added only after much
+# gnashing of teeth and grinding of gears.
+#
+.if defined(TARGET_ARCH)
+__T=${TARGET_ARCH}
+.else
+__T=${MACHINE_ARCH}
+.endif
+
+.if ${__T} == "mips64"
+__DEFAULT_YES_OPTIONS+=CHERI
+.else
+__DEFAULT_NO_OPTIONS+=CHERI
+.endif
+
 .include <bsd.mkopt.mk>
 
 #
