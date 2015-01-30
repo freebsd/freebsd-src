@@ -40,7 +40,6 @@ USE_CHERI=yes
 CFLAGS+=	${CFLAGS.${.IMPSRC:T}}
 .include <bsd.lib.mk>
 
-CFLAGS:=	${CFLAGS:S/-O/-O2/}
 CFLAGS.pngerror.c=	-O0
 
 CFLAGS+=	-Wno-cast-align \
