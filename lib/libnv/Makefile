@@ -61,6 +61,7 @@ MLINKS+=nv.3 nvlist_create.3 \
 	nv.3 nvlist_get_nvlist.3 \
 	nv.3 nvlist_get_descriptor.3 \
 	nv.3 nvlist_get_binary.3 \
+	nv.3 nvlist_get_parent.3 \
 	nv.3 nvlist_take_bool.3 \
 	nv.3 nvlist_take_number.3 \
 	nv.3 nvlist_take_string.3 \
