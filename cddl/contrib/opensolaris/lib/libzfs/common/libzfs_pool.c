@@ -256,7 +256,8 @@ zpool_get_prop(zpool_handle_t *zhp, zpool_prop_t prop, char *buf, size_t len,
 			break;
 
 		case ZPOOL_PROP_HEALTH:
-			(void) strlcpy(buf, "FAULTED", len);
+			(void) strlcpy(buf,
+			    zpool_pool_state_to_name(POOL_STATE_UNAVAIL), len);
 			break;
 
 		case ZPOOL_PROP_GUID:
