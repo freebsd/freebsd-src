@@ -12,6 +12,8 @@ SRCS=	md4c.c md5c.c md4hl.c md5hl.c \
 
 USE_CHERI=      yes
 USE_CHERI_STACK=        yes
+NO_SHARED=	yes
+NO_PROFILE=	yes
 
 LIBMDDIR=	${.CURDIR}/../libmd
 
