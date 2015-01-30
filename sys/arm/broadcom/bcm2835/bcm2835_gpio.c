@@ -494,39 +494,6 @@ bcm_gpio_pin_toggle(device_t dev, uint32_t pin)
 }
 
 static int
-bcm_gpio_get_ro_pins(struct bcm_gpio_softc *sc)
-{
-	int i, len;
-	pcell_t pins[BCM_GPIO_PINS];
-	phandle_t gpio;
-
-	/* Find the gpio node to start. */
-	gpio = ofw_bus_get_node(sc->sc_dev);
-
-	len = OF_getproplen(gpio, "broadcom,read-only");
-	if (len < 0 || len > sizeof(pins))
-		return (-1);
-
-	if (OF_getprop(gpio, "broadcom,read-only", &pins, len) < 0)
-		return (-1);
-
-	sc->sc_ro_npins = len / sizeof(pcell_t);
-
-	device_printf(sc->sc_dev, "read-only pins: ");
-	for (i = 0; i < sc->sc_ro_npins; i++) {
-		sc->sc_ro_pins[i] = fdt32_to_cpu(pins[i]);
-		if (i > 0)
-			printf(",");
-		printf("%d", sc->sc_ro_pins[i]);
-	}
-	if (i > 0)
-		printf(".");
-	printf("\n");
-
-	return (0);
-}
-
-static int
 bcm_gpio_func_proc(SYSCTL_HANDLER_ARGS)
 {
 	char buf[16];
@@ -545,7 +512,9 @@ bcm_gpio_func_proc(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_string(oidp, buf, sizeof(buf), req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-
+	/* Ignore changes on read-only pins. */
+	if (bcm_gpio_pin_is_ro(sc, sc_sysctl->pin))
+		return (0);
 	/* Parse the user supplied string and check for a valid pin function. */
 	if (bcm_gpio_str_func(buf, &nfunc) != 0)
 		return (EINVAL);
@@ -595,62 +564,81 @@ bcm_gpio_sysctl_init(struct bcm_gpio_softc *sc)
 }
 
 static int
+bcm_gpio_get_ro_pins(struct bcm_gpio_softc *sc, phandle_t node,
+	const char *propname, const char *label)
+{
+	int i, need_comma, npins, range_start, range_stop;
+	pcell_t *pins;
+
+	/* Get the property data. */
+	npins = OF_getencprop_alloc(node, propname, sizeof(*pins),
+	    (void **)&pins);
+	if (npins < 0)
+		return (-1);
+	if (npins == 0) {
+		free(pins, M_OFWPROP);
+		return (0);
+	}
+	for (i = 0; i < npins; i++)
+		sc->sc_ro_pins[i + sc->sc_ro_npins] = pins[i];
+	sc->sc_ro_npins += npins;
+	need_comma = 0;
+	device_printf(sc->sc_dev, "%s pins: ", label);
+	range_start = range_stop = pins[0];
+	for (i = 1; i < npins; i++) {
+		if (pins[i] != range_stop + 1) {
+			if (need_comma)
+				printf(",");
+			if (range_start != range_stop)
+				printf("%d-%d", range_start, range_stop);
+			else
+				printf("%d", range_start);
+			range_start = range_stop = pins[i];
+			need_comma = 1;
+		} else
+			range_stop++;
+	}
+	if (need_comma)
+		printf(",");
+	if (range_start != range_stop)
+		printf("%d-%d.\n", range_start, range_stop);
+	else
+		printf("%d.\n", range_start);
+	free(pins, M_OFWPROP);
+
+	return (0);
+}
+
+static int
 bcm_gpio_get_reserved_pins(struct bcm_gpio_softc *sc)
 {
-	int i, j, len, npins;
-	pcell_t pins[BCM_GPIO_PINS];
+	char *name;
 	phandle_t gpio, node, reserved;
-	char name[32];
+	ssize_t len;
 
 	/* Get read-only pins. */
-	if (bcm_gpio_get_ro_pins(sc) != 0)
-		return (-1);
-
-	/* Find the gpio/reserved pins node to start. */
 	gpio = ofw_bus_get_node(sc->sc_dev);
-	node = OF_child(gpio);
-	
-	/*
-	 * Find reserved node
-	 */
+	if (bcm_gpio_get_ro_pins(sc, gpio, "broadcom,read-only",
+	    "read-only") != 0)
+		return (-1);
+	/* Traverse the GPIO subnodes to find the reserved pins node. */
 	reserved = 0;
+	node = OF_child(gpio);
 	while ((node != 0) && (reserved == 0)) {
-		len = OF_getprop(node, "name", name,
-		    sizeof(name) - 1);
-		name[len] = 0;
+		len = OF_getprop_alloc(node, "name", 1, (void **)&name);
+		if (len == -1)
+			return (-1);
 		if (strcmp(name, "reserved") == 0)
 			reserved = node;
+		free(name, M_OFWPROP);
 		node = OF_peer(node);
 	}
-
 	if (reserved == 0)
 		return (-1);
-
 	/* Get the reserved pins. */
-	len = OF_getproplen(reserved, "broadcom,pins");
-	if (len < 0 || len > sizeof(pins))
+	if (bcm_gpio_get_ro_pins(sc, reserved, "broadcom,pins",
+	    "reserved") != 0)
 		return (-1);
-
-	if (OF_getprop(reserved, "broadcom,pins", &pins, len) < 0)
-		return (-1);
-
-	npins = len / sizeof(pcell_t);
-
-	j = 0;
-	device_printf(sc->sc_dev, "reserved pins: ");
-	for (i = 0; i < npins; i++) {
-		if (i > 0)
-			printf(",");
-		printf("%d", fdt32_to_cpu(pins[i]));
-		/* Some pins maybe already on the list of read-only pins. */
-		if (bcm_gpio_pin_is_ro(sc, fdt32_to_cpu(pins[i])))
-			continue;
-		sc->sc_ro_pins[j++ + sc->sc_ro_npins] = fdt32_to_cpu(pins[i]);
-	}
-	sc->sc_ro_npins += j;
-	if (i > 0)
-		printf(".");
-	printf("\n");
 
 	return (0);
 }
@@ -717,8 +705,6 @@ bcm_gpio_attach(device_t dev)
 
 	/* Initialize the software controlled pins. */
 	for (i = 0, j = 0; j < BCM_GPIO_PINS; j++) {
-		if (bcm_gpio_pin_is_ro(sc, j))
-			continue;
 		snprintf(sc->sc_gpio_pins[i].gp_name, GPIOMAXNAME,
 		    "pin %d", j);
 		func = bcm_gpio_get_function(sc, j);
