@@ -15,4 +15,8 @@ SUBDIR+=	libcompositor \
 		libimagebox
 .endif
 
+.if defined(LIBCHERI)
+SUBDIR:=	libvuln_png
+.endif
+
 .include <bsd.subdir.mk>

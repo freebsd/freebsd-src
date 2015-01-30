@@ -447,6 +447,39 @@ LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} \
 		MK_TOOLCHAIN=no ${IMAKE_INSTALL}
 .endif
 
+.if ${MK_CHERI} != "no"
+# cheri world
+LIBCHERI_OBJTREE=	${OBJTREE}${.CURDIR}/worldcheri
+
+# Yes, the flags are redundant.
+LIBCHERIWMAKEENV= \
+		USE_CHERI=yes USE_CHERI_STACK=yes \
+		LIBCHERI=yes \
+		NO_SHARED=yes NO_PROFILE=yes \
+		SYSROOT=${WORLDTMP} \
+		MAKEOBJDIRPREFIX=${LIBCHERI_OBJTREE} \
+		_SHLIBDIRPREFIX=${WORLDTMP} \
+		_LDSCRIPTROOT=${WORLDTMP} \
+		VERSION="${VERSION}" \
+		INSTALL="sh ${.CURDIR}/tools/install.sh" \
+		PATH=${TMPPATH} \
+		LIBDIR=/usr/libcheri \
+		SHLIBDIR=/usr/libcheri \
+		LIBPRIVATEDIR=/usr/libcheri/private
+LIBCHERIWMAKEFLAGS= \
+		DESTDIR=${WORLDTMP} \
+		-DLIBRARIES_ONLY \
+		-DNO_CPU_CFLAGS \
+		MK_CTF=no \
+		-DNO_LINT \
+		MK_TESTS=no
+
+LIBCHERIWMAKE=	${LIBCHERIWMAKEENV} ${MAKE} ${LIBCHERIWMAKEFLAGS} \
+		MK_MAN=no MK_HTML=no
+LIBCHERIIMAKE=	${LIBCHERIWMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} \
+		MK_TOOLCHAIN=no ${IMAKE_INSTALL}
+.endif
+
 IMAKEENV=	${CROSSENV:N_LDSCRIPTROOT=*}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1 \
 		${IMAKE_INSTALL} ${IMAKE_MTREE}
@@ -562,6 +595,9 @@ _cleanobj:
 .if defined(LIB32TMP)
 	${_+_}cd ${.CURDIR}; ${LIB32WMAKE} -f Makefile.inc1 ${CLEANDIR:S/^/par-/}
 .endif
+.if defined (CHERI)
+	${_+_}cd ${.CURDIR}; ${LIBCHERIWMAKE} -f Makefile.inc1 ${CLEANDIR:S/^/par-/}
+.endif
 .endif
 _obj:
 	@echo
@@ -676,6 +712,29 @@ distribute32 install32:
 	cd ${.CURDIR}/usr.bin/ldd; PROG=ldd32 ${LIB32IMAKE} ${.TARGET:S/32$//}
 .endif
 
+.if ${MK_CHERI} != "no"
+buildcheri:
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo ">>> stage 4.2.1: building CHERI libraries"
+	@echo "--------------------------------------------------------------"
+#	cd ${.CURDIR}; \
+#	    ${LIBCHERIWMAKE} -f Makefile.inc1 libraries
+.for _lib in lib ${LOCAL_LIB_DIRS}
+	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
+		cd ${.CURDIR}/${_lib} && \
+		${LIBCHERIWMAKE} MK_TESTS=no DIRPRFX=${_lib}/ obj && \
+		${LIBCHERIWMAKE} MK_TESTS=no DIRPRFX=${_lib}/ depend && \
+		${LIBCHERIWMAKE} MK_TESTS=no DIRPRFX=${_lib}/ all && \
+		${LIBCHERIWMAKE} MK_TESTS=no DIRPRFX=${_lib}/ install
+.endfor
+
+distributecheri installcheri:
+.for _lib in lib ${LOCAL_LIB_DIRS}
+	cd ${.CURDIR}/${_lib}; ${LIBCHERIIMAKE} ${.TARGET:S/cheri$//}
+.endfor
+.endif
+
 WMAKE_TGTS=
 .if !defined(SUBDIR_OVERRIDE)
 WMAKE_TGTS+=	_worldtmp _legacy _bootstrap-tools
@@ -684,7 +743,11 @@ WMAKE_TGTS+=	_cleanobj _obj _build-tools
 .if !defined(SUBDIR_OVERRIDE)
 WMAKE_TGTS+=	_cross-tools
 .endif
-WMAKE_TGTS+=	_includes _libraries _depend everything
+WMAKE_TGTS+=	_includes _libraries
+.if ${MK_CHERI} != "no"
+WMAKE_TGTS+=	buildcheri
+.endif
+WMAKE_TGTS+=	_depend everything
 .if defined(LIB32TMP) && ${MK_LIB32} != "no"
 WMAKE_TGTS+=	build32
 .endif
@@ -721,7 +784,21 @@ buildenv:
 	@echo Entering world for ${TARGET_ARCH}:${TARGET}
 	@cd ${.CURDIR} && env ${WMAKEENV} ${BUILDENV_SHELL} || true
 
-TOOLCHAIN_TGTS=	${WMAKE_TGTS:N_depend:Neverything:Nbuild32}
+.if ${MK_CHERI} != "no"
+libcheribuildenvvars:
+	@echo ${LIBCHERIWMAKEENV:Q}
+
+.if ${.TARGETS:Mlibcheribuildenv}
+.if ${.MAKEFLAGS:M-j}
+.error The libcheribuildenv target is incompatible with -j
+.endif
+.endif
+libcheribuildenv:
+	@echo Entering world for ${TARGET_ARCH}:${TARGET}
+	@cd ${.CURDIR} && env ${LIBCHERIWMAKEENV} ${BUILDENV_SHELL} || true
+.endif
+
+TOOLCHAIN_TGTS=	${WMAKE_TGTS:N_depend:Neverything:Nbuild32:Nbuildcheri}
 toolchain: ${TOOLCHAIN_TGTS}
 kernel-toolchain: ${TOOLCHAIN_TGTS:N_includes:N_libraries}
 
@@ -967,6 +1044,9 @@ reinstall: .MAKE
 .if defined(LIB32TMP) && ${MK_LIB32} != "no"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 install32
 .endif
+.if ${MK_CHERI} != "no"
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 installcheri
+.endif
 
 redistribute: .MAKE
 	@echo "--------------------------------------------------------------"
@@ -976,6 +1056,10 @@ redistribute: .MAKE
 .if defined(LIB32TMP) && ${MK_LIB32} != "no"
 	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distribute32 \
 	    DISTRIBUTION=lib32
+.endif
+.if ${MK_CHERI} != "no"
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 distributecheri \
+	    DISTRIBUTION=libcheri
 .endif
 
 distrib-dirs distribution: .MAKE

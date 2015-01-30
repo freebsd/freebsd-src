@@ -353,4 +353,8 @@ afterinstall:
 SUBDIR_PARALLEL=
 .endif
 
+.if defined(LIBCHERI)
+SUBDIR:=	libmd
+.endif
+
 .include <bsd.subdir.mk>

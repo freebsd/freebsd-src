@@ -45,6 +45,8 @@
         private
         ..
     ..
+    libcheri
+    ..
     libdata
         gcc
         ..
