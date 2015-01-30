@@ -26,6 +26,10 @@
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
 
+#include <sys/types.h>
+#include <sys/wait.h>
+
+#include <stdlib.h>
 #include <unistd.h>
 
 #include "forker.h"
