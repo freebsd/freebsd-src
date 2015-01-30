@@ -1296,8 +1296,13 @@ fasttrap_pid_disable(void *arg, dtrace_id_t id, void *parg)
 	 */
 	if ((p = pfind(probe->ftp_pid)) != NULL) {
 #ifdef __FreeBSD__
-		_PHOLD(p);
-		PROC_UNLOCK(p);
+		if (p->p_flag & P_WEXIT) {
+			PROC_UNLOCK(p);
+			p = NULL;
+		} else {
+			_PHOLD(p);
+			PROC_UNLOCK(p);
+		}
 #endif
 	}
 
