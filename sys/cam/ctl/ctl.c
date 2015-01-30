@@ -31,7 +31,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/users/kenm/FreeBSD-test2/sys/cam/ctl/ctl.c#8 $
+ * $Id$
  */
 /*
  * CAM Target Layer, a SCSI device emulation subsystem.
@@ -446,6 +446,8 @@ static int ctl_scsiio_lun_check(struct ctl_lun *lun,
 				struct ctl_scsiio *ctsio);
 //static int ctl_check_rtr(union ctl_io *pending_io, struct ctl_softc *softc);
 static void ctl_failover(void);
+static void ctl_clear_ua(struct ctl_softc *ctl_softc, uint32_t initidx,
+			 ctl_ua_type ua_type);
 static int ctl_scsiio_precheck(struct ctl_softc *ctl_softc,
 			       struct ctl_scsiio *ctsio);
 static int ctl_scsiio(struct ctl_scsiio *ctsio);
@@ -9433,6 +9435,7 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 {
 	struct scsi_request_sense *cdb;
 	struct scsi_sense_data *sense_ptr;
+	struct ctl_softc *ctl_softc;
 	struct ctl_lun *lun;
 	uint32_t initidx;
 	int have_error;
@@ -9441,6 +9444,7 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 
 	cdb = (struct scsi_request_sense *)ctsio->cdb;
 
+	ctl_softc = control_softc;
 	lun = (struct ctl_lun *)ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
 
 	CTL_DEBUG_PRINT(("ctl_request_sense\n"));
@@ -9526,6 +9530,14 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 		ua_type = ctl_build_ua(lun, initidx, sense_ptr, sense_format);
 		if (ua_type != CTL_UA_NONE)
 			have_error = 1;
+		if (ua_type == CTL_UA_LUN_CHANGE) {
+			mtx_unlock(&lun->lun_lock);
+			mtx_lock(&ctl_softc->ctl_lock);
+			ctl_clear_ua(ctl_softc, initidx, ua_type);
+			mtx_unlock(&ctl_softc->ctl_lock);
+			mtx_lock(&lun->lun_lock);
+		}
+
 	}
 	mtx_unlock(&lun->lun_lock);
 
@@ -9593,6 +9605,9 @@ ctl_cmddt_inquiry(struct ctl_scsiio *ctsio)
 }
 #endif
 
+/*
+ * SCSI VPD page 0x00, the Supported VPD Pages page.
+ */
 static int
 ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len)
 {
@@ -9665,6 +9680,9 @@ ctl_inquiry_evpd_supported(struct ctl_scsiio *ctsio, int alloc_len)
 	return (CTL_RETVAL_COMPLETE);
 }
 
+/*
+ * SCSI VPD page 0x80, the Unit Serial Number page.
+ */
 static int
 ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len)
 {
@@ -9721,6 +9739,9 @@ ctl_inquiry_evpd_serial(struct ctl_scsiio *ctsio, int alloc_len)
 }
 
 
+/*
+ * SCSI VPD page 0x86, the Extended INQUIRY Data page.
+ */
 static int
 ctl_inquiry_evpd_eid(struct ctl_scsiio *ctsio, int alloc_len)
 {
@@ -9758,9 +9779,32 @@ ctl_inquiry_evpd_eid(struct ctl_scsiio *ctsio, int alloc_len)
 	else
 		eid_ptr->device = (SID_QUAL_LU_OFFLINE << 5) | T_DIRECT;
 	eid_ptr->page_code = SVPD_EXTENDED_INQUIRY_DATA;
-	eid_ptr->page_length = data_len - 4;
+	scsi_ulto2b(data_len - 4, eid_ptr->page_length);
+	/*
+	 * We support head of queue, ordered and simple tags.
+	 */
 	eid_ptr->flags2 = SVPD_EID_HEADSUP | SVPD_EID_ORDSUP | SVPD_EID_SIMPSUP;
+	/*
+	 * Volatile cache supported.
+	 */
 	eid_ptr->flags3 = SVPD_EID_V_SUP;
+
+	/*
+	 * This means that we clear the REPORTED LUNS DATA HAS CHANGED unit
+	 * attention for a particular IT nexus on all LUNs once we report
+	 * it to that nexus once.  This bit is required as of SPC-4.
+	 */
+	eid_ptr->flags4 = SVPD_EID_LUICLT;
+
+	/*
+	 * XXX KDM in order to correctly answer this, we would need
+	 * information from the SIM to determine how much sense data it
+	 * can send.  So this would really be a path inquiry field, most
+	 * likely.  This can be set to a maximum of 252 according to SPC-4,
+	 * but the hardware may or may not be able to support that much.
+	 * 0 just means that the maximum sense data length is not reported.
+	 */
+	eid_ptr->max_sense_length = 0;
 
 	ctl_set_success(ctsio);
 	ctsio->io_hdr.flags |= CTL_FLAG_ALLOCATED;
@@ -9820,6 +9864,9 @@ ctl_inquiry_evpd_mpp(struct ctl_scsiio *ctsio, int alloc_len)
 	return (CTL_RETVAL_COMPLETE);
 }
 
+/*
+ * SCSI VPD page 0x83, the Device Identification page.
+ */
 static int
 ctl_inquiry_evpd_devid(struct ctl_scsiio *ctsio, int alloc_len)
 {
@@ -10235,6 +10282,9 @@ ctl_inquiry_evpd_lbp(struct ctl_scsiio *ctsio, int alloc_len)
 	return (CTL_RETVAL_COMPLETE);
 }
 
+/*
+ * INQUIRY with the EVPD bit set.
+ */
 static int
 ctl_inquiry_evpd(struct ctl_scsiio *ctsio)
 {
@@ -10299,6 +10349,9 @@ err:
 	return (retval);
 }
 
+/*
+ * Standard INQUIRY data.
+ */
 static int
 ctl_inquiry_std(struct ctl_scsiio *ctsio)
 {
@@ -11466,6 +11519,23 @@ ctl_failover(void)
 	}
 	ctl_pause_rtr = 0;
 	mtx_unlock(&softc->ctl_lock);
+}
+
+static void
+ctl_clear_ua(struct ctl_softc *ctl_softc, uint32_t initidx,
+	     ctl_ua_type ua_type)
+{
+	struct ctl_lun *lun;
+	ctl_ua_type *pu;
+
+	mtx_assert(&ctl_softc->ctl_lock, MA_OWNED);
+
+	STAILQ_FOREACH(lun, &ctl_softc->lun_list, links) {
+		mtx_lock(&lun->lun_lock);
+		pu = lun->pending_ua[initidx / CTL_MAX_INIT_PER_PORT];
+		pu[initidx % CTL_MAX_INIT_PER_PORT] &= ~ua_type;
+		mtx_unlock(&lun->lun_lock);
+	}
 }
 
 static int
