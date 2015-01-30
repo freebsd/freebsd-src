@@ -358,6 +358,7 @@ nvlist_dump(const nvlist_t *nvl, int fd)
 {
 	const nvlist_t *tmpnvl;
 	nvpair_t *nvp, *tmpnvp;
+	void *cookie;
 	int level;
 
 	level = 0;
@@ -419,9 +420,11 @@ nvlist_dump(const nvlist_t *nvl, int fd)
 		}
 
 		while ((nvp = nvlist_next_nvpair(nvl, nvp)) == NULL) {
-			nvl = nvlist_get_parent(nvl, (void **)&nvp);
+			cookie = NULL;
+			nvl = nvlist_get_parent(nvl, &cookie);
 			if (nvl == NULL)
 				return;
+			nvp = cookie;
 			level--;
 		}
 	}
@@ -443,6 +446,7 @@ nvlist_size(const nvlist_t *nvl)
 {
 	const nvlist_t *tmpnvl;
 	const nvpair_t *nvp, *tmpnvp;
+	void *cookie;
 	size_t size;
 
 	NVLIST_ASSERT(nvl);
@@ -469,9 +473,11 @@ nvlist_size(const nvlist_t *nvl)
 		}
 
 		while ((nvp = nvlist_next_nvpair(nvl, nvp)) == NULL) {
-			nvl = nvlist_get_parent(nvl, (void **)&nvp);
+			cookie = NULL;
+			nvl = nvlist_get_parent(nvl, &cookie);
 			if (nvl == NULL)
 				goto out;
+			nvp = cookie;
 		}
 	}
 
@@ -587,6 +593,7 @@ nvlist_xpack(const nvlist_t *nvl, int64_t *fdidxp, size_t *sizep)
 	size_t left, size;
 	const nvlist_t *tmpnvl;
 	nvpair_t *nvp, *tmpnvp;
+	void *cookie;
 
 	NVLIST_ASSERT(nvl);
 
@@ -655,9 +662,11 @@ nvlist_xpack(const nvlist_t *nvl, int64_t *fdidxp, size_t *sizep)
 			return (NULL);
 		}
 		while ((nvp = nvlist_next_nvpair(nvl, nvp)) == NULL) {
-			nvl = nvlist_get_parent(nvl, (void **)&nvp);
+			cookie = NULL;
+			nvl = nvlist_get_parent(nvl, &cookie);
 			if (nvl == NULL)
 				goto out;
+			nvp = cookie;
 			ptr = nvpair_pack_nvlist_up(ptr, &left);
 			if (ptr == NULL)
 				goto out;
