@@ -36,7 +36,7 @@ script()
 {
 	$dtrace -s /dev/stdin <<EOF
 	proc:::signal-discard
-	/args[1]->pr_pid == $child &&
+	/args[1]->p_pid == $child &&
 	    args[1]->pr_psargs == "$longsleep" && args[2] == SIGHUP/
 	{
 		exit(0);

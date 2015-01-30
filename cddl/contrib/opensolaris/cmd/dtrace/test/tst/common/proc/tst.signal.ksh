@@ -42,7 +42,7 @@ script()
 		/*
 		 * This is guaranteed to not race with signal-handle.
 		 */
-		target = args[1]->pr_pid;
+		target = args[1]->p_pid;
 	}
 
 	proc:::signal-handle
