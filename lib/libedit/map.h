@@ -57,7 +57,7 @@ typedef struct el_map_t {
 	int		 type;		/* Emacs or vi			*/
 	el_bindings_t	*help;		/* The help for the editor functions */
 	el_func_t	*func;		/* List of available functions	*/
-	int		 nfunc;		/* The number of functions/help items */
+	size_t		 nfunc;		/* The number of functions/help items */
 } el_map_t;
 
 #define	MAP_EMACS	0
