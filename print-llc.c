@@ -151,10 +151,10 @@ llc_print(netdissect_options *ndo, const u_char *p, u_int length, u_int caplen,
 
 	*extracted_ethertype = 0;
 
-	if (caplen < 3) {
+	if (caplen < 3 || length < 3) {
 		ND_PRINT((ndo, "[|llc]"));
 		ND_DEFAULTPRINT((u_char *)p, caplen);
-		return(0);
+		return (1);
 	}
 
 	dsap_field = *p;
@@ -177,10 +177,10 @@ llc_print(netdissect_options *ndo, const u_char *p, u_int length, u_int caplen,
 		 * The control field in I and S frames is
 		 * 2 bytes...
 		 */
-		if (caplen < 4) {
+		if (caplen < 4 || length < 4) {
 			ND_PRINT((ndo, "[|llc]"));
 			ND_DEFAULTPRINT((u_char *)p, caplen);
-			return(0);
+			return (1);
 		}
 
 		/*
@@ -240,6 +240,11 @@ llc_print(netdissect_options *ndo, const u_char *p, u_int length, u_int caplen,
 
 	if (ssap == LLCSAP_IP && dsap == LLCSAP_IP &&
 	    control == LLC_UI) {
+		if (caplen < 4 || length < 4) {
+			ND_PRINT((ndo, "[|llc]"));
+			ND_DEFAULTPRINT((u_char *)p, caplen);
+			return (1);
+		}
 		ip_print(ndo, p+4, length-4);
 		return (1);
 	}
@@ -368,6 +373,8 @@ snap_print(netdissect_options *ndo, const u_char *p, u_int length, u_int caplen,
 	register int ret;
 
 	ND_TCHECK2(*p, 5);
+	if (caplen < 5 || length < 5)
+		goto trunc;
 	orgcode = EXTRACT_24BITS(p);
 	et = EXTRACT_16BITS(p + 3);
 
