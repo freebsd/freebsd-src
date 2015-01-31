@@ -46,6 +46,7 @@
  */
 struct ti_gpio_softc {
 	device_t		sc_dev;
+	device_t		sc_busdev;
 
 	/* Interrupt trigger type and level. */
 	enum intr_trigger	*sc_irq_trigger;
