@@ -389,6 +389,8 @@ imx51_gpio_attach(device_t dev)
 
 	if (bus_alloc_resources(dev, imx_gpio_spec, sc->sc_res)) {
 		device_printf(dev, "could not allocate resources\n");
+		bus_release_resources(dev, imx_gpio_spec, sc->sc_res);
+		mtx_destroy(&sc->sc_mtx);
 		return (ENXIO);
 	}
 
@@ -411,6 +413,7 @@ imx51_gpio_attach(device_t dev)
 		    imx51_gpio_intr, NULL, sc, &sc->gpio_ih[irq]))) {
 			device_printf(dev,
 			    "WARNING: unable to register interrupt handler\n");
+			imx51_gpio_detach(dev);
 			return (ENXIO);
 		}
 	}
@@ -434,6 +437,7 @@ imx51_gpio_attach(device_t dev)
 static int
 imx51_gpio_detach(device_t dev)
 {
+	int irq;
 	struct imx51_gpio_softc *sc;
 
 	sc = device_get_softc(dev);
@@ -441,13 +445,12 @@ imx51_gpio_detach(device_t dev)
 	KASSERT(mtx_initialized(&sc->sc_mtx), ("gpio mutex not initialized"));
 
 	bus_generic_detach(dev);
-
-	if (sc->sc_res[3])
-		bus_release_resources(dev, imx_gpio0irq_spec, &sc->sc_res[3]);
-
-	if (sc->sc_res[0])
-		bus_release_resources(dev, imx_gpio_spec, sc->sc_res);
-
+	for (irq = 1; irq <= sc->sc_l_irq; irq ++) {
+		if (sc->gpio_ih[irq])
+			bus_teardown_intr(dev, sc->sc_res[irq], sc->gpio_ih[irq]);
+	}
+	bus_release_resources(dev, imx_gpio0irq_spec, &sc->sc_res[3]);
+	bus_release_resources(dev, imx_gpio_spec, sc->sc_res);
 	mtx_destroy(&sc->sc_mtx);
 
 	return(0);

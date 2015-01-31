@@ -113,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #define	TI_GPIO_MASK(p)			(1U << ((p) % PINS_PER_BANK))
 
 static struct ti_gpio_softc *ti_gpio_sc = NULL;
+static int ti_gpio_detach(device_t);
 
 static u_int
 ti_max_gpio_banks(void)
@@ -763,21 +764,21 @@ ti_gpio_attach(device_t dev)
 	 */
 	if (bus_alloc_resources(dev, ti_gpio_mem_spec, sc->sc_mem_res) != 0) {
 		device_printf(dev, "Error: could not allocate mem resources\n");
+		ti_gpio_detach(dev);
 		return (ENXIO);
 	}
 
 	/* Request the IRQ resources */
 	if (bus_alloc_resources(dev, ti_gpio_irq_spec, sc->sc_irq_res) != 0) {
-		bus_release_resources(dev, ti_gpio_mem_spec, sc->sc_mem_res);
 		device_printf(dev, "Error: could not allocate irq resources\n");
+		ti_gpio_detach(dev);
 		return (ENXIO);
 	}
 
 	/* Setup the IRQ resources */
 	if (ti_gpio_attach_intr(dev) != 0) {
-		ti_gpio_detach_intr(dev);
-		bus_release_resources(dev, ti_gpio_irq_spec, sc->sc_irq_res);
-		bus_release_resources(dev, ti_gpio_mem_spec, sc->sc_mem_res);
+		device_printf(dev, "Error: could not setup irq handlers\n");
+		ti_gpio_detach(dev);
 		return (ENXIO);
 	}
 
@@ -809,11 +810,7 @@ ti_gpio_attach(device_t dev)
 			/* Initialize the GPIO module. */
 			err = ti_gpio_bank_init(dev, i);
 			if (err != 0) {
-				ti_gpio_detach_intr(dev);
-				bus_release_resources(dev, ti_gpio_irq_spec,
-				    sc->sc_irq_res);
-				bus_release_resources(dev, ti_gpio_mem_spec,
-				    sc->sc_mem_res);
+				ti_gpio_detach(dev);
 				return (err);
 			}
 		}
@@ -852,18 +849,17 @@ ti_gpio_detach(device_t dev)
 		if (sc->sc_mem_res[i] != NULL)
 			ti_gpio_intr_clr(sc, i, 0xffffffff);
 	}
-
 	bus_generic_detach(dev);
-
-	free(sc->sc_events, M_DEVBUF);
-	free(sc->sc_irq_polarity, M_DEVBUF);
-	free(sc->sc_irq_trigger, M_DEVBUF);
-
+	if (sc->sc_events)
+		free(sc->sc_events, M_DEVBUF);
+	if (sc->sc_irq_polarity)
+		free(sc->sc_irq_polarity, M_DEVBUF);
+	if (sc->sc_irq_trigger)
+		free(sc->sc_irq_trigger, M_DEVBUF);
 	/* Release the memory and IRQ resources. */
 	ti_gpio_detach_intr(dev);
 	bus_release_resources(dev, ti_gpio_irq_spec, sc->sc_irq_res);
 	bus_release_resources(dev, ti_gpio_mem_spec, sc->sc_mem_res);
-
 	TI_GPIO_LOCK_DESTROY(sc);
 
 	return (0);
