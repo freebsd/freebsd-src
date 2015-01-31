@@ -399,13 +399,14 @@ rk30_gpio_attach(device_t dev)
 	if (rk30_gpio_sc)
 		return (ENXIO);
 	sc->sc_dev = dev;
+	mtx_init(&sc->sc_mtx, "rk30 gpio", "gpio", MTX_DEF);
 
 	rid = 0;
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "cannot allocate memory window\n");
-		return (ENXIO);
+		goto fail;
 	}
 	sc->sc_bst = rman_get_bustag(sc->sc_mem_res);
 	sc->sc_bsh = rman_get_bushandle(sc->sc_mem_res);
@@ -421,17 +422,15 @@ rk30_gpio_attach(device_t dev)
 	if (sc->sc_bank == -1) {
 		device_printf(dev,
 		    "unsupported device unit (only GPIO0..3 are supported)\n");
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
-		return (ENXIO);
+		goto fail;
 	}
 
 	rid = 0;
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
 	if (!sc->sc_irq_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot allocate interrupt\n");
-		return (ENXIO);
+		goto fail;
 	}
 
 	/* Find our node. */
@@ -440,8 +439,6 @@ rk30_gpio_attach(device_t dev)
 	if (!OF_hasprop(gpio, "gpio-controller"))
 		/* Node is not a GPIO controller. */
 		goto fail;
-
-	mtx_init(&sc->sc_mtx, "rk30 gpio", "gpio", MTX_DEF);
 
 	/* Initialize the software controlled pins. */
 	for (i = 0; i < RK30_GPIO_PINS; i++) {
@@ -467,6 +464,8 @@ fail:
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
+	mtx_destroy(&sc->sc_mtx);
+
 	return (ENXIO);
 }
 

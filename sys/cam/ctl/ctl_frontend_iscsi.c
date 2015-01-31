@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/ctl/ctl_private.h>
 
 #include <dev/iscsi/icl.h>
+#include <dev/iscsi/icl_wrappers.h>
 #include <dev/iscsi/iscsi_proto.h>
 #include <cam/ctl/ctl_frontend_iscsi.h>
 
@@ -1241,7 +1242,7 @@ cfiscsi_session_new(struct cfiscsi_softc *softc)
 	cv_init(&cs->cs_login_cv, "cfiscsi_login");
 #endif
 
-	cs->cs_conn = icl_conn_new("cfiscsi", &cs->cs_lock);
+	cs->cs_conn = icl_new_conn(NULL, "cfiscsi", &cs->cs_lock);
 	cs->cs_conn->ic_receive = cfiscsi_receive_callback;
 	cs->cs_conn->ic_error = cfiscsi_error_callback;
 	cs->cs_conn->ic_prv0 = cs;
@@ -2013,6 +2014,7 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 		return;
 	}
 	port = &ct->ct_port;
+	// WAT
 	if (ct->ct_state == CFISCSI_TARGET_STATE_DYING)
 		goto done;
 

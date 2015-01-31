@@ -175,7 +175,33 @@ __elfN(loadfile_raw)(char *filename, u_int64_t dest,
      * Check to see what sort of module we are.
      */
     kfp = file_findfile(NULL, __elfN(kerneltype));
-    if (ehdr->e_type == ET_DYN) {
+#ifdef __powerpc__
+    /*
+     * Kernels can be ET_DYN, so just assume the first loaded object is the
+     * kernel. This assumption will be checked later.
+     */
+    if (kfp == NULL)
+        ef.kernel = 1;
+#endif
+    if (ef.kernel || ehdr->e_type == ET_EXEC) {
+	/* Looks like a kernel */
+	if (kfp != NULL) {
+	    printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadfile: kernel already loaded\n");
+	    err = EPERM;
+	    goto oerr;
+	}
+	/* 
+	 * Calculate destination address based on kernel entrypoint 	
+	 */
+	dest = (ehdr->e_entry & ~PAGE_MASK);
+	if (dest == 0) {
+	    printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadfile: not a kernel (maybe static binary?)\n");
+	    err = EPERM;
+	    goto oerr;
+	}
+	ef.kernel = 1;
+
+    } else if (ehdr->e_type == ET_DYN) {
 	/* Looks like a kld module */
 	if (multiboot != 0) {
 		printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadfile: can't load module as multiboot\n");
@@ -194,24 +220,6 @@ __elfN(loadfile_raw)(char *filename, u_int64_t dest,
 	}
 	/* Looks OK, got ahead */
 	ef.kernel = 0;
-
-    } else if (ehdr->e_type == ET_EXEC) {
-	/* Looks like a kernel */
-	if (kfp != NULL) {
-	    printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadfile: kernel already loaded\n");
-	    err = EPERM;
-	    goto oerr;
-	}
-	/* 
-	 * Calculate destination address based on kernel entrypoint 	
-	 */
-	dest = (ehdr->e_entry & ~PAGE_MASK);
-	if (dest == 0) {
-	    printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadfile: not a kernel (maybe static binary?)\n");
-	    err = EPERM;
-	    goto oerr;
-	}
-	ef.kernel = 1;
 
     } else {
 	err = EFTYPE;
