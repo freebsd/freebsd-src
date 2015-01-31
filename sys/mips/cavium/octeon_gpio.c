@@ -383,6 +383,7 @@ octeon_gpio_attach(device_t dev)
 		    OCTEON_IRQ_GPIO0 + i, OCTEON_IRQ_GPIO0 + i, 1, 
 		    RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 			device_printf(dev, "unable to allocate IRQ resource\n");
+			octeon_gpio_detach(dev);
 			return (ENXIO);
 		}
 
@@ -392,6 +393,7 @@ octeon_gpio_attach(device_t dev)
 		    &(sc->gpio_intr_cookies[i]), &sc->gpio_ih[i]))) {
 			device_printf(dev,
 		    	"WARNING: unable to register interrupt handler\n");
+			octeon_gpio_detach(dev);
 			return (ENXIO);
 		}
 	}
@@ -448,11 +450,14 @@ octeon_gpio_detach(device_t dev)
 	KASSERT(mtx_initialized(&sc->gpio_mtx), ("gpio mutex not initialized"));
 
 	for ( i = 0; i < OCTEON_GPIO_IRQS; i++) {
-		bus_release_resource(dev, SYS_RES_IRQ,
-		    sc->gpio_irq_rid[i], sc->gpio_irq_res[i]);
+		if (sc->gpio_ih[i])
+			bus_teardown_intr(dev, sc->gpio_irq_res[i],
+			    sc->gpio_ih[i]);
+		if (sc->gpio_irq_res[i])
+			bus_release_resource(dev, SYS_RES_IRQ,
+			    sc->gpio_irq_rid[i], sc->gpio_irq_res[i]);
 	}
 	bus_generic_detach(dev);
-
 	mtx_destroy(&sc->gpio_mtx);
 
 	return(0);

@@ -427,7 +427,7 @@ a10_gpio_attach(device_t dev)
 	    RF_ACTIVE);
 	if (!sc->sc_mem_res) {
 		device_printf(dev, "cannot allocate memory window\n");
-		return (ENXIO);
+		goto fail;
 	}
 
 	sc->sc_bst = rman_get_bustag(sc->sc_mem_res);
@@ -437,9 +437,8 @@ a10_gpio_attach(device_t dev)
 	sc->sc_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
 	if (!sc->sc_irq_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		device_printf(dev, "cannot allocate interrupt\n");
-		return (ENXIO);
+		goto fail;
 	}
 
 	/* Find our node. */
@@ -472,6 +471,8 @@ fail:
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
+	mtx_destroy(&sc->sc_mtx);
+
 	return (ENXIO);
 }
 
