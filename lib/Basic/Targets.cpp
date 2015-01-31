@@ -5901,6 +5901,8 @@ public:
       : MipsTargetInfoBase(Triple, "o32", "mips32r2") {
     SizeType = UnsignedInt;
     PtrDiffType = SignedInt;
+    Int64Type = SignedLongLong;
+    IntMaxType = Int64Type;
     MaxAtomicPromoteWidth = MaxAtomicInlineWidth = 32;
   }
   bool setABI(const std::string &Name) override {
@@ -5922,6 +5924,8 @@ public:
       Builder.defineMacro("__mips_isa_rev", "1");
     else if (CPUStr == "mips32r2")
       Builder.defineMacro("__mips_isa_rev", "2");
+    else if (CPUStr == "mips32r6")
+      Builder.defineMacro("__mips_isa_rev", "6");
 
     if (ABI == "o32") {
       Builder.defineMacro("__mips_o32");
@@ -6028,6 +6032,8 @@ public:
     PointerWidth = PointerAlign = 64;
     SizeType = UnsignedLong;
     PtrDiffType = SignedLong;
+    Int64Type = SignedLong;
+    IntMaxType = Int64Type;
   }
 
   void setN32ABITypes() {
@@ -6035,6 +6041,8 @@ public:
     PointerWidth = PointerAlign = 32;
     SizeType = UnsignedInt;
     PtrDiffType = SignedInt;
+    Int64Type = SignedLongLong;
+    IntMaxType = Int64Type;
   }
 
   bool setABI(const std::string &Name) override {
@@ -6065,6 +6073,8 @@ public:
       Builder.defineMacro("__mips_isa_rev", "1");
     else if (CPUStr == "mips64r2")
       Builder.defineMacro("__mips_isa_rev", "2");
+    else if (CPUStr == "mips64r6")
+      Builder.defineMacro("__mips_isa_rev", "6");
 
     if (ABI == "n32") {
       Builder.defineMacro("__mips_n32");

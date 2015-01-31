@@ -4762,12 +4762,8 @@ Sema::BuildResolvedCallExpr(Expr *Fn, NamedDecl *NDecl,
                                      VK_RValue, RParenLoc);
 
   // Bail out early if calling a builtin with custom typechecking.
-  if (BuiltinID && Context.BuiltinInfo.hasCustomTypechecking(BuiltinID)) {
-    ExprResult Res = CorrectDelayedTyposInExpr(TheCall);
-    if (!Res.isUsable() || !isa<CallExpr>(Res.get()))
-      return Res;
-    return CheckBuiltinFunctionCall(FDecl, BuiltinID, cast<CallExpr>(Res.get()));
-  }
+  if (BuiltinID && Context.BuiltinInfo.hasCustomTypechecking(BuiltinID))
+    return CheckBuiltinFunctionCall(FDecl, BuiltinID, TheCall);
 
  retry:
   const FunctionType *FuncT;
@@ -5785,15 +5781,6 @@ QualType Sema::CheckConditionalOperands(ExprResult &Cond, ExprResult &LHS,
                                         ExprObjectKind &OK,
                                         SourceLocation QuestionLoc) {
 
-  if (!getLangOpts().CPlusPlus) {
-    // C cannot handle TypoExpr nodes on either side of a binop because it
-    // doesn't handle dependent types properly, so make sure any TypoExprs have
-    // been dealt with before checking the operands.
-    ExprResult CondResult = CorrectDelayedTyposInExpr(Cond);
-    if (!CondResult.isUsable()) return QualType();
-    Cond = CondResult;
-  }
-
   ExprResult LHSResult = CheckPlaceholderExpr(LHS.get());
   if (!LHSResult.isUsable()) return QualType();
   LHS = LHSResult;
@@ -6173,6 +6160,15 @@ ExprResult Sema::ActOnConditionalOp(SourceLocation QuestionLoc,
                                     SourceLocation ColonLoc,
                                     Expr *CondExpr, Expr *LHSExpr,
                                     Expr *RHSExpr) {
+  if (!getLangOpts().CPlusPlus) {
+    // C cannot handle TypoExpr nodes in the condition because it
+    // doesn't handle dependent types properly, so make sure any TypoExprs have
+    // been dealt with before checking the operands.
+    ExprResult CondResult = CorrectDelayedTyposInExpr(CondExpr);
+    if (!CondResult.isUsable()) return ExprError();
+    CondExpr = CondResult.get();
+  }
+
   // If this is the gnu "x ?: y" extension, analyze the types as though the LHS
   // was the condition.
   OpaqueValueExpr *opaqueValue = nullptr;
@@ -9457,6 +9453,18 @@ static void checkObjCPointerIntrospection(Sema &S, ExprResult &L, ExprResult &R,
   }
 }
 
+static NamedDecl *getDeclFromExpr(Expr *E) {
+  if (!E)
+    return nullptr;
+  if (auto *DRE = dyn_cast<DeclRefExpr>(E))
+    return DRE->getDecl();
+  if (auto *ME = dyn_cast<MemberExpr>(E))
+    return ME->getMemberDecl();
+  if (auto *IRE = dyn_cast<ObjCIvarRefExpr>(E))
+    return IRE->getDecl();
+  return nullptr;
+}
+
 /// CreateBuiltinBinOp - Creates a new built-in binary operation with
 /// operator @p Opc at location @c TokLoc. This routine only supports
 /// built-in operations; ActOnBinOp handles overloaded operators.
@@ -9494,7 +9502,13 @@ ExprResult Sema::CreateBuiltinBinOp(SourceLocation OpLoc,
     // doesn't handle dependent types properly, so make sure any TypoExprs have
     // been dealt with before checking the operands.
     LHS = CorrectDelayedTyposInExpr(LHSExpr);
-    RHS = CorrectDelayedTyposInExpr(RHSExpr);
+    RHS = CorrectDelayedTyposInExpr(RHSExpr, [Opc, LHS](Expr *E) {
+      if (Opc != BO_Assign)
+        return ExprResult(E);
+      // Avoid correcting the RHS to the same Expr as the LHS.
+      Decl *D = getDeclFromExpr(E);
+      return (D && D == getDeclFromExpr(LHS.get())) ? ExprError() : E;
+    });
     if (!LHS.isUsable() || !RHS.isUsable())
       return ExprError();
   }

@@ -958,6 +958,11 @@ void Clang::AddAArch64TargetArgs(const ArgList &Args,
     if (A->getOption().matches(options::OPT_mno_global_merge))
       CmdArgs.push_back("-mno-global-merge");
   }
+
+  if (Args.hasArg(options::OPT_ffixed_x18)) {
+    CmdArgs.push_back("-backend-option");
+    CmdArgs.push_back("-aarch64-reserve-x18");
+  }
 }
 
 // Get CPU and ABI names. They are not independent
@@ -5418,6 +5423,20 @@ const char *arm::getLLVMArchSuffixForARM(StringRef CPU) {
     .Default("");
 }
 
+void arm::appendEBLinkFlags(const ArgList &Args, ArgStringList &CmdArgs, const llvm::Triple &Triple) {
+  if (Args.hasArg(options::OPT_r))
+    return;
+
+  StringRef Suffix = getLLVMArchSuffixForARM(getARMCPUForMArch(Args, Triple));
+  const char *LinkFlag = llvm::StringSwitch<const char *>(Suffix)
+    .Cases("v4", "v4t", "v5", "v5e", nullptr)
+    .Cases("v6", "v6t2", nullptr)
+    .Default("--be8");
+
+  if (LinkFlag)
+    CmdArgs.push_back(LinkFlag);
+}
+
 bool mips::hasMipsAbiArg(const ArgList &Args, const char *Value) {
   Arg *A = Args.getLastArg(options::OPT_mabi_EQ);
   return A && (A->getValue() == StringRef(Value));
@@ -6881,6 +6900,7 @@ void netbsd::Link::ConstructJob(Compilation &C, const JobAction &JA,
     break;
   case llvm::Triple::armeb:
   case llvm::Triple::thumbeb:
+    arm::appendEBLinkFlags(Args, CmdArgs, getToolChain().getTriple());
     CmdArgs.push_back("-m");
     switch (getToolChain().getTriple().getEnvironment()) {
     case llvm::Triple::EABI:
@@ -7430,6 +7450,10 @@ void gnutools::Link::ConstructJob(Compilation &C, const JobAction &JA,
 
   if (Args.hasArg(options::OPT_s))
     CmdArgs.push_back("-s");
+
+  if (ToolChain.getArch() == llvm::Triple::armeb ||
+      ToolChain.getArch() == llvm::Triple::thumbeb)
+    arm::appendEBLinkFlags(Args, CmdArgs, getToolChain().getTriple());
 
   for (const auto &Opt : ToolChain.ExtraOpts)
     CmdArgs.push_back(Opt.c_str());

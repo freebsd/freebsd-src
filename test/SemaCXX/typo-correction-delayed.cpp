@@ -157,3 +157,29 @@ namespace PR22092 {
 a = b ? : 0;  // expected-error {{C++ requires a type specifier for all declarations}} \
               // expected-error-re {{use of undeclared identifier 'b'{{$}}}}
 }
+
+namespace PR22250 {
+// expected-error@+4 {{use of undeclared identifier 'size_t'; did you mean 'sizeof'?}}
+// expected-error-re@+3 {{use of undeclared identifier 'y'{{$}}}}
+// expected-error-re@+2 {{use of undeclared identifier 'z'{{$}}}}
+// expected-error@+1 {{expected ';' after top level declarator}}
+int getenv_s(size_t *y, char(&z)) {}
+}
+
+namespace PR22291 {
+template <unsigned I> void f() {
+  unsigned *prio_bits_array;  // expected-note {{'prio_bits_array' declared here}}
+  // expected-error@+1 {{use of undeclared identifier 'prio_op_array'; did you mean 'prio_bits_array'?}}
+  __atomic_store_n(prio_op_array + I, false, __ATOMIC_RELAXED);
+}
+}
+
+namespace PR22297 {
+double pow(double x, double y);
+struct TimeTicks {
+  static void Now();  // expected-note {{'Now' declared here}}
+};
+void f() {
+  TimeTicks::now();  // expected-error {{no member named 'now' in 'PR22297::TimeTicks'; did you mean 'Now'?}}
+}
+}
