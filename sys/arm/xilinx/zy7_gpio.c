@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/stdarg.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -88,6 +89,7 @@ __FBSDID("$FreeBSD$");
 
 struct zy7_gpio_softc {
 	device_t	dev;
+	device_t	busdev;
 	struct mtx	sc_mtx;
 	struct resource *mem_res;	/* Memory resource */
 };
@@ -113,6 +115,15 @@ struct zy7_gpio_softc {
 #define ZY7_GPIO_INT_POLARITY(b)	(0x0220+0x40*(b)) /* int polarity */
 #define ZY7_GPIO_INT_ANY(b)		(0x0224+0x40*(b)) /* any edge */
 
+static device_t
+zy7_gpio_get_bus(device_t dev)
+{
+	struct zy7_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->busdev);
+}
 
 static int
 zy7_gpio_pin_max(device_t dev, int *maxpin)
@@ -329,10 +340,13 @@ zy7_gpio_attach(device_t dev)
 	/* Completely reset. */
 	zy7_gpio_hw_reset(sc);
 
-	device_add_child(dev, "gpioc", -1);
-	device_add_child(dev, "gpiobus", -1);
+	sc->busdev = gpiobus_attach_bus(dev);
+	if (sc->busdev == NULL) {
+		zy7_gpio_detach(dev);
+		return (ENOMEM);
+	}
 
-	return (bus_generic_attach(dev));
+	return (0);
 }
 
 static int
@@ -340,7 +354,7 @@ zy7_gpio_detach(device_t dev)
 {
 	struct zy7_gpio_softc *sc = device_get_softc(dev);
 
-	bus_generic_detach(dev);
+	gpiobus_detach_bus(dev);
 
 	if (sc->mem_res != NULL) {
 		/* Release memory resource. */
@@ -360,6 +374,7 @@ static device_method_t zy7_gpio_methods[] = {
 	DEVMETHOD(device_detach, 	zy7_gpio_detach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus, 	zy7_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max, 	zy7_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname, 	zy7_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getflags, 	zy7_gpio_pin_getflags),

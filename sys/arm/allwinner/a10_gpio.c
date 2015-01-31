@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -75,6 +76,7 @@ __FBSDID("$FreeBSD$");
 
 struct a10_gpio_softc {
 	device_t		sc_dev;
+	device_t		sc_busdev;
 	struct mtx		sc_mtx;
 	struct resource *	sc_mem_res;
 	struct resource *	sc_irq_res;
@@ -215,6 +217,16 @@ a10_gpio_pin_configure(struct a10_gpio_softc *sc, struct gpio_pin *pin,
 		a10_gpio_set_pud(sc, pin->gp_pin, A10_GPIO_NONE);
 
 	A10_GPIO_UNLOCK(sc);
+}
+
+static device_t
+a10_gpio_get_bus(device_t dev)
+{
+	struct a10_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->sc_busdev);
 }
 
 static int
@@ -458,13 +470,12 @@ a10_gpio_attach(device_t dev)
 		sc->sc_gpio_pins[i].gp_flags = a10_gpio_func_flag(func);
 	}
 	sc->sc_gpio_npins = i;
-
-	device_add_child(dev, "gpioc", -1);
-	device_add_child(dev, "gpiobus", -1);
-
 	a10_gpio_sc = sc;
+	sc->sc_busdev = gpiobus_attach_bus(dev);
+	if (sc->sc_busdev == NULL)
+		goto fail;
 
-	return (bus_generic_attach(dev));
+	return (0);
 
 fail:
 	if (sc->sc_irq_res)
@@ -490,6 +501,7 @@ static device_method_t a10_gpio_methods[] = {
 	DEVMETHOD(device_detach,	a10_gpio_detach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus,		a10_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,		a10_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname,	a10_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getflags,	a10_gpio_pin_getflags),
