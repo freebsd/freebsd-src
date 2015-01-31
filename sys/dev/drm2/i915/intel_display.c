@@ -6995,7 +6995,7 @@ static void ivb_pch_pwm_override(struct drm_device *dev)
 	 */
 	I915_WRITE(BLC_PWM_CPU_CTL2, PWM_ENABLE);
 	I915_WRITE(BLC_PWM_CPU_CTL, 0);
-	I915_WRITE(BLC_PWM_PCH_CTL1, PWM_ENABLE | (1<<30));
+	I915_WRITE(BLC_PWM_PCH_CTL1, PWM_ENABLE);
 }
 
 void intel_modeset_init_hw(struct drm_device *dev)
