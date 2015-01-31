@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -83,6 +84,7 @@ struct bcm_gpio_sysctl {
 
 struct bcm_gpio_softc {
 	device_t		sc_dev;
+	device_t		sc_busdev;
 	struct mtx		sc_mtx;
 	struct resource *	sc_res[BCM_GPIO_IRQS + 1];
 	bus_space_tag_t		sc_bst;
@@ -315,6 +317,16 @@ bcm_gpio_pin_configure(struct bcm_gpio_softc *sc, struct gpio_pin *pin,
 		bcm_gpio_set_pud(sc, pin->gp_pin, BCM_GPIO_NONE);
 
 	BCM_GPIO_UNLOCK(sc);
+}
+
+static device_t
+bcm_gpio_get_bus(device_t dev)
+{
+	struct bcm_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->sc_busdev);
 }
 
 static int
@@ -709,13 +721,12 @@ bcm_gpio_attach(device_t dev)
 		i++;
 	}
 	sc->sc_gpio_npins = i;
-
 	bcm_gpio_sysctl_init(sc);
+	sc->sc_busdev = gpiobus_attach_bus(dev);
+	if (sc->sc_busdev == NULL)
+		goto fail;
 
-	device_add_child(dev, "gpioc", -1);
-	device_add_child(dev, "gpiobus", -1);
-
-	return (bus_generic_attach(dev));
+	return (0);
 
 fail:
 	bus_release_resources(dev, bcm_gpio_res_spec, sc->sc_res);
@@ -746,6 +757,7 @@ static device_method_t bcm_gpio_methods[] = {
 	DEVMETHOD(device_detach,	bcm_gpio_detach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus,		bcm_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,		bcm_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname,	bcm_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getflags,	bcm_gpio_pin_getflags),

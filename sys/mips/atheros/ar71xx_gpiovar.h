@@ -57,6 +57,7 @@
 
 struct ar71xx_gpio_softc {
 	device_t		dev;
+	device_t		busdev;
 	struct mtx		gpio_mtx;
 	struct resource		*gpio_mem_res;
 	int			gpio_mem_rid;
