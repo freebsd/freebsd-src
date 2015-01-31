@@ -1534,4 +1534,4 @@ moduledata_t icl_soft_data = {
 
 DECLARE_MODULE(icl_soft, icl_soft_data, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 MODULE_DEPEND(icl_soft, icl, 1, 1, 1);
-MODULE_VERSION(icl, 1);
+MODULE_VERSION(icl_soft, 1);
