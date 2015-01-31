@@ -673,7 +673,7 @@ static _Unwind_Reason_Code trace(struct _Unwind_Context *context, void *c)
  * If the failure happened by falling off the end of the stack without finding
  * a handler, prints a back trace before aborting.
  */
-#if __GNUC__ > 3 && __GNUC_MINOR__ > 2
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
 extern "C" void *__cxa_begin_catch(void *e) throw();
 #else
 extern "C" void *__cxa_begin_catch(void *e);
@@ -1189,7 +1189,7 @@ BEGIN_PERSONALITY_FUNCTION(__gxx_personality_v0)
  * pointer to the caught exception, which is either the adjusted pointer (for
  * C++ exceptions) of the unadjusted pointer (for foreign exceptions).
  */
-#if __GNUC__ > 3 && __GNUC_MINOR__ > 2
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
 extern "C" void *__cxa_begin_catch(void *e) throw()
 #else
 extern "C" void *__cxa_begin_catch(void *e)
