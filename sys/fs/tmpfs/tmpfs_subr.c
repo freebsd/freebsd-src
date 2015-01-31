@@ -1434,7 +1434,8 @@ tmpfs_check_mtime(struct vnode *vp)
 		if ((obj->flags & OBJ_TMPFS_DIRTY) != 0) {
 			obj->flags &= ~OBJ_TMPFS_DIRTY;
 			node = VP_TO_TMPFS_NODE(vp);
-			node->tn_status |= TMPFS_NODE_MODIFIED;
+			node->tn_status |= TMPFS_NODE_MODIFIED |
+			    TMPFS_NODE_CHANGED;
 		}
 		VM_OBJECT_WUNLOCK(obj);
 	}
