@@ -1534,6 +1534,12 @@ llvm::Function *MicrosoftCXXABI::EmitVirtualMemPtrThunk(
   CGM.SetLLVMFunctionAttributes(MD, FnInfo, ThunkFn);
   CGM.SetLLVMFunctionAttributesForDefinition(MD, ThunkFn);
 
+  // Add the "thunk" attribute so that LLVM knows that the return type is
+  // meaningless. These thunks can be used to call functions with differing
+  // return types, and the caller is required to cast the prototype
+  // appropriately to extract the correct value.
+  ThunkFn->addFnAttr("thunk");
+
   // These thunks can be compared, so they are not unnamed.
   ThunkFn->setUnnamedAddr(false);
 
@@ -1829,10 +1835,18 @@ void MicrosoftCXXABI::EmitThreadLocalInitFuncs(
     llvm::Function *F = CXXThreadLocalInits[I];
 
     // If the GV is already in a comdat group, then we have to join it.
-    if (llvm::Comdat *C = GV->getComdat())
+    llvm::Comdat *C = GV->getComdat();
+
+    // LinkOnce and Weak linkage are lowered down to a single-member comdat
+    // group.
+    // Make an explicit group so we can join it.
+    if (!C && (GV->hasWeakLinkage() || GV->hasLinkOnceLinkage())) {
+      C = CGM.getModule().getOrInsertComdat(GV->getName());
+      GV->setComdat(C);
       AddToXDU(F)->setComdat(C);
-    else
+    } else {
       NonComdatInits.push_back(F);
+    }
   }
 
   if (!NonComdatInits.empty()) {
