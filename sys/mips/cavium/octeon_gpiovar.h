@@ -43,6 +43,7 @@
 
 struct octeon_gpio_softc {
 	device_t		dev;
+	device_t		busdev;
 	struct mtx		gpio_mtx;
 	struct resource		*gpio_irq_res[OCTEON_GPIO_IRQS];
 	int			gpio_irq_rid[OCTEON_GPIO_IRQS];
