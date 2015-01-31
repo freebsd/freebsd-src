@@ -178,7 +178,7 @@ main(int argc, char *argv[])
 	KINFO *kinfo = NULL, *next_KINFO;
 	KINFO_STR *ks;
 	struct varent *vent;
-	struct winsize ws;
+	struct winsize ws = { .ws_row = 0 };
 	const char *nlistf, *memf, *fmtstr, *str;
 	char *cols;
 	int all, ch, elem, flag, _fmt, i, lineno, linelen, left;

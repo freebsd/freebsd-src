@@ -167,7 +167,7 @@ atm_if_print(netdissect_options *ndo,
 	uint32_t llchdr;
 	u_int hdrlen = 0;
 
-	if (caplen < 8) {
+	if (caplen < 1 || length < 1) {
 		ND_PRINT((ndo, "%s", tstr));
 		return (caplen);
 	}
@@ -179,6 +179,15 @@ atm_if_print(netdissect_options *ndo,
             isoclns_print(ndo, p + 1, length - 1, caplen - 1);
             return hdrlen;
         }
+
+	/*
+	 * Must have at least a DSAP, an SSAP, and the first byte of the
+	 * control field.
+	 */
+	if (caplen < 3 || length < 3) {
+		ND_PRINT((ndo, "%s", tstr));
+		return (caplen);
+	}
 
 	/*
 	 * Extract the presumed LLC header into a variable, for quick
@@ -207,6 +216,10 @@ atm_if_print(netdissect_options *ndo,
 		 * packets?  If so, could it be changed to use a
 		 * new DLT_IEEE802_6 value if we added it?
 		 */
+		if (caplen < 20 || length < 20) {
+			ND_PRINT((ndo, "%s", tstr));
+			return (caplen);
+		}
 		if (ndo->ndo_eflag)
 			ND_PRINT((ndo, "%08x%08x %08x%08x ",
 			       EXTRACT_32BITS(p),

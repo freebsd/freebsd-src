@@ -38,7 +38,6 @@
 #define	ICL_WRAPPERS_H
 
 #include <sys/kobj.h>
-#include <sys/condvar.h>
 
 #include <dev/iscsi/icl.h>
 #include <icl_conn_if.h>

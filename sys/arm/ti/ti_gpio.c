@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/ti_prcm.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -307,6 +308,16 @@ ti_gpio_intr_status(struct ti_gpio_softc *sc, unsigned int bank)
 	reg |= ti_gpio_read_4(sc, bank, TI_GPIO_IRQSTATUS_1);
 
 	return (reg);
+}
+
+static device_t
+ti_gpio_get_bus(device_t dev)
+{
+	struct ti_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->sc_busdev);
 }
 
 /**
@@ -815,12 +826,13 @@ ti_gpio_attach(device_t dev)
 			}
 		}
 	}
+	sc->sc_busdev = gpiobus_attach_bus(dev);
+	if (sc->sc_busdev == NULL) {
+		ti_gpio_detach(dev);
+		return (ENXIO);
+	}
 
-	/* Finish of the probe call */
-	device_add_child(dev, "gpioc", -1);
-	device_add_child(dev, "gpiobus", -1);
-
-	return (bus_generic_attach(dev));
+	return (0);
 }
 
 /**
@@ -849,7 +861,7 @@ ti_gpio_detach(device_t dev)
 		if (sc->sc_mem_res[i] != NULL)
 			ti_gpio_intr_clr(sc, i, 0xffffffff);
 	}
-	bus_generic_detach(dev);
+	gpiobus_detach_bus(dev);
 	if (sc->sc_events)
 		free(sc->sc_events, M_DEVBUF);
 	if (sc->sc_irq_polarity)
@@ -1065,6 +1077,7 @@ static device_method_t ti_gpio_methods[] = {
 	DEVMETHOD(device_detach, ti_gpio_detach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus, ti_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max, ti_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname, ti_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getflags, ti_gpio_pin_getflags),
