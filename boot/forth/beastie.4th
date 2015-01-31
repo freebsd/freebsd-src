@@ -89,7 +89,7 @@ variable logoY
 	0 25 at-xy
 ;
 
-: fbsdbw-logo ( x y -- ) \ "FreeBSD" logo in B/W (13 rows x 21 columns)
+: fbsdbw-logo ( x y -- ) \ "FreeBSD" logo in B/W (12 rows x 21 columns)
 
 	\ We used to use the beastie himself as our default... until the
 	\ eventual complaint derided his reign of the advanced boot-menu.
@@ -106,17 +106,16 @@ variable logoY
 	5 + swap 6 + swap
 
 	2dup at-xy ."  ______" 1+
-	2dup at-xy ." |  ____| __ ___  ___ " 1+
-	2dup at-xy ." | |__ | '__/ _ \/ _ \" 1+
-	2dup at-xy ." |  __|| | |  __/  __/" 1+
-	2dup at-xy ." | |   | | |    |    |" 1+
+	2dup at-xy ." |  ____|" 1+
+	2dup at-xy ." | |__  _ __ ___  ___ " 1+
+	2dup at-xy ." |  __|| '__/ _ \/ _ \" 1+
+	2dup at-xy ." | |   | | |  __/  __/" 1+
 	2dup at-xy ." |_|   |_|  \___|\___|" 1+
 	2dup at-xy ."  ____   _____ _____" 1+
 	2dup at-xy ." |  _ \ / ____|  __ \" 1+
 	2dup at-xy ." | |_) | (___ | |  | |" 1+
 	2dup at-xy ." |  _ < \___ \| |  | |" 1+
 	2dup at-xy ." | |_) |____) | |__| |" 1+
-	2dup at-xy ." |     |      |      |" 1+
 	     at-xy ." |____/|_____/|_____/"
 
 	\ Put the cursor back at the bottom

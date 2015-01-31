@@ -3075,10 +3075,10 @@ netmap_init(void)
 #ifdef __FreeBSD__
 	/* support for the 'eternal' flag */
 	netmap_dev = make_dev_credf(MAKEDEV_ETERNAL_KLD,
-		&netmap_cdevsw, 0, NULL, UID_ROOT, GID_WHEEL, 0660,
+		&netmap_cdevsw, 0, NULL, UID_ROOT, GID_WHEEL, 0600,
 			      "netmap");
 #else
-	netmap_dev = make_dev(&netmap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0660,
+	netmap_dev = make_dev(&netmap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
 			      "netmap");
 #endif
 	if (!netmap_dev)

@@ -891,8 +891,8 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 
 	if (!mrr || ts->ts_finaltsi == 0) {
 		if (!IS_RATE_DEFINED(sn, final_rix)) {
-			device_printf(sc->sc_dev, "%s: ts_rate=%d ts_finaltsi=%d\n",
-			    __func__, ts->ts_rate, ts->ts_finaltsi);
+			device_printf(sc->sc_dev, "%s: ts_rate=%d ts_finaltsi=%d, final_rix=%d\n",
+			    __func__, ts->ts_rate, ts->ts_finaltsi, final_rix);
 			badrate(ifp, 0, ts->ts_rate, long_tries, status);
 			return;
 		}

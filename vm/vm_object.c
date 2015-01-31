@@ -2199,8 +2199,13 @@ vm_object_set_writeable_dirty(vm_object_t object)
 {
 
 	VM_OBJECT_ASSERT_WLOCKED(object);
-	if (object->type != OBJT_VNODE)
+	if (object->type != OBJT_VNODE) {
+		if ((object->flags & OBJ_TMPFS_NODE) != 0) {
+			KASSERT(object->type == OBJT_SWAP, ("non-swap tmpfs"));
+			vm_object_set_flag(object, OBJ_TMPFS_DIRTY);
+		}
 		return;
+	}
 	object->generation++;
 	if ((object->flags & OBJ_MIGHTBEDIRTY) != 0)
 		return;

@@ -1141,7 +1141,7 @@ dev/cxgb/sys/uipc_mvec.c	optional cxgb pci \
 dev/cxgb/cxgb_t3fw.c		optional cxgb cxgb_t3fw \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgbe/t4_mp_ring.c		optional cxgbe pci \
-	compile-with "${NORMAL_C} -I$S/dev/cxgbe -fms-extensions"
+	compile-with "${NORMAL_C} -I$S/dev/cxgbe ${GCC_MS_EXTENSIONS}"
 dev/cxgbe/t4_main.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/t4_netmap.c		optional cxgbe pci \
@@ -1520,7 +1520,9 @@ ipw_monitor.fw			optional ipwmonitorfw | ipwfw		\
 	no-obj no-implicit-rule						\
 	clean		"ipw_monitor.fw"
 dev/iscsi/icl.c			optional iscsi | ctl 
+dev/iscsi/icl_conn_if.m		optional iscsi | ctl 
 dev/iscsi/icl_proxy.c		optional iscsi | ctl
+dev/iscsi/icl_soft.c		optional iscsi | ctl 
 dev/iscsi/iscsi.c		optional iscsi scbus
 dev/iscsi_initiator/iscsi.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/iscsi_subr.c	optional iscsi_initiator scbus

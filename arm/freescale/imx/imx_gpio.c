@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -92,6 +93,7 @@ __FBSDID("$FreeBSD$");
 
 struct imx51_gpio_softc {
 	device_t		dev;
+	device_t		sc_busdev;
 	struct mtx		sc_mtx;
 	struct resource		*sc_res[11]; /* 1 x mem, 2 x IRQ, 8 x IRQ */
 	void			*gpio_ih[11]; /* 1 ptr is not a big waste */
@@ -145,6 +147,7 @@ static int imx51_gpio_intr(void *);
 /*
  * GPIO interface
  */
+static device_t imx51_gpio_get_bus(device_t);
 static int imx51_gpio_pin_max(device_t, int *);
 static int imx51_gpio_pin_getcaps(device_t, uint32_t, uint32_t *);
 static int imx51_gpio_pin_getflags(device_t, uint32_t, uint32_t *);
@@ -177,6 +180,16 @@ imx51_gpio_pin_configure(struct imx51_gpio_softc *sc, struct gpio_pin *pin,
 	}
 
 	GPIO_UNLOCK(sc);
+}
+
+static device_t
+imx51_gpio_get_bus(device_t dev)
+{
+	struct imx51_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->sc_busdev);
 }
 
 static int
@@ -389,6 +402,8 @@ imx51_gpio_attach(device_t dev)
 
 	if (bus_alloc_resources(dev, imx_gpio_spec, sc->sc_res)) {
 		device_printf(dev, "could not allocate resources\n");
+		bus_release_resources(dev, imx_gpio_spec, sc->sc_res);
+		mtx_destroy(&sc->sc_mtx);
 		return (ENXIO);
 	}
 
@@ -411,6 +426,7 @@ imx51_gpio_attach(device_t dev)
 		    imx51_gpio_intr, NULL, sc, &sc->gpio_ih[irq]))) {
 			device_printf(dev,
 			    "WARNING: unable to register interrupt handler\n");
+			imx51_gpio_detach(dev);
 			return (ENXIO);
 		}
 	}
@@ -424,30 +440,32 @@ imx51_gpio_attach(device_t dev)
  		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
  		    "imx_gpio%d.%d", device_get_unit(dev), i);
 	}
+	sc->sc_busdev = gpiobus_attach_bus(dev);
+	if (sc->sc_busdev == NULL) {
+		imx51_gpio_detach(dev);
+		return (ENXIO);
+	}
 
-	device_add_child(dev, "gpioc", -1);
-	device_add_child(dev, "gpiobus", -1);
-
-	return (bus_generic_attach(dev));
+	return (0);
 }
 
 static int
 imx51_gpio_detach(device_t dev)
 {
+	int irq;
 	struct imx51_gpio_softc *sc;
 
 	sc = device_get_softc(dev);
 
 	KASSERT(mtx_initialized(&sc->sc_mtx), ("gpio mutex not initialized"));
 
-	bus_generic_detach(dev);
-
-	if (sc->sc_res[3])
-		bus_release_resources(dev, imx_gpio0irq_spec, &sc->sc_res[3]);
-
-	if (sc->sc_res[0])
-		bus_release_resources(dev, imx_gpio_spec, sc->sc_res);
-
+	gpiobus_detach_bus(dev);
+	for (irq = 1; irq <= sc->sc_l_irq; irq ++) {
+		if (sc->gpio_ih[irq])
+			bus_teardown_intr(dev, sc->sc_res[irq], sc->gpio_ih[irq]);
+	}
+	bus_release_resources(dev, imx_gpio0irq_spec, &sc->sc_res[3]);
+	bus_release_resources(dev, imx_gpio_spec, sc->sc_res);
 	mtx_destroy(&sc->sc_mtx);
 
 	return(0);
@@ -459,6 +477,7 @@ static device_method_t imx51_gpio_methods[] = {
 	DEVMETHOD(device_detach,	imx51_gpio_detach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus,		imx51_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,		imx51_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname,	imx51_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getflags,	imx51_gpio_pin_getflags),
