@@ -125,6 +125,7 @@ vf_gpio_attach(device_t dev)
 
 	if (bus_alloc_resources(dev, vf_gpio_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
+		mtx_destroy(&sc->sc_mtx);
 		return (ENXIO);
 	}
 

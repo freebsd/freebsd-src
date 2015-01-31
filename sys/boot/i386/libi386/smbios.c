@@ -323,6 +323,29 @@ smbios_parse_table(const caddr_t addr)
 	return (cp + 2);
 }
 
+static caddr_t
+smbios_find_struct(int type)
+{
+	caddr_t		dmi;
+	int		i;
+
+	if (smbios.addr == NULL)
+		return (NULL);
+
+	for (dmi = smbios.addr, i = 0;
+	     dmi < smbios.addr + smbios.length && i < smbios.count; i++) {
+		if (SMBIOS_GET8(dmi, 0) == type)
+			return dmi;
+		/* Find structure terminator. */
+		dmi = SMBIOS_GETSTR(dmi);
+		while (SMBIOS_GET16(dmi, 0) != 0)
+			dmi++;
+		dmi += 2;
+	}
+
+	return (NULL);
+}
+
 static void
 smbios_probe(void)
 {
@@ -366,29 +389,6 @@ smbios_probe(void)
 		smbios.maker = smbios_getstring(info, 0x04);
 		smbios.product = smbios_getstring(info, 0x05);
 	}
-}
-
-static caddr_t
-smbios_find_struct(int type)
-{
-	caddr_t		dmi;
-	int		i;
-
-	if (smbios.addr == NULL)
-		return (NULL);
-
-	for (dmi = smbios.addr, i = 0;
-	     dmi < smbios.addr + smbios.length && i < smbios.count; i++) {
-		if (SMBIOS_GET8(dmi, 0) == type)
-			return dmi;
-		/* Find structure terminator. */
-		dmi = SMBIOS_GETSTR(dmi);
-		while (SMBIOS_GET16(dmi, 0) != 0)
-			dmi++;
-		dmi += 2;
-	}
-
-	return (NULL);
 }
 
 void

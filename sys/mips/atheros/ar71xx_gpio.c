@@ -341,7 +341,6 @@ static int
 ar71xx_gpio_attach(device_t dev)
 {
 	struct ar71xx_gpio_softc *sc = device_get_softc(dev);
-	int error = 0;
 	int i, j, maxpin;
 	int mask, pinon;
 	uint32_t oe;
@@ -358,14 +357,14 @@ ar71xx_gpio_attach(device_t dev)
 
 	if (sc->gpio_mem_res == NULL) {
 		device_printf(dev, "couldn't map memory\n");
-		error = ENXIO;
 		ar71xx_gpio_detach(dev);
-		return(error);
+		return (ENXIO);
 	}
 
 	if ((sc->gpio_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, 
 	    &sc->gpio_irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 		device_printf(dev, "unable to allocate IRQ resource\n");
+		ar71xx_gpio_detach(dev);
 		return (ENXIO);
 	}
 
@@ -373,6 +372,7 @@ ar71xx_gpio_attach(device_t dev)
 	    ar71xx_gpio_filter, ar71xx_gpio_intr, sc, &sc->gpio_ih))) {
 		device_printf(dev,
 		    "WARNING: unable to register interrupt handler\n");
+		ar71xx_gpio_detach(dev);
 		return (ENXIO);
 	}
 
@@ -447,12 +447,16 @@ ar71xx_gpio_detach(device_t dev)
 	KASSERT(mtx_initialized(&sc->gpio_mtx), ("gpio mutex not initialized"));
 
 	bus_generic_detach(dev);
-
+	if (sc->gpio_ih)
+		bus_teardown_intr(dev, sc->gpio_irq_res, sc->gpio_ih);
+	if (sc->gpio_irq_res)
+		bus_release_resource(dev, SYS_RES_IRQ, sc->gpio_irq_rid,
+		    sc->gpio_irq_res);
 	if (sc->gpio_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->gpio_mem_rid,
 		    sc->gpio_mem_res);
-
-	free(sc->gpio_pins, M_DEVBUF);
+	if (sc->gpio_pins)
+		free(sc->gpio_pins, M_DEVBUF);
 	mtx_destroy(&sc->gpio_mtx);
 
 	return(0);

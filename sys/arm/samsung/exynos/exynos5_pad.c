@@ -509,12 +509,12 @@ pad_attach(device_t dev)
 		sc->nports = 5;
 		break;
 	default:
-		return (-1);
+		goto fail;
 	};
 
 	if (bus_alloc_resources(dev, sc->pad_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
-		return (ENXIO);
+		goto fail;
 	}
 
 	/* Memory interface */
@@ -534,9 +534,9 @@ pad_attach(device_t dev)
 			    NULL, sc, &sc->gpio_ih[i]))) {
 			device_printf(dev,
 			    "ERROR: Unable to register interrupt handler\n");
-			return (ENXIO);
+			goto fail;
 		}
-	};
+	}
 
 	for (i = 0; i < sc->gpio_npins; i++) {
 		sc->gpio_pins[i].gp_pin = i;
@@ -563,6 +563,17 @@ pad_attach(device_t dev)
 	device_add_child(dev, "gpiobus", -1);
 
 	return (bus_generic_attach(dev));
+
+fail:
+	for (i = 0; i < sc->nports; i++) {
+		if (sc->gpio_ih[i])
+			bus_teardown_intr(dev, sc->res[sc->nports + i],
+			    sc->gpio_ih[i]);
+	}
+	bus_release_resources(dev, sc->pad_spec, sc->res);
+	mtx_destroy(&sc->sc_mtx);
+
+	return (ENXIO);
 }
 
 static int
