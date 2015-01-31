@@ -110,12 +110,32 @@ fdt_linux_fixups(void *fdtp)
 	 */
 
 	offset = fdt_path_offset(fdtp, "/memory@0");
-	if (offset > 0) {
+	if (offset > 0)
 		fdt_delprop(fdtp, offset, "available");
-		/*
-		 * XXX: add real available properties to reflect RTAS, etc.
-		 * reservations?
-		 */
+
+	/*
+	 * Add reservations for OPAL and RTAS state if present
+	 */
+
+	offset = fdt_path_offset(fdtp, "/ibm,opal");
+	if (offset > 0) {
+		uint64_t *base, *size;
+		base = fdt_getprop(fdtp, offset, "opal-base-address",
+		    &len);
+		size = fdt_getprop(fdtp, offset, "opal-runtime-size",
+		    &len);
+		if (base != NULL && size != NULL)
+			fdt_add_mem_rsv(fdtp, fdt64_to_cpu(*base),
+			    fdt64_to_cpu(*size));
+	}
+	offset = fdt_path_offset(fdtp, "/rtas");
+	if (offset > 0) {
+		uint32_t *base, *size;
+		base = fdt_getprop(fdtp, offset, "linux,rtas-base", &len);
+		size = fdt_getprop(fdtp, offset, "rtas-size", &len);
+		if (base != NULL && size != NULL)
+			fdt_add_mem_rsv(fdtp, fdt32_to_cpu(*base),
+			    fdt32_to_cpu(*size));
 	}
 
 	/*
