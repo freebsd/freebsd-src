@@ -453,7 +453,6 @@ tmpfs_write(struct vop_write_args *v)
 	struct tmpfs_node *node;
 	off_t oldsize;
 	int error, ioflag;
-	boolean_t extended;
 
 	vp = v->a_vp;
 	uio = v->a_uio;
@@ -473,8 +472,7 @@ tmpfs_write(struct vop_write_args *v)
 		return (EFBIG);
 	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
 		return (EFBIG);
-	extended = uio->uio_offset + uio->uio_resid > node->tn_size;
-	if (extended) {
+	if (uio->uio_offset + uio->uio_resid > node->tn_size) {
 		error = tmpfs_reg_resize(vp, uio->uio_offset + uio->uio_resid,
 		    FALSE);
 		if (error != 0)
