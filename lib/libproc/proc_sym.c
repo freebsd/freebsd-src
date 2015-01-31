@@ -153,9 +153,12 @@ proc_iter_objs(struct proc_handle *p, proc_map_f *func, void *cd)
 	prmap_t map;
 	char path[MAXPATHLEN];
 	char last[MAXPATHLEN];
+	int error;
 
 	if (p->nobjs == 0)
 		return (-1);
+
+	error = 0;
 	memset(last, 0, sizeof(last));
 	for (i = 0; i < p->nobjs; i++) {
 		rdl = &p->rdobjs[i];
@@ -169,11 +172,11 @@ proc_iter_objs(struct proc_handle *p, proc_map_f *func, void *cd)
 		 */
 		if (strcmp(path, last) == 0)
 			continue;
-		(*func)(cd, &map, path);
+		if ((error = (*func)(cd, &map, path)) != 0)
+			break;
 		strlcpy(last, path, sizeof(last));
 	}
-
-	return (0);
+	return (error);
 }
 
 prmap_t *
@@ -599,7 +602,8 @@ proc_iter_symbyaddr(struct proc_handle *p, const char *object, int which,
 		s = elf_strptr(e, stridx, sym.st_name);
 		if (ehdr.e_type != ET_EXEC)
 			sym.st_value += map->pr_vaddr;
-		(*func)(cd, &sym, s);
+		if ((error = (*func)(cd, &sym, s)) != 0)
+			goto err2;
 	}
 	error = 0;
 err2:
