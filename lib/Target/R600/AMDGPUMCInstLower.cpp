@@ -22,6 +22,7 @@
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineInstr.h"
 #include "llvm/IR/Constants.h"
+#include "llvm/IR/Function.h"
 #include "llvm/IR/GlobalVariable.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
@@ -39,29 +40,17 @@ AMDGPUMCInstLower::AMDGPUMCInstLower(MCContext &ctx, const AMDGPUSubtarget &st):
   Ctx(ctx), ST(st)
 { }
 
-enum AMDGPUMCInstLower::SISubtarget
-AMDGPUMCInstLower::AMDGPUSubtargetToSISubtarget(unsigned Gen) const {
-  switch (Gen) {
-  default:
-    return AMDGPUMCInstLower::SI;
-  case AMDGPUSubtarget::VOLCANIC_ISLANDS:
-    return AMDGPUMCInstLower::VI;
-  }
-}
-
-unsigned AMDGPUMCInstLower::getMCOpcode(unsigned MIOpcode) const {
-
-  int MCOpcode = AMDGPU::getMCOpcode(MIOpcode,
-                              AMDGPUSubtargetToSISubtarget(ST.getGeneration()));
-  if (MCOpcode == -1)
-    MCOpcode = MIOpcode;
-
-  return MCOpcode;
-}
-
 void AMDGPUMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) const {
 
-  OutMI.setOpcode(getMCOpcode(MI->getOpcode()));
+  int MCOpcode = ST.getInstrInfo()->pseudoToMCOpcode(MI->getOpcode());
+
+  if (MCOpcode == -1) {
+    LLVMContext &C = MI->getParent()->getParent()->getFunction()->getContext();
+    C.emitError("AMDGPUMCInstLower::lower - Pseudo instruction doesn't have "
+                "a target-specific version: " + Twine(MI->getOpcode()));
+  }
+
+  OutMI.setOpcode(MCOpcode);
 
   for (const MachineOperand &MO : MI->explicit_operands()) {
     MCOperand MCOp;
@@ -87,6 +76,12 @@ void AMDGPUMCInstLower::lower(const MachineInstr *MI, MCInst &OutMI) const {
     case MachineOperand::MO_TargetIndex: {
       assert(MO.getIndex() == AMDGPU::TI_CONSTDATA_START);
       MCSymbol *Sym = Ctx.GetOrCreateSymbol(StringRef(END_OF_TEXT_LABEL_NAME));
+      const MCSymbolRefExpr *Expr = MCSymbolRefExpr::Create(Sym, Ctx);
+      MCOp = MCOperand::CreateExpr(Expr);
+      break;
+    }
+    case MachineOperand::MO_ExternalSymbol: {
+      MCSymbol *Sym = Ctx.GetOrCreateSymbol(StringRef(MO.getSymbolName()));
       const MCSymbolRefExpr *Expr = MCSymbolRefExpr::Create(Sym, Ctx);
       MCOp = MCOperand::CreateExpr(Expr);
       break;
