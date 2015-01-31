@@ -193,8 +193,9 @@ __elfN(loadfile_raw)(char *filename, u_int64_t dest,
 	/* 
 	 * Calculate destination address based on kernel entrypoint 	
 	 */
-	dest = (ehdr->e_entry & ~PAGE_MASK);
-	if (dest == 0) {
+        if (ehdr->e_type == ET_EXEC)
+	    dest = (ehdr->e_entry & ~PAGE_MASK);
+	if ((ehdr->e_entry & ~PAGE_MASK) == 0) {
 	    printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadfile: not a kernel (maybe static binary?)\n");
 	    err = EPERM;
 	    goto oerr;
@@ -315,7 +316,7 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
     ret = 0;
     firstaddr = lastaddr = 0;
     ehdr = ef->ehdr;
-    if (ef->kernel) {
+    if (ehdr->e_type == ET_EXEC) {
 #if defined(__i386__) || defined(__amd64__)
 #if __ELF_WORD_SIZE == 64
 	off = - (off & 0xffffffffff000000ull);/* x86_64 relocates after locore */
@@ -369,9 +370,11 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 #else
 	off = 0;		/* other archs use direct mapped kernels */
 #endif
-	__elfN(relocation_offset) = off;
     }
     ef->off = off;
+
+    if (ef->kernel)
+	__elfN(relocation_offset) = off;
 
     if ((ehdr->e_phoff + ehdr->e_phnum * sizeof(*phdr)) > ef->firstlen) {
 	printf("elf" __XSTRING(__ELF_WORD_SIZE) "_loadimage: program header not within first page\n");
@@ -729,7 +732,7 @@ __elfN(load_modmetadata)(struct preloaded_file *fp, u_int64_t dest)
 	if (err != 0)
 		goto out;
 
-	if (ef.ehdr->e_type == ET_EXEC) {
+	if (ef.kernel == 1 || ef.ehdr->e_type == ET_EXEC) {
 		ef.kernel = 1;
 	} else if (ef.ehdr->e_type != ET_DYN) {
 		err = EFTYPE;
