@@ -700,7 +700,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int clear_ret)
  * touch the cs selector.
  */
 int
-set_mcontext(struct thread *td, const mcontext_t *mcp)
+set_mcontext(struct thread *td, mcontext_t *mcp)
 {
 	struct trapframe *tf = td->td_frame;
 	const __greg_t *gr = mcp->__gregs;
