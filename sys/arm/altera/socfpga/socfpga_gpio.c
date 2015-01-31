@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/gpio.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -107,6 +108,7 @@ enum port_no {
 /*
  * GPIO interface
  */
+static device_t socfpga_gpio_get_bus(device_t);
 static int socfpga_gpio_pin_max(device_t, int *);
 static int socfpga_gpio_pin_getcaps(device_t, uint32_t, uint32_t *);
 static int socfpga_gpio_pin_getname(device_t, uint32_t, char *);
@@ -122,6 +124,7 @@ struct socfpga_gpio_softc {
 	bus_space_handle_t	bsh;
 
 	device_t		dev;
+	device_t		busdev;
 	struct mtx		sc_mtx;
 	int			gpio_npins;
 	struct gpio_pin		gpio_pins[NR_GPIO_MAX];
@@ -196,11 +199,24 @@ socfpga_gpio_attach(device_t dev)
 		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
 		    "socfpga_gpio%d.%d", device_get_unit(dev), i);
 	}
+	sc->busdev = gpiobus_attach_bus(dev);
+	if (sc->busdev == NULL) {
+		bus_release_resources(dev, socfpga_gpio_spec, sc->res);
+		mtx_destroy(&sc->sc_mtx);
+		return (ENXIO);
+	}
 
-	device_add_child(dev, "gpioc", -1);
-	device_add_child(dev, "gpiobus", -1);
+	return (0);
+}
 
-	return (bus_generic_attach(dev));
+static device_t
+socfpga_gpio_get_bus(device_t dev)
+{
+	struct socfpga_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->busdev);
 }
 
 static int
@@ -415,6 +431,7 @@ static device_method_t socfpga_gpio_methods[] = {
 	DEVMETHOD(device_attach,	socfpga_gpio_attach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus,		socfpga_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,		socfpga_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname,	socfpga_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getcaps,	socfpga_gpio_pin_getcaps),

@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -73,6 +74,7 @@ __FBSDID("$FreeBSD$");
 
 struct rk30_gpio_softc {
 	device_t		sc_dev;
+	device_t		sc_busdev;
 	struct mtx		sc_mtx;
 	struct resource *	sc_mem_res;
 	struct resource *	sc_irq_res;
@@ -208,6 +210,16 @@ rk30_gpio_pin_configure(struct rk30_gpio_softc *sc, struct gpio_pin *pin,
 	}
 	rk30_gpio_set_pud(sc, pin->gp_pin, pin->gp_flags);
 	RK30_GPIO_UNLOCK(sc);
+}
+
+static device_t
+rk30_gpio_get_bus(device_t dev)
+{
+	struct rk30_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->sc_busdev);
 }
 
 static int
@@ -449,15 +461,13 @@ rk30_gpio_attach(device_t dev)
 		sc->sc_gpio_pins[i].gp_flags = rk30_gpio_get_function(sc, i);
 	}
 	sc->sc_gpio_npins = i;
-
-	device_add_child(dev, "gpioc", -1);
-	device_add_child(dev, "gpiobus", -1);
-
 	rk30_gpio_sc = sc;
-
 	rk30_gpio_init();
-	
-	return (bus_generic_attach(dev));
+	sc->sc_busdev = gpiobus_attach_bus(dev);
+	if (sc->sc_busdev == NULL)
+		goto fail;
+
+	return (0);
 
 fail:
 	if (sc->sc_irq_res)
@@ -483,6 +493,7 @@ static device_method_t rk30_gpio_methods[] = {
 	DEVMETHOD(device_detach,	rk30_gpio_detach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus,		rk30_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max,		rk30_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname,	rk30_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getflags,	rk30_gpio_pin_getflags),
