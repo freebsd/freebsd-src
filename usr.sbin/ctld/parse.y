@@ -99,6 +99,8 @@ statement:
 	|
 	portal_group
 	|
+	lun
+	|
 	target
 	;
 
@@ -407,6 +409,22 @@ portal_group_redirect:	REDIRECT STR
 	}
 	;
 
+lun:	LUN lun_name
+    OPENING_BRACKET lun_entries CLOSING_BRACKET
+	{
+		lun = NULL;
+	}
+	;
+
+lun_name:	STR
+	{
+		lun = lun_new(conf, $1);
+		free($1);
+		if (lun == NULL)
+			return (1);
+	}
+	;
+
 target:	TARGET target_name
     OPENING_BRACKET target_entries CLOSING_BRACKET
 	{
@@ -450,6 +468,8 @@ target_entry:
 	target_redirect
 	|
 	target_lun
+	|
+	target_lun_ref
 	;
 
 target_alias:	ALIAS STR
@@ -672,6 +692,7 @@ target_lun:	LUN lun_number
 lun_number:	STR
 	{
 		uint64_t tmp;
+		char *name;
 
 		if (expand_number($1, &tmp) != 0) {
 			yyerror("invalid numeric value");
@@ -679,9 +700,34 @@ lun_number:	STR
 			return (1);
 		}
 
-		lun = lun_new(target, tmp);
+		asprintf(&name, "%s,lun,%ju", target->t_name, tmp);
+		lun = lun_new(conf, name);
 		if (lun == NULL)
 			return (1);
+
+		lun_set_scsiname(lun, name);
+		target->t_luns[tmp] = lun;
+	}
+	;
+
+target_lun_ref:	LUN STR STR
+	{
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			free($3);
+			return (1);
+		}
+		free($2);
+
+		lun = lun_find(conf, $3);
+		free($3);
+		if (lun == NULL)
+			return (1);
+
+		target->t_luns[tmp] = lun;
 	}
 	;
 
@@ -711,9 +757,9 @@ lun_entry:
 lun_backend:	BACKEND STR
 	{
 		if (lun->l_backend != NULL) {
-			log_warnx("backend for lun %d, target \"%s\" "
+			log_warnx("backend for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
@@ -733,9 +779,9 @@ lun_blocksize:	BLOCKSIZE STR
 		}
 
 		if (lun->l_blocksize != 0) {
-			log_warnx("blocksize for lun %d, target \"%s\" "
+			log_warnx("blocksize for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			return (1);
 		}
 		lun_set_blocksize(lun, tmp);
@@ -745,9 +791,9 @@ lun_blocksize:	BLOCKSIZE STR
 lun_device_id:	DEVICE_ID STR
 	{
 		if (lun->l_device_id != NULL) {
-			log_warnx("device_id for lun %d, target \"%s\" "
+			log_warnx("device_id for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
@@ -771,9 +817,9 @@ lun_option:	OPTION STR STR
 lun_path:	PATH STR
 	{
 		if (lun->l_path != NULL) {
-			log_warnx("path for lun %d, target \"%s\" "
+			log_warnx("path for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
@@ -785,9 +831,9 @@ lun_path:	PATH STR
 lun_serial:	SERIAL STR
 	{
 		if (lun->l_serial != NULL) {
-			log_warnx("serial for lun %d, target \"%s\" "
+			log_warnx("serial for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
@@ -807,9 +853,9 @@ lun_size:	SIZE STR
 		}
 
 		if (lun->l_size != 0) {
-			log_warnx("size for lun %d, target \"%s\" "
+			log_warnx("size for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			return (1);
 		}
 		lun_set_size(lun, tmp);
