@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2014
+.Dd February 1, 2015
 .Dt CTL.CONF 5
 .Os
 .Sh NAME
@@ -60,9 +60,14 @@ file is:
 .Dl ...
 }
 
+.No lun Ar name No {
+.Dl path Ar path
+}
+
 .No target Ar name {
 .Dl auth-group Ar name
 .Dl portal-group Ar name
+.Dl lun Ar number Ar name
 .Dl lun Ar number No {
 .Dl 	path Ar path
 .Dl }
@@ -95,6 +100,10 @@ Create a
 configuration context,
 defining a new portal-group,
 which can then be assigned to any number of targets.
+.It Ic lun Ar name
+Create a
+.Sy lun
+configuration context, defining a LUN to be exported by some target(s).
 .It Ic target Ar name
 Create a
 .Sy target
@@ -312,6 +321,10 @@ IPv4 or IPv6 address to redirect initiators to.
 When configured, all initiators attempting to connect to this target
 will get redirected using "Target moved temporarily" login response.
 Redirection happens after successful authentication.
+.It Ic lun Ar number Ar name
+Export previously defined
+.Sy lun
+by the parent target.
 .It Ic lun Ar number
 Create a
 .Sy lun
@@ -387,21 +400,21 @@ target iqn.2012-06.com.example:target0 {
 	}
 }
 
+lun example_1 {
+	path /dev/zvol/tank/example_1
+}
+
 target iqn.2012-06.com.example:target1 {
 	chap chapuser chapsecret
-	lun 0 {
-		path /dev/zvol/tank/example_1
-	}
+	lun 0 example_1
 }
 
 target iqn.2012-06.com.example:target2 {
 	auth-group ag0
 	portal-group pg0
-	lun 0 {
-		path /dev/zvol/tank/example2_0
-	}
+	lun 0 example_1
 	lun 1 {
-		path /dev/zvol/tank/example2_1
+		path /dev/zvol/tank/example_2
 		option foo bar
 	}
 }

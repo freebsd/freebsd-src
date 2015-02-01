@@ -492,6 +492,13 @@ extern const struct ctl_cmd_entry ctl_cmd_table[256];
 uint32_t ctl_get_initindex(struct ctl_nexus *nexus);
 uint32_t ctl_get_resindex(struct ctl_nexus *nexus);
 uint32_t ctl_port_idx(int port_num);
+int ctl_lun_map_init(struct ctl_port *port);
+int ctl_lun_map_deinit(struct ctl_port *port);
+int ctl_lun_map_set(struct ctl_port *port, uint32_t plun, uint32_t glun);
+int ctl_lun_map_unset(struct ctl_port *port, uint32_t plun);
+int ctl_lun_map_unsetg(struct ctl_port *port, uint32_t glun);
+uint32_t ctl_lun_map_from_port(struct ctl_port *port, uint32_t plun);
+uint32_t ctl_lun_map_to_port(struct ctl_port *port, uint32_t glun);
 int ctl_pool_create(struct ctl_softc *ctl_softc, const char *pool_name,
 		    uint32_t total_ctl_io, void **npool);
 void ctl_pool_free(struct ctl_io_pool *pool);
