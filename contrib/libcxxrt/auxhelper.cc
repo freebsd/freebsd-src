@@ -75,8 +75,3 @@ extern "C" void __cxa_deleted_virtual()
 {
     abort();
 }
-
-extern "C" void __cxa_throw_bad_array_new_length()
-{
-	throw std::bad_array_new_length();
-}
