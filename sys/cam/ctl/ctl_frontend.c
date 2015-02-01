@@ -234,6 +234,7 @@ ctl_port_deregister(struct ctl_port *port)
 	ctl_pool_free(pool);
 	ctl_free_opts(&port->options);
 
+	ctl_lun_map_deinit(port);
 	free(port->port_devid, M_CTL);
 	port->port_devid = NULL;
 	free(port->target_devid, M_CTL);
