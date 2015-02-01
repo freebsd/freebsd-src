@@ -55,12 +55,17 @@ static const struct {
 	int		quirks;
 } ahci_ids[] = {
 	{0x43801002, 0x00, "AMD SB600",
-		AHCI_Q_NOMSI | AHCI_Q_ATI_PMP_BUG | AHCI_Q_MAXIO_64K},
-	{0x43901002, 0x00, "AMD SB7x0/SB8x0/SB9x0",	AHCI_Q_ATI_PMP_BUG},
-	{0x43911002, 0x00, "AMD SB7x0/SB8x0/SB9x0",	AHCI_Q_ATI_PMP_BUG},
-	{0x43921002, 0x00, "AMD SB7x0/SB8x0/SB9x0",	AHCI_Q_ATI_PMP_BUG},
-	{0x43931002, 0x00, "AMD SB7x0/SB8x0/SB9x0",	AHCI_Q_ATI_PMP_BUG},
-	{0x43941002, 0x00, "AMD SB7x0/SB8x0/SB9x0",	AHCI_Q_ATI_PMP_BUG},
+	    AHCI_Q_NOMSI | AHCI_Q_ATI_PMP_BUG | AHCI_Q_MAXIO_64K},
+	{0x43901002, 0x00, "AMD SB7x0/SB8x0/SB9x0",
+	    AHCI_Q_ATI_PMP_BUG | AHCI_Q_1MSI},
+	{0x43911002, 0x00, "AMD SB7x0/SB8x0/SB9x0",
+	    AHCI_Q_ATI_PMP_BUG | AHCI_Q_1MSI},
+	{0x43921002, 0x00, "AMD SB7x0/SB8x0/SB9x0",
+	    AHCI_Q_ATI_PMP_BUG | AHCI_Q_1MSI},
+	{0x43931002, 0x00, "AMD SB7x0/SB8x0/SB9x0",
+	    AHCI_Q_ATI_PMP_BUG | AHCI_Q_1MSI},
+	{0x43941002, 0x00, "AMD SB7x0/SB8x0/SB9x0",
+	    AHCI_Q_ATI_PMP_BUG | AHCI_Q_1MSI},
 	/* Not sure SB8x0/SB9x0 needs this quirk. Be conservative though */
 	{0x43951002, 0x00, "AMD SB8x0/SB9x0",	AHCI_Q_ATI_PMP_BUG},
 	{0x78001022, 0x00, "AMD Hudson-2",	0},
@@ -137,7 +142,7 @@ static const struct {
 	{0x1f378086, 0x00, "Intel Avoton (RAID)",	0},
 	{0x1f3e8086, 0x00, "Intel Avoton (RAID)",	0},
 	{0x1f3f8086, 0x00, "Intel Avoton (RAID)",	0},
-	{0x23a38086, 0x00, "Intel Coleto Creek",        0},
+	{0x23a38086, 0x00, "Intel Coleto Creek",	0},
 	{0x28238086, 0x00, "Intel Wellsburg (RAID)",	0},
 	{0x28278086, 0x00, "Intel Wellsburg (RAID)",	0},
 	{0x8c028086, 0x00, "Intel Lynx Point",	0},
@@ -410,10 +415,13 @@ ahci_pci_attach(device_t dev)
 	/* Setup interrupts. */
 
 	/* Setup MSI register parameters */
-	ctlr->msi = 2;
 	/* Process hints. */
 	if (ctlr->quirks & AHCI_Q_NOMSI)
 		ctlr->msi = 0;
+	else if (ctlr->quirks & AHCI_Q_1MSI)
+		ctlr->msi = 1;
+	else
+		ctlr->msi = 2;
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "msi", &ctlr->msi);
 	ctlr->numirqs = 1;
