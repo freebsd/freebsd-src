@@ -1866,6 +1866,15 @@ restart:
 				    XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_DATA_STAGE);
 				if (temp->direction == UE_DIR_IN)
 					dword |= XHCI_TRB_3_DIR_IN | XHCI_TRB_3_ISP_BIT;
+				/*
+				 * Section 3.2.9 in the XHCI
+				 * specification about control
+				 * transfers says that we should use a
+				 * normal-TRB if there are more TRBs
+				 * extending the data-stage
+				 * TRB. Update the "trb_type".
+				 */
+				temp->trb_type = XHCI_TRB_TYPE_NORMAL;
 				break;
 			case XHCI_TRB_TYPE_STATUS_STAGE:
 				dword = XHCI_TRB_3_CHAIN_BIT | XHCI_TRB_3_CYCLE_BIT |
@@ -2106,7 +2115,8 @@ xhci_setup_generic_chain(struct usb_xfer *xfer)
 		mult = 1;
 		temp.isoc_delta = 0;
 		temp.isoc_frame = 0;
-		temp.trb_type = XHCI_TRB_TYPE_DATA_STAGE;
+		temp.trb_type = xfer->flags_int.control_did_data ?
+		    XHCI_TRB_TYPE_NORMAL : XHCI_TRB_TYPE_DATA_STAGE;
 	} else {
 		x = 0;
 		mult = 1;
