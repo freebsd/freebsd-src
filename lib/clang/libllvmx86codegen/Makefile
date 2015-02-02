@@ -6,6 +6,7 @@ LIB=	llvmx86codegen
 
 SRCDIR=	lib/Target/X86
 SRCS=	X86AsmPrinter.cpp \
+	X86CallFrameOptimization.cpp \
 	X86FastISel.cpp \
 	X86FixupLEAs.cpp \
 	X86FloatingPoint.cpp \
