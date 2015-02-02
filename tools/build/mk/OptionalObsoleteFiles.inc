@@ -5357,10 +5357,10 @@ OLD_FILES+=usr/tests/usr.bin/bmake/variables/t0/expected.stdout.1
 OLD_FILES+=usr/tests/usr.bin/bmake/variables/t0/legacy_test
 .endif
 
-#.if ${MK_MAN} == no
-# This should add a dependency to a special target which removes all man pages.
-# Listing all of them here is overkill.
-#.endif
+.if ${MK_MAN} == no
+MAN_FILES!=find ${DESTDIR}/usr/share/man ${DESTDIR}/usr/share/openssl/man -type f | sed -e 's,^${DESTDIR}/,,'; echo
+OLD_FILES+=${MAN_FILES}
+.endif
 
 .if ${MK_NDIS} == no
 OLD_FILES+=usr/sbin/ndiscvt
