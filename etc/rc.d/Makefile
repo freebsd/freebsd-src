@@ -27,7 +27,6 @@ FILES=	DAEMON \
 	${_bluetooth} \
 	bootparams \
 	bridge \
-	bsnmpd \
 	${_bthidd} \
 	ccd \
 	cleanvar \
@@ -174,6 +173,10 @@ _bluetooth=	bluetooth
 _bthidd=	bthidd
 _hcsecd=	hcsecd
 _ubthidhci=	ubthidhci
+.endif
+
+.if ${MK_BSNMP} != "no"
+FILES+=		bsnmpd
 .endif
 
 .if ${MK_IPX} != "no"
