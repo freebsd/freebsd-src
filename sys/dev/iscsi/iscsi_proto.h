@@ -176,7 +176,8 @@ struct iscsi_bhs_task_management_response {
 	uint8_t		bhstmr_reserved;
 	uint8_t		bhstmr_total_ahs_len;
 	uint8_t		bhstmr_data_segment_len[3];
-	uint64_t	bhstmr_reserved2;
+	uint8_t		bhstmr_additional_reponse_information[3];
+	uint8_t		bhstmr_reserved2[5];
 	uint32_t	bhstmr_initiator_task_tag;
 	uint32_t	bhstmr_reserved3;
 	uint32_t	bhstmr_statsn;
