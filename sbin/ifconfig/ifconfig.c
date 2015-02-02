@@ -235,7 +235,7 @@ cmpifaddrs(struct ifaddrs *a, struct ifaddrs *b, struct ifa_queue *q)
 
 		if (af1 < ORDERS_SIZE(e1->af_orders) &&
 		    af2 < ORDERS_SIZE(e1->af_orders))
-			return (e1->af_orders[af2] - e1->af_orders[af1]);
+			return (e1->af_orders[af1] - e1->af_orders[af2]);
 	}
 
 	return (0);
