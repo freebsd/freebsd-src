@@ -181,6 +181,34 @@ OLD_FILES+=usr/share/man/man8/bhyveload.8.gz
 OLD_DIRS+=usr/share/examples/bhyve
 .endif
 
+.if ${MK_BINUTILS} == no
+OLD_FILES+=usr/bin/as
+OLD_FILES+=usr/bin/ld
+OLD_FILES+=usr/bin/objcopy
+OLD_FILES+=usr/bin/objdump
+OLD_FILES+=usr/bin/readelf
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.x
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xbn
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xc
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xd
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xdc
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xdw
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xn
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xr
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xs
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xsc
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xsw
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xu
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xw
+OLD_FILES+=usr/share/doc/binutils/as.txt
+OLD_FILES+=usr/share/doc/binutils/ld.txt
+OLD_FILES+=usr/share/man/man1/as.1.gz
+OLD_FILES+=usr/share/man/man1/ld.1.gz
+OLD_FILES+=usr/share/man/man1/objcopy.1.gz
+OLD_FILES+=usr/share/man/man1/objdump.1.gz
+OLD_FILES+=usr/share/man/man1/readelf.1.gz
+.endif
+
 .if ${MK_BLUETOOTH} == no
 OLD_FILES+=etc/bluetooth/hcsecd.conf
 OLD_FILES+=etc/bluetooth/hosts
