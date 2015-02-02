@@ -1552,6 +1552,14 @@ OLD_FILES+=usr/share/dict/words
 OLD_DIRS+=usr/share/dict
 .endif
 
+.if ${MK_DMAGENT} == no
+OLD_FILES+=etc/dma/dma.conf
+OLD_FILES+=usr/libexec/dma
+OLD_FILES+=usr/libexec/dma-mbox-create
+OLD_FILES+=usr/share/man/man8/dma.8.gz
+OLD_FILES+=usr/share/examples/dma/mailer.conf
+.endif
+
 .if ${MK_EE} == no
 OLD_FILES+=usr/bin/edit
 OLD_FILES+=usr/bin/ee
@@ -5155,13 +5163,6 @@ OLD_FILES+=usr/bin/svnrdump
 OLD_FILES+=usr/bin/svnserve
 OLD_FILES+=usr/bin/svnsync
 OLD_FILES+=usr/bin/svnversion
-.endif
-
-.if ${MK_DMAGENT} == no
-OLD_FILES+=usr/libexec/dma
-OLD_FILES+=usr/libexec/dma-mbox-create
-OLD_FILES+=usr/share/man/man8/dma.8.gz
-OLD_FILES+=usr/share/examples/dma/mailer.conf
 .endif
 
 .if ${MK_HYPERV} == no
