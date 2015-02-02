@@ -239,7 +239,7 @@
 #define	_Static_assert(e, s)	static_assert(e, s)
 /* FIXME: change this to thread_local when clang in base supports it */
 #define	_Thread_local		__thread
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(lint)
 /* Do nothing.  They are language keywords. */
 #else
 /* Not supported.  Implement them using our versions. */
