@@ -151,12 +151,14 @@ usage(void)
 	exit(1);
 }
 
+#define ORDERS_SIZE(x) sizeof(x) / sizeof(x[0])
+
 static int
 calcorders(struct ifaddrs *ifa, struct ifa_queue *q)
 {
-	unsigned int ord, af, ifa_ord;
 	struct ifaddrs *prev;
 	struct ifa_order_elt *cur;
+	unsigned int ord, af, ifa_ord;
 
 	prev = NULL;
 	cur = NULL;
@@ -164,7 +166,8 @@ calcorders(struct ifaddrs *ifa, struct ifa_queue *q)
 	ifa_ord = 0;
 
 	while (ifa != NULL) {
-		if (prev == NULL || strcmp(ifa->ifa_name, prev->ifa_name) != 0) {
+		if (prev == NULL ||
+		    strcmp(ifa->ifa_name, prev->ifa_name) != 0) {
 			cur = calloc(1, sizeof(*cur));
 
 			if (cur == NULL)
@@ -179,12 +182,12 @@ calcorders(struct ifaddrs *ifa, struct ifa_queue *q)
 		if (ifa->ifa_addr) {
 			af = ifa->ifa_addr->sa_family;
 
-			if (af < sizeof(cur->af_orders) / sizeof(cur->af_orders[0]) && 
-			  cur->af_orders[af] == 0)
+			if (af < ORDERS_SIZE(cur->af_orders) &&
+			    cur->af_orders[af] == 0)
 				cur->af_orders[af] = ++ord;
 		}
 		prev = ifa;
-		ifa = ifa->ifa_next;	
+		ifa = ifa->ifa_next;
 	}
 
 	return (0);
@@ -193,15 +196,14 @@ calcorders(struct ifaddrs *ifa, struct ifa_queue *q)
 static int
 cmpifaddrs(struct ifaddrs *a, struct ifaddrs *b, struct ifa_queue *q)
 {
-	int ret;
-	unsigned int af1, af2;
 	struct ifa_order_elt *cur, *e1, *e2;
+	unsigned int af1, af2;
+	int ret;
 
 	e1 = e2 = NULL;
 
 	ret = strcmp(a->ifa_name, b->ifa_name);
 	if (ret != 0) {
-		/* We need to find elements corresponding to these different names */
 		TAILQ_FOREACH(cur, q, link) {
 			if (e1 && e2)
 				break;
@@ -231,20 +233,21 @@ cmpifaddrs(struct ifaddrs *a, struct ifaddrs *b, struct ifa_queue *q)
 		af1 = a->ifa_addr->sa_family;
 		af2 = b->ifa_addr->sa_family;
 
-		if (af1 < sizeof(e1->af_orders) / sizeof(e1->af_orders[0]) && 
-		  af2 < sizeof(e1->af_orders) / sizeof(e1->af_orders[0]))
+		if (af1 < ORDERS_SIZE(e1->af_orders) &&
+		    af2 < ORDERS_SIZE(e1->af_orders))
 			return (e1->af_orders[af2] - e1->af_orders[af1]);
 	}
 
 	return (0);
 }
 
+#undef ORDERS_SIZE
+
 static struct ifaddrs *
 sortifaddrs(struct ifaddrs *list,
-	int (*compare)(struct ifaddrs *, struct ifaddrs *, struct ifa_queue *),
-	struct ifa_queue *q)
+    int (*compare)(struct ifaddrs *, struct ifaddrs *, struct ifa_queue *),
+    struct ifa_queue *q)
 {
-
 	struct ifaddrs *right, *temp, *last, *result, *next, *tail;
 	
 	right = list;
@@ -499,7 +502,8 @@ main(int argc, char *argv[])
 					    sdl->sdl_alen != ETHER_ADDR_LEN)
 						continue;
 				} else {
-					if (ifa->ifa_addr->sa_family != afp->af_af)
+					if (ifa->ifa_addr->sa_family 
+					    != afp->af_af)
 						continue;
 				}
 			}
@@ -835,7 +839,7 @@ settunnel(const char *src, const char *dst, int s, const struct afswtch *afp)
 		errx(1, "error in parsing address string: %s",
 		    gai_strerror(ecode));
 
-	if ((ecode = getaddrinfo(dst, NULL, NULL, &dstres)) != 0)  
+	if ((ecode = getaddrinfo(dst, NULL, NULL, &dstres)) != 0)
 		errx(1, "error in parsing address string: %s",
 		    gai_strerror(ecode));
 
