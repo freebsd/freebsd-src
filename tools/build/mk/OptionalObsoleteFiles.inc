@@ -5638,6 +5638,15 @@ OLD_FILES+=usr/share/nls/uk_UA.ISO8859-5/tcsh.cat
 OLD_FILES+=usr/share/nls/uk_UA.UTF-8/tcsh.cat
 .endif
 
+.if ${MK_NS_CACHING} == no
+OLD_FILES+=etc/nscd.conf
+OLD_FILES+=etc/rc.d/nscd
+OLD_FILES+=usr/sbin/nscd
+OLD_FILES+=usr/share/examples/etc/nscd.conf
+OLD_FILES+=usr/share/man/man5/nscd.conf.5.gz
+OLD_FILES+=usr/share/man/man8/nscd.8.gz
+.endif
+
 .if ${MK_NTP} == no
 OLD_FILES+=etc/ntp.conf
 OLD_FILES+=etc/periodic/daily/480.status-ntpd
