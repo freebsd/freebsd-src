@@ -151,7 +151,6 @@ static int	cfiscsi_lun_enable(void *arg,
 		    struct ctl_id target_id, int lun_id);
 static int	cfiscsi_lun_disable(void *arg,
 		    struct ctl_id target_id, int lun_id);
-static uint32_t	cfiscsi_lun_map(void *arg, uint32_t lun);
 static int	cfiscsi_ioctl(struct cdev *dev,
 		    u_long cmd, caddr_t addr, int flag, struct thread *td);
 static void	cfiscsi_datamove(union ctl_io *io);
@@ -2031,7 +2030,6 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 	port->onoff_arg = ct;
 	port->lun_enable = cfiscsi_lun_enable;
 	port->lun_disable = cfiscsi_lun_disable;
-	port->lun_map = cfiscsi_lun_map;
 	port->targ_lun_arg = ct;
 	port->fe_datamove = cfiscsi_datamove;
 	port->fe_done = cfiscsi_done;
@@ -2081,7 +2079,7 @@ cfiscsi_ioctl_port_create(struct ctl_req *req)
 		free(port->target_devid, M_CFISCSI);
 		req->status = CTL_LUN_ERROR;
 		snprintf(req->error_str, sizeof(req->error_str),
-		    "ctl_frontend_register() failed with error %d", retval);
+		    "ctl_port_register() failed with error %d", retval);
 		return;
 	}
 done:
@@ -2259,7 +2257,6 @@ cfiscsi_target_find_or_create(struct cfiscsi_softc *softc, const char *name,
     const char *alias)
 {
 	struct cfiscsi_target *ct, *newct;
-	int i;
 
 	if (name[0] == '\0' || strlen(name) >= CTL_ISCSI_NAME_LEN)
 		return (NULL);
@@ -2277,9 +2274,6 @@ cfiscsi_target_find_or_create(struct cfiscsi_softc *softc, const char *name,
 		return (ct);
 	}
 
-	for (i = 0; i < CTL_MAX_LUNS; i++)
-		newct->ct_luns[i] = UINT32_MAX;
-
 	strlcpy(newct->ct_name, name, sizeof(newct->ct_name));
 	if (alias != NULL)
 		strlcpy(newct->ct_alias, alias, sizeof(newct->ct_alias));
@@ -2294,108 +2288,17 @@ cfiscsi_target_find_or_create(struct cfiscsi_softc *softc, const char *name,
 	return (newct);
 }
 
-/*
- * Takes LUN from the target space and returns LUN from the CTL space.
- */
-static uint32_t
-cfiscsi_lun_map(void *arg, uint32_t lun)
-{
-	struct cfiscsi_target *ct = arg;
-
-	if (lun >= CTL_MAX_LUNS) {
-		CFISCSI_DEBUG("requested lun number %d is higher "
-		    "than maximum %d", lun, CTL_MAX_LUNS - 1);
-		return (UINT32_MAX);
-	}
-	return (ct->ct_luns[lun]);
-}
-
-static int
-cfiscsi_target_set_lun(struct cfiscsi_target *ct,
-    unsigned long lun_id, unsigned long ctl_lun_id)
-{
-
-	if (lun_id >= CTL_MAX_LUNS) {
-		CFISCSI_WARN("requested lun number %ld is higher "
-		    "than maximum %d", lun_id, CTL_MAX_LUNS - 1);
-		return (-1);
-	}
-
-	if (ct->ct_luns[lun_id] < CTL_MAX_LUNS) {
-		/*
-		 * CTL calls cfiscsi_lun_enable() twice for each LUN - once
-		 * when the LUN is created, and a second time just before
-		 * the port is brought online; don't emit warnings
-		 * for that case.
-		 */
-		if (ct->ct_luns[lun_id] == ctl_lun_id)
-			return (0);
-		CFISCSI_WARN("lun %ld already allocated", lun_id);
-		return (-1);
-	}
-
-#if 0
-	CFISCSI_DEBUG("adding mapping for lun %ld, target %s "
-	    "to ctl lun %ld", lun_id, ct->ct_name, ctl_lun_id);
-#endif
-
-	ct->ct_luns[lun_id] = ctl_lun_id;
-
-	return (0);
-}
-
 static int
 cfiscsi_lun_enable(void *arg, struct ctl_id target_id, int lun_id)
 {
-	struct cfiscsi_softc *softc;
-	struct cfiscsi_target *ct;
-	const char *target = NULL;
-	const char *lun = NULL;
-	unsigned long tmp;
 
-	ct = (struct cfiscsi_target *)arg;
-	softc = ct->ct_softc;
-
-	target = ctl_get_opt(&control_softc->ctl_luns[lun_id]->be_lun->options,
-	    "cfiscsi_target");
-	lun = ctl_get_opt(&control_softc->ctl_luns[lun_id]->be_lun->options,
-	    "cfiscsi_lun");
-
-	if (target == NULL && lun == NULL)
-		return (0);
-
-	if (target == NULL || lun == NULL) {
-		CFISCSI_WARN("lun added with cfiscsi_target, but without "
-		    "cfiscsi_lun, or the other way around; ignoring");
-		return (0);
-	}
-
-	if (strcmp(target, ct->ct_name) != 0)
-		return (0);
-
-	tmp = strtoul(lun, NULL, 10);
-	cfiscsi_target_set_lun(ct, tmp, lun_id);
 	return (0);
 }
 
 static int
 cfiscsi_lun_disable(void *arg, struct ctl_id target_id, int lun_id)
 {
-	struct cfiscsi_softc *softc;
-	struct cfiscsi_target *ct;
-	int i;
 
-	ct = (struct cfiscsi_target *)arg;
-	softc = ct->ct_softc;
-
-	mtx_lock(&softc->lock);
-	for (i = 0; i < CTL_MAX_LUNS; i++) {
-		if (ct->ct_luns[i] != lun_id)
-			continue;
-		ct->ct_luns[i] = UINT32_MAX;
-		break;
-	}
-	mtx_unlock(&softc->lock);
 	return (0);
 }
 

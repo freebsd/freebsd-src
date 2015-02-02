@@ -45,6 +45,7 @@
 #define	DEFAULT_PIDFILE			"/var/run/ctld.pid"
 #define	DEFAULT_BLOCKSIZE		512
 
+#define	MAX_LUNS			1024
 #define	MAX_NAME_LEN			223
 #define	MAX_DATA_SEGMENT_LENGTH		(128 * 1024)
 #define	MAX_BURST_LENGTH		16776192
@@ -132,13 +133,14 @@ struct lun_option {
 
 struct lun {
 	TAILQ_ENTRY(lun)		l_next;
+	struct conf			*l_conf;
 	TAILQ_HEAD(, lun_option)	l_options;
-	struct target			*l_target;
-	int				l_lun;
+	char				*l_name;
 	char				*l_backend;
 	int				l_blocksize;
 	char				*l_device_id;
 	char				*l_path;
+	char				*l_scsiname;
 	char				*l_serial;
 	int64_t				l_size;
 
@@ -147,13 +149,15 @@ struct lun {
 
 struct target {
 	TAILQ_ENTRY(target)		t_next;
-	TAILQ_HEAD(, lun)		t_luns;
 	struct conf			*t_conf;
+	struct lun			*t_luns[MAX_LUNS];
 	struct auth_group		*t_auth_group;
 	struct portal_group		*t_portal_group;
 	char				*t_name;
 	char				*t_alias;
 	char				*t_redirection;
+
+	uint32_t			t_ctl_port;
 };
 
 struct isns {
@@ -165,6 +169,7 @@ struct isns {
 
 struct conf {
 	char				*conf_pidfile_path;
+	TAILQ_HEAD(, lun)		conf_luns;
 	TAILQ_HEAD(, target)		conf_targets;
 	TAILQ_HEAD(, auth_group)	conf_auth_groups;
 	TAILQ_HEAD(, portal_group)	conf_portal_groups;
@@ -319,14 +324,17 @@ struct target		*target_find(struct conf *conf,
 			    const char *name);
 int			target_set_redirection(struct target *target,
 			    const char *addr);
+void			target_set_ctl_port(struct target *target,
+			    uint32_t value);
 
-struct lun		*lun_new(struct target *target, int lun_id);
+struct lun		*lun_new(struct conf *conf, const char *name);
 void			lun_delete(struct lun *lun);
-struct lun		*lun_find(const struct target *target, int lun_id);
+struct lun		*lun_find(const struct conf *conf, const char *name);
 void			lun_set_backend(struct lun *lun, const char *value);
 void			lun_set_blocksize(struct lun *lun, size_t value);
 void			lun_set_device_id(struct lun *lun, const char *value);
 void			lun_set_path(struct lun *lun, const char *value);
+void			lun_set_scsiname(struct lun *lun, const char *value);
 void			lun_set_serial(struct lun *lun, const char *value);
 void			lun_set_size(struct lun *lun, size_t value);
 void			lun_set_ctl_lun(struct lun *lun, uint32_t value);
@@ -345,6 +353,7 @@ int			kernel_lun_resize(struct lun *lun);
 int			kernel_lun_remove(struct lun *lun);
 void			kernel_handoff(struct connection *conn);
 int			kernel_port_add(struct target *targ);
+int			kernel_port_update(struct target *targ);
 int			kernel_port_remove(struct target *targ);
 void			kernel_capsicate(void);
 
