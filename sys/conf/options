@@ -651,6 +651,7 @@ USB_HOST_ALIGN		opt_usb.h
 USB_REQ_DEBUG		opt_usb.h
 USB_TEMPLATE		opt_usb.h
 USB_VERBOSE		opt_usb.h
+USB_DMA_SINGLE_ALLOC	opt_usb.h
 USB_EHCI_BIG_ENDIAN_DESC	opt_usb.h
 U3G_DEBUG		opt_u3g.h
 UKBD_DFLT_KEYMAP	opt_ukbd.h
