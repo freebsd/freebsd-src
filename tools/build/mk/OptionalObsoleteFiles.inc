@@ -5401,6 +5401,43 @@ OLD_FILES+=usr/bin/nc
 OLD_FILES+=usr/share/man/man1/nc.1.gz
 .endif
 
+.if ${MK_NETGRAPH} == no
+OLD_FILES+=usr/include/netgraph.h
+OLD_FILES+=usr/lib/libnetgraph.a
+OLD_FILES+=usr/lib/libnetgraph.so
+OLD_LIBS+=usr/lib/libnetgraph.so.4
+OLD_FILES+=usr/lib/libnetgraph_p.a
+OLD_FILES+=usr/lib32/libnetgraph.a
+OLD_FILES+=usr/lib32/libnetgraph.so
+OLD_LIBS+=usr/lib32/libnetgraph.so.4
+OLD_FILES+=usr/lib32/libnetgraph_p.a
+OLD_FILES+=usr/libexec/pppoed
+OLD_FILES+=usr/sbin/flowctl
+OLD_FILES+=usr/sbin/lmcconfig
+OLD_FILES+=usr/sbin/ngctl
+OLD_FILES+=usr/sbin/nghook
+OLD_FILES+=usr/share/man/man3/NgAllocRecvAsciiMsg.3.gz
+OLD_FILES+=usr/share/man/man3/NgAllocRecvData.3.gz
+OLD_FILES+=usr/share/man/man3/NgAllocRecvMsg.3.gz
+OLD_FILES+=usr/share/man/man3/NgMkSockNode.3.gz
+OLD_FILES+=usr/share/man/man3/NgNameNode.3.gz
+OLD_FILES+=usr/share/man/man3/NgRecvAsciiMsg.3.gz
+OLD_FILES+=usr/share/man/man3/NgRecvData.3.gz
+OLD_FILES+=usr/share/man/man3/NgRecvMsg.3.gz
+OLD_FILES+=usr/share/man/man3/NgSendAsciiMsg.3.gz
+OLD_FILES+=usr/share/man/man3/NgSendData.3.gz
+OLD_FILES+=usr/share/man/man3/NgSendMsg.3.gz
+OLD_FILES+=usr/share/man/man3/NgSendMsgReply.3.gz
+OLD_FILES+=usr/share/man/man3/NgSetDebug.3.gz
+OLD_FILES+=usr/share/man/man3/NgSetErrLog.3.gz
+OLD_FILES+=usr/share/man/man3/netgraph.3.gz
+OLD_FILES+=usr/share/man/man8/flowctl.8.gz
+OLD_FILES+=usr/share/man/man8/lmcconfig.8.gz
+OLD_FILES+=usr/share/man/man8/ngctl.8.gz
+OLD_FILES+=usr/share/man/man8/nghook.8.gz
+OLD_FILES+=usr/share/man/man8/pppoed.8.gz
+.endif
+
 .if ${MK_NIS} == no
 OLD_FILES+=usr/bin/ypcat
 OLD_FILES+=usr/bin/ypchfn
