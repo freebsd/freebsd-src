@@ -903,7 +903,6 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	struct ext2mount *ump;
 	struct buf *bp;
 	struct vnode *vp;
-	struct cdev *dev;
 	struct thread *td;
 	int i, error;
 	int used_blocks;
@@ -914,7 +913,6 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 		return (error);
 
 	ump = VFSTOEXT2(mp);
-	dev = ump->um_dev;
 
 	/*
 	 * If this malloc() is performed after the getnewvnode()
