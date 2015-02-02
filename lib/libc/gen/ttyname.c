@@ -65,7 +65,7 @@ ttyname_r(int fd, char *buf, size_t len)
 
 	/* Must be a terminal. */
 	if (!isatty(fd))
-		return (ENOTTY);
+		return (errno);
 	/* Must have enough room */
 	if (len <= sizeof(_PATH_DEV))
 		return (ERANGE);
@@ -73,7 +73,7 @@ ttyname_r(int fd, char *buf, size_t len)
 	strcpy(buf, _PATH_DEV);
 	used = strlen(buf);
 	if (fdevname_r(fd, buf + used, len - used) == NULL)
-		return (ENOTTY);
+		return (errno == EINVAL ? ERANGE : errno);
 	return (0);
 }
 

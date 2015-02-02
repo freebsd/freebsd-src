@@ -398,12 +398,11 @@ static int ctl_ioctl_fill_ooa(struct ctl_lun *lun, uint32_t *cur_fill_num,
 			      struct ctl_ooa_entry *kern_entries);
 static int ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		     struct thread *td);
-static uint32_t ctl_map_lun(struct ctl_softc *softc, int port_num, uint32_t lun);
-static uint32_t ctl_map_lun_back(struct ctl_softc *softc, int port_num, uint32_t lun);
 static int ctl_alloc_lun(struct ctl_softc *ctl_softc, struct ctl_lun *lun,
 			 struct ctl_be_lun *be_lun, struct ctl_id target_id);
 static int ctl_free_lun(struct ctl_lun *lun);
 static void ctl_create_lun(struct ctl_be_lun *be_lun);
+static struct ctl_port * ctl_io_port(struct ctl_io_hdr *io_hdr);
 /**
 static void ctl_failover_change_pages(struct ctl_softc *softc,
 				      struct ctl_scsiio *ctsio, int master);
@@ -3411,6 +3410,7 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		struct ctl_lun_list *list;
 		struct ctl_option *opt;
 		int j;
+		uint32_t plun;
 
 		list = (struct ctl_lun_list *)addr;
 
@@ -3491,6 +3491,18 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 					break;
 			}
 
+			if (port->lun_map != NULL) {
+				sbuf_printf(sb, "\t<lun_map>on</lun_map>\n");
+				for (j = 0; j < CTL_MAX_LUNS; j++) {
+					plun = ctl_lun_map_from_port(port, j);
+					if (plun >= CTL_MAX_LUNS)
+						continue;
+					sbuf_printf(sb,
+					    "\t<lun id=\"%u\">%u</lun>\n",
+					    j, plun);
+				}
+			}
+
 			for (j = 0; j < CTL_MAX_INIT_PER_PORT; j++) {
 				if (port->wwpn_iid[j].in_use == 0 ||
 				    (port->wwpn_iid[j].wwpn == 0 &&
@@ -3536,6 +3548,38 @@ ctl_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 		list->fill_len = sbuf_len(sb) + 1;
 		list->status = CTL_LUN_LIST_OK;
 		sbuf_delete(sb);
+		break;
+	}
+	case CTL_LUN_MAP: {
+		struct ctl_lun_map *lm  = (struct ctl_lun_map *)addr;
+		struct ctl_port *port;
+
+		mtx_lock(&softc->ctl_lock);
+		if (lm->port >= CTL_MAX_PORTS ||
+		    (port = softc->ctl_ports[lm->port]) == NULL) {
+			mtx_unlock(&softc->ctl_lock);
+			return (ENXIO);
+		}
+		if (lm->plun < CTL_MAX_LUNS) {
+			if (lm->lun == UINT32_MAX)
+				retval = ctl_lun_map_unset(port, lm->plun);
+			else if (lm->lun < CTL_MAX_LUNS &&
+			    softc->ctl_luns[lm->lun] != NULL)
+				retval = ctl_lun_map_set(port, lm->plun, lm->lun);
+			else {
+				mtx_unlock(&softc->ctl_lock);
+				return (ENXIO);
+			}
+		} else if (lm->plun == UINT32_MAX) {
+			if (lm->lun == UINT32_MAX)
+				retval = ctl_lun_map_deinit(port);
+			else
+				retval = ctl_lun_map_init(port);
+		} else {
+			mtx_unlock(&softc->ctl_lock);
+			return (ENXIO);
+		}
+		mtx_unlock(&softc->ctl_lock);
 		break;
 	}
 	default: {
@@ -3602,33 +3646,104 @@ ctl_port_idx(int port_num)
 		return(port_num - CTL_MAX_PORTS);
 }
 
-static uint32_t
-ctl_map_lun(struct ctl_softc *softc, int port_num, uint32_t lun_id)
+int
+ctl_lun_map_init(struct ctl_port *port)
 {
-	struct ctl_port *port;
+	uint32_t i;
 
-	port = softc->ctl_ports[ctl_port_idx(port_num)];
+	if (port->lun_map == NULL)
+		port->lun_map = malloc(sizeof(uint32_t) * CTL_MAX_LUNS,
+		    M_CTL, M_NOWAIT);
+	if (port->lun_map == NULL)
+		return (ENOMEM);
+	for (i = 0; i < CTL_MAX_LUNS; i++)
+		port->lun_map[i] = UINT32_MAX;
+	return (0);
+}
+
+int
+ctl_lun_map_deinit(struct ctl_port *port)
+{
+
+	if (port->lun_map == NULL)
+		return (0);
+	free(port->lun_map, M_CTL);
+	port->lun_map = NULL;
+	return (0);
+}
+
+int
+ctl_lun_map_set(struct ctl_port *port, uint32_t plun, uint32_t glun)
+{
+	int status;
+
+	if (port->lun_map == NULL) {
+		status = ctl_lun_map_init(port);
+		if (status != 0)
+			return (status);
+	}
+	port->lun_map[plun] = glun;
+	return (0);
+}
+
+int
+ctl_lun_map_unset(struct ctl_port *port, uint32_t plun)
+{
+
+	if (port->lun_map == NULL)
+		return (0);
+	port->lun_map[plun] = UINT32_MAX;
+	return (0);
+}
+
+int
+ctl_lun_map_unsetg(struct ctl_port *port, uint32_t glun)
+{
+	int i;
+
+	if (port->lun_map == NULL)
+		return (0);
+	for (i = 0; i < CTL_MAX_LUNS; i++) {
+		if (port->lun_map[i] == glun)
+			port->lun_map[i] = UINT32_MAX;
+	}
+	return (0);
+}
+
+uint32_t
+ctl_lun_map_from_port(struct ctl_port *port, uint32_t lun_id)
+{
+
+	if (port == NULL)
+		return (UINT32_MAX);
+	if (port->lun_map == NULL || lun_id >= CTL_MAX_LUNS)
+		return (lun_id);
+	return (port->lun_map[lun_id]);
+}
+
+uint32_t
+ctl_lun_map_to_port(struct ctl_port *port, uint32_t lun_id)
+{
+	uint32_t i;
+
 	if (port == NULL)
 		return (UINT32_MAX);
 	if (port->lun_map == NULL)
 		return (lun_id);
-	return (port->lun_map(port->targ_lun_arg, lun_id));
-}
-
-static uint32_t
-ctl_map_lun_back(struct ctl_softc *softc, int port_num, uint32_t lun_id)
-{
-	struct ctl_port *port;
-	uint32_t i;
-
-	port = softc->ctl_ports[ctl_port_idx(port_num)];
-	if (port->lun_map == NULL)
-		return (lun_id);
 	for (i = 0; i < CTL_MAX_LUNS; i++) {
-		if (port->lun_map(port->targ_lun_arg, i) == lun_id)
+		if (port->lun_map[i] == lun_id)
 			return (i);
 	}
 	return (UINT32_MAX);
+}
+
+static struct ctl_port *
+ctl_io_port(struct ctl_io_hdr *io_hdr)
+{
+	int port_num;
+
+	port_num = io_hdr->nexus.targ_port;
+	return (control_softc->ctl_ports[ctl_port_idx(port_num)]);
 }
 
 /*
@@ -4676,15 +4791,16 @@ static int
 ctl_free_lun(struct ctl_lun *lun)
 {
 	struct ctl_softc *softc;
-#if 0
 	struct ctl_port *port;
-#endif
 	struct ctl_lun *nlun;
 	int i;
 
 	softc = lun->ctl_softc;
 
 	mtx_assert(&softc->ctl_lock, MA_OWNED);
+
+	STAILQ_FOREACH(port, &softc->port_list, links)
+		ctl_lun_map_unsetg(port, lun->lun);
 
 	STAILQ_REMOVE(&softc->lun_list, lun, ctl_lun, links);
 
@@ -7343,8 +7459,7 @@ ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio)
 	STAILQ_FOREACH(port, &softc->port_list, links) {
 		if ((port->status & CTL_PORT_STATUS_ONLINE) == 0)
 			continue;
-		if (ctl_map_lun_back(softc, port->targ_port, lun->lun) >=
-		    CTL_MAX_LUNS)
+		if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
 			continue;
 		num_target_ports++;
 	}
@@ -7417,8 +7532,7 @@ ctl_report_tagret_port_groups(struct ctl_scsiio *ctsio)
 		STAILQ_FOREACH(port, &softc->port_list, links) {
 			if ((port->status & CTL_PORT_STATUS_ONLINE) == 0)
 				continue;
-			if (ctl_map_lun_back(softc, port->targ_port, lun->lun)
-			    >= CTL_MAX_LUNS)
+			if (ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
 				continue;
 			p = port->targ_port % CTL_MAX_PORTS + g * CTL_MAX_PORTS;
 			scsi_ulto2b(p, tpg_desc->descriptors[pc].
@@ -9260,6 +9374,7 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 	struct scsi_report_luns *cdb;
 	struct scsi_report_luns_data *lun_data;
 	struct ctl_lun *lun, *request_lun;
+	struct ctl_port *port;
 	int num_luns, retval;
 	uint32_t alloc_len, lun_datalen;
 	int num_filled, well_known;
@@ -9316,6 +9431,7 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 
 	request_lun = (struct ctl_lun *)
 		ctsio->io_hdr.ctl_private[CTL_PRIV_LUN].ptr;
+	port = ctl_io_port(&ctsio->io_hdr);
 
 	lun_datalen = sizeof(*lun_data) +
 		(num_luns * sizeof(struct scsi_report_luns_lundata));
@@ -9328,8 +9444,7 @@ ctl_report_luns(struct ctl_scsiio *ctsio)
 
 	mtx_lock(&softc->ctl_lock);
 	for (targ_lun_id = 0, num_filled = 0; targ_lun_id < CTL_MAX_LUNS && num_filled < num_luns; targ_lun_id++) {
-		lun_id = ctl_map_lun(softc, ctsio->io_hdr.nexus.targ_port,
-		    targ_lun_id);
+		lun_id = ctl_lun_map_from_port(port, targ_lun_id);
 		if (lun_id >= CTL_MAX_LUNS)
 			continue;
 		lun = softc->ctl_luns[lun_id];
@@ -10014,8 +10129,7 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 		if ((port->status & CTL_PORT_STATUS_ONLINE) == 0)
 			continue;
 		if (lun != NULL &&
-		    ctl_map_lun_back(softc, port->targ_port, lun->lun) >=
-		    CTL_MAX_LUNS)
+		    ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
 			continue;
 		num_target_ports++;
 		if (port->init_devid)
@@ -10068,8 +10182,7 @@ ctl_inquiry_evpd_scsi_ports(struct ctl_scsiio *ctsio, int alloc_len)
 			if ((port->status & CTL_PORT_STATUS_ONLINE) == 0)
 				continue;
 			if (lun != NULL &&
-			    ctl_map_lun_back(softc, port->targ_port, lun->lun)
-			    >= CTL_MAX_LUNS)
+			    ctl_lun_map_to_port(port, lun->lun) >= CTL_MAX_LUNS)
 				continue;
 			p = port->targ_port % CTL_MAX_PORTS + g * CTL_MAX_PORTS;
 			scsi_ulto2b(p, pd->relative_port_id);
@@ -13745,6 +13858,7 @@ int
 ctl_queue_sense(union ctl_io *io)
 {
 	struct ctl_lun *lun;
+	struct ctl_port *port;
 	struct ctl_softc *softc;
 	uint32_t initidx, targ_lun;
 
@@ -13765,8 +13879,8 @@ ctl_queue_sense(union ctl_io *io)
 	 * If we don't have a LUN for this, just toss the sense
 	 * information.
 	 */
-	targ_lun = io->io_hdr.nexus.targ_lun;
-	targ_lun = ctl_map_lun(softc, io->io_hdr.nexus.targ_port, targ_lun);
+	port = ctl_io_port(&ctsio->io_hdr);
+	targ_lun = ctl_lun_map_from_port(port, io->io_hdr.nexus.targ_lun);
 	if ((targ_lun < CTL_MAX_LUNS)
 	 && (softc->ctl_luns[targ_lun] != NULL))
 		lun = softc->ctl_luns[targ_lun];
@@ -13806,6 +13920,7 @@ bailout:
 int
 ctl_queue(union ctl_io *io)
 {
+	struct ctl_port *port;
 
 	CTL_DEBUG_PRINT(("ctl_queue cdb[0]=%02X\n", io->scsiio.cdb[0]));
 
@@ -13815,9 +13930,9 @@ ctl_queue(union ctl_io *io)
 #endif /* CTL_TIME_IO */
 
 	/* Map FE-specific LUN ID into global one. */
+	port = ctl_io_port(&io->io_hdr);
 	io->io_hdr.nexus.targ_mapped_lun =
-	    ctl_map_lun(control_softc, io->io_hdr.nexus.targ_port,
-	     io->io_hdr.nexus.targ_lun);
+	    ctl_lun_map_from_port(port, io->io_hdr.nexus.targ_lun);
 
 	switch (io->io_hdr.io_type) {
 	case CTL_IO_SCSI:
