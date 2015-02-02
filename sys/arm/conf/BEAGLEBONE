@@ -22,7 +22,7 @@
 
 ident		BEAGLEBONE
 
-include		"../ti/am335x/std.beaglebone"
+include		"../ti/am335x/std.am335x"
 
 makeoptions	WITHOUT_MODULES="ahc"
 
