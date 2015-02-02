@@ -401,6 +401,13 @@ OLD_FILES+=usr/share/man/man8/zfsboot.8.gz
 OLD_FILES+=usr/share/man/man8/zfsloader.8.gz
 .endif
 
+.if ${MK_BSD_CPIO} == no
+OLD_FILES+=usr/bin/bsdcpio
+OLD_FILES+=usr/bin/cpio
+OLD_FILES+=usr/share/man/man1/bsdcpio.1.gz
+OLD_FILES+=usr/share/man/man1/cpio.1.gz
+.endif
+
 .if ${MK_BSDINSTALL} == no
 OLD_FILES+=usr/libexec/bsdinstall/adduser
 OLD_FILES+=usr/libexec/bsdinstall/auto
