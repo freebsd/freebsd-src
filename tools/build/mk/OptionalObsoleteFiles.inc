@@ -5614,6 +5614,30 @@ OLD_FILES+=usr/share/nls/zh_CN.UTF-8/libc.cat
 OLD_FILES+=usr/tests/bin/sh/builtins/locale1.0
 .endif
 
+.if ${MK_NLS_CATALOGS} == no
+OLD_FILES+=usr/share/nls/de_AT.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/de_CH.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/de_DE.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/el_GR.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/es_ES.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/et_EE.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/fi_FI.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/fr_BE.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/fr_CA.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/fr_CH.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/fr_FR.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/it_CH.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/it_IT.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/ja_JP.SJIS/tcsh.cat
+OLD_FILES+=usr/share/nls/ja_JP.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/ru_RU.CP1251/tcsh.cat
+OLD_FILES+=usr/share/nls/ru_RU.CP866/tcsh.cat
+OLD_FILES+=usr/share/nls/ru_RU.ISO8859-5/tcsh.cat
+OLD_FILES+=usr/share/nls/ru_RU.UTF-8/tcsh.cat
+OLD_FILES+=usr/share/nls/uk_UA.ISO8859-5/tcsh.cat
+OLD_FILES+=usr/share/nls/uk_UA.UTF-8/tcsh.cat
+.endif
+
 .if ${MK_NTP} == no
 OLD_FILES+=etc/ntp.conf
 OLD_FILES+=etc/periodic/daily/480.status-ntpd
