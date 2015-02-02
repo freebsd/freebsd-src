@@ -5725,6 +5725,7 @@ OLD_FILES+=usr/share/doc/ntp/release.html
 OLD_FILES+=usr/share/doc/ntp/tickadj.html
 OLD_DIRS+=usr/share/doc/ntp
 OLD_FILES+=usr/share/examples/etc/ntp.conf
+OLD_FILES+=usr/share/man/man1/sntp.1.gz
 OLD_FILES+=usr/share/man/man5/ntp.conf.5.gz
 OLD_FILES+=usr/share/man/man5/ntp.keys.5.gz
 OLD_FILES+=usr/share/man/man8/ntp-keygen.8.gz
