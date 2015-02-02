@@ -169,6 +169,13 @@ FILES=	DAEMON \
 	zfs \
 	zvol
 
+.if ${MK_BLUETOOTH} != "no"
+_bluetooth=	bluetooth
+_bthidd=	bthidd
+_hcsecd=	hcsecd
+_ubthidhci=	ubthidhci
+.endif
+
 .if ${MK_IPX} != "no"
 _ipxrouted=	ipxrouted
 .endif
@@ -180,23 +187,16 @@ _kfd=		kfd
 _kpasswdd=	kpasswdd
 .endif
 
+.if ${MK_NS_CACHING} != "no"
+_nscd=		nscd
+.endif
+
 .if ${MK_OFED} != "no"
 _opensm=	opensm
 .endif
 
 .if ${MK_OPENSSH} != "no"
 _sshd=		sshd
-.endif
-
-.if ${MK_NS_CACHING} != "no"
-_nscd=		nscd
-.endif
-
-.if ${MK_BLUETOOTH} != "no"
-_bluetooth=	bluetooth
-_bthidd=	bthidd
-_hcsecd=	hcsecd
-_ubthidhci=	ubthidhci
 .endif
 
 .if ${MK_UNBOUND} != "no"
