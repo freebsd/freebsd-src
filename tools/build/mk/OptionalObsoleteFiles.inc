@@ -5438,6 +5438,15 @@ OLD_FILES+=usr/share/man/man8/nghook.8.gz
 OLD_FILES+=usr/share/man/man8/pppoed.8.gz
 .endif
 
+.if ${MK_NETGRAPH_SUPPORT} == no
+OLD_FILES+=usr/include/bsnmp/snmp_netgraph.h
+OLD_FILES+=usr/lib/snmp_netgraph.so
+OLD_LIBS+=usr/lib/snmp_netgraph.so.6
+OLD_FILES+=usr/share/man/man3/snmp_netgraph.3.gz
+OLD_FILES+=usr/share/snmp/defs/netgraph_tree.def
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-NETGRAPH.txt
+.endif
+
 .if ${MK_NIS} == no
 OLD_FILES+=usr/bin/ypcat
 OLD_FILES+=usr/bin/ypchfn
