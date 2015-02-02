@@ -343,9 +343,63 @@ OLD_FILES+=usr/share/man/man8/sdpcontrol.8.gz
 OLD_FILES+=usr/share/man/man8/sdpd.8.gz
 .endif
 
-#.if ${MK_BOOT} == no
-# to be filled in
-#.endif
+.if ${MK_BOOT} == no
+OLD_FILES+=boot/beastie.4th
+OLD_FILES+=boot/boot
+OLD_FILES+=boot/boot0
+OLD_FILES+=boot/boot0sio
+OLD_FILES+=boot/boot1
+OLD_FILES+=boot/boot1.efi
+OLD_FILES+=boot/boot1.efifat
+OLD_FILES+=boot/boot2
+OLD_FILES+=boot/brand.4th
+OLD_FILES+=boot/cdboot
+OLD_FILES+=boot/check-password.4th
+OLD_FILES+=boot/color.4th
+OLD_FILES+=boot/defaults/loader.conf
+OLD_FILES+=boot/delay.4th
+OLD_FILES+=boot/device.hints
+OLD_FILES+=boot/frames.4th
+OLD_FILES+=boot/gptboot
+OLD_FILES+=boot/gptzfsboot
+OLD_FILES+=boot/loader
+OLD_FILES+=boot/loader.4th
+OLD_FILES+=boot/loader.efi
+OLD_FILES+=boot/loader.help
+OLD_FILES+=boot/loader.rc
+OLD_FILES+=boot/mbr
+OLD_FILES+=boot/menu-commands.4th
+OLD_FILES+=boot/menu.4th
+OLD_FILES+=boot/menu.rc
+OLD_FILES+=boot/menusets.4th
+OLD_FILES+=boot/pcibios.4th
+OLD_FILES+=boot/pmbr
+OLD_FILES+=boot/pxeboot
+OLD_FILES+=boot/screen.4th
+OLD_FILES+=boot/shortcuts.4th
+OLD_FILES+=boot/support.4th
+OLD_FILES+=boot/userboot.so
+OLD_FILES+=boot/version.4th
+OLD_FILES+=boot/zfsboot
+OLD_FILES+=boot/zfsloader
+OLD_FILES+=usr/lib/kgzldr.o
+OLD_FILES+=usr/share/man/man5/loader.conf.5.gz
+OLD_FILES+=usr/share/man/man8/beastie.4th.8.gz
+OLD_FILES+=usr/share/man/man8/brand.4th.8.gz
+OLD_FILES+=usr/share/man/man8/check-password.4th.8.gz
+OLD_FILES+=usr/share/man/man8/color.4th.8.gz
+OLD_FILES+=usr/share/man/man8/delay.4th.8.gz
+OLD_FILES+=usr/share/man/man8/gptboot.8.gz
+OLD_FILES+=usr/share/man/man8/gptzfsboot.8.gz
+OLD_FILES+=usr/share/man/man8/loader.4th.8.gz
+OLD_FILES+=usr/share/man/man8/loader.8.gz
+OLD_FILES+=usr/share/man/man8/menu.4th.8.gz
+OLD_FILES+=usr/share/man/man8/menusets.4th.8.gz
+OLD_FILES+=usr/share/man/man8/pxeboot.8.gz
+OLD_FILES+=usr/share/man/man8/version.4th.8.gz
+OLD_FILES+=usr/share/man/man8/zfsboot.8.gz
+OLD_FILES+=usr/share/man/man8/zfsloader.8.gz
+.endif
 
 .if ${MK_BSDINSTALL} == no
 OLD_FILES+=usr/libexec/bsdinstall/adduser
