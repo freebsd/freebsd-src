@@ -389,9 +389,24 @@ OLD_FILES+=usr/lib32/libuutil.so
 OLD_LIBS+=usr/lib32/libuutil.so.2
 OLD_FILES+=usr/lib32/libuutil_p.a
 .endif
+OLD_LIBS+=lib/libdtrace.so.2
 OLD_FILES+=usr/sbin/dtrace
 OLD_FILES+=usr/sbin/lockstat
 OLD_FILES+=usr/share/man/man1/dtrace.1.gz
+OLD_FILES+=usr/share/dtrace/disklatency
+OLD_FILES+=usr/share/dtrace/disklatencycmd
+OLD_FILES+=usr/share/dtrace/hotopen
+OLD_FILES+=usr/share/dtrace/nfsclienttime
+OLD_FILES+=usr/share/dtrace/toolkit/execsnoop
+OLD_FILES+=usr/share/dtrace/toolkit/hotkernel
+OLD_FILES+=usr/share/dtrace/toolkit/hotuser
+OLD_FILES+=usr/share/dtrace/toolkit/opensnoop
+OLD_FILES+=usr/share/dtrace/toolkit/procsystime
+OLD_FILES+=usr/share/man/man1/dtrace.1.gz
+OLD_DIRS+=usr/lib/dtrace
+OLD_DIRS+=usr/lib32/dtrace
+OLD_DIRS+=usr/share/dtrace/toolkit
+OLD_DIRS+=usr/share/dtrace
 .endif
 
 .if ${MK_ZFS} == no
