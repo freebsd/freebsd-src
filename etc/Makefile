@@ -3,8 +3,11 @@
 
 .include <bsd.own.mk>
 
+SUBDIR=	\
+	newsyslog.conf.d
+
 .if ${MK_SENDMAIL} != "no"
-SUBDIR=	sendmail
+SUBDIR+=sendmail
 .endif
 
 .if ${MK_TESTS} != "no"
