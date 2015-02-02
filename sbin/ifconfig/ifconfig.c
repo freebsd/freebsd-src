@@ -47,6 +47,7 @@ static const char rcsid[] =
 #include <sys/time.h>
 #include <sys/module.h>
 #include <sys/linker.h>
+#include <sys/queue.h>
 
 #include <net/ethernet.h>
 #include <net/if.h>
@@ -110,6 +111,15 @@ static void af_other_status(int);
 
 static struct option *opts = NULL;
 
+struct ifa_order_elt {
+	int if_order;
+	int af_orders[255];
+	struct ifaddrs *ifa;
+	TAILQ_ENTRY(ifa_order_elt) link;
+};
+
+TAILQ_HEAD(ifa_queue, ifa_order_elt);
+
 void
 opt_register(struct option *p)
 {
@@ -141,16 +151,162 @@ usage(void)
 	exit(1);
 }
 
+static int
+calcorders(struct ifaddrs *ifa, struct ifa_queue *q)
+{
+	unsigned int ord, af, ifa_ord;
+	struct ifaddrs *prev;
+	struct ifa_order_elt *cur;
+
+	prev = NULL;
+	cur = NULL;
+	ord = 0;
+	ifa_ord = 0;
+
+	while (ifa != NULL) {
+		if (prev == NULL || strcmp(ifa->ifa_name, prev->ifa_name) != 0) {
+			cur = calloc(1, sizeof(*cur));
+
+			if (cur == NULL)
+				return (-1);
+
+			TAILQ_INSERT_TAIL(q, cur, link);
+			cur->if_order = ifa_ord ++;
+			cur->ifa = ifa;
+			ord = 0;
+		}
+
+		if (ifa->ifa_addr) {
+			af = ifa->ifa_addr->sa_family;
+
+			if (af < sizeof(cur->af_orders) / sizeof(cur->af_orders[0]) && 
+			  cur->af_orders[af] == 0)
+				cur->af_orders[af] = ++ord;
+		}
+		prev = ifa;
+		ifa = ifa->ifa_next;	
+	}
+
+	return (0);
+}
+
+static int
+cmpifaddrs(struct ifaddrs *a, struct ifaddrs *b, struct ifa_queue *q)
+{
+	int ret;
+	unsigned int af1, af2;
+	struct ifa_order_elt *cur, *e1, *e2;
+
+	e1 = e2 = NULL;
+
+	ret = strcmp(a->ifa_name, b->ifa_name);
+	if (ret != 0) {
+		/* We need to find elements corresponding to these different names */
+		TAILQ_FOREACH(cur, q, link) {
+			if (e1 && e2)
+				break;
+
+			if (strcmp(cur->ifa->ifa_name, a->ifa_name) == 0)
+				e1 = cur;
+			else if (strcmp(cur->ifa->ifa_name, b->ifa_name) == 0)
+				e2 = cur;
+		}
+
+		if (!e1 || !e2)
+			return (0);
+		else
+			return (e1->if_order - e2->if_order);
+
+	} else if (a->ifa_addr != NULL && b->ifa_addr != NULL) {
+		TAILQ_FOREACH(cur, q, link) {
+			if (strcmp(cur->ifa->ifa_name, a->ifa_name) == 0) {
+				e1 = cur;
+				break;
+			}
+		}
+
+		if (!e1)
+			return (0);
+
+		af1 = a->ifa_addr->sa_family;
+		af2 = b->ifa_addr->sa_family;
+
+		if (af1 < sizeof(e1->af_orders) / sizeof(e1->af_orders[0]) && 
+		  af2 < sizeof(e1->af_orders) / sizeof(e1->af_orders[0]))
+			return (e1->af_orders[af2] - e1->af_orders[af1]);
+	}
+
+	return (0);
+}
+
+static struct ifaddrs *
+sortifaddrs(struct ifaddrs *list,
+	int (*compare)(struct ifaddrs *, struct ifaddrs *, struct ifa_queue *),
+	struct ifa_queue *q)
+{
+
+	struct ifaddrs *right, *temp, *last, *result, *next, *tail;
+	
+	right = list;
+	temp = list;
+	last = list;
+	result = NULL;
+	next = NULL;
+	tail = NULL;
+
+	if (!list || !list->ifa_next)
+		return (list);
+
+	while (temp && temp->ifa_next) {
+		last = right;
+		right = right->ifa_next;
+		temp = temp->ifa_next->ifa_next;
+	}
+
+	last->ifa_next = NULL;
+
+	list = sortifaddrs(list, compare, q);
+	right = sortifaddrs(right, compare, q);
+
+	while (list || right) {
+
+		if (!right) {
+			next = list;
+			list = list->ifa_next;
+		} else if (!list) {
+			next = right;
+			right = right->ifa_next;
+		} else if (compare(list, right, q) <= 0) {
+			next = list;
+			list = list->ifa_next;
+		} else {
+			next = right;
+			right = right->ifa_next;
+		}
+
+		if (!result)
+			result = next;
+		else
+			tail->ifa_next = next;
+
+		tail = next;
+	}
+
+	return (result);
+}
+
 int
 main(int argc, char *argv[])
 {
 	int c, all, namesonly, downonly, uponly;
 	const struct afswtch *afp = NULL;
 	int ifindex;
-	struct ifaddrs *ifap, *ifa;
+	struct ifaddrs *ifap, *sifap, *ifa;
 	struct ifreq paifr;
 	const struct sockaddr_dl *sdl;
 	char options[1024], *cp, *namecp = NULL;
+	struct ifa_queue q = TAILQ_HEAD_INITIALIZER(q);
+	struct ifa_order_elt *cur, *tmp;
 	const char *ifname;
 	struct option *p;
 	size_t iflen;
@@ -285,9 +441,19 @@ main(int argc, char *argv[])
 
 	if (getifaddrs(&ifap) != 0)
 		err(EXIT_FAILURE, "getifaddrs");
+
 	cp = NULL;
+	
+	if (calcorders(ifap, &q) != 0)
+		err(EXIT_FAILURE, "calcorders");
+		
+	sifap = sortifaddrs(ifap, cmpifaddrs, &q);
+
+	TAILQ_FOREACH_SAFE(cur, &q, link, tmp)
+		free(cur);
+
 	ifindex = 0;
-	for (ifa = ifap; ifa; ifa = ifa->ifa_next) {
+	for (ifa = sifap; ifa; ifa = ifa->ifa_next) {
 		memset(&paifr, 0, sizeof(paifr));
 		strncpy(paifr.ifr_name, ifa->ifa_name, sizeof(paifr.ifr_name));
 		if (sizeof(paifr.ifr_addr) >= ifa->ifa_addr->sa_len) {

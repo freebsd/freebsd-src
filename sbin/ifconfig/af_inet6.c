@@ -167,6 +167,33 @@ setip6eui64(const char *cmd, int dummy __unused, int s,
 }
 
 static void
+in6_print_scope(uint8_t *a) 
+{
+	const char *sname = NULL;
+	uint16_t val;
+
+	val = (a[0] << 4) + ((a[1] & 0xc0) >> 4);
+
+	if ((val & 0xff0) == 0xff0)
+		sname = "Multicast";
+	else {
+		switch(val) {
+			case 0xfe8:
+				sname = "Link";
+				break;
+			case 0xfec:
+				sname = "Site";
+				break;
+			default:
+				sname = "Global";
+				break;
+		}
+	}
+
+	printf("scope: %s ", sname);
+}
+
+static void
 in6_status(int s __unused, const struct ifaddrs *ifa)
 {
 	struct sockaddr_in6 *sin, null_sin;
@@ -257,9 +284,7 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 	if ((flags6 & IN6_IFF_PREFER_SOURCE) != 0)
 		printf("prefer_source ");
 
-	if (((struct sockaddr_in6 *)(ifa->ifa_addr))->sin6_scope_id)
-		printf("scopeid 0x%x ",
-		    ((struct sockaddr_in6 *)(ifa->ifa_addr))->sin6_scope_id);
+	in6_print_scope((uint8_t *)&((struct sockaddr_in6 *)(ifa->ifa_addr))->sin6_addr);
 
 	if (ip6lifetime && (lifetime.ia6t_preferred || lifetime.ia6t_expire)) {
 		printf("pltime ");
