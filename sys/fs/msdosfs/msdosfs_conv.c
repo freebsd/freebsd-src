@@ -257,7 +257,7 @@ dos2unixfn(dn, un, lower, pmp)
 	 * Copy the name portion into the unix filename string.
 	 */
 	for (i = 8; i > 0 && *dn != ' ';) {
-		c = dos2unixchr(tmpbuf, (const u_char **)&dn, &i,
+		c = dos2unixchr(tmpbuf, __DECONST(const u_char **, &dn), &i,
 		    lower & LCASE_BASE, pmp);
 		while (*c != '\0') {
 			*un++ = *c++;
@@ -274,8 +274,8 @@ dos2unixfn(dn, un, lower, pmp)
 		*un++ = '.';
 		thislong++;
 		for (i = 3; i > 0 && *dn != ' ';) {
-			c = dos2unixchr(tmpbuf, (const u_char **)&dn, &i,
-			    lower & LCASE_EXT, pmp);
+			c = dos2unixchr(tmpbuf, __DECONST(const u_char **, &dn),
+			    &i, lower & LCASE_EXT, pmp);
 			while (*c != '\0') {
 				*un++ = *c++;
 				thislong++;
@@ -629,7 +629,8 @@ winChkName(nbp, un, unlen, chksum, pmp)
 		 * to look up or create files in case sensitive even when
 		 * it's a long file name.
 		 */
-		c1 = unix2winchr((const u_char **)&np, &len, LCASE_BASE, pmp);
+		c1 = unix2winchr(__DECONST(const u_char **, &np), &len,
+		    LCASE_BASE, pmp);
 		c2 = unix2winchr(&un, &unlen, LCASE_BASE, pmp);
 		if (c1 != c2)
 			return -2;
@@ -947,8 +948,8 @@ win2unixchr(u_char *outbuf, u_int16_t wc, struct msdosfsmount *pmp)
 		ilen = 2;
 		olen = len = 4;
 		inp = inbuf;
-		msdosfs_iconv->convchr(pmp->pm_w2u, (const char **)&inp, &ilen,
-				     (char **)&outp, &olen);
+		msdosfs_iconv->convchr(pmp->pm_w2u, __DECONST(const char **,
+		    &inp), &ilen, (char **)&outp, &olen);
 		len -= olen;
 
 		/*
