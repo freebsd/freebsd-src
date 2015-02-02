@@ -58,6 +58,8 @@ __DEFAULT_YES_OPTIONS = \
     BINUTILS_BOOTSTRAP \
     BLUETOOTH \
     BOOT \
+    BOOTPARAMD \
+    BOOTPD \
     BSD_CPIO \
     BSDINSTALL \
     BSNMP \
@@ -81,11 +83,14 @@ __DEFAULT_YES_OPTIONS = \
     ELFTOOLCHAIN_TOOLS \
     EXAMPLES \
     FDT \
+    FILE \
+    FINGER \
     FLOPPY \
     FMTREE \
     FORTH \
     FP_LIBC \
     FREEBSD_UPDATE \
+    FTP \
     GAMES \
     GCOV \
     GDB \
@@ -100,6 +105,7 @@ __DEFAULT_YES_OPTIONS = \
     ICONV \
     INET \
     INET6 \
+    INETD \
     IPFILTER \
     IPFW \
     ISCSI \
@@ -135,7 +141,9 @@ __DEFAULT_YES_OPTIONS = \
     PORTSNAP \
     PPP \
     QUOTAS \
+    RADIUS_SUPPORT \
     RCMDS \
+    RBOOTD \
     RCS \
     RESCUE \
     ROUTED \
@@ -150,10 +158,13 @@ __DEFAULT_YES_OPTIONS = \
     SYSCONS \
     SYSINSTALL \
     TALK \
+    TCP_WRAPPERS \
     TCSH \
     TELNET \
     TESTS \
     TEXTPROC \
+    TFTP \
+    TIMED \
     UNBOUND \
     USB \
     UTMPX \

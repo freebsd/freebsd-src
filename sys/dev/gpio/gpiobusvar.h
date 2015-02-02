@@ -93,8 +93,12 @@ gpio_map_gpios(device_t bus, phandle_t dev, phandle_t gparent, int gcells,
 }
 
 device_t ofw_gpiobus_add_fdt_child(device_t, phandle_t);
+void ofw_gpiobus_register_provider(device_t);
+void ofw_gpiobus_unregister_provider(device_t);
 #endif
 int gpio_check_flags(uint32_t, uint32_t);
+device_t gpiobus_attach_bus(device_t);
+int gpiobus_detach_bus(device_t);
 int gpiobus_init_softc(device_t);
 
 extern driver_t gpiobus_driver;

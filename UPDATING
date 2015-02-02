@@ -31,6 +31,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 11.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20150131:
+	The powerpc64 kernel has been changed to a position-independent
+	executable. This can only be booted with a new version of loader(8),
+	so make sure to update both world and kernel before rebooting.
+
 20150118:
 	Clang and llvm have been upgraded to 3.5.1 release.  This is a bugfix
 	only release, no new features have been added.  Please see the 20141231

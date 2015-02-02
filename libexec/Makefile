@@ -5,18 +5,14 @@
 
 SUBDIR=	${_atf} \
 	${_atrun} \
-	bootpd \
 	${_casper} \
 	${_comsat} \
 	${_dma} \
 	${_dma-mbox-create} \
-	fingerd \
-	ftpd \
 	getty \
 	${_mail.local} \
 	${_mknetid} \
 	${_pppoed} \
-	rbootd \
 	revnetgroup \
 	${_rlogind} \
 	rpc.rquotad \
@@ -28,10 +24,8 @@ SUBDIR=	${_atf} \
 	${_rtld-elf} \
 	save-entropy \
 	${_smrsh} \
-	tcpd \
 	${_telnetd} \
 	${_tests} \
-	tftpd \
 	${_tftp-proxy} \
 	ulog-helper \
 	${_ypxfr}
@@ -40,8 +34,20 @@ SUBDIR=	${_atf} \
 _atrun=		atrun
 .endif
 
+.if ${MK_BOOTPD} != "no"
+SUBDIR+=	bootpd
+.endif
+
 .if ${MK_CASPER} != "no"
 _casper=	casper
+.endif
+
+.if ${MK_FINGER} != "no"
+SUBDIR+=	fingerd
+.endif
+
+.if ${MK_FTP} != "no"
+SUBDIR+=	ftpd
 .endif
 
 .if ${MK_MAIL} != "no"
@@ -70,6 +76,10 @@ _tftp-proxy=	tftp-proxy
 _rtld-elf=	rtld-elf
 .endif
 
+.if ${MK_RBOOTD} != "no"
+SUBDIR+=	rbootd
+.endif
+
 .if ${MK_RCMDS} != "no"
 _rlogind=	rlogind
 _rshd=		rshd
@@ -84,8 +94,16 @@ _smrsh=		smrsh
 SUBDIR+=	talkd
 .endif
 
+.if ${MK_TCP_WRAPPERS} != "no"
+SUBDIR+=	tcpd
+.endif
+
 .if ${MK_TELNET} != "no"
 _telnetd=	telnetd
+.endif
+
+.if ${MK_TFTP} != "no"
+SUBDIR+=	tftpd
 .endif
 
 .if ${MK_TESTS} != "no"

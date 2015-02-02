@@ -40,7 +40,7 @@ static int hostdisk_ioctl(struct open_file *f, u_long cmd, void *data);
 static void hostdisk_print(int verbose);
 
 struct devsw hostdisk = {
-	"s",
+	"/dev",
 	DEVT_DISK,
 	hostdisk_init,
 	hostdisk_strategy,
@@ -67,8 +67,10 @@ hostdisk_strategy(void *devdata, int flag, daddr_t dblk, size_t size,
 	
 	pos = dblk * 512;
 
-	if (host_seek(desc->d_unit, pos, 0) < 0)
+	if (host_seek(desc->d_unit, pos, 0) < 0) {
+		printf("Seek error\n");
 		return (EIO);
+	}
 	n = host_read(desc->d_unit, buf, size);
 
 	if (n < 0)
@@ -82,22 +84,19 @@ static int
 hostdisk_open(struct open_file *f, ...)
 {
 	struct devdesc *desc;
-	char *path;
 	va_list vl;
 
 	va_start(vl, f);
 	desc = va_arg(vl, struct devdesc *);
 	va_end(vl);
 
-	path = malloc(strlen((char *)(desc->d_opendata)) + 6);
-	strcpy(path, "/dev/");
-	strcat(path, (char *)(desc->d_opendata));
+	desc->d_unit = host_open(desc->d_opendata, O_RDONLY, 0);
 
-	desc->d_unit = host_open(path, O_RDONLY, 0);
-	free(path);
-
-	if (desc->d_unit <= 0)
+	if (desc->d_unit <= 0) {
+		printf("hostdisk_open: couldn't open %s: %d\n",
+		    desc->d_opendata, desc->d_unit);
 		return (ENOENT);
+	}
 
 	return (0);
 }

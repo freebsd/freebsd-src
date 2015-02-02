@@ -57,8 +57,8 @@ extern void	yyrestart(FILE *);
 
 %token AUTH_METHOD HEADER_DIGEST DATA_DIGEST TARGET_NAME TARGET_ADDRESS
 %token INITIATOR_NAME INITIATOR_ADDRESS INITIATOR_ALIAS USER SECRET
-%token MUTUAL_USER MUTUAL_SECRET SEMICOLON SESSION_TYPE PROTOCOL IGNORED
-%token EQUALS OPENING_BRACKET CLOSING_BRACKET
+%token MUTUAL_USER MUTUAL_SECRET SEMICOLON SESSION_TYPE PROTOCOL OFFLOAD
+%token IGNORED EQUALS OPENING_BRACKET CLOSING_BRACKET
 
 %union
 {
@@ -116,6 +116,8 @@ target_entry:
 	data_digest
 	|
 	session_type
+	|
+	offload
 	|
 	protocol
 	|
@@ -247,6 +249,14 @@ session_type:	SESSION_TYPE EQUALS STR
 		else
 			errx(1, "invalid SessionType at line %d; "
 			    "must be either \"normal\" or \"discovery\"", lineno);
+	}
+	;
+
+offload:	OFFLOAD EQUALS STR
+	{
+		if (target->t_offload != NULL)
+			errx(1, "duplicated offload at line %d", lineno);
+		target->t_offload = $3;
 	}
 	;
 

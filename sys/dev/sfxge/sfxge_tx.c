@@ -85,14 +85,23 @@ static int sfxge_tx_dpl_get_max = SFXGE_TX_DPL_GET_PKT_LIMIT_DEFAULT;
 TUNABLE_INT(SFXGE_PARAM_TX_DPL_GET_MAX, &sfxge_tx_dpl_get_max);
 SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_dpl_get_max, CTLFLAG_RDTUN,
 	   &sfxge_tx_dpl_get_max, 0,
-	   "Maximum number of packets in deferred packet get-list");
+	   "Maximum number of any packets in deferred packet get-list");
+
+#define	SFXGE_PARAM_TX_DPL_GET_NON_TCP_MAX \
+	SFXGE_PARAM(tx_dpl_get_non_tcp_max)
+static int sfxge_tx_dpl_get_non_tcp_max =
+	SFXGE_TX_DPL_GET_NON_TCP_PKT_LIMIT_DEFAULT;
+TUNABLE_INT(SFXGE_PARAM_TX_DPL_GET_NON_TCP_MAX, &sfxge_tx_dpl_get_non_tcp_max);
+SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_dpl_get_non_tcp_max, CTLFLAG_RDTUN,
+	   &sfxge_tx_dpl_get_non_tcp_max, 0,
+	   "Maximum number of non-TCP packets in deferred packet get-list");
 
 #define	SFXGE_PARAM_TX_DPL_PUT_MAX	SFXGE_PARAM(tx_dpl_put_max)
 static int sfxge_tx_dpl_put_max = SFXGE_TX_DPL_PUT_PKT_LIMIT_DEFAULT;
 TUNABLE_INT(SFXGE_PARAM_TX_DPL_PUT_MAX, &sfxge_tx_dpl_put_max);
 SYSCTL_INT(_hw_sfxge, OID_AUTO, tx_dpl_put_max, CTLFLAG_RDTUN,
 	   &sfxge_tx_dpl_put_max, 0,
-	   "Maximum number of packets in deferred packet put-list");
+	   "Maximum number of any packets in deferred packet put-list");
 
 #endif
 
@@ -105,16 +114,11 @@ static int sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 			      const bus_dma_segment_t *dma_seg, int n_dma_seg);
 
 void
-sfxge_tx_qcomplete(struct sfxge_txq *txq)
+sfxge_tx_qcomplete(struct sfxge_txq *txq, struct sfxge_evq *evq)
 {
-	struct sfxge_softc *sc;
-	struct sfxge_evq *evq;
 	unsigned int completed;
 
-	sc = txq->sc;
-	evq = sc->evq[txq->evq_index];
-
-	mtx_assert(&evq->lock, MA_OWNED);
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
 
 	completed = txq->completed;
 	while (completed != txq->pending) {
@@ -152,6 +156,15 @@ sfxge_tx_qcomplete(struct sfxge_txq *txq)
 
 #ifdef SFXGE_HAVE_MQ
 
+static inline unsigned int
+sfxge_is_mbuf_non_tcp(struct mbuf *mbuf)
+{
+	/* Absense of TCP checksum flags does not mean that it is non-TCP
+	 * but it should be true if user wants to achieve high throughput.
+	 */
+	return (!(mbuf->m_pkthdr.csum_flags & (CSUM_IP_TCP | CSUM_IP6_TCP)));
+}
+
 /*
  * Reorder the put list and append it to the get list.
  */
@@ -163,8 +176,9 @@ sfxge_tx_qdpl_swizzle(struct sfxge_txq *txq)
 	volatile uintptr_t *putp;
 	uintptr_t put;
 	unsigned int count;
+	unsigned int non_tcp_count;
 
-	mtx_assert(&txq->lock, MA_OWNED);
+	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 
 	stdp = &txq->dpl;
 
@@ -181,9 +195,11 @@ sfxge_tx_qdpl_swizzle(struct sfxge_txq *txq)
 	get_next = NULL;
 
 	count = 0;
+	non_tcp_count = 0;
 	do {
 		struct mbuf *put_next;
 
+		non_tcp_count += sfxge_is_mbuf_non_tcp(mbuf);
 		put_next = mbuf->m_nextpkt;
 		mbuf->m_nextpkt = get_next;
 		get_next = mbuf;
@@ -197,6 +213,7 @@ sfxge_tx_qdpl_swizzle(struct sfxge_txq *txq)
 	*stdp->std_getp = get_next;
 	stdp->std_getp = get_tailp;
 	stdp->std_get_count += count;
+	stdp->std_get_non_tcp_count += non_tcp_count;
 }
 
 #endif /* SFXGE_HAVE_MQ */
@@ -204,7 +221,7 @@ sfxge_tx_qdpl_swizzle(struct sfxge_txq *txq)
 static void
 sfxge_tx_qreap(struct sfxge_txq *txq)
 {
-	mtx_assert(SFXGE_TXQ_LOCK(txq), MA_OWNED);
+	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 
 	txq->reaped = txq->completed;
 }
@@ -216,7 +233,7 @@ sfxge_tx_qlist_post(struct sfxge_txq *txq)
 	unsigned int level;
 	int rc;
 
-	mtx_assert(SFXGE_TXQ_LOCK(txq), MA_OWNED);
+	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 
 	KASSERT(txq->n_pend_desc != 0, ("txq->n_pend_desc == 0"));
 	KASSERT(txq->n_pend_desc <= SFXGE_TSO_MAX_DESC,
@@ -387,10 +404,11 @@ sfxge_tx_qdpl_drain(struct sfxge_txq *txq)
 	struct sfxge_tx_dpl *stdp;
 	struct mbuf *mbuf, *next;
 	unsigned int count;
+	unsigned int non_tcp_count;
 	unsigned int pushed;
 	int rc;
 
-	mtx_assert(&txq->lock, MA_OWNED);
+	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 
 	sc = txq->sc;
 	stdp = &txq->dpl;
@@ -401,6 +419,10 @@ sfxge_tx_qdpl_drain(struct sfxge_txq *txq)
 
 	mbuf = stdp->std_get;
 	count = stdp->std_get_count;
+	non_tcp_count = stdp->std_get_non_tcp_count;
+
+	if (count > stdp->std_get_hiwat)
+		stdp->std_get_hiwat = count;
 
 	while (count != 0) {
 		KASSERT(mbuf != NULL, ("mbuf == NULL"));
@@ -415,6 +437,7 @@ sfxge_tx_qdpl_drain(struct sfxge_txq *txq)
 
 		rc = sfxge_tx_queue_mbuf(txq, mbuf);
 		--count;
+		non_tcp_count -= sfxge_is_mbuf_non_tcp(mbuf);
 		mbuf = next;
 		if (rc != 0)
 			continue;
@@ -431,12 +454,16 @@ sfxge_tx_qdpl_drain(struct sfxge_txq *txq)
 
 	if (count == 0) {
 		KASSERT(mbuf == NULL, ("mbuf != NULL"));
+		KASSERT(non_tcp_count == 0,
+			("inconsistent TCP/non-TCP detection"));
 		stdp->std_get = NULL;
 		stdp->std_get_count = 0;
+		stdp->std_get_non_tcp_count = 0;
 		stdp->std_getp = &stdp->std_get;
 	} else {
 		stdp->std_get = mbuf;
 		stdp->std_get_count = count;
+		stdp->std_get_non_tcp_count = non_tcp_count;
 	}
 
 	if (txq->added != pushed)
@@ -457,7 +484,7 @@ sfxge_tx_qdpl_drain(struct sfxge_txq *txq)
 static inline void
 sfxge_tx_qdpl_service(struct sfxge_txq *txq)
 {
-	mtx_assert(&txq->lock, MA_OWNED);
+	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 
 	do {
 		if (SFXGE_TX_QDPL_PENDING(txq))
@@ -466,9 +493,9 @@ sfxge_tx_qdpl_service(struct sfxge_txq *txq)
 		if (!txq->blocked)
 			sfxge_tx_qdpl_drain(txq);
 
-		mtx_unlock(&txq->lock);
+		SFXGE_TXQ_UNLOCK(txq);
 	} while (SFXGE_TX_QDPL_PENDING(txq) &&
-		 mtx_trylock(&txq->lock));
+		 SFXGE_TXQ_TRYLOCK(txq));
 }
 
 /*
@@ -492,12 +519,22 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 	KASSERT(mbuf->m_nextpkt == NULL, ("mbuf->m_nextpkt != NULL"));
 
 	if (locked) {
-		mtx_assert(&txq->lock, MA_OWNED);
+		SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 
 		sfxge_tx_qdpl_swizzle(txq);
 
-		if (stdp->std_get_count >= stdp->std_get_max)
+		if (stdp->std_get_count >= stdp->std_get_max) {
+			txq->get_overflow++;
 			return (ENOBUFS);
+		}
+		if (sfxge_is_mbuf_non_tcp(mbuf)) {
+			if (stdp->std_get_non_tcp_count >=
+			    stdp->std_get_non_tcp_max) {
+				txq->get_non_tcp_overflow++;
+				return (ENOBUFS);
+			}
+			stdp->std_get_non_tcp_count++;
+		}
 
 		*(stdp->std_getp) = mbuf;
 		stdp->std_getp = &mbuf->m_nextpkt;
@@ -518,8 +555,10 @@ sfxge_tx_qdpl_put(struct sfxge_txq *txq, struct mbuf *mbuf, int locked)
 				old_len = mp->m_pkthdr.csum_data;
 			} else
 				old_len = 0;
-			if (old_len >= stdp->std_put_max)
+			if (old_len >= stdp->std_put_max) {
+				atomic_add_long(&txq->put_overflow, 1);
 				return (ENOBUFS);
+			}
 			mbuf->m_pkthdr.csum_data = old_len + 1;
 			mbuf->m_nextpkt = (void *)old;
 		} while (atomic_cmpset_ptr(putp, old, new) == 0);
@@ -540,6 +579,7 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 
 	if (!SFXGE_LINK_UP(txq->sc)) {
 		rc = ENETDOWN;
+		atomic_add_long(&txq->netdown_drops, 1);
 		goto fail;
 	}
 
@@ -548,11 +588,11 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	 * the packet will be appended to the "get list" of the deferred
 	 * packet list.  Otherwise, it will be pushed on the "put list".
 	 */
-	locked = mtx_trylock(&txq->lock);
+	locked = SFXGE_TXQ_TRYLOCK(txq);
 
 	if (sfxge_tx_qdpl_put(txq, m, locked) != 0) {
 		if (locked)
-			mtx_unlock(&txq->lock);
+			SFXGE_TXQ_UNLOCK(txq);
 		rc = ENOBUFS;
 		goto fail;
 	}
@@ -565,7 +605,7 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 	 * is processing the list.
 	 */
 	if (!locked)
-		locked = mtx_trylock(&txq->lock);
+		locked = SFXGE_TXQ_TRYLOCK(txq);
 
 	if (locked) {
 		/* Try to service the list. */
@@ -577,7 +617,6 @@ sfxge_tx_packet_add(struct sfxge_txq *txq, struct mbuf *m)
 
 fail:
 	m_freem(m);
-	atomic_add_long(&txq->early_drops, 1);
 	return (rc);
 }
 
@@ -587,7 +626,7 @@ sfxge_tx_qdpl_flush(struct sfxge_txq *txq)
 	struct sfxge_tx_dpl *stdp = &txq->dpl;
 	struct mbuf *mbuf, *next;
 
-	mtx_lock(&txq->lock);
+	SFXGE_TXQ_LOCK(txq);
 
 	sfxge_tx_qdpl_swizzle(txq);
 	for (mbuf = stdp->std_get; mbuf != NULL; mbuf = next) {
@@ -596,9 +635,10 @@ sfxge_tx_qdpl_flush(struct sfxge_txq *txq)
 	}
 	stdp->std_get = NULL;
 	stdp->std_get_count = 0;
+	stdp->std_get_non_tcp_count = 0;
 	stdp->std_getp = &stdp->std_get;
 
-	mtx_unlock(&txq->lock);
+	SFXGE_TXQ_UNLOCK(txq);
 }
 
 void
@@ -713,21 +753,20 @@ void sfxge_if_start(struct ifnet *ifp)
 {
 	struct sfxge_softc *sc = ifp->if_softc;
 
-	mtx_lock(&sc->tx_lock);
+	SFXGE_TXQ_LOCK(sc->txq[0]);
 	sfxge_if_start_locked(ifp);
-	mtx_unlock(&sc->tx_lock);
+	SFXGE_TXQ_UNLOCK(sc->txq[0]);
 }
 
 static inline void
 sfxge_tx_qdpl_service(struct sfxge_txq *txq)
 {
-	struct sfxge_softc *sc = txq->sc;
-	struct ifnet *ifp = sc->ifnet;
+	struct ifnet *ifp = txq->sc->ifnet;
 
-	mtx_assert(&sc->tx_lock, MA_OWNED);
+	SFXGE_TXQ_LOCK_ASSERT_OWNED(txq);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sfxge_if_start_locked(ifp);
-	mtx_unlock(&sc->tx_lock);
+	SFXGE_TXQ_UNLOCK(txq);
 }
 
 #endif /* SFXGE_HAVE_MQ */
@@ -855,9 +894,7 @@ static void tso_start(struct sfxge_tso_state *tso, struct mbuf *mbuf)
 		tso->tcph_off = tso->nh_off + sizeof(struct ip6_hdr);
 	}
 
-	/* We assume all headers are linear in the head mbuf */
 	tso->header_len = tso->tcph_off + 4 * tso_tcph(tso)->th_off;
-	KASSERT(tso->header_len <= mbuf->m_len, ("packet headers fragmented"));
 	tso->full_packet_size = tso->header_len + mbuf->m_pkthdr.tso_segsz;
 
 	tso->seqnum = ntohl(tso_tcph(tso)->th_seq);
@@ -972,7 +1009,7 @@ static int tso_start_new_packet(struct sfxge_txq *txq,
 	tsoh_th = (struct tcphdr *)(header + tso->tcph_off);
 
 	/* Copy and update the headers. */
-	memcpy(header, tso->mbuf->m_data, tso->header_len);
+	m_copydata(tso->mbuf, 0, tso->header_len, header);
 
 	tsoh_th->th_seq = htonl(tso->seqnum);
 	tso->seqnum += tso->mbuf->m_pkthdr.tso_segsz;
@@ -1018,20 +1055,18 @@ sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 {
 	struct sfxge_tso_state tso;
 	unsigned int id, next_id;
+	unsigned skipped = 0;
 
 	tso_start(&tso, mbuf);
 
-	/* Grab the first payload fragment. */
-	if (dma_seg->ds_len == tso.header_len) {
+	while (dma_seg->ds_len + skipped <= tso.header_len) {
+		skipped += dma_seg->ds_len;
 		--n_dma_seg;
 		KASSERT(n_dma_seg, ("no payload found in TSO packet"));
 		++dma_seg;
-		tso.in_len = dma_seg->ds_len;
-		tso.dma_addr = dma_seg->ds_addr;
-	} else {
-		tso.in_len = dma_seg->ds_len - tso.header_len;
-		tso.dma_addr = dma_seg->ds_addr + tso.header_len;
 	}
+	tso.in_len = dma_seg->ds_len + (tso.header_len - skipped);
+	tso.dma_addr = dma_seg->ds_addr + (tso.header_len - skipped);
 
 	id = txq->added & txq->ptr_mask;
 	if (__predict_false(tso_start_new_packet(txq, &tso, id)))
@@ -1059,12 +1094,16 @@ sfxge_tx_queue_tso(struct sfxge_txq *txq, struct mbuf *mbuf,
 			 * roll back the work we have done.
 			 */
 			if (txq->n_pend_desc >
-			    SFXGE_TSO_MAX_DESC - (1 + SFXGE_TX_MAPPING_MAX_SEG))
+			    SFXGE_TSO_MAX_DESC - (1 + SFXGE_TX_MAPPING_MAX_SEG)) {
+				txq->tso_pdrop_too_many++;
 				break;
+			}
 			next_id = (id + 1) & txq->ptr_mask;
 			if (__predict_false(tso_start_new_packet(txq, &tso,
-								 next_id)))
+								 next_id))) {
+				txq->tso_pdrop_no_rsrc++;
 				break;
+			}
 			id = next_id;
 		}
 	}
@@ -1082,12 +1121,12 @@ sfxge_tx_qunblock(struct sfxge_txq *txq)
 	sc = txq->sc;
 	evq = sc->evq[txq->evq_index];
 
-	mtx_assert(&evq->lock, MA_OWNED);
+	SFXGE_EVQ_LOCK_ASSERT_OWNED(evq);
 
 	if (txq->init_state != SFXGE_TXQ_STARTED)
 		return;
 
-	mtx_lock(SFXGE_TXQ_LOCK(txq));
+	SFXGE_TXQ_LOCK(txq);
 
 	if (txq->blocked) {
 		unsigned int level;
@@ -1118,7 +1157,7 @@ sfxge_tx_qstop(struct sfxge_softc *sc, unsigned int index)
 	txq = sc->txq[index];
 	evq = sc->evq[txq->evq_index];
 
-	mtx_lock(SFXGE_TXQ_LOCK(txq));
+	SFXGE_TXQ_LOCK(txq);
 
 	KASSERT(txq->init_state == SFXGE_TXQ_STARTED,
 	    ("txq->init_state != SFXGE_TXQ_STARTED"));
@@ -1129,7 +1168,7 @@ sfxge_tx_qstop(struct sfxge_softc *sc, unsigned int index)
 	/* Flush the transmit queue. */
 	efx_tx_qflush(txq->common);
 
-	mtx_unlock(SFXGE_TXQ_LOCK(txq));
+	SFXGE_TXQ_UNLOCK(txq);
 
 	count = 0;
 	do {
@@ -1140,8 +1179,8 @@ sfxge_tx_qstop(struct sfxge_softc *sc, unsigned int index)
 			break;
 	} while (++count < 20);
 
-	mtx_lock(&evq->lock);
-	mtx_lock(SFXGE_TXQ_LOCK(txq));
+	SFXGE_EVQ_LOCK(evq);
+	SFXGE_TXQ_LOCK(txq);
 
 	KASSERT(txq->flush_state != SFXGE_FLUSH_FAILED,
 	    ("txq->flush_state == SFXGE_FLUSH_FAILED"));
@@ -1151,7 +1190,7 @@ sfxge_tx_qstop(struct sfxge_softc *sc, unsigned int index)
 	txq->blocked = 0;
 	txq->pending = txq->added;
 
-	sfxge_tx_qcomplete(txq);
+	sfxge_tx_qcomplete(txq, evq);
 	KASSERT(txq->completed == txq->added,
 	    ("txq->completed != txq->added"));
 
@@ -1171,8 +1210,8 @@ sfxge_tx_qstop(struct sfxge_softc *sc, unsigned int index)
 	efx_sram_buf_tbl_clear(sc->enp, txq->buf_base_id,
 	    EFX_TXQ_NBUFS(sc->txq_entries));
 
-	mtx_unlock(&evq->lock);
-	mtx_unlock(SFXGE_TXQ_LOCK(txq));
+	SFXGE_EVQ_UNLOCK(evq);
+	SFXGE_TXQ_UNLOCK(txq);
 }
 
 static int
@@ -1221,14 +1260,14 @@ sfxge_tx_qstart(struct sfxge_softc *sc, unsigned int index)
 	    &txq->common)) != 0)
 		goto fail;
 
-	mtx_lock(SFXGE_TXQ_LOCK(txq));
+	SFXGE_TXQ_LOCK(txq);
 
 	/* Enable the transmit queue. */
 	efx_tx_qenable(txq->common);
 
 	txq->init_state = SFXGE_TXQ_STARTED;
 
-	mtx_unlock(SFXGE_TXQ_LOCK(txq));
+	SFXGE_TXQ_UNLOCK(txq);
 
 	return (0);
 
@@ -1326,7 +1365,7 @@ sfxge_tx_qfini(struct sfxge_softc *sc, unsigned int index)
 	sc->txq[index] = NULL;
 
 #ifdef SFXGE_HAVE_MQ
-	mtx_destroy(&txq->lock);
+	SFXGE_TXQ_LOCK_DESTROY(txq);
 #endif
 
 	free(txq, M_SFXGE);
@@ -1411,6 +1450,13 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 		rc = EINVAL;
 		goto fail_tx_dpl_get_max;
 	}
+	if (sfxge_tx_dpl_get_non_tcp_max <= 0) {
+		log(LOG_ERR, "%s=%d must be greater than 0",
+		    SFXGE_PARAM_TX_DPL_GET_NON_TCP_MAX,
+		    sfxge_tx_dpl_get_non_tcp_max);
+		rc = EINVAL;
+		goto fail_tx_dpl_get_max;
+	}
 	if (sfxge_tx_dpl_put_max < 0) {
 		log(LOG_ERR, "%s=%d must be greater or equal to 0",
 		    SFXGE_PARAM_TX_DPL_PUT_MAX, sfxge_tx_dpl_put_max);
@@ -1422,14 +1468,23 @@ sfxge_tx_qinit(struct sfxge_softc *sc, unsigned int txq_index,
 	stdp = &txq->dpl;
 	stdp->std_put_max = sfxge_tx_dpl_put_max;
 	stdp->std_get_max = sfxge_tx_dpl_get_max;
+	stdp->std_get_non_tcp_max = sfxge_tx_dpl_get_non_tcp_max;
 	stdp->std_getp = &stdp->std_get;
 
-	mtx_init(&txq->lock, "txq", NULL, MTX_DEF);
+	SFXGE_TXQ_LOCK_INIT(txq, device_get_nameunit(sc->dev), txq_index);
 
 	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
 			SYSCTL_CHILDREN(txq_node), OID_AUTO,
 			"dpl_get_count", CTLFLAG_RD | CTLFLAG_STATS,
 			&stdp->std_get_count, 0, "");
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
+			SYSCTL_CHILDREN(txq_node), OID_AUTO,
+			"dpl_get_non_tcp_count", CTLFLAG_RD | CTLFLAG_STATS,
+			&stdp->std_get_non_tcp_count, 0, "");
+	SYSCTL_ADD_UINT(device_get_sysctl_ctx(sc->dev),
+			SYSCTL_CHILDREN(txq_node), OID_AUTO,
+			"dpl_get_hiwat", CTLFLAG_RD | CTLFLAG_STATS,
+			&stdp->std_get_hiwat, 0, "");
 #endif
 
 	txq->type = type;
@@ -1465,9 +1520,14 @@ static const struct {
 	SFXGE_TX_STAT(tso_bursts, tso_bursts),
 	SFXGE_TX_STAT(tso_packets, tso_packets),
 	SFXGE_TX_STAT(tso_long_headers, tso_long_headers),
+	SFXGE_TX_STAT(tso_pdrop_too_many, tso_pdrop_too_many),
+	SFXGE_TX_STAT(tso_pdrop_no_rsrc, tso_pdrop_no_rsrc),
 	SFXGE_TX_STAT(tx_collapses, collapses),
 	SFXGE_TX_STAT(tx_drops, drops),
-	SFXGE_TX_STAT(tx_early_drops, early_drops),
+	SFXGE_TX_STAT(tx_get_overflow, get_overflow),
+	SFXGE_TX_STAT(tx_get_non_tcp_overflow, get_non_tcp_overflow),
+	SFXGE_TX_STAT(tx_put_overflow, put_overflow),
+	SFXGE_TX_STAT(tx_netdown_drops, netdown_drops),
 };
 
 static int

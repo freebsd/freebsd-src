@@ -556,26 +556,27 @@ enum ahci_err_type {
 	bus_write_multi_stream_4((res), (offset), (addr), (count))
 
 
-#define AHCI_Q_NOFORCE		1
-#define AHCI_Q_NOPMP		2
-#define AHCI_Q_NONCQ		4
-#define AHCI_Q_1CH		8
-#define AHCI_Q_2CH		0x10
-#define AHCI_Q_4CH		0x20
-#define AHCI_Q_EDGEIS		0x40
-#define AHCI_Q_SATA2		0x80
-#define AHCI_Q_NOBSYRES		0x100
-#define AHCI_Q_NOAA		0x200
-#define AHCI_Q_NOCOUNT		0x400
-#define AHCI_Q_ALTSIG		0x800
-#define AHCI_Q_NOMSI		0x1000
-#define AHCI_Q_ATI_PMP_BUG	0x2000
-#define AHCI_Q_MAXIO_64K	0x4000
-#define AHCI_Q_SATA1_UNIT0	0x8000		/* need better method for this */
-#define AHCI_Q_ABAR0		0x10000
+#define AHCI_Q_NOFORCE		0x00000001
+#define AHCI_Q_NOPMP		0x00000002
+#define AHCI_Q_NONCQ		0x00000004
+#define AHCI_Q_1CH		0x00000008
+#define AHCI_Q_2CH		0x00000010
+#define AHCI_Q_4CH		0x00000020
+#define AHCI_Q_EDGEIS		0x00000040
+#define AHCI_Q_SATA2		0x00000080
+#define AHCI_Q_NOBSYRES		0x00000100
+#define AHCI_Q_NOAA		0x00000200
+#define AHCI_Q_NOCOUNT		0x00000400
+#define AHCI_Q_ALTSIG		0x00000800
+#define AHCI_Q_NOMSI		0x00001000
+#define AHCI_Q_ATI_PMP_BUG	0x00002000
+#define AHCI_Q_MAXIO_64K	0x00004000
+#define AHCI_Q_SATA1_UNIT0	0x00008000	/* need better method for this */
+#define AHCI_Q_ABAR0		0x00010000
+#define AHCI_Q_1MSI		0x00020000
 
 #define AHCI_Q_BIT_STRING	\
-	"\020"			\
+	"\021"			\
 	"\001NOFORCE"		\
 	"\002NOPMP"		\
 	"\003NONCQ"		\
@@ -592,7 +593,8 @@ enum ahci_err_type {
 	"\016ATI_PMP_BUG"	\
 	"\017MAXIO_64K"		\
 	"\020SATA1_UNIT0"	\
-	"\021ABAR0"
+	"\021ABAR0"		\
+	"\0221MSI"
 
 int ahci_attach(device_t dev);
 int ahci_detach(device_t dev);

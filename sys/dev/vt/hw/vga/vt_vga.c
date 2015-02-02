@@ -1263,7 +1263,8 @@ static int
 vtvga_probe(device_t dev)
 {
 
-	device_set_desc(dev, "vt_vga driver");
+	device_set_desc(dev, "VT VGA driver");
+
 	return (BUS_PROBE_NOWILDCARD);
 }
 

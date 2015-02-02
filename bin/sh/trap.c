@@ -74,7 +74,7 @@ __FBSDID("$FreeBSD$");
 
 static char sigmode[NSIG];	/* current value of signal */
 volatile sig_atomic_t pendingsig;	/* indicates some signal received */
-volatile sig_atomic_t pendingsig_waitcmd;	/* indicates SIGINT/SIGQUIT received */
+volatile sig_atomic_t pendingsig_waitcmd;	/* indicates wait builtin should be interrupted */
 static int in_dotrap;			/* do we execute in a trap handler? */
 static char *volatile trap[NSIG];	/* trap handler commands */
 static volatile sig_atomic_t gotsig[NSIG];
@@ -400,6 +400,7 @@ onsig(int signo)
 	    (signo != SIGCHLD || !ignore_sigchld)) {
 		gotsig[signo] = 1;
 		pendingsig = signo;
+		pendingsig_waitcmd = signo;
 	}
 }
 

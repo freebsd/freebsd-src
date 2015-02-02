@@ -86,7 +86,12 @@ typedef u_long	fptrdiff_t;
 	/*								\
 	 * Restore registers that were trashed during mcount		\
 	 */								\
-	__asm__("ldmfd	sp!, {r0-r3, lr, pc}");
+	__asm__("ldmfd	sp!, {r0-r3, lr}");				\
+	/*								\
+	 * Return to the caller. Loading lr and pc in one instruction	\
+	 * is deprecated on ARMv7 so we need this on it's own.		\
+	 */								\
+	__asm__("ldmfd	sp!, {pc}");
 void bintr(void);
 void btrap(void);
 void eintr(void);

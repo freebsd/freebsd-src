@@ -14,6 +14,8 @@
  */
 
 #include <sys/sdt.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include "usdt.h"
 
 #define	FMT	"{" \

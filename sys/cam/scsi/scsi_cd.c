@@ -87,14 +87,16 @@ typedef enum {
 	CD_Q_NONE		= 0x00,
 	CD_Q_NO_TOUCH		= 0x01,
 	CD_Q_BCD_TRACKS		= 0x02,
-	CD_Q_10_BYTE_ONLY	= 0x10
+	CD_Q_10_BYTE_ONLY	= 0x10,
+	CD_Q_RETRY_BUSY		= 0x40
 } cd_quirks;
 
 #define CD_Q_BIT_STRING		\
 	"\020"			\
 	"\001NO_TOUCH"		\
 	"\002BCD_TRACKS"	\
-	"\00510_BYTE_ONLY"
+	"\00510_BYTE_ONLY"	\
+	"\007RETRY_BUSY"
 
 typedef enum {
 	CD_FLAG_INVALID		= 0x0001,
@@ -189,6 +191,14 @@ static struct cd_quirk_entry cd_quirk_table[] =
 	{
 		{ T_CDROM, SIP_MEDIA_REMOVABLE, "CHINON", "CD-ROM CDS-535","*"},
 		/* quirks */ CD_Q_BCD_TRACKS
+	},
+	{
+		/*
+		 * VMware returns BUSY status when storage has transient
+		 * connectivity problems, so better wait.
+		 */
+		{T_CDROM, SIP_MEDIA_REMOVABLE, "NECVMWar", "VMware IDE CDR10", "*"},
+		/*quirks*/ CD_Q_RETRY_BUSY
 	}
 };
 
@@ -2581,6 +2591,9 @@ cderror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	 * don't treat UAs as errors.
 	 */
 	sense_flags |= SF_RETRY_UA;
+
+	if (softc->quirks & CD_Q_RETRY_BUSY)
+		sense_flags |= SF_RETRY_BUSY;
 	return (cam_periph_error(ccb, cam_flags, sense_flags, 
 				 &softc->saved_ccb));
 }

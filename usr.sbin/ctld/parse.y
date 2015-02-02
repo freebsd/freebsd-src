@@ -60,8 +60,8 @@ extern void	yyrestart(FILE *);
 %token ALIAS AUTH_GROUP AUTH_TYPE BACKEND BLOCKSIZE CHAP CHAP_MUTUAL
 %token CLOSING_BRACKET DEBUG DEVICE_ID DISCOVERY_AUTH_GROUP DISCOVERY_FILTER
 %token INITIATOR_NAME INITIATOR_PORTAL ISNS_SERVER ISNS_PERIOD ISNS_TIMEOUT
-%token LISTEN LISTEN_ISER LUN MAXPROC OPENING_BRACKET OPTION
-%token PATH PIDFILE PORTAL_GROUP REDIRECT SEMICOLON SERIAL SIZE STR
+%token LISTEN LISTEN_ISER LUN MAXPROC OFFLOAD OPENING_BRACKET OPTION
+%token PATH PIDFILE PORT PORTAL_GROUP REDIRECT SEMICOLON SERIAL SIZE STR
 %token TARGET TIMEOUT 
 
 %union
@@ -98,6 +98,8 @@ statement:
 	auth_group
 	|
 	portal_group
+	|
+	lun
 	|
 	target
 	;
@@ -407,6 +409,22 @@ portal_group_redirect:	REDIRECT STR
 	}
 	;
 
+lun:	LUN lun_name
+    OPENING_BRACKET lun_entries CLOSING_BRACKET
+	{
+		lun = NULL;
+	}
+	;
+
+lun_name:	STR
+	{
+		lun = lun_new(conf, $1);
+		free($1);
+		if (lun == NULL)
+			return (1);
+	}
+	;
+
 target:	TARGET target_name
     OPENING_BRACKET target_entries CLOSING_BRACKET
 	{
@@ -445,11 +463,17 @@ target_entry:
 	|
 	target_initiator_portal
 	|
+	target_offload
+	|
 	target_portal_group
+	|
+	target_port
 	|
 	target_redirect
 	|
 	target_lun
+	|
+	target_lun_ref
 	;
 
 target_alias:	ALIAS STR
@@ -632,18 +656,96 @@ target_initiator_portal:	INITIATOR_PORTAL STR
 	}
 	;
 
-target_portal_group:	PORTAL_GROUP STR
+target_offload:	OFFLOAD STR
 	{
-		if (target->t_portal_group != NULL) {
-			log_warnx("portal-group for target \"%s\" "
-			    "specified more than once", target->t_name);
+		int error;
+
+		error = target_set_offload(target, $2);
+		free($2);
+		if (error != 0)
+			return (1);
+	}
+	;
+
+target_portal_group:	PORTAL_GROUP STR STR
+	{
+		struct portal_group *tpg;
+		struct auth_group *tag;
+		struct port *tp;
+
+		tpg = portal_group_find(conf, $2);
+		if (tpg == NULL) {
+			log_warnx("unknown portal-group \"%s\" for target "
+			    "\"%s\"", $2, target->t_name);
+			free($2);
+			free($3);
+			return (1);
+		}
+		tag = auth_group_find(conf, $3);
+		if (tag == NULL) {
+			log_warnx("unknown auth-group \"%s\" for target "
+			    "\"%s\"", $3, target->t_name);
+			free($2);
+			free($3);
+			return (1);
+		}
+		tp = port_new(conf, target, tpg);
+		if (tp == NULL) {
+			log_warnx("can't link portal-group \"%s\" to target "
+			    "\"%s\"", $2, target->t_name);
 			free($2);
 			return (1);
 		}
-		target->t_portal_group = portal_group_find(conf, $2);
-		if (target->t_portal_group == NULL) {
+		tp->p_auth_group = tag;
+		free($2);
+		free($3);
+	}
+	|		PORTAL_GROUP STR
+	{
+		struct portal_group *tpg;
+		struct port *tp;
+
+		tpg = portal_group_find(conf, $2);
+		if (tpg == NULL) {
 			log_warnx("unknown portal-group \"%s\" for target "
 			    "\"%s\"", $2, target->t_name);
+			free($2);
+			return (1);
+		}
+		tp = port_new(conf, target, tpg);
+		if (tp == NULL) {
+			log_warnx("can't link portal-group \"%s\" to target "
+			    "\"%s\"", $2, target->t_name);
+			free($2);
+			return (1);
+		}
+		free($2);
+	}
+	;
+
+target_port:	PORT STR
+	{
+		struct pport *pp;
+		struct port *tp;
+
+		pp = pport_find(conf, $2);
+		if (pp == NULL) {
+			log_warnx("unknown port \"%s\" for target \"%s\"",
+			    $2, target->t_name);
+			free($2);
+			return (1);
+		}
+		if (!TAILQ_EMPTY(&pp->pp_ports)) {
+			log_warnx("can't link port \"%s\" to target \"%s\", "
+			    "port already linked to some target",
+			    $2, target->t_name);
+			free($2);
+			return (1);
+		}
+		tp = port_new_pp(conf, target, pp);
+		if (tp == NULL) {
+			log_warnx("can't link port \"%s\" to target \"%s\"",
+			    $2, target->t_name);
 			free($2);
 			return (1);
 		}
@@ -672,6 +774,7 @@ target_lun:	LUN lun_number
 lun_number:	STR
 	{
 		uint64_t tmp;
+		char *name;
 
 		if (expand_number($1, &tmp) != 0) {
 			yyerror("invalid numeric value");
@@ -679,9 +782,34 @@ lun_number:	STR
 			return (1);
 		}
 
-		lun = lun_new(target, tmp);
+		asprintf(&name, "%s,lun,%ju", target->t_name, tmp);
+		lun = lun_new(conf, name);
 		if (lun == NULL)
 			return (1);
+
+		lun_set_scsiname(lun, name);
+		target->t_luns[tmp] = lun;
+	}
+	;
+
+target_lun_ref:	LUN STR STR
+	{
+		uint64_t tmp;
+
+		if (expand_number($2, &tmp) != 0) {
+			yyerror("invalid numeric value");
+			free($2);
+			free($3);
+			return (1);
+		}
+		free($2);
+
+		lun = lun_find(conf, $3);
+		free($3);
+		if (lun == NULL)
+			return (1);
+
+		target->t_luns[tmp] = lun;
 	}
 	;
 
@@ -711,9 +839,9 @@ lun_entry:
 lun_backend:	BACKEND STR
 	{
 		if (lun->l_backend != NULL) {
-			log_warnx("backend for lun %d, target \"%s\" "
+			log_warnx("backend for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
@@ -733,9 +861,9 @@ lun_blocksize:	BLOCKSIZE STR
 		}
 
 		if (lun->l_blocksize != 0) {
-			log_warnx("blocksize for lun %d, target \"%s\" "
+			log_warnx("blocksize for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			return (1);
 		}
 		lun_set_blocksize(lun, tmp);
@@ -745,9 +873,9 @@ lun_blocksize:	BLOCKSIZE STR
 lun_device_id:	DEVICE_ID STR
 	{
 		if (lun->l_device_id != NULL) {
-			log_warnx("device_id for lun %d, target \"%s\" "
+			log_warnx("device_id for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
@@ -771,9 +899,9 @@ lun_option:	OPTION STR STR
 lun_path:	PATH STR
 	{
 		if (lun->l_path != NULL) {
-			log_warnx("path for lun %d, target \"%s\" "
+			log_warnx("path for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
@@ -785,9 +913,9 @@ lun_path:	PATH STR
 lun_serial:	SERIAL STR
 	{
 		if (lun->l_serial != NULL) {
-			log_warnx("serial for lun %d, target \"%s\" "
+			log_warnx("serial for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			free($2);
 			return (1);
 		}
@@ -807,9 +935,9 @@ lun_size:	SIZE STR
 		}
 
 		if (lun->l_size != 0) {
-			log_warnx("size for lun %d, target \"%s\" "
+			log_warnx("size for lun \"%s\" "
 			    "specified more than once",
-			    lun->l_lun, target->t_name);
+			    lun->l_name);
 			return (1);
 		}
 		lun_set_size(lun, tmp);
@@ -854,15 +982,19 @@ check_perms(const char *path)
 }
 
 struct conf *
-conf_new_from_file(const char *path)
+conf_new_from_file(const char *path, struct conf *oldconf)
 {
 	struct auth_group *ag;
 	struct portal_group *pg;
+	struct pport *pp;
 	int error;
 
 	log_debugx("obtaining configuration from %s", path);
 
 	conf = conf_new();
+
+	TAILQ_FOREACH(pp, &oldconf->conf_pports, pp_next)
+		pport_copy(pp, conf);
 
 	ag = auth_group_new(conf, "default");
 	assert(ag != NULL);

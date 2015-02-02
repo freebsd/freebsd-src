@@ -51,7 +51,6 @@ typedef void (*fe_shutdown_t)(void);
 typedef void (*port_func_t)(void *onoff_arg);
 typedef int (*port_info_func_t)(void *onoff_arg, struct sbuf *sb);
 typedef	int (*lun_func_t)(void *arg, struct ctl_id targ_id, int lun_id);
-typedef	uint32_t (*lun_map_func_t)(void *arg, uint32_t lun_id);
 typedef int (*fe_ioctl_t)(struct cdev *dev, u_long cmd, caddr_t addr, int flag,
 			  struct thread *td);
 
@@ -226,7 +225,7 @@ struct ctl_port {
 	void		*onoff_arg;		/* passed to CTL */
 	lun_func_t	lun_enable;		/* passed to CTL */
 	lun_func_t	lun_disable;		/* passed to CTL */
-	lun_map_func_t	lun_map;		/* passed to CTL */
+	uint32_t	*lun_map;		/* passed to CTL */
 	void		*targ_lun_arg;		/* passed to CTL */
 	void		(*fe_datamove)(union ctl_io *io); /* passed to CTL */
 	void		(*fe_done)(union ctl_io *io); /* passed to CTL */
