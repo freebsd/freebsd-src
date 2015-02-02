@@ -87,6 +87,8 @@ device		sdhci			# mmc/sd host controller
 # Boot device is 2nd slice on MMC/SD card
 options 	ROOTDEVNAME=\"ufs:mmcsd0s2\"
 
+device		am335x_rtc		# RTC support (power management only)
+
 # Console and misc
 device		uart
 device		uart_ns8250
