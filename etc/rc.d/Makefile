@@ -43,7 +43,6 @@ FILES=	DAEMON \
 	growfs \
 	gssd \
 	${_hcsecd} \
-	hostapd \
 	hostid \
 	hostid_save \
 	hostname \
@@ -137,7 +136,6 @@ FILES=	DAEMON \
 	var \
 	virecover \
 	watchdogd \
-	wpa_supplicant \
 	ypbind \
 	yppasswdd \
 	ypserv \
