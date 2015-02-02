@@ -4960,6 +4960,10 @@ OLD_FILES+=usr/share/man/man8/pac.8.gz
 .endif
 
 .if ${MK_MAIL} == no
+OLD_FILES+=etc/aliases
+OLD_FILES+=etc/mail.rc
+OLD_FILES+=etc/mail/aliases
+OLD_FILES+=etc/mail/mailer.conf
 OLD_FILES+=etc/periodic/daily/130.clean-msgs
 OLD_FILES+=usr/bin/Mail
 OLD_FILES+=usr/bin/biff
