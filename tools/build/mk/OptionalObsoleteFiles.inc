@@ -1713,8 +1713,13 @@ OLD_FILES+=usr/share/man/man1/kgdb.1.gz
 .if ${MK_GPIO} == no
 OLD_FILES+=usr/include/libgpio.h
 OLD_FILES+=usr/lib/libgpio.a
+OLD_FILES+=usr/lib/libgpio.so
 OLD_LIBS+=usr/lib/libgpio.so.0
 OLD_FILES+=usr/lib/libgpio_p.a
+OLD_FILES+=usr/lib32/libgpio.a
+OLD_FILES+=usr/lib32/libgpio.so
+OLD_LIBS+=usr/lib32/libgpio.so.0
+OLD_FILES+=usr/lib32/libgpio_p.a
 OLD_FILES+=usr/sbin/gpioctl
 OLD_FILES+=usr/share/man/man3/gpio.3.gz
 OLD_FILES+=usr/share/man/man3/gpio_close.3.gz
