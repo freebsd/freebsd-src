@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar71xx_gpiovar.h>
 #include <mips/atheros/ar933xreg.h>
 #include <mips/atheros/ar934xreg.h>
+#include <dev/gpio/gpiobusvar.h>
 
 #include "gpio_if.h"
 
@@ -79,6 +80,7 @@ static void ar71xx_gpio_intr(void *arg);
 /*
  * GPIO interface
  */
+static device_t ar71xx_gpio_get_bus(device_t);
 static int ar71xx_gpio_pin_max(device_t dev, int *maxpin);
 static int ar71xx_gpio_pin_getcaps(device_t dev, uint32_t pin, uint32_t *caps);
 static int ar71xx_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t
@@ -133,6 +135,16 @@ ar71xx_gpio_pin_configure(struct ar71xx_gpio_softc *sc, struct gpio_pin *pin,
 			GPIO_CLEAR_BITS(sc, AR71XX_GPIO_OE, mask);
 		}
 	}
+}
+
+static device_t
+ar71xx_gpio_get_bus(device_t dev)
+{
+	struct ar71xx_gpio_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->busdev);
 }
 
 static int
@@ -341,7 +353,6 @@ static int
 ar71xx_gpio_attach(device_t dev)
 {
 	struct ar71xx_gpio_softc *sc = device_get_softc(dev);
-	int error = 0;
 	int i, j, maxpin;
 	int mask, pinon;
 	uint32_t oe;
@@ -358,14 +369,14 @@ ar71xx_gpio_attach(device_t dev)
 
 	if (sc->gpio_mem_res == NULL) {
 		device_printf(dev, "couldn't map memory\n");
-		error = ENXIO;
 		ar71xx_gpio_detach(dev);
-		return(error);
+		return (ENXIO);
 	}
 
 	if ((sc->gpio_irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, 
 	    &sc->gpio_irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
 		device_printf(dev, "unable to allocate IRQ resource\n");
+		ar71xx_gpio_detach(dev);
 		return (ENXIO);
 	}
 
@@ -373,6 +384,7 @@ ar71xx_gpio_attach(device_t dev)
 	    ar71xx_gpio_filter, ar71xx_gpio_intr, sc, &sc->gpio_ih))) {
 		device_printf(dev,
 		    "WARNING: unable to register interrupt handler\n");
+		ar71xx_gpio_detach(dev);
 		return (ENXIO);
 	}
 
@@ -433,10 +445,13 @@ ar71xx_gpio_attach(device_t dev)
 			ar71xx_gpio_pin_set(dev, j, 1);
 		}
 	}
-	device_add_child(dev, "gpioc", -1);
-	device_add_child(dev, "gpiobus", -1);
+	sc->busdev = gpiobus_attach_bus(dev);
+	if (sc->busdev == NULL) {
+		ar71xx_gpio_detach(dev);
+		return (ENXIO);
+	}
 
-	return (bus_generic_attach(dev));
+	return (0);
 }
 
 static int
@@ -446,13 +461,17 @@ ar71xx_gpio_detach(device_t dev)
 
 	KASSERT(mtx_initialized(&sc->gpio_mtx), ("gpio mutex not initialized"));
 
-	bus_generic_detach(dev);
-
+	gpiobus_detach_bus(dev);
+	if (sc->gpio_ih)
+		bus_teardown_intr(dev, sc->gpio_irq_res, sc->gpio_ih);
+	if (sc->gpio_irq_res)
+		bus_release_resource(dev, SYS_RES_IRQ, sc->gpio_irq_rid,
+		    sc->gpio_irq_res);
 	if (sc->gpio_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, sc->gpio_mem_rid,
 		    sc->gpio_mem_res);
-
-	free(sc->gpio_pins, M_DEVBUF);
+	if (sc->gpio_pins)
+		free(sc->gpio_pins, M_DEVBUF);
 	mtx_destroy(&sc->gpio_mtx);
 
 	return(0);
@@ -464,6 +483,7 @@ static device_method_t ar71xx_gpio_methods[] = {
 	DEVMETHOD(device_detach, ar71xx_gpio_detach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus, ar71xx_gpio_get_bus),
 	DEVMETHOD(gpio_pin_max, ar71xx_gpio_pin_max),
 	DEVMETHOD(gpio_pin_getname, ar71xx_gpio_pin_getname),
 	DEVMETHOD(gpio_pin_getflags, ar71xx_gpio_pin_getflags),

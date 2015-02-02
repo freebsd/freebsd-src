@@ -442,7 +442,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 }
 
 int
-set_mcontext(struct thread *td, const mcontext_t *mcp)
+set_mcontext(struct thread *td, mcontext_t *mcp)
 {
 	struct pcb *pcb;
 	struct trapframe *tf;
@@ -739,7 +739,7 @@ get_mcontext32(struct thread *td, mcontext32_t *mcp, int flags)
 }
 
 static int
-set_mcontext32(struct thread *td, const mcontext32_t *mcp)
+set_mcontext32(struct thread *td, mcontext32_t *mcp)
 {
 	mcontext_t mcp64;
 	int i, error;

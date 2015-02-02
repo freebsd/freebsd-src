@@ -2112,10 +2112,15 @@ struct scsi_vpd_extended_inquiry_data
 	uint8_t device;
 	uint8_t page_code;
 #define	SVPD_EXTENDED_INQUIRY_DATA	0x86
-	uint8_t reserved;
-	uint8_t page_length;
+	uint8_t page_length[2];
 	uint8_t flags1;
-#define	SVPD_EID_AM		0xC0
+
+	/* These values are for direct access devices */
+#define	SVPD_EID_AM_MASK	0xC0
+#define	SVPD_EID_AM_DEFER	0x80
+#define	SVPD_EID_AM_IMMED	0x40
+#define	SVPD_EID_AM_UNDEFINED	0x00
+#define	SVPD_EID_AM_RESERVED	0xc0
 #define	SVPD_EID_SPT		0x38
 #define	SVPD_EID_SPT_1		0x00
 #define	SVPD_EID_SPT_12		0x08
@@ -2124,9 +2129,14 @@ struct scsi_vpd_extended_inquiry_data
 #define	SVPD_EID_SPT_3		0x20
 #define	SVPD_EID_SPT_23		0x28
 #define	SVPD_EID_SPT_123	0x38
+
+	/* These values are for sequential access devices */
+#define	SVPD_EID_SA_SPT_LBP	0x08
+
 #define	SVPD_EID_GRD_CHK	0x04
 #define	SVPD_EID_APP_CHK	0x02
 #define	SVPD_EID_REF_CHK	0x01
+
 	uint8_t flags2;
 #define	SVPD_EID_UASK_SUP	0x20
 #define	SVPD_EID_GROUP_SUP	0x10
@@ -2147,6 +2157,10 @@ struct scsi_vpd_extended_inquiry_data
 #define	SVPD_EID_CBCS		0x01
 	uint8_t flags6;
 #define	SVPD_EID_MULTI_I_T_FW	0x0F
+#define	SVPD_EID_MC_VENDOR_SPEC	0x00
+#define	SVPD_EID_MC_MODE_1	0x01
+#define	SVPD_EID_MC_MODE_2	0x02
+#define	SVPD_EID_MC_MODE_3	0x03
 	uint8_t est[2];
 	uint8_t flags7;
 #define	SVPD_EID_POA_SUP	0x80

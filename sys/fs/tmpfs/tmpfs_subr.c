@@ -991,6 +991,7 @@ tmpfs_dir_attach(struct vnode *vp, struct tmpfs_dirent *de)
 	dnode->tn_size += sizeof(struct tmpfs_dirent);
 	dnode->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED | \
 	    TMPFS_NODE_MODIFIED;
+	tmpfs_update(vp);
 }
 
 /*
@@ -1036,6 +1037,7 @@ tmpfs_dir_detach(struct vnode *vp, struct tmpfs_dirent *de)
 	dnode->tn_size -= sizeof(struct tmpfs_dirent);
 	dnode->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED | \
 	    TMPFS_NODE_MODIFIED;
+	tmpfs_update(vp);
 }
 
 void
@@ -1434,7 +1436,8 @@ tmpfs_check_mtime(struct vnode *vp)
 		if ((obj->flags & OBJ_TMPFS_DIRTY) != 0) {
 			obj->flags &= ~OBJ_TMPFS_DIRTY;
 			node = VP_TO_TMPFS_NODE(vp);
-			node->tn_status |= TMPFS_NODE_MODIFIED;
+			node->tn_status |= TMPFS_NODE_MODIFIED |
+			    TMPFS_NODE_CHANGED;
 		}
 		VM_OBJECT_WUNLOCK(obj);
 	}

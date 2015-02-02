@@ -38,7 +38,6 @@
 
 struct cfiscsi_target {
 	TAILQ_ENTRY(cfiscsi_target)	ct_next;
-	uint32_t			ct_luns[CTL_MAX_LUNS];
 	struct cfiscsi_softc		*ct_softc;
 	volatile u_int			ct_refcount;
 	char				ct_name[CTL_ISCSI_NAME_LEN];

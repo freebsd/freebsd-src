@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/gpio.h>
 
+#include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -82,6 +83,7 @@ __FBSDID("$FreeBSD$");
 /*
  * GPIO interface
  */
+static device_t pad_get_bus(device_t);
 static int pad_pin_max(device_t, int *);
 static int pad_pin_getcaps(device_t, uint32_t, uint32_t *);
 static int pad_pin_getname(device_t, uint32_t, char *);
@@ -111,6 +113,7 @@ struct pad_softc {
 	struct gpio_pin		gpio_pins[MAX_NGPIO];
 	void			*gpio_ih[MAX_PORTS];
 	device_t		dev;
+	device_t		busdev;
 	int			model;
 	struct resource_spec	*pad_spec;
 	struct gpio_bank	*gpio_map;
@@ -509,12 +512,12 @@ pad_attach(device_t dev)
 		sc->nports = 5;
 		break;
 	default:
-		return (-1);
+		goto fail;
 	};
 
 	if (bus_alloc_resources(dev, sc->pad_spec, sc->res)) {
 		device_printf(dev, "could not allocate resources\n");
-		return (ENXIO);
+		goto fail;
 	}
 
 	/* Memory interface */
@@ -534,9 +537,9 @@ pad_attach(device_t dev)
 			    NULL, sc, &sc->gpio_ih[i]))) {
 			device_printf(dev,
 			    "ERROR: Unable to register interrupt handler\n");
-			return (ENXIO);
+			goto fail;
 		}
-	};
+	}
 
 	for (i = 0; i < sc->gpio_npins; i++) {
 		sc->gpio_pins[i].gp_pin = i;
@@ -558,11 +561,32 @@ pad_attach(device_t dev)
 		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
 		    "pad%d.%d", device_get_unit(dev), i);
 	}
+	sc->busdev = gpiobus_attach_bus(dev);
+	if (sc->busdev == NULL)
+		goto fail;
 
-	device_add_child(dev, "gpioc", -1);
-	device_add_child(dev, "gpiobus", -1);
+	return (0);
 
-	return (bus_generic_attach(dev));
+fail:
+	for (i = 0; i < sc->nports; i++) {
+		if (sc->gpio_ih[i])
+			bus_teardown_intr(dev, sc->res[sc->nports + i],
+			    sc->gpio_ih[i]);
+	}
+	bus_release_resources(dev, sc->pad_spec, sc->res);
+	mtx_destroy(&sc->sc_mtx);
+
+	return (ENXIO);
+}
+
+static device_t
+pad_get_bus(device_t dev)
+{
+	struct pad_softc *sc;
+
+	sc = device_get_softc(dev);
+
+	return (sc->busdev);
 }
 
 static int
@@ -806,6 +830,7 @@ static device_method_t pad_methods[] = {
 	DEVMETHOD(device_attach,	pad_attach),
 
 	/* GPIO protocol */
+	DEVMETHOD(gpio_get_bus,		pad_get_bus),
 	DEVMETHOD(gpio_pin_max,		pad_pin_max),
 	DEVMETHOD(gpio_pin_getname,	pad_pin_getname),
 	DEVMETHOD(gpio_pin_getcaps,	pad_pin_getcaps),

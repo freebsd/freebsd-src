@@ -273,7 +273,7 @@ sub run_tests {
 		}
 
 		$fullname = "$dir/$name";
-		$exe = "./$base.exe";
+		$exe = "$dir/$base.exe";
 		$exe_pid = -1;
 
 		if ($opt_a && ($status != 0 || $tag != 0 || $droptag != 0 ||

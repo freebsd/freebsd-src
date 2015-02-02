@@ -453,7 +453,6 @@ tmpfs_write(struct vop_write_args *v)
 	struct tmpfs_node *node;
 	off_t oldsize;
 	int error, ioflag;
-	boolean_t extended;
 
 	vp = v->a_vp;
 	uio = v->a_uio;
@@ -473,8 +472,7 @@ tmpfs_write(struct vop_write_args *v)
 		return (EFBIG);
 	if (vn_rlimit_fsize(vp, uio, uio->uio_td))
 		return (EFBIG);
-	extended = uio->uio_offset + uio->uio_resid > node->tn_size;
-	if (extended) {
+	if (uio->uio_offset + uio->uio_resid > node->tn_size) {
 		error = tmpfs_reg_resize(vp, uio->uio_offset + uio->uio_resid,
 		    FALSE);
 		if (error != 0)
@@ -483,7 +481,7 @@ tmpfs_write(struct vop_write_args *v)
 
 	error = uiomove_object(node->tn_reg.tn_aobj, node->tn_size, uio);
 	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_MODIFIED |
-	    (extended ? TMPFS_NODE_CHANGED : 0);
+	    TMPFS_NODE_CHANGED;
 	if (node->tn_mode & (S_ISUID | S_ISGID)) {
 		if (priv_check_cred(v->a_cred, PRIV_VFS_RETAINSUGID, 0))
 			node->tn_mode &= ~(S_ISUID | S_ISGID);

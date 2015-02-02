@@ -1520,7 +1520,9 @@ ipw_monitor.fw			optional ipwmonitorfw | ipwfw		\
 	no-obj no-implicit-rule						\
 	clean		"ipw_monitor.fw"
 dev/iscsi/icl.c			optional iscsi | ctl 
+dev/iscsi/icl_conn_if.m		optional iscsi | ctl 
 dev/iscsi/icl_proxy.c		optional iscsi | ctl
+dev/iscsi/icl_soft.c		optional iscsi | ctl 
 dev/iscsi/iscsi.c		optional iscsi scbus
 dev/iscsi_initiator/iscsi.c	optional iscsi_initiator scbus
 dev/iscsi_initiator/iscsi_subr.c	optional iscsi_initiator scbus

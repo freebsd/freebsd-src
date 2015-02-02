@@ -259,16 +259,14 @@ excise_fdt_reserved(struct mem_region *avail, int asz)
 				if (fdtmap[j].address + fdtmap[j].size < 
 				    avail[i].mr_start + avail[i].mr_size) {
 					avail[asz].mr_start =
-					    roundup2(fdtmap[j].address +
-					    fdtmap[j].size, PAGE_SIZE);
+					    fdtmap[j].address + fdtmap[j].size;
 					avail[asz].mr_size = avail[i].mr_start +
 					     avail[i].mr_size -
 					     avail[asz].mr_start;
 					asz++;
 				}
 
-				avail[i].mr_size =
-				    rounddown2(fdtmap[j].address, PAGE_MASK) -
+				avail[i].mr_size = fdtmap[j].address -
 				    avail[i].mr_start;
 			}
 
@@ -282,8 +280,10 @@ excise_fdt_reserved(struct mem_region *avail, int asz)
 			    avail[i].mr_start && fdtmap[j].address +
 			    fdtmap[j].size < avail[i].mr_start +
 			    avail[i].mr_size) {
+				avail[i].mr_size += avail[i].mr_start;
 				avail[i].mr_start =
-				    roundup2(fdtmap[j].address + fdtmap[j].size,				    PAGE_MASK);
+				    fdtmap[j].address + fdtmap[j].size;
+				avail[i].mr_size -= avail[i].mr_start;
 			}
 		}
 	}

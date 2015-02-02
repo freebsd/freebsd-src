@@ -752,6 +752,8 @@ extern pid_t pid_max;
 
 
 #define	STOPEVENT(p, e, v) do {						\
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,			\
+ 	    "checking stopevent %d", (e));				\
 	if ((p)->p_stops & (e))	{					\
 		PROC_LOCK(p);						\
 		stopevent((p), (e), (v));				\

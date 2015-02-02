@@ -492,7 +492,8 @@ readent:
 
   /* read records */
   buf[0] = '\0';
-  fgets(buf, 256, passwd_fp);
+  if (fgets(buf, 256, passwd_fp) == NULL)
+    return NULL;
   passwd_line++;
   if (buf[0] == '\0')
     goto readent;

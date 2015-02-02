@@ -313,6 +313,34 @@ OLD_FILES+=usr/share/man/man8/bhyveload.8.gz
 OLD_DIRS+=usr/share/examples/bhyve
 .endif
 
+.if ${MK_BINUTILS} == no
+OLD_FILES+=usr/bin/as
+OLD_FILES+=usr/bin/ld
+OLD_FILES+=usr/bin/objcopy
+OLD_FILES+=usr/bin/objdump
+OLD_FILES+=usr/bin/readelf
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.x
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xbn
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xc
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xd
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xdc
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xdw
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xn
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xr
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xs
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xsc
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xsw
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xu
+OLD_FILES+=usr/libdata/ldscripts/elf_x86_64_fbsd.xw
+OLD_FILES+=usr/share/doc/binutils/as.txt
+OLD_FILES+=usr/share/doc/binutils/ld.txt
+OLD_FILES+=usr/share/man/man1/as.1.gz
+OLD_FILES+=usr/share/man/man1/ld.1.gz
+OLD_FILES+=usr/share/man/man1/objcopy.1.gz
+OLD_FILES+=usr/share/man/man1/objdump.1.gz
+OLD_FILES+=usr/share/man/man1/readelf.1.gz
+.endif
+
 .if ${MK_BLUETOOTH} == no
 OLD_FILES+=etc/bluetooth/hcsecd.conf
 OLD_FILES+=etc/bluetooth/hosts
@@ -360,6 +388,7 @@ OLD_FILES+=usr/lib32/libsdp.so
 OLD_LIBS+=usr/lib32/libsdp.so.4
 OLD_FILES+=usr/lib32/libsdp_p.a
 .endif
+OLD_FILES+=usr/sbin/ath3kfw
 OLD_FILES+=usr/sbin/bcmfw
 OLD_FILES+=usr/sbin/bt3cfw
 OLD_FILES+=usr/sbin/bthidcontrol
@@ -373,6 +402,7 @@ OLD_FILES+=usr/sbin/l2ping
 OLD_FILES+=usr/sbin/rfcomm_pppd
 OLD_FILES+=usr/sbin/sdpcontrol
 OLD_FILES+=usr/sbin/sdpd
+OLD_FILES+=usr/share/examples/etc/defaults/bluetooth.device.conf
 OLD_FILES+=usr/share/man/man1/bthost.1.gz
 OLD_FILES+=usr/share/man/man1/btsockstat.1.gz
 OLD_FILES+=usr/share/man/man1/rfcomm_sppd.1.gz
@@ -430,6 +460,7 @@ OLD_FILES+=usr/share/man/man3/sdp_search.3.gz
 OLD_FILES+=usr/share/man/man3/sdp_unregister_service.3.gz
 OLD_FILES+=usr/share/man/man3/sdp_uuid2desc.3.gz
 OLD_FILES+=usr/share/man/man5/hcsecd.conf.5.gz
+OLD_FILES+=usr/share/man/man8/ath3kfw.8.gz
 OLD_FILES+=usr/share/man/man8/bcmfw.8.gz
 OLD_FILES+=usr/share/man/man8/bt3cfw.8.gz
 OLD_FILES+=usr/share/man/man8/bthidcontrol.8.gz
@@ -720,6 +751,13 @@ OLD_DIRS+=usr/share/bsdconfig
 OLD_DIRS+=usr/share/examples/bsdconfig
 .endif
 
+.if ${MK_BSD_CPIO} == no
+OLD_FILES+=usr/bin/bsdcpio
+OLD_FILES+=usr/bin/cpio
+OLD_FILES+=usr/share/man/man1/bsdcpio.1.gz
+OLD_FILES+=usr/share/man/man1/cpio.1.gz
+.endif
+
 .if ${MK_BSDINSTALL} == no
 OLD_FILES+=usr/libexec/bsdinstall/adduser
 OLD_FILES+=usr/libexec/bsdinstall/auto
@@ -769,25 +807,44 @@ OLD_FILES+=usr/include/bsnmp/snmpagent.h
 OLD_FILES+=usr/include/bsnmp/snmpclient.h
 OLD_FILES+=usr/include/bsnmp/snmpmod.h
 OLD_FILES+=usr/lib/libbsnmp.a
+OLD_FILES+=usr/lib/libbsnmp.so
 OLD_LIBS+=usr/lib/libbsnmp.so.6
 OLD_FILES+=usr/lib/libbsnmp_p.a
 OLD_FILES+=usr/lib/libbsnmptools.a
+OLD_FILES+=usr/lib/libbsnmptools.so
 OLD_LIBS+=usr/lib/libbsnmptools.so.0
 OLD_FILES+=usr/lib/libbsnmptools_p.a
+OLD_FILES+=usr/lib/snmp_atm.so
 OLD_LIBS+=usr/lib/snmp_atm.so.6
+OLD_FILES+=usr/lib/snmp_bridge.so
 OLD_LIBS+=usr/lib/snmp_bridge.so.6
+OLD_FILES+=usr/lib/snmp_hast.so
 OLD_LIBS+=usr/lib/snmp_hast.so.6
+OLD_FILES+=usr/lib/snmp_hostres.so
 OLD_LIBS+=usr/lib/snmp_hostres.so.6
+OLD_FILES+=usr/lib/snmp_lm75.so
 OLD_LIBS+=usr/lib/snmp_lm75.so.6
+OLD_FILES+=usr/lib/snmp_mibII.so
 OLD_LIBS+=usr/lib/snmp_mibII.so.6
+OLD_FILES+=usr/lib/snmp_netgraph.so
 OLD_LIBS+=usr/lib/snmp_netgraph.so.6
+OLD_FILES+=usr/lib/snmp_pf.so
 OLD_LIBS+=usr/lib/snmp_pf.so.6
+OLD_FILES+=usr/lib/snmp_target.so
 OLD_LIBS+=usr/lib/snmp_target.so.6
+OLD_FILES+=usr/lib/snmp_usm.so
 OLD_LIBS+=usr/lib/snmp_usm.so.6
+OLD_FILES+=usr/lib/snmp_vacm.so
 OLD_LIBS+=usr/lib/snmp_vacm.so.6
+OLD_FILES+=usr/lib/snmp_wlan.so
 OLD_LIBS+=usr/lib/snmp_wlan.so.6
+OLD_FILES+=usr/lib32/libbsnmp.a
+OLD_FILES+=usr/lib32/libbsnmp.so
+OLD_LIBS+=usr/lib32/libbsnmp.so.6
+OLD_FILES+=usr/lib32/libbsnmp_p.a
 OLD_FILES+=usr/sbin/bsnmpd
 OLD_FILES+=usr/sbin/gensnmptree
+OLD_FILES+=usr/share/examples/etc/snmpd.config
 OLD_FILES+=usr/share/man/man1/bsnmpd.1.gz
 OLD_FILES+=usr/share/man/man1/bsnmpget.1.gz
 OLD_FILES+=usr/share/man/man1/bsnmpset.1.gz
@@ -1868,6 +1925,14 @@ OLD_FILES+=usr/share/dict/words
 OLD_DIRS+=usr/share/dict
 .endif
 
+.if ${MK_DMAGENT} == no
+OLD_FILES+=etc/dma/dma.conf
+OLD_FILES+=usr/libexec/dma
+OLD_FILES+=usr/libexec/dma-mbox-create
+OLD_FILES+=usr/share/man/man8/dma.8.gz
+OLD_FILES+=usr/share/examples/dma/mailer.conf
+.endif
+
 .if ${MK_EE} == no
 OLD_FILES+=usr/bin/edit
 OLD_FILES+=usr/bin/ee
@@ -2037,8 +2102,13 @@ OLD_FILES+=usr/share/man/man1/kgdb.1.gz
 .if ${MK_GPIO} == no
 OLD_FILES+=usr/include/libgpio.h
 OLD_FILES+=usr/lib/libgpio.a
+OLD_FILES+=usr/lib/libgpio.so
 OLD_LIBS+=usr/lib/libgpio.so.0
 OLD_FILES+=usr/lib/libgpio_p.a
+OLD_FILES+=usr/lib32/libgpio.a
+OLD_FILES+=usr/lib32/libgpio.so
+OLD_LIBS+=usr/lib32/libgpio.so.0
+OLD_FILES+=usr/lib32/libgpio_p.a
 OLD_FILES+=usr/sbin/gpioctl
 OLD_FILES+=usr/share/man/man3/gpio.3.gz
 OLD_FILES+=usr/share/man/man3/gpio_close.3.gz
@@ -7082,13 +7152,6 @@ OLD_FILES+=usr/bin/svnrdump
 OLD_FILES+=usr/bin/svnserve
 OLD_FILES+=usr/bin/svnsync
 OLD_FILES+=usr/bin/svnversion
-.endif
-
-.if ${MK_DMAGENT} == no
-OLD_FILES+=usr/libexec/dma
-OLD_FILES+=usr/libexec/dma-mbox-create
-OLD_FILES+=usr/share/man/man8/dma.8.gz
-OLD_FILES+=usr/share/examples/dma/mailer.conf
 .endif
 
 .if ${MK_HYPERV} == no
