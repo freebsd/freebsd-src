@@ -502,7 +502,7 @@ am335x_clk_gpio_activate(struct ti_clock_dev *clkdev)
 	/* set *_CLKCTRL register MODULEMODE[1:0] to enable(2) */
 	/* set *_CLKCTRL register OPTFCLKEN_GPIO_1_G DBCLK[18] to FCLK_EN(1) */
 	prcm_write_4(clk_details->clkctrl_reg, 2 | (1 << 18));
-	while ((prcm_read_4(clk_details->clkctrl_reg) & 
+	while ((prcm_read_4(clk_details->clkctrl_reg) &
 	    (3 | (1 << 18) )) != (2 | (1 << 18)))
 		DELAY(10);
 
@@ -724,11 +724,11 @@ am335x_clk_lcdc_activate(struct ti_clock_dev *clkdev)
 	prcm_write_4(CM_WKUP_CM_CLKMODE_DPLL_DISP, 0x4);
 
 	/* Make sure it's in bypass mode */
-	while (!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP) 
+	while (!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP)
 	    & (1 << 8)))
 		DELAY(10);
 
-	/* 
+	/*
 	 * For now set frequency to  99*SYSFREQ/8 which is twice as
 	 * HDMI 1080p pixel clock (minimum LCDC freq divisor is 2)
 	 */
@@ -738,7 +738,7 @@ am335x_clk_lcdc_activate(struct ti_clock_dev *clkdev)
 	prcm_write_4(CM_WKUP_CM_CLKMODE_DPLL_DISP, 0x7);
 
 	int timeout = 10000;
-	while ((!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP) 
+	while ((!(prcm_read_4(CM_WKUP_CM_IDLEST_DPLL_DISP)
 	    & (1 << 0))) && timeout--)
 		DELAY(10);
 
@@ -786,9 +786,9 @@ am335x_clk_pruss_activate(struct ti_clock_dev *clkdev)
 	while ((prcm_read_4(CM_PER_PRUSS_CLKSTCTRL) & (1<<6)) == 0)
 		DELAY(10);
 
-	/* Select DISP DPLL as OCP clock */
-	prcm_write_4(CLKSEL_PRUSS_OCP_CLK, 1);
-	while ((prcm_read_4(CLKSEL_PRUSS_OCP_CLK) & 0x3) != 1)
+	/* Select L3F as OCP clock */
+	prcm_write_4(CLKSEL_PRUSS_OCP_CLK, 0);
+	while ((prcm_read_4(CLKSEL_PRUSS_OCP_CLK) & 0x3) != 0)
 		DELAY(10);
 
 	/* Clear the RESET bit */
