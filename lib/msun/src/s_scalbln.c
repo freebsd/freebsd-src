@@ -58,8 +58,7 @@ scalblnl (long double x, long n)
 	int in;
 
 	in = (int)n;
-	if (in != n) {
+	if (in != n)
 		in = (n > 0) ? INT_MAX: INT_MIN;
-	}
 	return (scalbnl(x, in));
 }
