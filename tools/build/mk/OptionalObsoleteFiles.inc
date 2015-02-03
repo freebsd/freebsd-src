@@ -6456,6 +6456,41 @@ OLD_FILES+=usr/share/doc/pjdfstest/README
 OLD_DIRS+=usr/share/doc/pjdfstest
 .endif
 
+.if ${MK_SSP} == no
+OLD_LIBS+=lib/libssp.so.0
+OLD_FILES+=usr/include/ssp/ssp.h
+OLD_FILES+=usr/include/ssp/stdio.h
+OLD_FILES+=usr/include/ssp/string.h
+OLD_FILES+=usr/include/ssp/unistd.h
+OLD_FILES+=usr/lib/libssp.a
+OLD_FILES+=usr/lib/libssp.so
+OLD_FILES+=usr/lib/libssp_nonshared.a
+OLD_FILES+=usr/lib32/libssp.a
+OLD_FILES+=usr/lib32/libssp.so
+OLD_LIBS+=usr/lib32/libssp.so.0
+OLD_FILES+=usr/lib32/libssp_nonshared.a
+OLD_FILES+=usr/tests/lib/libc/ssp/Kyuafile
+OLD_FILES+=usr/tests/lib/libc/ssp/h_fgets
+OLD_FILES+=usr/tests/lib/libc/ssp/h_getcwd
+OLD_FILES+=usr/tests/lib/libc/ssp/h_gets
+OLD_FILES+=usr/tests/lib/libc/ssp/h_memcpy
+OLD_FILES+=usr/tests/lib/libc/ssp/h_memmove
+OLD_FILES+=usr/tests/lib/libc/ssp/h_memset
+OLD_FILES+=usr/tests/lib/libc/ssp/h_read
+OLD_FILES+=usr/tests/lib/libc/ssp/h_readlink
+OLD_FILES+=usr/tests/lib/libc/ssp/h_snprintf
+OLD_FILES+=usr/tests/lib/libc/ssp/h_sprintf
+OLD_FILES+=usr/tests/lib/libc/ssp/h_stpcpy
+OLD_FILES+=usr/tests/lib/libc/ssp/h_stpncpy
+OLD_FILES+=usr/tests/lib/libc/ssp/h_strcat
+OLD_FILES+=usr/tests/lib/libc/ssp/h_strcpy
+OLD_FILES+=usr/tests/lib/libc/ssp/h_strncat
+OLD_FILES+=usr/tests/lib/libc/ssp/h_strncpy
+OLD_FILES+=usr/tests/lib/libc/ssp/h_vsnprintf
+OLD_FILES+=usr/tests/lib/libc/ssp/h_vsprintf
+OLD_FILES+=usr/tests/lib/libc/ssp/ssp_test
+.endif
+
 #.if ${MK_SYSCONS} == no
 # to be filled in
 #.endif
