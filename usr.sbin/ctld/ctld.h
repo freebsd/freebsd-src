@@ -180,7 +180,6 @@ struct conf {
 	int				conf_timeout;
 	int				conf_maxproc;
 
-	uint16_t			conf_last_portal_group_tag;
 #ifdef ICL_KERNEL_PROXY
 	int				conf_portal_id;
 #endif

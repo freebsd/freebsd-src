@@ -3542,6 +3542,7 @@ cctl_islist_end_element(void *user_data, const char *name)
 	} else if (strcmp(name, "target_alias") == 0) {
 		cur_conn->target_alias = str;
 		str = NULL;
+	} else if (strcmp(name, "target_portal_group_tag") == 0) {
 	} else if (strcmp(name, "header_digest") == 0) {
 		cur_conn->header_digest = str;
 		str = NULL;
