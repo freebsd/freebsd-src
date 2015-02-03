@@ -5741,18 +5741,28 @@ OLD_FILES+=usr/share/man/man8/ntptime.8.gz
 #.endif
 
 .if ${MK_OPENSSH} == no
+OLD_FILES+=etc/rc.d/sshd
+OLD_FILES+=etc/ssh/moduli
+OLD_FILES+=etc/ssh/ssh_config
+OLD_FILES+=etc/ssh/sshd_config
+OLD_FILES+=usr/bin/scp
 OLD_FILES+=usr/bin/sftp
+OLD_FILES+=usr/bin/slogin
 OLD_FILES+=usr/bin/ssh
 OLD_FILES+=usr/bin/ssh-add
 OLD_FILES+=usr/bin/ssh-agent
 OLD_FILES+=usr/bin/ssh-copy-id
 OLD_FILES+=usr/bin/ssh-keygen
 OLD_FILES+=usr/bin/ssh-keyscan
+OLD_FILES+=usr/lib/pam_ssh.so
+OLD_LIBS+=usr/lib/pam_ssh.so.5
 OLD_FILES+=usr/lib/private/libssh.a
 OLD_FILES+=usr/lib/private/libssh.so
 OLD_LIBS+=usr/lib/private/libssh.so.5
 OLD_FILES+=usr/lib/private/libssh_p.a
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/pam_ssh.so
+OLD_LIBS+=usr/lib32/pam_ssh.so.5
 OLD_FILES+=usr/lib32/private/libssh.a
 OLD_FILES+=usr/lib32/private/libssh.so
 OLD_LIBS+=usr/lib32/private/libssh.so.5
@@ -5762,6 +5772,22 @@ OLD_FILES+=usr/libexec/sftp-server
 OLD_FILES+=usr/libexec/ssh-keysign
 OLD_FILES+=usr/libexec/ssh-pkcs11-helper
 OLD_FILES+=usr/sbin/sshd
+OLD_FILES+=usr/share/man/man1/scp.1.gz
+OLD_FILES+=usr/share/man/man1/sftp.1.gz
+OLD_FILES+=usr/share/man/man1/slogin.1.gz
+OLD_FILES+=usr/share/man/man1/ssh-add.1.gz
+OLD_FILES+=usr/share/man/man1/ssh-agent.1.gz
+OLD_FILES+=usr/share/man/man1/ssh-copy-id.1.gz
+OLD_FILES+=usr/share/man/man1/ssh-keygen.1.gz
+OLD_FILES+=usr/share/man/man1/ssh-keyscan.1.gz
+OLD_FILES+=usr/share/man/man1/ssh.1.gz
+OLD_FILES+=usr/share/man/man5/ssh_config.5.gz
+OLD_FILES+=usr/share/man/man5/sshd_config.5.gz
+OLD_FILES+=usr/share/man/man8/pam_ssh.8.gz
+OLD_FILES+=usr/share/man/man8/sftp-server.8.gz
+OLD_FILES+=usr/share/man/man8/ssh-keysign.8.gz
+OLD_FILES+=usr/share/man/man8/ssh-pkcs11-helper.8.gz
+OLD_FILES+=usr/share/man/man8/sshd.8.gz
 .endif
 
 .if ${MK_OPENSSL} == no
