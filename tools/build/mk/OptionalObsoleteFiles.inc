@@ -7292,6 +7292,15 @@ OLD_FILES+=${TESTS_FILES}
 . endif
 .endif	# Test suite.
 
+.if ${MK_TEXTPROC} == no
+OLD_FILES+=usr/bin/checknr
+OLD_FILES+=usr/bin/colcrt
+OLD_FILES+=usr/bin/ul
+OLD_FILES+=usr/share/man/man1/checknr.1.gz
+OLD_FILES+=usr/share/man/man1/colcrt.1.gz
+OLD_FILES+=usr/share/man/man1/ul.1.gz
+.endif
+
 #.if ${MK_TOOLCHAIN} == no
 # to be filled in
 #.endif
