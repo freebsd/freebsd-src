@@ -556,7 +556,9 @@ intel_gmbus_attach(device_t idev)
 	pin = device_get_unit(idev);
 	port = pin + 1;
 
-	snprintf(sc->name, sizeof(sc->name), "gmbus %s", gmbus_ports[pin].name);
+	snprintf(sc->name, sizeof(sc->name), "gmbus %s",
+	    intel_gmbus_is_port_valid(port) ? gmbus_ports[pin].name :
+	    "reserved");
 	device_set_desc(idev, sc->name);
 
 	/* By default use a conservative clock rate */
@@ -613,17 +615,21 @@ intel_iicbb_attach(device_t idev)
 {
 	struct intel_iic_softc *sc;
 	struct drm_i915_private *dev_priv;
-	int pin;
+	int pin, port;
 
 	sc = device_get_softc(idev);
 	sc->drm_dev = device_get_softc(device_get_parent(idev));
 	dev_priv = sc->drm_dev->dev_private;
 	pin = device_get_unit(idev);
+	port = pin + 1;
 
 	snprintf(sc->name, sizeof(sc->name), "i915 iicbb %s",
-	    gmbus_ports[pin].name);
+	    intel_gmbus_is_port_valid(port) ? gmbus_ports[pin].name :
+	    "reserved");
 	device_set_desc(idev, sc->name);
 
+	if (!intel_gmbus_is_port_valid(port))
+		pin = 1 ; /* GPIOA, VGA */
 	sc->reg0 = pin | GMBUS_RATE_100KHZ;
 	sc->reg = dev_priv->gpio_mmio_base + gmbus_ports[pin].reg;
 
