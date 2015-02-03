@@ -7229,6 +7229,7 @@ OLD_FILES+=usr/tests/usr.bin/yacc/undefined.y
 .endif
 .else
 # ATF libraries.
+OLD_FILES+=etc/mtree/BSD.tests.dist
 OLD_FILES+=usr/bin/atf-sh
 OLD_DIRS+=usr/include/atf-c
 OLD_FILES+=usr/include/atf-c/build.h
@@ -7259,6 +7260,7 @@ OLD_FILES+=usr/lib/libatf-c++.so.1
 OLD_FILES+=usr/lib/libatf-c++.so
 OLD_FILES+=usr/lib/libatf-c.a
 OLD_FILES+=usr/libexec/atf-check
+OLD_FILES+=usr/libexec/atf-sh
 OLD_DIRS+=usr/share/atf
 OLD_FILES+=usr/share/atf/libatf-sh.subr
 OLD_DIRS+=usr/share/doc/atf
@@ -7266,14 +7268,20 @@ OLD_FILES+=usr/share/doc/atf/AUTHORS
 OLD_FILES+=usr/share/doc/atf/COPYING
 OLD_FILES+=usr/share/doc/atf/NEWS
 OLD_FILES+=usr/share/doc/atf/README
+OLD_FILES+=usr/share/doc/pjdfstest/README
 OLD_FILES+=usr/share/man/man1/atf-check.1.gz
 OLD_FILES+=usr/share/man/man1/atf-sh.1.gz
 OLD_FILES+=usr/share/man/man1/atf-test-program.1.gz
 OLD_FILES+=usr/share/man/man3/atf-c-api.3.gz
 OLD_FILES+=usr/share/man/man3/atf-c++-api.3.gz
 OLD_FILES+=usr/share/man/man3/atf-sh-api.3.gz
+OLD_FILES+=usr/share/man/man3/atf-sh.3.gz
 OLD_FILES+=usr/share/man/man4/atf-test-case.4.gz
+OLD_FILES+=usr/share/man/man7/atf.7.gz
 OLD_FILES+=usr/share/mk/atf.test.mk
+OLD_FILES+=usr/share/mk/plain.test.mk
+OLD_FILES+=usr/share/mk/suite.test.mk
+OLD_FILES+=usr/share/mk/tap.test.mk
 
 # Test suite.
 . if exists(${DESTDIR}${TESTSBASE})
