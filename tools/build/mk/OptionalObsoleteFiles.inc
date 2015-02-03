@@ -6018,6 +6018,7 @@ OLD_FILES+=usr/libexec/make_index
 OLD_FILES+=usr/libexec/phttpget
 OLD_FILES+=usr/sbin/portsnap
 OLD_FILES+=usr/share/examples/etc/portsnap.conf
+OLD_FILES+=usr/share/man/man8/phttpget.8.gz
 OLD_FILES+=usr/share/man/man8/portsnap.8.gz
 .endif
 
