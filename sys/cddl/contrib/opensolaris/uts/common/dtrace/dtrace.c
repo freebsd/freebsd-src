@@ -14174,7 +14174,7 @@ dtrace_state_create(struct cdev *dev)
 	if (dev != NULL) {
 		cr = dev->si_cred;
 		m = dev2unit(dev);
-		}
+	}
 
 	/* Allocate memory for the state. */
 	state = kmem_zalloc(sizeof(dtrace_state_t), KM_SLEEP);
@@ -16841,7 +16841,12 @@ dtrace_dtr(void *data)
 	mutex_enter(&cpu_lock);
 	mutex_enter(&dtrace_lock);
 
-	if (state->dts_anon) {
+#ifdef illumos
+	if (state->dts_anon)
+#else
+	if (state != NULL && state->dts_anon)
+#endif
+	{
 		/*
 		 * There is anonymous state. Destroy that first.
 		 */
@@ -16849,9 +16854,13 @@ dtrace_dtr(void *data)
 		dtrace_state_destroy(state->dts_anon);
 	}
 
+#ifdef illumos
 	dtrace_state_destroy(state);
-#ifndef illumos
-	kmem_free(state, 0);
+#else
+	if (state == NULL) {
+		dtrace_state_destroy(state);
+		kmem_free(state, 0);
+	}
 #endif
 	ASSERT(dtrace_opens > 0);
 
