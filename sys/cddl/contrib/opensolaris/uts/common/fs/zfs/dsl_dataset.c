@@ -136,7 +136,7 @@ dsl_dataset_block_born(dsl_dataset_t *ds, const blkptr_t *bp, dmu_tx_t *tx)
 	dsl_dir_diduse_space(ds->ds_dir, DD_USED_HEAD, delta,
 	    compressed, uncompressed, tx);
 	dsl_dir_transfer_space(ds->ds_dir, used - delta,
-	    DD_USED_REFRSRV, DD_USED_HEAD, tx);
+	    DD_USED_REFRSRV, DD_USED_HEAD, NULL);
 }
 
 int
@@ -179,7 +179,7 @@ dsl_dataset_block_kill(dsl_dataset_t *ds, const blkptr_t *bp, dmu_tx_t *tx,
 		dsl_dir_diduse_space(ds->ds_dir, DD_USED_HEAD,
 		    delta, -compressed, -uncompressed, tx);
 		dsl_dir_transfer_space(ds->ds_dir, -used - delta,
-		    DD_USED_REFRSRV, DD_USED_HEAD, tx);
+		    DD_USED_REFRSRV, DD_USED_HEAD, NULL);
 	} else {
 		dprintf_bp(bp, "putting on dead list: %s", "");
 		if (async) {
@@ -2837,7 +2837,7 @@ dsl_dataset_clone_swap_sync_impl(dsl_dataset_t *clone,
 		    origin_head->ds_dir->dd_origin_txg, UINT64_MAX,
 		    &odl_used, &odl_comp, &odl_uncomp);
 		dsl_dir_transfer_space(origin_head->ds_dir, cdl_used - odl_used,
-		    DD_USED_HEAD, DD_USED_SNAP, tx);
+		    DD_USED_HEAD, DD_USED_SNAP, NULL);
 	}
 
 	/* swap ds_*_bytes */
