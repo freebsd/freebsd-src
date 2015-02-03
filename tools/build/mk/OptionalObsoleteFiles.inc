@@ -5889,6 +5889,11 @@ OLD_FILES+=etc/pf.os
 OLD_FILES+=etc/rc.d/ftp-proxy
 OLD_FILES+=sbin/pfctl
 OLD_FILES+=sbin/pflogd
+OLD_FILES+=usr/include/netpfil/pf/pf.h
+OLD_FILES+=usr/include/netpfil/pf/pf_altq.h
+OLD_FILES+=usr/include/netpfil/pf/pf_mtag.h
+OLD_FILES+=usr/lib/snmp_pf.so
+OLD_LIBS+=usr/lib/snmp_pf.so.6
 OLD_FILES+=usr/libexec/tftp-proxy
 OLD_FILES+=usr/sbin/ftp-proxy
 OLD_FILES+=usr/share/examples/etc/pf.os
@@ -5912,6 +5917,8 @@ OLD_FILES+=usr/share/man/man8/ftp-proxy.8.gz
 OLD_FILES+=usr/share/man/man8/pfctl.8.gz
 OLD_FILES+=usr/share/man/man8/pflogd.8.gz
 OLD_FILES+=usr/share/man/man8/tftp-proxy.8.gz
+OLD_FILES+=usr/share/snmp/defs/pf_tree.def
+OLD_FILES+=usr/share/snmp/mibs/BEGEMOT-PF-MIB.txt
 .endif
 
 .if ${MK_PKGBOOTSTRAP} == no
