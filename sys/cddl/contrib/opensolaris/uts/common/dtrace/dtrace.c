@@ -16841,23 +16841,20 @@ dtrace_dtr(void *data)
 	mutex_enter(&cpu_lock);
 	mutex_enter(&dtrace_lock);
 
-	if (state != NULL) {
-		if (state->dts_anon) {
-			/*
-			 * There is anonymous state. Destroy that first.
-			 */
-			ASSERT(dtrace_anon.dta_state == NULL);
-			dtrace_state_destroy(state->dts_anon);
-		}
-
-		dtrace_state_destroy(state);
-
-#ifndef illumos
-		kmem_free(state, 0);
-#endif
+	if (state->dts_anon) {
+		/*
+		 * There is anonymous state. Destroy that first.
+		 */
+		ASSERT(dtrace_anon.dta_state == NULL);
+		dtrace_state_destroy(state->dts_anon);
 	}
 
+	dtrace_state_destroy(state);
+#ifndef illumos
+	kmem_free(state, 0);
+#endif
 	ASSERT(dtrace_opens > 0);
+
 #ifdef illumos
 	/*
 	 * Only relinquish control of the kernel debugger interface when there
