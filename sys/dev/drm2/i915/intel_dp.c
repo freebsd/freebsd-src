@@ -609,7 +609,7 @@ intel_dp_i2c_aux_ch(device_t idev, int mode, uint8_t write_byte,
 				      reply, reply_bytes);
 		if (ret < 0) {
 			DRM_DEBUG_KMS("aux_ch failed %d\n", ret);
-			return (-ret);
+			return (ret);
 		}
 
 		switch (reply[0] & AUX_NATIVE_REPLY_MASK) {
@@ -650,7 +650,7 @@ intel_dp_i2c_aux_ch(device_t idev, int mode, uint8_t write_byte,
 	}
 
 	DRM_ERROR("too many retries, giving up\n");
-	return (EREMOTEIO);
+	return (-EREMOTEIO);
 }
 
 static void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp);
