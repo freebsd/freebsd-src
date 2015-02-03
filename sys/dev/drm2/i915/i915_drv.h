@@ -166,6 +166,7 @@ struct drm_i915_display_funcs {
 
 struct intel_device_info {
 	u8 gen;
+	u8 not_supported:1;
 	u8 is_mobile:1;
 	u8 is_i85x:1;
 	u8 is_i915g:1;
