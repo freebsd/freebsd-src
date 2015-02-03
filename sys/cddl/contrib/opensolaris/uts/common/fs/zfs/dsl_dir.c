@@ -1381,7 +1381,7 @@ dsl_dir_diduse_space(dsl_dir_t *dd, dd_used_t type,
 		    accounted_delta, compressed, uncompressed, tx);
 		dsl_dir_transfer_space(dd->dd_parent,
 		    used - accounted_delta,
-		    DD_USED_CHILD_RSRV, DD_USED_CHILD, tx);
+		    DD_USED_CHILD_RSRV, DD_USED_CHILD, NULL);
 	}
 }
 
@@ -1389,14 +1389,15 @@ void
 dsl_dir_transfer_space(dsl_dir_t *dd, int64_t delta,
     dd_used_t oldtype, dd_used_t newtype, dmu_tx_t *tx)
 {
-	ASSERT(dmu_tx_is_syncing(tx));
+	ASSERT(tx == NULL || dmu_tx_is_syncing(tx));
 	ASSERT(oldtype < DD_USED_NUM);
 	ASSERT(newtype < DD_USED_NUM);
 
 	if (delta == 0 || !(dd->dd_phys->dd_flags & DD_FLAG_USED_BREAKDOWN))
 		return;
 
-	dmu_buf_will_dirty(dd->dd_dbuf, tx);
+	if (tx != NULL)
+		dmu_buf_will_dirty(dd->dd_dbuf, tx);
 	mutex_enter(&dd->dd_lock);
 	ASSERT(delta > 0 ?
 	    dd->dd_phys->dd_used_breakdown[oldtype] >= delta :
