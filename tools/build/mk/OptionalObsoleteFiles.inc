@@ -7307,6 +7307,7 @@ OLD_FILES+=usr/share/man/man1/ul.1.gz
 
 .if ${MK_UNBOUND} == no
 OLD_FILES+=etc/rc.d/local_unbound
+OLD_FILES+=etc/unbound
 OLD_FILES+=usr/lib/private/libunbound.a
 OLD_FILES+=usr/lib/private/libunbound.so
 OLD_LIBS+=usr/lib/private/libunbound.so.5
@@ -7323,6 +7324,11 @@ OLD_FILES+=usr/sbin/unbound-anchor
 OLD_FILES+=usr/sbin/unbound-checkconf
 OLD_FILES+=usr/sbin/unbound-control
 OLD_FILES+=usr/sbin/unbound-control-setup
+OLD_FILES+=usr/share/man/man5/unbound.conf.5.gz
+OLD_FILES+=usr/share/man/man8/unbound-anchor.8.gz
+OLD_FILES+=usr/share/man/man8/unbound-checkconf.8.gz
+OLD_FILES+=usr/share/man/man8/unbound-control.8.gz
+OLD_FILES+=usr/share/man/man8/unbound.8.gz
 .endif
 
 .if ${MK_USB} == no
