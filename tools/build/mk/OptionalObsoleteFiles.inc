@@ -6138,6 +6138,21 @@ OLD_FILES+=usr/lib/private/libldns_p.a
 OLD_FILES+=usr/lib/private/libssh_p.a
 .endif
 
+.if ${MK_QUOTAS} == no
+OLD_FILES+=sbin/quotacheck
+OLD_FILES+=usr/bin/quota
+OLD_FILES+=usr/sbin/edquota
+OLD_FILES+=usr/sbin/quotaoff
+OLD_FILES+=usr/sbin/quotaon
+OLD_FILES+=usr/sbin/repquota
+OLD_FILES+=usr/share/man/man1/quota.1.gz
+OLD_FILES+=usr/share/man/man8/edquota.8.gz
+OLD_FILES+=usr/share/man/man8/quotacheck.8.gz
+OLD_FILES+=usr/share/man/man8/quotaoff.8.gz
+OLD_FILES+=usr/share/man/man8/quotaon.8.gz
+OLD_FILES+=usr/share/man/man8/repquota.8.gz
+.endif
+
 .if ${MK_RCMDS} == no
 OLD_FILES+=bin/rcp
 OLD_FILES+=etc/rc.d/rwho
