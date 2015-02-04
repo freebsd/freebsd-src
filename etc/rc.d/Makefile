@@ -72,7 +72,6 @@ FILES=	DAEMON \
 	local \
 	localpkg \
 	lockd \
-	lpd \
 	mixer \
 	motd \
 	mountcritlocal \
@@ -166,6 +165,10 @@ _ipxrouted=	ipxrouted
 
 .if ${MK_JAIL} != "no"
 FILES+=		jail
+.endif
+
+.if ${MK_LPR} != "no"
+FILES+=		lpd
 .endif
 
 .if ${MK_OFED} != "no"
