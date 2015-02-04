@@ -1004,7 +1004,7 @@ ti_gpio_config_intr(device_t dev, int irq, enum intr_trigger trig,
 		val |= TI_GPIO_MASK(irq);
 		ti_gpio_write_4(sc, TI_GPIO_BANK(irq), reg, val);
 	}
-	if (oldreg != 0) {
+	if (reg != oldreg && oldreg != 0) {
 		/* Remove the old settings. */
 		val = ti_gpio_read_4(sc, TI_GPIO_BANK(irq), oldreg);
 		val &= ~TI_GPIO_MASK(irq);
