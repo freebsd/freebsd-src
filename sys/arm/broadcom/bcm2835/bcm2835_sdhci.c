@@ -29,32 +29,17 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bio.h>
 #include <sys/bus.h>
-#include <sys/conf.h>
-#include <sys/endian.h>
 #include <sys/kernel.h>
-#include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
-#include <sys/queue.h>
-#include <sys/resource.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
-#include <sys/time.h>
-#include <sys/timetc.h>
-#include <sys/watchdog.h>
-
-#include <sys/kdb.h>
 
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
-#include <machine/resource.h>
-#include <machine/intr.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
@@ -211,16 +196,12 @@ bcm_sdhci_attach(device_t dev)
 	    RF_ACTIVE);
 	if (!sc->sc_irq_res) {
 		device_printf(dev, "cannot allocate interrupt\n");
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
 		err = ENXIO;
 		goto fail;
 	}
 
 	if (bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, bcm_sdhci_intr, sc, &sc->sc_intrhand))
-	{
-		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
+	    NULL, bcm_sdhci_intr, sc, &sc->sc_intrhand)) {
 		device_printf(dev, "cannot setup interrupt handler\n");
 		err = ENXIO;
 		goto fail;
@@ -286,6 +267,7 @@ fail:
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_irq_res);
 	if (sc->sc_mem_res)
 		bus_release_resource(dev, SYS_RES_MEMORY, 0, sc->sc_mem_res);
+	mtx_destroy(&sc->sc_mtx);
 
 	return (err);
 }
