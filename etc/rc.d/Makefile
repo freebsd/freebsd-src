@@ -11,9 +11,6 @@ FILES=	DAEMON \
 	accounting \
 	addswap \
 	adjkerntz \
-	amd \
-	apm \
-	apmd \
 	archdep \
 	atm1 \
 	atm2 \
@@ -154,6 +151,15 @@ FILES=	DAEMON \
 	ypxfrd \
 	zfs \
 	zvol
+
+.if ${MK_AMD} != "no"
+FILES+=		amd
+.endif
+
+.if ${MK_APM} != "no"
+FILES+=	apm
+FILES+=	apmd
+.endif
 
 .if ${MK_BSNMP} != "no"
 FILES+=		bsnmpd
