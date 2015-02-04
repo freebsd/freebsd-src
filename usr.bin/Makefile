@@ -48,7 +48,6 @@ SUBDIR=	${_addr2line} \
 	expand \
 	false \
 	fetch \
-	file \
 	find \
 	fmt \
 	fold \
@@ -244,6 +243,10 @@ _elfcopy=	elfcopy
 _nm=		nm
 _size=		size
 _strings=	strings
+.endif
+
+.if ${MK_FILE} != "no"
+SUBDIR+=	file
 .endif
 
 .if ${MK_FINGER} != "no"
