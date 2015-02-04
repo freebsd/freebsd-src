@@ -83,6 +83,7 @@ __DEFAULT_YES_OPTIONS = \
     ELFTOOLCHAIN_TOOLS \
     EXAMPLES \
     FDT \
+    FILE \
     FINGER \
     FLOPPY \
     FMTREE \

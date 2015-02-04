@@ -68,7 +68,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libkvm \
 	${_libldns} \
 	liblzma \
-	libmagic \
+	${_libmagic} \
 	libmandoc \
 	libmemstat \
 	libmd \
@@ -223,6 +223,10 @@ _cuse=		libcuse
 
 .if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
 _libelftc=	libelftc
+.endif
+
+.if ${MK_FILE} != "no"
+_libmagic=	libmagic
 .endif
 
 .if ${MK_GPIO} != "no"
