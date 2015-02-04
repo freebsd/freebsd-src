@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/md_var.h>
 #include <machine/psl.h>
+#include <machine/pvclock.h>
 #if defined(SMP)
 #include <machine/smp.h>
 #endif
@@ -127,8 +128,6 @@ u_int timer_freq = TIMER_FREQ;
 static u_long cyc2ns_scale; 
 static uint64_t processed_system_time;	/* stime (ns) at last processing. */
 
-extern volatile uint64_t xen_timer_last_time;
-
 #define do_div(n,base) ({ \
         unsigned long __upper, __low, __high, __mod, __base; \
         __base = (base); \
@@ -172,7 +171,7 @@ static inline unsigned long long cycles_2_ns(unsigned long long cyc)
 static uint32_t
 getit(void)
 {
-	return (xen_timer_last_time);
+	return (pvclock_get_last_cycles());
 }
 
 

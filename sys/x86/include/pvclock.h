@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 David Schultz <das@FreeBSD.ORG>
+ * Copyright (c) 2014, Bryan Venteicher <bryanv@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,43 +22,38 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef X86_PVCLOCK
+#define X86_PVCLOCK
 
-#include <limits.h>
-#include <math.h>
+struct pvclock_vcpu_time_info {
+	uint32_t	version;
+	uint32_t	pad0;
+	uint64_t	tsc_timestamp;
+	uint64_t	system_time;
+	uint32_t	tsc_to_system_mul;
+	int8_t		tsc_shift;
+	uint8_t		flags;
+	uint8_t		pad[2];
+};
 
-double
-scalbln (double x, long n)
-{
-	int in;
+#define PVCLOCK_FLAG_TSC_STABLE		0x01
+#define PVCLOCK_FLAG_GUEST_PASUED	0x02
 
-	in = (int)n;
-	if (in != n)
-		in = (n > 0) ? INT_MAX: INT_MIN;
-	return (scalbn(x, in));
-}
+struct pvclock_wall_clock {
+	uint32_t	version;
+	uint32_t	sec;
+	uint32_t	nsec;
+};
 
-float
-scalblnf (float x, long n)
-{
-	int in;
+void		pvclock_resume(void);
+uint64_t	pvclock_get_last_cycles(void);
+uint64_t	pvclock_tsc_freq(struct pvclock_vcpu_time_info *ti);
+uint64_t	pvclock_get_timecount(struct pvclock_vcpu_time_info *ti);
+void		pvclock_get_wallclock(struct pvclock_wall_clock *wc,
+		    struct timespec *ts);
 
-	in = (int)n;
-	if (in != n)
-		in = (n > 0) ? INT_MAX: INT_MIN;
-	return (scalbnf(x, in));
-}
-
-long double
-scalblnl (long double x, long n)
-{
-	int in;
-
-	in = (int)n;
-	if (in != n)
-		in = (n > 0) ? INT_MAX: INT_MIN;
-	return (scalbnl(x, in));
-}
+#endif

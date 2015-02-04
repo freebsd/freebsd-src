@@ -143,6 +143,9 @@ gpiobus_attach_bus(device_t dev)
 		device_delete_child(dev, busdev);
 		return (NULL);
 	}
+#ifdef FDT
+	ofw_gpiobus_register_provider(dev);
+#endif
 	bus_generic_attach(dev);
 
 	return (busdev);
@@ -151,6 +154,10 @@ gpiobus_attach_bus(device_t dev)
 int
 gpiobus_detach_bus(device_t dev)
 {
+
+#ifdef FDT
+	ofw_gpiobus_unregister_provider(dev);
+#endif
 
 	return (bus_generic_detach(dev));
 }

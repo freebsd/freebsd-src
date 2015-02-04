@@ -90,6 +90,11 @@ SUBDIR+=	hastctl
 SUBDIR+=	hastd
 .endif
 
+.if ${MK_INET6} != "no"
+SUBDIR+=	ping6
+SUBDIR+=	rtsol
+.endif
+	
 .if ${MK_IPFILTER} != "no"
 SUBDIR+=	ipf
 .endif
@@ -115,15 +120,6 @@ SUBDIR+=	pflogd
 
 .if ${MK_PPP} != "no"
 SUBDIR+=	spppcontrol
-.endif
-
-.if ${MK_INET6} != "no"
-SUBDIR+=	ping6
-SUBDIR+=	rtsol
-.endif
-	
-.if ${MK_ISCSI} != "no"
-SUBDIR+=	iscontrol
 .endif
 
 .if ${MK_QUOTAS} != "no"
