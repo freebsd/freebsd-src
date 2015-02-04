@@ -95,7 +95,7 @@ sfxge_start(struct sfxge_softc *sc)
 {
 	int rc;
 
-	sx_assert(&sc->softc_lock, LA_XLOCKED);
+	SFXGE_ADAPTER_LOCK_ASSERT_OWNED(sc);
 
 	if (sc->init_state == SFXGE_STARTED)
 		return (0);
@@ -164,15 +164,15 @@ sfxge_if_init(void *arg)
 
 	sc = (struct sfxge_softc *)arg;
 
-	sx_xlock(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK(sc);
 	(void)sfxge_start(sc);
-	sx_xunlock(&sc->softc_lock);
+	SFXGE_ADAPTER_UNLOCK(sc);
 }
 
 static void
 sfxge_stop(struct sfxge_softc *sc)
 {
-	sx_assert(&sc->softc_lock, LA_XLOCKED);
+	SFXGE_ADAPTER_LOCK_ASSERT_OWNED(sc);
 
 	if (sc->init_state != SFXGE_STARTED)
 		return;
@@ -212,7 +212,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 
 	switch (command) {
 	case SIOCSIFFLAGS:
-		sx_xlock(&sc->softc_lock);
+		SFXGE_ADAPTER_LOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				if ((ifp->if_flags ^ sc->if_flags) &
@@ -225,7 +225,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				sfxge_stop(sc);
 		sc->if_flags = ifp->if_flags;
-		sx_xunlock(&sc->softc_lock);
+		SFXGE_ADAPTER_UNLOCK(sc);
 		break;
 	case SIOCSIFMTU:
 		if (ifr->ifr_mtu == ifp->if_mtu) {
@@ -238,11 +238,11 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			error = 0;
 		} else {
 			/* Restart required */
-			sx_xlock(&sc->softc_lock);
+			SFXGE_ADAPTER_LOCK(sc);
 			sfxge_stop(sc);
 			ifp->if_mtu = ifr->ifr_mtu;
 			error = sfxge_start(sc);
-			sx_xunlock(&sc->softc_lock);
+			SFXGE_ADAPTER_UNLOCK(sc);
 			if (error != 0) {
 				ifp->if_flags &= ~IFF_UP;
 				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
@@ -256,7 +256,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 			sfxge_mac_filter_set(sc);
 		break;
 	case SIOCSIFCAP:
-		sx_xlock(&sc->softc_lock);
+		SFXGE_ADAPTER_LOCK(sc);
 
 		/*
 		 * The networking core already rejects attempts to
@@ -266,7 +266,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		 */
 		if (~ifr->ifr_reqcap & SFXGE_CAP_FIXED) {
 			error = EINVAL;
-			sx_xunlock(&sc->softc_lock);
+			SFXGE_ADAPTER_UNLOCK(sc);
 			break;
 		}
 
@@ -280,7 +280,7 @@ sfxge_if_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 		else
 			ifp->if_hwassist &= ~CSUM_TSO;
 
-		sx_xunlock(&sc->softc_lock);
+		SFXGE_ADAPTER_UNLOCK(sc);
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
@@ -298,9 +298,9 @@ sfxge_ifnet_fini(struct ifnet *ifp)
 {
 	struct sfxge_softc *sc = ifp->if_softc;
 
-	sx_xlock(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK(sc);
 	sfxge_stop(sc);
-	sx_xunlock(&sc->softc_lock);
+	SFXGE_ADAPTER_UNLOCK(sc);
 
 	ifmedia_removeall(&sc->media);
 	ether_ifdetach(ifp);
@@ -376,7 +376,7 @@ sfxge_bar_init(struct sfxge_softc *sc)
 	}
 	esbp->esb_tag = rman_get_bustag(esbp->esb_res);
 	esbp->esb_handle = rman_get_bushandle(esbp->esb_res);
-	mtx_init(&esbp->esb_lock, "sfxge_efsys_bar", NULL, MTX_DEF);
+	SFXGE_BAR_LOCK_INIT(esbp, "sfxge_efsys_bar");
 
 	return (0);
 }
@@ -388,7 +388,7 @@ sfxge_bar_fini(struct sfxge_softc *sc)
 
 	bus_release_resource(sc->dev, SYS_RES_MEMORY, esbp->esb_rid,
 	    esbp->esb_res);
-	mtx_destroy(&esbp->esb_lock);
+	SFXGE_BAR_LOCK_DESTROY(esbp);
 }
 
 static int
@@ -401,7 +401,7 @@ sfxge_create(struct sfxge_softc *sc)
 
 	dev = sc->dev;
 
-	sx_init(&sc->softc_lock, "sfxge_softc");
+	SFXGE_ADAPTER_LOCK_INIT(sc, "sfxge_softc");
 
 	sc->max_rss_channels = 0;
 	snprintf(rss_param_name, sizeof(rss_param_name),
@@ -545,7 +545,7 @@ fail3:
 
 fail:
 	sc->dev = NULL;
-	sx_destroy(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK_DESTROY(sc);
 	return (error);
 }
 
@@ -594,7 +594,7 @@ sfxge_destroy(struct sfxge_softc *sc)
 	taskqueue_drain(taskqueue_thread, &sc->task_reset);
 
 	/* Destroy the softc lock. */
-	sx_destroy(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK_DESTROY(sc);
 }
 
 static int
@@ -696,7 +696,7 @@ sfxge_reset(void *arg, int npending)
 
 	sc = (struct sfxge_softc *)arg;
 
-	sx_xlock(&sc->softc_lock);
+	SFXGE_ADAPTER_LOCK(sc);
 
 	if (sc->init_state != SFXGE_STARTED)
 		goto done;
@@ -709,7 +709,7 @@ sfxge_reset(void *arg, int npending)
 			      rc);
 
 done:
-	sx_xunlock(&sc->softc_lock);
+	SFXGE_ADAPTER_UNLOCK(sc);
 }
 
 void
