@@ -69,7 +69,6 @@ FILES=	DAEMON \
 	${_ipxrouted} \
 	iscsictl \
 	iscsid \
-	jail \
 	${_kadmind} \
 	${_kdc} \
 	keyserv \
@@ -181,6 +180,10 @@ FILES+=		bsnmpd
 
 .if ${MK_IPX} != "no"
 _ipxrouted=	ipxrouted
+.endif
+
+.if ${MK_JAIL} != "no"
+FILES+=		jail
 .endif
 
 .if ${MK_KERBEROS} != "no"
