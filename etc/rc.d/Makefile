@@ -80,7 +80,6 @@ FILES=	DAEMON \
 	local \
 	localpkg \
 	lockd \
-	lpd \
 	mixer \
 	motd \
 	mountcritlocal \
@@ -191,6 +190,10 @@ _kadmind=	kadmind
 _kdc=		kdc
 _kfd=		kfd
 _kpasswdd=	kpasswdd
+.endif
+
+.if ${MK_LPR} != "no"
+FILES+=		lpd
 .endif
 
 .if ${MK_NS_CACHING} != "no"
