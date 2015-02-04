@@ -131,7 +131,6 @@ __DEFAULT_YES_OPTIONS = \
     NDIS \
     NETCAT \
     NETGRAPH \
-    NETGRAPH_SUPPORT \
     NFS_SERVER \
     NLS_CATALOGS \
     NS_CACHING \
@@ -307,11 +306,6 @@ MK_DMAGENT:=	no
 .if ${MK_NETGRAPH} == "no"
 MK_ATM:=	no
 MK_BLUETOOTH:=	no
-MK_NETGRAPH_SUPPORT:=	no
-.endif
-
-.if ${MK_NETGRAPH_SUPPORT} == "no"
-MK_RADIUS_SUPPORT:=	no
 .endif
 
 .if ${MK_OPENSSL} == "no"
@@ -383,7 +377,8 @@ MK_${var}_SUPPORT:= yes
 #
 .for vv in \
     GSSAPI/KERBEROS \
-    MAN_UTILS/MAN
+    MAN_UTILS/MAN \
+    RADIUS_SUPPORT/NETGRAPH_SUPPORT
 .if defined(WITH_${vv:H})
 MK_${vv:H}:=	yes
 .elif defined(WITHOUT_${vv:H})
