@@ -67,19 +67,9 @@ __FBSDID("$FreeBSD$");
 #define dprintf(fmt, args...)
 #endif
 
-/* 
- * Arasan HC seems to have problem with Data CRC on lower frequencies.
- * Use this tunable to cap initialization sequence frequency at higher
- * value.  Default is standard 400kHz.
- * HS mode brings too many problems for most of cards, so disable HS mode
- * until a better fix comes up.
- * HS mode still can be enabled with the tunable.
- */
-static int bcm2835_sdhci_min_freq = 400000;
 static int bcm2835_sdhci_hs = 1;
 static int bcm2835_sdhci_pio_mode = 0;
 
-TUNABLE_INT("hw.bcm2835.sdhci.min_freq", &bcm2835_sdhci_min_freq);
 TUNABLE_INT("hw.bcm2835.sdhci.hs", &bcm2835_sdhci_hs);
 TUNABLE_INT("hw.bcm2835.sdhci.pio_mode", &bcm2835_sdhci_pio_mode);
 
@@ -404,13 +394,6 @@ bcm_sdhci_write_multi_4(device_t dev, struct sdhci_slot *slot, bus_size_t off,
 	bus_space_write_multi_4(sc->sc_bst, sc->sc_bsh, off, data, count);
 }
 
-static uint32_t
-bcm_sdhci_min_freq(device_t dev, struct sdhci_slot *slot)
-{
-
-	return bcm2835_sdhci_min_freq;
-}
-
 static void
 bcm_sdhci_start_dma_seg(struct bcm_sdhci_softc *sc)
 {
@@ -663,7 +646,6 @@ static device_method_t bcm_sdhci_methods[] = {
 	DEVMETHOD(mmcbr_acquire_host,	sdhci_generic_acquire_host),
 	DEVMETHOD(mmcbr_release_host,	sdhci_generic_release_host),
 
-	DEVMETHOD(sdhci_min_freq,	bcm_sdhci_min_freq),
 	/* Platform transfer methods */
 	DEVMETHOD(sdhci_platform_will_handle,		bcm_sdhci_will_handle_transfer),
 	DEVMETHOD(sdhci_platform_start_transfer,	bcm_sdhci_start_transfer),
