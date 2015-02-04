@@ -44,7 +44,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 	dev/hwpmc \
 	dev/ic dev/iicbus dev/io dev/lmc dev/mfi dev/nvme \
 	dev/ofw dev/pbio dev/pci ${_dev_powermac_nvram} dev/ppbus dev/smbus \
-	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
+	dev/speaker dev/utopia dev/vkbd dev/wi \
 	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
 	fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
@@ -58,12 +58,12 @@ LSUBDIRS=	cam/ata cam/scsi \
 
 LSUBSUBDIRS=	dev/mpt/mpilib
 
-.if ${MK_CUSE} != "no"
-LSUBDIRS+=	fs/cuse
+.if ${MK_BLUETOOTH} != "no"
+LSUBSUBDIRS+=	netgraph/bluetooth/include
 .endif
 
-.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
-_dev_powermac_nvram=	dev/powermac_nvram
+.if ${MK_CUSE} != "no"
+LSUBDIRS+=	fs/cuse
 .endif
 
 .if ${MK_GSSAPI} != "no"
@@ -75,15 +75,18 @@ INCS+=		gssapi.h
 INCS+=	hesiod.h
 .endif
 
-.if ${MK_BLUETOOTH} != "no"
-LSUBSUBDIRS+=	netgraph/bluetooth/include
-.endif
-
 # Handle the #define aliases for libiconv
 .if ${MK_ICONV} == "yes"
 INCS+=		iconv.h
 .endif
-	
+
+.if ${MK_USB} != "no"
+LSUBDIRS+=	dev/usb
+.endif
+
+.if ${MACHINE_ARCH} == "powerpc" || ${MACHINE_ARCH} == "powerpc64"
+_dev_powermac_nvram=	dev/powermac_nvram
+.endif
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is

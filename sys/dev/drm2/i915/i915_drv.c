@@ -208,6 +208,7 @@ static const struct intel_device_info intel_haswell_d_info = {
 	.has_blt_ring = 1,
 	.has_llc = 1,
 	.has_pch_split = 1,
+	.not_supported = 1,
 };
 
 static const struct intel_device_info intel_haswell_m_info = {
@@ -217,6 +218,7 @@ static const struct intel_device_info intel_haswell_m_info = {
 	.has_blt_ring = 1,
 	.has_llc = 1,
 	.has_pch_split = 1,
+	.not_supported = 1,
 };
 
 #define INTEL_VGA_DEVICE(id, info_) {		\
@@ -281,6 +283,8 @@ static const struct intel_gfx_device_id {
 	INTEL_VGA_DEVICE(0x0c16, &intel_haswell_d_info), /* SDV */
 	{0, 0}
 };
+
+static int i915_enable_unsupported;
 
 static int i915_drm_freeze(struct drm_device *dev)
 {
@@ -413,8 +417,16 @@ i915_resume(device_t kdev)
 static int
 i915_probe(device_t kdev)
 {
+	const struct intel_device_info *info;
+	int error;
 
-	return drm_probe(kdev, i915_pciidlist);
+	error = drm_probe(kdev, i915_pciidlist);
+	if (error != 0)
+		return (error);
+	info = i915_get_device_id(pci_get_device(kdev));
+	if (info == NULL)
+		return (ENXIO);
+	return (0);
 }
 
 int i915_modeset;
@@ -458,6 +470,8 @@ i915_get_device_id(int device)
 	for (did = &pciidlist[0]; did->device != 0; did++) {
 		if (did->device != device)
 			continue;
+		if (did->info->not_supported && !i915_enable_unsupported)
+			return (NULL);
 		return (did->info);
 	}
 	return (NULL);
@@ -527,6 +541,7 @@ int i915_enable_ppgtt = -1;
 TUNABLE_INT("drm.i915.enable_ppgtt", &i915_enable_ppgtt);
 int i915_enable_hangcheck = 1;
 TUNABLE_INT("drm.i915.enable_hangcheck", &i915_enable_hangcheck);
+TUNABLE_INT("drm.i915.enable_unsupported", &i915_enable_unsupported);
 
 #define	PCI_VENDOR_INTEL		0x8086
 #define INTEL_PCH_DEVICE_ID_MASK	0xff00

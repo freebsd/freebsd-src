@@ -908,3 +908,42 @@ sysctl_kern_eventtimer_periodic(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_eventtimer, OID_AUTO, periodic,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     0, 0, sysctl_kern_eventtimer_periodic, "I", "Enable event timer periodic mode");
+
+#include "opt_ddb.h"
+
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(clocksource, db_show_clocksource)
+{
+	struct pcpu_state *st;
+	int c;
+
+	CPU_FOREACH(c) {
+		st = DPCPU_ID_PTR(c, timerstate);
+		db_printf(
+		    "CPU %2d: action %d handle %d  ipi %d idle %d\n"
+		    "        now %#jx nevent %#jx (%jd)\n"
+		    "        ntick %#jx (%jd) nhard %#jx (%jd)\n"
+		    "        nstat %#jx (%jd) nprof %#jx (%jd)\n"
+		    "        ncall %#jx (%jd) ncallopt %#jx (%jd)\n",
+		    c, st->action, st->handle, st->ipi, st->idle,
+		    (uintmax_t)st->now,
+		    (uintmax_t)st->nextevent,
+		    (uintmax_t)(st->nextevent - st->now) / tick_sbt,
+		    (uintmax_t)st->nexttick,
+		    (uintmax_t)(st->nexttick - st->now) / tick_sbt,
+		    (uintmax_t)st->nexthard,
+		    (uintmax_t)(st->nexthard - st->now) / tick_sbt,
+		    (uintmax_t)st->nextstat,
+		    (uintmax_t)(st->nextstat - st->now) / tick_sbt,
+		    (uintmax_t)st->nextprof,
+		    (uintmax_t)(st->nextprof - st->now) / tick_sbt,
+		    (uintmax_t)st->nextcall,
+		    (uintmax_t)(st->nextcall - st->now) / tick_sbt,
+		    (uintmax_t)st->nextcallopt,
+		    (uintmax_t)(st->nextcallopt - st->now) / tick_sbt);
+	}
+}
+
+#endif
