@@ -26,6 +26,7 @@ OLD_FILES+=usr/share/man/man8/iasl.8.gz
 
 .if ${MK_AMD} == no
 OLD_FILES+=etc/amd.map
+OLD_FILES+=etc/rc.d/amd
 OLD_FILES+=usr/bin/pawd
 OLD_FILES+=usr/sbin/amd
 OLD_FILES+=usr/sbin/amq
@@ -48,6 +49,8 @@ OLD_FILES+=usr/share/man/man8/wire-test.8.gz
 .endif
 
 .if ${MK_APM} == no
+OLD_FILES+=etc/rc.d/apm
+OLD_FILES+=etc/rc.d/apmd
 OLD_FILES+=etc/apmd.conf
 OLD_FILES+=usr/sbin/apm
 OLD_FILES+=usr/share/examples/etc/apmd.conf
