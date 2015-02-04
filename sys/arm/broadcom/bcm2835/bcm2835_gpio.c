@@ -31,26 +31,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-
-#include <sys/kernel.h>
-#include <sys/module.h>
-#include <sys/rman.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/gpio.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/rman.h>
 #include <sys/sysctl.h>
 
 #include <machine/bus.h>
-#include <machine/cpu.h>
-#include <machine/cpufunc.h>
-#include <machine/resource.h>
-#include <machine/fdt.h>
-#include <machine/intr.h>
 
-#include <dev/fdt/fdt_common.h>
 #include <dev/gpio/gpiobusvar.h>
 #include <dev/ofw/ofw_bus.h>
-#include <dev/ofw/ofw_bus_subr.h>
 
 #include <arm/broadcom/bcm2835/bcm2835_gpio.h>
 
