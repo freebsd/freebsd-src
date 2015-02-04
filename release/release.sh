@@ -39,6 +39,8 @@
 PATH="/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin"
 export PATH
 
+VERSION=2
+
 # Prototypes that can be redefined per-chroot or per-target.
 load_chroot_env() { }
 load_target_env() { }
