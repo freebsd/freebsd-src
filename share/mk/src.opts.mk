@@ -135,6 +135,7 @@ __DEFAULT_YES_OPTIONS = \
     PORTSNAP \
     PPP \
     QUOTAS \
+    RADIUS_SUPPORT \
     RCMDS \
     RCS \
     RESCUE \
