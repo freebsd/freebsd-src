@@ -101,7 +101,8 @@ typedef enum {
 	DA_Q_NO_PREVENT		= 0x04,
 	DA_Q_4K			= 0x08,
 	DA_Q_NO_RC16		= 0x10,
-	DA_Q_NO_UNMAP		= 0x20
+	DA_Q_NO_UNMAP		= 0x20,
+	DA_Q_RETRY_BUSY		= 0x40
 } da_quirks;
 
 #define DA_Q_BIT_STRING		\
@@ -110,7 +111,9 @@ typedef enum {
 	"\002NO_6_BYTE"		\
 	"\003NO_PREVENT"	\
 	"\0044K"		\
-	"\005NO_RC16"
+	"\005NO_RC16"		\
+	"\006NO_UNMAP"		\
+	"\007RETRY_BUSY"
 
 typedef enum {
 	DA_CCB_PROBE_RC		= 0x01,
@@ -358,6 +361,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "STEC", "*", "*"},
 		/*quirks*/ DA_Q_NO_UNMAP
+	},
+	{
+		/*
+		 * VMware returns BUSY status when storage has transient
+		 * connectivity problems, so better wait.
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, "VMware", "Virtual disk", "*"},
+		/*quirks*/ DA_Q_RETRY_BUSY
 	},
 	/* USB mass storage devices supported by umass(4) */
 	{
@@ -3630,6 +3641,9 @@ daerror(union ccb *ccb, u_int32_t cam_flags, u_int32_t sense_flags)
 	 * don't treat UAs as errors.
 	 */
 	sense_flags |= SF_RETRY_UA;
+
+	if (softc->quirks & DA_Q_RETRY_BUSY)
+		sense_flags |= SF_RETRY_BUSY;
 	return(cam_periph_error(ccb, cam_flags, sense_flags,
 				&softc->saved_ccb));
 }

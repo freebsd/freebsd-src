@@ -63,7 +63,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libkvm \
 	${_libldns} \
 	liblzma \
-	libmagic \
+	${_libmagic} \
 	libmandoc \
 	libmemstat \
 	libmd \
@@ -82,7 +82,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libpmc} \
 	${_libproc} \
 	libprocstat \
-	libradius \
+	${_libradius} \
 	librpcsvc \
 	librt \
 	${_librtld_db} \
@@ -142,7 +142,7 @@ SUBDIR_DEPEND_liblibrpcsec_gss= libgssapi
 SUBDIR_DEPEND_libmagic= libz
 SUBDIR_DEPEND_libmemstat= libkvm
 SUBDIR_DEPEND_libopie= libmd
-SUBDIR_DEPEND_libpam= libcrypt libopie libradius librpcsvc libtacplus libutil ${_libypclnt} ${_libcom_err} 
+SUBDIR_DEPEND_libpam= libcrypt libopie ${_libradius} librpcsvc libtacplus libutil ${_libypclnt} ${_libcom_err} 
 SUBDIR_DEPEND_libpjdlog= libutil
 SUBDIR_DEPEND_libprocstat= libkvm libutil
 SUBDIR_DEPEND_libradius= libmd
@@ -193,6 +193,10 @@ _cuse=		libcuse
 
 .if ${MK_ELFTOOLCHAIN_TOOLS} != "no"
 _libelftc=	libelftc
+.endif
+
+.if ${MK_FILE} != "no"
+_libmagic=	libmagic
 .endif
 
 .if ${MK_GPIO} != "no"
@@ -284,6 +288,10 @@ _libmp=		libmp
 
 .if ${MK_PMC} != "no"
 _libpmc=	libpmc
+.endif
+
+.if ${MK_RADIUS_SUPPORT} != "no"
+_libradius=	libradius
 .endif
 
 .if ${MK_SENDMAIL} != "no"

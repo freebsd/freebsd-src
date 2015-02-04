@@ -166,6 +166,7 @@ struct drm_i915_display_funcs {
 
 struct intel_device_info {
 	u8 gen;
+	u8 not_supported:1;
 	u8 is_mobile:1;
 	u8 is_i85x:1;
 	u8 is_i915g:1;
@@ -1350,7 +1351,6 @@ extern void intel_modeset_init(struct drm_device *dev);
 extern void intel_modeset_gem_init(struct drm_device *dev);
 extern void intel_modeset_cleanup(struct drm_device *dev);
 extern int intel_modeset_vga_set_state(struct drm_device *dev, bool state);
-extern bool intel_fbc_enabled(struct drm_device *dev);
 extern void intel_disable_fbc(struct drm_device *dev);
 extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
 extern void ironlake_init_pch_refclk(struct drm_device *dev);
