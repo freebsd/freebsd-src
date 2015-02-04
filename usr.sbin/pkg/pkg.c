@@ -202,7 +202,11 @@ fetch_to_fd(const char *url, char *path)
 
 	retry = max_retry;
 
-	u = fetchParseURL(url);
+	if ((u = fetchParseURL(url)) == NULL) {
+		warn("fetchParseURL('%s')", url);
+		return (-1);
+	}
+
 	while (remote == NULL) {
 		if (retry == max_retry) {
 			if (strcmp(u->scheme, "file") != 0 &&
