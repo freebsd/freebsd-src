@@ -58,6 +58,21 @@ pvclock_get_last_cycles(void)
 	return (atomic_load_acq_64(&pvclock_last_cycles));
 }
 
+uint64_t
+pvclock_tsc_freq(struct pvclock_vcpu_time_info *ti)
+{
+	uint64_t freq;
+
+	freq = (1000000000ULL << 32) / ti->tsc_to_system_mul;
+
+	if (ti->tsc_shift < 0)
+		freq <<= -ti->tsc_shift;
+	else
+		freq >>= ti->tsc_shift;
+
+	return (freq);
+}
+
 /*
  * Scale a 64-bit delta by scaling and multiplying by a 32-bit fraction,
  * yielding a 64-bit result.

@@ -51,6 +51,7 @@ struct pvclock_wall_clock {
 
 void		pvclock_resume(void);
 uint64_t	pvclock_get_last_cycles(void);
+uint64_t	pvclock_tsc_freq(struct pvclock_vcpu_time_info *ti);
 uint64_t	pvclock_get_timecount(struct pvclock_vcpu_time_info *ti);
 void		pvclock_get_wallclock(struct pvclock_wall_clock *wc,
 		    struct timespec *ts);
