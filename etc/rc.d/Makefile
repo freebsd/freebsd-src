@@ -63,7 +63,6 @@ FILES=	DAEMON \
 	ipnat \
 	ipsec \
 	${_ipxrouted} \
-	jail \
 	kadmind \
 	kerberos \
 	keyserv \
@@ -160,6 +159,10 @@ FILES=	DAEMON \
 
 .if ${MK_IPX} != "no"
 _ipxrouted=	ipxrouted
+.endif
+
+.if ${MK_JAIL} != "no"
+FILES+=		jail
 .endif
 
 .if ${MK_OFED} != "no"
