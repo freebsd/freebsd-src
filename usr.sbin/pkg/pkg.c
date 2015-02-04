@@ -371,8 +371,11 @@ load_fingerprints(const char *path, int *count)
 		return (NULL);
 	STAILQ_INIT(fingerprints);
 
-	if ((d = opendir(path)) == NULL)
+	if ((d = opendir(path)) == NULL) {
+		free(fingerprints);
+
 		return (NULL);
+	}
 
 	while ((ent = readdir(d))) {
 		if (strcmp(ent->d_name, ".") == 0 ||
@@ -799,8 +802,11 @@ cleanup:
 		close(fd_sig);
 		unlink(tmpsig);
 	}
-	close(fd_pkg);
-	unlink(tmppkg);
+
+	if (fd_pkg != -1) {
+		close(fd_pkg);
+		unlink(tmppkg);
+	}
 
 	return (ret);
 }
@@ -849,7 +855,7 @@ bootstrap_pkg_local(const char *pkgpath, bool force)
 
 	if (config_string(SIGNATURE_TYPE, &signature_type) != 0) {
 		warnx("Error looking up SIGNATURE_TYPE");
-		return (-1);
+		goto cleanup;
 	}
 	if (signature_type != NULL &&
 	    strcasecmp(signature_type, "FINGERPRINTS") == 0) {
