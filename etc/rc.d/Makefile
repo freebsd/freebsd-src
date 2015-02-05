@@ -19,7 +19,6 @@ FILES=	DAEMON \
 	auditdistd \
 	bgfsck \
 	${_bluetooth} \
-	bootparams \
 	bridge \
 	${_bthidd} \
 	${_casperd} \
@@ -35,7 +34,6 @@ FILES=	DAEMON \
 	dmesg \
 	dumpon \
 	fsck \
-	ftpd \
 	gbde \
 	geli \
 	geli2 \
@@ -46,7 +44,6 @@ FILES=	DAEMON \
 	hostid \
 	hostid_save \
 	hostname \
-	inetd \
 	ip6addrctl \
 	ipfilter \
 	ipfs \
@@ -72,7 +69,6 @@ FILES=	DAEMON \
 	mdconfig \
 	mdconfig2 \
 	mountd \
-	moused \
 	mroute6d \
 	msgs \
 	natd \
@@ -87,14 +83,11 @@ FILES=	DAEMON \
 	nisdomain \
 	${_nscd} \
 	nsswitch \
-	ntpd \
 	ntpdate \
 	${_opensm} \
-	othermta \
 	pf \
 	pflog \
 	pfsync \
-	powerd \
 	ppp \
 	pppoed \
 	pwcheck \
@@ -124,17 +117,14 @@ FILES=	DAEMON \
 	stf \
 	swap \
 	swaplate \
-	syscons \
 	sysctl \
 	syslogd \
-	timed \
 	tmp \
 	${_ubthidhci} \
 	ugidfw \
 	${_unbound} \
 	${_utx} \
 	var \
-	virecover \
 	watchdogd \
 	ypbind \
 	yppasswdd \
@@ -151,6 +141,10 @@ FILES+=		accounting
 
 .if ${MK_ACPI} != "no"
 FILES+=		power_profile
+.endif
+
+.if ${MK_ACPI} != "no" || ${MK_APM} != "no"
+FILES+=		powerd
 .endif
 
 .if ${MK_AMD} != "no"
@@ -175,6 +169,10 @@ _hcsecd=	hcsecd
 _ubthidhci=	ubthidhci
 .endif
 
+.if ${MK_BOOTPARAMD} != "no"
+FILES+=		bootparams
+.endif
+
 .if ${MK_BSNMP} != "no"
 FILES+=		bsnmpd
 .endif
@@ -187,8 +185,16 @@ _casperd=	casperd
 FILES+=		ccd
 .endif
 
+.if ${MK_FTP} != "no"
+FILES+=		ftpd
+.endif
+
 .if ${MK_HAST} != "no"
 FILES+=		hastd
+.endif
+
+.if ${MK_INETD} != "no"
+_inetd=		inetd
 .endif
 
 .if ${MK_ISCSI} != "no"
@@ -200,12 +206,13 @@ FILES+=		iscsid
 FILES+=	jail
 .endif
 
-.if ${MK_LPR} != "no"
-FILES+=		lpd
+.if ${MK_LEGACY_CONSOLE} != "no"
+FILES+=		moused
+FILES+=		syscons
 .endif
 
-.if ${MK_NS_CACHING} != "no"
-_nscd=		nscd
+.if ${MK_LPR} != "no"
+FILES+=		lpd
 .endif
 
 .if ${MK_KERBEROS} != "no"
@@ -215,6 +222,18 @@ _kadmind=	kadmind
 _kdc=		kdc
 _kfd=		kfd
 _kpasswdd=	kpasswdd
+.endif
+
+.if ${MK_MAIL} != "no"
+FILES+=		othermta
+.endif
+
+.if ${MK_NS_CACHING} != "no"
+_nscd=		nscd
+.endif
+
+.if ${MK_NTP} != "no"
+FILES+=		ntpd
 .endif
 
 .if ${MK_OFED} != "no"
@@ -237,12 +256,28 @@ FILES+=		ftp-proxy
 FILES+=		rwho
 .endif
 
+.if ${MK_ROUTED} != "no"
+FILES+=		routed
+.endif
+
+.if ${MK_SENDMAIL} != "no"
+FILES+=		sendmail
+.endif
+
+.if ${MK_TIMED} != "no"
+FILES+=		timed
+.endif
+
 .if ${MK_UNBOUND} != "no"
 _unbound=	local_unbound
 .endif
 
 .if ${MK_UTMPX} != "no"
 _utx=		utx
+.endif
+
+.if ${MK_VI} != "no"
+FILES+=		virecover
 .endif
 
 .if ${MK_WIRELESS} != "no"
