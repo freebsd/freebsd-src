@@ -109,7 +109,6 @@ FILES=	DAEMON \
 	pfsync \
 	postrandom \
 	powerd \
-	power_profile \
 	ppp \
 	pppoed \
 	pwcheck \
@@ -160,6 +159,10 @@ FILES=	DAEMON \
 	ypxfrd \
 	zfs \
 	zvol
+
+.if ${MK_ACPI} != "no"
+FILES+=		power_profile
+.endif
 
 .if ${MK_AMD} != "no"
 FILES+=		amd
