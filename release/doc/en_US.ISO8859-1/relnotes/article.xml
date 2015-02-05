@@ -7,6 +7,8 @@
  %sponsor;
 <!ENTITY % vendor PUBLIC "-//FreeBSD//ENTITIES Vendor Specification//EN" "vendor.ent">
  %vendor;
+<!ENTITY security SYSTEM "../../share/xml/security.xml">
+<!ENTITY errata SYSTEM "../../share/xml/errata.xml">
 ]>
 <article xmlns="http://docbook.org/ns/docbook"
   xmlns:xlink="http://www.w3.org/1999/xlink" version="5.0">
@@ -138,15 +140,13 @@
     <sect2 xml:id="security">
       <title>Security Advisories</title>
 
-      <para>No advisories.</para>
-
+      &security;
     </sect2>
 
     <sect2 xml:id="errata">
       <title>Errata Notices</title>
 
-      <para>No errata notices.</para>
-
+      &errata;
     </sect2>
   </sect1>
 
